@@ -1,0 +1,1471 @@
+\input texinfo   @c -*-texinfo-*-
+@c %**start of header
+@setfilename libgdb.info
+@settitle Libgdb
+@setchapternewpage odd
+@c %**end of header
+
+@ifinfo
+This file documents libgdb, the GNU library for symbolic debuggers.
+
+Copyright 1993 Cygnus Support
+
+Permission is granted to ...
+@end ifinfo
+
+@c  This title page illustrates only one of the
+@c  two methods of forming a title page.
+
+@titlepage
+@title Libgdb
+@subtitle Version 0.1
+@subtitle 27 Sep 1993
+@author Thomas Lord
+
+@c  The following two commands
+@c  start the copyright page.
+@page
+@vskip 0pt plus 1filll
+Copyright @copyright{} 1993 COPYRIGHT-OWNER
+
+Published by ...
+
+Permission is granted to ...
+@end titlepage
+
+@node Top, Overview, (dir), (dir)
+
+@ifinfo
+
+Libgdb is a library which provides the core functionality of a symbolic
+debugger.  It is derived from GNU GDB and depends on the BFD library.
+
+This is an early draft of this document.  Subsequent versions will likely
+contain revisions, deletions and additions.
+
+This document applies to version 0.0.
+
+Text marked `[[[' indicates areas which require expansion.
+
+Many nodes describe library entry points by giving a prototype and brief
+description:
+
+@deftypefun {const char **} gdb_warranty ()
+(warranty_info)
+Return a pointer to the text of the GDB disclaimer.
+@end deftypefun
+
+The parenthesized symbols (e.g. `(warranty_info)') refer to the
+existing GDB source and generally indicate where to find code with
+which to implement the library function.
+@end ifinfo
+
+@menu
+* Copying::          Your rights and freedoms.
+* Overview::	     The basics of libgdb and this document.
+* Conventions::	     Programming conventions for users of libgdb.
+* Targets::	     Selecting debugging targets and symbol tables.
+* Symtabs::	     Accessing symbol tables and debugging information.
+* Source::	     Relating inferiors to source files.
+* Running::	     Creating, continuing, and stepping through an
+		       inferior process.
+* Stopping::         Using breakpoints, signaling an inferior.
+* Stack::	     Accessing an inferior's execution stack.
+* Expressions::      How to parse and evaluate expressions in the
+ 		       context of an inferior.
+* Values::	     Data from the inferior, the values of expressions.
+* Examining::	     Formatting values as strings.
+* Types::	     Examining the types of an inferiors data.
+@end menu
+
+
+@node    Copying, Overview, top,      top
+@comment node-name,     next,           previous, up
+@chapter Copying
+@cindex copying
+
+blah blah
+
+@node    Overview, Conventions, Copying,      top
+@comment node-name,     next,           previous, up
+@chapter Overview
+@cindex overview
+@cindex definitions
+
+
+Libgdb is a library which provides the core functionality of a symbolic
+debugger.  It is derived from GNU GDB and depends on the BFD library.
+
+target
+inferior
+
+
+
+@node    Conventions, Targets, Overview,      top
+@comment node-name,     next,           previous, up
+@chapter Programming Conventions for Libgdb Clients
+@cindex Conventions
+
+@heading Naming Conventions
+
+Names intentionally exported from libgdb all begin @code{gdb_}
+as in @code{gdb_use_file}.
+
+
+@heading Error Returns
+
+Libgdb functions that might not succeed generally have a return
+type of @code{gdb_error_t}.
+
+@deftypefun {const char *} gdb_error_msg (gdb_error_t @var{error})
+returns a reasonable error message for @var{error}.
+@end deftypefun
+
+
+@heading Blocking I/O
+
+[[[....]]]
+
+
+@heading Global Parameters
+@subheading the current directory 
+@deftypefun gdb_error_t gdb_cd (char * @var{dir})
+Specify gdb's default directory as well as the working
+directory for the inferior (when first started).@*
+(cd_command)
+@end deftypefun
+
+@deftypefun {char *} gdb_copy_pwd ()
+Make a copy of the name of gdb's default directory.@*
+(pwd_command)
+@end deftypefun
+
+
+@subheading controlling the input/output radix
+@deftypefun gdb_error_t gdb_set_base (int)
+Change the default output radix to 10 or 16, or set it to 0
+(heuristic).  This command is mostly obsolete now that the print
+command allows formats to apply to aggregates, but is still handy
+occasionally.@*
+(set_base_command)
+@end deftypefun
+
+@deftypefun gdb_error_t gdb_set_input_radix (int)
+@deftypefunx gdb_error_t gdb_set_output_radix (int)
+@deftypefunx gdb_error_t gdb_set_radix (int)
+Valid output radixes are only 0 (heuristic), 10, and 16.@*
+(set_radix)
+@end deftypefun
+
+
+@subheading manipulating environments
+@deftp Type {struct environ}
+@example
+struct environ
+@{ 
+  int allocated;
+  char ** vector;
+@}
+@end example
+A `struct environ' holds a description of environment
+variable bindings.
+@end deftp
+
+@deftypefun {struct environ *} gdb_make_environ ()
+Create a new (empty) environment.@*
+(make_environ)
+@end deftypefun
+
+@deftypefun {void} gdb_free_environ (struct environ *)
+Free an environment allocated by `gdb_make_environ'.@*
+(free_environ)
+@end deftypefun
+
+@deftypefun {void} gdb_init_environ (struct environ * env)
+Copy the processes environment into ENV.@*
+(init_environ)
+@end deftypefun
+
+@deftypefun {char **} gdb_get_in_environ (const struct environ * @var{env}, const char * @var{var})
+Look up the binding of @var{var} in @var{env}.@*
+(get_in_environ)
+@end deftypefun
+
+
+@deftypefun {void} gdb_set_in_environ (struct environ * @var{env}, const char * @var{var}, const char * @var{value})
+Lookup/bind variables within an environment.
+(set_in_environ)
+@end deftypefun
+
+
+@subheading legal notices
+@deftypefun {char **} gdb_copying ()
+@deftypefunx {char **} gdb_warranty ()
+These return pointers to NULL terminated arrays of strings.
+They contain text which describes the conditions under which
+libgdb is distributed (`gdb_copying') and which explains to
+users that there is no warranty for libgdb (`gdb_warranty').@*
+(show_warranty_command, show_copying_command)
+@end deftypefun
+
+
+@subheading the inferior's terminal
+@deftypefun void gdb_inferiors_io (int @var{std_in}, int @var{std_out}, int @var{std_err})
+Assert that the given descriptors should be copied into
+descriptors 0, 1, and 2 of the inferior when it
+is next run.
+@end deftypefun
+
+
+@heading callbacks
+
+One idiom used in several places deserves mention.
+At times, it makes sense for libgdb functions to 
+invoke functions provided by the libgdb client.
+Where this is the case, callback structures are used
+to refer to client functions.  For example, here
+are the declarations for a callback to which libgdb 
+will pass an integer and a character pointer.
+
+@example
+struct a_gdb_cback;
+typedef void (*a_gdb_cback_fn) (struct a_gdb_cback *,
+                                int, char *);
+@end example
+
+Suppose the client wants the callback to be implemented
+by @code{foo} which we will assume takes not only the integer
+and character pointer, but also a floating point number.
+The client could use these declarations:
+
+@example
+struct my_cback
+@{
+  struct a_gdb_cback gdb_cback;  /* must be first */
+  float magic_number;
+@};
+
+void
+foo_helper (struct a_gdb_cback * callback, int i, char * cp)
+@{
+  foo ( ((struct my_cback *)callback)->magic_number, i, c);
+@}
+
+struct my_cback
+@{
+   foo_helper,
+   1079252848.8
+@} the_cback;
+@end example
+
+
+@subheading stream callbacks
+
+A common kind of callback takes just a character pointer,
+presumed to point to part or all of an informational
+message.
+
+@example
+struct gdb_stream_cback;
+typedef void (*gdb_stream_cback_fn) (struct gdb_stream_cback *,
+				     char *);
+@end example
+
+
+@subheading integer callbacks
+
+Another common kind of callback takes just an integer.
+
+@example
+struct gdb_int_cback;
+typedef void (*gdb_int_cback_fn) (struct gdb_int_cback *, int);
+@end example
+
+@node    Targets, Symtabs, Conventions,      top
+@comment node-name,     next,           previous, up
+@chapter Selecting Targets and Symbol Tables for Debugging
+@cindex targets
+
+@deftypefun gdb_error_t gdb_use_file (char * @var{filename})
+Arrange to read both executable code and symbol table information
+from FILENAME.
+
+This is exactly equivalent to a sequence of two calls:
+@example
+  gdb_use_exec_file (filename);
+  gdb_use_symbol_file (filename);
+@end example
+(file_command)
+@end deftypefun
+
+
+@deftypefun gdb_error_t gdb_use_exec_file (char * @var{filename})
+Read the code to debug from `filename'.@*
+(exec_file_command)
+@end deftypefun
+
+
+@deftypefun {char *} gdb_get_exec_file ()
+Return the name of the executable file as a string or 0
+if there is none.
+@end deftypefun
+
+
+@deftypefun gdb_error_t gdb_use_core (char * @var{filename})
+Specify the whereabouts of a core dump file to be used as the
+"contents of memory".  Traditionally, core files contain only some
+parts of the address space of the process that generated them; GDB
+can access the executable file itself for other parts.
+
+If @var{filename} is @code{NULL}, no core file is used.@*
+(core_file_command)
+@end deftypefun
+
+
+@deftypefun gdb_error_t gdb_use_symbol_file (char * @var{filename})
+Arrange to read symbol table information from `filename'.
+
+This is the same as:
+
+  gdb_symbol_file_add (filename, 1, (CORE_ADDR)0, 1, 0, 0);
+
+See @code{gdb_symbol_file_add} for finer control over the symbol 
+table.@*
+(symbol_file_command)
+@end deftypefun
+
+
+@deftypefun gdb_error_t gdb_symbol_file_add (@var{name}, @var{verbose}, @var{text_addr}, @var{replace}, @var{eager})
+Arrange to read additional symbol table information from
+the file `name'.
+
+The arguments are:
+@itemize @minus
+@item struct gdb_stream_cback * @var{info_out}
+
+Callback to handle informational output.
+
+@item char * @var{name}
+
+If not 0, verbose output will occur.
+
+@item int @var{be_verbose}
+
+Regulates the amount of informational output produced.
+
+@item CORE_ADDR @var{text_addr}
+
+is the address at which the named file is presumed to have 
+been loaded.
+
+@item int @var{replace}@*
+
+If not 0, this will become the only file 
+in the symbol table -- all previously loaded
+symbol table information will be discarded.
+
+@item int @var{readnow}
+
+If not 0, eagerly read symbols from this file,otherwise
+symbols will only be read lazily (as needed).
+@end itemize
+@end deftypefun
+
+
+@deftypefun {char *} gdb_copy_exec_path ()
+Make a copy of the execution path.@*
+[[[implement: strsave(get_in_environ (inferior_environ, "PATH"));]]]@*
+(path_info)
+@end deftypefun
+
+
+@deftypefun void gdb_mod_exec_path (char * @var{dirnames})
+Add zero or more directories to the front of the execution path.
+@var{dirnames} should be a colon separated list of directory names.@*
+(path_command)
+@end deftypefun
+
+
+@deftypefun gdb_error_t gdb_target_device (char * @var{name})
+Connects the libgdb host environment to a target machine 
+or process.@*
+(target foo)
+@end deftypefun
+
+
+@deftypefun gdb_error_t gdb_set_baud (int @var{rate})
+If using a remote target connected by a serial port, 
+use RATE as the communication speed.
+@end deftypefun
+
+
+@deftypefun gdb_error_t gdb_set_target_debugging (int @var{level})
+Choose the level of verboseness of with which a remote
+target produces debugging output.
+@end deftypefun
+
+@node    Symtabs, Source, Targets,      top
+@comment node-name,     next,           previous, up
+@chapter Accessing symbol tables and debugging information.
+@cindex Symtabs
+@cindex {Symbol Tables}
+
+@deftp Type {struct symtab}
+Each source file is represented by a struct symtab. 
+In many contexts, @code{struct symtab *} is used in preference 
+to a {char *} filename to refer to the source.
+@end deftp
+
+
+@deftypefun {char *} gdb_symtab_to_filename (struct symtab *)
+@deftypefunx {char *} gdb_symtab_to_dirname (struct symtab *)
+Return the location of the file corresponding to this symtab.
+@code{gdb_symtab_to_dirname} might return @code{NULL} if no directory 
+is known. @code{gdb_symtab_to_line_count} might return -1 if line
+number information is unavailable.
+@end deftypefun  
+
+@deftypefun int gdb_symtab_to_line_count (struct symtab *)
+(See also `Source')
+@end deftypefun
+
+
+@deftypefun {struct symtab *} gdb_filename_to_symtab (char * @var{filename})
+Lookup the symbol table of a source file named NAME.@*
+(lookup_symtab)
+@end deftypefun
+
+
+@deftp Type {struct symtab_and_line}
+@example
+struct symtab_and_line
+@{
+  struct symtab *symtab;
+  int line;
+  CORE_ADDR pc;
+  CORE_ADDR end;
+@}
+@end example
+
+@code{struct symtab_and_line} is used to refer to a particular line 
+of source code.  It is used to locate breakpoints in the source
+code and the executable.
+
+@code{line} starts at 1 and proceeds through symtab->nlines. 
+0 is never a valid line number; it is used to indicate 
+that line number information is not available.
+@end deftp
+
+
+@deftypefun {struct symtab_and_line} gdb_find_pc_line (CORE_ADDR @var{pc}, int @var{notcurrent})
+Find the source file and line number for a given @var{pc} value.
+Return a structure containing a symtab pointer, a line number,
+and a pc range for the entire source line.
+The value's @code{.pc} field is NOT the specified @var{pc}.
+@var{notcurrent} nonzero means, if specified pc is on a line boundary,
+use the line that ends there.  Otherwise, in that case, the line
+that begins there is used.@*
+(find_pc_line)
+@end deftypefun
+
+
+@deftypefun gdb_error_t gdb_find_line (struct symtab_and_line * @var{out}, struct symtab *, int)
+Create a symtab_and_line for a given symtab and line number.
+In other words, if you know the source file and line, 
+this returns a location for the breakpoint.@*
+(resolve_sal_pc)
+@end deftypefun
+
+
+@deftypefun {struct symtabs_and_lines} gdb_decode_line (@var{argptr}, @var{firstln}, @var{default_symtab}, @var{default_line}, @var{canonical})
+@example
+  char ** argptr;
+  int funfirstline;
+  struct symtab * default_symtab;
+  int default_line;
+  char *** canonical;
+@end example
+  Parse a string that specifies a line number in GDB syntax.
+  @var{argptr} will be advanced over the characters actually parsed.
+
+   The string can be:
+
+   LINENUM -- that line number in current file.  PC returned is 0.
+   FILE:LINENUM -- that line in that file.  PC returned is 0.
+   FUNCTION -- line number of openbrace of that function.
+      PC returned is the start of the function.
+   VARIABLE -- line number of definition of that variable.
+      PC returned is 0.
+   FILE:FUNCTION -- likewise, but prefer functions in that file.
+   *EXPR -- line in which address EXPR appears.
+
+   FUNCTION may be an undebuggable function found in minimal symbol
+   table.
+
+   If the argument FUNFIRSTLINE is nonzero, we want the first line
+   of real code inside a function when a function is specified.
+
+   DEFAULT_SYMTAB specifies the file to use if none is specified.
+   It defaults to current_source_symtab.
+
+   DEFAULT_LINE specifies the line number to use for relative line
+   numbers (that start with signs).  Defaults to current_source_line.
+   If CANONICAL is non-NULL, store an array of strings containing the
+   canonical line specs there if necessary. Currently overloaded
+   member functions and line numbers or static functions without a
+   filename yield a canonical line spec. The array and the line spec
+   strings are allocated on the heap, it is the callers responsibility
+   to free them.
+
+   Note that it is possible to return zero for the symtab
+   if no file is validly specified.  Callers must check that.
+   Also, the line number returned may be invalid.
+
+   The return value of this function includes allocated memory
+   which the caller is responsible for freeing:
+
+	  struct symtabs_and_lines sals;
+	  sals = decode_line_spec (arg, 1);
+	  ....
+	  free (sals.sals);@*
+(decode_line_1)
+@end deftypefun
+
+
+@deftp Type {struct block *}
+Lexical environments in the program are represented by struct block.
+These are useful as arguements to expression parsing functions (see
+`Expressions').
+@end deftp
+
+
+@deftypefun {struct block *} gdb_block_for_pc (CORE_ADDR)
+Return the innermost lexical block containing the 
+specified pc value, or 0 if there is none.@*
+(block_for_pc)
+@end deftypefun
+
+
+@deftypefun {struct block *} gdb_get_frame_block (FRAME @var{frame})
+This returns the block being executed by a given 
+stack frame (see `Stack')@*
+(get_frame_block)
+@end deftypefun
+
+
+@deftypefun int gdb_find_line_pc_range (@var{syms}, @var{line}, @var{start_out}, @var{end_out})
+@example
+struct symtab * @var{start_out};
+int @var{line};
+CORE_ADDR * @var{start_out};
+CORE_ADDR * @var{end_out};
+@end example
+Find the range of pc values in a line.@*
+Store the starting pc of the line into @code{*@var{startptr}}.
+and the ending pc (start of next line) into @code{*@var{endptr}}.
+
+Returns 1 to indicate success.@*
+Returns 0 if could not find the specified line.@*
+(find_line_pc_range)
+@end deftypefun
+
+
+@deftypefun int gdb_find_pc_partial_function (@var{pc}, @var{name}, @var{address}, @var{endaddr})
+@example
+CORE_ADDR @var{pc};
+char **@var{name};
+CORE_ADDR *@var{address};
+CORE_ADDR *@var{endaddr};
+@end example
+Finds the "function" (text symbol) that is smaller than @var{pc} but
+greatest of all of the potential text symbols.  Sets @code{*@var{name}}
+and/or @code{*@var{address}} conditionally if that pointer is non-null.  If
+@var{endaddr} is non-null, then set @code{*@var{endaddr}} to be the end of
+the function (exclusive), but passing @var{endaddr} as non-null means that
+the function might cause symbols to be read.  This function either succeeds
+or fails (not halfway succeeds).  If it succeeds, it sets
+@code{*@var{name}}, @code{*@var{address}}, and @code{*@var{endaddr}} to
+real information and returns 1.  If it fails, it sets @code{*@var{name}},
+@code{*@var{address}}, and @code{*@var{endaddr}} to zero and returns 0.
+
+@example   
+      pc = get_frame_pc (selected_frame);
+      if (find_pc_partial_function (pc, &name, &low, &high) == 0)
+	error ("No function contains program counter for selected frame.\n");
+@end example
+(find_pc_partial_function)
+@end deftypefun
+
+
+@deftypefun void gdb_list_symbols (@var{info_out}, @var{regexp}, @var{class}, @var{bpt})
+@example
+struct gdb_stream_cback * @var{info_out};
+char * @var{regexp};
+int @var{class};
+int @var{bpt};
+@end example
+List all symbols (if @var{regexp} is NULL) or all symbols matching @var{regexp}.
+
+
+If @var{class} is ...
+@itemize @bullet
+@item
+0, list all symbols except functions, type names, and
+constants (enums).
+@item
+1, list only functions.
+@item
+2, list only type names.
+@item
+3, list only method names.
+@end itemize
+BPT is non-zero if set a breakpoint at the functions we find.@*
+(variables_info, functions_info, types_info, list_symbols)
+@end deftypefun
+
+
+@deftypefun int gdb_locals_info (struct gdb_stream_cback * @var{info_out}, FRAME @var{frame})
+Print all the local variables in the given frame.
+including all the blocks active in that frame
+at its current pc.
+
+Returns 1 if the job was done,
+or 0 if nothing was printed because we have no info
+on the function running in @var{frame}.@*
+(locals_info)
+@end deftypefun
+
+
+@deftypefun int print_frame_arg_vars (struct gdb_stream_cback *, FRAME)
+Similar to `gdb_locals_info'.@*
+(args_info)
+@end deftypefun
+
+@node    Source, Running, Symtabs,      top
+@comment node-name,     next,           previous, up
+@chapter Relating Inferiors to Source Files
+@cindex source
+@cindex {source files}
+
+How to find the source that corresponds to executable code and the
+executable code that corresponds to a line of source.
+
+@deftypefun {char *} gdb_copy_source_fullname (struct symtab *@var{s})
+Return a copy of the full path name to a source file.
+(See `Symtabs' for more information about filenames
+and symbol tables.).
+@end deftypefun
+
+
+@deftypefun int gdb_open_source_file (struct symtab *@var{s})
+Open a source file corresponding to @var{s}.  Returns a file descriptor
+or negative number for error.
+[[[We may decide not to provide this function.]]]@*
+(open_source_file)
+@end deftypefun
+
+
+@deftypefun int gdb_source_line_pos (struct symtab * @var{s}, int @var{lineno})
+Return the byte offset of a given line of source 
+or a negative number if @var{lineno} is out of range.@*
+(find_source_lines)
+@end deftypefun
+
+
+ -- IDIOM: The gdb command `show directories'.
+@example
+  puts_filtered ("Source directories searched: ");
+  puts_filtered (source_path);
+  puts_filtered ("\n");
+@end example
+(show_directories)
+
+
+@deftypefun {char *} gdb_source_path ()
+Return the path in which source files are sought.@*
+(source_path)
+@end deftypefun
+
+
+@deftypefun void gdb_modify_source_path (char * @var{dirnames})
+Change the source path according to dirnames.@*
+(directory_command)
+@end deftypefun
+
+
+See `Symtabs' for functions relating symbol tables to files.
+(source_info)
+
+
+See `Symtabs' for functions relating source lines to PC values.
+(line_info)
+
+
+[[[Try to expose sources_info without having to introduce struct object *?]]]
+(sources_info)
+
+
+@node    Running, Stopping, Source,      top
+@comment node-name,     next,           previous, up
+@chapter Creating, Continuing, and Stepping Through an Inferior Process
+@cindex running
+
+
+@deftypefun gdb_error_t gdb_target_create_inferior (@var{exec}, @var{args}, @var{environ})
+@example
+char * @var{exec_file};
+char * @var{inferior_args};
+char ** @var{inferior_environment_vector};
+@end example
+Create a running inferior.
+[[[I think the exec_file parameter is redundant.  Perhaps this will take
+only two arguments.]]]@*
+(run_command, target_create_inferior)
+@end deftypefun
+
+
+@deftypefun int gdb_target_has_execution ()
+Return non-0 if an inferior is running.@*
+(target_has_execution)
+@end deftypefun
+
+
+@deftypefun void gdb_target_kill ()
+Kill the inferior process.   Make it go away.
+The inferior may become a core file.
+If so, gdb_target_has_stack() will return non-0.@*
+(target_kill)
+@end deftypefun
+
+
+@deftypefun gdb_error_t gdb_step_1 (@var{skip_subs}, @var{single_inst}, @var{repeat_count})
+@example 
+int skip_subs;
+int single_inst;
+int repeat_count;
+@end example
+Continue a program a little bit.  Roughly:
+@example
+    for (; count > 0; --count)
+      gdb_clear_proceed_status ();
+      gdb_proceed (...);
+@end example
+(next_command, nexti_command, step_command, stepi_command)
+@end deftypefun
+
+
+ -- IDIOM: Continuing a program where it stopped.
+@example
+  gdb_clear_proceed_status ();
+  gdb_proceed ((CORE_ADDR) -1, -1, 0);
+@end example
+(continue_command)
+
+
+ -- IDIOM: Continuing a program giving it a specified signal.
+@example
+  gdb_clear_proceed_status ();
+  gdb_proceed ((CORE_ADDR) -1, signum, 0);
+@end example
+(signal_command)
+
+
+@deftypefun {char *} strtosigno (char * @var{str})
+(Typical use:)
+@example
+  signum = strtosigno (signum_exp);
+
+  if (signum == 0)
+    /* Not found as a name, try it as an expression.  */
+    signum = parse_and_eval_address (signum_exp);
+
+  gdb_clear_proceed_status ();
+  gdb_proceed ();
+@end example
+@end deftypefun
+
+
+ -- IDIOM: Continuing a program at a specified address.
+@example
+  gdb_clear_proceed_status ();
+  gdb_proceed (addr, 0, 0);
+@end example
+(jump_command)
+
+
+@deftypefun gdb_error_t gdb_finish ()
+"finish": Set a temporary breakpoint at the place
+the selected frame will return to, then continue.
+This is a convenience function but it summarizes a lot
+of other stuff.@*
+(finish_command)
+@end deftypefun
+
+
+@deftypefun void gdb_clear_proceed_status ()
+Clear out all variables saying what to do when inferior is continued.
+First do this, then set the ones you want, then call @code{gdb_proceed}.
+
+  [[[Some of these should be documented, others hidden.]]]
+@example
+  The variables are: 
+    trap_expected = 0;
+    step_range_start = 0;
+    step_range_end = 0;
+    step_frame_address = 0;
+    step_over_calls = -1;
+    stop_after_trap = 0;
+    stop_soon_quietly = 0;
+    proceed_to_finish = 0;
+    breakpoint_proceeded = 1;	/* We're about to proceed... */
+
+    /* Discard any remaining commands or status from previous stop.  */
+    bpstat_clear (&stop_bpstat);
+@end example
+(clear_proceed_status)
+@end deftypefun
+
+
+@deftypefun void gdb_proceed (CORE_ADDR @var{addr}, int @var{signal}, int @var{step})
+Basic routine for continuing the program in various fashions.
+
+@var{addr} is the address to resume at, or -1 for resume where stopped.@*
+@var{signal} is the signal to give it, or 0 for none,
+or -1 for act according to how it stopped.@*
+@var{step} is nonzero if should trap after one instruction.
+-1 means return after that and print nothing.@*
+You should probably set various step_... variables
+before calling here, if you are stepping.
+
+You should call @code{gdb_clear_proceed_status} before calling proceed.
+(See the documentation for @code{gdb_clear_proceed_status} for more
+parameters to @code{gdb_proceed}).@*
+(proceed)
+@end deftypefun
+
+
+@deftypefun gdb_error_t gdb_return (value @var{return_value}, FRAME @var{frame})
+Make @var{frame} return to @var{value} to it's caller.
+Unlike the other functions in this section, this doesn't
+call proceed.
+(return_command)
+@end deftypefun
+
+
+@deftypefun int gdb_inferior_pid ()
+0 or the valid pid of an inferior.
+@end deftypefun
+
+
+@deftypefun gdb_error_t gdb_attach (int @var{pid})
+takes a program started up outside of gdb and
+`attaches'' to it.  This stops it cold in its tracks and allows us
+to start debugging it.  and wait for the trace-trap that results
+from attaching.@*
+(attach_command)
+@end deftypefun
+
+
+@deftypefun gdb_error_t gdb_detach (int @var{signal_num})
+Takes a program previously attached to and detaches it.
+The program resumes execution and will no longer stop
+on signals, etc.  We better not have left any breakpoints
+in the program or it'll die when it hits one.  For this
+to work, it may be necessary for the process to have been
+previously attached.  It *might* work if the program was
+started via the normal ptrace (PTRACE_TRACEME).@*
+(detach_command)
+@end deftypefun
+
+@node    Stopping, Stack, Running,      top
+@comment node-name,     next,           previous, up
+@chapter Using Breakpoints, Signaling an Inferior
+@cindex stopping
+@cindex breakpoints
+
+
+@deftp Type {struct breakpoint}
+Breakpoints are typically represented @code{struct breakpoint *}.
+@end deftp
+
+
+@deftypefun {struct breakpoint *} gdb_find_breakpoint (int)
+Find a breakpoint given it's number (return 0 if it doesn't exist).
+@end deftypefun
+
+@deftypefun gdb_error_t gdb_set_break (struct breakpoint * @var{brk_out}, struct symtab_and_line)
+@deftypefunx gdb_error_t gdb_set_tbreak (struct breakpoint *, struct symtab_and_line)
+@deftypefunx gdb_error_t gdb_set_until (struct breakpoint *, struct symtab_and_line)
+These three are like their command language counterparts.
+They are front ends to `gdb_set_raw_breakpoint'.
+See `Symtabs' for sources of `struct symtab_and_line'.@*
+(break_command, break_command_1, until_command, tbreak_command)
+@end deftypefun
+
+
+@deftypefun gdb_error_t gdb_set_watchpt (@var{brk_out}, @var{exp_string}, @var{exp}, @var{exp_valid_block})
+@example
+struct breakpoint * @var{brk_out};
+char * @var{exp_string};
+struct expression * @var{exp};
+struct block * @var{expression_valid_block};
+@end example
+Set a watchpoint for the given expression.@*
+(watch_command)
+@end deftypefun
+
+
+@deftypefun void gdb_set_ignore_count (int @var{bptnum}, int @var{count})
+Set ignore-count of breakpoint number BPTNUM to COUNT.@*
+(set_ignore_count)
+@end deftypefun
+
+
+@deftypefun {struct gdb_bp_condition *} gdb_set_condition (@var{bp}, @var{exp_str}, @var{cond})
+@example
+int @var{pbtnum};
+char * @var{exp_str};
+struct gdb_bp_condition * @var{cond};
+
+typedef int (*gdb_bp_fn) (struct gdb_bp_condition *, int bp_num);
+struct gdb_bp_condition
+@{
+  gdb_bp_fn fn;
+@};
+@end example
+Add a condition to a breakpoint.
+The condition is a callback which should return 
+0 to skip the breakpoint, and 1 to break at it.
+It is called at times when the break might occur.
+
+A useful application of these callbacks to attach
+an expression to breakpoints like the gdb `condition' 
+command.  See `Expressions' for the parsing and 
+evaluation of expressions.@*
+(condition_command)
+@end deftypefun
+
+
+@deftypefun gdb_error_t gdb_enable_breakpoint (struct breakpoint * @var{bpt}, int @var{once})
+@deftypefunx gdb_error_t gdb_disable_breakpoint (struct breakpoint * @var{bpt})
+Enable/disable a breakpoint.  If `once' is not 0, the 
+breakpoint is only temporarily enabled.@*
+(enable_breakpoint, disable_breakpoint, enable_command)
+@end deftypefun
+
+
+@deftypefun gdb_error_t gdb_delete_breakpoint (struct breakpoint * @var{bpt})
+Delete a breakpoint and clean up all traces of it in the 
+data structures.@*
+(delete_breakpoint)
+@end deftypefun
+
+
+@deftypefun void gdb_clear_breakpoints (struct symtabs_and_lines * @var{sals})
+Clear breakpoints from a list of program locations as
+might be returned by `gdb_decode_line' (see `Symtabs').@*
+(clear_command)
+@end deftypefun
+
+
+@deftypefun {static struct symtabs_and_lines} get_catch_sals (int @var{this_level_only})
+Return the line numbers of all exception handlers currently 
+active (or `this_level_only'?? [[[?]]]).
+[[[The implementation should remember to resolve_sal_pc]]]
+@end deftypefun
+
+
+@deftp Type {struct breakpoint_cback} 
+@example
+typedef void (*breakpoint_cback_fn) (struct breakpoint_cback *, int bp_num);
+struct breakpoint_cback
+@{
+  breakpoint_cback_fn fn;
+@};
+@end example
+
+Breakpoints can have an associated function which is called
+when the program is stopped by that breakpoint.@*
+(commands_command)
+@end deftp
+
+
+@deftypefun {struct breakpoint_cback *} gdb_set_breakpoint_cback (int @var{bp_num}, struct breakpoint_cback *)
+This sets a breakpoint callback and returns the previous callback value
+for that breakpoint.
+[[[In the long run, the command interpreter should be available
+   for the use of hooks like this one.]]]
+@end deftypefun
+
+
+@deftypefun {struct breakpoint_cback *} gdb_get_breakpoint_cback (int @var{bp_num})
+@end deftypefun
+
+
+@deftypefun void gdb_breakpoints_info (struct gdb_stream_cback, int @var{bp_num}, int @var{watches})
+Print information on breakpoint number @var{bnum}, or -1 if all.
+If @var{watches} is zero, process only breakpoints; if @var{watches}
+is nonzero, process only watchpoints.
+[[[In the long run, expose the information read off by this function.]]]@*
+(info breakpoints, info watchpoints, breakpoints_info, breakpoint_1)
+@end deftypefun
+
+
+@deftypefun void gdb_catch_info (struct gdb_stream_cback *)
+Print a list of all the exception handlers that are active in the
+current stack frame at the current point of execution.@*
+(catch_info)
+@end deftypefun
+
+
+@deftypefun void gdb_handle_command (char * @var{args})
+Takes arguments like the gdb command `handle' and has
+the same effect.@*
+(handle_command)
+@end deftypefun
+
+
+@deftypefun void gdb_signals_info (struct gdb_stream_cback *)
+Show how signals are handled.@*
+(signals_info)
+@end deftypefun
+
+
+@node    Stack, Expressions, Stopping,      top
+@comment node-name,     next,           previous, up
+@chapter Accessing An Inferior's Execution Stack
+@cindex stack
+@cindex FRAME
+@cindex {stack frames}
+
+
+
+@deftp Type FRAME
+This type representing active stack frames in the inferior.  
+Consider this type opaque.
+@end deftp
+
+
+@deftypefun FRAME gdb_get_innermost_frame ()
+Returns the innermost frame or the frame most recently designated
+as current by a call to gdb_set_current_frame.@*
+(get_current_frame)
+@end deftypefun
+
+
+@deftypefun FRAME gdb_get_caller_frame (FRAME @var{frame})
+Return the frame that called @var{frame}.@*
+If @var{frame} is the original frame (it has no caller), return 0.@*
+(get_prev_frame)
+@end deftypefun
+
+
+@deftypefun FRAME gdb_get_called_frame (FRAME @var{frame})
+Return the frame that @var{frame} calls (0 if @var{frame} is the innermost
+frame).@*
+(get_next_frame)
+@end deftypefun
+
+
+@deftypefun FRAME gdb_parse_frame_specification (char * @var{frame_exp})
+Read a frame specification in whatever the appropriate format is.
+Call @code{error}() If the specification is in any way invalid (i.e.
+this function never returns NULL).@*
+(parse_frame_specification)
+@end deftypefun
+
+
+@deftypefun CORE_ADDR get_frame_pc (FRAME @var{frame})@*
+(Example use: Implementing @code{disassemble_command})@*
+(get_frame_pc)
+@end deftypefun
+
+
+@deftypefun FRAME gdb_selected_frame ()
+The "selected" stack frame is used by default for local and 
+arg access. May be @code{NULL}, for no selected frame.@*
+(variable selected_frame)
+@end deftypefun
+
+
+@deftypefun int gdb_selected_frame_level ()
+Level of the selected frame:@*
+0 for innermost,@*
+1 for its caller,@*
+or -1 for frame specified by address with no defined level.@*
+(variable selected_frame_level)
+@end deftypefun
+
+
+@deftypefun void gdb_select_frame (FRAME @var{frame}, int @var{level})
+Select frame @var{frame}, and note that its stack level is @var{level}.
+@var{level} may be -1 if an actual level number is not known.
+Calls @code{set_language} to establish the correct language for the
+selected frame.
+@end deftypefun
+
+
+ -- IDIOM: Computing Frame Levels@*
+@example
+/* Try to figure out what level this frame is as before a 
+     call to gdb_select_frame.  But if there is
+     no current stack, don't error out, just pass -1
+     instead. */
+frame1 = 0;
+level = -1;
+if (get_current_frame()) @{
+    for (frame1 = get_prev_frame (0);
+	 frame1 && frame1 != frame;
+	 frame1 = get_prev_frame (frame1))
+      level++;
+@}
+@end example
+
+
+@deftypefun void gdb_print_stack_frame (@var{cback}, @var{frame}, @var{level}, @var{source})
+@example
+struct gdb_stream_cback * @var{cback};
+FRAME @var{frame};
+int @var{level};
+int @var{source};
+@end example
+Print a stack frame briefly.  @var{frame} should be the frame id
+and @var{level} should be its level in the stack (or -1 for level not defined).
+This prints the level, the function executing, the arguments,
+and the file name and line number.@*
+If the pc is not at the beginning of the source line,
+the actual pc is printed at the beginning.@*
+If @var{source} is 1, print the source line as well.@*
+If @var{source} is -1, print ONLY the source line.@*
+(print_stack_frame)
+@end deftypefun
+
+
+@deftypefun void gdb_print_backtrace (cback, @var{count}, @var{from_tty})
+@example
+struct gdb_stream_cback * @var{cback};
+int @var{count};
+int @var{from_tty};
+@end example
+Print briefly all stack frames or just the innermost @var{count} frames.@*
+(backtrace_command)
+@end deftypefun
+
+
+@deftypefun FRAME gdb_find_relative_frame (FRAME @var{frame}, int * @var{level_offset_ptr})
+Find a frame a certain number of levels away from @var{frame}.
+@var{level_offset_ptr} points to an int containing the number of levels.
+Positive means go to earlier frames (up); negative, the reverse.
+The int that contains the number of levels is counted toward
+zero as the frames for those levels are found.
+If the top or bottom frame is reached, that frame is returned,
+but the final value of @var{*level_offset_ptr} is nonzero and indicates
+how much farther the original request asked to go.
+@end deftypefun
+
+
+@deftypefun FRAME gdb_select_frame_downward (int @var{count})
+@deftypefunx FRAME gdb_select_frame_upward (int @var{count})
+Simply a combination of find_relative_frame and select_frame.
+Returns the newly selected frame.@*
+(down_silently_command, up_silently_command)
+@end deftypefun
+
+
+@deftypefun void gdb_frame_info (struct gdb_stream_cback * @var{cback}, FRAME @var{frame})
+Print verbosely the selected the argument @var{frame}.
+This means absolutely all information in the frame is printed.@*
+(frame_info)
+@end deftypefun
+
+
+@node    Expressions, Values,  Stack,    top
+@comment node-name,     next,           previous, up
+@chapter How to Parse and Evaluate Expressions 
+@cindex parsing
+@cindex expressions
+@cindex {expression evaluation}
+@cindex evaluation
+
+
+@deftp Type {struct expression *}
+This represents a parsed expression as might be used for a 
+breakpoint condition.
+@end deftp
+
+
+@deftp Type {struct block}
+Describes a lexical environment.
+@end deftp
+
+See also `Values'
+See also `Examining'
+
+
+@deftypefun struct expression * parse_exp_1 (char ** @var{stringptr}, struct block * @var{block} int @var{comma})
+Read an expression from the string @code{*@var{stringptr}} points to,
+parse it, and return a pointer to a  struct expression  that we malloc.
+Use @var{block} as the lexical context for variable names;
+if @var{block} is zero, use the block of the selected stack frame.
+Meanwhile, advance @code{*@var{stringptr}} to point after the expression,
+at the first nonwhite character that is not part of the expression
+(possibly a null character).
+
+If @var{comma} is nonzero, stop if a comma is reached.
+(See `Stack' for information about the selected frame)
+@end deftypefun
+
+
+@deftypefun gdb_error_t gdb_evaluate_expression (value * @var{value_out}, struct expression * @var{exp})
+Evaluate an expression.  See `values' for more information about
+the return type.@*
+(evaluate_expression)
+@end deftypefun
+
+
+@deftypefun value gdb_evaluate_type (struct expression @var{*exp})
+Evaluate an expression, avoiding all memory references
+and getting a value whose type alone is correct.@*
+(evaluate_type)
+@end deftypefun
+
+
+
+@node    Values,  Examining, Expressions,     top
+@comment node-name,     next,           previous, up
+@chapter Data from the Inferior, the Values of Expressions
+@cindex values
+@cindex {expression values}
+
+Values are allocated by functions such as @code{gdb_evaluate_expression}.
+All currently allocated values are on the list @code{all_values} and can be
+freed by calling @code{gdb_free_all_values}.
+
+To preserve a value across calls to @code{gdb_free_all_values}, use
+@code{gdb_release_value}.  Values added to the history list are automaticly
+released.  To free a released value use @code{gdb_free_value}.
+
+
+@deftypefun void gdb_free_value (value)
+Free the memory associated with a released value.
+Do not call this function except on values that have been
+passed to @code{gdb_release_value}.@*
+(gdb_value_free)
+@end deftypefun
+
+
+@deftypefun void gdb_free_all_values (void)
+Free all allocated values which haven't been released.
+This should be called periodically from outside the dynamic
+scope of libgdb functions.@*
+(free_all_values)
+@end deftypefun
+
+
+@deftypefun void gdb_release_value (value @var{val})
+Remove a value from the list @code{all_values} in order to 
+protect it from @code{gdb_free_all_values}.@*
+(release_value)
+@end deftypefun
+
+
+There is a `history list' -- a numbered list of values for
+future reference.  These can be referred to in expressions,
+for example.
+
+@deftypefun int gdb_record_latest_value (value @var{val})
+Add a value to the history list.@*
+(record_latest_value)
+@end deftypefun
+
+
+@deftypefun value gdb_access_value_history (int @var{index})
+Retrieve a value from the history list.@*
+(access_value_history)
+@end deftypefun
+
+
+[[[At the moment, the only libgdb use for values is
+ string formatting (see `Examining').  So, they are treated
+ as opaque.  It'd be useful to expose more of them in the long run.]]]
+
+
+@node    Examining, Types, Values,       top
+@comment node-name,     next,           previous, up
+@chapter Formatting Values as Strings
+@cindex examining
+@cindex printing
+@cindex formatting
+@cindex {pretty printing}
+
+
+Many functions in this section use @code{struct gdb_stream_cback}.
+That structure is explained in `Basics'.
+
+
+@deftypefun void gdb_print_formatted (struct gdb_stream_cback * @var{cback}, value @var{val}, int @var{format}, int @var{size})
+Print value @var{val} on a stream according to @var{format}, a letter or 0.
+Do not end with a newline.
+0 means print @var{val} according to its own type.
+@var{size} is the letter for the size of datum being printed.
+This is used to pad hex numbers so they line up.@*
+(print_formatted)
+@end deftypefun
+
+
+@deftypefun static void gdb_printf_command (struct gdb_stream_cback * @var{cback}, char * @var{format}, value * @var{values}, int @var{n_values})@*
+(printf_command)
+@end deftypefun
+
+
+@deftypefun int gdb_value_print (struct gdb_stream_cback * @var{cback}, @var{value}, int @var{format}, enum @var{val_prettyprint})
+Print the value @var{val} in C-ish syntax on @var{stream}.
+@var{format} is a format-letter, or 0 for print in natural format of data type.
+If the object printed is a string pointer, returns
+the number of string bytes printed.
+[[[implementation: watch the change in argument order]]]@*
+(value_print)
+@end deftypefun
+
+
+ -- IDIOM: This prints the values of all convenience variables:
+@example
+for (var = internalvars; var; var = var->next)
+@{
+printf_filtered ("$%s = ", var->name);
+value_print (var->value, stdout, 0, Val_pretty_default);
+printf_filtered ("\n");
+@}
+@end example
+
+
+@deftypefun int gdb_print_insn (struct gdb_stream_cback * @var{cback}, CORE_ADDR @var{memaddr})
+Print the instruction at @var{memaddr} and return the 
+length of the instruction in bytes.@*
+(print_insn)
+@end deftypefun
+
+
+@deftypefun void gdb_print_address (struct gdb_stream_cback * @var{cback}, CORE_ADDR @var{addr})
+Print address @var{addr} symbolically on @var{stream}.
+First print it as a number.  Then perhaps print
+@code{<SYMBOL + OFFSET>} after the number.@*
+(print_address)
+@end deftypefun
+
+
+ -- IDIOM: This is the core of a dissasemble command:
+@example
+for (pc = low; pc < high; )
+@{
+  print_address (pc, stdout);
+  printf_filtered (":\t");
+  pc += print_insn (pc, stdout);
+  printf_filtered ("\n");
+@}
+@end example
+Advice for computing pc extents like @code{low} and @code{high}
+can be found in `Symtabs' -- for example,  @code{gdb_find_line_pc_range}.@*
+(disassemble_command)
+
+
+@deftypefun void gdb_print_registers (struct gdb_stream_cback * @var{cback}, int @var{regnum}, int @var{fpregs}, int @var{fancy})
+Print the values of registers. 
+@var{regnum} can be -1 (print all the registers) or a specific register number.
+If @var{regnum} is -1, @var{fpregs} determines whether floating point registers are
+shown.@*
+(info registers, info all-registers, nofp_registers_info, all_registers_info)
+@end deftypefun
+
+
+@deftypefun char * gdb_register_name (int @var{i})
+Look up a register name by number.
+@end deftypefun
+
+
+@deftypefun int gdb_parse_register_name (char ** @var{name})
+Parse a register name and advance a text pointer.
+Return -1 for bogus names.
+@end deftypefun
+
+
+@deftypefun CORE_ADDR gdb_read_pc ()
+Return the contents of the inferior's program counter.
+@end deftypefun
+
+
+@deftypefun int gdb_is_stepping ()
+If true, the inferior is stopped after being stepped.
+@end deftypefun
+
+
+@deftypefun void gdb_current_breakpoints (gdb_int_cback)
+Call a callback for each of the current breakpoints.@*
+(program_info)
+@end deftypefun
+
+
+@deftypefun int gdb_stop_signal ()
+Return the signal that stopped the inferior.
+@end deftypefun
+
+
+@deftypefun char * strsigno (int)
+Return a symbolic name for a signal.
+@end deftypefun
+
+
+@deftypefun void gdb_target_info (struct gdb_stream_cback *)
+Print status information about target we're accessing.@*
+(target_files_info, e.g. child_files_info)
+@end deftypefun
+
+
+float_info
+[[[what is appropriate?]]]
+
+
+@deftypefun void gdb_address_info (struct gdb_stream_cback * @var{cback}, char * @var{symbol});
+Like the `info address' command -- show where @var{symbol}
+is located.@*
+(address_info)
+@end deftypefun
+
+
+@node    Types, top,       Examining, top
+@comment node-name,     next,           previous, up
+@chapter Examining the Types of an Inferior's Data
+@cindex types
+
+
+@deftp Type {struct type}
+@code{struct type *} is used to represent a type.  For example, that is
+the type returned by the macro @code{VALUE_TYPE(val)} which yields the
+type of inferior data recorded in @code{val}.  (see `evaluate_type' in
+`Expressions').
+@end deftp
+
+
+@deftypefun void type_print (@var{type}, @var{varstring}, @var{stream_cback}, @var{show})
+@example
+struct type @var{*type};
+char @var{*varstring};
+struct gdb_stream_cback * @var{stream_cback};
+FILE @var{*stream};
+int @var{show};
+@end example
+Print a description of a type @var{type} in the form of a declaration of a
+variable named @var{varstring}.  (@var{varstring} is demangled if necessary.)
+Output goes to @var{stream_cback}.
+
+If @var{show} is positive, we show the contents of the outermost level
+of structure even if there is a type name that could be used instead.
+If @var{show} is negative, we never show the details of elements' types.
+(See `Basics' for an explanation of `struct gdb_stream_cback').
+@end deftypefun
+
+
+[[[In the long run, we need something to programmaticly read off type 
+   structures in a machine/language independent way.]]]
+
+@bye
