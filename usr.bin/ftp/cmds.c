@@ -2135,6 +2135,7 @@ macdef(argc, argv)
 /*
  * Start up passive mode interaction
  */
+void
 setpassive()
 {
 	passivemode = !passivemode;
