@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.50 1997/12/07 23:55:27 brian Exp $
+ * $Id: lcp.c,v 1.51 1997/12/24 09:29:05 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -171,24 +171,26 @@ ReportLcpStatus(struct cmdargs const *arg)
 
   fprintf(VarTerm, "%s [%s]\n", fp->name, StateNames[fp->state]);
   fprintf(VarTerm,
-	  " his side: MRU %ld, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d, MAGIC %08lx,\n"
-	  "           REJECT %04lx\n",
-	lcp->his_mru, lcp->his_accmap, lcp->his_protocomp, lcp->his_acfcomp,
-	  lcp->his_magic, lcp->his_reject);
+	  " his side: MRU %d, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d,\n"
+	  "           MAGIC %08lx, REJECT %04x\n",
+	  lcp->his_mru, (u_long)lcp->his_accmap, lcp->his_protocomp,
+          lcp->his_acfcomp, (u_long)lcp->his_magic, lcp->his_reject);
   fprintf(VarTerm,
-	  " my  side: MRU %ld, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d, MAGIC %08lx,\n"
-	  "           REJECT %04lx\n",
-    lcp->want_mru, lcp->want_accmap, lcp->want_protocomp, lcp->want_acfcomp,
-	  lcp->want_magic, lcp->my_reject);
-  fprintf(VarTerm, "\nDefaults:   MRU = %ld, ACCMAP = %08x\t", VarMRU, VarAccmap);
-  fprintf(VarTerm, "Open Mode: %s\n", (VarOpenMode == OPEN_ACTIVE) ? "active" : "passive");
+	  " my  side: MRU %d, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d,\n"
+          "           MAGIC %08lx, REJECT %04x\n",
+          lcp->want_mru, (u_long)lcp->want_accmap, lcp->want_protocomp,
+          lcp->want_acfcomp, (u_long)lcp->want_magic, lcp->my_reject);
+  fprintf(VarTerm, "\nDefaults:   MRU = %d, ACCMAP = %08lx\t",
+          VarMRU, (u_long)VarAccmap);
+  fprintf(VarTerm, "Open Mode: %s\n",
+          (VarOpenMode == OPEN_ACTIVE) ? "active" : "passive");
   return 0;
 }
 
 /*
  * Generate random number which will be used as magic number.
  */
-static u_long
+static u_int32_t
 GenerateMagic(void)
 {
   randinit();
@@ -257,23 +259,23 @@ do {								\
   cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id], NULL);	\
 } while (0)
 
-#define PUTHEXL(ty, arg)					\
+#define PUTHEX32(ty, arg)					\
 do {								\
   o.id = ty;							\
   o.len = 6;							\
   *(u_long *)o.data = htonl(arg);				\
-  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id], "0x%08x", (u_int)arg);\
+  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id], "0x%08lx", (u_long)arg);\
 } while (0)
 
-#define PUTACCMAP(arg) PUTHEXL(TY_ACCMAP, arg)
-#define PUTMAGIC(arg) PUTHEXL(TY_MAGICNUM, arg)
+#define PUTACCMAP(arg) PUTHEX32(TY_ACCMAP, arg)
+#define PUTMAGIC(arg) PUTHEX32(TY_MAGICNUM, arg)
 
 #define PUTMRU(arg)						\
 do {								\
   o.id = TY_MRU;						\
   o.len = 4;							\
   *(u_short *)o.data = htons(arg);				\
-  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id], "%lu", arg);	\
+  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id], "%u", arg);	\
 } while (0)
 
 #define PUTLQR(period)						\
@@ -282,7 +284,8 @@ do {								\
   o.len = 8;							\
   *(u_short *)o.data = htons(PROTO_LQR);			\
   *(u_long *)(o.data+2) = htonl(period);			\
-  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id], "period %ld", period);\
+  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id],		\
+                   "period %ld", (u_long)period);		\
 } while (0)
 
 #define PUTPAP()						\
@@ -474,9 +477,9 @@ LcpClose()
 static void
 LcpDecodeConfig(u_char *cp, int plen, int mode_type)
 {
-  int type, length, mru, mtu, sz, pos;
-  u_long *lp, magic, accmap;
-  u_short *sp, proto;
+  int type, length, sz, pos;
+  u_int32_t *lp, magic, accmap;
+  u_short mtu, mru, *sp, proto;
   struct lqrreq *req;
   char request[20], desc[22];
 
@@ -529,9 +532,9 @@ LcpDecodeConfig(u_char *cp, int plen, int mode_type)
       break;
 
     case TY_ACCMAP:
-      lp = (u_long *) (cp + 2);
+      lp = (u_int32_t *) (cp + 2);
       accmap = htonl(*lp);
-      LogPrintf(LogLCP, "%s 0x%08x\n", request, accmap);
+      LogPrintf(LogLCP, "%s 0x%08lx\n", request, (u_long)accmap);
 
       switch (mode_type) {
       case MODE_REQ:
@@ -680,17 +683,17 @@ LcpDecodeConfig(u_char *cp, int plen, int mode_type)
       break;
 
     case TY_MAGICNUM:
-      lp = (u_long *) (cp + 2);
+      lp = (u_int32_t *) (cp + 2);
       magic = ntohl(*lp);
-      LogPrintf(LogLCP, "%s 0x%08x\n", request, magic);
+      LogPrintf(LogLCP, "%s 0x%08lx\n", request, (u_long)magic);
 
       switch (mode_type) {
       case MODE_REQ:
 	if (LcpInfo.want_magic) {
 	  /* Validate magic number */
 	  if (magic == LcpInfo.want_magic) {
-	    LogPrintf(LogLCP, "Magic is same (%08x) - %d times\n",
-                      magic, ++LcpFailedMagic);
+	    LogPrintf(LogLCP, "Magic is same (%08lx) - %d times\n",
+                      (u_long)magic, ++LcpFailedMagic);
 	    LcpInfo.want_magic = GenerateMagic();
 	    memcpy(nakp, cp, 6);
 	    nakp += 6;
@@ -708,7 +711,7 @@ LcpDecodeConfig(u_char *cp, int plen, int mode_type)
 	}
 	break;
       case MODE_NAK:
-	LogPrintf(LogLCP, " Magic 0x%08x is NAKed!\n", magic);
+	LogPrintf(LogLCP, " Magic 0x%08lx is NAKed!\n", (u_long)magic);
 	LcpInfo.want_magic = GenerateMagic();
 	break;
       case MODE_REJ:

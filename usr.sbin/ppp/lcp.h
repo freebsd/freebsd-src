@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.h,v 1.14 1997/12/03 10:23:49 brian Exp $
+ * $Id: lcp.h,v 1.15 1997/12/04 18:49:28 brian Exp $
  *
  *	TODO:
  */
@@ -23,24 +23,24 @@
 #define	REJECTED(p, x)	((p)->his_reject & (1<<(x)))
 
 struct lcpstate {
-  u_long his_mru;
-  u_long his_accmap;
-  u_long his_magic;
-  u_long his_lqrperiod;
+  u_int16_t his_mru;
+  u_int32_t his_accmap;
+  u_int32_t his_magic;
+  u_int32_t his_lqrperiod;
   u_char his_protocomp;
   u_char his_acfcomp;
   u_short his_auth;
 
-  u_long want_mru;
-  u_long want_accmap;
-  u_long want_magic;
-  u_long want_lqrperiod;
+  u_short want_mru;
+  u_int32_t want_accmap;
+  u_int32_t want_magic;
+  u_int32_t want_lqrperiod;
   u_char want_protocomp;
   u_char want_acfcomp;
   u_short want_auth;
 
-  u_long his_reject;		/* Request codes rejected by peer */
-  u_long my_reject;		/* Request codes I have rejected */
+  u_int32_t his_reject;		/* Request codes rejected by peer */
+  u_int32_t my_reject;		/* Request codes I have rejected */
 
   u_short auth_iwait;
   u_short auth_ineed;
