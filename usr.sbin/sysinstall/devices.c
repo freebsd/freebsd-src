@@ -60,26 +60,25 @@ static struct _devname {
     char *name;
     char *description;
     int major, minor, delta, max;
-    char dev_type;
 } device_names[] = {
-    { DEVICE_TYPE_CDROM,	"cd%dc",	"SCSI CDROM drive",	15, 2, 8, 4, 'c'			},
-    { DEVICE_TYPE_CDROM,	"mcd%da",	"Mitsumi (old model) CDROM drive",	29, 0, 8, 4, 'c'	},
-    { DEVICE_TYPE_CDROM,	"scd%da",	"Sony CDROM drive - CDU31/33A type",	45, 0, 8, 4, 'c'	},
+    { DEVICE_TYPE_CDROM,	"cd%dc",	"SCSI CDROM drive",	15, 2, 8, 4 				},
+    { DEVICE_TYPE_CDROM,	"mcd%da",	"Mitsumi (old model) CDROM drive",	29, 0, 8, 4	 	},
+    { DEVICE_TYPE_CDROM,	"scd%da",	"Sony CDROM drive - CDU31/33A type",	45, 0, 8, 4 		},
 #ifdef notdef
-    { DEVICE_TYPE_CDROM,	"matcd%da",	"Matsushita CDROM ('sound blaster' type)", 46, 0, 8, 4, 'c'	},
+    { DEVICE_TYPE_CDROM,	"matcd%da",	"Matsushita CDROM ('sound blaster' type)", 46, 0, 8, 4 		},
 #endif
-    { DEVICE_TYPE_CDROM,	"acd%dc",	"ATAPI/IDE CDROM",	117, 2, 8, 4, 'c'			},
-    { DEVICE_TYPE_TAPE, 	"rsa%d",	"SCSI tape drive",	14, 0, 16, 4, 'c'			},
-    { DEVICE_TYPE_TAPE, 	"rwt%d",	"Wangtek tape drive",	10, 0, 1, 4, 'c'			},
-    { DEVICE_TYPE_DISK, 	"da%d",		"SCSI disk device",	13, 65538, 8, 16, 'c'			},
-    { DEVICE_TYPE_DISK, 	"ad%d",		"ATA/IDE disk device",	116, 65538, 8, 16, 'c'			},
-    { DEVICE_TYPE_DISK, 	"fla%d",	"M-Systems DiskOnChip Flash devicee",	102, 65538, 8, 16, 'c'	},
-    { DEVICE_TYPE_DISK, 	"afd%d",	"ATAPI/IDE floppy device",	118, 65538, 8, 4, 'c'		},
-    { DEVICE_TYPE_DISK, 	"mlxd%d",	"Mylex RAID disk",	131, 65538, 8, 4, 'c'			},
-    { DEVICE_TYPE_DISK, 	"amrd%d",	"AMI MegaRAID drive",	133, 65538, 8, 4, 'c'			},
-    { DEVICE_TYPE_DISK, 	"idad%d",	"Compaq RAID array",	109, 65538, 8, 4, 'c'			},
-    { DEVICE_TYPE_DISK, 	"twed%d",	"3ware ATA RAID array",	147, 65538, 8, 4, 'c'			},
-    { DEVICE_TYPE_FLOPPY,	"fd%d",		"floppy drive unit A",	9, 0, 64, 4, 'c'			},
+    { DEVICE_TYPE_CDROM,	"acd%dc",	"ATAPI/IDE CDROM",	117, 2, 8, 4				},
+    { DEVICE_TYPE_TAPE, 	"rsa%d",	"SCSI tape drive",	14, 0, 16, 4				},
+    { DEVICE_TYPE_TAPE, 	"rwt%d",	"Wangtek tape drive",	10, 0, 1, 4				},
+    { DEVICE_TYPE_DISK, 	"da%d",		"SCSI disk device",	13, 65538, 8, 16			},
+    { DEVICE_TYPE_DISK, 	"ad%d",		"ATA/IDE disk device",	116, 65538, 8, 16			},
+    { DEVICE_TYPE_DISK, 	"fla%d",	"M-Systems DiskOnChip Flash devicee",	102, 65538, 8, 16	},
+    { DEVICE_TYPE_DISK, 	"afd%d",	"ATAPI/IDE floppy device",	118, 65538, 8, 4		},
+    { DEVICE_TYPE_DISK, 	"mlxd%d",	"Mylex RAID disk",	131, 65538, 8, 4			},
+    { DEVICE_TYPE_DISK, 	"amrd%d",	"AMI MegaRAID drive",	133, 65538, 8, 4			},
+    { DEVICE_TYPE_DISK, 	"idad%d",	"Compaq RAID array",	109, 65538, 8, 4			},
+    { DEVICE_TYPE_DISK, 	"twed%d",	"3ware ATA RAID array",	147, 65538, 8, 4			},
+    { DEVICE_TYPE_FLOPPY,	"fd%d",		"floppy drive unit A",	9, 0, 64, 4				},
     { DEVICE_TYPE_NETWORK,	"aue",		"ADMtek USB ethernet adapter"					},
     { DEVICE_TYPE_NETWORK,	"cue",		"CATC USB ethernet adapter"					},
     { DEVICE_TYPE_NETWORK,	"fpa",		"DEC DEFPA PCI FDDI card"					},
@@ -96,30 +95,30 @@ static struct _devname {
     { DEVICE_TYPE_NETWORK,	"fe",		"Fujitsu MB86960A/MB86965A ethernet card"			},
     { DEVICE_TYPE_NETWORK,	"ie",		"AT&T StarLAN 10 and EN100; 3Com 3C507; NI5210"			},
     { DEVICE_TYPE_NETWORK,	"ix",		"Intel Etherexpress ethernet card"				},
-    { DEVICE_TYPE_NETWORK,	"kue",		"Kawasaki LSI USB ethernet adapter"					},
+    { DEVICE_TYPE_NETWORK,	"kue",		"Kawasaki LSI USB ethernet adapter"				},
     { DEVICE_TYPE_NETWORK,	"le",		"DEC EtherWorks 2 or 3 ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"lnc",		"Lance/PCnet (Isolan/Novell NE2100/NE32-VL) ethernet"		},
-    { DEVICE_TYPE_NETWORK,	"rl",		"RealTek 8129/8139 PCI ethernet card"		},
-    { DEVICE_TYPE_NETWORK,	"sf",		"Adaptec AIC-6915 PCI ethernet card"		},
-    { DEVICE_TYPE_NETWORK,	"sis",		"SiS 900/SiS 7016 PCI ethernet card"		},
-    { DEVICE_TYPE_NETWORK,	"sn",		"SMC/Megahertz ethernet card"			},
-    { DEVICE_TYPE_NETWORK,	"ste",		"Sundance ST201 PCI ethernet card"		},
-    { DEVICE_TYPE_NETWORK,	"sk",		"SysKonnect PCI gigabit ethernet card"		},
+    { DEVICE_TYPE_NETWORK,	"rl",		"RealTek 8129/8139 PCI ethernet card"				},
+    { DEVICE_TYPE_NETWORK,	"sf",		"Adaptec AIC-6915 PCI ethernet card"				},
+    { DEVICE_TYPE_NETWORK,	"sis",		"SiS 900/SiS 7016 PCI ethernet card"				},
+    { DEVICE_TYPE_NETWORK,	"sn",		"SMC/Megahertz ethernet card"					},
+    { DEVICE_TYPE_NETWORK,	"ste",		"Sundance ST201 PCI ethernet card"				},
+    { DEVICE_TYPE_NETWORK,	"sk",		"SysKonnect PCI gigabit ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"tx",		"SMC 9432TX ethernet card"					},
-    { DEVICE_TYPE_NETWORK,	"ti",		"Alteon Networks PCI gigabit ethernet card"		},
+    { DEVICE_TYPE_NETWORK,	"ti",		"Alteon Networks PCI gigabit ethernet card"			},
     { DEVICE_TYPE_NETWORK,	"tl",		"Texas Instruments ThunderLAN PCI ethernet card"		},
-    { DEVICE_TYPE_NETWORK,	"vr",		"VIA VT3043/VT86C100A Rhine PCI ethernet card"				},
+    { DEVICE_TYPE_NETWORK,	"vr",		"VIA VT3043/VT86C100A Rhine PCI ethernet card"			},
     { DEVICE_TYPE_NETWORK,	"vx",		"3COM 3c590 / 3c595 ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"wb",		"Winbond W89C840F PCI ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"xl",		"3COM 3c90x / 3c90xB PCI ethernet card"				},
-    { DEVICE_TYPE_NETWORK,	"cuaa%d",	"%s on device %s (COM%d)",	28, 128, 1, 16, 'c'		},
+    { DEVICE_TYPE_NETWORK,	"cuaa%d",	"%s on device %s (COM%d)",	28, 128, 1, 16			},
     { DEVICE_TYPE_NETWORK,	"lp",		"Parallel Port IP (PLIP) peer connection"			},
     { DEVICE_TYPE_NETWORK,	"lo",		"Loop-back (local) network interface"				},
 #ifdef PC98
-    { DEVICE_TYPE_DISK, 	"wd%d",		"IDE disk device",		3, 65538, 8, 16, 'c'	},
-    { DEVICE_TYPE_CDROM,	"wcd%dc",	"ATAPI IDE CDROM",		69, 2, 8, 4, 'c'	},
-    { DEVICE_TYPE_FLOPPY,	"wfd%d",	"ATAPI floppy drive unit A",	87, 0, 8, 4, 'c'	},
-    { DEVICE_TYPE_DISK, 	"wfd%d",	"ATAPI floppy device",		87, 65538, 8, 4, 'c'	},
+    { DEVICE_TYPE_DISK, 	"wd%d",		"IDE disk device",		3, 65538, 8, 16			},
+    { DEVICE_TYPE_CDROM,	"wcd%dc",	"ATAPI IDE CDROM",		69, 2, 8, 4			},
+    { DEVICE_TYPE_FLOPPY,	"wfd%d",	"ATAPI floppy drive unit A",	87, 0, 8, 4			},
+    { DEVICE_TYPE_DISK, 	"wfd%d",	"ATAPI floppy device",		87, 65538, 8, 4			},
 #endif
     { 0 },
 };
@@ -174,11 +173,7 @@ deviceTry(struct _devname dev, char *try, int i)
 	    msgDebug("deviceTry: open of %s succeeded on first try.\n", try);
 	return fd;
     }
-    m = 0640;
-    if (dev.dev_type == 'c')
-	m |= S_IFCHR;
-    else
-	m |= S_IFBLK;
+    m = 0640 | S_IFCHR;
     d = makedev(dev.major, dev.minor + (i * dev.delta));
     if (isDebug())
 	msgDebug("deviceTry: Making %s device for %s [%d, %d]\n", m & S_IFCHR ? "raw" : "block", try, dev.major, dev.minor + (i * dev.delta));
@@ -368,11 +363,7 @@ skipif:
 			snprintf(slice, sizeof slice, "/dev/%ss%d", unit, s);
 			d = makedev(device_names[i].major, device_names[i].minor +
 				    (j * device_names[i].delta) + (s * SLICE_DELTA));
-			m = 0640;
-			if (device_names[i].dev_type == 'c')
-			    m |= S_IFCHR;
-			else
-			    m |= S_IFBLK;
+			m = 0640 | S_IFCHR;
 			fail = mknod(slice, m, d);
 			fd = open(slice, O_RDONLY);
 			if (fd >= 0)
