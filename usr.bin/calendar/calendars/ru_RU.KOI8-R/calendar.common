@@ -1,7 +1,7 @@
 /*
  * Русские праздники
  *
- * $Id: calendar.usholiday,v 1.4 1996/04/06 01:15:21 mpp Exp $
+ * $Id: calendar.common,v 1.1 1996/05/10 21:36:48 ache Exp $
  */
 
 #ifndef _ru_SU_KOI8_R_common_
@@ -16,6 +16,7 @@ LANG=ru_SU.KOI8-R
  1 апр	День Шуток
  1 май	Международный День Солидарности Трудящихся
  9 май	День Победы
+ 1 июн	День Защиты Детей
  1 сен	День Знаний
 
 #endif /* !_ru_SU_KOI8_R_common_ */
