@@ -922,10 +922,16 @@ const struct usb_knowndev usb_knowndevs[] = {
 	    "Connector for DVD drive",
 	},
 	{
-	    USB_VENDOR_FTDI, USB_PRODUCT_FTDI_SERIAL,
+	    USB_VENDOR_FTDI, USB_PRODUCT_FTDI_SERIAL_8U100AX,
 	    0,
 	    "Future Technology Devices",
-	    "Serial converter",
+	    "8U100AX Serial converter",
+	},
+	{
+	    USB_VENDOR_FTDI, USB_PRODUCT_FTDI_SERIAL_8U232AM,
+	    0,
+	    "Future Technology Devices",
+	    "8U232AM Serial converter",
 	},
 	{
 	    USB_VENDOR_FUJIPHOTO, USB_PRODUCT_FUJIPHOTO_MASS0100,
