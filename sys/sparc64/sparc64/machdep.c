@@ -66,6 +66,7 @@
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/timetc.h>
+#include <sys/ucontext.h>
 #include <sys/user.h>
 #include <sys/exec.h>
 
@@ -290,7 +291,7 @@ sparc64_init(caddr_t mdp, u_int *state, u_int mid, u_int bootmid,
 	pc = (struct pcpu *)(pcpu0 + PAGE_SIZE) - 1;
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	pc->pc_curthread = &thread0;
-	pc->pc_curpcb = &thread0.td_pcb;
+	pc->pc_curpcb = thread0.td_pcb;
 	pc->pc_mid = mid;
 
 	/*
