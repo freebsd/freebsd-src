@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	ktrdump
-NOMAN=
 LDADD=	-lkvm
+MAN=	ktrdump.8
 
 .include <bsd.prog.mk>
