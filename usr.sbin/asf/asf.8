@@ -1,0 +1,98 @@
+.\"  Hey, Emacs, edit this file in -*- nroff-fill -*- mode
+.\" Copyright (c) 2003 Greg Lehey.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Greg Lehey ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Greg Lehey be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 8, 2003
+.Os
+.Dt ASF 1
+.Sh NAME
+.Nm asf
+.Nd add symbol files
+.Sh SYNOPSIS
+.Nm
+.Op Fl akx
+.Op Ar modules-path Op Ar outfile
+.Sh DESCRIPTION
+By default,
+.Nm
+reads
+.Nm kldstat
+output from standard input and writes to standard output a list of
+.Nm gdb
+commands to add symbol files from klds in subdirectories of the subdirectory
+.Ar modules
+of the current directory, which is intended to be a kernel build directory.
+This enables
+.Nm gdb
+to load the symbols into the debugging environment.
+.Pp
+If
+.Pa modules-path 
+is specified,
+.Nm
+uses it for the modules directory instead of the default
+.Pa modules .
+This is useful when building in a non-standard location (i.e. not 
+.Pa /usr/src
+and
+.Pa /usr/obj ).
+.Pp
+If
+.Pa outfile
+is specified,
+.Nm 
+writes to it instead of standard output.
+.Sh OPTIONS
+The following options modify the function of
+.Nm :
+.Bl -tag -width indent
+.It Fl a
+When writing to an explicit
+.Pa outfile ,
+append to the file rather than overwriting it.
+.It Fl k
+Instead of reading from standard input, start a
+.Nm kldstat
+and read the information from it.
+.It Fl x
+Normally
+.Nm 
+looks for klds with names of the form
+.Pa module.ko.debug .
+The
+.Fl x
+option tells
+.Nm
+to look for klds with names of the form
+.Pa module.ko .
+.El
+.Sh HISTORY
+.Nm
+first appeared in 
+.Fx 5.0 .
+.Sh AUTHORS
+.An Greg Lehey Aq grog@FreeBSD.org
+.Sh BUGS
+It should be possible to write to an outfile without specifying a module path.
