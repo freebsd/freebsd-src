@@ -68,23 +68,22 @@ void
 Lst_Destroy(Lst list, FreeProc *freeProc)
 {
     LstNode	ln;
-    LstNode	tln = NULL;
+    LstNode	tln;
 
-    if (list == NULL || ! list) {
+    if (!Lst_Valid(list)) {
 	/*
-	 * Note the check for l == (Lst)0 to catch uninitialized static Lst's.
+	 * Note the check to catch uninitialized static Lst's.
 	 * Gross, but useful.
 	 */
 	return;
     }
 
-    /* To ease scanning */
-    if (list->lastPtr != NULL)
-	list->lastPtr->nextPtr = NULL;
-    else {
+    if (list->lastPtr == NULL) {
 	free(list);
 	return;
     }
+    /* To ease scanning */
+    list->lastPtr->nextPtr = NULL;
 
     if (freeProc) {
 	for (ln = list->firstPtr; ln != NULL; ln = tln) {
