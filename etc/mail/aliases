@@ -9,10 +9,10 @@
 #	>>>>>>>>>>	show through to sendmail.
 #
 #
-# See also RFC 2142, `MAILBOX NAMES FOR COMMON SERVICES, ROLES 
+# See also RFC 2142, `MAILBOX NAMES FOR COMMON SERVICES, ROLES
 # AND FUNCTIONS', May 1997
 
-# Pretty much everything else in this file points to "root", so 
+# Pretty much everything else in this file points to "root", so
 # you would do well in either reading root's mailbox or forwarding
 # root's email from here.
 
@@ -35,6 +35,7 @@ nobody:	root
 operator: root
 pop:	root
 smmsp:	postmaster
+sshd:	root
 system:	root
 toor:	root
 tty:	root

@@ -31,6 +31,8 @@
         pkg
         ..
     ..
+    empty               mode=0555 flags=schg
+    ..
 /set gname=games mode=0775
     games
         hackdir         mode=0770
