@@ -66,14 +66,14 @@ my %cmds = (
 
 sub message(@) {
 
-    my $msg = join(' ', "TB ---", @_);
+    my $msg = join(' ', @_);
     chomp($msg);
-    print("$msg\n");
+    warn("$msg\n");
 }
 
 sub warning(@) {
 
-    my $msg = join(' ', "TB ---", @_);
+    my $msg = join(' ', "WARNING:", @_);
     chomp($msg);
     warn("$msg\n");
     return undef;
@@ -81,7 +81,7 @@ sub warning(@) {
 
 sub error(@) {
 
-    my $msg = join(' ', "TB ---", "ERROR:", @_);
+    my $msg = join(' ', "ERROR:", @_);
     chomp($msg);
     die("$msg\n");
     return undef;
@@ -554,7 +554,7 @@ MAIN:{
 		or error("failed to generate LINT kernel config");
 	}
 	if (! -f "$sandbox/src/sys/$machine/conf/LINT") {
-	    warning("no LINT kernel config, skipping LINT kernel");
+	    warning("no kernel config for LINT");
 	    $cmds{'lint'} = 0;
 	}
     }
