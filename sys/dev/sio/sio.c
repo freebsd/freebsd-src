@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.94 1995/04/13 15:03:29 wollman Exp $
+ *	$Id: sio.c,v 1.95 1995/04/15 21:45:16 bde Exp $
  */
 
 #include "sio.h"
@@ -238,12 +238,13 @@ struct com_s {
 };
 
 /*
- * The public functions in the com module ought to be declared in a com-driver
- * system header.
+ * XXX public functions in drivers should be declared in headers produced
+ * by `config', not here.
  */
 
 /* Interrupt handling entry points. */
 void	siointr		__P((int unit));
+void	siointrts	__P((int unit));
 void	siopoll		__P((void));
 
 /* Device switch entry points. */
@@ -257,17 +258,9 @@ int	sioioctl	__P((dev_t dev, int cmd, caddr_t data,
 			     int fflag, struct proc *p));
 void	siostop		__P((struct tty *tp, int rw));
 #define	sioreset	noreset
-int	sioselect	__P((dev_t dev, int rw, struct proc *p));
+struct tty *siodevtotty	__P((dev_t dev));
 #define	siommap		nommap
 #define	siostrategy	nostrategy
-
-/* Console device entry points. */
-int	siocncheckc	__P((dev_t dev));
-int	siocngetc	__P((dev_t dev));
-struct consdev;
-void	siocninit	__P((struct consdev *cp));
-void	siocnprobe	__P((struct consdev *cp));
-void	siocnputc	__P((dev_t dev, int c));
 
 static	int	sioattach	__P((struct isa_device *dev));
 static	timeout_t siodtrwakeup;
