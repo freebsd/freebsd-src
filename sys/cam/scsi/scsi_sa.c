@@ -524,7 +524,9 @@ saclose(dev_t dev, int flag, int fmt, struct proc *p)
 	/*
 	 * Decide how to end...
 	 */
-	switch (mode) {
+	if ((softc->flags & SA_FLAG_TAPE_MOUNTED) == 0) {
+		closedbits |= SA_FLAG_TAPE_FROZEN;
+	} else switch (mode) {
 	case SA_MODE_OFFLINE:
 		/*
 		 * An 'offline' close is an unconditional release of
@@ -1029,18 +1031,20 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 			softc->filemarks = 0;
 
 			error = sarewind(periph);
+			/* clear the frozen flag anyway */
+			softc->flags &= ~SA_FLAG_TAPE_FROZEN;
 
 			/*
-			 * Be sure to allow media removal before
-			 * attempting the eject. And clear flags
-			 * anyway.
+			 * Be sure to allow media removal before ejecting.
 			 */
 
-			softc->flags &= ~(SA_FLAG_TAPE_LOCKED|
-			    SA_FLAG_TAPE_FROZEN|SA_FLAG_TAPE_MOUNTED);
 			saprevent(periph, PR_ALLOW);
-			if (error == 0)
+			if (error == 0) {
 				error = saloadunload(periph, FALSE);
+				if (error == 0) {
+					softc->flags &= ~SA_FLAG_TAPE_MOUNTED;
+				}
+			}
 			break;
 
 		case MTNOP:	/* no operation, sets status only */
@@ -1623,7 +1627,9 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 			struct buf *q_bp;
 
 			/*
-			 * Catastrophic error. Mark the tape as not mounted.
+			 * Catastrophic error. Mark the tape as frozen
+			 * (we no longer know tape position).
+			 *
 			 * Return all queued I/O with EIO, and unfreeze
 			 * our queue so that future transactions that
 			 * attempt to fix this problem can get to the
@@ -1632,7 +1638,7 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 			 */
 
 			s = splbio();
-			softc->flags &= ~SA_FLAG_TAPE_MOUNTED;
+			softc->flags |= SA_FLAG_TAPE_FROZEN;
 			while ((q_bp = bufq_first(&softc->buf_queue)) != NULL) {
 				bufq_remove(&softc->buf_queue, q_bp);
 				q_bp->b_resid = q_bp->b_bcount;
@@ -2863,10 +2869,7 @@ saprevent(struct cam_periph *periph, int action)
 	 * We can be quiet about illegal requests.
 	 */
 	error = cam_periph_runccb(ccb, saerror, 0, sf, &softc->device_stats);
-
-	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
-		cam_release_devq(ccb->ccb_h.path, 0, 0, 0, FALSE);
-
+	QFRLS(ccb);
 	if (error == 0) {
 		if (action == PR_ALLOW)
 			softc->flags &= ~SA_FLAG_TAPE_LOCKED;
