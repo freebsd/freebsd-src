@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/resource_var.h>
+#include <compat/ndis/ntoskrnl_var.h>
 #include <compat/ndis/ndis_var.h>
 #include <compat/ndis/cfg_var.h>
 #include <dev/if_ndis/if_ndisvar.h>
@@ -629,15 +630,17 @@ ndis_attach(dev)
 	 * with this driver, and if so, how many.
 	 */
 
-	if (sc->ndis_chars.nmc_sendsingle_func)
+	if (sc->ndis_chars.nmc_sendsingle_func &&
+	    sc->ndis_chars.nmc_sendmulti_func == NULL) {
 		sc->ndis_maxpkts = 1;
-	else {
+	} else {
 		len = sizeof(sc->ndis_maxpkts);
 		ndis_get_info(sc, OID_GEN_MAXIMUM_SEND_PACKETS,
 		    &sc->ndis_maxpkts, &len);
-		sc->ndis_txarray = malloc(sizeof(ndis_packet *) *
-		    sc->ndis_maxpkts, M_DEVBUF, M_NOWAIT|M_ZERO);
 	}
+
+	sc->ndis_txarray = malloc(sizeof(ndis_packet *) *
+	    sc->ndis_maxpkts, M_DEVBUF, M_NOWAIT|M_ZERO);
 
 	sc->ndis_txpending = sc->ndis_maxpkts;
 
@@ -841,6 +844,8 @@ nonettypes:
 		if (r == 0)
 			ic->ic_caps |= IEEE80211_C_PMGT;
 		i = sizeof(config);
+		config.nc_length = i;
+		config.nc_fhconfig.ncf_length = sizeof(ndis_80211_config_fh);
 		r = ndis_get_info(sc, OID_802_11_CONFIGURATION, &config, &i);
 		if (r == 0) {
 			int chan;
@@ -1426,7 +1431,10 @@ ndis_start(ifp)
 
 	NDIS_UNLOCK(sc);
 
-	ndis_send_packets(sc, p0, pcnt);
+	if (sc->ndis_maxpkts == 1)
+		ndis_send_packet(sc, p);
+	else
+		ndis_send_packets(sc, p0, pcnt);
 
 	return;
 }
@@ -1702,6 +1710,9 @@ ndis_setstate_80211(sc)
 		device_printf (sc->ndis_dev, "set ssid failed: %d\n", rval);
 
 	len = sizeof(config);
+	bzero((char *)&config, len);
+	config.nc_length = len;
+	config.nc_fhconfig.ncf_length = sizeof(ndis_80211_config_fh);
 	rval = ndis_get_info(sc, OID_802_11_CONFIGURATION, &config, &len);   
 	if (rval == 0) { 
 		int chan;
@@ -1710,6 +1721,10 @@ ndis_setstate_80211(sc)
 		if (chan != ieee80211_mhz2ieee(config.nc_dsconfig / 1000, 0)) {
 			config.nc_dsconfig =
 			    ic->ic_bss->ni_chan->ic_freq * 1000;
+			len = sizeof(config);
+			config.nc_length = len;
+			config.nc_fhconfig.ncf_length =
+			    sizeof(ndis_80211_config_fh);
 			rval = ndis_set_info(sc, OID_802_11_CONFIGURATION,
 			    &config, &len);
 			if (rval)
@@ -1851,7 +1866,7 @@ ndis_getstate_80211(sc)
 	/*
 	 * If we're associated, retrieve info on the current bssid.
 	 */
-	if (ndis_get_assoc(sc, &bs) == 0) {
+	if ((rval = ndis_get_assoc(sc, &bs)) == 0) {
 		switch(bs.nwbx_nettype) {
 		case NDIS_80211_NETTYPE_11FH:
 		case NDIS_80211_NETTYPE_11DS:
@@ -1868,7 +1883,8 @@ ndis_getstate_80211(sc)
 			    "unknown nettype %d\n", arg);
 			break;
 		}
-	}
+	} else
+		return;
 
 	len = sizeof(ssid);
 	bzero((char *)&ssid, len);
@@ -1881,6 +1897,9 @@ ndis_getstate_80211(sc)
 
 	len = sizeof(arg);
 	rval = ndis_get_info(sc, OID_GEN_LINK_SPEED, &arg, &len);
+	if (rval)
+		device_printf (sc->ndis_dev, "get link speed failed: %d\n",
+		    rval);
 
 	if (ic->ic_modecaps & (1<<IEEE80211_MODE_11B)) {
 		ic->ic_bss->ni_rates = ic->ic_sup_rates[IEEE80211_MODE_11B];
@@ -1921,6 +1940,9 @@ ndis_getstate_80211(sc)
 	}
 
 	len = sizeof(config);
+	bzero((char *)&config, len);
+	config.nc_length = len;
+	config.nc_fhconfig.ncf_length = sizeof(ndis_80211_config_fh);
 	rval = ndis_get_info(sc, OID_802_11_CONFIGURATION, &config, &len);   
 	if (rval == 0) { 
 		int chan;
