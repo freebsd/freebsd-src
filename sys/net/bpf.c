@@ -1123,11 +1123,10 @@ bpf_mtap(ifp, m)
 	struct bpf_if *bp = ifp->if_bpf;
 	struct bpf_d *d;
 	u_int pktlen, slen;
-	struct mbuf *m0;
 
-	pktlen = 0;
-	for (m0 = m; m0 != 0; m0 = m0->m_next)
-		pktlen += m0->m_len;
+	pktlen = m_length(m, NULL);
+	if (pktlen == m->m_len)
+		return(bpf_tap(ifp, mtod(m, u_char *), pktlen));
 
 	BPFIF_LOCK(bp);
 	for (d = bp->bif_dlist; d != 0; d = d->bd_next) {
