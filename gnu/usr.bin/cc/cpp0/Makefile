@@ -5,7 +5,7 @@
 .PATH: ${GCCDIR}
 
 PROG=	cpp0
-SRCS=	cppmain.c c-parse.c c-lang.c c-decl.c
+SRCS=	cppmain.c c-parse+%DIKED.c c-lang.c c-decl.c
 
 BINDIR=	/usr/libexec
 NOMAN=	1
@@ -16,18 +16,20 @@ LDADD+=	${LIBCC_INT}
 
 #-----------------------------------------------------------------------
 # C parser
-.ORDER: c-parse.c
-c-parse.c: c-parse.in
+
+c-parse+%DIKED.c: c-parse.c
+	sed -e "s/malloc/xmalloc/g" \
+	    -e "s/realloc/xrealloc/g" \
+	    ${.ALLSRC} > ${.TARGET}
+
+c-parse.y: c-parse.in
 	sed -e "/^ifobjc$$/,/^end ifobjc$$/d" \
 	    -e "/^ifc$$/d" \
 	    -e "/^end ifc$$/d" \
-	    ${GCCDIR}/c-parse.in > c-parse.y
-	${YACC} -o c-parse.c.in c-parse.y
-	sed -e "s/malloc/xmalloc/g" \
-	    -e "s/realloc/xrealloc/g" \
-	    c-parse.c.in >c-parse.c
+	    ${.ALLSRC} > ${.TARGET}
 
-CLEANFILES=	c-parse.c c-parse.y
+CLEANFILES=	c-parse+%DIKED.c c-parse.c c-parse.y
+CLEANFILES+=	y.tab.h # we don't use it, but the system YACC rules are naive
 
 #-----------------------------------------------------------------------
 
