@@ -41,14 +41,9 @@ buildinf.h:
 	echo "  #define DATE \"`LC_ALL=C date`\""; \
 	echo "#endif" ) > ${.TARGET}
 
-#	XXX:  The openssl/ dependencies are not correct, in that a change in
-#	any of ${HDRS} ${EXTRA_HDRS} will no repopulate openssl/.
-#	This deficiency will be fixed in a later commit.
-
 openssl/opensslconf.h:  ../libcrypto/opensslconf-${MACHINE_ARCH}.h
 	mkdir -p openssl
 	cp ${.OODATE} ${.TARGET}
-	${INSTALL} -C -m 444 ${HDRS:S;^;${LCRYPTO_SRC}/;} ${EXTRA_HDRS} openssl
 
 openssl/evp.h: ${LCRYPTO_SRC}/evp/evp.h
 	mkdir -p openssl
@@ -57,3 +52,10 @@ openssl/evp.h: ${LCRYPTO_SRC}/evp/evp.h
 .else
 	${INSTALL} -C -m 444 ${.OODATE} ${.TARGET}
 .endif
+
+SRCS+=	${HDRS:T:S;^;openssl/;} ${EXTRA_HDRS:T:S;^;openssl/;}
+.for h in ${HDRS:S/^/${LCRYPTO_SRC}\//} ${EXTRA_HDRS}
+openssl/${h:T}: ${h}
+	mkdir -p openssl
+	${INSTALL} -C -m 444 ${h} openssl
+.endfor
