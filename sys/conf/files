@@ -4,7 +4,7 @@
 # limitations in config: backslash-newline doesn't work in strings, and
 # dependency lines other than the first are silently ignored.
 #
-acpi_quirks.h		standard					   \
+acpi_quirks.h		optional acpi
 	dependency	"$S/tools/acpi_quirks2h.awk $S/dev/acpica/acpi_quirks" \
 	compile-with	"${AWK} -f $S/tools/acpi_quirks2h.awk $S/dev/acpica/acpi_quirks" \
 	no-obj no-implicit-rule						   \
