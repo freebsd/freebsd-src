@@ -7,7 +7,6 @@ SRCS=	config.y main.c lang.l mkmakefile.c mkheaders.c \
 	mkoptions.c y.tab.h
 
 CFLAGS+= -I. -I${.CURDIR}
-CFLAGS+= ${BDECFLAGS}
 
 DPADD=	${LIBL}
 LDADD=	-ll
