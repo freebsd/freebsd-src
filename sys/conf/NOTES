@@ -1927,7 +1927,6 @@ hint.pca.0.port="0x040"
 # asc: GI1904-based hand scanners, e.g. the Trust Amiscan Grey
 # gsc: Genius GS-4500 hand scanner.
 # joy: joystick (including IO DATA PCJOY PC Card joystick)
-# labpc: National Instrument's Lab-PC and Lab-PC+
 # The LOUTB option specifies a slower outb() for debugging purposes. 
 # rc: RISCom/8 multiport card
 # rp: Comtrol Rocketport(ISA) - single card
@@ -2079,11 +2078,6 @@ device		dgm	1
 hint.dgm.0.at="isa"
 hint.dgm.0.port="0x104"
 hint.dgm.0.maddr="0xd0000"
-device		labpc	1
-options 	LOUTB
-hint.labpc.0.at="isa"
-hint.labpc.0.port="0x260"
-hint.labpc.0.irq="5"
 device		rc	1
 hint.rc.0.at="isa"
 hint.rc.0.port="0x220"
