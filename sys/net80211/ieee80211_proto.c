@@ -1010,9 +1010,10 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg
 				break;
 			/* fall thru... */
 		case IEEE80211_S_AUTH:
-		case IEEE80211_S_RUN:
 			IEEE80211_DPRINTF(ic, IEEE80211_MSG_ANY,
 				"%s: invalid transition\n", __func__);
+			/* fall thru... */
+		case IEEE80211_S_RUN:
 			break;
 		case IEEE80211_S_SCAN:		/* adhoc/hostap mode */
 		case IEEE80211_S_ASSOC:		/* infra mode */
