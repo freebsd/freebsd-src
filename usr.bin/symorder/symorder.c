@@ -67,7 +67,7 @@ struct	exec exec;
 struct	stat stb;
 struct	nlist *newtab, *symtab;
 off_t	sa;
-int	nsym, strtabsize, symfound, small; 
+int	nsym, strtabsize, symfound, small, missing; 
 char	*kfile, *newstrings, *strings, asym[BUFSIZ];
 
 main(argc, argv)
@@ -82,11 +82,13 @@ main(argc, argv)
 	register char *start, *t;
 	int ch, n, o;
 
-	while ((ch = getopt(argc, argv, "t")) != EOF)
+	while ((ch = getopt(argc, argv, "tm")) != EOF)
 		switch(ch) {
 		case 't':
 			small = 1;
 			break;
+		case 'm':
+			missing = 1;
 		case '?':
 		default:
 			usage();
@@ -205,7 +207,8 @@ main(argc, argv)
 		for (i = 0; i < nsym; i++)
 			if (order[i].n_value == 0)
 				printf("%s\n", order[i].n_un.n_name);
-		exit(NOTFOUNDEXIT);
+		if(!missing)
+			exit(NOTFOUNDEXIT);
 	}
 	exit(OKEXIT);
 }

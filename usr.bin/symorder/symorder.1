@@ -39,6 +39,7 @@
 .Nd rearrange name list
 .Sh SYNOPSIS
 .Nm symorder
+.Fl m
 .Fl t Ar symlist file
 .Sh DESCRIPTION
 The file
@@ -57,11 +58,13 @@ are relocated to the beginning of the table and in the order given.
 .It Fl t
 Restrict the symbol table to the symbols listed in
 .Ar symlist .
+.It Fl m
+Exit with status zero, even if some symbols are missing.
 .El
 .Pp
 This program was specifically designed to cut down on the
 overhead of getting symbols from
-.Pa /386bsd.
+.Pa /kernel.
 .Sh DIAGNOSTICS
 The
 .Nm symorder
