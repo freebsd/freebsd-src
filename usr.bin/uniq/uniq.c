@@ -249,7 +249,7 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: uniq [-c | -du | -i] [-f fields] [-s chars] [input [output]]\n");
+"usage: uniq [-c | -d | -u] [-i] [-f fields] [-s chars] [input [output]]\n");
 	exit(1);
 }
 
