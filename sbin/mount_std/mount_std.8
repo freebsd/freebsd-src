@@ -34,24 +34,36 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: mount_std.8,v 1.2 1996/05/14 15:16:46 wollman Exp $
+.\"	$Id: mount_std.8,v 1.3 1996/08/23 00:56:27 mpp Exp $
 .\"
 .Dd May 13, 1996
 .Dt MOUNT_STD 8
 .Os FreeBSD 2.2
 .Sh NAME
-.Nm mount_std
+.Nm mount_std ,
+.Nm mount_devfs ,
+.Nm mount_fdesc ,
+.Nm mount_kernfs ,
+.Nm mount_procfs
 .Nd mount ``standard'' filesystems
 .Sh SYNOPSIS
 .Nm mount_ Ns Ar fsname
 .Op Fl o Ar options
-.Ar "devfs"
+.Ar "fs"
 .Ar mount_point
 .Sh DESCRIPTION
 The
 .Nm
 command is a generic mechanism for attaching ``standard'' filesystems to
-the filesystem.  A ``standard'' filesystem is one which:
+the filesystem.  The
+.Nm 
+command currently supports the following filesystems: 
+.Nm devfs , 
+.Nm fdesc ,
+.Nm kernfs 
+and 
+.Nm procfs .
+A ``standard'' filesystem is one which:
 .Bl -enum -offset indent
 .It
 accepts only the standard
@@ -73,6 +85,17 @@ requires no other special processing on the part of the
 command.
 .El
 .Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl o
+Options are specified with a
+.Fl o
+flag followed by a comma separated string of options.
+See the
+.Xr mount 8
+man page for possible options and their meanings.
+.El
+.Pp
 The
 .Nm
 command examines its zeroth command-line argument (the name by which
@@ -92,6 +115,14 @@ for information on the function of each filesystem, see the manual page
 for that specific
 .Nm mount_ Ns Ar fsname
 command.
+.Pp
+Refer to the following manual pages for detailed information
+on these file system:
+.Xr devfs 5 ,
+.Xr fdesc 5 ,
+.Xr kernfs 5 
+and
+.Xr procfs 5 .
 .Sh DIAGNOSTICS
 .Bl -diag
 .It argv[0] must end in _fsname
@@ -111,12 +142,14 @@ loadable module for it was found.
 .Xr mount 2 ,
 .Xr unmount 2 ,
 .Xr getvfsbyname 3 ,
+.Xr devfs 5
+.Xr fdesc 5
 .Xr fstab 5 ,
+.Xr kernfs 5
+.Xr procfs 5
 .Xr mount 8 ,
-.Xr mount_devfs 8 ,
-.Xr mount_fdesc 8 ,
-.Xr mount_kernfs 8 ,
-.Xr mount_procfs 8
+.Sh CAVEATS
+None of the ``standard'' filesystems may be NFS-exported.
 .Sh HISTORY
 The
 .Nm mount_std
