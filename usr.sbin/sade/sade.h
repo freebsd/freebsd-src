@@ -160,6 +160,8 @@
 #define VAR_NEWFS_ARGS			"newfsArgs"
 #define VAR_NFS_PATH			"nfs"
 #define VAR_NFS_HOST			"nfsHost"
+#define VAR_NFS_V3			"nfs_use_v3"
+#define VAR_NFS_TCP			"nfs_use_tcp"
 #define VAR_NFS_SECURE			"nfs_reserved_port_only"
 #define VAR_NFS_SERVER			"nfs_server_enable"
 #define VAR_NO_CONFIRM			"noConfirm"

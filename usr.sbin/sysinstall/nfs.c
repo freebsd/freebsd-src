@@ -61,9 +61,13 @@ mediaInitNFS(Device *dev)
 	return FALSE;
 
     msgNotify("Mounting %s over NFS on %s", dev->name, mountpoint);
-    if (vsystem("mount_nfs %s %s %s %s",
-		variable_get(VAR_SLOW_ETHER) ? "-r 1024 -w 1024" : "",
-		variable_get(VAR_NFS_SECURE) ? "-P" : "", dev->name, mountpoint)) {
+    if (vsystem("mount_nfs %s %s %s %s %s %s",
+		!variable_cmp(VAR_NFS_TCP, "YES") ? "-T" : "",
+		!variable_cmp(VAR_NFS_V3, "YES") ? "-3" : "",
+		!variable_cmp(VAR_SLOW_ETHER, "YES") ?
+			"-r 1024 -w 1024" : "-r 4096 -w 4096",
+		!variable_cmp(VAR_NFS_SECURE, "YES") ? "-P" : "",
+		dev->name, mountpoint)) {
 	msgConfirm("Error mounting %s on %s: %s.", dev->name, mountpoint, strerror(errno));
 	if (netDevice)
 	    DEVICE_SHUTDOWN(netDevice);

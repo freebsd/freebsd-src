@@ -1167,6 +1167,8 @@ installVarDefaults(dialogMenuItem *self)
     variable_set2(VAR_BROWSER_BINARY,		"/usr/local/bin/links", 0);
     variable_set2(VAR_FTP_STATE,		"passive", 0);
     variable_set2(VAR_NFS_SECURE,		"NO", -1);
+    variable_set2(VAR_NFS_TCP,   		"NO", -1);
+    variable_set2(VAR_NFS_V3,   		"YES", -1);
     if (OnVTY)
 	    variable_set2(VAR_FIXIT_TTY,		"standard", 0);
     else
