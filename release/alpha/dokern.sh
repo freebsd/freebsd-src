@@ -8,6 +8,7 @@ sed	-e '/pty/d' \
 	-e '/splash/d' \
 	-e '/PROCFS/d' \
 	-e '/KTRACE/d' \
+	-e '/SYSVMSG/d' \
 	-e 's/GENERIC/BOOTMFS/g'
 
 echo "options  NFS_NOSERVER" 
