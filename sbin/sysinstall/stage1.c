@@ -31,7 +31,6 @@
 #include <machine/console.h>
 
 #include "mbr.h"
-#include "bootarea.h"
 #include "sysinstall.h"
 
 struct disklabel *avail_disklabels;
@@ -53,7 +52,7 @@ int dialog_active = 0;
 void exit_sysinstall();
 void exit_prompt();
 extern char *part_type(int);
-extern int disk_size(int);
+extern int disk_size(struct disklabel *);
 
 char selection[30];
 char boot1[] = BOOT1;
@@ -179,7 +178,7 @@ select_disk()
 
 		for (i=0;i<no_disks;i++) {
 			sprintf(options[(i*2)], "%d",i+1);
-			sprintf(options[(i*2)+1], "%s, (%dMb) -> %s",avail_disklabels[i].d_typename,disk_size(i),avail_disknames[i]);
+			sprintf(options[(i*2)+1], "%s, (%dMb) -> %s",avail_disklabels[i].d_typename,disk_size(&avail_disklabels[i]),avail_disknames[i]);
 		}
 
 		if (dialog_menu("FreeBSD Installation", scratch, 10, 75, 5, no_disks, options, selection)) {
@@ -202,11 +201,12 @@ select_partition(int disk)
 
 	do {
 		valid = 1;
+		whole_disk = 0;
 
 		sprintf(scratch,"Select one of the following areas to install to:");
 		sprintf(options[0], "%d", 0);
 		sprintf(options[1], "%s, (%dMb)", "Install to entire disk",
-				  disk_size(disk));
+				  disk_size(&avail_disklabels[inst_disk]));
 		for (i=0; i < NDOSPART; i++) {
 			sprintf(options[(i*2)+2], "%d",i+1);
 			sprintf(options[(i*2)+3], "%s, (%ldMb)", 
@@ -251,7 +251,7 @@ stage1()
 		inst_disk = select_disk();
 
 		if (read_mbr(avail_fds[inst_disk], mbr) == -1) {
-			sprintf(scratch, "The following error occured will trying\nto read the master boot record:\n\n%s\nIn order to install FreeBSD a new master boot record\nwill have to be written which will mean all current\ndata on the hard disk will be lost.", errmsg);
+			sprintf(scratch, "The following error occured while trying\nto read the master boot record:\n\n%s\nIn order to install FreeBSD a new master boot record\nwill have to be written which will mean all current\ndata on the hard disk will be lost.", errmsg);
 			ok = 0;
 			while (!ok) {	
 				AskAbort(scratch);
@@ -302,6 +302,9 @@ stage1()
 			default_disklabel(&avail_disklabels[inst_disk],
 								mbr->dospart[inst_part].dp_size,
 								mbr->dospart[inst_part].dp_start);
+			dialog_msgbox(TITLE, "This is an example of how the disklabel configuration\nwill look. It doesn't pass the data back into the real\nstructures yet but you can play around with the\n field editing to get an idea of how it will work.\nHit escape to quit the editor.", 10,70,1);
+			dialog_clear();
+			edit_disklabel(&avail_disklabels[inst_disk]);
 			if (build_bootblocks(&avail_disklabels[inst_disk]) == -1)
 				Fatal(errmsg);
 		}
