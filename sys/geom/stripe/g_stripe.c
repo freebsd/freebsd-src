@@ -396,7 +396,7 @@ g_stripe_start_fast(struct bio *bp, u_int no, off_t offset, off_t length)
 		}
 	}
 	if (data != NULL)
-		bp->bio_caller1 = data;
+		bp->bio_driver1 = data;
 	/*
 	 * Fire off all allocated requests!
 	 */
