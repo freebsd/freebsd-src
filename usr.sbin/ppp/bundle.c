@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.40.2.1 1998/12/14 01:26:40 brian Exp $
+ *	$Id: bundle.c,v 1.40.2.2 1999/01/06 00:09:10 brian Exp $
  */
 
 #include <sys/param.h>
@@ -227,6 +227,7 @@ bundle_StartAutoLoadTimer(struct bundle *bundle, int up)
   struct datalink *dl;
 
   timer_Stop(&bundle->autoload.timer);
+  bundle->autoload.comingup = up ? 1 : 0;
 
   if (bundle->CleaningUp || bundle->phase != PHASE_NETWORK) {
     dl = NULL;
@@ -272,8 +273,6 @@ bundle_StartAutoLoadTimer(struct bundle *bundle, int up)
 
     bundle->autoload.running = 1;
   }
-
-  bundle->autoload.comingup = up ? 1 : 0;
 }
 
 static void
@@ -525,8 +524,9 @@ bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
         else if (bundle->autoload.timer.state != TIMER_RUNNING ||
                  bundle->autoload.comingup)
           bundle_StartAutoLoadTimer(bundle, 0);
-      } else if (bundle->autoload.timer.state != TIMER_RUNNING ||
-                 !bundle->autoload.comingup)
+      } else if ((bundle_Phase(bundle) == PHASE_NETWORK || queued) &&
+                 (bundle->autoload.timer.state != TIMER_RUNNING ||
+                  !bundle->autoload.comingup))
         bundle_StartAutoLoadTimer(bundle, 1);
     }
 
