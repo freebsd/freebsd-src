@@ -97,8 +97,13 @@ _INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
 
 realinstall: beforeinstall
 .if defined(PROG)
+.if defined(PROGNAME)
+	${INSTALL} ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${BINDIR}/${PROGNAME}
+.else
 	${INSTALL} ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${BINDIR}
+.endif
 .endif
 .if defined(HIDEGAME)
 	(cd ${DESTDIR}/${GBINDIR}; rm -f ${PROG}; ln -s dm ${PROG}; \
