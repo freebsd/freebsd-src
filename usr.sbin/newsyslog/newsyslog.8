@@ -1,7 +1,7 @@
 .\" This file contains changes from the Open Software Foundation.
 .\"
 .\"	from: @(#)newsyslog.8
-.\"	$Id: newsyslog.8,v 1.16 1999/01/27 04:27:49 jkoshy Exp $
+.\"	$Id: newsyslog.8,v 1.17 1999/01/28 19:56:05 wollman Exp $
 .\"
 .\" Copyright 1988, 1989 by the Massachusetts Institute of Technology
 .\" 
@@ -99,7 +99,8 @@ Specify the number of archive files to be kept
 besides the log file itself.
 .It Ar size
 When the size of the log file reaches
-.Ar size ,
+.Ar size
+in kilobytes,
 the log file will be trimmed as described above.  If this field
 is replaced by an asterisk
 .Pq Ql \&* ,
