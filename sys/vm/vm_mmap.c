@@ -284,16 +284,14 @@ mmap(td, uap)
 			    lim_max(td->td_proc, RLIMIT_DATA));
 		PROC_UNLOCK(td->td_proc);
 	}
-	do {
-		if (flags & MAP_ANON) {
-			/*
-			 * Mapping blank space is trivial.
-			 */
-			handle = NULL;
-			maxprot = VM_PROT_ALL;
-			pos = 0;
-			break;
-		}
+	if (flags & MAP_ANON) {
+		/*
+		 * Mapping blank space is trivial.
+		 */
+		handle = NULL;
+		maxprot = VM_PROT_ALL;
+		pos = 0;
+	} else {
 		/*
 		 * Mapping file, get fp for validation. Obtain vnode and make
 		 * sure it is of appropriate type.
@@ -350,7 +348,7 @@ mmap(td, uap)
 			maxprot |= VM_PROT_WRITE;
 		}
 		handle = (void *)vp;
-	} while (0);
+	}
 
 	/*
 	 * Do not allow more then a certain number of vm_map_entry structures
