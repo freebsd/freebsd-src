@@ -1540,22 +1540,19 @@ SetStateIn(struct alias_link *link, int state)
     /* TCP input state */
     switch (state) {
     case ALIAS_TCP_STATE_DISCONNECTED:
-        if (link->data.tcp->state.out != ALIAS_TCP_STATE_CONNECTED) {
+        if (link->data.tcp->state.out != ALIAS_TCP_STATE_CONNECTED)
             link->expire_time = TCP_EXPIRE_DEAD;
-        } else {
+        else
             link->expire_time = TCP_EXPIRE_SINGLEDEAD;
-        }
-        link->data.tcp->state.in = state;
         break;
     case ALIAS_TCP_STATE_CONNECTED:
-        link->expire_time = TCP_EXPIRE_CONNECTED;
-        /*FALLTHROUGH*/
-    case ALIAS_TCP_STATE_NOT_CONNECTED:
-        link->data.tcp->state.in = state;
+        if (link->data.tcp->state.out == ALIAS_TCP_STATE_CONNECTED)
+            link->expire_time = TCP_EXPIRE_CONNECTED;
         break;
     default:
         abort();
     }
+    link->data.tcp->state.in = state;
 }
 
 
@@ -1565,22 +1562,19 @@ SetStateOut(struct alias_link *link, int state)
     /* TCP output state */
     switch (state) {
     case ALIAS_TCP_STATE_DISCONNECTED:
-        if (link->data.tcp->state.in != ALIAS_TCP_STATE_CONNECTED) {
+        if (link->data.tcp->state.in != ALIAS_TCP_STATE_CONNECTED)
             link->expire_time = TCP_EXPIRE_DEAD;
-        } else {
+        else
             link->expire_time = TCP_EXPIRE_SINGLEDEAD;
-        }
-        link->data.tcp->state.out = state;
         break;
     case ALIAS_TCP_STATE_CONNECTED:
-        link->expire_time = TCP_EXPIRE_CONNECTED;
-        /*FALLTHROUGH*/
-    case ALIAS_TCP_STATE_NOT_CONNECTED:
-        link->data.tcp->state.out = state;
+        if (link->data.tcp->state.in == ALIAS_TCP_STATE_CONNECTED)
+            link->expire_time = TCP_EXPIRE_CONNECTED;
         break;
     default:
         abort();
     }
+    link->data.tcp->state.out = state;
 }
 
 
