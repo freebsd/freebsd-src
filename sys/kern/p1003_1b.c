@@ -87,9 +87,10 @@ int p31b_proc(struct proc *p, pid_t pid, struct proc **pp)
 	int ret = 0;
 	struct proc *other_proc = 0;
 
-	if (pid == 0)
+	if (pid == 0) {
 		other_proc = p;
-	else
+		PROC_LOCK(p);
+	} else
 		other_proc = pfind(pid);
 
 	if (other_proc)
@@ -100,6 +101,7 @@ int p31b_proc(struct proc *p, pid_t pid, struct proc **pp)
 			*pp = other_proc;
 		else
 			ret = EPERM;
+		PROC_UNLOCK(other_proc);
 	}
 	else
 		ret = ESRCH;

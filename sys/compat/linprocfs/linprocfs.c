@@ -542,8 +542,6 @@ linprocfs_doexelink(curp, p, pfs, uio)
 	char *freepath = NULL;
 
 	p = PFIND(pfs->pfs_pid);
-	if (p != NULL)
-		PROC_LOCK(p);
 	if (p == NULL || p->p_cred == NULL || p->p_ucred == NULL) {
 		if (p != NULL)
 			PROC_UNLOCK(p);
