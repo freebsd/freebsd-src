@@ -303,6 +303,9 @@
       mistakenly assigning addresses that conflict with these
       ROMs. &merged;</para>
 
+    <para>The <literal>P1003_1B</literal> kernel option is no longer
+      used and has been removed.</para>
+
     <para arch="i386,pc98">PECOFF (Win32 Execution file format) support has
       been added.</para>
 
@@ -348,7 +351,7 @@
     <para arch="sparc64">Support has been added for SBus-based
       devices.</para>
 
-    <para arch="sparc64">The se driver, which supports the Siemens
+    <para arch="sparc64">The sab driver, which supports the Siemens
       SAB82532 serial chip found on many newer Sparc Ultra machines,
       has been added.</para>
 
@@ -619,6 +622,18 @@
       <para arch="i386">Support for the AMD &Eacute;lan SC520 has been
 	added; this requires the <literal>CPU_ELAN</literal> option in
 	the kernel configuration file. &merged;</para>
+
+      <para arch="i386">The <literal>CPU_DISABLE_CMPXCHG</literal>
+        kernel configuration option has been added.  Enabling this
+        option has been shown to dramatically improve performance on
+        VMWare client OS installs.
+
+	<note>
+	  <para>This option is not compatible with
+	    <literal>SMP</literal> kernels.</para>
+	</note>
+
+	</para>
 
     </sect3>
 
@@ -973,6 +988,24 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	fully-independent bridging clusters, and is much more stable
 	in the presence of dynamic attachments and detatchments.  Full
 	support for VLANs is also supported. &merged;</para>
+
+      <para>A <literal>FAST_IPSEC</literal> kernel option now allows
+        the IPsec implementation to use the kernel crypo framework,
+        along with its support for hardware cryptographic
+        acceleration.
+        <note>
+          <para>The <literal>FAST_IPSEC</literal> and
+            <literal>IPSEC</literal> options are mutually
+            exclusive.</para>
+	</note>
+
+        <note>
+          <para>The <literal>FAST_IPSEC</literal> option is, at the
+            moment, not compatible with IPv6 or the
+            <literal>INET6</literal> option.</para>
+	</note>
+
+	</para>
 
       <para>A &man.gre.4; driver, which can encapsulate IP packets
         using GRE (RFC 1701) or minimal IP encapsulation for Mobile IP
@@ -2550,6 +2583,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       on an interface, via the new <option>promisc</option>
       flag. &merged;</para>
 
+    <para>&man.ifconfig.8; now supports a <literal>monitor</literal>
+      interface flag, which blocks transmission of packets on that
+      interface.  This feature is useful for mintoring network traffic
+      without interacting with the network in question.</para>
+
     <para role="historic">The syntax of &man.inetd.8;'s support for &man.faithd.8; is
       now compatible with that of other BSDs. &merged;</para>
 
@@ -2979,6 +3017,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <option>-s</option> option to output signed decimal shorts, and
       the <option>-t</option> option to specify output type. &merged;</para>
 
+    <para arch="sparc64">The &man.ofwdump.8; utility has been added to
+      examine the OpenFirmware device tree.</para>
+
     <para><application>PAM</application> support has been added for
       account management and sessions.</para>
 
@@ -3074,6 +3115,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para role="historic">&man.ping.8; now supports a <option>-A</option> option to
       beep when packets are lost. &merged;</para>
 
+    <para>&man.ping.8; now supports a <option>-o</option> flag to exit
+      after receiving a reply.</para>
+
     <para role="historic">Userland &man.ppp.8; has received a number of updates and
       bug fixes. &merged;</para>
 
@@ -3113,6 +3157,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.pwd.1; now supports the <option>-L</option> flag to
       print the logical current working directory. &merged;</para>
+
+    <para>&man.quota.1; now takes a <option>-l</option> flag to
+      suppress quote checks on NFS filesystems.</para>
 
     <para>The pseudo-random number generator implemented by
       &man.rand.3; has been improved to provide less biased
@@ -3443,6 +3490,15 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para role="historic">The &man.truncate.1; utility, which truncates or extends the
       length of files, has been added. &merged;</para>
+
+    <para>&man.tunefs.8; now supports the <option>-a</option> and
+      <option>-l</option> flags to enable and disable the
+      <literal>FS_ACLS</literal> and <literal>FS_MULTILABEL</literal>
+      administrative flags on UFS file system.</para>
+
+    <para>A &man.ugidfw.8; utility has been added to manage the
+      rulesets provided by the <literal>mac_bsdextended</literal>
+      Mandatory Access Control policy, similar to &man.ipfw.8;.</para>
 
     <para role="historic">Ukrainian language support has been added to the &os;
       console. &merged;</para>
