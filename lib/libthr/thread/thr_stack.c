@@ -78,7 +78,7 @@ static LIST_HEAD(, stack)	_mstackq = LIST_HEAD_INITIALIZER(_mstackq);
  *    |       Red Zone (guard page)       | red zone for 2nd thread
  *    |                                   |
  *    +-----------------------------------+
- *    |  stack 2 - PTHREAD_STACK_DEFAULT  | top of 2nd thread stack
+ *    |  stack 2 - _pthread_stack_default | top of 2nd thread stack
  *    |                                   |
  *    |                                   |
  *    |                                   |
@@ -89,7 +89,7 @@ static LIST_HEAD(, stack)	_mstackq = LIST_HEAD_INITIALIZER(_mstackq);
  *    |       Red Zone                    | red zone for 1st thread
  *    |                                   |
  *    +-----------------------------------+
- *    |  stack 1 - PTHREAD_STACK_DEFAULT  | top of 1st thread stack
+ *    |  stack 1 - _pthread_stack_default | top of 1st thread stack
  *    |                                   |
  *    |                                   |
  *    |                                   |
@@ -100,7 +100,7 @@ static LIST_HEAD(, stack)	_mstackq = LIST_HEAD_INITIALIZER(_mstackq);
  *    |       Red Zone                    |
  *    |                                   | red zone for main thread
  *    +-----------------------------------+
- *    | USRSTACK - PTHREAD_STACK_INITIAL  | top of main thread stack
+ *    | USRSTACK - _pthread_stack_initial | top of main thread stack
  *    |                                   | ^
  *    |                                   | |
  *    |                                   | |
@@ -137,7 +137,7 @@ _thread_stack_alloc(size_t stacksize, size_t guardsize)
 	 * If the stack and guard sizes are default, try to allocate a stack
 	 * from the default-size stack cache:
 	 */
-	if (stack_size == PTHREAD_STACK_DEFAULT &&
+	if (stack_size == _pthread_stack_default &&
 	    guardsize == _pthread_guard_default) {
 		/*
 		 * Use the garbage collector mutex for synchronization of the
@@ -183,7 +183,7 @@ _thread_stack_alloc(size_t stacksize, size_t guardsize)
 	if (stack == NULL) {
 
 		if (last_stack == NULL)
-			last_stack = _usrstack - PTHREAD_STACK_INITIAL -
+			last_stack = _usrstack - _pthread_stack_initial -
 			    _pthread_guard_default;
 
 		/* Allocate a new stack. */
@@ -224,7 +224,7 @@ _thread_stack_free(void *stack, size_t stacksize, size_t guardsize)
 	spare_stack->guardsize = guardsize;
 	spare_stack->stackaddr = stack;
 
-	if (spare_stack->stacksize == PTHREAD_STACK_DEFAULT &&
+	if (spare_stack->stacksize == _pthread_stack_default &&
 	    spare_stack->guardsize == _pthread_guard_default) {
 		/* Default stack/guard size. */
 		LIST_INSERT_HEAD(&_dstackq, spare_stack, qe);
