@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.12 1999/07/04 14:58:34 phk Exp $
+ * $Id: psm.c,v 1.13 1999/07/12 13:40:21 yokota Exp $
  */
 
 /*
@@ -135,6 +135,12 @@
 #define PSM_LEVEL_MIN		PSM_LEVEL_BASE
 #define PSM_LEVEL_MAX		PSM_LEVEL_NATIVE
 
+/* Logitech PS2++ protocol */
+#define MOUSE_PS2PLUS_CHECKBITS(b)	\
+				((((b[2] & 0x03) << 2) | 0x02) == (b[1] & 0x0f))
+#define MOUSE_PS2PLUS_PACKET_TYPE(b)	\
+				(((b[0] & 0x30) >> 2) | ((b[1] & 0x30) >> 4))
+
 /* some macros */
 #define PSM_UNIT(dev)		(minor(dev) >> 1)
 #define PSM_NBLOCKIO(dev)	(minor(dev) & 1)
@@ -146,6 +152,8 @@
 #ifndef min
 #define min(x,y)		((x) < (y) ? (x) : (y))
 #endif
+
+#define abs(x)			(((x) < 0) ? -(x) : (x))
 
 /* ring buffer */
 typedef struct ringbuf {
@@ -1100,10 +1108,11 @@ psmattach(device_t dev)
 
     if (!verbose) {
         printf("psm%d: model %s, device ID %d\n", 
-	    unit, model_name(sc->hw.model), sc->hw.hwid);
+	    unit, model_name(sc->hw.model), sc->hw.hwid & 0x00ff);
     } else {
-        printf("psm%d: model %s, device ID %d, %d buttons\n",
-	    unit, model_name(sc->hw.model), sc->hw.hwid, sc->hw.buttons);
+        printf("psm%d: model %s, device ID %d-%02x, %d buttons\n",
+	    unit, model_name(sc->hw.model),
+	    sc->hw.hwid & 0x00ff, sc->hw.hwid >> 8, sc->hw.buttons);
 	printf("psm%d: config:%08x, flags:%08x, packet size:%d\n",
 	    unit, sc->config, sc->flags, sc->mode.packetsize);
 	printf("psm%d: syncmask:%02x, syncbits:%02x\n",
@@ -1496,7 +1505,7 @@ psmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
         ((old_mousehw_t *)addr)->buttons = sc->hw.buttons;
         ((old_mousehw_t *)addr)->iftype = sc->hw.iftype;
         ((old_mousehw_t *)addr)->type = sc->hw.type;
-        ((old_mousehw_t *)addr)->hwid = sc->hw.hwid;
+        ((old_mousehw_t *)addr)->hwid = sc->hw.hwid & 0x00ff;
 	splx(s);
         break;
 
@@ -1754,8 +1763,9 @@ psmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 	error = block_mouse_data(sc, &command_byte);
 	if (error)
             return error;
-        sc->hw.hwid = get_aux_id(sc->kbdc);
-	*(int *)addr = sc->hw.hwid;
+        sc->hw.hwid &= ~0x00ff;
+        sc->hw.hwid |= get_aux_id(sc->kbdc);
+	*(int *)addr = sc->hw.hwid & 0x00ff;
 	unblock_mouse_data(sc, command_byte);
         break;
 #endif /* MOUSE_GETHWID */
@@ -1849,13 +1859,69 @@ psmintr(void *arg)
 	    break;
 
 	case MOUSE_MODEL_MOUSEMANPLUS:
-	    if ((c & ~MOUSE_PS2_BUTTONS) == 0xc8) {
+	    /*
+	     * PS2++ protocl packet
+	     *
+	     *          b7 b6 b5 b4 b3 b2 b1 b0
+	     * byte 1:  *  1  p3 p2 1  *  *  *
+	     * byte 2:  c1 c2 p1 p0 d1 d0 1  0
+	     *
+	     * p3-p0: packet type
+	     * c1, c2: c1 & c2 == 1, if p2 == 0
+	     *         c1 & c2 == 0, if p2 == 1
+	     *
+	     * packet type: 0 (device type)
+	     * See comments in enable_mmanplus() below.
+	     * 
+	     * packet type: 1 (wheel data)
+	     *
+	     *          b7 b6 b5 b4 b3 b2 b1 b0
+	     * byte 3:  h  *  B5 B4 s  d2 d1 d0
+	     *
+	     * h: 1, if horizontal roller data
+	     *    0, if vertical roller data
+	     * B4, B5: button 4 and 5
+	     * s: sign bit
+	     * d2-d0: roller data
+	     *
+	     * packet type: 2 (reserved)
+	     */
+	    if (((c & MOUSE_PS2PLUS_SYNCMASK) == MOUSE_PS2PLUS_SYNC)
+		    && (abs(x) > 191)
+		    && MOUSE_PS2PLUS_CHECKBITS(sc->ipacket)) {
 		/* the extended data packet encodes button and wheel events */
-		x = y = 0;
-		z = (sc->ipacket[2] & MOUSE_PS2PLUS_ZNEG)
-		    ? (sc->ipacket[2] & 0x0f) - 16 : (sc->ipacket[2] & 0x0f);
-		ms.button |= (sc->ipacket[2] & MOUSE_PS2PLUS_BUTTON4DOWN)
-		    ? MOUSE_BUTTON4DOWN : 0;
+		switch (MOUSE_PS2PLUS_PACKET_TYPE(sc->ipacket)) {
+		case 1:
+		    /* wheel data packet */
+		    x = y = 0;
+		    if (sc->ipacket[2] & 0x80) {
+			/* horizontal roller count - ignore it XXX*/
+		    } else {
+			/* vertical roller count */
+			z = (sc->ipacket[2] & MOUSE_PS2PLUS_ZNEG)
+			    ? (sc->ipacket[2] & 0x0f) - 16
+			    : (sc->ipacket[2] & 0x0f);
+		    }
+		    ms.button |= (sc->ipacket[2] & MOUSE_PS2PLUS_BUTTON4DOWN)
+			? MOUSE_BUTTON4DOWN : 0;
+		    ms.button |= (sc->ipacket[2] & MOUSE_PS2PLUS_BUTTON5DOWN)
+			? MOUSE_BUTTON5DOWN : 0;
+		    break;
+		case 2:
+		    /* this packet type is reserved, and currently ignored */
+		    /* FALL THROUGH */
+		case 0:
+		    /* device type packet - shouldn't happen */
+		    /* FALL THROUGH */
+		default:
+		    x = y = 0;
+		    ms.button = ms.obutton;
+            	    log(LOG_DEBUG, "psmintr: unknown PS2++ packet type %d: "
+				   "0x%02x 0x%02x 0x%02x\n",
+			MOUSE_PS2PLUS_PACKET_TYPE(sc->ipacket),
+			sc->ipacket[0], sc->ipacket[1], sc->ipacket[2]);
+		    break;
+		}
 	    } else {
 		/* preserve button states */
 		ms.button |= ms.obutton & MOUSE_EXTBUTTONS;
@@ -2158,15 +2224,31 @@ enable_mmanplus(struct psm_softc *sc)
     if (get_mouse_status(kbdc, data, 1, 3) < 3)
         return FALSE;
 
-    /* 
-     * MouseMan+ and FirstMouse+ return following data.
+    /*
+     * PS2++ protocl, packet type 0
      *
-     * byte 1 0xc8
-     * byte 2 ?? (MouseMan+:0xc2, FirstMouse+:0xc6)
-     * byte 3 model ID? MouseMan+:0x50, FirstMouse+:0x51
+     *          b7 b6 b5 b4 b3 b2 b1 b0
+     * byte 1:  *  1  p3 p2 1  *  *  *
+     * byte 2:  1  1  p1 p0 m1 m0 1  0
+     * byte 3:  m7 m6 m5 m4 m3 m2 m1 m0
+     *
+     * p3-p0: packet type: 0
+     * m7-m0: model ID: MouseMan+:0x50, FirstMouse+:0x51,...
      */
-    if ((data[0] & ~MOUSE_PS2_BUTTONS) != 0xc8)
+    /* check constant bits */
+    if ((data[0] & MOUSE_PS2PLUS_SYNCMASK) != MOUSE_PS2PLUS_SYNC)
         return FALSE;
+    if ((data[1] & 0xc3) != 0xc2)
+        return FALSE;
+    /* check d3-d0 in byte 2 */
+    if (!MOUSE_PS2PLUS_CHECKBITS(data))
+        return FALSE;
+    /* check p3-p0 */
+    if (MOUSE_PS2PLUS_PACKET_TYPE(data) != 0)
+        return FALSE;
+
+    sc->hw.hwid &= 0x00ff;
+    sc->hw.hwid |= data[2] << 8;	/* save model ID */
 
     /*
      * MouseMan+ (or FirstMouse+) is now in its native mode, in which
