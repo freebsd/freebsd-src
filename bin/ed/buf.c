@@ -49,13 +49,13 @@ static char sccsid[] = "@(#)buf.c	5.5 (Berkeley) 3/28/93";
 #include "ed.h"
 
 extern char errmsg[];
-extern line_t line0;
 
 FILE *sfp;				/* scratch file pointer */
 char *sfbuf = NULL;			/* scratch file input buffer */
 int sfbufsz = 0;			/* scratch file input buffer size */
 off_t sfseek;				/* scratch file position */
 int seek_write;				/* seek before writing */
+line_t line0;				/* initial node of line queue */
 
 /* gettxt: get a line of text from the scratch file; return pointer
    to the text */
@@ -247,4 +247,40 @@ quit(n)
 		unlink(sfn);
 	}
 	exit(n);
+}
+
+
+unsigned char ctab[256];		/* character translation table */
+
+/* init_buf: open scratch buffer; initialize line queue */
+void
+init_buf()
+{
+	int i = 0;
+
+	if (sbopen() < 0)
+		quit(2);
+	requeue(&line0, &line0);
+	for (i = 0; i < 256; i++)
+		ctab[i] = i;
+}
+
+
+/* translit: translate characters in a string */
+char *
+translit(s, len, from, to)
+	char *s;
+	int len;
+	int from;
+	int to;
+{
+	static int i = 0;
+
+	unsigned char *us;
+
+	ctab[i] = i;			/* restore table to initial state */
+	ctab[i = from] = to;
+	for (us = (unsigned char *) s; len-- > 0; us++)
+		*us = ctab[*us];
+	return s;
 }
