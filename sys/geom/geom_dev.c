@@ -398,12 +398,14 @@ g_dev_strategy(struct bio *bp)
 /*
  * g_dev_orphan()
  *
- * Called from below when the provider orphaned us.  It is our responsibility
- * to get the access counts back to zero, until we do so the stack below will
- * not unravel.  We must clear the kernel-dump settings, if this is the
- * current dumpdev.  We call destroy_dev(9) to send our dev_t the way of
- * punched cards and if we have non-zero access counts, we call down with
- * them negated before we detattch and selfdestruct.
+ * Called from below when the provider orphaned us.
+ * - Clear any dump settings.
+ * - Destroy the dev_t to prevent any more request from coming in.  The
+ *   provider is already marked with an error, so anything which comes in
+ *   in the interrim will be returned immediately.
+ * - Wait for any outstanding I/O to finish.
+ * - Set our access counts to zero, whatever they were.
+ * - Detach and self-destruct.
  */
 
 static void
@@ -412,18 +414,25 @@ g_dev_orphan(struct g_consumer *cp)
 	struct g_geom *gp;
 	dev_t dev;
 
-	gp = cp->geom;
-	g_trace(G_T_TOPOLOGY, "g_dev_orphan(%p(%s))", cp, gp->name);
 	g_topology_assert();
-	if (cp->stat->nop != cp->stat->nend)	/* XXX ? */
-		return;
+	gp = cp->geom;
 	dev = gp->softc;
+	g_trace(G_T_TOPOLOGY, "g_dev_orphan(%p(%s))", cp, gp->name);
+
+	/* Reset any dump-area set on this device */
 	if (dev->si_flags & SI_DUMPDEV)
 		set_dumper(NULL);
-	/* XXX: we may need Giant for now */
+
+	/* Destroy the dev_t so we get no more requests */
 	destroy_dev(dev);
+
+	/* Wait for the cows to come home */
+	while (cp->nstart != cp->nend)
+		msleep(&dev, NULL, PRIBIO, "gdevorphan", 1);
+
 	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
 		g_access_rel(cp, -cp->acr, -cp->acw, -cp->ace);
+
 	g_detach(cp);
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
