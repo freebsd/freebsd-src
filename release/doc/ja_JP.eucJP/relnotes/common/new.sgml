@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.177
+    Original revision: 1.178
 -->
 
 <articleinfo>
@@ -2860,6 +2860,69 @@ hw.pcic.irq="0"</programlisting>
     <sect3>
       <title>Ports/Packages Collection</title>
 
+      <para><application>Perl</application> と
+        &os; Ports Collection の統合を強化するために
+        <application>BSDPAN</application>
+        というモジュール集が追加されました.</para>
+
+      <para>&man.pkg.create.1; および &man.pkg.add.1; が,
+        &man.bzip2.1; を使って圧縮された package に対応しました.
+        また, &man.pkg.add.1; が新しい package
+        を取得するミラーサイトを PACKAGEROOT
+        環境変数から得るようになっています.</para>
+
+      <para>&man.pkg.create.1; における依存関係の記録が,
+        コマンドラインの指定順ではなく依存関係の順番で行なわれるようになりました.
+        これにより <command>pkg_add -r</command> の機能性が向上しています.
+        &merged;</para>
+
+      <para>&man.pkg.delete.1; に複数の package を削除するように指定した際に,
+        コマンドラインの指定順ではなく依存関係順に削除が行なわれるようになりました.
+        &merged;</para>
+
+      <para>&man.pkg.delete.1; が package 名のグロブ指定. 正規表現指定に対応しました.
+        また, package すべてを削除する <option>-a</option> オプション,
+        &man.rm.1; 風に対話型の確認を行なう <option>-i</option>
+        オプションも追加されています.
+        &merged;</para>
+
+      <para>&man.pkg.info.1; が, インストール済み package のグロブ指定に対応しました.
+        この機能は <option>-G</option> オプションで無効化できます.
+        また, <option>-x</option>
+        オプションでシェルグロブではなく正規表現を使うように制御可能です.
+        &merged;</para>
+
+      <para>&man.pkg.info.1; に新しいオプション <option>-g</option>
+        が追加されました. 
+        これはインストール済みの package と記録されているチェックサム
+        を (インストール後に変更されていないかどうか) 比較します.
+        この機構を監査用途に使用する場合, そのセキュリティは当然
+        <filename>/var/db/pkg</filename> の内容に依存します.
+        &merged;</para>
+
+      <para>新しく &man.pkg.sign.1; コマンド,
+        &man.pkg.check.1; コマンドが追加されました.
+        これらはバイナリ package の電子署名を行なったり,
+        署名の検証を行なうためのものです.
+        &merged;</para>
+
+      <para>新しいユーティリティ &man.pkg.update.1; が追加されました.
+        これはインストール済み package とその依存物を更新するためのものです.
+        &merged;</para>
+
+      <para>&man.pkg.version.1; のバージョン番号比較ルーチンが,
+        Porters Handbook (日本語訳:「port 作成者のためのハンドブック」)
+        に書かれていとおりのものになりました.
+        また, アドレス比較テストを行なうための新しいオプション
+        <option>-t</option> も追加されています.
+        &merged;</para>
+
+      <para>&man.pkg.version.1; に新しいオプション
+        <option>-s</option> が追加されました.
+        これは, 操作対象を指定された文字列とマッチする
+        ports/packages に制限するためのものです.
+        &merged;</para>
+
       <para>インストール済み package のバージョン番号の文法が
         (後方互換性のある) 新しいものに変わりました.
         これは 
@@ -2887,69 +2950,6 @@ hw.pcic.irq="0"</programlisting>
         &man.pkg.version.1; のようなプログラムから容易に
         調べられるようにするためのものです.
         &merged;</para>
-
-      <para>新しいユーティリティ &man.pkg.update.1; が追加されました.
-        これはインストール済み package とその依存物を更新するためのものです.
-        &merged;</para>
-
-      <para>&man.pkg.info.1; が, インストール済み package のグロブ指定に対応しました.
-        この機能は <option>-G</option> オプションで無効化できます.
-        また, <option>-x</option>
-        オプションでシェルグロブではなく正規表現を使うように制御可能です.
-        &merged;</para>
-
-      <para>&man.pkg.info.1; に新しいオプション <option>-g</option>
-        が追加されました. 
-        これはインストール済みの package と記録されているチェックサム
-        を (インストール後に変更されていないかどうか) 比較します.
-        この機構を監査用途に使用する場合, そのセキュリティは当然
-        <filename>/var/db/pkg</filename> の内容に依存します.
-        &merged;</para>
-
-      <para>&man.pkg.create.1; および &man.pkg.add.1; が,
-        &man.bzip2.1; を使って圧縮された package に対応しました.
-        また, &man.pkg.add.1; が新しい package
-        を取得するミラーサイトを PACKAGEROOT
-        環境変数から得るようになっています.</para>
-
-      <para>&man.pkg.create.1; における依存関係の記録が,
-        コマンドラインの指定順ではなく依存関係の順番で行なわれるようになりました.
-        これにより <command>pkg_add -r</command> の機能性が向上しています.
-        &merged;</para>
-
-      <para>&man.pkg.version.1; のバージョン番号比較ルーチンが,
-        Porters Handbook (日本語訳:「port 作成者のためのハンドブック」)
-        に書かれていとおりのものになりました.
-        また, アドレス比較テストを行なうための新しいオプション
-        <option>-t</option> も追加されています.
-        &merged;</para>
-
-      <para>&man.pkg.version.1; に新しいオプション
-        <option>-s</option> が追加されました.
-        これは, 操作対象を指定された文字列とマッチする
-        ports/packages に制限するためのものです.
-        &merged;</para>
-
-      <para>&man.pkg.delete.1; に複数の package を削除するように指定した際に,
-        コマンドラインの指定順ではなく依存関係順に削除が行なわれるようになりました.
-        &merged;</para>
-
-      <para>&man.pkg.delete.1; が package 名のグロブ指定. 正規表現指定に対応しました.
-        また, package すべてを削除する <option>-a</option> オプション,
-        &man.rm.1; 風に対話型の確認を行なう <option>-i</option>
-        オプションも追加されています.
-        &merged;</para>
-
-      <para>新しく &man.pkg.sign.1; コマンド,
-        &man.pkg.check.1; コマンドが追加されました.
-        これらはバイナリ package の電子署名を行なったり,
-        署名の検証を行なうためのものです.
-        &merged;</para>
-
-      <para><application>Perl</application> と
-        &os; Ports Collection の統合を強化するために
-        <application>BSDPAN</application>
-        というモジュール集が追加されました.</para>
     </sect3>
   </sect2>
 </sect1>
