@@ -17,6 +17,8 @@
 %authors;
 <!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//EN">
 %mlists;
+<!ENTITY % trademarks PUBLIC "-//FreeBSD//ENTITIES DocBook Trademark Entities//EN">
+%trademarks;
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
 
@@ -46,6 +48,12 @@
       <year>2003</year>
       <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
     </copyright>
+
+    <legalnotice id="trademarks" role="trademarks">
+      &tm-attrib.freebsd;
+      &tm-attrib.intel;
+      &tm-attrib.general;
+    </legalnotice>
   </articleinfo>
 
   <abstract>
@@ -130,7 +138,19 @@
 ]]>
 
 <![ %release.type.snapshot [
-    <para>No news.</para>
+
+    <para>Very late in the release cycle, a change was made to the
+      HyperThreading (HTT) support on &intel; processors.  HTT support
+      is now enabled by default on SMP-capable kernels; as a result,
+      the <literal>HTT</literal> kernel option is unnecessary and has
+      been removed.  The extra logical CPUs are always started so that
+      they can handle interrupts, but are prevented from executing
+      user processes by default.  To enable the logical CPUs, change
+      the value of the <varname>machdep.hlt_logical_cpus</varname>
+      &man.sysctl.8; variable from <literal>1</literal> to
+      <literal>0</literal>.  This value can also be set from the
+      loader as a tunable of the same name.</para>
+
 ]]>
   </sect1>
 </article>
