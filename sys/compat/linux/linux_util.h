@@ -46,6 +46,7 @@
 #include <sys/exec.h>
 #include <sys/sysent.h>
 #include <sys/cdefs.h>
+#include <sys/uio.h>
 
 static __inline caddr_t stackgap_init(void);
 static __inline void *stackgap_alloc(caddr_t *, size_t);
@@ -74,6 +75,7 @@ stackgap_alloc(sgp, sz)
 
 extern const char linux_emul_path[];
 
+int linux_emul_convpath(struct thread *, char *, enum uio_seg, char **, int);
 int linux_emul_find(struct thread *, caddr_t *, char *, char **, int);
 
 #define CHECKALT(p, sgp, path, i) 					\
@@ -87,6 +89,20 @@ int linux_emul_find(struct thread *, caddr_t *, char *, char **, int);
 
 #define CHECKALTEXIST(p, sgp, path) CHECKALT(p, sgp, path, 0)
 #define CHECKALTCREAT(p, sgp, path) CHECKALT(p, sgp, path, 1)
+
+#define LCONVPATH(td, upath, pathp, i) 					\
+	do {								\
+		int _error;						\
+									\
+		_error = linux_emul_convpath(td, upath, UIO_USERSPACE,  \
+		    pathp, i);						\
+		if (*(pathp) == NULL)					\
+			return (_error);				\
+	} while (0)
+
+#define LCONVPATHEXIST(td, upath, pathp) LCONVPATH(td, upath, pathp, 0)
+#define LCONVPATHCREAT(td, upath, pathp) LCONVPATH(td, upath, pathp, 1)
+#define LFREEPATH(path)	free(path, M_TEMP)
 
 #define DUMMY(s)							\
 int									\

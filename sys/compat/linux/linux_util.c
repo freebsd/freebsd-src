@@ -57,6 +57,39 @@ linux_emul_find(td, sgp, path, pbuf, cflag)
 	char		**pbuf;
 	int		  cflag;
 {
+	char *newpath;
+	size_t sz;
+	int error;
+
+	error = linux_emul_convpath(td, path, (sgp == NULL) ? UIO_SYSSPACE :
+	    UIO_USERSPACE, &newpath, cflag);
+	if (newpath == NULL)
+		return (error);
+
+	if (sgp == NULL) {
+		*pbuf = newpath;
+		return (error);
+	}
+
+	sz = strlen(newpath);
+	*pbuf = stackgap_alloc(sgp, sz + 1);
+	if (*pbuf != NULL)
+		error = copyout(newpath, *pbuf, sz + 1);
+	else
+		error = ENAMETOOLONG;
+	free(newpath, M_TEMP);
+
+	return (error);
+}
+
+int
+linux_emul_convpath(td, path, pathseg, pbuf, cflag)
+	struct thread	 *td;
+	char		 *path;
+	enum uio_seg	  pathseg;
+	char		**pbuf;
+	int		  cflag;
+{
 	struct nameidata	 nd;
 	struct nameidata	 ndroot;
 	struct vattr		 vat;
@@ -64,32 +97,30 @@ linux_emul_find(td, sgp, path, pbuf, cflag)
 	int			 error;
 	const char		*prefix;
 	char			*ptr, *buf, *cp;
-	size_t			 sz, len;
+	size_t			 len, sz;
 
 	buf = (char *) malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-	*pbuf = path;
+	*pbuf = buf;
 
 	prefix = linux_emul_path;
 	for (ptr = buf; (*ptr = *prefix) != '\0'; ptr++, prefix++)
 		continue;
 	sz = MAXPATHLEN - (ptr - buf);
 
-	/* 
-	 * If sgp is not given then the path is already in kernel space
-	 */
-	if (sgp == NULL)
+	if (pathseg == UIO_SYSSPACE)
 		error = copystr(path, ptr, sz, &len);
 	else
 		error = copyinstr(path, ptr, sz, &len);
 
 	if (error) {
+		*pbuf = NULL;
 		free(buf, M_TEMP);
 		return error;
 	}
 
 	if (*ptr != '/') {
-		free(buf, M_TEMP);
-		return EINVAL;
+		error = EINVAL;
+		goto keeporig;
 	}
 
 	/*
@@ -105,21 +136,16 @@ linux_emul_find(td, sgp, path, pbuf, cflag)
 		*cp = '\0';
 
 		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
-
-		if ((error = namei(&nd)) != 0) {
-			free(buf, M_TEMP);
-			return error;
-		}
-
+		error = namei(&nd);
 		*cp = '/';
+		if (error != 0)
+			goto keeporig;
 	}
 	else {
 		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
 
-		if ((error = namei(&nd)) != 0) {
-			free(buf, M_TEMP);
-			return error;
-		}
+		if ((error = namei(&nd)) != 0)
+			goto keeporig;
 
 		/*
 		 * We now compare the vnode of the linux_root to the one
@@ -134,10 +160,9 @@ linux_emul_find(td, sgp, path, pbuf, cflag)
 
 		if ((error = namei(&ndroot)) != 0) {
 			/* Cannot happen! */
-			free(buf, M_TEMP);
 			NDFREE(&nd, NDF_ONLY_PNBUF);
 			vrele(nd.ni_vp);
-			return error;
+			goto keeporig;
 		}
 
 		if ((error = VOP_GETATTR(nd.ni_vp, &vat, td->td_ucred, td)) != 0) {
@@ -156,17 +181,6 @@ linux_emul_find(td, sgp, path, pbuf, cflag)
 		}
 
 	}
-	if (sgp == NULL)
-		*pbuf = buf;
-	else {
-		sz = &ptr[len] - buf;
-		*pbuf = stackgap_alloc(sgp, sz + 1);
-		if (*pbuf != NULL)
-			error = copyout(buf, *pbuf, sz);
-		else
-			error = ENAMETOOLONG;
-		free(buf, M_TEMP);
-	}
 
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vrele(nd.ni_vp);
@@ -181,6 +195,8 @@ bad:
 	vrele(ndroot.ni_vp);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vrele(nd.ni_vp);
-	free(buf, M_TEMP);
+keeporig:
+	/* Keep the original path; copy it back to the start of the buffer. */
+	bcopy(ptr, buf, len);
 	return error;
 }
