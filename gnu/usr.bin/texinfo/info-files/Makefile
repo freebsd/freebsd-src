@@ -7,6 +7,7 @@ INFOFILES= dir
 install:
 	install ${COPY} -g ${BINGRP} -o ${BINOWN} -m 444 ${INFOFILES} ${INFODIR}
 
-clean cleandir obj:;
+clean cleandir obj:
+	@echo -n
 
 .include <bsd.prog.mk>
