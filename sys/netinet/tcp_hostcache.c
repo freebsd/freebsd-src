@@ -377,7 +377,7 @@ tcp_hc_insert(struct in_conninfo *inc)
 	 */
 	bzero(hc_entry, sizeof(*hc_entry));
 	if (inc->inc_isipv6)
-		bcopy(&hc_entry->ip6, &inc->inc6_faddr, sizeof(hc_entry->ip6));
+		bcopy(&inc->inc6_faddr, &hc_entry->ip6, sizeof(hc_entry->ip6));
 	else
 		hc_entry->ip4 = inc->inc_faddr;
 	hc_entry->rmx_head = hc_head;
@@ -474,7 +474,7 @@ tcp_hc_gettao(struct in_conninfo *inc, struct rmxp_tao *tao)
 	hc_entry->rmx_hits++;
 	hc_entry->rmx_expire = tcp_hostcache.expire; /* start over again */
 
-	bcopy(tao, &hc_entry->rmx_tao, sizeof(*tao));
+	bcopy(&hc_entry->rmx_tao, tao, sizeof(*tao));
 	THC_UNLOCK(&hc_entry->rmx_head->hch_mtx);
 }
 
