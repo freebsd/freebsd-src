@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.26 1995/06/05 03:15:41 jkh Exp $
+ * $Id: install.c,v 1.70.2.27 1995/06/05 03:32:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -347,9 +347,10 @@ make_filesystems(void)
 	}
 
 	/* Make the proper device mount points in /mnt/dev */
-	if (!RootReadOnly)
+	if (!(RootReadOnly && disk == rootdev->disk)) {
+	    Mkdir("/mnt/dev", NULL);
 	    MakeDevDisk(disk, "/mnt/dev");
-
+	}
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {
 		for (c2 = c1->part; c2; c2 = c2->next) {
