@@ -26,51 +26,65 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_DB_MACHDEP_H_
-#define	_MACHINE_DB_MACHDEP_H_
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/mutex.h>
 
+#include <vm/vm.h> 
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+
+#include <machine/asi.h>
 #include <machine/frame.h>
-#include <machine/trap.h>
+#include <machine/pmap.h>
+#include <machine/pv.h>
+#include <machine/tte.h>
+#include <machine/tlb.h>
+#include <machine/tsb.h>
 
-#define	BYTE_MSF	(1)
+/*
+ * Physical address of array of physical addresses of stte alias chain heads,
+ * and generation count of alias chains.
+ */
+vm_offset_t pv_table;
+u_long pv_generation;
 
-typedef vm_offset_t	db_addr_t;
-typedef u_long		db_expr_t;
+void
+pv_insert(pmap_t pm, vm_offset_t pa, vm_offset_t va, struct stte *stp)
+{
+	vm_offset_t pstp;
+	vm_offset_t pvh;
 
-struct db_regs {
-	u_long	dr_global[8];
-};
+	pstp = tsb_stte_vtophys(pm, stp);
+	pvh = pv_lookup(pa);
+	PV_LOCK();
+	if ((stp->st_next = pv_get_first(pvh)) != 0)
+		pv_set_prev(stp->st_next, pstp + ST_NEXT);
+	pv_set_first(pvh, pstp);
+	stp->st_prev = pvh;
+	pv_generation++;
+	PV_UNLOCK();
+}
 
-typedef struct trapframe db_regs_t;
-extern db_regs_t ddb_regs;
-#define	DDB_REGS	(&ddb_regs)
+void
+pv_remove_virt(struct stte *stp)
+{
+	PV_LOCK();
+	if (stp->st_next != 0)
+		pv_set_prev(stp->st_next, stp->st_prev);
+	stxp(stp->st_prev, stp->st_next);
+	pv_generation++;
+	PV_UNLOCK();
+}
 
-#define	PC_REGS(regs)	((db_addr_t)(regs)->tf_tpc)
+void
+pv_dump(vm_offset_t pvh)
+{
+	vm_offset_t pstp;
 
-#define	BKPT_INST	(0)
-#define	BKPT_SIZE	(4)
-#define	BKPT_SET(inst)	(BKPT_INST)
-
-#define	FIXUP_PC_AFTER_BREAK do {					\
-	ddb_regs.tf_tpc = ddb_regs.tf_tnpc;				\
-	ddb_regs.tf_tnpc += BKPT_SIZE;					\
-} while (0);
-
-#define	db_clear_single_step(regs)
-#define	db_set_single_step(regs)
-
-#define	IS_BREAKPOINT_TRAP(type, code)	(type == T_BREAKPOINT)
-#define	IS_WATCHPOINT_TRAP(type, code)	(0)
-
-#define	inst_trap_return(ins)	(0)
-#define	inst_return(ins)	(0)
-#define	inst_call(ins)		(0)
-#define	inst_load(ins)		(0)
-#define	inst_store(ins)		(0)
-
-#define	DB_SMALL_VALUE_MAX	(0x7fffffff)
-#define	DB_SMALL_VALUE_MIN	(-0x40001)
-
-#define	DB_ELFSIZE		64
-
-#endif /* !_MACHINE_DB_MACHDEP_H_ */
+	printf("pv_dump: pvh=%#lx first=%#lx\n", pvh, pv_get_first(pvh));
+	for (pstp = pv_get_first(pvh); pstp != 0; pstp = pv_get_next(pstp))
+		printf("\tpstp=%#lx next=%#lx prev=%#lx\n", pstp,
+		    pv_get_next(pstp), pv_get_prev(pstp));
+	printf("pv_dump: done\n");
+}

@@ -37,7 +37,7 @@ struct	globaldata {
 	SLIST_ENTRY(globaldata) gd_allcpu;
 	struct	pcb *gd_curpcb;
 	struct	proc *gd_curproc;
-	struct	proc *gd_fpproc;
+	struct	proc *gd_fpcurproc;
 	struct	proc *gd_idleproc;
 	u_int	gd_cpuid;
 	u_int	gd_other_cpus;

@@ -26,15 +26,74 @@
  * $FreeBSD$
  */
 
+#include "opt_ddb.h"
+
 #include <sys/param.h>
+#include <sys/mutex.h>
+#include <sys/systm.h>
 #include <sys/proc.h>
 
-#include <machine/frame.h>
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_page.h>
 
-void trap(u_int type, struct trapframe *tf);
+#include <machine/frame.h>
+#include <machine/pv.h>
+#include <machine/trap.h>
+#include <machine/tte.h>
+#include <machine/tlb.h>
+#include <machine/tsb.h>
+
+void trap(struct trapframe *tf);
+
+const char *trap_msg[] = {
+	"reserved",
+	"power on reset",
+	"watchdog reset",
+	"externally initiated reset",
+	"software initiated reset",
+	"red state exception",
+	"instruction access exception",
+	"instruction access error",
+	"illegal instruction",
+	"privileged opcode",
+	"floating point disabled",
+	"floating point exception ieee 754",
+	"floating point exception other",
+	"tag overflow",
+	"division by zero",
+	"data access exception",
+	"data access error",
+	"memory address not aligned",
+	"lddf memory address not aligned",
+	"stdf memory address not aligned",
+	"privileged action",
+	"interrupt vector",
+	"physical address watchpoint",
+	"virtual address watchpoint",
+	"corrected ecc error",
+	"fast instruction access mmu miss",
+	"fast data access mmu miss",
+	"fast data access protection",
+	"bad spill",
+	"bad fill",
+	"breakpoint",
+};
 
 void
-trap(u_int type, struct trapframe *tf)
+trap(struct trapframe *tf)
 {
-	TODO;
+
+	switch (tf->tf_type) {
+#ifdef DDB
+	case T_BREAKPOINT | T_KERNEL:
+		if (kdb_trap(tf) != 0)
+			return;
+		break;
+#endif
+	default:
+		break;
+	}
+	panic("trap: %s", trap_msg[tf->tf_type & ~T_KERNEL]);
 }

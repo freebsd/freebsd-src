@@ -26,51 +26,19 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_DB_MACHDEP_H_
-#define	_MACHINE_DB_MACHDEP_H_
+#ifndef	_MACHINE_BOOTINFO_H_
+#define	_MACHINE_BOOTINFO_H_
 
-#include <machine/frame.h>
-#include <machine/trap.h>
+/*
+ * Increment the version number when you break binary compatibiity.
+ */
+#define	BOOTINFO_VERSION	1
 
-#define	BYTE_MSF	(1)
-
-typedef vm_offset_t	db_addr_t;
-typedef u_long		db_expr_t;
-
-struct db_regs {
-	u_long	dr_global[8];
+struct	bootinfo {
+	u_int	bi_version;
+	u_long	bi_end;
+	u_long	bi_kpa;
+	u_long	bi_metadata;
 };
 
-typedef struct trapframe db_regs_t;
-extern db_regs_t ddb_regs;
-#define	DDB_REGS	(&ddb_regs)
-
-#define	PC_REGS(regs)	((db_addr_t)(regs)->tf_tpc)
-
-#define	BKPT_INST	(0)
-#define	BKPT_SIZE	(4)
-#define	BKPT_SET(inst)	(BKPT_INST)
-
-#define	FIXUP_PC_AFTER_BREAK do {					\
-	ddb_regs.tf_tpc = ddb_regs.tf_tnpc;				\
-	ddb_regs.tf_tnpc += BKPT_SIZE;					\
-} while (0);
-
-#define	db_clear_single_step(regs)
-#define	db_set_single_step(regs)
-
-#define	IS_BREAKPOINT_TRAP(type, code)	(type == T_BREAKPOINT)
-#define	IS_WATCHPOINT_TRAP(type, code)	(0)
-
-#define	inst_trap_return(ins)	(0)
-#define	inst_return(ins)	(0)
-#define	inst_call(ins)		(0)
-#define	inst_load(ins)		(0)
-#define	inst_store(ins)		(0)
-
-#define	DB_SMALL_VALUE_MAX	(0x7fffffff)
-#define	DB_SMALL_VALUE_MIN	(-0x40001)
-
-#define	DB_ELFSIZE		64
-
-#endif /* !_MACHINE_DB_MACHDEP_H_ */
+#endif /* !_MACHINE_BOOTINFO_H_ */

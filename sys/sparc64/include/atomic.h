@@ -26,327 +26,241 @@
  * $FreeBSD$
  */
 
-/*
- * This is not atomic.  It is just a stub to make things compile.
- */
-
 #ifndef	_MACHINE_ATOMIC_H_
 #define	_MACHINE_ATOMIC_H_
 
-#define	__atomic_op(p, op, v) ({					\
-	__typeof(*p) __v = (__typeof(*p))v;				\
-	*p op __v;							\
+#include <machine/cpufunc.h>
+
+/*
+ * Various simple arithmetic on memory which is atomic in the presence
+ * of interrupts and multiple processors.  See atomic(9) for details.
+ * Note that efficient hardware support exists only for the 32 and 64
+ * bit variants; the 8 and 16 bit versions are not provided and should
+ * not be used in MI code.
+ *
+ * This implementation takes advantage of the fact that the sparc64
+ * cas instruction is both a load and a store.  The loop is often coded
+ * as follows:
+ *
+ *	do {
+ *		expect = *p;
+ *		new = expect + 1;
+ *	} while (cas(p, expect, new) != expect);
+ *
+ * which performs an unnnecessary load on each iteration that the cas
+ * operation fails.  Modified as follows:
+ *
+ *	expect = *p;
+ *	for (;;) {
+ *		new = expect + 1;
+ *		result = cas(p, expect, new);
+ *		if (result == expect)
+ *			break;
+ *		expect = result;
+ *	}
+ *
+ * the return value of cas is used to avoid the extra reload.  At the
+ * time of writing, with gcc version 2.95.3, the branch for the if
+ * statement is predicted incorrectly as not taken, rather than taken.
+ * It is expected that the branch prediction hints available in gcc 3.0,
+ * __builtin_expect, will allow better code to be generated.
+ *
+ * The memory barriers provided by the acq and rel variants are intended
+ * to be sufficient for use of relaxed memory ordering.  Due to the
+ * suggested assembly syntax of the membar operands containing a #
+ * character, they cannot be used in macros.  The cmask and mmask bits
+ * are hard coded in machine/cpufunc.h and used here through macros.
+ * Hopefully sun will choose not to change the bit numbers.
+ */
+
+#define	itype(sz)	u_int ## sz ## _t
+
+#define	atomic_cas_32(p, e, s)	casa(p, e, s, ASI_N)
+#define	atomic_cas_64(p, e, s)	casxa(p, e, s, ASI_N)
+
+#define	atomic_cas(p, e, s, sz)						\
+	atomic_cas_ ## sz(p, e, s)
+
+#define	atomic_cas_acq(p, e, s, sz) ({					\
+	itype(sz) v;							\
+	v = atomic_cas(p, e, s, sz);					\
+	membar(LoadLoad | LoadStore);					\
+	v;								\
 })
 
-#define	__atomic_load(p) ({						\
-	__typeof(*p) __v;						\
-	__v = *p;							\
-	__v;								\
+#define	atomic_cas_rel(p, e, s, sz) ({					\
+	itype(sz) v;							\
+	membar(LoadStore | StoreStore);					\
+	v = atomic_cas(p, e, s, sz);					\
+	v;								\
 })
 
-#define	__atomic_load_clear(p) ({					\
-	__typeof(*p) __v;						\
-	__v = *p;							\
-	*p = 0;								\
-	__v;								\
-})
-
-#define	__atomic_cas(p, e, s) ({					\
-	u_int __v;							\
-	if (*p == (__typeof(*p))e) {					\
-		*p = (__typeof(*p))s;					\
-		__v = 1;						\
-	} else {							\
-		__v = 0;						\
+#define	atomic_op(p, op, v, sz) do {					\
+	itype(sz) e, r, s;						\
+	for (e = *(volatile itype(sz) *)p;; e = r) {			\
+		s = e op v;						\
+		r = atomic_cas_ ## sz(p, e, s);				\
+		if (r == e)						\
+			break;						\
 	}								\
-	__v;								\
+} while (0)
+
+#define	atomic_op_acq(p, op, v, sz) do {				\
+	atomic_op(p, op, v, sz);					\
+	membar(LoadLoad | LoadStore);					\
+} while (0)
+
+#define	atomic_op_rel(p, op, v, sz) do {				\
+	membar(LoadStore | StoreStore);					\
+	atomic_op(p, op, v, sz);					\
+} while (0)
+
+#define	atomic_load_acq(p, sz) ({					\
+	itype(sz) v;							\
+	v = atomic_cas_ ## sz(p, 0, 0);					\
+	membar(LoadLoad | LoadStore);					\
+	v;								\
 })
 
-#define	__atomic_op_8(p, op, v)		__atomic_op(p, op, v)
-#define	__atomic_op_16(p, op, v)	__atomic_op(p, op, v)
-#define	__atomic_op_32(p, op, v)	__atomic_op(p, op, v)
-#define	__atomic_load_32(p)		__atomic_load(p)
-#define	__atomic_load_clear_32(p)	__atomic_load_clear(p)
-#define	__atomic_cas_32(p, e, s)	__atomic_cas(p, e, s)
-#define	__atomic_op_64(p, op, v)	__atomic_op(p, op, v)
-#define	__atomic_load_64(p)		__atomic_load(p)
-#define	__atomic_load_clear_64(p)	__atomic_load_clear(p)
-#define	__atomic_cas_64(p, e, s)	__atomic_cas(p, e, s)
+#define	atomic_load_clear(p, sz) ({					\
+	itype(sz) e, r;							\
+	for (e = *(volatile itype(sz) *)p;; e = r) {			\
+		r = atomic_cas_ ## sz(p, e, 0);				\
+		if (r == e)						\
+			break;						\
+	}								\
+	e;								\
+})
 
-#define	atomic_add_8(p, v)		__atomic_op_8(p, +=, v)
-#define	atomic_subtract_8(p, v)		__atomic_op_8(p, -=, v)
-#define	atomic_set_8(p, v)		__atomic_op_8(p, |=, v)
-#define	atomic_clear_8(p, v)		__atomic_op_8(p, &=, ~v)
-#define	atomic_store_8(p, v)		__atomic_op_8(p, =, v)
+#define	atomic_store_rel(p, v, sz) do {					\
+	itype(sz) e, r;							\
+	membar(LoadStore | StoreStore);					\
+	for (e = *(volatile itype(sz) *)p;; e = r) {			\
+		r = atomic_cas_ ## sz(p, e, v);				\
+		if (r == e)						\
+			break;						\
+	}								\
+} while (0)
 
-#define	atomic_add_16(p, v)		__atomic_op_16(p, +=, v)
-#define	atomic_subtract_16(p, v)	__atomic_op_16(p, -=, v)
-#define	atomic_set_16(p, v)		__atomic_op_16(p, |=, v)
-#define	atomic_clear_16(p, v)		__atomic_op_16(p, &=, ~v)
-#define	atomic_store_16(p, v)		__atomic_op_16(p, =, v)
+#define	ATOMIC_GEN(name, ptype, vtype, atype, sz)			\
+									\
+static __inline void							\
+atomic_add_ ## name(volatile ptype p, atype v)				\
+{									\
+	atomic_op(p, +, v, sz);						\
+}									\
+static __inline void							\
+atomic_add_acq_ ## name(volatile ptype p, atype v)			\
+{									\
+	atomic_op_acq(p, +, v, sz);					\
+}									\
+static __inline void							\
+atomic_add_rel_ ## name(volatile ptype p, atype v)			\
+{									\
+	atomic_op_rel(p, +, v, sz);					\
+}									\
+									\
+static __inline void							\
+atomic_clear_ ## name(volatile ptype p, atype v)			\
+{									\
+	atomic_op(p, &, ~v, sz);					\
+}									\
+static __inline void							\
+atomic_clear_acq_ ## name(volatile ptype p, atype v)			\
+{									\
+	atomic_op_acq(p, &, ~v, sz);					\
+}									\
+static __inline void							\
+atomic_clear_rel_ ## name(volatile ptype p, atype v)			\
+{									\
+	atomic_op_rel(p, &, ~v, sz);					\
+}									\
+									\
+static __inline int							\
+atomic_cmpset_ ## name(volatile ptype p, vtype e, vtype s)		\
+{									\
+	return (((vtype)atomic_cas(p, e, s, sz)) == e);			\
+}									\
+static __inline int							\
+atomic_cmpset_acq_ ## name(volatile ptype p, vtype e, vtype s)		\
+{									\
+	return (((vtype)atomic_cas_acq(p, e, s, sz)) == e);		\
+}									\
+static __inline int							\
+atomic_cmpset_rel_ ## name(volatile ptype p, vtype e, vtype s)		\
+{									\
+	return (((vtype)atomic_cas_rel(p, e, s, sz)) == e);		\
+}									\
+									\
+static __inline vtype							\
+atomic_load_acq_ ## name(volatile ptype p)				\
+{									\
+	return ((vtype)atomic_cas_acq(p, 0, 0, sz));			\
+}									\
+									\
+static __inline vtype							\
+atomic_readandclear_ ## name(volatile ptype p)				\
+{									\
+	return ((vtype)atomic_load_clear(p, sz));			\
+}									\
+									\
+static __inline void							\
+atomic_set_ ## name(volatile ptype p, atype v)				\
+{									\
+	atomic_op(p, |, v, sz);						\
+}									\
+static __inline void							\
+atomic_set_acq_ ## name(volatile ptype p, atype v)			\
+{									\
+	atomic_op_acq(p, |, v, sz);					\
+}									\
+static __inline void							\
+atomic_set_rel_ ## name(volatile ptype p, atype v)			\
+{									\
+	atomic_op_rel(p, |, v, sz);					\
+}									\
+									\
+static __inline void							\
+atomic_subtract_ ## name(volatile ptype p, atype v)			\
+{									\
+	atomic_op(p, -, v, sz);						\
+}									\
+static __inline void							\
+atomic_subtract_acq_ ## name(volatile ptype p, atype v)			\
+{									\
+	atomic_op_acq(p, -, v, sz);					\
+}									\
+static __inline void							\
+atomic_subtract_rel_ ## name(volatile ptype p, atype v)			\
+{									\
+	atomic_op_rel(p, -, v, sz);					\
+}									\
+									\
+static __inline void							\
+atomic_store_rel_ ## name(volatile ptype p, vtype v)			\
+{									\
+	atomic_store_rel(p, v, sz);					\
+}
 
-#define	atomic_add_32(p, v)		__atomic_op_32(p, +=, v)
-#define	atomic_subtract_32(p, v)	__atomic_op_32(p, -=, v)
-#define	atomic_set_32(p, v)		__atomic_op_32(p, |=, v)
-#define	atomic_clear_32(p, v)		__atomic_op_32(p, &=, ~v)
-#define	atomic_store_32(p, v)		__atomic_op_32(p, =, v)
-#define	atomic_load_32(p)		__atomic_load_32(p)
-#define	atomic_readandclear_32(p)	__atomic_load_clear_32(p)
-#define	atomic_cmpset_32(p, e, s)	__atomic_cas_32(p, e, s)
+ATOMIC_GEN(int, int *, int, int, 32);
+ATOMIC_GEN(32, int *, int, int, 32);
 
-#define	atomic_add_64(p, v)		__atomic_op_64(p, +=, v)
-#define	atomic_subtract_64(p, v)	__atomic_op_64(p, -=, v)
-#define	atomic_set_64(p, v)		__atomic_op_64(p, |=, v)
-#define	atomic_clear_64(p, v)		__atomic_op_64(p, &=, ~v)
-#define	atomic_store_64(p, v)		__atomic_op_64(p, =, v)
-#define	atomic_load_64(p)		__atomic_load_64(p)
-#define	atomic_readandclear_64(p)	__atomic_load_clear_64(p)
-#define	atomic_cmpset_64(p, e, s)	__atomic_cas_64(p, e, s)
+ATOMIC_GEN(long, long *, long, long, 64);
+ATOMIC_GEN(64, long *, long, long, 64);
 
-#define	atomic_add_acq_8(p, v)		__atomic_op_8(p, +=, v)
-#define	atomic_subtract_acq_8(p, v)	__atomic_op_8(p, -=, v)
-#define	atomic_set_acq_8(p, v)		__atomic_op_8(p, |=, v)
-#define	atomic_clear_acq_8(p, v)	__atomic_op_8(p, &=, ~v)
-#define	atomic_store_acq_8(p, v)	__atomic_op_8(p, =, v)
+ATOMIC_GEN(ptr, void *, void *, uintptr_t, 64);
 
-#define	atomic_add_acq_16(p, v)		__atomic_op_16(p, +=, v)
-#define	atomic_subtract_acq_16(p, v)	__atomic_op_16(p, -=, v)
-#define	atomic_set_acq_16(p, v)		__atomic_op_16(p, |=, v)
-#define	atomic_clear_acq_16(p, v)	__atomic_op_16(p, &=, ~v)
-#define	atomic_store_acq_16(p, v)	__atomic_op_16(p, =, v)
-
-#define	atomic_add_acq_32(p, v)		__atomic_op_32(p, +=, v)
-#define	atomic_subtract_acq_32(p, v)	__atomic_op_32(p, -=, v)
-#define	atomic_set_acq_32(p, v)		__atomic_op_32(p, |=, v)
-#define	atomic_clear_acq_32(p, v)	__atomic_op_32(p, &=, ~v)
-#define	atomic_store_acq_32(p, v)	__atomic_op_32(p, =, v)
-#define	atomic_load_acq_32(p)		__atomic_load_32(p)
-#define	atomic_cmpset_acq_32(p, e, s)	__atomic_cas_32(p, e, s)
-
-#define	atomic_add_acq_64(p, v)		__atomic_op_64(p, +=, v)
-#define	atomic_subtract_acq_64(p, v)	__atomic_op_64(p, -=, v)
-#define	atomic_set_acq_64(p, v)		__atomic_op_64(p, |=, v)
-#define	atomic_clear_acq_64(p, v)	__atomic_op_64(p, &=, ~v)
-#define	atomic_store_acq_64(p, v)	__atomic_op_64(p, =, v)
-#define	atomic_load_acq_64(p)		__atomic_load_64(p)
-#define	atomic_cmpset_acq_64(p, e, s)	__atomic_cas_64(p, e, s)
-
-#define	atomic_add_rel_8(p, v)		__atomic_op_8(p, +=, v)
-#define	atomic_subtract_rel_8(p, v)	__atomic_op_8(p, -=, v)
-#define	atomic_set_rel_8(p, v)		__atomic_op_8(p, |=, v)
-#define	atomic_clear_rel_8(p, v)	__atomic_op_8(p, &=, ~v)
-#define	atomic_store_rel_8(p, v)	__atomic_op_8(p, =, v)
-
-#define	atomic_add_rel_16(p, v)		__atomic_op_16(p, +=, v)
-#define	atomic_subtract_rel_16(p, v)	__atomic_op_16(p, -=, v)
-#define	atomic_set_rel_16(p, v)		__atomic_op_16(p, |=, v)
-#define	atomic_clear_rel_16(p, v)	__atomic_op_16(p, &=, ~v)
-#define	atomic_store_rel_16(p, v)	__atomic_op_16(p, =, v)
-
-#define	atomic_add_rel_32(p, v)		__atomic_op_32(p, +=, v)
-#define	atomic_subtract_rel_32(p, v)	__atomic_op_32(p, -=, v)
-#define	atomic_set_rel_32(p, v)		__atomic_op_32(p, |=, v)
-#define	atomic_clear_rel_32(p, v)	__atomic_op_32(p, &=, ~v)
-#define	atomic_store_rel_32(p, v)	__atomic_op_32(p, =, v)
-#define	atomic_cmpset_rel_32(p, e, s)	__atomic_cas_32(p, e, s)
-
-#define	atomic_add_rel_64(p, v)		__atomic_op_64(p, +=, v)
-#define	atomic_subtract_rel_64(p, v)	__atomic_op_64(p, -=, v)
-#define	atomic_set_rel_64(p, v)		__atomic_op_64(p, |=, v)
-#define	atomic_clear_rel_64(p, v)	__atomic_op_64(p, &=, ~v)
-#define	atomic_store_rel_64(p, v)	__atomic_op_64(p, =, v)
-#define	atomic_cmpset_rel_64(p, e, s)	__atomic_cas_64(p, e, s)
-
-#define	atomic_add_char(p, v)		__atomic_op_8(p, +=, v)
-#define	atomic_subtract_char(p, v)	__atomic_op_8(p, -=, v)
-#define	atomic_set_char(p, v)		__atomic_op_8(p, |=, v)
-#define	atomic_clear_char(p, v)		__atomic_op_8(p, &=, ~v)
-#define	atomic_store_char(p, v)		__atomic_op_8(p, =, v)
-
-#define	atomic_add_short(p, v)		__atomic_op_16(p, +=, v)
-#define	atomic_subtract_short(p, v)	__atomic_op_16(p, -=, v)
-#define	atomic_set_short(p, v)		__atomic_op_16(p, |=, v)
-#define	atomic_clear_short(p, v)	__atomic_op_16(p, &=, ~v)
-#define	atomic_store_short(p, v)	__atomic_op_16(p, =, v)
-
-#define	atomic_add_int(p, v)		__atomic_op_32(p, +=, v)
-#define	atomic_subtract_int(p, v)	__atomic_op_32(p, -=, v)
-#define	atomic_set_int(p, v)		__atomic_op_32(p, |=, v)
-#define	atomic_clear_int(p, v)		__atomic_op_32(p, &=, ~v)
-#define	atomic_store_int(p, v)		__atomic_op_32(p, =, v)
-#define	atomic_load_int(p)		__atomic_load_32(p)
-#define	atomic_readandclear_int(p)	__atomic_load_clear_32(p)
-#define	atomic_cmpset_int(p, e, s)	__atomic_cas_32(p, e, s)
-
-#define	atomic_add_long(p, v)		__atomic_op_64(p, +=, v)
-#define	atomic_subtract_long(p, v)	__atomic_op_64(p, -=, v)
-#define	atomic_set_long(p, v)		__atomic_op_64(p, |=, v)
-#define	atomic_clear_long(p, v)		__atomic_op_64(p, &=, ~v)
-#define	atomic_store_long(p, v)		__atomic_op_64(p, =, v)
-#define	atomic_load_long(p)		__atomic_load_64(p)
-#define	atomic_readandclear_long(p)	__atomic_load_clear_64(p)
-#define	atomic_cmpset_long(p, e, s)	__atomic_cas_64(p, e, s)
-
-#define	atomic_add_acq_char(p, v)	__atomic_op_8(p, +=, v)
-#define	atomic_subtract_acq_char(p, v)	__atomic_op_8(p, -=, v)
-#define	atomic_set_acq_char(p, v)	__atomic_op_8(p, |=, v)
-#define	atomic_clear_acq_char(p, v)	__atomic_op_8(p, &=, ~v)
-#define	atomic_store_acq_char(p, v)	__atomic_op_8(p, =, v)
-
-#define	atomic_add_acq_short(p, v)	__atomic_op_16(p, +=, v)
-#define	atomic_subtract_acq_short(p, v)	__atomic_op_16(p, -=, v)
-#define	atomic_set_acq_short(p, v)	__atomic_op_16(p, |=, v)
-#define	atomic_clear_acq_short(p, v)	__atomic_op_16(p, &=, ~v)
-#define	atomic_store_acq_short(p, v)	__atomic_op_16(p, =, v)
-
-#define	atomic_add_acq_int(p, v)	__atomic_op_32(p, +=, v)
-#define	atomic_subtract_acq_int(p, v)	__atomic_op_32(p, -=, v)
-#define	atomic_set_acq_int(p, v)	__atomic_op_32(p, |=, v)
-#define	atomic_clear_acq_int(p, v)	__atomic_op_32(p, &=, ~v)
-#define	atomic_store_acq_int(p, v)	__atomic_op_32(p, =, v)
-#define	atomic_load_acq_int(p)		__atomic_load_32(p)
-#define	atomic_cmpset_acq_int(p, e, s)	__atomic_cas_32(p, e, s)
-
-#define	atomic_add_acq_long(p, v)	__atomic_op_64(p, +=, v)
-#define	atomic_subtract_acq_long(p, v)	__atomic_op_64(p, -=, v)
-#define	atomic_set_acq_long(p, v)	__atomic_op_64(p, |=, v)
-#define	atomic_clear_acq_long(p, v)	__atomic_op_64(p, &=, ~v)
-#define	atomic_store_acq_long(p, v)	__atomic_op_64(p, =, v)
-#define	atomic_load_acq_long(p)		__atomic_load_64(p)
-#define	atomic_cmpset_acq_long(p, e, s)	__atomic_cas_64(p, e, s)
-
-#define	atomic_add_rel_char(p, v)	__atomic_op_8(p, +=, v)
-#define	atomic_subtract_rel_char(p, v)	__atomic_op_8(p, -=, v)
-#define	atomic_set_rel_char(p, v)	__atomic_op_8(p, |=, v)
-#define	atomic_clear_rel_char(p, v)	__atomic_op_8(p, &=, ~v)
-#define	atomic_store_rel_char(p, v)	__atomic_op_8(p, =, v)
-
-#define	atomic_add_rel_short(p, v)	__atomic_op_16(p, +=, v)
-#define	atomic_subtract_rel_short(p, v)	__atomic_op_16(p, -=, v)
-#define	atomic_set_rel_short(p, v)	__atomic_op_16(p, |=, v)
-#define	atomic_clear_rel_short(p, v)	__atomic_op_16(p, &=, ~v)
-#define	atomic_store_rel_short(p, v)	__atomic_op_16(p, =, v)
-
-#define	atomic_add_rel_int(p, v)	__atomic_op_32(p, +=, v)
-#define	atomic_subtract_rel_int(p, v)	__atomic_op_32(p, -=, v)
-#define	atomic_set_rel_int(p, v)	__atomic_op_32(p, |=, v)
-#define	atomic_clear_rel_int(p, v)	__atomic_op_32(p, &=, ~v)
-#define	atomic_store_rel_int(p, v)	__atomic_op_32(p, =, v)
-#define	atomic_cmpset_rel_int(p, e, s)	__atomic_cas_32(p, e, s)
-
-#define	atomic_add_rel_long(p, v)	__atomic_op_64(p, +=, v)
-#define	atomic_subtract_rel_long(p, v)	__atomic_op_64(p, -=, v)
-#define	atomic_set_rel_long(p, v)	__atomic_op_64(p, |=, v)
-#define	atomic_clear_rel_long(p, v)	__atomic_op_64(p, &=, ~v)
-#define	atomic_store_rel_long(p, v)	__atomic_op_64(p, =, v)
-#define	atomic_cmpset_rel_long(p, e, s)	__atomic_cas_64(p, e, s)
-
-#define	atomic_add_char(p, v)		__atomic_op_8(p, +=, v)
-#define	atomic_subtract_char(p, v)	__atomic_op_8(p, -=, v)
-#define	atomic_set_char(p, v)		__atomic_op_8(p, |=, v)
-#define	atomic_clear_char(p, v)		__atomic_op_8(p, &=, ~v)
-#define	atomic_store_char(p, v)		__atomic_op_8(p, =, v)
-
-#define	atomic_add_short(p, v)		__atomic_op_16(p, +=, v)
-#define	atomic_subtract_short(p, v)	__atomic_op_16(p, -=, v)
-#define	atomic_set_short(p, v)		__atomic_op_16(p, |=, v)
-#define	atomic_clear_short(p, v)	__atomic_op_16(p, &=, ~v)
-#define	atomic_store_short(p, v)	__atomic_op_16(p, =, v)
-
-#define	atomic_add_int(p, v)		__atomic_op_32(p, +=, v)
-#define	atomic_subtract_int(p, v)	__atomic_op_32(p, -=, v)
-#define	atomic_set_int(p, v)		__atomic_op_32(p, |=, v)
-#define	atomic_clear_int(p, v)		__atomic_op_32(p, &=, ~v)
-#define	atomic_store_int(p, v)		__atomic_op_32(p, =, v)
-#define	atomic_load_int(p)		__atomic_load_32(p)
-#define	atomic_readandclear_int(p)	__atomic_load_clear_32(p)
-#define	atomic_cmpset_int(p, e, s)	__atomic_cas_32(p, e, s)
-
-#define	atomic_add_long(p, v)		__atomic_op_64(p, +=, v)
-#define	atomic_subtract_long(p, v)	__atomic_op_64(p, -=, v)
-#define	atomic_set_long(p, v)		__atomic_op_64(p, |=, v)
-#define	atomic_clear_long(p, v)		__atomic_op_64(p, &=, ~v)
-#define	atomic_store_long(p, v)		__atomic_op_64(p, =, v)
-#define	atomic_load_long(p)		__atomic_load_64(p)
-#define	atomic_readandclear_long(p)	__atomic_load_clear_64(p)
-#define	atomic_cmpset_long(p, e, s)	__atomic_cas_64(p, e, s)
-
-#define	atomic_add_ptr(p, v)		__atomic_op_64(p, +=, v)
-#define	atomic_subtract_ptr(p, v)	__atomic_op_64(p, -=, v)
-#define	atomic_set_ptr(p, v)		__atomic_op_64(p, |=, v)
-#define	atomic_clear_ptr(p, v)		__atomic_op_64(p, &=, ~v)
-#define	atomic_store_ptr(p, v)		__atomic_op_64(p, =, v)
-#define	atomic_load_ptr(p)		__atomic_load_64(p)
-#define	atomic_readandclear_ptr(p)	__atomic_load_clear_64(p)
-#define	atomic_cmpset_ptr(p, e, s)	__atomic_cas_64(p, e, s)
-
-#define	atomic_add_acq_char(p, v)	__atomic_op_8(p, +=, v)
-#define	atomic_subtract_acq_char(p, v)	__atomic_op_8(p, -=, v)
-#define	atomic_set_acq_char(p, v)	__atomic_op_8(p, |=, v)
-#define	atomic_clear_acq_char(p, v)	__atomic_op_8(p, &=, ~v)
-#define	atomic_store_acq_char(p, v)	__atomic_op_8(p, =, v)
-
-#define	atomic_add_acq_short(p, v)	__atomic_op_16(p, +=, v)
-#define	atomic_subtract_acq_short(p, v)	__atomic_op_16(p, -=, v)
-#define	atomic_set_acq_short(p, v)	__atomic_op_16(p, |=, v)
-#define	atomic_clear_acq_short(p, v)	__atomic_op_16(p, &=, ~v)
-#define	atomic_store_acq_short(p, v)	__atomic_op_16(p, =, v)
-
-#define	atomic_add_acq_int(p, v)	__atomic_op_32(p, +=, v)
-#define	atomic_subtract_acq_int(p, v)	__atomic_op_32(p, -=, v)
-#define	atomic_set_acq_int(p, v)	__atomic_op_32(p, |=, v)
-#define	atomic_clear_acq_int(p, v)	__atomic_op_32(p, &=, ~v)
-#define	atomic_store_acq_int(p, v)	__atomic_op_32(p, =, v)
-#define	atomic_load_acq_int(p)		__atomic_load_32(p)
-#define	atomic_cmpset_acq_int(p, e, s)	__atomic_cas_32(p, e, s)
-
-#define	atomic_add_acq_long(p, v)	__atomic_op_64(p, +=, v)
-#define	atomic_subtract_acq_long(p, v)	__atomic_op_64(p, -=, v)
-#define	atomic_set_acq_long(p, v)	__atomic_op_64(p, |=, v)
-#define	atomic_clear_acq_long(p, v)	__atomic_op_64(p, &=, ~v)
-#define	atomic_store_acq_long(p, v)	__atomic_op_64(p, =, v)
-#define	atomic_load_acq_long(p)		__atomic_load_64(p)
-#define	atomic_cmpset_acq_long(p, e, s)	__atomic_cas_64(p, e, s)
-
-#define	atomic_add_acq_ptr(p, v)	__atomic_op_64(p, +=, v)
-#define	atomic_subtract_acq_ptr(p, v)	__atomic_op_64(p, -=, v)
-#define	atomic_set_acq_ptr(p, v)	__atomic_op_64(p, |=, v)
-#define	atomic_clear_acq_ptr(p, v)	__atomic_op_64(p, &=, ~v)
-#define	atomic_store_acq_ptr(p, v)	__atomic_op_64(p, =, v)
-#define	atomic_load_acq_ptr(p)		__atomic_load_64(p)
-#define	atomic_cmpset_acq_ptr(p, e, s)	__atomic_cas_64(p, e, s)
-
-#define	atomic_add_rel_char(p, v)	__atomic_op_8(p, +=, v)
-#define	atomic_subtract_rel_char(p, v)	__atomic_op_8(p, -=, v)
-#define	atomic_set_rel_char(p, v)	__atomic_op_8(p, |=, v)
-#define	atomic_clear_rel_char(p, v)	__atomic_op_8(p, &=, ~v)
-#define	atomic_store_rel_char(p, v)	__atomic_op_8(p, =, v)
-
-#define	atomic_add_rel_short(p, v)	__atomic_op_16(p, +=, v)
-#define	atomic_subtract_rel_short(p, v)	__atomic_op_16(p, -=, v)
-#define	atomic_set_rel_short(p, v)	__atomic_op_16(p, |=, v)
-#define	atomic_clear_rel_short(p, v)	__atomic_op_16(p, &=, ~v)
-#define	atomic_store_rel_short(p, v)	__atomic_op_16(p, =, v)
-
-#define	atomic_add_rel_int(p, v)	__atomic_op_32(p, +=, v)
-#define	atomic_subtract_rel_int(p, v)	__atomic_op_32(p, -=, v)
-#define	atomic_set_rel_int(p, v)	__atomic_op_32(p, |=, v)
-#define	atomic_clear_rel_int(p, v)	__atomic_op_32(p, &=, ~v)
-#define	atomic_store_rel_int(p, v)	__atomic_op_32(p, =, v)
-#define	atomic_cmpset_rel_int(p, e, s)	__atomic_cas_32(p, e, s)
-
-#define	atomic_add_rel_long(p, v)	__atomic_op_64(p, +=, v)
-#define	atomic_subtract_rel_long(p, v)	__atomic_op_64(p, -=, v)
-#define	atomic_set_rel_long(p, v)	__atomic_op_64(p, |=, v)
-#define	atomic_clear_rel_long(p, v)	__atomic_op_64(p, &=, ~v)
-#define	atomic_store_rel_long(p, v)	__atomic_op_64(p, =, v)
-#define	atomic_cmpset_rel_long(p, e, s)	__atomic_cas_64(p, e, s)
-
-#define	atomic_add_rel_ptr(p, v)	__atomic_op_64(p, +=, v)
-#define	atomic_subtract_rel_ptr(p, v)	__atomic_op_64(p, -=, v)
-#define	atomic_set_rel_ptr(p, v)	__atomic_op_64(p, |=, v)
-#define	atomic_clear_rel_ptr(p, v)	__atomic_op_64(p, &=, ~v)
-#define	atomic_store_rel_ptr(p, v)	__atomic_op_64(p, =, v)
-#define	atomic_cmpset_rel_ptr(p, e, s)	__atomic_cas_64(p, e, s)
+#undef ATOMIC_GEN
+#undef atomic_cas_32
+#undef atomic_cas_64
+#undef atomic_cas
+#undef atomic_cas_acq
+#undef atomic_cas_rel
+#undef atomic_op
+#undef atomic_op_acq
+#undef atomic_op_rel
+#undef atomic_load_acq
+#undef atomic_store_rel
+#undef atomic_load_clear
 
 #endif /* !_MACHINE_ATOMIC_H_ */
