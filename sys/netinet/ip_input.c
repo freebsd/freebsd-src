@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.64 1997/07/25 03:58:21 brian Exp $
+ * $Id: ip_input.c,v 1.65 1997/09/15 23:07:01 ache Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -110,6 +110,8 @@ SYSCTL_INT(_net_inet_ip, IPCTL_INTRQDROPS, intr_queue_drops, CTLFLAG_RD,
 	&ipintrq.ifq_drops, 0, "");
 
 struct ipstat ipstat;
+SYSCTL_STRUCT(_net_inet_ip, IPCTL_STATS, stats, CTLFLAG_RD,
+	&ipstat, ipstat, "");
 
 /* Packet reassembly stuff */
 #define IPREASS_NHASH_LOG2      6
