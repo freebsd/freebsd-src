@@ -173,12 +173,11 @@ static struct mtx spacq_lock;
 #define	SPACQ_LOCK_ASSERT()	mtx_assert(&spacq_lock, MA_OWNED)
 
 /* search order for SAs */
-static u_int saorder_state_valid[] = {
+static const u_int saorder_state_valid_prefer_old[] = {
 	SADB_SASTATE_DYING, SADB_SASTATE_MATURE,
-	/*
-	 * This order is important because we must select the oldest SA
-	 * for outbound processing.  For inbound, This is not important.
-	 */
+};
+static const u_int saorder_state_valid_prefer_new[] = {
+	SADB_SASTATE_MATURE, SADB_SASTATE_DYING,
 };
 static u_int saorder_state_alive[] = {
 	/* except DEAD */
@@ -821,15 +820,24 @@ key_checkrequest(struct ipsecrequest *isr, const struct secasindex *saidx)
 static struct secasvar *
 key_allocsa_policy(const struct secasindex *saidx)
 {
+#define	N(a)	_ARRAYLEN(a)
 	struct secashead *sah;
 	struct secasvar *sav;
-	u_int stateidx, state;
+	u_int stateidx, arraysize;
+	const u_int *state_valid;
 
 	SAHTREE_LOCK();
 	LIST_FOREACH(sah, &sahtree, chain) {
 		if (sah->state == SADB_SASTATE_DEAD)
 			continue;
 		if (key_cmpsaidx(&sah->saidx, saidx, CMP_MODE_REQID)) {
+			if (key_preferred_oldsa) {
+				state_valid = saorder_state_valid_prefer_old;
+				arraysize = N(saorder_state_valid_prefer_old);
+			} else {
+				state_valid = saorder_state_valid_prefer_new;
+				arraysize = N(saorder_state_valid_prefer_new);
+			}
 			SAHTREE_UNLOCK();
 			goto found;
 		}
@@ -839,20 +847,15 @@ key_allocsa_policy(const struct secasindex *saidx)
 	return NULL;
 
     found:
-
 	/* search valid state */
-	for (stateidx = 0;
-	     stateidx < _ARRAYLEN(saorder_state_valid);
-	     stateidx++) {
-
-		state = saorder_state_valid[stateidx];
-
-		sav = key_do_allocsa_policy(sah, state);
+	for (stateidx = 0; stateidx < arraysize; stateidx++) {
+		sav = key_do_allocsa_policy(sah, state_valid[stateidx]);
 		if (sav != NULL)
 			return sav;
 	}
 
 	return NULL;
+#undef N
 }
 
 /*
@@ -1012,7 +1015,8 @@ key_allocsa(
 {
 	struct secashead *sah;
 	struct secasvar *sav;
-	u_int stateidx, state;
+	u_int stateidx, arraysize, state;
+	const u_int *saorder_state_valid;
 
 	IPSEC_ASSERT(dst != NULL, ("null dst address"));
 
@@ -1026,11 +1030,16 @@ key_allocsa(
 	 * encrypted so we can't check internal IP header.
 	 */
 	SAHTREE_LOCK();
+	if (key_preferred_oldsa) {
+		saorder_state_valid = saorder_state_valid_prefer_old;
+		arraysize = _ARRAYLEN(saorder_state_valid_prefer_old);
+	} else {
+		saorder_state_valid = saorder_state_valid_prefer_new;
+		arraysize = _ARRAYLEN(saorder_state_valid_prefer_new);
+	}
 	LIST_FOREACH(sah, &sahtree, chain) {
 		/* search valid state */
-		for (stateidx = 0;
-		     stateidx < _ARRAYLEN(saorder_state_valid);
-		     stateidx++) {
+		for (stateidx = 0; stateidx < arraysize; stateidx++) {
 			state = saorder_state_valid[stateidx];
 			LIST_FOREACH(sav, &sah->savtree[state], chain) {
 				/* sanity check */
