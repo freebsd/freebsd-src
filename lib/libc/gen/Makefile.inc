@@ -1,5 +1,5 @@
-#	From: @(#)Makefile.inc	8.3 (Berkeley) 4/16/94
-#	$Id: Makefile.inc,v 1.26 1997/02/22 14:57:58 peter Exp $
+#	@(#)Makefile.inc	8.6 (Berkeley) 5/4/95
+#	$Id: Makefile.inc,v 1.27 1997/03/03 13:08:32 bde Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/${MACHINE}/gen ${.CURDIR}/gen
@@ -51,7 +51,8 @@ MAN3+=	gen/alarm.3 gen/clock.3 gen/confstr.3 gen/config_open.3 \
 	gen/msgctl.3 gen/msgget.3 gen/msgrcv.3 gen/msgsnd.3 \
 	gen/modf.3 gen/nice.3 \
 	gen/nlist.3 gen/pause.3 gen/popen.3 gen/psignal.3 gen/pwcache.3 \
-	gen/raise.3 gen/rand48.3 gen/scandir.3 gen/setjmp.3 gen/setmode.3 \
+	gen/raise.3 gen/rand48.3 gen/realpath.3 \
+	gen/scandir.3 gen/setjmp.3 gen/setmode.3 \
 	gen/siginterrupt.3 gen/signal.3 gen/sigsetops.3 gen/sleep.3 \
 	gen/sysconf.3 gen/sysctl.3 gen/syslog.3 gen/tcgetpgrp.3 \
 	gen/tcsendbreak.3 gen/tcsetattr.3 gen/tcsetpgrp.3 gen/time.3 \
