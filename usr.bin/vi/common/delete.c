@@ -119,13 +119,15 @@ delete(sp, ep, fm, tm, lmode)
 			GETLINE_ERR(sp, fm->lno);
 			return (1);
 		}
-		GET_SPACE_RET(sp, bp, blen, len);
-		if (fm->cno != 0)
-			memmove(bp, p, fm->cno);
-		memmove(bp + fm->cno, p + (tm->cno + 1), len - (tm->cno + 1));
-		if (file_sline(sp, ep, fm->lno,
-		    bp, len - ((tm->cno - fm->cno) + 1)))
-			goto err;
+		if (len != 0) {
+			GET_SPACE_RET(sp, bp, blen, len);
+			if (fm->cno != 0)
+				memmove(bp, p, fm->cno);
+			memmove(bp + fm->cno, p + (tm->cno + 1), len - (tm->cno + 1));
+			if (file_sline(sp, ep, fm->lno,
+			    bp, len - ((tm->cno - fm->cno) + 1)))
+				goto err;
+		}
 		goto done;
 	}
 
