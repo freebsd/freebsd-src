@@ -3184,7 +3184,7 @@ em_update_stats_counters(struct adapter *adapter)
 	adapter->stats.rxerrc +
 	adapter->stats.crcerrs +
 	adapter->stats.algnerrc +
-	adapter->stats.rlec + adapter->stats.rnbc + 
+	adapter->stats.rlec +
 	adapter->stats.mpc + adapter->stats.cexterr;
 
 	/* Tx Errors */
