@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)comreg.h	7.2 (Berkeley) 5/9/91
- *	$Id: sioreg.h,v 1.3 1995/01/20 07:34:18 wpaul Exp $
+ *	$Id: sioreg.h,v 1.4 1995/12/10 13:39:15 phk Exp $
  */
 
 
@@ -118,4 +118,8 @@
 
 #ifndef CONUNIT
 #define	CONUNIT	(0)
+#endif
+
+#ifndef CONSPEED
+#define CONSPEED (9600)
 #endif
