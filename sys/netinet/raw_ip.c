@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.48 1997/08/16 19:15:37 wollman Exp $
+ *	$Id: raw_ip.c,v 1.49 1997/09/14 03:10:40 peter Exp $
  */
 
 #include <sys/param.h>
@@ -391,7 +391,7 @@ static int
 rip_attach(struct socket *so, int proto, struct proc *p)
 {
 	struct inpcb *inp;
-	int error;
+	int error, s;
 
 	inp = sotoinpcb(so);
 	if (inp)
@@ -399,8 +399,13 @@ rip_attach(struct socket *so, int proto, struct proc *p)
 	if (p && (error = suser(p->p_ucred, &p->p_acflag)) != 0)
 		return error;
 
-	if ((error = soreserve(so, rip_sendspace, rip_recvspace)) ||
-	    (error = in_pcballoc(so, &ripcbinfo, p)))
+	s = splnet();
+	error = in_pcballoc(so, &ripcbinfo, p);
+	splx(s);
+	if (error)
+		return error;
+	error = soreserve(so, rip_sendspace, rip_recvspace);
+	if (error)
 		return error;
 	inp = (struct inpcb *)so->so_pcb;
 	inp->inp_ip_p = proto;
