@@ -2210,8 +2210,10 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 		int npdes;
 		pd_entry_t ptepa;
 
+		PMAP_LOCK(pmap);
 		if (pmap->pm_pdir[ptepindex = (addr >> PDRSHIFT)])
-			return;
+			goto out;
+		PMAP_UNLOCK(pmap);
 retry:
 		p = vm_page_lookup(object, pindex);
 		if (p != NULL) {
@@ -2243,6 +2245,7 @@ retry:
 
 		p->valid = VM_PAGE_BITS_ALL;
 
+		PMAP_LOCK(pmap);
 		pmap->pm_stats.resident_count += size >> PAGE_SHIFT;
 		npdes = size >> PDRSHIFT;
 		for(i = 0; i < npdes; i++) {
@@ -2252,6 +2255,8 @@ retry:
 			ptepindex += 1;
 		}
 		pmap_invalidate_all(pmap);
+out:
+		PMAP_UNLOCK(pmap);
 	}
 }
 
