@@ -226,6 +226,7 @@ struct fore_unit {
 	Fore_prom	*fu_prom;	/* Device PROM buffer */
 	Fore_prom	*fu_promd;	/* Device PROM buffer (DMA) */
 	struct callout_handle fu_thandle;	/* Timer handle */
+	int		fu_ft4;		/* Running ForeThought 4 firmware */
 };
 typedef struct fore_unit	Fore_unit;
 
