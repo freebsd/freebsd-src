@@ -545,7 +545,26 @@ the
 .Fa port
 argument is ignored and could have any value, e.g. htons(~0).
 .Pp
-This function returns 0 on success, -1 otherwise.
+This function returns 0 on success, \-1 otherwise.
+.Ed
+.Pp
+.Ft int
+.Fn PacketAliasRedirectDynamic "struct alias_link *link"
+.Bd -ragged -offset indent
+This function marks the specified static redirect rule entered by
+.Fn PacketAliasRedirectPort
+as dynamic.
+This can be used to e.g. dynamically redirect a single TCP connection,
+after which the rule is removed.
+Only fully specified links can be made dynamic.
+(See the
+.Sx STATIC AND DYNAMIC LINKS
+and
+.Sx PARTIALLY SPECIFIED ALIASING LINKS
+sections below for a definition of static vs. dynamic,
+and partially vs. fully specified links.)
+.Pp
+This function returns 0 on success, \-1 otherwise.
 .Ed
 .Pp
 .Ft void
