@@ -834,7 +834,7 @@ fxp_attach(device_t dev)
 	 * however, ifp and its functions are not fully locked so MPSAFE
 	 * should not be used unless you can handle potential data loss.
 	 */
-	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET /*|INTR_MPSAFE*/,
+	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET | INTR_MPSAFE,
 			       fxp_intr, sc, &sc->ih);
 	if (error) {
 		device_printf(dev, "could not setup irq\n");

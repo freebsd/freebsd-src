@@ -1402,7 +1402,7 @@ sis_attach(dev)
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 
 	/* Hook interrupt last to avoid having to lock softc */
-	error = bus_setup_intr(dev, sc->sis_irq, INTR_TYPE_NET,
+	error = bus_setup_intr(dev, sc->sis_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    sis_intr, sc, &sc->sis_intrhand);
 
 	if (error) {
