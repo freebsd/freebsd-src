@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/smp.h>
 #include <sys/vmmeter.h>
-#include <sys/mbuf.h>
+#include <sys/mbuf.h>	/* XXX WITNESS_WARN() hack */
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -1613,7 +1613,9 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 	if (!(flags & M_NOWAIT)) {
 		KASSERT(curthread->td_intr_nesting_level == 0,
 		   ("malloc(M_WAITOK) in interrupt context"));
-		if (strcmp(zone->uz_name, "Mbuf") == 0)
+		if ((zone_mbuf != NULL && zone == zone_mbuf) ||
+		    (zone_clust != NULL && zone == zone_clust) ||
+		    (zone_pack != NULL && zone == zone_pack))
 #ifdef WITNESS
 			badness = WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
 			    NULL,
