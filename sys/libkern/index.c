@@ -38,27 +38,19 @@
 
 char *
 index(p, ch)
-	char *p;
-	int ch;
-{
-	for (;; ++p) {
-		if (*p == ch)
-			return(p);
-		if (!*p)
-			return(NULL);
-	}
-	/* NOTREACHED */
-}
-
-const char *
-c_index(p, ch)
 	const char *p;
 	int ch;
 {
-	for (;; ++p) {
-		if (*p == ch)
-			return(p);
-		if (!*p)
+	union {
+		const char *cp;
+		char *p;
+	} u;
+
+	u.cp = p;
+	for (;; ++u.p) {
+		if (*u.p == ch)
+			return(u.p);
+		if (!*u.p)
 			return(NULL);
 	}
 	/* NOTREACHED */
