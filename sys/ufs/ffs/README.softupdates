@@ -13,5 +13,7 @@ e.g. from single-user mode..
 	tunefs -n enable /dev/rsd0s1d
 
 Soft Updates is ALPHA code. Use at your own risk.
+For more information on soft updates see:
+http://www.ece.cmu.edu/~ganger/papers/CSE-TR-254-95/
 
 Julian, julian@freebsd.org
