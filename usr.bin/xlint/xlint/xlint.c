@@ -284,6 +284,12 @@ usage()
 	terminate(-1);
 }
 
+/* Transform the value of a preprocessor symbol to a string, by using
+   ANSI features of the preprocessor.  STRINGIZEINT() is for internal
+   use. */
+#define STRINGIZEINT(a) #a
+#define STRINGIZE(a) STRINGIZEINT(a)
+
 int
 main(argc, argv)
 	int	argc;
@@ -325,12 +331,8 @@ main(argc, argv)
 	appcstrg(&cppflags, "-$");
 	appcstrg(&cppflags, "-C");
 	appcstrg(&cppflags, "-Wcomment");
-#if defined (__FreeBSD__) && (__FreeBSD__ == 4)
-	appcstrg(&cppflags, "-D__FreeBSD__=4");
-#elif defined (__FreeBSD__) && (__FreeBSD__ == 3)
-	appcstrg(&cppflags, "-D__FreeBSD__=3");
-#elif defined (__FreeBSD__) && (__FreeBSD__ == 2)
-	appcstrg(&cppflags, "-D__FreeBSD__=2");
+#ifdef __FreeBSD__
+	appcstrg(&cppflags, "-D__FreeBSD__=" STRINGIZE(__FreeBSD__));
 #else
 #	error "This ain't NetBSD.  You lose!"
 	appcstrg(&cppflags, "-D__NetBSD__");
