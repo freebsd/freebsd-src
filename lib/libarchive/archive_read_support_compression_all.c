@@ -33,6 +33,7 @@ int
 archive_read_support_compression_all(struct archive *a)
 {
 	archive_read_support_compression_bzip2(a);
+	archive_read_support_compression_compress(a);
 	archive_read_support_compression_gzip(a);
 	return (ARCHIVE_OK);
 }
