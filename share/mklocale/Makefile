@@ -4,23 +4,24 @@ NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
 
 LOCALES=        bg_BG.CP1251 \
-		ja_JP.EUC \
+		ja_JP.eucJP \
 		ja_JP.SJIS \
-		ko_KR.EUC \
-		la_LN.ASCII \
-		la_LN.ISO_8859-1 \
-		la_LN.ISO_8859-2 \
-		la_LN.ISO_8859-4 \
-		la_LN.DIS_8859-15 \
-		ru_SU.CP866 \
-		ru_SU.ISO_8859-5 \
-		ru_SU.KOI8-R \
+		ko_KR.eucKR \
+		la_LN.US-ASCII \
+		la_LN.ISO8859-1 \
+		la_LN.ISO8859-2 \
+		la_LN.ISO8859-4 \
+		la_LN.ISO8859-15 \
+		ru_RU.CP866 \
+		ru_RU.ISO8859-5 \
+		ru_RU.KOI8-R \
 		uk_UA.KOI8-U \
-		zh_CN.EUC \
+		zh_CN.eucCN \
 		zh_TW.Big5
 
 LOCALEDIR=	${DESTDIR}/usr/share/locale
 
+ASCIILINKS=	en_AU en_CA en_GB en_US
 LATIN1LINKS = \
 	da_DK de_AT de_CH de_DE en_AU en_CA en_GB en_US es_ES fi_FI \
 	fr_BE fr_CA fr_CH fr_FR is_IS it_CH it_IT nl_BE nl_NL no_NO \
@@ -43,22 +44,24 @@ afterinstall:
 		${locale}.out ${LOCALEDIR}/${locale}/LC_CTYPE
 .endfor
 .for link in ${LATIN1LINKS}
-	ln -fs ../la_LN.ISO_8859-1/LC_CTYPE \
-		       ${LOCALEDIR}/${link}.ISO_8859-1/LC_CTYPE
+	ln -fs ../la_LN.ISO8859-1/LC_CTYPE \
+		       ${LOCALEDIR}/${link}.ISO8859-1/LC_CTYPE
 .endfor
 .for link in ${LATIN1LINKS}
-	ln -fs ../la_LN.DIS_8859-15/LC_CTYPE \
-		       ${LOCALEDIR}/${link}.DIS_8859-15/LC_CTYPE
+	ln -fs ../la_LN.ISO8859-15/LC_CTYPE \
+		       ${LOCALEDIR}/${link}.ISO8859-15/LC_CTYPE
 .endfor
 .for link in ${LATIN2LINKS}
-	ln -fs ../la_LN.ISO_8859-2/LC_CTYPE \
-		${LOCALEDIR}/${link}.ISO_8859-2/LC_CTYPE
+	ln -fs ../la_LN.ISO8859-2/LC_CTYPE \
+		${LOCALEDIR}/${link}.ISO8859-2/LC_CTYPE
 .endfor
 .for link in ${LATIN4LINKS}
-	ln -fs ../la_LN.ISO_8859-4/LC_CTYPE \
-		${LOCALEDIR}/${link}.ISO_8859-4/LC_CTYPE
+	ln -fs ../la_LN.ISO8859-4/LC_CTYPE \
+		${LOCALEDIR}/${link}.ISO8859-4/LC_CTYPE
 .endfor
-	ln -fs ../ja_JP.SJIS/LC_CTYPE \
-		${LOCALEDIR}/ja_JP.Shift_JIS/LC_CTYPE
+.for link in ${ASCIILINKS}
+	ln -fs ../la_LN.US-ASCII/LC_CTYPE \
+		${LOCALEDIR}/${link}.US-ASCII/LC_CTYPE
+.endfor
 
 .include <bsd.prog.mk>
