@@ -1,0 +1,84 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+  <TITLE>BIND Comment Syntax</TITLE>
+</HEAD>
+
+<BODY>
+<H2>BIND Configuration File Guide--Comment Syntax</H2>
+
+<HR>
+
+<A NAME="Syntax"><H3>Syntax</H3></A>
+
+<PRE>
+/* This is a BIND comment as in C */
+
+// This is a BIND comment as in C++
+
+# This is a BIND comment as in common Unix shells and perl
+</PRE>
+
+<A NAME="Usage"><H3>Definition and Usage</H3></A>
+
+<P>Comments may appear anywhere that whitespace may appear in a BIND
+configuration file.</P>
+
+<P>C-style comments start with the two characters <CODE>/*</CODE>
+(slash, star) and end with <CODE>*/</CODE> (star, slash).  Because
+they are completely delimited with these characters, they can be used
+to comment only a portion of a line or to span multiple lines.</P>
+
+<P>C-style comments cannot be nested.  For example, the following is
+not valid because the entire comment ends with the first
+<CODE>*/</CODE>:
+
+<PRE>
+/* This is the start of a comment.
+   This is still part of the comment.
+/* This is an incorrect attempt at nesting a comment. */
+   This is no longer in any comment. */
+</PRE>
+
+
+<P>C++-style comments start with the two characters <CODE>//</CODE>
+(slash, slash) and continue to the end of the physical line.  They
+cannot be continued across multiple physical lines; to have one
+logical comment span multiple lines, each line must use the
+<CODE>//</CODE> pair.  For example:
+
+<PRE>
+// This is the start of a comment.  The next line
+// is a new comment, even though it is logically
+// part of the previous comment.
+</PRE>
+
+<P>Shell-style (or perl-style, if you prefer) comments start with the
+character <CODE>#</CODE> (hash or pound or number or octothorpe or
+whatever) and continue to the end of the physical line, like C++
+comments.</P>  For example:
+
+<PRE>
+# This is the start of a comment.  The next line
+# is a new comment, even though it is logically
+# part of the previous comment.
+</PRE>
+
+<P><STRONG>WARNING:</STRONG> you cannot use the <CODE>;</CODE>
+(semicolon) character to start a comment such as you would in a zone
+file.  The semicolon indicates the end of a configuration statement,
+so whatever follows it will be interpreted as the start of the next
+statement.</P>
+
+<HR>
+
+<CENTER><P>[ <A HREF="config.html">BIND Config. File</A>
+| <A HREF="http://www.vix.com/isc/bind.html">BIND Home</A>
+|&nbsp;<A HREF="http://www.isc.org">ISC</A> ]</P></CENTER>
+
+<HR>
+<ADDRESS>
+Last Updated: $Id: comments.html,v 1.4 1998/03/21 01:03:11 halley Exp $
+</ADDRESS>
+</BODY>
+</HTML>

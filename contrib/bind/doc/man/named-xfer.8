@@ -1,0 +1,147 @@
+.\" ++Copyright++ 1985
+.\" -
+.\" Copyright (c) 1985
+.\"    The Regents of the University of California.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\" 	This product includes software developed by the University of
+.\" 	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" -
+.\" Portions Copyright (c) 1993 by Digital Equipment Corporation.
+.\" 
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies, and that
+.\" the name of Digital Equipment Corporation not be used in advertising or
+.\" publicity pertaining to distribution of the document or software without
+.\" specific, written prior permission.
+.\" 
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
+.\" WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
+.\" CORPORATION BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+.\" DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+.\" PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+.\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+.\" SOFTWARE.
+.\" -
+.\" --Copyright--
+.\"
+.\"	from named.8	6.6 (Berkeley) 2/14/89
+.\"
+.Dd June 26, 1993
+.Dt @XFER_INDOT_U@NAMED-XFER @SYS_OPS_EXT_U@ 
+.Os BSD 4
+.Sh NAME
+.Nm @XFER_INDOT@named-xfer 
+.Nd ancillary agent for inbound zone transfers
+.Sh SYNOPSIS
+.Nm named-xfer
+.Fl z Ar zone_to_transfer
+.Fl f Ar db_file
+.Fl s Ar serial_no
+.Op Fl d Ar debuglevel
+.Op Fl l Ar debug_log_file
+.Op Fl t Ar trace_file
+.Op Fl p Ar port#
+.Op Fl S 
+.Ar nameserver ...
+.Sh DESCRIPTION
+.Ic Named-xfer
+is an ancillary program executed by
+.Xr @INDOT@named @SYS_OPS_EXT@
+to perform an inbound zone transfer.  It is rarely executed directly, and then
+only by system administrators who are trying to debug a zone transfer problem.
+See RFC's 1033, 1034, and 1035 for more information on the Internet
+name-domain system.
+.Pp
+Options are:
+.Bl -tag -width Fl
+.It Fl z Ar zone_to_transfer
+specifies the name of the zone to be transferred.
+.It Fl f Ar db_file
+specifies the name of the 
+.Ar db_file 
+into which the zone should be dumped
+when it is received from the primary server.
+.It Fl s Ar serial_no
+specifies the serial number of our current copy of this zone.  If the
+.Sy SOA RR 
+we get from the primary server does not have a serial
+number higher than this, the transfer will be aborted.
+.It Fl d Ar debuglevel
+Print debugging information.
+The 
+.Ar debuglevel 
+is a number determines the level of messages printed.
+.It Fl l Ar debug_log_file
+Specifies a log file for debugging messages.  The default is system- 
+dependent but is usually in
+.Pa /var/tmp
+or
+.Pa /usr/tmp .
+Note that this only applies if
+.Dq Fl d
+is also specified.
+.It Fl t Ar trace_file
+Specifies a 
+.Ar trace_file 
+which will contain a protocol trace of the zone
+transfer.  This is probably only of interest to people debugging the name
+server itself.
+.It Fl p Ar port#
+Use a different port number.  The default is the standard port number
+as returned by 
+.Xr getservbyname @LIB_NETWORK_EXT@  
+for the service 
+.Dq Li domain .
+.It Fl S
+Perform a restricted transfer of only the SOA, NS records and glue A records
+for the zone. The SOA record will not be loaded by 
+.Xr @INDOT@named @SYS_OPS_EXT@
+but will be used to
+determine when to verify the NS records.  See the 
+.Dq Li stubs 
+directive in
+.Xr @INDOT@named @SYS_OPS_EXT@
+for more information.
+.El
+.Pp
+Additional arguments are taken as name server addresses in so-called
+.Dq dotted-quad 
+syntax 
+.Em only; 
+no host name are allowed here.  At least one address must be specified.  
+Any additional addresses will be tried, in order, if the first one fails 
+to transfer to us successfully.
+.Sh SEE ALSO
+.Xr hostname @DESC_EXT@ ,
+.Xr @INDOT@named @SYS_OPS_EXT@ ,
+.Xr resolver @LIB_NETWORK_EXT@ ,
+.Xr resolver @FORMAT_EXT@ ,
+RFC 882, RFC 883, RFC 973, RFC 974, RFC 1033, RFC 1034, RFC 1035, RFC 1123,
+.Dq Name Server Operations Guide for Sy BIND .
