@@ -552,7 +552,7 @@ devfs_readlink(ap)
 	struct devfs_dirent *de;
 
 	de = ap->a_vp->v_data;
-	error = uiomove(de->de_symlink, strlen(de->de_symlink) + 1, ap->a_uio);
+	error = uiomove(de->de_symlink, strlen(de->de_symlink), ap->a_uio);
 	return (error);
 }
 
