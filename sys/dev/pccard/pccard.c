@@ -344,6 +344,12 @@ pccard_card_gettype(device_t dev, int *type)
 /*
  * Initialize a PCCARD function.  May be called as long as the function is
  * disabled.
+ *
+ * Note: pccard_function_init should not keep resources allocated.  It should
+ * only set them up ala isa pnp, set the values in the rl lists, and return.
+ * Any resource held after pccard_function_init is called is a bug.  However,
+ * the bus routines to get the resources also assume that pccard_function_init
+ * does this, so they need to be fixed too.
  */
 static void
 pccard_function_init(struct pccard_function *pf)
@@ -440,6 +446,9 @@ pccard_function_init(struct pccard_function *pf)
 /*
  * Free resources allocated by pccard_function_init(), May be called as long
  * as the function is disabled.
+ *
+ * NOTE: This function should be unnecessary.  pccard_function_init should
+ * never keep resources initialized.
  */
 static void
 pccard_function_free(struct pccard_function *pf)
