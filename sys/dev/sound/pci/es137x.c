@@ -378,6 +378,12 @@ eschan_trigger(void *data, int go)
 			es->sctrl |= SCTRL_P2INTEN | (b << SCTRL_SH_P2ENDINC);
 			bus_space_write_4(es->st, es->sh,
 					  ES1370_REG_DAC2_SCOUNT, cnt);
+			/* start at beginning of buffer */
+			bus_space_write_4(es->st, es->sh, ES1370_REG_MEMPAGE,
+					  ES1370_REG_DAC2_FRAMECNT >> 8);
+			bus_space_write_4(es->st, es->sh,
+					  ES1370_REG_DAC2_FRAMECNT & 0xff,
+				  	  (ch->buffer->bufsize >> 2) - 1);
 		} else es->ctrl &= ~CTRL_DAC2_EN;
 	} else {
 		if (go == PCMTRIG_START) {
@@ -386,6 +392,12 @@ eschan_trigger(void *data, int go)
 			es->sctrl |= SCTRL_R1INTEN;
 			bus_space_write_4(es->st, es->sh,
 					  ES1370_REG_ADC_SCOUNT, cnt);
+			/* start at beginning of buffer */
+			bus_space_write_4(es->st, es->sh, ES1370_REG_MEMPAGE,
+					  ES1370_REG_ADC_FRAMECNT >> 8);
+			bus_space_write_4(es->st, es->sh,
+					  ES1370_REG_ADC_FRAMECNT & 0xff,
+				  	  (ch->buffer->bufsize >> 2) - 1);
 		} else es->ctrl &= ~CTRL_ADC_EN;
 	}
 	bus_space_write_4(es->st, es->sh, ES1370_REG_SERIAL_CONTROL, es->sctrl);
@@ -398,17 +410,17 @@ eschan_getptr(void *data)
 {
 	struct es_chinfo *ch = data;
 	struct es_info *es = ch->parent;
-	if (ch->dir == PCMDIR_PLAY) {
-		bus_space_write_4(es->st, es->sh, ES1370_REG_MEMPAGE,
-				  ES1370_REG_DAC2_FRAMECNT >> 8);
-		return (bus_space_read_4(es->st, es->sh,
-				         ES1370_REG_DAC2_FRAMECNT & 0xff) >> 14) & 0x3fffc;
-	} else {
-		bus_space_write_4(es->st, es->sh, ES1370_REG_MEMPAGE,
-				  ES1370_REG_ADC_FRAMECNT >> 8);
-		return (bus_space_read_4(es->st, es->sh,
-				         ES1370_REG_ADC_FRAMECNT & 0xff) >> 14) & 0x3fffc;
-	}
+	u_int32_t reg, cnt;
+
+	if (ch->dir == PCMDIR_PLAY)
+		reg = ES1370_REG_DAC2_FRAMECNT;
+	else
+		reg = ES1370_REG_ADC_FRAMECNT;
+
+	bus_space_write_4(es->st, es->sh, ES1370_REG_MEMPAGE, reg >> 8);
+	cnt = bus_space_read_4(es->st, es->sh, reg & 0x000000ff) >> 16;
+	/* cnt is longwords */
+	return cnt << 2;
 }
 
 static pcmchan_caps *
