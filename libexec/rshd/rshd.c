@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rshd.c,v 1.14 1997/03/28 15:48:17 imp Exp $
+ *	$Id: rshd.c,v 1.15 1997/03/29 12:35:06 peter Exp $
  */
 
 #ifndef lint
@@ -72,6 +72,9 @@ static char sccsid[] = "@(#)rshd.c	8.2 (Berkeley) 4/6/94";
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
+#ifdef	LOGIN_CAP
+#include <login_cap.h>
+#endif
 
 int	keepalive = 1;
 int	check_all;
@@ -205,6 +208,9 @@ doit(fromp)
 	char cmdbuf[NCARGS+1], locuser[16], remuser[16];
 	char remotehost[2 * MAXHOSTNAMELEN + 1];
 	char fromhost[2 * MAXHOSTNAMELEN + 1];
+#ifdef	LOGIN_CAP
+	login_cap_t *lc;
+#endif
 
 #ifdef	KERBEROS
 	AUTH_DAT	*kdata = (AUTH_DAT *) NULL;
@@ -441,7 +447,20 @@ doit(fromp)
 			errorstr = "Login incorrect.\n";
 		goto fail;
 	}
+#ifdef	LOGIN_CAP
+	lc = login_getclass(pwd);
+#endif
 	if (chdir(pwd->pw_dir) < 0) {
+#ifdef	LOGIN_CAP
+		if (chdir("/") < 0 ||
+		    login_getcapbool(lc, "requirehome", !!pwd->pw_uid)) {
+			syslog(LOG_INFO|LOG_AUTH,
+			"%s@%s as %s: no home directory. cmd='%.80s'",
+			remuser, hostname, locuser, cmdbuf);
+			error("No remote home directory.\n");
+			exit(0);
+		}
+#else
 		(void) chdir("/");
 #ifdef notdef
 		syslog(LOG_INFO|LOG_AUTH,
@@ -450,6 +469,8 @@ doit(fromp)
 		error("No remote directory.\n");
 		exit(1);
 #endif
+#endif
+		pwd->pw_dir = "/";
 	}
 
 #ifdef	KERBEROS
@@ -491,6 +512,27 @@ fail:
 		error("Logins currently disabled.\n");
 		exit(1);
 	}
+#ifdef	LOGIN_CAP
+	if (lc != NULL) {
+		char	remote_ip[MAXHOSTNAMELEN];
+
+		strncpy(remote_ip, inet_ntoa(fromp->sin_addr),
+			sizeof(remote_ip) - 1);
+		remote_ip[sizeof(remote_ip) - 1] = 0;
+		if (!auth_hostok(lc, fromhost, remote_ip)) {
+			syslog(LOG_INFO|LOG_AUTH,
+			    "%s@%s as %s: permission denied (%s). cmd='%.80s'",
+			    remuser, hostname, locuser, __rcmd_errstr,
+			    cmdbuf);
+			error("Permission denied.\n");
+			exit(1);
+		}
+		if (!auth_timeok(lc, time(NULL))) {
+			error("Logins not available right now\n");
+			exit(1);
+		}
+	}
+#endif	/* !LOGIN_CAP */
 #if	BSD > 43
 	/* before fork, while we're session leader */
 	if (setlogin(pwd->pw_name) < 0)
@@ -670,9 +712,6 @@ fail:
 	}
 	if (*pwd->pw_shell == '\0')
 		pwd->pw_shell = _PATH_BSHELL;
-	(void) setgid((gid_t)pwd->pw_gid);
-	initgroups(pwd->pw_name, pwd->pw_gid);
-	(void) setuid((uid_t)pwd->pw_uid);
 	environ = envinit;
 	strncat(homedir, pwd->pw_dir, sizeof(homedir)-6);
 	strcat(path, _PATH_DEFPATH);
@@ -683,6 +722,17 @@ fail:
 		cp++;
 	else
 		cp = pwd->pw_shell;
+#ifdef	LOGIN_CAP
+	if (setusercontext(lc, pwd, pwd->pw_uid, LOGIN_SETALL) != 0) {
+                syslog(LOG_ERR, "setusercontext: %m");
+		exit(1);
+	}
+	login_close(lc);
+#else
+	(void) setgid((gid_t)pwd->pw_gid);
+	initgroups(pwd->pw_name, pwd->pw_gid);
+	(void) setuid((uid_t)pwd->pw_uid);
+#endif
 	endpwent();
 	if (log_success || pwd->pw_uid == 0) {
 #ifdef	KERBEROS
