@@ -190,7 +190,7 @@ static device_method_t ax_methods[] = {
 };
 
 static driver_t ax_driver = {
-	"if_ax",
+	"ax",
 	ax_methods,
 	sizeof(struct ax_softc)
 };

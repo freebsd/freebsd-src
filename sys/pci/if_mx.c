@@ -208,7 +208,7 @@ static device_method_t mx_methods[] = {
 };
 
 static driver_t mx_driver = {
-	"if_mx",
+	"mx",
 	mx_methods,
 	sizeof(struct mx_softc)
 };
