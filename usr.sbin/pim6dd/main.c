@@ -33,7 +33,7 @@
  *  Questions concerning this software should be directed to 
  *  Kurt Windisch (kurtw@antc.uoregon.edu)
  *
- *  $Id: main.c,v 1.3 2000/03/26 19:11:41 sumikawa Exp $
+ *  $Id: main.c,v 1.4 2000/10/05 22:20:38 itojun Exp $
  */
 /*
  * Part of this program has been derived from PIM sparse-mode pimd.
@@ -658,7 +658,7 @@ restart(i)
     int s;
 #endif /* SNMP */
     
-    log(LOG_NOTICE, 0, "% restart", versionstring);
+    log(LOG_NOTICE, 0, "%s restart", versionstring);
     
     /*
      * reset all the entries
