@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.12 1994/11/18 16:48:57 jkh Exp $
+# $Id: instdist.sh,v 1.13 1994/11/18 17:36:11 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -41,7 +41,7 @@ media_set_defaults()
 	ifconfig_flags=""
 	remote_hostip=""
 	tmp_dir="/usr/tmp"
-	ftp_path="ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}"
+	ftp_path=""
 	nfs_path=""
 	nfs_options=""
 	serial_interface="/dev/tty00"
@@ -106,8 +106,8 @@ choice.  Also note that not all sites carry the optional package \n\
 or XFree86 3.1 distributions!  These are only guaranteed to be \n\
 available from the primary U.S. ftp site.\n\n" -1 -1 8 \
    "Primary" "ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}" \
-   "U.S#1" "ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}" \
-   "U.S#2" "ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}" \
+   "#2-U.S" "ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}" \
+   "#3-U.S" "ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}" \
    "Taiwan" "ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}" \
    "Australia" "ftp://ftp.physics.usyd.edu.au/FreeBSD/${DISTNAME}" \
    "France" "ftp://ftp.ibp.fr/pub/freeBSD/${DISTNAME}" \
@@ -123,11 +123,11 @@ available from the primary U.S. ftp site.\n\n" -1 -1 8 \
 		ftp_path="ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}"
 	;;
 
-	U.S#1)
+	#2-U.S)
 		ftp_path="ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}"
 	;;
 
-	U.S#2)
+	#3-U.S)
 		ftp_path="ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}"
 	;;
 
@@ -233,7 +233,7 @@ media_install_set()
 		if ! media_set_tmpdir; then return; fi
 		if ! media_cd_tmpdir; then return; fi
 		if ! echo $media_device | grep -q -v 'ftp://'; then
-			message "Fetching distribution using ncftp.  Use ALT-F2 to see output, ALT-F1 to return."
+			message "Fetching distribution using ncftp.\nUse ALT-F2 to see output, ALT-F1 to return."
 			if ! ncftp $media_device/${media_distribution}/* < /dev/null > /dev/ttyv1 2>&1; then
 				error "Couldn't fetch ${media_distribution} distribution from ${media_device}!"
 			else
