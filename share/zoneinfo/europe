@@ -1,4 +1,4 @@
-# @(#)europe	7.57
+# @(#)europe	7.58
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -18,9 +18,17 @@
 # Except where otherwise noted, Shanks is the source for entries through 1990,
 # and IATA SSIM is the source for entries after 1990.
 #
-# Another source occasionally used is Edward W. Whitman, World Time Differences,
-# Whitman Publishing Co, 2 Niagara Av, Ealing, London (undated), which
-# I found in the UCLA library.
+# Other sources occasionally used include:
+#
+#	Edward W. Whitman, World Time Differences,
+#	Whitman Publishing Co, 2 Niagara Av, Ealing, London (undated),
+#	which I found in the UCLA library.
+#
+#	Brazil's Departamento Servico da Hora (DSH),
+#	<a href="http://pcdsh01.on.br/HISTHV.htm">
+#	History of Summer Time
+#	</a> (1998-09-21, in Portuguese)
+
 #
 # I invented the abbreviations marked `*' in the following table;
 # the rest are from earlier versions of this file, or from other sources.
@@ -115,9 +123,10 @@
 # transition date for London, namely 1847 Sep 22.  We don't know as much
 # about Dublin, so we use 1880 Aug 2, the legal transition time.
 
-# From Paul Eggert (1996-06-12):
+# From Paul Eggert (1999-01-30):
 # Summer Time was first seriously proposed by William Willett (1857-1915),
-# a London builder who circulated a pamphlet ``Waste of Daylight'' (1907)
+# a London builder and member of the Royal Astronomical Society
+# who circulated a pamphlet ``Waste of Daylight'' (1907)
 # that proposed advancing clocks 20 minutes on each of four Sundays in April,
 # and retarding them by the same amount on four Sundays in September.
 # A bill was drafted in 1909 and introduced in Parliament several times,
@@ -1100,6 +1109,10 @@ Rule	Belgium	1922	1927	-	Oct	Sat>=1	23:00s	0	-
 Rule	Belgium	1923	only	-	Apr	21	23:00s	1:00	S
 Rule	Belgium	1924	only	-	Mar	29	23:00s	1:00	S
 Rule	Belgium	1925	only	-	Apr	 4	23:00s	1:00	S
+# DSH writes that a royal decree of 1926-02-22 specified the Sun following 3rd
+# Sat in Apr (except if it's Easter, in which case it's one Sunday earlier),
+# to Sun following 1st Sat in Oct, and that a royal decree of 1928-09-15
+# changed the transition times to 02:00 GMT.
 Rule	Belgium	1926	only	-	Apr	17	23:00s	1:00	S
 Rule	Belgium	1927	only	-	Apr	 9	23:00s	1:00	S
 Rule	Belgium	1928	only	-	Apr	14	23:00s	1:00	S
@@ -1240,6 +1253,18 @@ Zone America/Thule	-4:35:08 -	LMT	1916 Jul 28 # Pituffik
 # A discussion is running about the summer time efficiency and effect on
 # human physiology.  It seems that Estonia maybe will not change to
 # summer time next spring.''
+
+# From Peter Ilieve <peter@aldie.co.uk> (1998-11-04), heavily edited:
+# <a href="http://trip.rk.ee/cgi-bin/thw?${BASE}=akt&${OOHTML}=rtd&TA=1998&TO=1&AN=1390">
+# The 1998-09-22 Estonian time law
+# </a>
+# refers to the Eighth Directive and cites the association agreement between
+# the EU and Estonia, ratified by the Estonian law (RT II 1995, 22--27, 120).
+#
+# I also asked [my relative] whether they use any standard abbreviation
+# for their standard and summer times. He says no, they use "suveaeg"
+# (summer time) and "talveaeg" (winter time).
+
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Europe/Tallinn	1:39:00	-	LMT	1880
 			1:39:00	-	TMT	1918 Feb # Tallinn Mean Time
@@ -1250,7 +1275,7 @@ Zone	Europe/Tallinn	1:39:00	-	LMT	1880
 			1:00	C-Eur	CE%sT	1944 Sep 22
 			3:00	Russia	MSK/MSD	1989 Mar 26 2:00s
 			2:00	1:00	EEST	1989 Sep 24 2:00s
-			2:00	C-Eur	EE%sT	1998
+			2:00	C-Eur	EE%sT	1998 Sep 22
 			2:00	EU	EE%sT
 
 # Finland
@@ -1291,6 +1316,9 @@ Rule	France	1920	only	-	Oct	23	23:00s	0	-
 Rule	France	1921	only	-	Mar	14	23:00s	1:00	S
 Rule	France	1921	only	-	Oct	25	23:00s	0	-
 Rule	France	1922	only	-	Mar	25	23:00s	1:00	S
+# DSH writes that a law of 1923-05-24 specified 3rd Sat in Apr at 23:00 to 1st
+# Sat in Oct at 24:00; and that in 1930, because of Easter, the transitions
+# were Apr 12 and Oct 5.  Go with Shanks.
 Rule	France	1922	1938	-	Oct	Sat>=1	23:00s	0	-
 Rule	France	1923	only	-	May	26	23:00s	1:00	S
 Rule	France	1924	only	-	Mar	29	23:00s	1:00	S
@@ -1793,10 +1821,8 @@ Zone Europe/Amsterdam	0:19:28 -	LMT	1892 May
 # Whitman gives 1916 May 21 - 1916 Oct 21; go with Shanks.
 Rule	Norway	1916	only	-	May	22	1:00	1:00	S
 Rule	Norway	1916	only	-	Sep	30	0:00	0	-
-# Shanks omits the following transition; go with Whitman.
-Rule	Norway	1935	only	-	Aug	11	0:00	1:00	S
-# Whitman says DST observed until 1942 Nov 1, then 1943 Mar 29 - Oct 4,
-# 1944 Apr 3 - Oct 2, and 1945 Apr 1 - Oct 1; go with Shanks after 1940.
+# Whitman says DST observed 1935-08-11/1942-11-01, then 1943-03-29/10-04,
+# 1944-04-03/10-02, and 1945-04-01/10-01; go with Shanks.
 Rule	Norway	1945	only	-	Apr	 2	2:00s	1:00	S
 Rule	Norway	1945	only	-	Oct	 1	2:00s	0	-
 Rule	Norway	1959	1964	-	Mar	Sun>=15	2:00s	1:00	S
@@ -1874,6 +1900,9 @@ Zone	Europe/Warsaw	1:24:00 -	LMT	1880
 # harmonized with the EU), and that they stayed +0:00 that winter.
 #
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+# DSH writes that despite Decree 1,469 (1915), the change to the clocks was not
+# done every year, depending on what Spain did, because of railroad schedules.
+# Go with Shanks.
 Rule	Port	1916	only	-	Jun	17	23:00	1:00	S
 # Whitman gives 1916 Oct 31; go with Shanks.
 Rule	Port	1916	only	-	Nov	 1	 1:00	0	-
