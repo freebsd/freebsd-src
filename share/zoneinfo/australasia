@@ -24,6 +24,9 @@ Rule	Aus	1943	only	-	Oct	 3	2:00	1:00	-
 Zone Australia/Darwin	 8:43:20 -	LMT	1895 Feb
 			 9:30	-	CST	1917 Jan 1 0:01
 			 9:30	Aus	CST
+
+# ZONE-DESCR Australia Darwin Australia Northern Territory
+
 Zone Australia/Perth	 7:43:24 -	LMT	1895 Dec
 			 8:00	-	WST	1917 Jan 1 0:01
 			 8:00	Aus	WST	1974 Oct lastSun 2:00
@@ -33,6 +36,9 @@ Zone Australia/Perth	 7:43:24 -	LMT	1895 Dec
 			 8:00	-	WST	1991 Nov 17 2:00
 			 8:00	1:00	WST	1992 Mar Sun>=1 3:00
 			 8:00	-	WST
+
+# ZONE-DESCR Australia Perth Australia Western_Australia
+
 Zone Australia/Brisbane	10:12:08 -	LMT	1895
 			10:00	-	EST	1917 Jan 1 0:01
 			10:00	Aus	EST	1971 Oct lastSun 2:00
@@ -44,6 +50,8 @@ Zone Australia/Brisbane	10:12:08 -	LMT	1895
 			10:00	-	EST	1991 Oct lastSun 2:00
 			10:00	1:00	EST	1992 Mar Sun>=1 3:00
 			10:00	-	EST
+
+# ZONE-DESCR Australia Brisbane Australia Queensland
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	AS	1971	1985	-	Oct	lastSun	2:00	1:00	-
@@ -60,6 +68,8 @@ Zone Australia/Adelaide	9:14:20 -	LMT	1895 Feb
 			9:30	-	CST	1917 Jan 1 0:01
 			9:30	Aus	CST	1971 Oct lastSun 2:00
 			9:30	AS	CST
+
+# ZONE-DESCR Australia Adelaide Australia South Australia
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	AT	1967	only	-	Oct	1	2:00	1:00	-
@@ -81,6 +91,8 @@ Zone Australia/Hobart	9:49:16	-	LMT	1895 Sep
 			10:00	Aus	EST	1967 Oct 1 2:00
 			10:00	AT	EST
 
+# ZONE-DESCR Australia Hobart Australia Tasmania
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	AV	1971	1985	-	Oct	lastSun	2:00	1:00	-
 Rule	AV	1972	only	-	Feb	27	3:00	0	-
@@ -94,6 +106,8 @@ Zone Australia/Melbourne 9:39:52 -	LMT	1895 Feb
 			10:00	-	EST	1917 Jan 1 0:01
 			10:00	Aus	EST	1971 Oct 31 2:00
 			10:00	AV	EST
+
+# ZONE-DESCR Australia Melbourne Australia Victoria
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	AN	1971	1985	-	Oct	lastSun	2:00	1:00	-
@@ -110,17 +124,28 @@ Zone Australia/Sydney	10:04:52 -	LMT	1895 Feb
 			10:00	-	EST	1917 Jan 1 0:01
 			10:00	Aus	EST	1971 Oct 31 2:00
 			10:00	AN	EST
+
+# ZONE-DESCR Australia Sydney Australia New South Wales
+
 Zone Australia/Broken_Hill 9:25:48 -	LMT	1895 Feb
 			10:00	-	EST	1896 Aug 23
 			9:00	-	CST	1899 May
 			9:30	-	CST	1917 Jan 1 0:01
 			9:30	Aus	CST	1971 Oct 31 2:00
 			9:30	AN	CST
+
+# ZONE-DESCR Australia Broken_Hill Australia County of Yancowinna, NSW
+
 Zone Australia/Lord_Howe 10:36:20 -	LMT	1895 Feb
 			10:00	-	EST	1981 Mar
 			10:30	AN	LHST
+
+# ZONE-DESCR Australia Lord_Howe Australia Lord Howe Island
+
 Zone Indian/Christmas	7:02:52 -	LMT	1895 Feb
 			7:00	-	JVT
+
+# ZONE-DESCR Indian Christmas Australia Christmas Island
 
 #
 # Ashmore Is, Cartier
@@ -134,6 +159,8 @@ Zone Indian/Christmas	7:02:52 -	LMT	1895 Feb
 Zone Pacific/Belau	8:58:00	-	LMT	1901
 			9:00	-	BLT
 
+# ZONE-DESCR Pacific Belau Rep_of_Palau All points
+
 # Cook Is
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Cook	1978	only	-	Nov	12	0:00	0:30	HD
@@ -144,15 +171,21 @@ Zone Pacific/Rarotonga	-10:39:04 -	LMT	1901		# Avarua
 			-10:30	-	CIST	1978 Nov 12	# Cook Is ST
 			-10:00	Cook	T%sT
 
+# ZONE-DESCR Pacific Rarotonga Cook_Island All points
+
 # Cocos
 # From USNO (1989):
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Cocos	6:30	-	CCT
 
+# ZONE-DESCR Pacific Cocos Cocos_Island All points
+
 # Fiji
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Fiji	11:53:40 -	LMT	1915 Oct 26	# Suva
 			12:00	-	NZST
+
+# ZONE-DESCR Pacific Fiji Fiji All points
 
 # French Polynesia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -163,10 +196,16 @@ Zone	Pacific/Marquesas -9:18:00 -	LMT	1912 Oct
 Zone	Pacific/Tahiti	 -9:58:16 -	LMT	1912 Oct	# Papeete
 			-10:00	-	THT
 
+# ZONE-DESCR Pacific Gambier France Gambier
+# ZONE-DESCR Pacific Marquesas France Marquesas
+# ZONE-DESCR Pacific Tahiti France Tahiti
+
 # Guam
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Guam	 9:39:00 -	LMT	1901		# Agana
 			10:00	-	GST
+
+# ZONE-DESCR Pacific Guam United_States Guam
 
 # Howland, Baker
 # no information; probably like Pacific/Samoa
@@ -188,6 +227,10 @@ Zone Pacific/Kiritimati	-10:29:20 -	LMT	1901
 			-10:40	-	LIT	1979 Oct	# Line Is Time
 			-10:00	-	THT
 
+# ZONE-DESCR Pacific Tarawa Kiribati Tarawa
+# ZONE-DESCR Pacific Enderbury Kiribati Enderbury
+# ZONE-DESCR Pacific Kiritimati Kiribati Kiritimati
+
 # Nauru
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Nauru	11:07:40 -	LMT	1921 Jan 15	# Uaobe
@@ -195,6 +238,8 @@ Zone	Pacific/Nauru	11:07:40 -	LMT	1921 Jan 15	# Uaobe
 			9:00	-	JST	1944 Aug 15
 			11:30	-	NST	1979 May
 			12:00	-	NZST
+
+# ZONE-DESCR Pacific Nauru Nauru All points
 
 # New Caledonia
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -205,6 +250,7 @@ Rule	NC	1978	1979	-	Feb	27	0:00	0	S
 Zone	Pacific/Noumea	11:05:48 -	LMT	1912 Jan 13
 			11:00	NC	NC%sT
 
+# ZONE-DESCR Pacific Noumea New_Caledonia All points
 
 ###############################################################################
 
@@ -239,6 +285,9 @@ Zone Pacific/Auckland	11:39:04 -	LMT	1868
 Zone Pacific/Chatham	12:45	-	NZ-CHAT
 
 
+# ZONE-DESCR Pacific Auckland New_Zealand All points except:
+# ZONE-DESCR Pacific Chatham New_Zealand Chatham
+
 # Antipodes Is, Kermadec Is
 # no information; probably like Pacific/Auckland
 
@@ -252,11 +301,15 @@ Zone	Pacific/Niue	-11:19:40 -	LMT	1901		# Alofi
 			-11:30	-	NIT	1978 Oct 1
 			-11:00	-	SST
 
+# ZONE-DESCR Pacific Niue Niue All points
+
 # Norfolk
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Norfolk	11:11:52 -	LMT	1901		# Kingston
 			11:12	-	NMT	1951
 			11:30	-	NST
+
+# ZONE-DESCR Pacific Norfolk Norfolk_Islands All points
 
 # Pacific Islands Trust Territories
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -276,6 +329,12 @@ Zone Pacific/Yap	9:12:24	-	LMT	1901
 			9:00	-	BLT	1969 Oct
 			10:00	-	GST
 
+# ZONE-DESCR Pacific Truk Fed_States_of_Micronesia Truk state
+# ZONE-DESCR Pacific Ponape Fed_States_of_Micronesia Pohnpei state
+# ZONE-DESCR Pacific Yap Fed_States_of_Micronesia Yap state
+# ZONE-DESCR Pacific Majuro Marshall_Islands Majuro
+# ZONE-DESCR Pacific Kwajalein Marshall_Islands Kwajalein
+
 # Palmyra
 # no information; probably like Pacific/Kiritmati
 
@@ -285,10 +344,14 @@ Zone Pacific/Port_Moresby 9:48:40 -	LMT	1880
 			9:49	-	PMMT	1895
 			10:00	-	EST
 
+# ZONE-DESCR Pacific Port_Moresby Papua_New_Guinea All points
+
 # Pitcairn
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Pitcairn	-8:40:20 -	LMT	1901		# Adamstown
 			-8:30	-	PIT
+
+# ZONE-DESCR Pacific Pitcairn Pitcairn_Island All points
 
 # Solomon Is
 # excludes Bougainville, for which see Papua New Guinea
@@ -296,10 +359,15 @@ Zone Pacific/Pitcairn	-8:40:20 -	LMT	1901		# Adamstown
 Zone Pacific/Guadalcanal 10:39:48 -	LMT	1912 Oct	# Honiara
 			11:00	-	NCST
 
+# ZONE-DESCR Pacific Guadalcanal Solomon_Islands All points except:
+# ZONE-DESCR Pacific Port_Moresby Solomon_Islands Bougainville
+
 # Tokelau Is
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Fakaofo	-11:24:56 -	LMT	1901
 			-10:00	-	THT
+
+# ZONE-DESCR Pacific Fakaofo Tokelau_Island All points
 
 # Tonga
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -307,10 +375,14 @@ Zone Pacific/Tongatapu	12:19:20 -	LMT	1901
 			12:20	-	TMT	1968 Oct
 			13:00	-	TGT
 
+# ZONE-DESCR Pacific Tongatapu Tonga All points
+
 # Tuvalu
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Funafuti	11:56:52 -	LMT	1901
 			12:00	-	NZST
+
+# ZONE-DESCR Pacific Funafuti Tuvalu All points
 
 # Vanuatu
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -323,15 +395,21 @@ Rule	Vanuatu	1985	max	-	Sep	Sun>=23	0:00	1:00	D
 Zone	Pacific/Efate	11:13:16 -	LMT	1912 Jan 13		# Vila
 			11:00	-	NCST
 
+# ZONE-DESCR Pacific Efate Vanuatu All points
+
 # Wake
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Wake	11:06:28 -	LMT	1901
 			12:00	-	NZST
 
+# ZONE-DESCR Pacific Wake United_States Wake Island
+
 # Wallis and Futuna
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 			12:00	-	NZST
+
+# ZONE-DESCR Pacific Wallis France Wallis and Futuna
 
 # Western Samoa
 # See Pacific/Samoa in the `northamerica' file, of all places.

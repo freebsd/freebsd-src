@@ -104,11 +104,15 @@ Zone	Africa/Algiers	0:12:12 -	LMT	1891 Mar 15 0:01
 			0:00	Algeria	WET%s	1981 May
 			1:00	-	MET
 
+# ZONE-DESCR Africa Algiers Algeria All points
+
 # Angola
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Luanda	0:52:56	-	LMT	1892
 			0:52	-	LMT	1911 May 26 # Luanda Mean Time
 			1:00	-	CAT
+
+# ZONE-DESCR Africa Luanda Angola All points
 
 # Benin
 # Whitman says they switched to 1:00 in 1946, not 1934; go with Shanks.
@@ -117,6 +121,8 @@ Zone Africa/Porto-Novo	0:10:28	-	LMT	1912
 			0:00	-	WAT	1934 Feb 26
 			1:00	-	CAT
 
+# ZONE-DESCR Africa Porto-Novo Benin All points
+
 # Botswana
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Gaborone	1:43:40 -	LMT	1885
@@ -124,21 +130,29 @@ Zone	Africa/Gaborone	1:43:40 -	LMT	1885
 			2:00	1:00	SAST	1944 Mar 19 2:00
 			2:00	-	SAT
 
+# ZONE-DESCR Africa Gaborone Botswana All points
+
 # Burkina Faso
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Africa/Ouagadougou	-0:06:04 -	LMT	1912
 			 0:00	-	WAT
+
+# ZONE-DESCR Africa Ouagadougou Burkina_Faso All points
 
 # Burundi
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Africa/Bujumbura	1:57:28	-	LMT	1890
 			2:00	-	SAT
 
+# ZONE-DESCR Africa Bujumbura Burundi All points
+
 # Cameroon
 # Whitman says they switched to 1:00 in 1920; go with Shanks.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Douala	0:38:48	-	LMT	1912
 			1:00	-	CAT
+
+# ZONE-DESCR Africa Douala Cameroon All points
 
 # Cape Verde
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -148,10 +162,14 @@ Zone Atlantic/Cape_Verde -1:34:04 -	LMT	1907			# Praia
 			-2:00	-	CVT	1975 Nov 25 2:00
 			-1:00	-	AAT
 
+# ZONE-DESCR Africa Cape_Verde Cape_Verde All points
+
 # Central African Republic
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Bangui	1:14:20	-	LMT	1912
 			1:00	-	CAT
+
+# ZONE-DESCR Africa Bangui Central_African_Republic All points
 
 # Chad
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -160,25 +178,35 @@ Zone	Africa/Ndjamena	1:00:12 -	LMT	1912
 			1:00	1:00	CAST	1980 Mar  8
 			1:00	-	CAT
 
+# ZONE-DESCR Africa Ndjamena Chad All points
+
 # Comoros
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Indian/Comoro	2:53:04 -	LMT	1911 Jul   # Moroni, Gran Comoro
 			3:00	-	EAT
+
+# ZONE-DESCR Indian Comoro Comoros_Islands All points
 
 # Congo
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Africa/Brazzaville	1:01:08 -	LMT	1912
 			1:00	-	CAT
 
+# ZONE-DESCR Africa Brazzaville Congo All points
+
 # Cote D'Ivoire
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Abidjan	-0:16:08 -	LMT	1912
 			 0:00	-	WAT
 
+# ZONE-DESCR Africa Abidjan Ivory_Coast All points
+
 # Djibouti
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Djibouti	2:52:36 -	LMT	1911 Jul
 			3:00	-	EAT
+
+# ZONE-DESCR Africa Djibouti Djibouti All points
 
 ###############################################################################
 
@@ -221,11 +249,15 @@ Rule	Egypt	1990	max	-	May	 1	1:00	1:00	" DST"
 Zone	Africa/Cairo	2:05:00 -	LMT	1900 Oct
 			2:00	Egypt	EET%s
 
+# ZONE-DESCR Africa Cairo Egypt All points
+
 # Equatorial Guinea
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Malabo	0:35:08 -	LMT	1912
 			0:00	-	WAT	1963 Dec 15
 			1:00	-	CAT
+
+# ZONE-DESCR Africa Malabo Equatorial_Guinea All points
 
 # Eritrea
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -234,16 +266,22 @@ Zone	Africa/Asmera	2:35:32 -	LMT	1870
 			2:35	-	AAMT	1936 May 5    # Addis Ababa MT
 			3:00	-	EAT
 
+# ZONE-DESCR Africa Asmera Eritrea All points
+
 # Ethiopia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Africa/Addis_Ababa	2:34:48 -	LMT	1870
 			2:35	-	AAMT	1936 May 5    # Addis Ababa MT
 			3:00	-	EAT
 
+# ZONE-DESCR Africa Addis_Ababa Ethiopia All points
+
 # Gabon
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Africa/Libreville	0:37:48 -	LMT	1912
 			1:00	-	CAT
+
+# ZONE-DESCR Africa Libreville Gabon All points
 
 # Gambia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -251,6 +289,8 @@ Zone	Africa/Banjul	-1:06:36 -	LMT	1912
 			-1:07	-	BMT	1935	# Banjul Mean Time
 			-1:00	-	AAT	1964
 			 0:00	-	WAT
+
+# ZONE-DESCR Africa Banjul Gambia All points
 
 # Ghana
 # From Paul Eggert <eggert@twinsun.com> (November 18, 1993):
@@ -265,6 +305,8 @@ Rule	Ghana	1936	1942	-	Dec	31	0:00	0	WAT
 Zone	Africa/Accra	-0:00:52 -	LMT	1918
 			 0:00	Ghana	%s
 
+# ZONE-DESCR Africa Accra Ghana All points
+
 # Guinea
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Conakry	-0:54:52 -	LMT	1912
@@ -272,11 +314,15 @@ Zone	Africa/Conakry	-0:54:52 -	LMT	1912
 			 1:00	-	CAT	1960
 			 0:00	-	WAT
 
+# ZONE-DESCR Africa Conakry Guinea All points
+
 # Guinea-Bissau
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Bissau	-1:02:20 -	LMT	1911 May 26
 			 1:00	-	CAT	1975
 			 0:00	-	WAT
+
+# ZONE-DESCR Africa Bissau Guinea_Bissau All points
 
 # Kenya
 # From Paul Eggert <eggert@twinsun.com> (November 18, 1993):
@@ -288,12 +334,16 @@ Zone	Africa/Nairobi	2:27:16	-	LMT	1928 Jul
 			2:45	-	BEAT	1960
 			3:00	-	EAT
 
+# ZONE-DESCR Africa Nairobi Kenya All points
+
 # Lesotho
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Maseru	1:50:00 -	LMT	1903 Mar
 			2:00	-	SAT	1943 Sep 19 2:00
 			2:00	1:00	SAST	1944 Mar 19 2:00
 			2:00	-	SAT
+
+# ZONE-DESCR Africa Maseru Lesotho All points
 
 # Liberia
 # From Paul Eggert <eggert@twinsun.com> (November 18, 1993):
@@ -309,6 +359,8 @@ Zone	Africa/Monrovia	-0:43:08 -	LMT	1882
 			-0:43:08 -	MMT	1919 Mar # Monrovia Mean Time
 			-0:44:30 -	LST	1972 May # Liberia Standard Time
 			 0:00	-	WAT
+
+# ZONE-DESCR Africa Monrovia Liberia All points
 
 ###############################################################################
 
@@ -349,6 +401,8 @@ Zone	Africa/Tripoli	0:52:44 -	LMT	1920
 			2:00	-	EET	1982
 			1:00	Libya	MET%s
 
+# ZONE-DESCR Africa Tripoli Libya All points
+
 # Madagascar
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Indian/Antananarivo 3:10:04 -	LMT	1911 Jul
@@ -356,10 +410,14 @@ Zone Indian/Antananarivo 3:10:04 -	LMT	1911 Jul
 			3:00	1:00	EAST	1954 May 29 23:00s
 			3:00	-	EAT
 
+# ZONE-DESCR Indian Antananarivo Madagascar All points
+
 # Malawi
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Blantyre	2:20:00 -	LMT	1903 Mar
 			2:00	-	SAT
+
+# ZONE-DESCR Africa Blantyre Malawi All points
 
 # Mali
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -367,6 +425,9 @@ Zone	Africa/Bamako	-0:32:00 -	LMT	1912
 			 0:00	-	WAT	1934 Feb 26
 			-1:00	-	AAT	1960 Jun 20
 			 0:00	-	WAT
+
+# ZONE-DESCR Africa Bamako Mali All points
+
 # no longer different from Bamako, but too famous to omit
 Zone	Africa/Timbuktu	-0:12:04 -	LMT	1912
 			 0:00	-	WAT
@@ -377,6 +438,7 @@ Zone Africa/Nouakchott	-1:03:48 -	LMT	1912
 			 0:00	-	WAT	1934 Feb 26
 			-1:00	-	AAT	1960 Jun 20
 			 0:00	-	WAT
+# ZONE-DESCR Africa Noukachott Mauritania All points
 
 # Mauritius
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -385,10 +447,14 @@ Zone Indian/Mauritius	3:50:00 -	LMT	1907		# Port Louis
 # Agalega Is, Rodriguez
 # no information; probably like Indian/Mauritius
 
+# ZONE-DESCR Indian Mauritius Mauritius All points
+
 # Mayotte
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Indian/Mayotte	3:01:08 -	LMT	1911 Jul	# Dzaoudzi
 			3:00	-	EAT
+
+# ZONE-DESCR Indian Mayotte Mayotte All points
 
 # Morocco
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -413,6 +479,9 @@ Zone Africa/Casablanca	-0:30:20 -	LMT	1913 Oct 26
 			 0:00	Morocco	WET%s	1984 Mar 16
 			 1:00	-	MET	1986
 			 0:00	-	WET
+
+# ZONE-DESCR Africa Casablanca Morocco All points
+
 # The following are controlled by Spain, and are like Europe/Madrid:
 # Alboran, Alhucemas Is, Ceuta, Chafarinas Is, Mellila.
 
@@ -420,6 +489,8 @@ Zone Africa/Casablanca	-0:30:20 -	LMT	1913 Oct 26
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Maputo	2:10:20 -	LMT	1903 Mar
 			2:00	-	SAT
+
+# ZONE-DESCR Africa Maputo Mozambique All points
 
 # Namibia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -429,6 +500,8 @@ Zone	Africa/Windhoek	1:08:24 -	LMT	1892 Feb 8
 			2:00	1:00	SAST	1943 Mar 21 2:00
 			2:00	-	SAT
 
+# ZONE-DESCR Africa Windhoek Namibia All points
+
 # Niger
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Niamey	0:08:28 -	LMT	1912
@@ -436,20 +509,28 @@ Zone	Africa/Niamey	0:08:28 -	LMT	1912
 			0:00	-	WAT	1960
 			1:00	-	CAT
 
+# ZONE-DESCR Africa Niamey Niger All points
+
 # Nigeria
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Lagos	0:13:36 -	LMT	1919 Sep
 			1:00	-	CAT
+
+# ZONE-DESCR Africa Lagos Nigeria All points
 
 # Reunion
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Indian/Reunion	3:41:52 -	LMT	1911 Jun	# St Denis
 			4:00	-	SMT
 
+# ZONE-DESCR Indian Reunion Reunion_Island All points
+
 # Rwanda
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Kigali	2:00:16 -	LMT	1935 Jun
 			2:00	-	SAT
+
+# ZONE-DESCR Africa Kigali Rwanda All points
 
 # St Helena
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -461,11 +542,15 @@ Zone Atlantic/St_Helena	-0:22:48 -	LMT	1890		# Jamestown
 # Ascension, Gough, Inaccessible, Nightingale
 # no information; probably like Atlantic/St_Helena
 
+# ZONE-DESCR Atlantic St_Helena St_Helena All points
+
 # Sao Tome and Principe
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Sao_Tome	 0:26:56 -	LMT	1884
 			-0:37	-	?MT	1912	# a typo in Shanks?
 			 0:00	-	WAT
+
+# ZONE-DESCR Africa Sao_Tome Sao_Tome_and_Principe All points
 
 # Senegal
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -473,10 +558,14 @@ Zone	Africa/Dakar	-1:09:44 -	LMT	1912
 			-1:00	-	AAT	1941 Jun
 			 0:00	-	WAT
 
+# ZONE-DESCR Africa Dakar Senegal All points
+
 # Seychelles
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Indian/Mahe	3:41:48 -	LMT	1906 Jun	# Victoria
 			4:00	-	SMT
+
+# ZONE-DESCR Indian Mahe Seychelles All points
 
 # Sierra Leone
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -492,6 +581,8 @@ Zone	Africa/Freetown	-0:53:00 -	LMT	1882
 			-1:00	SL	AA%sT	1957
 			 0:00	SL	WA%sT
 
+# ZONE-DESCR Africa Freetown Sierra_Leone All points
+
 # Somalia
 # From Paul Eggert <eggert@twinsun.com> (November 18, 1993):
 # Shanks omits the 1948 transition to 2:45; this is probably a typo.
@@ -502,6 +593,8 @@ Zone Africa/Mogadishu	3:01:28 -	LMT	1893 Nov
 			2:45	-	BEAT	1957	# not in Shanks
 			3:00	-	EAT
 
+# ZONE-DESCR Africa Mogadishu Somalia All points
+
 # South Africa
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	SA	1892	only	-	Feb	8	0:00	0	-
@@ -511,6 +604,9 @@ Rule	SA	1943	1944	-	Mar	Sun>=15	2:00	0	-
 Zone Africa/Johannesburg 1:52:00 -	LMT	1892 Feb 8
 			1:30	-	SAT	1903 Mar
 			2:00	SA	SA%sT
+
+# ZONE-DESCR Africa Johannesburg South_Africa All points
+
 # Prince Edward Is
 # no information
 
@@ -525,10 +621,14 @@ Rule	Sudan	1972	max	-	Apr	lastSun	0:00	1:00	" DST"
 Zone	Africa/Khartoum	2:10:08 -	LMT	1931
 			2:00	Sudan	EET%s
 
+# ZONE-DESCR Africa Khartoum Sudan All points
+
 # Swaziland
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Mbabane	2:04:24 -	LMT	1903 Mar
 			2:00	-	SAT
+
+# ZONE-DESCR Africa Mbabane Swaziland All points
 
 # Tanzania
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -537,10 +637,14 @@ Zone Africa/Dar_es_Salaam 2:37:08 -	LMT	1931
 			2:45	-	BEAT	1961
 			3:00	-	EAT
 
+# ZONE-DESCR Africa Dar_es_Salaam Tanzania All points
+
 # Togo
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Lome	0:04:52 -	LMT	1893
 			0:00	-	WAT
+
+# ZONE-DESCR Africa Lome Togo All points
 
 # Tunisia
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -573,6 +677,8 @@ Zone	Africa/Tunis	0:40:44 -	LMT	1881 May 12
 			0:09:05	-	PMT	1911 Mar  9    # Paris Mean Time
 			1:00	Tunisia	MET%s
 
+# ZONE-DESCR Africa Tunis Tunisia All points
+
 # Uganda
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Kampala	2:09:40 -	LMT	1928 Jul
@@ -581,6 +687,8 @@ Zone	Africa/Kampala	2:09:40 -	LMT	1928 Jul
 			2:45	-	BEAT	1957
 			3:00	-	EAT
 
+# ZONE-DESCR Africa Kampala Uganda All points
+
 # Zaire
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Africa/Kinshasa	1:01:12 -	LMT	1897 Nov 9
@@ -588,12 +696,19 @@ Zone Africa/Kinshasa	1:01:12 -	LMT	1897 Nov 9
 Zone Africa/Lumumbashi	1:49:52 -	LMT	1897 Nov 9
 			2:00	-	SAT
 
+# ZONE-DESCR Africa Kinshasa Zaire Western (Kinshasa)
+# ZONE-DESCR Africa Lumumbashi Zaire Eastern (Lumumbashi)
+
 # Zambia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Lusaka	1:53:08 -	LMT	1903 Mar
 			2:00	-	SAT
 
+# ZONE-DESCR Africa Lusaka Zambia All points
+
 # Zimbabwe
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Harare	2:04:12 -	LMT	1903 Mar
 			2:00	-	SAT
+
+# ZONE-DESCR Africa Harare Zimbabwe All points

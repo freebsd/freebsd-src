@@ -93,12 +93,16 @@ Zone America/Buenos_Aires -3:53:48 -	LMT	1894 Nov
 			-4:00	Arg	A%sT	1969 Oct 5
 			-3:00	Arg	E%sT
 
+# ZONE-DESCR America Buenos_Aires Argentina All points
+
 # Bolivia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/La_Paz	-4:32:36 -	LMT	1890
 			-4:33	-	LPMT	1931 Oct 15 # La Paz Mean Time
 			-4:33	1:00	LPDT	1932 Mar 21
 			-4:00	-	AST
+
+# ZONE-DESCR America La_Paz Bolivia All points
 
 # Brazil
 
@@ -182,6 +186,10 @@ Zone America/Porto_Acre	-4:31:12 -	LMT	1914
 #
 # Martin Vaz and Trinidade are like America/Noronha.
 
+# ZONE-DESCR America Noronha Brazil Fernando De Noronha
+# ZONE-DESCR America Sao_Paulo Brazil Eastern zone
+# ZONE-DESCR America Manaus Brazil Western zone
+# ZONE-DESCR America Porto_Acre Brazil Territory of Acre
 
 # Chile
 
@@ -214,6 +222,8 @@ Zone Pacific/Easter	-7:17:28 -	LMT	1890	    # Mataveri
 # San Ambrosio, San Felix
 # no information; probably like America/Santiago
 
+# ZONE-DESCR America Santiago Chile All points
+# ZONE-DESCR Pacific Easter Easter_Island All points
 
 # Colombia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -223,11 +233,15 @@ Zone	America/Bogota	-4:56:20 -	LMT	1884 Mar 13
 # Malpelo, Providencia, San Andres
 # no information; probably like America/Bogota
 
+# ZONE-DESCR America Botoga Colombia All points
+
 # Curacao
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Curacao	-4:35:44 -	LMT	1912 Feb 12	# Willemstad
 			-4:30	-	NAST	1965	# Netherlands Antilles
 			-4:00	-	AST
+
+# ZONE-DESCR America Curacao Curacao All points
 
 # Ecuador
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -237,6 +251,9 @@ Zone America/Guayaquil	-5:19:20 -	LMT	1890
 Zone Pacific/Galapagos	-5:58:24 -	LMT	1931 # Puerto Baquerizo Moreno
 			-5:00	-	EST	1986
 			-6:00	-	CST
+
+# ZONE-DESCR America Guayaquil Ecuador All points except:
+# ZONE-DESCR Pacific Galapagos Ecuador Galapagos Islands
 
 # Falklands
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -258,11 +275,15 @@ Zone Atlantic/Stanley	-3:51:24 -	LMT	1890
 			-3:00	Falk	E%sT	1985 Sep 15
 			-4:00	Falk	A%sT
 
+# ZONE-DESCR Atlantic Stanley Falkland_Islands All points
+
 # French Guiana
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Cayenne	-3:29:20 -	LMT	1911 Jul
 			-4:00	-	AST	1967 Oct
 			-3:00	-	EST
+
+# ZONE-DESCR America Cayenne French_Guiana All points
 
 # Guyana
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -270,6 +291,7 @@ Zone	America/Guyana	-3:52:40 -	LMT	1915 Mar	# Georgetown
 			-3:45	-	BGST	1975 Jul 31  # British Guiana ST
 			-3:00	-	EST
 
+# ZONE-DESCR America Guyana Guyana All points
 
 # Paraguay
 
@@ -298,6 +320,8 @@ Zone America/Asuncion	-3:50:40 -	LMT	1890
 			-3:00	-	EST	1974 Apr
 			-4:00	Para	A%sT
 
+# ZONE-DESCR America Asuncion Paraguay All points
+
 # Peru
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Peru	1908	only	-	Jul	28	0:00	0	S
@@ -314,10 +338,14 @@ Zone	America/Lima	-5:08:12 -	LMT	1890
 			-5:09	-	LMT	1908 Jul 28
 			-5:00	Peru	E%sT
 
+# ZONE-DESCR America Lima Peru All points
+
 # South Georgia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Atlantic/South_Georgia -2:26:08 -	LMT	1890		# Grytviken
 			-2:00	-	FST
+
+# ZONE-DESCR Atlantic South_Georgia South_Georgia All points
 
 # South Sandwich Is
 # no information
@@ -330,10 +358,14 @@ Zone America/Paramaribo	-3:40:40 -	LMT	1911
 			-3:30	-	DGST	1984 Oct # Dutch Guiana Std Time
 			-3:00	-	EST
 
+# ZONE-DESCR America Paramaibo Suriname All points
+
 # Trinidad and Tobago
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Port_of_Spain -4:06:04 -	LMT	1912 Mar 2
 			-4:00	-	AST
+
+# ZONE-DESCR America Port_of_Spain Trinidad_and_Tobago All points
 
 # Uruguay
 # From Paul Eggert <eggert@twinsun.com> (November 18, 1993):
@@ -389,9 +421,13 @@ Zone America/Montevideo	-3:44:44 -	LMT	1898 Jun 28
 			-3:30	Uruguay	U%sT	1942 Dec 14	# Uruguay ST
 			-3:00	Uruguay	E%sT
 
+# ZONE-DESCR America Montevideo Uruguay All points
+
 # Venezuela
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Caracas	-4:27:44 -	LMT	1890
 			-4:28	-	CMT	1912 Feb 12  # Caracas Mean Time
 			-4:30	-	VZT	1965		# Venezuela Time
 			-4:00	-	AST
+
+# ZONE-DESCR America Caracas Venezuela All points
