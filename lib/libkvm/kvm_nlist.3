@@ -50,8 +50,9 @@
 .Ft int
 .Fn kvm_nlist "kvm_t *kd" "struct nlist *nl"
 .Sh DESCRIPTION
+The
 .Fn kvm_nlist
-retrieves the symbol table entries indicated by the name list argument
+function retrieves the symbol table entries indicated by the name list argument
 .Fa \&nl .
 This argument points to an array of nlist structures, terminated by
 an entry whose n_name field is
@@ -62,10 +63,11 @@ Each symbol is looked up using the n_name field, and if found, the
 corresponding n_type and n_value fields are filled in.  These fields are set
 to 0 if the symbol is not found.
 .Pp
+The
 .Xr kldsym 2
-is used to locate the symbol.  This is a less than perfect emulation
-of the nlist values but has the advantage of being aware of kernel modules
-and is reasonably fast.
+system call is used to locate the symbol.  This is a less than perfect
+emulation of the nlist values but has the advantage of being aware of kernel
+modules and is reasonably fast.
 .Sh RETURN VALUES
 The
 .Fn kvm_nlist
