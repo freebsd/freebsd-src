@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.29 1996/01/29 03:18:05 gibbs Exp $
+ * $Id: subr_prf.c,v 1.30 1996/02/28 21:42:15 gpalmer Exp $
  */
 
 #include "opt_ddb.h"
@@ -51,6 +51,8 @@
 #include <sys/tprintf.h>
 #include <sys/syslog.h>
 #include <sys/malloc.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <machine/cons.h>
 
 /*
@@ -59,10 +61,16 @@
  */
 #include <machine/stdarg.h>
 
-#ifdef KADB
-#include <machine/kdbparam.h>
+#if defined(DDB) || defined (KGDB)
+#ifdef DDB_UNATTENDED
+	static int debugger_on_panic = 0;
+#else
+	static int debugger_on_panic = 1;
 #endif
 
+SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic, CTLFLAG_RW,
+	&debugger_on_panic, 0, "");
+#endif
 
 #define TOCONS	0x01
 #define TOTTY	0x02
@@ -112,18 +120,14 @@ panic(const char *fmt, ...)
 	va_end(ap);
 	printf("\n");
 
+	if (debugger_on_panic) {
 #ifdef KGDB
-	kgdb_panic();
-#endif
-#ifdef KADB
-	if (boothowto & RB_KDB)
-		kdbpanic();
+		kgdb_panic();
 #endif
 #ifdef DDB
-#ifndef DDB_UNATTENDED
-	Debugger ("panic");
+		Debugger ("panic");
 #endif
-#endif
+	}
 	boot(bootopt);
 }
 
