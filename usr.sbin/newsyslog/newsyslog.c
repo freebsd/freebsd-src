@@ -90,6 +90,9 @@ __FBSDID("$FreeBSD$");
 
 /* Define this symbol to try out the "new order" for work items. */
 #define	TRY_NEWORDER
+#ifndef USE_NEWORDER
+#define	USE_NEWORDER	1	/* Initial value for dbg_new_order */
+#endif
 
 /*
  * Bit-values for the 'flags' parsed from a config-file entry.
@@ -162,7 +165,12 @@ SLIST_HEAD(swlisthead, sigwork_entry) swhead = SLIST_HEAD_INITIALIZER(swhead);
 SLIST_HEAD(zwlisthead, zipwork_entry) zwhead = SLIST_HEAD_INITIALIZER(zwhead);
 
 int dbg_at_times;		/* -D Show details of 'trim_at' code */
-int dbg_new_order;		/* -D Try the 'neworder' of doing the work */
+/*
+ * The debug options "neworder" and "oldorder" can be used to change
+ * which order work is done in.  Note that both options will disappear
+ * in the near future, and the "new" order will be the only order.
+ */
+int dbg_new_order = USE_NEWORDER;
 
 int archtodir = 0;		/* Archive old logfiles to other directory */
 int createlogs;			/* Create (non-GLOB) logfiles which do not */
