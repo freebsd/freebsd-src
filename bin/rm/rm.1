@@ -31,7 +31,7 @@
 .\"	@(#)rm.1	8.5 (Berkeley) 12/5/94
 .\" $FreeBSD$
 .\"
-.Dd October 4, 2004
+.Dd October 28, 2004
 .Dt RM 1
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Nd remove directory entries
 .Sh SYNOPSIS
 .Nm
-.Op Fl dfiPRrvW
+.Op Fl dfiIPRrvW
 .Ar
 .Nm unlink
 .Ar file
@@ -76,6 +76,12 @@ The
 option overrides any previous
 .Fl f
 options.
+.It Fl I
+Request confirmation once if more then three files are being removed or if a
+directory is being recursively removed.  This is a far less intrusive option
+than
+.Fl i
+yet provides almost the same level of protection against mistakes.
 .It Fl P
 Overwrite regular files before deleting them.
 Files are overwritten three times, first with the byte pattern 0xff,
