@@ -42,12 +42,13 @@
 
 #include <dev/ic/nec765.h>
 
+#include "fdutil.h"
+
 int	quiet, recover;
 unsigned char fillbyte = 0xf0;	/* "foo" */
 
 int	doread(int fd, FILE *of, const char *devname);
 int	doreadid(int fd, unsigned int numids, unsigned int trackno);
-void	printstatus(struct fdc_status *fdcsp);
 void	usage(void);
 
 void
@@ -236,7 +237,7 @@ doread(int fd, FILE *of, const char *devname)
 					recoverable = fdcs.status[2] &
 						NE7_ST2_DD;
 					if (!quiet) {
-						printstatus(&fdcs);
+						printstatus(&fdcs, 0);
 						fputs(" (", stderr);
 						if (!recoverable)
 							fputs("not ", stderr);
@@ -296,47 +297,6 @@ doread(int fd, FILE *of, const char *devname)
 	return (nerrs? EX_IOERR: EX_OK);
 }
 
-void
-printstatus(struct fdc_status *fdcsp)
-{
-	char msgbuf[100];
-
-	fprintf(stderr,
-		"\nFDC status ST0=%#x ST1=%#x ST2=%#x C=%u H=%u R=%u N=%u:\n",
-		fdcsp->status[0] & 0xff,
-		fdcsp->status[1] & 0xff,
-		fdcsp->status[2] & 0xff,
-		fdcsp->status[3] & 0xff,
-		fdcsp->status[4] & 0xff,
-		fdcsp->status[5] & 0xff,
-		fdcsp->status[6] & 0xff);
-
-	if ((fdcsp->status[0] & NE7_ST0_IC_RC) != NE7_ST0_IC_AT) {
-		sprintf(msgbuf, "unexcpted interrupt code %#x",
-			fdcsp->status[0] & NE7_ST0_IC_RC);
-	} else {
-		strcpy(msgbuf, "unexpected error code in ST1/ST2");
-
-		if (fdcsp->status[1] & NE7_ST1_EN)
-			strcpy(msgbuf, "end of cylinder (wrong format)");
-		else if (fdcsp->status[1] & NE7_ST1_DE) {
-			if (fdcsp->status[2] & NE7_ST2_DD)
-				strcpy(msgbuf, "CRC error in data field");
-			else
-				strcpy(msgbuf, "CRC error in ID field");
-		} else if (fdcsp->status[1] & NE7_ST1_MA) {
-			if (fdcsp->status[2] & NE7_ST2_MD)
-				strcpy(msgbuf, "no address mark in data field");
-			else
-				strcpy(msgbuf, "no address mark in ID field");
-		} else if (fdcsp->status[2] & NE7_ST2_WC)
-			strcpy(msgbuf, "wrong cylinder (format mismatch)");
-		else if (fdcsp->status[1] & NE7_ST1_ND)
-			strcpy(msgbuf, "no data (sector not found)");
-	}
-	fputs(msgbuf, stderr);
-}
-
 int
 doreadid(int fd, unsigned int numids, unsigned int trackno)
 {
@@ -367,7 +327,7 @@ doreadid(int fd, unsigned int numids, unsigned int trackno)
 			if (ioctl(fd, FD_GSTAT, &fdcs) == -1)
 				errx(EX_IOERR,
 				     "floppy IO error, but no FDC status");
-			printstatus(&fdcs);
+			printstatus(&fdcs, 0);
 			putc('\n', stderr);
 			rv = EX_IOERR;
 		}
