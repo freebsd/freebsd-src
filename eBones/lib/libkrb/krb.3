@@ -1,6 +1,6 @@
-.\" $Source: /usr/cvs/src/eBones/krb/krb.3,v $
-.\" $Author: mark $
-.\" $Header: /usr/cvs/src/eBones/krb/krb.3,v 1.2 1995/07/18 16:40:57 mark Exp $
+.\" $Source$
+.\" $Author$
+.\" $Header$
 .\" Copyright 1989 by the Massachusetts Institute of Technology.
 .\"
 .\" For copying and distribution information,
@@ -8,9 +8,12 @@
 .\"
 .TH KERBEROS 3 "Kerberos Version 4.0" "MIT Project Athena"
 .SH NAME
-krb_mk_req, krb_rd_req, krb_kntoln, krb_set_key, krb_get_cred,
-krb_mk_priv, krb_rd_priv, krb_mk_safe, krb_rd_safe, krb_mk_err,
-krb_rd_err, krb_ck_repl \- Kerberos authentication library
+Kerberos authentication library
+.PP
+krb_mk_req, krb_rd_req, krb_kntoln, krb_set_key,
+krb_get_cred, krb_mk_priv, krb_rd_priv, krb_mk_safe,
+krb_rd_safe, krb_mk_err, krb_rd_err, krb_ck_repl
+krb_get_local_addr, krb_bind_local_addr
 .SH SYNOPSIS
 .nf
 .nj
@@ -105,6 +108,14 @@ u_char *in;
 u_long length;
 long code;
 MSG_DAT *msg_data;
+.PP
+.ft B
+int krb_get_local_addr(address)
+struct sockaddr_in *address;
+.PP
+.ft B
+int krb_bind_local_addr(socket)
+int socket;
 .fi
 .ft R
 .SH DESCRIPTION
@@ -113,6 +124,17 @@ operations.  The library contains many routines beyond those described
 in this man page, but they are not intended to be used directly.
 Instead, they are called by the routines that are described, the
 authentication server and the login program.
+.PP
+The original MIT implementation of the krb library could fail when used on 
+multi-homed client machines.  Two functions,
+.I krb_get_local_addr
+and
+.I krb_bind_local_addr,
+are provided to overcome this limitation.  Any
+application expected to function in a multi-homed environment (clients
+with more than one network interface) that opens sockets to perform
+authenticated or encrypted transactions must use one of these functions
+to bind its sockets to the local address used and authenticated by Kerberos.
 .PP
 .I krb_err_txt[]
 contains text string descriptions of various Kerberos error codes returned
@@ -411,6 +433,30 @@ care of).
 
 The routine returns zero if the error message has been successfully received,
 or a Kerberos error code.
+.PP
+.I krb_get_local_addr
+retrieves the address of the local interface used for
+all kerberos transactions and copies it to the sockaddr_in pointed to
+by 
+.I address.
+This information is usually used to bind additional sockets in client
+programs to the kerberos authenticated local address so transactions
+to kerberos services on remote machines succeed.  This routine may be called
+at any time and the address returned will not change during the lifetime of
+the program.
+
+The routine returns zero on success or a Kerberos error code.
+.PP
+.I krb_bind_local_addr
+binds
+.I socket
+to the address of the local interface used for all kerberos
+transactions.  The bind allows the system to assign a port for the socket,
+so programs wishing to specify an explicit port should use
+.I krb_get_local_addr
+and perform the bind manually.
+
+The routine returns zero on success or a Kerberos error code.
 .PP
 The
 .I KTEXT

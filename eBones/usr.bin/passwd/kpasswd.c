@@ -13,7 +13,7 @@ static char rcsid_kpasswd_c[] =
     "BonesHeader: /afs/athena.mit.edu/astaff/project/kerberos/src/kadmin/RCS/kpasswd.c,v 4.3 89/09/26 09:33:02 jtkohl Exp ";
 #endif
 static const char rcsid[] =
-	"$Id: kpasswd.c,v 1.1 1995/07/18 16:41:20 mark Exp $";
+	"$Id$";
 #endif	lint
 
 /*
@@ -207,7 +207,7 @@ void get_pw_new_key(new_key, name, inst, realm, print_realm)
     bzero((char *) new_key, sizeof(des_cblock));
     new_key[0] = (unsigned char) 1;
 #else
-    (void) des_string_to_key(pword, new_key);
+    (void) des_string_to_key(pword, (des_cblock *)new_key);
 #endif
     bzero(pword, sizeof(pword));
 }

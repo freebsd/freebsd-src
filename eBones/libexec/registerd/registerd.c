@@ -134,7 +134,7 @@ main(argc, argv)
 	send_packet(msgbuf, CLEAR);
 	kfile = (struct keyfile_data *) keybuf;
 	key_sched((C_Block *)kfile->kf_key, schedule);
-	des_set_key((des_cblock *)kfile->kf_key, schedule);
+	des_set_key_krb((des_cblock *)kfile->kf_key, schedule);
 
 	/* read the command code byte */
 

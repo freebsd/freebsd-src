@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.8 1995/12/16 09:14:07 markm Exp $
+# $Id$
 #
 
 LCRYPTBASE=     libcrypt
@@ -12,6 +12,7 @@ LDCRYPTSO=      $(LDCRYPTBASE).so.$(SHLIB_MAJOR).$(SHLIB_MINOR)
 
 LIB=	descrypt
 SRCS=	crypt.c crypt-md5.c md5c.c
+MAN3=	crypt.3
 CFLAGS+=	-I${.CURDIR}/../../../lib/libmd -Wall
 PRECIOUSLIB=	yes
 

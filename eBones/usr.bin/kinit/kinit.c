@@ -15,13 +15,13 @@
  *   -l[ifetime]
  *
  *	from: kinit.c,v 4.12 90/03/20 16:11:15 jon Exp $
- *	$Id: kinit.c,v 1.4 1995/08/03 17:16:00 mark Exp $
+ *	$Id$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: kinit.c,v 1.4 1995/08/03 17:16:00 mark Exp $";
+"$Id$";
 #endif	lint
 #endif
 
@@ -154,7 +154,7 @@ main(argc, argv)
 			if (pwd == (struct passwd *) NULL) {
 				fprintf(stderr, "Unknown name for your uid\n");
 				printf("Kerberos name: ");
-				gets(aname);
+				get_input(aname, sizeof(aname), stdin);
 			} else
 				strncpy(aname, pwd->pw_name, sizeof(aname));
 		}

@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)sys_term.c	8.4 (Berkeley) 5/30/95";
+static char sccsid[] = "@(#)sys_term.c	8.4+1 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -1835,7 +1835,6 @@ scrub_env()
 	for (cpp2 = cpp = environ; *cpp; cpp++) {
 #ifdef __FreeBSD__
 		if (strncmp(*cpp, "LD_LIBRARY_PATH=", 16) &&
-		    strncmp(*cpp, "LD_NOSTD_PATH=", 14) &&
 		    strncmp(*cpp, "LD_PRELOAD=", 11) &&
 #else
 		if (strncmp(*cpp, "LD_", 3) &&
