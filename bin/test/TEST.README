@@ -15,8 +15,8 @@ SunOS 5.4 /usr/ucb/test		3		0
 SunOS 5.5 ksh			0		0
 SunOS 5.5 sh			3		0
 SunOS 5.5 /usr/ucb/test		3		0
-SunOP 4.1.3_U1 sh		3		0
-SunOP 4.1.3_U1 /usr/bin/test	3		0
+SunOS 4.1.3_U1 sh		3		0
+SunOS 4.1.3_U1 /usr/bin/test	3		0
 ULTRIX 4.2 /bin/test		9		0
 ULTRIX 4.2 ksh			1		0
 ULTRIX 4.2 sh5			4		0
