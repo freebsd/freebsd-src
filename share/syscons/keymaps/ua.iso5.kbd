@@ -95,7 +95,7 @@
   089   cr     cr     nl     nl     cr     cr     nl     nl      O
   090   rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl   O
   091   '/'    '/'    '/'    '/'    '/'    '/'    '/'    '/'     O
-  092   nscr   nscr   debug  nop    nop    nop    nop    nop     O
+  092   nscr   pscr   debug  nop    nop    nop    nop    nop     O
 # 093   meta   meta   meta   meta   meta   meta   meta   meta    O
   093   ralt   ralt   ralt   ralt   ralt   ralt   ralt   ralt    O
   094   fkey49 fkey49 fkey69 fkey49 fkey49 fkey49 fkey49 fkey49  O
@@ -225,7 +225,7 @@
   217   cr     cr     nl     nl     cr     cr     nl     nl      O
   218   rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl   O
   219   '/'    '/'    '/'    '/'    '/'    '/'    '/'    '/'     O
-  220   nscr   nscr   debug  nop    nop    nop    nop    nop     O
+  220   nscr   pscr   debug  nop    nop    nop    nop    nop     O
   221   ralt   ralt   ralt   ralt   ralt   ralt   ralt   ralt    O
   222   fkey49 fkey49 fkey69 fkey49 fkey49 fkey49 fkey49 fkey49  O
   223   fkey50 fkey50 fkey70 fkey50 fkey50 fkey50 fkey50 fkey50  O
