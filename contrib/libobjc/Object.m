@@ -1,5 +1,5 @@
 /* The implementation of class Object for Objective-C.
-   Copyright (C) 1993, 1994, 1995, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1994, 1995, 1997, 2002 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -199,7 +199,7 @@ extern int errno;
 
 + (BOOL) conformsTo: (Protocol*)aProtocol
 {
-  int i;
+  size_t i;
   struct objc_protocol_list* proto_list;
   id parent;
 
@@ -271,6 +271,7 @@ extern int errno;
 
 - (retval_t)forward:(SEL)aSel :(arglist_t)argFrame
 {
+  (void) argFrame; /* UNUSED */
   return (retval_t)[self doesNotRecognize: aSel];
 }
 
@@ -364,12 +365,14 @@ extern int errno;
 
 - read: (TypedStream*)aStream
 {
+  (void) aStream; /* UNUSED */
   // [super read: aStream];  
   return self;
 }
 
 - write: (TypedStream*)aStream
 {
+  (void) aStream; /* UNUSED */
   // [super write: aStream];
   return self;
 }
