@@ -1,0 +1,35 @@
+% Base collation scheme: 1994-03-22
+
+% Ordering algorithm:
+%  1. Spaces and hyphen (but not soft
+%     hyphen) before punctuation
+%     characters, punctuation characters
+%     before numbers,
+%     numbers before letters.
+%  2. Letters with diacritical marks are
+%     members of equivalence classes
+%  3. A distinction is made with regards
+%     to case as noted below.
+%  4. Special characters are ignored 
+%     when comparing letters, but then
+%     they are considered
+%  5. The alphabets are sorted in order
+%     of first appearance in ISO 10646:
+%     Latin, Greek, Cyrillic, etc.
+%
+% According to Greek specifications,
+% the steps 2. and 3. above are reversed
+% for the Greek script
+
+% collating symbols
+
+collating-symbol <CAPITAL>
+collating-symbol <CAPITAL-SMALL>
+collating-symbol <SMALL-CAPITAL>
+collating-symbol <SMALL>
+
+% <CAPITAL-SMALL> and <SMALL-CAPITAL>
+% are for cases like Danish <A><a>
+% and Spanish <C><h> being treated
+% as one letter.
+
