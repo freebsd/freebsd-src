@@ -55,7 +55,7 @@ static char rcsid[] =
 #include "char.h"
 #include "local.h"
 
-#define next(a) (*++*(a) ? *(a) : (*++(a) ? *(a) : (char *)usage()))
+#define next(a) (*++*(a) ? *(a) : (*++(a) ? *(a) : (char *)(uintptr_t)usage()))
 
 /*ARGSUSED*/
 main(argc, argv)
