@@ -420,7 +420,7 @@ extern SVCXPRT *svc_raw_create __P((void));
  */
 int svc_dg_enablecache __P((SVCXPRT *, const u_int));
 
-int __rpc_get_local_uid(SVCXPRT *transp, uid_t *uid);
+int __rpc_get_local_uid(SVCXPRT *_transp, uid_t *_uid);
 
 __END_DECLS
 
