@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.8 1995/10/23 13:19:45 jkh Exp $
+ * $Id: installUpgrade.c,v 1.9 1995/10/24 02:18:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -260,6 +260,7 @@ installUpgrade(char *str)
 	return RET_FAIL;
     }
     chdir("/");
+    systemCreateHoloshell();
     if (extractingBin) {
 	while (!saved_etc) {
 	    saved_etc = msgGetInput("/usr/tmp/etc", "Under which directory do you wish to save your current /etc?");
