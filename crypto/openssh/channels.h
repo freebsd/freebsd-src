@@ -32,11 +32,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+/* RCSID("$OpenBSD: channels.h,v 1.31 2001/04/13 22:46:53 beck Exp $"); */
 /* RCSID("$FreeBSD$"); */
-/* RCSID("$OpenBSD: channels.h,v 1.22 2000/10/27 07:48:22 markus Exp $"); */
 
 #ifndef CHANNELS_H
 #define CHANNELS_H
+
+#include "buffer.h"
 
 /* Definitions for channel types. */
 #define SSH_CHANNEL_FREE		0	/* This channel is free (unused). */
@@ -50,7 +52,10 @@
 #define SSH_CHANNEL_INPUT_DRAINING	8	/* sending remaining data to conn */
 #define SSH_CHANNEL_OUTPUT_DRAINING	9	/* sending remaining data to app */
 #define SSH_CHANNEL_LARVAL		10	/* larval session */
-#define SSH_CHANNEL_MAX_TYPE		11
+#define SSH_CHANNEL_RPORT_LISTENER	11	/* Listening to a R-style port  */
+#define SSH_CHANNEL_CONNECTING		12
+#define SSH_CHANNEL_DYNAMIC		13
+#define SSH_CHANNEL_MAX_TYPE		14
 
 /*
  * Data structure for channel data.  This is iniailized in channel_allocate
@@ -149,7 +154,6 @@ void	channel_input_open_confirmation(int type, int plen, void *ctxt);
 void	channel_input_open_failure(int type, int plen, void *ctxt);
 void	channel_input_port_open(int type, int plen, void *ctxt);
 void	channel_input_window_adjust(int type, int plen, void *ctxt);
-void	channel_input_open(int type, int plen, void *ctxt);
 
 /* Sets specific protocol options. */
 void    channel_set_options(int hostname_in_open);
@@ -164,8 +168,13 @@ int     channel_allocate(int type, int sock, char *remote_name);
 /* Free the channel and close its socket. */
 void    channel_free(int channel);
 
-/* Add any bits relevant to channels in select bitmasks. */
-void    channel_prepare_select(fd_set * readset, fd_set * writeset);
+/*
+ * Allocate/update select bitmasks and add any bits relevant to channels in
+ * select bitmasks.
+ */
+void
+channel_prepare_select(fd_set **readsetp, fd_set **writesetp, int *maxfdp,
+    int rekeying);
 
 /*
  * After select, perform any appropriate operations for channels which have
@@ -189,9 +198,6 @@ void    channel_stop_listening(void);
  */
 void    channel_close_all(void);
 
-/* Returns the maximum file descriptor number used by the channels. */
-int     channel_max_fd(void);
-
 /* Returns true if there is still an open channel over the connection. */
 int     channel_still_open(void);
 
@@ -204,12 +210,15 @@ char   *channel_open_message(void);
 
 /*
  * Initiate forwarding of connections to local port "port" through the secure
- * channel to host:port from remote side.  This never returns if there was an
- * error.
+ * channel to host:port from remote side.
  */
-void
-channel_request_local_forwarding(u_short port, const char *host,
-    u_short remote_port, int gateway_ports);
+int
+channel_request_local_forwarding(u_short listen_port,
+    const char *host_to_connect, u_short port_to_connect, int gateway_ports);
+int
+channel_request_forwarding(const char *listen_address, u_short listen_port,
+    const char *host_to_connect, u_short port_to_connect, int gateway_ports,
+    int remote_fwd);
 
 /*
  * Initiate forwarding of connections to port "port" on remote host through
@@ -222,11 +231,17 @@ channel_request_remote_forwarding(u_short port, const char *host,
     u_short remote_port);
 
 /*
- * Permits opening to any host/port in SSH_MSG_PORT_OPEN.  This is usually
- * called by the server, because the user could connect to any port anyway,
- * and the server has no way to know but to trust the client anyway.
+ * Permits opening to any host/port if permitted_opens[] is empty.  This is
+ * usually called by the server, because the user could connect to any port
+ * anyway, and the server has no way to know but to trust the client anyway.
  */
 void    channel_permit_all_opens(void);
+
+/* Add host/port to list of allowed targets for port forwarding */
+void	channel_add_permitted_opens(char *host, int port);
+
+/* Flush list */
+void	channel_clear_permitted_opens(void);
 
 /*
  * This is called after receiving CHANNEL_FORWARDING_REQUEST.  This initates
@@ -290,6 +305,9 @@ void    auth_input_open_request(int type, int plen, void *ctxt);
 
 /* XXX */
 int	channel_connect_to(const char *host, u_short host_port);
+int	channel_connect_by_listen_adress(u_short listen_port);
 int	x11_connect_display(void);
+
+int	channel_find_open(void);
 
 #endif

@@ -13,8 +13,9 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: sshpty.c,v 1.1 2001/03/04 01:46:30 djm Exp $");
+RCSID("$FreeBSD$");
 
-#include <util.h>
+#include <libutil.h>
 #include "sshpty.h"
 #include "log.h"
 

@@ -37,14 +37,14 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: bufaux.c,v 1.13 2000/09/07 20:27:50 deraadt Exp $");
+RCSID("$OpenBSD: bufaux.c,v 1.17 2001/01/21 19:05:45 markus Exp $");
 RCSID("$FreeBSD$");
 
-#include "ssh.h"
 #include <openssl/bn.h>
 #include "bufaux.h"
 #include "xmalloc.h"
 #include "getput.h"
+#include "log.h"
 
 /*
  * Stores an BIGNUM in the buffer with a 2-byte msb first bit count, followed
@@ -55,7 +55,7 @@ buffer_put_bignum(Buffer *buffer, BIGNUM *value)
 {
 	int bits = BN_num_bits(value);
 	int bin_size = (bits + 7) / 8;
-	char unsigned *buf = xmalloc(bin_size);
+	u_char *buf = xmalloc(bin_size);
 	int oi;
 	char msg[2];
 
@@ -82,7 +82,7 @@ int
 buffer_get_bignum(Buffer *buffer, BIGNUM *value)
 {
 	int bits, bytes;
-	unsigned char buf[2], *bin;
+	u_char buf[2], *bin;
 
 	/* Get the number for bits. */
 	buffer_get(buffer, (char *) buf, 2);
@@ -91,7 +91,7 @@ buffer_get_bignum(Buffer *buffer, BIGNUM *value)
 	bytes = (bits + 7) / 8;
 	if (buffer_len(buffer) < bytes)
 		fatal("buffer_get_bignum: input buffer too small");
-	bin = (unsigned char*) buffer_ptr(buffer);
+	bin = (u_char *) buffer_ptr(buffer);
 	BN_bin2bn(bin, bytes, value);
 	buffer_consume(buffer, bytes);
 
@@ -105,7 +105,7 @@ void
 buffer_put_bignum2(Buffer *buffer, BIGNUM *value)
 {
 	int bytes = BN_num_bytes(value) + 1;
-	unsigned char *buf = xmalloc(bytes);
+	u_char *buf = xmalloc(bytes);
 	int oi;
 	int hasnohigh = 0;
 	buf[0] = '\0';
@@ -118,7 +118,7 @@ buffer_put_bignum2(Buffer *buffer, BIGNUM *value)
 	if (value->neg) {
 		/**XXX should be two's-complement */
 		int i, carry;
-		unsigned char *uc = buf;
+		u_char *uc = buf;
 		log("negativ!");
 		for(i = bytes-1, carry = 1; i>=0; i--) {
 			uc[i] ^= 0xff;
@@ -136,7 +136,7 @@ buffer_get_bignum2(Buffer *buffer, BIGNUM *value)
 {
 	/**XXX should be two's-complement */
 	int len;
-	unsigned char *bin = (unsigned char *)buffer_get_string(buffer, (unsigned int *)&len);
+	u_char *bin = (u_char *)buffer_get_string(buffer, (u_int *)&len);
 	BN_bin2bn(bin, len, value);
 	xfree(bin);
 	return len;
@@ -145,23 +145,39 @@ buffer_get_bignum2(Buffer *buffer, BIGNUM *value)
 /*
  * Returns an integer from the buffer (4 bytes, msb first).
  */
-unsigned int
+u_int
 buffer_get_int(Buffer *buffer)
 {
-	unsigned char buf[4];
+	u_char buf[4];
 	buffer_get(buffer, (char *) buf, 4);
 	return GET_32BIT(buf);
+}
+
+u_int64_t
+buffer_get_int64(Buffer *buffer)
+{
+	u_char buf[8];
+	buffer_get(buffer, (char *) buf, 8);
+	return GET_64BIT(buf);
 }
 
 /*
  * Stores an integer in the buffer in 4 bytes, msb first.
  */
 void
-buffer_put_int(Buffer *buffer, unsigned int value)
+buffer_put_int(Buffer *buffer, u_int value)
 {
 	char buf[4];
 	PUT_32BIT(buf, value);
 	buffer_append(buffer, buf, 4);
+}
+
+void
+buffer_put_int64(Buffer *buffer, u_int64_t value)
+{
+	char buf[8];
+	PUT_64BIT(buf, value);
+	buffer_append(buffer, buf, 8);
 }
 
 /*
@@ -173,9 +189,9 @@ buffer_put_int(Buffer *buffer, unsigned int value)
  * to the returned string, and is not counted in length.
  */
 char *
-buffer_get_string(Buffer *buffer, unsigned int *length_ptr)
+buffer_get_string(Buffer *buffer, u_int *length_ptr)
 {
-	unsigned int len;
+	u_int len;
 	char *value;
 	/* Get the length. */
 	len = buffer_get_int(buffer);
@@ -197,7 +213,7 @@ buffer_get_string(Buffer *buffer, unsigned int *length_ptr)
  * Stores and arbitrary binary string in the buffer.
  */
 void
-buffer_put_string(Buffer *buffer, const void *buf, unsigned int len)
+buffer_put_string(Buffer *buffer, const void *buf, u_int len)
 {
 	buffer_put_int(buffer, len);
 	buffer_append(buffer, buf, len);
@@ -216,7 +232,7 @@ buffer_get_char(Buffer *buffer)
 {
 	char ch;
 	buffer_get(buffer, &ch, 1);
-	return (unsigned char) ch;
+	return (u_char) ch;
 }
 
 /*

@@ -1,4 +1,4 @@
-/*	$OpenBSD: ssh-agent.c,v 1.37 2000/09/21 11:07:51 markus Exp $	*/
+/*	$OpenBSD: ssh-agent.c,v 1.54 2001/04/03 13:56:11 stevesk Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -13,7 +13,7 @@
  * called by a name other than "ssh" or "Secure Shell".
  *
  * SSH2 implementation,
- * Copyright (c) 2000 Markus Friedl. All rights reserved.
+ * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,8 +37,11 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh-agent.c,v 1.37 2000/09/21 11:07:51 markus Exp $");
+RCSID("$OpenBSD: ssh-agent.c,v 1.54 2001/04/03 13:56:11 stevesk Exp $");
 RCSID("$FreeBSD$");
+
+#include <openssl/evp.h>
+#include <openssl/md5.h>
 
 #include "ssh.h"
 #include "rsa.h"
@@ -48,16 +51,12 @@ RCSID("$FreeBSD$");
 #include "packet.h"
 #include "getput.h"
 #include "mpaux.h"
-
-#include <openssl/evp.h>
-#include <openssl/md5.h>
-#include <openssl/dsa.h>
-#include <openssl/rsa.h>
 #include "key.h"
 #include "authfd.h"
-#include "dsa.h"
+#include "cipher.h"
 #include "kex.h"
 #include "compat.h"
+#include "log.h"
 
 typedef struct {
 	int fd;
@@ -68,7 +67,7 @@ typedef struct {
 	Buffer output;
 } SocketEntry;
 
-unsigned int sockets_alloc = 0;
+u_int sockets_alloc = 0;
 SocketEntry *sockets = NULL;
 
 typedef struct {
@@ -94,6 +93,8 @@ char socket_name[1024];
 char socket_dir[1024];
 
 extern char *__progname;
+
+int	prepare_select(fd_set **, fd_set **, int *);
 
 void
 idtab_init(void)
@@ -144,14 +145,14 @@ process_request_identities(SocketEntry *e, int version)
 	buffer_put_int(&msg, tab->nentries);
 	for (i = 0; i < tab->nentries; i++) {
 		Identity *id = &tab->identities[i];
-		if (id->key->type == KEY_RSA) {
+		if (id->key->type == KEY_RSA1) {
 			buffer_put_int(&msg, BN_num_bits(id->key->rsa->n));
 			buffer_put_bignum(&msg, id->key->rsa->e);
 			buffer_put_bignum(&msg, id->key->rsa->n);
 		} else {
-			unsigned char *blob;
-			unsigned int blen;
-			dsa_make_key_blob(id->key, &blob, &blen);
+			u_char *blob;
+			u_int blen;
+			key_to_blob(id->key, &blob, &blen);
 			buffer_put_string(&msg, blob, blen);
 			xfree(blob);
 		}
@@ -171,11 +172,11 @@ process_authentication_challenge1(SocketEntry *e)
 	int i, len;
 	Buffer msg;
 	MD5_CTX md;
-	unsigned char buf[32], mdbuf[16], session_id[16];
-	unsigned int response_type;
+	u_char buf[32], mdbuf[16], session_id[16];
+	u_int response_type;
 
 	buffer_init(&msg);
-	key = key_new(KEY_RSA);
+	key = key_new(KEY_RSA1);
 	challenge = BN_new();
 
 	buffer_get_int(&e->input);				/* ignored */
@@ -234,14 +235,14 @@ process_sign_request2(SocketEntry *e)
 {
 	extern int datafellows;
 	Key *key, *private;
-	unsigned char *blob, *data, *signature = NULL;
-	unsigned int blen, dlen, slen = 0;
+	u_char *blob, *data, *signature = NULL;
+	u_int blen, dlen, slen = 0;
 	int flags;
 	Buffer msg;
 	int ok = -1;
 
 	datafellows = 0;
-	
+
 	blob = buffer_get_string(&e->input, &blen);
 	data = buffer_get_string(&e->input, &dlen);
 
@@ -249,11 +250,11 @@ process_sign_request2(SocketEntry *e)
 	if (flags & SSH_AGENT_OLD_SIGNATURE)
 		datafellows = SSH_BUG_SIGBLOB;
 
-	key = dsa_key_from_blob(blob, blen);
+	key = key_from_blob(blob, blen);
 	if (key != NULL) {
 		private = lookup_private_key(key, NULL, 2);
 		if (private != NULL)
-			ok = dsa_sign(private, &signature, &slen, data, dlen);
+			ok = key_sign(private, &signature, &slen, data, dlen);
 	}
 	key_free(key);
 	buffer_init(&msg);
@@ -278,25 +279,25 @@ void
 process_remove_identity(SocketEntry *e, int version)
 {
 	Key *key = NULL, *private;
-	unsigned char *blob;
-	unsigned int blen;
-	unsigned int bits;
+	u_char *blob;
+	u_int blen;
+	u_int bits;
 	int success = 0;
 
 	switch(version){
 	case 1:
-		key = key_new(KEY_RSA);
+		key = key_new(KEY_RSA1);
 		bits = buffer_get_int(&e->input);
 		buffer_get_bignum(&e->input, key->rsa->e);
 		buffer_get_bignum(&e->input, key->rsa->n);
 
 		if (bits != key_size(key))
 			log("Warning: identity keysize mismatch: actual %d, announced %d",
-			      key_size(key), bits);
+			    key_size(key), bits);
 		break;
 	case 2:
 		blob = buffer_get_string(&e->input, &blen);
-		key = dsa_key_from_blob(blob, blen);
+		key = key_from_blob(blob, blen);
 		xfree(blob);
 		break;
 	}
@@ -307,14 +308,24 @@ process_remove_identity(SocketEntry *e, int version)
 			/*
 			 * We have this key.  Free the old key.  Since we
 			 * don\'t want to leave empty slots in the middle of
-			 * the array, we actually free the key there and copy
-			 * data from the last entry.
+			 * the array, we actually free the key there and move
+			 * all the entries between the empty slot and the end
+			 * of the array.
 			 */
 			Idtab *tab = idtab_lookup(version);
 			key_free(tab->identities[idx].key);
 			xfree(tab->identities[idx].comment);
-			if (idx != tab->nentries)
-				tab->identities[idx] = tab->identities[tab->nentries];
+			if (tab->nentries < 1)
+				fatal("process_remove_identity: "
+				    "internal error: tab->nentries %d",
+				    tab->nentries);
+			if (idx != tab->nentries - 1) {
+				int i;
+				for (i = idx; i < tab->nentries - 1; i++)
+					tab->identities[i] = tab->identities[i+1];
+			}
+			tab->identities[tab->nentries - 1].key = NULL;
+			tab->identities[tab->nentries - 1].comment = NULL;
 			tab->nentries--;
 			success = 1;
 		}
@@ -328,7 +339,7 @@ process_remove_identity(SocketEntry *e, int version)
 void
 process_remove_all_identities(SocketEntry *e, int version)
 {
-	unsigned int i;
+	u_int i;
 	Idtab *tab = idtab_lookup(version);
 
 	/* Loop over all identities and clear the keys. */
@@ -350,76 +361,58 @@ void
 process_add_identity(SocketEntry *e, int version)
 {
 	Key *k = NULL;
-	RSA *rsa;
-	BIGNUM *aux;
-	BN_CTX *ctx;
-	char *type;
+	char *type_name;
 	char *comment;
-	int success = 0;
+	int type, success = 0;
 	Idtab *tab = idtab_lookup(version);
 
 	switch (version) {
 	case 1:
-		k = key_new(KEY_RSA);
-		rsa = k->rsa;
-
-		/* allocate mem for private key */
-		/* XXX rsa->n and rsa->e are already allocated */
-		rsa->d = BN_new();
-		rsa->iqmp = BN_new();
-		rsa->q = BN_new();
-		rsa->p = BN_new();
-		rsa->dmq1 = BN_new();
-		rsa->dmp1 = BN_new();
-
-		buffer_get_int(&e->input);		 /* ignored */
-
-		buffer_get_bignum(&e->input, rsa->n);
-		buffer_get_bignum(&e->input, rsa->e);
-		buffer_get_bignum(&e->input, rsa->d);
-		buffer_get_bignum(&e->input, rsa->iqmp);
+		k = key_new_private(KEY_RSA1);
+		buffer_get_int(&e->input);			/* ignored */
+		buffer_get_bignum(&e->input, k->rsa->n);
+		buffer_get_bignum(&e->input, k->rsa->e);
+		buffer_get_bignum(&e->input, k->rsa->d);
+		buffer_get_bignum(&e->input, k->rsa->iqmp);
 
 		/* SSH and SSL have p and q swapped */
-		buffer_get_bignum(&e->input, rsa->q);	/* p */
-		buffer_get_bignum(&e->input, rsa->p);	/* q */
+		buffer_get_bignum(&e->input, k->rsa->q);	/* p */
+		buffer_get_bignum(&e->input, k->rsa->p);	/* q */
 
 		/* Generate additional parameters */
-		aux = BN_new();
-		ctx = BN_CTX_new();
-
-		BN_sub(aux, rsa->q, BN_value_one());
-		BN_mod(rsa->dmq1, rsa->d, aux, ctx);
-
-		BN_sub(aux, rsa->p, BN_value_one());
-		BN_mod(rsa->dmp1, rsa->d, aux, ctx);
-
-		BN_clear_free(aux);
-		BN_CTX_free(ctx);
-
+		generate_additional_parameters(k->rsa);
 		break;
 	case 2:
-		type = buffer_get_string(&e->input, NULL);
-		if (strcmp(type, KEX_DSS)) {
+		type_name = buffer_get_string(&e->input, NULL);
+		type = key_type_from_name(type_name);
+		xfree(type_name);
+		switch(type) {
+		case KEY_DSA:
+			k = key_new_private(type);
+			buffer_get_bignum2(&e->input, k->dsa->p);
+			buffer_get_bignum2(&e->input, k->dsa->q);
+			buffer_get_bignum2(&e->input, k->dsa->g);
+			buffer_get_bignum2(&e->input, k->dsa->pub_key);
+			buffer_get_bignum2(&e->input, k->dsa->priv_key);
+			break;
+		case KEY_RSA:
+			k = key_new_private(type);
+			buffer_get_bignum2(&e->input, k->rsa->n);
+			buffer_get_bignum2(&e->input, k->rsa->e);
+			buffer_get_bignum2(&e->input, k->rsa->d);
+			buffer_get_bignum2(&e->input, k->rsa->iqmp);
+			buffer_get_bignum2(&e->input, k->rsa->p);
+			buffer_get_bignum2(&e->input, k->rsa->q);
+
+			/* Generate additional parameters */
+			generate_additional_parameters(k->rsa);
+			break;
+		default:
 			buffer_clear(&e->input);
-			xfree(type);
 			goto send;
 		}
-		xfree(type);
-
-		k = key_new(KEY_DSA);
-
-		/* allocate mem for private key */
-		k->dsa->priv_key = BN_new();
-
-		buffer_get_bignum2(&e->input, k->dsa->p);
-		buffer_get_bignum2(&e->input, k->dsa->q);
-		buffer_get_bignum2(&e->input, k->dsa->g);
-		buffer_get_bignum2(&e->input, k->dsa->pub_key);
-		buffer_get_bignum2(&e->input, k->dsa->priv_key);
-
 		break;
 	}
-
 	comment = buffer_get_string(&e->input, NULL);
 	if (k == NULL) {
 		xfree(comment);
@@ -451,12 +444,12 @@ send:
 void
 process_message(SocketEntry *e)
 {
-	unsigned int msg_len;
-	unsigned int type;
-	unsigned char *cp;
+	u_int msg_len;
+	u_int type;
+	u_char *cp;
 	if (buffer_len(&e->input) < 5)
 		return;		/* Incomplete message. */
-	cp = (unsigned char *) buffer_ptr(&e->input);
+	cp = (u_char *) buffer_ptr(&e->input);
 	msg_len = GET_32BIT(cp);
 	if (msg_len > 256 * 1024) {
 		shutdown(e->fd, SHUT_RDWR);
@@ -515,7 +508,7 @@ process_message(SocketEntry *e)
 void
 new_socket(int type, int fd)
 {
-	unsigned int i, old_alloc;
+	u_int i, old_alloc;
 	if (fcntl(fd, F_SETFL, O_NONBLOCK) < 0)
 		error("fcntl O_NONBLOCK: %s", strerror(errno));
 
@@ -544,17 +537,17 @@ new_socket(int type, int fd)
 	buffer_init(&sockets[old_alloc].output);
 }
 
-void
-prepare_select(fd_set *readset, fd_set *writeset)
+int
+prepare_select(fd_set **fdrp, fd_set **fdwp, int *fdl)
 {
-	unsigned int i;
-	for (i = 0; i < sockets_alloc; i++)
+	u_int i, sz;
+	int n = 0;
+
+	for (i = 0; i < sockets_alloc; i++) {
 		switch (sockets[i].type) {
 		case AUTH_SOCKET:
 		case AUTH_CONNECTION:
-			FD_SET(sockets[i].fd, readset);
-			if (buffer_len(&sockets[i].output) > 0)
-				FD_SET(sockets[i].fd, writeset);
+			n = MAX(n, sockets[i].fd);
 			break;
 		case AUTH_UNUSED:
 			break;
@@ -562,12 +555,40 @@ prepare_select(fd_set *readset, fd_set *writeset)
 			fatal("Unknown socket type %d", sockets[i].type);
 			break;
 		}
+	}
+
+	sz = howmany(n+1, NFDBITS) * sizeof(fd_mask);
+	if (*fdrp == NULL || n > *fdl) {
+		if (*fdrp)
+			xfree(*fdrp);
+		if (*fdwp)
+			xfree(*fdwp);
+		*fdrp = xmalloc(sz);
+		*fdwp = xmalloc(sz);
+		*fdl = n;
+	}
+	memset(*fdrp, 0, sz);
+	memset(*fdwp, 0, sz);
+
+	for (i = 0; i < sockets_alloc; i++) {
+		switch (sockets[i].type) {
+		case AUTH_SOCKET:
+		case AUTH_CONNECTION:
+			FD_SET(sockets[i].fd, *fdrp);
+			if (buffer_len(&sockets[i].output) > 0)
+				FD_SET(sockets[i].fd, *fdwp);
+			break;
+		default:
+			break;
+		}
+	}
+	return (1);
 }
 
 void
 after_select(fd_set *readset, fd_set *writeset)
 {
-	unsigned int i;
+	u_int i;
 	int len, sock;
 	socklen_t slen;
 	char buf[1024];
@@ -580,7 +601,8 @@ after_select(fd_set *readset, fd_set *writeset)
 		case AUTH_SOCKET:
 			if (FD_ISSET(sockets[i].fd, readset)) {
 				slen = sizeof(sunaddr);
-				sock = accept(sockets[i].fd, (struct sockaddr *) & sunaddr, &slen);
+				sock = accept(sockets[i].fd,
+				    (struct sockaddr *) &sunaddr, &slen);
 				if (sock < 0) {
 					perror("accept from AUTH_SOCKET");
 					break;
@@ -591,8 +613,15 @@ after_select(fd_set *readset, fd_set *writeset)
 		case AUTH_CONNECTION:
 			if (buffer_len(&sockets[i].output) > 0 &&
 			    FD_ISSET(sockets[i].fd, writeset)) {
-				len = write(sockets[i].fd, buffer_ptr(&sockets[i].output),
-					 buffer_len(&sockets[i].output));
+				do {
+					len = write(sockets[i].fd,
+					    buffer_ptr(&sockets[i].output),
+					    buffer_len(&sockets[i].output));
+					if (len == -1 && (errno == EAGAIN ||
+					    errno == EINTR))
+						continue;
+					break;
+				} while (1);
 				if (len <= 0) {
 					shutdown(sockets[i].fd, SHUT_RDWR);
 					close(sockets[i].fd);
@@ -604,7 +633,13 @@ after_select(fd_set *readset, fd_set *writeset)
 				buffer_consume(&sockets[i].output, len);
 			}
 			if (FD_ISSET(sockets[i].fd, readset)) {
-				len = read(sockets[i].fd, buf, sizeof(buf));
+				do {
+					len = read(sockets[i].fd, buf, sizeof(buf));
+					if (len == -1 && (errno == EAGAIN ||
+					    errno == EINTR))
+						continue;
+					break;
+				} while (1);
 				if (len <= 0) {
 					shutdown(sockets[i].fd, SHUT_RDWR);
 					close(sockets[i].fd);
@@ -625,19 +660,24 @@ after_select(fd_set *readset, fd_set *writeset)
 void
 check_parent_exists(int sig)
 {
+	int save_errno = errno;
+
 	if (parent_pid != -1 && kill(parent_pid, 0) < 0) {
 		/* printf("Parent has died - Authentication agent exiting.\n"); */
 		exit(1);
 	}
 	signal(SIGALRM, check_parent_exists);
 	alarm(10);
+	errno = save_errno;
 }
 
 void
 cleanup_socket(void)
 {
-	remove(socket_name);
-	rmdir(socket_dir);
+	if (socket_name[0])
+		unlink(socket_name);
+	if (socket_dir[0])
+		rmdir(socket_dir);
 }
 
 void
@@ -648,30 +688,34 @@ cleanup_exit(int i)
 }
 
 void
-usage()
+cleanup_handler(int sig)
+{
+	cleanup_socket();
+	_exit(2);
+}
+
+void
+usage(void)
 {
 	fprintf(stderr, "ssh-agent version %s\n", SSH_VERSION);
 	fprintf(stderr, "Usage: %s [-c | -s] [-k] [command {args...]]\n",
-		__progname);
+	    __progname);
 	exit(1);
 }
 
 int
 main(int ac, char **av)
 {
-	fd_set readset, writeset;
 	int sock, c_flag = 0, k_flag = 0, s_flag = 0, ch;
 	struct sockaddr_un sunaddr;
+	struct rlimit rlim;
 	pid_t pid;
 	char *shell, *format, *pidstr, pidstrbuf[1 + 3 * sizeof pid];
+	extern int optind;
+	fd_set *readsetp = NULL, *writesetp = NULL;
 
-	/* check if RSA support exists */
-	if (rsa_alive() == 0) {
-		fprintf(stderr,
-			"%s: no RSA support in libssl and libcrypto.  See ssl(8).\n",
-			__progname);
-		exit(1);
-	}
+	SSLeay_add_all_algorithms();
+
 	while ((ch = getopt(ac, av, "cks")) != -1) {
 		switch (ch) {
 		case 'c':
@@ -706,14 +750,13 @@ main(int ac, char **av)
 		pidstr = getenv(SSH_AGENTPID_ENV_NAME);
 		if (pidstr == NULL) {
 			fprintf(stderr, "%s not set, cannot kill agent\n",
-				SSH_AGENTPID_ENV_NAME);
+			    SSH_AGENTPID_ENV_NAME);
 			exit(1);
 		}
 		pid = atoi(pidstr);
-		if (pid < 1) {	/* XXX PID_MAX check too */
-		/* Yes, PID_MAX check please */
+		if (pid < 1) {
 			fprintf(stderr, "%s=\"%s\", which is not a good PID\n",
-				SSH_AGENTPID_ENV_NAME, pidstr);
+			    SSH_AGENTPID_ENV_NAME, pidstr);
 			exit(1);
 		}
 		if (kill(pid, SIGTERM) == -1) {
@@ -735,7 +778,7 @@ main(int ac, char **av)
 		exit(1);
 	}
 	snprintf(socket_name, sizeof socket_name, "%s/agent.%d", socket_dir,
-		 parent_pid);
+	    parent_pid);
 
 	/*
 	 * Create socket early so it will exist before command gets run from
@@ -758,6 +801,7 @@ main(int ac, char **av)
 		perror("listen");
 		cleanup_exit(1);
 	}
+
 	/*
 	 * Fork, and have the parent execute the command, if any, or present
 	 * the socket data.  The child continues as the authentication agent.
@@ -773,9 +817,9 @@ main(int ac, char **av)
 		if (ac == 0) {
 			format = c_flag ? "setenv %s %s;\n" : "%s=%s; export %s;\n";
 			printf(format, SSH_AUTHSOCKET_ENV_NAME, socket_name,
-			       SSH_AUTHSOCKET_ENV_NAME);
+			    SSH_AUTHSOCKET_ENV_NAME);
 			printf(format, SSH_AGENTPID_ENV_NAME, pidstrbuf,
-			       SSH_AGENTPID_ENV_NAME);
+			    SSH_AGENTPID_ENV_NAME);
 			printf("echo Agent pid %d;\n", pid);
 			exit(0);
 		}
@@ -792,6 +836,12 @@ main(int ac, char **av)
 	close(1);
 	close(2);
 
+	/* deny core dumps, since memory contains unencrypted private keys */
+	rlim.rlim_cur = rlim.rlim_max = 0;
+	if (setrlimit(RLIMIT_CORE, &rlim) < 0) {
+		perror("setrlimit rlimit_core failed");
+		cleanup_exit(1);
+	}
 	if (setsid() == -1) {
 		perror("setsid");
 		cleanup_exit(1);
@@ -808,18 +858,16 @@ main(int ac, char **av)
 	idtab_init();
 	signal(SIGINT, SIG_IGN);
 	signal(SIGPIPE, SIG_IGN);
-	signal(SIGHUP, cleanup_exit);
-	signal(SIGTERM, cleanup_exit);
+	signal(SIGHUP, cleanup_handler);
+	signal(SIGTERM, cleanup_handler);
 	while (1) {
-		FD_ZERO(&readset);
-		FD_ZERO(&writeset);
-		prepare_select(&readset, &writeset);
-		if (select(max_fd + 1, &readset, &writeset, NULL, NULL) < 0) {
+		prepare_select(&readsetp, &writesetp, &max_fd);
+		if (select(max_fd + 1, readsetp, writesetp, NULL, NULL) < 0) {
 			if (errno == EINTR)
 				continue;
 			exit(1);
 		}
-		after_select(&readset, &writeset);
+		after_select(readsetp, writesetp);
 	}
 	/* NOTREACHED */
 }

@@ -24,6 +24,7 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: auth-chall.c,v 1.7 2001/04/05 10:42:47 markus Exp $");
+RCSID("$FreeBSD$");
 
 #include "auth.h"
 #include "log.h"
@@ -69,14 +70,14 @@ verify_response(Authctxt *authctxt, char *response)
 }
 #else
 #ifdef SKEY
-#include <skey.h>
+#include <opie.h>
 
 char *
 get_challenge(Authctxt *authctxt, char *devs)
 {
 	static char challenge[1024];
-	struct skey skey;
-	if (skeychallenge(&skey, authctxt->user, challenge) == -1)
+	struct opie opie;
+	if (opiechallenge(&opie, authctxt->user, challenge) == -1)
 		return NULL;
 	strlcat(challenge, "\nS/Key Password: ", sizeof challenge);
 	return challenge;
@@ -85,8 +86,8 @@ int
 verify_response(Authctxt *authctxt, char *response)
 {
 	return (authctxt->valid &&
-	    skey_haskey(authctxt->pw->pw_name) == 0 &&
-	    skey_passcheck(authctxt->pw->pw_name, response) != -1);
+	    opie_haskey(authctxt->pw->pw_name) == 0 &&
+	    opie_passverify(authctxt->pw->pw_name, response) != -1);
 }
 #else
 /* not available */

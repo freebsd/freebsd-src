@@ -14,22 +14,24 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth-rsa.c,v 1.32 2000/10/14 12:19:45 markus Exp $");
+RCSID("$OpenBSD: auth-rsa.c,v 1.40 2001/04/06 21:00:07 markus Exp $");
 RCSID("$FreeBSD$");
-
-#include "rsa.h"
-#include "packet.h"
-#include "xmalloc.h"
-#include "ssh.h"
-#include "mpaux.h"
-#include "uidswap.h"
-#include "match.h"
-#include "servconf.h"
-#include "auth-options.h"
 
 #include <openssl/rsa.h>
 #include <openssl/md5.h>
 
+#include "rsa.h"
+#include "packet.h"
+#include "xmalloc.h"
+#include "ssh1.h"
+#include "mpaux.h"
+#include "uidswap.h"
+#include "match.h"
+#include "auth-options.h"
+#include "pathnames.h"
+#include "log.h"
+#include "servconf.h"
+#include "auth.h"
 
 /* import */
 extern ServerOptions options;
@@ -38,7 +40,7 @@ extern ServerOptions options;
  * Session identifier that is used to bind key exchange and authentication
  * responses to a particular session.
  */
-extern unsigned char session_id[16];
+extern u_char session_id[16];
 
 /*
  * The .ssh/authorized_keys file contains public keys, one per line, in the
@@ -61,9 +63,9 @@ auth_rsa_challenge_dialog(RSA *pk)
 {
 	BIGNUM *challenge, *encrypted_challenge;
 	BN_CTX *ctx;
-	unsigned char buf[32], mdbuf[16], response[16];
+	u_char buf[32], mdbuf[16], response[16];
 	MD5_CTX md;
-	unsigned int i;
+	u_int i;
 	int plen, len;
 
 	encrypted_challenge = BN_new();
@@ -121,11 +123,11 @@ auth_rsa_challenge_dialog(RSA *pk)
 int
 auth_rsa(struct passwd *pw, BIGNUM *client_n)
 {
-	char line[8192], file[1024];
+	char line[8192], file[MAXPATHLEN];
 	int authenticated;
-	unsigned int bits;
+	u_int bits;
 	FILE *f;
-	unsigned long linenum = 0;
+	u_long linenum = 0;
 	struct stat st;
 	RSA *pk;
 
@@ -134,11 +136,11 @@ auth_rsa(struct passwd *pw, BIGNUM *client_n)
 		return 0;
 
 	/* Temporarily use the user's uid. */
-	temporarily_use_uid(pw->pw_uid);
+	temporarily_use_uid(pw);
 
 	/* The authorized keys. */
 	snprintf(file, sizeof file, "%.500s/%.100s", pw->pw_dir,
-		 SSH_USER_PERMITTED_KEYS);
+		 _PATH_SSH_USER_PERMITTED_KEYS);
 
 	/* Fail quietly if file does not exist */
 	if (stat(file, &st) < 0) {
@@ -166,10 +168,10 @@ auth_rsa(struct passwd *pw, BIGNUM *client_n)
 				 "bad ownership or modes for '%s'.", pw->pw_name, file);
 			fail = 1;
 		} else {
-			/* Check path to SSH_USER_PERMITTED_KEYS */
+			/* Check path to _PATH_SSH_USER_PERMITTED_KEYS */
 			int i;
 			static const char *check[] = {
-				"", SSH_USER_DIR, NULL
+				"", _PATH_SSH_USER_DIR, NULL
 			};
 			for (i = 0; check[i]; i++) {
 				snprintf(line, sizeof line, "%.500s/%.100s", pw->pw_dir, check[i]);
@@ -185,8 +187,8 @@ auth_rsa(struct passwd *pw, BIGNUM *client_n)
 		}
 		if (fail) {
 			fclose(f);
-			log("%s",buf);
-			packet_send_debug("%s",buf);
+			log("%s", buf);
+			packet_send_debug("%s", buf);
 			restore_uid();
 			return 0;
 		}
@@ -232,19 +234,13 @@ auth_rsa(struct passwd *pw, BIGNUM *client_n)
 			}
 		} else
 			options = NULL;
-		/*
-		 * If our options do not allow this key to be used,
-		 * do not send challenge.
-		 */
-		if (!auth_parse_options(pw, options, linenum))
-			continue;
 
 		/* Parse the key from the line. */
 		if (!auth_rsa_read_key(&cp, &bits, pk->e, pk->n)) {
 			debug("%.100s, line %lu: bad key syntax",
-			      SSH_USER_PERMITTED_KEYS, linenum);
+			    file, linenum);
 			packet_send_debug("%.100s, line %lu: bad key syntax",
-					  SSH_USER_PERMITTED_KEYS, linenum);
+			    file, linenum);
 			continue;
 		}
 		/* cp now points to the comment part. */
@@ -260,6 +256,12 @@ auth_rsa(struct passwd *pw, BIGNUM *client_n)
 			    file, linenum, BN_num_bits(pk->n), bits);
 
 		/* We have found the desired key. */
+		/*
+		 * If our options do not allow this key to be used,
+		 * do not send challenge.
+		 */
+		if (!auth_parse_options(pw, options, file, linenum))
+			continue;
 
 		/* Perform the challenge-response dialog for this key. */
 		if (!auth_rsa_challenge_dialog(pk)) {

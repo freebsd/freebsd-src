@@ -1,4 +1,5 @@
 /*	$OpenBSD: pathnames.h,v 1.5 2001/04/12 19:15:24 markus Exp $	*/
+/*	$FreeBSD$	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -12,7 +13,7 @@
  * called by a name other than "ssh" or "Secure Shell".
  */
 
-#define ETCDIR				"/etc"
+#define ETCDIR				"/etc/ssh"
 #define _PATH_SSH_PIDDIR		"/var/run"
 
 /*

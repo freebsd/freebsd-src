@@ -1,11 +1,11 @@
 /* $FreeBSD$ */
-/* $OpenBSD: version.h,v 1.13 2000/10/16 09:38:45 djm Exp $ */
+/* $OpenBSD: version.h,v 1.23 2001/04/24 16:43:16 markus Exp $ */
 
 #ifndef	SSH_VERSION
 
 #define SSH_VERSION		(ssh_version_get())
-#define SSH_VERSION_BASE	"OpenSSH_2.3.0"
-#define	SSH_VERSION_ADDENDUM	"green@FreeBSD.org 20010319"
+#define SSH_VERSION_BASE	"OpenSSH_2.9"
+#define	SSH_VERSION_ADDENDUM	"green@FreeBSD.org 20010503"
 
 const char *ssh_version_get(void);
 void ssh_version_set_addendum(const char *add);
