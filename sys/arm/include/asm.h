@@ -88,13 +88,8 @@
 	.text; _ALIGN_TEXT; .globl x; .type x,_ASM_TYPE_FUNCTION; x:
 
 #ifdef GPROF
-# ifdef __ELF__
 #  define _PROF_PROLOGUE	\
-	mov ip, lr; bl __mcount
-# else
-#  define _PROF_PROLOGUE	\
-	mov ip,lr; bl mcount
-# endif
+	mov ip, lr; bl _mcount
 #else
 # define _PROF_PROLOGUE
 #endif
