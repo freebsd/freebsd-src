@@ -1,7 +1,12 @@
 $FreeBSD$
 
-ReleaseNotes for isdn4bsd             last edit-date: [Sun Oct 21 11:29:33 2001]
+ReleaseNotes for isdn4bsd             last edit-date: [Tue Mar 26 15:11:33 2002]
 ================================================================================
+
+release 1.02
+--------------------------------------------------------------------------------
+
+- add support for ISDN subaddressing written by Steve Looman
 
 - made ELSA PCC16 attach correctly (again ?)
 
