@@ -287,7 +287,7 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 		return (error);
 	s = splclock();
 	if (modes & MOD_FREQUENCY) {
-		freq = (ntv.freq * 1000) << 16;
+		freq = (ntv.freq * 1000LL) << 16;
 		if (freq > MAXFREQ)
 			L_LINT(time_freq, MAXFREQ);
 		else if (freq < -MAXFREQ)
@@ -337,7 +337,7 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 		ntv.offset = L_GINT(time_offset);
 	else
 		ntv.offset = L_GINT(time_offset) / 1000;
-	ntv.freq = L_GINT((time_freq / 1000) << 16);
+	ntv.freq = L_GINT((time_freq / 1000LL) << 16);
 	ntv.maxerror = time_maxerror;
 	ntv.esterror = time_esterror;
 	ntv.status = time_status;
@@ -349,7 +349,7 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 	ntv.tolerance = MAXFREQ * SCALE_PPM;
 #ifdef PPS_SYNC
 	ntv.shift = pps_shift;
-	ntv.ppsfreq = L_GINT((pps_freq / 1000) << 16);
+	ntv.ppsfreq = L_GINT((pps_freq / 1000LL) << 16);
 	ntv.jitter = pps_jitter;
 	if (time_status & STA_NANO)
 		ntv.jitter = pps_jitter;
