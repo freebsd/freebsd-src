@@ -178,7 +178,7 @@
 114	STD	LINUX	{ int linux_wait4(int pid, int *status, \
 				int options, struct rusage *rusage); }
 115	STD	LINUX	{ int linux_swapoff(void); }
-116	STD	LINUX	{ int linux_sysinfo(void); }
+116	STD	LINUX	{ int linux_sysinfo(struct sysinfo *info); }
 117	STD	LINUX	{ int linux_ipc(int what, int arg1, int arg2, \
 				int arg3, caddr_t ptr); }
 118	NOPROTO	LINUX	{ int fsync(int fd); }
