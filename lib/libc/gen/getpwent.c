@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ * 
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -176,7 +178,8 @@ getpwnam(name)
 	if (rval && (_pw_passwd.pw_name[0] == '+'||
 			_pw_passwd.pw_name[0] == '-')) rval = 0;
 
-	endpwent();
+	if (!_pw_stayopen)
+		endpwent();
 	return(rval ? &_pw_passwd : (struct passwd *)NULL);
 }
 
@@ -216,7 +219,8 @@ getpwuid(uid)
 	if (rval && (_pw_passwd.pw_name[0] == '+'||
 			_pw_passwd.pw_name[0] == '-')) rval = 0;
 
-	endpwent();
+	if (!_pw_stayopen)
+		endpwent();
 	return(rval ? &_pw_passwd : (struct passwd *)NULL);
 }
 
