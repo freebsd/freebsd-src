@@ -207,7 +207,7 @@ USB_MATCH(ubser)
 	usb_string_descriptor_t us;
 	usb_interface_descriptor_t *id;
 	usb_device_descriptor_t *dd;
-	int err;
+	int err, size;
 
 	if (uaa->iface == NULL)
 		return (UMATCH_NONE);
@@ -227,7 +227,8 @@ USB_MATCH(ubser)
 		return (UMATCH_NONE);
 	}
 
-	err = usbd_get_string_desc(uaa->device, dd->iManufacturer, 0, &us);
+	err = usbd_get_string_desc(uaa->device, dd->iManufacturer, 0, &us,
+	    &size);
 	if (err != 0)
 		return (UMATCH_NONE);
 
