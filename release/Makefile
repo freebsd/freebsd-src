@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.22 1994/11/07 05:02:42 phk Exp $
+#	$Id: Makefile,v 1.23 1994/11/07 09:54:23 jkh Exp $
 #
 
 FDLABEL=	fd1200
@@ -71,7 +71,7 @@ boot.flp:
 	-umount ${MNT}
 	fsck /dev/r${FLOPPY}
 	dd if=/dev/r${FLOPPY} bs=${DDBS} count=${DDCOUNT} of=boot.flp
-	gzip -9 -v < boot_.flp > boot_.flp.gz
+	gzip -9 -v < boot.flp > boot.flp.gz
 	df -k /dev/r${FLOPPY}
 
 cpio.flp:
