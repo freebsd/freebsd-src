@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uux_rcsid[] = "$Id: uux.c,v 1.72 1994/03/22 06:33:26 ian Rel $";
+const char uux_rcsid[] = "$Id: uux.c,v 1.4 1994/05/07 18:14:35 ache Exp $";
 #endif
 
 #include "uudefs.h"
@@ -186,7 +186,7 @@ main (argc, argv)
   opterr = 0;
   while (1)
     {
-      while (getopt_long (argc, argv, "+a:bcCg:I:jlnprs:Wvx:z",
+      while (getopt_long (argc, argv, "+a::bcCg:I:jlnprs:Wvx:z",
 			  asXlongopts, (int *) NULL) != EOF)
 	;
       if (optind >= argc || strcmp (argv[optind], "-") != 0)
