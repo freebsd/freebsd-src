@@ -1,5 +1,5 @@
-/* $Id: isp_freebsd_cam.h,v 1.13 1999/01/30 07:29:00 mjacob Exp $ */
-/* release_02_05_99 */
+/* $Id: isp_freebsd_cam.h,v 1.14 1999/02/09 01:09:03 mjacob Exp $ */
+/* release_03_16_99 */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (CAM version)
  *---------------------------------------
@@ -55,6 +55,13 @@
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 
+#include "opt_isp.h"
+#ifdef	SCSI_ISP_FABRIC
+#define	ISP2100_FABRIC	1
+#endif
+#ifdef	SCSI_ISP_SCCLUN
+#define	ISP2100_SCCLUN	1
+#endif
 
 #ifndef	SCSI_CHECK
 #define	SCSI_CHECK	SCSI_STATUS_CHECK_COND
@@ -71,6 +78,8 @@ struct isposinfo {
 	struct cam_path		*path;
 	volatile char		simqfrozen;
 };
+#define	SIMQFRZ_RESOURCE	0x1
+#define	SIMQFRZ_LOOPDOWN	0x2
 
 #define	isp_sim		isp_osinfo.sim
 #define	isp_path	isp_osinfo.path
@@ -78,26 +87,16 @@ struct isposinfo {
 #define	isp_name	isp_osinfo.name
 
 
-#define	MAXISPREQUEST		64
-
-#define	PVS			"Qlogic ISP Driver, FreeBSD CAM"
-
 #include <dev/isp/ispreg.h>
 #include <dev/isp/ispvar.h>
 #include <dev/isp/ispmbox.h>
 
-#define	PRINTF			printf
-#define	IDPRINTF(lev, x)	if (isp->isp_dblev >= lev) printf x
-
-#define	MEMZERO			bzero
-#define	MEMCPY(dst, src, amt)	bcopy((src), (dst), (amt))
-
+#define	PVS			"Qlogic ISP Driver, FreeBSD CAM"
 #ifdef	CAMDEBUG
 #define	DFLT_DBLEVEL		2
 #else
 #define	DFLT_DBLEVEL		1
 #endif
-
 #define	ISP_LOCKVAL_DECL	int isp_spl_save
 #define	ISP_ILOCKVAL_DECL	ISP_LOCKVAL_DECL
 #define	ISP_UNLOCK(isp)		(void) splx(isp_spl_save)
@@ -157,7 +156,6 @@ extern void isp_done(struct ccb_scsiio *);
 /*
  * Can we tag?
  */
-
 #define	XS_CANTAG(ccb)		(((ccb)->ccb_h.flags & CAM_TAG_ACTION_VALID) \
 				  && (ccb)->tag_action != CAM_TAG_ACTION_NONE)
 /*
@@ -172,14 +170,6 @@ extern void isp_done(struct ccb_scsiio *);
 #define	CMD_COMPLETE		0
 #define	CMD_EAGAIN		1
 #define	CMD_QUEUED		2
-
-#define	SYS_DELAY(x)	DELAY(x)
 #define	STOP_WATCHDOG(f, s)
-
-#define	ISP_NO_FASTPOST_SCSI	1
-#define	ISP_NO_FASTPOST_FC	1
-
-extern void isp_attach __P((struct ispsoftc *));
-extern void isp_uninit __P((struct ispsoftc *));
 
 #endif	/* _ISP_FREEBSD_CAM_H */
