@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.30 1997/06/29 15:11:40 yokota Exp $
+ *	$Id: syscons.h,v 1.31 1997/07/15 14:43:27 yokota Exp $
  */
 
 #ifndef _I386_ISA_SYSCONS_H_
@@ -95,14 +95,13 @@
 #define	ROW		25
 #define BELL_DURATION	5
 #define BELL_PITCH	800
-#define TIMER_FREQ	1193182			/* should be in isa.h */
 #define CONSOLE_BUFSIZE 1024
 #define PCBURST		128
 #define FONT_NONE	1
 #define FONT_8		2
 #define FONT_14		4
 #define FONT_16		8
-#define HISTORY_SIZE	100*80
+#define HISTORY_SIZE	(COL * ROW * 4)
 
 /* defines related to hardware addresses */
 #define	MONO_BASE	0x3B4			/* crt controller base mono */
