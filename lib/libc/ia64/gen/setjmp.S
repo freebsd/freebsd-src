@@ -50,7 +50,7 @@ ENTRY(setjmp, 1)
 	;;
 	mov	out0=1				// how = SIG_BLOCK
 	mov	out1=0				// set = NULL
-	add	out2=J_SIG0,in0			// oset = &jb[J_SIG0]
+	add	out2=J_SIGSET,in0		// oset = &jb[J_SIGSET]
 	br.call.sptk.few rp=__sys_sigprocmask
 	;;
 	mov	rp=loc1
@@ -68,7 +68,7 @@ ENTRY(__longjmp, 2)
 	mov	loc1=rp
 	;; 
 	mov	out0=3				// how = SIG_SETMASK
-	add	out1=J_SIG0,in0			// set = &jb[J_SIG0]
+	add	out1=J_SIGSET,in0		// set = &jb[J_SIGSET]
 	mov	out2=0				// oset = NULL
 	br.call.sptk.few rp=__sys_sigprocmask
 	;;
