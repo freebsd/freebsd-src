@@ -27,7 +27,9 @@ NOPIC=	1
 
 INCS=	archive.h archive_entry.h
 
-SRCS=	archive_check_magic.c				\
+# Note: archive.h does need to be listed here, since it's built
+SRCS=	archive.h					\
+	archive_check_magic.c				\
 	archive_entry.c					\
 	archive_read.c					\
 	archive_read_data_into_buffer.c			\
@@ -166,20 +168,6 @@ MLINKS+=	archive_write.3 archive_write_set_format_shar.3
 MLINKS+=	archive_write.3 archive_write_set_format_ustar.3
 MLINKS+=	libarchive.3 archive.3
 
-#
-# archive.h is built dynamically, which has a number of implications...
-#
-
-# Ensure archive.h gets built before we compute dependencies.
-beforedepend: archive.h
-afterdepend:
-	echo "archive.h: Makefile" >> ${DEPENDFILE}
-# Ensure archive.h gets built before we compile anything.
-${SRCS:S/.c$/.o/}: archive.h
-
-# archive.h needs to be cleaned
-CLEANFILES+=	archive.h
-
 # Build archive.h from archive.h.in
 archive.h:	archive.h.in Makefile
 	cat ${.CURDIR}/archive.h.in |					\
@@ -187,8 +175,16 @@ archive.h:	archive.h.in Makefile
 		sed 's/@ARCHIVE_API_FEATURE@/${ARCHIVE_API_FEATURE}/' |	\
 		cat > archive.h
 
+# archive.h needs to be cleaned
+CLEANFILES+=	archive.h
+
+#
+# Voodoo for building a distfile that uses autoconf/automake/etc.
+#
+
 # Files that just get copied to the distfile build directory
 DIST_WORK_DIR=	${.OBJDIR}/lib${LIB}-${VERSION}
+CLEANDIRS+=	${DIST_WORK_DIR}
 DISTFILE=	lib${LIB}-${VERSION}.tar.gz
 DIST_FILES=	${SRCS}
 DIST_FILES+=	${MAN}
@@ -196,8 +192,6 @@ DIST_FILES+=	archive.h.in
 DIST_FILES+=	archive_entry.h archive_platform.h
 DIST_FILES+=	archive_private.h archive_string.h
 DIST_FILES+=	Makefile.am
-
-CLEANDIRS+=	${DIST_WORK_DIR}
 
 distfile:
 	rm -rf ${DIST_WORK_DIR}
