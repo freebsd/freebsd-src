@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.6 1998/01/06 15:54:53 junichi Exp junichi $
+ *      $Id: wfd.c,v 1.1 1998/01/16 22:13:07 pst Exp $
  */
 
 /*
@@ -65,7 +65,7 @@ static	d_strategy_t	wfdstrategy;
 #define BDEV_MAJOR 24
 static struct cdevsw wfd_cdevsw;
 static struct bdevsw wfd_bdevsw = 
-	{ wfdbopen,	wfdbclose,	wfdstrategy,	wfdioctl,	/*22*/
+	{ wfdbopen,	wfdbclose,	wfdstrategy,	wfdioctl,
 	  nodump,	nopsize,	0,	"wfd",	&wfd_cdevsw,	-1 };
 
 #ifndef ATAPI_STATIC
