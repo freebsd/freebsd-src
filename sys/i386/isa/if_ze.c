@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.8 1994/10/23 21:27:25 wollman Exp $
+ * $Id: if_ze.c,v 1.9 1994/11/24 14:29:26 davidg Exp $
  */
 
 #include "ze.h"
@@ -1621,15 +1621,7 @@ ze_ioctl(ifp, command, data)
 #ifdef INET
 		case AF_INET:
 			ze_init(ifp->if_unit);	/* before arpwhohas */
-			/*
-			 * See if another station has *our* IP address.
-			 * i.e.: There is an address conflict! If a
-			 * conflict exists, a message is sent to the
-			 * console.
-			 */
-			((struct arpcom *)ifp)->ac_ipaddr =
-				IA_SIN(ifa)->sin_addr;
-			arpwhohas((struct arpcom *)ifp, &IA_SIN(ifa)->sin_addr);
+			arp_ifinit((struct arpcom*) ifp, ifa);
 			break;
 #endif
 #ifdef NS
