@@ -280,12 +280,6 @@ struct em_buffer {
         bus_dmamap_t    map;         /* bus_dma map for packet */
 };
 
-struct em_q {
-        bus_dmamap_t       map;         /* bus_dma map for packet */
-        int                nsegs;       /* # of segments/descriptors */
-        bus_dma_segment_t  segs[EM_MAX_SCATTER];
-};
-
 /*
  * Bus dma allocation structure used by
  * em_dma_malloc and em_dma_free.
