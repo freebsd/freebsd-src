@@ -1792,20 +1792,9 @@ siointr1(com)
 			}
 		}
 		line_status = inb(com->line_status_port);
-		if (line_status == 0xff) {
-			printf("sio%d: spouting nonsense -- disabled.\n",
-			    com->unit);
-			com->gone = 1;
-			break;
-		}
+
 		/* input event? (check first to help avoid overruns) */
 		while (line_status & LSR_RCV_MASK) {
-			if (line_status == 0xff) {
-				printf("sio%d: linestats bogus -- disabled.\n",
-				    com->unit);
-				com->gone = 1;
-				return;
-			}
 			/* break/unnattached error bits or real input? */
 			if (!(line_status & LSR_RXRDY))
 				recv_data = 0;
