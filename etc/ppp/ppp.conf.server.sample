@@ -7,7 +7,7 @@
 
 default:
  disable lqr
- set debug phase lcp chat
+ set log phase lcp chat
  set timeout 0
  enable msext
  set ns xxx.xxx.xxx.xxx xxx.xxx.xxx.xxx
