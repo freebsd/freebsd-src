@@ -3,4 +3,4 @@
 
 MDSRCS+=bcmp.S bcopy.S bzero.S ffs.S index.S memchr.S memcmp.S memcpy.S \
 	memmove.S memset.S rindex.S strcat.S strchr.S strcmp.S strcpy.S \
-	strlen.S strncmp.S strrchr.S swab.S wcscmp.S
+	strlen.S strncmp.S strrchr.S swab.S wcscmp.S wmemchr.S
