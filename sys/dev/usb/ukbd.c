@@ -683,24 +683,20 @@ Static int
 ukbd_interrupt(keyboard_t *kbd, void *arg)
 {
 	usbd_status status = (usbd_status)arg;
-	ukbd_state_t *state = (ukbd_state_t *)kbd->kb_data;
-	struct ukbd_data *ud = &state->ks_ndata;
+	ukbd_state_t *state;
+	struct ukbd_data *ud;
 	struct timeval tv;
 	u_long now;
 	int mod, omod;
 	int key, c;
 	int i, j;
 
-#define ADDKEY1(c) 		\
-	if (state->ks_inputs < INPUTBUFSIZE) {				\
-		state->ks_input[state->ks_inputtail] = (c);		\
-		++state->ks_inputs;					\
-		state->ks_inputtail = (state->ks_inputtail + 1)%INPUTBUFSIZE; \
-	}
-
 	DPRINTFN(5, ("ukbd_intr: status=%d\n", status));
 	if (status == USBD_CANCELLED)
 		return 0;
+
+	state = (ukbd_state_t *)kbd->kb_data;
+	ud = &state->ks_ndata;
 
 	if (status != USBD_NORMAL_COMPLETION) {
 		DPRINTF(("ukbd_intr: status=%d\n", status));
@@ -713,6 +709,13 @@ ukbd_interrupt(keyboard_t *kbd, void *arg)
 
 	getmicrouptime(&tv);
 	now = (u_long)tv.tv_sec*1000 + (u_long)tv.tv_usec/1000;
+
+#define ADDKEY1(c) 		\
+	if (state->ks_inputs < INPUTBUFSIZE) {				\
+		state->ks_input[state->ks_inputtail] = (c);		\
+		++state->ks_inputs;					\
+		state->ks_inputtail = (state->ks_inputtail + 1)%INPUTBUFSIZE; \
+	}
 
 	mod = ud->modifiers;
 	omod = state->ks_odata.modifiers;
