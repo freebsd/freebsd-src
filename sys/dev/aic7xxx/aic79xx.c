@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: aic79xx.c,v 1.16 2003/05/26 21:43:29 gibbs Exp $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#196 $
  *
  * $FreeBSD$
  */
@@ -5000,15 +5000,20 @@ ahd_shutdown(void *arg)
 	ahd_timer_stop(&ahd->stat_timer);
 
 	/* This will reset most registers to 0, but not all */
-	ahd_reset(ahd);
+	ahd_reset(ahd, /*reinit*/FALSE);
 }
 
 /*
  * Reset the controller and record some information about it
- * that is only available just after a reset.
+ * that is only available just after a reset.  If "reinit" is
+ * non-zero, this reset occured after initial configuration
+ * and the caller requests that the chip be fully reinitialized
+ * to a runable state.  Chip interrupts are *not* enabled after
+ * a reinitialization.  The caller must enable interrupts via
+ * ahd_intr_enable().
  */
 int
-ahd_reset(struct ahd_softc *ahd)
+ahd_reset(struct ahd_softc *ahd, int reinit)
 {
 	u_int	 sxfrctl1;
 	int	 wait;
@@ -5101,7 +5106,7 @@ ahd_reset(struct ahd_softc *ahd)
 	 * If a recovery action has forced a chip reset,
 	 * re-initialize the chip to our liking.
 	 */
-	if (ahd->init_level > 0)
+	if (reinit != 0)
 		ahd_chip_init(ahd);
 
 	return (0);
@@ -6703,141 +6708,24 @@ ahd_pause_and_flushwork(struct ahd_softc *ahd)
 int
 ahd_suspend(struct ahd_softc *ahd)
 {
-#if 0
-	uint8_t *ptr;
-	int	 i;
 
 	ahd_pause_and_flushwork(ahd);
 
-	if (LIST_FIRST(&ahd->pending_scbs) != NULL)
+	if (LIST_FIRST(&ahd->pending_scbs) != NULL) {
+		ahd_unpause(ahd);
 		return (EBUSY);
-
-#if AHD_TARGET_MODE
-	/*
-	 * XXX What about ATIOs that have not yet been serviced?
-	 * Perhaps we should just refuse to be suspended if we
-	 * are acting in a target role.
-	 */
-	if (ahd->pending_device != NULL)
-		return (EBUSY);
-#endif
-
-	/* Save volatile registers */
-	ahd->suspend_state.channel[0].scsiseq = ahd_inb(ahd, SCSISEQ0);
-	ahd->suspend_state.channel[0].sxfrctl0 = ahd_inb(ahd, SXFRCTL0);
-	ahd->suspend_state.channel[0].sxfrctl1 = ahd_inb(ahd, SXFRCTL1);
-	ahd->suspend_state.channel[0].simode0 = ahd_inb(ahd, SIMODE0);
-	ahd->suspend_state.channel[0].simode1 = ahd_inb(ahd, SIMODE1);
-	ahd->suspend_state.channel[0].seltimer = ahd_inb(ahd, SELTIMER);
-	ahd->suspend_state.channel[0].seqctl = ahd_inb(ahd, SEQCTL0);
-	ahd->suspend_state.dscommand0 = ahd_inb(ahd, DSCOMMAND0);
-	ahd->suspend_state.dspcistatus = ahd_inb(ahd, DSPCISTATUS);
-
-	if ((ahd->features & AHD_DT) != 0) {
-		u_int sfunct;
-
-		sfunct = ahd_inb(ahd, SFUNCT) & ~ALT_MODE;
-		ahd_outb(ahd, SFUNCT, sfunct | ALT_MODE);
-		ahd->suspend_state.optionmode = ahd_inb(ahd, OPTIONMODE);
-		ahd_outb(ahd, SFUNCT, sfunct);
-		ahd->suspend_state.crccontrol1 = ahd_inb(ahd, CRCCONTROL1);
-	}
-
-	if ((ahd->features & AHD_MULTI_FUNC) != 0)
-		ahd->suspend_state.scbbaddr = ahd_inb(ahd, SCBBADDR);
-
-	if ((ahd->features & AHD_ULTRA2) != 0)
-		ahd->suspend_state.dff_thrsh = ahd_inb(ahd, DFF_THRSH);
-
-	ptr = ahd->suspend_state.scratch_ram;
-	for (i = 0; i < 64; i++)
-		*ptr++ = ahd_inb(ahd, SRAM_BASE + i);
-
-	if ((ahd->features & AHD_MORE_SRAM) != 0) {
-		for (i = 0; i < 16; i++)
-			*ptr++ = ahd_inb(ahd, TARG_OFFSET + i);
-	}
-
-	ptr = ahd->suspend_state.btt;
-	for (i = 0;i < AHD_NUM_TARGETS; i++) {
-		int j;
-
-		for (j = 0;j < AHD_NUM_LUNS_NONPKT; j++) {
-			u_int tcl;
-
-			tcl = BUILD_TCL_RAW(i, 'A', j);
-			*ptr = ahd_find_busy_tcl(ahd, tcl);
-		}
 	}
 	ahd_shutdown(ahd);
-#endif
 	return (0);
 }
 
 int
 ahd_resume(struct ahd_softc *ahd)
 {
-#if 0
-	uint8_t *ptr;
-	int	 i;
 
-	ahd_reset(ahd);
-
-	ahd_build_free_scb_list(ahd);
-
-	/* Restore volatile registers */
-	ahd_outb(ahd, SCSISEQ0, ahd->suspend_state.channel[0].scsiseq);
-	ahd_outb(ahd, SXFRCTL0, ahd->suspend_state.channel[0].sxfrctl0);
-	ahd_outb(ahd, SXFRCTL1, ahd->suspend_state.channel[0].sxfrctl1);
-	ahd_outb(ahd, SIMODE0, ahd->suspend_state.channel[0].simode0);
-	ahd_outb(ahd, SIMODE1, ahd->suspend_state.channel[0].simode1);
-	ahd_outb(ahd, SELTIMER, ahd->suspend_state.channel[0].seltimer);
-	ahd_outb(ahd, SEQCTL0, ahd->suspend_state.channel[0].seqctl);
-	if ((ahd->features & AHD_ULTRA2) != 0)
-		ahd_outb(ahd, SCSIID_ULTRA2, ahd->our_id);
-	else
-		ahd_outb(ahd, SCSIID, ahd->our_id);
-
-	ahd_outb(ahd, DSCOMMAND0, ahd->suspend_state.dscommand0);
-	ahd_outb(ahd, DSPCISTATUS, ahd->suspend_state.dspcistatus);
-
-	if ((ahd->features & AHD_DT) != 0) {
-		u_int sfunct;
-
-		sfunct = ahd_inb(ahd, SFUNCT) & ~ALT_MODE;
-		ahd_outb(ahd, SFUNCT, sfunct | ALT_MODE);
-		ahd_outb(ahd, OPTIONMODE, ahd->suspend_state.optionmode);
-		ahd_outb(ahd, SFUNCT, sfunct);
-		ahd_outb(ahd, CRCCONTROL1, ahd->suspend_state.crccontrol1);
-	}
-
-	if ((ahd->features & AHD_MULTI_FUNC) != 0)
-		ahd_outb(ahd, SCBBADDR, ahd->suspend_state.scbbaddr);
-
-	if ((ahd->features & AHD_ULTRA2) != 0)
-		ahd_outb(ahd, DFF_THRSH, ahd->suspend_state.dff_thrsh);
-
-	ptr = ahd->suspend_state.scratch_ram;
-	for (i = 0; i < 64; i++)
-		ahd_outb(ahd, SRAM_BASE + i, *ptr++);
-
-	if ((ahd->features & AHD_MORE_SRAM) != 0) {
-		for (i = 0; i < 16; i++)
-			ahd_outb(ahd, TARG_OFFSET + i, *ptr++);
-	}
-
-	ptr = ahd->suspend_state.btt;
-	for (i = 0;i < AHD_NUM_TARGETS; i++) {
-		int j;
-
-		for (j = 0;j < AHD_NUM_LUNS; j++) {
-			u_int tcl;
-
-			tcl = BUILD_TCL(i << 4, j);
-			ahd_busy_tcl(ahd, tcl, *ptr);
-		}
-	}
-#endif
+	ahd_reset(ahd, /*reinit*/TRUE);
+	ahd_intr_enable(ahd, TRUE); 
+	ahd_restart(ahd);
 	return (0);
 }
 
@@ -7490,7 +7378,7 @@ ahd_reset_current_bus(struct ahd_softc *ahd)
 		 * we must reset the chip.
 		 */
 		ahd_delay(AHD_BUSRESET_DELAY);
-		ahd_reset(ahd);
+		ahd_reset(ahd, /*reinit*/TRUE);
 		ahd_intr_enable(ahd, /*enable*/TRUE);
 		AHD_ASSERT_MODES(ahd, AHD_MODE_SCSI_MSK, AHD_MODE_SCSI_MSK);
 	}
@@ -9192,6 +9080,7 @@ ahd_handle_en_lun(struct ahd_softc *ahd, struct cam_sim *sim, union ccb *ccb)
 			ahd->flags &= ~AHD_INITIATORROLE;
 		ahd_pause(ahd);
 		ahd_loadseq(ahd);
+		ahd_restart(ahd);
 		ahd_unlock(ahd, &s);
 	}
 	cel = &ccb->cel;
@@ -9425,6 +9314,11 @@ ahd_handle_en_lun(struct ahd_softc *ahd, struct cam_sim *sim, union ccb *ccb)
 				ahd->flags |= AHD_INITIATORROLE;
 				ahd_pause(ahd);
 				ahd_loadseq(ahd);
+				ahd_restart(ahd);
+				/*
+				 * Unpaused.  The extra unpause
+				 * that follows is harmless.
+				 */
 			}
 		}
 		ahd_unpause(ahd);
