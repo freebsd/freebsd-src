@@ -1671,6 +1671,7 @@ swp_pager_force_pagein(struct swblock *swap, int idx)
 
 	object = swap->swb_object;
 	pindex = swap->swb_index;
+	mtx_unlock(&swhash_mtx);
 
 	VM_OBJECT_LOCK(object);
 	vm_object_pip_add(object, 1);
@@ -1732,6 +1733,7 @@ full_rescan:
 	for (i = 0; i <= swhash_mask; i++) { /* '<=' is correct here */
 restart:
 		pswap = &swhash[i];
+		mtx_lock(&swhash_mtx);
 		while ((swap = *pswap) != NULL) {
                         for (j = 0; j < SWAP_META_PAGES; ++j) {
                                 v = swap->swb_pages[j];
@@ -1748,6 +1750,7 @@ restart:
 			}
 			pswap = &swap->swb_hnext;
 		}
+		mtx_unlock(&swhash_mtx);
 	}
 	if (waitobj && *sw_used) {
 	    /*
