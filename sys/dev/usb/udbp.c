@@ -606,6 +606,7 @@ udbp_out_transfer_cb(usbd_xfer_handle xfer, usbd_private_handle priv,
 }
 
 DRIVER_MODULE(udbp, uhub, udbp_driver, udbp_devclass, usbd_driver_load, 0);
+MODULE_DEPEND(udbp, netgraph, NG_ABI_VERSION, NG_ABI_VERSION, NG_ABI_VERSION);
 
 
 /***********************************************************************
