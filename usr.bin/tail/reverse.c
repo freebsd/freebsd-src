@@ -34,13 +34,14 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
-__FBSDID("$FreeBSD$");
-
+#if 0
 #ifndef lint
-static const char sccsid[] = "@(#)reverse.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)reverse.c	8.1 (Berkeley) 6/6/93";
+#endif /* not lint */
 #endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -221,8 +222,10 @@ r_buf(fp)
 			tl->prev = mark->prev;
 			mark->prev->next = tl;
 			mark->prev = tl;
-		} else
-			mark->next = mark->prev = (mark = tl);
+		} else {
+			mark = tl;
+			mark->next = mark->prev = mark;
+		}
 
 		/* Fill the block with input data. */
 		for (p = tl->l, len = 0;
