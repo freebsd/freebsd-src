@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 
 #include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -44,7 +43,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sparc64/fhc/fhcreg.h>
 #include <sparc64/fhc/fhcvar.h>
-#include <sparc64/sbus/ofw_sbus.h>
 
 static device_probe_t fhc_central_probe;
 static device_attach_t fhc_central_attach;
@@ -98,13 +96,9 @@ fhc_central_probe(device_t dev)
 static int
 fhc_central_attach(device_t dev)
 {
-	struct sbus_regs *reg;
 	struct fhc_softc *sc;
-	bus_addr_t size;
-	bus_addr_t off;
 	phandle_t node;
 	int board;
-	int nreg;
 	int rid;
 	int i;
 
@@ -113,23 +107,15 @@ fhc_central_attach(device_t dev)
 	sc->sc_node = node;
 	sc->sc_flags |= FHC_CENTRAL;
 
-	nreg = OF_getprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
-	if (nreg != FHC_NREG) {
-		device_printf(dev, "can't get registers\n");
-		return (ENXIO);
-	}
-	for (i = 0; i < nreg; i++) {
-		off = reg[i].sbr_offset;
-		size = reg[i].sbr_size;
-		rid = 0;
-		sc->sc_memres[i] = bus_alloc_resource(dev, SYS_RES_MEMORY,
-		    &rid, off, off + size - 1, size, RF_ACTIVE);
+	for (i = 0; i < FHC_NREG; i++) {
+		rid = i;
+		sc->sc_memres[i] = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+		    &rid, RF_ACTIVE);
 		if (sc->sc_memres[i] == NULL)
 			panic("%s: can't allocate registers", __func__);
 		sc->sc_bt[i] = rman_get_bustag(sc->sc_memres[i]);
 		sc->sc_bh[i] = rman_get_bushandle(sc->sc_memres[i]);
 	}
-	free(reg, M_OFWPROP);
 
 	board = bus_space_read_4(sc->sc_bt[FHC_INTERNAL],
 	    sc->sc_bh[FHC_INTERNAL], FHC_BSR);
