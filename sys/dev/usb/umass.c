@@ -294,6 +294,10 @@ struct umass_softc {
 	 * Shuttle E-USB
 	 */
 #	define NO_START_STOP		0x04
+	/* Don't ask for full inquiry data (255 bytes).
+	 * Yano ATAPI-USB
+	 */
+#	define FORCE_SHORT_INQUIRY	0x08
 
 	unsigned int		proto;
 #	define PROTO_UNKNOWN	0x0000		/* unknown protocol */
@@ -593,6 +597,13 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 		sc->drive = INSYSTEM_USBCABLE;
 		sc->proto = PROTO_ATAPI | PROTO_CBI;
 		sc->quirks |= NO_TEST_UNIT_READY | NO_START_STOP;
+		return(UMATCH_VENDOR_PRODUCT);
+	}
+
+	if (UGETW(dd->idVendor) == USB_VENDOR_YANO
+	    && UGETW(dd->idProduct) == USB_PRODUCT_YANO_U640MO) {
+		sc->proto = PROTO_ATAPI | PROTO_CBI_I;
+		sc->quirks |= FORCE_SHORT_INQUIRY;
 		return(UMATCH_VENDOR_PRODUCT);
 	}
 #endif
@@ -2607,7 +2618,7 @@ umass_scsi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 		*rcmdlen = cmdlen;
 	}
 
-	return 1;		/* success */
+	return 1;
 }
 /* RBC specific functions */
 Static int
@@ -2634,7 +2645,7 @@ umass_rbc_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 	case PREVENT_ALLOW:
 		*rcmd = cmd;		/* We don't need to copy it */
 		*rcmdlen = cmdlen;
-		return 1;		/* success */
+		return 1;
 	/* All other commands are not legal in RBC */
 	default:
 		printf("%s: Unsupported RBC command 0x%02x",
@@ -2660,22 +2671,24 @@ umass_ufi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 	*rcmdlen = UFI_COMMAND_LENGTH;
 	memset(*rcmd, 0, UFI_COMMAND_LENGTH);
 
-	/* Handle any quirks */
-	if (cmd[0] == TEST_UNIT_READY
-	    && sc->quirks &  NO_TEST_UNIT_READY) {
-		/* Some devices do not support this command.
-		 * Start Stop Unit should give the same results
-		 */
-		DPRINTF(UDMASS_UFI, ("%s: Converted TEST_UNIT_READY "
-			"to START_UNIT\n", USBDEVNAME(sc->sc_dev)));
-		cmd[0] = START_STOP_UNIT;
-		cmd[4] = SSS_START;
-		return 1;
-	} 
-
 	switch (cmd[0]) {
-	/* Commands of which the format has been verified. They should work. */
+	/* Commands of which the format has been verified. They should work.
+	 * Copy the command into the (zeroed out) destination buffer.
+	 */
 	case TEST_UNIT_READY:
+		if (sc->quirks &  NO_TEST_UNIT_READY) {
+			/* Some devices do not support this command.
+			 * Start Stop Unit should give the same results
+			 */
+			DPRINTF(UDMASS_UFI, ("%s: Converted TEST_UNIT_READY "
+				"to START_UNIT\n", USBDEVNAME(sc->sc_dev)));
+			(*rcmd)[0] = START_STOP_UNIT;
+			(*rcmd)[4] = SSS_START;
+		} else {
+			memcpy(*rcmd, cmd, cmdlen);
+		}
+		return 1;
+
 	case REZERO_UNIT:
 	case REQUEST_SENSE:
 	case INQUIRY:
@@ -2688,9 +2701,8 @@ umass_ufi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 	case POSITION_TO_ELEMENT:	/* SEEK_10 */
 	case MODE_SELECT_10:
 	case MODE_SENSE_10:
-		/* Copy the command into the (zeroed out) destination buffer */
 		memcpy(*rcmd, cmd, cmdlen);
-		return 1;	/* success */
+		return 1;
 
 	/* Other UFI commands: FORMAT_UNIT, MODE_SELECT, READ_FORMAT_CAPACITY,
 	 * VERIFY, WRITE_AND_VERIFY.
@@ -2733,11 +2745,19 @@ umass_atapi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 	memset(*rcmd, 0, ATAPI_COMMAND_LENGTH);
 
 	switch (cmd[0]) {
-	/* Commands of which the format has been verified. They should work. */
+	/* Commands of which the format has been verified. They should work.
+	 * Copy the command into the (zeroed out) destination buffer.
+	 */
+	case INQUIRY:
+		memcpy(*rcmd, cmd, cmdlen);
+		/* some drives wedge when asked for full inquiry information. */
+		if (sc->quirks & FORCE_SHORT_INQUIRY)
+			(*rcmd)[4] = SHORT_INQUIRY_LENGTH;
+		return 1;
+
 	case TEST_UNIT_READY:
 	case REZERO_UNIT:
 	case REQUEST_SENSE:
-	case INQUIRY:
 	case START_STOP_UNIT:
 	case SEND_DIAGNOSTIC:
 	case PREVENT_ALLOW:
@@ -2748,9 +2768,8 @@ umass_atapi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 	case SYNCHRONIZE_CACHE:
 	case MODE_SELECT_10:
 	case MODE_SENSE_10:
-		/* Copy the command into the (zeroed out) destination buffer */
 		memcpy(*rcmd, cmd, cmdlen);
-		return 1;	/* success */
+		return 1;
 
 	/* These commands are known _not_ to work. They should be converted
 	 * The 6 byte commands can be switched off with a CAM quirk. See
