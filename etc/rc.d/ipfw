@@ -14,7 +14,7 @@ name="ipfw"
 rcvar="firewall_enable"
 start_cmd="ipfw_start"
 start_precmd="ipfw_precmd"
-stop_cmd="${SYSCTL_W} net.inet.ip.fw.enable=0"
+stop_cmd="ipfw_stop"
 
 ipfw_precmd()
 {
@@ -60,10 +60,21 @@ ipfw_start()
 
 	# Firewall logging
 	#
-	! checkyesno firewall_logging && return 0
+	if checkyesno firewall_logging; then
+		echo 'Firewall logging enabled'
+		sysctl net.inet.ip.fw.verbose=1 >/dev/null
+	fi
 
-	echo 'Firewall logging=YES'
-	sysctl net.inet.ip.fw.verbose=1 >/dev/null
+	# Enable the firewall
+	#
+	${SYSCTL_W} net.inet.ip.fw.enable=1
+}
+
+ipfw_stop()
+{
+	# Disable the firewall
+	#
+	${SYSCTL_W} net.inet.ip.fw.enable=0
 }
 
 load_rc_config $name
