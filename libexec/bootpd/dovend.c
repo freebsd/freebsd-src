@@ -59,7 +59,7 @@ dovend_rfc1497(hp, buf, len)
 	int bytesleft = len;
 	byte *vp = buf;
 
-	static char noroom[] = "%s: No room for \"%s\" option";
+	static const char noroom[] = "%s: No room for \"%s\" option";
 #define	NEED(LEN, MSG) do                       \
 		if (bytesleft < (LEN)) {         	    \
 			report(LOG_NOTICE, noroom,          \
