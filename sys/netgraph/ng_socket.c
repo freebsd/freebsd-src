@@ -543,7 +543,7 @@ static int
 ng_internalize(struct mbuf *control, struct proc *p)
 {
 	struct filedesc *fdp = p->p_fd;
-	struct cmsghdr *cm = mtod(control, struct cmsghdr *);
+	const struct cmsghdr *cm = mtod(control, const struct cmsghdr *);
 	struct file *fp;
 	struct vnode *vn;
 	int oldfds;

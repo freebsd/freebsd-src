@@ -568,8 +568,8 @@ ng_pptpgre_recv(node_p node, struct mbuf *m, meta_p meta)
 {
 	const priv_p priv = node->private;
 	int iphlen, grelen, extralen;
-	struct greheader *gre;
-	struct ip *ip;
+	const struct greheader *gre;
+	const struct ip *ip;
 	int error = 0;
 
 	/* Update stats */
@@ -591,7 +591,7 @@ bad:
 		NG_FREE_META(meta);
 		return (ENOBUFS);
 	}
-	ip = mtod(m, struct ip *);
+	ip = mtod(m, const struct ip *);
 	iphlen = ip->ip_hl << 2;
 	if (m->m_len < iphlen + sizeof(*gre)) {
 		if ((m = m_pullup(m, iphlen + sizeof(*gre))) == NULL) {
@@ -599,9 +599,9 @@ bad:
 			NG_FREE_META(meta);
 			return (ENOBUFS);
 		}
-		ip = mtod(m, struct ip *);
+		ip = mtod(m, const struct ip *);
 	}
-	gre = (struct greheader *)((u_char *)ip + iphlen);
+	gre = (const struct greheader *)((const u_char *)ip + iphlen);
 	grelen = sizeof(*gre) + sizeof(u_int32_t) * (gre->hasSeq + gre->hasAck);
 	if (m->m_pkthdr.len < iphlen + grelen) {
 		priv->stats.recvRunts++;
@@ -613,8 +613,8 @@ bad:
 			NG_FREE_META(meta);
 			return (ENOBUFS);
 		}
-		ip = mtod(m, struct ip *);
-		gre = (struct greheader *)((u_char *)ip + iphlen);
+		ip = mtod(m, const struct ip *);
+		gre = (const struct greheader *)((const u_char *)ip + iphlen);
 	}
 
 	/* Sanity check packet length and GRE header bits */
@@ -624,7 +624,8 @@ bad:
 		priv->stats.recvBadGRE++;
 		goto bad;
 	}
-	if ((ntohl(*((u_int32_t *)gre)) & PPTP_INIT_MASK) != PPTP_INIT_VALUE) {
+	if ((ntohl(*((const u_int32_t *)gre)) & PPTP_INIT_MASK)
+	    != PPTP_INIT_VALUE) {
 		priv->stats.recvBadGRE++;
 		goto bad;
 	}
