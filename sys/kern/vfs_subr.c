@@ -1563,7 +1563,6 @@ sched_sync(void)
 		if (syncer_state == SYNCER_FINAL_DELAY &&
 		    syncer_final_iter == 0) {
 			mtx_unlock(&sync_mtx);
-			printf("done.\n");
 			kthread_suspend_check(td->td_proc);
 			mtx_lock(&sync_mtx);
 		}
@@ -1571,7 +1570,7 @@ sched_sync(void)
 		if (syncer_state != SYNCER_RUNNING &&
 		    starttime != time_second) {
 			if (first_printf) {
-				printf("Syncer syncing, vnodes remaining... ");
+				printf("\nSyncer syncing, vnodes remaining...");
 				first_printf = 0;
 			}
 			printf("%d ", net_worklist_len);
