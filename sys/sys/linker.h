@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: linker.h,v 1.3 1998/01/01 08:55:37 bde Exp $
+ *	$Id: linker.h,v 1.4 1998/08/12 08:44:21 dfr Exp $
  */
 
 #ifndef _SYS_LINKER_H_
@@ -173,6 +173,23 @@ int linker_file_add_dependancy(linker_file_t file, linker_file_t dep);
  */
 caddr_t linker_file_lookup_symbol(linker_file_t file, const char* name, 
 				  int deps);
+
+/*
+ * Module information subtypes
+ */
+#define MODINFO_NAME		0x0000
+#define MODINFO_TYPE		0x0001
+#define MODINFO_ADDR		0x0002
+#define MODINFO_SIZE		0x0003
+#define MODINFO_METADATA	0x8000
+
+#define MODINFOMD_AOUTEXEC	0x0001		/* a.out exec header */
+#define MODINFOMD_ELFHDR	0x0002		/* ELF header */
+#define MODINFOMD_NOCOPY	0x8000		/* don't copy this metadata to the kernel */
+
+#define KLD_IDENT_SYMNAME	"kld_identifier_"
+#define MODINFOMD_KLDIDENT	(MODINFOMD_NOCOPY | 0x4000)
+#define MODINFOMD_KLDDEP	(MODINFOMD_NOCOPY | 0x4001)
 
 #ifdef KLD_DEBUG
 
