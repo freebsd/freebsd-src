@@ -51,6 +51,7 @@ static void acpi_acad_get_status(void * );
 static void acpi_acad_notify_handler(ACPI_HANDLE , UINT32 ,void *);
 static int acpi_acad_probe(device_t);
 static int acpi_acad_attach(device_t);
+static int acpi_acad_ioctl(u_long, caddr_t, void *);
 
 struct  acpi_acad_softc {
 	int status;
@@ -106,6 +107,7 @@ acpi_acad_probe(device_t dev)
 static int
 acpi_acad_attach(device_t dev)
 {
+	int	 error;
 
 	ACPI_HANDLE handle = acpi_get_handle(dev);
 	AcpiInstallNotifyHandler(handle, 
@@ -117,6 +119,12 @@ acpi_acad_attach(device_t dev)
 				 acpi_acad_notify_handler, dev);
 
 	acpi_acad_get_status((void *)dev);
+
+	error = acpi_register_ioctl(ACPIIO_ACAD_GET_STATUS, acpi_acad_ioctl,
+	    device_get_softc(dev));
+	if (error)
+		return (error);
+
 	return(0);
 }
 
@@ -136,3 +144,22 @@ static driver_t acpi_acad_driver = {
 
 static devclass_t acpi_acad_devclass;
 DRIVER_MODULE(acpi_acad,acpi,acpi_acad_driver,acpi_acad_devclass,0,0);
+
+static int
+acpi_acad_ioctl(u_long cmd, caddr_t addr, void *arg)
+{
+	struct	 acpi_acad_softc *sc;
+
+	sc = (struct acpi_acad_softc *)arg;
+	if (sc == NULL) {
+		return(ENXIO);
+	}
+
+	switch (cmd) {
+	case ACPIIO_ACAD_GET_STATUS:
+		*(int *)addr = sc->status;
+		break;
+	}
+
+	return(0);
+}
