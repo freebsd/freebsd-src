@@ -10,6 +10,7 @@ BINDIR=/usr/bin
 PROG=	readelf
 SRCS=	${PROG}.c
 WARNS?=	0
+CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I${.CURDIR}/${RELTOP}/libbinutils -I${SRCDIR}/binutils
 
 DPADD=	${RELTOP}/libbinutils/libbinutils.a

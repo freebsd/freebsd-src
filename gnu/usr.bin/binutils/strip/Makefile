@@ -7,8 +7,9 @@
 PROG=	strip
 SRCS=	objcopy.c is-strip.c
 WARNS?=	2
+CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I${.CURDIR}/${RELTOP}/libbinutils
-CFLAGS+= -I${SRCDIR}/binutils
+CFLAGS+= -I${SRCDIR}/binutils -I${SRCDIR}/bfd
 DPADD=	${RELTOP}/libbinutils/libbinutils.a
 DPADD+=	${RELTOP}/libbfd/libbfd.a
 DPADD+=	${RELTOP}/libiberty/libiberty.a

@@ -7,6 +7,7 @@
 PROG=	addr2line
 SRCS=	addr2line.c
 WARNS?=	2
+CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I${.CURDIR}/${RELTOP}/libbinutils
 CFLAGS+= -I${SRCDIR}/binutils
 DPADD=	${RELTOP}/libbinutils/libbinutils.a

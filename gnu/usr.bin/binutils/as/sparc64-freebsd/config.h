@@ -30,9 +30,6 @@
 /* Define to `long' if <sys/types.h> doesn't define.  */
 /* #undef off_t */
 
-/* Define if you need to in order for stat and other things to work.  */
-/* #undef _POSIX_SOURCE */
-
 /* Define to `unsigned' if <sys/types.h> doesn't define.  */
 /* #undef size_t */
 
@@ -151,7 +148,7 @@
 #define PACKAGE "gas"
 
 /* Version number of package */
-/* #define VERSION "2.13.2" */
+/* #define VERSION "2.15" */
 
 /* Define if defaulting to ELF on SCO 5. */
 /* #undef SCO_ELF */
@@ -164,9 +161,20 @@
 
 /* Define as 1 if big endian. */
 /* #undef TARGET_BYTES_BIG_ENDIAN */
+/* Default CPU for MIPS targets.  */
+/* #undef MIPS_CPU_STRING_DEFAULT */
+
+/* Allow use of E_MIPS_ABI_O32 on MIPS targets.  */
+/* #undef USE_E_MIPS_ABI_O32 */
+
+/* Generate 64-bit code by default on MIPS targets.  */
+/* #undef MIPS_DEFAULT_64BIT */
+
+/* Choose a default ABI for MIPS targets.  */
+/* #undef MIPS_DEFAULT_ABI */
 
 /* Default architecture. */
-#define DEFAULT_ARCH "v9-64"
+/* #define DEFAULT_ARCH "v9-64" */
 
 /* Using cgen code? */
 /* #undef USING_CGEN */
@@ -226,19 +234,19 @@
 #define BFD_ASSEMBLER 1
 
 /* Target alias. */
-#define TARGET_ALIAS "sparc64-obrien-freebsd5"
+/* #define TARGET_ALIAS "sparc64-obrien-freebsd5" */
 
 /* Canonical target. */
-#define TARGET_CANONICAL "sparc64-obrien-freebsd5"
+/* #define TARGET_CANONICAL "sparc64-obrien-freebsd5" */
 
 /* Target CPU. */
-#define TARGET_CPU "sparc64"
+/* #define TARGET_CPU "sparc64" */
 
 /* Target vendor. */
-#define TARGET_VENDOR "obrien"
+/* #define TARGET_VENDOR "obrien" */
 
 /* Target OS. */
-#define TARGET_OS "freebsd5"
+/* #define TARGET_OS "freebsd5" */
 
 /* Define if you have the stpcpy function */
 #define HAVE_STPCPY 1
@@ -275,4 +283,3 @@
 
 /* Define if errno is not declared in system header files. */
 /* #undef NEED_DECLARATION_ERRNO */
-
