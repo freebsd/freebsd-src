@@ -24,6 +24,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Supported hardware:
+ *    PCIIA compatible cards.
+ *
+ *    Tested and known working:
  *	"B&C Microsystems PC488A-0"
  *
  * A whole lot of wonderful things could be written for GPIB, but for now
@@ -182,7 +185,8 @@ pcii_attach(device_t dev)
 		if (sc->irq == NULL) {
 			error = ENXIO;
 		} else {
-			error = bus_setup_intr(dev, sc->irq, INTR_TYPE_MISC,
+			error = bus_setup_intr(dev, sc->irq,
+			    INTR_TYPE_MISC | INTR_MPSAFE,
 			    upd7210intr, &sc->upd7210, &sc->intr_handler);
 		}
 	}
