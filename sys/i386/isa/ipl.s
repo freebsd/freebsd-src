@@ -128,12 +128,15 @@ doreti_next2:
 	/* Check for ASTs that can be handled now. */
 	testl	$AST_PENDING,_astpending
 	je	doreti_exit
-	testb	$SEL_RPL_MASK,TF_CS(%esp)
-	jne	doreti_ast
 	testl	$PSL_VM,TF_EFLAGS(%esp)
-	je	doreti_exit
+	jz	doreti_notvm86
 	cmpl	$1,_in_vm86call
 	jne	doreti_ast
+	jmp	doreti_exit	
+
+doreti_notvm86:
+	testb	$SEL_RPL_MASK,TF_CS(%esp)
+	jnz	doreti_ast
 
 	/*
 	 * doreti_exit -	release MP lock, pop registers, iret.
