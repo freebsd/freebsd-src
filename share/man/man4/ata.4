@@ -81,7 +81,7 @@ To support ATAPI floppy drives:
 To support ATAPI tape drives:
 .Cd device atapist
 .Pp
-The following tunables are setable from the loader:
+The following tunables are settable from the loader:
 .Bl -ohang
 .It Va hw.ata.ata_dma
 set to 1 for DMA access, 0 for PIO (default is DMA).
@@ -110,10 +110,10 @@ Aladdin (ALi5229) compatible chips.
 AMD756, AMD766, AMD768, AMD8111.
 .It CMD:
 CMD646, CMD648, CMD649.
-.It Cyrix:
-Cyrix 5530.
 .It Cypress:
 Cypress 82C693.
+.It Cyrix:
+Cyrix 5530.
 .It HighPoint:
 HPT302, HPT366, HPT366, HPT368, HPT370, HPT371, HPT372, HPT374.
 .It Intel:
@@ -127,9 +127,9 @@ PDC20246, PDC20262, PDC20263, PDC20265, PDC20267, PDC20268, PDC20269, PDC20270, 
 .It ServerWorks:
 ROSB4, CSB5, CSB6.
 .It Silicon Image:
-SiI0680, SiI3112.
+SiI0680, SiI3112, SiI3114.
 .It SiS:
-SIS5513, SIS530, SIS540, SIS550, SIS620, SIS630, SIS630S, SIS633, SIS635, SIS730, SIS733, SIS735, SIS745, SIS961, SIS962, SIS963
+SIS5513, SIS530, SIS540, SIS550, SIS620, SIS630, SIS630S, SIS633, SIS635, SIS730, SIS733, SIS735, SIS745, SIS961, SIS962, SIS963, SIS964
 .It VIA:
 VT82C586, VT82C586B, VT82C596, VT82C596B, VT82C686, VT82C686A, VT82C686B, VT8231, VT8233, VT8233A, VT8233C, VT8235, VT8237.
 .El
@@ -202,7 +202,7 @@ Static device numbering
 kernel option)
 reserves a number for each possibly connected disk,
 even when not present.
-This is usefull in hotswap senarios
+This is useful in hotswap senarios
 where disks should always show up as the same numbered device,
 and not depend on attach order.
 .Pp
