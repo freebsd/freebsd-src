@@ -1,9 +1,6 @@
-#	$Id: Makefile,v 1.26 1998/08/30 01:50:04 jb Exp $
+#	$Id: Makefile,v 1.27 1998/09/11 05:41:29 imp Exp $
 
 LIB=	md
-.if ${OBJFORMAT} != elf
-NOPIC=	true
-.endif
 SRCS=	md2c.c md4c.c md5c.c md2hl.c md4hl.c md5hl.c
 MAN3+=  md2.3 md4.3 md5.3
 MLINKS+=md2.3 MD2Init.3 md2.3 MD2Update.3 md2.3 MD2Final.3
