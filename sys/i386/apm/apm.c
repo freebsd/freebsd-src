@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.72 1998/06/07 17:09:55 dfr Exp $
+ *	$Id: apm.c,v 1.73 1998/07/06 06:29:03 imp Exp $
  */
 
 #include "opt_devfs.h"
@@ -651,18 +651,18 @@ apmprobe(struct isa_device *dvp)
 
 #ifdef VM86
 	bzero(&vmf, sizeof(struct vm86frame));		/* safety */
-	vmf.vmf_ax = 0x5300;
+	vmf.vmf_ax = (APM_BIOS << 8) | APM_INSTCHECK;
 	vmf.vmf_bx = 0;
-	if (((i = vm86_intcall(0x15, &vmf)) == 0) &&
+	if (((i = vm86_intcall(SYSTEM_BIOS, &vmf)) == 0) &&
 	    !(vmf.vmf_eflags & PSL_C) && 
 	    (vmf.vmf_bx == 0x504d)) {
 
 		apm_version   = vmf.vmf_ax;
 		apm_flags     = vmf.vmf_cx;
 
-		vmf.vmf_ax = 0x5303;
+		vmf.vmf_ax = (APM_BIOS << 8) | APM_PROT32CONNECT;
 		vmf.vmf_bx = 0;
-		if (((i = vm86_intcall(0x15, &vmf)) == 0) &&
+		if (((i = vm86_intcall(SYSTEM_BIOS, &vmf)) == 0) &&
 		    !(vmf.vmf_eflags & PSL_C)) {
 
 			apm_cs32_base = vmf.vmf_ax;
