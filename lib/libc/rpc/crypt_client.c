@@ -34,6 +34,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
+#include <err.h>
 #include <sys/types.h>
 #include <rpc/des_crypt.h>
 #include <rpc/des.h>
