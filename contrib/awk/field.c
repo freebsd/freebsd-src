@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991-1997 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991-1999 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -21,10 +21,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA
+ *
+ * $FreeBSD$
  */
 
 #include "awk.h"
-#include <assert.h>
 
 typedef void (* Setfunc) P((long, char *, long, NODE *));
 
@@ -62,6 +63,9 @@ int field0_valid;		/* $(>0) has not been changed yet */
 int default_FS;			/* TRUE when FS == " " */
 Regexp *FS_regexp = NULL;
 static NODE *Null_field = NULL;
+
+/* using_FIELDWIDTHS --- static function, macro to avoid overhead */
+#define using_FIELDWIDTHS()	(parse_field == fw_parse_field)
 
 /* init_fields --- set up the fields array to start with */
 
@@ -140,7 +144,6 @@ rebuild_record()
 	char *ops;
 	register char *cops;
 	long i;
-	char *f0start, *f0end;
 
 	assert(NF != -1);
 
@@ -184,15 +187,27 @@ rebuild_record()
 	 * any fields that still point into it, and have them point
 	 * into the new field zero.
 	 */
-	f0start = fields_arr[0]->stptr;
-	f0end = fields_arr[0]->stptr + fields_arr[0]->stlen;
 	for (cops = ops, i = 1; i <= NF; i++) {
-		char *field_data = fields_arr[i]->stptr;
+		if (fields_arr[i]->stlen > 0) {
+ 		        NODE *n;
+		        getnode(n);
 
-		if (fields_arr[i]->stlen > 0
-		    && f0start <= field_data && field_data < f0end)
-			fields_arr[i]->stptr = cops;
+			if ((fields_arr[i]->flags & FIELD) == 0) {
+				*n = *Null_field;
+				n->stlen = fields_arr[i]->stlen;
+				if ((fields_arr[i]->flags & (NUM|NUMBER)) != 0) {
+					n->flags |= (fields_arr[i]->flags & (NUM|NUMBER));
+					n->numbr = fields_arr[i]->numbr;
+				}
+			} else {
+				*n = *(fields_arr[i]);
+				n->flags &= ~(MALLOC|TEMP|PERM|STRING);
+			}
 
+			n->stptr = cops;
+			unref(fields_arr[i]);
+			fields_arr[i] = n;
+		}
 		cops += fields_arr[i]->stlen + ofslen;
 	}
 
@@ -751,7 +766,7 @@ NODE *tree;
 	arr->type = Node_var_array;
 	assoc_clear(arr);
 
-	if (sep->re_flags & FS_DFLT) {
+	if ((sep->re_flags & FS_DFLT) != 0 && ! using_FIELDWIDTHS()) {
 		parseit = parse_field;
 		fs = force_string(FS_node->var_value);
 		rp = FS_regexp;
@@ -851,20 +866,20 @@ set_FS()
 	if (fields_arr != NULL)
 		(void) get_field(HUGE - 1, 0);
 
-	if (save_fs && cmp_nodes(FS_node->var_value, save_fs) == 0
-	 && save_rs && cmp_nodes(RS_node->var_value, save_rs) == 0)
-		return;
-	unref(save_fs);
-	save_fs = dupnode(FS_node->var_value);
-	unref(save_rs);
-	save_rs = dupnode(RS_node->var_value);
-	resave_fs = TRUE;
-  	buf[0] = '\0';
-  	default_FS = FALSE;
-  	if (FS_regexp) {
-		refree(FS_regexp);
-		FS_regexp = NULL;
+	if (! (save_fs && cmp_nodes(FS_node->var_value, save_fs) == 0
+		&& save_rs && cmp_nodes(RS_node->var_value, save_rs) == 0)) {
+		unref(save_fs);
+		save_fs = dupnode(FS_node->var_value);
+		unref(save_rs);
+		save_rs = dupnode(RS_node->var_value);
+		resave_fs = TRUE;
+		if (FS_regexp) {
+			refree(FS_regexp);
+			FS_regexp = NULL;
+		}
 	}
+	buf[0] = '\0';
+	default_FS = FALSE;
 	fs = force_string(FS_node->var_value);
 	if (! do_traditional && fs->stlen == 0)
 		parse_field = null_parse_field;
@@ -887,7 +902,7 @@ set_FS()
 		if (fs->stptr[0] == ' ' && fs->stlen == 1)
 			default_FS = TRUE;
 		else if (fs->stptr[0] != ' ' && fs->stlen == 1) {
-			if (! IGNORECASE)
+			if (! IGNORECASE || ! isalpha(fs->stptr[0]))
 				parse_field = sc_parse_field;
 			else if (fs->stptr[0] == '\\')
 				/* yet another special case */
@@ -910,6 +925,5 @@ set_FS()
 int
 using_fieldwidths()
 {
-	return 	parse_field == fw_parse_field;
+	return using_FIELDWIDTHS();
 }
-

@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1995-1997 the Free Software Foundation, Inc.
+ * Copyright (C) 1995-1999 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -30,6 +30,9 @@
 #undef SPRINTF_RET	/* return type of sprintf */
 #undef BITOPS		/* bitwise ops (undocumented feature) */
 #undef NONDECDATA	/* non-decimal input data (undocumented feature) */
+#undef _FILE_OFFSET_BITS /* bits in a file offset, where this matters */
+#undef _LARGEFILE_SOURCE /* makes fseeko etc. visible on some hosts */
+#undef _LARGE_FILES	/* emables large files on AIX-style hosts */
 
 @BOTTOM@
 

@@ -1,10 +1,10 @@
 README:
 
-This is GNU Awk 3.0.3. It should be upwardly compatible with the Bell
+This is GNU Awk 3.0.4. It should be upwardly compatible with the Bell
 Labs research version of awk.  It is almost completely compliant with
 the 1993 POSIX 1003.2 standard for awk. (See the note below about POSIX.)
 
-Patches 1 through 3 just fix bugs -- see NEWS and ChangeLog for details.
+Patches 1 through 4 just fix bugs -- see NEWS and ChangeLog for details.
 
 See the file INSTALL for installation instructions.
 
@@ -66,7 +66,7 @@ about the worst place to post a gawk bug report. Please, use the mechanisms
 outlined in the manual.
 
 Arnold Robbins
-INTERNET:	arnold@gnu.ai.mit.edu
+INTERNET:	arnold@gnu.org
 
 BUG REPORTS AND FIXES (non-Unix ports):
 
@@ -81,7 +81,7 @@ VMS:
 	Pat Rankin
 	rankin@eql.caltech.edu
 
-Atari ST:
+Alpha/Linux:
 	Michal Jaegermann
 	michal@gortel.phys.ualberta.ca
 

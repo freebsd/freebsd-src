@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991-1997 the Free Software Foundation, Inc.
+ * Copyright (C) 1976, 1988, 1989, 1991-1999 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -21,6 +21,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA
+ *
+ * $FreeBSD$
  */
 
 #include "awk.h"
@@ -48,8 +50,6 @@
 #ifndef O_ACCMODE
 #define O_ACCMODE	(O_RDONLY|O_WRONLY|O_RDWR)
 #endif
-
-#include <assert.h>
 
 #if ! defined(S_ISREG) && defined(S_IFREG)
 #define	S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
@@ -95,19 +95,8 @@ static int specfdopen P((IOBUF *iop, const char *name, const char *mode));
 static int pidopen P((IOBUF *iop, const char *name, const char *mode));
 static int useropen P((IOBUF *iop, const char *name, const char *mode));
 
-#if defined (MSDOS) && !defined (__GO32__)
+#if defined (HAVE_POPEN_H)
 #include "popen.h"
-#define popen(c, m)	os_popen(c, m)
-#define pclose(f)	os_pclose(f)
-#else
-#if defined (OS2)	/* OS/2, but not family mode */
-#if defined (_MSC_VER)
-#define popen(c, m)	_popen(c, m)
-#define pclose(f)	_pclose(f)
-#endif
-#else
-extern FILE	*popen();
-#endif
 #endif
 
 static struct redirect *red_head = NULL;
@@ -124,6 +113,15 @@ extern NODE *ERRNO_node;
 extern NODE **fields_arr;
 
 static jmp_buf filebuf;		/* for do_nextfile() */
+
+#ifdef VMS
+/* File pointers have an extra level of indirection, and there are cases where
+   `stdin' can be null.  That can crash gawk if fileno() is used as-is.  */
+static int vmsrtl_fileno P((FILE *));
+static int vmsrtl_fileno(fp) FILE *fp; { return fileno(fp); }
+#undef fileno
+#define fileno(FP) (((FP) && *(FP)) ? vmsrtl_fileno(FP) : -1)
+#endif	/* VMS */
 
 /* do_nextfile --- implement gawk "nextfile" extension */
 
@@ -487,9 +485,10 @@ int *errflg;
 			/* too many files open -- close one and try again */
 			if (errno == EMFILE || errno == ENFILE)
 				close_one();
-#ifdef HAVE_MMAP
+#if defined __MINGW32__ || defined HAVE_MMAP
 			/* this works for solaris 2.5, not sunos */
-			else if (errno == 0)	/* HACK! */
+			/* it is also needed for MINGW32 */
+			else if (errno == 0)    /* HACK! */
 				close_one();
 #endif
 			else {
@@ -573,24 +572,22 @@ NODE *tree;
 
 	tmp = force_string(tree_eval(tree->subnode));
 
-	/* icky special case: close(FILENAME) called. */
-	if (tree->subnode == FILENAME_node
-	    || (tmp->stlen == FILENAME_node->var_value->stlen
-		&& STREQN(tmp->stptr, FILENAME_node->var_value->stptr, tmp->stlen))) {
-		(void) nextfile(TRUE);
-		free_temp(tmp);
-		return tmp_number((AWKNUM) 0.0);
-	}
-
 	for (rp = red_head; rp != NULL; rp = rp->next) {
 		if (strlen(rp->value) == tmp->stlen
 		    && STREQN(rp->value, tmp->stptr, tmp->stlen))
 			break;
 	}
+
 	if (rp == NULL) {	/* no match */
-		if (do_lint)
+		/* icky special case: close(FILENAME) called. */
+		if (tree->subnode == FILENAME_node
+		    || (tmp->stlen == FILENAME_node->var_value->stlen
+			&& STREQN(tmp->stptr, FILENAME_node->var_value->stptr, tmp->stlen))) {
+			(void) nextfile(TRUE);
+		} else if (do_lint)
 			warning("close: `%.*s' is not an open file or pipe",
 				tmp->stlen, tmp->stptr);
+
 		free_temp(tmp);
 		return tmp_number((AWKNUM) 0.0);
 	}
@@ -888,11 +885,11 @@ const char *name, *mode;
 	int i;
 
 	if (name[6] == 'g')
-		sprintf(tbuf, "%d\n", getpgrp(getpgrp_arg()));
+		sprintf(tbuf, "%d\n", (int) getpgrp(getpgrp_arg()));
 	else if (name[6] == 'i')
-		sprintf(tbuf, "%d\n", getpid());
+		sprintf(tbuf, "%d\n", (int) getpid());
 	else
-		sprintf(tbuf, "%d\n", getppid());
+		sprintf(tbuf, "%d\n", (int) getppid());
 	i = strlen(tbuf);
 	spec_setup(iop, i, TRUE);
 	strcpy(iop->buf, tbuf);
@@ -923,7 +920,7 @@ const char *name, *mode;
 	int ngroups;
 #endif
 
-	sprintf(tbuf, "%d %d %d %d", getuid(), geteuid(), getgid(), getegid());
+	sprintf(tbuf, "%d %d %d %d", (int) getuid(), (int) geteuid(), (int) getgid(), (int) getegid());
 
 	cp = tbuf + strlen(tbuf);
 #if defined(NGROUPS_MAX) && NGROUPS_MAX > 0
@@ -1008,7 +1005,7 @@ strictopen:
 	if (openfd == INVALID_HANDLE)
 		openfd = open(name, flag, 0666);
 	if (openfd != INVALID_HANDLE && fstat(openfd, &buf) > 0) 
-		if ((buf.st_mode & S_IFMT) == S_IFDIR)
+		if (S_ISDIR(buf.st_mode))
 			fatal("file `%s' is a directory", name);
 	return iop_alloc(openfd, name, iop);
 }
@@ -1120,7 +1117,7 @@ struct redirect *rp;
  * except if popen() provides real pipes too
  */
 
-#if defined(VMS) || defined(OS2) || defined (MSDOS)
+#if defined(VMS) || defined(OS2) || defined (MSDOS) || defined(WIN32)
 
 /* gawk_popen --- open an IOBUF on a child process */
 
@@ -1135,7 +1132,7 @@ struct redirect *rp;
 		return NULL;
 	rp->iop = iop_alloc(fileno(current), cmd, NULL);
 	if (rp->iop == NULL) {
-		(void) fclose(current);
+		(void) pclose(current);
 		current = NULL;
 	}
 	rp->ifp = current;
@@ -1434,7 +1431,12 @@ IOBUF *iop;
 	iop->name = name;
 	iop->getrec = get_a_record;
 #ifdef HAVE_MMAP
-	if (S_ISREG(sbuf.st_mode) && sbuf.st_size > 0) {
+	/* Use mmap only for regular files with positive sizes.
+	   The size must fit into size_t, so that mmap works correctly.
+	   Also, it must fit into int, so that iop->cnt won't overflow.  */
+	if (S_ISREG(sbuf.st_mode) && sbuf.st_size > 0
+	    && sbuf.st_size == (size_t) sbuf.st_size
+	    && sbuf.st_size == (int) sbuf.st_size) {
 		register char *cp;
 
 		iop->buf = iop->off = mmap((caddr_t) 0, sbuf.st_size,
@@ -1535,7 +1537,7 @@ int *errcode;		/* pointer to error variable */
 		return EOF;
 	}
 
-	if (grRS == FALSE)	/* special case:  RS == "" */
+	if (RS_is_null)	/* special case:  RS == "" */
 		rs = '\n';
 	else
 		rs = (char) grRS;
@@ -1648,7 +1650,7 @@ int *errcode;		/* pointer to error variable */
 		 */
 		if (! do_traditional && RSre != NULL)	/* regexp */
 			rsre = RSre;
-		else if (grRS == FALSE)		/* RS = "" */
+		else if (RS_is_null)		/* RS = "" */
 			rsre = RS_null_re;
 		else
 			rsre = NULL;
@@ -1675,6 +1677,21 @@ int *errcode;		/* pointer to error variable */
 			/* cases 1 and 2 are simple, just keep going */
 			if (research(rsre, start, 0, iop->end - start, TRUE) == -1
 			    || RESTART(rsre, start) == REEND(rsre, start)) {
+				/*
+				 * Leading newlines at the beginning of the file
+				 * should be ignored. Whew!
+				 */
+				if (RS_is_null && *start == '\n') {
+					/*
+					 * have to catch the case of a
+					 * single newline at the front of
+					 * the record, which the regex
+					 * doesn't. gurr.
+					 */
+					while (*start == '\n' && start < iop->end)
+						start++;
+					goto again;
+				}
 				bp = iop->end;
 				continue;
 			}
@@ -1690,8 +1707,10 @@ int *errcode;		/* pointer to error variable */
 			/*
 			 * Leading newlines at the beginning of the file
 			 * should be ignored. Whew!
+			 *
+			 * Is this code ever executed?
 			 */
-			if (grRS == FALSE && RESTART(rsre, start) == 0) {
+			if (RS_is_null && RESTART(rsre, start) == 0) {
 				start += REEND(rsre, start);
 				goto again;
 			}
@@ -1737,7 +1756,7 @@ int *errcode;		/* pointer to error variable */
 			bstart = bp;
 		}
 		*bp = '\0';
-	} else if (grRS == FALSE && iop->cnt == EOF) {
+	} else if (RS_is_null && iop->cnt == EOF) {
 		/*
 		 * special case, delete trailing newlines,
 		 * should never be more than one.
@@ -1811,7 +1830,7 @@ int *errcode;		/* pointer to error variable */
 		return EOF;
 	}
 
-	if (grRS == FALSE)	/* special case:  RS == "" */
+	if (RS_is_null)	/* special case:  RS == "" */
 		rs = '\n';
 	else
 		rs = (char) grRS;
@@ -1821,7 +1840,7 @@ int *errcode;		/* pointer to error variable */
 		rs = casetable[rs];
 
 	/* if RS = "", skip leading newlines at the front of the file */
-	if (grRS == FALSE && iop->off == iop->buf) {
+	if (RS_is_null && iop->off == iop->buf) {
 		for (bp = iop->off; *bp == '\n'; bp++)
 			continue;
 
@@ -1835,7 +1854,7 @@ int *errcode;		/* pointer to error variable */
 	 */
 	if (! do_traditional && RSre != NULL)	/* regexp */
 		rsre = RSre;
-	else if (grRS == FALSE)		/* RS = "" */
+	else if (RS_is_null)		/* RS = "" */
 		rsre = RS_null_re;
 	else
 		rsre = NULL;
@@ -1862,7 +1881,7 @@ int *errcode;		/* pointer to error variable */
 			iop->off = iop->end;	/* all done with the record */
 			set_RT_to_null();
 			/* special case, don't allow trailing newlines */
-			if (grRS == FALSE && *(iop->end - 1) == '\n')
+			if (RS_is_null && *(iop->end - 1) == '\n')
 				return iop->end - start - 1;
 			else
 				return iop->end - start;
