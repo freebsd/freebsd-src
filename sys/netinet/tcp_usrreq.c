@@ -848,7 +848,6 @@ tcp_connect(tp, nam, td)
 	struct inpcb *inp = tp->t_inpcb, *oinp;
 	struct socket *so = inp->inp_socket;
 	struct tcpcb *otp;
-	struct sockaddr_in *sin = (struct sockaddr_in *)nam;
 	struct rmxp_tao *taop;
 	struct rmxp_tao tao_noncached;
 	struct in_addr laddr;
@@ -876,14 +875,14 @@ tcp_connect(tp, nam, td)
 		if (oinp != inp && (otp = intotcpcb(oinp)) != NULL &&
 		otp->t_state == TCPS_TIME_WAIT &&
 		    (ticks - otp->t_starttime) < tcp_msl &&
-		    (otp->t_flags & TF_RCVD_CC))
+		    (otp->t_flags & TF_RCVD_CC)) {
+			inp->inp_faddr = oinp->inp_faddr;
+			inp->inp_fport = oinp->inp_fport;
 			otp = tcp_close(otp);
-		else
+		} else
 			return EADDRINUSE;
 	}
 	inp->inp_laddr = laddr;
-	inp->inp_faddr = sin->sin_addr;
-	inp->inp_fport = sin->sin_port;
 	in_pcbrehash(inp);
 
 	/* Compute window scaling to request.  */
