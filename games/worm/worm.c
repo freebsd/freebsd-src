@@ -59,8 +59,10 @@ static char sccsid[] = "@(#)worm.c	8.1 (Berkeley) 5/31/93";
 #define LENGTH 7
 #define RUNLEN 8
 #define CNTRL(p) (p-'A'+1)
+#if 0
 #ifndef baudrate
 # define	baudrate()	_tty.sg_ospeed
+#endif
 #endif
 
 WINDOW *tv;
