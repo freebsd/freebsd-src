@@ -4,6 +4,8 @@
 #
 
 /set type=dir uname=bin gname=bin mode=0755
+backup
+..
 crash
 ..
 cron
