@@ -1,4 +1,4 @@
-                QUICK INSTALLATION GUIDE FOR FREEBSD 2.1.6
+                QUICK INSTALLATION GUIDE FOR FREEBSD 2.1.7
 
 This manual documents the process of installing FreeBSD on your
 machine.  Please also see the Hardware Guide (HARDWARE.TXT, or
@@ -204,14 +204,14 @@ DOS using files copied from the CDROM, you might do something like
 this:
 
         C> MD C:\FREEBSD
-        C> XCOPY /S E:\DISTS\BIN C:\FREEBSD\BIN
+        C> XCOPY /S E:\BIN C:\FREEBSD\BIN
 
 Asssuming that `C:' was where you had free space and `E:' was where
 your CD was mounted. 
 
-For as many `DISTS' as you wish to install from DOS (and you have free
-space for), install each one in a directory under `C:\FREEBSD' - the
-BIN dist is only the minimal requirement.
+For as many distributions as you wish to install from DOS (and you
+have free space for), install each one in a directory under
+`C:\FREEBSD' - the BIN dist is only the minimal requirement.
 
 
 2.4     Before installing from QIC/SCSI Tape:

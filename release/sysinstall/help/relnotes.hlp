@@ -1,20 +1,25 @@
                                  RELEASE NOTES
-                          FreeBSD Release 2.1.6 RELEASE
+                          FreeBSD Release 2.1.7 RELEASE
 
 0. What is this release?
 ------------------------
-FreeBSD 2.1.6R is the follow-on release to 2.1.5R and focuses primarily
-on fixing bugs, closing security holes and making the system easier to
-install than 2.1.5.
+FreeBSD 2.1.7R is the follow-on release to 2.1.6R and focuses primarily
+on fixing bugs and closing security holes, the most notable being the
+setlocale() bug (see ftp://freefall.freebsd.org/pub/CERT) in 2.1.6R.
 
 For more information on our bleeding-edge development, please see
 http://www.freebsd.org/handbook/current.html.
 
-[ SPECIAL NOTE:  This release is actually 2.1.6.1, a 2.1.6 release which was
- modified in the 11th hour to fix the sendmail 8.8.3 security bug and
- implement a simpler fix to the SYN attack problem than the approach taken
- in 2.2 - other, smaller, cosmetic changes were also made and the bsd.port.mk
- file updated to support modern ports ]
+0. What's New since 2.1.6-RELEASE?
+----------------------------------
+Since the setlocale() security hole forced us to do another release
+along the 2.1-STABLE branch, we focused on pulling in a lot of
+additional bug fixes and security enhancements as well, taking
+also some time to upgrade sysinstall to deal with the MSDOSFS
+installation bugs which have hosed so many people & to upgrade
+a few selected utilities.  Aside from these, there are few functional
+changes in 2.1.7R.
+
 
 1. What's New since 2.1.0-RELEASE?
 ----------------------------------
@@ -532,5 +537,5 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.1.2.29 1996/11/15 18:44:20 jkh Exp $
+$Id: relnotes.hlp,v 1.1.2.30 1996/11/24 09:01:52 jkh Exp $
  LocalWords:  Adaptec
