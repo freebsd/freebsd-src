@@ -12,9 +12,16 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
+ * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
+ * --------------------         -----   ----------------------
+ * CURRENT PATCH LEVEL:         1       00098
+ * --------------------         -----   ----------------------
+ *
+ * 16 Feb 93	Julian Elischer		ADDED for SCSI system
+ *
  */
 
-static	char rev[] = "$Revision: 1.2 $";
+static	char rev[] = "$Revision: 1.5 $";
 
 /*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
@@ -134,7 +141,7 @@ struct	scsi_switch *scsi_switch;
 	\*******************************************************/
 	if( unit >= NSD)
 	{
-		printf("Too many scsi disks..(%d > %d) reconfigure kernel",(unit + 1),NSD);
+		printf("Too many scsi disks..(%d > %d) reconfigure kernel\n",(unit + 1),NSD);
 		return(0);
 	}
 	/*******************************************************\
@@ -174,7 +181,7 @@ struct	scsi_switch *scsi_switch;
 	* request must specify this.				*
 	\*******************************************************/
 	sd_get_parms(unit,  SCSI_NOSLEEP |  SCSI_NOMASK);
-	printf("sd%d: %dMB, cyls %d, heads %d, secs %d, bytes/sec %d\n",
+	printf("	sd%d: %dMB, cyls %d, heads %d, secs %d, bytes/sec %d\n",
 		unit,
 		(	  dp->cyls 
 			* dp->heads 
@@ -904,7 +911,7 @@ int	unit,type,flags;
 
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = PREVENT_ALLOW;
-	scsi_cmd.prevent=type;
+	scsi_cmd.how=type;
 	return (sd_scsi_cmd(unit,
 			&scsi_cmd,
 			sizeof(scsi_cmd),
@@ -923,7 +930,7 @@ int	unit,flags;
 
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = START_STOP;
-	scsi_cmd.start = 1;
+	scsi_cmd.how = SSS_START;
 
 	return (sd_scsi_cmd(unit,
 			&scsi_cmd,
@@ -995,7 +1002,7 @@ int	sd_get_parms(unit, flags)
 	{
 		bzero(&scsi_cmd, sizeof(scsi_cmd));
 		scsi_cmd.op_code = MODE_SENSE;
-		scsi_cmd.page_code = 3;
+		scsi_cmd.page = 3;
 		scsi_cmd.length = 0x24;
 		/*******************************************************\
 		* do the command, but we don't need the results		*
@@ -1032,7 +1039,7 @@ int	sd_get_parms(unit, flags)
 	\*******************************************************/
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = MODE_SENSE;
-	scsi_cmd.page_code = 4;
+	scsi_cmd.page = 4;
 	scsi_cmd.length = 0x20;
 	/*******************************************************\
 	* If the command worked, use the results to fill out	*
@@ -1251,11 +1258,11 @@ struct	scsi_xfer *xs;
 	silent = (xs->flags & SCSI_SILENT);
 
 	sense = &(xs->sense);
-	switch(sense->error_class)
+	switch(sense->error_code & SSD_ERRCODE)
 	{
-	case 7:
+	case 0x70:
 		{
-		key=sense->ext.extended.sense_key;
+		key=sense->ext.extended.flags & SSD_KEY;
 		switch(key)
 		{
 		case	0x0:
@@ -1264,7 +1271,7 @@ struct	scsi_xfer *xs;
 			if(!silent)
 			{
 				printf("sd%d: soft error(corrected) ", unit); 
-				if(sense->valid)
+				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
 			  		printf("block no. %d (decimal)",
 			  		(sense->ext.extended.info[0] <<24)|
@@ -1283,7 +1290,7 @@ struct	scsi_xfer *xs;
 			if(!silent)
 			{
 				printf("sd%d: medium error ", unit); 
-				if(sense->valid)
+				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
 			  		printf("block no. %d (decimal)",
 			  		(sense->ext.extended.info[0] <<24)|
@@ -1320,7 +1327,7 @@ struct	scsi_xfer *xs;
 			{
 				printf("sd%d: attempted protection violation ",
 						unit); 
-				if(sense->valid)
+				if(sense->error_code & SSD_ERRCODE_VALID)
 			  	{
 					printf("block no. %d (decimal)\n",
 			  		(sense->ext.extended.info[0] <<24)|
@@ -1336,7 +1343,7 @@ struct	scsi_xfer *xs;
 			{
 				printf("sd%d: block wrong state (worm)\n ",
 				unit); 
-				if(sense->valid)
+				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
 			  		printf("block no. %d (decimal)\n",
 			  		(sense->ext.extended.info[0] <<24)|
@@ -1364,7 +1371,7 @@ struct	scsi_xfer *xs;
 			{
 				printf("sd%d: search returned\n ",
 					unit); 
-				if(sense->valid)
+				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
 			  		printf("block no. %d (decimal)\n",
 			  		(sense->ext.extended.info[0] <<24)|
@@ -1384,7 +1391,7 @@ struct	scsi_xfer *xs;
 			{
 				printf("sd%d: verify miscompare\n ",
 				unit); 
-				if(sense->valid)
+				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
 			  		printf("block no. %d (decimal)\n",
 			  		(sense->ext.extended.info[0] <<24)|
@@ -1402,19 +1409,12 @@ struct	scsi_xfer *xs;
 		}
 		break;
 	}
-	case 0:
-	case 1:
-	case 2:
-	case 3:
-	case 4:
-	case 5:
-	case 6:
+	default:
 		{
-			if(!silent)printf("sd%d: error class %d code %d\n",
+			if(!silent)printf("sd%d: code %d\n",
 				unit,
-				sense->error_class,
-				sense->error_code);
-		if(sense->valid)
+				sense->error_code & SSD_ERRCODE);
+		if(sense->error_code & SSD_ERRCODE_VALID)
 			if(!silent)printf("block no. %d (decimal)\n",
 			(sense->ext.unextended.blockhi <<16)
 			+ (sense->ext.unextended.blockmed <<8)
@@ -1446,143 +1446,13 @@ sdsize(dev_t dev)
 	return((int)sd->disklabel.d_partitions[part].p_size);
 }
 
-#ifdef SCSIDUMP
-#include <vm/vm.h>
-/***********************************************************************\
-* dump all of physical memory into the partition specified, starting	*
-* at offset 'dumplo' into the partition.				*
-\***********************************************************************/
-static struct	scsi_xfer sx;
-#define	MAXTRANSFER 8 /* 1 page at a time */
-int
-sddump(dev_t dev)			/* dump core after a system crash */
-{
-	register struct sd_data *sd;	/* disk unit to do the IO */
-	long	num;			/* number of sectors to write */
-	int	unit, part, sdc;
-	long	blkoff, blknum, blkcnt;
-	long	nblocks;
-	char	*addr;
-	struct	scsi_rw_big	cmd;
-	extern	int Maxmem;
-	static  sddoingadump = 0 ;
-	extern	caddr_t CADDR1; /* map the page we are about to write, here*/
-	struct scsi_xfer *xs = &sx;
-	int	retval;
-
-	addr = (char *) 0;		/* starting address */
-
-	/* toss any characters present prior to dump */
-	while (sgetc(1))
-		;
-
-	/* size of memory to dump */
-	num = Maxmem;
-	unit = UNIT(dev);		/* eventually support floppies? */
-	part = PARTITION(dev);		/* file system */
-	/* check for acceptable drive number */
-	if (unit >= NSD) return(ENXIO);		/* 31 Jul 92*/
-
-	sd = sd_data+unit;
-	/* was it ever initialized etc. ? */
-	if (!(sd->flags & SDINIT)) 		return (ENXIO);
-	if (sd->flags & SDVALID != SDVALID) 	return (ENXIO) ;
-	if (sd->flags & SDWRITEPROT) 		return (ENXIO);
-
-	/* Convert to disk sectors */
-	num = (u_long) num * NBPG / sd->disklabel.d_secsize;
-
-	/* check if controller active */
-	if (sddoingadump) return(EFAULT);
-
-	nblocks = sd->disklabel.d_partitions[part].p_size;
-	blkoff = sd->disklabel.d_partitions[part].p_offset;
-
-	/* check transfer bounds against partition size */
-	if ((dumplo < 0) || ((dumplo + num) > nblocks))
-		return(EINVAL);
-
-	sddoingadump = 1  ;
-
-	blknum = dumplo + blkoff;
-	while (num > 0)
-	{
-		if (blkcnt > MAXTRANSFER) blkcnt = MAXTRANSFER;
-		pmap_enter(	kernel_pmap,
-				CADDR1,
-				trunc_page(addr),
-				VM_PROT_READ,
-				TRUE);
-#ifndef  NOT_TRUSTED
-		/*******************************************************\
-		*  Fill out the scsi command				*
-		\*******************************************************/
-		bzero(&cmd, sizeof(cmd));
-		cmd.op_code	=	WRITE_BIG;
-		cmd.addr_3	=	(blknum & 0xff000000) >> 24;
-		cmd.addr_2	=	(blknum & 0xff0000) >> 16;
-		cmd.addr_1	=	(blknum & 0xff00) >> 8;
-		cmd.addr_0	=	blknum & 0xff;
-		cmd.length2	=	(blkcnt & 0xff00) >> 8;
-		cmd.length1	=	(blkcnt & 0xff);
-		/*******************************************************\
-		* Fill out the scsi_xfer structure			*
-		*	Note: we cannot sleep as we may be an interrupt	*
-		\*******************************************************/
-		bzero(xs, sizeof(sx));
-		xs->flags	|=	SCSI_NOMASK|SCSI_NOSLEEP|INUSE;
-		xs->adapter	=	sd->ctlr;
-		xs->targ	=	sd->targ;
-		xs->lu		=	sd->lu;
-		xs->retries	=	SD_RETRIES;
-		xs->timeout	=	10000;/* 10000 millisecs for a disk !*/
-		xs->cmd		=	(struct scsi_generic *)&cmd;
-		xs->cmdlen	=	sizeof(cmd);
-		xs->resid	=	blkcnt * 512;
-		xs->when_done	=	0;
-		xs->done_arg	=	unit;
-		xs->done_arg2	=	(int)xs;
-		xs->error	=	XS_NOERROR;
-		xs->bp		=	0;
-		xs->data	=	(u_char *)CADDR1;
-		xs->datalen	=	blkcnt * 512;
-
-		/*******************************************************\
-		* Pass all this info to the scsi driver.		*
-		\*******************************************************/
-		retval = (*(sd->sc_sw->scsi_cmd))(xs);
-		switch(retval)
-		{
-		case	SUCCESSFULLY_QUEUED:
-		case	HAD_ERROR:
-			return(ENXIO); /* we said not to sleep! */
-		case	COMPLETE:
-			break;
-		default:
-			return(ENXIO); /* we said not to sleep! */
-		}
-#else	NOT_TRUSTED
-		printf ("sd%d addr 0x%x, blk %d\n",unit,addr,blknum);
-#endif
-		
-		if ((unsigned)addr % (1024*1024) == 0) printf("%d ", num/2048) ;
-		/* update block count */
-		num -= MAXTRANSFER;
-		blknum += MAXTRANSFER ;
-		(int) addr += 512 * MAXTRANSFER;
-
-		/* operator aborting dump? */
-		if (sgetc(1))
-			return(EINTR);
-	}
-	return(0);
-}
-#else	/* No SCSIDUMP CODE */
 sddump()
 {
-	printf("\nsddump()        -- not implemented\n");
-	DELAY(100000000);	/* 100 seconds */
-	return(-1);
+    printf("sddump()        -- not implemented\n");
+    return(-1);
 }
-#endif
+
+
+
+
 
