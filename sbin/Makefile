@@ -21,6 +21,7 @@ SUBDIR=	adjkerntz \
 	fsck \
 	fsck_ifs \
 	fsck_ffs \
+	fsck_msdosfs \
 	fsdb \
 	fsirand \
 	growfs \
