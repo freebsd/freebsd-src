@@ -9,14 +9,13 @@
 
 #if defined(REFCLOCK) && defined(CLOCK_ARBITER)
 
-#include <stdio.h>
-#include <ctype.h>
-#include <sys/time.h>
-
 #include "ntpd.h"
 #include "ntp_io.h"
 #include "ntp_refclock.h"
 #include "ntp_stdlib.h"
+
+#include <stdio.h>
+#include <ctype.h>
 
 /*
  * This driver supports the Arbiter 1088A/B Satellite Controlled Clock.

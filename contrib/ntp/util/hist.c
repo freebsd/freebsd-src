@@ -8,13 +8,13 @@
  */
 
 #ifdef HAVE_CONFIG_H
-#include <config.h>
+# include <config.h>
 #endif
-#include <sys/time.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 #include "ntp_types.h"
+
+#include <stdio.h>
+#include <stdlib.h>
 
 #define NBUF 100001		/* size of basic histogram */
 #define NSRT 20000		/* size of overflow histogram */
@@ -79,7 +79,7 @@ main(
 	}
 	if (n == 0)
 	    return;
-	qsort((char *)ovfl, (int)n, sizeof(long), col);
+	qsort((char *)ovfl, (size_t)n, sizeof(long), col);
 	w = 0;
 	j = 0;
 	for (i = 0; i < n; i++) {

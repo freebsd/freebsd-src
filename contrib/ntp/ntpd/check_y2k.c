@@ -31,7 +31,8 @@
 # include <config.h>
 #endif
 
-#include <sys/types.h>
+#include "ntpd.h"
+
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
 #endif
@@ -48,7 +49,6 @@
 # ifdef HAVE_SYS_IOCTL_H
 #  include <sys/ioctl.h>
 # endif /* HAVE_SYS_IOCTL_H */
-# include <sys/time.h>
 # if !defined(VMS)	/*wjm*/
 #  include <sys/resource.h>
 # endif /* VMS */
@@ -94,8 +94,6 @@
 # include <apollo/base.h>
 #endif /* SYS_DOMAINOS */
 
-#include "ntpd.h"
-
 /* } end definitions lifted from ntpd.c */
 
 #include "ntp_calendar.h"
@@ -103,10 +101,11 @@
 
 #define GoodLeap(Year) (((Year)%4 || (!((Year)%100) && (Year)%400)) ? 0 : 13 )
 
-int debug = 0;			/* debugging requests for parse stuff */
+volatile int debug = 0;		/* debugging requests for parse stuff */
 char const *progname = "check_y2k";
 
-long Days ( int Year )		/* return number of days since year "0" */
+long
+Days ( int Year )		/* return number of days since year "0" */
 {
     long  Return;
 		/* this is a known to be good algorithm */
@@ -137,7 +136,8 @@ static struct tm LocalTime;
 #define Error(year) if ( (year)>=2036 && LocalTime.tm_year < 110 ) \
 	Warnings++; else Fatals++
 
-int main( void )
+int
+main( void )
 {
     int Fatals;
     int Warnings;

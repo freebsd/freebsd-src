@@ -26,16 +26,12 @@ struct savekey {
 #ifdef	DES
 		u_int32 DES_key[2];	/* DES key */
 #endif
-#ifdef	MD5
 		u_char MD5_key[32];	/* MD5 key */
-#endif
 	} k;
-	u_long keyid;		/* key identifier */
+	keyid_t keyid;		/* key identifier */
 	u_short flags;		/* flags that wave */
 	u_long lifetime;	/* remaining lifetime */
-#ifdef	MD5
 	int keylen;		/* key length */
-#endif
 };
 
 #define	KEY_TRUSTED	0x001	/* this key is trusted */
@@ -73,7 +69,7 @@ int authnumfreekeys;
 /*
  * The key cache. We cache the last key we looked at here.
  */
-u_long	cache_keyid;		/* key identifier */
+keyid_t	cache_keyid;		/* key identifier */
 u_char	*cache_key;		/* key pointer */
 u_int	cache_keylen;		/* key length */
 u_short cache_flags;		/* flags that wave */
@@ -97,7 +93,7 @@ init_auth(void)
  */
 struct savekey *
 auth_findkey(
-	u_long keyno
+	keyid_t keyno
 	)
 {
 	struct savekey *sk;
@@ -118,7 +114,7 @@ auth_findkey(
  */
 int
 auth_havekey(
-	u_long keyno
+	keyid_t keyno
 	)
 {
 	struct savekey *sk;
@@ -142,7 +138,7 @@ auth_havekey(
  */
 int
 authhavekey(
-	u_long keyno
+	keyid_t keyno
 	)
 {
 	struct savekey *sk;
@@ -167,13 +163,11 @@ authhavekey(
 	}
 	cache_keyid = sk->keyid;
 	cache_flags = sk->flags;
-#ifdef	MD5
 	if (sk->flags & KEY_MD5) {
 		cache_key = sk->k.MD5_key;
 		cache_keylen = sk->keylen;
 		return (1);
 	}
-#endif
 #ifdef	DES
 	if (sk->flags & KEY_DES) {
 		cache_key = (u_char *)sk->k.DES_key;
@@ -211,15 +205,15 @@ auth_moremem(void)
  */
 void
 authtrust(
-	u_long keyno,
-	int trust
+	keyid_t keyno,
+	u_long trust
 	)
 {
 	struct savekey *sk;
 
 #ifdef DEBUG
-	if (debug > 1)
-		printf("authtrust: keyid %08lx life %d\n", (u_long)keyno, trust);
+	if (debug > 2)
+		printf("authtrust: keyid %08x life %lu\n", keyno, trust);
 #endif
 	sk = key_hash[KEYHASH(keyno)];
 	while (sk != 0) {
@@ -288,7 +282,7 @@ authtrust(
  */
 int
 authistrusted(
-	u_long keyno
+	keyid_t keyno
 	)
 {
 	struct savekey *sk;
@@ -321,7 +315,7 @@ authistrusted(
  */
 void
 DESauth_setkey(
-	u_long keyno,
+	keyid_t keyno,
 	const u_int32 *key
 	)
 {
@@ -368,10 +362,9 @@ DESauth_setkey(
 }
 #endif
 
-#ifdef	MD5
 void
 MD5auth_setkey(
-	u_long keyno,
+	keyid_t keyno,
 	const u_char *key,
 	const int len
 	)
@@ -425,7 +418,6 @@ MD5auth_setkey(
 	authnumkeys++;
 	return;
 }
-#endif
     
 /*
  * auth_delkeys - delete all known keys, in preparation for rereading
@@ -451,9 +443,7 @@ auth_delkeys(void)
 			if (sk->flags & KEY_TRUSTED) {
 				memset(&sk->k, 0, sizeof(sk->k));
 				sk->lifetime = 0;
-#ifdef MD5
 				sk->keylen = 0;
-#endif
 				sk = sk->next;
 			} else {
 				*skp = sk->next;
@@ -503,7 +493,7 @@ auth_agekeys(void)
  */
 int
 authencrypt(
-	u_long keyno,
+	keyid_t keyno,
 	u_int32 *pkt,
 	int length
 	)
@@ -515,7 +505,7 @@ authencrypt(
 	 * consists of a single word with value zero.
 	 */
 	authencryptions++;
-	pkt[length / 4] = (u_long)htonl(keyno);
+	pkt[length / 4] = htonl(keyno);
 	if (keyno == 0) {
 		return (4);
 	}
@@ -527,10 +517,9 @@ authencrypt(
 		return (DESauthencrypt(cache_key, pkt, length));
 #endif
 
-#ifdef	MD5
 	if (cache_flags & KEY_MD5)
 		return (MD5authencrypt(cache_key, pkt, length));
-#endif
+
 	return (0);
 }
 
@@ -541,7 +530,7 @@ authencrypt(
  */
 int
 authdecrypt(
-	u_long keyno,
+	keyid_t keyno,
 	u_int32 *pkt,
 	int length,
 	int size
@@ -555,7 +544,7 @@ authdecrypt(
 	 */
 	authdecryptions++;
 	if (keyno == 0)
-		return (1);
+		return (0);
 
 	if (!authhavekey(keyno) || size < 4)
 		return (0);
@@ -565,10 +554,8 @@ authdecrypt(
 		return (DESauthdecrypt(cache_key, pkt, length, size));
 #endif
 
-#ifdef	MD5
 	if (cache_flags & KEY_MD5)
 		return (MD5authdecrypt(cache_key, pkt, length, size));
-#endif
 
 	return (0);
 }

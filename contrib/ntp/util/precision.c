@@ -1,7 +1,6 @@
-#include <sys/types.h>
-#include <sys/time.h>
-#include <stdio.h>
 #include "ntp_unixtime.h"
+
+#include <stdio.h>
 
 #define	DEFAULT_SYS_PRECISION	-99
 

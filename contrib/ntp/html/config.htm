@@ -1,11 +1,15 @@
-<HTML><HEAD><TITLE>
+<html><head><title>
 Configuration Options
-</TITLE></HEAD><BODY><H3>
+</title></head><body><h3>
 Configuration Options
-</H3>
+</h3>
 
-<IMG align=left SRC="pic/pogo3a.gif">From <i>pogo</i>, Walt Kelly
-<BR clear=left><HR>
+<img align=left src=pic/pogo3a.gif><a
+href=http://www.eecis.udel.edu/~mills/pictures.htm>from <i>Pogo</i>,
+Walt Kelly</a>
+
+<p>Gnu autoconfigure tools are in the backpack.
+<br clear=left><hr>
 
 <H4>Basic Configuration Options - the <TT>configure</TT> utility</H4>
 
@@ -18,273 +22,166 @@ driver support, debugging support, and so forth.
 
 <P>Configuration options are specified as arguments to the
 <TT>configure</TT> script. Following is a summary of the current
-options:
+options, as of the 4.0.99m version:
 
 <P>Usage: <TT>configure [options] [host]</TT>
 <BR>Options: <TT>[defaults in brackets after descriptions]</TT>
-<PRE>Configuration
-
-&nbsp; --cache-file=FILE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; cache test
-results in FILE
-&nbsp; --
-help&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&n
-bsp;&nbsp;&nbsp;&nbsp;&nbsp; print this message
-&nbsp; --no-
-create&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-do not create output files
-&nbsp; --quiet, --silent&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; do not print
-`checking...' messages
-&nbsp; --
-version&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp
-;&nbsp;&nbsp; print the version of autoconf that created
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+Configuration:
+<PRE>
+ --cache-file=FILE      cache test results in FILE
+ --help                 print this message
+ --no-create            do not create output files
+ --quiet, --silent      do not print `checking...' messages
+ --version              print the version of autoconf that created
 configure
-Directory and file names
+</PRE>
 
-&nbsp; --prefix=PREFIX&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; install
-architecture-independent files in
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-PREFIX [/usr/local]
-&nbsp; --exec-prefix=EPREFIX&nbsp; install architecture-dependent files
-in EPREFIX
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+Directory and file names:
+
+<PRE>
+ --prefix=PREFIX        install architecture-independent files in PREFIX
+[/usr/local]
+ --exec-prefix=EPREFIX  install architecture-dependent files in EPREFIX
 [same as prefix]
-&nbsp; --
-bindir=DIR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-user executables in DIR [EPREFIX/bin]
-&nbsp; --
-sbindir=DIR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; system
-admin executables in DIR [EPREFIX/sbin]
-&nbsp; --libexecdir=DIR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; program
-executables in DIR [EPREFIX/libexec]
-&nbsp; --
-datadir=DIR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; read-
-only architecture-independent data in DIR
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+ --bindir=DIR           user executables in DIR [EPREFIX/bin]
+ --sbindir=DIR          system admin executables in DIR [EPREFIX/sbin]
+ --libexecdir=DIR       program executables in DIR [EPREFIX/libexec]
+ --datadir=DIR          read-only architecture-independent data in DIR
 [PREFIX/share]
-&nbsp; --sysconfdir=DIR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; read-only
-single-machine data in DIR
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+ --sysconfdir=DIR       read-only single-machine data in DIR
 [PREFIX/etc]
-&nbsp; --sharedstatedir=DIR&nbsp;&nbsp; modifiable architecture-
-independent data in DIR
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+ --sharedstatedir=DIR   modifiable architecture-independent data in DIR
 [PREFIX/com]
-&nbsp; --localstatedir=DIR&nbsp;&nbsp;&nbsp; modifiable single-machine
-data in DIR
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+ --localstatedir=DIR    modifiable single-machine data in DIR
 [PREFIX/var]
-&nbsp; --
-libdir=DIR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-object code libraries in DIR [EPREFIX/lib]
-&nbsp; --includedir=DIR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; C header
-files in DIR [PREFIX/include]
-&nbsp; --oldincludedir=DIR&nbsp;&nbsp;&nbsp; C header files for non-gcc
-in DIR
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-[/usr/include]
-&nbsp; --
-infodir=DIR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; info
-documentation in DIR [PREFIX/info]
-&nbsp; --
-mandir=DIR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-man documentation in DIR [PREFIX/man]
-&nbsp; --
-srcdir=DIR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-find the sources in DIR [configure dir or ..]
-&nbsp; --program-prefix=PREFIX prepend PREFIX to installed program names
-&nbsp; --program-suffix=SUFFIX append SUFFIX to installed program names
-&nbsp; --program-transform-name=PROGRAM run sed PROGRAM on installed
-program
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+ --libdir=DIR           object code libraries in DIR [EPREFIX/lib]
+ --includedir=DIR       C header files in DIR [PREFIX/include]
+ --oldincludedir=DIR    C header files for non-gcc in DIR [/usr/include]
+ --infodir=DIR          info documentation in DIR [PREFIX/info]
+ --mandir=DIR           man documentation in DIR [PREFIX/man]
+ --srcdir=DIR           find the sources in DIR [configure dir or ..]
+ --x-includes=DIR       X include files are in DIR
+ --x-libraries=DIR      X library files are in DIR
+ --program-prefix=PREFIX           prepend PREFIX to installed program
 names
-Host type
+ --program-suffix=SUFFIX           append SUFFIX to installed program
+names
+ --program-transform-name=PROGRAM  run sed PROGRAM on installed program
+names
+</PRE>
 
-&nbsp; --
-build=BUILD&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-configure for building on BUILD [BUILD=HOST]
-&nbsp; --
-host=HOST&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
-sp; configure for HOST [guessed]
-&nbsp; --target=TARGET&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-configure for TARGET [TARGET=HOST]</PRE>
+Host type:
 
-<PRE>Features and packages
+<PRE>
+ --build=BUILD          configure for building on BUILD [BUILD=HOST]
+ --host=HOST            configure for HOST [guessed]
+ --target=TARGET        configure for TARGET [TARGET=HOST]
+</PRE>
 
-&nbsp; --disable-FEATURE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; do not include
-FEATURE (same as --enable-
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-FEATURE=no)
-&nbsp; --enable-FEATURE[=ARG] include FEATURE [ARG=yes]
-&nbsp; --with-PACKAGE[=ARG]&nbsp;&nbsp; use PACKAGE [ARG=yes]
-&nbsp; --without-PACKAGE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; do not use
-PACKAGE (same as --with-PACKAGE=no)
-&nbsp; --x-includes=DIR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; X include
-files are in DIR
-&nbsp; --x-libraries=DIR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; X library files
-are in DIR
+Optional packages:
 
---enable- and --disable- with options recognized
+<PRE>
+ --with-PACKAGE[=ARG]   use PACKAGE [ARG=yes]
+ --without-PACKAGE      do not use PACKAGE (same as --with-PACKAGE=no)
 
-&nbsp;&nbsp;&nbsp;&nbsp;
-debugging&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-Include debugging code [enable]
-&nbsp;&nbsp;&nbsp;&nbsp; gdt-
-surveying&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Include GDT survey code
-[disable]
-&nbsp;&nbsp;&nbsp;&nbsp;
-md5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
-sp;&nbsp;&nbsp;&nbsp;&nbsp; Include support for MD5 keys [enable]
-&nbsp;&nbsp;&nbsp;&nbsp;
-des&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
-sp;&nbsp;&nbsp;&nbsp;&nbsp; Include support for DES keys [enable]
-&nbsp;&nbsp;&nbsp;&nbsp; all-
-clocks&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Include
-drivers for all reference clocks
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+ openssl-libdir=DIR     OpenSSL object code libraries in DIR [/usr/lib
+/usr/local/lib /usr/local/ssl/lib]
+ openssl-incdir=DIR     OpenSSL header files in DIR [/usr/include
+/usr/local/include /usr/local/ssl/include]
+ crypto=autokey         Use autokey cryptography
+ crypto=rsaref          Use the RSAREF library
+ electricfence          Compile with ElectricFence malloc debugger
+</PRE>
+
+Optional features:
+
+<PRE>
+ --disable-FEATURE      do not include FEATURE (same as
+--enable-FEATURE=no)
+ --enable-FEATURE[=ARG] include FEATURE [ARG=yes]
+
+ accurate-adjtime       The adjtime() call is accurate
+ debugging              Include debugging code [enable]
+ des                    Include support for DES keys [enable]
+ dst-minutes=VALUE      Minutes per DST adjustment [60]
+ gdt-surveying          Include GDT survey code [disable]
+ hourly-todr-sync       If we should sync TODR hourly
+ kernel-fll-bug         If we should avoid a (Solaris) kernel FLL bug
+ kmem                   Read /dev/kmem for 'tick' and/or 'tickadj'
+ md5                    Include support for MD5 keys [enable]
+ ntpdate-step           If ntpdate should step the time
+ slew-always            Always slew the time
+ step-slew              Step and slew the time
+ tick=VALUE             Force a value for 'tick'
+ tickadj=VALUE          Force a value for 'tickadj'
+ udp-wildcard           Use UDP wildcard delivery
+</PRE>
+
+Radio clocks (these are ordinarily enabled, if supported by the
+machine and operating system):
+
+<PRE>
+ all-clocks             Include drivers for all suitable non-PARSE
+clocks [enable]
+ ACTS                   NIST dialup clock
+ ARBITER                Arbiter 1088A/B GPS receiver
+ ARCRON_MSF             Arcron MSF receiver
+ AS2201                 Austron 2200A or 2201A GPS receiver
+ ATOM                   ATOM PPS interface
+ AUDIO-CHU              CHU audio decoder
+ BANCOMM                Datum/Bancomm BC635/VME interface
+                        (requires an explicit --enable-BANCOMM request)
+ CHRONOLOG              Chrono-log K-series WWVB receiver
+ CHU                    CHU modem decoder
+ DATUM                  Datum Programmable Time System
+ DUMBCLOCK              Dumb generic hh:mm:ss local clock
+ FG                     Forum Graphic GPS
+ GPSVME                 TrueTime GPS receiver with VME interface
+                        (requires an explicit --enable-GPSVME request)
+ HEATH                  HeathKit GC-1000 Most Accurate Clock
+ HOPFPCI                HOPF 6039 PCI board
+ HOPFSERIAL             HOPF serial clock device
+ HPGPS                  HP 58503A GPS Time &amp; Frequency receiver
+ IRIG                   IRIG (Audio) Clock
+ JUPITER                Rockwell Jupiter GPS receiver
+ LEITCH                 Leitch CSD 5300 Master Clock System Driver
+ LOCAL-CLOCK            Local clock driver
+ MSFEES                 EES M201 MSF receiver
+ MX4200                 Magnavox MX4200 GPS receiver
+ NMEA                   NMEA GPS receiver
+ ONCORE                 Motorola VP/UT Oncore GPS receiver
+ PALISADE               Palisade clock
+ PCF                    Conrad parallel port radio clock
+ PST                    PST/Traconex 1020 WWV/H receiver
+ PTBACTS                PTB dialup clock support
+ SHM                    Clock attached through shared memory
+                        (requires an explicit --enable-SHM request)
+ SPECTRACOM             Spectracom 8170/Netclock/2 WWVB receiver
+ TRAK                   TRAK 8810 GPS station clock
+ TPRO                   KSI/Odetics TPRO/S IRIG Interface
+ TRUETIME               Kinemetrics/TrueTime (generic) receiver
+ ULINK                  Ultralink WWVB receiver
+ USNO                   US Naval Observatory dialup clock
+ WWV                    WWV audio receiver
+</PRE>
+
+PARSE Clocks:
+
+<PRE>
+ parse-clocks           Include drivers for all suitable PARSE clocks
 [enable]
-
-&nbsp; Radio Clocks (these are ordinarily enabled, if supported by the
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-machine and operating system)
-
-&nbsp;&nbsp;&nbsp;&nbsp;
-ACTS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&n
-bsp;&nbsp;&nbsp;&nbsp; NIST dialup clock
-&nbsp;&nbsp;&nbsp;&nbsp;
-ARBITER&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp
-;&nbsp; Arbiter 1088A/B GPS receiver
-&nbsp;&nbsp;&nbsp;&nbsp;
-AS2201&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp; Austron 2200A or 2201A GPS receiver
-&nbsp;&nbsp;&nbsp;&nbsp;
-ATOM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&n
-bsp;&nbsp;&nbsp;&nbsp; ATOM clock
-&nbsp;&nbsp;&nbsp;&nbsp;
-BANCOMM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp
-;&nbsp; BANCOMM clock
-&nbsp;&nbsp;&nbsp;&nbsp;
-CHU&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
-sp;&nbsp;&nbsp;&nbsp;&nbsp; CHU clock
-&nbsp;&nbsp;&nbsp;&nbsp;
-DATUM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&
-nbsp;&nbsp;&nbsp; Datum Programmable Time System
-&nbsp;&nbsp;&nbsp;&nbsp;
-DCF7000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp
-;&nbsp; ELV/DCF7000
-&nbsp;&nbsp;&nbsp;&nbsp;
-GPSVME&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp; GPS-VME Clock
-&nbsp;&nbsp;&nbsp;&nbsp;
-HEATH&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&
-nbsp;&nbsp;&nbsp; HeathKit GC-1000 Most Accurate Clock
-&nbsp;&nbsp;&nbsp;&nbsp;
-HOPF6021&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbs
-p; HOPF6021 Radio Clock support
-&nbsp;&nbsp;&nbsp;&nbsp;
-HPGPS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&
-nbsp;&nbsp;&nbsp; HP 58503A GPS Time &amp; Frequency receiver
-&nbsp;&nbsp;&nbsp;&nbsp;
-IRIG&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&n
-bsp;&nbsp;&nbsp;&nbsp; IRIG (Audio) Clock
-&nbsp;&nbsp;&nbsp;&nbsp;
-LEITCH&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp; Leitch CSD 5300 Master Clock System Driver
-&nbsp;&nbsp;&nbsp;&nbsp; LOCAL-
-CLOCK&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Local Clock driver
-&nbsp;&nbsp;&nbsp;&nbsp;
-MEINBERG&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbs
-p; Meinberg clocks
-&nbsp;&nbsp;&nbsp;&nbsp;
-MSFEES&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp; MSFEES clock
-&nbsp;&nbsp;&nbsp;&nbsp;
-MOTO&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&n
-bsp;&nbsp;&nbsp;&nbsp; Motorola GPS clock
-&nbsp;&nbsp;&nbsp;&nbsp;
-MX4200&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp; MX4200 clock
-&nbsp;&nbsp;&nbsp;&nbsp;
-NMEA&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&n
-bsp;&nbsp;&nbsp;&nbsp; NMEA GPS clock
-&nbsp;&nbsp;&nbsp;&nbsp;
-PARSE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&
-nbsp;&nbsp;&nbsp; PARSE clock code
-&nbsp;&nbsp;&nbsp;&nbsp;
-PST&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
-sp;&nbsp;&nbsp;&nbsp;&nbsp; PST/Traconex 1020 WWV/H receiver
-&nbsp;&nbsp;&nbsp;&nbsp;
-PTBACTS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp
-;&nbsp; PTB dialup clock support
-&nbsp;&nbsp;&nbsp;&nbsp;
-RAWDCF&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp; use raw DCF77 time code
-&nbsp;&nbsp;&nbsp;&nbsp;
-RCC8000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp
-;&nbsp; RCC8000 Radio Clock support
-&nbsp;&nbsp;&nbsp;&nbsp;
-SCHMID&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp; SCHMID DCF77 clock support
-&nbsp;&nbsp;&nbsp;&nbsp;
-TRAK&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&n
-bsp;&nbsp;&nbsp;&nbsp; TRAK 8810 GPS station clock
-&nbsp;&nbsp;&nbsp;&nbsp;
-TPRO&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&n
-bsp;&nbsp;&nbsp;&nbsp; KSI/Odetics TPRO/S IRIG Interface
-&nbsp;&nbsp;&nbsp;&nbsp;
-TRIMTAIP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbs
-p; Trimble GPS/TAIP Protocol
-&nbsp;&nbsp;&nbsp;&nbsp;
-TRIMTSIP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbs
-p; Trimble GPS/TSIP Protocol
-&nbsp;&nbsp;&nbsp;&nbsp;
-TRUETIME&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbs
-p; Kinemetrics/TrueTime (generic) receiver
-&nbsp;&nbsp;&nbsp;&nbsp;
-WWVB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&n
-bsp;&nbsp;&nbsp;&nbsp; Spectracom 8170 or Netclock/2 WWVB receiver
-&nbsp;&nbsp;&nbsp;&nbsp;
-USNO&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&n
-bsp;&nbsp;&nbsp;&nbsp; US Naval Observatory dialup clock
-&nbsp; Miscellany
-
-&nbsp;&nbsp;&nbsp;&nbsp; accurate-adjtime&nbsp;&nbsp;&nbsp; The
-adjtime() call is accurate
-&nbsp;&nbsp;&nbsp;&nbsp;
-kmem&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&n
-bsp;&nbsp;&nbsp;&nbsp; Read kmem
-&nbsp;&nbsp;&nbsp;&nbsp;
-tick=VALUE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Force a
-value for 'tick'
-&nbsp;&nbsp;&nbsp;&nbsp;
-tickadj=VALUE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Force a value for
-'tickadj'
-&nbsp;&nbsp;&nbsp;&nbsp; udp-
-wildcard&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Use UDP wildcard
-delivery
-&nbsp;&nbsp;&nbsp;&nbsp; slew-
-always&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Always slew the
-time
-&nbsp;&nbsp;&nbsp;&nbsp; step-
-slew&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Step
-and slew the time
-&nbsp;&nbsp;&nbsp;&nbsp; ntpdate-
-step&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; If ntpdate should step
-the time
-&nbsp;&nbsp;&nbsp;&nbsp; hourly-todr-sync&nbsp;&nbsp;&nbsp; If we should
-sync TODR hourly</PRE>
+ COMPUTIME              Diem Computime Radio Clock
+ DCF7000                ELV/DCF7000 Clock
+ HOPF6021               HOPF 6021 Radio Clock support
+ MEINBERG               Meinberg clocks
+ RAWDCF                 DCF77 raw time code
+ RCC8000                RCC 8000 Radio Clock support
+ SCHMID                 SCHMID DCF77 clock support
+ TRIMTAIP               Trimble GPS/TAIP Protocol
+ TRIMTSIP               Trimble GPS/TSIP Protocol
+ VARITEXT               VARITEXT clock
+ WHARTON                Wharton 400A Series clock
+</PRE>
 
 <hr><a href=index.htm><img align=left src=pic/home.gif></a><address><a
 href=mailto:mills@udel.edu> David L. Mills &lt;mills@udel.edu&gt;</a>

@@ -1,82 +1,91 @@
-<HTML>
-<HEAD>
-   <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
-   <META NAME="GENERATOR" CONTENT="Mozilla/4.01 [en] (Win95; I) [Netscape]">
-   <TITLE>ntptrace - trace a chain of NTP servers back to the primary
-source
-</TITLE>
-</HEAD>
-<BODY>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>ntptrace - trace a chain of NTP servers back to the primary
+source</title>
+</head>
+<body>
+<h3><tt>ntptrace</tt> - trace a chain of NTP servers back to the
+primary source</h3>
 
-<H3>
-<TT>ntptrace</TT> - trace a chain of NTP servers back to the primary source</H3>
+<img align="left" src="pic/alice13.gif" alt="gif"><a href=
+"http://www.eecis.udel.edu/~mills/pictures.htm">from <i>Alice's
+Adventures in Wonderland</i>, Lewis Carroll</a> 
 
-<HR>
-<H4>
-Synopsis</H4>
-<TT>ntptrace [ -vdn ] [ -r <I>retries</I> ] [ -t <I>timeout</I> ] [ <I>server</I>
-]</TT>
-<H4>
-Description</H4>
-<TT>ntptrace</TT> determines where a given Network Time Protocol (NTP)
-server gets its time from, and follows the chain of NTP servers back to
-their master time source. If given no arguments, it starts with <TT>localhost</TT>.
-Here is an example of the output from <TT>ntptrace</TT>:
-<PRE>% ntptrace
+<p>The rabbit knows the way back.<br clear="left">
+</p>
+
+<hr>
+<h4>Synopsis</h4>
+
+<tt>ntptrace [ -vdn ] [ -r <i>retries</i> ] [ -t <i>timeout</i> ] [
+<i>server</i> ]</tt> 
+
+<h4>Description</h4>
+
+<p><tt>ntptrace</tt> determines where a given Network Time Protocol
+(NTP) server gets its time from, and follows the chain of NTP
+servers back to their master time source. If given no arguments, it
+starts with <tt>localhost</tt>. Here is an example of the output
+from <tt>ntptrace</tt>:</p>
+
+<pre>
+% ntptrace
 localhost: stratum 4, offset 0.0019529, synch distance 0.144135
 server2ozo.com: stratum 2, offset 0.0124263, synch distance 0.115784
 usndh.edu: stratum 1, offset 0.0019298, synch distance 0.011993, refid
-'WWVB'</PRE>
-On each line, the fields are (left to right): the host name, the host stratum,
-the time offset between that host and the local host (as measured by <TT>ntptrace</TT>;
-this is why it is not always zero for "<TT>localhost</TT>"), the host synchronization
-distance, and (only for stratum-1 servers) the reference clock ID. All
-times are given in seconds. Note that the stratum is the server hop count
-to the primary source, while the synchronization distance is the estimated
-error relative to the primary source. These terms are precisely defined
-in RFC-1305.
-<H4>
-Options</H4>
+'WWVB'
+</pre>
 
-<DL>
-<DT>
-<TT>-d</TT></DT>
+On each line, the fields are (left to right): the host name, the
+host stratum, the time offset between that host and the local host
+(as measured by <tt>ntptrace</tt>; this is why it is not always
+zero for "<tt>localhost</tt>"), the host synchronization distance,
+and (only for stratum-1 servers) the reference clock ID. All times
+are given in seconds. Note that the stratum is the server hop count
+to the primary source, while the synchronization distance is the
+estimated error relative to the primary source. These terms are
+precisely defined in RFC-1305. 
 
-<DD>
-Turns on some debugging output.</DD>
+<h4>Options</h4>
 
-<DT>
-<TT>-n</TT></DT>
+<dl>
+<dt><tt>-d</tt></dt>
 
-<DD>
-Turns off the printing of host names; instead, host IP addresses are given.
-This may be useful if a nameserver is down.</DD>
+<dd>Turns on some debugging output.</dd>
 
-<DT>
-<TT>-r <I>retries</I></TT></DT>
+<dt><tt>-n</tt></dt>
 
-<DD>
-Sets the number of retransmission attempts for each host (default = 5).</DD>
+<dd>Turns off the printing of host names; instead, host IP
+addresses are given. This may be useful if a nameserver is
+down.</dd>
 
-<DT>
-<TT>-t <I>timeout</I></TT></DT>
+<dt><tt>-r <i>retries</i></tt></dt>
 
-<DD>
-Sets the retransmission timeout (in seconds) (default = 2).</DD>
+<dd>Sets the number of retransmission attempts for each host
+(default = 5).</dd>
 
-<DT>
-<TT>-v</TT></DT>
+<dt><tt>-t <i>timeout</i></tt></dt>
 
-<DD>
-Prints verbose information about the NTP servers.</DD>
-</DL>
+<dd>Sets the retransmission timeout (in seconds) (default =
+2).</dd>
 
-<H4>
-Bugs</H4>
-This program makes no attempt to improve accuracy by doing multiple samples.&nbsp;
-<HR>
-<ADDRESS>
-David L. Mills (mills@udel.edu)</ADDRESS>
+<dt><tt>-v</tt></dt>
 
-</BODY>
-</HTML>
+<dd>Prints verbose information about the NTP servers.</dd>
+</dl>
+
+<h4>Bugs</h4>
+
+This program makes no attempt to improve accuracy by doing multiple
+samples. 
+
+<hr>
+<a href="index.htm"><img align="left" src="pic/home.gif" alt=
+"gif"></a>
+<address><a href="mailto:mills@udel.edu">David L. Mills
+&lt;mills@udel.edu&gt;</a></address>
+</body>
+</html>
+

@@ -2,7 +2,7 @@
  * This software was developed by the Software and Component Technologies
  * group of Trimble Navigation, Ltd.
  *
- * Copyright (c) 1997, 1998, 1999 Trimble Navigation Ltd.
+ * Copyright (c) 1997, 1998, 1999, 2000  Trimble Navigation Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

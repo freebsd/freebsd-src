@@ -5,19 +5,25 @@
 # include <config.h>
 #endif
 
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <signal.h>
-#include <sys/signal.h>
-
 #include "ntp_machine.h"
 #include "ntpd.h"
 #include "ntp_stdlib.h"
+
+#include <stdio.h>
+#include <signal.h>
+#include <sys/signal.h>
+#ifdef HAVE_UNISTD_H
+# include <unistd.h>
+#endif
+
 #if defined(HAVE_IO_COMPLETION_PORT)
 # include "ntp_iocompletionport.h"
 # include "ntp_timer.h"
 #endif
+
+#ifdef PUBKEY
+#include "ntp_crypto.h"
+#endif /* PUBKEY */
 
 /*
  * These routines provide support for the event timer.	The timer is
@@ -41,8 +47,11 @@ volatile int alarm_flag;
 static	u_long adjust_timer;		/* second timer */
 static	u_long keys_timer;		/* minute timer */
 static	u_long hourly_timer;		/* hour timer */
+static	u_long huffpuff_timer;		/* huff-n'-puff timer */
+#ifdef AUTOKEY
 static	u_long revoke_timer;		/* keys revoke timer */
-u_long	sys_revoke = KEY_REVOKE;	/* keys revoke timeout */
+u_long	sys_revoke = 1 << KEY_REVOKE;	/* keys revoke timeout */
+#endif /* AUTOKEY */
 
 /*
  * Statistics counter for the interested.
@@ -101,6 +110,7 @@ init_timer(void)
 	alarm_overflow = 0;
 	adjust_timer = 1;
 	hourly_timer = HOUR;
+	huffpuff_timer = 0;
 	current_time = 0;
 	timer_overflows = 0;
 	timer_xmtcalls = 0;
@@ -206,7 +216,7 @@ void
 timer(void)
 {
 	register struct peer *peer, *next_peer;
-	int n;
+	u_int n;
 
 	current_time += (1<<EVENT_TIMEOUT);
 
@@ -250,12 +260,27 @@ timer(void)
 	}
 
 	/*
-	 * Garbage collect revoked keys
+	 * Huff-n'-puff filter
+	 */
+	if (huffpuff_timer <= current_time) {
+		huffpuff_timer += HUFFPUFF;
+		huffpuff();
+	}
+
+#ifdef AUTOKEY
+	/*
+	 * Garbage collect old keys and generate new private value
 	 */
 	if (revoke_timer <= current_time) {
-		revoke_timer += RANDPOLL(sys_revoke);
-		key_expire_all();
+		revoke_timer += sys_revoke;
+		expire_all();
+#ifdef DEBUG
+		if (debug)
+			printf("key expire: at %lu next %lu\n",
+			    current_time, revoke_timer);
+#endif
 	}
+#endif /* AUTOKEY */
 
 	/*
 	 * Finally, call the hourly routine.

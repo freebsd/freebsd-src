@@ -32,18 +32,16 @@
 #endif
 
 #if defined(REFCLOCK) && defined(CLOCK_BANC) 
-#include <stdio.h>
-#include <syslog.h>
-#include <ctype.h>
-#include <string.h>
-#include <strings.h>
-#include <sys/time.h>
 
 #include "ntpd.h"
 #include "ntp_io.h"
 #include "ntp_refclock.h"
 #include "ntp_unixtime.h"
 #include "ntp_stdlib.h"
+
+#include <stdio.h>
+#include <syslog.h>
+#include <ctype.h>
 
 /*  STUFF BY RES */
 struct btfp_time                /* Structure for reading 5 time words   */
@@ -83,11 +81,6 @@ struct vmedate {               /* structure returned by get_vmetime.c */
 /* END OF STUFF FROM RES */
 
 /*
- * Definitions
- */
-#define MAXUNITS 2              /* max number of VME units */
-
-/*
  * VME interface parameters. 
  */
 #define VMEPRECISION    (-21)   /* precision assumed (1 us) */
@@ -119,14 +112,6 @@ struct vmeunit {
 };
 
 /*
- * Keep the fudge factors separately so they can be set even
- * when no clock is configured.
- */
-static double fudgefactor[MAXUNITS];
-static u_char stratumtouse[MAXUNITS];
-static u_char sloppyclockflag[MAXUNITS];
-
-/*
  * Function prototypes
  */
 static  void    vme_init        (void);
@@ -140,35 +125,18 @@ struct vmedate *get_datumtime(struct vmedate *);
  * Transfer vector
  */
 struct  refclock refclock_bancomm = {
-	vme_start, 
-	vme_shutdown, 
-	vme_poll,
-	noentry,       /* not used (old vme_control) */   
-	vme_init, 
-	noentry,       /* not used (old vme_buginfo) */ 
-	NOFLAGS
+	vme_start, 		/* start up driver */
+	vme_shutdown,		/* shut down driver */
+	vme_poll,		/* transmit poll message */
+	noentry,		/* not used (old vme_control) */
+	noentry,		/* initialize driver */ 
+	noentry,		/* not used (old vme_buginfo) */ 
+	NOFLAGS			/* not used */
 };
 
 int fd_vme;  /* file descriptor for ioctls */
 int regvalue;
 
-/*
- * vme_init - initialize internal vme driver data
- */
-static void
-vme_init(void)
-{
-	register int i;
-
-	/*
-	 * Initialize fudge factors to default.
-	 */
-	for (i = 0; i < MAXUNITS; i++) {
-		fudgefactor[i]  = 0.0;
-		stratumtouse[i] = 0;
-		sloppyclockflag[i] = 0;
-	}
-}
 
 /*
  * vme_start - open the VME device and initialize data for processing
@@ -183,14 +151,6 @@ vme_start(
 	struct refclockproc *pp;
 	int dummy;
 	char vmedev[20];
-
-	/*
-	 * Check configuration info.
-	 */
-	if (unit >= MAXUNITS) {
-		msyslog(LOG_ERR, "vme_start: unit %d invalid", unit);
-		return (0);
-	}
 
 	/*
 	 * Open VME device
@@ -236,13 +196,8 @@ vme_start(
  	 * return success. Note that root delay and root dispersion are
 	 * always zero for this clock.
 	 */
-	pp->leap = LEAP_NOWARNING;
 	peer->precision = VMEPRECISION;
-	peer->stratum = stratumtouse[unit];
-	memcpy( (char *)&peer->refid, USNOREFID,4);
-
-	peer->refid = htonl(VMEHSREFID);
-
+	memcpy(&pp->refid, USNOREFID,4);
 	return (1);
 }
 
@@ -258,17 +213,11 @@ vme_shutdown(
 {
 	register struct vmeunit *vme;
 	struct refclockproc *pp;
-	
-	pp = peer->procptr;
-
-	if (unit >= MAXUNITS) {
-		msyslog(LOG_ERR, "vme_shutdown: unit %d invalid", unit);
-		return;
-	}
 
 	/*
 	 * Tell the I/O module to turn us off.  We're history.
 	 */
+	pp = peer->procptr;
 	vme = (struct vmeunit *)pp->unitptr;
 	io_closeclock(&pp->io);
 	pp->unitptr = NULL;
