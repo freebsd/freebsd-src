@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rcp.c,v 1.4.4.2 1996/06/05 02:36:15 jkh Exp $
+ *	$Id$
  */
 
 #ifndef lint
@@ -129,7 +129,8 @@ main(argc, argv)
 #ifdef	KERBEROS
 		case 'k':
 			dest_realm = dst_realm_buf;
-			(void)strncpy(dst_realm_buf, optarg, REALM_SZ);
+			(void)strncpy(dst_realm_buf, optarg, REALM_SZ - 1);
+			dst_realm_buf[REALM_SZ - 1] = '\0';
 			break;
 #ifdef CRYPT
 		case 'x':
