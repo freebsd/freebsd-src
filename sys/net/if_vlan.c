@@ -82,7 +82,7 @@
 #endif
 
 SYSCTL_DECL(_net_link);
-SYSCTL_NODE(_net_link, IFT_8021_VLAN, vlan, CTLFLAG_RW, 0, "IEEE 802.1Q VLAN");
+SYSCTL_NODE(_net_link, IFT_L2VLAN, vlan, CTLFLAG_RW, 0, "IEEE 802.1Q VLAN");
 SYSCTL_NODE(_net_link_vlan, PF_LINK, link, CTLFLAG_RW, 0, "for consistency");
 
 u_int	vlan_proto = ETHERTYPE_VLAN;
@@ -179,7 +179,7 @@ vlaninit(void)
 		ifp->if_snd.ifq_maxlen = ifqmaxlen;
 		ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 		/* Now undo some of the damage... */
-		ifp->if_data.ifi_type = IFT_8021_VLAN;
+		ifp->if_data.ifi_type = IFT_L2VLAN;
 		ifp->if_data.ifi_hdrlen = EVL_ENCAPLEN;
 	}
 }
