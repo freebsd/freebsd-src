@@ -1063,6 +1063,8 @@ fill_reject_code(u_short *codep, char *str)
 	u_long val;
 	char *s;
 
+	if (str == '\0')
+		errx(EX_DATAERR, "missing unreachable code");
 	val = strtoul(str, &s, 0);
 	if (s != str && *s == '\0' && val < 0x100) {
 		*codep = val;
