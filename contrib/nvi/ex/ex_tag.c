@@ -47,7 +47,7 @@ static int	 compare __P((char *, char *, char *));
 static void	 ctag_file __P((SCR *, TAGF *, char *, char **, size_t *));
 static int	 ctag_search __P((SCR *, char *, size_t, char *));
 #ifdef GTAGS
-static int	 getentry __P((char *, char *, char *, char *));
+static int	 getentry __P((char *, char **, char **, char **));
 static TAGQ	*gtag_slist __P((SCR *, char *, int));
 #endif
 static int	 ctag_sfile __P((SCR *, TAGF *, TAGQ *, char *));
@@ -1013,30 +1013,40 @@ notfound:			tag_msg(sp, TAG_SEARCH, tag);
  */
 static int
 getentry(buf, tag, file, line)
-	char *buf, *tag, *file, *line;
+	char *buf, **tag, **file, **line;
 {
-	char *p;
+	char *p = buf;
 
-	p = tag;
-	while (*buf && !isspace(*buf))		/* tag name */
-		*p++ = *buf++;
-	*p = 0;
-	while (*buf && isspace(*buf))		/* skip blanks */
-		buf++;
-	p = line;
-	while (*buf && !isspace(*buf))		/* line no */
-		*p++ = *buf++;
-	*p = 0;
-	while (*buf && isspace(*buf))		/* skip blanks */
-		buf++;
-	p = file;
-	while (*buf && !isspace(*buf))		/* file name */
-		*p++ = *buf++;
+	for (*tag = p; *p && !isspace(*p); p++)		/* tag name */
+		;
+	if (*p == 0)
+		goto err;
+	*p++ = 0;
+	for (; *p && isspace(*p); p++)			/* (skip blanks) */
+		;
+	if (*p == 0)
+		goto err;
+	*line = p;					/* line no */
+	for (*line = p; *p && !isspace(*p); p++)
+		;
+	if (*p == 0)
+		goto err;
+	*p++ = 0;
+	for (; *p && isspace(*p); p++)			/* (skip blanks) */
+		;
+	if (*p == 0)
+		goto err;
+	*file = p;					/* file name */
+	for (*file = p; *p && !isspace(*p); p++)
+		;
+	if (*p == 0)
+		goto err;
 	*p = 0;
 
 	/* value check */
-	if (strlen(tag) && strlen(line) && strlen(file) && atoi(line) > 0)
+	if (strlen(*tag) && strlen(*line) && strlen(*file) && atoi(*line) > 0)
 		return 1;	/* OK */
+err:
 	return 0;		/* ERROR */
 }
 
@@ -1056,9 +1066,9 @@ gtag_slist(sp, tag, ref)
 	size_t len;
 	int echk;
 	TAG *tp;
-	static char name[80], file[200], line[10];
-	char command[200];
-	char buf[BUFSIZ+1];
+	char *name, *file, *line;
+	char command[BUFSIZ];
+	char buf[BUFSIZ];
 	FILE *fp;
 
 	/* Allocate and initialize the tag queue structure. */
@@ -1072,7 +1082,7 @@ gtag_slist(sp, tag, ref)
 	 * Find the tag, only display missing file messages once, and
 	 * then only if we didn't find the tag.
 	 */
-	sprintf(command, "global -%s '%s'", ref ? "rx" : "x", tag);
+	snprintf(command, sizeof(command), "global -%s '%s'", ref ? "rx" : "x", tag);
 	if (fp = popen(command, "r")) {
 		while (fgets(buf, sizeof(buf), fp)) {
 			if (buf[strlen(buf)-1] == '\n')		/* chop(buf) */
@@ -1080,7 +1090,7 @@ gtag_slist(sp, tag, ref)
 			else
 				while (fgetc(fp) != '\n')
 					;
-			if (getentry(buf, name, file, line) == 0) {
+			if (getentry(buf, &name, &file, &line) == 0) {
 				echk = 1;
 				F_SET(tfp, TAGF_ERR);
 				break;
