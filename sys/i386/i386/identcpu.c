@@ -476,17 +476,19 @@ printcpuinfo(void)
 			strcat(cpu_model, "Unknown");
 		}
 	} else if (strcmp(cpu_vendor, "CentaurHauls") == 0) {
-		strcpy(cpu_model, "IDT ");
 		switch (cpu_id & 0xff0) {
 		case 0x540:
-			strcat(cpu_model, "WinChip C6");
+			strcpy(cpu_model, "IDT WinChip C6");
 			tsc_is_broken = 1;
 			break;
 		case 0x580:
-			strcat(cpu_model, "WinChip 2");
+			strcpy(cpu_model, "IDT WinChip 2");
+			break;
+		case 0x670:
+			strcpy(cpu_model, "VIA C3 Samuel 2");
 			break;
 		default:
-			strcat(cpu_model, "Unknown");
+			strcpy(cpu_model, "VIA/IDT Unknown");
 		}
 	} else if (strcmp(cpu_vendor, "IBM") == 0) {
 		strcpy(cpu_model, "Blue Lightning CPU");
