@@ -240,7 +240,6 @@ tcp_reass(tp, th, tlenp, m)
 		m_freem(m);
 		return (0);
 	}
-	tcp_reass_qsize++;
 
 	/*
 	 * Allocate a new queue entry. If we can't, or hit the zone limit
@@ -252,6 +251,7 @@ tcp_reass(tp, th, tlenp, m)
 		m_freem(m);
 		return (0);
 	}
+	tcp_reass_qsize++;
 
 	/*
 	 * Find a segment which begins after this one does.
