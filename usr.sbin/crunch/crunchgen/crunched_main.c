@@ -52,6 +52,8 @@ int main(int argc, char **argv)
     slash = strrchr(argv[0], '/');
     basename = slash? slash+1 : argv[0];
 
+    if (!strcmp(argv[0], "-"))
+  	basename="sh";     
     for(ep=entry_points; ep->name != NULL; ep++)
 	if(!strcmp(basename, ep->name)) break;
 
