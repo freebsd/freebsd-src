@@ -47,9 +47,11 @@
 .Op Fl mv
 .Op Ar time
 .Sh DESCRIPTION
-.Nm \&At
+The
+.Nm at
 and
 .Nm batch
+utilities
 read commands from standard input or a specified file which are to
 be executed at a later time, using
 .Xr sh 1 .
@@ -67,8 +69,9 @@ drops below _LOADAVG_MX, or the value specified in the invocation of
 .Nm atrun .
 .El
 .Pp
-.Nm \&At
-allows some moderately complex
+The
+.Nm at
+utility allows some moderately complex
 .Ar time
 specifications.
 It accepts times of the form
@@ -332,9 +335,11 @@ in the environment variable
 .Ev LOGNAME .
 If that is undefined or empty, the current userid is assumed.
 .Pp
-.Nm \&At
+The
+.Nm at
 and
 .Nm batch
+utilities
 as presently implemented are not suitable when users are competing for
 resources.
 If this is the case, another batch system such as
