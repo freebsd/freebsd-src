@@ -125,7 +125,7 @@ typedef void __sighandler_t __P((int));
 #define	SIG_HOLD	((__sighandler_t *)2)
 #define	SIG_ERR		((__sighandler_t *)-1)
 
-#ifndef _POSIX_SOURCE
+#ifdef _P1003_1B_VISIBLE
 union sigval {
 	/* Members as suggested by Annex C of POSIX 1003.1b. */
 	int	sigval_int;
@@ -150,7 +150,7 @@ typedef struct __siginfo {
 	long	si_band;		/* band event for SIGPOLL */
 	int	__spare__[7];		/* gimme some slack */
 } siginfo_t;
-#endif
+#endif /* _P1003_1B_VISIBLE */
 
 typedef struct __sigset {
 	unsigned int	__bits[_SIG_WORDS];
