@@ -72,7 +72,6 @@ static struct cdevsw acd_cdevsw = {
 /* prototypes */
 static struct acd_softc *acd_init_lun(struct atapi_softc *, struct devstat *);
 static void acd_make_dev(struct acd_softc *);
-static void acd_clone(void *, char *, int, dev_t *);
 static void acd_describe(struct acd_softc *);
 static void lba2msf(u_int32_t, u_int8_t *, u_int8_t *, u_int8_t *);
 static u_int32_t msf2lba(u_int8_t, u_int8_t, u_int8_t);
@@ -99,7 +98,6 @@ static int acd_set_speed(struct acd_softc *cdp, int);
 
 /* internal vars */
 static u_int32_t acd_lun_map = 0;
-static eventhandler_tag acd_tag;
 static MALLOC_DEFINE(M_ACD, "ACD driver", "ATAPI CD driver buffers");
 
 int
@@ -113,7 +111,6 @@ acdattach(struct atapi_softc *atp)
 
     if (!acd_cdev_done) {
 	cdevsw_add(&acd_cdevsw);
-	acd_tag = EVENTHANDLER_REGISTER(dev_clone, acd_clone, 0, 1000);
 	acd_cdev_done++;
     }
 
@@ -209,6 +206,7 @@ void
 acddetach(struct atapi_softc *atp)
 {   
     struct acd_softc *cdp = atp->driver;
+    struct acd_devlist *entry;
     struct bio *bp;
     int subdev;
     
@@ -221,12 +219,17 @@ acddetach(struct atapi_softc *atp)
         	bp->bio_flags |= BIO_ERROR;
         	biodone(bp);
 	    }
-	    destroy_dev(cdp->dev1);
-	    destroy_dev(cdp->dev2);
-	    devstat_remove_entry(cdp->stats);
-	    free(cdp->stats, M_ACD);
-	    ata_free_lun(&acd_lun_map, cdp->lun);
-	    free(cdp, M_ACD);
+	    destroy_dev(cdp->driver[subdev]->dev1);
+	    destroy_dev(cdp->driver[subdev]->dev2);
+	    while ((entry = TAILQ_FIRST(&cdp->driver[subdev]->dev_list))) {
+		destroy_dev(entry->dev);
+		TAILQ_REMOVE(&cdp->driver[subdev]->dev_list, entry, chain);
+		free(entry, M_ACD);
+	    }
+	    devstat_remove_entry(cdp->driver[subdev]->stats);
+	    free(cdp->driver[subdev]->stats, M_ACD);
+	    ata_free_lun(&acd_lun_map, cdp->driver[subdev]->lun);
+	    free(cdp->driver[subdev], M_ACD);
 	}
 	free(cdp->driver, M_ACD);
 	free(cdp->changer_info, M_ACD);
@@ -238,6 +241,11 @@ acddetach(struct atapi_softc *atp)
     }
     destroy_dev(cdp->dev1);
     destroy_dev(cdp->dev2);
+    while ((entry = TAILQ_FIRST(&cdp->dev_list))) {
+	destroy_dev(entry->dev);
+	TAILQ_REMOVE(&cdp->dev_list, entry, chain);
+	free(entry, M_ACD);
+    }
     devstat_remove_entry(cdp->stats);
     free(cdp->stats, M_ACD);
     ata_free_name(atp->controller, atp->unit);
@@ -252,6 +260,7 @@ acd_init_lun(struct atapi_softc *atp, struct devstat *stats)
 
     if (!(cdp = malloc(sizeof(struct acd_softc), M_ACD, M_NOWAIT | M_ZERO)))
 	return NULL;
+    TAILQ_INIT(&cdp->dev_list);
     bioq_init(&cdp->queue);
     cdp->atp = atp;
     cdp->lun = ata_get_lun(&acd_lun_map);
@@ -288,25 +297,6 @@ acd_make_dev(struct acd_softc *cdp)
     dev->si_bsize_phys = 2048; /* XXX SOS */
     cdp->dev2 = dev;
     cdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
-}
-
-static void
-acd_clone(void *arg, char *name, int namelen, dev_t *dev)
-{
-    char *namep;
-    int unit, track = 0;
-
-    if (*dev != NODEV ||
-	!dev_stdclone(name, &namep, "acd", &unit) || *namep++ != 't' ||
-	!ata_test_lun(&acd_lun_map, unit))
-	return;
-    while (isdigit(*namep)) {
-	track *= 10;
-	track += *namep++ - '0';
-    }
-    if (*namep)
-	return;
-    *dev = make_dev(&acd_cdevsw, (unit<<3)|(track<<16), 0, 0, 0644, name, NULL);
 }
 
 static void 
@@ -526,17 +516,9 @@ msf2lba(u_int8_t m, u_int8_t s, u_int8_t f)
 static int
 acdopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
-    struct acd_softc *cdp;
-    int track = (dev->si_udev & 0x001f0000) >> 16;
-
-    if (track) {
-	dev_t dev1 = makedev(major(dev), (dev->si_udev & 0xffe000ff));
-
-	if (track <= ((struct acd_softc*)(dev1->si_drv1))->toc.hdr.ending_track)
-	    dev->si_drv1 = dev1->si_drv1;
-    }
-
-    if (!(cdp = dev->si_drv1))
+    struct acd_softc *cdp = dev->si_drv1;
+    
+    if (!cdp)
 	return ENXIO;
 
     if (flags & FWRITE) {
@@ -1257,7 +1239,8 @@ acd_done(struct atapi_request *request)
 static void 
 acd_read_toc(struct acd_softc *cdp)
 {
-    int ntracks, len;
+    struct acd_devlist *entry;
+    int track, ntracks, len;
     int8_t ccb[16];
 
     bzero(&cdp->toc, sizeof(cdp->toc));
@@ -1332,6 +1315,22 @@ acd_read_toc(struct acd_softc *cdp)
     cdp->disklabel.d_magic = DISKMAGIC;
     cdp->disklabel.d_magic2 = DISKMAGIC;
     cdp->disklabel.d_checksum = dkcksum(&cdp->disklabel);
+
+    while ((entry = TAILQ_FIRST(&cdp->dev_list))) {
+	destroy_dev(entry->dev);
+	TAILQ_REMOVE(&cdp->dev_list, entry, chain);
+	free(entry, M_ACD);
+    }
+    for (track = 1; track <= ntracks; track ++) {
+	char name[16];
+
+	sprintf(name, "acd%dt%d", cdp->lun, track);
+	entry = malloc(sizeof(struct acd_devlist), M_ACD, M_NOWAIT | M_ZERO);
+    	entry->dev = make_dev(&acd_cdevsw, (cdp->lun << 3) | (track << 16),
+			      0, 0, 0644, name, NULL);
+	entry->dev->si_drv1 = cdp->dev1->si_drv1;
+	TAILQ_INSERT_TAIL(&cdp->dev_list, entry, chain);
+    }
 
 #ifdef ACD_DEBUG
     if (cdp->info.volsize && cdp->toc.hdr.ending_track) {
