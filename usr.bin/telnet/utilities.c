@@ -32,7 +32,12 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)utilities.c	8.2 (Berkeley) 12/15/93";
+#if 0
+static const char sccsid[] = "@(#)utilities.c	8.3 (Berkeley) 5/30/95";
+#else
+static const char rcsid[] =
+ "$FreeBSD$";
+#endif
 #endif /* not lint */
 
 #define	TELOPTS
@@ -40,9 +45,10 @@ static char sccsid[] = "@(#)utilities.c	8.2 (Berkeley) 12/15/93";
 #define	SLC_NAMES
 #include <arpa/telnet.h>
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <sys/time.h>
-
 #include <ctype.h>
+#include <unistd.h>
 
 #include "general.h"
 
@@ -134,7 +140,6 @@ Dump(direction, buffer, length)
 #   define min(x,y)	((x<y)? x:y)
     unsigned char *pThis;
     int offset;
-    extern pettydump;
 
     offset = 0;
 
@@ -419,72 +424,6 @@ printsub(direction, pointer, length)
 		fprintf(NetTrace, " ?%d?", pointer[i]);
 	    break;
 
-#if	defined(AUTHENTICATION)
-	case TELOPT_AUTHENTICATION:
-	    fprintf(NetTrace, "AUTHENTICATION");
-	    if (length < 2) {
-		fprintf(NetTrace, " (empty suboption??\?)");
-		break;
-	    }
-	    switch (pointer[1]) {
-	    case TELQUAL_REPLY:
-	    case TELQUAL_IS:
-		fprintf(NetTrace, " %s ", (pointer[1] == TELQUAL_IS) ?
-							"IS" : "REPLY");
-		if (AUTHTYPE_NAME_OK(pointer[2]))
-		    fprintf(NetTrace, "%s ", AUTHTYPE_NAME(pointer[2]));
-		else
-		    fprintf(NetTrace, "%d ", pointer[2]);
-		if (length < 3) {
-		    fprintf(NetTrace, "(partial suboption??\?)");
-		    break;
-		}
-		fprintf(NetTrace, "%s|%s",
-			((pointer[3] & AUTH_WHO_MASK) == AUTH_WHO_CLIENT) ?
-			"CLIENT" : "SERVER",
-			((pointer[3] & AUTH_HOW_MASK) == AUTH_HOW_MUTUAL) ?
-			"MUTUAL" : "ONE-WAY");
-
-		auth_printsub(&pointer[1], length - 1, buf, sizeof(buf));
-		fprintf(NetTrace, "%s", buf);
-		break;
-
-	    case TELQUAL_SEND:
-		i = 2;
-		fprintf(NetTrace, " SEND ");
-		while (i < length) {
-		    if (AUTHTYPE_NAME_OK(pointer[i]))
-			fprintf(NetTrace, "%s ", AUTHTYPE_NAME(pointer[i]));
-		    else
-			fprintf(NetTrace, "%d ", pointer[i]);
-		    if (++i >= length) {
-			fprintf(NetTrace, "(partial suboption??\?)");
-			break;
-		    }
-		    fprintf(NetTrace, "%s|%s ",
-			((pointer[i] & AUTH_WHO_MASK) == AUTH_WHO_CLIENT) ?
-							"CLIENT" : "SERVER",
-			((pointer[i] & AUTH_HOW_MASK) == AUTH_HOW_MUTUAL) ?
-							"MUTUAL" : "ONE-WAY");
-		    ++i;
-		}
-		break;
-
-	    case TELQUAL_NAME:
-		i = 2;
-		fprintf(NetTrace, " NAME \"");
-		while (i < length)
-		    putc(pointer[i++], NetTrace);
-		putc('"', NetTrace);
-		break;
-
-	    default:
-		    for (i = 2; i < length; i++)
-			fprintf(NetTrace, " ?%d?", pointer[i]);
-		    break;
-	    }
-	    break;
-#endif
 
 
 	case TELOPT_LINEMODE:
@@ -749,7 +688,6 @@ printsub(direction, pointer, length)
 			    break;
 
 			default:
-			def_case:
 			    if (isprint(pointer[i]) && pointer[i] != '"') {
 				if (noquote) {
 				    putc('"', NetTrace);

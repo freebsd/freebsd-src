@@ -32,7 +32,12 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)sys_bsd.c	8.2 (Berkeley) 12/15/93";
+#if 0
+static const char sccsid[] = "@(#)sys_bsd.c	8.4 (Berkeley) 5/30/95";
+#else
+static const char rcsid[] =
+ "$FreeBSD$";
+#endif
 #endif /* not lint */
 
 /*
@@ -611,6 +616,12 @@ TerminalNewMode(f)
     }
 
     if (f != -1) {
+#ifdef	SIGINT
+	SIG_FUNC_RET intr();
+#endif	/* SIGINT */
+#ifdef	SIGQUIT
+	SIG_FUNC_RET intr2();
+#endif	/* SIGQUIT */
 #ifdef	SIGTSTP
 	SIG_FUNC_RET susp();
 #endif	/* SIGTSTP */
@@ -618,6 +629,12 @@ TerminalNewMode(f)
 	SIG_FUNC_RET ayt();
 #endif
 
+#ifdef  SIGINT
+	(void) signal(SIGINT, intr);
+#endif
+#ifdef  SIGQUIT
+	(void) signal(SIGQUIT, intr2);
+#endif
 #ifdef	SIGTSTP
 	(void) signal(SIGTSTP, susp);
 #endif	/* SIGTSTP */
@@ -668,9 +685,19 @@ TerminalNewMode(f)
 
 	(void) signal(SIGINFO, ayt_status);
 #endif
+#ifdef  SIGINT
+	(void) signal(SIGINT, SIG_DFL);
+#endif
+#ifdef  SIGQUIT
+	(void) signal(SIGQUIT, SIG_DFL);
+#endif
 #ifdef	SIGTSTP
 	(void) signal(SIGTSTP, SIG_DFL);
+# ifndef SOLARIS
 	(void) sigsetmask(sigblock(0) & ~(1<<(SIGTSTP-1)));
+# else	SOLARIS
+	(void) sigrelse(SIGTSTP);
+# endif	SOLARIS
 #endif	/* SIGTSTP */
 #ifndef USE_TERMIO
 	ltc = oltc;
@@ -713,13 +740,42 @@ TerminalNewMode(f)
 #endif
 
 #ifdef	DECODE_BAUD
+#ifndef	B7200
+#define B7200   B4800
+#endif
+
+#ifndef	B14400
+#define B14400  B9600
+#endif
+
 #ifndef	B19200
-# define B19200 B9600
+# define B19200 B14400
+#endif
+
+#ifndef	B28800
+#define B28800  B19200
 #endif
 
 #ifndef	B38400
-# define B38400 B19200
+# define B38400 B28800
 #endif
+
+#ifndef B57600
+#define B57600  B38400
+#endif
+
+#ifndef B76800
+#define B76800  B57600
+#endif
+
+#ifndef B115200
+#define B115200 B76800
+#endif
+
+#ifndef B230400
+#define B230400 B115200
+#endif
+
 
 /*
  * This code assumes that the values B0, B50, B75...
@@ -730,12 +786,14 @@ struct termspeeds {
 	long speed;
 	long value;
 } termspeeds[] = {
-	{ 0,     B0 },     { 50,    B50 },   { 75,    B75 },
-	{ 110,   B110 },   { 134,   B134 },  { 150,   B150 },
-	{ 200,   B200 },   { 300,   B300 },  { 600,   B600 },
-	{ 1200,  B1200 },  { 1800,  B1800 }, { 2400,  B2400 },
-	{ 4800,  B4800 },  { 9600,  B9600 }, { 19200, B19200 },
-	{ 38400, B38400 }, { -1,    B38400 }
+	{ 0,      B0 },      { 50,    B50 },    { 75,     B75 },
+	{ 110,    B110 },    { 134,   B134 },   { 150,    B150 },
+	{ 200,    B200 },    { 300,   B300 },   { 600,    B600 },
+	{ 1200,   B1200 },   { 1800,  B1800 },  { 2400,   B2400 },
+	{ 4800,   B4800 },   { 7200,  B7200 },  { 9600,   B9600 },
+	{ 14400,  B14400 },  { 19200, B19200 }, { 28800,  B28800 },
+	{ 38400,  B38400 },  { 57600, B57600 }, { 115200, B115200 },
+	{ 230400, B230400 }, { -1,    B230400 }
 };
 #endif	/* DECODE_BAUD */
 
@@ -1102,7 +1160,7 @@ process_rings(netin, netout, netex, ttyin, ttyout, poll)
 		    int i;
 		    i = recv(net, netiring.supply + c, canread - c, MSG_OOB);
 		    if (i == c &&
-			  bcmp(netiring.supply, netiring.supply + c, i) == 0) {
+			memcmp(netiring.supply, netiring.supply + c, i) == 0) {
 			bogus_oob = 1;
 			first = 0;
 		    } else if (i < 0) {
@@ -1156,19 +1214,14 @@ process_rings(netin, netout, netex, ttyin, ttyout, poll)
 	if (c < 0 && errno == EWOULDBLOCK) {
 	    c = 0;
 	} else {
-	    if (c < 0) {
-		return -1;
-	    }
-	    if (c == 0) {
+	    /* EOF detection for line mode!!!! */
+	    if ((c == 0) && MODE_LOCAL_CHARS(globalmode) && isatty(tin)) {
 			/* must be an EOF... */
-		if (MODE_LOCAL_CHARS(globalmode) && isatty(tin)) {
 		*ttyiring.supply = termEofChar;
 		c = 1;
-		} else {
-		    clienteof = 1;
-		    shutdown(net, 1);
-		    return 0;
 	    }
+	    if (c <= 0) {
+		return -1;
 	    }
 	    if (termdata) {
 		Dump('<', ttyiring.supply, c);
