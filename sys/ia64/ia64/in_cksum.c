@@ -89,7 +89,7 @@ union q_util {
 };
 
 static u_int64_t
-in_cksumdata(const void *buf, size_t len)
+in_cksumdata(const void *buf, int len)
 {
 	const u_int32_t *lw = (const u_int32_t *) buf;
 	u_int64_t sum = 0;
