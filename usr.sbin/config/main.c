@@ -65,7 +65,7 @@ static const char rcsid[] =
 #define FALSE	(0)
 #endif
 
-char *PREFIX;
+static char *PREFIX;
 static int no_config_clobber = FALSE;
 int old_config_present;
 
