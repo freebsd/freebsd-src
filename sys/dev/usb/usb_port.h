@@ -65,6 +65,7 @@ typedef struct device *device_ptr_t;
 #define USBDEV(bdev) (&(bdev))
 #define USBDEVNAME(bdev) ((bdev).dv_xname)
 #define USBDEVPTRNAME(bdevptr) ((bdevptr)->dv_xname)
+#define USBDEVUNIT(bdev) ((bdev).dv_unit)
 
 #define DECLARE_USB_DMA_T \
 	struct usb_dma_block; \
@@ -177,6 +178,7 @@ typedef struct device device_ptr_t;
 #define USBDEV(bdev) (&(bdev))
 #define USBDEVNAME(bdev) ((bdev).dv_xname)
 #define USBDEVPTRNAME(bdevptr) ((bdevptr)->dv_xname)
+#define USBDEVUNIT(bdev) ((bdev).dv_unit)
 
 #define DECLARE_USB_DMA_T \
 	struct usb_dma_block; \
@@ -271,6 +273,7 @@ __CONCAT(dname,_detach)(self, flags) \
 #define USBDEV(bdev) (bdev)
 #define USBDEVNAME(bdev) device_get_nameunit(bdev)
 #define USBDEVPTRNAME(bdev) device_get_nameunit(bdev)
+#define USBDEVUNIT(bdev) device_get_unit(bdev)
 
 #define DECLARE_USB_DMA_T typedef void * usb_dma_t
 

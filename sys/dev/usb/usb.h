@@ -477,17 +477,21 @@ struct usb_ctl_report_desc {
 };
 
 struct usb_device_info {
-	u_int8_t	addr;	/* device address */
-	char		product[USB_MAX_STRING_LEN];
-	char		vendor[USB_MAX_STRING_LEN];
-	char		release[8];
-	u_int16_t	productNo;
-	u_int16_t	vendorNo;
-	u_int8_t	class;
-	u_int8_t	config;
-	u_int8_t	lowspeed;
+	u_int8_t	bus;				/* bus number */
+	u_int8_t	addr;				/* device address */
+	char		product[USB_MAX_STRING_LEN];	/* iProduct */
+	char		vendor[USB_MAX_STRING_LEN];	/* iManufacturer */
+	char		release[8];			/* string of releaseNo*/
+	u_int16_t	productNo;			/* idProduct */
+	u_int16_t	vendorNo;			/* idVendor */
+	u_int16_t	releaseNo;			/* bcdDevice */
+	u_int8_t	class;				/* bDeviceClass */
+	u_int8_t	subclass;			/* bDeviceSubclass */
+	u_int8_t	protocol;			/* bDeviceProtocol */
+	u_int8_t	config;				/* config index */
+	u_int8_t	lowspeed;			/* lowsped yes/no */
 	int		power;	/* power consumption in mA, 0 if selfpowered */
-	int		nports;
+	int		nports;				/* 0 if not hub */
 	u_int8_t	ports[16];/* hub only: addresses of devices on ports */
 #define USB_PORT_ENABLED 0xff
 #define USB_PORT_SUSPENDED 0xfe
