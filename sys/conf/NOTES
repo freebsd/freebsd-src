@@ -2520,6 +2520,8 @@ device		umodem
 device		ums
 # Diamond Rio 500 Mp3 player
 device		urio
+# USB scanners
+device		uscanner
 #
 # ADMtek USB ethernet. Supports the LinkSys USB100TX,
 # the Billionton USB100, the Melco LU-ATX, the D-Link DSB-650TX

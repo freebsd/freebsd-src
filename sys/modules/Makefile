@@ -13,6 +13,7 @@ SUBDIR=	3dfx accf_data accf_http agp aha amr an aue \
 	nwfs pcn portal procfs ${_random} \
 	rl rp sf sis sk sn sound ste syscons ti tl twe tx \
 	udbp ugen uhid ukbd ulpt umapfs umass umodem ums union urio usb \
+	uscanner \
 	vinum vn vpo vr wb wx xl
 
 # XXX some of these can move to the general case when de-i386'ed
