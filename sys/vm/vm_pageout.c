@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.28 1995/01/02 22:56:00 ats Exp $
+ * $Id: vm_pageout.c,v 1.29 1995/01/09 16:05:53 davidg Exp $
  */
 
 /*
@@ -483,7 +483,7 @@ vm_req_vmdaemon()
 	static int lastrun = 0;
 
 	if ((ticks > (lastrun + hz / 10)) || (ticks < lastrun)) {
-		wakeup((caddr_t) & vm_daemon_needed);
+		wakeup((caddr_t) &vm_daemon_needed);
 		lastrun = ticks;
 	}
 }
@@ -813,7 +813,7 @@ rescan1:
 			bigproc->p_estcpu = 0;
 			bigproc->p_nice = PRIO_MIN;
 			resetpriority(bigproc);
-			wakeup((caddr_t) & cnt.v_free_count);
+			wakeup((caddr_t) &cnt.v_free_count);
 		}
 	}
 	vm_page_pagesfreed += pages_freed;
@@ -865,12 +865,12 @@ vm_pageout()
 	 * The pageout daemon is never done, so loop forever.
 	 */
 	while (TRUE) {
-		tsleep((caddr_t) & vm_pages_needed, PVM, "psleep", 0);
+		tsleep((caddr_t) &vm_pages_needed, PVM, "psleep", 0);
 		cnt.v_pdwakeups++;
 		vm_pager_sync();
 		vm_pageout_scan();
 		vm_pager_sync();
-		wakeup((caddr_t) & cnt.v_free_count);
+		wakeup((caddr_t) &cnt.v_free_count);
 		wakeup((caddr_t) kmem_map);
 	}
 }
@@ -883,7 +883,7 @@ vm_daemon()
 	struct proc *p;
 
 	while (TRUE) {
-		tsleep((caddr_t) & vm_daemon_needed, PUSER, "psleep", 0);
+		tsleep((caddr_t) &vm_daemon_needed, PUSER, "psleep", 0);
 		swapout_threads();
 		/*
 		 * scan the processes for exceeding their rlimits or if
