@@ -1414,8 +1414,9 @@ init(signo)
 				continue;
 		}
 		if (*p == '+' || *p == '-') {
-			host[0] = *p++;
-			while (isspace(*p)) p++;
+			host[0] = *++p;
+			while (isspace(*p))
+				p++;
 			if ((!*p) || (*p == '*')) {
 				(void)strlcpy(host, "*", sizeof(host));
 				continue;
