@@ -23,7 +23,7 @@
   </abstract>
 </articleinfo>
 
-<sect1>
+<sect1 id="intro">
   <title>Introduction</title>
 
   <para>This document contains the release notes for &os;
@@ -77,7 +77,7 @@
 
 -->
 
-<sect1>
+<sect1 id="new">
   <title>What's New</title>
 
   <para>This section describes the most user-visible new or changed
@@ -109,14 +109,14 @@
 
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
-    <sect3>
+    <sect3 id="proc">
       <title>Processor/Motherboard Support</title>
 
       <para></para>
 
     </sect3>
 
-    <sect3>
+    <sect3 id="boot">
       <title>Boot Loaders</title>
 
       <para></para>
@@ -125,7 +125,7 @@
 
     </sect3>
 
-    <sect3>
+    <sect3 id="net-if">
       <title>Network Interface Support</title>
 
       <para></para>
@@ -134,35 +134,35 @@
 
     </sect3>
 
-    <sect3>
+    <sect3 id="net-proto">
       <title>Network Protocols</title>
 
       <para></para>
 
     </sect3>
 
-    <sect3>
+    <sect3 id="disks">
       <title>Disks and Storage</title>
 
       <para></para>
 
     </sect3>
 
-    <sect3>
+    <sect3 id="fs">
       <title>Filesystems</title>
 
       <para></para>
 
     </sect3>
 
-    <sect3>
+    <sect3 id="pccard">
       <title>PCCARD Support</title>
 
       <para></para>
 
     </sect3>
 
-    <sect3>
+    <sect3 id="mm">
       <title>Multimedia Support</title>
 
       <para></para>
@@ -179,7 +179,7 @@
 
   </sect2>
 
-    <sect2>
+    <sect2 id="contrib">
       <title>Contributed Software</title>
 
       <para><application>sendmail</application> has been updated to
@@ -187,14 +187,14 @@
 
     </sect2>
 
-    <sect2>
+    <sect2 id="ports">
       <title>Ports/Packages Collection Infrastructure</title>
 
       <para></para>
 
     </sect2>
 
-  <sect2>
+  <sect2 id="releng">
     <title>Release Engineering and Integration</title>
 
     <para></para>
@@ -202,7 +202,7 @@
   </sect2>
 </sect1>
 
-<sect1>
+<sect1 id="upgrade">
   <title>Upgrading from previous releases of &os;</title>
 
   <para>If you're upgrading from a previous release of &os;, you
