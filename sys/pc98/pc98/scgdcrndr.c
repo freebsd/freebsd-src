@@ -30,9 +30,10 @@
 #include "opt_gdc.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/consio.h>
 #include <sys/fbio.h>
+#include <sys/consio.h>
 
 #include <dev/fb/fbreg.h>
 #include <dev/syscons/syscons.h>
