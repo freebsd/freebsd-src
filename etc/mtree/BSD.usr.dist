@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.118 1998/08/16 10:32:15 jkh Exp $
+#	$Id: BSD.usr.dist,v 1.119 1998/09/05 12:25:54 asami Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -366,6 +366,8 @@
         man             uname=bin
             cat1
             ..
+            cat1aout
+            ..
             cat2
             ..
             cat3
@@ -433,6 +435,8 @@
                 ..
             ..
             man1            uname=bin
+            ..
+            man1aout
             ..
             man2            uname=bin
             ..
