@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.port.subdir.mk,v 1.1 1994/08/22 10:46:38 jkh Exp $
+#	$Id: bsd.port.subdir.mk,v 1.2 1994/08/22 11:20:07 jkh Exp $
 
 .MAIN: all
 
@@ -33,6 +33,10 @@ ${SUBDIR}::
 
 .if !target(all)
 all: _SUBDIRUSE
+.endif
+
+.if !target(package)
+package: _SUBDIRUSE
 .endif
 
 .if !target(bundle)
