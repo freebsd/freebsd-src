@@ -45,6 +45,7 @@
 
 #define	PCI_PRODUCT_QLOGIC_ISP1020	0x1020
 #define	PCI_PRODUCT_QLOGIC_ISP1080	0x1080
+#define	PCI_PRODUCT_QLOGIC_ISP10160	0x1016
 #define	PCI_PRODUCT_QLOGIC_ISP12160	0x1216
 #define	PCI_PRODUCT_QLOGIC_ISP1240	0x1240
 #define	PCI_PRODUCT_QLOGIC_ISP1280	0x1280
@@ -109,6 +110,7 @@ isp_get_firmware(int version, int tgtmode, int devid, const u_int16_t **ptrp)
 			else
 				rp = isp_1080_risc_code;
 			break;
+		case PCI_PRODUCT_QLOGIC_ISP10160:
 		case PCI_PRODUCT_QLOGIC_ISP12160:
 			if (tgtmode)
 				rp = isp_12160_risc_code_it;
