@@ -170,8 +170,8 @@ case ${ipv6_firewall_type} in
 	${fw6cmd} add deny all from ${onet}/${oprefixlen} to any in via ${iif}
 
 	# Stop site-local on the outside interface
-	${fw6cmd} add deny all from ff02::/16 to any via ${oif}
-	${fw6cmd} add deny all from any to ff02::/16 via ${oif}
+	${fw6cmd} add deny all from fec0::/10 to any via ${oif}
+	${fw6cmd} add deny all from any to fec0::/10 via ${oif}
 
 	# Disallow "internal" addresses to appear on the wire.
 	${fw6cmd} add deny all from ::ffff:0.0.0.0/96 to any via ${oif}
