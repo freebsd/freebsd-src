@@ -31,19 +31,20 @@
  * SUCH DAMAGE.
  */
 
+#if 0
 #ifndef lint
-static const char copyright[] =
+static char copyright[] =
 "@(#) Copyright (c) 1980, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-#if 0
 static char sccsid[] = "@(#)whois.c	8.1 (Berkeley) 6/6/93";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -84,12 +85,11 @@ static char *choose_server(char *);
 static struct addrinfo *gethostinfo(char const *host, int exit_on_error);
 static void s_asprintf(char **ret, const char *format, ...);
 static void usage(void);
-static void whois(char *, struct addrinfo *, int);
+static void whois(const char *, const char *, int);
 
 int
 main(int argc, char *argv[])
 {
-	struct addrinfo *res;
 	const char *country, *host;
 	char *qnichost;
 	int ch, flags, use_qnichost;
@@ -162,20 +162,18 @@ main(int argc, char *argv[])
 		if (!(flags & WHOIS_QUICK))
 			flags |= WHOIS_RECURSE;
 	}
-	while (argc--) {
+	while (argc-- > 0) {
 		if (country != NULL) {
 			s_asprintf(&qnichost, "%s%s", country, QNICHOST_TAIL);
-			res = gethostinfo(qnichost, 1);
+			whois(*argv, qnichost, flags);
 		} else if (use_qnichost)
 			if ((qnichost = choose_server(*argv)) != NULL)
-				res = gethostinfo(qnichost, 1);
+				whois(*argv, qnichost, flags);
 		if (qnichost == NULL)
-			res = gethostinfo(host, 1);
-
+			whois(*argv, host, flags);
 		free(qnichost);
 		qnichost = NULL;
-		whois(*argv++, res, flags);
-		freeaddrinfo(res);
+		argv++;
 	}
 	exit(0);
 }
@@ -243,15 +241,16 @@ s_asprintf(char **ret, const char *format, ...)
 }
 
 static void
-whois(char *name, struct addrinfo *res, int flags)
+whois(const char *query, const char *hostname, int flags)
 {
 	FILE *sfi, *sfo;
-	struct addrinfo *res2;
+	struct addrinfo *hostres, *res;
 	char *buf, *host, *nhost, *p;
 	int i, s;
 	size_t len;
 
-	for (; res; res = res->ai_next) {
+	hostres = gethostinfo(hostname, 1);
+	for (res = hostres; res; res = res->ai_next) {
 		s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 		if (s < 0)
 			continue;
@@ -259,6 +258,7 @@ whois(char *name, struct addrinfo *res, int flags)
 			break;
 		close(s);
 	}
+	freeaddrinfo(hostres);
 	if (res == NULL)
 		err(EX_OSERR, "connect()");
 
@@ -266,7 +266,7 @@ whois(char *name, struct addrinfo *res, int flags)
 	sfo = fdopen(s, "w");
 	if (sfi == NULL || sfo == NULL)
 		err(EX_OSERR, "fdopen()");
-	fprintf(sfo, "%s\r\n", name);
+	fprintf(sfo, "%s\r\n", query);
 	fflush(sfo);
 	nhost = NULL;
 	while ((buf = fgetln(sfi, &len)) != NULL) {
@@ -286,7 +286,7 @@ whois(char *name, struct addrinfo *res, int flags)
 				}
 				s_asprintf(&nhost, "%.*s",
 				     (int)(buf + len - host), host);
-			} else {
+			} else if (strcmp(hostname, ANICHOST) == 0) {
 				for (i = 0; ip_whois[i] != NULL; i++) {
 					if (strnstr(buf, ip_whois[i], len) !=
 					    NULL) {
@@ -299,13 +299,8 @@ whois(char *name, struct addrinfo *res, int flags)
 		}
 	}
 	if (nhost != NULL) {
-		if ((res2 = gethostinfo(nhost, 0)) == NULL) {
-			free(nhost);
-			return;
-		}
+		whois(query, nhost, 0);
 		free(nhost);
-		whois(name, res2, 0);
-		freeaddrinfo(res2);
 	}
 }
 
