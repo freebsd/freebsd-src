@@ -261,7 +261,7 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 			m_freem(m);
 			return(EMSGSIZE);
 		}
-		M_PREPEND(m, sizeof(struct ip), M_TRYWAIT);
+		M_PREPEND(m, sizeof(struct ip), M_DONTWAIT);
 		if (m == NULL)
 			return(ENOBUFS);
 
