@@ -236,6 +236,8 @@ aac_attach(struct aac_softc *sc)
      */
     unit = device_get_unit(sc->aac_dev);
     sc->aac_dev_t = make_dev(&aac_cdevsw, unit, UID_ROOT, GID_WHEEL, 0644, "aac%d", unit);
+    (void)make_dev_alias(sc->aac_dev_t, "afa%d", unit);
+
     sc->aac_dev_t->si_drv1 = sc;
 
     return(0);
