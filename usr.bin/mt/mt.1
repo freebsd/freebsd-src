@@ -110,9 +110,13 @@ string has been taken for.
 .It Cm eom
 Forward space to end of recorded medium
 (Count is ignored).
+.It Cm eod
+Forward space to end of data, identical to
+.Cm eom .
 .It Cm comp
 Set compression mode.
-(Not yet implemented.)
+(The kernel counterpart of this has not yet been reported to work
+correctly.)
 .El
 .Pp
 If a tape name is not specified, and the environment variable
@@ -195,16 +199,16 @@ argument
 .Ar tapename
 is not given.
 .Sh FILES
-.Bl -tag -width /dev/rwt* -compact
-.It Pa /dev/rwt*
-Raw magnetic tape interface
-.It Pa /dev/*st[0-9]*
+.Bl -tag -width /dev/*rst[0-9]*xx -compact
+.It Pa /dev/*rwt*
+QIC-02/QIC-36 magnetic tape interface
+.It Pa /dev/*rst[0-9]*
 SCSI magnetic tape interface
 .El
 .Sh SEE ALSO
-.\".Xr mtio 4 ,
+.Xr mtio 4 ,
 .Xr st 4 ,
-.\".Xr wt 4 ,
+.Xr wt 4 ,
 .Xr dd 1 ,
 .Xr ioctl 2 ,
 .Xr environ 7
@@ -213,7 +217,7 @@ The
 .Nm
 command appeared in
 .Bx 4.3 .
-
+.Pp
 Extensions regarding the
 .Xr st 4
 driver appeared in 386BSD 0.1 as a separate
@@ -222,5 +226,13 @@ command, and have been merged into the
 .Nm
 command in
 .Fx 2.1 .
-.\" mt.1: mtio(4) missing
-.\" mt.1: wt(4) missing
+.Pp
+The former
+.Cm eof
+command that used to be a synonym for
+.Cm weof
+has been abandoned in
+.Fx 2.1
+since it was often confused with
+.Cm eom ,
+which is fairly dangerous.
