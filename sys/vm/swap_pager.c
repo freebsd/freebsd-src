@@ -64,7 +64,7 @@
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
  *
- * $Id: swap_pager.c,v 1.115 1999/02/21 08:30:49 dillon Exp $
+ * $Id: swap_pager.c,v 1.116 1999/02/21 08:34:15 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -150,6 +150,7 @@ static void	swap_pager_dealloc __P((vm_object_t object));
 static int	swap_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
 static void	swap_pager_init __P((void));
 static void	swap_pager_unswapped __P((vm_page_t));
+static void	swap_pager_strategy __P((vm_object_t, struct buf *));
 
 struct pagerops swappagerops = {
 	swap_pager_init,	/* early system initialization of pager	*/
@@ -158,7 +159,8 @@ struct pagerops swappagerops = {
 	swap_pager_getpages,	/* pagein				*/
 	swap_pager_putpages,	/* pageout				*/
 	swap_pager_haspage,	/* get backing store status for page	*/
-	swap_pager_unswapped	/* remove swap related to page		*/
+	swap_pager_unswapped,	/* remove swap related to page		*/
+	swap_pager_strategy	/* pager strategy call			*/
 };
 
 /*
@@ -748,6 +750,230 @@ swap_pager_unswapped(m)
 }
 
 /*
+ * SWAP_PAGER_STRATEGY() - read, write, free blocks
+ *
+ *	This implements the vm_pager_strategy() interface to swap and allows
+ *	other parts of the system to directly access swap as backing store
+ *	through vm_objects of type OBJT_SWAP.  This is intended to be a 
+ *	cacheless interface ( i.e. caching occurs at higher levels ).
+ *	Therefore we do not maintain any resident pages.  All I/O goes
+ *	directly from and to the swap device.
+ *	
+ *	Note that b_blkno is scaled for PAGE_SIZE
+ *
+ *	We currently attempt to run I/O synchronously or asynchronously as
+ *	the caller requests.  This isn't perfect because we loose error
+ *	sequencing when we run multiple ops in parallel to satisfy a request.
+ *	But this is swap, so we let it all hang out.
+ */
+
+static void	
+swap_pager_strategy(vm_object_t object, struct buf *bp)
+{
+	vm_pindex_t start;
+	int count;
+	char *data;
+	struct buf *nbp = NULL;
+
+	if (bp->b_bcount & PAGE_MASK) {
+		bp->b_error = EINVAL;
+		bp->b_flags |= B_ERROR | B_INVAL;
+		biodone(bp);
+		printf("swap_pager_strategy: bp %p b_vp %p blk %d size %d, not page bounded\n", bp, bp->b_vp, (int)bp->b_pblkno, (int)bp->b_bcount);
+		return;
+	}
+
+	/*
+	 * Clear error indication, initialize page index, count, data pointer.
+	 */
+
+	bp->b_error = 0;
+	bp->b_flags &= ~B_ERROR;
+	bp->b_resid = bp->b_bcount;
+
+	start = bp->b_pblkno;
+	count = howmany(bp->b_bcount, PAGE_SIZE);
+	data = bp->b_data;
+
+	/*
+	 * Execute strategy function
+	 */
+
+	if (bp->b_flags & B_FREEBUF) {
+		/*
+		 * FREE PAGE(s) - destroy underlying swap that is no longer
+		 *		  needed.
+		 */
+		int s;
+
+		s = splvm();
+		swp_pager_meta_free(object, start, count);
+		splx(s);
+		bp->b_resid = 0;
+	} else if (bp->b_flags & B_READ) {
+		/*
+		 * READ FROM SWAP - read directly from swap backing store,
+		 *		    zero-fill as appropriate.
+		 *
+		 *	Note: the count == 0 case is beyond the end of the
+		 *	buffer.  This is a special case to close out any
+		 *	left over nbp.
+		 */
+
+		while (count > 0) {
+			daddr_t blk;
+			int s;
+
+			s = splvm();
+			blk = swp_pager_meta_ctl(object, start, 0);
+			splx(s);
+
+			/*
+			 * Do we have to flush our current collection?
+			 */
+
+			if (
+			    nbp && (
+			     (blk & SWAPBLK_NONE) ||
+			     nbp->b_blkno + btoc(nbp->b_bcount) != blk
+			    )
+			) {
+				++cnt.v_swapin;
+				cnt.v_swappgsin += btoc(nbp->b_bcount);
+				flushchainbuf(nbp);
+				nbp = NULL;
+			}
+
+			/*
+			 * Add to collection
+			 */
+			if (blk & SWAPBLK_NONE) {
+				s = splbio();
+				bp->b_resid -= PAGE_SIZE;
+				splx(s);
+				bzero(data, PAGE_SIZE);
+			} else {
+				if (nbp == NULL) {
+					nbp = getchainbuf(bp, swapdev_vp, B_READ|B_ASYNC);
+					nbp->b_blkno = blk;
+					nbp->b_data = data;
+				}
+				nbp->b_bcount += PAGE_SIZE;
+			}
+			--count;
+			++start;
+			data += PAGE_SIZE;
+		}
+	} else {
+		/*
+		 * WRITE TO SWAP - [re]allocate swap and write.
+		 */
+		while (count > 0) {
+			int i;
+			int s;
+			int n;
+			daddr_t blk;
+
+			n = min(count, BLIST_MAX_ALLOC);
+			n = min(n, nsw_cluster_max);
+
+			s = splvm();
+			for (;;) {
+				blk = swp_pager_getswapspace(n);
+				if (blk != SWAPBLK_NONE)
+					break;
+				n >>= 1;
+				if (n == 0)
+					break;
+			}
+			if (n == 0) {
+				bp->b_error = ENOMEM;
+				bp->b_flags |= B_ERROR;
+				splx(s);
+				break;
+			}
+
+			/*
+			 * Oops, too big if it crosses a stripe
+			 *
+			 * 1111000000
+			 *     111111
+			 *    1000001
+			 */
+			if ((blk ^ (blk + n)) & dmmax_mask) {
+				int j = ((blk + dmmax) & dmmax_mask) - blk;
+				swp_pager_freeswapspace(blk + j, n - j);
+				n = j;
+			}
+
+			swp_pager_meta_free(object, start, n);
+
+			splx(s);
+
+			if (nbp) {
+				++cnt.v_swapout;
+				cnt.v_swappgsout += btoc(nbp->b_bcount);
+				flushchainbuf(nbp);
+			}
+
+			nbp = getchainbuf(bp, swapdev_vp, B_ASYNC);
+
+			nbp->b_blkno = blk;
+			nbp->b_data = data;
+			nbp->b_bcount = PAGE_SIZE * n;
+
+			/*
+			 * Must set dirty range for NFS to work.  dirtybeg &
+			 * off are already 0.
+			 */
+			nbp->b_dirtyend = nbp->b_bcount;
+
+			++cnt.v_swapout;
+			cnt.v_swappgsout += n;
+
+			s = splbio();
+			for (i = 0; i < n; ++i) {
+				swp_pager_meta_build(
+				    object, 
+				    start + i,
+				    blk + i,
+				    1
+				);
+			}
+			splx(s);
+
+			count -= n;
+			start += n;
+			data += PAGE_SIZE * n;
+		}
+	}
+
+	/*
+	 * Cleanup.  Commit last nbp either async or sync, and either 
+	 * wait for it synchronously or make it auto-biodone itself and 
+	 * the parent bp.
+	 */
+
+	if (nbp) {
+		if ((bp->b_flags & B_ASYNC) == 0)
+			nbp->b_flags &= ~B_ASYNC;
+		if (nbp->b_flags & B_READ) {
+			++cnt.v_swapin;
+			cnt.v_swappgsin += btoc(nbp->b_bcount);
+		} else {
+			++cnt.v_swapout;
+			cnt.v_swappgsout += btoc(nbp->b_bcount);
+		}
+		flushchainbuf(nbp);
+	}
+	if (bp->b_flags & B_ASYNC) {
+		autochaindone(bp);
+	} else {
+		waitchainbuf(bp, 0, 1);
+	}
+}
+
+/*
  * SWAP_PAGER_GETPAGES() - bring pages in from swap
  *
  *	Attempt to retrieve (m, count) pages from backing store, but make
@@ -886,9 +1112,9 @@ swap_pager_getpages(object, m, count, reqpage)
 	bp->b_iodone = swp_pager_async_iodone;
 	bp->b_proc = &proc0;	/* XXX (but without B_PHYS set this is ok) */
 	bp->b_rcred = bp->b_wcred = bp->b_proc->p_ucred;
+	bp->b_data = (caddr_t) kva;
 	crhold(bp->b_rcred);
 	crhold(bp->b_wcred);
-	bp->b_data = (caddr_t) kva;
 	/*
 	 * b_blkno is in page-sized chunks.  swapblk is valid, too, so
 	 * we don't have to mask it against SWAPBLK_MASK.
@@ -1039,7 +1265,7 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 	/*
 	 * Step 2
 	 *
-	 * Update nsw parameters from swap_async_max sysctl values.
+	 * Update nsw parameters from swap_async_max sysctl values.  
 	 * Do not let the sysop crash the machine with bogus numbers.
 	 */
 
@@ -1133,10 +1359,10 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 
 		if (sync == TRUE) {
 			bp = getpbuf(&nsw_wcount_sync);
-			bp->b_flags = B_BUSY;
+			bp->b_flags = B_BUSY | B_CALL;
 		} else {
 			bp = getpbuf(&nsw_wcount_async);
-			bp->b_flags = B_BUSY | B_ASYNC;
+			bp->b_flags = B_BUSY | B_CALL | B_ASYNC;
 		}
 		bp->b_spc = NULL;	/* not used, but NULL-out anyway */
 
@@ -1144,16 +1370,14 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 
 		bp->b_proc = &proc0; /* XXX (but without B_PHYS this is ok) */
 		bp->b_rcred = bp->b_wcred = bp->b_proc->p_ucred;
-
-		if (bp->b_rcred != NOCRED)
-			crhold(bp->b_rcred);
-		if (bp->b_wcred != NOCRED)
-			crhold(bp->b_wcred);
-		pbgetvp(swapdev_vp, bp);
-
 		bp->b_bcount = PAGE_SIZE * n;
 		bp->b_bufsize = PAGE_SIZE * n;
 		bp->b_blkno = blk;
+
+		crhold(bp->b_rcred);
+		crhold(bp->b_wcred);
+
+		pbgetvp(swapdev_vp, bp);
 
 		s = splvm();
 
@@ -1172,8 +1396,12 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 			vm_page_flag_set(mreq, PG_SWAPINPROG);
 			bp->b_pages[j] = mreq;
 		}
-		bp->b_flags |= B_CALL;
 		bp->b_npages = n;
+		/*
+		 * Must set dirty range for NFS to work.
+		 */
+		bp->b_dirtyoff = 0;
+		bp->b_dirtyend = bp->b_bcount;
 
 		cnt.v_swapout++;
 		cnt.v_swappgsout += bp->b_npages;
@@ -1187,8 +1415,6 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 
 		if (sync == FALSE) {
 			bp->b_iodone = swp_pager_async_iodone;
-			bp->b_dirtyoff = 0;
-			bp->b_dirtyend = bp->b_bcount;
 			VOP_STRATEGY(bp->b_vp, bp);
 
 			for (j = 0; j < n; ++j)
@@ -1219,7 +1445,6 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 
 		for (j = 0; j < n; ++j)
 			rtvals[i+j] = VM_PAGER_PEND;
-
 
 		/*
 		 * Now that we are through with the bp, we can call the

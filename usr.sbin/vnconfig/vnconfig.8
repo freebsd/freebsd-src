@@ -47,7 +47,8 @@
 .Op Fl cdeguv
 .Op Fl s Ar option
 .Op Fl r Ar option
-.Ar special_file Ar regular_file
+.Op Fl S Ar value
+.Ar special_file Ar [regular_file]
 .Op Ar feature
 .Nm vnconfig
 .Fl a 
@@ -65,7 +66,10 @@ with the regular file
 .Ar regular_file
 allowing the latter to be accessed as though it were a disk.
 Hence a regular file within the filesystem can be used for swapping
-or can contain a filesystem that is mounted in the name space.
+or can contain a filesystem that is mounted in the name space.  If you
+want to use swap backing store for your device instead of a file, you
+can leave regular_file out and specify the size of the block device
+with the -S option.
 .Pp
 Options indicate an action to be performed:
 .Bl -tag -width indent
@@ -124,6 +128,11 @@ Set
 The list of allowed flags and their meanings are the same as for the
 .Fl r
 option.
+.It Fl S Ar value{k,m,g,t}
+If no regular file is specified, VN will use swap for backing store.
+This option specifies the size of the device.  For example, '23m' for
+23 megabytes.  The VN device will round the size up to a machine page boundry.
+Filesystems up to 7.9 terrabytes are supported.
 .It Fl u
 Disable and ``unconfigure'' the device.
 .It Fl v
