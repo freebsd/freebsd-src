@@ -1,6 +1,6 @@
 <!-- This is an SGML document in the linuxdoc DTD of the Tutorial for
      Configuring a FreeBSD for Dialup Services by Guy Helmer.
-     $Id: dialup.sgml,v 1.4 1995/12/04 17:58:37 jfieber Exp $
+     $Id: dialup.sgml,v 1.5 1996/01/31 14:26:02 mpp Exp $
 
 <!DOCTYPE linuxdoc PUBLIC "-//Linux//DTD linuxdoc//EN">
 
@@ -211,7 +211,7 @@ Hint: to view just the messages that have the word <tt/sio/, use the
 command: 
 
 <tscreen><verb>
-/usr/sbin/dmesg | grep 'sio'
+/sbin/dmesg | grep 'sio'
 </verb></tscreen>
 
 For example, on a system with four serial ports, these are the
