@@ -1742,8 +1742,60 @@ AGP port.
 
 For the UP1100 the kernel config file must contain:
 	cpu		EV5
-	options         API_UP1100              # UP1000, UP1100 (Nautilus)
+	options         API_UP1000              # UP1000, UP1100 (Nautilus)
 
+*
+* Alpha Processor Inc. CS20
+*
+
+The CS20 is a 19", 1U high rackmount server based on the 21264a CPU. It can
+have a maximum of 2 CPUs.
+
+Features:
+- 21264a Alpha CPU at 667 or 833 MHz (max. 2 CPUs)
+- memory bus: 100MHz 256-bit wide
+- 21271 Core Logic chipset ("Tsunami")
+- Acer Labs M1533 PCI-ISA bridge controller / super-IO chip
+- PS/2 mouse & keyboard port
+- memory: 168-pin PC100 PLL buffered/registered SDRAM DIMMS
+          8 DIMM slots 
+	  uses ECC memory
+	  min 256 Mbytes / max 2 Gbytes of memory
+- 2x 16550A serial port
+- 1x ECP/EPP parallel port
+- floppy interface
+- ALI M1543C Ultra DMA66 IDE interface
+- embedded dual Intel 82559 10/100Mbit ethernet
+- embedded Symbios 53C1000 Ultra160 SCSI controller
+- expansion: 2 64 bit PCI slots (2/3 length)
+
+Console:
+SRM console code comes standard with the CS20. The SRM lives in 2Mbytes of
+flash ROM.
+
+Memory:
+The CS20 needs ECC capable DIMMs. Note that it uses *buffered* DIMMs.
+
+Monitoring:
+The CS20 has an I2C based internal monitoring system for things like
+temperature, fans, voltages etc. 
+
+Expansion:
+Each PCI slot is connected to it's own independent PCI bus on the Tsunami.
+
+EIDE:
+The embedded Ultra DMA EIDE ports are bootable by the SRM console.
+
+Disks:
+The CS20 has an embeded slimline IDE CD drive. There is a front-accesible
+bay for a 1" high 3.5" harddisk drive.
+
+The kernel config file must contain:
+        options         DEC_ST6600
+        cpu             EV5
+
+Contrary to expectation there is no 'cpu EV6' defined for inclusion in the
+kernel config file. The 'cpu EV5' is mandatory to keep config(8) happy. 
 
 Supported hardware overview
 ---------------------------
