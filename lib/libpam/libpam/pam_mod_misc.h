@@ -38,6 +38,7 @@
 #define	PAM_OPT_TRY_FIRST_PASS		0x08
 #define PAM_OPT_USE_MAPPED_PASS		0x10
 #define PAM_OPT_ECHO_PASS		0x20
+#define PAM_OPT_AUTH_AS_SELF		0x40
 
 __BEGIN_DECLS
 int	 pam_get_pass(pam_handle_t *, const char **, const char *, int);
