@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mbuf.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mbuf.c,v 1.7 1997/07/29 06:51:40 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -62,16 +62,28 @@ static struct mbtypes {
 	{ MT_OOBDATA,	"oob data" },
 	{ MT_CONTROL,	"ancillary data" },
 	{ MT_HEADER,	"packet headers" },
+#ifdef MT_SOCKET
 	{ MT_SOCKET,	"socket structures" },			/* XXX */
+#endif
+#ifdef MT_PCB
 	{ MT_PCB,	"protocol control blocks" },		/* XXX */
+#endif
 	{ MT_RTABLE,	"routing table entries" },		/* XXX */
+#ifdef MT_HTABLE
 	{ MT_HTABLE,	"IMP host table entries" },		/* XXX */
+#endif
+#ifdef MT_ATABLE
 	{ MT_ATABLE,	"address resolution tables" },
+#endif
 	{ MT_FTABLE,	"fragment reassembly queue headers" },	/* XXX */
 	{ MT_SONAME,	"socket names and addresses" },
 	{ MT_SOOPTS,	"socket options" },
+#ifdef MT_RIGHTS
 	{ MT_RIGHTS,	"access rights" },
+#endif
+#ifdef MT_IFADDR
 	{ MT_IFADDR,	"interface addresses" },		/* XXX */
+#endif
 	{ 0, 0 }
 };
 
