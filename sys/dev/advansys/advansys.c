@@ -1302,7 +1302,7 @@ adv_attach(adv)
 				M_DEVBUF, M_NOWAIT);
 
 	if (adv->ccb_infos == NULL)
-		goto error_exit;
+		return (ENOMEM);
 
 	adv->init_level++;
 		
@@ -1344,7 +1344,7 @@ adv_attach(adv)
 			       /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
 			       /*flags*/BUS_DMA_ALLOCNOW,
 			       &adv->buffer_dmat) != 0) {
-		goto error_exit;
+		return (ENXIO);
 	}
 	adv->init_level++;
 
@@ -1357,7 +1357,7 @@ adv_attach(adv)
 			       /*nsegments*/1,
 			       /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
 			       /*flags*/0, &adv->sense_dmat) != 0) {
-		goto error_exit;
+		return (ENXIO);
         }
 
 	adv->init_level++;
@@ -1365,7 +1365,7 @@ adv_attach(adv)
 	/* Allocation for our sense buffers */
 	if (bus_dmamem_alloc(adv->sense_dmat, (void **)&adv->sense_buffers,
 			     BUS_DMA_NOWAIT, &adv->sense_dmamap) != 0) {
-		goto error_exit;
+		return (ENOMEM);
 	}
 
 	adv->init_level++;
@@ -1384,7 +1384,7 @@ adv_attach(adv)
 	if (adv_start_chip(adv) != 1) {
 		printf("adv%d: Unable to start on board processor. Aborting.\n",
 		       adv->unit);
-		return (0);
+		return (ENXIO);
 	}
 
 	/*
@@ -1392,7 +1392,7 @@ adv_attach(adv)
 	 */
 	devq = cam_simq_alloc(adv->max_openings);
 	if (devq == NULL)
-		return (0);
+		return (ENOMEM);
 
 	/*
 	 * Construct our SIM entry.
@@ -1400,7 +1400,7 @@ adv_attach(adv)
 	adv->sim = cam_sim_alloc(adv_action, adv_poll, "adv", adv, adv->unit,
 				 1, adv->max_openings, devq);
 	if (adv->sim == NULL)
-		return (0);
+		return (ENOMEM);
 
 	/*
 	 * Register the bus.
@@ -1409,21 +1409,22 @@ adv_attach(adv)
 	 */
 	if (xpt_bus_register(adv->sim, 0) != CAM_SUCCESS) {
 		cam_sim_free(adv->sim, /*free devq*/TRUE);
-		return (0);
+		return (ENXIO);
 	}
 
 	if (xpt_create_path(&adv->path, /*periph*/NULL, cam_sim_path(adv->sim),
 			    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD)
-	   == CAM_REQ_CMP) {
-		xpt_setup_ccb(&csa.ccb_h, adv->path, /*priority*/5);
-		csa.ccb_h.func_code = XPT_SASYNC_CB;
-		csa.event_enable = AC_FOUND_DEVICE|AC_LOST_DEVICE;
-		csa.callback = advasync;
-		csa.callback_arg = adv;
-		xpt_action((union ccb *)&csa);
+	    != CAM_REQ_CMP) {
+		xpt_bus_deregister(cam_sim_path(adv->sim));
+		cam_sim_free(adv->sim, /*free devq*/TRUE);
+		return (ENXIO);
 	}
-	return (1);
 
-error_exit:
+	xpt_setup_ccb(&csa.ccb_h, adv->path, /*priority*/5);
+	csa.ccb_h.func_code = XPT_SASYNC_CB;
+	csa.event_enable = AC_FOUND_DEVICE|AC_LOST_DEVICE;
+	csa.callback = advasync;
+	csa.callback_arg = adv;
+	xpt_action((union ccb *)&csa);
 	return (0);
 }
