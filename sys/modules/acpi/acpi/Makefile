@@ -36,7 +36,7 @@ SRCS+=	utxface.c
 # OSPM layer and core hardware drivers
 SRCS+=	acpi.c acpi_button.c acpi_isab.c
 SRCS+=	acpi_package.c acpi_pci.c acpi_pcib.c acpi_pcib_acpi.c
-SRCS+=	acpi_pcib_pci.c acpi_powerres.c acpi_resource.c
+SRCS+=	acpi_pcib_pci.c acpi_powerres.c acpi_quirk.c acpi_resource.c
 SRCS+=	acpi_timer.c acpi_pci_link.c acpi_thermal.c
 
 # ACPI hardware drivers, mostly used for mobile systems.
@@ -48,7 +48,7 @@ SRCS+=	OsdDebug.c
 SRCS+=	OsdHardware.c OsdInterrupt.c OsdMemory.c OsdSchedule.c
 SRCS+=	OsdStream.c OsdSynch.c OsdTable.c OsdEnvironment.c 
 SRCS+=	opt_acpi.h opt_bus.h opt_ddb.h
-SRCS+=	acpi_if.h bus_if.h device_if.h
+SRCS+=	acpi_if.h acpi_quirks.h bus_if.h device_if.h
 SRCS+=	isa_if.h pci_if.h pcib_if.h
 
 # Debugging support
