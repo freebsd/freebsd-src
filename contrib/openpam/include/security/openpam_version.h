@@ -31,52 +31,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_open_session.c#8 $
+ * $P4: //depot/projects/openpam/include/security/openpam_version.h#2 $
  */
 
-#include <sys/param.h>
+#ifndef _OPENPAM_VERSION_H_INCLUDED
+#define _OPENPAM_VERSION_H_INCLUDED
 
-#include <security/pam_appl.h>
+#define _OPENPAM
+#define _OPENPAM_VERSION	20020414
+#define _OPENPAM_RELEASE	"Cineraria"
 
-#include "openpam_impl.h"
-
-/*
- * XSSO 4.2.1
- * XSSO 6 page 54
- *
- * Open a user session
- */
-
-int
-pam_open_session(pam_handle_t *pamh,
-	int flags)
-{
-
-	if (flags & ~(PAM_SILENT))
-		return (PAM_SYMBOL_ERR);
-	return (openpam_dispatch(pamh, PAM_SM_OPEN_SESSION, flags));
-}
-
-/*
- * Error codes:
- *
- *	=openpam_dispatch
- *	=pam_sm_open_session
- *	!PAM_IGNORE
- *	PAM_SYMBOL_ERR
- */
-
-/**
- * The =pam_open_session sets up a user session for a previously
- * authenticated user.  The session should later be torn down by a call to
- * =pam_close_session.
- *
- * The =flags argument is the binary or of zero or more of the following
- * values:
- *
- *	=PAM_SILENT:
- *		Do not emit any messages.
- *
- * If any other bits are set, =pam_open_session will return
- * =PAM_SYMBOL_ERR.
- */
+#endif

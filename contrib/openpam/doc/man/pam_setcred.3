@@ -31,9 +31,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/openpam/doc/man/pam_setcred.3#11 $
+.\" $P4: //depot/projects/openpam/doc/man/pam_setcred.3#12 $
 .\"
-.Dd April 8, 2002
+.Dd April 14, 2002
 .Dt PAM_SETCRED 3
 .Os
 .Sh NAME
@@ -49,18 +49,29 @@
 The
 .Nm
 function manages the application's credentials.
-The operation to perform is specified by the
+.Pp
+The
 .Va flags
-argument:
+argument is the binary or of zero or more of the following
+values:
 .Bl -tag -width 18n
-.It PAM_ESTABLISH_CRED
+.It Dv PAM_SILENT
+Do not emit any messages.
+.It Dv PAM_ESTABLISH_CRED
 Establish the credentials of the target user.
-.It PAM_DELETE_CRED
+.It Dv PAM_DELETE_CRED
 Revoke all established credentials.
-.It PAM_REINITIALIZE_CRED
+.It Dv PAM_REINITIALIZE_CRED
 Fully reinitialise credentials.
-.It PAM_REFRESH_CRED
+.It Dv PAM_REFRESH_CRED
 Refresh credentials.
+.El
+The latter four are mutually exclusive.
+.Pp
+If any other bits are set,
+.Nm
+will return
+.Dv PAM_SYMBOL_ERR .
 .Sh RETURN VALUES
 The
 .Nm
@@ -82,6 +93,8 @@ Failed to retrieve user credentials.
 Permission denied.
 .It Bq Er PAM_SERVICE_ERR
 Error in service module.
+.It Bq Er PAM_SYMBOL_ERR
+Invalid symbol.
 .It Bq Er PAM_SYSTEM_ERR
 System error.
 .It Bq Er PAM_USER_UNKNOWN
