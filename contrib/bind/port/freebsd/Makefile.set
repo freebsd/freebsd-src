@@ -1,5 +1,5 @@
 'CC=cc'
-'CDEBUG=-O2 -g -W -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings -Wformat'
+'CDEBUG=-O2 -g -W -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings -Wformat -DMEMCLUSTER_RECORD=1'
 'DESTBIN=/usr/bin'
 'DESTSBIN=/usr/sbin'
 'DESTEXEC=/usr/libexec'

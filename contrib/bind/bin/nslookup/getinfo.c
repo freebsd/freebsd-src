@@ -53,7 +53,7 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)getinfo.c	5.26 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: getinfo.c,v 8.20 2001/06/20 12:30:33 marka Exp $";
+static const char rcsid[] = "$Id: getinfo.c,v 8.23 2002/04/29 01:11:52 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -79,16 +79,19 @@ static const char rcsid[] = "$Id: getinfo.c,v 8.20 2001/06/20 12:30:33 marka Exp
 #include <arpa/inet.h>
 
 #include <ctype.h>
-#include <resolv.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "port_after.h"
 
+#include <resolv.h>
+
 #include "res.h"
 
 static char *addr_list[MAXADDRS + 1];
+static int addr_len[MAXADDRS + 1];
+static int addr_type[MAXADDRS + 1];
 
 static char *host_aliases[MAXALIASES];
 static int   host_aliases_len[MAXALIASES];
@@ -99,6 +102,8 @@ typedef struct {
     char *domain[MAXDOMAINS];
     int   numDomains;
     char *address[MAXADDRS];
+    char len[MAXADDRS];
+    char type[MAXADDRS];
     int   numAddresses;
 } ServerTable;
 
@@ -136,14 +141,16 @@ typedef union {
  */
 
 static int
-GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
-    struct in_addr	*nsAddrPtr;
+GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer,
+	  merge)
+    union res_sockaddr_union  *nsAddrPtr;
     char		*msg;
     int			queryType;
     int			msglen;
     Boolean		iquery;
     register HostInfo	*hostPtr;
     Boolean		isServer;
+    Boolean		merge;
 {
     register HEADER	*headerPtr;
     register const u_char	*cp;
@@ -151,6 +158,8 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
     char		**aliasPtr;
     u_char		*eom, *bp;
     char		**addrPtr;
+    int			*lenPtr;
+    int			*typePtr;
     char		*namePtr;
     char		*dnamePtr;
     int			type, class;
@@ -158,19 +167,26 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
     int			origClass = 0;
     int			numAliases = 0;
     int			numAddresses = 0;
-    int			n, i, j;
+    int			n, i, j, k, l, m;
     int			dlen;
     int			status;
     int			numServers;
     size_t		s;
     Boolean		haveAnswer;
     Boolean		printedAnswers = FALSE;
+    int			oldAliases;
+    char		**newAliases;
+    int			oldServers;
+    ServerInfo		**newServers;
+    int			oldAddresses;
+    AddrInfo	 	**newAddresses;
 
 
     /*
      *  If the hostPtr was used before, free up the calloc'd areas.
      */
-    FreeHostInfoPtr(hostPtr);
+    if (!merge)
+	    FreeHostInfoPtr(hostPtr);
 
     status = SendRequest(nsAddrPtr, (u_char *)msg, msglen, (u_char *) &answer,
 			 sizeof(answer), &n);
@@ -218,6 +234,8 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
 
     aliasPtr	= host_aliases;
     addrPtr	= addr_list;
+    lenPtr	= addr_len;
+    typePtr	= addr_type;
     haveAnswer	= FALSE;
 
     /*
@@ -234,7 +252,8 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
 	    printf("Non-authoritative answer:\n");
 	}
 
-	if (queryType != T_A && !(iquery && queryType == T_PTR)) {
+	if (queryType != T_A && queryType != T_AAAA &&	/* A6? */
+	    !(iquery && queryType == T_PTR)) {
 	    while (--ancount >= 0 && cp < eom) {
 		if ((cp = Print_rr(cp, (u_char *)&answer,
 				   eom, stdout)) == NULL) {
@@ -286,36 +305,34 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
 		    memcpy(hostPtr->name, bp, s);
 		    haveAnswer = TRUE;
 		    break;
-		} else if (type != T_A) {
+		} else if (type != T_A && type != T_AAAA) {
 		    cp += dlen;
 		    continue;
 		}
-		if (dlen != INADDRSZ)
+		if (type == T_A && dlen != INADDRSZ)
+			return (ERROR);
+		if (type == T_AAAA && dlen != 16)
 			return (ERROR);
 		if (haveAnswer) {
 		    /*
 		     * If we've already got 1 address, we aren't interested
-		     * in addresses with a different length or class.
+		     * in addresses with a different class.
 		     */
-		    if (dlen != hostPtr->addrLen) {
-			cp += dlen;
-			continue;
-		    }
 		    if (class != origClass) {
 			cp += dlen;
 			continue;
 		    }
 		} else {
 		    /*
-		     * First address: record its length and class so we
-		     * only save additonal ones with the same attributes.
+		     * First address: record its class so we only save
+		     * additonal ones with the same attributes.
 		     */
-		    hostPtr->addrLen = dlen;
 		    origClass = class;
-		    hostPtr->addrType = (class == C_IN) ? AF_INET : AF_UNSPEC;
-		    s = strlen((char *)bp) + 1;
-		    hostPtr->name = Calloc(1, s);
-		    memcpy(hostPtr->name, bp, s);
+		    if (hostPtr->name == NULL) {
+			s = strlen((char *)bp) + 1;
+			hostPtr->name = Calloc(1, s);
+			memcpy(hostPtr->name, bp, s);
+		    }
 		}
 		bp += (((u_int32_t)bp) % sizeof(align));
 
@@ -331,6 +348,10 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
 			continue;
 		}
 		memcpy(*addrPtr++ = (char *)bp, cp, dlen);
+		*lenPtr++ = dlen;
+		*typePtr++ = (class == C_IN) ?
+				      ((type == T_A) ? AF_INET : AF_INET6) :
+				      AF_UNSPEC;
 		bp += dlen;
 		cp += dlen;
 		numAddresses++;
@@ -346,24 +367,70 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
 	 *  in the hostPtr variable.
 	 */
 
+	oldAliases = 0;
+	if (merge && hostPtr->aliases != NULL) {
+		while (hostPtr->aliases[oldAliases] != NULL)
+			oldAliases++;
+	}
 	if (numAliases > 0) {
-	    hostPtr->aliases =
-		(char **) Calloc(1 + numAliases, sizeof(char *));
-	    for (i = 0; i < numAliases; i++) {
-		hostPtr->aliases[i] = Calloc(1, host_aliases_len[i]);
-		memcpy(hostPtr->aliases[i], host_aliases[i],
-		       host_aliases_len[i]);
+	    newAliases =
+		(char **) Calloc(1 + numAliases + oldAliases, sizeof(char *));
+	    if (merge && hostPtr->aliases != NULL) {
+		memcpy(newAliases, hostPtr->aliases,
+		       oldAliases * sizeof(char *)); 
+		free(hostPtr->aliases);
 	    }
-	    hostPtr->aliases[i] = NULL;
+	    hostPtr->aliases = newAliases;
+	    k = oldAliases;
+	    for (i = 0; i < numAliases; i++) {
+		for (l = 0; l < k; l++)
+		    if (!strcasecmp(hostPtr->aliases[l], host_aliases[i]))
+			break;
+		if (l < k) {
+		    free(host_aliases[i]);
+		    continue;
+		}
+		hostPtr->aliases[k] = Calloc(1, host_aliases_len[i]);
+		memcpy(hostPtr->aliases[k], host_aliases[i],
+		       host_aliases_len[i]);
+		k++;
+	    }
+	    hostPtr->aliases[k] = NULL;
+	}
+	oldAddresses = 0;
+	if (merge && hostPtr->addrList != NULL) {
+		while (hostPtr->addrList[oldAddresses] != NULL)
+			oldAddresses++;
 	}
 	if (numAddresses > 0) {
-	    hostPtr->addrList =
-		(char **)Calloc(1+numAddresses, sizeof(char *));
-	    for (i = 0; i < numAddresses; i++) {
-		hostPtr->addrList[i] = Calloc(1, hostPtr->addrLen);
-		memcpy(hostPtr->addrList[i], addr_list[i], hostPtr->addrLen);
+	    newAddresses =
+		(AddrInfo **)Calloc(1+numAddresses, sizeof(AddrInfo *));
+	    if (merge && hostPtr->addrList != NULL) {
+		memcpy(newAddresses, hostPtr->addrList,
+		       oldAddresses * sizeof(char *)); 
+		free(hostPtr->addrList);
 	    }
-	    hostPtr->addrList[i] = NULL;
+	    hostPtr->addrList = newAddresses;
+	    k = oldAddresses;
+	    for (i = 0; i < numAddresses; i++) {
+		for (l = 0; l < k; l++)
+		    if (hostPtr->addrList[l]->addrType == addr_type[i] &&
+			hostPtr->addrList[l]->addrLen == addr_len[i] &&
+			!memcmp(hostPtr->addrList[l]->addr, addr_list[i],
+				addr_len[i]))
+			break;
+		if (l < k) {
+		    free(addr_list[i]);
+		    continue;
+		}
+		hostPtr->addrList[k] = (AddrInfo*)Calloc(1, sizeof(AddrInfo));
+		hostPtr->addrList[k]->addr = Calloc(1, addr_len[i]);
+		hostPtr->addrList[k]->addrType = addr_type[i];
+		hostPtr->addrList[k]->addrLen = addr_len[i];
+		memcpy(hostPtr->addrList[k]->addr, addr_list[i], addr_len[i]);
+		k++;
+	    }
+	    hostPtr->addrList[k] = NULL;
 	}
 #ifdef verbose
 	if (headerPtr->aa || nscount == 0) {
@@ -382,7 +449,8 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
      * in the additional resource records part.
      */
 
-    if (!headerPtr->aa && (queryType != T_A) && (nscount > 0 || arcount > 0)) {
+    if (!headerPtr->aa && (queryType != T_A) && (queryType != T_AAAA) &&
+	(nscount > 0 || arcount > 0)) {
 	if (printedAnswers) {
 	    putchar('\n');
 	}
@@ -392,7 +460,7 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
     cp = res_skip((u_char *)&answer, 2, eom);
 
     numServers = 0;
-    if (queryType != T_A) {
+    if (queryType != T_A && queryType != T_AAAA) {
 	/*
 	 * If we don't need to save the record, just print it.
 	 */
@@ -446,7 +514,7 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
 		 */
 		found = FALSE;
 		for (j = 0; j < numServers; j++) {
-		    if (strcmp(namePtr, server[j].name) == 0) {
+		    if (strcasecmp(namePtr, server[j].name) == 0) {
 			found = TRUE;
 			free(namePtr);
 			break;
@@ -502,20 +570,25 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
 	    if (cp + dlen > eom)
 		    return (ERROR);
 
-	    if (type != T_A)  {
+	    if (type != T_A && type != T_AAAA)  {
 		cp += dlen;
 		continue;
 	    } else {
-		if (dlen != INADDRSZ)
+		if (type == T_A && dlen != INADDRSZ)
+			return (ERROR);
+		if (type == T_AAAA && dlen != 16)
 			return (ERROR);
 		for (j = 0; j < numServers; j++) {
-		    if (strcmp((char *)bp, server[j].name) == 0) {
+		    if (strcasecmp((char *)bp, server[j].name) == 0) {
 			server[j].numAddresses++;
 			if (server[j].numAddresses <= MAXADDRS) {
 			    server[j].address[server[j].numAddresses-1] = 
 				    				Calloc(1,dlen);
 			    memcpy(server[j].address[server[j].numAddresses-1],
 				   cp, dlen);
+			    server[j].len[server[j].numAddresses-1] = dlen;
+			    server[j].type[server[j].numAddresses-1] =
+					   (type == T_A) ? AF_INET : AF_INET6;
 			    break;
 			}
 		    }
@@ -528,35 +601,88 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
     /*
      * If we are returning name server info, transfer it to the hostPtr.
      */
+    oldServers = 0;
+    if (merge && hostPtr->servers != NULL) {
+	while (hostPtr->servers[oldServers] != NULL)
+	    oldServers++;
+    }
     if (numServers > 0) {
-	hostPtr->servers = (ServerInfo **)
-				Calloc(numServers+1, sizeof(ServerInfo *));
-
-	for (i = 0; i < numServers; i++) {
-	    hostPtr->servers[i] = (ServerInfo *) Calloc(1, sizeof(ServerInfo));
-	    hostPtr->servers[i]->name = server[i].name;
-
-
-	    hostPtr->servers[i]->domains = (char **)
-				Calloc(server[i].numDomains+1,sizeof(char *));
-	    for (j = 0; j < server[i].numDomains; j++) {
-		hostPtr->servers[i]->domains[j] = server[i].domain[j];
-	    }
-	    hostPtr->servers[i]->domains[j] = NULL;
-
-
-	    hostPtr->servers[i]->addrList = (char **)
-				Calloc(server[i].numAddresses+1,sizeof(char *));
-	    for (j = 0; j < server[i].numAddresses; j++) {
-		hostPtr->servers[i]->addrList[j] = server[i].address[j];
-	    }
-	    hostPtr->servers[i]->addrList[j] = NULL;
-
+	newServers = (ServerInfo **) Calloc(numServers+oldServers+1,
+				       sizeof(ServerInfo *));
+	if (merge && hostPtr->servers != NULL) {
+		memcpy(newServers, hostPtr->servers,
+		       oldServers * sizeof(ServerInfo *));
+		free(hostPtr->servers);
 	}
-	hostPtr->servers[i] = NULL;
+	hostPtr->servers = newServers;
+	k = oldServers;
+	for (i = 0; i < numServers; i++) {
+	    for (l = 0; l < k; l++)
+		if (!strcasecmp(hostPtr->servers[l]->name, server[i].name))
+		    break;
+	    if (l < k) { 
+		free(server[i].name);
+		for (j = 0; j < server[i].numDomains; j++)
+		     free(server[i].domain[j]);
+	    } else {
+		hostPtr->servers[l] = (ServerInfo *)
+				 Calloc(1, sizeof(ServerInfo));
+		hostPtr->servers[l]->name = server[i].name;
+		k++;
+
+		hostPtr->servers[l]->domains = (char **)
+				Calloc(server[i].numDomains+1,sizeof(char *));
+		for (j = 0; j < server[i].numDomains; j++) {
+		    hostPtr->servers[l]->domains[j] = server[i].domain[j];
+		}
+		hostPtr->servers[l]->domains[j] = NULL;
+	    }
+
+
+	    oldAddresses = 0;
+	    if (merge && hostPtr->servers[l]->addrList != NULL)
+		while (hostPtr->servers[l]->addrList[oldAddresses] != NULL)
+			oldAddresses++;
+	    newAddresses = (AddrInfo **)
+			Calloc(server[i].numAddresses+oldAddresses+1,
+			       sizeof(AddrInfo *));
+	    if (merge && hostPtr->servers[l]->addrList != NULL) {
+		memcpy(newAddresses, hostPtr->servers[l]->addrList,
+		       sizeof(AddrInfo *) * oldAddresses);
+		free(hostPtr->servers[l]->addrList);
+	    }
+	    hostPtr->servers[l]->addrList = newAddresses;
+	    m = oldAddresses;
+	    for (j = 0; j < server[l].numAddresses; j++) {
+		for (n = 0; n < m; n++)
+		    if (hostPtr->servers[l]->addrList[n]->addrType ==
+			server[i].type[j] &&
+			hostPtr->servers[l]->addrList[n]->addrLen ==
+			server[i].len[j] &&
+			!memcmp(hostPtr->servers[l]->addrList[n]->addr,
+				server[i].address[j], server[i].len[j]))
+			break;
+		if (n < m) {
+		    free(server[i].address[j]);
+		    continue;
+		}
+		hostPtr->servers[l]->addrList[m] =
+				 (AddrInfo*)Calloc(1, sizeof(AddrInfo));
+		hostPtr->servers[l]->addrList[m]->addr =
+					 server[i].address[j];
+		hostPtr->servers[l]->addrList[m]->addrType =
+					 server[i].type[j];
+		hostPtr->servers[l]->addrList[m]->addrLen =
+					 server[i].len[j];
+		m++;
+	    }
+	    hostPtr->servers[l]->addrList[m] = NULL;
+	}
+	hostPtr->servers[k] = NULL;
     }
 
     switch (queryType) {
+	case T_AAAA:
 	case T_A:
 		return NONAUTH;
 	case T_PTR:
@@ -586,20 +712,22 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
 */
 
 int
-GetHostInfoByName(nsAddrPtr, queryClass, queryType, name, hostPtr, isServer)
-    struct in_addr	*nsAddrPtr;
+GetHostInfoByName(nsAddrPtr, queryClass, queryType, name, hostPtr, isServer,
+		  merge)
+    union res_sockaddr_union *nsAddrPtr;
     int			queryClass;
     int			queryType;
     const char		*name;
     HostInfo		*hostPtr;
     Boolean		isServer;
+    Boolean		merge;
 {
     int			n;
     register int	result;
     register char	**domain;
     const char		*cp;
     Boolean		got_nodata = FALSE;
-    struct in_addr	ina;
+    union res_sockaddr_union ina;
     Boolean		tried_as_is = FALSE;
     char		tmp[NS_MAXDNAME];
 
@@ -607,14 +735,30 @@ GetHostInfoByName(nsAddrPtr, queryClass, queryType, name, hostPtr, isServer)
     if ((queryType == T_A) && IsAddr(name, &ina)) {
 	hostPtr->name = Calloc(strlen(name)+3, 1);
 	(void)sprintf(hostPtr->name,"[%s]",name);
-	hostPtr->aliases = NULL;
-	hostPtr->servers = NULL;
-	hostPtr->addrType = AF_INET;
-	hostPtr->addrLen = INADDRSZ;
-	hostPtr->addrList = (char **)Calloc(2, sizeof(char *));
-	hostPtr->addrList[0] = Calloc(INT32SZ, sizeof(char));
-	memcpy(hostPtr->addrList[0], &ina, INADDRSZ);
-	hostPtr->addrList[1] = NULL;
+	switch (ina.sin.sin_family) {
+	case AF_INET:
+	    hostPtr->aliases = NULL;
+	    hostPtr->servers = NULL;
+	    hostPtr->addrList = (AddrInfo **)Calloc(2, sizeof(AddrInfo *));
+	    hostPtr->addrList[0] = (AddrInfo *)Calloc(1, sizeof(AddrInfo));
+	    hostPtr->addrList[0]->addr = Calloc(INT32SZ, sizeof(char));
+	    memcpy(hostPtr->addrList[0]->addr, &ina.sin.sin_addr, INADDRSZ);
+	    hostPtr->addrList[0]->addrType = AF_INET;
+	    hostPtr->addrList[0]->addrLen = INADDRSZ;
+	    hostPtr->addrList[1] = NULL;
+	    break;
+	case AF_INET6:
+	    hostPtr->aliases = NULL;
+	    hostPtr->servers = NULL;
+	    hostPtr->addrList = (AddrInfo **)Calloc(2, sizeof(AddrInfo *));
+	    hostPtr->addrList[0] = (AddrInfo *)Calloc(1, sizeof(AddrInfo));
+	    hostPtr->addrList[0]->addr = Calloc(1, 16);
+	    memcpy(hostPtr->addrList[0]->addr, &ina.sin6.sin6_addr, 16);
+	    hostPtr->addrList[0]->addrType = AF_INET6;
+	    hostPtr->addrList[0]->addrLen = 16;
+	    hostPtr->addrList[1] = NULL;
+	    break;
+	}
 	return(SUCCESS);
     }
 
@@ -625,7 +769,7 @@ GetHostInfoByName(nsAddrPtr, queryClass, queryType, name, hostPtr, isServer)
     if (n == 0 && (cp = res_hostalias(&res, name, tmp, sizeof tmp))) {
 	    printf("Aliased to \"%s\"\n\n", cp);
 	    return (GetHostDomain(nsAddrPtr, queryClass, queryType,
-		    cp, (char *)NULL, hostPtr, isServer));
+		    cp, (char *)NULL, hostPtr, isServer, merge));
     }
 
     /*
@@ -634,7 +778,8 @@ GetHostInfoByName(nsAddrPtr, queryClass, queryType, name, hostPtr, isServer)
      */
     if (n >= (int)res.ndots) {
 	    result = GetHostDomain(nsAddrPtr, queryClass, queryType,
-				   name, (char *)NULL, hostPtr, isServer);
+				   name, (char *)NULL, hostPtr, isServer,
+				   merge);
             if (result == SUCCESS)
 	        return (result);
 	    if (result == NO_INFO)
@@ -652,7 +797,8 @@ GetHostInfoByName(nsAddrPtr, queryClass, queryType, name, hostPtr, isServer)
        (n != 0 && *--cp != '.' && (res.options & RES_DNSRCH) != 0))
 	 for (domain = res.dnsrch; *domain != NULL; domain++) {
 	    result = GetHostDomain(nsAddrPtr, queryClass, queryType,
-				   name, *domain, hostPtr, isServer);
+				   name, *domain, hostPtr, isServer,
+				   merge);
 	    /*
 	     * If no server present, give up.
 	     * If name isn't found in this domain,
@@ -679,7 +825,7 @@ GetHostInfoByName(nsAddrPtr, queryClass, queryType, name, hostPtr, isServer)
      */
     if (!tried_as_is &&
 	(result = GetHostDomain(nsAddrPtr, queryClass, queryType,
-				name, (char *)NULL, hostPtr, isServer)
+				name, (char *)NULL, hostPtr, isServer, merge)
 	 ) == SUCCESS)
 	    return (result);
     if (got_nodata)
@@ -692,14 +838,16 @@ GetHostInfoByName(nsAddrPtr, queryClass, queryType, name, hostPtr, isServer)
  * removing a trailing dot from name if domain is NULL.
  */
 int
-GetHostDomain(nsAddrPtr, queryClass, queryType, name, domain, hostPtr, isServer)
-    struct in_addr	*nsAddrPtr;
+GetHostDomain(nsAddrPtr, queryClass, queryType, name, domain, hostPtr,
+	      isServer, merge)
+    union res_sockaddr_union	*nsAddrPtr;
     int			queryClass;
     int			queryType;
     const char		*name;
     char		*domain;
     HostInfo		*hostPtr;
     Boolean		isServer;
+    Boolean		merge;
 {
     querybuf buf;
     char nbuf[2*MAXDNAME+2];
@@ -731,7 +879,8 @@ GetHostDomain(nsAddrPtr, queryClass, queryType, name, domain, hostPtr, isServer)
 	return (ERROR);
     }
 
-    n = GetAnswer(nsAddrPtr, queryType, (char *)&buf, n, 0, hostPtr, isServer);
+    n = GetAnswer(nsAddrPtr, queryType, (char *)&buf, n, 0, hostPtr,
+		  isServer, merge);
 
     /*
      * GetAnswer didn't find a name, so set it to the specified one.
@@ -764,21 +913,76 @@ GetHostDomain(nsAddrPtr, queryClass, queryType, name, domain, hostPtr, isServer)
 */
 
 int
-GetHostInfoByAddr(nsAddrPtr, address, hostPtr)
-    struct in_addr	*nsAddrPtr;
-    struct in_addr	*address;
-    HostInfo		*hostPtr;
+GetHostInfoByAddr(union res_sockaddr_union *nsAddrPtr,
+		  union res_sockaddr_union *address,
+		  HostInfo * hostPtr)
 {
     int		n;
     querybuf	buf;
     char	qbuf[MAXDNAME];
-    char	*p = (char *) &address->s_addr;
+    char	qbuf2[MAXDNAME];
+    char	*p = NULL;
+    int		ismapped = 0;
 
-    (void)sprintf(qbuf, "%u.%u.%u.%u.in-addr.arpa",
-	    ((unsigned)p[3] & 0xff),
-	    ((unsigned)p[2] & 0xff),
-	    ((unsigned)p[1] & 0xff),
-	    ((unsigned)p[0] & 0xff));
+    switch (address->sin.sin_family) {
+    case AF_INET:
+        p = (char *) &address->sin.sin_addr.s_addr;
+    mapped:
+	(void)sprintf(qbuf, "%u.%u.%u.%u.in-addr.arpa",
+		      ((unsigned)p[3 + (ismapped ? 12 : 0)] & 0xff),
+		      ((unsigned)p[2 + (ismapped ? 12 : 0)] & 0xff),
+		      ((unsigned)p[1 + (ismapped ? 12 : 0)] & 0xff),
+		      ((unsigned)p[0 + (ismapped ? 12 : 0)] & 0xff));
+	break;
+    case AF_INET6:
+	p = (char *)address->sin6.sin6_addr.s6_addr;
+	if (IN6_IS_ADDR_V4MAPPED(&address->sin6.sin6_addr) ||
+	    IN6_IS_ADDR_V4COMPAT(&address->sin6.sin6_addr)) {
+		ismapped = 1;
+		goto mapped;
+	}
+	(void)sprintf(qbuf,
+		      "%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x."
+		      "%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x."
+		      "ip6.arpa",
+		      p[15] & 0xf, (p[15] >> 4) & 0xf,
+		      p[14] & 0xf, (p[14] >> 4) & 0xf,
+		      p[13] & 0xf, (p[13] >> 4) & 0xf,
+		      p[12] & 0xf, (p[12] >> 4) & 0xf,
+		      p[11] & 0xf, (p[11] >> 4) & 0xf,
+		      p[10] & 0xf, (p[10] >> 4) & 0xf,
+		      p[9] & 0xf, (p[9] >> 4) & 0xf,
+		      p[8] & 0xf, (p[8] >> 4) & 0xf,
+		      p[7] & 0xf, (p[7] >> 4) & 0xf,
+		      p[6] & 0xf, (p[4] >> 4) & 0xf,
+		      p[5] & 0xf, (p[5] >> 4) & 0xf,
+		      p[4] & 0xf, (p[4] >> 4) & 0xf,
+		      p[3] & 0xf, (p[3] >> 4) & 0xf,
+		      p[2] & 0xf, (p[2] >> 4) & 0xf,
+		      p[1] & 0xf, (p[1] >> 4) & 0xf,
+		      p[0] & 0xf, (p[0] >> 4) & 0xf);
+	(void)sprintf(qbuf2,
+		      "%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x."
+		      "%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x."
+		      "ip6.int",
+		      p[15] & 0xf, (p[15] >> 4) & 0xf,
+		      p[14] & 0xf, (p[14] >> 4) & 0xf,
+		      p[13] & 0xf, (p[13] >> 4) & 0xf,
+		      p[12] & 0xf, (p[12] >> 4) & 0xf,
+		      p[11] & 0xf, (p[11] >> 4) & 0xf,
+		      p[10] & 0xf, (p[10] >> 4) & 0xf,
+		      p[9] & 0xf, (p[9] >> 4) & 0xf,
+		      p[8] & 0xf, (p[8] >> 4) & 0xf,
+		      p[7] & 0xf, (p[7] >> 4) & 0xf,
+		      p[6] & 0xf, (p[4] >> 4) & 0xf,
+		      p[5] & 0xf, (p[5] >> 4) & 0xf,
+		      p[4] & 0xf, (p[4] >> 4) & 0xf,
+		      p[3] & 0xf, (p[3] >> 4) & 0xf,
+		      p[2] & 0xf, (p[2] >> 4) & 0xf,
+		      p[1] & 0xf, (p[1] >> 4) & 0xf,
+		      p[0] & 0xf, (p[0] >> 4) & 0xf);
+	break;
+    }
     n = res_nmkquery(&res, QUERY, qbuf, C_IN, T_PTR, NULL, 0, NULL,
 		     buf.qb2, sizeof buf);
     if (n < 0) {
@@ -787,13 +991,47 @@ GetHostInfoByAddr(nsAddrPtr, address, hostPtr)
 	}
 	return (ERROR);
     }
-    n = GetAnswer(nsAddrPtr, T_PTR, (char *) &buf, n, 1, hostPtr, 1);
+    n = GetAnswer(nsAddrPtr, T_PTR, (char *) &buf, n, 1, hostPtr, 1, 0);
     if (n == SUCCESS) {
-	hostPtr->addrType = AF_INET;
-	hostPtr->addrLen = 4;
-	hostPtr->addrList = (char **)Calloc(2, sizeof(char *));
-	hostPtr->addrList[0] = Calloc(INT32SZ, sizeof(char));
-	memcpy(hostPtr->addrList[0], p, INADDRSZ);
+	switch (address->sin.sin_family) {
+	case AF_INET:
+	    hostPtr->addrList = (AddrInfo **)Calloc(2, sizeof(AddrInfo *));
+	    hostPtr->addrList[0] = (AddrInfo *)Calloc(1, sizeof(AddrInfo));
+	    hostPtr->addrList[0]->addr = Calloc(INT32SZ, sizeof(char));
+	    memcpy(hostPtr->addrList[0]->addr, p, INADDRSZ);
+	    hostPtr->addrList[0]->addrType = AF_INET;
+	    hostPtr->addrList[0]->addrLen = 4;
+	    hostPtr->addrList[1] = NULL;
+	    break;
+	case AF_INET6:
+	    hostPtr->addrList = (AddrInfo **)Calloc(2, sizeof(AddrInfo *));
+	    hostPtr->addrList[0] = (AddrInfo *)Calloc(1, sizeof(AddrInfo));
+	    hostPtr->addrList[0]->addr = Calloc(16, sizeof(char));
+	    memcpy(hostPtr->addrList[0]->addr, p, 16);
+	    hostPtr->addrList[0]->addrType = AF_INET6;
+	    hostPtr->addrList[0]->addrLen = 16;
+	    hostPtr->addrList[1] = NULL;
+	    break;
+	}
+    }
+    if (n == SUCCESS || ismapped || address->sin.sin_family != AF_INET6)
+	    return n;
+    n = res_nmkquery(&res, QUERY, qbuf2, C_IN, T_PTR, NULL, 0, NULL,
+		     buf.qb2, sizeof buf);
+    if (n < 0) {
+	if (res.options & RES_DEBUG) {
+	    printf("res_nmkquery() failed\n");
+	}
+	return (ERROR);
+    }
+    n = GetAnswer(nsAddrPtr, T_PTR, (char *) &buf, n, 1, hostPtr, 1, 0);
+    if (n == SUCCESS) {
+	hostPtr->addrList = (AddrInfo **)Calloc(2, sizeof(AddrInfo *));
+	hostPtr->addrList[0] = (AddrInfo *)Calloc(1, sizeof(AddrInfo *));
+	hostPtr->addrList[0]->addr = Calloc(16, sizeof(char));
+	memcpy(hostPtr->addrList[0]->addr, p, 16);
+	hostPtr->addrList[0]->addrType = AF_INET6;
+	hostPtr->addrList[0]->addrLen = 16;
 	hostPtr->addrList[1] = NULL;
     }
     return n;
@@ -833,6 +1071,7 @@ FreeHostInfoPtr(hostPtr)
     if (hostPtr->addrList != NULL) {
 	i = 0;
 	while (hostPtr->addrList[i] != NULL) {
+	    free(hostPtr->addrList[i]->addr);
 	    free(hostPtr->addrList[i]);
 	    i++;
 	}
@@ -860,6 +1099,7 @@ FreeHostInfoPtr(hostPtr)
 	    if (hostPtr->servers[i]->addrList != NULL) {
 		j = 0;
 		while (hostPtr->servers[i]->addrList[j] != NULL) {
+		    free(hostPtr->servers[i]->addrList[j]->addr);
 		    free(hostPtr->servers[i]->addrList[j]);
 		    j++;
 		}

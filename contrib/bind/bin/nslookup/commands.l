@@ -97,6 +97,7 @@ static char sccsid[] = "@(#)commands.l	5.13 (Berkeley) 7/24/90";
 #include <sys/types.h>
 #include <netinet/in.h>
 #include "port_after.h"
+#include <resolv.h>
 #include "res.h"
 
 extern char rootServerName[];
@@ -105,9 +106,9 @@ extern void ViewList(char *);
 
 %}
 WS	[ \t]
-FLET	[A-Za-z0-9.*\\_]
-LET	[A-Za-z0-9.*_]
-NAME	[A-Za-z0-9.*=_/-]
+FLET	[:A-Za-z0-9.*\\_]
+LET	[:A-Za-z0-9.*_]
+NAME	[:A-Za-z0-9.*=_/-]
 %%
 ^{WS}*server{WS}+{LET}{NAME}*{WS}*$	{
 					    /*
