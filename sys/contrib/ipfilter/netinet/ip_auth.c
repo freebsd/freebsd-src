@@ -297,8 +297,8 @@ ip_t *ip;
 #else
 # if defined(BSD) && !defined(sparc) && (BSD >= 199306)
 	if (!fin->fin_out) {
-		HTONS(ip->ip_len);
-		HTONS(ip->ip_off);
+		ip->ip_len = htons(ip->ip_len);
+		ip->ip_off = htons(ip->ip_off);
 	}
 # endif
 	fr_authpkts[i] = m;
