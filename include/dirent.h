@@ -42,6 +42,7 @@
  * the getdirentries(2) system call.
  */
 #include <sys/dirent.h>
+#include <sys/queue.h>
 
 #ifdef _POSIX_SOURCE
 typedef void *	DIR;
@@ -51,6 +52,8 @@ typedef void *	DIR;
 
 /* definitions for library routines operating on directories. */
 #define	DIRBLKSIZ	1024
+
+struct _ddloc;
 
 /* structure describing an open directory. */
 typedef struct _dirdesc {
@@ -62,6 +65,8 @@ typedef struct _dirdesc {
 	long	dd_seek;	/* magic cookie returned by getdirentries */
 	long	dd_rewind;	/* magic cookie for rewinding */
 	int	dd_flags;	/* flags for readdir */
+	long	dd_loccnt;	/* Index of entry for sequential readdir's */
+	LIST_HEAD(, _ddloc) dd_locq; /* telldir position recording */
 } DIR;
 
 #define	dirfd(dirp)	((dirp)->dd_fd)
@@ -89,7 +94,7 @@ void rewinddir __P((DIR *));
 int closedir __P((DIR *));
 #ifndef _POSIX_SOURCE
 DIR *__opendir2 __P((const char *, int));
-long telldir __P((const DIR *));
+long telldir __P((DIR *));
 void seekdir __P((DIR *, long));
 int scandir __P((const char *, struct dirent ***,
     int (*)(struct dirent *), int (*)(const void *, const void *)));
