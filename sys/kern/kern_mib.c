@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_mib.c,v 1.15 1998/03/28 11:49:52 dufault Exp $
+ * $Id: kern_mib.c,v 1.16 1998/08/31 08:41:52 kato Exp $
  */
 
 #include <sys/param.h>
@@ -126,6 +126,11 @@ char hostname[MAXHOSTNAMELEN];
 
 SYSCTL_STRING(_kern, KERN_HOSTNAME, hostname, CTLFLAG_RW,
 	hostname, sizeof(hostname), "");
+
+char conf_dir[64];
+
+SYSCTL_STRING(_kern, OID_AUTO, conf_dir, CTLFLAG_RW,
+	conf_dir, sizeof(conf_dir), "");
 
 int securelevel = -1;
 
