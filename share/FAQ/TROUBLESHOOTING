@@ -53,3 +53,50 @@ Solution:	There are several possible solutions.  The first,
 		your original hardware configuration that didn't work.
 
 ---
+
+Summary:	Newfs crashes, requesting that blocksize be 32K
+
+Cause:		You have your SCSI controller configured to translate
+		geometries for disks >1GB in size.
+
+Solution:	Turn such translation OFF in your controller's BIOS
+		setup!  FreeBSD has no problems with disks >1GB just
+		so long as the root partition starts and ends BELOW
+		cylinder 1024.  This is a PC hardware limitation.
+---
+
+Summary:	FreeBSD won't boot off the hard disk
+
+Cause:		Root partition does not start and end below cylinder 1024.
+
+Solution:	See solution for newfs crashes, or move your root
+		partition.  This limitation holds true for ANY operating
+		system you wish to boot from your hard drive.
+
+---
+
+Summary:	FreeBSD still won't boot off the hard disk
+
+Cause:		No boot code is installed in sector 1.
+
+Solution:	Chose the Write MBR (B)oot code in the FDISK editor.
+
+---
+Summary:	Nope, FreeBSD's still not booting from the hard disk.
+
+Cause:		BIOS disk geometry different from that used when
+		installing FreeBSD.
+
+Solution:	With IDE drives, pay careful attention to the geometry
+		information that FreeBSD prints out when it's first
+		booting off the floppy.  Use this geometry in your BIOS
+		setup or use the BIOS geometry when you install FreeBSD.
+		Either way, they have to match.
+
+		With SCSI drives, the values they report is most often
+		bogus and cannot be used.  In this situation, the SCSI
+		controller is performing geometry translation and
+		it's probably wise to assume a default of 64 heads,
+		32 sectors and 1MB/cylinder.  Use these values when
+		you install FreeBSD.  See above comments concerning
+		newfs failures for more info.
