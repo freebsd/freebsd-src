@@ -1,6 +1,4 @@
-#
 # $FreeBSD$
-#
 
 .include "../Makefile.inc0"
 
@@ -13,7 +11,7 @@ CFLAGS+=	-I${SRCDIR}/gas
 CFLAGS+=	-I${SRCDIR}/gas/config
 CFLAGS+=	-I${.CURDIR}/../as/${TARGET_ARCH}-freebsd
 CFLAGS+=	-DBFD_ASSEMBLER
-LDADD+=		-L${RELTOP}/libiberty -liberty
-DPADD+=		${RELTOP}/libiberty/libiberty.a
+DPADD=		${RELTOP}/libiberty/libiberty.a
+LDADD=		${DPADD}
 
 .include <bsd.prog.mk>

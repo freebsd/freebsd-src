@@ -1,6 +1,4 @@
-#
 # $FreeBSD$
-#
 
 .include "../Makefile.inc0"
 
@@ -13,10 +11,9 @@ SRCS+=		ldcref.c ldctor.c ldemul.c ldemul-list.h ldexp.c ldfile.c \
 		ldver.c ldwrite.c lexsup.c mri.c
 CFLAGS+=	-DSCRIPTDIR=\"${DESTDIR}/usr/libdata\"
 CFLAGS+=	-I${SRCDIR}/ld
-LDADD+=		-L${RELTOP}/libbfd -lbfd
-LDADD+=		-L${RELTOP}/libiberty -liberty
-DPADD+=		${RELTOP}/libbfd/libbfd.a
+DPADD=		${RELTOP}/libbfd/libbfd.a
 DPADD+=		${RELTOP}/libiberty/libiberty.a
+LDADD=		${DPADD}
 CLEANDIRS+=	ldscripts
 CLEANFILES+=	ldemul-list.h
 

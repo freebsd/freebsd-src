@@ -1,6 +1,4 @@
-#
 # $FreeBSD$
-#
 
 .include "../Makefile.inc0"
 
@@ -10,12 +8,10 @@ PROG=		strip
 SRCS=		objcopy.c is-strip.c
 CFLAGS+=	-I${.CURDIR}/${RELTOP}/libbinutils
 CFLAGS+=	-I${SRCDIR}/binutils
-LDADD+=		-L${RELTOP}/libbinutils -lbinutils
-LDADD+=		-L${RELTOP}/libbfd -lbfd
-LDADD+=		-L${RELTOP}/libiberty -liberty
-DPADD+=		${RELTOP}/libbinutils/libbinutils.a
+DPADD=		${RELTOP}/libbinutils/libbinutils.a
 DPADD+=		${RELTOP}/libbfd/libbfd.a
 DPADD+=		${RELTOP}/libiberty/libiberty.a
+LDADD=		${DPADD}
 CLEANFILES+=	maybe_stripped
 
 all: maybe_stripped

@@ -34,18 +34,18 @@ CFLAGS+=	-I${SRCDIR}/binutils
 CFLAGS+=	-I${SRCDIR}/bfd
 CFLAGS+=	-I${GDBDIR}/gdb
 CFLAGS+=	-I${GDBDIR}/gdb/config
-LDADD+=		-L${RELTOP}/libbfd -lbfd
-LDADD+=		-L${RELTOP}/libopcodes -lopcodes
-LDADD+=		-lreadline
-LDADD+=		-lgnuregex
-LDADD+=		-L${RELTOP}/libiberty -liberty
-LDADD+=		-ltermcap
-DPADD+=		${RELTOP}/libbfd/libbfd.a
+DPADD=		${RELTOP}/libbfd/libbfd.a
 DPADD+=		${RELTOP}/libopcodes/libopcodes.a
 DPADD+=		${LIBREADLINE}
 DPADD+=		${LIBGNUREGEX}
 DPADD+=		${RELTOP}/libiberty/libiberty.a
 DPADD+=		${LIBTERMCAP}
+LDADD=		${RELTOP}/libbfd/libbfd.a
+LDADD+=		${RELTOP}/libopcodes/libopcodes.a
+LDADD+=		-lreadline
+LDADD+=		-lgnuregex
+LDADD+=		${RELTOP}/libiberty/libiberty.a
+LDADD+=		-ltermcap
 
 GDBDIR=	${.CURDIR}/../../../../contrib/gdb
 .PATH:	${GDBDIR}/gdb
