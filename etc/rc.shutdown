@@ -72,7 +72,8 @@ case ${local_startup} in
 		if [ -d "${dir}" ]; then
 			for script in ${dir}/*.sh; do
 				if [ -x "${script}" ]; then
-					grep -wq stop ${script} || oldscripts="${oldscripts} ${script}"
+					grep -wq stop "${script}" || \
+					    oldscripts="${oldscripts} ${script}"
 # XXX not yet
 #					(set -T
 #					 trap 'exit 1' 2
@@ -81,7 +82,7 @@ case ${local_startup} in
 			done
 		fi
 	done
-	if [ ! -z ${oldscripts} ]; then
+	if [ ! -z "${oldscripts}" ]; then
 		echo 'You still seem to have old-style rc.d scripts:'
 		echo ${oldscripts}
 		echo 'Please change them to recognize the "stop" option.'
