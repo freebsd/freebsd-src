@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.24 1995/06/28 15:59:04 se Exp $
+**  $Id: pci.c,v 1.25 1995/06/28 16:32:54 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -179,17 +179,16 @@ static	struct pcicb   *pcicb;
 
 void pci_configure()
 {
-	int i;
+	struct pcibus **pbp = (struct pcibus**) pcibus_set.ls_items;
 
 	/*
 	**	check pci bus present
 	*/
 
-	for (i=0; i<pcibus_set.ls_length; i++) {
-		if (pci_maxdevice) break;
-		pcibus = (struct pcibus*) pcibus_set.ls_items[i];
-		pcibus->pb_setup ();
+	while (!pci_maxdevice && (pcibus = *pbp++)) {
+		(*pcibus->pb_setup)();
 	}
+
 	if (!pci_maxdevice) return;
 
 	/*
@@ -353,10 +352,8 @@ pci_bus_config (void)
 	int     unit;
 	int     pciint;
 	int     irq;
-	char*   name=0;
 
-	int     dvi;
-	struct pci_device *dvp=0;
+	struct pci_device *dvp;
 
 	struct pci_devconf *pdcp;
 
@@ -375,6 +372,8 @@ pci_bus_config (void)
 	};
 #endif
 	for (device=0; device<pci_maxdevice; device ++) {
+		char*   name;
+		struct pci_device **dvpp;
 
 		if ((pcicb->pcicb_seen >> device) & 1)
 			continue;
@@ -388,13 +387,14 @@ pci_bus_config (void)
 		**	lookup device in ioconfiguration:
 		*/
 
-		for (dvi=0; dvi<pcidevice_set.ls_length; dvi++) {
-			dvp = (struct pci_device*) pcidevice_set.ls_items[dvi];
-			if ((name=(*dvp->pd_probe)(tag, type)))
-				break;
-			dvp = NULL;
-		};
+		dvpp = (struct pci_device **)pcidevice_set.ls_items;
 
+		while (dvp = *dvpp++) {
+			if (dvp->pd_probe) {
+				if (name=(*dvp->pd_probe)(tag, type))
+					break;
+			}
+		};
 		/*
 		**	check for mirrored devices.
 		*/
