@@ -1025,6 +1025,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	controlled by the
 	<varname>net.inet.tcp.icmp_may_rst</varname> sysctl. &merged;</para>
 
+      <para>ICMP Source Quench messages are no longer generated for
+        forwarded packets.  The old behavior can be re-enabled with
+        the <varname>net.inet.ip.sendsourcequench</varname> sysctl
+        variable.</para>
+
       <para>IP multicast now works on VLAN devices.  Several other
 	bugs in the VLAN code have also been fixed.</para>
 
@@ -3865,7 +3870,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	have been updated to FSF version 1.18.1.</para>
 
       <para><application>Heimdal Kerberos</application> has been updated to
-	a pre-0.5 snapshot from 16 September 2002.</para>
+	0.5.1.</para>
 
       <para role="historic">The version of <application>IPFilter</application>
 	provided with &os; now includes the &man.ipfs.8; program,
