@@ -741,6 +741,15 @@ SCLASS	volatile int	_spinblock_count
 #endif
 ;
 
+/*
+ * libthread_db.so support.
+ */
+SCLASS int _libthr_debug
+#ifdef GLOBAL_PTHREAD_PRIVATE
+= 0
+#endif
+;
+
 /* Undefine the storage class specifier: */
 #undef  SCLASS
 
