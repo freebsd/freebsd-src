@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)termios.h	8.3 (Berkeley) 3/28/94
- * $Id$
+ * $Id: termios.h,v 1.3 1994/08/02 07:53:46 davidg Exp $
  */
 
 #ifndef _SYS_TERMIOS_H_
@@ -134,8 +134,10 @@
 #define CCTS_OFLOW	0x00010000	/* CTS flow control of output */
 #define CRTSCTS		(CCTS_OFLOW | CRTS_IFLOW)
 #define CRTS_IFLOW	0x00020000	/* RTS flow control of input */
+#define	CDTR_IFLOW	0x00040000	/* DTR flow control of input */
 #define CDSR_OFLOW	0x00080000	/* DSR flow control of output */
-#define	MDMBUF		0x00100000	/* flow control output via Carrier */
+#define	CCAR_OFLOW	0x00100000	/* DCD flow control of output */
+#define	MDMBUF		0x00100000	/* old name for CCAR_OFLOW */
 #endif
 
 
@@ -175,7 +177,7 @@
 
 typedef unsigned long	tcflag_t;
 typedef unsigned char	cc_t;
-typedef long		speed_t;
+typedef long		speed_t;	/* XXX should be unsigned long */
 
 struct termios {
 	tcflag_t	c_iflag;	/* input flags */
@@ -183,8 +185,8 @@ struct termios {
 	tcflag_t	c_cflag;	/* control flags */
 	tcflag_t	c_lflag;	/* local flags */
 	cc_t		c_cc[NCCS];	/* control chars */
-	long		c_ispeed;	/* input speed */
-	long		c_ospeed;	/* output speed */
+	speed_t		c_ispeed;	/* input speed */
+	speed_t		c_ospeed;	/* output speed */
 };
 
 /* 
