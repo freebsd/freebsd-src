@@ -46,6 +46,7 @@ static char sccsid[] = "@(#)fmt.c	8.4 (Berkeley) 4/15/94";
 #include <sys/resource.h>
 
 #include <err.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,7 +65,8 @@ static char *shquote(char **);
 static char *
 shquote(char **argv)
 {
-	static long arg_max = -1;
+	long arg_max;
+	static size_t buf_size;
 	size_t len;
 	char **p, *dst, *src;
 	static char *buf = NULL;
@@ -72,8 +74,11 @@ shquote(char **argv)
 	if (buf == NULL) {
 		if ((arg_max = sysconf(_SC_ARG_MAX)) == -1)
 			errx(1, "sysconf _SC_ARG_MAX failed");
-		if ((buf = malloc((size_t)(4 * arg_max) + 1)) == NULL)
-			err(1, "malloc");
+		if (arg_max >= LONG_MAX / 4 || 4 * arg_max + 1 > SIZE_MAX)
+			errx(1, "sysconf _SC_ARG_MAX preposterously large");
+		buf_size = 4 * arg_max + 1;
+		if ((buf = malloc(buf_size)) == NULL)
+			errx(1, "malloc failed");
 	}
 
 	if (*argv == 0) {
@@ -84,12 +89,12 @@ shquote(char **argv)
 	for (p = argv; (src = *p++) != 0; ) {
 		if (*src == 0)
 			continue;
-		len = (size_t)(4 * arg_max - (dst - buf)) / 4;
+		len = (buf_size - 1 - (dst - buf)) / 4;
 		strvisx(dst, src, strlen(src) < len ? strlen(src) : len,
 		    VIS_NL | VIS_CSTYLE);
 		while (*dst)
 			dst++;
-		if ((4 * arg_max - (dst - buf)) / 4 > 0)
+		if ((buf_size - 1 - (dst - buf)) / 4 > 0)
 			*dst++ = ' ';
 	}
 	/* Chop off trailing space */
