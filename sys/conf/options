@@ -197,6 +197,10 @@ ISP_DISABLE_1080_SUPPORT	opt_isp.h
 ISP_DISABLE_2100_SUPPORT	opt_isp.h
 ISP_DISABLE_2200_SUPPORT	opt_isp.h
 
+# Options used in the 'ata' ATA/ATAPI driver
+ATA_STATIC_ID		opt_ata.h
+ATA_16BIT_ONLY		opt_ata.h
+
 # Resource limits.
 DFLDSIZ			opt_rlimit.h
 MAXDSIZ			opt_rlimit.h
