@@ -333,6 +333,8 @@ Int_Open_Disk(const char *name)
 			}
 		} else if (!strcmp(t, "GPT"))
 			i = Add_Chunk(d, off, len, n, ty, 0, 0, 0);
+		else if (!strcmp(t, "BDE"))
+			; /* nothing */
 		else {
 			printf("BARF %d\n", __LINE__);
 			exit(0);
