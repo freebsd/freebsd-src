@@ -133,6 +133,21 @@
 #define	USPACE		(UPAGES * PAGE_SIZE) /* total size of u-area */
 
 /*
+ * Ceiling on amount of swblock kva space.
+ */
+#ifndef VM_SWZONE_SIZE_MAX
+#define VM_SWZONE_SIZE_MAX     (70 * 1024 * 1024)
+#endif
+
+/*
+ * Ceiling on size of buffer cache (really only effects write queueing,
+ * the VM page cache is not effected).
+ */
+#ifndef VM_BCACHE_SIZE_MAX
+#define VM_BCACHE_SIZE_MAX     (200 * 1024 * 1024)
+#endif
+
+/*
  * Constants related to network buffer management.
  * MCLBYTES must be no larger than CLBYTES (the software page size), and,
  * on machines that exchange pages of input or output buffers with mbuf
