@@ -441,6 +441,7 @@ nfs_mountroot(mp)
 		panic("nfs_mountroot: socreate(%04x): %d",
 			nd->myif.ifra_addr.sa_family, error);
 
+#if 0 /* XXX Bad idea */
 	/*
 	 * We might not have been told the right interface, so we pass
 	 * over the first ten interfaces of the same kind, until we get
@@ -455,6 +456,8 @@ nfs_mountroot(mp)
 		if(!error)
 			break;
 	}
+#endif
+	error = ifioctl(so, SIOCAIFADDR, (caddr_t)&nd->myif, p);
 	if (error)
 		panic("nfs_mountroot: SIOCAIFADDR: %d", error);
 	soclose(so);
