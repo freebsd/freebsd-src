@@ -114,11 +114,12 @@ struct mtx clock_lock;
 static	int	beeping = 0;
 static	const u_char daysinmonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
 static	u_int	hardclock_max_count;
+static	struct intsrc *i8254_intsrc;
 static	u_int32_t i8254_lastcount;
 static	u_int32_t i8254_offset;
+static	int	(*i8254_pending)(struct intsrc *);
 static	int	i8254_ticked;
 static	int	using_lapic_timer;
-static	struct intsrc *i8254_intsrc;
 
 /* Values for timerX_state: */
 #define	RELEASED	0
@@ -757,10 +758,19 @@ cpu_initclocks()
 #ifdef DEV_APIC
 	using_lapic_timer = lapic_setup_clock();
 #endif
-	/* Finish initializing 8254 timer 0. */
-	intr_add_handler("clk", 0, (driver_intr_t *)clkintr, NULL,
-	    INTR_TYPE_CLK | INTR_FAST, NULL);
-	i8254_intsrc = intr_lookup_source(0);
+	/*
+	 * If we aren't using the local APIC timer to drive the kernel
+	 * clocks, setup the interrupt handler for the 8254 timer 0 so
+	 * that it can drive hardclock().
+	 */
+	if (!using_lapic_timer) {
+		intr_add_handler("clk", 0, (driver_intr_t *)clkintr, NULL,
+		    INTR_TYPE_CLK | INTR_FAST, NULL);
+		i8254_intsrc = intr_lookup_source(0);
+		if (i8254_intsrc != NULL)
+			i8254_pending =
+			    i8254_intsrc->is_pic->pic_source_pending;
+	}
 
 	init_TSC_tc();
 }
@@ -816,8 +826,7 @@ i8254_get_timecount(struct timecounter *tc)
 	if (count < i8254_lastcount ||
 	    (!i8254_ticked && (clkintr_pending ||
 	    ((count < 20 || (!(eflags & PSL_I) && count < timer0_max_count / 2u)) &&
-	    i8254_intsrc != NULL &&
-	    i8254_intsrc->is_pic->pic_source_pending(i8254_intsrc))))) {
+	    i8254_pending != NULL && i8254_pending(i8254_intsrc))))) {
 		i8254_ticked = 1;
 		i8254_offset += timer0_max_count;
 	}
