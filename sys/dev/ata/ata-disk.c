@@ -48,6 +48,7 @@
 #include <machine/bus.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/ata-disk.h>
+#include <dev/ata/ata-raid.h>
 
 /* device structures */
 static d_open_t		adopen;
@@ -156,6 +157,18 @@ ad_attach(struct ata_softc *scp, int device)
 	    printf("ad%d: disabling service interrupt failed\n", adp->lun);
     }
 
+    devstat_add_entry(&adp->stats, "ad", adp->lun, DEV_BSIZE,
+		      DEVSTAT_NO_ORDERED_TAGS,
+		      DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_IDE,
+		      DEVSTAT_PRIORITY_DISK);
+
+    dev = disk_create(adp->lun, &adp->disk, 0, &ad_cdevsw, &addisk_cdevsw);
+    dev->si_drv1 = adp;
+    dev->si_iosize_max = 256 * DEV_BSIZE;
+    adp->dev = dev;
+
+    bioq_init(&adp->queue);
+
     if (bootverbose) {
 	printf("ad%d: <%.40s/%.8s> ATA-%d disk at ata%d-%s\n", 
 	       adp->lun, AD_PARAM->model, AD_PARAM->revision,
@@ -178,6 +191,10 @@ ad_attach(struct ata_softc *scp, int device)
 	       ata_umode(AD_PARAM), AD_PARAM->cblid);
 
     }
+
+    /* if this disk belongs to an ATA RAID dont print the probe */
+    if (adp->controller->flags & ATA_RAID && !ar_probe(adp))
+	return;
     else
 	printf("ad%d: %luMB <%.40s> [%d/%d/%d] at ata%d-%s %s%s\n",
 	       adp->lun, adp->total_secs / ((1024L * 1024L) / DEV_BSIZE),
@@ -186,25 +203,13 @@ ad_attach(struct ata_softc *scp, int device)
 	       (adp->unit == ATA_MASTER) ? "master" : "slave",
 	       (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "",
 	       ata_mode2str(adp->controller->mode[ATA_DEV(adp->unit)]));
-
-    devstat_add_entry(&adp->stats, "ad", adp->lun, DEV_BSIZE,
-		      DEVSTAT_NO_ORDERED_TAGS,
-		      DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_IDE,
-		      DEVSTAT_PRIORITY_DISK);
-
-    dev = disk_create(adp->lun, &adp->disk, 0, &ad_cdevsw, &addisk_cdevsw);
-    dev->si_drv1 = adp;
-    dev->si_iosize_max = 256 * DEV_BSIZE;
-    adp->dev1 = dev;
-
-    bioq_init(&adp->queue);
 }
 
 void
 ad_detach(struct ad_softc *adp)
 {
     disk_invalidate(&adp->disk);
-    disk_destroy(adp->dev1);
+    disk_destroy(adp->dev);
     devstat_remove_entry(&adp->stats);
     ata_free_lun(&adp_lun_map, adp->lun);
     free(adp, M_AD);
