@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1997 Shigio Yamaguchi. All rights reserved.
+ * Copyright (c) 1996, 1997, 1998 Shigio Yamaguchi. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,17 +28,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	mgets.c					8-Nov-97
+ *	mgets.c					29-Aug-98
  *
  */
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "mgets.h"
 #include "die.h"
+#include "mgets.h"
 
-#define EXPANDSIZE 512
+#define EXPANDSIZE 127
+#define MINSIZE 16
+
 static int	mbufsize = EXPANDSIZE;
 static char	*mbuf;
 
@@ -46,20 +49,21 @@ static char	*mbuf;
  * mgets: read whole record into allocated buffer
  *
  *	i)	ip	input stream
+ *	o)	length	record length
  *	i)	flags	flags
- *			MGETS_CONT		\\ + \n -> \n
+ *			MGETS_CONT		\\ + \n -> ''
  *			MGETS_SKIPCOM		skip line which start with '#'.
- *	o)	length	length of record
+ *			MGETS_TAILCUT		remove following blanks 
  *	r)		record buffer (NULL at end of file)
  *
  * Returned buffer has whole record.
  * The buffer end with '\0' and doesn't include '\r' and '\n'.
  */
 char	*
-mgets(ip, flags, length)
+mgets(ip, length, flags)
 FILE	*ip;
-int	flags;
 int	*length;
+int	flags;
 {
 	char	*p;
 
@@ -73,27 +77,33 @@ int	*length;
 	 * read whole record.
 	 */
 	if (!fgets(mbuf, mbufsize, ip))
-		return (char *)0;
+		return NULL;
 	if (flags & MGETS_SKIPCOM)
 		while (*mbuf == '#')
 			if (!fgets(mbuf, mbufsize, ip))
-				return (char *)0;
+				return NULL;
 	p = mbuf + strlen(mbuf);
+
 	for (;;) {
 		/*
 		 * get a line.
 		 */
 		while (*(p - 1) != '\n') {
 			/*
-			 * expand and read additionally.
+			 * expand buffer and read additionally.
 			 */
 			int count = p - mbuf;
-			mbufsize += EXPANDSIZE;
-			if (!(mbuf = (char *)realloc(mbuf, mbufsize + 1)))
-				die("short of memory.");
-			p = mbuf + count;
-			if (!fgets(p, mbufsize - count, ip))
-				die("illegal end of file.");
+
+			if (mbufsize - count < MINSIZE) {
+				mbufsize += EXPANDSIZE;
+				if (!(mbuf = (char *)realloc(mbuf, mbufsize + 1)))
+					die("short of memory.");
+				p = mbuf + count;
+			}
+			if (!fgets(p, mbufsize - count, ip)) {
+				*p++ = '\n';
+				break;
+			}
 			p += strlen(p);
 		}
 		/*
@@ -110,6 +120,17 @@ int	*length;
 		else
 			break;
 	}
+/*
+	if (flags & MGETS_SKIPCOM)
+		for (p = mbuf; *p; p++)
+			if (*p == '#') {
+				*p = 0;
+				break;
+			}
+*/
+	if (flags & MGETS_TAILCUT)
+		while (isspace(*(--p)))
+			*p = 0;
 	if (length)
 		*length = p - mbuf;
 	return mbuf;

@@ -1,7 +1,7 @@
 ;;; gtags.el --- gtags facility for Emacs
 
 ;;
-;; Copyright (c) 1997 Shigio Yamaguchi. All rights reserved.
+;; Copyright (c) 1997, 1998, 1999 Shigio Yamaguchi. All rights reserved.
 ;;
 ;; Redistribution and use in source and binary forms, with or without
 ;; modification, are permitted provided that the following conditions
@@ -30,12 +30,12 @@
 ;; OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 ;; SUCH DAMAGE.
 ;;
-;;	gtags.el	31-Aug-97
+;;	gtags.el	8-Jan-99
 ;;
 
 ;; This file is part of GLOBAL.
 ;; Author: Shigio Yamaguchi <shigio@wafu.netgate.net>
-;; Version: 1.1
+;; Version: 1.5
 ;; Keywords: tools
 
 ;;; Code
@@ -59,6 +59,7 @@
 (define-key gtags-mode-map "\es" 'gtags-find-symbol)
 (define-key gtags-mode-map "\eg" 'gtags-find-pattern)
 (define-key gtags-mode-map "\C-]" 'gtags-find-tag-from-here)
+(define-key gtags-mode-map "\eh" 'gtags-display-browser)
 (define-key gtags-mode-map "\C-t" 'gtags-pop-stack)
 (define-key gtags-mode-map "\e." 'etags-style-find-tag)
 (define-key gtags-mode-map [mouse-2] 'gtags-find-tag-by-event)
@@ -83,7 +84,7 @@
 ;;
 ;; utility
 ;;
-(defun match-string (n)
+(defun util-match-string (n)
   (buffer-substring (match-beginning n) (match-end n)))
 
 ;; Return a default tag to search for, based on the text at point.
@@ -99,7 +100,7 @@
   (if (and (bolp) (looking-at definition-regexp))
       (goto-char (match-end 0)))
   (if (looking-at symbol-regexp)
-      (match-string 0) nil))
+      (util-match-string 0) nil))
 
 ;; push current context to stack
 (defun push-context ()
@@ -132,18 +133,20 @@
 ;; is it a definition?
 (defun is-definition ()
   (save-excursion
-    (if (bolp)
+    (if (and (string-match "\.java$" buffer-file-name) (looking-at "[^(]+([^)]*)[ \t]*{"))
 	t
-      (forward-word -1)
-      (cond
-       ((looking-at "define")
-	(forward-char -1)
-	(while (and (not (bolp)) (looking-at "[ \t]"))
-	  (forward-char -1))
-	(if (and (bolp) (looking-at "#"))
-	    t nil))
-       ((looking-at "ENTRY\\|ALTENTRY")
-	(if (bolp) t nil))))))
+      (if (bolp)
+	  t
+        (forward-word -1)
+        (cond
+         ((looking-at "define")
+	  (forward-char -1)
+	  (while (and (not (bolp)) (looking-at "[ \t]"))
+	    (forward-char -1))
+	  (if (and (bolp) (looking-at "#"))
+	      t nil))
+         ((looking-at "ENTRY\\|ALTENTRY")
+	  (if (bolp) t nil)))))))
 
 ;;
 ;; interactive command
@@ -215,6 +218,18 @@
         nil
       (push-context)
       (gtags-goto-tag tagname flag))))
+
+(defun gtags-display-browser ()
+  "Display current screen on hypertext browser."
+  (interactive)
+  (let (lno)
+    (save-excursion
+      (end-of-line)
+      (if (equal (point-min) (point))
+          (setq lno 1)
+        (setq lno (count-lines (point-min) (point)))))
+    (message (number-to-string lno))
+    (call-process "gozilla"  nil t nil (concat "+" (number-to-string lno)) buffer-file-name)))
 
 (defun gtags-find-tag-by-event (event)
   "Get the expression as a tagname around here and move there."
@@ -307,8 +322,8 @@
 ;;    (if (not (looking-at "[A-Za-z_][A-Za-z_0-9]*[ \t]+\\([0-9]+\\)[ \t]\\([^ \t]+\\)[ \t]"))
     (if (not (looking-at "[^ \t]+[ \t]+\\([0-9]+\\)[ \t]\\([^ \t]+\\)[ \t]"))
         (pop-context)
-      (setq line (string-to-number (match-string 1)))
-      (setq file (match-string 2))
+      (setq line (string-to-number (util-match-string 1)))
+      (setq file (util-match-string 2))
       (if delete (kill-buffer (current-buffer)))
       ;; move to the context
       (if gtags-read-only (find-file-read-only file) (find-file file))
@@ -317,13 +332,15 @@
 
 ;; make complete list
 (defun make-gtags-complete-list ()
+;;  "Make tag name list for completion."
+;;  (interactive)
   (save-excursion
     (setq gtags-complete-list (make-vector 63 0))
     (set-buffer (generate-new-buffer "*Completions*"))
     (call-process "global" nil t nil "-c")
     (goto-char (point-min))
     (while (looking-at symbol-regexp)
-      (intern (match-string 0) gtags-complete-list)
+      (intern (util-match-string 0) gtags-complete-list)
       (forward-line))
     (kill-buffer (current-buffer))))
 
@@ -331,7 +348,8 @@
 (defun gtags-mode ()
   "Minor mode for browsing C source using GLOBAL."
   (interactive)
-  (make-gtags-complete-list)
+  (if (y-or-n-p "Do you use function name completion?")
+    (make-gtags-complete-list))
   (use-local-map gtags-mode-map)
   (run-hooks 'gtags-mode-hook))
 
