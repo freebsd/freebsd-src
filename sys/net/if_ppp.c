@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.7 1994/11/23 08:29:44 ugen Exp $ */
+/* $Id: if_ppp.c,v 1.8 1994/11/26 19:23:59 bde Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
 #include "ppp.h"
@@ -1506,11 +1506,14 @@ pppioctl(ifp, cmd, data)
 	if (error = suser(p->p_ucred, &p->p_acflag))
 	    return (error);
 	if (ifr->ifr_mtu > PPP_MAXMTU)
-		error = EINVAL;
+	    error = EINVAL;
 	else {
-		sc->sc_if.if_mtu = ifr->ifr_mtu;
-		clist_alloc_cblocks(&((struct tty *) sc->sc_devp)->t_outq,
-				    sc->sc_if.if_mtu + PPP_HIWAT,
+	    struct tty *tp;
+
+	    sc->sc_if.if_mtu = ifr->ifr_mtu;
+	    tp = (struct tty *) sc->sc_devp;
+	    if (tp != NULL)
+		clist_alloc_cblocks(&tp->t_outq, sc->sc_if.if_mtu + PPP_HIWAT,
 				    sc->sc_if.if_mtu + PPP_HIWAT);
 	}
 	break;

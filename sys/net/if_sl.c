@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.9 1994/10/08 01:40:22 phk Exp $
+ * $Id: if_sl.c,v 1.10 1994/11/26 19:24:00 bde Exp $
  */
 
 /*
@@ -883,11 +883,14 @@ slioctl(ifp, cmd, data)
 		if (ifr->ifr_mtu > SLTMAX)
 			error = EINVAL;
 		else {
+			struct tty *tp;
+
 			ifp->if_mtu = ifr->ifr_mtu;
-			clist_alloc_cblocks(
-				&sl_softc[ifp->if_unit].sc_ttyp->t_outq,
-					    ifp->if_mtu + SLIP_HIWAT,
-					    ifp->if_mtu + SLIP_HIWAT);
+			tp = sl_softc[ifp->if_unit].sc_ttyp;
+			if (tp != NULL)
+				clist_alloc_cblocks(&tp->t_outq,
+						    ifp->if_mtu + SLIP_HIWAT,
+						    ifp->if_mtu + SLIP_HIWAT);
 		}
 		break;
 
