@@ -27,4 +27,4 @@ maketabs: maketabs.c
 
 .include <bsd.kmod.mk>
 
-CFLAGS += -g -DVINUMDEBUG -Wall -Wno-unused -Wno-parentheses
+CFLAGS += -I${SOURCE} -g -DVINUMDEBUG -Wall -Wno-unused -Wno-parentheses
