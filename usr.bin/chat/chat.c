@@ -217,8 +217,6 @@ void pack_array(char **array, int end);
 char *expect_strtok(char *, char *);
 int vfmtmsg(char *, int, const char *, va_list);	/* vsprintf++ */
 
-int main(int, char *[]);
-
 void *dup_mem(b, c)
 void *b;
 size_t c;
