@@ -102,7 +102,6 @@ void	 qsort __P((void *, size_t, size_t,
 int	 rand __P((void));
 void	*realloc __P((void *, size_t));
 void	 srand __P((unsigned));
-void	 sranddev __P((void));
 double	 strtod __P((const char *, char **));
 long	 strtol __P((const char *, char **, int));
 long long	 
@@ -175,6 +174,7 @@ void    *reallocf __P((void *, size_t));
 char	*realpath __P((const char *, char resolved_path[]));
 char	*setstate __P((char *));
 void	 srandom __P((unsigned long));
+void	 sranddev __P((void));
 void	 srandomdev __P((void));
 char	*user_from_uid __P((unsigned long, int));
 #ifndef __STRICT_ANSI__
