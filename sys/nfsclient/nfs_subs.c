@@ -429,10 +429,29 @@ nfs_init(struct vfsconf *vfsp)
 int
 nfs_uninit(struct vfsconf *vfsp)
 {
+	int i;
 
 	callout_stop(&nfs_callout);
 	sysent[SYS_nfsclnt].sy_narg = nfs_prev_nfsclnt_sy_narg;
 	sysent[SYS_nfsclnt].sy_call = nfs_prev_nfsclnt_sy_call;
+
+	KASSERT(TAILQ_ISEMPTY(&nfs_reqq),
+	    ("nfs_uninit: request queue not empty"));
+
+	/*
+	 * Tell all nfsiod processes to exit. Clear nfs_iodmax, and wakeup
+	 * any sleeping nfsiods so they check nfs_iodmax and exit.
+	 */
+	nfs_iodmax = 0;
+	for (i = 0; i < nfs_numasync; i++)
+		if (nfs_iodwant[i])
+			wakeup(&nfs_iodwant[i]);
+	/* The last nfsiod to exit will wake us up when nfs_numasync hits 0 */
+	while (nfs_numasync)
+		tsleep(&nfs_numasync, PWAIT, "ioddie", 0);
+
+	nfs_nhuninit();
+	uma_zdestroy(nfsmount_zone);
 	return (0);
 }
 

@@ -136,6 +136,7 @@ extern struct callout nfs_callout;
 extern struct nfsstats nfsstats;
 
 extern int nfs_numasync;
+extern unsigned int nfs_iodmax;
 extern int nfs_pbuf_freecnt;
 extern int nfs_ticks;
 
@@ -295,6 +296,7 @@ int	nfs_loadattrcache(struct vnode **, struct mbuf **, caddr_t *,
 	    struct vattr *, int);
 int	nfsm_mbuftouio(struct mbuf **, struct uio *, int, caddr_t *);
 void	nfs_nhinit(void);
+void	nfs_nhuninit(void);
 int	nfs_nmcancelreqs(struct nfsmount *);
 void	nfs_timer(void*);
 

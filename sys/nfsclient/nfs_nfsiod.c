@@ -87,7 +87,7 @@ static unsigned int nfs_iodmaxidle = 120;
 SYSCTL_UINT(_vfs_nfs, OID_AUTO, iodmaxidle, CTLFLAG_RW, &nfs_iodmaxidle, 0, "");
 
 /* Maximum number of nfsiod kthreads */
-static unsigned int nfs_iodmax = 20;
+unsigned int nfs_iodmax = 20;
 
 /* Minimum number of nfsiod kthreads to keep as spares */
 static unsigned int nfs_iodmin = 4;
@@ -280,7 +280,9 @@ finish:
 	    nmp->nm_bufqiods--;
 	nfs_iodwant[myiod] = NULL;
 	nfs_iodmount[myiod] = NULL;
-	nfs_numasync--;
+	/* Someone may be waiting for the last nfsiod to terminate. */
+	if (--nfs_numasync == 0)
+		wakeup(&nfs_numasync);
 	if ((error == 0) || (error == EWOULDBLOCK))
 		kthread_exit(0);
 	/* Abnormal termination */
