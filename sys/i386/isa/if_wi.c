@@ -1008,6 +1008,9 @@ static int wi_ioctl(ifp, command, data)
 		error = copyin(ifr->ifr_data, &wreq, sizeof(wreq));
 		if (error)
 			break;
+		/* Don't show WEP keys to non-root users. */
+		if (wreq.wi_type == WI_RID_DEFLT_CRYPT_KEYS && suser(p))
+			break;
 		if (wreq.wi_type == WI_RID_IFACE_STATS) {
 			bcopy((char *)&sc->wi_stats, (char *)&wreq.wi_val,
 			    sizeof(sc->wi_stats));
