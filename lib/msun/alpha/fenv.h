@@ -56,7 +56,7 @@ typedef	__uint16_t	fexcept_t;
 #define	_FPUSW_SHIFT	51
 
 #define	__excb()	__asm __volatile("excb")
-#define	__mf_fpcr(__cw)	__asm ("mf_fpcr %0" : "=f" (*(__cw)))
+#define	__mf_fpcr(__cw)	__asm __volatile("mf_fpcr %0" : "=f" (*(__cw)))
 #define	__mt_fpcr(__cw)	__asm __volatile("mt_fpcr %0" : : "f" (__cw))
 
 union __fpcr {
