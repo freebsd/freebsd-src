@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumstate.c,v 2.18 2000/05/10 07:30:50 grog Exp grog $
+ * $Id: vinumstate.c,v 2.21 2003/04/28 02:54:43 grog Exp $
  * $FreeBSD$
  */
 
@@ -87,16 +87,16 @@ set_drive_state(int driveno, enum drivestate newstate, enum setstateflags flags)
 }
 
 /*
- * Try to set the subdisk state.  Return 1 if state changed to
- * what we wanted, -1 if it changed to something else, and 0
- * if no change.
+ * Try to set the subdisk state.  Return 1 if
+ * state changed to what we wanted, -1 if it
+ * changed to something else, and 0 if no change.
  *
- * This routine is called both from the user (up, down states only)
- * and internally.
+ * This routine is called both from the user (up,
+ * down states only) and internally.
  *
- * The setstate_force bit in the flags enables the state change even
- * if it could be dangerous to data consistency.  It shouldn't allow
- * nonsense.
+ * The setstate_force bit in the flags enables the
+ * state change even if it could be dangerous to
+ * data consistency.  It shouldn't allow nonsense.
  */
 int
 set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
@@ -539,7 +539,7 @@ update_plex_state(int plexno)
 		for (plexno = 0; plexno < vol->plexes; plexno++)
 		    forceup(VOL[plex->volno].plex[plexno]);
 	    } else if ((statemap == sd_initializedstate)    /* if it's initialized (not empty) */
-||(plex->organization == plex_concat)			    /* and we're not RAID-4 or RAID-5 */
+	    ||(plex->organization == plex_concat)	    /* and we're not RAID-4 or RAID-5 */
 	    ||(plex->organization == plex_striped))
 		forceup(plexno);			    /* we'll do it */
 	    /*
@@ -645,7 +645,6 @@ checksdstate(struct sd *sd, struct request *rq, daddr_t diskaddr, daddr_t disken
 	 */
 	if (plex->organization == plex_striped)		    /* plex is striped, */
 	    return REQUEST_DOWN;
-
 	else if (isparity(plex)) {			    /* RAID-4 or RAID-5 plex */
 	    if (plex->sddowncount > 1)			    /* with more than one sd down, */
 		return REQUEST_DOWN;
