@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)gettytab.h	8.2 (Berkeley) 3/30/94
- *	$Id: gettytab.h,v 1.3 1996/05/05 19:01:09 joerg Exp $
+ *	$Id: gettytab.h,v 1.4 1996/11/13 01:06:38 pst Exp $
  */
 
 /*
@@ -131,6 +131,7 @@ struct gettyflags {
 #define	O1set	gettynums[23].set
 #define	O2	gettynums[24].value
 #define	O2set	gettynums[24].set
+#define	DE	gettynums[25].value
 
 /*
  * Boolean values.
