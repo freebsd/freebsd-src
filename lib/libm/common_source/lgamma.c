@@ -91,7 +91,7 @@ int signgam;
 #define LEFT	(1.0 - (x0 + .25))
 #define RIGHT	(x0 - .218)
 /*
-/* Constants for approximation in [1.244,1.712]
+ * Constants for approximation in [1.244,1.712]
 */
 #define x0	0.461632144968362356785
 #define x0_lo	-.000000000000000015522348162858676890521
