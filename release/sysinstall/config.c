@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.111 1998/09/23 12:13:47 jkh Exp $
+ * $Id: config.c,v 1.112 1998/09/30 11:49:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -532,7 +532,7 @@ configXEnvironment(dialogMenuItem *self)
 	    moused = variable_get(VAR_MOUSED);
 	}
 	if (moused && !strcmp(moused, "YES"))
-	    msgConfirm("You have configured and been running the mouse daemon.\n"
+	    msgConfirm("You have configured and are now running the mouse daemon.\n"
 	   	       "Choose \"/dev/sysmouse\" as the mouse port and \"SysMouse\" or\n"
 		       "\"MouseSystems\" as the mouse protocol in the X configuration\n"
 		       "utility.");
