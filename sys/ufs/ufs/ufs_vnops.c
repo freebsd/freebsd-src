@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.31 1995/10/22 09:32:48 davidg Exp $
+ * $Id: ufs_vnops.c,v 1.32 1995/11/05 23:35:58 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -2010,8 +2010,8 @@ ufs_advlock(ap)
 int
 ufs_vinit(mntp, specops, fifoops, vpp)
 	struct mount *mntp;
-	int (**specops)();
-	int (**fifoops)();
+	vop_t **specops;
+	vop_t **fifoops;
 	struct vnode **vpp;
 {
 	struct inode *ip;

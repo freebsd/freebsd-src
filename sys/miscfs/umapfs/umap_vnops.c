@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)umap_vnops.c	8.3 (Berkeley) 1/5/94
- * $Id: umap_vnops.c,v 1.8 1995/03/19 14:28:55 davidg Exp $
+ * $Id: umap_vnops.c,v 1.9 1995/05/30 08:07:22 rgrimes Exp $
  */
 
 /*
@@ -471,20 +471,20 @@ umap_rename(ap)
  * go away with a merged buffer/block cache.
  *
  */
-int (**umap_vnodeop_p)();
+vop_t **umap_vnodeop_p;
 struct vnodeopv_entry_desc umap_vnodeop_entries[] = {
-	{ &vop_default_desc, umap_bypass },
+	{ &vop_default_desc, (vop_t *)umap_bypass },
 
-	{ &vop_getattr_desc, umap_getattr },
-	{ &vop_inactive_desc, umap_inactive },
-	{ &vop_reclaim_desc, umap_reclaim },
-	{ &vop_print_desc, umap_print },
-	{ &vop_rename_desc, umap_rename },
+	{ &vop_getattr_desc, (vop_t *)umap_getattr },
+	{ &vop_inactive_desc, (vop_t *)umap_inactive },
+	{ &vop_reclaim_desc, (vop_t *)umap_reclaim },
+	{ &vop_print_desc, (vop_t *)umap_print },
+	{ &vop_rename_desc, (vop_t *)umap_rename },
 
-	{ &vop_strategy_desc, umap_strategy },
-	{ &vop_bwrite_desc, umap_bwrite },
+	{ &vop_strategy_desc, (vop_t *)umap_strategy },
+	{ &vop_bwrite_desc, (vop_t *)umap_bwrite },
 
-	{ (struct vnodeop_desc*) NULL, (int(*)()) NULL }
+	{ NULL, NULL }
 };
 struct vnodeopv_desc umap_vnodeop_opv_desc =
 	{ &umap_vnodeop_p, umap_vnodeop_entries };

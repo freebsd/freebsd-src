@@ -35,7 +35,7 @@
  *
  *	@(#)portal.h	8.4 (Berkeley) 1/21/94
  *
- * $Id: portal.h,v 1.3 1992/05/30 10:05:24 jsp Exp jsp $
+ * $Id: portal.h,v 1.1.1.1 1994/05/24 10:05:06 rgrimes Exp $
  */
 
 struct portal_args {
@@ -67,6 +67,6 @@ struct portalnode {
 
 #define PORTAL_ROOTFILEID	2
 
-extern int (**portal_vnodeop_p)();
+extern vop_t **portal_vnodeop_p;
 extern struct vfsops portal_vfsops;
 #endif /* KERNEL */

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union.h	8.2 (Berkeley) 2/17/94
- * $Id: union.h,v 1.2 1994/08/02 07:45:42 davidg Exp $
+ * $Id: union.h,v 1.3 1995/03/16 18:14:02 bde Exp $
  */
 
 struct union_args {
@@ -116,6 +116,6 @@ extern void union_newupper __P((struct union_node *, struct vnode *));
 #define	UPPERVP(vp) (VTOUNION(vp)->un_uppervp)
 #define OTHERVP(vp) (UPPERVP(vp) ? UPPERVP(vp) : LOWERVP(vp))
 
-extern int (**union_vnodeop_p)();
+extern vop_t **union_vnodeop_p;
 extern struct vfsops union_vfsops;
 #endif /* KERNEL */

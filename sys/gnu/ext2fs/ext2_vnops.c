@@ -79,150 +79,150 @@
 #include <gnu/ext2fs/ext2_extern.h>
 
 /* Global vfs data structures for ufs. */
-int (**ext2_vnodeop_p)();
+vop_t **ext2_vnodeop_p;
 struct vnodeopv_entry_desc ext2_vnodeop_entries[] = {
-	{ &vop_default_desc, vn_default_error },
-	{ &vop_lookup_desc, ext2_lookup },		/* lookup */
-	{ &vop_create_desc, ufs_create },		/* create */
-	{ &vop_mknod_desc, ufs_mknod },			/* mknod */
-	{ &vop_open_desc, ufs_open },			/* open */
-	{ &vop_close_desc, ufs_close },			/* close */
-	{ &vop_access_desc, ufs_access },		/* access */
-	{ &vop_getattr_desc, ufs_getattr },		/* getattr */
-	{ &vop_setattr_desc, ufs_setattr },		/* setattr */
-	{ &vop_read_desc, ext2_read },			/* read */
-	{ &vop_write_desc, ext2_write },		/* write */
-	{ &vop_ioctl_desc, ufs_ioctl },			/* ioctl */
-	{ &vop_select_desc, ufs_select },		/* select */
-	{ &vop_mmap_desc, ufs_mmap },			/* mmap */
-	{ &vop_fsync_desc, ext2_fsync },		/* fsync */
-	{ &vop_seek_desc, ufs_seek },			/* seek */
-	{ &vop_remove_desc, ufs_remove },		/* remove */
-	{ &vop_link_desc, ufs_link },			/* link */
-	{ &vop_rename_desc, ufs_rename },		/* rename */
-	{ &vop_mkdir_desc, ufs_mkdir },			/* mkdir */
-	{ &vop_rmdir_desc, ufs_rmdir },			/* rmdir */
-	{ &vop_symlink_desc, ufs_symlink },		/* symlink */
-	{ &vop_readdir_desc, ext2_readdir },		/* readdir */
-	{ &vop_readlink_desc, ufs_readlink },		/* readlink */
-	{ &vop_abortop_desc, ufs_abortop },		/* abortop */
-	{ &vop_inactive_desc, ext2_inactive },		/* inactive */
-	{ &vop_reclaim_desc, ufs_reclaim },		/* reclaim */
-	{ &vop_lock_desc, ufs_lock },			/* lock */
-	{ &vop_unlock_desc, ufs_unlock },		/* unlock */
-	{ &vop_bmap_desc, ufs_bmap },			/* bmap */
-	{ &vop_strategy_desc, ufs_strategy },		/* strategy */
-	{ &vop_print_desc, ufs_print },			/* print */
-	{ &vop_islocked_desc, ufs_islocked },		/* islocked */
-	{ &vop_pathconf_desc, ufs_pathconf },		/* pathconf */
-	{ &vop_advlock_desc, ufs_advlock },		/* advlock */
-	{ &vop_blkatoff_desc, ext2_blkatoff },		/* blkatoff */
-	{ &vop_valloc_desc, ext2_valloc },		/* valloc */
-	{ &vop_reallocblks_desc, ext2_reallocblks },	/* reallocblks */
-	{ &vop_vfree_desc, ext2_vfree },		/* vfree */
-	{ &vop_truncate_desc, ext2_truncate },		/* truncate */
-	{ &vop_update_desc, ext2_update },		/* update */
-	{ &vop_bwrite_desc, vn_bwrite },
-	{ (struct vnodeop_desc*)NULL, (int(*)())NULL }
+	{ &vop_default_desc, (vop_t *)vn_default_error },
+	{ &vop_lookup_desc, (vop_t *)ext2_lookup },	/* lookup */
+	{ &vop_create_desc, (vop_t *)ufs_create },	/* create */
+	{ &vop_mknod_desc, (vop_t *)ufs_mknod },	/* mknod */
+	{ &vop_open_desc, (vop_t *)ufs_open },		/* open */
+	{ &vop_close_desc, (vop_t *)ufs_close },	/* close */
+	{ &vop_access_desc, (vop_t *)ufs_access },	/* access */
+	{ &vop_getattr_desc, (vop_t *)ufs_getattr },	/* getattr */
+	{ &vop_setattr_desc, (vop_t *)ufs_setattr },	/* setattr */
+	{ &vop_read_desc, (vop_t *)ext2_read },		/* read */
+	{ &vop_write_desc, (vop_t *)ext2_write },	/* write */
+	{ &vop_ioctl_desc, (vop_t *)ufs_ioctl },	/* ioctl */
+	{ &vop_select_desc, (vop_t *)ufs_select },	/* select */
+	{ &vop_mmap_desc, (vop_t *)ufs_mmap },		/* mmap */
+	{ &vop_fsync_desc, (vop_t *)ext2_fsync },	/* fsync */
+	{ &vop_seek_desc, (vop_t *)ufs_seek },		/* seek */
+	{ &vop_remove_desc, (vop_t *)ufs_remove },	/* remove */
+	{ &vop_link_desc, (vop_t *)ufs_link },		/* link */
+	{ &vop_rename_desc, (vop_t *)ufs_rename },	/* rename */
+	{ &vop_mkdir_desc, (vop_t *)ufs_mkdir },	/* mkdir */
+	{ &vop_rmdir_desc, (vop_t *)ufs_rmdir },	/* rmdir */
+	{ &vop_symlink_desc, (vop_t *)ufs_symlink },	/* symlink */
+	{ &vop_readdir_desc, (vop_t *)ext2_readdir },	/* readdir */
+	{ &vop_readlink_desc, (vop_t *)ufs_readlink },	/* readlink */
+	{ &vop_abortop_desc, (vop_t *)ufs_abortop },	/* abortop */
+	{ &vop_inactive_desc, (vop_t *)ext2_inactive },	/* inactive */
+	{ &vop_reclaim_desc, (vop_t *)ufs_reclaim },	/* reclaim */
+	{ &vop_lock_desc, (vop_t *)ufs_lock },		/* lock */
+	{ &vop_unlock_desc, (vop_t *)ufs_unlock },	/* unlock */
+	{ &vop_bmap_desc, (vop_t *)ufs_bmap },		/* bmap */
+	{ &vop_strategy_desc, (vop_t *)ufs_strategy },	/* strategy */
+	{ &vop_print_desc, (vop_t *)ufs_print },	/* print */
+	{ &vop_islocked_desc, (vop_t *)ufs_islocked },	/* islocked */
+	{ &vop_pathconf_desc, (vop_t *)ufs_pathconf },	/* pathconf */
+	{ &vop_advlock_desc, (vop_t *)ufs_advlock },	/* advlock */
+	{ &vop_blkatoff_desc, (vop_t *)ext2_blkatoff },	/* blkatoff */
+	{ &vop_valloc_desc, (vop_t *)ext2_valloc },	/* valloc */
+	{ &vop_reallocblks_desc, (vop_t *)ext2_reallocblks },	/* reallocblks */
+	{ &vop_vfree_desc, (vop_t *)ext2_vfree },	/* vfree */
+	{ &vop_truncate_desc, (vop_t *)ext2_truncate },	/* truncate */
+	{ &vop_update_desc, (vop_t *)ext2_update },	/* update */
+	{ &vop_bwrite_desc, (vop_t *)vn_bwrite },	/* bwrite */
+	{ NULL, NULL }
 };
 struct vnodeopv_desc ext2fs_vnodeop_opv_desc =
 	{ &ext2_vnodeop_p, ext2_vnodeop_entries };
 
-int (**ext2_specop_p)();
+vop_t **ext2_specop_p;
 struct vnodeopv_entry_desc ext2_specop_entries[] = {
-	{ &vop_default_desc, vn_default_error },
-	{ &vop_lookup_desc, spec_lookup },		/* lookup */
-	{ &vop_create_desc, spec_create },		/* create */
-	{ &vop_mknod_desc, spec_mknod },		/* mknod */
-	{ &vop_open_desc, spec_open },			/* open */
-	{ &vop_close_desc, ufsspec_close },		/* close */
-	{ &vop_access_desc, ufs_access },		/* access */
-	{ &vop_getattr_desc, ufs_getattr },		/* getattr */
-	{ &vop_setattr_desc, ufs_setattr },		/* setattr */
-	{ &vop_read_desc, ufsspec_read },		/* read */
-	{ &vop_write_desc, ufsspec_write },		/* write */
-	{ &vop_ioctl_desc, spec_ioctl },		/* ioctl */
-	{ &vop_select_desc, spec_select },		/* select */
-	{ &vop_mmap_desc, spec_mmap },			/* mmap */
-	{ &vop_fsync_desc, ext2_fsync },		/* fsync */
-	{ &vop_seek_desc, spec_seek },			/* seek */
-	{ &vop_remove_desc, spec_remove },		/* remove */
-	{ &vop_link_desc, spec_link },			/* link */
-	{ &vop_rename_desc, spec_rename },		/* rename */
-	{ &vop_mkdir_desc, spec_mkdir },		/* mkdir */
-	{ &vop_rmdir_desc, spec_rmdir },		/* rmdir */
-	{ &vop_symlink_desc, spec_symlink },		/* symlink */
-	{ &vop_readdir_desc, spec_readdir },		/* readdir */
-	{ &vop_readlink_desc, spec_readlink },		/* readlink */
-	{ &vop_abortop_desc, spec_abortop },		/* abortop */
-	{ &vop_inactive_desc, ext2_inactive },		/* inactive */
-	{ &vop_reclaim_desc, ufs_reclaim },		/* reclaim */
-	{ &vop_lock_desc, ufs_lock },			/* lock */
-	{ &vop_unlock_desc, ufs_unlock },		/* unlock */
-	{ &vop_bmap_desc, spec_bmap },			/* bmap */
-	{ &vop_strategy_desc, spec_strategy },		/* strategy */
-	{ &vop_print_desc, ufs_print },			/* print */
-	{ &vop_islocked_desc, ufs_islocked },		/* islocked */
-	{ &vop_pathconf_desc, spec_pathconf },		/* pathconf */
-	{ &vop_advlock_desc, spec_advlock },		/* advlock */
-	{ &vop_blkatoff_desc, spec_blkatoff },		/* blkatoff */
-	{ &vop_valloc_desc, spec_valloc },		/* valloc */
-	{ &vop_reallocblks_desc, spec_reallocblks },	/* reallocblks */
-	{ &vop_vfree_desc, ext2_vfree },		/* vfree */
-	{ &vop_truncate_desc, spec_truncate },		/* truncate */
-	{ &vop_update_desc, ext2_update },		/* update */
-	{ &vop_bwrite_desc, vn_bwrite },
-	{ (struct vnodeop_desc*)NULL, (int(*)())NULL }
+	{ &vop_default_desc, (vop_t *)vn_default_error },
+	{ &vop_lookup_desc, (vop_t *)spec_lookup },	/* lookup */
+	{ &vop_create_desc, (vop_t *)spec_create },	/* create */
+	{ &vop_mknod_desc, (vop_t *)spec_mknod },	/* mknod */
+	{ &vop_open_desc, (vop_t *)spec_open },		/* open */
+	{ &vop_close_desc, (vop_t *)ufsspec_close },	/* close */
+	{ &vop_access_desc, (vop_t *)ufs_access },	/* access */
+	{ &vop_getattr_desc, (vop_t *)ufs_getattr },	/* getattr */
+	{ &vop_setattr_desc, (vop_t *)ufs_setattr },	/* setattr */
+	{ &vop_read_desc, (vop_t *)ufsspec_read },	/* read */
+	{ &vop_write_desc, (vop_t *)ufsspec_write },	/* write */
+	{ &vop_ioctl_desc, (vop_t *)spec_ioctl },	/* ioctl */
+	{ &vop_select_desc, (vop_t *)spec_select },	/* select */
+	{ &vop_mmap_desc, (vop_t *)spec_mmap },		/* mmap */
+	{ &vop_fsync_desc, (vop_t *)ext2_fsync },	/* fsync */
+	{ &vop_seek_desc, (vop_t *)spec_seek },		/* seek */
+	{ &vop_remove_desc, (vop_t *)spec_remove },	/* remove */
+	{ &vop_link_desc, (vop_t *)spec_link },		/* link */
+	{ &vop_rename_desc, (vop_t *)spec_rename },	/* rename */
+	{ &vop_mkdir_desc, (vop_t *)spec_mkdir },	/* mkdir */
+	{ &vop_rmdir_desc, (vop_t *)spec_rmdir },	/* rmdir */
+	{ &vop_symlink_desc, (vop_t *)spec_symlink },	/* symlink */
+	{ &vop_readdir_desc, (vop_t *)spec_readdir },	/* readdir */
+	{ &vop_readlink_desc, (vop_t *)spec_readlink },	/* readlink */
+	{ &vop_abortop_desc, (vop_t *)spec_abortop },	/* abortop */
+	{ &vop_inactive_desc, (vop_t *)ext2_inactive },	/* inactive */
+	{ &vop_reclaim_desc, (vop_t *)ufs_reclaim },	/* reclaim */
+	{ &vop_lock_desc, (vop_t *)ufs_lock },		/* lock */
+	{ &vop_unlock_desc, (vop_t *)ufs_unlock },	/* unlock */
+	{ &vop_bmap_desc, (vop_t *)spec_bmap },		/* bmap */
+	{ &vop_strategy_desc, (vop_t *)spec_strategy },	/* strategy */
+	{ &vop_print_desc, (vop_t *)ufs_print },	/* print */
+	{ &vop_islocked_desc, (vop_t *)ufs_islocked },	/* islocked */
+	{ &vop_pathconf_desc, (vop_t *)spec_pathconf },	/* pathconf */
+	{ &vop_advlock_desc, (vop_t *)spec_advlock },	/* advlock */
+	{ &vop_blkatoff_desc, (vop_t *)spec_blkatoff },	/* blkatoff */
+	{ &vop_valloc_desc, (vop_t *)spec_valloc },	/* valloc */
+	{ &vop_reallocblks_desc, (vop_t *)spec_reallocblks },	/* reallocblks */
+	{ &vop_vfree_desc, (vop_t *)ext2_vfree },	/* vfree */
+	{ &vop_truncate_desc, (vop_t *)spec_truncate },	/* truncate */
+	{ &vop_update_desc, (vop_t *)ext2_update },	/* update */
+	{ &vop_bwrite_desc, (vop_t *)vn_bwrite },	/* bwrite */
+	{ NULL, NULL }
 };
 struct vnodeopv_desc ext2fs_specop_opv_desc =
 	{ &ext2_specop_p, ext2_specop_entries };
 
 #if FIFO
-int (**ext2_fifoop_p)();
+vop_t **ext2_fifoop_p;
 struct vnodeopv_entry_desc ext2_fifoop_entries[] = {
-	{ &vop_default_desc, vn_default_error },
-	{ &vop_lookup_desc, fifo_lookup },		/* lookup */
-	{ &vop_create_desc, fifo_create },		/* create */
-	{ &vop_mknod_desc, fifo_mknod },		/* mknod */
-	{ &vop_open_desc, fifo_open },			/* open */
-	{ &vop_close_desc, ufsfifo_close },		/* close */
-	{ &vop_access_desc, ufs_access },		/* access */
-	{ &vop_getattr_desc, ufs_getattr },		/* getattr */
-	{ &vop_setattr_desc, ufs_setattr },		/* setattr */
-	{ &vop_read_desc, ufsfifo_read },		/* read */
-	{ &vop_write_desc, ufsfifo_write },		/* write */
-	{ &vop_ioctl_desc, fifo_ioctl },		/* ioctl */
-	{ &vop_select_desc, fifo_select },		/* select */
-	{ &vop_mmap_desc, fifo_mmap },			/* mmap */
-	{ &vop_fsync_desc, ext2_fsync },		/* fsync */
-	{ &vop_seek_desc, fifo_seek },			/* seek */
-	{ &vop_remove_desc, fifo_remove },		/* remove */
-	{ &vop_link_desc, fifo_link },			/* link */
-	{ &vop_rename_desc, fifo_rename },		/* rename */
-	{ &vop_mkdir_desc, fifo_mkdir },		/* mkdir */
-	{ &vop_rmdir_desc, fifo_rmdir },		/* rmdir */
-	{ &vop_symlink_desc, fifo_symlink },		/* symlink */
-	{ &vop_readdir_desc, fifo_readdir },		/* readdir */
-	{ &vop_readlink_desc, fifo_readlink },		/* readlink */
-	{ &vop_abortop_desc, fifo_abortop },		/* abortop */
-	{ &vop_inactive_desc, ext2_inactive },		/* inactive */
-	{ &vop_reclaim_desc, ufs_reclaim },		/* reclaim */
-	{ &vop_lock_desc, ufs_lock },			/* lock */
-	{ &vop_unlock_desc, ufs_unlock },		/* unlock */
-	{ &vop_bmap_desc, fifo_bmap },			/* bmap */
-	{ &vop_strategy_desc, fifo_strategy },		/* strategy */
-	{ &vop_print_desc, ufs_print },			/* print */
-	{ &vop_islocked_desc, ufs_islocked },		/* islocked */
-	{ &vop_pathconf_desc, fifo_pathconf },		/* pathconf */
-	{ &vop_advlock_desc, fifo_advlock },		/* advlock */
-	{ &vop_blkatoff_desc, fifo_blkatoff },		/* blkatoff */
-	{ &vop_valloc_desc, fifo_valloc },		/* valloc */
-	{ &vop_reallocblks_desc, fifo_reallocblks },	/* reallocblks */
-	{ &vop_vfree_desc, ext2_vfree },		/* vfree */
-	{ &vop_truncate_desc, fifo_truncate },		/* truncate */
-	{ &vop_update_desc, ext2_update },		/* update */
-	{ &vop_bwrite_desc, vn_bwrite },
-	{ (struct vnodeop_desc*)NULL, (int(*)())NULL }
+	{ &vop_default_desc, (vop_t *)vn_default_error },
+	{ &vop_lookup_desc, (vop_t *)fifo_lookup },	/* lookup */
+	{ &vop_create_desc, (vop_t *)fifo_create },	/* create */
+	{ &vop_mknod_desc, (vop_t *)fifo_mknod },	/* mknod */
+	{ &vop_open_desc, (vop_t *)fifo_open },		/* open */
+	{ &vop_close_desc, (vop_t *)ufsfifo_close },	/* close */
+	{ &vop_access_desc, (vop_t *)ufs_access },	/* access */
+	{ &vop_getattr_desc, (vop_t *)ufs_getattr },	/* getattr */
+	{ &vop_setattr_desc, (vop_t *)ufs_setattr },	/* setattr */
+	{ &vop_read_desc, (vop_t *)ufsfifo_read },	/* read */
+	{ &vop_write_desc, (vop_t *)ufsfifo_write },	/* write */
+	{ &vop_ioctl_desc, (vop_t *)fifo_ioctl },	/* ioctl */
+	{ &vop_select_desc, (vop_t *)fifo_select },	/* select */
+	{ &vop_mmap_desc, (vop_t *)fifo_mmap },		/* mmap */
+	{ &vop_fsync_desc, (vop_t *)ext2_fsync },	/* fsync */
+	{ &vop_seek_desc, (vop_t *)fifo_seek },		/* seek */
+	{ &vop_remove_desc, (vop_t *)fifo_remove },	/* remove */
+	{ &vop_link_desc, (vop_t *)fifo_link },		/* link */
+	{ &vop_rename_desc, (vop_t *)fifo_rename },	/* rename */
+	{ &vop_mkdir_desc, (vop_t *)fifo_mkdir },	/* mkdir */
+	{ &vop_rmdir_desc, (vop_t *)fifo_rmdir },	/* rmdir */
+	{ &vop_symlink_desc, (vop_t *)fifo_symlink },	/* symlink */
+	{ &vop_readdir_desc, (vop_t *)fifo_readdir },	/* readdir */
+	{ &vop_readlink_desc, (vop_t *)fifo_readlink },	/* readlink */
+	{ &vop_abortop_desc, (vop_t *)fifo_abortop },	/* abortop */
+	{ &vop_inactive_desc, (vop_t *)ext2_inactive },	/* inactive */
+	{ &vop_reclaim_desc, (vop_t *)ufs_reclaim },	/* reclaim */
+	{ &vop_lock_desc, (vop_t *)ufs_lock },		/* lock */
+	{ &vop_unlock_desc, (vop_t *)ufs_unlock },	/* unlock */
+	{ &vop_bmap_desc, (vop_t *)fifo_bmap },		/* bmap */
+	{ &vop_strategy_desc, (vop_t *)fifo_strategy },	/* strategy */
+	{ &vop_print_desc, (vop_t *)ufs_print },	/* print */
+	{ &vop_islocked_desc, (vop_t *)ufs_islocked },	/* islocked */
+	{ &vop_pathconf_desc, (vop_t *)fifo_pathconf },	/* pathconf */
+	{ &vop_advlock_desc, (vop_t *)fifo_advlock },	/* advlock */
+	{ &vop_blkatoff_desc, (vop_t *)fifo_blkatoff },	/* blkatoff */
+	{ &vop_valloc_desc, (vop_t *)fifo_valloc },	/* valloc */
+	{ &vop_reallocblks_desc, (vop_t *)fifo_reallocblks },	/* reallocblks */
+	{ &vop_vfree_desc, (vop_t *)ext2_vfree },	/* vfree */
+	{ &vop_truncate_desc, (vop_t *)fifo_truncate },	/* truncate */
+	{ &vop_update_desc, (vop_t *)ext2_update },	/* update */
+	{ &vop_bwrite_desc, (vop_t *)vn_bwrite },	/* bwrite */
+	{ NULL, NULL }
 };
 struct vnodeopv_desc ext2fs_fifoop_opv_desc =
 	{ &ext2_fifoop_p, ext2_fifoop_entries };

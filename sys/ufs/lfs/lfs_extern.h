@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_extern.h	8.2 (Berkeley) 4/16/94
- * $Id: lfs_extern.h,v 1.6 1995/07/29 11:43:06 bde Exp $
+ * $Id: lfs_extern.h,v 1.7 1995/08/16 16:14:10 bde Exp $
  */
 
 #ifndef _UFS_LFS_LFS_EXTERN_H_
@@ -109,9 +109,9 @@ __END_DECLS
 
 extern int lfs_allclean_wakeup;
 extern int locked_queue_count;
-extern int (**lfs_vnodeop_p)();
-extern int (**lfs_specop_p)();
-extern int (**lfs_fifoop_p)();
+extern vop_t **lfs_vnodeop_p;
+extern vop_t **lfs_specop_p;
+extern vop_t **lfs_fifoop_p;
 #define LFS_FIFOOPS lfs_fifoop_p
 
 #endif
