@@ -32,6 +32,11 @@
 .Nm fwe
 .Nd Ethernet emulation driver for FireWire
 .Sh SYNOPSIS
+.Cd "kldload firewire"
+.Cd "kldload if_fwe"
+.Pp
+or
+.Pp
 .Cd "device fwe"
 .Cd "device firewire"
 .Cd "device fwohci"
@@ -69,6 +74,7 @@ Note this driver uses very different protocol from RFC 2734
 .Xr arp 4 ,
 .Xr firewire 4 ,
 .Xr fwohci 4 ,
+.Xr kldload 8 ,
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr polling 4 ,
