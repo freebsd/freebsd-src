@@ -1,7 +1,11 @@
-#	$Id: Makefile,v 1.8 1997/07/13 07:36:20 jkh Exp $
+#	$Id: Makefile,v 1.9 1998/02/20 07:37:08 jb Exp $
 
 .if defined(MACHINE_PC98) && ${MACHINE_PC98} == "yes"
 SUBDIR=	pc98/boot
+.elif	exists(${MACHINE}/boot) && ${MACHINE} == "i386"
+.if ${OBJFORMAT} == "aout"
+SUBDIR=	${MACHINE}/boot
+.endif
 .elif	exists(${MACHINE}/boot)
 SUBDIR=	${MACHINE}/boot
 .endif
