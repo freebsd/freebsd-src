@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass1.c,v 1.11 1995/07/12 09:16:08 phk Exp $
+ * $Id: ctm_pass1.c,v 1.12 1996/02/05 16:06:50 phk Exp $
  *
  */
 
@@ -23,9 +23,9 @@ Pass1(FILE *fd, unsigned applied)
     u_char *p,*q;
     MD5_CTX ctx;
     int i,j,sep,cnt;
-    u_char *md5=0,*trash=0;
+    u_char *md5=0,*name=0,*trash=0;
     struct CTM_Syntax *sp;
-    int slashwarn=0;
+    int slashwarn=0, match=0, total_matches=0;
     unsigned current;
     char md5_1[33];
 
@@ -55,8 +55,10 @@ Pass1(FILE *fd, unsigned applied)
     GETFIELDCOPY(Prefix,'\n');				/* <Prefix> */
 
     sscanf(Nbr, "%u", &current);
+    if (FilterList || ListIt)
+	current = 0;	/* ignore if -l or if filters are present */
     if(current && current <= applied) {
-	if(Verbose)
+	if(Verbose > 0)
 	    fprintf(stderr,"Delta number %u is already applied; ignoring.\n",
 		    current);
 	return Exit_Version;
@@ -64,8 +66,14 @@ Pass1(FILE *fd, unsigned applied)
 
     for(;;) {
 	Delete(md5);
+	Delete(name);
 	Delete(trash);
 	cnt = -1;
+	/* if a filter list is defined we assume that all pathnames require
+	   an action opposite to that requested by the first filter in the
+	   list.
+	   If no filter is defined, all pathnames are assumed to match. */
+	match = (FilterList ? !(FilterList->Action) : CTM_FILTER_ENABLE);
 
 	GETFIELD(p,' ');			/* CTM_something */
 
@@ -92,31 +100,61 @@ Pass1(FILE *fd, unsigned applied)
 		sep = ' ';
 	    else
 		sep = '\n';
-	if(Verbose > 5)
-	    fprintf(stderr," %x(%d)",sp->List[i],sep);
+
+	    if(Verbose > 5)
+	        fprintf(stderr," %x(%d)",sp->List[i],sep);
 
 	    switch (j & CTM_F_MASK) {
 		case CTM_F_Name: /* XXX check for garbage and .. */
-		    GETFIELD(p,sep);
-		    j = strlen(p);
-		    if(p[j-1] == '/' && !slashwarn)  {
+		    GETFIELDCOPY(name,sep);
+		    j = strlen(name);
+		    if(name[j-1] == '/' && !slashwarn)  {
 			fprintf(stderr,"Warning: contains trailing slash\n");
 			slashwarn++;
 		    }
-		    if (p[0] == '/') {
+		    if (name[0] == '/') {
 			Fatal("Absolute paths are illegal.");
 			return Exit_Mess;
 		    }
+		    q = name;
 		    for (;;) {
-			if (p[0] == '.' && p[1] == '.')
-			    if (p[2] == '/' || p[2] == '\0') {
+			if (q[0] == '.' && q[1] == '.')
+			    if (q[2] == '/' || q[2] == '\0') {
 				Fatal("Paths containing '..' are illegal.");
 				return Exit_Mess;
 			    }
-			if ((p = strchr(p, '/')) == NULL)
+			if ((q = strchr(q, '/')) == NULL)
 			    break;
-			p++;
+			q++;
 		    }
+
+		    /* if we have been asked to `keep' files then skip
+		       removes; i.e. we don't match these entries at
+		       all. */
+		    if (KeepIt &&
+			(!strcmp(sp->Key,"DR") || !strcmp(sp->Key,"FR"))) {
+			match = CTM_FILTER_DISABLE;
+			break;
+		    }
+
+		    /* If filter expression have been defined, match the
+		       path name against the expression list.  */
+		    
+		    if (FilterList) {
+			struct CTM_Filter *filter;
+
+			for (filter = FilterList; filter; 
+			     filter = filter->Next) {
+				if (0 == regexec(&filter->CompiledRegex, name,
+					0, 0, 0))
+					/* if the name matches, adopt the 
+					   action */
+					match = filter->Action;
+			}
+		    }
+
+		    /* Add up the total number of matches */
+		    total_matches += match;
 		    break;
 		case CTM_F_Uid:
 		    GETFIELD(p,sep);
@@ -170,22 +208,22 @@ Pass1(FILE *fd, unsigned applied)
 		    p = MD5Data(trash,cnt,md5_1);
 		    if(md5 && strcmp(md5,p)) {
 			Fatal("Internal MD5 failed.");
-			return 1;
+			return Exit_Garbage;
 		default:
 			fprintf(stderr,"List = 0x%x\n",j);
 			Fatal("List had garbage.");
-			return 1;
-
+			return Exit_Garbage;
 		    }
-
-		}
 	    }
+	}
 	if(Verbose > 5)
 	    putc('\n',stderr);
-	continue;
+	if(ListIt && match)
+	    printf("> %s %s\n", sp->Key, name);
     }
 
     Delete(md5);
+    Delete(name);
     Delete(trash);
 
     q = MD5End (&ctx,md5_1);
@@ -198,7 +236,7 @@ Pass1(FILE *fd, unsigned applied)
 	Fatal("MD5 sum doesn't match.");
 	fprintf(stderr,"\tI have:<%s>\n",q);
 	fprintf(stderr,"\tShould have been:<%s>\n",p);
-	return 1;
+	return Exit_Garbage;
     }
     if (-1 != getc(fd)) {
 	if(!Force) {
@@ -206,5 +244,7 @@ Pass1(FILE *fd, unsigned applied)
 	    return 16;
 	}
     }
-    return 0;
+    if ((Verbose > 1) && (0 == total_matches))
+	printf("No matches in \"%s\"\n", FileName);
+    return (total_matches ? Exit_OK : Exit_NoMatch);
 }
