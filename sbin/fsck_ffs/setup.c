@@ -475,6 +475,7 @@ badsb(listerr, s)
 	pfatal("BAD SUPER BLOCK: %s\n", s);
 }
 
+void
 sblock_init()
 {
 	struct disklabel *lp;
