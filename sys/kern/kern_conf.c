@@ -182,16 +182,16 @@ allocdev(void)
 	static int stashed;
 	struct specinfo *si;
 
-	if (stashed >= DEVT_STASH) {
-		MALLOC(si, struct specinfo *, sizeof(*si), M_DEVT,
-		    M_USE_RESERVE | M_ZERO);
-	} else if (LIST_FIRST(&dev_free)) {
+	if (LIST_FIRST(&dev_free)) {
 		si = LIST_FIRST(&dev_free);
 		LIST_REMOVE(si, si_hash);
+	} else if (stashed >= DEVT_STASH) {
+		MALLOC(si, struct specinfo *, sizeof(*si), M_DEVT,
+		    M_USE_RESERVE | M_ZERO);
 	} else {
 		si = devt_stash + stashed++;
 		bzero(si, sizeof *si);
-	si->si_flags |= SI_STASHED;
+		si->si_flags |= SI_STASHED;
 	}
 	LIST_INIT(&si->si_children);
 	TAILQ_INIT(&si->si_snapshots);
