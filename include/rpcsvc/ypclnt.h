@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypclnt.h,v 1.1 1993/09/14 17:42:54 jtc Exp $
+ *	$Id: ypclnt.h,v 1.1 1994/08/04 19:01:56 wollman Exp $
  */
 
 #ifndef _YPCLNT_H_
@@ -80,6 +80,7 @@ int	yp_order	__P((char *indomain, char *inmap, int *outorder));
 int	yp_all		__P((char *indomain, char *inmap,
 			    struct ypall_callback *incallback));
 char *	yperr_string	__P((int incode));
+char *	ypbinderr_string __P((int incode));
 int	ypprot_err	__P((unsigned int incode));
 
 #endif /* _YPCLNT_H_ */
