@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.55 1996/07/31 09:29:32 jkh Exp $
+ * $Id: label.c,v 1.56 1996/08/01 11:39:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -497,10 +497,8 @@ diskLabel(char *str)
 	    move(23, 0);
 	    clrtoeol();
 	}
-	key = getch() & 0x7F;
-	if (islower(key))
-	    key = toupper(key);
-	switch (key) {
+	key = getch();
+	switch (toupper(key)) {
 	    int i;
 	    static char _msg[40];
 
@@ -728,7 +726,7 @@ diskLabel(char *str)
 	    }
 	    break;
 
-	case '\177':
+	case KEY_DC:
 	case 'D':	/* delete */
 	    if (label_chunk_info[here].type == PART_SLICE) {
 		msg = MSG_NOT_APPLICABLE;
