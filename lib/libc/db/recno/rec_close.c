@@ -155,7 +155,7 @@ __rec_sync(dbp, flags)
 			status = (dbp->seq)(dbp, &key, &data, R_NEXT);
 		}
 	} else {
-		iov[1].iov_base = &t->bt_bval;
+		iov[1].iov_base = (char *)&t->bt_bval;
 		iov[1].iov_len = 1;
 
 		status = (dbp->seq)(dbp, &key, &data, R_FIRST);
