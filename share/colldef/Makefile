@@ -15,7 +15,9 @@ LOCALES=	de_DE.DIS_8859-15 \
 		lt_LN.ISO_8859-2 \
 		ru_SU.CP866 \
 		ru_SU.ISO_8859-5 \
-		ru_SU.KOI8-R
+		ru_SU.KOI8-R \
+		sv_SE.DIS_8859-15 \
+		sv_SE.ISO_8859-1
 
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
@@ -27,7 +29,7 @@ ZHLINKS =    zh_TW.Big5
 LATIN1LINKS = \
 	da_DK en_AU en_CA en_GB en_US fi_FI \
 	fr_BE fr_CA fr_CH fr_FR it_CH it_IT nl_BE nl_NL no_NO \
-	pt_PT sv_SE
+	pt_PT
 
 LATIN2LINKS = hr_HR hu_HU pl_PL sl_SI
 
@@ -51,7 +53,10 @@ lt_LN.DIS_8859-15.out:  map.DIS_8859-15
 lt_LN.ISO_8859-1.out:   map.ISO_8859-1
 lt_LN.ISO_8859-2.out:   map.ISO_8859-2
 ru_SU.CP866.out:        map.CP866
+ru_SU.ISO_8859-5.out:   map.ISO_8859-5
 ru_SU.KOI8-R.out:       map.KOI8-R
+sv_SE.DIS_8859-15.out:  map.DIS_8859-15
+sv_SE.ISO_8859-1.out:   map.ISO_8859-1
 
 afterinstall:
 .for locale in ${LOCALES}
