@@ -53,6 +53,8 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
+#include "extern.h"
+
 static int evflags = 0;
 
 /*
@@ -172,7 +174,7 @@ start_tracing(int pid, int flags) {
  * process.
  */
 void
-restore_proc(int signo) {
+restore_proc(int signo __unused) {
   extern int Procfd;
 
   ioctl(Procfd, PIOCBIC, ~0);

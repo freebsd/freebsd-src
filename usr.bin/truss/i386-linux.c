@@ -55,6 +55,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
+#include "extern.h"
 #include "syscall.h"
 
 static int fd = -1;
@@ -183,7 +184,7 @@ i386_linux_syscall_entry(int pid, int nargs) {
 /*
  * Linux syscalls return negative errno's, we do positive and map them
  */
-int bsd_to_linux_errno[] = {
+const int bsd_to_linux_errno[] = {
   	-0,  -1,  -2,  -3,  -4,  -5,  -6,  -7,  -8,  -9,
  	-10, -35, -12, -13, -14, -15, -16, -17, -18, -19,
  	-20, -21, -22, -23, -24, -25, -26, -27, -28, -29,
