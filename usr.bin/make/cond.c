@@ -707,7 +707,7 @@ do_string_compare:
 			}
 		    } else {
 			char *c = CondCvtArg(rhs, &right);
-			if (*c != '\0' && !isspace(*c))
+			if (*c != '\0' && !isspace((unsigned char) *c))
 			    goto do_string_compare;
 			if (rhs == condExpr) {
 			    /*
