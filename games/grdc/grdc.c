@@ -5,6 +5,8 @@
  *
  * modified 10-18-89 for curses (jrl)
  * 10-18-89 added signal handling
+ *
+ * $FreeBSD$
  */
 
 #include <time.h>
@@ -62,6 +64,7 @@ int n = 0;
 
 	cbreak();
 	noecho();
+	curs_set(0);
 
 	hascolor = has_colors();
 
