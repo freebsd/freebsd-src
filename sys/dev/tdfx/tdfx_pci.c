@@ -78,6 +78,7 @@
 #include <dev/tdfx/tdfx_linux.h>
 #endif
 
+#include <dev/tdfx/tdfx_linux.h>
 #include <dev/tdfx/tdfx_io.h>
 #include <dev/tdfx/tdfx_vars.h>
 #include <dev/tdfx/tdfx_pci.h>
