@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.42 1996/08/30 19:37:14 peter Exp $
+#	$Id: Makefile,v 1.43 1996/09/01 17:54:25 adam Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -8,7 +8,7 @@
 #
 all depend lint tags:
 
-CLEANFILES=version vers.c
+CLEANFILES= osreldate.h version vers.c
 SUBDIR= rpcsvc
 FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
 	err.h f2c.h fnmatch.h fstab.h fts.h glob.h grp.h strhash.h histedit.h \
@@ -32,7 +32,8 @@ RPCFILES=	auth.h auth_unix.h clnt.h pmap_clnt.h pmap_prot.h pmap_rmt.h \
 MFILES=	float.h floatingpoint.h stdarg.h varargs.h
 LFILES=	errno.h fcntl.h syslog.h termios.h
 
-LDIRS=  net netatalk netinet netipx netkey nfs pccard sys vm #netccitt netiso netns
+LDIRS=	net netatalk netinet netipx netkey nfs pccard sys vm \
+		# netccitt netiso netns
 
 LUDIR=	ufs
 UDIRS=	ufs/ffs ufs/lfs ufs/mfs ufs/ufs
