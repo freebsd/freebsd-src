@@ -58,6 +58,8 @@ beforeinstall:
 	cd ${.CURDIR}; \
 	    ${INSTALL} ${COPY} -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
 	    hyphen.us-ru ${DESTDIR}${TMACDIR}
+# XXX: multi-job make chokes without this
+	cd ${.OBJDIR}
 .for f in ${STRIPFILES} ${SPECIALFILES}
 	${INSTALL} ${COPY} -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
 	    $f-s ${DESTDIR}${TMACDIR}/$f
