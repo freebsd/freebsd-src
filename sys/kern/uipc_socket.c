@@ -979,7 +979,8 @@ soreceive(so, psa, uio, mp0, controlp, flagsp)
 		return (soreceive_rcvoob(so, uio, flags));
 	if (mp != NULL)
 		*mp = NULL;
-	if (so->so_state & SS_ISCONFIRMING && uio->uio_resid)
+	if ((pr->pr_flags & PR_WANTRCVD) && (so->so_state & SS_ISCONFIRMING)
+	    && uio->uio_resid)
 		(*pr->pr_usrreqs->pru_rcvd)(so, 0);
 
 	SOCKBUF_LOCK(&so->so_rcv);
