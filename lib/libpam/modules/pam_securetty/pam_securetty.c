@@ -43,7 +43,7 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags, int argc, const char **argv)
 {
 	struct options options;
 	struct ttyent *ttyfileinfo;
-	struct passwd *user_pwd;
+	struct passwd *pwd;
 	int retval;
 	const char *user, *ttyname;
 
@@ -68,10 +68,10 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags, int argc, const char **argv)
 		ttyname += sizeof(TTY_PREFIX) - 1;
 
 	/* If the user is not root, secure ttys do not apply */
-	user_pwd = getpwnam(user);
-	if (user_pwd == NULL)
+	pwd = getpwnam(user);
+	if (pwd == NULL)
 		PAM_RETURN(PAM_IGNORE);
-	else if (user_pwd->pw_uid != 0)
+	else if (pwd->pw_uid != 0)
 		PAM_RETURN(PAM_SUCCESS);
 
 	PAM_LOG("User is not root");
@@ -84,15 +84,23 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags, int argc, const char **argv)
 
 	if (ttyfileinfo->ty_status & TTY_SECURE)
 		PAM_RETURN(PAM_SUCCESS);
-	else
+	else {
+		PAM_VERBOSE_ERROR("Not on secure TTY");
 		PAM_RETURN(PAM_PERM_DENIED);
+	}
 }
 
 PAM_EXTERN
 int 
 pam_sm_setcred(pam_handle_t * pamh, int flags, int argc, const char **argv)
 {
-	return PAM_SUCCESS;
+	struct options options;
+
+	pam_std_option(&options, NULL, argc, argv);
+
+	PAM_LOG("Options processed");
+
+	PAM_RETURN(PAM_SUCCESS);
 }
 
 PAM_MODULE_ENTRY("pam_securetty");
