@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)vipw.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: vipw.c,v 1.5 1997/10/27 07:53:22 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -57,6 +57,8 @@ static const char rcsid[] =
 
 #include "pw_util.h"
 
+extern char *mppath;
+extern char *masterpasswd;
 char *tempname;
 
 void	copyfile __P((int, int));
@@ -71,8 +73,21 @@ main(argc, argv)
 	struct stat begin, end;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "")) != -1)
+	while ((ch = getopt(argc, argv, "d:")) != -1)
 		switch (ch) {
+		case 'd':
+			if ((masterpasswd = malloc(strlen(optarg) +
+			    strlen(_MASTERPASSWD) + 2)) == NULL)
+				err(1, NULL);
+			strcpy(masterpasswd, optarg);
+			if (masterpasswd[strlen(masterpasswd) - 1] != '/')
+				masterpasswd[strlen(masterpasswd)] = '/';
+			strcat(masterpasswd, _MASTERPASSWD);
+			if ((mppath = strdup(optarg)) == NULL)
+				err(1, NULL);
+			if (mppath[strlen(mppath) - 1] == '/')
+				mppath[strlen(mppath) - 1] = '\0';
+			break;
 		case '?':
 		default:
 			usage();
@@ -126,6 +141,6 @@ static void
 usage()
 {
 
-	(void)fprintf(stderr, "usage: vipw\n");
+	(void)fprintf(stderr, "usage: vipw [ -d directory ]\n");
 	exit(1);
 }
