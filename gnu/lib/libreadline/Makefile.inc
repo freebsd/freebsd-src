@@ -1,8 +1,8 @@
 # $FreeBSD$
 
 SHLIB_MAJOR= 4
-SHLIB_MINOR= 0
-RL_LIBRARY_VERSION= 4.0
+SHLIB_MINOR= 1
+RL_LIBRARY_VERSION= 4.1
 
 SRCDIR= ${.CURDIR}/../../../../contrib/libreadline
 .PATH: ${SRCDIR} ${.CURDIR}/..
