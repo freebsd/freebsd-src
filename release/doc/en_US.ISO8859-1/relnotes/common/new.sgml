@@ -16,7 +16,7 @@
     <para>The release notes for &os; &release.current; contain a summary
       of
 <![ %include.historic; [
-      the changes made in the &os; base system since &release.prev;.
+      the changes made to the &os; base system since &release.prev;.
 ]]>
 <![ %no.include.historic; [
       recent changes made to the &os; base system on the &release.branch;
@@ -295,7 +295,7 @@
       feature defines a new resource limit that covers a process's
       entire virtual memory space, including &man.mmap.2; space.  This
       limit can be configured in &man.login.conf.5; via the new
-      <varname>vmemoryuse</varname> variable.</para>
+      <varname>vmemoryuse</varname> variable. &merged;</para>
 
     <para arch="sparc64">Support has been added for SBus-based
       devices.</para>
@@ -2740,7 +2740,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       using &man.nologin.5;, has been added.</para>
 
     <para>The &man.pam.opie.8; and &man.pam.opieaccess.8; modules have
-      been added to control authentication via &man.opie.4;.</para>
+      been added to control authentication via &man.opie.4;. &merged;</para>
 
     <para>A &man.pam.passwdqc.8; module has been added, to check the
       quality of passwords submitted during password changes.</para>
@@ -3294,7 +3294,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	certain common misconfigurations. &merged;</para>
 
       <para><application>BIND</application> has been updated to
-	8.3.3.</para>
+	8.3.3. &merged;</para>
 
       <para><application>Binutils</application> has been updated to
 	2.12.1 (specifically, a post-release snapshot from 22 June 2002).</para>
@@ -4049,7 +4049,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <listitem>
 	<para>From source code in <filename>/usr/src</filename>.  This
 	  route is more flexible, but requires more disk space, time,
-	  and more technical expertise.  More information can be found
+	  and technical expertise.  More information can be found
 	  in the <ulink
 	  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html"><quote>Using
 	  <command>make world</command></quote></ulink> section of the <ulink
