@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.inc0,v 1.2 1998/03/12 02:54:39 jdp Exp $
+# $Id: Makefile.inc0,v 1.3 1998/03/12 05:59:22 jb Exp $
 #
 
 #
@@ -34,6 +34,10 @@ CFLAGS+=	-I${SRCDIR}/include
 .PATH: ${.CURDIR}/${MACHINE_ARCH}
 .endif
 
-.if exists(${.CURDIR}/Makefile.${MACHINE_ARCH})
-.include "${.CURDIR}/Makefile.${MACHINE_ARCH}"
+ARCHS=		${MACHINE_ARCH} ${CROSS_TOOLS}
+
+.for _arch in ${ARCHS}
+.if exists(${.CURDIR}/Makefile.${_arch})
+.include "${.CURDIR}/Makefile.${_arch}"
 .endif
+.endfor
