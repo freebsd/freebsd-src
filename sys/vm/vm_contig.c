@@ -232,9 +232,7 @@ again1:
 		mtx_lock_spin(&vm_page_queue_free_mtx);
 		for (i = start; i < (start + size / PAGE_SIZE); i++) {
 			pqtype = pga[i].queue - pga[i].pc;
-			if ((VM_PAGE_TO_PHYS(&pga[i]) !=
-			    (VM_PAGE_TO_PHYS(&pga[i - 1]) + PAGE_SIZE)) ||
-			    (pqtype != PQ_FREE)) {
+			if (pqtype != PQ_FREE) {
 				start++;
 				goto again;
 			}
