@@ -497,7 +497,7 @@ ParseDoSrc (tOp, src, allsrc)
 {
     GNode	*gn = NULL;
 
-    if (*src == '.' && isupper (src[1])) {
+    if (*src == '.' && isupper ((unsigned char) src[1])) {
 	int keywd = ParseFindKeyword(src);
 	if (keywd != -1) {
 	    int op = parseKeywords[keywd].op;
@@ -789,7 +789,7 @@ ParseDoDependency (line)
 	 * Have a word in line. See if it's a special target and set
 	 * specType to match it.
 	 */
-	if (*line == '.' && isupper (line[1])) {
+	if (*line == '.' && isupper ((unsigned char) line[1])) {
 	    /*
 	     * See if the target is a special target that must have it
 	     * or its sources handled specially.
