@@ -797,7 +797,7 @@ net/if_media.c		standard
 net/if_mib.c		standard
 net/if_ppp.c		count ppp
 net/if_sl.c		optional sl
-net/if_spppsubr.c	count sppp
+net/if_spppsubr.c	optional sppp
 net/if_stf.c		count stf
 net/if_tun.c		optional tun
 net/if_tap.c		optional tap
