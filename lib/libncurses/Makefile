@@ -1,10 +1,7 @@
 # Makefile for ncurses
-# $Id: Makefile,v 1.2 1994/10/09 09:27:53 ache Exp $
+# $Id: Makefile,v 1.3 1994/10/10 00:34:44 ache Exp $
 
 LIB=    ncurses
-INCDIR= /usr/include
-CFLAGS+= -Wall -DMYTINFO -DTERMIOS -DGOOD_SELECT -DBSDTABS
-SHARED_LDADD+= -lmytinfo
 SRCS=   lib_kernel.c lib_pad.c\
 	lib_unctrl.c lib_raw.c lib_vidattr.c lib_trace.c lib_beep.c \
 	lib_doupdate.c lib_refresh.c lib_initscr.c lib_newwin.c lib_addch.c \
@@ -15,22 +12,27 @@ SRCS=   lib_kernel.c lib_pad.c\
 	lib_insertln.c lib_getstr.c lib_mvwin.c lib_longname.c lib_tstp.c \
 	lib_newterm.c lib_set_term.c lib_overlay.c lib_scrreg.c lib_color.c \
 	lib_insstr.c lib_insdel.c lib_twait.c copyright.c
-CLEANFILES+= lib_keyname.c ${.CURDIR}/keys.tries
 
-beforedepend: ${.CURDIR}/keys.tries
+CFLAGS+= -I. -Wall -DMYTINFO -DTERMIOS -DGOOD_SELECT -DBSDTABS
+LDADD=   -lmytinfo
+
+CLEANFILES+= lib_keyname.c keys.tries
+
+beforedepend: keys.tries
 
 beforeinstall:
 	@cd ${.CURDIR}; for i in ncurses.h unctrl.h termcap.h; do \
-	  cmp -s $$i ${DESTDIR}${INCDIR}/$$i || \
-	  $(INSTALL) $(COPY) -m 444 -o $(BINOWN) -g $(BINGRP) $$i ${DESTDIR}$(INCDIR); done
+	  cmp -s $$i ${DESTDIR}/usr/include/$$i || \
+	  $(INSTALL) $(COPY) -m 444 -o $(BINOWN) -g $(BINGRP) $$i \
+	  ${DESTDIR}/usr/include; done
 
-${.CURDIR}/keys.tries: keys.list MKkeys.awk
-	awk -f ${.CURDIR}/MKkeys.awk ${.CURDIR}/keys.list > ${.CURDIR}/keys.tries
+keys.tries: ${.CURDIR}/keys.list ${.CURDIR}/MKkeys.awk
+	awk -f ${.CURDIR}/MKkeys.awk ${.CURDIR}/keys.list > keys.tries
 
 # in case you don't run make depend
-lib_options.o: ${.CURDIR}/keys.tries
+lib_options.o lib_options.so lib_options.po: keys.tries
 
-lib_keyname.c: keys.list MKkeyname.awk
+lib_keyname.c: ${.CURDIR}/keys.list ${.CURDIR}/MKkeyname.awk
 	awk -f ${.CURDIR}/MKkeyname.awk ${.CURDIR}/keys.list > lib_keyname.c
 
 MAN3 =  curs_addch.3 \
