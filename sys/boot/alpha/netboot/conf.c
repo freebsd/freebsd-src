@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: conf.c,v 1.1.1.1 1998/08/21 03:17:42 msmith Exp $
  * From: $NetBSD: conf.c,v 1.2 1997/03/22 09:03:29 thorpej Exp $
  */
 
@@ -70,6 +70,8 @@ struct netif_driver *netif_drivers[] = {
  * Sort formats so that those that can detect based on arguments
  * rather than reading the file go first.
  */
+extern struct module_format alpha_elf;
+
 struct module_format *module_formats[] = {
     &alpha_elf,
     NULL

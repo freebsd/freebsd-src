@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.1.1.1 1998/08/21 03:17:42 msmith Exp $
+ *	$Id: main.c,v 1.2 1998/08/22 10:31:00 dfr Exp $
  */
 
 
@@ -116,8 +116,9 @@ main(void)
     setenv("LINES", "24", 1);				/* optional */
     
     archsw.arch_autoload = alpha_autoload;
-    archsw.arch_boot = alpha_boot;
     archsw.arch_getdev = alpha_getdev;
+    archsw.arch_copyin = alpha_copyin;
+    archsw.arch_readin = alpha_readin;
 
     /*
      * SRM firmware takes *ages* to open the disk device.  We hold it

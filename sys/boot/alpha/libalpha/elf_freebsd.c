@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: elf_freebsd.c,v 1.1.1.1 1998/08/21 03:17:42 msmith Exp $ */
 /* $NetBSD: loadfile.c,v 1.10 1998/06/25 06:45:46 ross Exp $ */
 
 /*-
@@ -89,18 +89,11 @@
 
 #define _KERNEL
 
-struct elf_kernel_module
-{
-    struct loaded_module	m;
-    vm_offset_t			m_entry;	/* module entrypoint */
-    struct bootinfo_v1		m_bi;		/* legacy bootinfo */
-};
-
 static int	elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result);
 static int	elf_exec(struct loaded_module *amp);
 static int	elf_load(int fd, Elf_Ehdr *elf, vm_offset_t dest);
 
-struct module_format alpha_elf = { MF_ELF, elf_loadmodule, elf_exec };
+struct module_format alpha_elf = { elf_loadmodule, elf_exec };
 
 vm_offset_t ffp_save, ptbr_save;
 vm_offset_t ssym, esym;
@@ -108,7 +101,7 @@ vm_offset_t ssym, esym;
 static int
 elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
 {
-    struct elf_kernel_module	*mp;
+    struct loaded_module	*mp;
     Elf_Ehdr hdr;
     ssize_t nr;
     int fd, rval;
@@ -137,20 +130,22 @@ elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
     /* 
      * Ok, we think this is for us.
      */
-    mp = malloc(sizeof(struct elf_kernel_module));
-    mp->m.m_name = strdup(filename);	/* XXX should we prune the name? */
-    mp->m.m_type = "elf kernel";	/* XXX only if that's what we really are */
-    mp->m.m_args = NULL;		/* XXX should we put the bootstrap args here and parse later? */
-    mp->m.m_flags = MF_ELF;		/* we're an elf kernel */
-    mp->m_entry = hdr.e_entry;
-    if (dest == 0)
-	dest = (vm_offset_t) hdr.e_entry;
-    if (mod_findmodule(NULL, mp->m.m_type) != NULL) {
+    mp = malloc(sizeof(struct loaded_module));
+    mp->m_name = strdup(filename);	/* XXX should we prune the name? */
+    mp->m_type = strdup("elf kernel");	/* XXX only if that's what we really are */
+    mp->m_args = NULL;			/* XXX should we put the bootstrap args here and parse later? */
+    mp->m_metadata = NULL;
+    dest = (vm_offset_t) hdr.e_entry;
+    mp->m_addr = dest;
+    if (mod_findmodule(NULL, NULL) != NULL) {
 	printf("elf_loadmodule: kernel already loaded\n");
 	rval = EPERM;
 	goto err;
     }
     rval = elf_load(fd, &hdr, (vm_offset_t) dest);
+
+    /* save ELF header as metadata */
+    mod_addmetadata(mp, MODINFOMD_ELFHDR, sizeof(Elf_Ehdr), &hdr);
 
     *result = (struct loaded_module *)mp;
 
@@ -284,10 +279,15 @@ elf_load(int fd, Elf_Ehdr *elf, vm_offset_t dest)
 }
 
 static int
-elf_exec(struct loaded_module *amp)
+elf_exec(struct loaded_module *mp)
 {
-    struct elf_kernel_module	*mp = (struct elf_kernel_module *)amp;
-    static struct bootinfo_v1 bootinfo_v1;
+    static struct bootinfo_v1	bootinfo_v1;
+    struct module_metadata	*md;
+    Elf_Ehdr			*hdr;
+
+    if ((md = mod_findmetadata(mp, MODINFOMD_ELFHDR)) == NULL)
+	return(EFTYPE);			/* XXX actually EFUCKUP */
+    hdr = (Elf_Ehdr *)&(md->md_data);
 
     /*
      * Fill in the bootinfo for the kernel.
@@ -295,7 +295,7 @@ elf_exec(struct loaded_module *amp)
     bzero(&bootinfo_v1, sizeof(bootinfo_v1));
     bootinfo_v1.ssym = ssym;
     bootinfo_v1.esym = esym;
-    strncpy(bootinfo_v1.booted_kernel, mp->m.m_name,
+    strncpy(bootinfo_v1.booted_kernel, mp->m_name,
 	    sizeof(bootinfo_v1.booted_kernel));
     prom_getenv(PROM_E_BOOTED_OSFLAGS, bootinfo_v1.boot_flags,
 		sizeof(bootinfo_v1.boot_flags));
@@ -305,10 +305,10 @@ elf_exec(struct loaded_module *amp)
     bootinfo_v1.cnputc = NULL;
     bootinfo_v1.cnpollc = NULL;
 
-    printf("Entering %s at 0x%lx...\n", mp->m.m_name, mp->m_entry);
+    printf("Entering %s at 0x%lx...\n", mp->m_name, hdr->e_entry);
     closeall();
     alpha_pal_imb();
-    (*(void (*)())mp->m_entry)(ffp_save, ptbr_save,
+    (*(void (*)())hdr->e_entry)(ffp_save, ptbr_save,
 			       BOOTINFO_MAGIC, &bootinfo_v1, 1, 0);
 }
 

@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: libalpha.h,v 1.1.1.1 1998/08/21 03:17:42 msmith Exp $ */
 
 /*
  * Copyright (c) 1996
@@ -74,34 +74,8 @@ extern struct netif_driver srmnet;
 extern void		delay(int);
 extern void		reboot(void);
 
-/*
- * alpha module loader
- */
-#define MF_FORMATMASK	0xf
-#define MF_AOUT		0		/* not supported */
-#define MF_ELF		1
+extern int		alpha_copyin(void *src, vm_offset_t dest, size_t len);
+extern int		alpha_readin(int fd, vm_offset_t dest, size_t len);
 
-struct alpha_module
-{
-    char		*m_name;	/* module name */
-    char		*m_type;	/* module type, eg 'kernel', 'pnptable', etc. */
-    char		*m_args;	/* arguments for the module */
-    int			m_flags;	/* 0xffff reserved for arch-specific use */
-    struct alpha_module	*m_next;	/* next module */
-    physaddr_t		m_addr;		/* load address */
-    size_t		m_size;		/* module size */
-};
-
-struct alpha_format
-{
-    int		l_format;
-    /* Load function must return EFTYPE if it can't handle the module supplied */
-    int		(* l_load)(char *filename, physaddr_t dest, struct alpha_module **result);
-    int		(* l_exec)(struct alpha_module *amp);
-};
-extern struct alpha_format	*formats[];	/* supplied by consumer */
-extern struct alpha_format	alpha_elf;
-
-extern int			alpha_boot(void);
-extern int			alpha_autoload(void);
-extern struct alpha_module	*alpha_findmodule(char *name, char *type);
+extern int		alpha_boot(void);
+extern int		alpha_autoload(void);

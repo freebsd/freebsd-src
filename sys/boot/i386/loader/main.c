@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: main.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
  */
 
 /*
@@ -100,8 +100,9 @@ main(void)
     setenv("LINES", "24", 1);				/* optional */
     
     archsw.arch_autoload = i386_autoload;
-    archsw.arch_boot = i386_boot;
     archsw.arch_getdev = i386_getdev;
+    archsw.arch_copyin = i386_copyin;
+    archsw.arch_readin = i386_readin;
     /*
      * XXX should these be in the MI source?
      */
