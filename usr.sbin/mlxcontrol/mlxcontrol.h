@@ -28,7 +28,7 @@
 
 #include <sys/queue.h>
 
-#define debug(fmt, args...)	printf("%s: " fmt "\n", __FUNCTION__ , ##args)
+#define debug(fmt, args...)	printf("%s: " fmt "\n", __func__ , ##args)
 
 struct mlxd_foreach_action 
 {
