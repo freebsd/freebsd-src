@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.15 1997/10/13 15:03:52 jkh Exp $";
+	"$Id: perform.c,v 1.16 1998/09/11 07:26:58 jkh Exp $";
 #endif
 
 /*
@@ -53,6 +53,12 @@ pkg_do(char *pkg)
     char home[FILENAME_MAX];
     PackingList p;
     char *tmp;
+    int len;
+
+    if (!pkg || !(len = strlen(pkg)))
+	return 1;
+    if (pkg[len - 1] == '/')
+	pkg[len - 1] = '\0';
 
     /* Reset some state */
     if (Plist.head)
