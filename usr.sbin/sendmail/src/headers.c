@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)headers.c	8.101 (Berkeley) 11/23/96";
+static char sccsid[] = "@(#)headers.c	8.103 (Berkeley) 12/11/96";
 #endif /* not lint */
 
 # include <errno.h>
@@ -569,7 +569,7 @@ eatheader(e, full)
 			if (tTd(32, 2))
 				printf("eatheader: setsender(*%s == %s)\n",
 					hi->hi_field, p);
-			setsender(p, e, NULL, TRUE);
+			setsender(p, e, NULL, '\0', TRUE);
 		}
 	}
 
@@ -1165,7 +1165,11 @@ putheader(mci, hdr, e)
 
 		/* suppress return receipts if requested */
 		if (bitset(H_RECEIPTTO, h->h_flags) &&
+#if _FFR_DSN_RRT
+		    (RrtImpliesDsn || bitset(EF_NORECEIPT, e->e_flags)))
+#else
 		    bitset(EF_NORECEIPT, e->e_flags))
+#endif
 		{
 			if (tTd(34, 11))
 				printf(" (skipped (receipt))\n");

@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)readcf.c	8.181 (Berkeley) 12/1/96";
+static char sccsid[] = "@(#)readcf.c	8.184 (Berkeley) 1/14/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -1482,6 +1482,14 @@ struct optioninfo
 	{ "SingleThreadDelivery",	O_SINGTHREAD,	FALSE	},
 #define O_RUNASUSER	0x9d
 	{ "RunAsUser",			O_RUNASUSER,	FALSE	},
+#ifdef _FFR_DSN_RRT
+#define O_DSN_RRT	0x9e
+	{ "RrtImpliesDsn",		O_DSN_RRT,	FALSE	},
+#endif
+#ifdef _FFR_PIDFILE_OPT
+#define O_PIDFILE	0x9f
+	{ "PidFile",			O_PIDFILE,	FALSE	},
+#endif
 
 	{ NULL,				'\0',		FALSE	}
 };
@@ -2263,6 +2271,19 @@ setoption(opt, val, safe, sticky, e)
 				RunAsGid = gr->gr_gid;
 		}
 		break;
+
+#ifdef _FFR_DSN_RRT
+	  case O_DSN_RRT:
+		RrtImpliesDsn = atobool(p);
+		break;
+#endif
+
+#ifdef _FFR_PIDFILE_OPT
+	  case O_PIDFILE:
+		free(PidFile);
+		PidFile = newstr(p);
+		break;
+#endif
 
 	  default:
 		if (tTd(37, 1))

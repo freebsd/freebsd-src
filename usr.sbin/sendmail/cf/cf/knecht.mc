@@ -33,12 +33,19 @@ divert(-1)
 # SUCH DAMAGE.
 #
 
-include(`../m4/cf.m4')
-VERSIONID(`@(#)knecht.mc	8.1 (Berkeley) 6/7/93')
-OSTYPE(ultrix4.1)dnl
-DOMAIN(cs.exposed)dnl
-define(`LOCAL_RELAY', CS.Berkeley.EDU)dnl
-MAILER(smtp)dnl
+#
+#  This is specific to Eric's home machine.
+#
 
-# our local domain
-DDCS.Berkeley.EDU
+divert(0)dnl
+VERSIONID(`@(#)knecht.mc	8.4 (Berkeley) 11/24/96')
+OSTYPE(bsd4.4)dnl
+DOMAIN(generic)dnl
+define(`confDEF_USER_ID', `mailnull')dnl
+define(`confHOST_STATUS_DIRECTORY', `.hoststat')dnl
+define(`confTO_ICONNECT', `10s')dnl
+define(`confCOPY_ERRORS_TO', `Postmaster')dnl
+define(`confTO_QUEUEWARN', `8h')dnl
+FEATURE(virtusertable)dnl
+MAILER(local)dnl
+MAILER(smtp)dnl

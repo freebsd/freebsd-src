@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)deliver.c	8.260 (Berkeley) 12/1/96";
+static char sccsid[] = "@(#)deliver.c	8.266 (Berkeley) 1/17/97";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -314,7 +314,7 @@ sendall(e, mode)
 			ee->e_errorqueue = copyqueue(e->e_errorqueue);
 			ee->e_flags = e->e_flags & ~(EF_INQUEUE|EF_CLRQUEUE|EF_FATALERRS|EF_SENDRECEIPT|EF_RET_PARAM);
 			ee->e_flags |= EF_NORECEIPT;
-			setsender(owner, ee, NULL, TRUE);
+			setsender(owner, ee, NULL, '\0', TRUE);
 			if (tTd(13, 5))
 			{
 				printf("sendall(split): QDONTSEND ");
@@ -401,7 +401,7 @@ sendall(e, mode)
 
 	if (owner != NULL)
 	{
-		setsender(owner, e, NULL, TRUE);
+		setsender(owner, e, NULL, '\0', TRUE);
 		if (tTd(13, 5))
 		{
 			printf("sendall(owner): QDONTSEND ");
@@ -470,6 +470,13 @@ sendall(e, mode)
   queueonly:
 		if (e->e_nrcpts > 0)
 			e->e_flags |= EF_INQUEUE;
+		dropenvelope(e, FALSE);
+		for (ee = splitenv; ee != NULL; ee = ee->e_sibling)
+		{
+			if (ee->e_nrcpts > 0)
+				ee->e_flags |= EF_INQUEUE;
+			dropenvelope(ee, FALSE);
+		}
 		return;
 
 	  case SM_FORK:
@@ -547,7 +554,7 @@ sendall(e, mode)
 			exit(EX_OK);
 
 		/* be sure we are immune from the terminal */
-		disconnect(1, e);
+		disconnect(2, e);
 
 		/* prevent parent from waiting if there was an error */
 		if (pid < 0)
@@ -788,10 +795,10 @@ dofork()
 */
 
 #ifndef NO_UID
-# define NO_UID		((uid_t) -1)
+# define NO_UID		-1
 #endif
 #ifndef NO_GID
-# define NO_GID		((gid_t) -1)
+# define NO_GID		-1
 #endif
 
 int
@@ -1500,9 +1507,9 @@ tryhost:
 		{
 			int i;
 			int saveerrno;
-			uid_t new_euid = NO_UID;
-			uid_t new_ruid = NO_UID;
-			gid_t new_gid = NO_GID;
+			int new_euid = NO_UID;
+			int new_ruid = NO_UID;
+			int new_gid = NO_GID;
 			struct stat stb;
 			extern int DtableSize;
 
@@ -1765,12 +1772,13 @@ tryhost:
 	}
 #endif
 
+	/* clear out per-message flags from connection structure */
+	mci->mci_flags &= ~(MCIF_CVT7TO8|MCIF_CVT8TO7);
+
 	if (bitset(EF_HAS8BIT, e->e_flags) &&
 	    !bitset(EF_DONT_MIME, e->e_flags) &&
 	    bitnset(M_7BITS, m->m_flags))
 		mci->mci_flags |= MCIF_CVT8TO7;
-	else
-		mci->mci_flags &= ~MCIF_CVT8TO7;
 
 #if MIME7TO8
 	if (bitnset(M_MAKE8BIT, m->m_flags) &&
@@ -2000,7 +2008,7 @@ tryhost:
 		e->e_statmsg = NULL;
 
 		/* reset the mci state for the next transaction */
-		if (mci->mci_state == MCIS_ACTIVE)
+		if (mci != NULL && mci->mci_state == MCIS_ACTIVE)
 			mci->mci_state = MCIS_OPEN;
 	}
 # endif
@@ -2014,7 +2022,7 @@ tryhost:
 
 #if SMTP
 	/* now close the connection */
-	if (clever && mci->mci_state != MCIS_CLOSED &&
+	if (clever && mci != NULL && mci->mci_state != MCIS_CLOSED &&
 	    !bitset(MCIF_CACHED, mci->mci_flags))
 		smtpquit(m, mci, e);
 #endif

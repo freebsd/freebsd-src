@@ -1,10 +1,10 @@
-#	@(#)Makefile	8.17 (Berkeley) 9/12/95
+#	@(#)Makefile	8.19 (Berkeley) 1/14/97
 
 #
 #  This Makefile uses the new Berkeley "make" program.  See Makefile.dist
 #  for a more vanilla version.
 #
-#  Configuration files are created using "m4 file.mc > file.cf";
+#  Create configuration files using "m4 ../m4/cf.m4 file.mc > file.cf";
 #  this may be easier than tweaking the Makefile.  You do need to
 #  have a fairly modern M4 available (GNU m4 works).  On SunOS, use
 #  /usr/5bin/m4.
@@ -31,7 +31,7 @@ ALL=	generic-bsd4.4.cf generic-hpux9.cf generic-hpux10.cf \
 		cs-sunos4.1.cf cs-ultrix4.cf \
 	s2k-osf1.cf s2k-ultrix4.cf \
 	chez.cs.cf huginn.cs.cf mail.cs.cf mail.eecs.cf mailspool.cs.cf \
-		python.cs.cf ucbarpa.cf ucbvax.cf vangogh.cs.cf
+		python.cs.cf ucbarpa.cf ucbvax.cf vangogh.cs.cf knecht.cf
 
 all: $(ALL)
 
