@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.127 1998/08/30 20:56:09 gpalmer Exp $
+#	$Id: Makefile,v 1.128 1998/09/12 06:58:18 rnordier Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR= ac \
@@ -124,7 +124,6 @@ SUBDIR+=apm \
 	mixer \
 	moused \
 	mptable \
-	ncrcontrol \
 	rtprio \
 	sgsc \
 	sicontrol \
