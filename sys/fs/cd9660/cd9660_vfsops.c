@@ -79,7 +79,7 @@ static struct vfsops cd9660_vfsops = {
 	cd9660_root,
 	vfs_stdquotactl,
 	cd9660_statfs,
-	vfs_stdsync,
+	vfs_stdnosync,
 	cd9660_vget,
 	cd9660_fhtovp,
 	vfs_stdcheckexp,
