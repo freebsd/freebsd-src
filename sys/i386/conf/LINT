@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.174 1995/04/24 05:33:59 phk Exp $
+#	$Id: LINT,v 1.175 1995/04/25 03:44:04 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -638,6 +638,8 @@ device pca0 at isa? port IO_TIMER1 tty
 # gp:  National Instruments AT-GPIB and AT-GPIB/TNT board
 # gsc: Genius GS-4500 hand scanner.
 # joy: joystick
+# labpc: National Instrument's Lab-PC and Lab-PC+
+
 #
 # Notes on the spigot:
 #  The video spigot is at 0xad6.  This port address can not be changed.
@@ -659,6 +661,7 @@ device		gp0	at isa? port 0x2c0 tty
 device		gsc0	at isa? port "IO_GSC1" tty drq 3
 device		joy0	at isa? port "IO_GAME"
 device		cy0	at isa? tty irq 10 iomem 0xd4000 vector cyintr
+device		labpc0	at isa? port 0x260 tty irq 5 vector labpcintr
 
 #
 # PCI devices:
