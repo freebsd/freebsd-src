@@ -99,7 +99,6 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 
 	O_VERREVPATH,		/* none				*/
 	O_VERSRCREACH,		/* none				*/
-	O_ANTISPOOF,		/* none				*/
 
 	O_PROBE_STATE,		/* none				*/
 	O_KEEP_STATE,		/* none				*/
@@ -132,6 +131,7 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	O_IPSEC,		/* has ipsec history 		*/
 	O_IP_SRC_LOOKUP,	/* arg1=table number, u32=value	*/
 	O_IP_DST_LOOKUP,	/* arg1=table number, u32=value	*/
+	O_ANTISPOOF,		/* none				*/
 	O_JAIL,			/* u32 = id			*/
 
 	O_LAST_OPCODE		/* not an opcode!		*/
