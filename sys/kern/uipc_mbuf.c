@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: uipc_mbuf.c,v 1.24 1996/08/19 03:32:02 julian Exp $
+ * $Id: uipc_mbuf.c,v 1.24.2.1 1997/01/17 19:28:31 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -184,7 +184,11 @@ m_retry(i, t)
 {
 	register struct mbuf *m;
 
-	m_reclaim();
+	/*
+	 * Must only do the reclaim if not in an interrupt context.
+	 */
+	if (i == M_WAIT)
+		m_reclaim();
 #define m_retry(i, t)	(struct mbuf *)0
 	MGET(m, i, t);
 #undef m_retry
@@ -204,7 +208,11 @@ m_retryhdr(i, t)
 {
 	register struct mbuf *m;
 
-	m_reclaim();
+	/*
+	 * Must only do the reclaim if not in an interrupt context.
+	 */
+	if (i == M_WAIT)
+		m_reclaim();
 #define m_retryhdr(i, t) (struct mbuf *)0
 	MGETHDR(m, i, t);
 #undef m_retryhdr
