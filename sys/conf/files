@@ -57,16 +57,16 @@ contrib/dev/acpica/Subsystem/Common/cminit.c	optional acpica
 contrib/dev/acpica/Subsystem/Common/cmobject.c	optional acpica
 contrib/dev/acpica/Subsystem/Common/cmutils.c	optional acpica
 contrib/dev/acpica/Subsystem/Common/cmxface.c	optional acpica
-contrib/dev/acpica/Subsystem/Debugger/dbcmds.c	optional acpica
-contrib/dev/acpica/Subsystem/Debugger/dbdisasm.c	optional acpica
-contrib/dev/acpica/Subsystem/Debugger/dbdisply.c	optional acpica
-contrib/dev/acpica/Subsystem/Debugger/dbexec.c	optional acpica
-contrib/dev/acpica/Subsystem/Debugger/dbfileio.c	optional acpica
-contrib/dev/acpica/Subsystem/Debugger/dbhistry.c	optional acpica
-contrib/dev/acpica/Subsystem/Debugger/dbinput.c	optional acpica
-contrib/dev/acpica/Subsystem/Debugger/dbstats.c	optional acpica
-contrib/dev/acpica/Subsystem/Debugger/dbutils.c	optional acpica
-contrib/dev/acpica/Subsystem/Debugger/dbxface.c	optional acpica
+contrib/dev/acpica/Subsystem/Debugger/dbcmds.c	optional acpica acpi_debug
+contrib/dev/acpica/Subsystem/Debugger/dbdisasm.c	optional acpica acpi_debug
+contrib/dev/acpica/Subsystem/Debugger/dbdisply.c	optional acpica acpi_debug
+contrib/dev/acpica/Subsystem/Debugger/dbexec.c	optional acpica acpi_debug
+contrib/dev/acpica/Subsystem/Debugger/dbfileio.c	optional acpica acpi_debug
+contrib/dev/acpica/Subsystem/Debugger/dbhistry.c	optional acpica acpi_debug
+contrib/dev/acpica/Subsystem/Debugger/dbinput.c	optional acpica acpi_debug
+contrib/dev/acpica/Subsystem/Debugger/dbstats.c	optional acpica acpi_debug
+contrib/dev/acpica/Subsystem/Debugger/dbutils.c	optional acpica acpi_debug
+contrib/dev/acpica/Subsystem/Debugger/dbxface.c	optional acpica acpi_debug
 contrib/dev/acpica/Subsystem/Dispatcher/dsfield.c	optional acpica
 contrib/dev/acpica/Subsystem/Dispatcher/dsmethod.c	optional acpica
 contrib/dev/acpica/Subsystem/Dispatcher/dsmthdat.c	optional acpica
@@ -86,7 +86,6 @@ contrib/dev/acpica/Subsystem/Events/evxface.c	optional acpica
 contrib/dev/acpica/Subsystem/Events/evxfevnt.c	optional acpica
 contrib/dev/acpica/Subsystem/Events/evxfregn.c	optional acpica
 contrib/dev/acpica/Subsystem/Hardware/hwacpi.c	optional acpica
-contrib/dev/acpica/Subsystem/Hardware/hwcpu32.c	optional acpica
 contrib/dev/acpica/Subsystem/Hardware/hwgpe.c	optional acpica
 contrib/dev/acpica/Subsystem/Hardware/hwregs.c	optional acpica
 contrib/dev/acpica/Subsystem/Hardware/hwxface.c	optional acpica
