@@ -55,13 +55,15 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_NLMDM, "nullmodem", "nullmodem data structures");
 
-static void 	nmdmstart(struct tty *tp);
-static void 	nmdmstop(struct tty *tp, int rw);
-static void 	nmdminit(struct cdev *dev);
-static t_modem_t	nmdmmodem;
-
-static d_open_t		nmdmopen;
 static d_close_t	nmdmclose;
+static t_modem_t	nmdmmodem;
+static d_open_t		nmdmopen;
+static t_oproc_t	nmdmoproc;
+static t_param_t	nmdmparam;
+static t_stop_t		nmdmstop;
+
+static void 	nmdminit(struct cdev *dev);
+
 
 static struct cdevsw nmdm_cdevsw = {
 	.d_version =	D_VERSION,
@@ -82,6 +84,13 @@ struct softpart {
 	int			nm_dcd;
 	struct task		pt_task;
 	struct softpart		*other;
+	struct callout		co;
+	u_long			quota;
+	u_long			accumulator;
+	int			rate;
+	int			credits;
+
+#define QS 8	/* Quota shift */
 };
 
 struct	nm_softc {
@@ -141,6 +150,28 @@ nmdm_clone(void *arg, char *name, int nameen, struct cdev **dev)
 }
 
 static void
+nmdm_timeout(void *arg)
+{
+	struct softpart *sp;
+
+	sp = arg;
+
+	if (sp->rate == 0)
+		return;
+
+	/*
+	 * Do a simple Floyd-Steinberg dither here to avoid FP math.
+	 * Wipe out unused quota from last tick.
+	 */
+	sp->accumulator += sp->credits;
+	sp->quota = sp->accumulator >> QS;
+	sp->accumulator &= ((1 << QS) - 1);
+
+	taskqueue_enqueue(taskqueue_swi_giant, &sp->pt_task);
+	callout_reset(&sp->co, sp->rate, nmdm_timeout, arg);
+}
+
+static void
 nmdm_task_tty(void *arg, int pending __unused)
 {
 	struct tty *tp, *otp;
@@ -166,14 +197,18 @@ nmdm_task_tty(void *arg, int pending __unused)
 	if (tp->t_state & TS_TTSTOP)
 		return;
 	while (tp->t_outq.c_cc != 0) {
+		if (sp->rate && !sp->quota)
+			return;
 		if (otp->t_state & TS_TBLOCK)
 			return;
+		sp->quota--;
 		c = getc(&tp->t_outq);
 		if (otp->t_state & TS_ISOPEN)
 			ttyld_rint(otp, c);
 	}
 	if (tp->t_outq.c_cc == 0)
 		ttwwakeup(tp);
+
 }
 
 /*
@@ -199,20 +234,24 @@ nmdminit(struct cdev *dev1)
 	pt->part2.dev = dev2;
 
 	pt->part1.nm_tty = ttymalloc(pt->part1.nm_tty);
-	pt->part1.nm_tty->t_oproc = nmdmstart;
+	pt->part1.nm_tty->t_oproc = nmdmoproc;
 	pt->part1.nm_tty->t_stop = nmdmstop;
 	pt->part1.nm_tty->t_modem = nmdmmodem;
+	pt->part1.nm_tty->t_param = nmdmparam;
 	pt->part1.nm_tty->t_dev = dev1;
 	pt->part1.nm_tty->t_sc = &pt->part1;
 	TASK_INIT(&pt->part1.pt_task, 0, nmdm_task_tty, pt->part1.nm_tty);
+	callout_init(&pt->part1.co, 0);
 
 	pt->part2.nm_tty = ttymalloc(pt->part2.nm_tty);
-	pt->part2.nm_tty->t_oproc = nmdmstart;
+	pt->part2.nm_tty->t_oproc = nmdmoproc;
 	pt->part2.nm_tty->t_stop = nmdmstop;
 	pt->part2.nm_tty->t_modem = nmdmmodem;
+	pt->part2.nm_tty->t_param = nmdmparam;
 	pt->part2.nm_tty->t_dev = dev2;
 	pt->part2.nm_tty->t_sc = &pt->part2;
 	TASK_INIT(&pt->part2.pt_task, 0, nmdm_task_tty, pt->part2.nm_tty);
+	callout_init(&pt->part2.co, 0);
 
 	pt->part1.other = &pt->part2;
 	pt->part2.other = &pt->part1;
@@ -257,6 +296,84 @@ nmdmopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 }
 
 static int
+bits_per_char(struct termios *t)
+{
+	int bits;
+
+	bits = 1;		/* start bit */
+	switch (t->c_cflag & CSIZE) {
+	case CS5:	bits += 5;	break;
+	case CS6:	bits += 6;	break;
+	case CS7:	bits += 7;	break;
+	case CS8:	bits += 8;	break;
+	}
+	bits++;			/* stop bit */
+	if (t->c_cflag & PARENB)
+		bits++;
+	if (t->c_cflag & CSTOPB)
+		bits++;
+	return (bits);
+}
+
+static int
+nmdmparam(struct tty *tp, struct termios *t)
+{
+	struct softpart *sp;
+	struct tty *tp2;
+	int bpc, rate, speed, i;
+
+	sp = tp->t_sc;
+	tp2 = sp->other->nm_tty;
+
+	if (!((t->c_cflag | tp2->t_cflag) & CDSR_OFLOW)) {
+		sp->rate = 0;
+		sp->other->rate = 0;
+		return (0);
+	}
+
+	/*
+	 * DSRFLOW one either side enables rate-simulation for both
+	 * directions.
+	 * NB: the two directions may run at different rates.
+	 */
+
+	/* Find the larger of the number of bits transmitted */
+	bpc = imax(bits_per_char(t), bits_per_char(&tp2->t_termios));
+
+	for (i = 0; i < 2; i++) {
+		/* Use the slower of our receive and their transmit rate */
+		speed = imin(tp2->t_ospeed, t->c_ispeed);
+		if (speed == 0) {
+			sp->rate = 0;
+			sp->other->rate = 0;
+			return (0);
+		}
+
+		speed <<= QS;			/* [bit/sec, scaled] */
+		speed /= bpc;			/* [char/sec, scaled] */
+		rate = (hz << QS) / speed;	/* [hz per callout] */
+		if (rate == 0)
+			rate = 1;
+
+		speed *= rate;
+		speed /= hz;			/* [(char/sec)/tick, scaled */
+
+		sp->credits = speed;
+		sp->rate = rate;
+		callout_reset(&sp->co, rate, nmdm_timeout, sp);
+
+		/*
+		 * swap pointers for second pass so the other end gets
+		 * updated as well.
+		 */
+		sp = sp->other;
+		t = &tp2->t_termios;
+		tp2 = tp;
+	}
+	return (0);
+}
+
+static int
 nmdmmodem(struct tty *tp, int sigon, int sigoff)
 {
 	struct softpart *sp;
@@ -264,14 +381,11 @@ nmdmmodem(struct tty *tp, int sigon, int sigoff)
 
 	sp = tp->t_sc;
 	if (sigon || sigoff) {
-		if (sigon & SER_DTR) {
+		if (sigon & SER_DTR)
 			sp->other->nm_dcd = 1;
-			ttyld_modem(sp->other->nm_tty, sp->other->nm_dcd);
-		}
-		if (sigoff & SER_DTR) {
+		if (sigoff & SER_DTR)
 			sp->other->nm_dcd = 0;
-			ttyld_modem(sp->other->nm_tty, sp->other->nm_dcd);
-		}
+		ttyld_modem(sp->other->nm_tty, sp->other->nm_dcd);
 		return (0);
 	} else {
 		i = 0;
@@ -291,7 +405,7 @@ nmdmclose(struct cdev *dev, int flag, int mode, struct thread *td)
 }
 
 static void
-nmdmstart(struct tty *tp)
+nmdmoproc(struct tty *tp)
 {
 	struct softpart *pt;
 
