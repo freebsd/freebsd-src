@@ -839,11 +839,8 @@ ufs_extattr_get(struct vnode *vp, int attrnamespace, const char *name,
 	if (!(ump->um_extattr.uepm_flags & UFS_EXTATTR_UEPM_STARTED))
 		return (EOPNOTSUPP);
 
-	if (strlen(name) == 0) {
-		/* XXX retrieve attribute lists. */
-		/* XXX should probably be checking for name == NULL? */
+	if (strlen(name) == 0)
 		return (EINVAL);
-	}
 
 	error = extattr_check_cred(vp, attrnamespace, cred, td, IREAD);
 	if (error)
