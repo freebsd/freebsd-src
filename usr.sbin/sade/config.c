@@ -364,41 +364,6 @@ configEnvironmentResolv(char *config)
     }
 }
 
-/* Set up the make.conf file */
-void
-configMake_conf(char *config)
-{
-    char *lines[MAX_LINES];
-    int i, nlines;
-    FILE *fp;
-
-    if (!file_readable(config)) {
-	char *line = malloc(21);
-	sprintf(line, "USA_RESIDENT=%s\n", USAResident ? "YES" : "NO");
-	lines[0] = line;
-	nlines = 1;
-    }
-    else {
-	nlines = readConfig(config, lines, MAX_LINES);
-	if (nlines == -1)
-	    return;
-	for (i = 0; i < nlines; i++) {
-	    if (!strncmp(lines[i], "USA_RESIDENT", 12)) {
-		free(lines[i]);
-		lines[i] = malloc(21);	/* big enough */
-		sprintf(lines[i], "USA_RESIDENT=%s\n", USAResident ? "YES" : "NO");
-	    }
-	}
-    }
-    if ((fp = fopen(config, "w")) != NULL) {
-	for (i = 0; i < nlines; i++) {
-	    fprintf(fp, "%s", lines[i]);
-	    free(lines[i]);
-	}
-	fclose(fp);
-    }
-}
-
 /* Version of below for dispatch routines */
 int
 configRC(dialogMenuItem *unused)
