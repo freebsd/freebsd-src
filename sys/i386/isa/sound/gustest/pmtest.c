@@ -12,9 +12,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/ioctl.h>
-#include <sys/soundcard.h>
-#include <sys/ultrasound.h>
+#include <machine/ultrasound.h>
 #include <strings.h>
 #include <sys/errno.h>
 #include "gmidi.h"
