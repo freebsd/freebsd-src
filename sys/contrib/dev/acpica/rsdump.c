@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsdump - Functions to display the resource structures.
- *              $Revision: 19 $
+ *              $Revision: 20 $
  *
  ******************************************************************************/
 
@@ -144,18 +144,18 @@ AcpiRsDumpIrq (
     UINT8                   Index = 0;
 
 
-    AcpiOsPrintf ("\tIRQ Resource\n");
+    AcpiOsPrintf ("IRQ Resource\n");
 
-    AcpiOsPrintf ("\t\t%s Triggered\n",
+    AcpiOsPrintf ("    %s Triggered\n",
                 LEVEL_SENSITIVE == IrqData->EdgeLevel ? "Level" : "Edge");
 
-    AcpiOsPrintf ("\t\tActive %s\n",
+    AcpiOsPrintf ("    Active %s\n",
                 ACTIVE_LOW == IrqData->ActiveHighLow ? "Low" : "High");
 
-    AcpiOsPrintf ("\t\t%s\n",
+    AcpiOsPrintf ("    %s\n",
                 SHARED == IrqData->SharedExclusive ? "Shared" : "Exclusive");
 
-    AcpiOsPrintf ("\t\t%X Interrupts ( ", IrqData->NumberOfInterrupts);
+    AcpiOsPrintf ("    %X Interrupts ( ", IrqData->NumberOfInterrupts);
 
     for (Index = 0; Index < IrqData->NumberOfInterrupts; Index++)
     {
@@ -187,55 +187,55 @@ AcpiRsDumpDma (
     UINT8                   Index = 0;
 
 
-    AcpiOsPrintf ("\tDMA Resource\n");
+    AcpiOsPrintf ("DMA Resource\n");
 
     switch (DmaData->Type)
     {
     case COMPATIBILITY:
-        AcpiOsPrintf ("\t\tCompatibility mode\n");
+        AcpiOsPrintf ("    Compatibility mode\n");
         break;
 
     case TYPE_A:
-        AcpiOsPrintf ("\t\tType A\n");
+        AcpiOsPrintf ("    Type A\n");
         break;
 
     case TYPE_B:
-        AcpiOsPrintf ("\t\tType B\n");
+        AcpiOsPrintf ("    Type B\n");
         break;
 
     case TYPE_F:
-        AcpiOsPrintf ("\t\tType F\n");
+        AcpiOsPrintf ("    Type F\n");
         break;
 
     default:
-        AcpiOsPrintf ("\t\tInvalid DMA type\n");
+        AcpiOsPrintf ("    Invalid DMA type\n");
         break;
     }
 
-    AcpiOsPrintf ("\t\t%sBus Master\n",
+    AcpiOsPrintf ("    %sBus Master\n",
                 BUS_MASTER == DmaData->BusMaster ? "" : "Not a ");
 
 
     switch (DmaData->Transfer)
     {
     case TRANSFER_8:
-        AcpiOsPrintf ("\t\t8-bit only transfer\n");
+        AcpiOsPrintf ("    8-bit only transfer\n");
         break;
 
     case TRANSFER_8_16:
-        AcpiOsPrintf ("\t\t8 and 16-bit transfer\n");
+        AcpiOsPrintf ("    8 and 16-bit transfer\n");
         break;
 
     case TRANSFER_16:
-        AcpiOsPrintf ("\t\t16 bit only transfer\n");
+        AcpiOsPrintf ("    16 bit only transfer\n");
         break;
 
     default:
-        AcpiOsPrintf ("\t\tInvalid transfer preference\n");
+        AcpiOsPrintf ("    Invalid transfer preference\n");
         break;
     }
 
-    AcpiOsPrintf ("\t\tNumber of Channels: %X ( ", DmaData->NumberOfChannels);
+    AcpiOsPrintf ("    Number of Channels: %X ( ", DmaData->NumberOfChannels);
 
     for (Index = 0; Index < DmaData->NumberOfChannels; Index++)
     {
@@ -266,44 +266,44 @@ AcpiRsDumpStartDependentFunctions (
     ACPI_RESOURCE_START_DPF     *SdfData = (ACPI_RESOURCE_START_DPF *) Data;
 
 
-    AcpiOsPrintf ("\tStart Dependent Functions Resource\n");
+    AcpiOsPrintf ("Start Dependent Functions Resource\n");
 
 
     switch (SdfData->CompatibilityPriority)
     {
     case GOOD_CONFIGURATION:
-        AcpiOsPrintf ("\t\tGood configuration\n");
+        AcpiOsPrintf ("    Good configuration\n");
         break;
 
     case ACCEPTABLE_CONFIGURATION:
-        AcpiOsPrintf ("\t\tAcceptable configuration\n");
+        AcpiOsPrintf ("    Acceptable configuration\n");
         break;
 
     case SUB_OPTIMAL_CONFIGURATION:
-        AcpiOsPrintf ("\t\tSub-optimal configuration\n");
+        AcpiOsPrintf ("    Sub-optimal configuration\n");
         break;
 
     default:
-        AcpiOsPrintf ("\t\tInvalid compatibility priority\n");
+        AcpiOsPrintf ("    Invalid compatibility priority\n");
         break;
     }
 
     switch(SdfData->PerformanceRobustness)
     {
     case GOOD_CONFIGURATION:
-        AcpiOsPrintf ("\t\tGood configuration\n");
+        AcpiOsPrintf ("    Good configuration\n");
         break;
 
     case ACCEPTABLE_CONFIGURATION:
-        AcpiOsPrintf ("\t\tAcceptable configuration\n");
+        AcpiOsPrintf ("    Acceptable configuration\n");
         break;
 
     case SUB_OPTIMAL_CONFIGURATION:
-        AcpiOsPrintf ("\t\tSub-optimal configuration\n");
+        AcpiOsPrintf ("    Sub-optimal configuration\n");
         break;
 
     default:
-        AcpiOsPrintf ("\t\tInvalid performance "
+        AcpiOsPrintf ("    Invalid performance "
                         "robustness preference\n");
         break;
     }
@@ -331,21 +331,21 @@ AcpiRsDumpIo (
     ACPI_RESOURCE_IO        *IoData = (ACPI_RESOURCE_IO *) Data;
 
 
-    AcpiOsPrintf ("\tIo Resource\n");
+    AcpiOsPrintf ("Io Resource\n");
 
-    AcpiOsPrintf ("\t\t%d bit decode\n",
+    AcpiOsPrintf ("    %d bit decode\n",
                 DECODE_16 == IoData->IoDecode ? 16 : 10);
 
-    AcpiOsPrintf ("\t\tRange minimum base: %08X\n",
+    AcpiOsPrintf ("    Range minimum base: %08X\n",
                 IoData->MinBaseAddress);
 
-    AcpiOsPrintf ("\t\tRange maximum base: %08X\n",
+    AcpiOsPrintf ("    Range maximum base: %08X\n",
                 IoData->MaxBaseAddress);
 
-    AcpiOsPrintf ("\t\tAlignment: %08X\n",
+    AcpiOsPrintf ("    Alignment: %08X\n",
                 IoData->Alignment);
 
-    AcpiOsPrintf ("\t\tRange Length: %08X\n",
+    AcpiOsPrintf ("    Range Length: %08X\n",
                 IoData->RangeLength);
 
     return;
@@ -371,11 +371,11 @@ AcpiRsDumpFixedIo (
     ACPI_RESOURCE_FIXED_IO  *FixedIoData = (ACPI_RESOURCE_FIXED_IO *) Data;
 
 
-    AcpiOsPrintf ("\tFixed Io Resource\n");
-    AcpiOsPrintf ("\t\tRange base address: %08X",
+    AcpiOsPrintf ("Fixed Io Resource\n");
+    AcpiOsPrintf ("    Range base address: %08X",
                 FixedIoData->BaseAddress);
 
-    AcpiOsPrintf ("\t\tRange length: %08X",
+    AcpiOsPrintf ("    Range length: %08X",
                 FixedIoData->RangeLength);
 
     return;
@@ -402,13 +402,13 @@ AcpiRsDumpVendorSpecific (
     UINT16                  Index = 0;
 
 
-    AcpiOsPrintf ("\tVendor Specific Resource\n");
+    AcpiOsPrintf ("Vendor Specific Resource\n");
 
-    AcpiOsPrintf ("\t\tLength: %08X\n", VendorData->Length);
+    AcpiOsPrintf ("    Length: %08X\n", VendorData->Length);
 
     for (Index = 0; Index < VendorData->Length; Index++)
     {
-        AcpiOsPrintf ("\t\tByte %X: %08X\n",
+        AcpiOsPrintf ("    Byte %X: %08X\n",
                     Index, VendorData->Reserved[Index]);
     }
 
@@ -435,23 +435,23 @@ AcpiRsDumpMemory24 (
     ACPI_RESOURCE_MEM24     *Memory24Data = (ACPI_RESOURCE_MEM24 *) Data;
 
 
-    AcpiOsPrintf ("\t24-Bit Memory Range Resource\n");
+    AcpiOsPrintf ("24-Bit Memory Range Resource\n");
 
-    AcpiOsPrintf ("\t\tRead%s\n",
+    AcpiOsPrintf ("    Read%s\n",
                 READ_WRITE_MEMORY ==
                 Memory24Data->ReadWriteAttribute ?
                 "/Write" : " only");
 
-    AcpiOsPrintf ("\t\tRange minimum base: %08X\n",
+    AcpiOsPrintf ("    Range minimum base: %08X\n",
                 Memory24Data->MinBaseAddress);
 
-    AcpiOsPrintf ("\t\tRange maximum base: %08X\n",
+    AcpiOsPrintf ("    Range maximum base: %08X\n",
                 Memory24Data->MaxBaseAddress);
 
-    AcpiOsPrintf ("\t\tAlignment: %08X\n",
+    AcpiOsPrintf ("    Alignment: %08X\n",
                 Memory24Data->Alignment);
 
-    AcpiOsPrintf ("\t\tRange length: %08X\n",
+    AcpiOsPrintf ("    Range length: %08X\n",
                 Memory24Data->RangeLength);
 
     return;
@@ -477,23 +477,23 @@ AcpiRsDumpMemory32 (
     ACPI_RESOURCE_MEM32     *Memory32Data = (ACPI_RESOURCE_MEM32 *) Data;
 
 
-    AcpiOsPrintf ("\t32-Bit Memory Range Resource\n");
+    AcpiOsPrintf ("32-Bit Memory Range Resource\n");
 
-    AcpiOsPrintf ("\t\tRead%s\n",
+    AcpiOsPrintf ("    Read%s\n",
                 READ_WRITE_MEMORY ==
                 Memory32Data->ReadWriteAttribute ?
                 "/Write" : " only");
 
-    AcpiOsPrintf ("\t\tRange minimum base: %08X\n",
+    AcpiOsPrintf ("    Range minimum base: %08X\n",
                 Memory32Data->MinBaseAddress);
 
-    AcpiOsPrintf ("\t\tRange maximum base: %08X\n",
+    AcpiOsPrintf ("    Range maximum base: %08X\n",
                 Memory32Data->MaxBaseAddress);
 
-    AcpiOsPrintf ("\t\tAlignment: %08X\n",
+    AcpiOsPrintf ("    Alignment: %08X\n",
                 Memory32Data->Alignment);
 
-    AcpiOsPrintf ("\t\tRange length: %08X\n",
+    AcpiOsPrintf ("    Range length: %08X\n",
                 Memory32Data->RangeLength);
 
     return;
@@ -519,17 +519,17 @@ AcpiRsDumpFixedMemory32 (
     ACPI_RESOURCE_FIXED_MEM32   *FixedMemory32Data = (ACPI_RESOURCE_FIXED_MEM32 *) Data;
 
 
-    AcpiOsPrintf ("\t32-Bit Fixed Location Memory Range Resource\n");
+    AcpiOsPrintf ("32-Bit Fixed Location Memory Range Resource\n");
 
-    AcpiOsPrintf ("\t\tRead%s\n",
+    AcpiOsPrintf ("    Read%s\n",
                 READ_WRITE_MEMORY ==
                 FixedMemory32Data->ReadWriteAttribute ?
                 "/Write" : " Only");
 
-    AcpiOsPrintf ("\t\tRange base address: %08X\n",
+    AcpiOsPrintf ("    Range base address: %08X\n",
                 FixedMemory32Data->RangeBaseAddress);
 
-    AcpiOsPrintf ("\t\tRange length: %08X\n",
+    AcpiOsPrintf ("    Range length: %08X\n",
                 FixedMemory32Data->RangeLength);
 
     return;
@@ -555,8 +555,8 @@ AcpiRsDumpAddress16 (
     ACPI_RESOURCE_ADDRESS16 *Address16Data = (ACPI_RESOURCE_ADDRESS16 *) Data;
 
 
-    AcpiOsPrintf ("\t16-Bit Address Space Resource\n");
-    AcpiOsPrintf ("\t\tResource Type: ");
+    AcpiOsPrintf ("16-Bit Address Space Resource\n");
+    AcpiOsPrintf ("    Resource Type: ");
 
     switch (Address16Data->ResourceType)
     {
@@ -567,32 +567,32 @@ AcpiRsDumpAddress16 (
         switch (Address16Data->Attribute.Memory.CacheAttribute)
         {
         case NON_CACHEABLE_MEMORY:
-            AcpiOsPrintf ("\t\tType Specific: "
+            AcpiOsPrintf ("    Type Specific: "
                             "Noncacheable memory\n");
             break;
 
         case CACHABLE_MEMORY:
-            AcpiOsPrintf ("\t\tType Specific: "
+            AcpiOsPrintf ("    Type Specific: "
                             "Cacheable memory\n");
             break;
 
         case WRITE_COMBINING_MEMORY:
-            AcpiOsPrintf ("\t\tType Specific: "
+            AcpiOsPrintf ("    Type Specific: "
                             "Write-combining memory\n");
             break;
 
         case PREFETCHABLE_MEMORY:
-            AcpiOsPrintf ("\t\tType Specific: "
+            AcpiOsPrintf ("    Type Specific: "
                             "Prefetchable memory\n");
             break;
 
         default:
-            AcpiOsPrintf ("\t\tType Specific: "
+            AcpiOsPrintf ("    Type Specific: "
                             "Invalid cache attribute\n");
             break;
         }
 
-        AcpiOsPrintf ("\t\tType Specific: Read%s\n",
+        AcpiOsPrintf ("    Type Specific: Read%s\n",
             READ_WRITE_MEMORY ==
             Address16Data->Attribute.Memory.ReadWriteAttribute ?
             "/Write" : " Only");
@@ -605,22 +605,22 @@ AcpiRsDumpAddress16 (
         switch (Address16Data->Attribute.Io.RangeAttribute)
         {
         case NON_ISA_ONLY_RANGES:
-            AcpiOsPrintf ("\t\tType Specific: "
+            AcpiOsPrintf ("    Type Specific: "
                             "Non-ISA Io Addresses\n");
             break;
 
         case ISA_ONLY_RANGES:
-            AcpiOsPrintf ("\t\tType Specific: "
+            AcpiOsPrintf ("    Type Specific: "
                             "ISA Io Addresses\n");
             break;
 
         case ENTIRE_RANGE:
-            AcpiOsPrintf ("\t\tType Specific: "
+            AcpiOsPrintf ("    Type Specific: "
                             "ISA and non-ISA Io Addresses\n");
             break;
 
         default:
-            AcpiOsPrintf ("\t\tType Specific: "
+            AcpiOsPrintf ("    Type Specific: "
                             "Invalid range attribute\n");
             break;
         }
@@ -637,42 +637,42 @@ AcpiRsDumpAddress16 (
         return;
     }
 
-    AcpiOsPrintf ("\t\tResource %s\n",
+    AcpiOsPrintf ("    Resource %s\n",
             CONSUMER == Address16Data->ProducerConsumer ?
             "Consumer" : "Producer");
 
-    AcpiOsPrintf ("\t\t%s decode\n",
+    AcpiOsPrintf ("    %s decode\n",
                 SUB_DECODE == Address16Data->Decode ?
                 "Subtractive" : "Positive");
 
-    AcpiOsPrintf ("\t\tMin address is %s fixed\n",
+    AcpiOsPrintf ("    Min address is %s fixed\n",
                 ADDRESS_FIXED == Address16Data->MinAddressFixed ?
                 "" : "not");
 
-    AcpiOsPrintf ("\t\tMax address is %s fixed\n",
+    AcpiOsPrintf ("    Max address is %s fixed\n",
                 ADDRESS_FIXED == Address16Data->MaxAddressFixed ?
                 "" : "not");
 
-    AcpiOsPrintf ("\t\tGranularity: %08X\n",
+    AcpiOsPrintf ("    Granularity: %08X\n",
                 Address16Data->Granularity);
 
-    AcpiOsPrintf ("\t\tAddress range min: %08X\n",
+    AcpiOsPrintf ("    Address range min: %08X\n",
                 Address16Data->MinAddressRange);
 
-    AcpiOsPrintf ("\t\tAddress range max: %08X\n",
+    AcpiOsPrintf ("    Address range max: %08X\n",
                 Address16Data->MaxAddressRange);
 
-    AcpiOsPrintf ("\t\tAddress translation offset: %08X\n",
+    AcpiOsPrintf ("    Address translation offset: %08X\n",
                 Address16Data->AddressTranslationOffset);
 
-    AcpiOsPrintf ("\t\tAddress Length: %08X\n",
+    AcpiOsPrintf ("    Address Length: %08X\n",
                 Address16Data->AddressLength);
 
     if (0xFF != Address16Data->ResourceSource.Index)
     {
-        AcpiOsPrintf ("\t\tResource Source Index: %X\n",
+        AcpiOsPrintf ("    Resource Source Index: %X\n",
                     Address16Data->ResourceSource.Index);
-        AcpiOsPrintf ("\t\tResource Source: %s\n",
+        AcpiOsPrintf ("    Resource Source: %s\n",
                     Address16Data->ResourceSource.StringPtr);
     }
 
@@ -699,43 +699,43 @@ AcpiRsDumpAddress32 (
     ACPI_RESOURCE_ADDRESS32 *Address32Data = (ACPI_RESOURCE_ADDRESS32 *) Data;
 
 
-    AcpiOsPrintf ("\t32-Bit Address Space Resource\n");
+    AcpiOsPrintf ("32-Bit Address Space Resource\n");
 
     switch (Address32Data->ResourceType)
     {
     case MEMORY_RANGE:
 
-        AcpiOsPrintf ("\t\tResource Type: Memory Range\n");
+        AcpiOsPrintf ("    Resource Type: Memory Range\n");
 
         switch (Address32Data->Attribute.Memory.CacheAttribute)
         {
         case NON_CACHEABLE_MEMORY:
-            AcpiOsPrintf ("\t\tType Specific: "
+            AcpiOsPrintf ("    Type Specific: "
                             "Noncacheable memory\n");
             break;
 
         case CACHABLE_MEMORY:
-            AcpiOsPrintf ("\t\tType Specific: "
+            AcpiOsPrintf ("    Type Specific: "
                             "Cacheable memory\n");
             break;
 
         case WRITE_COMBINING_MEMORY:
-            AcpiOsPrintf ("\t\tType Specific: "
+            AcpiOsPrintf ("    Type Specific: "
                             "Write-combining memory\n");
             break;
 
         case PREFETCHABLE_MEMORY:
-            AcpiOsPrintf ("\t\tType Specific: "
+            AcpiOsPrintf ("    Type Specific: "
                             "Prefetchable memory\n");
             break;
 
         default:
-            AcpiOsPrintf ("\t\tType Specific: "
+            AcpiOsPrintf ("    Type Specific: "
                             "Invalid cache attribute\n");
             break;
         }
 
-        AcpiOsPrintf ("\t\tType Specific: Read%s\n",
+        AcpiOsPrintf ("    Type Specific: Read%s\n",
             READ_WRITE_MEMORY ==
             Address32Data->Attribute.Memory.ReadWriteAttribute ?
             "/Write" : " Only");
@@ -743,27 +743,27 @@ AcpiRsDumpAddress32 (
 
     case IO_RANGE:
 
-        AcpiOsPrintf ("\t\tResource Type: Io Range\n");
+        AcpiOsPrintf ("    Resource Type: Io Range\n");
 
         switch (Address32Data->Attribute.Io.RangeAttribute)
             {
             case NON_ISA_ONLY_RANGES:
-                AcpiOsPrintf ("\t\tType Specific: "
+                AcpiOsPrintf ("    Type Specific: "
                                 "Non-ISA Io Addresses\n");
                 break;
 
             case ISA_ONLY_RANGES:
-                AcpiOsPrintf ("\t\tType Specific: "
+                AcpiOsPrintf ("    Type Specific: "
                                 "ISA Io Addresses\n");
                 break;
 
             case ENTIRE_RANGE:
-                AcpiOsPrintf ("\t\tType Specific: "
+                AcpiOsPrintf ("    Type Specific: "
                                 "ISA and non-ISA Io Addresses\n");
                 break;
 
             default:
-                AcpiOsPrintf ("\t\tType Specific: "
+                AcpiOsPrintf ("    Type Specific: "
                                 "Invalid Range attribute");
                 break;
             }
@@ -771,51 +771,51 @@ AcpiRsDumpAddress32 (
 
     case BUS_NUMBER_RANGE:
 
-        AcpiOsPrintf ("\t\tResource Type: Bus Number Range\n");
+        AcpiOsPrintf ("    Resource Type: Bus Number Range\n");
         break;
 
     default:
 
-        AcpiOsPrintf ("\t\tInvalid Resource Type..exiting.\n");
+        AcpiOsPrintf ("    Invalid Resource Type..exiting.\n");
         return;
     }
 
-    AcpiOsPrintf ("\t\tResource %s\n",
+    AcpiOsPrintf ("    Resource %s\n",
                 CONSUMER == Address32Data->ProducerConsumer ?
                 "Consumer" : "Producer");
 
-    AcpiOsPrintf ("\t\t%s decode\n",
+    AcpiOsPrintf ("    %s decode\n",
                 SUB_DECODE == Address32Data->Decode ?
                 "Subtractive" : "Positive");
 
-    AcpiOsPrintf ("\t\tMin address is %s fixed\n",
+    AcpiOsPrintf ("    Min address is %s fixed\n",
                 ADDRESS_FIXED == Address32Data->MinAddressFixed ?
                 "" : "not ");
 
-    AcpiOsPrintf ("\t\tMax address is %s fixed\n",
+    AcpiOsPrintf ("    Max address is %s fixed\n",
                 ADDRESS_FIXED == Address32Data->MaxAddressFixed ?
                 "" : "not ");
 
-    AcpiOsPrintf ("\t\tGranularity: %08X\n",
+    AcpiOsPrintf ("    Granularity: %08X\n",
                 Address32Data->Granularity);
 
-    AcpiOsPrintf ("\t\tAddress range min: %08X\n",
+    AcpiOsPrintf ("    Address range min: %08X\n",
                 Address32Data->MinAddressRange);
 
-    AcpiOsPrintf ("\t\tAddress range max: %08X\n",
+    AcpiOsPrintf ("    Address range max: %08X\n",
                 Address32Data->MaxAddressRange);
 
-    AcpiOsPrintf ("\t\tAddress translation offset: %08X\n",
+    AcpiOsPrintf ("    Address translation offset: %08X\n",
                 Address32Data->AddressTranslationOffset);
 
-    AcpiOsPrintf ("\t\tAddress Length: %08X\n",
+    AcpiOsPrintf ("    Address Length: %08X\n",
                 Address32Data->AddressLength);
 
     if(0xFF != Address32Data->ResourceSource.Index)
     {
-        AcpiOsPrintf ("\t\tResource Source Index: %X\n",
+        AcpiOsPrintf ("    Resource Source Index: %X\n",
                     Address32Data->ResourceSource.Index);
-        AcpiOsPrintf ("\t\tResource Source: %s\n",
+        AcpiOsPrintf ("    Resource Source: %s\n",
                     Address32Data->ResourceSource.StringPtr);
     }
 
@@ -842,43 +842,43 @@ AcpiRsDumpAddress64 (
     ACPI_RESOURCE_ADDRESS64 *Address64Data = (ACPI_RESOURCE_ADDRESS64 *) Data;
 
 
-    AcpiOsPrintf ("\t64-Bit Address Space Resource\n");
+    AcpiOsPrintf ("64-Bit Address Space Resource\n");
 
     switch (Address64Data->ResourceType)
     {
     case MEMORY_RANGE:
 
-        AcpiOsPrintf ("\t\tResource Type: Memory Range\n");
+        AcpiOsPrintf ("    Resource Type: Memory Range\n");
 
         switch (Address64Data->Attribute.Memory.CacheAttribute)
         {
         case NON_CACHEABLE_MEMORY:
-            AcpiOsPrintf ("\t\tType Specific: "
+            AcpiOsPrintf ("    Type Specific: "
                             "Noncacheable memory\n");
             break;
 
         case CACHABLE_MEMORY:
-            AcpiOsPrintf ("\t\tType Specific: "
+            AcpiOsPrintf ("    Type Specific: "
                             "Cacheable memory\n");
             break;
 
         case WRITE_COMBINING_MEMORY:
-            AcpiOsPrintf ("\t\tType Specific: "
+            AcpiOsPrintf ("    Type Specific: "
                             "Write-combining memory\n");
             break;
 
         case PREFETCHABLE_MEMORY:
-            AcpiOsPrintf ("\t\tType Specific: "
+            AcpiOsPrintf ("    Type Specific: "
                             "Prefetchable memory\n");
             break;
 
         default:
-            AcpiOsPrintf ("\t\tType Specific: "
+            AcpiOsPrintf ("    Type Specific: "
                             "Invalid cache attribute\n");
             break;
         }
 
-        AcpiOsPrintf ("\t\tType Specific: Read%s\n",
+        AcpiOsPrintf ("    Type Specific: Read%s\n",
             READ_WRITE_MEMORY ==
             Address64Data->Attribute.Memory.ReadWriteAttribute ?
             "/Write" : " Only");
@@ -886,27 +886,27 @@ AcpiRsDumpAddress64 (
 
     case IO_RANGE:
 
-        AcpiOsPrintf ("\t\tResource Type: Io Range\n");
+        AcpiOsPrintf ("    Resource Type: Io Range\n");
 
         switch (Address64Data->Attribute.Io.RangeAttribute)
             {
             case NON_ISA_ONLY_RANGES:
-                AcpiOsPrintf ("\t\tType Specific: "
+                AcpiOsPrintf ("    Type Specific: "
                                 "Non-ISA Io Addresses\n");
                 break;
 
             case ISA_ONLY_RANGES:
-                AcpiOsPrintf ("\t\tType Specific: "
+                AcpiOsPrintf ("    Type Specific: "
                                 "ISA Io Addresses\n");
                 break;
 
             case ENTIRE_RANGE:
-                AcpiOsPrintf ("\t\tType Specific: "
+                AcpiOsPrintf ("    Type Specific: "
                                 "ISA and non-ISA Io Addresses\n");
                 break;
 
             default:
-                AcpiOsPrintf ("\t\tType Specific: "
+                AcpiOsPrintf ("    Type Specific: "
                                 "Invalid Range attribute");
                 break;
             }
@@ -914,51 +914,51 @@ AcpiRsDumpAddress64 (
 
     case BUS_NUMBER_RANGE:
 
-        AcpiOsPrintf ("\t\tResource Type: Bus Number Range\n");
+        AcpiOsPrintf ("    Resource Type: Bus Number Range\n");
         break;
 
     default:
 
-        AcpiOsPrintf ("\t\tInvalid Resource Type..exiting.\n");
+        AcpiOsPrintf ("    Invalid Resource Type..exiting.\n");
         return;
     }
 
-    AcpiOsPrintf ("\t\tResource %s\n",
+    AcpiOsPrintf ("    Resource %s\n",
                 CONSUMER == Address64Data->ProducerConsumer ?
                 "Consumer" : "Producer");
 
-    AcpiOsPrintf ("\t\t%s decode\n",
+    AcpiOsPrintf ("    %s decode\n",
                 SUB_DECODE == Address64Data->Decode ?
                 "Subtractive" : "Positive");
 
-    AcpiOsPrintf ("\t\tMin address is %s fixed\n",
+    AcpiOsPrintf ("    Min address is %s fixed\n",
                 ADDRESS_FIXED == Address64Data->MinAddressFixed ?
                 "" : "not ");
 
-    AcpiOsPrintf ("\t\tMax address is %s fixed\n",
+    AcpiOsPrintf ("    Max address is %s fixed\n",
                 ADDRESS_FIXED == Address64Data->MaxAddressFixed ?
                 "" : "not ");
 
-    AcpiOsPrintf ("\t\tGranularity: %16X\n",
+    AcpiOsPrintf ("    Granularity: %16X\n",
                 Address64Data->Granularity);
 
-    AcpiOsPrintf ("\t\tAddress range min: %16X\n",
+    AcpiOsPrintf ("    Address range min: %16X\n",
                 Address64Data->MinAddressRange);
 
-    AcpiOsPrintf ("\t\tAddress range max: %16X\n",
+    AcpiOsPrintf ("    Address range max: %16X\n",
                 Address64Data->MaxAddressRange);
 
-    AcpiOsPrintf ("\t\tAddress translation offset: %16X\n",
+    AcpiOsPrintf ("    Address translation offset: %16X\n",
                 Address64Data->AddressTranslationOffset);
 
-    AcpiOsPrintf ("\t\tAddress Length: %16X\n",
+    AcpiOsPrintf ("    Address Length: %16X\n",
                 Address64Data->AddressLength);
 
     if(0xFF != Address64Data->ResourceSource.Index)
     {
-        AcpiOsPrintf ("\t\tResource Source Index: %X\n",
+        AcpiOsPrintf ("    Resource Source Index: %X\n",
                     Address64Data->ResourceSource.Index);
-        AcpiOsPrintf ("\t\tResource Source: %s\n",
+        AcpiOsPrintf ("    Resource Source: %s\n",
                     Address64Data->ResourceSource.StringPtr);
     }
 
@@ -986,25 +986,25 @@ AcpiRsDumpExtendedIrq (
     UINT8                   Index = 0;
 
 
-    AcpiOsPrintf ("\tExtended IRQ Resource\n");
+    AcpiOsPrintf ("Extended IRQ Resource\n");
 
-    AcpiOsPrintf ("\t\tResource %s\n",
+    AcpiOsPrintf ("    Resource %s\n",
                 CONSUMER == ExtIrqData->ProducerConsumer ?
                 "Consumer" : "Producer");
 
-    AcpiOsPrintf ("\t\t%s\n",
+    AcpiOsPrintf ("    %s\n",
                 LEVEL_SENSITIVE == ExtIrqData->EdgeLevel ?
                 "Level" : "Edge");
 
-    AcpiOsPrintf ("\t\tActive %s\n",
+    AcpiOsPrintf ("    Active %s\n",
                 ACTIVE_LOW == ExtIrqData->ActiveHighLow ?
                 "low" : "high");
 
-    AcpiOsPrintf ("\t\t%s\n",
+    AcpiOsPrintf ("    %s\n",
                 SHARED == ExtIrqData->SharedExclusive ?
                 "Shared" : "Exclusive");
 
-    AcpiOsPrintf ("\t\tInterrupts : %X ( ",
+    AcpiOsPrintf ("    Interrupts : %X ( ",
                 ExtIrqData->NumberOfInterrupts);
 
     for (Index = 0; Index < ExtIrqData->NumberOfInterrupts; Index++)
@@ -1016,9 +1016,9 @@ AcpiRsDumpExtendedIrq (
 
     if(0xFF != ExtIrqData->ResourceSource.Index)
     {
-        AcpiOsPrintf ("\t\tResource Source Index: %X",
+        AcpiOsPrintf ("    Resource Source Index: %X",
                     ExtIrqData->ResourceSource.Index);
-        AcpiOsPrintf ("\t\tResource Source: %s",
+        AcpiOsPrintf ("    Resource Source: %s",
                     ExtIrqData->ResourceSource.StringPtr);
     }
 
@@ -1050,7 +1050,7 @@ AcpiRsDumpResourceList (
     {
         while (!Done)
         {
-            AcpiOsPrintf ("\tResource structure %x.\n", Count++);
+            AcpiOsPrintf ("Resource structure %x.\n", Count++);
 
             switch (Resource->Id)
             {
@@ -1067,7 +1067,7 @@ AcpiRsDumpResourceList (
                 break;
 
             case ACPI_RSTYPE_END_DPF:
-                AcpiOsPrintf ("\tEndDependentFunctions Resource\n");
+                AcpiOsPrintf ("EndDependentFunctions Resource\n");
                 /* AcpiRsDumpEndDependentFunctions (Resource->Data);*/
                 break;
 
@@ -1085,7 +1085,7 @@ AcpiRsDumpResourceList (
 
             case ACPI_RSTYPE_END_TAG:
                 /*RsDumpEndTag (Resource->Data);*/
-                AcpiOsPrintf ("\tEndTag Resource\n");
+                AcpiOsPrintf ("EndTag Resource\n");
                 Done = TRUE;
                 break;
 
@@ -1158,16 +1158,16 @@ AcpiRsDumpIrqList (
 
         while (!Done)
         {
-            AcpiOsPrintf ("\tPCI IRQ Routing Table structure %X.\n", Count++);
+            AcpiOsPrintf ("PCI IRQ Routing Table structure %X.\n", Count++);
 
-            AcpiOsPrintf ("\t\tAddress: %X\n",
+            AcpiOsPrintf ("    Address: %X\n",
                         PrtElement->Address);
 
-            AcpiOsPrintf ("\t\tPin: %X\n", PrtElement->Pin);
+            AcpiOsPrintf ("    Pin: %X\n", PrtElement->Pin);
 
-            AcpiOsPrintf ("\t\tSource: %s\n", PrtElement->Source);
+            AcpiOsPrintf ("    Source: %s\n", PrtElement->Source);
 
-            AcpiOsPrintf ("\t\tSourceIndex: %X\n",
+            AcpiOsPrintf ("    SourceIndex: %X\n",
                         PrtElement->SourceIndex);
 
             Buffer += PrtElement->Length;

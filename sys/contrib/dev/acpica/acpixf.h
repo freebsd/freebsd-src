@@ -205,6 +205,13 @@ AcpiGetTable (
     UINT32                  Instance,
     ACPI_BUFFER             *RetBuffer);
 
+ACPI_STATUS
+AcpiGetFirmwareTable (
+    ACPI_STRING             Signature,
+    UINT32                  Instance,
+    UINT32                  Flags,
+    ACPI_TABLE_HEADER       **TablePointer);
+
 
 /*
  * Namespace and name interfaces

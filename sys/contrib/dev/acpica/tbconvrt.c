@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbconvrt - ACPI Table conversion utilities
- *              $Revision: 22 $
+ *              $Revision: 23 $
  *
  *****************************************************************************/
 
@@ -128,7 +128,7 @@
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiTbConvertToXsdt
+ * FUNCTION:    AcpiTbGetTableCount
  *
  * PARAMETERS:
  *
@@ -138,20 +138,18 @@
  *
  ******************************************************************************/
 
-ACPI_STATUS
-AcpiTbConvertToXsdt (
-    ACPI_TABLE_DESC         *TableInfo,
-    UINT32                  *NumberOfTables)
+UINT32
+AcpiTbGetTableCount (
+    RSDP_DESCRIPTOR         *RSDP,
+    ACPI_TABLE_HEADER       *RSDT)
 {
-    UINT32                  TableSize;
     UINT32                  PointerSize;
-    UINT32                  i;
-    XSDT_DESCRIPTOR         *NewTable;
+
 
 
 #ifndef _IA64
 
-    if (AcpiGbl_RSDP->Revision < 2)
+    if (RSDP->Revision < 2)
     {
         PointerSize = sizeof (UINT32);
     }
@@ -169,9 +167,34 @@ AcpiTbConvertToXsdt (
      * is architecture-dependent.
      */
 
-    TableSize = TableInfo->Pointer->Length;
-    *NumberOfTables = (TableSize -
-                        sizeof (ACPI_TABLE_HEADER)) / PointerSize;
+    return ((RSDT->Length - sizeof (ACPI_TABLE_HEADER)) / PointerSize);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiTbConvertToXsdt
+ *
+ * PARAMETERS:
+ *
+ * RETURN:
+ *
+ * DESCRIPTION:
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiTbConvertToXsdt (
+    ACPI_TABLE_DESC         *TableInfo,
+    UINT32                  *NumberOfTables)
+{
+    UINT32                  TableSize;
+    UINT32                  i;
+    XSDT_DESCRIPTOR         *NewTable;
+
+
+    *NumberOfTables = AcpiTbGetTableCount (AcpiGbl_RSDP, TableInfo->Pointer);
+
 
     /* Compute size of the converted XSDT */
 

@@ -2,7 +2,7 @@
  *
  * Module Name: evevent - Fixed and General Purpose AcpiEvent
  *                          handling and dispatch
- *              $Revision: 42 $
+ *              $Revision: 43 $
  *
  *****************************************************************************/
 
@@ -284,7 +284,7 @@ AcpiEvFixedEventDetect(void)
     EnableRegister = AcpiHwRegisterRead (ACPI_MTX_DO_NOT_LOCK, PM1_EN);
 
     DEBUG_PRINT (TRACE_INTERRUPTS,
-        ("Fixed AcpiEvent Block: Enable = %08x\tStatus = %08x\n",
+        ("Fixed AcpiEvent Block: Enable %08X Status %08X\n",
         EnableRegister, StatusRegister));
 
 
@@ -743,8 +743,10 @@ AcpiEvGpeDetect (void)
                             AcpiOsIn8 (AcpiGbl_GpeRegisters[i].EnableAddr);
 
         DEBUG_PRINT (TRACE_INTERRUPTS,
-            ("GPE block at %x - Enable: %08x\tStatus: %08x\n",
-            AcpiGbl_GpeRegisters[i].EnableAddr, AcpiGbl_GpeRegisters[i].Status, AcpiGbl_GpeRegisters[i].Enable));
+            ("GPE block at %X - Enable %08X Status %08X\n",
+            AcpiGbl_GpeRegisters[i].EnableAddr, 
+            AcpiGbl_GpeRegisters[i].Status, 
+            AcpiGbl_GpeRegisters[i].Enable));
 
         /* First check if there is anything active at all in this register */
 
