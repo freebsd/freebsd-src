@@ -230,10 +230,9 @@ ConfigureNode(const char *prog, const char *iface, const char *provider,
 
   plen = strlen(provider);
 
-  data = (struct ngpppoe_init_data *)alloca(sizeof *data + plen + 1);
+  data = (struct ngpppoe_init_data *)alloca(sizeof *data + plen);
   snprintf(data->hook, sizeof data->hook, "%s", ngc->peerhook);
   strcpy(data->data, provider);
-  data->data_len = plen;
 
   spath = (char *)alloca(strlen(ngc->peerhook) + 3);
   strcpy(spath, ".:");
@@ -323,10 +322,9 @@ Spawn(const char *prog, const char *acname, const char *exec,
 
       /* Put the PPPoE node into OFFER mode */
       slen = strlen(acname);
-      data = (struct ngpppoe_init_data *)alloca(sizeof *data + slen + 1);
+      data = (struct ngpppoe_init_data *)alloca(sizeof *data + slen);
       snprintf(data->hook, sizeof data->hook, "%s", ngc.ourhook);
       strcpy(data->data, acname);
-      data->data_len = slen;
 
       path = (char *)alloca(strlen(ngc.ourhook) + 3);
       strcpy(path, ".:");
