@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2002 New Gold Technoloy.  All rights reserved.
+ * Copyright (c) 2002 Juli Mallett.  All rights reserved.
  * Copyright (c) 1982, 1986, 1989, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -70,6 +72,7 @@
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/unistd.h>
+#include <sys/ksiginfo.h>
 
 #include <machine/cpu.h>
 
@@ -115,6 +118,9 @@ SYSCTL_INT(_kern, OID_AUTO, sugid_coredump, CTLFLAG_RW,
 static int	do_coredump = 1;
 SYSCTL_INT(_kern, OID_AUTO, coredump, CTLFLAG_RW,
 	&do_coredump, 0, "Enable/Disable coredumps");
+
+static int stopmask =
+    sigmask(SIGSTOP) | sigmask(SIGTSTP) | sigmask(SIGTTIN) | sigmask(SIGTTOU);
 
 /*
  * Signal properties and actions.
@@ -178,12 +184,12 @@ cursig(struct thread *td)
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	mtx_assert(&sched_lock, MA_NOTOWNED);
-	return (SIGPENDING(p) ? issignal(td) : 0);
+	return (signal_pending(p) ? issignal(td) : 0);
 }
 
 /*
  * Arrange for ast() to handle unmasked pending signals on return to user
- * mode.  This must be called whenever a signal is added to p_siglist or
+ * mode.  This must be called whenever a signal is added to p_sigq or
  * unmasked in p_sigmask.
  */
 void
@@ -194,7 +200,7 @@ signotify(struct proc *p)
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	mtx_lock_spin(&sched_lock);
-	if (SIGPENDING(p)) {
+	if (signal_pending(p)) {
 		p->p_sflag |= PS_NEEDSIGCHK;
 		/* XXXKSE for now punish all KSEs */
 		FOREACH_KSEGRP_IN_PROC(p, kg) {
@@ -341,7 +347,7 @@ kern_sigaction(td, sig, act, oact, old)
 		    (sigprop(sig) & SA_IGNORE &&
 		     ps->ps_sigact[_SIG_IDX(sig)] == SIG_DFL)) {
 			/* never to be seen again */
-			SIGDELSET(p->p_siglist, sig);
+			signal_delete(p, NULL, sig);
 			if (sig != SIGCONT)
 				/* easier in psignal */
 				SIGADDSET(p->p_sigignore, sig);
@@ -494,7 +500,7 @@ execsigs(p)
 		if (sigprop(sig) & SA_IGNORE) {
 			if (sig != SIGCONT)
 				SIGADDSET(p->p_sigignore, sig);
-			SIGDELSET(p->p_siglist, sig);
+			signal_delete(p, NULL, sig);
 		}
 		ps->ps_sigact[_SIG_IDX(sig)] = SIG_DFL;
 	}
@@ -641,7 +647,7 @@ sigpending(td, uap)
 
 	mtx_lock(&Giant);
 	PROC_LOCK(p);
-	siglist = p->p_siglist;
+	ksiginfo_to_sigset_t(p, &siglist);
 	PROC_UNLOCK(p);
 	mtx_unlock(&Giant);
 	error = copyout(&siglist, uap->set, sizeof(sigset_t));
@@ -664,10 +670,12 @@ osigpending(td, uap)
 	struct osigpending_args *uap;
 {
 	struct proc *p = td->td_proc;
+	sigset_t siglist;
 
 	mtx_lock(&Giant);
 	PROC_LOCK(p);
-	SIG2OSIG(p->p_siglist, td->td_retval[0]);
+	ksiginfo_to_sigset_t(p, &siglist);
+	SIG2OSIG(siglist, td->td_retval[0]);
 	PROC_UNLOCK(p);
 	mtx_unlock(&Giant);
 	return (0);
@@ -1308,7 +1316,7 @@ psignal(p, sig)
 	}
 
 	if (prop & SA_CONT)
-		SIG_STOPSIGMASK(p->p_siglist);
+		signal_delete_mask(p, stopmask);
 
 	if (prop & SA_STOP) {
 		/*
@@ -1321,10 +1329,10 @@ psignal(p, sig)
 		    (p->p_pgrp->pg_jobc == 0) &&
 		    (action == SIG_DFL))
 		        return;
-		SIG_CONTSIGMASK(p->p_siglist);
+		signal_delete_mask(p, sigmask(SIGCONT));
 		p->p_flag &= ~P_CONTINUED;
 	}
-	SIGADDSET(p->p_siglist, sig);
+	signal_add(p, NULL, sig);
 	signotify(p);			/* uses schedlock */
 
 	/*
@@ -1362,10 +1370,10 @@ psignal(p, sig)
 		if (prop & SA_CONT) {
 			/*
 			 * If SIGCONT is default (or ignored), we continue the
-			 * process but don't leave the signal in p_siglist as
-			 * it has no further action.  If SIGCONT is held, we
+			 * process but don't leave the signal in p_sigq as it
+			 * has no further action.  If SIGCONT is held, we
 			 * continue the process and leave the signal in
-			 * p_siglist.  If the process catches SIGCONT, let it
+			 * p_sigq.  If the process catches SIGCONT, let it
 			 * handle the signal itself.  If it isn't waiting on
 			 * an event, it goes back to run state.
 			 * Otherwise, process goes back to sleep state.
@@ -1373,7 +1381,7 @@ psignal(p, sig)
 			p->p_flag &= ~P_STOPPED_SIG;
 			p->p_flag |= P_CONTINUED;
 			if (action == SIG_DFL) {
-				SIGDELSET(p->p_siglist, sig);
+				signal_delete(p, NULL, sig);
 			} else if (action == SIG_CATCH) {
 				/*
 				 * The process wants to catch it so it needs
@@ -1403,7 +1411,7 @@ psignal(p, sig)
 			 * Just make sure the signal STOP bit set.
 			 */
 			p->p_flag |= P_STOPPED_SIG;
-			SIGDELSET(p->p_siglist, sig);
+			signal_delete(p, NULL, sig);
 			goto out;
 		}
 
@@ -1437,7 +1445,7 @@ psignal(p, sig)
 			/*
 			 * Already active, don't need to start again.
 			 */
-			SIGDELSET(p->p_siglist, sig);
+			signal_delete(p, NULL, sig);
 			goto out;
 		}
 		if ((p->p_flag & P_TRACED) || (action != SIG_DFL) ||
@@ -1461,7 +1469,7 @@ psignal(p, sig)
 				mtx_unlock_spin(&sched_lock);
 				stop(p);
 				p->p_xstat = sig;
-				SIGDELSET(p->p_siglist, sig);
+				signal_delete(p, NULL, sig);
 				PROC_LOCK(p->p_pptr);
 				if ((p->p_pptr->p_procsig->ps_flag &
 					PS_NOCLDSTOP) == 0) {
@@ -1478,7 +1486,7 @@ psignal(p, sig)
 		/* NOTREACHED */
 	} else {
 		/* Not in "NORMAL" state. discard the signal. */
-		SIGDELSET(p->p_siglist, sig);
+		signal_delete(p, NULL, sig);
 		goto out;
 	}
 
@@ -1553,7 +1561,7 @@ tdsignal(struct thread *td, int sig, sig_t action)
 			 * be awakened.
 			 */
 			if ((prop & SA_CONT) && action == SIG_DFL) {
-				SIGDELSET(p->p_siglist, sig);
+				signal_delete(p, NULL, sig);
 				return;
 			}
 
@@ -1609,13 +1617,13 @@ issignal(td)
 	for (;;) {
 		int traced = (p->p_flag & P_TRACED) || (p->p_stops & S_SIG);
 
-		mask = p->p_siglist;
+		ksiginfo_to_sigset_t(p, &mask);
 		SIGSETNAND(mask, p->p_sigmask);
 		if (p->p_flag & P_PPWAIT)
 			SIG_STOPSIGMASK(mask);
 		if (SIGISEMPTY(mask))		/* no signal to send */
 			return (0);
-		sig = sig_ffs(&mask);
+		sig = signal_queued_mask(p, mask);
 		prop = sigprop(sig);
 
 		_STOPEVENT(p, S_SIG, sig);
@@ -1625,7 +1633,7 @@ issignal(td)
 		 * only if P_TRACED was on when they were posted.
 		 */
 		if (SIGISMEMBER(p->p_sigignore, sig) && (traced == 0)) {
-			SIGDELSET(p->p_siglist, sig);
+			signal_delete(p, NULL, sig);
 			continue;
 		}
 		if (p->p_flag & P_TRACED && (p->p_flag & P_PPWAIT) == 0) {
@@ -1660,16 +1668,16 @@ issignal(td)
 			 * then it will leave it in p->p_xstat;
 			 * otherwise we just look for signals again.
 			 */
-			SIGDELSET(p->p_siglist, sig);	/* clear old signal */
+			signal_delete(p, NULL, sig);	/* clear old signal */
 			sig = p->p_xstat;
 			if (sig == 0)
 				continue;
 
 			/*
-			 * Put the new signal into p_siglist.  If the
-			 * signal is being masked, look for other signals.
+			 * Put the new signal into p_sigq.  If the signal
+			 * is being masked, look for other signals.
 			 */
-			SIGADDSET(p->p_siglist, sig);
+			psignal(p, sig);
 			if (SIGISMEMBER(p->p_sigmask, sig))
 				continue;
 			signotify(p);
@@ -1759,7 +1767,7 @@ issignal(td)
 			 */
 			return (sig);
 		}
-		SIGDELSET(p->p_siglist, sig);		/* take the signal! */
+		signal_delete(p, NULL, sig);		/* take the signal! */
 	}
 	/* NOTREACHED */
 }
@@ -1800,7 +1808,7 @@ postsig(sig)
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	ps = p->p_sigacts;
-	SIGDELSET(p->p_siglist, sig);
+	signal_delete(p, NULL, sig);
 	action = ps->ps_sigact[_SIG_IDX(sig)];
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_PSIG))

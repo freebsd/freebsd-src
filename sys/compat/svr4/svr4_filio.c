@@ -39,6 +39,7 @@
 #include <sys/poll.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/ksiginfo.h>
 
 #include <sys/sysproto.h>
 
@@ -135,7 +136,9 @@ svr4_sys_read(td, uap)
        DPRINTF(("sigmask = 0x%x\n", td->td_proc->p_sigmask));
        DPRINTF(("sigignore = 0x%x\n", td->td_proc->p_sigignore));
        DPRINTF(("sigcaught = 0x%x\n", td->td_proc->p_sigcatch));
+#if 0 /* XXX - use ksiginfo_to_sigset_t ? */
        DPRINTF(("siglist = 0x%x\n", td->td_proc->p_siglist));
+#endif
      }
 
 #if defined(GROTTY_READ_HACK)

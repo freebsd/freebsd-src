@@ -605,6 +605,7 @@ again:
 	LIST_INSERT_AFTER(p1, p2, p_pglist);
 	PGRP_UNLOCK(p1->p_pgrp);
 	LIST_INIT(&p2->p_children);
+	TAILQ_INIT(&p2->p_sigq);
 
 	callout_init(&p2->p_itcallout, 0);
 

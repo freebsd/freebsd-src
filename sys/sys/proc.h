@@ -497,6 +497,7 @@ struct proc {
 	TAILQ_HEAD(, ksegrp) p_ksegrps;	/* (kg_ksegrp) All KSEGs. */
 	TAILQ_HEAD(, thread) p_threads;	/* (td_plist) Threads. (shortcut) */
 	TAILQ_HEAD(, thread) p_suspended; /* (td_runq) suspended threads */
+	TAILQ_HEAD(, ksiginfo) p_sigq;	/* (c) Queued signals. */
 	struct ucred	*p_ucred;	/* (c) Process owner's identity. */
 	struct filedesc	*p_fd;		/* (b) Ptr to open files structure. */
 					/* Accumulated stats for all KSEs? */
@@ -537,7 +538,6 @@ struct proc {
 	struct bintime	p_runtime;	/* (j) Real time. */
 	int		p_traceflag;	/* (o) Kernel trace points. */
 	struct vnode	*p_tracep;	/* (c + o) Trace to vnode. */
-	sigset_t	p_siglist;	/* (c) Sigs arrived, not delivered. */
 	struct vnode	*p_textvp;	/* (b) Vnode of executable. */
 	char		p_lock;		/* (c) Proclock (prevent swap) count. */
 	struct klist p_klist;		/* (c) Knotes attached to this proc. */
