@@ -518,7 +518,8 @@ usage()
 	exit(EX_USAGE);
 }
 
-char *makenetvfslist()
+char *
+makenetvfslist()
 {
 	char *str, *strptr, **listptr;
 	int mib[3], maxvfsconf, cnt=0, i;
@@ -533,31 +534,31 @@ char *makenetvfslist()
 		return (NULL);
 	}
 
-	if ((listptr=malloc(sizeof(char*) * maxvfsconf)) == NULL) {
+	if ((listptr = malloc(sizeof(char*) * maxvfsconf)) == NULL) {
 		warnx("malloc failed");
 		return (NULL);
 	}
 
-	for (ptr=getvfsent();ptr;ptr=getvfsent())
+	for (ptr = getvfsent(); ptr; ptr = getvfsent())
 		if (ptr->vfc_flags & VFCF_NETWORK) {
-			listptr[cnt++] = strdup (ptr->vfc_name);
-			if (! listptr[cnt-1]) {
+			listptr[cnt++] = strdup(ptr->vfc_name);
+			if (listptr[cnt-1] == NULL) {
 				warnx("malloc failed");
 				return (NULL);
 			}
 		}
 
-	if ((str = malloc(sizeof(char)*(32*cnt+cnt+2))) == NULL) {
+	if ((str = malloc(sizeof(char) * (32 * cnt + cnt + 2))) == NULL) {
 		warnx("malloc failed");
 		free(listptr);
 		return (NULL);
 	}
 
-	*str = 'n'; *(str+1) = 'o';
-	for (i = 0,strptr=str+2; i < cnt; i++,strptr++) {
-		strncpy (strptr, listptr[i], 32);
-		strptr+=strlen(listptr[i]);
-		*strptr=',';
+	*str = 'n'; *(str + 1) = 'o';
+	for (i = 0, strptr = str + 2; i < cnt; i++, strptr++) {
+		strncpy(strptr, listptr[i], 32);
+		strptr += strlen(listptr[i]);
+		*strptr = ',';
 		free(listptr[i]);
 	}
 	*(--strptr) = NULL;
