@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.63 1997/03/23 03:37:53 bde Exp $
+ * $Id: vm_mmap.c,v 1.64 1997/06/15 23:35:32 dyson Exp $
  */
 
 /*
@@ -946,7 +946,8 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	if (handle == NULL) {
 		object = NULL;
 	} else {
-		object = vm_pager_allocate(type, handle, OFF_TO_IDX(objsize), prot, foff);
+		object = vm_pager_allocate(type,
+			handle, OFF_TO_IDX(objsize), prot, foff);
 		if (object == NULL)
 			return (type == OBJT_DEVICE ? EINVAL : ENOMEM);
 	}
@@ -972,9 +973,12 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 		maxprot |= VM_PROT_EXECUTE;
 #endif
 
+	if (fitit) {
+		*addr = pmap_addr_hint(object, *addr, size);
+	}
+
 	rv = vm_map_find(map, object, foff, addr, size, fitit,
 			prot, maxprot, docow);
-
 
 	if (rv != KERN_SUCCESS) {
 		/*
@@ -989,7 +993,7 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	/*
 	 * "Pre-fault" resident pages.
 	 */
-	if ((type == OBJT_VNODE) && (map->pmap != NULL) && (object != NULL)) {
+	if ((map->pmap != NULL) && (object != NULL)) {
 		pmap_object_init_pt(map->pmap, *addr,
 			object, (vm_pindex_t) OFF_TO_IDX(foff), size, 1);
 	}

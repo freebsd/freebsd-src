@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.50 1997/04/26 11:45:41 peter Exp $
+ * 	$Id: pmap.h,v 1.51 1997/06/22 16:03:54 peter Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
@@ -144,6 +144,7 @@ extern pd_entry_t PTD[], APTD[], PTDpde, APTDpde, Upde;
 extern pd_entry_t IdlePTD;	/* physical address of "Idle" state directory */
 #endif
 
+#ifdef KERNEL
 /*
  * virtual address to page table entry and
  * to physical address. Likewise for alternate address space.
@@ -151,12 +152,9 @@ extern pd_entry_t IdlePTD;	/* physical address of "Idle" state directory */
  * the corresponding pde that in turn maps it.
  */
 #define	vtopte(va)	(PTmap + i386_btop(va))
-#define	vtophys(va)	(((int) (*vtopte(va))&PG_FRAME) | ((int)(va) & PAGE_MASK))
 
 #define	avtopte(va)	(APTmap + i386_btop(va))
-#define	avtophys(va)	(((int) (*avtopte(va))&PG_FRAME) | ((int)(va) & PAGE_MASK))
 
-#ifdef KERNEL
 /*
  *	Routine:	pmap_kextract
  *	Function:
@@ -166,10 +164,24 @@ extern pd_entry_t IdlePTD;	/* physical address of "Idle" state directory */
 static __inline vm_offset_t
 pmap_kextract(vm_offset_t va)
 {
-	vm_offset_t pa = *(int *)vtopte(va);
-	pa = (pa & PG_FRAME) | (va & PAGE_MASK);
+	vm_offset_t pa;
+	if ((pa = (vm_offset_t) PTD[va >> PDRSHIFT]) & PG_PS) {
+		pa = (pa & ~(NBPDR - 1)) | (va & (NBPDR - 1));
+	} else {
+		pa = *(vm_offset_t *)vtopte(va);
+		pa = (pa & PG_FRAME) | (va & PAGE_MASK);
+	}
 	return pa;
 }
+
+#if 0
+#define	vtophys(va)	(((int) (*vtopte(va))&PG_FRAME) | ((int)(va) & PAGE_MASK))
+#else
+#define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
+#endif
+
+#define	avtophys(va)	(((int) (*avtopte(va))&PG_FRAME) | ((int)(va) & PAGE_MASK))
+
 #endif
 
 /*
@@ -237,6 +249,8 @@ pmap_t	pmap_kernel __P((void));
 void	*pmap_mapdev __P((vm_offset_t, vm_size_t));
 unsigned *pmap_pte __P((pmap_t, vm_offset_t)) __pure2;
 vm_page_t pmap_use_pt __P((pmap_t, vm_offset_t));
+void	pmap_set_opt	__P((unsigned *));
+void	pmap_set_opt_bsp	__P((void));
 
 #endif /* KERNEL */
 
