@@ -1,4 +1,4 @@
-/* crypto/des/cfb64enc.c */
+/* crypto/des/xcbc_enc.c */
 /* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
  * 
@@ -47,71 +47,86 @@
 
 #include "des_locl.h"
 
-/* The input and output encrypted as though 64bit cfb mode is being
- * used.  The extra state information to record how much of the
- * 64bit block we have used is contained in *num;
- */
-
-void des_cfb64_encrypt(in, out, length, schedule, ivec, num, encrypt)
-unsigned char *in;
-unsigned char *out;
+/* RSA's DESX */
+void des_xcbc_encrypt(input, output, length, schedule, ivec, inw,outw,encrypt)
+des_cblock (*input);
+des_cblock (*output);
 long length;
 des_key_schedule schedule;
 des_cblock (*ivec);
-int *num;
+des_cblock (*inw);
+des_cblock (*outw);
 int encrypt;
 	{
-	register DES_LONG v0,v1;
+	register DES_LONG tin0,tin1;
+	register DES_LONG tout0,tout1,xor0,xor1;
+	register DES_LONG inW0,inW1,outW0,outW1;
+	register unsigned char *in,*out;
 	register long l=length;
-	register int n= *num;
-	DES_LONG ti[2];
-	unsigned char *iv,c,cc;
+	DES_LONG tin[2];
+	unsigned char *iv;
 
+	in=(unsigned char *)inw;
+	c2l(in,inW0);
+	c2l(in,inW1);
+	in=(unsigned char *)outw;
+	c2l(in,outW0);
+	c2l(in,outW1);
+
+	in=(unsigned char *)input;
+	out=(unsigned char *)output;
 	iv=(unsigned char *)ivec;
+
 	if (encrypt)
 		{
-		while (l--)
+		c2l(iv,tout0);
+		c2l(iv,tout1);
+		for (; l>0; l-=8)
 			{
-			if (n == 0)
+			if (l >= 8)
 				{
-				c2l(iv,v0); ti[0]=v0;
-				c2l(iv,v1); ti[1]=v1;
-				des_encrypt((DES_LONG *)ti,
-					schedule,DES_ENCRYPT);
-				iv=(unsigned char *)ivec;
-				v0=ti[0]; l2c(v0,iv);
-				v0=ti[1]; l2c(v0,iv);
-				iv=(unsigned char *)ivec;
+				c2l(in,tin0);
+				c2l(in,tin1);
 				}
-			c= *(in++)^iv[n];
-			*(out++)=c;
-			iv[n]=c;
-			n=(n+1)&0x07;
+			else
+				c2ln(in,tin0,tin1,l);
+			tin0^=tout0^inW0; tin[0]=tin0;
+			tin1^=tout1^inW1; tin[1]=tin1;
+			des_encrypt((DES_LONG *)tin,schedule,DES_ENCRYPT);
+			tout0=tin[0]^outW0; l2c(tout0,out);
+			tout1=tin[1]^outW1; l2c(tout1,out);
 			}
+		iv=(unsigned char *)ivec;
+		l2c(tout0,iv);
+		l2c(tout1,iv);
 		}
 	else
 		{
-		while (l--)
+		c2l(iv,xor0);
+		c2l(iv,xor1);
+		for (; l>0; l-=8)
 			{
-			if (n == 0)
+			c2l(in,tin0); tin[0]=tin0^outW0;
+			c2l(in,tin1); tin[1]=tin1^outW1;
+			des_encrypt((DES_LONG *)tin,schedule,DES_DECRYPT);
+			tout0=tin[0]^xor0^inW0;
+			tout1=tin[1]^xor1^inW1;
+			if (l >= 8)
 				{
-				c2l(iv,v0); ti[0]=v0;
-				c2l(iv,v1); ti[1]=v1;
-				des_encrypt((DES_LONG *)ti,
-					schedule,DES_ENCRYPT);
-				iv=(unsigned char *)ivec;
-				v0=ti[0]; l2c(v0,iv);
-				v0=ti[1]; l2c(v0,iv);
-				iv=(unsigned char *)ivec;
+				l2c(tout0,out);
+				l2c(tout1,out);
 				}
-			cc= *(in++);
-			c=iv[n];
-			iv[n]=cc;
-			*(out++)=c^cc;
-			n=(n+1)&0x07;
+			else
+				l2cn(tout0,tout1,out,l);
+			xor0=tin0;
+			xor1=tin1;
 			}
+		iv=(unsigned char *)ivec;
+		l2c(xor0,iv);
+		l2c(xor1,iv);
 		}
-	v0=v1=ti[0]=ti[1]=c=cc=0;
-	*num=n;
+	tin0=tin1=tout0=tout1=xor0=xor1=0;
+	inW0=inW1=outW0=outW1=0;
+	tin[0]=tin[1]=0;
 	}
 
