@@ -321,10 +321,11 @@ _kse_single_thread(struct pthread *curthread)
 	_kse_initial = NULL;
 	_libpthread_init(curthread);
 #else
+	if (__isthreaded)
+		_thr_signal_deinit();
 	_ksd_readandclear_tmbx();
 	__isthreaded   = 0;
 	active_threads = 0;
-	_thr_signal_deinit();
 #endif
 }
 
