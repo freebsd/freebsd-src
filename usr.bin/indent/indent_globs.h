@@ -199,7 +199,7 @@ struct fstate {
     char        size;
     int         allcaps:1;
 };
-char       *chfont();
+char       *chfont(struct fstate *, struct fstate *, char *);
 
 struct fstate
             keywordf,		/* keyword font */
