@@ -3431,19 +3431,6 @@ sync_reclaim(ap)
 }
 
 /*
- * extract the struct cdev *from a VCHR
- */
-struct cdev *
-vn_todev(vp)
-	struct vnode *vp;
-{
-
-	if (vp->v_type != VCHR)
-		return (NULL);
-	return (vp->v_rdev);
-}
-
-/*
  * Check if vnode represents a disk device
  */
 int
