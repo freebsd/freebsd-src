@@ -178,6 +178,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "J-6502 speakers",
 	},
 	{
+	    USB_VENDOR_VISION, USB_PRODUCT_VISION_CAMERA,
+	    0,
+	    "Vision",
+	    "VC6452V002 Camera",
+	},
+	{
 	    USB_VENDOR_ATEN, USB_PRODUCT_ATEN_UC1284,
 	    0,
 	    "ATen",
@@ -379,6 +385,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_JAZZ, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Jazz",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_VISION, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Vision",
 	    NULL,
 	},
 	{
