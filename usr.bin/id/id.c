@@ -329,9 +329,7 @@ void
 pline(pw)
 	struct passwd *pw;
 {
-	struct group *gr;
-	u_int eid, rid;
-	char *login;
+	u_int rid;
 
 	if (!pw) {
 		if ((pw = getpwuid(rid = getuid())) == NULL)
