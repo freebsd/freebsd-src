@@ -34,8 +34,6 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include <dev/acpi/acpireg.h>
-
 #include "acpidump.h"
 
 char	*aml_dumpfile = NULL;

@@ -35,8 +35,10 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
-#include <dev/acpi/acpiio.h>
-#include <dev/acpi/acpireg.h>
+#include <dev/acpica/acpiio.h>
+
+#include <contrib/dev/acpica/Subsystem/Include/acgcc.h>
+#include <contrib/dev/acpica/Subsystem/Include/actypes.h>
 
 #define ACPIDEV	"/dev/acpi"
 
@@ -74,29 +76,57 @@ acpi_sleep(int sleep_type)
 	return (0);
 }
 
+static void
+usage(const char* prog)
+{
+	printf("usage: %s [-deh] [-s [1|2|3|4|4b|5]]\n", prog);
+	exit(0);
+}
+
 int
 main(int argc, char *argv[])
 {
-	char	c;
+	char	c, *prog;
 	int	sleep_type;
 
+	prog = argv[0];
 	sleep_type = -1;
-	while ((c = getopt(argc, argv, "eds:")) != -1) {
+	while ((c = getopt(argc, argv, "dehs:")) != -1) {
 		switch (c) {
-		case 'e':
-			acpi_enable_disable(ACPIIO_ENABLE);
-			break;
-
 		case 'd':
 			acpi_enable_disable(ACPIIO_DISABLE);
 			break;
 
+		case 'e':
+			acpi_enable_disable(ACPIIO_ENABLE);
+			break;
+
+		case 'h':
+			usage(prog);
+			break;
+
 		case 's':
-			sleep_type = *optarg - '0';
-			if (sleep_type < ACPI_S_STATE_S0 || sleep_type > ACPI_S_STATE_S5) {
+			sleep_type = optarg[0] - '0';
+			if (sleep_type < 0 || sleep_type > 5) {
 				fprintf(stderr, "%s: invalid sleep type (%d)\n",
 				    argv[0], sleep_type);
 				return -1;
+			}
+
+			/* convert sleep type value to ACPICA format */
+			switch (sleep_type) {
+			case 4:
+				if (optarg[1] == 'b') {
+					sleep_type = ACPI_STATE_S4BIOS;
+				}
+				break;
+
+			case 5:
+				sleep_type = ACPI_STATE_S5;
+				break;
+
+			default:
+				break;
 			}
 			break;
 		default:
