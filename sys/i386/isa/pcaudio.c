@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.18 1995/11/28 09:41:27 julian Exp $
+ *	$Id: pcaudio.c,v 1.19 1995/11/29 10:47:47 julian Exp $
  */
 
 #include "pca.h"
@@ -49,14 +49,14 @@
 
 #include <i386/isa/sound/ulaw.h>
 
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /* DEVFS */
 #ifdef JREMOD
 #include <sys/conf.h>
 #include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 #define CDEV_MAJOR 24
-#endif /*JREMOD*/
+#endif /* JREMOD */
 
 #define BUF_SIZE 	8192
 #define SAMPLE_RATE	8000
