@@ -236,6 +236,12 @@ lFOUND_CTCP:
 			 true_addr.s_addr = htonl(org_addr);
 			 destaddr.s_addr = 0;
 
+			 /* Sanity/Security checking */
+			 if (!org_addr || !org_port ||
+			     pip->ip_src.s_addr != true_addr.s_addr ||
+			     org_port < IPPORT_RESERVED)
+				 goto lBAD_CTCP;
+
 			 /* Steal the FTP_DATA_PORT - it doesn't really matter, and this
 				 would probably allow it through at least _some_
 				 firewalls. */
