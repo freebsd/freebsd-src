@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exoparg6 - AML execution - opcodes with 6 arguments
- *              $Revision: 4 $
+ *              $Revision: 6 $
  *
  *****************************************************************************/
 
@@ -128,7 +128,6 @@
         MODULE_NAME         ("exoparg6")
 
 
-
 /*!
  * Naming convention for AML interpreter execution routines.
  *
@@ -138,19 +137,18 @@
  *
  *      AcpiExOpcode_xA_yT_zR
  *
- * Where:  
+ * Where:
  *
- * xA - ARGUMENTS:    The number of arguments (input operands) that are 
+ * xA - ARGUMENTS:    The number of arguments (input operands) that are
  *                    required for this opcode type (1 through 6 args).
- * yT - TARGETS:      The number of targets (output operands) that are required 
+ * yT - TARGETS:      The number of targets (output operands) that are required
  *                    for this opcode type (0, 1, or 2 targets).
- * zR - RETURN VALUE: Indicates whether this opcode type returns a value 
+ * zR - RETURN VALUE: Indicates whether this opcode type returns a value
  *                    as the function return (0 or 1).
  *
- * The AcpiExOpcode* functions are called via the Dispatcher component with 
+ * The AcpiExOpcode* functions are called via the Dispatcher component with
  * fully resolved operands.
 !*/
-
 
 
 /*******************************************************************************
@@ -264,9 +262,9 @@ AcpiExOpcode_6A_0T_1R (
 
     switch (WalkState->Opcode)
     {
-    case AML_MATCH_OP:  
-        /* 
-         * Match (SearchPackage[0], MatchOp1[1], MatchObject1[2], 
+    case AML_MATCH_OP:
+        /*
+         * Match (SearchPackage[0], MatchOp1[1], MatchObject1[2],
          *                          MatchOp2[3], MatchObject2[4], StartIndex[5])
          */
 
@@ -304,6 +302,7 @@ AcpiExOpcode_6A_0T_1R (
          * Examine each element until a match is found.  Within the loop,
          * "continue" signifies that the current element does not match
          * and the next should be examined.
+         *
          * Upon finding a match, the loop will terminate via "break" at
          * the bottom.  If it terminates "normally", MatchValue will be -1
          * (its initial value) indicating that no match was found.  When
@@ -315,8 +314,6 @@ AcpiExOpcode_6A_0T_1R (
 
             /*
              * Treat any NULL or non-numeric elements as non-matching.
-             * TBD [Unhandled] - if an element is a Name,
-             *      should we examine its value?
              */
             if (!ThisElement ||
                 ThisElement->Common.Type != ACPI_TYPE_INTEGER)
@@ -324,21 +321,17 @@ AcpiExOpcode_6A_0T_1R (
                 continue;
             }
 
-
             /*
-             * Within these switch statements:
-             *      "break" (exit from the switch) signifies a match;
-             *      "continue" (proceed to next iteration of enclosing
-             *          "for" loop) signifies a non-match.
+             * "continue" (proceed to next iteration of enclosing
+             * "for" loop) signifies a non-match.
              */
-            if (!AcpiExDoMatch ((UINT32) Operand[1]->Integer.Value, 
+            if (!AcpiExDoMatch ((UINT32) Operand[1]->Integer.Value,
                                 ThisElement->Integer.Value, Operand[2]->Integer.Value))
             {
                 continue;
             }
 
-
-            if (!AcpiExDoMatch ((UINT32) Operand[3]->Integer.Value, 
+            if (!AcpiExDoMatch ((UINT32) Operand[3]->Integer.Value,
                                 ThisElement->Integer.Value, Operand[4]->Integer.Value))
             {
                 continue;

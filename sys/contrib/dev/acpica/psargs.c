@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psargs - Parse AML opcode arguments
- *              $Revision: 52 $
+ *              $Revision: 54 $
  *
  *****************************************************************************/
 
@@ -500,12 +500,12 @@ AcpiPsGetNextNamepath (
                     NameOp->Node = MethodNode;
                     AcpiPsAppendArg (Arg, NameOp);
 
-                    if (!MethodNode->Object)
+                    if (!AcpiNsGetAttachedObject (MethodNode))
                     {
                         return_VOID;
                     }
 
-                    *ArgCount = (MethodNode->Object)->Method.ParamCount;
+                    *ArgCount = (AcpiNsGetAttachedObject (MethodNode))->Method.ParamCount;
                 }
 
                 return_VOID;
@@ -713,11 +713,14 @@ AcpiPsGetNextField (
 
         case AML_INT_ACCESSFIELD_OP:
 
-            /* Get AccessType and AccessAtrib and merge into the field Op */
-
-            Field->Value.Integer = ((GET8 (ParserState->Aml) << 8) |
-                                     GET8 (ParserState->Aml));
-            ParserState->Aml += 2;
+            /* 
+             * Get AccessType and AccessAttrib and merge into the field Op
+             * AccessType is first operand, AccessAttribute is second
+             */
+            Field->Value.Integer32 = (GET8 (ParserState->Aml) << 8);
+            ParserState->Aml++;
+            Field->Value.Integer32 |= GET8 (ParserState->Aml);
+            ParserState->Aml++;
             break;
         }
     }

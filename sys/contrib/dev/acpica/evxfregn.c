@@ -2,7 +2,7 @@
  *
  * Module Name: evxfregn - External Interfaces, ACPI Operation Regions and
  *                         Address Spaces.
- *              $Revision: 40 $
+ *              $Revision: 41 $
  *
  *****************************************************************************/
 
@@ -265,7 +265,7 @@ AcpiInstallAddressSpaceHandler (
              */
             if(HandlerObj->AddrHandler.SpaceId == SpaceId)
             {
-                Status = AE_EXIST;
+                Status = AE_ALREADY_EXISTS;
                 goto UnlockAndExit;
             }
 

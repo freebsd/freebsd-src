@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: utdelete - object deletion and reference count utilities
- *              $Revision: 81 $
+ *              $Revision: 83 $
  *
  ******************************************************************************/
 
@@ -145,6 +145,7 @@ AcpiUtDeleteInternalObj (
 {
     void                    *ObjPointer = NULL;
     ACPI_OPERAND_OBJECT     *HandlerDesc;
+    ACPI_OPERAND_OBJECT     *SecondDesc;
 
 
     FUNCTION_TRACE_PTR ("UtDeleteInternalObj", Object);
@@ -234,7 +235,6 @@ AcpiUtDeleteInternalObj (
             AcpiOsDeleteSemaphore (Object->Method.Semaphore);
             Object->Method.Semaphore = NULL;
         }
-
         break;
 
 
@@ -242,7 +242,8 @@ AcpiUtDeleteInternalObj (
 
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "***** Region %p\n", Object));
 
-        if (Object->Region.Extra)
+        SecondDesc = AcpiNsGetSecondaryObject (Object);
+        if (SecondDesc)
         {
             /*
              * Free the RegionContext if and only if the handler is one of the
@@ -253,12 +254,12 @@ AcpiUtDeleteInternalObj (
             if ((HandlerDesc) &&
                 (HandlerDesc->AddrHandler.Hflags == ADDR_HANDLER_DEFAULT_INSTALLED))
             {
-                ObjPointer = Object->Region.Extra->Extra.RegionContext;
+                ObjPointer = SecondDesc->Extra.RegionContext;
             }
 
             /* Now we can free the Extra object */
 
-            AcpiUtDeleteObjectDesc (Object->Region.Extra);
+            AcpiUtDeleteObjectDesc (SecondDesc);
         }
         break;
 
@@ -267,11 +268,13 @@ AcpiUtDeleteInternalObj (
 
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "***** Buffer Field %p\n", Object));
 
-        if (Object->BufferField.Extra)
+        SecondDesc = AcpiNsGetSecondaryObject (Object);
+        if (SecondDesc)
         {
-            AcpiUtDeleteObjectDesc (Object->BufferField.Extra);
+            AcpiUtDeleteObjectDesc (SecondDesc);
         }
         break;
+
 
     default:
         break;
@@ -610,7 +613,7 @@ AcpiUtUpdateObjectReference (
         case INTERNAL_TYPE_BANK_FIELD:
 
             Status = AcpiUtCreateUpdateStateAndPush (
-                        Object->BankField.BankRegisterObj, Action, &StateList);
+                        Object->BankField.BankObj, Action, &StateList);
             if (ACPI_FAILURE (Status))
             {
                 return_ACPI_STATUS (Status);

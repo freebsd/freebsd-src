@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acstruct.h - Internal structs
- *       $Revision: 10 $
+ *       $Revision: 12 $
  *
  *****************************************************************************/
 
@@ -125,6 +125,7 @@
  ****************************************************************************/
 
 
+
 /*
  * Walk state - current state of a parse tree walk.  Used for both a leisurely stroll through
  * the tree (for whatever reason), and for control method execution.
@@ -147,7 +148,6 @@ typedef struct acpi_walk_state
     UINT8                   NumOperands;                        /* Stack pointer for Operands[] array */
     UINT8                   ReturnUsed;
     UINT8                   WalkType;
-    UINT16                  CurrentSyncLevel;                   /* Mutex Sync (nested acquire) level */
     UINT16                  Opcode;                             /* Current AML opcode */
     UINT32                  ArgCount;                           /* push for fixed or var args */
     UINT32                  AmlOffset;
@@ -184,25 +184,12 @@ typedef struct acpi_walk_state
 
     ACPI_PARSE_DOWNWARDS    DescendingCallback;
     ACPI_PARSE_UPWARDS      AscendingCallback;
-    struct acpi_walk_list   *WalkList;
+    ACPI_THREAD_STATE       *Thread;
     struct acpi_walk_state  *Next;                              /* Next WalkState in list */
-
 
 
 } ACPI_WALK_STATE;
 
-
-/*
- * Walk list - head of a tree of walk states.  Multiple walk states are created when there
- * are nested control methods executing.
- */
-typedef struct acpi_walk_list
-{
-
-    ACPI_WALK_STATE         *WalkState;
-    ACPI_OBJECT_MUTEX       AcquiredMutexList;                 /* List of all currently acquired mutexes */
-
-} ACPI_WALK_LIST;
 
 
 /* Info used by AcpiPsInitObjects */
@@ -256,8 +243,6 @@ typedef struct acpi_get_devices_info
 } ACPI_GET_DEVICES_INFO;
 
 
-
-
 typedef union acpi_aml_operands
 {
     ACPI_OPERAND_OBJECT         *Operands[7];
@@ -288,7 +273,6 @@ typedef union acpi_aml_operands
     } Mid;
 
 } ACPI_AML_OPERANDS;
-
 
 
 #endif

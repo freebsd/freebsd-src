@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psscope - Parser scope stack management routines
- *              $Revision: 30 $
+ *              $Revision: 31 $
  *
  *****************************************************************************/
 
@@ -239,7 +239,7 @@ AcpiPsPushScope (
     Scope = AcpiUtCreateGenericState ();
     if (!Scope)
     {
-        return (AE_NO_MEMORY);
+        return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
 
