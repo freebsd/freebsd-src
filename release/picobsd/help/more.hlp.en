@@ -1,7 +1,0 @@
-[1mmore[m	file perusal filter for crt viewing
-
-	Usage:
-
-	more [-ceinus] [-t tag] [-x tabs] [-/ pattern] [-#] [file ...]
-
-	But most commonly just 'more <file>' or e.g. 'ls -l|more'
