@@ -238,7 +238,6 @@ pcmattach(struct isa_device * dev)
     snddev_info *d = NULL ;
     struct isa_device *dvp;
     int stat = 0;
-    dev_t isadev;
 
     dev->id_ointr = pcmintr;
 
@@ -284,8 +283,6 @@ pcmattach(struct isa_device * dev)
     if (FULL_DUPLEX(d))
 	isa_dma_acquire(d->dbuf_in.chan);
 
-    isadev = makedev(CDEV_MAJOR, 0);
-    cdevsw_add(&isadev, &snd_cdevsw, NULL);
 
     /*
      * should try and find a suitable value for id_id, otherwise
@@ -331,6 +328,10 @@ pcminit(snddev_info *d, int unit)
 #ifdef DEVFS
     void *cookie;
 #endif
+    dev_t isadev;
+
+    isadev = makedev(CDEV_MAJOR, 0);
+    cdevsw_add(&isadev, &snd_cdevsw, NULL);
 
     /*
      * initialize standard parameters for the device. This can be
@@ -603,6 +604,14 @@ sndread(dev_t i_dev, struct uio * buf, int flag)
 	splx(s);
 	return uiomove(p, l, buf) ;
     }
+
+    /*
+     * XXX read from the ad1816 with a single DMA channel is unsupported.
+     * This is really not the place for machine-dependent functions,
+     * a proper device routine will be supplied in the future - luigi
+     */
+    if ((d->bd_id == MD_AD1816) && (!(FULL_DUPLEX(d))))
+	return EIO;
 
     if (d->read)	/* device-specific read */
 	return d->read(i_dev, buf, flag);
