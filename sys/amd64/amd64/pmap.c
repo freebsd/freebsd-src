@@ -2007,7 +2007,6 @@ validate:
  * 2. Not wired.
  * 3. Read access.
  * 4. No page table pages.
- * 5. Tlbflush is deferred to calling procedure.
  * 6. Page IS managed.
  * but is *MUCH* faster than pmap_enter...
  */
@@ -2018,7 +2017,8 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 	pt_entry_t *pte;
 	vm_paddr_t pa;
 
-	vm_page_lock_queues();
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	PMAP_LOCK(pmap);
 
 	/*
@@ -2110,7 +2110,6 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 	else
 		pte_store(pte, pa | PG_V | PG_U | PG_MANAGED);
 out:
-	vm_page_unlock_queues();
 	PMAP_UNLOCK(pmap);
 	return mpte;
 }
