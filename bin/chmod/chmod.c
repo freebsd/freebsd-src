@@ -65,16 +65,13 @@ main(int argc, char *argv[])
 	FTS *ftsp;
 	FTSENT *p;
 	mode_t *set;
-	long val;
-	int oct;
 	int Hflag, Lflag, Rflag, ch, fflag, fts_options, hflag, rval;
 	int vflag;
-	char *ep, *mode;
-	mode_t newmode, omode;
+	char *mode;
+	mode_t newmode;
 	int (*change_mode)(const char *, mode_t);
 
 	set = NULL;
-	omode = 0;
 	Hflag = Lflag = Rflag = fflag = hflag = vflag = 0;
 	while ((ch = getopt(argc, argv, "HLPRXfghorstuvwx")) != -1)
 		switch (ch) {
@@ -152,22 +149,8 @@ done:	argv += optind;
 		change_mode = chmod;
 
 	mode = *argv;
-	if (*mode >= '0' && *mode <= '7') {
-		errno = 0;
-		val = strtol(mode, &ep, 8);
-		if (val > USHRT_MAX || val < 0)
-			errno = ERANGE;
-		if (errno)
-			err(1, "invalid file mode: %s", mode);
-		if (*ep)
-			errx(1, "invalid file mode: %s", mode);
-		omode = (mode_t)val;
-		oct = 1;
-	} else {
-		if ((set = setmode(mode)) == NULL)
-			errx(1, "invalid file mode: %s", mode);
-		oct = 0;
-	}
+	if ((set = setmode(mode)) == NULL)
+		errx(1, "invalid file mode: %s", mode);
 
 	if ((ftsp = fts_open(++argv, fts_options, 0)) == NULL)
 		err(1, "fts_open");
@@ -200,7 +183,7 @@ done:	argv += optind;
 		default:
 			break;
 		}
-		newmode = oct ? omode : getmode(set, p->fts_statp->st_mode);
+		newmode = getmode(set, p->fts_statp->st_mode);
 		if ((newmode & ALLPERMS) == (p->fts_statp->st_mode & ALLPERMS))
 			continue;
 		if ((*change_mode)(p->fts_accpath, newmode) && !fflag) {
