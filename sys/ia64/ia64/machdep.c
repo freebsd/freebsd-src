@@ -421,9 +421,6 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	 * Look at arguments passed to us and compute boothowto.
 	 */
 	boothowto = bootinfo.bi_boothowto;
-#ifdef KADB
-	boothowto |= RB_KDB;
-#endif
 
 	/*
 	 * Catch case of boot_verbose set in environment.
