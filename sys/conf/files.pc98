@@ -84,7 +84,6 @@ compat/svr4/svr4_sysent.c		optional	compat_svr4
 compat/svr4/svr4_sysvec.c		optional	compat_svr4
 compat/svr4/svr4_termios.c		optional	compat_svr4
 compat/svr4/svr4_ttold.c		optional	compat_svr4
-contrib/dev/acpica/Subsystem/Hardware/hwcpu32.c	optional acpica
 contrib/dev/fla/fla.c		optional	fla
 contrib/dev/oltr/if_oltr.c	optional	oltr
 contrib/dev/oltr/trlldbm.c	optional	oltr
@@ -304,6 +303,7 @@ i4b/layer1/isic/i4b_tel_s016.c		optional	isic
 i4b/layer1/isic/i4b_tel_s0163.c		optional	isic
 i4b/layer1/isic/i4b_tel_s08.c		optional	isic
 i4b/layer1/isic/i4b_usr_sti.c		optional	isic
+i4b/layer1/isic/i4b_diva.c		optional	isic
 #
 # isdn4bsd, iwic
 #
