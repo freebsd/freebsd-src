@@ -193,27 +193,6 @@ Rule_004(struct disk *d, struct chunk *c, char *msg)
 	if (c->type != freebsd)
 		return;
 
-	if (c->flags & CHUNK_BAD144) {
-		l = c->end - 127 - d->bios_sect + 1;
-		for (c1=c->part; c1; c1=c1->next) {
-			if (c1->end < l || c1->type == unused)
-				continue;
-			sprintf(msg+strlen(msg),
-    "Blocks %lu to %lu are needed for bad144 information, but isn't unused.\n",
-	l, c->end);
-			break;
-		}
-		if (c->flags & CHUNK_PAST_1024) {
-			for (c1=c->part; c1; c1=c1->next) {
-				if (c1->flags & CHUNK_IS_ROOT) {
-					sprintf(msg+strlen(msg),
-    "You have assigned root to a slice which uses bad144, and\n  extends past the first 1023 cylinders, and thus cannot be booted from.\n");
-					break;
-				}
-			}
-		}
-	}
-
 	for (c1=c->part; c1; c1=c1->next) {
 		if (c1->type != part)
 			continue;
@@ -303,14 +282,5 @@ ChunkCanBeRoot(struct chunk *c)
 		return strdup(msg);
 	}
 
-	if ((c1->flags & CHUNK_BAD144) && (c1->flags & CHUNK_PAST_1024)) {
-		strcat(msg,
-"This partition is unsuitable for root, because the FreeBSD slice\n");
-		strcat(msg,
-"it is inside has bad144 enabled, but the badblock data lives past\n");
-		strcat(msg,
-"the 1024th cylinder, and the bootblocks cannot get to it there.\n");
-		return strdup(msg);
-	}
 	return NULL;
 }

@@ -62,8 +62,6 @@ struct chunk {
 		/* this chunk is in the BSD-compatibility, and has a
 		 * short name too, ie wd0s4f -> wd0f
 		*/
-#		define CHUNK_BAD144		4
-		/* this chunk has bad144 mapping */
 #		define CHUNK_ALIGN		8
 		/* This chunk should be aligned */
 #		define CHUNK_IS_ROOT		16

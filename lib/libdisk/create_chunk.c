@@ -228,13 +228,6 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e ty
     }
     return 0;
  found:
-    if (parent->flags & CHUNK_BAD144) {
-	edge = c1->end - d->bios_sect - 127;
-	if (offset > edge)
-	    return 0;
-	if (offset + size > edge)
-	    size = edge - offset + 1;
-    }
     i = Add_Chunk(d,offset,size,"X",type,subtype,flags);
     if (i)
 	return 0;
