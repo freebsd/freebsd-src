@@ -36,13 +36,10 @@
  * SUCH DAMAGE.
  *
  *      @(#)mount_cd9660.c	8.7 (Berkeley) 5/1/95
+ *
+ * @(#) Copyright (c) 1992, 1993, 1994
+ *       The Regents of the University of California.  All rights reserved.
  */
-
-#ifndef lint
-static char copyright[] =
-"@(#) Copyright (c) 1992, 1993, 1994\n\
-        The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
 
 #ifndef lint
 /*
@@ -55,6 +52,7 @@ static const char rcsid[] =
 #include <sys/cdio.h>
 #include <sys/file.h>
 #include <sys/param.h>
+#include <sys/linker.h>
 #include <sys/mount.h>
 #include <sys/../isofs/cd9660/cd9660_mount.h>
 #include <sys/module.h>
