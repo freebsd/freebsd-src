@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.20 1997/09/21 03:13:21 peter Exp $
+ *	$Id: imgact_elf.c,v 1.21 1998/02/09 06:09:21 eivind Exp $
  */
 
 #include "opt_rlimit.h"
@@ -62,9 +62,6 @@
 
 #define MAX_PHDR	32	/* XXX enough ? */
 
-static int map_pages __P((struct vnode *vp, vm_offset_t offset, vm_offset_t *buf, vm_size_t size));
-static void unmap_pages __P((vm_offset_t buf, vm_size_t size));
-static int elf_check_permissions __P((struct proc *p, struct vnode *vp));
 static int elf_check_header __P((const Elf32_Ehdr *hdr, int type));
 static int elf_load_section __P((struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot));
 static int elf_load_file __P((struct proc *p, char *file, u_long *addr, u_long *entry));
@@ -136,106 +133,6 @@ elf_remove_brand_entry(Elf32_Brandinfo *entry)
 }
 
 static int
-map_pages(struct vnode *vp, vm_offset_t offset, 
-	     vm_offset_t *buf, vm_size_t size)
-{
-	int error;
-	vm_offset_t kern_buf;
-	vm_size_t pageoff;
-	
-	/*
-	 * The request may not be aligned, and may even cross several
-	 * page boundaries in the file...
-	 */
-	pageoff = (offset & PAGE_MASK);
-	offset -= pageoff;		/* start of first aligned page to map */
-	size += pageoff;
-	size = round_page(size);	/* size of aligned pages to map */
-	
-	if (error = vm_mmap(kernel_map,
-			    &kern_buf,
-			    size,
-			    VM_PROT_READ,
-			    VM_PROT_READ,
-			    0,
-			    (caddr_t)vp,
-			    offset))
-		return error;
-
-	*buf = kern_buf + pageoff;
-
-	return 0;
-}
-
-static void
-unmap_pages(vm_offset_t buf, vm_size_t size)
-{
-	vm_size_t pageoff;
-	
-	pageoff = (buf & PAGE_MASK);
-	buf -= pageoff;		/* start of first aligned page to map */
-	size += pageoff;
-	size = round_page(size);/* size of aligned pages to map */
-	
-      	vm_map_remove(kernel_map, buf, buf + size);
-}
-
-static int
-elf_check_permissions(struct proc *p, struct vnode *vp)
-{
-	struct vattr attr;
-	int error;
-
-	/*
-	 * Check number of open-for-writes on the file and deny execution
-	 *	if there are any.
-	 */
-	if (vp->v_writecount) {
-		return (ETXTBSY);
-	}
-
-	/* Get file attributes */
-	error = VOP_GETATTR(vp, &attr, p->p_ucred, p);
-	if (error)
-		return (error);
-
-	/*
-	 * 1) Check if file execution is disabled for the filesystem that this
-	 *	file resides on.
-	 * 2) Insure that at least one execute bit is on - otherwise root
-	 *	will always succeed, and we don't want to happen unless the
-	 *	file really is executable.
-	 * 3) Insure that the file is a regular file.
-	 */
-	if ((vp->v_mount->mnt_flag & MNT_NOEXEC) ||
-	    ((attr.va_mode & 0111) == 0) ||
-	    (attr.va_type != VREG)) {
-		return (EACCES);
-	}
-
-	/*
-	 * Zero length files can't be exec'd
-	 */
-	if (attr.va_size == 0)
-		return (ENOEXEC);
-
-	/*
-	 *  Check for execute permission to file based on current credentials.
-	 *	Then call filesystem specific open routine (which does nothing
-	 *	in the general case).
-	 */
-	error = VOP_ACCESS(vp, VEXEC, p->p_ucred, p);
-	if (error)
-		return (error);
-
-	error = VOP_OPEN(vp, FREAD, p->p_ucred, p);
-	if (error)
-		return (error);
-
-	return (0);
-}
-
-static int
 elf_check_header(const Elf32_Ehdr *hdr, int type)
 {
 	if (!(hdr->e_ident[EI_MAG0] == ELFMAG0 &&
@@ -298,7 +195,7 @@ elf_load_section(struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset, 
 			return error; 
 	}
 
-	if (error = vm_mmap(kernel_map,
+	if (error = vm_mmap(exec_map,
 			    (vm_offset_t *)&data_buf,
 			    PAGE_SIZE,
 			    VM_PROT_READ,
@@ -310,7 +207,7 @@ elf_load_section(struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset, 
 
 	error = copyout(data_buf, (caddr_t)map_addr, copy_len);
 
-        vm_map_remove(kernel_map, (vm_offset_t)data_buf, 
+        vm_map_remove(exec_map, (vm_offset_t)data_buf, 
 		      (vm_offset_t)data_buf + PAGE_SIZE);
 
 	/*
@@ -330,11 +227,29 @@ elf_load_file(struct proc *p, char *file, u_long *addr, u_long *entry)
 	Elf32_Phdr *phdr = NULL;
 	struct nameidata nd;
 	struct vmspace *vmspace = p->p_vmspace;
+	struct vattr attr;
+	struct image_params image_params, *imgp;
 	vm_prot_t prot = 0;
 	unsigned long text_size = 0, data_size = 0;
 	unsigned long text_addr = 0, data_addr = 0;
 	int header_size = 0;
         int error, i;
+
+	imgp = &image_params;
+	/*
+	 * Initialize part of the common data
+	 */
+	imgp->proc = p;
+	imgp->uap = NULL;
+	imgp->attr = &attr;
+	imgp->firstpage = NULL;
+	imgp->image_header = (char *)kmem_alloc_wait(exec_map, PAGE_SIZE);
+
+	if (imgp->image_header == NULL) {
+		nd.ni_vp = NULL;
+		error = ENOMEM;
+		goto fail;
+	}
 
         NDINIT(&nd, LOOKUP, LOCKLEAF|FOLLOW, UIO_SYSSPACE, file, p);   
 			 
@@ -343,28 +258,23 @@ elf_load_file(struct proc *p, char *file, u_long *addr, u_long *entry)
 		goto fail;
 	}
 
+	imgp->vp = nd.ni_vp;
+
 	/*
 	 * Check permissions, modes, uid, etc on the file, and "open" it.
 	 */
-	error = elf_check_permissions(p, nd.ni_vp);
+	error = exec_check_permissions(imgp);
+	if (error) {
+		VOP_UNLOCK(nd.ni_vp, 0, p);
+		goto fail;
+	}
 
-	/*
-	 * No longer need this, and it prevents demand paging.
-	 */
+	error = exec_map_first_page(imgp);
 	VOP_UNLOCK(nd.ni_vp, 0, p);
-
 	if (error)
                 goto fail;
-		
-	/*
-	 * Map in the header
-	 */
-	if (error = map_pages(nd.ni_vp, 0, (vm_offset_t *)&hdr, sizeof(hdr)))
-                goto fail;
 
-	/*
-	 * Do we have a valid ELF header ?
-	 */
+	hdr = (Elf32_Ehdr *)imgp->image_header;
 	if (error = elf_check_header(hdr, ET_DYN))
 		goto fail;
 
@@ -379,9 +289,13 @@ elf_load_file(struct proc *p, char *file, u_long *addr, u_long *entry)
 
 	header_size = hdr->e_phentsize * hdr->e_phnum;
 
-	if (error = map_pages(nd.ni_vp, hdr->e_phoff, (vm_offset_t *)&phdr, 
-			         header_size))
-        	goto fail;
+	/* Only support headers that fit within first page for now */
+	if (header_size + hdr->e_phoff > PAGE_SIZE) {
+		error = ENOEXEC;
+		goto fail;
+	}
+
+	phdr = (Elf32_Phdr *)(imgp->image_header + hdr->e_phoff);
 
 	for (i = 0; i < hdr->e_phnum; i++) {
 		switch(phdr[i].p_type) {
@@ -453,10 +367,11 @@ elf_load_file(struct proc *p, char *file, u_long *addr, u_long *entry)
 	}
 
 fail:
-	if (phdr)
-		unmap_pages((vm_offset_t)phdr, header_size);
-	if (hdr)
-		unmap_pages((vm_offset_t)hdr, sizeof(hdr));
+	if (imgp->firstpage)
+		exec_unmap_first_page(imgp);
+	if (imgp->image_header)
+		kmem_free_wakeup(exec_map, (vm_offset_t)imgp->image_header,
+			PAGE_SIZE);
 	if (nd.ni_vp)
 		vrele(nd.ni_vp);
 
@@ -474,8 +389,8 @@ exec_elf_imgact(struct image_params *imgp)
 	u_long text_size = 0, data_size = 0;
 	u_long text_addr = 0, data_addr = 0;
 	u_long addr, entry = 0, proghdr = 0;
-	int error, i, header_size = 0, interp_len = 0;
-	char *interp = NULL;
+	int error, i, header_size = 0;
+	const char *interp = NULL;
 	char *brand = NULL;
 	char path[MAXPATHLEN];
 
@@ -502,17 +417,8 @@ exec_elf_imgact(struct image_params *imgp)
 
 	if ((hdr->e_phoff > PAGE_SIZE) ||
 	    (hdr->e_phoff + header_size) > PAGE_SIZE) {
-	  	/*
-		 * Ouch ! we only get one page full of header...
-		 * Try to map it in ourselves, and see how we go.
-	   	 */
-		if (error = map_pages(imgp->vp, hdr->e_phoff,
-				(vm_offset_t *)&mapped_phdr, header_size))
-			return (error);
-		/*
-		 * Save manual mapping for cleanup
-		 */
-		phdr = mapped_phdr;
+		/* Only support headers in first page for now */
+		return ENOEXEC;
 	} else {
 		phdr = (const Elf32_Phdr*)
 		       ((const char *)imgp->image_header + hdr->e_phoff);
@@ -581,14 +487,12 @@ exec_elf_imgact(struct image_params *imgp)
 			break;
 	  	case PT_INTERP:	/* Path to interpreter */
 	    		UPRINTF ("ELF PT_INTERP section ");
-			if (phdr[i].p_filesz > MAXPATHLEN) {
+			if (phdr[i].p_filesz > MAXPATHLEN ||
+			    phdr[i].p_offset + phdr[i].p_filesz > PAGE_SIZE) {
 				error = ENOEXEC;
 				goto fail;
 			}
-			interp_len = MAXPATHLEN;
-			if (error = map_pages(imgp->vp, phdr[i].p_offset,
-					 (vm_offset_t *)&interp, interp_len))
-				goto fail;
+			interp = imgp->image_header + phdr[i].p_offset;
 			UPRINTF("<%s>\n", interp);
 			break;
 	  	case PT_NOTE:	/* Note section */
@@ -697,11 +601,6 @@ exec_elf_imgact(struct image_params *imgp)
 	imgp->vp->v_flag |= VTEXT;
 	
 fail:
-	if (mapped_phdr)
-		unmap_pages((vm_offset_t)mapped_phdr, header_size);
-	if (interp)
-		unmap_pages((vm_offset_t)interp, interp_len);
-
 	return error;
 }
 

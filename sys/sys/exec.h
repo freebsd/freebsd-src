@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.3 (Berkeley) 1/21/94
- * $Id: exec.h,v 1.16 1997/09/07 05:27:08 bde Exp $
+ * $Id: exec.h,v 1.17 1997/09/16 11:44:04 bde Exp $
  */
 
 #ifndef _SYS_EXEC_H_
@@ -72,5 +72,12 @@ struct execsw {
 };
 
 #include <machine/exec.h>
+
+#ifdef KERNEL
+#include <sys/cdefs.h>
+
+int exec_map_first_page __P((struct image_params *));        
+void exec_unmap_first_page __P((struct image_params *));       
+#endif
 
 #endif
