@@ -57,12 +57,6 @@ static char * const rcsid =
 
 
 /*
- * Define a divisor for rand() that yields a uniform distribution in the
- * range 0-255.
- */
-#define	RAND_DIV (((unsigned) RAND_MAX + 1) >> 8)
-
-/*
  * BSD and System V systems offer special library calls that do
  * block move_liness and fills, so if possible we take advantage of them
  */
@@ -125,9 +119,8 @@ init_des_cipher()
 	MEMZERO(ivec, 8);
 
 	/* initialize the padding vector */
-	srand((unsigned) time((time_t *) 0));
 	for (i = 0; i < 8; i++)
-		CHAR(pvec, i) = (char) (rand()/RAND_DIV);
+		CHAR(pvec, i) = (char) (arc4random() % 256);
 #endif
 }
 
