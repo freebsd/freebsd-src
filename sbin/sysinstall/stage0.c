@@ -50,20 +50,12 @@ evil_goto:
     }
     switch (atoi(selection)) {
     case 1:	/* View readme */
-	if (!access(README_FILE, R_OK)) {
-	    dialog_clear();
-	    dialog_textbox("READ ME FIRST", README_FILE, LINES-1, COLS);
-	    dialog_clear();
-	}
+        ShowFile(README_FILE, "Read Me First");
 	goto evil_goto;
 	break;
 
     case 2:	/* View copyrights */
-	if (!access(COPYRIGHT_FILE, R_OK)) {
-	    dialog_clear();
-	    dialog_textbox("COPYRIGHT", COPYRIGHT_FILE, LINES-1, COLS);
-	    dialog_clear();
-	}
+        ShowFile(COPYRIGHT_FILE, "COPYRIGHT");
 	goto evil_goto;
 	break;
 

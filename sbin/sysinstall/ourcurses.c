@@ -162,7 +162,22 @@ AskEm(WINDOW *w,char *prompt, char *answer, int len)
 {
     int x,y;
     mvwprintw(w,23,0,prompt);
-    wclrtoeol(w);
     getyx(w,y,x);
+    addstr("                             ");
     return edit_line(w,y,x,answer,len,len+1);
+}
+
+void
+ShowFile(char *filename, char *header)
+{
+    char buf[800];
+    if (access(filename, R_OK)) {
+	sprintf(buf,"Odd, I thought I had a file called %s around here somewhere,\nbut I can't seem to find it now that I need it.  Sorry about that",filename);
+	dialog_msgbox("Sorry!", buf,
+		      6, 75, 1);
+	return;
+    }
+    dialog_clear();
+    dialog_textbox(header, filename, LINES-1, COLS);
+    dialog_clear();
 }
