@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -47,8 +47,6 @@
 #include <curses.priv.h>
 
 #if USE_FUNC_POLL
-# include <stropts.h>
-# include <poll.h>
 # if HAVE_SYS_TIME_H
 #  include <sys/time.h>
 # endif
@@ -61,7 +59,7 @@
 # endif
 #endif
 
-MODULE_ID("$Id: lib_twait.c,v 1.34 1999/10/16 21:25:10 tom Exp $")
+MODULE_ID("$Id: lib_twait.c,v 1.37 2000/06/29 23:03:09 tom Exp $")
 
 static long _nc_gettime(bool first)
 {
@@ -243,7 +241,6 @@ retry:
 				if ((mode & (1 << count))
 				 && (fds[count].revents & POLLIN)) {
 					result |= (1 << count);
-					count++;
 				}
 			}
 #elif defined(__BEOS__)

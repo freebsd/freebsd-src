@@ -36,19 +36,19 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_move.c,v 1.3 1999/09/29 15:22:32 juergen Exp $")
+MODULE_ID("$Id: p_move.c,v 1.5 1999/11/25 13:49:26 juergen Exp $")
 
 int
 move_panel(PANEL *pan, int starty, int startx)
 {
-  WINDOW *win;
-
   if(!pan)
     return(ERR);
-  if(_nc_panel_is_linked(pan))
-    PANEL_UPDATE(pan,(PANEL*)0);
-  win = pan->win;
-  if(mvwin(win,starty,startx))
+
+  if (IS_LINKED(pan))
+    PANEL_UPDATE(pan,(PANEL*)0, TRUE);
+
+  if (mvwin(pan->win,starty,startx))
     return(ERR);
+
   return(OK);
 }

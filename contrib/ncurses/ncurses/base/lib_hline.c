@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,8 +31,6 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-
-
 /*
 **	lib_hline.c
 **
@@ -42,35 +40,36 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_hline.c,v 1.4 1998/06/28 00:11:01 tom Exp $")
+MODULE_ID("$Id: lib_hline.c,v 1.5 2000/04/29 21:14:30 tom Exp $")
 
-int whline(WINDOW *win, chtype ch, int n)
+int
+whline(WINDOW *win, chtype ch, int n)
 {
-int   code = ERR;
-short start;
-short end;
+    int code = ERR;
+    NCURSES_SIZE_T start;
+    NCURSES_SIZE_T end;
 
-	T((T_CALLED("whline(%p,%s,%d)"), win, _tracechtype(ch), n));
+    T((T_CALLED("whline(%p,%s,%d)"), win, _tracechtype(ch), n));
 
-	if (win) {
-		struct ldat *line = &(win->_line[win->_cury]);
+    if (win) {
+	struct ldat *line = &(win->_line[win->_cury]);
 
-		start = win->_curx;
-		end   = start + n - 1;
-		if (end > win->_maxx)
-			end   = win->_maxx;
+	start = win->_curx;
+	end = start + n - 1;
+	if (end > win->_maxx)
+	    end = win->_maxx;
 
-		CHANGED_RANGE(line, start, end);
+	CHANGED_RANGE(line, start, end);
 
-		if (ch == 0)
-			ch = ACS_HLINE;
-		ch = _nc_render(win, ch);
+	if (ch == 0)
+	    ch = ACS_HLINE;
+	ch = _nc_render(win, ch);
 
-		while ( end >= start) {
-			line->text[end] = ch;
-			end--;
-		}
-		code = OK;
+	while (end >= start) {
+	    line->text[end] = ch;
+	    end--;
 	}
-	returnCode(code);
+	code = OK;
+    }
+    returnCode(code);
 }

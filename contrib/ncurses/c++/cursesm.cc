@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,1999 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,7 +35,7 @@
 #include "cursesapp.h"
 #include "internal.h"
 
-MODULE_ID("$Id: cursesm.cc,v 1.11 1999/07/31 09:45:23 juergen Exp $")
+MODULE_ID("$Id: cursesm.cc,v 1.12 1999/10/30 23:59:37 tom Exp $")
   
 NCursesMenuItem::~NCursesMenuItem() {
   if (item)
@@ -304,7 +304,7 @@ NCursesMenu::operator()(void) {
       if (drvCmnd == CMD_ACTION) {
 	if (options() & O_ONEVALUE) {
 	  NCursesMenuItem* itm = current_item();
-	  assert(itm);
+	  assert(itm != 0);
 	  if (itm->options() & O_SELECTABLE)
 	    {
 	      b_action = itm->action();

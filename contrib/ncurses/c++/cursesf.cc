@@ -35,7 +35,7 @@
 #include "cursesapp.h"
 #include "internal.h"
 
-MODULE_ID("$Id: cursesf.cc,v 1.9 1999/05/16 17:29:36 juergen Exp $")
+MODULE_ID("$Id: cursesf.cc,v 1.10 1999/10/30 23:49:28 tom Exp $")
   
 NCursesFormField::~NCursesFormField () {
   if (field)
@@ -49,7 +49,7 @@ FIELD**
 NCursesForm::mapFields(NCursesFormField* nfields[]) {
   int fieldCount = 0,lcv;
   
-  assert(nfields);
+  assert(nfields != 0);
 
   for (lcv=0; nfields[lcv]->field; ++lcv)
     ++fieldCount;
@@ -350,18 +350,18 @@ NCursesForm::virtualize(int c) {
 //
 bool UserDefinedFieldType::fcheck(FIELD *f, const void *u) {
   NCursesFormField* F = (NCursesFormField*)u;
-  assert(F);
+  assert(F != 0);
   UserDefinedFieldType* udf = (UserDefinedFieldType*)(F->fieldtype());
-  assert(udf);
+  assert(udf != 0);
   return udf->field_check(*F);
 }
 
 bool UserDefinedFieldType::ccheck(int c, const void *u) {
   NCursesFormField* F = (NCursesFormField*)u;
-  assert(F);
+  assert(F != 0);
   UserDefinedFieldType* udf = 
     (UserDefinedFieldType*)(F->fieldtype());
-  assert(udf);
+  assert(udf != 0);
   return udf->char_check(c);
 }
 
@@ -379,19 +379,19 @@ FIELDTYPE* UserDefinedFieldType_With_Choice::generic_fieldtype_with_choice =
 
 bool UserDefinedFieldType_With_Choice::next_choice(FIELD *f, const void *u) {
   NCursesFormField* F = (NCursesFormField*)u;
-  assert(F);
+  assert(F != 0);
   UserDefinedFieldType_With_Choice* udf = 
     (UserDefinedFieldType_With_Choice*)(F->fieldtype());
-  assert(udf);
+  assert(udf != 0);
   return udf->next(*F);
 }
 
 bool UserDefinedFieldType_With_Choice::prev_choice(FIELD *f, const void *u) {
   NCursesFormField* F = (NCursesFormField*)u;
-  assert(F);
+  assert(F != 0);
   UserDefinedFieldType_With_Choice* udf = 
     (UserDefinedFieldType_With_Choice*)(F->fieldtype());
-  assert(udf);
+  assert(udf != 0);
   return udf->previous(*F);
 }
 

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,8 +31,6 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-
-
 /*
  *	comp_parse.c -- parser driver loop and use handling.
  *
@@ -54,10 +52,10 @@
 #include <tic.h>
 #include <term_entry.h>
 
-MODULE_ID("$Id: comp_parse.c,v 1.34 1999/02/27 22:13:02 tom Exp $")
+MODULE_ID("$Id: comp_parse.c,v 1.40 2000/04/15 16:57:08 tom Exp $")
 
 static void sanity_check(TERMTYPE *);
-void (*_nc_check_termtype)(TERMTYPE *) = sanity_check;
+void (*_nc_check_termtype) (TERMTYPE *) = sanity_check;
 
 /****************************************************************************
  *
@@ -80,31 +78,32 @@ void (*_nc_check_termtype)(TERMTYPE *) = sanity_check;
  *	   _nc_head                _nc_tail
  */
 
-ENTRY *_nc_head, *_nc_tail;
+ENTRY *_nc_head = 0, *_nc_tail = 0;
 
-static void enqueue(ENTRY *ep)
+static void
+enqueue(ENTRY * ep)
 /* add an entry to the in-core list */
 {
-	ENTRY	*newp = _nc_copy_entry(ep);
+    ENTRY *newp = _nc_copy_entry(ep);
 
-	if (newp == NULL)
-	    _nc_err_abort("Out of memory");
+    if (newp == 0)
+	_nc_err_abort("Out of memory");
 
-	newp->last = _nc_tail;
-	_nc_tail = newp;
+    newp->last = _nc_tail;
+    _nc_tail = newp;
 
-	newp->next = (ENTRY *)NULL;
-	if (newp->last)
-	    newp->last->next = newp;
+    newp->next = 0;
+    if (newp->last)
+	newp->last->next = newp;
 }
 
-void _nc_free_entries(ENTRY *head)
+void
+_nc_free_entries(ENTRY * headp)
 /* free the allocated storage consumed by list entries */
 {
-    ENTRY	*ep, *next;
+    ENTRY *ep, *next;
 
-    for (ep = head; ep; ep = next)
-    {
+    for (ep = headp; ep; ep = next) {
 	/*
 	 * This conditional lets us disconnect storage from the list.
 	 * To do this, copy an entry out of the list, then null out
@@ -116,27 +115,28 @@ void _nc_free_entries(ENTRY *head)
 	next = ep->next;
 
 	free(ep);
-	if (ep == _nc_head) _nc_head = 0;
-	if (ep == _nc_tail) _nc_tail = 0;
+	if (ep == _nc_head)
+	    _nc_head = 0;
+	if (ep == _nc_tail)
+	    _nc_tail = 0;
     }
 }
 
-bool _nc_entry_match(char *n1, char *n2)
+bool
+_nc_entry_match(char *n1, char *n2)
 /* do any of the aliases in a pair of terminal names match? */
 {
-    char	*pstart, *qstart, *pend, *qend;
-    char	nc1[MAX_NAME_SIZE+1], nc2[MAX_NAME_SIZE+1];
+    char *pstart, *qstart, *pend, *qend;
+    char nc1[MAX_NAME_SIZE + 1], nc2[MAX_NAME_SIZE + 1];
 
-    if (strchr(n1, '|') == NULL)
-    {
+    if (strchr(n1, '|') == 0) {
 	(void) strncpy(nc1, n1, sizeof(nc1) - 2);
 	nc1[sizeof(nc1) - 2] = '\0';
 	(void) strcat(nc1, "|");
 	n1 = nc1;
     }
 
-    if (strchr(n2, '|') == NULL)
-    {
+    if (strchr(n2, '|') == 0) {
 	(void) strncpy(nc2, n2, sizeof(nc2) - 2);
 	nc2[sizeof(nc2) - 2] = '\0';
 	(void) strcat(nc2, "|");
@@ -145,11 +145,11 @@ bool _nc_entry_match(char *n1, char *n2)
 
     for (pstart = n1; (pend = strchr(pstart, '|')); pstart = pend + 1)
 	for (qstart = n2; (qend = strchr(qstart, '|')); qstart = qend + 1)
-	    if ((pend-pstart == qend-qstart)
-	     && memcmp(pstart, qstart, (size_t)(pend-pstart)) == 0)
-		return(TRUE);
+	    if ((pend - pstart == qend - qstart)
+		&& memcmp(pstart, qstart, (size_t) (pend - pstart)) == 0)
+		return (TRUE);
 
-	return(FALSE);
+    return (FALSE);
 }
 
 /****************************************************************************
@@ -158,21 +158,24 @@ bool _nc_entry_match(char *n1, char *n2)
  *
  ****************************************************************************/
 
-void _nc_read_entry_source(FILE *fp, char *buf,
-			   int literal, bool silent,
-			   bool (*hook)(ENTRY *))
+void
+_nc_read_entry_source(FILE * fp, char *buf,
+    int literal, bool silent,
+    bool(*hook) (ENTRY *))
 /* slurp all entries in the given file into core */
 {
-    ENTRY	thisentry;
-    bool	oldsuppress = _nc_suppress_warnings;
-    int		immediate = 0;
+    ENTRY thisentry;
+    bool oldsuppress = _nc_suppress_warnings;
+    int immediate = 0;
 
     if (silent)
 	_nc_suppress_warnings = TRUE;	/* shut the lexer up, too */
 
-    memset(&thisentry, 0, sizeof(thisentry));
-    for (_nc_reset_input(fp, buf); _nc_parse_entry(&thisentry, literal, silent) != ERR; )
-    {
+    _nc_reset_input(fp, buf);
+    for (;;) {
+	memset(&thisentry, 0, sizeof(thisentry));
+	if (_nc_parse_entry(&thisentry, literal, silent) == ERR)
+	    break;
 	if (!isalnum(thisentry.tterm.term_names[0]))
 	    _nc_err_abort("terminal names must start with letter or digit");
 
@@ -181,14 +184,13 @@ void _nc_read_entry_source(FILE *fp, char *buf,
 	 * use references to disk, so as to avoid chewing up a lot of
 	 * core when the resolution code could fetch entries off disk.
 	 */
-	if (hook != NULLHOOK && (*hook)(&thisentry))
+	if (hook != NULLHOOK && (*hook) (&thisentry))
 	    immediate++;
 	else
 	    enqueue(&thisentry);
     }
 
-    if (_nc_tail)
-    {
+    if (_nc_tail) {
 	/* set up the head pointer */
 	for (_nc_head = _nc_tail; _nc_head->last; _nc_head = _nc_head->last)
 	    continue;
@@ -204,12 +206,13 @@ void _nc_read_entry_source(FILE *fp, char *buf,
     _nc_suppress_warnings = oldsuppress;
 }
 
-int _nc_resolve_uses(void)
+int
+_nc_resolve_uses(bool fullresolve)
 /* try to resolve all use capabilities */
 {
-    ENTRY	*qp, *rp, *lastread = NULL;
-    bool	keepgoing;
-    int		i, j, unresolved, total_unresolved, multiples;
+    ENTRY *qp, *rp, *lastread = 0;
+    bool keepgoing;
+    int i, j, unresolved, total_unresolved, multiples;
 
     DEBUG(2, ("RESOLUTION BEGINNING"));
 
@@ -217,48 +220,41 @@ int _nc_resolve_uses(void)
      * Check for multiple occurrences of the same name.
      */
     multiples = 0;
-    for_entry_list(qp)
-    {
+    for_entry_list(qp) {
 	int matchcount = 0;
 
 	for_entry_list(rp)
 	    if (qp > rp
-		&& _nc_entry_match(qp->tterm.term_names, rp->tterm.term_names))
-	    {
-		matchcount++;
-		if (matchcount == 1)
-		{
-		    (void) fprintf(stderr, "Name collision between %s",
-			   _nc_first_name(qp->tterm.term_names));
-		    multiples++;
-		}
-		if (matchcount >= 1)
-		    (void) fprintf(stderr, " %s", _nc_first_name(rp->tterm.term_names));
+	    && _nc_entry_match(qp->tterm.term_names, rp->tterm.term_names)) {
+	    matchcount++;
+	    if (matchcount == 1) {
+		(void) fprintf(stderr, "Name collision between %s",
+		    _nc_first_name(qp->tterm.term_names));
+		multiples++;
 	    }
+	    if (matchcount >= 1)
+		(void) fprintf(stderr, " %s", _nc_first_name(rp->tterm.term_names));
+	}
 	if (matchcount >= 1)
 	    (void) putc('\n', stderr);
     }
     if (multiples > 0)
-	return(FALSE);
+	return (FALSE);
 
     DEBUG(2, ("NO MULTIPLE NAME OCCURRENCES"));
 
     /*
-     * First resolution stage: replace names in use arrays with entry
-     * pointers.  By doing this, we avoid having to do the same name
-     * match once for each time a use entry is itself unresolved.
+     * First resolution stage: compute link pointers corresponding to names.
      */
     total_unresolved = 0;
     _nc_curr_col = -1;
-    for_entry_list(qp)
-    {
+    for_entry_list(qp) {
 	unresolved = 0;
-	for (i = 0; i < qp->nuses; i++)
-	{
-	    bool	foundit;
-	    char	*child = _nc_first_name(qp->tterm.term_names);
-	    char	*lookfor = (char *)(qp->uses[i].parent);
-	    long	lookline = qp->uses[i].line;
+	for (i = 0; i < qp->nuses; i++) {
+	    bool foundit;
+	    char *child = _nc_first_name(qp->tterm.term_names);
+	    char *lookfor = qp->uses[i].name;
+	    long lookline = qp->uses[i].line;
 
 	    foundit = FALSE;
 
@@ -267,146 +263,142 @@ int _nc_resolve_uses(void)
 	    /* first, try to resolve from in-core records */
 	    for_entry_list(rp)
 		if (rp != qp
-		    && _nc_name_match(rp->tterm.term_names, lookfor, "|"))
-		{
-		    DEBUG(2, ("%s: resolving use=%s (in core)",
-			      child, lookfor));
+		&& _nc_name_match(rp->tterm.term_names, lookfor, "|")) {
+		DEBUG(2, ("%s: resolving use=%s (in core)",
+			child, lookfor));
 
-		    qp->uses[i].parent = rp;
-		    foundit = TRUE;
-		}
+		qp->uses[i].link = rp;
+		foundit = TRUE;
+	    }
 
 	    /* if that didn't work, try to merge in a compiled entry */
-	    if (!foundit)
-	    {
-		TERMTYPE	thisterm;
-		char		filename[PATH_MAX];
+	    if (!foundit) {
+		TERMTYPE thisterm;
+		char filename[PATH_MAX];
 
 		memset(&thisterm, 0, sizeof(thisterm));
-		if (_nc_read_entry(lookfor, filename, &thisterm) == 1)
-		{
+		if (_nc_read_entry(lookfor, filename, &thisterm) == 1) {
 		    DEBUG(2, ("%s: resolving use=%s (compiled)",
-			      child, lookfor));
+			    child, lookfor));
 
-		    rp = typeMalloc(ENTRY,1);
-		    if (rp == NULL)
+		    rp = typeMalloc(ENTRY, 1);
+		    if (rp == 0)
 			_nc_err_abort("Out of memory");
 		    rp->tterm = thisterm;
 		    rp->nuses = 0;
 		    rp->next = lastread;
 		    lastread = rp;
 
-		    qp->uses[i].parent = rp;
+		    qp->uses[i].link = rp;
 		    foundit = TRUE;
 		}
 	    }
 
 	    /* no good, mark this one unresolvable and complain */
-	    if (!foundit)
-	    {
+	    if (!foundit) {
 		unresolved++;
 		total_unresolved++;
 
 		_nc_curr_line = lookline;
 		_nc_warning("resolution of use=%s failed", lookfor);
-		qp->uses[i].parent = (ENTRY *)NULL;
+		qp->uses[i].link = 0;
 	    }
 	}
     }
-    if (total_unresolved)
-    {
+    if (total_unresolved) {
 	/* free entries read in off disk */
 	_nc_free_entries(lastread);
-	return(FALSE);
+	return (FALSE);
     }
 
     DEBUG(2, ("NAME RESOLUTION COMPLETED OK"));
 
     /*
-     * OK, at this point all (char *) references have been successfully
-     * replaced by (ENTRY *) pointers.  Time to do the actual merges.
+     * OK, at this point all (char *) references in `name' mwmbers
+     * have been successfully converred to (ENTRY *) pointers in
+     * `link' members.  Time to do the actual merges.
      */
-    do {
-	TERMTYPE	merged;
+    if (fullresolve) {
+	do {
+	    TERMTYPE merged;
 
-	keepgoing = FALSE;
+	    keepgoing = FALSE;
 
-	for_entry_list(qp)
-	{
-	    if (qp->nuses > 0)
-	    {
-		DEBUG(2, ("%s: attempting merge", _nc_first_name(qp->tterm.term_names)));
-		/*
-		 * If any of the use entries we're looking for is
-		 * incomplete, punt.  We'll catch this entry on a
-		 * subsequent pass.
-		 */
-		for (i = 0; i < qp->nuses; i++)
-		    if (((ENTRY *)qp->uses[i].parent)->nuses)
-		    {
-			DEBUG(2, ("%s: use entry %d unresolved",
-				  _nc_first_name(qp->tterm.term_names), i));
-			goto incomplete;
-		    }
+	    for_entry_list(qp) {
+		if (qp->nuses > 0) {
+		    DEBUG(2, ("%s: attempting merge",
+			    _nc_first_name(qp->tterm.term_names)));
+		    /*
+		     * If any of the use entries we're looking for is
+		     * incomplete, punt.  We'll catch this entry on a
+		     * subsequent pass.
+		     */
+		    for (i = 0; i < qp->nuses; i++)
+			if (qp->uses[i].link->nuses) {
+			    DEBUG(2, ("%s: use entry %d unresolved",
+				    _nc_first_name(qp->tterm.term_names), i));
+			    goto incomplete;
+			}
 
-		/*
-		 * First, make sure there's no garbage in the merge block.
-		 * as a side effect, copy into the merged entry the name
-		 * field and string table pointer.
-		 */
-		_nc_copy_termtype(&merged, &(qp->tterm));
+		    /*
+		       * First, make sure there's no garbage in the
+		       * merge block.  as a side effect, copy into
+		       * the merged entry the name field and string
+		       * table pointer.
+		     */
+		    _nc_copy_termtype(&merged, &(qp->tterm));
 
-		/*
-		 * Now merge in each use entry in the proper
-		 * (reverse) order.
-		 */
-		for (; qp->nuses; qp->nuses--)
-		    _nc_merge_entry(&merged,
-				&((ENTRY *)qp->uses[qp->nuses-1].parent)->tterm);
+		    /*
+		     * Now merge in each use entry in the proper
+		     * (reverse) order.
+		     */
+		    for (; qp->nuses; qp->nuses--)
+			_nc_merge_entry(&merged,
+			    &qp->uses[qp->nuses - 1].link->tterm);
 
-		/*
-		 * Now merge in the original entry.
-		 */
-		_nc_merge_entry(&merged, &qp->tterm);
+		    /*
+		     * Now merge in the original entry.
+		     */
+		    _nc_merge_entry(&merged, &qp->tterm);
 
-		/*
-		 * Replace the original entry with the merged one.
-		 */
-		FreeIfNeeded(qp->tterm.Booleans);
-		FreeIfNeeded(qp->tterm.Numbers);
-		FreeIfNeeded(qp->tterm.Strings);
-		qp->tterm = merged;
+		    /*
+		     * Replace the original entry with the merged one.
+		     */
+		    FreeIfNeeded(qp->tterm.Booleans);
+		    FreeIfNeeded(qp->tterm.Numbers);
+		    FreeIfNeeded(qp->tterm.Strings);
+		    qp->tterm = merged;
 
-		/*
-		 * We know every entry is resolvable because name resolution
-		 * didn't bomb.  So go back for another pass.
-		 */
-		/* FALLTHRU */
-	    incomplete:
-		keepgoing = TRUE;
+		    /*
+		     * We know every entry is resolvable because name resolution
+		     * didn't bomb.  So go back for another pass.
+		     */
+		    /* FALLTHRU */
+		  incomplete:
+		    keepgoing = TRUE;
+		}
 	    }
-	}
-    } while
-	(keepgoing);
+	} while
+	    (keepgoing);
 
-    DEBUG(2, ("MERGES COMPLETED OK"));
+	DEBUG(2, ("MERGES COMPLETED OK"));
 
-    /*
-     * The exit condition of the loop above is such that all entries
-     * must now be resolved.  Now handle cancellations.  In a resolved
-     * entry there should be no cancellation markers.
-     */
-    for_entry_list(qp)
-    {
-	for_each_boolean(j, &(qp->tterm))
-	    if (qp->tterm.Booleans[j] == CANCELLED_BOOLEAN)
-		qp->tterm.Booleans[j] = FALSE;
-	for_each_number(j, &(qp->tterm))
-	    if (qp->tterm.Numbers[j] == CANCELLED_NUMERIC)
+	/*
+	 * The exit condition of the loop above is such that all entries
+	 * must now be resolved.  Now handle cancellations.  In a resolved
+	 * entry there should be no cancellation markers.
+	 */
+	for_entry_list(qp) {
+	    for_each_boolean(j, &(qp->tterm))
+		if (qp->tterm.Booleans[j] == CANCELLED_BOOLEAN)
+		qp->tterm.Booleans[j] = ABSENT_BOOLEAN;
+	    for_each_number(j, &(qp->tterm))
+		if (qp->tterm.Numbers[j] == CANCELLED_NUMERIC)
 		qp->tterm.Numbers[j] = ABSENT_NUMERIC;
-	for_each_string(j, &(qp->tterm))
-	    if (qp->tterm.Strings[j] == CANCELLED_STRING)
+	    for_each_string(j, &(qp->tterm))
+		if (qp->tterm.Strings[j] == CANCELLED_STRING)
 		qp->tterm.Strings[j] = ABSENT_STRING;
+	}
     }
 
     /*
@@ -418,19 +410,18 @@ int _nc_resolve_uses(void)
 
     DEBUG(2, ("RESOLUTION FINISHED"));
 
-    if (_nc_check_termtype != 0)
-    {
-	_nc_curr_col = -1;
-	for_entry_list(qp)
-	{
-	    _nc_curr_line = qp->startline;
-	    _nc_set_type(_nc_first_name(qp->tterm.term_names));
-	    _nc_check_termtype(&qp->tterm);
+    if (fullresolve)
+	if (_nc_check_termtype != 0) {
+	    _nc_curr_col = -1;
+	    for_entry_list(qp) {
+		_nc_curr_line = qp->startline;
+		_nc_set_type(_nc_first_name(qp->tterm.term_names));
+		_nc_check_termtype(&qp->tterm);
+	    }
+	    DEBUG(2, ("SANITY CHECK FINISHED"));
 	}
-	DEBUG(2, ("SANITY CHECK FINISHED"));
-    }
 
-    return(TRUE);
+    return (TRUE);
 }
 
 /*
@@ -442,14 +433,14 @@ int _nc_resolve_uses(void)
 #undef CUR
 #define CUR tp->
 
-static void sanity_check(TERMTYPE *tp)
+static void
+sanity_check(TERMTYPE * tp)
 {
-    if (!PRESENT(exit_attribute_mode))
-    {
-#ifdef __UNUSED__	/* this casts too wide a net */
-        bool       terminal_entry = !strchr(tp->term_names, '+');
+    if (!PRESENT(exit_attribute_mode)) {
+#ifdef __UNUSED__		/* this casts too wide a net */
+	bool terminal_entry = !strchr(tp->term_names, '+');
 	if (terminal_entry &&
-		(PRESENT(set_attributes)
+	    (PRESENT(set_attributes)
 		|| PRESENT(enter_standout_mode)
 		|| PRESENT(enter_underline_mode)
 		|| PRESENT(enter_blink_mode)
@@ -460,31 +451,31 @@ static void sanity_check(TERMTYPE *tp)
 		|| PRESENT(enter_reverse_mode)))
 	    _nc_warning("no exit_attribute_mode");
 #endif /* __UNUSED__ */
-	PAIRED(enter_standout_mode,     exit_standout_mode)
-	PAIRED(enter_underline_mode,    exit_underline_mode)
+	PAIRED(enter_standout_mode, exit_standout_mode)
+	    PAIRED(enter_underline_mode, exit_underline_mode)
     }
 
-     /* listed in structure-member order of first argument */
-     PAIRED(enter_alt_charset_mode,          exit_alt_charset_mode)
-     ANDMISSING(enter_alt_charset_mode,      acs_chars)
-     ANDMISSING(exit_alt_charset_mode,       acs_chars)
-     ANDMISSING(enter_blink_mode,            exit_attribute_mode)
-     ANDMISSING(enter_bold_mode,             exit_attribute_mode)
-     PAIRED(exit_ca_mode,                    enter_ca_mode)
-     PAIRED(enter_delete_mode,               exit_delete_mode)
-     ANDMISSING(enter_dim_mode,              exit_attribute_mode)
-     PAIRED(enter_insert_mode,               exit_insert_mode)
-     ANDMISSING(enter_secure_mode,           exit_attribute_mode)
-     ANDMISSING(enter_protected_mode,        exit_attribute_mode)
-     ANDMISSING(enter_reverse_mode,          exit_attribute_mode)
-     PAIRED(from_status_line,                to_status_line)
-     PAIRED(meta_off,                        meta_on)
+    /* listed in structure-member order of first argument */
+    PAIRED(enter_alt_charset_mode, exit_alt_charset_mode);
+    ANDMISSING(enter_alt_charset_mode, acs_chars);
+    ANDMISSING(exit_alt_charset_mode, acs_chars);
+    ANDMISSING(enter_blink_mode, exit_attribute_mode);
+    ANDMISSING(enter_bold_mode, exit_attribute_mode);
+    PAIRED(exit_ca_mode, enter_ca_mode);
+    PAIRED(enter_delete_mode, exit_delete_mode);
+    ANDMISSING(enter_dim_mode, exit_attribute_mode);
+    PAIRED(enter_insert_mode, exit_insert_mode);
+    ANDMISSING(enter_secure_mode, exit_attribute_mode);
+    ANDMISSING(enter_protected_mode, exit_attribute_mode);
+    ANDMISSING(enter_reverse_mode, exit_attribute_mode);
+    PAIRED(from_status_line, to_status_line);
+    PAIRED(meta_off, meta_on);
 
-     PAIRED(prtr_on,                         prtr_off)
-     PAIRED(save_cursor,                     restore_cursor)
-     PAIRED(enter_xon_mode,                  exit_xon_mode)
-     PAIRED(enter_am_mode,                   exit_am_mode)
-     ANDMISSING(label_off,                   label_on)
-     PAIRED(display_clock,                   remove_clock)
-     ANDMISSING(set_color_pair,              initialize_pair)
+    PAIRED(prtr_on, prtr_off);
+    PAIRED(save_cursor, restore_cursor);
+    PAIRED(enter_xon_mode, exit_xon_mode);
+    PAIRED(enter_am_mode, exit_am_mode);
+    ANDMISSING(label_off, label_on);
+    PAIRED(display_clock, remove_clock);
+    ANDMISSING(set_color_pair, initialize_pair);
 }

@@ -1,6 +1,6 @@
 #!/bin/sh
 #***************************************************************************
-# Copyright (c) 1998 Free Software Foundation, Inc.                        *
+# Copyright (c) 1998-2000 Free Software Foundation, Inc.                   *
 #                                                                          *
 # Permission is hereby granted, free of charge, to any person obtaining a  *
 # copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 # authorization.                                                           *
 #***************************************************************************
 #
-# $Id: MKterminfo.sh,v 1.5 1998/09/06 00:20:01 tom Exp $
+# $Id: MKterminfo.sh,v 1.6 2000/01/25 11:31:57 tom Exp $
 #
 # MKterminfo.sh -- generate terminfo.5 from Caps tabular data
 #
@@ -39,6 +39,12 @@
 # NOTE: The s in this script really are control characters.  It translates
 #  to \n because I couldn't get used to inserting linefeeds directly.  There
 # had better be no s in the table source text.
+#
+# keep the order independent of locale:
+LANGUAGE=C
+LC_ALL=C
+export LANGUAGE
+export LC_ALL
 #
 head=$1
 caps=$2

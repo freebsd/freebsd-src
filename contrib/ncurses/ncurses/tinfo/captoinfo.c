@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,8 +30,6 @@
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
-
-
 
 /*
  *	captoinfo.c --- conversion between termcap and terminfo formats
@@ -94,10 +92,9 @@
 #include <ctype.h>
 #include <tic.h>
 
-MODULE_ID("$Id: captoinfo.c,v 1.24 1999/07/24 20:06:13 tom Exp $")
+MODULE_ID("$Id: captoinfo.c,v 1.37 2000/04/01 20:07:34 tom Exp $")
 
 #define MAX_PUSHED	16	/* max # args we can push onto the stack */
-#define MAX_ENTRY	2048	/* maximum chars in a translated capability */
 
 static int stack[MAX_PUSHED];	/* the stack */
 static int stackptr;		/* the next empty place on the stack */
@@ -108,43 +105,47 @@ static int seenr;		/* seen a %r */
 static int param;		/* current parameter */
 static char *dp;		/* pointer to end of the converted string */
 
-static char  *my_string;
+static char *my_string;
 static size_t my_length;
 
-static char *init_string(void)
+static char *
+init_string(void)
 /* initialize 'my_string', 'my_length' */
 {
-	if (my_string == 0)
-		my_string = typeMalloc(char, my_length = 256);
+    if (my_string == 0)
+	my_string = typeMalloc(char, my_length = 256);
+    if (my_string == 0)
+	_nc_err_abort("Out of memory");
+
+    *my_string = '\0';
+    return my_string;
+}
+
+static char *
+save_string(char *d, const char *const s)
+{
+    size_t have = (d - my_string);
+    size_t need = have + strlen(s) + 2;
+    if (need > my_length) {
+	my_string = (char *) realloc(my_string, my_length = (need + need));
 	if (my_string == 0)
 	    _nc_err_abort("Out of memory");
-
-	*my_string = '\0';
-	return my_string;
+	d = my_string + have;
+    }
+    (void) strcpy(d, s);
+    return d + strlen(d);
 }
 
-static char *save_string(char *d, const char *const s)
+static inline char *
+save_char(char *s, char c)
 {
-	size_t have = (d - my_string);
-	size_t need = have + strlen(s) + 2;
-	if (need > my_length) {
-		my_string = (char *)realloc(my_string, my_length = (need + need));
-		if (my_string == 0)
-		    _nc_err_abort("Out of memory");
-		d = my_string + have;
-	}
-	(void) strcpy(d, s);
-	return d + strlen(d);
+    static char temp[2];
+    temp[0] = c;
+    return save_string(s, temp);
 }
 
-static inline char *save_char(char *s, char c)
-{
-	static char temp[2];
-	temp[0] = c;
-	return save_string(s, temp);
-}
-
-static void push(void)
+static void
+push(void)
 /* push onstack on to the stack */
 {
     if (stackptr > MAX_PUSHED)
@@ -153,7 +154,8 @@ static void push(void)
 	stack[stackptr++] = onstack;
 }
 
-static void pop(void)
+static void
+pop(void)
 /* pop the top of the stack into onstack */
 {
     if (stackptr == 0) {
@@ -161,21 +163,21 @@ static void pop(void)
 	    _nc_warning("I'm confused");
 	else
 	    onstack = 0;
-    }
-    else
+    } else
 	onstack = stack[--stackptr];
     param++;
 }
 
-static int cvtchar(register const char *sp)
+static int
+cvtchar(register const char *sp)
 /* convert a character to a terminfo push */
 {
     unsigned char c = 0;
     int len;
 
-    switch(*sp) {
+    switch (*sp) {
     case '\\':
-	switch(*++sp) {
+	switch (*++sp) {
 	case '\'':
 	case '$':
 	case '\\':
@@ -192,8 +194,7 @@ static int cvtchar(register const char *sp)
 	case '2':
 	case '3':
 	    len = 1;
-	    while (isdigit(*sp))
-	    {
+	    while (isdigit(*sp)) {
 		c = 8 * c + (*sp++ - '0');
 		len++;
 	    }
@@ -213,65 +214,68 @@ static int cvtchar(register const char *sp)
 	len = 1;
     }
     if (isgraph(c) && c != ',' && c != '\'' && c != '\\' && c != ':') {
-	*dp++ = '%'; *dp++ = '\''; *dp++ = c; *dp++ = '\'';
+	dp = save_string(dp, "%\'");
+	dp = save_char(dp, c);
+	dp = save_char(dp, '\'');
     } else {
-	*dp++ = '%'; *dp++ = '{';
+	dp = save_string(dp, "%{");
 	if (c > 99)
-	    *dp++ = c / 100 + '0';
+	    dp = save_char(dp, c / 100 + '0');
 	if (c > 9)
-	    *dp++ = ((int)(c / 10)) % 10 + '0';
-	*dp++ = c % 10 + '0';
-	*dp++ = '}';
+	    dp = save_char(dp, ((int) (c / 10)) % 10 + '0');
+	dp = save_char(dp, c % 10 + '0');
+	dp = save_char(dp, '}');
     }
     return len;
 }
 
-static void getparm(int parm, int n)
+static void
+getparm(int parm, int n)
 /* push n copies of param on the terminfo stack if not already there */
 {
-	if (seenr) {
-		if (parm == 1)
-			parm = 2;
-		else if (parm == 2)
-			parm = 1;
-		}
-	if (onstack == parm) {
-		if (n > 1) {
-			_nc_warning("string may not be optimal");
-			*dp++ = '%'; *dp++ = 'P'; *dp++ = 'a';
-			while(n--) {
-				*dp++ = '%'; *dp++ = 'g'; *dp++ = 'a';
-			}
-		}
-		return;
+    if (seenr) {
+	if (parm == 1)
+	    parm = 2;
+	else if (parm == 2)
+	    parm = 1;
+    }
+    if (onstack == parm) {
+	if (n > 1) {
+	    _nc_warning("string may not be optimal");
+	    dp = save_string(dp, "%Pa");
+	    while (n--) {
+		dp = save_string(dp, "%ga");
+	    }
 	}
-	if (onstack != 0)
-		push();
+	return;
+    }
+    if (onstack != 0)
+	push();
 
-	onstack = parm;
+    onstack = parm;
 
-	while(n--) {		/* %p0 */
-		*dp++ = '%'; *dp++ = 'p'; *dp++ = '0' + parm;
-	}
+    while (n--) {
+	dp = save_string(dp, "%p");
+	dp = save_char(dp, '0' + parm);
+    }
 
-	if (seenn && parm < 3) {	/* %{96}%^ */
-		*dp++ = '%'; *dp++ = '{'; *dp++ = '9'; *dp++ = '6'; *dp++ = '}';
-		*dp++ = '%'; *dp++ = '^';
-	}
+    if (seenn && parm < 3) {
+	dp = save_string(dp, "%{96}%^");
+    }
 
-	if (seenm && parm < 3) {	/* %{127}%^ */
-		*dp++ = '%'; *dp++ = '{'; *dp++ = '1'; *dp++ = '2'; *dp++ = '7';
-		*dp++ = '}'; *dp++ = '%'; *dp++ = '^';
-	}
+    if (seenm && parm < 3) {
+	dp = save_string(dp, "%{127}%^");
+    }
 }
 
-char *_nc_captoinfo(
+char *
+_nc_captoinfo(
 /* convert a termcap string to terminfo format */
-register const char *cap,	/* relevant terminfo capability index */
-register const char *s,		/* string value of the capability */
-int const parametrized)		/* do % translations if 1, pad translations if >=0 */
+    register const char *cap,	/* relevant terminfo capability index */
+    register const char *s,	/* string value of the capability */
+    int const parametrized	/* do % translations if 1, pad translations if >=0 */
+)
 {
-    static char line[MAX_ENTRY];
     const char *capstart;
 
     stackptr = 0;
@@ -281,27 +285,29 @@ int const parametrized)		/* do % translations if 1, pad translations if >=0 */
     seenr = 0;
     param = 1;
 
-    dp = line;
+    dp = init_string();
 
     /* skip the initial padding (if we haven't been told not to) */
     capstart = 0;
     if (s == 0)
 	s = "";
     if (parametrized >= 0 && isdigit(*s))
-	for (capstart = s; ; s++)
+	for (capstart = s;; s++)
 	    if (!(isdigit(*s) || *s == '*' || *s == '.'))
 		break;
 
-    while(*s != '\0') {
-	switch(*s) {
+    while (*s != '\0') {
+	switch (*s) {
 	case '%':
 	    s++;
 	    if (parametrized < 1) {
-		*dp++ = '%';
+		dp = save_char(dp, '%');
 		break;
 	    }
-	    switch(*s++) {
-	    case '%': *dp++ = '%'; break;
+	    switch (*s++) {
+	    case '%':
+		dp = save_char(dp, '%');
+		break;
 	    case 'r':
 		if (seenr++ == 1) {
 		    _nc_warning("saw %%r twice in %s", cap);
@@ -317,37 +323,33 @@ int const parametrized)		/* do % translations if 1, pad translations if >=0 */
 		    _nc_warning("saw %%n twice in %s", cap);
 		}
 		break;
-	    case 'i': *dp++ = '%'; *dp++ = 'i'; break;
+	    case 'i':
+		dp = save_string(dp, "%i");
+		break;
 	    case '6':
 	    case 'B':
-		getparm(param, 2);
-		/* %{6}%*%+ */
-		*dp++ = '%'; *dp++ = '{'; *dp++ = '6';
-		*dp++ = '}'; *dp++ = '%'; *dp++ = '*';
-		*dp++ = '%'; *dp++ = '+';
+		getparm(param, 1);
+		dp = save_string(dp, "%{10}%/%{16}%*");
+		getparm(param, 1);
+		dp = save_string(dp, "%{10}%m%+");
 		break;
 	    case '8':
 	    case 'D':
 		getparm(param, 2);
-		/* %{2}%*%- */
-		*dp++ = '%'; *dp++ = '{'; *dp++ = '2';
-		*dp++ = '}'; *dp++ = '%'; *dp++ = '*';
-		*dp++ = '%'; *dp++ = '-';
+		dp = save_string(dp, "%{2}%*%-");
 		break;
 	    case '>':
 		getparm(param, 2);
 		/* %?%{x}%>%t%{y}%+%; */
-		*dp++ = '%'; *dp++ = '?';
+		dp = save_string(dp, "%?");
 		s += cvtchar(s);
-		*dp++ = '%'; *dp++ = '>';
-		*dp++ = '%'; *dp++ = 't';
+		dp = save_string(dp, "%>%t");
 		s += cvtchar(s);
-		*dp++ = '%'; *dp++ = '+';
-		*dp++ = '%'; *dp++ = ';';
+		dp = save_string(dp, "%+%;");
 		break;
 	    case 'a':
 		if ((*s == '=' || *s == '+' || *s == '-'
-		     || *s == '*' || *s == '/')
+			|| *s == '*' || *s == '/')
 		    && (s[1] == 'p' || s[1] == 'c')
 		    && s[2] != '\0') {
 		    int l;
@@ -363,18 +365,18 @@ int const parametrized)		/* do % translations if 1, pad translations if >=0 */
 			l++;
 		    } else
 			l += cvtchar(s + 2);
-		    switch(*s) {
+		    switch (*s) {
 		    case '+':
-			*dp++ = '%'; *dp++ = '+';
+			dp = save_string(dp, "%+");
 			break;
 		    case '-':
-			*dp++ = '%'; *dp++ = '-';
+			dp = save_string(dp, "%-");
 			break;
 		    case '*':
-			*dp++ = '%'; *dp++ = '*';
+			dp = save_string(dp, "%*");
 			break;
 		    case '/':
-			*dp++ = '%'; *dp++ = '/';
+			dp = save_string(dp, "%/");
 			break;
 		    case '=':
 			if (seenr) {
@@ -384,8 +386,7 @@ int const parametrized)		/* do % translations if 1, pad translations if >=0 */
 				onstack = 1;
 			    else
 				onstack = param;
-			}
-			else
+			} else
 			    onstack = param;
 			break;
 		    }
@@ -394,39 +395,37 @@ int const parametrized)		/* do % translations if 1, pad translations if >=0 */
 		}
 		getparm(param, 1);
 		s += cvtchar(s);
-		*dp++ = '%'; *dp++ = '+';
+		dp = save_string(dp, "%+");
 		break;
 	    case '+':
 		getparm(param, 1);
 		s += cvtchar(s);
-		*dp++ = '%'; *dp++ = '+';
-		*dp++ = '%'; *dp++ = 'c';
+		dp = save_string(dp, "%+%c");
 		pop();
 		break;
 	    case 's':
 #ifdef WATERLOO
 		s += cvtchar(s);
 		getparm(param, 1);
-		*dp++ = '%'; *dp++ = '-';
+		dp = save_string(dp, "%-");
 #else
 		getparm(param, 1);
-		*dp++ = '%'; *dp++ = 's';
+		dp = save_string(dp, "%s");
 		pop();
 #endif /* WATERLOO */
 		break;
 	    case '-':
 		s += cvtchar(s);
 		getparm(param, 1);
-		*dp++ = '%'; *dp++ = '-';
-		*dp++ = '%'; *dp++ = 'c';
+		dp = save_string(dp, "%-%c");
 		pop();
 		break;
 	    case '.':
 		getparm(param, 1);
-		*dp++ = '%'; *dp++ = 'c';
+		dp = save_string(dp, "%c");
 		pop();
 		break;
-	    case '0':	/* not clear any of the historical termcaps did this */
+	    case '0':		/* not clear any of the historical termcaps did this */
 		if (*s == '3')
 		    goto see03;
 		else if (*s != '2')
@@ -434,19 +433,18 @@ int const parametrized)		/* do % translations if 1, pad translations if >=0 */
 		/* FALLTHRU */
 	    case '2':
 		getparm(param, 1);
-		*dp++ = '%'; /* *dp++ = '0'; */
-		*dp++ = '2'; *dp++ = 'd';
+		dp = save_string(dp, "%2d");
 		pop();
 		break;
-	    case '3': see03:
+	    case '3':
+	      see03:
 		getparm(param, 1);
-		*dp++ = '%'; /* *dp++ = '0'; */
-		*dp++ = '3'; *dp++ = 'd';
+		dp = save_string(dp, "%3d");
 		pop();
 		break;
 	    case 'd':
 		getparm(param, 1);
-		*dp++ = '%'; *dp++ = 'd';
+		dp = save_string(dp, "%d");
 		pop();
 		break;
 	    case 'f':
@@ -456,61 +454,82 @@ int const parametrized)		/* do % translations if 1, pad translations if >=0 */
 		param--;
 		break;
 	    case '\\':
-		*dp++ = '%';
-		*dp++ = '\\';
+		dp = save_string(dp, "%\\");
 		break;
-	    default: invalid:
-		*dp++ = '%';
+	    default:
+	      invalid:
+		dp = save_char(dp, '%');
 		s--;
-		_nc_warning("unknown %% code %s in %s",
-			_tracechar(*s), cap);
+		_nc_warning("unknown %% code %s (%#x) in %s",
+		    unctrl(*s), (*s) & 0xff, cap);
 		break;
 	    }
 	    break;
 #ifdef REVISIBILIZE
 	case '\\':
-	    *dp++ = *s++; *dp++ = *s++; break;
+	    dp = save_char(dp, *s++);
+	    dp = save_char(dp, *s++);
+	    break;
 	case '\n':
-	    *dp++ = '\\'; *dp++ = 'n'; s++; break;
+	    dp = save_string(dp, "\\n");
+	    s++;
+	    break;
 	case '\t':
-	    *dp++ = '\\'; *dp++ = 't'; s++; break;
+	    dp = save_string(dp, "\\t");
+	    s++;
+	    break;
 	case '\r':
-	    *dp++ = '\\'; *dp++ = 'r'; s++; break;
+	    dp = save_string(dp, "\\r");
+	    s++;
+	    break;
 	case '\200':
-	    *dp++ = '\\'; *dp++ = '0'; s++; break;
+	    dp = save_string(dp, "\\0");
+	    s++;
+	    break;
 	case '\f':
-	    *dp++ = '\\'; *dp++ = 'f'; s++; break;
+	    dp = save_string(dp, "\\f");
+	    s++;
+	    break;
 	case '\b':
-	    *dp++ = '\\'; *dp++ = 'b'; s++; break;
+	    dp = save_string(dp, "\\b");
+	    s++;
+	    break;
 	case ' ':
-	    *dp++ = '\\'; *dp++ = 's'; s++; break;
+	    dp = save_string(dp, "\\s");
+	    s++;
+	    break;
 	case '^':
-	    *dp++ = '\\'; *dp++ = '^'; s++; break;
+	    dp = save_string(dp, "\\^");
+	    s++;
+	    break;
 	case ':':
-	    *dp++ = '\\'; *dp++ = ':'; s++; break;
+	    dp = save_string(dp, "\\:");
+	    s++;
+	    break;
 	case ',':
-	    *dp++ = '\\'; *dp++ = ','; s++; break;
+	    dp = save_string(dp, "\\,");
+	    s++;
+	    break;
 	default:
 	    if (*s == '\033') {
-		*dp++ = '\\';
-		*dp++ = 'E';
+		dp = save_string(dp, "\\E");
 		s++;
 	    } else if (*s > 0 && *s < 32) {
-		*dp++ = '^';
-		*dp++ = *s + '@';
+		dp = save_char(dp, '^');
+		dp = save_char(dp, *s + '@');
 		s++;
 	    } else if (*s <= 0 || *s >= 127) {
-		*dp++ = '\\';
-		*dp++ = ((*s & 0300) >> 6) + '0';
-		*dp++ = ((*s & 0070) >> 3) + '0';
-		*dp++ = (*s & 0007) + '0';
+		dp = save_char(dp, '\\');
+		dp = save_char(dp, ((*s & 0300) >> 6) + '0');
+		dp = save_char(dp, ((*s & 0070) >> 3) + '0');
+		dp = save_char(dp, (*s & 0007) + '0');
 		s++;
 	    } else
-		*dp++ = *s++;
+		dp = save_char(dp, *s++);
 	    break;
 #else
 	default:
-	    *dp++ = *s++;
+	    dp = save_char(dp, *s++);
 	    break;
 #endif
 	}
@@ -520,21 +539,76 @@ int const parametrized)		/* do % translations if 1, pad translations if >=0 */
      * Now, if we stripped off some leading padding, add it at the end
      * of the string as mandatory padding.
      */
-    if (capstart)
-    {
-	*dp++ = '$';
-	*dp++ = '<';
-	for (s = capstart; ; s++)
+    if (capstart) {
+	dp = save_string(dp, "$<");
+	for (s = capstart;; s++)
 	    if (isdigit(*s) || *s == '*' || *s == '.')
-		*dp++ = *s;
+		dp = save_char(dp, *s);
 	    else
 		break;
-	*dp++ = '/';
-	*dp++ = '>';
+	dp = save_string(dp, "/>");
     }
 
-    *dp = '\0';
-    return(line);
+    (void) save_char(dp, '\0');
+    return (my_string);
+}
+
+/*
+ * Check for an expression that corresponds to "%B" (BCD):
+ *	(parameter / 10) * 16 + (parameter % 10)
+ */
+static int
+bcd_expression(const char *str)
+{
+    /* leave this non-const for HPUX */
+    static char fmt[] = "%%p%c%%{10}%%/%%{16}%%*%%p%c%%{10}%%m%%+";
+    int len = 0;
+    char ch1, ch2;
+
+    if (sscanf(str, fmt, &ch1, &ch2) == 2
+	&& isdigit(ch1)
+	&& isdigit(ch2)
+	&& (ch1 == ch2)) {
+	len = 28;
+#ifndef NDEBUG
+	{
+	    char buffer[80];
+	    int tst;
+	    sprintf(buffer, fmt, ch1, ch2);
+	    tst = strlen(buffer) - 1;
+	    assert(len == tst);
+	}
+#endif
+    }
+    return len;
+}
+
+static char *
+save_tc_char(char *bufptr, int c1)
+{
+    char temp[80];
+
+    if (is7bits(c1) && isprint(c1)) {
+	if (c1 == ':' || c1 == '\\')
+	    bufptr = save_char(bufptr, '\\');
+	bufptr = save_char(bufptr, c1);
+    } else {
+	if (c1 == (c1 & 0x1f))	/* iscntrl() returns T on 255 */
+	    (void) strcpy(temp, unctrl(c1));
+	else
+	    (void) sprintf(temp, "\\%03o", c1);
+	bufptr = save_string(bufptr, temp);
+    }
+    return bufptr;
+}
+
+static char *
+save_tc_inequality(char *bufptr, int c1, int c2)
+{
+    bufptr = save_string(bufptr, "%>");
+    bufptr = save_tc_char(bufptr, c1);
+    bufptr = save_tc_char(bufptr, c2);
+    return bufptr;
 }
 
 /*
@@ -555,23 +629,25 @@ int const parametrized)		/* do % translations if 1, pad translations if >=0 */
  *     %m       exclusive-or all parameters with 0177 (not in 4.4BSD)
  */
 
-char *_nc_infotocap(
+char *
+_nc_infotocap(
 /* convert a terminfo string to termcap format */
-register const char *cap GCC_UNUSED, /* relevant termcap capability index */
-register const char *str,	/* string value of the capability */
-int const parametrized)		/* do % translations if 1, pad translations if >=0 */
+    register const char *cap GCC_UNUSED,	/* relevant termcap capability index */
+    register const char *str,	/* string value of the capability */
+    int const parametrized	/* do % translations if 1, pad translations if >=0 */
+)
 {
-    int	seenone = 0, seentwo = 0, saw_m = 0, saw_n = 0;
+    int seenone = 0, seentwo = 0, saw_m = 0, saw_n = 0;
     const char *padding;
     const char *trimmed = 0;
     char ch1 = 0, ch2 = 0;
     char *bufptr = init_string();
-    char temp[256];
+    int len;
+    bool syntax_error = FALSE;
 
     /* we may have to move some trailing mandatory padding up front */
     padding = str + strlen(str) - 1;
-    if (*padding == '>' && *--padding == '/')
-    {
+    if (*padding == '>' && *--padding == '/') {
 	--padding;
 	while (isdigit(*padding) || *padding == '.' || *padding == '*')
 	    padding--;
@@ -583,101 +659,62 @@ int const parametrized)		/* do % translations if 1, pad translations if >=0 */
 	    bufptr = save_char(bufptr, *padding++);
     }
 
-    for (; *str && str != trimmed; str++)
-    {
-	int	c1, c2;
-	char	*cp = 0;
+    for (; *str && str != trimmed; str++) {
+	int c1, c2;
+	char *cp = 0;
 
-	if (str[0] == '\\' && (str[1] == '^' || str[1] == ','))
-	{
+	if (str[0] == '\\' && (str[1] == '^' || str[1] == ',')) {
 	    bufptr = save_char(bufptr, *++str);
-	}
-	else if (str[0] == '$' && str[1] == '<')	/* discard padding */
-	{
+	} else if (str[0] == '$' && str[1] == '<') {	/* discard padding */
 	    str += 2;
-	    while (isdigit(*str) || *str == '.' || *str == '*' || *str == '/' || *str == '>')
+	    while (isdigit(*str) || *str == '.' || *str == '*' || *str ==
+		'/' || *str == '>')
 		str++;
 	    --str;
-	}
-	else if (*str != '%' || (parametrized < 1))
+	} else if (str[0] == '%' && str[1] == '%') {	/* escaped '%' */
+	    bufptr = save_string(bufptr, "%%");
+	} else if (*str != '%' || (parametrized < 1)) {
 	    bufptr = save_char(bufptr, *str);
-	else if (sscanf(str, "%%?%%{%d}%%>%%t%%{%d}%%+%%;", &c1,&c2) == 2)
-	{
+	} else if (sscanf(str, "%%?%%{%d}%%>%%t%%{%d}%%+%%;", &c1, &c2) == 2) {
 	    str = strchr(str, ';');
-	    (void) sprintf(temp, "%%>%s%s", unctrl(c1), unctrl(c2));
-	    bufptr = save_string(bufptr, temp);
-	}
-	else if (sscanf(str, "%%?%%{%d}%%>%%t%%'%c'%%+%%;", &c1,&ch2) == 2)
-	{
+	    bufptr = save_tc_inequality(bufptr, c1, c2);
+	} else if (sscanf(str, "%%?%%{%d}%%>%%t%%'%c'%%+%%;", &c1, &ch2) == 2) {
 	    str = strchr(str, ';');
-	    (void) sprintf(temp, "%%>%s%c", unctrl(c1), ch2);
-	    bufptr = save_string(bufptr, temp);
-	}
-	else if (sscanf(str, "%%?%%'%c'%%>%%t%%{%d}%%+%%;", &ch1,&c2) == 2)
-	{
+	    bufptr = save_tc_inequality(bufptr, c1, c2);
+	} else if (sscanf(str, "%%?%%'%c'%%>%%t%%{%d}%%+%%;", &ch1, &c2) == 2) {
 	    str = strchr(str, ';');
-	    (void) sprintf(temp, "%%>%c%c", ch1, c2);
-	    bufptr = save_string(bufptr, temp);
-	}
-	else if (sscanf(str, "%%?%%'%c'%%>%%t%%'%c'%%+%%;", &ch1, &ch2) == 2)
-	{
+	    bufptr = save_tc_inequality(bufptr, c1, c2);
+	} else if (sscanf(str, "%%?%%'%c'%%>%%t%%'%c'%%+%%;", &ch1, &ch2) == 2) {
 	    str = strchr(str, ';');
-	    (void) sprintf(temp, "%%>%c%c", ch1, ch2);
-	    bufptr = save_string(bufptr, temp);
-	}
-	else if (strncmp(str, "%{6}%*%+", 8) == 0)
-	{
-	    str += 7;
-	    (void) sprintf(temp, "%%B");
-	    bufptr = save_string(bufptr, temp);
-	}
-	else if ((sscanf(str, "%%{%d}%%+%%c", &c1) == 1
-		  || sscanf(str, "%%'%c'%%+%%c", &ch1) == 1)
-		 && (cp = strchr(str, '+')))
-	{
+	    bufptr = save_tc_inequality(bufptr, c1, c2);
+	} else if ((len = bcd_expression(str)) != 0) {
+	    str += len;
+	    bufptr = save_string(bufptr, "%B");
+	} else if ((sscanf(str, "%%{%d}%%+%%c", &c1) == 1
+		    || sscanf(str, "%%'%c'%%+%%c", &ch1) == 1)
+	    && (cp = strchr(str, '+'))) {
 	    str = cp + 2;
-	    bufptr = save_char(bufptr, '%');
-	    bufptr = save_char(bufptr, '+');
+	    bufptr = save_string(bufptr, "%+");
 
 	    if (ch1)
 		c1 = ch1;
-	    if (is7bits(c1) && isprint(c1))
-		bufptr = save_char(bufptr, (char)c1);
-	    else
-	    {
-		if (c1 == (c1 & 0x1f)) /* iscntrl() returns T on 255 */
-		    (void) strcpy(temp, unctrl(c1));
-		else
-		    (void) sprintf(temp, "\\%03o", c1);
-		bufptr = save_string(bufptr, temp);
-	    }
+	    bufptr = save_tc_char(bufptr, c1);
 	}
-	else if (strncmp(str, "%{2}%*%-", 8) == 0)
-	{
+	/* FIXME: this "works" for 'delta' */
+	else if (strncmp(str, "%{2}%*%-", 8) == 0) {
 	    str += 7;
-	    (void) sprintf(temp, "%%D");
-	    bufptr = save_string(bufptr, temp);
-	}
-	else if (strncmp(str, "%{96}%^", 7) == 0)
-	{
+	    bufptr = save_string(bufptr, "%D");
+	} else if (strncmp(str, "%{96}%^", 7) == 0) {
 	    str += 6;
-	    if (saw_m++ == 0)
-	    {
-		(void) sprintf(temp, "%%n");
-		bufptr = save_string(bufptr, temp);
+	    if (saw_m++ == 0) {
+		bufptr = save_string(bufptr, "%n");
 	    }
-	}
-	else if (strncmp(str, "%{127}%^", 8) == 0)
-	{
+	} else if (strncmp(str, "%{127}%^", 8) == 0) {
 	    str += 7;
-	    if (saw_n++ == 0)
-	    {
-		(void) sprintf(temp, "%%m");
-		bufptr = save_string(bufptr, temp);
+	    if (saw_n++ == 0) {
+		bufptr = save_string(bufptr, "%m");
 	    }
-	}
-	else
-	{
+	} else {		/* cm-style format element */
 	    str++;
 	    switch (*str) {
 	    case '%':
@@ -697,90 +734,80 @@ int const parametrized)		/* do % translations if 1, pad translations if >=0 */
 		bufptr = save_char(bufptr, '%');
 		while (isdigit(*str))
 		    bufptr = save_char(bufptr, *str++);
-		if (*str == 'd')
-		    str++;
-		else
-		    _nc_warning("numeric prefix is missing trailing d in %s",
-				cap);
-		--str;
+		if (strchr("doxX.", *str)) {
+		    if (*str != 'd')	/* termcap doesn't have octal, hex */
+			return 0;
+		}
 		break;
 
 	    case 'd':
-		bufptr = save_char(bufptr, '%');
-		bufptr = save_char(bufptr, 'd');
+		bufptr = save_string(bufptr, "%d");
 		break;
 
 	    case 'c':
-		bufptr = save_char(bufptr, '%');
-		bufptr = save_char(bufptr, '.');
+		bufptr = save_string(bufptr, "%.");
 		break;
 
-	    /*
-	     * %s isn't in termcap, but it's convenient to pass it through
-	     * so we can represent things like terminfo pfkey strings in
-	     * termcap notation.
-	     */
+		/*
+		 * %s isn't in termcap, but it's convenient to pass it through
+		 * so we can represent things like terminfo pfkey strings in
+		 * termcap notation.
+		 */
 	    case 's':
-		bufptr = save_char(bufptr, '%');
-		bufptr = save_char(bufptr, 's');
+		bufptr = save_string(bufptr, "%s");
 		break;
 
 	    case 'p':
 		str++;
 		if (*str == '1')
 		    seenone = 1;
-		else if (*str == '2')
-		{
-		    if (!seenone && !seentwo)
-		    {
-			bufptr = save_char(bufptr, '%');
-			bufptr = save_char(bufptr, 'r');
+		else if (*str == '2') {
+		    if (!seenone && !seentwo) {
+			bufptr = save_string(bufptr, "%r");
 			seentwo++;
 		    }
-		}
-		else if (*str >= '3')
-		    return(0);
+		} else if (*str >= '3')
+		    return (0);
 		break;
 
 	    case 'i':
-		bufptr = save_char(bufptr, '%');
-		bufptr = save_char(bufptr, 'i');
+		bufptr = save_string(bufptr, "%i");
 		break;
 
 	    default:
-		return(0);
-
-	    } /* endswitch (*str) */
-	} /* endelse (*str == '%') */
+		bufptr = save_char(bufptr, *str);
+		syntax_error = TRUE;
+		break;
+	    }			/* endswitch (*str) */
+	}			/* endelse (*str == '%') */
 
 	if (*str == '\0')
 	    break;
 
-    } /* endwhile (*str) */
+    }				/* endwhile (*str) */
 
-    return(my_string);
+    return (syntax_error ? NULL : my_string);
 }
 
 #ifdef MAIN
 
 int curr_line;
 
-int main(int argc, char *argv[])
+int
+main(int argc, char *argv[])
 {
     int c, tc = FALSE;
 
     while ((c = getopt(argc, argv, "c")) != EOF)
-	switch (c)
-	{
+	switch (c) {
 	case 'c':
 	    tc = TRUE;
 	    break;
 	}
 
     curr_line = 0;
-    for (;;)
-    {
-	char	buf[BUFSIZ];
+    for (;;) {
+	char buf[BUFSIZ];
 
 	++curr_line;
 	if (fgets(buf, sizeof(buf), stdin) == 0)
@@ -788,20 +815,17 @@ int main(int argc, char *argv[])
 	buf[strlen(buf) - 1] = '\0';
 	_nc_set_source(buf);
 
-	if (tc)
-	{
-	    char	*cp = _nc_infotocap("to termcap", buf, 1);
+	if (tc) {
+	    char *cp = _nc_infotocap("to termcap", buf, 1);
 
 	    if (cp)
 		(void) fputs(cp, stdout);
-	}
-	else
+	} else
 	    (void) fputs(_nc_captoinfo("to terminfo", buf, 1), stdout);
 	(void) putchar('\n');
     }
-    return(0);
+    return (0);
 }
 #endif /* MAIN */
 
 /* captoinfo.c ends here */
-

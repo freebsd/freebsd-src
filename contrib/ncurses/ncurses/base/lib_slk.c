@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,1999 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -41,13 +41,13 @@
 #include <ctype.h>
 #include <term.h>	/* num_labels, label_*, plab_norm */
 
-MODULE_ID("$Id: lib_slk.c,v 1.16 1999/03/03 23:44:22 juergen Exp $")
+MODULE_ID("$Id: lib_slk.c,v 1.17 1999/10/30 23:00:16 tom Exp $")
 
 /*
  * We'd like to move these into the screen context structure, but cannot,
  * because slk_init() is called before initscr()/newterm().
  */
-int _nc_slk_format;  /* one more than format specified in slk_init() */
+int _nc_slk_format = 0;  /* one more than format specified in slk_init() */
 
 /*
  * Paint the info line for the PC style SLK emulation.

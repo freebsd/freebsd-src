@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_info.3x,v 1.5 1998/11/29 01:06:24 Rick.Ohnemus Exp $
+.\" $Id: form_field_info.3x,v 1.6 2000/04/15 22:21:31 tom Exp $
 .TH form_field_info 3X ""
 .SH NAME
 \fBform_field_info\fR - retrieve field characteristics
@@ -69,6 +69,10 @@ The header file \fB<form.h>\fR automatically includes the header file
 .SH PORTABILITY
 These routines emulate the System V forms library.  They were not supported on
 Version 7 or BSD versions.
+.PP
+A null (zero pointer) is accepted for any of the return values,
+to ignore that value.
+Not all implementations allow this, e.g., Solaris 2.7 does not.
 .SH AUTHORS
 Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
 S. Raymond.

@@ -13,7 +13,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fty_enum.c,v 1.10 1999/05/16 17:23:14 juergen Exp $")
+MODULE_ID("$Id: fty_enum.c,v 1.11 2000/03/19 01:09:56 Bruno.Haible Exp $")
 
 typedef struct {
   char **kwds;
@@ -225,7 +225,7 @@ static bool Next_Enum(FIELD * field, const void * argp)
     }
   if (cnt<=0)
     kwds = args->kwds;
-  if ((cnt>=0) || (Compare((unsigned char *)dummy,bp,ccase)==EXACT))
+  if ((cnt>=0) || (Compare((const unsigned char *)dummy,bp,ccase)==EXACT))
     {
       set_field_buffer(field,0,*kwds);
       return TRUE;
@@ -261,7 +261,7 @@ static bool Previous_Enum(FIELD * field, const void * argp)
   if (cnt<=0)
     kwds  = &args->kwds[args->count-1];
 
-  if ((cnt>=0) || (Compare((unsigned char *)dummy,bp,ccase)==EXACT))
+  if ((cnt>=0) || (Compare((const unsigned char *)dummy,bp,ccase)==EXACT))
     {
       set_field_buffer(field,0,*kwds);
       return TRUE;

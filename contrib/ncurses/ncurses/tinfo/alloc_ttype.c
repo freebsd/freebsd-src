@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1999,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,7 +30,6 @@
  *  Author: Thomas E. Dickey <dickey@clark.net> 1999                        *
  ****************************************************************************/
 
-
 /*
  * align_ttype.c --  functions for TERMTYPE
  *
@@ -44,14 +43,15 @@
 #include <tic.h>
 #include <term_entry.h>
 
-MODULE_ID("$Id: alloc_ttype.c,v 1.6 1999/03/01 22:10:44 tom Exp $")
+MODULE_ID("$Id: alloc_ttype.c,v 1.8 2000/03/25 17:03:11 tom Exp $")
 
 #if NCURSES_XNAMES
 /*
  * Merge the a/b lists into dst.  Both a/b are sorted (see _nc_extend_names()),
  * so we do not have to worry about order dependencies.
  */
-static int merge_names(char **dst, char **a, int na, char **b, int nb)
+static int
+merge_names(char **dst, char **a, int na, char **b, int nb)
 {
     int n = 0;
     while (na && nb) {
@@ -78,7 +78,8 @@ static int merge_names(char **dst, char **a, int na, char **b, int nb)
     return n;
 }
 
-static bool find_name(char **table, int length, char *name)
+static bool
+find_name(char **table, int length, char *name)
 {
     while (length-- > 0) {
 	if (!strcmp(*table++, name)) {
@@ -90,7 +91,9 @@ static bool find_name(char **table, int length, char *name)
     return FALSE;
 }
 
-static void realign_data(TERMTYPE *to, char **ext_Names, int ext_Booleans, int ext_Numbers, int ext_Strings)
+static void
+realign_data(TERMTYPE * to, char **ext_Names, int ext_Booleans, int
+    ext_Numbers, int ext_Strings)
 {
     int n, m, base;
     int limit = (to->ext_Booleans + to->ext_Numbers + to->ext_Strings);
@@ -98,9 +101,9 @@ static void realign_data(TERMTYPE *to, char **ext_Names, int ext_Booleans, int e
     if (to->ext_Booleans != ext_Booleans) {
 	to->num_Booleans += (ext_Booleans - to->ext_Booleans);
 	to->Booleans = typeRealloc(char, to->num_Booleans, to->Booleans);
-	for (n = to->ext_Booleans-1,
-	     m = ext_Booleans-1,
-	     base = to->num_Booleans - (m+1); m >= 0; m--) {
+	for (n = to->ext_Booleans - 1,
+	    m = ext_Booleans - 1,
+	    base = to->num_Booleans - (m + 1); m >= 0; m--) {
 	    if (find_name(to->ext_Names, limit, ext_Names[m])) {
 		to->Booleans[base + m] = to->Booleans[base + n--];
 	    } else {
@@ -112,24 +115,24 @@ static void realign_data(TERMTYPE *to, char **ext_Names, int ext_Booleans, int e
     if (to->ext_Numbers != ext_Numbers) {
 	to->num_Numbers += (ext_Numbers - to->ext_Numbers);
 	to->Numbers = typeRealloc(short, to->num_Numbers, to->Numbers);
-	for (n = to->ext_Numbers-1,
-	     m = ext_Numbers-1,
-	     base = to->num_Numbers - (m+1); m >= 0; m--) {
-	    if (find_name(to->ext_Names, limit, ext_Names[m+ext_Booleans])) {
+	for (n = to->ext_Numbers - 1,
+	    m = ext_Numbers - 1,
+	    base = to->num_Numbers - (m + 1); m >= 0; m--) {
+	    if (find_name(to->ext_Names, limit, ext_Names[m + ext_Booleans])) {
 		to->Numbers[base + m] = to->Numbers[base + n--];
 	    } else {
 		to->Numbers[base + m] = ABSENT_NUMERIC;
 	    }
 	}
-	to->ext_Numbers  = ext_Numbers;
+	to->ext_Numbers = ext_Numbers;
     }
     if (to->ext_Strings != ext_Strings) {
 	to->num_Strings += (ext_Strings - to->ext_Strings);
-	to->Strings = typeRealloc(char*, to->num_Strings, to->Strings);
-	for (n = to->ext_Strings-1,
-	     m = ext_Strings-1,
-	     base = to->num_Strings - (m+1); m >= 0; m--) {
-	    if (find_name(to->ext_Names, limit, ext_Names[m+ext_Booleans+ext_Numbers])) {
+	to->Strings = typeRealloc(char *, to->num_Strings, to->Strings);
+	for (n = to->ext_Strings - 1,
+	    m = ext_Strings - 1,
+	    base = to->num_Strings - (m + 1); m >= 0; m--) {
+	    if (find_name(to->ext_Names, limit, ext_Names[m + ext_Booleans + ext_Numbers])) {
 		to->Strings[base + m] = to->Strings[base + n--];
 	    } else {
 		to->Strings[base + m] = ABSENT_STRING;
@@ -142,7 +145,8 @@ static void realign_data(TERMTYPE *to, char **ext_Names, int ext_Booleans, int e
 /*
  * Returns the first index in ext_Names[] for the given token-type
  */
-static int _nc_first_ext_name(TERMTYPE *tp, int token_type)
+static int
+_nc_first_ext_name(TERMTYPE * tp, int token_type)
 {
     int first;
 
@@ -166,20 +170,21 @@ static int _nc_first_ext_name(TERMTYPE *tp, int token_type)
 /*
  * Returns the last index in ext_Names[] for the given token-type
  */
-static int _nc_last_ext_name(TERMTYPE *tp, int token_type)
+static int
+_nc_last_ext_name(TERMTYPE * tp, int token_type)
 {
     int last;
 
     switch (token_type) {
     case BOOLEAN:
-	last  = tp->ext_Booleans;
+	last = tp->ext_Booleans;
 	break;
     case NUMBER:
-	last  = tp->ext_Booleans + tp->ext_Numbers;
+	last = tp->ext_Booleans + tp->ext_Numbers;
 	break;
     default:
     case STRING:
-	last  = NUM_EXT_NAMES(tp);
+	last = NUM_EXT_NAMES(tp);
 	break;
     }
     return last;
@@ -188,11 +193,12 @@ static int _nc_last_ext_name(TERMTYPE *tp, int token_type)
 /*
  * Lookup an entry from extended-names, returning -1 if not found
  */
-static int _nc_find_ext_name(TERMTYPE *tp, char *name, int token_type)
+static int
+_nc_find_ext_name(TERMTYPE * tp, char *name, int token_type)
 {
     unsigned j;
     unsigned first = _nc_first_ext_name(tp, token_type);
-    unsigned last  = _nc_last_ext_name(tp, token_type);
+    unsigned last = _nc_last_ext_name(tp, token_type);
 
     for (j = first; j < last; j++) {
 	if (!strcmp(name, tp->ext_Names[j])) {
@@ -206,7 +212,8 @@ static int _nc_find_ext_name(TERMTYPE *tp, char *name, int token_type)
  * Translate an index into ext_Names[] into the corresponding index into data
  * (e.g., Booleans[]).
  */
-static int _nc_ext_data_index(TERMTYPE *tp, int n, int token_type)
+static int
+_nc_ext_data_index(TERMTYPE * tp, int n, int token_type)
 {
     switch (token_type) {
     case BOOLEAN:
@@ -214,12 +221,12 @@ static int _nc_ext_data_index(TERMTYPE *tp, int n, int token_type)
 	break;
     case NUMBER:
 	n += (tp->num_Numbers - tp->ext_Numbers)
-	   - (tp->ext_Booleans);
+	    - (tp->ext_Booleans);
 	break;
     default:
     case STRING:
 	n += (tp->num_Strings - tp->ext_Strings)
-	   - (tp->ext_Booleans + tp->ext_Numbers);
+	    - (tp->ext_Booleans + tp->ext_Numbers);
     }
     return n;
 }
@@ -228,7 +235,8 @@ static int _nc_ext_data_index(TERMTYPE *tp, int n, int token_type)
  * Adjust tables to remove (not free) an extended name and its corresponding
  * data.
  */
-static void _nc_del_ext_name(TERMTYPE *tp, char *name, int token_type)
+static void
+_nc_del_ext_name(TERMTYPE * tp, char *name, int token_type)
 {
     int j;
     int first, last;
@@ -236,28 +244,28 @@ static void _nc_del_ext_name(TERMTYPE *tp, char *name, int token_type)
     if ((first = _nc_find_ext_name(tp, name, token_type)) >= 0) {
 	last = NUM_EXT_NAMES(tp) - 1;
 	for (j = first; j < last; j++) {
-	    tp->ext_Names[j] = tp->ext_Names[j+1];
+	    tp->ext_Names[j] = tp->ext_Names[j + 1];
 	}
 	first = _nc_ext_data_index(tp, first, token_type);
 	switch (token_type) {
 	case BOOLEAN:
 	    last = tp->num_Booleans - 1;
 	    for (j = first; j < last; j++)
-		tp->Booleans[j] = tp->Booleans[j+1];
+		tp->Booleans[j] = tp->Booleans[j + 1];
 	    tp->ext_Booleans -= 1;
 	    tp->num_Booleans -= 1;
 	    break;
 	case NUMBER:
 	    last = tp->num_Numbers - 1;
 	    for (j = first; j < last; j++)
-		tp->Numbers[j] = tp->Numbers[j+1];
+		tp->Numbers[j] = tp->Numbers[j + 1];
 	    tp->ext_Numbers -= 1;
 	    tp->num_Numbers -= 1;
 	    break;
 	case STRING:
 	    last = tp->num_Strings - 1;
 	    for (j = first; j < last; j++)
-		tp->Strings[j] = tp->Strings[j+1];
+		tp->Strings[j] = tp->Strings[j + 1];
 	    tp->ext_Strings -= 1;
 	    tp->num_Strings -= 1;
 	    break;
@@ -269,10 +277,11 @@ static void _nc_del_ext_name(TERMTYPE *tp, char *name, int token_type)
  * Adjust tables to insert an extended name, making room for new data.  The
  * index into the corresponding data array is returned.
  */
-static int _nc_ins_ext_name(TERMTYPE *tp, char *name, int token_type)
+static int
+_nc_ins_ext_name(TERMTYPE * tp, char *name, int token_type)
 {
     unsigned first = _nc_first_ext_name(tp, token_type);
-    unsigned last  = _nc_last_ext_name(tp, token_type);
+    unsigned last = _nc_last_ext_name(tp, token_type);
     unsigned total = NUM_EXT_NAMES(tp) + 1;
     unsigned j, k;
 
@@ -287,8 +296,8 @@ static int _nc_ins_ext_name(TERMTYPE *tp, char *name, int token_type)
     }
 
     tp->ext_Names = typeRealloc(char *, total, tp->ext_Names);
-    for (k = total-1; k > j; k--)
-	tp->ext_Names[k] = tp->ext_Names[k-1];
+    for (k = total - 1; k > j; k--)
+	tp->ext_Names[k] = tp->ext_Names[k - 1];
     tp->ext_Names[j] = name;
     j = _nc_ext_data_index(tp, j, token_type);
 
@@ -297,22 +306,22 @@ static int _nc_ins_ext_name(TERMTYPE *tp, char *name, int token_type)
 	tp->ext_Booleans += 1;
 	tp->num_Booleans += 1;
 	tp->Booleans = typeRealloc(char, tp->num_Booleans, tp->Booleans);
-	for (k = tp->num_Booleans-1; k > j; k--)
-	    tp->Booleans[k] = tp->Booleans[k-1];
+	for (k = tp->num_Booleans - 1; k > j; k--)
+	    tp->Booleans[k] = tp->Booleans[k - 1];
 	break;
     case NUMBER:
 	tp->ext_Numbers += 1;
 	tp->num_Numbers += 1;
 	tp->Numbers = typeRealloc(short, tp->num_Numbers, tp->Numbers);
-	for (k = tp->num_Numbers-1; k > j; k--)
-	    tp->Numbers[k] = tp->Numbers[k-1];
+	for (k = tp->num_Numbers - 1; k > j; k--)
+	    tp->Numbers[k] = tp->Numbers[k - 1];
 	break;
     case STRING:
 	tp->ext_Strings += 1;
 	tp->num_Strings += 1;
 	tp->Strings = typeRealloc(char *, tp->num_Strings, tp->Strings);
-	for (k = tp->num_Strings-1; k > j; k--)
-	    tp->Strings[k] = tp->Strings[k-1];
+	for (k = tp->num_Strings - 1; k > j; k--)
+	    tp->Strings[k] = tp->Strings[k - 1];
 	break;
     }
     return j;
@@ -323,13 +332,14 @@ static int _nc_ins_ext_name(TERMTYPE *tp, char *name, int token_type)
  * as a boolean or number.  We'll get this as a special case when we get a
  * cancellation of a name that is inherited from another entry.
  */
-static void adjust_cancels(TERMTYPE *to, TERMTYPE *from)
+static void
+adjust_cancels(TERMTYPE * to, TERMTYPE * from)
 {
     int first = to->ext_Booleans + to->ext_Numbers;
-    int last  = first + to->ext_Strings;
+    int last = first + to->ext_Strings;
     int j, k;
 
-    for (j = first; j < last; ) {
+    for (j = first; j < last;) {
 	char *name = to->ext_Names[j];
 	unsigned j_str = to->num_Strings - first - to->ext_Strings;
 
@@ -338,7 +348,8 @@ static void adjust_cancels(TERMTYPE *to, TERMTYPE *from)
 		_nc_del_ext_name(to, name, STRING);
 		k = _nc_ins_ext_name(to, name, BOOLEAN);
 		to->Booleans[k] = FALSE;
-	    } else if ((k = _nc_find_ext_name(from, to->ext_Names[j], NUMBER)) >= 0) {
+	    } else if ((k = _nc_find_ext_name(from, to->ext_Names[j],
+		NUMBER)) >= 0) {
 		_nc_del_ext_name(to, name, STRING);
 		k = _nc_ins_ext_name(to, name, NUMBER);
 		to->Numbers[k] = CANCELLED_NUMERIC;
@@ -349,7 +360,8 @@ static void adjust_cancels(TERMTYPE *to, TERMTYPE *from)
     }
 }
 
-void _nc_align_termtype(TERMTYPE *to, TERMTYPE *from)
+void
+_nc_align_termtype(TERMTYPE * to, TERMTYPE * from)
 {
     int na = NUM_EXT_NAMES(to);
     int nb = NUM_EXT_NAMES(from);
@@ -358,13 +370,14 @@ void _nc_align_termtype(TERMTYPE *to, TERMTYPE *from)
     char **ext_Names;
     int ext_Booleans, ext_Numbers, ext_Strings;
 
-    DEBUG(2, ("align_termtype to(%d:%s), from(%d:%s)", na, to->term_names, nb, from->term_names));
+    DEBUG(2, ("align_termtype to(%d:%s), from(%d:%s)", na, to->term_names,
+	    nb, from->term_names));
 
     if (na != 0 || nb != 0) {
 	if ((na == nb)		/* check if the arrays are equivalent */
-	 && (to->ext_Booleans == from->ext_Booleans)
-	 && (to->ext_Numbers  == from->ext_Numbers)
-	 && (to->ext_Strings  == from->ext_Strings)) {
+	    &&(to->ext_Booleans == from->ext_Booleans)
+	    && (to->ext_Numbers == from->ext_Numbers)
+	    && (to->ext_Strings == from->ext_Strings)) {
 	    for (n = 0, same = TRUE; n < na; n++) {
 		if (strcmp(to->ext_Names[n], from->ext_Names[n])) {
 		    same = FALSE;
@@ -380,7 +393,7 @@ void _nc_align_termtype(TERMTYPE *to, TERMTYPE *from)
 	 * into it, updating to's counts for booleans, etc.  Fortunately we do
 	 * this only for the terminfo compiler (tic) and comparer (infocmp).
 	 */
-	ext_Names = typeMalloc(char *, na+nb);
+	ext_Names = typeMalloc(char *, na + nb);
 
 	if (to->ext_Strings && (from->ext_Booleans + from->ext_Numbers))
 	    adjust_cancels(to, from);
@@ -389,62 +402,65 @@ void _nc_align_termtype(TERMTYPE *to, TERMTYPE *from)
 	    adjust_cancels(from, to);
 
 	ext_Booleans = merge_names(ext_Names,
-				    to->ext_Names,
-				    to->ext_Booleans,
-				    from->ext_Names,
-				    from->ext_Booleans);
-	ext_Numbers  = merge_names(ext_Names + ext_Booleans,
-				    to->ext_Names
-				    + to->ext_Booleans,
-				    to->ext_Numbers,
-				    from->ext_Names
-				    + from->ext_Booleans,
-				    from->ext_Numbers);
-	ext_Strings  = merge_names(ext_Names + ext_Numbers + ext_Booleans,
-				    to->ext_Names
-				    + to->ext_Booleans
-				    + to->ext_Numbers,
-				    to->ext_Strings,
-				    from->ext_Names
-				    + from->ext_Booleans
-				    + from->ext_Numbers,
-				    from->ext_Strings);
+	    to->ext_Names,
+	    to->ext_Booleans,
+	    from->ext_Names,
+	    from->ext_Booleans);
+	ext_Numbers = merge_names(ext_Names + ext_Booleans,
+	    to->ext_Names
+	    + to->ext_Booleans,
+	    to->ext_Numbers,
+	    from->ext_Names
+	    + from->ext_Booleans,
+	    from->ext_Numbers);
+	ext_Strings = merge_names(ext_Names + ext_Numbers + ext_Booleans,
+	    to->ext_Names
+	    + to->ext_Booleans
+	    + to->ext_Numbers,
+	    to->ext_Strings,
+	    from->ext_Names
+	    + from->ext_Booleans
+	    + from->ext_Numbers,
+	    from->ext_Strings);
 	/*
 	 * Now we must reallocate the Booleans, etc., to allow the data to be
 	 * overlaid.
 	 */
 	if (na != (ext_Booleans + ext_Numbers + ext_Strings)) {
 	    realign_data(to, ext_Names, ext_Booleans, ext_Numbers, ext_Strings);
-	    free(to->ext_Names);
+	    FreeIfNeeded(to->ext_Names);
 	    to->ext_Names = ext_Names;
-	    DEBUG(2, ("realigned %d extended names for '%s' (to)", NUM_EXT_NAMES(to), to->term_names));
+	    DEBUG(2, ("realigned %d extended names for '%s' (to)",
+		    NUM_EXT_NAMES(to), to->term_names));
 	}
 	if (nb != (ext_Booleans + ext_Numbers + ext_Strings)) {
 	    nb = (ext_Booleans + ext_Numbers + ext_Strings);
 	    realign_data(from, ext_Names, ext_Booleans, ext_Numbers, ext_Strings);
 	    from->ext_Names = typeRealloc(char *, nb, from->ext_Names);
 	    memcpy(from->ext_Names, ext_Names, sizeof(char *) * nb);
-	    DEBUG(2, ("realigned %d extended names for '%s' (from)", NUM_EXT_NAMES(from), from->term_names));
+	    DEBUG(2, ("realigned %d extended names for '%s' (from)",
+		    NUM_EXT_NAMES(from), from->term_names));
 	}
     }
 }
 #endif
 
-void _nc_copy_termtype(TERMTYPE *dst, TERMTYPE *src)
+void
+_nc_copy_termtype(TERMTYPE * dst, TERMTYPE * src)
 {
     int i;
 
-    *dst = *src;	/* ...to copy the sizes and string-tables */
-    dst->Booleans = typeMalloc(char,   NUM_BOOLEANS(dst));
-    dst->Numbers  = typeMalloc(short,  NUM_NUMBERS(dst));
-    dst->Strings  = typeMalloc(char *, NUM_STRINGS(dst));
+    *dst = *src;		/* ...to copy the sizes and string-tables */
+    dst->Booleans = typeMalloc(char, NUM_BOOLEANS(dst));
+    dst->Numbers = typeMalloc(short, NUM_NUMBERS(dst));
+    dst->Strings = typeMalloc(char *, NUM_STRINGS(dst));
 
     /* FIXME: use memcpy for these and similar loops */
-    for_each_boolean(i,dst)
+    for_each_boolean(i, dst)
 	dst->Booleans[i] = src->Booleans[i];
-    for_each_number(i,dst)
+    for_each_number(i, dst)
 	dst->Numbers[i] = src->Numbers[i];
-    for_each_string(i,dst)
+    for_each_string(i, dst)
 	dst->Strings[i] = src->Strings[i];
 
     /* FIXME: we probably should also copy str_table and ext_str_table,
@@ -455,6 +471,8 @@ void _nc_copy_termtype(TERMTYPE *dst, TERMTYPE *src)
     if ((i = NUM_EXT_NAMES(src)) != 0) {
 	dst->ext_Names = typeMalloc(char *, i);
 	memcpy(dst->ext_Names, src->ext_Names, i * sizeof(char *));
+    } else {
+	dst->ext_Names = 0;
     }
 #endif
 

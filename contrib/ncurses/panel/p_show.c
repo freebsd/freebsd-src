@@ -36,32 +36,13 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_show.c,v 1.5 1999/09/29 15:22:32 juergen Exp $")
-
-static void
-panel_link_top(PANEL *pan)
-{
-#ifdef TRACE
-  dStack("<lt%d>",1,pan);
-  if(_nc_panel_is_linked(pan))
-    return;
-#endif
-
-  assert(_nc_bottom_panel == _nc_stdscr_pseudo_panel);
-
-  pan->above = (PANEL *)0;
-  pan->below = (PANEL *)0;
-  
-  _nc_top_panel->above = pan;
-  pan->below = _nc_top_panel;  
-  _nc_top_panel = pan;
-  
-  dStack("<lt%d>",9,pan);
-}
+MODULE_ID("$Id: p_show.c,v 1.7 1999/11/25 13:49:26 juergen Exp $")
 
 int
 show_panel(PANEL *pan)
-{
+{ 
+  int err = OK;
+
   if(!pan)
     return(ERR);
 
@@ -70,10 +51,17 @@ show_panel(PANEL *pan)
 
   dBug(("--> show_panel %s", USER_PTR(pan->user)));
 
-  if(_nc_panel_is_linked(pan))
-    (void)hide_panel(pan);
+  HIDE_PANEL(pan,err,FALSE);
 
-  panel_link_top(pan);
+  dStack("<lt%d>",1,pan);
+  assert(_nc_bottom_panel == _nc_stdscr_pseudo_panel);
+
+  _nc_top_panel->above = pan;
+  pan->below = _nc_top_panel;  
+  pan->above = (PANEL *)0;
+  _nc_top_panel = pan;
+  
+  dStack("<lt%d>",9,pan);
 
   return(OK);
 }
