@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.19 1998/09/15 14:08:34 kato Exp $
+#	$Id: Makefile,v 1.20 1998/11/23 07:34:37 kato Exp $
 #
 
 PROG=	boot
@@ -16,7 +16,8 @@ CFLAGS+=	${CWARNFLAGS}
 
 # By default, if a serial port is going to be used as console, use COM1
 # (aka /dev/ttyd0).
-BOOT_COMCONSOLE_PORT?=0x30
+#BOOT_COMCONSOLE_PORT?=0x30
+BOOT_COMCONSOLE_PORT?=0x238
 BOOT_COMCONSOLE_CLK?=16
 BOOT_COMCONSOLE_MODE=0x0c
 CFLAGS+=	-DCOMCONSOLE=${BOOT_COMCONSOLE_PORT} \
@@ -24,8 +25,8 @@ CFLAGS+=	-DCOMCONSOLE=${BOOT_COMCONSOLE_PORT} \
 		-DCOMCONSOLE_MODE=${BOOT_COMCONSOLE_MODE}
 
 # feature not implemented
-# BOOT_COMCONSOLE_SPEED?=9600
-# CFLAGS+=	-DCONSPEED=${BOOT_COMCONSOLE_SPEED}
+BOOT_COMCONSOLE_SPEED?=9600
+CFLAGS+=	-DCONSPEED=${BOOT_COMCONSOLE_SPEED}
 
 # Enable code to take the default boot string from a fixed location on the
 # disk.  See nextboot(8) and README.386BSD for more info.
