@@ -67,27 +67,27 @@ static char sccsid[] = "@(#)kvm_hp300.c	8.1 (Berkeley) 6/4/93";
 #endif
 
 struct vmstate {
-	struct pde	**IdlePTD;
-	struct pde	*PTD;
+	pd_entry_t	*PTD;
 };
 
-#define KREAD(kd, addr, p)\
-	(kvm_read(kd, addr, (char *)(p), sizeof(*(p))) != sizeof(*(p)))
-
 void
-_kvm_freevtop(kvm_t *kd) {
-	if (kd->vmst->PTD) {
-		free(kd->vmst->PTD);
-	}
+_kvm_freevtop(kvm_t *kd)
+{
 	if (kd->vmst != 0) {
+		if (kd->vmst->PTD) {
+			free(kd->vmst->PTD);
+		}
 		free(kd->vmst);
 	}
 }
 
 int
-_kvm_initvtop(kvm_t *kd) {
+_kvm_initvtop(kvm_t *kd)
+{
 	struct vmstate *vm;
 	struct nlist nlist[2];
+	u_long pa;
+	pd_entry_t	*PTD;
 
 	vm = (struct vmstate *)_kvm_malloc(kd, sizeof(*vm));
 	if (vm == 0) {
@@ -95,6 +95,7 @@ _kvm_initvtop(kvm_t *kd) {
 		return (-1);
 	}
 	kd->vmst = vm;
+	vm->PTD = 0;
 
 	nlist[0].n_name = "_IdlePTD";
 	nlist[1].n_name = 0;
@@ -103,34 +104,78 @@ _kvm_initvtop(kvm_t *kd) {
 		_kvm_err(kd, kd->program, "bad namelist");
 		return (-1);
 	}
-	vm->PTD = 0;
-	vm->IdlePTD = 0;
-	if (KREAD(kd, (u_long)nlist[0].n_value, &vm->IdlePTD)) {
+	if (kvm_read(kd, (nlist[0].n_value - KERNBASE), &pa, sizeof(pa)) != sizeof(pa)) {
 		_kvm_err(kd, kd->program, "cannot read IdlePTD");
 		return (-1);
 	}
-	if ((vm->PTD = _kvm_malloc(kd, PAGE_SIZE /*sizeof(struct pde)*/)) != 0) {
-		_kvm_err(kd, kd->program, "cannot allocate vm->PTD");
-	}
-	if (KREAD(kd, (u_long)nlist[1].n_value, &vm->PTD)) {
+	PTD = _kvm_malloc(kd, PAGE_SIZE);
+	if (kvm_read(kd, pa, PTD, PAGE_SIZE) != PAGE_SIZE) {
 		_kvm_err(kd, kd->program, "cannot read PTD");
 		return (-1);
 	}
+	vm->PTD = PTD;
 	return (0);
 }
 
 static int
-_kvm_vatop(kvm_t *kd, u_long va, u_long *pa) {
+_kvm_vatop(kvm_t *kd, u_long va, u_long *pa)
+{
+	struct vmstate *vm;
+	u_long offset;
+	u_long pte_pa;
+	pd_entry_t pde;
+	pt_entry_t pte;
+	u_long pdeindex;
+	u_long pteindex;
+	int i;
 
 	if (ISALIVE(kd)) {
 		_kvm_err(kd, 0, "vatop called in live kernel!");
 		return((off_t)0);
 	}
+
+	vm = kd->vmst;
+	offset = va & (PAGE_SIZE - 1);
+
+	/*
+	 * If we are initializing (kernel page table descriptor pointer
+	 * not yet set) then return pa == va to avoid infinite recursion.
+	 */
+	if (vm->PTD == 0) {
+		*pa = va;
+		return (PAGE_SIZE - offset);
+	}
+
+	pdeindex = va >> PDRSHIFT;
+	pde = vm->PTD[pdeindex];
+	if (((u_long)pde & PG_V) == 0)
+		goto invalid;
+
+	pteindex = (va >> PAGE_SHIFT) & (NPTEPG-1);
+	pte_pa = ((u_long)pde & PG_FRAME) + (pteindex * sizeof(pt_entry_t));
+
+	/* XXX This has to be a physical address read, kvm_read is virtual */
+	if (lseek(kd->pmfd, pte_pa, 0) == -1) {
+		_kvm_syserr(kd, kd->program, "_kvm_vatop: lseek");
+		goto invalid;
+	}
+	if (read(kd->pmfd, &pte, sizeof pte) != sizeof pte) {
+		_kvm_syserr(kd, kd->program, "_kvm_vatop: read");
+		goto invalid;
+	}
+	if (((u_long)pte & PG_V) == 0)
+		goto invalid;
+
+	*pa = ((u_long)pte & PG_FRAME) + offset;
+	return (PAGE_SIZE - offset);
+
+invalid:
 	_kvm_err(kd, 0, "invalid address (%x)", va);
-	return ((off_t)0);
+	return (0);
 }
 
 int
-_kvm_kvatop(kvm_t *kd, u_long va, u_long *pa) {
+_kvm_kvatop(kvm_t *kd, u_long va, u_long *pa)
+{
 	return (_kvm_vatop(kd, va, pa));
 }
