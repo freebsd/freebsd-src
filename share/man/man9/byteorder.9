@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 5, 2002
+.Dd April 29, 2002
 .Dt BYTEORDER 9
 .Os
 .Sh NAME
@@ -42,7 +42,13 @@
 .Nm le64toh
 .Nd convert values between big endian, little endian, and host byte order
 .Sh SYNOPSIS
-.In sys/param.h
+.In sys/endian.h
+.Ft uint16_t
+.Fn bswap16 "uint16_t int16"
+.Ft uint32_t
+.Fn bswap32 "uint32_t int32"
+.Ft uint64_t
+.Fn bswap64 "uint64_t int64"
 .Ft uint16_t
 .Fn be16toh "uint16_t big16"
 .Ft uint32_t
@@ -68,6 +74,15 @@
 .Ft uint64_t
 .Fn le64toh "uint64_t little64"
 .Sh DESCRIPTION
+The
+.Fn bswap16 ,
+.Fn bswap32 ,
+and
+.Fn bswap64
+functions return a byte order swapped integer.
+On big endian systems, the number is converted to little endian byte order.
+On little endian systems, the number is converted to big endian byte order.
+.Pp
 The
 .Fn be16toh ,
 .Fn be32toh ,
