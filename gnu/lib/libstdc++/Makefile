@@ -27,8 +27,8 @@ DPADD+=		${LIBM}
 # libstdc++ sources (libstdc++/src/Makefile.in, do not reorder)
 SRCS+=	globals.cc limits.cc basic_file_stdio.cc complex_io.cc ios.cc \
 	strstream-fixed.cc cmath.cc bitset.cc functexcept.cc stdexcept.cc \
-	vterminate.cc c_locale.cc locale.cc localename.cc codecvt.cc \
-	collate_members.cc ctype_members.cc messages_members.cc \
+	vterminate.cc ctype.cc c_locale.cc locale.cc localename.cc codecvt.cc \
+	codecvt_members.cc collate_members.cc ctype_members.cc messages_members.cc \
 	monetary_members.cc numeric_members.cc time_members.cc concept-inst.cc \
 	locale-inst.cc misc-inst.cc stl-inst.cc string-inst.cc wstring-inst.cc \
 	valarray-inst.cc ext-inst.cc fstream.cc fstream-inst.cc io-inst.cc \
@@ -123,6 +123,7 @@ STDHDRSDIR=	${INCLUDEDIR}/g++
 
 TARGETHDRS=	io/basic_file_stdio.h io/c_io_stdio.h \
 		locale/generic/c_locale.h \
+		locale/generic/c++locale_internal.h \
 		locale/generic/codecvt_specializations.h \
 		locale/generic/messages_members.h \
 		os/bsd/freebsd/bits/ctype_base.h \
