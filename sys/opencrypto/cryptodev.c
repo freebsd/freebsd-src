@@ -777,7 +777,6 @@ cryptoioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread 
 	return (error);
 }
 
-#define	CRYPTO_MAJOR	70		/* from openbsd */
 static struct cdevsw crypto_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	D_NEEDGIANT,
@@ -786,7 +785,6 @@ static struct cdevsw crypto_cdevsw = {
 	.d_write =	cryptowrite,
 	.d_ioctl =	cryptoioctl,
 	.d_name =	"crypto",
-	.d_maj =	CRYPTO_MAJOR,
 };
 static struct cdev *crypto_dev;
 

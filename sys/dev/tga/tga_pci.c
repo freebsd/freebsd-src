@@ -105,7 +105,6 @@ static struct cdevsw tga_cdevsw = {
 	.d_ioctl =	pcigfb_ioctl,
 	.d_mmap =	pcigfb_mmap,
 	.d_name =	"tga",
-	.d_maj =	-1,
 };
 
 #endif /* FB_INSTALL_CDEV */

@@ -42,7 +42,6 @@
 74	*ccd		concatenated disk
 76	scc		IBM Smart Capture Card (ohashi@mickey.ai.kyutech.ac.jp)
 77	-		-
-78	pci		PCI bus
 79	*ipl		IP Filter
 80	xdcp		Assigned to Chris Ficklin <chris@serengeti.com>
 83	can		CAN16-2 CAN-PC Interface
