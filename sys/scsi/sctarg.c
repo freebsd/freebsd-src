@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: sctarg.c,v 1.2 1995/05/03 18:09:15 dufault Exp $
+ *      $Id: sctarg.c,v 1.3 1995/05/30 08:13:49 rgrimes Exp $
  */
 
 /*
@@ -62,7 +62,7 @@ struct scsi_data {
 
 errval sctarg_open(dev_t dev, int flags, int fmt, struct proc *p,
 struct scsi_link *sc_link);
-void sctargstart(u_int32 unit);
+void sctargstart(u_int32 unit, u_int32 unused_flags);
 errval sctarg_close(dev_t dev, int flag, int fmt, struct proc *p,
         struct scsi_link *sc_link);
 void sctarg_strategy(struct buf *bp, struct scsi_link *sc_link);
@@ -157,8 +157,9 @@ struct scsi_link *sc_link)
  * sctargstart() is called at splbio
  */
 void
-sctargstart(unit)
+sctargstart(unit, unused_flags)
 	u_int32	unit;
+	u_int32	unused_flags;
 {
 	struct scsi_link *sc_link = SCSI_LINK(&sctarg_switch, unit);
 	struct scsi_data *sctarg = sc_link->sd;
@@ -264,7 +265,7 @@ sctarg_strategy(struct buf *bp, struct scsi_link *sc_link)
 	 * not doing anything, otherwise just wait for completion
 	 * (All a bit silly if we're only allowing 1 open but..)
 	 */
-	sctargstart(unit);
+	sctargstart(unit, 0);
 
 	splx(opri);
 	return;
