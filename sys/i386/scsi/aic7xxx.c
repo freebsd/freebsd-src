@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.38 1995/09/05 23:52:02 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.39 1995/10/26 23:57:16 gibbs Exp $
  */
 /*
  * TODO:
@@ -158,9 +158,9 @@ struct scsi_device ahc_dev =
 #define		DFPEXP		0x40
 #define		ULTRAEN		0x20
 #define		CLRSTCNT	0x10
-#define		SPIOEN		0x80
-#define		SCAMEN		0x40
-#define		CLRCHN		0x20
+#define		SPIOEN		0x08
+#define		SCAMEN		0x04
+#define		CLRCHN		0x02
 /*  UNUSED			0x01 */
 
 /*
