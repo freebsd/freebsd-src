@@ -272,7 +272,7 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4: building libraries"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${WMAKE} -DNOHTML -DNOINFO -DNOMAN libraries
+	cd ${.CURDIR}; ${WMAKE} -DNOHTML -DNOINFO -DNOMAN -DNOFSCHG libraries
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4: make dependencies"
