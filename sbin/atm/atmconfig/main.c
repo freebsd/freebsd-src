@@ -35,7 +35,9 @@ __FBSDID("$FreeBSD$");
 #include <stdarg.h>
 #include <ctype.h>
 #include <limits.h>
-#include <inttypes.h>
+#include <stdint.h>
+#include <fnmatch.h>
+#include <dirent.h>
 #include "atmconfig.h"
 #include "private.h"
 
@@ -69,61 +71,276 @@ substr(const char *s1, const char *s2)
 }
 
 /*
+ * Current help file state
+ */
+struct help_file {
+	int	file_state;	/* 0:looking for main file, 1:found, 2:other */
+	const char *p_start;	/* current path pointer */
+	const char *p_end;	/* end of current path in path */
+	char	*dirname;	/* directory name */
+	DIR	*dir;		/* open directory */
+	char	*fname;		/* current filename */
+	FILE	*fp;		/* open file */
+	char	line[LINE_MAX];	/* current line */
+	u_int	fcnt;		/* count of files found */
+};
+
+struct help_pos {
+	off_t	pos;		/* file position */
+	u_int	fcnt;		/* number of file */
+	char	*fname;		/* name of file */
+	const char *p_start;	/* current path pointer */
+	const char *p_end;	/* end of current path in path */
+};
+
+static int
+help_next_file(struct help_file *hp)
+{
+	const char *fpat;
+	struct dirent *ent;
+
+	if (hp->file_state == 3)
+		return (-1);
+
+	if (hp->file_state == 0)
+		fpat = FILE_HELP;
+	else
+		fpat = FILE_HELP_OTHERS;
+
+	if (hp->file_state == 0 || hp->file_state == 1) {
+		/* start from beginning */
+		hp->p_start = PATH_HELP;
+		hp->file_state++;
+	}
+
+  try_file:
+	if (hp->dir != NULL) {
+		/* directory open (must be state 2) */
+		while ((ent = readdir(hp->dir)) != NULL) {
+			if (fnmatch(fpat, ent->d_name, FNM_NOESCAPE) != 0)
+				continue;
+			if (asprintf(&hp->fname, "%s/%s", hp->dirname,
+			    ent->d_name) == -1)
+				err(1, NULL);
+			if ((hp->fp = fopen(hp->fname, "r")) != NULL) {
+				hp->fcnt++;
+				return (0);
+			}
+			free(hp->fname);
+		}
+		/* end of directory */
+		closedir(hp->dir);
+		hp->dir = NULL;
+		free(hp->dirname);
+		goto next_path;
+	}
+
+	/* nothing open - advanc to new path element */
+  try_path:
+	for (hp->p_end = hp->p_start; *hp->p_end != '\0' &&
+	    *hp->p_end != ':'; hp->p_end++)
+		;
+
+	if (asprintf(&hp->dirname, "%.*s", (int)(hp->p_end - hp->p_start),
+	    hp->p_start) == -1)
+		err(1, NULL);
+
+	if (hp->file_state == 1) {
+		/* just try to open */
+		if (asprintf(&hp->fname, "%s/%s", hp->dirname, fpat) == -1)
+			err(1, NULL);
+		if ((hp->fp = fopen(hp->fname, "r")) != NULL) {
+			hp->fcnt++;
+			return (0);
+		}
+		free(hp->fname);
+
+		goto next_path;
+	}
+
+	/* open directory */
+	if ((hp->dir = opendir(hp->dirname)) != NULL)
+		goto try_file;
+
+	free(hp->dirname);
+
+  next_path:
+	hp->p_start = hp->p_end;
+	if (*hp->p_start == '\0') {
+		/* end of path */
+		if (hp->file_state == 1)
+			errx(1, "help file not found");
+		return (-1);
+	}
+	hp->p_start++;
+	goto try_path;
+
+}
+
+/*
+ * Save current file position
+ */
+static void
+help_file_tell(struct help_file *hp, struct help_pos *pos)
+{
+	if (pos->fname != NULL)
+		free(pos->fname);
+	if ((pos->fname = strdup(hp->fname)) == NULL)
+		err(1, NULL);
+	pos->fcnt = hp->fcnt;
+	pos->p_start = hp->p_start;
+	pos->p_end = hp->p_end;
+	if ((pos->pos = ftello(hp->fp)) == -1)
+		err(1, "%s", pos->fname);
+}
+
+/*
+ * Go to that position
+ *
+ * We can go either to the original help file or back in the current file.
+ */
+static void
+help_file_seek(struct help_file *hp, struct help_pos *pos)
+{
+	hp->p_start = pos->p_start;
+	hp->p_end = pos->p_end;
+	hp->fcnt = pos->fcnt;
+
+	if (hp->dir != NULL) {
+		free(hp->dirname);
+		closedir(hp->dir);
+		hp->dir = NULL;
+	}
+
+	if (hp->fp != NULL &&strcmp(hp->fname, pos->fname) != 0) {
+		free(hp->fname);
+		fclose(hp->fp);
+		hp->fp = NULL;
+	}
+	if (hp->fp == NULL) {
+		if ((hp->fname = strdup(pos->fname)) == NULL)
+			err(1, NULL);
+		if ((hp->fp = fopen(hp->fname, "r")) == NULL)
+			err(1, "reopen %s", hp->fname);
+	}
+	if (fseeko(hp->fp, pos->pos, SEEK_SET) == -1)
+		err(1, "seek %s", hp->fname);
+
+	if (pos->fcnt == 1)
+		/* go back to state 1 */
+		hp->file_state = 1;
+	else
+		/* lock */
+		hp->file_state = 3;
+}
+
+/*
+ * Rewind to position 0
+ */
+static void
+help_file_rewind(struct help_file *hp)
+{
+
+	if (hp->file_state == 1) {
+		if (fseeko(hp->fp, (off_t)0, SEEK_SET) == -1)
+			err(1, "rewind help file");
+		return;
+	}
+
+	if (hp->dir != NULL) {
+		free(hp->dirname);
+		closedir(hp->dir);
+		hp->dir = NULL;
+	}
+
+	if (hp->fp != NULL) {
+		free(hp->fname);
+		fclose(hp->fp);
+		hp->fp = NULL;
+	}
+	memset(hp, 0, sizeof(*hp));
+}
+
+/*
+ * Get next line from a help file
+ */
+static const char *
+help_next_line(struct help_file *hp)
+{
+	for (;;) {
+		if (hp->fp != NULL) {
+			if (fgets(hp->line, sizeof(hp->line), hp->fp) != NULL)
+				return (hp->line);
+			if (ferror(hp->fp))
+				err(1, "%s", hp->fname);
+			free(hp->fname);
+
+			fclose(hp->fp);
+			hp->fp = NULL;
+		}
+		if (help_next_file(hp) == -1)
+			return (NULL);
+	}
+	
+}
+
+/*
+ * This function prints the available 0-level help topics from all
+ * other help files by scanning the files. It assumes, that this is called
+ * only from the main help file.
+ */
+static void
+help_get_0topics(struct help_file *hp)
+{
+	struct help_pos save;
+	const char *line;
+
+	memset(&save, 0, sizeof(save));
+	help_file_tell(hp, &save);
+
+	help_file_rewind(hp);
+	while ((line = help_next_line(hp)) != NULL) {
+		if (line[0] == '^' && line[1] == '^')
+			printf("%s", line + 2);
+	}
+	help_file_seek(hp, &save);
+}
+
+/*
  * Function to print help. The help argument is in argv[0] here.
  */
 static void
 help_func(int argc, char *argv[])
 {
-	FILE *hp;
-	const char *start, *end;
-	char *fname;
-	off_t match, last_match;
-	char line[LINE_MAX];
+	struct help_file hfile;
+	struct help_pos match, last_match;
+	const char *line;
 	char key[100];
-	int level, i;
+	int level;
+	int i, has_sub_topics;
 
-	/*
-	 * Find the help file
-	 */
-	hp = NULL;
-	for (start = PATH_HELP; *start != '\0'; start = end + 1) {
-		for (end = start; *end != ':' && *end != '\0'; end++)
-			;
-		if (start == end) {
-			if (asprintf(&fname, "%s", FILE_HELP) == -1)
-				err(1, NULL);
-		} else {
-			if (asprintf(&fname, "%.*s/%s", (int)(end - start),
-			    start, FILE_HELP) == -1)
-				err(1, NULL);
-		}
-		if ((hp = fopen(fname, "r")) != NULL)
-			break;
-		free(fname);
-	}
-	if (hp == NULL)
-		errx(1, "help file not found");
+	memset(&hfile, 0, sizeof(hfile));
+	memset(&match, 0, sizeof(match));
+	memset(&last_match, 0, sizeof(last_match));
 
 	if (argc == 0) {
+		/* only 'help' - show intro */
 		if ((argv[0] = strdup("intro")) == NULL)
 			err(1, NULL);
 		argc = 1;
 	}
 
 	optind = 0;
-	match = -1;
-	last_match = -1;
+	match.pos = -1;
+	last_match.pos = -1;
 	for (;;) {
 		/* read next line */
-		if (fgets(line, sizeof(line), hp) == NULL) {
-			if (ferror(hp))
-				err(1, fname);
+		if ((line = help_next_line(&hfile)) == NULL) {
 			/* EOF */
-			clearerr(hp);
 			level = 999;
 			goto stop;
 		}
-		if (line[0] != '^')
+		if (line[0] != '^' || line[1] == '^')
 			continue;
 
 		if (sscanf(line + 1, "%d%99s", &level, key) != 2)
@@ -132,15 +349,15 @@ help_func(int argc, char *argv[])
 		if (level < optind) {
   stop:
 			/* next higher level entry - stop this level */
-			if (match == -1) {
+			if (match.pos == -1) {
 				/* not found */
 				goto not_found;
 			}
 			/* go back to the match */
-			if (fseeko(hp, match, SEEK_SET) == -1)
-				err(1, fname);
+			help_file_seek(&hfile, &match);
 			last_match = match;
-			match = -1;
+			memset(&match, 0, sizeof(match));
+			match.pos = -1;
 
 			/* go to next key */
 			if (++optind >= argc)
@@ -148,33 +365,31 @@ help_func(int argc, char *argv[])
 		}
 		if (level == optind) {
 			if (substr(argv[optind], key)) {
-				if (match != -1) {
+				if (match.pos != -1) {
 					printf("Ambiguous topic.");
 					goto list_topics;
 				}
-				if ((match = ftello(hp)) == -1)
-					err(1, fname);
+				help_file_tell(&hfile, &match);
 			}
 		}
 	}
-	if (last_match == -1) {
-		if (fseek(hp, 0L, SEEK_SET) == -1)
-			err(1, fname);
-	} else {
-		if (fseeko(hp, last_match, SEEK_SET) == -1)
-			err(1, fname);
-	}
 
+	/* before breaking above we have seeked back to the matching point */
 	for (;;) {
-		if (fgets(line, sizeof(line), hp) == NULL) {
-			if (ferror(hp))
-				err(1, fname);
+		if ((line = help_next_line(&hfile)) == NULL)
 			break;
-		}
+
 		if (line[0] == '#')
 			continue;
-		if (line[0] == '^')
+		if (line[0] == '^') {
+			if (line[1] == '^')
+				continue;
 			break;
+		}
+		if (strncmp(line, "$MAIN", 5) == 0) {
+			help_get_0topics(&hfile);
+			continue;
+		}
 		printf("%s", line);
 	}
 
@@ -184,27 +399,22 @@ help_func(int argc, char *argv[])
 	printf("Topic not found.");
 
   list_topics:
-	printf(" Use one of:\natmconfig");
+	printf(" Use one of:\natmconfig help");
 	for (i = 0; i < optind; i++)
 		printf(" %s", argv[i]);
-	printf(" [");
-	/* list all the keys at this level */
-	if (last_match == -1) {
-		if (fseek(hp, 0L, SEEK_SET) == -1)
-			err(1, fname);
-	} else {
-		if (fseeko(hp, last_match, SEEK_SET) == -1)
-			err(1, fname);
-	}
 
-	for (;;) {
-		/* read next line */
-		if (fgets(line, sizeof(line), hp) == NULL) {
-			if (ferror(hp))
-				err(1, fname);
-			break;
-		}
-		if (line[0] == '#' || line[0] != '^')
+	printf(" [");
+
+	/* list all the keys at this level */
+	if (last_match.pos == -1)
+		/* go back to start of help */
+		help_file_rewind(&hfile);
+	else
+		help_file_seek(&hfile, &last_match);
+
+	has_sub_topics = 0;
+	while ((line = help_next_line(&hfile)) != NULL) {
+		if (line[0] == '#' || line[0] != '^' || line[1] == '^')
 			continue;
 
 		if (sscanf(line + 1, "%d%99s", &level, key) != 2)
@@ -212,10 +422,15 @@ help_func(int argc, char *argv[])
 
 		if (level < optind)
 			break;
-		if (level == optind)
+		if (level == optind) {
+			has_sub_topics = 1;
 			printf(" %s", key);
+		}
 	}
-	printf(" ]\n");
+	printf(" ].");
+	if (!has_sub_topics)
+		printf(" No sub-topics found.");
+	printf("\n");
 	exit(1);
 }
 
