@@ -52,20 +52,24 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-int rm_path(char *);
-void usage(void);
+static int rm_path(char *);
+static void usage(void);
+
+static int pflag;
+static int vflag;
 
 int
 main(int argc, char *argv[])
 {
 	int ch, errors;
-	int pflag;
 
-	pflag = 0;
-	while ((ch = getopt(argc, argv, "p")) != -1)
+	while ((ch = getopt(argc, argv, "pv")) != -1)
 		switch(ch) {
 		case 'p':
 			pflag = 1;
+			break;
+		case 'v':
+			vflag = 1;
 			break;
 		case '?':
 		default:
@@ -78,17 +82,22 @@ main(int argc, char *argv[])
 		usage();
 
 	for (errors = 0; *argv; argv++) {
-		if (rmdir(*argv) < 0) {
-			warn("%s", *argv);
-			errors = 1;
-		} else if (pflag)
+		if (pflag) {
 			errors |= rm_path(*argv);
+		} else {
+			if (rmdir(*argv) < 0) {
+				warn("%s", *argv);
+				errors = 1;
+			}
+			if (vflag)
+				printf("%s\n", *argv);
+		}
 	}
 
 	exit(errors);
 }
 
-int
+static int
 rm_path(char *path)
 {
 	char *p;
@@ -107,12 +116,14 @@ rm_path(char *path)
 			warn("%s", path);
 			return (1);
 		}
+		if (vflag)
+			printf("%s\n", path);
 	}
 
 	return (0);
 }
 
-void
+static void
 usage(void)
 {
 
