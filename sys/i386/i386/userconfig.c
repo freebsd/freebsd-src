@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.37 1995/11/20 12:10:06 phk Exp $
+ **      $Id: userconfig.c,v 1.38 1995/12/03 18:46:49 bde Exp $
  **/
 
 /**
@@ -2143,7 +2143,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.37 1995/11/20 12:10:06 phk Exp $
+ *      $Id: userconfig.c,v 1.38 1995/12/03 18:46:49 bde Exp $
  */
 
 
@@ -2183,7 +2183,7 @@ static struct isa_device *search_devtable(struct isa_device *, char *, int);
 static void cngets(char *, int);
 static Cmd *parse_cmd(char *);
 static int parse_args(char *, CmdParm *);
-unsigned long strtoul(const char *, char **, int);
+static unsigned long strtoul(const char *, char **, int);
 static int save_dev(struct isa_device *);
 
 static int list_devices(CmdParm *);
@@ -2603,7 +2603,7 @@ static int errno;
  * Ignores `locale' stuff.  Assumes that the upper and lower case
  * alphabets and digits are each contiguous.
  */
-unsigned long
+static unsigned long
 strtoul(nptr, endptr, base)
 	const char *nptr;
 	char **endptr;

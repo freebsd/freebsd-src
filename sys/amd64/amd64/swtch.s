@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.21 1995/09/03 20:39:19 dyson Exp $
+ *	$Id: swtch.s,v 1.22 1995/12/09 20:40:41 phk Exp $
  */
 
 #include "npx.h"	/* for NNPX */
@@ -66,8 +66,6 @@ _whichrtqs:	.long	0			/* which realtime run queues have data */
 _whichidqs:	.long	0			/* which idletime run queues have data */
 
 	.globl	_qs,_cnt,_panic
-	.comm	_noproc,4
-	.comm	_runrun,4
 
 	.globl	_want_resched
 _want_resched:	.long	0			/* we need to re-run the scheduler */
