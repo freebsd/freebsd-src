@@ -692,7 +692,6 @@ net/slcompress.c		optional i4bipr
 i4b/driver/i4b_ctl.c		count i4bctl
 i4b/driver/i4b_ing.c		count i4bing
 i4b/driver/i4b_isppp.c		count i4bisppp
-i4b/driver/i4b_ispppsubr.c	optional i4bisppp
 net/slcompress.c		optional i4bisppp
 #
 # isdn4bsd CAPI driver
