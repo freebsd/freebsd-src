@@ -189,7 +189,9 @@ Variables which
 thinks should have a decodeable value but didn't are marked with a
 trailing
 .Qq ? Ns .
-.It Ic debug Ar more | Ar less | Ar off
+.It Ic debug Xo
+.Ar more | Ar less | Ar off
+.Xc
 Turn internal query program debugging on and off.
 .It Ic delay Ar milliseconds
 Specify a time interval to be added to timestamps included in requests
@@ -226,7 +228,10 @@ This command allows the specification of a key number to be used to
 authenticate configuration requests.
 This must correspond to a key
 number the server has been configured to use for this purpose.
-.It Ic ntpversion Ar 1 | Ar 2 | Ar 3 | Ar 4
+.It Ic ntpversion Xo
+.Ar 1 | Ar 2 |
+.Ar 3 | Ar 4
+.Xc
 Set the NTP version number which
 .Nm
 claims in packets.
