@@ -31,12 +31,14 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.3 1994/04/02 07:00:27 davidg Exp $
+ *	$Id: microtime.s,v 1.4 1994/05/02 09:44:20 sos Exp $
  */
 
 #include "machine/asmacros.h"
 #include "../isa/isa.h"
 #include "../isa/timerreg.h"
+
+	.extern _pentium_mhz
 
 /*
  * Use a higher resolution version of microtime if HZ is not
@@ -49,6 +51,22 @@ ENTRY(microtime)
 	pushl %ebx
 
 	movl 	$_time, %ebx		# get timeval ptr
+	
+#if defined(I586_CPU)
+	movl _pentium_mhz, %ecx
+	orl %ecx, %ecx
+	jz 0f
+
+	cli
+	.byte 0x0f, 0x31	/* RDTSC */
+	idivl _pentium_mhz	/* get value in usec */
+	movl 4(%ebx), %esi
+	movl (%ebx), %edi
+	sti
+	jmp 4f
+#endif /* Pentium code */	
+#if defined(I386_CPU) || defined(I486_CPU)
+0:			
 	movl	(%ebx), %edi		# sec = time.tv_sec
 	movl	4(%ebx), %esi		# usec = time.tv_usec
 
@@ -119,7 +137,8 @@ ENTRY(microtime)
 	movl	$0, %edx	# zero extend eax into edx for div
 	movl	$1193, %ecx
 	idivl	%ecx		# convert to usecs: mult by 1000/1193
-
+#endif /* maybe i386 or i486 */
+4:	
 	addl	%eax, %esi	# add counter usecs to time.tv_usec
 	cmpl	$1000000, %esi	# carry in timeval?
 	jl	2f
@@ -134,4 +153,4 @@ ENTRY(microtime)
 	popl	%esi
 	popl	%edi
 	ret
-#endif
+#endif /* normal value of HZ */
