@@ -109,7 +109,7 @@ static in_addr_t	choose_ipaddr(in_addr_t **, in_addr_t, in_addr_t);
 static char	*eatoa(u_char *);
 static int	expand_syslog_m(const char *fmt, char **newfmt);
 static void	init(char *);
-static void	init_one(struct ifaddrs *, char *);
+static void	init_one(struct ifaddrs *, char *, int);
 static char	*intoa(in_addr_t);
 static in_addr_t	ipaddrtonetmask(in_addr_t);
 static void	logmsg(int, const char *, ...) __printflike(2, 3);
@@ -200,15 +200,19 @@ main(int argc, char *argv[])
  * Add to the interface list.
  */
 static void
-init_one(struct ifaddrs *ifa, char *target)
+init_one(struct ifaddrs *ifa, char *target, int pass1)
 {
-	struct if_info *ii;
+	struct if_info *ii, *ii2;
 	struct sockaddr_dl *ll;
 	int family;
 
 	family = ifa->ifa_addr->sa_family;
 	switch (family) {
 	case AF_INET:
+		if (pass1)
+			/* Consider only AF_LINK during pass1. */
+			return;
+		/* FALLTHROUGH */
 	case AF_LINK:
 		if (!(ifa->ifa_flags & IFF_UP) ||
 		    (ifa->ifa_flags & (IFF_LOOPBACK | IFF_POINTOPOINT)))
@@ -227,6 +231,10 @@ init_one(struct ifaddrs *ifa, char *target)
 		if (strcmp(ifa->ifa_name, ii->ii_ifname) == 0)
 			break;
 
+	if (pass1 && ii != NULL)
+		/* We've already seen that interface once. */
+		return;
+
 	/* Allocate a new one if not found */
 	if (ii == NULL) {
 		ii = (struct if_info *)malloc(sizeof(*ii));
@@ -239,6 +247,24 @@ init_one(struct ifaddrs *ifa, char *target)
 		strlcpy(ii->ii_ifname, ifa->ifa_name, sizeof(ii->ii_ifname));
 		ii->ii_next = iflist;
 		iflist = ii;
+	} else if (!pass1 && ii->ii_ipaddr != 0) {
+		/*
+		 * Second AF_INET definition for that interface: clone
+		 * the existing one, and work on that cloned one.
+		 * This must be another IP address for this interface,
+		 * so avoid killing the previous configuration.
+		 */
+		ii2 = (struct if_info *)malloc(sizeof(*ii2));
+		if (ii2 == NULL) {
+			logmsg(LOG_ERR, "malloc: %m");
+			exit(1);
+		}
+		memcpy(ii2, ii, sizeof(*ii2));
+		ii2->ii_fd = -1;
+		ii2->ii_next = iflist;
+		iflist = ii2;
+
+		ii = ii2;
 	}
 
 	switch (family) {
@@ -275,8 +301,18 @@ init(char *target)
 		logmsg(LOG_ERR, "getifaddrs: %m");
 		exit(1);
 	}
+	/*
+	 * We make two passes over the list we have got.  In the first
+	 * one, we only collect AF_LINK interfaces, and initialize our
+	 * list of interfaces from them.  In the second pass, we
+	 * collect the actual IP addresses from the AF_INET
+	 * interfaces, and allow for the same interface name to appear
+	 * multiple times (in case of more than one IP address).
+	 */
 	for (ifa = ifhead; ifa != NULL; ifa = ifa->ifa_next)
-		init_one(ifa, target);
+		init_one(ifa, target, 1);
+	for (ifa = ifhead; ifa != NULL; ifa = ifa->ifa_next)
+		init_one(ifa, target, 0);
 	freeifaddrs(ifhead);
 
 	/* Throw away incomplete interfaces */
