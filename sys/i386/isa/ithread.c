@@ -220,6 +220,7 @@ ithd_loop(void *dummy)
 		 * lock.  This may take a while and it_need may get
 		 * set again, so we have to check it again.
 		 */
+		mtx_assert(&Giant, MA_NOTOWNED);
 		mtx_enter(&sched_lock, MTX_SPIN);
 		if (!me->it_need) {
 
