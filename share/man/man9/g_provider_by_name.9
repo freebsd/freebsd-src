@@ -29,7 +29,7 @@
 .Os
 .Sh NAME
 .Nm g_provider_by_name
-.Nd "find provider with given name"
+.Nd "find GEOM provider with given name"
 .Sh SYNOPSIS
 .In geom/geom.h
 .Ft "struct g_provider *"
@@ -37,7 +37,7 @@
 .Sh DESCRIPTION
 The
 .Fn g_provider_by_name
-searches for a provider called
+function searches for a provider called
 .Fa name
 and returns the structure
 .Fa g_provider

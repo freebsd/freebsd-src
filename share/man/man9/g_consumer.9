@@ -38,34 +38,34 @@
 .Ft void
 .Fn g_destroy_consumer "struct g_consumer *cp"
 .Sh DESCRIPTION
-The GEOM consumer is the backdoor through which a geom connects to
+A GEOM consumer is the backdoor through which a geom connects to
 another GEOM provider and through which I/O requests are sent.
 .Pp
 The
 .Fn g_new_consumer
-function creates a new consumer releated to geom
+function creates a new consumer on geom
 .Fa gp .
-The consumer is unusable prior attaching to a provider and gaining access
-to it.
-To serve its purpose, the consumer has to be attached to a provider
-with the
+Before using the new consumer, it has to be attached to a provider with
 .Xr g_attach 9
-function.
+and opened with
+.Xr g_access 9 .
 .Pp
 The
 .Fn g_destroy_consumer
-function destroys given consumer and cancels all related pending events.
+function destroys the given consumer and cancels all related pending events.
 This function is the last stage of killing an unwanted consumer.
 .Pp
 .Sh RESTRICTIONS/CONDITIONS
 .Fn g_new_consumer :
 .Bl -item -offset indent
 .It
-The geom related to the created consumer must have the
+The geom
+.Fa gp
+has to have
 .Fa start
 and
 .Fa access
-fields defined.
+methods defined.
 .It
 The topology lock has to be held.
 .El
@@ -73,7 +73,7 @@ The topology lock has to be held.
 .Fn g_destroy_consumer :
 .Bl -item -offset indent
 .It
-The consumer can not be attached.
+The consumer must not be attached to a provider.
 .It
 The access count has to be 0.
 .It
