@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.77 1995/04/24 05:12:29 phk Exp $
+ *	$Id: wd.c,v 1.78 1995/04/30 15:14:16 bde Exp $
  */
 
 /* TODO:
@@ -1615,24 +1615,16 @@ wdformat(struct buf *bp)
 int
 wdsize(dev_t dev)
 {
-	int	lunit = dkunit(dev), part = dkpart(dev), val;
 	struct disk *du;
-	struct disklabel *lp;
-	int size;
+	int	lunit;
 
-	if (lunit >= NWD || (du = wddrives[lunit]) == NULL) {
+	lunit = dkunit(dev);
+	if (lunit >= NWD || dktype(dev) != 0)
 		return (-1);
-	}
-	val = 0;
-	if (du->dk_state == CLOSED) {
-		val = wdopen(dkmodpart(dev, RAW_PART), FREAD, S_IFBLK, 0);
-		dsclose(dev, S_IFBLK, du->dk_slices);
-	}
-	if (val != 0 || (lp = dsgetlabel(dev, du->dk_slices)) == NULL) {
+	du = wddrives[lunit];
+	if (du == NULL)
 		return (-1);
-	}
-	size = ((int)lp->d_partitions[part].p_size);
-	return size;
+	return (dssize(dev, &du->dk_slices, wdopen, wdclose));
 }
 
 /*
