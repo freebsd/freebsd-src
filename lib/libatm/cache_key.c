@@ -85,7 +85,7 @@ scsp_cache_key(ap, ip, ol, op)
 	 * Copy the addresses into a buffer for MD5 computation
 	 */
 	len = sizeof(struct in_addr) + ap->address_length;
-	if (len > sizeof(buff))
+	if (len > (int)sizeof(buff))
 		len = sizeof(buff);
 	bcopy(ip, buff, sizeof(struct in_addr));
 	bcopy(ap->address, &buff[sizeof(struct in_addr)],

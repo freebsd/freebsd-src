@@ -33,5 +33,6 @@ INCS=	libatm.h
 
 LDADD+=	-lmd
 DPADD+=	${LIBMD}
+WARNS?=	5
 
 .include <bsd.lib.mk>

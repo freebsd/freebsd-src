@@ -183,6 +183,10 @@ get_hex_atm_addr(in, out, len)
 			val += c_value;
 			out[out_len] = (u_char) val;
 			out_len++;
+			if (out_len > len)
+				(void)fprintf(stderr, "%s() out_len > len (%d > %d)\n",
+						__func__, out_len, len);
+				
 			break;
 
 		case 4:
@@ -305,7 +309,8 @@ format_atm_addr(addr)
 		u2.c[3] = atm_spans->aas_addr[7];
 
 		if (!(u1.w == 0 && u2.w == 0))
-			sprintf(str, "0x%08lx.%08lx", ntohl(u1.w), ntohl(u2.w));
+			sprintf(str, "0x%08lx.%08lx",
+				(u_long)ntohl(u1.w), (u_long)ntohl(u2.w));
 		break;
 
 	case T_ATM_PVC_ADDR:
