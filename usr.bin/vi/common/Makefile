@@ -8,6 +8,9 @@ LINKS=	${BINDIR}/${VI} ${BINDIR}/${EX} ${BINDIR}/${VI} ${BINDIR}/${VIEW}
 LINKS+= ${BINDIR}/${VI} ${BINDIR}/vi ${BINDIR}/${EX} ${BINDIR}/ex
 LINKS+= ${BINDIR}/${VI} ${BINDIR}/view
 MAN1=	${.CURDIR}/../USD.doc/vi.man/vi.1
+MLINKS+=vi.1 ex.1 vi.1 view.1
+MLINKS+=vi.1 nex.1 vi.1 nview.1 vi.1 nvi.1
+
 
 CFLAGS+=-I. -I${.CURDIR}
 DPADD+= ${LIBCURSES} ${LIBTERMCAP} ${LIBUTIL}
