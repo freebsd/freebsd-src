@@ -25,15 +25,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.1 1998/09/15 06:36:34 gibbs Exp $
+ *      $Id: scsi_da.c,v 1.2 1998/09/16 23:30:11 ken Exp $
  */
 
 #include <sys/param.h>
 #include <sys/queue.h>
-#ifdef KERNEL
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#endif
 #include <sys/types.h>
 #include <sys/buf.h>
 #include <sys/devicestat.h>
@@ -43,19 +41,12 @@
 #include <sys/malloc.h>
 #include <sys/conf.h>
 
-#ifdef KERNEL
 #include <machine/cons.h>	/* For cncheckc */
 #include <machine/md_var.h>	/* For Maxmem */
 
 #include <vm/vm.h>
 #include <vm/vm_prot.h>
 #include <vm/pmap.h>
-#endif
-
-#ifndef KERNEL
-#include <stdio.h>
-#include <string.h>
-#endif
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -68,7 +59,6 @@
 #include <cam/scsi/scsi_message.h>
 #include <cam/scsi/scsi_da.h>
 
-#ifdef KERNEL
 
 typedef enum {
 	DA_STATE_PROBE,
@@ -1360,138 +1350,6 @@ dasetgeom(struct cam_periph *periph, struct scsi_read_capacity_data * rdcap)
 	dp->cylinders = ccg.cylinders;
 }
 
-#endif /* KERNEL */
-
-void
-scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
-		void (*cbfcnp)(struct cam_periph *, union ccb *),
-		u_int8_t tag_action, int readop, u_int8_t byte2,
-		int minimum_cmd_size, u_int32_t lba, u_int32_t block_count,
-		u_int8_t *data_ptr, u_int32_t dxfer_len, u_int8_t sense_len,
-		u_int32_t timeout)
-{
-	u_int8_t cdb_len;
-	/*
-	 * Use the smallest possible command to perform the operation
-	 * as some legacy hardware does not support the 10 byte
-	 * commands.  If any of the lower 5 bits in byte2 is set, we have
-	 * to go with a larger command.
-	 *
-	 */
-	if ((minimum_cmd_size < 10)
-	 && ((lba & 0x1fffff) == lba)
-	 && ((block_count & 0xff) == block_count)
-	 && ((byte2 & 0xe0) == 0)) {
-		/*
-		 * We can fit in a 6 byte cdb.
-		 */
-		struct scsi_rw_6 *scsi_cmd;
-
-		scsi_cmd = (struct scsi_rw_6 *)&csio->cdb_io.cdb_bytes;
-		scsi_cmd->opcode = readop ? READ_6 : WRITE_6;
-		scsi_ulto3b(lba, scsi_cmd->addr);
-		scsi_cmd->length = block_count & 0xff;
-		scsi_cmd->control = 0;
-		cdb_len = sizeof(*scsi_cmd);
-
-		CAM_DEBUG(csio->ccb_h.path, CAM_DEBUG_SUBTRACE,
-			  ("6byte: %x%x%x:%d:%d\n", scsi_cmd->addr[0],
-			   scsi_cmd->addr[1], scsi_cmd->addr[2],
-			   scsi_cmd->length, dxfer_len));
-	} else if ((minimum_cmd_size < 12)
-		&& ((block_count & 0xffff) == block_count)) {
-		/*
-		 * Need a 10 byte cdb.
-		 */
-		struct scsi_rw_10 *scsi_cmd;
-
-		scsi_cmd = (struct scsi_rw_10 *)&csio->cdb_io.cdb_bytes;
-		scsi_cmd->opcode = readop ? READ_10 : WRITE_10;
-		scsi_cmd->byte2 = byte2;
-		scsi_ulto4b(lba, scsi_cmd->addr);
-		scsi_cmd->reserved = 0;
-		scsi_ulto2b(block_count, scsi_cmd->length);
-		scsi_cmd->control = 0;
-		cdb_len = sizeof(*scsi_cmd);
-
-		CAM_DEBUG(csio->ccb_h.path, CAM_DEBUG_SUBTRACE,
-			  ("10byte: %x%x%x%x:%x%x: %d\n", scsi_cmd->addr[0],
-			   scsi_cmd->addr[1], scsi_cmd->addr[2],
-			   scsi_cmd->addr[3], scsi_cmd->length[0],
-			   scsi_cmd->length[1], dxfer_len));
-	} else {
-		/* 
-		 * The block count is too big for a 10 byte CDB, use a 12
-		 * byte CDB.  READ/WRITE(12) are currently only defined for
-		 * optical devices.
-		 */
-		struct scsi_rw_12 *scsi_cmd;
-
-		scsi_cmd = (struct scsi_rw_12 *)&csio->cdb_io.cdb_bytes;
-		scsi_cmd->opcode = readop ? READ_12 : WRITE_12;
-		scsi_cmd->byte2 = byte2;
-		scsi_ulto4b(lba, scsi_cmd->addr);
-		scsi_cmd->reserved = 0;
-		scsi_ulto4b(block_count, scsi_cmd->length);
-		scsi_cmd->control = 0;
-		cdb_len = sizeof(*scsi_cmd);
-
-		CAM_DEBUG(csio->ccb_h.path, CAM_DEBUG_SUBTRACE,
-			  ("12byte: %x%x%x%x:%x%x%x%x: %d\n", scsi_cmd->addr[0],
-			   scsi_cmd->addr[1], scsi_cmd->addr[2],
-			   scsi_cmd->addr[3], scsi_cmd->length[0],
-			   scsi_cmd->length[1], scsi_cmd->length[2],
-			   scsi_cmd->length[3], dxfer_len));
-	}
-	cam_fill_csio(csio,
-		      retries,
-		      cbfcnp,
-		      /*flags*/readop ? CAM_DIR_IN : CAM_DIR_OUT,
-		      tag_action,
-		      data_ptr,
-		      dxfer_len,
-		      sense_len,
-		      cdb_len,
-		      timeout);
-}
-
-void 
-scsi_start_stop(struct ccb_scsiio *csio, u_int32_t retries,
-		void (*cbfcnp)(struct cam_periph *, union ccb *),
-		u_int8_t tag_action, int start, int load_eject,
-		int immediate, u_int8_t sense_len, u_int32_t timeout)
-{
-	struct scsi_start_stop_unit *scsi_cmd;
-	int extra_flags = 0;
-
-	scsi_cmd = (struct scsi_start_stop_unit *)&csio->cdb_io.cdb_bytes;
-	bzero(scsi_cmd, sizeof(*scsi_cmd));
-	scsi_cmd->opcode = START_STOP_UNIT;
-	if (start != 0) {
-		scsi_cmd->how |= SSS_START;
-		/* it takes a lot of power to start a drive */
-		extra_flags |= CAM_HIGH_POWER;
-	}
-	if (load_eject != 0)
-		scsi_cmd->how |= SSS_LOEJ;
-	if (immediate != 0)
-		scsi_cmd->byte2 |= SSS_IMMED;
-
-	cam_fill_csio(csio,
-		      retries,
-		      cbfcnp,
-		      /*flags*/CAM_DIR_NONE | extra_flags,
-		      tag_action,
-		      /*data_ptr*/NULL,
-		      /*dxfer_len*/0,
-		      sense_len,
-		      sizeof(*scsi_cmd),
-		      timeout);
-
-}
-
-#ifdef KERNEL
-
 static void
 dasendorderedtag(void *arg)
 {
@@ -1516,5 +1374,3 @@ dasendorderedtag(void *arg)
 	timeout(dasendorderedtag, NULL,
 		(DA_DEFAULT_TIMEOUT * hz) / DA_ORDEREDTAG_INTERVAL);
 }
-
-#endif /* KERNEL */
