@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id$
+#	$Id: bsd.doc.mk,v 1.32 1997/02/22 13:56:09 peter Exp $
 
 PRINTERDEVICE?=	ascii
 
@@ -86,9 +86,8 @@ CLEANFILES+=	${DOC}.${PRINTERDEVICE} ${DOC}.${PRINTERDEVICE}.gz \
 FILES?=	${SRCS}
 realinstall:
 .if ${PRINTERDEVICE} == "html"
-	cd ${SRCDIR}; \
-		${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		${DOC}*.html ${DESTDIR}${BINDIR}/${VOLUME}
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+		${.OBJDIR}/${DOC}*.html ${DESTDIR}${BINDIR}/${VOLUME}
 .else
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${DFILE} ${DESTDIR}${BINDIR}/${VOLUME}
@@ -124,7 +123,7 @@ SRCDIR?=	${.CURDIR}
 .if ${PRINTERDEVICE} == "html"
 ${DFILE}:	${SRCS} ${EXTRA} ${OBJS}
 	cd ${SRCDIR}; ${UNROFF} ${MACROS} ${UNROFFFLAGS} \
-		document=${DOC} ${SRCS}
+		document=${.OBJDIR}/${DOC} ${SRCS}
 .else
 
 ${DFILE}::	${SRCS} ${EXTRA} ${OBJS}
