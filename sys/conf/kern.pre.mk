@@ -112,12 +112,6 @@ NORMAL_LINT=	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC}
 
 GEN_CFILES= $S/$M/$M/genassym.c
 SYSTEM_CFILES= config.c env.c hints.c majors.c vnode_if.c
-.if ${MACHINE_ARCH} == "sparc64" || ${MACHINE_ARCH} == "x86_64"
-LOCORE=locore.S
-.else
-LOCORE=locore.s
-.endif
-SYSTEM_SFILES= $S/$M/$M/${LOCORE}
 SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
 SYSTEM_OBJS= locore.o ${MDOBJS} ${OBJS}
 SYSTEM_OBJS+= ${SYSTEM_CFILES:.c=.o}
