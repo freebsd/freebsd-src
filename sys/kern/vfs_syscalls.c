@@ -724,6 +724,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 	int error, flag = 0, flag2 = 0;
 	struct vattr va;
 	struct nameidata nd;
+	linker_file_t lf;
 
 	/*
 	 * Be ultra-paranoid about making sure the type and fspath
@@ -836,25 +837,23 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 		if (!strcmp(vfsp->vfc_name, fstype))
 			break;
 	if (vfsp == NULL) {
-		linker_file_t lf;
-
 		/* Only load modules for root (very important!) */
 		error = suser_td(td);
 		if (error) {
 			vput(vp);
-			return error;
+			return (error);
 		}
 		error = securelevel_gt(td->td_ucred, 0);
-		if (error != 0) {
+		if (error) {
 			vput(vp);
-			return (EPERM);
+			return (error);
 		}
 		error = linker_load_file(fstype, &lf);
 		if (error || lf == NULL) {
 			vput(vp);
 			if (lf == NULL)
 				error = ENODEV;
-			return error;
+			return (error);
 		}
 		lf->userrefs++;
 		/* lookup again, see if the VFS was loaded */
