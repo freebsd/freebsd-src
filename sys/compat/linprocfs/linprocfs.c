@@ -361,10 +361,6 @@ linprocfs_domtab(PFS_FILL_ARGS)
 	mtx_lock(&mountlist_mtx);
 	error = 0;
 	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
-		error = VFS_STATFS(mp, &mp->mnt_stat, td);
-		if (error)
-			break;
-
 		/* determine device name */
 		mntfrom = mp->mnt_stat.f_mntfromname;
 
