@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.4 1995/05/17 12:09:11 gpalmer Exp $
+ * $Id: tcpip.c,v 1.5 1995/05/17 14:39:58 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -113,17 +113,17 @@ static Layout layout[] = {
 #define LAYOUT_IFACE		4
 { 10, 18, 18, 15,
       "IP Address:",
-      "The IP address to be used for your host - use 127.0.0.1 for loopback",
+      "The IP address to be used for this interface - use 127.0.0.1 for lo0",
       ipaddr, STRINGOBJ, NULL },
 #define LAYOUT_IPADDR		5
 { 10, 37, 18, 15,
       "Netmask:",
-      "The netmask for your network, e.g. 0xffffff00 for a class C network",
+      "The netmask for this interfaace, e.g. 0xffffff00 for a class C network",
       netmask, STRINGOBJ, NULL },
 #define LAYOUT_NETMASK		6
 { 14, 18, 37, 255,
       "Extra options to ifconfig:",
-      "Any options to ifconfig you'd like to specify manually",
+      "Any interface-specific options to ifconfig you'd like to use",
       extras, STRINGOBJ, NULL },
 #define LAYOUT_EXTRAS		7
 { 19, 10, 0, 0,

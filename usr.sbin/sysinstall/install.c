@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.19 1995/05/17 14:39:43 jkh Exp $
+ * $Id: install.c,v 1.20 1995/05/17 16:16:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -54,6 +54,27 @@ static void	cpio_extract(void);
 static void	install_configuration_files(void);
 static void	do_final_setup(void);
 
+static Boolean
+preInstallCheck(void)
+{
+    if (!getenv(DISK_PARTITIONED)) {
+	msgConfirm("You need to partition your disk before you can proceed with\nthe installation.");
+
+	return FALSE;
+    }
+    if (!getenv(DISK_LABELLED)) {
+	msgConfirm("You need to assign disk labels before you can proceed with\nthe installation.");
+	return FALSE;
+    }
+    if (!Dists) {
+	msgConfirm("You haven't told me what distributions to load yet!\nPlease select a distribution from the Distributions menu.");
+	return FALSE;
+    }
+    if (!mediaVerify())
+	return FALSE;
+    return TRUE;
+}
+
 int
 installCommit(char *str)
 {
@@ -63,22 +84,9 @@ installCommit(char *str)
     Device **devs;
     int i;
 
-    if (!getenv(DISK_PARTITIONED)) {
-	msgConfirm("You need to partition your disk before you can proceed with\nthe installation.");
-
-	return 0;
-    }
-    if (!getenv(DISK_LABELLED)) {
-	msgConfirm("You need to assign disk labels before you can proceed with\nthe installation.");
-	return 0;
-    }
-    if (!Dists) {
-	msgConfirm("You haven't told me what distributions to load yet!\nPlease select a distribution from the Distributions menu.");
-	return 0;
-    }
-    if (!mediaVerify())
-	return 0;
-    if (msgYesNo("Last Chance!  Are you SURE you want continue the installation?\n\nIf you're running this on an existing system, we STRONGLY\nencourage you to make proper backups before proceeding.\nWe take no responsibility for lost disk contents!"))
+    /* If things aren't kosher, or we refuse to proceed, bail. */
+    if (!preInstallCheck()
+	|| msgYesNo("Last Chance!  Are you SURE you want continue the installation?\n\nIf you're running this on an existing system, we STRONGLY\nencourage you to make proper backups before proceeding.\nWe take no responsibility for lost disk contents!"))
 	return 0;
 
     mbrContents = NULL;
@@ -89,6 +97,7 @@ installCommit(char *str)
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     for (i = 0; devs[i]; i++) {
 	Disk *d = (Disk *)devs[i]->private;
+	Chunk *c1;
 
 	if (mbrContents) {
 	    Set_Boot_Mgr(d, mbrContents);
@@ -97,9 +106,23 @@ installCommit(char *str)
 	Set_Boot_Blocks(d, boot1, boot2);
 	msgNotify("Writing partition information to drive %s", d->name);
 	Write_Disk(d);
+
+	/* Now scan for bad blocks, if necessary */
+	for (c1 = d->chunks; c1; c1->next) {
+	    if (c1->flags & CHUNK_BAD144) {
+		int ret;
+
+		msgNotify("Running bad block scan on partition %s", c1->name);
+		ret = vsystem("bad144 -v -s /mnt/dev/%s", c1->name);
+		if (ret)
+		    msgConfirm("Bad144 scan on %s returned status of %d!", c1->name, ret);
+		/* XXX do something else XXX */
+	    }
+	}
     }
     make_filesystems();
     cpio_extract();
+    distExtractAll();
     install_configuration_files();
     do_final_setup();
     return 1;
@@ -135,8 +158,12 @@ make_filesystems(void)
 			    continue;
 			sprintf(dname, "/dev/%sa", disk->name);
 			if (p->newfs) {
-			    if (vsystem("newfs %s", dname)) {
-				msgConfirm("Unable to make new root filesystem!");
+			    int i;
+
+			    msgNotify("Making a new root filesystem on %s", dname);
+			    i = vsystem("newfs %s", dname);
+			    if (i) {
+				msgConfirm("Unable to make new root filesystem!  Command returned status %d", i);
 				return;
 			    }
 			}
@@ -146,15 +173,22 @@ make_filesystems(void)
 			    msgConfirm("Unable to mount the root file system!  Giving up.");
 			    return;
 			}
-			else
+			else {
+			    extern int makedevs(void);
+
+			    chdir("/mnt");
+			    if (makedevs())
+				msgConfirm("Failed to make some of the devices in /mnt!");
+			    chdir("/");
 			    break;
+			}
 		    }
 		}
 	    }
 	}
     }
 
-    /* Now buzz through the rest of the devices and mount them too */
+    /* Now buzz through the rest of the partitions and mount them too */
     for (i = 0; devs[i]; i++) {
 	disk = (Disk *)devs[i]->private;
 	if (!disk->chunks)
@@ -162,18 +196,6 @@ make_filesystems(void)
 
 	/* Make the proper device mount points in /mnt/dev */
 	MakeDevDisk(disk, "/mnt/dev");
-
-	/* Now make all the other devices the first time around */
-	if (i == 0) {
-	    extern int makedevs(void);
-
-	    chdir("/mnt");
-	    if (makedevs()) {
-		if (msgYesNo("Failed to make some of the devices in /mnt!  Continue?"))
-		    return;
-	    }
-	    chdir("/");
-	}
 
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.4 1995/05/17 15:41:52 jkh Exp $
+ * $Id: label.c,v 1.5 1995/05/17 16:16:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -191,16 +191,16 @@ new_part(char *mpoint, Boolean newfs)
 
 /* Get the mountpoint for a partition and save it away */
 PartInfo *
-get_mountpoint(struct chunk *parent, struct chunk *me)
+get_mountpoint(struct chunk *old)
 {
     char *val;
     PartInfo *tmp;
 
-    val = msgGetInput(me && me->private ? ((PartInfo *)me->private)->mountpoint : NULL,
+    val = msgGetInput(old && old->private ? ((PartInfo *)old->private)->mountpoint : NULL,
 		      "Please specify a mount point for the partition");
     if (val) {
 	/* Is it just the same value? */
-	if (me && me->private && !strcmp(((PartInfo *)me->private)->mountpoint, val))
+	if (old && old->private && !strcmp(((PartInfo *)old->private)->mountpoint, val))
 	    return NULL;
 	if (check_conflict(val)) {
 	    msgConfirm("You already have a mount point for %s assigned!", val);
@@ -211,28 +211,16 @@ get_mountpoint(struct chunk *parent, struct chunk *me)
 	    return NULL;
 	}
 	else if (!strcmp(val, "/")) {
-#if 0
-	    if (parent) {
-	    	if (parent->flags & CHUNK_PAST_1024) {
-		    msgConfirm("This region cannot be used for your root partition as\nit is past the 1024'th cylinder mark and the system would not be\nable to boot from it.  Please pick another location for your\nroot partition and try again!");
-		    return NULL;
-		}
-		else if (!(parent->flags & CHUNK_BSD_COMPAT)) {
-		    msgConfirm("This region cannot be used for your root partition as\nthe FreeBSD boot code cannot deal with a root partition created in\nsuch a region.  Please choose another partition for this.");
-		    return NULL;
-		}
-	    }
-#endif
-	    if (me)
-		me->flags |= CHUNK_IS_ROOT;
+	    if (old)
+		old->flags |= CHUNK_IS_ROOT;
 	}
-	else if (me)
-	    me->flags &= ~CHUNK_IS_ROOT;
-	safe_free(me ? me->private : NULL);
+	else if (old)
+	    old->flags &= ~CHUNK_IS_ROOT;
+	safe_free(old ? old->private : NULL);
 	tmp = new_part(val, TRUE);
-	if (me) {
-	    me->private = tmp;
-	    me->private_free = safe_free;
+	if (old) {
+	    old->private = tmp;
+	    old->private_free = safe_free;
 	}
 	return tmp;
     }
@@ -292,7 +280,7 @@ print_label_chunks(void)
     int i, j, srow, prow, pcol;
     int sz;
 
-    dialog_clear();
+    clear();
     attrset(A_REVERSE);
     mvaddstr(0, 25, "FreeBSD Disklabel Editor");
     attrset(A_NORMAL);
@@ -493,7 +481,7 @@ diskLabelEditor(char *str)
 		    if (type == PART_NONE)
 			break;
 		    else if (type == PART_FILESYSTEM) {
-			if ((p = get_mountpoint(label_chunk_info[here].c, NULL)) == NULL)
+			if ((p = get_mountpoint(NULL)) == NULL)
 			    break;
 			else if (!strcmp(p->mountpoint, "/"))
 			    flags |= CHUNK_IS_ROOT;
@@ -508,13 +496,25 @@ diskLabelEditor(char *str)
 					    size, part,
 					    (type == PART_SWAP) ? FS_SWAP : FS_BSDFFS,
 					    flags);
-		    if (!tmp)
+		    if (!tmp) {
 			msgConfirm("Unable to create the partition. Too big?");
-		    else {
-			tmp->private = p;
-			tmp->private_free = safe_free;
-			record_label_chunks();
+			break;
 		    }
+		    else if (flags & CHUNK_IS_ROOT) {
+			if (tmp->flags & CHUNK_PAST_1024) {
+			    msgConfirm("This region cannot be used for your root partition as it starts\nor extends past the 1024'th cylinder mark and is thus a\npoor location to boot from.  Please choose another\nlocation for your root partition and try again!");
+			    Delete_Chunk(label_chunk_info[here].d, tmp);
+			    break;
+			}
+			else if (!(tmp->flags & CHUNK_BSD_COMPAT)) {
+			    msgConfirm("This region cannot be used for your root partition as\nthe FreeBSD boot code cannot deal with a root partition created in\nsuch a location.  Please choose another location for your root\npartition and try again!");
+			    Delete_Chunk(label_chunk_info[here].d, tmp);
+			    break;
+			}
+		    }
+		    tmp->private = p;
+		    tmp->private_free = safe_free;
+		    record_label_chunks();
 		}
 	    }
 	    break;
@@ -544,7 +544,7 @@ diskLabelEditor(char *str)
 
 	    case PART_FAT:
 	    case PART_FILESYSTEM:
-		p = get_mountpoint(NULL, label_chunk_info[here].c);
+		p = get_mountpoint(label_chunk_info[here].c);
 		if (p) {
 		    p->newfs = FALSE;
 		    record_label_chunks();
