@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.93 1998/05/31 17:48:05 peter Exp $
+ * $Id: nfs_vnops.c,v 1.94 1998/05/31 18:23:24 peter Exp $
  */
 
 
@@ -1137,6 +1137,7 @@ nfs_writerpc(vp, uiop, cred, iomode, must_commit)
 				rlen = fxdr_unsigned(int, *tl++);
 				if (rlen == 0) {
 					error = NFSERR_IO;
+					m_freem(mrep);
 					break;
 				} else if (rlen < len) {
 					backup = len - rlen;
