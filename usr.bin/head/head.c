@@ -60,17 +60,17 @@ static const char rcsid[] =
  * Bill Joy UCB August 24, 1977
  */
 
-void head(FILE *, int);
-void head_bytes(FILE *, int);
-void obsolete(char *[]);
-void usage(void);
+static void head(FILE *, int);
+static void head_bytes(FILE *, size_t);
+static void obsolete(char *[]);
+static void usage(void);
 
 int
 main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register int ch;
+	int ch;
 	FILE *fp;
 	int first, linecnt = -1, bytecnt = -1, eval = 0;
 	char *ep;
@@ -125,13 +125,13 @@ main(argc, argv)
 	exit(eval);
 }
 
-void
+static void
 head(fp, cnt)
 	FILE *fp;
-	register int cnt;
+	int cnt;
 {
 	char *cp;
-	int error, readlen;
+	size_t error, readlen;
 
 	while (cnt && (cp = fgetln(fp, &readlen)) != NULL) {
 		error = fwrite(cp, sizeof(char), readlen, stdout);
@@ -141,13 +141,13 @@ head(fp, cnt)
 	}
 }
 
-void
+static void
 head_bytes(fp, cnt)
 	FILE *fp;
-	register int cnt;
+	size_t cnt;
 {
 	char buf[4096];
-	register int readlen;
+	size_t readlen;
 
 	while (cnt) {
 		if (cnt < sizeof(buf))
@@ -163,7 +163,7 @@ head_bytes(fp, cnt)
 	}
 }
 
-void
+static void
 obsolete(argv)
 	char *argv[];
 {
@@ -182,7 +182,7 @@ obsolete(argv)
 	}
 }
 
-void
+static void
 usage()
 {
 
