@@ -146,6 +146,8 @@ dev/syscons/scvidctl.c		optional	sc
 dev/syscons/scvtb.c		optional	sc
 dev/syscons/syscons.c		optional	sc
 dev/syscons/sysmouse.c		optional	sc
+geom/geom_bsd.c			standard
+geom/geom_mbr.c			standard
 gnu/i386/fpemul/div_small.s	optional	gpl_math_emulate \
 	warning "kernel contains GPL contaminated math emulator"
 gnu/i386/fpemul/errors.c	optional	gpl_math_emulate
@@ -285,7 +287,7 @@ i386/isa/pcvt/pcvt_vtf.c	optional	vt
 i386/isa/pmtimer.c		optional	pmtimer
 i386/isa/prof_machdep.c		optional	profiling-routine
 i386/isa/rc.c			count		rc
-i386/isa/scd.c			count		scd
+i386/isa/scd.c			count		scd nowerror
 i386/isa/spic.c			optional	spic
 i386/isa/spigot.c		count		spigot
 i386/isa/spkr.c			optional	speaker

@@ -18,6 +18,8 @@ cpu		EV5
 ident		SIMOS
 maxusers	10
 
+options		NO_GEOM
+
 options 	DEC_KN8AE
 options 	SIMOS
 options 	INET			#InterNETworking

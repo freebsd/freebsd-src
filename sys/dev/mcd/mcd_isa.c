@@ -2,6 +2,9 @@
  * $FreeBSD$
  */
 
+#include "opt_geom.h"
+#ifdef NO_GEOM
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -209,3 +212,5 @@ static driver_t mcd_isa_driver = {
 static devclass_t	mcd_devclass;
 
 DRIVER_MODULE(mcd, isa, mcd_isa_driver, mcd_devclass, NULL, 0);
+
+#endif /* GEOM */

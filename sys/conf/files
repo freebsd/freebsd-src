@@ -458,8 +458,8 @@ dev/nsp/nsp.c		optional nsp
 dev/nsp/nsp_pccard.c	optional nsp card
 #dev/nsp/nsp_pccard.c	optional nsp pccard
 dev/mca/mca_bus.c	optional mca
-dev/mcd/mcd.c		optional mcd isa
-dev/mcd/mcd_isa.c	optional mcd isa
+dev/mcd/mcd.c		optional mcd isa nowerror
+dev/mcd/mcd_isa.c	optional mcd isa nowerror
 dev/md/md.c		optional md
 dev/mii/amphy.c		optional miibus
 dev/mii/bmtphy.c	optional miibus
@@ -787,21 +787,21 @@ fs/umapfs/umap_vnops.c	optional umapfs
 fs/unionfs/union_subr.c	optional unionfs
 fs/unionfs/union_vfsops.c	optional unionfs
 fs/unionfs/union_vnops.c	optional unionfs
-geom/geom_aes.c	optional geom
-geom/geom_bsd.c	optional geom
-geom/geom_dev.c	optional geom
-geom/geom_disk.c	optional geom
-geom/geom_dump.c	optional geom
-geom/geom_enc.c	optional geom
-geom/geom_event.c	optional geom
-geom/geom_gpt.c	optional geom
-geom/geom_io.c	optional geom
-geom/geom_kern.c	optional geom
-geom/geom_mbr.c	optional geom
-geom/geom_pc98.c	optional geom
-geom/geom_slice.c	optional geom
-geom/geom_subr.c	optional geom
-geom/geom_sunlabel.c	optional geom
+geom/geom_aes.c		optional geom_aes
+geom/geom_bsd.c		optional geom_bsd
+geom/geom_dev.c		standard
+geom/geom_disk.c	standard
+geom/geom_dump.c	standard
+geom/geom_enc.c		standard
+geom/geom_event.c	standard
+geom/geom_gpt.c		optional geom_gpt
+geom/geom_io.c		standard
+geom/geom_kern.c	standard
+geom/geom_mbr.c		optional geom_mbr
+geom/geom_pc98.c	optional geom_pc98
+geom/geom_slice.c	standard
+geom/geom_subr.c	standard
+geom/geom_sunlabel.c	optional geom_sunlabel
 crypto/rijndael/rijndael-alg-fst.c	optional geom
 crypto/rijndael/rijndael-api-fst.c	optional geom
 gnu/ext2fs/ext2_alloc.c		optional ext2fs \

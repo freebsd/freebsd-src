@@ -1,5 +1,7 @@
 #include "opt_geom.h"
-#ifndef GEOM
+#ifndef NO_GEOM
+#warning "The mcd driver is currently not compatible with GEOM"
+#else
 /*
  * Copyright 1993 by Holger Veit (data part)
  * Copyright 1993 by Brian Moore (audio part)
