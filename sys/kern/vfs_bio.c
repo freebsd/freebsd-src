@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.45 1995/05/21 21:38:49 davidg Exp $
+ * $Id: vfs_bio.c,v 1.46 1995/05/30 08:06:27 rgrimes Exp $
  */
 
 /*
@@ -835,12 +835,7 @@ loop:
 		 * check for size inconsistancies
 		 */
 		if (bp->b_bcount != size) {
-#if defined(VFS_BIO_DEBUG)
-			printf("getblk: invalid buffer size: %ld\n", bp->b_bcount);
-#endif
-			bp->b_flags |= B_NOCACHE;
-			(void) VOP_BWRITE(bp);
-			goto loop;
+			allocbuf(bp, size);
 		}
 		splx(s);
 		return (bp);
@@ -939,21 +934,16 @@ allocbuf(struct buf * bp, int size)
 		mbsize = ((size + DEV_BSIZE - 1) / DEV_BSIZE) * DEV_BSIZE;
 		newbsize = round_page(size);
 
-		if (newbsize == bp->b_bufsize) {
-			bp->b_bcount = size;
-			return 1;
-		} else if (newbsize < bp->b_bufsize) {
+		if (newbsize < bp->b_bufsize) {
 			vm_hold_free_pages(
 			    bp,
 			    (vm_offset_t) bp->b_data + newbsize,
 			    (vm_offset_t) bp->b_data + bp->b_bufsize);
-			bufspace -= (bp->b_bufsize - newbsize);
 		} else if (newbsize > bp->b_bufsize) {
 			vm_hold_load_pages(
 			    bp,
 			    (vm_offset_t) bp->b_data + bp->b_bufsize,
 			    (vm_offset_t) bp->b_data + newbsize);
-			bufspace += (newbsize - bp->b_bufsize);
 		}
 	} else {
 		vm_page_t m;
@@ -962,10 +952,7 @@ allocbuf(struct buf * bp, int size)
 		newbsize = ((size + DEV_BSIZE - 1) / DEV_BSIZE) * DEV_BSIZE;
 		desiredpages = round_page(newbsize) / PAGE_SIZE;
 
-		if (newbsize == bp->b_bufsize) {
-			bp->b_bcount = size;
-			return 1;
-		} else if (newbsize < bp->b_bufsize) {
+		if (newbsize < bp->b_bufsize) {
 			if (desiredpages < bp->b_npages) {
 				pmap_qremove((vm_offset_t) trunc_page(bp->b_data) +
 				    desiredpages * PAGE_SIZE, (bp->b_npages - desiredpages));
@@ -990,9 +977,8 @@ allocbuf(struct buf * bp, int size)
 					bp->b_pages[i] = NULL;
 				}
 				bp->b_npages = desiredpages;
-				bufspace -= (bp->b_bufsize - newbsize);
 			}
-		} else {
+		} else if (newbsize > bp->b_bufsize) {
 			vm_object_t obj;
 			vm_offset_t tinc, off, toff, objoff;
 			int pageindex, curbpnpages;
@@ -1107,9 +1093,9 @@ allocbuf(struct buf * bp, int size)
 				pmap_qenter((vm_offset_t) bp->b_data, bp->b_pages, bp->b_npages);
 				bp->b_data += off % PAGE_SIZE;
 			}
-			bufspace += (newbsize - bp->b_bufsize);
 		}
 	}
+	bufspace += (newbsize - bp->b_bufsize);
 	bp->b_bufsize = newbsize;
 	bp->b_bcount = size;
 	return 1;
