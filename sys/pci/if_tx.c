@@ -54,12 +54,18 @@
 #if defined(__FreeBSD__)
 #define NBPFILTER	1
 
+#include "vlan.h"
+
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_media.h>
 
 #include <net/bpf.h>
+
+#if NVLAN > 0
+#include <net/if_vlan_var.h>
+#endif
 
 #include <vm/vm.h>              /* for vtophys */
 #include <vm/pmap.h>            /* for vtophys */
@@ -85,6 +91,8 @@
 #include <pci/if_txvar.h>
 #else /* __OpenBSD__ */
 #include "bpfilter.h"
+
+#define	NVLAN	0	/* not sure if/how OpenBSD supports VLANs */
 
 #include <sys/device.h>
 
@@ -556,6 +564,9 @@ epic_freebsd_attach(dev)
 
 	/* Attach to OS's managers */
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+#if NVLAN > 0
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
+#endif
 	callout_handle_init(&sc->stat_ch);
 
 fail:
@@ -643,8 +654,24 @@ epic_ifioctl(ifp, command, data)
 #if defined(__FreeBSD__)
 	case SIOCSIFADDR:
 	case SIOCGIFADDR:
-	case SIOCSIFMTU:
 		error = ether_ioctl(ifp, command, data);
+		break;
+	case SIOCSIFMTU:
+		if (ifp->if_mtu == ifr->ifr_mtu) 
+			break;
+
+		/* XXX Though the datasheet doesn't imply any 
+		 * limitations on RX and TX sizes beside max 64Kb
+		 * DMA transfer, seems we can't send more then 1600
+		 * data bytes per ethernet packet. (Transmitter hangs
+		 * up if more data is sent)
+		 */
+		if (ifr->ifr_mtu + ifp->if_hdrlen <= EPIC_MAX_MTU) {
+			ifp->if_mtu = ifr->ifr_mtu;
+			epic_stop(sc);
+			epic_init(sc);
+		} else
+			error = EINVAL;
 		break;
 #else /* __OpenBSD__ */
 	case SIOCSIFADDR: {
@@ -1747,9 +1774,8 @@ epic_init_rings(sc)
 		}
 		desc->bufaddr = vtophys( mtod(buf->mbuf,caddr_t) );
 
-		desc->buflength = ETHER_MAX_FRAME_LEN;
-		desc->status = 0x8000;			/* Give to EPIC */
-
+		desc->buflength = MCLBYTES;	/* Max RX buffer length */
+		desc->status = 0x8000;		/* Set owner bit to NIC */
 	}
 
 	for (i = 0; i < TX_RING_SIZE; i++) {
