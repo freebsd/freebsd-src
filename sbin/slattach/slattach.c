@@ -89,6 +89,7 @@ int	exiting = 0;		/* allready running exit_handler */
 struct	termios tty;		/* tty configuration/state */
 
 char	tty_path[32];		/* path name of the tty (e.g. /dev/tty01) */
+char	pidfilename[40];	/* e.g. /var/run/slattach.tty01.pid */
 char	*redial_cmd = 0;	/* command to exec upon shutdown. */
 char	*config_cmd = 0;	/* command to exec if slip unit changes. */
 char	*exit_cmd = 0;		/* command to exec before exiting. */
@@ -112,6 +113,7 @@ int main(int argc, char **argv)
 	int option;
 	extern char *optarg;
 	extern int optind;
+	char *cp;
 
 	while ((option = getopt(argc, argv, "ace:fhlnr:s:u:z")) != EOF) {
 		switch (option) {
@@ -152,7 +154,7 @@ int main(int argc, char **argv)
 			break;
 		default:
 			fprintf(stderr, "%s: Invalid option -- '%c'\n",
-			  option);
+				argv[0], option);
 		case '?':
 			fprintf(stderr, usage_str, argv[0]);
 			exit_handler(1);
@@ -179,7 +181,11 @@ int main(int argc, char **argv)
 		strncat(tty_path, dev, 10);
 		dev = tty_path;
 	}
-
+	cp = strrchr(dev, '/'); /* always succeeds */
+	cp++;			/* trailing tty pathname component */
+	sprintf(pidfilename, "%sslattach.%s.pid", _PATH_VARRUN, cp);
+	printf("%s\n",pidfilename);
+	
 	if (!foreground)
 		daemon(0,0);	/* fork, setsid, chdir /, and close std*. */
 	/* daemon() closed stderr, so log errors from here on. */
@@ -225,7 +231,7 @@ int main(int argc, char **argv)
 void acquire_line()
 {
 	int ttydisc = TTYDISC;
-	int pgrp;
+	FILE *pidfile;
 
 	ioctl(fd, TIOCSETD, &ttydisc); /* reset to tty discipline */
 
@@ -241,6 +247,14 @@ void acquire_line()
 	while (getppid () != 1)
 		sleep (1);	/* Wait for parent to die. */
 
+	/* create PID file */
+	if((pidfile = fopen(pidfilename, "w")) == NULL) {
+		syslog(LOG_NOTICE,"cannot create PID file: %m");
+	} else {
+		fprintf(pidfile, "%ld\n", getpid());
+		fclose(pidfile);
+	}
+	
 	if ((int)signal(SIGHUP,sighup_handler) < 0) /* Re-enable HUP signal */
 		syslog(LOG_NOTICE,"cannot install SIGHUP handler: %m");
 
@@ -438,6 +452,10 @@ void exit_handler(int ret)
 	 */
 	if (fd != -1)
 		close(fd);
+
+	/* Remove the PID file */
+	(void)unlink(pidfilename);
+
 	/* invoke a shell for exit_cmd. */
 	if (exit_cmd) {
 		syslog(LOG_NOTICE,"exiting after running %s", exit_cmd);
