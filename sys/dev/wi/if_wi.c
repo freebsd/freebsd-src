@@ -944,7 +944,7 @@ wi_reset(struct wi_softc *sc)
 	int tries;
 	
 	/* Symbol firmware cannot be initialized more than once */
-	if (sc->sc_firmware_type == WI_SYMBOL && sc->sc_reset)
+	if (sc->sc_firmware_type != WI_INTERSIL && sc->sc_reset)
 		return (0);
 	if (sc->sc_firmware_type == WI_SYMBOL)
 		tries = 1;
