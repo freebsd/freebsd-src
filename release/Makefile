@@ -287,9 +287,8 @@ BOOTABLE="-b"
 DOCREL= doc.1 doc.2
 .endif
 
-WMAKEENV!=	echo MAKEFLAGS=\"-m ${.CURDIR}/../share/mk\"; \
-		cd ${.CURDIR}/..; ${CROSSMAKE} -f Makefile.inc1 -V WMAKEENV
-WMAKE=		${WMAKEENV} ${MAKE}
+WMAKEENV!=	cd ${.CURDIR}/..; ${CROSSMAKE} -f Makefile.inc1 -V WMAKEENV
+WMAKE=		${WMAKEENV} ${MAKE} -m ${.CURDIR}/../share/mk
 
 CVS_SRCARGS=	-P
 .if defined(RELEASETAG)
