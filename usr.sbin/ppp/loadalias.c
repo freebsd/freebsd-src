@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: loadalias.c,v 1.12 1997/12/21 12:11:06 brian Exp $
+ *	$Id: loadalias.c,v 1.13 1998/01/14 01:23:05 brian Exp $
  */
 
 #include <sys/param.h>
@@ -50,6 +50,10 @@
 
 #define off(item) ((int)&(((struct aliasHandlers *)0)->item))
 #define entry(a) { off(a), "_" #a }
+
+#ifndef RTLD_NOW
+#define RTLD_NOW 1		/* really RTLD_LAZY */
+#endif
 
 static struct {
   int offset;
@@ -86,7 +90,7 @@ loadAliasHandlers(struct aliasHandlers * h)
       LogPrintf(LogALERT, "Ignoring environment _PATH_ALIAS_PREFIX"
                 " value (%s)\n", env);
 
-  dl = dlopen(path, RTLD_LAZY);
+  dl = dlopen(path, RTLD_NOW);
   if (dl == (void *) 0) {
     /* Look for _PATH_ALIAS_PREFIX with any number appended */
     int plen;
@@ -129,7 +133,7 @@ loadAliasHandlers(struct aliasHandlers * h)
 
         if (maxver > -1) {
           sprintf(p + plen, "%ld", maxver);
-          dl = dlopen(p, RTLD_LAZY);
+          dl = dlopen(p, RTLD_NOW);
         }
       }
     }
