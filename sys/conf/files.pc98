@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.33 1997/08/27 08:47:03 kato Exp $
+#	$Id: files.pc98,v 1.34 1997/08/28 14:21:11 kato Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/*.[chyl]"			   \
@@ -83,6 +83,7 @@ i386/i386/sys_machdep.c		standard
 pc98/i386/trap.c		standard
 pc98/i386/userconfig.c		optional	userconfig
 i386/i386/vm_machdep.c		standard
+i386/i386/vm86.c		optional	vm86	
 i386/ibcs2/ibcs2_fcntl.c	optional 	ibcs2
 i386/ibcs2/ibcs2_stat.c		optional 	ibcs2
 i386/ibcs2/ibcs2_ipc.c		optional 	ibcs2
