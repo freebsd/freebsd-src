@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_loop.c	8.1 (Berkeley) 6/10/93
- * $Id: if_loop.c,v 1.6 1994/08/08 12:07:25 davidg Exp $
+ * $Id: if_loop.c,v 1.7 1995/03/04 04:28:50 davidg Exp $
  */
 
 /*
@@ -101,7 +101,7 @@ loopattach(void)
 #endif
 }
 
-TEXT_SET(pseudo_set, loopattach);
+PSEUDO_SET(loopattach, if_loop);
 
 int
 looutput(ifp, m, dst, rt)

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)if_loop.c	8.1 (Berkeley) 6/10/93
- *	$Id: if_disc.c,v 1.1 1994/12/22 21:00:05 wollman Exp $
+ *	$Id: if_disc.c,v 1.2 1995/03/17 22:02:18 wollman Exp $
  */
 
 /*
@@ -105,7 +105,7 @@ discattach(void)
 #endif
 }
 
-PSEUDO_SET(discattach);
+PSEUDO_SET(discattach, if_disc);
 
 static int
 dsoutput(ifp, m, dst, rt)
