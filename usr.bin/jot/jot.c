@@ -96,10 +96,9 @@ main(argc, argv)
 	getargs(argc, argv);
 	if (randomize) {
 		*x = (ender - begin) * (ender > begin ? 1 : -1);
-		if (s == -1.0) {
-			if (srandomdev() < 0)
-				srandom(time(NULL) ^ getpid());
-		} else
+		if (s == -1.0)
+			srandomdev();
+		else
 			srandom((unsigned long) s);
 		for (*i = 1; *i <= reps || infinity; (*i)++) {
 			*y = (double) random() / LONG_MAX;
