@@ -45,6 +45,7 @@ static char sccsid[] = "@(#)main.c	5.5 (Berkeley) 5/24/93";
 __FBSDID("$FreeBSD$");
 #endif
 
+#include <paths.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -113,14 +114,16 @@ static void open_files(void);
 static void set_signals(void);
 static void usage(void);
 
+volatile sig_atomic_t sigdie;
 
-void
+__dead2 void
 done(k)
 int k;
 {
     if (action_file) { fclose(action_file); unlink(action_file_name); }
     if (text_file) { fclose(text_file); unlink(text_file_name); }
     if (union_file) { fclose(union_file); unlink(union_file_name); }
+    if (sigdie) { _exit(k); }
     exit(k);
 }
 
@@ -129,6 +132,7 @@ static void
 onintr(signo)
 	int signo __unused;
 {
+    sigdie = 1;
     done(1);
 }
 
@@ -297,11 +301,11 @@ create_file_names()
     int i, len;
     const char *tmpdir;
 
-    tmpdir = getenv("TMPDIR");
-    if (tmpdir == 0) tmpdir = "/tmp";
+    if (!(tmpdir = getenv("TMPDIR")))
+	tmpdir = _PATH_TMP;
 
     len = strlen(tmpdir);
-    i = len + 17;
+    i = len + strlen(temp_form) + 1;
     if (len && tmpdir[len-1] != '/')
 	++i;
 
