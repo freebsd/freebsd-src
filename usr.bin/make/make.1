@@ -469,7 +469,7 @@ The following directories are tried in order:
 .Pp
 .Bl -enum -compact
 .It
-${MAKEOBJDIRPREFIX}/`cwd`
+${MAKEOBJDIRPREFIX}/`pwd`
 .It
 ${MAKEOBJDIR}
 .It
@@ -477,7 +477,7 @@ obj.${MACHINE}
 .It
 obj
 .It
-/usr/obj/`cwd`
+/usr/obj/`pwd`
 .El
 .Pp
 The first directory that
