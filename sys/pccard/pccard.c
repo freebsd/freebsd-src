@@ -68,6 +68,7 @@
 
 #include <machine/clock.h>
 #include <machine/laptops.h>
+#include <machine/md_var.h>
 
 extern struct kern_devconf kdc_cpu0;
 

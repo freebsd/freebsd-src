@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.29 1996/02/06 18:50:50 wollman Exp $
+ * $Id: if_ze.c,v 1.30 1996/06/12 05:03:45 gpalmer Exp $
  */
 
 #include "ze.h"
@@ -92,6 +92,7 @@
 #endif
 
 #include <machine/clock.h>
+#include <machine/md_var.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>

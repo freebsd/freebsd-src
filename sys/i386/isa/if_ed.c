@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.99 1996/05/27 22:32:23 gpalmer Exp $
+ *	$Id: if_ed.c,v 1.100 1996/06/18 01:22:18 bde Exp $
  */
 
 /*
@@ -78,6 +78,7 @@
 #endif
 
 #include <machine/clock.h>
+#include <machine/md_var.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
