@@ -213,10 +213,10 @@ fddi_output(ifp, m, dst, rt0)
 
 	case pseudo_AF_HDRCMPLT:
 	{
-		struct fddi_header *fh;
+		struct ether_header *eh;
 		hdrcmplt = 1;
-		fh = (struct fddi_header *)dst->sa_data;
-		bcopy((caddr_t)fh->fddi_shost, (caddr_t)esrc, FDDI_ADDR_LEN);
+		eh = (struct ether_header *)dst->sa_data;
+		bcopy((caddr_t)eh->ether_shost, (caddr_t)esrc, FDDI_ADDR_LEN);
 		/* FALLTHROUGH */
 	}
 
