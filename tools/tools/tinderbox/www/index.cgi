@@ -33,19 +33,9 @@ use 5.006_001;
 use strict;
 use POSIX qw(strftime);
 
-my @BRANCHES = (
-    'RELENG_4',
-    'CURRENT'
-);
+my %BRANCHES;
 
-my %ARCHES = (
-    'alpha'	=> [ 'alpha' ],
-    'amd64'	=> [ 'amd64' ],
-    'i386'	=> [ 'i386', 'pc98' ],
-    'ia64'	=> [ 'ia64' ],
-    'powerpc'	=> [ 'powerpc' ],
-    'sparc64'	=> [ 'sparc64' ],
-);
+my %ARCHES;
 
 my $DIR = ".";
 
@@ -76,6 +66,16 @@ MAIN:{
 	open(STDOUT, ">", "$DIR/index.html")
 	    or die("index.html: $!\n");
     }
+
+    local *DIR;
+    opendir(DIR, $DIR)
+	or die("$DIR: $!\n");
+    foreach (readdir(DIR)) {
+	next unless m/^tinderbox-(\w+)-(\w+)-(\w+)\./;
+	$BRANCHES{$1} = $ARCHES{$2}->{$3} = 1;
+    }
+    closedir(DIR);
+
     print "<?xml version=\"1.0\" encoding=\"iso-8859-1\"?>
 <!DOCTYPE html
      PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"
@@ -96,19 +96,19 @@ MAIN:{
         <th>Architecture</th>
         <th>Machine</th>
 ";
-    foreach my $branch (@BRANCHES) {
+    foreach my $branch (sort(keys(%BRANCHES))) {
 	print("        <th>$branch</th>\n");
     }
     print "      </tr>\n";
 
     foreach my $arch (sort(keys(%ARCHES))) {
-	foreach my $machine (sort(@{$ARCHES{$arch}})) {
+	foreach my $machine (sort(keys(%{$ARCHES{$arch}}))) {
 	    my $have_logs = 0;
 	    my $html =  "      <tr>
         <td>$arch</td>
         <td>$machine</td>
 ";
-	    foreach my $branch (@BRANCHES) {
+	    foreach my $branch (sort(keys(%BRANCHES))) {
 		my $log = "tinderbox-$branch-$arch-$machine";
 		my $links = "";
 		if (-f "$DIR/$log.brief") {
