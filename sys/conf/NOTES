@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.107 1994/11/08 07:39:28 jkh Exp $
+#	$Id: LINT,v 1.108 1994/11/15 14:28:46 bde Exp $
 #
 
 #
@@ -469,6 +469,10 @@ options		APM
 # The `de' device provides support for the Digital Equipment DC21040
 # self-contained Ethernet adapter.
 #
+# The PROBE_VERBOSE option enables a long listing of chip set registers
+# for supported PCI chip sets (currently only intel Saturn and Mercury).
+# 
 controller	pci0
 device		ncr0
 device		de0
+options		PROBE_VERBOSE
