@@ -27,7 +27,7 @@
  *
  */
 
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 
 static void drain_midi_queue __P((int dev));
 

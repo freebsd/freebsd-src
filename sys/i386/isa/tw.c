@@ -128,16 +128,16 @@
  * situation (most likely by retrying the transmission).
  */
 
-#include "param.h"
-#include "systm.h"
-#include "proc.h"
-#include "conf.h"
-#include "buf.h"
-#include "kernel.h"
-#include "ioctl.h"
-#include "uio.h"
-#include "syslog.h"
-#include "select.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/proc.h>
+#include <sys/conf.h>
+#include <sys/buf.h>
+#include <sys/kernel.h>
+#include <sys/ioctl.h>
+#include <sys/uio.h>
+#include <sys/syslog.h>
+#include <sys/select.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
@@ -148,7 +148,7 @@
 #include <sys/time.h>
 #endif /* HIRESTIME */
 
-#include "i386/isa/isa_device.h"
+#include <i386/isa/isa_device.h>
 
 
 

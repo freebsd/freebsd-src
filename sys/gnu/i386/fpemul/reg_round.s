@@ -65,7 +65,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: reg_round.s,v 1.2 1994/04/29 21:30:23 gclarkii Exp $
+ *     $Id: reg_round.s,v 1.3 1994/06/10 07:44:55 rich Exp $
  *
  */
 
@@ -118,9 +118,9 @@
  +---------------------------------------------------------------------------*/
 
 
-#include "fpu_asm.h"
-#include "exception.h"
-#include "control_w.h"
+#include <gnu/i386/fpemul/fpu_asm.h>
+#include <gnu/i386/fpemul/exception.h>
+#include <gnu/i386/fpemul/control_w.h>
 
 #define	LOST_DOWN	$1
 #define	LOST_UP		$2

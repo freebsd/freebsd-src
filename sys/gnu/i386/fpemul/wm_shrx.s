@@ -62,12 +62,12 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: wm_shrx.s,v 1.2 1994/04/29 21:34:29 gclarkii Exp $
+ *     $Id: wm_shrx.s,v 1.3 1994/06/10 07:45:03 rich Exp $
  *
  */
 
 
-#include "fpu_asm.h"
+#include <gnu/i386/fpemul/fpu_asm.h>
 
 .text
 	.align 2,144

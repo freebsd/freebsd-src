@@ -61,12 +61,12 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: reg_norm.s,v 1.2 1994/04/29 21:30:22 gclarkii Exp $
+ *     $Id: reg_norm.s,v 1.3 1994/06/10 07:44:54 rich Exp $
  *
  */
 
 
-#include "fpu_asm.h"
+#include <gnu/i386/fpemul/fpu_asm.h>
 
 
 .text

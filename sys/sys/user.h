@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)user.h	8.2 (Berkeley) 9/23/93
- * $Id: user.h,v 1.6 1995/10/29 09:51:47 phk Exp $
+ * $Id: user.h,v 1.7 1995/12/09 05:10:55 peter Exp $
  */
 
 #ifndef _SYS_USER_H_
@@ -40,7 +40,7 @@
 #include <machine/pcb.h>
 #ifndef KERNEL
 /* stuff that *used* to be included by user.h, or is now needed */
-#include <errno.h>
+#include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/ucred.h>

@@ -57,7 +57,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: reg_u_mul.s,v 1.2 1994/04/29 21:34:25 gclarkii Exp $
+ *     $Id: reg_u_mul.s,v 1.3 1994/06/10 07:44:58 rich Exp $
  *
  */
 
@@ -71,9 +71,9 @@
  |   Result is rounded to nearest 53 or 64 bits, using "nearest or even".    |
  +---------------------------------------------------------------------------*/
 
-#include "exception.h"
-#include "fpu_asm.h"
-#include "control_w.h"
+#include <gnu/i386/fpemul/exception.h>
+#include <gnu/i386/fpemul/fpu_asm.h>
+#include <gnu/i386/fpemul/control_w.h>
 
 
 .data

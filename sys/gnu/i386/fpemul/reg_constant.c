@@ -62,16 +62,16 @@
 
 
 
-#include "param.h"
-#include "proc.h"
-#include "systm.h"
-#include "machine/cpu.h"
-#include "machine/pcb.h"
+#include <sys/param.h>
+#include <sys/proc.h>
+#include <sys/systm.h>
+#include <machine/cpu.h>
+#include <machine/pcb.h>
 
-#include "fpu_emu.h"
-#include "fpu_system.h"
-#include "status_w.h"
-#include "reg_constant.h"
+#include <gnu/i386/fpemul/fpu_emu.h>
+#include <gnu/i386/fpemul/fpu_system.h>
+#include <gnu/i386/fpemul/status_w.h>
+#include <gnu/i386/fpemul/reg_constant.h>
 
 
 FPU_REG CONST_1 = {SIGN_POS, TW_Valid, EXP_BIAS,

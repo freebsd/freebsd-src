@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: reg_ld_str.c,v 1.5 1994/09/21 22:22:48 bde Exp $
+ *     $Id: reg_ld_str.c,v 1.6 1996/06/25 20:29:26 bde Exp $
  *
  */
 
@@ -67,19 +67,19 @@
  |    Emulator static data may change when user memory is accessed, due to   |
  |    other processes using the emulator while swapping is in progress.      |
  +---------------------------------------------------------------------------*/
-#include "param.h"
-#include "proc.h"
-#include "systm.h"
-#include "machine/cpu.h"
-#include "machine/md_var.h"
-#include "machine/pcb.h"
+#include <sys/param.h>
+#include <sys/proc.h>
+#include <sys/systm.h>
+#include <machine/cpu.h>
+#include <machine/md_var.h>
+#include <machine/pcb.h>
 
-#include "fpu_emu.h"
-#include "fpu_system.h"
-#include "exception.h"
-#include "reg_constant.h"
-#include "control_w.h"
-#include "status_w.h"
+#include <gnu/i386/fpemul/fpu_emu.h>
+#include <gnu/i386/fpemul/fpu_system.h>
+#include <gnu/i386/fpemul/exception.h>
+#include <gnu/i386/fpemul/reg_constant.h>
+#include <gnu/i386/fpemul/control_w.h>
+#include <gnu/i386/fpemul/status_w.h>
 
 
 #define EXTENDED_Emax 0x3fff	/* largest valid exponent */

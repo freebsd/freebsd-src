@@ -3,9 +3,9 @@
  *
  * Greg Lee 1993.
  */
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 #ifndef EXCLUDE_GUS
-#include "gus_linearvol.h"
+#include <i386/isa/sound/gus_linearvol.h>
 
 extern unsigned short gus_adagio_vol (int vel, int mainv, int xpn, int voicev);
 extern unsigned short gus_linear_vol (int vol, int mainvol);

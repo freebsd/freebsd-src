@@ -30,7 +30,7 @@
  *  - Added the Audio Excel DSP 16 initialization routine.
  */
 
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_SB)
 

@@ -62,8 +62,8 @@
 
 #define PCVT_INCLUDE_VT_SELATTR	/* get inline function from pcvt_hdr.h */
 
-#include "pcvt_hdr.h"		/* global include */
-#include "pcvt_tbl.h"		/* character set conversion tables */
+#include <i386/isa/pcvt/pcvt_hdr.h>	/* global include */
+#include <i386/isa/pcvt/pcvt_tbl.h>	/* character set conversion tables */
 
 static void clear_dld ( struct video_state *svsp );
 static void init_dld ( struct video_state *svsp );
