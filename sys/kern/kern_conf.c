@@ -317,14 +317,6 @@ freedev(struct cdev *dev)
 	free(dev, M_DEVT);
 }
 
-dev_t
-dev2udev(struct cdev *x)
-{
-	if (x == NULL)
-		return (NODEV);
-	return (x->si_udev);
-}
-
 struct cdev *
 findcdev(dev_t udev)
 {
@@ -792,30 +784,3 @@ clone_cleanup(struct clonedevs **cdp)
 	free(cd, M_DEVBUF);
 	*cdp = NULL;
 }
-
-/*
- * Helper sysctl for devname(3).  We're given a struct cdev * and return
- * the name, if any, registered by the device driver.
- */
-static int
-sysctl_devname(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-	dev_t ud;
-	struct cdev *dev;
-
-	error = SYSCTL_IN(req, &ud, sizeof (ud));
-	if (error)
-		return (error);
-	if (ud == NODEV)
-		return(EINVAL);
-	dev = findcdev(ud);
-	if (dev == NULL)
-		error = ENOENT;
-	else
-		error = SYSCTL_OUT(req, dev->si_name, strlen(dev->si_name) + 1);
-	return (error);
-}
-
-SYSCTL_PROC(_kern, OID_AUTO, devname, CTLTYPE_OPAQUE|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	NULL, 0, sysctl_devname, "", "devname(3) handler");
