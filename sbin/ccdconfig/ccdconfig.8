@@ -12,7 +12,7 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
+.\"    must display the following acknowledgment:
 .\"	This product includes software developed for the NetBSD Project
 .\"	by Jason R. Thorpe.
 .\" 4. The name of the author may not be used to endorse or promote products
@@ -30,6 +30,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
+.\"	$Id$
+.\"
 .Dd July 17, 1995
 .Dt CCDCONFIG 8
 .Os FreeBSD
@@ -43,7 +45,7 @@
 .Ar ileave
 .Op Ar flags
 .Ar dev
-.Op Ar ...
+.Op Ar
 .Nm ccdconfig
 .Fl C
 .Op Fl v
@@ -52,7 +54,7 @@
 .Fl u
 .Op Fl v
 .Ar ccd
-.Op Ar ...
+.Op Ar
 .Nm ccdconfig
 .Fl U
 .Op Fl v
@@ -75,7 +77,7 @@ The options are as follows:
 .Bl -tag -width indent
 .It Fl c
 Configure a ccd.  This is the default behavior of
-.Nm ccdconfig .
+.Nm Ns .
 .It Fl C
 Configure all ccd devices listed in the ccd configuration file.
 .It Fl f Ar config_file
@@ -102,8 +104,8 @@ Unconfigure a ccd.
 .It Fl U
 Unconfigure all ccd devices listed the ccd configuration file.
 .It Fl v
-Causes
-.Nm ccdconfig
+Cause
+.Nm
 to be verbose.
 .El
 .Pp
@@ -145,12 +147,15 @@ interleave factor of 32 blocks.
 .Ed
 .Pp
 .Sh FILES
-/etc/ccd.conf - default ccd configuration file.
+.Bl -tag -width /etc/ccd.conf -compact
+.It Pa /etc/ccd.conf
+default ccd configuration file
+.El
 .Sh SEE ALSO
 .Xr ccd 4 ,
-.Xr rc 8 .
+.Xr rc 8
 .Sh HISTORY
 The
-.Nm ccdconfig
+.Nm
 command first appeared in
 .Nx 1.0a .

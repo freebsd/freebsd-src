@@ -1,5 +1,3 @@
-/* $Id: ccdconfig.c,v 1.7 1997/06/10 11:04:50 charnier Exp $ */
-
 /*	$NetBSD: ccdconfig.c,v 1.2.2.1 1995/11/11 02:43:35 thorpej Exp $	*/
 
 /*
@@ -34,20 +32,22 @@
  * SUCH DAMAGE.
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <sys/param.h>
-#include <sys/ioctl.h>
 #include <sys/disklabel.h>
 #include <sys/device.h>
 #include <sys/disk.h>
 #include <sys/stat.h>
-#include <sys/sysctl.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <kvm.h>
 #include <limits.h>
-#include <nlist.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -97,7 +97,6 @@ static	int dump_ccd __P((int, char **));
 static	int getmaxpartitions __P((void));
 static	int getrawpartition __P((void));
 static	int flags_to_val __P((char *));
-static	int pathtodevt __P((char *, dev_t *));
 static	void print_ccd_info __P((struct ccd_softc *, kvm_t *));
 static	char *resolve_ccdname __P((char *));
 static	void usage __P((void));
@@ -186,6 +185,7 @@ main(argc, argv)
 			/* NOTREACHED */
 	}
 	/* NOTREACHED */
+	return (0);
 }
 
 static int
@@ -196,7 +196,7 @@ do_single(argc, argv, action)
 {
 	struct ccd_ioctl ccio;
 	char *ccd, *cp, *cp2, **disks;
-	int noflags = 0, i, ileave, flags, j, error;
+	int noflags = 0, i, ileave, flags, j;
 
 	bzero(&ccio, sizeof(ccio));
 
@@ -393,7 +393,6 @@ pathtounit(path, unitp)
 	int *unitp;
 {
 	struct stat st;
-	dev_t dev;
 	int maxpartitions;
 
 	if (stat(path, &st) != 0)
@@ -414,7 +413,7 @@ static char *
 resolve_ccdname(name)
 	char *name;
 {
-	char c, *cp, *path;
+	char c, *path;
 	size_t len, newlen;
 	int rawpart;
 
