@@ -28,6 +28,7 @@
 .Dt FETCH 3
 .Os
 .Sh NAME
+.Nm fetchMakeURL ,
 .Nm fetchParseURL ,
 .Nm fetchFreeURL ,
 .Nm fetchGetURL ,
@@ -57,6 +58,8 @@
 .Fd #include <sys/param.h>
 .Fd #include <stdio.h>
 .Fd #include <fetch.h>
+.Ft struct url *
+.Fn fetchMakeURL "char *scheme" "char *host" "int port" "char *doc" "char *user" "char *pwd"
 .Ft struct url *
 .Fn fetchParseURL "char *URL"
 .Ft void
@@ -120,8 +123,10 @@ all URL schemes.
 For instance, the file scheme only needs the <scheme>
 and <document> components.
 .Pp
+.Fn fetchMakeURL
+and
 .Fn fetchParseURL
-returns a pointer to a
+return a pointer to a
 .Fa url
 structure, which is defined as follows in
 .Aq Pa fetch.h :
@@ -143,6 +148,8 @@ struct url {
 .Ed
 .Pp
 The pointer returned by
+.Fn fetchMakeURL
+or
 .Fn fetchParseURL
 should be freed using
 .Fn fetchFreeURL .
