@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.1 1995/09/18 16:52:55 peter Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.1.2.1 1995/10/14 19:14:18 jkh Exp $
 
 Table of Contents
 -----------------
@@ -69,7 +69,7 @@ flags <devname> <mask>  Set device flags
 enable <devname>        Enable device
 probe <devname>         Return results of device probe
 disable <devname>       Disable device (will not be probed)
-visual			Go to visual mode
+visual                  Go to visual mode
 quit                    Exit this configuration utility
 help                    This message
 

@@ -53,11 +53,11 @@ at disk storage works:
 
 
 In FreeBSD's new system, a device name can be broken up into up to 3
-parts.  Take a typical name like this:	/dev/sd0s1a
+parts.  Take a typical name like this:  /dev/sd0s1a
 
-	The first three characters represent the drive name.  If we had
-	a system with two SCSI drives on it, we'd see /dev/sd0 and /dev/sd1
-	as possible values in this position (representing the entire drives).
+        The first three characters represent the drive name.  If we had
+        a system with two SCSI drives on it, we'd see /dev/sd0 and /dev/sd1
+        as possible values in this position (representing the entire drives).
 
         Next you have the "slice" (or "FDISK Partition") number,
         as seen in the Partition Editor.  Assume again that our sd0

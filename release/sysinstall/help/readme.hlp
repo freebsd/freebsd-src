@@ -4,10 +4,10 @@
                                                       \ \___   / |
 Welcome to the 2.1 release of FreeBSD!  2.1 is the    /- _  `-/  '
 stability release following FreeBSD 2.0.5 and con-   (/\/ \ \   /\
-sists primarily of bug fixes, documentation    	     / /   | `    \
+sists primarily of bug fixes, documentation          / /   | `    \
 updates and upgrades of several small non-critical   O O   ) /    |
 subsystems.  The emphasis with 2.1 was to increase   `-^--'`<     '
-system stability and applicability to "mission-	    (_.)  _  )   /
+system stability and applicability to "mission-     (_.)  _  )   /
 critical" applications.  No major features were      `.___/`    /
 added ore changed.  As usual, for more                 `-----' /
 information on what's changed between     <----.     __ / __   \
@@ -47,21 +47,18 @@ purchase the 4.4BSD Document Set from O'Reilly Associates and the
 USENIX Association, ISBN 1-56592-082-1.  We have no connection with
 O'Reilly, we're just satisfied customers!
 
-You may also wish to read the HARDWARE GUIDE *before* proceeding any
-further with the installation.  Configuring PC hardware for anything
-other than DOS/Windows (which don't actually make very significant
-demands on the hardware) is actually quite a bit harder than it looks,
-and if you think you understand PCs then you clearly haven't been
-using them for long enough! :) This guide will give you some tips on
-how to configure your hardware and what symptoms to watch for in case
-of trouble.  This guide is available in the Documentation menu of the
-FreeBSD boot floppy.
+If you're new to FreeBSD then you should also read everything in the
+Documentation menu on the boot floppy.  It may seem like a lot to read,
+but you should at least aquaint yourself with the types of information
+available there should you later get stuck.
 
 DISCLAIMER: While FreeBSD does its best to safeguard against accidental
 loss of data, it's still more than possible to WIPE OUT YOUR ENTIRE DISK
 with this installation!  Please do not proceed to the final FreeBSD
 installation menu unless you've adequately backed up any important
 data first!  We really mean it!
+
+E-mail addresses and tech support info:
 
 Technical comments on this release should be sent (in English!) to:
 

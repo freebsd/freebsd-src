@@ -26,7 +26,7 @@ Table of Contents:
 
 3.0     Installing FreeBSD.
 
-3.1	Repairing an existing FreeBSD installation.
+3.1     Repairing an existing FreeBSD installation.
 
 
 1.0     DOS user's Question and Answer section
@@ -335,26 +335,26 @@ can continue over NFS or FTP.
 
            o FTP Active:
 
-	     For all FTP transfers, use "Active" mode.  This will not work
-	     through firewalls, but will often work with older ftp servers
-	     that do not support passive mode.  If your connection hangs
-	     with passive mode (the default), try active!
+             For all FTP transfers, use "Active" mode.  This will not work
+             through firewalls, but will often work with older ftp servers
+             that do not support passive mode.  If your connection hangs
+             with passive mode (the default), try active!
 
-	   o FTP Passive:
+           o FTP Passive:
 
-	     For all FTP transfers, use "Passive" mode.  This allows the user
-	     to pass through firewalls that do not allow incoming connections
-	     on random port addresses.
+             For all FTP transfers, use "Passive" mode.  This allows the user
+             to pass through firewalls that do not allow incoming connections
+             on random port addresses.
 
-	NOTE: ACTIVE AND PASSIVE MODES ARE NOT THE SAME AS A `PROXY'
-	CONNECTION, WHERE A PROXY FTP SERVER IS LISTENING ON A DIFFERENT
-	PORT!
+        NOTE: ACTIVE AND PASSIVE MODES ARE NOT THE SAME AS A `PROXY'
+        CONNECTION, WHERE A PROXY FTP SERVER IS LISTENING ON A DIFFERENT
+        PORT!
 
-	In such instances, you should specify the URL as something like:
+        In such instances, you should specify the URL as something like:
 
-		ftp://foo.bar.com:1234/pub/FreeBSD
+                ftp://foo.bar.com:1234/pub/FreeBSD
 
-	Where "1234" is the port number of the proxy ftp server.
+        Where "1234" is the port number of the proxy ftp server.
 
 
 
@@ -440,7 +440,7 @@ order and presents you with various helpful prompts along the way.
         o Next, with the `Label Editor', you can specify how the space
           in any allocated FreeBSD partitions should be used by FreeBSD,
           or where to mount a non-FreeBSD partition (such as DOS).  If
-	  you want the standard layout, simply type `A' here.
+          you want the standard layout, simply type `A' here.
 
         o Next, the `Distributions' menu allows you to specify which
           parts of FreeBSD you wish to load.  A good choice is
