@@ -627,28 +627,27 @@ ufs_extattr_enable(struct ufsmount *ump, int attrnamespace,
 	vn_lock(backing_vnode, LK_SHARED | LK_NOPAUSE | LK_RETRY, td);
 	error = VOP_READ(backing_vnode, &auio, IO_NODELOCKED,
 	    ump->um_extattr.uepm_ucred);
-	VOP_UNLOCK(backing_vnode, 0, td);
 
 	if (error)
-		goto free_exit;
+		goto unlock_free_exit;
 
 	if (auio.uio_resid != 0) {
 		printf("ufs_extattr_enable: malformed attribute header\n");
 		error = EINVAL;
-		goto free_exit;
+		goto unlock_free_exit;
 	}
 
 	if (attribute->uele_fileheader.uef_magic != UFS_EXTATTR_MAGIC) {
 		printf("ufs_extattr_enable: invalid attribute header magic\n");
 		error = EINVAL;
-		goto free_exit;
+		goto unlock_free_exit;
 	}
 
 	if (attribute->uele_fileheader.uef_version != UFS_EXTATTR_VERSION) {
 		printf("ufs_extattr_enable: incorrect attribute header "
 		    "version\n");
 		error = EINVAL;
-		goto free_exit;
+		goto unlock_free_exit;
 	}
 
 	ASSERT_VOP_LOCKED(backing_vnode, "ufs_extattr_enable");
@@ -656,7 +655,11 @@ ufs_extattr_enable(struct ufsmount *ump, int attrnamespace,
 	LIST_INSERT_HEAD(&ump->um_extattr.uepm_list, attribute,
 	    uele_entries);
 
+	VOP_UNLOCK(backing_vnode, 0, td);
 	return (0);
+
+unlock_free_exit:
+	VOP_UNLOCK(backing_vnode, 0, td);
 
 free_exit:
 	FREE(attribute, M_UFS_EXTATTR);
@@ -682,8 +685,11 @@ ufs_extattr_disable(struct ufsmount *ump, int attrnamespace,
 
 	LIST_REMOVE(uele, uele_entries);
 
+	vn_lock(uele->uele_backing_vnode, LK_SHARED | LK_NOPAUSE | LK_RETRY,
+	    td);
 	ASSERT_VOP_LOCKED(uele->uele_backing_vnode, "ufs_extattr_disable");
 	uele->uele_backing_vnode->v_vflag &= ~VV_SYSTEM;
+	VOP_UNLOCK(uele->uele_backing_vnode, 0, td);
 	error = vn_close(uele->uele_backing_vnode, FREAD|FWRITE,
 	    td->td_ucred, td);
 
