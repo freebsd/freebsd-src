@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.1 1996/01/28 23:38:26 dyson Exp $
+ * $Id: sys_pipe.c,v 1.2 1996/01/29 02:57:33 dyson Exp $
  */
 
 #ifndef OLD_PIPE
@@ -265,8 +265,12 @@ pipe_read(fp, uio, cred)
 				rpipe->pipe_state &= ~PIPE_WANTW;
 				wakeup(rpipe);
 			}
-			if ((nread > 0) || (rpipe->pipe_state & PIPE_NBIO))
+			if (nread > 0)
 				break;
+			if (rpipe->pipe_state & PIPE_NBIO) {
+				error = EAGAIN;
+				break;
+			}
 			if (rpipe->pipe_peer == NULL)
 				break;
 
@@ -342,7 +346,7 @@ pipe_write(fp, uio, cred)
 	 */
 	if (wpipe == NULL || (wpipe->pipe_state & PIPE_EOF)) {
 		psignal(curproc, SIGPIPE);
-		return 0;
+		return EPIPE;
 	}
 
 	++wpipe->pipe_busy;
@@ -393,7 +397,7 @@ pipe_write(fp, uio, cred)
 			 */
 			if (wpipe->pipe_state & PIPE_EOF) {
 				psignal(curproc, SIGPIPE);
-				break;
+				error = EPIPE;
 			}	
 		}
 	}
