@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.h,v 1.9 1997/09/21 21:38:54 gibbs Exp $
+ *	$Id: si.h,v 1.10 1998/02/15 14:42:32 peter Exp $
  */
 
 #include <sys/callout.h>
@@ -70,8 +70,9 @@
 #define	SI_CONTROLDEV_MASK	0x40000
 #define	SI_SPECIAL_MASK		0x70000
 
+#define SI_CARDSHIFT		5
 #define	SI_PORT(m)		(m & SI_PORT_MASK)
-#define	SI_CARD(m)		((m & SI_CARD_MASK) >> 5)
+#define	SI_CARD(m)		((m & SI_CARD_MASK) >> SI_CARDSHIFT)
 #define	SI_TTY(m)		(m & SI_TTY_MASK)
 
 #define	IS_CALLOUT(m)		(m & SI_CALLOUT_MASK)
