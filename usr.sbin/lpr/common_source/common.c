@@ -41,7 +41,7 @@
 static char sccsid[] = "@(#)common.c	8.5 (Berkeley) 4/28/95";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: common.c,v 1.10 1997/12/02 20:45:18 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -79,7 +79,7 @@ getline(cfp)
 {
 	register int linel = 0;
 	register char *lp = line;
-	register c;
+	register int c;
 
 	while ((c = getc(cfp)) != '\n' && linel+1 < sizeof(line)) {
 		if (c == EOF)

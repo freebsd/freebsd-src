@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)cmds.c	8.2 (Berkeley) 4/28/95";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: cmds.c,v 1.11 1997/12/02 20:45:37 wollman Exp $";
 #endif /* not lint */
 
 /*
@@ -69,8 +69,6 @@ static const char rcsid[] =
 #include "lpc.h"
 #include "extern.h"
 #include "pathnames.h"
-
-extern uid_t	uid, euid;
 
 static void	abortpr __P((struct printer *, int));
 static int	doarg __P((char *));

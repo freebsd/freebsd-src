@@ -1,8 +1,8 @@
-#	$Id: Makefile,v 1.4 1998/05/13 06:50:09 jb Exp $
+#	$Id: Makefile,v 1.5 1998/06/11 03:51:34 jb Exp $
 
 PROG=	chkprintcap
 MAN8=	chkprintcap.8
-CFLAGS+=-I${.CURDIR}/../common_source -Wall
+CFLAGS+=-I${.CURDIR}/../common_source ${CWARNFLAGS}
 .PATH:	${.CURDIR}/../common_source
 DPADD=	${LIBLPR}
 LDADD=	${LIBLPR}
