@@ -390,7 +390,7 @@ ng_btsocket_hci_raw_send_ngmsg(char *path, int cmd, void *arg, int arglen)
 	if (arg != NULL && arglen > 0)
 		bcopy(arg, msg->data, arglen);
 
-	NG_SEND_MSG_PATH(error, ng_btsocket_hci_raw_node, msg, path, NULL);
+	NG_SEND_MSG_PATH(error, ng_btsocket_hci_raw_node, msg, path, 0);
 
 	return (error);
 } /* ng_btsocket_hci_raw_send_ngmsg */
@@ -416,7 +416,7 @@ ng_btsocket_hci_raw_send_sync_ngmsg(ng_btsocket_hci_raw_pcb_p pcb, char *path,
 	pcb->token = msg->header.token;
 	pcb->msg = NULL;
 
-	NG_SEND_MSG_PATH(error, ng_btsocket_hci_raw_node, msg, path, NULL);
+	NG_SEND_MSG_PATH(error, ng_btsocket_hci_raw_node, msg, path, 0);
 	if (error != 0) {
 		pcb->token = 0;
 		return (error);
@@ -1149,7 +1149,7 @@ ng_btsocket_hci_raw_control(struct socket *so, u_long cmd, caddr_t data,
 		pcb->token = msg->header.token;
 		pcb->msg = NULL;
 
-		NG_SEND_MSG_PATH(error,ng_btsocket_hci_raw_node,msg,path,NULL);
+		NG_SEND_MSG_PATH(error, ng_btsocket_hci_raw_node, msg, path, 0);
 		if (error != 0) {
 			pcb->token = 0;
 			break;
@@ -1205,7 +1205,7 @@ ng_btsocket_hci_raw_control(struct socket *so, u_long cmd, caddr_t data,
 		pcb->token = msg->header.token;
 		pcb->msg = NULL;
 
-		NG_SEND_MSG_PATH(error,ng_btsocket_hci_raw_node,msg,path,NULL);
+		NG_SEND_MSG_PATH(error, ng_btsocket_hci_raw_node, msg, path, 0);
 		if (error != 0) {
 			pcb->token = 0;
 			break;

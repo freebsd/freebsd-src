@@ -559,7 +559,7 @@ ng_atm_event_func(node_p node, hook_p hook, void *arg, int event)
 
 		/* XXX have to figure out how to get that info */
 
-		NG_SEND_MSG_HOOK(error, node, mesg, vcc->hook, NULL);
+		NG_SEND_MSG_HOOK(error, node, mesg, vcc->hook, 0);
 		break;
 	    }
 
@@ -579,7 +579,7 @@ ng_atm_event_func(node_p node, hook_p hook, void *arg, int event)
 		chg->vpi = ev->vpi;
 		chg->state = (ev->up != 0);
 		chg->node = NG_NODE_ID(node);
-		NG_SEND_MSG_HOOK(error, node, mesg, priv->manage, NULL);
+		NG_SEND_MSG_HOOK(error, node, mesg, priv->manage, 0);
 		break;
 	    }
 
@@ -598,7 +598,7 @@ ng_atm_event_func(node_p node, hook_p hook, void *arg, int event)
 		chg->carrier = (ev->carrier != 0);
 		chg->running = (ev->running != 0);
 		chg->node = NG_NODE_ID(node);
-		NG_SEND_MSG_HOOK(error, node, mesg, priv->manage, NULL);
+		NG_SEND_MSG_HOOK(error, node, mesg, priv->manage, 0);
 		break;
 	    }
 
@@ -625,7 +625,7 @@ ng_atm_event_func(node_p node, hook_p hook, void *arg, int event)
 		acr->vpi = ev->vpi;
 		acr->acr = ev->acr;
 
-		NG_SEND_MSG_HOOK(error, node, mesg, vcc->hook, NULL);
+		NG_SEND_MSG_HOOK(error, node, mesg, vcc->hook, 0);
 		break;
 	    }
 	}
