@@ -76,6 +76,7 @@ if [ $bootable = yes ]; then
     mkdir -p $MNT/efi/boot $MNT/boot $MNT/boot/kernel
     cp -R $BASE/boot/defaults $MNT/boot
     cp $BASE/boot/kernel/kernel $MNT/boot/kernel
+    cp $BASE/boot/kernel/ispfw.ko $MNT/boot/kernel
     cp $BASE/boot/device.hints $MNT/boot
     cp $BASE/boot/loader.* $MNT/boot
     cp $BASE/boot/mfsroot.gz $MNT/boot
