@@ -747,6 +747,7 @@ atapi_wait(struct atapi_softc *atp, u_int8_t mask)
 {
     u_int32_t timeout = 0;
     
+    DELAY(1);
     while (timeout++ <= 500000) {	 /* timeout 5 secs */
 	atp->controller->status = inb(atp->controller->ioaddr + ATA_STATUS);
 

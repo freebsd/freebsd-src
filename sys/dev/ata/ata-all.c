@@ -404,6 +404,30 @@ ata_pciattach(device_t dev)
     return 0;
 }
 
+int32_t
+ata_find_dev(device_t dev, int32_t type)
+{
+    device_t *children, child;
+    int nchildren, i;
+
+    if (device_get_children(device_get_parent(dev), &children, &nchildren))
+	return 0;
+
+    for (i = 0; i < nchildren; i++) {
+	child = children[i];
+
+	/* check that it's on the same silicon and the device we want */
+	if (pci_get_slot(dev) == pci_get_slot(child) &&
+	    pci_get_vendor(child) == (type & 0xffff) &&
+	    pci_get_device(child) == ((type & 0xffff0000)>>16)) {
+	    free(children, M_TEMP);
+	    return 1;
+	}
+    }
+    free(children, M_TEMP);
+    return 0;
+}
+
 static device_method_t ata_pci_methods[] = {
     /* Device interface */
     DEVMETHOD(device_probe,	ata_pciprobe),
@@ -944,28 +968,4 @@ bpack(int8_t *src, int8_t *dst, int32_t len)
 	dst[j++] = src[i];
     }
     dst[j] = 0x00;
-}
-
-int32_t
-ata_find_dev(device_t dev, int32_t type)
-{
-    device_t *children, child;
-    int nchildren, i;
-
-    if (device_get_children(device_get_parent(dev), &children, &nchildren))
-	return 0;
-
-    for (i = 0; i < nchildren; i++) {
-	child = children[i];
-
-	/* check that it's on the same silicon and the device we want */
-	if (pci_get_slot(dev) == pci_get_slot(child) &&
-	    pci_get_vendor(child) == (type & 0xffff) &&
-	    pci_get_device(child) == ((type & 0xffff0000)>>16)) {
-	    free(children, M_TEMP);
-	    return 1;
-	}
-    }
-    free(children, M_TEMP);
-    return 0;
 }
