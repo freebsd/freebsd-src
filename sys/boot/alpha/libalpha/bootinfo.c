@@ -88,11 +88,10 @@ bi_copyenv(vm_offset_t addr)
 }
 
 #define MOD_STR(t, a, s) {			\
-    const char *p = s ? s : "";			\
     COPY32(t, a);				\
-    COPY32(strlen(p) + 1, a);			\
-    alpha_copyin(p, a, strlen(p) + 1);		\
-    a += roundup(strlen(p) + 1, sizeof(u_int64_t));\
+    COPY32(strlen(s) + 1, a);			\
+    alpha_copyin(s, a, strlen(s) + 1);		\
+    a += roundup(strlen(s) + 1, sizeof(u_int64_t));\
 }
 
 #define MOD_NAME(a, s)	MOD_STR(MODINFO_NAME, a, s)
@@ -132,7 +131,8 @@ bi_copymodules(vm_offset_t addr)
 
 	MOD_NAME(addr, mp->m_name);	/* this field must come first */
 	MOD_TYPE(addr, mp->m_type);
-	MOD_ARGS(addr, mp->m_args);
+	if (mp->m_args)
+	    MOD_ARGS(addr, mp->m_args);
 	MOD_ADDR(addr, mp->m_addr);
 	MOD_SIZE(addr, mp->m_size);
 	for (md = mp->m_metadata; md != NULL; md = md->md_next)
