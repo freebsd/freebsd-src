@@ -145,14 +145,14 @@ poly_tan(FPU_REG * arg, FPU_REG * y_reg)
 	pos_poly.exp = EXP_BIAS;
 
 	/* Do the basic fixed point polynomial evaluation */
-	polynomial(&pos_poly.sigl, (unsigned *) &argSqSq, oddplterms, HIPOWERop - 1);
+	polynomial((u_int *) &pos_poly.sigl, (unsigned *) &argSqSq, oddplterms, HIPOWERop - 1);
 
 	/* will be a valid positive nr with expon = 0 */
 	*(short *) &(neg_poly.sign) = 0;
 	neg_poly.exp = EXP_BIAS;
 
 	/* Do the basic fixed point polynomial evaluation */
-	polynomial(&neg_poly.sigl, (unsigned *) &argSqSq, oddnegterms, HIPOWERon - 1);
+	polynomial((u_int *) &neg_poly.sigl, (unsigned *) &argSqSq, oddnegterms, HIPOWERon - 1);
 	mul64((long long *) (&argSq.sigl), (long long *) (&neg_poly.sigl),
 	    (long long *) (&neg_poly.sigl));
 
@@ -175,7 +175,7 @@ poly_tan(FPU_REG * arg, FPU_REG * y_reg)
 	pos_poly.exp = EXP_BIAS;
 
 	/* Do the basic fixed point polynomial evaluation */
-	polynomial(&pos_poly.sigl, (unsigned *) &argSqSq, evenplterms, HIPOWERep - 1);
+	polynomial((u_int *) &pos_poly.sigl, (unsigned *) &argSqSq, evenplterms, HIPOWERep - 1);
 	mul64((long long *) (&argSq.sigl),
 	    (long long *) (&pos_poly.sigl), (long long *) (&pos_poly.sigl));
 
@@ -184,7 +184,7 @@ poly_tan(FPU_REG * arg, FPU_REG * y_reg)
 	neg_poly.exp = EXP_BIAS;
 
 	/* Do the basic fixed point polynomial evaluation */
-	polynomial(&neg_poly.sigl, (unsigned *) &argSqSq, evennegterms, HIPOWERen - 1);
+	polynomial((u_int *) &neg_poly.sigl, (unsigned *) &argSqSq, evennegterms, HIPOWERen - 1);
 
 	/* Subtract the mantissas */
 	*((long long *) (&neg_poly.sigl)) -= *((long long *) (&pos_poly.sigl));
