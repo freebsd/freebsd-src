@@ -340,6 +340,7 @@ int	if_delmulti __P((struct ifnet *, struct sockaddr *));
 void	if_detach __P((struct ifnet *));
 void	if_down __P((struct ifnet *));
 void	if_route __P((struct ifnet *, int flag, int fam));
+int	if_setlladdr __P((struct ifnet *, const u_char *, int));
 void	if_unroute __P((struct ifnet *, int flag, int fam));
 void	if_up __P((struct ifnet *));
 /*void	ifinit __P((void));*/ /* declared in systm.h for main() */
