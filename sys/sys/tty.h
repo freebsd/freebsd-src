@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.18 1995/04/15 20:59:28 bde Exp $
+ * $Id: tty.h,v 1.19 1995/07/16 10:22:37 joerg Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -139,7 +139,9 @@ struct tty {
 #define	TS_TBLOCK	0x00040		/* Further input blocked. */
 #define	TS_TIMEOUT	0x00080		/* Wait for output char processing. */
 #define	TS_TTSTOP	0x00100		/* Output paused. */
+#if 0
 #define	TS_WOPEN	0x00200		/* Open in progress. */
+#endif
 #define	TS_XCLUDE	0x00400		/* Tty requires exclusivity. */
 
 /* State for intra-line fancy editing work. */
