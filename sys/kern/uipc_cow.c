@@ -60,18 +60,12 @@ __FBSDID("$FreeBSD$");
 struct netsend_cow_stats {
 	int attempted;
 	int fail_not_mapped;
-	int fail_wired;
-	int fail_not_anon;
-	int fail_pmap_cow;
-	int fail_pg_error;
-	int fail_kva;
-	int free_post_exit;
+	int fail_sf_buf;
 	int success;
 	int iodone;
-	int freed;
 };
 
-static struct netsend_cow_stats socow_stats = {0,0,0,0,0,0,0,0,0,0,0};
+static struct netsend_cow_stats socow_stats;
 
 static void socow_iodone(void *addr, void *args);
 
@@ -141,7 +135,22 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 	 * Allocate an sf buf
 	 */
 	sf = sf_buf_alloc(pp);
-
+	if (!sf) {
+		vm_page_lock_queues();
+		vm_page_cowclear(pp);
+		vm_page_unwire(pp, 0);
+		/*
+		 * Check for the object going away on us. This can
+		 * happen since we don't hold a reference to it.
+		 * If so, we're responsible for freeing the page.
+		 */
+		if (pp->wire_count == 0 && pp->object == NULL)
+			vm_page_free(pp);
+		vm_page_unlock_queues();
+		socow_stats.fail_sf_buf++;
+		splx(s);
+		return(0);
+	}
 	/* 
 	 * attach to mbuf
 	 */
