@@ -3461,6 +3461,15 @@ isp_control(struct ispsoftc *isp, ispctl_t ctl, void *arg)
 		}
 		break;
 
+
+	case ISPCTL_GET_PDB:
+		if (IS_FC(isp) && arg) {
+			int id = *((int *)arg);
+			isp_pdb_t *pdb = arg;
+			return (isp_getpdb(isp, id, pdb));
+		}
+		break;
+
 	case ISPCTL_RUN_MBOXCMD:
 
 		isp_mboxcmd(isp, arg, MBLOGALL);
