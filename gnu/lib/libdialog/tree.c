@@ -1064,6 +1064,7 @@ unsigned char *
 free_names(unsigned char **names, int size, int choice)
 {
 	unsigned char *retval = NULL;
+	unsigned char **p_names = names;
 	
 	while (size--)
 	{
@@ -1072,7 +1073,7 @@ free_names(unsigned char **names, int size, int choice)
 		else	
 			free(*names++);
 	}
-	free(names);
+	free(p_names);
 	return retval;
 } /* free_names() */
 
