@@ -162,7 +162,7 @@ static	u_char	rtc_statusb = RTCSB_24HR | RTCSB_PINTR;
 #define	ACQUIRED	2
 #define	ACQUIRE_PENDING	3
 
-static 	u_char	timer0_state;
+static	u_char	timer0_state;
 #ifdef	PC98
 static 	u_char	timer1_state;
 #endif
@@ -178,6 +178,7 @@ static void rtc_outb __P((int));
 #if defined(I586_CPU) || defined(I686_CPU)
 static	void	set_i586_ctr_freq(u_int i586_freq, u_int i8254_freq);
 #endif
+static	void	set_timer_freq(u_int freq, int intr_freq);
 
 static void
 clkintr(struct clockframe frame)
@@ -455,7 +456,7 @@ getit(void)
 void
 DELAY(int n)
 {
-	int prev_tick, tick, ticks_left, sec, usec;
+	int delta, prev_tick, tick, ticks_left, sec, usec;
 
 #ifdef DELAYDEBUG
 	int getit_calls = 1;
@@ -471,6 +472,13 @@ DELAY(int n)
 	if (state == 1)
 		printf("DELAY(%d)...", n);
 #endif
+	/*
+	 * Guard against the timer being uninitialized if we are called
+	 * early for console i/o.
+	 */
+	if (timer0_max_count == 0)
+		set_timer_freq(timer_freq, hz);
+
 	/*
 	 * Read the counter first, so that the rest of the setup overhead is
 	 * counted.  Guess the initial overhead is 20 usec (on most systems it
@@ -498,11 +506,20 @@ DELAY(int n)
 #ifdef DELAYDEBUG
 		++getit_calls;
 #endif
-		if (tick > prev_tick)
-			ticks_left -= prev_tick - (tick - timer0_max_count);
-		else
-			ticks_left -= prev_tick - tick;
+		delta = prev_tick - tick;
 		prev_tick = tick;
+		if (delta < 0) {
+			delta += timer0_max_count;
+			/*
+			 * Guard against timer0_max_count being wrong.
+			 * This shouldn't happen in normal operation,
+			 * but it may happen if set_timer_freq() is
+			 * traced.
+			 */
+			if (delta < 0)
+				delta = 0;
+		}
+		ticks_left -= delta;
 	}
 #ifdef DELAYDEBUG
 	if (state == 1)
@@ -530,7 +547,7 @@ sysbeep(int pitch, int period)
 	int x = splclock();
 
 #ifdef PC98
-	if (acquire_timer1(TIMER_SQWAVE|TIMER_16BIT)) 
+	if (acquire_timer1(TIMER_SQWAVE|TIMER_16BIT))
 		if (!beeping) {
 			/* Something else owns it. */
 			splx(x);
@@ -864,7 +881,7 @@ rtc_outb(int val)
 	    DELAY(1);
 	    outb(IO_RTC, sa | 0x10);	/* CLK 1 */
 	    DELAY(1);
-	} 
+	}
 	outb(IO_RTC, sa & 0xef);	/* CLK 0 */
 }
 
@@ -880,7 +897,7 @@ rtc_inb(void)
 	    DELAY(1);
 	    outb(IO_RTC, 0x07);	/* CLK 0 */
 	    DELAY(2);
-	} 
+	}
 	return sa;
 }
 #endif /* PC-98 */
