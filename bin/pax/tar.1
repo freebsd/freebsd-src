@@ -96,9 +96,7 @@ In addition to the flags mentioned above, any of the following
 flags may be used:
 .Bl -tag -width indent
 .It Fl b Ar "blocking factor"
-Set blocking factor to use for the archive.
-.Nm
-uses 512 byte blocks.
+Set blocking factor to use for the archive, with 512 byte blocks.
 The default is 20, the maximum is 126.
 Archives with a blocking factor larger 63 violate the
 .Tn POSIX
@@ -255,8 +253,9 @@ Default tape device to use instead of
 default archive name
 .El
 .Sh DIAGNOSTICS
+The
 .Nm
-will exit with one of the following values:
+utility will exit with one of the following values:
 .Bl -tag -width 2n
 .It 0
 All files were processed successfully.
