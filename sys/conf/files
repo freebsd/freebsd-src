@@ -1017,6 +1017,7 @@ kern/kern_timeout.c	standard
 kern/kern_uuid.c	standard
 kern/kern_xxx.c		standard
 kern/link_elf.c		standard
+kern/md4c.c		optional netsmb
 kern/md5c.c		standard
 kern/sched_4bsd.c	standard
 kern/subr_autoconf.c	standard
@@ -1412,6 +1413,15 @@ netns/ns_pcb.c		optional ns
 netns/ns_proto.c	optional ns
 netns/spp_debug.c	optional ns
 netns/spp_usrreq.c	optional ns
+netsmb/smb_conn.c		optional netsmb
+netsmb/smb_crypt.c		optional netsmb
+netsmb/smb_dev.c		optional netsmb
+netsmb/smb_iod.c		optional netsmb
+netsmb/smb_rq.c			optional netsmb
+netsmb/smb_smb.c		optional netsmb
+netsmb/smb_subr.c		optional netsmb
+netsmb/smb_trantcp.c		optional netsmb
+netsmb/smb_usr.c		optional netsmb
 nfs/nfs_common.c		optional nfsclient
 nfs/nfs_common.c		optional nfsserver
 nfsclient/bootp_subr.c		optional bootp nfsclient
@@ -1484,7 +1494,7 @@ pci/intpm.c		optional intpm
 pci/meteor.c		count meteor pci nowerror
 pci/ncr.c		optional ncr
 pci/ohci_pci.c		optional ohci
-pci/simos.c		optional simos
+pci/simos.c		optional simos nowerror
 pci/uhci_pci.c		optional uhci
 pci/viapm.c		optional viapm
 pci/xrpu.c		optional xrpu
