@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.58 1996/06/08 09:08:49 jkh Exp $
+ * $Id: sysinstall.h,v 1.59 1996/06/11 09:47:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -110,12 +110,15 @@
 #define VAR_NETMASK			"netmask"
 #define VAR_NFS_PATH			"nfs"
 #define VAR_NFS_SECURE			"nfsSecure"
+#define VAR_NFS_SERVER			"nfs_server"
 #define VAR_NO_CONFIRM			"noConfirm"
 #define VAR_NTPDATE			"ntpDate"
 #define VAR_PORTS_PATH			"ports"
 #define VAR_RELNAME			"releaseName"
 #define VAR_ROOT_SIZE			"rootSize"
 #define VAR_ROUTEDFLAGS			"routedflags"
+#define VAR_GATED			"gated"
+#define VAR_PCNFSD			"pcnfsd"
 #define VAR_SLOW_ETHER			"slowEthernetCard"
 #define VAR_SWAP_SIZE			"swapSize"
 #define VAR_TAPE_BLOCKSIZE		"tapeBlocksize"
@@ -403,6 +406,7 @@ extern int	dmenuSystemCommand(dialogMenuItem *tmp);
 extern int	dmenuSystemCommandBox(dialogMenuItem *tmp);
 extern int	dmenuExit(dialogMenuItem *tmp);
 extern int	dmenuSetVariable(dialogMenuItem *tmp);
+extern int	dmenuToggleVariable(dialogMenuItem *tmp);
 extern int	dmenuSetFlag(dialogMenuItem *tmp);
 extern int	dmenuSetValue(dialogMenuItem *tmp);
 extern Boolean	dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max);

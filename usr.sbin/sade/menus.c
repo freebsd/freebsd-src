@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.63 1996/05/16 13:39:08 jkh Exp $
+ * $Id: menus.c,v 1.64 1996/06/12 14:02:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -949,11 +949,11 @@ aspects of your system's network configuration.",
 { { "Interfaces",	"Configure additional network interfaces",
     NULL, tcpMenuSelect },
   { "NFS client",	"This machine will be an NFS client",
-    dmenuVarCheck, dmenuSetVariable, NULL, "nfs_client=YES" },
+    dmenuVarCheck, dmenuToggleVariable, NULL, "nfs_client=YES" },
   { "NFS server",	"This machine will be an NFS server",
     dmenuVarCheck, configNFSServer, NULL, "nfs_server" },
   { "Gateway",		"This machine will route packets between interfaces",
-    dmenuVarCheck, dmenuSetVariable, NULL, "gateway=YES" },
+    dmenuVarCheck, dmenuToggleVariable, NULL, "gateway=YES" },
   { "Gated",		"This machine wants to run gated instead of routed",
     dmenuVarCheck, configGated, NULL, "gated" },
   { "Ntpdate",		"Select a clock-syncronization server",
@@ -961,7 +961,7 @@ aspects of your system's network configuration.",
   { "Routed",		"Set flags for routed (default: -q)",
     dmenuVarCheck, configRoutedFlags, NULL, "routed" },
   { "Rwhod",		"This machine wants to run the rwho daemon",
-    dmenuVarCheck, dmenuSetVariable, NULL, "rwhod=YES" },
+    dmenuVarCheck, dmenuToggleVariable, NULL, "rwhod=YES" },
   { "Anon FTP",		"This machine wishes to allow anonymous FTP.",
     dmenuVarCheck, configAnonFTP, NULL, "anon_ftp" },
   { "WEB Server",	"This machine wishes to be a WWW server.",
