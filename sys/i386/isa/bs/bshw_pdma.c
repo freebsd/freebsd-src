@@ -1,3 +1,4 @@
+/*	$NecBSD: bshw_pdma.c,v 1.4 1997/10/31 17:43:39 honda Exp $	*/
 /*	$NetBSD$	*/
 /*
  * [NetBSD for NEC PC98 series]
@@ -210,9 +211,10 @@ bs_lc_smit_xfer(ti, direction)
 
 			count = (datalen > LC_FSZ ? LC_FSZ : datalen);
 #ifdef	__FreeBSD__
-			memcopy(ti->sm_vaddr, data, count);
+			memcopy((u_int8_t *)ti->sm_offset, data, count);
 #else	/* NetBSD */
-			bus_mem_read_multi_4(bsc->sc_bc, bsc->sc_memh, 0, data, count >> 2);
+			bus_space_read_region_4(bsc->sc_memt, bsc->sc_memh,
+				ti->sm_offset, (u_int32_t *) data, count >> 2);
 #endif	/* NetBSD */
 			data += count;
 			datalen -= count;
@@ -230,9 +232,10 @@ bs_lc_smit_xfer(ti, direction)
 
 			count = (datalen > LC_SFSZ ? LC_SFSZ : datalen);
 #ifdef	__FreeBSD__
-			memcopy(data, ti->sm_vaddr, count);
+			memcopy(data, (u_int8_t *)ti->sm_offset, count);
 #else	/* NetBSD */
-			bus_mem_write_multi_4(bsc->sc_bc, bsc->sc_memh, 0, data, count >> 2);
+			bus_space_write_region_4(bsc->sc_memt, bsc->sc_memh,
+				ti->sm_offset, (u_int32_t *) data, count >> 2);
 #endif	/* NetBSD */
 			data += count;
 			datalen -= count;
@@ -242,9 +245,11 @@ bs_lc_smit_xfer(ti, direction)
 
 			count = (datalen > LC_REST ? LC_REST : datalen);
 #ifdef	__FreeBSD__
-			memcopy(data, ti->sm_vaddr + LC_SFSZ, count);
+			memcopy(data, (u_int8_t *)(ti->sm_offset + LC_SFSZ), count);
 #else	/* NetBSD */
-			bus_mem_write_multi_4(bsc->sc_bc, bsc->sc_memh, LC_SFSZ, data, count >> 2);
+			bus_space_write_region_4(bsc->sc_memt, bsc->sc_memh,
+						 ti->sm_offset + LC_SFSZ, 
+						 (u_int32_t *) data, count >> 2);
 #endif	/* NetBSD */
 			data += count;
 			datalen -= count;
