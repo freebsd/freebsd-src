@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.32 1995/02/15 20:38:36 joerg Exp $
+#	$Id: GENERIC,v 1.33 1995/03/02 04:06:03 jkh Exp $
 #
 
 machine		"i386"
@@ -75,6 +75,7 @@ device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 # Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
 #device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
 #options		"PCVT_FREEBSD=210"	# pcvt running on FreeBSD 2.1
+#options		XSERVER			# include code for XFree86
 
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 
