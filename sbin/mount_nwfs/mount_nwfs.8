@@ -29,7 +29,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-command allows to mount volume from a NetWare server.
+utility allows to mount volume from a NetWare server.
 It may use either
 existing connection or create new: if no usable connection was found
 it will try to establish a new one.
@@ -145,12 +145,12 @@ Select a
 used to convert file names between NetWare and
 .Fx .
 Supported conversion schemes are:
-.Bl -tag -width "koi2cp866A"
-.It asis
+.Bl -tag -width ".Cm koi2cp866"
+.It Cm asis
 Characters passed as is without any alteration.
-.It koi2cp866
+.It Cm koi2cp866
 koi8-r <-> CP866
-.It se
+.It Cm se
 Suits for setups used in Sweden.
 .El
 .It Fl M Ar mode
