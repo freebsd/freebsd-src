@@ -145,6 +145,8 @@ struct cd_quirk_entry {
 	cd_quirks quirks;
 };
 
+static const char pioneer[] = "PIONEER";
+
 /*
  * These quirk entries aren't strictly necessary.  Basically, what they do
  * is tell cdregister() up front that a device is a changer.  Otherwise, it
@@ -160,7 +162,11 @@ static struct cd_quirk_entry cd_quirk_table[] =
 		 /*quirks*/ CD_Q_CHANGER
 	},
 	{
-		{ T_CDROM, SIP_MEDIA_REMOVABLE, "PIONEER", "CD-ROM DRM-604X",
+		{ T_CDROM, SIP_MEDIA_REMOVABLE, pioneer, "CD-ROM DRM-604X",
+		  "*"}, /* quirks */ CD_Q_CHANGER
+	},
+	{
+		{ T_CDROM, SIP_MEDIA_REMOVABLE, pioneer, "CD-ROM DRM-6324X",
 		  "*"}, /* quirks */ CD_Q_CHANGER
 	},
 	{
