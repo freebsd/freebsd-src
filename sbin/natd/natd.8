@@ -7,6 +7,7 @@
 .Nd Network Address Translation Daemon
 .Sh SYNOPSIS
 .Nm natd
+.Bk -words
 .Op Fl unregistered_only | u
 .Op Fl log | l
 .Op Fl proxy_only
@@ -30,6 +31,7 @@
 .Op Fl log_denied
 .Op Fl log_facility Ar facility_name
 .Op Fl punch_fw Ar firewall_range
+.Ek
 .Sh DESCRIPTION
 This program provides a Network Address Translation facility for use
 with
@@ -60,7 +62,7 @@ checked against this internal table.
 If an entry is found, it is used to determine the correct target IP
 number and port to place in the packet.
 .Pp
-The following command line options are available.
+The following command line options are available:
 .Bl -tag -width Fl
 .It Fl log | l
 Log various aliasing statistics and information to the file
@@ -69,8 +71,13 @@ This file is truncated each time
 .Nm
 is started.
 .It Fl deny_incoming | d
-Do not pass packets destined for the current IP number that have no
+Do not pass incoming packets that have no
 entry in the internal translation table.
+.Pp
+If this option is not used, then such a packet will be altered
+using the rules in
+.Fl target_address
+below, and the entry will be made in the internal translation table.
 .It Fl log_denied
 Log denied incoming packets via
 .Xr syslog 3
@@ -101,7 +108,7 @@ changed as per normal.
 Do not call
 .Xr daemon 3
 on startup.
-Instead, stay attached to the controling terminal and display all packet
+Instead, stay attached to the controlling terminal and display all packet
 alterations to the standard output.
 This option should only be used for debugging purposes.
 .It Fl unregistered_only | u
@@ -267,17 +274,28 @@ If the interface's IP number is changed,
 will dynamically alter its concept of the alias address.
 .It Fl in_port | i Ar port
 Read from and write to
+.Xr divert 4
+port
 .Ar port ,
-treating all packets as packets coming into the machine.
+treating all packets as
+.Dq incoming .
 .It Fl out_port | o Ar port
 Read from and write to
+.Xr divert 4
+port
 .Ar port ,
-treating all packets as packets going out of the machine.
+treating all packets as
+.Dq outgoing .
 .It Fl port | p Ar port
 Read from and write to
+.Xr divert 4
+port
 .Ar port ,
-distinguishing packets as incoming our outgoing using the rules
-specified in
+distinguishing packets as
+.Dq incoming
+or
+.Dq outgoing
+using the rules specified in
 .Xr divert 4 .
 If
 .Ar port
@@ -285,7 +303,7 @@ is not numeric, it is searched for in the
 .Xr services 5
 database.
 If this option is not specified, the divert port named
-.Em natd
+.Ar natd
 will be used as a default.
 .It Fl alias_address | a Ar address
 Use
@@ -295,7 +313,8 @@ If this option is not specified, the
 .Fl interface
 option must be used.
 The specified address is usually the address assigned to the
-public network interface.
+.Dq public
+network interface.
 .Pp
 All data passing
 .Em out
@@ -314,8 +333,8 @@ and
 assignments are checked and actioned.
 If no other action can be made and if
 .Fl deny_incoming
-is not specified, the packet is delivered unaltered to the local
-machine and port as specified in the packet, but see the
+is not specified, the packet is delivered to the local machine
+using the rules specified in
 .Fl target_address
 option below.
 .It Fl t | target_address Ar address
@@ -352,7 +371,11 @@ option must be used.
 .Pp
 The specified
 .Ar interface
-is usually the public network interface.
+is usually the
+.Dq public
+(or
+.Dq external )
+network interface.
 .It Fl config | f Ar file
 Read configuration from
 .Ar file .
@@ -365,7 +388,7 @@ For example, the line
 .Dl alias_address 158.152.17.1
 .Pp
 would specify an alias address of 158.152.17.1.
-Options that do not take an argument are specified with an option of
+Options that do not take an argument are specified with an argument of
 .Ar yes
 or
 .Ar no
@@ -384,9 +407,15 @@ sign will mark the rest of the line as a comment.
 .It Fl reverse
 This option makes
 .Nm
-reverse the way it handles incoming and outgoing packets,
-allowing it to operate on the internal interface rather than
-the external one.
+reverse the way it handles
+.Dq incoming
+and
+.Dq outgoing
+packets, allowing it to operate on the
+.Dq internal
+network interface rather than the
+.Dq external
+one.
 .Pp
 This can be useful in some transparent proxying situations
 when outgoing traffic is redirected to the local machine
@@ -437,7 +466,7 @@ The range will be cleared for all rules on startup.
 .El
 .Sh RUNNING NATD
 The following steps are necessary before attempting to run
-.Nm natd :
+.Nm No :
 .Bl -enum
 .It
 Build a custom kernel with the following options:
@@ -464,14 +493,16 @@ file or using the command
 If you use the
 .Fl interface
 option, make sure that your interface is already configured.
-If, for example, you wish to specify tun0 as your
+If, for example, you wish to specify
+.Ql tun0
+as your
 .Ar interface ,
 and you are using
 .Xr ppp 8
 on that interface, you must make sure that you start
 .Nm ppp
 prior to starting
-.Nm natd .
+.Nm No .
 .El
 .Pp
 Running
@@ -488,7 +519,7 @@ on how to configure it to be started automatically during boot.
 Once
 .Nm
 is running, you must ensure that traffic is diverted to
-.Nm natd :
+.Nm No :
 .Bl -enum
 .It
 You will need to adjust the
@@ -502,7 +533,9 @@ following lines will do:
 /sbin/ipfw add pass all from any to any
 .Ed
 .Pp
-The second line depends on your interface (change ed0 as appropriate).
+The second line depends on your interface (change
+.Ql ed0
+as appropriate).
 .Pp
 You should be aware of the fact that, with these firewall settings,
 everyone on your local network can fake his source-address using your
@@ -517,7 +550,7 @@ the start of the script so that
 sees all packets before they are dropped by the firewall.
 .Pp
 After translation by
-.Nm natd ,
+.Nm No ,
 packets re-enter the firewall at the rule number following the rule number
 that caused the diversion (not the next rule if there are several at the
 same number).
@@ -564,3 +597,5 @@ times:
 (early PPTP support)
 .An Brian Somers Aq brian@awfulhak.org
 (glue)
+.An Ruslan Ermilov Aq ru@FreeBSD.org
+(natd, packet aliasing, glue)
