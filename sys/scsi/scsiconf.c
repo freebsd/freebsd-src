@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: scsiconf.c,v 1.14 1994/11/14 23:39:32 ats Exp $
+ *      $Id: scsiconf.c,v 1.15 1994/11/17 23:22:22 ats Exp $
  */
 
 #include <sys/types.h>
@@ -30,6 +30,7 @@
 #include "cd.h"
 #include "uk.h"
 #include "su.h"
+#include "scbus.h"
 #ifndef	NSCBUS
 #define	NSCBUS	8
 #endif	/* NSCBUS */
