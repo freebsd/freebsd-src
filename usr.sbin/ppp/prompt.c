@@ -79,7 +79,7 @@ static void
 prompt_Display(struct prompt *p)
 {
   /* XXX: See Index2Nam() - should we only figure this out once ? */
-  static char shostname[MAXHOSTNAMELEN + 1];
+  static char shostname[MAXHOSTNAMELEN];
   const char *pconnect, *pauth;
 
   if (p->TermMode || !p->needprompt)
