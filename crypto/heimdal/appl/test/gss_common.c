@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -34,7 +34,7 @@
 #include "test_locl.h"
 #include <gssapi.h>
 #include "gss_common.h"
-RCSID("$Id: gss_common.c,v 1.6 1999/12/02 17:04:56 joda Exp $");
+RCSID("$Id: gss_common.c,v 1.7 2000/02/12 21:31:38 assar Exp $");
 
 void
 write_token (int sock, gss_buffer_t buf)
@@ -64,6 +64,8 @@ read_token (int sock, gss_buffer_t buf)
     len = ntohl(net_len);
     buf->length = len;
     buf->value  = malloc(len);
+    if (buf->value == NULL)
+	err (1, "malloc %u", len);
     if (read (sock, buf->value, len) != len)
 	err (1, "read");
 }

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: roken-common.h,v 1.25 2000/01/09 10:58:34 assar Exp $ */
+/* $Id: roken-common.h,v 1.27 2000/02/14 02:24:44 assar Exp $ */
 
 #ifndef __ROKEN_COMMON_H__
 #define __ROKEN_COMMON_H__
@@ -289,5 +289,6 @@ vstrcollect(va_list *ap);
 
 char **
 strcollect(char *first, ...);
+
 
 #endif /* __ROKEN_COMMON_H__ */

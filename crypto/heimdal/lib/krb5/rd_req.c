@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: rd_req.c,v 1.40 2000/02/06 05:20:31 assar Exp $");
+RCSID("$Id: rd_req.c,v 1.41 2000/02/07 13:31:55 joda Exp $");
 
 static krb5_error_code
 decrypt_tkt_enc_part (krb5_context context,
@@ -187,6 +187,30 @@ out:
     krb5_free_keyblock(context, key);
     return ret;
 }
+
+#if 0
+static krb5_error_code
+check_transited(krb5_context context,
+		krb5_ticket *ticket)
+{
+    char **realms;
+    int num_realms;
+    krb5_error_code ret;
+
+    if(ticket->ticket.transited.tr_type != DOMAIN_X500_COMPRESS)
+	return KRB5KDC_ERR_TRTYPE_NOSUPP;
+
+    ret = krb5_domain_x500_decode(ticket->ticket.transited.contents, 
+				  &realms, &num_realms, 
+				  ticket->client->realm,
+				  ticket->server->realm);
+    if(ret)
+	return ret;
+    ret = krb5_check_transited_realms(context, realms, num_realms, NULL);
+    free(realms);
+    return ret;
+}
+#endif
 
 krb5_error_code
 krb5_verify_ap_req(krb5_context context,

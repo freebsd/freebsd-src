@@ -49,6 +49,8 @@ Bugfixes, documentation, encouragement, and code has been contributed by:
 @email{ruda@@ics.muni.cz}
 @item Brian A May
 @email{bmay@@snoopy.apana.org.au}
+@item Chaskiel M Grundman
+@email{cg2v@@andrew.cmu.edu}
 @item and we hope that those not mentioned here will forgive us.
 @end table
 
