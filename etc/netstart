@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.34 1995/08/23 07:12:15 jkh Exp $
+#	$Id: netstart,v 1.35 1995/08/25 07:18:04 davidg Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -56,21 +56,17 @@ done
 
 if [ "x$gateway" != "xNO" ]; then
 	echo 'configuring host as a gateway.'
-	sysctl -w net.inet.ip.forwarding=1
+	sysctl -w net.inet.ip.forwarding=1 >& /dev/null
 fi
 
-if [ "x$gated" != "xNO" -o "x$routedflags" != "xNO" ] ; then
-	echo -n starting routing daemons:
+if [ "x$routedflags" != "xNO" ] ; then
+	echo -n starting routing daemon:
 
-	# $gated and $routedflags are imported from /etc/sysconfig.
-	# If $gated == YES, gated is used; otherwise routed.
+	# $routedflags is imported from /etc/sysconfig.
 	# If $routedflags == NO, routed isn't run.
 
-	if [ "X${gated}" = X"YES" -a -r /etc/gated.conf ]; then
-		echo -n	' gated';	/usr/local/sbin/gated $gatedflags
-	elif [ "X${routedflags}" != X"NO" ]; then
+	if [ "X${routedflags}" != X"NO" ]; then
 		echo -n ' routed';	routed $routedflags
 	fi
-
 	echo '.'
 fi
