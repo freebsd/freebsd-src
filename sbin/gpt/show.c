@@ -52,31 +52,39 @@ usage_show(void)
 static const char *
 friendly(uuid_t *t)
 {
-	uuid_t efi_slice = GPT_ENT_TYPE_EFI;
-	uuid_t freebsd = GPT_ENT_TYPE_FREEBSD;
-	uuid_t swap = GPT_ENT_TYPE_FREEBSD_SWAP;
-	uuid_t ufs = GPT_ENT_TYPE_FREEBSD_UFS;
-	uuid_t vinum = GPT_ENT_TYPE_FREEBSD_VINUM;
-	uuid_t ext = GPT_ENT_TYPE_MS_BASIC_DATA;
+	static uuid_t efi_slice = GPT_ENT_TYPE_EFI;
+	static uuid_t mslinux = GPT_ENT_TYPE_MS_BASIC_DATA;
+	static uuid_t freebsd = GPT_ENT_TYPE_FREEBSD;
+	static uuid_t linuxswap = GPT_ENT_TYPE_LINUX_SWAP;
+	static uuid_t msr = GPT_ENT_TYPE_MS_RESERVED;
+	static uuid_t swap = GPT_ENT_TYPE_FREEBSD_SWAP;
+	static uuid_t ufs = GPT_ENT_TYPE_FREEBSD_UFS;
+	static uuid_t vinum = GPT_ENT_TYPE_FREEBSD_VINUM;
 	static char buf[80];
 	char *s;
 
-	if (memcmp(t, &efi_slice, sizeof(uuid_t)) == 0)
-		return "EFI System partition";
-	else if (memcmp(t, &freebsd, sizeof(uuid_t)) == 0)
-		return "FreeBSD disklabel container";
-	else if (memcmp(t, &swap, sizeof(uuid_t)) == 0)
-		return "FreeBSD swap partition";
-	else if (memcmp(t, &ufs, sizeof(uuid_t)) == 0)
-		return "FreeBSD ufs partition";
-	else if (memcmp(t, &vinum, sizeof(uuid_t)) == 0)
-		return "FreeBSD vinum partition";
-	else if (memcmp(t, &ext, sizeof(uuid_t)) == 0)
-		return "Linux/Windows";
+	if (uuid_equal(t, &efi_slice, NULL))
+		return ("EFI System");
+	if (uuid_equal(t, &swap, NULL))
+		return ("FreeBSD swap");
+	if (uuid_equal(t, &ufs, NULL))
+		return ("FreeBSD UFS/UFS2");
+	if (uuid_equal(t, &vinum, NULL))
+		return ("FreeBSD vinum");
+
+	if (uuid_equal(t, &freebsd, NULL))
+		return ("FreeBSD legacy");
+	if (uuid_equal(t, &mslinux, NULL))
+		return ("Linux/Windows");
+	if (uuid_equal(t, &linuxswap, NULL))
+		return ("Linux swap");
+	if (uuid_equal(t, &msr, NULL))
+		return ("Windows reserved");
+
 	uuid_to_string(t, &s, NULL);
 	strlcpy(buf, s, sizeof buf);
 	free(s);
-	return buf;
+	return (buf);
 }
 
 static void
