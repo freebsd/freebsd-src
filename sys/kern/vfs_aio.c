@@ -1775,6 +1775,8 @@ aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 		}
 	}
 	ki=p->p_aioinfo;
+	if (ki == NULL)
+		return (EINVAL);
 	s = splnet();
 
 	for (cbe = TAILQ_FIRST(&ki->kaio_jobqueue); cbe; cbe = cbn) {
