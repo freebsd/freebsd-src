@@ -46,7 +46,9 @@ MAN3+=	gen/alarm.3 gen/clock.3 gen/confstr.3 gen/config_open.3 \
 	gen/getmntinfo.3 gen/getnetgrent.3 gen/getpagesize.3 gen/getpass.3 \
 	gen/getpwent.3 gen/getttyent.3 gen/getvfsent.3 gen/getusershell.3 \
 	gen/glob.3 \
-	gen/initgroups.3 gen/isinf.3 gen/ldexp.3 gen/modf.3 gen/nice.3 \
+	gen/initgroups.3 gen/isinf.3 gen/ldexp.3 \
+	gen/msgctl.3 gen/msgget.3 gen/msgrcv.3 gen/msgsnd.3 \
+	gen/modf.3 gen/nice.3 \
 	gen/nlist.3 gen/pause.3 gen/popen.3 gen/psignal.3 gen/pwcache.3 \
 	gen/raise.3 gen/rand48.3 gen/scandir.3 gen/setjmp.3 gen/setmode.3 \
 	gen/siginterrupt.3 gen/signal.3 gen/sigsetops.3 gen/sleep.3 \
