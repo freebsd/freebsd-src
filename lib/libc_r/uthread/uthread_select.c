@@ -204,5 +204,16 @@ _select(int numfds, fd_set * readfds, fd_set * writefds, fd_set * exceptfds,
 	return (ret);
 }
 
-__strong_reference(_select, select);
+int 
+select(int numfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
+	struct timeval *timeout)
+{
+	int ret;
+
+	_thread_enter_cancellation_point();
+	ret = _select(numfds, readfds, writefds, exceptfds, timeout);
+	_thread_leave_cancellation_point();
+
+	return ret;
+}
 #endif

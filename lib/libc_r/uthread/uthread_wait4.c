@@ -67,5 +67,15 @@ _wait4(pid_t pid, int *istat, int options, struct rusage * rusage)
 	return (ret);
 }
 
-__strong_reference(_wait4, wait4);
+pid_t
+wait4(pid_t pid, int *istat, int options, struct rusage *rusage)
+{
+	pid_t ret;
+
+	_thread_enter_cancellation_point();
+	ret = _wait4(pid, istat, options, rusage);
+	_thread_leave_cancellation_point();
+
+	return ret;
+}
 #endif

@@ -91,5 +91,15 @@ _readv(int fd, const struct iovec * iov, int iovcnt)
 	return (ret);
 }
 
-__strong_reference(_readv, readv);
+ssize_t
+readv(int fd, const struct iovec *iov, int iovcnt)
+{
+	ssize_t ret;
+
+	_thread_enter_cancellation_point();
+	ret = _readv(fd, iov, iovcnt);
+	_thread_leave_cancellation_point();
+
+	return ret;
+}
 #endif
