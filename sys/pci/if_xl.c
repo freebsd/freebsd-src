@@ -1489,7 +1489,7 @@ xl_attach(dev)
 	}
 
 	error = bus_dmamem_alloc(sc->xl_ldata.xl_rx_tag,
-	    (void **)&sc->xl_ldata.xl_rx_list, BUS_DMA_NOWAIT,
+	    (void **)&sc->xl_ldata.xl_rx_list, BUS_DMA_NOWAIT | BUS_DMA_ZERO,
 	    &sc->xl_ldata.xl_rx_dmamap);
 	if (error) {
 		printf("xl%d: no memory for rx list buffers!\n", unit);
@@ -1521,7 +1521,7 @@ xl_attach(dev)
 	}
 
 	error = bus_dmamem_alloc(sc->xl_ldata.xl_tx_tag,
-	    (void **)&sc->xl_ldata.xl_tx_list, BUS_DMA_NOWAIT,
+	    (void **)&sc->xl_ldata.xl_tx_list, BUS_DMA_NOWAIT | BUS_DMA_ZERO,
 	    &sc->xl_ldata.xl_tx_dmamap);
 	if (error) {
 		printf("xl%d: no memory for list buffers!\n", unit);
@@ -1554,9 +1554,6 @@ xl_attach(dev)
 		printf("xl%d: failed to allocate mbuf dma tag\n", unit);
 		goto fail;
 	}
-
-	bzero(sc->xl_ldata.xl_tx_list, XL_TX_LIST_SZ);
-	bzero(sc->xl_ldata.xl_rx_list, XL_RX_LIST_SZ);
 
 	/* We need a spare DMA map for the RX ring. */
 	error = bus_dmamap_create(sc->xl_mtag, 0, &sc->xl_tmpmap);
