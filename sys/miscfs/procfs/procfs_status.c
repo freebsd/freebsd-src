@@ -166,15 +166,7 @@ procfs_dostatus(curp, p, pfs, uio)
 	ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, "\n");
 	DOCHECK();
 
-	xlen = ps - psbuf;
-	xlen -= uio->uio_offset;
-	ps = psbuf + uio->uio_offset;
-	xlen = imin(xlen, uio->uio_resid);
-	if (xlen <= 0)
-		error = 0;
-	else
-		error = uiomove(ps, xlen, uio);
-
+	error = uiomove_frombuf(psbuf, ps - psbuf, uio);
 	return (error);
 
 bailout:
@@ -246,13 +238,7 @@ procfs_docmdline(curp, p, pfs, uio)
 		buflen = ps - buf;
 	}
 
-	buflen -= uio->uio_offset;
-	ps = bp + uio->uio_offset;
-	xlen = min(buflen, uio->uio_resid);
-	if (xlen <= 0)
-		error = 0;
-	else
-		error = uiomove(ps, xlen, uio);
+	error = uiomove_frombuf(bp, buflen, uio);
 	if (buf)
 		FREE(buf, M_TEMP);
 	return (error);
