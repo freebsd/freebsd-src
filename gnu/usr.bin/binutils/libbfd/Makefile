@@ -29,6 +29,9 @@ CFLAGS+=	-I${BINUTILSDISTDIR}/include
 .endif
 
 SELARCH=
+.if ${BINUTIL_ARCH} == "sparc64"
+SELARCH=&bfd_sparc_arch
+.else
 .for _a in ${ARCHS}
 .if ${SELARCH} == ""
 SELARCH+=&bfd_${_a}_arch
@@ -36,6 +39,7 @@ SELARCH+=&bfd_${_a}_arch
 SELARCH+=,&bfd_${_a}_arch
 .endif
 .endfor
+.endif
 CFLAGS+=	-DSELECT_ARCHITECTURES="${SELARCH}"
 
 SELVEC=
