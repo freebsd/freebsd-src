@@ -186,9 +186,9 @@ static int
 mac_mls_single_in_range(struct mac_mls *single, struct mac_mls *range)
 {
 
-	KASSERT((single->mm_flag & MAC_MLS_FLAG_SINGLE) != 0,
+	KASSERT((single->mm_flags & MAC_MLS_FLAG_SINGLE) != 0,
 	    ("mac_mls_single_in_range: a not single"));
-	KASSERT((range->mm_flag & MAC_MLS_FLAG_RANGE) != 0,
+	KASSERT((range->mm_flags & MAC_MLS_FLAG_RANGE) != 0,
 	    ("mac_mls_single_in_range: b not range"));
 
 	return (mac_mls_dominate_element(&range->mm_rangehigh,

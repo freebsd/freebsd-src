@@ -197,9 +197,9 @@ static int
 mac_biba_single_in_range(struct mac_biba *single, struct mac_biba *range)
 {
 
-	KASSERT((single->mb_flag & MAC_BIBA_FLAG_SINGLE) != 0,
+	KASSERT((single->mb_flags & MAC_BIBA_FLAG_SINGLE) != 0,
 	    ("mac_biba_single_in_range: a not single"));
-	KASSERT((range->mb_flag & MAC_BIBA_FLAG_RANGE) != 0,
+	KASSERT((range->mb_flags & MAC_BIBA_FLAG_RANGE) != 0,
 	    ("mac_biba_single_in_range: b not range"));
 
 	return (mac_biba_dominate_element(&range->mb_rangehigh,
