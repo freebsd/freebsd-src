@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pcb.h	5.10 (Berkeley) 5/12/91
- *	$Id: pcb.h,v 1.19 1997/04/07 06:45:18 peter Exp $
+ *	$Id: pcb.h,v 1.20 1997/04/26 11:45:39 peter Exp $
  */
 
 #ifndef _I386_PCB_H_
@@ -45,6 +45,9 @@
  */
 #include <machine/tss.h>
 #include <machine/npx.h>
+#if defined(KERNEL) && defined(SMP)
+#include <machine/smp.h>	/* cpunumber() */
+#endif
 
 struct pcb {
 	int	pcb_cr3;
@@ -77,9 +80,8 @@ struct md_coredump {
 
 #ifdef KERNEL
 
-#include "opt_smp.h"
-#include <machine/smp.h>
 #ifdef SMP
+extern struct pcb *SMPcurpcb[];		/* our current running pcb */
 #define curpcb (SMPcurpcb[cpunumber()])
 #else /* !SMP */
 extern struct pcb *curpcb;		/* our current running pcb */
