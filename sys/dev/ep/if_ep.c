@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.79 1999/01/31 22:41:51 dufault Exp $
+ *  $Id: if_ep.c,v 1.80 1999/07/06 19:22:46 des Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -193,13 +193,24 @@ ep_pccard_init(devi)
     /* get_e() requires these. */
     sc->ep_io_addr = is->id_iobase;
     sc->unit = is->id_unit;
+    epb->cmd_off = 0;
+    if (is->id_flags & EP_FLAGS_100TX) 
+	epb->cmd_off = 2;
 
     epb->epb_addr = is->id_iobase;
     epb->epb_used = 1;
     epb->prod_id = get_e(sc, EEPROM_PROD_ID);
+    epb->mii_trans = 0;
 
-    /* 3C589's product id? */
-    if (epb->prod_id != 0x9058) {
+    /* product id */
+    switch (epb->prod_id) {
+      case 0x6055: /* 3C556 */
+      case 0x4057: /* 3C574 */
+	epb->mii_trans = 1;
+	break;
+      case 0x9058: /* 3C589 */
+	break;
+      default:
 	printf("ep%d: failed to come ready.\n", is->id_unit);
 	return (ENXIO);
     }
@@ -232,7 +243,7 @@ ep_pccard_attach(devi)
 	sc->ep_connectors |= UTP;
     }
     if (!(sc->ep_connectors & 7))
-	printf("no connectors!");
+	printf("ep%d: No connectors or MII.\n", is->id_unit);
     sc->ep_connector = inw(BASE + EP_W0_ADDRESS_CFG) >> ACF_CONNECTOR_BITS;
 
     /* ROM size = 0, ROM base = 0 */
@@ -243,6 +254,21 @@ ep_pccard_attach(devi)
     outw(BASE + EP_W0_RESOURCE_CFG, (sc->epb->res_cfg & 0x0fff) | 0x3000);
 
     outw(BASE + EP_W0_PRODUCT_ID, sc->epb->prod_id);
+
+    if (sc->epb->mii_trans) {
+	/*
+	 * turn on the MII tranceiver
+	 */
+	GO_WINDOW(3);
+	outw(BASE + EP_W3_OPTIONS, 0x8040);
+	DELAY(1000);
+	outw(BASE + EP_W3_OPTIONS, 0xc040);
+	outw(BASE + EP_COMMAND, RX_RESET);
+	outw(BASE + EP_COMMAND, TX_RESET);
+	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	DELAY(1000);
+	outw(BASE + EP_W3_OPTIONS, 0x8040);
+    }
 
     ep_attach(sc);
 
@@ -417,7 +443,7 @@ get_e(sc, offset)
 {
     if (!eeprom_rdy(sc))
 	return (0xffff);
-    outw(BASE + EP_W0_EEPROM_COMMAND, EEPROM_CMD_RD | offset);
+    outw(BASE + EP_W0_EEPROM_COMMAND, (EEPROM_CMD_RD << sc->epb->cmd_off) | offset);
     if (!eeprom_rdy(sc))
 	return (0xffff);
     return (inw(BASE + EP_W0_EEPROM_DATA));
