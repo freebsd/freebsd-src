@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.subdir.mk,v 1.16 1997/03/31 05:30:16 scrappy Exp $
+#	$Id: bsd.subdir.mk,v 1.17 1997/04/13 06:44:24 jkh Exp $
 #
 # The include file <bsd.subdir.mk> contains the default targets
 # for building subdirectories. It has the same seven targets
@@ -104,5 +104,7 @@ afterdistribute:
 .endif
 .if !target(distribute)
 distribute: _SUBDIRUSE
-	cd ${.CURDIR} ; ${MAKE} afterdistribute DESTDIR=${DISTDIR}/${DISTRIBUTION}
+.for dist in ${DISTRIBUTION}
+	cd ${.CURDIR} ; ${MAKE} afterdistribute DESTDIR=${DISTDIR}/${dist}
+.endfor
 .endif

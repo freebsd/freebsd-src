@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.36 1997/04/04 01:25:32 mpp Exp $
+#	$Id: bsd.doc.mk,v 1.37 1997/05/11 10:42:00 wosch Exp $
 #
 # The include file <bsd.doc.mk> handles installing BSD troff documents.
 # <bsd.prog.mk> includes the include files <bsd.dep.mk> and <bsd.obj.mk>.
@@ -124,7 +124,9 @@ afterinstall:
 DISTRIBUTION?=	doc
 .if !target(distribute)
 distribute:
-	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${DISTRIBUTION} SHARED=copies
+.for dist in ${DISTRIBUTION}
+	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${dist} SHARED=copies
+.endfor
 .endif
 
 spell: ${SRCS}
