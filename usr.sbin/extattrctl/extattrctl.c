@@ -54,7 +54,7 @@ usage(void)
 	    "usage:\n"
 	    "  extattrctl start [path]\n"
 	    "  extattrctl stop [path]\n"
-	    "  extattrctl initattr [-o] [-p path] [attrsize] [attrfile]\n"
+	    "  extattrctl initattr [-f] [-p path] [attrsize] [attrfile]\n"
 	    "  extattrctl enable [path] [attrname] [attrfile]\n"
 	    "  extattrctl disable [path] [attrname]\n");
 	exit(-1);
@@ -85,9 +85,9 @@ initattr(int argc, char *argv[])
 	int	ch, i, error, chunksize, overwrite = 0, flags;
 
 	optind = 0;
-	while ((ch = getopt(argc, argv, "op:r:w:")) != -1)
+	while ((ch = getopt(argc, argv, "fp:r:w:")) != -1)
 		switch (ch) {
-		case 'o':
+		case 'f':
 			overwrite = 1;
 			break;
 		case 'p':
