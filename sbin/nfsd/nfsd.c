@@ -194,7 +194,7 @@ main(argc, argv, envp)
 #define	GETOPT	"n:rtu"
 #define	USAGE	"[-rtu] [-n num_servers]"
 #endif
-	while ((ch = getopt(argc, argv, GETOPT)) != EOF)
+	while ((ch = getopt(argc, argv, GETOPT)) != -1)
 		switch (ch) {
 		case 'n':
 			nfsdcnt = atoi(optarg);
