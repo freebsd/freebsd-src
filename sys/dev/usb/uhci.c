@@ -654,48 +654,49 @@ uhci_remove_bulk(sc, sqh)
 }
 
 int
-uhci_intr(p)
-	void *p;
+uhci_intr(priv)
+	void *priv;
 {
-	uhci_softc_t *sc = p;
-	int status, ret;
+	uhci_softc_t *sc = priv;
+	int status;
+	int ack = 0;
 	uhci_intr_info_t *ii;
 
 	sc->sc_intrs++;
+
 #if defined(UHCI_DEBUG)
 	if (uhcidebug > 9) {
-		DPRINTF(("uhci_intr %p\n", sc));
+		printf("%s: uhci_intr\n", USBDEVNAME(sc->sc_bus.bdev));
 		uhci_dumpregs(sc);
 	}
 #endif
+
 	status = UREAD2(sc, UHCI_STS);
-	ret = 0;
-	if (status & UHCI_STS_USBINT) {
-		UWRITE2(sc, UHCI_STS, UHCI_STS_USBINT); /* acknowledge */
-		ret = 1;
-	}
-	if (status & UHCI_STS_USBEI) {
-		UWRITE2(sc, UHCI_STS, UHCI_STS_USBEI); /* acknowledge */
-		ret = 1;
-	}
+
+	if (status & UHCI_STS_USBINT)
+		ack |= UHCI_STS_USBINT;
+	if (status & UHCI_STS_USBEI)
+		ack |= UHCI_STS_USBEI;
 	if (status & UHCI_STS_RD) {
-		UWRITE2(sc, UHCI_STS, UHCI_STS_RD); /* acknowledge */
-		DPRINTF(("%s: resume detect\n", USBDEVNAME(sc->sc_bus.bdev)));
-		ret = 1;
+		ack |= UHCI_STS_RD;
+		printf("%s: resume detect\n", USBDEVNAME(sc->sc_bus.bdev));
 	}
 	if (status & UHCI_STS_HSE) {
-		UWRITE2(sc, UHCI_STS, UHCI_STS_HSE); /* acknowledge */
-		DPRINTF(("%s: Host System Error\n", USBDEVNAME(sc->sc_bus.bdev)));
-		ret = 1;
+		ack |= UHCI_STS_HSE;
+		printf("%s: Host Controller Process Error\n", USBDEVNAME(sc->sc_bus.bdev));
 	}
 	if (status & UHCI_STS_HCPE) {
-		UWRITE2(sc, UHCI_STS, UHCI_STS_HCPE); /* acknowledge */
-		DPRINTF(("%s: Host System Error\n", USBDEVNAME(sc->sc_bus.bdev)));
-		ret = 1;
+		ack |= UHCI_STS_HCPE;
+		printf("%s: Host System Error\n", USBDEVNAME(sc->sc_bus.bdev));
 	}
-	if (status & UHCI_STS_HCH)
-		DPRINTF(("%s: controller halted\n", USBDEVNAME(sc->sc_bus.bdev)));
-	if (!ret)
+	if (status & UHCI_STS_HCH) {
+		/* no acknowledge needed */
+		printf("%s: controller halted\n", USBDEVNAME(sc->sc_bus.bdev));
+	}
+
+	if (ack)	/* acknowledge the ints */
+		UWRITE2(sc, UHCI_STS, ack);
+	else	/* nothing to acknowledge */
 		return 0;
 
 	/*
