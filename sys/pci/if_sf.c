@@ -1103,7 +1103,10 @@ static void sf_intr(arg)
 		if (status & SF_ISR_RXDQ1_DMADONE)
 			sf_rxeof(sc);
 
-		if (status & SF_ISR_TX_TXDONE)
+		if (status & SF_ISR_TX_TXDONE ||
+		    status & SF_ISR_TX_DMADONE ||
+		    status & SF_ISR_TX_QUEUEDONE ||
+		    status & SF_ISR_TX_LOFIFO)
 			sf_txeof(sc);
 
 		if (status & SF_ISR_ABNORMALINTR) {
@@ -1313,7 +1316,7 @@ static void sf_start(ifp)
 
 	sc = ifp->if_softc;
 
-	if (!sc->sf_link)
+	if (!sc->sf_link && ifp->if_snd.ifq_len < 10)
 		return;
 
 	if (ifp->if_flags & IFF_OACTIVE)
