@@ -907,6 +907,10 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
           your whole disk and you don't want to reinstall from
           scratch.</para>
 	  
+	  <para><application>FIPS</application> does not work on
+	  extended DOS partitions.  Windows 95/98/ME FAT32 primary
+	  partitions are supported.</para>
+
 	</answer>
       </qandaentry>
 
