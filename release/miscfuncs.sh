@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id$
+# $Id: miscfuncs.sh,v 1.1 1994/11/16 07:51:43 jkh Exp $
 
 if [ "$_MISCFUNCS_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -24,7 +24,7 @@ DISTNAME=2.0-ALPHA
 
 interrupt() {
 	if dialog --clear --title "User Interrupt Requested" \
-	  --yesno "Do you wish to abort the installation?" 5 70; then
+	  --yesno "Do you wish to abort the installation?" -1 -1; then
 		exit 0;
 	fi
 }
@@ -47,7 +47,7 @@ handle_rval() {
 
 # A simple user-confirmation dialog.
 confirm() {
-	dialog --title "User Confirmation" --msgbox "$*" 8 72
+	dialog --title "User Confirmation" --msgbox "$*" -1 -1
 }
 
 # A simple message box dialog.
@@ -57,7 +57,7 @@ message() {
 
 # A simple error dialog.
 error() {
-	dialog --title "Error!" --msgbox "$*" 10 72
+	dialog --title "Error!" --msgbox "$*" -1 -1
 }
 
 # Something isn't supported yet! :-(
@@ -72,7 +72,7 @@ expect it to be in the release.  Please press RETURN to go on." 10 60
 input()
 {
 	dialog --title "$title" $clear \
-	--inputbox "$*" 17 72 "$default_value" 2> ${TMP}/inputbox.tmp.$$
+	--inputbox "$*" -1 -1 "$default_value" 2> ${TMP}/inputbox.tmp.$$
 	if ! handle_rval $?; then rm -f ${TMP}/inputbox.tmp.$$; return 1; fi
 	answer=`cat ${TMP}/inputbox.tmp.$$`
 	rm -f ${TMP}/inputbox.tmp.$$

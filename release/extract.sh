@@ -1,6 +1,6 @@
 #!/bin/sh
-# $Id: extract.sh,v 1.9 1994/11/11 23:27:05 jkh Exp $
-
+# $Id: extract.sh,v 1.10 1994/11/12 09:55:29 jkh Exp $
+PATH=/stand:$PATH
 DDIR=/
 
 if [ -f bin_tgz.aa ] ; then
@@ -8,10 +8,8 @@ if [ -f bin_tgz.aa ] ; then
 	if [ -f $DDIR/etc/myname ]; then
 		cp $DDIR/etc/hosts $DDIR/etc/myname $DDIR/stand/etc
 	fi
-	echo; echo "Extracting bindist, please wait.  Ignore any messages from"
-	echo "cpio saying \"No such file or directory\".  It doesn't know what"
-	echo "it's talking about.."; echo
-	cat bin_tgz.?? | zcat | ( cd $DDIR ; cpio -H tar -idumV )
+	echo; echo "Extracting bindist, please wait." 
+	cat bin_tgz.?? | gzip -c -d | tar --unlink -xvf - -C $DDIR
 	if [ -f $DDIR/stand/etc/myname ]; then
 		# Add back what the bindist nuked.
 		cp $DDIR/stand/etc/myname $DDIR/etc
@@ -29,6 +27,6 @@ do
 			mv /sbin/init /sbin/nondes_init
 		fi
 		echo "Extracting $b"
-		cat $b.?? | zcat | ( cd $DDIR ; cpio -H tar -idumV )
+		cat $b.?? | gzip -c -d | tar --unlink -xvf - -C $DDIR
 	fi
 done
