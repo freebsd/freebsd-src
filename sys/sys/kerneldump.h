@@ -46,6 +46,7 @@ struct kerneldumpheader {
 #	    define KERNELDUMPVERSION	1
 	uint32_t	architectureversion;
 #	    define KERNELDUMP_I386_VERSION 1
+#	    define KERNELDUMP_IA64_VERSION 1
 	uint64_t	dumplength;	/* excl headers */
 	uint32_t	blocksize;
 	uint64_t	dumptime;
@@ -69,4 +70,4 @@ kerneldump_parity(struct kerneldumpheader *kdhp)
 }
 
 
-#endif _SYS_KERNELDUMP_H
+#endif /* _SYS_KERNELDUMP_H */
