@@ -191,11 +191,12 @@ struct kse {
 	int			k_locklevel;
 	sigset_t		k_sigmask;
 	struct sigstatus	k_sigq[NSIG];
+	stack_t			k_stack;
 	int			k_check_sigq;
-	long			k_resched;	/* scheduling signal arrived */
 	int			k_flags;
 #define	KF_STARTED			0x0001	/* kernel kse created */
 #define	KF_INITIALIZED			0x0002	/* initialized on 1st upcall */
+	int			k_waiting;
 	int			k_cpu;		/* CPU ID when bound */
 	int			k_done;		/* this KSE is done */
 };
@@ -289,13 +290,11 @@ do { \
 #define KSE_WAITQ_INSERT(kse, thrd)	kse_waitq_insert(thrd)
 #define	KSE_WAITQ_FIRST(kse)		TAILQ_FIRST(&(kse)->k_schedq->sq_waitq)
 
-#define	KSE_SET_WAIT(kse) \
-	atomic_store_rel_int(&(kse)->k_mbx.km_flags, 1)
+#define	KSE_SET_WAIT(kse) 	atomic_store_rel_int(&(kse)->k_waiting, 1)
 
-#define	KSE_CLEAR_WAIT(kse) \
-	atomic_set_acq_int(&(kse)->k_mbx.km_flags, 0)
+#define	KSE_CLEAR_WAIT(kse) 	atomic_set_acq_int(&(kse)->k_waiting, 0)
 
-#define	KSE_WAITING(kse)	(kse)->k_mbx.km_flags != 0
+#define	KSE_WAITING(kse)	(kse)->k_waiting != 0
 #define	KSE_WAKEUP(kse)		kse_wakeup(&(kse)->k_mbx)
 
 /*
@@ -1022,7 +1021,7 @@ void	_kse_lock_wakeup(struct lock *, struct lockuser *lu);
 void	_kse_sig_check_pending(struct kse *);
 void	_kse_single_thread(struct pthread *);
 void	_kse_start(struct kse *);
-void	_kse_setthreaded(int);
+int	_kse_setthreaded(int);
 int	_kse_isthreaded(void);
 int	_mutex_cv_lock(pthread_mutex_t *);
 int	_mutex_cv_unlock(pthread_mutex_t *);
