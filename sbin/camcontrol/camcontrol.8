@@ -257,7 +257,8 @@ isn't supported.
 Tell the kernel to reset the given bus (XPT_RESET_BUS) by issuing a SCSI bus
 reset for that bus, or to reset the given bus:target:lun
 (XPT_RESET_DEV), typically by issuing a BUS DEVICE RESET message after
-connecting to that device. Note that this can have a destructive impact
+connecting to that device.
+Note that this can have a destructive impact
 on the system.
 .It defects
 Send the SCSI READ DEFECT DATA (10) command (0x37) to the given device, and

@@ -218,7 +218,8 @@ If the interface is a vlan pseudo interface, set the vlan tag value
 to
 .Ar vlan_tag .
 This value is a 16-bit number which is used to create an 802.1Q
-vlan header for packets sent from the vlan interface. Note that
+vlan header for packets sent from the vlan interface.
+Note that
 .Cm vlan
 and
 .Cm vlandev
@@ -226,19 +227,24 @@ must both be set at the same time.
 .It Cm vlandev Ar iface
 If the interface is a vlan pseudo device, associate physical interface
 .Ar iface
-with it. Packets transmitted through the vlan interface will be
+with it.
+Packets transmitted through the vlan interface will be
 diverted to the specified physical interface
 .Ar iface
-with 802.1Q vlan encapsulation. Packets with 802.1Q encapsulation received
+with 802.1Q vlan encapsulation.
+Packets with 802.1Q encapsulation received
 by the parent interface with the correct vlan tag will be diverted to
-the associated vlan pseudo-interface. The vlan interface is assigned a
+the associated vlan pseudo-interface.
+The vlan interface is assigned a
 copy of the parent interface's flags and the parent's ethernet address.
 The
 .Cm vlandev
 and
 .Cm vlan
-must both be set at the same time. If the vlan interface already has
-a physical interface associated with it, this command will fail. To
+must both be set at the same time.
+If the vlan interface already has
+a physical interface associated with it, this command will fail.
+To
 change the association to another physical interface, the existing
 association must be cleared first.
 .Pp
@@ -254,7 +260,8 @@ the parent unaltered.
 .It Fl vlandev Ar iface
 If the driver is a vlan pseudo device, disassociate the physical interface
 .Ar iface
-from it. This breaks the link between the vlan interface and its parent,
+from it.
+This breaks the link between the vlan interface and its parent,
 clears its vlan tag, flags and its link address and shuts the interface down.
 .It Cm metric Ar n
 Set the routing metric of the interface to
@@ -330,7 +337,8 @@ If the parameter is ommitted, 64 is used.
 .It Cm range
 Under appletalk, set the interface to respond to a 
 .Em netrange.
-of the form startnet-endnet. Appletalk uses this scheme instead of 
+of the form startnet-endnet.
+Appletalk uses this scheme instead of 
 netmasks though
 .Fx
 implements it internally as a set of netmasks.
@@ -339,11 +347,13 @@ Another name for the ``delete'' parameter.  Introduced for compatibility
 with BSD/OS.
 .It Cm phase
 The argument following this specifies the version (phase) of the 
-Appletalk network attached to the interface. Values of 1 or 2 are permitted.
+Appletalk network attached to the interface.
+Values of 1 or 2 are permitted.
 .It Cm link[0-2]
 Enable special processing of the link level of the interface.
 These three options are interface specific in actual effect, however,
-they are in general used to select special modes of operation. An example
+they are in general used to select special modes of operation.
+An example
 of this is to enable SLIP compression, or to select the connector type
 for some Ethernet cards.  Refer to the man page for the specific driver
 for more information.
@@ -406,7 +416,8 @@ requested address is unknown, or the user is not privileged and
 tried to alter an interface's configuration.
 .Sh BUGS
 IPv6 link-local addresses are required for several basic communication
-between IPv6 node. If they are deleted by
+between IPv6 node.
+If they are deleted by
 .Nm ifconfig
 manually, the kernel might show very strange behavior.
 So, such manual deletions are strongly discouraged.

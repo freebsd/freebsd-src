@@ -62,7 +62,8 @@ line.  Blank lines and lines starting with the comment character
 are ignored.
 .Pp
 The shared libraries so found will be automatically available for loading
-if needed by the program being prepared for execution. This obviates the need
+if needed by the program being prepared for execution.
+This obviates the need
 for storing search paths within the executable.
 .Pp
 The
@@ -75,7 +76,8 @@ is a
 .Sq \:
 separated list of directory paths which are searched by
 the dynamic linker
-when it needs to load a shared library. It can be viewed as the run-time
+when it needs to load a shared library.
+It can be viewed as the run-time
 equivalent of the
 .Fl L
 switch of
@@ -108,7 +110,8 @@ Directories recorded in the hints file by previous runs of
 are also rescanned for new shared libraries.
 .It Fl r
 List the current contents of the hints file
-on the standard output. The hints file is not modified.  The list of
+on the standard output.
+The hints file is not modified.  The list of
 directories stored in the hints file is included.
 .It Fl s
 Do not scan the built-in system directory
@@ -120,15 +123,19 @@ Switch on verbose mode.
 Special care must be taken when loading shared libraries into the address
 space of
 .Ev set-user-Id
-programs. Whenever such a program is run,
+programs.
+Whenever such a program is run,
 the dynamic linker
 will only load shared libraries from the hints
-file. In particular, the
+file.
+In particular, the
 .Ev LD_LIBRARY_PATH
-is not used to search for libraries. Thus, the role of ldconfig is dual. In
+is not used to search for libraries. Thus, the role of ldconfig is dual.
+In
 addition to building a set of hints for quick lookup, it also serves to
 specify the trusted collection of directories from which shared objects can
-be safely loaded. It is presumed that the set of directories specified to
+be safely loaded.
+It is presumed that the set of directories specified to
 .Nm ldconfig
 are under control of the system's administrator.
 .Sh ENVIRONMENT
