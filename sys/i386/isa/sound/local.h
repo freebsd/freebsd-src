@@ -48,7 +48,7 @@
 #define EXCLUDE_SSCAPE
 #endif
 
-#if !defined(GUSMAX) && !defined(EXCLUDE_GUSMAX)
+#if NGUS == 0 && !defined(EXCLUDE_GUSMAX)
 # define EXCLUDE_GUSMAX
 # if defined(EXCLUDE_GUS16) && defined(EXCLUDE_MSS) && !defined(EXCLUDE_AD1848)
 #  define EXCLUDE_AD1848
