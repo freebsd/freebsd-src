@@ -266,6 +266,7 @@ device		isa
 # reset the CPU for reboot.  This is needed on some systems with broken
 # keyboard controllers.
 
+options 	COMPAT_OLDISA	#Use ISA shims and glue for old drivers
 options 	AUTO_EOI_1
 #options 	AUTO_EOI_2
 
