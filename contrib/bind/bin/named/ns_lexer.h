@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1997 by Internet Software Consortium.
+ * Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,8 +15,8 @@
  * SOFTWARE.
  */
 
-#ifndef NS_LEXER_H
-#define NS_LEXER_H
+#ifndef _NS_LEXER_H
+#define _NS_LEXER_H
 
 /*
  * Note: <stdio.h> and "ns_parseutil.h" must be included
@@ -42,4 +42,4 @@ void	lexer_shutdown(void);
 
 extern symbol_table constants;
 
-#endif /* NS_LEXER_H */
+#endif /* !_NS_LEXER_H */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997, 1998 by Internet Software Consortium
+ * Copyright (c) 1995-1999 by Internet Software Consortium
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -18,7 +18,7 @@
 /* eventlib.h - exported interfaces for eventlib
  * vix 09sep95 [initial]
  *
- * $Id: eventlib.h,v 1.19 1998/02/06 01:55:51 halley Exp $
+ * $Id: eventlib.h,v 1.22 1999/08/18 22:09:04 vixie Exp $
  */
 
 #ifndef _EVENTLIB_H
@@ -46,6 +46,9 @@ typedef struct { void *opaque; } evTimerID;
 typedef struct { void *opaque; } evWaitID;
 typedef struct { void *opaque; } evContext;
 typedef struct { void *opaque; } evEvent;
+
+#define	evInitID(id) ((id)->opaque = NULL)
+#define	evTestID(id) ((id).opaque != NULL)
 
 typedef void (*evConnFunc)__P((evContext ctx, void *uap, int fd,
 			       const void *la, int lalen,
@@ -82,6 +85,7 @@ typedef	struct { unsigned char mask[256/8]; } evByteMask;
 #define evDispatch	__evDispatch
 #define evDrop		__evDrop
 #define evMainLoop	__evMainLoop
+#define evHighestFD	__evHighestFD
 
 int  evCreate __P((evContext *ctx));
 void evSetDebug __P((evContext ctx, int lev, FILE *out));
@@ -90,6 +94,7 @@ int  evGetNext __P((evContext ctx, evEvent *ev, int options));
 int  evDispatch __P((evContext ctx, evEvent ev));
 void evDrop __P((evContext ctx, evEvent ev));
 int  evMainLoop __P((evContext ctx));
+int  evHighestFD __P((evContext ctx));
 
 /* ev_connects.c */
 #define evListen	__evListen

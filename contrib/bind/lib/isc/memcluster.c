@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 by Internet Software Consortium.
+ * Copyright (c) 1997,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,8 +15,15 @@
  * SOFTWARE.
  */
 
+
+/* When this symbol is defined allocations via memget are made slightly 
+   bigger and some debugging info stuck before and after the region given 
+   back to the caller. */
+/* #define DEBUGGING_MEMCLUSTER */
+
+
 #if !defined(LINT) && !defined(CODECENTER)
-static char rcsid[] = "$Id: memcluster.c,v 8.10 1998/05/05 19:00:52 halley Exp $";
+static const char rcsid[] = "$Id: memcluster.c,v 8.19 1999/10/13 17:11:22 vixie Exp $";
 #endif /* not lint */
 
 #include "port_before.h"
@@ -41,15 +48,34 @@ static char rcsid[] = "$Id: memcluster.c,v 8.10 1998/05/05 19:00:52 halley Exp $
 
 #include "port_after.h"
 
+#ifdef MEMCLUSTER_RECORD
+#ifndef DEBUGGING_MEMCLUSTER
+#define DEBUGGING_MEMCLUSTER
+#endif
+#endif
+
 #define DEF_MAX_SIZE		1100
 #define DEF_MEM_TARGET		4096
 
+typedef u_int32_t fence_t;
+
 typedef struct {
 	void *			next;
+#if defined(DEBUGGING_MEMCLUSTER)
+#if defined(MEMCLUSTER_RECORD)
+	const char *		file;
+	int			line;
+#endif
+	int			size;
+	fence_t			fencepost;
+#endif
 } memcluster_element;
 
 #define SMALL_SIZE_LIMIT sizeof(memcluster_element)
 #define P_SIZE sizeof(void *)
+#define FRONT_FENCEPOST 0xfebafeba
+#define BACK_FENCEPOST 0xabefabef
+#define FENCEPOST_SIZE 4
 
 #ifndef MEMCLUSTER_LITTLE_MALLOC
 #define MEMCLUSTER_BIG_MALLOC 1
@@ -70,6 +96,9 @@ static size_t			mem_target;
 static size_t			mem_target_half;
 static size_t			mem_target_fudge;
 static memcluster_element **	freelists;
+#ifdef MEMCLUSTER_RECORD
+static memcluster_element **	activelists;
+#endif
 #ifdef MEMCLUSTER_BIG_MALLOC
 static memcluster_element *	basic_blocks;
 #endif
@@ -78,13 +107,18 @@ static struct stats *		stats;
 /* Forward. */
 
 static size_t			quantize(size_t);
+#if defined(DEBUGGING_MEMCLUSTER)
+static void			check(unsigned char *, int, size_t);
+#endif
 
 /* Public. */
 
 int
 meminit(size_t init_max_size, size_t target_size) {
-	int i;
 
+#if defined(DEBUGGING_MEMCLUSTER)
+	INSIST(sizeof(fence_t) == FENCEPOST_SIZE);
+#endif
 	if (freelists != NULL) {
 		errno = EEXIST;
 		return (-1);
@@ -108,6 +142,15 @@ meminit(size_t init_max_size, size_t target_size) {
 	memset(freelists, 0,
 	       max_size * sizeof (memcluster_element *));
 	memset(stats, 0, (max_size + 1) * sizeof (struct stats));
+#ifdef MEMCLUSTER_RECORD
+	activelists = malloc((max_size + 1) * sizeof (memcluster_element *));
+	if (activelists == NULL) {
+		errno = ENOMEM;
+		return (-1);
+	}
+	memset(activelists, 0,
+	       (max_size + 1) * sizeof (memcluster_element *));
+#endif
 #ifdef MEMCLUSTER_BIG_MALLOC
 	basic_blocks = NULL;
 #endif
@@ -116,7 +159,17 @@ meminit(size_t init_max_size, size_t target_size) {
 
 void *
 __memget(size_t size) {
+	return (__memget_record(size, NULL, 0));
+}
+
+void *
+__memget_record(size_t size, const char *file, int line) {
 	size_t new_size = quantize(size);
+#if defined(DEBUGGING_MEMCLUSTER)
+	memcluster_element *e;
+	char *p;
+	fence_t fp = BACK_FENCEPOST;
+#endif
 	void *ret;
 
 	if (freelists == NULL)
@@ -130,7 +183,27 @@ __memget(size_t size) {
 		/* memget() was called on something beyond our upper limit. */
 		stats[max_size].gets++;
 		stats[max_size].totalgets++;
+#if defined(DEBUGGING_MEMCLUSTER)
+		e = malloc(new_size);
+		if (e == NULL) {
+			errno = ENOMEM;
+			return (NULL);
+		}
+		e->next = NULL;
+		e->size = size;
+#ifdef MEMCLUSTER_RECORD
+		e->file = file;
+		e->line = line;
+		e->next = activelists[max_size];
+		activelists[max_size] = e;
+#endif
+		e->fencepost = FRONT_FENCEPOST;
+		p = (char *)e + sizeof *e + size;
+		memcpy(p, &fp, sizeof fp);
+		return ((char *)e + sizeof *e);
+#else
 		return (malloc(size));
+#endif
 	}
 
 	/* 
@@ -186,18 +259,50 @@ __memget(size_t size) {
 		curr = new;
 		next = curr + new_size;
 		for (i = 0; i < (frags - 1); i++) {
+#if defined (DEBUGGING_MEMCLUSTER)
+			memset(curr, 0xa5, new_size);
+#endif
 			((memcluster_element *)curr)->next = next;
 			curr = next;
 			next += new_size;
 		}
 		/* curr is now pointing at the last block in the array. */
+#if defined (DEBUGGING_MEMCLUSTER)
+		memset(curr, 0xa5, new_size);
+#endif
 		((memcluster_element *)curr)->next = freelists[new_size];
 		freelists[new_size] = new;
 	}
 
-	/* The free list uses the "rounded-up" size "new_size": */
+	/* The free list uses the "rounded-up" size "new_size". */
+#if defined (DEBUGGING_MEMCLUSTER)
+	e = freelists[new_size];
+	ret = (char *)e + sizeof *e;
+	/*
+	 * Check to see if this buffer has been written to while on free list.
+	 */
+	check(ret, 0xa5, new_size - sizeof *e);
+	/*
+	 * Mark memory we are returning.
+	 */
+	memset(ret, 0xe5, size);
+#else
 	ret = freelists[new_size];
+#endif
 	freelists[new_size] = freelists[new_size]->next;
+#if defined(DEBUGGING_MEMCLUSTER)
+	e->next = NULL;
+	e->size = size;
+	e->fencepost = FRONT_FENCEPOST;
+#ifdef MEMCLUSTER_RECORD
+	e->file = file;
+	e->line = line;
+	e->next = activelists[size];
+	activelists[size] = e;
+#endif
+	p = (char *)e + sizeof *e + size;
+	memcpy(p, &fp, sizeof fp);
+#endif
 
 	/* 
 	 * The stats[] uses the _actual_ "size" requested by the
@@ -208,7 +313,11 @@ __memget(size_t size) {
 	stats[size].gets++;
 	stats[size].totalgets++;
 	stats[new_size].freefrags--;
+#if defined(DEBUGGING_MEMCLUSTER)
+	return ((char *)e + sizeof *e);
+#else
 	return (ret);
+#endif
 }
 
 /* 
@@ -217,25 +326,83 @@ __memget(size_t size) {
  */
 void
 __memput(void *mem, size_t size) {
-	size_t new_size = quantize(size);
+	__memput_record(mem, size, NULL, 0);
+}
 
+void
+__memput_record(void *mem, size_t size, const char *file, int line) {
+	size_t new_size = quantize(size);
+#if defined (DEBUGGING_MEMCLUSTER)
+	memcluster_element *e;
+#ifdef MEMCLUSTER_RECORD
+	memcluster_element *prev, *el;
+#endif
+	int fp;
+	char *p;
+#endif
 	REQUIRE(freelists != NULL);
 
 	if (size == 0) {
 		errno = EINVAL;
 		return;
 	}
+
+#if defined (DEBUGGING_MEMCLUSTER)
+	e = (memcluster_element *) ((char *)mem - sizeof *e);
+	INSIST(e->fencepost == FRONT_FENCEPOST);
+	INSIST(e->size == size);
+	p = (char *)e + sizeof *e + size;
+	memcpy(&fp, p, sizeof fp);
+	INSIST(fp == BACK_FENCEPOST);
+	INSIST(((int)mem % 4) == 0);
+#ifdef MEMCLUSTER_RECORD
+	prev = NULL;
+	if (size == max_size || new_size >= max_size)
+		el = activelists[max_size];
+	else
+		el = activelists[size];
+	while (el != NULL && el != e) {
+		prev = el;
+		el = el->next;
+	}
+	INSIST(el != NULL);	/* double free */
+	if (prev == NULL) {
+		if (size == max_size || new_size >= max_size)
+			activelists[max_size] = el->next;
+		else
+			activelists[size] = el->next;
+	} else
+		prev->next = el->next;
+#endif
+#endif
+
 	if (size == max_size || new_size >= max_size) {
 		/* memput() called on something beyond our upper limit */
+#if defined(DEBUGGING_MEMCLUSTER)
+		free(e);
+#else
 		free(mem);
+#endif
+
 		INSIST(stats[max_size].gets != 0);
 		stats[max_size].gets--;
 		return;
 	}
 
 	/* The free list uses the "rounded-up" size "new_size": */
+#if defined(DEBUGGING_MEMCLUSTER)
+	memset(mem, 0xa5, new_size - sizeof *e); /* catch write after free */
+	e->size = 0;	/* catch double memput() */
+#ifdef MEMCLUSTER_RECORD
+	e->file = file;
+	e->line = line;
+#endif
+	e->next = freelists[new_size];
+	freelists[new_size] = (void *)e;
+#else
 	((memcluster_element *)mem)->next = freelists[new_size];
 	freelists[new_size] = (memcluster_element *)mem;
+#endif
 
 	/* 
 	 * The stats[] uses the _actual_ "size" requested by the
@@ -251,7 +418,7 @@ __memput(void *mem, size_t size) {
 void *
 __memget_debug(size_t size, const char *file, int line) {
 	void *ptr;
-	ptr = __memget(size);
+	ptr = __memget_record(size, file, line);
 	fprintf(stderr, "%s:%d: memget(%lu) -> %p\n", file, line,
 		(u_long)size, ptr);
 	return (ptr);
@@ -261,7 +428,7 @@ void
 __memput_debug(void *ptr, size_t size, const char *file, int line) {
 	fprintf(stderr, "%s:%d: memput(%p, %lu)\n", file, line, ptr,
 		(u_long)size);
-	__memput(ptr, size);
+	__memput_record(ptr, size, file, line);
 }
 
 /*
@@ -270,6 +437,9 @@ __memput_debug(void *ptr, size_t size, const char *file, int line) {
 void
 memstats(FILE *out) {
 	size_t i;
+#ifdef MEMCLUSTER_RECORD
+	memcluster_element *e;
+#endif
 
 	if (freelists == NULL)
 		return;
@@ -286,6 +456,19 @@ memstats(FILE *out) {
 				s->blocks, s->freefrags);
 		fputc('\n', out);
 	}
+#ifdef MEMCLUSTER_RECORD
+	fprintf(out, "Active Memory:\n");
+	for (i = 1; i <= max_size; i++) {
+		if ((e = activelists[i]) != NULL)
+			while (e != NULL) {
+				fprintf(out, "%s:%d %#p:%d\n",
+				        e->file != NULL ? e->file :
+						"<UNKNOWN>", e->line,
+					(char *)e + sizeof *e, e->size);
+				e = e->next;
+			}
+	}
+#endif
 }
 
 /* Private. */
@@ -295,7 +478,7 @@ memstats(FILE *out) {
  * block is at least sizeof void *, and that we won't violate alignment
  * restrictions, both of which are needed to make lists of blocks.
  */
-static size_t 
+static size_t
 quantize(size_t size) {
 	int remainder;
 	/*
@@ -309,7 +492,19 @@ quantize(size_t size) {
 	 */
 	remainder = size % P_SIZE;
 	if (remainder != 0)
-        	size += P_SIZE - remainder;
+		size += P_SIZE - remainder;
+#if defined(DEBUGGING_MEMCLUSTER)
+	return (size + SMALL_SIZE_LIMIT + sizeof (int));
+#else
 	return (size);
+#endif
 }
 
+#if defined(DEBUGGING_MEMCLUSTER)
+static void
+check(unsigned char *a, int value, size_t len) {
+	int i;
+	for (i = 0; i < len; i++)
+		INSIST(a[i] == value);
+}
+#endif

@@ -65,10 +65,14 @@ all depend clean distclean install::
 		(cd $$x; pwd; ${MAKE} ${MARGS} $@); \
 	done
 
+all depend::
+	probe_ipv6
+
 distclean:: clean
 
 clean::
 	rm -f *~ *.BAK *.CKP *.orig
+	rm -f port_ipv6.h new_port_ipv6.h
 
 links: FRC
 	@set -e; ln -s SRC/*.h .

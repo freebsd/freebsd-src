@@ -18,6 +18,10 @@ case $cachefile in
 *)   echo "Making $cachefile" >&2 ;;
 esac
 
+# expr is sensitive to LC_COLLATE settings.  We want 'C'.
+LC_COLLATE=C
+export LC_COLLATE
+
 result=''
 while read setting; do
 	var=`expr "$setting" : "'\([A-Z0-9_]*\)="`

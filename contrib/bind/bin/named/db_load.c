@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
-static char sccsid[] = "@(#)db_load.c	4.38 (Berkeley) 3/2/91";
-static char rcsid[] = "$Id: db_load.c,v 8.41 1998/02/13 20:02:28 halley Exp $";
+static const char sccsid[] = "@(#)db_load.c	4.38 (Berkeley) 3/2/91";
+static const char rcsid[] = "$Id: db_load.c,v 8.97 1999/10/30 03:21:35 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -82,7 +82,7 @@ static char rcsid[] = "$Id: db_load.c,v 8.41 1998/02/13 20:02:28 halley Exp $";
  */
 
 /*
- * Portions Copyright (c) 1996, 1997 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -110,6 +110,7 @@ static char rcsid[] = "$Id: db_load.c,v 8.41 1998/02/13 20:02:28 halley Exp $";
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 
 #include <netinet/in.h>
 #include <arpa/nameser.h>
@@ -137,27 +138,28 @@ static char rcsid[] = "$Id: db_load.c,v 8.41 1998/02/13 20:02:28 halley Exp $";
 /* Forward. */
 
 static int        	gettoken(FILE *, const char *);
-static int		getttl(FILE *, const char *, int, u_int32_t *, int *);
 static int		getcharstring(char *, char *, int, int, int, FILE *,
 				      const char *);
-static int		makename_ok(char *name, const char *origin, int class,
-				    struct zoneinfo *zp,
-				    enum transport transport,
-				    enum context context,
-				    const char *owner, const char *filename,
-				    int lineno, int size);
+static int		genname(char *, int, const char *, char *, int);
 static int		getmlword(char *, size_t, FILE *, int);
 static int		getallwords(char *, size_t, FILE *, int);
 static u_int32_t	wordtouint32(char *);
-static int		datepart(const char *, int, int, int, int *);
-static u_int32_t	datetosecs(const char *, int *);
-static int		get_nxt_types(u_char *, FILE *, const char *);
 static void		fixup_soa(const char *fn, struct zoneinfo *zp);
-#ifdef BIND_NOTIFY
-static void		notify_after_delay(evContext ctx, void *uap,
-					   struct timespec due,
-					   struct timespec inter);
-#endif
+static int		get_nxt_types(u_char *, FILE *, const char *);
+
+static int		parse_sig_rr(char *, int, u_char *, int, FILE *,  
+				     struct zoneinfo *, char *, u_int32_t ,
+				     enum context , enum transport , char **);
+static int		parse_key_rr(char *, int, u_char *, int, FILE *, 
+				     struct zoneinfo *, char *, enum context, 
+				     enum transport, char **);
+
+static int		parse_cert_rr(char *, int, u_char *, int, FILE *, char **);
+static int		parse_nxt_rr(char *, int, u_char *, int, FILE *,
+				     struct zoneinfo *, char *, enum context,
+				     enum transport, char **);
+
+
 static int		wordtouint32_error = 0;
 static int		empty_token = 0;
 static int		getmlword_nesting = 0;
@@ -166,37 +168,50 @@ static int		getmlword_nesting = 0;
 
 static int clev;	/* a zone deeper in a hierarchy has more credibility */
 
-#ifdef BIND_NOTIFY
-static notify_info_list	pending_notifies;
-#endif
-
 /*
  * Parser token values
  */
-#define CURRENT	1
-#define DOT	2
-#define AT	3
-#define DNAME	4
-#define INCLUDE	5
-#define ORIGIN	6
-#define ERROR	7
+#define CURRENT		1
+#define DOT		2
+#define AT		3
+#define DNAME		4
+#define INCLUDE		5
+#define ORIGIN		6
+#define GENERATE	7
+#define DEFAULTTTL	8
+#define ERRTOK		9
 
 #define MAKENAME_OK(N) \
 	do { \
 		if (!makename_ok(N, origin, class, zp, \
-				 transport, context, \
+		   		 transport, context, \
 				 domain, filename, lineno, \
-				 sizeof(data) - ((u_char*)N - data))) { \
+				 data_size - ((u_char*)N - data))) { \
 			errs++; \
 			sprintf(buf, "bad name \"%s\"", N); \
 		        goto err; \
 		} \
 	} while (0)
 
+#define MAKENAME_OKZP(N, SI) \
+	do { \
+		if (!makename_ok(N, zp->z_origin, zp->z_class, zp, \
+		   		 transport, context, \
+				 domain, zp->z_source, lineno, \
+				 SI - ((u_char*)N - data))) { \
+			errs++; \
+			sprintf(buf, "bad name \"%s\"", N); \
+		        goto err; \
+		} \
+	} while (0)
+
+#define RANGE(x, min, max) \
+	(((x) > (max)) ? (max) : (((x) < (min)) ? (min) : (x)))
+
 /* Public. */
 
 /* int
- * db_load(filename, in_origin, zp, def_domain)
+ * db_load(filename, in_origin, zp, def_domain, isixfr)
  *	load a database from `filename' into zone `zp'.  append `in_origin'
  *	to all nonterminal domain names in the file.  `def_domain' is the
  *	default domain for include files or NULL for zone base files.
@@ -207,18 +222,24 @@ static notify_info_list	pending_notifies;
  */
 int
 db_load(const char *filename, const char *in_origin,
-	struct zoneinfo *zp, const char *def_domain)
+	struct zoneinfo *zp, const char *def_domain, int isixfr)
 {
 	static int read_soa, read_ns, rrcount;
+	static u_int32_t default_ttl, default_warn;
+	static struct filenames {
+		struct filenames *next;
+		char 		 *name;
+	} *filenames, *fn;
 
 	const char *errtype = "Database";
 	char *cp;
 	char domain[MAXDNAME], origin[MAXDNAME], tmporigin[MAXDNAME];
 	char buf[MAXDATA];
+	char genlhs[MAXDNAME], genrhs[MAXDNAME];
 	u_char data[MAXDATA];
-	const char *op;
-	int c, someclass, class, type, dbflags, dataflags, multiline;
-	int slineno, i, errs, didinclude, escape, success, dateerror;
+	int data_size = sizeof(data);
+	int c, someclass, class, type, dbflags, dataflags, multiline = 0;
+	int slineno, i, errs, didinclude, ininclude, escape, success;
 	u_int32_t ttl, n, serial;
 	u_long tmplong;
 	struct databuf *dp;
@@ -227,9 +248,10 @@ db_load(const char *filename, const char *in_origin,
 	struct in_addr ina;
 	enum transport transport;
 	enum context context;
-	u_int32_t sig_type;
-	u_int32_t keyflags;
 	struct sockaddr_in empty_from;
+	int genstart, genend, genstep;
+	char *thisfile;
+	void *state = NULL;
 
 	empty_from.sin_family = AF_INET;
 	empty_from.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -241,15 +263,19 @@ db_load(const char *filename, const char *in_origin,
  * and complains.
  */
 #define	ERRTO(msg)  do { if (1) { errtype = msg; goto err; } } while (0)
+#define	ERRTOZ(msg)  do { if (1) { errtype = msg; buf[0] = '\0'; goto err; } } while (0)
 
 	switch (zp->z_type) {
 	case Z_PRIMARY:
-	case Z_CACHE:
+	case Z_HINT:
 		transport = primary_trans;
 		break;
 	case Z_SECONDARY:
 	case Z_STUB:
 		transport = secondary_trans;
+		break;
+	case Z_CACHE:
+		transport = response_trans;
 		break;
 	default:
 		transport = response_trans; /*guessing*/
@@ -257,24 +283,37 @@ db_load(const char *filename, const char *in_origin,
 	}
 	errs = 0;
 	didinclude = 0;
-	if (!def_domain) {
-		/* This is not the result of a $INCLUDE. */
+	ininclude = (def_domain != NULL);
+	if (!ininclude) {
 		rrcount = 0;
 		read_soa = 0;
 		read_ns = 0;
+		default_ttl = USE_MINIMUM;
+		default_warn = 1;
 		clev = nlabels(in_origin);
+		filenames = NULL;
 	}
+	ttl = default_ttl;
 
-	ns_debug(ns_log_load, 1, "db_load(%s, %s, %d, %s)",
+	ns_debug(ns_log_load, 1, "db_load(%s, %s, %d, %s, %s)",
 		 filename, in_origin, zp - zones,
-		 def_domain ? def_domain : "Nil");
+		 def_domain ? def_domain : "Nil", isixfr ? "IXFR" : "Normal");
+
+	fn = (struct filenames *)memget(sizeof *filenames);
+	if (fn == NULL)
+		ns_panic(ns_log_db, 0, "db_load: memget failed");
+	thisfile = fn->name = savestr(filename, 1);
+	fn->next = filenames;
+	filenames = fn;
 
 	strcpy(origin, in_origin);
 	if ((fp = fopen(filename, "r")) == NULL) {
-		ns_warning(ns_log_load, "%s: %s", filename, strerror(errno));
+		ns_warning(ns_log_load, "db_load could not open: %s: %s",
+			   filename, strerror(errno));
+		zp->z_ftime = 0;
 		return (-1);
 	}
-	if (zp->z_type == Z_CACHE) {
+	if (zp->z_type == Z_HINT) {
 		dbflags = DB_NODATA | DB_NOHINTS;
 		dataflags = DB_F_HINT;
 #ifdef STUBS
@@ -288,7 +327,8 @@ db_load(const char *filename, const char *in_origin,
 	}
 	gettime(&tt);
 	if (fstat(fileno(fp), &sb) < 0) {
-		ns_warning(ns_log_load, "%s: %s", filename, strerror(errno));
+		ns_warning(ns_log_load, "fstat failed: %s: %s",
+			   filename, strerror(errno));
 		sb.st_mtime = (int)tt.tv_sec;
 	}
 	slineno = lineno;
@@ -302,6 +342,10 @@ db_load(const char *filename, const char *in_origin,
  	while ((c = gettoken(fp, filename)) != EOF) {
 		switch (c) {
 		case INCLUDE:
+			if (isixfr) {
+				c = ERRTOK;
+				break;
+			}
 			if (!getword(buf, sizeof buf, fp, 0))
 				/* file name*/
 				break;
@@ -309,12 +353,12 @@ db_load(const char *filename, const char *in_origin,
 				strcpy(tmporigin, origin);
 			else {
 				if (makename(tmporigin, origin,
-					     sizeof(tmporigin)) == -1) 
+					     sizeof(tmporigin)) == -1)
 					ERRTO("$INCLUDE makename failed");
 				endline(fp);
 			}
 			didinclude = 1;
-			errs += db_load(buf, tmporigin, zp, domain);
+			errs += db_load(buf, tmporigin, zp, domain, ISNOTIXFR);
 			continue;
 
 		case ORIGIN:
@@ -329,12 +373,137 @@ db_load(const char *filename, const char *in_origin,
 				 origin);
 			continue;
 
+		case GENERATE:
+			if (!getword(buf, sizeof(buf), fp, 0))
+				ERRTOZ("$GENERATE missing RANGE");
+			n = sscanf(buf, "%d-%d/%d", &genstart, &genend,
+							&genstep);
+			if (n != 2 && n != 3)
+			    	ERRTO("$GENERATE invalid range");
+			if (n == 2)
+				genstep = 1;
+			if ((genend < genstart) || (genstart < 0) ||
+			    (genstep < 0))
+			    	ERRTO("$GENERATE invalid range");
+			if (!getword(genlhs, sizeof(genlhs), fp, 2))
+				ERRTOZ("$GENERATE missing LHS");
+			if (!getword(buf, sizeof(buf), fp, 0))
+				ERRTOZ("GENERATE missing TYPE");
+			type = sym_ston(__p_type_syms, buf, &success);
+			if (success == 0 || type == ns_t_any) {
+				ns_info(ns_log_load,
+					"%s: Line %d: $GENERATE unknown type: %s.",
+					filename, lineno, buf);
+				errs++;
+				endline(fp);
+				continue;
+			}
+			switch (type) {
+			case ns_t_ns:
+			case ns_t_ptr:
+			case ns_t_cname:
+			case ns_t_a:
+			case ns_t_aaaa:
+				break;
+			default:
+				ERRTO("$GENERATE unsupported type");
+			}
+			if (!getword(genrhs, sizeof(genrhs), fp, 2))
+				ERRTOZ("$GENERATE missing RHS");
+			for (i = genstart; i <= genend; i += genstep) {
+				if (genname(genlhs, i, origin, domain,
+						sizeof domain) == -1)
+					ERRTOZ("$GENERATE genname LHS failed");
+				context = ns_ownercontext(type, transport);
+				if (!ns_nameok(NULL, domain, class, zp, transport,
+					       context, domain, inaddr_any)) {
+					strcpy(buf, domain);
+					ERRTO("$GENERATE owner name error");
+				}
+				switch (type) {
+				case ns_t_ns:
+				case ns_t_ptr:
+				case ns_t_cname:
+					if (genname(genrhs, i, origin, (char *)data,
+							sizeof data) == -1)
+						ERRTOZ("$GENERATE genname RHS failed");
+					switch (type) {
+					case ns_t_ns:
+						context = hostname_ctx;
+						break;
+					case ns_t_ptr:
+						context = ns_ptrcontext(domain);
+						break;
+					case ns_t_cname:
+						context = domain_ctx;
+						break;
+					}
+					if (!ns_nameok(NULL, (char *)data, class, zp,
+							   transport, context,
+							   domain, inaddr_any)) {
+						strncpy(buf, domain, sizeof(buf));
+						buf[sizeof(buf)-1] = '\0';
+						ERRTO("$GENERATE name error");
+					}
+					n = strlen((char *)data) + 1;
+					break;
+				case ns_t_a:
+				case ns_t_aaaa:
+					if (genname(genrhs, i, NULL, (char *)data,
+							sizeof data) == -1)
+						ERRTOZ("$GENERATE genname RHS failed");
+					strncpy(buf, (char*)data, sizeof(buf));
+					buf[sizeof(buf)-1] = '\0';
+					switch (type) {
+					case ns_t_a:
+						if (!inet_aton(buf, &ina))
+							ERRTO("IP Address");
+						(void) ina_put(ina, data);
+						n = NS_INT32SZ;
+						break;
+					case ns_t_aaaa:
+						if (inet_pton(AF_INET6, buf, data) <= 0)
+							ERRTO("IPv6 Address");
+						n = NS_IN6ADDRSZ;
+						break;
+					}
+					break;
+				default:
+					   ERRTOZ("$GENERATE unsupported context");
+				}
+				dp = savedata(class, type, (u_int32_t)ttl,
+					      (u_char *)data, (int)n);
+				dp->d_zone = zp - zones;
+				dp->d_flags = dataflags;
+				dp->d_cred = DB_C_ZONE;
+				dp->d_clev = clev;
+				c = db_set_update(domain, dp, &state, dbflags,
+						  (dataflags & DB_F_HINT) != 0 ?
+					          &fcachetab : &hashtab,
+						  empty_from, &rrcount, lineno,
+						  filename);
+				if (c != OK) {
+					if (c == CNAMEANDOTHER)
+						errs++;
+				}
+			}
+			endline(fp);
+			continue;
+
 		case DNAME:
 			if (!getword(domain, sizeof(domain), fp, 1))
 				break;
 			if (makename(domain, origin, sizeof(domain)) == -1)
 				ERRTO("ownername makename failed");
 			goto gotdomain;
+
+		case DEFAULTTTL:
+			if (getttl(fp, filename, lineno, &n,
+				   &multiline) <= 0 || n > MAXIMUM_TTL) {
+				ERRTO("$TTL bad TTL value");
+			}
+			ttl = default_ttl = n;
+			continue;
 
 		case AT:
 			(void) strcpy(domain, origin);
@@ -350,10 +519,19 @@ db_load(const char *filename, const char *in_origin,
 					continue;
 				break;
 			}
-			if (ns_parse_ttl(buf, &tmplong) < 0)
-				ttl = USE_MINIMUM;
-			else {
-				ttl = (u_int32_t)tmplong;
+			if (ns_parse_ttl(buf, &tmplong) < 0) {
+				if (zp->z_type == z_master &&
+				    default_warn &&
+				    (default_ttl == USE_MINIMUM)) {
+					ns_warning(ns_log_load,
+					   "Zone \"%s\" (file %s): %s",
+						zp->z_origin, filename,
+			"No default TTL set using SOA minimum instead");
+					default_warn = 0;
+				}
+				ttl = (u_int32_t)default_ttl;
+			} else {
+				ttl = tmplong;
 				if (ttl > MAXIMUM_TTL) {
 					ns_info(ns_log_load,
 				      "%s: Line %d: TTL > %u; converted to 0",
@@ -375,6 +553,14 @@ db_load(const char *filename, const char *in_origin,
 
 			/* Parse class (IN, etc) */
 			someclass = sym_ston(__p_class_syms, buf, &success);
+			if (success && someclass != zp->z_class) {
+				ns_info(ns_log_load,
+					"%s: Line %d: wrong class: %s.",
+					filename, lineno,
+					p_class(someclass));
+				errs++;
+				break;
+			}
 			if (success && someclass != C_ANY) {
 				class = someclass;
 				(void) getword(buf, sizeof buf, fp, 0);
@@ -389,9 +575,10 @@ db_load(const char *filename, const char *in_origin,
 				errs++;
 				break;
 			}
-
+			if (ttl == USE_MINIMUM) 
+				ttl = zp->z_minimum;
 			context = ns_ownercontext(type, transport);
-			if (!ns_nameok(domain, class, zp, transport, context,
+			if (!ns_nameok(NULL, domain, class, zp, transport, context,
 				       domain, inaddr_any)) {
 				errs++;
 				ns_notice(ns_log_load,
@@ -404,6 +591,7 @@ db_load(const char *filename, const char *in_origin,
 			case ns_t_key:
 			case ns_t_sig:
 			case ns_t_nxt:
+			case ns_t_cert:
 				/*
 				 * Don't do anything here for these types --
 				 * they read their own input separately later.
@@ -451,7 +639,7 @@ db_load(const char *filename, const char *in_origin,
 				/* FALLTHROUGH */
 			soa_rp_minfo:
 				(void) strcpy((char *)data, buf);
-			        
+			       
 			        MAKENAME_OK((char *)data);
 				cp = (char *)(data + strlen((char *)data) + 1);
 				if (!getword(cp,
@@ -469,13 +657,7 @@ db_load(const char *filename, const char *in_origin,
 					n = cp - (char *)data;
 					break;
 				}
-				if (class != zp->z_class) {
-					errs++;
-					ns_info(ns_log_load, "%s:%d: %s",
-						filename, lineno,
-					       "SOA class not same as zone's");
-				}
-				if (strcasecmp(zp->z_origin, domain) != 0) {
+				if (ns_samename(zp->z_origin, domain) != 1) {
 					errs++;
 					ns_error(ns_log_load,
 				"%s:%d: SOA for \"%s\" not at zone top \"%s\"",
@@ -509,9 +691,10 @@ db_load(const char *filename, const char *in_origin,
 					n = INIT_REFRESH;
 				}
 				PUTLONG(n, cp);
-				zp->z_refresh = MAX(n, MIN_REFRESH);
+				zp->z_refresh = RANGE(n, MIN_REFRESH,
+						      MAX_REFRESH);
 				if (zp->z_type == Z_SECONDARY
-#if defined(STUBS) 
+#if defined(STUBS)
 				    || zp->z_type == Z_STUB
 #endif
 				    ) {
@@ -520,7 +703,7 @@ db_load(const char *filename, const char *in_origin,
 					sched_zone_maint(zp);
 				}
 #ifdef BIND_UPDATE
-                                if ((zp->z_type == Z_PRIMARY) && 
+                                if ((zp->z_type == Z_PRIMARY) &&
 				    (zp->z_flags & Z_DYNAMIC))
                                         if ((u_int32_t)zp->z_soaincrintvl >
 					    zp->z_refresh/3) {
@@ -537,14 +720,15 @@ db_load(const char *filename, const char *in_origin,
 					n = INIT_REFRESH;
 				}
 				PUTLONG(n, cp);
-				zp->z_retry = MAX(n, MIN_RETRY);
+				zp->z_retry = RANGE(n, MIN_RETRY, MAX_RETRY);
 				if (getttl(fp, filename, lineno,
-					   &zp->z_expire, &multiline) <= 0) {
+					   &n, &multiline) <= 0) {
 					errs++;
-					zp->z_expire = INIT_REFRESH;
+					n = INIT_REFRESH;
 				}
-				n = zp->z_expire;
 				PUTLONG(n, cp);
+				zp->z_expire = RANGE(n, zp->z_refresh,
+						     MAX_EXPIRE);
 				if (getttl(fp, filename, lineno, &n,
 					   &multiline) <= 0) {
 					errs++;
@@ -556,8 +740,10 @@ db_load(const char *filename, const char *in_origin,
 			   "%s: Line %d: SOA minimum TTL > %u; converted to 0",
 						filename, lineno, MAXIMUM_TTL);
 					zp->z_minimum = 0;
-				} else 
+				} else
 					zp->z_minimum = n;
+				if (default_ttl == USE_MINIMUM)
+					ttl = n;
 				n = cp - (char *)data;
 				if (multiline) {
 					buf[0] = getnonblank(fp, filename);
@@ -584,7 +770,7 @@ db_load(const char *filename, const char *in_origin,
 				break;
 
 			case ns_t_ns:
-				if (strcasecmp(zp->z_origin, domain) == 0)
+				if (ns_samename(zp->z_origin, domain) == 1)
 					read_ns++;
 				context = hostname_ctx;
 				goto cname_etc;
@@ -625,22 +811,28 @@ db_load(const char *filename, const char *in_origin,
                                 if (!getword(buf, sizeof buf, fp, 0))
 					ERRTO("NAPTR Flags");
                                 n = strlen(buf);
+				if (n > 255)
+					ERRTO("NAPTR Flags too big");
                                 *cp++ = n;
                                 memcpy(cp, buf, (int)n);
                                 cp += n;
- 
+
                                 /* Service Classes */
                                 if (!getword(buf, sizeof buf, fp, 0))
 					ERRTO("NAPTR Service Classes");
                                 n = strlen(buf);
+				if (n > 255)
+					ERRTO("NAPTR Service Classes too big");
                                 *cp++ = n;
                                 memcpy(cp, buf, (int)n);
                                 cp += n;
- 
+
                                 /* Pattern */
                                 if (!getword(buf, sizeof buf, fp, 0))
 					ERRTO("NAPTR Pattern");
                                 n = strlen(buf);
+				if (n > 255)
+					ERRTO("NAPTR Pattern too big");
                                 *cp++ = n;
                                 memcpy(cp, buf, (int)n);
                                 cp += n;
@@ -648,6 +840,9 @@ db_load(const char *filename, const char *in_origin,
 				/* Replacement */
 				if (!getword(buf, sizeof buf, fp, 1))
 					ERRTO("NAPTR Replacement");
+				n = strlen(buf);
+				if (n > data_size - ((u_char *)cp - data))
+					ERRTO("NAPTR Replacement too big");
 				(void) strcpy((char *)cp, buf);
 				context = domain_ctx;
 				MAKENAME_OK(cp);
@@ -771,422 +966,31 @@ db_load(const char *filename, const char *in_origin,
 				endline(fp);
 				break;
 
-			case ns_t_key: {
-	/* The KEY record looks like this in the db file:
-	 *	Name  Cl KEY Flags  Proto  Algid  PublicKeyData
-	 * where:
-	 *	Name,Cl per usual
-	 *	KEY	RR type
-	 *	Flags	4 digit hex value (unsigned_16)
-	 *	Proto	8 bit u_int
-	 *	Algid	8 bit u_int
-	 *	PublicKeyData
-	 *		a string of base64 digits,
-	 *		skipping any embedded whitespace.
-	 */
-				u_int32_t al, pr;
-				int nk, klen;
-				char *expstart;
-				u_int expbytes, modbytes;
-
-				i = 0;
-				data[i] = '\0';
-				cp = (char *)data;
-				getmlword_nesting = 0; /* KLUDGE err recov. */
-			/*>>> Flags (unsigned_16)  */
-				if (!getmlword((char*)buf, sizeof buf, fp, 0))
-					ERRTO("KEY Flags Field");
-				keyflags = wordtouint32(buf);
-				if (wordtouint32_error || 0xFFFF < keyflags)
-					goto err;
-				if (keyflags & NS_KEY_RESERVED_BITMASK)
-					ERRTO("KEY Reserved Flag Bit");
-				PUTSHORT(keyflags, cp);
-
-			/*>>> Protocol (8-bit decimal) */
-				if (!getmlword((char*)buf, sizeof buf, fp, 0))
-					ERRTO("KEY Protocol Field");
-				pr = wordtouint32(buf);
-				if (wordtouint32_error || 255 < pr)
-					ERRTO("KEY Protocol Field");
-				*cp++ = (u_char) pr;
-
-			/*>>> Algorithm id (8-bit decimal) */
-				if (!getmlword((char*)buf, sizeof buf, fp, 0))
-					ERRTO("KEY Algorithm ID");
-				al = wordtouint32(buf);
-				if (wordtouint32_error ||
-				    0 == al || 255 == al || 255 < al)
-					ERRTO("KEY Algorithm ID");
-				*cp++ = (u_char) al;
-
-			/*>>> Public Key data is in BASE64.
-			 *	We don't care what algorithm it uses or what
-			 *	the internal structure of the BASE64 data is.
-			 */
-				if (!getallwords(buf, MAXDATA, fp, 0))
-					klen = 0;
-				else {
-					/* Convert from BASE64 to binary. */
-					klen = b64_pton(buf, (u_char*)cp,
-							sizeof data - 
-							(cp - (char *)data));
-					if (klen < 0)
-						ERRTO("KEY Public Key");
-				}
-
-				/* set total length */
-				n = cp + klen - (char *)data;
-
-			/*
-			 * Now check for valid key flags & algs & etc,
-			 * from the RFC.
-			 */
-
-				if (keyflags & (NS_KEY_ZONEKEY | NS_KEY_IPSEC
-				    | NS_KEY_EMAIL))
-					pr |= 1;	/* A nonzero proto. */
-				if (NS_KEY_TYPE_NO_KEY ==
-				    (keyflags & NS_KEY_TYPEMASK))
-					nk = 1;		/* No-key */
-				else
-					nk = 0;		/* have a key */
-
-				if ((keyflags & NS_KEY_ZONEKEY) && 
-				    (NS_KEY_TYPE_CONF_ONLY ==
-				     (keyflags & NS_KEY_TYPEMASK)))
-					/* Zone key must have Auth bit set. */
-					ERRTO("KEY Zone Key Auth. bit");
-
-				if (al == 0 && nk == 0)
-					ERRTO("KEY Algorithm");
-				if (al != 0 && pr == 0)
-					ERRTO("KEY Protocols");
-
-				if (nk == 1 && klen != 0)
-					ERRTO("KEY No-Key Flags Set");
-
-				if (nk == 0 && klen == 0)
-					ERRTO("KEY Type Spec'd");
-
-				/* Check algorithm-ID and key structure, for
-				   the algorithm-ID's that we know about. */
-				switch (al) {
-				case NS_ALG_MD5RSA:
-					if (klen == 0)
-						break;
-					expstart = cp;
-					expbytes = *expstart++;
-					if (expbytes == 0)
-						GETSHORT(expbytes, expstart);
-
-					if (expbytes < 1)
-						ERRTO("Exponent too short");
-					if (expbytes >
-					    (NS_MD5RSA_MAX_BITS + 7) / 8
-					    )
-						ERRTO("Exponent too long");
-					if (*expstart == 0)
-						ERRTO("Exponent w/ 0");
-
-					modbytes = klen -
-						(expbytes + (expstart - cp));
-					if (modbytes < 
-					    (NS_MD5RSA_MIN_BITS + 7) / 8
-					    )
-						ERRTO("Modulus too short");
-					if (modbytes > 
-					    (NS_MD5RSA_MAX_BITS + 7) / 8
-					    )
-						ERRTO("Modulus too long");
-					if (*(expstart+expbytes) == 0)
-						ERRTO("Modulus starts w/ 0");
-					break;
-
-				case NS_ALG_EXPIRE_ONLY:
-					if (klen != 0)
-						ERRTO(
-				       "Key provided for expire-only algorithm"
-						      );
-					break;
-				case NS_ALG_PRIVATE_OID:
-					if (klen == 0)
-						ERRTO("No ObjectID in key");
-					break;
-				}
-
-				endline(fp);  /* flush the rest of the line */
-				break;
-			    } /*T_KEY*/
-		  
-		        case ns_t_sig:
-	{
-		/* The SIG record looks like this in the db file:
-		   Name Cl SIG RRtype Algid [OTTL] Texp Tsig Kfoot Signer Sig
-		     
-		   where:  Name and Cl are as usual
-			   SIG     is a keyword
-			   RRtype  is a char string 
-			   ALGid   is  8 bit u_int
-			   OTTL    is 32 bit u_int (optionally present)
-			   Texp    is YYYYMMDDHHMMSS
-			   Tsig    is YYYYMMDDHHMMSS
-			   Kfoot   is 16-bit unsigned decimal integer
-			   Signer  is a char string
-			   Sig     is 64 to 319 base-64 digits
-		   A missing OTTL is detected by the magnitude of the Texp value
-		   that follows it, which is larger than any u_int.
-		   The Labels field in the binary RR does not appear in the
-		   text RR.
-
-		   It's too crazy to run these pages of SIG code at the right
-		   margin.  I'm exdenting them for readability.
-		 */
-		int siglen;
-		u_int32_t al;
-		u_int32_t signtime, exptime, timetilexp;
-		u_int32_t origTTL;
-		time_t now;
-
-		/* The TTL gets checked against the Original TTL,
-		   and bounded by the signature expiration time, which 
-		   are both under the signature.  We can't let TTL drift
-		   based on the SOA record.  If defaulted, fix it now. 
-		   (It's not clear to me why USE_MINIMUM isn't eliminated
-		   before putting ALL RR's into the database.  -gnu@toad.com) */
-		if (ttl == USE_MINIMUM)
-			ttl = zp->z_minimum;
-
-		i = 0;
-		data[i] = '\0';
-		getmlword_nesting = 0; /* KLUDGE err recovery */
-
-		/* RRtype (char *) */
-		if (!getmlword((char*)buf, sizeof buf, fp, 0))
-			ERRTO("SIG record doesn't specify type");
-		sig_type = sym_ston(__p_type_syms, buf, &success);
-		if (!success || sig_type == ns_t_any) {
-			/*
-			 * We'll also accept a numeric RR type,
-			 * for signing RR types that this version
-			 * of named doesn't yet understand.
-			 * In the ns_t_any case, we rely on wordtouint32
-			 * to fail when scanning the string "ANY".
-			 */
-			sig_type = wordtouint32 (buf);
-			if (wordtouint32_error || sig_type > 0xFFFF)
-				ERRTO("Unknown RR type in SIG record");
-		}
-		cp = (char *)&data[i];
-		PUTSHORT((u_int16_t)sig_type, cp);
-		i += 2;
-
-		/* Algorithm id (8-bit decimal) */
-		if (!getmlword(buf, sizeof buf, fp, 0))
-			ERRTO("Missing algorithm ID");
-		al = wordtouint32(buf);
-		if (0 == al || wordtouint32_error || 255 <= al)
-			goto err;
-		data[i] = (u_char) al;
-		i++;
-
-		/*
-		 * Labels (8-bit decimal)
-		 *	Not given in the file.  Must compute.
-		 */
-		n = dn_count_labels(domain);
-		if (0 >= n || 255 < n)
-			ERRTO("SIG label count invalid");
-		data[i] = (u_char) n;
-		i++;
-
-		/*
-		 * OTTL (optional u_int32_t) and
-		 * Texp (u_int32_t date)
-		 */
-		if (!getmlword(buf, sizeof buf, fp, 0))
-			ERRTO("OTTL and expiration time missing");
-		/*
-		 * See if OTTL is missing and this is a date.
-		 * This relies on good, silent error checking
-		 * in datetosecs.
-		 */
-		exptime = datetosecs(buf, &dateerror);
-		if (!dateerror) {
-			/* Output TTL as OTTL */
-			origTTL = ttl;
-			cp = (char *)&data[i];
-			PUTLONG (origTTL, cp);
-			i += 4;
-		} else {
-			/* Parse and output OTTL; scan TEXP */
-			origTTL = wordtouint32(buf);
-			if (0 >= origTTL || wordtouint32_error ||
-			    (origTTL > 0x7fffffff))
-				goto err;
-			cp = (char *)&data[i];
-			PUTLONG(origTTL, cp);
-			i += 4;
-			if (!getmlword(buf, sizeof buf, fp, 0))
-				ERRTO("Expiration time missing");
-			exptime = datetosecs(buf, &dateerror);
-		}
- 		if (dateerror || exptime > 0x7fffffff || exptime <= 0)
-			ERRTO("Invalid expiration time");
-		cp = (char *)&data[i];
-		PUTLONG(exptime, cp);
-		i += 4;
-
-		/* Tsig (u_int32_t) */
-		if (!getmlword(buf, sizeof buf, fp, 0))
-			ERRTO("Missing signature time");
-		signtime = datetosecs(buf, &dateerror);
-		if (0 == signtime || dateerror)
-			ERRTO("Invalid signature time");
-		cp = (char *)&data[i];
-		PUTLONG(signtime, cp);
-		i += 4;
-
-		/* Kfootprint (unsigned_16) */
-		if (!getmlword(buf, sizeof buf, fp, 0))
-			ERRTO("Missing key footprint");
-		n = wordtouint32(buf);
-		if (wordtouint32_error || n >= 0x0ffff)
-			ERRTO("Invalid key footprint");
-		cp = (char *)&data[i];
-		PUTSHORT((u_int16_t)n, cp);
-		i += 2;
-
-		/* Signer's Name */
-		if (!getmlword((char*)buf, sizeof buf, fp, 0))
-			ERRTO("Missing signer's name");
-		cp = (char *)&data[i];
-		strcpy(cp,buf);
-		context = domain_ctx;
-		MAKENAME_OK(cp);
-		i += strlen(cp) + 1;
-
-		/*
-		 * Signature (base64 of any length)
-		 * We don't care what algorithm it uses or what
-		 * the internal structure of the BASE64 data is.
-		 */
-		if (!getallwords(buf, sizeof buf, fp, 0)) {
-			siglen = 0;
-		} else {
-			cp = (char *)&data[i];
-			siglen = b64_pton(buf, (u_char*)cp, sizeof data - i);
-			if (siglen < 0)
-				goto err;
-		}
-
-		/* set total length and we're done! */
-		n = i + siglen;
-
-		/*
-		 * Check signature time, expiration, and adjust TTL.  Note
-		 * that all time values are in GMT (UTC), *not* local time.
-		 */
-
-		now = time (0);
-
-		/* Don't let bogus name servers increase the signed TTL */
-		if (ttl > origTTL)
-			ERRTO("TTL is greater than signed original TTL");
-
-		/* Don't let bogus signers "sign" in the future.  */
-		if (signtime > (u_int32_t)now)
-			ERRTO("signature time is in the future");
-		
-		/* Ignore received SIG RR's that are already expired.  */
-		if (exptime <= (u_int32_t)now)
-			ERRTO("expiration time is in the past");
-
-		/* Lop off the TTL at the expiration time.  */
-		timetilexp = exptime - now;
-		if (timetilexp < ttl) {
-			ns_debug(ns_log_load, 1,
-				 "shrinking expiring %s SIG TTL from %d to %d",
-				 p_secstodate(exptime), ttl, timetilexp);
-			ttl = timetilexp;
-		}
-
-		/*
-		 * Check algorithm-ID and key structure, for
-		 * the algorithm-ID's that we know about.
-		 */
-		switch (al) {
-		case NS_ALG_MD5RSA:
-			if (siglen == 0)
-				ERRTO("No key for RSA algorithm");
-			if (siglen < 1)
-				ERRTO("Signature too short");
-			if (siglen > (NS_MD5RSA_MAX_BITS + 7) / 8)
-				ERRTO("Signature too long");
-			/* We rely on  cp  from parse */
-			if (*cp == 0)
-				ERRTO("Signature starts with zeroes");
-			break;
-
-		case NS_ALG_EXPIRE_ONLY:
-			if (siglen != 0)
-				ERRTO(
-				"Signature supplied to expire-only algorithm");
-			break;
-		case NS_ALG_PRIVATE_OID:
-			if (siglen == 0)
-				ERRTO("No ObjectID in key");
-			break;
-		}
-
-		/* Should we complain about algorithm-ID's that we	
-		   don't understand?  It may help debug some obscure
-		   cases, but in general we should accept any RR whether
-		   we could cryptographically process it or not; it
-		   may be being published for some newer DNS clients
-		   to validate themselves.  */
-
-		endline(fp);  /* flush the rest of the line */
-
-		break;		/* Accept this RR. */
-	}
-
 			case ns_t_nxt:
-				/* The NXT record looks like:
-				   Name Cl NXT nextname RRT1 RRT2 MX A SOA ...
-				    
-				   where:  Name and Cl are as usual
-					   NXT     is a keyword
-					   nextname is the next valid name in
-						   the zone after "Name".  All
-						   names between the two are
-						   known to be nonexistent.
-					   RRT's... are a series of RR type
-						   names, which indicate that
-						   RR's of these types are
-						   published for "Name", and
-						   that no RR's of any other
-						   types are published for
-						   "Name".
-
-				   When a NXT record is cryptographically
-				   signed, it proves the nonexistence of an
-				   RR (actually a whole set of RR's).  */
-
-				getmlword_nesting = 0; /* KLUDGE err recov. */
-				if (!getmlword(buf, sizeof buf, fp, 1))
+			case ns_t_key: 
+			case ns_t_cert:
+		        case ns_t_sig: {
+				char *errmsg = NULL;
+				int ret = parse_sec_rdata(buf, sizeof(buf), 0,
+							  data, sizeof(data),
+							  fp, zp, domain, ttl,
+							  type, domain_ctx,
+							  transport, &errmsg);
+				if (ret < 0) {
+					errtype = errmsg;
 					goto err;
-				(void) strcpy((char *)data, buf);
-			        MAKENAME_OK((char *)data);
-				n = strlen((char *)data) + 1;
-				cp = n + (char *)data;
-				n += get_nxt_types((u_char *)cp, fp, filename);
+				}
+				else
+					n = ret;
 				break;
+			}
+
 
 			case ns_t_loc:
                                 cp = buf + (n = strlen(buf));
 				*cp = ' ';
 				cp++;
+				n++;
 				while ((i = getc(fp), *cp = i, i != EOF)
                                        && *cp != '\n'
                                        && (n < MAXDATA)) {
@@ -1202,6 +1006,7 @@ db_load(const char *filename, const char *in_origin,
 				endline(fp);
 				break;
 
+
 			default:
 				goto err;
 			}
@@ -1209,7 +1014,7 @@ db_load(const char *filename, const char *in_origin,
 			 * Ignore data outside the zone.
 			 */
 			if (zp->z_type != Z_CACHE &&
-			    !samedomain(domain, zp->z_origin))
+			    !ns_samedomain(domain, zp->z_origin))
 			{
 				ns_info(ns_log_load,
 			    "%s:%d: data \"%s\" outside zone \"%s\" (ignored)",
@@ -1223,42 +1028,44 @@ db_load(const char *filename, const char *in_origin,
 			dp->d_flags = dataflags;
 			dp->d_cred = DB_C_ZONE;
 			dp->d_clev = clev;
-			if ((c = db_update(domain, dp, dp, NULL, dbflags,
-					   (dataflags & DB_F_HINT)
-					   ? fcachetab
-					   : hashtab, empty_from))
-			    != OK) {
-				if (c != DATAEXISTS)
-					ns_debug(ns_log_load, 1,
-						 "update failed %s %d", 
-						 domain, type);
-				db_freedata(dp);
-			} else {
-				rrcount++;
-			}
+			c = db_set_update(domain, dp, &state, dbflags,
+					  (dataflags & DB_F_HINT) != 0 ?
+					  &fcachetab : &hashtab, 
+					  empty_from, &rrcount, lineno,
+					  filename);
+			if (c == CNAMEANDOTHER)
+				errs++;
 			continue;
 
-		case ERROR:
+		case ERRTOK:
 			break;
 		}
  err:
 		errs++;
-		ns_notice(ns_log_load, "%s:%d: %s error (%s)",
+		ns_notice(ns_log_load, "%s:%d: %s error near (%s)",
 			  filename, empty_token ? (lineno - 1) : lineno,
 			  errtype, buf);
 		if (!empty_token)
 			endline(fp);
 	}
+	c = db_set_update(NULL, NULL, &state, dbflags,
+			  (dataflags & DB_F_HINT) ? &fcachetab : &hashtab,
+			  empty_from, &rrcount, lineno, filename);
+	if (c != OK) {
+		if (c == CNAMEANDOTHER)
+			errs++;
+	}
+
 	(void) my_fclose(fp);
 	lineno = slineno;
-	if (!def_domain) {
+	if (!ininclude) {
 		if (didinclude) {
 			zp->z_flags |= Z_INCLUDE;
 			zp->z_ftime = 0;
 		} else
 			zp->z_ftime = sb.st_mtime;
 		zp->z_lastupdate = sb.st_mtime;
-		if (zp->z_type != Z_CACHE) {
+		if (zp->z_type != Z_CACHE && zp->z_type != Z_HINT) {
 			const char *msg = NULL;
 
 			if (read_soa == 0)
@@ -1276,60 +1083,43 @@ db_load(const char *filename, const char *in_origin,
 					   zp->z_origin, filename, msg);
 			}
 		}
-	}
-	if (!def_domain) {
-		if (errs)
+		while (filenames) {
+			fn = filenames;
+			filenames = filenames->next;
+			freestr(fn->name);
+			memput(fn, sizeof *fn);
+		}
+		if (errs != 0)
 			ns_warning(ns_log_load,
 		   "%s zone \"%s\" (%s) rejected due to errors (serial %u)",
-				   zoneTypeString(zp), zp->z_origin,
+				   zoneTypeString(zp->z_type), zp->z_origin,
 				   p_class(zp->z_class), zp->z_serial);
 		else
 			ns_info(ns_log_load,
 				"%s zone \"%s\" (%s) loaded (serial %u)",
-				zoneTypeString(zp), zp->z_origin,
+				zoneTypeString(zp->z_type), zp->z_origin,
 				p_class(zp->z_class), zp->z_serial);
 	}
-	if (errs) {
+	if (errs != 0) {
 		zp->z_flags |= Z_DB_BAD;
 		zp->z_ftime = 0;
 	}
 #ifdef BIND_NOTIFY
-	if (!errs && !def_domain &&
-	    (zp->z_type == z_master || zp->z_type == z_slave)) {
-		static const char no_room[] =
-		       "%s failed, cannot notify for zone %s";
-		notify_info ni;
-
-		ni = memget(sizeof *ni);
-		if (ni == NULL)
-			ns_info(ns_log_load, no_room, "memget", zp->z_origin);
-		else {
-			ni->name = savestr(zp->z_origin, 0);
-			if (ni->name == NULL) {
-				memput(ni, sizeof *ni);
-				ns_info(ns_log_load, no_room,
-					"memget", zp->z_origin);
-			} else {
-				ni->class = zp->z_class;
-				ni->state = notify_info_waitfor;
-				if (evWaitFor(ev,
-					      (const void *)notify_after_load,
-					      notify_after_load, ni,
-					      &ni->wait_id) < 0) {
-					ns_error(ns_log_load,
-						 "evWaitFor() failed: %s",
-						 strerror(errno));
-					freestr(ni->name);
-					memput(ni, sizeof *ni);
-				} else {
-					APPEND(pending_notifies, ni, link);
-					ns_need(MAIN_NEED_NOTIFY);
-				}
-			}
-		}
-	}
+	if (errs == 0 && (!ininclude) &&
+	    (zp->z_type == z_master || zp->z_type == z_slave))
+		ns_notify(zp->z_origin, zp->z_class, ns_t_soa);
 #endif
 	return (errs);
+}
+
+void
+db_err(int err, char *domain, int type, const char *filename, int lineno) {
+	if (filename != NULL && err == CNAMEANDOTHER)
+		ns_notice(ns_log_load, "%s:%d:%s: CNAME and OTHER data error",
+			  filename, lineno, domain);
+	if (err != DATAEXISTS)
+		ns_debug(ns_log_load, 1, "update failed %s %d", 
+			 domain, type);
 }
 
 static int
@@ -1350,11 +1140,15 @@ gettoken(FILE *fp, const char *src) {
 					return (INCLUDE);
 				if (!strcasecmp("origin", op))
 					return (ORIGIN);
+				if (!strcasecmp("generate", op))
+					return (GENERATE);
+				if (!strcasecmp("ttl", op))
+					return (DEFAULTTTL);
 			}
 			ns_notice(ns_log_db,
 				  "%s:%d: Unknown $ option: $%s", 
 				  src, lineno, op);
-			return (ERROR);
+			return (ERRTOK);
 
 		case ';':
 			while ((c = getc(fp)) != EOF && c != '\n')
@@ -1375,6 +1169,10 @@ gettoken(FILE *fp, const char *src) {
 			lineno++;
 			continue;
 
+		case '\r':
+			if (NS_OPTION_P(OPTION_TREAT_CR_AS_SPACE) != 0)
+				return (CURRENT);
+
 		default:
 			(void) ungetc(c, fp);
 			return (DNAME);
@@ -1391,6 +1189,7 @@ gettoken(FILE *fp, const char *src) {
  *	size - of destination
  *	fp - file to read from
  *	preserve - should we preserve \ before \\ and \.?
+ *   if preserve == 2, then keep all \
  * return value:
  *	0 = no word; perhaps EOL or EOF; lineno was incremented.
  *	1 = word was read
@@ -1398,10 +1197,12 @@ gettoken(FILE *fp, const char *src) {
 int
 getword(char *buf, size_t size, FILE *fp, int preserve) {
 	char *cp = buf;
-	int c, spaceok;
+	int c, spaceok, once;
 
 	empty_token = 0;	/* XXX global side effect. */
+	once = 0;
 	while ((c = getc(fp)) != EOF) {
+		once++;
 		if (c == ';') {
 			/* Comment.  Skip to end of line. */
 			while ((c = getc(fp)) != EOF && c != '\n')
@@ -1427,6 +1228,9 @@ getword(char *buf, size_t size, FILE *fp, int preserve) {
 						c = '\\';
 					if (preserve)
 						switch (c) {
+						default:
+							if (preserve == 1)
+								break;
 						case '\\':
 						case '.':
 						case '0':
@@ -1474,6 +1278,9 @@ getword(char *buf, size_t size, FILE *fp, int preserve) {
 				c = '\\';
 			if (preserve)
 				switch (c) {
+				default:
+					if (preserve == 1)
+						break;
 				case '\\':
 				case '.':
 				case '0':
@@ -1510,6 +1317,8 @@ getword(char *buf, size_t size, FILE *fp, int preserve) {
 	*cp = '\0';
 	if (cp == buf)
 		empty_token = 1;
+	if (!once)
+		lineno++;
 	return (cp != buf);
 }
 
@@ -1524,7 +1333,7 @@ getword(char *buf, size_t size, FILE *fp, int preserve) {
  * side effects:
  *	*ttl is written if the return value is to be 1.
  */
-static int
+int
 getttl(FILE *fp, const char *fn, int lineno, u_int32_t *ttl, int *multiline) {
 	char buf[MAXDATA];
 	u_long tmp;
@@ -1748,6 +1557,103 @@ getnonblank(FILE *fp, const char *src) {
 }
 
 /*
+ * Replace all single "$"'s in "name" with "it".
+ * ${delta} will add delta to "it" before printing.
+ * ${delta,width} will change print width as well, zero fill is implied
+ * ${delta,width,radix} will change radix as well, can be d, o, x, X.
+ * i.e. ${0,2,X} will produce a two digit hex (upper case) with zero fill.
+ * Append "origin" to name if required and validate result with makename.
+ * To get a "$" or "{" in the output use \ before it.
+ * Return 0 on no error or -1 on error.
+ * Resulting name stored in "buf".
+ */
+
+static int
+genname(char *name, int it, const char *origin, char *buf, int size) {
+	char *bp = buf;
+	char *eom = buf + size;
+	char *cp;
+	char numbuf[32];
+	char fmt[32];
+	int delta = 0;
+	int width;
+
+	while (*name) {
+		if (*name == '$') {
+			if (*(++name) == '$') {
+				/* should be deprecated.  how? */
+				if (bp >= eom)
+					return (-1);
+				*bp++ = *name++;
+			} else {
+				strcpy(fmt, "%d");
+				if (*name == '{') {
+					switch (sscanf(name, "{%d,%d,%1[doxX]}", &delta, &width, numbuf)) {
+					case 1:
+						break;
+					case 2:
+						sprintf(fmt, "%%0%dd", width);
+						break;
+					case 3:
+						sprintf(fmt, "%%0%d%c", width, numbuf[0]);
+						break;
+					default:
+						return (-1);
+					}
+					while (*name && *name++ != '}') {
+						continue;
+					}
+				}
+				sprintf(numbuf, fmt, it + delta);
+				cp = numbuf;
+				while (*cp) {
+					if (bp >= eom)
+						return (-1);
+					*bp++ = *cp++;
+				}
+			}
+		} else if (*name == '\\') {
+			if (*(++name) == '\0') {
+				if (bp >= eom)
+					return (-1);
+				*bp++ = '\\';
+			} else {
+				switch (*name) {
+				case '\\':
+				case '.':
+				case '0':
+				case '1':
+				case '2':
+				case '3':
+				case '4':
+				case '5':
+				case '6':
+				case '7':
+				case '8':
+				case '9':
+					if (bp >= eom)
+						return (-1);
+					*bp++ = '\\';
+				default:
+					if (bp >= eom)
+						return (-1);
+					*bp++ = *name++;
+				}
+			}
+		} else {
+			if (bp >= eom)
+				return (-1);
+			*bp++ = *name++;
+		}
+	}
+	if (bp >= eom)
+		return (-1);
+	*bp = '\0';
+	return (origin == NULL ? 0 : makename(buf, origin, size));
+}
+
+
+/*
  * Take name and fix it according to following rules:
  * "." means root.
  * "@" means current origin.
@@ -1786,7 +1692,7 @@ makename(char *name, const char *origin, int size) {
 	return (0);
 }
 
-static int
+int
 makename_ok(char *name, const char *origin, int class, struct zoneinfo *zp,
 	    enum transport transport, enum context context,
 	    const char *owner, const char *filename, int lineno, int size)
@@ -1798,7 +1704,7 @@ makename_ok(char *name, const char *origin, int class, struct zoneinfo *zp,
 			filename, lineno);
 		return (0);
 	}
-	if (!ns_nameok(name, class, zp, transport, context, owner,
+	if (!ns_nameok(NULL, name, class, zp, transport, context, owner,
 		       inaddr_any)) {
 		ns_info(ns_log_db, "%s:%d: database naming error",
 			filename, lineno);
@@ -1928,91 +1834,6 @@ wordtouint32(buf)
 	return (res2);
 }
 
-
-/*
- * Parse part of a date.  Set error flag if any error.
- * Don't reset the flag if there is no error.
- */
-static int 
-datepart(const char *buf, int size, int min, int max, int *errp) {
-	int result = 0;
-	int i;
-
-	for (i = 0; i < size; i++) {
-		if (!isdigit(buf[i]))
-			*errp = 1;
-		result = (result * 10) + buf[i] - '0';
-	}
-	if (result < min)
-		*errp = 1;
-	if (result > max)
-		*errp = 1;
-	return (result);
-}
-
-
-/* Convert a date in ASCII into the number of seconds since
-   1 January 1970 (GMT assumed).  Format is yyyymmddhhmmss, all
-   digits required, no spaces allowed.  */
-
-static u_int32_t
-datetosecs(const char *cp, int *errp) {
-	struct tm time;
-	u_int32_t result;
-	int mdays, i;
-	static const int days_per_month[12] =
-		{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-
-	if (strlen(cp) != 14) {
-		*errp = 1;
-		return 0;
-	}
-	*errp = 0;
-
-	memset(&time, 0, sizeof time);
-	time.tm_year  = datepart(cp +  0, 4, 1990, 9999, errp) - 1900;
-	time.tm_mon   = datepart(cp +  4, 2,   01,   12, errp) - 1;
-	time.tm_mday  = datepart(cp +  6, 2,   01,   31, errp);
-	time.tm_hour  = datepart(cp +  8, 2,   00,   23, errp);
-	time.tm_min   = datepart(cp + 10, 2,   00,   59, errp);
-	time.tm_sec   = datepart(cp + 12, 2,   00,   59, errp);
-	if (*errp)		/* Any parse errors? */
-		return (0);
-
-	/* 
-	 * OK, now because timegm() is not available in all environments,
-	 * we will do it by hand.  Roll up sleeves, curse the gods, begin!
-	 */
-
-#define	SECS_PER_DAY	((u_int32_t)24*60*60)
-#define isleap(y) ((((y) % 4) == 0 && ((y) % 100) != 0) || ((y) % 400) == 0)
-
-	result  = time.tm_sec;				/* Seconds */
-	result += time.tm_min * 60;			/* Minutes */
-	result += time.tm_hour * (60*60);		/* Hours */
-	result += (time.tm_mday - 1) * SECS_PER_DAY;	/* Days */
-	
-	/* Months are trickier.  Look without leaping, then leap */
-	mdays = 0;
-	for (i = 0; i < time.tm_mon; i++)
-		mdays += days_per_month[i];
-	result += mdays * SECS_PER_DAY;			/* Months */
-	if (time.tm_mon > 1 && isleap (1900+time.tm_year))
-		result += SECS_PER_DAY;		/* Add leapday for this year */
-
-	/* First figure years without leapdays, then add them in.  */
-	/* The loop is slow, FIXME, but simple and accurate.  */
-	result += (time.tm_year - 70) * (SECS_PER_DAY*365); /* Years */
-	for (i = 70; i < time.tm_year; i++)
-		if (isleap (1900+i)) 
-			result += SECS_PER_DAY;	/* Add leapday for prev year */
-
-	return (result);
-}
-
-
-#define MAXCHARSTRING 255
-
 static int
 getcharstring(char *buf, char *data, int type,
 	      int minfields, int maxfields,
@@ -2029,7 +1850,7 @@ getcharstring(char *buf, char *data, int type,
 		if (type == ns_t_txt || type == ns_t_x25) {
 			while (i > MAXCHARSTRING
 			       && n + MAXCHARSTRING + 1 < MAXDATA) {
-				data[n] = MAXCHARSTRING;
+				data[n] = (char)MAXCHARSTRING;
 				memmove(data + n + 1, b, MAXCHARSTRING);
 				n += MAXCHARSTRING + 1;
 				b += MAXCHARSTRING;
@@ -2040,13 +1861,13 @@ getcharstring(char *buf, char *data, int type,
 		if (i > MAXCHARSTRING) {
 			ns_info(ns_log_db,
 				"%s:%d: RDATA field %d too long",
-				src, lineno, nfield);
+				src, lineno -1, nfield);
 			return (0);
 		}
 		if (n + i + 1 > MAXDATA) {
 			ns_info(ns_log_db,
 				"%s:%d: total RDATA too long",
-				src, lineno);
+				src, lineno -1);
 			return (0);
 		}
 		data[n] = i;
@@ -2058,7 +1879,7 @@ getcharstring(char *buf, char *data, int type,
 	if (nfield < minfields) {
 		ns_info(ns_log_db,
 			"%s:%d: expected %d RDATA fields, only saw %d",
-			src, lineno, minfields, nfield);
+			src, lineno -1, minfields, nfield);
 		return (0);
 	}
 
@@ -2083,18 +1904,18 @@ getcharstring(char *buf, char *data, int type,
 static int
 get_nxt_types(u_char *data, FILE *fp, const char *filename) {
 	char b[MAXLABEL];	/* Not quite the right size, but good enough */
-	int maxtype=0; 
+	int maxtype=0;
 	int success;
 	int type;
 	int errs = 0;
 
-	memset(data, 0, ns_t_any/NS_NXT_BITS+1); 
+	memset(data, 0, NS_NXT_MAX/NS_NXT_BITS+1);
 
 	while (getmlword(b, sizeof(b), fp, 0)) {
 		if (feof(fp) || ferror(fp))
-			break; 
+			break;
 		if (strlen(b) == 0 || b[0] == '\n')
-			continue; 
+			continue;
 
 		/* Parse RR type (A, MX, etc) */
 		type = sym_ston(__p_type_syms, (char *)b, &success);
@@ -2106,7 +1927,7 @@ get_nxt_types(u_char *data, FILE *fp, const char *filename) {
 			continue;
 		}
 		NS_NXT_BIT_SET(type, data);
-		if (type > maxtype) 
+		if (type > maxtype)
 			maxtype = type;
 	}
 	if (errs)
@@ -2157,62 +1978,623 @@ fixup_soa(const char *fn, struct zoneinfo *zp) {
 			   fn, zp->z_refresh, zp->z_retry);
 }
 
-#ifdef BIND_NOTIFY
-static void
-free_notify_info(notify_info ni) {
-	if (ni->state == notify_info_waitfor)
-		evUnwait(ev, ni->wait_id);
-	else if (ni->state == notify_info_delay)
-		evClearTimer(ev, ni->timer_id);
-	freestr(ni->name);
-	memput(ni, sizeof *ni);
-}
+/* this function reads in the sig record rdata from the input file and
+ * returns the following codes
+ *  > 0     length of the recrod
+ * ERR_EOF  end of file
+ *
+ */
 
-void
-notify_after_load(evContext ctx, void *uap, const void *tag) {
-	int delay, max_delay;
-	notify_info ni = uap;
-	
-	INSIST(tag == (const void *)notify_after_load);
-
-	/* delay notification for from five seconds up to fifteen minutes */
-	max_delay = MIN(nzones/5, 895);
-	max_delay = MAX(max_delay, 25);
-	delay = 5 + (rand() % max_delay);
-	ns_debug(ns_log_notify, 3, "notify_after_load: uap %p tag %p delay %d",
-		 uap, tag, delay);
-	if (evSetTimer(ctx, notify_after_delay, ni,
-		       evAddTime(evNowTime(), evConsTime(delay, 0)),
-		       evConsTime(0, 0), &ni->timer_id) < 0) {
-		ns_error(ns_log_notify, "evSetTimer() failed: %s",
-			 strerror(errno));
-		UNLINK(pending_notifies, ni, link);
-		ni->state = notify_info_error;
-		free_notify_info(ni);
-	}
-	ni->state = notify_info_delay;
-}
-
-static void
-notify_after_delay(evContext ctx, void *uap,
-		   struct timespec due,
-		   struct timespec inter)
+static int
+parse_sig_rr(char *buf, int buf_len, u_char *data, int data_size,
+	     FILE *fp, struct zoneinfo *zp, char *domain, u_int32_t ttl, 
+	     enum context domain_ctx, enum transport transport, char **errmsg)
 {
-	notify_info ni = uap;
+/* The SIG record looks like this in the db file:
+   Name Cl SIG RRtype Algid [OTTL] Texp Tsig Kfoot Signer Sig
+  
+   where:  Name and Cl are as usual
+   SIG     is a keyword
+   RRtype  is a char string
+   ALGid   is  8 bit u_int
+   Labels  is  8 bit u_int
+   OTTL    is 32 bit u_int (optionally present)
+   Texp    is YYYYMMDDHHMMSS
+   Tsig    is YYYYMMDDHHMMSS
+   Kfoot   is 16-bit unsigned decimal integer
+   Signer  is a char string
+   Sig     is 64 to 319 base-64 digits
+   A missing OTTL is detected by the magnitude of the Texp value
+   that follows it, which is larger than any u_int.
+   The Labels field in the binary RR does not appear in the
+   text RR.
+  
+   It's too crazy to run these pages of SIG code at the right
+   margin.  I'm exdenting them for readability.
+*/
+	u_int32_t sig_type;
+	int dateerror;
+	int siglen, success;
+	u_char *cp;
+	u_int32_t al, la, n;
+	u_int32_t signtime, exptime, timetilexp;
+	u_int32_t origTTL;
+	enum context context;
+	time_t now;
+	char *errtype = "SIG error";
+	int i, my_buf_size = MAXDATA, errs = 0;
 
-	UNLINK(pending_notifies, ni, link);
-	ni->state = notify_info_done;
-	sysnotify(ni->name, ni->class, ns_t_soa);
-	free_notify_info(ni);
-}
+	
+                /* The TTL gets checked against the Original TTL,
+                   and bounded by the signature expiration time, which 
+                   are both under the signature.  We can't let TTL drift
+                   based on the SOA record.  If defaulted, fix it now. 
+                   (It's not clear to me why USE_MINIMUM isn't eliminated
+                   before putting ALL RR's into the database.  -gnu@toad.com) */
+	if (ttl == USE_MINIMUM)
+		ttl = zp->z_minimum;
 
-void
-db_cancel_pending_notifies(void) {
-	notify_info ni, ni_next;
-	for (ni = HEAD(pending_notifies); ni != NULL; ni = ni_next) {
-		ni_next = NEXT(ni, link);
-		free_notify_info(ni);
+	i = 0;
+	data[i] = '\0';
+	
+	getmlword_nesting = 0; /* KLUDGE err recovery */
+	
+	/* RRtype (char *)
+	 * if old style inp will contain the next token
+	 *copy that into buffer, otherwise read from file
+	 */
+	if (buf && buf_len == 0) 
+		if (!getmlword((char*)buf, my_buf_size, fp, 0))
+			ERRTO("SIG record doesn't specify type");
+	sig_type = sym_ston(__p_type_syms, buf, &success);
+	if (!success || sig_type == ns_t_any) {
+		/*
+		 * We'll also accept a numeric RR type,
+		 * for signing RR types that this version
+		 * of named doesn't yet understand.
+		 * In the ns_t_any case, we rely on wordtouint32
+		 * to fail when scanning the string "ANY".
+		 */
+		sig_type = wordtouint32 (buf);
+		if (wordtouint32_error || sig_type > 0xFFFF)
+			ERRTO("Unknown RR type in SIG record");
 	}
-	INIT_LIST(pending_notifies);
+	cp = &data[i];
+	PUTSHORT((u_int16_t)sig_type, cp);
+	i += 2;
+	
+	/* Algorithm id (8-bit decimal) */
+	if (!getmlword(buf, my_buf_size, fp, 0))
+		ERRTO("Missing algorithm ID");
+	al = wordtouint32(buf);
+	if (0 == al || wordtouint32_error || 255 <= al)
+		ERRTO("Bad algorithm number");
+	data[i] = (u_char) al;
+	i++;
+	
+	/*
+	 * Labels (8-bit decimal)
+	 */
+	if (!getmlword(buf, my_buf_size, fp, 0))
+		ERRTO("Missing label count");
+	la = wordtouint32(buf);
+	if (0 == la || wordtouint32_error || 255 <= la)
+		ERRTO("Bad label count number");
+	data[i] = (u_char) la;
+	i++;
+	
+	/*
+	 * OTTL (optional u_int32_t) and
+	 * Texp (u_int32_t date)
+	 */
+	if (!getmlword(buf, my_buf_size, fp, 0))
+		ERRTO("OTTL and expiration time missing");
+	/*
+	 * See if OTTL is missing and this is a date.
+	 * This relies on good, silent error checking
+	 * in ns_datetosecs.
+	 */
+	exptime = ns_datetosecs(buf, &dateerror);
+	if (!dateerror) {
+		/* Output TTL as OTTL */
+		origTTL = ttl;
+		cp = &data[i];
+		PUTLONG (origTTL, cp);
+		i += 4;
+	} else {
+		/* Parse and output OTTL; scan TEXP */
+		origTTL = wordtouint32(buf);
+		if (0 >= origTTL || wordtouint32_error ||
+		    (origTTL > 0x7fffffff))
+			ERRTO("Original TTL value bad");
+		cp = &data[i];
+		PUTLONG(origTTL, cp);
+		i += 4;
+		if (!getmlword(buf, my_buf_size, fp, 0))
+			ERRTO("Expiration time missing");
+		exptime = ns_datetosecs(buf, &dateerror);
+	}
+	if (dateerror || exptime > 0x7fffffff || exptime <= 0)
+		ERRTO("Invalid expiration time");
+	cp = &data[i];
+	PUTLONG(exptime, cp);
+	i += 4;
+	
+	/* Tsig (u_int32_t) */
+	if (!getmlword(buf, my_buf_size, fp, 0))
+		ERRTO("Missing signature time");
+	signtime = ns_datetosecs(buf, &dateerror);
+	if (0 == signtime || dateerror)
+		ERRTO("Invalid signature time");
+	cp = &data[i];
+	PUTLONG(signtime, cp);
+	i += 4;
+	
+	/* Kfootprint (unsigned_16) */
+	if (!getmlword(buf, my_buf_size, fp, 0))
+		ERRTO("Missing key footprint");
+	n = wordtouint32(buf);
+	if (wordtouint32_error || n >= 0x0ffff)
+		ERRTO("Invalid key footprint");
+	cp = &data[i];
+	PUTSHORT((u_int16_t)n, cp);
+	i += 2;
+
+	/* Signer's Name */
+	if (!getmlword((char*)buf, my_buf_size, fp, 0))
+		ERRTO("Missing signer's name");
+	cp = &data[i];
+	strcpy((char *)cp, buf);
+	context = domain_ctx;
+	MAKENAME_OKZP((char *)cp, data_size);
+	i += strlen((char *)cp) + 1;
+
+	/*
+	 * Signature (base64 of any length)
+	 * We don't care what algorithm it uses or what
+	 * the internal structure of the BASE64 data is.
+	 */
+	if (!getallwords(buf, my_buf_size, fp, 0)) {
+		siglen = 0;
+	} else {
+		cp = &data[i];
+		siglen = b64_pton(buf, (u_char*)cp, data_size - i);
+		if (siglen < 0)
+			ERRTO("Signature block bad");
+	}
+	
+	/* set total length and we're done! */
+	n = i + siglen;
+	
+	/*
+	 * Check signature time, expiration, and adjust TTL.  Note
+	 * that all time values are in GMT (UTC), *not* local time.
+	 */
+	
+	now = time (0); /* need to find a better place for this  XXX ogud */
+	/* Don't let bogus name servers increase the signed TTL */
+	if (ttl > origTTL)
+		ERRTO("TTL is greater than signed original TTL");
+	
+	/* Don't let bogus signers "sign" in the future.  */
+	if (signtime > (u_int32_t)now)
+		ERRTO("signature time is in the future");
+	
+	/* Ignore received SIG RR's that are already expired.  */
+	if (exptime <= (u_int32_t)now)
+		ERRTO("expiration time is in the past");
+	
+	/* Lop off the TTL at the expiration time.  */
+	timetilexp = exptime - now;
+	if (timetilexp < ttl) {
+		ns_debug(ns_log_load, 1,
+			 "shrinking expiring %s SIG TTL from %d to %d",
+			 p_secstodate(exptime), ttl, timetilexp);
+		ttl = timetilexp;
+	}
+
+	/*
+	 * Check algorithm-ID and key structure, for
+	 * the algorithm-ID's that we know about.
+	 */
+	switch (al) {
+	case NS_ALG_MD5RSA:
+		if (siglen == 0)
+			ERRTO("No key for RSA algorithm");
+		if (siglen < 1)
+			ERRTO("Signature too short");
+		if (siglen > (NS_MD5RSA_MAX_BITS + 7) / 8)
+			ERRTO("Signature too long");
+		break;
+		
+	case NS_ALG_DH:
+		if (siglen < 1)
+			ERRTO("DH Signature too short");
+		break; /* need more tests here */
+		
+	case NS_ALG_DSA:
+		if (siglen < NS_DSA_SIG_SIZE)
+			ERRTO("DSS Signature too short");
+		else if (siglen > NS_DSA_SIG_SIZE)
+			ERRTO("DSS Signature too long ");
+		break; /* need more tests here */
+		
+	case NS_ALG_EXPIRE_ONLY:
+		if (siglen != 0)
+			ERRTO(
+				"Signature supplied to expire-only algorithm");
+		break;
+	case NS_ALG_PRIVATE_OID:
+		if (siglen == 0)
+			ERRTO("No ObjectID in key");
+		break;
+	default:
+		ERRTO("UNKOWN SIG algorithm");
+	}
+
+	/* Should we complain about algorithm-ID's that we	
+	   don't understand?  It may help debug some obscure
+	   cases, but in general we should accept any RR whether
+	   we could cryptographically process it or not; it
+	   may be being published for some newer DNS clients
+	   to validate themselves.  */
+	
+	endline(fp);  /* flush the rest of the line */
+	
+	return (n);
+ err:
+	*errmsg = errtype;
+	return (-1);
 }
-#endif
+
+static int
+parse_nxt_rr(char *buf, int buf_len, u_char *data, int data_size,
+	     FILE *fp, struct zoneinfo *zp, char *domain, enum context context,
+	     enum transport transport, char **errmsg)
+{
+	
+	/* The NXT record looks like:
+	   Name Cl NXT nextname RRT1 RRT2 MX A SOA ...
+	  
+	   where:  Name and Cl are as usual
+	   NXT     is a keyword
+	   nextname is the next valid name in the zone after "Name".
+	   All   names between the two are  known to be nonexistent.
+	   RRT's... are a series of RR type  names, which indicate that
+	   RR's of these types are published for "Name", and
+	   	that no RR's of any other types are published for "Name".
+
+	   When a NXT record is cryptographically signed, it proves the
+	   nonexistence of an RR (actually a whole set of RR's). 
+	*/
+	int n, errs = 0, i;
+	u_char *cp;
+/*	char *origin = zp->z_origin;
+	int class    = zp->z_class; */
+	*errmsg = "NXT name error";
+
+	(void) strcpy((char *)data, buf);
+	MAKENAME_OKZP((char *)data, data_size);
+	n = strlen((char *)data) + 1;
+	cp = n + data;
+	i = get_nxt_types(cp, fp, zp->z_source);
+	if( i > 0)
+		return (n + i);
+	*errmsg = "NXT type error";
+ err:
+	return (-1);
+}
+
+
+static int
+parse_cert_rr(char *buf, int buf_len, u_char *data, int data_size, 
+	      FILE *fp, char **errmsg)
+{
+	/* Cert record looks like:
+	 *   Type Key_tag Alg Cert
+	 *   Type: certification type number (16)
+	 *   Key_tag: tag of corresponding KEY RR (16)
+	 *   Alg: algorithm of the KEY RR (8)
+	 *   Cert: base64 enocded block
+	 */
+	u_char *cp;
+	u_int32_t cert_type, key_tag, alg;
+	char *errtype = "CERT parse error";
+	int certlen, i, n, success;
+	
+	i = 0;
+	cp = &data[i];
+	cert_type = sym_ston(__p_cert_syms, buf, &success);
+	if (!success) {
+		cert_type = wordtouint32(buf);
+		if (wordtouint32_error || cert_type > 0xFFFF)
+			ERRTO("CERT type out of range");
+	}
+	PUTSHORT((u_int16_t)cert_type, cp);
+	i += INT16SZ;
+	
+	if (!getmlword((char*)buf, buf_len, fp, 0))
+		ERRTO("CERT doesn't specify type");
+	
+	key_tag = wordtouint32(buf);
+	if (wordtouint32_error || key_tag > 0xFFFF)
+		ERRTO("CERT KEY tag out of range");
+	
+	PUTSHORT((u_int16_t)key_tag, cp);
+	i += INT16SZ;
+	
+	if (!getmlword(buf, buf_len, fp, 0))
+		ERRTO("CERT missing algorithm ID");
+	
+	alg = sym_ston(__p_key_syms, buf, &success);
+	if (!success) {
+		alg = wordtouint32(buf);
+		if (wordtouint32_error || alg > 0xFF)
+			ERRTO("CERT KEY alg out of range");
+	}
+	
+	data[i++] = (u_char)alg;
+	
+	if (!getallwords(buf, buf_len, fp, 0)) {
+		certlen = 0;
+	}
+	else {
+		cp = &data[i];
+		certlen = b64_pton(buf, (u_char*)cp, sizeof(data) - i);
+		if (certlen < 0)
+			ERRTO("CERT blob has encoding error");
+	}
+				/* set total length */
+	n = i + certlen;
+	return (n);
+ err:
+	*errmsg = errtype;
+	return (-1);
+	
+}
+
+static int
+parse_key_rr(char *buf, int buf_len, u_char *data, int data_size,
+	     FILE *fp, struct zoneinfo *zp, char *domain, enum context context,
+	     enum transport transport, char **errmsg)
+{
+	/* The KEY record looks like this in the db file:
+	 *	Name  Cl KEY Flags  Proto  Algid  PublicKeyData
+	 * where:
+	 *	Name,Cl per usual
+	 *	KEY	RR type
+	 *	Flags	4 digit hex value (unsigned_16)
+	 *	Proto	8 bit u_int
+	 *	Algid	8 bit u_int
+	 *	PublicKeyData
+	 *		a string of base64 digits,
+	 *		skipping any embedded whitespace.
+	 */
+	u_int32_t al, pr;
+	int nk, klen,i, n;
+	u_int32_t keyflags;
+	char *errtype = "KEY error";
+	u_char *cp, *expstart;
+	u_int expbytes, modbytes;
+
+	i = n = 0;
+	data[i] = '\0';
+	cp = data;
+	getmlword_nesting = 0; /* KLUDGE err recov. */
+
+	/*>>> Flags (unsigned_16)  */
+	keyflags = wordtouint32(buf);
+	if (wordtouint32_error || 0xFFFF < keyflags)
+		ERRTO("KEY flags error");
+	if (keyflags & NS_KEY_RESERVED_BITMASK)
+		ERRTO("KEY Reserved Flag Bit");
+	PUTSHORT(keyflags, cp);
+	
+	/*>>> Protocol (8-bit decimal) */
+	if (!getmlword((char*)buf, buf_len, fp, 0))
+		ERRTO("KEY Protocol Field");
+	pr = wordtouint32(buf);
+	if (wordtouint32_error || 255 < pr)
+		ERRTO("KEY Protocol Field");
+	*cp++ = (u_char) pr;
+	
+	/*>>> Algorithm id (8-bit decimal) */
+	if (!getmlword((char*)buf, buf_len, fp, 0))
+		ERRTO("KEY Algorithm ID");
+	al = wordtouint32(buf);
+	if (wordtouint32_error || 0 == al || 255 == al || 255 < al)
+		ERRTO("KEY Algorithm ID");
+	*cp++ = (u_char) al;
+	
+	/*>>> Extended KEY flag field in bytes 5 and 6 */
+	if (NS_KEY_EXTENDED_FLAGS & keyflags) {
+		u_int32_t keyflags2;
+		
+		if (!getmlword((char*)buf, buf_len, fp, 0))
+			ERRTO("KEY Flags Field");
+		keyflags2 = wordtouint32(buf);
+		if (wordtouint32_error || 0xFFFF < keyflags2)
+			ERRTO("Extended key flags error");
+		if (keyflags2 & NS_KEY_RESERVED_BITMASK2)
+			ERRTO("KEY Reserved Flag2 Bit");
+		PUTSHORT(keyflags2, cp);
+	}
+	
+	/*>>> Public Key data is in BASE64.
+	 *	We don't care what algorithm it uses or what
+	 *	the internal structure of the BASE64 data is.
+	 */
+	if (!getallwords(buf, MAXDATA, fp, 0))
+		klen = 0;
+	else {
+		/* Convert from BASE64 to binary. */
+		klen = b64_pton(buf, (u_char*)cp, 
+				data_size - (cp - data));
+		if (klen < 0)
+			ERRTO("KEY Public Key");
+	}
+	
+				/* set total length */
+	n = klen + (cp - data);
+	
+	/*
+	 * Now check for valid key flags & algs & etc, from the RFC.
+	 */
+	
+	if (NS_KEY_TYPE_NO_KEY == (keyflags & NS_KEY_TYPEMASK))
+		nk = 1;		/* No-key */
+	else
+		nk = 0;		/* have a key */
+	
+	if ((keyflags & (NS_KEY_NAME_TYPE | NS_KEY_TYPEMASK)) ==
+	    (NS_KEY_NAME_ZONE | NS_KEY_TYPE_CONF_ONLY))
+		/* Zone key must have Auth bit set. */
+		ERRTO("KEY Zone Key Auth. bit");
+	
+	if (al == 0 && nk == 0)
+		ERRTO("KEY Algorithm");
+	if (al != 0 && pr == 0)
+		ERRTO("KEY Protocols");
+
+	if (nk == 1 && klen != 0)
+		ERRTO("KEY No-Key Flags Set");
+	
+	if (nk == 0 && klen == 0)
+		ERRTO("KEY Type Spec'd");
+	
+	/* 
+	 *  Check algorithm-ID and key structure, for the algorithm-ID's 
+	 * that we know about. 
+	 */
+	switch (al) {
+	case NS_ALG_MD5RSA:
+		if (klen == 0)
+			break;
+		expstart = cp;
+		expbytes = *expstart++;
+		if (expbytes == 0)
+			GETSHORT(expbytes, expstart);
+		
+		if (expbytes < 1)
+			ERRTO("Exponent too short");
+		if (expbytes > (NS_MD5RSA_MAX_BITS + 7) / 8)
+			ERRTO("Exponent too long");
+		if (*expstart == 0)
+			ERRTO("Exponent w/ 0");
+		
+		modbytes = klen - (expbytes + (expstart - cp));
+		if (modbytes < (NS_MD5RSA_MIN_BITS + 7) / 8)
+			ERRTO("Modulus too short");
+		if (modbytes > (NS_MD5RSA_MAX_BITS + 7) / 8)
+			ERRTO("Modulus too long");
+		if (*(expstart+expbytes) == 0)
+			ERRTO("Modulus starts w/ 0");
+		break;
+		
+	case NS_ALG_DH: {
+		u_char *dh_cp;
+		u_int16_t dh_len, plen, glen, ulen;
+		
+		dh_cp = (u_char *)cp;
+		GETSHORT(plen, dh_cp);
+		if(plen < 16)
+			ERRTO("DH short plen");
+		dh_len = 2 + plen;
+		if(dh_len > klen)
+			ERRTO("DH plen > klen");
+		
+		GETSHORT(glen, dh_cp);
+		if(glen <= 0 || glen > plen)
+			ERRTO("DH glen bad");
+		dh_len = 2 + glen;
+		if(dh_len > klen)
+			ERRTO("DH glen > klen");
+		
+		GETSHORT(ulen, dh_cp);
+		if(ulen <= 0 || ulen > plen)
+			ERRTO("DH ulen bad");
+		dh_len = 2 + ulen;
+		if(dh_len > klen)
+			ERRTO("DH ulen > klen");
+		else if (dh_len < klen)
+			ERRTO("DH *len < klen");
+		break;
+	}
+	
+	case NS_ALG_DSA: {
+		u_int8_t t;
+		
+		if ( klen == 0)
+			break;
+		t = *cp;
+		if (t > 8)
+			ERRTO("DSA T value");
+		if (klen != (1 + 20 + 3 *(64+8*t)))
+			ERRTO("DSA length");
+		break;
+	}
+	
+	case NS_ALG_PRIVATE_OID:
+		if (klen == 0)
+			ERRTO("No ObjectID in key");
+		break;
+	default:
+		ERRTO("Unknown Key algorithm");
+	}
+	
+	endline(fp);  /* flush the rest of the line */
+	return (n);
+ err:
+	*errmsg = errtype;
+	return (-1);
+} /*T_KEY*/
+		 
+/*
+ * function to invoke DNSSEC specific parsing routines.
+ * this is simpler than copying these complicated blocks into the
+ * multiple souce files that read files (ixfr, nsupdate etc..).
+ * this code should be in a library rather than in this file but
+ * what the heck for now (ogud@tislabs.com)
+ */
+int
+parse_sec_rdata(char *buf, int buf_len, int buf_full, u_char *data,
+		int data_size, FILE *fp, struct zoneinfo *zp,
+		char *domain, u_int32_t ttl, int type, enum context context,
+		enum transport transport, char **errmsg)
+{
+	int ret = -1;
+
+	getmlword_nesting = 0; /* KLUDGE err recov. */
+	if (!buf_full && buf && buf_len != 0) /* check if any data in buf */
+		if (!getmlword(buf, buf_len, fp, 1)) {
+			*errmsg = "unexpected end of input";
+			goto err;
+		}
+
+	switch (type) {
+	case ns_t_sig:
+		ret = parse_sig_rr(buf, buf_len, data, data_size, fp, zp, 
+				   domain, ttl, context, transport, errmsg);
+		break;
+	case ns_t_key:
+		ret = parse_key_rr(buf, buf_len, data, data_size, fp, zp,
+				   domain, context, transport, errmsg);
+		break;
+	case ns_t_nxt:
+		ret = parse_nxt_rr(buf, buf_len, data, data_size, fp, zp,
+				   domain, context, transport, errmsg);
+		break;
+	case ns_t_cert:
+		ret = parse_cert_rr(buf, buf_len, data, data_size, fp, errmsg);
+		break;
+	default:
+		ret = -1;
+		*errmsg = "parse_sec_rdata():Unsupported SEC type type";
+		goto err;
+	}
+	return (ret);
+ err:
+	endline(fp);
+	return (ret);
+}
+

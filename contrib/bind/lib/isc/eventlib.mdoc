@@ -1,6 +1,6 @@
-.\" $Id: eventlib.mdoc,v 1.18 1998/01/26 23:00:56 halley Exp $
+.\" $Id: eventlib.mdoc,v 1.20 1999/08/18 22:09:04 vixie Exp $
 .\"
-.\"Copyright (c) 1995, 1996, 1997 by Internet Software Consortium
+.\"Copyright (c) 1995-1999 by Internet Software Consortium
 .\"
 .\"Permission to use, copy, modify, and distribute this software for any
 .\"purpose with or without fee is hereby granted, provided that the above
@@ -63,7 +63,9 @@
 .Nm evTryAccept ,
 .Nm evConsIovec ,
 .Nm evSetDebug ,
-.Nm evPrintf 
+.Nm evPrintf ,
+.Nm evInitID ,
+.Nm evTestID
 .Nd event handling library
 .Sh SYNOPSIS
 .Fd #include <isc/eventlib.h>
@@ -171,6 +173,10 @@
 .Fn evSetDebug "evContext ctx" "int level" "FILE *output"
 .Ft void
 .Fn evPrintf "const evContext_p *ctx" "int level" "const char *fmt" "..."
+.Ft void
+.Fn evInitID "*\s-1ID\s+1"
+.Ft int
+.Fn evTestID "\s-1ID\s+1"
 .Sh DESCRIPTION
 This library provides multiple outstanding asynchronous timers and I/O
 to a cooperating application.  The model is similar to that of the X
@@ -769,6 +775,25 @@ with the event context pointed to by
 The message is output if the event context's debug level is greater than
 or equal to the indicated
 .Fa level .
+.Pp
+The function
+.Fn evInitID
+will initialize an opaque 
+.Dq evConn \s-1ID\s+1 , 
+.Dq evFile \s-1ID\s+1 , 
+.Dq evStream \s-1ID\s+1 , 
+.Dq evTimer \s-1ID\s+1 , 
+.Dq evWait \s-1ID\s+1 , 
+.Dq evContext , 
+or
+.Dq evEvent ,
+which is passed by reference.
+.Pp
+The function
+.Fn evTestID
+will examine an opaque \s-1ID\s+1 and return
+.Dq TRUE
+only if it is not in its initialized state.
 .Sh RETURN VALUES
 All the functions whose return type is
 .Dq Fa int

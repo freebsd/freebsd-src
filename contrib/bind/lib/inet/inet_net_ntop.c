@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: inet_net_ntop.c,v 1.4 1996/11/18 09:09:08 vixie Exp $";
+static const char rcsid[] = "$Id: inet_net_ntop.c,v 1.6 1999/01/08 19:23:42 vixie Exp $";
 #endif
 
 #include "port_before.h"
@@ -78,7 +78,7 @@ inet_net_ntop(af, src, bits, dst, size)
  *	pointer to dst, or NULL if an error occurred (check errno).
  * note:
  *	network byte order assumed.  this means 192.5.5.240/28 has
- *	0x11110000 in its fourth octet.
+ *	0b11110000 in its fourth octet.
  * author:
  *	Paul Vixie (ISC), July 1996
  */
@@ -102,6 +102,7 @@ inet_net_ntop_ipv4(src, bits, dst, size)
 		if (size < sizeof "0")
 			goto emsgsize;
 		*dst++ = '0';
+		size--;
 		*dst = '\0';
 	}
 

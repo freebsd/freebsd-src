@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 by Internet Software Consortium.
+ * Copyright (c) 1997,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: assertions.c,v 8.2 1997/12/08 21:29:05 halley Exp $";
+static const char rcsid[] = "$Id: assertions.c,v 8.3 1999/01/08 19:25:14 vixie Exp $";
 #endif
 
 #include "port_before.h"

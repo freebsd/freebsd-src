@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*
  * Copyright (c) 1985, 1989
  *    The Regents of the University of California.  All rights reserved.
@@ -52,8 +53,8 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)debug.c	5.26 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id: debug.c,v 8.11 1998/03/19 19:30:54 halley Exp $";
+static const char sccsid[] = "@(#)debug.c	5.26 (Berkeley) 3/21/91";
+static const char rcsid[] = "$Id: debug.c,v 8.15 1999/10/13 16:39:16 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -89,7 +90,6 @@ static char rcsid[] = "$Id: debug.c,v 8.11 1998/03/19 19:30:54 halley Exp $";
 /*
  *  Imported from res_debug.c
  */
-extern char *_res_resultcodes[];
 extern char *_res_opcodes[];
 
 /*
@@ -120,11 +120,11 @@ Fprint_query(const u_char *msg, const u_char *eom, int printHeader, FILE *file)
 	 */
 	hp = (HEADER *)msg;
 	cp = msg + HFIXEDSZ;
-	if (printHeader || (_res.options & RES_DEBUG2)) {
+	if (printHeader || (res.options & RES_DEBUG2)) {
 		fprintf(file,"    HEADER:\n");
 		fprintf(file,"\topcode = %s", _res_opcodes[hp->opcode]);
 		fprintf(file,", id = %d", ntohs(hp->id));
-		fprintf(file,", rcode = %s\n", _res_resultcodes[hp->rcode]);
+		fprintf(file,", rcode = %s\n", p_rcode(hp->rcode));
 		fprintf(file,"\theader flags: ");
 		if (hp->qr) {
 			fprintf(file," response");
@@ -281,9 +281,9 @@ Print_rr(const u_char *ocp, const u_char *msg, const u_char *eom, FILE *file) {
 	NS_GET16(dlen, cp);
 	BOUNDS_CHECK(cp, dlen);
 
-	debug = _res.options & (RES_DEBUG|RES_DEBUG2);
+	debug = res.options & (RES_DEBUG|RES_DEBUG2);
 	if (debug) {
-		if (_res.options & RES_DEBUG2)
+		if (res.options & RES_DEBUG2)
 			fprintf(file,"\n\ttype = %s, class = %s, dlen = %d",
 				p_type(type), p_class(class), dlen);
 		if (type == T_SOA)
@@ -623,8 +623,9 @@ Print_rr(const u_char *ocp, const u_char *msg, const u_char *eom, FILE *file) {
 	default: {
 		char buf[2048];	/* XXX need to malloc/realloc. */
 
-		if (ns_sprintrrf(msg, eom - msg, "?", class, type, rrttl,
-				 cp1, dlen, NULL, NULL, buf, sizeof buf) < 0) {
+		if (ns_sprintrrf(msg, eom - msg, "?", (ns_class)class,
+				 (ns_type)type, rrttl, cp1, dlen, NULL, NULL,
+				 buf, sizeof buf) < 0) {
 			perror("ns_sprintrrf");
 		} else {
 			fprintf(file,
@@ -634,7 +635,7 @@ Print_rr(const u_char *ocp, const u_char *msg, const u_char *eom, FILE *file) {
 		cp += dlen;
 	    }
 	}
-	if (_res.options & RES_DEBUG && type != T_SOA) {
+	if (res.options & RES_DEBUG && type != T_SOA) {
 		fprintf(file,"\tttl = %lu (%s)\n", rrttl, p_time(rrttl));
 	}
 	if (cp != cp1 + dlen) {

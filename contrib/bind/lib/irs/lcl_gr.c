@@ -32,7 +32,7 @@
  */
 
 /*
- * Portions Copyright (c) 1996, 1998 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -49,7 +49,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: lcl_gr.c,v 1.20 1998/03/21 00:59:49 halley Exp $";
+static const char rcsid[] = "$Id: lcl_gr.c,v 1.25 1999/10/13 17:11:19 vixie Exp $";
 /* from getgrent.c 8.2 (Berkeley) 3/21/94"; */
 /* from BSDI Id: getgrent.c,v 2.8 1996/05/28 18:15:14 bostic Exp $	*/
 #endif /* LIBC_SCCS and not lint */
@@ -64,6 +64,9 @@ static int __bind_irs_gr_unneeded;
 
 #include <sys/param.h>
 #include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/nameser.h>
+#include <resolv.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -74,11 +77,14 @@ static int __bind_irs_gr_unneeded;
 #include <unistd.h>
 
 #include <irs.h>
-
-#include "port_after.h"
+#include <isc/memcluster.h>
 
 #include "irs_p.h"
 #include "lcl_p.h"
+#include "irp_p.h"
+
+#include "port_after.h"
+
 
 /* Types. */
 
@@ -123,13 +129,13 @@ irs_lcl_gr(struct irs_acc *this) {
 	struct irs_gr *gr;
 	struct pvt *pvt;
 
-	if (!(gr = malloc(sizeof *gr))) {
+	if (!(gr = memget(sizeof *gr))) {
 		errno = ENOMEM;
 		return (NULL);
 	}
 	memset(gr, 0x5e, sizeof *gr);
-	if (!(pvt = malloc(sizeof *pvt))) {
-		free(gr);
+	if (!(pvt = memget(sizeof *pvt))) {
+		memput(gr, sizeof *gr);
 		errno = ENOMEM;
 		return (NULL);
 	}
@@ -142,6 +148,8 @@ irs_lcl_gr(struct irs_acc *this) {
 	gr->rewind = gr_rewind;
 	gr->list = make_group_list;
 	gr->minimize = gr_minimize;
+	gr->res_get = NULL;
+	gr->res_set = NULL;
 	return (gr);
 }
 
@@ -157,8 +165,8 @@ gr_close(struct irs_gr *this) {
 		free(pvt->group.gr_mem);
 	if (pvt->membuf)
 		free(pvt->membuf);
-	free(pvt);
-	free(this);
+	memput(pvt, sizeof *pvt);
+	memput(this, sizeof *this);
 }
 
 static struct group *
@@ -271,13 +279,12 @@ grnext(struct pvt *pvt) {
 static struct group *
 grscan(struct irs_gr *this, int search, gid_t gid, const char *name) {
 	struct pvt *pvt = (struct pvt *)this->private;
-	size_t linelen, n;
+	size_t n;
 	char *bp, **m, *p;
 
 	/* Read lines until we find one that matches our search criteria. */
 	for (;;) {
-		bp = grnext(pvt);
-		if (bp == NULL)
+		if ((bp = grnext(pvt)) == NULL)
 			return (NULL);
 
 		/* Optimize the usual case of searching for a name. */
@@ -320,8 +327,10 @@ grscan(struct irs_gr *this, int search, gid_t gid, const char *name) {
 	 * to account for the NULL terminator.  As above, allocate
 	 * largest of INITIAL_NMEMB, or 2*n.
 	 */
-	for (n = 2, p = bp; (p = strpbrk(p, ", ")) != NULL; ++p, ++n)
-		(void)NULL;
+	n = 1;
+	if (bp != NULL)
+		for (n = 2, p = bp; (p = strpbrk(p, ", ")) != NULL; ++n)
+			p += strspn(p, ", ");
 	if (n > pvt->nmemb || pvt->group.gr_mem == NULL) {
 		if ((n *= 2) < INITIAL_NMEMB)
 			n = INITIAL_NMEMB;

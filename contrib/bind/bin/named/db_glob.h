@@ -1,9 +1,10 @@
 /*
  *	from db.h	4.16 (Berkeley) 6/1/90
- *	$Id: db_glob.h,v 8.8 1997/06/09 17:46:51 halley Exp $
+ *	$Id: db_glob.h,v 8.12 1999/08/08 21:10:01 vixie Exp $
  */
 
-/* Copyright (c) 1985, 1990
+/*
+ * Copyright (c) 1985, 1990
  *    The Regents of the University of California.  All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -35,7 +36,8 @@
  * SUCH DAMAGE.
  */
 
-/* Portions Copyright (c) 1993 by Digital Equipment Corporation.
+/*
+ * Portions Copyright (c) 1993 by Digital Equipment Corporation.
  * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -54,7 +56,8 @@
  * SOFTWARE.
  */
 
-/* Portions Copyright (c) 1996, 1997 by Internet Software Consortium.
+/*
+ * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -75,20 +78,26 @@
  */
 
 	/* ONE_WEEK maximum ttl */
-DECL	u_int		max_cache_ttl INIT(7*24*60*60);
+DECL	u_int		max_cache_ttl	INIT(7*24*60*60);
 
 	/* no minimum ttl */
-DECL	u_int		min_cache_ttl INIT(0);
+DECL	u_int		min_cache_ttl	INIT(0);
 
 	/* current line number */
-DECL	int		lineno;
+DECL	int		lineno		INIT(0);
 
 	/* root hash table */
-DECL	struct hashbuf	*hashtab INIT(NULL);
+DECL	struct hashbuf	*hashtab	INIT(NULL);
 
 	/* hash table of cache read from file */
-DECL	struct hashbuf	*fcachetab INIT(NULL);
+DECL	struct hashbuf	*fcachetab	INIT(NULL);
 
-#ifdef FORCED_RELOAD
-DECL	int		reloading INIT(0);
-#endif /* FORCED_RELOAD */
+	/* state of ns_reload() and ns_reconfig(). */
+DECL	int		reloading	INIT(0);
+DECL	int		reconfiging	INIT(0);
+
+DECL	const int hashsizes[]
+#ifdef MAIN_PROGRAM
+	= { 2, 11, 113, 337, 977, 2053, 4073, 8011, 16001, 99887, 0 }
+#endif
+	;

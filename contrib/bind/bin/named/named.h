@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1997 by Internet Software Consortium.
+ * Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,10 +16,10 @@
  */
 
 /*
- * $Id: named.h,v 8.12 1997/12/04 06:52:27 halley Exp $
+ * $Id: named.h,v 8.25 1999/10/13 18:00:19 vixie Exp $
  */
 
-/* Options. Leave these on. */
+/* Options. Change them at your peril. */
 #define DEBUG
 #define ADDAUTH
 #define STUBS
@@ -30,31 +30,27 @@
 #define QRYLOG
 #define YPKLUDGE
 #define	RENICE
-#define FORCED_RELOAD
 #define SLAVE_FORWARD
-#define BIND_UPDATE
+#define BIND_IXFR
 #define BIND_NOTIFY
+#define BIND_UPDATE
 #define WANT_PIDFILE
 #define FWD_LOOP
 #define DOTTED_SERIAL
 #define SENSIBLE_DOTS
 #define ROUND_ROBIN
-#define SORT_RESPONSE
 #define DNS_SECURITY
 #undef RSAREF
 #undef BSAFE
 #define ALLOW_LONG_TXT_RDATA
-
-#if 0
-#define	strdup	PLEASE_USE_SAVESTR
-#define	malloc	PLEASE_USE_DB_MEMGET
-#define	calloc	PLEASE_USE_DB_MEMGET
-#define	realloc PLEASE_USE_DB_MEMGET
-#define free	PLEASE_USE_DB_MEMPUT
-#endif
+#define STRICT_RFC2308
+#undef BIND_ZXFR
 
 #include <isc/assertions.h>
 #include <isc/list.h>
+#include <isc/ctl.h>
+
+#include <res_update.h>
 
 #include "pathnames.h"
 

@@ -47,12 +47,21 @@ specifies what the server logs, and where the log messages are sent
 
 <DT><CODE><A HREF="options.html">options</A></CODE>
 <DD>
-controls global server configuation options and sets defaults for other
+controls global server configuration options and sets defaults for other
 statements
+
+<DT><CODE><A HREF="controls.html">controls</A></CODE>
+<DD>
+declares control channels to be used by the <VAR>ndc</VAR> utility
 
 <DT><CODE><A HREF="server.html">server</A></CODE>
 <DD>
 sets certain configuration options on a per-server basis
+
+<DT><CODE><A HREF="trusted-keys.html">trusted-keys</A></CODE>
+<DD>
+defines DNSSEC keys that are preconfigured into the server and implicitly
+trusted
 
 <DT><CODE><A HREF="zone.html">zone</A></CODE>
 <DD>
@@ -62,22 +71,27 @@ defines a zone
 <P>The <CODE>logging</CODE> and <CODE>options</CODE> statements may only
 occur once per configuration.
 
-<H4><A HREF="comments.html">Comments</A></H4>
+<H4>Comments</H4>
+
+The BIND 8 <A HREF="comments.html">comment syntax</A> allows for
+comments to appear anywhere that whitespace may appear in a BIND
+configuration file.  To appeal to programmers of all kinds, they can
+be written in C, C++, or shell/perl constructs.
 
 <H3>Converting from BIND 4.9.x</H3>
 
-<P>BIND 4.9.x configuration files can be converted to the new format
-by using <CODE>src/bin/named/named-bootconf.pl</CODE>, a perl script that
-is part of the BIND 8.1 source kit.
+<p>BIND 4.9.x configuration files can be converted to the new format by
+using <code>src/bin/named/named-bootconf</code>, a shell script that is part of
+the BIND 8.2.x source kits.
 
 <HR>
 
-<CENTER><P>[ <A HREF="http://www.vix.com/isc/bind.html">BIND Home</A>
-|&nbsp;<A HREF="http://www.isc.org">ISC</A> ]</P></CENTER>
+<CENTER><P>[ <A HREF="http://www.isc.org/products/BIND/">BIND Home</A>
+|&nbsp;<A HREF="http://www.isc.org/">ISC</A> ]</P></CENTER>
 
 <HR>
 <ADDRESS>
-Last Updated: $Id: config.html,v 1.4 1998/03/21 01:03:11 halley Exp $
+Last Updated: $Id: config.html,v 1.10 1999/09/15 20:28:01 cyarnell Exp $
 </ADDRESS>
 </BODY>
 </HTML>

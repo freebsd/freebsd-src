@@ -15,13 +15,18 @@
  * A simple BIND 8 configuration
  */
 
+logging {
+	category lame-servers { null; };
+	category cname { null; };
+};
+
 options {
 	directory "/var/named";
 };
 
-logging {
-	category lame-servers { null; };
-	category cname { null; };
+controls {
+	inet * port 52 allow { localnets; };		// a BAD idea
+	unix "/var/run/ndc" perm 0600 owner 0 group 0;	// the default
 };
 
 zone "isc.org" in {
@@ -42,18 +47,19 @@ zone "." in {
 
 zone "0.0.127.in-addr.arpa" in {
 	type master;
+	notify no;
 	file "master/127.0.0";
 };
 </PRE>
 
 <HR>
 
-<CENTER><P>[ <A HREF="http://www.vix.com/isc/bind.html">BIND Home</A>
-|&nbsp;<A HREF="http://www.isc.org">ISC</A> ]</P></CENTER>
+<CENTER><P>[ <A HREF="http://www.isc.org/products/BIND/">BIND Home</A>
+|&nbsp;<A HREF="http://www.isc.org/">ISC</A> ]</P></CENTER>
 
 <HR>
 <ADDRESS>
-Last Updated: $Id: example.html,v 1.1 1997/05/06 22:11:31 vixie Exp $
+Last Updated: $Id: example.html,v 1.5 1999/09/15 20:28:01 cyarnell Exp $
 </ADDRESS>
 </BODY>
 </HTML>

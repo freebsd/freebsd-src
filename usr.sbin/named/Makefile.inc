@@ -21,7 +21,8 @@ CFLAGS+=	-I${BIND_DIR}/port/freebsd/include
 # This is mostly for named and named-xfer
 .if defined(USE_LIBBIND)
 # Sadly, mkdep doesn't know about -idirafter, which would be ideal here.
-CFLAGS+=	-I${DESTDIR}/usr/include -I${BIND_DIR}/include
+#CFLAGS+=	-I${.CURDIR}/../../include -I${BIND_DIR}/include
+CFLAGS+=	-I${BIND_DIR}/include
 
 .if exists(${.OBJDIR}/../../lib/libbind)
 LIBBINDDIR:=	${.OBJDIR}/../../lib/libbind
@@ -42,7 +43,8 @@ tmp_version.c:	version.c ${BIND_DIR}/Version
 	    -e "s|%WHOANDWHERE%|$${u}@$${h}:$${d}|" \
 	    < ${BIND_DIR}/bin/named/version.c > tmp_version.c)
 	
-pathnames.h:	pathtemplate.h ${.CURDIR}/../../usr.sbin/named/Makefile.inc
+pathnames.h:	${BIND_DIR}/bin/named/pathtemplate.h \
+		${.CURDIR}/../../usr.sbin/named/Makefile.inc
 	rm -f pathnames.h
 	sed -e "s|%DESTSBIN%|${DESTSBIN}|" \
 	    -e "s|%DESTEXEC%|${DESTEXEC}|" \

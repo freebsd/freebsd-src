@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns_sv.c,v 1.12 1997/12/04 04:57:49 halley Exp $";
+static const char rcsid[] = "$Id: dns_sv.c,v 1.17 1999/09/04 22:06:14 vixie Exp $";
 #endif
 
 /* Imports */
@@ -33,6 +33,12 @@ static const char rcsid[] = "$Id: dns_sv.c,v 1.12 1997/12/04 04:57:49 halley Exp
 #include <stdlib.h>
 #include <errno.h>
 
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/nameser.h>
+#include <resolv.h>
+
+#include <isc/memcluster.h>
 #include <irs.h>
 
 #include "port_after.h"
@@ -44,9 +50,11 @@ static const char rcsid[] = "$Id: dns_sv.c,v 1.12 1997/12/04 04:57:49 halley Exp
 /* Definitions */
 
 struct pvt {
-	struct dns_p *	dns;
+	struct dns_p *		dns;
 	struct servent		serv;
 	char *			svbuf;
+	struct __res_state *	res;
+	void			(*free_res)(void *);
 };
 
 /* Forward. */
@@ -58,6 +66,10 @@ static struct servent *		sv_byport(struct irs_sv *, int, const char *);
 static struct servent *		sv_next(struct irs_sv *);
 static void			sv_rewind(struct irs_sv *);
 static void			sv_minimize(struct irs_sv *);
+static struct __res_state *	sv_res_get(struct irs_sv *);
+static void			sv_res_set(struct irs_sv *,
+					   struct __res_state *,
+					   void (*)(void *));
 
 static struct servent *		parse_hes_list(struct irs_sv *,
 					       char **, const char *);
@@ -74,14 +86,14 @@ irs_dns_sv(struct irs_acc *this) {
 		errno = ENODEV;
 		return (NULL);
 	}
-	if (!(pvt = (struct pvt *)malloc(sizeof *pvt))) {
+	if (!(pvt = memget(sizeof *pvt))) {
 		errno = ENOMEM;
 		return (NULL);
 	}
 	memset(pvt, 0, sizeof *pvt);
 	pvt->dns = dns;
-	if (!(sv = malloc(sizeof *sv))) {
-		free(pvt);
+	if (!(sv = memget(sizeof *sv))) {
+		memput(pvt, sizeof *pvt);
 		errno = ENOMEM;
 		return (NULL);
 	}
@@ -93,6 +105,8 @@ irs_dns_sv(struct irs_acc *this) {
 	sv->rewind = sv_rewind;
 	sv->close = sv_close;
 	sv->minimize = sv_minimize;
+	sv->res_get = sv_res_get;
+	sv->res_set = sv_res_set;
 	return (sv);
 }
 
@@ -106,7 +120,11 @@ sv_close(struct irs_sv *this) {
 		free(pvt->serv.s_aliases);
 	if (pvt->svbuf)
 		free(pvt->svbuf);
-	free(this);
+
+	if (pvt->res && pvt->free_res)
+		(*pvt->free_res)(pvt->res);
+	memput(pvt, sizeof *pvt);
+	memput(this, sizeof *this);
 }
 
 static struct servent *
@@ -247,4 +265,21 @@ parse_hes_list(struct irs_sv *this, char **hes_list, const char *proto) {
 static void
 sv_minimize(struct irs_sv *this) {
 	/* NOOP */
+}
+
+static struct __res_state *
+sv_res_get(struct irs_sv *this) {
+	struct pvt *pvt = (struct pvt *)this->private;
+	struct dns_p *dns = pvt->dns;
+
+	return (__hesiod_res_get(dns->hes_ctx));
+}
+
+static void
+sv_res_set(struct irs_sv *this, struct __res_state * res,
+	   void (*free_res)(void *)) {
+	struct pvt *pvt = (struct pvt *)this->private;
+	struct dns_p *dns = pvt->dns;
+
+	__hesiod_res_set(dns->hes_ctx, res, free_res);
 }

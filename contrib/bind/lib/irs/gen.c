@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1998 by Internet Software Consortium.
+ * Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static char rcsid[] = "$Id: gen.c,v 1.18 1998/03/21 00:59:46 halley Exp $";
+static const char rcsid[] = "$Id: gen.c,v 1.25 1999/10/13 16:39:29 vixie Exp $";
 #endif
 
 /*
@@ -35,13 +35,19 @@ static char rcsid[] = "$Id: gen.c,v 1.18 1998/03/21 00:59:46 halley Exp $";
 
 #include "port_before.h"
 
-#include <assert.h>
+#include <isc/assertions.h>
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include <sys/types.h>
+#include <netinet/in.h> 
+#include <arpa/nameser.h>
+#include <resolv.h>
+
+#include <isc/memcluster.h>
 #include <irs.h>
 
 #include "port_after.h"
@@ -60,6 +66,7 @@ static const struct nameval acc_names[irs_nacc+1] = {
 	{ "local", irs_lcl },
 	{ "dns", irs_dns },
 	{ "nis", irs_nis },
+	{ "irp", irs_irp },
 	{ NULL, irs_nacc }
 };
 
@@ -73,6 +80,7 @@ static const accinit accs[irs_nacc+1] = {
 #else
 	NULL,
 #endif
+	irs_irp_acc,
 	NULL
 };
 
@@ -96,8 +104,11 @@ static const struct nameval option_names[] = {
 /* Forward */
 
 static void		gen_close(struct irs_acc *);
+static struct __res_state * gen_res_get(struct irs_acc *);
+static void		gen_res_set(struct irs_acc *, struct __res_state *,
+				    void (*)(void *));
 static int		find_name(const char *, const struct nameval nv[]);
-static void 		init_map_rules(struct gen_p *);
+static void 		init_map_rules(struct gen_p *, const char *conf_file);
 static struct irs_rule *release_rule(struct irs_rule *);
 static int		add_rule(struct gen_p *,
 				 enum irs_map_id, enum irs_acc_id,
@@ -106,25 +117,27 @@ static int		add_rule(struct gen_p *,
 /* Public */
 
 struct irs_acc *
-irs_gen_acc(const char *options) {
+irs_gen_acc(const char *options, const char *conf_file) {
 	struct irs_acc *acc;
 	struct gen_p *irs;
 		
-	if (!(acc = malloc(sizeof *acc))) {
+	if (!(acc = memget(sizeof *acc))) {
 		errno = ENOMEM;
 		return (NULL);
 	}
 	memset(acc, 0x5e, sizeof *acc);
-	if (!(irs = malloc(sizeof *irs))) {
+	if (!(irs = memget(sizeof *irs))) {
 		errno = ENOMEM;
-		free(acc);
+		memput(acc, sizeof *acc);
 		return (NULL);
 	}
 	memset(irs, 0x5e, sizeof *irs);
 	irs->options = strdup(options);
+	irs->res = NULL;
+	irs->free_res = NULL;
 	memset(irs->accessors, 0, sizeof irs->accessors);
 	memset(irs->map_rules, 0, sizeof irs->map_rules);
-	init_map_rules(irs);
+	init_map_rules(irs, conf_file);
 	acc->private = irs;
 #ifdef WANT_IRS_GR
 	acc->gr_map = irs_gen_gr;
@@ -141,11 +154,64 @@ irs_gen_acc(const char *options) {
 	acc->ho_map = irs_gen_ho;
 	acc->nw_map = irs_gen_nw;
 	acc->ng_map = irs_gen_ng;
+	acc->res_get = gen_res_get;
+	acc->res_set = gen_res_set;
 	acc->close = gen_close;
 	return (acc);
 }
 
 /* Methods */
+
+static struct __res_state *
+gen_res_get(struct irs_acc *this) {
+	struct gen_p *irs = (struct gen_p *)this->private;
+
+	if (irs->res == NULL) {
+		struct __res_state *res;
+		res = (struct __res_state *)malloc(sizeof *res);
+		if (res == NULL)
+			return (NULL);
+		memset(res, 0, sizeof *res);
+		gen_res_set(this, res, free);
+	}
+
+	if (((irs->res->options & RES_INIT) == 0) && res_ninit(irs->res) < 0)
+		return (NULL);
+
+	return (irs->res);
+}
+
+static void
+gen_res_set(struct irs_acc *this, struct __res_state *res,
+	    void (*free_res)(void *)) {
+	struct gen_p *irs = (struct gen_p *)this->private;
+#if 0
+	struct irs_rule *rule;
+	struct irs_ho *ho;
+	struct irs_nw *nw;
+#endif
+
+	if (irs->res && irs->free_res) {
+		res_nclose(irs->res);
+		(*irs->free_res)(irs->res);
+	}
+
+	irs->res = res;
+	irs->free_res = free_res;
+
+#if 0
+	for (rule = irs->map_rules[irs_ho]; rule; rule = rule->next) {
+                ho = rule->inst->ho;
+
+                (*ho->res_set)(ho, res, NULL);
+	}
+	for (rule = irs->map_rules[irs_nw]; rule; rule = rule->next) {
+                nw = rule->inst->nw;
+
+                (*nw->res_set)(nw, res, NULL);
+	}
+#endif
+}
 
 static void
 gen_close(struct irs_acc *this) {
@@ -182,11 +248,14 @@ gen_close(struct irs_acc *this) {
 	/* The options string was strdup'd. */
 	free((void*)irs->options);
 
+	if (irs->res && irs->free_res)
+		(*irs->free_res)(irs->res);
+
 	/* The private data container. */
-	free(irs);
+	memput(irs, sizeof *irs);
 
 	/* The object. */
-	free(this);
+	memput(this, sizeof *this);
 }
 
 /* Private */
@@ -205,7 +274,7 @@ static struct irs_rule *
 release_rule(struct irs_rule *rule) {
 	struct irs_rule *next = rule->next;
 
-	free(rule);
+	memput(rule, sizeof *rule);
 	return (next);
 }
 
@@ -231,7 +300,7 @@ add_rule(struct gen_p *irs,
 	if (acc == irs_nis)
 		return (-1);
 #endif
-	new = (struct irs_rule *)malloc(sizeof *new);
+	new = memget(sizeof *new);
 	if (new == NULL)
 		return (-1);
 	memset(new, 0x5e, sizeof *new);
@@ -310,11 +379,15 @@ default_map_rules(struct gen_p *irs) {
 }
 
 static void
-init_map_rules(struct gen_p *irs) {
+init_map_rules(struct gen_p *irs, const char *conf_file) {
 	char line[1024], pattern[40], mapname[20], accname[20], options[100];
 	FILE *conf;
 
-	if ((conf = fopen(_PATH_IRS_CONF, "r")) == NULL) {
+	if (conf_file == NULL) 
+		conf_file = _PATH_IRS_CONF ;
+
+	/* A conf file of "" means compiled in defaults. Irpd wants this */
+	if (conf_file[0] == '\0' || (conf = fopen(conf_file, "r")) == NULL) {
 		default_map_rules(irs);
 		return;
 	}
@@ -337,13 +410,13 @@ init_map_rules(struct gen_p *irs) {
 			options[0] = '\0';
 
 		n = find_name(mapname, map_names);
-		assert(n < irs_nmap);
+		INSIST(n < irs_nmap);
 		if (n < 0)
 			continue;
 		map = (enum irs_map_id) n;
 
 		n = find_name(accname, acc_names);
-		assert(n < irs_nacc);
+		INSIST(n < irs_nacc);
 		if (n < 0)
 			continue;
 		acc = (enum irs_acc_id) n;

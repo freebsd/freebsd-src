@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997, 1998 by Internet Software Consortium
+ * Copyright (c) 1995-1999 by Internet Software Consortium
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,7 +20,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: eventlib.c,v 1.38 1998/03/20 23:26:24 halley Exp $";
+static const char rcsid[] = "$Id: eventlib.c,v 1.44 1999/10/13 17:11:20 vixie Exp $";
 #endif
 
 #include "port_before.h"
@@ -31,6 +31,7 @@ static const char rcsid[] = "$Id: eventlib.c,v 1.38 1998/03/20 23:26:24 halley E
 #include <sys/stat.h>
 
 #include <errno.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -44,7 +45,9 @@ static const char rcsid[] = "$Id: eventlib.c,v 1.38 1998/03/20 23:26:24 halley E
 /* Forward. */
 
 #ifdef NEED_PSELECT
-static int		pselect(int, void *, void *, void *, struct timespec*);
+static int		pselect(int, void *, void *, void *,
+				struct timespec *,
+				const sigset_t *);
 #endif
 
 /* Public. */
@@ -52,7 +55,6 @@ static int		pselect(int, void *, void *, void *, struct timespec*);
 int
 evCreate(evContext *opaqueCtx) {
 	evContext_p *ctx;
-	int i;
 
 	/* Make sure the memory heap is initialized. */
 	if (meminit(0, 0) < 0 && errno != EEXIST)
@@ -76,14 +78,15 @@ evCreate(evContext *opaqueCtx) {
 	FD_ZERO(&ctx->rdNext);
 	FD_ZERO(&ctx->wrNext);
 	FD_ZERO(&ctx->exNext);
+	FD_ZERO(&ctx->nonblockBefore);
 	ctx->fdMax = -1;
 	ctx->fdNext = NULL;
 	ctx->fdCount = 0;	/* Invalidate {rd,wr,ex}Last. */
+	ctx->highestFD = FD_SETSIZE - 1;
 #ifdef EVENTLIB_TIME_CHECKS
 	ctx->lastFdCount = 0;
 #endif
-	for (i = 0; i < FD_SETSIZE; i++)
-		ctx->fdTable[i] = NULL;
+	memset(ctx->fdTable, 0, sizeof ctx->fdTable);
 
 	/* Streams. */
 	ctx->streams = NULL;
@@ -299,7 +302,7 @@ evGetNext(evContext opaqueCtx, evEvent *opaqueEv, int options) {
 			/* XXX should predict system's earliness and adjust. */
 			x = pselect(ctx->fdMax+1,
 				    &ctx->rdLast, &ctx->wrLast, &ctx->exLast,
-				    tp);
+				    tp, NULL);
 			pselect_errno = errno;
 
 			evPrintf(ctx, 4, "select() returns %d (err: %s)\n",
@@ -625,6 +628,13 @@ evMainLoop(evContext opaqueCtx) {
 	return (x);
 }
 
+int
+evHighestFD(evContext opaqueCtx) {
+	evContext_p *ctx = opaqueCtx.opaque;
+
+	return (ctx->highestFD);
+}
+
 void
 evPrintf(const evContext_p *ctx, int level, const char *fmt, ...) {
 	va_list ap;
@@ -638,9 +648,14 @@ evPrintf(const evContext_p *ctx, int level, const char *fmt, ...) {
 }
 
 #ifdef NEED_PSELECT
+/* XXX needs to move to the porting library. */
 static int
-pselect(int nfds, void *rfds, void *wfds, void *efds, struct timespec *tsp) {
+pselect(int nfds, void *rfds, void *wfds, void *efds,
+	struct timespec *tsp,
+	const sigset_t *sigmask)
+{
 	struct timeval tv, *tvp;
+	sigset_t sigs;
 	int n;
 
 	if (tsp) {
@@ -648,7 +663,11 @@ pselect(int nfds, void *rfds, void *wfds, void *efds, struct timespec *tsp) {
 		tv = evTimeVal(*tsp);
 	} else
 		tvp = NULL;
+	if (sigmask)
+		sigprocmask(SIG_SETMASK, sigmask, &sigs);
 	n = select(nfds, rfds, wfds, efds, tvp);
+	if (sigmask)
+		sigprocmask(SIG_SETMASK, &sigs, NULL);
 	if (tsp)
 		*tsp = evTimeSpec(tv);
 	return (n);
