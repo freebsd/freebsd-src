@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_rman.c,v 1.2 1998/11/23 09:33:35 bde Exp $
+ *	$Id: subr_rman.c,v 1.3 1998/12/07 21:58:29 archie Exp $
  */
 
 /*
@@ -68,7 +68,9 @@
 MALLOC_DEFINE(M_RMAN, "rman", "Resource manager");
 
 struct	rman_head rman_head;
+#ifndef NULL_SIMPLELOCKS
 static	struct simplelock rman_lock; /* mutex to protect rman_head */
+#endif
 static	int int_rman_activate_resource(struct rman *rm, struct resource *r,
 				       struct resource **whohas);
 static	int int_rman_release_resource(struct rman *rm, struct resource *r);

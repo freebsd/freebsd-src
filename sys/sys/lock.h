@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lock.h	8.12 (Berkeley) 5/19/95
- * $Id: lock.h,v 1.10 1997/09/21 04:24:02 dyson Exp $
+ * $Id: lock.h,v 1.11 1998/01/06 05:22:48 dyson Exp $
  */
 
 #ifndef	_LOCK_H_
@@ -184,6 +184,7 @@ void _simple_lock __P((struct simplelock *alp, const char *, int));
 void simple_lock_init __P((struct simplelock *alp));
 #else /* !SIMPLELOCK_DEBUG */
 #if NCPUS == 1 /* no multiprocessor locking is necessary */
+#define	NULL_SIMPLELOCKS
 #define	simple_lock_init(alp)
 #define	simple_lock(alp)
 #define	simple_lock_try(alp)	(1)	/* always succeeds */
