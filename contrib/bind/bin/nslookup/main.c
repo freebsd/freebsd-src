@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*
  * Copyright (c) 1985, 1989
  *    The Regents of the University of California.  All rights reserved.
@@ -51,15 +52,33 @@
  * SOFTWARE.
  */
 
+/*
+ * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+ * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+ * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+ * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+ * SOFTWARE.
+ */
+
 #ifndef lint
 char copyright[] =
 "@(#) Copyright (c) 1985,1989 Regents of the University of California.\n\
- All rights reserved.\n";
+ All rights reserved.\n\
+ @(#) Portions Copyright (c) 1996-1999 Internet Software Consortium.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	5.42 (Berkeley) 3/3/91";
-static char rcsid[] = "$Id: main.c,v 8.7 1997/04/25 00:27:18 vixie Exp $";
+static const char sccsid[] = "@(#)main.c	5.42 (Berkeley) 3/3/91";
+static const char rcsid[] = "$Id: main.c,v 8.13 1999/10/13 16:39:19 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -113,10 +132,10 @@ static char rcsid[] = "$Id: main.c,v 8.7 1997/04/25 00:27:18 vixie Exp $";
 char		rootServerName[NAME_LEN] = ROOT_SERVER;
 
 /*
- *  Import the state information from the resolver library.
+ * Declare a resolver context.
  */
 
-extern struct __res_state _res;
+struct __res_state res;
 
 
 /*
@@ -160,6 +179,13 @@ char		*pager;
 static void CvtAddrToPtr();
 static void ReadRC();
 
+/*
+ * Forward declarations.
+ */
+void LocalServer(HostInfo *defaultPtr);
+void res_re_init(void);
+void res_dnsrch(char *cp);
+
 
 /*
  ******************************************************************************
@@ -187,7 +213,7 @@ main(argc, argv)
      *  Initialize the resolver library routines.
      */
 
-    if (res_init() == -1) {
+    if (res_ninit(&res) == -1) {
 	fprintf(stderr,"*** Can't initialize resolver.\n");
 	exit(1);
     }
@@ -245,8 +271,8 @@ main(argc, argv)
 	 */ 
 
 	if (inet_aton(*++argv, &addr)) {
-	    _res.nscount = 1;
-	    _res.nsaddr.sin_addr = addr;
+	    res.nscount = 1;
+	    res.nsaddr.sin_addr = addr;
 	} else {
 	    hp = gethostbyname(*argv);
 	    if (hp == NULL) {
@@ -256,33 +282,33 @@ main(argc, argv)
 		fputc('\n', stderr);
 	    } else {
 		for (i = 0; i < MAXNS && hp->h_addr_list[i] != NULL; i++) {
-		    memcpy(&_res.nsaddr_list[i].sin_addr, hp->h_addr_list[i],
+		    memcpy(&res.nsaddr_list[i].sin_addr, hp->h_addr_list[i],
 			   hp->h_length);
 		}
-		_res.nscount = i;
+		res.nscount = i;
 	    } 
 	}
     }
 
 
-    if (_res.nscount == 0 || useLocalServer) {
+    if (res.nscount == 0 || useLocalServer) {
 	LocalServer(defaultPtr);
     } else {
-	for (i = 0; i < _res.nscount; i++) {
-	    if (_res.nsaddr_list[i].sin_addr.s_addr == INADDR_ANY) {
+	for (i = 0; i < res.nscount; i++) {
+	    if (res.nsaddr_list[i].sin_addr.s_addr == INADDR_ANY) {
 	        LocalServer(defaultPtr);
 		break;
 	    } else {
-		result = GetHostInfoByAddr(&(_res.nsaddr_list[i].sin_addr), 
-				    &(_res.nsaddr_list[i].sin_addr), 
+		result = GetHostInfoByAddr(&(res.nsaddr_list[i].sin_addr), 
+				    &(res.nsaddr_list[i].sin_addr), 
 				    defaultPtr);
 		if (result != SUCCESS) {
 		    fprintf(stderr,
 		    "*** Can't find server name for address %s: %s\n", 
-		       inet_ntoa(_res.nsaddr_list[i].sin_addr), 
+		       inet_ntoa(res.nsaddr_list[i].sin_addr), 
 		       DecodeError(result));
 		} else {
-		    defaultAddr = _res.nsaddr_list[i].sin_addr;
+		    defaultAddr = res.nsaddr_list[i].sin_addr;
 		    break;
 		}
 	    }
@@ -293,7 +319,7 @@ main(argc, argv)
 	 *  command line argument to specify an address.
 	 */
 
-	if (i == _res.nscount) {
+	if (i == res.nscount) {
 	    fprintf(stderr, "*** Default servers are not available\n");
 	    exit(1);
 	}
@@ -304,10 +330,10 @@ main(argc, argv)
 
 #ifdef DEBUG
 #ifdef DEBUG2
-    _res.options |= RES_DEBUG2;
+    res.options |= RES_DEBUG2;
 #endif
-    _res.options |= RES_DEBUG;
-    _res.retry    = 2;
+    res.options |= RES_DEBUG;
+    res.retry    = 2;
 #endif /* DEBUG */
 
     /*
@@ -350,6 +376,7 @@ main(argc, argv)
 }
 
 
+void
 LocalServer(defaultPtr)
     HostInfo *defaultPtr;
 {
@@ -459,6 +486,7 @@ SetDefaultServer(string, local)
     char		newServer[NAME_LEN];
     int			result;
     int			i;
+    int			j;
 
     /*
      *  Parse the command line. It maybe of the form "server name",
@@ -466,13 +494,32 @@ SetDefaultServer(string, local)
      */
 
     if (local) {
-	i = sscanf(string, " lserver %s", newServer);
+	i = matchString (" lserver ", string);
+	if (i > 0) {
+	    j = pickString(string + i, newServer, sizeof newServer);
+	    if (j == 0) { /* value was too big for newServer variable */
+	    	fprintf(stderr,
+			"SetDefaultServer: invalid name: %s\n",  
+			string + i);
+	    	return(ERROR);
+	    }
+	}
     } else {
-	i = sscanf(string, " server %s", newServer);
+	    i = matchString(" server ", string);
+	    if (i > 0) {
+		j = pickString(string + i, newServer, sizeof newServer);
+		if (j == 0) { /* value was too big for newServer variable */
+	    	    fprintf(stderr,
+			    "SetDefaultServer: invalid name: %s\n",  
+			    string + i);
+	    	    return(ERROR);
+		}
+	    }
     }
-    if (i != 1) {
-	i = sscanf(string, " %s", newServer);
-	if (i != 1) {
+    
+    if (i == 0) {
+	i = pickString(string, newServer, sizeof newServer);
+	if (i == 0) {      /* value was too big for newServer variable */
 	    fprintf(stderr,"SetDefaultServer: invalid name: %s\n",  string);
 	    return(ERROR);
 	}
@@ -662,6 +709,7 @@ LookupHost(string, putToFile)
     char	host[NAME_LEN];
     char	file[PATH_MAX];
     int		result;
+    int		i;
 
     /*
      *  Invalidate the current host information to prevent Finger 
@@ -676,11 +724,16 @@ LookupHost(string, putToFile)
      *
      */
 
-    sscanf(string, " %s", host);	/* removes white space */
+    i = pickString(string, host, sizeof host);
+    if (i == 0) { /* string was too long for host variable */
+        fprintf(stderr, "*** invalid name: %s\n", string);
+	return(ERROR);
+    }
+
     if (!putToFile) {
 	filePtr = stdout;
     } else {
-	filePtr = OpenFile(string, file);
+	filePtr = OpenFile(string, file, sizeof file);
 	if (filePtr == NULL) {
 	    fprintf(stderr, "*** Can't open %s for writing\n", file);
 	    return(ERROR);
@@ -734,14 +787,27 @@ LookupHostWithServer(string, putToFile)
     char	server[NAME_LEN];
     int		result;
     static HostInfo serverInfo;
+    int		i;
+    int		j;
 
     curHostValid = FALSE;
 
-    sscanf(string, " %s %s", host, server);
+    i = pickString(string, host, sizeof host);
+    if (i == 0) { /* value was too big for host variable */
+	fprintf(stderr, "*** invalid name: %s\n", string);
+	return(ERROR);
+    }
+
+    j = pickString(string + i, server, sizeof server);
+    if (j == 0) { /* value was too big for server variable */
+	fprintf(stderr, "*** invalid server name: %s\n", string + i);
+	return(ERROR);
+    }
+
     if (!putToFile) {
 	filePtr = stdout;
     } else {
-	filePtr = OpenFile(string, file);
+	filePtr = OpenFile(string, file, sizeof file);
 	if (filePtr == NULL) {
 	    fprintf(stderr, "*** Can't open %s for writing\n", file);
 	    return(ERROR);
@@ -818,6 +884,7 @@ SetOption(option)
     char	type[NAME_LEN];
     char	*ptr;
     int		tmp;
+    int		i;
 
     while (isspace(*option))
 	++option;
@@ -835,28 +902,34 @@ SetOption(option)
 	} else if (strncmp(option, "ALL", 3) == 0) {
 	    ShowOptions();
 	} else if (strncmp(option, "d2", 2) == 0) {	/* d2 (more debug) */
-	    _res.options |= (RES_DEBUG | RES_DEBUG2);
+	    res.options |= (RES_DEBUG | RES_DEBUG2);
 	} else if (strncmp(option, "nod2", 4) == 0) {
-	    _res.options &= ~RES_DEBUG2;
+	    res.options &= ~RES_DEBUG2;
 	    printf("d2 mode disabled; still in debug mode\n");
 	} else if (strncmp(option, "def", 3) == 0) {	/* defname */
-	    _res.options |= RES_DEFNAMES;
+	    res.options |= RES_DEFNAMES;
 	} else if (strncmp(option, "nodef", 5) == 0) {
-	    _res.options &= ~RES_DEFNAMES;
+	    res.options &= ~RES_DEFNAMES;
 	} else if (strncmp(option, "do", 2) == 0) {	/* domain */
 	    ptr = strchr(option, '=');
 	    if (ptr != NULL) {
-		sscanf(++ptr, "%s", _res.defdname);
+		i = pickString(++ptr, res.defdname, sizeof res.defdname);
+		if (i == 0) { /* name too long or nothing there */
+		    fprintf(stderr, "** invalid 'domain' value: %s\n",
+			    ptr) ;
+		    return(ERROR);
+		}
+
 		res_re_init();
 	    }
 	} else if (strncmp(option, "deb", 1) == 0) {	/* debug */
-	    _res.options |= RES_DEBUG;
+	    res.options |= RES_DEBUG;
 	} else if (strncmp(option, "nodeb", 5) == 0) {
-	    _res.options &= ~(RES_DEBUG | RES_DEBUG2);
+	    res.options &= ~(RES_DEBUG | RES_DEBUG2);
 	} else if (strncmp(option, "ig", 2) == 0) {	/* ignore */
-	    _res.options |= RES_IGNTC;
+	    res.options |= RES_IGNTC;
 	} else if (strncmp(option, "noig", 4) == 0) {
-	    _res.options &= ~RES_IGNTC;
+	    res.options &= ~RES_IGNTC;
 	} else if (strncmp(option, "po", 2) == 0) {	/* port */
 	    ptr = strchr(option, '=');
 	    if (ptr != NULL) {
@@ -864,44 +937,61 @@ SetOption(option)
 	    }
 #ifdef deprecated
 	} else if (strncmp(option, "pri", 3) == 0) {	/* primary */
-	    _res.options |= RES_PRIMARY;
+	    res.options |= RES_PRIMARY;
 	} else if (strncmp(option, "nopri", 5) == 0) {
-	    _res.options &= ~RES_PRIMARY;
+	    res.options &= ~RES_PRIMARY;
 #endif
 	} else if (strncmp(option, "q", 1) == 0 ||	/* querytype */
 	  strncmp(option, "ty", 2) == 0) {		/* type */
 	    ptr = strchr(option, '=');
 	    if (ptr != NULL) {
-		sscanf(++ptr, "%s", type);
+		i = pickString(++ptr, type, sizeof type);
+		if (i == 0) { /* value too big or nothing there */
+		    fprintf(stderr, "*** invalid type value: %s\n",
+			    ptr) ;
+		    return(ERROR);
+		}
+
 		queryType = StringToType(type, queryType, stderr);
 	    }
 	} else if (strncmp(option, "cl", 2) == 0) {	/* query class */
 	    ptr = strchr(option, '=');
 	    if (ptr != NULL) {
-		sscanf(++ptr, "%s", type);
+		i = pickString(++ptr, type, sizeof type);
+		if (i == 0) { /* value too big or nothing there */
+		    fprintf(stderr, "*** invalid class : %s\n",
+			    ptr) ;
+		    return(ERROR);
+		}
+
 		queryClass = StringToClass(type, queryClass, stderr);
 	    }
 	} else if (strncmp(option, "rec", 3) == 0) {	/* recurse */
-	    _res.options |= RES_RECURSE;
+	    res.options |= RES_RECURSE;
 	} else if (strncmp(option, "norec", 5) == 0) {
-	    _res.options &= ~RES_RECURSE;
+	    res.options &= ~RES_RECURSE;
 	} else if (strncmp(option, "ret", 3) == 0) {	/* retry */
 	    ptr = strchr(option, '=');
 	    if (ptr != NULL) {
 		sscanf(++ptr, "%d", &tmp);
 		if (tmp >= 0) {
-		    _res.retry = tmp;
+		    res.retry = tmp;
 		}
 	    }
 	} else if (strncmp(option, "ro", 2) == 0) {	/* root */
 	    ptr = strchr(option, '=');
 	    if (ptr != NULL) {
-		sscanf(++ptr, "%s", rootServerName);
+		i = pickString(++ptr, rootServerName, sizeof rootServerName);
+		if (i == 0) { /* value too big or nothing there */
+		    fprintf(stderr, "*** invalid root server name : %s\n",
+			    ptr) ;
+		    return(ERROR) ;
+		}
 	    }
 	} else if (strncmp(option, "sea", 3) == 0) {	/* search list */
-	    _res.options |= RES_DNSRCH;
+	    res.options |= RES_DNSRCH;
 	} else if (strncmp(option, "nosea", 5) == 0) {
-	    _res.options &= ~RES_DNSRCH;
+	    res.options &= ~RES_DNSRCH;
 	} else if (strncmp(option, "srchl", 5) == 0) {	/* domain search list */
 	    ptr = strchr(option, '=');
 	    if (ptr != NULL) {
@@ -912,13 +1002,13 @@ SetOption(option)
 	    if (ptr != NULL) {
 		sscanf(++ptr, "%d", &tmp);
 		if (tmp >= 0) {
-		    _res.retrans = tmp;
+		    res.retrans = tmp;
 		}
 	    }
 	} else if (strncmp(option, "v", 1) == 0) {	/* vc */
-	    _res.options |= RES_USEVC;
+	    res.options |= RES_USEVC;
 	} else if (strncmp(option, "nov", 3) == 0) {
-	    _res.options &= ~RES_USEVC;
+	    res.options &= ~RES_USEVC;
 	} else {
 	    fprintf(stderr, "*** Invalid option: %s\n",  option);
 	    return(ERROR);
@@ -930,45 +1020,45 @@ SetOption(option)
 /*
  * Fake a reinitialization when the domain is changed.
  */
-res_re_init()
-{
+void
+res_re_init(void) {
     register char *cp, **pp;
     int n;
 
     /* find components of local domain that might be searched */
-    pp = _res.dnsrch;
-    *pp++ = _res.defdname;
-    for (cp = _res.defdname, n = 0; *cp; cp++)
+    pp = res.dnsrch;
+    *pp++ = res.defdname;
+    for (cp = res.defdname, n = 0; *cp; cp++)
 	if (*cp == '.')
 	    n++;
-    cp = _res.defdname;
-    for (; n >= LOCALDOMAINPARTS && pp < _res.dnsrch + MAXDFLSRCH; n--) {
+    cp = res.defdname;
+    for (; n >= LOCALDOMAINPARTS && pp < res.dnsrch + MAXDFLSRCH; n--) {
 	cp = strchr(cp, '.');
 	*pp++ = ++cp;
     }
     *pp = 0;
-    _res.options |= RES_INIT;
+    res.options |= RES_INIT;
 }
 
 #define SRCHLIST_SEP '/'
 
-res_dnsrch(cp)
-    register char *cp;
-{
-    register char **pp;
+void
+res_dnsrch(char *cp) {
+    char **pp;
     int n;
 
-    (void)strncpy(_res.defdname, cp, sizeof(_res.defdname) - 1);
-    if ((cp = strchr(_res.defdname, '\n')) != NULL)
+    (void)strncpy(res.defdname, cp, sizeof(res.defdname) - 1);
+    res.defdname[sizeof(res.defdname) - 1] = '\0';
+    if ((cp = strchr(res.defdname, '\n')) != NULL)
 	    *cp = '\0';
     /*
      * Set search list to be blank-separated strings
      * on rest of line.
      */
-    cp = _res.defdname;
-    pp = _res.dnsrch;
+    cp = res.defdname;
+    pp = res.dnsrch;
     *pp++ = cp;
-    for (n = 0; *cp && pp < _res.dnsrch + MAXDNSRCH; cp++) {
+    for (n = 0; *cp && pp < res.dnsrch + MAXDNSRCH; cp++) {
 	    if (*cp == SRCHLIST_SEP) {
 		    *cp = '\0';
 		    n = 1;
@@ -1006,24 +1096,24 @@ ShowOptions()
     }
 
     printf("Set options:\n");
-    printf("  %sdebug  \t", (_res.options & RES_DEBUG) ? "" : "no");
-    printf("  %sdefname\t", (_res.options & RES_DEFNAMES) ? "" : "no");
-    printf("  %ssearch\t", (_res.options & RES_DNSRCH) ? "" : "no");
-    printf("  %srecurse\n", (_res.options & RES_RECURSE) ? "" : "no");
+    printf("  %sdebug  \t", (res.options & RES_DEBUG) ? "" : "no");
+    printf("  %sdefname\t", (res.options & RES_DEFNAMES) ? "" : "no");
+    printf("  %ssearch\t", (res.options & RES_DNSRCH) ? "" : "no");
+    printf("  %srecurse\n", (res.options & RES_RECURSE) ? "" : "no");
 
-    printf("  %sd2\t\t", (_res.options & RES_DEBUG2) ? "" : "no");
-    printf("  %svc\t\t", (_res.options & RES_USEVC) ? "" : "no");
-    printf("  %signoretc\t", (_res.options & RES_IGNTC) ? "" : "no");
+    printf("  %sd2\t\t", (res.options & RES_DEBUG2) ? "" : "no");
+    printf("  %svc\t\t", (res.options & RES_USEVC) ? "" : "no");
+    printf("  %signoretc\t", (res.options & RES_IGNTC) ? "" : "no");
     printf("  port=%u\n", nsport);
 
     printf("  querytype=%s\t", p_type(queryType));
     printf("  class=%s\t", p_class(queryClass));
-    printf("  timeout=%d\t", _res.retrans);
-    printf("  retry=%d\n", _res.retry);
+    printf("  timeout=%d\t", res.retrans);
+    printf("  retry=%d\n", res.retry);
     printf("  root=%s\n", rootServerName);
-    printf("  domain=%s\n", _res.defdname);
+    printf("  domain=%s\n", res.defdname);
 
-    cp = _res.dnsrch;
+    cp = res.dnsrch;
     if (cp != NULL) {
 	printf("  srchlist=%s", *cp);
 	for (cp++; *cp; cp++) {
@@ -1071,7 +1161,7 @@ static void
 CvtAddrToPtr(name)
     char *name;
 {
-    char *p;
+    const char *p;
     int ip[4];
     struct in_addr addr;
 
