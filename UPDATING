@@ -9,6 +9,15 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20020409:
+	The default ephemeral port range has changed from [1024-5000] to
+	[49152-65535].  Although unlikely, this change may conflict with some
+	strict firewalls.  If this is the case, you may switch back to using
+	the [1024-5000] range by entering:
+
+	sysctl net.inet.ip.portrange.first=1024
+	sysctl net.inet.ip.portrange.last=5000
+
 20020404:
 	The sendmail startup code in /etc/rc has been changed to deal
 	with a non-set-user-ID sendmail binary.  Setting the rc.conf
