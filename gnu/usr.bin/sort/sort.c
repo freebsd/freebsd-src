@@ -427,7 +427,7 @@ tempname (void)
 
   node = (struct tempnode *) xmalloc (sizeof (struct tempnode));
   sprintf (name,
-	   "%s%ssortXXXXXXXXXX",
+	   "%s%ssortXXXXXX",
 	   temp_file_prefix,
 	   (len && temp_file_prefix[len - 1] != '/') ? "/" : "");
 
