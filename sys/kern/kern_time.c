@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.8 1995/05/30 08:05:47 rgrimes Exp $
+ * $Id: kern_time.c,v 1.9 1995/06/26 07:48:50 bde Exp $
  */
 
 #include <sys/param.h>
@@ -43,6 +43,8 @@
 #include <sys/vnode.h>
 
 #include <machine/cpu.h>
+
+struct timezone tz;
 
 /*
  * Time of day and interval timer support.
