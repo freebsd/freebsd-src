@@ -37,9 +37,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ddb.h"
-#include "opt_ddb_trace.h"
-#include "opt_ddb_unattended.h"
+#include "opt_kdb.h"
 #include "opt_hw_wdog.h"
 #include "opt_mac.h"
 #include "opt_panic.h"
@@ -52,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/eventhandler.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/mac.h>
@@ -70,9 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 
 #include <sys/signalvar.h>
-#ifdef DDB
-#include <ddb/ddb.h>
-#endif
 
 #ifndef PANIC_REBOOT_WAIT_TIME
 #define PANIC_REBOOT_WAIT_TIME 15 /* default to 15 seconds */
@@ -84,8 +80,8 @@ __FBSDID("$FreeBSD$");
  */
 #include <machine/stdarg.h>
 
-#ifdef DDB
-#ifdef DDB_UNATTENDED
+#ifdef KDB
+#ifdef KDB_UNATTENDED
 int debugger_on_panic = 0;
 #else
 int debugger_on_panic = 1;
@@ -93,14 +89,14 @@ int debugger_on_panic = 1;
 SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic, CTLFLAG_RW,
 	&debugger_on_panic, 0, "Run debugger on kernel panic");
 
-#ifdef DDB_TRACE
+#ifdef KDB_TRACE
 int trace_on_panic = 1;
 #else
 int trace_on_panic = 0;
 #endif
 SYSCTL_INT(_debug, OID_AUTO, trace_on_panic, CTLFLAG_RW,
 	&trace_on_panic, 0, "Print stack trace on kernel panic");
-#endif
+#endif /* KDB */
 
 int sync_on_panic = 1;
 SYSCTL_INT(_kern, OID_AUTO, sync_on_panic, CTLFLAG_RW,
@@ -127,7 +123,10 @@ const char *panicstr;
 
 int dumping;				/* system is dumping */
 static struct dumperinfo dumper;	/* our selected dumper */
-static struct pcb dumppcb;		/* "You Are Here" sign for dump-debuggers */
+
+/* Context information for dump-debuggers. */
+static struct pcb dumppcb;		/* Registers. */
+static lwpid_t dumptid;			/* Thread ID. */
 
 static void boot(int) __dead2;
 static void poweroff_wait(void *, int);
@@ -233,6 +232,7 @@ doadump(void)
 {
 
 	savectx(&dumppcb);
+	dumptid = curthread->td_tid;
 	dumping++;
 	dumpsys(&dumper);
 }
@@ -249,10 +249,8 @@ boot(int howto)
 	/* collect extra flags that shutdown_nice might have set */
 	howto |= shutdown_howto;
 
-#ifdef DDB
 	/* We are out of the debugger now. */
-	db_active = 0;
-#endif
+	kdb_active = 0;
 
 #ifdef SMP
 	if (smp_active)
@@ -457,22 +455,6 @@ shutdown_reset(void *junk, int howto)
 	/* NOTREACHED */ /* assuming reset worked */
 }
 
-/*
- * Print a backtrace if we can.
- */
-
-void
-backtrace(void)
-{
-
-#ifdef DDB
-	printf("Stack backtrace:\n");
-	db_print_backtrace();
-#else
-	printf("Sorry, need DDB option to print backtrace");
-#endif
-}
-
 #ifdef SMP
 static u_int panic_cpu = NOCPU;
 #endif
@@ -536,11 +518,11 @@ panic(const char *fmt, ...)
 #endif
 #endif
 
-#if defined(DDB)
+#ifdef KDB
 	if (newpanic && trace_on_panic)
-		backtrace();
+		kdb_backtrace();
 	if (debugger_on_panic)
-		Debugger ("panic");
+		kdb_enter("panic");
 #ifdef RESTARTABLE_PANICS
 	/* See if the user aborted the panic, in which case we continue. */
 	if (panicstr == NULL) {

@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -208,7 +209,7 @@ malloc(size, type, flags)
 		static	int curerr, once;
 		if (once == 0 && ppsratecheck(&lasterr, &curerr, 1)) {
 			printf("Bad malloc flags: %x\n", indx);
-			backtrace();
+			kdb_backtrace();
 			flags |= M_WAITOK;
 			once++;
 		}
@@ -216,7 +217,7 @@ malloc(size, type, flags)
 #endif
 #if 0
 	if (size == 0)
-		Debugger("zero size malloc");
+		kdb_enter("zero size malloc");
 #endif
 #ifdef MALLOC_MAKE_FAILURES
 	if ((flags & M_NOWAIT) && (malloc_failure_rate != 0)) {
