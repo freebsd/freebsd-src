@@ -41,7 +41,6 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1534,10 +1533,10 @@ nspintr(arg)
 	{
 		nsp_error(sc, "current status", isrc, ph, irqphs);
 		scsi_low_print(slp, NULL);
-#ifdef	DDB
+#ifdef	KDB
 		if (nsp_debug > 1)
 			SCSI_LOW_DEBUGGER("nsp");
-#endif	/* DDB */
+#endif	/* KDB */
 	}
 #endif	/* NSP_DEBUG */
 
