@@ -112,21 +112,17 @@ acpi_snc_attach(device_t dev)
 {
 	struct acpi_snc_softc *sc;
 	int i;
-	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
 
 	sc = device_get_softc(dev);
-	
 	acpi_GetInteger(acpi_get_handle(dev), ACPI_SNC_GET_PID, &sc->pid);
 	device_printf(dev, "PID %x\n", sc->pid);
-
-	for(i = 0 ; acpi_snc_oids[i].nodename != NULL; i++){
+	for (i = 0 ; acpi_snc_oids[i].nodename != NULL; i++){
 		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-				SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-				i, acpi_snc_oids[i].nodename , CTLTYPE_INT |
-				((acpi_snc_oids[i].setmethod)? CTLFLAG_RW: CTLFLAG_RD),
-				dev, i,
-				sysctl_acpi_snc_gen_handler, "I",
-				acpi_snc_oids[i].comment);
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		    i, acpi_snc_oids[i].nodename , CTLTYPE_INT |
+		    ((acpi_snc_oids[i].setmethod)? CTLFLAG_RW: CTLFLAG_RD),
+		    dev, i, sysctl_acpi_snc_gen_handler, "I",
+		    acpi_snc_oids[i].comment);
 	}
 	
 	return_VALUE(0);
