@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.431 1998/05/16 14:10:12 des Exp $
+#	$Id: LINT,v 1.432 1998/05/19 08:58:43 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -476,9 +476,11 @@ options		DEVFS			#devices filesystem
 #options		SLICE			#devfs based disk handling
 
 # Allow the FFS to use Softupdates technology.
-# To do this you need to fetch the two files
+# To do this you need to copy the two files
 # /sys/ufs/ffs/softdep.h and /sys/ufs/ffs/ffs_softdep.c
-# from freebsd.org and understand the licensing restrictions.
+# from /usr/src/contrib/sys/softupdates
+# and understand the licensing restrictions.
+# You should also check on the FreeBSD website for newer versions.
 #options		SOFTUPDATES
 # (we can't actually enable it because the files may not be present)
 
