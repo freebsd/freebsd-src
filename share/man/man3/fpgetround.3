@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)fpgetround.3	1.0 (Berkeley) 9/23/93
-.\"	$Id: fpgetround.3,v 1.3 1997/03/07 03:27:53 jmg Exp $
+.\"	$Id: fpgetround.3,v 1.4 1997/03/19 20:42:18 bde Exp $
 .\"
 .Dd August 23, 1993
 .Dt FPGETROUND 3
@@ -59,27 +59,27 @@
 .Fa 	FP_RZ,
 .Li		/* truncate */
 .br
-.Ft } fp_rnd;
+.Ft } fp_rnd_t;
 .Pp
-.Ft fp_rnd
+.Ft fp_rnd_t
 .Fn fpgetround void
-.Ft fp_rnd
-.Fn fpsetround "fp_rnd direction"
-.Fd #define fp_except int
+.Ft fp_rnd_t
+.Fn fpsetround "fp_rnd_t direction"
+.Fd #define fp_except_t int
 .Fd #define FP_X_INV	0x01		/* invalid */
 .Fd #define FP_X_OFL	0x08		/* overflow */
 .Fd #define FP_X_UFL	0x10		/* underflow */
 .Fd #define FP_X_DZ	0x04		/* divide-by-zero */
 .Fd #define FP_X_IMP	0x20		/* loss of precision */
 .Fd #define FP_X_DNML	0x02		/* denormal */
-.Ft fp_except
+.Ft fp_except_t
 .Fn fpgetmask void
-.Ft fp_except
-.Fn fpsetmask "fp_except mask"
-.Ft fp_except
+.Ft fp_except_t
+.Fn fpsetmask "fp_except_t mask"
+.Ft fp_except_t
 .Fn fpgetsticky void
-.Ft fp_except
-.Fn fpresetsticky "fp_except sticky"
+.Ft fp_except_t
+.Fn fpresetsticky "fp_except_t sticky"
 .Sh DESCRIPTION
 When a floating point exception is detected, the exception sticky flag is
 set and the exception mask is tested. If the mask is set, then a trap
