@@ -32,7 +32,7 @@
 .\"     From: @(#)whois.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 14, 2004
+.Dd December 11, 2004
 .Dt WHOIS 1
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Nd "Internet domain name and network number directory service"
 .Sh SYNOPSIS
 .Nm
-.Op Fl aAbdgiIlmQrR6
+.Op Fl aAbdgiIklmQrR6
 .Op Fl c Ar country-code | Fl h Ar host
 .Op Fl p Ar port
 .Ar name ...
@@ -157,6 +157,12 @@ Use the Internet Assigned Numbers Authority
 .Pq Tn IANA
 database.
 It contains network information for top-level domains.
+.It Fl k
+Use the National Internet Development Agency of Korea's
+.Pq Tn KRNIC
+database.
+It contains network numbers and domain contact information
+for Korea.
 .It Fl l
 Use the Latin American and Caribbean IP address Regional Registry
 .Pq Tn LACNIC
