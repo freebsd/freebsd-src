@@ -156,7 +156,6 @@ thr_create(struct thread *td, struct thr_create_args *uap)
 	PROC_LOCK(td->td_proc);
 	td0->td_sigmask = td->td_sigmask;
 	PROC_UNLOCK(td->td_proc);
-	bcopy(td->td_frame, td0->td_frame, sizeof(struct trapframe));
 	td0->td_ucred = crhold(td->td_ucred);
 
 	/* Initialize our kse structure. */
@@ -165,7 +164,7 @@ thr_create(struct thread *td, struct thr_create_args *uap)
 	    RANGEOF(struct kse, ke_startzero, ke_endzero));
 
 	/* Set up our machine context. */
-	cpu_set_upcall(td0, td->td_pcb);
+	cpu_set_upcall(td0, td);
 	error = set_mcontext(td0, &ctx.uc_mcontext);
 	if (error != 0) {
 		kse_free(ke0);
