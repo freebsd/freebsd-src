@@ -49,8 +49,8 @@ static d_ioctl_t null_ioctl;
 static d_read_t zero_read;
 
 #define CDEV_MAJOR	2
-#define NULL_MINOR	0
-#define ZERO_MINOR	1
+#define NULL_MINOR	2
+#define ZERO_MINOR	12
 
 static struct cdevsw null_cdevsw = {
 	.d_version =	D_VERSION,
@@ -140,3 +140,4 @@ null_modevent(module_t mod __unused, int type, void *data __unused)
 }
 
 DEV_MODULE(null, null_modevent, NULL);
+MODULE_VERSION(null, 1);
