@@ -150,6 +150,8 @@ FreeBSD 4.0  |      |  |  |  | NetBSD 1.4.2    |             |
  |      |             |      |    v        OpenBSD 3.0
  |   FreeBSD 4.5      |      |                 |
  |      |             |      |                 |
+ |   FreeBSD 4.6      |      |                 |
+ |      |             |      |                 |
  |      v             |      |                 |
  |                    |      |                 |
 FreeBSD 5.0-current   |   NetBSD -current  OpenBSD -current
@@ -351,6 +353,7 @@ FreeBSD 4.4  		2001-09-18 [FBD]
 Mac OS X 10.1		2001-09-xx [APL]
 OpenBSD 3.0		2001-12-01 [OBD]
 FreeBSD 4.5  		2002-01-29 [FBD]
+FreeBSD 4.6  		2002-06-xx [FBD]
 
 
 Bibliography
