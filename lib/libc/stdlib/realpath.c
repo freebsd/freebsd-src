@@ -1,9 +1,5 @@
 /*
- * Copyright (c) 1994
- *	The Regents of the University of California.  All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by
- * Jan-Simon Pendry.
+ * Copyright (c) 2003 Constantin S. Svintsoff <kostik@iclub.nsu.ru>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -13,18 +9,14 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * 3. The names of the authors may not be used to endorse or promote
+ *    products derived from this software without specific prior written
+ *    permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -45,8 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 
 #include <errno.h>
-#include <fcntl.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include "un-namespace.h"
@@ -59,108 +49,139 @@ __FBSDID("$FreeBSD$");
  * in which case the path which caused trouble is left in (resolved).
  */
 char *
-realpath(path, resolved)
-	const char *path;
-	char *resolved;
+realpath(const char *path, char resolved_path[MAXPATHLEN])
 {
-	struct stat sb;
-	int fd, n, rootd, serrno;
-	char *p, *q, wbuf[PATH_MAX];
-	int symlinks = 0;
+	unsigned num_symlinks = 0;
+	int saved_errno = errno;
 
-	/* Save the starting point. */
-	if ((fd = _open(".", O_RDONLY)) < 0) {
-		(void)strcpy(resolved, ".");
-		return (NULL);
+	char left[MAXPATHLEN];
+	size_t left_len, resolved_len;
+
+	if (path[0] == '/') {
+		resolved_path[0] = '/';
+		resolved_path[1] = '\0';
+		if (path[1] == '\0')
+			return resolved_path;
+		resolved_len = 1;
+		left_len = strlcpy(left, path + 1, MAXPATHLEN);
+	} else {
+		if (getcwd(resolved_path, MAXPATHLEN) == NULL) {
+			strlcpy(resolved_path, ".", MAXPATHLEN);
+			return NULL;
+		}
+		resolved_len = strlen(resolved_path);
+		left_len = strlcpy(left, path, MAXPATHLEN);
+	}
+	if (left_len >= MAXPATHLEN || resolved_len >= MAXPATHLEN) {
+		errno = ENAMETOOLONG;
+		return NULL;
 	}
 
-	/*
-	 * Find the dirname and basename from the path to be resolved.
-	 * Change directory to the dirname component.
-	 * lstat the basename part.
-	 *     if it is a symlink, read in the value and loop.
-	 *     if it is a directory, then change to that directory.
-	 * get the current directory name and append the basename.
-	 */
-	(void)strlcpy(resolved, path, PATH_MAX);
-loop:
-	q = strrchr(resolved, '/');
-	if (q != NULL) {
-		p = q + 1;
-		if (q == resolved)
-			q = "/";
-		else {
-			do {
-				--q;
-			} while (q > resolved && *q == '/');
-			q[1] = '\0';
-			q = resolved;
-		}
-		if (chdir(q) < 0)
-			goto err1;
-	} else
-		p = resolved;
+	while (left_len > 0) {
+		struct stat st;
+		char next_token[MAXPATHLEN];
+		char *p;
+		char *s = (p = strchr(left, '/')) ? p : left + left_len;
 
-	/* Deal with the last component. */
-	if (*p != '\0' && lstat(p, &sb) == 0) {
-		if (S_ISLNK(sb.st_mode)) {
-			if (++symlinks > MAXSYMLINKS) {
-				errno = ELOOP;
-				goto err1;
+		memmove(next_token, left, s - left);
+		left_len -= s - left;
+		if (p != NULL)
+			memmove(left, s + 1, left_len + 1);
+
+		next_token[s - left] = '\0';
+		if (resolved_path[resolved_len - 1] != '/') {
+			if (resolved_len + 1 >= MAXPATHLEN) {
+				errno = ENAMETOOLONG;
+				return NULL;
 			}
-			n = readlink(p, resolved, PATH_MAX - 1);
-			if (n < 0)
-				goto err1;
-			resolved[n] = '\0';
-			goto loop;
+
+			resolved_path[resolved_len++] = '/';
+			resolved_path[resolved_len] = '\0';
 		}
-		if (S_ISDIR(sb.st_mode)) {
-			if (chdir(p) < 0)
-				goto err1;
-			p = "";
+
+		if (next_token[0] == '\0')
+			continue;
+		else if (!strcmp(next_token, "."))
+			continue;
+		else if (!strcmp(next_token, "..")) {
+			if (resolved_len > 1) {
+				char *q;
+
+				/* trailing slash */
+				resolved_path[resolved_len - 1] = '\0';
+
+				q = strrchr(resolved_path, '/');
+				*q = '\0';
+				resolved_len = q - resolved_path;
+			}
+			continue;
 		}
-	}
 
-	/*
-	 * Save the last component name and get the full pathname of
-	 * the current directory.
-	 */
-	(void)strcpy(wbuf, p);
-	if (getcwd(resolved, PATH_MAX) == 0)
-		goto err1;
-
-	/*
-	 * Join the two strings together, ensuring that the right thing
-	 * happens if the last component is empty, or the dirname is root.
-	 */
-	if (resolved[0] == '/' && resolved[1] == '\0')
-		rootd = 1;
-	else
-		rootd = 0;
-
-	if (*wbuf) {
-		if (strlen(resolved) + strlen(wbuf) + rootd + 1 > PATH_MAX) {
+		/* filename */
+		resolved_len = strlcat(resolved_path, next_token, MAXPATHLEN);
+		if (resolved_len >= MAXPATHLEN) {
 			errno = ENAMETOOLONG;
-			goto err1;
+			return NULL;
 		}
-		if (rootd == 0)
-			(void)strcat(resolved, "/");
-		(void)strcat(resolved, wbuf);
+
+		if (lstat(resolved_path, &st) < 0) {
+			if (errno == ENOENT && p == NULL) {
+				errno = saved_errno;
+				return resolved_path;
+			}
+
+			return NULL;
+		}
+
+		if ((st.st_mode & S_IFLNK) == S_IFLNK) {
+			char symlink[MAXPATHLEN];
+			int slen;
+
+			if (num_symlinks++ > MAXSYMLINKS) {
+				errno = ELOOP;
+				return NULL;
+			}
+			slen = readlink(resolved_path, symlink, MAXPATHLEN);
+			if (slen < 0)
+				return NULL;
+			symlink[slen] = '\0';
+
+			if (symlink[0] == '/') {
+				/* absolute link */
+				resolved_path[1] = 0;
+				resolved_len = 1;
+			} else if (resolved_len > 1) {
+				char *q;
+
+				/* trailing slash */
+				resolved_path[resolved_len - 1] = '\0';
+
+				q = strrchr(resolved_path, '/');
+				*q = '\0';
+				resolved_len = q - resolved_path;
+			}
+
+			if (symlink[slen - 1] != '/' && p != NULL) {
+				if (slen >= MAXPATHLEN) {
+					errno = ENAMETOOLONG;
+					return NULL;
+				}
+
+				symlink[slen] = '/';
+				symlink[slen + 1] = 0;
+			}
+			if (p != NULL)
+				left_len = strlcat(symlink, left, MAXPATHLEN);
+			if (left_len > MAXPATHLEN) {
+				errno = ENAMETOOLONG;
+				return NULL;
+			}
+			left_len = strlcpy(left, symlink, MAXPATHLEN);
+		}
 	}
 
-	/* Go back to where we came from. */
-	if (fchdir(fd) < 0) {
-		serrno = errno;
-		goto err2;
-	}
+	if (resolved_len > 1 && resolved_path[resolved_len - 1] == '/')
+		resolved_path[resolved_len - 1] = '\0';
 
-	/* It's okay if the close fails, what's an fd more or less? */
-	(void)_close(fd);
-	return (resolved);
-
-err1:	serrno = errno;
-	(void)fchdir(fd);
-err2:	(void)_close(fd);
-	errno = serrno;
-	return (NULL);
+	return resolved_path;
 }
