@@ -452,7 +452,11 @@ found:
 			*vpp = vdp;
 			return (0);
 		}
+		if (flags & ISDOTDOT)
+			VOP_UNLOCK(vdp, 0, p);	/* race to get the inode */
 		error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp);
+		if (flags & ISDOTDOT)
+			vn_lock(vdp, LK_EXCLUSIVE | LK_RETRY, p);
 		if (error)
 			return (error);
 		/*
@@ -481,7 +485,7 @@ found:
 	 * regular file, or empty directory.
 	 */
 	if (nameiop == RENAME && wantparent && (flags & ISLASTCN)) {
-		if (error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc))
+		if ((error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc)) != 0)
 			return (error);
 		/*
 		 * Careful about locking second inode.
@@ -489,7 +493,11 @@ found:
 		 */
 		if (dp->i_number == dp->i_ino)
 			return (EISDIR);
+		if (flags & ISDOTDOT)
+			VOP_UNLOCK(vdp, 0, p);	/* race to get the inode */
 		error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp);
+		if (flags & ISDOTDOT)
+			vn_lock(vdp, LK_EXCLUSIVE | LK_RETRY, p);
 		if (error)
 			return (error);
 		*vpp = tdp;
