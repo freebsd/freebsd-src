@@ -37,7 +37,7 @@
  *
  *	@(#)nfs_subr.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: nfs_subr.c,v 1.1.1.1 1994/05/26 05:22:00 rgrimes Exp $
+ * $Id: nfs_subr.c,v 1.2 1995/05/30 03:45:54 rgrimes Exp $
  *
  */
 
@@ -143,6 +143,16 @@ getattr_retry:
 		mp->am_stats.s_getattr++;
 		return attrp;
 	}
+#if defined(HAVE_SYMLINK_CACHE) && !defined(NFSMNT_SYMTTL)
+	/*
+	 * This code is needed to defeat Solaris 2.4's symlink values
+	 * cache.  It is not needed if the O/S has an nfs flag to
+	 * turn off the symlink-cache at mount time (such as Irix
+	 * 5.2 and 5.3).	-Erez.
+	 */
+	if (++res.attrstat_u.attributes.mtime.useconds == 0)
+	    ++res.attrstat_u.attributes.mtime.seconds;
+#endif /* HAVE_SYMLINK_CACHE && !NFSMNT_SYMTTL */
 
 	return &res;
 }
