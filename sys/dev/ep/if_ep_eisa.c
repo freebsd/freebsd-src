@@ -18,26 +18,25 @@
  *    Justin T. Gibbs.
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
-
 #include <sys/module.h>
 #include <sys/bus.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/rman.h> 
+#include <sys/rman.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
-#include <net/if_media.h> 
-
+#include <net/if_media.h>
 
 #include <dev/eisa/eisaconf.h>
 
@@ -72,32 +71,25 @@
 
 static const char *ep_match(eisa_id_t type);
 
-static const char*
+static const char *
 ep_match(eisa_id_t type)
 {
-	switch(type) {
-		case EISA_DEVICE_ID_3COM_3C509_TP:
-			return "3Com 3C509-TP Network Adapter";
-			break;
-		case EISA_DEVICE_ID_3COM_3C509_BNC:
-			return "3Com 3C509-BNC Network Adapter";
-			break;
-		case EISA_DEVICE_ID_3COM_3C579_TP:
-			return "3Com 3C579-TP EISA Network Adapter";
-			break;
-		case EISA_DEVICE_ID_3COM_3C579_BNC:
-			return "3Com 3C579-BNC EISA Network Adapter";
-			break;
-		case EISA_DEVICE_ID_3COM_3C509_COMBO:
-			return "3Com 3C509-Combo Network Adapter";
-			break;
-		case EISA_DEVICE_ID_3COM_3C509_TPO:
-			return "3Com 3C509-TPO Network Adapter";
-			break;
-		default:
-			break;
+	switch (type) {
+	case EISA_DEVICE_ID_3COM_3C509_TP:
+		return ("3Com 3C509-TP Network Adapter");
+	case EISA_DEVICE_ID_3COM_3C509_BNC:
+		return ("3Com 3C509-BNC Network Adapter");
+	case EISA_DEVICE_ID_3COM_3C579_TP:
+		return ("3Com 3C579-TP EISA Network Adapter");
+	case EISA_DEVICE_ID_3COM_3C579_BNC:
+		return ("3Com 3C579-BNC EISA Network Adapter");
+	case EISA_DEVICE_ID_3COM_3C509_COMBO:
+		return ("3Com 3C509-Combo Network Adapter");
+	case EISA_DEVICE_ID_3COM_3C509_TPO:
+		return ("3Com 3C509-TPO Network Adapter");
+	default:
+		return (NULL);
 	}
-	return (NULL);
 }
 
 static int
@@ -120,7 +112,7 @@ ep_eisa_probe(device_t dev)
 
 	/* We must be in EISA configuration mode */
 	if ((inw(iobase + EP_W0_ADDRESS_CFG) & 0x1f) != 0x1f)
-	    return ENXIO;
+		return ENXIO;
 
 	eisa_add_iospace(dev, iobase, EP_EISA_IOSIZE, RESVADDR_NONE);
 	eisa_add_iospace(dev, port, EP_IOSIZE, RESVADDR_NONE);
@@ -129,66 +121,66 @@ ep_eisa_probe(device_t dev)
 	/* Determine our IRQ */
 	switch (conf & IRQ_CHANNEL) {
 	case INT_3:
-	    irq = 3;
-	    break;
+		irq = 3;
+		break;
 	case INT_5:
-	    irq = 5;
-	    break;
+		irq = 5;
+		break;
 	case INT_7:
-	    irq = 7;
-	    break;
+		irq = 7;
+		break;
 	case INT_9:
-	    irq = 9;
-	    break;
+		irq = 9;
+		break;
 	case INT_10:
-	    irq = 10;
-	    break;
+		irq = 10;
+		break;
 	case INT_11:
-	    irq = 11;
-	    break;
+		irq = 11;
+		break;
 	case INT_12:
-	    irq = 12;
-	    break;
+		irq = 12;
+		break;
 	case INT_15:
-	    irq = 15;
-	    break;
+		irq = 15;
+		break;
 	default:
-				/* Disabled */
-	    printf("ep: 3COM Network Adapter at "
-		   "slot %d has its IRQ disabled. "
-		   "Probe failed.\n", 
-		   eisa_get_slot(dev));
-	    return ENXIO;
+		/* Disabled */
+		printf("ep: 3COM Network Adapter at "
+		    "slot %d has its IRQ disabled. "
+		    "Probe failed.\n",
+		    eisa_get_slot(dev));
+		return (ENXIO);
 	}
 
-	switch(eisa_get_id(dev)) {
-		case EISA_DEVICE_ID_3COM_3C579_BNC:
-		case EISA_DEVICE_ID_3COM_3C579_TP:
-			int_trig = EISA_TRIGGER_LEVEL;
-			break;
-		default:
-			int_trig = EISA_TRIGGER_EDGE;
-			break;
+	switch (eisa_get_id(dev)) {
+	case EISA_DEVICE_ID_3COM_3C579_BNC:
+	case EISA_DEVICE_ID_3COM_3C579_TP:
+		int_trig = EISA_TRIGGER_LEVEL;
+		break;
+	default:
+		int_trig = EISA_TRIGGER_EDGE;
+		break;
 	}
-			
+
 	eisa_add_intr(dev, irq, int_trig);
 
-	return 0;
+	return (0);
 }
 
 static int
 ep_eisa_attach(device_t dev)
 {
-	struct ep_softc *	sc = device_get_softc(dev);
-	struct resource *	eisa_io = NULL;
-	u_int32_t		eisa_iobase;
-	int			irq;
-	int			error = 0;
-	int			rid;
+	struct ep_softc *sc = device_get_softc(dev);
+	struct resource *eisa_io = NULL;
+	u_int32_t eisa_iobase;
+	int irq;
+	int error = 0;
+	int rid;
 
 	rid = 1;
 	eisa_io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				     0, ~0, 1, RF_ACTIVE);
+	    0, ~0, 1, RF_ACTIVE);
 	if (!eisa_io) {
 		device_printf(dev, "No I/O space?!\n");
 		error = ENXIO;
@@ -198,7 +190,7 @@ ep_eisa_attach(device_t dev)
 
 	/* Reset and Enable the card */
 	outb(eisa_iobase + EP_W0_CONFIG_CTRL, W0_P4_CMD_RESET_ADAPTER);
-	DELAY(1000); /* we must wait at least 1 ms */
+	DELAY(1000);		/* we must wait at least 1 ms */
 	outb(eisa_iobase + EP_W0_CONFIG_CTRL, W0_P4_CMD_ENABLE_ADAPTER);
 	/* Now the registers are availible through the lower ioport */
 
@@ -206,14 +198,11 @@ ep_eisa_attach(device_t dev)
 		device_printf(dev, "ep_alloc() failed! (%d)\n", error);
 		goto bad;
 	}
-
-	switch(eisa_get_id(dev)) {
-		case EISA_DEVICE_ID_3COM_3C579_BNC:
-		case EISA_DEVICE_ID_3COM_3C579_TP:
-			sc->stat = F_ACCESS_32_BITS;
-			break;
-		default:
-			break;
+	switch (eisa_get_id(dev)) {
+	case EISA_DEVICE_ID_3COM_3C579_BNC:
+	case EISA_DEVICE_ID_3COM_3C579_TP:
+		sc->stat = F_ACCESS_32_BITS;
+		break;
 	}
 
 	ep_get_media(sc);
@@ -229,16 +218,14 @@ ep_eisa_attach(device_t dev)
 		device_printf(dev, "ep_attach() failed! (%d)\n", error);
 		goto bad;
 	}
-
 	if ((error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET, ep_intr,
-				   sc, &sc->ep_intrhand))) {
+		    sc, &sc->ep_intrhand))) {
 		device_printf(dev, "bus_setup_intr() failed! (%d)\n", error);
 		goto bad;
 	}
-
 	return (0);
 
- bad:
+bad:
 	if (eisa_io)
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, eisa_io);
 
@@ -248,11 +235,11 @@ ep_eisa_attach(device_t dev)
 
 static device_method_t ep_eisa_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		ep_eisa_probe),
-	DEVMETHOD(device_attach,	ep_eisa_attach),
-	DEVMETHOD(device_detach,	ep_detach),
+	DEVMETHOD(device_probe, ep_eisa_probe),
+	DEVMETHOD(device_attach, ep_eisa_attach),
+	DEVMETHOD(device_detach, ep_detach),
 
-	{ 0, 0 }
+	{0, 0}
 };
 
 static driver_t ep_eisa_driver = {

@@ -26,8 +26,6 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *	if_ep.c,v 1.19 1995/01/24 20:53:45 davidg Exp
  */
 
 /*
@@ -38,8 +36,6 @@
  */
 
 /*
- * $FreeBSD$
- *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
  *  logic changed to use value from EEPROM. Autoconfiguration
@@ -61,24 +57,25 @@
  *                             <mdodd@FreeBSD.org>
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
-
 #include <sys/bus.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/rman.h> 
+#include <sys/rman.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
-#include <net/if_media.h> 
+#include <net/if_media.h>
 #include <net/ethernet.h>
 #include <net/bpf.h>
-
 
 #include <dev/ep/if_epreg.h>
 #include <dev/ep/if_epvar.h>
@@ -86,46 +83,41 @@
 /* Exported variables */
 devclass_t ep_devclass;
 
-#if 0
-static char *	ep_conn_type[] = {"UTP", "AUI", "???", "BNC"};
-static int	if_media2ep_media[] = { 0, 0, 0, UTP, BNC, AUI };
-#endif
-
-static int	ep_media2if_media[] =
-	{ IFM_10_T, IFM_10_5, IFM_NONE, IFM_10_2, IFM_NONE };
+static int ep_media2if_media[] =
+{IFM_10_T, IFM_10_5, IFM_NONE, IFM_10_2, IFM_NONE};
 
 /* if functions */
-static void	ep_if_init	(void *);
-static int	ep_if_ioctl	(struct ifnet *, u_long, caddr_t);
-static void	ep_if_start	(struct ifnet *);
-static void	ep_if_watchdog	(struct ifnet *);
+static void ep_if_init(void *);
+static int ep_if_ioctl(struct ifnet *, u_long, caddr_t);
+static void ep_if_start(struct ifnet *);
+static void ep_if_watchdog(struct ifnet *);
 
 /* if_media functions */
-static int	ep_ifmedia_upd	(struct ifnet *);
-static void	ep_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
+static int ep_ifmedia_upd(struct ifnet *);
+static void ep_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
-static void	epstop		(struct ep_softc *);
-static void	epread		(struct ep_softc *);
-static int	eeprom_rdy	(struct ep_softc *);
+static void epstop(struct ep_softc *);
+static void epread(struct ep_softc *);
+static int eeprom_rdy(struct ep_softc *);
 
 #define EP_FTST(sc, f)	(sc->stat &   (f))
 #define EP_FSET(sc, f)	(sc->stat |=  (f))
 #define EP_FRST(sc, f)	(sc->stat &= ~(f))
 
 static int
-eeprom_rdy(sc)
-    struct ep_softc *sc;
+eeprom_rdy(struct ep_softc *sc)
 {
-    int i;
+	int i;
 
-    for (i = 0; is_eeprom_busy(BASE) && i < MAX_EEPROMBUSY; i++) {
-	DELAY(100);
-    }
-    if (i >= MAX_EEPROMBUSY) {
-	printf("ep%d: eeprom failed to come ready.\n", sc->unit);
-	return (ENXIO);
-    }
-    return (0);
+	for (i = 0; is_eeprom_busy(BASE) && i < MAX_EEPROMBUSY; i++)
+		DELAY(100);
+
+	if (i >= MAX_EEPROMBUSY) {
+		printf("ep%d: eeprom failed to come ready.\n", sc->unit);
+		return (ENXIO);
+	}
+
+	return (0);
 }
 
 /*
@@ -133,42 +125,40 @@ eeprom_rdy(sc)
  * before
  */
 int
-get_e(sc, offset, result)
-	struct ep_softc *sc;
-	u_int16_t offset;
-	u_int16_t *result;
+get_e(struct ep_softc *sc, u_int16_t offset, u_int16_t *result)
 {
 
 	if (eeprom_rdy(sc))
 		return (ENXIO);
+
 	outw(BASE + EP_W0_EEPROM_COMMAND,
-	     (EEPROM_CMD_RD << sc->epb.cmd_off) | offset);
+	    (EEPROM_CMD_RD << sc->epb.cmd_off) | offset);
+
 	if (eeprom_rdy(sc))
 		return (ENXIO);
+
 	(*result) = inw(BASE + EP_W0_EEPROM_DATA);
 
 	return (0);
 }
 
 int
-ep_get_macaddr(sc, addr)
-	struct ep_softc	*	sc;
-	u_char *		addr;
+ep_get_macaddr(struct ep_softc *sc, u_char *addr)
 {
-	int			i;
-	u_int16_t		result;
-	int			error;
-	u_int16_t * 		macaddr;
+	int i;
+	u_int16_t result;
+	int error;
+	u_int16_t *macaddr;
 
-	macaddr = (u_int16_t *)addr;
+	macaddr = (u_int16_t *) addr;
 
 	GO_WINDOW(0);
-        for(i = EEPROM_NODE_ADDR_0; i <= EEPROM_NODE_ADDR_2; i++) {
+	for (i = EEPROM_NODE_ADDR_0; i <= EEPROM_NODE_ADDR_2; i++) {
 		error = get_e(sc, i, &result);
 		if (error)
 			return (error);
 		macaddr[i] = htons(result);
-        }
+	}
 
 	return (0);
 }
@@ -176,42 +166,40 @@ ep_get_macaddr(sc, addr)
 int
 ep_alloc(device_t dev)
 {
-	struct ep_softc	*	sc = device_get_softc(dev);
-	int			rid;
-	int			error = 0;
-	u_int16_t		result;
+	struct ep_softc *sc = device_get_softc(dev);
+	int rid;
+	int error = 0;
+	u_int16_t result;
 
-        rid = 0;
-        sc->iobase = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-                                        0, ~0, 1, RF_ACTIVE);
-        if (!sc->iobase) {
-                device_printf(dev, "No I/O space?!\n");
+	rid = 0;
+	sc->iobase = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+	    0, ~0, 1, RF_ACTIVE);
+	if (!sc->iobase) {
+		device_printf(dev, "No I/O space?!\n");
 		error = ENXIO;
-                goto bad;
-        }
-
-        rid = 0;
-        sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-                                     0, ~0, 1, RF_ACTIVE);
-        if (!sc->irq) {
-                device_printf(dev, "No irq?!\n");
+		goto bad;
+	}
+	rid = 0;
+	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+	    0, ~0, 1, RF_ACTIVE);
+	if (!sc->irq) {
+		device_printf(dev, "No irq?!\n");
 		error = ENXIO;
-                goto bad;
-        }
+		goto bad;
+	}
+	sc->dev = dev;
+	sc->unit = device_get_unit(dev);
+	sc->stat = 0;		/* 16 bit access */
 
-        sc->dev = dev;
-        sc->unit = device_get_unit(dev);
-        sc->stat = 0;   /* 16 bit access */
+	sc->ep_io_addr = rman_get_start(sc->iobase);
 
-        sc->ep_io_addr = rman_get_start(sc->iobase);
-
-        sc->ep_btag = rman_get_bustag(sc->iobase);
-        sc->ep_bhandle = rman_get_bushandle(sc->iobase);
+	sc->ep_btag = rman_get_bustag(sc->iobase);
+	sc->ep_bhandle = rman_get_bushandle(sc->iobase);
 
 	sc->ep_connectors = 0;
 	sc->ep_connector = 0;
 
-        GO_WINDOW(0);
+	GO_WINDOW(0);
 	sc->epb.cmd_off = 0;
 
 	error = get_e(sc, EEPROM_PROD_ID, &result);
@@ -229,24 +217,22 @@ bad:
 }
 
 void
-ep_get_media(sc)
-	struct ep_softc	*	sc;
+ep_get_media(struct ep_softc *sc)
 {
-	u_int16_t		config;
-	
-        GO_WINDOW(0);
-        config = inw(BASE + EP_W0_CONFIG_CTRL);
-        if (config & IS_AUI)
-                sc->ep_connectors |= AUI;
-        if (config & IS_BNC)
-                sc->ep_connectors |= BNC;
-        if (config & IS_UTP)
-                sc->ep_connectors |= UTP;
+	u_int16_t config;
 
-        if (!(sc->ep_connectors & 7)) {
+	GO_WINDOW(0);
+	config = inw(BASE + EP_W0_CONFIG_CTRL);
+	if (config & IS_AUI)
+		sc->ep_connectors |= AUI;
+	if (config & IS_BNC)
+		sc->ep_connectors |= BNC;
+	if (config & IS_UTP)
+		sc->ep_connectors |= UTP;
+
+	if (!(sc->ep_connectors & 7))
 		if (bootverbose)
-                	device_printf(sc->dev, "no connectors!\n");
-        }
+			device_printf(sc->dev, "no connectors!\n");
 
 	/*
 	 * This works for most of the cards so we'll do it here.
@@ -254,14 +240,12 @@ ep_get_media(sc)
 	 * this later on.
 	 */
 	sc->ep_connector = inw(BASE + EP_W0_ADDRESS_CFG) >> ACF_CONNECTOR_BITS;
-
-	return;
 }
 
 void
 ep_free(device_t dev)
 {
-	struct ep_softc	*	sc = device_get_softc(dev);
+	struct ep_softc *sc = device_get_softc(dev);
 
 	if (sc->ep_intrhand)
 		bus_teardown_intr(dev, sc->irq, sc->ep_intrhand);
@@ -269,20 +253,17 @@ ep_free(device_t dev)
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->iobase);
 	if (sc->irq)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
-
-	return;
 }
-	
+
 int
-ep_attach(sc)
-	struct ep_softc *	sc;
+ep_attach(struct ep_softc *sc)
 {
-	struct ifnet *		ifp = NULL;
-	struct ifmedia *	ifm = NULL;
-	u_short *		p;
-	int			i;
-	int			attached;
-	int			error;
+	struct ifnet *ifp = NULL;
+	struct ifmedia *ifm = NULL;
+	u_short *p;
+	int i;
+	int attached;
+	int error;
 
 	sc->gone = 0;
 
@@ -291,19 +272,17 @@ ep_attach(sc)
 		device_printf(sc->dev, "Unable to retrieve Ethernet address!\n");
 		return (ENXIO);
 	}
-
 	/*
 	 * Setup the station address
 	 */
 	p = (u_short *)&sc->arpcom.ac_enaddr;
 	GO_WINDOW(2);
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < 3; i++)
 		outw(BASE + EP_W2_ADDR_0 + (i * 2), ntohs(p[i]));
-	}
 
 	device_printf(sc->dev, "Ethernet address %6D\n",
-			sc->arpcom.ac_enaddr, ":");
-  
+	    sc->arpcom.ac_enaddr, ":");
+
 	ifp = &sc->arpcom.ac_if;
 	attached = (ifp->if_softc != 0);
 
@@ -323,34 +302,33 @@ ep_attach(sc)
 		ifmedia_init(&sc->ifmedia, 0, ep_ifmedia_upd, ep_ifmedia_sts);
 
 		if (sc->ep_connectors & AUI)
-			ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_5, 0, NULL);
+			ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_10_5, 0, NULL);
 		if (sc->ep_connectors & UTP)
-			ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T, 0, NULL);
+			ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_10_T, 0, NULL);
 		if (sc->ep_connectors & BNC)
-			ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_2, 0, NULL);
+			ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_10_2, 0, NULL);
 		if (!sc->ep_connectors)
-			ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_NONE, 0, NULL);
-	
-		ifmedia_set(&sc->ifmedia, IFM_ETHER|ep_media2if_media[sc->ep_connector]);
-	
+			ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_NONE, 0, NULL);
+
+		ifmedia_set(&sc->ifmedia, IFM_ETHER | ep_media2if_media[sc->ep_connector]);
+
 		ifm = &sc->ifmedia;
 		ifm->ifm_media = ifm->ifm_cur->ifm_media;
 		ep_ifmedia_upd(ifp);
 	}
-
 	if (!attached)
 		ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 
 #ifdef EP_LOCAL_STATS
 	sc->rx_no_first = sc->rx_no_mbuf = sc->rx_bpf_disc =
-		sc->rx_overrunf = sc->rx_overrunl = sc->tx_underrun = 0;
+	    sc->rx_overrunf = sc->rx_overrunl = sc->tx_underrun = 0;
 #endif
 	EP_FSET(sc, F_RX_FIRST);
 	sc->top = sc->mcur = 0;
 
 	epstop(sc);
 
-	return 0;
+	return (0);
 }
 
 int
@@ -366,7 +344,6 @@ ep_detach(device_t dev)
 		device_printf(dev, "already unloaded\n");
 		return (0);
 	}
-
 	epstop(sc);
 
 	ifp->if_flags &= ~IFF_RUNNING;
@@ -383,458 +360,449 @@ ep_detach(device_t dev)
  * interrupts. ?!
  */
 static void
-ep_if_init(xsc)
-    void *xsc;
+ep_if_init(void *xsc)
 {
-    struct ep_softc *sc = xsc;
-    register struct ifnet *ifp = &sc->arpcom.ac_if;
-    int s, i;
+	struct ep_softc *sc = xsc;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
+	int s, i;
 
-    if (sc->gone)
-	return;
+	if (sc->gone)
+		return;
 
-	/*
-    if (ifp->if_addrlist == (struct ifaddr *) 0)
-	return;
-	*/
+	s = splimp();
+	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
 
-    s = splimp();
-    while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	GO_WINDOW(0);
+	outw(BASE + EP_COMMAND, STOP_TRANSCEIVER);
+	GO_WINDOW(4);
+	outw(BASE + EP_W4_MEDIA_TYPE, DISABLE_UTP);
+	GO_WINDOW(0);
 
-    GO_WINDOW(0);
-    outw(BASE + EP_COMMAND, STOP_TRANSCEIVER);
-    GO_WINDOW(4);
-    outw(BASE + EP_W4_MEDIA_TYPE, DISABLE_UTP);
-    GO_WINDOW(0);
+	/* Disable the card */
+	outw(BASE + EP_W0_CONFIG_CTRL, 0);
 
-    /* Disable the card */
-    outw(BASE + EP_W0_CONFIG_CTRL, 0);
+	/* Enable the card */
+	outw(BASE + EP_W0_CONFIG_CTRL, ENABLE_DRQ_IRQ);
 
-    /* Enable the card */
-    outw(BASE + EP_W0_CONFIG_CTRL, ENABLE_DRQ_IRQ);
+	GO_WINDOW(2);
 
-    GO_WINDOW(2);
+	/* Reload the ether_addr. */
+	for (i = 0; i < 6; i++)
+		outb(BASE + EP_W2_ADDR_0 + i, sc->arpcom.ac_enaddr[i]);
 
-    /* Reload the ether_addr. */
-    for (i = 0; i < 6; i++)
-	outb(BASE + EP_W2_ADDR_0 + i, sc->arpcom.ac_enaddr[i]);
+	outw(BASE + EP_COMMAND, RX_RESET);
+	outw(BASE + EP_COMMAND, TX_RESET);
+	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
 
-    outw(BASE + EP_COMMAND, RX_RESET);
-    outw(BASE + EP_COMMAND, TX_RESET);
-    while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	/* Window 1 is operating window */
+	GO_WINDOW(1);
+	for (i = 0; i < 31; i++)
+		inb(BASE + EP_W1_TX_STATUS);
 
-    /* Window 1 is operating window */
-    GO_WINDOW(1);
-    for (i = 0; i < 31; i++)
-	inb(BASE + EP_W1_TX_STATUS);
+	/* get rid of stray intr's */
+	outw(BASE + EP_COMMAND, ACK_INTR | 0xff);
 
-    /* get rid of stray intr's */
-    outw(BASE + EP_COMMAND, ACK_INTR | 0xff);
+	outw(BASE + EP_COMMAND, SET_RD_0_MASK | S_5_INTS);
 
-    outw(BASE + EP_COMMAND, SET_RD_0_MASK | S_5_INTS);
+	outw(BASE + EP_COMMAND, SET_INTR_MASK | S_5_INTS);
 
-    outw(BASE + EP_COMMAND, SET_INTR_MASK | S_5_INTS);
+	if (ifp->if_flags & IFF_PROMISC)
+		outw(BASE + EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
+		    FIL_GROUP | FIL_BRDCST | FIL_ALL);
+	else
+		outw(BASE + EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
+		    FIL_GROUP | FIL_BRDCST);
 
-    if (ifp->if_flags & IFF_PROMISC)
-	outw(BASE + EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
-	 FIL_GROUP | FIL_BRDCST | FIL_ALL);
-    else
-	outw(BASE + EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
-	 FIL_GROUP | FIL_BRDCST);
+	if (!sc->epb.mii_trans)
+		ep_ifmedia_upd(ifp);
 
-    if (!sc->epb.mii_trans) {
-	ep_ifmedia_upd(ifp);
-    }
+	outw(BASE + EP_COMMAND, RX_ENABLE);
+	outw(BASE + EP_COMMAND, TX_ENABLE);
 
-    outw(BASE + EP_COMMAND, RX_ENABLE);
-    outw(BASE + EP_COMMAND, TX_ENABLE);
-
-    ifp->if_flags |= IFF_RUNNING;
-    ifp->if_flags &= ~IFF_OACTIVE;	/* just in case */
+	ifp->if_flags |= IFF_RUNNING;
+	ifp->if_flags &= ~IFF_OACTIVE;	/* just in case */
 
 #ifdef EP_LOCAL_STATS
-    sc->rx_no_first = sc->rx_no_mbuf =
-	sc->rx_overrunf = sc->rx_overrunl = sc->tx_underrun = 0;
+	sc->rx_no_first = sc->rx_no_mbuf =
+	    sc->rx_overrunf = sc->rx_overrunl = sc->tx_underrun = 0;
 #endif
-    EP_FSET(sc, F_RX_FIRST);
-    if (sc->top) {
-	m_freem(sc->top);
-	sc->top = sc->mcur = 0;
-    }
-    outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
-    outw(BASE + EP_COMMAND, SET_TX_START_THRESH | 16);
+	EP_FSET(sc, F_RX_FIRST);
+	if (sc->top) {
+		m_freem(sc->top);
+		sc->top = sc->mcur = 0;
+	}
+	outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
+	outw(BASE + EP_COMMAND, SET_TX_START_THRESH | 16);
 
-    /*
-     * Store up a bunch of mbuf's for use later. (MAX_MBS). First we free up
-     * any that we had in case we're being called from intr or somewhere
-     * else.
-     */
+	/*
+         * Store up a bunch of mbuf's for use later. (MAX_MBS). First we free up
+         * any that we had in case we're being called from intr or somewhere
+         * else.
+         */
 
-    GO_WINDOW(1);
-    ep_if_start(ifp);
+	GO_WINDOW(1);
+	ep_if_start(ifp);
 
-    splx(s);
+	splx(s);
 }
 
 static void
-ep_if_start(ifp)
-    struct ifnet *ifp;
+ep_if_start(struct ifnet *ifp)
 {
-    struct ep_softc *sc;
-    u_int len;
-    struct mbuf *m, *m0;
-    int s, pad;
+	struct ep_softc *sc;
+	u_int len;
+	struct mbuf *m, *m0;
+	int s, pad;
 
-    sc = ifp->if_softc;
-    if (sc->gone)
-	return;
+	sc = ifp->if_softc;
+	if (sc->gone)
+		return;
 
-    while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
-    if (ifp->if_flags & IFF_OACTIVE)
-	return;
+	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	if (ifp->if_flags & IFF_OACTIVE)
+		return;
 
 startagain:
-    /* Sneak a peek at the next packet */
-    IF_DEQUEUE(&ifp->if_snd, m0);
-    if (m0 == NULL)
-	return;
-    for (len = 0, m = m0; m != NULL; m = m->m_next)
-	len += m->m_len;
+	/* Sneak a peek at the next packet */
+	IF_DEQUEUE(&ifp->if_snd, m0);
+	if (m0 == NULL)
+		return;
+	for (len = 0, m = m0; m != NULL; m = m->m_next)
+		len += m->m_len;
 
-    pad = (4 - len) & 3;
+	pad = (4 - len) & 3;
 
-    /*
-     * The 3c509 automatically pads short packets to minimum ethernet length,
-     * but we drop packets that are too large. Perhaps we should truncate
-     * them instead?
-     */
-    if (len + pad > ETHER_MAX_LEN) {
-	/* packet is obviously too large: toss it */
-	ifp->if_oerrors++;
-	m_freem(m0);
-	goto readcheck;
-    }
-    if (inw(BASE + EP_W1_FREE_TX) < len + pad + 4) {
-	/* no room in FIFO */
-	outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | (len + pad + 4));
-	/* make sure */
-	if (inw(BASE + EP_W1_FREE_TX) < len + pad + 4) {
-	    ifp->if_flags |= IFF_OACTIVE;
-	    IF_PREPEND(&ifp->if_snd, m0);
-	    return;
-	}
-    } else {
-	outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | EP_THRESH_DISABLE);
-    }
-
-    s = splhigh();
-
-    outw(BASE + EP_W1_TX_PIO_WR_1, len); 
-    outw(BASE + EP_W1_TX_PIO_WR_1, 0x0);	/* Second dword meaningless */
-
-    if (EP_FTST(sc, F_ACCESS_32_BITS)) {
-        for (m = m0; m != NULL; m = m->m_next) {
-	    if (m->m_len > 3)
-	    	outsl(BASE + EP_W1_TX_PIO_WR_1,
-			mtod(m, caddr_t), m->m_len / 4);
-	    if (m->m_len & 3)
-		outsb(BASE + EP_W1_TX_PIO_WR_1,
-			mtod(m, caddr_t) + (m->m_len & (~3)), m->m_len & 3);
-	}
-    } else {
-        for (m = m0; m != NULL; m = m->m_next) {
-	    if (m->m_len > 1)
-	    	outsw(BASE + EP_W1_TX_PIO_WR_1,
-			mtod(m, caddr_t), m->m_len / 2);
-	    if (m->m_len & 1)
-		outb(BASE + EP_W1_TX_PIO_WR_1,
-			*(mtod(m, caddr_t) + m->m_len - 1));
-	}
-    }
-
-    while (pad--)
-	outb(BASE + EP_W1_TX_PIO_WR_1, 0);	/* Padding */
-
-    splx(s);
-
-    BPF_MTAP(ifp, m0);
-
-    ifp->if_timer = 2;
-    ifp->if_opackets++;
-    m_freem(m0);
-
-    /*
-     * Is another packet coming in? We don't want to overflow the tiny RX
-     * fifo.
-     */
-readcheck:
-    if (inw(BASE + EP_W1_RX_STATUS) & RX_BYTES_MASK) {
 	/*
-	 * we check if we have packets left, in that case we prepare to come
-	 * back later
-	 */
-	if (ifp->if_snd.ifq_head)
-	    outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | 8);
-	return;
-    }
-    goto startagain;
+         * The 3c509 automatically pads short packets to minimum ethernet length,
+         * but we drop packets that are too large. Perhaps we should truncate
+         * them instead?
+         */
+	if (len + pad > ETHER_MAX_LEN) {
+		/* packet is obviously too large: toss it */
+		ifp->if_oerrors++;
+		m_freem(m0);
+		goto readcheck;
+	}
+	if (inw(BASE + EP_W1_FREE_TX) < len + pad + 4) {
+		/* no room in FIFO */
+		outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | (len + pad + 4));
+		/* make sure */
+		if (inw(BASE + EP_W1_FREE_TX) < len + pad + 4) {
+			ifp->if_flags |= IFF_OACTIVE;
+			IF_PREPEND(&ifp->if_snd, m0);
+			return;
+		}
+	} else
+		outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | EP_THRESH_DISABLE);
+
+	s = splhigh();
+
+	outw(BASE + EP_W1_TX_PIO_WR_1, len);
+	outw(BASE + EP_W1_TX_PIO_WR_1, 0x0);	/* Second dword meaningless */
+
+	if (EP_FTST(sc, F_ACCESS_32_BITS)) {
+		for (m = m0; m != NULL; m = m->m_next) {
+			if (m->m_len > 3)
+				outsl(BASE + EP_W1_TX_PIO_WR_1,
+				    mtod(m, caddr_t), m->m_len / 4);
+			if (m->m_len & 3)
+				outsb(BASE + EP_W1_TX_PIO_WR_1,
+				    mtod(m, caddr_t)+(m->m_len & (~3)), m->m_len & 3);
+		}
+	} else {
+		for (m = m0; m != NULL; m = m->m_next) {
+			if (m->m_len > 1)
+				outsw(BASE + EP_W1_TX_PIO_WR_1,
+				    mtod(m, caddr_t), m->m_len / 2);
+			if (m->m_len & 1)
+				outb(BASE + EP_W1_TX_PIO_WR_1,
+				    *(mtod(m, caddr_t)+m->m_len - 1));
+		}
+	}
+
+	while (pad--)
+		outb(BASE + EP_W1_TX_PIO_WR_1, 0);	/* Padding */
+
+	splx(s);
+
+	BPF_MTAP(ifp, m0);
+
+	ifp->if_timer = 2;
+	ifp->if_opackets++;
+	m_freem(m0);
+
+	/*
+         * Is another packet coming in? We don't want to overflow the tiny RX
+         * fifo.
+         */
+readcheck:
+	if (inw(BASE + EP_W1_RX_STATUS) & RX_BYTES_MASK) {
+		/*
+		 * we check if we have packets left, in that case we prepare to come
+		 * back later
+		 */
+		if (ifp->if_snd.ifq_head)
+			outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | 8);
+		return;
+	}
+	goto startagain;
 }
 
 void
-ep_intr(arg)
-    void *arg;
+ep_intr(void *arg)
 {
-    struct ep_softc *sc;
-    register int status;
-    struct ifnet *ifp;
-    int x;
+	struct ep_softc *sc;
+	int status;
+	struct ifnet *ifp;
+	int x;
 
-    x = splbio();
+	x = splbio();
 
-    sc = (struct ep_softc *)arg;
+	sc = (struct ep_softc *) arg;
 
-    /*
-     * quick fix: Try to detect an interrupt when the card goes away.
-     */
-    if (sc->gone || inw(BASE + EP_STATUS) == 0xffff) {
-	    splx(x);
-	    return;
-    }
+	/*
+         * quick fix: Try to detect an interrupt when the card goes away.
+         */
+	if (sc->gone || inw(BASE + EP_STATUS) == 0xffff) {
+		splx(x);
+		return;
+	}
+	ifp = &sc->arpcom.ac_if;
 
-    ifp = &sc->arpcom.ac_if;
-
-    outw(BASE + EP_COMMAND, SET_INTR_MASK); /* disable all Ints */
+	outw(BASE + EP_COMMAND, SET_INTR_MASK);	/* disable all Ints */
 
 rescan:
 
-    while ((status = inw(BASE + EP_STATUS)) & S_5_INTS) {
+	while ((status = inw(BASE + EP_STATUS)) & S_5_INTS) {
 
-	/* first acknowledge all interrupt sources */
-	outw(BASE + EP_COMMAND, ACK_INTR | (status & S_MASK));
+		/* first acknowledge all interrupt sources */
+		outw(BASE + EP_COMMAND, ACK_INTR | (status & S_MASK));
 
-	if (status & (S_RX_COMPLETE | S_RX_EARLY))
-	    epread(sc);
-	if (status & S_TX_AVAIL) {
-	    /* we need ACK */
-	    ifp->if_timer = 0;
-	    ifp->if_flags &= ~IFF_OACTIVE;
-	    GO_WINDOW(1);
-	    inw(BASE + EP_W1_FREE_TX);
-	    ep_if_start(ifp);
-	}
-	if (status & S_CARD_FAILURE) {
-	    ifp->if_timer = 0;
+		if (status & (S_RX_COMPLETE | S_RX_EARLY))
+			epread(sc);
+		if (status & S_TX_AVAIL) {
+			/* we need ACK */
+			ifp->if_timer = 0;
+			ifp->if_flags &= ~IFF_OACTIVE;
+			GO_WINDOW(1);
+			inw(BASE + EP_W1_FREE_TX);
+			ep_if_start(ifp);
+		}
+		if (status & S_CARD_FAILURE) {
+			ifp->if_timer = 0;
 #ifdef EP_LOCAL_STATS
-	    printf("\nep%d:\n\tStatus: %x\n", sc->unit, status);
-	    GO_WINDOW(4);
-	    printf("\tFIFO Diagnostic: %x\n", inw(BASE + EP_W4_FIFO_DIAG));
-	    printf("\tStat: %x\n", sc->stat);
-	    printf("\tIpackets=%d, Opackets=%d\n",
-		ifp->if_ipackets, ifp->if_opackets);
-	    printf("\tNOF=%d, NOMB=%d, RXOF=%d, RXOL=%d, TXU=%d\n",
-		   sc->rx_no_first, sc->rx_no_mbuf, sc->rx_overrunf,
-		   sc->rx_overrunl, sc->tx_underrun);
+			printf("\nep%d:\n\tStatus: %x\n", sc->unit, status);
+			GO_WINDOW(4);
+			printf("\tFIFO Diagnostic: %x\n", inw(BASE + EP_W4_FIFO_DIAG));
+			printf("\tStat: %x\n", sc->stat);
+			printf("\tIpackets=%d, Opackets=%d\n",
+			    ifp->if_ipackets, ifp->if_opackets);
+			printf("\tNOF=%d, NOMB=%d, RXOF=%d, RXOL=%d, TXU=%d\n",
+			    sc->rx_no_first, sc->rx_no_mbuf, sc->rx_overrunf,
+			    sc->rx_overrunl, sc->tx_underrun);
 #else
 
 #ifdef DIAGNOSTIC
-	    printf("ep%d: Status: %x (input buffer overflow)\n", sc->unit, status);
+			printf("ep%d: Status: %x (input buffer overflow)\n", sc->unit, status);
 #else
-	    ++ifp->if_ierrors;
+			++ifp->if_ierrors;
 #endif
 
 #endif
-	    ep_if_init(sc);
-	    splx(x);
-	    return;
-	}
-	if (status & S_TX_COMPLETE) {
-	    ifp->if_timer = 0;
-	    /* we  need ACK. we do it at the end */
-	    /*
-	     * We need to read TX_STATUS until we get a 0 status in order to
-	     * turn off the interrupt flag.
-	     */
-	    while ((status = inb(BASE + EP_W1_TX_STATUS)) & TXS_COMPLETE) {
-		if (status & TXS_SUCCES_INTR_REQ);
-		else if (status & (TXS_UNDERRUN | TXS_JABBER | TXS_MAX_COLLISION)) {
-		    outw(BASE + EP_COMMAND, TX_RESET);
-		    if (status & TXS_UNDERRUN) {
-#ifdef EP_LOCAL_STATS
-			sc->tx_underrun++;
-#endif
-		    } else {
-			if (status & TXS_JABBER);
-			else	/* TXS_MAX_COLLISION - we shouldn't get here */
-			    ++ifp->if_collisions;
-		    }
-		    ++ifp->if_oerrors;
-		    outw(BASE + EP_COMMAND, TX_ENABLE);
-		    /*
-		     * To have a tx_avail_int but giving the chance to the
-		     * Reception
-		     */
-		    if (ifp->if_snd.ifq_head) {
-			outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | 8);
-		    }
+			ep_if_init(sc);
+			splx(x);
+			return;
 		}
-		outb(BASE + EP_W1_TX_STATUS, 0x0);	/* pops up the next
-							 * status */
-	    }			/* while */
-	    ifp->if_flags &= ~IFF_OACTIVE;
-	    GO_WINDOW(1);
-	    inw(BASE + EP_W1_FREE_TX);
-	    ep_if_start(ifp);
-	}			/* end TX_COMPLETE */
-    }
+		if (status & S_TX_COMPLETE) {
+			ifp->if_timer = 0;
+			/* we  need ACK. we do it at the end */
+			/*
+		         * We need to read TX_STATUS until we get a 0 status in order to
+		         * turn off the interrupt flag.
+		         */
+			while ((status = inb(BASE + EP_W1_TX_STATUS)) & TXS_COMPLETE) {
+				if (status & TXS_SUCCES_INTR_REQ);
+				else if (status & (TXS_UNDERRUN | TXS_JABBER | TXS_MAX_COLLISION)) {
+					outw(BASE + EP_COMMAND, TX_RESET);
+					if (status & TXS_UNDERRUN) {
+#ifdef EP_LOCAL_STATS
+						sc->tx_underrun++;
+#endif
+					} else {
+						if (status & TXS_JABBER);
+						else	/* TXS_MAX_COLLISION -
+							 * we shouldn't get here */
+							++ifp->if_collisions;
+					}
+					++ifp->if_oerrors;
+					outw(BASE + EP_COMMAND, TX_ENABLE);
+					/*
+				         * To have a tx_avail_int but giving the chance to the
+				         * Reception
+				         */
+					if (ifp->if_snd.ifq_head)
+						outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | 8);
+				}
+				outb(BASE + EP_W1_TX_STATUS, 0x0);	/* pops up the next
+									 * status */
+			}	/* while */
+			ifp->if_flags &= ~IFF_OACTIVE;
+			GO_WINDOW(1);
+			inw(BASE + EP_W1_FREE_TX);
+			ep_if_start(ifp);
+		}		/* end TX_COMPLETE */
+	}
 
-    outw(BASE + EP_COMMAND, C_INTR_LATCH);	/* ACK int Latch */
+	outw(BASE + EP_COMMAND, C_INTR_LATCH);	/* ACK int Latch */
 
-    if ((status = inw(BASE + EP_STATUS)) & S_5_INTS)
-	goto rescan;
+	if ((status = inw(BASE + EP_STATUS)) & S_5_INTS)
+		goto rescan;
 
-    /* re-enable Ints */
-    outw(BASE + EP_COMMAND, SET_INTR_MASK | S_5_INTS);
+	/* re-enable Ints */
+	outw(BASE + EP_COMMAND, SET_INTR_MASK | S_5_INTS);
 
-    splx(x);
+	splx(x);
 }
 
 static void
-epread(sc)
-    register struct ep_softc *sc;
+epread(struct ep_softc *sc)
 {
-    struct mbuf *top, *mcur, *m;
-    struct ifnet *ifp;
-    int lenthisone;
+	struct mbuf *top, *mcur, *m;
+	struct ifnet *ifp;
+	int lenthisone;
 
-    short rx_fifo2, status;
-    register short rx_fifo;
+	short rx_fifo2, status;
+	short rx_fifo;
 
-    ifp = &sc->arpcom.ac_if;
-    status = inw(BASE + EP_W1_RX_STATUS);
+	ifp = &sc->arpcom.ac_if;
+	status = inw(BASE + EP_W1_RX_STATUS);
 
 read_again:
 
-    if (status & ERR_RX) {
-	++ifp->if_ierrors;
-	if (status & ERR_RX_OVERRUN) {
-	    /*
-	     * we can think the rx latency is actually greather than we
-	     * expect
-	     */
+	if (status & ERR_RX) {
+		++ifp->if_ierrors;
+		if (status & ERR_RX_OVERRUN) {
+			/*
+		         * we can think the rx latency is actually greather than we
+		         * expect
+		         */
 #ifdef EP_LOCAL_STATS
-	    if (EP_FTST(sc, F_RX_FIRST))
-		sc->rx_overrunf++;
-	    else
-		sc->rx_overrunl++;
+			if (EP_FTST(sc, F_RX_FIRST))
+				sc->rx_overrunf++;
+			else
+				sc->rx_overrunl++;
 #endif
+		}
+		goto out;
 	}
-	goto out;
-    }
-    rx_fifo = rx_fifo2 = status & RX_BYTES_MASK;
+	rx_fifo = rx_fifo2 = status & RX_BYTES_MASK;
 
-    if (EP_FTST(sc, F_RX_FIRST)) {
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
-	if (!m)
-	    goto out;
-	if (rx_fifo >= MINCLSIZE)
-	    MCLGET(m, M_DONTWAIT);
-	sc->top = sc->mcur = top = m;
+	if (EP_FTST(sc, F_RX_FIRST)) {
+		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		if (!m)
+			goto out;
+		if (rx_fifo >= MINCLSIZE)
+			MCLGET(m, M_DONTWAIT);
+		sc->top = sc->mcur = top = m;
 #define EROUND  ((sizeof(struct ether_header) + 3) & ~3)
 #define EOFF    (EROUND - sizeof(struct ether_header))
-	top->m_data += EOFF;
+		top->m_data += EOFF;
 
-	/* Read what should be the header. */
-	insw(BASE + EP_W1_RX_PIO_RD_1,
-	     mtod(top, caddr_t), sizeof(struct ether_header) / 2);
-	top->m_len = sizeof(struct ether_header);
-	rx_fifo -= sizeof(struct ether_header);
-	sc->cur_len = rx_fifo2;
-    } else {
-	/* come here if we didn't have a complete packet last time */
-	top = sc->top;
-	m = sc->mcur;
-	sc->cur_len += rx_fifo2;
-    }
-
-    /* Reads what is left in the RX FIFO */
-    while (rx_fifo > 0) {
-	lenthisone = min(rx_fifo, M_TRAILINGSPACE(m));
-	if (lenthisone == 0) {	/* no room in this one */
-	    mcur = m;
-	    MGET(m, M_DONTWAIT, MT_DATA);
-	    if (!m)
-		goto out;
-	    if (rx_fifo >= MINCLSIZE)
-		MCLGET(m, M_DONTWAIT);
-	    m->m_len = 0;
-	    mcur->m_next = m;
-	    lenthisone = min(rx_fifo, M_TRAILINGSPACE(m));
-	}
-	if (EP_FTST(sc, F_ACCESS_32_BITS)) { /* default for EISA configured cards*/
-	    insl(BASE + EP_W1_RX_PIO_RD_1, mtod(m, caddr_t) + m->m_len,
-		 lenthisone / 4);
-	    m->m_len += (lenthisone & ~3);
-	    if (lenthisone & 3)
-		insb(BASE + EP_W1_RX_PIO_RD_1,
-		     mtod(m, caddr_t) + m->m_len,
-		     lenthisone & 3);
-	    m->m_len += (lenthisone & 3);
+		/* Read what should be the header. */
+		insw(BASE + EP_W1_RX_PIO_RD_1,
+		    mtod(top, caddr_t), sizeof(struct ether_header) / 2);
+		top->m_len = sizeof(struct ether_header);
+		rx_fifo -= sizeof(struct ether_header);
+		sc->cur_len = rx_fifo2;
 	} else {
-	    insw(BASE + EP_W1_RX_PIO_RD_1, mtod(m, caddr_t) + m->m_len,
-		 lenthisone / 2);
-	    m->m_len += lenthisone;
-	    if (lenthisone & 1)
-		*(mtod(m, caddr_t) + m->m_len - 1) = inb(BASE + EP_W1_RX_PIO_RD_1);
+		/* come here if we didn't have a complete packet last time */
+		top = sc->top;
+		m = sc->mcur;
+		sc->cur_len += rx_fifo2;
 	}
-	rx_fifo -= lenthisone;
-    }
 
-    if (status & ERR_RX_INCOMPLETE) {	/* we haven't received the complete
-					 * packet */
-	sc->mcur = m;
+	/* Reads what is left in the RX FIFO */
+	while (rx_fifo > 0) {
+		lenthisone = min(rx_fifo, M_TRAILINGSPACE(m));
+		if (lenthisone == 0) {	/* no room in this one */
+			mcur = m;
+			MGET(m, M_DONTWAIT, MT_DATA);
+			if (!m)
+				goto out;
+			if (rx_fifo >= MINCLSIZE)
+				MCLGET(m, M_DONTWAIT);
+			m->m_len = 0;
+			mcur->m_next = m;
+			lenthisone = min(rx_fifo, M_TRAILINGSPACE(m));
+		}
+		if (EP_FTST(sc, F_ACCESS_32_BITS)) {	/* default for EISA
+							 * configured cards */
+			insl(BASE + EP_W1_RX_PIO_RD_1, mtod(m, caddr_t)+m->m_len,
+			    lenthisone / 4);
+			m->m_len += (lenthisone & ~3);
+			if (lenthisone & 3)
+				insb(BASE + EP_W1_RX_PIO_RD_1,
+				    mtod(m, caddr_t)+m->m_len,
+				    lenthisone & 3);
+			m->m_len += (lenthisone & 3);
+		} else {
+			insw(BASE + EP_W1_RX_PIO_RD_1, mtod(m, caddr_t)+m->m_len,
+			    lenthisone / 2);
+			m->m_len += lenthisone;
+			if (lenthisone & 1)
+				*(mtod(m, caddr_t)+m->m_len - 1) = inb(BASE + EP_W1_RX_PIO_RD_1);
+		}
+		rx_fifo -= lenthisone;
+	}
+
+	if (status & ERR_RX_INCOMPLETE) {	/* we haven't received the
+						 * complete packet */
+		sc->mcur = m;
 #ifdef EP_LOCAL_STATS
-	sc->rx_no_first++;	/* to know how often we come here */
+		sc->rx_no_first++;	/* to know how often we come here */
 #endif
-	EP_FRST(sc, F_RX_FIRST);
-	if (!((status = inw(BASE + EP_W1_RX_STATUS)) & ERR_RX_INCOMPLETE)) {
-	    /* we see if by now, the packet has completly arrived */
-	    goto read_again;
+		EP_FRST(sc, F_RX_FIRST);
+		if (!((status = inw(BASE + EP_W1_RX_STATUS)) & ERR_RX_INCOMPLETE)) {
+			/*
+			 * we see if by now, the packet has completly
+			 * arrived
+			 */
+			goto read_again;
+		}
+		outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | RX_NEXT_EARLY_THRESH);
+		return;
 	}
-	outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | RX_NEXT_EARLY_THRESH);
-	return;
-    }
-    outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
-    ++ifp->if_ipackets;
-    EP_FSET(sc, F_RX_FIRST);
-    top->m_pkthdr.rcvif = &sc->arpcom.ac_if;
-    top->m_pkthdr.len = sc->cur_len;
+	outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
+	++ifp->if_ipackets;
+	EP_FSET(sc, F_RX_FIRST);
+	top->m_pkthdr.rcvif = &sc->arpcom.ac_if;
+	top->m_pkthdr.len = sc->cur_len;
 
-    (*ifp->if_input)(ifp, top);
-    sc->top = 0;
-    while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
-    outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
-    return;
+	(*ifp->if_input) (ifp, top);
+	sc->top = 0;
+	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
+	return;
 
 out:
-    outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
-    if (sc->top) {
-	m_freem(sc->top);
-	sc->top = 0;
+	outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
+	if (sc->top) {
+		m_freem(sc->top);
+		sc->top = 0;
 #ifdef EP_LOCAL_STATS
-	sc->rx_no_mbuf++;
+		sc->rx_no_mbuf++;
 #endif
-    }
-    EP_FSET(sc, F_RX_FIRST);
-    while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
-    outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
+	}
+	EP_FSET(sc, F_RX_FIRST);
+	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
 }
 
-static int 
-ep_ifmedia_upd(ifp)
-	struct ifnet *		ifp;
+static int
+ep_ifmedia_upd(struct ifnet *ifp)
 {
-	struct ep_softc *	sc = ifp->if_softc;
-	int			i = 0, j;
+	struct ep_softc *sc = ifp->if_softc;
+	int i = 0, j;
 
 	GO_WINDOW(0);
 	outw(BASE + EP_COMMAND, STOP_TRANSCEIVER);
@@ -843,28 +811,28 @@ ep_ifmedia_upd(ifp)
 	GO_WINDOW(0);
 
 	switch (IFM_SUBTYPE(sc->ifmedia.ifm_media)) {
-		case IFM_10_T:
-			if (sc->ep_connectors & UTP) {
-				i = ACF_CONNECTOR_UTP;
-				GO_WINDOW(4);
-				outw(BASE + EP_W4_MEDIA_TYPE, ENABLE_UTP);
-			}
-			break;
-		case IFM_10_2:
-			if (sc->ep_connectors & BNC) {
-				i = ACF_CONNECTOR_BNC;
-				outw(BASE + EP_COMMAND, START_TRANSCEIVER);
-				DELAY(DELAY_MULTIPLE * 1000);
-			}
-			break;
-		case IFM_10_5:
-			if (sc->ep_connectors & AUI)
-				i = ACF_CONNECTOR_AUI;
-			break;
-		default:
-			i = sc->ep_connector;
-			device_printf(sc->dev,
-				"strange connector type in EEPROM: assuming AUI\n");
+	case IFM_10_T:
+		if (sc->ep_connectors & UTP) {
+			i = ACF_CONNECTOR_UTP;
+			GO_WINDOW(4);
+			outw(BASE + EP_W4_MEDIA_TYPE, ENABLE_UTP);
+		}
+		break;
+	case IFM_10_2:
+		if (sc->ep_connectors & BNC) {
+			i = ACF_CONNECTOR_BNC;
+			outw(BASE + EP_COMMAND, START_TRANSCEIVER);
+			DELAY(DELAY_MULTIPLE * 1000);
+		}
+		break;
+	case IFM_10_5:
+		if (sc->ep_connectors & AUI)
+			i = ACF_CONNECTOR_AUI;
+		break;
+	default:
+		i = sc->ep_connector;
+		device_printf(sc->dev,
+		    "strange connector type in EEPROM: assuming AUI\n");
 	}
 
 	GO_WINDOW(0);
@@ -875,25 +843,18 @@ ep_ifmedia_upd(ifp)
 }
 
 static void
-ep_ifmedia_sts(ifp, ifmr)
-	struct ifnet *		ifp;
-	struct ifmediareq *	ifmr;
+ep_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
-	struct ep_softc *	sc = ifp->if_softc;
+	struct ep_softc *sc = ifp->if_softc;
 
 	ifmr->ifm_active = sc->ifmedia.ifm_media;
-
-	return;
 }
 
 static int
-ep_if_ioctl(ifp, cmd, data)
-	struct ifnet *		ifp;
-	u_long			cmd;
-	caddr_t			data;
+ep_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	struct ep_softc *	sc = ifp->if_softc;
-	struct ifreq *		ifr = (struct ifreq *)data;
+	struct ep_softc *sc = ifp->if_softc;
+	struct ifreq *ifr = (struct ifreq *) data;
 	int s, error = 0;
 
 	s = splimp();
@@ -904,15 +865,14 @@ ep_if_ioctl(ifp, cmd, data)
 		    (ifp->if_flags & IFF_RUNNING)) {
 			ifp->if_flags &= ~IFF_RUNNING;
 			epstop(sc);
-		} else {
+		} else
 			/* reinitialize card on any parameter change */
 			ep_if_init(sc);
-		}
 		break;
 #ifdef notdef
 	case SIOCGHWADDR:
-		bcopy((caddr_t) sc->sc_addr, (caddr_t) & ifr->ifr_data,
-		      sizeof(sc->sc_addr));
+		bcopy((caddr_t)sc->sc_addr, (caddr_t)&ifr->ifr_data,
+		    sizeof(sc->sc_addr));
 		break;
 #endif
 	case SIOCADDMULTI:
@@ -928,11 +888,10 @@ ep_if_ioctl(ifp, cmd, data)
 		break;
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
-		if (!sc->epb.mii_trans) {
+		if (!sc->epb.mii_trans)
 			error = ifmedia_ioctl(ifp, ifr, &sc->ifmedia, cmd);
-		} else {
+		else
 			error = EINVAL;
-		}
 		break;
 	default:
 		error = ether_ioctl(ifp, cmd, data);
@@ -945,50 +904,44 @@ ep_if_ioctl(ifp, cmd, data)
 }
 
 static void
-ep_if_watchdog(ifp)
-    struct ifnet *ifp;
+ep_if_watchdog(struct ifnet *ifp)
 {
-    struct ep_softc *sc = ifp->if_softc;
+	struct ep_softc *sc = ifp->if_softc;
 
-    /*
-    printf("ep: watchdog\n");
+/*
+        printf("ep: watchdog\n");
 
-    log(LOG_ERR, "ep%d: watchdog\n", ifp->if_unit);
-    ifp->if_oerrors++;
-    */
+	log(LOG_ERR, "ep%d: watchdog\n", ifp->if_unit);
+	ifp->if_oerrors++;
+*/
 
-    if (sc->gone) {
-	return;
-    }
-
-    ifp->if_flags &= ~IFF_OACTIVE;
-    ep_if_start(ifp);
-    ep_intr(ifp->if_softc);
+	if (sc->gone)
+		return;
+	ifp->if_flags &= ~IFF_OACTIVE;
+	ep_if_start(ifp);
+	ep_intr(ifp->if_softc);
 }
 
 static void
-epstop(sc)
-    struct ep_softc *sc;
+epstop(struct ep_softc *sc)
 {
-    if (sc->gone) {
-	return;
-    }
+	if (sc->gone)
+		return;
+	outw(BASE + EP_COMMAND, RX_DISABLE);
+	outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
+	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
 
-    outw(BASE + EP_COMMAND, RX_DISABLE);
-    outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
-    while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	outw(BASE + EP_COMMAND, TX_DISABLE);
+	outw(BASE + EP_COMMAND, STOP_TRANSCEIVER);
+	DELAY(800);
 
-    outw(BASE + EP_COMMAND, TX_DISABLE);
-    outw(BASE + EP_COMMAND, STOP_TRANSCEIVER);
-    DELAY(800);
+	outw(BASE + EP_COMMAND, RX_RESET);
+	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	outw(BASE + EP_COMMAND, TX_RESET);
+	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
 
-    outw(BASE + EP_COMMAND, RX_RESET);
-    while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
-    outw(BASE + EP_COMMAND, TX_RESET);
-    while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
-
-    outw(BASE + EP_COMMAND, C_INTR_LATCH);
-    outw(BASE + EP_COMMAND, SET_RD_0_MASK);
-    outw(BASE + EP_COMMAND, SET_INTR_MASK);
-    outw(BASE + EP_COMMAND, SET_RX_FILTER);
+	outw(BASE + EP_COMMAND, C_INTR_LATCH);
+	outw(BASE + EP_COMMAND, SET_RD_0_MASK);
+	outw(BASE + EP_COMMAND, SET_INTR_MASK);
+	outw(BASE + EP_COMMAND, SET_RX_FILTER);
 }
