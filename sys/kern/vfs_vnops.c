@@ -1005,19 +1005,24 @@ vn_finished_write(mp)
 /*
  * Request a filesystem to suspend write operations.
  */
-void
+int
 vfs_write_suspend(mp)
 	struct mount *mp;
 {
 	struct thread *td = curthread;
+	int error;
 
 	if (mp->mnt_kern_flag & MNTK_SUSPEND)
-		return;
+		return (0);
 	mp->mnt_kern_flag |= MNTK_SUSPEND;
 	if (mp->mnt_writeopcount > 0)
 		(void) tsleep(&mp->mnt_writeopcount, PUSER - 1, "suspwt", 0);
-	VFS_SYNC(mp, MNT_WAIT, td->td_ucred, td);
+	if ((error = VFS_SYNC(mp, MNT_WAIT, td->td_ucred, td)) != 0) {
+		vfs_write_resume(mp);
+		return (error);
+	}
 	mp->mnt_kern_flag |= MNTK_SUSPENDED;
+	return (0);
 }
 
 /*
