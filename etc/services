@@ -9,7 +9,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.27.2.7 1997/08/12 18:13:12 eivind Exp $
+#	$Id: services,v 1.27.2.8 1997/09/18 08:57:51 asami Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -1694,3 +1694,4 @@ wnn6		22273/tcp  #Wnn6 (Japanese input)
 wnn6_Cn		22289/tcp  #Wnn6 (Chinese input)
 wnn6_Tw		22321/tcp  #Wnn6 (Taiwanse input)
 wnn6_Kr		22305/tcp  #Wnn6 (Korean input)
+wnn6_DS		26208/tcp  #Wnn6 (Dserver)
