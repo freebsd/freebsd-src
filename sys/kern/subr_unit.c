@@ -24,8 +24,9 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- *
- * Unit number allocation functions.
+ */
+
+/* Unit number allocation functions.
  *
  * These functions implement a mixed run-length/bitmap management of unit
  * number spaces.

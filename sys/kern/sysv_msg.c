@@ -1,4 +1,4 @@
-/*
+/*-
  * Implementation of SVID messages
  *
  * Author:  Daniel Boulet
