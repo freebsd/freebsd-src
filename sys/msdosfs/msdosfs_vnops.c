@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.76 1998/09/13 15:39:01 dt Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.77 1998/10/31 15:31:24 peter Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -174,6 +174,7 @@ msdosfs_create(ap)
 
 	ndirent.de_Attributes = (ap->a_vap->va_mode & VWRITE) ?
 				ATTR_ARCHIVE : ATTR_ARCHIVE | ATTR_READONLY;
+	ndirent.de_LowerCase = 0;
 	ndirent.de_StartCluster = 0;
 	ndirent.de_FileSize = 0;
 	ndirent.de_dev = pdep->de_dev;
@@ -1402,6 +1403,7 @@ msdosfs_mkdir(ap)
 		goto bad;
 
 	ndirent.de_Attributes = ATTR_DIRECTORY;
+	ndirent.de_LowerCase = 0;
 	ndirent.de_StartCluster = newcluster;
 	ndirent.de_FileSize = 0;
 	ndirent.de_dev = pdep->de_dev;
@@ -1714,7 +1716,9 @@ msdosfs_readdir(ap)
 			if (chksum != winChksum(dentp->deName))
 				dirbuf.d_namlen = dos2unixfn(dentp->deName,
 				    (u_char *)dirbuf.d_name,
-				    pmp->pm_flags & MSDOSFSMNT_SHORTNAME,
+				    dentp->deLowerCase |
+					((pmp->pm_flags & MSDOSFSMNT_SHORTNAME) ?
+					(LCASE_BASE | LCASE_EXT) : 0),
 				    pmp->pm_flags & MSDOSFSMNT_U2WTABLE,
 				    pmp->pm_d2u,
 				    pmp->pm_flags & MSDOSFSMNT_ULTABLE,

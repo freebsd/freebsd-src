@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_conv.c,v 1.26 1998/04/15 17:46:37 bde Exp $ */
+/*	$Id: msdosfs_conv.c,v 1.27 1998/05/17 21:18:08 dt Exp $ */
 /*	$NetBSD: msdosfs_conv.c,v 1.25 1997/11/17 15:36:40 ws Exp $	*/
 
 /*-
@@ -418,7 +418,7 @@ dos2unixfn(dn, un, lower, d2u_loaded, d2u, ul_loaded, ul)
 	else
 		c = d2u_loaded && (*dn & 0x80) ? d2u[*dn & 0x7f] :
 		    dos2unix[*dn];
-	*un++ = lower ? (ul_loaded && (c & 0x80) ?
+	*un++ = (lower & LCASE_BASE) ? (ul_loaded && (c & 0x80) ?
 			 ul[c & 0x7f] : u2l[c]) : c;
 	dn++;
 
@@ -429,7 +429,7 @@ dos2unixfn(dn, un, lower, d2u_loaded, d2u, ul_loaded, ul)
 		c = d2u_loaded && (*dn & 0x80) ? d2u[*dn & 0x7f] :
 		    dos2unix[*dn];
 		dn++;
-		*un++ = lower ? (ul_loaded && (c & 0x80) ?
+		*un++ = (lower & LCASE_BASE) ? (ul_loaded && (c & 0x80) ?
 				 ul[c & 0x7f] : u2l[c]) : c;
 		thislong++;
 	}
@@ -446,7 +446,7 @@ dos2unixfn(dn, un, lower, d2u_loaded, d2u, ul_loaded, ul)
 			c = d2u_loaded && (*dn & 0x80) ? d2u[*dn & 0x7f] :
 			    dos2unix[*dn];
 			dn++;
-			*un++ = lower ? (ul_loaded && (c & 0x80) ?
+			*un++ = (lower & LCASE_EXT) ? (ul_loaded && (c & 0x80) ?
 					 ul[c & 0x7f] : u2l[c]) : c;
 			thislong++;
 		}
