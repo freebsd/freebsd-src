@@ -86,7 +86,6 @@ __FBSDID("$FreeBSD$");
 
 #define __RMAN_RESOURCE_VISIBLE	/* Shouldn't be there */
 #include "opt_puc.h"
-#define __RMAN_RESOURCE_VISIBLE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
