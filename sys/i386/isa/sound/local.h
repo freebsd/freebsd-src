@@ -5,7 +5,6 @@
 
 #define DSP_BUFFSIZE 65536
 #define SELECTED_SOUND_OPTIONS  0xffffffff
-#define SOUND_VERSION_STRING "2.90-2"
 #define SOUND_CONFIG_DATE "Sun Feb 5 14:38:12 EST 1995"
 #define SOUND_CONFIG_BY "freebsd-hackers"
 #define SOUND_CONFIG_HOST "freefall"
@@ -16,6 +15,8 @@
 #if NSND > 0
 #define KERNEL_SOUNDCARD
 #endif
+
+#define ALLOW_SELECT
 
 /* PSS code does not work */
 #ifndef EXCLUDE_PSS
@@ -32,9 +33,28 @@
 #define EXCLUDE_GUS16
 #endif
 
-#include "gusmax.h"
-#if NGUSMAX == 0 && !defined(EXCLUDE_GUSMAX)
-#define EXCLUDE_GUSMAX
+#include "mss.h"
+#if NMSS == 0 && !defined(EXCLUDE_MSS)
+#define EXCLUDE_MSS
+#endif
+
+#include "trix.h"
+#if NTRIX == 0 && !defined(EXCLUDE_TRIX)
+#define EXCLUDE_TRIX
+#endif
+
+#include "sscape.h"
+#if NSSCAPE == 0 && !defined(EXCLUDE_SSCAPE)
+#define EXCLUDE_SSCAPE
+#endif
+
+#if !defined(GUSMAX) && !defined(EXCLUDE_GUSMAX)
+# define EXCLUDE_GUSMAX
+# if defined(EXCLUDE_GUS16) && defined(EXCLUDE_MSS) && !defined(EXCLUDE_AD1848)
+#  define EXCLUDE_AD1848
+# endif
+#else
+# define GUSMAX_MIXER
 #endif
 
 #include <sb.h>
@@ -65,11 +85,6 @@
 #include "opl.h"
 #if NOPL == 0 && !defined(EXCLUDE_YM3812)
 #define EXCLUDE_YM3812
-#endif
-
-#include "mss.h"
-#if NMSS == 0 && !defined(EXCLUDE_MSS)
-#define EXCLUDE_MSS
 #endif
 
 #include "uart.h"

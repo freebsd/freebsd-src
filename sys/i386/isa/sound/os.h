@@ -3,29 +3,6 @@
 /*
  * OS specific settings for FreeBSD
  *
- * Copyright by UWM - comments to soft-eng@cs.uwm.edu
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
  * This chould be used as an example when porting the driver to a new
  * operating systems.
  *
@@ -35,9 +12,7 @@
  *
  * If you have to make changes to other than these two files, please contact me
  * before making the changes. It's possible that I have already made the
- * change.
- *
- * os.h,v 1.13 1994/10/01 02:16:53 swallace Exp
+ * change. 
  */
 
 /*
@@ -59,38 +34,47 @@
 #include <i386/isa/isa_device.h>
 #include <machine/cpufunc.h>
 
+/* These few lines are used by 386BSD (only??). */
+
+#if NSND > 0
+#define CONFIGURE_SOUNDCARD
+#else
+#undef CONFIGURED_SOUNDCARD
+#endif
+
+
 /*
  * Rest of the file is compiled only if the driver is really required.
  */
 #ifdef CONFIGURE_SOUNDCARD
 
-/*
+/* 
  * select() is currently implemented in Linux specific way. Don't enable.
  * I don't remember what the SHORT_BANNERS means so forget it.
  */
 
-#undef ALLOW_SELECT
+/*#undef ALLOW_SELECT*/
 #define SHORT_BANNERS
 
 /* The soundcard.h could be in a nonstandard place so inclyde it here. */
-#include <machine/soundcard.h>
+#include "soundcard.h"
 
 /*
  * Here is the first portability problem. Every OS has it's own way to
  * pass a pointer to the buffer in read() and write() calls. In Linux it's
  * just a char*. In BSD it's struct uio. This parameter is passed to
- * all functions called from read() or write(). Since nothing can be
+ * all functions called from read() or write(). Since nothing can be 
  * assumed about this structure, the driver uses set of macros for
- * accessing the user buffer.
+ * accessing the user buffer. 
  *
  * The driver reads/writes bytes in the user buffer sequentially which
  * means that calls like uiomove() can be used.
  *
  * snd_rw_buf is the type which is passed to the device file specific
  * read() and write() calls.
- *
+ * 
  * The following macros are used to move date to and from the
- * user buffer. These macros should be used only when the
+ * user buffer. These macros should be used only when the 
  * target or source parameter has snd_rw_buf type.
  * The offs parameter is a offset relative to the beginning of
  * the user buffer. In Linux the offset is required but for example
@@ -107,15 +91,17 @@ typedef struct uio snd_rw_buf;
  * user space. The count is number of bytes to be moved.
  */
 #define COPY_FROM_USER(target, source, offs, count) \
-	do { if (uiomove(target, count, (struct uio *)source)) { \
+	do { if (uiomove((caddr_t ) target, count, (struct uio *)source)) { \
 		printf ("sb: Bad copyin()!\n"); \
 	} } while(0)
+
 /* Like COPY_FOM_USER but for writes. */
+
 #define COPY_TO_USER(target, offs, source, count) \
 	do { if (uiomove(source, count, (struct uio *)target)) { \
 		printf ("sb: Bad copyout()!\n"); \
 	} } while(0)
-/*
+/* 
  * The following macros are like COPY_*_USER but work just with one byte (8bit),
  * short (16 bit) or long (32 bit) at a time.
  * The same restrictions apply than for COPY_*_USER
@@ -124,6 +110,9 @@ typedef struct uio snd_rw_buf;
 #define GET_SHORT_FROM_USER(target, addr, offs)	{uiomove((char*)&(target), 2, (struct uio *)addr);}
 #define GET_WORD_FROM_USER(target, addr, offs)	{uiomove((char*)&(target), 4, (struct uio *)addr);}
 #define PUT_WORD_TO_USER(addr, offs, data)	{uiomove((char*)&(data), 4, (struct uio *)addr);}
+
+
+#define EREMOTEIO -1
 
 /*
  * The way how the ioctl arguments are passed is another nonportable thing.
@@ -161,8 +150,9 @@ typedef struct uio snd_rw_buf;
  */
 
 struct snd_wait {
-	  int mode; int aborting;
-	};
+	int mode;
+	int aborting;
+};
 
 /*
  * DEFINE_WAIT_QUEUE is used where a wait queue is required. It must define
@@ -185,7 +175,7 @@ struct snd_wait {
  * is aborts the process. This macro is called from close() to see if the
  * buffers should be discarded. If this kind info is not available, a constant
  * 1 or 0 could be returned (1 should be better than 0).
- * I'm not sure if the following is correct for FreeBSD.
+ * I'm not sure if the following is correct for 386BSD.
  */
 #define PROCESS_ABORTING(q, f) (f.aborting | curproc->p_siglist)
 
@@ -194,7 +184,7 @@ struct snd_wait {
  * the process is resumed if it receives a signal. The following is propably
  * not the way how it should be done on 386bsd.
  * The on_what parameter is a wait_queue defined with DEFINE_WAIT_QUEUE(),
- * and the second is a workarea parameter. The third is a timeout
+ * and the second is a workarea parameter. The third is a timeout 
  * in ticks. Zero means no timeout.
  */
 #define DO_SLEEP(q, f, time_limit)	\
@@ -202,13 +192,13 @@ struct snd_wait {
 	  int flag, chn; \
 	  f.mode = WK_SLEEP; \
 	  q = &chn; \
-	  flag=tsleep((caddr_t)&(chn), (PRIBIO-5)|PCATCH, "sndint", time_limit); \
+	  flag=tsleep((caddr_t) &chn, (PRIBIO-5)|PCATCH, "sndint", time_limit); \
 	  if(flag == ERESTART) f.aborting = 1;\
 	  else f.aborting = 0;\
 	  f.mode &= ~WK_SLEEP; \
 	}
 /* An the following wakes up a process */
-#define WAKE_UP(q, f)	{f.mode = WK_WAKEUP;wakeup((caddr_t)q);}
+#define WAKE_UP(q, f)	{f.mode = WK_WAKEUP;wakeup((caddr_t) q);}
 
 /*
  * Timing macros. This driver assumes that there is a timer running in the
@@ -220,11 +210,12 @@ struct snd_wait {
 #define HZ	hz
 #endif
 
-/*
+/* 
  * GET_TIME() returns current value of the counter incremented at timer
  * ticks.  This can overflow, so the timeout might be real big...
- *
+ * 
  */
+
 extern unsigned long get_time(void);
 #define GET_TIME() get_time()
 /*#define GET_TIME()	(lbolt)	*/ /* Returns current time (1/HZ secs since boot) */
@@ -250,11 +241,19 @@ extern unsigned long get_time(void);
  */
 
 #define INB			inb
-/*
+#define INW			inb
+
+#if 0
+/*  
  * The outb(0, 0x80) is just for slowdown. It's bit unsafe since
  * this address could be used for something usefull.
  */
 #define OUTB(addr, data)	{outb(data, addr);outb(0, 0x80);}
+#define OUTW(addr, data)	{outw(data, addr);outb(0, 0x80);}
+#else
+#define OUTB(addr, data)	outb(data, addr)
+#define OUTW(addr, data)	outw(data, addr)
+#endif
 
 /* memcpy() was not defined og 386bsd. Lets define it here */
 #define memcpy(d, s, c)		bcopy(s, d, c)
@@ -267,9 +266,9 @@ extern unsigned long get_time(void);
 
 #define RET_ERROR(err)		-(err)
 
-/*
-   KERNEL_MALLOC() allocates requested number of memory  and
-   KERNEL_FREE is used to free it.
+/* 
+   KERNEL_MALLOC() allocates requested number of memory  and 
+   KERNEL_FREE is used to free it. 
    These macros are never called from interrupt, in addition the
    nbytes will never be more than 4096 bytes. Generally the driver
    will allocate memory in blocks of 4k. If the kernel has just a
@@ -289,8 +288,8 @@ extern unsigned long get_time(void);
  * memory area. The type is the type of the mem_ptr.
  */
 #define PERMANENT_MALLOC(typecast, mem_ptr, size, linux_ptr) \
-  {(mem_ptr) = (typecast)malloc((size), M_DEVBUF, M_NOWAIT); \
-   if (!(mem_ptr))panic("SOUND: Cannot allocate memory");}
+  {mem_ptr = (typecast)malloc(size, M_DEVBUF, M_NOWAIT); \
+   if (!mem_ptr)panic("SOUND: Cannot allocate memory\n");}
 
 /*
  * The macro DEFINE_TIMER defines variables for the ACTIVATE_TIMER if
@@ -310,11 +309,41 @@ extern unsigned long get_time(void);
  * The rest of this file is not complete yet. The functions using these
  * macros will not work
  */
-#define ALLOC_DMA_CHN(chn) ({ 0; })
+#define ALLOC_DMA_CHN(chn,deviceID) ({0; } )
 #define RELEASE_DMA_CHN(chn) ({ 0; })
 #define DMA_MODE_READ		0
 #define DMA_MODE_WRITE		1
 #define RELEASE_IRQ(irq_no)
 
+/*
+ * The macro DECLARE_FILE() adds an entry to struct fileinfo referencing the
+ * connected filestructure.
+ * This entry must be initialized in sound_open() in soundcard.c
+ *
+ * ISSET_FILE_FLAG() allows checking of flags like O_NONBLOCK on files
+ *
+ */
+
+#define DECLARE_FILE()                    struct file *filp 
+#ifdef notdef
+#define ISSET_FILE_FLAG(fileinfo, flag)   (fileinfo->filp->f_flag & (flag) ? \
+					  1 : 0) 
+#else
+#define ISSET_FILE_FLAG(fileinfo, flag)   0
+#endif
+#define INT_HANDLER_PROTO() void(*hndlr)(int)
+#define INT_HANDLER_PARMS(irq, parms) int irq
+#define INT_HANDLER_CALL(irq) irq
+
+/*
+ * For select call...
+ */
+#ifdef ALLOW_SELECT
+typedef struct proc select_table;
+#define	SEL_IN FREAD
+#define SEL_OUT FWRITE
+#define SEL_EX 0
+extern struct selinfo selinfo[];
+#endif 
 #endif
 #endif
