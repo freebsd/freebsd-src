@@ -623,11 +623,11 @@ printsize(size_t width, off_t bytes)
 		dbytes = bytes;
 		unit = unit_adjust(&dbytes);
 
-		if (dbytes == 0)
-			(void)printf("%*s ", 4, "0B");
+		if (unit == 0)
+			(void)printf("%*d%c ", 4, (int)bytes, 'B');
 		else
-			(void)printf("%*.*f%c ", 3,
-			    dbytes > 10 ? 0 : 1, dbytes, "BKMGTPE"[unit]);
+			(void)printf("%*.*f%c ", 4,
+			    dbytes >= 99.95 ? 0 : 1, dbytes, "BKMGTPE"[unit]);
 	} else
 		(void)printf("%*jd ", (u_int)width, bytes);
 }
