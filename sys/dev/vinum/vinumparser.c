@@ -36,10 +36,13 @@
  * $Id: vinumparser.c,v 1.14 1999/01/18 03:30:07 grog Exp grog $
  */
 
-/* This file contains the parser for the configuration routines.  It's used
- * both in the kernel and in the user interface program, thus the separate file. */
+/*
+ * This file contains the parser for the configuration routines.  It's used
+ * both in the kernel and in the user interface program, thus the separate file. 
+ */
 
-/* Go through a text and split up into text tokens.  These are either non-blank
+/*
+ * Go through a text and split up into text tokens.  These are either non-blank
  * sequences, or any sequence (except \0) enclosed in ' or ".  Embedded ' or
  * " characters may be escaped by \, which otherwise has no special meaning.
  *
@@ -50,7 +53,8 @@
  * grey space.
  *
  * Error conditions are end of line before end of quote, or no space after
- * a closing quote.  In this case, tokenize() returns -1. */
+ * a closing quote.  In this case, tokenize() returns -1. 
+ */
 
 #ifdef KERNEL
 #include "opt_vinum.h"

@@ -178,9 +178,11 @@ vinum_mallocinfo(caddr_t data)
     return 0;
 }
 
-/* return the nth request trace buffer entry.  This
+/*
+ * return the nth request trace buffer entry.  This
  * is indexed back from the current entry (which
- * has index 0) */
+ * has index 0) 
+ */
 int 
 vinum_rqinfo(caddr_t data)
 {

@@ -51,7 +51,8 @@ void free_rqg(struct rqgroup *rqg);
 void complete_rqe(struct buf *bp);
 void sdio_done(struct buf *bp);
 
-/* Take a completed buffer, transfer the data back if
+/*
+ * Take a completed buffer, transfer the data back if
  * it's a read, and complete the high-level request
  * if this is the last subrequest.
  *

@@ -65,7 +65,8 @@ enum xferinfo {
     XFR_NEEDS_MALLOC = (XFR_NORMAL_WRITE | XFR_RECOVERY_READ | XFR_DEGRADED_WRITE)
 };
 
-/* Describe one low-level request, part
+/*
+ * Describe one low-level request, part
  * of a high-level request.  This is an
  * extended struct buf buffer, and the first
  * element *must* be a struct buf.  We pass this structure
@@ -73,21 +74,24 @@ enum xferinfo {
  * to be able to locate the high-level request when it
  * completes.
  *
- * All offsets and lengths are in "blocks", i.e. sectors */
+ * All offsets and lengths are in "blocks", i.e. sectors 
+ */
 struct rqelement {
     struct buf b;					    /* buf structure */
     struct rqgroup *rqg;				    /* pointer to our group */
     /* Information about the transfer */
     daddr_t sdoffset;					    /* offset in subdisk */
     int useroffset;					    /* offset in user buffer of normal data */
-    /* dataoffset and datalen refer to "individual"
+    /*
+     * dataoffset and datalen refer to "individual"
      * data transfers (normal read, parityless write)
      * and also degraded write.
      *
      * groupoffset and grouplen refer to the other
      * "group" operations (normal write, recovery read)
      * Both the offsets are relative to the start of the
-     * local buffer */
+     * local buffer 
+     */
     int dataoffset;					    /* offset in buffer of the normal data */
     int groupoffset;					    /* offset in buffer of group data */
     short datalen;					    /* length of normal data (sectors) */
@@ -99,8 +103,10 @@ struct rqelement {
     short driveno;					    /* drive number */
 };
 
-/* A group of requests built to satisfy a certain
- * component of a user request */
+/*
+ * A group of requests built to satisfy a certain
+ * component of a user request 
+ */
 struct rqgroup {
     struct rqgroup *next;				    /* pointer to next group */
     struct request *rq;					    /* pointer to the request */
@@ -112,8 +118,10 @@ struct rqgroup {
     struct rqelement rqe[0];				    /* and the elements of this request */
 };
 
-/* Describe one high-level request and the
- * work we have to do to satisfy it */
+/*
+ * Describe one high-level request and the
+ * work we have to do to satisfy it 
+ */
 struct request {
     struct buf *bp;					    /* pointer to the high-level request */
     enum xferinfo flags;
@@ -130,8 +138,10 @@ struct request {
     struct request *next;				    /* link of waiting requests */
 };
 
-/* Extended buffer header for subdisk I/O.  Includes
- * a pointer to the user I/O request. */
+/*
+ * Extended buffer header for subdisk I/O.  Includes
+ * a pointer to the user I/O request. 
+ */
 struct sdbuf {
     struct buf b;					    /* our buffer */
     struct buf *bp;					    /* and pointer to parent */
@@ -139,10 +149,12 @@ struct sdbuf {
     short sdno;						    /* and subdisk index */
 };
 
-/* Values returned by rqe and friends.
+/*
+ * Values returned by rqe and friends.
  * Be careful with these: they are in order of increasing
  * seriousness.  Some routines check for > REQUEST_RECOVERED
- * to indicate a completely failed request. */
+ * to indicate a completely failed request. 
+ */
 enum requeststatus {
     REQUEST_OK,						    /* request built OK */
     REQUEST_RECOVERED,					    /* request OK, but involves RAID5 recovery */

@@ -36,9 +36,11 @@
  * $Id: vinumstate.h,v 1.12 1998/12/30 01:31:52 grog Exp grog $
  */
 
-/* This file gets read by makestatetext to create text files
+/*
+ * This file gets read by makestatetext to create text files
  * with the names of the states, so don't change the file
- * format */
+ * format 
+ */
 
 enum volumestate {
     volume_unallocated,
@@ -58,45 +60,61 @@ enum plexstate {
     /* An empty entry, not a plex at all.   */
     plex_unallocated,
 
-    /* The plex has been allocated, but there configuration
-     * is not complete */
+    /*
+     * The plex has been allocated, but there configuration
+     * is not complete 
+     */
     plex_init,
 
-    /* A plex which has gone completely down because of
-     * I/O errors. */
+    /*
+     * A plex which has gone completely down because of
+     * I/O errors. 
+     */
     plex_faulty,
 
-    /* A plex which has been taken down by the
-     * administrator. */
+    /*
+     * A plex which has been taken down by the
+     * administrator. 
+     */
     plex_down,
 
     /* A plex which is being initialized */
     plex_initializing,
 
-    /* *** The remaining states represent plexes which are
+    /*
+     * *** The remaining states represent plexes which are
      * at least partially up.  Keep these separate so that
-     * they can be checked more easily. */
+     * they can be checked more easily. 
+     */
 
-    /* A plex entry which is at least partially up.  Not
+    /*
+     * A plex entry which is at least partially up.  Not
      * all subdisks are available, and an inconsistency
      * has occurred.  If no other plex is uncorrupted,
-     * the volume is no longer consistent. */
+     * the volume is no longer consistent. 
+     */
     plex_corrupt,
 
     plex_firstup = plex_corrupt,			    /* first "up" state */
 
-    /* A RAID-5 plex entry which is accessible, but one
+    /*
+     * A RAID-5 plex entry which is accessible, but one
      * subdisk is down, requiring recovery for many
-     * I/O requests. */
+     * I/O requests. 
+     */
     plex_degraded,
 
-    /* A plex which is really up, but which has a reborn
+    /*
+     * A plex which is really up, but which has a reborn
      * subdisk which we don't completely trust, and
-     * which we don't want to read if we can avoid it */
+     * which we don't want to read if we can avoid it 
+     */
     plex_flaky,
 
-    /* A plex entry which is completely up.  All subdisks
-     * are up. */
+    /*
+     * A plex entry which is completely up.  All subdisks
+     * are up. 
+     */
     plex_up,
 
     plex_laststate = plex_up				    /* last value, for table dimensions */
@@ -107,29 +125,35 @@ enum sdstate {
     /* An empty entry, not a subdisk at all. */
     sd_unallocated,
 
-    /* A subdisk entry which has not been created
+    /*
+     * A subdisk entry which has not been created
      * completely.  Some fields may be empty.
      */
     sd_uninit,
 
-    /* A subdisk entry which has been created completely.
+    /*
+     * A subdisk entry which has been created completely.
      * All fields are correct, but the disk hasn't
      * been updated.
      */
     sd_init,
 
-    /* A subdisk entry which has been created completely.
+    /*
+     * A subdisk entry which has been created completely.
      * All fields are correct, and the disk has been
      * updated, but there is no data on the disk.
      */
     sd_empty,
 
-    /* A subdisk entry which has been created completely and
-     * which is currently being initialized */
+    /*
+     * A subdisk entry which has been created completely and
+     * which is currently being initialized 
+     */
     sd_initializing,
 
     /* *** The following states represent invalid data */
-    /* A subdisk entry which has been created completely.
+    /*
+     * A subdisk entry which has been created completely.
      * All fields are correct, the config on disk has been
      * updated, and the data was valid, but since then the
      * drive has been taken down, and as a result updates
@@ -137,7 +161,8 @@ enum sdstate {
      */
     sd_obsolete,
 
-    /* A subdisk entry which has been created completely.
+    /*
+     * A subdisk entry which has been created completely.
      * All fields are correct, the disk has been updated,
      * and the data was valid, but since then the drive
      * has been crashed and updates have been lost.
@@ -146,7 +171,8 @@ enum sdstate {
 
     /* *** The following states represent valid, inaccessible data */
 
-    /* A subdisk entry which has been created completely.
+    /*
+     * A subdisk entry which has been created completely.
      * All fields are correct, the disk has been updated,
      * and the data was valid, but since then the drive
      * has gone down.   No attempt has been made to write
@@ -154,20 +180,27 @@ enum sdstate {
      */
     sd_crashed,
 
-    /* A subdisk entry which was up, which contained
+    /*
+     * A subdisk entry which was up, which contained
      * valid data, and which was taken down by the
-     * administrator.  The data is valid. */
+     * administrator.  The data is valid. 
+     */
     sd_down,
 
-    /* *** This is invalid data (the subdisk previously had
+    /*
+     * *** This is invalid data (the subdisk previously had
      * a numerically lower state), but it is currently in the
-     * process of being revived.  We can write but not read. */
+     * process of being revived.  We can write but not read. 
+     */
     sd_reviving,
 
-    /* *** The following states represent accessible subdisks
-     * with valid data */
+    /*
+     * *** The following states represent accessible subdisks
+     * with valid data 
+     */
 
-    /* A subdisk entry which has been created completely.
+    /*
+     * A subdisk entry which has been created completely.
      * All fields are correct, the disk has been updated,
      * and the data was valid, but since then the drive
      * has gone down and up again.  No updates were lost,
@@ -177,10 +210,12 @@ enum sdstate {
      * covers this address space in the plex, we set its
      * state to sd_up under these circumstances, so this
      * status implies that there is another subdisk to
-     * fulfil the request. */
+     * fulfil the request. 
+     */
     sd_reborn,
 
-    /* A subdisk entry which has been created completely.
+    /*
+     * A subdisk entry which has been created completely.
      * All fields are correct, the disk has been updated,
      * and the data is valid.
      */
