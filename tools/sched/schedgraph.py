@@ -394,13 +394,14 @@ class StateEvent(Event):
 		next = self.nextstate()
 		if (self.skipself == 1 or next == None):
 			return (xpos)
-		if (self.skipnext):
+		while (self.skipnext):
 			skipped = next
 			next.skipself = 1
 			next.real = 0
 			next = next.nextstate()
 			if (next == None):
 				next = skipped
+			self.skipnext -= 1
 		self.duration = next.timestamp - self.timestamp
 		delta = self.duration / canvas.ratio
 		l = canvas.create_rectangle(xpos, ypos,
@@ -487,7 +488,7 @@ class Yielding(StateEvent):
 	enabled = 1
 	def __init__(self, thread, cpu, timestamp, prio):
 		StateEvent.__init__(self, thread, cpu, timestamp)
-		self.skipnext = 1
+		self.skipnext = 2
 		self.prio = prio
 		self.textadd(("prio:", self.prio, 0))
 
@@ -532,7 +533,7 @@ class Preempted(StateEvent):
 	enabled = 1
 	def __init__(self, thread, cpu, timestamp, prio, bythread):
 		StateEvent.__init__(self, thread, cpu, timestamp)
-		self.skipnext = 1
+		self.skipnext = 2
 		self.prio = prio
 		self.linked = bythread
 		self.textadd(("prio:", self.prio, 0))
