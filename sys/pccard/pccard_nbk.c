@@ -48,6 +48,8 @@
  * These compatibility nodes are called pccnbk.  PCCard New Bus Kludge.
  */
 
+#define OBSOLETE_IN_6
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/module.h>

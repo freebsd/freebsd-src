@@ -5,6 +5,8 @@
  */
 /* $FreeBSD$ */
 
+#define OBSOLETE_IN_6
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
