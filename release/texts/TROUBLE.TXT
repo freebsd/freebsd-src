@@ -221,7 +221,7 @@ A: These CD-ROM drives are currently not supported by FreeBSD.  The command
 
 
 Q: I'm trying to install from a tape drive but all I get is something like:
-        st0(aha0:1:0) NOT READY csi 40,0,0,0
+        sa0(aha0:1:0) NOT READY csi 40,0,0,0
    on the screen.  Help!
 
 A: There's a limitation in the current sysinstall that the tape MUST
@@ -230,7 +230,7 @@ A: There's a limitation in the current sysinstall that the tape MUST
 
 
 Q: I've installed FreeBSD onto my system, but it hangs when booting from 
-   the hard drive with the message: ``Changing root to /dev/sd0a''.
+   the hard drive with the message: ``Changing root to /dev/da0a''.
 
 A: This problem may occur in a system with a 3com 3c509 Ethernet adaptor.
    The ep0 device driver appears to be sensitive to probes for other

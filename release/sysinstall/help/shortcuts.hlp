@@ -15,7 +15,7 @@ browserBinary           Which doc browser to use (default: lynx)
 browserPackage          Which package to get browser from (default: lynx)
 cpioVerbose             How verbose to be with cpio: high, medium or low
 debug                   Extra debugging?
-disk                    Which disk to operate on (wd0, sd0, etc).
+disk                    Which disk to operate on (wd0, da0, etc).
 domainname              Domain name
 editor                  Which screen editor to use
 ifconfig_<iface>        For each <iface> in network_devices
@@ -106,9 +106,9 @@ Examples:
 Selects an FTP site and then goes to the package configuration menu.
 
 
-/stand/sysinstall       disk=sd0 diskPartitionEditor
+/stand/sysinstall       disk=da0 diskPartitionEditor
 
-Invokes the disk partition editor on disk sd0.
+Invokes the disk partition editor on disk da0.
 
 
 If /stand/sysinstall is linked to another filename, say
