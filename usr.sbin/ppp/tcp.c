@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tcp.c,v 1.2 1999/05/12 09:49:04 brian Exp $
+ *	$Id: tcp.c,v 1.3 1999/05/24 16:39:15 brian Exp $
  */
 
 #include <sys/types.h>
@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/uio.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -116,6 +117,7 @@ tcp_iov2device(int type, struct physical *p, struct iovec *iov,
                int *niov, int maxiov)
 {
   if (type == TCP_DEVICE) {
+    free(iov[(*niov)++].iov_base);
     physical_SetupStack(p, tcpdevice.name, PHYSICAL_FORCE_ASYNC);
     return &tcpdevice;
   }
