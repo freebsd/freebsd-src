@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.3 1995/12/15 03:06:52 peter Exp $
+ *  $Id: linux_ioctl.c,v 1.4 1995/12/29 22:12:12 sos Exp $
  */
 
 #include <sys/param.h>
@@ -384,7 +384,7 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
     }
 
     func = fp->f_ops->fo_ioctl;
-    switch (args->cmd) {
+    switch (args->cmd & 0xffff) {
     case LINUX_TCGETS:
 	if ((error = (*func)(fp, TIOCGETA, (caddr_t)&bsd_termios, p)) != 0)
 	    return error;
