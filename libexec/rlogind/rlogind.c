@@ -29,8 +29,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: rlogind.c,v 1.17 1997/03/28 15:48:16 imp Exp $
  */
 
 #ifndef lint
@@ -40,7 +38,11 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)rlogind.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -68,14 +70,14 @@ static const char sccsid[] = "@(#)rlogind.c	8.1 (Berkeley) 6/4/93";
 #include <arpa/inet.h>
 #include <netdb.h>
 
+#include <errno.h>
+#include <libutil.h>
 #include <pwd.h>
 #include <syslog.h>
-#include <errno.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <libutil.h>
+#include <unistd.h>
 #include "pathnames.h"
 
 #ifndef TIOCPKT_WINDOW
