@@ -1,6 +1,6 @@
-<!-- $Id: mirrors.sgml,v 1.13 1997/03/12 04:25:20 hanai Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.14 1997/03/21 09:22:23 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.54 -->
+<!-- Original revision: 1.55 -->
 
 <!--
 <!doctype linuxdoc public "-//FreeBSD//DTD linuxdoc//EN">
@@ -149,7 +149,7 @@ name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD">.
 <item>
 <url url="ftp://sunsite.mff.cuni.cz/OS/FreeBSD"
 	name="ftp://sunsite.mff.cuni.cz/OS/FreeBSD"><newline>
-	連絡先: <url url="jj@sunsite.mff.cuni.cz"
+	連絡先: <url url="mailto:jj@sunsite.mff.cuni.cz"
 	name="jj@sunsite.mff.cuni.cz">.
 
 </itemize>
