@@ -101,7 +101,7 @@ manifest constant may be used to specify no classification.
 The
 .Fa label
 argument indicates the source of the message.
-It is made up of two fields seperated by a colon
+It is made up of two fields separated by a colon
 .Pq \&: .
 The first field can be up to 10 bytes,
 and the second field can be up to 14 bytes.
@@ -182,15 +182,15 @@ The
 .Pq message verbosity
 environment variable specifies which arguments to
 .Fn fmtmsg
-will be outputted to
+will be output to
 .Em stderr ,
 and in which order.
 .Va MSGVERB
 should be a colon
 .Pq \&:
-seperated list of identifiers.
+separated list of identifiers.
 Valid identifiers include: label, severity, text, action, and tag.
-If invalid identifiers are specified or incorrectly seperated,
+If invalid identifiers are specified or incorrectly separated,
 the default message verbosity and ordering will be used.
 The default ordering is equivalent to a
 .Va MSGVERB
