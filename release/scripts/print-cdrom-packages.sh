@@ -88,6 +88,7 @@ CDROM_SET_1="${CDROM_SET_1} x11/XFree86-4-libraries"
 CDROM_SET_1="${CDROM_SET_1} x11/XFree86-4-manuals"
 CDROM_SET_1="${CDROM_SET_1} x11/gnome"
 CDROM_SET_1="${CDROM_SET_1} x11/kde3"
+CDROM_SET_1="${CDROM_SET_1} www/links"
 
 # This is the set of "people really want these" packages.  Please add to
 # this list.
@@ -146,11 +147,13 @@ CDROM_SET_1="${CDROM_SET_1} misc/compat4x"
 ## End of set for CDROM #2
 
 ## Start of set for CDROM #3
-CDROM_SET_3="${CDROM_SET_3} print/teTeX"
-CDROM_SET_3="${CDROM_SET_3} textproc/docproj"
 CDROM_SET_3="${CDROM_SET_3} editors/xemacs21"
 CDROM_SET_3="${CDROM_SET_3} graphics/gimp1"
 CDROM_SET_3="${CDROM_SET_3} lang/gnat"
+CDROM_SET_3="${CDROM_SET_3} net/cvsup-without-gui"
+CDROM_SET_3="${CDROM_SET_3} print/acroread4"
+CDROM_SET_3="${CDROM_SET_3} print/teTeX"
+CDROM_SET_3="${CDROM_SET_3} textproc/docproj"
 
 ## End of set for CDROM #3
 
