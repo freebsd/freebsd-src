@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86bios.s,v 1.2 1998/03/24 16:51:36 jlemon Exp $
+ *	$Id: vm86bios.s,v 1.3 1998/07/27 16:45:05 jlemon Exp $
  */
 
 #include "opt_vm86.h"
@@ -78,10 +78,12 @@ ENTRY(vm86_bioscall)
 #if NNPX > 0
 	cmpl	%ecx,_npxproc		/* do we need to save fp? */
 	jne	1f
+	pushl	%edx
 	movl	P_ADDR(%ecx),%ecx
 	addl	$PCB_SAVEFPU,%ecx
-	pushl	%edx
+	pushl	%ecx
 	call	_npxsave
+	popl	%ecx
 	popl	%edx			/* recover our pcb */
 #endif
 
