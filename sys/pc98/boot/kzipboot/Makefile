@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1998/03/07 15:48:11 kato Exp $
+# $Id: Makefile,v 1.6 1998/05/28 13:48:40 kato Exp $
 
 PROG= kztail.o kzhead.o
 BINMODE = 444	# target is a relocatable object
@@ -22,9 +22,9 @@ CFLAGS+= -DKZIP -DCOMCONSOLE=0x30
 CFLAGS+= -DPC98
 
 kztail.o:  ${OBJS_KZTAIL}
-	$(LD) -r -x -o kztail.o $(OBJS_KZTAIL)
+	$(LD) -aout -r -x -o kztail.o $(OBJS_KZTAIL)
 
 kzhead.o:  ${OBJS_KZHEAD}
-	$(LD) -r -x -o kzhead.o $(OBJS_KZHEAD)
+	$(LD) -aout -r -x -o kzhead.o $(OBJS_KZHEAD)
 
 .include <bsd.prog.mk>
