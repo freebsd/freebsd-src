@@ -23,6 +23,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040914:
+	The format of the pflogd(8) logfile "/var/log/pflog" has changed for
+	architectures that have a 64 bit long type to make it compatible to
+	the standard pcap format. In order to prevent corruption move away
+	any old logfile before using a new pflogd(8).
+
 20040906:
 	debug.witness_* has been renamed to debug.witness.*.  There are
 	compatibility tunables left in for a few days.  Update loader.conf
