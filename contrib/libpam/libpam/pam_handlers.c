@@ -5,6 +5,7 @@
  * Currently maintained by Andrew G. Morgan <morgan@linux.kernel.org>
  *
  * $Id: pam_handlers.c,v 1.3 2001/02/05 06:50:41 agmorgan Exp $
+ * $FreeBSD$
  *
  */
 
@@ -13,6 +14,11 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+#include "pam_private.h"
+
 #ifdef PAM_DYNAMIC
 # ifdef PAM_SHL
 #  include <dl.h>
@@ -20,17 +26,8 @@
 #  include <dlfcn.h>
 # endif /* PAM_SHL */
 #endif /* PAM_DYNAMIC */
-#include <fcntl.h>
-#include <unistd.h>
 
-#include "pam_private.h"
-
-/* FreeBSD doesn't define this */
-#ifndef RTLD_NOW
-# define RTLD_NOW      1
-#endif
-
-/* If not required, define as nothing - FreeBSD needs it to be "_"... */
+/* If not required, define as nothing */
 #ifndef SHLIB_SYM_PREFIX
 # define SHLIB_SYM_PREFIX ""
 #endif
