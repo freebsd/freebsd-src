@@ -19,6 +19,8 @@ along with GCC; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 #include "config.h"
 #include "system.h"
 #include "intl.h"
@@ -575,7 +577,7 @@ decode_options (unsigned int argc, const char **argv)
       flag_web = 1;
     }
 
-  if (optimize < 2 || optimize_size)
+  if (optimize_size)
     {
       align_loops = 1;
       align_jumps = 1;
