@@ -35,10 +35,13 @@
 
 #include "defs.h"
 
-#if !defined(sgi) && !defined(__NetBSD__)
-static char sccsid[] __attribute__((unused)) = "@(#)output.c	8.1 (Berkeley) 6/5/93";
-#elif defined(__NetBSD__)
+#ifdef __NetBSD__
 __RCSID("$NetBSD$");
+#elif defined(__FreeBSD__)
+__RCSID("$FreeBSD$");
+#else
+__RCSID("$Revision: 2.27 $");
+#ident "$Revision: 2.27 $"
 #endif
 #ident "$FreeBSD$"
 
@@ -102,7 +105,7 @@ output(enum output_type type,
        struct rip *buf,
        int size)			/* this many bytes */
 {
-	struct sockaddr_in sin;
+	struct sockaddr_in osin;
 	int flags;
 	const char *msg;
 	int res;
@@ -110,12 +113,12 @@ output(enum output_type type,
 	int soc;
 	int serrno;
 
-	sin = *dst;
-	if (sin.sin_port == 0)
-		sin.sin_port = htons(RIP_PORT);
+	osin = *dst;
+	if (osin.sin_port == 0)
+		osin.sin_port = htons(RIP_PORT);
 #ifdef _HAVE_SIN_LEN
-	if (sin.sin_len == 0)
-		sin.sin_len = sizeof(sin);
+	if (osin.sin_len == 0)
+		osin.sin_len = sizeof(osin);
 #endif
 
 	soc = rip_sock;
@@ -152,6 +155,10 @@ output(enum output_type type,
 		} else {
 			msg = "Send mcast";
 			if (rip_sock_mcast != ifp) {
+#ifdef MCAST_IFINDEX
+				/* specify ifindex */
+				tgt_mcast = htonl(ifp->int_index);
+#else
 #ifdef MCAST_PPP_BUG
 				/* Do not specify the primary interface
 				 * explicitly if we have the multicast
@@ -166,6 +173,7 @@ output(enum output_type type,
 				} else
 #endif
 				tgt_mcast = ifp->int_addr;
+#endif
 				if (0 > setsockopt(rip_sock,
 						   IPPROTO_IP, IP_MULTICAST_IF,
 						   &tgt_mcast,
@@ -179,7 +187,7 @@ output(enum output_type type,
 				}
 				rip_sock_mcast = ifp;
 			}
-			sin.sin_addr.s_addr = htonl(INADDR_RIP_GROUP);
+			osin.sin_addr.s_addr = htonl(INADDR_RIP_GROUP);
 		}
 		break;
 
@@ -192,18 +200,18 @@ output(enum output_type type,
 		return -1;
 	}
 
-	trace_rip(msg, "to", &sin, ifp, buf, size);
+	trace_rip(msg, "to", &osin, ifp, buf, size);
 
 	res = sendto(soc, buf, size, flags,
-		     (struct sockaddr *)&sin, sizeof(sin));
+		     (struct sockaddr *)&osin, sizeof(osin));
 	if (res < 0
 	    && (ifp == 0 || !(ifp->int_state & IS_BROKE))) {
 		serrno = errno;
 		msglog("%s sendto(%s%s%s.%d): %s", msg,
 		       ifp != 0 ? ifp->int_name : "",
 		       ifp != 0 ? ", " : "",
-		       inet_ntoa(sin.sin_addr),
-		       ntohs(sin.sin_port),
+		       inet_ntoa(osin.sin_addr),
+		       ntohs(osin.sin_port),
 		       strerror(errno));
 		errno = serrno;
 	}
@@ -279,7 +287,7 @@ clr_ws_buf(struct ws_buf *wb,
 		na->a_family = RIP_AF_AUTH;
 		na->a_type = RIP_AUTH_MD5;
 		na->au.a_md5.md5_keyid = ap->keyid;
-		na->au.a_md5.md5_auth_len = RIP_AUTH_MD5_LEN;
+		na->au.a_md5.md5_auth_len = RIP_AUTH_MD5_KEY_LEN;
 		na->au.a_md5.md5_seqno = htonl(clk.tv_sec);
 		wb->n++;
 		wb->lim--;		/* make room for trailer */
@@ -303,8 +311,8 @@ end_md5_auth(struct ws_buf *wb,
 	na2->a_type = htons(1);
 	na->au.a_md5.md5_pkt_len = htons(len);
 	MD5Init(&md5_ctx);
-	MD5Update(&md5_ctx, (u_char *)wb->buf, len);
-	MD5Update(&md5_ctx, ap->key, RIP_AUTH_MD5_LEN);
+	MD5Update(&md5_ctx, (u_char *)wb->buf, len + RIP_AUTH_MD5_HASH_XTRA);
+	MD5Update(&md5_ctx, ap->key, RIP_AUTH_MD5_KEY_LEN);
 	MD5Final(na2->au.au_pw, &md5_ctx);
 	wb->n++;
 }
@@ -547,8 +555,7 @@ walk_supply(struct radix_node *rn,
 		 * without confusing RIPv1 listeners into thinking the
 		 * network routes are host routes.
 		 */
-		if ((ws.state & WS_ST_AG)
-		    && !(ws.state & WS_ST_RIP2_ALL))
+		if ((ws.state & WS_ST_AG) && (ws.state & WS_ST_RIP2_ALL))
 			ags |= AGS_AGGREGATE;
 
 	} else {
@@ -592,6 +599,11 @@ walk_supply(struct radix_node *rn,
 	 *
 	 * Notice spare routes with the same metric that we are about to
 	 * advertise, to split the horizon on redundant, inactive paths.
+	 *
+	 * Do not suppress advertisements of interface-related addresses on
+	 * non-point-to-point interfaces.  This ensures that we have something
+	 * to say every 30 seconds to help detect broken Ethernets or
+	 * other interfaces where one packet every 30 seconds costs nothing.
 	 */
 	if (ws.ifp != 0
 	    && !(ws.state & WS_ST_QUERY)
@@ -711,7 +723,7 @@ supply(struct sockaddr_in *dst,
 		/* Adjust the advertised metric by the outgoing interface
 		 * metric.
 		 */
-		ws.metric = ifp->int_metric+1;
+		ws.metric = ifp->int_metric + 1 + ifp->int_adj_outmetric;
 	}
 
 	ripv12_buf.rip.rip_vers = vers;

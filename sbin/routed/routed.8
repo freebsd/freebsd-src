@@ -1,3 +1,5 @@
+.\"   $Revision: 2.26 $
+.\"
 .\" Copyright (c) 1983, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -114,11 +116,18 @@ The
 packet generated contains a list of known routes, each marked
 with a "hop count" metric (a count of 16 or greater is
 considered "infinite").
-Advertised metrics reflect the metric associated with interface
+Th advertised metric for a route reflects the metrics associated
+with interfaces
 (see
-.Xr ifconfig 8 ) ,
+.Xr ifconfig 8 )
+though which it is received and sent,
 so setting the metric on an interface
 is an effective way to steer traffic.
+See also
+.Cm adj_inmetric
+and
+.Cm adj_outmetric
+parameters below.
 .Pp
 Responses do not include routes with a first hop on the requesting
 network to implement in part
@@ -155,7 +164,7 @@ also periodically checks the routing table entries.
 If an entry has not been updated for 3 minutes, the entry's metric
 is set to infinity and marked for deletion.
 Deletions are delayed until the route has been advertised with
-an infinite metric to insure the invalidation
+an infinite metric to ensure the invalidation
 is propagated throughout the local internet.
 This is a form of
 .Em poison reverse .
@@ -508,6 +517,7 @@ a line starting with
 .Cm if=alias(Hname) ,
 .Cm if=remote(Hname) ,
 etc. should be used.
+.Ss Parameters
 .Pp
 Lines that start with neither "net" nor "host" must consist of one
 or more of the following parameter settings, separated by commas or
@@ -560,7 +570,8 @@ all passwords have expired, in which case the password that expired most
 recently is used, or unless no passwords are valid yet, in which case
 no password is output.
 Incoming packets can carry any password that is valid, will
-be valid within 24 hours, or that was valid within 24 hours.
+be valid within the next 24 hours, or that was valid within the preceding
+24 hours.
 To protect the secrets, the passwd settings are valid only in the
 .Em /etc/gateways
 file and only when that file is readable only by UID 0.
@@ -649,17 +660,47 @@ Unless modified with
 .Cm fake_default ,
 the default route is broadcast with a metric of 14.
 That serves as a "poor man's router discovery" protocol.
+.It Cm adj_inmetric Ns \&= Ns Ar delta
+adjusts the hop count or metric of received RIP routes by
+.Ar delta .
+The metric of every received RIP route is increased by the sum
+of two values associated with the interface.
+One is the adj_inmetric value and the other is the interface
+metric set with
+.Xr ifconfig 8 .
+.It Cm adj_outmetric Ns \&= Ns Ar delta
+adjusts the hop count or metric of advertised RIP routes by
+.Ar delta .
+The metric of every received RIP route is increased by the metric
+associated with the interface by which it was received, or by 1 if
+the interface does not have a non-zero metric.
+The metric of the received route is then increased by the
+adj_outmetric associated with the interface.
+Every advertised route is increased by a total of four
+values,
+the metric set for the interface by which it was received with
+.Xr ifconfig 8 ,
+the
+.Cm adj_inmetric Ar delta
+of the receiving interface,
+the metric set for the interface by which it is transmitted with
+.Xr ifconfig 8 ,
+and the
+.Cm adj_outmetric Ar delta
+of the transmitting interface.
 .It Cm trust_gateway Ns \&= Ns Ar rname[|net1/mask1|net2/mask2|...]
-causes RIP packets from that router and other routers named in
-other
+causes RIP packets from router
+.Ar rname
+and other routers named in other
 .Cm trust_gateway
 keywords to be accepted, and packets from other routers to be ignored.
 If networks are specified, then routes to other networks will be ignored
 from that router.
 .It Cm redirect_ok
-causes RIP to allow ICMP Redirect messages when the system is acting
+allows the kernel to listen ICMP Redirect messages when the system is acting
 as a router and forwarding packets.
-Otherwise, ICMP Redirect messages are overridden.
+Otherwise, ICMP Redirect messages are overridden and deleted when the
+system is acting as a router.
 .El
 .Sh FILES
 .Bl -tag -width /etc/gateways -compact
@@ -683,3 +724,5 @@ The
 .Nm
 utility appeared in
 .Bx 4.2 .
+\"  LocalWords:  loopback ICMP rtquery ifconfig multicasting Solicitations RIPv
+\"  LocalWords:  netstat rdisc

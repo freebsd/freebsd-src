@@ -40,10 +40,13 @@
 #include <sys/signal.h>
 #include <fcntl.h>
 
-#if !defined(sgi) && !defined(__NetBSD__)
-static char sccsid[] __attribute__((unused)) = "@(#)trace.c	8.1 (Berkeley) 6/5/93";
-#elif defined(__NetBSD__)
+#ifdef __NetBSD__
 __RCSID("$NetBSD$");
+#elif defined(__FreeBSD__)
+__RCSID("$FreeBSD$");
+#else
+__RCSID("$Revision: 2.27 $");
+#ident "$Revision: 2.27 $"
 #endif
 #ident "$FreeBSD$"
 
@@ -188,6 +191,7 @@ tmsg(const char *p, ...)
 		lastlog();
 		va_start(args, p);
 		vfprintf(ftrace, p, args);
+		va_end(args);
 		(void)fputc('\n',ftrace);
 		fflush(ftrace);
 	}
@@ -241,6 +245,7 @@ trace_off(const char *p, ...)
 		lastlog();
 		va_start(args, p);
 		vfprintf(ftrace, p, args);
+		va_end(args);
 		(void)fputc('\n',ftrace);
 	}
 	trace_close(file_trace);
@@ -643,9 +648,15 @@ trace_if(const char *act,
 			       ifp->int_mask, 1));
 	if (ifp->int_metric != 0)
 		(void)fprintf(ftrace, "metric=%d ", ifp->int_metric);
+	if (ifp->int_adj_inmetric != 0)
+		(void)fprintf(ftrace, "adj_inmetric=%u ",
+			      ifp->int_adj_inmetric);
+	if (ifp->int_adj_outmetric != 0)
+		(void)fprintf(ftrace, "adj_outmetric=%u ",
+			      ifp->int_adj_outmetric);
 	if (!IS_RIP_OUT_OFF(ifp->int_state)
 	    && ifp->int_d_metric != 0)
-		(void)fprintf(ftrace, "fake_default=%d ", ifp->int_d_metric);
+		(void)fprintf(ftrace, "fake_default=%u ", ifp->int_d_metric);
 	trace_bits(if_bits, ifp->int_if_flags, 0);
 	trace_bits(is_bits, ifp->int_state, 0);
 	(void)fputc('\n',ftrace);
@@ -723,6 +734,7 @@ trace_misc(const char *p, ...)
 	lastlog();
 	va_start(args, p);
 	vfprintf(ftrace, p, args);
+	va_end(args);
 	(void)fputc('\n',ftrace);
 }
 
@@ -740,6 +752,7 @@ trace_act(const char *p, ...)
 	lastlog();
 	va_start(args, p);
 	vfprintf(ftrace, p, args);
+	va_end(args);
 	(void)fputc('\n',ftrace);
 }
 
@@ -757,6 +770,7 @@ trace_pkt(const char *p, ...)
 	lastlog();
 	va_start(args, p);
 	vfprintf(ftrace, p, args);
+	va_end(args);
 	(void)fputc('\n',ftrace);
 }
 

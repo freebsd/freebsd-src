@@ -41,10 +41,13 @@
 
 #include "defs.h"
 
-#if !defined(sgi) && !defined(__NetBSD__)
-static char sccsid[] __attribute__((unused)) = "@(#)rdisc.c	8.1 (Berkeley) x/y/95";
-#elif defined(__NetBSD__)
+#ifdef __NetBSD__
 __RCSID("$NetBSD$");
+#elif defined(__FreeBSD__)
+__RCSID("$FreeBSD$");
+#else
+__RCSID("$Revision: 2.23 $");
+#ident "$Revision: 2.23 $"
 #endif
 #ident "$FreeBSD$"
 
