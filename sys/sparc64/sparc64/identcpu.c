@@ -33,9 +33,6 @@ cpu_identify(u_long vers, u_int freq, u_int id)
 	const char *manus;
 	const char *impls;
 
-	manus = NULL;
-	impls = NULL;
-
 	switch (VER_MANUF(vers)) {
 	case 0x04:
 		manus = "HAL";
@@ -43,7 +40,11 @@ cpu_identify(u_long vers, u_int freq, u_int id)
 	case 0x13:
 	case 0x17:
 	case 0x22:
+	case 0x3e:
 		manus = "Sun Microsystems";
+		break;
+	default:
+		manus = NULL;
 		break;
 	}
 	cpu_impl = VER_IMPL(vers);
@@ -63,6 +64,15 @@ cpu_identify(u_long vers, u_int freq, u_int id)
 	case CPU_IMPL_ULTRASPARCIIe:
 		/* V9 Manual says `UltraSparc-e'.  I assume this is wrong. */
 		impls = "UltraSparc-IIe";
+		break;
+	case CPU_IMPL_ULTRASPARCIII:
+		impls = "UltraSparc-III";
+		break;
+	case CPU_IMPL_ULTRASPARCIIIp:
+		impls = "UltraSparc-III+";
+		break;
+	default:
+		impls = NULL;
 		break;
 	}
 	if (manus == NULL || impls == NULL) {
