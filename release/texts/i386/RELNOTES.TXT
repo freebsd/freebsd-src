@@ -136,7 +136,7 @@ decreasing the TTL in order to make gateways and firewalls less visible
 and therefore less exposed to attacks. [MERGED]
 
 The old `sd' (SCSI Disk) backwards compatibility support has been removed.
-Any usage of "/dev/sd*" in ``/etc/fstab'' must be replace by "/dev/da*".
+Any usage of "/dev/sd*" in ``/etc/fstab'' must be replaced by "/dev/da*".
 In addition, any useage of "/dev/*sd*" in scripts need to be changed.
 Even if you have old `sd' device entries in /dev, they will no longer work.
 
