@@ -384,6 +384,9 @@ done
 GCCVER=`(gcc -dumpversion) 2>/dev/null`
 if [ "$GCCVER" != "" ]; then
   CC=gcc
+  # then strip off whatever prefix egcs prepends the number with...
+  # Hopefully, this will work for any future prefixes as well.
+  GCCVER=`echo $GCCVER | sed 's/^[a-zA-Z]*\-//'`
   # Since gcc 3.1 gcc --version behaviour has changed.  gcc -dumpversion
   # does give us what we want though, so we use that.  We just just the
   # major and minor version numbers.
@@ -392,6 +395,7 @@ if [ "$GCCVER" != "" ]; then
 else
   CC=cc
 fi
+GCCVER=${GCCVER:-0}
 if [ "$SYSTEM" = "HP-UX" ];then
   # By default gcc is a ILP32 compiler (with long long == 64).
   GCC_BITS="32"
