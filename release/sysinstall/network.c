@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.35 1999/03/11 18:22:23 brian Exp $
+ * $Id: network.c,v 1.36 1999/05/19 10:49:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -123,6 +123,8 @@ mediaInitNetwork(Device *dev)
 		   "in the Networking configuration menu before proceeding.", dev->name);
 	return FALSE;
     }
+    else if (!strcmp(cp, "DHCP"))
+	goto bail;
     msgNotify("ifconfig %s %s", dev->name, cp);
     i = vsystem("ifconfig %s %s", dev->name, cp);
     if (i) {
@@ -140,6 +142,7 @@ mediaInitNetwork(Device *dev)
 	msgNotify("Adding default route to %s.", rp);
 	vsystem("route -n add default %s", rp);
     }
+bail:
     if (isDebug())
 	msgDebug("Network initialized successfully.\n");
     networkInitialized = TRUE;
