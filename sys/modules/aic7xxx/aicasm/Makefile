@@ -7,8 +7,16 @@ aicasm:	${.CURDIR}/../../../dev/aic7xxx/aicasm/*.[chyl]
 	${MAKE} -f ${.CURDIR}/../../../dev/aic7xxx/aicasm/Makefile \
 	MAKESRCPATH=${.CURDIR}/../../../dev/aic7xxx/aicasm
 
-install:
+depend:
+	${MAKE} -f ${.CURDIR}/../../../dev/aic7xxx/aicasm/Makefile \
+	MAKESRCPATH=${.CURDIR}/../../../dev/aic7xxx/aicasm depend
+
+obj:
+	${MAKE} -f ${.CURDIR}/../../../dev/aic7xxx/aicasm/Makefile \
+	MAKESRCPATH=${.CURDIR}/../../../dev/aic7xxx/aicasm obj
 
 clean:
-	rm -f *.[chylo]
-	rm -f aicasm
+	${MAKE} -f ${.CURDIR}/../../../dev/aic7xxx/aicasm/Makefile \
+	MAKESRCPATH=${.CURDIR}/../../../dev/aic7xxx/aicasm clean
+
+install:
