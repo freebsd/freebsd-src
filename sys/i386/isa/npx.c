@@ -484,6 +484,7 @@ npxinit(control)
 	u_short control;
 {
 	struct save87 dummy;
+	critical_t savecrit;
 
 	if (!npx_exists)
 		return;
@@ -492,12 +493,14 @@ npxinit(control)
 	 * fnsave to throw away any junk in the fpu.  npxsave() initializes
 	 * the fpu and sets npxproc = NULL as important side effects.
 	 */
+	savecrit = critical_enter();
 	npxsave(&dummy);
 	stop_emulating();
 	fldcw(&control);
 	if (PCPU_GET(curpcb) != NULL)
 		fnsave(&PCPU_GET(curpcb)->pcb_savefpu);
 	start_emulating();
+	critical_exit(savecrit);
 }
 
 /*
@@ -507,9 +510,12 @@ void
 npxexit(p)
 	struct proc *p;
 {
+	critical_t savecrit;
 
+	savecrit = critical_enter();
 	if (p == PCPU_GET(npxproc))
 		npxsave(&PCPU_GET(curpcb)->pcb_savefpu);
+	critical_exit(savecrit);
 #ifdef NPX_DEBUG
 	if (npx_exists) {
 		u_int	masked_exceptions;
