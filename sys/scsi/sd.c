@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.136 1998/07/28 18:59:49 bde Exp $
+ *      $Id: sd.c,v 1.137 1998/07/29 11:15:51 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -486,7 +486,7 @@ sd_open(dev_t dev, int mode, int fmt, struct proc *p, struct scsi_link *sc_link)
 	label.d_secperunit = sd->params.disksize;
 
 	/* Initialize slice tables. */
-	errcode = dsopen("sd", dev, fmt, &sd->dk_slices, &label, sdstrategy1,
+	errcode = dsopen("sd", dev, fmt, 0, &sd->dk_slices, &label, sdstrategy1,
 			 (ds_setgeom_t *)NULL, &sd_cdevsw, &sd_cdevsw);
 	if (errcode != 0)
 		goto close;
