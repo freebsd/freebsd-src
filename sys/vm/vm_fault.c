@@ -167,9 +167,9 @@ _unlock_things(struct faultstate *fs, int dealloc)
 	}
 	unlock_map(fs);	
 	if (fs->vp != NULL) { 
+		mtx_lock(&Giant);
 		vput(fs->vp);
-		if (debug_mpsafevm)
-			mtx_unlock(&Giant);
+		mtx_unlock(&Giant);
 		fs->vp = NULL;
 	}
 	if (dealloc)
@@ -295,8 +295,7 @@ RetryFault:;
 	VM_OBJECT_LOCK(fs.first_object);
 	vm_object_reference_locked(fs.first_object);
 	fs.vp = vnode_pager_lock(fs.first_object);
-	if (fs.vp == NULL && debug_mpsafevm)
-		mtx_unlock(&Giant);
+	mtx_unlock(&Giant);
 	vm_object_pip_add(fs.first_object, 1);
 
 	fs.lookup_still_valid = TRUE;
