@@ -134,7 +134,7 @@ static u_int key_int_random = 60;	/*interval to initialize randseed,1(m)*/
 static u_int key_larval_lifetime = 30;	/* interval to expire acquiring, 30(s)*/
 static int key_blockacq_count = 10;	/* counter for blocking SADB_ACQUIRE.*/
 static int key_blockacq_lifetime = 20;	/* lifetime for blocking SADB_ACQUIRE.*/
-static int key_prefered_oldsa = 1;	/* prefered old sa rather than new sa.*/
+static int key_preferred_oldsa = 1;	/* preferred old sa rather than new sa.*/
 
 static u_int32_t acq_seq = 0;
 static int key_tick_init_random = 0;
@@ -151,18 +151,17 @@ static LIST_HEAD(_spacqtree, secspacq) spacqtree;	/* SP acquiring list */
 struct key_cb key_cb;
 
 /* search order for SAs */
-static u_int saorder_state_valid[] = {
+static const u_int saorder_state_valid_prefer_old[] = {
 	SADB_SASTATE_DYING, SADB_SASTATE_MATURE,
-	/*
-	 * This order is important because we must select a oldest SA
-	 * for outbound processing.  For inbound, This is not important.
-	 */
 };
-static u_int saorder_state_alive[] = {
+static const u_int saorder_state_valid_prefer_new[] = {
+	SADB_SASTATE_MATURE, SADB_SASTATE_DYING,
+};
+static const u_int saorder_state_alive[] = {
 	/* except DEAD */
 	SADB_SASTATE_MATURE, SADB_SASTATE_DYING, SADB_SASTATE_LARVAL
 };
-static u_int saorder_state_any[] = {
+static const u_int saorder_state_any[] = {
 	SADB_SASTATE_MATURE, SADB_SASTATE_DYING,
 	SADB_SASTATE_LARVAL, SADB_SASTATE_DEAD
 };
@@ -265,7 +264,7 @@ SYSCTL_INT(_net_key, KEYCTL_AH_KEYMIN,	ah_keymin, CTLFLAG_RW, \
 
 /* perfered old SA rather than new SA */
 SYSCTL_INT(_net_key, KEYCTL_PREFERED_OLDSA,	prefered_oldsa, CTLFLAG_RW,\
-	&key_prefered_oldsa,	0,	"");
+	&key_preferred_oldsa,	0,	"");
 
 #ifndef LIST_FOREACH
 #define LIST_FOREACH(elm, head, field)                                     \
@@ -735,6 +734,8 @@ key_allocsa_policy(saidx)
 	struct secashead *sah;
 	struct secasvar *sav;
 	u_int stateidx, state;
+	const u_int *saorder_state_valid;
+	int arraysize;
 
 	LIST_FOREACH(sah, &sahtree, chain) {
 		if (sah->state == SADB_SASTATE_DEAD)
@@ -747,10 +748,19 @@ key_allocsa_policy(saidx)
 
     found:
 
-	/* search valid state */
-	for (stateidx = 0;
-	     stateidx < _ARRAYLEN(saorder_state_valid);
-	     stateidx++) {
+	/*
+	 * search a valid state list for outbound packet.
+	 * This search order is important.
+	 */
+	if (key_preferred_oldsa) {
+		saorder_state_valid = saorder_state_valid_prefer_old;
+		arraysize = _ARRAYLEN(saorder_state_valid_prefer_old);
+	} else {
+		saorder_state_valid = saorder_state_valid_prefer_new;
+		arraysize = _ARRAYLEN(saorder_state_valid_prefer_new);
+	}
+
+	for (stateidx = 0; stateidx < arraysize; stateidx++) {
 
 		state = saorder_state_valid[stateidx];
 
@@ -802,7 +812,7 @@ key_do_allocsa_policy(sah, state)
 				"lifetime_current is NULL.\n");
 
 		/* What the best method is to compare ? */
-		if (key_prefered_oldsa) {
+		if (key_preferred_oldsa) {
 			if (candidate->lft_c->sadb_lifetime_addtime >
 					sav->lft_c->sadb_lifetime_addtime) {
 				candidate = sav;
@@ -917,10 +927,24 @@ key_allocsa(family, src, dst, proto, spi)
 	struct sockaddr_in sin;
 	struct sockaddr_in6 sin6;
 	int s;
+	const u_int *saorder_state_valid;
+	int arraysize;
 
 	/* sanity check */
 	if (src == NULL || dst == NULL)
 		panic("key_allocsa: NULL pointer is passed.\n");
+
+	/*
+	 * when both systems employ similar strategy to use a SA.
+	 * the search order is important even in the inbound case.
+	 */
+	if (key_preferred_oldsa) {
+		saorder_state_valid = saorder_state_valid_prefer_old;
+		arraysize = _ARRAYLEN(saorder_state_valid_prefer_old);
+	} else {
+		saorder_state_valid = saorder_state_valid_prefer_new;
+		arraysize = _ARRAYLEN(saorder_state_valid_prefer_new);
+	}
 
 	/*
 	 * searching SAD.
@@ -930,10 +954,11 @@ key_allocsa(family, src, dst, proto, spi)
 	 */
 	s = splnet();	/*called from softclock()*/
 	LIST_FOREACH(sah, &sahtree, chain) {
-		/* search valid state */
-		for (stateidx = 0;
-		     stateidx < _ARRAYLEN(saorder_state_valid);
-		     stateidx++) {
+		/*
+		 * search a valid state list for inbound packet.
+	 	 * the search order is not important.
+		 */
+		for (stateidx = 0; stateidx < arraysize; stateidx++) {
 			state = saorder_state_valid[stateidx];
 			LIST_FOREACH(sav, &sah->savtree[state], chain) {
 				/* sanity check */
@@ -4242,8 +4267,9 @@ key_timehandler(void)
 			if (sav->lft_s->sadb_lifetime_addtime != 0
 			 && tv.tv_sec - sav->created > sav->lft_s->sadb_lifetime_addtime) {
 				/*
-				 * check SA to be used whether or not.
-				 * when SA hasn't been used, delete it.
+				 * check the SA if it has been used.
+				 * when it hasn't been used, delete it.
+				 * i don't think such SA will be used.
 				 */
 				if (sav->lft_c->sadb_lifetime_usetime == 0) {
 					key_sa_chgstate(sav, SADB_SASTATE_DEAD);
@@ -4259,6 +4285,7 @@ key_timehandler(void)
 					key_expire(sav);
 				}
 			}
+
 			/* check SOFT lifetime by bytes */
 			/*
 			 * XXX I don't know the way to delete this SA
