@@ -64,7 +64,7 @@ initarg(al)
 	al->argc = 0;
 	al->maxc = 10;
 	if ((al->argv = malloc(al->maxc * sizeof(char *))) == NULL)
-		err(1, "mailwrapper");
+		err(1, NULL);
 }
 
 static void
@@ -83,14 +83,14 @@ addarg(al, arg, copy)
 			if (al->argv)
 				free(al->argv);
 			al->argv = NULL;
-			err(1, "mailwrapper");
+			err(1, NULL);
 		} else {
 			al->argv = argv2;
 		}
 	}
 	if (copy) {
 		if ((al->argv[al->argc++] = strdup(arg)) == NULL)
-			err(1, "mailwrapper");
+			err(1, NULL);
 	} else
 		al->argv[al->argc++] = (char *)arg;
 }
@@ -131,16 +131,15 @@ main(argc, argv, envp)
 		execve(_PATH_DEFAULTMTA, al.argv, envp);
 		freearg(&al, 0);
 		free(line);
-		err(1, "mailwrapper: execing %s", _PATH_DEFAULTMTA);
+		err(1, "execing %s", _PATH_DEFAULTMTA);
 		/*NOTREACHED*/
 	}
 
 	for (;;) {
 		if ((line = fparseln(config, &len, &lineno, NULL, 0)) == NULL) {
 			if (feof(config))
-				errx(1, "mailwrapper: no mapping in %s",
-				    _PATH_MAILERCONF);
-			err(1, "mailwrapper");
+				errx(1, "no mapping in %s", _PATH_MAILERCONF);
+			err(1, "can't parse line %lu", (u_long)lineno);
 		}
 
 #define	WS	" \t\n"
@@ -178,12 +177,12 @@ main(argc, argv, envp)
 	execve(to, al.argv, envp);
 	freearg(&al, 0);
 	free(line);
-	err(1, "mailwrapper: execing %s", to);
+	err(1, "execing %s", to);
 	/*NOTREACHED*/
 parse_error:
 	freearg(&al, 0);
 	free(line);
-	errx(1, "mailwrapper: parse error in %s at line %lu",
+	errx(1, "parse error in %s at line %lu",
 	    _PATH_MAILERCONF, (u_long)lineno);
 	/*NOTREACHED*/
 }
