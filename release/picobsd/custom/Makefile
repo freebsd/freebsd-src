@@ -79,90 +79,92 @@ kernel.gz:	${COMPILE}/kernel
 	@ls -l kernel.gz
 
 # Create the MFS image file
-${MFS_NAME}: ${MFS_VNODE} ${MFS_MOUNTPOINT}
+${MFS_NAME}: ${MFS_VNODE} ${MFS_MOUNTPOINT} 
+	@(cd ${.CURDIR} && ${MAKE} vnunconfig-mfs 2>&1 > /dev/null)
 	@echo "--> Building and mounting MFS image vnode"
-	-umount -f ${MFS_MOUNTPOINT}
-	-umount -f ${MFS_VNODE}
-	-vnconfig -u ${MFS_VNODE}
 	rm -f ${MFS_NAME}
 	dd of=${MFS_NAME} if=/dev/zero count=${MFS_SIZE} bs=1k
 	awk 'BEGIN {printf "%c%c", 85, 170}' | \
 	    dd of=${MFS_NAME} obs=1 seek=510 conv=notrunc  2> /dev/null
 	vnconfig -s labels -c ${MFS_VNODE} ${MFS_NAME}
+	#@cd ${.CURDIR} && ${MAKE} vnconfig-mfs
 	dd if=/boot/boot1 of=${MFS_NAME} conv=notrunc
 	disklabel -rw vn0 auto
 	newfs -i ${MFS_INODES} -m 0 -p 0 -o space ${MFS_VNODE}c
 	mount ${MFS_VNODE} ${MFS_MOUNTPOINT}
-	make -f Makefile.mfs DESTDIR=${MFS_MOUNTPOINT} LANGUAGE=${LANGUAGE}
-	make -f Makefile.mfs devnodes DESTDIR=${MFS_MOUNTPOINT} LANGUAGE=${LANGUAGE}
+	#@cd ${.CURDIR} && ${MAKE} mount-mfs
+	cd ${.CURDIR} && ${MAKE} -f Makefile.mfs DESTDIR=${MFS_MOUNTPOINT} LANGUAGE=${LANGUAGE}
+	cd ${.CURDIR} && ${MAKE} -f Makefile.mfs devnodes DESTDIR=${MFS_MOUNTPOINT} LANGUAGE=${LANGUAGE}
 	MFS_MOUNTPOINT=${MFS_MOUNTPOINT} INIT=${INIT} VER=${VER} BUILDDIR=${BUILDDIR} LANGUAGE=${LANGUAGE}
 
 # Populate the MFS image.
 crunch: ${MFS_MOUNTPOINT}
+	@(cd ${.CURDIR} && ${MAKE} mount-mfs)
 	@echo "--> Populating MFS image"
-	-mount ${MFS_VNODE} ${MFS_MOUNTPOINT} 
 	# We need to make login with other options
-	for i in ${SPECIAL_PROGS}; do (cd $$i; make clean); done
-	cd crunch1; make SRC=${SRC} INIT=${INIT}; make install MFS_MOUNTPOINT=../${MFS_MOUNTPOINT}
+	#for i in ${SPECIAL_PROGS}; do (cd $$i; make clean); done
+	@(cd ${.CURDIR}/crunch1 && ${MAKE} SRC=${SRC} INIT=${INIT}; ${MAKE} install MFS_MOUNTPOINT=../${MFS_MOUNTPOINT})
 	# who can tell me how these damned help files get in here?
 	rm -rf ${MFS_MOUNTPOINT}/sbin/help
 	# Other files for the mfs file system
-	(cd mfs; tar cf - . | (cd ../${MFS_MOUNTPOINT}; tar xf -))
-	cd ${MFS_MOUNTPOINT}; chown -R root *
-	df -ik ${MFS_MOUNTPOINT}
-	umount ${MFS_MOUNTPOINT}
-	fsck -p ${MFS_VNODE}
+	((cd ${.CURDIR}/mfs; tar cf - .) | (cd ${MFS_MOUNTPOINT}; tar xf -))
+	(cd ${MFS_MOUNTPOINT} && chown -R root *)
+	@df -ik ${MFS_MOUNTPOINT}
+	@(cd ${.CURDIR} && ${MAKE} umount-mfs)
+	@fsck -p ${MFS_VNODE}
+	@(cd ${.CURDIR} && ${MAKE} vnunconfig-mfs)
 
 # Create and mount the floppy image
 ${FLOPPY_NAME}:	${FLOPPY_VNODE} ${FLOPPY_MOUNTPOINT} ${MFS_NAME}
+	@cd ${.CURDIR} && ${MAKE} vnunconfig-floppy
 	@echo "--> Preparing ${FLOPPY_SIZE}kB floppy filesystem"
-	-umount ${FLOPPY_VNODE}
-	-vnconfig -u ${FLOPPY_VNODE}
 	dd of=${FLOPPY_NAME} if=/dev/zero count=${FLOPPY_SIZE} bs=1k
 	awk 'BEGIN {printf "%c%c", 85, 170}' | \
 	                dd of=${FLOPPY_NAME} obs=1 seek=510 conv=notrunc
-	-vnconfig -s labels -c ${FLOPPY_VNODE} ${FLOPPY_NAME}
+	#-vnconfig -s labels -c ${FLOPPY_VNODE} ${FLOPPY_NAME}
+	@cd ${.CURDIR} && ${MAKE} vnconfig-floppy
 	dd if=/boot/boot1 of=${FLOPPY_NAME} conv=notrunc
 	disklabel -Brw -b /boot/boot1 -s /boot/boot2 ${FLOPPY_VNODE}c fd${FLOPPY_SIZE}	
 	newfs -i ${FLOPPY_INODES} -m 0 -p 0 -o space ${FLOPPY_VNODE}c
-	mount ${FLOPPY_VNODE} ${FLOPPY_MOUNTPOINT}
+	#mount ${FLOPPY_VNODE} ${FLOPPY_MOUNTPOINT}
+	@cd ${.CURDIR} && ${MAKE} mount-floppy
 
-copy:	${FLOPPY_MOUNTPOINT}/boot/defaults ../floppy.tree/boot
+copy:	${FLOPPY_MOUNTPOINT}/boot/defaults ../floppy.tree/boot kernel.gz
+	@cd ${.CURDIR} && ${MAKE} mount-floppy
 	@echo "--> Populating floppy filesystem from ../floppy.tree"
 	@echo -- Make a loader
-	cp /boot/loader floppy.tree/boot
-	kzip floppy.tree/boot/loader
-	mv floppy.tree/boot/loader.kz floppy.tree/boot/loader
+	#cp /boot/loader floppy.tree/boot
+	#mv floppy.tree/boot/loader.kz floppy.tree/boot/loader
 .if foo
 	rm ../floppy.tree/boot/loader
 	mv ../floppy.tree/boot/loader.kz ../floppy.tree/boot/loader
 .endif
 	@echo -- copy base floppy tree
 	@echo -- Base files
-	(wd=`pwd`; cd ../floppy.tree ; tar cXhf $${wd}/floppy.tree.exclude - . ) | \
-		(cd ${FLOPPY_MOUNTPOINT} ; tar xvf - )
+	@(cd ${.CURDIR}/../floppy.tree ; tar cXhf ${.CURDIR}/floppy.tree.exclude - . ) | \
+		(cd ${FLOPPY_MOUNTPOINT} ; tar xf - )
+	@kgzip -o ${FLOPPY_MOUNTPOINT}/boot/loader /boot/loader
 	@echo -- Now update from our private floppy tree if it exists
 	@echo -- Local files in `pwd`/floppy.tree
-	if [ -d floppy.tree ] ; then \
-		(cd floppy.tree; tar cXhf ../floppy.tree.exclude - .) | (cd ${FLOPPY_MOUNTPOINT} ; tar xvf - ); \
+	@if [ -d ${.CURDIR}/floppy.tree ] ; then \
+		(cd ${.CURDIR}/floppy.tree; tar cXhf ../floppy.tree.exclude - .) | (cd ${FLOPPY_MOUNTPOINT} ; tar xf - ); \
 	fi
 	# We get stuff here that we can't use.  When the transition
 	# to Makefile-based build is complete, we can delete this.
 	# XXX
-	rm -rf ${FLOPPY_MOUNTPOINT}/etc
-	(cd floppy.etc; tar czvXf ../floppy.tree.exclude ../${FLOPPY_MOUNTPOINT}/etc.tar.gz .)
-	df -ik ${FLOPPY_MOUNTPOINT}
-	@echo -- Generate password file if we don't have one on the floppy.
+	@rm -rf ${FLOPPY_MOUNTPOINT}/etc
+	@(cd ${.CURDIR}/floppy.etc; tar czXf ../floppy.tree.exclude ${.OBJDIR}/${FLOPPY_MOUNTPOINT}/etc.tar.gz .)
+	@echo -- Generate password file if we don\'t have one on the floppy.
 	@echo -- The variable PASSWD is defined in mfsinfo
-	if [ ${PASSWD} = NO ] ; then \
+	@if [ ${PASSWD} = NO ] ; then \
 	    cp -p ${FLOPPY_MOUNTPOINT}/etc/master.passwd .; \
 	    pwd_mkdb -d . master.passwd; \
 	    mv spwd.db ${FLOPPY_MOUNTPOINT}/etc/; \
 	    rm pwd.db master.passwd; \
 	fi
-	cp kernel.gz ${FLOPPY_MOUNTPOINT}/kernel.gz
+	@cp kernel.gz ${FLOPPY_MOUNTPOINT}/kernel.gz
 	@echo -- Insert the MFS image
-	gzip -9cv ${MFS_NAME} > ${FLOPPY_MOUNTPOINT}/${MFS_NAME}.gz
+	@gzip -9cv ${MFS_NAME} > ${FLOPPY_MOUNTPOINT}/${MFS_NAME}.gz
 .if loaderconf
 	XXX finish this.
 	cp ${SRC}/sys/boot/forth/loader.conf ${FLOPPY_MOUNTPOINT}/boot/defaults
@@ -175,8 +177,7 @@ copy:	${FLOPPY_MOUNTPOINT}/boot/defaults ../floppy.tree/boot
 #	done
 .endif
 	(echo "-> Fixing permissions"; cd ${FLOPPY_MOUNTPOINT}; chown -R root *)
-	df -ik ${FLOPPY_MOUNTPOINT}
-	umount ${FLOPPY_MOUNTPOINT}
+	@cd ${.CURDIR} && ${MAKE} vnunconfig-floppy
 
 floppy:	${FLOPPY_NAME}
 	@echo copying ${FLOPPY_NAME} to ${FDEV}c.  This will take about 50 seconds.
@@ -190,7 +191,7 @@ floppy2:
 	    (cd crunch2; make); \
 	  fi; \
 	  echo copying crunch2/floppy to ${FDEV}c.  This will take about 50 seconds.; \
-	  cd crunch2/floppy2; tar czvf - . | dd of=/dev/rfd0 conv=sync; \
+	  cd crunch2/floppy2; tar czf - . | dd of=/dev/rfd0 conv=sync; \
 	  echo Safe to remove disk from ${FDEV}; \
 	else \
           echo No second floppy; \
@@ -198,21 +199,22 @@ floppy2:
 	
 # crunch-2: Build second floppy
 crunch-2:
-	if [ -d crunch2 ]; then cd crunch2; make; fi		
+	#if [ -d crunch2 ]; then cd crunch2; make; fi		
 
 # Secondary targets
 
 ${COMPILE}/kernel: ${CONFFILE}
 	@echo "--> Building kernel"
-	grep -q MD_ROOT ${CONFFILE}; if [ $$? -ne 0 ]; then \
+	@grep -q MD_ROOT ${.ALLSRC}; if [ $$? -ne 0 ]; then \
 		echo -- '***** Config file must include MD_ROOT'; \
 		exit 1; \
 	fi
-	cp ${CONFFILE} ${CONF}; \
-	cd ${CONF}; \
-	config ${CONFFILE}; \
-	cd ${COMPILE}; \
-	make depend all
+	cp ${.ALLSRC} ${CONF}
+	(cd ${CONF}; config ${CONFFILE};)
+.if !defined(NO_DEPENDS)
+	(cd ${COMPILE}; ${MAKE} depend NO_MODULES=1;)
+.endif
+	(cd ${COMPILE}; ${MAKE} all NO_MODULES=1)
 
 # Device nodes for the vnode devices
 ${FLOPPY_VNODE} ${MFS_VNODE}:
@@ -222,33 +224,40 @@ ${FLOPPY_VNODE} ${MFS_VNODE}:
 ${MFS_MOUNTPOINT} ${FLOPPY_MOUNTPOINT} ${FLOPPY_MOUNTPOINT}/boot/defaults ../floppy.tree/boot:
 	mkdir -p $@
 
-tidy:
-	-umount ${FLOPPY_VNODE} ${MFS_VNODE}
-	-vnconfig -u ${FLOPPY_VNODE}
-	-vnconfig -u ${MFS_VNODE}
+tidy: vnunconfig
 	rm -f ${MFS_NAME}  ${MFS_NAME}.gz ${FLOPPY_NAME} *~ Make.log kernel.gz
 
 clean:	tidy
-	if [ -d floppy.tree ]; then \
-	   cd floppy.tree; rm -f boot/loader; \
+	if [ -d ${.CURDIR}floppy.tree ]; then \
+	   (cd ${.CURDIR}/floppy.tree; rm -f boot/loader;) \
 	fi
 	rm -rf ${MFS_MOUNTPOINT} ${FLOPPY_MOUNTPOINT} crunch1.conf
-	cd crunch1; make clean
+	(cd ${.CURDIR}/crunch1; make clean)
 	if [ -d crunch2 ]; then cd crunch2; make clean; fi
 	if [ -d ${COMPILE} ] ; then cd ${COMPILE}; make clean; fi
 
-# XXX Just for testing
-vnconfig: vnunconfig
-	vnconfig -c ${MFS_VNODE} ${MFS_NAME}
-	vnconfig -c ${FLOPPY_VNODE} ${FLOPPY_NAME}
-
-vnunconfig:
-	-vnconfig -u  ${MFS_VNODE}
-	-vnconfig -u ${FLOPPY_VNODE}
-
-mount:
+vnconfig: vnconfig-mfs vnconfig-floppy
+vnconfig-mfs: ${MFS_VNODE} vnunconfig-mfs
+	vnconfig -s labels -c ${MFS_VNODE} ${MFS_NAME}
+vnconfig-floppy: ${FLOPPY_VNODE} vnunconfig-floppy
+	vnconfig -s labels -c ${FLOPPY_VNODE} ${FLOPPY_NAME}
+vnunconfig: vnunconfig-mfs vnunconfig-floppy
+vnunconfig-mfs: ${MFS_VNODE} umount-mfs
+	@-vnconfig -u  ${MFS_VNODE}
+vnunconfig-floppy: ${FLOPPY_VNODE} umount-floppy
+	@-vnconfig -u ${FLOPPY_VNODE}
+mount: mount-mfs mount-floppy
+mount-mfs: ${MFS_MOUNTPOINT} vnunconfig-mfs vnconfig-mfs
 	mount ${MFS_VNODE} ${MFS_MOUNTPOINT}
+mount-floppy: ${FLOPPY_MOUNTPOINT} vnunconfig-floppy vnconfig-floppy
 	mount ${FLOPPY_VNODE} ${FLOPPY_MOUNTPOINT}
+umount: umount-mfs umount-floppy
+umount-mfs: ${MFS_VNODE} ${MFS_MOUNTPOINT}
+	@-umount ${MFS_VNODE} #${MFS_MOUNTPOINT} 
+umount-floppy: ${FLOPPY_VNODE} ${FLOPPY_MOUNTPOINT}
+	@-umount ${FLOPPY_VNODE} #${FLOPPY_MOUNTPOINT}
 
-umount:
-	-umount ${MFS_VNODE} ${MFS_MOUNTPOINT} ${FLOPPY_VNODE} ${FLOPPY_MOUNTPOINT}
+SUBDIR=	crunch1
+
+.include <bsd.obj.mk>
+.include <bsd.subdir.mk>
