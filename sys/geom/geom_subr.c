@@ -37,14 +37,6 @@
 
 
 #include <sys/param.h>
-#ifndef _KERNEL
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <string.h>
-#include <err.h>
-#else
 #include <sys/systm.h>
 #include <sys/devicestat.h>
 #include <sys/kernel.h>
@@ -55,7 +47,6 @@
 #include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#endif
 #include <sys/errno.h>
 #include <sys/sbuf.h>
 #include <geom/geom.h>
@@ -619,7 +610,6 @@ g_sanity(void *ptr)
 	}
 }
 
-#ifdef _KERNEL
 struct g_class *
 g_idclass(struct geomidorname *p)
 {
@@ -703,4 +693,3 @@ g_idprovider(struct geomidorname *p)
 	g_free(n);
 	return (NULL);
 }
-#endif /* _KERNEL */

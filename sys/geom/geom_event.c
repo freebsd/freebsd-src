@@ -41,14 +41,6 @@
  */
 
 #include <sys/param.h>
-#ifndef _KERNEL
-#include <stdio.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <err.h>
-#else
 #include <sys/malloc.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -56,7 +48,6 @@
 #include <sys/mutex.h>
 #include <sys/eventhandler.h>
 #include <machine/stdarg.h>
-#endif
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <geom/geom.h>
@@ -357,24 +348,20 @@ g_call_me(g_call_me_t *func, void *arg, ...)
 	return (0);
 }
 
-#ifdef _KERNEL
 static void
 geom_shutdown(void *foo __unused)
 {
 
 	g_shutdown = 1;
 }
-#endif
 
 void
 g_event_init()
 {
 
-#ifdef _KERNEL
 	
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, geom_shutdown, NULL,
 		SHUTDOWN_PRI_FIRST);
-#endif
 	mtx_init(&g_eventlock, "GEOM orphanage", NULL, MTX_DEF);
 	sx_init(&g_eventstall, "GEOM event stalling");
 }

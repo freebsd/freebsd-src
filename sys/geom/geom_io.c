@@ -37,19 +37,10 @@
 
 
 #include <sys/param.h>
-#ifndef _KERNEL
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <err.h>
-#include <sched.h>
-#else
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/bio.h>
-#endif
 
 #include <sys/errno.h>
 #include <geom/geom.h>

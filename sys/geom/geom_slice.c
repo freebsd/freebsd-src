@@ -37,14 +37,6 @@
 
 
 #include <sys/param.h>
-#ifndef _KERNEL
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <string.h>
-#include <err.h>
-#else
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -54,7 +46,6 @@
 #include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#endif
 #include <sys/errno.h>
 #include <sys/sbuf.h>
 #include <geom/geom.h>
@@ -220,7 +211,6 @@ g_slice_start(struct bio *bp)
 		/* Give the real method a chance to override */
 		if (gsp->start(bp))
 			return;
-#ifdef _KERNEL
 		if (!strcmp("GEOM::kerneldump", bp->bio_attribute)) {
 			struct g_kerneldump *gkd;
 
@@ -230,7 +220,6 @@ g_slice_start(struct bio *bp)
 				gkd->length = gsp->slices[idx].length;
 			/* now, pass it on downwards... */
 		}
-#endif
 		bp2 = g_clone_bio(bp);
 		if (bp2 == NULL) {
 			g_io_deliver(bp, ENOMEM);

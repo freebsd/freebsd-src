@@ -31,13 +31,6 @@
  */
 
 #include <sys/param.h>
-#ifndef _KERNEL
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <err.h>
-#else
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
@@ -46,7 +39,6 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/libkern.h>
-#endif
 #include <sys/endian.h>
 #include <sys/md5.h>
 #include <sys/errno.h>

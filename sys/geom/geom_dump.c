@@ -38,16 +38,8 @@
 
 #include <sys/param.h>
 #include <sys/sbuf.h>
-#ifndef _KERNEL
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <err.h>
-#else
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#endif
 #include <machine/stdarg.h>
 
 #include <geom/geom.h>
@@ -252,9 +244,6 @@ g_conf_specific(struct sbuf *sb, struct g_class *mp, struct g_geom *gp, struct g
 
 	g_topology_assert();
 	sbuf_printf(sb, "<mesh>\n");
-#ifndef _KERNEL
-	sbuf_printf(sb, "  <FreeBSD>%cFreeBSD%c</FreeBSD>\n", '$', '$');
-#endif
 	LIST_FOREACH(mp2, &g_classes, class) {
 		if (mp != NULL && mp != mp2)
 			continue;
