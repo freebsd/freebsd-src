@@ -89,7 +89,7 @@
 /* Define this if you want all leases written to the lease file, even if
    they are free leases that have never been used. */
 
-#define DEBUG_DUMP_ALL_LEASES
+/* #define DEBUG_DUMP_ALL_LEASES */
 
 /* Define this if you want DHCP failover protocol support in the DHCP
    server. */

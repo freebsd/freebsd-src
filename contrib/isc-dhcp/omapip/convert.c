@@ -44,7 +44,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: convert.c,v 1.1 2000/08/01 22:34:36 neild Exp $ Copyright (c) 1996-1999 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: convert.c,v 1.1.2.1 2002/04/27 05:35:20 murray Exp $ Copyright (c) 1996-1999 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include <omapip/omapip_p.h>
@@ -52,7 +52,7 @@ static char copyright[] =
 u_int32_t getULong (buf)
 	const unsigned char *buf;
 {
-	unsigned long ibuf;
+	u_int32_t ibuf;
 
 	memcpy (&ibuf, buf, sizeof (u_int32_t));
 	return ntohl (ibuf);
@@ -61,7 +61,7 @@ u_int32_t getULong (buf)
 int32_t getLong (buf)
 	const unsigned char *buf;
 {
-	long ibuf;
+	int32_t ibuf;
 
 	memcpy (&ibuf, buf, sizeof (int32_t));
 	return ntohl (ibuf);

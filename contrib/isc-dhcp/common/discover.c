@@ -43,7 +43,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: discover.c,v 1.42.2.8 2001/10/18 20:10:26 mellon Exp $ Copyright (c) 1995-2001 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: discover.c,v 1.42.2.9 2002/03/12 06:46:17 mellon Exp $ Copyright (c) 1995-2001 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -407,8 +407,11 @@ void discover_interfaces (state)
 					   name, isc_result_totext (status));
 			tmp -> flags = ir;
 			strncpy (tmp -> name, name, IFNAMSIZ);
-			interface_reference (&tmp -> next, interfaces, MDL);
-			interface_dereference (&interfaces, MDL);
+			if (interfaces) {
+				interface_reference (&tmp -> next,
+						     interfaces, MDL);
+				interface_dereference (&interfaces, MDL);
+			}
 			interface_reference (&interfaces, tmp, MDL);
 			interface_dereference (&tmp, MDL);
 			tmp = interfaces;
