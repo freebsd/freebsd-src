@@ -35,6 +35,7 @@
  */
 
 #include "opt_ipsec.h"
+#include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_tcpdebug.h"
 
@@ -1065,6 +1066,19 @@ tcp_ctloutput(so, sopt)
 	switch (sopt->sopt_dir) {
 	case SOPT_SET:
 		switch (sopt->sopt_name) {
+#ifdef TCP_SIGNATURE
+		case TCP_SIGNATURE_ENABLE:
+			error = sooptcopyin(sopt, &optval, sizeof optval,
+					    sizeof optval);
+			if (error)
+				break;
+
+			if (optval > 0)
+				tp->t_flags |= TF_SIGNATURE;
+			else
+				tp->t_flags &= ~TF_SIGNATURE;
+			break;
+#endif /* TCP_SIGNATURE */
 		case TCP_NODELAY:
 		case TCP_NOOPT:
 			error = sooptcopyin(sopt, &optval, sizeof optval,
@@ -1125,6 +1139,11 @@ tcp_ctloutput(so, sopt)
 
 	case SOPT_GET:
 		switch (sopt->sopt_name) {
+#ifdef TCP_SIGNATURE
+		case TCP_SIGNATURE_ENABLE:
+			optval = (tp->t_flags & TF_SIGNATURE) ? 1 : 0;
+			break;
+#endif /* TCP_SIGNATURE */
 		case TCP_NODELAY:
 			optval = tp->t_flags & TF_NODELAY;
 			break;

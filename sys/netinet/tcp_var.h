@@ -105,6 +105,7 @@ struct tcpcb {
 #define	TF_RXWIN0SENT	0x080000	/* sent a receiver win 0 in response */
 #define	TF_FASTRECOVERY	0x100000	/* in NewReno Fast Recovery */
 #define	TF_WASFRECOVERY	0x200000	/* was in NewReno Fast Recovery */
+#define	TF_SIGNATURE	0x400000	/* require MD5 digests (RFC2385) */
 	int	t_force;		/* 1 if forcing out a byte */
 
 	tcp_seq	snd_una;		/* send unacknowledged */
@@ -189,6 +190,21 @@ struct tcpcb {
 #define ENTER_FASTRECOVERY(tp)	tp->t_flags |= TF_FASTRECOVERY
 #define EXIT_FASTRECOVERY(tp)	tp->t_flags &= ~TF_FASTRECOVERY
 
+#ifdef TCP_SIGNATURE
+/*
+ * Defines which are needed by the xform_tcp module and tcp_[in|out]put
+ * for SADB verification and lookup.
+ */
+#define	TCP_SIGLEN	16	/* length of computed digest in bytes */
+#define	TCP_KEYLEN_MIN	1	/* minimum length of TCP-MD5 key */
+#define	TCP_KEYLEN_MAX	80	/* maximum length of TCP-MD5 key */
+/*
+ * Only a single SA per host may be specified at this time. An SPI is
+ * needed in order for the KEY_ALLOCSA() lookup to work.
+ */
+#define	TCP_SIG_SPI	0x1000
+#endif /* TCP_SIGNATURE */
+
 /*
  * Structure to hold TCP options that are only used during segment
  * processing (in tcp_input), but not held in the tcpcb.
@@ -203,6 +219,8 @@ struct tcpopt {
 #define	TOF_CCECHO	0x0008
 #define	TOF_MSS		0x0010
 #define	TOF_SCALE	0x0020
+#define	TOF_SIGNATURE	0x0040		/* signature option present */
+#define	TOF_SIGLEN	0x0080		/* sigature length valid (RFC2385) */
 	u_int32_t	to_tsval;
 	u_int32_t	to_tsecr;
 	tcp_cc		to_cc;		/* holds CC or CCnew */
@@ -234,6 +252,7 @@ struct syncache {
 #define SCF_TIMESTAMP	0x04			/* negotiated timestamps */
 #define SCF_CC		0x08			/* negotiated CC */
 #define SCF_UNREACH	0x10			/* icmp unreachable received */
+#define SCF_SIGNATURE	0x20			/* send MD5 digests */
 	TAILQ_ENTRY(syncache)	sc_hash;
 	TAILQ_ENTRY(syncache)	sc_timerq;
 };
@@ -548,6 +567,12 @@ void	 tcp_hc_updatetao(struct in_conninfo *, int, tcp_cc, u_short);
 #define	TCP_HC_TAO_CC		0x1
 #define TCP_HC_TAO_CCSENT	0x2
 #define TCP_HC_TAO_MSSOPT	0x3
+
+#ifdef TCP_SIGNATURE
+int tcpsignature_apply(void *fstate, void *data, unsigned int len);
+int tcpsignature_compute(struct mbuf *m, int off0, int len, int tcpoptlen,
+    u_char *buf, u_int direction);
+#endif /* TCP_SIGNATURE */
 
 extern	struct pr_usrreqs tcp_usrreqs;
 extern	u_long tcp_sendspace;
