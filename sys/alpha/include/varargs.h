@@ -41,8 +41,8 @@
  * $FreeBSD$
  */
 
-#ifndef _ALPHA_VARARGS_H_
-#define	_ALPHA_VARARGS_H_
+#ifndef _MACHINE_VARARGS_H_
+#define	_MACHINE_VARARGS_H_
 
 #if defined(__GNUC__) && (__GNUC__ == 2 && __GNUC_MINOR__ > 95 || __GNUC__ >= 3)
 
@@ -80,4 +80,4 @@ typedef int __builtin_va_alist_t __attribute__((__mode__(__word__)));
 
 #endif /* __GNUC__ post GCC 2.95 */
 
-#endif /* !_ALPHA_VARARGS_H_ */
+#endif /* !_MACHINE_VARARGS_H_ */
