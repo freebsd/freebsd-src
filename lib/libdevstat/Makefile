@@ -7,8 +7,8 @@ SHLIB_MAJOR= 4
 SRCS=	devstat.c
 INCS=	devstat.h
 
-DPADD+=	${LIBKVM}
-LDADD+=	-lkvm
+DPADD=	${LIBKVM}
+LDADD=	-lkvm
 
 MAN=	devstat.3
 

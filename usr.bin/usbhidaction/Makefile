@@ -4,7 +4,7 @@
 PROG=	usbhidaction
 SRCS=	usbhidaction.c
 
-LDADD+=	-lusbhid
-DPADD+=	${LIBUSBHID}
+LDADD=	-lusbhid
+DPADD=	${LIBUSBHID}
 
 .include <bsd.prog.mk>

@@ -14,8 +14,8 @@ SRCS= ${SHSRCS} ${GENSRCS} ${GENHDRS} y.tab.h
 # utilities of the same name are handled with the associated manpage,
 # builtin.1 in share/man/man1/.  
 
-DPADD+= ${LIBL} ${LIBEDIT} ${LIBTERMCAP}
-LDADD+= -ll -ledit -ltermcap
+DPADD= ${LIBL} ${LIBEDIT} ${LIBTERMCAP}
+LDADD= -ll -ledit -ltermcap
 
 LFLAGS= -8	# 8-bit lex scanner for arithmetic
 CFLAGS+=-DSHELL -I. -I${.CURDIR}

@@ -5,8 +5,8 @@ SHLIBDIR?=	/lib
 SRCS=		camlib.c scsi_cmdparse.c scsi_all.c scsi_da.c scsi_sa.c cam.c
 INCS=		camlib.h
 
-DPADD+=		${LIBSBUF}
-LDADD+=		-lsbuf
+DPADD=		${LIBSBUF}
+LDADD=		-lsbuf
 
 MAN=		cam.3 cam_cdbparse.3
 

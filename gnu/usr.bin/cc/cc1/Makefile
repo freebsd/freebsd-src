@@ -12,8 +12,8 @@ NOSHARED?=yes
 
 CFLAGS+= -I.
 
-DPADD+=	${LIBCC_INT} 
-LDADD+=	${LIBCC_INT}
+DPADD=	${LIBCC_INT} 
+LDADD=	${LIBCC_INT}
 
 #-----------------------------------------------------------------------
 # C parser

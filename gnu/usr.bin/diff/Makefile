@@ -15,7 +15,7 @@ CFLAGS+=-DPR_PROGRAM=\"/usr/bin/pr\"
 
 SUBDIR+=doc
 
-DPADD+=	${LIBGNUREGEX}
-LDADD+=	-lgnuregex
+DPADD=	${LIBGNUREGEX}
+LDADD=	-lgnuregex
 
 .include <bsd.prog.mk>
