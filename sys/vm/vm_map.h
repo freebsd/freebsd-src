@@ -205,7 +205,7 @@ struct vmspace {
 	struct vm_map vm_map;	/* VM address map */
 	struct pmap vm_pmap;	/* private physical map */
 	int vm_refcnt;		/* number of references */
-	caddr_t vm_shm;		/* SYS5 shared memory private data XXX */
+	void *vm_shm;		/* SYS5 shared memory private data XXX */
 /* we copy from vm_startcopy to the end of the structure on fork */
 #define vm_startcopy vm_rssize
 	segsz_t vm_rssize;	/* current resident set size in pages */

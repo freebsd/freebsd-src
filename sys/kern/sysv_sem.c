@@ -495,8 +495,7 @@ __semctl(td, uap)
 			UGAR(error);
 		if ((error = copyin(arg, &real_arg, sizeof(real_arg))) != 0)
 			UGAR(error);
-		error = copyout((caddr_t)semaptr, real_arg.buf,
-			sizeof(struct semid_ds));
+		error = copyout(semaptr, real_arg.buf, sizeof(struct semid_ds));
 		rval = IXSEQ_TO_IPCID(semid,semaptr->sem_perm);
 		if (error == 0)
 			td->td_retval[0] = rval;
@@ -535,7 +534,7 @@ __semctl(td, uap)
 		}
 		semaptr->sem_perm.mode = 0;
 		semundo_clear(semid, -1);
-		wakeup((caddr_t)semaptr);
+		wakeup(semaptr);
 		break;
 
 	case IPC_SET:
@@ -543,8 +542,7 @@ __semctl(td, uap)
 			goto done2;
 		if ((error = copyin(arg, &real_arg, sizeof(real_arg))) != 0)
 			goto done2;
-		if ((error = copyin(real_arg.buf, (caddr_t)&sbuf,
-		    sizeof(sbuf))) != 0) {
+		if ((error = copyin(real_arg.buf, &sbuf, sizeof(sbuf))) != 0) {
 			goto done2;
 		}
 		semaptr->sem_perm.uid = sbuf.sem_perm.uid;
@@ -559,7 +557,7 @@ __semctl(td, uap)
 			goto done2;
 		if ((error = copyin(arg, &real_arg, sizeof(real_arg))) != 0)
 			goto done2;
-		error = copyout((caddr_t)semaptr, real_arg.buf,
+		error = copyout(semaptr, real_arg.buf,
 				sizeof(struct semid_ds));
 		break;
 
@@ -599,7 +597,7 @@ __semctl(td, uap)
 		if ((error = copyin(arg, &real_arg, sizeof(real_arg))) != 0)
 			goto done2;
 		for (i = 0; i < semaptr->sem_nsems; i++) {
-			error = copyout((caddr_t)&semaptr->sem_base[i].semval,
+			error = copyout(&semaptr->sem_base[i].semval,
 			    &real_arg.array[i], sizeof(real_arg.array[0]));
 			if (error != 0)
 				break;
@@ -631,7 +629,7 @@ __semctl(td, uap)
 		}
 		semaptr->sem_base[semnum].semval = real_arg.val;
 		semundo_clear(semid, semnum);
-		wakeup((caddr_t)semaptr);
+		wakeup(semaptr);
 		break;
 
 	case SETALL:
@@ -641,7 +639,7 @@ __semctl(td, uap)
 			goto done2;
 		for (i = 0; i < semaptr->sem_nsems; i++) {
 			error = copyin(&real_arg.array[i],
-			    (caddr_t)&usval, sizeof(real_arg.array[0]));
+			    &usval, sizeof(real_arg.array[0]));
 			if (error != 0)
 				break;
 			if (usval > seminfo.semvmx) {
@@ -651,7 +649,7 @@ __semctl(td, uap)
 			semaptr->sem_base[i].semval = usval;
 		}
 		semundo_clear(semid, -1);
-		wakeup((caddr_t)semaptr);
+		wakeup(semaptr);
 		break;
 
 	default:
@@ -983,8 +981,7 @@ semop(td, uap)
 #ifdef SEM_DEBUG
 		printf("semop:  good night!\n");
 #endif
-		error = tsleep((caddr_t)semaptr, (PZERO - 4) | PCATCH,
-		    "semwait", 0);
+		error = tsleep(semaptr, (PZERO - 4) | PCATCH, "semwait", 0);
 #ifdef SEM_DEBUG
 		printf("semop:  good morning (error=%d)!\n", error);
 #endif
@@ -1086,7 +1083,7 @@ done:
 #ifdef SEM_DEBUG
 		printf("semop:  doing wakeup\n");
 #endif
-		wakeup((caddr_t)semaptr);
+		wakeup(semaptr);
 #ifdef SEM_DEBUG
 		printf("semop:  back from wakeup\n");
 #endif
@@ -1167,7 +1164,7 @@ semexit_myhook(p)
 			} else
 				semaptr->sem_base[semnum].semval += adjval;
 
-			wakeup((caddr_t)semaptr);
+			wakeup(semaptr);
 #ifdef SEM_DEBUG
 			printf("semexit:  back from wakeup\n");
 #endif

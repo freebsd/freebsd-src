@@ -410,7 +410,7 @@ msgctl(td, uap)
 
 		msqptr->msg_qbytes = 0;	/* Mark it as free */
 
-		wakeup((caddr_t)msqptr);
+		wakeup(msqptr);
 	}
 
 		break;
@@ -454,8 +454,7 @@ msgctl(td, uap)
 #endif
 			goto done2;
 		}
-		error = copyout((caddr_t)msqptr, user_msqptr,
-		    sizeof(struct msqid_ds));
+		error = copyout(msqptr, user_msqptr, sizeof(struct msqid_ds));
 		break;
 
 	default:
@@ -733,7 +732,7 @@ msgsnd(td, uap)
 #ifdef MSG_DEBUG_OK
 			printf("goodnight\n");
 #endif
-			error = tsleep((caddr_t)msqptr, (PZERO - 4) | PCATCH,
+			error = tsleep(msqptr, (PZERO - 4) | PCATCH,
 			    "msgwait", 0);
 #ifdef MSG_DEBUG_OK
 			printf("good morning, error=%d\n", error);
@@ -835,7 +834,7 @@ msgsnd(td, uap)
 #endif
 		msg_freehdr(msghdr);
 		msqptr->msg_perm.mode &= ~MSG_LOCKED;
-		wakeup((caddr_t)msqptr);
+		wakeup(msqptr);
 		goto done2;
 	}
 	user_msgp = (char *)user_msgp + sizeof(msghdr->msg_type);
@@ -847,7 +846,7 @@ msgsnd(td, uap)
 	if (msghdr->msg_type < 1) {
 		msg_freehdr(msghdr);
 		msqptr->msg_perm.mode &= ~MSG_LOCKED;
-		wakeup((caddr_t)msqptr);
+		wakeup(msqptr);
 #ifdef MSG_DEBUG_OK
 		printf("mtype (%d) < 1\n", msghdr->msg_type);
 #endif
@@ -877,7 +876,7 @@ msgsnd(td, uap)
 #endif
 			msg_freehdr(msghdr);
 			msqptr->msg_perm.mode &= ~MSG_LOCKED;
-			wakeup((caddr_t)msqptr);
+			wakeup(msqptr);
 			goto done2;
 		}
 		msgsz -= tlen;
@@ -899,7 +898,7 @@ msgsnd(td, uap)
 
 	if (msqptr->msg_qbytes == 0) {
 		msg_freehdr(msghdr);
-		wakeup((caddr_t)msqptr);
+		wakeup(msqptr);
 		error = EIDRM;
 		goto done2;
 	}
@@ -922,7 +921,7 @@ msgsnd(td, uap)
 	msqptr->msg_lspid = td->td_proc->p_pid;
 	msqptr->msg_stime = time_second;
 
-	wakeup((caddr_t)msqptr);
+	wakeup(msqptr);
 	td->td_retval[0] = 0;
 done2:
 	mtx_unlock(&Giant);
@@ -1110,8 +1109,7 @@ msgrcv(td, uap)
 #ifdef MSG_DEBUG_OK
 		printf("msgrcv:  goodnight\n");
 #endif
-		error = tsleep((caddr_t)msqptr, (PZERO - 4) | PCATCH, "msgwait",
-		    0);
+		error = tsleep(msqptr, (PZERO - 4) | PCATCH, "msgwait", 0);
 #ifdef MSG_DEBUG_OK
 		printf("msgrcv:  good morning (error=%d)\n", error);
 #endif
@@ -1166,14 +1164,14 @@ msgrcv(td, uap)
 	 * Return the type to the user.
 	 */
 
-	error = copyout((caddr_t)&(msghdr->msg_type), user_msgp,
+	error = copyout(&(msghdr->msg_type), user_msgp,
 	    sizeof(msghdr->msg_type));
 	if (error != 0) {
 #ifdef MSG_DEBUG_OK
 		printf("error (%d) copying out message type\n", error);
 #endif
 		msg_freehdr(msghdr);
-		wakeup((caddr_t)msqptr);
+		wakeup(msqptr);
 		goto done2;
 	}
 	user_msgp = (char *)user_msgp + sizeof(msghdr->msg_type);
@@ -1194,7 +1192,7 @@ msgrcv(td, uap)
 			panic("next too low #3");
 		if (next >= msginfo.msgseg)
 			panic("next out of range #3");
-		error = copyout((caddr_t)&msgpool[next * msginfo.msgssz],
+		error = copyout(&msgpool[next * msginfo.msgssz],
 		    user_msgp, tlen);
 		if (error != 0) {
 #ifdef MSG_DEBUG_OK
@@ -1202,7 +1200,7 @@ msgrcv(td, uap)
 			    error);
 #endif
 			msg_freehdr(msghdr);
-			wakeup((caddr_t)msqptr);
+			wakeup(msqptr);
 			goto done2;
 		}
 		user_msgp = (char *)user_msgp + tlen;
@@ -1214,7 +1212,7 @@ msgrcv(td, uap)
 	 */
 
 	msg_freehdr(msghdr);
-	wakeup((caddr_t)msqptr);
+	wakeup(msqptr);
 	td->td_retval[0] = msgsz;
 done2:
 	mtx_unlock(&Giant);
