@@ -270,15 +270,25 @@ int main(argc, argv)
 {
     int uncompr = 0;
     gzFile file;
-    char outmode[20];
+    char *bname, outmode[20];
 
     strcpy(outmode, "wb6 ");
 
     prog = argv[0];
+    bname = strrchr(argv[0], '/');
+    if (bname)
+      bname++;
+    else
+      bname = argv[0];
     argc--, argv++;
 
+    if (!strcmp(bname, "gunzip") || !strcmp(bname, "zcat"))
+      uncompr = 1;
+
     while (argc > 0) {
-      if (strcmp(*argv, "-d") == 0)
+      if (strcmp(*argv, "-c") == 0)
+	; /* Just for compatability with gzip */
+      else if (strcmp(*argv, "-d") == 0)
 	uncompr = 1;
       else if (strcmp(*argv, "-f") == 0)
 	outmode[3] = 'f';
