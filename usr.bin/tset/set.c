@@ -165,10 +165,8 @@ set_control_chars()
 	else
 		bs_char = 0;
 
-	if (erasechar == 0 && !tgetflag("os") && mode.c_cc[VERASE] != CERASE) {
-		if (tgetflag("bs") || bs_char != 0)
-			erasechar = -1;
-	}
+	if (erasechar == 0 && bs_char != 0 && !tgetflag("os"))
+		erasechar = -1;
 	if (erasechar < 0)
 		erasechar = (bs_char != 0) ? bs_char : CTRL('h');
 
