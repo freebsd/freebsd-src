@@ -107,6 +107,12 @@
     triggered by sending certain packets at a target machine.  More
     details, as well as a fix, can be found in security advisory
     FreeBSD-SA-01:48.</para>
+
+    <para>A remote buffer overflow in &man.telnetd.8; could result in
+    arbitrary code running on a target machine.  More details, as well
+    as a fix, can be found in security advisory
+    FreeBSD-SA-01:49.</para>
+
   </sect1>
 
   <sect1>
