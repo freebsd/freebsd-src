@@ -133,7 +133,7 @@ distribution:	freebsd.cf freebsd.mc ${INSTALL_CF} ${INSTALL_SUBMIT_CF}
 .endif
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${SMDIR}/helpfile \
 	    ${DESTDIR}/etc/mail/helpfile
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 640 /dev/null \
 	    ${DESTDIR}/var/log/sendmail.st
 
 .include <bsd.prog.mk>
