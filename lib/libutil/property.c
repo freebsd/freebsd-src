@@ -133,7 +133,12 @@ properties_read(int fd)
 	    break;
 
 	case VALUE:
-	    if (v == 0 && isspace(ch))
+	    if (v == 0 && ch == '\n') {
+	        hold_v[v] = '\0';
+	        v = n = 0;
+	        state = COMMIT;
+	    } 
+	    else if (v == 0 && isspace(ch))
 		continue;
 	    else if (ch == '{') {
 		state = MVALUE;
