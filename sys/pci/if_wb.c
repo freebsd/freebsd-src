@@ -772,7 +772,7 @@ wb_probe(dev)
 		if ((pci_get_vendor(dev) == t->wb_vid) &&
 		    (pci_get_device(dev) == t->wb_did)) {
 			device_set_desc(dev, t->wb_name);
-			return(0);
+			return (BUS_PROBE_DEFAULT);
 		}
 		t++;
 	}

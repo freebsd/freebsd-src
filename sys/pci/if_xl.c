@@ -1062,7 +1062,7 @@ xl_probe(device_t dev)
 		if ((pci_get_vendor(dev) == t->xl_vid) &&
 		    (pci_get_device(dev) == t->xl_did)) {
 			device_set_desc(dev, t->xl_name);
-			return (0);
+			return (BUS_PROBE_DEFAULT);
 		}
 		t++;
 	}

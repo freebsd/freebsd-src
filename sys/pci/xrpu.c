@@ -215,7 +215,7 @@ xrpu_probe(device_t self)
 		return ENXIO;
 
 	device_set_desc(self, desc);
-	return 0;
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
