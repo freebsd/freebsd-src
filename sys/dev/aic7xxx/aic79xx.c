@@ -8500,7 +8500,7 @@ sized:
 }
 
 void
-ahd_dump_all_cards_state()
+ahd_dump_all_cards_state(void)
 {
 	struct ahd_softc *list_ahd;
 

@@ -332,7 +332,7 @@ ahd_done_unlock(struct ahd_softc *ahd, unsigned long *flags)
 
 /* Lock held during ahd_list manipulation and ahd softc frees */
 static __inline void
-ahd_list_lockinit()
+ahd_list_lockinit(void)
 {
 }
 
