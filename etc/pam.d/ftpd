@@ -10,7 +10,7 @@ auth		required	pam_nologin.so	no_warn
 #auth		sufficient	pam_krb5.so	no_warn
 #auth           sufficient      pam_ssh.so      no_warn try_first_pass
 auth		required	pam_opie.so	no_warn
-# pam_unix functionality handled internally
+# pam_unix functionality handled internally and can't be chained
 
 # account
 #account	required	pam_kerberosIV.so
