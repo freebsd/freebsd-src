@@ -40,6 +40,7 @@
 #include <sys/ioctl.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/conf.h>
 #include <sys/mount.h>
 #include <sys/exec.h>
@@ -49,8 +50,8 @@
 #include <sys/file.h>
 #include <sys/errno.h>
 
-
-extern int	misccall();
+/* XXX this should be in a header. */
+extern int	misccall __P((struct proc *p, void *uap, int retval[]));
 
 /*
  * These two entries define our system call and module information.  We
@@ -70,7 +71,7 @@ static struct sysent	oldent;		/* save are for old callslot entry*/
  */
 #define nsysent (aout_sysvec.sv_size)
 
-MOD_MISC( "misc_mod")
+MOD_MISC( misc);
 
 
 /*
@@ -86,18 +87,17 @@ MOD_MISC( "misc_mod")
  * kick out the copyright to the console here (to give an example).
  *
  * The stat information is basically common to all modules, so there
- * is no real issue involved with stat; we will leave it nosys(),
+ * is no real issue involved with stat; we will leave it lkm_nullcmd(),
  * cince we don't have to do anything about it.
  */
 static int
-miscmod_handle( lkmtp, cmd)
+misc_load( lkmtp, cmd)
 struct lkm_table	*lkmtp;
 int			cmd;
 {
 	int			i;
 	struct lkm_misc		*args = lkmtp->private.lkm_misc;
 	int			err = 0;	/* default = success*/
-	extern int		lkmnosys();	/* allocable slot*/
 
 	switch( cmd) {
 	case LKM_E_LOAD:
@@ -118,7 +118,7 @@ int			cmd;
 		 * Search the table looking for a slot...
 		 */
 		for( i = 0; i < nsysent; i++)
-			if( sysent[ i].sy_call == lkmnosys)
+			if( sysent[ i].sy_call == (sy_call_t *)lkmnosys)
 				break;		/* found it!*/
 		/* out of allocable slots?*/
 		if( i == nsysent) {
@@ -161,12 +161,11 @@ int			cmd;
 	return( err);
 }
 
-
 /*
  * External entry point; should generally match name of .o file.  The
  * arguments are always the same for all loaded modules.  The "load",
  * "unload", and "stat" functions in "DISPATCH" will be called under
- * their respective circumstances unless their value is "nosys".  If
+ * their respective circumstances unless their value is "lkm_nullcmd".  If
  * called, they are called with the same arguments (cmd is included to
  * allow the use of a single function, ver is included for version
  * matching between modules and the kernel loader for the modules).
@@ -181,15 +180,11 @@ int			cmd;
  * The entry point should return 0 unless it is refusing load (in which
  * case it should return an errno from errno.h).
  */
+int
 misc_mod( lkmtp, cmd, ver)
 struct lkm_table	*lkmtp;
 int			cmd;
 int			ver;
 {
-	DISPATCH(lkmtp,cmd,ver,miscmod_handle,miscmod_handle,nosys)
+	DISPATCH(lkmtp, cmd, ver, misc_load, misc_load, lkm_nullcmd);
 }
-
-
-/*
- * EOF -- This file has not been truncated.
- */

@@ -34,7 +34,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id$
+# $Id: Makefile,v 1.2 1995/07/27 09:44:35 joerg Exp $
 #
 BINDIR=	/tmp
 SRCS=	misccall.c miscmod.c
@@ -44,6 +44,3 @@ NOMAN=	none
 CLEANFILES+= ${KMOD}
 
 .include <bsd.kmod.mk>
-#
-# EOF -- This file has not been truncated
-#

@@ -37,12 +37,9 @@
 
 BINDIR=	/tmp
 SRCS=	mycall.c newsyscall.c
-KMOD=	new_syscall
+KMOD=	newsyscall_mod
 NOMAN=	none
 
 CLEANFILES+= ${KMOD}
 
 .include <bsd.kmod.mk>
-#
-# EOF -- This file has not been truncated
-#

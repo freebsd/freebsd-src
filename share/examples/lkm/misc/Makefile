@@ -42,7 +42,3 @@ load: _SUBDIRUSE
 unload: _SUBDIRUSE
 
 .include <bsd.subdir.mk>
-
-#
-# EOF -- This file has not been truncated.
-#
