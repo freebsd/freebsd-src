@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.266 1996/06/18 10:20:16 julian Exp $
+#	$Id: LINT,v 1.267 1996/06/18 23:21:28 nate Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -482,7 +482,7 @@ controller	isa0
 options		"AUTO_EOI_1"
 #options	"AUTO_EOI_2"
 options		BOUNCE_BUFFERS
-#options	"MAXMEM=128*1024"
+#options	"MAXMEM=(128*1024)"
 #options        "TUNE_1542"
 #options	BROKEN_KEYBOARD_RESET
 #options	PAS_JOYSTICK_ENABLE
