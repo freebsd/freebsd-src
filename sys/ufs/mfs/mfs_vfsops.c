@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id: mfs_vfsops.c,v 1.22.2.1 1997/03/07 09:21:36 joerg Exp $
+ * $Id: mfs_vfsops.c,v 1.22.2.2 1997/03/22 16:05:06 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -298,6 +298,9 @@ mfs_mount(mp, path, data, ndp, p)
 		mfsp->mfs_pid = p->p_pid;
 		mfsp->mfs_active = 1;
 		TAILQ_INIT(&mfsp->buf_queue);
+
+		/* MFS wants to be read/write */
+		mp->mnt_flag &= ~MNT_RDONLY;
 
 		/*
 		 * Attempt mount
