@@ -7496,7 +7496,7 @@ static void sym_complete_error (hcb_p np, ccb_p cp)
 	 */
 	if (cp->dmamapped) {
 		bus_dmamap_sync(np->data_dmat, cp->dmamap,
-			(bus_dmasync_op_t)(cp->dmamapped == SYM_DMA_READ ? 
+			(cp->dmamapped == SYM_DMA_READ ? 
 				BUS_DMASYNC_POSTREAD : BUS_DMASYNC_POSTWRITE));
 	}
 #endif
@@ -7568,7 +7568,7 @@ static void sym_complete_ok (hcb_p np, ccb_p cp)
 	 */
 	if (cp->dmamapped) {
 		bus_dmamap_sync(np->data_dmat, cp->dmamap,
-			(bus_dmasync_op_t)(cp->dmamapped == SYM_DMA_READ ? 
+			(cp->dmamapped == SYM_DMA_READ ? 
 				BUS_DMASYNC_POSTREAD : BUS_DMASYNC_POSTWRITE));
 	}
 #endif
@@ -8045,7 +8045,7 @@ sym_execute_ccb(void *arg, bus_dma_segment_t *psegs, int nsegs, int error)
 	 */
 	if (cp->dmamapped) {
 		bus_dmamap_sync(np->data_dmat, cp->dmamap,
-			(bus_dmasync_op_t)(cp->dmamapped == SYM_DMA_READ ? 
+			(cp->dmamapped == SYM_DMA_READ ? 
 				BUS_DMASYNC_PREREAD : BUS_DMASYNC_PREWRITE));
 	}
 

@@ -1294,7 +1294,7 @@ gdtexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
     }
 
     if (nseg != 0) {
-        bus_dmasync_op_t op;
+        int op;
 
         if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
             op = BUS_DMASYNC_PREREAD;
@@ -1747,7 +1747,7 @@ gdt_sync_event(struct gdt_softc *gdt, int service,
                u_int8_t index, struct gdt_ccb *gccb)
 {
     union ccb *ccb;
-    bus_dmasync_op_t op;
+    int op;
 
     GDT_DPRINTF(GDT_D_INTR,
                 ("gdt_sync_event(%p, %d, %d, %p)\n", gdt,service,index,gccb));
