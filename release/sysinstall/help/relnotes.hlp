@@ -28,6 +28,11 @@ specifically marked as [MERGED] features.
 
 KERNEL CHANGES:
 
+o The 2.2.x SCSI subsystem has been almost entirely replaced with 
+  a new "CAM" (Common Access Method) SCSI system which offers
+  improved performance, better error recovery and support for more
+  SCSI controllers.
+
 o The Host ATM Research Platform ("HARP") software by Network
   Computing Services, Inc. has been integrated into the system.
   See /usr/src/share/examples/atm for more info.
@@ -47,6 +52,12 @@ o The MSDOS filesystem code now handles VFAT and FAT32 partitions.
 o ATAPI/IDE CD burner support (BETA).
 
 o ATAPI/IDE tape drive support (BETA).
+
+o Support for AdvanSys SCSI controllers (8 bit only for now)
+
+o Support for the Compaq QLogic SCSI controller.
+
+o Support for Adaptec 7895 based controllers (new 3840 et al).
 
 o The ed0 (wd8xxxx, 3c503, NE2000, HP Lan+) Ethernet device's default IRQ
   has changed from IRQ 5 to IRQ 10.
@@ -366,7 +377,7 @@ Adaptec 154x series ISA SCSI controllers
 Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
 Adaptec 274X/284X/2940/3940 (Narrow/Wide/Twin) series ISA/EISA/PCI SCSI
 controllers.
-Adaptec AIC7850 on-board SCSI controllers.
+Adaptec AIC7850 and AIC7895 on-board SCSI controllers.
 
 ** Note: You cannot boot from the SoundBlaster cards as they have no
    on-board BIOS, such being necessary for mapping the boot device into the
@@ -376,6 +387,8 @@ Adaptec AIC7850 on-board SCSI controllers.
    indicated by some sort of message when the system is first powered up
    or reset, and in such cases you *will* also be able to boot from them.
    Check your system/board documentation for more details.
+
+AdvanSys ADP9xx controllers.
 
 Buslogic 545S & 545c
 Buslogic 445S/445c VLB SCSI controller
@@ -396,6 +409,8 @@ Tekram DC390 and DC390T controllers (maybe other cards based on the
 AMD 53c974 as well).
 
 NCR5380/NCR53400 ("ProAudio Spectrum") SCSI controller. 
+
+Compaq QLogic controllers.
 
 DTC 3290 EISA SCSI controller in 1542 emulation mode.
 
