@@ -1,4 +1,4 @@
-#	$Id: options,v 1.134 1999/04/19 14:19:49 peter Exp $
+#	$Id: options,v 1.135 1999/05/05 11:24:15 jb Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -334,6 +334,11 @@ METEOR_TEST_VIDEO	opt_meteor.h
 METEOR_SYSTEM_DEFAULT	opt_meteor.h
 METEOR_DEALLOC_PAGES	opt_meteor.h
 METEOR_DEALLOC_ABOVE	opt_meteor.h
+
+# Various mi ISA bus flags
+COM_ESP                 opt_sio.h
+COM_MULTIPORT           opt_sio.h
+EXTRA_SIO               opt_sio.h
 
 # Include tweaks for running under the SimOS machine simulator.
 SIMOS			opt_simos.h
