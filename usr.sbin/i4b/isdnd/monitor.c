@@ -33,9 +33,9 @@
  *	i4b daemon - network monitor server module
  *	------------------------------------------
  *
- *	$Id: monitor.c,v 1.6 1998/08/10 13:55:24 hm Exp $
+ *	$Id: monitor.c,v 1.8 1999/02/15 16:48:04 hm Exp $
  *
- *      last edit-date: [Fri Jul 17 18:07:00 1998]
+ *      last edit-date: [Mon Feb 15 16:42:18 1999]
  *
  *	-mh	created
  *
@@ -221,7 +221,7 @@ int monitor_start_rights(const char *clientspec)
 	if (r.local)
 		local_rights = i;
 
-	log(LL_DBG, "system: monitor = %s", clientspec);
+	DBGL(DL_RCCF, (log(LL_DBG, "system: monitor = %s", clientspec)));
 	
 	return I4BMAR_OK;
 }
@@ -235,7 +235,7 @@ void monitor_add_rights(int rights_mask)
 
 	VARA_AT(rights, cur_add_entry).rights |= rights_mask;
 
-	log(LL_DBG, "system: monitor-access = 0x%x", rights_mask);	
+	DBGL(DL_RCCF, (log(LL_DBG, "system: monitor-access = 0x%x", rights_mask)));
 }
 
 /*

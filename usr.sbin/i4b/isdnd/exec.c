@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	exec.h - supplemental program/script execution
  *	----------------------------------------------
  *
- *	$Id: exec.c,v 1.10 1998/12/05 18:03:11 hm Exp $ 
+ *	$Id: exec.c,v 1.11 1999/02/14 09:44:56 hm Exp $ 
  *
- *      last edit-date: [Sat Dec  5 18:06:49 1998]
+ *      last edit-date: [Sun Feb 14 10:10:35 1999]
  *
  *---------------------------------------------------------------------------*/
 
