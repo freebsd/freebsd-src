@@ -115,7 +115,7 @@ leaves
 unchanged and returns
 .Er EINVAL .
 Error numbers recognized by this implementation fall in
-the range 0 \(<=
+the range 0 \(<
 .Fa errnum
 <
 .Fa sys_nerr .
@@ -168,6 +168,11 @@ For unknown error numbers, the
 .Fn strerror
 function will return its result in a static buffer which
 may be overwritten by subsequent calls.
+.Pp
+The return type for
+.Fn strerror
+is missing a type-qualifier; it should actually be
+.Vt const char * .
 .Pp
 The
 .Fn perror
