@@ -125,8 +125,11 @@ written to its backing store before it can actually be released.
 In the case
 where B_DELWRI is not set, the underlying dirty pages are still properly
 marked as dirty and the buffer can be completely freed without losing that
-clean/dirty state information.  ( XXX do we have to check other flags in
-regards to this situation ??? ).
+clean/dirty state information.
+.Po
+XXX do we have to check other flags in
+regards to this situation ???
+.Pc
 .Pp
 The kernel reserves a portion of its KVM space to hold VM Buffer's data
 maps.
