@@ -2,7 +2,7 @@
  * Written by grefen@?????
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.8 1994/01/29 10:30:36 rgrimes Exp $
+ *      $Id: ch.c,v 1.9 1994/10/19 00:09:44 wollman Exp $
  */
 
 #include	<sys/types.h>
@@ -17,6 +17,7 @@
 #include <sys/proc.h>
 #include <sys/user.h>
 #include <sys/chio.h>
+#include <sys/malloc.h>
 
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_changer.h>
@@ -88,7 +89,7 @@ static int
 ch_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, 
 	       size_t len)
 {
-	return scsi_externalize(sd_data[kdc->kdc_unit]->sc_link, userp, &len);
+	return scsi_externalize(ch_data[kdc->kdc_unit].sc_link, userp, &len);
 }
 
 static struct kern_devconf kdc_ch_template = {

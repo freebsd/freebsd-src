@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.11 1994/10/05 09:48:39 davidg Exp $
+ * $Id: vnode.h,v 1.12 1994/10/08 22:23:00 phk Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -200,9 +200,7 @@ extern int		vttoif_tab[];
 #define	VREF(vp)	vref(vp)
 
 void	holdrele __P((struct vnode *));
-void	vattr_null __P((struct vattr *));
 void	vhold __P((struct vnode *));
-void	vref __P((struct vnode *));
 #else
 #define	HOLDRELE(vp)	(vp)->v_holdcnt--	/* decrease buf or page ref */
 #define	VATTR_NULL(vap)	(*(vap) = va_null)	/* initialize a vattr */

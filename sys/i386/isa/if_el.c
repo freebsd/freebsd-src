@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  * 
- * $Id: if_el.c,v 1.5 1994/08/13 03:50:04 wollman Exp $
+ * $Id: if_el.c,v 1.6 1994/10/19 01:58:59 wollman Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -84,7 +84,7 @@ void elintr(int);
 int el_ioctl(struct ifnet *,int,caddr_t);
 int el_probe(struct isa_device *);
 void el_start(struct ifnet *);
-void el_reset(int,int);
+void el_reset(int);
 void el_watchdog(int);
 
 static void el_stop(int);
@@ -238,7 +238,7 @@ int el_attach(struct isa_device *idev)
 }
 
 /* This routine resets the interface. */
-void el_reset(int unit,int uban)
+void el_reset(int unit)
 {
 	int s;
 
@@ -827,6 +827,6 @@ void el_watchdog(int unit)
 
 	log(LOG_ERR,"el%d: device timeout\n",unit);
 	sc->arpcom.ac_if.if_oerrors++;
-	el_reset(unit,0);
+	el_reset(unit);
 }
 #endif
