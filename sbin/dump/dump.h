@@ -83,6 +83,7 @@ int	blockswritten;	/* number of blocks written on current tape */
 int	tapeno;		/* current tape number */
 time_t	tstart_writing;	/* when started writing the first tape block */
 time_t	tend_writing;	/* after writing the last tape block */
+int	passno;		/* current dump pass number */
 struct	fs *sblock;	/* the file system super block */
 char	sblock_buf[MAXBSIZE];
 long	dev_bsize;	/* block size of underlying disk device */
@@ -95,6 +96,7 @@ int	tp_bshift;	/* log2(TP_BSIZE) */
 
 /* operator interface functions */
 void	broadcast __P((char *message));
+void	infosch __P((int));
 void	lastdump __P((int arg));	/* int should be char */
 void	msg __P((const char *fmt, ...)) __printflike(1, 2);
 void	msgtail __P((const char *fmt, ...)) __printflike(1, 2);

@@ -357,9 +357,13 @@ main(argc, argv)
 
 	nonodump = spcl.c_level < honorlevel;
 
+	passno = 1;
+	setproctitle("%s: pass 1: regular files", disk);
 	msg("mapping (Pass I) [regular files]\n");
 	anydirskipped = mapfiles(maxino, &tapesize);
 
+	passno = 2;
+	setproctitle("%s: pass 2: directories", disk);
 	msg("mapping (Pass II) [directories]\n");
 	while (anydirskipped) {
 		anydirskipped = mapdirs(maxino, &tapesize);
@@ -422,6 +426,8 @@ main(argc, argv)
 	(void)time((time_t *)&(tstart_writing));
 	dumpmap(usedinomap, TS_CLRI, maxino - 1);
 
+	passno = 3;
+	setproctitle("%s: pass 3: directories", disk);
 	msg("dumping (Pass III) [directories]\n");
 	dirty = 0;		/* XXX just to get gcc to shut up */
 	for (map = dumpdirmap, ino = 1; ino < maxino; ino++) {
@@ -440,6 +446,8 @@ main(argc, argv)
 		(void)dumpino(dp, ino);
 	}
 
+	passno = 4;
+	setproctitle("%s: pass 4: regular files", disk);
 	msg("dumping (Pass IV) [regular files]\n");
 	for (map = dumpinomap, ino = 1; ino < maxino; ino++) {
 		int mode;

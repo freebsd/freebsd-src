@@ -537,6 +537,7 @@ restore_check_point:
 	/*
 	 *	All signals are inherited...
 	 */
+	setproctitle(NULL);	/* Restore the proctitle. */
 	childpid = fork();
 	if (childpid < 0) {
 		msg("Context save fork fails in parent %d\n", parentpid);
@@ -627,6 +628,7 @@ restore_check_point:
 		}
 
 		enslave();  /* Share open tape file descriptor with slaves */
+		signal(SIGINFO, infosch);
 
 		asize = 0;
 		blocksthisvol = 0;
