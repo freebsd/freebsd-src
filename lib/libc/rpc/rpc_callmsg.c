@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)rpc_callmsg.c 1.4 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)rpc_callmsg.c	2.1 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: rpc_callmsg.c,v 1.2 1995/05/30 05:41:28 rgrimes Exp $";
+static char *rcsid = "$Id: rpc_callmsg.c,v 1.3 1995/10/22 14:51:33 phk Exp $";
 #endif
 
 /*
@@ -44,6 +44,8 @@ static char *rcsid = "$Id: rpc_callmsg.c,v 1.2 1995/05/30 05:41:28 rgrimes Exp $
 #include <stdlib.h>
 #include <string.h>
 #include <rpc/rpc.h>
+
+bool_t xdr_opaque_auth(XDR *xdrs, struct opaque_auth *ap);
 
 /*
  * XDR a call message

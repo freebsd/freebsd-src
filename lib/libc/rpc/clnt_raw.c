@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)clnt_raw.c 1.22 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)clnt_raw.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: clnt_raw.c,v 1.3 1995/10/22 14:51:16 phk Exp $";
+static char *rcsid = "$Id: clnt_raw.c,v 1.4 1995/10/27 16:56:48 adam Exp $";
 #endif
 
 /*
@@ -46,8 +46,11 @@ static char *rcsid = "$Id: clnt_raw.c,v 1.3 1995/10/22 14:51:16 phk Exp $";
 
 #include <rpc/rpc.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #define MCALL_MSG_SIZE 24
+
+bool_t xdr_opaque_auth(XDR *xdrs, struct opaque_auth *ap);
 
 /*
  * This is the "network" we will be moving stuff over.

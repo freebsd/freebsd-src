@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)pmap_clnt.c 1.37 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)pmap_clnt.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: pmap_clnt.c,v 1.2 1995/05/30 05:41:22 rgrimes Exp $";
+static char *rcsid = "$Id: pmap_clnt.c,v 1.3 1995/10/22 14:51:28 phk Exp $";
 #endif
 
 /*
@@ -44,6 +44,8 @@ static char *rcsid = "$Id: pmap_clnt.c,v 1.2 1995/05/30 05:41:22 rgrimes Exp $";
 #include <rpc/rpc.h>
 #include <rpc/pmap_prot.h>
 #include <rpc/pmap_clnt.h>
+
+void get_myaddress(struct sockaddr_in *);
 
 static struct timeval timeout = { 5, 0 };
 static struct timeval tottimeout = { 60, 0 };
