@@ -25,6 +25,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if	0
@@ -422,7 +424,7 @@ bs_alloc_buf(ti)
 			ti->bounce_phys = (u_int8_t *) physaddr;
 			return;
 		}
-		free(buf, M_DEVBUF);
+		free(addr, M_DEVBUF);
 	}
 	addr = contigmalloc(ti->bounce_size, M_DEVBUF, M_NOWAIT,
 						0ul, RAM_END, 1ul, 0x10000ul);
