@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: slstat.c,v 1.7 1996/11/04 17:14:43 bde Exp $";
+	"$Id: slstat.c,v 1.8 1996/12/10 17:00:45 wollman Exp $";
 #endif
 
 #include <sys/param.h>
@@ -44,6 +44,7 @@ static const char rcsid[] =
 #define INET
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_mib.h>
 #include <net/if_types.h>
 #include <netinet/in.h>

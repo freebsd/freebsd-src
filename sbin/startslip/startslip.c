@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: startslip.c,v 1.18 1995/09/27 17:15:37 ache Exp $
+ * $Id: startslip.c,v 1.19 1996/12/10 17:07:48 wollman Exp $
  */
 
 #ifndef lint
@@ -63,6 +63,7 @@ static char sccsid[] = "@(#)startslip.c	8.1 (Berkeley) 6/5/93";
 
 #include <netinet/in.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_slvar.h>
 #include <net/slip.h>
 

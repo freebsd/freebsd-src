@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.4 1996/01/11 17:48:34 phk Exp $
+ * $Id: arp.c,v 1.5 1996/05/11 20:48:09 phk Exp $
  *
  */
 
@@ -35,6 +35,7 @@
 #include <string.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/route.h>
 #include <net/if_dl.h>
 #include <netinet/in.h>
