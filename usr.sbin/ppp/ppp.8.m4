@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.73 1997/11/08 12:37:33 brian Exp $
+.\" $Id: ppp.8,v 1.74 1997/11/09 06:22:46 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2210,21 +2210,9 @@ and
 .Pa ppp.secret .
 These files are placed in the
 .Pa /etc/ppp
-directory, but the user can create his own files under his
-.Dv HOME
-directory as
-.Pa .ppp.conf ,
-.Pa .ppp.linkup ,
-.Pa .ppp.linkdown
-and
-.Pa .ppp.secret.
-.Nm
-will always try to consult the user's personal setup first.
+directory.
 
 .Bl -tag -width flag
-.It Pa $HOME/ppp/.ppp.{conf,linkup,linkdown,secret}
-User dependent configuration files.
-
 .It Pa /etc/ppp/ppp.conf
 System default configuration file.
 
