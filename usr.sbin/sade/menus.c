@@ -261,7 +261,7 @@ DMenu MenuIndex = {
       { " PCNFSD",		"Run authentication server for PC-NFS.", dmenuVarCheck, configPCNFSD, NULL, "pcnfsd" },
       { " Root Password",	"Set the system manager's password.",   NULL, dmenuSystemCommand, NULL, "passwd root" },
       { " Router",		"Select routing daemon (default: routed)", NULL, configRouter, NULL, "router_enable" },
-      { " Security",		"Select a default system security profile.", NULL, dmenuSubmenu, NULL, &MenuSecurityProfile },
+      { " Security",		"Configure system security options", NULL, dmenuSubmenu, NULL, &MenuSecurity },
       { " Syscons",		"The system console configuration menu.", NULL, dmenuSubmenu, NULL, &MenuSyscons },
       { " Syscons, Font",	"The console screen font.",	  NULL, dmenuSubmenu, NULL, &MenuSysconsFont },
       { " Syscons, Keymap",	"The console keymap configuration menu.", NULL, dmenuSubmenu, NULL, &MenuSysconsKeymap },
@@ -1259,8 +1259,8 @@ DMenu MenuConfigure = {
 	NULL,	dmenuSubmenu, NULL, &MenuMouse, NULL },
       { " Networking",	"Configure additional network services",
 	NULL,	dmenuSubmenu, NULL, &MenuNetworking },
-      { " Security",	"Select default system security profile",
-	NULL,	dmenuSubmenu, NULL, &MenuSecurityProfile },
+      { " Security",	"Configure system security options",
+	NULL,	dmenuSubmenu, NULL, &MenuSecurity },
       { " Startup",	"Configure system startup options",
 	NULL,	dmenuSubmenu, NULL, &MenuStartup },
       { " TTYs",	"Configure system ttys.",
@@ -2076,6 +2076,22 @@ DMenu MenuUsermgmt = {
     { { "X Exit",	"Exit this menu (returning to previous)", NULL, dmenuExit },
       { "User",		"Add a new user to the system.",	NULL, userAddUser },
       { "Group",	"Add a new user group to the system.",	NULL, userAddGroup },
+      { NULL } },
+};
+
+DMenu MenuSecurity = {
+    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
+    "System Security Options Menu",
+    "This menu allows you to configure aspects of the operating systme\n"
+    "policy.\n",
+    "Configure system security options",
+    NULL,
+    { { "X Exit",      "Exit this menu (returning to previous)",
+	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
+      { " Security Profile",   "Select a security profile for the system",
+	NULL, configSecurityProfile },
+      { " LOMAC",         "Use Low Watermark Mandatory Access Control at boot",
+	dmenuVarCheck,  dmenuToggleVariable, NULL, "lomac_enable=YES" },
       { NULL } },
 };
 
