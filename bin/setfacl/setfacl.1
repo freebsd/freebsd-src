@@ -33,7 +33,7 @@
 .Nd set ACL information
 .Sh SYNOPSIS
 .Nm
-.Op Fl bdkn
+.Op Fl bdhkn
 .Op Fl m Ar entries
 .Op Fl M Ar file1
 .Op Fl x Ar entries
@@ -63,6 +63,9 @@ entries of the current ACL.
 The operations apply to the default ACL entries instead of
 access ACL entries.  Currently only directories may have
 default ACL's.
+.It Fl h
+If the target of the operation is a symbolic link, perform the operation
+on the symbolic link itself, rather than following the link.
 .It Fl k
 Delete any default ACL entries on the specified files.  It
 is not considered an error if the specified files do not have

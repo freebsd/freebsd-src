@@ -71,11 +71,19 @@ get_file_acls(const char *filename)
 	}
 
 	acl = zmalloc(sizeof(acl_t) * 2);
-	acl[ACCESS_ACL] = acl_get_file(filename, ACL_TYPE_ACCESS);
+	if (h_flag)
+		acl[ACCESS_ACL] = acl_get_link_np(filename, ACL_TYPE_ACCESS);
+	else
+		acl[ACCESS_ACL] = acl_get_file(filename, ACL_TYPE_ACCESS);
 	if (acl[ACCESS_ACL] == NULL)
 		err(1, "acl_get_file() failed");
 	if (S_ISDIR(sb.st_mode)) {
-		acl[DEFAULT_ACL] = acl_get_file(filename, ACL_TYPE_DEFAULT);
+		if (h_flag)
+			acl[DEFAULT_ACL] = acl_get_link_np(filename,
+			    ACL_TYPE_DEFAULT);
+		else
+			acl[DEFAULT_ACL] = acl_get_file(filename,
+			    ACL_TYPE_DEFAULT);
 		if (acl[DEFAULT_ACL] == NULL)
 			err(1, "acl_get_file() failed");
 	} else
@@ -88,7 +96,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: setfacl [-bdknv] [-m entries] [-M file1] "
+	fprintf(stderr, "usage: setfacl [-bdhknv] [-m entries] [-M file1] "
 	    "[-x entries] [-X file2] [file ...]\n");
 	exit(1);
 }
@@ -104,12 +112,12 @@ main(int argc, char *argv[])
 
 	acl_type = ACL_TYPE_ACCESS;
 	carried_error = local_error = 0;
-	have_mask = have_stdin = n_flag = need_mask = 0;
+	h_flag = have_mask = have_stdin = n_flag = need_mask = 0;
 
 	TAILQ_INIT(&entrylist);
 	TAILQ_INIT(&filelist);
 
-	while ((ch = getopt(argc, argv, "M:X:bdkm:nx:")) != -1)
+	while ((ch = getopt(argc, argv, "M:X:bdhkm:nx:")) != -1)
 		switch(ch) {
 		case 'M':
 			entry = zmalloc(sizeof(struct sf_entry));
@@ -132,6 +140,9 @@ main(int argc, char *argv[])
 			break;
 		case 'd':
 			acl_type = ACL_TYPE_DEFAULT;
+			break;
+		case 'h':
+			h_flag = 1;
 			break;
 		case 'k':
 			entry = zmalloc(sizeof(struct sf_entry));
