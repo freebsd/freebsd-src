@@ -13,16 +13,13 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.13 1995/07/16 10:11:30 bde Exp $
+ *	$Id: apm.c,v 1.12.4.1 1995/09/14 07:08:57 davidg Exp $
  */
 
 #include "apm.h"
 
-#if NAPM > 0
-
-#ifdef __FreeBSD__
 #include <sys/param.h>
-#include "conf.h"
+#include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -38,27 +35,6 @@
 #include <vm/vm.h>
 #include <sys/syslog.h>
 #include "apm_setup.h"
-#endif /* __FreeBSD__ */
-
-#ifdef MACH_KERNEL
-#include <mach/std_types.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <device/conf.h>
-#include <device/errno.h>
-#include <device/tty.h>
-#include <device/io_req.h>
-#include <kern/time_out.h>
-
-#include <i386/ipl.h>
-#include <i386/pio.h>
-#include <i386/seg.h>
-#include <i386/machspl.h>
-#include <chips/busses.h>
-#include <i386at/apm_bios.h>
-#include <i386at/apm_setup.h>
-#include <i386at/apm_segments.h>
-#endif /* MACH_KERNEL */
 
 /* static data */
 struct apm_softc {
@@ -83,28 +59,17 @@ static int	apm_slowstart_p = 0;
 int		apm_slowstart_stat = 0;
 #endif /* APM_SLOWSTART */
 
-#ifdef MACH_KERNEL
-extern struct fake_descriptor     gdt[GDTSZ];
-extern void fix_desc(struct fake_descriptor *, int);
-#endif /* MACH_KERNEL */
-
 #define is_enabled(foo) ((foo) ? "enabled" : "disabled")
 
 /* Map version number to integer (keeps ordering of version numbers) */
 #define INTVERSION(major, minor)	((major)*100 + (minor))
 
-#ifdef __FreeBSD__
 static timeout_t apm_timeout;
-#endif /* __FreeBSD__ */
-#ifdef MACH_KERNEL
-static void apm_timeout(void *);
-#endif /* MACH_KERNEL */
 
 /* setup APM GDT discriptors */
 static void
 setup_apm_gdt(u_int code32_base, u_int code16_base, u_int data_base, u_int code_limit, u_int data_limit)
 {
-#ifdef __FreeBSD__
 	/* setup 32bit code segment */
 	gdt_segs[GAPMCODE32_SEL].ssd_base  = code32_base;
 	gdt_segs[GAPMCODE32_SEL].ssd_limit = code_limit;
@@ -121,31 +86,6 @@ setup_apm_gdt(u_int code32_base, u_int code16_base, u_int data_base, u_int code_
 	ssdtosd(gdt_segs + GAPMCODE32_SEL, &gdt[GAPMCODE32_SEL].sd);
 	ssdtosd(gdt_segs + GAPMCODE16_SEL, &gdt[GAPMCODE16_SEL].sd);
 	ssdtosd(gdt_segs + GAPMDATA_SEL  , &gdt[GAPMDATA_SEL  ].sd);
-#endif /* __FreeBSD__ */
-#ifdef MACH_KERNEL
-	/* setup 32bit code segment */
-	gdt[sel_idx(GAPMCODE32_SEL)].offset       = code32_base;
-	gdt[sel_idx(GAPMCODE32_SEL)].lim_or_seg   = code_limit;
-	gdt[sel_idx(GAPMCODE32_SEL)].size_or_wdct = SZ_32;
-	gdt[sel_idx(GAPMCODE32_SEL)].access       = ACC_P | ACC_PL_K | ACC_CODE_R;
-
-	/* setup 16bit code segment */
-	gdt[sel_idx(GAPMCODE16_SEL)].offset       = code16_base;
-	gdt[sel_idx(GAPMCODE16_SEL)].lim_or_seg   = code_limit;
-	gdt[sel_idx(GAPMCODE16_SEL)].size_or_wdct = 0;
-	gdt[sel_idx(GAPMCODE16_SEL)].access       = ACC_P | ACC_PL_K | ACC_CODE_R;
-
-	/* setup data segment */
-	gdt[sel_idx(GAPMDATA_SEL  )].offset       = data_base;
-	gdt[sel_idx(GAPMDATA_SEL  )].lim_or_seg   = data_limit;
-	gdt[sel_idx(GAPMDATA_SEL  )].size_or_wdct = 0;
-	gdt[sel_idx(GAPMDATA_SEL  )].access       = ACC_P | ACC_PL_K | ACC_DATA_W;
-
-	/* reflect these changes on physical GDT */
-	fix_desc(gdt + sel_idx(GAPMCODE32_SEL), 1);
-	fix_desc(gdt + sel_idx(GAPMCODE16_SEL), 1);
-	fix_desc(gdt + sel_idx(GAPMDATA_SEL)  , 1);
-#endif /* MACH_KERNEL */
 }
 
 /* 48bit far pointer */
@@ -412,7 +352,6 @@ static struct timeval diff_time;
 static int
 apm_default_resume(struct apm_softc *sc)
 {
-#ifdef __FreeBSD__
 	int pl;
 	u_int second, minute, hour;
 	struct timeval resume_time, tmp_time;
@@ -432,14 +371,12 @@ apm_default_resume(struct apm_softc *sc)
 	second %= 60;
 	log(LOG_NOTICE, "resumed from suspended mode (slept %02d:%02d:%02d)\n",
 		hour, minute, second);
-#endif /* __FreeBSD__ */
 	return 0;
 }
 
 static int
 apm_default_suspend(void)
 {
-#ifdef __FreeBSD__
 	int	pl;
 
 	pl = splsoftclock();
@@ -451,7 +388,6 @@ apm_default_suspend(void)
 #if 0
 	printf("diff_time = %d:%d\n", diff_time.tv_sec, diff_time.tv_usec);
 #endif
-#endif /* __FreeBSD__ */
 	return 0;
 }
 
@@ -627,21 +563,10 @@ apm_not_halt_cpu(struct apm_softc *sc)
 }
 
 /* device driver definitions */
-#ifdef __FreeBSD__
 int apmprobe (struct isa_device *);
 int apmattach(struct isa_device *);
 struct isa_driver apmdriver = {
 	apmprobe, apmattach, "apm" };
-#endif /* __FreeBSD__ */
-
-#ifdef MACH_KERNEL
-int apmprobe(vm_offset_t, struct bus_ctlr *);
-void apmattach(struct bus_device *);
-static struct bus_device *apminfo[NAPM];
-static vm_offset_t apmstd[NAPM] = { 0 };
-struct bus_driver apmdriver = {
-	apmprobe, 0, apmattach, 0, apmstd, "apm", apminfo, 0, 0, 0};
-#endif /* MACH_KERNEL */
 
 
 /*
@@ -654,19 +579,9 @@ struct bus_driver apmdriver = {
  */
 
 int
-#ifdef __FreeBSD__
-	apmprobe(struct isa_device *dvp)
-#endif /* __FreeBSD__ */
-#ifdef MACH_KERNEL
-	apmprobe(vm_offset_t port, struct bus_ctlr *devc)
-#endif /* MACH_KERNEL */
+apmprobe(struct isa_device *dvp)
 {
-#ifdef __FreeBSD__
 	int     unit = dvp->id_unit;
-#endif /* __FreeBSD__ */
-#ifdef MACH_KERNEL
-	int     unit = devc->unit;
-#endif /* MACH_KERNEL */
 	struct apm_softc *sc = &apm_softc[unit];
 
 	switch (apm_version) {
@@ -769,25 +684,12 @@ apm_processevent(struct apm_softc *sc)
  * /phk
  */
 
-#ifdef __FreeBSD__
 int
 apmattach(struct isa_device *dvp)
-#endif /* __FreeBSD__ */
-#ifdef MACH_KERNEL
-void
-apmattach(struct bus_device *dvp)
-#endif /* MACH_KERNEL */
 {
-#ifdef __FreeBSD__
 	int	unit = dvp->id_unit;
 #define APM_KERNBASE	KERNBASE
-#endif /* __FreeBSD__ */
-#ifdef MACH_KERNEL
-	int	unit = dvp->unit;
-#define APM_KERNBASE	VM_MIN_KERNEL_ADDRESS
-#endif /* MACH_KERNEL */
 	struct apm_softc	*sc = &apm_softc[unit];
-	int	i;
 
 	master_softc = sc;	/* XXX */
 	sc->initialized = 0;
@@ -832,12 +734,7 @@ apmattach(struct bus_device *dvp)
 			sc->cs_limit, sc->ds_limit);
 
 	/* setup entry point 48bit pointer */
-#ifdef __FreeBSD__
 	apm_addr.segment = GSEL(GAPMCODE32_SEL, SEL_KPL);
-#endif /* __FreeBSD__ */
-#ifdef MACH_KERNEL
-	apm_addr.segment = GAPMCODE32_SEL;
-#endif /* MACH_KERNEL */
 	apm_addr.offset  = sc->cs_entry;
 
 	/* Try to kick bios into 1.1 mode */
@@ -893,12 +790,9 @@ apmattach(struct bus_device *dvp)
 
 	sc->initialized = 1;
 
-#ifdef __FreeBSD__
 	return 0;
-#endif /* __FreeBSD__ */
 }
 
-#ifdef __FreeBSD__
 int
 apmopen(dev_t dev, int flag, int fmt, struct proc *p)
 {
@@ -968,29 +862,3 @@ apmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 	}
 	return error;
 }
-#endif /* __FreeBSD__ */
-
-#ifdef MACH_KERNEL
-io_return_t apmopen(dev_t dev, int flag, io_req_t ior)
-{
-	int result;
-
-	result = ENXIO;
-	return result;
-}
-
-io_return_t apmclose(dev_t dev, int flag)
-{
-	return 0;
-}
-
-io_return_t apmgetstat(dev_t dev, int flavor, int *data, u_int *count)
-{
-}
-
-io_return_t apmsetstat(dev_t dev, int flavor, int *data, u_int count)
-{
-}
-#endif /* MACH_KERNEL */
-
-#endif /* NAPM > 0 */
