@@ -30,26 +30,26 @@ DEPSRCS+= genbsubs.c globals.c system.c termout.c
 DEPSRCS+= commands.c main.c network.c ring.c sys_bsd.c telnet.c terminal.c
 DEPSRCS+= tn3270.c utilities.c
 
-.if exists(${.CURDIR}/../tools/mkastosc/obj)
-MKASTOSCDIR= ${.CURDIR}/../tools/mkastosc/obj
+.if exists(${.OBJDIR}/../tools/mkastosc)
+MKASTOSCDIR= ${.OBJDIR}/../tools/mkastosc
 .else
 MKASTOSCDIR= ${.CURDIR}/../tools/mkastosc
 .endif
 
-.if exists(${.CURDIR}/../tools/mkastods/obj)
-MKASTODSDIR= ${.CURDIR}/../tools/mkastods/obj
+.if exists(${.OBJDIR}/../tools/mkastods)
+MKASTODSDIR= ${.OBJDIR}/../tools/mkastods
 .else
 MKASTODSDIR= ${.CURDIR}/../tools/mkastods
 .endif
 
-.if exists(${.CURDIR}/../tools/mkdstoas/obj)
-MKDSTOASDIR= ${.CURDIR}/../tools/mkdstoas/obj
+.if exists(${.OBJDIR}/../tools/mkdstoas)
+MKDSTOASDIR= ${.OBJDIR}/../tools/mkdstoas
 .else
 MKDSTOASDIR= ${.CURDIR}/../tools/mkdstoas
 .endif
 
-.if exists(${.CURDIR}/../tools/mkhits/obj)
-MKHITSDIR= ${.CURDIR}/../tools/mkhits/obj
+.if exists(${.OBJDIR}/../tools/mkhits)
+MKHITSDIR= ${.OBJDIR}/../tools/mkhits
 .else
 MKHITSDIR= ${.CURDIR}/../tools/mkhits
 .endif

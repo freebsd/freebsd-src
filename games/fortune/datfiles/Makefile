@@ -15,16 +15,16 @@ TYPE=	real
 # THE FOURTH LINE
 #TYPE=	fake
 
-.if exists(${.CURDIR}/../../caesar/obj/caesar)
-CAESAR=${.CURDIR}/../../caesar/obj/caesar
+.if exists(${.OBJDIR}/../../caesar/caesar)
+CAESAR=${.OBJDIR}/../../caesar/caesar
 .elif exists(${.CURDIR}/../../caesar/caesar)
 CAESAR=${.CURDIR}/../../caesar/caesar
 .else
 CAESAR=/usr/games/caesar
 .endif
 
-.if exists(${.CURDIR}/../strfile/obj/strfile)
-STRFILE=${.CURDIR}/../strfile/obj/strfile
+.if exists(${.OBJDIR}/../strfile/strfile)
+STRFILE=${.OBJDIR}/../strfile/strfile
 .elif exists(${.CURDIR}/../strfile/strfile)
 STRFILE=${.CURDIR}/../strfile/strfile
 .else

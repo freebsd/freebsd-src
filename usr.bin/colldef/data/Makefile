@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1995/10/22 00:58:41 ache Exp $
+# $Id: Makefile,v 1.1 1995/11/03 14:53:50 ache Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
@@ -6,8 +6,8 @@ CLEANFILES+= ${LOCALES:S/$/.out/g}
 LOCALES=        ru_SU.KOI8-R ru_SU.CP866 lt_LN.ISO_8859-1
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
-.if exists(${.CURDIR}/../obj)
-COLLDEF=${.CURDIR}/../obj/colldef
+.if exists(${.OBJDIR}/../colldef)
+COLLDEF=${.OBJDIR}/../colldef
 .else
 COLLDEF=${.CURDIR}/../colldef
 .endif

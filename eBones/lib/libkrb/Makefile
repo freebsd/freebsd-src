@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.11 1995/10/06 17:37:54 gibbs Exp $
+#	$Id: Makefile,v 1.12 1995/11/12 08:13:21 markm Exp $
 
 LIB=	krb
 SHLIB_MINOR=   1
@@ -52,4 +52,3 @@ MLINKS+=tf_util.3 tf_init.3 tf_util.3 tf_get_pname.3 \
 .include <bsd.lib.mk>
 
 krb_err.c: ${KRBOBJDIR}/krb_err.h
-

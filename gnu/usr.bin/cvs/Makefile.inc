@@ -1,5 +1,5 @@
-.if exists(${.CURDIR}/../lib/obj)
-LIBDESTDIR=	${.CURDIR}/../lib/obj
+.if exists(${.OBJDIR}/../lib)
+LIBDESTDIR=	${.OBJDIR}/../lib
 .else
 LIBDESTDIR=	${.CURDIR}/../lib
 .endif

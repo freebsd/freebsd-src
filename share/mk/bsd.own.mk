@@ -1,20 +1,10 @@
-#	$Id: bsd.own.mk,v 1.5 1996/03/31 23:15:17 wosch Exp $
+#	$Id: bsd.own.mk,v 1.6 1996/05/25 23:09:49 wosch Exp $
 #
 # The include file <bsd.own.mk> set common variables for owner,
 # group, mode, and directories. Defaults are in brackets.
 #
 #
 # +++ variables +++
-#
-# where the system object and source trees are kept; can be configurable
-# by the user in case they want them in ~/foosrc and ~/fooobj, for example
-# where the system object and source trees are kept; can be configurable
-# by the user in case they want them in ~/foosrc and ~/fooobj, for example
-# BSDOBJDIR	The real path to the system 'obj' tree, so that 'make obj'
-#		will work correctly. [/usr/obj]
-#
-# BSDSRCDIR	The real path to the system sources, so that 'make obj'
-#		will work correctly. [/usr/src]
 #
 # DESTDIR	Change the tree where the file gets installed. [not set]
 #
@@ -115,10 +105,6 @@
 #
 # NLSMODE	National Language Support files mode. [${NONBINMODE}]
 #
-
-
-BSDSRCDIR?=	/usr/src
-BSDOBJDIR?=	/usr/obj
 
 
 # Binaries

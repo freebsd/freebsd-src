@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.23 1995/11/29 16:05:08 bde Exp $
+#	$Id: bsd.doc.mk,v 1.24 1996/03/09 23:48:53 wosch Exp $
 
 PRINTER?=	ascii
 
@@ -70,28 +70,9 @@ print: ${DFILE}
 .endif
 .endif
 
-.if !target(obj)
-.if defined(NOOBJ)
-obj:
-.else
-obj:
-	@cd ${.CURDIR}; rm -f obj; \
-	here=`pwd`; dest=/usr/obj`echo $$here | sed 's,^/usr/src,,'`; \
-	${ECHO} "$$here -> $$dest"; ln -s $$dest obj; \
-	if test -d /usr/obj -a ! -d $$dest; then \
-		mkdir -p $$dest; \
-	else \
-		true; \
-	fi;
-.endif
-.endif
-
 clean:
 	rm -f ${DOC}.${PRINTER} ${DOC}.ps ${DOC}.ascii \
 		${DOC}.ps.gz ${DOC}.ascii.gz Errs errs mklog ${CLEANFILES}
-
-cleandir: clean
-	cd ${.CURDIR}; rm -rf obj
 
 FILES?=	${SRCS}
 realinstall:
@@ -151,10 +132,11 @@ ${DFILE}:	${DOC}.${PRINTER}
 
 .if !target(depend)
 depend:
-
 .endif
 
 .if !target(maninstall)
 maninstall:
-
 .endif
+
+.include <bsd.dep.mk>
+.include <bsd.obj.mk>

@@ -1,4 +1,4 @@
-#	$Id: $
+#	$Id: Makefile,v 1.12 1996/05/07 23:15:24 wosch Exp $
 
 PROG = gdb
 BINDIR= /usr/bin
@@ -50,25 +50,25 @@ CFLAGS+= -I$(.CURDIR)/. -I${DESTDIR}/usr/include/readline -I$(.CURDIR)/../bfd
 DPADD+= ${LIBREADLINE} ${LIBTERMCAP} ${LIBGNUREGEX}
 LDADD+= -lreadline  -ltermcap -lgnuregex
 
-.if exists(${.CURDIR}/../libiberty/obj)
-LDADD+=   -L${.CURDIR}/../libiberty/obj -liberty
-DPADD+=   ${.CURDIR}/../libiberty/obj/libiberty.a
+.if exists(${.OBJDIR}/../libiberty)
+LDADD+=   -L${.OBJDIR}/../libiberty -liberty
+DPADD+=   ${.OBJDIR}/../libiberty/libiberty.a
 .else
 LDADD+=   -L${.CURDIR}/../libiberty/ -liberty
 DPADD+=   ${.CURDIR}/../libiberty/libiberty.a
 .endif
 
-.if exists(${.CURDIR}/../bfd/obj)
-LDADD+=   -L${.CURDIR}/../bfd/obj -lbfd
-DPADD+=   ${.CURDIR}/../bfd/obj/libbfd.a
+.if exists(${.OBJDIR}/../bfd)
+LDADD+=   -L${.OBJDIR}/../bfd -lbfd
+DPADD+=   ${.OBJDIR}/../bfd/libbfd.a
 .else
 LDADD+=   -L${.CURDIR}/../bfd/ -lbfd
 DPADD+=   ${.CURDIR}/../bfd/libbfd.a
 .endif
 
-.if exists(${.CURDIR}/../mmalloc/obj)
-LDADD+=   -L${.CURDIR}/../mmalloc/obj -lmmalloc
-DPADD+=   ${.CURDIR}/../mmalloc/obj/libmmalloc.a
+.if exists(${.OBJDIR}/../mmalloc)
+LDADD+=   -L${.OBJDIR}/../mmalloc -lmmalloc
+DPADD+=   ${.OBJDIR}/../mmalloc/libmmalloc.a
 .else
 LDADD+=   -L${.CURDIR}/../mmalloc/ -lmmalloc
 DPADD+=   ${.CURDIR}/../mmalloc/libmmalloc.a

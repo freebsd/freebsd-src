@@ -1,7 +1,7 @@
-#	$Id$
+#	$Id: Makefile,v 1.5 1994/09/24 02:55:35 davidg Exp $
 
 SHELL=	/bin/sh
-ED=	../obj/ed
+ED=	${.OBJDIR}/ed
 
 all: check
 	@:

@@ -1,9 +1,9 @@
 PROG= pkg_info
 CFLAGS+=	${DEBUG} -I${.CURDIR}/../lib
 
-.if exists(${.CURDIR}/../lib/obj)
-LDADD+=		-L${.CURDIR}/../lib/obj -linstall
-DPADD+=		${.CURDIR}/../lib/obj/libinstall.a
+.if exists(${.OBJDIR}/../lib)
+LDADD+=		-L${.OBJDIR}/../lib -linstall
+DPADD+=		${.OBJDIR}/../lib/libinstall.a
 .else
 LDADD+=		-L${.CURDIR}/../lib -linstall
 DPADD+=		${.CURDIR}/../lib/libinstall.a

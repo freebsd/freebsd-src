@@ -1,11 +1,12 @@
 
-#	$Id: Makefile,v 1.214 1996/05/02 08:18:28 jkh Exp $
+#	$Id: Makefile,v 1.1 1996/05/21 01:12:35 julian Exp $
 # If this is a RELEASE, then set
 
 # Things which without too much trouble can be considered variables
 
 # mountpoint for filesystems.
 TOP=${.CURDIR}/../../../..
+OBJTOP=${.OBJDIR}/../../../..
 FS_BIN=${.CURDIR}/../..
 
 MNT=			/mnt
@@ -56,18 +57,18 @@ all: ${FS_BIN}/write_mfs_in_kernel
 #
 doKERNEL:
 	cd ${TOP}/sys/i386/conf && config -n ${KERNEL}
-	cd ${TOP}/sys/compile/${KERNEL} && \
+	cd ${OBJTOP}/sys/compile/${KERNEL} && \
 			make  depend && \
 			make  kernel && \
 
 #
 # --==## Put a filesystem into a BOOTMFS kernel ##==--
 #
-LABELDIR=${TOP}/sys/i386/boot/biosboot/obj
+LABELDIR=${OBJTOP}/sys/i386/boot/biosboot
 CONF=${TOP}/sys/i386/conf
-COMPILE=${TOP}/sys/compile
+COMPILE=${OBJTOP}/sys/compile
 doMFSKERN:
-	rm -f ${TOP}/sys/compile/BOOTMFS/mfs_vfsops.o
+	rm -f ${OBJTOP}/sys/compile/BOOTMFS/mfs_vfsops.o
 	cd ${CONF} && \
 		fgrep -v SYSV GENERIC | \
 		fgrep -v pty | \

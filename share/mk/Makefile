@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.9 1995/09/08 19:27:48 jfieber Exp $
+#	$Id: Makefile,v 1.10 1996/04/12 11:13:29 wosch Exp $
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
 
 FILES=	bsd.README
@@ -11,7 +11,7 @@ NOOBJ=	noobj
 all clean cleandir depend lint tags:
 
 afterinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FILES} \
+	cd ${.CURDIR} && ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FILES} \
 	    ${DESTDIR}${BINDIR}/mk
 
 .include <bsd.prog.mk>

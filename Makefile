@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.83 1996/06/20 18:47:04 jkh Exp $
+#	$Id: Makefile,v 1.84 1996/06/22 17:58:44 pst Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -112,7 +112,7 @@ world:	pre-world hierarchy mk $(WORLD_CLEANDIST) bootstrap include-tools include
 	@echo " Rebuilding ${DESTDIR} The whole thing"
 	@echo "--------------------------------------------------------------"
 	@echo
-	${MAKE} depend all install
+	cd ${.CURDIR} && ${MAKE} depend all install
 	cd ${.CURDIR}/share/man &&		${MAKE} makedb
 .if target(post-world)
 	cd ${.CURDIR} && ${MAKE} post-world
@@ -132,7 +132,7 @@ reinstall:	hierarchy mk includes
 	@echo " Reinstall ${DESTDIR} The whole thing"
 	@echo "--------------------------------------------------------------"
 	@echo
-	${MAKE} install
+	cd ${.CURDIR} && ${MAKE} install
 	cd ${.CURDIR}/share/man &&		${MAKE} makedb
 
 hierarchy:
@@ -166,25 +166,8 @@ cleandist:
 	@echo "--------------------------------------------------------------"
 	@echo " Cleaning up the source tree, and rebuilding the obj tree"
 	@echo "--------------------------------------------------------------"
-	@echo
-	here=`pwd`; dest=/usr/obj`echo $$here | sed 's,^/usr/src,,'`; \
-	if test -d /usr/obj -a ! -d $$dest; then \
-		mkdir -p $$dest; \
-	else \
-		true; \
-	fi; \
-	cd $$dest && rm -rf ${SUBDIR}
-	find . -name obj | xargs rm -rf
-.if defined(MAKE_LOCAL) & exists(local) & exists(local/Makefile)
-	# The cd is done as local may well be a symbolic link
-	-cd local && find . -name obj | xargs rm -rf
-.endif
-.if defined(MAKE_PORTS) & exists(ports) & exists(ports/Makefile)
-	# The cd is done as local may well be a symbolic link
-	-cd ports && find . -name obj | xargs rm -rf
-.endif
-	${MAKE} cleandir
-	${MAKE} obj
+	cd ${.CURDIR} && ${MAKE} cleandir
+	cd ${.CURDIR} && ${MAKE} obj
 .endif
 
 installmost:
@@ -229,7 +212,7 @@ mk:
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding ${DESTDIR}/usr/share/mk"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/share/mk &&		${MAKE} install
+	cd ${.CURDIR}/share/mk &&	${MAKE} install
 
 includes:
 	@echo "--------------------------------------------------------------"

@@ -1,15 +1,15 @@
 PROG=	man
 SRCS=	man.c manpath.c glob.c
 
-.if exists(${.CURDIR}/../lib/obj)
-LDADD=  -L${.CURDIR}/../lib/obj -lman
-CFLAGS+= -I${.CURDIR}/../lib/obj
+.if exists(${.OBJDIR}/../lib)
+LDADD=  -L${.OBJDIR}/../lib -lman
+CFLAGS+= -I${.OBJDIR}/../lib
 .else
 LDADD=  -L${.CURDIR}/../lib/ -lman
 .endif
 
-.if exists(${.CURDIR}/obj)
-MAN1=   ${.CURDIR}/obj/man.1
+.if exists(${.OBJDIR})
+MAN1=   ${.OBJDIR}/man.1
 .else
 MAN1=   ${.CURDIR}/man.1
 .endif
