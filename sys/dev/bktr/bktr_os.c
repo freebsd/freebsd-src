@@ -220,10 +220,6 @@ bktr_probe( device_t dev )
 {
 	unsigned int type = pci_get_devid(dev);
         unsigned int rev  = pci_get_revid(dev);
-	static int once;
-
-	if (!once++)
-		cdevsw_add(&bktr_cdevsw);
 
 	switch (type) {
 	case BROOKTREE_848_PCI_ID:
