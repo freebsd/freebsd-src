@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ibcs2_file.c,v 1.8 1994/10/13 23:10:58 sos Exp $
+ *	$Id: ibcs2_file.c,v 1.1 1994/10/14 08:53:01 sos Exp $
  */
 
 #include <i386/ibcs2/ibcs2.h>
@@ -278,7 +278,7 @@ ibcs2_getdents(struct proc *p, struct ibcs2_getdents_args *args, int *retval)
 	vp = (struct vnode *)fp->f_data;
 	if (vp->v_type != VDIR)
 		return EINVAL;
-	buflen = min(MAXBSIZE, max(DIRBLKSIZ, args->nbytes));
+	buflen = min(DEFAULT_PAGE_SIZE, max(DIRBLKSIZ, args->nbytes));
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
 	VOP_LOCK(vp);
 	off = fp->f_offset;
@@ -292,13 +292,13 @@ again:
 	auio.uio_procp = p;
 	auio.uio_resid = buflen;
 	auio.uio_offset = off & ~(DIRBLKSIZ-1);
-	if (error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag))
+	if (error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, NULL, NULL))
 		goto out;
 	inp = buf + (off & (DIRBLKSIZ-1));
 	buflen -= off & (DIRBLKSIZ-1);
 	outp = args->buf;
 	resid = args->nbytes;
-	if ((len = buflen - auio.uio_resid) <= 0)
+	if ((len = (buflen - auio.uio_resid)) <= 0)
 		goto eof;
 	for (; len > 0 && resid > 0; len -= reclen) {
 		reclen = BSD_DIRENT(inp)->d_reclen;
@@ -418,7 +418,7 @@ ibcs2_read(struct proc *p, struct ibcs2_read_args *args, int *retval)
 	}
 	if (ibcs2_trace & IBCS2_TRACE_FILE)
 		printf("read directory\n");
-	buflen = max(MAXBSIZE, args->count);
+	buflen = min(DEFAULT_PAGE_SIZE, max(DIRBLKSIZ, args->count));
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
 	VOP_LOCK(vp);
 	off = fp->f_offset;
@@ -432,13 +432,13 @@ again:
 	auio.uio_procp = p;
 	auio.uio_resid = buflen;
 	auio.uio_offset = off & ~(DIRBLKSIZ-1);
-	if (error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag))
+	if (error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, NULL, NULL))
 		goto out;
 	inp = buf + (off & (DIRBLKSIZ-1));
 	buflen -= off & (DIRBLKSIZ-1);
 	outp = args->buffer;
 	resid = args->count;
-	if ((len = buflen - auio.uio_resid) == 0)
+	if ((len = (buflen - auio.uio_resid)) == 0)
 		goto eof;
 	for (; len > 0 && resid > 0; len -= reclen) {
 		reclen = BSD_DIRENT(inp)->d_reclen;
