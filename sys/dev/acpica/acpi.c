@@ -1907,13 +1907,18 @@ acpi_parse_debug(char *cp, struct debugtag *tag, UINT32 *flag)
 static void
 acpi_set_debugging(void *junk)
 {
+    char	*cp;
 
     AcpiDbgLayer = 0;
     AcpiDbgLevel = 0;
-    if (testenv("debug.acpi.layer"))
+    if ((cp = getenv("debug.acpi.layer")) != NULL) {
 	acpi_parse_debug(cp, &dbg_layer[0], &AcpiDbgLayer);
-    if (testenv("debug.acpi.level"))
+	freeenv(cp);
+    }
+    if ((cp = getenv("debug.acpi.level")) != NULL) {
 	acpi_parse_debug(cp, &dbg_level[0], &AcpiDbgLevel);
+	freeenv(cp);
+    }
 
     printf("ACPI debug layer 0x%x  debug level 0x%x\n", AcpiDbgLayer, AcpiDbgLevel);
 }
