@@ -132,10 +132,24 @@ may also fail and set
 .Va errno
 for any of the errors specified for the routine
 .Xr getchar 3 .
+.Sh SECURITY CONSIDERATIONS
+The
+.Fn gets
+function cannot be used securely.
+Because of its lack of bounds checking,
+the use of this function enables malicious users
+to arbitrarily change a running program's functionality through
+a buffer overflow attack.
+(See
+the FSA.)
 .Sh SEE ALSO
 .Xr feof 3 ,
 .Xr ferror 3 ,
 .Xr fgetln 3
+.Rs
+.%T "The FreeBSD Security Architecture"
+.%J "/usr/share/doc/{to be determined}"
+.Re
 .Sh STANDARDS
 The functions
 .Fn fgets
