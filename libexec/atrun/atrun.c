@@ -86,7 +86,7 @@ static const char rcsid[] =
 static debug = 0;
 
 void perr(const char *a);
-static void usage __P((void));
+static void usage(void);
 
 /* Local functions */
 static int
@@ -98,7 +98,7 @@ write_string(int fd, const char* a)
 #undef DEBUG_FORK
 #ifdef DEBUG_FORK
 static pid_t
-myfork()
+myfork(void)
 {
 	pid_t res;
 	res = fork();
@@ -491,7 +491,7 @@ main(int argc, char *argv[])
 }
 
 static void
-usage()
+usage(void)
 {
     if (debug)
 	fprintf(stderr, "usage: atrun [-l load_avg] [-d]\n");
