@@ -197,7 +197,7 @@ main(int argc, char *argv[])
 			break;
 		case 's':
 			secsize = strtol(optarg, &endptr, 0);
-			if (errno || *optarg == NULL || *endptr)
+			if (errno || *optarg == '\0' || *endptr)
 				errx(1, "%s: Bad argument to -s option",
 				    optarg);
 			switch (secsize) {
@@ -214,7 +214,7 @@ main(int argc, char *argv[])
 		case 'v':
 			v_flag = 1;
 			version = strtol(optarg, &endptr, 0);
-			if (errno || *optarg == NULL || *endptr ||
+			if (errno || *optarg == '\0' || *endptr ||
 			    version < 0 || version > 255)
 				errx(1, "%s: Bad argument to -s option",
 				    optarg);
