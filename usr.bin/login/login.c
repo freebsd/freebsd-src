@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: login.c,v 1.40 1998/11/11 01:53:12 jdp Exp $";
+	"$Id: login.c,v 1.41 1998/11/11 02:16:01 jdp Exp $";
 #endif /* not lint */
 
 /*
@@ -64,6 +64,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <grp.h>
 #include <libutil.h>
+#include <login_cap.h>
 #include <netdb.h>
 #include <pwd.h>
 #include <setjmp.h>
@@ -75,10 +76,6 @@ static const char rcsid[] =
 #include <ttyent.h>
 #include <unistd.h>
 #include <utmp.h>
-
-#ifdef LOGIN_CAP
-#include <login_cap.h>
-#endif
 
 #ifdef	SKEY
 #include <skey.h>
@@ -150,9 +147,7 @@ main(argc, argv)
 	char tbuf[MAXPATHLEN + 2], tname[sizeof(_PATH_TTY) + 10];
 	char localhost[MAXHOSTNAMELEN];
 	char *shell = NULL;
-#ifdef LOGIN_CAP
 	login_cap_t *lc = NULL;
-#endif /* LOGIN_CAP */
 #ifdef SKEY
 	int permit_passwd = 0;
 #endif /* SKEY */
@@ -245,7 +240,6 @@ main(argc, argv)
 	else
 		tty = ttyn;
 
-#ifdef LOGIN_CAP
 	/*
 	 * Get "login-retries" & "login-backoff" from default class
 	 */
@@ -254,10 +248,6 @@ main(argc, argv)
 	backoff = login_getcapnum(lc, "login-backoff", DEFAULT_BACKOFF, DEFAULT_BACKOFF);
 	login_close(lc);
 	lc = NULL;
-#else
-	retries = DEFAULT_RETRIES;
-	backoff = DEFAULT_BACKOFF;
-#endif
 
 	for (cnt = 0;; ask = 1) {
 		if (ask) {
@@ -296,7 +286,6 @@ main(argc, argv)
 		else
 			salt = "xx";
 
-#ifdef LOGIN_CAP
 		/*
 		 * Establish the class now, before we might goto
 		 * within the next block. pwd can be NULL since it
@@ -306,7 +295,6 @@ main(argc, argv)
 			(void)seteuid(rootlogin ? 0 : pwd->pw_uid);
 		lc = login_getpwclass(pwd);
 		seteuid(euid);
-#endif /* LOGIN_CAP */
 
 		/*
 		 * if we have a valid account name, and it doesn't have a
@@ -420,25 +408,14 @@ main(argc, argv)
 	endpwent();
 
 	/* if user not super-user, check for disabled logins */
-#ifdef LOGIN_CAP
 	if (!rootlogin)
 		auth_checknologin(lc);
-#else
-	if (!rootlogin)
-		checknologin();
-#endif
 
-#ifdef LOGIN_CAP
 	quietlog = login_getcapbool(lc, "hushlogin", 0);
-#else
-	quietlog = 0;
-#endif
 	(void)seteuid(rootlogin ? 0 : pwd->pw_uid);
 	if (!*pwd->pw_dir || chdir(pwd->pw_dir) < 0) {
-#ifdef LOGIN_CAP
 		if (login_getcapbool(lc, "requirehome", 0))
 			refused("Home directory not available", "HOMEDIR", 1);
-#endif
 		if (chdir("/") < 0) 
 			refused("Cannot find root directory", "ROOTDIR", 1);
 		pwd->pw_dir = "/";
@@ -454,12 +431,8 @@ main(argc, argv)
 
 #define DEFAULT_WARN  (2L * 7L * 86400L)  /* Two weeks */
 
-#ifdef LOGIN_CAP
 	warntime = login_getcaptime(lc, "warnpassword",
 				    DEFAULT_WARN, DEFAULT_WARN);
-#else
-	warntime = DEFAULT_WARN;
-#endif
 
 	changepass=0;
 	if (pwd->pw_change) {
@@ -474,12 +447,8 @@ main(argc, argv)
 				 ctime(&pwd->pw_change));
 	}
 
-#ifdef LOGIN_CAP
 	warntime = login_getcaptime(lc, "warnexpire",
 				    DEFAULT_WARN, DEFAULT_WARN);
-#else
-	warntime = DEFAULT_WARN;
-#endif
 
 	if (pwd->pw_expire) {
 		if (tp.tv_sec >= pwd->pw_expire) {
@@ -490,7 +459,6 @@ main(argc, argv)
 				 ctime(&pwd->pw_expire));
 	}
 
-#ifdef LOGIN_CAP
 	if (lc != NULL) {
 		if (hostname) {
 			struct hostent *hp = gethostbyname(full_hostname);
@@ -513,9 +481,6 @@ main(argc, argv)
 			refused("Logins not available right now", "TIME", 1);
 	}
         shell=login_getcapstr(lc, "shell", pwd->pw_shell, pwd->pw_shell);
-#else /* !LOGIN_CAP */
-       shell=pwd->pw_shell;
-#endif /* LOGIN_CAP */
 	if (*pwd->pw_shell == '\0')
 		pwd->pw_shell = _PATH_BSHELL;
 	if (*shell == '\0')   /* Not overridden */
@@ -608,19 +573,10 @@ main(argc, argv)
 	 * We don't need to be root anymore, so
 	 * set the user and session context
 	 */
-#ifdef LOGIN_CAP
 	if (setusercontext(lc, pwd, pwd->pw_uid, LOGIN_SETALL) != 0) {
                 syslog(LOG_ERR, "setusercontext() failed - exiting");
 		exit(1);
 	}
-#else
-     	if (setlogin(pwd->pw_name) < 0)
-                syslog(LOG_ERR, "setlogin() failure: %m");
-
-	(void)setgid(pwd->pw_gid);
-	initgroups(username, pwd->pw_gid);
-	(void)setuid(rootlogin ? 0 : pwd->pw_uid);
-#endif
 
 	(void)setenv("SHELL", pwd->pw_shell, 1);
 	(void)setenv("HOME", pwd->pw_dir, 1);
@@ -637,7 +593,6 @@ main(argc, argv)
 		(void)setenv("KRBTKFILE", krbtkfile_env, 1);
 #endif
 
-#ifdef LOGIN_CAP
 	if (!quietlog) {
 		char	*cw;
 
@@ -664,24 +619,12 @@ main(argc, argv)
 		} else
 			snprintf(tbuf, sizeof(tbuf), "%s/%s",
 				 _PATH_MAILDIR, pwd->pw_name);
-#else
-	if (!quietlog) {
-		    (void)printf("%s\n\t%s %s\n",
-	"Copyright (c) 1980, 1983, 1986, 1988, 1990, 1991, 1993, 1994",
-	"The Regents of the University of California. ",
-	"All rights reserved.");
-		motd(_PATH_MOTDFILE);
-		snprintf(tbuf, sizeof(tbuf), "%s/%s",
-			 _PATH_MAILDIR, pwd->pw_name);
-#endif
 		if (stat(tbuf, &st) == 0 && st.st_size != 0)
 			(void)printf("You have %smail.\n",
 				     (st.st_mtime > st.st_atime) ? "new " : "");
 	}
 
-#ifdef LOGIN_CAP
 	login_close(lc);
-#endif
 
 	(void)signal(SIGALRM, SIG_DFL);
 	(void)signal(SIGQUIT, SIG_DFL);
@@ -791,20 +734,6 @@ timedout(signo)
 	exit(0);
 }
 
-#ifndef LOGIN_CAP
-void
-checknologin()
-{
-	int fd, nchars;
-	char tbuf[8192];
-
-	if ((fd = open(_PATH_NOLOGIN, O_RDONLY, 0)) >= 0) {
-		while ((nchars = read(fd, tbuf, sizeof(tbuf))) > 0)
-			(void)write(fileno(stdout), tbuf, nchars);
-		sleepexit(0);
-	}
-}
-#endif
 
 void
 dolastlog(quiet)
