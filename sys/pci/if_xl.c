@@ -1567,9 +1567,15 @@ xl_attach(dev)
 	 * Figure out the card type. 3c905B adapters have the
 	 * 'supportsNoTxLength' bit set in the capabilities
 	 * word in the EEPROM.
+	 * Note: my 3c575C cardbus card lies. It returns a value
+	 * of 0x1578 for its capabilities word, which is somewhat
+ 	 * nonsensical. Another way to distinguish a 3c90x chip
+	 * from a 3c90xB/C chip is to check for the 'supportsLargePackets'
+	 * bit. This will only be set for 3c90x boomerage chips.
 	 */
 	xl_read_eeprom(sc, (caddr_t)&sc->xl_caps, XL_EE_CAPS, 1, 0);
-	if (sc->xl_caps & XL_CAPS_NO_TXLENGTH)
+	if (sc->xl_caps & XL_CAPS_NO_TXLENGTH ||
+	    !(sc->xl_caps & XL_CAPS_LARGE_PKTS))
 		sc->xl_type = XL_TYPE_905B;
 	else
 		sc->xl_type = XL_TYPE_90X;
@@ -1582,10 +1588,11 @@ xl_attach(dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = xl_ioctl;
 	ifp->if_output = ether_output;
+	ifp->if_capabilities = IFCAP_VLAN_MTU;
 	if (sc->xl_type == XL_TYPE_905B) {
 		ifp->if_start = xl_start_90xB;
 		ifp->if_hwassist = XL905B_CSUM_FEATURES;
-		ifp->if_capabilities = IFCAP_HWCSUM;
+		ifp->if_capabilities |= IFCAP_HWCSUM;
 	} else
 		ifp->if_start = xl_start;
 	ifp->if_watchdog = xl_watchdog;
@@ -2036,6 +2043,16 @@ again:
 	while((rxstat = le32toh(sc->xl_cdata.xl_rx_head->xl_ptr->xl_status))) {
 		cur_rx = sc->xl_cdata.xl_rx_head;
 		sc->xl_cdata.xl_rx_head = cur_rx->xl_next;
+		total_len = rxstat & XL_RXSTAT_LENMASK;
+
+		/*
+		 * Since we have told the chip to allow large frames,
+		 * we need to trap giant frame errors in software. We allow
+		 * a little more than the normal frame size to account for
+		 * frames with VLAN tags.
+		 */
+		if (total_len > XL_MAX_FRAMELEN)
+			rxstat |= (XL_RXSTAT_UP_ERROR|XL_RXSTAT_OVERSIZE);
 
 		/*
 		 * If an error occurs, update stats, clear the
@@ -2052,7 +2069,7 @@ again:
 		}
 
 		/*
-		 * If there error bit was not set, the upload complete
+		 * If the error bit was not set, the upload complete
 		 * bit should be set which means we have a valid packet.
 		 * If not, something truly strange has happened.
 		 */
@@ -2070,8 +2087,6 @@ again:
 		bus_dmamap_sync(sc->xl_mtag, cur_rx->xl_map,
 		    BUS_DMASYNC_POSTREAD);
 		m = cur_rx->xl_mbuf;
-		total_len = le32toh(cur_rx->xl_ptr->xl_status) &
-		    XL_RXSTAT_LENMASK;
 
 		/*
 		 * Try to conjure up a new mbuf cluster. If that
@@ -2094,7 +2109,7 @@ again:
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = total_len;
 
-		if (sc->xl_type == XL_TYPE_905B) {
+		if (ifp->if_capenable & IFCAP_RXCSUM) {
 			/* Do IP checksum checking. */
 			if (rxstat & XL_RXSTAT_IPCKOK)
 				m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
@@ -2432,6 +2447,9 @@ xl_encap(sc, c, m_head)
 {
 	int			error;
 	u_int32_t		status;
+	struct ifnet		*ifp;
+
+	ifp = &sc->arpcom.ac_if;
 
 	/*
  	 * Start packing the mbufs in this chain into
@@ -2894,9 +2912,22 @@ xl_init(xsc)
 	else
 		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_COAX_STOP);
 
-	/* increase packet size to allow reception of 802.1q or ISL packets */
+	/*
+	 * increase packet size to allow reception of 802.1q or ISL packets.
+	 * For the 3c90x chip, set the 'allow large packets' bit in the MAC
+	 * control register. For 3c90xB/C chips, use the RX packet size
+	 * register.
+	 */
+	
 	if (sc->xl_type == XL_TYPE_905B) 
 		CSR_WRITE_2(sc, XL_W3_MAXPKTSIZE, XL_PACKET_SIZE);
+	else {
+		u_int8_t macctl;
+		macctl = CSR_READ_1(sc, XL_W3_MAC_CTRL);
+		macctl |= XL_MACCTRL_ALLOW_LARGE_PACK;
+		CSR_WRITE_1(sc, XL_W3_MAC_CTRL, macctl);
+	}
+
 	/* Clear out the stats counters. */
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STATS_DISABLE);
 	sc->xl_stats_no_timeout = 1;
@@ -3110,6 +3141,13 @@ xl_ioctl(ifp, command, data)
 		else
 			error = ifmedia_ioctl(ifp, ifr,
 			    &mii->mii_media, command);
+		break;
+        case SIOCSIFCAP:
+		ifp->if_capenable = ifr->ifr_reqcap;
+		if (ifp->if_capenable & IFCAP_TXCSUM)
+			ifp->if_hwassist = XL905B_CSUM_FEATURES;
+		else
+			ifp->if_hwassist = 0;
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
