@@ -132,7 +132,9 @@ progstr(prog)
 	rp = getrpcbynumber(prog);
 	if (rp == NULL)
 		(void) sprintf(buf, "#%u", prog);
-	else
-		strcpy(buf, rp->r_name);
+	else {
+		strncpy(buf, rp->r_name, sizeof(buf)-1);
+		buf[sizeof(buf)-1] = '\0';
+	}
 	return (buf);
 }
