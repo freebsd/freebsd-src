@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.5 1994/08/24 11:50:39 sos Exp $
+ * $Id: kern_exit.c,v 1.6 1994/09/12 11:27:03 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -194,9 +194,9 @@ exit1(p, rv)
 	 * Remove proc from allproc queue and pidhash chain.
 	 * Place onto zombproc.  Unlink from parent's child list.
 	 */
-	if (*p->p_prev = p->p_next)
+	if ((*p->p_prev = p->p_next))
 		p->p_next->p_prev = p->p_prev;
-	if (p->p_next = zombproc)
+	if ((p->p_next = zombproc))
 		p->p_next->p_prev = &p->p_next;
 	p->p_prev = &zombproc;
 	zombproc = p;
@@ -382,8 +382,8 @@ loop:
 #endif
 			if (uap->status) {
 				status = p->p_xstat;	/* convert to int */
-				if (error = copyout((caddr_t)&status,
-				    (caddr_t)uap->status, sizeof(status)))
+				if ((error = copyout((caddr_t)&status,
+				    (caddr_t)uap->status, sizeof(status))))
 					return (error);
 			}
 			if (uap->rusage && (error = copyout((caddr_t)p->p_ru,
@@ -428,11 +428,11 @@ loop:
 			 * Unlink it from its process group and free it.
 			 */
 			leavepgrp(p);
-			if (*p->p_prev = p->p_next)	/* off zombproc */
+			if ((*p->p_prev = p->p_next))	/* off zombproc */
 				p->p_next->p_prev = p->p_prev;
-			if (q = p->p_ysptr)
+			if ((q = p->p_ysptr))
 				q->p_osptr = p->p_osptr;
-			if (q = p->p_osptr)
+			if ((q = p->p_osptr))
 				q->p_ysptr = p->p_ysptr;
 			if ((q = p->p_pptr)->p_cptr == p)
 				q->p_cptr = p->p_osptr;
@@ -472,7 +472,7 @@ loop:
 		retval[0] = 0;
 		return (0);
 	}
-	if (error = tsleep((caddr_t)q, PWAIT | PCATCH, "wait", 0))
+	if ((error = tsleep((caddr_t)q, PWAIT | PCATCH, "wait", 0)))
 		return (error);
 	goto loop;
 }

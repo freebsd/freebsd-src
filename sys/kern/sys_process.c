@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.5 1994/08/13 03:50:25 wollman Exp $
+ *	$Id: sys_process.c,v 1.6 1994/08/18 22:35:05 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -204,7 +204,7 @@ ptrace(curp, uap, retval)
 	int *retval;
 {
 	struct proc *p;
-	int s, error = 0;
+	int error = 0;
 
 	*retval = 0;
 	if (uap->req == PT_TRACE_ME) {
@@ -280,17 +280,17 @@ ptrace(curp, uap, retval)
 
 	case PT_READ_I:
 	case PT_READ_D:
-		if (error = pread (p, (unsigned int)uap->addr, retval))
+		if ((error = pread (p, (unsigned int)uap->addr, retval)))
 			return error;
 		return 0;
 	case PT_WRITE_I:
 	case PT_WRITE_D:
-		if (error = pwrite (p, (unsigned int)uap->addr,
-				    (unsigned int)uap->data))
+		if ((error = pwrite (p, (unsigned int)uap->addr,
+				    (unsigned int)uap->data)))
 			return error;
 		return 0;
 	case PT_STEP:
-		if (error = ptrace_single_step (p))
+		if ((error = ptrace_single_step (p)))
 			return error;
 		/* fallthrough */
 	case PT_CONTINUE:
@@ -308,7 +308,7 @@ ptrace(curp, uap, retval)
 
 		if (uap->addr != (caddr_t)1) {
 			fill_eproc (p, &p->p_addr->u_kproc.kp_eproc);
-			if (error = ptrace_set_pc (p, uap->addr))
+			if ((error = ptrace_set_pc (p, uap->addr)))
 				return error;
 		}
 

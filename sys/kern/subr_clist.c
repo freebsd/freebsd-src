@@ -6,7 +6,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: tty_subr.c,v 1.5 1994/08/02 07:42:53 davidg Exp $
+ * $Id: tty_subr.c,v 1.6 1994/09/13 16:02:20 davidg Exp $
  */
 
 /*
@@ -274,7 +274,7 @@ putc(chr, clistp)
 	int chr;
 	struct clist *clistp;
 {
-	struct cblock *cblockp, *bclockn;
+	struct cblock *cblockp;
 	int s;
 
 	s = spltty();
@@ -329,7 +329,7 @@ b_to_q(src, amount, clistp)
 	int amount;
 	struct clist *clistp;
 {
-	struct cblock *cblockp, *bclockn;
+	struct cblock *cblockp;
 	char *firstbyte, *lastbyte;
 	u_char startmask, endmask;
 	int startbit, endbit, num_between, numc;

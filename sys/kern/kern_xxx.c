@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id: kern_xxx.c,v 1.5 1994/08/18 22:35:04 wollman Exp $
+ * $Id: kern_xxx.c,v 1.6 1994/09/19 21:15:14 ache Exp $
  */
 
 #include <sys/param.h>
@@ -55,7 +55,7 @@ reboot(p, uap, retval)
 {
 	int error;
 
-	if (error = suser(p->p_ucred, &p->p_acflag))
+	if ((error = suser(p->p_ucred, &p->p_acflag)))
 		return (error);
 	boot(uap->opt);
 	return (0);
@@ -94,7 +94,7 @@ osethostname(p, uap, retval)
 	int name;
 	int error;
 
-	if (error = suser(p->p_ucred, &p->p_acflag))
+	if ((error = suser(p->p_ucred, &p->p_acflag)))
 		return (error);
 	name = KERN_HOSTNAME;
 	return (kern_sysctl(&name, 1, 0, 0, uap->hostname, uap->len, p));
@@ -129,7 +129,7 @@ osethostid(p, uap, retval)
 {
 	int error;
 
-	if (error = suser(p->p_ucred, &p->p_acflag))
+	if ((error = suser(p->p_ucred, &p->p_acflag)))
 		return (error);
 	hostid = uap->hostid;
 	return (0);
@@ -252,7 +252,7 @@ setdomainname(p, uap, retval)
 {
         int error;
 
-        if (error = suser(p->p_ucred, &p->p_acflag))
+        if ((error = suser(p->p_ucred, &p->p_acflag)))
                 return (error);
         if (uap->len > sizeof (domainname) - 1)
                 return EINVAL;

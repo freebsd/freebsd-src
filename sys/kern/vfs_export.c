@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.7 1994/08/24 04:06:39 davidg Exp $
+ * $Id: vfs_subr.c,v 1.8 1994/08/29 06:08:51 davidg Exp $
  */
 
 /*
@@ -182,7 +182,7 @@ vfs_unmountroot(rootfs)
 	}
 
 	mp->mnt_flag |= MNT_UNMOUNT;
-	if (error = vfs_lock(mp)) {
+	if ((error = vfs_lock(mp))) {
 		printf("lock of root filesystem failed (%d)\n", error);
 		return;
 	}
@@ -190,10 +190,10 @@ vfs_unmountroot(rootfs)
 	vnode_pager_umount(mp);	/* release cached vnodes */
 	cache_purgevfs(mp);	/* remove cache entries for this file sys */
 
-	if (error = VFS_SYNC(mp, MNT_WAIT, initproc->p_ucred, initproc))
+	if ((error = VFS_SYNC(mp, MNT_WAIT, initproc->p_ucred, initproc)))
 		printf("sync of root filesystem failed (%d)\n", error);
 
-	if (error = VFS_UNMOUNT(mp, MNT_FORCE, initproc)) {
+	if ((error = VFS_UNMOUNT(mp, MNT_FORCE, initproc))) {
 		printf("unmount of root filesystem failed (");
 		if (error == EBUSY)
 			printf("BUSY)\n");
@@ -324,7 +324,6 @@ getnewvnode(tag, mp, vops, vpp)
 	struct vnode **vpp;
 {
 	register struct vnode *vp;
-	int s;
 
 	if ((vnode_free_list.tqh_first == NULL &&
 	     numvnodes < 2 * desiredvnodes) ||
@@ -409,7 +408,7 @@ vwakeup(bp)
 	register struct vnode *vp;
 
 	bp->b_flags &= ~B_WRITEINPROG;
-	if (vp = bp->b_vp) {
+	if ((vp = bp->b_vp)) {
 		vp->v_numoutput--;
 		if (vp->v_numoutput < 0)
 			panic("vwakeup: neg numoutput");
@@ -441,7 +440,7 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 	vm_object_t object;
 
 	if (flags & V_SAVE) {
-		if (error = VOP_FSYNC(vp, cred, MNT_WAIT, p))
+		if ((error = VOP_FSYNC(vp, cred, MNT_WAIT, p)))
 			return (error);
 		if (vp->v_dirtyblkhd.lh_first != NULL)
 			panic("vinvalbuf: dirty bufs");
@@ -607,7 +606,7 @@ bdevvp(dev, vpp)
 	}
 	vp = nvp;
 	vp->v_type = VBLK;
-	if (nvp = checkalias(vp, dev, (struct mount *)0)) {
+	if ((nvp = checkalias(vp, dev, (struct mount *)0))) {
 		vput(vp);
 		vp = nvp;
 	}
@@ -888,7 +887,7 @@ vclean(vp, flags)
 	 * so that its count cannot fall to zero and generate a
 	 * race against ourselves to recycle it.
 	 */
-	if (active = vp->v_usecount)
+	if ((active = vp->v_usecount))
 		VREF(vp);
 	/*
 	 * Even if the count is zero, the VOP_INACTIVE routine may still
@@ -1140,7 +1139,7 @@ vprint(label, vp)
 
 	if (label != NULL)
 		printf("%s: ", label);
-	printf("type %s, usecount %d, writecount %d, refcount %d,",
+	printf("type %s, usecount %d, writecount %d, refcount %ld,",
 		typename[vp->v_type], vp->v_usecount, vp->v_writecount,
 		vp->v_holdcnt);
 	buf[0] = '\0';
@@ -1308,7 +1307,7 @@ vfs_hang_addrlist(mp, nep, argp)
 	np = (struct netcred *)malloc(i, M_NETADDR, M_WAITOK);
 	bzero((caddr_t)np, i);
 	saddr = (struct sockaddr *)(np + 1);
-	if (error = copyin(argp->ex_addr, (caddr_t)saddr, argp->ex_addrlen))
+	if ((error = copyin(argp->ex_addr, (caddr_t)saddr, argp->ex_addrlen)))
 		goto out;
 	if (saddr->sa_len > argp->ex_addrlen)
 		saddr->sa_len = argp->ex_addrlen;
@@ -1376,7 +1375,7 @@ vfs_free_addrlist(nep)
 	register struct radix_node_head *rnh;
 
 	for (i = 0; i <= AF_MAX; i++)
-		if (rnh = nep->ne_rtable[i]) {
+		if ((rnh = nep->ne_rtable[i])) {
 			(*rnh->rnh_walktree)(rnh, vfs_free_netcred,
 			    (caddr_t)rnh);
 			free((caddr_t)rnh, M_RTABLE);
@@ -1397,7 +1396,7 @@ vfs_export(mp, nep, argp)
 		mp->mnt_flag &= ~(MNT_EXPORTED | MNT_DEFEXPORTED);
 	}
 	if (argp->ex_flags & MNT_EXPORTED) {
-		if (error = vfs_hang_addrlist(mp, nep, argp))
+		if ((error = vfs_hang_addrlist(mp, nep, argp)))
 			return (error);
 		mp->mnt_flag |= MNT_EXPORTED;
 	}

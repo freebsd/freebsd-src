@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.6 1994/08/08 13:53:55 davidg Exp $
+ * $Id: kern_physio.c,v 1.7 1994/08/18 22:35:02 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -74,8 +74,6 @@ physio(strategy, bp, dev, rw, minp, uio)
 
 	for(i=0;i<uio->uio_iovcnt;i++) {
 		while( uio->uio_iov[i].iov_len) {
-			vm_offset_t v, lastv, pa;
-			caddr_t adr;
 
 			bp->b_bcount = uio->uio_iov[i].iov_len;
 			bp->b_bcount = minp( bp);
