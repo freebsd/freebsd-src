@@ -81,7 +81,9 @@
 #include <sys/syslog.h>
 #include <sys/malloc.h>
 #include <sys/time.h>
-
+#if PCVT_FREEBSD > 210
+#include <machine/random.h>
+#endif  /* PCVT_FREEBSD > 210 */
 #else /* ! PCVT_FREEBSD >= 200 */
 
 #include "param.h"

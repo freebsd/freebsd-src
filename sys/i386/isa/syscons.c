@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.117.4.9 1996/05/11 23:18:22 joerg Exp $
+ *  $Id: syscons.c,v 1.117.4.10 1996/05/12 12:38:56 joerg Exp $
  */
 
 #include "sc.h"
@@ -52,6 +52,7 @@
 #include <machine/frame.h>
 #include <machine/pc/display.h>
 #include <machine/apm_bios.h>
+#include <machine/random.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
@@ -2169,6 +2170,8 @@ next_code:
 	return(NOKEY);
     else
 	goto next_code;
+
+    add_keyboard_randomness(scancode);
 
     if (cur_console->status & KBD_RAW_MODE)
 	return scancode;

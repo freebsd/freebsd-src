@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.9.8.1 1995/09/14 07:09:00 davidg Exp $
+ *	$Id: mem.c,v 1.9.8.2 1995/09/20 13:04:07 davidg Exp $
  */
 
 /*
@@ -54,6 +54,7 @@
 #include <sys/proc.h>
 
 #include <machine/cpu.h>
+#include <machine/random.h>
 #include <machine/psl.h>
 
 #include <vm/vm.h>
@@ -112,9 +113,10 @@ mmrw(dev, uio, flags)
 {
 	register int o;
 	register u_int c, v;
+	u_int poolsize;
 	register struct iovec *iov;
 	int error = 0;
-	caddr_t zbuf = NULL;
+	caddr_t buf = NULL;
 
 	while (uio->uio_resid > 0 && error == 0) {
 		iov = uio->uio_iov;
@@ -171,19 +173,54 @@ mmrw(dev, uio, flags)
 			c = iov->iov_len;
 			break;
 
+/* minor device 3 (/dev/random) is source of filth on read, rathole on write */
+		case 3:
+			if (uio->uio_rw == UIO_WRITE) {
+				c = iov->iov_len;
+				break;
+			}
+			if (buf == NULL)
+				buf = (caddr_t)
+				    malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
+			c = min(iov->iov_len, PAGE_SIZE);
+			poolsize = read_random(buf, c);
+			if (poolsize == 0) {
+				if (buf)
+					free(buf, M_TEMP);
+				return (0);
+			}
+			c = min(c, poolsize);
+			error = uiomove(buf, (int)c, uio);
+			continue;
+
+/* minor device 4 (/dev/urandom) is source of muck on read, rathole on write */
+		case 4:
+			if (uio->uio_rw == UIO_WRITE) {
+				c = iov->iov_len;
+				break;
+			}
+			if (buf == NULL)
+				buf = (caddr_t)
+				    malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
+			c = min(iov->iov_len, PAGE_SIZE);
+			poolsize = read_random_unlimited(buf, c);
+			c = min(c, poolsize);
+			error = uiomove(buf, (int)c, uio);
+			continue;
+
 /* minor device 12 (/dev/zero) is source of nulls on read, rathole on write */
 		case 12:
 			if (uio->uio_rw == UIO_WRITE) {
 				c = iov->iov_len;
 				break;
 			}
-			if (zbuf == NULL) {
-				zbuf = (caddr_t)
+			if (buf == NULL) {
+				buf = (caddr_t)
 				    malloc(CLBYTES, M_TEMP, M_WAITOK);
-				bzero(zbuf, CLBYTES);
+				bzero(buf, CLBYTES);
 			}
 			c = min(iov->iov_len, CLBYTES);
-			error = uiomove(zbuf, (int)c, uio);
+			error = uiomove(buf, (int)c, uio);
 			continue;
 
 #ifdef notyet
@@ -243,8 +280,8 @@ mmrw(dev, uio, flags)
 		uio->uio_offset += c;
 		uio->uio_resid -= c;
 	}
-	if (zbuf)
-		free(zbuf, M_TEMP);
+	if (buf)
+		free(buf, M_TEMP);
 	return (error);
 }
 
@@ -271,5 +308,86 @@ int memmmap(dev_t dev, int offset, int nprot)
 	default:
 		return -1;
 	}
+}
+
+/*
+ * Allow userland to select which interrupts will be used in the muck
+ * gathering business.
+ */
+int
+mmioctl(dev, cmd, cmdarg, flags, p)
+	dev_t dev;
+	int cmd;
+	caddr_t cmdarg;
+	int flags;
+	struct proc *p;
+{
+	static u_int16_t interrupt_allowed = 0;
+	u_int16_t interrupt_mask;
+	int error;
+
+	switch(minor(dev)) {
+	case 3:
+	case 4:
+		break;
+
+#ifdef PERFMON
+	case 32:
+		return perfmon_ioctl(dev, cmd, cmdarg, flags, p);
+#endif
+	default:
+		return ENODEV;
+	}
+
+	if (*(u_int16_t *)cmdarg >= 16)
+		return (EINVAL);
+
+	/* Only root can do this */
+	error = suser(p->p_ucred, &p->p_acflag);
+	if (error) {
+		return (error);
+	}
+	interrupt_mask = 1 << *(u_int16_t *)cmdarg;
+
+	switch (cmd) {
+
+		case MEM_SETIRQ:
+			if (!(interrupt_allowed & interrupt_mask)) {
+				disable_intr();
+				interrupt_allowed |= interrupt_mask;
+				sec_intr_handler[*(u_int16_t *)cmdarg] =
+					intr_handler[*(u_int16_t *)cmdarg];
+				intr_handler[*(u_int16_t *)cmdarg] =
+					add_interrupt_randomness;
+				sec_intr_unit[*(u_int16_t *)cmdarg] =
+					intr_unit[*(u_int16_t *)cmdarg];
+				intr_unit[*(u_int16_t *)cmdarg] =
+					*(u_int16_t *)cmdarg;
+				enable_intr();
+			}
+			else return (EPERM);
+			break;
+
+		case MEM_CLEARIRQ:
+			if (interrupt_allowed & interrupt_mask) {
+				disable_intr();
+				interrupt_allowed &= ~(interrupt_mask);
+				intr_handler[*(u_int16_t *)cmdarg] =
+					sec_intr_handler[*(u_int16_t *)cmdarg];
+				intr_unit[*(u_int16_t *)cmdarg] =
+					sec_intr_unit[*(u_int16_t *)cmdarg];
+				enable_intr();
+			}
+			else return (EPERM);
+			break;
+
+		case MEM_RETURNIRQ:
+			*(u_int16_t *)cmdarg = interrupt_allowed;
+			break;
+
+		default:
+			return (ENOTTY);
+	}
+	return (0);
 }
 

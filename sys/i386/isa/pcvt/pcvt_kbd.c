@@ -981,6 +981,11 @@ loop:
 		if (pcvt_kbd_raw)
 		{
 			keybuf[0] = dt;
+
+#if PCVT_FREEBSD > 210
+			add_keyboard_randomness(dt);
+#endif  /* PCVT_FREEBSD > 210 */
+
 #if !PCVT_USL_VT_COMPAT
 			if ((dt & 0x80) == 0)
 				/* key make */
@@ -1322,6 +1327,10 @@ no_mouse_event:
 
 	/* got a normal scan key */
 regular:
+
+#if PCVT_FREEBSD > 210
+	add_keyboard_randomness(dt);
+#endif  /* PCVT_FREEBSD > 210 */
 
 #if PCVT_SCANSET == 1
 	kbd_status.breakseen = dt & 0x80 ? 1 : 0;
