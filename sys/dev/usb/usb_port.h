@@ -296,8 +296,6 @@ __CONCAT(dname,_detach)(self, flags) \
 #define clalloc(p, s, x) (clist_alloc_cblocks((p), (s), (s)), 0)
 #define clfree(p) clist_free_cblocks((p))
 
-#define UPACKED __attribute__ ((packed))
-
 #define PWR_RESUME 0
 #define PWR_SUSPEND 1
 
