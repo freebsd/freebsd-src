@@ -232,8 +232,8 @@ ng_ipfw_rcvdata(hook_p hook, item_p item)
 		struct ip *ip;
 
 		if (m->m_len < sizeof(struct ip) &&
-			(m = m_pullup(m, sizeof(struct ip))) == NULL)
-				return(EINVAL);
+		    (m = m_pullup(m, sizeof(struct ip))) == NULL)
+			return (EINVAL);
 
 		ip = mtod(m, struct ip *);
 
@@ -298,8 +298,8 @@ ng_ipfw_input(struct mbuf **m0, int dir, struct ip_fw_args *fwa, int tee)
 			return (ENOMEM);	/* which is ignored */
 
 	if (m->m_len < sizeof(struct ip) &&
-		(m = m_pullup(m, sizeof(struct ip))) == NULL)
-			return(EINVAL);
+	    (m = m_pullup(m, sizeof(struct ip))) == NULL)
+		return (EINVAL);
 
 	ip = mtod(m, struct ip *);
 	ip->ip_len = htons(ip->ip_len);
