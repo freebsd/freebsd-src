@@ -32,6 +32,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_access.h>
