@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.52 1998/04/15 17:06:52 phk Exp $
+ * $Id: psm.c,v 1.53 1998/06/07 17:10:50 dfr Exp $
  */
 
 /*
@@ -58,7 +58,7 @@
  *  - 30 July 1997. Added APM support.
  *  - 5 March 1997. Defined driver configuration flags (PSM_CONFIG_XXX). 
  *    Improved sync check logic.
- *    Vender specific support routines.
+ *    Vendor specific support routines.
  */
 
 #include "psm.h"
@@ -187,7 +187,7 @@ static struct psm_softc {    /* Driver status information */
 /* other flags (flags) */
 /*
  * Pass mouse data packet to the user land program `as is', even if 
- * the mouse has vender-specific enhanced features and uses non-standard 
+ * the mouse has vendor-specific enhanced features and uses non-standard 
  * packet format.  Otherwise manipulate the mouse data packet so that 
  * it can be recognized by the programs which can only understand 
  * the standard packet format.
@@ -247,7 +247,7 @@ static int reinitialize __P((int, mousemode_t *));
 static int doopen __P((int, int));
 static char *model_name(int);
 
-/* vender specific features */
+/* vendor specific features */
 typedef int probefunc_t __P((struct psm_softc *));
 
 static int mouse_id_proc1 __P((KBDC, int, int, int *));
@@ -264,7 +264,7 @@ static struct {
     unsigned char	syncmask;
     int 		packetsize;
     probefunc_t 	*probefunc;
-} vendertype[] = {
+} vendortype[] = {
     { MOUSE_MODEL_NET,			/* Genius NetMouse */
       0xc8, MOUSE_INTELLI_PACKETSIZE, enable_gmouse, },
     { MOUSE_MODEL_NETSCROLL,		/* Genius NetScroll */
@@ -613,17 +613,17 @@ reinitialize(int unit, mousemode_t *mode)
     /* FIXME: hardware ID, mouse buttons? */
 
     /* other parameters */
-    for (i = 0; vendertype[i].probefunc != NULL; ++i) {
-	if ((*vendertype[i].probefunc)(sc)) {
+    for (i = 0; vendortype[i].probefunc != NULL; ++i) {
+	if ((*vendortype[i].probefunc)(sc)) {
 	    if (verbose >= 2)
 		log(LOG_ERR, "psm%d: found %s\n", 
-		    unit, model_name(vendertype[i].model));
+		    unit, model_name(vendortype[i].model));
 	    break;
 	}
     }
 
-    sc->hw.model = vendertype[i].model;
-    sc->mode.packetsize = vendertype[i].packetsize;
+    sc->hw.model = vendortype[i].model;
+    sc->mode.packetsize = vendortype[i].packetsize;
 
     /* set mouse parameters */
     if (mode != (mousemode_t *)NULL) {
@@ -888,16 +888,16 @@ psmprobe(struct isa_device *dvp)
     sc->hw.buttons = get_mouse_buttons(sc->kbdc);
 
     /* other parameters */
-    for (i = 0; vendertype[i].probefunc != NULL; ++i) {
-	if ((*vendertype[i].probefunc)(sc)) {
+    for (i = 0; vendortype[i].probefunc != NULL; ++i) {
+	if ((*vendortype[i].probefunc)(sc)) {
 	    if (verbose >= 2)
 		printf("psm%d: found %s\n",
-		    unit, model_name(vendertype[i].model));
+		    unit, model_name(vendortype[i].model));
 	    break;
 	}
     }
 
-    sc->hw.model = vendertype[i].model;
+    sc->hw.model = vendortype[i].model;
 
     sc->dflt_mode.level = PSM_LEVEL_BASE;
     sc->dflt_mode.packetsize = MOUSE_PS2_PACKETSIZE;
@@ -905,10 +905,10 @@ psmprobe(struct isa_device *dvp)
     if (sc->config & PSM_CONFIG_NOCHECKSYNC)
         sc->dflt_mode.syncmask[0] = 0;
     else
-        sc->dflt_mode.syncmask[0] = vendertype[i].syncmask;
+        sc->dflt_mode.syncmask[0] = vendortype[i].syncmask;
     sc->dflt_mode.syncmask[1] = 0;	/* syncbits */
     sc->mode = sc->dflt_mode;
-    sc->mode.packetsize = vendertype[i].packetsize;
+    sc->mode.packetsize = vendortype[i].packetsize;
 
     /* set mouse parameters */
     i = send_aux_command(sc->kbdc, PSMC_SET_DEFAULTS);
@@ -1848,7 +1848,7 @@ psmpoll(dev_t dev, int events, struct proc *p)
     return (revents);
 }
 
-/* vender/model specific routines */
+/* vendor/model specific routines */
 
 static int mouse_id_proc1(KBDC kbdc, int res, int scale, int *status)
 {
