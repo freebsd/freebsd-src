@@ -1022,9 +1022,9 @@ emu_intr(void *p)
 static void
 emu_setmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
-	void **phys = arg;
+	bus_addr_t *phys = arg;
 
-	*phys = error? 0 : (void *)segs->ds_addr;
+	*phys = error? 0 : (bus_addr_t)segs->ds_addr;
 
 	if (bootverbose) {
 		printf("emu: setmap (%lx, %lx), nseg=%d, error=%d\n",
@@ -1043,7 +1043,7 @@ emu_malloc(struct sc_info *sc, u_int32_t sz, bus_addr_t *addr)
 	if (bus_dmamem_alloc(sc->parent_dmat, &buf, BUS_DMA_NOWAIT, &map))
 		return NULL;
 	if (bus_dmamap_load(sc->parent_dmat, map, buf, sz, emu_setmap, addr, 0)
-	    || !addr)
+	    || !*addr)
 		return NULL;
 	return buf;
 }
@@ -1094,7 +1094,7 @@ emu_memalloc(struct sc_info *sc, u_int32_t sz, bus_addr_t *addr)
 	ofs = 0;
 	for (idx = start; idx < start + blksz; idx++) {
 		mem->bmap[idx >> 3] |= 1 << (idx & 7);
-		tmp = (u_int32_t)(u_long)((u_int8_t *)&blk->buf_addr + ofs);
+		tmp = (u_int32_t)(u_long)((u_int8_t *)blk->buf_addr + ofs);
 		/* printf("pte[%d] -> %x phys, %x virt\n", idx, tmp, ((u_int32_t)buf) + ofs); */
 		mem->ptb_pages[idx] = (tmp << 1) | idx;
 		ofs += EMUPAGESIZE;
