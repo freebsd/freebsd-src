@@ -126,6 +126,7 @@ int
 	clienteof = 0;
 
 char *prompt = 0;
+char *line;		/* hack around breakage in sra.c :-( !! */
 
 cc_t escape;
 cc_t rlogin;
