@@ -1838,7 +1838,6 @@ access(td, uap)
 	int error;
 	struct nameidata nd;
 
-	cred = td->td_proc->p_ucred;
 	/*
 	 * Create and modify a temporary credential instead of one that
 	 * is potentially shared.  This could also mess up socket
@@ -1848,10 +1847,11 @@ access(td, uap)
 	 * may be better to explicitly pass the credential to namei()
 	 * rather than to modify the potentially shared process structure.
 	 */
+	cred = td->td_ucred;
 	tmpcred = crdup(cred);
 	tmpcred->cr_uid = cred->cr_ruid;
 	tmpcred->cr_groups[0] = cred->cr_rgid;
-	td->td_proc->p_ucred = tmpcred;
+	td->td_ucred = tmpcred;
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
 	    SCARG(uap, path), td);
 	if ((error = namei(&nd)) != 0)
@@ -1862,7 +1862,7 @@ access(td, uap)
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(vp);
 out1:
-	td->td_proc->p_ucred = cred;
+	td->td_ucred = cred;
 	crfree(tmpcred);
 	return (error);
 }
