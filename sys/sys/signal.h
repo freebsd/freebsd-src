@@ -131,6 +131,15 @@ union sigval {
 	void	*sigval_ptr;
 };
 
+struct sigevent {
+	int	sigev_notify;		/* Notification type */
+	int	sigev_signo;		/* Signal number */
+	union sigval sigev_value;	/* Signal value */
+};
+
+#define	SIGEV_NONE	0		/* No async notification */
+#define	SIGEV_SIGNAL	1		/* Generate a queued signal */
+
 typedef struct __siginfo {
 	int	si_signo;		/* signal number */
 	int	si_errno;		/* errno association */
@@ -209,7 +218,7 @@ struct	sigaction {
 /* Additional FreeBSD values. */
 #define SI_UNDEFINED	0
 
-typedef void __siginfohandler_t __P((int, siginfo_t *, void *));
+typedef void __siginfohandler_t __P((int, struct __siginfo *, void *));
 
 typedef	__sighandler_t	*sig_t;	/* type of pointer to a signal function */
 
@@ -277,17 +286,6 @@ struct	sigstack {
 #define	SIG_BLOCK	1	/* block specified signal set */
 #define	SIG_UNBLOCK	2	/* unblock specified signal set */
 #define	SIG_SETMASK	3	/* set specified signal set */
-
-#ifndef _POSIX_SOURCE
-struct sigevent {
-	int	sigev_notify;		/* Notification type */
-	int	sigev_signo;		/* Signal number */
-	union sigval sigev_value;	/* Signal value */
-};
-
-#define	SIGEV_NONE	0		/* No async notification */
-#define	SIGEV_SIGNAL	1		/* Generate a queued signal */
-#endif
 
 #endif /* !_ANSI_SOURCE */
 
