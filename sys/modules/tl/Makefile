@@ -2,12 +2,13 @@
 
 S	= ${.CURDIR}/../..
 .PATH:	$S/pci
-KMOD	= tl
+KMOD	= if_tl
 SRCS	= if_tl.c tl.h bpf.h opt_bdg.h device_if.h bus_if.h pci_if.h
 SRCS	+= miibus_if.h
 CLEANFILES	+= tl.h bpf.h opt_bdg.h device_if.h bus_if.h pci_if.h
 CLEANFILEs	+= miibus_if.h
 CFLAGS	+= ${DEBUG_FLAGS}
+KMODDEPS = miibus
 
 tl.h:
 	echo "#define NTL 1" > tl.h
