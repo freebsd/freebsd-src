@@ -258,6 +258,22 @@ If this variable is defined for
 .Dq Li "make rerelease" ,
 the source code will not be updated with
 .Dq Li "cvs update" .
+.It Va TARGET_ARCH
+The target machine processor architecture.
+This is analogous to the
+.Dq Nm uname Fl p
+output.
+Set this to cross-build for a different architecture.
+.It Va TARGET
+The target hardware platform.
+This is analogous to the
+.Dq Nm uname Fl m
+output.
+This is necessary to cross-build some target architectures.
+For example, cross-building for PC98 machines requires
+.Va TARGET_ARCH Ns = Ns Li i386
+and
+.Va TARGET Ns = Ns Li pc98 .
 .El
 .Sh FILES
 .Bl -tag -compact
