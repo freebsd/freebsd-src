@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../security/mac_none
+.PATH: ${.CURDIR}/../../security/mac_stub
 
-KMOD=	mac_none
+KMOD=	mac_stub
 SRCS=	vnode_if.h \
-	mac_none.c
+	mac_stub.c
 
 .include <bsd.kmod.mk>
