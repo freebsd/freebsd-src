@@ -310,7 +310,7 @@ pci_hdrtypedata(device_t pcib, int b, int s, int f, pcicfgregs *cfg)
 /* read configuration header into pcicfgregs structure */
 
 struct pci_devinfo *
-pci_read_device(device_t pcib, int b, int s, int f)
+pci_read_device(device_t pcib, int b, int s, int f, size_t size)
 {
 #define REG(n, w)	PCIB_READ_CONFIG(pcib, b, s, f, n, w)
 	pcicfgregs *cfg = NULL;
@@ -322,8 +322,7 @@ pci_read_device(device_t pcib, int b, int s, int f)
 	devlist_entry = NULL;
 
 	if (PCIB_READ_CONFIG(pcib, b, s, f, PCIR_DEVVENDOR, 4) != -1) {
-		devlist_entry = malloc(sizeof(struct pci_devinfo),
-				       M_DEVBUF, M_WAITOK | M_ZERO);
+		devlist_entry = malloc(size, M_DEVBUF, M_WAITOK | M_ZERO);
 		if (devlist_entry == NULL)
 			return (NULL);
 
@@ -779,8 +778,8 @@ pci_add_children(device_t dev, int busno)
 	for (s = 0; s <= maxslots; s++) {
 		int pcifunchigh = 0;
 		for (f = 0; f <= pcifunchigh; f++) {
-			struct pci_devinfo *dinfo =
-				pci_read_device(pcib, busno, s, f);
+			struct pci_devinfo *dinfo = pci_read_device(pcib,
+			    busno, s, f, sizeof(struct pci_devinfo));
 			if (dinfo != NULL) {
 				if (dinfo->cfg.mfdev)
 					pcifunchigh = PCI_FUNCMAX;
