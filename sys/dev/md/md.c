@@ -506,7 +506,7 @@ mdnew(int unit)
 		unit = max + 1;
 	if (unit > DKMAXUNIT)
 		return (NULL);
-	MALLOC(sc, struct md_s *,sizeof(*sc), M_MD, M_WAITOK | M_ZERO);
+	MALLOC(sc, struct md_s *, sizeof(*sc), M_MD, M_WAITOK | M_ZERO);
 	sc->unit = unit;
 	LIST_INSERT_HEAD(&md_softc_list, sc, list);
 	/* XXX: UNLOCK(unique unit numbers) */
@@ -537,9 +537,9 @@ mdcreate_preload(struct md_ioctl *mdio)
 	struct md_s *sc;
 
 	if (mdio->md_size == 0)
-		return(EINVAL);
+		return (EINVAL);
 	if (mdio->md_options & ~(MD_AUTOUNIT))
-		return(EINVAL);
+		return (EINVAL);
 	if (mdio->md_options & MD_AUTOUNIT) {
 		sc = mdnew(-1);
 		if (sc == NULL)
@@ -555,7 +555,7 @@ mdcreate_preload(struct md_ioctl *mdio)
 	sc->nsect = mdio->md_size;
 	sc->flags = mdio->md_options & MD_FORCE;
 	/* Cast to pointer size, then to pointer to avoid warning */
-	sc->pl_ptr = (u_char *)(uintptr_t)mdio->md_base;	
+	sc->pl_ptr = (u_char *)(uintptr_t)mdio->md_base;
 	sc->pl_len = (mdio->md_size << DEV_BSHIFT);
 	mdinit(sc);
 	return (0);
@@ -569,9 +569,9 @@ mdcreate_malloc(struct md_ioctl *mdio)
 	unsigned u;
 
 	if (mdio->md_size == 0)
-		return(EINVAL);
+		return (EINVAL);
 	if (mdio->md_options & ~(MD_AUTOUNIT | MD_COMPRESS | MD_RESERVE))
-		return(EINVAL);
+		return (EINVAL);
 	/* Compression doesn't make sense if we have reserved space */
 	if (mdio->md_options & MD_RESERVE)
 		mdio->md_options &= ~MD_COMPRESS;
@@ -699,14 +699,14 @@ mdcreate_vnode(struct md_ioctl *mdio, struct proc *p)
 	error = mdsetcred(sc, p->p_ucred);
 	if (error) {
 		(void) vn_close(nd.ni_vp, flags, p->p_ucred, p);
-		return(error);
+		return (error);
 	}
 	mdinit(sc);
 	return (0);
 }
 
 static int
-mddestroy(struct md_s *sc, struct md_ioctl *mdio, struct proc *p)
+mddestroy(struct md_s *sc, struct proc *p)
 {
 	unsigned u;
 
@@ -717,7 +717,8 @@ mddestroy(struct md_s *sc, struct md_ioctl *mdio, struct proc *p)
 		disk_destroy(sc->dev);
 	}
 	if (sc->vnode != NULL)
-		(void)vn_close(sc->vnode, sc->flags & MD_READONLY ?  FREAD : (FREAD|FWRITE), sc->cred, p);
+		(void)vn_close(sc->vnode, sc->flags & MD_READONLY ?
+		    FREAD : (FREAD|FWRITE), sc->cred, p);
 	if (sc->cred != NULL)
 		crfree(sc->cred);
 	if (sc->object != NULL) {
@@ -762,8 +763,8 @@ mdcreate_swap(struct md_ioctl *mdio, struct proc *p)
 	 */
 
 	if (mdio->md_size == 0) {
-		mddestroy(sc, mdio, p);
-		return(EDOM);
+		mddestroy(sc, p);
+		return (EDOM);
 	}
 
 	/*
@@ -783,16 +784,38 @@ mdcreate_swap(struct md_ioctl *mdio, struct proc *p)
 		if (swap_pager_reserve(sc->object, 0, sc->nsect) < 0) {
 			vm_pager_deallocate(sc->object);
 			sc->object = NULL;
-			mddestroy(sc, mdio, p);
-			return(EDOM);
+			mddestroy(sc, p);
+			return (EDOM);
 		}
 	}
 	error = mdsetcred(sc, p->p_ucred);
 	if (error)
-		mddestroy(sc, mdio, p);
+		mddestroy(sc, p);
 	else
 		mdinit(sc);
-	return(error);
+	return (error);
+}
+
+static int
+mddetach(int unit, struct proc *p)
+{
+	struct md_s *sc;
+
+	sc = mdfind(unit);
+	if (sc == NULL)
+		return (ENOENT);
+	if (sc->opencount != 0 && !(sc->flags & MD_FORCE))
+		return (EBUSY);
+	switch(sc->type) {
+	case MD_VNODE:
+	case MD_SWAP:
+	case MD_MALLOC:
+	case MD_PRELOAD:
+	case MD_PRELOAD_COMPRESSED:
+		return (mddestroy(sc, p));
+	default:
+		return (EOPNOTSUPP);
+	}
 }
 
 static int
@@ -810,37 +833,21 @@ mdctlioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 	case MDIOCATTACH:
 		switch (mdio->md_type) {
 		case MD_MALLOC:
-			return(mdcreate_malloc(mdio));
+			return (mdcreate_malloc(mdio));
 		case MD_PRELOAD:
-			return(mdcreate_preload(mdio));
+			return (mdcreate_preload(mdio));
 		case MD_VNODE:
-			return(mdcreate_vnode(mdio, p));
+			return (mdcreate_vnode(mdio, p));
 		case MD_SWAP:
-			return(mdcreate_swap(mdio, p));
+			return (mdcreate_swap(mdio, p));
 		default:
 			return (EINVAL);
 		}
 	case MDIOCDETACH:
-		if (mdio->md_file != NULL)
-			return(EINVAL);
-		if (mdio->md_size != 0)
-			return(EINVAL);
-		if (mdio->md_options != 0)
-			return(EINVAL);
-		sc = mdfind(mdio->md_unit);
-		if (sc == NULL)
-			return (ENOENT);
-		if (sc->opencount != 0 && !(sc->flags & MD_FORCE))
-			return (EBUSY);
-		switch(sc->type) {
-		case MD_VNODE:
-		case MD_SWAP:
-		case MD_MALLOC:
-		case MD_PRELOAD:
-			return(mddestroy(sc, mdio, p));
-		default:
-			return (EOPNOTSUPP);
-		}
+		if (mdio->md_file != NULL || mdio->md_size != 0 ||
+		    mdio->md_options != 0)
+			return (EINVAL);
+		return (mddetach(mdio->md_unit, p));
 	case MDIOCQUERY:
 		sc = mdfind(mdio->md_unit);
 		if (sc == NULL)
@@ -926,27 +933,33 @@ md_drvinit(void *unused)
 static int
 md_modevent(module_t mod, int type, void *data)
 {
-        switch (type) {
-        case MOD_LOAD:
+	int error;
+	struct md_s *sc;
+
+	switch (type) {
+	case MOD_LOAD:
 		md_drvinit(NULL);
-                break;
-        case MOD_UNLOAD:
-		if (!LIST_EMPTY(&md_softc_list))
-			return EBUSY;
-                if (status_dev)
-                        destroy_dev(status_dev);
-                status_dev = 0;
-                break;
-        default:
-                break;
-        }
-        return 0;
+		break;
+	case MOD_UNLOAD:
+		LIST_FOREACH(sc, &md_softc_list, list) {
+			error = mddetach(sc->unit, curproc);
+			if (error != 0)
+				return (error);
+		}
+		if (status_dev)
+			destroy_dev(status_dev);
+		status_dev = 0;
+		break;
+	default:
+		break;
+	}
+	return (0);
 }
 
 static moduledata_t md_mod = {
-        MD_NAME,
-        md_modevent,
-        NULL
+	MD_NAME,
+	md_modevent,
+	NULL
 };
 DECLARE_MODULE(md, md_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+CDEV_MAJOR);
 MODULE_VERSION(md, MD_MODVER);
@@ -962,4 +975,3 @@ md_takeroot(void *junk)
 
 SYSINIT(md_root, SI_SUB_MOUNT_ROOT, SI_ORDER_FIRST, md_takeroot, NULL);
 #endif
-
