@@ -1,3 +1,5 @@
+/*	$NetBSD: svc_run.c,v 1.17 2000/07/06 03:10:35 christos Exp $	*/
+
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -27,6 +29,7 @@
  * Mountain View, California  94043
  */
 
+#include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)svc_run.c 1.1 87/10/13 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)svc_run.c	2.1 88/07/29 4.0 RPCSRC";*/
@@ -37,53 +40,54 @@ static char *rcsid = "$FreeBSD$";
  * This is the rpc server side idle loop
  * Wait for input, call server program.
  */
+#include "reentrant.h"
 #include "namespace.h"
+#include <err.h>
+#include <errno.h>
 #include <rpc/rpc.h>
 #include <stdio.h>
-#include <sys/errno.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "un-namespace.h"
 
-extern int __svc_fdsetsize;
-extern fd_set *__svc_fdset;
+#include <rpc/rpc.h>
 
 void
 svc_run()
 {
-	fd_set *fds;
+	fd_set readfds;
+	extern rwlock_t svc_fd_lock;
 
 	for (;;) {
-		if (__svc_fdset) {
-			int bytes = howmany(__svc_fdsetsize, NFDBITS) *
-				sizeof(fd_mask);
-			fds = (fd_set *)malloc(bytes);
-			memcpy(fds, __svc_fdset, bytes);
-		} else
-			fds = NULL;
-		switch (_select(svc_maxfd + 1, fds, NULL, NULL,
-				(struct timeval *)0)) {
+		rwlock_rdlock(&svc_fd_lock);
+		readfds = svc_fdset;
+		rwlock_unlock(&svc_fd_lock);
+		switch (_select(svc_maxfd+1, &readfds, NULL, NULL, NULL)) {
 		case -1:
+			FD_ZERO(&readfds);
 			if (errno == EINTR) {
-				if (fds)
-					free(fds);
 				continue;
 			}
-			perror("svc_run: - select failed");
-			if (fds)
-				free(fds);
+			warn("svc_run: - select failed");
 			return;
 		case 0:
-			if (fds)
-				free(fds);
 			continue;
 		default:
-			/* if fds == NULL, _select() can't return a result */
-			svc_getreqset2(fds, svc_maxfd + 1);
-			free(fds);
+			svc_getreqset(&readfds);
 		}
 	}
+}
+
+/*
+ *      This function causes svc_run() to exit by telling it that it has no
+ *      more work to do.
+ */
+void
+svc_exit()
+{
+	extern rwlock_t svc_fd_lock;
+
+	rwlock_wrlock(&svc_fd_lock);
+	FD_ZERO(&svc_fdset);
+	rwlock_unlock(&svc_fd_lock);
 }

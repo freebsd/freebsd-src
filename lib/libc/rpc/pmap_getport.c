@@ -1,3 +1,5 @@
+/*	$NetBSD: pmap_getport.c,v 1.16 2000/07/06 03:10:34 christos Exp $	*/
+
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -27,6 +29,7 @@
  * Mountain View, California  94043
  */
 
+#include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)pmap_getport.c 1.9 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)pmap_getport.c	2.2 88/08/01 4.0 RPCSRC";*/
@@ -41,16 +44,21 @@ static char *rcsid = "$FreeBSD$";
  */
 
 #include "namespace.h"
+#include <sys/types.h>
+#include <sys/socket.h>
+
+#include <net/if.h>
+
+#include <assert.h>
+#include <unistd.h>
+
 #include <rpc/rpc.h>
 #include <rpc/pmap_prot.h>
 #include <rpc/pmap_clnt.h>
-#include <sys/socket.h>
-#include <net/if.h>
-#include <unistd.h>
 #include "un-namespace.h"
 
-static struct timeval timeout = { 5, 0 };
-static struct timeval tottimeout = { 60, 0 };
+static const struct timeval timeout = { 5, 0 };
+static const struct timeval tottimeout = { 60, 0 };
 
 /*
  * Find the mapped port for program,version.
@@ -65,20 +73,24 @@ pmap_getport(address, program, version, protocol)
 	u_int protocol;
 {
 	u_short port = 0;
-	int socket = -1;
-	register CLIENT *client;
+	int sock = -1;
+	CLIENT *client;
 	struct pmap parms;
+
+	assert(address != NULL);
 
 	address->sin_port = htons(PMAPPORT);
 	client = clntudp_bufcreate(address, PMAPPROG,
-	    PMAPVERS, timeout, &socket, RPCSMALLMSGSIZE, RPCSMALLMSGSIZE);
-	if (client != (CLIENT *)NULL) {
+	    PMAPVERS, timeout, &sock, RPCSMALLMSGSIZE, RPCSMALLMSGSIZE);
+	if (client != NULL) {
 		parms.pm_prog = program;
 		parms.pm_vers = version;
 		parms.pm_prot = protocol;
 		parms.pm_port = 0;  /* not needed or used */
-		if (CLNT_CALL(client, PMAPPROC_GETPORT, xdr_pmap, &parms,
-		    xdr_u_short, &port, tottimeout) != RPC_SUCCESS){
+		if (CLNT_CALL(client, (rpcproc_t)PMAPPROC_GETPORT,
+		    (xdrproc_t)xdr_pmap,
+		    &parms, (xdrproc_t)xdr_u_short, &port, tottimeout) !=
+		    RPC_SUCCESS){
 			rpc_createerr.cf_stat = RPC_PMAPFAILURE;
 			clnt_geterr(client, &rpc_createerr.cf_error);
 		} else if (port == 0) {
@@ -86,8 +98,6 @@ pmap_getport(address, program, version, protocol)
 		}
 		CLNT_DESTROY(client);
 	}
-	if (socket != -1)
-		(void)_close(socket);
 	address->sin_port = 0;
 	return (port);
 }

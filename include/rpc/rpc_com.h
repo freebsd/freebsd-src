@@ -1,3 +1,6 @@
+/*	$NetBSD: rpc_com.h,v 1.3 2000/12/10 04:10:08 christos Exp $	*/
+/*	$FreeBSD$ */
+
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -39,17 +42,10 @@
 #ifndef _RPC_RPCCOM_H
 #define	_RPC_RPCCOM_H
 
-/* From: #pragma ident	"@(#)rpc_com.h	1.11	93/07/05 SMI" */
+#include <sys/cdefs.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+/* #pragma ident	"@(#)rpc_com.h	1.11	93/07/05 SMI" */
 
-/*
- * File descriptor to be used on xxx_create calls to get default descriptor
- */
-#define	RPC_ANYSOCK	-1
-#define	RPC_ANYFD	RPC_ANYSOCK
 /*
  * The max size of the transport, if the size cannot be determined
  * by other means.
@@ -57,22 +53,31 @@ extern "C" {
 #define	RPC_MAXDATASIZE 9000
 #define	RPC_MAXADDRSIZE 1024
 
-#if defined(__STDC__) || defined(__cplusplus)
-extern u_int __rpc_get_t_size (int, long);
-extern u_int __rpc_get_a_size (long);
-extern int __rpc_dtbsize (void);
-extern int _rpc_dtablesize (void);
-extern  int  _rpc_get_default_domain(char **);
-#else
-extern u_int __rpc_get_t_size ();
-extern u_int __rpc_get_a_size ();
-extern int __rpc_dtbsize ();
-extern int _rpc_dtablesize ();
-extern  int _rpc_get_default_domain();
-#endif
+#define __RPC_GETXID(now) ((u_int32_t)getpid() ^ (u_int32_t)(now)->tv_sec ^ \
+    (u_int32_t)(now)->tv_usec)
 
-#ifdef __cplusplus
-}
-#endif
+__BEGIN_DECLS
+extern u_int __rpc_get_a_size __P((int));
+extern int __rpc_dtbsize __P((void));
+extern struct netconfig * __rpcgettp __P((int));
+extern  int  __rpc_get_default_domain __P((char **));
+
+char *__rpc_taddr2uaddr_af __P((int, const struct netbuf *));
+struct netbuf *__rpc_uaddr2taddr_af __P((int, const char *));
+int __rpc_fixup_addr __P((struct netbuf *, const struct netbuf *));
+int __rpc_sockinfo2netid __P((struct __rpc_sockinfo *, const char **));
+int __rpc_seman2socktype __P((int));
+int __rpc_socktype2seman __P((int));
+void *rpc_nullproc __P((CLIENT *));
+int __rpc_sockisbound __P((int));
+
+struct netbuf *__rpcb_findaddr __P((rpcprog_t, rpcvers_t,
+				    const struct netconfig *,
+				    const char *, CLIENT **));
+bool_t __rpc_control __P((int,void *));
+
+char *_get_next_token __P((char *, int));
+
+__END_DECLS
 
 #endif /* _RPC_RPCCOM_H */

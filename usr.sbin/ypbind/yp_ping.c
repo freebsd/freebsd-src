@@ -310,7 +310,7 @@ get_reply:
 		}  /* end successful completion */
 		else {
 			/* maybe our credentials need to be refreshed ... */
-			if (nrefreshes > 0 && AUTH_REFRESH(cl->cl_auth)) {
+			if (nrefreshes > 0 && AUTH_REFRESH(cl->cl_auth, &reply_msg)) {
 				nrefreshes--;
 				goto call_again;
 			}
@@ -502,7 +502,7 @@ int __yp_ping(restricted_addrs, cnt, dom, port)
 	clnt->cl_auth = authunix_create_default();
 	cu = (struct cu_data *)clnt->cl_private;
 	tv.tv_sec = 0;
-	clnt_control(clnt, CLSET_TIMEOUT, &tv);
+	clnt_control(clnt, CLSET_TIMEOUT, (char *)&tv);
 	ioctl(sock, FIONBIO, &dontblock);
 	oldfunc = clnt->cl_ops->cl_call;
 	clnt->cl_ops->cl_call = clntudp_a_call;

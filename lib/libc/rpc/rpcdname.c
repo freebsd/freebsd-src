@@ -30,15 +30,18 @@
 #if !defined(lint) && defined(SCCSIDS)
 static char sccsid[] = "@(#)rpcdname.c 1.7 91/03/11 Copyr 1989 Sun Micro";
 #endif
+/*	$FreeBSD$ */
 
 /*
  * rpcdname.c
  * Gets the default domain name
  */
 
+#include "namespace.h"
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include "un-namespace.h"
 
 static char *default_domain = 0;
 

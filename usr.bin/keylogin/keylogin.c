@@ -1,3 +1,4 @@
+/*	$FreeBSD$ */
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -49,7 +50,7 @@ int
 main()
 {
 	char fullname[MAXNETNAMELEN + 1];
-	struct netstarg netst;
+	struct key_netstarg netst;
 
 	if (!getnetname(fullname)) {
 		fprintf(stderr, "netname lookup failed -- make sure the ");

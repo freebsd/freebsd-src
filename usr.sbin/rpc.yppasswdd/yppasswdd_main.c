@@ -298,7 +298,18 @@ the %s domain -- aborting", yppasswd_domain);
 	}
 
 	unlink(sockname);
-	transp = svcunix_create(sock, 0, 0, sockname);
+        if (svc_create(yppasswdprog_1, YPPASSWDPROG, YPPASSWDVERS,
+	    "netpath") == 0) {
+                (void) fprintf(stderr,
+                        "%s: unable to create service\n", argv[0]);
+                exit(1);
+        }
+        if (svc_create(master_yppasswdprog_1, MASTER_YPPASSWDPROG,
+	    MASTER_YPPASSWDVERS, "netpath") == 0) {
+                (void) fprintf(stderr,
+                        "%s: unable to create service\n", argv[0]);
+                exit(1);
+        }
 	if (transp == NULL) {
 		yp_error("cannot create AF_LOCAL service.");
 		exit(1);

@@ -1,14 +1,18 @@
 .\" @(#)bindresvport.3n	2.2 88/08/02 4.0 RPCSRC; from 1.7 88/03/14 SMI
+.\" $NetBSD: bindresvport.3,v 1.8 2000/07/05 15:45:33 msaitoh Exp $
 .\" $FreeBSD$
 .\"
-.Dd January 27, 2000
+.Dd November 22, 1987
 .Dt BINDRESVPORT 3
 .Os
 .Sh NAME
 .Nm bindresvport ,
 .Nm bindresvport_sa
 .Nd bind a socket to a privileged IP port
+.Sh LIBRARY
+.Lb libc
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <rpc/rpc.h>
 .Ft int
 .Fn bindresvport "int sd" "struct sockaddr_in *sin"
@@ -23,25 +27,38 @@ are used to bind a socket descriptor to a privileged
 port, that is, a
 port number in the range 0-1023.
 .Pp
+If
+.Fa sin
+is a pointer to a
+.Ft "struct sockaddr_in"
+then the appropriate fields in the structure should be defined.
+Note that
+.Fa sin->sin_family
+must be initialized to the address family of the socket, passed by
+.Fa sd .
+If
+.Fa sin->sin_port
+is
+.Sq 0
+then an anonymous port (in the range 600-1023) will be
+chosen, and if
+.Xr bind 2
+is successful, the
+.Fa sin->sin_port
+will be updated to contain the allocated port.
+.Pp
+If
+.Fa sin
+is the
+.Dv NULL
+pointer,
+an anonymous port will be allocated (as above).
+However, there is no way for
+.Fn bindresvport
+to return the allocated port in this case.
+.Pp
 Only root can bind to a privileged port; this call will fail for any
 other users.
-.Pp
-When
-.Va sin
-is not null,
-.Va sin->sin_family
-must be initialized to the address family of the socket, passed by
-.Va sd .
-If the value of sin->sin_port is non-zero
-.Fn bindresvport
-will attempt to use that specific port.  If it fails, it chooses another
-privileged port automatically.
-.Pp
-It is legal to pass null pointer to
-.Va sin .
-In this case, the caller cannot get the port number
-.Fn bindresvport
-has picked.
 .Pp
 Function prototype of
 .Fn bindresvport
@@ -57,50 +74,24 @@ sockets as well as
 .Dv AF_INET
 sockets.
 .Sh RETURN VALUES
-.Fn bindresvport
-and
-.Fn bindresvport_sa
-return 0 if they are successful, otherwise \-1 is returned and
-.Va errno
-set to reflect the cause of the error.
+.Rv -std bindresvport
 .Sh ERRORS
-The
-.Fn bindresvport
-and
-.Fn bindresvport_sa
-functions fail if:
 .Bl -tag -width Er
-.It Bq Er EBADF
-.Fa sd
-is not a valid descriptor.
-.It Bq Er ENOTSOCK
-.Fa sd
-is not a socket.
-.It Bq Er EADDRNOTAVAIL
-The specified address is not available from the local machine.
-.It Bq Er EADDRINUSE
-The specified address is already in use.
-.It Bq Er EINVAL
-The socket is already bound to an address,
-or the socket family and the family of specified address mismatch.
-.It Bq Er EACCES
-The requested address is protected, and the current user
-has inadequate permission to access it.
-.It Bq Er EFAULT
-The
-.Fa name
-parameter is not in a valid part of the user
-address space.
-.It Bq Er ENOBUFS
-Insufficient resources were available in the system
-to perform the operation.
 .It Bq Er EPFNOSUPPORT
-The protocol family has not been configured into the
-system, no implementation for it exists,
-or address family did not match between arguments.
+If second argument was supplied,
+and address family did not match between arguments.
 .El
-.Sh "SEE ALSO"
+.Pp
+.Fn bindresvport
+may also fail and set
+.Va errno
+for any of the errors specified for the calls
 .Xr bind 2 ,
-.Xr socket 2 ,
-.Xr rresvport 3 ,
-.Xr rresvport_af 3
+.Xr getsockopt 2 ,
+or 
+.Xr setsockopt 2 .
+.Sh SEE ALSO
+.Xr bind 2 ,
+.Xr getsockopt 2 ,
+.Xr setsockopt 2 ,
+.Xr ip 4

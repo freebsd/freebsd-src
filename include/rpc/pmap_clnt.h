@@ -1,3 +1,5 @@
+/*	$NetBSD: pmap_clnt.h,v 1.9 2000/06/02 22:57:55 fvdl Exp $	*/
+
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -26,7 +28,7 @@
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  *
- *	from: @(#)pmap_clnt.h 1.11 88/02/08 SMI
+ *	from: @(#)pmap_clnt.h 1.11 88/02/08 SMI 
  *	from: @(#)pmap_clnt.h	2.1 88/07/29 4.0 RPCSRC
  * $FreeBSD$
  */
@@ -60,8 +62,8 @@
  *		address if the responder to the broadcast.
  */
 
-#ifndef _RPC_PMAPCLNT_H
-#define _RPC_PMAPCLNT_H
+#ifndef _RPC_PMAP_CLNT_H_
+#define _RPC_PMAP_CLNT_H_
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
@@ -76,10 +78,9 @@ extern enum clnt_stat	pmap_rmtcall	__P((struct sockaddr_in *,
 extern enum clnt_stat	clnt_broadcast	__P((u_long, u_long, u_long,
 					     xdrproc_t, char *,
 					     xdrproc_t, char *,
-					     bool_t (*) __P((caddr_t,
-						 struct sockaddr_in *))));
+					     resultproc_t));
 extern u_short		pmap_getport	__P((struct sockaddr_in *,
 					     u_long, u_long, u_int));
 __END_DECLS
 
-#endif /* !_RPC_PMAPCLNT_H */
+#endif /* !_RPC_PMAP_CLNT_H_ */

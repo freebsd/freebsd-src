@@ -743,7 +743,7 @@ struct _dom_binding *ypdb;
 		ptr = (char *)&ypdb->dom_domain;
 		stat = clnt_broadcast(YPPROG, YPVERS, YPPROC_DOMAIN_NONACK,
 	    		xdr_domainname, (char *)&ptr, xdr_bool, (char *)&out,
-	    		broadcast_result);
+	    		(resultproc_t)broadcast_result);
 	}
 
 	if (stat != RPC_SUCCESS) {

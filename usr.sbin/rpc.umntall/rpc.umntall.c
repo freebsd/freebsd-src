@@ -171,28 +171,23 @@ main(int argc, char **argv) {
 int
 do_umntall(char *hostname) {
 	enum clnt_stat clnt_stat;
-	struct hostent *hp;
-	struct sockaddr_in saddr;
-	struct timeval pertry, try;
-	int so;
+	struct addrinfo *ai, hints;
+	struct timeval try;
+	int so, ecode;
 	CLIENT *clp;
 
-	if ((hp = gethostbyname(hostname)) == NULL) {
-		warnx("gethostbyname(%s) failed", hostname);
-		return (0);
+	memset(&hints, 0, sizeof hints);
+        hints.ai_flags = AI_NUMERICHOST;
+	ecode = getaddrinfo(hostname, NULL, &hints, &ai);
+	if (ecode != 0) {
+		warnx("can't get net id for host/nfs: %s",
+		    gai_strerror(ecode));
+		return (1);
 	}
-	memset(&saddr, 0, sizeof(saddr));
-	saddr.sin_family = AF_INET;
-	saddr.sin_port = 0;
-	memmove(&saddr.sin_addr, hp->h_addr, MIN(hp->h_length,
-	    sizeof(saddr.sin_addr)));
-	pertry.tv_sec = 3;
-	pertry.tv_usec = 0;
-	so = RPC_ANYSOCK;
-	if ((clp = clntudp_create(&saddr, RPCPROG_MNT, RPCMNT_VER1,
-	    pertry, &so)) == NULL) {
-		clnt_pcreateerror("Cannot send MNT PRC");
-		return (0);
+	clp = clnt_create(hostname, RPCPROG_MNT, RPCMNT_VER1, "udp");
+	if (clp  == NULL) {
+		clnt_pcreateerror("Cannot MNT PRC");
+		return (1);
 	}
 	clp->cl_auth = authunix_create_default();
 	try.tv_sec = 3;
@@ -212,30 +207,25 @@ do_umntall(char *hostname) {
 int
 do_umount(char *hostname, char *dirp) {
 	enum clnt_stat clnt_stat;
-	struct hostent *hp;
-	struct sockaddr_in saddr;
-	struct timeval pertry, try;
+	struct addrinfo *ai, hints;
+	struct timeval try;
 	CLIENT *clp;
-	int so;
+	int so, ecode;
 
-	if ((hp = gethostbyname(hostname)) == NULL) {
-		warnx("gethostbyname(%s) failed", hostname);
-		return (0);
+	memset(&hints, 0, sizeof hints);
+        hints.ai_flags = AI_NUMERICHOST;
+	ecode = getaddrinfo(hostname, NULL, &hints, &ai);
+	if (ecode != 0) {
+		warnx("can't get net id for host/nfs: %s",
+		    gai_strerror(ecode));
+		return (1);
 	}
-	memset(&saddr, 0, sizeof(saddr));
-	saddr.sin_family = AF_INET;
-	saddr.sin_port = 0;
-	memmove(&saddr.sin_addr, hp->h_addr, MIN(hp->h_length,
-	    sizeof(saddr.sin_addr)));
-	pertry.tv_sec = 3;
-	pertry.tv_usec = 0;
-	so = RPC_ANYSOCK;
-	if ((clp = clntudp_create(&saddr, RPCPROG_MNT, RPCMNT_VER1,
-	    pertry, &so)) == NULL) {
-		clnt_pcreateerror("Cannot send MNT PRC");
-		return (0);
+	clp = clnt_create(hostname, RPCPROG_MNT, RPCMNT_VER1, "udp");
+	if (clp  == NULL) {
+		clnt_pcreateerror("Cannot MNT PRC");
+		return (1);
 	}
-	clp->cl_auth = authunix_create_default();
+	clp->cl_auth = authsys_create_default();
 	try.tv_sec = 3;
 	try.tv_usec = 0;
 	clnt_stat = clnt_call(clp, RPCMNT_UMOUNT, xdr_dir, dirp,

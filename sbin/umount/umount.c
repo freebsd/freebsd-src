@@ -47,6 +47,7 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/mount.h>
+#include <sys/socket.h>
 
 #include <netdb.h>
 #include <rpc/rpc.h>
@@ -68,6 +69,7 @@ typedef enum { MNTON, MNTFROM, NOTHING } mntwhat;
 typedef enum { MARK, UNMARK, NAME, COUNT, FREE } dowhat;
 
 struct	mtablist *mtabhead;
+struct  addrinfo *nfshost_ai = NULL;
 int	fflag, vflag;
 char   *nfshost;
 
@@ -78,19 +80,22 @@ char	*getmntname (const char *, const char *,
 char 	*getrealname(char *, char *resolved_path);
 char   **makevfslist (const char *);
 size_t	 mntinfo (struct statfs **);
-int	 namematch (struct hostent *);
+int	 namematch (struct addrinfo *);
+int	 sacmp (struct sockaddr *, struct sockaddr *);
 int	 umountall (char **);
-int	 umountfs (char *, char **);
+int	 checkname (char *, char **);
+int	 umountfs (char *, char *, char *);
 void	 usage (void);
 int	 xdr_dir (XDR *, char *);
 
 int
 main(int argc, char *argv[])
 {
-	int all, errs, ch, mntsize;
+	int all, errs, ch, mntsize, error;
 	char **typelist = NULL, *mntonname, *mntfromname;
 	char *type, *mntfromnamerev, *mntonnamerev;
 	struct statfs *mntbuf;
+	struct addrinfo hints;
 
 	/* Start disks transferring immediately. */
 	sync();
@@ -133,6 +138,15 @@ main(int argc, char *argv[])
 	if ((nfshost != NULL) && (typelist == NULL))
 		typelist = makevfslist("nfs");
 
+	if (nfshost != NULL) {
+		memset(&hints, 0, sizeof hints);
+		error = getaddrinfo(nfshost, NULL, &hints, &nfshost_ai);
+		if (error) {
+			fprintf(stderr, "ndp: %s: %s\n", nfshost,
+			    gai_strerror(error));
+		}
+	}
+
 	switch (all) {
 	case 2:
 		if ((mntsize = mntinfo(&mntbuf)) <= 0)
@@ -165,7 +179,7 @@ main(int argc, char *argv[])
 				    "is mounted there, umount it first",
 				    mntonname, mntfromnamerev);
 
-			if (umountfs(mntbuf[mntsize].f_mntonname,
+			if (checkname(mntbuf[mntsize].f_mntonname,
 			    typelist) != 0)
 				errs = 1;
 		}
@@ -178,7 +192,7 @@ main(int argc, char *argv[])
 		break;
 	case 0:
 		for (errs = 0; *argv != NULL; ++argv)
-			if (umountfs(*argv, typelist) != 0)
+			if (checkname(*argv, typelist) != 0)
 				errs = 1;
 		break;
 	}
@@ -228,33 +242,29 @@ umountall(char **typelist)
 			err(1, "malloc failed");
 		(void)strcpy(cp, fs->fs_file);
 		rval = umountall(typelist);
-		rval = umountfs(cp, typelist) || rval;
+		rval = checkname(cp, typelist) || rval;
 		free(cp);
 		return (rval);
 	} while ((fs = getfsent()) != NULL);
 	return (0);
 }
 
+/*
+ * Do magic checks on mountpoint and device or hand over
+ * it to unmount(2) if everything fails.
+ */
 int
-umountfs(char *name, char **typelist)
+checkname(char *name, char **typelist)
 {
-	enum clnt_stat clnt_stat;
-	struct hostent *hp;
-	struct mtablist *mtab;
-	struct sockaddr_in saddr;
-	struct timeval pertry, try;
-	CLIENT *clp;
 	size_t len;
-	int so, speclen, do_rpc;
+	int speclen;
 	char *mntonname, *mntfromname;
 	char *mntfromnamerev;
-	char *nfsdirname, *orignfsdirname;
 	char *resolved, realname[MAXPATHLEN];
-	char *type, *delimp, *hostp, *origname;
+	char *type, *hostp, *delimp, *origname;
 
 	len = 0;
-	mtab = NULL;
-	mntfromname = mntonname = delimp = hostp = orignfsdirname = NULL;
+	mntfromname = mntonname = delimp = hostp = NULL;
 
 	/*
 	 * 1. Check if the name exists in the mounttable.
@@ -323,14 +333,29 @@ umountfs(char *name, char **typelist)
 					resolved = realname;
 				}
 				/*
-				 * All tests failed, return to main()
+				 * 5. All tests failed, just hand over the
+				 * mountpoint to the kernel, maybe the statfs
+				 * structure has been truncated or is not
+				 * useful anymore because of a chroot(2).
+				 * Please note that nfs will not be able to
+				 * notify the nfs-server about unmounting.
+				 * These things can change in future when the 
+				 * fstat structure get's more reliable,
+				 * but at the moment we cannot thrust it.
 				 */
 				if (mntfromname == NULL && mntonname == NULL) {
 					(void)strcpy(name, origname);
-					warnx("%s: not currently mounted",
-					    origname);
-					free(origname);
-					return (1);
+					if (umountfs(NULL, origname,
+					    "none") == 0) {;
+						warnx("%s not found in "
+						    "mount table, "
+						    "unmounted it anyway",
+						    origname);
+						free(origname);
+						return (0);
+					} else
+						free(origname);
+						return (1);
 				}
 			}
 		}
@@ -341,21 +366,6 @@ umountfs(char *name, char **typelist)
 	if (checkvfsname(type, typelist))
 		return (1);
 
-	hp = NULL;
-	nfsdirname = NULL;
-	if (!strcmp(type, "nfs")) {
-		if ((nfsdirname = strdup(mntfromname)) == NULL)
-			err(1, "strdup");
-		orignfsdirname = nfsdirname;
-		if ((delimp = strchr(nfsdirname, ':')) != NULL) {
-			*delimp = '\0';
-			hostp = nfsdirname;
-			if ((hp = gethostbyname(hostp)) == NULL) {
-				warnx("can't get net id for host");
-			}
-			nfsdirname = delimp + 1;
-		}
-	}
 	/*
 	 * Check if the reverse entrys of the mounttable are really the
 	 * same as the normal ones.
@@ -383,6 +393,43 @@ umountfs(char *name, char **typelist)
 		return (1);
 	}
 	free(mntfromnamerev);
+	umountfs(mntfromname, mntonname, type);
+}
+
+/*
+ * NFS stuff and unmount(2) call
+ */
+int
+umountfs(char *mntfromname, char *mntonname, char *type)
+{
+	enum clnt_stat clnt_stat;
+	struct timeval try;
+	struct mtablist *mtab;
+	struct addrinfo *ai, hints;
+	int do_rpc;
+	CLIENT *clp;
+	char *nfsdirname, *orignfsdirname;
+	char *hostp, *delimp;
+
+	mtab = NULL;
+	ai = NULL;
+	nfsdirname = delimp = orignfsdirname = NULL;
+	memset(&hints, 0, sizeof hints);
+
+	if (!strcmp(type, "nfs")) {
+		if ((nfsdirname = strdup(mntfromname)) == NULL)
+			err(1, "strdup");
+		orignfsdirname = nfsdirname;
+		if ((delimp = strrchr(nfsdirname, ':')) != NULL) {
+			*delimp = '\0';
+			hostp = nfsdirname;
+			getaddrinfo(hostp, NULL, &hints, &ai);
+			if (ai == NULL) {
+				warnx("can't get net id for host");
+			}
+			nfsdirname = delimp + 1;
+		}
+	}
 	/*
 	 * Check if we have to start the rpc-call later.
 	 * If there are still identical nfs-names mounted,
@@ -395,7 +442,8 @@ umountfs(char *name, char **typelist)
 		do_rpc = 1;
 	else
 		do_rpc = 0;
-	if (!namematch(hp))
+
+	if (!namematch(ai))
 		return (1);
 	if (unmount(mntonname, fflag) != 0 ) {
 		warn("unmount of %s failed", mntonname);
@@ -407,21 +455,13 @@ umountfs(char *name, char **typelist)
 	 * Report to mountd-server which nfsname
 	 * has been unmounted.
 	 */
-	if (hp != NULL && !(fflag & MNT_FORCE) && do_rpc) {
-		memset(&saddr, 0, sizeof(saddr));
-		saddr.sin_family = AF_INET;
-		saddr.sin_port = 0;
-		memmove(&saddr.sin_addr, hp->h_addr, 
-		    MIN(hp->h_length, sizeof(saddr.sin_addr)));
-		pertry.tv_sec = 3;
-		pertry.tv_usec = 0;
-		so = RPC_ANYSOCK;
-		if ((clp = clntudp_create(&saddr,
-		    RPCPROG_MNT, RPCMNT_VER1, pertry, &so)) == NULL) {
+	if (ai != NULL && !(fflag & MNT_FORCE) && do_rpc) {
+		clp = clnt_create(hostp, RPCPROG_MNT, RPCMNT_VER1, "udp");
+		if (clp  == NULL) {
 			clnt_pcreateerror("Cannot MNT PRC");
 			return (1);
 		}
-		clp->cl_auth = authunix_create_default();
+		clp->cl_auth = authsys_create_default();
 		try.tv_sec = 20;
 		try.tv_usec = 0;
 		clnt_stat = clnt_call(clp, RPCMNT_UMOUNT, xdr_dir,
@@ -554,30 +594,53 @@ getmntname(const char *fromname, const char *onname,
 }
 
 int
-namematch(struct hostent *hp)
+sacmp(struct sockaddr *sa1, struct sockaddr *sa2)
 {
-	char *cp, **np;
+	void *p1, *p2;
+	int len;
 
-	if ((hp == NULL) || (nfshost == NULL))
+	if (sa1->sa_family != sa2->sa_family)
 		return (1);
 
-	if (strcasecmp(nfshost, hp->h_name) == 0)
-		return (1);
-
-	if ((cp = strchr(hp->h_name, '.')) != NULL) {
-		*cp = '\0';
-		if (strcasecmp(nfshost, hp->h_name) == 0)
+	switch (sa1->sa_family) {
+	case AF_INET:
+		p1 = &((struct sockaddr_in *)sa1)->sin_addr;
+		p2 = &((struct sockaddr_in *)sa2)->sin_addr;
+		len = 4;
+		break;
+	case AF_INET6:
+		p1 = &((struct sockaddr_in6 *)sa1)->sin6_addr;
+		p2 = &((struct sockaddr_in6 *)sa2)->sin6_addr;
+		len = 16;
+		if (((struct sockaddr_in6 *)sa1)->sin6_scope_id !=
+		    ((struct sockaddr_in6 *)sa2)->sin6_scope_id)
 			return (1);
+		break;
+	default:
+		return (1);
 	}
-	for (np = hp->h_aliases; *np; np++) {
-		if (strcasecmp(nfshost, *np) == 0)
-			return (1);
-		if ((cp = strchr(*np, '.')) != NULL) {
-			*cp = '\0';
-			if (strcasecmp(nfshost, *np) == 0)
+
+	return memcmp(p1, p2, len);
+}
+
+int
+namematch(struct addrinfo *ai)
+{
+	struct addrinfo *aip;
+
+	if (nfshost == NULL || nfshost_ai == NULL)
+		return (1);
+
+	while (ai != NULL) {
+		aip = nfshost_ai;
+		while (aip != NULL) {
+			if (sacmp(ai->ai_addr, aip->ai_addr) == 0)
 				return (1);
+			aip = aip->ai_next;
 		}
+		ai = ai->ai_next;
 	}
+
 	return (0);
 }
 

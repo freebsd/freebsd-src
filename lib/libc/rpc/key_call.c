@@ -43,6 +43,7 @@
  * gendeskey(deskey) - generate a secure des key
  */
 
+#include "reentrant.h"
 #include "namespace.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -53,6 +54,7 @@
 #include <rpc/auth_unix.h>
 #include <rpc/key_prot.h>
 #include <string.h>
+#include <netconfig.h>
 #include <sys/utsname.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -232,7 +234,7 @@ key_gendes(key)
 
 int
 key_setnet(arg)
-struct netstarg *arg;
+struct key_netstarg *arg;
 {
 	keystatus status;
 
@@ -276,7 +278,6 @@ struct  key_call_private {
 };
 static struct key_call_private *key_call_private_main = NULL;
 
-#ifdef foo
 static void
 key_call_destroy(void *vp)
 {
@@ -288,7 +289,6 @@ key_call_destroy(void *vp)
 		free(kcp);
 	}
 }
-#endif
 
 /*
  * Keep the handle cached.  This call may be made quite often.
@@ -297,21 +297,40 @@ static CLIENT *
 getkeyserv_handle(vers)
 int	vers;
 {
+	void *localhandle;
+	struct netconfig *nconf;
+	struct netconfig *tpconf;
 	struct key_call_private *kcp = key_call_private_main;
 	struct timeval wait_time;
+	struct utsname u;
+	int main_thread;
 	int fd;
-	struct sockaddr_un name;
-	int namelen = sizeof(struct sockaddr_un);
+	static thread_key_t key_call_key;
+	extern mutex_t tsd_lock;
 
 #define	TOTAL_TIMEOUT	30	/* total timeout talking to keyserver */
 #define	TOTAL_TRIES	5	/* Number of tries */
 
+	if ((main_thread = thr_main())) {
+		kcp = key_call_private_main;
+	} else {
+		if (key_call_key == 0) {
+			mutex_lock(&tsd_lock);
+			if (key_call_key == 0)
+				thr_keycreate(&key_call_key, key_call_destroy);
+			mutex_unlock(&tsd_lock);
+		}
+		kcp = (struct key_call_private *)thr_getspecific(key_call_key);
+	}	
 	if (kcp == (struct key_call_private *)NULL) {
 		kcp = (struct key_call_private *)malloc(sizeof (*kcp));
 		if (kcp == (struct key_call_private *)NULL) {
 			return ((CLIENT *) NULL);
 		}
-		key_call_private_main = kcp;
+                if (main_thread)
+                        key_call_private_main = kcp;
+                else
+                        thr_setspecific(key_call_key, (void *) kcp);
 		kcp->client = NULL;
 	}
 
@@ -319,16 +338,6 @@ int	vers;
 	if (kcp->client != NULL && kcp->pid != getpid()) {
 		clnt_destroy(kcp->client);
 		kcp->client = NULL;
-	}
-
-	if (kcp->client != NULL) {
-		/* if other side closed socket, build handle again */
-		clnt_control(kcp->client, CLGET_FD, (char *)&fd);
-		if (_getpeername(fd,(struct sockaddr *)&name,&namelen) == -1) {
-			auth_destroy(kcp->client->cl_auth);
-			clnt_destroy(kcp->client);
-			kcp->client = NULL;
-		}
 	}
 
 	if (kcp->client != NULL) {
@@ -348,15 +357,51 @@ int	vers;
 		clnt_control(kcp->client, CLSET_VERS, (void *)&vers);
 		return (kcp->client);
 	}
+	if (!(localhandle = setnetconfig())) {
+		return ((CLIENT *) NULL);
+	}
+        tpconf = NULL;
+#if defined(i386)
+#if defined(__FreeBSD__)
+	if (uname(&u) == -1)
+#else
+	if (_nuname(&u) == -1)
+#endif
+#elif defined(sparc)
+	if (_uname(&u) == -1)
+#else
+#error Unknown architecture!
+#endif
+	{
+		endnetconfig(localhandle);
+		return ((CLIENT *) NULL);
+        }
 
-	if ((kcp->client == (CLIENT *) NULL))
-		/* Use the AF_UNIX transport */
-		kcp->client = clnt_create("/var/run/keyservsock", KEY_PROG,
-							vers, "unix");
+	while (nconf = getnetconfig(localhandle)) {
+		if (strcmp(nconf->nc_protofmly, NC_LOOPBACK) == 0) {
+			/*
+			 * We use COTS_ORD here so that the caller can
+			 * find out immediately if the server is dead.
+			 */
+			if (nconf->nc_semantics == NC_TPI_COTS_ORD) {
+				kcp->client = clnt_tp_create(u.nodename,
+					KEY_PROG, vers, nconf);
+				if (kcp->client)
+					break;
+			} else {
+				tpconf = nconf;
+			}
+		}
+	}
+	if ((kcp->client == (CLIENT *) NULL) && (tpconf))
+		/* Now, try the CLTS or COTS loopback transport */
+		kcp->client = clnt_tp_create(u.nodename,
+			KEY_PROG, vers, tpconf);
+	endnetconfig(localhandle);
 
 	if (kcp->client == (CLIENT *) NULL) {
 		return ((CLIENT *) NULL);
-	}
+        }
 	kcp->uid = geteuid();
 	kcp->pid = getpid();
 	kcp->client->cl_auth = authsys_create("", kcp->uid, 0, 0, NULL);

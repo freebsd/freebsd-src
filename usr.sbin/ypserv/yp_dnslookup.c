@@ -434,7 +434,7 @@ ypstat yp_async_lookup_name(rqstp, name)
 
 	/* Check for SOCK_DGRAM or SOCK_STREAM -- we need to know later */
 	type = -1; len = sizeof(type);
-	if (getsockopt(rqstp->rq_xprt->xp_sock, SOL_SOCKET,
+	if (getsockopt(rqstp->rq_xprt->xp_fd, SOL_SOCKET,
 					SO_TYPE, &type, &len) == -1) {
 		yp_error("getsockopt failed: %s", strerror(errno));
 		return(YP_YPERR);
@@ -490,7 +490,7 @@ ypstat yp_async_lookup_addr(rqstp, addr)
 
 	/* Check for SOCK_DGRAM or SOCK_STREAM -- we need to know later */
 	type = -1; len = sizeof(type);
-	if (getsockopt(rqstp->rq_xprt->xp_sock, SOL_SOCKET,
+	if (getsockopt(rqstp->rq_xprt->xp_fd, SOL_SOCKET,
 					SO_TYPE, &type, &len) == -1) {
 		yp_error("getsockopt failed: %s", strerror(errno));
 		return(YP_YPERR);
