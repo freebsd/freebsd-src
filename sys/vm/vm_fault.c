@@ -236,9 +236,7 @@ RetryFault:;
 		    (fault_flags & VM_FAULT_WIRE_MASK) != VM_FAULT_USER_WIRE) {
 			if (growstack && result == KERN_INVALID_ADDRESS &&
 			    map != kernel_map && curproc != NULL) {
-				mtx_lock(&Giant);
 				result = vm_map_growstack(curproc, vaddr);
-				mtx_unlock(&Giant);
 				if (result != KERN_SUCCESS)
 					return (KERN_FAILURE);
 				growstack = FALSE;
