@@ -76,7 +76,34 @@ functions
 each return a pointer to an object with the
 following structure describing an internet host
 referenced by name or by address, respectively.
-This structure contains either the information obtained from the name server,
+.Pp
+The
+.Fa name
+parameter passed to
+.Fn gethostbyname
+or
+.Fn gethostbyname2
+should point to a NUL-terminated hostname.
+The
+.Fa addr
+parameter passed to
+.Fn gethostbyaddr
+should point to an address which is
+.Fa len
+bytes long,
+in binary form
+(i.e. not an IP address in human readable ASCII form).
+The
+.Fa type
+parameter specifies the address family
+(e.g.
+.Dv AF_INET ,
+.Dv AF_INET6 ,
+etc)
+of this address.
+.Pp
+The structure returned contains either the information obtained from the name
+server,
 .Xr named 8 ,
 broken-out fields from a line in
 .Pa /etc/hosts ,
@@ -188,6 +215,23 @@ parameter.
 .It Pa /etc/nsswitch.conf
 .It Pa /etc/resolv.conf
 .El
+.Sh EXAMPLES
+Print out the hostname associated with a specific IP address:
+.Pp
+.Bd -literal
+	const char *ipstr = "127.0.0.1";
+	struct in_addr ip;
+	struct hostent *hp;
+
+	if (!inet_aton(ipstr, &ip))
+		errx(1, "can't parse IP address %s", ipstr);
+
+	if ((hp = gethostbyaddr((const char *)&ip,
+	    sizeof ip, AF_INET)) == NULL)
+		errx(1, "no name associated with %s", ipstr);
+
+	printf("name associated with %s is %s\en", ipstr, hp->h_name);
+.Ed -literal
 .Sh DIAGNOSTICS
 Error return status from 
 .Fn gethostbyname ,
@@ -233,6 +277,7 @@ will result in an answer;
 for example, a mail-forwarder may be registered for this domain.
 .El
 .Sh SEE ALSO
+.Xr inet_aton 3 ,
 .Xr resolver 3 ,
 .Xr hosts 5 ,
 .Xr hostname 7 ,
