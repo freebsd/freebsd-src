@@ -37,7 +37,7 @@
  * Author: Julian Elischer <julian@whistle.com>
  *
  * $FreeBSD$
- * $Whistle: ng_pppoe.c,v 1.7 1999/10/16 10:16:43 julian Exp $
+ * $Whistle: ng_pppoe.c,v 1.10 1999/11/01 09:24:52 julian Exp $
  */
 #if 0
 #define AAA printf("pppoe: %s\n", __FUNCTION__ );
@@ -65,14 +65,13 @@
  * sample node. These methods define the netgraph 'type'.
  */
 
-static int	ng_pppoe_constructor(node_p *node);
-static int	ng_pppoe_rcvmsg(node_p node, struct ng_mesg *msg,
-		  const char *retaddr, struct ng_mesg **resp);
-static int	ng_pppoe_rmnode(node_p node);
-static int	ng_pppoe_newhook(node_p node, hook_p hook, const char *name);
-static int	ng_pppoe_connect(hook_p hook);
-static int	ng_pppoe_rcvdata(hook_p hook, struct mbuf *m, meta_p meta);
-static int	ng_pppoe_disconnect(hook_p hook);
+static ng_constructor_t	ng_pppoe_constructor;
+static ng_rcvmsg_t	ng_pppoe_rcvmsg;
+static ng_shutdown_t	ng_pppoe_rmnode;
+static ng_newhook_t	ng_pppoe_newhook;
+static ng_connect_t	ng_pppoe_connect;
+static ng_rcvdata_t	ng_pppoe_rcvdata;
+static ng_disconnect_t	ng_pppoe_disconnect;
 
 /* Netgraph node type descriptor */
 static struct ng_type typestruct = {

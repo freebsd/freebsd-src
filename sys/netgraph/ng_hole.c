@@ -37,7 +37,7 @@
  * Author: Julian Elisher <julian@whistle.com>
  *
  * $FreeBSD$
- * $Whistle: ng_hole.c,v 1.8 1999/01/28 23:54:53 julian Exp $
+ * $Whistle: ng_hole.c,v 1.10 1999/11/01 09:24:51 julian Exp $
  */
 
 /*
@@ -56,8 +56,8 @@
 #include <netgraph/ng_hole.h>
 
 /* Netgraph methods */
-static int ngh_rcvdata(hook_p hook, struct mbuf *m, meta_p meta);
-static int ngh_disconnect(hook_p hook);
+static ng_rcvdata_t	ngh_rcvdata;
+static ng_disconnect_t	ngh_disconnect;
 
 static struct ng_type typestruct = {
 	NG_VERSION,

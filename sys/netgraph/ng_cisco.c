@@ -37,7 +37,7 @@
  * Author: Julian Elischer <julian@whistle.com>
  *
  * $FreeBSD$
- * $Whistle: ng_cisco.c,v 1.23 1999/01/28 23:54:53 julian Exp $
+ * $Whistle: ng_cisco.c,v 1.25 1999/11/01 09:24:51 julian Exp $
  */
 
 #include "opt_inet.h"
@@ -119,14 +119,12 @@ struct cisco_priv {
 typedef struct cisco_priv *sc_p;
 
 /* Netgraph methods */
-static int	cisco_constructor(node_p *node);
-static int	cisco_rcvmsg(node_p node, struct ng_mesg *msg,
-		    const char *retaddr, struct ng_mesg **resp);
-static int	cisco_rmnode(node_p node);
-static int	cisco_newhook(node_p node, hook_p hook, const char *name);
-
-static int	cisco_rcvdata(hook_p hook, struct mbuf *m, meta_p meta);
-static int	cisco_disconnect(hook_p hook);
+static ng_constructor_t		cisco_constructor;
+static ng_rcvmsg_t		cisco_rcvmsg;
+static ng_shutdown_t		cisco_rmnode;
+static ng_newhook_t		cisco_newhook;
+static ng_rcvdata_t		cisco_rcvdata;
+static ng_disconnect_t		cisco_disconnect;
 
 /* Other functions */
 static int	cisco_input(sc_p sc, struct mbuf *m, meta_p meta);

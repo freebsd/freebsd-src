@@ -37,7 +37,7 @@
  * Author: Julian Elischer <julian@whistle.com>
  *
  * $FreeBSD$
- * $Whistle: ng_sample.c,v 1.11 1999/01/28 23:54:54 julian Exp $
+ * $Whistle: ng_sample.c,v 1.13 1999/11/01 09:24:52 julian Exp $
  */
 
 #include <sys/param.h>
@@ -57,15 +57,14 @@
  * sample node. These methods define the netgraph 'type'.
  */
 
-static int	ng_xxx_constructor(node_p *node);
-static int	ng_xxx_rcvmsg(node_p node, struct ng_mesg *msg,
-		  const char *retaddr, struct ng_mesg **resp);
-static int	ng_xxx_rmnode(node_p node);
-static int	ng_xxx_newhook(node_p node, hook_p hook, const char *name);
-static int	ng_xxx_connect(hook_p hook);
-static int	ng_xxx_rcvdata(hook_p hook, struct mbuf *m, meta_p meta);
-static int	ng_xxx_rcvdataq(hook_p hook, struct mbuf *m, meta_p meta);
-static int	ng_xxx_disconnect(hook_p hook);
+static ng_constructor_t	ng_xxx_constructor;
+static ng_rcvmsg_t	ng_xxx_rcvmsg;
+static ng_shutdown_t	ng_xxx_rmnode;
+static ng_newhook_t	ng_xxx_newhook;
+static ng_connect_t	ng_xxx_connect;
+static ng_rcvdata_t	ng_xxx_rcvdata;	 /* note these are both ng_rcvdata_t */
+static ng_rcvdata_t	ng_xxx_rcvdataq; /* note these are both ng_rcvdata_t */
+static ng_disconnect_t	ng_xxx_disconnect;
 
 /* Netgraph node type descriptor */
 static struct ng_type typestruct = {

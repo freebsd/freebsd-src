@@ -37,7 +37,7 @@
  * Author: Archie Cobbs <archie@whistle.com>
  *
  * $FreeBSD$
- * $Whistle: ng_vjc.c,v 1.14 1999/01/28 23:54:54 julian Exp $
+ * $Whistle: ng_vjc.c,v 1.17 1999/11/01 09:24:52 julian Exp $
  */
 
 /*
@@ -88,13 +88,12 @@ typedef struct private *priv_p;
 #define ERROUT(x)	do { error = (x); goto done; } while (0)
 
 /* Netgraph node methods */
-static int	ng_vjc_constructor(node_p *nodep);
-static int	ng_vjc_rcvmsg(node_p node, struct ng_mesg *msg,
-		  const char *retaddr, struct ng_mesg **resp);
-static int	ng_vjc_rmnode(node_p node);
-static int	ng_vjc_newhook(node_p node, hook_p hook, const char *name);
-static int	ng_vjc_rcvdata(hook_p hook, struct mbuf *m, meta_p t);
-static int	ng_vjc_disconnect(hook_p hook);
+static ng_constructor_t	ng_vjc_constructor;
+static ng_rcvmsg_t	ng_vjc_rcvmsg;
+static ng_shutdown_t	ng_vjc_rmnode;
+static ng_newhook_t	ng_vjc_newhook;
+static ng_rcvdata_t	ng_vjc_rcvdata;
+static ng_disconnect_t	ng_vjc_disconnect;
 
 /* Helper stuff */
 static struct mbuf *ng_vjc_pulluphdrs(struct mbuf *m);

@@ -37,7 +37,7 @@
  * Author: Julian Elischer <julian@whistle.com>
  *
  * $FreeBSD$
- * $Whistle: ng_tee.c,v 1.16 1999/01/28 23:54:54 julian Exp $
+ * $Whistle: ng_tee.c,v 1.18 1999/11/01 09:24:52 julian Exp $
  */
 
 /*
@@ -79,13 +79,12 @@ struct privdata {
 typedef struct privdata *sc_p;
 
 /* Netgraph methods */
-static int	ngt_constructor(node_p *node);
-static int	ngt_rcvmsg(node_p node, struct ng_mesg *msg,
-		    const char *retaddr, struct ng_mesg **resp);
-static int	ngt_rmnode(node_p node);
-static int	ngt_newhook(node_p node, hook_p hook, const char *name);
-static int	ngt_rcvdata(hook_p hook, struct mbuf *m, meta_p meta);
-static int	ngt_disconnect(hook_p hook);
+static ng_constructor_t	ngt_constructor;
+static ng_rcvmsg_t	ngt_rcvmsg;
+static ng_shutdown_t	ngt_rmnode;
+static ng_newhook_t	ngt_newhook;
+static ng_rcvdata_t	ngt_rcvdata;
+static ng_disconnect_t	ngt_disconnect;
 
 /* Netgraph type descriptor */
 static struct ng_type typestruct = {
