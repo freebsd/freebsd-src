@@ -73,6 +73,9 @@ static void mbr_extended __P((dev_t dev, struct disklabel *lp,
 			      u_long ext_size, u_long base_ext_offset,
 			      int nsectors, int ntracks, u_long mbr_offset,
 			      int level));
+static int mbr_setslice __P((char *sname, struct disklabel *lp,
+			     struct diskslice *sp, struct dos_partition *dp,
+			     u_long br_offset));
 
 static int
 check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
@@ -294,14 +297,26 @@ reread_mbr:
 	 */
 	secpercyl = (u_long)max_nsectors * max_ntracks;
 	if (secpercyl != 0) {
+#if 0
 		u_long	secperunit;
+#endif
 
 		lp->d_nsectors = max_nsectors;
 		lp->d_ntracks = max_ntracks;
 		lp->d_secpercyl = secpercyl;
+		/*
+		 * Temporarily, don't even consider adjusting the drive's
+		 * size, since the adjusted size may exceed the hardware's
+		 * addressing capabilities.  The adjustment helped mainly
+		 * for ancient MFM drives with > 1024 cylinders, but now
+		 * breaks at least IDE drives with 63*16*65536 sectors if
+		 * they are controlled by the wd driver in CHS mode.
+		 */
+#if 0
 		secperunit = secpercyl * max_ncyls;
 		if (lp->d_secperunit < secperunit)
 			lp->d_secperunit = secperunit;
+#endif
 		lp->d_ncylinders = lp->d_secperunit / secpercyl;
 	}
 
@@ -319,18 +334,9 @@ reread_mbr:
 	/* Initialize normal slices. */
 	sp = &ssp->dss_slices[BASE_SLICE];
 	for (dospart = 0, dp = dp0; dospart < NDOSPART; dospart++, dp++, sp++) {
-		sp->ds_offset = mbr_offset + dp->dp_start;
-		sp->ds_size = dp->dp_size;
-		sp->ds_type = dp->dp_typ;
-#ifdef PC98_ATCOMPAT
-		/* Fake FreeBSD(98). */
-		if (sp->ds_type == DOSPTYP_386BSD)
-			sp->ds_type = 0x94;
-#endif
-#if 0
-		lp->d_subtype |= (lp->d_subtype & 3) | dospart
-				 | DSTYPE_INDOSPART;
-#endif
+		sname = dsname(dev, dkunit(dev), BASE_SLICE + dospart,
+			       RAW_PART, partname);
+		(void)mbr_setslice(sname, lp, sp, dp, mbr_offset);
 	}
 	ssp->dss_nslices = BASE_SLICE + NDOSPART;
 
@@ -451,14 +457,8 @@ mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset, nsectors,
 				continue;
 			}
 			sp = &ssp->dss_slices[slice];
-			sp->ds_offset = ext_offset + dp->dp_start;
-			sp->ds_size = dp->dp_size;
-			sp->ds_type = dp->dp_typ;
-#ifdef PC98_ATCOMPAT
-			/* Fake FreeBSD(98). */
-			if (sp->ds_type == DOSPTYP_386BSD)
-				sp->ds_type = 0x94;
-#endif
+			if (mbr_setslice(sname, lp, sp, dp, ext_offset) != 0)
+				continue;
 			slice++;
 		}
 	}
@@ -474,6 +474,45 @@ mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset, nsectors,
 done:
 	bp->b_flags |= B_INVAL | B_AGE;
 	brelse(bp);
+}
+
+static int
+mbr_setslice(sname, lp, sp, dp, br_offset)
+	char	*sname;
+	struct disklabel *lp;
+	struct diskslice *sp;
+	struct dos_partition *dp;
+	u_long	br_offset;
+{
+	u_long	offset;
+	u_long	size;
+
+	offset = br_offset + dp->dp_start;
+	if (offset > lp->d_secperunit || offset < br_offset) {
+		printf(
+		"%s: slice starts beyond end of the disk: rejecting it\n",
+		       sname);
+		return (1);
+	}
+	size = lp->d_secperunit - offset;
+	if (size >= dp->dp_size)
+		size = dp->dp_size;
+	else
+		printf(
+"%s: slice extends beyond end of disk: truncating from %lu to %lu sectors\n",
+		       sname, (u_long)dp->dp_size, size);
+	sp->ds_offset = offset;
+	sp->ds_size = size;
+	sp->ds_type = dp->dp_typ;
+#ifdef PC98_ATCOMPAT
+	/* Fake FreeBSD(98). */
+	if (sp->ds_type == DOSPTYP_386BSD)
+		sp->ds_type = 0x94;
+#endif
+#if 0
+	lp->d_subtype |= (lp->d_subtype & 3) | dospart | DSTYPE_INDOSPART;
+#endif
+	return (0);
 }
 
 #ifdef __alpha__
