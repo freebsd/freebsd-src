@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: parse.y,v 1.1.1.1 1995/02/17 17:29:50 ache Exp $
+ * $Id: parse.y,v 1.3 1996/10/16 03:12:21 ache Exp $
  */
 
 #include <err.h>
@@ -84,8 +84,14 @@ substitute : SUBSTITUTE STRING WITH STRING {
 }
 ;
 order : ORDER order_list {
-	FILE *fp = fopen(out_file, "w");
+	FILE *fp;
+	int ch;
 
+	for (ch = 0; ch < UCHAR_MAX + 1; ch++)
+		if (!__collate_char_pri_table[ch].prim)
+			yyerror("Char 0x%02x not defined", ch);
+
+	fp = fopen(out_file, "w");
 	if(!fp)
 		err(EX_UNAVAILABLE, "can't open destination file %s",
 		    out_file);
@@ -101,7 +107,7 @@ order : ORDER order_list {
 	fclose(fp);
 #ifdef COLLATE_DEBUG
 	if (debug)
-		__collate_print_tables();
+		collate_print_tables();
 #endif
 	exit(EX_OK);
 }
@@ -109,7 +115,11 @@ order : ORDER order_list {
 order_list : item
 	| order_list ';' item
 ;
-item : CHAR { __collate_char_pri_table[$1].prim = prim_pri++; }
+item :  CHAR {
+	if (__collate_char_pri_table[$1].prim)
+		yyerror("Char 0x%02x redefined", $1);
+	__collate_char_pri_table[$1].prim = prim_pri++;
+}
 	| CHAIN {
 	if (chain_index >= TABLE_SIZE - 1)
 		yyerror("__collate_chain_pri_table overflow");
@@ -122,8 +132,11 @@ item : CHAR { __collate_char_pri_table[$1].prim = prim_pri++; }
 	if ($3 <= $1)
 		yyerror("Illegal range 0x%02x -- 0x%02x", $1, $3);
 
-	for (i = $1; i <= $3; i++)
+	for (i = $1; i <= $3; i++) {
+		if (__collate_char_pri_table[(u_char)i].prim)
+			yyerror("Char 0x%02x redefined", (u_char)i);
 		__collate_char_pri_table[(u_char)i].prim = prim_pri++;
+	}
 }
 	| '{' prim_order_list '}' {
 	prim_pri++;
@@ -140,6 +153,8 @@ sec_order_list : sec_sub_item
 	| sec_order_list ',' sec_sub_item 
 ;
 prim_sub_item : CHAR {
+	if (__collate_char_pri_table[$1].prim)
+		yyerror("Char 0x%02x redefined", $1);
 	__collate_char_pri_table[$1].prim = prim_pri;
 }
 	| CHAR RANGE CHAR {
@@ -149,8 +164,11 @@ prim_sub_item : CHAR {
 		yyerror("Illegal range 0x%02x -- 0x%02x",
 			$1, $3);
 
-	for (i = $1; i <= $3; i++)
+	for (i = $1; i <= $3; i++) {
+		if (__collate_char_pri_table[(u_char)i].prim)
+			yyerror("Char 0x%02x redefined", (u_char)i);
 		__collate_char_pri_table[(u_char)i].prim = prim_pri;
+	}
 }
 	| CHAIN {
 	if (chain_index >= TABLE_SIZE - 1)
@@ -160,6 +178,8 @@ prim_sub_item : CHAR {
 }
 ;
 sec_sub_item : CHAR {
+	if (__collate_char_pri_table[$1].prim)
+		yyerror("Char 0x%02x redefined", $1);
 	__collate_char_pri_table[$1].prim = prim_pri;
 	__collate_char_pri_table[$1].sec = sec_pri++;
 }
@@ -171,6 +191,8 @@ sec_sub_item : CHAR {
 			$1, $3);
 
 	for (i = $1; i <= $3; i++) {
+		if (__collate_char_pri_table[(u_char)i].prim)
+			yyerror("Char 0x%02x redefined", (u_char)i);
 		__collate_char_pri_table[(u_char)i].prim = prim_pri;
 		__collate_char_pri_table[(u_char)i].sec = sec_pri++;
 	}
@@ -237,3 +259,24 @@ void yyerror(char *fmt, ...)
 	va_end(ap);
 	errx(EX_UNAVAILABLE, "%s near line %d", msg, line_no);
 }
+
+#ifdef COLLATE_DEBUG
+collate_print_tables()
+{
+	int i;
+	struct __collate_st_chain_pri *p2;
+
+	printf("Substitute table:\n");
+	for (i = 0; i < UCHAR_MAX + 1; i++)
+	    if (i != *__collate_substitute_table[i])
+		printf("\t'%c' --> \"%s\"\n", i,
+		       __collate_substitute_table[i]);
+	printf("Chain priority table:\n");
+	for (p2 = __collate_chain_pri_table; p2->str[0]; p2++)
+		printf("\t\"%s\" : %d %d\n\n", p2->str, p2->prim, p2->sec);
+	printf("Char priority table:\n");
+	for (i = 0; i < UCHAR_MAX + 1; i++)
+		printf("\t'%c' : %d %d\n", i, __collate_char_pri_table[i].prim,
+		       __collate_char_pri_table[i].sec);
+}
+#endif
