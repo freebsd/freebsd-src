@@ -1427,6 +1427,7 @@ struct sk_softc {
 	u_int8_t		sk_type;
 	char			*sk_vpd_prodname;
 	char			*sk_vpd_readonly;
+	uint16_t		sk_vpd_readonly_len;
 	u_int32_t		sk_rboff;	/* RAMbuffer offset */
 	u_int32_t		sk_ramsize;	/* amount of RAM on NIC */
 	u_int32_t		sk_pmd;		/* physical media type */
