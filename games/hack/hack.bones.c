@@ -12,7 +12,7 @@ char bones[] = "bones_xx";
 
 /* save bones and possessions of a deceased adventurer */
 savebones(){
-fd;
+int fd;
 struct obj *otmp;
 struct trap *ttmp;
 struct monst *mtmp;
@@ -74,7 +74,7 @@ struct monst *mtmp;
 }
 
 getbones(){
-fd,x,y,ok;
+int fd,x,y,ok;
 	if(rn2(3)) return(0);	/* only once in three times do we find bones */
 	bones[6] = '0' + dlevel/10;
 	bones[7] = '0' + dlevel%10;

@@ -320,9 +320,9 @@ struct monst *mtmp;
 
 hitu(mtmp,dam)
 struct monst *mtmp;
-dam;
+int dam;
 {
-	tmp, res;
+	int tmp, res;
 
 	nomul(0);
 	if(u.uswallow) return(0);

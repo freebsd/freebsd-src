@@ -90,7 +90,7 @@ Meatdone(){
 doeat(){
 	struct obj *otmp;
 	struct objclass *ftmp;
-	tmp;
+	int tmp;
 
 	/* Is there some food (probably a heavy corpse) here on the ground? */
 	if(!Levitation)
@@ -277,13 +277,13 @@ gethungry(){
 }
 
 /* called after vomiting and after performing feats of magic */
-morehungry(num) num; {
+morehungry(num) int num; {
 	u.uhunger -= num;
 	newuhs(TRUE);
 }
 
 /* called after eating something (and after drinking fruit juice) */
-lesshungry(num) num; {
+lesshungry(num) int num; {
 	u.uhunger += num;
 	newuhs(FALSE);
 }
@@ -362,7 +362,7 @@ struct obj *otmp;
 /* returns 1 if some text was printed */
 eatcorpse(otmp) struct obj *otmp; {
 char let = CORPSE_I_TO_C(otmp->otyp);
-tp = 0;
+int tp = 0;
 	if(let != 'a' && moves > otmp->age + 50 + rn2(100)) {
 		tp++;
 		pline("Ulch -- that meat was tainted!");

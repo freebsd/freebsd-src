@@ -9,7 +9,7 @@ struct obj *mkobj(), *mksobj();
 
 struct obj *
 mkobj_at(let,x,y)
-let,x,y;
+int let,x,y;
 {
 	struct obj *otmp = mkobj(let);
 	otmp->ox = x;
@@ -20,7 +20,7 @@ let,x,y;
 }
 
 mksobj_at(otyp,x,y)
-otyp,x,y;
+int otyp,x,y;
 {
 	struct obj *otmp = mksobj(otyp);
 	otmp->ox = x;
@@ -47,7 +47,7 @@ struct obj zeroobj;
 
 struct obj *
 mksobj(otyp)
-otyp;
+int otyp;
 {
 	struct obj *otmp;
 	char let = objects[otyp].oc_olet;

@@ -22,7 +22,7 @@ char *traps[] = {
 
 struct trap *
 maketrap(x,y,typ)
-x,y,typ;
+int x,y,typ;
 {
 	struct trap *ttmp;
 
@@ -268,7 +268,7 @@ vtele() {
 	struct mkroom *croom;
 	for(croom = &rooms[0]; croom->hx >= 0; croom++)
 	    if(croom->rtype == VAULT) {
-		x,y;
+		int x,y;
 
 		x = rn2(2) ? croom->lx : croom->hx;
 		y = rn2(2) ? croom->ly : croom->hy;

@@ -224,7 +224,7 @@ topten(){
 	char *reclock = "record_lock";
 	int sleepct = 300;
 	FILE *rfile;
-	flg = 0;
+	int flg = 0;
 	extern char *getdate();
 #define	HUP	if(!done_hup)
 	while(link(recfile, reclock) == -1) {
@@ -466,7 +466,7 @@ int d = n%10;
 }
 
 clearlocks(){
-x;
+int x;
 	(void) signal(SIGHUP,SIG_IGN);
 	for(x = maxdlevel; x >= 0; x--) {
 		glo(x);
@@ -511,7 +511,7 @@ prscore(argc,argv) int argc; char **argv; {
 	struct toptenentry *t1, *t2;
 	char *recfile = RECORD;
 	FILE *rfile;
-	flg = 0;
+	int flg = 0;
 	int i;
 #ifdef nonsense
 	long total_score = 0L;

@@ -11,7 +11,7 @@ struct wseg *wheads[32];
 long wgrowtime[32];
 
 getwn(mtmp) struct monst *mtmp; {
-tmp;
+int tmp;
 	for(tmp=1; tmp<32; tmp++) if(!wsegs[tmp]) {
 		mtmp->wormno = tmp;
 		return(1);
@@ -22,7 +22,7 @@ tmp;
 /* called to initialize a worm unless cut in half */
 initworm(mtmp) struct monst *mtmp; {
 struct wseg *wtmp;
-tmp = mtmp->wormno;
+int tmp = mtmp->wormno;
 	if(!tmp) return;
 	wheads[tmp] = wsegs[tmp] = wtmp = newseg();
 	wgrowtime[tmp] = 0;
@@ -34,7 +34,7 @@ tmp = mtmp->wormno;
 
 worm_move(mtmp) struct monst *mtmp; {
 struct wseg *wtmp, *whd;
-tmp = mtmp->wormno;
+int tmp = mtmp->wormno;
 	wtmp = newseg();
 	wtmp->wx = mtmp->mx;
 	wtmp->wy = mtmp->my;
@@ -60,7 +60,7 @@ tmp = mtmp->wormno;
 }
 
 worm_nomove(mtmp) struct monst *mtmp; {
-tmp;
+int tmp;
 struct wseg *wtmp;
 	tmp = mtmp->wormno;
 	wtmp = wsegs[tmp];
@@ -72,7 +72,7 @@ struct wseg *wtmp;
 }
 
 wormdead(mtmp) struct monst *mtmp; {
-tmp = mtmp->wormno;
+int tmp = mtmp->wormno;
 struct wseg *wtmp, *wtmp2;
 	if(!tmp) return;
 	mtmp->wormno = 0;
@@ -84,7 +84,7 @@ struct wseg *wtmp, *wtmp2;
 }
 
 wormhit(mtmp) struct monst *mtmp; {
-tmp = mtmp->wormno;
+int tmp = mtmp->wormno;
 struct wseg *wtmp;
 	if(!tmp) return;	/* worm without tail */
 	for(wtmp = wsegs[tmp]; wtmp; wtmp = wtmp->nseg)
@@ -115,7 +115,7 @@ uchar weptyp;		/* uwep->otyp or 0 */
 {
 	struct wseg *wtmp, *wtmp2;
 	struct monst *mtmp2;
-	tmp,tmp2;
+	int tmp,tmp2;
 	if(mtmp->mx == x && mtmp->my == y) return;	/* hit headon */
 
 	/* cutting goes best with axe or sword */

@@ -170,7 +170,7 @@ struct wseg *m_atseg;
 
 struct monst *
 m_at(x,y)
-x,y;
+int x,y;
 {
 	struct monst *mtmp;
 #ifndef NOWORM
@@ -196,7 +196,7 @@ x,y;
 
 struct obj *
 o_at(x,y)
-x,y;
+int x,y;
 {
 	struct obj *otmp;
 
@@ -207,7 +207,7 @@ x,y;
 
 struct obj *
 sobj_at(n,x,y)
-n,x,y;
+int n,x,y;
 {
 	struct obj *otmp;
 
@@ -246,7 +246,7 @@ o_on(id, objchn) unsigned int id; struct obj *objchn; {
 
 struct trap *
 t_at(x,y)
-x,y;
+int x,y;
 {
 	struct trap *trap = ftrap;
 	while(trap) {
@@ -258,7 +258,7 @@ x,y;
 
 struct gold *
 g_at(x,y)
-x,y;
+int x,y;
 {
 	struct gold *gold = fgold;
 	while(gold) {

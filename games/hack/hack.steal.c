@@ -65,8 +65,8 @@ steal(mtmp)
 struct monst *mtmp;
 {
 	struct obj *otmp;
-	tmp;
-	named = 0;
+	int tmp;
+	int named = 0;
 
 	if(!invent){
 	    if(Blind)
@@ -178,7 +178,7 @@ struct monst *mtmp;
 /* release the objects the killed animal has stolen */
 relobj(mtmp,show)
 struct monst *mtmp;
-show;
+int show;
 {
 	struct obj *otmp, *otmp2;
 

@@ -24,7 +24,7 @@ settrack(){
 }
 
 coord *
-gettrack(x,y) x,y; {
+gettrack(x,y) int x,y; {
 int i,cnt,dist;
 coord tc;
 	cnt = utcnt;
