@@ -540,6 +540,14 @@ mi_switch(void)
 	 */
 	if (td->td_switchin)
 		td->td_switchin();
+
+	/* 
+	 * If the last thread was exiting, finish cleaning it up.
+	 */
+	if ((td = PCPU_GET(deadthread))) {
+		PCPU_SET(deadthread, NULL);
+		thread_stash(td);
+	}
 }
 
 /*

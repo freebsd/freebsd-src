@@ -261,7 +261,7 @@ cpu_thread_exit(struct thread *td)
 }
 
 void
-cpu_thread_dtor(struct thread *td)
+cpu_thread_clean(struct thread *td)
 {
 }
 

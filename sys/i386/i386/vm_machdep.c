@@ -282,7 +282,7 @@ cpu_thread_exit(struct thread *td)
 }
 
 void
-cpu_thread_dtor(struct thread *td)
+cpu_thread_clean(struct thread *td)
 {
 	struct pcb *pcb;
 
@@ -294,8 +294,10 @@ cpu_thread_dtor(struct thread *td)
 		 * XXX do we need to move the TSS off the allocated pages
 		 * before freeing them?  (not done here)
 		 */
+		mtx_lock(&Giant);
 		kmem_free(kernel_map, (vm_offset_t)pcb->pcb_ext,
 		    ctob(IOPAGES + 1));
+		mtx_unlock(&Giant);
 		pcb->pcb_ext = 0;
 	}
 }
@@ -387,6 +389,15 @@ cpu_set_upcall(struct thread *td, void *pcb)
 void
 cpu_set_upcall_kse(struct thread *td, struct kse *ke)
 {
+
+	/* 
+	 * Do any extra cleaning that needs to be done.
+	 * The thread may have optional components
+	 * that are not present in a fresh thread.
+	 * This may be a recycled thread so make it look
+	 * as though it's newly allocated.
+	 */
+	cpu_thread_clean(td);
 
 	/*
 	 * Set the trap frame to point at the beginning of the uts
