@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/sysctl.h>
 #include <sys/condvar.h>
+#include <vm/uma.h>
 
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
@@ -520,9 +521,13 @@ fatm_stop(struct fatm_softc *sc)
 	sc->small_cnt = sc->large_cnt = 0;
 
 	/* Reset vcc info */
-	if (sc->vccs != NULL)
-		for (i = 0; i <= FORE_MAX_VCC; i++)
-			sc->vccs[i].flags = 0;
+	if (sc->vccs != NULL) {
+		for (i = 0; i < FORE_MAX_VCC + 1; i++)
+			if (sc->vccs[i] != NULL) {
+				uma_zfree(sc->vcc_zone, sc->vccs[i]);
+				sc->vccs[i] = NULL;
+			}
+	}
 
 	sc->open_vccs = 0;
 }
@@ -1446,7 +1451,7 @@ static void
 fatm_intr_drain_rx(struct fatm_softc *sc)
 {
 	struct rxqueue *q;
-	int stat, mlen, drop;
+	int stat, mlen;
 	u_int i;
 	uint32_t h;
 	struct mbuf *last, *m0;
@@ -1455,6 +1460,7 @@ fatm_intr_drain_rx(struct fatm_softc *sc)
 	u_int vci, vpi, pt;
 	struct atm_pseudohdr aph;
 	struct ifnet *ifp;
+	struct card_vcc *vc;
 
 	for (;;) {
 		q = GET_QUEUE(sc->rxqueue, struct rxqueue, sc->rxqueue.tail);
@@ -1469,7 +1475,6 @@ fatm_intr_drain_rx(struct fatm_softc *sc)
 		H_SYNCQ_POSTREAD(&sc->rxq_mem, rpd, RPD_SIZE);
 
 		rpd->nseg = le32toh(rpd->nseg);
-		drop = 0;
 		mlen = 0;
 		m0 = last = 0;
 		for (i = 0; i < rpd->nseg; i++) {
@@ -1509,26 +1514,30 @@ fatm_intr_drain_rx(struct fatm_softc *sc)
 		 * Locate the VCC this packet belongs to
 		 */
 		if (!VC_OK(sc, vpi, vci))
-			drop = 1;
-		else if ((sc->vccs[vci].flags & FATM_VCC_OPEN) == 0) {
+			vc = NULL;
+		else if ((vc = sc->vccs[vci]) == NULL ||
+		    !(sc->vccs[vci]->vflags & FATM_VCC_OPEN)) {
 			sc->istats.rx_closed++;
-			drop = 1;
+			vc = NULL;
 		}
 
 		DBG(sc, RCV, ("RCV: vc=%u.%u pt=%u mlen=%d %s", vpi, vci,
-		    pt, mlen, drop ? "dropped" : ""));
+		    pt, mlen, vc == NULL ? "dropped" : ""));
 
-		if (drop) {
+		if (vc == NULL) {
 			m_freem(m0);
 		} else {
-			ATM_PH_FLAGS(&aph) = sc->vccs[vci].flags & 0xff;
+			ATM_PH_FLAGS(&aph) = vc->param.flags;
 			ATM_PH_VPI(&aph) = vpi;
 			ATM_PH_SETVCI(&aph, vci);
 
 			ifp = &sc->ifatm.ifnet;
 			ifp->if_ipackets++;
 
-			atm_input(ifp, &aph, m0, sc->vccs[vci].rxhand);
+			vc->ipackets++;
+			vc->ibytes += m0->m_pkthdr.len;
+
+			atm_input(ifp, &aph, m0, vc->rxhand);
 		}
 
 		H_SETSTAT(q->q.statp, FATM_STAT_FREE);
@@ -1895,7 +1904,7 @@ fatm_tpd_load(void *varg, bus_dma_segment_t *segs, int nsegs,
  * Note, that we update the internal statistics without the lock here.
  */
 static int
-fatm_tx(struct fatm_softc *sc, struct mbuf *m, u_int vpi, u_int vci, u_int mlen)
+fatm_tx(struct fatm_softc *sc, struct mbuf *m, struct card_vcc *vc, u_int mlen)
 {
 	struct txqueue *q;
 	u_int nblks;
@@ -1948,7 +1957,7 @@ fatm_tx(struct fatm_softc *sc, struct mbuf *m, u_int vpi, u_int vci, u_int mlen)
 	/*
 	 * OK. Now go and do it.
 	 */
-	aal = (sc->vccs[vci].aal == ATMIO_AAL_5) ? 5 : 0;
+	aal = (vc->param.aal == ATMIO_AAL_5) ? 5 : 0;
 
 	H_SETSTAT(q->q.statp, FATM_STAT_PENDING);
 	H_SYNCSTAT_PREWRITE(sc, q->q.statp);
@@ -1961,15 +1970,16 @@ fatm_tx(struct fatm_softc *sc, struct mbuf *m, u_int vpi, u_int vci, u_int mlen)
 	 */
 	H_SETDESC(tpd->spec, TDX_MKSPEC((sc->txcnt >=
 	    (4 * FATM_TX_QLEN) / 5), aal, nsegs, mlen));
-	H_SETDESC(tpd->atm_header, TDX_MKHDR(vpi, vci, 0, 0));
+	H_SETDESC(tpd->atm_header, TDX_MKHDR(vc->param.vpi,
+	    vc->param.vci, 0, 0));
 
-	if (sc->vccs[vci].traffic == ATMIO_TRAFFIC_UBR)
+	if (vc->param.traffic == ATMIO_TRAFFIC_UBR)
 		H_SETDESC(tpd->stream, 0);
 	else {
 		u_int i;
 
 		for (i = 0; i < RATE_TABLE_SIZE; i++)
-			if (rate_table[i].cell_rate < sc->vccs[vci].pcr)
+			if (rate_table[i].cell_rate < vc->param.tparam.pcr)
 				break;
 		if (i > 0)
 			i--;
@@ -1987,6 +1997,8 @@ fatm_tx(struct fatm_softc *sc, struct mbuf *m, u_int vpi, u_int vci, u_int mlen)
 
 	sc->txcnt++;
 	sc->ifatm.ifnet.if_opackets++;
+	vc->obytes += m->m_pkthdr.len;
+	vc->opackets++;
 
 	NEXT_QUEUE_ENTRY(sc->txqueue.head, FATM_TX_QLEN);
 
@@ -2000,6 +2012,7 @@ fatm_start(struct ifnet *ifp)
 	struct fatm_softc *sc;
 	struct mbuf *m;
 	u_int mlen, vpi, vci;
+	struct card_vcc *vc;
 
 	sc = (struct fatm_softc *)ifp->if_softc;
 
@@ -2048,64 +2061,18 @@ fatm_start(struct ifnet *ifp)
 			m_freem(m);
 			break;
 		}
-		if (!VC_OK(sc, vpi, vci) ||
-		    !(sc->vccs[vci].flags & FATM_VCC_OPEN)) {
+		if (!VC_OK(sc, vpi, vci) || (vc = sc->vccs[vci]) == NULL ||
+		    !(vc->vflags & FATM_VCC_OPEN)) {
 			FATM_UNLOCK(sc);
 			m_freem(m);
 			continue;
 		}
-		if (fatm_tx(sc, m, vpi, vci, mlen)) {
+		if (fatm_tx(sc, m, vc, mlen)) {
 			FATM_UNLOCK(sc);
 			break;
 		}
 		FATM_UNLOCK(sc);
 	}
-}
-
-/*
- * Return a table of all currently open VCCs.
- */
-static struct atmio_vcctable *
-get_vccs(struct fatm_softc *sc, int flags)
-{
-	struct atmio_vcctable *vccs;
-	struct atmio_vcc *v;
-	u_int i, alloc;
-
-	alloc = 10;
-	vccs = NULL;
-	for (;;) {
-		vccs = reallocf(vccs,
-		    sizeof(*vccs) + alloc * sizeof(vccs->vccs[0]),
-		    M_DEVBUF, flags);
-		if (vccs == NULL)
-			return (NULL);
-
-		vccs->count = 0;
-		FATM_LOCK(sc);
-		v = vccs->vccs;
-		for (i = 0; i < (1U << sc->ifatm.mib.vci_bits); i++) {
-			if (sc->vccs[i].flags & FATM_VCC_OPEN) {
-				if (vccs->count++ == alloc) {
-					alloc *= 2;
-					break;
-				}
-				v->vpi = 0;
-				v->vci = i;
-				v->flags = sc->vccs[i].flags;
-				v->aal = sc->vccs[i].aal;
-				v->traffic = sc->vccs[i].traffic;
-				bzero(&v->tparam, sizeof(v->tparam));
-				v->tparam.pcr = sc->vccs[i].pcr;
-				v++;
-			}
-		}
-		if (i == (1U << sc->ifatm.mib.vci_bits))
-			break;
-		FATM_UNLOCK(sc);
-	}
-	FATM_UNLOCK(sc);
-	return (vccs);
 }
 
 /*
@@ -2153,79 +2120,57 @@ fatm_start_vcc(struct fatm_softc *sc, u_int vpi, u_int vci, uint32_t cmd,
 }
 
 /*
- * Start to open a VCC. This just initiates the operation.
+ * The VC has been opened/closed and somebody has been waiting for this.
+ * Wake him up.
  */
-static int
-fatm_start_open_vcc(struct fatm_softc *sc, u_int vpi, u_int vci, u_int aal,
-    u_int traffic, u_int pcr, u_int flags, void *rxhand,
-    void (*func)(struct fatm_softc *, struct cmdqueue *), struct cmdqueue **qp)
+static void
+fatm_cmd_complete(struct fatm_softc *sc, struct cmdqueue *q)
 {
-	int error;
-	uint32_t cmd;
-	struct cmdqueue *q;
 
-	error = 0;
-
-	if (!(sc->ifatm.ifnet.if_flags & IFF_RUNNING))
-		return (EIO);
-	if (!VC_OK(sc, vpi, vci) ||
-	    (aal != ATMIO_AAL_0 && aal != ATMIO_AAL_5) ||
-	    (traffic != ATMIO_TRAFFIC_UBR && traffic != ATMIO_TRAFFIC_CBR))
-		return (EINVAL);
-	if (sc->vccs[vci].flags & FATM_VCC_BUSY)
-		return (EBUSY);
-
-	/* Command and buffer strategy */
-	cmd = FATM_OP_ACTIVATE_VCIN | FATM_OP_INTERRUPT_SEL | (0 << 16);
-	if (aal == ATMIO_AAL_0)
-		cmd |= (0 << 8);
-	else
-		cmd |= (5 << 8);
-
-	if ((q = fatm_start_vcc(sc, vpi, vci, cmd, 1, func)) == NULL)
-		return (EIO);
-	if (qp != NULL)
-		*qp = q;
-
-	sc->vccs[vci].aal = aal;
-	sc->vccs[vci].flags = flags | FATM_VCC_TRY_OPEN;
-	sc->vccs[vci].rxhand = rxhand;
-	sc->vccs[vci].pcr = pcr;
-	sc->vccs[vci].traffic = traffic;
-
-	return (0);
+	H_SYNCSTAT_POSTREAD(sc, q->q.statp);
+	if (H_GETSTAT(q->q.statp) & FATM_STAT_ERROR) {
+		sc->istats.get_stat_errors++;
+		q->error = EIO;
+	}
+	wakeup(q);
 }
 
 /*
- * Initiate closing a VCC
+ * Open complete
  */
-static int
-fatm_start_close_vcc(struct fatm_softc *sc, u_int vpi, u_int vci,
-    void (*func)(struct fatm_softc *, struct cmdqueue *), struct cmdqueue **qp)
+static void
+fatm_open_finish(struct fatm_softc *sc, struct card_vcc *vc)
 {
-	int error;
-	struct cmdqueue *q;
+	vc->vflags &= ~FATM_VCC_TRY_OPEN;
+	vc->vflags |= FATM_VCC_OPEN;
 
-	error = 0;
+	/* inform management if this is not an NG
+	 * VCC or it's an NG PVC. */
+	if (!(vc->param.flags & ATMIO_FLAG_NG) ||
+	    (vc->param.flags & ATMIO_FLAG_PVC))
+		ATMEV_SEND_VCC_CHANGED(&sc->ifatm, 0, vc->param.vci, 1);
+}
 
-	if (!(sc->ifatm.ifnet.if_flags & IFF_RUNNING))
-		return (EIO);
-	if (!VC_OK(sc, vpi, vci))
-		return (EINVAL);
-	if (!(sc->vccs[vci].flags & (FATM_VCC_OPEN | FATM_VCC_TRY_OPEN)))
-		return (ENOENT);
+/*
+ * The VC that we have tried to open asynchronuosly has been opened.
+ */
+static void
+fatm_open_complete(struct fatm_softc *sc, struct cmdqueue *q)
+{
+	u_int vci;
+	struct card_vcc *vc;
 
-	if ((q = fatm_start_vcc(sc, vpi, vci, 
-	    FATM_OP_DEACTIVATE_VCIN | FATM_OP_INTERRUPT_SEL, 1, func)) == NULL)
-		return (EIO);
-
-	if (qp != NULL)
-		*qp = q;
-
-	sc->vccs[vci].flags &= ~(FATM_VCC_OPEN | FATM_VCC_TRY_OPEN);
-	sc->vccs[vci].flags |= FATM_VCC_TRY_CLOSE;
-
-	return (0);
+	vci = GETVCI(READ4(sc, q->q.card + FATMOC_ACTIN_VPVC));
+	vc = sc->vccs[vci];
+	H_SYNCSTAT_POSTREAD(sc, q->q.statp);
+	if (H_GETSTAT(q->q.statp) & FATM_STAT_ERROR) {
+		sc->istats.get_stat_errors++;
+		sc->vccs[vci] = NULL;
+		uma_zfree(sc->vcc_zone, vc);
+		if_printf(&sc->ifatm.ifnet, "opening VCI %u failed\n", vci);
+		return;
+	}
+	fatm_open_finish(sc, vc);
 }
 
 /*
@@ -2247,119 +2192,121 @@ fatm_waitvcc(struct fatm_softc *sc, struct cmdqueue *q)
 }
 
 /*
- * The VC has been opened/closed and somebody has been waiting for this.
- * Wake him up.
- */
-static void
-fatm_cmd_complete(struct fatm_softc *sc, struct cmdqueue *q)
-{
-
-	H_SYNCSTAT_POSTREAD(sc, q->q.statp);
-	if (H_GETSTAT(q->q.statp) & FATM_STAT_ERROR) {
-		sc->istats.get_stat_errors++;
-		q->error = EIO;
-	}
-	wakeup(q);
-}
-
-/*
- * Open a vcc and wait for completion
+ * Start to open a VCC. This just initiates the operation.
  */
 static int
-fatm_open_vcc(struct fatm_softc *sc, u_int vpi, u_int vci, u_int flags,
-    u_int aal, u_int traffic, u_int pcr, void *rxhand)
+fatm_open_vcc(struct fatm_softc *sc, struct atmio_openvcc *op, int wait)
 {
+	uint32_t cmd;
 	int error;
 	struct cmdqueue *q;
+	struct card_vcc *vc;
+
+	/*
+	 * Check parameters
+	 */
+	if ((op->param.flags & ATMIO_FLAG_NOTX) &&
+	    (op->param.flags & ATMIO_FLAG_NORX))
+		return (EINVAL);
+
+	if (!VC_OK(sc, op->param.vpi, op->param.vci))
+		return (EINVAL);
+	if (op->param.aal != ATMIO_AAL_0 && op->param.aal != ATMIO_AAL_5)
+		return (EINVAL);
+
+	vc = uma_zalloc(sc->vcc_zone, M_NOWAIT | M_ZERO);
+	if (vc == NULL)
+		return (ENOMEM);
 
 	error = 0;
 
 	FATM_LOCK(sc);
-	error = fatm_start_open_vcc(sc, vpi, vci, aal, traffic, pcr, 
-	    flags, rxhand, fatm_cmd_complete, &q);
-	if (error != 0) {
-		FATM_UNLOCK(sc);
-		return (error);
+	if (!(sc->ifatm.ifnet.if_flags & IFF_RUNNING)) {
+		error = EIO;
+		goto done;
 	}
-	error = fatm_waitvcc(sc, q);
-
-	if (error == 0) {
-		sc->vccs[vci].flags &= ~FATM_VCC_TRY_OPEN;
-		sc->vccs[vci].flags |= FATM_VCC_OPEN;
-		sc->open_vccs++;
-
-		/* inform management if this is not an NG
-		 * VCC or it's an NG PVC. */
-		if (!(sc->vccs[vci].flags & ATMIO_FLAG_NG) ||
-		    (sc->vccs[vci].flags & ATMIO_FLAG_PVC))
-			ATMEV_SEND_VCC_CHANGED(&sc->ifatm, 0, vci, 1);
-	} else
-		bzero(&sc->vccs[vci], sizeof(sc->vccs[vci]));
-
-	FATM_UNLOCK(sc);
-	return (error);
-}
-
-/*
- * Close a VCC synchronuosly
- */
-static int
-fatm_close_vcc(struct fatm_softc *sc, u_int vpi, u_int vci)
-{
-	int error;
-	struct cmdqueue *q;
-
-	error = 0;
-
-	FATM_LOCK(sc);
-	error = fatm_start_close_vcc(sc, vpi, vci, fatm_cmd_complete, &q);
-	if (error != 0) {
-		FATM_UNLOCK(sc);
-		return (error);
+	if (sc->vccs[op->param.vci] != NULL) {
+		error = EBUSY;
+		goto done;
 	}
-	error = fatm_waitvcc(sc, q);
+	vc->param = op->param;
+	vc->rxhand = op->rxhand;
 
-	if (error == 0) {
-		/* inform management of this is not an NG
-		 * VCC or it's an NG PVC. */
-		if (!(sc->vccs[vci].flags & ATMIO_FLAG_NG) ||
-		    (sc->vccs[vci].flags & ATMIO_FLAG_PVC))
-			ATMEV_SEND_VCC_CHANGED(&sc->ifatm, 0, vci, 0);
+	switch (op->param.traffic) {
 
-		bzero(&sc->vccs[vci], sizeof(sc->vccs[vci]));
-		sc->open_vccs--;
+	  case ATMIO_TRAFFIC_UBR:
+		break;
+
+	  case ATMIO_TRAFFIC_CBR:
+		if (op->param.tparam.pcr == 0 ||
+		    op->param.tparam.pcr > sc->ifatm.mib.pcr) {
+			error = EINVAL;
+			goto done;
+		}
+		break;
+
+	  default:
+		error = EINVAL;
+		goto done;
+		return (EINVAL);
+	}
+	vc->ibytes = vc->obytes = 0;
+	vc->ipackets = vc->opackets = 0;
+
+	/* Command and buffer strategy */
+	cmd = FATM_OP_ACTIVATE_VCIN | FATM_OP_INTERRUPT_SEL | (0 << 16);
+	if (op->param.aal == ATMIO_AAL_0)
+		cmd |= (0 << 8);
+	else
+		cmd |= (5 << 8);
+
+	q = fatm_start_vcc(sc, op->param.vpi, op->param.vci, cmd, 1,
+	    wait ? fatm_cmd_complete : fatm_open_complete);
+	if (q == NULL) {
+		error = EIO;
+		goto done;
 	}
 
-	FATM_UNLOCK(sc);
-	return (error);
-}
-
-/*
- * The VC has been opened.
- */
-static void
-fatm_open_complete(struct fatm_softc *sc, struct cmdqueue *q)
-{
-	u_int vci;
-
-	vci = GETVCI(READ4(sc, q->q.card + FATMOC_ACTIN_VPVC));
-	H_SYNCSTAT_POSTREAD(sc, q->q.statp);
-	if (H_GETSTAT(q->q.statp) & FATM_STAT_ERROR) {
-		sc->istats.get_stat_errors++;
-		bzero(&sc->vccs[vci], sizeof(sc->vccs[vci]));
-		if_printf(&sc->ifatm.ifnet, "opening VCI %u failed\n", vci);
-		return;
-	}
-
-	sc->vccs[vci].flags &= ~FATM_VCC_TRY_OPEN;
-	sc->vccs[vci].flags |= FATM_VCC_OPEN;
+	vc->vflags = FATM_VCC_TRY_OPEN;
+	sc->vccs[op->param.vci] = vc;
 	sc->open_vccs++;
 
-	/* inform management if this is not an NG
+	if (wait) {
+		error = fatm_waitvcc(sc, q);
+		if (error != 0) {
+			sc->vccs[op->param.vci] = NULL;
+			sc->open_vccs--;
+			goto done;
+		}
+		fatm_open_finish(sc, vc);
+	}
+
+	/* don't free below */
+	vc = NULL;
+
+  done:
+	FATM_UNLOCK(sc);
+	if (vc != NULL)
+		uma_zfree(sc->vcc_zone, vc);
+	return (error);
+}
+
+/*
+ * Finish close
+ */
+static void
+fatm_close_finish(struct fatm_softc *sc, struct card_vcc *vc)
+{
+	/* inform management of this is not an NG
 	 * VCC or it's an NG PVC. */
-	if (!(sc->vccs[vci].flags & ATMIO_FLAG_NG) ||
-	    (sc->vccs[vci].flags & ATMIO_FLAG_PVC))
-		ATMEV_SEND_VCC_CHANGED(&sc->ifatm, 0, vci, 1);
+	if (!(vc->param.flags & ATMIO_FLAG_NG) ||
+	    (vc->param.flags & ATMIO_FLAG_PVC))
+		ATMEV_SEND_VCC_CHANGED(&sc->ifatm, 0, vc->param.vci, 0);
+
+	sc->vccs[vc->param.vci] = NULL;
+	sc->open_vccs--;
+
+	uma_zfree(sc->vcc_zone, vc);
 }
 
 /*
@@ -2369,8 +2316,10 @@ static void
 fatm_close_complete(struct fatm_softc *sc, struct cmdqueue *q)
 {
 	u_int vci;
+	struct card_vcc *vc;
 
 	vci = GETVCI(READ4(sc, q->q.card + FATMOC_ACTIN_VPVC));
+	vc = sc->vccs[vci];
 	H_SYNCSTAT_POSTREAD(sc, q->q.statp);
 	if (H_GETSTAT(q->q.statp) & FATM_STAT_ERROR) {
 		sc->istats.get_stat_errors++;
@@ -2379,42 +2328,55 @@ fatm_close_complete(struct fatm_softc *sc, struct cmdqueue *q)
 		return;
 	}
 
-	/* inform management of this is not an NG
-	 * VCC or it's an NG PVC. */
-	if (!(sc->vccs[vci].flags & ATMIO_FLAG_NG) ||
-	    (sc->vccs[vci].flags & ATMIO_FLAG_PVC))
-		ATMEV_SEND_VCC_CHANGED(&sc->ifatm, 0, vci, 0);
-
-	bzero(&sc->vccs[vci], sizeof(sc->vccs[vci]));
-	sc->open_vccs--;
+	fatm_close_finish(sc, vc);
 }
 
 /*
- * Open a vcc but don't wait.
+ * Initiate closing a VCC
  */
 static int
-fatm_open_vcc_nowait(struct fatm_softc *sc, u_int vpi, u_int vci, u_int flags,
-    u_int aal, void *rxhand)
+fatm_close_vcc(struct fatm_softc *sc, struct atmio_closevcc *cl, int wait)
 {
 	int error;
+	struct cmdqueue *q;
+	struct card_vcc *vc;
+
+	if (!VC_OK(sc, cl->vpi, cl->vci))
+		return (EINVAL);
+
+	error = 0;
 
 	FATM_LOCK(sc);
-	error = fatm_start_open_vcc(sc, vpi, vci, aal, ATMIO_TRAFFIC_UBR, 0, 
-	    flags, rxhand, fatm_open_complete, NULL);
-	FATM_UNLOCK(sc);
-	return (error);
-}
+	if (!(sc->ifatm.ifnet.if_flags & IFF_RUNNING)) {
+		error = EIO;
+		goto done;
+	}
+	vc = sc->vccs[cl->vci];
+	if (vc == NULL || !(vc->vflags & (FATM_VCC_OPEN | FATM_VCC_TRY_OPEN))) {
+		error = ENOENT;
+		goto done;
+	}
 
-/*
- * Close a VCC but don't wait
- */
-static int
-fatm_close_vcc_nowait(struct fatm_softc *sc, u_int vpi, u_int vci)
-{
-	int error;
+	q = fatm_start_vcc(sc, cl->vpi, cl->vci, 
+	    FATM_OP_DEACTIVATE_VCIN | FATM_OP_INTERRUPT_SEL, 1,
+	    wait ? fatm_cmd_complete : fatm_close_complete);
+	if (q == NULL) {
+		error = EIO;
+		goto done;
+	}
 
-	FATM_LOCK(sc);
-	error = fatm_start_close_vcc(sc, vpi, vci, fatm_close_complete, NULL);
+	vc->vflags &= ~(FATM_VCC_OPEN | FATM_VCC_TRY_OPEN);
+	vc->vflags |= FATM_VCC_TRY_CLOSE;
+
+	if (wait) {
+		error = fatm_waitvcc(sc, q);
+		if (error != 0)
+			goto done;
+
+		fatm_close_finish(sc, vc);
+	}
+
+  done:
 	FATM_UNLOCK(sc);
 	return (error);
 }
@@ -2433,30 +2395,38 @@ fatm_ioctl(struct ifnet *ifp, u_long cmd, caddr_t arg)
 	struct atmio_openvcc *op = (struct atmio_openvcc *)arg;
 	struct atm_pseudoioctl *pa = (struct atm_pseudoioctl *)arg;
 	struct atmio_vcctable *vtab;
+	struct atmio_openvcc ena;
+	struct atmio_closevcc dis;
 
 	error = 0;
 	switch (cmd) {
 
 	  case SIOCATMENA:	/* internal NATM use */
-		error = fatm_open_vcc_nowait(sc, ATM_PH_VPI(&pa->aph),
-		    ATM_PH_VCI(&pa->aph), ATM_PH_FLAGS(&pa->aph),
-		    (ATM_PH_FLAGS(&pa->aph) & ATM_PH_AAL5) ? ATMIO_AAL_5 :
-		    ATMIO_AAL_0, pa->rxhand);
+		bzero(&ena, sizeof(ena));
+		ena.param.flags = ATM_PH_FLAGS(&pa->aph) &
+		    (ATM_PH_AAL5 | ATM_PH_LLCSNAP);
+		ena.param.vpi = ATM_PH_VPI(&pa->aph);
+		ena.param.vci = ATM_PH_VCI(&pa->aph);
+		ena.param.aal = (ATM_PH_FLAGS(&pa->aph) & ATM_PH_AAL5) ?
+		    ATMIO_AAL_5 : ATMIO_AAL_0;
+		ena.param.traffic = ATMIO_TRAFFIC_UBR;
+		ena.rxhand = pa->rxhand;
+		error = fatm_open_vcc(sc, &ena, 0);
 		break;
 
 	  case SIOCATMDIS:	/* internal NATM use */
-		error = fatm_close_vcc_nowait(sc, ATM_PH_VPI(&pa->aph),
-		    ATM_PH_VCI(&pa->aph));
+		bzero(&dis, sizeof(dis));
+		dis.vpi = ATM_PH_VPI(&pa->aph);
+		dis.vci = ATM_PH_VCI(&pa->aph);
+		error = fatm_close_vcc(sc, &dis, 0);
 		break;
 
 	  case SIOCATMOPENVCC:
-		error = fatm_open_vcc(sc, op->param.vpi, op->param.vci,
-		    op->param.flags, op->param.aal, op->param.traffic,
-		    op->param.tparam.pcr, op->rxhand);
+		error = fatm_open_vcc(sc, op, 1);
 		break;
 
 	  case SIOCATMCLOSEVCC:
-		error = fatm_close_vcc(sc, cl->vpi, cl->vci);
+		error = fatm_close_vcc(sc, cl, 1);
 		break;
 
 	  case SIOCSIFADDR:
@@ -2501,18 +2471,16 @@ fatm_ioctl(struct ifnet *ifp, u_long cmd, caddr_t arg)
 
 	  case SIOCATMGVCCS:
 		/* return vcc table */
-		vtab = get_vccs(sc, M_WAITOK);
-		if (vtab == NULL) {
-			error = ENOMEM;
-			break;
-		}
+		vtab = atm_getvccs((struct atmio_vcc **)sc->vccs,
+		    FORE_MAX_VCC + 1, sc->open_vccs, &sc->mtx, 1);
 		error = copyout(vtab, ifr->ifr_data, sizeof(*vtab) +
 		    vtab->count * sizeof(vtab->vccs[0]));
 		free(vtab, M_DEVBUF);
 		break;
 
 	  case SIOCATMGETVCCS:	/* internal netgraph use */
-		vtab = get_vccs(sc, M_NOWAIT);
+		vtab = atm_getvccs((struct atmio_vcc **)sc->vccs,
+		    FORE_MAX_VCC + 1, sc->open_vccs, &sc->mtx, 0);
 		if (vtab == NULL) {
 			error = ENOMEM;
 			break;
@@ -2574,14 +2542,23 @@ fatm_detach(device_t dev)
 		LIST_REMOVE(rb, link);
 	}
 
-	free(sc->rbufs, M_DEVBUF);
-	free(sc->vccs, M_DEVBUF);
+	if (sc->rbufs != NULL)
+		free(sc->rbufs, M_DEVBUF);
+	if (sc->vccs != NULL)
+		free(sc->vccs, M_DEVBUF);
+	if (sc->vcc_zone != NULL)
+		uma_zdestroy(sc->vcc_zone);
 
-	free(sc->l1queue.chunk, M_DEVBUF);
-	free(sc->s1queue.chunk, M_DEVBUF);
-	free(sc->rxqueue.chunk, M_DEVBUF);
-	free(sc->txqueue.chunk, M_DEVBUF);
-	free(sc->cmdqueue.chunk, M_DEVBUF);
+	if (sc->l1queue.chunk != NULL)
+		free(sc->l1queue.chunk, M_DEVBUF);
+	if (sc->s1queue.chunk != NULL)
+		free(sc->s1queue.chunk, M_DEVBUF);
+	if (sc->rxqueue.chunk != NULL)
+		free(sc->rxqueue.chunk, M_DEVBUF);
+	if (sc->txqueue.chunk != NULL)
+		free(sc->txqueue.chunk, M_DEVBUF);
+	if (sc->cmdqueue.chunk != NULL)
+		free(sc->cmdqueue.chunk, M_DEVBUF);
 
 	destroy_dma_memory(&sc->reg_mem);
 	destroy_dma_memory(&sc->sadi_mem);
@@ -2969,8 +2946,14 @@ fatm_attach(device_t dev)
 	sc->l1queue.chunk = malloc(LARGE_SUPPLY_QLEN * sizeof(struct supqueue),
 	    M_DEVBUF, M_ZERO | M_WAITOK);
 
-	sc->vccs = malloc((FORE_MAX_VCC + 1) * sizeof(struct card_vcc),
+	sc->vccs = malloc((FORE_MAX_VCC + 1) * sizeof(sc->vccs[0]),
 	    M_DEVBUF, M_ZERO | M_WAITOK);
+	sc->vcc_zone = uma_zcreate("FATM vccs", sizeof(struct card_vcc),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	if (sc->vcc_zone == NULL) {
+		error = ENOMEM;
+		goto fail;
+	}
 
 	/*
 	 * Allocate memory for the receive buffer headers. The total number
