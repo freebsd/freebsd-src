@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.39 1994/10/11 22:37:14 sos Exp $
+ *	$Id: trap.c,v 1.40 1994/10/21 01:18:38 wollman Exp $
  */
 
 /*
@@ -214,6 +214,8 @@ trap(frame)
 
 		case T_PAGEFLT:		/* page fault */
 			i = trap_pfault(&frame, TRUE);
+			if (i == -1)
+				return;
 			if (i == 0)
 				goto out;
 
@@ -271,6 +273,7 @@ trap(frame)
 
 		default:
 			trap_fatal(&frame);
+			return;
 		}
 	} else {
 		/* kernel trap */
@@ -316,6 +319,7 @@ trap(frame)
 		}
 
 		trap_fatal(&frame);
+		return;
 	}
 
 	trapsignal(p, i, ucode);
@@ -449,6 +453,7 @@ nogo:
 			return (0);
 		}
 		trap_fatal(frame);
+		return (-1);
 	}
 
 	/* kludge to pass faulting virtual address to sendsig */
@@ -467,7 +472,7 @@ trap_fatal(frame)
 	code = frame->tf_err;
 	type = frame->tf_trapno;
 	eva = rcr2();
-	sdtossd(gdt + IDXSEL(frame->tf_cs & 0xffff), &softseg);
+	sdtossd(&gdt[IDXSEL(frame->tf_cs & 0xffff)].sd, &softseg);
 
 	if (type <= MAX_TRAP_MSG)
 		printf("\n\nFatal trap %d: %s while in %s mode\n",
