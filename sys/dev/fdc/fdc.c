@@ -186,6 +186,10 @@ struct fd_data {
 	device_t dev;
 	fdu_t	fdu;
 };
+
+struct fdc_ivars {
+	int	fdunit;
+};
 static devclass_t fd_devclass;
 
 /***********************************************************************\
@@ -207,7 +211,6 @@ int in_fdc(struct fdc_data *);
 int out_fdc(struct fdc_data *, int);
 
 /* internal functions */
-static	void fdc_add_device(device_t, const char *, int);
 static	void fdc_intr(void *);
 static void set_motor(struct fdc_data *, int, int);
 #  define TURNON 1
@@ -607,31 +610,14 @@ fd_read_status(fdc_p fdc, int fdsu)
 /*                      autoconfiguration stuff                             */
 /****************************************************************************/
 
-static struct isa_pnp_id fdc_ids[] = {
-	{0x0007d041, "PC standard floppy disk controller"}, /* PNP0700 */
-	{0x0107d041, "Standard floppy controller supporting MS Device Bay Spec"}, /* PNP0701 */
-	{0}
-};
-
-
-/*
- * fdc controller section.
- */
 static int
-fdc_probe(device_t dev)
+fdc_alloc_resources(struct fdc_data *fdc)
 {
-	int	error, ispnp, ic_type;
-	struct	fdc_data *fdc;
+	device_t dev;
+	int ispnp;
 
-	/* Check pnp ids */
-	error = ISA_PNP_PROBE(device_get_parent(dev), dev, fdc_ids);
-	if (error == ENXIO)
-		return ENXIO;
-	ispnp = (error == 0);
-
-	fdc = device_get_softc(dev);
-	bzero(fdc, sizeof *fdc);
-	fdc->fdc_dev = dev;
+	dev = fdc->fdc_dev;
+	ispnp = fdc->fdc_ispnp;
 	fdc->rid_ioport = fdc->rid_irq = fdc->rid_drq = 0;
 	fdc->res_ioport = fdc->res_irq = fdc->res_drq = 0;
 
@@ -641,8 +627,7 @@ fdc_probe(device_t dev)
 					     RF_ACTIVE);
 	if (fdc->res_ioport == 0) {
 		device_printf(dev, "cannot reserve I/O port range\n");
-		error = ENXIO;
-		goto out;
+		return ENXIO;
 	}
 	fdc->portt = rman_get_bustag(fdc->res_ioport);
 	fdc->porth = rman_get_bushandle(fdc->res_ioport);
@@ -679,9 +664,8 @@ fdc_probe(device_t dev)
 						  &fdc->rid_ctl, 0ul, ~0ul, 
 						  1, RF_ACTIVE);
 		if (fdc->res_ctl == 0) {
-			device_printf(dev, "cannot reserve I/O port range\n");
-			error = ENXIO;
-			goto out;
+			device_printf(dev, "cannot reserve I/O port range 2\n");
+			return ENXIO;
 		}
 		fdc->ctlt = rman_get_bustag(fdc->res_ctl);
 		fdc->ctlh = rman_get_bushandle(fdc->res_ctl);
@@ -692,20 +676,100 @@ fdc_probe(device_t dev)
 					  RF_ACTIVE);
 	if (fdc->res_irq == 0) {
 		device_printf(dev, "cannot reserve interrupt line\n");
-		error = ENXIO;
-		goto out;
+		return ENXIO;
 	}
 	fdc->res_drq = bus_alloc_resource(dev, SYS_RES_DRQ,
 					  &fdc->rid_drq, 0ul, ~0ul, 1, 
 					  RF_ACTIVE);
 	if (fdc->res_drq == 0) {
 		device_printf(dev, "cannot reserve DMA request line\n");
-		error = ENXIO;
-		goto out;
+		return ENXIO;
 	}
 	fdc->dmachan = fdc->res_drq->r_start;
-	error = BUS_SETUP_INTR(device_get_parent(dev), dev, fdc->res_irq,
-			       INTR_TYPE_BIO, fdc_intr, fdc, &fdc->fdc_intr);
+
+	return 0;
+}
+
+static void
+fdc_release_resources(struct fdc_data *fdc)
+{
+	device_t dev;
+
+	dev = fdc->fdc_dev;
+	if (fdc->res_irq != 0) {
+		bus_deactivate_resource(dev, SYS_RES_IRQ, fdc->rid_irq,
+					fdc->res_irq);
+		bus_release_resource(dev, SYS_RES_IRQ, fdc->rid_irq,
+				     fdc->res_irq);
+	}
+	if (fdc->res_ctl != 0) {
+		bus_deactivate_resource(dev, SYS_RES_IOPORT, fdc->rid_ctl,
+					fdc->res_ctl);
+		bus_release_resource(dev, SYS_RES_IOPORT, fdc->rid_ctl,
+				     fdc->res_ctl);
+	}
+	if (fdc->res_ioport != 0) {
+		bus_deactivate_resource(dev, SYS_RES_IOPORT, fdc->rid_ioport,
+					fdc->res_ioport);
+		bus_release_resource(dev, SYS_RES_IOPORT, fdc->rid_ioport,
+				     fdc->res_ioport);
+	}
+	if (fdc->res_drq != 0) {
+		bus_deactivate_resource(dev, SYS_RES_DRQ, fdc->rid_drq,
+					fdc->res_drq);
+		bus_release_resource(dev, SYS_RES_DRQ, fdc->rid_drq,
+				     fdc->res_drq);
+	}
+}
+
+/****************************************************************************/
+/*                      autoconfiguration stuff                             */
+/****************************************************************************/
+
+static struct isa_pnp_id fdc_ids[] = {
+	{0x0007d041, "PC standard floppy disk controller"}, /* PNP0700 */
+	{0x0107d041, "Standard floppy controller supporting MS Device Bay Spec"}, /* PNP0701 */
+	{0}
+};
+
+static int
+fdc_read_ivar(device_t dev, device_t child, int which, u_long *result)
+{
+	struct fdc_ivars *ivars = device_get_ivars(child);
+
+	switch (which) {
+	case FDC_IVAR_FDUNIT:
+		*result = ivars->fdunit;
+		break;
+	default:
+		return ENOENT;
+	}
+	return 0;
+}
+
+/*
+ * fdc controller section.
+ */
+static int
+fdc_probe(device_t dev)
+{
+	int	error, ic_type;
+	struct	fdc_data *fdc;
+
+	fdc = device_get_softc(dev);
+	bzero(fdc, sizeof *fdc);
+	fdc->fdc_dev = dev;
+
+	/* Check pnp ids */
+	error = ISA_PNP_PROBE(device_get_parent(dev), dev, fdc_ids);
+	if (error == ENXIO)
+		return ENXIO;
+	fdc->fdc_ispnp = (error == 0);
+
+	/* Attempt to allocate our resources for the duration of the probe */
+	error = fdc_alloc_resources(fdc);
+	if (error)
+		goto out;
 
 	/* First - lets reset the floppy controller */
 	fdout_wr(fdc, 0);
@@ -749,57 +813,31 @@ fdc_probe(device_t dev)
 	if (device_get_flags(fdc->fdc_dev) & FDC_IS_PCMCIA)
 		return(0);
 #endif
-	return (0);
-
 out:
-	if (fdc->fdc_intr)
-		BUS_TEARDOWN_INTR(device_get_parent(dev), dev, fdc->res_irq,
-				  fdc->fdc_intr);
-	if (fdc->res_irq != 0) {
-		bus_deactivate_resource(dev, SYS_RES_IRQ, fdc->rid_irq,
-					fdc->res_irq);
-		bus_release_resource(dev, SYS_RES_IRQ, fdc->rid_irq,
-				     fdc->res_irq);
-	}
-	if (fdc->res_ctl != 0) {
-		bus_deactivate_resource(dev, SYS_RES_IOPORT, fdc->rid_ctl,
-					fdc->res_ctl);
-		bus_release_resource(dev, SYS_RES_IOPORT, fdc->rid_ctl,
-				     fdc->res_ctl);
-	}
-	if (fdc->res_ioport != 0) {
-		bus_deactivate_resource(dev, SYS_RES_IOPORT, fdc->rid_ioport,
-					fdc->res_ioport);
-		bus_release_resource(dev, SYS_RES_IOPORT, fdc->rid_ioport,
-				     fdc->res_ioport);
-	}
-	if (fdc->res_drq != 0) {
-		bus_deactivate_resource(dev, SYS_RES_DRQ, fdc->rid_drq,
-					fdc->res_drq);
-		bus_release_resource(dev, SYS_RES_DRQ, fdc->rid_drq,
-				     fdc->res_drq);
-	}
+	fdc_release_resources(fdc);
 	return (error);
 }
 
 /*
- * Aped dfr@freebsd.org's isa_add_device().
+ * Add a child device to the fdc controller.  It will then be probed etc.
  */
 static void
-fdc_add_device(device_t dev, const char *name, int unit)
+fdc_add_child(device_t dev, const char *name, int unit)
 {
-	int	disabled, *ivar;
+	int	disabled;
+	struct fdc_ivars *ivar;
 	device_t child;
 
 	ivar = malloc(sizeof *ivar, M_DEVBUF /* XXX */, M_NOWAIT);
-	if (ivar == 0)
+	if (ivar == NULL)
 		return;
-	if (resource_int_value(name, unit, "drive", ivar) != 0)
-		*ivar = 0;
+	bzero(ivar, sizeof *ivar);
+	if (resource_int_value(name, unit, "drive", &ivar->fdunit) != 0)
+		ivar->fdunit = 0;
 	child = device_add_child(dev, name, unit);
-	device_set_ivars(child, ivar);
-	if (child == 0)
+	if (child == NULL)
 		return;
+	device_set_ivars(child, ivar);
 	if (resource_int_value(name, unit, "disabled", &disabled) == 0
 	    && disabled != 0)
 		device_disable(child);
@@ -808,17 +846,22 @@ fdc_add_device(device_t dev, const char *name, int unit)
 static int
 fdc_attach(device_t dev)
 {
-	struct	fdc_data *fdc = device_get_softc(dev);
-	fdcu_t	fdcu = device_get_unit(dev);
-	int	i;
+	struct	fdc_data *fdc;
+	int	i, error;
 
-	for (i = resource_query_string(-1, "at", device_get_nameunit(dev));
-	     i != -1;
-	     i = resource_query_string(i, "at", device_get_nameunit(dev)))
-		fdc_add_device(dev, resource_query_name(i),
-			       resource_query_unit(i));
-
-	fdc->fdcu = fdcu;
+	fdc = device_get_softc(dev);
+	error = fdc_alloc_resources(fdc);
+	if (error) {
+		device_printf(dev, "cannot re-aquire resources\n");
+		return error;
+	}
+	error = BUS_SETUP_INTR(device_get_parent(dev), dev, fdc->res_irq,
+			       INTR_TYPE_BIO, fdc_intr, fdc, &fdc->fdc_intr);
+	if (error) {
+		device_printf(dev, "cannot setup interrupt\n");
+		return error;
+	}
+	fdc->fdcu = device_get_unit(dev);
 	fdc->flags |= FDC_ATTACHED;
 
 	/* Acquire the DMA channel forever, The driver will do the rest */
@@ -832,8 +875,15 @@ fdc_attach(device_t dev)
 	bufq_init(&fdc->head);
 
 	/*
-	 * Probe and attach any children as were configured above.
+	 * Probe and attach any children.  We should probably detect
+	 * devices from the BIOS unless overridden.
 	 */
+	for (i = resource_query_string(-1, "at", device_get_nameunit(dev));
+	     i != -1;
+	     i = resource_query_string(i, "at", device_get_nameunit(dev)))
+		fdc_add_child(dev, resource_query_name(i),
+			       resource_query_unit(i));
+
 	return (bus_generic_attach(dev));
 }
 
@@ -844,7 +894,7 @@ fdc_print_child(device_t me, device_t child)
 
 	retval += bus_print_child_header(me, child);
 	retval += printf(" on %s drive %d\n", device_get_nameunit(me),
-	       *(int *)device_get_ivars(child));
+	       fdc_get_fdunit(child));
 	
 	return (retval);
 }
@@ -860,6 +910,7 @@ static device_method_t fdc_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	fdc_print_child),
+	DEVMETHOD(bus_read_ivar,	fdc_read_ivar),
 	/* Our children never use any other bus interface methods. */
 
 	{ 0, 0 }
