@@ -5,20 +5,15 @@
 
 #include <sys/types.h>
 #include <sys/param.h>
-#if defined( __FreeBSD__ )
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <net/netisr.h>
-#endif __FreeBSD__
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/syslog.h>
 #include <net/if.h>
 #include <net/route.h>
-#ifdef _IBMR2
-#include <net/spl.h>
-#endif _IBMR2
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
@@ -47,27 +42,17 @@ atintr( void )
     int			s;
 
     for (;;) {
-#ifndef _IBMR2
 	s = splimp();
-#endif _IBMR2
 
-#ifdef BSD4_4
 	IF_DEQUEUE( &atintrq2, m );
-#else BSD4_4
-	IF_DEQUEUEIF( &atintrq2, m, ifp );
-#endif BSD4_4
 
-#ifndef _IBMR2
 	splx( s );
-#endif _IBMR2
 
 	if ( m == 0 ) {			/* no more queued packets */
 	    break;
 	}
 
-#ifdef BSD4_4
 	ifp = m->m_pkthdr.rcvif;
-#endif BSD4_4
 	for ( aa = at_ifaddr; aa; aa = aa->aa_next ) {
 	    if ( aa->aa_ifp == ifp && ( aa->aa_flags & AFA_PHASE2 )) {
 		break;
@@ -82,27 +67,17 @@ atintr( void )
     }
 
     for (;;) {
-#ifndef _IBMR2
 	s = splimp();
-#endif _IBMR2
 
-#ifdef BSD4_4
 	IF_DEQUEUE( &atintrq1, m );
-#else BSD4_4
-	IF_DEQUEUEIF( &atintrq1, m, ifp );
-#endif BSD4_4
 
-#ifndef _IBMR2
 	splx( s );
-#endif _IBMR2
 
 	if ( m == 0 ) {			/* no more queued packets */
 	    break;
 	}
 
-#ifdef BSD4_4
 	ifp = m->m_pkthdr.rcvif;
-#endif BSD4_4
 	for ( aa = at_ifaddr; aa; aa = aa->aa_next ) {
 	    if ( aa->aa_ifp == ifp && ( aa->aa_flags & AFA_PHASE2 ) == 0 ) {
 		break;
@@ -132,9 +107,7 @@ atintr( void )
     return;
 }
 
-#if defined( __FreeBSD__ )
 NETISR_SET(NETISR_ATALK, atintr);
-#endif __FreeBSD__
 
 struct route	forwro;
 
@@ -148,13 +121,10 @@ ddp_input( m, ifp, elh, phase )
     struct sockaddr_at	from, to;
     struct ddpshdr	*dsh, ddps;
     struct at_ifaddr	*aa;
-    struct ddpehdr	*deh, ddpe;
-#ifndef BSD4_4
-    struct mbuf		*mp;
-#endif BSD4_4
+    struct ddpehdr	*deh = NULL, ddpe;
     struct ddpcb	*ddp;
     int			dlen, mlen;
-    u_short		cksum;
+    u_short		cksum = 0;
 
     bzero( (caddr_t)&from, sizeof( struct sockaddr_at ));
     if ( elh ) {
@@ -255,13 +225,7 @@ ddp_input( m, ifp, elh, phase )
      * at a link layer.  We do this before we attempt to forward a packet,
      * possibly on a different media.
      */
-#ifdef BSD4_4
     mlen = m->m_pkthdr.len;
-#else BSD4_4
-    for ( mlen = 0, mp = m; mp; mp = mp->m_next ) {
-	mlen += mp->m_len;
-    }
-#endif BSD4_4
     if ( mlen < dlen ) {
 	ddpstat.ddps_toosmall++;
 	m_freem( m );
@@ -285,18 +249,12 @@ ddp_input( m, ifp, elh, phase )
 		to.sat_addr.s_net ||
 		satosat( &forwro.ro_dst )->sat_addr.s_node !=
 		to.sat_addr.s_node )) {
-#ifdef ultrix
-	    rtfree( forwro.ro_rt );
-#else ultrix
 	    RTFREE( forwro.ro_rt );
-#endif ultrix
 	    forwro.ro_rt = (struct rtentry *)0;
 	}
 	if ( forwro.ro_rt == (struct rtentry *)0 ||
 	     forwro.ro_rt->rt_ifp == (struct ifnet *)0 ) {
-#ifdef BSD4_4
 	    forwro.ro_dst.sa_len = sizeof( struct sockaddr_at );
-#endif BSD4_4
 	    forwro.ro_dst.sa_family = AF_APPLETALK;
 	    satosat( &forwro.ro_dst )->sat_addr.s_net = to.sat_addr.s_net;
 	    satosat( &forwro.ro_dst )->sat_addr.s_node = to.sat_addr.s_node;
@@ -326,9 +284,7 @@ ddp_input( m, ifp, elh, phase )
 	return;
     }
 
-#ifdef BSD4_4
     from.sat_len = sizeof( struct sockaddr_at );
-#endif BSD4_4
     from.sat_family = AF_APPLETALK;
 
     if ( elh ) {
@@ -355,6 +311,8 @@ ddp_input( m, ifp, elh, phase )
     }
     sorwakeup( ddp->ddp_socket );
 }
+
+#if 0
 
 #define BPXLEN	48
 #define BPALEN	16
@@ -411,3 +369,4 @@ m_printm( struct mbuf *m )
 	bprint( mtod( m, char * ), m->m_len );
     }
 }
+#endif
