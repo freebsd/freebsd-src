@@ -51,13 +51,13 @@
 formats a floppy disk at device
 .Ar device_name .
 .Ar Device_name
-should be a character device; it may be given either with a full path
-name of a raw device node for a floppy disk drive
-.Pq e.\ g. Pa /dev/rfd0 ,
-or default name in an abbreviated form
-.Pq e.\ g. Em fd0 .
+may be given either with a full path
+name of a device node for a floppy disk drive
+.Pq e.g. Pa /dev/fd0 ,
+or a default name in an abbreviated form
+.Pq e.g. Em fd0 .
 In the latter case, the name is constructed by prepending
-.Pa /dev/r
+.Pa /dev/
 and appending a
 .Em .capacity
 to the
