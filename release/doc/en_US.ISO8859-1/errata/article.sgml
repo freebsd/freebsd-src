@@ -175,6 +175,14 @@
       security fix branch.  For more details, refer to security
       advisory
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:12.openssh.asc">FreeBSD-SA-03:12</ulink>.</para>
+
+    <para><application>sendmail</application> contains a
+      remotely-exploitable buffer overflow.  This bug has been fixed
+      via a vendor-supplied patch on the &release.branch; development
+      branch and the &release.prev; security fix branch.  More details
+      can be found in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:13.sendmail.asc">FreeBSD-SA-03:13</ulink>.</para>
+
   </sect1>
 
   <sect1>
