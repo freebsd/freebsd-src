@@ -120,7 +120,7 @@
 				l_gid16_t egid); }
 72	STD	LINUX	{ int linux_sigsuspend(l_int hist0, l_int hist1, \
 				l_osigset_t mask); }
-73	STD	LINUX	{ int linux_sigpending(l_osigset_t *mask); }
+73	MSTD	LINUX	{ int linux_sigpending(l_osigset_t *mask); }
 74	MNOPROTO LINUX	{ int osethostname(char *hostname, u_int len); } \
 			    osethostname sethostname_args int
 75	STD	LINUX	{ int linux_setrlimit(l_uint resource, \

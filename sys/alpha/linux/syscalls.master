@@ -94,7 +94,7 @@
 49	UNIMPL	LINUX
 50	UNIMPL	LINUX
 51	NOPROTO	LINUX	{ int acct(char *path); }
-52	STD	LINUX	{ int linux_sigpending(void); }
+52	MSTD	LINUX	{ int linux_sigpending(void); }
 53	UNIMPL	LINUX
 54	STD	LINUX	{ int linux_ioctl(l_uint fd, l_uint cmd, \
 				l_ulong arg); }
