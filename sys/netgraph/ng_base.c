@@ -216,7 +216,6 @@ MALLOC_DEFINE(M_NETGRAPH, "netgraph", "netgraph structures and ctrl messages");
 MALLOC_DEFINE(M_NETGRAPH_HOOK, "netgraph_hook", "netgraph hook structures");
 MALLOC_DEFINE(M_NETGRAPH_NODE, "netgraph_node", "netgraph node structures");
 MALLOC_DEFINE(M_NETGRAPH_ITEM, "netgraph_item", "netgraph item structures");
-MALLOC_DEFINE(M_NETGRAPH_META, "netgraph_meta", "netgraph name storage");
 MALLOC_DEFINE(M_NETGRAPH_MSG, "netgraph_msg", "netgraph name storage");
 
 /* Should not be visible outside this file */
@@ -1151,6 +1150,9 @@ ng_newtype(struct ng_type *tp)
 	|| (namelen == 0)
 	|| (namelen >= NG_TYPESIZ)) {
 		TRAP_ERROR();
+		if (tp->version != NG_ABI_VERSION) {
+			printf("Netgraph: Node type rejected. ABI mismatch. Suggest recompile\n");
+		}
 		return (EINVAL);
 	}
 
@@ -2095,7 +2097,6 @@ ng_flush_input_queue(struct ng_queue * ngq)
  *    Reference to destination rcv hook if relevant.
  * Data:
  *    pointer to mbuf
- *    pointer to metadata
  * Control_Message:
  *    pointer to msg.
  *    ID of original sender node. (return address)
@@ -2890,26 +2891,6 @@ out:
 	return (error);
 }
 
-/*
- * Copy a 'meta'.
- *
- * Returns new meta, or NULL if original meta is NULL or ENOMEM.
- */
-meta_p
-ng_copy_meta(meta_p meta)
-{
-	meta_p meta2;
-
-	if (meta == NULL)
-		return (NULL);
-	MALLOC(meta2, meta_p, meta->used_len, M_NETGRAPH_META, M_NOWAIT);
-	if (meta2 == NULL)
-		return (NULL);
-	meta2->allocated_len = meta->used_len;
-	bcopy(meta, meta2, meta->used_len);
-	return (meta2);
-}
-
 /************************************************************************
 			Module routines
 ************************************************************************/
@@ -3122,9 +3103,8 @@ ng_free_item(item_p item)
 	}
 	switch (item->el_flags & NGQF_TYPE) {
 	case NGQF_DATA:
-		/* If we have an mbuf and metadata still attached.. */
+		/* If we have an mbuf still attached.. */
 		NG_FREE_M(_NGI_M(item));
-		NG_FREE_META(_NGI_META(item));
 		break;
 	case NGQF_MESG:
 		_NGI_RETADDR(item) = 0;
@@ -3400,7 +3380,7 @@ ng_setisr(node_p node)
 #endif
 
 /*
- * Put elements into the item.
+ * Put mbuf into the item.
  * Hook and node references will be removed when the item is dequeued.
  * (or equivalent)
  * (XXX) Unsafe because no reference held by peer on remote node.
@@ -3413,20 +3393,18 @@ ng_setisr(node_p node)
  * This is possibly in the critical path for new data.
  */
 item_p
-ng_package_data(struct mbuf *m, meta_p meta)
+ng_package_data(struct mbuf *m, void *dummy)
 {
 	item_p item;
 
 	if ((item = ng_getqblk()) == NULL) {
 		NG_FREE_M(m);
-		NG_FREE_META(meta);
 		return (NULL);
 	}
 	ITEM_DEBUG_CHECKS;
 	item->el_flags = NGQF_DATA;
 	item->el_next = NULL;
 	NGI_M(item) = m;
-	NGI_META(item) = meta;
 	return (item);
 }
 
@@ -3708,16 +3686,14 @@ ng_macro_test(item_p item)
 	node_p node = NULL;
 	hook_p hook = NULL;
 	struct mbuf *m;
-	meta_p meta;
 	struct ng_mesg *msg;
 	ng_ID_t retaddr;
 	int	error;
 
 	NGI_GET_M(item, m);
-	NGI_GET_META(item, meta);
 	NGI_GET_MSG(item, msg);
 	retaddr = NGI_RETADDR(item);
-	NG_SEND_DATA(error, hook, m, meta);
+	NG_SEND_DATA(error, hook, m, NULL);
 	NG_SEND_DATA_ONLY(error, hook, m);
 	NG_FWD_NEW_DATA(error, item, hook, m);
 	NG_FWD_ITEM_HOOK(error, item, hook);

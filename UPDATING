@@ -18,6 +18,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	to maximize performance.
 
 20040630:
+	The netgraph ABI version number has been incremented to indicate
+	an incompatible change in the ABI. Old netgraph nodes will refuse 
+	to attach until recompiled. Netgraph no uses tehmbuf TAGS feature
+	to move metadata and this commit removes its home-grown metadata
+	facility. Nodes should just recompile unless they use metadata
+	in which case the changes are simple and shown in ng_ksocket.c
+	which can be used as an example.
+
+20040630:
 	ACPI has been updated to disable known-bad BIOS revisions.  A message
 	will be printed on console indicating that ACPI has been disabled
 	automatically and that the user should use a newer BIOS, if possible.
