@@ -208,7 +208,7 @@ static caddr_t crashdumpmap;
 static PMAP_INLINE void	free_pv_entry(pv_entry_t pv);
 static pv_entry_t get_pv_entry(void);
 static void	amd64_protection_init(void);
-static void	pmap_changebit(vm_page_t m, int bit, boolean_t setem)
+static void	pmap_clear_ptes(vm_page_t m, int bit)
     __always_inline;
 
 static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t sva);
@@ -2611,17 +2611,17 @@ pmap_is_modified(vm_page_t m)
 }
 
 /*
- * this routine is used to modify bits in ptes
+ *	Clear the given bit in each of the given page's ptes.
  */
 static __inline void
-pmap_changebit(vm_page_t m, int bit, boolean_t setem)
+pmap_clear_ptes(vm_page_t m, int bit)
 {
 	register pv_entry_t pv;
-	register pt_entry_t *pte;
+	pt_entry_t pbits, *pte;
 	int s;
 
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS) ||
-	    (!setem && bit == PG_RW && (m->flags & PG_WRITEABLE) == 0))
+	    (bit == PG_RW && (m->flags & PG_WRITEABLE) == 0))
 		return;
 
 	s = splvm();
@@ -2634,7 +2634,7 @@ pmap_changebit(vm_page_t m, int bit, boolean_t setem)
 		/*
 		 * don't write protect pager mappings
 		 */
-		if (!setem && (bit == PG_RW)) {
+		if (bit == PG_RW) {
 			if (!pmap_track_modified(pv->pv_va))
 				continue;
 		}
@@ -2647,26 +2647,20 @@ pmap_changebit(vm_page_t m, int bit, boolean_t setem)
 #endif
 
 		pte = pmap_pte(pv->pv_pmap, pv->pv_va);
-
-		if (setem) {
-			*pte |= bit;
-			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
-		} else {
-			pt_entry_t pbits = *pte;
-			if (pbits & bit) {
-				if (bit == PG_RW) {
-					if (pbits & PG_M) {
-						vm_page_dirty(m);
-					}
-					pte_store(pte, pbits & ~(PG_M|PG_RW));
-				} else {
-					pte_store(pte, pbits & ~bit);
+		pbits = *pte;
+		if (pbits & bit) {
+			if (bit == PG_RW) {
+				if (pbits & PG_M) {
+					vm_page_dirty(m);
 				}
-				pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
+				pte_store(pte, pbits & ~(PG_M|PG_RW));
+			} else {
+				pte_store(pte, pbits & ~bit);
 			}
+			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 		}
 	}
-	if (!setem && bit == PG_RW)
+	if (bit == PG_RW)
 		vm_page_flag_clear(m, PG_WRITEABLE);
 	splx(s);
 }
@@ -2681,7 +2675,7 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 {
 	if ((prot & VM_PROT_WRITE) == 0) {
 		if (prot & (VM_PROT_READ | VM_PROT_EXECUTE)) {
-			pmap_changebit(m, PG_RW, FALSE);
+			pmap_clear_ptes(m, PG_RW);
 		} else {
 			pmap_remove_all(m);
 		}
@@ -2752,7 +2746,7 @@ pmap_ts_referenced(vm_page_t m)
 void
 pmap_clear_modify(vm_page_t m)
 {
-	pmap_changebit(m, PG_M, FALSE);
+	pmap_clear_ptes(m, PG_M);
 }
 
 /*
@@ -2763,7 +2757,7 @@ pmap_clear_modify(vm_page_t m)
 void
 pmap_clear_reference(vm_page_t m)
 {
-	pmap_changebit(m, PG_A, FALSE);
+	pmap_clear_ptes(m, PG_A);
 }
 
 /*
