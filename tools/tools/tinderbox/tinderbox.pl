@@ -301,9 +301,6 @@ MAIN:{
 	error("invalid target machine");
     }
     $machine = $1;
-    if (!defined($logfile)) {
-	$logfile = "tinderbox-$branch-$arch-$machine.log";
-    }
 
     if (!@ARGV) {
 	usage();
@@ -334,13 +331,15 @@ MAIN:{
     # Open logfile
     open(STDIN, '<', "/dev/null")
 	or error("/dev/null: $!\n");
-    if ($logfile !~ m|([\w./-]+)$|) {
-	error("invalid log file name");
+    if (defined($logfile)) {
+	if ($logfile !~ m|([\w./-]+)$|) {
+	    error("invalid log file name");
+	}
+	$logfile = $1;
+	unlink($logfile);
+	open(STDOUT, '>', $logfile)
+	    or error("$logfile: $!");
     }
-    $logfile = $1;
-    unlink($logfile);
-    open(STDOUT, '>', $logfile)
-	or error("$logfile: $!");
     open(STDERR, ">&STDOUT");
     $| = 1;
     logstage("starting $branch tinderbox run for $arch/$machine");
