@@ -596,7 +596,7 @@ fw_init_crom(struct firewire_comm *fc)
 	src->businfo.cyc_clk_acc = 100;
 	src->businfo.max_rec = fc->maxrec;
 	src->businfo.max_rom = MAXROM_4;
-	src->businfo.generation = 0;
+	src->businfo.generation = 1;
 	src->businfo.link_spd = fc->speed;
 
 	src->businfo.eui64.hi = fc->eui.hi;
@@ -622,7 +622,6 @@ fw_reset_crom(struct firewire_comm *fc)
 	src = fc->crom_src;
 	root = fc->crom_root;
 
-	src->businfo.generation ++;
 	STAILQ_INIT(&src->chunk_list);
 
 	bzero(root, sizeof(struct crom_chunk));
@@ -642,7 +641,9 @@ void
 fw_busreset(struct firewire_comm *fc)
 {
 	struct firewire_dev_comm *fdc;
+	struct crom_src *src;
 	device_t *devlistp;
+	void *newrom;
 	int i, devcnt;
 
 	switch(fc->status){
@@ -666,7 +667,19 @@ fw_busreset(struct firewire_comm *fc)
 		free(devlistp, M_TEMP);
 	}
 
-	crom_load(&fc->crom_src_buf->src, fc->config_rom, CROMSIZE);
+	newrom = malloc(CROMSIZE, M_FW, M_NOWAIT | M_ZERO);
+	src = &fc->crom_src_buf->src;
+	crom_load(src, (u_int32_t *)newrom, CROMSIZE);
+	if (bcmp(newrom, fc->config_rom, CROMSIZE) != 0) {
+		/* bump generation and reload */
+		src->businfo.generation ++;
+		/* generation must be between 0x2 and 0xF */
+		if (src->businfo.generation < 2)
+			src->businfo.generation ++;
+		crom_load(src, (u_int32_t *)newrom, CROMSIZE);
+		bcopy(newrom, (void *)fc->config_rom, CROMSIZE);
+	}
+	free(newrom, M_FW);
 }
 
 /* Call once after reboot */
@@ -1307,12 +1320,11 @@ loop:
 				break;
 		if(fwdev != NULL){
 			fwdev->dst = fc->ongonode;
-			fwdev->status = FWDEVATTACHED;
-			fc->ongonode++;
+			fwdev->status = FWDEVINIT;
+			fc->ongodev = fwdev;
 			fc->ongoaddr = CSRROMOFF;
-			fc->ongodev = NULL;
-			fc->ongoeui.hi = 0xffffffff; fc->ongoeui.lo = 0xffffffff;
-			goto loop;
+			addr = 0xf0000000 | fc->ongoaddr;
+			goto dorequest;
 		}
 		fwdev = malloc(sizeof(struct fw_device), M_FW,
 							M_NOWAIT | M_ZERO);
@@ -1348,6 +1360,7 @@ loop:
 	}else{
 		addr = 0xf0000000 | fc->ongoaddr;
 	}
+dorequest:
 #if 0
 	xfer = asyreqq(fc, FWSPD_S100, 0, 0,
 		((FWLOCALBUS | fc->ongonode) << 16) | 0xffff , addr,
@@ -1512,6 +1525,11 @@ fw_bus_explore_callback(struct fw_xfer *xfer)
 			fc->ongoaddr = CSRROMOFF;
 		}
 	}else{
+		if (fc->ongoaddr == CSRROMOFF &&
+		    fc->ongodev->csrrom[0] == ntohl(rfp->mode.rresq.data)) {
+			fc->ongodev->status = FWDEVATTACHED;
+			goto nextnode;
+		}
 		fc->ongodev->csrrom[(fc->ongoaddr - CSRROMOFF)/4] = ntohl(rfp->mode.rresq.data);
 		if(fc->ongoaddr > fc->ongodev->rommax){
 			fc->ongodev->rommax = fc->ongoaddr;
