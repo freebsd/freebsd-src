@@ -57,10 +57,6 @@ static const char rcsid[] =
 #include <rpc/pmap_clnt.h>
 #include <rpc/pmap_prot.h>
 
-#ifdef ISO
-#include <netiso/iso.h>
-#endif
-
 #ifdef NFSKERB
 #include <kerberosIV/des.h>
 #include <kerberosIV/krb.h>
@@ -84,6 +80,7 @@ static const char rcsid[] =
 #include <unistd.h>
 
 #include "mntopts.h"
+#include "mounttab.h"
 
 #define	ALTF_BG		0x1
 #define ALTF_NOCONN	0x2
@@ -121,9 +118,6 @@ struct mntopt mopts[] = {
 	{ "rdirplus", 0, ALTF_RDIRPLUS, 1 },
 	{ "mntudp", 0, ALTF_MNTUDP, 1 },
 	{ "resvport", 0, ALTF_RESVPORT, 1 },
-#ifdef ISO
-	{ "seqpacket", 0, ALTF_SEQPACKET, 1 },
-#endif
 	{ "nqnfs", 0, ALTF_NQNFS, 1 },
 	{ "soft", 0, ALTF_SOFT, 1 },
 	{ "tcp", 0, ALTF_TCP, 1 },
@@ -199,9 +193,6 @@ NFSKERBKEYSCHED_T kerb_keysched;
 #endif
 
 int	getnfsargs __P((char *, struct nfs_args *));
-#ifdef ISO
-struct	iso_addr *iso_addr __P((const char *));
-#endif
 void	set_rpc_maxgrouplist __P((int));
 void	usage __P((void)) __dead2;
 int	xdr_dir __P((XDR *, char *));
@@ -369,10 +360,6 @@ main(argc, argv)
 				opflags |= BGRND;
 			if(altflags & ALTF_MNTUDP)
 				mnttcp_ok = 0;
-#ifdef ISO
-			if(altflags & ALTF_SEQPACKET)
-				nfsargsp->sotype = SOCK_SEQPACKET;
-#endif
 			if(altflags & ALTF_TCP) {
 				nfsargsp->sotype = SOCK_STREAM;
 				nfsproto = IPPROTO_TCP;
@@ -400,11 +387,6 @@ main(argc, argv)
 		case 'P':
 			/* obsolete for NFSMNT_RESVPORT, now default */
 			break;
-#ifdef ISO
-		case 'p':
-			nfsargsp->sotype = SOCK_SEQPACKET;
-			break;
-#endif
 		case 'q':
 			mountmode = V3;
 			nfsargsp->flags |= NFSMNT_NQNFS;
@@ -649,11 +631,6 @@ getnfsargs(spec, nfsargsp)
 	register CLIENT *clp;
 	struct hostent *hp;
 	static struct sockaddr_in saddr;
-#ifdef ISO
-	static struct sockaddr_iso isoaddr;
-	struct iso_addr *isop;
-	int isoflag = 0;
-#endif
 	struct timeval pertry, try;
 	enum clnt_stat clnt_stat;
 	int so = RPC_ANYSOCK, i, nfsvers, mntvers, orgcnt, speclen;
@@ -702,35 +679,6 @@ getnfsargs(spec, nfsargsp)
 		memmove(nam + len + 1, spec, speclen);
 		nam[len + speclen + 1] = '\0';
 	}
-	/*
-	 * DUMB!! Until the mount protocol works on iso transport, we must
-	 * supply both an iso and an inet address for the host.
-	 */
-#ifdef ISO
-	if (!strncmp(hostp, "iso=", 4)) {
-		u_short isoport;
-
-		hostp += 4;
-		isoflag++;
-		if ((delimp = strchr(hostp, '+')) == NULL) {
-			warnx("no iso+inet address");
-			return (0);
-		}
-		*delimp = '\0';
-		if ((isop = iso_addr(hostp)) == NULL) {
-			warnx("bad ISO address");
-			return (0);
-		}
-		memset(&isoaddr, 0, sizeof (isoaddr));
-		memmove(&isoaddr.siso_addr, isop, sizeof (struct iso_addr));
-		isoaddr.siso_len = sizeof (isoaddr);
-		isoaddr.siso_family = AF_ISO;
-		isoaddr.siso_tlen = 2;
-		isoport = htons(NFS_PORT);
-		memmove(TSEL(&isoaddr), &isoport, isoaddr.siso_tlen);
-		hostp = delimp + 1;
-	}
-#endif /* ISO */
 
 	/*
 	 * Handle an internet host address and reverse resolve it if
@@ -844,7 +792,8 @@ tryagain:
 		}
 		if (--retrycnt > 0) {
 			if (opflags & BGRND) {
-				warnx("Cannot immediately mount %s:%s, backgrounding", hostp, spec);
+				warnx("Cannot immediately mount %s:%s, "
+				    "backgrounding", hostp, spec);
 				opflags &= ~BGRND;
 				if ((i = fork())) {
 					if (i == -1)
@@ -868,12 +817,6 @@ tryagain:
 		return (0);
 	}
 	saddr.sin_port = htons(tport);
-#ifdef ISO
-	if (isoflag) {
-		nfsargsp->addr = (struct sockaddr *) &isoaddr;
-		nfsargsp->addrlen = sizeof (isoaddr);
-	} else
-#endif /* ISO */
 	{
 		nfsargsp->addr = (struct sockaddr *) &saddr;
 		nfsargsp->addrlen = sizeof (saddr);
@@ -881,6 +824,9 @@ tryagain:
 	nfsargsp->fh = nfhret.nfh;
 	nfsargsp->fhsize = nfhret.fhsize;
 	nfsargsp->hostname = nam;
+	/* Add mounted filesystem to PATH_MOUNTTAB */
+	if (!add_mtab(hostp, spec))
+		warnx("can't update %s for %s:%s", PATH_MOUNTTAB, hostp, spec);
 	return (1);
 }
 

@@ -1,11 +1,14 @@
 #	@(#)Makefile	8.4 (Berkeley) 6/22/95
+#
+# $FreeBSD$
 
 PROG=	umount
-SRCS=	umount.c vfslist.c
+SRCS=	umount.c vfslist.c mounttab.c
 MAN8=	umount.8
 
 MOUNT=	${.CURDIR}/../mount
-CFLAGS+= -I${MOUNT}
-.PATH:	${MOUNT}
+UMNTALL= ${.CURDIR}/../../usr.sbin/rpc.umntall
+CFLAGS+= -I${MOUNT} -I${UMNTALL}
+.PATH: ${MOUNT} ${UMNTALL}
 
 .include <bsd.prog.mk>
