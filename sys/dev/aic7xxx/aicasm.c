@@ -30,6 +30,7 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -54,7 +55,7 @@ static void usage(void);
 static void back_patch(void);
 static void output_code(FILE *ofile);
 static void output_listing(FILE *listfile, char *ifilename);
-static int dump_scope(scope_t *scope);
+static void dump_scope(scope_t *scope);
 static void emit_patch(scope_t *scope, int patch);
 static int check_patch(patch_t **start_patch, int start_instr,
 		       int *skip_addr, int *func_vals);
@@ -361,11 +362,10 @@ struct patch {
 	fprintf(stderr, "%s: %d instructions used\n", appname, instrcount);
 }
 
-static int
+static void
 dump_scope(scope_t *scope)
 {
 	scope_t *cur_scope;
-	int	patches_emitted = 0;
 
 	/*
 	 * Emit the first patch for this scope
@@ -710,6 +710,9 @@ process_scope(scope_t *scope)
 			skip_instr_count += cur_scope->end_addr
 					  - cur_scope->begin_addr;
 			break;
+		case SCOPE_ROOT:
+			stop("Unexpected scope type encountered", EX_SOFTWARE);
+			/* NOTREACHED */
 		}
 
 		cur_scope = TAILQ_PREV(cur_scope, scope_tailq, scope_links);
