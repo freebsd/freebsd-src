@@ -4,7 +4,7 @@
 
 KMOD=	mfs
 SRCS=	vnode_if.h \
-	mfs_vfsops.c mfs_vnops.c opt_mfs.h
+	mfs_vfsops.c mfs_vnops.c opt_mfs.h opt_ufs.h
 NOMAN=
 
 .include <bsd.kmod.mk>
