@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.64 1998/10/13 09:44:09 kato Exp $
+ *	$Id: wd.c,v 1.65 1998/10/22 05:58:45 bde Exp $
  */
 
 /* TODO:
@@ -67,6 +67,7 @@
 #include "opt_atapi.h"
 #include "opt_devfs.h"
 #include "opt_hw_wdog.h"
+#include "opt_ide_delay.h"
 #include "opt_wd.h"
 #include "pci.h"
 
@@ -112,7 +113,11 @@
 
 extern void wdstart(int ctrlr);
 
+#ifdef IDE_DELAY
+#define TIMEOUT		IDE_DELAY
+#else
 #define TIMEOUT		10000
+#endif
 #define	RETRIES		5	/* number of retries before giving up */
 #define RECOVERYTIME	500000	/* usec for controller to recover after err */
 #define	MAXTRANSFER	255	/* max size of transfer in sectors */
@@ -750,16 +755,16 @@ wdstrategy(register struct buf *bp)
 	/* queue transfer on drive, activate drive and controller if idle */
 	s = splbio();
 
-	bufqdisksort(&drive_queue[lunit], bp);
-
-	if (wdutab[lunit].b_active == 0)
-		wdustart(du);	/* start drive */
-
 	/* Pick up changes made by readdisklabel(). */
 	if (du->dk_flags & DKFL_LABELLING && du->dk_state > RECAL) {
 		wdsleep(du->dk_ctrlr, "wdlab");
 		du->dk_state = WANTOPEN;
 	}
+
+	bufqdisksort(&drive_queue[lunit], bp);
+
+	if (wdutab[lunit].b_active == 0)
+		wdustart(du);	/* start drive */
 
 #ifdef CMD640
 	if (wdtab[du->dk_ctrlr_cmd640].b_active == 0)
