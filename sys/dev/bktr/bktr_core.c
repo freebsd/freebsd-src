@@ -1,4 +1,4 @@
-/* $Id: brooktree848.c,v 1.83 1999/05/31 11:28:53 phk Exp $ */
+/* $Id: brooktree848.c,v 1.84 1999/06/04 13:24:54 roger Exp $ */
 /* BT848 Driver for Brooktree's Bt848, Bt848A, Bt849A, Bt878, Bt879 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
@@ -425,6 +425,10 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
                     and should work fine in the Default mode.
 
                     Also rename 849 to 849A, the correct name for the chip.
+
+1.69   12 June 1999 Roger Hardiman <roger@freebsd.org>
+                    Updates for FreeBSD 4.x device driver interface.
+                    BSDI code removed. Will be restored later.
 */
 
 #define DDB(x) x
@@ -441,7 +445,7 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
 /* define NSMBUS as 0 if it is not already defined */
 #if !defined(NSMBUS)
 #define NSMBUS 0
-#endif
+#endif 
 
 #if !defined(__FreeBSD__) || ((NBKTR > 0) && (NPCI > 0))
 
@@ -453,24 +457,27 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
 #include <sys/signalvar.h>
 #include <sys/mman.h>
 
+#include <sys/bus.h>
+#include <machine/bus.h>
+#include <sys/rman.h>
+#include <machine/resource.h>
+
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
+#include <machine/clock.h>      /* for DELAY */
 
 #ifdef __FreeBSD__
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /* DEVFS */
-#include <machine/clock.h>
+
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 
 #include <machine/ioctl_meteor.h>
 #include <machine/ioctl_bt848.h>	/* extensions to ioctl_meteor.h */
-#if (NSMBUS > 0)
-#include <sys/bus.h>
-#endif
 #include <pci/brktree_reg.h>
 #if (NSMBUS > 0)
 #include <pci/bt848_i2c.h>
@@ -493,26 +500,6 @@ SYSCTL_INT(_hw_bt848, OID_AUTO, format, CTLFLAG_RW, &bt848_format, -1, "");
 
 typedef u_long ioctl_cmd_t;
 #endif  /* __FreeBSD__ */
-
-#ifdef __bsdi__
-#include <sys/device.h>
-#include <i386/isa/isa.h>
-#include <i386/isa/isavar.h>
-#include <i386/isa/icu.h>
-#include <i386/pci/pci.h>
-#include <i386/isa/dma.h>
-#include <i386/eisa/eisa.h>
-#include "ioctl_meteor.h"
-#include "ioctl_bt848.h"
-#include "bt848_reg.h"
-
-typedef u_long ioctl_cmd_t;
-
-#define pci_conf_read(a, r) pci_inl(a, r)
-#define pci_conf_write(a, r, v) pci_outl(a, r, v)
-#include <sys/reboot.h>
-#define bootverbose (autoprint & (AC_VERBOSE|AC_DEBUG))
-#endif /* __bsdi__ */
 
 typedef u_char bool_t;
 
@@ -571,26 +558,31 @@ static void	bktr_intr __P((void *arg));
 
 #ifdef __FreeBSD__
 
-static bktr_reg_t brooktree[ NBKTR ];
-#define BROOKTRE_NUM(mtr)	((bktr - &brooktree[0])/sizeof(bktr_reg_t))
-
 #define UNIT(x)		((x) & 0x0f)
 #define MINOR(x)	((x >> 4) & 0x0f)
-#define ATTACH_ARGS	pcici_t tag, int unit
 
-static const char*	bktr_probe( pcici_t tag, pcidi_t type );
-static void	bktr_attach( ATTACH_ARGS );
+static int	bktr_probe( device_t dev );
+static int	bktr_attach( device_t dev );
+static int	bktr_detach( device_t dev );
+static int	bktr_shutdown( device_t dev );
 
-static u_long	bktr_count;
+static device_method_t bktr_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,         bktr_probe),
+	DEVMETHOD(device_attach,        bktr_attach),
+	DEVMETHOD(device_detach,        bktr_detach),
+	DEVMETHOD(device_shutdown,      bktr_shutdown),
 
-static struct	pci_device bktr_device = {
-	"bktr",
-	bktr_probe,
-	bktr_attach,
-	&bktr_count
+	{ 0, 0 }
 };
 
-COMPAT_PCI_DRIVER (bktr, bktr_device);
+static driver_t bktr_driver = {
+	"bktr",
+	bktr_methods,
+	sizeof(struct bktr_softc),
+};
+
+static devclass_t bktr_devclass;
 
 static	d_open_t	bktr_open;
 static	d_close_t	bktr_close;
@@ -621,86 +613,12 @@ static struct cdevsw bktr_cdevsw = {
 	/* maxio */	0,
 	/* bmaj */	-1
 };
+
+DEV_DRIVER_MODULE(bktr, pci, bktr_driver, bktr_devclass, CDEV_MAJOR, NOMAJ,
+                  bktr_cdevsw, 0, 0);
+
 #endif  /* __FreeBSD__ */
 
-#ifdef __bsdi__
-#define UNIT	dv_unit
-#define MINOR	dv_subunit
-#define ATTACH_ARGS \
-   struct device * const parent, struct device * const self, void * const aux
-
-#define PCI_COMMAND_STATUS_REG PCI_COMMAND
-
-static void bktr_attach( ATTACH_ARGS );
-#define NBKTR bktrcd.cd_ndevs
-#define brooktree *((bktr_ptr_t *)bktrcd.cd_devs)
-
-static int bktr_spl;
-static int bktr_intr_returning_1(void *arg) { bktr_intr(arg); return (1);}
-#define disable_intr() { bktr_spl = splhigh(); }
-#define enable_intr() { splx(bktr_spl); }
-static void vbidecode(bktr_ptr_t bktr);
-
-static int
-bktr_pci_match(pci_devaddr_t *pa)
-{
-	unsigned id;
-
-	id = pci_inl(pa, PCI_VENDOR_ID);
-
-	switch (id) {
-	   BROOKTREE_848_PCI_ID:
-	   BROOKTREE_849_PCI_ID:
-	   BROOKTREE_878_PCI_ID:
-	   BROOKTREE_879_PCI_ID:
-	     return 1;
-	}
-	aprint_debug("bktr_pci_match got %x\n", id);
-	return 0;
-
-}
-
-pci_devres_t	bktr_res; /* XXX only remembers last one, helps debug */
-
-static int
-bktr_probe(struct device *parent, struct cfdata *cf, void *aux)
-{
-    pci_devaddr_t *pa;
-    pci_devres_t res;
-    struct isa_attach_args *ia = aux;
-
-    if (ia->ia_bustype != BUS_PCI)
-	return (0);
-
-    if ((pa = pci_scan(bktr_pci_match)) == NULL)
-	return (0);
-
-    pci_getres(pa, &bktr_res, 1, ia);
-    if (ia->ia_maddr == 0) {
-	printf("bktr%d: no mem attached\n", cf->cf_unit);
-	return (0);
-    }
-    ia->ia_aux = pa;
-    return 1;
-}
-
-
-struct cfdriver bktrcd = 
-{ 0, "bktr", bktr_probe, bktr_attach, DV_DULL, sizeof(bktr_reg_t) };
-
-int	bktr_open __P((dev_t, int, int, struct proc *));
-int	bktr_close __P((dev_t, int, int, struct proc *));
-int	bktr_read __P((dev_t, struct uio *, int));
-int	bktr_write __P((dev_t, struct uio *, int));
-int	bktr_ioctl __P((dev_t, ioctl_cmd_t, caddr_t, int, struct proc *));
-int	bktr_mmap __P((dev_t, int, int));
-
-struct devsw bktrsw = {
-	&bktrcd,
-	bktr_open, bktr_close, bktr_read, bktr_write, bktr_ioctl,
-	seltrue, bktr_mmap, NULL, nodump, NULL, 0, nostop
-};
-#endif /* __bsdi__ */
 
 /*
  * This is for start-up convenience only, NOT mandatory.
@@ -1440,28 +1358,33 @@ static void bctv_gpio_write( bktr_ptr_t bktr, int port, int val );
 /*
  * the boot time probe routine.
  */
-static const char*
-bktr_probe( pcici_t tag, pcidi_t type )
+static int
+bktr_probe( device_t dev )
 {
-        unsigned int rev = pci_conf_read( tag, PCIR_REVID) & 0x000000ff;
+	unsigned int type = pci_get_devid(dev);
+        unsigned int rev  = pci_get_revid(dev);
 	static int once;
 
 	if (!once++)
 		cdevsw_add(&bktr_cdevsw);
-	 
+
 	switch (type) {
 	case BROOKTREE_848_PCI_ID:
-		if (rev == 0x12) return("BrookTree 848A");
-		else             return("BrookTree 848"); 
+		if (rev == 0x12) device_set_desc(dev, "BrookTree 848A");
+		else             device_set_desc(dev, "BrookTree 848");
+                return 0;
         case BROOKTREE_849_PCI_ID:
-                return("BrookTree 849A");
+                device_set_desc(dev, "BrookTree 849A");
+                return 0;
         case BROOKTREE_878_PCI_ID:
-                return("BrookTree 878");
+                device_set_desc(dev, "BrookTree 878");
+                return 0;
         case BROOKTREE_879_PCI_ID:
-                return("BrookTree 879");
+                device_set_desc(dev, "BrookTree 879");
+                return 0;
 	};
 
-	return ((char *)0);
+        return ENXIO;
 }
 
 #endif /* __FreeBSD__ */
@@ -1469,35 +1392,79 @@ bktr_probe( pcici_t tag, pcidi_t type )
 /*
  * the attach routine.
  */
-static	void
-bktr_attach( ATTACH_ARGS )
+static int
+bktr_attach( device_t dev )
 {
-	bktr_ptr_t	bktr;
 	bt848_ptr_t	bt848;
-#ifdef BROOKTREE_IRQ
-	u_long		old_irq, new_irq;
-#endif 
 	vm_offset_t	buf;
 	u_long		latency;
 	u_long		fun;
+	u_long		val;
 	unsigned int	rev;
+	unsigned int	unit;
+	int		error = 0;
+	int		rid;
 
-#ifdef __FreeBSD__
-	bktr = &brooktree[unit];
+        struct bktr_softc *bktr = device_get_softc(dev);
+
+	unit = device_get_unit(dev);
 
 	if (unit >= NBKTR) {
 		printf("brooktree%d: attach: only %d units configured.\n",
 		        unit, NBKTR);
 		printf("brooktree%d: attach: invalid unit number.\n", unit);
-		return;
+		return ENXIO;
 	}
 
-	bktr->tag = tag;
-	pci_map_mem( tag, PCI_MAP_REG_START, (vm_offset_t *) &bktr->base,
-		     &bktr->phys_base );
+	/*
+	 * Enable bus mastering and Memory Mapped device
+	 */
+	val = pci_read_config(dev, PCIR_COMMAND, 4);
+	val |= (PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
+	pci_write_config(dev, PCIR_COMMAND, val, 4);
 
-	/* Update the Device Control Register on Bt878 and Bt879 cards */
-	fun = pci_conf_read(tag, 0x40);
+	/*
+	 * Map control/status registers.
+	 */
+	rid = PCI_MAP_REG_START;
+	bktr->res_mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+                                  0, ~0, 1, RF_ACTIVE);
+
+	if (!bktr->res_mem) {
+		device_printf(dev, "could not map memory\n");
+		error = ENXIO;
+		goto fail;
+	}
+	bktr->base = rman_get_virtual(bktr->res_mem); /* XXX use bus_space */
+
+	/*
+	 * Allocate our interrupt.
+	 */
+	rid = 0;
+	bktr->res_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+                                 RF_SHAREABLE | RF_ACTIVE);
+	if (bktr->res_irq == NULL) {
+		device_printf(dev, "could not map interrupt\n");
+		error = ENXIO;
+		goto fail;
+	}
+
+	error = bus_setup_intr(dev, bktr->res_irq, INTR_TYPE_NET,
+                               bktr_intr, bktr, &bktr->res_ih);
+	if (error) {
+		device_printf(dev, "could not setup irq\n");
+		goto fail;
+
+	}
+
+	/* Disable the brooktree device */
+	bt848 = bktr->base;
+	bt848->int_mask = ALL_INTS_DISABLED;
+	bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
+
+	/* Update the Device Control Register */
+	/* on Bt878 and Bt879 cards           */
+	fun = pci_read_config( dev, 0x40, 2);
         fun = fun | 1;	/* Enable writes to the sub-system vendor ID */
 
 #if defined( BKTR_430_FX_MODE )
@@ -1510,7 +1477,7 @@ bktr_attach( ATTACH_ARGS )
         fun = fun | 4;	/* Enable SiS/VIA compatibility mode (usefull for
                            OPTi chipset motherboards too */
 #endif
-	pci_conf_write(tag, 0x40, fun);
+	pci_write_config(dev, 0x40, fun, 2);
 
 
 	/* XXX call bt848_i2c dependent attach() routine */
@@ -1519,30 +1486,7 @@ bktr_attach( ATTACH_ARGS )
 		printf("bktr%d: i2c_attach: can't attach\n", unit);
 #endif
 
-#ifdef BROOKTREE_IRQ		/* from the configuration file */
-	old_irq = pci_conf_read(tag, PCI_INTERRUPT_REG);
-	pci_conf_write(tag, PCI_INTERRUPT_REG, BROOKTREE_IRQ);
-	new_irq = pci_conf_read(tag, PCI_INTERRUPT_REG);
-	printf("bktr%d: attach: irq changed from %d to %d\n",
-		unit, (old_irq & 0xff), (new_irq & 0xff));
-#endif 
-	/* setup the interrupt handling routine */
-	pci_map_int(tag, bktr_intr, (void*) bktr, &net_imask);
-#endif  /* __FreeBSD__ */
 
-#ifdef __bsdi__
-	struct isa_attach_args * const ia = (struct isa_attach_args *)aux;
-	pci_devaddr_t *tag = (pci_devaddr_t *) ia->ia_aux;
-	int unit  = bktr->bktr_dev.dv_unit;
-
-	bktr = (bktr_reg_t *) self;
-	bktr->base = (bt848_ptr_t) bktr_res.pci_vaddr;
-	isa_establish(&bktr->bktr_id, &bktr->bktr_dev);
-	bktr->bktr_ih.ih_fun = bktr_intr_returning_1;
-	bktr->bktr_ih.ih_arg = (void *)bktr;
-	intr_establish(ia->ia_irq, &bktr->bktr_ih, DV_DULL);
-#endif /* __bsdi__ */
-	
 /*
  * PCI latency timer.  32 is a good value for 4 bus mastering slots, if
  * you have more than four, then 16 would probably be a better value.
@@ -1550,7 +1494,7 @@ bktr_attach( ATTACH_ARGS )
 #ifndef BROOKTREE_DEF_LATENCY_VALUE
 #define BROOKTREE_DEF_LATENCY_VALUE	10
 #endif
-	latency = pci_conf_read(tag, PCI_LATENCY_TIMER);
+	latency = pci_read_config(dev, PCI_LATENCY_TIMER, 4);
 	latency = (latency >> 8) & 0xff;
 	if ( bootverbose ) {
 		if (latency)
@@ -1561,7 +1505,7 @@ bktr_attach( ATTACH_ARGS )
 	}
 	if ( !latency ) {
 		latency = BROOKTREE_DEF_LATENCY_VALUE;
-		pci_conf_write(tag, PCI_LATENCY_TIMER,	latency<<8);
+		pci_write_config(dev, PCI_LATENCY_TIMER, latency<<8, 4);
 	}
 	if ( bootverbose ) {
 		printf(" %d.\n", (int) latency);
@@ -1569,7 +1513,7 @@ bktr_attach( ATTACH_ARGS )
 
 
 	/* allocate space for dma program */
-	bktr->dma_prog = get_bktr_mem(unit, DMA_PROG_ALLOC);
+	bktr->dma_prog     = get_bktr_mem(unit, DMA_PROG_ALLOC);
 	bktr->odd_dma_prog = get_bktr_mem(unit, DMA_PROG_ALLOC);
 
 	/* allocate space for pixel buffer */
@@ -1583,31 +1527,27 @@ bktr_attach( ATTACH_ARGS )
 			unit, BROOKTREE_ALLOC, vtophys(buf));
 	}
 
-	bktr->bigbuf = buf;
-	bktr->alloc_pages = BROOKTREE_ALLOC_PAGES;
-
-	fun = pci_conf_read(tag, PCI_COMMAND_STATUS_REG);
-	pci_conf_write(tag, PCI_COMMAND_STATUS_REG, fun | 2);
-
 	if ( buf != 0 ) {
-		bzero((caddr_t) buf, BROOKTREE_ALLOC);
-		buf = vtophys(buf);
-		bktr->flags = METEOR_INITALIZED | METEOR_AUTOMODE |
-			      METEOR_DEV0 | METEOR_RGB16;
-		bktr->dma_prog_loaded = FALSE;
-		bktr->cols = 640;
-		bktr->rows = 480;
-		bktr->frames = 1;		/* one frame */
-		bktr->format = METEOR_GEO_RGB16;
-		bktr->pixfmt = oformat_meteor_to_bt( bktr->format );
-		bktr->pixfmt_compat = TRUE;
-		bt848 = bktr->base;
-		bt848->int_mask = ALL_INTS_DISABLED;
-		bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
+		bktr->bigbuf = buf;
+		bktr->alloc_pages = BROOKTREE_ALLOC_PAGES;
+		bzero((caddr_t) bktr->bigbuf, BROOKTREE_ALLOC);
+	} else {
+		bktr->alloc_pages = 0;
 	}
+		
 
+	bktr->flags = METEOR_INITALIZED | METEOR_AUTOMODE |
+		      METEOR_DEV0 | METEOR_RGB16;
+	bktr->dma_prog_loaded = FALSE;
+	bktr->cols = 640;
+	bktr->rows = 480;
+	bktr->frames = 1;		/* one frame */
+	bktr->format = METEOR_GEO_RGB16;
+	bktr->pixfmt = oformat_meteor_to_bt( bktr->format );
+	bktr->pixfmt_compat = TRUE;
+
+	/* allocte space for the VBI buffer */
 	bktr->vbidata  = get_bktr_mem(unit, VBI_DATA_SIZE);
-
 	bktr->vbibuffer = get_bktr_mem(unit, VBI_BUFFER_SIZE);
 
 	bktr->vbiinsert = 0;
@@ -1615,9 +1555,10 @@ bktr_attach( ATTACH_ARGS )
 	bktr->vbisize = 0;
 	bktr->vbiflags = 0;
  
-	/* read the pci id and determine the card type */
-	fun = pci_conf_read(tag, PCI_ID_REG);
-        rev = pci_conf_read(tag, PCIR_REVID) & 0x000000ff;
+	/* read the pci device id and revision id */
+	/* and determine the card type            */
+	fun = pci_get_devid(dev);
+        rev = pci_get_revid(dev);
 	 
 	switch (fun) {
 	case BROOKTREE_848_PCI_ID:
@@ -1635,8 +1576,8 @@ bktr_attach( ATTACH_ARGS )
 		break;
 	};
 
-
 	bktr->clr_on_start = FALSE;
+
 	/* defaults for the tuner section of the card */
 	bktr->tflags = TUNER_INITALIZED;
 	bktr->tuner.frequency = 0;
@@ -1659,13 +1600,59 @@ bktr_attach( ATTACH_ARGS )
 	   DEVFS is finally made really operational. */
 	devfs_add_devswf(&bktr_cdevsw, unit,    DV_CHR, 0, 0, 0444, "bktr%d",  unit);
 	devfs_add_devswf(&bktr_cdevsw, unit+16, DV_CHR, 0, 0, 0444, "tuner%d", unit);
+	devfs_add_devswf(&bktr_cdevsw, unit+32, DV_CHR, 0, 0, 0444, "vbi%d", unit);
 #endif /* DEVFS */
-#if __FreeBSD__ > 2 
-	fun = pci_conf_read(tag, PCI_COMMAND_STATUS_REG);
-	pci_conf_write(tag, PCI_COMMAND_STATUS_REG, fun | 4);
-#endif
+
+	return 0;
+
+fail:
+	return error;
 
 }
+
+/*
+ * the detach routine.
+ */
+static int
+bktr_detach( device_t dev )
+{
+	struct bktr_softc *bktr = device_get_softc(dev);
+	bt848_ptr_t bt848;
+
+	/* Disable the brooktree device */
+	bt848 = bktr->base;
+	bt848->int_mask = ALL_INTS_DISABLED;
+	bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
+
+	/* FIXME - Free memory for RISC programs, grab buffer, vbi buffers */
+
+	/*
+	 * Deallocate resources.
+	 */
+	bus_teardown_intr(dev, bktr->res_irq, bktr->res_ih);
+	bus_release_resource(dev, SYS_RES_IRQ, 0, bktr->res_irq);
+	bus_release_resource(dev, SYS_RES_MEMORY, PCI_MAP_REG_START, bktr->res_mem);
+
+	return 0;
+}
+
+/*
+ * the shutdown routine.
+ */
+static int
+bktr_shutdown( device_t dev )
+{
+	struct bktr_softc *bktr = device_get_softc(dev);
+	bt848_ptr_t bt848;
+
+	/* Disable the brooktree device */
+	bt848 = bktr->base;
+	bt848->int_mask = ALL_INTS_DISABLED;
+	bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
+
+	return 0;
+}
+
 
 /* Copy the vbi lines from 'vbidata' into the circular buffer, 'vbibuffer'.
  * The circular buffer holds 'n' fixed size data blocks. 
@@ -1967,15 +1954,24 @@ bktr_open( dev_t dev, int flags, int fmt, struct proc *p )
 {
 	bktr_ptr_t	bktr;
 	int		unit;
+	int		result;
 
 	unit = UNIT( minor(dev) );
 	if (unit >= NBKTR)			/* unit out of range */
 		return( ENXIO );
 
-	bktr = &(brooktree[ unit ]);
+	/* Get the device data */
+	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
+	if (bktr == NULL) {
+		/* the device is no longer valid/functioning */
+		return (ENXIO);
+	}
 
 	if (!(bktr->flags & METEOR_INITALIZED)) /* device not found */
 		return( ENXIO );	
+
+	/* Record that the device is now busy */
+	device_busy(devclass_get_device(bktr_devclass, unit)); 
 
 
 	if (bt848_card != -1) {
@@ -2009,16 +2005,26 @@ bktr_open( dev_t dev, int flags, int fmt, struct proc *p )
 
 	switch ( MINOR( minor(dev) ) ) {
 	case VIDEO_DEV:
-		return( video_open( bktr ) );
+		result = video_open( bktr );
+		break;
 
 	case TUNER_DEV:
-		return( tuner_open( bktr ) );
+		result = tuner_open( bktr );
+		break;
 
 	case VBI_DEV:
-		return( vbi_open( bktr ) );
+		result = vbi_open( bktr );
+		break;
+
+	default:
+		result = ENXIO;
+		break;
 	}
 
-	return( ENXIO );
+	/* If there was an error opening the device, undo the busy status */
+	if (result != 0)
+		device_unbusy(devclass_get_device(bktr_devclass, unit)); 
+	return( result );
 }
 
 
@@ -2195,26 +2201,39 @@ bktr_close( dev_t dev, int flags, int fmt, struct proc *p )
 {
 	bktr_ptr_t	bktr;
 	int		unit;
+	int		result;
 
 	unit = UNIT( minor(dev) );
 	if (unit >= NBKTR)			/* unit out of range */
 		return( ENXIO );
 
-	bktr = &(brooktree[ unit ]);
+	/* Get the device data */
+	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
+	if (bktr == NULL) {
+		/* the device is no longer valid/functioning */
+		return (ENXIO);
+	}
 
 	switch ( MINOR( minor(dev) ) ) {
 	case VIDEO_DEV:
-		return( video_close( bktr ) );
+		result = video_close( bktr );
+		break;
 
 	case TUNER_DEV:
-		return( tuner_close( bktr ) );
+		result = tuner_close( bktr );
+		break;
 
 	case VBI_DEV:
-		return( vbi_close( bktr ) );
+		result = vbi_close( bktr );
+		break;
 
+	default:
+		return (ENXIO);
+		break;
 	}
 
-	return( ENXIO );
+	device_unbusy(devclass_get_device(bktr_devclass, unit)); 
+	return( result );
 }
 
 
@@ -2287,7 +2306,12 @@ bktr_read( dev_t dev, struct uio *uio, int ioflag )
 	if (unit >= NBKTR)	/* unit out of range */
 		return( ENXIO );
 
-	bktr = &(brooktree[unit]);
+	/* Get the device data */
+	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
+	if (bktr == NULL) {
+		/* the device is no longer valid/functioning */
+		return (ENXIO);
+	}
 
 	switch ( MINOR( minor(dev) ) ) {
 	case VIDEO_DEV:
@@ -2423,7 +2447,12 @@ bktr_ioctl( dev_t dev, ioctl_cmd_t cmd, caddr_t arg, int flag, struct proc* pr )
 	if (unit >= NBKTR)	/* unit out of range */
 		return( ENXIO );
 
-	bktr = &(brooktree[ unit ]);
+	/* Get the device data */
+	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
+	if (bktr == NULL) {
+		/* the device is no longer valid/functioning */
+		return (ENXIO);
+	}
 
 	if (bktr->bigbuf == 0)	/* no frame buffer allocated (ioctl failed) */
 		return( ENOMEM );
@@ -3592,7 +3621,12 @@ bktr_mmap( dev_t dev, vm_offset_t offset, int nprot )
 	if (unit >= NBKTR || MINOR(minor(dev)) > 0)/* could this happen here? */
 		return( -1 );
 
-	bktr = &(brooktree[ unit ]);
+	/* Get the device data */
+	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
+	if (bktr == NULL) {
+		/* the device is no longer valid/functioning */
+		return (ENXIO);
+	}
 
 	if (nprot & PROT_EXEC)
 		return( -1 );
@@ -5576,9 +5610,9 @@ static int check_for_i2c_devices( bktr_ptr_t bktr ){
   int i2c_all_0 = 1;
   int i2c_all_absent = 1;
   for ( x = 0; x < 128; ++x ) {
-	 temp_read = i2cRead( bktr, (2 * x) + 1 );
-	  if (temp_read != 0)      i2c_all_0 = 0;
-     if (temp_read != ABSENT) i2c_all_absent = 0;
+    temp_read = i2cRead( bktr, (2 * x) + 1 );
+    if (temp_read != 0)      i2c_all_0 = 0;
+    if (temp_read != ABSENT) i2c_all_absent = 0;
   }
 
   if ((i2c_all_0) || (i2c_all_absent)) return 0;

@@ -28,14 +28,14 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: brktree_reg.h,v 1.27 1999/05/10 10:08:50 roger Exp $
+ * $Id: brktree_reg.h,v 1.28 1999/05/25 12:44:40 roger Exp $
  */
 #ifndef PCI_LATENCY_TIMER
 #define	PCI_LATENCY_TIMER		0x0c	/* pci timer register */
 #endif
 
 /*
- * Definitions for the Philips SAA7116 digital video to pci interface.
+ * Definitions for the Brooktree 848/878 video capture to pci interface.
  */
 #define BROOKTREE_848_PCI_ID            0x0350109E
 #define BROOKTREE_849_PCI_ID            0x0351109E
@@ -387,22 +387,65 @@ struct bktr_i2c_softc {
 #endif
 
 typedef struct bktr_clip bktr_clip_t;
+
+
 /*
  * BrookTree 848  info structure, one per bt848 card installed.
  */
 struct bktr_softc {
-#ifdef __bsdi__
+
+#if defined (__bsdi__)
     struct device bktr_dev;	/* base device */
     struct isadev bktr_id;	/* ISA device */
     struct intrhand bktr_ih;	/* interrupt vectoring */
-#define pcici_t pci_devaddr_t
+    #define pcici_t pci_devaddr_t
 #endif
-#if ((defined(__FreeBSD__)) && (NSMBUS > 0))
-    struct bktr_i2c_softc i2c_sc;	/* bt848_i2c device */
+
+#if defined(__NetBSD__)
+    struct device bktr_dev;     /* base device */
+    bus_space_tag_t	memt;
+    bus_space_handle_t	memh;
+    bus_size_t		obmemsz;        /* size of en card (bytes) */
+    void		*ih;
+    bus_dmamap_t	dm_prog;
+    bus_dmamap_t	dm_oprog;
+    bus_dmamap_t	dm_mem;
+    vm_offset_t		phys_base;	/* Bt848 register physical address */
 #endif
+
+#if defined(__OpenBSD__)
+    struct device bktr_dev;     /* base device */
+    bus_dma_tag_t	dmat;   /* DMA tag */
+    bus_space_tag_t	memt;
+    bus_space_handle_t	memh;
+    bus_size_t		obmemsz;        /* size of en card (bytes) */
+    void		*ih;
+    bus_dmamap_t	dm_prog;
+    bus_dmamap_t	dm_oprog;
+    bus_dmamap_t	dm_mem;
+    size_t		dm_mapsize;
+    pci_chipset_tag_t	pc;	/* Opaque PCI chipset tag */
+    pcitag_t		tag;	/* PCI tag, for doing PCI commands */
+    vm_offset_t		phys_base;	/* Bt848 register physical address */
+#endif
+
+#if defined (__FreeBSD__)
+    #if (__FreeBSD__ < 4)
+    vm_offset_t     phys_base;	/* 2.x Bt848 register physical address */
+    pcici_t         tag;	/* 2.x PCI tag, for doing PCI commands */
+    #endif
+    #if (__FreeBSD__ > 3)
+    struct resource *res_mem;	/* 4.x resource descriptor for registers */
+    struct resource *res_irq;	/* 4.x resource descriptor for interrupt */
+    void            *res_ih;	/* 4.x newbus interrupt handler cookie */
+    #endif
+    #if (NSMBUS > 0)
+      struct bktr_i2c_softc i2c_sc;	/* bt848_i2c device */
+    #endif
+#endif
+
+    /* the following definitions are common over all platforms */
     bt848_ptr_t base;		/* Bt848 register physical address */
-    vm_offset_t phys_base;	/* Bt848 register physical address */
-    pcici_t	tag;		/* PCI tag, for doing PCI commands */
     vm_offset_t bigbuf;		/* buffer that holds the captured image */
     int		alloc_pages;	/* number of pages in bigbuf */
     vm_offset_t vbidata;	/* RISC program puts VBI data from the current frame here */
