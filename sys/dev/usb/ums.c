@@ -158,6 +158,9 @@ Static struct cdevsw ums_cdevsw = {
 	.d_poll =	ums_poll,
 	.d_name =	"ums",
 	.d_maj =	UMS_CDEV_MAJOR,
+#if __FreeBSD_version < 500014
+	.d_bmaj		-1
+#endif
 };
 
 USB_DECLARE_DRIVER(ums);
