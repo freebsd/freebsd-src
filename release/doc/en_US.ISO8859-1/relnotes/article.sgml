@@ -606,7 +606,7 @@
       will sleep for a small random period of time in the specified
       range before executing a job.  This feature is intended to
       smooth load peaks appearing when a lot of jobs are scheduled
-      for a particular moment.</para>
+      for a particular moment. &merged;</para>
 
     <para>&man.df.1; now supports a <option>-c</option> option to display
       a grand total of statistics for file systems.</para>
