@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.49 2003/04/26 22:13:51 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.50 2003/04/27 03:31:47 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.182 2003/04/09 02:09:55 christos Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -107,6 +107,7 @@
 #define	PCMCIA_VENDOR_LASAT	0x3401	/* Lasat Communications A/S */
 #define	PCMCIA_VENDOR_BONDWELL	0x3b01	/* Bondwell */
 #define	PCMCIA_VENDOR_LEXARMEDIA	0x4e01	/* Lexar Media */
+#define	PCMCIA_VENDOR_OEM1	0x50c2	/* Mystery OEM #1 */
 #define	PCMCIA_VENDOR_ARCHOS	0x5241	/* Archos */
 #define	PCMCIA_VENDOR_DUAL	0x890f	/* Dual */
 #define	PCMCIA_VENDOR_EDIMAX	0x890f	/* Edimax Technology Inc. */
@@ -539,6 +540,11 @@
 #define	PCMCIA_CIS_NWN_WLAN_1148	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_NWN_WLAN_1148	0x0003
 #define	PCMCIA_STR_NWN_WLAN_1148	"NWN 1148 WLAN"
+
+/* Mystery OEM #1 */
+#define	PCMCIA_CIS_OEM1_PRISM3	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_OEM1_PRISM3	0x7300
+#define	PCMCIA_STR_OEM1_PRISM3	"Prism 3 37300P"
 
 /* Olicom Products */
 #define	PCMCIA_CIS_OLICOM_TR	{ NULL, NULL, NULL, NULL }
