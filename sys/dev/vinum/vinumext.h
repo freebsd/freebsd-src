@@ -152,6 +152,7 @@ void vinum_meminfo(caddr_t data);
 int vinum_mallocinfo(caddr_t data);
 int vinum_rqinfo(caddr_t data);
 void LongJmp(jmp_buf, int);
+char *basename(char *);
 #else
 void longjmp(jmp_buf, int);				    /* the kernel doesn't define this */
 #endif
@@ -215,7 +216,11 @@ int tokenize(char *, char *[]);
 void resetstats(struct vinum_ioctl_msg *msg);
 
 /* Locking */
+#ifdef VINUMDEBUG
+int lockdrive(struct drive *drive, char *, int);
+#else
 int lockdrive(struct drive *drive);
+#endif
 void unlockdrive(struct drive *drive);
 int lockvol(struct volume *vol);
 void unlockvol(struct volume *vol);
