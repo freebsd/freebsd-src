@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 26, 2001
+.Dd November 23, 2004
 .Dt NG_ONE2MANY 4
 .Os
 .Sh NAME
@@ -84,12 +84,12 @@ by using the
 utility.
 .Sh TRANSMIT ALGORITHMS
 .Bl -tag -width foo
-.It NG_ONE2MANY_XMIT_ROUNDROBIN
+.It Dv NG_ONE2MANY_XMIT_ROUNDROBIN
 Packets are delivered out the many hooks in sequential order.
 Each packet goes out on a different
 .Dv many
 hook.
-.It NG_ONE2MANY_XMIT_ALL
+.It Dv NG_ONE2MANY_XMIT_ALL
 Packets are delivered out all the
 .Dv many
 hooks.
@@ -100,15 +100,38 @@ hook.
 .Pp
 In the future other algorithms may be added as well.
 .Sh LINK FAILURE DETECTION
-At this time, the only algorithm for determining when a link
-has failed, other than the hook being disconnected, is the
-``manual'' algorithm: the node is explicitly told which of
-the links are up via the
+The node distinguishes between active and failed links.
+Data is sent only to active links.
+The following link failure detection algorithms are available:
+.Bl -tag -width indent
+.It Dv NG_ONE2MANY_FAIL_MANUAL
+The node is explicitly told which of the links are up via the
 .Dv NGM_ONE2MANY_SET_CONFIG
 control message (see below).
 Newly connected links are down until configured otherwise.
+.It Dv NG_ONE2MANY_FAIL_NOTIFY
+The node listens to flow control message from
+.Va many
+hooks, and considers link failed if
+.Dv NGM_LINK_IS_DOWN
+is received.
+If the
+.Dv NGM_LINK_IS_UP
+message is received, node considers link active.
+.El
 .Pp
 In the future other algorithms may be added as well.
+.Pp
+When all links are considered failed, node sends
+.Dv NGM_LINK_IS_DOWN
+message towards the
+.Va one
+hook.
+When at least one link comes up, node sends the
+.Dv NGM_LINK_IS_UP
+message towards the
+.Va one
+hook.
 .Sh HOOKS
 This node type supports up to
 .Dv NG_ONE2MANY_MAX_LINKS
