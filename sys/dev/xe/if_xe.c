@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_xe.c,v 1.17 1999/03/28 20:27:24 scott Exp $
+ *	$Id: if_xe.c,v 1.18 1999/04/08 12:42:35 scott Exp $
  */
 
 /*
@@ -311,6 +311,156 @@ xe_probe (struct isa_device *dev) {
   return 0;
 }
 
+
+/*
+ * Two routines to read from/write to the attribute memory
+ * the write portion is used only for fixing up the RealPort cards,
+ * the reader portion was needed for debugging info, and duplicated some
+ * code in xe_card_init(), so it appears here instead with suitable
+ * modifications to xe_card_init()
+ * -aDe Lovett
+ */
+static int
+xe_memwrite(struct pccard_devinfo *devi, off_t offset, u_char byte)
+{
+  struct iovec iov;
+  struct uio uios;
+
+  iov.iov_base = &byte;
+  iov.iov_len = sizeof(byte);
+
+  uios.uio_iov = &iov;
+  uios.uio_iovcnt = 1;
+  uios.uio_offset = offset;
+  uios.uio_resid = sizeof(byte);
+  uios.uio_segflg = UIO_SYSSPACE;
+  uios.uio_rw = UIO_WRITE;
+  uios.uio_procp = 0;
+
+  return cdevsw[CARD_MAJOR]->d_write(makedev(CARD_MAJOR, devi->slt->slotnum), &uios, 0);
+}
+
+
+static int
+xe_memread(struct pccard_devinfo *devi, off_t offset, u_char *buf, int size)
+{
+  struct iovec iov;
+  struct uio uios;
+
+  iov.iov_base = buf;
+  iov.iov_len = size;
+
+  uios.uio_iov = &iov;
+  uios.uio_iovcnt = 1;
+  uios.uio_offset = offset;
+  uios.uio_resid = size;
+  uios.uio_segflg = UIO_SYSSPACE;
+  uios.uio_rw = UIO_READ;
+  uios.uio_procp = 0;
+
+  return cdevsw[CARD_MAJOR]->d_read(makedev(CARD_MAJOR, devi->slt->slotnum), &uios, 0);
+}
+
+
+/*
+ * Hacking for RealPort cards
+ */
+static int
+xe_cem56fix(struct xe_softc *scp)
+{
+  struct pccard_devinfo *devi;
+  struct slot *slt;
+  struct slot_ctrl *ctrl;
+  int ioport;
+
+#ifdef XE_DEBUG
+  u_char buf[32];
+  int i;
+#endif
+
+  /* initialise a few variables */
+  devi = scp->crd;
+  slt = devi->slt;
+  ctrl = slt->ctrl;
+
+  /* move the modem (on I/O 0), to I/0 1
+   * not entirely sure if this is necessary, but it's in the Linux
+   * driver, so we do it
+   */
+
+  /* save the modem data */
+  slt->io[1].window = 1;
+  slt->io[1].flags = slt->io[0].flags;
+  slt->io[1].start = slt->io[0].start;
+  slt->io[1].size = slt->io[0].size;
+
+  /* unregister I/O port 0 */
+  ctrl->mapio( slt, 0 );
+
+  /* re-register modem as I/O port 1 */
+  ctrl->mapio( slt, 1 );
+
+  /* find an available I/O address to use for the Ethernet part */
+  slt->io[0].window = 0;
+  slt->io[0].flags = IODF_WS|IODF_16BIT|IODF_ZEROWS|IODF_ACTIVE;
+  slt->io[0].size = 16;
+  for (ioport = 0x300; ioport < 0x400; ioport += 0x10) {
+      slt->io[0].start = ioport;
+      if (ctrl->mapio( slt, 0 ) == 0)
+	  break;
+  }
+
+  /* did we find one? */
+  if (ioport == 0x400) {
+    printf( "xe%d: xe_cem56fix: no free address space\n", scp->unit );
+    return -1;
+  }
+
+  /* munge the id_iobase entry for use by the rest of the driver */
+#ifdef XE_DEBUG
+  printf( "xe%d: using 0x%x for RealPort ethernet\n", scp->unit, ioport );
+#endif
+  scp->dev->id_iobase = ioport;
+
+  /* first bit of magic */
+  xe_memwrite( devi, 0x800, 0x47 );
+  xe_memwrite( devi, 0x80a, ioport & 0xff );
+  xe_memwrite( devi, 0x80c, (ioport >> 8) & 0xff );
+
+#ifdef XE_DEBUG
+  if (xe_memread( devi, 0x800, buf, 14 ) == 0) {
+    printf( "ECOR:" );
+    for (i = 0; i < 7; i++)
+      printf( " %02x", buf[i*2] );
+    printf( "\n" );
+  }
+
+  if (xe_memread( devi, 0x820, buf, 8 ) == 0) {
+    printf( "DCOR:" );
+    for (i = 0; i < 4; i++)
+      printf( " %02x", buf[i*2] );
+    printf( "\n" );
+  }
+
+  if (xe_memread( devi, 0x840, buf, 20 ) == 0) {
+    printf( "SCOR:" );
+    for (i = 0; i < 10; i++)
+      printf( " %02x", buf[i*2] );
+    printf( "\n" );
+  }
+#endif
+
+  /* second bit of magic */
+  xe_memwrite( devi, 0x820, 0x01 );
+  xe_memwrite( devi, 0x822, 0x0c );
+  xe_memwrite( devi, 0x824, 0x00 );
+  xe_memwrite( devi, 0x826, 0x00 );
+  xe_memwrite( devi, 0x828, 0x00 );
+
+  /* success! */
+  return 0;
+}
+
 	
 /*
  * PCMCIA probe routine.
@@ -323,8 +473,6 @@ xe_card_init(struct pccard_devinfo *devi)
 {
   struct xe_softc *scp;
   struct isa_device *dev;
-  struct uio uios;
-  struct iovec iov;
   u_char buf[CISTPL_BUFSIZE];
   u_char ver_str[CISTPL_BUFSIZE>>1];
   off_t offs;
@@ -372,16 +520,6 @@ xe_card_init(struct pccard_devinfo *devi)
     u_int16_t vendor;
     u_int8_t rev, media, prod;
 
-    iov.iov_base = buf;
-    iov.iov_len = CISTPL_BUFSIZE;
-    uios.uio_iov = &iov;
-    uios.uio_iovcnt = 1;
-    uios.uio_offset = offs;
-    uios.uio_resid = CISTPL_BUFSIZE;
-    uios.uio_segflg = UIO_SYSSPACE;
-    uios.uio_rw = UIO_READ;
-    uios.uio_procp = 0;
-
     /*
      * Read tuples one at a time into buf.  Sucks, but it only happens once.
      * XXX - If the stuff we need isn't in attribute memory, or (worse yet)
@@ -389,7 +527,7 @@ xe_card_init(struct pccard_devinfo *devi)
      * XXX - ioctl on the card device and follow links?
      * XXX - Not really the driver's problem, PCCARD should handle all this!
      */
-    if ((rc = cdevsw[CARD_MAJOR]->d_read(makedev(CARD_MAJOR, devi->slt->slotnum), &uios, 0)) == 0) {
+    if ((rc = xe_memread( devi, offs, buf, CISTPL_BUFSIZE )) == 0) {
 
       switch (CISTPL_TYPE(buf)) {
 
@@ -535,6 +673,14 @@ xe_card_init(struct pccard_devinfo *devi)
   scp->ifm = &scp->ifmedia;
   scp->unit = unit;
   scp->autoneg_status = 0;
+
+  /* Hack RealPorts into submission */
+  if (scp->cem56 && xe_cem56fix(scp) < 0) {
+    printf( "xe%d: Unable to fix your RealPort\n", unit );
+    sca[unit] = 0;
+    free(scp, M_DEVBUF);
+    return ENODEV;
+  }
 
   /* Attempt to attach the device */
   if (!xe_attach(scp->dev)) {
