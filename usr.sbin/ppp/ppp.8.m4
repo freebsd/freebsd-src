@@ -5337,6 +5337,11 @@ If this
 .Dv RAD_VENDOR_MICROSOFT
 vendor specific attribute is supplied, it is passed back to the peer as the
 authentication FAILURE text.
+.It RAD_MICROSOFT_MS_CHAP2_SUCCESS
+If this
+.Dv RAD_VENDOR_MICROSOFT
+vendor specific attribute is supplied and if MS-CHAPv2 authentication is
+being used, it is passed back to the peer as the authentication SUCCESS text.
 .El
 Values received from the RADIUS server may be viewed using
 .Dq show bundle .
