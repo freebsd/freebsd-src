@@ -373,14 +373,34 @@ imm_detect(struct vpoio_data *vpo)
 	/* disconnect the drive, keep the bus */
 	imm_disconnect(vpo, NULL, 0);
 
-	/* we already have the bus, just connect */
-	imm_connect(vpo, PPB_DONTWAIT, &error, 0);
+	vpo->vpo_mode_found = VP0_MODE_UNDEFINED;
+	error = 1;
 
+	/* try to enter EPP mode since vpoio failure put the bus in NIBBLE */
+	if (ppb_set_mode(ppbus, PPB_EPP) != -1) {
+		imm_connect(vpo, PPB_DONTWAIT, &error, 0);
+	}
+
+	/* if connection failed try PS/2 then NIBBLE modes */
 	if (error) {
-		if (bootverbose)
-			printf("imm%d: can't connect to the drive\n",
-				vpo->vpo_unit);
-		goto error;
+		if (ppb_set_mode(ppbus, PPB_PS2) != -1) {
+			imm_connect(vpo, PPB_DONTWAIT, &error, 0);
+		}
+		if (error) {
+			if (ppb_set_mode(ppbus, PPB_NIBBLE) != -1) {
+				imm_connect(vpo, PPB_DONTWAIT, &error, 0);
+				if (error)
+					goto error;
+				vpo->vpo_mode_found = VP0_MODE_NIBBLE;
+			} else {
+				printf("imm%d: NIBBLE mode unavailable!\n", vpo->vpo_unit);
+				goto error;
+			}
+		} else {
+			vpo->vpo_mode_found = VP0_MODE_PS2;
+		}
+	} else {
+		vpo->vpo_mode_found = VP0_MODE_EPP;
 	}
 
 	/* send SCSI reset signal */
@@ -555,7 +575,6 @@ int
 imm_attach(struct vpoio_data *vpo)
 {
 	device_t ppbus = device_get_parent(vpo->vpo_dev);
-	int epp;
 
 	/*
 	 * Initialize microsequence code
@@ -577,64 +596,25 @@ imm_attach(struct vpoio_data *vpo)
 	 */
 	ppb_request_bus(ppbus, vpo->vpo_dev, PPB_WAIT);
 
-	/* enter NIBBLE mode to configure submsq */
-	if (ppb_set_mode(ppbus, PPB_NIBBLE) != -1) {
-
-		ppb_MS_GET_init(ppbus, vpo->vpo_dev, vpo->vpo_nibble_inbyte_msq);
-		ppb_MS_PUT_init(ppbus, vpo->vpo_dev, spp_outbyte_submicroseq);
-	}
-
-	/* enter PS2 mode to configure submsq */
-	if (ppb_set_mode(ppbus, PPB_PS2) != -1) {
-
+	/* ppbus automatically restore the last mode entered during detection */
+	switch (vpo->vpo_mode_found) {
+	case VP0_MODE_EPP:
+		ppb_MS_GET_init(ppbus, vpo->vpo_dev, epp17_instr);
+		ppb_MS_PUT_init(ppbus, vpo->vpo_dev, epp17_outstr);
+		printf("imm%d: EPP mode\n", vpo->vpo_unit);
+		break;
+	case VP0_MODE_PS2:
 		ppb_MS_GET_init(ppbus, vpo->vpo_dev, ps2_inbyte_submicroseq);
 		ppb_MS_PUT_init(ppbus, vpo->vpo_dev, spp_outbyte_submicroseq);
-	}
-
-	epp = ppb_get_epp_protocol(ppbus);
-
-	/* enter EPP mode to configure submsq */
-	if (ppb_set_mode(ppbus, PPB_EPP) != -1) {
-
-		switch (epp) {
-		case EPP_1_9:
-		case EPP_1_7:
-			ppb_MS_GET_init(ppbus, vpo->vpo_dev, epp17_instr);
-			ppb_MS_PUT_init(ppbus, vpo->vpo_dev, epp17_outstr);
-			break;
-		default:
-			panic("%s: unknown EPP protocol (0x%x)", __FUNCTION__,
-				epp);
-		}
-	}
-
-	/* try to enter EPP or PS/2 mode, NIBBLE otherwise */
-	if (ppb_set_mode(ppbus, PPB_EPP) != -1) {
-		switch (epp) {
-		case EPP_1_9:
-			printf("imm%d: EPP 1.9 mode\n", vpo->vpo_unit);
-			break;
-		case EPP_1_7:
-			printf("imm%d: EPP 1.7 mode\n", vpo->vpo_unit);
-			break;
-		default:
-			panic("%s: unknown EPP protocol (0x%x)", __FUNCTION__,
-				epp);
-		}
-	} else if (ppb_set_mode(ppbus, PPB_PS2) != -1)
 		printf("imm%d: PS2 mode\n", vpo->vpo_unit);
-
-	else if (ppb_set_mode(ppbus, PPB_NIBBLE) != -1)
+		break;
+	case VP0_MODE_NIBBLE:
+		ppb_MS_GET_init(ppbus, vpo->vpo_dev, vpo->vpo_nibble_inbyte_msq);
+		ppb_MS_PUT_init(ppbus, vpo->vpo_dev, spp_outbyte_submicroseq);
 		printf("imm%d: NIBBLE mode\n", vpo->vpo_unit);
-
-	else {
-		printf("imm%d: can't enter NIBBLE, PS2 or EPP mode\n",
-			vpo->vpo_unit);
-
-		ppb_release_bus(ppbus, vpo->vpo_dev);
-
-		free(vpo->vpo_nibble_inbyte_msq, M_DEVBUF);
-		return (ENXIO);
+		break;
+	default:
+		panic("imm: unknown mode %d", vpo->vpo_mode_found);
 	}
 
 	ppb_release_bus(ppbus, vpo->vpo_dev);
@@ -797,6 +777,10 @@ imm_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
 		if (imm_instr(vpo, &h, 1)) {
 			*ret = VP0_EOTHER+2; goto error;
 		}
+
+	/* Experience showed that we should discard this */
+	if (h == -1)
+		h = 0;
 
 	*result = ((int) h << 8) | ((int) l & 0xff);
 
