@@ -222,14 +222,15 @@ ast(struct trapframe *framep)
 	if (sflag & PS_XCPU) {
 		PROC_LOCK(p);
 		rlim = &p->p_rlimit[RLIMIT_CPU];
-		if (p->p_runtime.sec >= rlim->rlim_max)
+		mtx_lock_spin(&sched_lock);
+		if (p->p_runtime.sec >= rlim->rlim_max) {
+			mtx_unlock_spin(&sched_lock);
 			killproc(p, "exceeded maximum CPU limit");
-		else {
-			psignal(p, SIGXCPU);
-			mtx_lock_spin(&sched_lock);
+		} else {
 			if (p->p_cpulimit < rlim->rlim_max)
 				p->p_cpulimit += 5;
 			mtx_unlock_spin(&sched_lock);
+			psignal(p, SIGXCPU);
 		}
 		PROC_UNLOCK(p);
 	}
