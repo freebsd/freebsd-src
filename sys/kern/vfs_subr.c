@@ -178,7 +178,7 @@ int	prtactive;
 
 /*
  * The workitem queue.
- * 
+ *
  * It is useful to delay writes of file data and filesystem metadata
  * for tens of seconds so that quickly created and deleted files need
  * not waste disk bandwidth being created and removed. To realize this,
@@ -202,7 +202,7 @@ int	prtactive;
  *
  */
 static int syncer_delayno;
-static long syncer_mask; 
+static long syncer_mask;
 LIST_HEAD(synclist, vnode);
 static struct synclist *syncer_workitem_pending;
 
@@ -227,9 +227,9 @@ SYSCTL_INT(_debug, OID_AUTO, rush_requests, CTLFLAG_RW, &stat_rush_requests, 0, 
  * XXX desiredvnodes is historical cruft and should not exist.
  */
 int desiredvnodes;
-SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RW, 
+SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RW,
     &desiredvnodes, 0, "Maximum number of vnodes");
-static int minvnodes; 
+static int minvnodes;
 SYSCTL_INT(_kern, OID_AUTO, minvnodes, CTLFLAG_RW,
     &minvnodes, 0, "Minimum number of vnodes");
 static int vnlru_nowhere;
@@ -264,8 +264,8 @@ vntblinit(void *dummy __unused)
 	      NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	/*
 	 * Initialize the filesystem syncer.
-	 */     
-	syncer_workitem_pending = hashinit(syncer_maxdelay, M_VNODE, 
+	 */
+	syncer_workitem_pending = hashinit(syncer_maxdelay, M_VNODE,
 		&syncer_mask);
 	syncer_maxdelay = syncer_mask + 1;
 }
@@ -656,7 +656,7 @@ vlrureclaim(struct mount *mp, int count)
 static struct proc *vnlruproc;
 static int vnlruproc_sig;
 
-static void 
+static void
 vnlru_proc(void)
 {
 	struct mount *mp, *nmp;
@@ -668,7 +668,7 @@ vnlru_proc(void)
 	mtx_lock(&Giant);
 
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, kproc_shutdown, p,
-	    SHUTDOWN_PRI_FIRST);   
+	    SHUTDOWN_PRI_FIRST);
 
 	s = splbio();
 	for (;;) {
@@ -777,7 +777,7 @@ getnewvnode(tag, mp, vops, vpp)
 			 */
 			if (VOP_GETVOBJECT(vp, &object) == 0 &&
 			     (object->resident_page_count ||
-			      object->ref_count)) { 
+			      object->ref_count)) {
 				TAILQ_INSERT_TAIL(&vnode_free_list, vp,
 						    v_freelist);
 				vp = NULL;
@@ -991,7 +991,7 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 				panic("vinvalbuf: dirty bufs");
 		}
 		splx(s);
-  	}
+	}
 	s = splbio();
 	for (;;) {
 		blist = TAILQ_FIRST(&vp->v_cleanblkhd);
@@ -1231,7 +1231,7 @@ brelvp(bp)
 	if (bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN)) {
 		if (bp->b_xflags & BX_VNDIRTY)
 			listheadp = &vp->v_dirtyblkhd;
-		else 
+		else
 			listheadp = &vp->v_cleanblkhd;
 		TAILQ_REMOVE(listheadp, bp, b_vnbufs);
 		bp->b_xflags &= ~(BX_VNDIRTY | BX_VNCLEAN);
@@ -1280,7 +1280,7 @@ SYSINIT(syncer, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, &up_kp)
 /*
  * System filesystem synchronizer daemon.
  */
-void 
+void
 sched_sync(void)
 {
 	struct synclist *slp;
@@ -1293,7 +1293,7 @@ sched_sync(void)
 	mtx_lock(&Giant);
 
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, kproc_shutdown, td->td_proc,
-	    SHUTDOWN_PRI_LAST);   
+	    SHUTDOWN_PRI_LAST);
 
 	for (;;) {
 		kthread_suspend_check(td->td_proc);
@@ -1323,8 +1323,8 @@ sched_sync(void)
 			if (LIST_FIRST(slp) == vp) {
 				/*
 				 * Note: v_tag VT_VFS vps can remain on the
-				 * worklist too with no dirty blocks, but 
-				 * since sync_fsync() moves it to a different 
+				 * worklist too with no dirty blocks, but
+				 * since sync_fsync() moves it to a different
 				 * slot we are safe.
 				 */
 				if (TAILQ_EMPTY(&vp->v_dirtyblkhd) &&
@@ -1430,7 +1430,7 @@ pbrelvp(bp)
 	/* XXX REMOVE ME */
 	if (TAILQ_NEXT(bp, b_vnbufs) != NULL) {
 		panic(
-		    "relpbuf(): b_vp was probably reassignbuf()d %p %x", 
+		    "relpbuf(): b_vp was probably reassignbuf()d %p %x",
 		    bp,
 		    (int)bp->b_flags
 		);
@@ -1473,7 +1473,7 @@ reassignbuf(bp, newvp)
 	if (bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN)) {
 		if (bp->b_xflags & BX_VNDIRTY)
 			listheadp = &bp->b_vp->v_dirtyblkhd;
-		else 
+		else
 			listheadp = &bp->b_vp->v_cleanblkhd;
 		TAILQ_REMOVE(listheadp, bp, b_vnbufs);
 		bp->b_xflags &= ~(BX_VNDIRTY | BX_VNCLEAN);
@@ -1536,7 +1536,7 @@ reassignbuf(bp, newvp)
 				 * not meta-data due to prior conditionals.
 				 *
 				 * Indirect effects:  NFS second stage write
-				 * tends to wind up here, giving maximum 
+				 * tends to wind up here, giving maximum
 				 * distance between the unstable write and the
 				 * commit rpc.
 				 */
@@ -1745,7 +1745,7 @@ vget(vp, flags, td)
 	return (0);
 }
 
-/* 
+/*
  * Increase the reference count of a vnode.
  */
 void
@@ -1806,7 +1806,7 @@ vrele(vp)
 	}
 }
 
-/* 
+/*
  * Release an already locked vnode.  This give the same effects as
  * unlock+vrele(), but takes less time and avoids releasing and
  * re-aquiring the lock (as vrele() aquires the lock internally.)
@@ -1862,7 +1862,7 @@ vhold(vp)
 {
 	int s;
 
-  	s = splbio();
+	s = splbio();
 	vp->v_holdcnt++;
 	if (VSHOULDBUSY(vp))
 		vbusy(vp);
@@ -1961,7 +1961,7 @@ loop:
 		/*
 		 * If WRITECLOSE is set, flush out unlinked but still open
 		 * files (even if open only for reading) and regular file
-		 * vnodes open for writing. 
+		 * vnodes open for writing.
 		 */
 		if ((flags & WRITECLOSE) &&
 		    (vp->v_type == VNON ||
@@ -2145,7 +2145,7 @@ vclean(vp, flags, td)
 
 	if (VSHOULDFREE(vp))
 		vfree(vp);
-	
+
 	/*
 	 * Done with purge, notify sleepers of the grim news.
 	 */
@@ -2734,7 +2734,7 @@ vfree(vp)
 	splx(s);
 }
 
-/* 
+/*
  * Opposite of vfree() - mark a vnode as in use.
  */
 void
@@ -2769,7 +2769,7 @@ vn_pollrecord(vp, td, events)
 {
 
 	if (vp->v_pollinfo == NULL)
-		v_addpollinfo(vp);	
+		v_addpollinfo(vp);
 	mtx_lock(&vp->v_pollinfo->vpi_lock);
 	if (vp->v_pollinfo->vpi_revents & events) {
 		/*
@@ -2804,7 +2804,7 @@ vn_pollevent(vp, events)
 {
 
 	if (vp->v_pollinfo == NULL)
-		v_addpollinfo(vp);	
+		v_addpollinfo(vp);
 	mtx_lock(&vp->v_pollinfo->vpi_lock);
 	if (vp->v_pollinfo->vpi_events & events) {
 		/*
@@ -2836,7 +2836,7 @@ vn_pollgone(vp)
 {
 
 	mtx_lock(&vp->v_pollinfo->vpi_lock);
-        VN_KNOTE(vp, NOTE_REVOKE);
+	VN_KNOTE(vp, NOTE_REVOKE);
 	if (vp->v_pollinfo->vpi_events) {
 		vp->v_pollinfo->vpi_events = 0;
 		selwakeup(&vp->v_pollinfo->vpi_selinfo);
@@ -3236,4 +3236,3 @@ privcheck:
 
 	return ((acc_mode & VADMIN) ? EPERM : EACCES);
 }
-
