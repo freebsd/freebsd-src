@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/4/93
- *	$Id$
+ *	$Id: pathnames.h,v 1.8 1997/02/22 14:21:29 peter Exp $
  */
 
 #include <paths.h>
@@ -40,3 +40,4 @@
 #define	_PATH_FTPWELCOME	"/etc/ftpwelcome"
 #define	_PATH_FTPLOGINMESG	"/etc/ftpmotd"
 #define _PATH_FTPDSTATFILE	"/var/log/ftpd"
+#define _PATH_LS		"/bin/ls"
