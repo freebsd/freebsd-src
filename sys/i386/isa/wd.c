@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.106 1996/04/18 21:37:43 phk Exp $
+ *	$Id: wd.c,v 1.107 1996/05/02 10:43:10 phk Exp $
  */
 
 /* TODO:
@@ -1196,7 +1196,7 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	if ((du->dk_flags & DKFL_BSDLABEL) == 0) {
 		/*
 		 * wdtab[ctrlr].b_active != 0 implies  XXX applicable now ??
-		 * drive_queue[lunit].b_actf == NULL (?)  XXX applicable now ??
+		 * drive_queue[lunit].b_act == NULL (?)  XXX applicable now ??
 		 * so the following guards most things (until the next i/o).
 		 * It doesn't guard against a new i/o starting and being
 		 * affected by the label being changed.  Sigh.
