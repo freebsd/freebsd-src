@@ -18,6 +18,7 @@ SUBDIR=	accf_data \
 	dc \
 	dummynet \
 	fdesc \
+	firewire \
 	fxp \
 	gx \
 	if_disc \
