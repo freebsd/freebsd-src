@@ -40,7 +40,7 @@
 .Ft void
 .Fn vm_page_io_start "vm_page_t m"
 .Ft void
-.Fn vm_page_io_finised "vm_page_t m"
+.Fn vm_page_io_finished "vm_page_t m"
 .Sh DESCRIPTION
 The
 .Fn vm_page_io_start
@@ -49,11 +49,15 @@ function prepares the page for I/O by incrementing its busy flag by 1.
 The
 .Fn vm_page_io_finished
 function lowers the busy count on the page by one, if the resulting busy
-count is zero, a wakeup will be issued if the page has been marked PG_WANTED.
-A page is typically marked PG_WANTED by a thread to register interested in
+count is zero, a wakeup will be issued if the page has been marked
+.Dv PG_WANTED .
+A page is typically marked
+.Dv PG_WANTED
+by a thread to register interested in
 the page either completing I/O or becoming available for general use.
 .Sh AUTHORS
+.An -nosplit
 This man page was written by
-.An Chad David Aq davidc@acns.ab.ca ,
+.An Chad David Aq davidc@acns.ab.ca
 and
-.An Alfred Perlstein Aq alfred@freebsd.org .
+.An Alfred Perlstein Aq alfred@FreeBSD.org .
