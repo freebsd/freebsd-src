@@ -56,7 +56,7 @@
 static int mss_probe(struct isa_device *dev);
 static int mss_attach(struct isa_device *dev);
 
-static d_open_t mss_open;
+d_open_t mss_open; /* this is a generic full-duplex open routine */
 static d_close_t mss_close;
 static d_ioctl_t mss_ioctl;
 static irq_proc_t mss_intr;
@@ -270,7 +270,7 @@ mss_attach(struct isa_device *dev)
     return 0;
 }
 
-static int
+int
 mss_open(dev_t dev, int flags, int mode, struct proc * p)
 {
     int unit;
@@ -642,12 +642,14 @@ gus_write(int io_base, u_char reg, u_char value)
     outb(io_base + 5, value);
 }
 
+#if 0
 static void
 gus_writew(int io_base, u_char reg, u_short value)
 {
     outb(io_base + 3, reg);
     outb(io_base + 4, value);
 }
+#endif
 
 static u_char
 gus_read(int io_base, u_char reg)
@@ -656,13 +658,14 @@ gus_read(int io_base, u_char reg)
     return inb(io_base+5);
 }
 
+#if 0
 static u_short
 gus_readw(int io_base, u_char reg)
 {
     outb(io_base+3, reg);
     return inw(io_base+4);
 }
-
+#endif
 
 /*
  * AD_WAIT_INIT waits if we are initializing the board and
@@ -827,22 +830,6 @@ mss_set_recsrc(snddev_info *d, int mask)
     d->mix_recsrc = mask;
     return 0;
 }
-
-/*
- * mixer conversion table: from 0..100 scale to codec values
- *
- * I don't understand what's this for... maybe achieve a log-scale
- * volume control ?
- */
-
-static char mix_cvt[101] = { 
-     0, 1, 3, 7,10,13,16,19,21,23,26,28,30,32,34,35,37,39,40,42,
-    43,45,46,47,49,50,51,52,53,55,56,57,58,59,60,61,62,63,64,65,
-    65,66,67,68,69,70,70,71,72,73,73,74,75,75,76,77,77,78,79,79,
-    80,81,81,82,82,83,84,84,85,85,86,86,87,87,88,88,89,89,90,90,
-    91,91,92,92,93,93,94,94,95,95,96,96,96,97,97,98,98,98,99,99, 
-    100
-}; 
 
 /*
  * there are differences in the mixer depending on the actual sound
@@ -1402,9 +1389,9 @@ cs423x_probe(u_long csn, u_long vend_id)
     u_long id = vend_id & 0xff00ffff;
     if ( id == 0x3700630e )
 	s = "CS4237" ;
-    if ( id == 0x2500630e )
+    else if ( id == 0x2500630e )
 	s = "CS4235" ;
-    else if ( id == 0x3500630e || id == 0x3600630e )
+    else if ( id == 0x3600630e )
 	s = "CS4236" ;
     else if ( id == 0x3500630e )
 	s = "CS4236B" ;
@@ -1487,7 +1474,7 @@ cs423x_attach(u_long csn, u_long vend_id, char *name,
 	    tmp_d.bd_id = MD_CS4237 ;
 	    break;
 
-	case 0x2500630e:	/* AOpen AW37 */
+	case 0x2500630e:	/* AOpen AW37, CS4235 */
 	    tmp_d.bd_id = MD_CS4237 ;
 	    break ;
 
@@ -1692,7 +1679,9 @@ opti925_attach(u_long csn, u_long vend_id, char *name,
     pcmattach(dev);
 }
 
+#if 0
 static void gus_mem_cfg(snddev_info *tmp);
+#endif
 
 static char *guspnp_probe(u_long csn, u_long vend_id);
 static void guspnp_attach(u_long csn, u_long vend_id, char *name,
