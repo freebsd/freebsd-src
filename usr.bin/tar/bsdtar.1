@@ -136,23 +136,10 @@ As a rule, this argument is only needed when reading from or writing
 to tape drives, and usually not even then as the default block size of
 20 records (10240 bytes) is very common.
 .It Fl C Ar directory
-Change directories.
-The directory is changed after the archive
-is opened, but before any entries are extracted or written.
-(In particular, it does not affect the interpretation of the
-.Fl f
-option.)
-In create mode, note that
-.Fl C
-options are all processed before any files are read.
-To change directories between files, use
-.Cm C= Ns Pa dir .
-.It Cm C= Ns Pa dir
-(c and r mode only)
-Change to the specified directory before adding the following files.
-(Note that this is not an option in the sense of
-.Xr getopt 3 ,
-and is therefore processed as the files are processed.)
+In c and r mode, this changes the directory before adding
+the following files.
+In x mode, change directories after opening the archive
+but before extracting entries from the archive.
 .It Fl -exclude Ar pattern
 Do not process files or directories that match the
 specified pattern.
@@ -358,11 +345,11 @@ the default tape drive:
 .Pp
 In create mode, the list of files and directories to be archived
 can also include directory change instructions of the form
-.Cm C= Ns Pa foo/baz
+.Cm -C Ns Pa foo/baz
 and archive inclusions of the form
 .Cm @ Ns Pa archive-file .
 For example, the command line
-.Dl Nm Fl c Fl f Pa new.tar Pa foo1 Cm @ Ns Pa old.tgz Cm C= Ns Pa /tmp Pa foo2
+.Dl Nm Fl c Fl f Pa new.tar Pa foo1 Cm @ Ns Pa old.tgz Cm -C Ns Pa /tmp Pa foo2
 will create a new archive
 .Pa new.tar .
 .Nm
@@ -560,14 +547,7 @@ options do not.
 .Pp
 The
 .Fl C Pa dir
-option differs from historic implementations.
-In order to provide the range of historic behaviors while
-retaining some consistency with POSIX option-processing
-conventions, this implementation uses
-.Fl C Pa dir
-and
-.Cm C= Ns Pa dir
-for the two distinct behaviors.
+option may differ from historic implementations.
 .Pp
 All archive output is written in correctly-sized blocks, even
 if the output is being compressed.
@@ -611,11 +591,6 @@ mode with the
 extension.
 .Pp
 To archive a file called
-.Pa C=foo ,
-you must specify it as
-.Pa ./C=foo
-on the command line.
-Similarly, to archive a file called
 .Pa @foo
 or
 .Pa -foo
