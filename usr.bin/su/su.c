@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)su.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: su.c,v 1.27 1998/05/26 06:39:08 danny Exp $";
+	"$Id: su.c,v 1.28 1998/09/21 07:44:25 roberto Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -59,6 +59,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
+#include <libutil.h>
 
 #ifdef LOGIN_CAP
 #include <login_cap.h>
@@ -185,6 +186,11 @@ main(argc, argv)
 
 	argv += optind;
 
+#ifdef KERBEROS
+	k = auth_getval("auth_list");
+	if (k && !strstr(k, "kerberos"))
+	    use_kerberos = 0;
+#endif
 	errno = 0;
 	prio = getpriority(PRIO_PROCESS, 0);
 	if (errno)
