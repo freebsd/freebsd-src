@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)value.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: value.c,v 1.3 1997/08/18 07:16:12 charnier Exp $";
 #endif /* not lint */
 
 #include "tip.h"
@@ -66,7 +66,10 @@ vinit()
 			if ((cp = getenv(p->v_name)))
 				p->v_value = cp;
 		if (p->v_type&IREMOTE)
-			number(p->v_value) = *address(p->v_value);
+			if (p->v_type&STRING)
+				p->v_value = *(char **) address(p->v_value);
+			else
+				number(p->v_value) = *address(p->v_value);
 	}
 	/*
 	 * Read the .tiprc file in the HOME directory

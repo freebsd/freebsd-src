@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)cmds.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: cmds.c,v 1.6 1997/08/26 10:25:16 eivind Exp $";
+	"$Id: cmds.c,v 1.7 1998/06/09 04:28:02 imp Exp $";
 #endif /* not lint */
 
 #include "tipconf.h"
@@ -497,7 +497,7 @@ transmit(fd, eofchars, command)
 			printf("\r%d", ++lcount);
 		if (boolean(value(ECHOCHECK))) {
 			timedout = 0;
-			alarm((int)value(ETIMEOUT));
+			alarm(number(value(ETIMEOUT)));
 			do {	/* wait for prompt */
 				read(FD, (char *)&c, 1);
 				if (timedout || stop) {
@@ -586,7 +586,7 @@ send(c)
 	}
 tryagain:
 	timedout = 0;
-	alarm((int)value(ETIMEOUT));
+	alarm(number(value(ETIMEOUT)));
 	read(FD, &cc, 1);
 	alarm(0);
 	if (timedout) {
