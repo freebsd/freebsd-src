@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.81 1994/10/26 18:35:02 jkh Exp $
+ *	$Id: machdep.c,v 1.82 1994/10/27 20:44:34 jkh Exp $
  */
 
 #include "npx.h"
@@ -1561,6 +1561,7 @@ Debugger(const char *msg)
 }
 #endif /* no DDB */
 
+#include <sys/dkbad.h>
 #include <sys/disklabel.h>
 #define b_cylin	b_resid
 /*
