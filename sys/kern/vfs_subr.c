@@ -1869,12 +1869,14 @@ reassignbuf(bp, newvp)
 	register struct buf *bp;
 	register struct vnode *newvp;
 {
+	struct vnode *vp;
 	int delay;
 
 	if (newvp == NULL) {
 		printf("reassignbuf: NULL");
 		return;
 	}
+	vp = bp->b_vp;
 	++reassignbufcalls;
 
 	/*
@@ -1887,20 +1889,22 @@ reassignbuf(bp, newvp)
 	/*
 	 * Delete from old vnode list, if on one.
 	 */
-	VI_LOCK(bp->b_vp);
+	VI_LOCK(vp);
 	if (bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN)) {
 		buf_vlist_remove(bp);
-		if (bp->b_vp != newvp) {
+		if (vp != newvp) {
 			vdropl(bp->b_vp);
 			bp->b_vp = NULL;	/* for clarification */
 		}
 	}
-	VI_UNLOCK(bp->b_vp);
+	if (vp != newvp) {
+		VI_UNLOCK(vp);
+		VI_LOCK(newvp);
+	}
 	/*
 	 * If dirty, put on list of dirty buffers; otherwise insert onto list
 	 * of clean buffers.
 	 */
-	VI_LOCK(newvp);
 	if (bp->b_flags & B_DELWRI) {
 		if ((newvp->v_iflag & VI_ONWORKLST) == 0) {
 			switch (newvp->v_type) {
@@ -2580,13 +2584,14 @@ vclean(vp, flags, td)
 		VI_LOCK(vp);
 		v_incr_usecount(vp, -1);
 		if (vp->v_usecount <= 0) {
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 			if (vp->v_usecount < 0 || vp->v_writecount != 0) {
 				vprint("vclean: bad ref count", vp);
 				panic("vclean: ref cnt");
 			}
 #endif
-			vfree(vp);
+			if (VSHOULDFREE(vp))
+				vfree(vp);
 		}
 		VI_UNLOCK(vp);
 	}
