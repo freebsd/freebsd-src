@@ -1300,6 +1300,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         &man.acd.4; driver uses for setting the speed of CDROM
         access.</para>
 
+      <para>The &man.targ.4; driver has been rewritten and a new
+	usermode has been added to share/examples/scsi_target that
+	emulates a direct access device.</para>
+
       <para arch="i386" role="historic">The ciss driver, for devices utilizing the
 	Common Interface for SCSI-3 Support, has been added.  This
 	driver supports the Compaq SmartRAID 5* family of RAID
