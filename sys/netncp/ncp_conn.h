@@ -132,7 +132,7 @@ struct ncp_conn_stat {
 #ifdef _KERNEL
 
 #ifndef LK_SHARED
-#include <sys/lock.h>
+#include <sys/lockmgr.h>
 #endif
 
 struct socket;
@@ -151,7 +151,7 @@ struct ncp_handle {
 	SLIST_ENTRY(ncp_handle)	nh_next;
 	int		nh_id;		/* handle id */
 	struct ncp_conn*nh_conn;	/* which conn we are refernce */
-	struct proc *	nh_proc;	/* who owns the handle	*/
+	struct thread *	nh_td;		/* who owns the handle	*/
 	int		nh_ref;		/* one process can asquire many handles, but we return the one */
 };
 
@@ -173,7 +173,7 @@ struct ncp_conn {
 	SLIST_HEAD(ncp_ref_hd,ncp_ref) ref_list;/* list of handles */
 	struct lock	nc_lock;		/* excl locks */
 	int		nc_lwant;		/* number of wanted locks */
-	struct proc	*procp;			/* pid currently operates */
+	struct thread	*td;			/* pid currently operates */
 	struct ucred	*ucred;			/* usr currently operates */
 	/* Fields used to process ncp requests */
 	int 		connid;			/* assigned by server */
@@ -200,7 +200,7 @@ int  ncp_conn_free(struct ncp_conn *conn);
 int  ncp_conn_access(struct ncp_conn *conn,struct ucred *cred,mode_t mode);
 int  ncp_conn_lock(struct ncp_conn *conn,struct thread *td, struct ucred *cred,int mode);
 void ncp_conn_unlock(struct ncp_conn *conn,struct thread *td);
-int  ncp_conn_assert_locked(struct ncp_conn *conn,char *checker,struct thread *td);
+int  ncp_conn_assert_locked(struct ncp_conn *conn,const char *checker,struct thread *td);
 void ncp_conn_invalidate(struct ncp_conn *ncp);
 int  ncp_conn_invalid(struct ncp_conn *ncp);
 /*int  ncp_conn_ref(struct ncp_conn *conn, pid_t pid);
