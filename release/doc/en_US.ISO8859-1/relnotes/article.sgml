@@ -103,7 +103,20 @@
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:01.cvs.asc">FreeBSD-SA-03:01</ulink>.
       &merged;</para>
 
-  </sect2>
+    <para>A timing-based attack on <application>OpenSSL</application>,
+      which could allow a very powerful attacker access to plaintext
+      under certain circumstances, has been prevented via an upgrade
+      to <application>OpenSSL</application> 0.9.7.  See security
+      advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:02.openssl.asc">FreeBSD-SA-03:02</ulink>
+      for more details. &merged;</para>
+
+    <para>The security and performance of the
+      <quote>syncookies</quote> feature has been improved to increase
+      the resistance of a &os; host to SYN flood denial-of-service
+      attacks.  More details are given in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:03.syncookies.asc">FreeBSD-SA-03:03</ulink>. &merged;</para>
+      </sect2>
 
   <sect2 id="kernel">
     <title>Kernel Changes</title>
