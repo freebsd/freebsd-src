@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.28 1994/11/17 14:12:38 jkh Exp $
+ * $Id: utils.c,v 1.29 1994/11/17 19:44:55 ache Exp $
  *
  */
 
@@ -66,8 +66,7 @@ TellEm(char *fmt, ...)
 	write(debug_fd,"Progress <",10);
 	write(debug_fd,p,strlen(p));
 	write(debug_fd,">\n\r",3);
-	dialog_clear();
-	dialog_update();
+	dialog_clear_norefresh();
 	dialog_msgbox("Progress", p, -1, -1, 0);
 	free(p);
 }
@@ -102,7 +101,7 @@ AskAbort(char *fmt, ...)
 	va_end(ap);
 	strcat(p, "\n\nDo you wish to abort the installation?");
 	if (!dialog_yesno("Abort", p, -1, -1)) {
-		dialog_clear();
+		dialog_clear_norefresh();
 		Abort();
 	}
 	dialog_clear();

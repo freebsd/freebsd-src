@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: main.c,v 1.15 1994/11/12 05:40:26 phk Exp $
+ * $Id: main.c,v 1.16 1994/11/17 19:44:49 ache Exp $
  *
  */
 
@@ -41,8 +41,7 @@ extern int alloc_memory();
 void
 handle_intr(int sig)
 {
-	dialog_clear();
-	dialog_update();
+	dialog_clear_norefresh();
 	dialog_msgbox("User Interrupt",
 		      "User interrupted.  Aborting the installation",
 		      -1, -1, 1);
