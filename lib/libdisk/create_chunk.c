@@ -248,6 +248,8 @@ MakeDev(struct chunk *c1, const char *path)
     char buf[BUFSIZ], buf2[BUFSIZ];
     struct group *grp;
     struct passwd *pwd;
+    uid_t owner;
+    gid_t group;
 
     *buf2 = '\0';
     if (isDebug())
@@ -334,11 +336,15 @@ MakeDev(struct chunk *c1, const char *path)
 	return 0;
     if ((pwd = getpwnam("root")) == NULL) {
 	msgDebug("MakeDev: Unable to lookup user \"root\".\n");
-	return 0;
+	owner = 0;
+    } else {
+	owner = pwd->pw_uid;
     }
     if ((grp = getgrnam("operator")) == NULL) {
 	msgDebug("MakeDev: Unable to lookup group \"operator\".\n");
-	return 0;
+	group = 5;
+    } else {
+	group = grp->gr_gid;
     }
     min = unit * 8 + 65536 * slice + part;
     sprintf(buf, "%s/r%s", path, c1->name);
@@ -347,7 +353,7 @@ MakeDev(struct chunk *c1, const char *path)
 	msgDebug("mknod of %s returned failure status!\n", buf);
 	return 0;
     }
-    if (chown(buf, pwd->pw_uid, grp->gr_gid) == -1) {
+    if (chown(buf, owner, group) == -1) {
 	msgDebug("chown of %s returned failure status!\n", buf);
 	return 0;
     }
@@ -358,7 +364,7 @@ MakeDev(struct chunk *c1, const char *path)
 	    msgDebug("mknod of %s returned failure status!\n", buf);
 	    return 0;
 	}
-	if (chown(buf, pwd->pw_uid, grp->gr_gid) == -1) {
+	if (chown(buf, owner, group) == -1) {
 	    msgDebug("chown of %s returned failure status!\n", buf);
 	    return 0;
 	}
@@ -369,7 +375,7 @@ MakeDev(struct chunk *c1, const char *path)
 	msgDebug("mknod of %s returned failure status!\n", buf);
 	return 0;
     }
-    if (chown(buf, pwd->pw_uid, grp->gr_gid) == -1) {
+    if (chown(buf, owner, group) == -1) {
 	msgDebug("chown of %s returned failure status!\n", buf);
 	return 0;
     }
