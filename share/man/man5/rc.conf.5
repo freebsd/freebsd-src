@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: rc.conf.5,v 1.32 1999/07/06 12:17:59 hosokawa Exp $
+.\"     $Id: rc.conf.5,v 1.33 1999/07/07 02:01:57 hosokawa Exp $
 .\"
 .Dd April 26, 1997
 .Dt RC.CONF 5
@@ -30,9 +30,6 @@
 .Sh NAME
 .Nm rc.conf
 .Nd system configuration information.
-.Pp
-.Nm rc.conf.local
-.Nd localized system configuration information.
 .Sh DESCRIPTION
 The file
 .Nm rc.conf
@@ -43,22 +40,29 @@ started up at system initial boot time.  In new installations, the
 file is generally initialized by the system installation utility:
 .Pa /stand/sysinstall .
 .Pp
-The 
-.Nm rc.conf.local
-file may be used to override variables set in rc.conf.  The system
-administrator typically uses the distribution-supplied 
-.Nm rc.conf 
-file and maintains local overrides/additions in 
-.Nm rc.conf.local.
-.Pp
 The purpose of
-.Nm rc.conf[.local]
+.Nm rc.conf
 is not to run commands or perform system startup actions
 directly.  Instead, it is included by the
 various generic startup scripts in
 .Pa /etc
 which conditionalize their
 internal actions according to the settings found there.
+.Pp
+The
+.Pa /etc/rc.conf
+file is included from the file
+.Pa /etc/defaults/rc.conf ,
+which specifies the default settings for all the available options. Options
+need only be specified in 
+.Pa /etc/rc.conf
+when the system administrator wishes to override these defaults. The file
+.Pa /etc/rc.conf.local
+is used to override settings in
+.Pa /etc/rc.conf
+for historical reasons. See the
+.Dq rc_conf_files
+option below.
 .Pp
 The following list provides a name and short description for each
 variable you can set in the
@@ -205,6 +209,15 @@ ifconfig_ed0_alias4="inet 127.0.0.254 netmask 0xffffffff"
 .Ed
 Then note that alias4 would \fBnot\fR be added since the search would
 stop with the missing alias3 entry.
+.It Ar rc_conf_files
+(str) This option is used to specify a list of files that will override
+the settings in
+.Pa /etc/defaults/rc.conf .
+The files will be read in the order in which they are specified and should
+include the full path to the file. By default, the files specified are
+.Pa /etc/rc.conf
+and
+.Pa /etc/rc.conf.local
 .It Ar syslogd_enable
 (bool) If set to
 .Ar YES ,
@@ -953,6 +966,10 @@ most secure).  See
 for the list of possible security levels and their effect
 on system operation.
 .Sh FILES
+.Bl -tag -width /etc/defaults/rc.conf -compact
+.It Pa /etc/defaults/rc.conf
+.El
+.Pp
 .Bl -tag -width /etc/rc.conf -compact
 .It Pa /etc/rc.conf
 .El
