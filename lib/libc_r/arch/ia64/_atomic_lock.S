@@ -38,11 +38,12 @@
  * is not currently locked.
  *
  * long _atomic_lock(long *);
- * eax will contain the return value (zero if lock obtained).
  */
 ENTRY(_atomic_lock, 1)
+	mov		ar.ccv = r0
 	add		r14 = 1, r0
+	nop		0
 	;;
-	xchg8		r8 = [r32], r14
+	cmpxchg8.acq	r8 = [r32], r14, ar.ccv
 	br.ret.sptk	rp
 END(_atomic_lock)
