@@ -51,7 +51,7 @@
 .Nm uudecode
 .Op Fl i
 .Fl o Ar output_file
-.Op file
+.Op Ar file
 .Sh DESCRIPTION
 .Nm Uuencode
 and
@@ -90,9 +90,8 @@ and execute bits are not retained.
 .Nm Uudecode
 ignores any leading and trailing lines.
 .Pp
-The following options are available:
-.Pp
-.Nm uuencode :
+The following options are available for
+.Nm :
 .Bl -tag -width ident
 .It Fl m
 Use the Base64 method of encoding, rather than the traditional
@@ -104,6 +103,7 @@ Output to
 instead of standard output.
 .El
 .Pp
+The following options are available for
 .Nm uudecode :
 .Bl -tag -width ident
 .It Fl c
@@ -115,8 +115,7 @@ Do not overwrite files.
 .It Fl o Ar output_file
 Output to
 .Ar output_file
-instead of
-.Ar name .
+instead of any pathname contained in the input data.
 .It Fl p
 Decode
 .Ar file
