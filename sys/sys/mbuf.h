@@ -480,6 +480,7 @@ void		 m_copy_pkthdr(struct mbuf *to, struct mbuf *from);
 struct	mbuf	*m_devget(char *, int, int, struct ifnet *,
 		    void (*copy)(char *, caddr_t, u_int));
 struct	mbuf	*m_dup(struct mbuf *, int);
+int		 m_fixhdr(struct mbuf *m);
 struct	mbuf	*m_free(struct mbuf *);
 void		 m_freem(struct mbuf *);
 struct	mbuf	*m_get(int, short);
