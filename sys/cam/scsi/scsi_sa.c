@@ -1917,6 +1917,10 @@ samount(struct cam_periph *periph, int oflags, dev_t dev)
 				xpt_release_ccb(ccb);
 				goto exit;
 			}
+			/*
+			 * Clear I/O residual.
+			 */
+			softc->last_io_resid = 0;
 		}
 
 		/*
@@ -2286,20 +2290,24 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 	struct	scsi_sense_data *sense;
 	u_int32_t resid = 0;
 	int32_t	info = 0;
-	int	error_code, sense_key, asc, ascq;
-	int	error, defer_action, no_actual_error = FALSE;
+	cam_status status;
+	int error_code, sense_key, asc, ascq, error, defer_action, aqvalid;
 
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct sa_softc *)periph->softc;
 	csio = &ccb->csio;
 	sense = &csio->sense_data;
 	scsi_extract_sense(sense, &error_code, &sense_key, &asc, &ascq);
+	aqvalid = sense->extra_len >= 6;
 	error = 0;
 
+	status = csio->ccb_h.status & CAM_STATUS_MASK;
+
 	/*
-	 * Calculate/latch up, any residuals...
+	 * Calculate/latch up, any residuals... We do this in a funny 2-step
+	 * so we can print stuff locally.
 	 */
-	if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_SCSI_STATUS_ERROR) {
+	if (status == CAM_SCSI_STATUS_ERROR) {
 		if ((sense->error_code & SSD_ERRCODE_VALID) != 0) {
 			info = (int32_t) scsi_4btoul(sense->info);
 			resid = info;
@@ -2328,21 +2336,49 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 			softc->last_ctl_resid = resid;
 			softc->last_resid_was_io = 0;
 		}
-		CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Key 0x%x ASC/ASCQ "
-		    "0x%x 0x%x flags 0x%x resid %d dxfer_len %d\n", sense_key,
-		    asc, ascq, sense->flags & ~SSD_KEY_RESERVED, resid,
-		    csio->dxfer_len));
+		CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("CDB[0]=0x%x Key 0x%x "
+		    "ASC/ASCQ 0x%x/0x%x CAM STATUS 0x%x flags 0x%x resid %d "
+		    "dxfer_len %d\n", csio->cdb_io.cdb_bytes[0] & 0xff,
+		    sense_key, asc, ascq, status,
+		    sense->flags & ~SSD_KEY_RESERVED, resid, csio->dxfer_len));
 	} else {
-		CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Cam Status 0x%x\n",
-		    csio->ccb_h.status & CAM_STATUS_MASK));
+		CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
+		    ("Cam Status 0x%x\n", status));
 	}
 
+	switch (status) {
+	case CAM_REQ_CMP:
+		return (0);
+	case CAM_SCSI_STATUS_ERROR:
+		/*
+		 * If a read/write command, we handle it here.
+		 */
+		if (CCB_Type(csio) != SA_CCB_WAITING) {
+			break;
+		}
+		/*
+		 * If this was just EOM/EOP, Filemark, Setmark or ILI detected
+		 * on a non read/write command, we assume it's not an error.
+		 */
+		if ((aqvalid && asc == 0 && ascq > 0 && ascq <= 5) ||
+		    (aqvalid == 0 && sense_key == SSD_KEY_NO_SENSE)) {
+			csio->resid = resid;
+			QFRLS(ccb);
+			return (0);
+		}
+		return (cam_periph_error(ccb, cflgs, sflgs, &softc->saved_ccb));
 	/*
-	 * If it's neither a SCSI Check Condition Error nor a non-read/write
-	 * command, let the common code deal with it the error setting.
+	 * We can no longer depend upon CAM honoring retry counts for these.
 	 */
-	if ((csio->ccb_h.status & CAM_STATUS_MASK) != CAM_SCSI_STATUS_ERROR ||
-	    (CCB_Type(csio) == SA_CCB_WAITING)) {
+	case CAM_SCSI_BUS_RESET:
+	case CAM_BDR_SENT:
+	case CAM_REQUEUE_REQ:
+		if (ccb->ccb_h.retry_count <= 0) {
+			return (EIO);
+			break;
+		}
+		/* FALLTHROUGH */
+	default:
 		return (cam_periph_error(ccb, cflgs, sflgs, &softc->saved_ccb));
 	}
 
@@ -2362,29 +2398,26 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 	 * From this point out, we're only handling read/write cases.
 	 * Handle writes && reads differently.
 	 */
-	
+
 	if (csio->cdb_io.cdb_bytes[0] == SA_WRITE) {
-		if (sense->flags & SSD_FILEMARK) {
-			xpt_print_path(csio->ccb_h.path);
-			printf("filemark detected on write?\n");
-			if (softc->fileno != (daddr_t) -1) {
-				softc->fileno++;
-				softc->blkno = 0;
-				csio->ccb_h.ccb_pflags |= SA_POSITION_UPDATED;
-			}
-		}
-		if (sense->flags & SSD_EOM) {
+		if (sense_key == SSD_KEY_VOLUME_OVERFLOW) {
 			csio->resid = resid;
+			error = ENOSPC;
+		} else if (sense->flags & SSD_EOM) {
 			if (defer_action) {
 				error = -1;
 				softc->flags |= SA_FLAG_EOM_PENDING;
 			} else {
-				error = ENOSPC;
+printf("EOM at %u.%u info %d resid %d\n", softc->fileno, softc->blkno, info, resid);
+				/* experiment */
+				softc->flags |= SA_FLAG_EOM_PENDING;
+/*				csio->resid = resid; */
+				csio->resid = 0;
 			}
 		}
 	} else {
+		csio->resid = resid;
 		if (sense_key == SSD_KEY_BLANK_CHECK) {
-			csio->resid = resid;
 			if (defer_action) {
 				error = -1;
 				softc->flags |= SA_FLAG_EOM_PENDING;
@@ -2393,12 +2426,9 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 			}
 		}
 		if (sense->flags & SSD_FILEMARK) {
-			csio->resid = resid;
 			if (defer_action) {
 				error = -1;
 				softc->flags |= SA_FLAG_EOF_PENDING;
-			} else {
-				no_actual_error = TRUE;
 			}
 			/*
 			 * Unconditionally, if we detected a filemark on a read,
@@ -2427,8 +2457,6 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 					softc->flags |= SA_FLAG_EIO_PENDING;
 				else
 					error = EIO;
-			} else {
-				no_actual_error = TRUE;
 			}
 			/*
 			 * Bump the block number if we hadn't seen a filemark.
@@ -2443,22 +2471,17 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 			}
 		}
 	}
-	if (error == 0 && !no_actual_error)
-		return (cam_periph_error(ccb, cflgs, sflgs, &softc->saved_ccb));
-	if (no_actual_error) {
-		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) 
-			cam_release_devq(ccb->ccb_h.path,
-					 /* relsim_flags */0,
-					 /* openings */0,
-					 /* timeout */0,
-					 /* getcount_only */ FALSE);
-		return (0);
-	}
 
-	if (error == -1)
-		return (0);
-	else
-		return (error);
+	if (error <= 0) {
+		/*
+		 * Unfreeze the queue if frozen as we're not returning anything
+		 * to our waiters that would indicate an I/O error has occurred
+		 * (yet).
+		 */
+		QFRLS(ccb);
+		error = 0;
+	}
+	return (error);
 }
 
 static int
