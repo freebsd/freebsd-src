@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: kern_intr.c,v 1.1 1997/05/26 14:37:43 se Exp $
  *
  */
 
@@ -295,17 +295,20 @@ intr_disconnect(intrec *idesc)
 
 		/* check whether the new list head is the only element on list */
 		head = intreclist_head[irq];
-		if (head->next != NULL) {
-			/* install the multiplex handler with new list head as argument */
-			errcode = icu_setup(irq, intr_mux, head, 0, 0);
-			if (errcode == 0)
-				update_intrname(irq, -1);
-		} else if (head != NULL) {
-			/* install the one remaining handler for this irq */
-			errcode = icu_setup(irq, head->handler, head->argument,
-					    head->maskptr, head->flags);
-			if (errcode == 0)
-				update_intrname(irq, head->devdata);
+		if (head != NULL) {
+			if (head->next != NULL) {
+				/* install the multiplex handler with new list head as argument */
+				errcode = icu_setup(irq, intr_mux, head, 0, 0);
+				if (errcode == 0)
+					update_intrname(irq, -1);
+			} else {
+				/* install the one remaining handler for this irq */
+				errcode = icu_setup(irq, head->handler,
+						    head->argument,
+						    head->maskptr, head->flags);
+				if (errcode == 0)
+					update_intrname(irq, head->devdata);
+			}
 		}
 		splx(oldspl);
 	}
