@@ -2195,7 +2195,7 @@ make_rr(const char *name, struct databuf *dp, u_char *buf,
 
 		/* first just copy over the type_covered, algorithm, */
 		/* labels, orig ttl, two timestamps, and the footprint */
-		if ((dp->d_size - 18) > buflen)
+		if (buflen < 18)
 			goto cleanup;  /* out of room! */
 		memcpy(cp, cp1, 18);
 		cp  += 18;
