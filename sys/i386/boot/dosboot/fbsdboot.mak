@@ -1,4 +1,5 @@
 # Microsoft Visual C++ generated build script - Do not modify
+# $FreeBSD$
 
 PROJ = FBSDBOOT
 DEBUG = 0
@@ -22,7 +23,7 @@ CPPUSEPCHFLAG =
 FIRSTC = FBSDBOOT.C  
 FIRSTCPP =             
 RC = rc
-CFLAGS_D_DEXE = /nologo /Gs /G3 /Zp1 /W3 /Zi /AL /Oi /D "_DEBUG" /D "i386" /D "_DOS" /D "__i386__" /D "DO_BAD144" /Fc /Fd"FBSDBOOT.PDB"
+CFLAGS_D_DEXE = /nologo /Gs /G3 /Zp1 /W3 /Zi /AL /Oi /D "_DEBUG" /D "i386" /D "_DOS" /D "__i386__" /Fc /Fd"FBSDBOOT.PDB"
 CFLAGS_R_DEXE = /nologo /Gs /G3 /Zp1 /W3 /AL /Ox /D "NDEBUG" /D "i386" /D "_DOS" /D "__i386__" /D "DO_BAD144" 
 LFLAGS_D_DEXE = /NOLOGO /NOI /STACK:6000 /ONERROR:NOEXE /CO /MAP /LINE 
 LFLAGS_R_DEXE = /NOLOGO /NOI /STACK:5120 /ONERROR:NOEXE 
