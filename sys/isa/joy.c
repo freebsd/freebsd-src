@@ -41,6 +41,12 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/timerreg.h>
 
+#ifdef JREMOD
+#include <sys/conf.h>
+#define CDEV_MAJOR 51
+static void 	joy_devsw_install();
+#endif /*JREMOD*/
+
 /* The game port can manage 4 buttons and 4 variable resistors (usually 2
  * joysticks, each with 2 buttons and 2 pots.) via the port at address 0x201.
  * Getting the state of the buttons is done by reading the game port:
@@ -98,6 +104,10 @@ joyattach (struct isa_device *dev)
     joy[dev->id_unit].port = dev->id_iobase;
     joy[dev->id_unit].timeout[0] = joy[dev->id_unit].timeout[1] = 0;
     printf("joy%d: joystick\n", dev->id_unit);
+
+#ifdef JREMOD
+    joy_devsw_install();
+#endif /*JREMOD*/
 
     return 1;
 }
@@ -205,4 +215,27 @@ get_tick ()
     return (high << 8) | low;
 }
 
+
+#ifdef JREMOD
+struct cdevsw joy_cdevsw = 
+	{ joyopen,	joyclose,	joyread,	nowrite,	/*51*/
+	  joyioctl,	nostop,		nullreset,	nodevtotty,/*joystick */
+	  seltrue,	nommap,		NULL};
+
+static joy_devsw_installed = 0;
+
+static void 	joy_devsw_install()
+{
+	dev_t descript;
+	if( ! joy_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&joy_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&joy_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		joy_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
 #endif /* NJOY > 0 */

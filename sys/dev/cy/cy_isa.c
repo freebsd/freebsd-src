@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.18 1995/11/04 17:07:14 bde Exp $
+ *	$Id: cy.c,v 1.19 1995/11/26 17:13:23 bde Exp $
  */
 
 #include "cy.h"
@@ -397,6 +397,11 @@ static	int	cy_nr_cd1400s[NCY];
 #undef	RxFifoThreshold
 static	int	volatile RxFifoThreshold = (CD1400_RX_FIFO_SIZE / 2);
 
+#ifdef JREMOD
+#define CDEV_MAJOR 48
+static void 	cy_devsw_install();
+#endif /*JREMOD*/
+
 static struct kern_devconf kdc_sio[NCY] = { {
 	0, 0, 0,		/* filled in by dev_attach */
 	"cyc", 0, { MDDT_ISA, 0, "tty" },
@@ -437,6 +442,10 @@ sioprobe(dev)
 		return (0);
 	cy_nr_cd1400s[unit] = 0;
 	sioregisterdev(dev);
+#ifdef JREMOD
+        cy_devsw_install();
+#endif /*JREMOD*/
+
 
 	/* Cyclom-16Y hardware reset (Cyclom-8Ys don't care) */
 	cy_inb(iobase, CY16_RESET);	/* XXX? */
@@ -2511,4 +2520,27 @@ cystatus(unit)
 }
 #endif /* CyDebug */
 
+
+#ifdef JREMOD
+struct cdevsw cy_cdevsw = 
+	{ cyopen,	cyclose,	cyread,		cywrite,	/*48*/
+	  cyioctl,	cystop,		nxreset,	cydevtotty,/*cyclades*/
+	  ttselect,	nxmmap,		NULL };
+
+static cy_devsw_installed = 0;
+
+static void 	cy_devsw_install()
+{
+	dev_t descript;
+	if( ! cy_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&cy_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&cy_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		cy_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
 #endif /* NCY > 0 */

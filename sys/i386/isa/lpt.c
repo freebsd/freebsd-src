@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.37 1995/11/14 09:56:43 phk Exp $
+ *	$Id: lpt.c,v 1.38 1995/11/16 09:55:57 bde Exp $
  */
 
 /*
@@ -138,6 +138,12 @@
 #include <net/bpfdesc.h>
 #endif
 #endif /* INET */
+
+#ifdef JREMOD
+#include <sys/conf.h>
+#define CDEV_MAJOR 16
+static void 	lpt_devsw_install();
+#endif /*JREMOD*/
 
 #define	LPINITRDY	4	/* wait up to 4 seconds for a ready */
 #define	LPTOUTTIME	4	/* wait up to 4 seconds for a ready */
@@ -437,6 +443,10 @@ lptattach(struct isa_device *isdp)
 	lprintf("irq %x\n", sc->sc_irq);
 
 	kdc_lpt[isdp->id_unit].kdc_state = DC_IDLE;
+#ifdef JREMOD
+        lpt_devsw_install();
+#endif /*JREMOD*/
+
 	return (1);
 }
 
@@ -1143,4 +1153,26 @@ end:
 
 #endif /* INET */
 
+#ifdef JREMOD
+struct cdevsw lpt_cdevsw = 
+	{ lptopen,	lptclose,	noread,		lptwrite,	/*16*/
+	  lptioctl,	nullstop,	nullreset,	nodevtotty,/* lpt */
+	  seltrue,	nommap,		nostrat};
+
+static lpt_devsw_installed = 0;
+
+static void 	lpt_devsw_install()
+{
+	dev_t descript;
+	if( ! lpt_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&lpt_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&lpt_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		lpt_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
 #endif	/* NLPT */

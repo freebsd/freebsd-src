@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.4 1995/09/08 18:30:33 julian Exp $
+ * $Id: asc.c,v 1.5 1995/09/08 19:01:28 julian Exp $
  */
 
 #include "asc.h"
@@ -80,6 +80,11 @@
 #include <sys/devfsext.h>
 
 extern d_open_t ascopen;
+#ifdef JREMOD
+#include <sys/conf.h>
+#define CDEV_MAJOR 71
+static void 	asc_devsw_install();
+#endif /*JREMOD*/
 #endif
 
 #endif /* FREEBSD_1_X */
@@ -429,6 +434,10 @@ ascprobe (struct isa_device *isdp)
 
   scu->flags &= ~DEBUG;
   scu->icnt = 0;
+
+#ifdef JREMOD
+  asc_devsw_install();
+#endif /*JREMOD*/
 
   return PROBE_SUCCESS;
 }
@@ -859,4 +868,27 @@ ascselect(dev_t dev, int rw, struct proc *p)
     splx(sps);
     return 0;
 }
+
+#ifdef JREMOD
+struct cdevsw asc_cdevsw = 
+	{ ascopen,      ascclose,       ascread,        nowrite,        /*71*/
+	  ascioctl,     nostop,         nullreset,      nodevtotty, /* asc */   
+	  ascselect,    nommap,         NULL };
+
+static asc_devsw_installed = 0;
+
+static void 	asc_devsw_install()
+{
+	dev_t descript;
+	if( ! asc_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&asc_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&asc_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		asc_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
 #endif /* NASC > 0 */

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.91 1995/11/20 12:41:53 phk Exp $
+ *	$Id: wd.c,v 1.92 1995/11/23 07:24:41 dyson Exp $
  */
 
 /* TODO:
@@ -104,6 +104,12 @@ extern void wdstart(int ctrlr);
 #define WDOPT_32BIT	0x8000
 #define WDOPT_SLEEPHACK	0x4000
 #define WDOPT_MULTIMASK	0x00ff
+
+#ifdef JREMOD
+#define CDEV_MAJOR 3
+#define BDEV_MAJOR 0
+static void 	wd_devsw_install();
+#endif /*JREMOD */
 
 static int wd_goaway(struct kern_devconf *, int);
 static int wdc_goaway(struct kern_devconf *, int);
@@ -314,6 +320,10 @@ wdprobe(struct isa_device *dvp)
 	du->dk_port = dvp->id_iobase;
 
 	wdc_registerdev(dvp);
+#ifdef JREMOD
+	wd_devsw_install();
+#endif /*JREMOD*/
+
 
 	/* check if we have registers that work */
 	outb(du->dk_port + wd_sdh, WDSD_IBM);   /* set unit 0 */
@@ -2116,4 +2126,30 @@ wdwait(struct disk *du, u_char bits_wanted, int timeout)
 	return (-1);
 }
 
+#ifdef JREMOD
+struct bdevsw wd_bdevsw = 
+	{ wdopen,	wdclose,	wdstrategy,	wdioctl,	/*0*/
+	  wddump,	wdsize,		0 };
+
+struct cdevsw wd_cdevsw = 
+	{ wdopen,	wdclose,	rawread,	rawwrite,	/*3*/
+	  wdioctl,	nostop,		nullreset,	nodevtotty,/* wd */
+	  seltrue,	nommap,		wdstrategy };
+
+static wd_devsw_installed = 0;
+
+static void 	wd_devsw_install()
+{
+	dev_t descript;
+	if( ! wd_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&wd_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&wd_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		wd_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
 #endif /* NWDC > 0 */

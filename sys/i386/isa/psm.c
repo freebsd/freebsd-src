@@ -66,6 +66,12 @@
 
 #include <i386/isa/isa_device.h>
 
+#ifdef JREMOD
+#include <sys/conf.h>
+#define CDEV_MAJOR 21
+static void 	psm_devsw_install();
+#endif /*JREMOD*/
+
 #define DATA	0       /* Offset for data port, read-write */
 #define CNTRL	4       /* Offset for control port, write-only */
 #define STATUS	4	/* Offset for status port, read-only */
@@ -198,9 +204,13 @@ int psmattach(struct isa_device *dvp)
 
 	sc->state = 0;
 
+#ifdef JREMOD
+	psm_devsw_install();
+#endif /*JREMOD*/
+
 	/* Done */
 
-	return(0);
+	return(0); /* XXX eh? usually 1 indicates success */
 }
 
 int psmopen(dev_t dev, int flag, int fmt, struct proc *p)
@@ -457,6 +467,30 @@ int psmselect(dev_t dev, int rw, struct proc *p)
 
 	return(ret);
 }
+
+#ifdef JREMOD
+struct cdevsw psm_cdevsw = 
+	{ psmopen,	psmclose,	psmread,	nowrite,	/*21*/
+	  psmioctl,	nostop,		nullreset,	nodevtotty,/* psm mice */
+	  psmselect,	nommap,		NULL };
+
+static psm_devsw_installed = 0;
+
+static void 	psm_devsw_install()
+{
+	dev_t descript;
+	if( ! psm_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&psm_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&psm_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		psm_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
+
 #endif
 
 

@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.15 1995/11/28 02:07:34 peter Exp $
+ *	$Id: si.c,v 1.16 1995/11/28 07:29:29 bde Exp $
  */
 
 #ifndef lint
@@ -80,6 +80,12 @@ static char si_copyright1[] =  "@(#) (C) Specialix International, 1990,1992",
 #define SI_I_HIGH_WATER	(TTYHOG - 2 * SI_BUFFERSIZE)
 
 enum si_mctl { GET, SET, BIS, BIC };
+
+#ifdef JREMOD
+#define CDEV_MAJOR 68
+static void 	si_devsw_install();
+#endif /*JREMOD*/
+
 
 static void si_command __P((struct si_port *, int, int));
 static int si_modem __P((struct si_port *, enum si_mctl, int));
@@ -651,6 +657,10 @@ mem_fail:
 		}
 		done_chartimes = 1;
 	}
+#ifdef JREMOD
+	si_devsw_install();
+#endif /*JREMOD*/
+
 	return (1);
 }
 
@@ -2289,4 +2299,28 @@ si_mctl2str(cmd)
 	}
 	return("BAD");
 }
+
+
+#ifdef JREMOD
+struct cdevsw si_cdevsw = 
+	{ siopen,	siclose,	siread,		siwrite,	/*68*/
+	  siioctl,	sistop,		nxreset,	sidevtotty,/* si */
+	  ttselect,	nxmmap,		NULL };
+
+static si_devsw_installed = 0;
+
+static void 	si_devsw_install()
+{
+	dev_t descript;
+	if( ! si_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&si_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&si_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		si_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
 #endif
