@@ -35,13 +35,19 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp.h	8.1 (Berkeley) 6/10/93
- * $Id: igmp.h,v 1.2 1994/08/02 07:48:07 davidg Exp $
+ * $Id: igmp.h,v 1.3 1994/08/21 05:27:25 paul Exp $
  */
 
 #ifndef _NETINET_IGMP_H_
 #define _NETINET_IGMP_H_
 
-/* Internet Group Management Protocol (IGMP) definitions. */
+/*
+ * Internet Group Management Protocol (IGMP) definitions.
+ *
+ * Written by Steve Deering, Stanford, May 1988.
+ *
+ * MULTICAST 1.2
+ */
 
 /*
  * IGMP packet format.
@@ -59,7 +65,29 @@ struct igmp {
 #define IGMP_HOST_MEMBERSHIP_REPORT  0x12
 #define IGMP_DVMRP		     0x13  /* for experimental multicast   */
 					   /*  routing protocol            */
+#define IGMP_HOST_NEW_MEMBERSHIP_REPORT 0x16
+#define IGMP_HOST_LEAVE_MESSAGE      0x17
+#define IGMP_MTRACE		     0x1f  /* mcast traceroute messages    */
+#define IGMP_MTRACE_RESP	     0x1e  /* traceroute resp. (to sender) */
 
 #define IGMP_MAX_HOST_REPORT_DELAY   10    /* max delay for response to    */
+#define IGMP_TIMER_SCALE     10	    /* denotes that the igmp->timer filed */
+				    /*specifies time in 10th os seconds */
 
-#endif
+#define IGMP_DELAYING_MEMBER                     1
+#define IGMP_IDLE_MEMBER                         2
+#define IGMP_LAZY_MEMBER                         3 
+#define IGMP_SLEEPING_MEMBER                     4 
+#define IGMP_AWAKENING_MEMBER                    5 
+
+
+#define IGMP_OLD_ROUTER                          0
+#define IGMP_NEW_ROUTER                          1
+
+#define IGMP_AGE_THRESHOLD		         540 
+
+#ifdef IGMP_STATES
+static char *tostate[]={"","DELAYING_MEMBER","IDLE","LAZY","SLEEPING",
+			"AWAKENING" };
+#endif /* IGMP_STATES */
+#endif /* _NETINET_IGMP_H_ */

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp_var.h	8.1 (Berkeley) 7/19/93
- * $Id: igmp_var.h,v 1.2 1994/08/02 07:48:09 davidg Exp $
+ * $Id: igmp_var.h,v 1.3 1994/08/21 05:27:26 paul Exp $
  */
 
 #ifndef _NETINET_IGMP_VAR_H_
@@ -63,29 +63,16 @@ struct igmpstat {
 };
 
 #ifdef KERNEL
-struct igmpstat igmpstat;
+extern struct igmpstat igmpstat;
 
-/*
- * Macro to compute a random timer value between 1 and (IGMP_MAX_REPORTING_
- * DELAY * countdown frequency).  We generate a "random" number by adding
- * the total number of IP packets received, our primary IP address, and the
- * multicast address being timed-out.  The 4.3 random() routine really
- * ought to be available in the kernel!
- */
-#define IGMP_RANDOM_DELAY(multiaddr) \
-	/* struct in_addr multiaddr; */ \
-	( (ipstat.ips_total + \
-	   ntohl(IA_SIN(in_ifaddr)->sin_addr.s_addr) + \
-	   ntohl((multiaddr).s_addr) \
-	  ) \
-	  % (IGMP_MAX_HOST_REPORT_DELAY * PR_FASTHZ) + 1 \
-	)
+#define IGMP_RANDOM_DELAY(X) (random() % (X) + 1)
 
-void	igmp_init __P(());
+void	igmp_init __P((void));
 void	igmp_input __P((struct mbuf *, int));
 void	igmp_joingroup __P((struct in_multi *));
 void	igmp_leavegroup __P((struct in_multi *));
-void	igmp_fasttimo __P(());
+void	igmp_fasttimo __P((void));
+void	igmp_slowtimo __P((void));
 #endif
 
 #endif

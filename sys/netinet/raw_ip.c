@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.2 (Berkeley) 1/4/94
- * $Id$
+ * $Id: raw_ip.c,v 1.2 1994/08/02 07:48:49 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -203,14 +203,20 @@ rip_ctloutput(op, so, level, optname, m)
 		}
 		break;
 
+	case IP_RSVP_ON:
+		error = ip_rsvp_init(so);
+		break;
+
+	case IP_RSVP_OFF:
+		error = ip_rsvp_done();
+		break;
+
 	case DVMRP_INIT:
 	case DVMRP_DONE:
 	case DVMRP_ADD_VIF:
 	case DVMRP_DEL_VIF:
-	case DVMRP_ADD_LGRP:
-	case DVMRP_DEL_LGRP:
-	case DVMRP_ADD_MRT:
-	case DVMRP_DEL_MRT:
+	case DVMRP_ADD_MFC:
+	case DVMRP_DEL_MFC:
 #ifdef MROUTING
 		if (op == PRCO_SETOPT) {
 			error = ip_mrouter_cmd(optname, so, *m);
@@ -240,9 +246,6 @@ rip_usrreq(so, req, m, nam, control)
 {
 	register int error = 0;
 	register struct inpcb *inp = sotoinpcb(so);
-#ifdef MROUTING
-	extern struct socket *ip_mrouter;
-#endif
 	switch (req) {
 
 	case PRU_ATTACH:
