@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.61 1998/02/19 01:30:23 eivind Exp $
+#	$Id: bsd.prog.mk,v 1.62 1998/02/19 14:53:29 eivind Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -61,15 +61,7 @@ MAN1=	${PROG}.1
 .MAIN: all
 all: objwarn ${PROG} all-man _SUBDIR
 
-.if !target(clean)
-clean: _SUBDIR
-	if [ -n "${PROG}" -o -n "${OBJS}" -o -n "${CLEANFILES}" ] ; then \
-		rm -f ${PROG} ${OBJS} ${CLEANFILES} ; \
-	fi
-.if defined(CLEANDIRS) && !empty(CLEANDIRS)
-	rm -rf ${CLEANDIRS}
-.endif
-.endif
+CLEANFILES+= ${PROG} ${OBJS}
 
 .if defined(PROG) && !defined(NOEXTRADEPEND)
 _EXTRADEPEND:
