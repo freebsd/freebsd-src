@@ -54,6 +54,14 @@
 #define	ATH_TXBUF	60		/* number of TX buffers */
 #define	ATH_TXDESC	8		/* number of descriptors per buffer */
 
+struct ath_recv_hist {
+	int		arh_ticks;	/* sample time by system clock */
+	u_int8_t	arh_rssi;	/* rssi */
+	u_int8_t	arh_antenna;	/* antenna */
+};
+#define	ATH_RHIST_SIZE		16	/* number of samples */
+#define	ATH_RHIST_NOTIME	(~0)
+
 /* driver-specific node */
 struct ath_node {
 	struct ieee80211_node an_node;	/* base class */
@@ -63,6 +71,8 @@ struct ath_node {
 	int		an_tx_upper;	/* tx upper rate req cnt */
 	u_int		an_tx_antenna;	/* antenna for last good frame */
 	u_int		an_rx_antenna;	/* antenna for last rcvd frame */
+	struct ath_recv_hist an_rx_hist[ATH_RHIST_SIZE];
+	u_int		an_rx_hist_next;/* index of next ``free entry'' */
 };
 #define	ATH_NODE(_n)	((struct ath_node *)(_n))
 

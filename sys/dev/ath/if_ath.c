@@ -114,6 +114,8 @@ static struct ieee80211_node *ath_node_alloc(struct ieee80211com *);
 static void	ath_node_free(struct ieee80211com *, struct ieee80211_node *);
 static void	ath_node_copy(struct ieee80211com *,
 			struct ieee80211_node *, const struct ieee80211_node *);
+static u_int8_t	ath_node_getrssi(struct ieee80211com *,
+			struct ieee80211_node *);
 static int	ath_rxbuf_init(struct ath_softc *, struct ath_buf *);
 static void	ath_rx_proc(void *, int);
 static int	ath_tx_start(struct ath_softc *, struct ieee80211_node *,
@@ -290,6 +292,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ic->ic_node_alloc = ath_node_alloc;
 	ic->ic_node_free = ath_node_free;
 	ic->ic_node_copy = ath_node_copy;
+	ic->ic_node_getrssi = ath_node_getrssi;
 	sc->sc_newstate = ic->ic_newstate;
 	ic->ic_newstate = ath_newstate;
 	/* complete initialization */
@@ -922,7 +925,8 @@ ath_mode_init(struct ath_softc *sc)
 	if (ic->ic_opmode != IEEE80211_M_HOSTAP &&
 	    (ifp->if_flags & IFF_PROMISC))
 		rfilt |= HAL_RX_FILTER_PROM;
-	if (ic->ic_state == IEEE80211_S_SCAN)
+	if (ic->ic_opmode == IEEE80211_M_STA ||
+	    ic->ic_state == IEEE80211_S_SCAN)
 		rfilt |= HAL_RX_FILTER_BEACON;
 	ath_hal_setrxfilter(ah, rfilt);
 
@@ -1387,7 +1391,14 @@ ath_node_alloc(struct ieee80211com *ic)
 {
 	struct ath_node *an =
 		malloc(sizeof(struct ath_node), M_DEVBUF, M_NOWAIT | M_ZERO);
-	return an ? &an->an_node : NULL;
+	if (an) {
+		int i;
+		for (i = 0; i < ATH_RHIST_SIZE; i++)
+			an->an_rx_hist[i].arh_ticks = ATH_RHIST_NOTIME;
+		an->an_rx_hist_next = ATH_RHIST_SIZE-1;
+		return &an->an_node;
+	} else
+		return NULL;
 }
 
 static void
@@ -1408,6 +1419,41 @@ ath_node_copy(struct ieee80211com *ic,
 	struct ieee80211_node *dst, const struct ieee80211_node *src)
 {
 	*(struct ath_node *)dst = *(const struct ath_node *)src;
+}
+
+
+static u_int8_t
+ath_node_getrssi(struct ieee80211com *ic, struct ieee80211_node *ni)
+{
+	struct ath_node *an = ATH_NODE(ni);
+	int i, now, nsamples, rssi;
+
+	/*
+	 * Calculate the average over the last second of sampled data.
+	 */
+	now = ticks;
+	nsamples = 0;
+	rssi = 0;
+	i = an->an_rx_hist_next;
+	do {
+		struct ath_recv_hist *rh = &an->an_rx_hist[i];
+		if (rh->arh_ticks == ATH_RHIST_NOTIME)
+			goto done;
+		if (now - rh->arh_ticks > hz)
+			goto done;
+		rssi += rh->arh_rssi;
+		nsamples++;
+		if (i == 0)
+			i = ATH_RHIST_SIZE-1;
+		else
+			i--;
+	} while (i != an->an_rx_hist_next);
+done:
+	/*
+	 * Return either the average or the last known
+	 * value if there is no recent data.
+	 */
+	return (nsamples ? rssi / nsamples : an->an_rx_hist[i].arh_rssi);
 }
 
 static int
@@ -1478,6 +1524,8 @@ ath_rx_proc(void *arg, int npending)
 	struct mbuf *m;
 	struct ieee80211_frame *wh, whbuf;
 	struct ieee80211_node *ni;
+	struct ath_node *an;
+	struct ath_recv_hist *rh;
 	int len;
 	u_int phyerr;
 	HAL_STATUS status;
@@ -1588,12 +1636,24 @@ ath_rx_proc(void *arg, int npending)
 				ni = ieee80211_ref_node(ic->ic_bss);
 		} else
 			ni = ieee80211_ref_node(ic->ic_bss);
-		ATH_NODE(ni)->an_rx_antenna = ds->ds_rxstat.rs_antenna;
+
+		/*
+		 * Record driver-specific state.
+		 */
+		an = ATH_NODE(ni);
+		if (++(an->an_rx_hist_next) == ATH_RHIST_SIZE)
+			an->an_rx_hist_next = 0;
+		rh = &an->an_rx_hist[an->an_rx_hist_next];
+		rh->arh_ticks = ticks;
+		rh->arh_rssi = ds->ds_rxstat.rs_rssi;
+		rh->arh_antenna = ds->ds_rxstat.rs_antenna;
+
 		/*
 		 * Send frame up for processing.
 		 */
 		ieee80211_input(ifp, m, ni,
 			ds->ds_rxstat.rs_rssi, ds->ds_rxstat.rs_tstamp);
+
 		/*
 		 * The frame may have caused the node to be marked for
 		 * reclamation (e.g. in response to a DEAUTH message)
@@ -1859,7 +1919,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	if (an->an_tx_antenna)
 		antenna = an->an_tx_antenna;
 	else
-		antenna = an->an_rx_antenna;
+		antenna = an->an_rx_hist[an->an_rx_hist_next].arh_antenna;
 
 	/*
 	 * Formulate first tx descriptor with tx controls.
@@ -2288,11 +2348,13 @@ ath_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 	if (ic->ic_opmode != IEEE80211_M_HOSTAP &&
 	    (ifp->if_flags & IFF_PROMISC))
 		rfilt |= HAL_RX_FILTER_PROM;
+	if (ic->ic_opmode == IEEE80211_M_STA ||
+	    ic->ic_state == IEEE80211_S_SCAN)
+		rfilt |= HAL_RX_FILTER_BEACON;
 	if (nstate == IEEE80211_S_SCAN) {
 		callout_reset(&sc->sc_scan_ch, (hz * ath_dwelltime) / 1000,
 			ath_next_scan, sc);
 		bssid = ifp->if_broadcastaddr;
-		rfilt |= HAL_RX_FILTER_BEACON;
 	} else {
 		callout_stop(&sc->sc_scan_ch);
 		bssid = ni->ni_bssid;
