@@ -138,6 +138,7 @@ dev/buslogic/bt_mca.c	optional bt mca
 dev/buslogic/bt_pci.c	optional bt pci
 dev/cardbus/cardbus.c	optional cardbus
 dev/ccd/ccd.c		optional ccd
+dev/cs/if_cs.c		optional cs
 #dev/dpt/dpt_control.c	optional dpt
 dev/dpt/dpt_eisa.c	optional dpt eisa
 dev/dpt/dpt_pci.c	optional dpt pci

@@ -203,7 +203,6 @@ i386/isa/elink.c		optional	ie
 i386/isa/gpib.c			optional	gp
 i386/isa/gsc.c			optional	gsc
 i386/isa/if_ar.c		optional	ar
-i386/isa/if_cs.c		optional	cs
 i386/isa/if_cx.c		optional	cx
 i386/isa/if_el.c		optional	el
 i386/isa/if_fe.c		optional	fe
