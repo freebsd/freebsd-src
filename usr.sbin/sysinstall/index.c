@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.9 1995/10/16 09:25:13 jkh Exp $
+ * $Id: index.c,v 1.10 1995/10/16 15:14:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -60,8 +60,7 @@ _strdup(char *ptr)
 }
 
 static char *descrs[] = {
-    "Package Selection",
-    "To select a package or category, move to it and press SPACE.\n"
+    "Package Selection", "To select a package or category, move to it and press SPACE.\n"
 	"To remove a package from consideration, press SPACE again.\n"
 	    "To go to a previous menu, select UP item or Cancel. To search\n"
 		"for a package by name, press ESC.",
@@ -126,13 +125,8 @@ fetch_desc(char *name)
 static PkgNodePtr
 new_pkg_node(char *name, node_type type)
 {
-    PkgNodePtr tmp = malloc(sizeof(PkgNode));
+    PkgNodePtr tmp = safe_malloc(sizeof(PkgNode));
 
-    if (!tmp) {
-	fprintf(stderr, "Out of memory - unable to allocate a new package node!\n");
-	exit(1);
-    }
-    bzero(tmp, sizeof(PkgNode));
     tmp->name = _strdup(name);
     tmp->type = type;
     return tmp;
@@ -141,14 +135,8 @@ new_pkg_node(char *name, node_type type)
 static IndexEntryPtr
 new_index(char *name, char *pathto, char *prefix, char *comment, char *descr, char *maint)
 {
-    IndexEntryPtr tmp = malloc(sizeof(IndexEntry));
+    IndexEntryPtr tmp = safe_malloc(sizeof(IndexEntry));
 
-    if (!tmp) {
-	fprintf(stderr, "Out of memory - unable to allocate a new index node!\n");
-	exit(1);
-    }
-
-    bzero(tmp, sizeof(IndexEntry));
     tmp->name =		_strdup(name);
     tmp->path =		_strdup(pathto);
     tmp->prefix =	_strdup(prefix);
@@ -163,8 +151,14 @@ strchop(char *s1, char *s2, int len)
 {
     int len2;
 
-    len2 = strlen(s1);
-    if (len2 >= len) {
+    if (!s1)
+	return s1;
+    if (!s2) {
+	s1[0] = '\0';
+	return s1;
+    }
+    len2 = strlen(s2);
+    if (len2 > len) {
 	strncpy(s1, s2, len - 1);
 	s1[len] = '\0';
     }
