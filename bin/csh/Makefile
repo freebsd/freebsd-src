@@ -35,6 +35,8 @@ MAN1=	csh.1
 DPADD+=		${LIBNCURSES} ${LIBCRYPT}
 LDADD+=		-lncurses -lcrypt
 
+LINKS=	${BINDIR}/csh ${BINDIR}/tcsh
+
 csh.1: tcsh.man
 	ln -sf ${.ALLSRC} ${.TARGET}
 
