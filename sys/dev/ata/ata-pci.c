@@ -208,7 +208,7 @@ ata_pci_match(device_t dev)
 	    return "SiS 5591 ATA33 controller";
 
     case 0x06801095:
-	return "Sil 0680 ATA133 controller";
+	return "SiI 0680 ATA133 controller";
 
     case 0x06491095:
 	return "CMD 649 ATA100 controller";
@@ -304,6 +304,7 @@ ata_pci_match(device_t dev)
     case 0x00051103:
 	switch (pci_get_revid(dev)) {
 	case 0x01:
+	case 0x02:
 	    return "HighPoint HPT372 ATA133 controller";
 	}
 	return NULL;
@@ -501,12 +502,12 @@ ata_pci_attach(device_t dev)
 			 (pci_get_revid(dev) >= 0x92) ? 0x03 : 0x02, 1);
 	break;
 
-    case 0x06801095: /* Sil 0680 set ATA reference clock speed */
+    case 0x06801095: /* SiI 0680 set ATA reference clock speed */
 	if ((pci_read_config(dev, 0x8a, 1) & 0x30) != 0x10)
 	    pci_write_config(dev, 0x8a, 
 			     (pci_read_config(dev, 0x8a, 1) & 0x0F) | 0x10, 1);
 	if ((pci_read_config(dev, 0x8a, 1) & 0x30) != 0x10)
-	    device_printf(dev, "Sil 0680 could not set clock\n");
+	    device_printf(dev, "SiI 0680 could not set clock\n");
 	break;
 
     case 0x06461095: /* CMD 646 enable interrupts, set DMA read mode */

@@ -607,7 +607,7 @@ ata_dmainit(struct ata_channel *ch, int device,
 	/* we could set PIO mode timings, but we assume the BIOS did that */
 	break;
 
-    case 0x06801095:	/* Sil 0680 ATA133 controller */
+    case 0x06801095:	/* SiI 0680 ATA133 controller */
 	{
 	    u_int8_t ureg = 0xac + (ATA_DEV(device) * 0x02) + (ch->unit * 0x10);
 	    u_int8_t uval = pci_read_config(parent, ureg, 1);
@@ -622,7 +622,7 @@ ata_dmainit(struct ata_channel *ch, int device,
 		error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				    ATA_UDMA6, ATA_C_F_SETXFER, ATA_WAIT_READY);
 		if (bootverbose)
-		    ata_prtdev(atadev, "%s setting UDMA6 on Sil chip\n",
+		    ata_prtdev(atadev, "%s setting UDMA6 on SiI chip\n",
 			       (error) ? "failed" : "success");
 		if (!error) {
 		    pci_write_config(parent, ureg, (uval & 0x3f) | 0x01, 1);
@@ -634,7 +634,7 @@ ata_dmainit(struct ata_channel *ch, int device,
 		error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				    ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
 		if (bootverbose)
-		    ata_prtdev(atadev, "%s setting UDMA5 on Sil chip\n",
+		    ata_prtdev(atadev, "%s setting UDMA5 on SiI chip\n",
 			       (error) ? "failed" : "success");
 		if (!error) {
 		    pci_write_config(parent, ureg, (uval & 0x3f) | 0x02, 1);
@@ -646,7 +646,7 @@ ata_dmainit(struct ata_channel *ch, int device,
 		error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				    ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
 		if (bootverbose)
-		    ata_prtdev(atadev, "%s setting UDMA4 on Sil chip\n",
+		    ata_prtdev(atadev, "%s setting UDMA4 on SiI chip\n",
 			       (error) ? "failed" : "success");
 		if (!error) {
 		    pci_write_config(parent, ureg, (uval & 0x3f) | 0x03, 1);
@@ -658,7 +658,7 @@ ata_dmainit(struct ata_channel *ch, int device,
 		error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				    ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 		if (bootverbose)
-		    ata_prtdev(atadev, "%s setting UDMA2 on Sil chip\n",
+		    ata_prtdev(atadev, "%s setting UDMA2 on SiI chip\n",
 			       (error) ? "failed" : "success");
 		if (!error) {
 		    pci_write_config(parent, ureg, (uval & 0x3f) | 0x07, 1);
@@ -674,7 +674,7 @@ ata_dmainit(struct ata_channel *ch, int device,
 		error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				    ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 		if (bootverbose)
-		    ata_prtdev(atadev, "%s setting WDMA2 on Sil chip\n",
+		    ata_prtdev(atadev, "%s setting WDMA2 on SiI chip\n",
 			       (error) ? "failed" : "success");
 		if (!error) {
 		    pci_write_config(parent, ureg - 0x4, 0x10c1, 2);
