@@ -46,7 +46,7 @@
 .Ft void
 .Fn bpf_mtap "struct ifnet *ifp" "struct mbuf *m"
 .Ft void
-.Fn bpf_mtap2 "struct ifnet *bp" "void *data" "u_int dlen" "struct mbuf *m"
+.Fn bpf_mtap2 "struct bpf_if *bp" "void *data" "u_int dlen" "struct mbuf *m"
 .Ft u_int
 .Fn bpf_filter "const struct bpf_insn *pc " "u_char *pkt" "u_int *wirelen" "u_int *buflen"
 .Ft int
