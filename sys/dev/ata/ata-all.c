@@ -1010,7 +1010,7 @@ ata_wait(struct ata_device *atadev, u_int8_t mask)
 
 int
 ata_command(struct ata_device *atadev, u_int8_t command,
-	   u_int64_t lba, u_int16_t count, u_int8_t feature, int flags)
+	   u_int64_t lba, u_int16_t count, u_int16_t feature, int flags)
 {
     int error = 0;
 #ifdef ATA_DEBUG
