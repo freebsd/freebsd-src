@@ -125,6 +125,7 @@ static	int vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t addr);
 static	int vlan_setmulti(struct ifnet *ifp);
 static	int vlan_unconfig(struct ifnet *ifp);
 static	int vlan_config(struct ifvlan *ifv, struct ifnet *p);
+static	void vlan_link_state(struct ifnet *ifp, int link);
 
 struct if_clone vlan_cloner = IF_CLONE_INITIALIZER(VLANNAME,
     vlan_clone_create, vlan_clone_destroy, 0, IF_MAXUNIT);
@@ -209,6 +210,9 @@ vlan_setmulti(struct ifnet *ifp)
  */
 extern	void (*vlan_input_p)(struct ifnet *, struct mbuf *);
 
+/* For MII eyes only... */
+extern	void (*vlan_link_state_p)(struct ifnet *, int);
+
 static int
 vlan_modevent(module_t mod, int type, void *data) 
 { 
@@ -218,11 +222,13 @@ vlan_modevent(module_t mod, int type, void *data)
 		LIST_INIT(&ifv_list);
 		VLAN_LOCK_INIT();
 		vlan_input_p = vlan_input;
+		vlan_link_state_p = vlan_link_state;
 		if_clone_attach(&vlan_cloner);
 		break; 
 	case MOD_UNLOAD: 
 		if_clone_detach(&vlan_cloner);
 		vlan_input_p = NULL;
+		vlan_link_state_p = NULL;
 		while (!LIST_EMPTY(&ifv_list))
 			vlan_clone_destroy(&LIST_FIRST(&ifv_list)->ifv_if);
 		VLAN_LOCK_DESTROY();
@@ -532,6 +538,7 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p)
 	 */
 	ifv->ifv_if.if_flags = (p->if_flags &
 	    (IFF_BROADCAST | IFF_MULTICAST | IFF_SIMPLEX | IFF_POINTOPOINT));
+	ifv->ifv_if.if_link_state = p->if_link_state;
 
 	/*
 	 * If the parent interface can do hardware-assisted
@@ -622,6 +629,7 @@ vlan_unconfig(struct ifnet *ifp)
 	ifv->ifv_p = NULL;
 	ifv->ifv_if.if_mtu = ETHERMTU;		/* XXX why not 0? */
 	ifv->ifv_flags = 0;
+	ifv->ifv_if.if_link_state = LINK_STATE_UNKNOWN;
 
 	/* Clear our MAC address. */
 	ifa = ifaddr_byindex(ifv->ifv_if.if_index);
@@ -655,6 +663,23 @@ vlan_set_promisc(struct ifnet *ifp)
 	}
 
 	return (error);
+}
+
+/* Inform all vlans that their parent has changed link state */
+static void
+vlan_link_state(struct ifnet *ifp, int link)
+{
+	struct ifvlan *ifv;
+
+	VLAN_LOCK();
+	LIST_FOREACH(ifv, &ifv_list, ifv_list) {
+		if (ifv->ifv_p == ifp) {
+			ifv->ifv_if.if_link_state = ifv->ifv_p->if_link_state;
+			rt_ifmsg(&(ifv->ifv_if));
+			KNOTE(&ifp->if_klist, link);
+		}
+	}
+	VLAN_UNLOCK();
 }
 
 static int
