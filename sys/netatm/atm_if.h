@@ -338,15 +338,6 @@ struct atm_ncm {
 #define	DEVICE_LOCK(u)		((u)->cu_savepri = splimp())
 #define	DEVICE_UNLOCK(u)	((void) splx((u)->cu_savepri))
 
-
-/*
- * SBus defines
- */
-#if defined(sun)
-#define	SBUS_BURST32	0x20	/* Device supports 32-byte bursts */
-#endif
-
-
 /*
  * Macro to schedule the ATM interrupt queue handler
  */
