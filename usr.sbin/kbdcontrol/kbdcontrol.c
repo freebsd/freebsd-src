@@ -893,7 +893,7 @@ set_functionkey(char *keynumstr, char *string)
 			fkey.flen, MAXFK);
 		return;
 	}
-	strcpy(fkey.keydef, string);
+	strncpy(fkey.keydef, string, MAXFK);
 	fkey.keynum -= 1;
 	if (ioctl(0, SETFKEY, &fkey) < 0)
 		warn("setting function key");
