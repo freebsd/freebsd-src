@@ -1,6 +1,6 @@
 <!--
     $FreeBSD$
-    Original revision: 1.2
+    Original revision: 1.3
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -27,8 +27,11 @@
   &artheader;
 
   <abstract>
-    <para>この文書はまだ準備中で、未完成です。
-      実情を正確に反映していないかもしれません。</para>
+    <para>これはまだ準備中の文書です。
+      未完成であるため、内容を追記する必要があります。
+      &os; で動作する
+      &arch.print; プロセッサ、マザーボード、デバイスについての情報を
+      &a.ia64; へ送ってください!</para>
   </abstract>
 
   &sect.intro;

@@ -1,6 +1,6 @@
 <!--
     $FreeBSD$
-    Original revision: 1.5
+    Original revision: 1.6
 -->
 
 <sect1 id="intro">
@@ -19,4 +19,9 @@
       他のアーキテクチャ用のハードウェア互換ノートとは、
       細部が異なる可能性があります。</para>
   </note>
+
+  <para arch="ia64">&os;/&arch; についての詳細は
+    <ulink url="http://www.FreeBSD.org/platforms/ia64/index.html">&os;/&arch;
+      プロジェクト</ulink>ページをご覧ください。</para>
+
 </sect1>
