@@ -270,16 +270,22 @@ tcpOpenDialog(Device *devp)
 	if (!variable_cmp(VAR_TRY_RTSOL, "YES") || 
 	    ((!variable_cmp(VAR_TRY_RTSOL, "NO")) && (!msgYesNo("Do you want to try IPv6 configuration of the interface?")))) {
 	    int i;
+	    int len;
 
 	    i = 0;
 	    sysctlbyname("net.inet6.ip6.forwarding", NULL, 0, &i, sizeof(i));
 	    i = 1;
 	    sysctlbyname("net.inet6.ip6.accept_rtadv", NULL, 0, &i, sizeof(i));
 	    vsystem("ifconfig %s up", devp->name);
+	    len = sizeof(i);
+	    sysctlbyname("net.inet6.ip6.dad_count", &i, &len, NULL, 0);
+	    sleep(i + 1);
 	    Mkdir("/var/run");
 	    msgNotify("Scanning for RA servers...");
 	    if (0 == vsystem("rtsol %s", devp->name)) {
-		sleep(3);
+		len = sizeof(i);
+		sysctlbyname("net.inet6.ip6.dad_count", &i, &len, NULL, 0);
+		sleep(i + 1);
 		rtsolGetInfo(devp);
 		use_rtsol = TRUE;
 	    } else
