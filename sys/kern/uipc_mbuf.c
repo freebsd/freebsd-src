@@ -199,7 +199,7 @@ m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
 		ref_cnt = (u_int *)uma_find_refcnt(zone_clust,
 		    mb->m_ext.ext_buf);
 	else if (type == EXT_EXTREF)
-		ref_cnt = mb->m_ext.ref_cnt;
+		ref_cnt = __DEVOLATILE(u_int *, mb->m_ext.ref_cnt);
 	mb->m_ext.ref_cnt = (ref_cnt == NULL) ?
 	    malloc(sizeof(u_int), M_MBUF, M_NOWAIT) : (u_int *)ref_cnt;
 	if (mb->m_ext.ref_cnt != NULL) {
@@ -259,7 +259,8 @@ mb_free_ext(struct mbuf *m)
 			    m->m_ext.ext_args);
 			if (m->m_ext.ext_type != EXT_EXTREF) {
 				if (m->m_ext.ref_cnt != NULL)
-					free(m->m_ext.ref_cnt, M_MBUF);
+					free(__DEVOLATILE(u_int *,
+					    m->m_ext.ref_cnt), M_MBUF);
 				m->m_ext.ref_cnt = NULL;
 			}
 			m->m_ext.ext_buf = NULL;
