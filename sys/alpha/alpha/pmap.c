@@ -895,8 +895,8 @@ static PMAP_INLINE int
 pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 {
 
-	vm_page_unhold(m);
-	if (m->hold_count == 0)
+	--m->wire_count;
+	if (m->wire_count == 0)
 		return _pmap_unwire_pte_hold(pmap, va, m);
 	else
 		return 0;
@@ -941,14 +941,8 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	if (pmap->pm_ptphint == m)
 		pmap->pm_ptphint = NULL;
 
-	/*
-	 * If the page is finally unwired, simply free it.
-	 */
-	--m->wire_count;
-	if (m->wire_count == 0) {
-		vm_page_free_zero(m);
-		atomic_subtract_int(&cnt.v_wire_count, 1);
-	}
+	vm_page_free_zero(m);
+	atomic_subtract_int(&cnt.v_wire_count, 1);
 	return 1;
 }
 
@@ -1074,12 +1068,6 @@ _pmap_allocpte(pmap, ptepindex)
 		pmap_zero_page(m);
 
 	/*
-	 * Increment the hold count for the page table page
-	 * (denoting a new mapping.)
-	 */
-	m->hold_count++;
-
-	/*
 	 * Map the pagetable page into the process address space, if
 	 * it isn't already there.
 	 */
@@ -1096,7 +1084,7 @@ _pmap_allocpte(pmap, ptepindex)
 		pt_entry_t* l2map;
 		if (!pmap_pte_v(l1pte)) {
 			if (_pmap_allocpte(pmap, NUSERLEV3MAPS + l1index) == NULL) {
-				vm_page_unhold(m);
+				--m->wire_count;
 				vm_page_free(m);
 				return (NULL);
 			}
@@ -1104,7 +1092,7 @@ _pmap_allocpte(pmap, ptepindex)
 			vm_page_t l2page;
 
 			l2page = PHYS_TO_VM_PAGE(pmap_pte_pa(l1pte));
-			l2page->hold_count++;
+			l2page->wire_count++;
 		}
 		l2map = (pt_entry_t*) ALPHA_PHYS_TO_K0SEG(pmap_pte_pa(l1pte));
 		pte = &l2map[ptepindex & ((1 << ALPHA_PTSHIFT) - 1)];
@@ -1153,7 +1141,7 @@ retry:
 			m = PHYS_TO_VM_PAGE(pmap_pte_pa(lev2pte));
 			pmap->pm_ptphint = m;
 		}
-		m->hold_count++;
+		m->wire_count++;
 	} else {
 		/*
 		 * Here if the pte page isn't mapped, or if it has been
@@ -1721,7 +1709,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		 * Remove extra pte reference
 		 */
 		if (mpte)
-			mpte->hold_count--;
+			mpte->wire_count--;
 
 		/*
 		 * We might be turning off write access to the page,
@@ -1836,7 +1824,7 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 		 */
 		ptepindex = va >> ALPHA_L2SHIFT;
 		if (mpte && (mpte->pindex == ptepindex)) {
-			mpte->hold_count++;
+			mpte->wire_count++;
 		} else {
 	retry:
 			/*
@@ -1856,7 +1844,7 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 					mpte = PHYS_TO_VM_PAGE(pmap_pte_pa(l2pte));
 					pmap->pm_ptphint = mpte;
 				}
-				mpte->hold_count++;
+				mpte->wire_count++;
 			} else {
 				mpte = _pmap_allocpte(pmap, ptepindex);
 				if (mpte == NULL)
