@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.172 1995/05/23 21:33:53 jkh Exp $
+#	$Id: Makefile,v 1.173 1995/05/23 21:47:26 jkh Exp $
 #
 # How to roll a release:
 #
@@ -262,8 +262,45 @@ release.5:
 		find ${EXTRA_DISTS} -depth -type d -print | xargs rmdir
 	touch release.5
 
-# Complete the bootfd 
+# Make binary dists, notice that DES dist isn't finished yet.
 release.6:
+	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
+	rm -rf ${RD}/dists
+	mkdir -p ${RD}/dists
+	mkdir -p ${RD}/info
+	@for i in ${DISTRIBUTIONS} ; \
+	do \
+		if [ -d ${RD}/trees/$${i} ] ; then \
+			cd ${.CURDIR} ; \
+				$(MAKE) doTARBALL SD=${RD}/trees/$${i} \
+					TN=$$i TD=$$i ARG="." ; \
+			echo "$${i} distribution is finished."; \
+		fi ; \
+	done                                                 
+	touch release.8
+
+
+# Make source dists, and finish of DES too
+release.7:
+	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
+	@cd ${.CURDIR} ; $(MAKE) doTARBALL SD=/usr/src \
+		TD=src TN=sbase ARG="[A-Z]*"
+	@for i in `cd /usr/src ; echo [a-z]*` ; do \
+		if [ -d /usr/src/$$i -a "$$i" != "CVS" ] ; then \
+			cd ${.CURDIR} ; \
+			$(MAKE) doTARBALL SD=/usr/src \
+				TN=`echo s$$i | tr -d '.' | sed 's/usr/u/'` \
+				TD=src ARG="$$i" ; \
+		fi ; \
+	done
+	( cd ${RD}/dists/src && \
+	if [ -f sdes.aa ] ; then mv sdes.* ../des ; fi && \
+	if [ -f sebones.aa ] ; then mv sebones.* ../des ; fi )
+	@echo "src distribution is finished."
+	touch release.9
+
+# Complete the bootfd 
+release.8:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
 	rm -rf ${RD}/bootfd
 	mkdir ${RD}/bootfd
@@ -288,12 +325,12 @@ release.6:
 	touch release.6
 
 # Complete the cpiofd directory
-release.7:
+release.9:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
 	rm -rf ${RD}/cpiofd
 	mkdir ${RD}/cpiofd
 	cd ${RD}/cpiofd && \
-		mkdir stand
+		mkdir stand stand/info
 	ln -f ${RD}/kernels/GENERIC ${RD}/cpiofd/kernel
 	@cd ${.CURDIR} ; $(MAKE) installCRUNCH CRUNCH=cpio \
 		DIR=${RD}/cpiofd/stand ZIP=false
@@ -301,42 +338,6 @@ release.7:
 	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall info | tar xvf - -C ${RD}/cpiofd/stand
 	cd ${RD}/cpiofd ; ( rm -f OK ; find . -print ; touch OK ; echo OK ) | cpio -H newc -oa | gzip -9 -c | dd conv=osync > ${RD}/floppies/cpio.flp
 	touch release.7
-
-# Make binary dists, notice that DES dist isn't finished yet.
-release.8:
-	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
-	rm -rf ${RD}/dists
-	mkdir -p ${RD}/dists
-	@for i in ${DISTRIBUTIONS} ; \
-	do \
-		if [ -d ${RD}/trees/$${i} ] ; then \
-			cd ${.CURDIR} ; \
-				$(MAKE) doTARBALL SD=${RD}/trees/$${i} \
-					TN=$$i TD=$$i ARG="." ; \
-			echo "$${i} distribution is finished."; \
-		fi ; \
-	done                                                 
-	touch release.8
-
-
-# Make source dists, and finish of DES too
-release.9:
-	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
-	@cd ${.CURDIR} ; $(MAKE) doTARBALL SD=/usr/src \
-		TD=src TN=sbase ARG="[A-Z]*"
-	@for i in `cd /usr/src ; echo [a-z]*` ; do \
-		if [ -d /usr/src/$$i -a "$$i" != "CVS" ] ; then \
-			cd ${.CURDIR} ; \
-			$(MAKE) doTARBALL SD=/usr/src \
-				TN=`echo s$$i | tr -d '.' | sed 's/usr/u/'` \
-				TD=src ARG="$$i" ; \
-		fi ; \
-	done
-	( cd ${RD}/dists/src && \
-	if [ -f sdes.aa ] ; then mv sdes.* ../des ; fi && \
-	if [ -f sebones.aa ] ; then mv sebones.* ../des ; fi )
-	@echo "src distribution is finished."
-	touch release.9
 
 # Complete the fixitfd
 release.10:
@@ -411,7 +412,11 @@ doTARBALL:
 		tn=`echo ${TN} | tr '[A-Z]' '[a-z]' | cut -c1-8` && \
 		echo rolling ${TD}/$$tn tarball &&\
 		tar --exclude CVS --exclude obj -cf - ${ARG} | \
-		${ZIPNSPLIT} ${RD}/dists/${TD}/$$tn. )
+		${ZIPNSPLIT} ${RD}/dists/${TD}/$$tn. && \
+		cd ${RD}/info && \
+		mkdir ${TD} && \
+		echo ${SD}/${TD}/$$tn.* | wc | awk ' { print "Pieces = ", $$1 } ' > ${TD}/$$tn.inf
+	}
 
 doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
 		release.7 release.8 release.9 release.10
@@ -419,7 +424,7 @@ doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
 	@echo "Release done"
 
 floppies:
-	rm -f release.4 release.6 release.7
+	rm -f release.4 release.8 release.9
 	cd ${.CURDIR} && ${MAKE} doRELEASE
 
 boot.flp:
