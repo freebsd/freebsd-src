@@ -17,13 +17,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.c,v 1.4 1996/01/11 17:48:58 phk Exp $
+ * $Id: slcompress.c,v 1.5 1996/04/11 08:14:44 davidg Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
  */
 #ifndef lint
-static char const rcsid[] = "$Id: slcompress.c,v 1.4 1996/01/11 17:48:58 phk Exp $";
+static char const rcsid[] = "$Id: slcompress.c,v 1.5 1996/04/11 08:14:44 davidg Exp $";
 #endif
 
 #include "defs.h"
@@ -437,7 +437,7 @@ sl_uncompress_tcp(bufp, len, type, comp)
 		hlen = ip->ip_hl << 2;
 		if (hlen + sizeof(struct tcphdr) > len)
 			goto bad;
-		th = (struct tcphdr *)&((int *)ip)[hlen];
+		th = (struct tcphdr *)&((char *)ip)[hlen];
 		hlen += THOFFSET(th) << 2;
 		if (hlen > MAX_HDR)
 			goto bad;
