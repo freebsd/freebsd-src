@@ -56,6 +56,7 @@ char	 targdevname[80];
 int	 targctlfd;
 int	 targfd;
 int	 quit;
+int      debug = 0;
 struct	 ioc_alloc_unit alloc_unit = {
 	CAM_BUS_WILDCARD,
 	CAM_TARGET_WILDCARD,
@@ -74,7 +75,7 @@ main(int argc, char *argv[])
 	int  ch;
 
 	appname = *argv;
-	while ((ch = getopt(argc, argv, "i:o:p:t:l:")) != -1) {
+	while ((ch = getopt(argc, argv, "i:o:p:t:l:d")) != -1) {
 		switch(ch) {
 		case 'i':
 			if ((ifd = open(optarg, O_RDONLY)) == -1) {
@@ -99,6 +100,9 @@ main(int argc, char *argv[])
 			break;
 		case 'l':
 			alloc_unit.lun_id = atoi(optarg);
+			break;
+		case 'd':
+			debug++;
 			break;
 		case '?':
 		default:
@@ -144,6 +148,11 @@ main(int argc, char *argv[])
 		exit(EX_NOINPUT);
 	}
 	
+	if (ioctl(targfd, TARGIODEBUG, &debug) == -1) {
+		perror("TARGIODEBUG");
+		exit(EX_SOFTWARE);
+	}
+
 	buf = malloc(bufsize);
 
 	if (buf == NULL) {
@@ -301,6 +310,12 @@ handle_exception()
 			exit(EX_SOFTWARE);
 		}
 
+		/* Clear the exception so the kernel will take our response */
+		if (ioctl(targfd, TARGIOCCLEAREXCEPTION, &exceptions) == -1) {
+			perror("TARGIOCCLEAREXCEPTION");
+			exit(EX_SOFTWARE);
+		}
+
 		bzero(&ccb, sizeof(ccb));
 		cam_fill_ctio(&ccb.csio, /*retries*/2,
 			      /*cbfcnp*/NULL,
@@ -314,17 +329,19 @@ handle_exception()
 			      /*data_ptr*/NULL,
 			      /*dxfer_len*/0,
 			      /*timeout*/5 * 1000);
+
 		if (ioctl(targfd, TARGIOCCOMMAND, &ccb) == -1) {
 			perror("TARGIOCCOMMAND");
 			exit(EX_SOFTWARE);
 		}
 		
+	} else {
+		if (ioctl(targfd, TARGIOCCLEAREXCEPTION, &exceptions) == -1) {
+			perror("TARGIOCCLEAREXCEPTION");
+			exit(EX_SOFTWARE);
+		}
 	}
 
-	if (ioctl(targfd, TARGIOCCLEAREXCEPTION, &exceptions) == -1) {
-		perror("TARGIOCCLEAREXCEPTION");
-		exit(EX_SOFTWARE);
-	}
 }
 
 static void
@@ -338,7 +355,7 @@ usage()
 {
 
 	(void)fprintf(stderr,
-"usage: %-16s [-o output_file] [-i input_file] -p path -t target -l lun\n",
+"usage: %-16s [ -d ] [-o output_file] [-i input_file] -p path -t target -l lun\n",
 		      appname);
 
 	exit(EX_USAGE);
