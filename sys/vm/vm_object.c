@@ -146,6 +146,24 @@ _vm_object_allocate(type, size, object)
 	vm_object_t object;
 {
 	int incr;
+	int hadvmlock;
+
+	/*
+	 * XXX: Not all callers seem to have the lock, compensate.
+	 * I'm pretty sure we need to bump the gen count before possibly
+	 * nuking the data contained within while under the lock.
+	 */
+	hadvmlock = mtx_owned(&vm_mtx);
+	if (!hadvmlock)
+		mtx_lock(&vm_mtx);
+	object->generation++;
+	if ((object->type == OBJT_DEFAULT) || (object->type == OBJT_SWAP))
+		vm_object_set_flag(object, OBJ_ONEMAPPING);
+	TAILQ_INSERT_TAIL(&vm_object_list, object, object_list);
+	vm_object_count++;
+	if (!hadvmlock)
+		mtx_unlock(&vm_mtx);
+
 	TAILQ_INIT(&object->memq);
 	TAILQ_INIT(&object->shadow_head);
 
@@ -153,8 +171,6 @@ _vm_object_allocate(type, size, object)
 	object->size = size;
 	object->ref_count = 1;
 	object->flags = 0;
-	if ((object->type == OBJT_DEFAULT) || (object->type == OBJT_SWAP))
-		vm_object_set_flag(object, OBJ_ONEMAPPING);
 	object->paging_in_progress = 0;
 	object->resident_page_count = 0;
 	object->shadow_count = 0;
@@ -175,10 +191,6 @@ _vm_object_allocate(type, size, object)
 	 */
 	object->hash_rand = object_hash_rand - 129;
 
-	object->generation++;
-
-	TAILQ_INSERT_TAIL(&vm_object_list, object, object_list);
-	vm_object_count++;
 	object_hash_rand = object->hash_rand;
 }
 
@@ -226,7 +238,6 @@ vm_object_allocate(type, size)
 	vm_object_t result;
 
 	result = (vm_object_t) zalloc(obj_zone);
-
 	_vm_object_allocate(type, size, result);
 
 	return (result);
@@ -250,18 +261,29 @@ vm_object_reference(object)
 
 	object->ref_count++;
 	if (object->type == OBJT_VNODE) {
+		mtx_unlock(&vm_mtx);
+		mtx_lock(&Giant);
 		while (vget((struct vnode *) object->handle, LK_RETRY|LK_NOOBJ, curproc)) {
 			printf("vm_object_reference: delay in getting object\n");
 		}
+		mtx_unlock(&Giant);
+		mtx_lock(&vm_mtx);
 	}
 }
 
+/*
+ * handle deallocating a object of type OBJT_VNODE
+ *
+ * requires vm_mtx
+ * may block
+ */
 void
 vm_object_vndeallocate(object)
 	vm_object_t object;
 {
 	struct vnode *vp = (struct vnode *) object->handle;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	KASSERT(object->type == OBJT_VNODE,
 	    ("vm_object_vndeallocate: not a vnode object"));
 	KASSERT(vp != NULL, ("vm_object_vndeallocate: missing vp"));
@@ -277,7 +299,14 @@ vm_object_vndeallocate(object)
 		vp->v_flag &= ~VTEXT;
 		vm_object_clear_flag(object, OBJ_OPT);
 	}
+	/*
+	 * vrele may need a vop lock
+	 */
+	mtx_unlock(VM_OBJECT_MTX(object));
+	mtx_lock(&Giant);
 	vrele(vp);
+	mtx_unlock(&Giant);
+	mtx_lock(VM_OBJECT_MTX(object));
 }
 
 /*
@@ -290,6 +319,7 @@ vm_object_vndeallocate(object)
  *	may be relinquished.
  *
  *	No object may be locked.
+ *	vm_mtx must be held
  */
 void
 vm_object_deallocate(object)
@@ -297,6 +327,7 @@ vm_object_deallocate(object)
 {
 	vm_object_t temp;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	while (object != NULL) {
 
 		if (object->type == OBJT_VNODE) {
@@ -422,7 +453,11 @@ vm_object_terminate(object)
 		vm_object_page_clean(object, 0, 0, OBJPC_SYNC);
 
 		vp = (struct vnode *) object->handle;
+		mtx_unlock(VM_OBJECT_MTX(object));
+		mtx_lock(&Giant);
 		vinvalbuf(vp, V_SAVE, NOCRED, NULL, 0, 0);
+		mtx_unlock(&Giant);
+		mtx_lock(VM_OBJECT_MTX(object));
 	}
 
 	KASSERT(object->ref_count == 0, 
@@ -507,6 +542,7 @@ vm_object_page_clean(object, start, end, flags)
 	vm_page_t ma[vm_pageout_page_count];
 	int curgeneration;
 
+	mtx_assert(VM_OBJECT_MTX(object), MA_OWNED);
 	if (object->type != OBJT_VNODE ||
 		(object->flags & OBJ_MIGHTBEDIRTY) == 0)
 		return;
@@ -962,6 +998,7 @@ vm_object_backing_scan(vm_object_t object, int op)
 	vm_pindex_t backing_offset_index;
 
 	s = splvm();
+	mtx_assert(&vm_mtx, MA_OWNED);
 
 	backing_object = object->backing_object;
 	backing_offset_index = OFF_TO_IDX(object->backing_object_offset);
@@ -1175,6 +1212,9 @@ void
 vm_object_collapse(object)
 	vm_object_t object;
 {
+
+	mtx_assert(&vm_mtx, MA_OWNED);
+	
 	while (TRUE) {
 		vm_object_t backing_object;
 
@@ -1386,6 +1426,8 @@ vm_object_page_remove(object, start, end, clean_only)
 	unsigned int size;
 	int all;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
+	
 	if (object == NULL ||
 	    object->resident_page_count == 0)
 		return;
@@ -1501,6 +1543,8 @@ vm_object_coalesce(prev_object, prev_pindex, prev_size, next_size)
 	vm_size_t prev_size, next_size;
 {
 	vm_pindex_t next_pindex;
+
+	mtx_assert(&vm_mtx, MA_OWNED);
 
 	if (prev_object == NULL) {
 		return (TRUE);

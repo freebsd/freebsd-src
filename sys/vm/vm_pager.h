@@ -124,10 +124,12 @@ vm_pager_get_pages(
 ) {
 	int r;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	r = (*pagertab[object->type]->pgo_getpages)(object, m, count, reqpage);
 	if (r == VM_PAGER_OK && m[reqpage]->valid != VM_PAGE_BITS_ALL) {
 		vm_page_zero_invalid(m[reqpage], TRUE);
 	}
+	mtx_assert(&vm_mtx, MA_OWNED);
 	return(r);
 }
 
@@ -139,8 +141,11 @@ vm_pager_put_pages(
 	int flags,
 	int *rtvals
 ) {
+
+	mtx_assert(&vm_mtx, MA_OWNED);
 	(*pagertab[object->type]->pgo_putpages)
 	    (object, m, count, flags, rtvals);
+	mtx_assert(&vm_mtx, MA_OWNED);
 }
 
 /*
@@ -161,7 +166,13 @@ vm_pager_has_page(
 	int *before,
 	int *after
 ) {
-        return ((*pagertab[object->type]->pgo_haspage) (object, offset, before, after));
+	boolean_t ret;
+
+	mtx_assert(&vm_mtx, MA_OWNED);
+	ret = (*pagertab[object->type]->pgo_haspage)
+	    (object, offset, before, after);
+	mtx_assert(&vm_mtx, MA_OWNED);
+	return (ret);
 } 
 
 /* 
@@ -175,8 +186,11 @@ vm_pager_has_page(
 static __inline void
 vm_pager_page_unswapped(vm_page_t m)
 {
+
+	mtx_assert(&vm_mtx, MA_OWNED);
 	if (pagertab[m->object->type]->pgo_pageunswapped)
 		(*pagertab[m->object->type]->pgo_pageunswapped)(m);
+	mtx_assert(&vm_mtx, MA_OWNED);
 }
 
 #endif

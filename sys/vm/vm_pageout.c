@@ -447,6 +447,8 @@ vm_pageout_flush(mc, count, flags)
  *	backing_objects.
  *
  *	The object and map must be locked.
+ *
+ *	Requires the vm_mtx
  */
 static void
 vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
@@ -460,6 +462,7 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 	int remove_mode;
 	int s;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	if (object->type == OBJT_DEVICE || object->type == OBJT_PHYS)
 		return;
 
@@ -1322,7 +1325,7 @@ vm_pageout()
 {
 	int pass;
 
-	mtx_lock(&Giant);
+	mtx_lock(&vm_mtx);
 
 	/*
 	 * Initialize some paging parameters.
@@ -1412,7 +1415,8 @@ vm_pageout()
 			 */
 			++pass;
 			if (pass > 1)
-				tsleep(&vm_pages_needed, PVM, "psleep", hz/2);
+				msleep(&vm_pages_needed, &vm_mtx, PVM,
+				       "psleep", hz/2);
 		} else {
 			/*
 			 * Good enough, sleep & handle stats.  Prime the pass
@@ -1422,7 +1426,7 @@ vm_pageout()
 				pass = 1;
 			else
 				pass = 0;
-			error = tsleep(&vm_pages_needed,
+			error = msleep(&vm_pages_needed, &vm_mtx,
 				PVM, "psleep", vm_pageout_stats_interval * hz);
 			if (error && !vm_pages_needed) {
 				splx(s);
@@ -1466,12 +1470,13 @@ vm_daemon()
 {
 	struct proc *p;
 
-	mtx_lock(&Giant);
+	mtx_lock(&vm_mtx);
 
 	while (TRUE) {
-		tsleep(&vm_daemon_needed, PPAUSE, "psleep", 0);
+		msleep(&vm_daemon_needed, &vm_mtx, PPAUSE, "psleep", 0);
 		if (vm_pageout_req_swapout) {
 			swapout_procs(vm_pageout_req_swapout);
+			mtx_assert(&vm_mtx, MA_OWNED);
 			vm_pageout_req_swapout = 0;
 		}
 		/*
@@ -1479,6 +1484,7 @@ vm_daemon()
 		 * process is swapped out -- deactivate pages
 		 */
 
+		mtx_unlock(&vm_mtx);
 		sx_slock(&allproc_lock);
 		LIST_FOREACH(p, &allproc, p_list) {
 			vm_pindex_t limit, size;
@@ -1515,13 +1521,16 @@ vm_daemon()
 				limit = 0;	/* XXX */
 			mtx_unlock_spin(&sched_lock);
 
+			mtx_lock(&vm_mtx);
 			size = vmspace_resident_count(p->p_vmspace);
 			if (limit >= 0 && size >= limit) {
 				vm_pageout_map_deactivate_pages(
 				    &p->p_vmspace->vm_map, limit);
 			}
+			mtx_unlock(&vm_mtx);
 		}
 		sx_sunlock(&allproc_lock);
+		mtx_lock(&vm_mtx);
 	}
 }
 #endif

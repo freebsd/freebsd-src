@@ -378,6 +378,13 @@ msleep(ident, mtx, priority, wmesg, timo)
 	int rval = 0;
 	WITNESS_SAVE_DECL(mtx);
 
+	KASSERT(ident == &proc0 ||	/* XXX: swapper */
+	    timo != 0 ||		/* XXX: we might still miss a wakeup */
+	    mtx_owned(&Giant) || mtx != NULL,
+	    ("indefinite sleep without mutex, wmesg: \"%s\" ident: %p",
+	     wmesg, ident));
+	if (mtx_owned(&vm_mtx) && mtx != &vm_mtx)
+		panic("sleeping with vm_mtx held.");
 #ifdef KTRACE
 	if (p && KTRPOINT(p, KTR_CSW))
 		ktrcsw(p->p_tracep, 1, 0);

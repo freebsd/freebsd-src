@@ -38,6 +38,7 @@
 #include <sys/ioccom.h>
 #include <sys/agpio.h>
 #include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 
 #include <pci/pcivar.h>

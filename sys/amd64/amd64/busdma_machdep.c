@@ -31,6 +31,8 @@
 #include <sys/malloc.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>

@@ -305,19 +305,28 @@ extern long first_page;			/* first physical page number */
 		(&vm_page_array[atop(pa) - first_page ])
 
 /*
+ * For now, a global vm lock
+ */
+#define	VM_PAGE_MTX(m)	(&vm_mtx)
+
+/*
  *	Functions implemented as macros
  */
 
 static __inline void
 vm_page_flag_set(vm_page_t m, unsigned short bits)
 {
-	atomic_set_short(&(m)->flags, bits);
+
+	mtx_assert(VM_PAGE_MTX(m), MA_OWNED);
+	m->flags |= bits;
 }
 
 static __inline void
 vm_page_flag_clear(vm_page_t m, unsigned short bits)
 {
-	atomic_clear_short(&(m)->flags, bits);
+
+	mtx_assert(VM_PAGE_MTX(m), MA_OWNED);
+	m->flags &= ~bits;
 }
 
 #if 0
@@ -332,7 +341,9 @@ vm_page_assert_wait(vm_page_t m, int interruptible)
 static __inline void
 vm_page_busy(vm_page_t m)
 {
-	KASSERT((m->flags & PG_BUSY) == 0, ("vm_page_busy: page already busy!!!"));
+
+	KASSERT((m->flags & PG_BUSY) == 0,
+	    ("vm_page_busy: page already busy!!!"));
 	vm_page_flag_set(m, PG_BUSY);
 }
 
@@ -375,13 +386,17 @@ vm_page_wakeup(vm_page_t m)
 static __inline void
 vm_page_io_start(vm_page_t m)
 {
-	atomic_add_char(&(m)->busy, 1);
+
+	mtx_assert(VM_PAGE_MTX(m), MA_OWNED);
+	m->busy++;
 }
 
 static __inline void
 vm_page_io_finish(vm_page_t m)
 {
-	atomic_subtract_char(&m->busy, 1);
+
+	mtx_assert(VM_PAGE_MTX(m), MA_OWNED);
+	m->busy--;
 	if (m->busy == 0)
 		vm_page_flash(m);
 }
@@ -447,12 +462,16 @@ void vm_page_free_toq(vm_page_t m);
 static __inline void
 vm_page_hold(vm_page_t mem)
 {
+
+	mtx_assert(VM_PAGE_MTX(m), MA_OWNED);
 	mem->hold_count++;
 }
 
 static __inline void
 vm_page_unhold(vm_page_t mem)
 {
+
+	mtx_assert(VM_PAGE_MTX(m), MA_OWNED);
 	--mem->hold_count;
 	KASSERT(mem->hold_count >= 0, ("vm_page_unhold: hold count < 0!!!"));
 }
@@ -565,7 +584,7 @@ vm_page_sleep_busy(vm_page_t m, int also_m_busy, const char *msg)
 			 * Page is busy. Wait and retry.
 			 */
 			vm_page_flag_set(m, PG_WANTED | PG_REFERENCED);
-			tsleep(m, PVM, msg, 0);
+			msleep(m, VM_PAGE_MTX(m), PVM, msg, 0);
 		}
 		splx(s);
 		return(TRUE);

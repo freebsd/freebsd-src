@@ -653,8 +653,10 @@ link_elf_load_file(linker_class_t cls, const char* filename, linker_file_t* resu
 
     ef = (elf_file_t) lf;
 #ifdef SPARSE_MAPPING
+    mtx_lock(&vm_mtx);
     ef->object = vm_object_allocate(OBJT_DEFAULT, mapsize >> PAGE_SHIFT);
     if (ef->object == NULL) {
+    	mtx_unlock(&vm_mtx);
 	free(ef, M_LINKER);
 	error = ENOMEM;
 	goto out;
@@ -667,9 +669,11 @@ link_elf_load_file(linker_class_t cls, const char* filename, linker_file_t* resu
 			VM_PROT_ALL, VM_PROT_ALL, 0);
     if (error) {
 	vm_object_deallocate(ef->object);
+    	mtx_unlock(&vm_mtx);
 	ef->object = 0;
 	goto out;
     }
+    mtx_unlock(&vm_mtx);
 #else
     ef->address = malloc(mapsize, M_LINKER, M_WAITOK);
     if (!ef->address) {
@@ -697,10 +701,12 @@ link_elf_load_file(linker_class_t cls, const char* filename, linker_file_t* resu
 	/*
 	 * Wire down the pages
 	 */
+	mtx_lock(&vm_mtx);
 	vm_map_pageable(kernel_map,
 			(vm_offset_t) segbase,
 			(vm_offset_t) segbase + segs[i]->p_memsz,
 			FALSE);
+	mtx_unlock(&vm_mtx);
 #endif
     }
 
@@ -824,10 +830,12 @@ link_elf_unload_file(linker_file_t file)
     }
 #ifdef SPARSE_MAPPING
     if (ef->object) {
+	mtx_lock(&vm_mtx);	    
 	vm_map_remove(kernel_map, (vm_offset_t) ef->address,
 		      (vm_offset_t) ef->address
 		      + (ef->object->size << PAGE_SHIFT));
 	vm_object_deallocate(ef->object);
+	mtx_unlock(&vm_mtx);	    
     }
 #else
     if (ef->address)

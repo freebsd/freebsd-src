@@ -200,6 +200,7 @@ vmspace_free(vm)
 	struct vmspace *vm;
 {
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	if (vm->vm_refcnt == 0)
 		panic("vmspace_free: attempt to free already freed vmspace");
 
@@ -350,6 +351,8 @@ vm_map_entry_unlink(vm_map_t map,
  *	in the "entry" parameter.  The boolean
  *	result indicates whether the address is
  *	actually contained in the map.
+ *
+ *	Doesn't block.
  */
 boolean_t
 vm_map_lookup_entry(map, address, entry)
@@ -439,6 +442,7 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	vm_map_entry_t temp_entry;
 	vm_eflags_t protoeflags;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	/*
 	 * Check that the start and end points are not bogus.
 	 */
@@ -1705,7 +1709,9 @@ vm_map_clean(map, start, end, syncio, invalidate)
 			int flags;
 
 			vm_object_reference(object);
+			mtx_unlock(&vm_mtx);
 			vn_lock(object->handle, LK_EXCLUSIVE | LK_RETRY, curproc);
+			mtx_lock(&vm_mtx);
 			flags = (syncio || invalidate) ? OBJPC_SYNC : 0;
 			flags |= invalidate ? OBJPC_INVAL : 0;
 			vm_object_page_clean(object,
@@ -2296,6 +2302,8 @@ vm_map_stack (vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
  * the stack.  Also returns KERN_SUCCESS if addr is outside the
  * stack range (this is strange, but preserves compatibility with
  * the grow function in vm_machdep.c).
+ *
+ * Will grab vm_mtx if needed
  */
 int
 vm_map_growstack (struct proc *p, vm_offset_t addr)
@@ -2309,18 +2317,29 @@ vm_map_growstack (struct proc *p, vm_offset_t addr)
 	int      grow_amount;
 	int      rv;
 	int      is_procstack;
+	int	hadvmlock;
+
+	hadvmlock = mtx_owned(&vm_mtx);
+	if (!hadvmlock)
+		mtx_lock(&vm_mtx);
+#define myreturn(rval)	do { \
+	if (!hadvmlock) \
+		mtx_unlock(&vm_mtx); \
+	return (rval); \
+} while (0)
+	
 Retry:
 	vm_map_lock_read(map);
 
 	/* If addr is already in the entry range, no need to grow.*/
 	if (vm_map_lookup_entry(map, addr, &prev_entry)) {
 		vm_map_unlock_read(map);
-		return (KERN_SUCCESS);
+		myreturn (KERN_SUCCESS);
 	}
 
 	if ((stack_entry = prev_entry->next) == &map->header) {
 		vm_map_unlock_read(map);
-		return (KERN_SUCCESS);
+		myreturn (KERN_SUCCESS);
 	} 
 	if (prev_entry == &map->header) 
 		end = stack_entry->start - stack_entry->avail_ssize;
@@ -2338,14 +2357,14 @@ Retry:
 	    addr >= stack_entry->start ||
 	    addr <  stack_entry->start - stack_entry->avail_ssize) {
 		vm_map_unlock_read(map);
-		return (KERN_SUCCESS);
+		myreturn (KERN_SUCCESS);
 	} 
 	
 	/* Find the minimum grow amount */
 	grow_amount = roundup (stack_entry->start - addr, PAGE_SIZE);
 	if (grow_amount > stack_entry->avail_ssize) {
 		vm_map_unlock_read(map);
-		return (KERN_NO_SPACE);
+		myreturn (KERN_NO_SPACE);
 	}
 
 	/* If there is no longer enough space between the entries
@@ -2364,7 +2383,7 @@ Retry:
 		stack_entry->avail_ssize = stack_entry->start - end;
 
 		vm_map_unlock(map);
-		return (KERN_NO_SPACE);
+		myreturn (KERN_NO_SPACE);
 	}
 
 	is_procstack = addr >= (vm_offset_t)vm->vm_maxsaddr;
@@ -2375,7 +2394,7 @@ Retry:
 	if (is_procstack && (ctob(vm->vm_ssize) + grow_amount >
 			     p->p_rlimit[RLIMIT_STACK].rlim_cur)) {
 		vm_map_unlock_read(map);
-		return (KERN_NO_SPACE);
+		myreturn (KERN_NO_SPACE);
 	}
 
 	/* Round up the grow amount modulo SGROWSIZ */
@@ -2427,8 +2446,8 @@ Retry:
 	}
 
 	vm_map_unlock(map);
-	return (rv);
-
+	myreturn (rv);
+#undef myreturn
 }
 
 /*
@@ -2501,6 +2520,9 @@ vmspace_unshare(struct proc *p) {
  *	specified, the map may be changed to perform virtual
  *	copying operations, although the data referenced will
  *	remain the same.
+ *
+ *	Can block locking maps and while calling vm_object_shadow().
+ *	Will drop/reaquire the vm_mtx.
  */
 int
 vm_map_lookup(vm_map_t *var_map,		/* IN/OUT */
@@ -2928,6 +2950,8 @@ vm_uiomove(mapa, srcobject, cp, cnta, uaddra, npages)
  * Performs the copy_on_write operations necessary to allow the virtual copies
  * into user space to work.  This has to be called for write(2) system calls
  * from other processes, file unlinking, and file size shrinkage.
+ *
+ * Requires that the vm_mtx is held
  */
 void
 vm_freeze_copyopts(object, froma, toa)
@@ -2938,6 +2962,7 @@ vm_freeze_copyopts(object, froma, toa)
 	vm_object_t robject;
 	vm_pindex_t idx;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	if ((object == NULL) ||
 		((object->flags & OBJ_OPT) == 0))
 		return;
