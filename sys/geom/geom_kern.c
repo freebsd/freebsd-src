@@ -216,15 +216,15 @@ sysctl_kern_geom_confxml(SYSCTL_HANDLER_ARGS)
 SYSCTL_NODE(_kern, OID_AUTO, geom, CTLFLAG_RW, 0, "GEOMetry management");
 
 SYSCTL_PROC(_kern_geom, OID_AUTO, confxml, CTLTYPE_STRING|CTLFLAG_RD,
-	0, 0, sysctl_kern_geom_confxml, "A",
+	0, 0, sysctl_kern_geom_confxml, "",
 	"Dump the GEOM config in XML");
 
 SYSCTL_PROC(_kern_geom, OID_AUTO, confdot, CTLTYPE_STRING|CTLFLAG_RD,
-	0, 0, sysctl_kern_geom_confdot, "A",
+	0, 0, sysctl_kern_geom_confdot, "",
 	"Dump the GEOM config in dot");
 
 SYSCTL_PROC(_kern_geom, OID_AUTO, conftxt, CTLTYPE_STRING|CTLFLAG_RD,
-	0, 0, sysctl_kern_geom_conftxt, "A",
+	0, 0, sysctl_kern_geom_conftxt, "",
 	"Dump the GEOM config in txt");
 
 SYSCTL_INT(_kern_geom, OID_AUTO, debugflags, CTLFLAG_RW,
