@@ -223,6 +223,17 @@ setup_p4tcc(void *dummy __unused)
 	p4tcc_economy = tcc[TCC_LEVELS - 1].rlevel;
 	p4tcc_performance = tcc[0].rlevel;
 
+	/*
+	 * Since after the reboot the TCC is usually in the Automatic
+	 * mode, in which reading current performance level is likely to
+	 * produce bogus results make sure to switch it to the On-Demand
+	 * mode and set to some known performance level. Unfortunately
+	 * there is no reliable way to check that TCC is in the Automatic
+	 * mode, reading bit 4 of ACPI Thermal Monitor Control Register
+	 * produces 0 regardless of the current mode.
+	 */
+	p4tcc_setperf(p4tcc_performance);
+
 	p4tcc_percentage = p4tcc_getperf();
 	printf("Pentium 4 TCC support enabled, %d steps from 100%% to %d%%, "
 	    "current performance %u%%\n", nsteps, p4tcc_economy,
