@@ -77,7 +77,7 @@ struct sc_info {
 	int sample_size, swap_reg;
 
 	struct resource *nambar, *nabmbar, *irq;
-	int nambarid, nabmbarid, irqid;
+	int regtype, nambarid, nabmbarid, irqid;
 	bus_space_tag_t nambart, nabmbart;
 	bus_space_handle_t nambarh, nabmbarh;
 	bus_dma_tag_t dmat;
@@ -579,7 +579,8 @@ ich_init(struct sc_info *sc)
 
 	if ((stat & ICH_GLOB_STA_PCR) == 0) {
 		/* ICH4/ICH5 may fail when busmastering is enabled. Continue */
-		if ((pci_get_devid(sc->dev) != ICH4ID) && (pci_get_devid(sc->dev) != ICH5ID)) {
+		if ((pci_get_devid(sc->dev) != ICH4ID) &&
+		    (pci_get_devid(sc->dev) != ICH5ID)) {
 			return ENXIO;
 		}
 	}
@@ -684,26 +685,23 @@ ich_pci_attach(device_t dev)
 	}
 
 	/*
-	 * By default, ich4 has NAMBAR and NABMBAR i/o spaces as
-	 * read-only.  Need to enable "legacy support", by poking into
-	 * pci config space.  The driver should use MMBAR and MBBAR,
-	 * but doing so will mess things up here.  ich4/5 have enough new
-	 * features to warrant a seperate driver.
-	 */
-	if ((pci_get_devid(dev) == ICH4ID) || (pci_get_devid(dev) == ICH5ID)) {
-		pci_write_config(dev, PCIR_ICH_LEGACY, ICH_LEGACY_ENABLE, 1);
-	}
-
-	/*
 	 * Enable bus master. On ich4/5 this may prevent the detection of
 	 * the primary codec becoming ready in ich_init().
 	 */
 	pci_enable_busmaster(dev);
 
-	sc->nambarid = PCIR_NAMBAR;
-	sc->nabmbarid = PCIR_NABMBAR;
-	sc->nambar = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->nambarid, 0, ~0, 1, RF_ACTIVE);
-	sc->nabmbar = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->nabmbarid, 0, ~0, 1, RF_ACTIVE);
+	if ((pci_get_devid(dev) == ICH4ID) || (pci_get_devid(dev) == ICH5ID)) {
+		sc->nambarid = PCIR_MMBAR;
+		sc->nabmbarid = PCIR_MBBAR;
+		sc->regtype = SYS_RES_MEMORY;
+	} else {
+		sc->nambarid = PCIR_NAMBAR;
+		sc->nabmbarid = PCIR_NABMBAR;
+		sc->regtype = SYS_RES_IOPORT;
+	}
+
+	sc->nambar = bus_alloc_resource(dev, sc->regtype, &sc->nambarid, 0, ~0, 1, RF_ACTIVE);
+	sc->nabmbar = bus_alloc_resource(dev, sc->regtype, &sc->nabmbarid, 0, ~0, 1, RF_ACTIVE);
 
 	if (!sc->nambar || !sc->nabmbar) {
 		device_printf(dev, "unable to map IO port space\n");
@@ -781,10 +779,10 @@ bad:
 	if (sc->irq)
 		bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
 	if (sc->nambar)
-		bus_release_resource(dev, SYS_RES_IOPORT,
+		bus_release_resource(dev, sc->regtype,
 		    sc->nambarid, sc->nambar);
 	if (sc->nabmbar)
-		bus_release_resource(dev, SYS_RES_IOPORT,
+		bus_release_resource(dev, sc->regtype,
 		    sc->nabmbarid, sc->nabmbar);
 	free(sc, M_DEVBUF);
 	return ENXIO;
@@ -803,8 +801,8 @@ ich_pci_detach(device_t dev)
 
 	bus_teardown_intr(dev, sc->irq, sc->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
-	bus_release_resource(dev, SYS_RES_IOPORT, sc->nambarid, sc->nambar);
-	bus_release_resource(dev, SYS_RES_IOPORT, sc->nabmbarid, sc->nabmbar);
+	bus_release_resource(dev, sc->regtype, sc->nambarid, sc->nambar);
+	bus_release_resource(dev, sc->regtype, sc->nabmbarid, sc->nabmbar);
 	bus_dma_tag_destroy(sc->dmat);
 	free(sc, M_DEVBUF);
 	return 0;
