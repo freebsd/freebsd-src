@@ -334,7 +334,6 @@ _thread_init(void)
 
 		/* Initialize the initial context: */
 		_thread_initial->curframe = NULL;
-		_thread_initial->ctxtype = CTX_JB_NOSIG;
 
 		/* Initialise the rest of the fields: */
 		_thread_initial->poll_data.nfds = 0;
@@ -359,17 +358,6 @@ _thread_init(void)
 
 		/* Clear the signal queue: */
 		memset(_thread_sigq, 0, sizeof(_thread_sigq));
-
-		/*
-		 * Create and install an alternate signal stack of
-		 * the recommended size:
-		 */
-		_thread_sigstack.ss_sp = malloc(SIGSTKSZ);
-		_thread_sigstack.ss_size = SIGSTKSZ;
-		_thread_sigstack.ss_flags = 0;
-		if ((_thread_sigstack.ss_sp == NULL) ||
-		    (__sys_sigaltstack(&_thread_sigstack, NULL) != 0))
-			PANIC("Unable to install alternate signal stack");
 
 		/* Enter a loop to get the existing signal status: */
 		for (i = 1; i < NSIG; i++) {
