@@ -157,7 +157,7 @@ static d_poll_t ums_poll;
 
 #define UMS_CDEV_MAJOR	111
 
-static struct  cdevsw ums_cdevsw = {
+static struct cdevsw ums_cdevsw = {
 	ums_open,	ums_close,	ums_read,	nowrite,
 	ums_ioctl,	nostop,		nullreset,	nodevtotty,
 	ums_poll,	nommap,		nostrat,
@@ -276,12 +276,7 @@ USB_ATTACH(ums)
 		if ((flags & MOUSE_FLAGS_MASK) != MOUSE_FLAGS) {
 			sc->sc_loc_z.size = 0;	/* Bad Z coord, ignore it */
 		} else {
-#if defined(__FreeBSD__)
-#ifdef USBVERBOSE
-			printf("%s: Z dir. ignored due to bugs in ums.c\n",
-				USBDEVNAME(sc->sc_dev));
-#endif
-#else
+#if !defined(__FreeBSD__)
 			sc->flags |= UMS_Z;
 #endif
 		}
@@ -295,11 +290,13 @@ USB_ATTACH(ums)
 	sc->nbuttons = i - 1;
 	sc->sc_loc_btn = malloc(sizeof(struct hid_location)*sc->nbuttons, 
 				M_USBDEV, M_NOWAIT);
-	if (!sc->sc_loc_btn)
+	if (!sc->sc_loc_btn) {
+		printf("%s: no memory\n", USBDEVNAME(sc->sc_dev));
 		USB_ATTACH_ERROR_RETURN;
+	}
 
 	printf("%s: %d buttons%s\n", USBDEVNAME(sc->sc_dev),
-	       sc->nbuttons, (sc->flags & UMS_Z? " and Z dir." : ""));
+	       sc->nbuttons, sc->flags & UMS_Z? " and Z dir." : "");
 
 	for (i = 1; i <= sc->nbuttons; i++)
 		hid_locate(desc, size, HID_USAGE2(HUP_BUTTON, i),
@@ -308,6 +305,7 @@ USB_ATTACH(ums)
 	sc->sc_isize = hid_report_size(desc, size, hid_input, &sc->sc_iid);
 	sc->sc_ibuf = malloc(sc->sc_isize, M_USB, M_NOWAIT);
 	if (!sc->sc_ibuf) {
+		printf("%s: no memory\n", USBDEVNAME(sc->sc_dev));
 		free(sc->sc_loc_btn, M_USB);
 		USB_ATTACH_ERROR_RETURN;
 	}
@@ -379,12 +377,27 @@ ums_detach(device_t self)
 	struct ums_softc *sc = device_get_softc(self);
 	char *devinfo = (char *) device_get_desc(self);
 
+	usbd_abort_pipe(sc->sc_intrpipe);
+	usbd_close_pipe(sc->sc_intrpipe);
+	sc->sc_disconnected = 1;
+
+	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
 	if (devinfo) {
 		device_set_desc(self, NULL);
 		free(devinfo, M_USB);
 	}
 	free(sc->sc_loc_btn, M_USB);
 	free(sc->sc_ibuf, M_USB);
+
+	/* someone waiting for data */
+	if (sc->state & UMS_ASLEEP) {
+		DPRINTF(("Waking up %p\n", sc));
+		wakeup(sc);
+	}
+	if (sc->state & UMS_SELECT) {
+		DPRINTF(("Waking up select %p\n", &sc->rsel));
+		selwakeup(&sc->rsel);
+	}
 
 	return 0;
 }
