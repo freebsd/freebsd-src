@@ -265,7 +265,7 @@ swap_pager_init()
 void
 swap_pager_swap_init()
 {
-	int n;
+	int n, n2;
 
 	/*
 	 * Number of in-transit swap bp operations.  Don't
@@ -306,16 +306,29 @@ swap_pager_swap_init()
 	n = cnt.v_page_count;
 	if (maxswzone && n > maxswzone / sizeof(struct swblock))
 		n = maxswzone / sizeof(struct swblock);
+	n2 = n;
 
-	swap_zone = zinit(
-	    "SWAPMETA", 
-	    sizeof(struct swblock), 
-	    n,
-	    ZONE_INTERRUPT, 
-	    1
-	);
+	do {
+		swap_zone = zinit(
+			"SWAPMETA", 
+			sizeof(struct swblock), 
+			n,
+			ZONE_INTERRUPT, 
+			1);
+		if (swap_zone != NULL)
+			break;
+		/*
+		 * if the allocation failed, try a zone two thirds the
+		 * size of the previous attempt.
+		 */
+		n -= ((n + 2) / 3);
+	} while (n > 0);
+
 	if (swap_zone == NULL)
 		panic("swap_pager_swap_init: swap_zone == NULL");
+	if (n2 != n)
+		printf("Swap zone entries reduced from %d to %d.\n", n2, n);
+	n2 = n;
 
 	/*
 	 * Initialize our meta-data hash table.  The swapper does not need to
@@ -326,7 +339,7 @@ swap_pager_swap_init()
 	 *	swhash_mask:	hash table index mask
 	 */
 
-	for (n = 1; n < cnt.v_page_count / 4; n <<= 1)
+	for (n = 1; n < n2 / 8; n *= 2)
 		;
 
 	swhash = malloc(sizeof(struct swblock *) * n, M_VMPGDATA, M_WAITOK);
