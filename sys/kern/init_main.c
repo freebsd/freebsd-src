@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.117 1999/05/03 23:57:19 billf Exp $
+ * $Id: init_main.c,v 1.118 1999/05/05 12:20:23 jb Exp $
  */
 
 #include "opt_devfs.h"
@@ -624,7 +624,7 @@ start_init(p)
 	p->p_vmspace->vm_ssize = 1;
 
 	if ((var = getenv("init_path")) != NULL) {
-		strncpy(init_path, var, MAXPATHLEN);
+		strncpy(init_path, var, sizeof init_path);
 		init_path[sizeof init_path - 1] = 0;
 	}
 	
