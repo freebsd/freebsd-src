@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.12 1996/03/17 08:36:36 jkh Exp $
+ * $Id: if_fe.c,v 1.13 1996/04/07 17:50:09 bde Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -133,9 +133,7 @@
 #include <pccard/card.h>
 #include <pccard/slot.h>
 #include <pccard/driver.h>
-
-#include <machine/laptops.h>
-#endif /* NCRD > 0 */
+#endif
 
 #include <i386/isa/ic/mb86960.h>
 #include <i386/isa/if_fereg.h>
@@ -355,28 +353,28 @@ static void feunload(struct pccard_dev *);	/* Disable driver */
 static void fesuspend(struct pccard_dev *);	/* Suspend driver */
 static int feinit(struct pccard_dev *, int);	/* init device */
 
-static struct pccard_drv fe_info =
-        {
-        "fe",
-        fe_card_intr,
-        feunload,
-        fesuspend, 
-        feinit,
-        0,                      /* Attributes - presently unused */
-        &net_imask              /* Interrupt mask for device */
-                                /* This should also include net_imask?? */
-        };
+static struct pccard_drv fe_info = {
+	"fe",
+	fe_card_intr,
+	feunload,
+	fesuspend,
+	feinit,
+	0,			/* Attributes - presently unused */
+	&net_imask		/* Interrupt mask for device */
+				/* XXX - Should this also include net_imask? */
+};
+
 /*
- * Called when a power down is requested. Shuts down the
- * device and configures the device as unavailable (but
- * still loaded...). A resume is done by calling
- * feinit with first=0. This is called when the user suspends
- * the system, or the APM code suspends the system.
+ *	Called when a power down is requested. Shuts down the
+ *	device and configures the device as unavailable (but
+ *	still loaded...). A resume is done by calling
+ *	feinit with first=0. This is called when the user suspends
+ *	the system, or the APM code suspends the system.
  */
 static void
 fesuspend(struct pccard_dev *dp)
 {
-        printf("fe%d: suspending\n", dp->isahd.id_unit);
+	printf("fe%d: suspending\n", dp->isahd.id_unit);
 }
 
 /*
@@ -388,65 +386,60 @@ fesuspend(struct pccard_dev *dp)
 static int
 feinit(struct pccard_dev *dp, int first)
 {
-/*
- *      validate unit number.
- */
-	struct fe_softc *sc;
-	if (first)
-                {
-                if (dp->isahd.id_unit >= NFE)
-                        return(ENODEV);
-/*
- *      Probe the device. If a value is returned, the
- *      device was found at the location.
- */
+	/* validate unit number. */
+	if (first) {
+		if (dp->isahd.id_unit >= NFE)
+			return (ENODEV);
+		/*
+		 * Probe the device. If a value is returned,
+		 * the device was found at the location.
+		 */
 #if FE_DEBUG >= 2
 		printf("Start Probe\n");
 #endif
-		if (fe_probe(&dp->isahd)==0)
-                        return(ENXIO);
+		if (fe_probe(&dp->isahd) == 0)
+			return (ENXIO);
 #if FE_DEBUG >= 2
 		printf("Start attach\n");
 #endif
-                if (fe_attach(&dp->isahd)==0)
-                	return(ENXIO);
-
-                }
-/*
- *      XXX TODO:
- *      If it was already init'ed before, the device structure
- *      should be already initialized. Here we should
- *      reset (and possibly restart) the hardware, but
- *      I am not sure of the best way to do this...
- */
-	return(0);
+		if (fe_attach(&dp->isahd) == 0)
+			return (ENXIO);
+	}
+	/*
+	 * XXX TODO:
+	 * If it was initialized before, the device structure
+	 * should also be initialized.  We should
+	 * reset (and possibly restart) the hardware, but
+	 * I am not sure of the best way to do this...
+	 */
+	return (0);
 }
 
 /*
- *      feunload - unload the driver and clear the table.
- *      XXX TODO:
- *      This is called usually when the card is ejected, but
- *      can be caused by the modunload of a controller driver.
- *      The idea is reset the driver's view of the device
- *      and ensure that any driver entry points such as
- *      read and write do not hang.
+ *	feunload - unload the driver and clear the table.
+ *	XXX TODO:
+ *	This is usually called when the card is ejected, but
+ *	can be caused by a modunload of a controller driver.
+ *	The idea is to reset the driver's view of the device
+ *	and ensure that any driver entry points such as
+ *	read and write do not hang.
  */
 static void
 feunload(struct pccard_dev *dp)
 {
-        printf("fe%d: unload\n", dp->isahd.id_unit);
-        fe_stop(dp->isahd.id_unit);
+	printf("fe%d: unload\n", dp->isahd.id_unit);
+	fe_stop(dp->isahd.id_unit);
 }
 
 /*
- *      card_intr - Shared interrupt called from
- *      front end of PC-Card handler.
+ *	fe_card_intr - Shared interrupt called from
+ *	 front end of PC-Card handler.
  */
 static int
 fe_card_intr(struct pccard_dev *dp)
 {
-        feintr(dp->isahd.id_unit);
-        return(1);
+	feintr(dp->isahd.id_unit);
+	return (1);
 }
 #endif /* NCRD > 0 */
 
@@ -501,7 +494,7 @@ fe_probe ( DEVICE * dev )
 {
 #if NCRD > 0
 	static int fe_already_init;
-#endif /* NCRD > 0 */	
+#endif
 	struct fe_softc * sc;
 	int u;
 	int nports;
@@ -515,21 +508,19 @@ fe_probe ( DEVICE * dev )
 
 #if NCRD == 0
 #ifndef DEV_LKM
-        fe_registerdev( sc, dev );   
+	fe_registerdev(sc, dev);   
 #endif  
 #endif  /* NCRD == 0 */
 
 #if NCRD > 0
-/*
- *      If PC-Card probe required, then register driver with
- *      slot manager.
- */     
-        if (fe_already_init != 1)
-        {
+	/*
+	 * If PC-Card probe required, then register driver with
+	 * slot manager.
+	 */
+	if (fe_already_init != 1) {
 		fe_registerdev(sc,dev);
-                pccard_add_driver(&fe_info);
-                fe_already_init = 1;
-/*		return ( 0 );  */
+		pccard_add_driver(&fe_info);
+		fe_already_init = 1;
 	}
 #endif /* NCRD > 0 */
 
@@ -1317,7 +1308,7 @@ static int
 fe_attach ( DEVICE * dev )
 {
 #if NCRD > 0
-static	int	alredy_ifatch[NFE];
+	static	int	already_ifattach[NFE];
 #endif
 	struct fe_softc *sc = &fe_softc[dev->id_unit];
 
@@ -1383,17 +1374,16 @@ static	int	alredy_ifatch[NFE];
 		break;
 	}
 
-	/* Attach and stop the interface.  */
+	/* Attach and stop the interface. */
 #if NCRD > 0
-	if (alredy_ifatch[dev->id_unit] != 1)
-	{
-		if_attach( &sc->sc_if );
-		alredy_ifatch[dev->id_unit] = 1;
+	if (already_ifattach[dev->id_unit] != 1) {
+		if_attach(&sc->sc_if);
+		already_ifattach[dev->id_unit] = 1;
 	}
 #else
-  	if_attach( &sc->sc_if );
+	if_attach(&sc->sc_if);
 #endif /* NCRD > 0 */
-	fe_stop( sc->sc_unit );		/* This changes the state to IDLE.  */
+	fe_stop(sc->sc_unit);		/* This changes the state to IDLE.  */
  	ether_ifattach(&sc->sc_if);
   
   	/* Print additional info when attached.  */
