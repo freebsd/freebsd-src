@@ -1,6 +1,6 @@
 /* More subroutines needed by GCC output code on some machines.  */
 /* Compile this one with gcc.  */
-/* Copyright (C) 1989, 92-97, 1998 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 92-98, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -25,6 +25,8 @@ Boston, MA 02111-1307, USA.  */
    to be covered by the GNU General Public License.
    This exception does not however invalidate any other reasons why
    the executable file might be covered by the GNU General Public License.  */
+
+/* $FreeBSD$ */
 
 /* It is incorrect to include config.h here, because this file is being
    compiled for the target, and hence definitions concerning only the host
@@ -72,6 +74,10 @@ Boston, MA 02111-1307, USA.  */
 #define LIBGCC2_WORDS_BIG_ENDIAN WORDS_BIG_ENDIAN
 #endif
 
+#ifndef LIBGCC2_LONG_DOUBLE_TYPE_SIZE
+#define LIBGCC2_LONG_DOUBLE_TYPE_SIZE LONG_DOUBLE_TYPE_SIZE
+#endif
+
 /* In the first part of this file, we are interfacing to calls generated
    by the compiler itself.  These calls pass values into these routines
    which have very specific modes (rather than very specific types), and
@@ -90,10 +96,10 @@ typedef unsigned int UDItype	__attribute__ ((mode (DI)));
 typedef 	float SFtype	__attribute__ ((mode (SF)));
 typedef		float DFtype	__attribute__ ((mode (DF)));
 
-#if LONG_DOUBLE_TYPE_SIZE == 96
+#if LIBGCC2_LONG_DOUBLE_TYPE_SIZE == 96
 typedef		float XFtype	__attribute__ ((mode (XF)));
 #endif
-#if LONG_DOUBLE_TYPE_SIZE == 128
+#if LIBGCC2_LONG_DOUBLE_TYPE_SIZE == 128
 typedef		float TFtype	__attribute__ ((mode (TF)));
 #endif
 
@@ -144,10 +150,10 @@ typedef union
 
 extern DItype __fixunssfdi (SFtype a);
 extern DItype __fixunsdfdi (DFtype a);
-#if LONG_DOUBLE_TYPE_SIZE == 96
+#if LIBGCC2_LONG_DOUBLE_TYPE_SIZE == 96
 extern DItype __fixunsxfdi (XFtype a);
 #endif
-#if LONG_DOUBLE_TYPE_SIZE == 128
+#if LIBGCC2_LONG_DOUBLE_TYPE_SIZE == 128
 extern DItype __fixunstfdi (TFtype a);
 #endif
 
@@ -768,7 +774,7 @@ __ucmpdi2 (DItype a, DItype b)
 }
 #endif
 
-#if defined(L_fixunstfdi) && (LONG_DOUBLE_TYPE_SIZE == 128)
+#if defined(L_fixunstfdi) && (LIBGCC2_LONG_DOUBLE_TYPE_SIZE == 128)
 #define WORD_SIZE (sizeof (SItype) * BITS_PER_UNIT)
 #define HIGH_WORD_COEFF (((UDItype) 1) << WORD_SIZE)
 
@@ -800,7 +806,7 @@ __fixunstfdi (TFtype a)
 }
 #endif
 
-#if defined(L_fixtfdi) && (LONG_DOUBLE_TYPE_SIZE == 128)
+#if defined(L_fixtfdi) && (LIBGCC2_LONG_DOUBLE_TYPE_SIZE == 128)
 DItype
 __fixtfdi (TFtype a)
 {
@@ -810,7 +816,7 @@ __fixtfdi (TFtype a)
 }
 #endif
 
-#if defined(L_fixunsxfdi) && (LONG_DOUBLE_TYPE_SIZE == 96)
+#if defined(L_fixunsxfdi) && (LIBGCC2_LONG_DOUBLE_TYPE_SIZE == 96)
 #define WORD_SIZE (sizeof (SItype) * BITS_PER_UNIT)
 #define HIGH_WORD_COEFF (((UDItype) 1) << WORD_SIZE)
 
@@ -842,7 +848,7 @@ __fixunsxfdi (XFtype a)
 }
 #endif
 
-#if defined(L_fixxfdi) && (LONG_DOUBLE_TYPE_SIZE == 96)
+#if defined(L_fixxfdi) && (LIBGCC2_LONG_DOUBLE_TYPE_SIZE == 96)
 DItype
 __fixxfdi (XFtype a)
 {
@@ -940,7 +946,7 @@ __fixsfdi (SFtype a)
 }
 #endif
 
-#if defined(L_floatdixf) && (LONG_DOUBLE_TYPE_SIZE == 96)
+#if defined(L_floatdixf) && (LIBGCC2_LONG_DOUBLE_TYPE_SIZE == 96)
 #define WORD_SIZE (sizeof (SItype) * BITS_PER_UNIT)
 #define HIGH_HALFWORD_COEFF (((UDItype) 1) << (WORD_SIZE / 2))
 #define HIGH_WORD_COEFF (((UDItype) 1) << WORD_SIZE)
@@ -959,7 +965,7 @@ __floatdixf (DItype u)
 }
 #endif
 
-#if defined(L_floatditf) && (LONG_DOUBLE_TYPE_SIZE == 128)
+#if defined(L_floatditf) && (LIBGCC2_LONG_DOUBLE_TYPE_SIZE == 128)
 #define WORD_SIZE (sizeof (SItype) * BITS_PER_UNIT)
 #define HIGH_HALFWORD_COEFF (((UDItype) 1) << (WORD_SIZE / 2))
 #define HIGH_WORD_COEFF (((UDItype) 1) << WORD_SIZE)
@@ -1065,7 +1071,7 @@ __floatdisf (DItype u)
 }
 #endif
 
-#if defined(L_fixunsxfsi) && LONG_DOUBLE_TYPE_SIZE == 96
+#if defined(L_fixunsxfsi) && LIBGCC2_LONG_DOUBLE_TYPE_SIZE == 96
 /* Reenable the normal types, in case limits.h needs them.  */
 #undef char
 #undef short
@@ -1403,6 +1409,9 @@ __builtin_saveregs ()
 #undef NULL /* Avoid errors if stdio.h and our stddef.h mismatch.  */
 #include <stdio.h>
 /* This is used by the `assert' macro.  */
+extern void __eprintf (const char *, const char *, unsigned int, const char *)
+  __attribute__ ((__noreturn__));
+
 void
 __eprintf (const char *string, const char *expression,
 	   unsigned int line, const char *filename)
@@ -2569,7 +2578,7 @@ __clear_cache (char *beg, char *end)
 
 /* Jump to a trampoline, loading the static chain address.  */
 
-#if defined(WINNT) && ! defined(__CYGWIN32__)
+#if defined(WINNT) && ! defined(__CYGWIN__) && ! defined (_UWIN)
 
 long getpagesize()
 {
@@ -2608,7 +2617,7 @@ mprotect (char *addr, int len, int prot)
     return -1;
 }
 
-#endif
+#endif /* WINNT && ! __CYGWIN__ && ! _UWIN */
 
 #ifdef TRANSFER_FROM_TRAMPOLINE 
 TRANSFER_FROM_TRAMPOLINE 
@@ -2807,7 +2816,7 @@ cacheflush (char *beg, int size, int flag)
 #endif /* sony_news */
 #endif /* L_trampoline */
 
-#ifndef __CYGWIN32__
+#ifndef __CYGWIN__
 #ifdef L__main
 
 #include "gbl-ctors.h"
@@ -2889,7 +2898,7 @@ SYMBOL__MAIN ()
 #endif /* no HAS_INIT_SECTION or INVOKE__main */
 
 #endif /* L__main */
-#endif /* __CYGWIN32__ */
+#endif /* __CYGWIN__ */
 
 #ifdef L_ctors
 
@@ -2901,10 +2910,15 @@ SYMBOL__MAIN ()
    the right values.  */
 
 /* We declare the lists here with two elements each,
-   so that they are valid empty lists if no other definition is loaded.  */
+   so that they are valid empty lists if no other definition is loaded.
+
+   If we are using the old "set" extensions to have the gnu linker
+   collect ctors and dtors, then we __CTOR_LIST__ and __DTOR_LIST__
+   must be in the bss/common section.
+
+   Long term no port should use those extensions.  But many still do.  */
 #if !defined(INIT_SECTION_ASM_OP) && !defined(CTOR_LISTS_DEFINED_EXTERNALLY)
-#if defined(__NeXT__) || defined(_AIX)
-/* After 2.3, try this definition on all systems.  */
+#if defined (ASM_OUTPUT_CONSTRUCTOR) || defined (USE_COLLECT2)
 func_ptr __CTOR_LIST__[2] = {0, 0};
 func_ptr __DTOR_LIST__[2] = {0, 0};
 #else
@@ -3023,6 +3037,8 @@ int atexit (func_ptr func)
 
 /* Shared exception handling support routines.  */
 
+extern void __default_terminate (void) __attribute__ ((__noreturn__));
+
 void
 __default_terminate ()
 {
@@ -3058,6 +3074,9 @@ __empty ()
 /* Include definitions of EH context and table layout */
 
 #include "eh-common.h"
+#ifndef inhibit_libc
+#include <stdio.h>
+#endif
 
 /* Allocate and return a new EH context structure. */
 
@@ -3177,10 +3196,17 @@ eh_context_initialize ()
 static struct eh_context *
 eh_context_static ()
 {
-  static struct eh_context *eh;
-  if (! eh)
-    eh = new_eh_context ();
-  return eh;
+  static struct eh_context eh;
+  static int initialized;
+  static void *top_elt[2];
+
+  if (! initialized)
+    {
+      initialized = 1;
+      memset (&eh, 0, sizeof eh);
+      eh.dynamic_handler_chain = top_elt;
+    }
+  return &eh;
 }
 
 #if __GTHREADS
@@ -3229,6 +3255,8 @@ __get_dynamic_handler_chain ()
    cleanup actions off the dynamic cleanup stack, and pop the top of the
    dynamic handler chain, and use longjmp to transfer back to the associated
    handler.  */
+
+extern void __sjthrow (void) __attribute__ ((__noreturn__));
 
 void
 __sjthrow ()
@@ -3306,6 +3334,8 @@ __sjthrow ()
    then throw.  This is used to skip the first handler, and transfer
    control to the next handler in the dynamic handler stack.  */
 
+extern void __sjpopnthrow (void) __attribute__ ((__noreturn__));
+
 void
 __sjpopnthrow ()
 {
@@ -3361,6 +3391,26 @@ __sjpopnthrow ()
 }
 
 /* Support code for all exception region-based exception handling.  */
+
+int
+__eh_rtime_match (void *rtime)
+{
+  void *info;
+  __eh_matcher matcher;
+  void *ret;
+
+  info = *(__get_eh_info ());
+  matcher = ((__eh_info *)info)->match_function;
+  if (! matcher)
+    {
+#ifndef inhibit_libc
+      fprintf (stderr, "Internal Compiler Bug: No runtime type matcher.");
+#endif
+      return 0;
+    }
+  ret = (*matcher) (info, rtime, (void *)0);
+  return (ret != NULL);
+}
 
 /* This value identifies the place from which an exception is being
    thrown.  */
@@ -3429,45 +3479,82 @@ old_find_exception_handler (void *pc, old_exception_table *table)
   return (void *) 0;
 }
 
+/* find_exception_handler finds the correct handler, if there is one, to
+   handle an exception.
+   returns a pointer to the handler which controlled should be transferred
+   to, or NULL if there is nothing left.
+   Parameters:
+   PC - pc where the exception originates. If this is a rethrow, 
+        then this starts out as a pointer to the exception table
+	entry we wish to rethrow out of.
+   TABLE - exception table for the current module.
+   EH_INFO - eh info pointer for this exception.
+   RETHROW - 1 if this is a rethrow. (see incoming value of PC).
+   CLEANUP - returned flag indicating whether this is a cleanup handler.
+*/
 static void *
-find_exception_handler (void *pc, exception_descriptor *table, void *eh_info)
+find_exception_handler (void *pc, exception_descriptor *table, 
+                        __eh_info *eh_info, int rethrow, int *cleanup)
 {
+
+  void *retval = NULL;
+  *cleanup = 1;
   if (table)
     {
+      int pos = 0;
       /* The new model assumed the table is sorted inner-most out so the
          first region we find which matches is the correct one */
 
-      int pos;
-      void *ret;
       exception_table *tab = &(table->table[0]);
 
       /* Subtract 1 from the PC to avoid hitting the next region */
-      pc--;
+      if (rethrow) 
+        {
+          /* pc is actually the region table entry to rethrow out of */
+          pos = ((exception_table *) pc) - tab;
+          pc = ((exception_table *) pc)->end_region - 1;
+
+          /* The label is always on the LAST handler entry for a region, 
+             so we know the next entry is a different region, even if the
+             addresses are the same. Make sure its not end of table tho. */
+          if (tab[pos].start_region != (void *) -1)
+            pos++;
+        }
+      else
+        pc--;
       
       /* We can't do a binary search because the table is in inner-most
          to outermost address ranges within functions */
-      for (pos = 0; tab[pos].start_region != (void *) -1; pos++)
+      for ( ; tab[pos].start_region != (void *) -1; pos++)
         { 
           if (tab[pos].start_region <= pc && tab[pos].end_region > pc)
             {
               if (tab[pos].match_info)
                 {
-                  __eh_matcher matcher = ((__eh_info *)eh_info)->match_function;
+                  __eh_matcher matcher = eh_info->match_function;
                   /* match info but no matcher is NOT a match */
                   if (matcher) 
                     {
-                      ret = (*matcher)(eh_info, tab[pos].match_info, table);
-                      if (ret)
-                        return tab[pos].exception_handler;
+                      void *ret = (*matcher)((void *) eh_info, 
+                                             tab[pos].match_info, table);
+                      if (ret) 
+                        {
+                          if (retval == NULL)
+                            retval = tab[pos].exception_handler;
+                          *cleanup = 0;
+                          break;
+                        }
                     }
                 }
               else
-                return tab[pos].exception_handler;
+                {
+                  if (retval == NULL)
+                    retval = tab[pos].exception_handler;
+                }
             }
         }
     }
-
-  return (void *) 0;
+  return retval;
 }
 #endif /* DWARF2_UNWIND_INFO */
 #endif /* EH_TABLE_LOOKUP */
@@ -3484,31 +3571,71 @@ find_exception_handler (void *pc, exception_descriptor *table, void *eh_info)
 
 typedef int ptr_type __attribute__ ((mode (pointer)));
 
-/* Get the value of register REG as saved in UDATA, where SUB_UDATA is a
+#ifdef INCOMING_REGNO
+/* Is the saved value for register REG in frame UDATA stored in a register
+   window in the previous frame?  */
+
+/* ??? The Sparc INCOMING_REGNO references TARGET_FLAT.  This allows us
+   to use the macro here.  One wonders, though, that perhaps TARGET_FLAT
+   compiled functions won't work with the frame-unwind stuff here.  
+   Perhaps the entireity of in_reg_window should be conditional on having
+   seen a DW_CFA_GNU_window_save?  */
+#define target_flags 0
+
+static int
+in_reg_window (int reg, frame_state *udata)
+{
+  if (udata->saved[reg] == REG_SAVED_REG)
+    return INCOMING_REGNO (reg) == reg;
+  if (udata->saved[reg] != REG_SAVED_OFFSET)
+    return 0;
+
+#ifdef STACK_GROWS_DOWNWARD
+  return udata->reg_or_offset[reg] > 0;
+#else
+  return udata->reg_or_offset[reg] < 0;
+#endif
+}
+#else
+static inline int in_reg_window (int reg, frame_state *udata) { return 0; }
+#endif /* INCOMING_REGNO */
+
+/* Get the address of register REG as saved in UDATA, where SUB_UDATA is a
    frame called by UDATA or 0.  */
 
-static void*
-get_reg (unsigned reg, frame_state *udata, frame_state *sub_udata)
+static word_type *
+get_reg_addr (unsigned reg, frame_state *udata, frame_state *sub_udata)
 {
+  while (udata->saved[reg] == REG_SAVED_REG)
+    {
+      reg = udata->reg_or_offset[reg];
+      if (in_reg_window (reg, udata))
+	{
+          udata = sub_udata;
+	  sub_udata = NULL;
+	}
+    }
   if (udata->saved[reg] == REG_SAVED_OFFSET)
-    return (void *)(ptr_type)
-      *(word_type *)(udata->cfa + udata->reg_or_offset[reg]);
-  else if (udata->saved[reg] == REG_SAVED_REG && sub_udata)
-    return get_reg (udata->reg_or_offset[reg], sub_udata, 0);
+    return (word_type *)(udata->cfa + udata->reg_or_offset[reg]);
   else
     abort ();
 }
 
+/* Get the value of register REG as saved in UDATA, where SUB_UDATA is a
+   frame called by UDATA or 0.  */
+
+static inline void *
+get_reg (unsigned reg, frame_state *udata, frame_state *sub_udata)
+{
+  return (void *)(ptr_type) *get_reg_addr (reg, udata, sub_udata);
+}
+
 /* Overwrite the saved value for register REG in frame UDATA with VAL.  */
 
-static void
+static inline void
 put_reg (unsigned reg, void *val, frame_state *udata)
 {
-  if (udata->saved[reg] == REG_SAVED_OFFSET)
-    *(word_type *)(udata->cfa + udata->reg_or_offset[reg])
-      = (word_type)(ptr_type) val;
-  else
-    abort ();
+  *get_reg_addr (reg, udata, NULL) = (word_type)(ptr_type) val;
 }
 
 /* Copy the saved value for register REG from frame UDATA to frame
@@ -3518,17 +3645,13 @@ put_reg (unsigned reg, void *val, frame_state *udata)
 static void
 copy_reg (unsigned reg, frame_state *udata, frame_state *target_udata)
 {
-  if (udata->saved[reg] == REG_SAVED_OFFSET
-      && target_udata->saved[reg] == REG_SAVED_OFFSET)
-    memcpy (target_udata->cfa + target_udata->reg_or_offset[reg],
-	    udata->cfa + udata->reg_or_offset[reg],
-	    __builtin_dwarf_reg_size (reg));
-  else
-    abort ();
+  word_type *preg = get_reg_addr (reg, udata, NULL);
+  word_type *ptreg = get_reg_addr (reg, target_udata, NULL);
+
+  memcpy (ptreg, preg, __builtin_dwarf_reg_size (reg));
 }
 
-/* Retrieve the return address for frame UDATA, where SUB_UDATA is a
-   frame called by UDATA or 0.  */
+/* Retrieve the return address for frame UDATA.  */
 
 static inline void *
 get_return_addr (frame_state *udata, frame_state *sub_udata)
@@ -3568,76 +3691,55 @@ next_stack_level (void *pc, frame_state *udata, frame_state *caller_udata)
   return caller_udata;
 }
 
-#ifdef INCOMING_REGNO
-/* Is the saved value for register REG in frame UDATA stored in a register
-   window in the previous frame?  */
-
-static int
-in_reg_window (int reg, frame_state *udata)
+/* Hook to call before __terminate if only cleanup handlers remain. */
+void 
+__unwinding_cleanup ()
 {
-  if (udata->saved[reg] != REG_SAVED_OFFSET)
-    return 0;
-
-#ifdef STACK_GROWS_DOWNWARD
-  return udata->reg_or_offset[reg] > 0;
-#else
-  return udata->reg_or_offset[reg] < 0;
-#endif
 }
-#endif /* INCOMING_REGNO */
 
-/* We first search for an exception handler, and if we don't find
-   it, we call __terminate on the current stack frame so that we may
-   use the debugger to walk the stack and understand why no handler
-   was found.
+/* throw_helper performs some of the common grunt work for a throw. This
+   routine is called by throw and rethrows. This is pretty much split 
+   out from the old __throw routine. An addition has been added which allows
+   for a dummy call to a routine __unwinding_cleanup() when there are nothing
+   but cleanups remaining. This allows a debugger to examine the state
+   at which the throw was executed, before any cleanups, rather than
+   at the terminate point after the stack has been unwound.
 
-   If we find one, then we unwind the frames down to the one that
-   has the handler and transfer control into the handler.  */
+   EH is the current eh_context structure.
+   PC is the address of the call to __throw.
+   MY_UDATA is the unwind information for __throw.
+   OFFSET_P is where we return the SP adjustment offset.  */
 
-void
-__throw ()
+static void *
+throw_helper (eh, pc, my_udata, offset_p)
+     struct eh_context *eh;
+     void *pc;
+     frame_state *my_udata;
+     long *offset_p;
 {
-  struct eh_context *eh = (*get_eh_context) ();
-  void *saved_pc, *pc, *handler, *retaddr;
-  frame_state ustruct, ustruct2;
-  frame_state *udata = &ustruct;
-  frame_state *sub_udata = &ustruct2;
-  frame_state my_ustruct, *my_udata = &my_ustruct;
+  frame_state ustruct2, *udata = &ustruct2;
+  frame_state ustruct;
+  frame_state *sub_udata = &ustruct;
+  void *saved_pc = pc;
+  void *handler;
+  void *handler_p;
+  void *pc_p;
+  frame_state saved_ustruct;
+  int new_eh_model;
+  int cleanup = 0;
+  int only_cleanup = 0;
+  int rethrow = 0;
+  int saved_state = 0;
   long args_size;
-  int new_exception_model;
+  __eh_info *eh_info = (__eh_info *)eh->info;
 
-  /* This is required for C++ semantics.  We must call terminate if we
-     try and rethrow an exception, when there is no exception currently
-     active.  */
-  if (! eh->info)
-    __terminate ();
-    
-  /* Start at our stack frame.  */
-label:
-  udata = __frame_state_for (&&label, udata);
-  if (! udata)
-    __terminate ();
+  /* Do we find a handler based on a re-throw PC? */
+  if (eh->table_index != (void *) 0)
+    rethrow = 1;
 
-  /* We need to get the value from the CFA register.  At this point in
-     compiling __throw we don't know whether or not we will use the frame
-     pointer register for the CFA, so we check our unwind info.  */
-  if (udata->cfa_reg == __builtin_dwarf_fp_regnum ())
-    udata->cfa = __builtin_fp ();
-  else
-    udata->cfa = __builtin_sp ();
-  udata->cfa += udata->cfa_offset;
+  memcpy (udata, my_udata, sizeof (*udata));
 
-  memcpy (my_udata, udata, sizeof (*udata));
-
-  /* Do any necessary initialization to access arbitrary stack frames.
-     On the SPARC, this means flushing the register windows.  */
-  __builtin_unwind_init ();
-
-  /* Now reset pc to the right throw point.  */
-  pc = __builtin_extract_return_addr (__builtin_return_address (0)) - 1;
-  saved_pc = pc;
-
-  handler = 0;
+  handler = (void *) 0;
   for (;;)
     { 
       frame_state *p = udata;
@@ -3649,21 +3751,46 @@ label:
 	break;
 
       if (udata->eh_ptr == NULL)
-        new_exception_model = 0;
+        new_eh_model = 0;
       else
-        new_exception_model = (((exception_descriptor *)(udata->eh_ptr))->
+        new_eh_model = (((exception_descriptor *)(udata->eh_ptr))->
                                           runtime_id_field == NEW_EH_RUNTIME);
 
-      if (new_exception_model)
-        handler = find_exception_handler (pc, udata->eh_ptr, eh->info);
+      if (rethrow) 
+        {
+          rethrow = 0;
+          handler = find_exception_handler (eh->table_index, udata->eh_ptr, 
+                                          eh_info, 1, &cleanup);
+          eh->table_index = (void *)0;
+        }
       else
-        handler = old_find_exception_handler (pc, udata->eh_ptr);
+        if (new_eh_model)
+          handler = find_exception_handler (pc, udata->eh_ptr, eh_info, 
+                                            0, &cleanup);
+        else
+          handler = old_find_exception_handler (pc, udata->eh_ptr);
 
-      /* If we found one, we can stop searching.  */
+      /* If we found one, we can stop searching, if its not a cleanup. 
+         for cleanups, we save the state, and keep looking. This allows
+         us to call a debug hook if there are nothing but cleanups left. */
       if (handler)
 	{
-	  args_size = udata->args_size;
-	  break;
+	  if (cleanup)
+	    {
+	      if (!saved_state)
+		{
+		  saved_ustruct = *udata;
+		  handler_p = handler;
+		  pc_p = pc;
+		  saved_state = 1;
+		  only_cleanup = 1;
+		}
+	    }
+	  else
+	    {
+	      only_cleanup = 0;
+	      break;
+	    }
 	}
 
       /* Otherwise, we continue searching.  We subtract 1 from PC to avoid
@@ -3671,12 +3798,23 @@ label:
       pc = get_return_addr (udata, sub_udata) - 1;
     }
 
+  if (saved_state) 
+    {
+      udata = &saved_ustruct;
+      handler = handler_p;
+      pc = pc_p;
+      if (only_cleanup)
+        __unwinding_cleanup ();
+    }
+
   /* If we haven't found a handler by now, this is an unhandled
      exception.  */
-  if (! handler)
-    __terminate ();
+  if (! handler) 
+    __terminate();
 
   eh->handler_label = handler;
+
+  args_size = udata->args_size;
 
   if (pc == saved_pc)
     /* We found a handler in the throw context, no need to unwind.  */
@@ -3704,7 +3842,6 @@ label:
 	  for (i = 0; i < FIRST_PSEUDO_REGISTER; ++i)
 	    if (i != udata->retaddr_column && udata->saved[i])
 	      {
-#ifdef INCOMING_REGNO
 		/* If you modify the saved value of the return address
 		   register on the SPARC, you modify the return address for
 		   your caller's frame.  Don't do that here, as it will
@@ -3713,14 +3850,12 @@ label:
 		    && udata->saved[udata->retaddr_column] == REG_SAVED_REG
 		    && udata->reg_or_offset[udata->retaddr_column] == i)
 		  continue;
-#endif
 		copy_reg (i, udata, my_udata);
 	      }
 
 	  pc = get_return_addr (udata, sub_udata) - 1;
 	}
 
-#ifdef INCOMING_REGNO
       /* But we do need to update the saved return address register from
 	 the last frame we unwind, or the handler frame will have the wrong
 	 return address.  */
@@ -3730,42 +3865,123 @@ label:
 	  if (in_reg_window (i, udata))
 	    copy_reg (i, udata, my_udata);
 	}
-#endif
     }
   /* udata now refers to the frame called by the handler frame.  */
 
-  /* Emit the stub to adjust sp and jump to the handler.  */
-  if (new_exception_model)
-    retaddr = __builtin_eh_stub ();
-  else
-    retaddr =  __builtin_eh_stub_old ();
-
-  /* And then set our return address to point to the stub.  */
-  if (my_udata->saved[my_udata->retaddr_column] == REG_SAVED_OFFSET)
-    put_return_addr (retaddr, my_udata);
-  else
-    __builtin_set_return_addr_reg (retaddr);
-
-  /* Set up the registers we use to communicate with the stub.
-     We check STACK_GROWS_DOWNWARD so the stub can use adjust_stack.  */
-
-  if (new_exception_model)
-    __builtin_set_eh_regs ((void *)eh,
+  /* We adjust SP by the difference between __throw's CFA and the CFA for
+     the frame called by the handler frame, because those CFAs correspond
+     to the SP values at the two call sites.  We need to further adjust by
+     the args_size of the handler frame itself to get the handler frame's
+     SP from before the args were pushed for that call.  */
 #ifdef STACK_GROWS_DOWNWARD
-			 udata->cfa - my_udata->cfa
+  *offset_p = udata->cfa - my_udata->cfa + args_size;
 #else
-			 my_udata->cfa - udata->cfa
+  *offset_p = my_udata->cfa - udata->cfa - args_size;
 #endif
-			 + args_size);
-  else
-    __builtin_set_eh_regs (handler,
+		       
+  return handler;
+}
 
-#ifdef STACK_GROWS_DOWNWARD
-			 udata->cfa - my_udata->cfa
-#else
-			 my_udata->cfa - udata->cfa
-#endif
-			 + args_size);
+
+/* We first search for an exception handler, and if we don't find
+   it, we call __terminate on the current stack frame so that we may
+   use the debugger to walk the stack and understand why no handler
+   was found.
+
+   If we find one, then we unwind the frames down to the one that
+   has the handler and transfer control into the handler.  */
+
+/*extern void __throw(void) __attribute__ ((__noreturn__));*/
+
+void
+__throw ()
+{
+  struct eh_context *eh = (*get_eh_context) ();
+  void *pc, *handler;
+  long offset;
+
+  /* XXX maybe make my_ustruct static so we don't have to look it up for
+     each throw.  */
+  frame_state my_ustruct, *my_udata = &my_ustruct;
+
+  /* This is required for C++ semantics.  We must call terminate if we
+     try and rethrow an exception, when there is no exception currently
+     active.  */
+  if (! eh->info)
+    __terminate ();
+    
+  /* Start at our stack frame.  */
+label:
+  my_udata = __frame_state_for (&&label, my_udata);
+  if (! my_udata)
+    __terminate ();
+
+  /* We need to get the value from the CFA register. */
+  my_udata->cfa = __builtin_dwarf_cfa ();
+
+  /* Do any necessary initialization to access arbitrary stack frames.
+     On the SPARC, this means flushing the register windows.  */
+  __builtin_unwind_init ();
+
+  /* Now reset pc to the right throw point.  */
+  pc = __builtin_extract_return_addr (__builtin_return_address (0)) - 1;
+
+  handler = throw_helper (eh, pc, my_udata, &offset);
+
+  /* Now go!  */
+
+  __builtin_eh_return ((void *)eh, offset, handler);
+
+  /* Epilogue:  restore the handler frame's register values and return
+     to the stub.  */
+}
+
+/*extern void __rethrow(void *) __attribute__ ((__noreturn__));*/
+
+void
+__rethrow (index)
+     void *index;
+{
+  struct eh_context *eh = (*get_eh_context) ();
+  void *pc, *handler;
+  long offset;
+
+  /* XXX maybe make my_ustruct static so we don't have to look it up for
+     each throw.  */
+  frame_state my_ustruct, *my_udata = &my_ustruct;
+
+  /* This is required for C++ semantics.  We must call terminate if we
+     try and rethrow an exception, when there is no exception currently
+     active.  */
+  if (! eh->info)
+    __terminate ();
+
+  /* This is the table index we want to rethrow from. The value of
+     the END_REGION label is used for the PC of the throw, and the
+     search begins with the next table entry. */
+  eh->table_index = index;
+    
+  /* Start at our stack frame.  */
+label:
+  my_udata = __frame_state_for (&&label, my_udata);
+  if (! my_udata)
+    __terminate ();
+
+  /* We need to get the value from the CFA register. */
+  my_udata->cfa = __builtin_dwarf_cfa ();
+
+  /* Do any necessary initialization to access arbitrary stack frames.
+     On the SPARC, this means flushing the register windows.  */
+  __builtin_unwind_init ();
+
+  /* Now reset pc to the right throw point.  */
+  pc = __builtin_extract_return_addr (__builtin_return_address (0)) - 1;
+
+  handler = throw_helper (eh, pc, my_udata, &offset);
+
+  /* Now go!  */
+
+  __builtin_eh_return ((void *)eh, offset, handler);
 
   /* Epilogue:  restore the handler frame's register values and return
      to the stub.  */
@@ -3795,6 +4011,6 @@ __pure_virtual ()
 #ifndef inhibit_libc
   write (2, MESSAGE, sizeof (MESSAGE) - 1);
 #endif
-  _exit (-1);
+  __terminate ();
 }
 #endif
