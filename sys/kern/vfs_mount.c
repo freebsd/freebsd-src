@@ -596,7 +596,7 @@ vfs_nmount(td, fsflags, fsoptions)
 			vput(vp);
 			goto bad;
 		}
-		error = linker_load_file(fstype, &lf);
+		error = linker_load_module(NULL, fstype, NULL, NULL, &lf);
 		if (error || lf == NULL) {
 			vput(vp);
 			if (lf == NULL)
@@ -964,7 +964,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 			vput(vp);
 			return (error);
 		}
-		error = linker_load_file(fstype, &lf);
+		error = linker_load_module(NULL, fstype, NULL, NULL, &lf);
 		if (error || lf == NULL) {
 			vput(vp);
 			if (lf == NULL)

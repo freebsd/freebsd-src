@@ -57,9 +57,6 @@ int kld_debug = 0;
  * *verinfo);
  */
 static const char 	*linker_basename(const char *path);
-static int 	linker_load_module(const char *kldname, const char *modname,
-		    struct linker_file *parent, struct mod_depend *verinfo,
-		    struct linker_file **lfpp);
 
 /* Metadata from the static kernel */
 SET_DECLARE(modmetadata_set, struct mod_metadata);
@@ -314,7 +311,7 @@ linker_init_kernel_modules(void)
 
 SYSINIT(linker_kernel, SI_SUB_KLD, SI_ORDER_ANY, linker_init_kernel_modules, 0)
 
-int
+static int
 linker_load_file(const char *filename, linker_file_t *result)
 {
 	linker_class_t lc;
@@ -1626,7 +1623,7 @@ linker_basename(const char *path)
  * Find a file which contains given module and load it, if "parent" is not
  * NULL, register a reference to it.
  */
-static int
+int
 linker_load_module(const char *kldname, const char *modname,
     struct linker_file *parent, struct mod_depend *verinfo,
     struct linker_file **lfpp)
