@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ldconfig.c,v 1.1 1993/10/23 00:17:03 pk Exp $
+ *	$Id: ldconfig.c,v 1.2 1993/11/09 04:19:22 paul Exp $
  */
 
 #include <sys/param.h>
@@ -58,7 +58,6 @@ static int			verbose;
 static int			nostd;
 static int			justread;
 
-#define MAXDEWEY 8
 struct shlib_list {
 	/* Internal list of shared libraries found */
 	char			*name;
@@ -401,9 +400,13 @@ listhints()
 			return -1;
 		}
 
-		printf("\t-l%s.%d.%d => %s\n",
+		printf("\t%d:-l%s.%d.%d => %s (%d -> %d)\n",
+			i,
 			strtab + bp->hi_namex, bp->hi_major, bp->hi_minor,
-			strtab + bp->hi_pathx);
+			strtab + bp->hi_pathx,
+			hinthash(strtab+bp->hi_namex, bp->hi_major, bp->hi_minor)
+					% hdr->hh_nbucket,
+			bp->hi_next);
 	}
 
 	return 0;

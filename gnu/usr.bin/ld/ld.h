@@ -1,4 +1,4 @@
-/*	$Id: ld.h,v 1.3 1993/11/18 20:52:34 jkh Exp $	*/
+/*	$Id: ld.h,v 1.5 1993/11/10 21:53:42 pk Exp $	*/
 /*-
  * This code is derived from software copyrighted by the Free Software
  * Foundation.
@@ -470,6 +470,12 @@ symbol *symtab[TABSIZE];
 /* Number of symbols in symbol hash table. */
 int num_hash_tab_syms;
 
+/* Count number of nlist entries for global symbols */
+int global_sym_count;
+
+/* Count number of N_SIZE nlist entries for output (relocatable_output only) */
+int size_sym_count;
+
 /* Count the number of nlist entries that are for local symbols.
    This count and the three following counts
    are incremented as as symbols are entered in the symbol table.  */
@@ -583,8 +589,10 @@ struct file_entry {
 
 	/* The file's a.out header.  */
 	struct exec     header;
+#if 0
 	/* Offset in file of GDB symbol segment, or 0 if there is none.  */
 	int             symseg_offset;
+#endif
 
 	/* Describe data from the file loaded into core */
 
@@ -600,6 +608,8 @@ struct file_entry {
 		struct localsymbol	*next;
 		long			gotslot_offset;
 		char			gotslot_claimed;
+		char			write;
+		char			is_L_symbol;
 		char			rename;
 		int			symbolnum;
 	} *symbols;
@@ -640,11 +650,13 @@ struct file_entry {
 
 	/* Start of this file's bss seg in the output file core image.  */
 	int             bss_start_address;
+#if 0
 	/*
 	 * Offset in bytes in the output file symbol table of the first local
 	 * symbol for this file. Set by `write_file_symbols'.
 	 */
 	int             local_syms_offset;
+#endif
 
 	/* For library members only */
 
@@ -665,6 +677,11 @@ struct file_entry {
 
 	/* For library member, points to next entry for next member.  */
 	struct file_entry *chain;
+
+#ifdef SUN_COMPAT
+	/* For shared libraries which have a .sa companion */
+	struct file_entry *silly_archive;
+#endif
 
 	/* 1 if file is a library. */
 	char            library_flag;
@@ -710,7 +727,8 @@ int number_of_files;
 #define FORCEARCHIVE	4		/* Force inclusion of all members
 					   of archives */
 #define SHAREABLE	8		/* Build a shared object */
-int link_mode;
+#define SILLYARCHIVE	16		/* Process .sa companions, if any */
+int	link_mode;
 
 /*
  * Runtime Relocation Section (RRS).
@@ -857,18 +875,25 @@ void	read_shared_object __P((int, struct file_entry *));
 int	findlib __P((struct file_entry *));
 
 /* In shlib.c: */
-char	*findshlib __P((char *, int *, int *));
+char	*findshlib __P((char *, int *, int *, int));
 void	add_search_dir __P((char *));
 void	std_search_dirs __P((char *));
 
 /* In rrs.c: */
 void	init_rrs __P((void));
 int	rrs_add_shobj __P((struct file_entry *));
-void	alloc_rrs_reloc __P((symbol *));
-void	alloc_rrs_segment_reloc __P((struct relocation_info  *));
-void	alloc_rrs_jmpslot __P((symbol *));
-void	alloc_rrs_gotslot __P((struct relocation_info  *, localsymbol_t *));
-void	alloc_rrs_copy_reloc __P((symbol *));
+void	alloc_rrs_reloc __P((struct file_entry *, symbol *));
+void	alloc_rrs_segment_reloc __P((struct file_entry *, struct relocation_info  *));
+void	alloc_rrs_jmpslot __P((struct file_entry *, symbol *));
+void	alloc_rrs_gotslot __P((struct file_entry *, struct relocation_info  *, localsymbol_t *));
+void	alloc_rrs_cpy_reloc __P((struct file_entry *, symbol *));
+
+int	claim_rrs_reloc __P((struct file_entry *, struct relocation_info *, symbol *, long *));
+long	claim_rrs_jmpslot __P((struct file_entry *, struct relocation_info *, symbol *, long));
+long	claim_rrs_gotslot __P((struct file_entry *, struct relocation_info *, struct localsymbol *, long));
+long	claim_rrs_internal_gotslot __P((struct file_entry *, struct relocation_info *, struct localsymbol *, long));
+void	claim_rrs_cpy_reloc __P((struct file_entry *, struct relocation_info *, symbol *));
+void	claim_rrs_segment_reloc __P((struct file_entry *, struct relocation_info *));
 
 /* In <md>.c */
 void	md_init_header __P((struct exec *, int, int));

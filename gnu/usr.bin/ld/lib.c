@@ -1,5 +1,5 @@
 /*
- * $Id: lib.c,v 1.2 1993/11/09 04:19:00 paul Exp $	- library routines
+ * $Id: lib.c,v 1.3 1993/11/22 19:04:43 jkh Exp $	- library routines
  */
 
 #include <sys/param.h>
@@ -573,6 +573,8 @@ read_shared_object (desc, entry)
 		entry->symbols[i].next = NULL;
 		entry->symbols[i].gotslot_offset = -1;
 		entry->symbols[i].gotslot_claimed = 0;
+		entry->symbols[i].write = 0;
+		entry->symbols[i].is_L_symbol = 0;
 		entry->symbols[i].rename = 0;
 	}
 
@@ -588,9 +590,109 @@ read_shared_object (desc, entry)
 	enter_file_symbols (entry);
 	entry->strings = 0;
 
-	/* TODO: examine needed shared objects */
+	/*
+	 * Load any subsidiary shared objects.
+	 */
 	if (dyn2.ld_need) {
+		struct link_object	lobj;
+		off_t			offset;
+		struct file_entry	*subentry, *prev = NULL;
+
+		subentry = (struct file_entry *)
+				xmalloc(sizeof(struct file_entry));
+		bzero(subentry, sizeof(struct file_entry));
+
+		subentry->superfile = entry;
+
+		offset = (off_t)dyn2.ld_need;
+		while (1) {
+			char *libname, name[MAXPATHLEN]; /*XXX*/
+
+			lseek(desc, offset, L_SET);
+			if (read(desc, &lobj, sizeof(lobj)) != sizeof(lobj)) {
+				fatal_with_file(
+				"premature eof while reading link objects ",
+						entry);
+			}
+			md_swapin_link_object(&lobj, 1);
+			(void)lseek(desc, (off_t)lobj.lo_name, L_SET);
+			(void)read(desc, name, sizeof(name));
+			if (lobj.lo_library) {
+				int lo_major = lobj.lo_major;
+				int lo_minor = lobj.lo_minor;
+
+				libname = findshlib(name,
+						&lo_major, &lo_minor, 0);
+				if (libname == NULL)
+					fatal("no shared -l%s.%d.%d available",
+					name, lobj.lo_major, lobj.lo_minor);
+				subentry->filename = libname;
+				subentry->local_sym_name = concat("-l", name, "");
+			} else {
+				subentry->filename = strdup(name);
+				subentry->local_sym_name = strdup(name);
+			}
+			read_file_symbols(subentry);
+
+			if (prev)
+				prev->chain = subentry;
+			else
+				entry->subfiles = subentry;
+			prev = subentry;
+			file_open(entry);
+			if ((offset = (off_t)lobj.lo_next) == 0)
+				break;
+		}
 	}
+#ifdef SUN_COMPAT
+	if (link_mode & SILLYARCHIVE) {
+		char			*cp, *sa_name;
+		char			armag[SARMAG];
+		int			fd;
+		struct file_entry	*subentry;
+
+		sa_name = strdup(entry->filename);
+		if (sa_name == NULL)
+			goto out;
+		cp = sa_name + strlen(sa_name) - 1;
+		while (cp > sa_name) {
+			if (!isdigit(*cp) && *cp != '.')
+				break;
+			--cp;
+		}
+		if (cp <= sa_name || *cp != 'o') {
+			/* Not in `libxxx.so.n.m' form */
+			free(sa_name);
+			goto out;
+		}
+
+		*cp = 'a';
+		if ((fd = open(sa_name, O_RDONLY, 0)) < 0)
+			goto out;
+
+		/* Read archive magic */
+		bzero(armag, SARMAG);
+		(void)read(fd, armag, SARMAG);
+		(void)close(fd);
+		if (strncmp(armag, ARMAG, SARMAG) != 0) {
+			error("%s: malformed silly archive",
+					get_file_name(entry));
+			goto out;
+		}
+
+		subentry = (struct file_entry *)
+				xmalloc(sizeof(struct file_entry));
+		bzero(subentry, sizeof(struct file_entry));
+
+		entry->silly_archive = subentry;
+		subentry->superfile = entry;
+		subentry->filename = sa_name;
+		subentry->local_sym_name = sa_name;
+		subentry->library_flag = 1;
+		search_library(file_open(subentry), subentry);
+out:
+	}
+#endif
 }
 
 #undef major
@@ -609,7 +711,7 @@ struct file_entry	*p;
 	if (p->search_dynamic_flag == 0)
 		goto dot_a;
 
-	fname = findshlib(p->filename, &major, &minor);
+	fname = findshlib(p->filename, &major, &minor, 1);
 
 	if (fname && (desc = open (fname, O_RDONLY, 0)) > 0) {
 		p->filename = fname;
