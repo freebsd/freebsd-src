@@ -104,8 +104,11 @@ tlb_dtlb_context_primary_demap(void)
 }
 
 static __inline void
-tlb_dtlb_page_demap(u_long ctx, vm_offset_t va)
+tlb_dtlb_page_demap(struct pmap *pm, vm_offset_t va)
 {
+	u_int ctx;
+
+	ctx = pm->pm_context[PCPU_GET(cpuid)];
 	if (ctx == TLB_CTX_KERNEL) {
 		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_NUCLEUS | TLB_DEMAP_PAGE,
 		    ASI_DMMU_DEMAP, 0);
@@ -150,8 +153,11 @@ tlb_itlb_context_primary_demap(void)
 }
 
 static __inline void
-tlb_itlb_page_demap(u_long ctx, vm_offset_t va)
+tlb_itlb_page_demap(struct pmap *pm, vm_offset_t va)
 {
+	u_int ctx;
+
+	ctx = pm->pm_context[PCPU_GET(cpuid)];
 	if (ctx == TLB_CTX_KERNEL) {
 		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_NUCLEUS | TLB_DEMAP_PAGE,
 		    ASI_IMMU_DEMAP, 0);
@@ -184,8 +190,11 @@ tlb_itlb_store(vm_offset_t va, u_long ctx, struct tte tte)
 }
 
 static __inline void
-tlb_context_demap(u_int ctx)
+tlb_context_demap(struct pmap *pm)
 {
+	u_int ctx;
+
+	ctx = pm->pm_context[PCPU_GET(cpuid)];
 	if (ctx != -1) {
 		tlb_dtlb_context_primary_demap();
 		tlb_itlb_context_primary_demap();
@@ -205,25 +214,25 @@ tlb_itlb_store_slot(vm_offset_t va, u_long ctx, struct tte tte, int slot)
 }
 
 static __inline void
-tlb_page_demap(u_int tlb, u_int ctx, vm_offset_t va)
+tlb_page_demap(u_int tlb, struct pmap *pm, vm_offset_t va)
 {
 	if (tlb & TLB_DTLB)
-		tlb_dtlb_page_demap(ctx, va);
+		tlb_dtlb_page_demap(pm, va);
 	if (tlb & TLB_ITLB)
-		tlb_itlb_page_demap(ctx, va);
+		tlb_itlb_page_demap(pm, va);
 }
 
 static __inline void
-tlb_range_demap(u_int ctx, vm_offset_t start, vm_offset_t end)
+tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 {
 	for (; start < end; start += PAGE_SIZE)
-		tlb_page_demap(TLB_DTLB | TLB_ITLB, ctx, start);
+		tlb_page_demap(TLB_DTLB | TLB_ITLB, pm, start);
 }
 
 static __inline void
-tlb_tte_demap(struct tte tte, u_int ctx)
+tlb_tte_demap(struct tte tte, struct pmap *pm)
 {
-	tlb_page_demap(TD_GET_TLB(tte.tte_data), ctx, TV_GET_VA(tte.tte_vpn));
+	tlb_page_demap(TD_GET_TLB(tte.tte_data), pm, TV_GET_VA(tte.tte_vpn));
 }
 
 static __inline void
