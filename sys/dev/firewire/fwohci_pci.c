@@ -233,7 +233,7 @@ fwohci_pci_attach(device_t self)
 		err = device_probe_and_attach(sc->fc.bdev);
 
 	if (err) {
-		device_printf(self, "Firewire init failed\n");
+		device_printf(self, "FireWire init failed\n");
 		fwohci_pci_detach(self);
 		return EIO;
 	}
