@@ -1,6 +1,6 @@
 /*
  * tset.c
- * 
+ *
  * By Ross Ridge
  * Public Domain
  * 92/02/19 18:53:12
@@ -192,7 +192,7 @@ int ask; {
 		ask = 1;
 		*map++ = '\0';
 	}
-	if (*map == '\0') 
+	if (*map == '\0')
 		quit(-1, "bad argument to 'm' switch");
 
 	if (type[0] != '\0' && strcmp(type, term) != 0) {
@@ -548,7 +548,7 @@ char **argv; {
 			break;
 		}
 	}
-	
+
 	cleanup = clean;
 
 	path = _buildpath("$MYTERMINFO", 2,
@@ -756,7 +756,7 @@ char **argv; {
 
 #endif
 #ifdef USE_SGTTY
-	
+
 #ifdef USE_NEWBSDTTY
 	if (newbsdtty) {
 		if (ioctl(2, TIOCSETD, NTTYDISC) == -1) {
@@ -802,7 +802,7 @@ char **argv; {
 		SETTO(VKILL, tty.sg_kill, "Kill", c);
 	}
 
-	
+
 #ifdef USE_INTERRUPT
 	if (interrupt_char != -1) {
 		if (interrupt_char != -2) {
@@ -914,6 +914,6 @@ char **argv; {
 		}
 		break;
 	}
-	
+
 	return 0;
 }

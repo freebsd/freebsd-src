@@ -8,22 +8,22 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_atan2f.c,v 1.2 1994/08/18 23:05:11 jtc Exp $";
+static char rcsid[] = "$Id: e_atan2f.c,v 1.1.1.1 1994/08/19 09:39:54 jkh Exp $";
 #endif
 
 #include "math.h"
 #include "math_private.h"
 
 #ifdef __STDC__
-static const float 
+static const float
 #else
-static float 
+static float
 #endif
 tiny  = 1.0e-30,
 zero  = 0.0,
@@ -38,7 +38,7 @@ pi_lo   = 1.5099578832e-07; /* 0x34222168 */
 	float __ieee754_atan2f(y,x)
 	float  y,x;
 #endif
-{  
+{
 	float z;
 	int32_t k,m,hx,hy,ix,iy;
 
@@ -55,7 +55,7 @@ pi_lo   = 1.5099578832e-07; /* 0x34222168 */
     /* when y = 0 */
 	if(iy==0) {
 	    switch(m) {
-		case 0: 
+		case 0:
 		case 1: return y; 	/* atan(+-0,+anything)=+-0 */
 		case 2: return  pi+tiny;/* atan(+0,-anything) = pi */
 		case 3: return -pi-tiny;/* atan(-0,-anything) =-pi */
@@ -63,7 +63,7 @@ pi_lo   = 1.5099578832e-07; /* 0x34222168 */
 	}
     /* when x = 0 */
 	if(ix==0) return (hy<0)?  -pi_o_2-tiny: pi_o_2+tiny;
-	    
+
     /* when x is INF */
 	if(ix==0x7f800000) {
 	    if(iy==0x7f800000) {

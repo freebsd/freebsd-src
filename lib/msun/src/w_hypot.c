@@ -5,13 +5,13 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: w_hypot.c,v 1.4 1994/08/10 20:34:24 jtc Exp $";
+static char rcsid[] = "$Id: w_hypot.c,v 1.1.1.1 1994/08/19 09:39:53 jkh Exp $";
 #endif
 
 /*

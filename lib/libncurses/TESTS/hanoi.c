@@ -153,10 +153,10 @@ void
 InitTiles(int NTiles)
 {
 int Size, SlotNo;
-	
+
 	for(Size=NTiles*2+1, SlotNo=0; Size>=3; Size-=2)
 		Pegs[0].Length[SlotNo++] = Size;
-	
+
 	Pegs[0].Count = NTiles;
 	Pegs[1].Count = 0;
 	Pegs[2].Count = 0;

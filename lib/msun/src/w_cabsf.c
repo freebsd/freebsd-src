@@ -1,6 +1,6 @@
 /*
  * cabsf() wrapper for hypotf().
- * 
+ *
  * Written by J.T. Conklin, <jtc@wimsey.com>
  * Placed into the Public Domain, 1994.
  */

@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: rusersd.c,v 1.1.1.1 1994/08/28 14:53:45 csgr Exp $";
+static char rcsid[] = "$Id: rusersd.c,v 1.2 1994/11/18 22:40:11 ats Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -64,7 +64,7 @@ main(argc, argv)
         int proto = 0;
 	struct sockaddr_in from;
 	int fromlen;
-        
+
         /*
          * See if inetd started us
          */
@@ -74,7 +74,7 @@ main(argc, argv)
                 sock = RPC_ANYSOCK;
                 proto = IPPROTO_UDP;
         }
-        
+
         if (!from_inetd) {
                 daemon(0, 0);
 
@@ -87,7 +87,7 @@ main(argc, argv)
         }
 
         openlog("rpc.rusersd", LOG_CONS|LOG_PID, LOG_DAEMON);
-        
+
 	transp = svcudp_create(sock);
 	if (transp == NULL) {
 		syslog(LOG_ERR, "cannot create udp service.");
@@ -102,7 +102,7 @@ main(argc, argv)
 		syslog(LOG_ERR, "unable to register (RUSERSPROG, RUSERSVERS_ORIG, %s).", proto?"udp":"(inetd)");
 		exit(1);
 	}
-        
+
         svc_run();
 	syslog(LOG_ERR, "svc_run returned");
 	exit(1);

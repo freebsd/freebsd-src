@@ -8,16 +8,16 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: w_atanhf.c,v 1.1 1994/08/10 20:33:48 jtc Exp $";
+static char rcsid[] = "$Id: w_atanhf.c,v 1.1.1.1 1994/08/19 09:39:59 jkh Exp $";
 #endif
 
-/* 
+/*
  * wrapper atanhf(x)
  */
 
@@ -43,7 +43,7 @@ static char rcsid[] = "$Id: w_atanhf.c,v 1.1 1994/08/10 20:33:48 jtc Exp $";
 	    if(y>(float)1.0)
 	        /* atanhf(|x|>1) */
 	        return (float)__kernel_standard((double)x,(double)x,130);
-	    else 
+	    else
 	        /* atanhf(|x|==1) */
 	        return (float)__kernel_standard((double)x,(double)x,131);
 	} else

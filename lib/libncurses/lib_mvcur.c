@@ -13,7 +13,7 @@
  *	-hm	hpux lint'ing ..
  *
  *---------------------------------------------------------------------------*/
- 
+
 /* This work is copyrighted. See COPYRIGHT.OLD & COPYRIGHT.NEW for   *
 *  details. If they are missing then this copy is in violation of    *
 *  the copyright conditions.                                         */
@@ -47,7 +47,7 @@ int mvcur(int oldrow, int oldcol, int newrow, int newcol)
 	if (cursor_address)
 		putp(tparm(cursor_address, newrow, newcol));
 	return OK;
-		
+
 }
 
 #else
@@ -132,7 +132,7 @@ static int	op_info[NUM_OPS] = {
 
 /*
 **	Make_seq_best(best, try)
-**	
+**
 **	Make_seq_best() copies try to best if try->cost < best->cost
 **
 **	fixed the old version, now it really runs .. (-hm/08.04.93)
@@ -180,7 +180,7 @@ bool		nlstat = SP->_nl; /* nl-output-mapping in effect ?*/
 
 	if ((oldrow == newrow) && (oldcol == newcol))
 		return OK;
-		
+
 	if (oldcol == columns-1 && eat_newline_glitch && auto_right_margin) {
 		putp(tparm(cursor_address, newrow, newcol));
 		return OK;
@@ -199,7 +199,7 @@ bool		nlstat = SP->_nl; /* nl-output-mapping in effect ?*/
 		oldrow %= lines;	/* mod values into range */
 		oldcol %= columns;
 	}
-	
+
 	newrow %= lines;
 	newcol %= columns;
 
@@ -393,10 +393,10 @@ int oc, int nc)				/* old column, new column */
 struct Sequence	seqA, seqB, tabseq,
 		*best, *try;
 int	mytab, tabs, onepast,
-		one_step, opp_step; 
+		one_step, opp_step;
 
 	onepast = -1;
-	
+
 	if (oc == nc)
 		return;
 
@@ -456,7 +456,7 @@ int	mytab, tabs, onepast,
 	zero_seq(try);
 	add_op(try, one_step, abs(nc - oc));
 	Make_seq_best(best, try);
-	
+
 	if (tabseq.cost < INFINITY)
 		add_seq(outseq, &tabseq);
 	add_seq(outseq, best);
@@ -541,7 +541,7 @@ update_ops()
 	T(("update_ops()"));
 
 	if (SP) {			/* SP structure exists */
-	int op; 
+	int op;
 
 		if (! SP->_costinit) {	/* this term not yet assigned costs */
 			loc_init = FALSE;	/* if !SP in the future, new term */
@@ -551,7 +551,7 @@ update_ops()
 
 		for (op = 0;  op < NUM_NPARM;  op++)
 			op_info[op] = SP->_costs[op];	/* set up op_info */
-		
+
 		/* check for newline that might be mapped... */
 
 		if (SP->_nlmapping  &&  index(sequence(CURS_DOWN), '\n'))
@@ -606,7 +606,7 @@ static int countc(char ch)
 **	add_op(seq, op, p0, p1, ... , p8)
 **
 **	add_op() adds the operator op and the appropriate
-**  	number of paramaters to seq.  It also increases the 
+**  	number of paramaters to seq.  It also increases the
 **  	cost appropriately.
 **	if op has no parameters, p0 is taken to be a count.
 */
@@ -615,11 +615,11 @@ static void add_op(struct Sequence *seq, int op, ...)
 {
 va_list	argp;
 int	num_ps, p;
-	
+
 	T(("adding op %d to sequence", op));
 
 	va_start(argp, op);
-	
+
 	num_ps = - op_info[op];		/* get parms or -cost */
 
 	*(seq->end++) = op;
@@ -632,12 +632,12 @@ int	num_ps, p;
 		*(seq->end++) = i;
 	} else {
 	int prm[9];
-		 
+
 		for (p = 0;  p < num_ps;  p++)
 			*(seq->end++) = prm[p] = va_arg(argp, int);
 
 		c_count = 0;
-		
+
 		tputs(tparm(sequence(op), prm[0], prm[1], prm[2], prm[3], prm[4],
 			    prm[5], prm[6], prm[7], prm[8]), 1, countc);
 

@@ -44,7 +44,7 @@ static short ly, lx;
 
 static void	domvcur __P((int, int, int, int));
 static int	makech __P((WINDOW *, int));
-static void	quickch __P((WINDOW *));	
+static void	quickch __P((WINDOW *));
 static void     scrolln __P((int, int, int, int, int));
 
 /*
@@ -60,7 +60,7 @@ wrefresh(win)
 	register int retval;
 	register short wy;
 	int dnum;
-	
+
 	/* Initialize loop parameters. */
 	ly = curscr->cury;
 	lx = curscr->curx;
@@ -71,7 +71,7 @@ wrefresh(win)
 		for (wy = 0; wy < win->maxy; wy++) {
 			wlp = win->lines[wy];
 			if (wlp->flags & __ISDIRTY)
-				wlp->hash = 
+				wlp->hash =
 				   __hash((char *) wlp->line, win->maxx * __LDATASIZE);
 		}
 
@@ -126,12 +126,12 @@ wrefresh(win)
 		for (i = 0; i < curscr->maxy; i++) {
 			__CTRACE("C: %d:", i);
 			__CTRACE(" 0x%x \n", curscr->lines[i]->hash);
-			for (j = 0; j < curscr->maxx; j++) 
-				__CTRACE("%c", 
+			for (j = 0; j < curscr->maxx; j++)
+				__CTRACE("%c",
 			           curscr->lines[i]->line[j].ch);
 			__CTRACE("\n");
-			for (j = 0; j < curscr->maxx; j++) 
-				__CTRACE("%x", 
+			for (j = 0; j < curscr->maxx; j++)
+				__CTRACE("%x",
 			           curscr->lines[i]->line[j].attr);
 			__CTRACE("\n");
 			if (i < win->begy || i > win->begy + win->maxy - 1)
@@ -139,12 +139,12 @@ wrefresh(win)
 			__CTRACE("W: %d:", i - win->begy);
 			__CTRACE(" 0x%x \n", win->lines[i - win->begy]->hash);
 			__CTRACE(" 0x%x ", win->lines[i - win->begy]->flags);
-			for (j = 0; j < win->maxx; j++) 
-				__CTRACE("%c", 
+			for (j = 0; j < win->maxx; j++)
+				__CTRACE("%c",
 				   win->lines[i - win->begy]->line[j].ch);
 			__CTRACE("\n");
-			for (j = 0; j < win->maxx; j++) 
-				__CTRACE("%x", 
+			for (j = 0; j < win->maxx; j++)
+				__CTRACE("%x",
 				   win->lines[i - win->begy]->line[j].attr);
 			__CTRACE("\n");
 		}
@@ -168,7 +168,7 @@ wrefresh(win)
 				if (*win->lines[wy]->lastchp < win->maxx +
 				    win->ch_off)
 					*win->lines[wy]->lastchp = win->ch_off;
-				if (*win->lines[wy]->lastchp < 
+				if (*win->lines[wy]->lastchp <
 				    *win->lines[wy]->firstchp) {
 #ifdef DEBUG
 					__CTRACE("wrefresh: line %d notdirty \n", wy);
@@ -179,11 +179,11 @@ wrefresh(win)
 
 		}
 #ifdef DEBUG
-		__CTRACE("\t%d\t%d\n", *win->lines[wy]->firstchp, 
+		__CTRACE("\t%d\t%d\n", *win->lines[wy]->firstchp,
 			*win->lines[wy]->lastchp);
 #endif
 	}
-	
+
 #ifdef DEBUG
 	__CTRACE("refresh: ly=%d, lx=%d\n", ly, lx);
 #endif
@@ -258,7 +258,7 @@ makech(win, wy)
 	force = win->lines[wy]->flags & __FORCEPAINT;
 	win->lines[wy]->flags &= ~__FORCEPAINT;
 	if (CE && !curwin) {
-		for (cp = &win->lines[wy]->line[win->maxx - 1]; 
+		for (cp = &win->lines[wy]->line[win->maxx - 1];
 		     cp->ch == ' ' && cp->attr == 0; cp--)
 			if (cp <= win->lines[wy]->line)
 				break;
@@ -294,15 +294,15 @@ makech(win, wy)
 		domvcur(ly, lx, y, wx + win->begx);
 
 #ifdef DEBUG
-		__CTRACE("makech: 1: wx = %d, ly= %d, lx = %d, newy = %d, newx = %d, force =%d\n", 
+		__CTRACE("makech: 1: wx = %d, ly= %d, lx = %d, newy = %d, newx = %d, force =%d\n",
 		    wx, ly, lx, y, wx + win->begx, force);
 #endif
 		ly = y;
 		lx = wx + win->begx;
-		while ((force || memcmp(nsp, csp, sizeof(__LDATA)) != 0) 
+		while ((force || memcmp(nsp, csp, sizeof(__LDATA)) != 0)
 		    && wx <= lch) {
 
-			if (ce != NULL && win->maxx + win->begx == 
+			if (ce != NULL && win->maxx + win->begx ==
 			    curscr->maxx && wx >= nlsp && nsp->ch == ' ' && nsp->attr == 0) {
 				/* Check for clear to end-of-line. */
 				cep = &curscr->lines[win->begy + wy]->line[win->begx + win->maxx - 1];
@@ -314,7 +314,7 @@ makech(win, wy)
 #ifdef DEBUG
 			__CTRACE("makech: clsp = %d, nlsp = %d\n", clsp, nlsp);
 #endif
-				if ((clsp - nlsp >= strlen(CE) 
+				if ((clsp - nlsp >= strlen(CE)
 				    && clsp < win->maxx) ||
 				    wy == win->maxy - 1) {
 #ifdef DEBUG
@@ -369,21 +369,21 @@ makech(win, wy)
 							putchar(nsp->ch);
 					}
 					if (wx + win->begx < curscr->maxx) {
-						domvcur(ly, wx + win->begx, 
+						domvcur(ly, wx + win->begx,
 						    win->begy + win->maxy - 1,
 						    win->begx + win->maxx - 1);
 					}
 					ly = win->begy + win->maxy - 1;
 					lx = win->begx + win->maxx - 1;
 					return (OK);
-				} 
-			if (wx < win->maxx || wy < win->maxy - 1 || 
+				}
+			if (wx < win->maxx || wy < win->maxy - 1 ||
 			    !(win->flags & __SCROLLWIN)) {
 				if (!curwin) {
 					csp->attr = nsp->attr;
 					putchar(csp->ch = nsp->ch);
 					csp++;
-				} else 
+				} else
 					putchar(nsp->ch);
 			}
 #ifdef DEBUG
@@ -433,7 +433,7 @@ domvcur(oy, ox, ny, nx)
 
 /*
  * Quickch() attempts to detect a pattern in the change of the window
- * in order to optimize the change, e.g., scroll n lines as opposed to 
+ * in order to optimize the change, e.g., scroll n lines as opposed to
  * repainting the screen line by line.
  */
 
@@ -449,26 +449,26 @@ quickch(win)
 	__LDATA buf[1024];
 	u_int blank_hash;
 
-	/* 
+	/*
 	 * Find how many lines from the top of the screen are unchanged.
 	 */
 	for (top = win->begy; top < win->begy + win->maxy; top++)
 		if (win->lines[top - win->begy]->flags & __FORCEPAINT ||
 		    win->lines[top - win->begy]->hash != curscr->lines[top]->hash
 		    || memcmp(win->lines[top - win->begy]->line,
-		    curscr->lines[top]->line, 
+		    curscr->lines[top]->line,
 		    win->maxx * __LDATASIZE) != 0)
 			break;
 		else
 			win->lines[top - win->begy]->flags &= ~__ISDIRTY;
        /*
-	* Find how many lines from bottom of screen are unchanged. 
+	* Find how many lines from bottom of screen are unchanged.
 	*/
 	for (bot = win->begy + win->maxy - 1; bot >= (int) win->begy; bot--)
 		if (win->lines[bot - win->begy]->flags & __FORCEPAINT ||
 		    win->lines[bot - win->begy]->hash != curscr->lines[bot]->hash
 		    || memcmp(win->lines[bot - win->begy]->line,
-		    curscr->lines[bot]->line, 
+		    curscr->lines[bot]->line,
 		    win->maxx * __LDATASIZE) != 0)
 			break;
 		else
@@ -489,7 +489,7 @@ quickch(win)
 	 * Search for the largest block of text not changed.
 	 * Invariants of the loop:
 	 * - Startw is the index of the beginning of the examined block in win.
-         * - Starts is the index of the beginning of the examined block in 
+         * - Starts is the index of the beginning of the examined block in
 	 *    curscr.
 	 * - Curw is the index of one past the end of the exmined block in win.
 	 * - Curs is the index of one past the end of the exmined block in
@@ -498,7 +498,7 @@ quickch(win)
          */
 	for (bsize = bot - top; bsize >= THRESH; bsize--) {
 		for (startw = top; startw <= bot - bsize; startw++)
-			for (starts = top; starts <= bot - bsize; 
+			for (starts = top; starts <= bot - bsize;
 			     starts++) {
 				for (curw = startw, curs = starts;
 				     curs < starts + bsize; curw++, curs++)
@@ -507,7 +507,7 @@ quickch(win)
 					    (win->lines[curw - win->begy]->hash !=
 					    curscr->lines[curs]->hash ||
 					    memcmp(win->lines[curw - win->begy]->line,
-					    curscr->lines[curs]->line, 
+					    curscr->lines[curs]->line,
 					    win->maxx * __LDATASIZE) != 0))
 						break;
 				if (curs == starts + bsize)
@@ -516,16 +516,16 @@ quickch(win)
 	}
  done:
 	/* Did not find anything */
-	if (bsize < THRESH)	
+	if (bsize < THRESH)
 		return;
 
 #ifdef DEBUG
-	__CTRACE("quickch:bsize=%d,starts=%d,startw=%d,curw=%d,curs=%d,top=%d,bot=%d\n", 
+	__CTRACE("quickch:bsize=%d,starts=%d,startw=%d,curw=%d,curs=%d,top=%d,bot=%d\n",
 		bsize, starts, startw, curw, curs, top, bot);
 #endif
 
-	/* 
-	 * Make sure that there is no overlap between the bottom and top 
+	/*
+	 * Make sure that there is no overlap between the bottom and top
 	 * regions and the middle scrolled block.
 	 */
 	if (bot < curs)
@@ -540,12 +540,12 @@ quickch(win)
 		for (i = 0; i < curscr->maxy; i++) {
 			__CTRACE("C: %d:", i);
 			__CTRACE(" 0x%x \n", curscr->lines[i]->hash);
-			for (j = 0; j < curscr->maxx; j++) 
-				__CTRACE("%c", 
+			for (j = 0; j < curscr->maxx; j++)
+				__CTRACE("%c",
 			           curscr->lines[i]->line[j].ch);
 			__CTRACE("\n");
-			for (j = 0; j < curscr->maxx; j++) 
-				__CTRACE("%x", 
+			for (j = 0; j < curscr->maxx; j++)
+				__CTRACE("%x",
 			           curscr->lines[i]->line[j].attr);
 			__CTRACE("\n");
 			if (i < win->begy || i > win->begy + win->maxy - 1)
@@ -553,17 +553,17 @@ quickch(win)
 			__CTRACE("W: %d:", i - win->begy);
 			__CTRACE(" 0x%x \n", win->lines[i - win->begy]->hash);
 			__CTRACE(" 0x%x ", win->lines[i - win->begy]->flags);
-			for (j = 0; j < win->maxx; j++) 
-				__CTRACE("%c", 
+			for (j = 0; j < win->maxx; j++)
+				__CTRACE("%c",
 				   win->lines[i - win->begy]->line[j].ch);
 			__CTRACE("\n");
-			for (j = 0; j < win->maxx; j++) 
-				__CTRACE("%x", 
+			for (j = 0; j < win->maxx; j++)
+				__CTRACE("%x",
 				   win->lines[i - win->begy]->line[j].attr);
 			__CTRACE("\n");
 		}
-#endif 
-	
+#endif
+
 	/* So we don't have to call __hash() each time */
 	for (i = 0; i < win->maxx; i++) {
 		buf[i].ch = ' ';
@@ -579,27 +579,27 @@ quickch(win)
 	 * - Target is the index of the target of line i.
 	 * - Tmp1 points to current line (i).
 	 * - Tmp2 and points to target line (target);
-	 * - Cur_period is the index of the end of the current period. 
+	 * - Cur_period is the index of the end of the current period.
 	 *   (see below).
 	 *
 	 * There are 2 major issues here that make this rotation non-trivial:
 	 * 1.  Scrolling in a scrolling region bounded by the top
 	 *     and bottom regions determined (whose size is sc_region).
-	 * 2.  As a result of the use of the mod function, there may be a 
+	 * 2.  As a result of the use of the mod function, there may be a
 	 *     period introduced, i.e., 2 maps to 4, 4 to 6, n-2 to 0, and
 	 *     0 to 2, which then causes all odd lines not to be rotated.
-	 *     To remedy this, an index of the end ( = beginning) of the 
-	 *     current 'period' is kept, cur_period, and when it is reached, 
-	 *     the next period is started from cur_period + 1 which is 
+	 *     To remedy this, an index of the end ( = beginning) of the
+	 *     current 'period' is kept, cur_period, and when it is reached,
+	 *     the next period is started from cur_period + 1 which is
 	 *     guaranteed not to have been reached since that would mean that
 	 *     all records would have been reached. (think about it...).
-	 * 
+	 *
 	 * Lines in the rotation can have 3 attributes which are marked on the
 	 * line so that curscr is consistent with the visual screen.
 	 * 1.  Not dirty -- lines inside the scrolled block, top region or
 	 *                  bottom region.
-	 * 2.  Blank lines -- lines in the differential of the scrolling 
-	 *		      region adjacent to top and bot regions 
+	 * 2.  Blank lines -- lines in the differential of the scrolling
+	 *		      region adjacent to top and bot regions
 	 *                    depending on scrolling direction.
 	 * 3.  Dirty line -- all other lines are marked dirty.
 	 */
@@ -617,7 +617,7 @@ quickch(win)
 		__CTRACE("quickch: n=%d startw=%d curw=%d i = %d target=%d ",
 			n, startw, curw, i, target);
 #endif
-		if ((target >= startw && target < curw) || target < top 
+		if ((target >= startw && target < curw) || target < top
 		    || target > bot) {
 #ifdef DEBUG
 			__CTRACE("-- notdirty");
@@ -625,7 +625,7 @@ quickch(win)
 			win->lines[target - win->begy]->flags &= ~__ISDIRTY;
 		} else if ((n > 0 && target >= top && target < top + n) ||
 		           (n < 0 && target <= bot && target > bot + n)) {
-			if (clp->hash != blank_hash ||  memcmp(clp->line, 
+			if (clp->hash != blank_hash ||  memcmp(clp->line,
 			    buf, win->maxx * __LDATASIZE) !=0) {
 				(void)memcpy(clp->line,  buf,
 				    win->maxx * __LDATASIZE);
@@ -662,14 +662,14 @@ quickch(win)
 		__CTRACE("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
 		for (i = 0; i < curscr->maxy; i++) {
 			__CTRACE("C: %d:", i);
-			for (j = 0; j < curscr->maxx; j++) 
-				__CTRACE("%c", 
+			for (j = 0; j < curscr->maxx; j++)
+				__CTRACE("%c",
 			           curscr->lines[i]->line[j].ch);
 			__CTRACE("\n");
 			if (i < win->begy || i > win->begy + win->maxy - 1)
 				continue;
 			__CTRACE("W: %d:", i - win->begy);
-			for (j = 0; j < win->maxx; j++) 
+			for (j = 0; j < win->maxx; j++)
 				__CTRACE("%c",
 				   win->lines[i - win->begy]->line[j].ch);
 			__CTRACE("\n");
@@ -680,7 +680,7 @@ quickch(win)
 		scrolln(starts, startw, curs, bot, top);
 		/*
 		 * Need to repoint any subwindow lines to the rotated
-		 * line structured. 
+		 * line structured.
 		 */
 		for (wp = win->nextp; wp != win; wp = wp->nextp)
 			__set_subwin(win, wp);
@@ -846,5 +846,5 @@ scrolln(starts, startw, curs, bot, top)
 		else
 			abort();
 		__mvcur(top, 0, oy, ox, 1);
-	}		
+	}
 }

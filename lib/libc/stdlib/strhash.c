@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Header: /home/ncvs/src/lib/libc/stdlib/strhash.c,v 1.2 1995/03/26 19:32:24 ache Exp $";
+static char *rcsid = "$Header: /home/ncvs/src/lib/libc/stdlib/strhash.c,v 1.3 1995/03/28 08:41:02 jkh Exp $";
 #endif
 
 /*
@@ -12,12 +12,12 @@ static char *rcsid = "$Header: /home/ncvs/src/lib/libc/stdlib/strhash.c,v 1.2 19
  *
  *
  *  All rights reserved.
- * 
+ *
  *  This is unsupported software and is subject to change without notice.
  *  the author makes no representations about the suitability of this software
  *  for any purpose. It is supplied "as is" without express or implied
  *  warranty.
- * 
+ *
  *  Permission to use, copy, modify, and distribute this software and its
  *  documentation for any purpose and without fee is hereby granted, provided
  *  that the above copyright notice appear in all copies and that both that
@@ -32,11 +32,18 @@ static char *rcsid = "$Header: /home/ncvs/src/lib/libc/stdlib/strhash.c,v 1.2 19
  * This is a fairly simple open addressing hash scheme.
  * Terry did all the code, I just did the spec.
  * Thanks again, you crazy Aussie..
- * 
+ *
  */
 
 /*
  * $Log: strhash.c,v $
+ * Revision 1.3  1995/03/28  08:41:02  jkh
+ * Fix a missing _hash() to prevent namespace pollution with the db/hash routines.
+ * Grrr.  If the dbhash routines weren't grossly overengineered I wouldn't
+ * even need to do this! :-(
+ *
+ * Also now export the hash_stats routine.  Manpage coming RSN - I promise.
+ *
  * Revision 1.2  1995/03/26  19:32:24  ache
  * Hash 8bit chars without sign extension
  *
@@ -53,35 +60,35 @@ static char *rcsid = "$Header: /home/ncvs/src/lib/libc/stdlib/strhash.c,v 1.2 19
  *
  * Revision 2.0  90/03/26  01:44:26  jkh
  * pre-beta check-in
- * 
+ *
  * Revision 1.8  90/03/09  19:22:35  jkh
  * Fixed bogus comment.
- * 
+ *
  * Revision 1.7  90/03/09  19:01:08  jkh
  * Added comments, GPL.
- * 
+ *
  * Revision 1.6  90/03/08  17:55:58  terry
  * Rearranged hash_purge to be a tiny bit more efficient.
  * Added verbose option to hash_stats.
- * 
+ *
  * Revision 1.5  90/03/08  17:19:54  terry
  * Added hash_purge. Added arg to hash_traverse. Changed all
  * void * to Generic.
- * 
+ *
  * Revision 1.4  90/03/08  12:02:35  terry
  * Fixed problems with allocation that I screwed up last night.
  * Changed bucket lists to be singly linked. Thanks to JKH, my hero.
- * 
+ *
  * Revision 1.3  90/03/07  21:33:33  terry
  * Cleaned up a few decls to keep gcc -Wall quiet.
- * 
+ *
  * Revision 1.2  90/03/07  21:14:53  terry
  * Comments. Added HASH_STATS define. Removed hash_find()
  * and new_node().
- * 
+ *
  * Revision 1.1  90/03/07  20:49:45  terry
  * Initial revision
- * 
+ *
  *
  */
 
@@ -112,26 +119,26 @@ static hash_node *list_find(caddr_t key, hash_node *head);
 hash_table *
 hash_create(int size)
 {
-    register int i;  
+    register int i;
     hash_table *new = (hash_table *)malloc(sizeof(hash_table));
 
     if (!new || size < 0){
 	return HASH_NULL;
     }
-    
+
     if (size == 0){
 	size = HASH_SZ;
     }
-    
+
     if (!(new->buckets = (hash_node **)malloc(size * sizeof(hash_node *)))){
 	return HASH_NULL;
     }
 
     for (i = 0; i < size; i++){
 	new->buckets[i] = NODE_NULL;
-    } 
+    }
     new->size = size;
-    
+
     return new;
 }
 
@@ -166,7 +173,7 @@ _hash(int size, char *key)
 
     while (*key){
 	h = (h << 1) ^ (h ^ (unsigned char) *key++);
-    }	
+    }
 
     h %= size;
     return h;
@@ -179,17 +186,17 @@ _hash(int size, char *key)
  * The function (*nukefunc)() is in charge of disposing
  * of the storage help by the data associated with the node.
  */
-void 
+void
 hash_destroy(hash_table *table, char *key, void (*nukefunc)())
 {
     int bucket = _hash(table->size, key);
     hash_node *found = table->buckets[bucket];
     hash_node *to_free = NODE_NULL;
-    
+
     if (!found) {
 	return;
     }
-    
+
     if (!strcmp(found->key, key)) {
 	/*
 	 * It was the head of the list.
@@ -209,12 +216,12 @@ hash_destroy(hash_table *table, char *key, void (*nukefunc)())
 	    }
 	    found = found->next;
 	}
-	
+
 	if (!to_free){
 	    return;
 	}
     }
-    
+
     if (nukefunc)
 	(*nukefunc)(to_free->key, to_free->data);
     free(to_free);
@@ -227,8 +234,8 @@ hash_destroy(hash_table *table, char *key, void (*nukefunc)())
  *
  * Search the table for the given key. Then:
  *
- * 1) If you find it and there is no replacement function, just 
- *    return what you found. (This is a simple search). 
+ * 1) If you find it and there is no replacement function, just
+ *    return what you found. (This is a simple search).
  * 2) If you find it and there is a replacement function, run
  *    the function on the data you found, and replace the old
  *    data with whatever is passed in datum. Return 0.
@@ -256,11 +263,11 @@ hash_search(hash_table *table, caddr_t key, void *datum,
     }
     else{
 	if (datum){
-	    
+
 	    static int assign_key();
-	    
+
 	    hash_node *new = (hash_node *)malloc(sizeof(hash_node));
-	    
+
 	    if (!new || !assign_key(key, new)){
 		return GENERIC_NULL;
 	    }
@@ -276,7 +283,7 @@ hash_search(hash_table *table, caddr_t key, void *datum,
 /*
  * assign_key()
  *
- * Set the key value of a node to be 'key'. Get some space from 
+ * Set the key value of a node to be 'key'. Get some space from
  * malloc and copy it in etc. Return 1 if all is well, 0 otherwise.
  */
 static int
@@ -285,11 +292,11 @@ assign_key(char *key, hash_node *node)
     if (!node || !key){
 	return 0;
     }
-    
+
     if (!(node->key = (char *)malloc(strlen(key) + 1))){
 	return 0;
     }
-    
+
     node->key[0] = '\0';
     strcat(node->key, key);
     return 1;
@@ -304,12 +311,12 @@ assign_key(char *key, hash_node *node)
 void
 hash_traverse(hash_table *table, int (*func)(), void *arg)
 {
-    register int i; 
+    register int i;
     register int size = table->size;
 
     if (!func)
 	return;
-    
+
     for (i = 0; i < size; i++) {
 	hash_node *n = table->buckets[i];
 	while (n) {
@@ -317,7 +324,7 @@ hash_traverse(hash_table *table, int (*func)(), void *arg)
 		return;
 	    n = n->next;
 	}
-    } 
+    }
     return;
 }
 
@@ -331,9 +338,9 @@ hash_traverse(hash_table *table, int (*func)(), void *arg)
 void
 hash_purge(hash_table *table, void (*purge_func)(char *p1, void *p2))
 {
-    register int i; 
+    register int i;
     register int size = table->size;
-    
+
     for (i = 0; i < size; i++) {
 	hash_node *n = table->buckets[i];
 	if (n) {
@@ -347,7 +354,7 @@ hash_purge(hash_table *table, void (*purge_func)(char *p1, void *p2))
 	    } while (n);
 	    table->buckets[i] = NODE_NULL;
 	}
-    } 
+    }
 }
 
 #undef min
@@ -361,19 +368,19 @@ hash_purge(hash_table *table, void (*purge_func)(char *p1, void *p2))
 void
 hash_stats(hash_table *table, int verbose)
 {
-    register int i; 
+    register int i;
     int total_elements = 0;
     int non_empty_buckets = 0;
     int max_count = 0;
     int max_repeats = 0;
     int *counts;
     int size = table->size;
-    
+
     if (!(counts = (int *)malloc(size * sizeof(int)))){
 	fprintf(stderr, "malloc returns 0\n");
-	exit(1); 
+	exit(1);
     }
-    
+
     for (i = 0; i < size; i++){
 	int x = 0;
 	hash_node *n = table->buckets[i];
@@ -392,7 +399,7 @@ hash_stats(hash_table *table, int verbose)
 	    counts[i]++;
 	    n = n->next;
 	}
-	
+
 	total_elements += counts[i];
 	if (counts[i] > max_count){
 	    max_count = counts[i];
@@ -401,17 +408,17 @@ hash_stats(hash_table *table, int verbose)
 	else if (counts[i] == max_count){
 	    max_repeats++;
 	}
-	
+
 	if (counts[i] && verbose){
 	    printf(" (%d)\n", counts[i]);
 	}
-    } 
-    
+    }
+
     printf("\n");
     printf("%d element%s in storage.\n", total_elements, total_elements == 1 ? "" : "s");
-    
+
     if (total_elements){
-	printf("%d of %d (%.2f%%) buckets are in use\n", non_empty_buckets, size, 
+	printf("%d of %d (%.2f%%) buckets are in use\n", non_empty_buckets, size,
 	       (double)100 * (double)non_empty_buckets / (double)(size));
 	printf("the maximum number of elements in a bucket is %d (%d times)\n", max_count, max_repeats);
 	printf("average per bucket is %f\n", (double)total_elements / (double)non_empty_buckets);

@@ -1,6 +1,6 @@
 /*
  * tput.c
- * 
+ *
  * By Ross Ridge
  * Public Domain
  * 92/02/01 07:30:39

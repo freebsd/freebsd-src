@@ -65,7 +65,7 @@ swapfunc(a, b, n, swaptype)
 	char *a, *b;
 	int n, swaptype;
 {
-	if(swaptype <= 1) 
+	if(swaptype <= 1)
 		swapcode(long, a, b, n)
 	else
 		swapcode(char, a, b, n)
@@ -151,7 +151,7 @@ loop:	SWAPINIT(a, es);
 	}
 	if (swap_cnt == 0) {  /* Switch to insertion sort */
 		for (pm = a + es; pm < (char *) a + n * es; pm += es)
-			for (pl = pm; pl > (char *) a && cmp(pl - es, pl) > 0; 
+			for (pl = pm; pl > (char *) a && cmp(pl - es, pl) > 0;
 			     pl -= es)
 				swap(pl, pl - es);
 		return;
@@ -164,7 +164,7 @@ loop:	SWAPINIT(a, es);
 	vecswap(pb, pn - r, r);
 	if ((r = pb - pa) > es)
 		qsort(a, r / es, es, cmp);
-	if ((r = pd - pc) > es) { 
+	if ((r = pd - pc) > es) {
 		/* Iterate rather than recurse to save stack space */
 		a = pn - r;
 		n = r / es;

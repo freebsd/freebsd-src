@@ -46,18 +46,18 @@ static char sccsid[] = "@(#)j0.c	8.2 (Berkeley) 11/30/93";
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  *
  * ******************* WARNING ********************
  * This is an alpha version of SunPro's FDLIBM (Freely
- * Distributable Math Library) for IEEE double precision 
+ * Distributable Math Library) for IEEE double precision
  * arithmetic. FDLIBM is a basic math library written
- * in C that runs on machines that conform to IEEE 
- * Standard 754/854. This alpha version is distributed 
- * for testing purpose. Those who use this software 
- * should report any bugs to 
+ * in C that runs on machines that conform to IEEE
+ * Standard 754/854. This alpha version is distributed
+ * for testing purpose. Those who use this software
+ * should report any bugs to
  *
  *		fdlibm-comments@sunpro.eng.sun.com
  *
@@ -84,20 +84,20 @@ static char sccsid[] = "@(#)j0.c	8.2 (Berkeley) 11/30/93";
  * 	   (To avoid cancellation, use
  *		sin(x) +- cos(x) = -cos(2x)/(sin(x) -+ cos(x))
  * 	    to compute the worse one.)
- *	   
+ *
  *	3 Special cases
  *		j0(nan)= nan
  *		j0(0) = 1
  *		j0(inf) = 0
- *		
+ *
  * Method -- y0(x):
  *	1. For x<2.
- *	   Since 
+ *	   Since
  *		y0(x) = 2/pi*(j0(x)*(ln(x/2)+Euler) + x^2/4 - ...)
  *	   therefore y0(x)-2/pi*j0(x)*ln(x) is an even function.
  *	   We use the following function to approximate y0,
  *		y0(x) = U(z)/V(z) + (2/pi)*(j0(x)*ln(x)), z= x^2
- *	   where 
+ *	   where
  *		U(z) = u0 + u1*z + ... + u6*z^6
  *		V(z) = 1  + v1*z + ... + v4*z^4
  *	   with absolute approximation error bounded by 2**-72.
@@ -121,7 +121,7 @@ static char sccsid[] = "@(#)j0.c	8.2 (Berkeley) 11/30/93";
 
 static double pzero __P((double)), qzero __P((double));
 
-static double 
+static double
 huge 	= 1e300,
 zero    = 0.0,
 one	= 1.0,
@@ -138,7 +138,7 @@ s03 =   5.135465502073181376284426245689510134134e-0007,
 s04 =   1.166140033337900097836930825478674320464e-0009;
 
 double
-j0(x) 
+j0(x)
 	double x;
 {
 	double z, s,c,ss,cc,r,u,v;
@@ -201,7 +201,7 @@ v03 =   2.591508518404578033173189144579208685163e-0007,
 v04 =   4.411103113326754838596529339004302243157e-0010;
 
 double
-y0(x) 
+y0(x)
 	double x;
 {
 	double z, s, c, ss, cc, u, v;
@@ -345,7 +345,7 @@ static double pzero(x)
 	s = one+z*(q[0]+z*(q[1]+z*(q[2]+z*(q[3]+z*q[4]))));
 	return one+ r/s;
 }
-		
+
 
 /* For x >= 8, the asymptotic expansions of qzero is
  *	-1/8 s + 75/1024 s^3 - ..., where s = 1/x.

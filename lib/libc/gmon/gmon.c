@@ -106,7 +106,7 @@ monstartup(lowpc, highpc)
 		s_scale = ((float)p->kcountsize / o ) * SCALE_1_TO_1;
 #else /* avoid floating point */
 		int quot = o / p->kcountsize;
-		
+
 		if (quot >= 0x10000)
 			s_scale = 1;
 		else if (quot >= 0x100)
@@ -239,7 +239,7 @@ static int
 hertz()
 {
 	struct itimerval tim;
-	
+
 	tim.it_interval.tv_sec = 0;
 	tim.it_interval.tv_usec = 1;
 	tim.it_value.tv_sec = 0;

@@ -65,7 +65,7 @@ __stop_signal_handler(signo)
 	(void)sigaddset(&set, SIGALRM);
 	(void)sigaddset(&set, SIGWINCH);
 	(void)sigprocmask(SIG_BLOCK, &set, &oset);
-	
+
 	/*
 	 * End the window, which also resets the terminal state to the
 	 * original modes.

@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: yplib.c,v 1.8 1995/04/26 19:03:05 wpaul Exp $";
+static char *rcsid = "$Id: yplib.c,v 1.9 1995/05/03 18:33:10 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -291,7 +291,7 @@ skipit:
 		bzero((char *)&clnt_sin, sizeof clnt_sin);
 		clnt_sin.sin_family = AF_INET;
 		clnt_sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-		
+
 		clnt_sock = RPC_ANYSOCK;
 		client = clnttcp_create(&clnt_sin, YPBINDPROG, YPBINDVERS, &clnt_sock,
 			0, 0);

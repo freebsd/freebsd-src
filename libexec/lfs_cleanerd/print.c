@@ -65,7 +65,7 @@ dump_summary(lfsp, sp, flags, iaddrp)
 	FINFO *fp;
 	int ck;
 
-	if (sp->ss_sumsum != (ck = cksum(&sp->ss_datasum, 
+	if (sp->ss_sumsum != (ck = cksum(&sp->ss_datasum,
 	    LFS_SUMMARY_SIZE - sizeof(sp->ss_sumsum))))
 		return(-1);
 

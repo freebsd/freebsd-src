@@ -3,7 +3,7 @@
 main(int argc, char **argv)
 {
     WINDOW *w, *x;
-    
+
     initscr();
     w = newwin(0, 0, 0, 0);
     if (argc > 2)

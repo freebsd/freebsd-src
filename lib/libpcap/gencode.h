@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: gencode.h,v 1.20 94/06/12 14:29:30 leres Exp $ (LBL)
+ * @(#) $Header: /home/ncvs/src/lib/libpcap/gencode.h,v 1.1.1.1 1995/01/20 04:13:06 jkh Exp $ (LBL)
  */
 
 /*
@@ -68,7 +68,7 @@ struct slist {
 	struct slist *next;
 };
 
-/* 
+/*
  * A bit vector to represent definition sets.  We assume TOT_REGISTERS
  * is smaller than 8*sizeof(atomset).
  */

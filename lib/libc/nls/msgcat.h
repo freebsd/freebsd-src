@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: msgcat.h,v 1.1 1995/03/30 12:47:27 jkh Exp $ */
 
 /* -*-c++-*- */
 
@@ -34,7 +34,7 @@ up-to-date.  Many thanks.
 				267 Allston St., #3
 				Cambridge, MA 02139  USA
 				nazgul@alfalfa.com
-    
+
 ******************************************************************/
 
 

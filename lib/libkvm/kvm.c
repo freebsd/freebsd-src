@@ -232,7 +232,7 @@ _kvm_open(kd, uf, mf, sf, flag, errout)
 		 * If the database cannot be opened, open the namelist
 		 * argument so we revert to slow nlist() calls.
 		 */
-		if (kvm_dbopen(kd, uf) < 0 && 
+		if (kvm_dbopen(kd, uf) < 0 &&
 		    (kd->nlfd = open(uf, O_RDONLY, 0)) < 0) {
 			_kvm_syserr(kd, kd->program, "%s", uf);
 			goto failed;
@@ -328,7 +328,7 @@ kvm_close(kd)
 
 /*
  * Set up state necessary to do queries on the kernel namelist
- * data base.  If the data base is out-of-data/incompatible with 
+ * data base.  If the data base is out-of-data/incompatible with
  * given executable, set up things so we revert to standard nlist call.
  * Only called for live kernels.  Return 0 on success, -1 on failure.
  */
@@ -376,7 +376,7 @@ kvm_dbopen(kd, uf)
 	if (rec.data == 0 || rec.size != sizeof(struct nlist))
 		goto close;
 	bcopy((char *)rec.data, (char *)&nitem, sizeof(nitem));
-	if (kvm_read(kd, (u_long)nitem.n_value, kversion, dbversionlen) != 
+	if (kvm_read(kd, (u_long)nitem.n_value, kversion, dbversionlen) !=
 	    dbversionlen)
 		goto close;
 	/*
@@ -401,7 +401,7 @@ kvm_nlist(kd, nl)
 	register int nvalid;
 
 	/*
-	 * If we can't use the data base, revert to the 
+	 * If we can't use the data base, revert to the
 	 * slow library call.
 	 */
 	if (kd->db == 0)
@@ -432,10 +432,10 @@ kvm_nlist(kd, nl)
 		 * Avoid alignment issues.
 		 */
 		bcopy((char *)&((struct nlist *)rec.data)->n_type,
-		      (char *)&p->n_type, 
+		      (char *)&p->n_type,
 		      sizeof(p->n_type));
 		bcopy((char *)&((struct nlist *)rec.data)->n_value,
-		      (char *)&p->n_value, 
+		      (char *)&p->n_value,
 		      sizeof(p->n_value));
 	}
 	/*
@@ -475,7 +475,7 @@ kvm_read(kd, kva, buf, len)
 		cp = buf;
 		while (len > 0) {
 			u_long pa;
-		
+
 			cc = _kvm_kvatop(kd, kva, &pa);
 			if (cc == 0)
 				return (0);

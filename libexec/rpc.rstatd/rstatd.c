@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: rstatd.c,v 1.1.1.1 1994/08/28 14:49:04 csgr Exp $";
+static char rcsid[] = "$Id: rstatd.c,v 1.2 1994/11/18 22:31:05 ats Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -64,7 +64,7 @@ main(argc, argv)
         int proto = 0;
 	struct sockaddr_in from;
 	int fromlen;
-        
+
         if (argc == 2)
                 closedown = atoi(argv[1]);
         if (closedown <= 0)
@@ -91,7 +91,7 @@ main(argc, argv)
 		(void) signal(SIGTERM, cleanup);
 		(void) signal(SIGHUP, cleanup);
         }
-        
+
         openlog("rpc.rstatd", LOG_CONS|LOG_PID, LOG_DAEMON);
 
 	transp = svcudp_create(sock);

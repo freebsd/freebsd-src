@@ -49,7 +49,7 @@ static char sccsid[] = "@(#)telldir.c	8.1 (Berkeley) 6/4/93";
 
 /*
  * One of these structures is malloced to describe the current directory
- * position each time telldir is called. It records the current magic 
+ * position each time telldir is called. It records the current magic
  * cookie returned by getdirentries and the offset within the buffer
  * associated with that return value.
  */

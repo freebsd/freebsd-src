@@ -8,13 +8,13 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_remainderf.c,v 1.2 1994/08/18 23:06:02 jtc Exp $";
+static char rcsid[] = "$Id: e_remainderf.c,v 1.1.1.1 1994/08/19 09:39:57 jkh Exp $";
 #endif
 
 #include "math.h"

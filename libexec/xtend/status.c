@@ -59,7 +59,7 @@ initstatus()
  * Checkpoint status of any devices whose status has changed
  * and notify anyone monitoring those devices.
  */
-  
+
 checkpoint_status()
 {
   int h, i, k, offset;

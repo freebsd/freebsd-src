@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ftpd.c,v 1.9 1995/05/22 11:03:55 davidg Exp $
  */
 
 #ifndef lint
@@ -1019,7 +1019,7 @@ send_data(instr, outstr, blksize, filesize, isreg)
 		 * are sending a regular file
 		 */
 		netfd = fileno(outstr);
-		filefd = fileno(instr);	
+		filefd = fileno(instr);
 
 		if (isreg && filesize < (off_t)16 * 1024 * 1024) {
 			buf = mmap(0, filesize, PROT_READ, MAP_SHARED, filefd,
@@ -1052,7 +1052,7 @@ oldway:
 			perror_reply(451, "Local resource failure: malloc");
 			return;
 		}
-				
+
 		while ((cnt = read(filefd, buf, (u_int)blksize)) > 0 &&
 		    write(netfd, buf, cnt) == cnt)
 			byte_count += cnt;

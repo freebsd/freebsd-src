@@ -8,13 +8,13 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: s_tanhf.c,v 1.2 1994/08/18 23:10:23 jtc Exp $";
+static char rcsid[] = "$Id: s_tanhf.c,v 1.1.1.1 1994/08/19 09:39:59 jkh Exp $";
 #endif
 
 #include "math.h"
@@ -40,7 +40,7 @@ static float one=1.0, two=2.0, tiny = 1.0e-30;
 	ix = jx&0x7fffffff;
 
     /* x is INF or NaN */
-	if(ix>=0x7f800000) { 
+	if(ix>=0x7f800000) {
 	    if (jx>=0) return one/x+one;    /* tanh(+-inf)=+-1 */
 	    else       return one/x-one;    /* tanh(NaN) = NaN */
 	}

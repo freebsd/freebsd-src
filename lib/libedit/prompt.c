@@ -83,7 +83,7 @@ prompt_print(el)
 /* prompt_init():
  *	Initialize the prompt stuff
  */
-protected int 
+protected int
 prompt_init(el)
     EditLine *el;
 {
@@ -98,7 +98,7 @@ prompt_init(el)
  *	Clean up the prompt stuff
  */
 protected void
-/*ARGSUSED*/ 
+/*ARGSUSED*/
 prompt_end(el)
     EditLine *el;
 {
@@ -108,7 +108,7 @@ prompt_end(el)
 /* prompt_set():
  *	Install a prompt printing function
  */
-protected int 
+protected int
 prompt_set(el, prf)
     EditLine *el;
     el_pfunc_t prf;

@@ -2,9 +2,9 @@
 		      Library for ftpd clients.(libftp)
 			Copyright by Oleg Orel
 			 All rights reserved.
-			
-This  library is desined  for  free,  non-commercial  software  creation. 
-It is changeable and can be improved. The author would greatly appreciate 
+
+This  library is desined  for  free,  non-commercial  software  creation.
+It is changeable and can be improved. The author would greatly appreciate
 any  advises, new  components  and  patches  of  the  existing  programs.
 Commercial  usage is  also  possible  with  participation of it's author.
 
@@ -22,11 +22,11 @@ STATUS FtpGood(va_alist)
   int Number;
   int Answer[MAX_ANSWERS];
   int counter=0;
-  
+
   va_start(args);
 
   Number = va_arg(args,int);
-  
+
   while ( 1 )
     {
       if (counter == MAX_ANSWERS)
@@ -37,7 +37,7 @@ STATUS FtpGood(va_alist)
     }
 
   va_end(args);
-  
+
   return FtpGood1(Number,Answer);
 }
 

@@ -27,7 +27,7 @@ int	minx;
 	    	minx = _NOCHANGE;
 	    	start = win->_line[y];
 	    	end = &start[win->_maxx];
-	
+
 	    	maxx = start;
 	    	for (sp = start; sp <= end; sp++) {
 		    	maxx = sp;

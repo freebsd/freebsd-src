@@ -5,11 +5,11 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
@@ -17,11 +17,11 @@
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
@@ -30,12 +30,12 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)auth_unix.c 1.19 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)auth_unix.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: auth_unix.c,v 1.2 1994/08/10 02:25:22 wollman Exp $";
+static char *rcsid = "$Id: auth_unix.c,v 1.3 1995/03/18 17:55:03 ache Exp $";
 #endif
 
 /*
- * auth_unix.c, Implements UNIX style authentication parameters. 
- *  
+ * auth_unix.c, Implements UNIX style authentication parameters.
+ *
  * Copyright (C) 1984, Sun Microsystems, Inc.
  *
  * The system is very weak.  The client uses no encryption for it's
@@ -160,7 +160,7 @@ authunix_create(machname, uid, gid, len, aup_gids)
 	 * Serialize the parameters into origcred
 	 */
 	xdrmem_create(&xdrs, mymem, MAX_AUTH_BYTES, XDR_ENCODE);
-	if (! xdr_authunix_parms(&xdrs, &aup)) 
+	if (! xdr_authunix_parms(&xdrs, &aup))
 		abort();
 	au->au_origcred.oa_length = len = XDR_GETPOS(&xdrs);
 	au->au_origcred.oa_flavor = AUTH_UNIX;
@@ -205,7 +205,7 @@ authunix_create_default()
 	if ((len = getgroups(NGROUPS, real_gids)) < 0)
 		abort();
 	if(len > NGRPS) len = NGRPS; /* GW: turn `gid_t's into `int's */
-	for(i = 0; i < len; i++) { 
+	for(i = 0; i < len; i++) {
 		gids[i] = real_gids[i];
 	}
 	return (authunix_create(machname, uid, gid, len, gids));
@@ -284,7 +284,7 @@ authunix_refresh(auth)
 	xdrmem_create(&xdrs, au->au_origcred.oa_base,
 	    au->au_origcred.oa_length, XDR_DECODE);
 	stat = xdr_authunix_parms(&xdrs, &aup);
-	if (! stat) 
+	if (! stat)
 		goto done;
 
 	/* update the time and serialize in place */

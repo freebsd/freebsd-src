@@ -67,7 +67,7 @@ double x;
 }
 
 double
-cos(x) 
+cos(x)
 double x;
 {
 	double a,c,z,s = 1.0;
@@ -83,7 +83,7 @@ double x;
 		}
 		else {			/* ... in [PI/4,3PI/4] */
 			a = PIo2-a;
-			return a+a*sin__S(a*a);	/* rtn. S(PI/2-|x|) */ 
+			return a+a*sin__S(a*a);	/* rtn. S(PI/2-|x|) */
 		}
 	}
 	if (a < small) {

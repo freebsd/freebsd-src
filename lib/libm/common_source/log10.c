@@ -38,9 +38,9 @@ static char sccsid[] = "@(#)log10.c	8.1 (Berkeley) 6/4/93";
 /* LOG10(X)
  * RETURN THE BASE 10 LOGARITHM OF x
  * DOUBLE PRECISION (VAX D format 56 bits, IEEE DOUBLE 53 BITS)
- * CODED IN C BY K.C. NG, 1/20/85; 
+ * CODED IN C BY K.C. NG, 1/20/85;
  * REVISED BY K.C. NG on 1/23/85, 3/7/85, 4/16/85.
- * 
+ *
  * Required kernel function:
  *	log(x)
  *
@@ -52,12 +52,12 @@ static char sccsid[] = "@(#)log10.c	8.1 (Berkeley) 6/4/93";
  *    Note:
  *	  [log(10)]   rounded to 56 bits has error  .0895  ulps,
  *	  [1/log(10)] rounded to 53 bits has error  .198   ulps;
- *	  therefore, for better accuracy, in VAX D format, we divide 
- *	  log(x) by log(10), but in IEEE Double format, we multiply 
+ *	  therefore, for better accuracy, in VAX D format, we divide
+ *	  log(x) by log(10), but in IEEE Double format, we multiply
  *	  log(x) by [1/log(10)].
  *
  * Special cases:
- *	log10(x) is NaN with signal if x < 0; 
+ *	log10(x) is NaN with signal if x < 0;
  *	log10(+INF) is +INF with no signal; log10(0) is -INF with signal;
  *	log10(NaN) is that NaN with no signal.
  *

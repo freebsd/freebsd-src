@@ -66,7 +66,7 @@ int reset_prog_mode()
 	stty(cur_term->Filedes, &cur_term->Nttyb);
 #endif
 
-	return OK; 
+	return OK;
 }
 
 
@@ -80,7 +80,7 @@ int reset_shell_mode()
 	stty(cur_term->Filedes, &cur_term->Ottyb);
 #endif
 
-	return OK; 
+	return OK;
 }
 #endif
 
@@ -132,7 +132,7 @@ int speed;
 
       	return OK;
 }
-    
+
 /*
  *	erasechar()
  *
@@ -191,7 +191,7 @@ int flushinp()
 	tcflush(cur_term->Filedes, TCIFLUSH);
 #else
     ioctl(cur_term->Filedes, TIOCFLUSH, 0);
-#endif    
+#endif
     if (SP) {
 	  	SP->_fifohead = -1;
 	  	SP->_fifotail = 0;

@@ -91,7 +91,7 @@ sig_handler(signo)
 	break;
     }
 
-    for (i = 0; sighdl[i] != -1; i++) 
+    for (i = 0; sighdl[i] != -1; i++)
 	if (signo == sighdl[i])
 	    break;
 
@@ -120,7 +120,7 @@ sig_init(el)
 #define SIGSIZE (sizeof(sighdl) / sizeof(sighdl[0]) * sizeof(sig_t))
 
     el->el_signal = (sig_t *) el_malloc(SIGSIZE);
-    for (i = 0; sighdl[i] != -1; i++) 
+    for (i = 0; sighdl[i] != -1; i++)
 	el->el_signal[i] = BADSIG;
 
     (void) sigprocmask(SIG_SETMASK, &oset, NULL);
@@ -184,7 +184,7 @@ sig_clr(el)
 #undef _DO
     (void) sigprocmask(SIG_BLOCK, &nset, &oset);
 
-    for (i = 0; sighdl[i] != -1; i++) 
+    for (i = 0; sighdl[i] != -1; i++)
 	if (el->el_signal[i] != BADSIG)
 	    (void) signal(sighdl[i], el->el_signal[i]);
 

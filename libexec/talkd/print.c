@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)print.c	8.1 (Berkeley) 6/4/93";
 static	char *types[] =
     { "leave_invite", "look_up", "delete", "announce" };
 #define	NTYPES	(sizeof (types) / sizeof (types[0]))
-static	char *answers[] = 
+static	char *answers[] =
     { "success", "not_here", "failed", "machine_unknown", "permission_denied",
       "unknown_request", "badversion", "badaddr", "badctladdr" };
 #define	NANSWERS	(sizeof (answers) / sizeof (answers[0]))
@@ -56,7 +56,7 @@ print_request(cp, mp)
 	register CTL_MSG *mp;
 {
 	char tbuf[80], *tp;
-	
+
 	if (mp->type > NTYPES) {
 		(void)sprintf(tbuf, "type %d", mp->type);
 		tp = tbuf;
@@ -71,7 +71,7 @@ print_response(cp, rp)
 	register CTL_RESPONSE *rp;
 {
 	char tbuf[80], *tp, abuf[80], *ap;
-	
+
 	if (rp->type > NTYPES) {
 		(void)sprintf(tbuf, "type %d", rp->type);
 		tp = tbuf;

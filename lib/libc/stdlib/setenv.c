@@ -39,7 +39,7 @@ static char sccsid[] = "@(#)setenv.c	8.1 (Berkeley) 6/4/93";
 #include <stdlib.h>
 #include <string.h>
 
-char *__findenv __P((const char *, int *)); 
+char *__findenv __P((const char *, int *));
 
 /*
  * setenv --

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile.inc	8.3 (Berkeley) 4/16/94
-#	$Id: Makefile.inc,v 1.14 1994/11/13 20:47:41 phk Exp $
+#	$Id: Makefile.inc,v 1.15 1994/12/18 14:06:38 guido Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/${MACHINE}/gen ${.CURDIR}/gen
@@ -56,7 +56,7 @@ MAN3+=	gen/alarm.3 gen/clock.3 gen/confstr.3 gen/config_open.3 \
 	gen/uname.3 gen/unvis.3 gen/usleep.3 gen/utime.3 gen/valloc.3 gen/vis.3
 
 MLINKS+=config_open.3 config_next.3 config_open.3 config_close.3 \
-	config_open.3 config_skip.3 
+	config_open.3 config_skip.3
 MLINKS+=crypt.3 encrypt.3 crypt.3 setkey.3
 MLINKS+=directory.3 closedir.3 directory.3 dirfd.3 directory.3 opendir.3 \
 	directory.3 readdir.3 directory.3 rewinddir.3 directory.3 seekdir.3 \

@@ -50,9 +50,9 @@ ttyslot()
 	char *name;
 
 	setttyent();
-	for (cnt = 0; cnt < 3; ++cnt) 
+	for (cnt = 0; cnt < 3; ++cnt)
 		if (name = ttyname(cnt)) {
-			if (p = rindex(name, '/')) 
+			if (p = rindex(name, '/'))
 				++p;
 			else
 				p = name;

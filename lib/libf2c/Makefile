@@ -22,7 +22,7 @@ INT =	i_abs.c i_dim.c i_dnnt.c i_indx.c i_len.c i_mod.c i_nint.c i_sign.c
 HALF =	h_abs.c h_dim.c h_dnnt.c h_indx.c h_len.c h_mod.c  h_nint.c h_sign.c
 CMP =	l_ge.c l_gt.c l_le.c l_lt.c hl_ge.c hl_gt.c hl_le.c hl_lt.c
 EFL =	ef1asc_.c ef1cmc_.c
-CHAR =	s_cat.c s_cmp.c s_copy.c      
+CHAR =	s_cat.c s_cmp.c s_copy.c
 
 F77SRCS= $(MISC) $(POW) $(CX) $(DCX) $(REAL) $(DBL) $(INT) \
 	$(HALF) $(CMP) $(EFL) $(CHAR)

@@ -157,7 +157,7 @@ __bt_sync(dbp, flags)
 			goto ecrsr;
 		mpool_put(t->bt_mp, h, MPOOL_DIRTY);
 	}
-		
+
 	if ((status = mpool_sync(t->bt_mp)) == RET_SUCCESS)
 		CLR(t, B_MODIFIED);
 

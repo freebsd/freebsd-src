@@ -185,7 +185,7 @@ typedef struct htab {		/* Memory resident data structure */
  *		so it starts on this page and continues on the next.
  *		The format of the page is:
  *		    KEY_OFF PARTIAL_KEY OVFL_PAGENO OVFLPAGE
- *		
+ *
  *		    KEY_OFF -- offset of the beginning of the key
  *		    PARTIAL_KEY -- 1
  *		    OVFL_PAGENO - page number of the next overflow page
@@ -220,7 +220,7 @@ typedef struct htab {		/* Memory resident data structure */
  *		    OVFL_PAGENO - page number of the next overflow page
  *		    OVFLPAGE -- 0
  *
- * FULL_KEY_DATA 
+ * FULL_KEY_DATA
  *		This must be the first key/data pair on the page.
  *		There are two cases:
  *

@@ -93,7 +93,7 @@ __rec_search(t, recno, op)
 
 		if (__bt_push(t, pg, index - 1) == RET_ERROR)
 			return (NULL);
-		
+
 		pg = r->pgno;
 		switch (op) {
 		case SDELETE:

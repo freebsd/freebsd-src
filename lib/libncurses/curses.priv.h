@@ -37,11 +37,11 @@ typedef struct sigaction sigaction_t;
 extern WINDOW	*newscr;
 
 #ifdef TRACE
-#define T(a)	if (_tracing & TRACE_ORDINARY) _tracef a 
-#define TR(n, a)	if (_tracing & (n)) _tracef a 
+#define T(a)	if (_tracing & TRACE_ORDINARY) _tracef a
+#define TR(n, a)	if (_tracing & (n)) _tracef a
 extern int _tracing;
 extern char *visbuf(const char *);
-#else	
+#else
 #define T(a)
 #define TR(n, a)
 #endif
@@ -58,11 +58,11 @@ struct try {
         unsigned char    ch;        /* character at this node               */
         unsigned short   value;     /* code of string so far.  0 if none.   */
 };
-  
+
 /*
  * Structure for soft labels.
  */
-  
+
 typedef struct {
 	char dirty;			/* all labels have changed */
 	char hidden;			/* soft lables are hidden */
@@ -92,7 +92,7 @@ struct screen {
 	WINDOW		*_stdscr;
 	struct try  	*_keytry;   	/* "Try" for use with keypad mode       */
 	unsigned int	_fifo[FIFO_SIZE]; 	/* Buffer for pushed back characters    */
-	signed char	_fifohead, 
+	signed char	_fifohead,
 			_fifotail,
 			_fifopeek;
 	bool		_endwin;

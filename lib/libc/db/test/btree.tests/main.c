@@ -629,7 +629,7 @@ load(db, argv)
 			key.size = sizeof(recno_t);
 			data.data = lp;
 			data.size = len + 1;
-		} else { 
+		} else {
 			key.data = lp;
 			key.size = len + 1;
 			for (p = lp + len - 1, t = buf; p >= lp; *t++ = *p--);

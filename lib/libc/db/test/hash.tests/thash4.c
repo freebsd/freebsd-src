@@ -86,8 +86,8 @@ char **argv;
 
 	key.data = wp1;
 	item.data = wp2;
-	while ( fgets(wp1, 8192, stdin) && 
-		fgets(wp2, 8192, stdin) && 
+	while ( fgets(wp1, 8192, stdin) &&
+		fgets(wp2, 8192, stdin) &&
 		i++ < MAXWORDS) {
 /*
 * put info in structure, and structure in the item
@@ -103,14 +103,14 @@ char **argv;
 				item.data);
 			fprintf(stderr, "\terrno: %d\n", errno);
 			exit(1);
-		}			
+		}
 	}
 
 	if ( --argc ) {
 		fp = fopen ( argv[0], "r");
 		i = 0;
-		while ( fgets(wp1, 256, fp) && 
-			fgets(wp2, 8192, fp) && 
+		while ( fgets(wp1, 256, fp) &&
+			fgets(wp2, 8192, fp) &&
 			i++ < MAXWORDS) {
 
 		    key.size = strlen(wp1);

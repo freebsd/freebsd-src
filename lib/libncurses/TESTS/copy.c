@@ -25,7 +25,7 @@ int h, i;
 	getch();
 
 	/* now, remove window 2 and restore the contents of window 1 */
-	i = copywin(win1, win2, 5, 10, 0, 0, 14, 39, 0);   
+	i = copywin(win1, win2, 5, 10, 0, 0, 14, 39, 0);
 	wnoutrefresh(win1);
 	wnoutrefresh(win2);
 	printw("copywin returns %d\n", i);

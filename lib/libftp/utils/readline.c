@@ -1,5 +1,5 @@
 #ifndef lint
-static char *RCSid = "$Id: readline.c%v 3.50.1.9 1993/08/05 05:38:59 woo Exp $";
+static char *RCSid = "$Id: readline.c,v 1.1.1.1 1995/04/25 15:05:09 jkh Exp $";
 #endif
 
 
@@ -8,17 +8,17 @@ static char *RCSid = "$Id: readline.c%v 3.50.1.9 1993/08/05 05:38:59 woo Exp $";
  * Copyright (C) 1986 - 1993   Thomas Williams, Colin Kelley
  *
  * Permission to use, copy, and distribute this software and its
- * documentation for any purpose with or without fee is hereby granted, 
- * provided that the above copyright notice appear in all copies and 
- * that both that copyright notice and this permission notice appear 
+ * documentation for any purpose with or without fee is hereby granted,
+ * provided that the above copyright notice appear in all copies and
+ * that both that copyright notice and this permission notice appear
  * in supporting documentation.
  *
  * Permission to modify the software is granted, but not the right to
- * distribute the modified code.  Modifications are to be distributed 
+ * distribute the modified code.  Modifications are to be distributed
  * as patches to released version.
- *  
+ *
  * This software is provided "as is" without express or implied warranty.
- * 
+ *
  *
  * AUTHORS
  *
@@ -27,10 +27,10 @@ static char *RCSid = "$Id: readline.c%v 3.50.1.9 1993/08/05 05:38:59 woo Exp $";
  *
  *   Msdos port and some enhancements:
  *     Gershon Elber and many others.
- * 
+ *
  * There is a mailing list for gnuplot users. Note, however, that the
- * newsgroup 
- *	comp.graphics.gnuplot 
+ * newsgroup
+ *	comp.graphics.gnuplot
  * is identical to the mailing list (they
  * both carry the same set of messages). We prefer that you read the
  * messages through that newsgroup, to subscribing to the mailing list.
@@ -40,9 +40,9 @@ static char *RCSid = "$Id: readline.c%v 3.50.1.9 1993/08/05 05:38:59 woo Exp $";
  *
  * The address for mailing to list members is
  *	   info-gnuplot@dartmouth.edu
- * and for mailing administrative requests is 
+ * and for mailing administrative requests is
  *	   info-gnuplot-request@dartmouth.edu
- * The mailing list for bug reports is 
+ * The mailing list for bug reports is
  *	   bug-gnuplot@dartmouth.edu
  * The list of those interested in beta-test versions is
  *	   info-gnuplot-beta@dartmouth.edu
@@ -57,7 +57,7 @@ static char *RCSid = "$Id: readline.c%v 3.50.1.9 1993/08/05 05:38:59 woo Exp $";
 #endif
 
 /* a small portable version of GNU's readline */
-/* this is not the BASH or GNU EMACS version of READLINE due to Copyleft 
+/* this is not the BASH or GNU EMACS version of READLINE due to Copyleft
 	restrictions */
 /* do not need any terminal capabilities except backspace, */
 /* and space overwrites a character */
@@ -123,7 +123,7 @@ static struct ltchars s_ltchars;
 #ifdef ISC22
 #ifndef ONOCR			/* taken from sys/termio.h */
 #define ONOCR 0000020	/* true at least for ISC 2.2 */
-#endif 
+#endif
 #ifndef IUCLC
 #define IUCLC 0001000
 #endif
@@ -226,7 +226,7 @@ void reset_termio();
 
 /* user_putc and user_puts should be used in the place of
  * fputc(ch,stderr) and fputs(str,stderr) for all output
- * of user typed characters.  This allows MS-Windows to 
+ * of user typed characters.  This allows MS-Windows to
  * display user input in a different color. */
 int
 user_putc(ch)
@@ -265,7 +265,7 @@ backspace()
 {
 	user_putc(BACKSPACE);
 }
-	
+
 char *
 readline(prompt)
 char *prompt;
@@ -322,7 +322,7 @@ char *prompt;
                             }
                         }
 #endif  /*OS2*/
-		if((isprint(cur_char) 
+		if((isprint(cur_char)
 #if defined(ATARI) || defined(_Windows) || defined(MSDOS) || defined(DOS386)
    /* this should be used for all 8bit ASCII machines, I guess */
 				    || ((unsigned char)cur_char > 0x7f)
@@ -455,7 +455,7 @@ char *prompt;
 				if(cur_entry != NULL) {
 					cur_entry = cur_entry->next;
 					clear_line(prompt);
-					if(cur_entry != NULL) 
+					if(cur_entry != NULL)
 						copy_line(cur_entry->line);
 					else
 						cur_pos = max_pos = 0;
@@ -714,12 +714,12 @@ msdos_getch()
 
 /* Convert Arrow keystrokes to Control characters: TOS version */
 
-/* the volatile could be necessary to keep gcc from reordering 
+/* the volatile could be necessary to keep gcc from reordering
    the two Super calls
 */
 #define CONTERM ((/*volatile*/ char *)0x484L)
 
-static void 
+static void
 remove_conterm()
 {
   void *ssp=(void*)Super(0L);
@@ -929,7 +929,7 @@ set_termio()
 	}
 #endif /* !MSDOS && !ATARI && !defined(_Windows) */
 }
-  
+
 void
 reset_termio()
 {

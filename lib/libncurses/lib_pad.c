@@ -57,7 +57,7 @@ int prefresh(WINDOW *win, int pminrow, int pmincol,
 	if (pnoutrefresh(win, pminrow, pmincol, sminrow, smincol, smaxrow, smaxcol) != ERR)
 		return (doupdate());
 	else
-		return ERR;	
+		return ERR;
 
 }
 
@@ -67,7 +67,7 @@ int pnoutrefresh(WINDOW *win, int pminrow, int pmincol,
 int	i, j;
 int	m, n;
 
-	T(("pnoutrefresh(%x, %d, %d, %d, %d, %d, %d) called", 
+	T(("pnoutrefresh(%x, %d, %d, %d, %d, %d, %d) called",
 		win, pminrow, pmincol, sminrow, smincol, smaxrow, smaxcol));
 
 	if (!(win->_flags & _ISPAD))

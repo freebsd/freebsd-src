@@ -10,7 +10,7 @@ int putwin(WINDOW *win, char *file)
 int fd, i;
 
 	fd = open(file, O_WRONLY);
-	if (fd < -1) 
+	if (fd < -1)
 		return ERR;
 	for (i = 0; i < lines; i++)
 		write(fd, win->_line[i], sizeof(chtype)*columns);

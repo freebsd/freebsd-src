@@ -24,7 +24,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: nametoaddr.c,v 1.21 94/06/20 19:07:54 leres Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/lib/libpcap/nametoaddr.c,v 1.1.1.1 1995/01/20 04:13:03 jkh Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -302,7 +302,7 @@ pcap_ether_hostton(const char *name)
 		return (NULL);
 	else
 		rewind(fp);
-	
+
 	while ((ep = pcap_next_etherent(fp)) != NULL) {
 		if (strcmp(ep->name, name) == 0) {
 			ap = (u_char *)malloc(6);

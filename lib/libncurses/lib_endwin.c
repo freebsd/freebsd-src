@@ -38,7 +38,7 @@ endwin()
 	if (SP->_coloron == TRUE)
 		putp(orig_pair);
 
-	if (curscr  &&  (curscr->_attrs != A_NORMAL)) 
+	if (curscr  &&  (curscr->_attrs != A_NORMAL))
 	    vidattr(curscr->_attrs = A_NORMAL);
 
 	if (SP->_cursor != 1)

@@ -13,7 +13,7 @@
  *             keypress, then removes the top window.  With ncurses, *
  *             nothing changes on the display.                       *
  *********************************************************************/
-  
+
 #  include <ncurses.h>         /* ncurses include lives here */
 
 main()
@@ -54,7 +54,7 @@ main()
     wnoutrefresh(win1);
     wnoutrefresh(win2);
     doupdate();
- 
+
     /****************************************************************
      * Await a keypress to show what we've done so far.             *
      ****************************************************************/

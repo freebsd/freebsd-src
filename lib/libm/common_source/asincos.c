@@ -45,12 +45,12 @@ static char sccsid[] = "@(#)asincos.c	8.1 (Berkeley) 6/4/93";
  *	sqrt(x)
  *
  * Required kernel function:
- *	atan2(y,x) 
+ *	atan2(y,x)
  *
- * Method :                  
- *	asin(x) = atan2(x,sqrt(1-x*x)); for better accuracy, 1-x*x is 
+ * Method :
+ *	asin(x) = atan2(x,sqrt(1-x*x)); for better accuracy, 1-x*x is
  *		  computed as follows
- *			1-x*x                     if x <  0.5, 
+ *			1-x*x                     if x <  0.5,
  *			2*(1-|x|)-(1-|x|)*(1-|x|) if x >= 0.5.
  *
  * Special cases:
@@ -59,22 +59,22 @@ static char sccsid[] = "@(#)asincos.c	8.1 (Berkeley) 6/4/93";
  *
  * Accuracy:
  * 1)  If atan2() uses machine PI, then
- * 
+ *
  *	asin(x) returns (PI/pi) * (the exact arc sine of x) nearly rounded;
  *	and PI is the exact pi rounded to machine precision (see atan2 for
  *      details):
  *
  *	in decimal:
- *		pi = 3.141592653589793 23846264338327 ..... 
+ *		pi = 3.141592653589793 23846264338327 .....
  *    53 bits   PI = 3.141592653589793 115997963 ..... ,
- *    56 bits   PI = 3.141592653589793 227020265 ..... ,  
+ *    56 bits   PI = 3.141592653589793 227020265 ..... ,
  *
  *	in hexadecimal:
  *		pi = 3.243F6A8885A308D313198A2E....
  *    53 bits   PI = 3.243F6A8885A30  =  2 * 1.921FB54442D18	error=.276ulps
  *    56 bits   PI = 3.243F6A8885A308 =  4 * .C90FDAA22168C2    error=.206ulps
- *	
- *	In a test run with more than 200,000 random arguments on a VAX, the 
+ *
+ *	In a test run with more than 200,000 random arguments on a VAX, the
  *	maximum observed error in ulps (units in the last place) was
  *	2.06 ulps.      (comparing against (PI/pi)*(exact asin(x)));
  *
@@ -82,7 +82,7 @@ static char sccsid[] = "@(#)asincos.c	8.1 (Berkeley) 6/4/93";
  *
  *	asin(x) returns the exact asin(x) with error below about 2 ulps.
  *
- *	In a test run with more than 1,024,000 random arguments on a VAX, the 
+ *	In a test run with more than 1,024,000 random arguments on a VAX, the
  *	maximum observed error in ulps (units in the last place) was
  *      1.99 ulps.
  */
@@ -97,7 +97,7 @@ double x;
 	s=copysign(x,one);
 	if(s <= 0.5)
 	    return(atan2(x,sqrt(one-x*x)));
-	else 
+	else
 	    { t=one-s; s=t+t; return(atan2(x,sqrt(s-t*t))); }
 
 }
@@ -112,9 +112,9 @@ double x;
  *	sqrt(x)
  *
  * Required kernel function:
- *	atan2(y,x) 
+ *	atan2(y,x)
  *
- * Method :                  
+ * Method :
  *			      ________
  *                           / 1 - x
  *	acos(x) = 2*atan2(  / -------- , 1 ) .
@@ -126,22 +126,22 @@ double x;
  *
  * Accuracy:
  * 1)  If atan2() uses machine PI, then
- * 
+ *
  *	acos(x) returns (PI/pi) * (the exact arc cosine of x) nearly rounded;
  *	and PI is the exact pi rounded to machine precision (see atan2 for
  *      details):
  *
  *	in decimal:
- *		pi = 3.141592653589793 23846264338327 ..... 
+ *		pi = 3.141592653589793 23846264338327 .....
  *    53 bits   PI = 3.141592653589793 115997963 ..... ,
- *    56 bits   PI = 3.141592653589793 227020265 ..... ,  
+ *    56 bits   PI = 3.141592653589793 227020265 ..... ,
  *
  *	in hexadecimal:
  *		pi = 3.243F6A8885A308D313198A2E....
  *    53 bits   PI = 3.243F6A8885A30  =  2 * 1.921FB54442D18	error=.276ulps
  *    56 bits   PI = 3.243F6A8885A308 =  4 * .C90FDAA22168C2    error=.206ulps
- *	
- *	In a test run with more than 200,000 random arguments on a VAX, the 
+ *
+ *	In a test run with more than 200,000 random arguments on a VAX, the
  *	maximum observed error in ulps (units in the last place) was
  *	2.07 ulps.      (comparing against (PI/pi)*(exact acos(x)));
  *
@@ -149,7 +149,7 @@ double x;
  *
  *	acos(x) returns the exact acos(x) with error below about 2 ulps.
  *
- *	In a test run with more than 1,024,000 random arguments on a VAX, the 
+ *	In a test run with more than 1,024,000 random arguments on a VAX, the
  *	maximum observed error in ulps (units in the last place) was
  *	2.15 ulps.
  */

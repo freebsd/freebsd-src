@@ -53,7 +53,7 @@ int cbreak()
 	SP->_cbreak = 1;
 
 #ifdef TERMIOS
-	cur_term->Nttyb.c_lflag &= ~ICANON; 
+	cur_term->Nttyb.c_lflag &= ~ICANON;
 	cur_term->Nttyb.c_lflag |= ISIG;
 	cur_term->Nttyb.c_cc[VMIN] = 1;
 	cur_term->Nttyb.c_cc[VTIME] = 0;
@@ -73,7 +73,7 @@ int echo()
 	T(("echo() called"));
 
 	SP->_echo = TRUE;
-    
+
 #ifdef TERMIOS
 	cur_term->Nttyb.c_lflag |= ECHO;
 	if((tcsetattr(cur_term->Filedes, TCSANOW, &cur_term->Nttyb)) == -1)
@@ -140,14 +140,14 @@ int nocbreak()
 	T(("nocbreak() called"));
 
 	SP->_cbreak = 0;
-	
+
 #ifdef TERMIOS
 	cur_term->Nttyb.c_lflag |= ICANON;
 	if((tcsetattr(cur_term->Filedes, TCSANOW, &cur_term->Nttyb)) == -1)
 		return ERR;
 	else
 		return OK;
-#else 
+#else
 	cur_term->Nttyb.sg_flags &= ~CBREAK;
 	stty(cur_term->Filedes, &cur_term->Nttyb);
 	return OK;
@@ -159,7 +159,7 @@ int noecho()
 	T(("noecho() called"));
 
 	SP->_echo = FALSE;
-	
+
 #ifdef TERMIOS
 	cur_term->Nttyb.c_lflag &= ~(ECHO);
 	if((tcsetattr(cur_term->Filedes, TCSANOW, &cur_term->Nttyb)) == -1)
@@ -179,7 +179,7 @@ int nonl()
 	T(("nonl() called"));
 
 	SP->_nl = SP->_nlmapping = FALSE;
-	
+
 #ifdef TERMIOS
 	cur_term->Nttyb.c_iflag &= ~ICRNL;
 	cur_term->Nttyb.c_oflag &= ~ONLCR;

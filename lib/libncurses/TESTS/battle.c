@@ -1,4 +1,4 @@
-/* 
+/*
  * battle.c - original author: Bruce Holloway
  *		mods by: Chuck A DeGaul
  */
@@ -91,21 +91,21 @@ main(int argc, char **argv)
 		while(awinna() == -1) {
 		    if (!blitz) {
 				if (!salvo) {
-		    	    if (turn) 
-		    	    	cputurn(); 
+		    	    if (turn)
+		    	    	cputurn();
 		    	    else plyturn();
 				} else {
 				     register int i;
 
 				     i = scount(turn);
 				     while (i--) {
-					 	if (turn) 
-					 	    if (cputurn()) 
-							 	if (awinna() != -1) 
+					 	if (turn)
+					 	    if (cputurn())
+							 	if (awinna() != -1)
 							     	i = 0;
-					 	else 
-					 	    if(plyturn()) 
-							 	if (awinna() != -1) 
+					 	else
+					 	    if(plyturn())
+							 	if (awinna() != -1)
 							     	i = 0;
 				 	}
 			    }
@@ -141,8 +141,8 @@ char *tmpname;
 
     initscr();
     savetty();
-    nonl(); 
-    cbreak(); 
+    nonl();
+    cbreak();
     noecho();
     clear();
     mvaddstr(4,29,"Welcome to Battleship!");
@@ -187,9 +187,9 @@ int i;
     }
     for(turn=0; turn<2; ++turn){
 	for(i=0; i<5; ++i)
-	    if (!turn) 
+	    if (!turn)
 	    	plyplace(&plyship[i]);
-	    else 
+	    else
 	    	cpuplace(&cpuship[i]);
 	}
     turn = rnd(2);
@@ -220,11 +220,11 @@ int c, d;
     placeship(ss,c,d);
 }
 
-int 
+int
 getdir()
 {
 
-    prompt(); 
+    prompt();
     addstr("What direction (0=right, 1=down) ? ");
     return(sgetc("01")-'0');
 }
@@ -296,7 +296,7 @@ void
 error(s)
 char *s;
 {
-    prompt(); 
+    prompt();
     beep();
     printw("%s -- hit any key to continue --",s);
     refresh();
@@ -305,7 +305,7 @@ char *s;
 
 void
 prompt(){
-    move(22,0); 
+    move(22,0);
     clrtoeol();
 }
 
@@ -319,12 +319,12 @@ redo:
     do {
 		ch = getch();
 		if (ch == 0x7F || ch == 8) {
-	    	addstr("\b \b"); 
+	    	addstr("\b \b");
 	    	refresh();
 	    	goto redo;
 	    }
 	} while(ch < '0' || ch > '9');
-    addch(x = ch); 
+    addch(x = ch);
     refresh();
     return((y-'A')*10+x-'0');
 }
@@ -336,7 +336,7 @@ struct _ships *ss;
 int c, d;
 
     do{
-		c = rnd(100); 
+		c = rnd(100);
 		d = rnd(2);
 	} while(!checkplace(ss,c,d));
     placeship(ss,c,d);
@@ -383,8 +383,8 @@ char *m;
 		    m = "Have some mercy for my %s!";
 		    break;
 		}
-	    move(23,0); 
-	    clrtoeol(); 
+	    move(23,0);
+	    clrtoeol();
 	    beep();
 	    printw(m,cpuship[c-1].name); refresh();
 	    return(awinna() == -1);
@@ -407,16 +407,16 @@ int sym, i, j;
     if (!(sym = board[OTHER][c])) return(0);
     for (i = 0; i < 5; ++i, ++ss)
 	if (ss->symbol == sym) {
-	    j = ss->hits; 
-	    ++j; 
+	    j = ss->hits;
+	    ++j;
 	    ss->hits = j;
-	    if (j == ss->length) 
+	    if (j == ss->length)
 	    	return(i+1);
 	    return(0);
 	 }
 }
 
-int 
+int
 cputurn()
 {
 int c, res, x, y, i, d;
@@ -479,8 +479,8 @@ fndir:	for(i=0, d=rnd(4); i++ < 4; d = (d+1) % 4){
 				    case 2: --x; break;
 				    case 3: --y; break;
 			    }
-				if(x<0 || x>9 || y<0 || y>9){ cstart = -1; 
-				goto redo; 
+				if(x<0 || x>9 || y<0 || y>9){ cstart = -1;
+				goto redo;
 			}
 			if(!hits[turn][y*10+x]) break;
 		}
@@ -517,7 +517,7 @@ fndir:	for(i=0, d=rnd(4); i++ < 4; d = (d+1) % 4){
 	    sleep(1);
 	}
     }
-    else { 
+    else {
 	if (seemiss) {
 	    mvaddch(7+(c/10),3+3*(c%10),' ');
 	} else {
@@ -590,18 +590,18 @@ int ch;
 		ch = toupper(getch());
 		for (s1 = s; *s1 && ch != *s1; ++s1);
 		if (*s1) {
-	    	addch(ch); 
+	    	addch(ch);
 	    	refresh();
 	    	return(ch);
 	    }
 	}
 }
 
-/* 
+/*
  * I should use getopts() from libc.a, but I'm leary that other UNIX
  * systems might not have it, although I'd love to use it.
  */
- 
+
 int
 do_options(c,op)
 int c;
@@ -654,23 +654,23 @@ register int i;
    		    }
 		}
 		fprintf(stdout, "Playing optional game (");
-		if (salvo) 
+		if (salvo)
 		    fprintf(stdout, "salvo, noblitz, ");
 		else if (blitz)
 			    fprintf(stdout, "blitz, nosalvo, ");
-			else 
+			else
 			    fprintf(stdout, "noblitz, nosalvo, ");
 
-		if (ask) 
+		if (ask)
 		    fprintf(stdout, "ask, ");
-		else 
+		else
 		    fprintf(stdout, "noask, ");
 
-		if (seemiss) 
+		if (seemiss)
 		    fprintf(stdout, "seemiss)\n");
-		else 
+		else
 		    fprintf(stdout, "noseemiss)\n");
-	}	
+	}
     else
 	fprintf(stdout,
 	    "Playing standard game (no blitz, no slavo, no ask, no seemiss)\n");

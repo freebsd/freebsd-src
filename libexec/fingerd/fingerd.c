@@ -105,7 +105,7 @@ main(argc, argv)
 
 	if (!fgets(line, sizeof(line), stdin))
 		exit(1);
-	
+
 	comp = &av[1];
 	for (lp = line, ap = &av[2];;) {
 		*ap = strtok(lp, " \t\r\n");

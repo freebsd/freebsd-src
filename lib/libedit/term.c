@@ -177,7 +177,7 @@ private struct termcapstr {
     {	"ho",	"home cursor"			},
 #define	T_ic	13
     {	"ic",	"insert character"		},
-#define	T_im	14 
+#define	T_im	14
     {	"im",	"start insert mode"		},
 #define	T_ip	15
     {	"ip",	"insert padding"		},
@@ -251,7 +251,7 @@ private	void	term_rebuffer_display	__P((EditLine *));
 private	void	term_free_display	__P((EditLine *));
 private	void	term_alloc_display	__P((EditLine *));
 private	void	term_alloc		__P((EditLine *,
-					     struct termcapstr *, char *)); 
+					     struct termcapstr *, char *));
 private void	term_init_arrow		__P((EditLine *));
 private void	term_reset_arrow	__P((EditLine *));
 
@@ -267,7 +267,7 @@ term_setflags(el)
     EditLine *el;
 {
     EL_FLAGS = 0;
-    if (el->el_tty.t_tabs) 
+    if (el->el_tty.t_tabs)
 	EL_FLAGS |= (Val(T_pt) && !Val(T_xt)) ? TERM_CAN_TAB : 0;
 
     EL_FLAGS |= (Val(T_km) || Val(T_MT)) ? TERM_HAS_META : 0;
@@ -485,7 +485,7 @@ term_free_display(el)
 protected void
 term_move_to_line(el, where)
     EditLine *el;
-    int     where;		
+    int     where;
 {
     int     del, i;
 
@@ -494,7 +494,7 @@ term_move_to_line(el, where)
 
     if (where > el->el_term.t_size.v) {
 #ifdef DEBUG_SCREEN
-	(void) fprintf(el->el_errfile, 
+	(void) fprintf(el->el_errfile,
 		"term_move_to_line: where is ridiculous: %d\r\n", where);
 #endif /* DEBUG_SCREEN */
 	return;
@@ -538,7 +538,7 @@ mc_again:
 
     if (where > (el->el_term.t_size.h + 1)) {
 #ifdef DEBUG_SCREEN
-	(void) fprintf(el->el_errfile, 
+	(void) fprintf(el->el_errfile,
 		"term_move_to_char: where is riduculous: %d\r\n", where);
 #endif /* DEBUG_SCREEN */
 	return;
@@ -563,7 +563,7 @@ mc_again:
 		if (EL_CAN_TAB) {	/* if I can do tabs, use them */
 		    if ((el->el_cursor.h & 0370) != (where & 0370)) {
 			/* if not within tab stop */
-			for (i = (el->el_cursor.h & 0370); 
+			for (i = (el->el_cursor.h & 0370);
 			     i < (where & 0370); i += 8)
 			    term__putc('\t');	/* then tab over */
 			el->el_cursor.h = where & 0370;
@@ -572,8 +572,8 @@ mc_again:
 		/* it's usually cheaper to just write the chars, so we do. */
 
 		/* NOTE THAT term_overwrite() WILL CHANGE el->el_cursor.h!!! */
-		term_overwrite(el, 
-			&el->el_display[el->el_cursor.v][el->el_cursor.h], 
+		term_overwrite(el,
+			&el->el_display[el->el_cursor.v][el->el_cursor.h],
 		        where - el->el_cursor.h);
 
 	    }
@@ -644,7 +644,7 @@ term_deletechars(el, num)
 
     if (num > el->el_term.t_size.h) {
 #ifdef DEBUG_SCREEN
-	(void) fprintf(el->el_errfile, 
+	(void) fprintf(el->el_errfile,
 		"term_deletechars: num is riduculous: %d\r\n", num);
 #endif /* DEBUG_SCREEN */
 	return;
@@ -669,11 +669,11 @@ term_deletechars(el, num)
 
 
 /* term_insertwrite():
- *	Puts terminal in insert character mode or inserts num 
- *	characters in the line 
+ *	Puts terminal in insert character mode or inserts num
+ *	characters in the line
  */
 protected void
-term_insertwrite(el, cp, num)	
+term_insertwrite(el, cp, num)
     EditLine *el;
     char *cp;
     int num;
@@ -705,7 +705,7 @@ term_insertwrite(el, cp, num)
 	(void) tputs(Str(T_im), 1, term__putc);
 
 	el->el_cursor.h += num;
-	do 
+	do
 	    term__putc(*cp++);
 	while (--num);
 
@@ -732,10 +732,10 @@ term_insertwrite(el, cp, num)
 
 
 /* term_clear_EOL():
- *	clear to end of line.  There are num characters to clear 
+ *	clear to end of line.  There are num characters to clear
  */
 protected void
-term_clear_EOL(el, num)	
+term_clear_EOL(el, num)
     EditLine *el;
     int     num;
 {
@@ -752,7 +752,7 @@ term_clear_EOL(el, num)
 
 
 /* term_clear_screen():
- *	Clear the screen 
+ *	Clear the screen
  */
 protected void
 term_clear_screen(el)
@@ -839,14 +839,14 @@ term_set(el, term)
     i = tgetent(el->el_term.t_cap, term);
 
     if (i <= 0) {
-	if (i == -1) 
+	if (i == -1)
 #ifdef __FreeBSD__
 	    (void) fprintf(el->el_errfile, "Cannot open /usr/share/misc/termcap.\n");
 #else
 	    (void) fprintf(el->el_errfile, "Cannot open /etc/termcap.\n");
 #endif
-	else if (i == 0) 
-	    (void) fprintf(el->el_errfile, 
+	else if (i == 0)
+	    (void) fprintf(el->el_errfile,
 			   "No entry for terminal type \"%s\"\n", term);
 	(void) fprintf(el->el_errfile, "using dumb terminal settings.\n");
 	Val(T_co) = 80;		/* do a dumb terminal */
@@ -889,7 +889,7 @@ term_set(el, term)
 
 /* term_get_size():
  *	Return the new window size in lines and cols, and
- *	true if the size was changed. 
+ *	true if the size was changed.
  */
 protected int
 term_get_size(el, lins, cols)
@@ -977,7 +977,7 @@ term_init_arrow(el)
  *	Reset arrow key bindings
  */
 private void
-term_reset_arrow(el) 
+term_reset_arrow(el)
     EditLine *el;
 {
     fkey_t *arrow = el->el_term.t_fkey;
@@ -1101,8 +1101,8 @@ term_bind_arrow(el)
 	    /*
 	     * Assign the arrow keys only if:
 	     *
-	     * 1. They are multi-character arrow keys and the user 
-	     *    has not re-assigned the leading character, or 
+	     * 1. They are multi-character arrow keys and the user
+	     *    has not re-assigned the leading character, or
 	     *    has re-assigned the leading character to be
 	     *	  ED_SEQUENCE_LEAD_IN
 	     * 2. They are single arrow keys pointing to an unassigned key.
@@ -1110,7 +1110,7 @@ term_bind_arrow(el)
 	    if (arrow[i].type == XK_NOD)
 		key_clear(el, map, p);
 	    else {
-		if (p[1] && (dmap[j] == map[j] || 
+		if (p[1] && (dmap[j] == map[j] ||
 			     map[j] == ED_SEQUENCE_LEAD_IN)) {
 		    key_add(el, p, &arrow[i].fun, arrow[i].type);
 		    map[j] = ED_SEQUENCE_LEAD_IN;
@@ -1167,21 +1167,21 @@ term_telltc(el, argc, argv)
     (void) fprintf(el->el_outfile, "\tfollowing characteristics:\n\n");
     (void) fprintf(el->el_outfile, "\tIt has %d columns and %d lines\n",
 	    Val(T_co), Val(T_li));
-    (void) fprintf(el->el_outfile, 
+    (void) fprintf(el->el_outfile,
 		   "\tIt has %s meta key\n", EL_HAS_META ? "a" : "no");
-    (void) fprintf(el->el_outfile, 
+    (void) fprintf(el->el_outfile,
 		   "\tIt can%suse tabs\n", EL_CAN_TAB ? " " : "not ");
 #ifdef notyet
-    (void) fprintf(el->el_outfile, "\tIt %s automatic margins\n", 
+    (void) fprintf(el->el_outfile, "\tIt %s automatic margins\n",
 		   (T_Margin&MARGIN_AUTO)? "has": "does not have");
     if (T_Margin & MARGIN_AUTO)
-	(void) fprintf(el->el_outfile, "\tIt %s magic margins\n", 
+	(void) fprintf(el->el_outfile, "\tIt %s magic margins\n",
 			(T_Margin&MARGIN_MAGIC)?"has":"does not have");
 #endif
 
     for (t = tstr, ts = el->el_term.t_str; t->name != NULL; t++, ts++)
-	(void) fprintf(el->el_outfile, "\t%25s (%s) == %s\n", t->long_name, 
-		       t->name, *ts && **ts ? 
+	(void) fprintf(el->el_outfile, "\t%25s (%s) == %s\n", t->long_name,
+		       t->name, *ts && **ts ?
 			key__decode_str(*ts, upbuf, "") : "(empty)");
     (void) fputc('\n', el->el_outfile);
     return 0;
@@ -1229,7 +1229,7 @@ term_settc(el, argc, argv)
 	    break;
 
     if (tv->name != NULL) {
-	if (tv == &tval[T_pt] || tv == &tval[T_km] 
+	if (tv == &tval[T_pt] || tv == &tval[T_km]
 #ifdef notyet
 	    || tv == &tval[T_am] || tv == &tval[T_xn]
 #endif
@@ -1309,12 +1309,12 @@ term_echotc(el, argc, argv)
     }
 #ifdef notyet
     else if (strcmp(*argv, "xn") == 0) {
-	(void) fprintf(el->el_outfile, fmts, T_Margin & MARGIN_MAGIC ? 
+	(void) fprintf(el->el_outfile, fmts, T_Margin & MARGIN_MAGIC ?
 			"yes" : "no");
 	return 0;
     }
     else if (strcmp(*argv, "am") == 0) {
-	(void) fprintf(el->el_outfile, fmts, T_Margin & MARGIN_AUTO ? 
+	(void) fprintf(el->el_outfile, fmts, T_Margin & MARGIN_AUTO ?
 			"yes" : "no");
 	return 0;
     }
@@ -1339,7 +1339,7 @@ term_echotc(el, argc, argv)
 	return 0;
     }
 
-    /* 
+    /*
      * Try to use our local definition first
      */
     scap = NULL;
@@ -1352,7 +1352,7 @@ term_echotc(el, argc, argv)
 	scap = tgetstr(*argv, &area);
     if (!scap || scap[0] == '\0') {
 	if (!silent)
-	    (void) fprintf(el->el_errfile, 
+	    (void) fprintf(el->el_errfile,
 		"echotc: Termcap parameter `%s' not found.\n", *argv);
 	return -1;
     }
@@ -1383,7 +1383,7 @@ term_echotc(el, argc, argv)
 		 * hpux has lot's of them...
 		 */
 		if (verbose)
-		    (void) fprintf(el->el_errfile, 
+		    (void) fprintf(el->el_errfile,
 			"echotc: Warning: unknown termcap %% `%c'.\n", *cap);
 		/* This is bad, but I won't complain */
 		break;
@@ -1394,7 +1394,7 @@ term_echotc(el, argc, argv)
 	argv++;
 	if (*argv && *argv[0]) {
 	    if (!silent)
-		(void) fprintf(el->el_errfile, 
+		(void) fprintf(el->el_errfile,
 		    "echotc: Warning: Extra argument `%s'.\n", *argv);
 	    return -1;
 	}
@@ -1404,7 +1404,7 @@ term_echotc(el, argc, argv)
 	argv++;
 	if (!*argv || *argv[0] == '\0') {
 	    if (!silent)
-		(void) fprintf(el->el_errfile, 
+		(void) fprintf(el->el_errfile,
 		    "echotc: Warning: Missing argument.\n");
 	    return -1;
 	}
@@ -1413,7 +1413,7 @@ term_echotc(el, argc, argv)
 	argv++;
 	if (*argv && *argv[0]) {
 	    if (!silent)
-		(void) fprintf(el->el_errfile, 
+		(void) fprintf(el->el_errfile,
 		    "echotc: Warning: Extra argument `%s'.\n", *argv);
 	    return -1;
 	}
@@ -1422,15 +1422,15 @@ term_echotc(el, argc, argv)
     default:
 	/* This is wrong, but I will ignore it... */
 	if (verbose)
-	    (void) fprintf(el->el_errfile, 
-		"echotc: Warning: Too many required arguments (%d).\n", 
+	    (void) fprintf(el->el_errfile,
+		"echotc: Warning: Too many required arguments (%d).\n",
 		arg_need);
 	/*FALLTHROUGH*/
     case 2:
 	argv++;
 	if (!*argv || *argv[0] == '\0') {
 	    if (!silent)
-		(void) fprintf(el->el_errfile, 
+		(void) fprintf(el->el_errfile,
 		    "echotc: Warning: Missing argument.\n");
 	    return -1;
 	}
@@ -1438,7 +1438,7 @@ term_echotc(el, argc, argv)
 	argv++;
 	if (!*argv || *argv[0] == '\0') {
 	    if (!silent)
-		(void) fprintf(el->el_errfile, 
+		(void) fprintf(el->el_errfile,
 		    "echotc: Warning: Missing argument.\n");
 	    return -1;
 	}
@@ -1446,7 +1446,7 @@ term_echotc(el, argc, argv)
 	argv++;
 	if (*argv && *argv[0]) {
 	    if (!silent)
-		(void) fprintf(el->el_errfile, 
+		(void) fprintf(el->el_errfile,
 		    "echotc: Warning: Extra argument `%s'.\n", *argv);
 	    return -1;
 	}

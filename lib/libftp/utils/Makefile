@@ -25,10 +25,10 @@ uftp:	uftp.o uftpcmd.o libetc.a
 mirror:	mirror.o
 	$(CC) $(CFLAGS) -o mirror mirror.o ${LDADD} -lftp
 
-clean: 
+clean:
 	rm -f ftptry mirror uftp *~ *.o *.a
 
-LIBOBJS= readline.o glob.o	
-libetc.a: $(LIBOBJS)	
+LIBOBJS= readline.o glob.o
+libetc.a: $(LIBOBJS)
 	ar qc libetc.a  $(LIBOBJS)
 	ranlib libetc.a

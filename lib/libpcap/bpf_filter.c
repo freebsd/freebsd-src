@@ -4,7 +4,7 @@
  *
  * This code is derived from the Stanford/CMU enet packet filter,
  * (net/enet.c) distributed as part of 4.3BSD, and code contributed
- * to Berkeley by Steven McCanne and Van Jacobson both of Lawrence 
+ * to Berkeley by Steven McCanne and Van Jacobson both of Lawrence
  * Berkeley Laboratory.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,11 +38,11 @@
  *	@(#)bpf.c	7.5 (Berkeley) 7/15/91
  *
  * static char rcsid[] =
- * "$Header: bpf_filter.c,v 1.22 94/06/05 20:12:39 leres Exp $";
+ * "$Header: /home/ncvs/src/lib/libpcap/bpf_filter.c,v 1.1.1.1 1995/01/20 04:13:02 jkh Exp $";
  */
 #if !(defined(lint) || defined(KERNEL))
 static char rcsid[] =
-    "@(#) $Header: bpf_filter.c,v 1.22 94/06/05 20:12:39 leres Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/lib/libpcap/bpf_filter.c,v 1.1.1.1 1995/01/20 04:13:02 jkh Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -129,7 +129,7 @@ m_xword(m, k, err)
 		return (cp[k] << 24) | (np[0] << 16) | (np[1] << 8) | np[2];
 
 	case 2:
-		return (cp[k] << 24) | (cp[k + 1] << 16) | (np[0] << 8) | 
+		return (cp[k] << 24) | (cp[k + 1] << 16) | (np[0] << 8) |
 			np[1];
 
 	default:
@@ -209,7 +209,7 @@ bpf_filter(pc, p, wirelen, buflen)
 			return 0;
 #else
 			abort();
-#endif			
+#endif
 		case BPF_RET|BPF_K:
 			return (u_int)pc->k;
 
@@ -366,7 +366,7 @@ bpf_filter(pc, p, wirelen, buflen)
 		case BPF_LD|BPF_MEM:
 			A = mem[pc->k];
 			continue;
-			
+
 		case BPF_LDX|BPF_MEM:
 			X = mem[pc->k];
 			continue;
@@ -418,25 +418,25 @@ bpf_filter(pc, p, wirelen, buflen)
 		case BPF_ALU|BPF_ADD|BPF_X:
 			A += X;
 			continue;
-			
+
 		case BPF_ALU|BPF_SUB|BPF_X:
 			A -= X;
 			continue;
-			
+
 		case BPF_ALU|BPF_MUL|BPF_X:
 			A *= X;
 			continue;
-			
+
 		case BPF_ALU|BPF_DIV|BPF_X:
 			if (X == 0)
 				return 0;
 			A /= X;
 			continue;
-			
+
 		case BPF_ALU|BPF_AND|BPF_X:
 			A &= X;
 			continue;
-			
+
 		case BPF_ALU|BPF_OR|BPF_X:
 			A |= X;
 			continue;
@@ -452,23 +452,23 @@ bpf_filter(pc, p, wirelen, buflen)
 		case BPF_ALU|BPF_ADD|BPF_K:
 			A += pc->k;
 			continue;
-			
+
 		case BPF_ALU|BPF_SUB|BPF_K:
 			A -= pc->k;
 			continue;
-			
+
 		case BPF_ALU|BPF_MUL|BPF_K:
 			A *= pc->k;
 			continue;
-			
+
 		case BPF_ALU|BPF_DIV|BPF_K:
 			A /= pc->k;
 			continue;
-			
+
 		case BPF_ALU|BPF_AND|BPF_K:
 			A &= pc->k;
 			continue;
-			
+
 		case BPF_ALU|BPF_OR|BPF_K:
 			A |= pc->k;
 			continue;
@@ -500,9 +500,9 @@ bpf_filter(pc, p, wirelen, buflen)
 /*
  * Return true if the 'fcode' is a valid filter program.
  * The constraints are that each jump be forward and to a valid
- * code.  The code must terminate with either an accept or reject. 
+ * code.  The code must terminate with either an accept or reject.
  * 'valid' is an array for use by the routine (it must be at least
- * 'len' bytes long).  
+ * 'len' bytes long).
  *
  * The kernel needs to be able to verify an application's filter code.
  * Otherwise, a bogus program could easily crash the system.
@@ -517,7 +517,7 @@ bpf_validate(f, len)
 
 	for (i = 0; i < len; ++i) {
 		/*
-		 * Check that that jumps are forward, and within 
+		 * Check that that jumps are forward, and within
 		 * the code block.
 		 */
 		p = &f[i];
@@ -535,7 +535,7 @@ bpf_validate(f, len)
 		 * Check that memory operations use valid addresses.
 		 */
 		if ((BPF_CLASS(p->code) == BPF_ST ||
-		     (BPF_CLASS(p->code) == BPF_LD && 
+		     (BPF_CLASS(p->code) == BPF_LD &&
 		      (p->code & 0xe0) == BPF_MEM)) &&
 		    (p->k >= BPF_MEMWORDS || p->k < 0))
 			return 0;

@@ -39,7 +39,7 @@
 
 /*
  * from arp.c	8.2 (Berkeley) 1/2/94
- * $Id: rtmsg.c,v 1.2 1995/01/16 18:57:45 dfr Exp $
+ * $Id: rtmsg.c,v 1.3 1995/01/30 11:11:43 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -111,7 +111,7 @@ static struct	{
 }	m_rtmsg;
 
 /*
- * Set an individual arp entry 
+ * Set an individual arp entry
  */
 int bsd_arp_set(ia, eaddr, len)
 	struct in_addr *ia;
@@ -156,12 +156,12 @@ tryagain:
 			goto overwrite;
 		}
 		if (doing_proxy == 0) {
-			report(LOG_WARNING, "set: can only proxy for %s\n", 
+			report(LOG_WARNING, "set: can only proxy for %s\n",
 				inet_ntoa(sin->sin_addr));
 			return (1);
 		}
 		if (sin_m.sin_other & SIN_PROXY) {
-			report(LOG_WARNING, 
+			report(LOG_WARNING,
 				"set: proxy entry exists for non 802 device\n");
 			return(1);
 		}
@@ -172,7 +172,7 @@ tryagain:
 overwrite:
 	if (sdl->sdl_family != AF_LINK) {
 		report(LOG_WARNING,
-			"cannot intuit interface index and type for %s\n", 
+			"cannot intuit interface index and type for %s\n",
 			inet_ntoa(sin->sin_addr));
 		return (1);
 	}

@@ -9,7 +9,7 @@
 #include <syslog.h>
 #include <FtpLibrary.h>
 
-/* Usage: mirror <local_dir> <host> <user> <passwd> <remote_dir> */ 
+/* Usage: mirror <local_dir> <host> <user> <passwd> <remote_dir> */
 FTP *ftp;
 
 main(int a,char **b)
@@ -24,7 +24,7 @@ main(int a,char **b)
   if ( a < 5 )
     quit("Usage: mirror <local_dir> <host> <user> <passwd> <remote_dir>");
 
-  
+
   FtplibDebug(yes);
   FtpLogin(&ftp,HOST,USER,PASSWD,NULL);
   FtpChdir(ftp,REMOTE_DIR);
@@ -53,7 +53,7 @@ doit(char *dirname)
 	continue;
 
       sprintf(fn,"%s/%s",dirname,de->d_name);
-      
+
       if ( stat(fn,&st) != 0 ) {
 	log(fn);
 	continue;
@@ -72,7 +72,7 @@ doit(char *dirname)
     }
 
   closedir(dp);
-  
+
 }
 
 

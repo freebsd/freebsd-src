@@ -47,8 +47,8 @@ int endx, endy;
 	endy = win->_maxy;
 
 	for (i = 0; i <= endx; i++) {
-		win->_line[0][i] = ts; 
-		win->_line[endy][i] = bs; 
+		win->_line[0][i] = ts;
+		win->_line[endy][i] = bs;
 	}
 	win->_firstchar[endy] = win->_firstchar[0] = 0;
 	win->_lastchar[endy] = win->_lastchar[0] = endx;
@@ -83,12 +83,12 @@ int end;
 	line = win->_cury;
 	start = win->_curx;
 	end = start + n - 1;
-	if (end > win->_maxx) 
+	if (end > win->_maxx)
 		end = win->_maxx;
 
-	if (win->_firstchar[line] == _NOCHANGE || win->_firstchar[line] > start) 
+	if (win->_firstchar[line] == _NOCHANGE || win->_firstchar[line] > start)
 		win->_firstchar[line] = start;
-	if (win->_lastchar[line] == _NOCHANGE || win->_lastchar[line] < start) 
+	if (win->_lastchar[line] == _NOCHANGE || win->_lastchar[line] < start)
 		win->_lastchar[line] = end;
 
 	if (ch == 0)
@@ -111,7 +111,7 @@ int end;
 	row = win->_cury;
 	col = win->_curx;
 	end = row + n - 1;
-	if (end > win->_maxy) 
+	if (end > win->_maxy)
 		end = win->_maxy;
 
 	if (ch == 0)
@@ -119,13 +119,13 @@ int end;
 
 	while(end >= row) {
 		win->_line[end][col] = ch | win->_attrs;
-		if (win->_firstchar[end] == _NOCHANGE || win->_firstchar[end] > col) 
+		if (win->_firstchar[end] == _NOCHANGE || win->_firstchar[end] > col)
 			win->_firstchar[end] = col;
-		if (win->_lastchar[end] == _NOCHANGE || win->_lastchar[end] < col) 
+		if (win->_lastchar[end] == _NOCHANGE || win->_lastchar[end] < col)
 			win->_lastchar[end] = col;
 		end--;
 	}
 
 	return OK;
 }
-	
+

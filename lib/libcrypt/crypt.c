@@ -6,12 +6,12 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: crypt.c,v 1.2 1994/11/07 21:07:09 phk Exp $
  *
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$Header$";
+static char rcsid[] = "$Header: /home/ncvs/src/lib/libcrypt/crypt.c,v 1.2 1994/11/07 21:07:09 phk Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <unistd.h>
@@ -35,7 +35,7 @@ to64(s, v, n)
 
 /*
  * UNIX password
- * 
+ *
  * Use MD5 for what it is best at...
  */
 
@@ -88,7 +88,7 @@ crypt(pw, salt)
 	MD5Update(&ctx1,sp,sl);
 	MD5Update(&ctx1,pw,strlen(pw));
 	MD5Final(final,&ctx1);
-	for(pl = strlen(pw); pl > 0; pl -= 16) 
+	for(pl = strlen(pw); pl > 0; pl -= 16)
 		MD5Update(&ctx,final,pl>16 ? 16 : pl);
 
 	/* Don't leave anything around in vm they could use. */
@@ -108,8 +108,8 @@ crypt(pw, salt)
 
 	MD5Final(final,&ctx);
 
-	/* 
-	 * and now, just to make sure things don't run too fast 
+	/*
+	 * and now, just to make sure things don't run too fast
 	 * On a 60 Mhz Pentium this takes 34 msec, so you would
 	 * need 30 seconds to build a 1000 entry dictionary...
 	 */
@@ -134,7 +134,7 @@ crypt(pw, salt)
 	}
 
 	p = passwd + strlen(passwd);
-	
+
 	l = (final[ 0]<<16) | (final[ 6]<<8) | final[12]; to64(p,l,4); p += 4;
 	l = (final[ 1]<<16) | (final[ 7]<<8) | final[13]; to64(p,l,4); p += 4;
 	l = (final[ 2]<<16) | (final[ 8]<<8) | final[14]; to64(p,l,4); p += 4;

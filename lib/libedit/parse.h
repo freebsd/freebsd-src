@@ -42,7 +42,7 @@
 #ifndef _h_el_parse
 #define _h_el_parse
 
-protected int		 parse_line	__P((EditLine *, const char *)); 
+protected int		 parse_line	__P((EditLine *, const char *));
 protected int		 parse__escape	__P((const char ** const));
 protected char *	 parse__string	__P((char *, const char *));
 protected int		 parse_cmd	__P((EditLine *, const char *));

@@ -190,7 +190,7 @@ setmode(p)
         (void)sigprocmask(SIG_SETMASK, &sigoset, NULL);
 
 	setlen = SET_LEN + 2;
-	
+
 	if ((set = malloc((u_int)(sizeof(BITCMD) * setlen))) == NULL)
 		return (NULL);
 	saveset = set;
@@ -368,7 +368,7 @@ addcmd(set, op, who, oparg, mask)
 			set->cmd2 = CMD2_UBITS | CMD2_GBITS | CMD2_OBITS;
 			set->bits = mask;
 		}
-	
+
 		if (oparg == '+')
 			set->cmd2 |= CMD2_SET;
 		else if (oparg == '-')
@@ -399,7 +399,7 @@ dumpmode(set)
 /*
  * Given an array of bitcmd structures, compress by compacting consecutive
  * '+', '-' and 'X' commands into at most 3 commands, one of each.  The 'u',
- * 'g' and 'o' commands continue to be separate.  They could probably be 
+ * 'g' and 'o' commands continue to be separate.  They could probably be
  * compacted, but it's not worth the effort.
  */
 static int

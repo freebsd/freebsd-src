@@ -39,8 +39,8 @@
 /*
  * el.search.h: Line and history searching utilities
  */
-#ifndef _h_el_search 
-#define _h_el_search 
+#ifndef _h_el_search
+#define _h_el_search
 
 #include "histedit.h"
 
