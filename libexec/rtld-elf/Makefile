@@ -10,7 +10,7 @@ CFLAGS+=	-I${.CURDIR}/${MACHINE_ARCH} -I${.CURDIR}
 LDFLAGS+=	-nostdlib -e .rtld_start
 INSTALLFLAGS=	-fschg -C -b
 BINDIR=		/libexec
-SYMLINKS=	${BINDIR}/ld-elf.so.1 /usr/libexec/ld-elf.so.1
+SYMLINKS=	${BINDIR}/ld-elf.so.1 /usr/libexec/${PROG}
 MLINKS=		rtld.1 ld-elf.so.1.1 \
 		rtld.1 ld.so.1
 
@@ -55,7 +55,7 @@ dyn_hack.so:
 # Since moving rtld-elf to /libexec, we need to create a symlink.
 # Fixup the existing binary that's there so we can symlink over it.
 beforeinstall:
-	-chflags noschg /usr/libexec/ld-elf.so.1
+	-chflags noschg ${DESTDIR}/usr/libexec/${PROG}
 
 .PATH: ${.CURDIR}/${MACHINE_ARCH}
 
