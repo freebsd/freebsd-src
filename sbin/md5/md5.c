@@ -39,6 +39,7 @@ static const char rcsid[] =
 
 int qflag;
 int rflag;
+int sflag;
 
 static void MDString(const char *);
 static void MDTimeTrial(void);
@@ -74,6 +75,7 @@ main(int argc, char *argv[])
 			rflag = 1;
 			break;
 		case 's':
+			sflag = 1;
 			MDString(optarg);
 			break;
 		case 't':
@@ -101,7 +103,7 @@ main(int argc, char *argv[])
 				else
 					printf("MD5 (%s) = %s\n", *argv, p);
 		} while (*++argv);
-	} else if (optind == 1 || qflag || rflag)
+	} else if (!sflag && (optind == 1 || qflag || rflag))
 		MDFilter(0);
 
 	return (0);
@@ -162,7 +164,7 @@ MDTimeTrial(void)
 	 * Anderson, ric@Artisoft.COM.) */
 	printf
 	    ("Speed = %ld bytes/second\n",
-	    (long) TEST_BLOCK_LEN * (long) TEST_BLOCK_COUNT / ((endTime - startTime) != 0 ? (endTime - startTime) : 1));
+	    (long) TEST_BLOCK_LEN * (long) TEST_BLOCK_COUNT / ((endTime - startTime) != 0 ? (long)(endTime - startTime) : 1));
 }
 /*
  * Digests a reference suite of strings and prints the results.
