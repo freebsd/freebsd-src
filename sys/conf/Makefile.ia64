@@ -27,7 +27,7 @@ OBJCOPY=	ia64-unknown-linux-objcopy
 MACHINE_ARCH=	ia64
 
 # Which version of config(8) is required.
-%VERSREQ=	500004
+%VERSREQ=	500005
 
 # Can be overridden by makeoptions or /etc/make.conf
 KERNEL_KO?=	kernel
@@ -110,11 +110,11 @@ SYSTEM_DEP+= $S/conf/ldscript.$M
 
 %OBJS
 
-%CFILES
+%FILES.c
 
-%SFILES
+%FILES.s
 
-%MFILES
+%FILES.m
 
 %CLEAN
 
