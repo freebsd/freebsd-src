@@ -33,6 +33,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl c
+.Op Fl d
 .Op Fl I Ar interval
 .Sh DESCRIPTION
 The
@@ -50,6 +51,8 @@ consumers too.
 The default is to show statistics only for
 .Xr geom 4
 producers.
+.It Fl d
+Enable display of statistics for delete (BIO_DELETE) operations.
 .It Fl I Ar interval
 Refresh the
 .Nm
