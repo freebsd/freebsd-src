@@ -44,11 +44,13 @@
 #define PASSWORD_PROMPT	"Password:"
 
 enum {
-	PAM_OPT_AUTH_AS_SELF	= PAM_OPT_STD_MAX
+	PAM_OPT_AUTH_AS_SELF	= PAM_OPT_STD_MAX,
+	PAM_OPT_NULLOK
 };
 
 static struct opttab other_options[] = {
 	{ "auth_as_self",	PAM_OPT_AUTH_AS_SELF },
+	{ "nullok",		PAM_OPT_NULLOK },
 	{ NULL, 0 }
 };
 
@@ -62,9 +64,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
 {
 	int retval;
 	const char *user;
-	const char *password;
+	const char *password, *realpw;
 	struct passwd *pwd;
-	char *encrypted;
 	struct options options;
 
 	pam_std_option(&options, other_options, argc, argv);
@@ -76,29 +77,23 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
 			return retval;
 		pwd = getpwnam(user);
 	}
+	if (pwd != NULL) {
+		realpw = pwd->pw_passwd;
+		if (realpw[0] == '\0') {
+			if (!(flags & PAM_DISALLOW_NULL_AUTHTOK) &&
+			    pam_test_option(&options, PAM_OPT_NULLOK, NULL))
+				return PAM_SUCCESS;
+			realpw = "*";
+		}
+	} else {
+		realpw = "*";
+	}
 	if ((retval = pam_get_pass(pamh, &password, PASSWORD_PROMPT,
 	    &options)) != PAM_SUCCESS)
 		return retval;
-	if (pwd != NULL) {
-		encrypted = crypt(password, pwd->pw_passwd);
-		if (password[0] == '\0' && pwd->pw_passwd[0] != '\0')
-			encrypted = ":";
-
-		retval = strcmp(encrypted, pwd->pw_passwd) == 0 ?
-		    PAM_SUCCESS : PAM_AUTH_ERR;
-	} else {
-		/*
-		 * User unknown.  Encrypt anyway so that it takes the
-		 * same amount of time.
-		 */
-		crypt(password, "xx");
-		retval = PAM_AUTH_ERR;
-	}
-	/*
-	 * The PAM infrastructure will obliterate the cleartext
-	 * password before returning to the application.
-	 */
-	return retval;
+	if (strcmp(crypt(password, realpw), realpw) == 0)
+		return PAM_SUCCESS;
+	return PAM_AUTH_ERR;
 }
 
 PAM_EXTERN int
