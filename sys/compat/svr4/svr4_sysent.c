@@ -10,10 +10,10 @@
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <netinet/in.h>
-#include <svr4/svr4.h>
-#include <svr4/svr4_types.h>
-#include <svr4/svr4_signal.h>
-#include <svr4/svr4_proto.h>
+#include <compat/svr4/svr4.h>
+#include <compat/svr4/svr4_types.h>
+#include <compat/svr4/svr4_signal.h>
+#include <compat/svr4/svr4_proto.h>
 
 #define AS(name) (sizeof(struct name) / sizeof(register_t))
 

@@ -37,17 +37,17 @@
 #include <sys/socketvar.h>
 #include <sys/systm.h>
 
-#include <svr4/svr4.h>
-#include <svr4/svr4_types.h>
-#include <svr4/svr4_util.h>
-#include <svr4/svr4_signal.h>
-#include <svr4/svr4_proto.h>
-#include <svr4/svr4_stropts.h>
-#include <svr4/svr4_ioctl.h>
-#include <svr4/svr4_termios.h>
-#include <svr4/svr4_ttold.h>
-#include <svr4/svr4_filio.h>
-#include <svr4/svr4_sockio.h>
+#include <compat/svr4/svr4.h>
+#include <compat/svr4/svr4_types.h>
+#include <compat/svr4/svr4_util.h>
+#include <compat/svr4/svr4_signal.h>
+#include <compat/svr4/svr4_proto.h>
+#include <compat/svr4/svr4_stropts.h>
+#include <compat/svr4/svr4_ioctl.h>
+#include <compat/svr4/svr4_termios.h>
+#include <compat/svr4/svr4_ttold.h>
+#include <compat/svr4/svr4_filio.h>
+#include <compat/svr4/svr4_sockio.h>
 
 #ifdef DEBUG_SVR4
 static void svr4_decode_cmd __P((u_long, char *, char *, int *, int *));

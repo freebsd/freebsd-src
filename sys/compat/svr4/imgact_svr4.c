@@ -51,7 +51,7 @@
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
 
-#include <svr4/svr4.h>
+#include <compat/svr4/svr4.h>
 
 static int	exec_svr4_imgact __P((struct image_params *iparams));
 
