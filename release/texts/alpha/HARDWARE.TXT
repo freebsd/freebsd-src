@@ -24,7 +24,7 @@ The information is structured as follows:
   that differ from what is in the generic supported hardware list.
 
 Note: you will see references to DEC, Digital Equipment Corporation and 
-Compaq used more or less interchangably. Now that Compaq has acquired Digital 
+Compaq used more or less interchangeably. Now that Compaq has acquired Digital 
 Equipment it would be more correct to refer to Compaq-only.
 
 
@@ -68,7 +68,7 @@ of the cabinets, 'FrostWhite' and 'TopGunBlue' respectively.
 Although you could put the SRM console on the whitebox, OpenVMS and Digital
 Unix will refuse to boot on them. FreeBSD in post-4.0R will run on both the
 white and the blue-box variants. Before someone asks: the white ones had a
-rather different (read: cheaper) pricetag.
+rather different (read: cheaper) price tag.
 
 As part of the SRM you will get the so called OSF/1 PAL code (OSF/1 being the
 initial name of Digital's Unix offering on Alpha). The PAL code can be thought
@@ -117,7 +117,7 @@ Ethernet for net booting those machines. Non-DEC cards based on said chips will
 generally (but are not guaranteed to) work. Note that Intel took over the
 21x4x chips when it bought Digital Semiconductor. So you might see an Intel
 logo on them these days. Recent machine designs have SRM support for
-Intel 8255x ethernet chips.
+Intel 8255x Ethernet chips.
 
 Alpha machines can be run with SRM on a graphics console or on
 a serial console. ARC can be run on a serial consoles if need be. VT100
@@ -136,7 +136,7 @@ confusing.
 Most PCI based Alphas can use ordinary PC-type VGA cards. The SRM contains
 enough smarts to make that work. It does not, however, mean that each and
 every PCI VGA card out on the street will work in an Alpha machine. Things
-like S3 Trio64, Mach64, and Matrox Millenium generally work. Old ET4000
+like S3 Trio64, Mach64, and Matrox Millennium generally work. Old ET4000
 based ISA cards have also worked for me. But ask around first before buying.
 Please note that TGA cards are not supported as FreeBSD console display cards.
 
@@ -161,7 +161,7 @@ design is the 21064. It was produced in a chip process called MOS4,
 chips made in this process are nicknamed EV4. Newer CPUs are 21164, 21264
 etc. You will see designations like EV4S, EV45, EV5, EV56, EV6, EV67.
 The EVs with double digit numbers are slightly improved versions. For example
-EV45 has an improved FPU and 16 kByte onchip separate I & D caches compared
+EV45 has an improved FPU and 16 kByte on-chip separate I & D caches compared
 to the EV4 on which it is based. Rule of thumb: the higher the digit
 immediately following 'EV' the more desirable (read: faster / more modern).
 
@@ -289,7 +289,7 @@ Features:
 - Intel 82378ZB PCI to ISA bridge
 - 1x embedded 21040 based 10Mbit Ethernet, AUI or 10base2 connector
 - expansion: 1 32 bit PCI slot, 2 PCMCIA slots
-- onboard Crystal CS4231 or AD1848 sound chip
+- on-board Crystal CS4231 or AD1848 sound chip
 - embedded Fast SCSI using a Symbios 53C810 chip on the PCI riser card
 
 SRM/ARC:
@@ -336,11 +336,11 @@ follows for the Crystal CS4231 chip:
 
 	device pcm0 at isa? port 0x530  irq 9 drq 3 flags 0x15
 
-I have not yet been succesful in getting my Multia with the AD1848 to 
+I have not yet been successful in getting my Multia with the AD1848 to 
 play any sound.
 
 While verifying playback I was reminded of the lack of CPU power of the 166MHz
-CPU: MP3 only plays acceptable using 22kHz downsampling.
+CPU: MP3 only plays acceptable using 22kHz down-sampling.
 
 Hot:
 Multias are somewhat notorious for dying of heat strokes. The very compact
@@ -349,7 +349,7 @@ Multia on its vertical stand, don't put it horizontally ('pizza style').
 Replacing the fan with something which pushes around more air is
 recommended. Beware of PCI cards with high power consumption.
 If your system has died you might want to check on the Multia-Heat-Death
-pages at the NetBSD website http://www.netbsd.org
+pages at the NetBSD web-site http://www.netbsd.org
 
 IDE:
 The Intel 82378ZB PCI to ISA bridge enables the use of an IDE disk. This
@@ -576,7 +576,7 @@ names:
 
 	DEC3000/300 	Pelican 	150MHz CPU, desktop, 2 TC slots
         DEC3000/300X    Pelican+ 	175MHz CPU, desktop, 2 TC slots
-	DEC3000/300LX	Pelica+   	125MHz CPU, desktop, 2 TC slots
+	DEC3000/300LX	Pelican+   	125MHz CPU, desktop, 2 TC slots
 	DEC3000/300L	            	100MHz CPU, desktop, no TC slots
 		
 
@@ -610,12 +610,12 @@ devices only, the other one is for external devices only.
 
 Floppy devices found in the DEC3000s are attached to the SCSI bus (via a
 bridge card). This makes it possible to boot from them using the same device
-names as ordinary SCSI harddisks (>>> BOOT DKA300 for example).
+names as ordinary SCSI hard-disks (>>> BOOT DKA300 for example).
 
 Expansion:
 The 3000/300 series has a half-speed TurboChannel compared to the other
 3000 machines. Some TC expansion cards have troubles with the half-speed
-bus. Caveat empor.
+bus. Caveat emptor.
 
 ISDN interface:
 ISDN does not work on FreeBSD. 
@@ -634,7 +634,7 @@ presence bits the following info might be of use:
 There are four presence detection bits on PS/2 SIMMs.  Two of       
 the bits indicate the access time.  The other two indicate the memory size.
 
-At one end of the simm there are two rows of four solder pads.  One
+At one end of the SIMM there are two rows of four solder pads.  One
 row is connected to Vss (GND) and the other is connected to pins
 67 (PRD1), 68 (PRD2), 69 (PRD3), 70 (PRD4).                         
 
@@ -692,7 +692,7 @@ contain:
 *Evaluation Board 64plus ("EB64+"), Aspen Alpine
 *
 
-In its attempts to popularise the Alpha CPU DEC produced a number of so
+In its attempts to popularize the Alpha CPU DEC produced a number of so
 called Evaluation Boards. The EB64+ family boards have the following feature
 set:
 
@@ -779,8 +779,8 @@ over 2 banks does not work.
 SCSI:
 The SRM can boot from Qlogic 10xx boards or the Symbios 53C810[A]. 
 
-Newer Symbios 810 revisions like the Symbios 810AE are not recognised by
-the SRM on PC164. PC164 SRM does not appear to recognise a Symbios 53C895 
+Newer Symbios 810 revisions like the Symbios 810AE are not recognized by
+the SRM on PC164. PC164 SRM does not appear to recognize a Symbios 53C895 
 based host adapter (tested with a Tekram DC-390U2W). On the other hand 
 some no-name Symbios 53C985 board has been reported to work.
 
@@ -976,8 +976,8 @@ match the mainboard in use. AlphaServer 800 is a much smaller mini tower
 case, it lacks the StorageWorks SCSI hot-plug chassis. The main difference
 between AS1000 and AS1000A is that AS1000A has 7 PCI slots whereas AS1000
 only has 3 PCI slots and has EISA slots instead. AS800 with an EV5/400 MHz
-CPU was later rebranded as a DIGITAL Server 3300[R], AS800 with an EV5/500 MHz
-CPU was later rebranded as a DIGITAL Server 3305[R].
+CPU was later re-branded as a DIGITAL Server 3300[R], AS800 with an EV5/500 MHz
+CPU was later re-branded as a DIGITAL Server 3305[R].
 
 Features:
 - 21064 EV4[5] CPU at 200, 233 or 266 MHz
@@ -1116,7 +1116,7 @@ kernel config file. The 'cpu EV5' is mandatory to keep config(8) happy.
 Features:
 - 21264 EV6 at 500 MHz
   21264 EV67 at 500 or 667 MHz (XP1000G, codenamed Brisbane)
-  CPU is mounted on a daughtercard which is field-upgradable
+  CPU is mounted on a daughter-card which is field-upgradable
 - L2 / Bcache: 4MB, ECC protected
 - memory bus: 256 bit 
 - memory: 128 or 256 Mbytes 100 MHz (PC100) 168 pin JEDEC standard,
@@ -1151,8 +1151,8 @@ Monet is housed in a mini-tower like enclosure quite similar to the Miata
 box.
 
 SCSI:
-The onboard Qlogic UW-SCSI chip supports up to 4 internal devices. There is
-no external connector for the onboard SCSI.
+The on-board Qlogic UW-SCSI chip supports up to 4 internal devices. There is
+no external connector for the on-board SCSI.
 
 Memory:
 For 500 MHz CPUs 83 MHz DIMMs will do. Compaq specifies PC100 DIMMs for
@@ -1160,7 +1160,7 @@ all CPU speeds. DIMMs are installed in sets of 4, starting with the
 DIMM slots marked '0'. Memory capacity is max 4 Gb. 
 DIMMs are installed 'physically interleaved', note the markings of the
 slots. Memory bandwidth of Monet is twice that of Webbrick. The DIMMs live
-on the CPU daughtercard. Note that the system uses ECC RAM so you need DIMMs
+on the CPU daughter-card. Note that the system uses ECC RAM so you need DIMMs
 with 72 bits (not the PC-class 64 bit DIMMs)
 
 EIDE:
@@ -1178,7 +1178,7 @@ Expansion caveats:
 connected to hose 1. There is a not-yet-found FreeBSD bug that prevents this
 from working correctly. 
 - Not all VGA cards will work behind the PCI-PCI bridge (so in slots 4 & 5). 
-Only cards that implement VGA-legacy adressing correctly will work. Workaround 
+Only cards that implement VGA-legacy addressing correctly will work. Workaround 
 is to put the VGA card 'before' the bridge.
 
 Sound:
@@ -1300,10 +1300,10 @@ kernel config file. The 'cpu EV5' is mandatory to keep config(8) happy.
 The AlphaServer 2[01]00 machines are aimed as departmental servers.
 This is medium iron, not a hobbyist system. These are multi-CPU machines, 
 up to 2 CPUs (AS2000) or 4 CPUs (2100[A]) can be installed. 
-Both floorstanding and 19" rackmount boxes exist. Rackmount variations have
+Both floor-standing and 19" rackmount boxes exist. Rackmount variations have
 different numbers of I/O expansion slots, different max number of CPUs and
 different maximum memory size. Some of the boxes come with an integral
-StorageWorks shelf to house hotswap SCSI disks. There was an upgrade program
+StorageWorks shelf to house hot-swap SCSI disks. There was an upgrade program
 available to convert your Sable machine into a Lynx by swapping the
 I/O backplane (the C-bus backplane remains). CPU upgrades were available 
 as well.
@@ -1313,7 +1313,7 @@ Features:
 - 21164 EV5[6] CPU[s]s at 250, 300, 375, 400 MHz
 - cache: varies in size with the CPU model; 1, 4 or 8Mbyte per CPU
 - embedded floppy controller driving a 2.88 Mbytes drive
-- embedded 10Mbit 21040 ethernet [AS2100 only]
+- embedded 10Mbit 21040 Ethernet [AS2100 only]
 - 2 serial ports
 - 1 parallel port
 - PS/2 style keyboard & mouse port
@@ -1322,7 +1322,7 @@ NOTE: Lynx support is currently flagged as experimental due to lack of
       testing / test hardware.
 
 CPU:
-The CPUs spec-ed as 200 Mhz are in reality running at 190 MHz. Maximum
+The CPUs spec-ed as 200 MHz are in reality running at 190 MHz. Maximum
 number of CPUs is 4. All CPUs must be of the same type/speed. 
 
 Currently FreeBSD only uses one CPU in a multiprocessor machine. 
@@ -1354,15 +1354,15 @@ needs >>> SET CONSOLE GRAPHICS at the serial console. On Lynx keep the
 VGA card in one of the primary PCI slots.
 
 The machines are equipped with a small OCP (Operator Control Panel) LCD
-screen. On this screen the selftest messages are displayed during system
-initialisation. You can put your own little text there by using the SRM:
+screen. On this screen the self-test messages are displayed during system
+initialization. You can put your own little text there by using the SRM:
 >>> SET OCP_TEXT "FreeBSD"
 
 The SRM >>> SHOW FRU command produces an overview of your configuration
 with module serial numbers, hardware revisions and error log counts.
 
 Embedded SCSI:
-Both Sable, DemiSable and Lynx have Symbios 810 based Fast SCSI onboard.
+Both Sable, DemiSable and Lynx have Symbios 810 based Fast SCSI on-board.
 Check if it is set to Fast SCSI speed by >>> SHOW PKA0_FAST. If set to
 1 it is negotiating for Fast speeds. >>> SET PKA0_FAST 1 enables Fast
 speeds.
@@ -1428,7 +1428,7 @@ These are multi-CPU machines, up to 4 CPUs can be in a single
 machine.  Basic disk storage is housed in one or two StorageWorks shelves
 at the bottom of the pedestal. The Rawhides intended for the NT market are
 designated DIGITAL Server 7300 (5/400 CPU), DIGITAL Server 7305 (5/533 CPU).
-A trailing R on the partnumber means a rackmount variant.
+A trailing R on the part-number means a rackmount variant.
 
 Features:
 - 21164 EV5 CPUs at 266, 300 MHz
@@ -1653,7 +1653,7 @@ Features:
 	     1 AGP slot
 
 Slot B:
-Slot B is a box-like enclosure that houses a daughterboard for the CPU and
+Slot B is a box-like enclosure that houses a daughter-board for the CPU and
 cache. It has 2 small fans for cooling. Loud ones too..
 
 Memory:
@@ -1736,7 +1736,7 @@ management functionality & temperature monitoring (via I2C / SM bus using
 a LM75 thermal sensor).
 
 Network:
-The UP1100 has an on-board 21143 10/100Mbit ethernet interface.
+The UP1100 has an on-board 21143 10/100Mbit Ethernet interface.
 
 Sound:
 The UP1100 is equipped with a SoundBlaster compatible audio interface.
@@ -1774,7 +1774,7 @@ Features:
 - 1x ECP/EPP parallel port
 - floppy interface
 - ALI M1543C Ultra DMA66 IDE interface
-- embedded dual Intel 82559 10/100Mbit ethernet
+- embedded dual Intel 82559 10/100Mbit Ethernet
 - embedded Symbios 53C1000 Ultra160 SCSI controller
 - expansion: 2 64 bit PCI slots (2/3 length)
 
@@ -1800,8 +1800,8 @@ EIDE:
 The embedded Ultra DMA EIDE ports are bootable by the SRM console.
 
 Disks:
-The CS20 has an embeded slimline IDE CD drive. There is a front-accesible
-bay for a 1" high 3.5" harddisk drive.
+The CS20 has an embedded slim-line IDE CD drive. There is a front-accessible
+bay for a 1" high 3.5" hard-disk drive.
 
 The kernel config file must contain:
         options         DEC_ST6600
@@ -1833,22 +1833,22 @@ ISA mode and works OK as a console.
 
 - ATA / ATAPI (IDE): are supported via the ata driver framework. As most
 people run their Alphas with SCSI disks it is not as well tested as SCSI. Be
-aware of bootability restrictions for IDE disks. See the machine specific
+aware of boot-ability restrictions for IDE disks. See the machine specific
 information.
 
 - SCSI: full support via the CAM layer for Adaptec 2940x (AIC7xxx
 chip-based), Qlogic family and Symbios. Be aware of the machine-specific
-bootability issues for the various adapter types.
+boot-ability issues for the various adapter types.
 
 - FibreChannel: the Qlogic QL2x00 FibreChannel host adapters are fully
 supported.
 
 - Ethernet: if you want to boot your Alpha over the Ethernet you will 
-obviously need an Ethernet card that the SRM console recognises. This
+obviously need an Ethernet card that the SRM console recognizes. This
 generally means you need a board with an 21x4x Ethernet chip as that is
 what Digital used. These chips are driven by the FreeBSD 'de' (older driver)
-or 'dc' (newer driver). Some new SRM versions are known to recognise the
-Intel 8255x ethernet chips as driven by the FreeBSD 'fxp' driver. But beware:
+or 'dc' (newer driver). Some new SRM versions are known to recognize the
+Intel 8255x Ethernet chips as driven by the FreeBSD 'fxp' driver. But beware:
 the 'fxp' driver is reported not to work correctly with FreeBSD/alpha (although
 it works excellently on FreeBSD/x86).
 
