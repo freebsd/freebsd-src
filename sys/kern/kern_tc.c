@@ -30,9 +30,6 @@
 static MALLOC_DEFINE(M_TIMECOUNTER, "timecounter", 
 	"Timecounter stable storage");
 
-static void tco_setscales(struct timecounter *tc);
-static __inline unsigned tco_delta(struct timecounter *tc);
-
 time_t time_second;
 
 struct	bintime boottimebin;
@@ -90,7 +87,7 @@ static struct timecounter dummy_timecounter = {
 struct timecounter *volatile timecounter = &dummy_timecounter;
 
 static __inline unsigned
-tco_delta(struct timecounter *tc)
+tc_delta(struct timecounter *tc)
 {
 
 	return ((tc->tc_get_timecount(tc) - tc->tc_offset_count) & 
@@ -119,7 +116,7 @@ binuptime(struct bintime *bt)
 		tc = timecounter;
 		gen = tc->tc_generation;
 		*bt = tc->tc_offset;
-		bintime_addx(bt, tc->tc_scale * tco_delta(tc));
+		bintime_addx(bt, tc->tc_scale * tc_delta(tc));
 	} while (gen == 0 || gen != tc->tc_generation);
 }
 
@@ -229,7 +226,7 @@ nanouptime(struct timespec *ts)
 }
 
 static void
-tco_setscales(struct timecounter *tc)
+tc_setscales(struct timecounter *tc)
 {
 	u_int64_t scale;
 
@@ -255,7 +252,7 @@ tc_init(struct timecounter *tc)
 
 	tc->tc_adjustment = 0;
 	tc->tc_tweak = tc;
-	tco_setscales(tc);
+	tc_setscales(tc);
 	tc->tc_offset_count = tc->tc_get_timecount(tc);
 	if (timecounter == &dummy_timecounter)
 		tc->tc_avail = tc;
@@ -320,7 +317,7 @@ switch_timecounter(struct timecounter *newtc)
 	newtc = newtc->tc_tweak->tc_next;
 	binuptime(&newtc->tc_offset);
 	newtc->tc_offset_count = newtc->tc_get_timecount(newtc);
-	tco_setscales(newtc);
+	tc_setscales(newtc);
 	newtc->tc_generation = 0;
 	timecounter = newtc;
 	tc_windup();
@@ -340,13 +337,13 @@ tc_windup(void)
 	ogen = tc->tc_generation;
 	tc->tc_generation = 0;
 	bcopy(tco, tc, __offsetof(struct timecounter, tc_generation));
-	delta = tco_delta(tc);
+	delta = tc_delta(tc);
 	tc->tc_offset_count += delta;
 	tc->tc_offset_count &= tc->tc_counter_mask;
 	bintime_addx(&tc->tc_offset, tc->tc_scale * delta);
 	/*
 	 * We may be inducing a tiny error here, the tc_poll_pps() may
-	 * process a latched count which happens after the tco_delta()
+	 * process a latched count which happens after the tc_delta()
 	 * in sync_other_counter(), which would extend the previous
 	 * counters parameters into the domain of this new one.
 	 * Since the timewindow is very small for this, the error is
@@ -357,7 +354,7 @@ tc_windup(void)
 		tco->tc_poll_pps(tco);
 	for (i = tc->tc_offset.sec - tco->tc_offset.sec; i > 0; i--) {
 		ntp_update_second(tc);	/* XXX only needed if xntpd runs */
-		tco_setscales(tc);
+		tc_setscales(tc);
 	}
 
 	bt = tc->tc_offset;
