@@ -138,6 +138,7 @@ _unlock_things(struct faultstate *fs, int dealloc)
 {
 
     	mtx_assert(&vm_mtx, MA_OWNED);
+    	mtx_assert(&Giant, MA_OWNED);
 	vm_object_pip_wakeup(fs->object);
 	if (fs->object != fs->first_object) {
 		vm_page_free(fs->first_m);
@@ -154,9 +155,7 @@ _unlock_things(struct faultstate *fs, int dealloc)
 		vp = fs->vp;
 		fs->vp = NULL;
 		mtx_unlock(&vm_mtx);
-		mtx_lock(&Giant);
 		vput(vp);
-		mtx_unlock(&Giant);
 		mtx_lock(&vm_mtx);
 	}
 }
@@ -207,18 +206,21 @@ int
 vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	 int fault_flags)
 {
-	int hadvmlock, ret;
+	int hadvmlock, hadgiant, ret;
 
 	hadvmlock = mtx_owned(&vm_mtx);
+	hadgiant = mtx_owned(&Giant);
+	mtx_lock(&Giant);
 	if (!hadvmlock) {
 		mtx_lock(&vm_mtx);
 		vm_faults_no_vm_mtx++;
-		if (!mtx_owned(&Giant))
+		if (hadgiant == 0)
 			vm_faults_no_giant++;
 	}
 	ret = vm_fault1(map, vaddr, fault_type, fault_flags);
 	if (!hadvmlock)
 		mtx_unlock(&vm_mtx);
+	mtx_unlock(&Giant);
 	return (ret);
 }
 
@@ -295,9 +297,7 @@ RetryFault:;
 	vm_object_pip_add(fs.first_object, 1);
 
 	mtx_unlock(&vm_mtx);
-	mtx_lock(&Giant);
 	fs.vp = vnode_pager_lock(fs.first_object);
-	mtx_unlock(&Giant);
 	mtx_lock(&vm_mtx);
 	if ((fault_type & VM_PROT_WRITE) &&
 		(fs.first_object->type == OBJT_VNODE)) {
@@ -771,9 +771,7 @@ readrest:
 
 		if (fs.vp != NULL) {
 			mtx_unlock(&vm_mtx);
-			mtx_lock(&Giant);
 			vput(fs.vp);
-			mtx_unlock(&Giant);
 			mtx_lock(&vm_mtx);
 			fs.vp = NULL;
 		}
