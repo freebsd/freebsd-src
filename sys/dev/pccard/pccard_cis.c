@@ -503,7 +503,7 @@ pccard_print_cis(device_t dev)
 			break;
 		}
 
-		printf(", ccr addr %lx mask %lx\n", pf->ccr_base, pf->ccr_mask);
+		printf(", ccr addr %x mask %x\n", pf->ccr_base, pf->ccr_mask);
 
 		STAILQ_FOREACH(cfe, &pf->cfe_head, cfe_list) {
 			device_printf(dev, "function %d, config table entry "
