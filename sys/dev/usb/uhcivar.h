@@ -154,6 +154,9 @@ typedef struct uhci_softc {
 	u_int8_t sc_addr;		/* device address */
 	u_int8_t sc_conf;		/* device configuration */
 
+	u_int8_t sc_saved_sof;
+	u_int16_t sc_saved_frnum;
+
 	char sc_isreset;
 	char sc_suspend;
 
