@@ -13,14 +13,14 @@ SRCS=	attr.c cdrom.c command.c config.c crc.c decode.c devices.c disks.c dist.c 
 CFLAGS+=	-Wall -g -I${.CURDIR}/../libdisk \
 		-I${.CURDIR}/../../gnu/lib/libdialog
 
-LDADD=  -ldialog -lncurses -lmytinfo
+LDADD=  -ldialog -lncurses -lmytinfo -lutil
 .if exists(${.CURDIR}/../libdisk/obj)
 LDADD+= -L${.CURDIR}/../libdisk/obj -ldisk
 .else
 LDADD+= -L${.CURDIR}/../libdisk -ldisk
 .endif
 
-DPADD= ${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO}
+DPADD= ${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO} ${LIBUTIL}
 
 .if exists(${.CURDIR}/../../sys/i386/boot/biosboot/obj)
 BOOTS=${.CURDIR}/../../sys/i386/boot/biosboot/obj

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.24 1995/05/24 09:00:56 jkh Exp $
+ * $Id: msg.c,v 1.25 1995/05/29 00:50:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -207,7 +207,8 @@ msgConfirm(char *fmt, ...)
     use_helpfile(NULL);
     w = dupwin(newscr);
     if (OnVTY) {
-	ioctl(0, VT_RELDISP, 0);	/* Switch back */
+	msgDebug("Switching back to VTY 0\n");
+	ioctl(0, VT_RELDISP, 1);
 	msgInfo(NULL);
     }
     dialog_notify(errstr);
@@ -253,7 +254,8 @@ msgYesNo(char *fmt, ...)
     use_helpfile(NULL);
     w = dupwin(newscr);
     if (OnVTY) {
-	ioctl(0, VT_RELDISP, 0);	/* Switch back */
+	ioctl(0, VT_RELDISP, 1);	/* Switch back */
+	msgDebug("User decision requested (type ALT-F1)\n");
 	msgInfo(NULL);
     }
     ret = dialog_yesno("User Confirmation Requested", errstr, -1, -1);
@@ -286,7 +288,8 @@ msgGetInput(char *buf, char *fmt, ...)
 	input_buffer[0] = '\0';
     w = dupwin(newscr);
     if (OnVTY) {
-	ioctl(0, VT_RELDISP, 0);	/* Switch back */
+	msgDebug("Switching back to VTY 0\n");
+	ioctl(0, VT_RELDISP, 1);	/* Switch back */
 	msgInfo(NULL);
     }
     rval = dialog_inputbox("Value Required", errstr, -1, -1, input_buffer);
