@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997 Joerg Wunsch
+.\" Copyright (c) 1997, 2001 Joerg Wunsch
 .\"
 .\" All rights reserved.
 .\"
@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 19, 1997
+.Dd December 30, 2001
 .Dt SPPP 4
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@ Protocol (LCP) of the
 .Em point to point protocol (PPP)
 as described in RFC 1661.  Note that this layer does not provide
 network interfaces of its own, it is rather intended to be layered on
-top of drivers providing a synchronuous point-to-point connection that
+top of drivers providing a synchronous point-to-point connection that
 wish to run a PPP stack over it.  The corresponding network interfaces
 have to be provided by these hardware drivers.
 .Pp
@@ -120,11 +120,13 @@ late during the negotiation, which might cause the remote peer to make
 wrong assumptions.
 .Pp
 In a similar spirit the remote address can be set to the magical
-value 0.0.0.1 which means that we don't care what address the remote
+value
+.Li 0.0.0. Ns Em *
+which means that we don't care what address the remote
 side will use, as long as it is not 0.0.0.0.
 This is useful if your ISP has several dial-in
 servers.  You can of course
-.Nm route Cm add Ar something_or_other 0.0.0.1
+.Nm route Cm add Ar something_or_other 0.0.0. Ns Em *
 and it will do exactly what you would want it to.
 .Pp
 The PAP and CHAP authentication protocols as described in RFC 1334,
@@ -132,6 +134,10 @@ and RFC 1994 resp., are also implemented.  Their parameters are being
 controlled by the
 .Xr spppcontrol 8
 utility.
+.Pp
+VJ header compression is implemented, and enabled by default.  It can be
+disabled using
+.Xr spppcontrol 8 .
 .Sh DIAGNOSTICS
 .Bl -diag
 .It <ifname><ifnum>: <proto> illegal <event> in state <statename>
@@ -198,6 +204,8 @@ Currently, only the
 control protocol and
 .Xr ip 4
 network protocol is supported.
+More NCPs should be implemented, as well as other control protocols
+for authentication and link quality reporting.
 .Pp
 Negotiation loop avoidance is not fully implemented.  If the negotiation
 doesn't converge, this can cause an endless loop.
@@ -209,10 +217,5 @@ through
 .Pp
 .Em Passive
 mode has not been tested extensively.
-.Pp
-More NCPs should be implemented, as well as other control protocols
-for authentication and link quality reporting.
-.Pp
-IPCP should support VJ header compression.
 .Pp
 Link-level compression protocols should be supported.
