@@ -134,6 +134,9 @@ cpu_fork(td1, p2, td2, flags)
 	struct trapframe *p2tf;
 	u_int64_t bspstore, *p1bs, *p2bs, rnatloc, rnat;
 
+	KASSERT(td1 == curthread || td1 == &thread0,
+	    ("cpu_fork: p1 not curproc and not proc0"));
+
 	if ((flags & RFPROC) == 0)
 		return;
 
@@ -174,9 +177,8 @@ cpu_fork(td1, p2, td2, flags)
 	 * is started, to resume here, returning nonzero from setjmp.
 	 */
 #ifdef DIAGNOSTIC
-	if (td1 != curthread)
-		panic("cpu_fork: curproc");
-	ia64_fpstate_check(td1);
+	if (td1 == curthread)
+		ia64_fpstate_check(td1);
 #endif
 
 	/*
@@ -184,10 +186,13 @@ cpu_fork(td1, p2, td2, flags)
 	 *
 	 * Pick a stack pointer, leaving room for a trapframe;
 	 * copy trapframe from parent so return to user mode
-	 * will be to right address, with correct registers.
+	 * will be to right address, with correct registers. Clear the
+	 * high-fp enable for the new process so that it is forced to
+	 * load its state from the pcb.
 	 */
 	td2->td_frame = (struct trapframe *)td2->td_pcb - 1;
 	bcopy(td1->td_frame, td2->td_frame, sizeof(struct trapframe));
+	td2->td_frame->tf_cr_ipsr |= IA64_PSR_DFH;
 
 	/*
 	 * Set up return-value registers as fork() libc stub expects.
@@ -205,14 +210,20 @@ cpu_fork(td1, p2, td2, flags)
 	 *
 	 * We could cope with td1!=curthread by digging values
 	 * out of its PCB but I don't see the point since
-	 * current usage never allows it.
+	 * current usage only allows &thread0 when creating kernel
+	 * threads and &thread0 doesn't have any dirty regs.
 	 */
-	__asm __volatile("mov ar.rsc=0;;");
-	__asm __volatile("flushrs;;" ::: "memory");
-	__asm __volatile("mov %0=ar.bspstore" : "=r"(bspstore));
 
 	p1bs = (u_int64_t *)td1->td_kstack;
 	p2bs = (u_int64_t *)td2->td_kstack;
+
+	if (td1 == curthread) {
+		__asm __volatile("mov ar.rsc=0;;");
+		__asm __volatile("flushrs;;" ::: "memory");
+		__asm __volatile("mov %0=ar.bspstore" : "=r"(bspstore));
+	} else {
+		bspstore = (u_int64_t) p1bs;
+	}
 
 	/*
 	 * Copy enough of td1's backing store to include all
@@ -225,29 +236,37 @@ cpu_fork(td1, p2, td2, flags)
 	 * where the last ar.rnat which covers the user's
 	 * saved registers would be placed. If so, we read
 	 * that one from memory, otherwise we take td1's
-	 * current ar.rnat.
+	 * current ar.rnat. If we are simply spawning a new kthread
+	 * from &thread0 we don't care about ar.rnat.
 	 */
-	rnatloc = (u_int64_t)p1bs + td1->td_frame->tf_ndirty;
-	rnatloc |= 0x1f8;
-	if (bspstore > rnatloc)
-		rnat = *(u_int64_t *) rnatloc;
-	else
-		__asm __volatile("mov %0=ar.rnat;;" : "=r"(rnat));
-	
-	/*
-	 * Switch the RSE back on.
-	 */
-	__asm __volatile("mov ar.rsc=3;;");
+	if (td1 == curthread) {
+		rnatloc = (u_int64_t)p1bs + td1->td_frame->tf_ndirty;
+		rnatloc |= 0x1f8;
+		if (bspstore > rnatloc)
+			rnat = *(u_int64_t *) rnatloc;
+		else
+			__asm __volatile("mov %0=ar.rnat;;" : "=r"(rnat));
 
+		/*
+		 * Switch the RSE back on.
+		 */
+		__asm __volatile("mov ar.rsc=3;;");
+	} else {
+		rnat = 0;
+	}
+	
 	/*
 	 * Setup the child's pcb so that its ar.bspstore
 	 * starts just above the region which we copied. This
 	 * should work since the child will normally return
-	 * straight into exception_restore.
+	 * straight into exception_restore. Also initialise its
+	 * pmap to the containing proc's vmspace.
 	 */
 	td2->td_pcb->pcb_bspstore = (u_int64_t)p2bs + td1->td_frame->tf_ndirty;
 	td2->td_pcb->pcb_rnat = rnat;
 	td2->td_pcb->pcb_pfs = 0;
+	td2->td_pcb->pcb_pmap = (u_int64_t)
+		vmspace_pmap(td2->td_proc->p_vmspace);
 
 	/*
 	 * Arrange for continuation at fork_return(), which
