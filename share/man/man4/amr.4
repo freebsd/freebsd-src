@@ -100,7 +100,11 @@ Initialisation has failed and the driver will not attach to this controller.
 .It amr%d: 40LD firmware unsupported; send controller to msmith@freebsd.org
 .Pp
 This controller provides a firmware interface that is currently unsupported.
-Please contact the AUTHOR to determine status of support for this controller.
+Please contact the author
+(see
+.Sx AUTHOR
+below)
+to determine status of support for this controller.
 .It amr%d: can't scan controller for drives
 .Pp
 The scan for logical drives managed by the controller failed.
@@ -135,7 +139,9 @@ An I/O error has occurred.
 The controller is not responding to commands.
 .El
 .Sh AUTHORS
-The amr driver was written by
+The
+.Nm
+driver was written by
 .An Mike Smith
 .Aq msmith@FreeBSD.org .
 .Pp
