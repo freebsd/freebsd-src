@@ -95,6 +95,9 @@ changes.
 
 Default the PC Card Interface Controller(pcic) to polling mode(irq 0).
 
+The ncv, nsp, and stg drivers have been ported from NetBSD/pc98. 
+They supports NCR 53C50 / Workbit Ninja SCSI-3 / TMC 18C30, 18C50 
+based PC-Card/ISA SCSI controllers.
 
 1.2. SECURITY FIXES
 -------------------
@@ -275,11 +278,31 @@ SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a,
         Tekram DC390W, 390U and 390F
         Tyan S1365
 
+NCR 53C500 based PC-Card SCSI host adapters:
+    IO DATA PCSC-DV
+    KME KXLC002(TAXAN ICD-400PN, etc.), KXLC004
+    Macnica Miracle SCSI-II mPS110
+    Media Intelligent MSC-110, MSC-200
+    NEC PC-9801N-J03R
+    New Media Corporation BASICS SCSI
+    Qlogic Fast SCSI
+    RATOC REX-9530, REX-5572 (as SCSI only)
+
+TMC 18C30, 18C50 based ISA/PC-Card SCSI host adapters:
+    Future Domain SCSI2GO
+    IBM SCSI PCMCIA Card
+    ICM PSC-2401 SCSI
+    Melco IFC-SC
+    RATOC REX-5536, REX-5536AM, REX-5536M, REX-9836A
 
 QLogic 1020, 1040, 1040B, 1080 and 1240 SCSI Host Adapters.
 QLogic 2100 Fibre Channel Adapters (private loop only).
 
 DTC 3290 EISA SCSI controller in 1542 emulation mode.
+
+Workbit Ninja SCSI-3 based PC-Card SCSI host adapters:
+    Alpha-Data AD-PCS201
+    IO DATA CBSC16
 
 With all supported SCSI controllers, full support is provided for
 SCSI-I & SCSI-II peripherals, including hard disks, optical disks,

@@ -59,6 +59,12 @@ cam/scsi/scsi_pt.c	optional pt
 cam/scsi/scsi_sa.c	optional sa
 cam/scsi/scsi_cd.c	optional cd
 cam/scsi/scsi_ch.c	optional ch
+cam/scsi/scsi_low.c	optional ncv
+cam/scsi/scsi_low.c	optional nsp
+cam/scsi/scsi_low.c	optional stg
+cam/scsi/scsi_low_pisa.c	optional ncv
+cam/scsi/scsi_low_pisa.c	optional nsp
+cam/scsi/scsi_low_pisa.c	optional stg
 cam/scsi/scsi_pass.c	optional pass
 cam/scsi/scsi_ses.c	optional ses
 cam/scsi/scsi_target.c	optional targ
@@ -217,6 +223,10 @@ dev/mlx/mlx.c		optional mlx
 dev/mly/mly.c		optional mly
 dev/mly/mly_cam.c	optional mly
 dev/mly/mly_pci.c	optional mly
+dev/ncv/ncr53c500.c	optional ncv
+dev/ncv/ncr53c500_pccard.c	optional ncv card
+dev/nsp/nsp.c		optional nsp
+dev/nsp/nsp_pccard.c	optional nsp card
 dev/pccard/pccard.c	optional pccard
 dev/pccard/pccard_cis.c	optional pccard
 dev/pccard/pccard_cis_quirks.c optional pccard
@@ -337,6 +347,9 @@ dev/si/si_pci.c		optional si pci
 dev/sn/if_sn.c		optional sn
 dev/sn/if_sn_isa.c	optional sn isa
 dev/sn/if_sn_pccard.c	optional sn card
+dev/stg/tmc18c30.c	optional stg
+dev/stg/tmc18c30_isa.c	optional stg isa
+dev/stg/tmc18c30_pccard.c	optional stg card
 dev/iicbus/iicbb.c	optional iicbb
 iicbb_if.o		optional iicbb					\
 	dependency	"iicbb_if.c"					\

@@ -96,6 +96,10 @@ device		bt0	at isa?
 device		aha0	at isa?
 device		aic0	at isa?
 
+device		ncv		# NCR 53C500
+device		nsp		# Workbit Ninja SCSI-3
+device		stg		# TMC 18C30/18C50
+
 # SCSI peripherals
 device		scbus		# SCSI bus (required)
 device		da		# Direct Access (disks)
