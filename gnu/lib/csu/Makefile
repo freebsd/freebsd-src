@@ -17,17 +17,17 @@ CFLAGS+=	-I${GCCDIR}/config -I${GCCDIR} -I. \
 CRTS_CFLAGS=	-DCRTSTUFFS_O -DSHARED ${PICFLAG}
 MKDEPCMD=	CC="${CC}" MKDEP_CPP_OPTS="-M -DCRT_BEGIN" mkdep
 
-.if ${TARGET_ARCH} == "ia64"
+.if ${MACHINE_ARCH} == "ia64"
 BEGINSRC=	crtbegin.asm
 ENDSRC=		crtend.asm
 CFLAGS+=	-x assembler-with-cpp	# Ugly hack
 .undef SRCS				# hack for 'make depend'
 .endif
-.if ${TARGET_ARCH} == "powerpc"
+.if ${MACHINE_ARCH} == "powerpc"
 TGTOBJS=	crtsavres.o
 SRCS+=		crtsavres.asm
 .endif
-.if ${TARGET_ARCH} == "alpha" || ${TARGET_ARCH} == "sparc64"
+.if ${MACHINE_ARCH} == "alpha" || ${MACHINE_ARCH} == "sparc64"
 TGTOBJS=	crtfastmath.o
 SRCS+=		crtfastmath.c
 .endif
