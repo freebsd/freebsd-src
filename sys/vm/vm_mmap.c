@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.89 1999/02/07 21:48:22 dillon Exp $
+ * $Id: vm_mmap.c,v 1.90 1999/02/19 14:25:36 luoqi Exp $
  */
 
 /*
@@ -695,7 +695,7 @@ mincore(p, uap)
 	map = &p->p_vmspace->vm_map;
 	pmap = vmspace_pmap(p->p_vmspace);
 
-	vm_map_lock(map);
+	vm_map_lock_read(map);
 
 	if (!vm_map_lookup_entry(map, addr, &entry))
 		entry = entry->next;
@@ -777,7 +777,7 @@ mincore(p, uap)
 			while((lastvecindex + 1) < vecindex) {
 				error = subyte( vec + lastvecindex, 0);
 				if (error) {
-					vm_map_unlock(map);
+					vm_map_unlock_read(map);
 					return (EFAULT);
 				}
 				++lastvecindex;
@@ -788,7 +788,7 @@ mincore(p, uap)
 			 */
 			error = subyte( vec + vecindex, mincoreinfo);
 			if (error) {
-				vm_map_unlock(map);
+				vm_map_unlock_read(map);
 				return (EFAULT);
 			}
 			lastvecindex = vecindex;
@@ -803,13 +803,13 @@ mincore(p, uap)
 	while((lastvecindex + 1) < vecindex) {
 		error = subyte( vec + lastvecindex, 0);
 		if (error) {
-			vm_map_unlock(map);
+			vm_map_unlock_read(map);
 			return (EFAULT);
 		}
 		++lastvecindex;
 	}
 	
-	vm_map_unlock(map);
+	vm_map_unlock_read(map);
 	return (0);
 }
 
