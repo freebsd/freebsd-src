@@ -101,6 +101,10 @@ long tk_rawcc;
 
 time_t time_second;
 
+struct	timeval boottime;
+SYSCTL_STRUCT(_kern, KERN_BOOTTIME, boottime, CTLFLAG_RD,
+    &boottime, timeval, "System boottime");
+
 /*
  * Which update policy to use.
  *   0 - every tick, bad hardware may fail with "calcru negative..."
