@@ -15,7 +15,7 @@ PATH=/bin:/usr/bin:/usr/sbin
 display_usage () {
   VERSION_NUMBER=`grep "[$]FreeBSD:" $0 | cut -d ' ' -f 4`
   echo "mergemaster version ${VERSION_NUMBER}"
-  echo 'Usage: mergemaster [-scrvahipC] [-m /path]'
+  echo 'Usage: mergemaster [-scrvahipCP] [-m /path]'
   echo '         [-t /path] [-d] [-u N] [-w N] [-D /path]'
   echo "Options:"
   echo "  -s  Strict comparison (diff every pair of files)"
@@ -27,6 +27,7 @@ display_usage () {
   echo '  -i  Automatically install files that do not exist in destination directory'
   echo '  -p  Pre-buildworld mode, only compares crucial files'
   echo '  -C  Compare local rc.conf variables to the defaults'
+  echo '  -P  Preserve files that are overwritten'
   echo "  -m /path/directory  Specify location of source to do the make in"
   echo "  -t /path/directory  Specify temp root directory"
   echo "  -d  Add date and time to directory name (e.g., /var/tmp/temproot.`date +%m%d.%H.%M`)"
@@ -237,7 +238,7 @@ fi
 
 # Check the command line options
 #
-while getopts ":ascrvhipCm:t:du:w:D:" COMMAND_LINE_ARGUMENT ; do
+while getopts ":ascrvhipCPm:t:du:w:D:" COMMAND_LINE_ARGUMENT ; do
   case "${COMMAND_LINE_ARGUMENT}" in
   s)
     STRICT=yes
@@ -269,6 +270,9 @@ while getopts ":ascrvhipCm:t:du:w:D:" COMMAND_LINE_ARGUMENT ; do
   C)
     COMP_CONFS=yes
     ;;
+  P)
+    PRESERVE_FILES=yes
+    ;;
   p)
     PRE_WORLD=yes
     unset COMP_CONFS
@@ -298,6 +302,11 @@ while getopts ":ascrvhipCm:t:du:w:D:" COMMAND_LINE_ARGUMENT ; do
     ;;
   esac
 done
+
+# Don't force the user to set this in the mergemaster rc file
+if [ -n "${PRESERVE_FILES}" -a -z "${PRESERVE_FILES_DIR}" ]; then
+  PRESERVE_FILES_DIR=/var/tmp/mergemaster/preserved-files-`date +%y%m%d-%H%M%S`
+fi
 
 echo ''
 
@@ -596,42 +605,63 @@ fi
 
 CONFIRMED_UMASK=${NEW_UMASK:-0022}
 
-# Warn users who still have ${DESTDIR}/etc/sysconfig
 #
-if [ -e "${DESTDIR}/etc/sysconfig" ]; then
+# Warn users who still have old rc files
+#
+for file in atm devfs diskless1 diskless2 isdn network network6 pccard \
+  sendmail serial syscons sysctl alpha amd64 i386 ia64 sparc64; do
+  if [ -f "${DESTDIR}/etc/rc.${file}" ]; then
+    OLD_RC_PRESENT=1
+    break
+  fi
+done
+
+case "${OLD_RC_PRESENT}" in
+1)
   echo ''
-  echo " *** There is a sysconfig file on this system in ${DESTDIR}/etc/."
+  echo " *** There are elements of the old rc system in ${DESTDIR}/etc/."
   echo ''
-  echo '     Starting with FreeBSD version 2.2.2 those settings moved from'
-  echo '     /etc/sysconfig to /etc/rc.conf.  If you are upgrading an older'
-  echo '     system make sure that you transfer your settings by hand from'
-  echo '     sysconfig to rc.conf and install the rc.conf file.  If you'
-  echo '     have already made this transition, you should consider'
-  echo '     renaming or deleting the sysconfig file.'
+  echo '     While these scripts will not hurt anything, they are not'
+  echo '     functional on an up to date system, and can be removed.'
   echo ''
+
   case "${AUTO_RUN}" in
   '')
-    echo -n "Continue with the merge process? [yes] "
-    read CONT_OR_NOT
+    echo -n 'Move these files to /var/tmp/mergemaster/old_rc? [yes] '
+    read MOVE_OLD_RC
 
-    case "${CONT_OR_NOT}" in
-    [nN]*)
-      exit 0
-      ;;
+    case "${MOVE_OLD_RC}" in
+    [nN]*) ;;
     *)
-      echo "   *** Continuing"
-      echo ''
+      mkdir -p /var/tmp/mergemaster/old_rc
+        for file in atm devfs diskless1 diskless2 isdn network network6 pccard \
+          sendmail serial syscons sysctl alpha amd64 i386 ia64 sparc64; do
+          if [ -f "${DESTDIR}/etc/rc.${file}" ]; then
+            mv ${DESTDIR}/etc/rc.${file} /var/tmp/mergemaster/old_rc/
+          fi
+        done
+      echo '  The files have been moved'
+      press_to_continue
       ;;
     esac
     ;;
   *) ;;
   esac
-fi
+esac
 
 # Use the umask/mode information to install the files
 # Create directories as needed
 #
 do_install_and_rm () {
+  case "${PRESERVE_FILES}" in
+  [Yy][Ee][Ss])
+    if [ -f "${3}/${2##*/}" ]; then
+      mkdir -p ${PRESERVE_FILES_DIR}
+      cp ${3}/${2##*/} ${PRESERVE_FILES_DIR}
+    fi
+    ;;
+  esac
+
   install -m "${1}" "${2}" "${3}" &&
   rm -f "${2}"
 }
