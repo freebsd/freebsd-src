@@ -41,7 +41,7 @@ usage(int devmask, int recmask)
 		if ((1 << i) & devmask)  {
 			if (n)
 				printf(", ");
-			printf(names[i]);
+			printf("%s", names[i]);
 			n = 1;
 		}
 	printf("\n rec devices: ");
@@ -49,7 +49,7 @@ usage(int devmask, int recmask)
 		if ((1 << i) & recmask)  {
 			if (n)
 				printf(", ");
-			printf(names[i]);
+			printf("%s", names[i]);
 			n = 1;
 		}
 	printf("\n");
@@ -78,7 +78,7 @@ print_recsrc(int recsrc)
 		if ((1 << i) & recsrc) {
 			if (n)
 				fprintf(stderr, ", ");
-			fprintf(stderr, names[i]);
+			fprintf(stderr, "%s", names[i]);
 			n = 1;
 		}
 	fprintf(stderr, "\n");
