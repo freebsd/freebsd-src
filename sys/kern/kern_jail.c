@@ -218,10 +218,8 @@ jail_attach(td, uap)
 	oldcred = p->p_ucred;
 	setsugid(p);
 	crcopy(newcred, oldcred);
+	newcred->cr_prison = pr;
 	p->p_ucred = newcred;
-	mtx_lock(&pr->pr_mtx);
-	p->p_ucred->cr_prison = pr;
-	mtx_unlock(&pr->pr_mtx);
 	PROC_UNLOCK(p);
 	crfree(oldcred);
 	return (0);
