@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.22.2.14 1998/03/16 22:54:07 brian Exp $
+ * $Id: lqr.c,v 1.22.2.15 1998/03/20 19:47:00 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -72,8 +72,6 @@ SendEchoReq(struct lcp *lcp)
   struct hdlc *hdlc = &link2physical(lcp->fsm.link)->hdlc;
   struct echolqr echo;
 
-  LogPrintf(LogLQM, "Send echo LQR [%lu]\n", (u_long)hdlc->lqm.echo.seq_sent);
-
   echo.magic = htonl(lcp->want_magic);
   echo.signature = htonl(SIGNATURE);
   echo.sequence = htonl(hdlc->lqm.echo.seq_sent);
@@ -92,7 +90,6 @@ RecvEchoLqr(struct fsm *fp, struct mbuf * bp)
     lqr = (struct echolqr *) MBUF_CTOP(bp);
     if (ntohl(lqr->signature) == SIGNATURE) {
       seq = ntohl(lqr->sequence);
-      LogPrintf(LogLQM, "Got echo LQR [%d]\n", ntohl(lqr->sequence));
       /* careful not to update lqm.echo.seq_recv with older values */
       if ((hdlc->lqm.echo.seq_recv > (u_int32_t)0 - 5 && seq < 5) ||
           (hdlc->lqm.echo.seq_recv <= (u_int32_t)0 - 5 &&
