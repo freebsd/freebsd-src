@@ -29,11 +29,9 @@
 #	accounting report script for the isdnd daemon accounting info
 #	-------------------------------------------------------------
 #
+#	last edit-date: [Fri May 25 15:28:20 2001]
+#
 # $FreeBSD$
-#
-#	last edit-date: [Wed May  5 16:24:16 1999]
-#
-#	-hm	updated for isdnd support
 #
 #---------------------------------------------------------------------------
 
