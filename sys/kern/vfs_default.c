@@ -370,57 +370,8 @@ vop_stdcreatevobject(ap)
 		struct thread *td;
 	} */ *ap;
 {
-	struct vnode *vp = ap->a_vp;
-	struct ucred *cred = ap->a_cred;
-	struct thread *td = ap->a_td;
-	struct vattr vat;
-	vm_object_t object;
-	int error = 0;
-	vm_ooffset_t size;
 
-	if (!vn_isdisk(vp, NULL) && vn_canvmio(vp) == FALSE)
-		return (0);
-
-	while ((object = vp->v_object) != NULL) {
-		VM_OBJECT_LOCK(object);
-		if (!(object->flags & OBJ_DEAD)) {
-			VM_OBJECT_UNLOCK(object);
-			break;
-		}
-		VOP_UNLOCK(vp, 0, td);
-		vm_object_set_flag(object, OBJ_DISCONNECTWNT);
-		msleep(object, VM_OBJECT_MTX(object), PDROP | PVM, "vodead", 0);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	}
-
-	if (object == NULL) {
-		if (vn_isdisk(vp, NULL)) {
-			/*
-			 * This simply allocates the biggest object possible
-			 * for a disk vnode.  This should be fixed, but doesn't
-			 * cause any problems (yet).
-			 */
-			size = IDX_TO_OFF(INT_MAX);
-		} else {
-			if ((error = VOP_GETATTR(vp, &vat, cred, td)) != 0)
-				return (error);
-			size = vat.va_size;
-		}
-
-		object = vnode_pager_alloc(vp, size, 0, 0);
-		/*
-		 * Dereference the reference we just created.  This assumes
-		 * that the object is associated with the vp.
-		 */
-		VM_OBJECT_LOCK(object);
-		object->ref_count--;
-		VM_OBJECT_UNLOCK(object);
-		vrele(vp);
-	}
-
-	KASSERT(vp->v_object != NULL, ("vop_stdcreatevobject: NULL object"));
-
-	return (error);
+	return (vnode_create_vobject(ap->a_vp, 0, ap->a_td));
 }
 
 /* Destroy the VM system object associated with this vnode */
