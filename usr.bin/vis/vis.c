@@ -54,12 +54,13 @@ static const char rcsid[] =
 
 int eflags, fold, foldwidth=80, none, markeol, debug;
 
-void process __P((FILE *, char *filename));
+void process __P((FILE *));
 static void usage __P((void));
 extern int foldit __P((char *, int, int));
 
 int
 main(argc, argv)
+	int argc;
 	char *argv[];
 {
 	FILE *fp;
@@ -115,13 +116,13 @@ main(argc, argv)
 	if (*argv)
 		while (*argv) {
 			if ((fp=fopen(*argv, "r")) != NULL)
-				process(fp, *argv);
+				process(fp);
 			else
 				warn("%s", *argv);
 			argv++;
 		}
 	else
-		process(stdin, "<stdin>");
+		process(stdin);
 	exit(0);
 }
 
@@ -138,12 +139,12 @@ usage()
 }
 
 void
-process(fp, filename)
+process(fp)
 	FILE *fp;
-	char *filename;
 {
 	static int col = 0;
-	register char *cp = "\0"+1;	/* so *(cp-1) starts out != '\n' */
+	static char dummy[] = "\0";
+	register char *cp = dummy+1; /* so *(cp-1) starts out != '\n' */
 	register int c, rachar;
 	char buff[5];
 
