@@ -112,6 +112,7 @@ SYSCTL_INT(_kern, OID_AUTO, maxusers, CTLFLAG_RD,
 SYSCTL_INT(_kern, KERN_ARGMAX, argmax, CTLFLAG_RD,
     0, ARG_MAX, "Maximum bytes of argument to execve(2)");
 
+#include <sys/_posix.h>
 SYSCTL_INT(_kern, KERN_POSIX1, posix1version, CTLFLAG_RD,
     0, _KPOSIX_VERSION, "Version of POSIX attempting to comply to");
 
