@@ -44,14 +44,15 @@
             detected during boot.  Unfortunately, some bugs still exist in both
             the ACPI driver and within system motherboards and BIOS.  The use
             of ACPI can be disabled by setting the
-            <quote>hw.acpi.0.disable</quote> hint in the third stage boot
+            <quote>hint.acpi.0.disabled</quote> hint in the third stage boot
             loader:</para>
 
-          <screen>set.hw.acpi.0.disabled=1</screen>
+          <screen>set hint.acpi.0.disabled="1"</screen>
 
-          <para>This is reset each time the system is booted, so it might be
-            necessary to set it permanently in the file
-            <filename>/boot/loader.conf</filename>.  More inforation about the
+          <para>This is reset each time the system is booted, so it is
+            necessary to add <literal>hint.acpi.0.disabled="1"</literal>
+            to the file
+            <filename>/boot/loader.conf</filename>.  More information about the
             boot loader can be found in the FreeBSD Handbook.</para>
         </answer>
       </qandaentry>
