@@ -1,10 +1,8 @@
-#	$FreeBSD$
+# $FreeBSD$
 
 PROG=	ncplist
-SRCS=	ncplist.c
-MAN1=	ncplist.1
 
-DPADD+= ${LIBIPX} ${LIBNCP}
-LDADD+= -lipx -lncp
+DPADD=	${LIBNCP} ${LIBIPX}
+LDADD=	-lncp -lipx
 
 .include <bsd.prog.mk>
