@@ -1,11 +1,13 @@
 /* $FreeBSD$ */
 /*
- * Qlogic Host Adapter Inline Functions
+ * Qlogic Inline Functions
  *
+ *---------------------------------------
  * Copyright (c) 1999 by Matthew Jacob
  * Feral Software
  * All rights reserved.
  * mjacob@feral.com
+ *---------------------------------------
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
