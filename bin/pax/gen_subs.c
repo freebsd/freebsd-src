@@ -34,11 +34,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: gen_subs.c,v 1.5 1995/08/07 19:17:36 wollman Exp $
+ *	$Id: gen_subs.c,v 1.6 1995/10/23 21:23:14 ache Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)gen_subs.c	8.1 (Berkeley) 5/31/93";
+static char const sccsid[] = "@(#)gen_subs.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -132,10 +132,11 @@ ls_list(arcn, now)
 	if ((arcn->type == PAX_CHR) || (arcn->type == PAX_BLK))
 #		ifdef NET2_STAT
 		(void)printf("%4u,%4u ", MAJOR(sbp->st_rdev),
+		    MINOR(sbp->st_rdev));
 #		else
 		(void)printf("%4lu,%4lu ", (unsigned long)MAJOR(sbp->st_rdev),
+		    (unsigned long)MINOR(sbp->st_rdev));
 #		endif
-		    MINOR(sbp->st_rdev));
 	else {
 #		ifdef NET2_STAT
 		(void)printf("%9lu ", sbp->st_size);

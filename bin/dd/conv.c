@@ -34,11 +34,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: conv.c,v 1.4 1996/11/12 23:09:04 phk Exp $
+ *	$Id: conv.c,v 1.5 1996/11/13 19:59:56 phk Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)conv.c	8.3 (Berkeley) 4/2/94";
+static char const sccsid[] = "@(#)conv.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -129,7 +129,7 @@ block()
 	 * Copy records (max cbsz size chunks) into the output buffer.  The
 	 * translation is done as we copy into the output buffer.
 	 */
-	ch = 0;			/* Help the compiler. */
+	ch = 0;
 	for (inp = in.dbp - in.dbcnt, outp = out.dbp; in.dbcnt;) {
 		maxlen = MIN(cbsz, in.dbcnt);
 		if ((t = ctab) != NULL)

@@ -30,11 +30,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: devname.c,v 1.2 1994/09/24 02:56:41 davidg Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)devname.c	8.1 (Berkeley) 5/31/93";
+static char const sccsid[] = "@(#)devname.c	8.1 (Berkeley) 5/31/93";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
