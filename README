@@ -11,14 +11,19 @@ The Makefile in this directory supports a number of targets for
 building components (or all) of the FreeBSD source tree, the most
 commonly used one being ``world'', which rebuilds and installs
 everything in the FreeBSD system from the source tree except the
-kernel and the contents of /etc.  Please see the top of the Makefile
-in this directory for more information on the standard build targets
-and compile-time flags.
+kernel, the kernel-modules and the contents of /etc.  The
+``buildkernel'' and ``installkernel'' targets build and install
+the kernel and the modules (see below).  Please see the top of
+the Makefile in this directory for more information on the
+standard build targets and compile-time flags.
 
-Building a kernel with config(8) is a somewhat more involved process,
-documentation for which can be found at:
+Building a kernel is a somewhat more involved process, documentation
+for which can be found at:
    http://www.freebsd.org/handbook/kernelconfig.html
 And in the config(8) man page.
+Note: If you want to build and install the kernel with the
+``buildkernel'' and ``installkernel'' targets, you have to build
+world before.  More information is available in the handbook.
 
 The sample kernel configuration files reside in the sys/i386/conf
 sub-directory (assuming that you've installed the kernel sources), the
@@ -35,7 +40,7 @@ bin		System/User commands.
 
 contrib		Packages contributed by 3rd parties.
 
-crypto		Export controlled stuff (see crypto/README).
+crypto		Cryptography stuff (see crypto/README).
 
 etc		Template files for /etc
 
