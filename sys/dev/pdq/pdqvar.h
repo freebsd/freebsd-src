@@ -86,6 +86,8 @@ enum _pdq_type_t {
 #define	PDQ_OS_MEMZERO(p, n)		bzero((caddr_t)(p), (n))
 #if defined(__NetBSD__) && defined(__alpha__)
 #define	PDQ_OS_VA_TO_PA(pdq, p)		(vtophys((vm_offset_t)p) | (pdq->pdq_type == PDQ_DEFTA ? 0 : 0x40000000))
+#elif defined(__FreeBSD__) && defined(__alpha__)
+#define	PDQ_OS_VA_TO_PA(pdq, p)		(vtophys((vm_offset_t)p) | (pdq->pdq_type == PDQ_DEFTA ? 0 : alpha_XXX_dmamap_or))
 #else
 #define	PDQ_OS_VA_TO_PA(pdq, p)		vtophys(p)
 #endif
@@ -102,6 +104,7 @@ enum _pdq_type_t {
 #if defined(__FreeBSD__)
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
+#include <machine/bus.h>
 #include <machine/cpufunc.h>
 #include <machine/clock.h>
 typedef void ifnet_ret_t;
@@ -176,8 +179,8 @@ typedef pdq_uint32_t pdq_bus_memoffset_t;
 #define PDQ_OS_IOWR_32(t, base, offset, data)	outl((base) + (offset), data)
 #define PDQ_OS_IORD_8(t, base, offset)		inb((base) + (offset))
 #define PDQ_OS_IOWR_8(t, base, offset, data)	outb((base) + (offset), data)
-#define PDQ_OS_MEMRD_32(t, base, offset)	(0 + *((base) + (offset)))
-#define PDQ_OS_MEMWR_32(t, base, offset, data)	do *((base) + (offset)) = (data); while (0)
+#define PDQ_OS_MEMRD_32(t, base, offset)	readl((base) + (offset))
+#define PDQ_OS_MEMWR_32(t, base, offset, data)	writel((base) + (offset), data)
 #endif
 #ifndef PDQ_CSR_OFFSET
 #define	PDQ_CSR_OFFSET(base, offset)		(0 + (base) + (offset))
