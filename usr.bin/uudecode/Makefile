@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	uudecode
+WARNS?=	4
 NOMAN=	noman
 
 .include <bsd.prog.mk>
