@@ -1,8 +1,6 @@
 /* Expands front end tree to back end RTL for GNU C-Compiler
    Copyright (C) 1987, 88, 89, 91-97, 1998 Free Software Foundation, Inc.
 
-/* $FreeBSD$ */
-
 This file is part of GNU CC.
 
 GNU CC is free software; you can redistribute it and/or modify
@@ -39,6 +37,8 @@ Boston, MA 02111-1307, USA.  */
    previously given a pseudo-register must in fact go in the stack.
    This function changes the DECL_RTL to be a stack slot instead of a reg
    then scans all the RTL instructions so far generated to correct them.  */
+
+/* $FreeBSD$ */
 
 #include "config.h"
 #include "system.h"
