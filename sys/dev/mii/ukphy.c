@@ -167,6 +167,7 @@ ukphy_attach(dev)
 	printf("\n");
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
+	mii_phy_setmedia(sc);
 
 	return(0);
 }
