@@ -32,9 +32,9 @@
 .\"     @(#)shutdown.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd February 27, 2001
 .Dt SHUTDOWN 2
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm shutdown
 .Nd shut down part of a full-duplex connection
@@ -49,37 +49,42 @@
 The
 .Fn shutdown
 call causes all or part of a full-duplex connection on
-the socket associated with
+the socket associated with the file descriptor
 .Fa s
 to be shut down.
-If
+The
 .Fa how
-is 
-.No Dv SHUT_RD Pq 0 ,
+argument specifies the type of shutdown.
+Possible values are:
+.Bl -tag -width SHUT_RDWR
+.It Dv SHUT_RD
 further receives will be disallowed.
-If
-.Fa how
-is
-.No Dv SHUT_WR Pq 1 ,
+.It Dv SHUT_WR
 further sends will be disallowed.
-If
-.Fa how
-is 
-.No Dv SHUT_RDWR Pq 2 ,
+.It Dv SHUT_RDWR
 further sends and receives will be disallowed.
+.El
 .Sh RETURN VALUES
-A 0 is returned if the call succeeds, -1 if it fails.
+.Rv -std shutdown .
 .Sh ERRORS
-The call succeeds unless:
+The
+.Fn shutdown
+call fails if:
 .Bl -tag -width Er
 .It Bq Er EBADF
-.Fa S
-is not a valid descriptor.
-.It Bq Er ENOTSOCK
-.Fa S
-is a file, not a socket.
+The
+.Fa s
+argument is not a valid file descriptor.
+.It Bq Er EINVAL
+The
+.Fa how
+argument is invalid.
 .It Bq Er ENOTCONN
-The specified socket is not connected.
+The socket is not connected.
+.It Bq Er ENOTSOCK
+The
+.Fa s
+argument does not refer to a socket.
 .El
 .Sh SEE ALSO
 .Xr connect 2 ,
@@ -96,6 +101,8 @@ The
 function call appeared in
 .Bx 4.2 .
 The
-.Dv SHUT_
+.Dv SHUT_RD , SHUT_WR ,
+and
+.Dv SHUT_RDWR
 constants appeared in
 .St -p1003.1g .
