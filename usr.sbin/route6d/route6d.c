@@ -585,7 +585,8 @@ ripalarm()
 void
 init()
 {
-	int	i, int0, int255, error;
+	int	error;
+	const int int0 = 0, int1 = 1, int255 = 255;
 	struct	addrinfo hints, *res;
 	char	port[10];
 
@@ -609,12 +610,18 @@ init()
 		/*NOTREACHED*/
 	}
 
-	int0 = 0; int255 = 255;
 	ripsock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	if (ripsock < 0) {
 		fatal("rip socket");
 		/*NOTREACHED*/
 	}
+#ifdef IPV6_V6ONLY
+	if (setsockopt(ripsock, IPPROTO_IPV6, IPV6_V6ONLY,
+	    &int1, sizeof(int1)) < 0) {
+		fatal("rip IPV6_V6ONLY");
+		/*NOTREACHED*/
+	}
+#endif
 	if (bind(ripsock, res->ai_addr, res->ai_addrlen) < 0) {
 		fatal("rip bind");
 		/*NOTREACHED*/
@@ -630,16 +637,15 @@ init()
 		/*NOTREACHED*/
 	}
 
-	i = 1;
 #ifdef IPV6_RECVPKTINFO
-	if (setsockopt(ripsock, IPPROTO_IPV6, IPV6_RECVPKTINFO, &i,
-	    sizeof(i)) < 0) {
+	if (setsockopt(ripsock, IPPROTO_IPV6, IPV6_RECVPKTINFO,
+	    &int1, sizeof(int1)) < 0) {
 		fatal("rip IPV6_RECVPKTINFO");
 		/*NOTREACHED*/
 	}
 #else  /* old adv. API */
-	if (setsockopt(ripsock, IPPROTO_IPV6, IPV6_PKTINFO, &i,
-	    sizeof(i)) < 0) {
+	if (setsockopt(ripsock, IPPROTO_IPV6, IPV6_PKTINFO,
+	    &int1, sizeof(int1)) < 0) {
 		fatal("rip IPV6_PKTINFO");
 		/*NOTREACHED*/
 	}
