@@ -419,6 +419,27 @@ with an error message.
 Attempts to watch wired kernel memory
 may cause unrecoverable error in some systems such as i386.
 Watchpoints on user addresses work best.
+.It Xo
+.Cm hwatch
+.Ar addr Ns Li \&, Ns Ar size
+.Xc
+Set a hardware watchpoint for a region if supported by the
+architecture.  Execution stops when an attempt to modify the region
+occurs.  The
+.Ar size
+argument defaults to 4.
+.Pp
+.Sy Warning :
+The hardware debug facilities do not have a concept of seperate
+address spaces like the watch command does.  Use
+.Cm hwatch
+for setting watchpoints on kernel address locations only, and avoid
+its use on user mode address spaces.
+.It Xo
+.Cm dhwatch
+.Ar addr Ns Li \&, Ns Ar size
+.Xc
+Delete specified hardware watchpoint.
 .It Cm gdb
 Toggles between remote GDB and DDB mode.  In remote GDB mode, another
 machine is required that runs
