@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/sysctl.h>
+#include <sys/mount.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -128,6 +129,7 @@ struct listinfo {
 	} l;
 };
 
+static int	 check_procfs(void);
 static int	 addelem_gid(struct listinfo *, const char *);
 static int	 addelem_pid(struct listinfo *, const char *);
 static int	 addelem_tty(struct listinfo *, const char *);
@@ -403,6 +405,14 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
+	/*
+	 * If the user specified ps -e then they want a copy of the process
+	 * environment kvm_getenvv(3) attempts to open /proc/<pid>/mem.
+	 * Check to make sure that procfs is mounted on /proc, otherwise
+	 * print a warning informing the user that output will be incomplete.
+	 */
+	if (needenv == 1 && check_procfs() == 0)
+		warnx("Process environment requires procfs(5)");
 	/*
 	 * If there arguments after processing all the options, attempt
 	 * to treat them as a list of process ids.
@@ -1174,6 +1184,18 @@ kludge_oldps_options(const char *optlist, char *origval, const char *nextarg)
 	}
 
 	return (newopts);
+}
+
+static int
+check_procfs(void)
+{
+	struct statfs mnt;
+
+	if (statfs("/proc", &mnt) < 0)
+		return (0);
+	if (strcmp(mnt.f_fstypename, "procfs") != 0)
+		return (0);
+	return (1);
 }
 
 static void
