@@ -117,7 +117,7 @@ static struct buf_ops ffs_ops = {
  * PARAMETERS:
  *		mountroot
  *			mp	mount point structure
- *			path	NULL (flag for root mount!!!)
+ *			path	path to mount point
  *			data	<unused>
  *			ndp	<unused>
  *			p	process (user credentials check [statfs])
@@ -169,9 +169,6 @@ ffs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 		    sizeof(struct ufs2_dinode), NULL, NULL, NULL, NULL,
 		    UMA_ALIGN_PTR, 0);
 	}
-	/*
-	 * Use NULL path to indicate we are mounting the root filesystem.
-	 */
 	if ((mp->mnt_flag & MNT_ROOTFS) && mp->mnt_data == NULL) {
 		if ((error = bdevvp(rootdev, &rootvp))) {
 			printf("ffs_mountroot: can't find rootvp\n");
