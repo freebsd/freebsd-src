@@ -562,7 +562,9 @@ extern	char *mountrootfsname;
  * exported vnode operations
  */
 int	dounmount(struct mount *, int, struct thread *);
-int	kernel_mount(struct iovec *, u_int, int);
+struct mntarg;
+struct mntarg *mount_arg(struct mntarg *ma, const char *name, const void *val, int len);
+int	kernel_mount(struct mntarg *ma, int flags);
 int	kernel_vmount(int flags, ...);
 struct vfsconf *vfs_byname(const char *);
 struct vfsconf *vfs_byname_kld(const char *, struct thread *td, int *);
