@@ -211,6 +211,7 @@ static symtab_t	rmodels[] = {
     { "IntelliMouse Explorer",	MOUSE_MODEL_EXPLORER },
     { "4D Mouse",		MOUSE_MODEL_4D },
     { "4D+ Mouse",		MOUSE_MODEL_4DPLUS },
+    { "Synaptics Touchpad",	MOUSE_MODEL_SYNAPTICS },
     { "generic",		MOUSE_MODEL_GENERIC },
     { NULL,			MOUSE_MODEL_UNKNOWN },
 };
@@ -1056,7 +1057,7 @@ usage(void)
     fprintf(stderr, "%s\n%s\n%s\n%s\n",
 	"usage: moused [-DRcdfs] [-I file] [-F rate] [-r resolution] [-S baudrate]",
 	"              [-a X [,Y]] [-C threshold] [-m N=M] [-w N] [-z N]",
-	"              [-t <mousetype>] [-3 [-E timeout]] -p <port>",
+	"              [-t <mousetype>] [-l level] [-3 [-E timeout]] -p <port>",
 	"       moused [-d] -i <port|if|type|model|all> -p <port>");
     exit(1);
 }
