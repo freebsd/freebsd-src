@@ -120,14 +120,15 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 		}
 		db_printf("%5d %8p %8p %4d %5d %5d %07x %-4s",
 		    p->p_pid, (volatile void *)p, (void *)p->p_uarea, 
-		    p->p_ucred ? p->p_ucred->cr_ruid : 0, pp->p_pid,
-		    p->p_pgrp ? p->p_pgrp->pg_id : 0, p->p_flag, state);
+		    p->p_ucred != NULL ? p->p_ucred->cr_ruid : 0, pp->p_pid,
+		    p->p_pgrp != NULL ? p->p_pgrp->pg_id : 0, p->p_flag,
+		    state);
 		if (p->p_flag & P_KSES) {
 			db_printf("(threaded)  %s\n", p->p_comm);
 			FOREACH_THREAD_IN_PROC(p, td) {
 				db_printf( ".  .  .  .  .  .  .  "
 				           ".  thread %p   .  .  .  ", td);
-				if (td->td_wchan) {
+				if (td->td_wchan != NULL) {
 					db_printf("SLP %6s %8p\n", td->td_wmesg,
 					    (void *)td->td_wchan);
 				} else if (td->td_state == TDS_MTX) {
@@ -139,10 +140,10 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 			}
 		} else {
 			td = FIRST_THREAD_IN_PROC(p);
-			if (td->td_wchan) {
+			if (td != NULL && td->td_wchan != NULL) {
 				db_printf("  %-6s %8p", td->td_wmesg,
 				    (void *)td->td_wchan);
-			} else if (td->td_state == TDS_MTX) {
+			} else if (td != NULL && td->td_state == TDS_MTX) {
 				db_printf("  %6s %8p", td->td_mtxname,
 				    (void *)td->td_blocked);
 			} else {
