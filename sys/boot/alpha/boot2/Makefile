@@ -16,6 +16,9 @@ SRCS+=		main.c conf.c
 CFLAGS+=	-mno-fp-regs
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}
 CFLAGS+=	-I${.CURDIR}/../../.. -I.
+CFLAGS+=	-DLOADER
+CFLAGS+=	-DPRIMARY_LOAD_ADDRESS=${PRIMARY_LOAD_ADDRESS} \
+		-DSECONDARY_LOAD_ADDRESS=${SECONDARY_LOAD_ADDRESS}
 
 CLEANFILES+=	vers.c vers.o gensetdefs.o gensetdefs setdef0.o setdef1.o \
 		setdefs.h start.o
