@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.48.2.17 1997/06/12 07:35:09 jkh Exp $
+ * $Id: tcpip.c,v 1.48.2.18 1997/06/12 09:01:25 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -215,7 +215,7 @@ tcpOpenDialog(Device *devp)
 
     save = savescr();
     /* If non-interactive, jump straight over the dialog crap and into config section */
-    if (variable_get(VAR_NONINTERACTIVE))
+    if (variable_get(VAR_NONINTERACTIVE) && hostname[0])
 	goto netconfig;
 
     /* Now do all the screen I/O */
