@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi.c,v 1.100 2002/05/19 06:24:33 augustss Exp $	*/
+/*	$NetBSD: usbdi.c,v 1.101 2002/06/01 23:51:04 lukem Exp $	*/
 
 /* Also already have from NetBSD:
  *	$NetBSD: usbdi.c,v 1.102 2002/07/11 21:14:35 augustss Exp $
@@ -818,7 +818,7 @@ usb_transfer_complete(usbd_xfer_handle xfer)
 			       xfer, SIMPLEQ_FIRST(&pipe->queue));
 		xfer->busy_free = XFER_BUSY;
 #endif
-		SIMPLEQ_REMOVE_HEAD(&pipe->queue, xfer, next);
+		SIMPLEQ_REMOVE_HEAD(&pipe->queue, next);
 	}
 	DPRINTFN(5,("usb_transfer_complete: repeat=%d new head=%p\n",
 		    repeat, SIMPLEQ_FIRST(&pipe->queue)));
