@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.75 1998/02/21 10:11:41 eivind Exp $
+#	$Id: options.i386,v 1.76 1998/03/09 22:09:11 eivind Exp $
 
 BOUNCEPAGES		opt_bounce.h
 DISABLE_PSE
@@ -120,3 +120,6 @@ PCVT_SCANSET		opt_pcvt.h
 PCVT_SCREENSAVER	opt_pcvt.h
 PCVT_USEKBDSEC		opt_pcvt.h
 PCVT_VT220KEYB		opt_pcvt.h
+# give bktr an opt_bktr.h file
+OVERRIDE_TUNER		opt_bktr.h
+
