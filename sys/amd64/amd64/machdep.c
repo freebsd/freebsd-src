@@ -1645,5 +1645,3 @@ outb(u_int port, u_char data)
 }
 
 #endif /* DDB */
-
-MODULE_VERSION(acpi, 100);
