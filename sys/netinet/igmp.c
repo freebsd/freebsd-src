@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
- * $Id: igmp.c,v 1.16 1996/03/14 16:59:16 fenner Exp $
+ * $Id: igmp.c,v 1.17 1996/03/26 19:16:42 fenner Exp $
  */
 
 /*
@@ -422,6 +422,8 @@ igmp_slowtimo()
 	splx(s);
 }
 
+static struct route igmprt;
+
 static void
 igmp_sendpkt(inm, type, addr)
 	struct in_multi *inm;
@@ -431,17 +433,12 @@ igmp_sendpkt(inm, type, addr)
         struct mbuf *m;
         struct igmp *igmp;
         struct ip *ip;
-        struct ip_moptions *imo;
+        struct ip_moptions imo;
+	struct sockaddr_in *sin;
 
         MGETHDR(m, M_DONTWAIT, MT_HEADER);
         if (m == NULL)
                 return;
-
-	MALLOC(imo, struct ip_moptions *, sizeof *imo, M_IPMOPTS, M_DONTWAIT);
-	if (!imo) {
-		m_free(m);
-		return;
-	}
 
 	m->m_pkthdr.rcvif = loif;
 	m->m_pkthdr.len = sizeof(struct ip) + IGMP_MINLEN;
@@ -465,17 +462,20 @@ igmp_sendpkt(inm, type, addr)
         ip->ip_src.s_addr = INADDR_ANY;
         ip->ip_dst.s_addr = addr ? addr : igmp->igmp_group.s_addr;
 
-        imo->imo_multicast_ifp  = inm->inm_ifp;
-        imo->imo_multicast_ttl  = 1;
-	imo->imo_multicast_vif  = -1;
+        imo.imo_multicast_ifp  = inm->inm_ifp;
+        imo.imo_multicast_ttl  = 1;
+	imo.imo_multicast_vif  = -1;
         /*
          * Request loopback of the report if we are acting as a multicast
          * router, so that the process-level routing demon can hear it.
          */
-        imo->imo_multicast_loop = (ip_mrouter != NULL);
+        imo.imo_multicast_loop = (ip_mrouter != NULL);
 
-        ip_output(m, router_alert, (struct route *)0, 0, imo);
+	/*
+	 * XXX
+	 * Do we have to worry about reentrancy here?  Don't think so.
+	 */
+        ip_output(m, router_alert, &igmprt, 0, &imo);
 
-	FREE(imo, M_IPMOPTS);
         ++igmpstat.igps_snd_reports;
 }
