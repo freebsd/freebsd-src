@@ -87,8 +87,11 @@ extern int	tagoption;
  * Filename "-" means standard input.
  * No filename means the "current" file, from the command line.  If called
  * with the same filename in succession, filename will be closed and reopened.
+ *
+ * If called with FORCE_OPEN, the file will be re-opened even if it is
+ * already open.
  */
-edit(filename)
+edit(filename, force_open)
 	register char *filename;
 {
 	register int f;
@@ -98,6 +101,15 @@ edit(filename)
 	static int didpipe;
 	char message[MAXPATHLEN + 50], *p;
 	char *rindex(), *strerror(), *save(), *bad_file();
+	extern int horiz_off, wraplines;
+
+	if (force_open == NO_FORCE_OPEN &&
+	    current_file && filename && !strcmp(filename, current_file))
+		return(1);
+
+	/* Okay since later code in this fcn() always forces redraw() */
+	horiz_off = 0;
+	wraplines = 0;
 
 	initial_pos = NULL_POSITION;
 	if (filename == NULL || *filename == '\0') {
@@ -176,7 +188,6 @@ edit(filename)
 		next_name = av[curr_ac + 1];
 	file = f;
 	ch_init(cbufs, 0);
-	init_mark();
 
 	if (isatty(STDOUT_FILENO)) {
 		int no_display = !any_display;
@@ -215,7 +226,7 @@ next_file(n)
 		error("No (N-th) next file");
 	}
 	else
-		(void)edit(av[curr_ac += n]);
+		(void)edit(av[curr_ac += n], FORCE_OPEN);
 }
 
 /*
@@ -227,7 +238,7 @@ prev_file(n)
 	if (curr_ac - n < 0)
 		error("No (N-th) previous file");
 	else
-		(void)edit(av[curr_ac -= n]);
+		(void)edit(av[curr_ac -= n], FORCE_OPEN);
 }
 
 /*
@@ -287,6 +298,8 @@ main(argc, argv)
 	av = argv;
 	curr_ac = 0;
 
+	init_mark();
+
 	/*
 	 * Set up terminal, etc.
 	 */
@@ -296,12 +309,12 @@ main(argc, argv)
 		 * Just copy the input file(s) to output.
 		 */
 		if (ac < 1) {
-			(void)edit("-");
+			(void)edit("-", NOFLAGS);
 			if (file >= 0)
 				cat_file();
 		} else {
 			do {
-				(void)edit((char *)NULL);
+				(void)edit((char *)NULL, FORCE_OPEN);
 				if (file >= 0)
 					cat_file();
 			} while (++curr_ac < ac);
@@ -321,11 +334,11 @@ main(argc, argv)
 		 * A -t option was given; edit the file selected by the
 		 * "tags" search, and search for the proper line in the file.
 		 */
-		if (!tagfile || !edit(tagfile) || tagsearch())
+		if (!tagfile || !edit(tagfile, NOFLAGS) || tagsearch())
 			quit();
 	}
 	else if (ac < 1)
-		(void)edit("-");	/* Standard input */
+		(void)edit("-", NOFLAGS);  /* Standard input */
 	else {
 		/*
 		 * Try all the files named as command arguments.
@@ -333,7 +346,7 @@ main(argc, argv)
 		 * opened without error.
 		 */
 		do {
-			(void)edit((char *)NULL);
+			(void)edit((char *)NULL, NOFLAGS);
 		} while (file < 0 && ++curr_ac < ac);
 	}
 
