@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.46.2.3 1997/04/20 20:15:49 jkh Exp $
+#	$Id: bsd.lib.mk,v 1.46.2.4 1997/05/13 16:18:58 jdp Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -143,19 +143,15 @@ lib${LIB}_p.a:: ${POBJS}
 .endif
 
 .if defined(DESTDIR)
-LDDESTDIR?=	-L${DESTDIR}/usr/lib
+LDDESTDIRENV?=	LIBRARY_PATH=${DESTDIR}${SHLIBDIR}:${DESTDIR}/usr/lib
 .endif
 
 .if !defined(NOPIC)
-.if defined(CPLUSPLUSLIB) && !make(clean) && !make(cleandir)
-SOBJS+= ${DESTDIR}/usr/lib/c++rt0.o
-.endif
-
 SOBJS+= ${OBJS:.o=.so}
 lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}: ${SOBJS}
 	@${ECHO} building shared ${LIB} library \(version ${SHLIB_MAJOR}.${SHLIB_MINOR}\)
 	@rm -f lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
-	@${LD} -Bshareable -x \
+	@${LDDESTDIRENV} ${CC} -shared -Wl,-x \
 	    -o lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
 	    `lorder ${SOBJS} | tsort -q` ${LDDESTDIR} ${LDADD}
 
