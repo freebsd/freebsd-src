@@ -574,7 +574,7 @@ Bill Jolitz, for his extensive work with 386BSD.
 
 The FreeBSD "core" team:
 
-	Andrew A. Chernov
+	Andrey A. Chernov
 	John Dyson
 	Bruce Evans
 	David Greenman
@@ -621,4 +621,4 @@ hope you enjoy this release of FreeBSD!
 
 			The FreeBSD Core Team
 
-$Id: RELNOTES.FreeBSD,v 1.21 1994/12/02 20:27:11 jkh Exp $
+$Id: RELNOTES.FreeBSD,v 1.22 1995/01/27 23:15:31 jkh Exp $
