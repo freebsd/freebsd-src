@@ -26,7 +26,7 @@ local_start()
 
 local_stop()
 {
-	echo -n 'Shutting down loacal daemons:'
+	echo -n 'Shutting down local daemons:'
 	if [ -f /etc/rc.shutdown.local ]; then
 		. /etc/rc.shutdown.local
 	fi
