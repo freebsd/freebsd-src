@@ -1,14 +1,13 @@
 # Makefile for libgmp
-# $Id$
+# $Id: Makefile,v 1.1 1995/11/13 19:13:19 markm Exp $
 
 LIB=    gmp
 SRCS=	$(GMP_SRCS)
-.PATH: ${.CURDIR}/../libmp
 CLEANFILES+=	cre-mparam cre-conv-tab gmp-mparam.h mp_bases.c
 
-GMP_SRCS=	$(MPZ_SRCS) $(MPQ_SRCS) $(MPN_SRCS) $(IMPL_SRCS) mp_bases.c
+GMP_SRCS=	mp_bases.c $(MPZ_SRCS) $(MPQ_SRCS) $(MPN_SRCS) $(IMPL_SRCS)
 
-CFLAGS+=	-I${.CURDIR}/../libmp -I${.OBJDIR} -Wall -Wstrict-prototypes -DLOCALE
+CFLAGS+=	-I${.CURDIR} -I${.OBJDIR} -Wall -Wstrict-prototypes -DLOCALE
 
 MPN_SRCS=	mpn_add.c mpn_sub.c mpn_cmp.c mpn_mul.c mpn_div.c mpn_dm_1.c \
 		mpn_mod_1.c mpn_lshift.c mpn_rshift.c mpn_rshiftci.c mpn_sqrt.c
@@ -36,18 +35,22 @@ MPQ_SRCS=	mpq_init.c mpq_set.c mpq_set_ui.c mpq_set_si.c \
 		mpq_add.c mpq_sub.c mpq_mul.c mpq_div.c mpq_clear.c \
 		mpq_cmp.c mpq_inv.c mpq_neg.c
 
+SUBDIR+=	doc
+
 beforedepend:	gmp-mparam.h mp_bases.c
 
 beforeinstall:
-	cmp -s ${.CURDIR}/../libmp/gmp.h ${DESTDIR}/usr/include/gmp.h || \
+	cmp -s ${.SRCDIR}/gmp.h ${DESTDIR}/usr/include/gmp.h || \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/../libmp/gmp.h ${DESTDIR}/usr/include/gmp.h
+		${.SRCDIR}/gmp.h ${DESTDIR}/usr/include/gmp.h
 
 cre-mparam: cre-mparam.c
-	$(CC) $(CFLAGS) ${.OODATE} -o ${.TARGET}
+	$(CC) $(CFLAGS) ${.CURDIR}/cre-mparam.c -o ${.TARGET}
 
-cre-conv-tab: cre-conv-tab.c
-	$(CC) $(CFLAGS) -lm ${.OODATE} -o ${.TARGET}
+cre-conv-tab: cre-conv-tab.c gmp-mparam.h
+	$(CC) $(CFLAGS) -lm ${.CURDIR}/cre-conv-tab.c -o ${.TARGET}
+
+cre-conv-tab: gmp-mparam.h
 
 gmp-mparam.h: cre-mparam
 	./cre-mparam > tmp-${.TARGET}
