@@ -84,13 +84,6 @@ optpat()
 		return NULL;
 	}
 	patlock = 0;
-#ifdef GNU_REGEX
-	/* initialize pattern buffer */
-	exp->buffer = NULL;
-	exp->allocated = 0L;
-	exp->fastmap = 0;		/* not used by GNU regex after 0.12 */
-	exp->translate = 0;
-#endif
 	if (n = regcomp(exp, exps, 0)) {
 		regerror(n, exp, errmsg, sizeof errmsg);
 		return NULL;

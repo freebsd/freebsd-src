@@ -49,7 +49,7 @@
 #define BITS(type)  (BITSPERBYTE * (int)sizeof(type))
 #define CHARBITS    BITS(char)
 #define INTBITS     BITS(int)
-#define INTHIBIT    (1 << (INTBITS - 1))
+#define INTHIBIT    (unsigned) (1 << (INTBITS - 1))
 
 #define ERR		(-2)
 #define EMOD		(-3)
