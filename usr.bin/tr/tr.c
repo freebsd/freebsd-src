@@ -238,12 +238,17 @@ main(argc, argv)
 			(void)next(&s2);
 		}
 
-	if (cflag)
-		for (cnt = 0, p = string1; cnt < NCHARS; ++p, ++cnt)
-			*p = *p == OOBCH ? ch : cnt;
-	else if (Cflag)
-		for (cnt = 0, p = string1; cnt < NCHARS; ++p, ++cnt)
-			*p = *p == OOBCH && ISCHAR(cnt) ? ch : cnt;
+	if (cflag || Cflag) {
+		s2.str = argv[1];
+		s2.state = NORMAL;
+		for (cnt = 0, p = string1; cnt < NCHARS; ++p, ++cnt) {
+			if (*p == OOBCH && (!Cflag || ISCHAR(cnt))) {
+				(void)next(&s2);
+				*p = s2.lastch;
+			} else
+				*p = cnt;
+		}
+	}
 
 	if (sflag)
 		for (lastch = OOBCH; (ch = getchar()) != EOF;) {
