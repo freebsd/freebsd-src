@@ -210,6 +210,11 @@ MFSLABEL=		auto
 MFSSIZE=		4096
 MFSINODE=		8192
 MFSLABEL=		auto
+.elif ${TARGET_ARCH} == "powerpc"
+DISKLABEL=		""
+MFSSIZE=		4096
+MFSINODE=		8192
+MFSLABEL=		auto
 .endif
 .if defined(NO_FLOPPIES)
 .undef MAKE_FLOPPIES
@@ -710,7 +715,7 @@ release.8:
 	-test -f ${.CURDIR}/install.cfg \
 	    && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
 	@mkdir -p ${RD}/mfsfd/boot
-.if ${TARGET_ARCH} != "ia64"
+.if ${TARGET_ARCH} != "ia64" && ${TARGET_ARCH} != "powerpc"
 	@cp ${RD}/trees/base/boot/boot* ${RD}/mfsfd/boot
 .endif
 .if ${TARGET} == "i386" || ${TARGET_ARCH} == "amd64"
