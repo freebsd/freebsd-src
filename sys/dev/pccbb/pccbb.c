@@ -729,9 +729,10 @@ pccbb_removal (struct pccbb_softc *sc)
 		CARD_DETACH_CARD(sc->sc_cbdev, DETACH_FORCE);
 
 	while (NULL != (rle = SLIST_FIRST(&sc->rl))) {
-		device_printf(sc->sc_dev, "WARNING: Resource left allocated!  "
-			      "This is a bug... (rid=%x, type=%d, addr=%x)\n",
-			      rle->rid, rle->type, rle->start);
+		device_printf(sc->sc_dev, "Danger Will Robinson: Resource "
+		    "left allocated!  This is a bug... "
+		    "(rid=%x, type=%d, addr=%x)\n", rle->rid, rle->type,
+		    rle->start);
 		SLIST_REMOVE_HEAD(&sc->rl, entries);
 	}
 }
