@@ -1,4 +1,4 @@
-# $Id: README,v 1.8 1997/07/31 04:40:11 jdp Exp $
+# $Id: README,v 1.9 1997/08/07 05:12:41 jdp Exp $
 
 This directory contains sample "supfiles" for obtaining and updating
 the FreeBSD sources via the Internet.  These supfiles will work
@@ -41,6 +41,9 @@ below for your updates.
   Brazil:
     cvsup.br.FreeBSD.org
 
+  Estonia:
+    cvsup.ee.FreeBSD.org
+
   Germany:
     cvsup.de.FreeBSD.org
 
@@ -52,6 +55,9 @@ below for your updates.
 
   Norway:
     cvsup.no.FreeBSD.org
+
+  Russia:
+    cvsup.ru.FreeBSD.org
 
   South Africa:
     cvsup.za.FreeBSD.org
@@ -72,3 +78,6 @@ below for your updates.
 
   International Crypto Repository:
     cvsup.internat.FreeBSD.org
+
+  Special CTM-synchronized CVSup site:
+    ctm.FreeBSD.org
