@@ -823,6 +823,35 @@ struct	__getcwd_args {
 	u_char * buf;
 	u_int buflen;
 };
+struct	sched_setparam_args {
+	pid_t pid;
+	const struct sched_param * param;
+};
+struct	sched_getparam_args {
+	pid_t pid;
+	struct sched_param * param;
+};
+struct	sched_setscheduler_args {
+	pid_t pid;
+	int policy;
+	const struct sched_param * param;
+};
+struct	sched_getscheduler_args {
+	pid_t pid;
+};
+struct	sched_yield_args {
+	int dummy;
+};
+struct	sched_get_priority_max_args {
+	int policy;
+};
+struct	sched_get_priority_min_args {
+	int policy;
+};
+struct	sched_rr_get_interval_args {
+	pid_t pid;
+	struct timespec * interval;
+};
 int	nosys __P((struct proc *, struct nosys_args *));
 void	exit __P((struct proc *, struct rexit_args *)) __dead2;
 int	fork __P((struct proc *, struct fork_args *));
@@ -1014,6 +1043,14 @@ int	thr_wakeup __P((struct proc *, struct thr_wakeup_args *));
 int	mlockall __P((struct proc *, struct mlockall_args *));
 int	munlockall __P((struct proc *, struct munlockall_args *));
 int	__getcwd __P((struct proc *, struct __getcwd_args *));
+int	sched_setparam __P((struct proc *, struct sched_setparam_args *));
+int	sched_getparam __P((struct proc *, struct sched_getparam_args *));
+int	sched_setscheduler __P((struct proc *, struct sched_setscheduler_args *));
+int	sched_getscheduler __P((struct proc *, struct sched_getscheduler_args *));
+int	sched_yield __P((struct proc *, struct sched_yield_args *));
+int	sched_get_priority_max __P((struct proc *, struct sched_get_priority_max_args *));
+int	sched_get_priority_min __P((struct proc *, struct sched_get_priority_min_args *));
+int	sched_rr_get_interval __P((struct proc *, struct sched_rr_get_interval_args *));
 
 #ifdef COMPAT_43
 

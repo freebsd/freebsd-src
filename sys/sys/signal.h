@@ -36,13 +36,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)signal.h	8.4 (Berkeley) 5/4/95
- * $Id: signal.h,v 1.11 1997/02/22 09:45:53 peter Exp $
+ * $Id: signal.h,v 1.12 1997/09/13 19:42:29 joerg Exp $
  */
 
 #ifndef	_SYS_SIGNAL_H_
 #define	_SYS_SIGNAL_H_
 
 #include <sys/cdefs.h>
+#include <sys/_posix.h>
 #include <machine/signal.h>	/* sig_atomic_t; trap codes; sigcontext */
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
@@ -197,6 +198,32 @@ struct	sigstack {
 
 #endif	/* !_POSIX_SOURCE */
 #endif	/* !_ANSI_SOURCE */
+
+#ifdef _P1003_1B_VISIBLE_HISTORICALLY
+
+/* sys/aio.h unconditionally defined these */
+
+union sigval {
+	int	sival_int;		/* Integer signal value */
+	void	*sival_ptr;		/* Pointer signal value */
+};
+
+typedef struct siginfo {
+	int	si_signo;		/* Signal number */
+	int	si_code;		/* Cause of the signal */
+	union sigval si_value;		/* Signal value */
+} siginfo_t;
+
+struct sigevent {
+	int	sigev_notify;		/* Notification type */
+	int	sigev_signo;		/* Signal number */
+	union sigval sigev_value;	/* Signal value */
+};
+
+#define	SIGEV_NONE	0		/* No async notification */
+#define	SIGEV_SIGNAL	1		/* Generate a queued signal */
+
+#endif
 
 /*
  * For historical reasons; programs expect signal's return value to be

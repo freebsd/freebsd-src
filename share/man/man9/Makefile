@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.34 1998/01/16 18:49:42 bde Exp $
+#	$Id: Makefile,v 1.35 1998/03/04 10:23:48 dufault Exp $
 
 MAN9=	MD5.9 \
 	VFS.9 VFS_FHTOVP.9 VFS_INIT.9 VFS_MOUNT.9 VFS_QUOTACTL.9 \
@@ -43,6 +43,7 @@ MLINKS+=ifnet.9 if_data.9 ifnet.9 ifaddr.9 ifnet.9 ifqueue.9
 MLINKS+=kernacc.9 useracc.9
 MLINKS+=malloc.9 FREE.9 malloc.9 MALLOC.9 malloc.9 free.9
 MLINKS+=mi_switch.9 cpu_switch.9
+MLINKS+=posix4.9 p1003_1b.9
 MLINKS+=psignal.9 gsignal.9 psignal.9 pgsignal.9
 MLINKS+=rtalloc.9 rtalloc1.9 rtalloc.9 rtalloc_ign.9
 MLINKS+=sleep.9 tsleep.9 sleep.9 wakeup.9 sleep.9 wakeup_one.9

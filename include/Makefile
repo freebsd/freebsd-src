@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.74 1998/03/08 02:17:25 jb Exp $
+#	$Id: Makefile,v 1.75 1998/03/08 21:35:29 jb Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -35,7 +35,7 @@ RPCFILES=	auth.h auth_unix.h clnt.h pmap_clnt.h pmap_prot.h pmap_rmt.h \
 MFILES=	float.h floatingpoint.h stdarg.h varargs.h
 
 # posix4/aio.h conflicts with dysons and isn't installed:
-PFILES=	mqueue.h posix4.h sched.h semaphore.h \
+PFILES=	mqueue.h sched.h semaphore.h \
 		# aio.h
 
 LFILES=	errno.h fcntl.h poll.h syslog.h termios.h

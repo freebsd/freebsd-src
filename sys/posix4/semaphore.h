@@ -1,7 +1,7 @@
 #ifndef _SEMAPHORE_H_
 #define _SEMAPHORE_H_
 
-/* semaphore.h: POSIX.4 semaphores */
+/* semaphore.h: POSIX 1003.1b semaphores */
 
 /*-
  * Copyright (c) 1996, 1997
@@ -36,7 +36,9 @@
  *
  */
 
-#ifdef _POSIX4_INCLUDE_MAYBES
+#include <sys/_posix.h>
+
+#ifdef _P1003_1B_INCLUDE_MAYBES
 #include <sys/types.h>
 #include <fcntl.h>
 #endif

@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: $
+ *	$Id: _posix.h,v 1.1 1998/03/08 17:25:27 dufault Exp $
  */
 
 /*
@@ -39,35 +39,59 @@
  *
  */
 
+#ifdef KERNEL
+
+#ifndef ACTUALLY_LKM_NOT_KERNEL
+#include "opt_posix.h"
+#endif
+
+/* Only kern_mib.c uses _POSIX_VERSION.  Introduce a kernel
+ * one to avoid other pieces of the kernel getting dependant
+ * on that.
+ * XXX Complain if you think this dumb.
+ */
+
+/* Make P1003 structures visible for the kernel if
+ * the P1003_1B option is in effect.
+ */
+#ifdef P1003_1B
+#define _P1003_1B_VISIBLE
+#ifndef _KPOSIX_VERSION
+#define	_KPOSIX_VERSION		199309L
+#endif
+#endif
+
+#ifndef _KPOSIX_VERSION
+#define	_KPOSIX_VERSION		199009L
+#endif
+
+#define _P1003_1B_VISIBLE_HISTORICALLY
+
+#else
+
+/* Default to existing user space version.
+ */
 #ifndef _POSIX_VERSION
 #define	_POSIX_VERSION		199009L
 #endif
 
-/* Test for visibility of pre-existing POSIX.4 features that should really
- * be conditional.  If _POSIX_C_SOURCE and _POSIX_SOURCE are not
- * defined then permit the pre-existing features to show up:
- */
-#if !defined(_POSIX_SOURCE) && !defined(_POSIX_C_SOURCE)
-#define _POSIX4_VISIBLE_HISTORICALLY
-#endif
-
-/* Test for visibility of additional POSIX.4 features:
- */
-#if _POSIX_VERSION  >= 199309L && \
-    (!defined(_POSIX_C_SOURCE) || _POSIX_C_SOURCE >= 199309L)
-#define _POSIX4_VISIBLE
-#define _POSIX4_VISIBLE_HISTORICALLY
-#endif
-
-/* I'm not sure if I'm allowed to do this, but at least initially
- * it may catch some teething problems:
+/* Test for visibility of P1003.1B features:
+ * If _POSIX_SOURCE and POSIX_C_SOURCE are completely undefined
+ * they show up.
+ *
+ * If they specify a version including P1003.1B then they show up.
+ *
+ * (Two macros are added to permit hiding new extensions while 
+ * keeping historic BSD features - that is not done now)
+ *
  */
 
-#if defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE > _POSIX_VERSION)
-#error _POSIX_C_SOURCE > _POSIX_VERSION
+#if (!defined(_POSIX_SOURCE) && !defined(_POSIX_C_SOURCE)) || \
+ (_POSIX_VERSION  >= 199309L && defined(_POSIX_C_SOURCE) && \
+  _POSIX_C_SOURCE >= 199309L)
+#define _P1003_1B_VISIBLE
+#define _P1003_1B_VISIBLE_HISTORICALLY
 #endif
 
-#define POSIX4_VISIBLE You missed the leading _!!
-#define POSIX4_VISIBLE_FORCEABLY You left the old define in the code!!
-
+#endif /* not KERNEL */
 #endif /* _SYS__POSIX_H_ */

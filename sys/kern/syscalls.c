@@ -333,4 +333,12 @@ char *syscallnames[] = {
 	"mlockall",			/* 324 = mlockall */
 	"munlockall",			/* 325 = munlockall */
 	"__getcwd",			/* 326 = __getcwd */
+	"sched_setparam",			/* 327 = sched_setparam */
+	"sched_getparam",			/* 328 = sched_getparam */
+	"sched_setscheduler",			/* 329 = sched_setscheduler */
+	"sched_getscheduler",			/* 330 = sched_getscheduler */
+	"sched_yield",			/* 331 = sched_yield */
+	"sched_get_priority_max",			/* 332 = sched_get_priority_max */
+	"sched_get_priority_min",			/* 333 = sched_get_priority_min */
+	"sched_rr_get_interval",			/* 334 = sched_rr_get_interval */
 };

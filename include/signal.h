@@ -37,9 +37,9 @@
 #define	_SIGNAL_H_
 
 #include <sys/cdefs.h>
+#include <sys/_posix.h>
 #include <sys/signal.h>
 #include <machine/ansi.h>
-#include <sys/_posix.h>
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 extern __const char *__const sys_signame[NSIG];
@@ -66,13 +66,7 @@ int	sigprocmask __P((int, const sigset_t *, sigset_t *));
 int	sigsuspend __P((const sigset_t *));
 
 
-#ifdef _POSIX4_VISIBLE
-
-typedef struct siginfo {
-	int	si_signo;		/* Signal number */
-	int	si_code;		/* Cause of the signal */
-	union sigval si_value;		/* Signal value */
-} siginfo_t;
+#ifdef _P1003_1B_VISIBLE
 
 __BEGIN_DECLS
 int sigqueue __P((_BSD_PID_T_, int, const union sigval));

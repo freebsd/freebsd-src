@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.47 1998/01/30 11:33:01 phk Exp $
+	$Id: syscalls.master,v 1.48 1998/02/03 17:45:43 bde Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -461,3 +461,14 @@
 324     STD     BSD     { int mlockall(int how); }
 325     STD     BSD     { int munlockall(void); }
 326     STD     BSD     { int __getcwd(u_char *buf, u_int buflen); }
+
+327     STD     POSIX   { int sched_setparam (pid_t pid, const struct sched_param *param); }
+328     STD     POSIX   { int sched_getparam (pid_t pid, struct sched_param *param); }
+
+329     STD     POSIX   { int sched_setscheduler (pid_t pid, int policy, const struct sched_param *param); }
+330     STD     POSIX   { int sched_getscheduler (pid_t pid); }
+
+331     STD     POSIX   { int sched_yield (void); }
+332     STD     POSIX   { int sched_get_priority_max (int policy); }
+333     STD     POSIX   { int sched_get_priority_min (int policy); }
+334     STD     POSIX   { int sched_rr_get_interval (pid_t pid, struct timespec *interval); }

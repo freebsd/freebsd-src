@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.48 1998/03/23 06:58:06 jb Exp $
+#	$Id: Makefile.inc,v 1.49 1998/03/23 21:04:06 jb Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/sys ${.CURDIR}/../libc/sys
@@ -100,6 +100,12 @@ MAN2+=	_exit.2 accept.2 access.2 acct.2 adjtime.2 \
 	swapon.2 symlink.2 sync.2 syscall.2 truncate.2 umask.2 undelete.2 \
 	unlink.2 utimes.2 vfork.2 wait.2 write.2
 
+.if !defined(NO_P1003_1B)
+MAN2+=	sched_get_priority_max.2 sched_setscheduler.2 \
+	sched_setparam.2 sched_yield.2
+.endif
+
+
 MLINKS+=brk.2 sbrk.2
 MLINKS+=dup.2 dup2.2
 MLINKS+=chdir.2 fchdir.2
@@ -135,4 +141,10 @@ MLINKS+=syscall.2 __syscall.2
 MLINKS+=truncate.2 ftruncate.2
 MLINKS+=wait.2 wait3.2 wait.2 wait4.2 wait.2 waitpid.2
 MLINKS+=write.2 writev.2
+.if !defined(NO_P1003_1B)
+MLINKS+=sched_get_priority_max.2 sched_get_priority_min.2 \
+	sched_get_priority_max.2 sched_rr_get_interval.2
+MLINKS+=sched_setscheduler.2 sched_getscheduler.2
+MLINKS+=sched_setparam.2 sched_getparam.2
+.endif
 .endif

@@ -236,4 +236,12 @@
 #define	SYS_mlockall	324
 #define	SYS_munlockall	325
 #define	SYS___getcwd	326
-#define	SYS_MAXSYSCALL	327
+#define	SYS_sched_setparam	327
+#define	SYS_sched_getparam	328
+#define	SYS_sched_setscheduler	329
+#define	SYS_sched_getscheduler	330
+#define	SYS_sched_yield	331
+#define	SYS_sched_get_priority_max	332
+#define	SYS_sched_get_priority_min	333
+#define	SYS_sched_rr_get_interval	334
+#define	SYS_MAXSYSCALL	335
