@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id: mfs_vfsops.c,v 1.17 1995/12/03 11:17:15 bde Exp $
+ * $Id: mfs_vfsops.c,v 1.18 1995/12/14 14:25:03 peter Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
@@ -67,6 +68,7 @@
 # include <i386/i386/cons.h>	/* console IO */
 #endif
 
+extern int	mfs_imageload __P((dev_t dev, caddr_t addr, int size));
 extern int	mfs_initminiroot __P((caddr_t base));
 
 caddr_t	mfs_rootbase;	/* address of mini-root in kernel virtual memory */
@@ -124,7 +126,7 @@ mfs_imageload (dev, addr, size)
 	struct	iovec iovec;
 	struct	uio uio;
 
-	error = (*cdevsw[maj].d_open)(dev, 0, S_IFCHR , (struct proc *)0);
+	error = (*cdevsw[maj]->d_open)(dev, 0, S_IFCHR , (struct proc *)0);
 	if (error) {
 		printf("mfs_imageload: could not open load device c %d,%d\n", maj, mindev);
 		goto out;
@@ -148,7 +150,7 @@ mfs_imageload (dev, addr, size)
 		uio.uio_procp  = (struct proc *)0;
 
 		/* perform the read request */
-		error = (*cdevsw[maj].d_read)(dev, &uio, 0);
+		error = (*cdevsw[maj]->d_read)(dev, &uio, 0);
 		if (error) {
 			printf("mfs_imageload: read failed! (error %d)\n", error);
 			break;
@@ -165,7 +167,7 @@ mfs_imageload (dev, addr, size)
 
 	/* close the driver */
 out:
-	(void)(*cdevsw[maj].d_close)(dev, 0, S_IFCHR, (struct proc *)0);
+	(void)(*cdevsw[maj]->d_close)(dev, 0, S_IFCHR, (struct proc *)0);
 	return (error);
 }
 #endif	/* MFS_AUTOLOAD */
