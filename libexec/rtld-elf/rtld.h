@@ -189,7 +189,6 @@ extern Elf_Addr _GLOBAL_OFFSET_TABLE_[];
 /*
  * Function declarations.
  */
-int do_copy_relocations(Obj_Entry *);
 unsigned long elf_hash(const char *);
 const Elf_Sym *find_symdef(unsigned long, const Obj_Entry *,
   const Obj_Entry **, bool, SymCache *);
@@ -197,11 +196,16 @@ void init_pltgot(Obj_Entry *);
 void lockdflt_init(void);
 void obj_free(Obj_Entry *);
 Obj_Entry *obj_new(void);
-int reloc_non_plt(Obj_Entry *, Obj_Entry *);
-int reloc_plt(Obj_Entry *);
-int reloc_jmpslots(Obj_Entry *);
 void _rtld_bind_start(void);
 const Elf_Sym *symlook_obj(const char *, unsigned long,
   const Obj_Entry *, bool);
+
+/*
+ * MD function declarations.
+ */
+int do_copy_relocations(Obj_Entry *);
+int reloc_non_plt(Obj_Entry *, Obj_Entry *);
+int reloc_plt(Obj_Entry *);
+int reloc_jmpslots(Obj_Entry *);
 
 #endif /* } */
