@@ -1,5 +1,4 @@
-#	$Id: options.pc98,v 1.66 1998/09/15 14:10:56 kato Exp $
-BOUNCEPAGES		opt_bounce.h
+#	$Id: options.pc98,v 1.67 1998/09/16 08:37:40 kato Exp $
 DISABLE_PSE
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -74,7 +73,7 @@ STD8X16FONT		opt_syscons.h
 SC_HISTORY_SIZE		opt_syscons.h
 SC_DISABLE_REBOOT	opt_syscons.h
 SC_MOUSE_CHAR		opt_syscons.h
-SC_BAD_FLICKER		opt_syscons.h
+SC_ALT_SEQACCESS	opt_syscons.h
 
 VESA			opt_vesa.h
 
