@@ -638,7 +638,7 @@ ns8250_bus_probe(struct uart_softc *sc)
 		sc->sc_rxfifosz = 128;
 		device_set_desc(sc->sc_dev, "16950 or compatible");
 	} else {
-		sc->sc_rxfifosz = 1;
+		sc->sc_rxfifosz = 16;
 		device_set_desc(sc->sc_dev,
 		    "Non-standard ns8250 class UART with FIFOs");
 	}
