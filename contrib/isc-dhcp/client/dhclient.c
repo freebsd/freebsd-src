@@ -3320,6 +3320,8 @@ void state_link (cpp)
 			}
 		}
 	}
+	if (doinitcheck)
+		go_daemon ();
 	doinitcheck = 1;
 }
 #endif /* ifdef ENABLE_POLLING_MODE */
