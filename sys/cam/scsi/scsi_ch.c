@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 1997 Justin T. Gibbs.
- * Copyright (c) 1997, 1998 Kenneth D. Merry.
+ * Copyright (c) 1997, 1998, 1999 Kenneth D. Merry.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_ch.c,v 1.8 1998/12/12 23:52:46 gibbs Exp $
+ *      $Id: scsi_ch.c,v 1.9 1998/12/22 20:05:23 eivind Exp $
  */
 /*
  * Derived from the NetBSD SCSI changer driver.
@@ -414,7 +414,8 @@ chregister(struct cam_periph *periph, void *arg)
 	devstat_add_entry(&softc->device_stats, "ch",
 			  periph->unit_number, 0,
 			  DEVSTAT_NO_BLOCKSIZE | DEVSTAT_NO_ORDERED_TAGS,
-			  cgd->pd_type | DEVSTAT_TYPE_IF_SCSI);
+			  cgd->pd_type | DEVSTAT_TYPE_IF_SCSI,
+			  DEVSTAT_PRIORITY_OTHER);
 
 	/*
 	 * Add an async callback so that we get
