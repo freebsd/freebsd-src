@@ -108,6 +108,8 @@ static char sccsid[] = "@(#)machdep.c	8.1 (Berkeley) 5/31/93";
 #endif
 
 #include <signal.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include "rogue.h"
 #include "pathnames.h"
 
@@ -381,7 +383,10 @@ char *
 md_gln()
 {
 	struct passwd *p;
+	char *s;
 
+	if ((s = getlogin()))
+		return s;
 	if (!(p = getpwuid(getuid())))
 		return((char *)NULL);
 	return(p->pw_name);
@@ -444,7 +449,6 @@ md_getenv(name)
 char *name;
 {
 	char *value;
-	char *getenv();
 
 	value = getenv(name);
 
@@ -463,7 +467,6 @@ char *
 md_malloc(n)
 int n;
 {
-	char *malloc();
 	char *t;
 
 	t = malloc(n);
@@ -552,10 +555,8 @@ char *shell;
 	long w[2];
 
 	if (!fork()) {
-		int uid;
-
-		uid = getuid();
-		setuid(uid);
+		/* revoke */
+		setgid(getgid());
 		execl(shell, shell, 0);
 	}
 	wait(w);
