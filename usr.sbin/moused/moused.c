@@ -46,7 +46,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: moused.c,v 1.10 1997/09/25 06:44:39 charnier Exp $";
+	"$Id: moused.c,v 1.11 1997/12/07 08:11:16 yokota Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -314,7 +314,7 @@ static unsigned short rodentcflags[] =
     (CS7	           | CREAD | CLOCAL | HUPCL ),	/* GlidePoint */
     (CS7                   | CREAD | CLOCAL | HUPCL ),	/* IntelliMouse */
     (CS7                   | CREAD | CLOCAL | HUPCL ),	/* Thinking Mouse */
-    0,							/* sysmouse */
+    (CS8 | CSTOPB	   | CREAD | CLOCAL | HUPCL ),	/* sysmouse */
 #if notyet
     (CS8 | CSTOPB	   | CREAD | CLOCAL | HUPCL ),	/* Mariqua */
 #endif
@@ -1090,10 +1090,14 @@ r_init(void)
         }
 	break;
 
+    case MOUSE_PROTO_SYSMOUSE:
+	if (rodent.hw.iftype == MOUSE_IF_SYSMOUSE)
+	    setmousespeed(1200, rodent.baudrate, rodentcflags[rodent.rtype]);
+	/* fall through */
+
     case MOUSE_PROTO_BUS:
     case MOUSE_PROTO_INPORT:
     case MOUSE_PROTO_PS2:
-    case MOUSE_PROTO_SYSMOUSE:
 	if (rodent.rate >= 0)
 	    rodent.mode.rate = rodent.rate;
 	if (rodent.resolution != MOUSE_RES_UNKNOWN)
