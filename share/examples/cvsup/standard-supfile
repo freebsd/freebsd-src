@@ -1,4 +1,4 @@
-# $Id: standard-supfile,v 1.6 1996/12/15 00:34:52 jdp Exp $
+# $Id: standard-supfile,v 1.7 1996/12/25 01:51:53 ache Exp $
 #
 # This file contains all of the "CVSup collections" that make up the
 # FreeBSD-current source tree.
@@ -71,9 +71,11 @@ src-all
 #src-include
 #src-lib
 #src-libexec
+#src-release
 #src-sbin
 #src-share
 #src-sys
+#src-tools
 #src-usrbin
 #src-usrsbin
 
