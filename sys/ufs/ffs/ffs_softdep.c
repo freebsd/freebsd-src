@@ -1,3 +1,4 @@
+
 /*
  * Copyright 1998 Marshall Kirk McKusick. All Rights Reserved.
  *
@@ -52,7 +53,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)ffs_softdep.c	9.14 (McKusick) 1/15/98
+ *	@(#)ffs_softdep.c	9.14 (McKusick) 1/15/98
  */
 
 /*
@@ -1599,12 +1600,8 @@ deallocate_dependencies(bp, inodedep)
 			if (bp->b_lblkno >= 0 ||
 			    bp->b_blkno != indirdep->ir_savebp->b_lblkno)
 				panic("deallocate_dependencies: not indir");
-			tmp = indirdep->ir_savebp->b_data;
-			indirdep->ir_savebp->b_data = bp->b_data;
-			bp->b_data = tmp;
-			tmpsize = indirdep->ir_savebp->b_bufsize;
-			indirdep->ir_savebp->b_bufsize = bp->b_bufsize;
-			bp->b_bufsize = tmpsize;
+			bcopy(bp->b_data, indirdep->ir_savebp->b_data,
+			    bp->b_bcount);
 			WORKLIST_REMOVE(wk);
 			WORKLIST_INSERT(&indirdep->ir_savebp->b_dep, wk);
 			continue;
