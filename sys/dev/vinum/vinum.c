@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinum.c,v 1.23 1999/01/15 05:03:15 grog Exp grog $
+ * $Id: vinum.c,v 1.24 1999/03/19 05:35:25 grog Exp grog $
  */
 
 #define STATIC static					    /* nothing while we're testing XXX */
@@ -63,12 +63,6 @@ STATIC void vinumattach(void *);
 #ifndef ACTUALLY_LKM_NOT_KERNEL
 STATIC int vinum_modevent(module_t mod, modeventtype_t type, void *unused);
 #endif
-
-/* Why aren't these declared anywhere? XXX */
-int setjmp(jmp_buf);
-void longjmp(jmp_buf, int);
-
-extern jmp_buf command_fail;				    /* return here if config fails */
 
 struct _vinum_conf vinum_conf;				    /* configuration information */
 
@@ -195,8 +189,11 @@ free_vinum(int cleardrive)
     }
     while ((vinum_conf.flags & (VF_STOPPING | VF_DAEMONOPEN))
 	== (VF_STOPPING | VF_DAEMONOPEN)) {		    /* at least one daemon open, we're stopping */
-	queue_daemon_request(daemonrq_return, (union daemoninfo) NULL);	/* stop the daemon */
-	tsleep(&vinumclose, PUSER, "vstop", 0);		    /* and wait for it */
+	int timeout = 1;
+	while (timeout) {				    /* until the daemon sees sense */
+	    queue_daemon_request(daemonrq_return, (union daemoninfo) NULL); /* stop the daemon */
+	    timeout = tsleep(&vinumclose, PUSER, "vstop", 1); /* and wait for it */
+	}
     }
     if (SD != NULL)
 	Free(SD);
