@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.131 1995/04/09 03:47:55 jkh Exp $
+#	$Id: Makefile,v 1.132 1995/04/10 08:01:27 phk Exp $
 #
 # How to roll a release:
 #
@@ -36,7 +36,7 @@ FDCYLS=			80
 FDCYLSIZE=		15k
 FDLABEL=		fd1200
 
-NEWFSARGS=		-c 80 -b 4096 -f 512 -i 9000 -m 0 -t 0 -u 0 \
+NEWFSARGS=		-c 80 -b 4096 -f 512 -i 7000 -m 0 -t 0 -u 0 \
 				-o space -T ${FDLABEL}
 
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
@@ -142,6 +142,7 @@ release.3:
 			make depend && \
 			make kernel && \
 			cp kernel ${RD}/kernels/$$i ; \
+		rm -rf ${.CURDIR}/../sys/compile/$$i
 	done
 	rm -f ${.CURDIR}/../sys/i386/conf/BOOTCDROM
 	ln -f ${RD}/kernels/GENERIC ${RD}/trees/bin/kernel.GENERIC
@@ -230,8 +231,7 @@ release.6:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
 	( cd ${RD}/trees/bin/dev ; \
 		ls console tty ttyv1 null zero \
-		sd[0123][a-h] wd[0123][a-h] fd[01] \
-		rsd[0123][a-h] rwd[0123][a-h] rfd[01] | \
+		*[sw]d* fd[01] rfd[01] | \
 	cpio -dump ${RD}/bootfd/dev )
 	install -c ${.CURDIR}/../COPYRIGHT ${RD}/bootfd
 	cd ${RD}/trees/bin/usr/share/FAQ/Text ; \
@@ -314,8 +314,7 @@ release.10:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
 	( cd ${RD}/trees/bin/dev ; \
 		ls console tty ttyv1 null zero \
-		sd[0123][a-h] wd[0123][a-h] fd[01] \
-		rsd[0123][a-h] rwd[0123][a-h] rfd[01] | \
+		*[sw]d* fd[01] rfd[01] | \
 	cpio -dump ${RD}/fixitfd/dev )
 	ln -f ${RD}/fixitfd/stand/init ${RD}/fixitfd/sbin
 	ln -f ${RD}/fixitfd/stand/sh ${RD}/fixitfd/bin
@@ -334,6 +333,11 @@ ftp.1:
 	cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 	cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
 	cd ${RD}/trees/bin/usr/share/FAQ/Text && ln -f ${FAQS} ${FD}
+
+	# This rule makes ${CHROOTDIR}/R/ftp a suitable anon ftp for testing.
+ftp.2:
+	-mkdir ${FD}/bin
+	ln -f ${RD}/trees/bin/bin/ls ${FD}/bin/ls
 
 cdrom.1:
 	rm -rf ${CD}
@@ -374,6 +378,7 @@ doTARBALL:
 
 doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
 		release.7 release.8 release.9 release.10
+	cd ${.CURDIR} && ${MAKE} cdrom.1 ftp.1
 	@echo "Release done"
 
 ckRELEASEDIR:
