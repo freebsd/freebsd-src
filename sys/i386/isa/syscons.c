@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.266 1998/07/14 11:42:05 bde Exp $
+ *  $Id: syscons.c,v 1.267 1998/07/15 12:18:17 bde Exp $
  */
 
 #include "sc.h"
@@ -1072,10 +1072,14 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case CONS_BELLTYPE: 	/* set bell type sound/visual */
-	if (*data)
+	if ((*(int *)data) & 0x01)
 	    flags |= VISUAL_BELL;
 	else
 	    flags &= ~VISUAL_BELL;
+	if ((*(int *)data) & 0x02)
+	    flags |= QUIET_BELL;
+	else
+	    flags &= ~QUIET_BELL;
 	return 0;
 
     case CONS_HISTORY:  	/* set history size */
@@ -3070,7 +3074,7 @@ scan_esc(scr_stat *scp, u_char c)
 	case 'B':   /* set bell pitch and duration */
 	    if (scp->term.num_param == 2) {
 		scp->bell_pitch = scp->term.param[0];
-		scp->bell_duration = scp->term.param[1]*10;
+		scp->bell_duration = scp->term.param[1];
 	    }
 	    break;
 
@@ -5119,6 +5123,9 @@ static void
 do_bell(scr_stat *scp, int pitch, int duration)
 {
     if (cold)
+	return;
+
+    if (scp != cur_console && (flags & QUIET_BELL))
 	return;
 
     if (flags & VISUAL_BELL) {
