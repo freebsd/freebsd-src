@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
+#include <sys/syscallsubr.h>
 #include <sys/namei.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -122,29 +123,15 @@ osf1_statfs(td, uap)
 	struct thread *td;
 	struct osf1_statfs_args *uap;
 {
-	int error;
-	struct mount *mp;
-	struct statfs *sp;
 	struct osf1_statfs osfs;
-	struct nameidata nd;
+	struct statfs sf;
+	int error;
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
-	if ((error = namei(&nd)))
-		return (error);
-	mp = nd.ni_vp->v_mount;
-	sp = &mp->mnt_stat;
-	vrele(nd.ni_vp);
-#ifdef MAC
-	error = mac_check_mount_stat(td->td_ucred, mp);
+	error = kern_statfs(td, uap->path, UIO_USERSPACE, &sf);
 	if (error)
 		return (error);
-#endif
-	if ((error = VFS_STATFS(mp, sp, td)))
-		return (error);
-	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	bsd2osf_statfs(sp, &osfs);
-	return copyout(&osfs, uap->buf, min(sizeof osfs,
-	    uap->len));
+	bsd2osf_statfs(&sf, &osfs);
+	return (copyout(&osfs, uap->buf, min(sizeof osfs, uap->len)));
 }
 
 int
@@ -152,31 +139,15 @@ osf1_fstatfs(td, uap)
 	struct thread *td;
 	struct osf1_fstatfs_args *uap;
 {
-	int error;
-	struct file *fp;
-	struct mount *mp;
-	struct statfs *sp;
 	struct osf1_statfs osfs;
+	struct statfs sf;
+	int error;
 
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)))
-		return (error);
-	mp = fp->f_vnode->v_mount;
-#ifdef MAC
-	error = mac_check_mount_stat(td->td_ucred, mp);
-	if (error) {
-		fdrop(fp, td);
-		return (error);
-	}
-#endif
-	sp = &mp->mnt_stat;
-	error = VFS_STATFS(mp, sp, td);
-	fdrop(fp, td);
+	error = kern_fstatfs(td, uap->fd, &sf);
 	if (error)
 		return (error);
-	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	bsd2osf_statfs(sp, &osfs);
-	return copyout(&osfs, uap->buf, min(sizeof osfs,
-	    uap->len));
+	bsd2osf_statfs(&sf, &osfs);
+	return (copyout(&osfs, uap->buf, min(sizeof osfs, uap->len)));
 }
 
 int
