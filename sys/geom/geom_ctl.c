@@ -46,6 +46,7 @@
 #include <sys/disk.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
+#include <sys/sbuf.h>
 
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -58,6 +59,8 @@
 #define GCTL_TABLE 1
 #include <geom/geom_ctl.h>
 #include <geom/geom_ext.h>
+
+#include <machine/stdarg.h>
 
 static d_ioctl_t g_ctl_ioctl;
 
@@ -87,16 +90,28 @@ g_ctl_init(void)
  * XXX: should take printf like args.
  */
 int
-gctl_error(struct gctl_req *req, const char *errtxt)
+gctl_error(struct gctl_req *req, const char *fmt, ...)
 {
 	int error;
+	va_list ap;
+	struct sbuf *sb;
 
-	if (g_debugflags & G_F_CTLDUMP)
-		printf("gctl %p error \"%s\"\n", req, errtxt);
-	error = copyout(errtxt, req->error,
-	    imin(req->lerror, strlen(errtxt) + 1));
+	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	if (sb == NULL) {
+		error = copyout(fmt, req->error,
+			    imin(req->lerror, strlen(fmt) + 1));
+	} else {
+		va_start(ap, fmt);
+		sbuf_vprintf(sb, fmt, ap);
+		sbuf_finish(sb);
+		if (g_debugflags & G_F_CTLDUMP)
+			printf("gctl %p error \"%s\"\n", req, sbuf_data(sb));
+		error = copyout(sbuf_data(sb), req->error,
+		    imin(req->lerror, sbuf_len(sb) + 1));
+	}
 	if (!error)
 		error = EINVAL;
+	sbuf_delete(sb);
 	return (error);
 }
 
