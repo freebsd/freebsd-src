@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chio.h,v 1.11 1997/03/11 19:38:02 joerg Exp $
+ *	$Id: chio.h,v 1.12 1998/09/15 10:07:26 gibbs Exp $
  */
 
 #ifndef	_SYS_CHIO_H_
@@ -151,7 +151,7 @@ typedef enum {
 	CES_INVERT	  = 0x040,	/* invert bit */
 	CES_SOURCE_VALID  = 0x080,	/* source address (ces_source) valid */
 	CES_SCSIID_VALID  = 0x100,	/* ces_scsi_id is valid */
-	CES_LUN_VALID	  = 0x200,	/* ces_scsi_lun is valid */
+	CES_LUN_VALID	  = 0x200	/* ces_scsi_lun is valid */
 } ces_status_flags;
 
 struct changer_element_status {
