@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: aio_read.2,v 1.1.2.1 1999/07/01 13:32:31 kris Exp $
+.\"	$Id: aio_read.2,v 1.1.2.2 1999/08/15 13:20:39 mpp Exp $
 .\"
 .Dd November 17, 1998
 .Dt AIO_READ 2
@@ -85,6 +85,12 @@ member of that structure references must remain valid until the
 operation has completed.  For this reason, use of auto (stack) variables
 for these objects is discouraged.
 .Pp
+The asynchronous I/O control buffer
+.Ar iocb
+should be zeroed before the 
+.Fn aio_read
+call to avoid passing invalid context information to the kernel.
+.Pp
 Modifications of the Asynchronous I/O Control Block structure or the
 buffer contents after the request has been enqueued, but before the
 request has completed, are not allowed.
@@ -127,7 +133,7 @@ returns -1 and sets
 appropriately; otherwise the
 .Fn aio_return
 function must be called, and will return -1, and
-Fn aio_error
+.Fn aio_error
 must be called to determine the actual calue that would have been
 returned in
 .Ar errno .
@@ -179,11 +185,15 @@ would be invalid.
 .Sh HISTORY
 The
 .Nm
-Function first appeared in
+function first appeared in
 .Fx 3.0 .
 .Sh AUTHORS
 This
 manual page was written by
 .An Terry Lambert Aq terry@whistle.com .
 .Sh BUGS
-The value of iocb->aio_offset is ignored.
+The value of
+.Ar iocb->aio_offset
+is ignored.  Invalid information in 
+.Ar iocb->_aiocb_private
+may confuse the kernel.
