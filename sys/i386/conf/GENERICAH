@@ -1,7 +1,7 @@
 #
 # GENERICAH -- Generic machine with WD/AHx family disks
 #
-#	$Id: GENERICAH,v 1.6 1993/08/28 13:21:43 rgrimes Exp $
+#	$Id: GENERICAH,v 1.7 1993/08/31 15:17:23 rgrimes Exp $
 #
 
 machine		"i386"
@@ -19,6 +19,7 @@ options		"COMPAT_43"		#Compatible with BSD 4.3
 options		"TCP_COMPAT_42"		#TCP/IP compatible with 4.2
 options		XSERVER			#Xserver
 options		UCONSOLE		#X Console support
+#options	GATEWAY			#Host is a Gateway (forwards packets)
 
 config		"386bsd"	root on wd0 swap on wd0 and sd0
 
