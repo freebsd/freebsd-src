@@ -1,3 +1,5 @@
+/*	$NetBSD: lstAppend.c,v 1.4 1995/06/14 15:20:44 christos Exp $	*/
+
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -35,7 +37,11 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)lstAppend.c	8.2 (Berkeley) 4/28/95";
+#if 0
+static char sccsid[] = "@(#)lstAppend.c	8.1 (Berkeley) 6/6/93";
+#else
+static char rcsid[] = "$NetBSD: lstAppend.c,v 1.4 1995/06/14 15:20:44 christos Exp $";
+#endif
 #endif /* not lint */
 
 /*-
@@ -70,23 +76,23 @@ Lst_Append (l, ln, d)
     register List 	list;
     register ListNode	lNode;
     register ListNode	nLNode;
-    
+
     if (LstValid (l) && (ln == NILLNODE && LstIsEmpty (l))) {
 	goto ok;
     }
-    
+
     if (!LstValid (l) || LstIsEmpty (l)  || ! LstNodeValid (ln, l)) {
 	return (FAILURE);
     }
     ok:
-    
+
     list = (List)l;
     lNode = (ListNode)ln;
 
     PAlloc (nLNode, ListNode);
     nLNode->datum = d;
     nLNode->useCount = nLNode->flags = 0;
-    
+
     if (lNode == NilListNode) {
 	if (list->isCirc) {
 	    nLNode->nextPtr = nLNode->prevPtr = nLNode;
@@ -97,17 +103,17 @@ Lst_Append (l, ln, d)
     } else {
 	nLNode->prevPtr = lNode;
 	nLNode->nextPtr = lNode->nextPtr;
-	
+
 	lNode->nextPtr = nLNode;
 	if (nLNode->nextPtr != NilListNode) {
 	    nLNode->nextPtr->prevPtr = nLNode;
 	}
-	
+
 	if (lNode == list->lastPtr) {
 	    list->lastPtr = nLNode;
 	}
     }
-    
+
     return (SUCCESS);
 }
 

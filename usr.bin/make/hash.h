@@ -1,6 +1,8 @@
+/*	$NetBSD: hash.h,v 1.4 1995/06/14 15:19:18 christos Exp $	*/
+
 /*
- * Copyright (c) 1988, 1989, 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
+ * Copyright (c) 1988, 1989 by Adam de Boor
  * Copyright (c) 1989 by Berkeley Softworks
  * All rights reserved.
  *
@@ -35,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)hash.h	8.2 (Berkeley) 4/28/95
+ *	from: @(#)hash.h	8.1 (Berkeley) 6/6/93
  */
 
 /* hash.h --
@@ -47,7 +49,7 @@
 #ifndef	_HASH
 #define	_HASH
 
-/* 
+/*
  * The following defines one entry in the hash table.
  */
 
@@ -69,7 +71,7 @@ typedef struct Hash_Table {
     int 	mask;		/* Used to select bits for hashing. */
 } Hash_Table;
 
-/* 
+/*
  * The following structure is used by the searching routines
  * to record where we are in the search.
  */
@@ -85,22 +87,22 @@ typedef struct Hash_Search {
  */
 
 /*
- * ClientData Hash_GetValue(h) 
- *     Hash_Entry *h; 
+ * ClientData Hash_GetValue(h)
+ *     Hash_Entry *h;
  */
 
 #define Hash_GetValue(h) ((h)->clientData)
 
-/* 
- * Hash_SetValue(h, val); 
- *     Hash_Entry *h; 
- *     char *val; 
+/*
+ * Hash_SetValue(h, val);
+ *     Hash_Entry *h;
+ *     char *val;
  */
 
 #define Hash_SetValue(h, val) ((h)->clientData = (ClientData) (val))
 
-/* 
- * Hash_Size(n) returns the number of words in an object of n bytes 
+/*
+ * Hash_Size(n) returns the number of words in an object of n bytes
  */
 
 #define	Hash_Size(n)	(((n) + sizeof (int) - 1) / sizeof (int))

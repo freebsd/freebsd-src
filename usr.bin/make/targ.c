@@ -1,3 +1,5 @@
+/*	$NetBSD: targ.c,v 1.9 1996/08/30 17:59:43 thorpej Exp $	*/
+
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -37,7 +39,11 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)targ.c	8.3 (Berkeley) 4/28/95";
+#if 0
+static char sccsid[] = "@(#)targ.c	8.2 (Berkeley) 3/19/94";
+#else
+static char *rcsid = "$NetBSD: targ.c,v 1.9 1996/08/30 17:59:43 thorpej Exp $";
+#endif
 #endif /* not lint */
 
 /*-
@@ -158,7 +164,7 @@ Targ_NewGN (name)
     register GNode *gn;
 
     gn = (GNode *) emalloc (sizeof (GNode));
-    gn->name = strdup (name);
+    gn->name = estrdup (name);
     gn->path = (char *) 0;
     if (name[0] == '-' && name[1] == 'l') {
 	gn->type = OP_LIB;
@@ -169,6 +175,7 @@ Targ_NewGN (name)
     gn->make = 	    	FALSE;
     gn->made = 	    	UNMADE;
     gn->childMade = 	FALSE;
+    gn->order =		0;
     gn->mtime = gn->cmtime = 0;
     gn->iParents =  	Lst_Init (FALSE);
     gn->cohorts =   	Lst_Init (FALSE);
@@ -269,11 +276,11 @@ Targ_FindNode (name, flags)
 /*-
  *-----------------------------------------------------------------------
  * Targ_FindList --
- *	Make a complete list of GNodes from the given list of names 
+ *	Make a complete list of GNodes from the given list of names
  *
  * Results:
  *	A complete list of graph nodes corresponding to all instances of all
- *	the names in names. 
+ *	the names in names.
  *
  * Side Effects:
  *	If flags is TARG_CREATE, nodes will be created for all names in
@@ -390,7 +397,7 @@ Targ_Precious (gn)
 /******************* DEBUG INFO PRINTING ****************/
 
 static GNode	  *mainTarg;	/* the main target, as set by Targ_SetMain */
-/*- 
+/*-
  *-----------------------------------------------------------------------
  * Targ_SetMain --
  *	Set our idea of the main target we'll be creating. Used for
@@ -467,12 +474,12 @@ Targ_FmtTime (time)
 
     parts = localtime(&time);
 
-    sprintf (buf, "%d:%02d:%02d %s %d, 19%d",
+    sprintf (buf, "%d:%02d:%02d %s %d, %d",
 	     parts->tm_hour, parts->tm_min, parts->tm_sec,
-	     months[parts->tm_mon], parts->tm_mday, parts->tm_year);
+	     months[parts->tm_mon], parts->tm_mday, 1900 + parts->tm_year);
     return(buf);
 }
-    
+
 /*-
  *-----------------------------------------------------------------------
  * Targ_PrintType --
@@ -490,7 +497,7 @@ Targ_PrintType (type)
     register int    type;
 {
     register int    tbit;
-    
+
 #ifdef __STDC__
 #define PRINTBIT(attr)	case CONCAT(OP_,attr): printf("." #attr " "); break
 #define PRINTDBIT(attr) case CONCAT(OP_,attr): if (DEBUG(TARG)) printf("." #attr " "); break
@@ -577,7 +584,7 @@ TargPrintNode (gnp, passp)
 	    Lst_ForEach (gn->parents, TargPrintName, (ClientData)0);
 	    fputc ('\n', stdout);
 	}
-	
+
 	printf("%-16s", gn->name);
 	switch (gn->type & OP_OPMASK) {
 	    case OP_DEPENDS:

@@ -1,3 +1,5 @@
+/*	$NetBSD: lstInit.c,v 1.4 1995/06/14 15:21:18 christos Exp $	*/
+
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -35,7 +37,11 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)lstInit.c	8.2 (Berkeley) 4/28/95";
+#if 0
+static char sccsid[] = "@(#)lstInit.c	8.1 (Berkeley) 6/6/93";
+#else
+static char rcsid[] = "$NetBSD: lstInit.c,v 1.4 1995/06/14 15:21:18 christos Exp $";
+#endif
 #endif /* not lint */
 
 /*-
@@ -63,14 +69,14 @@ Lst_Init(circ)
     Boolean		circ;	/* TRUE if the list should be made circular */
 {
     register List	nList;
-    
+
     PAlloc (nList, List);
-    
+
     nList->firstPtr = NilListNode;
     nList->lastPtr = NilListNode;
     nList->isOpen = FALSE;
     nList->isCirc = circ;
     nList->atEnd = Unknown;
-    
+
     return ((Lst)nList);
 }

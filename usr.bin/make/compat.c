@@ -1,6 +1,8 @@
+/*	$NetBSD: compat.c,v 1.13 1995/11/22 17:40:00 christos Exp $	*/
+
 /*
- * Copyright (c) 1988, 1989, 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
+ * Copyright (c) 1988, 1989 by Adam de Boor
  * Copyright (c) 1989 by Berkeley Softworks
  * All rights reserved.
  *
@@ -37,7 +39,11 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)compat.c	8.3 (Berkeley) 4/28/95";
+#if 0
+static char sccsid[] = "@(#)compat.c	8.2 (Berkeley) 3/19/94";
+#else
+static char rcsid[] = "$NetBSD: compat.c,v 1.13 1995/11/22 17:40:00 christos Exp $";
+#endif
 #endif /* not lint */
 
 /*-
@@ -55,11 +61,11 @@ static char sccsid[] = "@(#)compat.c	8.3 (Berkeley) 4/28/95";
 
 #include    <stdio.h>
 #include    <sys/types.h>
-#include    <sys/signal.h>
-#include    <sys/wait.h>
-#include    <sys/errno.h>
 #include    <sys/stat.h>
+#include    <sys/wait.h>
 #include    <ctype.h>
+#include    <errno.h>
+#include    <signal.h>
 #include    "make.h"
 #include    "hash.h"
 #include    "dir.h"
@@ -101,14 +107,12 @@ CompatInterrupt (signo)
     int	    signo;
 {
     GNode   *gn;
-    
+
     if ((curTarg != NILGNODE) && !Targ_Precious (curTarg)) {
 	char	  *p1;
 	char 	  *file = Var_Value (TARGET, curTarg, &p1);
-	struct stat st;
 
-	if (!noExecute && lstat(file, &st) != -1 && !S_ISDIR(st.st_mode) && 
-	    unlink(file) != -1) {
+	if (!noExecute && eunlink(file) != -1) {
 	    printf ("*** %s removed\n", file);
 	}
 	if (p1)
@@ -151,7 +155,7 @@ CompatRunCommand (cmdp, gnp)
     register char *cp;
     Boolean 	  silent,   	/* Don't print command */
 		  errCheck; 	/* Check errors */
-    union wait 	  reason;   	/* Reason for child's death */
+    int 	  reason;   	/* Reason for child's death */
     int	    	  status;   	/* Description of child's death */
     int	    	  cpid;	    	/* Child actually found */
     ReturnStatus  stat;	    	/* Status of fork */
@@ -164,7 +168,7 @@ CompatRunCommand (cmdp, gnp)
     char	  *cmd = (char *) cmdp;
     GNode	  *gn = (GNode *) gnp;
 
-    /* 
+    /*
      * Avoid clobbered variable warnings by forcing the compiler
      * to ``unregister'' variables
      */
@@ -184,7 +188,7 @@ CompatRunCommand (cmdp, gnp)
      * command? In any case, we warn the user that the command expanded to
      * nothing (is this the right thing to do?).
      */
-     
+
     if (*cmdStart == '\0') {
 	free(cmdStart);
 	Error("%s expands to empty string", cmd);
@@ -213,7 +217,7 @@ CompatRunCommand (cmdp, gnp)
 
     while (isspace((unsigned char)*cmd))
 	cmd++;
-    
+
     /*
      * Search for meta characters in the command. If there are no meta
      * characters, there's no need to execute a shell to execute the
@@ -239,7 +243,7 @@ CompatRunCommand (cmdp, gnp)
     if (noExecute) {
 	return (0);
     }
-    
+
     if (*cp != '\0') {
 	/*
 	 * If *cp isn't the null character, we hit a "meta" character and
@@ -264,7 +268,7 @@ CompatRunCommand (cmdp, gnp)
 	av = brk_string(cmd, &argc, TRUE);
 	av += 1;
     }
-    
+
     local = TRUE;
 
     /*
@@ -286,32 +290,32 @@ CompatRunCommand (cmdp, gnp)
     }
     free(cmdStart);
     Lst_Replace (cmdNode, (ClientData) NULL);
-    
+
     /*
      * The child is off and running. Now all we can do is wait...
      */
     while (1) {
 
-	while ((stat = wait((int *)&reason)) != cpid) {
+	while ((stat = wait(&reason)) != cpid) {
 	    if (stat == -1 && errno != EINTR) {
 		break;
 	    }
 	}
-	
+
 	if (stat > -1) {
 	    if (WIFSTOPPED(reason)) {
-		status = reason.w_stopval;		/* stopped */
+		status = WSTOPSIG(reason);		/* stopped */
 	    } else if (WIFEXITED(reason)) {
-		status = reason.w_retcode;		/* exited */
+		status = WEXITSTATUS(reason);		/* exited */
 		if (status != 0) {
 		    printf ("*** Error code %d", status);
 		}
 	    } else {
-		status = reason.w_termsig;		/* signaled */
+		status = WTERMSIG(reason);		/* signaled */
 		printf ("*** Signal %d", status);
-	    } 
+	    }
 
-	    
+
 	    if (!WIFEXITED(reason) || (status != 0)) {
 		if (errCheck) {
 		    gn->made = ERROR;
@@ -388,7 +392,7 @@ CompatMake (gnp, pgnp)
 	    if (p1)
 		free(p1);
 	}
-	
+
 	/*
 	 * All the children were made ok. Now cmtime contains the modification
 	 * time of the newest child, we need to find out if we exist and when
@@ -422,7 +426,7 @@ CompatMake (gnp, pgnp)
 	 * Make_DoAllVar().
 	 */
 	Make_DoAllVar(gn);
-		    
+
 	/*
 	 * Alter our type to tell if errors should be ignored or things
 	 * should not be printed so CompatRunCommand knows what to do.
@@ -563,7 +567,7 @@ CompatMake (gnp, pgnp)
 
     return (0);
 }
-	
+
 /*-
  *-----------------------------------------------------------------------
  * Compat_Run --
@@ -615,6 +619,10 @@ Compat_Run(targs)
 	gn = Targ_FindNode(".BEGIN", TARG_NOCREATE);
 	if (gn != NILGNODE) {
 	    Lst_ForEach(gn->commands, CompatRunCommand, (ClientData)gn);
+            if (gn->made == ERROR) {
+                printf("\n\nStop.\n");
+                exit(1);
+            }
 	}
     }
 

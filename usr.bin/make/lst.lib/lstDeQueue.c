@@ -1,3 +1,5 @@
+/*	$NetBSD: lstDeQueue.c,v 1.4 1995/06/14 15:20:56 christos Exp $	*/
+
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -35,7 +37,11 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)lstDeQueue.c	8.2 (Berkeley) 4/28/95";
+#if 0
+static char sccsid[] = "@(#)lstDeQueue.c	8.1 (Berkeley) 6/6/93";
+#else
+static char rcsid[] = "$NetBSD: lstDeQueue.c,v 1.4 1995/06/14 15:20:56 christos Exp $";
+#endif
 #endif /* not lint */
 
 /*-
@@ -65,12 +71,12 @@ Lst_DeQueue (l)
 {
     ClientData	  rd;
     register ListNode	tln;
-    
+
     tln = (ListNode) Lst_First (l);
     if (tln == NilListNode) {
 	return ((ClientData) NIL);
     }
-    
+
     rd = tln->datum;
     if (Lst_Remove (l, (LstNode)tln) == FAILURE) {
 	return ((ClientData) NIL);
