@@ -672,6 +672,8 @@ isp_notify_ack(isp, arg)
 		} else {
 			na->na_flags = NAFC_RST_CLRD;
 		}
+		na->na_header.rqs_entry_type = RQSTYPE_NOTIFY_ACK;
+		na->na_header.rqs_entry_count = 1;
 		ISP_SWIZ_NOT_ACK_FC(isp, outp, na);
 	} else {
 		na_entry_t *na = (na_entry_t *) storage;
@@ -683,11 +685,13 @@ isp_notify_ack(isp, arg)
 			na->na_tgt = inp->in_tgt;
 			na->na_seqid = inp->in_seqid;
 			if (inp->in_status == IN_RESET) {
-				na->na_flags = NA_RST_CLRD;
+				na->na_event = NA_RST_CLRD;
 			}
 		} else {
-			na->na_flags = NA_RST_CLRD;
+			na->na_event = NA_RST_CLRD;
 		}
+		na->na_header.rqs_entry_type = RQSTYPE_NOTIFY_ACK;
+		na->na_header.rqs_entry_count = 1;
 		ISP_SWIZ_NOT_ACK(isp, outp, na);
 	}
 	ISP_TDQE(isp, "isp_notify_ack", (int) optr, storage);
@@ -892,12 +896,14 @@ isp_handle_ctio(isp, ct)
 		 * 	We sent status & command complete.
 		 */
 
-		if ((ct->ct_flags & CT_DATAMASK) == CT_NO_DATA) {
+		if (ct->ct_flags & CT_SENDSTATUS) {
+			break;
+		} else if ((ct->ct_flags & CT_DATAMASK) == CT_NO_DATA) {
 			/*
 			 * Nothing to do in this case.
 			 */
-			IDPRINTF(pl, ("%s: CTIO- initiator disconnected OK\n",
-			    isp->isp_name));
+			IDPRINTF(pl, ("%s:CTIO- iid %d disconnected OK\n",
+			    isp->isp_name, ct->ct_iid));
 			return;
 		}
 		break;
@@ -1025,7 +1031,7 @@ isp_handle_ctio(isp, ct)
 			 * complete thread synchronization.
 			 */
 			IDPRINTF(pl,
-			    ("%s: status CTIO complete\n", isp->isp_name));
+			    ("%s:status CTIO complete\n", isp->isp_name));
 		} else {
 			/*
 			 * Final CTIO completed. Release DMA resources and
