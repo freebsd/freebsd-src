@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.109 1999/05/10 14:07:14 n_hibma Exp $
+**  $Id: pcisupport.c,v 1.110 1999/05/10 17:56:23 dfr Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -44,8 +44,6 @@
 #include "opt_bus.h"
 #include "opt_pci.h"
 #include "opt_smp.h"
-#include "intpm.h"
-#include "alpm.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -684,6 +682,46 @@ dumpconfigspace (device_t dev)
 
 #endif /* PCI_QUIET */
 
+
+const char *
+ide_pci_match(device_t dev)
+{
+    u_int32_t data;
+
+    data = pci_read_config(dev, PCI_CLASS_REG, 4);
+    if (pci_get_class(dev) == PCIC_STORAGE &&
+	(pci_get_subclass(dev) == PCIS_STORAGE_IDE ||
+	 pci_get_subclass(dev) == PCIS_STORAGE_RAID)) {
+	switch (pci_get_devid(dev)) {
+	case 0x12308086:
+	    return "Intel PIIX IDE controller";
+	case 0x70108086:
+	    return "Intel PIIX3 IDE controller";
+	case 0x71118086:
+	    return "Intel PIIX4 IDE controller";
+	case 0x4d33105a:
+	    return "Promise Ultra/33 IDE controller";
+	case 0x522910b9:
+	    return "AcerLabs Aladdin IDE controller";
+	case 0x05711106:
+	    return "VIA Apollo IDE controller";
+	case 0x06401095:
+	    return "CMD 640 IDE controller";
+	case 0x06461095:
+	    return "CMD 646 IDE controller";
+	case 0xc6931080:
+	    return "Cypress 82C693 IDE controller";
+	case 0x01021078:
+	    return "Cyrix 5530 IDE controller";
+	case 0x55131039:
+	    return ("SiS 5591 IDE Controller");
+	default:
+	    return "Unknown PCI IDE controller";
+	}
+    }
+    return NULL;
+}
+
 static void
 chipset_attach (device_t dev, int unit)
 {
@@ -762,12 +800,9 @@ static const char*
 pcib_match(device_t dev)
 {
 	switch (pci_get_devid(dev)) {
+	/* Intel -- vendor 0x8086 */
 	case 0x84cb8086:
 		return ("Intel 82454NX PCI Expander Bridge");
-	case 0x00221014:
-		return ("IBM 82351 PCI-PCI bridge");
-	case 0x00011011:
-		return ("DEC 21050 PCI-PCI bridge");
 	case 0x124b8086:
 		return ("Intel 82380FB mobile PCI to PCI bridge");
 	
@@ -790,6 +825,11 @@ pcib_match(device_t dev)
 	case 0x524310b9:/* 5243 seems like 5247, need more info to divide*/
 		return("AcerLabs M5243 PCI-PCI bridge");
 
+	/* Others */
+	case 0x00221014:
+		return ("IBM 82351 PCI-PCI bridge");
+	case 0x00011011:
+		return ("DEC 21050 PCI-PCI bridge");
 	};
 
 	if (pci_get_class(dev) == PCIC_BRIDGE
@@ -897,7 +937,6 @@ isab_match(device_t dev)
 	 * Note that the old Apollo Master chipset is not in here, as VIA
 	 * does not seem to have any docs on their website for it, and I do
 	 * not have a Master board in my posession. -LC */
-
 	case 0x05861106: /* south bridge section -- IDE is covered in ide_pci.c */
 		return("VIA 82C586 PCI-ISA bridge");
 
@@ -1007,6 +1046,7 @@ chip_match(device_t dev)
 	unsigned	rev;
 
 	switch (pci_get_devid(dev)) {
+	/* Intel -- vendor 0x8086 */
 	case 0x00088086:
 		/* Silently ignore this one! What is it, anyway ??? */
 		return ("");
@@ -1054,18 +1094,13 @@ chip_match(device_t dev)
 	case 0x12358086:
 		return ("Intel 82437MX mobile PCI cache memory controller");
 	case 0x12508086:
-		return ("Intel 82439");
+		return ("Intel 82439HX PCI cache memory controller");
 	case 0x70308086:
 		return ("Intel 82437VX PCI cache memory controller");
 	case 0x71008086:
 		return ("Intel 82439TX System Controller (MTXC)");
-
 	case 0x71138086:
-#if NINTPM > 0
-		return NULL;
-#else
 		return ("Intel 82371AB Power management controller");
-#endif
 	case 0x12378086:
 		fixwsc_natoma(dev);
 		return ("Intel 82440FX (Natoma) PCI and memory controller");
@@ -1078,6 +1113,10 @@ chip_match(device_t dev)
 		return ("SiS 85c501");
 	case 0x06011039:
 		return ("SiS 85c601");
+	case 0x55911039:
+		return ("SiS 5591 host to PCI bridge");
+	case 0x00011039:
+		return ("SiS 5591 host to AGP bridge");
 	
 	/* VLSI -- vendor 0x1004 */
 	case 0x00051004:
@@ -1108,11 +1147,10 @@ chip_match(device_t dev)
 		return("VIA 82C598MVP (Apollo MVP3) host bridge");
 	case 0x30401106:
 		return("VIA 82C586B ACPI interface");
-#if 0
-	/* XXX New info added-in */
         case 0x05711106:
 		return("VIA 82C586B IDE controller");
-#endif
+	case 0x30381106:
+		return("VIA 82C586B USB controller");
 
 	/* NEC -- vendor 0x1033 */
 	case 0x00021033:
@@ -1126,11 +1164,7 @@ chip_match(device_t dev)
 	case 0x154110b9:
 		return("AcerLabs M1541 (Aladdin-V) PCI host bridge");
 	case 0x710110b9:
-#if NALPM > 0
-		return NULL;
-#else
 		return ("AcerLabs M15x3 Power Management Unit");
-#endif
 
 	/* Ross (?) -- vendor 0x1166 */
 	case 0x00051166:
@@ -1166,9 +1200,11 @@ static int chip_probe(device_t dev)
 	const char *desc;
 
 	desc = chip_match(dev);
+	if (desc == NULL)
+		desc = ide_pci_match(dev);
 	if (desc) {
 		device_set_desc_copy(dev, desc);
-		return 0;
+		return -100;	/* Low match priority */
 	}
 
 	return ENXIO;
@@ -1499,7 +1535,7 @@ static int vga_probe(device_t dev)
 	desc = vga_match(dev);
 	if (desc) {
 		device_set_desc(dev, desc);
-		return 0;
+		return -100;	/* Low match priority */
 	}
 
 	return ENXIO;

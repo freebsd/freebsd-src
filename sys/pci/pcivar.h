@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcivar.h,v 1.29 1999/05/06 22:05:39 peter Exp $
+ * $Id: pcivar.h,v 1.30 1999/05/09 20:25:01 peter Exp $
  *
  */
 
@@ -173,8 +173,7 @@ extern u_int32_t pci_numdevs;
 
 /* externally visible functions */
 
-int pci_probe (pciattach *attach);
-void pci_drvattach(struct pci_devinfo *dinfo);
+const char *ide_pci_match(struct device *dev);
 
 /* low level PCI config register functions provided by pcibus.c */
 
