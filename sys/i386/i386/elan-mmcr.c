@@ -74,9 +74,10 @@ elan_drvinit(void)
 
 	if (elan_mmcr == NULL)
 		return;
+	printf("Elan-mmcr driver\n");
 	make_dev(&elan_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "elan-mmcr");
 	return;
 }
 
  
-SYSINIT(elan, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+CDEV_MAJOR,elan_drvinit,NULL);
+SYSINIT(elan, SI_SUB_PSEUDO, SI_ORDER_MIDDLE+CDEV_MAJOR,elan_drvinit,NULL);
