@@ -460,7 +460,7 @@ sbus_setup_dinfo(struct sbus_softc *sc, phandle_t node, char *name)
 	resource_list_init(&sdi->sdi_rl);
 	sdi->sdi_name = name;
 	sdi->sdi_node = node;
-	OF_getprop_alloc(node, "compat", 1, (void **)&sdi->sdi_compat);
+	OF_getprop_alloc(node, "compatible", 1, (void **)&sdi->sdi_compat);
 	OF_getprop_alloc(node, "device_type", 1, (void **)&sdi->sdi_type);
 	slot = -1;
 	nreg = OF_getprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);

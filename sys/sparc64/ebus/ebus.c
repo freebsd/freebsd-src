@@ -390,7 +390,7 @@ ebus_setup_dinfo(device_t dev, struct ebus_softc *sc, phandle_t node,
 	edi->edi_name = name;
 	edi->edi_node = node;
 
-	OF_getprop_alloc(node, "compat", 1, (void **)&edi->edi_compat);
+	OF_getprop_alloc(node, "compatible", 1, (void **)&edi->edi_compat);
 	nreg = OF_getprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
 	if (nreg == -1) {
 		ebus_destroy_dinfo(edi);
