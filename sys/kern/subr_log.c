@@ -127,9 +127,7 @@ static	int
 logread(dev_t dev, struct uio *uio, int flag)
 {
 	struct msgbuf *mbp = msgbufp;
-	long l;
-	int s;
-	int error = 0;
+	int error = 0, l, s;
 
 	s = splhigh();
 	while (mbp->msg_bufr == mbp->msg_bufx) {
@@ -147,14 +145,14 @@ logread(dev_t dev, struct uio *uio, int flag)
 	logsoftc.sc_state &= ~LOG_RDWAIT;
 
 	while (uio->uio_resid > 0) {
-		l = (long)mbp->msg_bufx - mbp->msg_bufr;
+		l = mbp->msg_bufx - mbp->msg_bufr;
 		if (l < 0)
 			l = mbp->msg_size - mbp->msg_bufr;
-		l = min(l, uio->uio_resid);
+		l = imin(l, uio->uio_resid);
 		if (l == 0)
 			break;
 		error = uiomove((caddr_t)msgbufp->msg_ptr + mbp->msg_bufr,
-		    (int)l, uio);
+		    l, uio);
 		if (error)
 			break;
 		mbp->msg_bufr += l;
@@ -210,15 +208,14 @@ logtimeout(void *arg)
 static	int
 logioctl(dev_t dev, u_long com, caddr_t data, int flag, struct thread *td)
 {
-	long l;
-	int s;
+	int l, s;
 
 	switch (com) {
 
 	/* return number of characters immediately available */
 	case FIONREAD:
 		s = splhigh();
-		l = (long)msgbufp->msg_bufx - msgbufp->msg_bufr;
+		l = msgbufp->msg_bufx - msgbufp->msg_bufr;
 		splx(s);
 		if (l < 0)
 			l += msgbufp->msg_size;
