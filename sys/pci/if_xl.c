@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.95 1999/04/30 14:19:47 wpaul Exp $
+ *	$Id: if_xl.c,v 1.99 1999/05/04 20:29:58 wpaul Exp $
  */
 
 /*
@@ -159,7 +159,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_xl.c,v 1.95 1999/04/30 14:19:47 wpaul Exp $";
+	"$Id: if_xl.c,v 1.99 1999/05/04 20:29:58 wpaul Exp $";
 #endif
 
 /*
@@ -1130,7 +1130,7 @@ static void xl_setmode(sc, media)
 	XL_SEL_WIN(3);
 	icfg = CSR_READ_4(sc, XL_W3_INTERNAL_CFG);
 
-	if (sc->xl_media & (XL_MEDIAOPT_BT|XL_MEDIAOPT_10FL)) {
+	if (sc->xl_media & XL_MEDIAOPT_BT) {
 		if (IFM_SUBTYPE(media) == IFM_10_T) {
 			printf("10baseT transceiver, ");
 			sc->xl_xcvr = XL_XCVR_10BT;
@@ -1138,14 +1138,6 @@ static void xl_setmode(sc, media)
 			icfg |= (XL_XCVR_10BT << XL_ICFG_CONNECTOR_BITS);
 			mediastat |= XL_MEDIASTAT_LINKBEAT|
 					XL_MEDIASTAT_JABGUARD;
-			mediastat &= ~XL_MEDIASTAT_SQEENB;
-		}
-		if (IFM_SUBTYPE(media) == IFM_10_FL) {
-			printf("10baseFL transceiver, ");
-			sc->xl_xcvr = XL_XCVR_10BT;
-			icfg &= ~XL_ICFG_CONNECTOR_MASK;
-			icfg |= (XL_XCVR_10BT << XL_ICFG_CONNECTOR_BITS);
-			mediastat |= XL_MEDIASTAT_LINKBEAT;
 			mediastat &= ~XL_MEDIASTAT_SQEENB;
 		}
 	}
@@ -1161,9 +1153,18 @@ static void xl_setmode(sc, media)
 		}
 	}
 
-	if (sc->xl_media & XL_MEDIAOPT_AUI) {
+	if (sc->xl_media & (XL_MEDIAOPT_AUI|XL_MEDIAOPT_10FL)) {
 		if (IFM_SUBTYPE(media) == IFM_10_5) {
 			printf("AUI port, ");
+			sc->xl_xcvr = XL_XCVR_AUI;
+			icfg &= ~XL_ICFG_CONNECTOR_MASK;
+			icfg |= (XL_XCVR_AUI << XL_ICFG_CONNECTOR_BITS);
+			mediastat &= ~(XL_MEDIASTAT_LINKBEAT|
+					XL_MEDIASTAT_JABGUARD);
+			mediastat |= ~XL_MEDIASTAT_SQEENB;
+		}
+		if (IFM_SUBTYPE(media) == IFM_10_FL) {
+			printf("10baseFL transceiver, ");
 			sc->xl_xcvr = XL_XCVR_AUI;
 			icfg &= ~XL_ICFG_CONNECTOR_MASK;
 			icfg |= (XL_XCVR_AUI << XL_ICFG_CONNECTOR_BITS);
@@ -1279,14 +1280,11 @@ static void xl_mediacheck(sc)
 	 * XXX I should check for 10baseFL, but I don't have an adapter
 	 * to test with.
 	 */
-	if (sc->xl_media & XL_MEDIAOPT_MASK) {
+	if (sc->xl_media & (XL_MEDIAOPT_MASK & ~XL_MEDIAOPT_VCO)) {
 		/*
 	 	 * Check the XCVR value. If it's not in the normal range
 	 	 * of values, we need to fake it up here.
 	 	 */
-		if (sc->xl_type == XL_TYPE_905B &&
-		    sc->xl_media & XL_MEDIAOPT_10FL)
-			return;
 		if (sc->xl_xcvr <= XL_XCVR_AUTO)
 			return;
 		else {
@@ -1296,6 +1294,9 @@ static void xl_mediacheck(sc)
 				"on card type\n", sc->xl_unit);
 		}
 	} else {
+		if (sc->xl_type == XL_TYPE_905B &&
+		    sc->xl_media & XL_MEDIAOPT_10FL)
+			return;
 		printf("xl%d: WARNING: no media options bits set in "
 			"the media options register!!\n", sc->xl_unit);
 		printf("xl%d: this could be a manufacturing defect in "
@@ -1313,8 +1314,8 @@ static void xl_mediacheck(sc)
 	xl_read_eeprom(sc, (caddr_t)&devid, XL_EE_PRODID, 1, 0);
 
 	switch(devid) {
-	case TC_DEVICEID_BOOMERANG_10BT:	/* 3c900-TP */
-	case TC_DEVICEID_KRAKATOA_10BT:		/* 3c900B-TP */
+	case TC_DEVICEID_BOOMERANG_10BT:	/* 3c900-TPO */
+	case TC_DEVICEID_KRAKATOA_10BT:		/* 3c900B-TPO */
 		sc->xl_media = XL_MEDIAOPT_BT;
 		sc->xl_xcvr = XL_XCVR_10BT;
 		printf("xl%d: guessing 10BaseT transceiver\n", sc->xl_unit);
@@ -1332,7 +1333,7 @@ static void xl_mediacheck(sc)
 		break;
 	case TC_DEVICEID_CYCLONE_10FL:		/* 3c900B-FL */
 		sc->xl_media = XL_MEDIAOPT_10FL;
-		sc->xl_xcvr = XL_XCVR_10BT;
+		sc->xl_xcvr = XL_XCVR_AUI;
 		printf("xl%d: guessing 10baseFL\n", sc->xl_unit);
 		break;
 	case TC_DEVICEID_BOOMERANG_10_100BT:	/* 3c905-TX */
@@ -1653,7 +1654,17 @@ xl_attach(config_id, unit)
 	 */
 	ifmedia_init(&sc->ifmedia, 0, xl_ifmedia_upd, xl_ifmedia_sts);
 
-	if (sc->xl_media & (XL_MEDIAOPT_BT|XL_MEDIAOPT_10FL)) {
+	if (sc->xl_media & XL_MEDIAOPT_BT) {
+		if (bootverbose)
+			printf("xl%d: found 10baseT\n", sc->xl_unit);
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T, 0, NULL);
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T|IFM_HDX, 0, NULL);
+		if (sc->xl_caps & XL_CAPS_FULL_DUPLEX)
+			ifmedia_add(&sc->ifmedia,
+			    IFM_ETHER|IFM_10_T|IFM_FDX, 0, NULL);
+	}
+
+	if (sc->xl_media & (XL_MEDIAOPT_AUI|XL_MEDIAOPT_10FL)) {
 		/*
 		 * Check for a 10baseFL board in disguise.
 		 */
@@ -1669,20 +1680,9 @@ xl_attach(config_id, unit)
 				    IFM_ETHER|IFM_10_FL|IFM_FDX, 0, NULL);
 		} else {
 			if (bootverbose)
-				printf("xl%d: found 10baseT\n", sc->xl_unit);
-			ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T, 0, NULL);
-			ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T|IFM_HDX,
-			    0, NULL);
-			if (sc->xl_caps & XL_CAPS_FULL_DUPLEX)
-				ifmedia_add(&sc->ifmedia,
-				    IFM_ETHER|IFM_10_T|IFM_FDX, 0, NULL);
+				printf("xl%d: found AUI\n", sc->xl_unit);
+			ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_5, 0, NULL);
 		}
-	}
-
-	if (sc->xl_media & XL_MEDIAOPT_AUI) {
-		if (bootverbose)
-			printf("xl%d: found AUI\n", sc->xl_unit);
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_5, 0, NULL);
 	}
 
 	if (sc->xl_media & XL_MEDIAOPT_BNC) {
@@ -1731,18 +1731,18 @@ xl_attach(config_id, unit)
 	/* Choose a default media. */
 	switch(sc->xl_xcvr) {
 	case XL_XCVR_10BT:
+		media = IFM_ETHER|IFM_10_T;
+		xl_setmode(sc, media);
+		break;
+	case XL_XCVR_AUI:
 		if (sc->xl_type == XL_TYPE_905B &&
 		    sc->xl_media == XL_MEDIAOPT_10FL) {
 			media = IFM_ETHER|IFM_10_FL;
 			xl_setmode(sc, media);
 		} else {
-			media = IFM_ETHER|IFM_10_T;
+			media = IFM_ETHER|IFM_10_5;
 			xl_setmode(sc, media);
 		}
-		break;
-	case XL_XCVR_AUI:
-		media = IFM_ETHER|IFM_10_5;
-		xl_setmode(sc, media);
 		break;
 	case XL_XCVR_COAX:
 		media = IFM_ETHER|IFM_10_2;
@@ -2689,18 +2689,22 @@ static void xl_ifmedia_sts(ifp, ifmr)
 
 	switch(icfg) {
 	case XL_XCVR_10BT:
-		if (sc->xl_type == XL_TYPE_905B &&
-		    sc->xl_media == XL_MEDIAOPT_10FL)
-			ifmr->ifm_active = IFM_ETHER|IFM_10_FL;
-		else
-			ifmr->ifm_active = IFM_ETHER|IFM_10_T;
+		ifmr->ifm_active = IFM_ETHER|IFM_10_T;
 		if (CSR_READ_1(sc, XL_W3_MAC_CTRL) & XL_MACCTRL_DUPLEX)
 			ifmr->ifm_active |= IFM_FDX;
 		else
 			ifmr->ifm_active |= IFM_HDX;
 		break;
 	case XL_XCVR_AUI:
-		ifmr->ifm_active = IFM_ETHER|IFM_10_5;
+		if (sc->xl_type == XL_TYPE_905B &&
+		    sc->xl_media == XL_MEDIAOPT_10FL) {
+			ifmr->ifm_active = IFM_ETHER|IFM_10_FL;
+			if (CSR_READ_1(sc, XL_W3_MAC_CTRL) & XL_MACCTRL_DUPLEX)
+				ifmr->ifm_active |= IFM_FDX;
+			else
+				ifmr->ifm_active |= IFM_HDX;
+		} else
+			ifmr->ifm_active = IFM_ETHER|IFM_10_5;
 		break;
 	case XL_XCVR_COAX:
 		ifmr->ifm_active = IFM_ETHER|IFM_10_2;
