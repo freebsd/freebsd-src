@@ -337,8 +337,7 @@ extern int	ipport_hifirstauto;
 extern int	ipport_hilastauto;
 
 void	in_pcbpurgeif0(struct inpcbinfo *, struct ifnet *);
-int	in_pcballoc(struct socket *, struct inpcbinfo *, struct thread *,
-	    const char *);
+int	in_pcballoc(struct socket *, struct inpcbinfo *, const char *);
 int	in_pcbbind(struct inpcb *, struct sockaddr *, struct thread *);
 int	in_pcbbind_setup(struct inpcb *, struct sockaddr *, in_addr_t *,
 	    u_short *, struct thread *);
