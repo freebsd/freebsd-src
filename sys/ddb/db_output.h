@@ -38,8 +38,8 @@
  * Printing routines for kernel debugger.
  */
 
-void	db_end_line __P((void));
-void	db_force_whitespace __P((void));
-int	db_print_position __P((void));
+void	db_end_line(void);
+void	db_force_whitespace(void);
+int	db_print_position(void);
 
 #endif /* !_DDB_DB_OUTPUT_H_ */

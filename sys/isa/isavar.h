@@ -167,14 +167,14 @@ ISA_ACCESSOR(configattr, CONFIGATTR, int)
 extern intrmask_t isa_irq_pending(void);
 extern void	isa_probe_children(device_t dev);
 
-extern void	isa_dmacascade __P((int chan));
-extern void	isa_dmadone __P((int flags, caddr_t addr, int nbytes, int chan));
-extern void	isa_dmainit __P((int chan, u_int bouncebufsize));
-extern void	isa_dmastart __P((int flags, caddr_t addr, u_int nbytes, int chan));
-extern int	isa_dma_acquire __P((int chan));
-extern void	isa_dma_release __P((int chan));
-extern int	isa_dmastatus __P((int chan));
-extern int	isa_dmastop __P((int chan));
+extern void	isa_dmacascade(int chan);
+extern void	isa_dmadone(int flags, caddr_t addr, int nbytes, int chan);
+extern void	isa_dmainit(int chan, u_int bouncebufsize);
+extern void	isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan);
+extern int	isa_dma_acquire(int chan);
+extern void	isa_dma_release(int chan);
+extern int	isa_dmastatus(int chan);
+extern int	isa_dmastop(int chan);
 
 #ifdef PC98
 #include <machine/bus.h>
