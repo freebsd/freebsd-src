@@ -94,7 +94,7 @@ is attempted, but if some of these descriptors will still
 be needed if the execve fails, it is necessary to arrange for them
 to be closed if the execve succeeds.
 For this reason, the call
-.Dq Li fcntl(d, F_SETFD, 1)
+.Dq Li fcntl(d, F_SETFD, FD_CLOEXEC)
 is provided,
 which arranges that a descriptor will be closed after a successful
 execve; the call
