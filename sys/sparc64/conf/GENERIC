@@ -195,6 +195,11 @@ device		bpf		#Berkeley packet filter
 #device		cue		# CATC USB ethernet
 #device		kue		# Kawasaki LSI USB ethernet
 
+# FireWire support
+device		firewire	# FireWire bus code
+device		sbp		# SCSI over FireWire (Requires scbus and da)
+device		fwe		# Ethernet over FireWire (non-standard!)
+
 options 	KTR
 options 	KTR_COMPILE=0xffffffff
 options 	KTR_ENTRIES=8192
