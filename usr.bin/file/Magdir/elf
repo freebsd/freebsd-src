@@ -54,3 +54,4 @@
 >>20	belong		0		invalid version
 >>20	belong		1		version 1
 >>36	belong		1		MathCoPro/FPU/MAU Required
+>8	string		>\0		(%s)
