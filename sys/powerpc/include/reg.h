@@ -26,7 +26,6 @@ struct dbreg {
 /*
  * XXX these interfaces are MI, so they should be declared in a MI place.
  */
-void	setregs(struct thread *, u_long, u_long, u_long);
 int	fill_regs(struct thread *, struct reg *);
 int	set_regs(struct thread *, struct reg *);
 int	fill_fpregs(struct thread *, struct fpreg *);

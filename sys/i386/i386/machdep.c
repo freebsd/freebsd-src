@@ -55,6 +55,7 @@
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/signalvar.h>
+#include <sys/imgact.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/linker.h>
@@ -822,7 +823,7 @@ cpu_idle(void)
  * Clear registers on exec
  */
 void
-setregs(td, entry, stack, ps_strings)
+exec_setregs(td, entry, stack, ps_strings)
 	struct thread *td;
 	u_long entry;
 	u_long stack;

@@ -41,6 +41,7 @@
 #include <sys/eventhandler.h>
 #include <sys/sysproto.h>
 #include <sys/signalvar.h>
+#include <sys/imgact.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
@@ -1095,7 +1096,7 @@ cpu_halt(void)
  * Clear registers on exec
  */
 void
-setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
+exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 {
 	struct trapframe *frame;
 
