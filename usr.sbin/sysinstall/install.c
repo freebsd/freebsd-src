@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.146 1996/12/26 03:32:50 jkh Exp $
+ * $Id: install.c,v 1.147 1996/12/29 05:51:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -249,7 +249,6 @@ installFixitHoloShell(dialogMenuItem *self)
     return DITEM_SUCCESS;
 }
 
-
 int
 installFixitCDROM(dialogMenuItem *self)
 {
@@ -260,11 +259,14 @@ installFixitCDROM(dialogMenuItem *self)
     (void)rmdir("/mnt2");
 
     while (1) {
-	msgConfirm("Please insert the second CD-ROM and press return");
-	if (DITEM_STATUS(mediaSetCDROM(NULL)) != DITEM_SUCCESS || !mediaDevice->init(mediaDevice)) {
+	msgConfirm("Please insert the second FreeBSD CDROM and press return");
+	if (DITEM_STATUS(mediaSetCDROM(NULL)) != DITEM_SUCCESS || !mediaDevice || !mediaDevice->init(mediaDevice)) {
 	    /* If we can't initialize it, it's probably not a FreeBSD CDROM so punt on it */
-	    mediaDevice = NULL;
-	    if (msgYesNo("Unable to mount the CD-ROM - do you want to try again?") != 0)
+	    if (mediaDevice) {
+		mediaDevice->shutdown(mediaDevice);
+		mediaDevice = NULL;
+	    }
+	    if (msgYesNo("Unable to mount the CDROM - do you want to try again?") != 0)
 		return DITEM_FAILURE;
 	}
     }
@@ -280,7 +282,7 @@ installFixitCDROM(dialogMenuItem *self)
 
     /*
      * If /tmp points to /mnt2/tmp from a previous fixit floppy session, it's
-     * not very good for us if we point it to the CD-ROM now.  Rather make it
+     * not very good for us if we point it to the CDROM now.  Rather make it
      * a directory in the root MFS then.  Experienced admins will still be
      * able to mount their disk's /tmp over this if they need.
      */
@@ -296,7 +298,7 @@ installFixitCDROM(dialogMenuItem *self)
 	Mkdir("/var/run");
 	if (vsystem("/mnt2/sbin/ldconfig -s /mnt2/usr/lib")) {
 	    msgConfirm("Warning: ldconfig could not create the ld.so hints file.\n"
-		       "Dynamic executables from the CD-ROM likely won't work.");
+		       "Dynamic executables from the CDROM likely won't work.");
 	}
     }
 
@@ -305,13 +307,14 @@ installFixitCDROM(dialogMenuItem *self)
 	Mkdir("/usr/libexec");
 	if (symlink("/mnt2/usr/libexec/ld.so", "/usr/libexec/ld.so")) {
 	    msgConfirm("Warning: could not create the symlink for ld.so.\n"
-		       "Dynamic executables from the CD-ROM likely won't work.");
+		       "Dynamic executables from the CDROM likely won't work.");
 	}
     }
 
     fixit_common();
 
-    msgConfirm("Please remove the CD-ROM now.");
+    msgConfirm("Please remove the FreeBSD CDROM now.");
+    mediaDevice->shutdown(mediaDevice);
     return DITEM_SUCCESS;
 }
 
@@ -343,6 +346,7 @@ installFixitFloppy(dialogMenuItem *self)
     fixit_common();
 
     msgConfirm("Please remove the fixit floppy now.");
+    unmount("/mnt2", MNT_FORCE);
     return DITEM_SUCCESS;
 }
 
@@ -413,7 +417,6 @@ fixit_common(void)
 		  "the fixit shell and be returned here.");
 	(void)waitpid(child, &waitstatus, 0);
     }
-    unmount("/mnt2", MNT_FORCE);
     dialog_clear();
 }
 
