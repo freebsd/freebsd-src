@@ -1,6 +1,6 @@
 /* fix-header.c - Make C header file suitable for C++.
    Copyright (C) 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -67,28 +67,28 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    * INFILE.H is a full pathname for the input file (e.g. /usr/include/stdio.h)
    * OUTFILE.H is the full pathname for where to write the output file,
    if anything needs to be done.  (e.g. ./include/stdio.h)
-   * OPTIONS are such as you would pass to cpp.
+   * OPTIONS can be -D or -I switches as you would pass to cpp.
 
    Written by Per Bothner <bothner@cygnus.com>, July 1993.  */
 
-#include "hconfig.h"
+#include "bconfig.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "obstack.h"
 #include "scan.h"
 #include "cpplib.h"
+#include "c-incpath.h"
 
-static void v_fatal PARAMS ((const char *, va_list)) ATTRIBUTE_PRINTF (1,0) ATTRIBUTE_NORETURN;
-static void fatal PARAMS ((const char *, ...)) ATTRIBUTE_PRINTF_1 ATTRIBUTE_NORETURN;
+static void v_fatal (const char *, va_list)
+     ATTRIBUTE_PRINTF (1,0) ATTRIBUTE_NORETURN;
+static void fatal (const char *, ...) ATTRIBUTE_PRINTF_1 ATTRIBUTE_NORETURN;
 
 sstring buf;
 
 int verbose = 0;
 int partial_count = 0;
 int warnings = 0;
-
-/* We no longer need to add extern "C", because cpp implicitly
-   forces the standard include files to be treated as C.  */
-/*#define ADD_MISSING_EXTERN_C 1 */
 
 #if ADD_MISSING_EXTERN_C
 int missing_extern_C_count = 0;
@@ -188,23 +188,21 @@ struct symbol_list {
 struct symbol_list symbol_table[SYMBOL_TABLE_SIZE];
 int cur_symbol_table_size;
 
-static void add_symbols PARAMS ((symbol_flags, namelist));
-static struct fn_decl *lookup_std_proto PARAMS ((const char *, int));
-static void write_lbrac PARAMS ((void));
-static void recognized_macro PARAMS ((const char *));
-static void check_macro_names PARAMS ((cpp_reader *, namelist));
-static void read_scan_file PARAMS ((char *, int, char **));
-static void write_rbrac PARAMS ((void));
-static int inf_skip_spaces PARAMS ((int));
-static int inf_read_upto PARAMS ((sstring *, int));
-static int inf_scan_ident PARAMS ((sstring *, int));
-static int check_protection PARAMS ((int *, int *));
-static void cb_file_change PARAMS ((cpp_reader *, const struct line_map *));
+static void add_symbols (symbol_flags, namelist);
+static struct fn_decl *lookup_std_proto (const char *, int);
+static void write_lbrac (void);
+static void recognized_macro (const char *);
+static void check_macro_names (cpp_reader *, namelist);
+static void read_scan_file (char *, int, char **);
+static void write_rbrac (void);
+static int inf_skip_spaces (int);
+static int inf_read_upto (sstring *, int);
+static int inf_scan_ident (sstring *, int);
+static int check_protection (int *, int *);
+static void cb_file_change (cpp_reader *, const struct line_map *);
 
 static void
-add_symbols (flags, names)
-     symbol_flags flags;
-     namelist names;
+add_symbols (symbol_flags flags, namelist names)
 {
   symbol_table[cur_symbol_table_size].flags = flags;
   symbol_table[cur_symbol_table_size].names = names;
@@ -377,9 +375,7 @@ struct obstack scan_file_obstack;
 /* NOTE:  If you edit this, also edit gen-protos.c !! */
 
 static struct fn_decl *
-lookup_std_proto (name, name_length)
-     const char *name;
-     int name_length;
+lookup_std_proto (const char *name, int name_length)
 {
   int i = hashstr (name, name_length) % HASH_SIZE;
   int i0 = i;
@@ -410,14 +406,8 @@ int required_unseen_count = 0;
 int required_other = 0;
 
 static void
-write_lbrac ()
+write_lbrac (void)
 {
-
-#if ADD_MISSING_EXTERN_C
-  if (missing_extern_C_count + required_unseen_count > 0)
-    fprintf (outf, "#ifdef __cplusplus\nextern \"C\" {\n#endif\n");
-#endif
-
   if (partial_count)
     {
       fprintf (outf, "#ifndef _PARAMS\n");
@@ -445,8 +435,7 @@ struct partial_proto required_dummy_proto, seen_dummy_proto;
 #define SEEN(FN) ((FN)->partial == &seen_dummy_proto)
 
 static void
-recognized_macro (fname)
-     const char *fname;
+recognized_macro (const char *fname)
 {
   /* The original include file defines fname as a macro.  */
   struct fn_decl *fn = lookup_std_proto (fname, strlen (fname));
@@ -495,8 +484,7 @@ recognized_macro (fname)
 }
 
 void
-recognized_extern (name)
-     const cpp_token *name;
+recognized_extern (const cpp_token *name)
 {
   switch (special_file_handling)
     {
@@ -516,19 +504,12 @@ recognized_extern (name)
    'extern "C"' braces); or 'f' for other function declarations.  */
 
 void
-recognized_function (fname, line, kind, have_arg_list)
-     const cpp_token *fname;
-     unsigned int line;
-     int kind; /* One of 'f' 'F' or 'I' */
-     int have_arg_list;
+recognized_function (const cpp_token *fname, unsigned int line, int kind,
+		     int have_arg_list)
 {
   struct partial_proto *partial;
   int i;
   struct fn_decl *fn;
-#if ADD_MISSING_EXTERN_C
-  if (kind == 'f')
-    missing_extern_C_count++;
-#endif
 
   fn = lookup_std_proto ((const char *) NODE_NAME (fname->val.node),
 			 NODE_LEN (fname->val.node));
@@ -563,8 +544,7 @@ recognized_function (fname, line, kind, have_arg_list)
   /* We only have a partial function declaration,
      so remember that we have to add a complete prototype.  */
   partial_count++;
-  partial = (struct partial_proto *)
-    obstack_alloc (&scan_file_obstack, sizeof (struct partial_proto));
+  partial = obstack_alloc (&scan_file_obstack, sizeof (struct partial_proto));
   partial->line_seen = line;
   partial->fn = fn;
   fn->partial = partial;
@@ -581,9 +561,7 @@ recognized_function (fname, line, kind, have_arg_list)
    call recognized_macro on it.  */
 
 static void
-check_macro_names (pfile, names)
-     cpp_reader *pfile;
-     namelist names;
+check_macro_names (cpp_reader *pfile, namelist names)
 {
   size_t len;
   while (*names)
@@ -596,30 +574,26 @@ check_macro_names (pfile, names)
 }
 
 static void
-cb_file_change (pfile, map)
-     cpp_reader *pfile ATTRIBUTE_UNUSED;
-     const struct line_map *map;
+cb_file_change (cpp_reader *pfile ATTRIBUTE_UNUSED,
+		const struct line_map *map)
 {
   /* Just keep track of current file name.  */
-  cur_file = map->to_file;
+  cur_file = map == NULL ? NULL : map->to_file;
 }
 
 static void
-read_scan_file (in_fname, argc, argv)
-     char *in_fname;
-     int argc;
-     char **argv;
+read_scan_file (char *in_fname, int argc, char **argv)
 {
   cpp_reader *scan_in;
   cpp_callbacks *cb;
   cpp_options *options;
   struct fn_decl *fn;
-  int i;
+  int i, strings_processed;
   struct symbol_list *cur_symbols;
 
   obstack_init (&scan_file_obstack);
 
-  scan_in = cpp_create_reader (CLK_GNUC89);
+  scan_in = cpp_create_reader (CLK_GNUC89, NULL);
   cb = cpp_get_callbacks (scan_in);
   cb->file_change = cb_file_change;
 
@@ -628,17 +602,55 @@ read_scan_file (in_fname, argc, argv)
   options = cpp_get_options (scan_in);
   options->inhibit_warnings = 1;
   options->inhibit_errors = 1;
+  cpp_post_options (scan_in);
 
-  i = cpp_handle_options (scan_in, argc, argv);
+  if (!cpp_read_main_file (scan_in, in_fname))
+    exit (FATAL_EXIT_CODE);
+
+  cpp_change_file (scan_in, LC_RENAME, "<built-in>");
+  cpp_init_builtins (scan_in, true);
+  cpp_change_file (scan_in, LC_RENAME, in_fname);
+
+  /* Process switches after builtins so -D can override them.  */
+  for (i = 0; i < argc; i += strings_processed)
+    {
+      strings_processed = 0;
+      if (argv[i][0] == '-')
+	{
+	  if (argv[i][1] == 'I')
+	    {
+	      if (argv[i][2] != '\0')
+		{
+		  strings_processed = 1;
+		  add_path (xstrdup (argv[i] + 2), BRACKET, false);
+		}
+	      else if (i + 1 != argc)
+		{
+		  strings_processed = 2;
+		  add_path (xstrdup (argv[i + 1]), BRACKET, false);
+		}
+	    }
+	  else if (argv[i][1] == 'D')
+	    {
+	      if (argv[i][2] != '\0')
+		strings_processed = 1, cpp_define (scan_in, argv[i] + 2);
+	      else if (i + 1 != argc)
+		strings_processed = 2, cpp_define (scan_in, argv[i + 1]);
+	    }
+	}
+
+      if (strings_processed == 0)
+	break;
+    }
+
   if (i < argc)
-    cpp_error (scan_in, DL_ERROR, "invalid option `%s'", argv[i]);
+    cpp_error (scan_in, CPP_DL_ERROR, "invalid option `%s'", argv[i]);
   if (cpp_errors (scan_in))
     exit (FATAL_EXIT_CODE);
 
-  if (! cpp_read_main_file (scan_in, in_fname, NULL))
-    exit (FATAL_EXIT_CODE);
-
-  cpp_finish_options (scan_in);
+  register_include_chains (scan_in, NULL /* sysroot */, NULL /* iprefix */,
+			   true /* stdinc */, false /* cxx_stdinc */,
+			   false /* verbose */);
 
   /* We are scanning a system header, so mark it as such.  */
   cpp_make_system_header (scan_in, 1, 0);
@@ -652,12 +664,12 @@ read_scan_file (in_fname, argc, argv)
   if (special_file_handling == stdio_h
       && (fn = lookup_std_proto ("_filbuf", 7)) != NULL)
     {
-      static const unsigned char getchar_call[] = "getchar();";
+      unsigned char getchar_call[] = "getchar();\n";
       int seen_filbuf = 0;
 
       /* Scan the macro expansion of "getchar();".  */
       cpp_push_buffer (scan_in, getchar_call, sizeof(getchar_call) - 1,
-		       /* from_stage3 */ true, 1);
+		       /* from_stage3 */ true);
       for (;;)
 	{
 	  const cpp_token *t = cpp_get_token (scan_in);
@@ -695,11 +707,7 @@ read_scan_file (in_fname, argc, argv)
 	}
     }
 
-  if (required_unseen_count + partial_count + required_other
-#if ADD_MISSING_EXTERN_C
-      + missing_extern_C_count
-#endif
-      == 0)
+  if (required_unseen_count + partial_count + required_other == 0)
     {
       if (verbose)
 	fprintf (stderr, "%s: OK, nothing needs to be done.\n", inc_filename);
@@ -715,17 +723,11 @@ read_scan_file (in_fname, argc, argv)
       if (partial_count)
 	fprintf (stderr, "%s: %d non-prototype function declarations.\n",
 		 inc_filename, partial_count);
-#if ADD_MISSING_EXTERN_C
-      if (missing_extern_C_count)
-	fprintf (stderr,
-		 "%s: %d declarations not protected by extern \"C\".\n",
-		 inc_filename, missing_extern_C_count);
-#endif
     }
 }
 
 static void
-write_rbrac ()
+write_rbrac (void)
 {
   struct fn_decl *fn;
   const char *cptr;
@@ -852,11 +854,6 @@ write_rbrac ()
       break;
     }
 
-
-#if ADD_MISSING_EXTERN_C
-  if (missing_extern_C_count + required_unseen_count > 0)
-    fprintf (outf, "#ifdef __cplusplus\n}\n#endif\n");
-#endif
 }
 
 /* Returns 1 iff the file is properly protected from multiple inclusion:
@@ -870,8 +867,7 @@ write_rbrac ()
 #define INF_UNGET(c) ((c)!=EOF && inf_ptr--)
 
 static int
-inf_skip_spaces (c)
-     int c;
+inf_skip_spaces (int c)
 {
   for (;;)
     {
@@ -909,9 +905,7 @@ inf_skip_spaces (c)
 /* Read into STR from inf_buffer upto DELIM.  */
 
 static int
-inf_read_upto (str, delim)
-     sstring *str;
-     int delim;
+inf_read_upto (sstring *str, int delim)
 {
   int ch;
   for (;;)
@@ -927,9 +921,7 @@ inf_read_upto (str, delim)
 }
 
 static int
-inf_scan_ident (s, c)
-     sstring *s;
-     int c;
+inf_scan_ident (sstring *s, int c)
 {
   s->ptr = s->base;
   if (ISIDST (c))
@@ -953,8 +945,7 @@ inf_scan_ident (s, c)
    Otherwise return 0.  */
 
 static int
-check_protection (ifndef_line, endif_line)
-     int *ifndef_line, *endif_line;
+check_protection (int *ifndef_line, int *endif_line)
 {
   int c;
   int if_nesting = 1; /* Level of nesting of #if's */
@@ -1055,12 +1046,10 @@ check_protection (ifndef_line, endif_line)
   return 1;
 }
 
-extern int main			PARAMS ((int, char **));
+extern int main (int, char **);
 
 int
-main (argc, argv)
-     int argc;
-     char **argv;
+main (int argc, char **argv)
 {
   int inf_fd;
   struct stat sbuf;
@@ -1180,7 +1169,7 @@ main (argc, argv)
       exit (FATAL_EXIT_CODE);
     }
   inf_size = sbuf.st_size;
-  inf_buffer = (char *) xmalloc (inf_size + 2);
+  inf_buffer = xmalloc (inf_size + 2);
   inf_ptr = inf_buffer;
 
   to_read = inf_size;
@@ -1303,9 +1292,7 @@ main (argc, argv)
 
 
 static void
-v_fatal (str, ap)
-  const char * str;
-  va_list ap;
+v_fatal (const char *str, va_list ap)
 {
   fprintf (stderr, "%s: %s: ", progname, inc_filename);
   vfprintf (stderr, str, ap);
@@ -1315,11 +1302,11 @@ v_fatal (str, ap)
 }
 
 static void
-fatal VPARAMS ((const char *str, ...))
+fatal (const char *str, ...)
 {
-  VA_OPEN (ap, str);
-  VA_FIXEDARG (ap, const char *, str);
-
+  va_list ap;
+  
+  va_start (ap, str);
   v_fatal (str, ap);
-  VA_CLOSE (ap);
+  va_end (ap);
 }

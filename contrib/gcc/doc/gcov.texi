@@ -1,5 +1,5 @@
 @c Copyright (C) 1996, 1997, 1999, 2000, 2001,
-@c 2002, 2003 Free Software Foundation, Inc.
+@c 2002, 2003, 2004 Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
 
@@ -120,6 +120,7 @@ gcov @r{[}@var{options}@r{]} @var{sourcefile}
 @ignore
 @c man begin SYNOPSIS
 gcov [@option{-v}|@option{--version}] [@option{-h}|@option{--help}]
+     [@option{-a}|@option{--all-blocks}]
      [@option{-b}|@option{--branch-probabilities}]
      [@option{-c}|@option{--branch-counts}]
      [@option{-n}|@option{--no-output}]
@@ -127,6 +128,7 @@ gcov [@option{-v}|@option{--version}] [@option{-h}|@option{--help}]
      [@option{-p}|@option{--preserve-paths}]
      [@option{-f}|@option{--function-summaries}]
      [@option{-o}|@option{--object-directory} @var{directory|file}] @var{sourcefile}
+     [@option{-u}|@option{--unconditional-branches}]
 @c man end
 @c man begin SEEALSO
 gpl(7), gfdl(7), fsf-funding(7), gcc(1) and the Info entry for @file{gcc}.
@@ -145,11 +147,19 @@ exit without doing any further processing.
 Display the @command{gcov} version number (on the standard output),
 and exit without doing any further processing.
 
+@item -a
+@itemx --all-blocks
+Write individual execution counts for every basic block. Normally gcov
+outputs execution counts only for the main blocks of a line. With this
+option you can determine if blocks within a single line are not being
+executed.
+
 @item -b
 @itemx --branch-probabilities
 Write branch frequencies to the output file, and write branch summary
 info to the standard output.  This option allows you to see how often
-each branch in your program was taken.
+each branch in your program was taken. Unconditional branches will not
+be shown, unless the @option{-u} option is given.
 
 @item -c
 @itemx --branch-counts
@@ -166,7 +176,9 @@ Create long file names for included source files.  For example, if the
 header file @file{x.h} contains code, and was included in the file
 @file{a.c}, then running @command{gcov} on the file @file{a.c} will produce
 an output file called @file{a.c##x.h.gcov} instead of @file{x.h.gcov}.
-This can be useful if @file{x.h} is included in multiple source files.
+This can be useful if @file{x.h} is included in multiple source
+files. If you uses the @samp{-p} option, both the including and
+included file names will be complete path names.
 
 @item -p
 @itemx --preserve-paths
@@ -185,24 +197,33 @@ Output summaries for each function in addition to the file level summary.
 @itemx --object-directory @var{directory}
 @itemx --object-file @var{file}
 Specify either the directory containing the gcov data files, or the
-object path name. The @file{.bb}, @file{.bbg}, and
-@file{.da} data files are searched for using this option. If a directory
+object path name. The @file{.gcno}, and
+@file{.gcda} data files are searched for using this option. If a directory
 is specified, the data files are in that directory and named after the
 source file name, without its extension. If a file is specified here,
 the data files are named after that file, without its extension. If this
 option is not supplied, it defaults to the current directory.
 
+@item -u
+@itemx --unconditional-branches
+When branch counts are given, include those of unconditional branches.
+Unconditional branches are normally not interesting.
+
 @end table
 
-@command{gcov} should be run with the current directory the same as that 
-when you invoked the compiler. Otherwise it will not be able to locate 
-the source files. @command{gcov} produces files called 
-@file{@var{mangledname}.gcov} in the current directory. These contain 
-the coverage information of the source file they correspond to. 
-One @file{.gcov} file is produced for each source file containing code, 
-which was compiled to produce the data files. The @file{.gcov} files 
-contain the ':' separated fields along with program source code. The 
-format is
+@command{gcov} should be run with the current directory the same as that
+when you invoked the compiler. Otherwise it will not be able to locate
+the source files. @command{gcov} produces files called
+@file{@var{mangledname}.gcov} in the current directory. These contain
+the coverage information of the source file they correspond to.
+One @file{.gcov} file is produced for each source file containing code,
+which was compiled to produce the data files. The @var{mangledname} part
+of the output file name is usually simply the source file name, but can
+be something more complicated if the @samp{-l} or @samp{-p} options are
+given. Refer to those options for details.
+
+The @file{.gcov} files contain the ':' separated fields along with
+program source code. The format is
 
 @smallexample
 @var{execution_count}:@var{line_number}:@var{source line text}
@@ -228,8 +249,8 @@ information needed by gcov.  These additional files are placed in the
 directory where the object file is located.
 
 Running the program will cause profile output to be generated.  For each
-source file compiled with @option{-fprofile-arcs}, an accompanying @file{.da}
-file will be placed in the object file directory.
+source file compiled with @option{-fprofile-arcs}, an accompanying
+@file{.gcda} file will be placed in the object file directory.
 
 Running @command{gcov} with your program's source file names as arguments
 will now produce a listing of the code along with frequency of execution
@@ -249,25 +270,78 @@ Here is a sample:
 
 @smallexample
         -:    0:Source:tmp.c
-        -:    0:Object:tmp.bb
+        -:    0:Graph:tmp.gcno
+        -:    0:Data:tmp.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
         -:    1:#include <stdio.h>
         -:    2:
         -:    3:int main (void)
+function main called 1 returned 1 blocks executed 75%
         1:    4:@{
         1:    5:  int i, total;
-        -:    6:  
+        -:    6:
         1:    7:  total = 0;
-        -:    8:  
+        -:    8:
        11:    9:  for (i = 0; i < 10; i++)
        10:   10:    total += i;
-        -:   11:  
+        -:   11:
         1:   12:  if (total != 45)
     #####:   13:    printf ("Failure\n");
         -:   14:  else
         1:   15:    printf ("Success\n");
         1:   16:  return 0;
-        1:   17:@}
+        -:   17:@}
 @end smallexample
+
+When you use the @option{-a} option, you will get individual block
+counts, and the output looks like this:
+
+@smallexample
+        -:    0:Source:tmp.c
+        -:    0:Graph:tmp.gcno
+        -:    0:Data:tmp.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:#include <stdio.h>
+        -:    2:
+        -:    3:int main (void)
+function main called 1 returned 1 blocks executed 75%
+        1:    4:@{
+        1:    4-block  0
+        1:    5:  int i, total;
+        -:    6:
+        1:    7:  total = 0;
+        -:    8:
+       11:    9:  for (i = 0; i < 10; i++)
+       11:    9-block  0
+       10:   10:    total += i;
+       10:   10-block  0
+        -:   11:
+        1:   12:  if (total != 45)
+        1:   12-block  0
+    #####:   13:    printf ("Failure\n");
+    $$$$$:   13-block  0
+        -:   14:  else
+        1:   15:    printf ("Success\n");
+        1:   15-block  0
+        1:   16:  return 0;
+        1:   16-block  0
+        -:   17:@}
+@end smallexample
+
+In this mode, each basic block is only shown on one line -- the last
+line of the block. A multi-line block will only contribute to the
+execution count of that last line, and other lines will not be shown
+to contain code, unless previous blocks end on those lines.
+The total execution count of a line is shown and subsequent lines show
+the execution counts for individual blocks that end on that line. After each
+block, the branch and call counts of the block will be shown, if the
+@option{-b} option is given.
+
+Because of the way GCC instruments calls, a call count can be shown
+after a line with no individual blocks.
+As you can see, line 13 contains a basic block that was not executed.
 
 @need 450
 When you use the @option{-b} option, your output looks like this:
@@ -285,31 +359,34 @@ Here is a sample of a resulting @file{tmp.c.gcov} file:
 
 @smallexample
         -:    0:Source:tmp.c
-        -:    0:Object:tmp.bb
+        -:    0:Graph:tmp.gcno
+        -:    0:Data:tmp.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
         -:    1:#include <stdio.h>
         -:    2:
         -:    3:int main (void)
+function main called 1 returned 1 blocks executed 75%
         1:    4:@{
         1:    5:  int i, total;
-        -:    6:  
+        -:    6:
         1:    7:  total = 0;
-        -:    8:  
+        -:    8:
        11:    9:  for (i = 0; i < 10; i++)
-branch  0: taken 90%
-branch  1: taken 100%
-branch  2: taken 100%
+branch  0 taken 91% (fallthrough)
+branch  1 taken 9%
        10:   10:    total += i;
-        -:   11:  
+        -:   11:
         1:   12:  if (total != 45)
-branch  0: taken 100%
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
     #####:   13:    printf ("Failure\n");
-call    0: never executed
-branch  1: never executed
+call    0 never executed
         -:   14:  else
         1:   15:    printf ("Success\n");
-call    0: returns 100%
+call    0 called 1 returned 100%
         1:   16:  return 0;
-        1:   17:@}
+        -:   17:@}
 @end smallexample
 
 For each basic block, a line is printed after the last line of the basic
@@ -333,7 +410,7 @@ of times the call was executed will be printed.  This will usually be
 and thus may not return every time they are called.
 
 The execution counts are cumulative.  If the example program were
-executed again without removing the @file{.da} file, the count for the
+executed again without removing the @file{.gcda} file, the count for the
 number of times each line in the source was executed would be added to
 the results of the previous run(s).  This is potentially useful in
 several ways.  For example, it could be used to accumulate data over a
@@ -341,9 +418,9 @@ number of program runs as part of a test verification suite, or to
 provide more accurate long-term information over a large number of
 program runs.
 
-The data in the @file{.da} files is saved immediately before the program
+The data in the @file{.gcda} files is saved immediately before the program
 exits.  For each source file compiled with @option{-fprofile-arcs}, the
-profiling code first attempts to read in an existing @file{.da} file; if
+profiling code first attempts to read in an existing @file{.gcda} file; if
 the file doesn't match the executable (differing number of basic block
 counts) it will ignore the contents of the file.  It then adds in the
 new execution counts and finally writes the data to the file.
@@ -386,119 +463,50 @@ executed 100 times.  In one sense this result is correct, because there
 was only one instruction representing all four of these lines.  However,
 the output does not indicate how many times the result was 0 and how
 many times the result was 1.
+
+Inlineable functions can create unexpected line counts.  Line counts are
+shown for the source code of the inlineable function, but what is shown
+depends on where the function is inlined, or if it is not inlined at all.
+
+If the function is not inlined, the compiler must emit an out of line
+copy of the function, in any object file that needs it.  If
+@file{fileA.o} and @file{fileB.o} both contain out of line bodies of a
+particular inlineable function, they will also both contain coverage
+counts for that function.  When @file{fileA.o} and @file{fileB.o} are
+linked together, the linker will, on many systems, select one of those
+out of line bodies for all calls to that function, and remove or ignore
+the other.  Unfortunately, it will not remove the coverage counters for
+the unused function body.  Hence when instrumented, all but one use of
+that function will show zero counts.
+
+If the function is inlined in several places, the block structure in
+each location might not be the same.  For instance, a condition might
+now be calculable at compile time in some instances.  Because the
+coverage of all the uses of the inline function will be shown for the
+same source lines, the line counts themselves might seem inconsistent.
+
 @c man end
 
 @node Gcov Data Files
 @section Brief description of @command{gcov} data files
 
-@command{gcov} uses three files for doing profiling.  The names of these
-files are derived from the original @emph{source} file by substituting
-the file suffix with either @file{.bb}, @file{.bbg}, or @file{.da}.  All
-of these files are placed in the same directory as the source file, and
-contain data stored in a platform-independent method.
+@command{gcov} uses two files for profiling.  The names of these files
+are derived from the original @emph{object} file by substituting the
+file suffix with either @file{.gcno}, or @file{.gcda}.  All of these files
+are placed in the same directory as the object file, and contain data
+stored in a platform-independent format.
 
-The @file{.bb} and @file{.bbg} files are generated when the source file
-is compiled with the GCC @option{-ftest-coverage} option.  The
-@file{.bb} file contains a list of source files (including headers),
-functions within those files, and line numbers corresponding to each
-basic block in the source file.
+The @file{.gcno} file is generated when the source file is compiled with
+the GCC @option{-ftest-coverage} option.  It contains information to
+reconstruct the basic block graphs and assign source line numbers to
+blocks.
 
-The @file{.bb} file format consists of several lists of 4-byte integers
-which correspond to the line numbers of each basic block in the file.
-Each list is terminated by a line number of 0.  A line number of
-@minus{}1 is used to designate that the source file name (padded to a
-4-byte boundary and followed by another @minus{}1) follows.  In
-addition, a line number of @minus{}2 is used to designate that the name
-of a function (also padded to a 4-byte boundary and followed by a
-@minus{}2) follows.
-
-The @file{.bbg} file is used to reconstruct the program flow graph for
-the source file.  It contains a list of the program flow arcs (possible
-branches taken from one basic block to another) for each function which,
-in combination with the @file{.bb} file, enables gcov to reconstruct the
-program flow.
-
-In the @file{.bbg} file, the format is:
-@smallexample
-        name of function #0
-        checksum of function #0
-        number of basic blocks for function #0 (4-byte number)
-        total number of arcs for function #0 (4-byte number)
-        count of arcs in basic block #0 (4-byte number)
-        destination basic block of arc #0 (4-byte number)
-        flag bits (4-byte number)
-        destination basic block of arc #1 (4-byte number)
-        flag bits (4-byte number)
-        @dots{}
-        destination basic block of arc #N (4-byte number)
-        flag bits (4-byte number)
-        count of arcs in basic block #1 (4-byte number)
-        destination basic block of arc #0 (4-byte number)
-        flag bits (4-byte number)
-        @dots{}
-@end smallexample
-
-A @minus{}1 (stored as a 4-byte number) is used to separate each function's
-list of basic blocks, and to verify that the file has been read
-correctly.
-
-The function name is stored as a @minus{}1 (4 bytes), the length (4 bytes),
-the name itself (padded to 4-byte boundary) followed by a @minus{}1 (4 bytes).
-
-The flags are defined as follows:
-@itemize
-@item bit0 
-On function spanning tree
-
-@item bit1
-Is a fake edge
-
-@item bit2
-Is the fall through edge from one block to its immediate successor.
-
-@item bit3-bit31
-For future expansion
-
-@end itemize
-
-The @file{.da} file is generated when a program containing object files
+The @file{.gcda} file is generated when a program containing object files
 built with the GCC @option{-fprofile-arcs} option is executed.  A
-separate @file{.da} file is created for each source file compiled with
-this option, and the name of the @file{.da} file is stored as an
-absolute pathname in the resulting object file.  This path name is
-derived from the object file name by substituting a @file{.da} suffix.
+separate @file{.gcda} file is created for each object file compiled with
+this option. It contains arc transition counts, and some summary
+information.
 
-The @file{.da} consists of one or more blocks with the following
-structure:
-@smallexample
-        "magic" number @minus{}123 (4-byte number)
-	number of functions (4-byte number)
-        length of the "extension block" in bytes
-	extension block (variable length)
-  	name of function #0 (the same format as in .bbg file)
-        checksum of function #0
-	number of instrumented arcs (4-byte number)
-        count of arc #0 (8-byte number)
-        count of arc #1 (8-byte number)
-        @dots{}
-	count of arc #M_0 (8-byte number)
-  	name of function #1 (the same format as in .bbg file)
-        checksum of function #1
-	@dots{}
-@end smallexample
-Multiple program runs might merge data into a single block, or might
-append a new block. The current structure of the extension block is as
-follows:
-@smallexample
-        number of instrumented arcs in whole program (4-byte number)
-        sum all of instrumented arcs in whole program (8-byte number)
-        maximal value of counter in whole program (8-byte number)
-        number of instrumented arcs in the object file (4-byte number)
-        sum all of instrumented arcs in the object file (8-byte number)
-        maximal value of counter in the object file (8-byte number)
-@end smallexample
-
-All three of these files use the functions in @file{gcov-io.h} to store
-integers; the functions in this header provide a machine-independent
-mechanism for storing and retrieving data from a stream.
-
+The full details of the file format is specified in @file{gcov-io.h},
+and functions provided in that header file should be used to access the
+coverage files.

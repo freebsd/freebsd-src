@@ -1,22 +1,22 @@
 /* Definitions of target machine for GNU compiler, for DEC Alpha on OSF/1.
-   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2001, 2002, 2003
-   Free Software Foundation, Inc.
+   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2001, 2002, 2003,
+   2004 Free Software Foundation, Inc.
    Contributed by Richard Kenner (kenner@vlsi1.ultra.nyu.edu)
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
@@ -49,6 +49,13 @@ Boston, MA 02111-1307, USA.  */
 	   to be defined for <math.h>.  */		\
         if (LONG_DOUBLE_TYPE_SIZE == 128)		\
           builtin_define ("__X_FLOAT");			\
+							\
+	/* Tru64 UNIX V4/V5 provide several ISO C94	\
+	   features protected by the corresponding	\
+	   __STDC_VERSION__ macro.  libstdc++ v3	\
+	   needs them as well.  */			\
+	if (c_dialect_cxx ())				\
+	  builtin_define ("__STDC_VERSION__=199409L");	\
     } while (0)
 
 /* Accept DEC C flags for multithreaded programs.  We use _PTHREAD_USE_D4
@@ -83,22 +90,6 @@ Boston, MA 02111-1307, USA.  */
   "%{ffast-math|funsafe-math-optimizations:crtfastmath.o%s}"
 
 #define MD_STARTFILE_PREFIX "/usr/lib/cmplrs/cc/"
-
-#define ASM_FILE_START(FILE)					\
-{								\
-  alpha_write_verstamp (FILE);					\
-  fprintf (FILE, "\t.set noreorder\n");				\
-  fprintf (FILE, "\t.set volatile\n");                          \
-  fprintf (FILE, "\t.set noat\n");				\
-  if (TARGET_SUPPORT_ARCH)					\
-    fprintf (FILE, "\t.arch %s\n",				\
-             TARGET_CPU_EV6 ? "ev6"				\
-	     : (TARGET_CPU_EV5					\
-		? (TARGET_MAX ? "pca56" : TARGET_BWX ? "ev56" : "ev5") \
-		: "ev4"));					\
-								\
-  ASM_OUTPUT_SOURCE_FILENAME (FILE, main_input_filename);	\
-}
 
 /* Tru64 UNIX V5.1 requires a special as flag.  Empty by default.  */
 
@@ -154,14 +145,11 @@ Boston, MA 02111-1307, USA.  */
 
 /* Attempt to turn on access permissions for the stack.  */
 
-#define TRANSFER_FROM_TRAMPOLINE					\
-extern void __enable_execute_stack PARAMS ((void *));			\
-									\
+#define ENABLE_EXECUTE_STACK						\
 void									\
-__enable_execute_stack (addr)						\
-     void *addr;							\
+__enable_execute_stack (void *addr)					\
 {									\
-  extern int mprotect PARAMS ((const void *, size_t, int));		\
+  extern int mprotect (const void *, size_t, int);			\
   long size = getpagesize ();						\
   long mask = ~(size-1);						\
   char *page = (char *) (((long) addr) & mask);				\
@@ -180,6 +168,10 @@ __enable_execute_stack (addr)						\
 #define HAS_INIT_SECTION
 #define LD_INIT_SWITCH "-init"
 #define LD_FINI_SWITCH "-fini"
+
+/* The linker needs a space after "-o".  This allows -oldstyle_liblookup to
+   be passed to ld.  */
+#define SWITCHES_NEED_SPACES "o"
 
 /* Select a format to encode pointers in exception handling data.  CODE
    is 0 for data, 1 for code labels, 2 for function pointers.  GLOBAL is

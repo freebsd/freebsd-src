@@ -1,28 +1,25 @@
-/* Target independent definitions for LynxOS.
-   Copyright (C) 1993, 1994, 1995, 1996, 1999, 2000, 2002
+/* Target independent definitions for LynxOS using gas and gnu ld.
+   Copyright (C) 1993, 1994, 1995, 1996, 1999, 2000, 2002, 2003
    Free Software Foundation, Inc.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-/* LynxOS is a multi-platform Unix, similar to SVR3, but not identical.
-   We can get quite a bit from generic svr3, but have to do some overrides.  */
-
-#include "svr3.h"
+/* LynxOS is a multi-platform Unix, similar to SVR3, but not identical.  */
 
 /* Define various macros, depending on the combination of flags.  */
 
@@ -84,14 +81,12 @@ Boston, MA 02111-1307, USA.  */
 	   "\t.text\n\t.stabs \"\",%d,0,0,Letext\nLetext:\n", N_SO)
 
 #undef  ASM_OUTPUT_SOURCE_LINE
-#define ASM_OUTPUT_SOURCE_LINE(file, line)		\
-  { static int sym_lineno = 1;				\
-    fprintf (file, ".stabn 68,0,%d,.LM%d-",		\
-	     line, sym_lineno);				\
+#define ASM_OUTPUT_SOURCE_LINE(file, line, counter)	\
+  { fprintf (file, ".stabn 68,0,%d,.LM%d-",		\
+	     line, counter);				\
     assemble_name (file,				\
 		   XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0)); \
-    fprintf (file, "\n.LM%d:\n", sym_lineno);		\
-    sym_lineno += 1; }
+    fprintf (file, "\n.LM%d:\n", counter); }
 
 /* Handle #pragma pack and sometimes #pragma weak.  */
 

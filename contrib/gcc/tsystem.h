@@ -26,7 +26,6 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    This exception does not however invalidate any other reasons why
    the executable file might be covered by the GNU General Public License.  */
 
-
 #ifndef GCC_TSYSTEM_H
 #define GCC_TSYSTEM_H
 
@@ -59,6 +58,14 @@ extern void free (void *);
 extern int atexit (void (*)(void));
 #endif
 
+#ifndef abort
+extern void abort (void) __attribute__ ((__noreturn__));
+#endif
+
+#ifndef strlen
+extern size_t strlen (const char *);
+#endif
+
 #else /* ! inhibit_libc */
 /* We disable this when inhibit_libc, so that gcc can still be built without
    needing header files first.  */
@@ -81,20 +88,16 @@ extern int atexit (void (*)(void));
 extern int errno;
 #endif
 
-#ifdef POSIX
-#include <string.h>
-#endif
-
 /* GCC (fixproto) guarantees these system headers exist.  */
+#include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 
 /* GCC supplies this header.  */
 #include <limits.h>
 
-#ifdef POSIX
+/* GCC (fixproto) guarantees this system headers exists.  */
 #include <time.h>
-#endif
 
 #endif /* inhibit_libc */
 

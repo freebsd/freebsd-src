@@ -1,20 +1,20 @@
 /* Process machine description and calculate constant conditions.
-   Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 
-   This file is part of GNU CC.
+   This file is part of GCC.
 
-   GNU CC is free software; you can redistribute it and/or modify
+   GCC is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
 
-   GNU CC is distributed in the hope that it will be useful,
+   GCC is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GNU CC; see the file COPYING.  If not, write to
+   along with GCC; see the file COPYING.  If not, write to
    the Free Software Foundation, 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
@@ -26,39 +26,38 @@
    most of the programs that generate code from the machine
    description can simply ignore the entire pattern.  */
 
-#include "hconfig.h"
+#include "bconfig.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "rtl.h"
 #include "errors.h"
 #include "hashtab.h"
 #include "gensupport.h"
 
-/* so we can include except.h in the generated file */
+/* so we can include except.h in the generated file.  */
 static int saw_eh_return;
 
 static htab_t condition_table;
 
-static void add_condition	PARAMS ((const char *));
-static void write_header	PARAMS ((void));
-static void write_conditions	PARAMS ((void));
-static int write_one_condition	PARAMS ((PTR *, PTR));
-
-extern int main			PARAMS ((int, char **));
+static void add_condition	(const char *);
+static void write_header	(void);
+static void write_conditions	(void);
+static int write_one_condition	(void **, void *);
 
 /* Record the C test expression EXPR in the condition_table.
    Duplicates clobber previous entries, which leaks memory, but
    we don't care for this application.  */
 
 static void
-add_condition (expr)
-     const char *expr;
+add_condition (const char *expr)
 {
   struct c_test *test;
 
   if (expr[0] == 0)
     return;
 
-  test = (struct c_test *) xmalloc (sizeof (struct c_test));
+  test = xmalloc (sizeof (struct c_test));
   test->expr = expr;
 
   *(htab_find_slot (condition_table, test, INSERT)) = test;
@@ -67,13 +66,13 @@ add_condition (expr)
 /* Generate the header for insn-conditions.c.  */
 
 static void
-write_header ()
+write_header (void)
 {
   puts ("\
 /* Generated automatically by the program `genconditions' from the target\n\
    machine description file.  */\n\
 \n\
-#include \"hconfig.h\"\n\
+#include \"bconfig.h\"\n\
 #include \"insn-constants.h\"\n");
 
   puts ("\
@@ -87,6 +86,8 @@ write_header ()
 
   puts ("\
 #include \"system.h\"\n\
+#include \"coretypes.h\"\n\
+#include \"tm.h\"\n\
 #include \"rtl.h\"\n\
 #include \"tm_p.h\"\n\
 #include \"function.h\"\n");
@@ -117,8 +118,7 @@ write_header ()
 /* Dummy external declarations.  */\n\
 extern rtx insn;\n\
 extern rtx ins1;\n\
-extern rtx operands[];\n\
-extern int next_insn_tests_no_inequality PARAMS ((rtx));\n");
+extern rtx operands[];\n");
 
   puts ("\
 /* If we don't have __builtin_constant_p, or it's not acceptable in\n\
@@ -138,9 +138,7 @@ extern int next_insn_tests_no_inequality PARAMS ((rtx));\n");
     MAYBE_EVAL (! optimize_size && ! TARGET_READ_MODIFY_WRITE) },  */
 
 static int
-write_one_condition (slot, dummy)
-     PTR *slot;
-     PTR dummy ATTRIBUTE_UNUSED;
+write_one_condition (void **slot, void *dummy ATTRIBUTE_UNUSED)
 {
   const struct c_test *test = * (const struct c_test **) slot;
   const char *p;
@@ -163,7 +161,7 @@ write_one_condition (slot, dummy)
 /* Write out the complete conditions table, its size, and a flag
    indicating that gensupport.c can now do insn elision.  */
 static void
-write_conditions ()
+write_conditions (void)
 {
   puts ("\
 /* This table lists each condition found in the machine description.\n\
@@ -182,9 +180,7 @@ const struct c_test insn_conditions[] = {");
 }
 
 int
-main (argc, argv)
-     int argc;
-     char **argv;
+main (int argc, char **argv)
 {
   rtx desc;
   int pattern_lineno; /* not used */

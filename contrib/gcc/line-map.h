@@ -1,5 +1,5 @@
 /* Map logical line numbers to (source file, line number) pairs.
-   Copyright (C) 2001
+   Copyright (C) 2001, 2003
    Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
@@ -30,6 +30,12 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
    (e.g. a #line directive in C).  */
 enum lc_reason {LC_ENTER = 0, LC_LEAVE, LC_RENAME};
 
+/* A logical line number, i,e, an "index" into a line_map.  */
+/* Long-term, we want to use this to replace struct location_s (in input.h),
+   and effectively typedef source_location location_t.  */
+typedef unsigned int source_location;
+typedef source_location fileline; /* deprecated name */
+
 /* The logical line FROM_LINE maps to physical source file TO_FILE at
    line TO_LINE, and subsequently one-to-one until the next line_map
    structure in the set.  INCLUDED_FROM is an index into the set that
@@ -42,7 +48,7 @@ struct line_map
 {
   const char *to_file;
   unsigned int to_line;
-  unsigned int from_line;
+  source_location from_line;
   int included_from;
   ENUM_BITFIELD (lc_reason) reason : CHAR_BIT;
   unsigned char sysp;
@@ -68,36 +74,37 @@ struct line_maps
 };
 
 /* Initialize a line map set.  */
-extern void init_line_maps
-  PARAMS ((struct line_maps *));
+extern void linemap_init (struct line_maps *);
 
 /* Free a line map set.  */
-extern void free_line_maps
-  PARAMS ((struct line_maps *));
+extern void linemap_free (struct line_maps *);
 
 /* Add a mapping of logical source line to physical source file and
-   line number.  The text pointed to by TO_FILE must have a lifetime
-   at least as long as the line maps.  If reason is LC_LEAVE, and
+   line number.
+
+   The text pointed to by TO_FILE must have a lifetime
+   at least as long as the final call to lookup_line ().  An empty
+   TO_FILE means standard input.  If reason is LC_LEAVE, and
    TO_FILE is NULL, then TO_FILE, TO_LINE and SYSP are given their
    natural values considering the file we are returning to.
 
    FROM_LINE should be monotonic increasing across calls to this
    function.  A call to this function can relocate the previous set of
    maps, so any stored line_map pointers should not be used.  */
-extern const struct line_map *add_line_map
-  PARAMS ((struct line_maps *, enum lc_reason, unsigned int sysp,
-	   unsigned int from_line, const char *to_file, unsigned int to_line));
+extern const struct line_map *linemap_add
+  (struct line_maps *, enum lc_reason, unsigned int sysp,
+   source_location from_line, const char *to_file, unsigned int to_line);
 
 /* Given a logical line, returns the map from which the corresponding
    (source file, line) pair can be deduced.  */
-extern const struct line_map *lookup_line
-  PARAMS ((struct line_maps *, unsigned int));
+extern const struct line_map *linemap_lookup
+  (struct line_maps *, source_location);
 
 /* Print the file names and line numbers of the #include commands
    which led to the map MAP, if any, to stderr.  Nothing is output if
    the most recently listed stack is the same as the current one.  */
-extern void print_containing_files
-  PARAMS ((struct line_maps *, const struct line_map *));
+extern void linemap_print_containing_files (struct line_maps *,
+					    const struct line_map *);
 
 /* Converts a map and logical line to source line.  */
 #define SOURCE_LINE(MAP, LINE) ((LINE) + (MAP)->to_line - (MAP)->from_line)

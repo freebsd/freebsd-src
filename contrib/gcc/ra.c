@@ -1,5 +1,5 @@
 /* Graph coloring register allocator
-   Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2002, 2003 Free Software Foundation, Inc.
    Contributed by Michael Matz <matz@suse.de>
    and Daniel Berlin <dan@cgsoftware.com>.
 
@@ -20,6 +20,8 @@
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "rtl.h"
 #include "tm_p.h"
 #include "insn-config.h"
@@ -73,7 +75,7 @@
    * Lattice based rematerialization
    * create definitions of ever-life regs at the beginning of
      the insn chain
-   * insert loads as soon, stores as late as possile
+   * insert loads as soon, stores as late as possible
    * insert spill insns as outward as possible (either looptree, or LCM)
    * reuse stack-slots
    * delete coalesced insns.  Partly done.  The rest can only go, when we get
@@ -83,16 +85,16 @@
   */
 
 static struct obstack ra_obstack;
-static void create_insn_info PARAMS ((struct df *));
-static void free_insn_info PARAMS ((void));
-static void alloc_mem PARAMS ((struct df *));
-static void free_mem PARAMS ((struct df *));
-static void free_all_mem PARAMS ((struct df *df));
-static int one_pass PARAMS ((struct df *, int));
-static void check_df PARAMS ((struct df *));
-static void init_ra PARAMS ((void));
+static void create_insn_info (struct df *);
+static void free_insn_info (void);
+static void alloc_mem (struct df *);
+static void free_mem (struct df *);
+static void free_all_mem (struct df *df);
+static int one_pass (struct df *, int);
+static void check_df (struct df *);
+static void init_ra (void);
 
-void reg_alloc PARAMS ((void));
+void reg_alloc (void);
 
 /* These global variables are "internal" to the register allocator.
    They are all documented at their declarations in ra.h.  */
@@ -146,6 +148,7 @@ HARD_REG_SET never_use_colors;
 HARD_REG_SET usable_regs[N_REG_CLASSES];
 unsigned int num_free_regs[N_REG_CLASSES];
 HARD_REG_SET hardregs_for_mode[NUM_MACHINE_MODES];
+HARD_REG_SET invalid_mode_change_regs;
 unsigned char byte2bitcount[256];
 
 unsigned int debug_new_regalloc = -1;
@@ -162,8 +165,7 @@ int flag_ra_dump_notes = 0;
    is done.  Allocate an object of SIZE bytes.  */
 
 void *
-ra_alloc (size)
-     size_t size;
+ra_alloc (size_t size)
 {
   return obstack_alloc (&ra_obstack, size);
 }
@@ -171,8 +173,7 @@ ra_alloc (size)
 /* Like ra_alloc(), but clear the returned memory.  */
 
 void *
-ra_calloc (size)
-     size_t size;
+ra_calloc (size_t size)
 {
   void *p = obstack_alloc (&ra_obstack, size);
   memset (p, 0, size);
@@ -182,8 +183,7 @@ ra_calloc (size)
 /* Returns the number of hardregs in HARD_REG_SET RS.  */
 
 int
-hard_regs_count (rs)
-     HARD_REG_SET rs;
+hard_regs_count (HARD_REG_SET rs)
 {
   int count = 0;
 #ifdef HARD_REG_SET
@@ -217,8 +217,7 @@ hard_regs_count (rs)
    be basically valid.  */
 
 rtx
-ra_emit_move_insn (x, y)
-     rtx x, y;
+ra_emit_move_insn (rtx x, rtx y)
 {
   enum machine_mode mode = GET_MODE (x);
   if (GET_MODE_CLASS (mode) == MODE_CC)
@@ -235,8 +234,7 @@ static struct ref **refs_for_insn_df;
    all valid defs and uses in an insn.  */
 
 static void
-create_insn_info (df)
-     struct df *df;
+create_insn_info (struct df *df)
 {
   rtx insn;
   struct ref **act_refs;
@@ -285,7 +283,7 @@ create_insn_info (df)
 /* Free the insn_df structures.  */
 
 static void
-free_insn_info ()
+free_insn_info (void)
 {
   free (refs_for_insn_df);
   refs_for_insn_df = NULL;
@@ -299,9 +297,7 @@ free_insn_info ()
    represented by WEB.  Returns the matching subweb or NULL.  */
 
 struct web *
-find_subweb (web, reg)
-     struct web *web;
-     rtx reg;
+find_subweb (struct web *web, rtx reg)
 {
   struct web *w;
   if (GET_CODE (reg) != SUBREG)
@@ -317,9 +313,7 @@ find_subweb (web, reg)
    a collection of the needed size and offset (in bytes).  */
 
 struct web *
-find_subweb_2 (web, size_word)
-     struct web *web;
-     unsigned int size_word;
+find_subweb_2 (struct web *web, unsigned int size_word)
 {
   struct web *w = web;
   if (size_word == GET_MODE_SIZE (GET_MODE (web->orig_x)))
@@ -337,8 +331,7 @@ find_subweb_2 (web, size_word)
 /* Returns the superweb for SUBWEB.  */
 
 struct web *
-find_web_for_subweb_1 (subweb)
-     struct web *subweb;
+find_web_for_subweb_1 (struct web *subweb)
 {
   while (subweb->parent_web)
     subweb = subweb->parent_web;
@@ -349,8 +342,7 @@ find_web_for_subweb_1 (subweb)
    Return 1 if they do.  */
 
 int
-hard_regs_intersect_p (a, b)
-     HARD_REG_SET *a, *b;
+hard_regs_intersect_p (HARD_REG_SET *a, HARD_REG_SET *b)
 {
   HARD_REG_SET c;
   COPY_HARD_REG_SET (c, *a);
@@ -365,15 +357,13 @@ lose:
    register allocator.  */
 
 static void
-alloc_mem (df)
-     struct df *df;
+alloc_mem (struct df *df)
 {
   int i;
   ra_build_realloc (df);
   if (!live_at_end)
     {
-      live_at_end = (bitmap *) xmalloc ((last_basic_block + 2)
-					* sizeof (bitmap));
+      live_at_end = xmalloc ((last_basic_block + 2) * sizeof (bitmap));
       for (i = 0; i < last_basic_block + 2; i++)
 	live_at_end[i] = BITMAP_XMALLOC ();
       live_at_end += 2;
@@ -384,8 +374,7 @@ alloc_mem (df)
 /* Free the memory which isn't necessary for the next pass.  */
 
 static void
-free_mem (df)
-     struct df *df ATTRIBUTE_UNUSED;
+free_mem (struct df *df ATTRIBUTE_UNUSED)
 {
   free_insn_info ();
   ra_build_free ();
@@ -395,8 +384,7 @@ free_mem (df)
    it's done.  */
 
 static void
-free_all_mem (df)
-     struct df *df;
+free_all_mem (struct df *df)
 {
   unsigned int i;
   live_at_end -= 2;
@@ -416,9 +404,7 @@ static long ticks_rebuild;
    was added, i.e. if the allocator needs to rerun.  */
 
 static int
-one_pass (df, rebuild)
-     struct df *df;
-     int rebuild;
+one_pass (struct df *df, int rebuild)
 {
   long ticks = clock ();
   int something_spilled;
@@ -459,7 +445,7 @@ one_pass (df, rebuild)
 /* Initialize various arrays for the register allocator.  */
 
 static void
-init_ra ()
+init_ra (void)
 {
   int i;
   HARD_REG_SET rs;
@@ -469,9 +455,7 @@ init_ra ()
 #endif
   int need_fp
     = (! flag_omit_frame_pointer
-#ifdef EXIT_IGNORE_STACK
        || (current_function_calls_alloca && EXIT_IGNORE_STACK)
-#endif
        || FRAME_POINTER_REQUIRED);
 
   ra_colorize_init ();
@@ -553,6 +537,23 @@ init_ra ()
       COPY_HARD_REG_SET (hardregs_for_mode[i], rs);
     }
 
+  CLEAR_HARD_REG_SET (invalid_mode_change_regs);
+#ifdef CANNOT_CHANGE_MODE_CLASS
+  if (0)
+  for (i = 0; i < NUM_MACHINE_MODES; i++)
+    {
+      enum machine_mode from = (enum machine_mode) i;
+      enum machine_mode to;
+      for (to = VOIDmode; to < MAX_MACHINE_MODE; ++to)
+	{
+	  int r;
+	  for (r = 0; r < FIRST_PSEUDO_REGISTER; r++)
+	    if (REG_CANNOT_CHANGE_MODE_P (from, to, r))
+	      SET_HARD_REG_BIT (invalid_mode_change_regs, r);
+	}
+    }
+#endif
+
   for (an_unusable_color = 0; an_unusable_color < FIRST_PSEUDO_REGISTER;
        an_unusable_color++)
     if (TEST_HARD_REG_BIT (never_use_colors, an_unusable_color))
@@ -573,8 +574,7 @@ init_ra ()
    invariances we expect.  */
 
 static void
-check_df (df)
-     struct df *df;
+check_df (struct df *df)
 {
   struct df_link *link;
   rtx insn;
@@ -644,7 +644,7 @@ check_df (df)
 /* Main register allocator entry point.  */
 
 void
-reg_alloc ()
+reg_alloc (void)
 {
   int changed;
   FILE *ra_dump_file = rtl_dump_file;
@@ -655,7 +655,7 @@ reg_alloc ()
   /* If this is an empty function we shouldn't do all the following,
      but instead just setup what's necessary, and return.  */
 
-  /* We currently rely on the existance of the return value USE as
+  /* We currently rely on the existence of the return value USE as
      one of the last insns.  Add it if it's not there anymore.  */
   if (last)
     {
@@ -663,7 +663,7 @@ reg_alloc ()
       for (e = EXIT_BLOCK_PTR->pred; e; e = e->pred_next)
 	{
 	  basic_block bb = e->src;
-	  last = bb->end;
+	  last = BB_END (bb);
 	  if (!INSN_P (last) || GET_CODE (PATTERN (last)) != USE)
 	    {
 	      rtx insns;
@@ -679,7 +679,7 @@ reg_alloc ()
   /* Setup debugging levels.  */
   switch (0)
     {
-      /* Some usefull presets of the debug level, I often use.  */
+      /* Some useful presets of the debug level, I often use.  */
       case 0: debug_new_regalloc = DUMP_EVER; break;
       case 1: debug_new_regalloc = DUMP_COSTS; break;
       case 2: debug_new_regalloc = DUMP_IGRAPH_M; break;
@@ -696,7 +696,7 @@ reg_alloc ()
 
   /* Run regclass first, so we know the preferred and alternate classes
      for each pseudo.  Deactivate emitting of debug info, if it's not
-     explicitely requested.  */
+     explicitly requested.  */
   if ((debug_new_regalloc & DUMP_REGCLASS) == 0)
     rtl_dump_file = NULL;
   regclass (get_insns (), max_reg_num (), rtl_dump_file);
@@ -753,7 +753,7 @@ reg_alloc ()
 	 chains per insn, and per regno.  In later passes only update
          that info from the new and modified insns.  */
       df_analyse (df, (ra_pass == 1) ? 0 : (bitmap) -1,
-		  DF_HARD_REGS | DF_RD_CHAIN | DF_RU_CHAIN);
+		  DF_HARD_REGS | DF_RD_CHAIN | DF_RU_CHAIN | DF_FOR_REGALLOC);
 
       if ((debug_new_regalloc & DUMP_DF) != 0)
 	{
@@ -805,7 +805,7 @@ reg_alloc ()
 	  /* Those new pseudos need to have their REFS count set.  */
 	  reg_scan_update (get_insns (), NULL, max_regno);
 	  max_regno = max_reg_num ();
-	  /* And they need usefull classes too.  */
+	  /* And they need useful classes too.  */
 	  regclass (get_insns (), max_reg_num (), rtl_dump_file);
 	  rtl_dump_file = ra_dump_file;
 
@@ -887,7 +887,7 @@ reg_alloc ()
 			 "after allocation/spilling, before reload", NULL);
 
   /* Allocate the reg_equiv_memory_loc array for reload.  */
-  reg_equiv_memory_loc = (rtx *) xcalloc (max_regno, sizeof (rtx));
+  reg_equiv_memory_loc = xcalloc (max_regno, sizeof (rtx));
   /* And possibly initialize it.  */
   allocate_initial_values (reg_equiv_memory_loc);
   /* And one last regclass pass just before reload.  */

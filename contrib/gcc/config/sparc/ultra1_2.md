@@ -1,20 +1,20 @@
 ;; Scheduling description for UltraSPARC-I/II.
 ;;   Copyright (C) 2002 Free Software Foundation, Inc.
 ;;
-;; This file is part of GNU CC.
+;; This file is part of GCC.
 ;;
-;; GNU CC is free software; you can redistribute it and/or modify
+;; GCC is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 ;;
-;; GNU CC is distributed in the hope that it will be useful,
+;; GCC is distributed in the hope that it will be useful,
 ;; but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
 ;;
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU CC; see the file COPYING.  If not, write to
+;; along with GCC; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 59 Temple Place - Suite 330,
 ;; Boston, MA 02111-1307, USA.
 
@@ -250,3 +250,53 @@
 ;; An integer branch may execute in the same cycle as the compare
 ;; creating the condition codes.
 (define_bypass 0 "us1_simple_ieu1" "us1_branch")
+
+;; VIS scheduling
+(define_insn_reservation "us1_fga_single"
+  2
+  (and (and
+         (eq_attr "cpu" "ultrasparc")
+         (eq_attr "type" "fga"))
+       (eq_attr "fptype" "single"))
+  "us1_fpa + us1_fp_single + us1_slotany, nothing")
+
+(define_bypass 1 "us1_fga_single" "us1_fga_single")
+
+(define_insn_reservation "us1_fga_double"
+  2
+  (and (and
+         (eq_attr "cpu" "ultrasparc")
+         (eq_attr "type" "fga"))
+       (eq_attr "fptype" "double"))
+  "us1_fpa + us1_fp_double + us1_slotany, nothing")
+
+(define_bypass 1 "us1_fga_double" "us1_fga_double")
+
+(define_insn_reservation "us1_fgm_single"
+  4
+  (and (and
+         (eq_attr "cpu" "ultrasparc")
+         (eq_attr "type" "fgm_pack,fgm_mul,fgm_cmp"))
+       (eq_attr "fptype" "single"))
+  "us1_fpm + us1_fp_single + us1_slotany, nothing*3")
+
+(define_bypass 3 "us1_fgm_single" "us1_fga_single")
+
+(define_insn_reservation "us1_fgm_double"
+  4
+  (and (and
+         (eq_attr "cpu" "ultrasparc")
+         (eq_attr "type" "fgm_pack,fgm_mul,fgm_cmp"))
+       (eq_attr "fptype" "double"))
+  "us1_fpm + us1_fp_double + us1_slotany, nothing*3")
+
+(define_bypass 3 "us1_fgm_double" "us1_fga_double")
+
+(define_insn_reservation "us1_pdist"
+  4
+  (and (eq_attr "cpu" "ultrasparc")
+       (eq_attr "type" "fgm_pdist"))
+  "us1_fpm + us1_fp_double + us1_slotany, nothing*3")
+
+(define_bypass 3 "us1_pdist" "us1_fga_double,us1_fga_single")
+(define_bypass 1 "us1_pdist" "us1_pdist")

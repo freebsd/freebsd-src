@@ -19,7 +19,7 @@ along with GNU Fortran; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
-#define USE_HCONFIG
+#define USE_BCONFIG
 
 #include "proj.h"
 #include "malloc.h"
@@ -367,7 +367,7 @@ main (int argc, char **argv)
 
       /* Make new name object to store name and its keyword. */
 
-      newname = (name) xmalloc (sizeof (*newname));
+      newname = xmalloc (sizeof (*newname));
       newname->namelen = strlen (buf);
       newname->kwlen = strlen (kwname);
       total_length = newname->kwlen + fixlengths;

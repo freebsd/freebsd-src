@@ -1,25 +1,24 @@
 /* Definitions of target machine for GNU compiler,
    for IBM RS/6000 POWER running AIX V5.2.
-   Copyright (C) 2002 Free Software Foundation, Inc.
+   Copyright (C) 2002, 2003 Free Software Foundation, Inc.
    Contributed by David Edelsohn (edelsohn@gnu.org).
 
-This file is part of GNU CC.
+   This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+   GCC is free software; you can redistribute it and/or modify it
+   under the terms of the GNU General Public License as published
+   by the Free Software Foundation; either version 2, or (at your
+   option) any later version.
 
-GNU CC is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   GCC is distributed in the hope that it will be useful, but WITHOUT
+   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+   License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
-
+   You should have received a copy of the GNU General Public License
+   along with GCC; see the file COPYING.  If not, write to the
+   Free Software Foundation, 59 Temple Place - Suite 330, Boston,
+   MA 02111-1307, USA.  */
 
 /* AIX V5 and above support 64-bit executables.  */
 #undef  SUBSUBTARGET_SWITCHES
@@ -60,25 +59,25 @@ do {									\
 } while (0);
 
 #undef ASM_SPEC
-#define ASM_SPEC "-u %{maix64:-a64 -mppc64} %(asm_cpu)"
+#define ASM_SPEC "-u %{maix64:-a64 %{!mcpu*:-mppc64}} %(asm_cpu)"
 
-/* Common ASM definitions used by ASM_SPEC amonst the various targets
+/* Common ASM definitions used by ASM_SPEC amongst the various targets
    for handling -mcpu=xxx switches.  */
 #undef ASM_CPU_SPEC
 #define ASM_CPU_SPEC \
 "%{!mcpu*: %{!maix64: \
   %{mpowerpc64: -mppc64} \
   %{!mpower64: %(asm_default)}}} \
-%{mcpu=power3: -m604} \
-%{mcpu=power4: -m604} \
+%{mcpu=power3: -m620} \
+%{mcpu=power4: -m620} \
 %{mcpu=powerpc: -mppc} \
 %{mcpu=rs64a: -mppc} \
 %{mcpu=603: -m603} \
 %{mcpu=603e: -m603} \
 %{mcpu=604: -m604} \
 %{mcpu=604e: -m604} \
-%{mcpu=620: -mppc} \
-%{mcpu=630: -m604}"
+%{mcpu=620: -m620} \
+%{mcpu=630: -m620}"
 
 #undef	ASM_DEFAULT_SPEC
 #define ASM_DEFAULT_SPEC "-mppc"
@@ -189,3 +188,8 @@ do {									\
 
 #undef LD_INIT_SWITCH
 #define LD_INIT_SWITCH "-binitfini"
+
+/* AIX 5.2 has the float and long double forms of math functions.  */
+#undef TARGET_C99_FUNCTIONS
+#define TARGET_C99_FUNCTIONS  1
+

@@ -29,9 +29,9 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 extern FILE *finput;
 
 void
-ffe_parse_file (set_yydebug)
-     int set_yydebug ATTRIBUTE_UNUSED;
+ffe_parse_file (int set_yydebug ATTRIBUTE_UNUSED)
 {
+  const char *fname;
   ffewhereFile wf;
 
   if (ffe_is_version ())
@@ -40,8 +40,9 @@ ffe_parse_file (set_yydebug)
   if (!ffe_is_pedantic ())
     ffe_set_is_pedantic (pedantic);
 
-  wf = ffewhere_file_new (main_input_filename, strlen (main_input_filename));
-  ffecom_file (main_input_filename);
+  fname = main_input_filename ? main_input_filename : "<stdin>";
+  wf = ffewhere_file_new (fname, strlen (fname));
+  ffecom_file (fname);
   ffe_file (wf, finput);
 
   ffecom_finish_compile ();

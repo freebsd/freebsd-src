@@ -3,41 +3,22 @@
    Copyright (C) 1991, 1996, 2000, 2002 Free Software Foundation, Inc.
    Contributed by Ron Guilmette (rfg@monkeys.com).
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.
-
-   To use this file, make up a file with a name like:
-
-	?????svr3.h
-
-   where ????? is replaced by the name of the basic hardware that you
-   are targeting for.  Then, in the file ?????svr3.h, put something
-   like:
-
-	#include "?????.h"
-	#include "svr3.h"
-
-   followed by any really system-specific defines (or overrides of
-   defines) which you find that you need.  For example, CPP_PREDEFINES
-   is defined here with only the defined -Dunix and -DSVR3.  You should
-   probably override that in your target-specific ?????svr3.h file
-   with a set of defines that includes these, but also contains an
-   appropriate define for the type of hardware that you are targeting.
-*/
+Boston, MA 02111-1307, USA. */
 
 /* Define a symbol indicating that we are using svr3.h.  */
 #define USING_SVR3_H
@@ -46,27 +27,10 @@ Boston, MA 02111-1307, USA.
    environment and assembler syntax we are targeting for.  */
 #define SVR3_target
 
-/* Cpp, assembler, linker, library, and startfile spec's.  */
+/* Assembler, linker, library, and startfile spec's.  */
 
-/* You should redefine CPP_PREDEFINES in any file which includes this one.
-   The definition should be appropriate for the type of target system
-   involved, and it should include any -A (assertion) options which are
-   appropriate for the given target system.  */
-
-#undef CPP_PREDEFINES
-
-/* Output at beginning of assembler file.  */
 /* The .file command should always begin the output.  */
-
-#undef ASM_FILE_START
-#define ASM_FILE_START(FILE)					\
-  do { output_file_directive ((FILE), main_input_filename);	\
-       if (optimize) { ASM_FILE_START_1 (FILE); }		\
-     } while (0)
-
-/* By default, do nothing: a few machines support .optim, but not most.  */
-#undef ASM_FILE_START_1
-#define ASM_FILE_START_1(FILE)
+#define TARGET_ASM_FILE_START_FILE_DIRECTIVE true
 
 /* This says how to output an assembler line
    to define a global common symbol.  */
@@ -78,7 +42,7 @@ Boston, MA 02111-1307, USA.
 #define ASM_OUTPUT_COMMON(FILE, NAME, SIZE, ROUNDED)  \
 ( fputs (".comm ", (FILE)),			\
   assemble_name ((FILE), (NAME)),		\
-  fprintf ((FILE), ",%u\n", (SIZE)))
+  fprintf ((FILE), ",%lu\n", (unsigned long)(SIZE)))
 
 /* This says how to output an assembler line
    to define a local common symbol.  */
@@ -93,25 +57,8 @@ Boston, MA 02111-1307, USA.
     data_section ();					\
     ASM_OUTPUT_ALIGN ((FILE), align == -1 ? 2 : align);	\
     ASM_OUTPUT_LABEL ((FILE), (NAME));			\
-    fprintf ((FILE), "\t.set .,.+%u\n", (ROUNDED));	\
+    fprintf ((FILE), "\t.set .,.+%u\n", (int)(ROUNDED));	\
   } while (0)
-
-#if 0 /* For now, let's leave these machine-specific.  */
-/* Use crt1.o as a startup file and crtn.o as a closing file.  */
-
-#define STARTFILE_SPEC  \
-  "%{pg:gcrt1.o%s}%{!pg:%{p:mcrt1.o%s}%{!p:crt1.o%s}}"
-
-#ifdef CROSS_COMPILE
-#define LIB_SPEC "-lc crtn.o%s"
-#else
-#define LIB_SPEC "%{p:-L/usr/lib/libp}%{pg:-L/usr/lib/libp} -lc crtn.o%s"
-#endif
-
-/* Special flags for the linker.  I don't know what they do.  */
-
-#define LINK_SPEC "%{T*} %{z:-lm}"
-#endif
 
 /* Output #ident as a .ident.  */
 
@@ -157,16 +104,6 @@ Boston, MA 02111-1307, USA.
 
 #undef USER_LABEL_PREFIX
 #define USER_LABEL_PREFIX "_"
-
-/* This is how to output an internal numbered label where
-   PREFIX is the class of label and NUM is the number within the class.
-
-   For most svr3 systems, the convention is that any symbol which begins
-   with a period is not put into the linker symbol table by the assembler.  */
-
-#undef ASM_OUTPUT_INTERNAL_LABEL
-#define ASM_OUTPUT_INTERNAL_LABEL(FILE,PREFIX,NUM)	\
-  asm_fprintf (FILE, "%0L%s%d:\n", PREFIX, NUM)
 
 /* This is how to store into the string LABEL
    the symbol_ref name of an internal numbered label where

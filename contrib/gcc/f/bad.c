@@ -1,5 +1,5 @@
 /* bad.c -- Implementation File (module.c template V1.0)
-   Copyright (C) 1995, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1995, 2002, 2003 Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
@@ -132,7 +132,7 @@ ffebad_bufputs_ (char buf[], int bufi, const char *s)
    ffebad_init_0();  */
 
 void
-ffebad_init_0 ()
+ffebad_init_0 (void)
 {
   assert (FFEBAD == ARRAY_SIZE (ffebad_messages_));
 }
@@ -203,11 +203,12 @@ ffebad_start_ (bool lex_override, ffebad errnum, ffebadSeverity sev,
       if ((ffebad_severity_ != FFEBAD_severityPEDANTIC)
 	  || !flag_pedantic_errors)
 	{
-	  if (!diagnostic_count_diagnostic (global_dc, DK_WARNING))
+	  if (!diagnostic_report_warnings_p ())
 	    {			/* User wants no warnings. */
 	      ffebad_is_temp_inhibited_ = TRUE;
 	      return FALSE;
 	    }
+	  diagnostic_kind_count (global_dc, DK_WARNING)++;
 	  break;
 	}
       /* Fall through (PEDANTIC && flag_pedantic_errors).  */
@@ -215,7 +216,7 @@ ffebad_start_ (bool lex_override, ffebad errnum, ffebadSeverity sev,
     case FFEBAD_severityWEIRD:
     case FFEBAD_severitySEVERE:
     case FFEBAD_severityDISASTER:
-      diagnostic_count_diagnostic (global_dc, DK_ERROR);
+      diagnostic_kind_count (global_dc, DK_ERROR)++;
       break;
 
     default:
@@ -347,7 +348,7 @@ ffebad_string (const char *string)
    to actually get it to print (to stderr).  */
 
 void
-ffebad_finish ()
+ffebad_finish (void)
 {
 #define MAX_SPACES 132
   static const char *const spaces
