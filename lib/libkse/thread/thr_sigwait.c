@@ -32,6 +32,8 @@
  * $FreeBSD$
  */
 #include <signal.h>
+#include <sys/param.h>
+#include <sys/signalvar.h>
 #include <errno.h>
 #ifdef _THREAD_SAFE
 #include <pthread.h>
