@@ -343,7 +343,6 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 		CTR1(KTR_INTR, __func__ ": setrunqueue %d", p->p_pid);
 		p->p_stat = SRUN;
 		setrunqueue(p);
-#if !defined(__alpha__) || defined(PREEMPTION)		
 		if (do_switch) {
 			saveintr = sched_lock.mtx_saveintr;
 			mtx_intr_enable(&sched_lock);
@@ -353,7 +352,6 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 			mi_switch();
 			sched_lock.mtx_saveintr = saveintr;
 		} else
-#endif
 			need_resched();
 	} else {
 		CTR3(KTR_INTR, __func__ ": pid %d: it_need %d, state %d",
