@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.8 (Berkeley) 2/21/94
- * $Id: ffs_alloc.c,v 1.19 1995/11/19 19:55:26 dyson Exp $
+ * $Id: ffs_alloc.c,v 1.20 1995/12/03 11:16:21 bde Exp $
  */
 
 #include <sys/param.h>
@@ -528,7 +528,8 @@ ffs_valloc(ap)
 	if (ipref >= fs->fs_ncg * fs->fs_ipg)
 		ipref = 0;
 	cg = ino_to_cg(fs, ipref);
-	ino = (ino_t)ffs_hashalloc(pip, cg, (long)ipref, mode, ffs_nodealloccg);
+	ino = (ino_t)ffs_hashalloc(pip, cg, (long)ipref, mode,
+					(allocfcn_t *)ffs_nodealloccg);
 	if (ino == 0)
 		goto noinodes;
 	error = VFS_VGET(pvp->v_mount, ino, ap->a_vpp);
