@@ -300,7 +300,7 @@ amrd_detach(device_t dev)
     if (--disks_registered == 0)
 	cdevsw_remove(&amrddisk_cdevsw);
 #else
-    disk_destroy(sc->amrd_dev_t);
+    disk_destroy(&sc->amrd_disk);
 #endif
     return(0);
 }

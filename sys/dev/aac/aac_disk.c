@@ -411,7 +411,7 @@ aac_disk_detach(device_t dev)
 		return(EBUSY);
 
 	devstat_remove_entry(&sc->ad_stats);
-	disk_destroy(sc->ad_dev_t);
+	disk_destroy(&sc->ad_disk);
 #ifdef FREEBSD_4
 	if (--disks_registered == 0)
 		cdevsw_remove(&aac_disk_cdevsw);

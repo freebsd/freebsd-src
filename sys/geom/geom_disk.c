@@ -364,14 +364,12 @@ disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, void * 
 }
 
 void
-disk_destroy(dev_t dev)
+disk_destroy(struct disk *dp)
 {
-	struct disk *dp;
 	struct g_geom *gp;
 
-	dp = dev->si_disk;
 	gp = dp->d_geom;
-	g_free(dev);
+	g_free(dp->d_dev);
 	gp->flags |= G_GEOM_WITHER;
 	gp->softc = NULL;
 	g_orphan_provider(LIST_FIRST(&gp->provider), ENXIO);

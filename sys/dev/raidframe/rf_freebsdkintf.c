@@ -635,7 +635,7 @@ out:
 
 		devstat_remove_entry(&sc->device_stats);
 
-		disk_destroy(parent_sc->sc_raiddevs[unit]);
+		disk_destroy(&sc->sc_dkdev);
 		raidunlock(sc);
 
 		/* XXX Need to be able to destroy the zone */

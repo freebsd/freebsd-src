@@ -1007,7 +1007,7 @@ dacleanup(struct cam_periph *periph)
 	xpt_print_path(periph->path);
 	printf("removing device entry\n");
 	if (softc->dev) {
-		disk_destroy(softc->dev);
+		disk_destroy(&softc->disk);
 	}
 	free(softc, M_DEVBUF);
 }

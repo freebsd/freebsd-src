@@ -410,7 +410,7 @@ ata_raid_delete(int array)
 	ar_promise_write_conf(rdp);
     else
 	ar_highpoint_write_conf(rdp);
-    disk_destroy(rdp->dev);
+    disk_destroy(&rdp->disk);
     free(rdp, M_AR);
     ar_table[array] = NULL;
     return 0;
