@@ -1017,7 +1017,7 @@ process_rings(netin, netout, netex, ttyin, ttyout, poll)
 	    }
 #	    endif /* defined(TN3270) */
 		    /* I don't like this, does it ever happen? */
-	    printf("sleep(5) from telnet, after select\r\n");
+	    printf("sleep(5) from telnet, after select: %s\r\n", strerror(errno));
 	    sleep(5);
 	}
 	return 0;
