@@ -198,7 +198,7 @@ rip6_input(mp, offp, proto)
 			if (n) {
 				if (last->in6p_flags & IN6P_CONTROLOPTS ||
 				    last->in6p_socket->so_options & SO_TIMESTAMP)
-					ip6_savecontrol(last, &opts, ip6, n);
+					ip6_savecontrol(last, n, &opts);
 				/* strip intermediate headers */
 				m_adj(n, *offp);
 				if (sbappendaddr(&last->in6p_socket->so_rcv,
@@ -239,7 +239,7 @@ rip6_input(mp, offp, proto)
 	if (last) {
 		if (last->in6p_flags & IN6P_CONTROLOPTS ||
 		    last->in6p_socket->so_options & SO_TIMESTAMP)
-			ip6_savecontrol(last, &opts, ip6, m);
+			ip6_savecontrol(last, m, &opts);
 		/* strip intermediate headers */
 		m_adj(m, *offp);
 		if (sbappendaddr(&last->in6p_socket->so_rcv,
