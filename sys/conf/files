@@ -623,8 +623,8 @@ pci/adv_pci.c		optional adv pci
 pci/adw_pci.c		optional adw pci
 pci/ahc_pci.c		optional ahc pci		\
 	dependency	"aic7xxx_reg.h $S/pci/ahc_pci.c"
-pci/brooktree848.c	optional bktr pci
-pci/bt848_i2c.c		optional bktr pci
+dev/bktr/bktr_core.c	optional bktr pci
+dev/bktr/bktr_i2c.c	optional bktr pci
 pci/bt_pci.c		optional bt pci
 pci/cy_pci.c		optional cy pci
 pci/dpt_pci.c		optional dpt pci
