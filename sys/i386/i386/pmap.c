@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.17 1994/02/08 03:07:58 davidg Exp $
+ *	$Id: pmap.c,v 1.18 1994/02/10 03:03:44 davidg Exp $
  */
 
 /*
@@ -1096,7 +1096,6 @@ pmap_protect(pmap, sva, eva, prot)
 				continue;
 		}
 
-
 		/*
 		 * Page not valid.  Again, skip it.
 		 * Should we do this?  Or set protection anyway?
@@ -1105,15 +1104,20 @@ pmap_protect(pmap, sva, eva, prot)
 			continue;
 
 		i386prot = pte_prot(pmap, prot);
-		if (va < UPT_MAX_ADDRESS)
-			i386prot |= PG_RW /*PG_u*/;
+
+		if (va < UPT_MIN_ADDRESS)
+			i386prot |= PG_u;
+		else if (va < UPT_MAX_ADDRESS)
+			i386prot |= PG_u | PG_RW;
+
 		if (i386prot != pte->pg_prot) {
 			reqactivate = 1;
 			pmap_pte_set_prot(pte, i386prot);
 		}
 	}
 endofloop:
-	tlbflush();
+	if (reqactivate)
+		tlbflush();
 }
 
 /*
@@ -1217,17 +1221,11 @@ pmap_enter(pmap, va, pa, prot, wired)
 			pv->pv_next = npv;
 		}
 		splx(s); 
+	} else {
+		cacheable = FALSE;
 	}
 
 	pmap_use_pt(pmap, va, 1);
-
-	/*
-	 * Assumption: if it is not part of our managed memory
-	 * then it must be device memory which may be volitile.
-	 */
-	if (pmap_initialized) {
-		checkpv = cacheable = FALSE;
-	}
 
 	/*
 	 * Increment counters
@@ -1241,6 +1239,10 @@ validate:
 	 * Now validate mapping with desired protection/wiring.
 	 */
 	npte = (pa & PG_FRAME) | pte_prot(pmap, prot) | PG_V;
+
+	if (!cacheable) {
+		npte |= PG_N;
+	}
 
 	/*
 	 * When forking (copy-on-write, etc):
@@ -1541,7 +1543,7 @@ pmap_changebit(pa, bit, setem)
                         /*
                          * XXX don't write protect pager mappings
                          */
-                        if (bit == PG_RO) {
+                        if (!setem && (bit == PG_RW)) {
                                 extern vm_offset_t pager_sva, pager_eva;
 
                                 if (va >= pager_sva && va < pager_eva)
@@ -1625,7 +1627,7 @@ void
 pmap_copy_on_write(pa)
 	vm_offset_t pa;
 {
-	pmap_changebit(pa, PG_RO, TRUE);
+	pmap_changebit(pa, PG_RW, FALSE);
 }
 
 
