@@ -830,7 +830,7 @@ IFS=$OIFS
 
 # cat << EOF >.profile
 (
-echo "PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin:/usr/contrib/bin:/usr/distbin:.:"
+echo "PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin:/usr/distbin:.:"
 echo "export PATH"
 echo "HOME=/root"
 echo "export HOME"
