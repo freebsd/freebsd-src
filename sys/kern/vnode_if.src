@@ -478,20 +478,6 @@ vop_putpages {
 };
 
 #
-#% freeblks	vp	- - -
-#
-# This call is used by the filesystem to release blocks back to 
-# device-driver.  This is useful if the driver has a lengthy 
-# erase handling or similar.
-#
-
-vop_freeblks {
-	IN struct vnode *vp;
-	IN daddr_t addr;
-	IN daddr_t length;
-};
-
-#
 #% getacl	vp	L L L
 #
 vop_getacl {
