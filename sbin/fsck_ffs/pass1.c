@@ -48,6 +48,7 @@ static const char rcsid[] =
 #include <ufs/ffs/fs.h>
 
 #include <err.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "fsck.h"
@@ -228,7 +229,7 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 	    DIP(dp, di_size) > sblock.fs_maxfilesize ||
 	    (mode == IFDIR && DIP(dp, di_size) > MAXDIRSIZE)) {
 		if (debug)
-			printf("bad size %qu:", DIP(dp, di_size));
+			printf("bad size %ju:", (uintmax_t)DIP(dp, di_size));
 		goto unknown;
 	}
 	if (!preen && mode == IFMT && reply("HOLD BAD BLOCK") == 1) {
@@ -240,7 +241,8 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 	if ((mode == IFBLK || mode == IFCHR || mode == IFIFO ||
 	     mode == IFSOCK) && DIP(dp, di_size) != 0) {
 		if (debug)
-			printf("bad special-file size %qu:", DIP(dp, di_size));
+			printf("bad special-file size %ju:",
+			    (uintmax_t)DIP(dp, di_size));
 		goto unknown;
 	}
 	if ((mode == IFBLK || mode == IFCHR) &&
@@ -252,8 +254,8 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 	ndb = howmany(DIP(dp, di_size), sblock.fs_bsize);
 	if (ndb < 0) {
 		if (debug)
-			printf("bad size %qu ndb %qu:",
-				DIP(dp, di_size), ndb);
+			printf("bad size %ju ndb %ju:",
+				(uintmax_t)DIP(dp, di_size), (uintmax_t)ndb);
 		goto unknown;
 	}
 	if (mode == IFBLK || mode == IFCHR)
@@ -281,8 +283,8 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 	for (j = ndb; ndb < NDADDR && j < NDADDR; j++)
 		if (DIP(dp, di_db[j]) != 0) {
 			if (debug)
-				printf("bad direct addr[%d]: %qu\n", j,
-				    (ufs2_daddr_t)DIP(dp, di_db[j]));
+				printf("bad direct addr[%d]: %ju\n", j,
+				    (uintmax_t)DIP(dp, di_db[j]));
 			goto unknown;
 		}
 	for (j = 0, ndb -= NDADDR; ndb > 0; j++)
@@ -290,8 +292,8 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 	for (; j < NIADDR; j++)
 		if (DIP(dp, di_ib[j]) != 0) {
 			if (debug)
-				printf("bad indirect addr: %qu\n",
-				    DIP(dp, di_ib[j]));
+				printf("bad indirect addr: %ju\n",
+				    (uintmax_t)DIP(dp, di_ib[j]));
 			goto unknown;
 		}
 	if (ftypeok(dp) == 0)
@@ -331,9 +333,9 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 	(void)ckinode(dp, idesc);
 	idesc->id_entryno *= btodb(sblock.fs_fsize);
 	if (DIP(dp, di_blocks) != idesc->id_entryno) {
-		pwarn("INCORRECT BLOCK COUNT I=%lu (%qu should be %qu)",
-		    (u_long)inumber, DIP(dp, di_blocks),
-		    idesc->id_entryno);
+		pwarn("INCORRECT BLOCK COUNT I=%lu (%ju should be %ju)",
+		    (u_long)inumber, (uintmax_t)DIP(dp, di_blocks),
+		    (uintmax_t)idesc->id_entryno);
 		if (preen)
 			printf(" (CORRECTED)\n");
 		else if (reply("CORRECT") == 0)
@@ -346,8 +348,8 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 			cmd.value = idesc->id_number;
 			cmd.size = idesc->id_entryno - DIP(dp, di_blocks);
 			if (debug)
-				printf("adjblkcnt ino %qu amount %lld\n",
-				    cmd.value, (long long)cmd.size);
+				printf("adjblkcnt ino %ju amount %lld\n",
+				    (uintmax_t)cmd.value, (long long)cmd.size);
 			if (sysctl(adjblkcnt, MIBSIZE, 0, 0,
 			    &cmd, sizeof cmd) == -1)
 				rwerror("ADJUST INODE BLOCK COUNT", cmd.value);

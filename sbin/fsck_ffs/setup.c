@@ -52,6 +52,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "fsck.h"
@@ -269,8 +270,8 @@ setup(char *dev)
 	inphead = (struct inoinfo **)calloc((unsigned)numdirs,
 	    sizeof(struct inoinfo *));
 	if (inpsort == NULL || inphead == NULL) {
-		printf("cannot alloc %u bytes for inphead\n",
-		    (unsigned)numdirs * sizeof(struct inoinfo *));
+		printf("cannot alloc %ju bytes for inphead\n",
+		    (uintmax_t)numdirs * sizeof(struct inoinfo *));
 		goto badsb;
 	}
 	bufinit();
