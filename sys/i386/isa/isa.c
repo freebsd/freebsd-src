@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.11 1993/12/19 00:50:41 wollman Exp $
+ *	$Id: isa.c,v 1.12 1994/01/16 11:25:06 ats Exp $
  */
 
 /*
@@ -293,7 +293,7 @@ config_isadev(isdp, mp)
 			printf(" msize %d", isdp->id_msize);
 		if (isdp->id_flags)
 			printf(" flags 0x%x", isdp->id_flags);
-		if (isdp->id_iobase && isdp->id_iobase < 0x100))
+		if (isdp->id_iobase && (isdp->id_iobase < 0x100))
 			printf(" on motherboard\n");
 		else
 			printf(" on isa\n");
