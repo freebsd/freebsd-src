@@ -133,7 +133,7 @@ VFS_SET(ufs_vfsops, ufs, 0);
  *		namei() if it is a genuine NULL from the user.
  */
 static int
-ffs_mount( mp, path, data, ndp, p)
+ffs_mount(mp, path, data, ndp, p)
         struct mount		*mp;	/* mount struct pointer*/
         char			*path;	/* path to mount point*/
         caddr_t			data;	/* arguments to FS specific mount*/
@@ -141,49 +141,34 @@ ffs_mount( mp, path, data, ndp, p)
         struct proc		*p;	/* process requesting mount*/
 {
 	size_t		size;
-	int		err = 0;
 	struct vnode	*devvp;
-
 	struct ufs_args args;
 	struct ufsmount *ump = 0;
 	register struct fs *fs;
-	int error, flags, ronly = 0;
+	int error, flags;
 	mode_t accessmode;
 
 	/*
-	 * Use NULL path to flag a root mount
+	 * Use NULL path to indicate we are mounting the root file system.
 	 */
-	if( path == NULL) {
-		/*
-		 ***
-		 * Mounting root file system
-		 ***
-		 */
-	
-		if ((err = bdevvp(rootdev, &rootvp))) {
+	if (path == NULL) {
+		if ((error = bdevvp(rootdev, &rootvp))) {
 			printf("ffs_mountroot: can't find rootvp\n");
-			return (err);
+			return (error);
 		}
 
-		if( ( err = ffs_mountfs(rootvp, mp, p, M_FFSNODE)) != 0) {
-			/* fs specific cleanup (if any)*/
-			goto error_1;
-		}
+		if ((error = ffs_mountfs(rootvp, mp, p, M_FFSNODE)) != 0)
+			return (error);
 
-		goto dostatfs;		/* success*/
-
+		(void)VFS_STATFS(mp, &mp->mnt_stat, p);
+		return (0);
 	}
 
 	/*
-	 ***
 	 * Mounting non-root file system or updating a file system
-	 ***
 	 */
-
-	/* copy in user arguments*/
-	err = copyin(data, (caddr_t)&args, sizeof (struct ufs_args));
-	if (err)
-		goto error_1;		/* can't get arguments*/
+	if ((error = copyin(data, (caddr_t)&args, sizeof(struct ufs_args)))!= 0)
+		return (error);
 
 	/*
 	 * If updating, check whether changing from read-only to
@@ -193,25 +178,36 @@ ffs_mount( mp, path, data, ndp, p)
 		ump = VFSTOUFS(mp);
 		fs = ump->um_fs;
 		devvp = ump->um_devvp;
-		err = 0;
-		ronly = fs->fs_ronly;	/* MNT_RELOAD might change this */
-		if (ronly == 0 && (mp->mnt_flag & MNT_RDONLY)) {
+		if (fs->fs_ronly == 0 && (mp->mnt_flag & MNT_RDONLY)) {
+			if ((error = vn_start_write(NULL, &mp, V_WAIT)) != 0)
+				return (error);
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
 			if (mp->mnt_flag & MNT_SOFTDEP) {
-				err = softdep_flushfiles(mp, flags, p);
+				error = softdep_flushfiles(mp, flags, p);
 			} else {
-				err = ffs_flushfiles(mp, flags, p);
+				error = ffs_flushfiles(mp, flags, p);
 			}
-			ronly = 1;
+			if (error) {
+				vn_finished_write(mp);
+				return (error);
+			}
+			fs->fs_ronly = 1;
+			if ((fs->fs_flags & FS_UNCLEAN) == 0)
+				fs->fs_clean = 1;
+			if ((error = ffs_sbupdate(ump, MNT_WAIT)) != 0) {
+				fs->fs_ronly = 0;
+				fs->fs_clean = 0;
+				vn_finished_write(mp);
+				return (error);
+			}
+			vn_finished_write(mp);
 		}
-		if (!err && (mp->mnt_flag & MNT_RELOAD))
-			err = ffs_reload(mp, ndp->ni_cnd.cn_cred, p);
-		if (err) {
-			goto error_1;
-		}
-		if (ronly && (mp->mnt_kern_flag & MNTK_WANTRDWR)) {
+		if ((mp->mnt_flag & MNT_RELOAD) &&
+		    (error = ffs_reload(mp, ndp->ni_cnd.cn_cred, p)) != 0)
+			return (error);
+		if (fs->fs_ronly && (mp->mnt_kern_flag & MNTK_WANTRDWR)) {
 			/*
 			 * If upgrade to read-write by non-root, then verify
 			 * that user has necessary permissions on the device.
@@ -225,31 +221,36 @@ ffs_mount( mp, path, data, ndp, p)
 				}
 				VOP_UNLOCK(devvp, 0, p);
 			}
-
 			fs->fs_flags &= ~FS_UNCLEAN;
 			if (fs->fs_clean == 0) {
 				fs->fs_flags |= FS_UNCLEAN;
 				if (mp->mnt_flag & MNT_FORCE) {
-					printf(
-"WARNING: %s was not properly dismounted\n",
-					    fs->fs_fsmnt);
+					printf("WARNING: %s was not %s\n",
+					   fs->fs_fsmnt, "properly dismounted");
 				} else {
 					printf(
 "WARNING: R/W mount of %s denied.  Filesystem is not clean - run fsck\n",
 					    fs->fs_fsmnt);
-					err = EPERM;
-					goto error_1;
+					return (EPERM);
 				}
 			}
-
-			/* check to see if we need to start softdep */
-			if (fs->fs_flags & FS_DOSOFTDEP) {
-				err = softdep_mount(devvp, mp, fs, p->p_ucred);
-				if (err)
-					goto error_1;
+			if ((error = vn_start_write(NULL, &mp, V_WAIT)) != 0)
+				return (error);
+			fs->fs_ronly = 0;
+			fs->fs_clean = 0;
+			if ((error = ffs_sbupdate(ump, MNT_WAIT)) != 0) {
+				vn_finished_write(mp);
+				return (error);
 			}
-
-			ronly = 0;
+			/* check to see if we need to start softdep */
+			if ((fs->fs_flags & FS_DOSOFTDEP) &&
+			    (error = softdep_mount(devvp, mp, fs, p->p_ucred))){
+				vn_finished_write(mp);
+				return (error);
+			}
+			if (fs->fs_snapinum[0] != 0)
+				ffs_snapshot_mount(mp);
+			vn_finished_write(mp);
 		}
 		/*
 		 * Soft updates is incompatible with "async",
@@ -258,18 +259,18 @@ ffs_mount( mp, path, data, ndp, p)
 		 * Softdep_mount() clears it in an initial mount 
 		 * or ro->rw remount.
 		 */
-		if (mp->mnt_flag & MNT_SOFTDEP) {
+		if (mp->mnt_flag & MNT_SOFTDEP)
 			mp->mnt_flag &= ~MNT_ASYNC;
-		}
-		/* if not updating name...*/
-		if (args.fspec == 0) {
-			/*
-			 * Process export requests.  Jumping to "success"
-			 * will return the vfs_export() error code.
-			 */
-			err = vfs_export(mp, &ump->um_export, &args.export);
-			goto success;
-		}
+		/*
+		 * If not updating name, process export requests.
+		 */
+		if (args.fspec == 0)
+			return (vfs_export(mp, &ump->um_export, &args.export));
+		/*
+		 * If this is a snapshot request, take the snapshot.
+		 */
+		if (mp->mnt_flag & MNT_SNAPSHOT)
+			return (ffs_snapshot(mp, args.fspec));
 	}
 
 	/*
@@ -277,17 +278,14 @@ ffs_mount( mp, path, data, ndp, p)
 	 * and verify that it refers to a sensible block device.
 	 */
 	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, p);
-	err = namei(ndp);
-	if (err) {
-		/* can't get devvp!*/
-		goto error_1;
-	}
-
+	if ((error = namei(ndp)) != 0)
+		return (error);
 	NDFREE(ndp, NDF_ONLY_PNBUF);
 	devvp = ndp->ni_vp;
-
-	if (!vn_isdisk(devvp, &err))
-		goto error_2;
+	if (!vn_isdisk(devvp, &error)) {
+		vrele(devvp);
+		return (error);
+	}
 
 	/*
 	 * If mount by non-root, then verify that user has necessary
@@ -298,7 +296,7 @@ ffs_mount( mp, path, data, ndp, p)
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
 			accessmode |= VWRITE;
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-		if ((error = VOP_ACCESS(devvp, accessmode, p->p_ucred, p)) != 0) {
+		if ((error = VOP_ACCESS(devvp, accessmode, p->p_ucred, p))!= 0){
 			vput(devvp);
 			return (error);
 		}
@@ -307,96 +305,43 @@ ffs_mount( mp, path, data, ndp, p)
 
 	if (mp->mnt_flag & MNT_UPDATE) {
 		/*
-		 ********************
-		 * UPDATE
+		 * Update only
+		 *
 		 * If it's not the same vnode, or at least the same device
 		 * then it's not correct.
-		 ********************
 		 */
 
-		if (devvp != ump->um_devvp) {
-			if ( devvp->v_rdev == ump->um_devvp->v_rdev) {
-				vrele(devvp);
-			} else {
-				err = EINVAL;	/* needs translation */
-			}
-		} else
-			vrele(devvp);
-		/*
-		 * Update device name only on success
-		 */
-		if( !err) {
-			/* Save "mounted from" info for mount point (NULL pad)*/
-			copyinstr(	args.fspec,
-					mp->mnt_stat.f_mntfromname,
-					MNAMELEN - 1,
-					&size);
-			bzero( mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
-		}
+		if (devvp != ump->um_devvp &&
+		    devvp->v_rdev != ump->um_devvp->v_rdev)
+			error = EINVAL;	/* needs translation */
+		vrele(devvp);
+		if (error)
+			return (error);
 	} else {
 		/*
-		 ********************
-		 * NEW MOUNT
-		 ********************
+		 * New mount
+		 *
+		 * We need the name for the mount point (also used for
+		 * "last mounted on") copied in. If an error occurs,
+		 * the mount point is discarded by the upper level code.
 		 */
-
-		/*
-		 * Since this is a new mount, we want the names for
-		 * the device and the mount point copied in.  If an
-		 * error occurs,  the mountpoint is discarded by the
-		 * upper level code.
-		 */
-		/* Save "last mounted on" info for mount point (NULL pad)*/
-		copyinstr(	path,				/* mount point*/
-				mp->mnt_stat.f_mntonname,	/* save area*/
-				MNAMELEN - 1,			/* max size*/
-				&size);				/* real size*/
+		copyinstr(path, mp->mnt_stat.f_mntonname, MNAMELEN - 1, &size);
 		bzero( mp->mnt_stat.f_mntonname + size, MNAMELEN - size);
-
-		/* Save "mounted from" info for mount point (NULL pad)*/
-		copyinstr(	args.fspec,			/* device name*/
-				mp->mnt_stat.f_mntfromname,	/* save area*/
-				MNAMELEN - 1,			/* max size*/
-				&size);				/* real size*/
-		bzero( mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
-
-		err = ffs_mountfs(devvp, mp, p, M_FFSNODE);
-	}
-	if (err) {
-		goto error_2;
-	}
-
-dostatfs:
-	/*
-	 * Initialize FS stat information in mount struct; uses both
-	 * mp->mnt_stat.f_mntonname and mp->mnt_stat.f_mntfromname
-	 *
-	 * This code is common to root and non-root mounts
-	 */
-	(void)VFS_STATFS(mp, &mp->mnt_stat, p);
-
-	goto success;
-
-
-error_2:	/* error with devvp held*/
-
-	/* release devvp before failing*/
-	vrele(devvp);
-
-error_1:	/* no state to back out*/
-
-success:
-	if (!err && path && (mp->mnt_flag & MNT_UPDATE)) {
-		/* Update clean flag after changing read-onlyness. */
-		fs = ump->um_fs;
-		if (ronly != fs->fs_ronly) {
-			fs->fs_ronly = ronly;
-			fs->fs_clean = ronly &&
-			    (fs->fs_flags & FS_UNCLEAN) == 0 ? 1 : 0;
-			ffs_sbupdate(ump, MNT_WAIT);
+		if ((error = ffs_mountfs(devvp, mp, p, M_FFSNODE)) != 0) {
+			vrele(devvp);
+			return (error);
 		}
 	}
-	return (err);
+	/*
+	 * Save "mounted from" device name info for mount point (NULL pad).
+	 */
+	copyinstr(args.fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1, &size);
+	bzero( mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
+	/*
+	 * Initialize filesystem stat information in mount struct.
+	 */
+	(void)VFS_STATFS(mp, &mp->mnt_stat, p);
+	return (0);
 }
 
 /*
@@ -478,7 +423,7 @@ ffs_reload(mp, cred, p)
 	newfs->fs_maxcluster = fs->fs_maxcluster;
 	bcopy(newfs, fs, (u_int)fs->fs_sbsize);
 	if (fs->fs_sbsize < SBSIZE)
-		bp->b_flags |= B_INVAL;
+		bp->b_flags |= B_INVAL | B_NOCACHE;
 	brelse(bp);
 	mp->mnt_maxsymlinklen = fs->fs_maxsymlinklen;
 	ffs_oldfscompat(fs);
@@ -670,7 +615,7 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	ump->um_vfree = ffs_vfree;
 	bcopy(bp->b_data, ump->um_fs, (u_int)fs->fs_sbsize);
 	if (fs->fs_sbsize < SBSIZE)
-		bp->b_flags |= B_INVAL;
+		bp->b_flags |= B_INVAL | B_NOCACHE;
 	brelse(bp);
 	bp = NULL;
 	fs = ump->um_fs;
@@ -750,6 +695,8 @@ ffs_mountfs(devvp, mp, p, malloctype)
 			free(base, M_UFSMNT);
 			goto out;
 		}
+		if (fs->fs_snapinum[0] != 0)
+			ffs_snapshot_mount(mp);
 		fs->fs_fmod = 1;
 		fs->fs_clean = 0;
 		(void) ffs_sbupdate(ump, MNT_WAIT);
@@ -886,6 +833,15 @@ ffs_flushfiles(mp, flags, p)
 		 */
 	}
 #endif
+	if (ump->um_devvp->v_flag & VCOPYONWRITE) {
+		if ((error = vflush(mp, NULL, SKIPSYSTEM | flags)) != 0)
+			return (error);
+		ffs_snapshot_unmount(mp);
+		/*
+		 * Here we fall through to vflush again to ensure
+		 * that we have gotten rid of all the system vnodes.
+		 */
+	}
         /*
 	 * Flush all the files.
 	 */

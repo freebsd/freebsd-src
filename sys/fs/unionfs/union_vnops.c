@@ -93,6 +93,7 @@ static int	union_print __P((struct vop_print_args *ap));
 static int	union_read __P((struct vop_read_args *ap));
 static int	union_readdir __P((struct vop_readdir_args *ap));
 static int	union_readlink __P((struct vop_readlink_args *ap));
+static int	union_getwritemount __P((struct vop_getwritemount_args *ap));
 static int	union_reclaim __P((struct vop_reclaim_args *ap));
 static int	union_remove __P((struct vop_remove_args *ap));
 static int	union_rename __P((struct vop_rename_args *ap));
@@ -1681,6 +1682,20 @@ union_readlink(ap)
 	return (error);
 }
 
+static int
+union_getwritemount(ap)
+	struct vop_getwritemount_args /* {
+		struct vnode *a_vp;
+		struct mount **a_mpp;
+	} */ *ap;
+{
+	struct vnode *vp = UPPERVP(ap->a_vp);
+
+	if (vp == NULL)
+		panic("union: missing upper layer in getwritemount");
+	return(VOP_GETWRITEMOUNT(vp, ap->a_mpp));
+}
+
 /*
  *	union_inactive:
  *
@@ -1963,6 +1978,7 @@ static struct vnodeopv_entry_desc union_vnodeop_entries[] = {
 	{ &vop_read_desc,		(vop_t *) union_read },
 	{ &vop_readdir_desc,		(vop_t *) union_readdir },
 	{ &vop_readlink_desc,		(vop_t *) union_readlink },
+	{ &vop_getwritemount_desc,	(vop_t *) union_getwritemount },
 	{ &vop_reclaim_desc,		(vop_t *) union_reclaim },
 	{ &vop_remove_desc,		(vop_t *) union_remove },
 	{ &vop_rename_desc,		(vop_t *) union_rename },

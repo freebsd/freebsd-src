@@ -158,7 +158,7 @@ struct vnode {
 /* open for business    0x00800 */
 /* open for business    0x01000 */
 #define	VOBJBUF		0x02000	/* Allocate buffers in VM object */
-/* open for business    0x04000 */
+#define	VCOPYONWRITE    0x04000 /* vnode is doing copy-on-write */
 #define	VAGE		0x08000	/* Insert vnode at head of free list */
 #define	VOLOCK		0x10000	/* vnode is locked waiting for an object */
 #define	VOWANT		0x20000	/* a process is waiting for VOLOCK */
@@ -246,12 +246,15 @@ extern int		vttoif_tab[];
 /*
  * Flags to various vnode functions.
  */
-#define	SKIPSYSTEM	0x0001		/* vflush: skip vnodes marked VSYSTEM */
-#define	FORCECLOSE	0x0002		/* vflush: force file closure */
-#define	WRITECLOSE	0x0004		/* vflush: only close writable files */
-#define	DOCLOSE		0x0008		/* vclean: close active files */
-#define	V_SAVE		0x0001		/* vinvalbuf: sync file first */
-#define	REVOKEALL	0x0001		/* vop_revoke: revoke all aliases */
+#define	SKIPSYSTEM	0x0001	/* vflush: skip vnodes marked VSYSTEM */
+#define	FORCECLOSE	0x0002	/* vflush: force file closure */
+#define	WRITECLOSE	0x0004	/* vflush: only close writable files */
+#define	DOCLOSE		0x0008	/* vclean: close active files */
+#define	V_SAVE		0x0001	/* vinvalbuf: sync file first */
+#define	REVOKEALL	0x0001	/* vop_revoke: revoke all aliases */
+#define	V_WAIT		0x0001	/* vn_start_write: sleep for suspend */
+#define	V_NOWAIT	0x0002	/* vn_start_write: don't sleep for suspend */
+#define	V_XSLEEP	0x0004	/* vn_start_write: just return after sleep */
 
 #define	VREF(vp)	vref(vp)
 
@@ -572,6 +575,7 @@ int	vrecycle __P((struct vnode *vp, struct simplelock *inter_lkp,
 	    struct proc *p));
 int 	vn_close __P((struct vnode *vp,
 	    int flags, struct ucred *cred, struct proc *p));
+void	vn_finished_write __P((struct mount *mp));
 int	vn_isdisk __P((struct vnode *vp, int *errp));
 int	vn_lock __P((struct vnode *vp, int flags, struct proc *p));
 #ifdef	DEBUG_LOCKS
@@ -587,13 +591,18 @@ int 	vn_rdwr __P((enum uio_rw rw, struct vnode *vp, caddr_t base,
 	    int len, off_t offset, enum uio_seg segflg, int ioflg,
 	    struct ucred *cred, int *aresid, struct proc *p));
 int	vn_stat __P((struct vnode *vp, struct stat *sb, struct proc *p));
+int	vn_start_write __P((struct vnode *vp, struct mount **mpp, int flags));
 dev_t	vn_todev __P((struct vnode *vp));
+int	vn_write_suspend_wait __P((struct vnode *vp, int flags));
+int 	vn_writechk __P((struct vnode *vp));
 int	vfs_cache_lookup __P((struct vop_lookup_args *ap));
 int	vfs_object_create __P((struct vnode *vp, struct proc *p,
                 struct ucred *cred));
 void	vfs_timestamp __P((struct timespec *));
-int 	vn_writechk __P((struct vnode *vp));
+void	vfs_write_resume __P((struct mount *mp));
+void	vfs_write_suspend __P((struct mount *mp));
 int	vop_stdbwrite __P((struct vop_bwrite_args *ap));
+int	vop_stdgetwritemount __P((struct vop_getwritemount_args *));
 int	vop_stdislocked __P((struct vop_islocked_args *));
 int	vop_stdlock __P((struct vop_lock_args *));
 int	vop_stdunlock __P((struct vop_unlock_args *));

@@ -276,7 +276,6 @@ vnstrategy(struct bio *bp)
 	int unit;
 	struct vn_softc *vn;
 	int error;
-	int isvplocked = 0;
 
 	unit = dkunit(bp->bio_dev);
 	vn = bp->bio_dev->si_drv1;
@@ -360,6 +359,7 @@ vnstrategy(struct bio *bp)
 		 */
 		struct uio auio;
 		struct iovec aiov;
+		struct mount *mp;
 
 		bzero(&auio, sizeof(auio));
 
@@ -375,18 +375,18 @@ vnstrategy(struct bio *bp)
 			auio.uio_rw = UIO_WRITE;
 		auio.uio_resid = bp->bio_bcount;
 		auio.uio_procp = curproc;
-		if (!VOP_ISLOCKED(vn->sc_vp, NULL)) {
-			isvplocked = 1;
+		if (VOP_ISLOCKED(vn->sc_vp, NULL))
+			vprint("unexpected vn driver lock", vn->sc_vp);
+		if (bp->bio_cmd == BIO_READ) {
 			vn_lock(vn->sc_vp, LK_EXCLUSIVE | LK_RETRY, curproc);
-		}
-		if(bp->bio_cmd == BIO_READ)
 			error = VOP_READ(vn->sc_vp, &auio, 0, vn->sc_cred);
-		else
+		} else {
+			(void) vn_start_write(vn->sc_vp, &mp, V_WAIT);
+			vn_lock(vn->sc_vp, LK_EXCLUSIVE | LK_RETRY, curproc);
 			error = VOP_WRITE(vn->sc_vp, &auio, 0, vn->sc_cred);
-		if (isvplocked) {
-			VOP_UNLOCK(vn->sc_vp, 0, curproc);
-			isvplocked = 0;
+			vn_finished_write(mp);
 		}
+		VOP_UNLOCK(vn->sc_vp, 0, curproc);
 		bp->bio_resid = auio.uio_resid;
 
 		if (error) {

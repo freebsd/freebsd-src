@@ -67,6 +67,7 @@ struct vop_balloc_args;
 struct vop_bmap_args;
 struct vop_fsync_args;
 struct vop_reallocblks_args;
+struct vop_copyonwrite_args;
 
 int	ffs_alloc __P((struct inode *,
 	    ufs_daddr_t, ufs_daddr_t, int, struct ucred *, ufs_daddr_t *));
@@ -76,6 +77,7 @@ void	ffs_blkfree __P((struct inode *, ufs_daddr_t, long));
 ufs_daddr_t ffs_blkpref __P((struct inode *, ufs_daddr_t, int, ufs_daddr_t *));
 int	ffs_bmap __P((struct vop_bmap_args *));
 void	ffs_clrblock __P((struct fs *, u_char *, ufs_daddr_t));
+int	ffs_copyonwrite __P((struct vop_copyonwrite_args *ap));
 int	ffs_fhtovp __P((struct mount *, struct fid *, struct vnode **));
 int	ffs_flushfiles __P((struct mount *, int, struct proc *));
 void	ffs_fragacct __P((struct fs *, int, int32_t [], int));
@@ -89,6 +91,10 @@ int	ffs_reallocblks __P((struct vop_reallocblks_args *));
 int	ffs_realloccg __P((struct inode *,
 	    ufs_daddr_t, ufs_daddr_t, int, int, struct ucred *, struct buf **));
 void	ffs_setblock __P((struct fs *, u_char *, ufs_daddr_t));
+int	ffs_snapblkfree __P((struct inode *freeip, ufs_daddr_t bno, long size));
+int	ffs_snapshot __P((struct mount *mp, char *snapfile));
+void	ffs_snapshot_mount __P((struct mount *mp));
+void	ffs_snapshot_unmount __P((struct mount *mp));
 int	ffs_statfs __P((struct mount *, struct statfs *, struct proc *));
 int	ffs_sync __P((struct mount *, int, struct ucred *, struct proc *));
 int	ffs_truncate __P((struct vnode *, off_t, int, struct ucred *, struct proc *));
