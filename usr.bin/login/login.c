@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: login.c,v 1.42 1998/11/11 05:47:45 jdp Exp $";
+	"$Id: login.c,v 1.43 1998/11/21 02:22:14 jdp Exp $";
 #endif /* not lint */
 
 /*
@@ -111,6 +111,9 @@ static void usage __P((void));
  */
 u_int	timeout = 300;
 
+/* Buffer for signal handling of timeout */
+jmp_buf timeout_buf;
+
 struct	passwd *pwd;
 int	failures;
 char	*term, *envinit[1], *hostname, *username, *tty;
@@ -132,15 +135,23 @@ main(argc, argv)
 	time_t warntime;
 	uid_t uid, euid;
 	char *domain, *p, *ttyn;
-	char tbuf[MAXPATHLEN + 2], tname[sizeof(_PATH_TTY) + 10];
+	char tbuf[MAXPATHLEN + 2];
+	char tname[sizeof(_PATH_TTY) + 10];
 	char localhost[MAXHOSTNAMELEN];
 	char *shell = NULL;
 	login_cap_t *lc = NULL;
 
-	(void)signal(SIGALRM, timedout);
-	(void)alarm(timeout);
 	(void)signal(SIGQUIT, SIG_IGN);
 	(void)signal(SIGINT, SIG_IGN);
+	if (setjmp(timeout_buf)) {
+		if (failures)
+			badlogin(tbuf);
+		(void)fprintf(stderr,
+			      "Login timed out after %d seconds\n", timeout);
+		exit(0);
+	}
+	(void)signal(SIGALRM, timedout);
+	(void)alarm(timeout);
 	(void)setpriority(PRIO_PROCESS, 0, 0);
 
 	openlog("login", LOG_ODELAY, LOG_AUTH);
@@ -250,7 +261,6 @@ main(argc, argv)
 		if (failures && strcmp(tbuf, username)) {
 			if (failures > (pwd ? 0 : 1))
 				badlogin(tbuf);
-			failures = 0;
 		}
 		(void)strncpy(tbuf, username, sizeof tbuf-1);
 		tbuf[sizeof tbuf-1] = '\0';
@@ -769,8 +779,7 @@ void
 timedout(signo)
 	int signo;
 {
-	(void)fprintf(stderr, "Login timed out after %d seconds\n", timeout);
-	exit(0);
+	longjmp(timeout_buf, signo);
 }
 
 
@@ -829,6 +838,7 @@ badlogin(name)
 		    "%d LOGIN FAILURE%s ON %s, %s",
 		    failures, failures > 1 ? "S" : "", tty, name);
 	}
+	failures = 0;
 }
 
 #undef	UNKNOWN
