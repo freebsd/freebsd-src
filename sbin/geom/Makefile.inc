@@ -1,5 +1,6 @@
 # $FreeBSD$
 
-BINDIR?=/sbin
-CLASSDIR?=/lib/geom
 WARNS?=	6
+CLASSDIR?=/lib/geom
+
+.include "../Makefile.inc"
