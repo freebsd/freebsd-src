@@ -31,21 +31,86 @@
 #ifndef _LINUX_IPC_H_
 #define _LINUX_IPC_H_
 
-#ifndef __alpha__
+#ifdef __i386__
 
-#define linux_msgctl_args linux_ipc_args 
-#define linux_msgget_args linux_ipc_args
-#define linux_msgrcv_args linux_ipc_args
-#define linux_msgsnd_args linux_ipc_args
+struct linux_msgctl_args 
+{
+	l_int		msqid;
+	l_int		cmd;
+	struct l_msqid_ds *buf;
+};
 
-#define linux_semctl_args linux_ipc_args
-#define linux_semget_args linux_ipc_args
-#define linux_semop_args linux_ipc_args
+struct linux_msgget_args
+{
+	l_key_t		key;
+	l_int		msgflg;
+};
 
-#define linux_shmat_args linux_ipc_args
-#define linux_shmctl_args linux_ipc_args
-#define linux_shmdt_args linux_ipc_args
-#define linux_shmget_args linux_ipc_args
+struct linux_msgrcv_args
+{
+	l_int		msqid;
+	struct l_msgbuf *msgp;
+	l_size_t	msgsz;
+	l_long		msgtyp;
+	l_int		msgflg;
+};
+
+struct linux_msgsnd_args
+{
+	l_int		msqid;
+	struct l_msgbuf *msgp;
+	l_size_t	msgsz;
+	l_int		msgflg;
+};
+
+struct linux_semctl_args
+{
+	l_int		semid;
+	l_int		semnum;
+	l_int		cmd;
+	union l_semun	arg;
+};
+
+struct linux_semget_args
+{
+	l_key_t		key;
+	l_int		nsems;
+	l_int		semflg;
+};
+
+struct linux_semop_args
+{
+	l_int		semid;
+	struct l_sembuf *tsops;
+	l_uint		nsops;
+};
+
+struct linux_shmat_args
+{
+	l_int		shmid;
+	char		*shmaddr;
+	l_int		shmflg;
+	l_ulong		*raddr;
+};
+
+struct linux_shmctl_args
+{
+	l_int		shmid;
+	l_int		cmd;
+	struct l_shmid_ds *buf;
+};
+
+struct linux_shmdt_args
+{
+	char *shmaddr;
+};
+
+struct linux_shmget_args
+{
+	l_key_t		key;
+	l_size_t	size;
+	l_int		shmflg;
+};
 
 int linux_msgctl __P((struct proc *, struct linux_msgctl_args *));
 int linux_msgget __P((struct proc *, struct linux_msgget_args *));
@@ -60,6 +125,7 @@ int linux_shmat  __P((struct proc *, struct linux_shmat_args *));
 int linux_shmctl __P((struct proc *, struct linux_shmctl_args *));
 int linux_shmdt  __P((struct proc *, struct linux_shmdt_args *));
 int linux_shmget __P((struct proc *, struct linux_shmget_args *));
-#endif	/*!__alpha__*/
+
+#endif	/* __i386__ */
 
 #endif /* _LINUX_IPC_H_ */
