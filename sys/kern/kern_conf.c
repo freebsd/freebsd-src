@@ -79,6 +79,33 @@ devsw(dev_t dev)
         return(cdevsw[major(dev)]);
 }
 
+static void
+compile_devsw(struct cdevsw *devsw)
+{
+	if (devsw->d_open == NULL)
+		devsw->d_open = noopen;
+	if (devsw->d_close == NULL)
+		devsw->d_close = noclose;
+	if (devsw->d_read == NULL)
+		devsw->d_read = noread;
+	if (devsw->d_write == NULL)
+		devsw->d_write = nowrite;
+	if (devsw->d_ioctl == NULL)
+		devsw->d_ioctl = noioctl;
+	if (devsw->d_poll == NULL)
+		devsw->d_poll = nopoll;
+	if (devsw->d_mmap == NULL)
+		devsw->d_mmap = nommap;
+	if (devsw->d_strategy == NULL)
+		devsw->d_strategy = nostrategy;
+	if (devsw->d_dump == NULL)
+		devsw->d_dump = nodump;
+	if (devsw->d_psize == NULL)
+		devsw->d_psize = nopsize;
+	if (devsw->d_kqfilter == NULL)
+		devsw->d_kqfilter = nokqfilter;
+}
+
 /*
  *  Add a cdevsw entry
  */
@@ -96,6 +123,7 @@ cdevsw_add(struct cdevsw *newentry)
 		setup++;
 	}
 
+	compile_devsw(newentry);
 	if (newentry->d_maj < 0 || newentry->d_maj >= NUMCDEVSW) {
 		printf("%s: ERROR: driver has bogus cdevsw->d_maj = %d\n",
 		    newentry->d_name, newentry->d_maj);
@@ -295,6 +323,7 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const
 	va_list ap;
 	int i;
 
+	compile_devsw(devsw);
 	dev = makedev(devsw->d_maj, minor);
 	va_start(ap, fmt);
 	i = kvprintf(fmt, NULL, dev->si_name, 32, ap);
