@@ -72,7 +72,9 @@
 #include <rpc/pmap_clnt.h>
 #include <rpc/pmap_prot.h>
 
+#ifndef _KERNEL
 #include <rpc/rpcb_clnt.h>	/* rpcbind interface functions */
+#endif
 
 #include <rpc/rpcent.h>
 
