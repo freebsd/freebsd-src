@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: mlfk_ipl.c,v 2.1.2.1 2000/04/26 12:17:24 darrenr Exp $
+ * $Id: mlfk_ipl.c,v 2.1.2.3 2000/08/13 03:42:42 darrenr Exp $
  */
 
 
@@ -37,6 +37,7 @@
 #include <net/if.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
+#include <netinet/ip.h>
 
 
 #include <netinet/ipl.h>
@@ -82,6 +83,7 @@ SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_authused, CTLFLAG_RD,
 	   &fr_authused, 0, "");
 SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_defaultauthage, CTLFLAG_RW,
 	   &fr_defaultauthage, 0, "");
+SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_chksrc, CTLFLAG_RW, &fr_chksrc, 0, "");
 
 #define CDEV_MAJOR 79
 static struct cdevsw ipl_cdevsw = {
