@@ -79,6 +79,7 @@ static char rcsid[] = "$FreeBSD$";
  */
 
 #include <sys/types.h>
+#include <sys/event.h>
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/socket.h>
@@ -95,16 +96,8 @@ static char rcsid[] = "$FreeBSD$";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <poll.h>
 
 #include "res_config.h"
-
-#ifdef NOPOLL			/* libc_r doesn't wrap poll yet() */
-static int use_poll = 0;
-#else
-static int use_poll = 1;	/* adapt to poll() syscall availability */
-				/* 0 = not present, 1 = try it, 2 = exists */
-#endif
 
 static int s = -1;		/* socket used for communications */
 static int connected = 0;	/* is the socket connected */
@@ -363,6 +356,7 @@ res_send(buf, buflen, ans, anssiz)
 	HEADER *hp = (HEADER *) buf;
 	HEADER *anhp = (HEADER *) ans;
 	int gotsomewhere, connreset, terrno, try, v_circuit, resplen, ns, n;
+	int kq;
 	u_int badns;	/* XXX NSMAX can't exceed #/bits in this variable */
 
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
@@ -380,6 +374,11 @@ res_send(buf, buflen, ans, anssiz)
 	connreset = 0;
 	terrno = ETIMEDOUT;
 	badns = 0;
+
+	if ((kq = kqueue()) < 0) {
+		Perror(stderr, "kqueue", errno);
+		return (-1);
+	}
 
 	/*
 	 * Send request, RETRY times, or until successful
@@ -421,6 +420,7 @@ res_send(buf, buflen, ans, anssiz)
 					res_close();
 					goto next_ns;
 				case res_done:
+					close(kq);
 					return (resplen);
 				case res_modified:
 					/* give the hook another try */
@@ -430,6 +430,7 @@ res_send(buf, buflen, ans, anssiz)
 				case res_error:
 					/*FALLTHROUGH*/
 				default:
+					close(kq);
 					return (-1);
 				}
 			} while (!done);
@@ -594,13 +595,8 @@ read_len:
 			/*
 			 * Use datagrams.
 			 */
-#ifndef NOPOLL
-			struct pollfd pfd;
-			int msec;
-#endif
-			struct timeval timeout;
-			fd_set dsmask, *dsmaskp;
-			int dsmasklen;
+			struct kevent kv;
+			struct timespec timeout;
 			struct sockaddr_storage from;
 			int fromlen;
 
@@ -703,111 +699,32 @@ read_len:
 			/*
 			 * Wait for reply
 			 */
-#ifndef NOPOLL
-    othersyscall:
-			if (use_poll) {
-				struct timeval itv;
 
-				msec = (_res.retrans << try) * 1000;
-				if (try > 0)
-					msec /= _res.nscount;
-				if (msec <= 0)
-					msec = 1000;
-				gettimeofday(&timeout, NULL);
-				itv.tv_sec = msec / 1000;
-				itv.tv_usec = (msec % 1000) * 1000;
-				timeradd(&timeout, &itv, &timeout);
-			} else {
-#endif
-				timeout.tv_sec = (_res.retrans << try);
-				if (try > 0)
-					timeout.tv_sec /= _res.nscount;
-				if ((long) timeout.tv_sec <= 0)
-					timeout.tv_sec = 1;
-				timeout.tv_usec = 0;
-#ifndef NOPOLL
-			}
-#endif
+			timeout.tv_sec = (_res.retrans << try);
+			if (try > 0)
+				timeout.tv_sec /= _res.nscount;
+			if ((long) timeout.tv_sec <= 0)
+				timeout.tv_sec = 1;
+			timeout.tv_nsec = 0;
     wait:
 			if (s < 0) {
 				Perror(stderr, "s out-of-bounds", EMFILE);
 				res_close();
 				goto next_ns;
 			}
-#ifndef NOPOLL
-			if (use_poll) {
-				struct sigaction sa, osa;
-				int sigsys_installed = 0;
-
-				pfd.fd = s;
-				pfd.events = POLLIN;
-				if (use_poll == 1) {
-					sigemptyset(&sa.sa_mask);
-					sa.sa_flags = 0;
-					sa.sa_handler = SIG_IGN;
-					if (sigaction(SIGSYS, &sa, &osa) >= 0)
-						sigsys_installed = 1;
-				}
-				n = poll(&pfd, 1, msec);
-				if (sigsys_installed == 1) {
-					int oerrno = errno;
-					sigaction(SIGSYS, &osa, NULL);
-					errno = oerrno;
-				}
-				/* XXX why does nosys() return EINVAL? */
-				if (n < 0 && (errno == ENOSYS ||
-				    errno == EINVAL)) {
-					use_poll = 0;
-					goto othersyscall;
-				} else if (use_poll == 1)
-					use_poll = 2;
-				if (n < 0) {
-					if (errno == EINTR) {
-						struct timeval ctv;
-
-						gettimeofday(&ctv, NULL);
-						if (timercmp(&ctv, &timeout, <)) {
-							timersub(&timeout,
-							    &ctv, &ctv);
-							msec = ctv.tv_sec * 1000;
-							msec += ctv.tv_usec / 1000;
-							goto wait;
-						}
-					} else {
-						Perror(stderr, "poll", errno);
-						res_close();
-						goto next_ns;
-					}
-				}
-			} else {
-#endif
-				dsmasklen = howmany(s + 1, NFDBITS) *
-					    sizeof(fd_mask);
-				if (dsmasklen > sizeof(fd_set)) {
-					dsmaskp = (fd_set *)malloc(dsmasklen);
-					if (dsmaskp == NULL) {
-						res_close();
-						goto next_ns;
-					}
-				} else
-					dsmaskp = &dsmask;
-				/* only zero what we need */
-				bzero((char *)dsmaskp, dsmasklen);
-				FD_SET(s, dsmaskp);
-				n = select(s + 1, dsmaskp, (fd_set *)NULL,
-					   (fd_set *)NULL, &timeout);
-				if (dsmaskp != &dsmask)
-					free(dsmaskp);
-				if (n < 0) {
-					if (errno == EINTR)
-						goto wait;
-					Perror(stderr, "select", errno);
-					res_close();
-					goto next_ns;
-				}
-#ifndef NOPOLL
+			
+			kv.ident = s;
+			kv.flags = EV_ADD | EV_ONESHOT;
+			kv.filter = EVFILT_READ;
+				
+			n = kevent(kq, &kv, 1, &kv, 1, &timeout);
+			if (n < 0) {
+				if (errno == EINTR)
+					goto wait;
+				Perror(stderr, "kevent", errno);
+				res_close();
+				goto next_ns;
 			}
-#endif
 
 			if (n == 0) {
 				/*
@@ -951,16 +868,19 @@ read_len:
 				case res_error:
 					/*FALLTHROUGH*/
 				default:
+					close(kq);
 					return (-1);
 				}
 			} while (!done);
 
 		}
+		close(kq);
 		return (resplen);
     next_ns: ;
 	   } /*foreach ns*/
 	} /*foreach retry*/
 	res_close();
+	close(kq);
 	if (!v_circuit) {
 		if (!gotsomewhere)
 			errno = ECONNREFUSED;	/* no nameservers found */
