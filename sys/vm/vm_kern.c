@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.25 1996/05/18 03:37:39 dyson Exp $
+ * $Id: vm_kern.c,v 1.26 1996/05/23 02:24:55 dyson Exp $
  */
 
 /*
@@ -381,6 +381,7 @@ retry:
 		PAGE_WAKEUP(m);
 		pmap_enter(kernel_pmap, addr + i, VM_PAGE_TO_PHYS(m),
 			VM_PROT_ALL, 1);
+		m->flags |= PG_MAPPED|PG_WRITEABLE;
 	}
 	vm_map_unlock(map);
 
