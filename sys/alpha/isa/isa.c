@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: isa.c,v 1.1 1998/07/22 08:29:26 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -91,6 +91,7 @@ static void
 isa_add_device(device_t dev, const char *name, int unit)
 {
 	struct isa_device *idev;
+	device_t child;
 	int t;
 
 	idev = malloc(sizeof(struct isa_device), M_DEVBUF, M_NOWAIT);
@@ -114,7 +115,12 @@ isa_add_device(device_t dev, const char *name, int unit)
 	else
 		idev->id_irq = -1;
 
-	device_add_child(dev, name, unit, idev);
+	child = device_add_child(dev, name, unit, idev);
+	if (!child)
+		return;
+
+	if (resource_int_value(name, unit, "disabled", &t) == 0 && t != 0)
+		device_disable(child);
 }
 
 static void
