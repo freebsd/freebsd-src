@@ -258,7 +258,7 @@ Prev_Track_Aligned(const struct disk *, u_long);
 /* Check if offset is aligned on a track according to the bios geometry */
 
 struct chunk *
-Create_Chunk_DWIM(struct disk *, const struct chunk *, u_long, chunk_e, int,
+Create_Chunk_DWIM(struct disk *, struct chunk *, u_long, chunk_e, int,
 	u_long);
 /*
  * This one creates a partition inside the given parent of the given
@@ -294,7 +294,7 @@ __END_DECLS
 
 /* TODO
  *
- * Need a error string mechanism from the functions instead of warn()
+ * Need an error string mechanism from the functions instead of warn()
  *
  * Make sure only FreeBSD start at offset==0
  *

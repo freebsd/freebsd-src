@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <pwd.h>
 #include "libdisk.h"
 
+struct chunk *New_Chunk(void);
+
 static int
 Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
 {
@@ -215,7 +217,7 @@ Create_Chunk(struct disk *d, u_long offset, u_long size, chunk_e type,
 }
 
 struct chunk *
-Create_Chunk_DWIM(struct disk *d, const struct chunk *parent , u_long size,
+Create_Chunk_DWIM(struct disk *d, struct chunk *parent, u_long size,
 		  chunk_e type, int subtype, u_long flags)
 {
 	int i;
@@ -224,6 +226,22 @@ Create_Chunk_DWIM(struct disk *d, const struct chunk *parent , u_long size,
 	
 	if (!parent)
 		parent = d->chunks;
+
+	if (parent->type == freebsd && type == part && parent->part == NULL) {
+		c1 = New_Chunk();
+		if (c1 == NULL)
+			return (NULL);
+		c1->disk = parent->disk;
+		c1->offset = parent->offset;
+		c1->size = parent->size;
+		c1->end = parent->offset + parent->size - 1;
+		c1->type = unused;
+		if (parent->sname != NULL)
+			c1->sname = strdup(parent->sname);
+		c1->name = strdup("-");
+		parent->part = c1;
+	}
+		
 	for (c1 = parent->part; c1; c1 = c1->next) {
 		if (c1->type != unused)
 			continue;
