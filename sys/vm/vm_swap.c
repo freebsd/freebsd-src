@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.4 1994/08/06 09:15:41 davidg Exp $
+ * $Id: vm_swap.c,v 1.5 1994/09/11 03:55:39 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -385,10 +385,6 @@ swfree(p, index)
 		blk = niswap;
 		for (swp = &swdevt[niswdev]; swp != sp; swp++)
 			blk += swp->sw_nblks;
-#if 0
-		rmfree(swapmap, nblks, blk);
-		return (0);
-#endif
 		rlist_free(&swapmap, blk, blk + nblks - 1); 
 		vm_swap_size += nblks;
 		return (0);
@@ -406,25 +402,6 @@ swfree(p, index)
 #endif
 		if (blk > dmmax)
 			blk = dmmax;
-#if 0
-		if (vsbase == 0) {
-			/*
-			 * First of all chunks... initialize the swapmap.
-			 * Don't use the first cluster of the device
-			 * in case it starts with a label or boot block.
-			 */
-			rminit(swapmap, blk - ctod(CLSIZE),
-			    vsbase + ctod(CLSIZE), "swap", nswapmap);
-		} else if (dvbase == 0) {
-			/*
-			 * Don't use the first cluster of the device
-			 * in case it starts with a label or boot block.
-			 */
-			rmfree(swapmap, blk - ctod(CLSIZE),
-			    vsbase + ctod(CLSIZE));
-		} else
-			rmfree(swapmap, blk, vsbase);
-#endif
 		/* XXX -- we need to exclude the first cluster as above */
 		/* but for now, this will work fine... */
 		rlist_free(&swapmap, vsbase, vsbase + blk - 1); 
