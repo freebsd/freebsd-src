@@ -106,6 +106,7 @@ struct procsig {
 
 #define	PS_NOCLDWAIT	0x0001	/* No zombies if child dies */
 #define	PS_NOCLDSTOP	0x0002	/* No SIGCHLD when children stop. */
+#define	PS_CLDSIGIGN	0x0004	/* The SIGCHLD handler is SIG_IGN. */
 
 /*
  * pargs, used to hold a copy of the command line, if it had a sane length.
