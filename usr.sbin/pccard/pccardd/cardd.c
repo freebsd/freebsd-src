@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: cardd.c,v 1.13.2.4 1997/11/25 19:41:36 nate Exp $";
+	"$Id: cardd.c,v 1.13.2.5 1998/02/07 20:33:06 nate Exp $";
 #endif /* not lint */
 
 #include <fcntl.h>
@@ -430,7 +430,7 @@ assign_driver(struct card *cp)
 				return (0);
 			}
 			ap->addr = i;
-			bit_nclear(io_avail, i, ap->size);
+			bit_nclear(io_avail, i, i + ap->size - 1);
 		}
 	}
 	for (ap = drvp->mem; ap; ap = ap->next) {
@@ -535,7 +535,8 @@ assign_io(struct slot *sp)
 				return (-1);
 			sp->io.addr = i;
 		}
-		bit_nclear(io_avail, sp->io.addr, sp->io.size);
+		bit_nclear(io_avail, sp->io.addr,
+			   sp->io.addr + sp->io.size - 1);
 
 		/* Set up the size to take into account the decode lines. */
 		sp->io.cardaddr = cp->io_addr;
