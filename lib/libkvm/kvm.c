@@ -36,7 +36,12 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)kvm.c	8.2 (Berkeley) 2/13/94";
+#else
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -162,11 +167,10 @@ _kvm_malloc(kd, n)
 }
 
 static kvm_t *
-_kvm_open(kd, uf, mf, sf, flag, errout)
+_kvm_open(kd, uf, mf, flag, errout)
 	register kvm_t *kd;
 	const char *uf;
 	const char *mf;
-	const char *sf;
 	int flag;
 	char *errout;
 {
@@ -193,8 +197,6 @@ _kvm_open(kd, uf, mf, sf, flag, errout)
 	}
 	if (mf == 0)
 		mf = _PATH_MEM;
-	if (sf == 0)
-		sf = _PATH_DRUM;
 
 	if ((kd->pmfd = open(mf, flag, 0)) < 0) {
 		_kvm_syserr(kd, kd->program, "%s", mf);
@@ -276,7 +278,7 @@ kvm_openfiles(uf, mf, sf, flag, errout)
 	}
 	memset(kd, 0, sizeof(*kd));
 	kd->program = 0;
-	return (_kvm_open(kd, uf, mf, sf, flag, errout));
+	return (_kvm_open(kd, uf, mf, flag, errout));
 }
 
 kvm_t *
@@ -297,7 +299,7 @@ kvm_open(uf, mf, sf, flag, errstr)
 	}
 	memset(kd, 0, sizeof(*kd));
 	kd->program = errstr;
-	return (_kvm_open(kd, uf, mf, sf, flag, NULL));
+	return (_kvm_open(kd, uf, mf, flag, NULL));
 }
 
 int
