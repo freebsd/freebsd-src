@@ -24,10 +24,12 @@
 .\"
 .\"    $FreeBSD$
 .\"
-.Dd January 3, 2000
+.Dd September 16, 2004
 .Dt MICROTIME 9
 .Os
 .Sh NAME
+.Nm bintime ,
+.Nm getbintime ,
 .Nm microtime ,
 .Nm getmicrotime ,
 .Nm nanotime ,
@@ -35,6 +37,10 @@
 .Nd get the current time
 .Sh SYNOPSIS
 .In sys/time.h
+.Ft void
+.Fn bintime "struct bintime *bt"
+.Ft void
+.Fn getbintime "struct bintime *bt"
 .Ft void
 .Fn microtime "struct timeval *tv"
 .Ft void
@@ -45,40 +51,51 @@
 .Fn getnanotime "struct timespec *tsp"
 .Sh DESCRIPTION
 The
+.Fn bintime
+and
+.Fn getbintime
+functions store the system time as a
+.Ft struct bintime
+at the addresses specified by
+.Fa bt .
+The
 .Fn microtime
 and
 .Fn getmicrotime
-functions store the system time as a
+functions perform the same utility, but record the time as a
 .Ft struct timeval
-at the address specified by
-.Fa tv .
-The
+instead.
+Similarly the
 .Fn nanotime
 and
 .Fn getnanotime
-functions perform the same utility, but record the time as a
-.Ft struct timespec
-instead.
+functions store the time as a
+.Ft struct timespec .
 .Pp
-.Fn Microtime
+.Fn Bintime ,
+.Fn microtime ,
 and
 .Fn nanotime
 always query the timecounter to return the current time as precisely as
 possible.
 Whereas
-.Fn getmicrotime
+.Fn getbintime ,
+.Fn getmicrotime ,
 and
 .Fn getnanotime
 functions are abstractions which return a less precise, but
 faster to obtain, time.
 .Pp
 The intent of the
-.Fn getmicrotime
+.Fn getbintime ,
+.Fn getmicrotime ,
 and
 .Fn getnanotime
 functions is to enforce the user's preference for timer accuracy versus
 execution time.
 .Sh SEE ALSO
+.Xr binuptime 9 ,
+.Xr getbinuptime 9 ,
 .Xr getmicrouptime 9 ,
 .Xr getnanouptime 9 ,
 .Xr microuptime 9 ,
@@ -86,13 +103,17 @@ execution time.
 .Xr tvtohz 9
 .Sh HISTORY
 The
+.Nm bintime
+functions first appeared in
+.Fx 5.0 .
+The
 .Nm
 and
 .Nm nanotime
 functions first appeared in
 .Fx 3.0
 but existed in other incarnations since
-.Bx 4.4
+.Bx 4.4 .
 .Sh AUTHORS
 This manual page was written by
 .An Kelly Yancey Aq kbyanc@posi.net .
