@@ -24,7 +24,7 @@
  * OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS,
  * OR MODIFICATIONS.
  *
- * $Id: ppp_comp.h,v 1.4 1997/02/22 09:41:11 peter Exp $
+ * $Id: ppp_comp.h,v 1.5 1997/08/19 14:10:46 peter Exp $
  */
 
 #ifndef _NET_PPP_COMP_H
@@ -141,7 +141,9 @@ struct compressor {
 /*
  * Definitions for Deflate.
  */
-#define CI_DEFLATE		24	/* config option for Deflate */
+#define CI_DEFLATE		26	/* config option for Deflate */
+/* XXX ppp-2.3.x ships with CI_DEFLATE == 24, but that's Magnalink!! */
+#define CI_BADDEFLATE		24	/* config option for Magnalink */
 #define CILEN_DEFLATE		4	/* length of its config option */
 
 #define DEFLATE_MIN_SIZE	8
