@@ -3,6 +3,7 @@
 MODULES		 =
 MODULES		+= pam_deny
 MODULES		+= pam_ftp
+MODULES		+= pam_ftpusers
 .if defined(MAKE_KERBEROS4) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 MODULES		+= pam_kerberosIV
 .endif
