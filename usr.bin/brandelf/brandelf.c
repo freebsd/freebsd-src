@@ -27,25 +27,24 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/elf_common.h>
+#include <sys/errno.h>
+#include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/errno.h>
-#include <err.h>
 
 static int elftype(const char *);
 static const char *iselftype(int);
 static void printelftypes(void);
-static void usage __P((void));
+static void usage(void);
 
 struct ELFtypes {
 	const char *str;
@@ -164,7 +163,7 @@ fail:
 }
 
 static void
-usage()
+usage(void)
 {
 fprintf(stderr, "usage: brandelf [-f ELF ABI number] [-v] [-l] [-t string] file ...\n");
 	exit(1);
@@ -197,7 +196,7 @@ elftype(const char *elfstrtype)
 }
 
 static void
-printelftypes()
+printelftypes(void)
 {
 	size_t elfwalk;
 
