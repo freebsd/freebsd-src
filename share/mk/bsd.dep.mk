@@ -150,3 +150,25 @@ cleandepend:
 .endif
 .endif
 .endif
+
+.if !target(checkdpadd) && (defined(DPADD) || defined(LDADD))
+checkdpadd:
+.if ${OBJFORMAT} != aout
+	@ldadd=`echo \`for lib in ${DPADD} ; do \
+		echo $$lib | sed 's;^/usr/lib/lib\(.*\)\.a;-l\1;' ; \
+	done \`` ; \
+	ldadd1=`echo ${LDADD}` ; \
+	if [ "$$ldadd" != "$$ldadd1" ] ; then \
+		echo ${.CURDIR} ; \
+		echo "DPADD -> $$ldadd" ; \
+		echo "LDADD -> $$ldadd1" ; \
+	fi
+.else
+	@dpadd=`echo \`ld -Bstatic -f ${LDADD}\`` ; \
+	if [ "$$dpadd" != "${DPADD}" ] ; then \
+		echo ${.CURDIR} ; \
+		echo "LDADD -> $$dpadd" ; \
+		echo "DPADD =  ${DPADD}" ; \
+	fi
+.endif
+.endif
