@@ -129,7 +129,7 @@ linprocfs_root(mp, vpp)
 	struct vnode **vpp;
 {
 
-	return (linprocfs_allocvp(mp, vpp, 0, Proot));
+	return (linprocfs_allocvp(mp, vpp, 0, root_dir));
 }
 
 /*
