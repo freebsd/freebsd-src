@@ -48,7 +48,7 @@ static char sccsid[] = "@(#)mkdctype.c	8.1 (Berkeley) 6/6/93";
 extern unsigned char ectype[256];
 
 
-void
+int
 main()
 {
     static unsigned char dctype[192] = { 0 };
@@ -96,4 +96,5 @@ main()
 	}
 	printf(",\n");
     }
+    return (0);
 }
