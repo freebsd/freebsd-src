@@ -413,7 +413,7 @@ vxsetlink(sc)
     k = (prev_flags ^ ifp->if_flags) & (IFF_LINK0 | IFF_LINK1 | IFF_LINK2);
     if ((k != 0) || (prev_conn != i)) {
 	if (warning != 0) {
-	    printf("vx%d: warning: %s\n", sc->unit);
+	    printf("vx%d: warning: %s\n", sc->unit, warning);
 	}
 	printf("vx%d: selected %s. (%s)\n",
 	       sc->unit, conn_tab[i].name, reason);
