@@ -61,5 +61,7 @@ vsprintf(str, fmt, ap)
 	f._bf._size = f._w = INT_MAX;
 	ret = __vfprintf(&f, fmt, ap);
 	*f._p = 0;
+	if (str == NULL)
+		free(f._bf._base);
 	return (ret);
 }
