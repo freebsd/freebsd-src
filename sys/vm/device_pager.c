@@ -108,6 +108,7 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 	dev_t dev;
 	d_mmap_t *mapfunc;
 	vm_object_t object;
+	vm_pindex_t pindex;
 	unsigned int npages;
 	vm_paddr_t paddr;
 	vm_offset_t off;
@@ -119,6 +120,7 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 		return (NULL);
 
 	size = round_page(size);
+	pindex = OFF_TO_IDX(foff + size);
 
 	/*
 	 * Make sure this device can be mapped.
@@ -158,8 +160,7 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 		/*
 		 * Allocate object and associate it with the pager.
 		 */
-		object = vm_object_allocate(OBJT_DEVICE,
-			OFF_TO_IDX(foff + size));
+		object = vm_object_allocate(OBJT_DEVICE, pindex);
 		object->handle = handle;
 		TAILQ_INIT(&object->un_pager.devp.devp_pglist);
 		mtx_lock(&dev_pager_mtx);
@@ -170,8 +171,8 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 		 * Gain a reference to the object.
 		 */
 		vm_object_reference(object);
-		if (OFF_TO_IDX(foff + size) > object->size)
-			object->size = OFF_TO_IDX(foff + size);
+		if (pindex > object->size)
+			object->size = pindex;
 	}
 
 	sx_xunlock(&dev_pager_sx);
