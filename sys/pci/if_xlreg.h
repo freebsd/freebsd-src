@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xlreg.h,v 1.19 1998/10/22 15:35:06 wpaul Exp $
+ *	$Id: if_xlreg.h,v 1.20 1999/03/27 20:10:10 wpaul Exp $
  */
 
 #define XL_EE_READ	0x0080	/* read, 5 bit address */
@@ -539,10 +539,8 @@ struct xl_mii_frame {
 struct xl_softc {
 	struct arpcom		arpcom;		/* interface info */
 	struct ifmedia		ifmedia;	/* media info */
-	u_int32_t		iobase;		/* pointer to PIO space */
-#ifndef XL_USEIOSPACE
-	volatile caddr_t	csr;		/* pointer to register map */
-#endif
+	bus_space_handle_t	xl_bhandle;
+	bus_space_tag_t		xl_btag;
 	struct xl_type		*xl_info;	/* 3Com adapter info */
 	struct xl_type		*xl_pinfo;	/* phy info */
 	u_int8_t		xl_unit;	/* interface number */
@@ -586,35 +584,19 @@ struct xl_stats {
 /*
  * register space access macros
  */
-#ifdef XL_USEIOSPACE
 #define CSR_WRITE_4(sc, reg, val)	\
-	outl(sc->iobase + (u_int32_t)(reg), val)
+	bus_space_write_4(sc->xl_btag, sc->xl_bhandle, reg, val)
 #define CSR_WRITE_2(sc, reg, val)	\
-	outw(sc->iobase + (u_int32_t)(reg), val)
+	bus_space_write_2(sc->xl_btag, sc->xl_bhandle, reg, val)
 #define CSR_WRITE_1(sc, reg, val)	\
-	outb(sc->iobase + (u_int32_t)(reg), val)
+	bus_space_write_1(sc->xl_btag, sc->xl_bhandle, reg, val)
 
-#define CSR_READ_4(sc, reg)	\
-	inl(sc->iobase + (u_int32_t)(reg))
-#define CSR_READ_2(sc, reg)	\
-	inw(sc->iobase + (u_int32_t)(reg))
-#define CSR_READ_1(sc, reg)	\
-	inb(sc->iobase + (u_int32_t)(reg))
-#else
-#define CSR_WRITE_4(sc, reg, val)	\
-	((*(u_int32_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int32_t)(val))
-#define CSR_WRITE_2(sc, reg, val)	\
-	((*(u_int16_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int16_t)(val))
-#define CSR_WRITE_1(sc, reg, val)	\
-	((*(u_int8_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int8_t)(val))
-
-#define CSR_READ_4(sc, reg)	\
-	(*(u_int32_t *)((sc)->csr + (u_int32_t)(reg)))
-#define CSR_READ_2(sc, reg)	\
-	(*(u_int16_t *)((sc)->csr + (u_int32_t)(reg)))
-#define CSR_READ_1(sc, reg)	\
-	(*(u_int8_t *)((sc)->csr + (u_int32_t)(reg)))
-#endif
+#define CSR_READ_4(sc, reg)		\
+	bus_space_read_4(sc->xl_btag, sc->xl_bhandle, reg)
+#define CSR_READ_2(sc, reg)		\
+	bus_space_read_2(sc->xl_btag, sc->xl_bhandle, reg)
+#define CSR_READ_1(sc, reg)		\
+	bus_space_read_1(sc->xl_btag, sc->xl_bhandle, reg)
 
 #define XL_SEL_WIN(x)	\
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_WINSEL | x)
@@ -822,3 +804,9 @@ struct xl_stats {
 #define PHY_BMSR_LINKSTAT		0x0004
 #define PHY_BMSR_JABBER			0x0002
 #define PHY_BMSR_EXTENDED		0x0001
+
+#ifdef __alpha__
+#undef vtophys
+#define vtophys(va)		(pmap_kextract(((vm_offset_t) (va))) \
+					+ 1*1024*1024*1024)
+#endif
