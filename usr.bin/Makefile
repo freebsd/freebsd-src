@@ -7,12 +7,6 @@
 # Moved to secure: bdes
 #
 
-.if ${MACHINE_ARCH} != "ia64"
-.if !defined(NO_TOOLCHAIN)
-_xlint=	xlint
-.endif
-.endif
-
 .if ${MACHINE_ARCH} != "powerpc" && ${MACHINE_ARCH} != "amd64"
 .if !defined(NO_TOOLCHAIN)
 _gprof=	gprof
@@ -24,6 +18,7 @@ _truss=	truss
 _c89=	c89
 _c99=	c99
 _lex=	lex
+_xlint=	xlint
 _yacc=	yacc
 .endif
 
