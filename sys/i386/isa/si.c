@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.28 1995/12/10 20:54:35 bde Exp $
+ *	$Id: si.c,v 1.29 1995/12/14 14:29:10 peter Exp $
  */
 
 #ifndef lint
@@ -146,6 +146,10 @@ static struct tty *si_tty;
 /* where the firmware lives; defined in si_code.c */
 extern int si_dsize;
 extern unsigned char si_download[];
+
+#ifdef DEVFS
+static char chardev[] = "0123456789abcdef";
+#endif
 
 struct si_softc {
 	int 		sc_type;	/* adapter type */
@@ -486,7 +490,9 @@ siattach(id)
 	struct speedtab *spt;
 	int nmodule, nport, x, y;
 	int uart_type;
+#ifdef DEVFS
 	char	name[32];
+#endif
 
 	DPRINT((0, DBG_AUTOBOOT, "si%d: siattach\n", id->id_unit));
 
@@ -692,22 +698,22 @@ mem_fail:
 
 #ifdef DEVFS
 /*	path	name	devsw		minor	type   uid gid perm*/
-	for ( x = 0; x < nport; x++ ) {
-		sprintf(name,"ttyA%02d", x + 1);
+	for ( x = 1; x <= nport; x++ ) {
+		sprintf(name,"ttyA%c%c", chardev[x / 10], chardev[x % 10]);
 		sc->devfs_token[x].ttyd = devfs_add_devsw(
-			"/", name, &si_cdevsw, unit,
+			"/", name, &si_cdevsw, x,
 			DV_CHR, 0, 0, 0600);
-		sprintf(name,"cuaA%02d", x + 1);
+		sprintf(name,"cuaA%c%c", chardev[x / 10], chardev[x % 10]);
 		sc->devfs_token[x].cuaa = devfs_add_devsw(
-			"/", name, &si_cdevsw, unit + 128,
+			"/", name, &si_cdevsw, x + 128,
 			DV_CHR, 0, 0, 0600);
-		sprintf(name,"ttyiA%02d", x + 1);
+		sprintf(name,"ttyiA%c%c", chardev[x / 10], chardev[x % 10]);
 		sc->devfs_token[x].ttyi = devfs_add_devsw(
-			"/", name, &si_cdevsw, unit + 0x10000,
+			"/", name, &si_cdevsw, x + 0x10000,
 			DV_CHR, 0, 0, 0600);
-		sprintf(name,"ttylA%02d", x + 1);
+		sprintf(name,"ttylA%c%c", chardev[x / 10], chardev[x % 10]);
 		sc->devfs_token[x].ttyl = devfs_add_devsw(
-			"/", name, &si_cdevsw, unit + 0x20000,
+			"/", name, &si_cdevsw, x + 0x20000,
 			DV_CHR, 0, 0, 0600);
 	}
 	/* XXX: no global yet */
