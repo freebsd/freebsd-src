@@ -43,7 +43,6 @@
  * point at the globaldata structure.
  */
 struct globaldata {
-	struct alpha_pcb gd_idlepcb;		/* pcb for idling */
 	struct proc	*gd_curproc;		/* current process */
 	struct proc	*gd_idleproc;		/* idle process */
 	struct proc	*gd_fpcurproc;		/* fp state owner */
@@ -52,17 +51,20 @@ struct globaldata {
 	int		gd_switchticks;
 	u_int		gd_cpuid;		/* this cpu number */
 	u_int		gd_other_cpus;		/* all other cpus */
-	u_int64_t	gd_idlepcbphys;		/* pa of gd_idlepcb */
-	u_int64_t	gd_pending_ipis;	/* pending IPI events */
+	int		gd_inside_intr;
 	u_int32_t	gd_next_asn;		/* next ASN to allocate */
 	u_int32_t	gd_current_asngen;	/* ASN rollover check */
+	u_int32_t	gd_intr_nesting_level;  /* interrupt recursion */
 
+	u_int		gd_astpending;
 	SLIST_ENTRY(globaldata) gd_allcpu;
 	struct lock_list_entry *gd_spinlocks;
 #ifdef KTR_PERCPU
+#ifdef KTR
 	volatile int	gd_ktr_idx;		/* Index into trace table */
 	char		*gd_ktr_buf;
-	char		gd_ktr_buf_data[0];
+	char		gd_ktr_buf_data[KTR_SIZE];
+#endif
 #endif
 };
 

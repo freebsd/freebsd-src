@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999 Luoqi Chen <luoqi@freebsd.org>
+ * Copyright (c) 1998 Doug Rabson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,35 +26,102 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_GLOBALS_H_
-#define	_MACHINE_GLOBALS_H_
+#ifndef _MACHINE_CPUFUNC_H_
+#define	_MACHINE_CPUFUNC_H_
 
 #ifdef _KERNEL
-#include <machine/cpufunc.h>
-#include <machine/globaldata.h>
 
-#define GLOBALP	((struct globaldata *) powerpc_get_globalp())
+#include <sys/types.h>
 
-#define	PCPU_GET(name)		(GLOBALP->gd_##name)
-#define	PCPU_PTR(name)		(&GLOBALP->gd_##name)
-#define PCPU_SET(name,value)	(GLOBALP->gd_##name = (value))
+#ifdef __GNUC__
+
+static __inline void
+breakpoint(void)
+{
+	return;
+}
+
+#endif
 
 /*
- * The following set of macros works for UP kernel as well, but for maximum
- * performance we allow the global variables to be accessed directly. On the
- * other hand, kernel modules should always use these macros to maintain
- * portability between UP and SMP kernels.
+ * Bogus interrupt manipulation
  */
-#define	CURPROC		PCPU_GET(curproc)
-#define	CURTHD		PCPU_GET(curproc)	/* temporary */
-#define	curproc		PCPU_GET(curproc)
-#define	idleproc	PCPU_GET(idleproc)
-#define	curpcb		PCPU_GET(curpcb)
-#define	fpcurproc	PCPU_GET(fpcurproc)
-#define	switchtime	PCPU_GET(switchtime)
-#define	switchticks	PCPU_GET(switchticks)
-#define	witness_spin_check	PCPU_GET(witness_spin_check)
+static __inline void
+disable_intr(void)
+{
+	u_int32_t	msr;
 
-#endif	/* _KERNEL */
+	msr = 0;
+	__asm __volatile(
+		"mfmsr %0\n\t"
+		"rlwinm %0, %0, 0, 17, 15\n\t"
+		"mtmsr %0"
+		: "+r" (msr));
 
-#endif	/* !_MACHINE_GLOBALS_H_ */
+	return;
+}
+
+static __inline void
+enable_intr(void)
+{
+	u_int32_t	msr;
+
+	msr = 0;
+	__asm __volatile(
+		"mfmsr %0\n\t"
+		"ori %0, %0, 0x8000\n\t"
+		"mtmsr %0"
+		: "+r" (msr));
+
+	return;
+}
+
+static __inline u_int
+save_intr(void)
+{
+	u_int	msr;
+
+	__asm __volatile("mfmsr %0" : "=r" (msr));
+
+	return msr;
+}
+
+static __inline critical_t
+critical_enter(void)
+{
+	return ((critical_t)save_intr());
+}
+
+static __inline void
+restore_intr(u_int msr)
+{
+	__asm __volatile("mtmsr %0" : : "r" (msr));
+
+	return;
+}
+
+static __inline void
+critical_exit(critical_t msr)
+{
+	return (restore_intr((u_int)msr));
+}
+
+static __inline void
+powerpc_mb(void)
+{
+	__asm __volatile("eieio;" : : : "memory");
+}
+
+static __inline void
+*powerpc_get_globalp(void)
+{
+	void *ret;
+
+	__asm __volatile("mfsprg %0, 0" : "=r" (ret));
+
+	return(ret);
+}
+
+#endif /* _KERNEL */
+
+#endif /* !_MACHINE_CPUFUNC_H_ */

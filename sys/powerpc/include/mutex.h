@@ -36,10 +36,14 @@
 
 #ifdef _KERNEL
 
-/* Global locks */
-extern struct mtx	clock_lock;
+#define	mtx_intr_enable(mutex)	do (mutex)->mtx_savecrit |= PSL_EE; while (0)
 
-#define	mtx_intr_enable(mutex)	do (mutex)->mtx_savecrit = ALPHA_PSL_IPL_0; while (0)
+/*
+ * Assembly macros (for internal use only)
+ *--------------------------------------------------------------------------
+ */
+
+#define	_V(x)	__STRING(x)
 
 #endif	/* _KERNEL */
 
@@ -47,29 +51,29 @@ extern struct mtx	clock_lock;
 
 /*
  * Simple assembly macros to get and release non-recursive spin locks
- *
- * XXX: These are presently unused and cannot be used right now. Need to be
- *	re-written (they are wrong). If you plan to use this and still see
- *	this message, know not to unless you fix them first! :-)
  */
 #define MTX_ENTER(lck)				\
-	ldiq	a0, ALPHA_PSL_IPL_HIGH;		\
-	call_pal PAL_OSF1_swpipl;		\
-1:	ldq_l	a0, lck+MTX_LOCK;		\
-	cmpeq	a0, MTX_UNOWNED, a1;		\
-	beq	a1, 1b;				\
-	ldq	a0, PC_CURPROC(globalp);	\
-	stq_c	a0, lck+MTX_LOCK;		\
-	beq	a0, 1b;				\
-	mb;					\
-	stl	v0, lck+MTX_SAVEINTR
+	mfmsr	r10;				\ /* disable interrupts */
+	rlwinm	r0, r10, 0, 17, 15;		\
+	mtmsr	r0;				\
+1:	li	r11, MTX_LOCK;			\ /* MTX_LOCK offset */
+	lwarx	r0, r11, lck;			\ /* load current lock value */
+	cmplwi	r0, r1, MTX_UNOWNED;		\ /* compare with unowned */
+	beq	1;				\ /* if owned, loop */
+	lwz	r0, PC_CURPROC(globalp);	\ /* load curproc */
+	stwcx.	r0, r11, lck;			\ /* attempt to store */
+	beq	1;				\ /* loop if failed */
+	sync;					\ /* sync */
+	eieio;					\ /* sync */
+	stw	r10, MTX_SAVEINTR(lck)		  /* save flags */
 
 #define MTX_EXIT(lck)				\
-	mb;					\
-	ldiq	a0, MTX_UNOWNED;		\
-	stq	a0, lck+MTX_LOCK;		\
-	ldl	a0, lck+MTX_SAVEINTR;		\
-	call_pal PAL_OSF1_swpipl
+	sync;					\ /* sync */
+	eieio;					\ /* sync */
+	li	r0, MTX_UNOWNED;		\ /* load in unowned */
+	stw	r0, MTX_LOCK(lck);		\ /* store to lock */
+	lwz	r0, MTX_SAVEINTR(lck);		\ /* load saved flags */
+	mtmsr	r0				  /* enable interrupts */
 
 #endif	/* !LOCORE */
 

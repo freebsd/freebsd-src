@@ -67,20 +67,10 @@ elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 
 	switch (rtype) {
 
-		case R_ALPHA_NONE:
+		case R_PPC_NONE:
 			break;
 
-		case R_ALPHA_REFQUAD:
-			addr = (Elf_Addr)
-				linker_file_lookup_symbol(lf, sym, 1);
-			if (addr == NULL)
-				return -1;
-			addr += addend;
-			if (*where != addr)
-				*where = addr;
-			break;
-
-		case R_ALPHA_GLOB_DAT:
+		case R_PPC_GLOB_DAT:
 			addr = (Elf_Addr)
 				linker_file_lookup_symbol(lf, sym, 1);
 			if (addr == NULL)
@@ -90,7 +80,7 @@ elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 				*where = addr;
 			break;
 
-		case R_ALPHA_JMP_SLOT:
+		case R_PPC_JMP_SLOT:
 			/* No point in lazy binding for kernel modules. */
 			addr = (Elf_Addr)
 				linker_file_lookup_symbol(lf, sym, 1);
@@ -100,13 +90,13 @@ elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 				*where = addr;
 			break;
 
-		case R_ALPHA_RELATIVE:
+		case R_PPC_RELATIVE:
 			addr = relocbase + addend + *where;
 			if (*where != addr)
 				*where = addr;
 			break;
 
-		case R_ALPHA_COPY:
+		case R_PPC_COPY:
 			/*
 			 * There shouldn't be copy relocations in kernel
 			 * objects.

@@ -77,46 +77,60 @@ ASENTRY(atomic_subtract_8)
 	blr			/* return */
 
 ASENTRY(atomic_set_16)
-0:	lwarx	0, 0, 3		/* load old value */
+	li	11, 3		/* mask to test for alignment */
+	andc.	11, 3, 11	/* force address to be word-aligned */
+0:	lwarx	12, 0, 11	/* load old value */
+	bne	1f		/* no realignment needed if it's aligned */
 	slwi	4, 4, 16	/* realign operand */
-	or	0, 0, 4		/* calculate new value */
-	stwcx.	0, 0, 3		/* attempt to store */
-	bne-	0		/* loop if failed */
+1:	or	12, 12, 4	/* calculate new value */
+	stwcx.	12, 0, 11	/* attempt to store */
+	bne-	0b		/* loop if failed */
 	eieio			/* synchronise */
 	sync
 	blr			/* return */
 
 ASENTRY(atomic_clear_16)
-0:	lwarx	0, 0, 3		/* load old value */
+	li	11, 3		/* mask to test for alignment */
+	andc.	11, 3, 11	/* force address to be word-aligned */
+0:	lwarx	12, 0, 11	/* load old value */
+	bne	1f		/* no realignment needed if it's aligned */
 	slwi	4, 4, 16	/* realign operand */
-	andc	0, 0, 4		/* calculate new value */
-	stwcx.	0, 0, 3		/* attempt to store */
-	bne-	0		/* loop if failed */
+1:	andc	12, 12, 4	/* calculate new value */
+	stwcx.	12, 0, 11	/* attempt to store */
+	bne-	0b		/* loop if failed */
 	eieio			/* synchronise */
 	sync
 	blr			/* return */
 
 ASENTRY(atomic_add_16)
-0:	lwarx	0, 0, 3		/* load old value */
-	srwi	0, 9, 16	/* realign */
-	add	0, 4, 0		/* calculate new value */
-	slwi	0, 0, 16	/* realign */
-	clrlwi	9, 9, 16	/* clear old value */
-	or	9, 9, 0		/* copy in new value */
-	stwcx.	0, 0, 3		/* attempt to store */
-	bne-	0		/* loop if failed */
+	li	11, 3		/* mask to test for alignment */
+	andc.	11, 3, 11	/* force address to be word-aligned */
+0:	lwarx	12, 0, 11	/* load old value */
+	bne	1f		/* no realignment needed if it's aligned */
+	srwi	12, 9, 16	/* realign */
+1:	add	12, 4, 12	/* calculate new value */
+	bne	2f		/* no realignment needed if it's aligned */
+	slwi	12, 12, 16	/* realign */
+2:	clrlwi	9, 9, 16	/* clear old value */
+	or	9, 9, 12	/* copy in new value */
+	stwcx.	12, 0, 11	/* attempt to store */
+	bne-	0b		/* loop if failed */
 	eieio			/* synchronise */
 	sync
 	blr			/* return */
 
 ASENTRY(atomic_subtract_16)
-0:	lwarx	0, 0, 3		/* load old value */
-	srwi	0, 9, 16	/* realign */
-	subf	0, 4, 0		/* calculate new value */
-	slwi	0, 0, 16	/* realign */
-	clrlwi	9, 9, 16	/* clear old value */
-	or	9, 9, 0		/* copy in new value */
-	stwcx.	0, 0, 3		/* attempt to store */
+	li	11, 3		/* mask to test for alignment */
+	andc.	11, 3, 11	/* force address to be word-aligned */
+0:	lwarx	12, 0, 11	/* load old value */
+	bne	1f		/* no realignment needed if it's aligned */
+	srwi	12, 9, 16	/* realign */
+1:	subf	12, 4, 12	/* calculate new value */
+	bne	2f		/* no realignment needed if it's aligned */
+	slwi	12, 12, 16	/* realign */
+2:	clrlwi	9, 9, 16	/* clear old value */
+	or	9, 9, 12	/* copy in new value */
+	stwcx.	12, 0, 11	/* attempt to store */
 	bne-	0		/* loop if failed */
 	eieio			/* synchronise */
 	sync

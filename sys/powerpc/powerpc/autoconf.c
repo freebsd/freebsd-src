@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999 Luoqi Chen <luoqi@freebsd.org>
+ * Copyright (c) 1998 Doug Rabson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,39 +22,57 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef	_MACHINE_GLOBALS_H_
-#define	_MACHINE_GLOBALS_H_
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
 
-#ifdef _KERNEL
-#include <machine/cpufunc.h>
-#include <machine/globaldata.h>
+#include "opt_bootp.h"
+#include "opt_nfs.h"
+#include "opt_nfsroot.h"
 
-#define GLOBALP	((struct globaldata *) powerpc_get_globalp())
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/conf.h>
+#include <sys/disklabel.h>
+#include <sys/diskslice.h> /* for BASE_SLICE, MAX_SLICES */
+#include <sys/ipl.h>
+#include <sys/reboot.h>
+#include <sys/kernel.h>
+#include <sys/mount.h>
+#include <sys/sysctl.h>
+#include <sys/bus.h>
+#include <sys/devicestat.h>
+#include <sys/cons.h>
 
-#define	PCPU_GET(name)		(GLOBALP->gd_##name)
-#define	PCPU_PTR(name)		(&GLOBALP->gd_##name)
-#define PCPU_SET(name,value)	(GLOBALP->gd_##name = (value))
+#include <machine/md_var.h>
+#include <machine/bootinfo.h>
+
+#include <cam/cam.h>
+#include <cam/cam_ccb.h>
+#include <cam/cam_sim.h>
+#include <cam/cam_periph.h>
+#include <cam/cam_xpt_sim.h>
+#include <cam/cam_debug.h>
+
+static void	configure __P((void *));
+SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_THIRD, configure, NULL)
+
+extern int nfs_diskless_valid;
+
+dev_t	rootdev = NODEV;
+dev_t	dumpdev = NODEV;
 
 /*
- * The following set of macros works for UP kernel as well, but for maximum
- * performance we allow the global variables to be accessed directly. On the
- * other hand, kernel modules should always use these macros to maintain
- * portability between UP and SMP kernels.
+ * Determine i/o configuration for a machine.
  */
-#define	CURPROC		PCPU_GET(curproc)
-#define	CURTHD		PCPU_GET(curproc)	/* temporary */
-#define	curproc		PCPU_GET(curproc)
-#define	idleproc	PCPU_GET(idleproc)
-#define	curpcb		PCPU_GET(curpcb)
-#define	fpcurproc	PCPU_GET(fpcurproc)
-#define	switchtime	PCPU_GET(switchtime)
-#define	switchticks	PCPU_GET(switchticks)
-#define	witness_spin_check	PCPU_GET(witness_spin_check)
+static void
+configure(void *dummy)
+{
 
-#endif	/* _KERNEL */
-
-#endif	/* !_MACHINE_GLOBALS_H_ */
+#if 0 /* XXX */
+	cold = 0;
+#endif
+}
