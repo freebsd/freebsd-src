@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.8 1994/10/10 03:18:47 rgrimes Exp $
+#	$Id: bsd.prog.mk,v 1.9 1994/10/11 23:38:19 ache Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -37,6 +37,7 @@ LIBL?=		/usr/lib/libl.a
 LIBKDB?=	/usr/lib/libkdb.a
 LIBKRB?=	/usr/lib/libkrb.a
 LIBM?=		/usr/lib/libm.a
+LIBMD?=		/usr/lib/libmd.a
 LIBMP?=		/usr/lib/libmp.a
 LIBMYTINFO?=	/usr/lib/libmytinfo.a
 LIBNCURSES?=	/usr/lib/libncurses.a
@@ -64,6 +65,7 @@ LIBL?=		${DESTDIR}/usr/lib/libl.a
 LIBKDB?=	${DESTDIR}/usr/lib/libkdb.a
 LIBKRB?=	${DESTDIR}/usr/lib/libkrb.a
 LIBM?=		${DESTDIR}/usr/lib/libm.a
+LIBMD?=		${DESTDIR}/usr/lib/libmd.a
 LIBMP?=		${DESTDIR}/usr/lib/libmp.a
 LIBMYTINFO?=	${DESTDIR}/usr/lib/libmytinfo.a
 LIBNCURSES?=	${DESTDIR}/usr/lib/libncurses.a
