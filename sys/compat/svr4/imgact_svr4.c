@@ -90,7 +90,7 @@ exec_svr4_imgact(imgp)
     }
     bss_size = round_page(a_out->a_bss);
 #ifdef DEBUG
-    printf("imgact: text: %08lx, data: %08lx, bss: %08lx\n", a_out->a_text, a_out->a_data, bss_size);
+    printf("imgact: text: %08lx, data: %08lx, bss: %08lx\n", (u_long)a_out->a_text, (u_long)a_out->a_data, bss_size);
 #endif
 
     /*
@@ -193,7 +193,7 @@ exec_svr4_imgact(imgp)
     
 #ifdef DEBUG
 	printf("imgact: startaddr=%08lx, length=%08lx\n", (u_long)vmaddr,
-	    a_out->a_text + a_out->a_data);
+	    (u_long)a_out->a_text + a_out->a_data);
 #endif
 	/*
 	 * allow read/write of data
