@@ -210,9 +210,9 @@ begin_output ()
 	      close (pipes[0]);
 	    }
 #ifdef __FreeBSD__
-	  execl (PR_PROGRAM, PR_PROGRAM, "-F", "-h", name, 0);
+	  execl (PR_PROGRAM, PR_PROGRAM, "-F", "-h", name, (char *)NULL);
 #else
-	  execl (PR_PROGRAM, PR_PROGRAM, "-f", "-h", name, 0);
+	  execl (PR_PROGRAM, PR_PROGRAM, "-f", "-h", name, (char *)NULL);
 #endif
 	  pfatal_with_name (PR_PROGRAM);
 	}
