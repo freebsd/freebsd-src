@@ -2201,6 +2201,24 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       for more details.)
       &merged;</para>
 
+    <para>Buffer overflows in kadmind(8) and k5admin have been
+      corrected.  More details can be found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:40.kadmind.asc">FreeBSD-SA-02:40</ulink>.
+      &merged;</para>
+
+    <para>Errors in &man.smrsh.8;, which could allow users to circumvent
+      restrictions on what programs can be executed, have been fixed.
+      See <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:41.smrsh.asc">FreeBSD-SA-02:41</ulink>
+      for details.
+      &merged;</para>
+
+    <para>Buffer overflows in the DNS &man.resolver.3;, which could
+      cause some applications to fail, have been corrected.  More
+      details are in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:42.resolv.asc">FreeBSD-SA-02:42</ulink>.
+      &merged;</para>
+
   </sect2>
 
   <sect2 id="userland">
