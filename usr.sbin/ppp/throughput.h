@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: throughput.h,v 1.2.4.4 1998/04/16 00:26:19 brian Exp $
+ *	$Id: throughput.h,v 1.3 1998/05/21 21:48:43 brian Exp $
  */
 
 #define SAMPLE_PERIOD 5
@@ -35,6 +35,7 @@ struct pppThroughput {
   u_long SampleOctets[SAMPLE_PERIOD];
   int OctetsPerSecond;
   int BestOctetsPerSecond;
+  time_t BestOctetsPerSecondTime;
   int nSample;
   unsigned rolling : 1;
   struct pppTimer Timer;
