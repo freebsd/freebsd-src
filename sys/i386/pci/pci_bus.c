@@ -27,6 +27,8 @@
  *
  */
 
+#include "opt_cpu.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -44,8 +46,6 @@
 #include <machine/cputypes.h>
 #include <machine/pc/bios.h>
 #include <machine/md_var.h>
-
-#include "opt_cpu.h"
 
 #include "pcib_if.h"
 
