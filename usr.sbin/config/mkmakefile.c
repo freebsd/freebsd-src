@@ -184,8 +184,7 @@ makefile()
 		maxusers = up->u_min;
 	} else if (maxusers > up->u_max)
 		printf("warning: maxusers > %d (%d)\n", up->u_max, maxusers);
-	fprintf(ofp, "PARAM=-DTIMEZONE=%d -DDST=%d -DMAXUSERS=%d\n",
-	    zone, dst, maxusers);
+	fprintf(ofp, "PARAM=-DMAXUSERS=%d\n", maxusers);
 	if (loadaddress != -1) {
 		fprintf(ofp, "LOAD_ADDRESS=%X\n", loadaddress);
 	}

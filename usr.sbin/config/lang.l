@@ -66,10 +66,8 @@ struct kt {
 #if	MACHINE_I386
 	{ "drq",	DRQ },
 #endif MACHINE_I386
-	{ "dst",	DST },
 	{ "dumps",	DUMPS },
 	{ "flags",	FLAGS },
-	{ "hz",		HZ },
 	{ "ident",	IDENT },
 	{ "interleave",	INTERLEAVE },
 #if MACHINE_I386
@@ -107,7 +105,6 @@ struct kt {
 #if MACHINE_I386
 	{ "tty",	TTY },
 #endif MACHINE_I386
-	{ "timezone",	TIMEZONE },
 	{ "trace",	TRACE },
 	{ "unit",	UNIT },
 	{ "vector",	VECTOR },

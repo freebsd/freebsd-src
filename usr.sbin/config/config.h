@@ -210,8 +210,6 @@ int	yyline;
 
 struct	file_list *ftab, *conf_list, **confp, *comp_list, **compp;
 
-int	zone, hadtz;
-int	dst;
 int	profiling;
 int	debugging;
 
