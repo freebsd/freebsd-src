@@ -1,4 +1,4 @@
-#	$Id: options,v 1.126 1999/02/09 01:02:37 mjacob Exp $
+#	$Id: options,v 1.127 1999/02/14 11:59:58 nsouch Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -201,6 +201,7 @@ IPFIREWALL_VERBOSE	opt_ipfw.h
 IPFIREWALL_VERBOSE_LIMIT	opt_ipfw.h
 IPFIREWALL_DEFAULT_TO_ACCEPT	opt_ipfw.h
 IPFIREWALL_FORWARD		opt_ipfw.h
+IPSTEALTH
 IPX			opt_ipx.h
 IPXIP			opt_ipx.h
 IPTUNNEL		opt_ipx.h

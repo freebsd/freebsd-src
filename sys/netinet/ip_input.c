@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- *	$Id: ip_input.c,v 1.113 1999/01/27 22:42:25 dillon Exp $
+ *	$Id: ip_input.c,v 1.114 1999/02/09 16:55:46 wollman Exp $
  */
 
 #define	_IP_VHL
@@ -137,6 +137,12 @@ static int    maxnipq;
 #ifdef IPCTL_DEFMTU
 SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
 	&ip_mtu, 0, "");
+#endif
+
+#ifdef IPSTEALTH
+static int	ipstealth = 0;
+SYSCTL_INT(_net_inet_ip, OID_AUTO, stealth, CTLFLAG_RW,
+    &ipstealth, 0, "");
 #endif
 
 #if !defined(COMPAT_IPFW) || COMPAT_IPFW == 1
@@ -1404,11 +1410,18 @@ ip_forward(m, srcrt)
 		return;
 	}
 	HTONS(ip->ip_id);
-	if (ip->ip_ttl <= IPTTLDEC) {
-		icmp_error(m, ICMP_TIMXCEED, ICMP_TIMXCEED_INTRANS, dest, 0);
-		return;
+#ifdef IPSTEALTH
+	if (!ipstealth) {
+#endif
+		if (ip->ip_ttl <= IPTTLDEC) {
+			icmp_error(m, ICMP_TIMXCEED, ICMP_TIMXCEED_INTRANS,
+			    dest, 0);
+			return;
+		}
+		ip->ip_ttl -= IPTTLDEC;
+#ifdef IPSTEALTH
 	}
-	ip->ip_ttl -= IPTTLDEC;
+#endif
 
 	sin = (struct sockaddr_in *)&ipforward_rt.ro_dst;
 	if ((rt = ipforward_rt.ro_rt) == 0 ||
