@@ -968,27 +968,39 @@ suser_xxx(cred, proc, flag)
 	return (0);
 }
 
-static int
-p_cansee(struct proc *p1, struct proc *p2, int *privused)
+/*
+ * u_cansee(u1, u2): determine if u1 "can see" the subject specified by u2
+ * Arguments: imutable credentials u1, u2
+ * Returns: 0 for permitted, an errno value otherwise
+ * Locks: none
+ * References: u1 and u2 must be valid for the lifetime of the call
+ *             u1 may equal u2, in which case only one reference is required
+ */
+int
+u_cansee(struct ucred *u1, struct ucred *u2)
 {
 	int error;
 
+	if ((error = prison_check(u1, u2)))
+		return (error);
+	if (!ps_showallprocs && u1->cr_uid != u2->cr_uid) {
+		if (suser_xxx(u1, NULL, PRISON_ROOT) == 0)
+			return (0);
+		else
+			return (ESRCH);
+	}
+	return (0);
+}
+
+static int
+p_cansee(struct proc *p1, struct proc *p2, int *privused)
+{
+
+	/* XXX: privused is going away, so don't do that here. */
 	if (privused != NULL)
 		*privused = 0;
-
-	if ((error = prison_check(p1->p_ucred, p2->p_ucred)))
-		return (error);
-
-	if (!ps_showallprocs && p1->p_ucred->cr_uid != p2->p_ucred->cr_uid) {
-		if (suser_xxx(NULL, p1, PRISON_ROOT) == 0) {
-			if (privused != NULL)
-				*privused = 1;
-			return (0);
-		}
-		return (ESRCH);
-	}
-
-	return (0);
+	/* Wrap u_cansee() for all functionality. */
+	return (u_cansee(p1->p_ucred, p2->p_ucred));
 }
 
 static int
