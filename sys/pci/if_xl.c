@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.22.2.16 1999/07/08 00:43:29 wpaul Exp $
+ *	$Id: if_xl.c,v 1.109 1999/08/02 20:24:59 wpaul Exp $
  */
 
 /*
@@ -160,7 +160,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_xl.c,v 1.22.2.16 1999/07/08 00:43:29 wpaul Exp $";
+	"$Id: if_xl.c,v 1.109 1999/08/02 20:24:59 wpaul Exp $";
 #endif
 
 /*
@@ -1231,6 +1231,12 @@ static void xl_reset(sc)
 	if (i == XL_TIMEOUT)
 		printf("xl%d: reset didn't complete\n", sc->xl_unit);
 
+	/* Reset TX and RX. */
+	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_RESET);
+	xl_wait(sc);
+	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_RESET);
+	xl_wait(sc);
+
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(100000);
         return;
@@ -1784,6 +1790,7 @@ xl_attach(config_id, unit)
 	}
 
 	ifmedia_set(&sc->ifmedia, media);
+	xl_stop(sc);
 
 	/*
 	 * Call MI attach routines.
@@ -2845,6 +2852,7 @@ static void xl_watchdog(ifp)
 	xl_txeoc(sc);
 	xl_txeof(sc);
 	xl_rxeof(sc);
+	xl_reset(sc);
 	xl_init(sc);
 
 	if (ifp->if_snd.ifq_head != NULL)
