@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vmmeter.h	8.2 (Berkeley) 7/10/94
- * $Id$
+ * $Id: vmmeter.h,v 1.15 1997/02/22 09:46:27 peter Exp $
  */
 
 #ifndef _SYS_VMMETER_H_
@@ -54,7 +54,9 @@ struct vmmeter {
 	 */
 	u_int v_vm_faults;	/* number of address memory faults */
 	u_int v_cow_faults;	/* number of copy-on-writes */
+	u_int v_cow_optim;	/* number of optimized copy-on-writes */
 	u_int v_zfod;		/* pages zero filled on demand */
+	u_int v_ozfod;		/* pages prezero filled on demand */
 	u_int v_swapin;		/* swap pager pageins */
 	u_int v_swapout;	/* swap pager pageouts */
 	u_int v_swappgsin;	/* swap pager pages paged in */
