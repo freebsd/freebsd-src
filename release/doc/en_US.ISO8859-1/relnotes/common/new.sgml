@@ -1640,6 +1640,17 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.openssh.asc">FreeBSD-SA-02:13</ulink>.)
       &merged;</para>
 
+    <para>A programming error in <application>zlib</application> could
+      result in attempts to free memory multiple times.  The
+      &man.malloc.3;/&man.free.3; routines used in &os; are not
+      vulnerable to this error, but applications receiving
+      specially-crafted blocks of invalid compressed data could
+      be made to function incorrectly or abort.  This
+      <application>zlib</application> bug has been fixed.  For a
+      workaround and solutions, see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.asc">FreeBSD-SA-02:18</ulink>.
+      &merged;</para>
+
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
