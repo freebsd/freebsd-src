@@ -684,6 +684,7 @@ socktrans(sock, i)
 	 */
 	switch(dom.dom_family) {
 	case AF_INET:
+	case AF_INET6:
 		getinetproto(proto.pr_protocol);
 		if (proto.pr_protocol == IPPROTO_TCP ) {
 			if (so.so_pcb) {
