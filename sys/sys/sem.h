@@ -37,8 +37,6 @@ struct sembuf {
 };
 #define SEM_UNDO	010000
 
-#define MAX_SOPS	5	/* maximum # of sembuf's per semop call */
-
 /*
  * semctl's arg parameter structure
  */
@@ -64,8 +62,8 @@ union semun {
 /*
  * Permissions
  */
-#define SEM_A		0200	/* alter permission */
-#define SEM_R		0400	/* read permission */
+#define SEM_A		IPC_W	/* alter permission */
+#define SEM_R		IPC_R	/* read permission */
 
 #ifdef _KERNEL
 

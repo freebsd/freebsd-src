@@ -107,6 +107,8 @@ Set the value of semaphore number
 .Fa semnum
 to
 .Fa arg.val .
+Outstanding adjust on exit values for this semaphore in any process
+are cleared.
 .It Dv GETPID
 Return the pid of the last process to perform an operation on
 semaphore number
@@ -127,6 +129,8 @@ array pointed to by
 Set the values of all of the semaphores in the set to the values
 in the array pointed to by
 .Fa arg.array .
+Outstanding adjust on exit values for all semaphores in this set,
+in any process are cleared.
 .El
 .Pp
 The
@@ -152,7 +156,10 @@ struct semid_ds {
 .Sh RETURN VALUES
 On success, when
 .Fa cmd
-is one of GETVAL, GETNCNT, or GETZCNT,
+is one of
+.Dv GETVAL , GETNCNT
+or
+.Dv GETZCNT ,
 .Fn semctl
 returns the corresponding value; otherwise, 0 is returned.
 On failure, -1 is returned, and
@@ -174,7 +181,16 @@ the semaphore set's owner or creator.
 .It Bq Er EACCES
 Permission denied due to mismatch between operation and mode of
 semaphore set.
+.It Bq Er ERANGE
+.Dv SETVAL
+or
+.Dv SETALL
+attempted to set a semaphore outside the allowable range
+.Bq 0 .. Dv SEMVMX .
 .El
 .Sh SEE ALSO
 .Xr semget 2 ,
 .Xr semop 2
+.Sh BUGS
+.Dv SETALL
+may update some semaphore elements before returning an error.
