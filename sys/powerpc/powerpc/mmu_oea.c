@@ -1272,9 +1272,11 @@ pmap_pinit2(pmap_t pmap)
 }
 
 void
-pmap_prefault(pmap_t pmap, vm_offset_t va, vm_map_entry_t entry)
+pmap_prefault(pmap_t pm, vm_offset_t va, vm_map_entry_t entry)
 {
-	TODO;
+	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
+	    ("pmap_prefault: non current pmap"));
+	/* XXX */
 }
 
 void
