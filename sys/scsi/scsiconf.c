@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.29 1995/05/03 18:09:13 dufault Exp $
+ *      $Id: scsiconf.c,v 1.30 1995/05/30 08:13:45 rgrimes Exp $
  */
 
 #include <sys/types.h>
@@ -261,12 +261,20 @@ static struct scsidevs knowndevs[] =
 #if NCD > 0
 #ifndef UKTEST	/* make cdroms unrecognised to test the uk driver */
 	{
-		T_READONLY, T_REMOV, "SONY", "CD-ROM CDU-8012", "3.1a",
+		T_READONLY, T_REMOV, "SONY",    "CD-ROM CDU-8012", "3.1a",
 		"cd", SC_ONE_LU
 	},
 	{
 		T_READONLY, T_REMOV, "PIONEER", "CD-ROM DRM-600", "*",
 		"cd", SC_MORE_LUS
+	},
+	{
+		T_READONLY, T_REMOV, "PIONEER", "CD-ROM DRM-602X" ,"*",
+		"cd", SC_MORE_LUS
+	},
+	{
+		T_READONLY, T_REMOV, "CHINON",  "CD-ROM CDS-535","*",
+		"cd", SC_ONE_LU
 	},
 #endif
 #endif	/* NCD */
@@ -301,12 +309,20 @@ static struct scsidevs knowndevs[] =
 #if NCD > 0
 #ifndef UKTEST	/* make cdroms unrecognised to test the uk driver */
 	{
-		T_READONLY, T_REMOV, "SONY    ", "CD-ROM CDU-8012 "
+		T_READONLY, T_REMOV, "SONY",   "CD-ROM CDU-8012"
 		    ,"3.1a", "cd", SC_ONE_LU
 	},
 	{
-		T_READONLY, T_REMOV, "PIONEER ", "CD-ROM DRM-600  "
+		T_READONLY, T_REMOV, "PIONEER", "CD-ROM DRM-600"
 		    ,"any", "cd", SC_MORE_LUS
+	},
+	{
+		T_READONLY, T_REMOV, "PIONEER", "CD-ROM DRM-602X"
+		    ,"any", "cd", SC_MORE_LUS
+	},
+	{
+		T_READONLY, T_REMOV, "CHINON",  "CD-ROM CDS-535"
+		    ,"any", "cd", SC_ONE_LU
 	},
 #endif
 #endif	/* NCD */
@@ -1251,7 +1267,7 @@ scsi_selectdev(qualifier, type, remov, manu, model, rev)
 			bestmatch = thisentry;
 		}
 		if (thisentry->flags & SC_SHOWME)
-			printf("\n%s-\n%s-", thisentry->manufacturer, manu);
+			printf("'%s'-'%s'\n", thisentry->manufacturer, manu);
 		if (strcmp(thisentry->manufacturer, manu)) {
 			continue;
 		}
@@ -1260,7 +1276,7 @@ scsi_selectdev(qualifier, type, remov, manu, model, rev)
 			bestmatch = thisentry;
 		}
 		if (thisentry->flags & SC_SHOWME)
-			printf("\n%s-\n%s-", thisentry->model, model);
+			printf("'%s'-'%s'\n", thisentry->model, model);
 		if (strcmp(thisentry->model, model)) {
 			continue;
 		}
@@ -1269,7 +1285,7 @@ scsi_selectdev(qualifier, type, remov, manu, model, rev)
 			bestmatch = thisentry;
 		}
 		if (thisentry->flags & SC_SHOWME)
-			printf("\n%s-\n%s-", thisentry->version, rev);
+			printf("'%s'-'%s'\n", thisentry->version, rev);
 		if (strcmp(thisentry->version, rev)) {
 			continue;
 		}
