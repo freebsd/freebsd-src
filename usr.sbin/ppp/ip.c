@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.50 1998/08/07 18:42:48 brian Exp $
+ * $Id: ip.c,v 1.51 1998/08/25 17:48:42 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -493,35 +493,37 @@ ip_Input(struct bundle *bundle, struct mbuf * bp)
   mbuf_Free(bp);
 }
 
-static struct mqueue IpOutputQueues[PRI_FAST + 1];
-
 void
-ip_Enqueue(int pri, char *ptr, int count)
+ip_Enqueue(struct ipcp *ipcp, int pri, char *ptr, int count)
 {
   struct mbuf *bp;
 
-  bp = mbuf_Alloc(count, MB_IPQ);
-  memcpy(MBUF_CTOP(bp), ptr, count);
-  mbuf_Enqueue(&IpOutputQueues[pri], bp);
+  if (pri < 0 || pri > sizeof ipcp->Queue / sizeof ipcp->Queue[0])
+    log_Printf(LogERROR, "Can't store in ip queue %d\n", pri);
+  else {
+    bp = mbuf_Alloc(count, MB_IPQ);
+    memcpy(MBUF_CTOP(bp), ptr, count);
+    mbuf_Enqueue(&ipcp->Queue[pri], bp);
+  }
 }
 
 void
-ip_DeleteQueue()
+ip_DeleteQueue(struct ipcp *ipcp)
 {
   struct mqueue *queue;
 
-  for (queue = IpOutputQueues; queue < IpOutputQueues + PRI_MAX; queue++)
+  for (queue = ipcp->Queue; queue < ipcp->Queue + PRI_MAX; queue++)
     while (queue->top)
       mbuf_Free(mbuf_Dequeue(queue));
 }
 
 int
-ip_QueueLen()
+ip_QueueLen(struct ipcp *ipcp)
 {
   struct mqueue *queue;
   int result = 0;
 
-  for (queue = &IpOutputQueues[PRI_MAX]; queue >= IpOutputQueues; queue--)
+  for (queue = ipcp->Queue; queue < ipcp->Queue + PRI_MAX; queue++)
     result += queue->qlen;
 
   return result;
@@ -530,14 +532,15 @@ ip_QueueLen()
 int
 ip_FlushPacket(struct link *l, struct bundle *bundle)
 {
+  struct ipcp *ipcp = &bundle->ncp.ipcp;
   struct mqueue *queue;
   struct mbuf *bp;
   int cnt;
 
-  if (bundle->ncp.ipcp.fsm.state != ST_OPENED)
+  if (ipcp->fsm.state != ST_OPENED)
     return 0;
 
-  for (queue = &IpOutputQueues[PRI_FAST]; queue >= IpOutputQueues; queue--)
+  for (queue = &ipcp->Queue[PRI_FAST]; queue >= ipcp->Queue; queue--)
     if (queue->top) {
       bp = mbuf_Dequeue(queue);
       if (bp) {
@@ -547,7 +550,7 @@ ip_FlushPacket(struct link *l, struct bundle *bundle)
         if (!(FilterCheck(pip, &bundle->filter.alive) & A_DENY))
           bundle_StartIdleTimer(bundle);
 	vj_SendFrame(l, bp, bundle);
-        ipcp_AddOutOctets(&bundle->ncp.ipcp, cnt);
+        ipcp_AddOutOctets(ipcp, cnt);
 	return 1;
       }
     }

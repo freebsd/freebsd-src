@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.32 1998/08/09 15:34:11 brian Exp $
+ *	$Id: bundle.c,v 1.33 1998/08/25 17:48:42 brian Exp $
  */
 
 #include <sys/param.h>
@@ -231,7 +231,7 @@ bundle_ClearQueues(void *v)
    * dictionaries in use (causing the relevant RESET_REQ/RESET_ACK).
    */
 
-  ip_DeleteQueue();
+  ip_DeleteQueue(&bundle->ncp.ipcp);
   mp_DeleteQueue(&bundle->ncp.mp);
   for (dl = bundle->links; dl; dl = dl->next)
     physical_DeleteQueue(dl->physical);
@@ -555,7 +555,7 @@ bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
     nlinks++;
 
   if (nlinks) {
-    queued = r ? bundle_FillQueues(bundle) : ip_QueueLen();
+    queued = r ? bundle_FillQueues(bundle) : ip_QueueLen(&bundle->ncp.ipcp);
     if (bundle->autoload.running) {
       if (queued < bundle->cfg.autoload.max.packets) {
         if (queued > bundle->cfg.autoload.min.packets)
@@ -710,7 +710,7 @@ bundle_DescriptorRead(struct descriptor *d, struct bundle *bundle,
         n = ntohs(((struct ip *)tun.data)->ip_len);
       }
 #endif
-      ip_Enqueue(pri, tun.data, n);
+      ip_Enqueue(&bundle->ncp.ipcp, pri, tun.data, n);
     }
   }
 }
@@ -1202,7 +1202,7 @@ bundle_FillQueues(struct bundle *bundle)
       }
   }
 
-  return total + ip_QueueLen();
+  return total + ip_QueueLen(&bundle->ncp.ipcp);
 }
 
 int
@@ -1257,7 +1257,7 @@ bundle_ShowStatus(struct cmdargs const *arg)
   else
     prompt_Printf(arg->prompt, "                %srunning with %d"
                   " packets queued\n", arg->bundle->autoload.running ?
-                  "" : "not ", ip_QueueLen());
+                  "" : "not ", ip_QueueLen(&arg->bundle->ncp.ipcp));
 
   prompt_Printf(arg->prompt, " Choked Timer:  %ds\n",
                 arg->bundle->cfg.choked.timeout);

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.18.2.28 1998/05/21 01:26:10 brian Exp $
+ * $Id: ipcp.h,v 1.19 1998/05/21 21:45:49 brian Exp $
  *
  *	TODO:
  */
@@ -91,6 +91,7 @@ struct ipcp {
   struct in_addr peer_ifip;		/* My congigured destination address */
 
   struct pppThroughput throughput;	/* throughput statistics */
+  struct mqueue Queue[PRI_FAST + 1];	/* Output packet queues */
 };
 
 #define fsm2ipcp(fp) (fp->proto == PROTO_IPCP ? (struct ipcp *)fp : NULL)

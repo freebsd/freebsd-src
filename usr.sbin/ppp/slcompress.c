@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.c,v 1.18 1998/06/15 19:06:24 brian Exp $
+ * $Id: slcompress.c,v 1.19 1998/06/27 12:03:50 brian Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
@@ -45,10 +45,10 @@
 #include "fsm.h"
 #include "throughput.h"
 #include "iplist.h"
-#include "ipcp.h"
-#include "filter.h"
 #include "lqr.h"
 #include "hdlc.h"
+#include "ipcp.h"
+#include "filter.h"
 #include "lcp.h"
 #include "ccp.h"
 #include "link.h"
