@@ -424,14 +424,16 @@ loop:
 		    p->p_pid != uap->pid && p->p_pgid != -uap->pid)
 			continue;
 
-		/* This special case handles a kthread spawned by linux_clone 
-		 * (see linux_misc.c).  The linux_wait4 and linux_waitpid functions
-		 * need to be able to distinguish between waiting on a process and
-		 * waiting on a thread.  It is a thread if p_sigparent is not SIGCHLD,
-		 * and the WLINUXCLONE option signifies we want to wait for threads
-		 * and not processes.
+		/*
+		 * This special case handles a kthread spawned by linux_clone 
+		 * (see linux_misc.c).  The linux_wait4 and linux_waitpid
+		 * functions need to be able to distinguish between waiting
+		 * on a process and waiting on a thread.  It is a thread if
+		 * p_sigparent is not SIGCHLD, and the WLINUXCLONE option
+		 * signifies we want to wait for threads and not processes.
 		 */
-		if ((p->p_sigparent != SIGCHLD) ^ ((uap->options & WLINUXCLONE) != 0))
+		if ((p->p_sigparent != SIGCHLD) ^
+		    ((uap->options & WLINUXCLONE) != 0))
 			continue;
 
 		nfound++;
