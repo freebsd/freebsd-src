@@ -359,7 +359,8 @@ diskerr(bp, what, blkdone, lp)
 	char *sname;
 	daddr_t sn;
 
-	sname = dsname(bp->bio_dev, unit, slice, part, partname);
+	*partname = '\0';
+	sname = bp->bio_dev->si_name;
 	printf("%s%s: %s %sing fsbn ", sname, partname, what,
 	      bp->bio_cmd == BIO_READ ? "read" : "writ");
 	sn = bp->bio_blkno;
