@@ -26,11 +26,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kbdio.c,v 1.11 1997/07/20 14:10:05 bde Exp $
+ * $Id$
+ * from: i386/isa kbdio.c,v 1.12
  */
 
 #include "sc.h"
-#include "vt.h"
+/* #include "vt.h" */
+#define NVT 0
 #include "psm.h"
 #include "opt_kbdio.h"
 
