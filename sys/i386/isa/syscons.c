@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.114 1995/04/25 10:22:28 sos Exp $
+ *  $Id: syscons.c,v 1.115 1995/04/28 09:10:56 sos Exp $
  */
 
 #include "sc.h"
@@ -843,6 +843,8 @@ set_mouse_pos:
 		    copy_font(LOAD, FONT_14, font_14);
 		if (fonts_loaded & FONT_16)
 		    copy_font(LOAD, FONT_16, font_16);
+		if (configuration & CHAR_CURSOR)
+		    set_destructive_cursor(scp, TRUE);
 		load_palette();
 	    }
 	    /* FALL THROUGH */
@@ -1312,6 +1314,8 @@ exchange_scr(void)
 	    copy_font(LOAD, FONT_14, font_14);
 	if (fonts_loaded & FONT_16)
 	    copy_font(LOAD, FONT_16, font_16);
+	if (configuration & CHAR_CURSOR)
+	    set_destructive_cursor(new_scp, TRUE);
 	load_palette();
     }
     if (old_scp->status & KBD_RAW_MODE || new_scp->status & KBD_RAW_MODE)
@@ -2892,7 +2896,7 @@ set_destructive_cursor(scr_stat *scp, int force)
 
     if (!force && (scp->cursor_saveunder & 0xFF) == old_saveunder)
 	return;
-    old_saveunder = scp->cursor_saveunder & 0xFF;
+    old_saveunder = force ? DEAD_CHAR : scp->cursor_saveunder & 0xFF;
     switch (scp->font) {
     default:
     case FONT_8:
