@@ -182,5 +182,10 @@ struct cue_softc {
 	struct mtx		cue_mtx;
 };
 
+#if 0
 #define	CUE_LOCK(_sc)		mtx_lock(&(_sc)->cue_mtx)
 #define	CUE_UNLOCK(_sc)		mtx_unlock(&(_sc)->cue_mtx)
+#else
+#define	CUE_LOCK(_sc)
+#define	CUE_UNLOCK(_sc)
+#endif
