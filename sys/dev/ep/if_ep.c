@@ -66,6 +66,7 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+#include <sys/bus.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -84,6 +85,7 @@ struct	ep_softc *	ep_softc[NEP];
 struct	ep_board	ep_board[EP_MAX_BOARDS + 1];
 int	ep_boards;
 u_long	ep_unit;
+devclass_t ep_devclass;
 
 static	char *		ep_conn_type[] = {"UTP", "AUI", "???", "BNC"};
 
@@ -516,6 +518,9 @@ ep_intr(arg)
     x = splbio();
 
     sc = (struct ep_softc *)arg;
+
+    if (sc->gone)
+	    return;
 
     ifp = &sc->arpcom.ac_if;
 
