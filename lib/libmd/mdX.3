@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" 	$Id: mdX.3,v 1.9 1997/02/22 15:07:22 peter Exp $
+.\" 	$Id: mdX.3,v 1.10 1997/03/19 00:52:58 bde Exp $
 .\"
 .Dd October 9, 1996
 .Dt MDX 3
@@ -31,7 +31,7 @@
 .Ft "char *"
 .Fn MDXEnd "MDX_CTX *context" "char *buf"
 .Ft "char *"
-.Fn MDXFile "char *filename" "char *buf"
+.Fn MDXFile "const char *filename" "char *buf"
 .Ft "char *"
 .Fn MDXData "const unsigned char *data" "unsigned int len" "char *buf"
 .Sh DESCRIPTION
