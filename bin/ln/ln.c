@@ -30,17 +30,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ln.c,v 1.6 1996/05/24 20:36:16 peter Exp $
+ *	$Id: ln.c,v 1.6.2.1 1997/06/06 16:07:40 charnier Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static char const copyright[] =
 "@(#) Copyright (c) 1987, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)ln.c	8.2 (Berkeley) 3/31/94";
+static char const sccsid[] = "@(#)ln.c	8.2 (Berkeley) 3/31/94";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -71,7 +71,7 @@ main(argc, argv)
 	int ch, exitval;
 	char *sourcedir;
 
-	while ((ch = getopt(argc, argv, "fs")) != EOF)
+	while ((ch = getopt(argc, argv, "fs")) != -1)
 		switch (ch) {
 		case 'f':
 			fflag = 1;
