@@ -1,0 +1,599 @@
+
+Received: from louie.udel.edu by huey.udel.edu id aa08047; 17 Feb 94 15:26 EST
+Received: from faui45.informatik.uni-erlangen.de by louie.udel.edu id aa17403;
+          17 Feb 94 15:15 EST
+Received: from faui43.informatik.uni-erlangen.de by uni-erlangen.de with SMTP;
+	id AA04056 (5.65c-6/7.3v-FAU); Thu, 17 Feb 1994 21:14:43 +0100
+Received: from faui45x.informatik.uni-erlangen.de by immd4.informatik.uni-erlangen.de with SMTP;
+	id AA29721 (5.65c-6/7.3m-FAU); Thu, 17 Feb 1994 21:14:39 +0100
+From: Frank Kardel <Frank.Kardel@informatik.uni-erlangen.de>
+Message-Id: <199402172014.AA29721@faui43.informatik.uni-erlangen.de>
+Subject: Re:  Beep, beep, beep
+To: Mills@udel.edu
+Date: Thu, 17 Feb 94 21:14:33 MET
+Cc: Frank.Kardel@informatik.uni-erlangen.de, 
+    Paul_Vixie@corpmis.sjc.hw.sony.com, Piete.Brooks@cl.cam.ac.uk
+In-Reply-To:  <9402171155.aa07032@huey.udel.edu>; from "Mills@udel.edu" at Feb 17, 94 11:55 am
+X-Mailer: ELM [version 2.3 PL11]
+
+
+> Guys,
+
+> Trouble with HAVE_BSD_TTYS on a VAX
+
+> ### creating NTP library
+> cc -O -DDES -DXNTP_LITTLE_ENDIAN -DSYS_VAX -DDEBUG -DREFCLOCK -I../include -c atoint.c
+> "../include/ntp_machine.h", line 570: syntax error
+Yupp, nit TTY define set.
+
+> "atoint.c", line 12: redeclaration of ival
+> "atoint.c", line 13: syntax error
+> ...
+
+Well, I guess the trouble is more that none of the tty defines was
+defined. For the sake of completeness i have added the tty defines to
+(hopefully) all machine/* files. Some configurations were unknown to
+me so I assumed HAVE_BSD_TTYS. Would be nice if someone could run
+the whole suite 8-).
+I have put the tty defines into the machine files so that the
+refconf scripts can pick up the define without having to run the
+preprocessor to dig out the configuration.
+Hope this works.
+
+diff -c include/ntp_machine.h:1.1.1.13 include/ntp_machine.h:1.30
+*** include/ntp_machine.h:1.1.1.13	Thu Feb 17 20:17:59 1994
+--- include/ntp_machine.h	Thu Feb 17 20:17:59 1994
+***************
+*** 44,54 ****
+  WHICH TERMINAL MODEL TO USE - I would assume HAVE_TERMIOS if 
+  		      NTP_POSIX_SOURCE was set but can't.  The 
+  		      posix tty driver is too restrictive on most systems.
+! 		      It defined if you define STREAMS.
+  
+    HAVE_SYSV_TTYS    - Use SYSV termio.h
+    HAVE_BSD_TTYS     - Use BSD stty.h
+-   HAVE_TERMIOS      - Use POSIX termios.h
+  
+  THIS MAKES PORTS TO NEW SYSTEMS EASY - You only have to wory about
+  		                       kernel mucking.
+--- 44,59 ----
+  WHICH TERMINAL MODEL TO USE - I would assume HAVE_TERMIOS if 
+  		      NTP_POSIX_SOURCE was set but can't.  The 
+  		      posix tty driver is too restrictive on most systems.
+! 		      It is defined if you define STREAMS.
+  
++   We do not put these defines in the ntp_machine.h as some systems
++   offer multiple interfaces and refclock configuration likes to
++   peek into the configuration defines for tty model restrictions.
++   Thus all tty definitions should be in the files in the machines directory.
++ 
++   HAVE_TERMIOS      - Use POSIX termios.h
+    HAVE_SYSV_TTYS    - Use SYSV termio.h
+    HAVE_BSD_TTYS     - Use BSD stty.h
+  
+  THIS MAKES PORTS TO NEW SYSTEMS EASY - You only have to wory about
+  		                       kernel mucking.
+***************
+*** 296,302 ****
+  #define FORCE_NTPDATE_STEP
+  #define	RETSIGTYPE	void
+  #define HAVE_ATT_SETPGRP
+- #define HAVE_BSD_TTYS
+  #define LOG_NTP LOG_LOCAL1
+  #define HAVE_SIGNALED_IO
+  #define NTP_NEED_BOPS
+--- 301,306 ----
+***************
+*** 352,359 ****
+  #ifndef STR_SYSTEM
+  #define STR_SYSTEM "UNIX/BSDI"
+  #endif
+- #define HAVE_BSD_TTYS
+- #define HAVE_TERMIOS
+  #endif
+  
+  /*
+--- 356,361 ----
+***************
+*** 441,449 ****
+   */
+  #if defined(SYS_PTX)
+  #define NO_SIGNED_CHAR_DECL
+- #ifndef HAVE_SYSV_TTYS
+- #define HAVE_SYSV_TTYS
+- #endif
+  #define STREAMS_TLI
+  #define HAVE_ATT_SETPGRP 
+  #define HAVE_SIGNALED_IO
+--- 443,448 ----
+***************
+*** 528,534 ****
+  #define HAVE_BSD_NICE
+  #define NOKMEM
+  #define HAVE_SIGNALED_IO
+- #define HAVE_BSD_TTYS
+  #define NTP_SYSCALLS_STD
+  #define USE_PROTOTYPES
+  #define UDP_WILDCARD_DELIVERY
+--- 527,532 ----
+***************
+*** 565,570 ****
+--- 563,582 ----
+  	&& !defined(HAVE_NO_NICE)
+  	ERROR You_must_define_one_of_the_HAVE_xx_NICE_defines
+  #endif
++ 
++ /*
++  * use only one tty model - no use in initialising
++  * a tty in three ways
++  * HAVE_TERMIOS is preferred over HAVE_SYSV_TTYS over HAVE_BSD_TTYS
++  */
++ #ifdef HAVE_TERMIOS
++ #undef HAVE_BSD_TTYS
++ #undef HAVE_SYSV_TTYS
++ #endif
++ 
++ #ifdef HAVE_SYSV_TTYS
++ #undef HAVE_BSD_TTYS
++ #endif
+  
+  #if	!defined(HAVE_SYSV_TTYS) \
+  	&& !defined(HAVE_BSD_TTYS) \
+diff -c machines/aux2:1.1.1.2 machines/aux2:1.4
+*** machines/aux2:1.1.1.2	Thu Feb 17 20:19:50 1994
+--- machines/aux2	Thu Feb 17 20:19:50 1994
+***************
+*** 1,6 ****
+  RANLIB=     true # ar does the work of ranlib under System V
+  DEFS_LOCAL= -DREFCLOCK
+! DEFS=       -DSYS_AUX2
+  AUTHDEFS=   -DDES -DMD5 -DFASTMD5
+  CLOCKDEFS=  -DLOCAL_CLOCK
+  DAEMONLIBS=
+--- 1,6 ----
+  RANLIB=     true # ar does the work of ranlib under System V
+  DEFS_LOCAL= -DREFCLOCK
+! DEFS=       -DSYS_AUX2 -DHAVE_BSD_TTYS
+  AUTHDEFS=   -DDES -DMD5 -DFASTMD5
+  CLOCKDEFS=  -DLOCAL_CLOCK
+  DAEMONLIBS=
+diff -c machines/aux3:1.1.1.2 machines/aux3:1.4
+*** machines/aux3:1.1.1.2	Thu Feb 17 20:19:52 1994
+--- machines/aux3	Thu Feb 17 20:19:52 1994
+***************
+*** 1,6 ****
+  RANLIB=     true # ar does the work of ranlib under System V
+  DEFS_LOCAL= -DREFCLOCK
+! DEFS=       -DSYS_AUX3
+  AUTHDEFS=   -DDES -DMD5 -DFASTMD5
+  CLOCKDEFS=  -DLOCAL_CLOCK
+  DAEMONLIBS=
+--- 1,6 ----
+  RANLIB=     true # ar does the work of ranlib under System V
+  DEFS_LOCAL= -DREFCLOCK
+! DEFS=       -DSYS_AUX3 -DHAVE_BSD_TTYS
+  AUTHDEFS=   -DDES -DMD5 -DFASTMD5
+  CLOCKDEFS=  -DLOCAL_CLOCK
+  DAEMONLIBS=
+diff -c machines/bsdi:1.1.1.4 machines/bsdi:1.6
+*** machines/bsdi:1.1.1.4	Thu Feb 17 20:19:53 1994
+--- machines/bsdi	Thu Feb 17 20:19:53 1994
+***************
+*** 1,6 ****
+  RANLIB=	    ranlib
+  DEFS_LOCAL=-DREFCLOCK
+! DEFS=      -DSYS_BSDI
+  AUTHDEFS=  -DDES -DMD5
+  CLOCKDEFS= -DLOCAL_CLOCK
+  DAEMONLIBS= -lkvm
+--- 1,6 ----
+  RANLIB=	    ranlib
+  DEFS_LOCAL=-DREFCLOCK
+! DEFS=      -DSYS_BSDI -DHAVE_TERMIOS
+  AUTHDEFS=  -DDES -DMD5
+  CLOCKDEFS= -DLOCAL_CLOCK
+  DAEMONLIBS= -lkvm
+diff -c machines/convexos10:1.1.1.2 machines/convexos10:1.3
+*** machines/convexos10:1.1.1.2	Thu Feb 17 20:19:54 1994
+--- machines/convexos10	Thu Feb 17 20:19:54 1994
+***************
+*** 1,6 ****
+  RANLIB=	    ranlib
+  DEFS_LOCAL=-DREFCLOCK
+! DEFS=      -DSYS_CONVEXOS10
+  AUTHDEFS=  -DDES -DMD5
+  CLOCKDEFS= -DLOCAL_CLOCK
+  RESLIB=
+--- 1,6 ----
+  RANLIB=	    ranlib
+  DEFS_LOCAL=-DREFCLOCK
+! DEFS=      -DSYS_CONVEXOS10 -DHAVE_BSD_TTYS
+  AUTHDEFS=  -DDES -DMD5
+  CLOCKDEFS= -DLOCAL_CLOCK
+  RESLIB=
+diff -c machines/convexos9:1.1.1.2 machines/convexos9:1.3
+*** machines/convexos9:1.1.1.2	Thu Feb 17 20:19:55 1994
+--- machines/convexos9	Thu Feb 17 20:19:56 1994
+***************
+*** 1,6 ****
+  RANLIB=     ranlib
+  DEFS_LOCAL=-DREFCLOCK
+! DEFS=      -DSYS_CONVEXOS9
+  AUTHDEFS=  -DDES -DMD5
+  CLOCKDEFS= -DLOCAL_CLOCK
+  RESLIB=
+--- 1,6 ----
+  RANLIB=     ranlib
+  DEFS_LOCAL=-DREFCLOCK
+! DEFS=      -DSYS_CONVEXOS9 -DHAVE_BSD_TTYS
+  AUTHDEFS=  -DDES -DMD5
+  CLOCKDEFS= -DLOCAL_CLOCK
+  RESLIB=
+diff -c machines/decosf1:1.1.1.2 machines/decosf1:1.4
+*** machines/decosf1:1.1.1.2	Thu Feb 17 20:19:57 1994
+--- machines/decosf1	Thu Feb 17 20:19:57 1994
+***************
+*** 1,6 ****
+  RANLIB=	    ranlib
+  DEFS_LOCAL= -DREFCLOCK
+! DEFS=       -DSTREAM -DSYS_DECOSF1
+  AUTHDEFS=   -DDES -DMD5
+  CLOCKDEFS=  -DLOCAL_CLOCK
+  DAEMONLIBS=
+--- 1,6 ----
+  RANLIB=	    ranlib
+  DEFS_LOCAL= -DREFCLOCK
+! DEFS=       -DSTREAM -DSYS_DECOSF1 -DHAVE_TERMIOS
+  AUTHDEFS=   -DDES -DMD5
+  CLOCKDEFS=  -DLOCAL_CLOCK
+  DAEMONLIBS=
+diff -c machines/dell.svr4:1.1.1.1 machines/dell.svr4:1.2
+*** machines/dell.svr4:1.1.1.1	Thu Feb 17 20:19:58 1994
+--- machines/dell.svr4	Thu Feb 17 20:19:58 1994
+***************
+*** 1,7 ****
+  SHELL=       /bin/sh
+  RANLIB=      ls # ar does the work of ranlib under System V
+  DEFS_LOCAL=  -DREFCLOCK
+! DEFS=        -DSYS_SVR4
+  AUTHDEFS=    -DDES -DMD5
+  CLOCKDEFS=   -DLOCAL_CLOCK
+  DAEMONLIBS=  
+--- 1,7 ----
+  SHELL=       /bin/sh
+  RANLIB=      ls # ar does the work of ranlib under System V
+  DEFS_LOCAL=  -DREFCLOCK
+! DEFS=        -DSYS_SVR4 -DHAVE_TERMIOS
+  AUTHDEFS=    -DDES -DMD5
+  CLOCKDEFS=   -DLOCAL_CLOCK
+  DAEMONLIBS=  
+diff -c machines/domainos:1.1.1.1 machines/domainos:1.2
+*** machines/domainos:1.1.1.1	Thu Feb 17 20:19:59 1994
+--- machines/domainos	Thu Feb 17 20:19:59 1994
+***************
+*** 1,6 ****
+  RANLIB=	     ranlib
+  DEFS_LOCAL=  -DREFCLOCK
+! DEFS=        -DSYS_DOMAINOS -D_INCLUDE_BSD_SOURCE -D_INCLUDE_XOPEN_SOURCE -D_INCLUDE_POSIX_SOURCE
+  AUTHDEFS=    -DDES -DMD5
+  CLOCKDEFS=   -DLOCAL_CLOCK
+  DAEMONLIBS=
+--- 1,6 ----
+  RANLIB=	     ranlib
+  DEFS_LOCAL=  -DREFCLOCK
+! DEFS=        -DSYS_DOMAINOS -D_INCLUDE_BSD_SOURCE -D_INCLUDE_XOPEN_SOURCE -D_INCLUDE_POSIX_SOURCE -DHAVE_BSD_TTYS
+  AUTHDEFS=    -DDES -DMD5
+  CLOCKDEFS=   -DLOCAL_CLOCK
+  DAEMONLIBS=
+diff -c machines/i386:1.1.1.2 machines/i386:1.3
+*** machines/i386:1.1.1.2	Thu Feb 17 20:20:04 1994
+--- machines/i386	Thu Feb 17 20:20:05 1994
+***************
+*** 1,6 ****
+  RANLIB=	     ranlib
+  DEFS_LOCAL=  -DREFCLOCK
+! DEFS=        -DSYS_I386
+  AUTHDEFS=    -DDES -DMD5
+  CLOCKDEFS=   -DLOCAL_CLOCK
+  DAEMONLIBS=
+--- 1,6 ----
+  RANLIB=	     ranlib
+  DEFS_LOCAL=  -DREFCLOCK
+! DEFS=        -DSYS_I386 -DHAVE_BSD_TTYS
+  AUTHDEFS=    -DDES -DMD5
+  CLOCKDEFS=   -DLOCAL_CLOCK
+  DAEMONLIBS=
+diff -c machines/i386svr4:1.1.1.3 machines/i386svr4:1.4
+*** machines/i386svr4:1.1.1.3	Thu Feb 17 20:20:05 1994
+--- machines/i386svr4	Thu Feb 17 20:20:05 1994
+***************
+*** 1,7 ****
+  SHELL=       /bin/sh
+  RANLIB=      ls # ar does the work of ranlib under System V
+  DEFS_LOCAL=  -DREFCLOCK
+! DEFS=        -DSYS_SVR4 -DSTREAMS_TLI
+  AUTHDEFS=    -DDES -DMD5
+  CLOCKDEFS=   -DLOCAL_CLOCK
+  DAEMONLIBS=  
+--- 1,7 ----
+  SHELL=       /bin/sh
+  RANLIB=      ls # ar does the work of ranlib under System V
+  DEFS_LOCAL=  -DREFCLOCK
+! DEFS=        -DSYS_SVR4 -DSTREAMS_TLI -DHAVE_TERMIOS
+  AUTHDEFS=    -DDES -DMD5
+  CLOCKDEFS=   -DLOCAL_CLOCK
+  DAEMONLIBS=  
+diff -c machines/mips:1.1.1.2 machines/mips:1.3
+*** machines/mips:1.1.1.2	Thu Feb 17 20:20:10 1994
+--- machines/mips	Thu Feb 17 20:20:10 1994
+***************
+*** 1,7 ****
+  #RANLIB=     ranlib
+  DEFS_LOCAL=  -DREFCLOCK
+  DEFS=       
+! AUTHDEFS=    -DDES -DMD5 -DSYS_MIPS
+  CLOCKDEFS=   -DLOCAL_CLOCK
+  DAEMONLIBS=  -lmld
+  RESLIB=
+--- 1,7 ----
+  #RANLIB=     ranlib
+  DEFS_LOCAL=  -DREFCLOCK
+  DEFS=       
+! AUTHDEFS=    -DDES -DMD5 -DSYS_MIPS -DHAVE_BSD_TTYS
+  CLOCKDEFS=   -DLOCAL_CLOCK
+  DAEMONLIBS=  -lmld
+  RESLIB=
+diff -c machines/next:1.1.1.1 machines/next:1.2
+*** machines/next:1.1.1.1	Thu Feb 17 20:20:12 1994
+--- machines/next	Thu Feb 17 20:20:13 1994
+***************
+*** 1,6 ****
+  RANLIB=	     ranlib -c -s
+  DEFS=       -DSYS_NEXT
+! AUTHDEFS=   -DDES -DMD5 -DFAST_MD5
+  CLOCKDEFS=  -DLOCAL_CLOCK
+  DAEMONLIBS=
+  RESLIB=
+--- 1,6 ----
+  RANLIB=	     ranlib -c -s
+  DEFS=       -DSYS_NEXT
+! AUTHDEFS=   -DDES -DMD5 -DFAST_MD5 -DHAVE_BSD_TTYS
+  CLOCKDEFS=  -DLOCAL_CLOCK
+  DAEMONLIBS=
+  RESLIB=
+diff -c machines/sequent:1.1.1.3 machines/sequent:1.4
+*** machines/sequent:1.1.1.3	Thu Feb 17 20:20:14 1994
+--- machines/sequent	Thu Feb 17 20:20:14 1994
+***************
+*** 1,6 ****
+  RANLIB=	     ranlib
+  DEFS_LOCAL=  -DREFCLOCK
+! DEFS=        -DHAVE_READ_KMEM -DSYS_SEQUENT
+  AUTHDEFS=    -DDES -DMD5
+  CLOCKDEFS=   -DLOCAL_CLOCK
+  DAEMONLIBS=
+--- 1,6 ----
+  RANLIB=	     ranlib
+  DEFS_LOCAL=  -DREFCLOCK
+! DEFS=        -DHAVE_READ_KMEM -DSYS_SEQUENT -DHAVE_BSD_TTYS
+  AUTHDEFS=    -DDES -DMD5
+  CLOCKDEFS=   -DLOCAL_CLOCK
+  DAEMONLIBS=
+diff -c machines/sinix-m:1.1.1.2 machines/sinix-m:1.5
+*** machines/sinix-m:1.1.1.2	Thu Feb 17 20:20:15 1994
+--- machines/sinix-m	Thu Feb 17 20:20:15 1994
+***************
+*** 1,6 ****
+  RANLIB=	   : 
+  DEFS_LOCAL=-DREFCLOCK
+! DEFS=      -DSYS_SINIXM
+  AUTHDEFS=  -DDES -DMD5
+  CLOCKDEFS= -DLOCAL_CLOCK
+  DAEMONLIBS= 
+--- 1,6 ----
+  RANLIB=	   : 
+  DEFS_LOCAL=-DREFCLOCK
+! DEFS=      -DSYS_SINIXM -DHAVE_TERMIOS
+  AUTHDEFS=  -DDES -DMD5
+  CLOCKDEFS= -DLOCAL_CLOCK
+  DAEMONLIBS= 
+diff -c machines/sony:1.1.1.2 machines/sony:1.3
+*** machines/sony:1.1.1.2	Thu Feb 17 20:20:16 1994
+--- machines/sony	Thu Feb 17 20:20:16 1994
+***************
+*** 1,6 ****
+  RANLIB=	      ranlib
+  DEFS_LOCAL=   -DREFCLOCK
+! DEFS=         -DSYS_SONY
+  AUTHDEFS=     -DDES -DMD5
+  CLOCKDEFS=    -DLOCAL_CLOCK
+  DAEMONLIBS=   -lmld
+--- 1,6 ----
+  RANLIB=	      ranlib
+  DEFS_LOCAL=   -DREFCLOCK
+! DEFS=         -DSYS_SONY -DHAVE_TERMIOS
+  AUTHDEFS=     -DDES -DMD5
+  CLOCKDEFS=    -DLOCAL_CLOCK
+  DAEMONLIBS=   -lmld
+diff -c machines/svr4:1.1.1.4 machines/svr4:1.4
+*** machines/svr4:1.1.1.4	Thu Feb 17 20:20:20 1994
+--- machines/svr4	Thu Feb 17 20:20:20 1994
+***************
+*** 1,6 ****
+  SHELL=       /bin/sh
+  RANLIB=	     ls # ar does the work of ranlib under System V
+! DEFS=        -DSYS_SVR4 -DSTREAMS_TLI
+  AUTHDEFS=    -DDES -DMD5
+  CLOCKDEFS=   
+  DAEMONLIBS=  -lnet -lnsl -lsocket -lelf
+--- 1,6 ----
+  SHELL=       /bin/sh
+  RANLIB=	     ls # ar does the work of ranlib under System V
+! DEFS=        -DSYS_SVR4 -DSTREAMS_TLI -DHAVE_TERMIOS
+  AUTHDEFS=    -DDES -DMD5
+  CLOCKDEFS=   
+  DAEMONLIBS=  -lnet -lnsl -lsocket -lelf
+diff -c machines/vax:1.1.1.2 machines/vax:1.3
+*** machines/vax:1.1.1.2	Thu Feb 17 20:20:23 1994
+--- machines/vax	Thu Feb 17 20:20:23 1994
+***************
+*** 1,6 ****
+  RANLIB=	      ranlib
+  DEFS_LOCAL=   -DREFCLOCK
+! DEFS= 	      -DSYS_VAX
+  CLOCKDEFS=    -DLOCAL_CLOCK
+  DAEMONLIBS=
+  RESLIB=
+--- 1,6 ----
+  RANLIB=	      ranlib
+  DEFS_LOCAL=   -DREFCLOCK
+! DEFS= 	      -DSYS_VAX -DHAVE_BSD_TTYS
+  CLOCKDEFS=    -DLOCAL_CLOCK
+  DAEMONLIBS=
+  RESLIB=
+RCS file: /src/NTP/REPOSITORY/v3/parse/README.new_clocks,v
+retrieving revision 1.1.1.2
+retrieving revision 3.3
+diff -c -r1.1.1.2 -r3.3
+*** parse/README.new_clocks:1.1.1.2	1994/02/12 09:53:48
+--- parse/README.new_clocks	1994/02/17 20:09:58
+***************
+*** 1,7 ****
+! Here is an attempt to scetch out what you need to do in order to
+  add another clock to the parse driver:
+  
+! Prerequsites:
+  - Does the system you want the clock connect to have
+    termio.h or termios.h ? (You need that for the parse driver)
+  
+--- 1,7 ----
+! Here is an attempt to sketch out what you need to do in order to
+  add another clock to the parse driver:
+  
+! Prerequisites:
+  - Does the system you want the clock connect to have
+    termio.h or termios.h ? (You need that for the parse driver)
+  
+***************
+*** 32,38 ****
+       PARSEB_ANNOUNCE           switch time zone warning (informational only)
+       PARSEB_POWERUP            no synchronisation - clock confused (must set then)
+       PARSEB_NOSYNC             timecode currently not confirmed (must set then)
+!                                usually on reception error when the is still a
+                                 chance the the generated time is still ok.
+  
+       PARSEB_DST                DST in effect (informational only)
+--- 32,38 ----
+       PARSEB_ANNOUNCE           switch time zone warning (informational only)
+       PARSEB_POWERUP            no synchronisation - clock confused (must set then)
+       PARSEB_NOSYNC             timecode currently not confirmed (must set then)
+!                                usually on reception error when there is still a
+                                 chance the the generated time is still ok.
+  
+       PARSEB_DST                DST in effect (informational only)
+***************
+*** 53,59 ****
+       them for examples. The basic structure is:
+  
+       struct clockformat <yourclock>_format = {
+!        lots of field for you to fill out (see below)
+       };
+  
+       static cvt_<yourclock>()
+--- 53,59 ----
+       them for examples. The basic structure is:
+  
+       struct clockformat <yourclock>_format = {
+!        lots of fields for you to fill out (see below)
+       };
+  
+       static cvt_<yourclock>()
+***************
+*** 122,132 ****
+    file with the time code conversion. See the examples and pick a clock
+    closest to yours and tweak the code to match your clock.
+  
+!   In order to make your clk_*.c file usable a referenc to the clockformat
+    structure must be put into parse_conf.c.
+  
+- 
+- 
+  TTY setup and initialisation/configuration will be done in
+  xntpd/refclock_parse.c
+  
+--- 122,130 ----
+    file with the time code conversion. See the examples and pick a clock
+    closest to yours and tweak the code to match your clock.
+  
+!   In order to make your clk_*.c file usable a reference to the clockformat
+    structure must be put into parse_conf.c.
+  
+  TTY setup and initialisation/configuration will be done in
+  xntpd/refclock_parse.c
+  
+***************
+*** 135,141 ****
+    termio*.h c_cflag macros.
+  
+  - in xntpd/refclock_parse.c fill out a new the struct clockinfo element
+!   (allocates a new "IP" address - see comments)
+    (see all the other clocks for example)
+    struct clockinfo
+    {
+--- 133,139 ----
+    termio*.h c_cflag macros.
+  
+  - in xntpd/refclock_parse.c fill out a new the struct clockinfo element
+!   (that allocates a new "IP" address - see comments)
+    (see all the other clocks for example)
+    struct clockinfo
+    {
+***************
+*** 188,199 ****
+  
+  
+  Well, this is very sketchy, i know. But I hope it helps a little bit.
+! The best way is to look which clock comes closet to your and tweak that
+  code.
+! Two sorts of clocks are used with parse. Clocks that automatically sent
+! thier time code (once a second) do not nee entries in the poll routines because
+! they sent the data all the time. The second sort are the clocks that need a
+! command sent to then in order to reply with a time code (like the Trimble
+  clock).
+  
+  For questions: kardel@informatik.uni-erlangen.de. Please include
+--- 186,197 ----
+  
+  
+  Well, this is very sketchy, i know. But I hope it helps a little bit.
+! The best way is to look which clock comes closest to your and tweak that
+  code.
+! Two sorts of clocks are used with parse. Clocks that automatically send
+! their time code (once a second) do not need entries in the poll routines because
+! they send the data all the time. The second sort are the clocks that need a
+! command sent to them in order to reply with a time code (like the Trimble
+  clock).
+  
+  For questions: kardel@informatik.uni-erlangen.de. Please include
+RCS file: /src/NTP/REPOSITORY/v3/parse/README.parse_clocks,v
+retrieving revision 1.1.1.1
+retrieving revision 3.2
+diff -c -r1.1.1.1 -r3.2
+*** parse/README.parse_clocks:1.1.1.1	1994/01/01 00:00:00
+--- parse/README.parse_clocks	1994/02/17 20:10:02
+***************
+*** 1,4 ****
+! The parse driver currently supports several clock with different
+  query mechanisms. In order for you to find a sample that might be
+  similar to a clock you might want to integrate into parse i'll sum
+  up the major features of the clocks (this information is distributed
+--- 1,4 ----
+! The parse driver currently supports several clocks with different
+  query mechanisms. In order for you to find a sample that might be
+  similar to a clock you might want to integrate into parse i'll sum
+  up the major features of the clocks (this information is distributed
+-- 
+	   Frank Kardel (kardel@informatik.uni-erlangen.de)
+    All SCSI disks will from now on be required to send an email
+         notice 24 hours prior to complete hardware failure!
+

@@ -1,8 +1,8 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS))
 /*
- * /src/NTP/REPOSITORY/v3/parse/parse.c,v 3.22 1994/02/25 12:34:49 kardel Exp
+ * /src/NTP/REPOSITORY/v3/parse/parse.c,v 3.23 1994/03/25 13:09:02 kardel Exp
  *  
- * parse.c,v 3.22 1994/02/25 12:34:49 kardel Exp
+ * parse.c,v 3.23 1994/03/25 13:09:02 kardel Exp
  *
  * Parser module for reference clock
  *
@@ -29,6 +29,10 @@ static char rcsid[] = "parse.c,v 3.19 1994/01/25 19:05:20 kardel Exp";
 #include "sys/time.h"
 #include "sys/errno.h"
 
+#include "ntp_fp.h"
+#include "ntp_unixtime.h"
+#include "ntp_calendar.h"
+
 #include "ntp_machine.h"
 
 #if defined(PARSESTREAM) && (defined(SYS_SUNOS4) || defined(SYS_SOLARIS)) && defined(STREAM)
@@ -48,10 +52,6 @@ static char rcsid[] = "parse.c,v 3.19 1994/01/25 19:05:20 kardel Exp";
 #endif
 #endif
 #endif
-
-#include "ntp_fp.h"
-#include "ntp_unixtime.h"
-#include "ntp_calendar.h"
 
 #include "parse.h"
 
@@ -178,6 +178,10 @@ setup_bitmaps(parseio, low, high)
     {
       fmt = clockformats[i];
 
+      if (!(parseio->parse_flags & PARSE_FIXED_FMT) &&
+	   (fmt->flags & CVT_FIXEDONLY))
+	continue;
+      
       if (fmt->flags & F_START)
 	{
 	  index = fmt->startsym / 8;
@@ -1158,6 +1162,9 @@ parse_setcs(dct, parse)
  * History:
  *
  * parse.c,v
+ * Revision 3.23  1994/03/25  13:09:02  kardel
+ * considering FIXEDONLY entries only in FIXEDONLY mode
+ *
  * Revision 3.22  1994/02/25  12:34:49  kardel
  * allow for converter generated utc times
  *

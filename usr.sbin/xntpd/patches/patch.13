@@ -1,0 +1,68 @@
+
+Received: from louie.udel.edu by huey.udel.edu id af16153; 14 Feb 94 7:27 EST
+Received: from faui45.informatik.uni-erlangen.de by louie.udel.edu id aa27498;
+          13 Feb 94 13:23 EST
+Received: from faui43.informatik.uni-erlangen.de by uni-erlangen.de with SMTP;
+	id AA22387 (5.65c-6/7.3v-FAU); Sun, 13 Feb 1994 19:22:59 +0100
+Received: from faui45x.informatik.uni-erlangen.de by immd4.informatik.uni-erlangen.de with SMTP;
+	id AA27117 (5.65c-6/7.3m-FAU); Sun, 13 Feb 1994 19:22:57 +0100
+From: Frank Kardel <Frank.Kardel@informatik.uni-erlangen.de>
+Message-Id: <199402131822.AA27117@faui43.informatik.uni-erlangen.de>
+Subject: compilation setup for solaris
+To: mills@udel.edu
+Date: Sun, 13 Feb 94 19:22:53 MET
+X-Mailer: ELM [version 2.3 PL11]
+
+Hi, Dave.
+
+Just to remove some compilation noise in solaris (NTP_POSIX_SOURCE
+redefined):
+
+For 3.3e:
+===================================================================
+RCS file: /src/NTP/REPOSITORY/v3/machines/sunos5.1,v
+retrieving revision 1.4
+diff -c -r1.4 machines/sunos5.1
+*** machines/sunos5.1:1.4	1994/02/01 23:30:54
+--- machines/sunos5.1	1994/02/13 18:16:24
+***************
+*** 1,6 ****
+  RANLIB=	   : 
+  DEFS_LOCAL=-DREFCLOCK
+! DEFS=      -DSTREAM -DSOLARIS -DSYS_SOLARIS -DNTP_POSIX_SOURCE
+  AUTHDEFS=  -DDES -DMD5
+  CLOCKDEFS= -DLOCAL_CLOCK
+  DAEMONLIBS= 
+--- 1,6 ----
+  RANLIB=	   : 
+  DEFS_LOCAL=-DREFCLOCK
+! DEFS=      -DSTREAM -DSOLARIS -DSYS_SOLARIS
+  AUTHDEFS=  -DDES -DMD5
+  CLOCKDEFS= -DLOCAL_CLOCK
+  DAEMONLIBS= 
+===================================================================
+RCS file: /src/NTP/REPOSITORY/v3/machines/sunos5.2,v
+retrieving revision 1.4
+diff -c -r1.4 machines/sunos5.2
+*** machines/sunos5.2:1.4	1994/02/01 23:30:56
+--- machines/sunos5.2	1994/02/13 18:16:27
+***************
+*** 1,6 ****
+  RANLIB=	    : 
+  DEFS_LOCAL= -DREFCLOCK
+! DEFS=       -DSTREAM -DSOLARIS -DSYS_SOLARIS -DADJTIME_IS_ACCURATE -DNTP_POSIX_SOURCE
+  AUTHDEFS=   -DDES -DMD5
+  CLOCKDEFS=  -DLOCAL_CLOCK
+  DAEMONLIBS= 
+--- 1,6 ----
+  RANLIB=	    : 
+  DEFS_LOCAL= -DREFCLOCK
+! DEFS=       -DSTREAM -DSOLARIS -DSYS_SOLARIS -DADJTIME_IS_ACCURATE
+  AUTHDEFS=   -DDES -DMD5
+  CLOCKDEFS=  -DLOCAL_CLOCK
+  DAEMONLIBS= 
+-- 
+	   Frank Kardel (kardel@informatik.uni-erlangen.de)
+    All SCSI disks will from now on be required to send an email
+         notice 24 hours prior to complete hardware failure!
+

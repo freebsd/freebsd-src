@@ -78,7 +78,7 @@ DEFS_OPT=-DDEBUG
 #	special distribution.
 #
 # Note: following line must always start with DEFS_LOCAL= $(DEFS_OPT)
-DEFS_LOCAL= $(DEFS_OPT) -DREFCLOCK -DPPSPPS -DKERNEL_PLL
+DEFS_LOCAL= $(DEFS_OPT) -DREFCLOCK -DKERNEL_PLL -DMCAST
 
 #
 # Radio clock support definitions (these only make sense if -DREFCLOCK
@@ -182,7 +182,7 @@ DEFS_LOCAL= $(DEFS_OPT) -DREFCLOCK -DPPSPPS -DKERNEL_PLL
 # under Ultrix 4.2a/3. If the MX4200 is removed, all the rest compile on a DEC
 # OSF/1 Alpha.
 #
-CLOCKDEFS= -DLOCAL_CLOCK -DAS2201PPS -DCHU -DGOES -DIRIG -DMX4200PPS -DOMEGA -DPSTCLK -DTPRO -DWWVBCLK -DMSFEESPPS -DLEITCH
+CLOCKDEFS= -DLOCAL_CLOCK -DAS2201PPS -DCHUPPS -DGOES -DIRIG -DMX4200PPS -DOMEGA -DPSTCLK -DTPRO -DWWVBCLK -DLEITCH
 
 #
 # Directory into which binaries should be installed (default /usr/local)

@@ -14,7 +14,7 @@
 #include <sys/rtprio.h>
 #endif
 
-#if defined(SYS_SVR4)
+#if defined(SYS_SVR4) || defined (SYS_UNIXWARE1)
 #include <termios.h>
 #endif
 

@@ -1,0 +1,80 @@
+
+Received: from louie.udel.edu by huey.udel.edu id aa18634; 27 Feb 94 13:54 EST
+Received: from rincewind.mech.virginia.edu by louie.udel.edu id aa11711;
+          27 Feb 94 13:53 EST
+Received: from localhost (dmm0t@localhost) by rincewind.mech.virginia.edu (8.6.5/8.6.5) id NAA04646 for mills@udel.edu; Sun, 27 Feb 1994 13:53:35 -0500
+From: David Meyer <dmm0t@rincewind.mech.virginia.edu>
+Message-Id: <199402271853.NAA04646@rincewind.mech.virginia.edu>
+Subject: patches to xntpd-3.3j for NeXT
+To: mills@udel.edu
+Date: Sun, 27 Feb 1994 13:53:34 -0500 (EST)
+X-Mailer: ELM [version 2.4 PL23]
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Content-Length: 2043      
+
+I have a couple of patches to make the 3.3j beta compile on a NeXT
+running NS3.1.
+
+The first patch just defines RETSIGTYPE.  The second patch puts
+HAVE_BSD_TTYS in DEFS rather than AUTHDEFS.  The last patch just fixes
+a type - using # rather than * in a comment block.
+
+*** ../orig/include/ntp_machine.h	Sun Feb 20 22:23:29 1994
+--- include/ntp_machine.h	Sun Feb 27 13:47:59 1994
+***************
+*** 313,318 ****
+--- 313,319 ----
+   * Next
+   */
+  #if defined(SYS_NEXT)
++ #define RETSIGTYPE void
+  #define DOSYNCTODR
+  #define HAVE_READKMEM
+  #define HAVE_BSD_NICE
+
+*** ../orig/machines/next	Sun Feb 20 22:23:36 1994
+--- machines/next	Sun Feb 27 13:47:15 1994
+***************
+*** 1,6 ****
+  RANLIB=	     ranlib -c -s
+! DEFS=       -DSYS_NEXT
+! AUTHDEFS=   -DDES -DMD5 -DFAST_MD5 -DHAVE_BSD_TTYS
+  CLOCKDEFS=  -DLOCAL_CLOCK
+  DAEMONLIBS=
+  RESLIB=
+--- 1,6 ----
+  RANLIB=	     ranlib -c -s
+! DEFS=       -DSYS_NEXT -DHAVE_BSD_TTYS
+! AUTHDEFS=   -DDES -DMD5 -DFAST_MD5
+  CLOCKDEFS=  -DLOCAL_CLOCK
+  DAEMONLIBS=
+  RESLIB=
+
+*** ../orig/xntpd/refclock_irig.c	Thu Jan 27 09:03:58 1994
+--- xntpd/refclock_irig.c	Sun Feb 27 13:36:30 1994
+***************
+*** 19,25 ****
+   * This driver supports the IRIG audio decoder. This clever gadget uses
+   * a modified BSD audio driver for the Sun SPARCstation which provides
+   * a timestamp, raw binary timecode, status byte and decoded ASCII
+!  # timecode. The data are represented in the structure:
+   *
+   * struct irig_time {
+   *        struct timeval  stamp;      timestamp
+--- 19,25 ----
+   * This driver supports the IRIG audio decoder. This clever gadget uses
+   * a modified BSD audio driver for the Sun SPARCstation which provides
+   * a timestamp, raw binary timecode, status byte and decoded ASCII
+!  * timecode. The data are represented in the structure:
+   *
+   * struct irig_time {
+   *        struct timeval  stamp;      timestamp
+
+
+-- 
+David M. Meyer                             Mechanical & Aerospace Engineering
+dmm0t@rincewind.mech.virginia.edu          University of Virginia
+NeXTmail ok
+

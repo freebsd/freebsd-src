@@ -63,6 +63,9 @@ extern  void    input_handler   P((l_fp *));
 extern	void	io_clr_stats	P((void));
 extern	void	io_setbclient	P((void));
 extern	void	io_unsetbclient	P((void));
+extern	void	io_multicast_add P((U_LONG));
+extern	void	io_multicast_del P((U_LONG));
+
 extern	void	sendpkt		P((struct sockaddr_in *, struct interface *, struct pkt *, int));
 #ifdef HAVE_SIGNALED_IO
 extern  void	wait_for_signal P((void));
@@ -102,10 +105,10 @@ extern	void	init_peer	P((void));
 extern	struct peer *findexistingpeer P((struct sockaddr_in *, struct peer *));
 extern	struct peer *findpeer	P((struct sockaddr_in *, struct interface *));
 extern	struct peer *findpeerbyassoc P((int));
-extern	struct peer *newpeer	P((struct sockaddr_in *, struct interface *, int, int, int, int, U_LONG));
+extern	struct peer *newpeer	P((struct sockaddr_in *, struct interface *, int, int, int, int, int, U_LONG));
 extern	void	peer_all_reset	P((void));
 extern	void	peer_clr_stats	P((void));
-extern	struct peer *peer_config P((struct sockaddr_in *, struct interface *, int, int, int, int, U_LONG, int));
+extern	struct peer *peer_config P((struct sockaddr_in *, struct interface *, int, int, int, int, int, int, U_LONG));
 extern	void	peer_reset	P((struct peer *));
 extern	int	peer_unconfig	P((struct sockaddr_in *, struct interface *));
 extern	void	unpeer		P((struct peer *));
@@ -131,7 +134,7 @@ extern	void	clock_select	P((void));
 extern	void	clock_combine	P((struct peer **, int));
 extern	void	fast_xmit	P((struct recvbuf *, int, int));
 extern	void	init_proto	P((void));
-extern	void	proto_config	P((int, LONG));
+extern	void	proto_config	P((int, U_LONG));
 extern	void	proto_clr_stats	P((void));
 
 #ifdef	REFCLOCK

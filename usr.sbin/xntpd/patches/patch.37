@@ -1,0 +1,204 @@
+
+Received: from louie.udel.edu by huey.udel.edu id aa25219; 8 Apr 94 17:07 EDT
+Received: from ni.umd.edu by louie.udel.edu id aa03359; 8 Apr 94 16:58 EDT
+Received: by ni.umd.edu id AA18341
+  (5.65c/IDA-1.4.4 for ntp-list); Fri, 8 Apr 1994 16:55:09 -0400
+Received: from RUTGERS.EDU by ni.umd.edu with SMTP id AA18337
+  (5.65c/IDA-1.4.4 for <ntp@ni.umd.edu>); Fri, 8 Apr 1994 16:55:02 -0400
+Received: from unipress-link.rutgers.edu by rutgers.edu (5.59/SMI4.0/RU1.5/3.08) 
+	id AA16356; Fri, 8 Apr 94 16:54:44 EDT
+Received: from huh.unipress.com by repo.unipress.com (4.1/SMI-4.1/UniPress022294.2)
+	id AA10459; Fri, 8 Apr 94 16:54:36 EDT via 
+Message-Id: <9404082054.AA10459@repo.unipress.com>
+To: ntp@ni.umd.edu
+Subject: Re: xntp for univel/unix-ware on x86
+Date: Fri, 08 Apr 94 16:54:31 -0400
+From: Ray Schnitzler <ras@unipress.com>
+
+
+I am happy (but not particularly proud - it's more than a
+	little rough around the edges) to report a working
+	xntpd for Univel.
+
+It wound up being a hack on solaris, svr4, and (for the lack
+	of kernel tickadj) irix.
+
+util/tickadj does *not* work, even for controlling 'tick'.
+	I'm not sure what the right behavior should be.
+
+Most of the changes are signalled by SYS_UNIVEL, as
+	initiated by OS=univel.
+
+There are many additional loose ends, which are not terribly
+	important to me to clean up, since the univel is a
+	very low usage machine, here, and my because
+	employer expects me to be working on other things,
+	altogether.
+
+Nevertheless, it seems to work.
+
+Special thanks go to Denton Gentry for advice along the way.
+
+
+Enjoy.
+
+
+Here are the changes I made.  First, the (new)
+	machines/univel file, and then the (rest of the)
+	context diffs:
+
+*** /dev/null   Fri Apr  8 16:49:24 1994
+--- machines/univel     Fri Apr  8 12:38:20 1994
+***************
+*** 0 ****
+--- 1,10 ----
++ SHELL=       /bin/sh
++ RANLIB=            ls # ar does the work of ranlib under System V
++ DEFS=        -DSYS_UNIVEL -DSTREAMS_TLI -DHAVE_TERMIOS
++ AUTHDEFS=    -DDES -DMD5
++ CLOCKDEFS=   
++ DAEMONLIBS=  -lnsl -lsocket -lelf
++ RESLIB=      -lnsl -lsocket -lelf
++ INSTALL=$(TOP)scripts/install.sh
++ SHELL=       /bin/sh
++ RANLIB=            ls # ar does the work of ranlib under System V
+*** authstuff/authspeed.c.orig	Thu Jan 27 09:03:12 1994
+--- authstuff/authspeed.c	Fri Apr  8 14:19:35 1994
+***************
+*** 2,8 ****
+   * authspeed - figure out how LONG it takes to do an NTP encryption
+   */
+  
+! #if defined(SYS_HPUX) || defined(SYS_AUX3) || defined(SYS_AUX2) || defined(SOLARIS) || defined(SYS_SVR4) || defined(SYS_PTX)
+  #define FAKE_RUSAGE
+  #endif
+  
+--- 2,8 ----
+   * authspeed - figure out how LONG it takes to do an NTP encryption
+   */
+  
+! #if defined(SYS_HPUX) || defined(SYS_AUX3) || defined(SYS_AUX2) || defined(SOLARIS) || defined(SYS_SVR4) || defined(SYS_PTX) || defined(SYS_UNIVEL)
+  #define FAKE_RUSAGE
+  #endif
+*** include/ntp_if.h.orig	Mon Nov 15 16:21:29 1993
+--- include/ntp_if.h	Fri Apr  8 14:51:49 1994
+***************
+*** 16,21 ****
+--- 16,25 ----
+  #include <sys/sockio.h>
+  #endif
+  
++ #if defined(SYS_UNIVEL)
++ #include <sys/sockio.h>
++ #endif
++ 
+  #if defined(SYS_PTX) || defined(SYS_SINIXM)
+  #include <sys/stream.h>
+  #include <sys/stropts.h>
+*** include/ntp_machine.h.orig	Mon Mar 14 02:47:02 1994
+--- include/ntp_machine.h	Fri Apr  8 14:45:42 1994
+***************
+*** 526,531 ****
+--- 526,563 ----
+  #endif
+  
+  /*
++  * Univel SVR4 on intel x86 processor
++  */
++ #if defined(SYS_UNIVEL)
++ /* #define _POSIX_SOURCE */
++ #define NTP_POSIX_SOURCE
++ #define HAVE_ATT_NICE
++ #define HAVE_READKMEM 
++ #define USE_PROTOTYPES
++ #undef HAVE_ATT_SETPGRP
++ #define UDP_WILDCARD_DELIVERY
++ #define HAVE_SIGNALED_IO
++ #define USE_TTY_SIGPOLL
++ #define USE_UDP_SIGPOLL
++ #define STREAM
++ #define STREAMS
++ #ifndef STREAMS_TLI
++ /*#define STREAMS_TLI*/
++ #endif
++ /* #define USE_STREAMS_DEVICE_FOR_IF_CONFIG */
++ #undef STEP_SLEW 		/* TWO step */
++ #define LOCK_PROCESS
++ #undef SYSV_TIMEOFDAY
++ #define SIZE_RETURNED_IN_BUFFER
++ #define	RETSIGTYPE void
++ #include <sys/types.h>
++ #include <netinet/in_systm.h>
++ #ifndef STR_SYSTEM
++ #define STR_SYSTEM "UNIX/Univel"
++ #endif
++ #endif
++ 
++ /*
+   * DomainOS
+   */
+  #if defined(SYS_DOMAINOS)
+*** xntpd/ntp_unixclock.c.orig	Thu Feb  3 00:20:20 1994
+--- xntpd/ntp_unixclock.c	Fri Apr  8 14:40:55 1994
+***************
+*** 255,260 ****
+--- 255,277 ----
+  /* Define the following to be what the tick and tickadj variables are 
+   * called in your kernel. 
+   */
++ #if defined(SYS_UNIVEL)
++ /*
++  * clock_parms - return the local clock tickadj and tick parameters
++  *
++  * The values set here were determined experimentally on a 486 system
++  * I'm not confident in them. - RAS
++  *
++  */
++ static void
++ clock_parms(tickadj, tick)
++ 	U_LONG *tickadj;
++ 	U_LONG *tick;
++ {
++ 	*tick = 10000;		/* microseconds */
++ 	*tickadj = 80;		/* microseconds */
++ }
++ #else /* SYS_UNIVEL */
+  
+  #if defined(SYS_AUX3) || defined(SYS_AUX2) || defined(SYS_SVR4) || defined(SYS_PTX)
+  #define K_TICKADJ_NAME	"tickadj"
+***************
+*** 421,427 ****
+  }
+  #endif /* sgi */
+  
+- 
+  #ifdef NOKMEM
+  
+  #ifndef HZ
+--- 438,443 ----
+***************
+*** 571,573 ****
+--- 587,590 ----
+    *tick    = (U_LONG)txc.tick;
+  }
+  #endif /* SYS_LINUX */
++ #endif /* SYS_UNIVEL */
+*** xntpd/ntpd.c.orig Wed Feb 16 22:09:35 1994
+--- xntpd/ntpd.c  Fri Apr  8 16:35:57 1994
+***************
+*** 14,20 ****
+  #include <sys/rtprio.h>
+  #endif
+  
+! #if defined(SYS_SVR4)
+  #include <termios.h>
+  #endif
+  
+--- 14,20 ----
+  #include <sys/rtprio.h>
+  #endif
+  
+! #if defined(SYS_SVR4) || defined (SYS_UNIVEL)
+  #include <termios.h>
+  #endif
+

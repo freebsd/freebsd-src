@@ -1,0 +1,44 @@
+
+Received: from louie.udel.edu by huey.udel.edu id aa21136; 28 Jan 94 9:30 EST
+Received: from relay1.uu.net by louie.udel.edu id aa09355; 28 Jan 94 9:29 EST
+Received: from outpost.wg.waii.com by relay1.UU.NET with SMTP 
+	(5.61/UUNET-internet-primary) id AAwaur00219; Fri, 28 Jan 94 09:29:28 -0500
+Received: from airgun.wg.waii.com by outpost.wg.waii.com with SMTP id AA18918
+  (5.65c/IDA-1.4.4 for <mills@udel.edu>); Fri, 28 Jan 1994 08:29:23 -0600
+Received: from merlin.london.waii.com by airgun.wg.waii.com with SMTP id AA18376
+  (5.65c/IDA-1.4.4 for <mills@udel.edu>); Fri, 28 Jan 1994 08:29:16 -0600
+Received: from phoenix.london.waii.com by merlin.london.waii.com with SMTP id AA21698
+  (5.65c/IDA-1.4.4 for <mills@udel.edu>); Fri, 28 Jan 1994 14:24:29 GMT
+Received: by phoenix.london.waii.com (4.1/SMI-4.1)
+	id AA21825; Fri, 28 Jan 94 14:29:12 GMT
+Date: Fri, 28 Jan 94 14:29:12 GMT
+From: Marc Brett <ltso@london.waii.com>
+Message-Id: <9401281429.AA21825@phoenix.london.waii.com>
+To: mills@udel.edu
+Subject: Bug in export version of xntp.3.3c
+
+Dave,
+
+The crippled DES routine fails to compile on my machine (SunOS 1.4.3, cc).
+It complains about U_LONG being unrecognized.  Luckily, the fix is a
+one-liner.
+
+*** authdes.c.export    Tue Aug 24 22:26:45 1993
+--- authdes.c   Fri Jan 28 12:18:40 1994
+***************
+*** 15,20 ****
+--- 15,21 ----
+   * to its exportable state, copy this file to authdes.c .
+   */
+  #include <sys/types.h>
++ #include "ntp_stdlib.h"
+
+  /*
+   * This routine is normally called to compute the key schedule.
+
+
+Regards,
+
+Marc Brett              marc.brett@london.waii.com
+Western Geophysical     Tel: +44 81 560 3160
+
