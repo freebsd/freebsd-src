@@ -47,7 +47,6 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/cons.h>
-#include <sys/random.h>
 
 #include <machine/clock.h>
 #include <machine/console.h>
@@ -2955,12 +2954,6 @@ next_code:
     /* make screensaver happy */
     if (!(c & RELKEY))
 	sc_touch_scrn_saver();
-
-#ifdef __i386__
-    if (!(flags & SCGETC_CN))
-	/* do the /dev/random device a favour */
-	add_keyboard_randomness(c);
-#endif
 
     if (scp->kbd_mode != K_XLATE)
 	return KEYCHAR(c);

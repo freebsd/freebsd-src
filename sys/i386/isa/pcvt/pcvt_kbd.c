@@ -751,8 +751,6 @@ loop:
 	{
 		keybuf[0] = dt;
 
-		add_keyboard_randomness(dt);
-
 		return ((u_char *)keybuf);
 	}
 
@@ -826,8 +824,6 @@ loop:
 
 	/* got a normal scan key */
 regular:
-
-	add_keyboard_randomness(dt);
 
 #if PCVT_SCANSET == 1
 	kbd_status.breakseen = dt & 0x80 ? 1 : 0;
