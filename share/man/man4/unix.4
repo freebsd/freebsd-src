@@ -39,18 +39,18 @@
 .Nm unix
 .Nd UNIX-domain protocol family
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/un.h>
+.In sys/types.h
+.In sys/un.h
 .Sh DESCRIPTION
 The
-.Tn UNIX Ns -domain
+.Ux Ns -domain
 protocol family is a collection of protocols
 that provides local (on-machine) interprocess
 communication through the normal
 .Xr socket 2
 mechanisms.
 The
-.Tn UNIX Ns -domain
+.Ux Ns -domain
 family supports the
 .Dv SOCK_STREAM
 and
@@ -58,7 +58,7 @@ and
 socket types and uses
 filesystem pathnames for addressing.
 .Sh ADDRESSING
-.Tn UNIX Ns -domain
+.Ux Ns -domain
 addresses are variable-length filesystem pathnames of
 at most 104 characters.
 The include file
@@ -73,25 +73,25 @@ char	sun_path[104];
 .Ed
 .Pp
 Binding a name to a
-.Tn UNIX Ns -domain
+.Ux Ns -domain
 socket with
 .Xr bind 2
 causes a socket file to be created in the filesystem.
 This file is
 .Em not
-removed when the socket is closed\(em\c
+removed when the socket is closed \(em
 .Xr unlink 2
 must be used to remove the file.
 .Pp
 The
-.Tn UNIX Ns -domain
+.Ux Ns -domain
 protocol family does not support broadcast addressing or any form
 of
 .Dq wildcard
 matching on incoming messages.
 All addresses are absolute- or relative-pathnames
 of other
-.Tn UNIX Ns -domain
+.Ux Ns -domain
 sockets.
 Normal filesystem access-control mechanisms are also
 applied when referencing pathnames; e.g., the destination
@@ -102,7 +102,7 @@ or
 must be writable.
 .Sh PROTOCOLS
 The
-.Tn UNIX Ns -domain
+.Ux Ns -domain
 protocol family is comprised of simple
 transport protocols that support the
 .Dv SOCK_STREAM
@@ -113,9 +113,9 @@ abstractions.
 sockets also support the communication of
 .Ux
 file descriptors through the use of the
-.Ar msg_control
+.Va msg_control
 field in the
-.Ar msg
+.Fa msg
 argument to
 .Xr sendmsg 2
 and
@@ -123,7 +123,7 @@ and
 .Pp
 Any valid descriptor may be sent in a message.
 The file descriptor(s) to be passed are described using a
-.Ar struct cmsghdr
+.Vt "struct cmsghdr"
 that is defined in the include file
 .Aq Pa sys/socket.h .
 The type of the message is
