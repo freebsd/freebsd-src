@@ -159,6 +159,8 @@ void doit(struct sockaddr_in *sinp)
 		login_incorrect(user, sinp);
 	if (strcmp(pw->pw_shell, _PATH_UUCICO))
 		login_incorrect(user, sinp);
+	if (pw->pw_expire && time(NULL) >= pw->pw_expire)
+		login_incorrect(user, sinp);
 	if (pw->pw_passwd && *pw->pw_passwd != '\0') {
 		printf("Password: "); fflush(stdout);
 		if (readline(passwd, sizeof passwd, 1) < 0) {

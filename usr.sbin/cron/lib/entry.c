@@ -16,7 +16,7 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id: entry.c,v 1.2 1995/04/12 19:04:26 ache Exp $";
+static char rcsid[] = "$Id: entry.c,v 1.4 1995/08/28 21:30:46 mpp Exp $";
 #endif
 
 /* vix 26jan87 [RCS'd; rest of log is in RCS file]
@@ -239,6 +239,11 @@ load_entry(file, error_func, pw, envp)
 			goto eof;
 		}
 		Debug(DPARS, ("load_entry()...uid %d, gid %d\n",e->uid,e->gid))
+	}
+
+	if (pw->pw_expire && time(NULL) >= pw->pw_expire) {
+		ecode = e_username;
+		goto eof;
 	}
 
 	e->uid = pw->pw_uid;
