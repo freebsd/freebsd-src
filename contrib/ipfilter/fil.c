@@ -42,6 +42,7 @@
 #  include <sys/mbuf.h>
 # endif
 #else
+# include <sys/cmn_err.h>
 # include <sys/byteorder.h>
 # if SOLARIS2 < 5
 #  include <sys/dditypes.h>
@@ -95,9 +96,11 @@
 #endif
 #include "netinet/ipl.h"
 
+#include <machine/in_cksum.h>
+
 #if !defined(lint)
 static const char sccsid[] = "@(#)fil.c	1.36 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: fil.c,v 2.35.2.67 2002/12/06 13:28:05 darrenr Exp $";
+static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
 #ifndef	_KERNEL
@@ -144,6 +147,9 @@ fr_info_t	frcache[2];
 static	int	frflushlist __P((int, minor_t, int *, frentry_t **));
 #ifdef	_KERNEL
 static	void	frsynclist __P((frentry_t *));
+# ifndef __sgi
+static	void	*ipf_pullup __P((mb_t *, fr_info_t *, int, void *));
+# endif
 #endif
 
 
@@ -192,19 +198,27 @@ struct	optlist	secopt[8] = {
  * compact the IP header into a structure which contains just the info.
  * which is useful for comparing IP headers with.
  */
-void	fr_makefrip(hlen, ip, fin)
+int	fr_makefrip(hlen, ip, fin)
 int hlen;
 ip_t *ip;
 fr_info_t *fin;
 {
 	u_short optmsk = 0, secmsk = 0, auth = 0;
 	int i, mv, ol, off, p, plen, v;
+#if defined(_KERNEL)
+# if SOLARIS
+	mb_t *m = fin->fin_qfm;
+# else
+	mb_t *m = fin->fin_mp ? *fin->fin_mp : NULL;
+# endif
+#endif
 	fr_ip_t *fi = &fin->fin_fi;
 	struct optlist *op;
 	u_char *s, opt;
 	tcphdr_t *tcp;
 
 	fin->fin_rev = 0;
+	fin->fin_dp = NULL;
 	fin->fin_fr = NULL;
 	fin->fin_tcpf = 0;
 	fin->fin_data[0] = 0;
@@ -218,8 +232,10 @@ fr_info_t *fin;
 	if (v == 4) {
 		fin->fin_id = ip->ip_id;
 		fi->fi_tos = ip->ip_tos;
+#if (OpenBSD >= 200311) && defined(_KERNEL)
+		ip->ip_off = ntohs(ip->ip_off);
+#endif
 		off = (ip->ip_off & IP_OFFMASK);
-		tcp = (tcphdr_t *)((char *)ip + hlen);
 		(*(((u_short *)fi) + 1)) = (*(((u_short *)ip) + 4));
 		fi->fi_src.i6[1] = 0;
 		fi->fi_src.i6[2] = 0;
@@ -233,6 +249,9 @@ fr_info_t *fin;
 		fi->fi_fl = (hlen > sizeof(ip_t)) ? FI_OPTIONS : 0;
 		if (ip->ip_off & (IP_MF|IP_OFFMASK))
 			fi->fi_fl |= FI_FRAG;
+#if (OpenBSD >= 200311) && defined(_KERNEL)
+		ip->ip_len = ntohs(ip->ip_len);
+#endif
 		plen = ip->ip_len;
 		fin->fin_dlen = plen - hlen;
 	}
@@ -244,7 +263,6 @@ fr_info_t *fin;
 		p = ip6->ip6_nxt;
 		fi->fi_p = p;
 		fi->fi_ttl = ip6->ip6_hlim;
-		tcp = (tcphdr_t *)(ip6 + 1);
 		fi->fi_src.in6 = ip6->ip6_src;
 		fi->fi_dst.in6 = ip6->ip6_dst;
 		fin->fin_id = (u_short)(ip6->ip6_flow & 0xffff);
@@ -256,14 +274,23 @@ fr_info_t *fin;
 	}
 #endif
 	else
-		return;
+		return -1;
 
 	fin->fin_off = off;
 	fin->fin_plen = plen;
-	fin->fin_dp = (char *)tcp;
+	tcp = (tcphdr_t *)((char *)ip + hlen);
 	fin->fin_misc = 0;
 	off <<= 3;
 
+	/*
+	 * For both ICMPV6 & ICMP, we attempt to pullup the entire packet into
+	 * a single buffer for recognised error return packets.  Why?  Because 
+	 * the entire data section of the ICMP payload is considered to be of
+	 * significance and maybe required in NAT/state processing, so rather
+	 * than be careful later, attempt to get it all in one buffeer first.
+	 * For TCP we just make sure the _entire_ TCP header is in the first
+	 * buffer for convienience.
+	 */
 	switch (p)
 	{
 #ifdef USE_INET6
@@ -272,7 +299,7 @@ fr_info_t *fin;
 		int minicmpsz = sizeof(struct icmp6_hdr);
 		struct icmp6_hdr *icmp6;
 
-		if (fin->fin_dlen > 1) {
+		if (!(fin->fin_fl & FI_SHORT) && (fin->fin_dlen > 1)) {
 			fin->fin_data[0] = *(u_short *)tcp;
 
 			icmp6 = (struct icmp6_hdr *)tcp;
@@ -287,6 +314,14 @@ fr_info_t *fin;
 			case ICMP6_PACKET_TOO_BIG :
 			case ICMP6_TIME_EXCEEDED :
 			case ICMP6_PARAM_PROB :
+# if defined(KERNEL) && !defined(__sgi)
+				if ((m != NULL) && (M_BLEN(m) < plen)) {
+					ip = ipf_pullup(m, fin, plen, ip);
+					if (ip == NULL)
+						return -1;
+					tcp = (tcphdr_t *)((char *)ip + hlen);
+				}
+# endif /* KERNEL && !__sgi */
 				minicmpsz = ICMP6ERR_IPICMPHLEN;
 				break;
 			default :
@@ -294,22 +329,27 @@ fr_info_t *fin;
 			}
 		}
 
-		if (!(plen >= minicmpsz))
+		if (!(fin->fin_dlen >= minicmpsz))
 			fi->fi_fl |= FI_SHORT;
 
 		break;
 	}
-#endif
+#endif /* USE_INET6 */
+
 	case IPPROTO_ICMP :
 	{
 		int minicmpsz = sizeof(struct icmp);
 		icmphdr_t *icmp;
 
-		if (!off && (fin->fin_dlen > 1)) {
+		if (!off && (fin->fin_dlen > 1) && !(fin->fin_fl & FI_SHORT)) {
 			fin->fin_data[0] = *(u_short *)tcp;
 
 			icmp = (icmphdr_t *)tcp;
 
+			/*
+			 * Minimum ICMP packet is type(1) code(1) cksum(2)
+			 * plus 4 bytes following, totalling 8 bytes.
+			 */
 			switch (icmp->icmp_type)
 			{
 			case ICMP_ECHOREPLY :
@@ -325,7 +365,7 @@ fr_info_t *fin;
 			 */
 			case ICMP_TSTAMP :
 			case ICMP_TSTAMPREPLY :
-				minicmpsz = 20;
+				minicmpsz = ICMP_MINLEN + 12;
 				break;
 			/*
 			 * type(1) + code(1) + cksum(2) + id(2) seq(2) +
@@ -333,9 +373,28 @@ fr_info_t *fin;
 			 */
 			case ICMP_MASKREQ :
 			case ICMP_MASKREPLY :
-				minicmpsz = 12;
+				minicmpsz = ICMP_MINLEN + 4;
+				break;
+			/*
+			 * type(1) + code(1) + cksum(2) + arg(4) ip(20+)
+			 */
+			case ICMP_UNREACH :
+			case ICMP_SOURCEQUENCH :
+			case ICMP_REDIRECT :
+			case ICMP_TIMXCEED :
+			case ICMP_PARAMPROB :
+#if defined(KERNEL) && !defined(__sgi)
+				if ((m != NULL) && (M_BLEN(m) < plen)) {
+					ip = ipf_pullup(m, fin, plen, ip);
+					if (ip == NULL)
+						return -1;
+					tcp = (tcphdr_t *)((char *)ip + hlen);
+				}
+#endif /* KERNEL && !__sgi */
+				minicmpsz = ICMPERR_MINPKTLEN - sizeof(ip_t);
 				break;
 			default :
+				minicmpsz = ICMP_MINLEN;
 				break;
 			}
 		}
@@ -343,9 +402,9 @@ fr_info_t *fin;
 		if ((!(plen >= hlen + minicmpsz) && !off) ||
 		    (off && off < sizeof(struct icmp)))
 			fi->fi_fl |= FI_SHORT;
-
 		break;
 	}
+
 	case IPPROTO_TCP :
 		fi->fi_fl |= FI_TCPUDP;
 #ifdef	USE_INET6
@@ -359,6 +418,20 @@ fr_info_t *fin;
 			     (off && off < sizeof(struct tcphdr)))
 				fi->fi_fl |= FI_SHORT;
 		}
+
+#if defined(KERNEL) && !defined(__sgi)
+		if (!off && !(fi->fi_fl & FI_SHORT)) {
+			int tlen = hlen + (tcp->th_off << 2);
+
+			if ((m != NULL) && (M_BLEN(m) < tlen)) {
+				ip = ipf_pullup(m, fin, tlen, ip);
+				if (ip == NULL)
+					return -1;
+				tcp = (tcphdr_t *)((char *)ip + hlen);
+			}
+		}
+#endif /* _KERNEL && !_sgi */
+
 		if (!(fi->fi_fl & FI_SHORT) && !off)
 			fin->fin_tcpf = tcp->th_flags;
 		goto getports;
@@ -398,12 +471,14 @@ getports:
 		break;
 	}
 
+	fin->fin_dp = (char *)tcp;
+
 #ifdef	USE_INET6
 	if (v == 6) {
 		fi->fi_optmsk = 0;
 		fi->fi_secmsk = 0;
 		fi->fi_auth = 0;
-		return;
+		return 0;
 	}
 #endif
 
@@ -460,6 +535,7 @@ getports:
 	fi->fi_optmsk = optmsk;
 	fi->fi_secmsk = secmsk;
 	fi->fi_auth = auth;
+	return 0;
 }
 
 
@@ -747,7 +823,7 @@ void *m;
 #endif /* IPFILTER_LOG */
 		ATOMIC_INCL(fr->fr_hits);
 		if (passt & FR_ACCOUNT)
-			fr->fr_bytes += (U_QUAD_T)ip->ip_len;
+			fr->fr_bytes += (U_QUAD_T)fin->fin_plen;
 		else
 			fin->fin_icode = fr->fr_icode;
 		fin->fin_rule = rulen;
@@ -810,12 +886,17 @@ int out;
 	int p, len, drop = 0, logit = 0;
 	mb_t *mc = NULL;
 # if !defined(__SVR4) && !defined(__svr4__)
+	/*
+	 * We don't do this section for Solaris because fr_precheck() does a
+	 * pullupmsg() instead, effectively achieving the same result as here
+	 * so no need to duplicate it.
+	 */
 #  ifdef __sgi
 	char hbuf[128];
 #  endif
 	int up;
 
-#  if !SOLARIS && !defined(NETBSD_PF) && \
+#  if !defined(NETBSD_PF) && \
       ((defined(__FreeBSD__) && (__FreeBSD_version < 500011)) || \
        defined(__OpenBSD__) || defined(_BSDI_VERSION))
 	if (fr_checkp != fr_check && fr_running > 0) {
@@ -853,7 +934,7 @@ int out;
 	}
 #  endif /* CSUM_DELAY_DATA */
 
-# ifdef	USE_INET6
+#  ifdef	USE_INET6
 	if (v == 6) {
 		len = ntohs(((ip6_t*)ip)->ip6_plen);
 		if (!len)
@@ -861,17 +942,20 @@ int out;
 		len += sizeof(ip6_t);
 		p = ((ip6_t *)ip)->ip6_nxt;
 	} else
-# endif
+#  endif
 	{
 		p = ip->ip_p;
 		len = ip->ip_len;
 	}
 
+	fin->fin_mp = mp;
+	fin->fin_out = out;
+
 	if ((p == IPPROTO_TCP || p == IPPROTO_UDP ||
 	    (v == 4 && p == IPPROTO_ICMP)
-# ifdef USE_INET6
+#  ifdef USE_INET6
 	    || (v == 6 && p == IPPROTO_ICMPV6)
-# endif
+#  endif
 	   )) {
 		int plen = 0;
 
@@ -891,7 +975,7 @@ int out;
 			case IPPROTO_ESP:
 				plen = 8;
 				break;
-# ifdef USE_INET6
+#  ifdef USE_INET6
 	    		case IPPROTO_ICMPV6 :
 				/*
 				 * XXX does not take intermediate header
@@ -899,8 +983,10 @@ int out;
 				 */
 				plen = ICMP6ERR_MINPKTLEN + 8 - sizeof(ip6_t);
 				break;
-# endif
+#  endif
 			}
+		if ((plen > 0) && (len < hlen + plen))
+			fin->fin_fl |= FI_SHORT;
 		up = MIN(hlen + plen, len);
 
 		if (up > m->m_len) {
@@ -915,14 +1001,34 @@ int out;
 			ip = (ip_t *)hbuf;
 #  else /* __ sgi */
 #   ifndef linux
-			if ((*mp = m_pullup(m, up)) == 0) {
-				ATOMIC_INCL(frstats[out].fr_pull[1]);
+			/*
+			 * Having determined that we need to pullup some data,
+			 * try to bring as much of the packet up into a single
+			 * buffer with the first pullup.  This hopefully means
+			 * less need for doing futher pullups.  Not needed for
+			 * Solaris because fr_precheck() does it anyway.
+			 *
+			 * The main potential for trouble here is if MLEN/MHLEN
+			 * become quite small, lets say < 64 bytes...but if
+			 * that did happen, BSD networking as a whole would be
+			 * slow/inefficient.
+			 */
+#    ifdef MHLEN
+			/*
+			 * Assume that M_PKTHDR is set and just work with what
+			 * is left rather than check..  Should not make any
+			 * real difference, anyway.
+			 */
+			if ((MHLEN > up) && (len > up))
+				up = MIN(len, MHLEN);
+#    else
+			if ((MLEN > up) && (len > up))
+				up = MIN(len, MLEN);
+#    endif
+			ip = ipf_pullup(m, fin, up, ip);
+			if (ip == NULL)
 				return -1;
-			} else {
-				ATOMIC_INCL(frstats[out].fr_pull[0]);
-				m = *mp;
-				ip = mtod(m, ip_t *);
-			}
+			m = *mp;
 #   endif /* !linux */
 #  endif /* __sgi */
 		} else
@@ -935,17 +1041,21 @@ int out;
 
 	if ((u_int)ip & 0x3)
 		return 2;
+	fin->fin_mp = mp;
+	fin->fin_out = out;
 	fin->fin_qfm = m;
 	fin->fin_qif = qif;
 # endif
+#else
+	fin->fin_mp = mp;
+	fin->fin_out = out;
 #endif /* _KERNEL */
 	
 	changed = 0;
-	fin->fin_ifp = ifp;
 	fin->fin_v = v;
-	fin->fin_out = out;
-	fin->fin_mp = mp;
-	fr_makefrip(hlen, ip, fin);
+	fin->fin_ifp = ifp;
+	if (fr_makefrip(hlen, ip, fin) == -1)
+		return -1;
 
 #ifdef _KERNEL
 # ifdef	USE_INET6
@@ -1109,6 +1219,10 @@ int out;
 		if (pass & FR_KEEPSTATE) {
 			if (fr_addstate(ip, fin, NULL, 0) == NULL) {
 				ATOMIC_INCL(frstats[out].fr_bads);
+				if (pass & FR_PASS) {
+					pass &= ~FR_PASS;
+					pass |= FR_BLOCK;
+				}
 			} else {
 				ATOMIC_INCL(frstats[out].fr_ads);
 			}
@@ -1290,6 +1404,12 @@ logit:
 			(void) ipfr_fastroute(ip, mc, &mc, fin, &fr->fr_dif);
 	}
 # endif /* !SOLARIS */
+#if (OpenBSD >= 200311) && defined(_KERNEL)
+	if (pass & FR_PASS) {
+		ip->ip_len = htons(ip->ip_len);
+		ip->ip_off = htons(ip->ip_off);
+	}
+#endif
 	return (pass & FR_PASS) ? 0 : error;
 #else /* _KERNEL */
 	if (pass & FR_NOMATCH)
@@ -1387,10 +1507,10 @@ tcphdr_t *tcp;
 	/*
 	 * Both sum and sum2 are partial sums, so combine them together.
 	 */
-	sum = (sum & 0xffff) + (sum >> 16);
-	sum = ~sum & 0xffff;
-	sum2 += sum;
-	sum2 = (sum2 & 0xffff) + (sum2 >> 16);
+	sum += ~sum2 & 0xffff;
+	while (sum > 0xffff)
+		sum = (sum & 0xffff) + (sum >> 16);
+	sum2 = ~sum & 0xffff;
 #  else /* defined(BSD) || defined(sun) */
 {
 	union {
@@ -1531,7 +1651,7 @@ nodata:
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: fil.c,v 2.35.2.67 2002/12/06 13:28:05 darrenr Exp $
+ * $Id: fil.c,v 2.35.2.82 2004/06/20 10:27:47 darrenr Exp $
  */
 /*
  * Copy data from an mbuf chain starting "off" bytes from the beginning,
@@ -1963,12 +2083,40 @@ struct in_addr *inp;
 static void frsynclist(fr)
 register frentry_t *fr;
 {
+	frdest_t *fdp;
+	int i;
+
 	for (; fr; fr = fr->fr_next) {
-		if (fr->fr_ifa != NULL) {
-			fr->fr_ifa = GETUNIT(fr->fr_ifname, fr->fr_ip.fi_v);
-			if (fr->fr_ifa == NULL)
-				fr->fr_ifa = (void *)-1;
+		for (i = 0; i < 4; i++) {
+			if ((fr->fr_ifnames[i][1] == '\0') &&
+			    ((fr->fr_ifnames[i][0] == '-') ||
+			     (fr->fr_ifnames[i][0] == '*'))) {
+				fr->fr_ifas[i] = NULL;
+			} else if (*fr->fr_ifnames[i]) {
+				fr->fr_ifas[i] = GETUNIT(fr->fr_ifnames[i],
+							 fr->fr_v);
+				if (!fr->fr_ifas[i])
+					fr->fr_ifas[i] = (void *)-1;
+			}
 		}
+
+		fdp = &fr->fr_dif;
+		fr->fr_flags &= ~FR_DUP;
+		if (*fdp->fd_ifname) {
+			fdp->fd_ifp = GETUNIT(fdp->fd_ifname, fr->fr_v);
+			if (!fdp->fd_ifp)
+				fdp->fd_ifp = (struct ifnet *)-1;
+			else
+				fr->fr_flags |= FR_DUP;
+		}
+
+		fdp = &fr->fr_tif;
+		if (*fdp->fd_ifname) {
+			fdp->fd_ifp = GETUNIT(fdp->fd_ifname, fr->fr_v);
+			if (!fdp->fd_ifp)
+				fdp->fd_ifp = (struct ifnet *)-1;
+		}
+
 		if (fr->fr_grp)
 			frsynclist(fr->fr_grp);
 	}
@@ -2223,3 +2371,64 @@ mb_t *buf;
 	return ip->ip_len;
 }
 #endif
+
+
+#if defined(_KERNEL) && !defined(__sgi)
+void *ipf_pullup(m, fin, len, ipin)
+mb_t *m;
+fr_info_t *fin;
+int len;
+void *ipin;
+{
+# if SOLARIS
+	qif_t *qf = fin->fin_qif;
+# endif
+	int out = fin->fin_out, dpoff, ipoff;
+	char *ip;
+
+	if (m == NULL)
+		return NULL;
+
+	ipoff = (char *)ipin - MTOD(m, char *);
+	if (fin->fin_dp != NULL)
+		dpoff = (char *)fin->fin_dp - (char *)ipin;
+	else
+		dpoff = 0;
+
+	if (M_BLEN(m) < len) {
+# if SOLARIS
+		qif_t *qf = fin->fin_qif;
+		int inc = 0;
+
+		if (ipoff > 0) {
+			if ((ipoff & 3) != 0) {
+				inc = 4 - (ipoff & 3);
+				if (m->b_rptr - inc >= m->b_datap->db_base)
+					m->b_rptr -= inc;
+				else
+					inc = 0;
+			}
+		}
+		if (!pullupmsg(m, len + ipoff + inc)) {
+			ATOMIC_INCL(frstats[out].fr_pull[1]);
+			return NULL;
+		}
+		m->b_rptr += inc;
+		ATOMIC_INCL(frstats[out].fr_pull[0]);
+		qf->qf_data = MTOD(m, char *) + ipoff;
+# else
+		m = m_pullup(m, len);
+		*fin->fin_mp = m;
+		if (m == NULL) {
+			ATOMIC_INCL(frstats[out].fr_pull[1]);
+			return NULL;
+		}
+		ATOMIC_INCL(frstats[out].fr_pull[0]);
+# endif /* SOLARIS */
+	}
+	ip = MTOD(m, char *) + ipoff;
+	if (fin->fin_dp != NULL)
+		fin->fin_dp = (char *)ip + dpoff;
+	return ip;
+}
+#endif /* _KERNEL */

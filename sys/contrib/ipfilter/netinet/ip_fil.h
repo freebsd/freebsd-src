@@ -630,7 +630,7 @@ extern	void	fr_forgetifp __P((void *));
 extern	void	fr_getstat __P((struct friostat *));
 extern	int	fr_ifpaddr __P((int, void *, struct in_addr *));
 extern	int	fr_lock __P((caddr_t, int *));
-extern  void	fr_makefrip __P((int, ip_t *, fr_info_t *));
+extern  int	fr_makefrip __P((int, ip_t *, fr_info_t *));
 extern	u_short	fr_tcpsum __P((mb_t *, ip_t *, tcphdr_t *));
 extern	int	fr_scanlist __P((u_32_t, ip_t *, fr_info_t *, void *));
 extern	int	fr_tcpudpchk __P((frtuc_t *, fr_info_t *));
