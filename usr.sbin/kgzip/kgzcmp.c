@@ -142,7 +142,7 @@ mk_data(const struct iodesc * idi, const struct iodesc * ido,
     if (e)
 	errx(1, "%s: Invalid format", idi->fname);
     if (fstat(ido->fd, &sb))
-	err(1, ido->fname);
+	err(1, "%s", ido->fname);
     kh->nsize = sb.st_size - KGZOFF;
 }
 
