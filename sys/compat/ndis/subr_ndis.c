@@ -148,15 +148,13 @@ static void ndis_map_cb(void *, bus_dma_segment_t *, int, int);
 __stdcall static void ndis_vtophys_load(ndis_handle, ndis_buffer *,
 	uint32_t, uint8_t, ndis_paddr_unit *, uint32_t *);
 __stdcall static void ndis_vtophys_unload(ndis_handle, ndis_buffer *, uint32_t);
-__stdcall static void ndis_create_timer(ndis_miniport_timer *, ndis_handle *,
+__stdcall static void ndis_create_timer(ndis_miniport_timer *, ndis_handle,
 	ndis_timer_function, void *);
 __stdcall static void ndis_init_timer(ndis_timer *,
 	ndis_timer_function, void *);
-static void ndis_timercall(void *);
-__stdcall static void ndis_set_timer(ndis_miniport_timer *, uint32_t);
-static void ndis_tick(void *);
+__stdcall static void ndis_set_timer(ndis_timer *, uint32_t);
 __stdcall static void ndis_set_periodic_timer(ndis_miniport_timer *, uint32_t);
-__stdcall static void ndis_cancel_timer(ndis_miniport_timer *, uint8_t *);
+__stdcall static void ndis_cancel_timer(ndis_timer *, uint8_t *);
 __stdcall static void ndis_query_resources(ndis_status *, ndis_handle,
 	ndis_resource_list *, uint32_t *);
 __stdcall static ndis_status ndis_register_ioport(void **,
@@ -521,6 +519,7 @@ ndis_encode_parm(block, oid, type, parm)
 {
 	uint16_t		*unicode;
 	ndis_unicode_string	*ustr;
+	int			base = 0;
 
 	unicode = (uint16_t *)&block->nmb_dummybuf;
 
@@ -533,14 +532,22 @@ ndis_encode_parm(block, oid, type, parm)
 		ustr->nus_buf = unicode;
 		break;
 	case ndis_parm_int:
+		if (strncmp((char *)oid->oid_arg1, "0x", 2) == 0)
+			base = 16;
+		else
+			base = 10;
 		(*parm)->ncp_type = ndis_parm_int;
 		(*parm)->ncp_parmdata.ncp_intdata =
-		    strtol((char *)oid->oid_arg1, NULL, 10);
+		    strtol((char *)oid->oid_arg1, NULL, base);
 		break;
 	case ndis_parm_hexint:
+		if (strncmp((char *)oid->oid_arg1, "0x", 2) == 0)
+			base = 16;
+		else
+			base = 10;
 		(*parm)->ncp_type = ndis_parm_hexint;
 		(*parm)->ncp_parmdata.ncp_intdata =
-		    strtoul((char *)oid->oid_arg1, NULL, 16);
+		    strtoul((char *)oid->oid_arg1, NULL, base);
 		break;
 	default:
 		return(NDIS_STATUS_FAILURE);
@@ -936,30 +943,8 @@ ndis_init_timer(timer, func, ctx)
 	ndis_timer_function	func;
 	void			*ctx;
 {
-	struct ndis_timer_entry	*ne = NULL;
-	ndis_miniport_block	*block = NULL;
-
-	TAILQ_FOREACH(block, &ndis_devhead, link) {
-		if (block->nmb_miniportadapterctx == ctx)
-			break;
-	}
-
-	if (block->nmb_miniportadapterctx != ctx)
-		panic("NDIS driver timer context didn't "
-		    "match any adapter contexts");
-
-	ne = malloc(sizeof(struct ndis_timer_entry), M_DEVBUF, M_NOWAIT);
-	callout_init(&ne->nte_ch, CALLOUT_MPSAFE);
-	TAILQ_INSERT_TAIL(&block->nmb_timerlist, ne, link);
-	ne->nte_timer = (ndis_miniport_timer *)timer;
-
-	INIT_LIST_HEAD((&timer->nt_timer.nk_header.dh_waitlisthead));
-	timer->nt_timer.nk_header.dh_sigstate = FALSE;
-	timer->nt_timer.nk_header.dh_type = EVENT_TYPE_NOTIFY;
-	timer->nt_timer.nk_header.dh_size = OTYPE_TIMER;
-	timer->nt_dpc.nk_sysarg1 = &ne->nte_ch;
-	timer->nt_dpc.nk_deferedfunc = (ndis_kdpc_func)func;
-	timer->nt_dpc.nk_deferredctx = ctx;
+	ntoskrnl_init_timer(&timer->nt_ktimer);
+	ntoskrnl_init_dpc(&timer->nt_kdpc, func, ctx);
 
 	return;
 }
@@ -967,97 +952,37 @@ ndis_init_timer(timer, func, ctx)
 __stdcall static void
 ndis_create_timer(timer, handle, func, ctx)
 	ndis_miniport_timer	*timer;
-	ndis_handle		*handle;
+	ndis_handle		handle;
 	ndis_timer_function	func;
 	void			*ctx;
 {
-	struct ndis_timer_entry	*ne = NULL;
-	ndis_miniport_block	*block;
-	block = (ndis_miniport_block *)handle;
+	/* Save the funcptr and context */
 
-	ne = malloc(sizeof(struct ndis_timer_entry), M_DEVBUF, M_NOWAIT);
-	callout_init(&ne->nte_ch, CALLOUT_MPSAFE);
-	TAILQ_INSERT_TAIL(&block->nmb_timerlist, ne, link);
-	ne->nte_timer = timer;
+	timer->nmt_timerfunc = func;
+	timer->nmt_timerctx = ctx;
+	timer->nmt_block = handle;
 
-	INIT_LIST_HEAD((&timer->nmt_ktimer.nk_header.dh_waitlisthead));
-	timer->nmt_ktimer.nk_header.dh_sigstate = FALSE;
-	timer->nmt_ktimer.nk_header.dh_type = EVENT_TYPE_NOTIFY;
-	timer->nmt_ktimer.nk_header.dh_size = OTYPE_TIMER;
-	timer->nmt_dpc.nk_sysarg1 = &ne->nte_ch;
-	timer->nmt_dpc.nk_deferedfunc = (ndis_kdpc_func)func;
-	timer->nmt_dpc.nk_deferredctx = ctx;
+	ntoskrnl_init_timer(&timer->nmt_ktimer);
+	ntoskrnl_init_dpc(&timer->nmt_kdpc, func, ctx);
 
 	return;
 }
 
 /*
- * The driver's timer callout is __stdcall function, so we need this
- * intermediate step.
- */
-
-static void
-ndis_timercall(arg)
-	void		*arg;
-{
-	ndis_miniport_timer	*timer;
-	__stdcall ndis_timer_function	timerfunc;
-
-	timer = arg;
-
-	timerfunc = (ndis_timer_function)timer->nmt_dpc.nk_deferedfunc;
-	timerfunc(NULL, timer->nmt_dpc.nk_deferredctx, NULL, NULL);
-	ntoskrnl_wakeup(&timer->nmt_ktimer.nk_header);
-
-	return;
-}
-
-/*
- * Windows specifies timeouts in milliseconds. We specify timeouts
- * in hz, so some conversion is required.
+ * In Windows, there's both an NdisMSetTimer() and an NdisSetTimer(),
+ * but the former is just a macro wrapper around the latter.
  */
 __stdcall static void
 ndis_set_timer(timer, msecs)
-	ndis_miniport_timer	*timer;
+	ndis_timer		*timer;
 	uint32_t		msecs;
 {
-	struct callout		*ch;
-	struct timeval		tv;
-
-	tv.tv_sec = 0;
-	tv.tv_usec = msecs * 1000;
-
-	ch = timer->nmt_dpc.nk_sysarg1;
-	timer->nmt_dpc.nk_sysarg2 = ndis_timercall;
-	timer->nmt_ktimer.nk_header.dh_sigstate = FALSE;
-	callout_reset(ch, tvtohz(&tv), timer->nmt_dpc.nk_sysarg2, timer);
-
-	return;
-}
-
-static void
-ndis_tick(arg)
-	void			*arg;
-{
-	ndis_miniport_timer	*timer;
-	struct callout		*ch;
-	__stdcall ndis_timer_function	timerfunc;
-	struct timeval		tv;
-
-	timer = arg;
-
-	/* Automatically reload timer. */
-
-	tv.tv_sec = 0;
-	tv.tv_usec = timer->nmt_ktimer.nk_period * 1000;
-	ch = timer->nmt_dpc.nk_sysarg1;
-	timer->nmt_ktimer.nk_header.dh_sigstate = FALSE;
-	timer->nmt_dpc.nk_sysarg2 = ndis_tick;
-	callout_reset(ch, tvtohz(&tv), timer->nmt_dpc.nk_sysarg2, timer);
-
-	timerfunc = (ndis_timer_function)timer->nmt_dpc.nk_deferedfunc;
-	timerfunc(NULL, timer->nmt_dpc.nk_deferredctx, NULL, NULL);
-	ntoskrnl_wakeup(&timer->nmt_ktimer.nk_header);
+	/*
+	 * KeSetTimer() wants the period in
+	 * hundred nanosecond intervals.
+	 */
+	ntoskrnl_set_timer(&timer->nt_ktimer,
+	    ((int64_t)msecs * -10000), &timer->nt_kdpc);
 
 	return;
 }
@@ -1067,35 +992,25 @@ ndis_set_periodic_timer(timer, msecs)
 	ndis_miniport_timer	*timer;
 	uint32_t		msecs;
 {
-	struct callout		*ch;
-	struct timeval		tv;
-
-	tv.tv_sec = 0;
-	tv.tv_usec = msecs * 1000;
-
-	timer->nmt_ktimer.nk_period = msecs;
-	ch = timer->nmt_dpc.nk_sysarg1;
-	timer->nmt_dpc.nk_sysarg2 = ndis_tick;
-	timer->nmt_ktimer.nk_header.dh_sigstate = FALSE;
-	callout_reset(ch, tvtohz(&tv), timer->nmt_dpc.nk_sysarg2, timer);
+	ntoskrnl_set_timer_ex(&timer->nmt_ktimer,
+	    ((int64_t)msecs * -10000), msecs, &timer->nmt_kdpc);
 
 	return;
 }
 
+/*
+ * Technically, this is really NdisCancelTimer(), but we also
+ * (ab)use it for NdisMCancelTimer(), since in our implementation
+ * we don't need the extra info in the ndis_miniport_timer
+ * structure.
+ */
+
 __stdcall static void
 ndis_cancel_timer(timer, cancelled)
-	ndis_miniport_timer	*timer;
+	ndis_timer		*timer;
 	uint8_t			*cancelled;
 {
-	struct callout		*ch;
-
-	if (timer == NULL)
-		return;
-	ch = timer->nmt_dpc.nk_sysarg1;
-	if (ch == NULL)
-		return;
-	callout_stop(ch);
-	*cancelled = timer->nmt_ktimer.nk_header.dh_sigstate;
+	*cancelled = ntoskrnl_cancel_timer(&timer->nt_ktimer);
 
 	return;
 }
@@ -1990,10 +1905,13 @@ __stdcall static void
 ndis_init_event(event)
 	ndis_event		*event;
 {
-	event->ne_event.nk_header.dh_sigstate = FALSE;
-	event->ne_event.nk_header.dh_size = OTYPE_EVENT;
-	event->ne_event.nk_header.dh_type = EVENT_TYPE_NOTIFY;
-	INIT_LIST_HEAD((&event->ne_event.nk_header.dh_waitlisthead));
+	/*
+	 * NDIS events are always synchronization
+	 * events, and should be initialized to the
+	 * not signaled state.
+	 */
+ 
+	ntoskrnl_init_event(&event->ne_event, EVENT_TYPE_SYNC, FALSE);
 	return;
 }
 
@@ -2001,7 +1919,7 @@ __stdcall static void
 ndis_set_event(event)
 	ndis_event		*event;
 {
-	ntoskrnl_wakeup(event);
+	ntoskrnl_set_event(&event->ne_event, 0, 0);
 	return;
 }
 
@@ -2009,56 +1927,27 @@ __stdcall static void
 ndis_reset_event(event)
 	ndis_event		*event;
 {
-	event->ne_event.nk_header.dh_sigstate = FALSE;
+	ntoskrnl_reset_event(&event->ne_event);
 	return;
 }
-
-/*
- * This is a stripped-down version of KeWaitForSingleObject().
- * Maybe it ought to just call ntoskrnl_waitforobj() to reduce
- * code duplication.
- */
 
 __stdcall static uint8_t
 ndis_wait_event(event, msecs)
 	ndis_event		*event;
 	uint32_t		msecs;
 {
-	int			error;
-	struct timeval		tv;
-	wait_block		w;
-	struct thread		*td = curthread;
+	int64_t			duetime;
+	uint32_t		rval;
 
-	mtx_pool_lock(ndis_mtxpool, ntoskrnl_dispatchlock);
+	duetime = ((int64_t)msecs * -10000);
 
-	if (event->ne_event.nk_header.dh_sigstate == TRUE) {
-		mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
-		return(TRUE);
-	}
+	rval = ntoskrnl_waitforobj((nt_dispatch_header *)event,
+	    0, 0, TRUE, msecs ? &duetime : NULL);
 
-	INSERT_LIST_TAIL((&event->ne_event.nk_header.dh_waitlisthead),
-	    (&w.wb_waitlist));
+	if (rval == STATUS_TIMEOUT)
+		return(FALSE);
 
-	tv.tv_sec = 0;
-	tv.tv_usec = msecs * 1000;
-
-	w.wb_kthread = td;
-	w.wb_object = &event->ne_event.nk_header;
-
-	mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
-
-	if (td->td_proc->p_flag & P_KTHREAD)
-		error = kthread_suspend(td->td_proc, tvtohz(&tv));
-	else
-		error = tsleep(td, PPAUSE|PCATCH, "ndiswe", tvtohz(&tv));
-
-	mtx_pool_lock(ndis_mtxpool, ntoskrnl_dispatchlock);
-
-	REMOVE_LIST_ENTRY((&w.wb_waitlist));
-
-	mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
-
-	return(event->ne_event.nk_header.dh_sigstate);
+	return(TRUE);
 }
 
 __stdcall static ndis_status

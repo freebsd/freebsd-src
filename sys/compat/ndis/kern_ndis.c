@@ -1152,7 +1152,6 @@ ndis_halt_nic(arg)
 	ndis_handle		adapter;
 	__stdcall ndis_halt_handler	haltfunc;
 	struct ifnet		*ifp;
-	struct ndis_timer_entry	*ne;
 
 	sc = arg;
 	ifp = &sc->arpcom.ac_if;
@@ -1178,14 +1177,6 @@ ndis_halt_nic(arg)
 	NDIS_LOCK(sc);
 	sc->ndis_block.nmb_miniportadapterctx = NULL;
 	NDIS_UNLOCK(sc);
-	/* Clobber all the timers in case the driver left one running. */
-
-	while (!TAILQ_EMPTY(&sc->ndis_block.nmb_timerlist)) {
-		ne = TAILQ_FIRST(&sc->ndis_block.nmb_timerlist);
-		TAILQ_REMOVE(&sc->ndis_block.nmb_timerlist, ne, link);
-		callout_stop(&ne->nte_ch);
-		free(ne, M_DEVBUF);
-	}
 
 	return(0);
 }

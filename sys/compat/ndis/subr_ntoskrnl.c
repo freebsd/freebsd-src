@@ -80,25 +80,11 @@ __stdcall static void *ntoskrnl_iobuildsynchfsdreq(uint32_t, void *,
 	void *, uint32_t, uint32_t *, void *, void *);
 __stdcall static uint32_t ntoskrnl_iofcalldriver(/*void *, void * */ void);
 __stdcall static void ntoskrnl_iofcompletereq(/*void *, uint8_t*/ void);
-__stdcall static uint32_t ntoskrnl_waitforobj(nt_dispatch_header *, uint32_t,
-	uint32_t, uint8_t, int64_t *);
 __stdcall static uint32_t ntoskrnl_waitforobjs(uint32_t,
 	nt_dispatch_header **, uint32_t, uint32_t, uint32_t, uint8_t,
 	int64_t *, wait_block *);
-__stdcall static void ntoskrnl_init_event(nt_kevent *, uint32_t, uint8_t);
-__stdcall static void ntoskrnl_clear_event(nt_kevent *);
-__stdcall static uint32_t ntoskrnl_read_event(nt_kevent *);
-__stdcall static uint32_t ntoskrnl_set_event(nt_kevent *, uint32_t, uint8_t);
-__stdcall static uint32_t ntoskrnl_reset_event(nt_kevent *);
+static void ntoskrnl_wakeup(void *);
 static void ntoskrnl_timercall(void *);
-__stdcall static void ntoskrnl_init_dpc(kdpc *, void *, void *);
-__stdcall static void ntoskrnl_init_timer(ktimer *);
-__stdcall static void ntoskrnl_init_timer_ex(ktimer *, uint32_t);
-__stdcall static uint8_t ntoskrnl_set_timer(ktimer *, int64_t, kdpc *);
-__stdcall static uint8_t ntoskrnl_set_timer_ex(ktimer *, int64_t,
-	uint32_t, kdpc *);
-__stdcall static uint8_t ntoskrnl_cancel_timer(ktimer *);
-__stdcall static uint8_t ntoskrnl_read_timer(ktimer *);
 __stdcall static void ntoskrnl_writereg_ushort(uint16_t *, uint16_t);
 __stdcall static uint16_t ntoskrnl_readreg_ushort(uint16_t *);
 __stdcall static void ntoskrnl_writereg_ulong(uint32_t *, uint32_t);
@@ -325,7 +311,7 @@ ntoskrnl_iofcompletereq(/*irp, prioboost*/)
 	return;
 }
 
-void
+static void
 ntoskrnl_wakeup(arg)
 	void			*arg;
 {
@@ -430,7 +416,7 @@ ntoskrnl_time(tval)
  * EINVAL, we need to use tsleep() instead.
  */
 
-__stdcall static uint32_t
+__stdcall uint32_t
 ntoskrnl_waitforobj(obj, reason, mode, alertable, duetime)
 	nt_dispatch_header	*obj;
 	uint32_t		reason;
@@ -1448,7 +1434,7 @@ ntoskrnl_read_mutex(kmutex)
 	return(kmutex->km_header.dh_sigstate);
 }
 
-__stdcall static void
+__stdcall void
 ntoskrnl_init_event(kevent, type, state)
 	nt_kevent		*kevent;
 	uint32_t		type;
@@ -1461,7 +1447,7 @@ ntoskrnl_init_event(kevent, type, state)
 	return;
 }
 
-__stdcall static uint32_t
+__stdcall uint32_t
 ntoskrnl_reset_event(kevent)
 	nt_kevent		*kevent;
 {
@@ -1475,7 +1461,7 @@ ntoskrnl_reset_event(kevent)
 	return(prevstate);
 }
 
-__stdcall static uint32_t
+__stdcall uint32_t
 ntoskrnl_set_event(kevent, increment, kwait)
 	nt_kevent		*kevent;
 	uint32_t		increment;
@@ -1489,7 +1475,7 @@ ntoskrnl_set_event(kevent, increment, kwait)
 	return(prevstate);
 }
 
-__stdcall static void
+__stdcall void
 ntoskrnl_clear_event(kevent)
 	nt_kevent		*kevent;
 {
@@ -1497,7 +1483,7 @@ ntoskrnl_clear_event(kevent)
 	return;
 }
 
-__stdcall static uint32_t
+__stdcall uint32_t
 ntoskrnl_read_event(kevent)
 	nt_kevent		*kevent;
 {
@@ -1669,7 +1655,11 @@ ntoskrnl_timercall(arg)
 
 	/*
 	 * If this is a periodic timer, re-arm it
-	 * so it will fire again.
+	 * so it will fire again. We do this before
+	 * calling any deferred procedure calls because
+	 * it's possible the DPC might cancel the timer,
+	 * in which case it would be wrong for us to
+	 * re-arm it again afterwards.
 	 */
 
 	if (timer->k_period) {
@@ -1690,7 +1680,7 @@ ntoskrnl_timercall(arg)
 	return;
 }
 
-__stdcall static void
+__stdcall void
 ntoskrnl_init_timer(timer)
 	ktimer			*timer;
 {
@@ -1706,7 +1696,7 @@ ntoskrnl_init_timer(timer)
 	return;
 }
 
-__stdcall static void
+__stdcall void
 ntoskrnl_init_timer_ex(timer, type)
 	ktimer			*timer;
 	uint32_t		type;
@@ -1723,7 +1713,7 @@ ntoskrnl_init_timer_ex(timer, type)
 	return;
 }
 
-__stdcall static void
+__stdcall void
 ntoskrnl_init_dpc(dpc, dpcfunc, dpcctx)
 	kdpc			*dpc;
 	void			*dpcfunc;
@@ -1738,7 +1728,7 @@ ntoskrnl_init_dpc(dpc, dpcfunc, dpcctx)
 	return;
 }
 
-__stdcall static uint8_t
+__stdcall uint8_t
 ntoskrnl_set_timer_ex(timer, duetime, period, dpc)
 	ktimer			*timer;
 	int64_t			duetime;
@@ -1784,7 +1774,7 @@ ntoskrnl_set_timer_ex(timer, duetime, period, dpc)
 	return(pending);
 }
 
-__stdcall static uint8_t
+__stdcall uint8_t
 ntoskrnl_set_timer(timer, duetime, dpc)
 	ktimer			*timer;
 	int64_t			duetime;
@@ -1793,7 +1783,7 @@ ntoskrnl_set_timer(timer, duetime, dpc)
 	return (ntoskrnl_set_timer_ex(timer, duetime, 0, dpc));
 }
 
-__stdcall static uint8_t
+__stdcall uint8_t
 ntoskrnl_cancel_timer(timer)
 	ktimer			*timer;
 {
@@ -1813,7 +1803,7 @@ ntoskrnl_cancel_timer(timer)
 	return(pending);
 }
 
-__stdcall static uint8_t
+__stdcall uint8_t
 ntoskrnl_read_timer(timer)
 	ktimer			*timer;
 {
