@@ -24,7 +24,7 @@
 SUBDIR=	${_csu} libcom_err libcrypt libkvm msun libmd \
 	libncurses libradius librpcsvc libsbuf libtacplus libutil libypclnt \
 	${_compat} libalias libatm ${_libbind} libbz2 libc ${_libc_r} \
-	libcalendar libcam libcompat libdevinfo libdevstat libdisk \
+	libcalendar libcam libcompat libdevinfo libdevstat ${_libdisk} \
 	libedit libexpat libfetch libform libftpio libgeom ${_libio} libipsec \
 	libipx libisc libmenu ${_libmilter} ${_libmp} ${_libncp} \
 	libnetgraph libopie libpam libpanel libpcap \
@@ -65,6 +65,10 @@ _libvgl=	libvgl
 .if ${MACHINE_ARCH} == "alpha"
 _libio=		libio
 _compat=	compat
+.endif
+
+.if ${MACHINE_ARCH} != "powerpc"
+_libdisk=libdisk
 .endif
 
 .if defined(RELEASEDIR) || \

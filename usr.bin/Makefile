@@ -12,6 +12,11 @@
 _xlint=	xlint
 .endif
 
+.if ${MACHINE_ARCH} != "powerpc"
+_gprof=	gprof
+_truss=	truss
+.endif
+
 SUBDIR=	alias \
 	apply \
 	asa \
@@ -68,7 +73,7 @@ SUBDIR=	alias \
 	gencat \
 	getconf \
 	getopt \
-	gprof \
+	${_gprof} \
 	head \
 	hesinfo \
 	hexdump \
@@ -171,7 +176,7 @@ SUBDIR=	alias \
 	tr \
 	true \
 	truncate \
-	truss \
+	${_truss} \
 	tset \
 	tsort \
 	tty \
