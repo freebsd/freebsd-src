@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.12 1995/04/20 05:08:31 wpaul Exp $
+ * $Id: kern_lkm.c,v 1.13 1995/05/30 08:05:30 rgrimes Exp $
  */
 
 /*
@@ -464,10 +464,13 @@ lkmcioctl(dev, cmd, data, flag)
  * Place holder for system call slots reserved for loadable modules.
  */
 int
-lkmnosys()
+lkmnosys(p, args, retval)
+	struct proc *p;
+	struct nosys_args *args;
+	int *retval;
 {
 
-	return(nosys());
+	return(nosys(p, args, retval));
 }
 
 /*
