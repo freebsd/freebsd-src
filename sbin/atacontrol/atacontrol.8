@@ -47,7 +47,7 @@
 .Ar channel
 .Nm
 .Ic create
-.Ar type [interleave] disk0 ... diskN
+.Ar type Oo Ar interleave Oc Ar disk0 ... diskN
 .Nm
 .Ic delete
 .Ar raid
@@ -114,32 +114,55 @@ Likewise are devices that show up during a reset, probed and attached.
 .It Ic create
 Create a
 .Ar type
-ATA RAID. The Type can be RAID0 (stripe), RAID1 (mirror), RAID0+1 or
-SPAN (JBOD). In case the RAID has a RAID0 component the 
+ATA RAID.
+The type can be
+.Cm RAID0
+(stripe),
+.Cm RAID1
+(mirror),
+.Cm RAID0+1
+or
+.Cm SPAN
+(JBOD).
+In case the RAID has a
+.Cm RAID0
+component,
+the
 .Ar interleave
-must be specified in number of sectors. The RAID will be created
+must be specified in number of sectors.
+The RAID will be created
 of the individual disks named
-.Ar disk0 ... diskN.    
+.Bk -words
+.Ar disk0 ... diskN .
+.Ek
 .Pp
 Although the ATA driver allows for creating an ATA RAID on disks with any
-controller, there are restrictions. It is only possible to boot on
-an array if its either located on a "real" ATA RAID controller like
+controller, there are restrictions.
+It is only possible to boot on
+an array if it is either located on a
+.Dq real
+ATA RAID controller like
 the Promise or Highpoint controllers, or if the RAID declared is of
-RAID1 or SPAN type, in case of a SPAN the partition to boot must 
+.Cm RAID1
+or
+.Cm SPAN
+type; in case of a
+.Cm SPAN ,
+the partition to boot must
 reside on the first disk in the SPAN.
 .It Ic delete
-Deletes a RAID array on a RAID capable ATA controller.
+Delete a RAID array on a RAID capable ATA controller.
 .It Ic rebuild
 Rebuild a RAID1 array on a RAID capable ATA controller.
 .It Ic status
 Get the status of an ATA RAID.
 .It Ic mode
-Without the two mode arguments the current transfer modes of both
+Without the two mode arguments, the current transfer modes of both
 devices are printed.
 If the mode arguments are given, the ATA driver
 is asked to change the transfer modes to those given.
 The ATA driver
-will reject modes that is not supported by the hardware.
+will reject modes that are not supported by the hardware.
 Modes are given like
 .Dq Li PIO3 ,
 .Dq Li udma2 ,
@@ -150,19 +173,26 @@ as argument (i.e.\&
 .Dq Li XXX ) ,
 and the mode will remain unchanged.
 .Pp
-Currently supported modes are :
-.Dq Li BIOSDMA ,
-.Dq Li PIO0 (alias BIOSPIO) ,
-.Dq Li PIO1 ,
-.Dq Li PIO2 ,
-.Dq Li PIO3 ,
-.Dq Li PIO4 ,
-.Dq Li WDMA2 ,
-.Dq Li UDMA2 (alias UDMA33) ,
-.Dq Li UDMA4 (alias UDMA66) ,
-.Dq Li UDMA5 (alias UDMA100)
+Currently supported modes are:
+.Cm BIOSDMA ,
+.Cm PIO0
+(alias
+.Cm BIOSPIO ) ,
+.Cm PIO1 , PIO2 , PIO3 , PIO4 ,
+.Cm WDMA2 ,
+.Cm UDMA2
+(alias
+.Cm UDMA33 ) ,
+.Cm UDMA4
+(alias
+.Cm UDMA66 ) ,
+.Cm UDMA5
+(alias
+.Cm UDMA100 )
 and
-.Dq Li UDMA6 (alias UDMA133) .
+.Cm UDMA6
+(alias
+.Cm UDMA133 ) .
 .It Ic info
 Show info about the attached devices on the
 .Ar channel .
@@ -182,23 +212,28 @@ Show info about all attached devices on all active controllers.
 .Sh EXAMPLES
 To see the devices' current access modes, use the command line:
 .Pp
-.Dl atacontrol mode 0
+.Dl "atacontrol mode 0"
 .Pp
 which results in the modes of the devices being displayed as a string
 like this:
-.Pp
-.Dl Master = WDMA2
-.Dl Slave  = PIO4
+.Bd -literal -offset indent
+Master = WDMA2
+Slave  = PIO4
+.Ed
 .Pp
 This means that ata0-master is in DMA mode,
 ata0-slave is in PIO mode,
 and so forth.
-You can set the mode with atacontrol and a string like the above,
+You can set the mode with
+.Nm
+and a string like the above,
 for example:
 .Pp
-.Dl atacontrol mode 0 PIO4 PIO4
+.Dl "atacontrol mode 0 PIO4 PIO4"
 .Pp
-The new modes are set as soon as the atacontrol command returns.
+The new modes are set as soon as the
+.Nm
+command returns.
 .Sh SEE ALSO
 .Xr ata 4
 .Sh HISTORY
