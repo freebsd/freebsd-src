@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1990, 1993
+ * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
  * All or some portions of this file are derived from material licensed
@@ -35,8 +35,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)acct.h	8.2 (Berkeley) 1/21/94
- * $Id: acct.h,v 1.4 1994/09/26 21:09:15 davidg Exp $
+ *	@(#)acct.h	8.4 (Berkeley) 1/9/95
+ * $Id: acct.h,v 1.7 1996/02/25 09:30:11 hsu Exp $
  */
 
 #ifndef _SYS_ACCT_H_
@@ -47,26 +47,27 @@
  * exponent, 13 bit fraction ``floating point'' number.  Units are 1/AHZ
  * seconds.
  */
-typedef u_short comp_t;
+typedef u_int16_t comp_t;
 
 #define AC_COMM_LEN 16
 struct acct {
-	char	ac_comm[AC_COMM_LEN];	/* command name */
-	comp_t	ac_utime;	/* user time */
-	comp_t	ac_stime;	/* system time */
-	comp_t	ac_etime;	/* elapsed time */
-	time_t	ac_btime;	/* starting time */
-	uid_t	ac_uid;		/* user id */
-	gid_t	ac_gid;		/* group id */
-	short	ac_mem;		/* average memory usage */
-	comp_t	ac_io;		/* count of IO blocks */
-	dev_t	ac_tty;		/* controlling tty */
-#define	AFORK	0x01			/* forked but not execed */
+	char	  ac_comm[AC_COMM_LEN];	/* command name */
+	comp_t	  ac_utime;		/* user time */
+	comp_t	  ac_stime;		/* system time */
+	comp_t	  ac_etime;		/* elapsed time */
+	time_t	  ac_btime;		/* starting time */
+	uid_t	  ac_uid;		/* user id */
+	gid_t	  ac_gid;		/* group id */
+	u_int16_t ac_mem;		/* average memory usage */
+	comp_t	  ac_io;		/* count of IO blocks */
+	dev_t	  ac_tty;		/* controlling tty */
+
+#define	AFORK	0x01			/* forked but not exec'ed */
 #define	ASU	0x02			/* used super-user permissions */
 #define	ACOMPAT	0x04			/* used compatibility mode */
 #define	ACORE	0x08			/* dumped core */
 #define	AXSIG	0x10			/* killed by a signal */
-	char	ac_flag;	/* accounting flags */
+	u_int8_t  ac_flag;		/* accounting flags */
 };
 
 /*
@@ -75,4 +76,8 @@ struct acct {
  */
 #define	AHZ	64
 
+#ifdef KERNEL
+int	acct_process __P((struct proc *p));
 #endif
+
+#endif /* !_SYS_ACCT_H_ */
