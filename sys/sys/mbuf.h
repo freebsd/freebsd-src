@@ -493,11 +493,11 @@ struct	mbuf *
  * a private cookie value so that packet tag-related definitions
  * can be maintained privately.
  *
- * Note that the packet tag returned by m_tag_allocate has the default
+ * Note that the packet tag returned by m_tag_alloc has the default
  * memory alignment implemented by malloc.  To reference private data
  * one can use a construct like:
  *
- *	struct m_tag *mtag = m_tag_allocate(...);
+ *	struct m_tag *mtag = m_tag_alloc(...);
  *	struct foo *p = (struct foo *)(mtag+1);
  *
  * if the alignment of struct m_tag is sufficient for referencing members
@@ -508,7 +508,7 @@ struct	mbuf *
  *		struct m_tag	tag;
  *		...
  *	};
- *	struct foo *p = (struct foo *) m_tag_allocate(...);
+ *	struct foo *p = (struct foo *) m_tag_alloc(...);
  *	struct m_tag *mtag = &p->tag;
  */
 
