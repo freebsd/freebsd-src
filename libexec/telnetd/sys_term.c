@@ -971,7 +971,7 @@ struct termspeeds {
 	{ 4800,  B4800 }, { 9600,  B9600 }, { 19200, B9600 },
 	{ 38400, B9600 }, { -1,    B9600 }
 };
-#endif	/* DECODE_BUAD */
+#endif	/* DECODE_BAUD */
 
 	void
 tty_tspeed(val)
@@ -983,9 +983,9 @@ tty_tspeed(val)
 	for (tp = termspeeds; (tp->speed != -1) && (val > tp->speed); tp++)
 		;
 	cfsetospeed(&termbuf, tp->value);
-#else	/* DECODE_BUAD */
+#else	/* DECODE_BAUD */
 	cfsetospeed(&termbuf, val);
-#endif	/* DECODE_BUAD */
+#endif	/* DECODE_BAUD */
 }
 
 	void
