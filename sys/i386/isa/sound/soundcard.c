@@ -26,8 +26,12 @@
  * SUCH DAMAGE.
  * 
  */
+#include "opt_devfs.h"
 
 #include <i386/isa/sound/sound_config.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /* DEVFS */
 
 #if NSND > 0	/* from "snd.h" */
 #include <vm/vm.h>
@@ -446,8 +450,34 @@ sndattach(struct isa_device * dev)
 	dev = makedev(CDEV_MAJOR, 0);
 	cdevsw_add(&dev, &snd_cdevsw, NULL);
     }
-
-
+#ifdef DEVFS
+    if (dev->id_driver == &opldriver)
+	devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_SEQ,
+			 DV_CHR, UID_ROOT, GID_WHEEL, 0666,
+			 "sequencer%n", dev->id_unit);
+    else if (dev->id_driver == &mpudriver || dev->id_driver == &sbmididriver ||
+	     dev->id_driver == &uartdriver)
+	devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_MIDIN,
+			 DV_CHR, UID_ROOT, GID_WHEEL, 0666,
+			 "midi%n", dev->id_unit);
+    else {
+	devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_DSP,
+			 DV_CHR, UID_ROOT, GID_WHEEL, 0666,
+			 "dsp%n", dev->id_unit);
+	devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_DSP16,
+			 DV_CHR, UID_ROOT, GID_WHEEL, 0666,
+			 "dspW%n", dev->id_unit);
+	devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_AUDIO,
+			 DV_CHR, UID_ROOT, GID_WHEEL, 0666,
+			 "audio%n", dev->id_unit);
+	devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_CTL,
+			 DV_CHR, UID_ROOT, GID_WHEEL, 0666,
+			 "mixer%n", dev->id_unit);
+	devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_STATUS,
+			 DV_CHR, UID_ROOT, GID_WHEEL, 0666,
+			 "sndstat%n", dev->id_unit);
+    }
+#endif /* DEVFS */
     return TRUE;
 }
 
