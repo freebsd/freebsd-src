@@ -1,3 +1,16 @@
+1.8
+	many man page fixes from ru@freebsd.org and tobez@freebsd.org
+
+	snmpd/main.c: fix a problem which resulted in the daemon exiting
+	when a local socket was closed.
+
+	snmpd/trans_lsock.c: include stdio.h to get a prototype for remove.
+
+	gensnmptree/gensnmptree.c: fix a compile error
+1.7a
+	fix core dump when config file cannot be opened (submitted by
+	Maxim Konovalov)
+
 1.7
 	snmpd: Move event library initialisation before reading of
 	config file (thanks to phk).

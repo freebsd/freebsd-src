@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/trans_lsock.c,v 1.5 2004/08/06 08:47:15 brandt Exp $
+ * $Begemot: bsnmp/snmpd/trans_lsock.c,v 1.6 2005/02/25 11:50:25 brandt_h Exp $
  *
  * Local domain socket transport
  */
@@ -34,6 +34,7 @@
 #include <sys/un.h>
 #include <sys/stat.h>
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <syslog.h>

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_mibII/mibII.c,v 1.20 2004/08/06 08:46:59 brandt Exp $
+ * $Begemot: bsnmp/snmp_mibII/mibII.c,v 1.21 2005/02/25 16:04:41 brandt_h Exp $
  *
  * Implementation of the standard interfaces and ip MIB.
  */
@@ -590,6 +590,7 @@ mibif_create(u_int sysindex, const char *name)
 	ifp->sysindex = sysindex;
 	strcpy(ifp->name, name);
 	strcpy(ifp->descr, name);
+	ifp->spec_oid = oid_zeroDotZero;
 
 	map = NULL;
 	if (!mib_if_is_dyn(ifp->name)) {

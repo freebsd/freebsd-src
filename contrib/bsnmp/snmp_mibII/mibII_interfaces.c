@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_mibII/mibII_interfaces.c,v 1.13 2004/08/06 08:47:01 brandt Exp $
+ * $Begemot: bsnmp/snmp_mibII/mibII_interfaces.c,v 1.14 2005/02/25 16:04:42 brandt_h Exp $
  *
  * Interfaces group.
  */
@@ -336,7 +336,7 @@ op_ifentry(struct snmp_context *ctx, struct snmp_value *value,
 		break;
 
 	  case LEAF_ifSpecific:
-		value->v.oid = oid_zeroDotZero;
+		value->v.oid = ifp->spec_oid;
 		break;
 	}
 	return (SNMP_ERR_NOERROR);
