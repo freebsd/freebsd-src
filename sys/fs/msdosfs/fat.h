@@ -71,11 +71,6 @@
  * than 4078 ((CLUST_RSRVS - CLUST_FIRST) & FAT12_MASK) then we've got a
  * 16 bit fat filesystem. While mounting, the result of this test is stored
  * in pm_fatentrysize.
- * GEMDOS-flavour (atari):
- * If the filesystem is on floppy we've got a 12 bit fat filesystem, otherwise
- * 16 bit. We check the d_type field in the disklabel struct while mounting
- * and store the result in the pm_fatentrysize. Note that this kind of
- * detection gets flakey when mounting a vnd-device.
  */
 #define	FAT12(pmp)	(pmp->pm_fatmask == FAT12_MASK)
 #define	FAT16(pmp)	(pmp->pm_fatmask == FAT16_MASK)
