@@ -37,12 +37,11 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrequest.c,v 1.24 1999/07/05 01:53:14 grog Exp grog $
+ * $Id: vinumrequest.c,v 1.29 1999/08/07 08:13:23 grog Exp $
  */
 
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
-#include <miscfs/specfs/specdev.h>
 #include <sys/resourcevar.h>
 
 enum requeststatus bre(struct request *rq,

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.115 1999/06/16 23:27:53 mckusick Exp $
+ * $Id: ufs_vnops.c,v 1.116 1999/07/13 18:20:13 mckusick Exp $
  */
 
 #include "opt_quota.h"
@@ -57,12 +57,12 @@
 #include <sys/dirent.h>
 #include <sys/lockf.h>
 #include <sys/poll.h>
+#include <sys/conf.h>
 
 #include <vm/vm_zone.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
-#include <miscfs/specfs/specdev.h>
 #include <miscfs/fifofs/fifo.h>
 
 #include <ufs/ufs/quota.h>

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.213 1999/07/20 09:47:44 phk Exp $
+ * $Id: vfs_subr.c,v 1.214 1999/07/26 06:25:17 alc Exp $
  */
 
 /*
@@ -46,7 +46,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
@@ -60,6 +59,7 @@
 #include <sys/domain.h>
 #include <sys/dirent.h>
 #include <sys/vmmeter.h>
+#include <sys/conf.h>
 
 #include <machine/limits.h>
 
@@ -75,8 +75,6 @@
 #include <vm/vnode_pager.h>
 #include <vm/vm_zone.h>
 #include <sys/sysctl.h>
-
-#include <miscfs/specfs/specdev.h>
 
 static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
 

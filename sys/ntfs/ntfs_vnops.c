@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs_vnops.c,v 1.4 1999/05/11 19:54:52 phk Exp $
+ *	$Id: ntfs_vnops.c,v 1.5 1999/05/12 09:43:06 semenu Exp $
  *
  */
 
@@ -72,7 +72,6 @@
 #include <ntfs/ntfs_inode.h>
 #include <ntfs/ntfs_subr.h>
 #include <ntfs/ntfs_extern.h>
-#include <miscfs/specfs/specdev.h>
 
 static int	ntfs_bypass __P((struct vop_generic_args *ap));
 static int	ntfs_read __P((struct vop_read_args *));

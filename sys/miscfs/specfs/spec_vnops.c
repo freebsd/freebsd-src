@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.89 1999/06/26 02:46:21 mckusick Exp $
+ * $Id: spec_vnops.c,v 1.90 1999/07/20 09:47:45 phk Exp $
  */
 
 #include <sys/param.h>
@@ -54,8 +54,6 @@
 #include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
 #include <vm/vm_extern.h>
-
-#include <miscfs/specfs/specdev.h>
 
 static int	spec_advlock __P((struct vop_advlock_args *));  
 static int	spec_badop __P((void));

@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.44 1999/05/08 06:40:00 phk Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.45 1999/05/31 11:28:02 phk Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.51 1997/11/17 15:36:58 ws Exp $	*/
 
 /*-
@@ -55,7 +55,6 @@
 #include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/vnode.h>
-#include <miscfs/specfs/specdev.h> /* XXX */	/* defines v_rdev */
 #include <sys/mount.h>
 #include <sys/buf.h>
 #include <sys/fcntl.h>

@@ -38,7 +38,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: raid5.c,v 1.15 1999/07/07 03:46:01 grog Exp grog $
+ * $Id: vinumraid5.c,v 1.1 1999/08/07 08:22:49 grog Exp $
  */
 /*
  * XXX To do:
@@ -48,7 +48,6 @@
 
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
-#include <miscfs/specfs/specdev.h>
 #include <sys/resourcevar.h>
 
 /*

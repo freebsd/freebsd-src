@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.86 1999/06/26 02:46:26 mckusick Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.87 1999/07/25 04:01:32 bde Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -59,7 +59,6 @@
 #include <sys/mount.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
-#include <miscfs/specfs/specdev.h> /* XXX */	/* defines v_rdev */
 #include <sys/malloc.h>
 #include <sys/dirent.h>
 #include <sys/signalvar.h>
