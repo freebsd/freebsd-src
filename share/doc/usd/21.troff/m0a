@@ -334,8 +334,11 @@ Output and Error Messages
 .de cl
 .ie \\n+(cl<\n(zz \{\
 .	po +\\n(.lu/\n(zzu
-.	rt\}
-.el \{.po 26i/27u\}
+.	rt
+.\}
+.el \{\
+.po 26i/27u
+.\}
 ..
 .nr cl 0 1
 .di zz
