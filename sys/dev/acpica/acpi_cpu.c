@@ -516,12 +516,11 @@ acpi_cpu_cx_cst(struct acpi_cpu_softc *sc)
 
     /* _CST is a package with a count and at least one Cx package. */
     top = (ACPI_OBJECT *)buf.Pointer;
-    if (!ACPI_PKG_VALID(top, 2)) {
+    if (!ACPI_PKG_VALID(top, 2) || acpi_PkgInt32(top, 0, &count) != 0) {
 	device_printf(sc->cpu_dev, "Invalid _CST package\n");
 	AcpiOsFree(buf.Pointer);
 	return (ENXIO);
     }
-    acpi_PkgInt32(sc->cpu_dev, top, 0, &count);
     if (count != top->Package.Count - 1) {
 	device_printf(sc->cpu_dev, "Invalid _CST state count (%d != %d)\n",
 	       count, top->Package.Count - 1);
@@ -537,15 +536,14 @@ acpi_cpu_cx_cst(struct acpi_cpu_softc *sc)
     cx_ptr = sc->cpu_cx_states;
     for (i = 0; i < count; i++) {
 	pkg = &top->Package.Elements[i + 1];
-	if (!ACPI_PKG_VALID(pkg, 4)) {
+	if (!ACPI_PKG_VALID(pkg, 4) ||
+	    acpi_PkgInt32(pkg, 1, &cx_ptr->type) != 0 ||
+	    acpi_PkgInt32(pkg, 2, &cx_ptr->trans_lat) != 0 ||
+	    acpi_PkgInt32(pkg, 3, &cx_ptr->power) != 0) {
+
 	    device_printf(sc->cpu_dev, "Skipping invalid Cx state package\n");
 	    continue;
 	}
-
-	/* Cx type, transition latency, power consumed. */
-	acpi_PkgInt32(sc->cpu_dev, pkg, 1, &cx_ptr->type);
-	acpi_PkgInt32(sc->cpu_dev, pkg, 2, &cx_ptr->trans_lat);
-	acpi_PkgInt32(sc->cpu_dev, pkg, 3, &cx_ptr->power);
 
 	/* Validate the state to see if we should use it. */
 	switch (cx_ptr->type) {
