@@ -2217,7 +2217,7 @@ thread_single_end(void)
 	td = curthread;
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	p->p_flag &= ~P_STOPPED_SINGLE;
+	p->p_flag &= ~(P_STOPPED_SINGLE | P_SINGLE_EXIT);
 	mtx_lock_spin(&sched_lock);
 	p->p_singlethread = NULL;
 	/*

@@ -162,6 +162,9 @@ exit1(struct thread *td, int rv)
 		 * Turn off threading support.
 		 */
 		p->p_flag &= ~P_SA;
+		mtx_lock_spin(&sched_lock);
+		td->td_flags &= ~TDF_SA;
+		mtx_unlock_spin(&sched_lock);
 		thread_single_end();	/* Don't need this any more. */
 	}
 
