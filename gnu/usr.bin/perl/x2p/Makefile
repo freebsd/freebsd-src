@@ -17,7 +17,6 @@ beforeinstall:
 		${DESTDIR}${BINDIR}
 
 afterinstall:
-	-mkdir -p ${DESTDIR}/usr/share/perl/sys
 	cd ${DESTDIR}/usr/include ; h2ph * sys/*
 
 .include "../../Makefile.inc"
