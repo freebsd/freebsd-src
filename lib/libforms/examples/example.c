@@ -49,6 +49,7 @@ main()
 	}
 	keypad(example.window, TRUE);
 
+	print_status("This is the status line");
 	while (!(res = update_form(&example)));
 
 	wclear(example.window);

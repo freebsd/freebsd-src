@@ -3,7 +3,7 @@ NOMAN = yet
 
 SRCS = example.c frm.tab.h
 
-CFLAGS = 
+CFLAGS = -g -static
 
 .if exists(${.CURDIR}/../obj)
 FORMDIR=${.CURDIR}/../obj
