@@ -1439,10 +1439,9 @@ m_move_pkthdr(struct mbuf *to, struct mbuf *from)
 int
 m_dup_pkthdr(struct mbuf *to, struct mbuf *from, int how)
 {
-	KASSERT((to->m_flags & M_EXT) == 0, ("m_dup_pkthdr: to has cluster"));
-
-	to->m_flags = from->m_flags & M_COPYFLAGS;
-	to->m_data = to->m_pktdat;
+	to->m_flags = (from->m_flags & M_COPYFLAGS) | (to->m_flags & M_EXT);
+	if ((to->m_flags & M_EXT) == 0)
+		to->m_data = to->m_pktdat;
 	to->m_pkthdr = from->m_pkthdr;
 	SLIST_INIT(&to->m_pkthdr.tags);
 	return (m_tag_copy_chain(to, from, how));
