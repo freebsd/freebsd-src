@@ -125,8 +125,10 @@ TUNABLE_INT("security.mac.lomac.revocation_enabled", &revocation_enabled);
 
 static int	mac_lomac_slot;
 #define	SLOT(l)	((struct mac_lomac *)LABEL_TO_SLOT((l), mac_lomac_slot).l_ptr)
+#define	SLOT_SET(l, val) (LABEL_TO_SLOT((l), mac_lomac_slot).l_ptr = (val))
 #define	PSLOT(l) ((struct mac_lomac_proc *)				\
     LABEL_TO_SLOT((l), mac_lomac_slot).l_ptr)
+#define	PSLOT_SET(l, val) (LABEL_TO_SLOT((l), mac_lomac_slot).l_ptr = (val))
 
 MALLOC_DEFINE(M_MACLOMAC, "lomac label", "MAC/LOMAC labels");
 
@@ -612,14 +614,14 @@ static void
 mac_lomac_init_label(struct label *label)
 {
 
-	SLOT(label) = lomac_alloc(M_WAITOK);
+	SLOT_SET(label, lomac_alloc(M_WAITOK));
 }
 
 static int
 mac_lomac_init_label_waitcheck(struct label *label, int flag)
 {
 
-	SLOT(label) = lomac_alloc(flag);
+	SLOT_SET(label, lomac_alloc(flag));
 	if (SLOT(label) == NULL)
 		return (ENOMEM);
 
@@ -630,8 +632,8 @@ static void
 mac_lomac_init_proc_label(struct label *label)
 {
 
-	PSLOT(label) = malloc(sizeof(struct mac_lomac_proc), M_MACLOMAC,
-	    M_ZERO | M_WAITOK);
+	PSLOT_SET(label, malloc(sizeof(struct mac_lomac_proc), M_MACLOMAC,
+	    M_ZERO | M_WAITOK));
 	mtx_init(&PSLOT(label)->mtx, "MAC/Lomac proc lock", NULL, MTX_DEF);
 }
 
@@ -640,7 +642,7 @@ mac_lomac_destroy_label(struct label *label)
 {
 
 	lomac_free(SLOT(label));
-	SLOT(label) = NULL;
+	SLOT_SET(label, NULL);
 }
 
 static void
@@ -649,7 +651,7 @@ mac_lomac_destroy_proc_label(struct label *label)
 
 	mtx_destroy(&PSLOT(label)->mtx);
 	FREE(PSLOT(label), M_MACLOMAC);
-	PSLOT(label) = NULL;
+	PSLOT_SET(label, NULL);
 }
 
 static int
