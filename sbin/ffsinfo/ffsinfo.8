@@ -42,7 +42,7 @@
 .Os
 .Sh NAME
 .Nm ffsinfo
-.Nd "dump all meta information of an existing ufs file system
+.Nd "dump all meta information of an existing ufs file system"
 .Sh SYNOPSIS
 .Nm
 .Op Fl L
@@ -115,6 +115,9 @@ indirect block dump
 This allows to change the output filename where the dump is written to.
 The current default is
 .Pa /var/tmp/ffsinfo .
+If
+.Fl
+is provided, output will be sent to stdout.
 .El
 .Sh EXAMPLES
 .Dl ffsinfo -l 1023 /dev/vinum/testvol
