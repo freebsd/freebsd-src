@@ -254,19 +254,7 @@ sem_unlink(const char *name)
 	return (ksem_unlink(name));
 }
 
-static void
-decrease_nwaiters(void *arg)
-{
-	sem_t *sem = (sem_t *)arg;
-
-	(*sem)->nwaiters--;
-	/*
-	 * this function is called from cancellation point,
-	 * the mutex should already be hold.
-	 */
-	_pthread_mutex_unlock(&(*sem)->lock);
-}
-
+int
 sem_wait(sem_t *sem)
 {
 	int	retval;
@@ -278,15 +266,11 @@ sem_wait(sem_t *sem)
 		goto RETURN;
 	}
 
-	_pthread_testcancel();
-
 	_pthread_mutex_lock(&(*sem)->lock);
 
 	while ((*sem)->count == 0) {
 		(*sem)->nwaiters++;
-		_pthread_cleanup_push(decrease_nwaiters);
-		pthread_cond_wait(&(*sem)->gtzero, &(*sem)->lock);
-		pthread_cleanup_pop(0);
+		_pthread_cond_wait(&(*sem)->gtzero, &(*sem)->lock);
 		(*sem)->nwaiters--;
 	}
 	(*sem)->count--;
