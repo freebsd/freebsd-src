@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.15.2.6 1995/05/31 22:22:44 jkh Exp $
+ * $Id: config.c,v 1.15.2.7 1995/05/31 23:51:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -266,7 +266,7 @@ configSysconfig(void)
 	    devp = deviceFind(NULL, DEVICE_TYPE_NETWORK);
 	    cnt = deviceCount(devp);
 	    for (j = 0; j < cnt; j++) {
-		if (devp[j]->private) {
+		if (devp[j]->private && strncmp(devp[j]->name, "cuaa", 4)) {
 		    char iname[64];
 
 		    snprintf(iname, 64, "%s%s", VAR_IFCONFIG, devp[j]->name);
