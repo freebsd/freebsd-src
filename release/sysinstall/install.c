@@ -650,6 +650,10 @@ installFixup(dialogMenuItem *self)
 	Mkdir("/var/db");
 	creat("/var/db/mountdtab", 0644);
 
+	/* BOGON #4: We need a default /etc/sendmail.cw right now */
+	if (!file_readable("/etc/sendmail.cw"))
+	    vsystem("touch /etc/sendmail.cw");
+
 	/* Now run all the mtree stuff to fix things up */
         vsystem("mtree -deU -f /etc/mtree/BSD.root.dist -p /");
         vsystem("mtree -deU -f /etc/mtree/BSD.var.dist -p /var");
