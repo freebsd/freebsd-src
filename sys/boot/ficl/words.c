@@ -72,7 +72,6 @@ static FICL_WORD *pUnLinkParen  = NULL;
 static int nLocals = 0;
 #endif
 
-
 /*
 ** C O N T R O L   S T R U C T U R E   B U I L D E R S
 **
@@ -430,6 +429,8 @@ static void colon(FICL_VM *pVM)
 {
     FICL_DICT *dp = ficlGetDict();
     STRINGINFO si = vmGetWord(pVM);
+
+    dictCheckThreshold(dp);
 
     pVM->state = COMPILE;
     markControlTag(pVM, colonTag);
@@ -4472,6 +4473,18 @@ static void dnegate(FICL_VM *pVM)
     return;
 }
 
+/******************* Increase dictionary size on-demand ******************/
+
+static void ficlDictThreshold(FICL_VM *pVM)
+{
+    stackPushPtr(pVM->pStack, &dictThreshold);
+}
+
+static void ficlDictIncrease(FICL_VM *pVM)
+{
+    stackPushPtr(pVM->pStack, &dictIncrease);
+}
+
 /************************* freebsd added trace ***************************/
 
 #ifdef FICL_TRACE
@@ -4658,6 +4671,8 @@ void ficlCompileCore(FICL_DICT *dp)
     dictAppendWord(dp, "ms",        ms,             FW_DEFAULT);
     dictAppendWord(dp, "seconds",   pseconds,       FW_DEFAULT);
     dictAppendWord(dp, "heap?",     freeHeap,       FW_DEFAULT);
+    dictAppendWord(dp, "dictthreshold", ficlDictThreshold, FW_DEFAULT);
+    dictAppendWord(dp, "dictincrease", ficlDictIncrease, FW_DEFAULT);
 #ifdef FICL_TRACE
     dictAppendWord(dp, "trace!",    ficlTrace,      FW_DEFAULT);
 #endif
