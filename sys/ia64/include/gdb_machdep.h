@@ -40,15 +40,9 @@ gdb_cpu_regsz(int regnum)
 	return ((regnum >= 128 && regnum < 256) ? 16 : 8);
 }
 
-static __inline int
-gdb_cpu_signal(int vector, int dummy __unused)
-{
-	/* Add 100 so GDB won't translate the vector into signal names. */
-	return (vector + 100);
-}
-
 void *gdb_cpu_getreg(int, size_t *);
 void gdb_cpu_setreg(int, register_t);
+int gdb_cpu_signal(int, int);
 int gdb_cpu_query(void);
 
 #endif /* !_MACHINE_GDB_MACHDEP_H_ */
