@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id$
+ *	$Id: tcp_subr.c,v 1.34 1997/02/22 09:41:41 peter Exp $
  */
 
 #include <sys/param.h>
@@ -107,7 +107,7 @@ tcp_init()
 	tcp_cleartaocache();
 	LIST_INIT(&tcb);
 	tcbinfo.listhead = &tcb;
-	tcbinfo.hashbase = phashinit(TCBHASHSIZE, M_PCB, &tcbinfo.hashsize);
+	tcbinfo.hashbase = hashinit(TCBHASHSIZE, M_PCB, &tcbinfo.hashmask);
 	if (max_protohdr < sizeof(struct tcpiphdr))
 		max_protohdr = sizeof(struct tcpiphdr);
 	if (max_linkhdr + sizeof(struct tcpiphdr) > MHLEN)
