@@ -55,7 +55,7 @@ system. It uses normal CPU instruction plus a handful of privileged
 instructions specific for PAL use. PAL is not microcode by the way. 
 The ARC firmware contains a different PAL code, geared towards WinNT and in
 no way suitable for use by FreeBSD (or more generic: Unix or OpenVMS).
-Before someone asks: AlphaLinux brings it's own PAL code, allowing it to
+Before someone asks: AlphaLinux brings its own PAL code, allowing it to
 boot. There are various reasons why this is not a very good idea in the
 eyes of the *BSD folks. I don't want to go into details here.
 
@@ -263,7 +263,7 @@ console use according to reports I have received.
 Hot:
 Multias are somewhat notorious for dying of heat strokes. The very compact
 box does not really allow cooling air access very well. Please use the 
-Multia on it's vertical stand, don't put it horizontally ('pizza style').
+Multia on its vertical stand, don't put it horizontally ('pizza style').
 Replacing the fan with something which pushes around more air is
 wholeheartedly recommended. Beware of PCI cards with high power consumption.
 
@@ -431,7 +431,7 @@ DEC3000/300-class is the lower-cost workstation class.
 
 DEC3000/500-class are quite fast (considering their age) thanks to the 
 good memory design. DEC3000/300 is crippled compared to DEC3000/500 because
-of it's much narrower memory bus.
+of its much narrower memory bus.
 
 They are called 'Birds' because their internal DEC codenames were bird
 names:
@@ -559,7 +559,7 @@ contain:
 *Evaluation Board 64plus ("EB64+"), Aspen Alpine
 *
 
-In it's attempts to popularize the Alpha CPU DEC produced a number of so
+In its attempts to popularise the Alpha CPU DEC produced a number of so
 called Evaluation Boards. The EB64+ family boards have the following feature
 set:
 
@@ -615,7 +615,7 @@ For the EB64+ class machines the kernel config file must contain:
 
 EB164 is a newer design evaluation board, based on the 21164A CPU. This
 design has been used to 'spin off' multiple variations, some of which are
-used by OEM manufacturers/assembly shops. Samsung did it's own PC164LX
+used by OEM manufacturers/assembly shops. Samsung did its own PC164LX
 which has only 32 bit PCI, whereas the DEC variant has 64 bit PCI.
 
 Features:
@@ -649,7 +649,7 @@ based on Symbios chips, are not bootable by the PC164SX SRM.
 PC164SX is reported to boot fine with an NCR875 based card.
 
 SRM quirks:
-PC164 the SRM sometimes seems to loose it's variable settings. 
+PC164 the SRM sometimes seems to loose its variable settings. 
 "For PC164's, current superstition says that, to avoid losing settings,
 you want to first downgrade to SRM 4.x and then upgrade to a 5.x"
 
@@ -781,7 +781,7 @@ Features:
 
 SCSI:
 Early machines had Fast SCSI interfaces, later ones are Ultra SCSI capable.
-AS500 shares it's single SCSI bus with internal and external devices. For a
+AS500 shares its single SCSI bus with internal and external devices. For a
 Fast SCSI bus you are limited to 1.8 meters bus length external to the box.
 +++ This is what some DEC docs suggest. Did they ever go Ultra?
 
@@ -797,7 +797,7 @@ are installed in sets of 8. Both memory daughter cards must be populated
 identical. 
 
 PCI:
-AS600 has a peculiarity for it's PCI slots. AS600 (or rather the PCI
+AS600 has a peculiarity for its PCI slots. AS600 (or rather the PCI
 expansion card containing the SCSI adapters) does not allow I/O port 
 mapping, therefore all devices behind it must use memory mapping.  
 If you have problems getting the SCSI adapters to work, add the following 
