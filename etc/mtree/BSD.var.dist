@@ -1,4 +1,4 @@
-#	$Id: BSD.var.dist,v 1.36 1998/09/14 08:34:45 obrien Exp $
+#	$Id: BSD.var.dist,v 1.37 1998/09/19 18:50:27 obrien Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -21,7 +21,7 @@
         tabs
         ..
     ..
-    db              uname=root gname=wheel mode=0755
+    db              mode=0755
     ..
 /set type=dir uname=root gname=wheel mode=0755
     games                gname=games mode=0775
@@ -34,9 +34,10 @@
         phantasia        gname=games mode=0775
         ..
     ..
+/set type=dir uname=root gname=wheel mode=0755
     log
     ..
-    mail            uname=root gname=mail mode=0775
+    mail            gname=mail mode=0775
     ..
     msgs            uname=daemon
     ..
@@ -44,20 +45,20 @@
     ..
     run
     ..
-    rwho            uname=root gname=daemon mode=0775
+/set type=dir uname=root gname=daemon mode=0755
+    rwho            gname=daemon mode=0775
     ..
-/set type=dir uname=uucp gname=daemon mode=0755
-    spool           uname=root gname=wheel
-        lock            gname=dialer mode=0775
+    spool           gname=wheel
+        lock            uname=uucp gname=dialer mode=0775
         ..
-        lpd             uname=root
+        lpd
         ..
-        mqueue          uname=root
+        mqueue
         ..
-	opielocks       uname=root mode=0700
+	opielocks       mode=0700
 	..
-        output          uname=root
-	    lpd		    uname=root gname=daemon
+        output
+	    lpd
 	    ..
         ..
 /set type=dir uname=uucp gname=uucp mode=0775
@@ -81,6 +82,7 @@
         vi.recover
         ..
     ..
-    yp              mode=0755
+/set type=dir uname=root gname=wheel mode=0755
+    yp
     ..
 ..
