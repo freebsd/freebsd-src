@@ -59,6 +59,7 @@
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/uio.h>
+#include <sys/unistd.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -138,7 +139,7 @@ struct vnodeopv_entry_desc coda_vnodeop_entries[] = {
     { &vop_strategy_desc, coda_strategy },	/* strategy */
     { &vop_print_desc, coda_vop_error },	/* print */
     { &vop_islocked_desc, coda_islocked },	/* islocked */
-    { &vop_pathconf_desc, coda_vop_error },	/* pathconf */
+    { &vop_pathconf_desc, coda_pathconf },	/* pathconf */
     { &vop_advlock_desc, coda_vop_nop },	/* advlock */
     { &vop_lease_desc, coda_vop_nop },		/* lease */
     { &vop_poll_desc, (vop_t *) vop_stdpoll },
@@ -1976,4 +1977,31 @@ make_coda_node(fid, vfsp, type)
     }
 
     return cp;
+}
+
+int
+coda_pathconf(v)
+	void *v;
+{
+	struct vop_pathconf_args *ap;
+	int error;
+	int *retval;
+
+	ap = v;
+	retval = ap->a_retval;
+	error = 0;
+
+	switch (ap->a_name) {
+	case _PC_NAME_MAX:
+		*retval = CODA_MAXNAMLEN;
+		break;
+	case _PC_PATH_MAX:
+		*retval = CODA_MAXPATHLEN;
+		break;
+	default:
+		error = vop_stdpathconf(ap);
+		break;
+	}
+
+	return (error);
 }
