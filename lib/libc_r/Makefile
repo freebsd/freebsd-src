@@ -22,7 +22,6 @@ CFLAGS+=-D_PTHREADS_INVARIANTS
 
 PRECIOUSLIB=	yes
 
-.include "${.CURDIR}/man/Makefile.inc"
 .include "${.CURDIR}/uthread/Makefile.inc"
 .include "${.CURDIR}/sys/Makefile.inc"
 
