@@ -122,7 +122,9 @@ echo ""
 echo "network:"
 netstat -i
 echo ""
-ruptime
+if [ -d /var/rwho ] ; then
+	ruptime
+fi
 
 echo ""
 if [ -f /etc/Distfile ]; then
