@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.93 1996/06/10 01:56:18 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.94 1996/06/13 07:20:41 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -344,6 +344,7 @@
 	<item>Martin Renters &lt;martin@tdc.on.ca&gt;
 	<item>Michael Galassi &lt;nerd@percival.rain.com&gt;
 	<item>Mike Durkin &lt;mdurkin@tsoft.sf-bay.org&gt;
+	<item>Naoki Hamada &lt;nao@sbl.cl.nec.co.jp&gt;
 	<item>Nate Williams &lt;nate@bsd.coe.montana.edu&gt;
 	<item>Nick Handel &lt;nhandel@NeoSoft.com&gt; 
 	  &lt;nick@madhouse.neosoft.com&gt;
