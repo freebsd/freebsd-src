@@ -387,6 +387,7 @@ kqueue(struct thread *td, struct kqueue_args *uap)
 	error = falloc(td, &fp, &fd);
 	if (error)
 		goto done2;
+	/* An extra reference on `nfp' has been held for us by falloc(). */
 	kq = malloc(sizeof(struct kqueue), M_KQUEUE, M_WAITOK | M_ZERO);
 	TAILQ_INIT(&kq->kq_head);
 	FILE_LOCK(fp);
@@ -396,6 +397,7 @@ kqueue(struct thread *td, struct kqueue_args *uap)
 	TAILQ_INIT(&kq->kq_head);
 	fp->f_data = kq;
 	FILE_UNLOCK(fp);
+	fdrop(fp, td);
 	FILEDESC_LOCK(fdp);
 	td->td_retval[0] = fd;
 	if (fdp->fd_knlistsize < 0)
