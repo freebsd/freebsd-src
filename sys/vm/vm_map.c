@@ -1707,11 +1707,8 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			 * mark.
 			 */
 			vm_map_unlock(map);
-			if (user_wire)
-				rv = vm_fault_user_wire(map, saved_start,
-				    saved_end);
-			else
-				rv = vm_fault_wire(map, saved_start, saved_end);
+			rv = vm_fault_wire(map, saved_start, saved_end,
+			    user_wire);
 			vm_map_lock(map);
 			if (last_timestamp + 1 != map->timestamp) {
 				/*
