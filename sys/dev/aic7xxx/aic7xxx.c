@@ -5037,9 +5037,6 @@ ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
 	found = 0;
 	prev_scb = NULL;
 
-	if (bootverbose)
-		printf("qinpos = %d, qintail = %d\n", qinpos, qintail);
-
 	if (action == SEARCH_COMPLETE) {
 		/*
 		 * Don't attempt to run any queued untagged transactions
