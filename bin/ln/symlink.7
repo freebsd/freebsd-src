@@ -45,7 +45,7 @@ file.
 Hard links may not refer to directories and may not reference files
 on different file systems.
 A symbolic link contains the name of the file to which it is linked,
-i.e. it is a pointer to another name, and not to an underlying object.
+i.e., it is a pointer to another name, and not to an underlying object.
 For this reason, symbolic links may reference directories and may span
 file systems.
 .Pp
@@ -168,7 +168,7 @@ would display the contents of the file
 .Dq Li afile .
 .Pp
 It is important to realize that this rule includes commands which may
-optionally traverse file trees, e.g. the command
+optionally traverse file trees, e.g.\& the command
 .Dq Li "chown file"
 is included in this rule, while the command
 .Dq Li "chown -R file"
@@ -209,7 +209,7 @@ The
 command is also an exception to this rule.
 For compatibility with historic systems (when
 .Nm ls
-is not doing a tree walk, i.e. the
+is not doing a tree walk, i.e., the
 .Fl R
 option is not specified),
 the
@@ -224,7 +224,8 @@ or if the
 .Fl d
 or
 .Fl l
-options are not specified.  (The
+options are not specified.
+(The
 .Nm ls
 command is the only command where the
 .Fl H
@@ -412,14 +413,16 @@ options.
 To maintain compatibility with historic systems,
 the
 .Nm ls
-command acts a little differently.  If you do not specify the
+command acts a little differently.
+If you do not specify the
 .Fl F ,
 .Fl d
 or
 .Fl l
 options,
 .Nm ls
-will follow symbolic links specified on the command line.  If the
+will follow symbolic links specified on the command line.
+If the
 .Fl L
 flag is specified,
 .Nm ls

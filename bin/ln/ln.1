@@ -80,7 +80,8 @@ If the
 .Ar target_file
 or
 .Ar target_dir
-is a symbolic link, do not follow it.  This is most useful with the
+is a symbolic link, do not follow it.
+This is most useful with the
 .Fl f
 option, to replace a symlink which may point to a directory.
 .It Fl i
@@ -123,7 +124,8 @@ the file.
 Hard links may not normally refer to directories and may not span file systems.
 .Pp
 A symbolic link contains the name of the file to
-which it is linked.  The referenced file is used when an
+which it is linked.
+The referenced file is used when an
 .Xr open  2
 operation is performed on the link.
 A
