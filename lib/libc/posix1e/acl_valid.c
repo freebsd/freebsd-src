@@ -30,7 +30,9 @@
  */
 
 #include <sys/types.h>
+#include "namespace.h"
 #include <sys/acl.h>
+#include "un-namespace.h"
 #include <sys/errno.h>
 
 #include "acl_support.h"
@@ -93,5 +95,5 @@ acl_valid_fd_np(int fd, acl_type_t type, acl_t acl)
 		}
 	}
 
-	return (__acl_aclcheck_fd(fd, type, acl));
+	return (___acl_aclcheck_fd(fd, type, acl));
 }

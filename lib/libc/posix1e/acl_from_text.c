@@ -30,7 +30,9 @@
  */
 
 #include <sys/types.h>
+#include "namespace.h"
 #include <sys/acl.h>
+#include "un-namespace.h"
 #include <sys/errno.h>
 #include <stdio.h>
 #include <stdlib.h>

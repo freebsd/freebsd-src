@@ -29,7 +29,9 @@
 /* acl_delete_entry() - delete an ACL entry from an ACL */
 
 #include <sys/types.h>
+#include "namespace.h"
 #include <sys/acl.h>
+#include "un-namespace.h"
 #include <errno.h>
 #include <string.h>
 

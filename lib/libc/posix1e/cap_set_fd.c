@@ -30,11 +30,13 @@
  */
 
 #include <sys/types.h>
+#include "namespace.h"
 #include <sys/capability.h>
+#include "un-namespace.h"
 
 int
 cap_set_fd(int fd, cap_t cap_p)
 {
 
-	return (__cap_set_fd(fd, cap_p));
+	return (___cap_set_fd(fd, cap_p));
 }
