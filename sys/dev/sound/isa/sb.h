@@ -141,13 +141,6 @@
 #define	BD_F_MIDIBUSY	0x0400	/* midi busy */
 #endif
 #define	BD_F_ESS	0x0800	/* this is an ESS chip */
-/*
- * on some SB16 cards, at times I swap DMA channels. Remember this
- * so that they can be restored later.
- */
-#if 0
-#define	BD_F_SWAPPED	0x1000	/* have swapped DMA channels */
-#endif
 #define BD_F_DMARUN	0x2000
 #define BD_F_DMARUN2	0x4000
 
@@ -190,87 +183,5 @@
 #define SB16_IMASK_R	0x3e
 #define SB16_OMASK	0x3c
 
-/*
- * sound/sb_mixer.h
- *
- * Definitions for the SB Pro and SB16 mixers
- *
- * Copyright by Hannu Savolainen 1993
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met: 1. Redistributions of source code must retain the above copyright
- * notice, this list of conditions and the following disclaimer. 2.
- * Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * Modified: Hunyue Yau	Jan 6 1994 Added defines for the Sound Galaxy NX Pro
- * mixer.
- *
- */
 
-#define SBPRO_RECORDING_DEVICES	\
-    (SOUND_MASK_LINE | SOUND_MASK_MIC | SOUND_MASK_CD)
-
-#define SBPRO_MIXER_DEVICES	\
-    (SOUND_MASK_SYNTH | SOUND_MASK_PCM | SOUND_MASK_LINE | SOUND_MASK_MIC | \
-     SOUND_MASK_CD | SOUND_MASK_VOLUME)
-
-#define SB16_RECORDING_DEVICES	\
-    (SOUND_MASK_SYNTH | SOUND_MASK_LINE | SOUND_MASK_MIC | SOUND_MASK_CD)
-
-#define SB16_MIXER_DEVICES	\
-    (SOUND_MASK_SYNTH | SOUND_MASK_PCM | SOUND_MASK_SPEAKER | \
-     SOUND_MASK_LINE | SOUND_MASK_MIC | SOUND_MASK_CD | \
-     SOUND_MASK_IGAIN | SOUND_MASK_OGAIN | \
-     SOUND_MASK_VOLUME | SOUND_MASK_BASS | SOUND_MASK_TREBLE)
-
-#ifdef __SB_MIXER_C__
-mixer_tab       sbpro_mix = {
-    PMIX_ENT(SOUND_MIXER_VOLUME,  0x22, 4, 4, 0x22, 0, 4),
-    PMIX_ENT(SOUND_MIXER_SYNTH,   0x26, 4, 4, 0x26, 0, 4),
-    PMIX_ENT(SOUND_MIXER_PCM,     0x04, 4, 4, 0x04, 0, 4),
-    PMIX_ENT(SOUND_MIXER_LINE,    0x2e, 4, 4, 0x2e, 0, 4),
-    PMIX_ENT(SOUND_MIXER_MIC,     0x0a, 0, 3, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_CD,      0x28, 4, 4, 0x28, 0, 4),
-};
-
-mixer_tab       ess_mix = {
-    PMIX_ENT(SOUND_MIXER_VOLUME,  0x32, 4, 4, 0x32, 0, 4),
-    PMIX_ENT(SOUND_MIXER_SYNTH,   0x36, 4, 4, 0x26, 0, 4),
-    PMIX_ENT(SOUND_MIXER_PCM,     0x14, 4, 4, 0x04, 0, 4),
-    PMIX_ENT(SOUND_MIXER_SPEAKER, 0x3c, 0, 3, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_LINE,    0x3e, 4, 4, 0x2e, 0, 4),
-    PMIX_ENT(SOUND_MIXER_MIC,     0x1a, 4, 4, 0x1a, 0, 4),
-    PMIX_ENT(SOUND_MIXER_CD,      0x38, 4, 4, 0x28, 0, 4),
-};
-
-mixer_tab       sb16_mix = {
-    PMIX_ENT(SOUND_MIXER_VOLUME,  0x30, 3, 5, 0x31, 3, 5),
-    PMIX_ENT(SOUND_MIXER_BASS,    0x46, 4, 4, 0x47, 4, 4),
-    PMIX_ENT(SOUND_MIXER_TREBLE,  0x44, 4, 4, 0x45, 4, 4),
-    PMIX_ENT(SOUND_MIXER_SYNTH,   0x34, 3, 5, 0x35, 3, 5),
-    PMIX_ENT(SOUND_MIXER_PCM,     0x32, 3, 5, 0x33, 3, 5),
-    PMIX_ENT(SOUND_MIXER_SPEAKER, 0x3b, 6, 2, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_LINE,    0x38, 3, 5, 0x39, 3, 5),
-    PMIX_ENT(SOUND_MIXER_MIC,     0x3a, 3, 5, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_CD,      0x36, 3, 5, 0x37, 3, 5),
-    PMIX_ENT(SOUND_MIXER_IGAIN,   0x3f, 6, 2, 0x40, 6, 2),
-    PMIX_ENT(SOUND_MIXER_OGAIN,   0x41, 6, 2, 0x42, 6, 2)
-};
-
-#endif /* __SB_MIXER_C__ */
 

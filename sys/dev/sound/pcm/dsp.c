@@ -72,7 +72,6 @@ setchns(snddev_info *d, int chan)
 	KASSERT((d->flags & SD_F_PRIO_SET) != SD_F_PRIO_SET, \
 		("getchns: read and write both prioritised"));
 	d->flags |= SD_F_DIR_SET;
-	if (d->swap) d->swap(d->devinfo, (d->flags & SD_F_PRIO_WR)? PCMDIR_PLAY : PCMDIR_REC);
 }
 
 int
@@ -288,7 +287,7 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 			if (rdch && wrch)
 				p->formats |= (d->flags & SD_F_SIMPLEX)? 0 : AFMT_FULLDUPLEX;
 	    		p->mixers = 1; /* default: one mixer */
-	    		p->inputs = d->mixer.devs;
+	    		p->inputs = d->mixer->devs;
 	    		p->left = p->right = 100;
 		}
 		break;
@@ -417,7 +416,7 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 			if (rdch && ret == 0)
 				ret = chn_setformat(rdch, (*arg_i) | (rdch->format & AFMT_STEREO));
 		}
-		*arg_i = (wrch? wrch->format: rdch->format) & ~AFMT_STEREO;
+		*arg_i = (wrch? wrch->format : rdch->format) & ~AFMT_STEREO;
 		break;
 
     	case SNDCTL_DSP_SUBDIVIDE:

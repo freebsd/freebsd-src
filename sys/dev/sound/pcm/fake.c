@@ -28,16 +28,6 @@
 
 #include <dev/sound/pcm/sound.h>
 
-/* channel interface */
-static void *fkchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int fkchan_setdir(void *data, int dir);
-static int fkchan_setformat(void *data, u_int32_t format);
-static int fkchan_setspeed(void *data, u_int32_t speed);
-static int fkchan_setblocksize(void *data, u_int32_t blocksize);
-static int fkchan_trigger(void *data, int go);
-static int fkchan_getptr(void *data);
-static pcmchan_caps *fkchan_getcaps(void *data);
-
 static u_int32_t fk_fmt[] = {
 	AFMT_U8,
 	AFMT_STEREO | AFMT_U8,
@@ -53,22 +43,11 @@ static u_int32_t fk_fmt[] = {
 	AFMT_STEREO | AFMT_U16_BE,
 	0
 };
-static pcmchan_caps fk_caps = {4000, 48000, fk_fmt, 0};
-
-static pcm_channel fk_chantemplate = {
-	fkchan_init,
-	fkchan_setdir,
-	fkchan_setformat,
-	fkchan_setspeed,
-	fkchan_setblocksize,
-	fkchan_trigger,
-	fkchan_getptr,
-	fkchan_getcaps,
-};
+static pcmchan_caps fk_caps = {0, 1000000, fk_fmt, 0};
 
 /* channel interface */
 static void *
-fkchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+fkchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 {
 	b->bufsize = 16384;
 	b->buf = malloc(b->bufsize, M_DEVBUF, M_NOWAIT);
@@ -76,50 +55,66 @@ fkchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 }
 
 static int
-fkchan_setdir(void *data, int dir)
+fkchan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	return 0;
 }
 
 static int
-fkchan_setformat(void *data, u_int32_t format)
-{
-	return 0;
-}
-
-static int
-fkchan_setspeed(void *data, u_int32_t speed)
+fkchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	return speed;
 }
 
 static int
-fkchan_setblocksize(void *data, u_int32_t blocksize)
+fkchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	return blocksize;
 }
 
 static int
-fkchan_trigger(void *data, int go)
+fkchan_trigger(kobj_t obj, void *data, int go)
 {
 	return 0;
 }
 
 static int
-fkchan_getptr(void *data)
+fkchan_getptr(kobj_t obj, void *data)
 {
 	return 0;
 }
 
 static pcmchan_caps *
-fkchan_getcaps(void *data)
+fkchan_getcaps(kobj_t obj, void *data)
 {
 	return &fk_caps;
 }
 
+static kobj_method_t fkchan_methods[] = {
+    	KOBJMETHOD(channel_init,		fkchan_init),
+    	KOBJMETHOD(channel_setformat,		fkchan_setformat),
+    	KOBJMETHOD(channel_setspeed,		fkchan_setspeed),
+    	KOBJMETHOD(channel_setblocksize,	fkchan_setblocksize),
+    	KOBJMETHOD(channel_trigger,		fkchan_trigger),
+    	KOBJMETHOD(channel_getptr,		fkchan_getptr),
+    	KOBJMETHOD(channel_getcaps,		fkchan_getcaps),
+	{ 0, 0 }
+};
+CHANNEL_DECLARE(fkchan);
+
 int
 fkchan_setup(pcm_channel *c)
 {
-	*c = fk_chantemplate;
+	c->methods = kobj_create(&fkchan_class, M_DEVBUF, M_WAITOK);
 	return 0;
 }
+
+int
+fkchan_kill(pcm_channel *c)
+{
+	kobj_delete(c->methods, M_DEVBUF);
+	c->methods = NULL;
+	return 0;
+}
+
+
