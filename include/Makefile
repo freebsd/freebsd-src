@@ -7,9 +7,10 @@
 #
 all clean cleandir depend lint tags:
 
+#MISSING mp.h
 FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
 	err.h fnmatch.h fstab.h fts.h glob.h grp.h kvm.h limits.h locale.h \
-	math.h memory.h mp.h mpool.h ndbm.h netdb.h nlist.h paths.h pwd.h \
+	math.h memory.h mpool.h ndbm.h netdb.h nlist.h paths.h pwd.h \
 	ranlib.h regex.h regexp.h resolv.h rune.h runetype.h setjmp.h \
 	sgtty.h signal.h stab.h stddef.h stdio.h stdlib.h string.h strings.h \
 	struct.h sysexits.h tar.h time.h ttyent.h tzfile.h unistd.h utime.h \
@@ -18,8 +19,10 @@ FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
 MFILES=	float.h frame.h stdarg.h varargs.h
 LFILES=	errno.h fcntl.h syslog.h termios.h
 
-DIRS=arpa protocols
-LDIRS=	net netccitt netinet netiso netns nfs sys ufs vm
+DIRS=	arpa protocols
+LDIRS=	net netccitt netinet netiso netns nfs sys vm
+LUDIR=	ufs
+UDIRS=	ufs/ffs ufs/lfs ufs/mfs ufs/ufs
 
 NOOBJ=	noobj
 
@@ -27,7 +30,7 @@ NOOBJ=	noobj
 # source (``symlinks''), or a separate copy (``copies''); (latter useful
 # in environments where it's not possible to keep /sys publicly readable)
 # SHARED=	copies
-SHARED=	symlinks
+SHARED?=	symlinks
 
 install: ${SHARED}
 	@echo installing ${FILES}
@@ -65,31 +68,39 @@ install: ${SHARED}
 	done
 
 copies:
-	@echo copies: ${LDIRS}
-	@-for i in ${LDIRS}; do \
-		rm -rf ${DESTDIR}/usr/include/$$i; \
-		cd /sys; \
-		tar Hcf - $$i/*.h | (cd ${DESTDIR}/usr/include; tar xpfB -); \
+	rm -rf ${DESTDIR}/usr/include/${LUDIR}
+	@-for i in ${LDIRS} ${UDIRS}; do				\
+		echo ${SHARED} $$i;					\
+		rm -rf ${DESTDIR}/usr/include/$$i;			\
+		cd ../sys;						\
+		tar cf - $$i/*.h |					\
+			(cd ${DESTDIR}/usr/include; tar xpfB -);	\
+		chown -R ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/$$i;\
+		chmod -R 444 ${DESTDIR}/usr/include/$$i;		\
+		chmod 755 ${DESTDIR}/usr/include/$$i;			\
 	done
-	rm -f ${DESTDIR}/usr/include/machine
+	rm -rf ${DESTDIR}/usr/include/machine
 	mkdir ${DESTDIR}/usr/include/machine
-	cd /sys/${MACHINE}/include && \
-	    tar Hcf - *.h | (cd ${DESTDIR}/usr/include/machine; tar xpfB -);
-	rm -f ${DESTDIR}/usr/include/X11
-	mkdir ${DESTDIR}/usr/include/X11
-	cd /usr/X11/include/X11 && \
-	    tar Hcf - *.h | (cd ${DESTDIR}/usr/include/X11; tar xpfB -);
+	cd ../sys/${MACHINE}/include && \
+	    tar cf - *.h | (cd ${DESTDIR}/usr/include/machine; tar xpfB -);
+	chown -R ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/machine;
+	chmod -R 444 ${DESTDIR}/usr/include/machine;
+	chmod 755 ${DESTDIR}/usr/include/machine;
+#	rm -rf ${DESTDIR}/usr/include/X11
+#	mkdir ${DESTDIR}/usr/include/X11
+#	cd /usr/X11/include/X11 && \
+#	    tar cf - *.h | (cd ${DESTDIR}/usr/include/X11; tar xpfB -);
 
 symlinks:
-	@echo symlinks: ${LDIRS}
-	@for i in ${LDIRS}; do \
-		rm -rf ${DESTDIR}/usr/include/$$i; \
-		ln -s /sys/$$i ${DESTDIR}/usr/include/$$i; \
-		chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/$$i; \
+	@for i in ${LDIRS} ${LUDIR}; do					\
+		echo ${SHARED} $$i;					\
+		rm -rf ${DESTDIR}/usr/include/$$i;			\
+		ln -s /sys/$$i ${DESTDIR}/usr/include/$$i;		\
+		chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/$$i;	\
 	done
-	rm -f ${DESTDIR}/usr/include/machine
-	ln -s ${DESTDIR}/sys/${MACHINE}/include ${DESTDIR}/usr/include/machine
-	rm -f ${DESTDIR}/usr/include/X11
-	ln -s ${DESTDIR}/usr/X11/include/X11 ${DESTDIR}/usr/include/X11
+	rm -rf ${DESTDIR}/usr/include/machine
+	ln -s /sys/${MACHINE}/include ${DESTDIR}/usr/include/machine
+#	rm -rf ${DESTDIR}/usr/include/X11
+#	ln -s /usr/X11/include/X11 ${DESTDIR}/usr/include/X11
 
 .include <bsd.prog.mk>

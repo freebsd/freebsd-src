@@ -40,7 +40,7 @@
 #define	_PATH_DEFPATH	"/usr/bin:/bin"
 /* All standard utilities path. */
 #define	_PATH_STDPATH \
-	"/usr/bin:/bin:/usr/sbin:/sbin:/usr/contrib/bin:/usr/old/bin"
+	"/usr/bin:/bin:/usr/sbin:/sbin:"
 
 #define	_PATH_BSHELL	"/bin/sh"
 #define	_PATH_CONSOLE	"/dev/console"
@@ -56,7 +56,7 @@
 #define	_PATH_SENDMAIL	"/usr/sbin/sendmail"
 #define	_PATH_SHELLS	"/etc/shells"
 #define	_PATH_TTY	"/dev/tty"
-#define	_PATH_UNIX	"/vmunix"
+#define	_PATH_UNIX	"/kernel"
 #define	_PATH_VI	"/usr/bin/vi"
 
 /* Provide trailing slash, since mostly used for building pathnames. */
