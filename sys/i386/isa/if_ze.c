@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.58 1999/05/06 18:43:58 peter Exp $
+ * $Id: if_ze.c,v 1.59 1999/07/06 19:22:55 des Exp $
  */
 
 /* XXX don't mix different PCCARD support code. */
@@ -76,21 +76,6 @@ static char const zedummy[] = "code to use the includes of card.h and pcic.h";
 #include <sys/syslog.h>
 
 #include <net/if.h>
-
-#ifdef INET
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
-#endif
-
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
-#endif
-
-#ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-#endif
 
 #if NBPF > 0
 #include <net/bpf.h>
@@ -1331,81 +1316,17 @@ ze_ioctl(ifp, command, data)
 	u_long command;
 	caddr_t data;
 {
-	register struct ifaddr *ifa = (struct ifaddr *)data;
 	struct ze_softc *sc = ifp->if_softc;
 	int s, error = 0;
 
 	s = splnet();
 
 	switch (command) {
-
-	case SIOCSIFADDR:
-		ifp->if_flags |= IFF_UP;
-
-		switch (ifa->ifa_addr->sa_family) {
-#ifdef INET
-		case AF_INET:
-			ze_init(ifp->if_unit);	/* before arpwhohas */
-			arp_ifinit((struct arpcom*) ifp, ifa);
-			break;
-#endif
-#ifdef IPX
-		/*
-		 * XXX - This code is probably wrong
-		 */
-		case AF_IPX:
-		    {
-			register struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
-
-			if (ipx_nullhost(*ina))
-				ina->x_host =
-					*(union ipx_host *)(sc->arpcom.ac_enaddr);
-			else {
-				/* 
-				 * 
-				 */
-				bcopy((caddr_t)ina->x_host.c_host,
-				    (caddr_t)sc->arpcom.ac_enaddr,
-					sizeof(sc->arpcom.ac_enaddr));
-			}
-			/*
-			 * Set new address
-			 */
-			ze_init(ifp->if_unit);
-			break;
-		    }
-#endif
-#ifdef NS
-		/*
-		 * XXX - This code is probably wrong
-		 */
-		case AF_NS:
-		    {
-			register struct ns_addr *ina = &(IA_SNS(ifa)->sns_addr);
-
-			if (ns_nullhost(*ina))
-				ina->x_host =
-					*(union ns_host *)(sc->arpcom.ac_enaddr);
-			else {
-				/*
-				 *
-				 */
-				bcopy((caddr_t)ina->x_host.c_host,
-				    (caddr_t)sc->arpcom.ac_enaddr,
-					sizeof(sc->arpcom.ac_enaddr));
-			}
-			/*
-			 * Set new address
-			 */
-			ze_init(ifp->if_unit);
-			break;
-		    }
-#endif
-		default:
-			ze_init(ifp->if_unit);
-			break;
-		}
-		break;
+        case SIOCSIFADDR:
+        case SIOCGIFADDR:
+        case SIOCSIFMTU:
+                error = ether_ioctl(ifp, command, data);
+                break;
 
 	case SIOCSIFFLAGS:
 		/*
