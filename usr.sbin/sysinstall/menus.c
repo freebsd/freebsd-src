@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.17 1995/05/19 16:58:56 jkh Exp $
+ * $Id: menus.c,v 1.18 1995/05/20 00:13:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -161,13 +161,13 @@ of the following CDROM drives as your installation drive.",
 DMenu MenuMediaFloppy = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Choose a Floppy drive",
-    "FreeBSD can also be installed from floppy disk media,\n\
-though not without some pain.  You should have prepared your\n\
-floppy distribution media using the DOS floppy install-set\n\
-construction procedure or have otherwise prepared a set of\n\
-diskettes for each distribution that properly contains all the\n\
-components of the distribution plus the extraction and checksumming\n\
-scripts.",
+"FreeBSD can be installed from floppy disk media, though\n\
+not without some pain.  You should have prepared your floppy\n\
+distribution media using the DOS floppy install-set construction\n\
+procedure (available on the FreeBSD CDROM or the net under the\n\
+tools/dos directory) or have otherwise prepared a set of diskettes\n\
+for each distribution that properly contains all the components of\n\
+the distribution plus the extraction and checksumming scripts.",
     "Please select the floppy drive you want to use",
     NULL,
     { { "A", "Floppy drive A",		/* M */
@@ -444,8 +444,9 @@ DMenu MenuXF86SelectFonts = {
     DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "Font distribution selection.",
     "Please check off the individual font distributions you wish to\n\
-install.  At the minimum, you should certainly install the standard\n\
-75 DPI and misc fonts if you're also installing a server.",
+install.  At the minimum, you should install the standard\n\
+75 DPI and misc fonts if you're also installing a server\n\
+(these are selected by default).",
     NULL,
     NULL,
     { { "*fnts", "Standard 75 DPI and miscellaneous fonts [3.6MB]",
@@ -465,9 +466,9 @@ DMenu MenuXF86SelectServer = {
     DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "X Server selection.",
     "Please check off the types of X servers you wish to install.\n\
-If you are unsure as which server will work for your graphics card,\n\
+If you are unsure as to which server will work for your graphics card,\n\
 it is recommended that try the SVGA or VGA16 servers (the VGA16 and\n\
-Mono servers are also particularly well-suited to most LCD displays).",
+Mono servers are particularly well-suited to most LCD displays).",
     "xservers.hlp",
     "Press F1 for more information on the various X server types",
     { { "*SVGA", "Standard VGA or Super VGA display [1MB]",
