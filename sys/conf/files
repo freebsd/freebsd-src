@@ -87,6 +87,9 @@ ddb/db_write_cmd.c	optional ddb
 dev/advansys/advansys.c	optional adv device-driver
 dev/advansys/advlib.c	optional adv device-driver
 dev/advansys/advmcode.c	optional adv device-driver
+dev/advansys/adwcam.c	optional adw device-driver
+dev/advansys/adwlib.c	optional adw device-driver
+dev/advansys/adwmcode.c	optional adw device-driver
 dev/aha/aha.c		optional aha device-driver
 dev/aic7xxx/aic7xxx.c	optional ahc device-driver		\
 	dependency	"aic7xxx_{reg,seq}.h"
@@ -499,6 +502,7 @@ pccard/pccard_beep.c	optional card
 pccard/pcic.c		optional pcic device-driver
 pci/pcic_p.c		optional pcic device-driver
 pci/adv_pci.c		optional adv device-driver
+pci/adw_pci.c		optional adw device-driver
 pci/ahc_pci.c		optional ahc device-driver			\
 	dependency	"aic7xxx_reg.h $S/pci/ahc_pci.c"
 pci/brooktree848.c	optional bktr device-driver
