@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: kc.profile,v 1.6 1994/02/21 21:52:00 rgrimes Exp $
 #
 # rc for kernel distribution floppy
 
@@ -62,7 +62,7 @@ if [ X"$todo" = Xcopy ]; then
 	fi
 	echo    "done."
 	echo -n	"Copying kernel... "
-	cp /386bsd /mnt/386bsd
+	cp -p /kernel /mnt
 	if [ $? -ne 0 ]; then
 		echo "failed...  (?!?!?!)"
 		bail_out

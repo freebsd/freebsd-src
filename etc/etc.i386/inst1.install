@@ -861,7 +861,8 @@ put_fdisk_data
 echo
 echo -n "Labelling disk..."
 echo y | 
-/sbin/disklabel -w -r ${drivename} $name /usr/mdec/${drivetype}boot /usr/mdec/boot${drivetype} >/dev/null 2>&1
+/sbin/disklabel -w -r -B ${drivename} $name
+# >/dev/null 2>&1
 echo	" done."
 
 # XXX - Do it again, incase we disklabeled sector 0!
