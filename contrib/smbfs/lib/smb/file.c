@@ -30,6 +30,7 @@
  * SUCH DAMAGE.
  *
  * $Id: file.c,v 1.2 2001/04/16 04:33:01 bp Exp $
+ * $FreeBSD$
  */
 #include <sys/param.h>
 #include <sys/sysctl.h>
@@ -71,7 +72,7 @@ smb_write(struct smb_ctx *ctx, smbfh fh, off_t offset, size_t count,
 	struct smbioc_rw rwrq;
 
 	rwrq.ioc_fh = fh;
-	(const char*)rwrq.ioc_base = src;
+	rwrq.ioc_base = (char *)src;
 	rwrq.ioc_cnt = count;
 	rwrq.ioc_offset = offset;
 	if (ioctl(ctx->ct_fd, SMBIOC_WRITE, &rwrq) == -1)

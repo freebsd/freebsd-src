@@ -30,6 +30,7 @@
  * SUCH DAMAGE.
  *
  * $Id: rq.c,v 1.7 2001/04/16 04:33:01 bp Exp $
+ * $FreeBSD$
  */
 #include <sys/param.h>
 #include <sys/ioctl.h>
@@ -162,7 +163,7 @@ smb_t2_request(struct smb_ctx *ctx, int setup, int setupcount,
 	bzero(&krq, sizeof(krq));
 	krq.ioc_setup[0] = setup;
 	krq.ioc_setupcnt = setupcount;
-	(const char*)krq.ioc_name = name;
+	krq.ioc_name = (char *)name;
 	krq.ioc_tparamcnt = tparamcnt;
 	krq.ioc_tparam = tparam;
 	krq.ioc_tdatacnt = tdatacnt;
