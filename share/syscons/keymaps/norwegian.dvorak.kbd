@@ -11,10 +11,10 @@
   005   '4'    164    nop    nop    '$'    164    nop    nop     O
   006   '5'    '%'    nop    nop    '5'    '%'    nop    nop     O
   007   '6'    '&'     rs     rs    '6'    '&'    nop    nop     O
-  008   '7'    '/'    nop    nop    '7'    '/'    nop    nop     O
-  009   '8'    '('    nop    nop    '8'    '('    esc    esc     O
-  010   '9'    ')'    nop    nop    '9'    ')'    gs     gs      O
-  011   '0'    '='    nop    nop    '0'    '='    nop    nop     O
+  008   '7'    '/'    nop    nop    '{'    '/'    nop    nop     O
+  009   '8'    '('    nop    nop    '['    '('    esc    esc     O
+  010   '9'    ')'    nop    nop    ']'    ')'    gs     gs      O
+  011   '0'    '='    nop    nop    '}'    '='    nop    nop     O
   012   '+'    '?'    esc    esc    '['    '?'    nop    nop     O
   013   '\'    '`'    nop    nop    '''    nop    nop    nop     O
   014   bs     bs     del    del    bs     bs     del    del     O
@@ -46,7 +46,7 @@
   040   '-'    '_'    us     us     '-'    '_'    us     us      O
   041   '|'    167    nop    nop    166    182    nop    nop     O
   042   lshift lshift lshift lshift lshift lshift lshift lshift  O
-  043   248    216    nop    nop    '|'    '\'    nop    nop     C
+  043   '<'    '>'    nop    nop    '|'    '\'    nop    nop     C
   044   230    198    nop    nop    '{'    '['    nop    nop     C
   045   'q'    'Q'    dc1    dc1    'q'    'Q'    dc1    dc1     C
   046   'j'    'J'    nl     nl     'j'    'J'    nl     nl      C
