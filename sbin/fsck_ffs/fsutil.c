@@ -315,8 +315,11 @@ ckfini(int markclean)
 		errx(EEXIT, "panic: lost %d buffers", bufhead.b_size - cnt);
 	pbp = pdirbp = (struct bufarea *)0;
 	if (cursnapshot == 0 && sblock.fs_clean != markclean) {
-		if ((sblock.fs_clean = markclean) != 0)
+		if ((sblock.fs_clean = markclean) != 0) {
 			sblock.fs_flags &= ~(FS_UNCLEAN | FS_NEEDSFSCK);
+			sblock.fs_pendingblocks = 0;
+			sblock.fs_pendinginodes = 0;
+		}
 		sbdirty();
 		ofsmodified = fsmodified;
 		flush(fswritefd, &sblk);
