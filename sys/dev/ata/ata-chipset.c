@@ -376,7 +376,7 @@ ata_ali_setmode(struct ata_device *atadev, int mode)
 	    atadev->channel->devices & ATA_ATAPI_SLAVE) {
 	    /* doesn't support ATAPI DMA on two ATAPI devices */
 	    ata_prtdev(atadev, "two atapi devices on this channel, no DMA\n");
-	    ata_limit_mode(atadev, mode, ATA_PIO_MAX);
+	    mode = ata_limit_mode(atadev, mode, ATA_PIO_MAX);
 	}
     }
 
@@ -387,20 +387,25 @@ ata_ali_setmode(struct ata_device *atadev, int mode)
 		   (error) ? "failed" : "success", 
 		   ata_mode2str(mode), ctlr->chip->text);
     if (!error) {
+	if (ctlr->chip->cfg2 & ALICABLE) {
+	    if (mode > ATA_UDMA2)
+		pci_write_config(parent, 0x4b,
+				 pci_read_config(parent, 0x4b, 1) | 0x01, 1);
+	    else 
+		pci_write_config(parent, 0x4b,
+				 pci_read_config(parent, 0x4b, 1) & ~0x01, 1);
+	}
 	if (mode >= ATA_UDMA0) {
 	    u_int8_t udma[] = {0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x0f};
 	    u_int32_t word54 = pci_read_config(parent, 0x54, 4);
 
 	    pci_write_config(parent, 0x58 + (atadev->channel->unit << 2),
 			     0x00310001, 4);
-	
-		pci_write_config(parent, 0x4b,
-				 pci_read_config(parent, 0x4b, 1) | 0x01, 1);
-		word54 &= ~(0x000f000f << (devno << 2));
-		word54 |= (((udma[mode&ATA_MODE_MASK]<<16)|0x05)<<(devno<<2));
-		pci_write_config(parent, 0x54, word54, 4);
-		pci_write_config(parent, 0x53,
-				 pci_read_config(parent, 0x53, 1) | 0x03, 1);
+	    word54 &= ~(0x000f000f << (devno << 2));
+	    word54 |= (((udma[mode&ATA_MODE_MASK]<<16)|0x05)<<(devno<<2));
+	    pci_write_config(parent, 0x54, word54, 4);
+	    pci_write_config(parent, 0x53,
+			     pci_read_config(parent, 0x53, 1) | 0x03, 1);
 	}
 	else {
 	    u_int32_t piotimings[] =
