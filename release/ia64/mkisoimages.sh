@@ -32,7 +32,7 @@ hackery() {
     exit 2
 }
 
-MKISOFS_PORT=/usr/ports/sysutils/mkisofs
+MKISOFS_PORT=/usr/ports/sysutils/cdrtools
 
 if [ "x$1" = "x-b" ]; then
     bootable=yes
@@ -53,8 +53,8 @@ BASE=$1; shift
 
 if ! which mkisofs; then
     echo 'mkisofs(8) does not exist. Fetching the package...'
-    if ! pkg_add -r mkisofs; then
-	if [ -f /usr/ports/sysutils/mkisofs/Makefile ]; then
+    if ! pkg_add -r cdrtools; then
+	if [ -f /usr/ports/sysutils/cdrtools/Makefile ]; then
 	    echo "Don't worry; building the port..."
 	    if ! (cd $MKISOFS_PORT && make install && make clean); then
 		echo "Worry; reverting to hackery..."
