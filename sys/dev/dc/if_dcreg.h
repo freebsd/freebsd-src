@@ -671,6 +671,7 @@ struct dc_softc {
 #define DC_TX_STORENFWD		0x00000100
 #define DC_REDUCED_MII_POLL	0x00000200
 #define DC_TX_INTR_ALWAYS	0x00000400
+#define DC_21143_NWAY		0x00000800
 
 /*
  * register space access macros

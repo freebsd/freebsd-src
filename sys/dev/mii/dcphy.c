@@ -262,6 +262,7 @@ dcphy_service(sc, mii, cmd)
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
 		case IFM_AUTO:
 			/*dcphy_reset(sc);*/
+			sc->mii_flags &= ~MIIF_DOINGAUTO;
 			(void) dcphy_auto(sc, 0);
 			break;
 		case IFM_100_T4:
@@ -322,57 +323,21 @@ dcphy_service(sc, mii, cmd)
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			return (0);
 
-		if (sc->mii_flags & MIIF_DOINGAUTO) {
-			if (++sc->mii_ticks != 5)
-				return(0);
-			else {
-				sc->mii_ticks = 0;
-				sc->mii_flags &= ~MIIF_DOINGAUTO;
-				sc->mii_flags |= MIIF_AUTOTIMEOUT;
-			}
-		}
-
-		sc->mii_flags &= ~MIIF_DOINGAUTO;
-
-		/*
-		 * Check to see if we have link.  If we do, we don't
-		 * need to restart the autonegotiation process.  Read
-		 * the BMSR twice in case it's latched.
-		 */
 		reg = CSR_READ_4(dc_sc, DC_10BTSTAT) &
 		    (DC_TSTAT_LS10|DC_TSTAT_LS100);
 
-		if (IFM_SUBTYPE(mii->mii_media_active) == IFM_100_TX &&
-		    !(reg & DC_TSTAT_LS100)) {
-			if (sc->mii_flags & MIIF_AUTOTIMEOUT) {
-				sc->mii_flags &= ~MIIF_AUTOTIMEOUT;
-				break;
-			} else
-				return(0);
-		} else if (IFM_SUBTYPE(mii->mii_media_active) == IFM_10_T &&
-		    !(reg & DC_TSTAT_LS10)) {
-			if (sc->mii_flags & MIIF_AUTOTIMEOUT) {
-				sc->mii_flags &= ~MIIF_AUTOTIMEOUT;
-				break;
-			} else
-				return(0);
-		} else if (IFM_SUBTYPE(mii->mii_media_active) == IFM_NONE &&
-		    (!(reg & DC_TSTAT_LS10) || !(reg & DC_TSTAT_LS100))) {
-			if (sc->mii_flags & MIIF_AUTOTIMEOUT) {
-				sc->mii_flags &= ~MIIF_AUTOTIMEOUT;
-				break;
-			} else
-				return(0);
-		} else if (CSR_READ_4(dc_sc, DC_ISR) & DC_ISR_LINKGOOD) {
-			if (sc->mii_flags & MIIF_AUTOTIMEOUT) {
-				sc->mii_flags &= ~MIIF_AUTOTIMEOUT;
-				break;
-			} else
-				return(0);
-		}
+		if (!(reg & DC_TSTAT_LS10) || !(reg & DC_TSTAT_LS100))
+			return(0);
+
+                /*
+                 * Only retry autonegotiation every 5 seconds.
+                 */
+                if (++sc->mii_ticks != 50)
+                        return (0);
 
 		sc->mii_ticks = 0;
-		/*dcphy_reset(sc);*/
+		/*if (DC_IS_INTEL(dc_sc))*/
+			sc->mii_flags &= ~MIIF_DOINGAUTO;
 		dcphy_auto(sc, 0);
 
 		break;
@@ -394,7 +359,7 @@ dcphy_status(sc)
 	struct mii_softc *sc;
 {
 	struct mii_data *mii = sc->mii_pdata;
-	int reg, anlpar;
+	int reg, anlpar, tstat = 0;
 	struct dc_softc		*dc_sc;
 
 	dc_sc = mii->mii_ifp->if_softc;
@@ -403,32 +368,29 @@ dcphy_status(sc)
 	mii->mii_media_active = IFM_ETHER;
 
 	reg = CSR_READ_4(dc_sc, DC_10BTSTAT) &
-	     (DC_TSTAT_LS10|DC_TSTAT_LS100);
+	    (DC_TSTAT_LS10|DC_TSTAT_LS100);
 
 	if (!(reg & DC_TSTAT_LS10) || !(reg & DC_TSTAT_LS100))
 		mii->mii_media_status |= IFM_ACTIVE;
 
-	if (sc->mii_flags & MIIF_DOINGAUTO) {
-		mii->mii_media_active |= IFM_NONE;
-		return;
-	}
-
-	if (CSR_READ_4(dc_sc, DC_10BTCTRL) & DC_TCTL_AUTONEGENBL &&
-	    CSR_READ_4(dc_sc, DC_10BTSTAT) & DC_TSTAT_ANEGSTAT) {
+	if (CSR_READ_4(dc_sc, DC_10BTCTRL) & DC_TCTL_AUTONEGENBL) {
 		/* Erg, still trying, I guess... */
-		if ((CSR_READ_4(dc_sc, DC_10BTSTAT) &
-		    DC_ASTAT_AUTONEGCMP) != DC_ASTAT_AUTONEGCMP) {
+		tstat = CSR_READ_4(dc_sc, DC_10BTSTAT);
+		if ((tstat & DC_TSTAT_ANEGSTAT) != DC_ASTAT_AUTONEGCMP) {
+			if ((DC_IS_MACRONIX(dc_sc) || DC_IS_PNICII(dc_sc)) &&
+			    (tstat & DC_TSTAT_ANEGSTAT) == DC_ASTAT_DISABLE)
+				goto skip;
 			mii->mii_media_active |= IFM_NONE;
 			return;
 		}
 
-		if (CSR_READ_4(dc_sc, DC_10BTSTAT) & DC_TSTAT_LP_CAN_NWAY) {
-			anlpar = CSR_READ_4(dc_sc, DC_10BTSTAT) >> 16;
+		if (tstat & DC_TSTAT_LP_CAN_NWAY) {
+			anlpar = tstat >> 16;
 			if (anlpar & ANLPAR_T4 &&
 			    sc->mii_capabilities & BMSR_100TXHDX)
 				mii->mii_media_active |= IFM_100_T4;
 			else if (anlpar & ANLPAR_TX_FD &&
-			    sc->mii_capabilities & BMSR_100TXHDX)
+			    sc->mii_capabilities & BMSR_100TXFDX)
 				mii->mii_media_active |= IFM_100_TX|IFM_FDX;
 			else if (anlpar & ANLPAR_TX &&
 			    sc->mii_capabilities & BMSR_100TXHDX)
@@ -463,6 +425,7 @@ dcphy_status(sc)
 		return;
 	}
 
+skip:
 	if (CSR_READ_4(dc_sc, DC_NETCFG) & DC_NETCFG_SCRAMBLER)
 		mii->mii_media_active |= IFM_100_TX;
 	else
