@@ -1027,10 +1027,12 @@ tryagain:
 			error = nfs_send(nmp->nm_so, nmp->nm_nam, m2, rep);
 			nfs_sndunlock(rep);
 		}
+		mtx_lock(&nfs_reqq_mtx);
 		if (!error && (rep->r_flags & R_MUSTRESEND) == 0) {
 			nmp->nm_sent += NFS_CWNDSCALE;
 			rep->r_flags |= R_SENT;
 		}
+		mtx_unlock(&nfs_reqq_mtx);
 	} else {
 		splx(s);
 		rep->r_rtt = -1;
@@ -1056,10 +1058,12 @@ tryagain:
 	/*
 	 * Decrement the outstanding request count.
 	 */
+	mtx_lock(&nfs_reqq_mtx);
 	if (rep->r_flags & R_SENT) {
 		rep->r_flags &= ~R_SENT;	/* paranoia */
 		nmp->nm_sent -= NFS_CWNDSCALE;
 	}
+	mtx_unlock(&nfs_reqq_mtx);
 
 	/*
 	 * If there was a successful reply and a tprintf msg.
