@@ -145,14 +145,6 @@ struct uma_zctor_args {
 	u_int16_t flags;
 };
 
-/*
- * This is the malloc hash table which is used to find the zone that a
- * malloc allocation came from.  It is not currently resizeable.  The
- * memory for the actual hash bucket is allocated in kmeminit.
- */
-struct uma_hash mhash;
-struct uma_hash *mallochash = &mhash;
-
 /* Prototypes.. */
 
 static void *obj_alloc(uma_zone_t, int, u_int8_t *, int);
@@ -283,35 +275,32 @@ zone_timeout(uma_zone_t zone)
 	 * may be a little aggressive.  Should I allow for two collisions max?
 	 */
 
-	if ((zone->uz_flags & UMA_ZFLAG_OFFPAGE) &&
-	    !(zone->uz_flags & UMA_ZFLAG_MALLOC)) {
-		if (zone->uz_pages / zone->uz_ppera
-		    >= zone->uz_hash.uh_hashsize) {
-			struct uma_hash newhash;
-			struct uma_hash oldhash;
-			int ret;
+	if (zone->uz_flags & UMA_ZFLAG_HASH &&
+	    zone->uz_pages / zone->uz_ppera >= zone->uz_hash.uh_hashsize) {
+		struct uma_hash newhash;
+		struct uma_hash oldhash;
+		int ret;
 
-			/*
-			 * This is so involved because allocating and freeing 
-			 * while the zone lock is held will lead to deadlock.
-			 * I have to do everything in stages and check for
-			 * races.
-			 */
-			newhash = zone->uz_hash;
+		/*
+		 * This is so involved because allocating and freeing 
+		 * while the zone lock is held will lead to deadlock.
+		 * I have to do everything in stages and check for
+		 * races.
+		 */
+		newhash = zone->uz_hash;
+		ZONE_UNLOCK(zone);
+		ret = hash_alloc(&newhash);
+		ZONE_LOCK(zone);
+		if (ret) {
+			if (hash_expand(&zone->uz_hash, &newhash)) {
+				oldhash = zone->uz_hash;
+				zone->uz_hash = newhash;
+			} else
+				oldhash = newhash;
+
 			ZONE_UNLOCK(zone);
-			ret = hash_alloc(&newhash);
+			hash_free(&oldhash);
 			ZONE_LOCK(zone);
-			if (ret) {
-				if (hash_expand(&zone->uz_hash, &newhash)) {
-					oldhash = zone->uz_hash;
-					zone->uz_hash = newhash;
-				} else
-					oldhash = newhash;
-
-				ZONE_UNLOCK(zone);
-				hash_free(&oldhash);
-				ZONE_LOCK(zone);
-			}
 		}
 	}
 
@@ -479,13 +468,8 @@ bucket_drain(uma_zone_t zone, uma_bucket_t bucket)
 		 * hold them.  This will go away when free() gets a size passed
 		 * to it.
 		 */
-		if (mzone) {
-			mtx_lock(&malloc_mtx);
-			slab = hash_sfind(mallochash,
-			    (u_int8_t *)((unsigned long)item &
-			   (~UMA_SLAB_MASK)));
-			mtx_unlock(&malloc_mtx);
-		}
+		if (mzone)
+			slab = vtoslab((vm_offset_t)item & (~UMA_SLAB_MASK));
 		uma_zfree_internal(zone, item, slab, 1);
 	}
 }
@@ -622,13 +606,7 @@ zone_drain(uma_zone_t zone)
 		zone->uz_pages -= zone->uz_ppera;
 		zone->uz_free -= zone->uz_ipers;
 
-		if (zone->uz_flags & UMA_ZFLAG_MALLOC) {
-			mtx_lock(&malloc_mtx);
-			UMA_HASH_REMOVE(mallochash, slab, slab->us_data);
-			mtx_unlock(&malloc_mtx);
-		}
-		if (zone->uz_flags & UMA_ZFLAG_OFFPAGE &&
-		    !(zone->uz_flags & UMA_ZFLAG_MALLOC))
+		if (zone->uz_flags & UMA_ZFLAG_HASH)
 			UMA_HASH_REMOVE(&zone->uz_hash, slab, slab->us_data);
 
 		SLIST_INSERT_HEAD(&freeslabs, slab, us_hlink);
@@ -648,9 +626,13 @@ finished:
 				    zone->uz_size);
 		flags = slab->us_flags;
 		mem = slab->us_data;
-		if (zone->uz_flags & UMA_ZFLAG_OFFPAGE) {
+
+		if (zone->uz_flags & UMA_ZFLAG_OFFPAGE)
 			uma_zfree_internal(slabzone, slab, NULL, 0);
-		}
+		if (zone->uz_flags & UMA_ZFLAG_MALLOC)
+			for (i = 0; i < zone->uz_ppera; i++)
+				vsetobj((vm_offset_t)mem + (i * PAGE_SIZE),
+				    kmem_object);
 #ifdef UMA_DEBUG
 		printf("%s: Returning %d bytes.\n",
 		    zone->uz_name, UMA_SLAB_SIZE * zone->uz_ppera);
@@ -732,19 +714,12 @@ slab_zalloc(uma_zone_t zone, int wait)
 	}
 
 	/* Point the slab into the allocated memory */
-	if (!(zone->uz_flags & UMA_ZFLAG_OFFPAGE)) {
+	if (!(zone->uz_flags & UMA_ZFLAG_OFFPAGE))
 		slab = (uma_slab_t )(mem + zone->uz_pgoff);
-	}
 
-	if (zone->uz_flags & UMA_ZFLAG_MALLOC) {
-#ifdef UMA_DEBUG
-		printf("Inserting %p into malloc hash from slab %p\n",
-		    mem, slab);
-#endif
-		mtx_lock(&malloc_mtx);
-		UMA_HASH_INSERT(mallochash, slab, mem);
-		mtx_unlock(&malloc_mtx);
-	}
+	if (zone->uz_flags & UMA_ZFLAG_MALLOC)
+		for (i = 0; i < zone->uz_ppera; i++)
+			vsetslab((vm_offset_t)mem + (i * PAGE_SIZE), slab);
 
 	slab->us_zone = zone;
 	slab->us_data = mem;
@@ -778,8 +753,7 @@ slab_zalloc(uma_zone_t zone, int wait)
 			    zone->uz_size);
 	ZONE_LOCK(zone);
 
-	if ((zone->uz_flags & (UMA_ZFLAG_OFFPAGE|UMA_ZFLAG_MALLOC)) ==
-	    UMA_ZFLAG_OFFPAGE)
+	if (zone->uz_flags & UMA_ZFLAG_HASH)
 		UMA_HASH_INSERT(&zone->uz_hash, slab, mem);
 
 	zone->uz_pages += zone->uz_ppera;
@@ -936,6 +910,8 @@ zone_small_init(uma_zone_t zone)
 		ipers = UMA_SLAB_SIZE / zone->uz_rsize;
 		if (ipers > zone->uz_ipers) {
 			zone->uz_flags |= UMA_ZFLAG_OFFPAGE;
+			if ((zone->uz_flags & UMA_ZFLAG_MALLOC) == 0)
+				zone->uz_flags |= UMA_ZFLAG_HASH;
 			zone->uz_ipers = ipers;
 		}
 	}
@@ -968,6 +944,9 @@ zone_large_init(uma_zone_t zone)
 	zone->uz_ipers = 1;
 
 	zone->uz_flags |= UMA_ZFLAG_OFFPAGE;
+	if ((zone->uz_flags & UMA_ZFLAG_MALLOC) == 0)
+		zone->uz_flags |= UMA_ZFLAG_HASH;
+
 	zone->uz_rsize = zone->uz_size;
 }
 
@@ -1073,10 +1052,10 @@ zone_ctor(void *mem, int size, void *udata)
 			    zone->uz_size);
 			panic("UMA slab won't fit.\n");
 		}
-	} else {
-		hash_alloc(&zone->uz_hash);
-		zone->uz_pgoff = 0;
 	}
+
+	if (zone->uz_flags & UMA_ZFLAG_HASH)
+		hash_alloc(&zone->uz_hash);
 
 #ifdef UMA_DEBUG
 	printf("%s(%p) size = %d ipers = %d ppera = %d pgoff = %d\n",
@@ -1253,12 +1232,8 @@ uma_startup(void *bootmem)
 
 /* see uma.h */
 void
-uma_startup2(void *hashmem, u_long elems)
+uma_startup2(void)
 {
-	bzero(hashmem, elems * sizeof(void *));
-	mallochash->uh_slab_hash = hashmem;
-	mallochash->uh_hashsize = elems;
-	mallochash->uh_hashmask = elems - 1;
 	booted = 1;
 	bucket_enable();
 #ifdef UMA_DEBUG
@@ -1803,7 +1778,7 @@ uma_zfree_internal(uma_zone_t zone, void *item, void *udata, int skip)
 
 	if (!(zone->uz_flags & UMA_ZFLAG_MALLOC)) {
 		mem = (u_int8_t *)((unsigned long)item & (~UMA_SLAB_MASK));
-		if (zone->uz_flags & UMA_ZFLAG_OFFPAGE)
+		if (zone->uz_flags & UMA_ZFLAG_HASH)
 			slab = hash_sfind(&zone->uz_hash, mem);
 		else {
 			mem += zone->uz_pgoff;
@@ -2001,12 +1976,10 @@ uma_large_malloc(int size, int wait)
 
 	mem = page_alloc(NULL, size, &flags, wait);
 	if (mem) {
+		vsetslab((vm_offset_t)mem, slab);
 		slab->us_data = mem;
 		slab->us_flags = flags | UMA_SLAB_MALLOC;
 		slab->us_size = size;
-		mtx_lock(&malloc_mtx);
-		UMA_HASH_INSERT(mallochash, slab, mem);
-		mtx_unlock(&malloc_mtx);
 	} else {
 		uma_zfree_internal(slabzone, slab, NULL, 0);
 	}
@@ -2018,9 +1991,7 @@ uma_large_malloc(int size, int wait)
 void
 uma_large_free(uma_slab_t slab)
 {
-	mtx_lock(&malloc_mtx);
-	UMA_HASH_REMOVE(mallochash, slab, slab->us_data);
-	mtx_unlock(&malloc_mtx);
+	vsetobj((vm_offset_t)slab->us_data, kmem_object);
 	page_free(slab->us_data, slab->us_size, slab->us_flags);
 	uma_zfree_internal(slabzone, slab, NULL, 0);
 }
