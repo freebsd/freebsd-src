@@ -155,7 +155,7 @@
 #define VAR_ROOT_SIZE			"rootSize"
 #define VAR_ROUTER			"router"
 #define VAR_ROUTER_ENABLE		"router_enable"
-#define VAR_ROUTERFLAGS			"routerflags"
+#define VAR_ROUTERFLAGS			"router_flags"
 #define VAR_SERIAL_SPEED		"serialSpeed"
 #define VAR_SLOW_ETHER			"slowEthernetCard"
 #define VAR_SWAP_SIZE			"swapSize"
