@@ -95,6 +95,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/exec.h>
 #include <sys/cons.h>
 
+#ifdef DDB
+#ifndef KDB
+#error KDB must be enabled in order for DDB to work!
+#endif
+#endif
 #include <ddb/ddb.h>
 
 #include <net/netisr.h>
