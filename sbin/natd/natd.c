@@ -86,7 +86,7 @@ static void	SetAliasAddressFromIfName (const char *ifName);
 static void	InitiateShutdown (int);
 static void	Shutdown (int);
 static void	RefreshAddr (int);
-static void	ParseOption (const char* option, const char* parms, int cmdLine);
+static void	ParseOption (const char* option, const char* parms);
 static void	ReadConfigFile (const char* fileName);
 static void	SetupPortRedirect (const char* parms);
 static void	SetupProtoRedirect(const char* parms);
@@ -189,7 +189,7 @@ int main (int argc, char** argv)
 			errx (1, "both input and output ports are required");
 
 	if (inPort == 0 && outPort == 0 && inOutPort == 0)
-		ParseOption ("port", DEFAULT_SERVICE, 0);
+		ParseOption ("port", DEFAULT_SERVICE);
 
 /*
  * Check if ignored packets should be dropped.
@@ -443,7 +443,7 @@ static void ParseArgs (int argc, char** argv)
 			if (argv[arg + 1][0] == '-')
 				break;
 
-		if (len) {
+			if (len) {
 				strncat (parmBuf, " ", sizeof(parmBuf) - (len + 1));
 				len += strlen(parmBuf + len);
 			}
@@ -454,7 +454,7 @@ static void ParseArgs (int argc, char** argv)
 
 		}
 
-		ParseOption (opt + 1, (len ? parmBuf : NULL), 1);
+		ParseOption (opt + 1, (len ? parmBuf : NULL));
 
 	}
 }
@@ -1092,7 +1092,7 @@ static struct OptionInfo optionTable[] = {
 
 };
 	
-static void ParseOption (const char* option, const char* parms, int cmdLine)
+static void ParseOption (const char* option, const char* parms)
 {
 	int			i;
 	struct OptionInfo*	info;
@@ -1326,7 +1326,7 @@ void ReadConfigFile (const char* fileName)
 		while (*ptr && isspace (*ptr))
 			++ptr;
 
-		ParseOption (option, *ptr ? ptr : NULL, 0);
+		ParseOption (option, *ptr ? ptr : NULL);
 	}
 
 	fclose (file);
