@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.40 1997/09/14 03:10:40 peter Exp $
+ *	$Id: udp_usrreq.c,v 1.41 1997/10/28 15:58:54 bde Exp $
  */
 
 #include <sys/param.h>
@@ -281,10 +281,10 @@ udp_input(m, iphlen)
 			char buf[4*sizeof "123"];
 
 			strcpy(buf, inet_ntoa(ip->ip_dst));
-			log(LOG_INFO, "Connection attempt to UDP %s:%d"
-			    " from %s:%d\n",
-				buf, ntohs(uh->uh_dport),
-				inet_ntoa(ip->ip_src), ntohs(uh->uh_sport));
+			log(LOG_INFO,
+			    "Connection attempt to UDP %s:%d from %s:%d\n",
+			    buf, ntohs(uh->uh_dport), inet_ntoa(ip->ip_src),
+			    ntohs(uh->uh_sport));
 		}
 		udpstat.udps_noport++;
 		if (m->m_flags & (M_BCAST | M_MCAST)) {
