@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.77 1996/10/06 16:38:25 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.78 1996/10/06 19:42:59 gibbs Exp $
  */
 /*
  * TODO:
@@ -582,7 +582,7 @@ ahc_scsirate(ahc, scsirate, period, offset, channel, target )
 		*scsirate = 0;
 		*period = 0;
 		*offset = 0;
-		if(bootverbose)
+		if (bootverbose)
 			printf("%s: target %d using asyncronous transfers\n",
 			       ahc_name(ahc), target );
 	}
@@ -1819,7 +1819,7 @@ ahc_handle_seqint(ahc, intstat)
 				sxfr |= 0x100;
 			
 			for (i = 0; i < ahc_num_syncrates; i++)
-				if (target_scratch == ahc_syncrates[i].sxfr)
+				if (sxfr == ahc_syncrates[i].sxfr)
 					break;
 							
 			ahc_construct_sdtr(ahc, AHC_INB(ahc, MSG_LEN),

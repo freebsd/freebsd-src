@@ -26,8 +26,8 @@
 
 /* Identify message */		     /* M/M */	
 #define MSG_IDENTIFYFLAG	0x80 
-#define MSG_IDENTIFY(lun, disc)	((disc) ? 0xc0 : 0x80) | (lun))
-#define MSG_ISIDENTIFY(m)	((m) & MSG_INDENTIFYFLAG)
+#define MSG_IDENTIFY(lun, disc)	((disc) ? 0xc0 : MSG_IDENTIFYFLAG) | (lun))
+#define MSG_ISIDENTIFY(m)	((m) & MSG_IDENTIFYFLAG)
 
 /* Extended messages (opcode and length) */
 #define MSG_EXT_SDTR		0x01
