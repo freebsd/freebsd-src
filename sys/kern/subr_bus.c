@@ -1964,6 +1964,13 @@ bus_generic_write_ivar(device_t dev, device_t child, int index,
     return ENOENT;
 }
 
+int
+bus_generic_get_resource_list (device_t dev, device_t child,
+			       struct resource_list *rl)
+{
+	return ENOENT;
+}
+
 void
 bus_generic_driver_added(device_t dev, driver_t *driver)
 {
@@ -2046,6 +2053,91 @@ bus_generic_deactivate_resource(device_t dev, device_t child, int type,
 						r));
 	else
 		return (EINVAL);
+}
+
+int
+bus_generic_rl_get_resource (device_t dev, device_t child, int type, int rid,
+			  u_long *startp, u_long *countp)
+{
+	struct resource_list *		rl = NULL;
+	struct resource_list_entry *	rle = NULL;
+	int				retval = 0;
+
+	retval = BUS_GET_RESOURCE_LIST(dev, child, rl);
+	if (retval)
+		return (retval);
+
+	rle = resource_list_find(rl, type, rid);
+	if (!rle) 
+		return ENOENT;
+
+	if (startp)
+		*startp = rle->start;
+	if (countp)
+		*countp = rle->count;
+
+	return (0);
+}
+
+int
+bus_generic_rl_set_resource (device_t dev, device_t child, int type, int rid,
+			  u_long start, u_long count)
+{
+	struct resource_list *		rl = NULL;
+	int				retval = 0;
+
+	retval = BUS_GET_RESOURCE_LIST(dev, child, rl);
+	if (retval)
+		return (retval);
+
+	resource_list_add(rl, type, rid, start, (start + count - 1), count);
+
+	return (0);
+}
+
+void
+bus_generic_rl_delete_resource (device_t dev, device_t child, int type, int rid)
+{
+	struct resource_list *		rl = NULL;
+	int				retval = 0;
+
+	retval = BUS_GET_RESOURCE_LIST(dev, child, rl);
+	if (retval)
+		return;
+
+	resource_list_delete(rl, type, rid);
+
+	return;
+}
+
+int
+bus_generic_rl_release_resource (device_t dev, device_t child, int type,
+				 int rid, struct resource *r)
+{
+	struct resource_list *		rl = NULL;
+	int				retval = 0;
+
+	retval = BUS_GET_RESOURCE_LIST(dev, child, rl);
+	if (retval)
+		return (retval);
+
+	return (resource_list_release(rl, dev, child, type, rid, r));
+}
+
+struct resource *
+bus_generic_rl_alloc_resource (device_t dev, device_t child, int type,
+			       int *rid, u_long start, u_long end,
+			       u_long count, u_int flags)
+{
+	struct resource_list *		rl = NULL;
+	int				retval = 0;
+
+	retval = BUS_GET_RESOURCE_LIST(dev, child, rl);
+	if (retval)
+		return (0);
+
+	return resource_list_alloc(rl, dev, child, type, rid,
+				   start, end, count, flags);
 }
 
 /*
