@@ -102,22 +102,22 @@ static const char rcsid[] =
 #ifdef	FASTWAY
 #define	DES_KEY(buf) \
 	if (des_setkey(buf)) \
-		err("des_setkey", 0);
+		err(0, "des_setkey");
 #define	DES_XFORM(buf) \
 	if (des_cipher(buf, buf, 0L, (inverse ? -1 : 1))) \
-		err("des_cipher", 0);
+		err(0, "des_cipher");
 #else
 #define	DES_KEY(buf)	{						\
 				char bits1[64];	/* bits of key */	\
 				expand(buf, bits1);			\
 				if (setkey(bits1))			\
-					err("setkey", 0);		\
+					err(0, "setkey");		\
 			}
 #define	DES_XFORM(buf)	{						\
 				char bits1[64];	/* bits of message */	\
 				expand(buf, bits1);			\
 				if (encrypt(bits1, inverse))		\
-					err("encrypt", 0);		\
+					err(0, "encrypt");		\
 				compress(bits1, buf);			\
 			}
 #endif
