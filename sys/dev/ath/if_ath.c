@@ -845,7 +845,7 @@ ath_watchdog(struct ifnet *ifp)
 			if (ath_debug & ATH_DEBUG_WATCHDOG)
 				ath_hal_dumpstate(sc->sc_ah);
 #endif /* AR_DEBUG */
-			ath_init(ifp);		/* XXX ath_reset??? */
+			ath_reset(sc);
 			ifp->if_oerrors++;
 			sc->sc_stats.ast_watchdog++;
 			return;
