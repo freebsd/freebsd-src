@@ -1,15 +1,14 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
-# $Id: Makefile,v 1.11 1995/02/14 15:38:13 wpaul Exp $
+# $Id: Makefile,v 1.12 1995/02/14 21:08:45 rgrimes Exp $
 
 PROG=	passwd
-SRCS=	local_passwd.c yp_passwd.c yppasswd_xdr.c passwd.c pw_copy.c pw_util.c
-LDADD=	-lcrypt
+SRCS=	local_passwd.c yp_passwd.c passwd.c pw_copy.c pw_util.c
+LDADD=	-lcrypt -lrpcsvc
 .PATH:  ${.CURDIR}/../../usr.bin/chpass ${.CURDIR}/../../usr.sbin/vipw \
-	${.CURDIR}/../rlogin ${.CURDIR}/../../gnu/usr.sbin/yppasswdd
+	${.CURDIR}/../rlogin
 
 CFLAGS+=-DCRYPT -DYP -I${.CURDIR} -I${.CURDIR}/../../usr.sbin/vipw \
-	-I${.CURDIR}/../../usr.bin/chpass \
-	-I${.CURDIR}/../../gnu/usr.sbin/yppasswdd
+	-I${.CURDIR}/../../usr.bin/chpass
 
 BINOWN=	root
 BINMODE=4555
@@ -26,7 +25,7 @@ SRCS+=	kpasswd.c
 CFLAGS+=	-DKERBEROS \
 		-I${.CURDIR}/../../eBones/include \
 		-I${.CURDIR}/../../eBones/libkadm
-LDADD=	-lkadm -lkrb -ldes -lcrypt -lcom_err
+LDADD=	-lkadm -lkrb -ldes -lcrypt -lrpcsvc -lcom_err
 .endif
 
 afterinstall:
