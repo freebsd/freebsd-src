@@ -85,7 +85,7 @@ cpu_identify(u_long vers, u_int freq, u_int id)
 	}
 
 	snprintf(cpu_model, sizeof(cpu_model), "%s %s", manus, impls);
-	printf("cpu%d: %s %s Processor (%d.%02d MHZ CPU)\n", id, manus, impls,
+	printf("cpu%d: %s %s Processor (%d.%02d MHz CPU)\n", id, manus, impls,
 	    (freq + 4999) / 1000000, ((freq + 4999) / 10000) % 100);
 	if (bootverbose) {
 		printf("  mask=0x%lx maxtl=%ld maxwin=%ld\n", VER_MASK(vers),
