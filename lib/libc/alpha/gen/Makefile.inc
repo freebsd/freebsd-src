@@ -8,7 +8,7 @@ SRCS+=	sigsetjmp.S
 SRCS+=	__divqu.S __divq.S __divlu.S __divl.S
 SRCS+=	__remqu.S __remq.S __remlu.S __reml.S
 SRCS+=	rfork_thread.S
-SRCS+=	_ctx_start.S getcontext.S makecontext.c swapcontext.c
+SRCS+=	_ctx_start.S makecontext.c
 
 CLEANFILES+=	__divqu.S __divq.S __divlu.S __divl.S
 CLEANFILES+=	__remqu.S __remq.S __remlu.S __reml.S
