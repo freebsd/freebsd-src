@@ -133,6 +133,7 @@ typedef struct uhci_softc {
 #endif
 
 	uhci_physaddr_t *sc_pframes;
+	vm_offset_t sc_flbase;
 	struct uhci_vframe sc_vframes[UHCI_VFRAMELIST_COUNT];
 
 	uhci_soft_qh_t *sc_ctl_start;	/* dummy QH for control */
@@ -168,7 +169,4 @@ typedef struct uhci_softc {
 
 usbd_status	uhci_init __P((uhci_softc_t *));
 int		uhci_intr __P((void *));
-#if 0
-void		uhci_reset __P((void *));
-#endif
-
+usbd_status	uhci_reset __P((uhci_softc_t *));

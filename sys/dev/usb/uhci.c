@@ -305,8 +305,7 @@ uhci_init(uhci_softc_t *sc)
 		return(err);
 
 	sc->sc_pframes = KERNADDR(&dma);
-	UWRITE2(sc, UHCI_FRNUM, 0);			/* set frame number to 0 */
-	UWRITE4(sc, UHCI_FLBASEADDR, DMAADDR(&dma));	/* set frame list address */
+	sc->sc_flbase  = DMAADDR(&dma);
 
 	err = uhci_init_framelist(sc);
 	if (err) {
@@ -322,10 +321,7 @@ uhci_init(uhci_softc_t *sc)
 	sc->sc_bus.do_poll = uhci_poll;
 
 	DPRINTFN(1,("uhci_init: enabling\n"));
-	UWRITE2(sc, UHCI_INTR, UHCI_INTR_TOCRCIE | UHCI_INTR_RIE | 
-		UHCI_INTR_IOCE | UHCI_INTR_SPIE);	/* enable interrupts */
-
-	return(uhci_run(sc, 1));		/* and here we go... */
+	return uhci_reset(sc);
 }
 
 usbd_status
@@ -424,12 +420,10 @@ uhci_busreset(sc)
 	UHCICMD(sc, 0);			/* do nothing */
 }
 
-#if 0
-void
-uhci_reset(priv)
-	void *priv;
+usbd_status
+uhci_reset(sc)
+	uhci_softc_t *sc;
 {
-	uhci_softc_t *sc = priv;
 	int n;
 
 	/* Reset the host controller */
@@ -442,8 +436,13 @@ uhci_reset(priv)
 	if (n >= UHCI_RESET_TIMEOUT)
 		printf("%s: controller did not reset\n", 
 		       USBDEVNAME(sc->sc_bus.bdev));
+	UWRITE2(sc, UHCI_FRNUM, 0);			/* set frame number to 0 */
+	UWRITE4(sc, UHCI_FLBASEADDR, sc->sc_flbase);	/* set frame list address */
+	UWRITE2(sc, UHCI_INTR, UHCI_INTR_TOCRCIE | UHCI_INTR_RIE | 
+		UHCI_INTR_IOCE | UHCI_INTR_SPIE);	/* enable interrupts */
+
+	return(uhci_run(sc, 1));		/* and here we go... */
 }
-#endif
 
 usbd_status
 uhci_run(sc, run)
