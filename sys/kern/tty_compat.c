@@ -82,9 +82,7 @@ static int compatspcodes[] = {
 };
 
 static int
-ttcompatspeedtab(speed, table)
-	int speed;
-	register struct speedtab *table;
+ttcompatspeedtab(int speed, struct speedtab *table)
 {
 	if (speed == 0)
 		return (0); /* hangup */
@@ -95,16 +93,12 @@ ttcompatspeedtab(speed, table)
 }
 
 int
-ttsetcompat(tp, com, data, term)
-	register struct tty *tp;
-	u_long *com;
-	caddr_t data;
-	struct termios *term;
+ttsetcompat(struct tty *tp, u_long *com, caddr_t data, struct termios *term)
 {
 	switch (*com) {
 	case TIOCSETP:
 	case TIOCSETN: {
-		register struct sgttyb *sg = (struct sgttyb *)data;
+		struct sgttyb *sg = (struct sgttyb *)data;
 		int speed;
 
 		if ((speed = sg->sg_ispeed) > MAX_SPEED || speed < 0)
@@ -128,7 +122,7 @@ ttsetcompat(tp, com, data, term)
 	}
 	case TIOCSETC: {
 		struct tchars *tc = (struct tchars *)data;
-		register cc_t *cc;
+		cc_t *cc;
 
 		cc = term->c_cc;
 		cc[VINTR] = tc->t_intrc;
@@ -144,7 +138,7 @@ ttsetcompat(tp, com, data, term)
 	}
 	case TIOCSLTC: {
 		struct ltchars *ltc = (struct ltchars *)data;
-		register cc_t *cc;
+		cc_t *cc;
 
 		cc = term->c_cc;
 		cc[VSUSP] = ltc->t_suspc;
@@ -178,11 +172,7 @@ ttsetcompat(tp, com, data, term)
 
 /*ARGSUSED*/
 int
-ttcompat(tp, com, data, flag)
-	register struct tty *tp;
-	u_long com;
-	caddr_t data;
-	int flag;
+ttcompat(struct tty *tp, u_long com, caddr_t data, int flag)
 {
 	switch (com) {
 	case TIOCSETP:
@@ -201,8 +191,8 @@ ttcompat(tp, com, data, flag)
 		return ttioctl(tp, com, &term, flag);
 	}
 	case TIOCGETP: {
-		register struct sgttyb *sg = (struct sgttyb *)data;
-		register cc_t *cc = tp->t_cc;
+		struct sgttyb *sg = (struct sgttyb *)data;
+		cc_t *cc = tp->t_cc;
 
 		sg->sg_ospeed = ttcompatspeedtab(tp->t_ospeed, compatspeeds);
 		if (tp->t_ispeed == 0)
@@ -216,7 +206,7 @@ ttcompat(tp, com, data, flag)
 	}
 	case TIOCGETC: {
 		struct tchars *tc = (struct tchars *)data;
-		register cc_t *cc = tp->t_cc;
+		cc_t *cc = tp->t_cc;
 
 		tc->t_intrc = cc[VINTR];
 		tc->t_quitc = cc[VQUIT];
@@ -228,7 +218,7 @@ ttcompat(tp, com, data, flag)
 	}
 	case TIOCGLTC: {
 		struct ltchars *ltc = (struct ltchars *)data;
-		register cc_t *cc = tp->t_cc;
+		cc_t *cc = tp->t_cc;
 
 		ltc->t_suspc = cc[VSUSP];
 		ltc->t_dsuspc = cc[VDSUSP];
@@ -269,14 +259,13 @@ ttcompat(tp, com, data, flag)
 }
 
 static int
-ttcompatgetflags(tp)
-	register struct tty *tp;
+ttcompatgetflags(struct tty *tp)
 {
-	register tcflag_t iflag	= tp->t_iflag;
-	register tcflag_t lflag	= tp->t_lflag;
-	register tcflag_t oflag	= tp->t_oflag;
-	register tcflag_t cflag	= tp->t_cflag;
-	register int flags = 0;
+	tcflag_t iflag	= tp->t_iflag;
+	tcflag_t lflag	= tp->t_lflag;
+	tcflag_t oflag	= tp->t_oflag;
+	tcflag_t cflag	= tp->t_cflag;
+	int flags = 0;
 
 	if (iflag&IXOFF)
 		flags |= TANDEM;
@@ -330,15 +319,13 @@ ttcompatgetflags(tp)
 }
 
 static void
-ttcompatsetflags(tp, t)
-	register struct tty *tp;
-	register struct termios *t;
+ttcompatsetflags(struct tty *tp, struct termios *t)
 {
-	register int flags = tp->t_flags;
-	register tcflag_t iflag	= t->c_iflag;
-	register tcflag_t oflag	= t->c_oflag;
-	register tcflag_t lflag	= t->c_lflag;
-	register tcflag_t cflag	= t->c_cflag;
+	int flags = tp->t_flags;
+	tcflag_t iflag	= t->c_iflag;
+	tcflag_t oflag	= t->c_oflag;
+	tcflag_t lflag	= t->c_lflag;
+	tcflag_t cflag	= t->c_cflag;
 
 	if (flags & RAW) {
 		iflag = IGNBRK;
@@ -409,15 +396,13 @@ ttcompatsetflags(tp, t)
 }
 
 static void
-ttcompatsetlflags(tp, t)
-	register struct tty *tp;
-	register struct termios *t;
+ttcompatsetlflags(struct tty *tp, struct termios *t)
 {
-	register int flags = tp->t_flags;
-	register tcflag_t iflag	= t->c_iflag;
-	register tcflag_t oflag	= t->c_oflag;
-	register tcflag_t lflag	= t->c_lflag;
-	register tcflag_t cflag	= t->c_cflag;
+	int flags = tp->t_flags;
+	tcflag_t iflag	= t->c_iflag;
+	tcflag_t oflag	= t->c_oflag;
+	tcflag_t lflag	= t->c_lflag;
+	tcflag_t cflag	= t->c_cflag;
 
 	iflag &= ~(PARMRK|IGNPAR|IGNCR|INLCR);
 	if (flags&CRTERA)
