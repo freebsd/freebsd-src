@@ -57,7 +57,6 @@
 #include <vm/pmap.h>
 #include <machine/pmap.h>
 
-#include <machine/nexusvar.h>
 #include <machine/resource.h>
 #ifdef APIC_IO
 #include <machine/smp.h>
@@ -79,7 +78,6 @@
 static MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
 struct nexus_device {
 	struct resource_list	nx_resources;
-	int			nx_pcibus;
 };
 
 #define DEVTONX(dev)	((struct nexus_device *)device_get_ivars(dev))
@@ -94,8 +92,6 @@ static device_t nexus_add_child(device_t bus, int order, const char *name,
 				int unit);
 static	struct resource *nexus_alloc_resource(device_t, device_t, int, int *,
 					      u_long, u_long, u_long, u_int);
-static	int nexus_read_ivar(device_t, device_t, int, uintptr_t *);
-static	int nexus_write_ivar(device_t, device_t, int, uintptr_t);
 static	int nexus_activate_resource(device_t, device_t, int, int,
 				    struct resource *);
 static	int nexus_deactivate_resource(device_t, device_t, int, int,
@@ -122,8 +118,6 @@ static device_method_t nexus_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	nexus_print_child),
 	DEVMETHOD(bus_add_child,	nexus_add_child),
-	DEVMETHOD(bus_read_ivar,	nexus_read_ivar),
-	DEVMETHOD(bus_write_ivar,	nexus_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	nexus_alloc_resource),
 	DEVMETHOD(bus_release_resource,	nexus_release_resource),
 	DEVMETHOD(bus_activate_resource, nexus_activate_resource),
@@ -226,41 +220,21 @@ nexus_probe(device_t dev)
 	    || rman_manage_region(&mem_rman, 0, ~0))
 		panic("nexus_probe mem_rman");
 
-	return bus_generic_probe(dev);
+	return 0;
 }
 
 static int
 nexus_attach(device_t dev)
 {
-	device_t	child;
+	device_t child;
 
-	/*
-	 * First, deal with the children we know about already
-	 */
+	bus_generic_probe(dev);
+	if (!devclass_get_device(devclass_find("acpi"), 0)) {
+		child = BUS_ADD_CHILD(dev, 0, "legacy", 0);
+		if (child == NULL)
+			panic("nexus_attach legacy");
+	}
 	bus_generic_attach(dev);
-	/*
-	 * And if we didn't see EISA or ISA on a pci bridge, create some
-	 * connection points now so they show up "on motherboard".
-	 */
-	if (!devclass_get_device(devclass_find("eisa"), 0)) {
-		child = BUS_ADD_CHILD(dev, 0, "eisa", 0);
-		if (child == NULL)
-			panic("nexus_attach eisa");
-		device_probe_and_attach(child);
-	}
-	if (!devclass_get_device(devclass_find("mca"), 0)) {
-        	child = BUS_ADD_CHILD(dev, 0, "mca", 0);
-        	if (child == 0)
-                	panic("nexus_probe mca");
-		device_probe_and_attach(child);
-	}
-	if (!devclass_get_device(devclass_find("isa"), 0)) {
-		child = BUS_ADD_CHILD(dev, 0, "isa", 0);
-		if (child == NULL)
-			panic("nexus_attach isa");
-		device_probe_and_attach(child);
-	}
-
 	return 0;
 }
 
@@ -271,7 +245,7 @@ nexus_print_all_resources(device_t dev)
 	struct resource_list *rl = &ndev->nx_resources;
 	int retval = 0;
 
-	if (SLIST_FIRST(rl) || ndev->nx_pcibus != -1)
+	if (SLIST_FIRST(rl))
 		retval += printf(" at");
 	
 	retval += resource_list_print_type(rl, "port", SYS_RES_IOPORT, "%#lx");
@@ -284,13 +258,10 @@ nexus_print_all_resources(device_t dev)
 static int
 nexus_print_child(device_t bus, device_t child)
 {
-	struct	nexus_device *ndev = DEVTONX(child);
 	int retval = 0;
 
 	retval += bus_print_child_header(bus, child);
 	retval += nexus_print_all_resources(child);
-	if (ndev->nx_pcibus != -1)
-		retval += printf(" pcibus %d", ndev->nx_pcibus);
 	retval += printf(" on motherboard\n");	/* XXX "motherboard", ick */
 
 	return (retval);
@@ -306,7 +277,6 @@ nexus_add_child(device_t bus, int order, const char *name, int unit)
 	if (!ndev)
 		return(0);
 	resource_list_init(&ndev->nx_resources);
-	ndev->nx_pcibus = -1;
 
 	child = device_add_child_ordered(bus, order, name, unit); 
 
@@ -315,38 +285,6 @@ nexus_add_child(device_t bus, int order, const char *name, int unit)
 
 	return(child);
 }
-
-static int
-nexus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
-{
-	struct	nexus_device *ndev = DEVTONX(child);
-
-	switch (which) {
-	case NEXUS_IVAR_PCIBUS:
-		*result = ndev->nx_pcibus;
-		break;
-	default:
-		return ENOENT;
-	}
-	return 0;
-}
-	
-
-static int
-nexus_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
-{
-	struct	nexus_device *ndev = DEVTONX(child);
-
-	switch (which) {
-	case NEXUS_IVAR_PCIBUS:
-		ndev->nx_pcibus = value;
-		break;
-	default:
-		return ENOENT;
-	}
-	return 0;
-}
-
 
 /*
  * Allocate a resource on behalf of child.  NB: child is usually going to be a
