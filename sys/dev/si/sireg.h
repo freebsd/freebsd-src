@@ -84,6 +84,7 @@
 /*
  * MEMSIZE is the total shared mem region
  * RAMSIZE is value to use when probing
+ * PROBEALLOC is the amount to bus_resource_alloc() during probe.
  */
 #define SIJETPCI_MEMSIZE	0x10000
 #define SIJETISA_MEMSIZE	0x8000
@@ -94,4 +95,4 @@
 #define	SIHOST2_RAMSIZE		0x7ff7
 #define	SIEISA_MEMSIZE		0x10000
 #define	SIEISA_RAMSIZE		0x10000
-
+#define SIPROBEALLOC		0x8000
