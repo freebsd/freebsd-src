@@ -59,7 +59,7 @@ struct _ioctl_reply {
 #define VINUM_VOLCONFIG		_IOWR(L, 69, struct volume) /* get volume config */
 #define VINUM_PLEXSDCONFIG	_IOWR(L, 70, struct sd)	    /* get sd config for plex (plex, sdno) */
 #define VINUM_GETFREELIST	_IOWR(L, 71, struct drive_freelist) /* get freelist element (drive, fe) */
-#define VINUM_SAVECONFIG	_IOC(0, L, 72, 0)	    /* release locks, update, write config to disk */
+#define VINUM_SAVECONFIG	_IOW(L, 72, int)	    /* write config to disk */
 #define VINUM_RESETCONFIG	_IOC(0, L, 73, 0)	    /* trash config on disk */
 #define VINUM_INIT		_IOC(0, L, 74, 0)	    /* read config from disk */
 #ifdef VINUMDEBUG
