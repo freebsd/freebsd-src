@@ -26,6 +26,7 @@ static const char *rcsid = "$Id: perform.c,v 1.19 1995/04/22 01:20:13 jkh Exp $"
 #include "create.h"
 
 #include <signal.h>
+#include <limits.h>
 
 static void sanity_check(void);
 static void make_dist(char *, char *, char *, Package *);
@@ -110,8 +111,8 @@ pkg_perform(char **pkgs)
     check_list(home, &plist);
     (void) umask(022);	/* make sure gen'ed directories, files don't have
 			   group or other write bits. */
-    copy_plist(home, &plist);
-    mark_plist(&plist);
+    /* copy_plist(home, &plist); */
+    /* mark_plist(&plist); */
 
     /* Now put the release specific items in */
     add_plist(&plist, PLIST_CWD, ".");
@@ -151,9 +152,9 @@ pkg_perform(char **pkgs)
     }
 
     /* Run through the list again, picking up extra "local" items */
-    check_list(".", &plist);
-    copy_plist(".", &plist);
-    mark_plist(&plist);
+    /* check_list(".", &plist); */
+    /* copy_plist(".", &plist); */
+    /* mark_plist(&plist); */
 
     /* Finally, write out the packing list */
     fp = fopen(CONTENTS_FNAME, "w");
@@ -174,41 +175,54 @@ pkg_perform(char **pkgs)
     return TRUE;	/* Success */
 }
 
-/*
- * This is evil.  It is the command executed inline on tar's command line
- * to presort file arguments in such a way as to put the all-important
- * +* files at the front.  I'm sure there's a way of doing this that's
- * a hundred times more efficient, but I'm in a hurry right now and I don't
- * have the time to think more about it.. -jkh
- */
-#define SORTED_NAMES	"`find . | sed -e 's/^\\.\\///' -e '/^\\.$/D' | sort`"
-
 static void
 make_dist(char *home, char *pkg, char *suffix, Package *plist)
 {
     char tball[FILENAME_MAX];
-    char args[10];
+    char cmd[_POSIX_ARG_MAX];
     int ret;
+    PackingList p;
 
-    args[0] = '\0';
+    strcpy(cmd, "tar ");
     if (*pkg == '/')
 	sprintf(tball, "%s.%s", pkg, suffix);
     else
 	sprintf(tball, "%s/%s.%s", home, pkg, suffix);
     if (index(suffix, 'z'))	/* Compress/gzip? */
-	strcat(args, "z");
+	strcat(cmd, "-z");
     if (Dereference)
-	strcat(args, "h");
+	strcat(cmd, "h");
     if (Verbose)
 	printf("Creating gzip'd tar ball in '%s'\n", tball);
-    strcat(args, "cf");
+    strcat(cmd, "cf ");
+    strcat(cmd, tball);
     if (ExcludeFrom)
-	ret = vsystem("tar %sX %s %s %s", args, tball, ExcludeFrom,
-		      SORTED_NAMES);
-    else
-	ret = vsystem("tar %s %s %s", args, tball, SORTED_NAMES);
+	sprintf(&cmd[strlen(cmd)], " -X %s", ExcludeFrom);
+    sprintf(&cmd[strlen(cmd)], " %s %s %s", CONTENTS_FNAME,
+    	    COMMENT_FNAME, DESC_FNAME);
+    if (Install)
+	sprintf(&cmd[strlen(cmd)], " %s", INSTALL_FNAME);
+    if (DeInstall)
+	sprintf(&cmd[strlen(cmd)], " %s", DEINSTALL_FNAME);
+    if (Require)
+	sprintf(&cmd[strlen(cmd)], " %s", REQUIRE_FNAME);
+    if (Display)
+	sprintf(&cmd[strlen(cmd)], " %s", DISPLAY_FNAME);
+    if (Mtree)
+	sprintf(&cmd[strlen(cmd)], " %s", MTREE_FNAME);
+    for (p = plist->head; p; p = p->next) {
+	if (p->type == PLIST_FILE)
+	    sprintf(&cmd[strlen(cmd)], " %s", p->name);
+	else if (p->type == PLIST_CWD)
+	    sprintf(&cmd[strlen(cmd)], " -C %s", p->name);
+	else if (p->type == PLIST_SRC)
+	    sprintf(&cmd[strlen(cmd)], " -C %s", p->name);
+	else if (p->type == PLIST_IGNORE)
+	     p = p->next;
+    }
+    ret = vsystem(cmd);
     if (ret)
-	barf("tar command failed with code %d", ret);
+	barf("tar command `%s' failed with code %d", cmd, ret);
 }
 
 static void
