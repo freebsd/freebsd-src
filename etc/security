@@ -5,10 +5,19 @@
 #
 PATH=/sbin:/bin:/usr/bin
 LC_ALL=C; export LC_ALL
+rc=0
+LOG=/var/log
+TMP=/var/run/_secure.$$
 
 separator () {
 	echo ''
 	echo ''
+}
+
+catmsgs() {
+  [ -f $LOG/messages.0.gz ] && zcat $LOG/messages.0.gz
+  [ -f $LOG/messages.0 ] && cat $LOG/messages.0
+  [ -f $LOG/messages ] && cat $LOG/messages
 }
 
 sflag=FALSE ignore=
@@ -25,9 +34,6 @@ yesterday=`date -v-1d "+%b %e "`
 
 host=`hostname`
 [ $sflag = FALSE ] && echo "Subject: ${host} security check output"
-
-LOG=/var/log
-TMP=/var/run/_secure.$$
 
 umask 027
 
@@ -48,17 +54,19 @@ while [ $# -ge 1 ]; do
 done | xargs -0 -n 20 ls -liTd | sort +10 > ${TMP}
 
 if [ ! -f ${LOG}/setuid.today ]; then
+	[ $rc -lt 1 ] && rc=1
 	separator
 	echo "no ${LOG}/setuid.today"
-	cp ${TMP} ${LOG}/setuid.today
+	cp ${TMP} ${LOG}/setuid.today || rc=3
 fi
 
 if ! cmp ${LOG}/setuid.today ${TMP} >/dev/null; then
+	[ $rc -lt 1 ] && rc=1
 	separator
 	echo "${host} setuid diffs:"
 	diff -w ${LOG}/setuid.today ${TMP}
-	mv ${LOG}/setuid.today ${LOG}/setuid.yesterday
-	mv ${TMP} ${LOG}/setuid.today
+	mv ${LOG}/setuid.today ${LOG}/setuid.yesterday || rc=3
+	mv ${TMP} ${LOG}/setuid.today || rc=3
 fi
 
 # Show changes in the way filesystems are mounted
@@ -66,42 +74,52 @@ fi
 [ -n "$ignore" ] && cmd="egrep -v ${ignore#|}" || cmd=cat
 if mount -p | $cmd > $TMP; then
 	if [ ! -f $LOG/mount.today ]; then
+		[ $rc -lt 1 ] && rc=1
 		separator
 		echo "no $LOG/mount.today"
-		cp $TMP $LOG/mount.today
+		cp $TMP $LOG/mount.today || rc=3
 	fi
 	if ! cmp $LOG/mount.today $TMP >/dev/null 2>&1; then
+		[ $rc -lt 1 ] && rc=1
 		separator
 		echo "$host changes in mounted filesystems:"
 		diff -b $LOG/mount.today $TMP
-		mv $LOG/mount.today $LOG/mount.yesterday
-		mv $TMP $LOG/mount.today
+		mv $LOG/mount.today $LOG/mount.yesterday || rc=3
+		mv $TMP $LOG/mount.today || rc=3
 	fi
 fi
 
 separator
 echo "checking for uids of 0:"
-awk -F: '$3==0 {print $1,$3}' /etc/master.passwd
+n=$(awk -F: '$3==0 {print $1,$3}' /etc/master.passwd |
+    tee /dev/stderr |
+    sed -e '/^root 0$/d' -e '/^toor 0$/d' |
+    wc -l)
+[ $n -gt 0 -a $rc -lt 1 ] && rc=1
 
 separator
 echo "checking for passwordless accounts:"
-awk -F: 'NF > 1 && $1 !~ /^[#+-]/ && $2=="" {print $0}' /etc/master.passwd
+n=$(awk -F: 'NF > 1 && $1 !~ /^[#+-]/ && $2=="" {print $0}' /etc/master.passwd |
+    tee /dev/stderr | wc -l)
+[ $n -gt 0 -a $rc -lt 1 ] && rc=1
 
 # Show denied packets
 #
 if ipfw -a l 2>/dev/null | egrep "deny|reset|unreach" > ${TMP}; then
 	if [ ! -f ${LOG}/ipfw.today ]; then
+		[ $rc -lt 1 ] && rc=1
 		separator
 		echo "no ${LOG}/ipfw.today"
-		cp ${TMP} ${LOG}/ipfw.today
+		cp ${TMP} ${LOG}/ipfw.today || rc=3
 	fi
 
 	if ! cmp ${LOG}/ipfw.today ${TMP} >/dev/null; then
+		[ $rc -lt 1 ] && rc=1
 		separator
 		echo "${host} denied packets:"
 		diff -b ${LOG}/ipfw.today ${TMP} | egrep "^>"
-		mv ${LOG}/ipfw.today ${LOG}/ipfw.yesterday
-		mv ${TMP} ${LOG}/ipfw.today
+		mv ${LOG}/ipfw.today ${LOG}/ipfw.yesterday || rc=3
+		mv ${TMP} ${LOG}/ipfw.today || rc=3
 	fi
 fi
 
@@ -112,6 +130,7 @@ if [ $? -eq 0 -a "${IPFW_LOG_LIMIT}" -ne 0 ]; then
 	ipfw -a l | grep " log " | perl -n -e \
 		'/^\d+\s+(\d+)/; print if ($1 >= '$IPFW_LOG_LIMIT')' > ${TMP}
 	if [ -s "${TMP}" ]; then
+		[ $rc -lt 1 ] && rc=1
 		separator
 		echo "ipfw log limit reached:"
 		cat ${TMP}
@@ -122,17 +141,19 @@ fi
 #
 if dmesg 2>/dev/null > ${TMP}; then
 	if [ ! -f ${LOG}/dmesg.today ]; then
+		[ $rc -lt 1 ] && rc=1
 		separator
 		echo "no ${LOG}/dmesg.today"
-		cp ${TMP} ${LOG}/dmesg.today
+		cp ${TMP} ${LOG}/dmesg.today || rc=3
 	fi
 
 	if ! cmp ${LOG}/dmesg.today ${TMP} >/dev/null 2>&1; then
+		[ $rc -lt 1 ] && rc=1
 		separator
 		echo "${host} kernel log messages:"
 		diff -b ${LOG}/dmesg.today ${TMP} | egrep "^>"
-		mv ${LOG}/dmesg.today ${LOG}/dmesg.yesterday
-		mv ${TMP} ${LOG}/dmesg.today
+		mv ${LOG}/dmesg.today ${LOG}/dmesg.yesterday || rc=3
+		mv ${TMP} ${LOG}/dmesg.today || rc=3
 	fi
 fi
 
@@ -140,12 +161,16 @@ fi
 #
 separator
 echo "${host} login failures:"
-zcat -f $LOG/messages.0* $LOG/messages | grep -i "^$yesterday.*login failure"
+n=$(catmsgs | grep -i "^$yesterday.*login failure" | tee /dev/stderr | wc -l)
+[ $n -gt 0 -a $rc -lt 1 ] && rc=1
 
 # Show tcp_wrapper warning messages
 #
 separator
 echo "${host} refused connections:"
-zcat -f $LOG/messages.0* $LOG/messages | grep -i "^$yesterday.*refused connect"
+n=$(catmsgs | grep -i "^$yesterday.*refused connect" | tee /dev/stderr | wc -l)
+[ $n -gt 0 -a $rc -lt 1 ] && rc=1
 
 rm -f ${TMP}
+
+exit $rc

@@ -18,11 +18,12 @@ fi
 
 case "$daily_calendar_enable" in
     [Yy][Ee][Ss])
-	if [ -f /usr/bin/calendar ]
-	then
-	    echo ""
-	    echo "Running calendar:"
+	echo ""
+	echo "Running calendar:"
 
-	    calendar -a
-	fi;;
+	calendar -a && rc=0 || rc=3;;
+
+    *)  rc=0;;
 esac
+
+exit $rc
