@@ -69,8 +69,6 @@
 #include <machine/md_var.h>
 #include <machine/spr.h>
 
-extern u_long ns_per_tick;
-
 struct cputab {
 	const char	*name;
 	uint16_t	version;
