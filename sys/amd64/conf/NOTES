@@ -258,8 +258,8 @@ device		wlan		# 802.11 layer
 # 3ware 9000 series PATA/SATA RAID controller driver and options.
 # The driver is implemented as a SIM, and so, needs the CAM infrastructure.
 #
-options		TWA_DEBUG		# 0-10; 10 prints the most messages.
-options		TWA_FLASH_FIRMWARE	# firmware image bundled when defined.
+options 	TWA_DEBUG		# 0-10; 10 prints the most messages.
+options 	TWA_FLASH_FIRMWARE	# firmware image bundled when defined.
 device		twa			# 3ware 9000 series PATA/SATA RAID
 
 #
@@ -288,8 +288,8 @@ device		ips
 # it's tested on a big-endian machine
 #
 device		safe		# SafeNet 1141
-options		SAFE_DEBUG	# enable debugging support: hw.safe.debug
-options		SAFE_RNDTEST	# enable rndtest support
+options 	SAFE_DEBUG	# enable debugging support: hw.safe.debug
+options 	SAFE_RNDTEST	# enable rndtest support
 
 #####################################################################
 
