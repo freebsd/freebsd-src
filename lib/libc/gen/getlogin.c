@@ -50,7 +50,11 @@ getlogin()
 	static char logname[MAXLOGNAME];
 
 	if (_logname_valid == 0) {
+#ifdef __NETBSD_SYSCALLS
+		if (__getlogin(logname, sizeof(logname) - 1) < 0)
+#else
 		if (_getlogin(logname, sizeof(logname)) < 0)
+#endif
 			return ((char *)NULL);
 		_logname_valid = 1;
 	}
