@@ -1167,6 +1167,7 @@ options 	TDFX_LINUX		# Enable Linuxulator support
 #      53C810, 53C810A, 53C815, 53C825,  53C825A, 53C860, 53C875, 
 #      53C876, 53C885,  53C895, 53C895A, 53C896,  53C897, 53C1510D, 
 #      53C1010-33, 53C1010-66.
+# trm: Tekram DC395U/UW/F DC315U adapters.
 # wds: WD7000
 
 #
@@ -1206,6 +1207,7 @@ hint.isp.0.nodewnn="w50000000aaaa0001"
 device		ispfw
 device		ncr
 device		sym
+device		trm
 device		wds
 hint.wds.0.at="isa"
 hint.wds.0.port="0x350"
