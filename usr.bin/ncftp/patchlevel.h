@@ -1,3 +1,7 @@
+v1.8.7 - December 11, 1994.  Tweaks for FreeBSD.  Passive mode enabled and
+  turned on by default.  This should be the last version of ncftp before
+  version 2.
+
 v1.8.6 - October 30, 1994.  Tweaks for Solaris in sys.h.
 
 v1.8.5 - September 20, 1994.  Better(?) support for term.
