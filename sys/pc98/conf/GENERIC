@@ -72,7 +72,7 @@ options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 #options 	APIC_IO			# Symmetric (APIC) I/O
 
 device		isa
-device		pci
+device		pci	1		# Unit count is for ahc/ahd
 options 	COMPAT_OLDISA		# Old ISA driver shims
 #options 	PCI_ENABLE_IO_MODES	# Enable pci resources left off by a "lazy BIOS"
 
