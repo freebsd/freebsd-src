@@ -161,7 +161,7 @@ struct command {
 /*
  * Routines to support GDB on an sio port.
  */
-extern dev_t	   gdbdev;
+extern void	 *gdb_arg;
 extern cn_getc_t *gdb_getc;
 extern cn_putc_t *gdb_putc;
 #endif

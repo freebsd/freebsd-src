@@ -2982,7 +2982,7 @@ siocnprobe(cp)
 				siogdbiobase = iobase;
 				siogdbunit = unit;
 #if DDB > 0
-				gdbdev = makedev(CDEV_MAJOR, unit);
+				gdb_arg = makedev(CDEV_MAJOR, unit);
 				gdb_getc = siocngetc;
 				gdb_putc = siocnputc;
 #endif
@@ -2996,14 +2996,14 @@ siocnprobe(cp)
 	 * If no gdb port has been specified, set it to be the console
 	 * as some configuration files don't specify the gdb port.
 	 */
-	if (gdbdev == NODEV && (boothowto & RB_GDB)) {
+	if (gdb_arg == NULL && (boothowto & RB_GDB)) {
 		printf("Warning: no GDB port specified. Defaulting to sio%d.\n",
 			siocnunit);
 		printf("Set flag 0x80 on desired GDB port in your\n");
 		printf("configuration file (currently sio only).\n");
 		siogdbiobase = siocniobase;
 		siogdbunit = siocnunit;
-		gdbdev = makedev(CDEV_MAJOR, siocnunit);
+		gdb_arg = makedev(CDEV_MAJOR, siocnunit);
 		gdb_getc = siocngetc;
 		gdb_putc = siocnputc;
 	}
@@ -3090,7 +3090,7 @@ siogdbattach(port, speed)
 	printf("sio%d: gdb debugging port\n", unit);
 	siogdbunit = unit;
 #if DDB > 0
-	gdbdev = makedev(CDEV_MAJOR, unit);
+	gdb_arg = makedev(CDEV_MAJOR, unit);
 	gdb_getc = siocngetc;
 	gdb_putc = siocnputc;
 #endif
