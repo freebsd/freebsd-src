@@ -990,7 +990,7 @@ isab_probe(device_t dev)
 
 		if (!devclass_get_device(devclass_find("isa"), 0))
 			device_add_child(dev, "isa", -1);
-		return 0;
+		return -1000;
 	}
 	return ENXIO;
 }
