@@ -105,17 +105,8 @@
 
 #include <setjmp.h>
 
-/* #include "sio.h" */
 #include "opt_ddb.h"
 
-#include "sio.h"
-
-#if NSIO == 0
-void
-gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
-{
-}
-#else
 /************************************************************************/
 
 void		gdb_handle_exception (db_regs_t *, int, int);
@@ -134,6 +125,9 @@ extern jmp_buf	db_jmpbuf;
    and are reentrant under FreeBSD.  In any case, our versions should not
    be named the same as the standard versions, so that the address `strlen'
    is unambiguous...  */
+
+#define strlen  gdb_strlen
+#define strcpy  gdb_strcpy
 
 static int
 strlen (const char *s)
@@ -155,26 +149,21 @@ strcpy (char *dst, const char *src)
   return retval;
 }
 
-/* XXX sio always uses its major with minor 0 no matter what we specify.  */
-#define	REMOTE_DEV	0
-
 static int
 putDebugChar (int c)		/* write a single character      */
 {
-#if NSIO > 0
-  siogdbputc (c);
-#endif
+  if (gdbdev == NODEV)
+	return 0;
+  (*gdb_putc)(gdbdev, c);
   return 1;
 }
 
 static int
 getDebugChar (void)		/* read and return a single char */
 {
-#if NSIO > 0
-  return siogdbgetc ();
-#else
-  return 0;
-#endif
+  if (gdbdev == NODEV)
+	return -1;
+  return (*gdb_getc)(gdbdev);
 }
 
 static const char hexchars[]="0123456789abcdef";
@@ -635,6 +624,8 @@ gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
 
   while (1)
     {
+      if (gdbdev == NODEV)	/* somebody's removed it */
+	return 1;		/* get out of here */
       remcomOutBuffer[0] = 0;
 
       getpacket (remcomInBuffer);
@@ -750,4 +741,3 @@ gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
       putpacket (remcomOutBuffer);
     }
 }
-#endif /* NSIO > 0 */

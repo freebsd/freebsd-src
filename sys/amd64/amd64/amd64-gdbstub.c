@@ -102,17 +102,10 @@
 
 #include <setjmp.h>
 
-#include "sio.h"
 #include "opt_ddb.h"
 
 int		gdb_handle_exception (db_regs_t *, int, int);
 
-#if NSIO == 0
-int
-gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
-{
-}
-#else
 /************************************************************************/
 
 extern jmp_buf	db_jmpbuf;
@@ -626,4 +619,3 @@ gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
     }
   return 0;
 }
-#endif /* NSIO > 0 */
