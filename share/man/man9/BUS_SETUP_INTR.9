@@ -28,9 +28,9 @@
 .Dt BUS_SETUP_INTR 9
 .Os FreeBSD
 .Sh NAME
-.Nm BUS_SETUP_INTR
-.Nm bus_setup_intr
-.Nm BUS_TEARDOWN_INTR
+.Nm BUS_SETUP_INTR ,
+.Nm bus_setup_intr ,
+.Nm BUS_TEARDOWN_INTR ,
 .Nm bus_teardown_intr
 .Nd create and attach to an interrupt handler, and teardown the attachment
 .Sh SYNOPSIS
@@ -55,7 +55,7 @@ method.
 The
 .Fa flags
 are found in
-.Pa sys/bus.h ,
+.Aq Pa sys/bus.h ,
 and give the broad category of interrupt.
 The
 .Fa flags
