@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: c++rt0.c,v 1.2.4.1 1995/08/25 07:08:32 davidg Exp $
+ *	$Id: c++rt0.c,v 1.2.4.3 1996/06/05 02:45:00 jkh Exp $
  */
 
 /*
@@ -38,8 +38,8 @@
  * number of pointers in each.
  * The tables are also null-terminated.
  */
-void (*__CTOR_LIST__[0])(void);
-void (*__DTOR_LIST__[0])(void);
+void (*__CTOR_LIST__[2])(void);
+void (*__DTOR_LIST__[2])(void);
 
 static void
 __dtors(void)
