@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: ctm.c,v 1.4 1994/09/22 02:49:15 phk Exp $
  *
  * This is the client program of 'CTM'.  It will apply a CTM-patch to a 
  * collection of files.
@@ -106,7 +106,7 @@ Proc(char *filename)
     if(!strcmp(filename,"-")) {
 	p = 0;
 	f = stdin;
-    } else if(!strcmp(p,".gz") || !strcmp(p,".Z")) {
+    } else if(p && (!strcmp(p,".gz") || !strcmp(p,".Z"))) {
 	p = Malloc(100);
 	strcpy(p,"gunzip < ");
 	strcat(p,filename);
