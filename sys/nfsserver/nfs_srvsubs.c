@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.48 1997/12/20 00:25:01 bde Exp $
+ * $Id: nfs_subs.c,v 1.49 1997/12/27 02:56:35 bde Exp $
  */
 
 /*
@@ -42,6 +42,9 @@
  * the nfs op functions. They do things like create the rpc header and
  * copy data between mbuf chains and uio lists.
  */
+
+#include "opt_diagnostic.h"
+
 #include <sys/param.h>
 #include <sys/buf.h>
 #include <sys/proc.h>

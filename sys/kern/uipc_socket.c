@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.33 1997/10/12 20:24:12 phk Exp $
+ *	$Id: uipc_socket.c,v 1.34 1997/11/09 05:07:40 jkh Exp $
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.84 1998/02/01 02:00:20 dyson Exp $
+ * $Id: swap_pager.c,v 1.85 1998/02/03 00:50:36 dyson Exp $
  */
 
 /*
@@ -48,6 +48,8 @@
  *	Add multiprocessor locks
  *	Deal with async writes in a better fashion
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

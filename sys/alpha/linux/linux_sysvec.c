@@ -25,8 +25,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.20 1997/11/06 19:29:04 phk Exp $
+ *  $Id: linux_sysvec.c,v 1.21 1997/12/16 17:40:12 eivind Exp $
  */
+
+#include "opt_diagnostic.h"
 
 /* XXX we use functions that might not exist. */
 #include "opt_compat.h"
