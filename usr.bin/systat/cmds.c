@@ -119,6 +119,7 @@ command(cmd)
 			goto done;
                 alarm(0);
 		(*curcmd->c_close)(wnd);
+		curcmd->c_flags &= ~CF_INIT;
 		wnd = (*p->c_open)();
 		if (wnd == 0) {
 			error("Couldn't open new display");
