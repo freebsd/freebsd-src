@@ -253,8 +253,7 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer,
 	    printf("Non-authoritative answer:\n");
 	}
 
-	if (queryType != T_A && queryType != T_AAAA &&	/* A6? */
-	    !(iquery && queryType == T_PTR)) {
+	if (queryType != T_A && !(iquery && queryType == T_PTR)) {
 	    while (--ancount >= 0 && cp < eom) {
 		if ((cp = Print_rr(cp, (u_char *)&answer,
 				   eom, stdout)) == NULL) {
