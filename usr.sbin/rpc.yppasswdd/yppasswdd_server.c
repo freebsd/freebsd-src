@@ -706,6 +706,7 @@ yppasswdproc_update_master_1_svc(master_yppasswd *argp,
 	DBT key, data;
 	char *passfile_hold;
 	char passfile_buf[MAXPATHLEN + 2];
+	char passfile_hold_buf[MAXPATHLEN + 2];
 	struct sockaddr_in *rqhost;
 	SVCXPRT	*transp;
 
@@ -797,6 +798,14 @@ allow additions to be made to the password database");
 		passfile = (char *)&passfile_buf;
 	}
 
+	/*
+	 * Create a filename to hold the original master.passwd
+	 * so if our call to yppwupdate fails we can roll back
+	 */
+	snprintf(passfile_hold_buf, sizeof(passfile_hold_buf),
+	    "%s.hold", passfile);
+	passfile_hold = (char *)&passfile_hold_buf;
+
 	if (pw_init(dirname(passfile), passfile)) {
 		yp_error("pw_init() failed");
 		return &result;
@@ -816,10 +825,33 @@ allow additions to be made to the password database");
 		yp_error("pw_copy() failed");
 		return &result;
 	}
+	if (rename(passfile, passfile_hold) == -1) {
+		pw_fini();
+		yp_error("rename of %s to %s failed", passfile,
+		    passfile_hold);
+		return &result;
+	}
 	if (strcmp(passfile, _PATH_MASTERPASSWD) == 0) {
+		/*
+		 * NIS server is exporting the system's master.passwd.
+		 * Call pw_mkdb to rebuild passwd and the .db files
+		 */
 		if (pw_mkdb(argp->newpw.pw_name) == -1) {
 			pw_fini();
 			yp_error("pw_mkdb() failed");
+			rename(passfile_hold, passfile);
+			return &result;
+		}
+	} else {
+		/*
+		 * NIS server is exporting a private master.passwd.
+		 * Rename tempfile into final location
+		 */
+		if (rename(pw_tempname(), passfile) == -1) {
+			pw_fini();
+			yp_error("rename of %s to %s failed",
+			    pw_tempname(), passfile);
+			rename(passfile_hold, passfile);
 			return &result;
 		}
 	}
