@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7870.c,v 1.15 1995/10/08 17:46:11 gibbs Exp $
+ *	$Id: aic7870.c,v 1.16 1995/10/26 23:58:59 gibbs Exp $
  */
 
 #include <pci.h>
@@ -176,7 +176,7 @@ aic7870_attach(config_id, unit)
 		 * interrupt handler, we pass the unit number
 		 * not a pointer to our per device structure.
 		 */
-		if(!(pci_map_int(config_id, ahcintr, (void *)unit,
+		if(!(pci_map_int(config_id, ahc_pci_intr, (void *)unit,
 			&bio_imask))) {
 			free(ahcdata[unit], M_TEMP);
 			ahcdata[unit] = NULL;
