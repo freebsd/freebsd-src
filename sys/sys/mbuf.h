@@ -472,11 +472,11 @@ extern	int nsfbufs;			/* Number of sendfile(2) bufs */
 
 void		 _mext_free(struct mbuf *);
 void		 m_adj(struct mbuf *, int);
-struct	mbuf 	*m_aux_add(struct mbuf *, int, int);
-struct	mbuf 	*m_aux_add2(struct mbuf *, int, int, void *);
+struct	mbuf	*m_aux_add(struct mbuf *, int, int);
+struct	mbuf	*m_aux_add2(struct mbuf *, int, int, void *);
 void		 m_aux_delete(struct mbuf *, struct mbuf *);
-struct	mbuf 	*m_aux_find(struct mbuf *, int, int);
-struct	mbuf 	*m_aux_find2(struct mbuf *, int, int, void *);
+struct	mbuf	*m_aux_find(struct mbuf *, int, int);
+struct	mbuf	*m_aux_find2(struct mbuf *, int, int, void *);
 void		 m_cat(struct mbuf *, struct mbuf *);
 void		 m_chtype(struct mbuf *, short);
 void		 m_clget(struct mbuf *, int);
@@ -484,23 +484,23 @@ void		 m_extadd(struct mbuf *, caddr_t, u_int,
 		    void (*free)(caddr_t, void *), void *, short, int);
 void		 m_copyback(struct mbuf *, int, int, caddr_t);
 void		 m_copydata(const struct mbuf *, int, int, caddr_t);
-struct	mbuf 	*m_copym(struct mbuf *, int, int, int);
-struct	mbuf 	*m_copypacket(struct mbuf *, int);
-struct	mbuf 	*m_devget(char *, int, int, struct ifnet *,
+struct	mbuf	*m_copym(struct mbuf *, int, int, int);
+struct	mbuf	*m_copypacket(struct mbuf *, int);
+struct	mbuf	*m_devget(char *, int, int, struct ifnet *,
 		    void (*copy)(char *, caddr_t, u_int));
 struct	mbuf	*m_dup(struct mbuf *, int);
 struct	mbuf	*m_free(struct mbuf *);
 void		 m_freem(struct mbuf *);
-struct	mbuf 	*m_get(int, int);
-struct	mbuf 	*m_get_clrd(int, int);
-struct	mbuf 	*m_gethdr(int, int);
+struct	mbuf	*m_get(int, int);
+struct	mbuf	*m_get_clrd(int, int);
+struct	mbuf	*m_gethdr(int, int);
 struct	mbuf	*m_gethdr_clrd(int, int);
-struct	mbuf 	*m_getm(struct mbuf *, int, int, int);
-struct	mbuf 	*m_prepend(struct mbuf *, int, int);
+struct	mbuf	*m_getm(struct mbuf *, int, int, int);
+struct	mbuf	*m_prepend(struct mbuf *, int, int);
 void		 m_print(const struct mbuf *m);
-struct	mbuf 	*m_pulldown(struct mbuf *, int, int, int *);
-struct	mbuf 	*m_pullup(struct mbuf *, int);
-struct	mbuf 	*m_split(struct mbuf *, int, int);
+struct	mbuf	*m_pulldown(struct mbuf *, int, int, int *);
+struct	mbuf	*m_pullup(struct mbuf *, int);
+struct	mbuf	*m_split(struct mbuf *, int, int);
 #endif /* _KERNEL */
 
 #endif /* !_SYS_MBUF_H_ */
