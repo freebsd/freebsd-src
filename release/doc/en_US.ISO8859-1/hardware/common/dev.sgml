@@ -2353,8 +2353,6 @@
     <para>Floppy drives (&man.fd.4; driver)</para>
     <para arch="i386">Genius and Mustek hand scanners</para>
     <para arch="i386">GPB and Transputer drivers</para>
-    <para arch="i386">HP4020, HP6020, Philips CDD2000/CDD2660 and Plasmon CD-R
-    drives</para>
     <para>Keyboards including:
       <itemizedlist>
         <listitem>
