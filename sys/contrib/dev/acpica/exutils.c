@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exutils - interpreter/scanner utilities
- *              $Revision: 88 $
+ *              $Revision: 93 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -142,7 +142,7 @@
 #include "acparser.h"
 
 #define _COMPONENT          ACPI_EXECUTER
-        MODULE_NAME         ("exutils")
+        ACPI_MODULE_NAME    ("exutils")
 
 
 /*******************************************************************************
@@ -151,7 +151,8 @@
  *
  * PARAMETERS:  None
  *
- * DESCRIPTION: Enter the interpreter execution region
+ * DESCRIPTION: Enter the interpreter execution region.  Failure to enter
+ *              the interpreter region is a fatal system error
  *
  ******************************************************************************/
 
@@ -160,10 +161,15 @@ AcpiExEnterInterpreter (void)
 {
     ACPI_STATUS             Status;
 
-    FUNCTION_TRACE ("ExEnterInterpreter");
+    ACPI_FUNCTION_TRACE ("ExEnterInterpreter");
 
 
     Status = AcpiUtAcquireMutex (ACPI_MTX_EXECUTE);
+    if (ACPI_FAILURE (Status))
+    {
+        ACPI_REPORT_ERROR (("Fatal - Could not acquire interpreter lock\n"));
+    }
+
     return_ACPI_STATUS (Status);
 }
 
@@ -191,10 +197,13 @@ AcpiExEnterInterpreter (void)
 void
 AcpiExExitInterpreter (void)
 {
-    FUNCTION_TRACE ("ExExitInterpreter");
+    ACPI_STATUS             Status;
 
 
-    AcpiUtReleaseMutex (ACPI_MTX_EXECUTE);
+    ACPI_FUNCTION_TRACE ("ExExitInterpreter");
+
+
+    Status = AcpiUtReleaseMutex (ACPI_MTX_EXECUTE);
 
     return_VOID;
 }
@@ -215,7 +224,7 @@ AcpiExValidateObjectType (
     ACPI_OBJECT_TYPE        Type)
 {
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     if ((Type > ACPI_TYPE_MAX && Type < INTERNAL_TYPE_BEGIN) ||
@@ -249,7 +258,7 @@ AcpiExTruncateFor32bitTable (
     ACPI_WALK_STATE         *WalkState)
 {
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     /*
@@ -278,7 +287,7 @@ AcpiExTruncateFor32bitTable (
  *
  * FUNCTION:    AcpiExAcquireGlobalLock
  *
- * PARAMETERS:  FieldFlags            - Flags with Lock rule: 
+ * PARAMETERS:  FieldFlags            - Flags with Lock rule:
  *                                      AlwaysLock or NeverLock
  *
  * RETURN:      TRUE/FALSE indicating whether the lock was actually acquired
@@ -297,21 +306,20 @@ AcpiExAcquireGlobalLock (
     ACPI_STATUS             Status;
 
 
-    FUNCTION_TRACE ("ExAcquireGlobalLock");
+    ACPI_FUNCTION_TRACE ("ExAcquireGlobalLock");
 
 
     /* Only attempt lock if the AlwaysLock bit is set */
 
     if (FieldFlags & AML_FIELD_LOCK_RULE_MASK)
     {
-        /* We should attempt to get the lock */
+        /* We should attempt to get the lock, wait forever */
 
-        Status = AcpiEvAcquireGlobalLock ();
+        Status = AcpiEvAcquireGlobalLock (ACPI_UINT32_MAX);
         if (ACPI_SUCCESS (Status))
         {
             Locked = TRUE;
         }
-
         else
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not acquire Global Lock, %s\n",
@@ -341,7 +349,7 @@ AcpiExReleaseGlobalLock (
     BOOLEAN                 LockedByMe)
 {
 
-    FUNCTION_TRACE ("ExReleaseGlobalLock");
+    ACPI_FUNCTION_TRACE ("ExReleaseGlobalLock");
 
 
     /* Only attempt unlock if the caller locked it */
@@ -352,7 +360,6 @@ AcpiExReleaseGlobalLock (
 
         AcpiEvReleaseGlobalLock ();
     }
-
 
     return_ACPI_STATUS (AE_OK);
 }
@@ -377,14 +384,13 @@ AcpiExDigitsNeeded (
     UINT32                  NumDigits = 0;
 
 
-    FUNCTION_TRACE ("ExDigitsNeeded");
+    ACPI_FUNCTION_TRACE ("ExDigitsNeeded");
 
 
     if (Base < 1)
     {
-        REPORT_ERROR (("ExDigitsNeeded: Internal error - Invalid base\n"));
+        ACPI_REPORT_ERROR (("ExDigitsNeeded: Internal error - Invalid base\n"));
     }
-
     else
     {
         /*
@@ -427,7 +433,7 @@ _ntohl (
     } In;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     In.Value = Value;
@@ -460,7 +466,7 @@ AcpiExEisaIdToString (
     UINT32                  id;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     /* swap to big-endian to get contiguous bits */
@@ -501,7 +507,7 @@ AcpiExUnsignedIntegerToString (
     UINT32                  Remainder;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     DigitsNeeded = AcpiExDigitsNeeded (Value, 10);

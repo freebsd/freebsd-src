@@ -12,7 +12,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -213,11 +213,7 @@ AcpiOsSignalSemaphore (
 
 void *
 AcpiOsAllocate (
-    UINT32                  Size);
-
-void *
-AcpiOsCallocate (
-    UINT32                  Size);
+    ACPI_SIZE               Size);
 
 void
 AcpiOsFree (
@@ -226,13 +222,13 @@ AcpiOsFree (
 ACPI_STATUS
 AcpiOsMapMemory (
     ACPI_PHYSICAL_ADDRESS   PhysicalAddress,
-    UINT32                  Length,
+    ACPI_SIZE               Size,
     void                    **LogicalAddress);
 
 void
 AcpiOsUnmapMemory (
     void                    *LogicalAddress,
-    UINT32                  Length);
+    ACPI_SIZE               Size);
 
 ACPI_STATUS
 AcpiOsGetPhysicalAddress (
@@ -364,12 +360,12 @@ AcpiOsSignal (
  * Debug print routines
  */
 
-INT32
+void
 AcpiOsPrintf (
     const NATIVE_CHAR       *Format,
     ...);
 
-INT32
+void
 AcpiOsVprintf (
     const NATIVE_CHAR       *Format,
     va_list                 Args);

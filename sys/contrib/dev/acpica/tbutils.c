@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbutils - Table manipulation utilities
- *              $Revision: 43 $
+ *              $Revision: 49 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -122,7 +122,7 @@
 
 
 #define _COMPONENT          ACPI_TABLES
-        MODULE_NAME         ("tbutils")
+        ACPI_MODULE_NAME    ("tbutils")
 
 
 /*******************************************************************************
@@ -147,7 +147,7 @@ AcpiTbHandleToObject (
     ACPI_TABLE_DESC         *ListHead;
 
 
-    PROC_NAME ("TbHandleToObject");
+    ACPI_FUNCTION_NAME ("TbHandleToObject");
 
 
     for (i = 0; i < ACPI_TABLE_MAX; i++)
@@ -199,7 +199,7 @@ AcpiTbValidateTableHeader (
     ACPI_NAME               Signature;
 
 
-    PROC_NAME ("TbValidateTableHeader");
+    ACPI_FUNCTION_NAME ("TbValidateTableHeader");
 
 
     /* Verify that this is a valid address */
@@ -214,15 +214,15 @@ AcpiTbValidateTableHeader (
 
     /* Ensure that the signature is 4 ASCII characters */
 
-    MOVE_UNALIGNED32_TO_32 (&Signature, &TableHeader->Signature);
+    ACPI_MOVE_UNALIGNED32_TO_32 (&Signature, &TableHeader->Signature);
     if (!AcpiUtValidAcpiName (Signature))
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
             "Table signature at %p [%p] has invalid characters\n",
             TableHeader, &Signature));
 
-        REPORT_WARNING (("Invalid table signature %4.4s found\n", (char*)&Signature));
-        DUMP_BUFFER (TableHeader, sizeof (ACPI_TABLE_HEADER));
+        ACPI_REPORT_WARNING (("Invalid table signature %4.4s found\n", (char *) &Signature));
+        ACPI_DUMP_BUFFER (TableHeader, sizeof (ACPI_TABLE_HEADER));
         return (AE_BAD_SIGNATURE);
     }
 
@@ -233,10 +233,10 @@ AcpiTbValidateTableHeader (
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
             "Invalid length in table header %p name %4.4s\n",
-            TableHeader, (char*)&Signature));
+            TableHeader, (char *) &Signature));
 
-        REPORT_WARNING (("Invalid table header length found\n"));
-        DUMP_BUFFER (TableHeader, sizeof (ACPI_TABLE_HEADER));
+        ACPI_REPORT_WARNING (("Invalid table header length (0x%X) found\n", TableHeader->Length));
+        ACPI_DUMP_BUFFER (TableHeader, sizeof (ACPI_TABLE_HEADER));
         return (AE_BAD_HEADER);
     }
 
@@ -271,7 +271,7 @@ AcpiTbMapAcpiTable (
     ACPI_STATUS             Status = AE_OK;
 
 
-    PROC_NAME ("TbMapAcpiTable");
+    ACPI_FUNCTION_NAME ("TbMapAcpiTable");
 
 
     /* If size is zero, look at the table header to get the actual size */
@@ -350,7 +350,7 @@ AcpiTbVerifyTableChecksum (
     ACPI_STATUS             Status = AE_OK;
 
 
-    FUNCTION_TRACE ("TbVerifyTableChecksum");
+    ACPI_FUNCTION_TRACE ("TbVerifyTableChecksum");
 
 
     /* Compute the checksum on the table */
@@ -361,8 +361,8 @@ AcpiTbVerifyTableChecksum (
 
     if (Checksum)
     {
-        REPORT_WARNING (("Invalid checksum (%X) in table %4.4s\n",
-            Checksum, (char*)&TableHeader->Signature));
+        ACPI_REPORT_WARNING (("Invalid checksum (%X) in table %4.4s\n",
+            Checksum, (char *) &TableHeader->Signature));
 
         Status = AE_BAD_CHECKSUM;
     }
@@ -390,8 +390,8 @@ AcpiTbChecksum (
     void                    *Buffer,
     UINT32                  Length)
 {
-    UINT8                   *limit;
-    UINT8                   *rover;
+    const UINT8             *limit;
+    const UINT8             *rover;
     UINT8                   sum = 0;
 
 
