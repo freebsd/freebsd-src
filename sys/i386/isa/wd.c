@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.66 1995/02/26 01:15:30 bde Exp $
+ *	$Id: wd.c,v 1.67 1995/02/27 06:42:35 davidg Exp $
  */
 
 /* TODO:
@@ -512,7 +512,6 @@ wdstrategy(register struct buf *bp)
 	dp = &wdutab[lunit];
 	s = splbio();
 
-	/* cldisksort(dp, bp, 254*DEV_BSIZE); */
 	disksort(dp, bp);
 
 	if (dp->b_active == 0)
