@@ -274,7 +274,7 @@ url_get(origline, proxyenv)
 	if (!proxy) {
 		printf("Requesting %s\n", origline);
 		len = asprintf(&http_buffer,
-		    "GET /%s HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n", path, host);
+		    "GET /%s HTTP/1.0\r\nHost: %s\r\n\r\n", path, host);
 	} else {
 		printf("Requesting %s (via %s)\n", origline, proxyenv);
 		len = asprintf(&http_buffer,
