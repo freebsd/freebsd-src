@@ -92,7 +92,6 @@ static void acd_get_cap(struct acd_softc *);
 static int acd_read_format_caps(struct acd_softc *, struct cdr_format_capacities *);
 static int acd_format(struct acd_softc *, struct cdr_format_params *);
 static int acd_test_ready(struct ata_device *);
-static int acd_request_sense(struct ata_device *, struct atapi_sense *);
 
 /* internal vars */
 static u_int32_t acd_lun_map = 0;
@@ -476,24 +475,38 @@ static int
 acd_geom_access(struct g_provider *pp, int dr, int dw, int de)
 {
     struct acd_softc *cdp;
+    struct ata_request *request;
+    int8_t ccb[16] = { ATAPI_TEST_UNIT_READY, 0, 0, 0, 0,
+		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     int timeout = 60, track;
+
     
     cdp = pp->geom->softc;
     if (cdp->device->flags & ATA_D_DETACHING)
 	return ENXIO;
 
+    if (!(request = ata_alloc_request()))
+	return ENOMEM;
+
+    request->device = cdp->device;
+    request->driver = cdp;
+    bcopy(ccb, request->u.atapi.ccb, 16);
+    request->flags = ATA_R_ATAPI;
+    request->timeout = 5;
+
     /* wait if drive is not finished loading the medium */
     while (timeout--) {
-	struct atapi_sense sense;
-	
-	if (!acd_test_ready(cdp->device))
-	    break;
-	acd_request_sense(cdp->device, &sense);
-	if (sense.sense_key == 2  && sense.asc == 4 && sense.ascq == 1)
+	ata_queue_request(request);
+	if (!request->error &&
+	    request->u.atapi.sense_data.sense_key == 2 &&
+	    request->u.atapi.sense_data.asc == 4 &&
+	    request->u.atapi.sense_data.ascq == 1)
 	    tsleep(&timeout, PRIBIO, "acdld", hz / 2);
 	else
 	    break;
     }
+    ata_free_request(request);
+
     if (pp->acr == 0) {
 	if (cdp->changer_info && cdp->slot != cdp->changer_info->current_slot) {
 	    acd_select_slot(cdp);
@@ -1522,16 +1535,27 @@ acd_get_progress(struct acd_softc *cdp, int *finished)
 {
     int8_t ccb[16] = { ATAPI_READ_CAPACITY, 0, 0, 0, 0, 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0 };
-    struct atapi_sense sense;
+    struct ata_request *request;
     int8_t dummy[8];
 
-    ata_atapicmd(cdp->device, ccb, dummy, sizeof(dummy), ATA_R_READ, 30);
-    acd_request_sense(cdp->device, &sense);
+    if (!(request = ata_alloc_request()))
+	return ENOMEM;
 
-    if (sense.sksv)
-	*finished = ((sense.sk_specific2|(sense.sk_specific1<<8))*100)/65535;
+    request->device = cdp->device;
+    request->driver = cdp;
+    bcopy(ccb, request->u.atapi.ccb, 16);
+    request->data = dummy;
+    request->bytecount = sizeof(dummy);
+    request->transfersize = min(request->bytecount, 65534);
+    request->flags = ATA_R_ATAPI | ATA_R_READ;
+    request->timeout = 30;
+    ata_queue_request(request);
+    if (!request->error && request->u.atapi.sense_data.sksv)
+	*finished = ((request->u.atapi.sense_data.sk_specific2 |
+		     (request->u.atapi.sense_data.sk_specific1<<8))*100)/65535;
     else
 	*finished = 0;
+    ata_free_request(request);
     return 0;
 }
 
@@ -1984,14 +2008,4 @@ acd_test_ready(struct ata_device *atadev)
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
     return ata_atapicmd(atadev, ccb, NULL, 0, 0, 30);
-}
-
-static int
-acd_request_sense(struct ata_device *atadev, struct atapi_sense *sense)
-{
-    int8_t ccb[16] = { ATAPI_REQUEST_SENSE, 0, 0, 0, sizeof(struct atapi_sense),
-		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-
-    return ata_atapicmd(atadev, ccb, (caddr_t)sense,
-			sizeof(struct atapi_sense), ATA_R_READ, 30);
 }
