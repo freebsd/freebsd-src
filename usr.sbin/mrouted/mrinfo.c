@@ -61,7 +61,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Id: mrinfo.c,v 1.6 1995/06/28 17:58:36 wollman Exp $";
+    "@(#) $Id: mrinfo.c,v 3.8 1995/11/29 22:36:34 fenner Rel $";
 /*  original rcsid:
     "@(#) Header: mrinfo.c,v 1.6 93/04/08 15:14:16 van Exp (LBL)";
 */
@@ -237,8 +237,13 @@ accept_neighbors2(src, dst, p, datalen, level)
 	u_int broken_cisco = ((level & 0xffff) == 0x020a); /* 10.2 */
 	/* well, only possibly_broken_cisco, but that's too long to type. */
 
-	printf("%s (%s) [version %d.%d]:\n", inet_fmt(src, s1), inet_name(src),
+	printf("%s (%s) [version %d.%d", inet_fmt(src, s1), inet_name(src),
 	       level & 0xff, (level >> 8) & 0xff);
+	if ((level >> 16) & NF_LEAF)   { printf (",leaf"); }
+	if ((level >> 16) & NF_PRUNE)  { printf (",prune"); }
+	if ((level >> 16) & NF_GENID)  { printf (",genid"); }
+	if ((level >> 16) & NF_MTRACE) { printf (",mtrace"); }
+	printf ("]:\n");
 	
 	while (p < ep) {
 		register u_char metric;
@@ -307,23 +312,6 @@ get_number(var, deflt, pargv, pargc)
 	}
 }
 
-u_int32 
-host_addr(name)
-	char   *name;
-{
-	struct hostent *e;
-	u_int32		addr;
-
-	addr = inet_addr(name);
-	if ((int)addr == -1) {
-		e = gethostbyname(name);
-		if (e == NULL || e->h_length != sizeof(addr))
-			return (0);
-		memcpy(&addr, e->h_addr_list[0], e->h_length);
-	}
-	return(addr);
-}
-
 void
 usage()
 {
@@ -337,9 +325,13 @@ main(argc, argv)
 	int     argc;
 	char   *argv[];
 {
-	int tries = 0;
-	int trynew = 1;
+	int tries;
+	int trynew;
 	struct timeval et;
+	struct hostent *hp;
+	struct hostent bogus;
+	char *host;
+	int curaddr;
 
 	setlinebuf(stderr);
 
@@ -373,11 +365,21 @@ main(argc, argv)
 	if (argc > 1)
 		usage();
 	if (argc == 1)
-		target_addr = host_addr(argv[0]);
+		host = argv[0];
 	else
-		target_addr = host_addr("127.0.0.1");
+		host = "127.0.0.1";
 
-	if (target_addr == 0) {
+	if ((target_addr = inet_addr(host)) != -1) {
+		hp = &bogus;
+		hp->h_length = sizeof(target_addr);
+		hp->h_addr_list = (char **)malloc(2 * sizeof(char *));
+		hp->h_addr_list[0] = malloc(hp->h_length);
+		memcpy(hp->h_addr_list[0], &target_addr, hp->h_length);
+		hp->h_addr_list[1] = 0;
+	} else
+		hp = gethostbyname(host);
+
+	if (hp == NULL) {
 		fprintf(stderr, "mrinfo: %s: no such host\n", argv[0]);
 		exit(1);
 	}
@@ -386,7 +388,10 @@ main(argc, argv)
 
 	init_igmp();
 
-	{			/* Find a good local address for us. */
+	/* Check all addresses; mrouters often have unreachable interfaces */
+	for (curaddr = 0; hp->h_addr_list[curaddr] != NULL; curaddr++) {
+	    memcpy(&target_addr, hp->h_addr_list[curaddr], hp->h_length);
+	    {			/* Find a good local address for us. */
 		int     udp;
 		struct sockaddr_in addr;
 		int     addrlen = sizeof(addr);
@@ -406,20 +411,22 @@ main(argc, argv)
 		}
 		close(udp);
 		our_addr = addr.sin_addr.s_addr;
-	}
+	    }
 
-	/*
-	 * New strategy: send 'ask2' for two timeouts, then fall back
-	 * to 'ask', since it's not very likely that we are going to
-	 * find someone who only responds to 'ask' these days
-	 */
-	ask2(target_addr);
+	    tries = 0;
+	    trynew = 1;
+	    /*
+	     * New strategy: send 'ask2' for two timeouts, then fall back
+	     * to 'ask', since it's not very likely that we are going to
+	     * find someone who only responds to 'ask' these days
+	     */
+	    ask2(target_addr);
 
-	gettimeofday(&et, 0);
-	et.tv_sec += timeout;
+	    gettimeofday(&et, 0);
+	    et.tv_sec += timeout;
 
-	/* Main receive loop */
-	for (;;) {
+	    /* Main receive loop */
+	    for (;;) {
 		fd_set  fds;
 		struct timeval tv, now;
 		int     count, recvlen, dummy = 0;
@@ -451,7 +458,7 @@ main(argc, argv)
 		} else if (count == 0) {
 			log(LOG_DEBUG, 0, "Timed out receiving neighbor lists");
 			if (++tries > retries)
-				exit(1);
+				break;
 			/* If we've tried ASK_NEIGHBORS2 twice with
 			 * no response, fall back to ASK_NEIGHBORS
 			 */
@@ -487,19 +494,19 @@ main(argc, argv)
 		iphdrlen = ip->ip_hl << 2;
 		ipdatalen = ip->ip_len;
 		if (iphdrlen + ipdatalen != recvlen) {
-			log(LOG_WARNING, 0,
-			    "packet shorter (%u bytes) than hdr+data length (%u+%u)",
-			    recvlen, iphdrlen, ipdatalen);
-			continue;
+		    log(LOG_WARNING, 0,
+		      "packet shorter (%u bytes) than hdr+data length (%u+%u)",
+		      recvlen, iphdrlen, ipdatalen);
+		    continue;
 		}
 		igmp = (struct igmp *) (recv_buf + iphdrlen);
 		group = igmp->igmp_group.s_addr;
 		igmpdatalen = ipdatalen - IGMP_MINLEN;
 		if (igmpdatalen < 0) {
-			log(LOG_WARNING, 0,
-			    "IP data field too short (%u bytes) for IGMP, from %s",
-			    ipdatalen, inet_fmt(src, s1));
-			continue;
+		    log(LOG_WARNING, 0,
+			"IP data field too short (%u bytes) for IGMP, from %s",
+			ipdatalen, inet_fmt(src, s1));
+		    continue;
 		}
 		if (igmp->igmp_type != IGMP_DVMRP)
 			continue;
@@ -540,7 +547,9 @@ main(argc, argv)
 					  igmpdatalen, ntohl(group));
 			exit(0);
 		}
+	    }
 	}
+	exit(1);
 }
 
 /* dummies */
@@ -608,5 +617,17 @@ void accept_mtrace(src, dst, group, data, no, datalen)
 void accept_membership_query(src, dst, group, tmo)
 	u_int32 src, dst, group;
 	int tmo;
+{
+}
+void accept_info_request(src, dst, p, datalen)
+	u_int32 src, dst;
+	u_char *p;
+	int datalen;
+{
+}
+void accept_info_reply(src, dst, p, datalen)
+	u_int32 src, dst;
+	u_char *p;
+	int datalen;
 {
 }
