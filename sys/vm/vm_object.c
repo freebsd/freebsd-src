@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.142 1999/01/28 00:57:57 dillon Exp $
+ * $Id: vm_object.c,v 1.143 1999/02/03 01:57:17 dillon Exp $
  */
 
 /*
@@ -972,9 +972,9 @@ vm_object_qcollapse(object)
 {
 	register vm_object_t backing_object;
 	register vm_pindex_t backing_offset_index;
-	vm_pindex_t new_pindex;
 	register vm_page_t p, pp;
 	register vm_size_t size;
+	int s;
 
 	backing_object = object->backing_object;
 	if (backing_object->ref_count != 1)
@@ -985,9 +985,19 @@ vm_object_qcollapse(object)
 	backing_offset_index = OFF_TO_IDX(object->backing_object_offset);
 	size = object->size;
 
+	/*
+	 * Since paging is in progress, we have to run at splbio() to
+	 * avoid busied pages from getting ripped out from under us
+	 * and screwing up the list sequencing.
+	 */
+
+	s = splbio();
+
 	p = TAILQ_FIRST(&backing_object->memq);
 	while (p) {
 		vm_page_t next;
+		vm_pindex_t new_pindex;
+		vm_pindex_t old_pindex;
 
 		/*
 		 * setup for loop.
@@ -1008,15 +1018,16 @@ vm_object_qcollapse(object)
 
 		vm_page_busy(p);
 
-		KASSERT(p->object == object, ("vm_object_qcollapse(): object mismatch"));
+		KASSERT(p->object == backing_object, ("vm_object_qcollapse(): object mismatch"));
 
-		new_pindex = p->pindex - backing_offset_index;
-		if (p->pindex < backing_offset_index ||
-		    new_pindex >= size) {
-			if (backing_object->type == OBJT_SWAP)
-				swap_pager_freespace(backing_object,
-				    p->pindex,
-				    1);
+		old_pindex = p->pindex;
+		new_pindex = old_pindex - backing_offset_index;
+
+		if (old_pindex < backing_offset_index || new_pindex >= size) {
+			/*
+			 * Page is out of the parent object's range, we 
+			 * can simply destroy it. 
+			 */
 			vm_page_protect(p, VM_PROT_NONE);
 			vm_page_free(p);
 		} else {
@@ -1024,16 +1035,18 @@ vm_object_qcollapse(object)
 			if (pp != NULL ||
 				(object->type == OBJT_SWAP && vm_pager_has_page(object,
 				    new_pindex, NULL, NULL))) {
-				if (backing_object->type == OBJT_SWAP)
-					swap_pager_freespace(backing_object,
-					    p->pindex, 1);
+				/*
+				 * page already exists in parent OR swap exists
+				 * for this location in the parent.  Destroy 
+				 * the original page from the backing object.
+				 */
 				vm_page_protect(p, VM_PROT_NONE);
 				vm_page_free(p);
 			} else {
-				if (backing_object->type == OBJT_SWAP)
-					swap_pager_freespace(backing_object,
-					    p->pindex, 1);
-
+				/*
+				 * Page does not exist in parent, rename the
+				 * page. 
+				 */
 				if ((p->queue - p->pc) == PQ_CACHE)
 					vm_page_deactivate(p);
 				else
@@ -1043,9 +1056,19 @@ vm_object_qcollapse(object)
 				/* page automatically made dirty by rename */
 			}
 		}
+
+		/*
+		 * Destroy any swap assigned to the backing object at this
+		 * location.  This is an optimization.
+		 */
+		if (backing_object->type == OBJT_SWAP) {
+			swap_pager_freespace(backing_object, old_pindex, 1);
+		}
 		p = next;
 	}
 	backing_object->ref_count -= 2;
+
+	splx(s);
 }
 
 /*
