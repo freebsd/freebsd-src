@@ -61,8 +61,9 @@ has been deleted with
 .Fn pthread_key_delete
 is undefined.
 .Pp
+The
 .Fn pthread_getspecific
-may be called from a thread-specific data destructor function.
+function may be called from a thread-specific data destructor function.
 .Sh RETURN VALUES
 The
 .Fn pthread_getspecific
@@ -78,6 +79,7 @@ None.
 .Xr pthread_key_delete 3 ,
 .Xr pthread_setspecific 3
 .Sh STANDARDS
+The
 .Fn pthread_getspecific
-conforms to
+function conforms to
 .St -p1003.1-96 .
