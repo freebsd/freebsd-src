@@ -237,11 +237,13 @@ edit_disklabel(struct disklabel *lbl)
     setup_label_fields(lbl);
     do {
 	update_label_form(window, lbl);
-	key = edit_line(window, label_fields[y_pos][x_pos].y,
+	key = line_edit(window, label_fields[y_pos][x_pos].y,
 			label_fields[y_pos][x_pos].x,
-			label_fields[y_pos][x_pos].field,
 			label_fields[y_pos][x_pos].width,
-			20);
+			20,
+			item_selected_attr,
+			1,
+			label_fields[y_pos][x_pos].field);
 	switch(key) {
 	case KEY_UP:
 	    if (y_pos != 0)

@@ -133,7 +133,6 @@ int	set_termcap __P((void));
 int	makedevs __P((void));
 
 /* ourcurses.c */
-int	edit_line __P((WINDOW *window, int y, int x, char *field, int width, int maxlen));
 int AskEm __P((WINDOW *w,char *prompt, char *answer, int len));
 void ShowFile __P((char *filename, char *header));
 
