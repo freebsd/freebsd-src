@@ -340,7 +340,7 @@ init_entry(const char *fname, struct conf_entry *src_entry)
 	if (tempwork == NULL)
 		err(1, "malloc of conf_entry for %s", fname);
 
-	if (destdir == NULL)
+	if (destdir == NULL || fname[0] != '/')
 		tempwork->log = strdup(fname);
 	else
 		asprintf(&tempwork->log, "%s%s", destdir, fname);
