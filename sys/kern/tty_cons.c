@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/fcntl.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/msgbuf.h>
@@ -562,16 +563,12 @@ cncheckc(void)
 		return (-1);
 	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
 		cn = cnd->cnd_cn;
-#ifdef DDB
-		if (!db_active || !(cn->cn_flags & CN_FLAG_NODEBUG)) {
-#endif
+		if (!kdb_active || !(cn->cn_flags & CN_FLAG_NODEBUG)) {
 			c = cn->cn_checkc(cn);
 			if (c != -1) {
 				return (c);
 			}
-#ifdef DDB
 		}
-#endif
 	}
 	return (-1);
 }
@@ -587,21 +584,13 @@ cnputc(int c)
 		return;
 	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
 		cn = cnd->cnd_cn;
-#ifdef DDB
-		if (!db_active || !(cn->cn_flags & CN_FLAG_NODEBUG)) {
-#endif
+		if (!kdb_active || !(cn->cn_flags & CN_FLAG_NODEBUG)) {
 			if (c == '\n')
 				cn->cn_putc(cn, '\r');
 			cn->cn_putc(cn, c);
-#ifdef DDB
 		}
-#endif
 	}
-#ifdef DDB
-	if (console_pausing && !db_active && (c == '\n')) {
-#else
-	if (console_pausing && (c == '\n')) {
-#endif
+	if (console_pausing && c == '\n' && !kdb_active) {
 		for (cp = console_pausestr; *cp != '\0'; cp++)
 			cnputc(*cp);
 		if (cngetc() == '.')
