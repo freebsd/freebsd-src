@@ -32,6 +32,8 @@ static const char rcsid[] =
 #define main testcmd
 #include "bltin/bltin.h"
 #else
+#include <locale.h>
+
 static void error(const char *, ...) __attribute__((__noreturn__));
 
 static void
@@ -213,6 +215,9 @@ main(argc, argv)
 	if (--argc <= 0)
 		return 1;
 
+#ifndef SHELL
+	(void)setlocale(LC_CTYPE, "");
+#endif
 	/* XXX work around the absence of an eaccess(2) syscall */
 	(void)setgid(getegid());
 	(void)setuid(geteuid());
@@ -469,6 +474,9 @@ getn(s)
 	errno = 0;
 	r = strtol(s, &p, 10);
 
+	if (s == p)
+		error("%s: bad number", s);
+
 	if (errno != 0)
 		error((errno == EINVAL) ? "%s: bad number" :
 					  "%s: out of range", s);
@@ -492,6 +500,9 @@ getq(s)
 
 	errno = 0;
 	r = strtoq(s, &p, 10);
+
+	if (s == p)
+		error("%s: bad number", s);
 
 	if (errno != 0)
 		error((errno == EINVAL) ? "%s: bad number" :
