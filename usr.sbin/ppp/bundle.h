@@ -23,10 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.1.2.3 1998/02/04 01:03:19 brian Exp $
+ *	$Id: bundle.h,v 1.1.2.4 1998/02/06 02:23:29 brian Exp $
  */
 
 struct physical;
+struct link;
 
 struct bundle {
   int unit;                   /* The tun number */
@@ -55,3 +56,4 @@ extern int  bundle_LinkIsUp(const struct bundle *);
 extern void bundle_Linkdown(struct bundle *);
 extern void bundle_SetRoute(struct bundle *, int, struct in_addr,
                             struct in_addr, struct in_addr, int);
+extern void bundle_Down(struct bundle *, struct link *);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.4 1998/01/31 02:48:14 brian Exp $
+ * $Id: ccp.c,v 1.30.2.5 1998/02/02 19:32:02 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -46,12 +46,24 @@
 static void CcpSendConfigReq(struct fsm *);
 static void CcpSendTerminateReq(struct fsm *);
 static void CcpSendTerminateAck(struct fsm *);
-static void CcpDecodeConfig(struct bundle *, u_char *, int, int);
+static void CcpDecodeConfig(struct fsm *, u_char *, int, int);
 static void CcpLayerStart(struct fsm *);
 static void CcpLayerFinish(struct fsm *);
 static void CcpLayerUp(struct fsm *);
 static void CcpLayerDown(struct fsm *);
 static void CcpInitRestartCounter(struct fsm *);
+
+static struct fsm_callbacks ccp_Callbacks = {
+  CcpLayerUp,
+  CcpLayerDown,
+  CcpLayerStart,
+  CcpLayerFinish,
+  CcpInitRestartCounter,
+  CcpSendConfigReq,
+  CcpSendTerminateReq,
+  CcpSendTerminateAck,
+  CcpDecodeConfig
+};
 
 struct ccpstate CcpInfo = {
   {
@@ -67,15 +79,7 @@ struct ccpstate CcpInfo = {
     LogCCP,
     NULL,				/* link */
     NULL,				/* bundle */
-    CcpLayerUp,
-    CcpLayerDown,
-    CcpLayerStart,
-    CcpLayerFinish,
-    CcpInitRestartCounter,
-    CcpSendConfigReq,
-    CcpSendTerminateReq,
-    CcpSendTerminateAck,
-    CcpDecodeConfig,
+    &ccp_Callbacks
   },
   -1, -1, -1, -1, -1, -1
 };
@@ -163,22 +167,23 @@ static void
 CcpSendConfigReq(struct fsm *fp)
 {
   /* Send config REQ please */
+  struct ccpstate *ccp = fsm2ccp(fp);
   u_char *cp;
   int f;
 
   LogPrintf(LogCCP, "CcpSendConfigReq\n");
   cp = ReqBuff;
-  CcpInfo.my_proto = -1;
-  CcpInfo.out_algorithm = -1;
+  ccp->my_proto = -1;
+  ccp->out_algorithm = -1;
   for (f = 0; f < NALGORITHMS; f++)
-    if (Enabled(algorithm[f]->Conf) && !REJECTED(&CcpInfo, algorithm[f]->id)) {
+    if (Enabled(algorithm[f]->Conf) && !REJECTED(ccp, algorithm[f]->id)) {
       struct lcp_opt o;
 
       (*algorithm[f]->o.Get)(&o);
       cp += LcpPutConf(LogCCP, cp, &o, cftypes[o.id],
                        (*algorithm[f]->Disp)(&o));
-      CcpInfo.my_proto = o.id;
-      CcpInfo.out_algorithm = f;
+      ccp->my_proto = o.id;
+      ccp->out_algorithm = f;
     }
   FsmOutput(fp, CODE_CONFIGREQ, fp->reqid++, ReqBuff, cp - ReqBuff);
 }
@@ -187,9 +192,10 @@ void
 CcpSendResetReq(struct fsm *fp)
 {
   /* We can't read our input - ask peer to reset */
+  struct ccpstate *ccp = fsm2ccp(fp);
   LogPrintf(LogCCP, "SendResetReq(%d)\n", fp->reqid);
-  CcpInfo.reset_sent = fp->reqid;
-  CcpInfo.last_reset = -1;
+  ccp->reset_sent = fp->reqid;
+  ccp->last_reset = -1;
   FsmOutput(fp, CODE_RESETREQ, fp->reqid, NULL, 0);
 }
 
@@ -211,8 +217,9 @@ void
 CcpRecvResetReq(struct fsm *fp)
 {
   /* Got a reset REQ, reset outgoing dictionary */
-  if (CcpInfo.out_init)
-    (*algorithm[CcpInfo.out_algorithm]->o.Reset)();
+  struct ccpstate *ccp = fsm2ccp(fp);
+  if (ccp->out_init)
+    (*algorithm[ccp->out_algorithm]->o.Reset)();
 }
 
 static void
@@ -226,14 +233,15 @@ static void
 CcpLayerFinish(struct fsm *fp)
 {
   /* We're now down */
+  struct ccpstate *ccp = fsm2ccp(fp);
   LogPrintf(LogCCP, "CcpLayerFinish.\n");
-  if (CcpInfo.in_init) {
-    (*algorithm[CcpInfo.in_algorithm]->i.Term)();
-    CcpInfo.in_init = 0;
+  if (ccp->in_init) {
+    (*algorithm[ccp->in_algorithm]->i.Term)();
+    ccp->in_init = 0;
   }
-  if (CcpInfo.out_init) {
-    (*algorithm[CcpInfo.out_algorithm]->o.Term)();
-    CcpInfo.out_init = 0;
+  if (ccp->out_init) {
+    (*algorithm[ccp->out_algorithm]->o.Term)();
+    ccp->out_init = 0;
   }
 }
 
@@ -251,30 +259,31 @@ static void
 CcpLayerUp(struct fsm *fp)
 {
   /* We're now up */
+  struct ccpstate *ccp = fsm2ccp(fp);
   LogPrintf(LogCCP, "CcpLayerUp(%d).\n", fp->state);
-  if (!CcpInfo.in_init && CcpInfo.in_algorithm >= 0 &&
-      CcpInfo.in_algorithm < NALGORITHMS)
-    if ((*algorithm[CcpInfo.in_algorithm]->i.Init)())
-      CcpInfo.in_init = 1;
+  if (!ccp->in_init && ccp->in_algorithm >= 0 &&
+      ccp->in_algorithm < NALGORITHMS)
+    if ((*algorithm[ccp->in_algorithm]->i.Init)())
+      ccp->in_init = 1;
     else {
       LogPrintf(LogERROR, "%s (in) initialisation failure\n",
-                protoname(CcpInfo.his_proto));
-      CcpInfo.his_proto = CcpInfo.my_proto = -1;
+                protoname(ccp->his_proto));
+      ccp->his_proto = ccp->my_proto = -1;
       FsmClose(fp);
     }
-  if (!CcpInfo.out_init && CcpInfo.out_algorithm >= 0 &&
-      CcpInfo.out_algorithm < NALGORITHMS)
-    if ((*algorithm[CcpInfo.out_algorithm]->o.Init)())
-      CcpInfo.out_init = 1;
+  if (!ccp->out_init && ccp->out_algorithm >= 0 &&
+      ccp->out_algorithm < NALGORITHMS)
+    if ((*algorithm[ccp->out_algorithm]->o.Init)())
+      ccp->out_init = 1;
     else {
       LogPrintf(LogERROR, "%s (out) initialisation failure\n",
-                protoname(CcpInfo.my_proto));
-      CcpInfo.his_proto = CcpInfo.my_proto = -1;
+                protoname(ccp->my_proto));
+      ccp->his_proto = ccp->my_proto = -1;
       FsmClose(fp);
     }
   LogPrintf(LogCCP, "Out = %s[%d], In = %s[%d]\n",
-            protoname(CcpInfo.my_proto), CcpInfo.my_proto,
-            protoname(CcpInfo.his_proto), CcpInfo.his_proto);
+            protoname(ccp->my_proto), ccp->my_proto,
+            protoname(ccp->his_proto), ccp->his_proto);
 }
 
 void
@@ -283,17 +292,6 @@ CcpUp()
   /* Lower layers are ready.... go */
   FsmUp(&CcpInfo.fsm);
   LogPrintf(LogCCP, "CCP Up event!!\n");
-}
-
-void
-CcpDown()
-{
-  /* Physical link is gone - sudden death */
-  if (CcpInfo.fsm.state >= ST_CLOSED) {
-    FsmDown(&CcpInfo.fsm);
-    /* FsmDown() results in a CcpLayerDown() if we're currently open. */
-    CcpLayerFinish(&CcpInfo.fsm);
-  }
 }
 
 void
@@ -319,9 +317,10 @@ CcpOpen()
 }
 
 static void
-CcpDecodeConfig(struct bundle *bundle, u_char *cp, int plen, int mode_type)
+CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type)
 {
   /* Deal with incoming data */
+  struct ccpstate *ccp = fsm2ccp(fp);
   int type, length;
   int f;
 
@@ -344,7 +343,7 @@ CcpDecodeConfig(struct bundle *bundle, u_char *cp, int plen, int mode_type)
     if (f == -1) {
       /* Don't understand that :-( */
       if (mode_type == MODE_REQ) {
-        CcpInfo.my_reject |= (1 << type);
+        ccp->my_reject |= (1 << type);
         memcpy(rejp, cp, length);
         rejp += length;
       }
@@ -353,7 +352,7 @@ CcpDecodeConfig(struct bundle *bundle, u_char *cp, int plen, int mode_type)
 
       switch (mode_type) {
       case MODE_REQ:
-	if (Acceptable(algorithm[f]->Conf) && CcpInfo.in_algorithm == -1) {
+	if (Acceptable(algorithm[f]->Conf) && ccp->in_algorithm == -1) {
 	  memcpy(&o, cp, length);
           switch ((*algorithm[f]->i.Set)(&o)) {
           case MODE_REJ:
@@ -367,8 +366,8 @@ CcpDecodeConfig(struct bundle *bundle, u_char *cp, int plen, int mode_type)
           case MODE_ACK:
 	    memcpy(ackp, cp, length);
 	    ackp += length;
-	    CcpInfo.his_proto = type;
-            CcpInfo.in_algorithm = f;		/* This one'll do ! */
+	    ccp->his_proto = type;
+            ccp->in_algorithm = f;		/* This one'll do ! */
             break;
           }
 	} else {
@@ -379,15 +378,15 @@ CcpDecodeConfig(struct bundle *bundle, u_char *cp, int plen, int mode_type)
       case MODE_NAK:
 	memcpy(&o, cp, length);
         if ((*algorithm[f]->o.Set)(&o) == MODE_ACK)
-          CcpInfo.my_proto = algorithm[f]->id;
+          ccp->my_proto = algorithm[f]->id;
         else {
-	  CcpInfo.his_reject |= (1 << type);
-	  CcpInfo.my_proto = -1;
+	  ccp->his_reject |= (1 << type);
+	  ccp->my_proto = -1;
         }
         break;
       case MODE_REJ:
-	CcpInfo.his_reject |= (1 << type);
-	CcpInfo.my_proto = -1;
+	ccp->his_reject |= (1 << type);
+	ccp->my_proto = -1;
 	break;
       }
     }
@@ -398,9 +397,9 @@ CcpDecodeConfig(struct bundle *bundle, u_char *cp, int plen, int mode_type)
 
   if (rejp != RejBuff) {
     ackp = AckBuff;	/* let's not send both ! */
-    if (!CcpInfo.in_init) {
-      CcpInfo.his_proto = -1;
-      CcpInfo.in_algorithm = -1;
+    if (!ccp->in_init) {
+      ccp->his_proto = -1;
+      ccp->in_algorithm = -1;
     }
   }
 }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.6 1998/02/02 19:32:31 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.7 1998/02/02 19:33:36 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -75,7 +75,19 @@ static void IpcpInitRestartCounter(struct fsm *);
 static void IpcpSendConfigReq(struct fsm *);
 static void IpcpSendTerminateReq(struct fsm *);
 static void IpcpSendTerminateAck(struct fsm *);
-static void IpcpDecodeConfig(struct bundle *, u_char *, int, int);
+static void IpcpDecodeConfig(struct fsm *, u_char *, int, int);
+
+static struct fsm_callbacks ipcp_Callbacks = {
+  IpcpLayerUp,
+  IpcpLayerDown,
+  IpcpLayerStart,
+  IpcpLayerFinish,
+  IpcpInitRestartCounter,
+  IpcpSendConfigReq,
+  IpcpSendTerminateReq,
+  IpcpSendTerminateAck,
+  IpcpDecodeConfig,
+};
 
 struct ipcpstate IpcpInfo = {
   {
@@ -91,15 +103,7 @@ struct ipcpstate IpcpInfo = {
     LogIPCP,
     NULL,				/* link */
     NULL,				/* bundle */
-    IpcpLayerUp,
-    IpcpLayerDown,
-    IpcpLayerStart,
-    IpcpLayerFinish,
-    IpcpInitRestartCounter,
-    IpcpSendConfigReq,
-    IpcpSendTerminateReq,
-    IpcpSendTerminateAck,
-    IpcpDecodeConfig,
+    &ipcp_Callbacks,
   },
   MAX_VJ_STATES,
   1
@@ -274,30 +278,31 @@ IpcpSendConfigReq(struct fsm *fp)
 {
   /* Send config REQ please */
   struct physical *p = link2physical(fp->link);
+  struct ipcpstate *ipcp = fsm2ipcp(fp);
   u_char *cp;
   struct lcp_opt o;
 
   cp = ReqBuff;
   LogPrintf(LogIPCP, "IpcpSendConfigReq\n");
-  if ((p && !Physical_IsSync(p)) || !REJECTED(&IpcpInfo, TY_IPADDR)) {
+  if ((p && !Physical_IsSync(p)) || !REJECTED(ipcp, TY_IPADDR)) {
     o.id = TY_IPADDR;
     o.len = 6;
-    *(u_long *)o.data = IpcpInfo.want_ipaddr.s_addr;
+    *(u_long *)o.data = ipcp->want_ipaddr.s_addr;
     cp += LcpPutConf(LogIPCP, cp, &o, cftypes[o.id],
-                     inet_ntoa(IpcpInfo.want_ipaddr));
+                     inet_ntoa(ipcp->want_ipaddr));
   }
 
-  if (IpcpInfo.want_compproto && !REJECTED(&IpcpInfo, TY_COMPPROTO)) {
+  if (ipcp->want_compproto && !REJECTED(ipcp, TY_COMPPROTO)) {
     const char *args;
     o.id = TY_COMPPROTO;
-    if (IpcpInfo.heis1172) {
+    if (ipcp->heis1172) {
       o.len = 4;
       *(u_short *)o.data = htons(PROTO_VJCOMP);
       args = "";
     } else {
       o.len = 6;
-      *(u_long *)o.data = htonl(IpcpInfo.want_compproto);
-      args = vj2asc(IpcpInfo.want_compproto);
+      *(u_long *)o.data = htonl(ipcp->want_compproto);
+      args = vj2asc(ipcp->want_compproto);
     }
     cp += LcpPutConf(LogIPCP, cp, &o, cftypes[o.id], args);
   }
@@ -336,42 +341,43 @@ IpcpLayerFinish(struct fsm * fp)
 }
 
 static void
-IpcpLayerDown(struct fsm * fp)
+IpcpLayerDown(struct fsm *fp)
 {
   /* About to come down */
+  struct ipcpstate *ipcp = fsm2ipcp(fp);
   LogPrintf(LogIPCP, "IpcpLayerDown.\n");
-  throughput_stop(&IpcpInfo.throughput);
-  throughput_log(&IpcpInfo.throughput, LogIPCP, NULL);
+  throughput_stop(&ipcp->throughput);
+  throughput_log(&ipcp->throughput, LogIPCP, NULL);
 }
 
 static void
 IpcpLayerUp(struct fsm *fp)
 {
   /* We're now up */
+  struct ipcpstate *ipcp = fsm2ipcp(fp);
   char tbuff[100];
 
   Prompt();
   LogPrintf(LogIPCP, "IpcpLayerUp(%d).\n", fp->state);
-  snprintf(tbuff, sizeof tbuff, "myaddr = %s ",
-	   inet_ntoa(IpcpInfo.want_ipaddr));
+  snprintf(tbuff, sizeof tbuff, "myaddr = %s ", inet_ntoa(ipcp->want_ipaddr));
 
-  if (IpcpInfo.his_compproto >> 16 == PROTO_VJCOMP)
-    VjInit((IpcpInfo.his_compproto >> 8) & 255);
+  if (ipcp->his_compproto >> 16 == PROTO_VJCOMP)
+    VjInit((ipcp->his_compproto >> 8) & 255);
 
   LogPrintf(LogIsKept(LogIPCP) ? LogIPCP : LogLINK, " %s hisaddr = %s\n",
-	    tbuff, inet_ntoa(IpcpInfo.his_ipaddr));
-  if (bundle_SetIPaddress(fp->bundle, IpcpInfo.want_ipaddr,
-                          IpcpInfo.his_ipaddr) < 0) {
+	    tbuff, inet_ntoa(ipcp->his_ipaddr));
+  if (bundle_SetIPaddress(fp->bundle, ipcp->want_ipaddr,
+                          ipcp->his_ipaddr) < 0) {
     if (VarTerm)
       LogPrintf(LogERROR, "IpcpLayerUp: unable to set ip address\n");
     return;
   }
 #ifndef NOALIAS
   if (mode & MODE_ALIAS)
-    VarPacketAliasSetAddress(IpcpInfo.want_ipaddr);
+    VarPacketAliasSetAddress(ipcp->want_ipaddr);
 #endif
   bundle_Linkup(fp->bundle);
-  throughput_start(&IpcpInfo.throughput);
+  throughput_start(&ipcp->throughput);
   StartIdleTimer();
 }
 
@@ -381,17 +387,6 @@ IpcpUp()
   /* Lower layers are ready.... go */
   FsmUp(&IpcpInfo.fsm);
   LogPrintf(LogIPCP, "IPCP Up event!!\n");
-}
-
-void
-IpcpDown()
-{
-  /* Physical link is gone - sudden death */
-  if (IpcpInfo.fsm.state >= ST_CLOSED) {
-    FsmDown(&IpcpInfo.fsm);
-    /* FsmDown() results in an IpcpLayerDown() if we're currently open. */
-    IpcpLayerFinish(&IpcpInfo.fsm);
-  }
 }
 
 void
@@ -415,9 +410,10 @@ AcceptableAddr(struct in_range *prange, struct in_addr ipaddr)
 }
 
 static void
-IpcpDecodeConfig(struct bundle *bundle, u_char * cp, int plen, int mode_type)
+IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type)
 {
   /* Deal with incoming PROTO_IPCP */
+  struct ipcpstate *ipcp = fsm2ipcp(fp);
   int type, length;
   u_long *lp, compproto;
   struct compreq *pcomp;
@@ -447,53 +443,53 @@ IpcpDecodeConfig(struct bundle *bundle, u_char * cp, int plen, int mode_type)
 
       switch (mode_type) {
       case MODE_REQ:
-        if (iplist_isvalid(&IpcpInfo.DefHisChoice)) {
+        if (iplist_isvalid(&ipcp->DefHisChoice)) {
           if (ipaddr.s_addr == INADDR_ANY ||
-              iplist_ip2pos(&IpcpInfo.DefHisChoice, ipaddr) < 0 ||
-              bundle_TrySetIPaddress(bundle, IpcpInfo.DefMyAddress.ipaddr,
+              iplist_ip2pos(&ipcp->DefHisChoice, ipaddr) < 0 ||
+              bundle_TrySetIPaddress(fp->bundle, ipcp->DefMyAddress.ipaddr,
                                      ipaddr)) {
             LogPrintf(LogIPCP, "%s: Address invalid or already in use\n",
                       inet_ntoa(ipaddr));
-            IpcpInfo.his_ipaddr = ChooseHisAddr
-              (bundle, IpcpInfo.DefMyAddress.ipaddr);
-            if (IpcpInfo.his_ipaddr.s_addr == INADDR_ANY) {
+            ipcp->his_ipaddr = ChooseHisAddr
+              (fp->bundle, ipcp->DefMyAddress.ipaddr);
+            if (ipcp->his_ipaddr.s_addr == INADDR_ANY) {
 	      memcpy(rejp, cp, length);
 	      rejp += length;
             } else {
 	      memcpy(nakp, cp, 2);
-	      memcpy(nakp+2, &IpcpInfo.his_ipaddr.s_addr, length - 2);
+	      memcpy(nakp+2, &ipcp->his_ipaddr.s_addr, length - 2);
 	      nakp += length;
             }
 	    break;
           }
-	} else if (!AcceptableAddr(&IpcpInfo.DefHisAddress, ipaddr)) {
+	} else if (!AcceptableAddr(&ipcp->DefHisAddress, ipaddr)) {
 	  /*
 	   * If destination address is not acceptable, insist to use what we
 	   * want to use.
 	   */
 	  memcpy(nakp, cp, 2);
-	  memcpy(nakp+2, &IpcpInfo.his_ipaddr.s_addr, length - 2);
+	  memcpy(nakp+2, &ipcp->his_ipaddr.s_addr, length - 2);
 	  nakp += length;
 	  break;
 	}
-	IpcpInfo.his_ipaddr = ipaddr;
+	ipcp->his_ipaddr = ipaddr;
 	memcpy(ackp, cp, length);
 	ackp += length;
 	break;
       case MODE_NAK:
-	if (AcceptableAddr(&IpcpInfo.DefMyAddress, ipaddr)) {
+	if (AcceptableAddr(&ipcp->DefMyAddress, ipaddr)) {
 	  /* Use address suggested by peer */
 	  snprintf(tbuff2, sizeof tbuff2, "%s changing address: %s ", tbuff,
-		   inet_ntoa(IpcpInfo.want_ipaddr));
+		   inet_ntoa(ipcp->want_ipaddr));
 	  LogPrintf(LogIPCP, "%s --> %s\n", tbuff2, inet_ntoa(ipaddr));
-	  IpcpInfo.want_ipaddr = ipaddr;
+	  ipcp->want_ipaddr = ipaddr;
 	} else {
 	  LogPrintf(LogIPCP, "%s: Unacceptable address!\n", inet_ntoa(ipaddr));
-          FsmClose(&IpcpInfo.fsm);
+          FsmClose(&ipcp->fsm);
 	}
 	break;
       case MODE_REJ:
-	IpcpInfo.his_reject |= (1 << type);
+	ipcp->his_reject |= (1 << type);
 	break;
       }
       break;
@@ -513,8 +509,8 @@ IpcpDecodeConfig(struct bundle *bundle, u_char * cp, int plen, int mode_type)
 	  case 4:		/* RFC1172 */
 	    if (ntohs(pcomp->proto) == PROTO_VJCOMP) {
 	      LogPrintf(LogWARN, "Peer is speaking RFC1172 compression protocol !\n");
-	      IpcpInfo.heis1172 = 1;
-	      IpcpInfo.his_compproto = compproto;
+	      ipcp->heis1172 = 1;
+	      ipcp->his_compproto = compproto;
 	      memcpy(ackp, cp, length);
 	      ackp += length;
 	    } else {
@@ -527,8 +523,8 @@ IpcpDecodeConfig(struct bundle *bundle, u_char * cp, int plen, int mode_type)
 	  case 6:		/* RFC1332 */
 	    if (ntohs(pcomp->proto) == PROTO_VJCOMP
 		&& pcomp->slots < MAX_VJ_STATES && pcomp->slots > 2) {
-	      IpcpInfo.his_compproto = compproto;
-	      IpcpInfo.heis1172 = 0;
+	      ipcp->his_compproto = compproto;
+	      ipcp->heis1172 = 0;
 	      memcpy(ackp, cp, length);
 	      ackp += length;
 	    } else {
@@ -549,11 +545,11 @@ IpcpDecodeConfig(struct bundle *bundle, u_char * cp, int plen, int mode_type)
 	break;
       case MODE_NAK:
 	LogPrintf(LogIPCP, "%s changing compproto: %08x --> %08x\n",
-		  tbuff, IpcpInfo.want_compproto, compproto);
-	IpcpInfo.want_compproto = compproto;
+		  tbuff, ipcp->want_compproto, compproto);
+	ipcp->want_compproto = compproto;
 	break;
       case MODE_REJ:
-	IpcpInfo.his_reject |= (1 << type);
+	ipcp->his_reject |= (1 << type);
 	break;
       }
       break;
@@ -567,20 +563,20 @@ IpcpDecodeConfig(struct bundle *bundle, u_char * cp, int plen, int mode_type)
 
       switch (mode_type) {
       case MODE_REQ:
-	IpcpInfo.his_ipaddr = ipaddr;
-	IpcpInfo.want_ipaddr = dstipaddr;
+	ipcp->his_ipaddr = ipaddr;
+	ipcp->want_ipaddr = dstipaddr;
 	memcpy(ackp, cp, length);
 	ackp += length;
 	break;
       case MODE_NAK:
         snprintf(tbuff2, sizeof tbuff2, "%s changing address: %s", tbuff,
-		 inet_ntoa(IpcpInfo.want_ipaddr));
+		 inet_ntoa(ipcp->want_ipaddr));
 	LogPrintf(LogIPCP, "%s --> %s\n", tbuff2, inet_ntoa(ipaddr));
-	IpcpInfo.want_ipaddr = ipaddr;
-	IpcpInfo.his_ipaddr = dstipaddr;
+	ipcp->want_ipaddr = ipaddr;
+	ipcp->his_ipaddr = dstipaddr;
 	break;
       case MODE_REJ:
-	IpcpInfo.his_reject |= (1 << type);
+	ipcp->his_reject |= (1 << type);
 	break;
       }
       break;
@@ -594,7 +590,7 @@ IpcpDecodeConfig(struct bundle *bundle, u_char * cp, int plen, int mode_type)
     case TY_SECONDARY_DNS:
       if (!Enabled(ConfMSExt)) {
 	LogPrintf(LogIPCP, "MS NS req - rejected - msext disabled\n");
-	IpcpInfo.my_reject |= (1 << type);
+	ipcp->my_reject |= (1 << type);
 	memcpy(rejp, cp, length);
 	rejp += length;
 	break;
@@ -603,7 +599,7 @@ IpcpDecodeConfig(struct bundle *bundle, u_char * cp, int plen, int mode_type)
       case MODE_REQ:
 	lp = (u_long *) (cp + 2);
 	dnsstuff.s_addr = *lp;
-	ms_info_req.s_addr = IpcpInfo.ns_entries
+	ms_info_req.s_addr = ipcp->ns_entries
           [(type - TY_PRIMARY_DNS) ? 1 : 0].s_addr;
 	if (dnsstuff.s_addr != ms_info_req.s_addr) {
 
@@ -644,7 +640,7 @@ IpcpDecodeConfig(struct bundle *bundle, u_char * cp, int plen, int mode_type)
     case TY_SECONDARY_NBNS:
       if (!Enabled(ConfMSExt)) {
 	LogPrintf(LogIPCP, "MS NBNS req - rejected - msext disabled\n");
-	IpcpInfo.my_reject |= (1 << type);
+	ipcp->my_reject |= (1 << type);
 	memcpy(rejp, cp, length);
 	rejp += length;
 	break;
@@ -653,7 +649,7 @@ IpcpDecodeConfig(struct bundle *bundle, u_char * cp, int plen, int mode_type)
       case MODE_REQ:
 	lp = (u_long *) (cp + 2);
 	dnsstuff.s_addr = *lp;
-	ms_info_req.s_addr = IpcpInfo.nbns_entries
+	ms_info_req.s_addr = ipcp->nbns_entries
           [(type - TY_PRIMARY_NBNS) ? 1 : 0].s_addr;
 	if (dnsstuff.s_addr != ms_info_req.s_addr) {
 	  memcpy(nakp, cp, 2);
@@ -683,7 +679,7 @@ IpcpDecodeConfig(struct bundle *bundle, u_char * cp, int plen, int mode_type)
 #endif
 
     default:
-      IpcpInfo.my_reject |= (1 << type);
+      ipcp->my_reject |= (1 << type);
       memcpy(rejp, cp, length);
       rejp += length;
       break;

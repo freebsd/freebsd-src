@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.2 1998/02/02 19:33:00 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.3 1998/02/06 02:23:28 brian Exp $
  */
 
 #include <sys/param.h>
@@ -554,4 +554,15 @@ failed:
   LogPrintf(LogDEBUG, "wrote %d: cmd = %s, dst = %x, gateway = %x\n",
             wb, cmdstr, dst.s_addr, gateway.s_addr);
   close(s);
+}
+
+void
+bundle_Down(struct bundle *bundle, struct link *link)
+{
+  /* If link is NULL slam everything down, otherwise `link' is dead */
+
+  LogPrintf(LogPHASE, "Disconnected!\n");
+  FsmDown(&LcpInfo.fsm);
+  FsmDown(&IpcpInfo.fsm);
+  FsmDown(&CcpInfo.fsm);
 }

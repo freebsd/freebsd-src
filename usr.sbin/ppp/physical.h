@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.h,v 1.1.2.3 1998/02/02 19:33:39 brian Exp $
+ *  $Id: physical.h,v 1.1.2.4 1998/02/06 02:22:28 brian Exp $
  *
  */
 
@@ -25,6 +25,7 @@ struct physical {
   struct async async;          /* Our async state */
   int fd;                      /* File descriptor for this device */
   int mbits;                   /* Current DCD status */
+  unsigned abort : 1;          /* Something's gone horribly wrong */
   unsigned dev_is_modem : 1;   /* Is the device an actual modem?
                                   Faked for sync devices, though...
                                   (Possibly this should be

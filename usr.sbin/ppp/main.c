@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.8 1998/02/06 02:22:45 brian Exp $
+ * $Id: main.c,v 1.121.2.9 1998/02/06 02:23:37 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -178,17 +178,17 @@ TtyOldMode()
   tcsetattr(netfd, TCSADRAIN, &oldtio);
 }
 
-static struct bundle *CleanupBundle;
+static struct bundle *SignalBundle;
 
 void
 Cleanup(int excode)
 {
   DropClient(1);
   ServerClose();
-  bundle_InterfaceDown(CleanupBundle);
-  link_Close(physical2link(CleanupBundle->physical), 1);
+  bundle_InterfaceDown(SignalBundle);
+  link_Close(physical2link(SignalBundle->physical), 1);
   nointr_sleep(1);
-  DeleteIfRoutes(CleanupBundle, 1);
+  DeleteIfRoutes(SignalBundle, 1);
   ID0unlink(pid_filename);
   if (mode & MODE_BACKGROUND && BGFiledes[1] != -1) {
     char c = EX_ERRDEAD;
@@ -201,7 +201,7 @@ Cleanup(int excode)
   }
   LogPrintf(LogPHASE, "PPP Terminated (%s).\n", ex_desc(excode));
   TtyOldMode();
-  link_Destroy(physical2link(CleanupBundle->physical));
+  link_Destroy(physical2link(SignalBundle->physical));
   LogClose();
 
   exit(excode);
@@ -215,7 +215,7 @@ CloseConnection(int signo)
   LogPrintf(LogPHASE, "Caught signal %d, abort connection\n", signo);
   reconnectState = RECON_FALSE;
   reconnectCount = 0;
-  LcpDown();
+  bundle_Down(SignalBundle, NULL);
   dial_up = 0;
   pending_signal(SIGINT, CloseConnection);
 }
@@ -419,7 +419,7 @@ main(int argc, char **argv)
   IsInteractive(1);
   IpcpDefAddress();
 
-  CleanupBundle = bundle;
+  SignalBundle = bundle;
 
   if (SelectSystem(bundle, "default", CONFFILE) < 0 && VarTerm)
     fprintf(VarTerm, "Warning: No default entry is given in config file.\n");
@@ -1025,7 +1025,7 @@ DoLoop(struct bundle *bundle)
 	nointr_usleep(10000);
       n = Physical_Read(bundle->physical, rbuff, sizeof rbuff);
       if ((mode & MODE_DIRECT) && n <= 0) {
-	LcpDown();
+        bundle_Down(bundle, &bundle->physical->link);
       } else
 	LogDumpBuff(LogASYNC, "ReadFromModem", rbuff, n);
 

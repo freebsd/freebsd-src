@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.6 1998/02/06 02:22:48 brian Exp $
+ * $Id: modem.c,v 1.77.2.7 1998/02/06 02:23:46 brian Exp $
  *
  *  TODO:
  */
@@ -232,11 +232,15 @@ modem_Timeout(void *data)
   StopTimer(&to->modem->link.Timer);
   StartTimer(&to->modem->link.Timer);
 
-  if (to->modem->dev_is_modem) {
+  if (to->modem->abort) {
+    /* Something went horribly wrong */
+    to->modem->abort = 0;
+    bundle_Down(to->bundle, &to->modem->link);
+  } else if (to->modem->dev_is_modem) {
     if (to->modem->fd >= 0) {
       if (ioctl(to->modem->fd, TIOCMGET, &to->modem->mbits) < 0) {
 	LogPrintf(LogPHASE, "ioctl error (%s)!\n", strerror(errno));
-	LcpDown();
+	bundle_Down(to->bundle, &to->modem->link);
 	return;
       }
     } else
@@ -259,7 +263,7 @@ modem_Timeout(void *data)
       } else {
         LogPrintf(LogDEBUG, "modem_Timeout: online -> offline\n");
 	reconnect(RECON_TRUE);
-	LcpDown();
+	bundle_Down(to->bundle, &to->modem->link);
       }
     }
     else
@@ -843,7 +847,7 @@ modem_StartOutput(struct link *l)
 	LogPrintf(LogERROR, "modem write (%d): %s\n", modem->fd,
 		  strerror(errno));
         reconnect(RECON_TRUE);
-	LcpDown();
+        modem->abort = 1;
       }
     }
   }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.8 1998/02/04 01:03:51 brian Exp $
+ * $Id: lcp.c,v 1.55.2.9 1998/02/06 02:22:14 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -84,7 +84,19 @@ static void LcpInitRestartCounter(struct fsm *);
 static void LcpSendConfigReq(struct fsm *);
 static void LcpSendTerminateReq(struct fsm *);
 static void LcpSendTerminateAck(struct fsm *);
-static void LcpDecodeConfig(struct bundle *, u_char *, int, int);
+static void LcpDecodeConfig(struct fsm *, u_char *, int, int);
+
+static struct fsm_callbacks lcp_Callbacks = {
+  LcpLayerUp,
+  LcpLayerDown,
+  LcpLayerStart,
+  LcpLayerFinish,
+  LcpInitRestartCounter,
+  LcpSendConfigReq,
+  LcpSendTerminateReq,
+  LcpSendTerminateAck,
+  LcpDecodeConfig
+};
 
 struct lcpstate LcpInfo = {
   {
@@ -100,15 +112,7 @@ struct lcpstate LcpInfo = {
     LogLCP,
     NULL,				/* link */
     NULL,				/* bundle */
-    LcpLayerUp,
-    LcpLayerDown,
-    LcpLayerStart,
-    LcpLayerFinish,
-    LcpInitRestartCounter,
-    LcpSendConfigReq,
-    LcpSendTerminateReq,
-    LcpSendTerminateAck,
-    LcpDecodeConfig,
+    &lcp_Callbacks
   }
 };
 
@@ -317,6 +321,7 @@ LcpSendConfigReq(struct fsm *fp)
 {
   /* Send config REQ please */
   struct physical *p = link2physical(fp->link);
+  struct lcpstate *lcp = fsm2lcp(fp);
   u_char *cp;
   struct lcp_opt o;
 
@@ -328,26 +333,26 @@ LcpSendConfigReq(struct fsm *fp)
   LogPrintf(LogLCP, "LcpSendConfigReq\n");
   cp = ReqBuff;
   if (!Physical_IsSync(p)) {
-    if (LcpInfo.want_acfcomp && !REJECTED(&LcpInfo, TY_ACFCOMP))
+    if (lcp->want_acfcomp && !REJECTED(lcp, TY_ACFCOMP))
       PUTN(TY_ACFCOMP);
 
-    if (LcpInfo.want_protocomp && !REJECTED(&LcpInfo, TY_PROTOCOMP))
+    if (lcp->want_protocomp && !REJECTED(lcp, TY_PROTOCOMP))
       PUTN(TY_PROTOCOMP);
 
-    if (!REJECTED(&LcpInfo, TY_ACCMAP))
-      PUTACCMAP(LcpInfo.want_accmap);
+    if (!REJECTED(lcp, TY_ACCMAP))
+      PUTACCMAP(lcp->want_accmap);
   }
 
-  if (!REJECTED(&LcpInfo, TY_MRU))
-    PUTMRU(LcpInfo.want_mru);
+  if (!REJECTED(lcp, TY_MRU))
+    PUTMRU(lcp->want_mru);
 
-  if (LcpInfo.want_magic && !REJECTED(&LcpInfo, TY_MAGICNUM))
-    PUTMAGIC(LcpInfo.want_magic);
+  if (lcp->want_magic && !REJECTED(lcp, TY_MAGICNUM))
+    PUTMAGIC(lcp->want_magic);
 
-  if (LcpInfo.want_lqrperiod && !REJECTED(&LcpInfo, TY_QUALPROTO))
-    PUTLQR(LcpInfo.want_lqrperiod);
+  if (lcp->want_lqrperiod && !REJECTED(lcp, TY_QUALPROTO))
+    PUTLQR(lcp->want_lqrperiod);
 
-  switch (LcpInfo.want_auth) {
+  switch (lcp->want_auth) {
   case PROTO_PAP:
     PUTPAP();
     break;
@@ -414,9 +419,10 @@ LcpLayerFinish(struct fsm *fp)
 {
   /* We're now down */
   struct physical *p = link2physical(fp->link);
+  struct lcpstate *lcp = fsm2lcp(fp);
 
   LogPrintf(LogLCP, "LcpLayerFinish\n");
-  LcpInfo.LcpFailedMagic = 0;
+  lcp->LcpFailedMagic = 0;
   link_Close(fp->link, 0);
   StopAllTimers();
   CcpInfo.fsm.restart = 0;
@@ -435,22 +441,23 @@ LcpLayerUp(struct fsm *fp)
 {
   /* We're now up */
   struct physical *p = link2physical(fp->link);
+  struct lcpstate *lcp = fsm2lcp(fp);
 
   LogPrintf(LogLCP, "LcpLayerUp\n");
 
   if (p) {
-    async_SetLinkParams(&p->async, &LcpInfo);
+    async_SetLinkParams(&p->async, lcp);
     NewPhase(fp->bundle, p, PHASE_AUTHENTICATE);
     StartLqm(p);
   } else
     LogPrintf(LogERROR, "LcpLayerUp: Not a physical link !\n");
 
-  StopTimer(&LcpInfo.ReportTimer);
-  LcpInfo.ReportTimer.state = TIMER_STOPPED;
-  LcpInfo.ReportTimer.load = 60 * SECTICKS;
-  LcpInfo.ReportTimer.arg = &LcpInfo.ReportTimer;
-  LcpInfo.ReportTimer.func = LcpReportTime;
-  StartTimer(&LcpInfo.ReportTimer);
+  StopTimer(&lcp->ReportTimer);
+  lcp->ReportTimer.state = TIMER_STOPPED;
+  lcp->ReportTimer.load = 60 * SECTICKS;
+  lcp->ReportTimer.arg = &lcp->ReportTimer;
+  lcp->ReportTimer.func = LcpReportTime;
+  StartTimer(&lcp->ReportTimer);
 }
 
 static void
@@ -472,18 +479,6 @@ LcpUp()
   /* Lower layers are ready.... go */
   LcpInfo.LcpFailedMagic = 0;
   FsmUp(&LcpInfo.fsm);
-}
-
-void
-LcpDown()
-{
-  LogPrintf(LogPHASE, "Disconnected!\n");
-  /* Physical link is gone - sudden death */
-  CcpDown();	/* CCP must come down */
-  IpcpDown();	/* IPCP must come down */
-  FsmDown(&LcpInfo.fsm);
-  /* FsmDown() results in a LcpLayerDown() if we're currently open. */
-  LcpLayerFinish(&LcpInfo.fsm);
 }
 
 void
@@ -513,9 +508,10 @@ LcpClose(struct fsm *fp)
 }
 
 static void
-LcpDecodeConfig(struct bundle *bundle, u_char *cp, int plen, int mode_type)
+LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type)
 {
   /* Deal with incoming PROTO_LCP */
+  struct lcpstate *lcp = fsm2lcp(fp);
   int type, length, sz, pos;
   u_int32_t *lp, magic, accmap;
   u_short mtu, mru, *sp, proto;
@@ -555,17 +551,17 @@ LcpDecodeConfig(struct bundle *bundle, u_char *cp, int plen, int mode_type)
 	  memcpy(nakp, cp, 4);
 	  nakp += 4;
 	} else {
-	  LcpInfo.his_mru = mru;
+	  lcp->his_mru = mru;
 	  memcpy(ackp, cp, 4);
 	  ackp += 4;
 	}
 	break;
       case MODE_NAK:
 	if (mru >= MIN_MRU || mru <= MAX_MRU)
-	  LcpInfo.want_mru = mru;
+	  lcp->want_mru = mru;
 	break;
       case MODE_REJ:
-	LcpInfo.his_reject |= (1 << type);
+	lcp->his_reject |= (1 << type);
 	break;
       }
       break;
@@ -577,15 +573,15 @@ LcpDecodeConfig(struct bundle *bundle, u_char *cp, int plen, int mode_type)
 
       switch (mode_type) {
       case MODE_REQ:
-	LcpInfo.his_accmap = accmap;
+	lcp->his_accmap = accmap;
 	memcpy(ackp, cp, 6);
 	ackp += 6;
 	break;
       case MODE_NAK:
-	LcpInfo.want_accmap = accmap;
+	lcp->want_accmap = accmap;
 	break;
       case MODE_REJ:
-	LcpInfo.his_reject |= (1 << type);
+	lcp->his_reject |= (1 << type);
 	break;
       }
       break;
@@ -614,7 +610,7 @@ LcpDecodeConfig(struct bundle *bundle, u_char *cp, int plen, int mode_type)
 	    goto reqreject;
 	  }
 	  if (Acceptable(ConfPap)) {
-	    LcpInfo.his_auth = proto;
+	    lcp->his_auth = proto;
 	    memcpy(ackp, cp, length);
 	    ackp += length;
 	  } else if (Acceptable(ConfChap)) {
@@ -643,7 +639,7 @@ LcpDecodeConfig(struct bundle *bundle, u_char *cp, int plen, int mode_type)
           if (Acceptable(ConfChap) && cp[4] == 5)
 #endif
 	  {
-	    LcpInfo.his_auth = proto;
+	    lcp->his_auth = proto;
 	    memcpy(ackp, cp, length);
 	    ackp += length;
 #ifdef HAVE_DES
@@ -670,28 +666,28 @@ LcpDecodeConfig(struct bundle *bundle, u_char *cp, int plen, int mode_type)
 	switch (proto) {
 	case PROTO_PAP:
           if (Enabled(ConfPap))
-            LcpInfo.want_auth = PROTO_PAP;
+            lcp->want_auth = PROTO_PAP;
           else {
             LogPrintf(LogLCP, "Peer will only send PAP (not enabled)\n");
-	    LcpInfo.his_reject |= (1 << type);
+	    lcp->his_reject |= (1 << type);
           }
           break;
 	case PROTO_CHAP:
           if (Enabled(ConfChap))
-            LcpInfo.want_auth = PROTO_CHAP;
+            lcp->want_auth = PROTO_CHAP;
           else {
             LogPrintf(LogLCP, "Peer will only send CHAP (not enabled)\n");
-	    LcpInfo.his_reject |= (1 << type);
+	    lcp->his_reject |= (1 << type);
           }
           break;
         default:
           /* We've been NAK'd with something we don't understand :-( */
-	  LcpInfo.his_reject |= (1 << type);
+	  lcp->his_reject |= (1 << type);
           break;
         }
 	break;
       case MODE_REJ:
-	LcpInfo.his_reject |= (1 << type);
+	lcp->his_reject |= (1 << type);
 	break;
       }
       break;
@@ -705,10 +701,10 @@ LcpDecodeConfig(struct bundle *bundle, u_char *cp, int plen, int mode_type)
 	if (ntohs(req->proto) != PROTO_LQR || !Acceptable(ConfLqr))
 	  goto reqreject;
 	else {
-	  LcpInfo.his_lqrperiod = ntohl(req->period);
-	  if (LcpInfo.his_lqrperiod < 500)
-	    LcpInfo.his_lqrperiod = 500;
-	  req->period = htonl(LcpInfo.his_lqrperiod);
+	  lcp->his_lqrperiod = ntohl(req->period);
+	  if (lcp->his_lqrperiod < 500)
+	    lcp->his_lqrperiod = 500;
+	  req->period = htonl(lcp->his_lqrperiod);
 	  memcpy(ackp, cp, length);
 	  ackp += length;
 	}
@@ -716,7 +712,7 @@ LcpDecodeConfig(struct bundle *bundle, u_char *cp, int plen, int mode_type)
       case MODE_NAK:
 	break;
       case MODE_REJ:
-	LcpInfo.his_reject |= (1 << type);
+	lcp->his_reject |= (1 << type);
 	break;
       }
       break;
@@ -728,35 +724,35 @@ LcpDecodeConfig(struct bundle *bundle, u_char *cp, int plen, int mode_type)
 
       switch (mode_type) {
       case MODE_REQ:
-	if (LcpInfo.want_magic) {
+	if (lcp->want_magic) {
 	  /* Validate magic number */
-	  if (magic == LcpInfo.want_magic) {
+	  if (magic == lcp->want_magic) {
 	    LogPrintf(LogLCP, "Magic is same (%08lx) - %d times\n",
-                      (u_long)magic, ++LcpInfo.LcpFailedMagic);
-	    LcpInfo.want_magic = GenerateMagic();
+                      (u_long)magic, ++lcp->LcpFailedMagic);
+	    lcp->want_magic = GenerateMagic();
 	    memcpy(nakp, cp, 6);
 	    nakp += 6;
-            ualarm(TICKUNIT * (4 + 4 * LcpInfo.LcpFailedMagic), 0);
+            ualarm(TICKUNIT * (4 + 4 * lcp->LcpFailedMagic), 0);
             sigpause(0);
 	  } else {
-	    LcpInfo.his_magic = magic;
+	    lcp->his_magic = magic;
 	    memcpy(ackp, cp, length);
 	    ackp += length;
-            LcpInfo.LcpFailedMagic = 0;
+            lcp->LcpFailedMagic = 0;
 	  }
 	} else {
-	  LcpInfo.my_reject |= (1 << type);
+	  lcp->my_reject |= (1 << type);
 	  goto reqreject;
 	}
 	break;
       case MODE_NAK:
 	LogPrintf(LogLCP, " Magic 0x%08lx is NAKed!\n", (u_long)magic);
-	LcpInfo.want_magic = GenerateMagic();
+	lcp->want_magic = GenerateMagic();
 	break;
       case MODE_REJ:
 	LogPrintf(LogLCP, " Magic 0x%08x is REJected!\n", magic);
-	LcpInfo.want_magic = 0;
-	LcpInfo.his_reject |= (1 << type);
+	lcp->want_magic = 0;
+	lcp->his_reject |= (1 << type);
 	break;
       }
       break;
@@ -767,7 +763,7 @@ LcpDecodeConfig(struct bundle *bundle, u_char *cp, int plen, int mode_type)
       switch (mode_type) {
       case MODE_REQ:
 	if (Acceptable(ConfProtocomp)) {
-	  LcpInfo.his_protocomp = 1;
+	  lcp->his_protocomp = 1;
 	  memcpy(ackp, cp, 2);
 	  ackp += 2;
 	} else {
@@ -780,14 +776,14 @@ LcpDecodeConfig(struct bundle *bundle, u_char *cp, int plen, int mode_type)
 #else
 	  memcpy(rejp, cp, 2);
 	  rejp += 2;
-	  LcpInfo.my_reject |= (1 << type);
+	  lcp->my_reject |= (1 << type);
 #endif
 	}
 	break;
       case MODE_NAK:
       case MODE_REJ:
-	LcpInfo.want_protocomp = 0;
-	LcpInfo.his_reject |= (1 << type);
+	lcp->want_protocomp = 0;
+	lcp->his_reject |= (1 << type);
 	break;
       }
       break;
@@ -797,7 +793,7 @@ LcpDecodeConfig(struct bundle *bundle, u_char *cp, int plen, int mode_type)
       switch (mode_type) {
       case MODE_REQ:
 	if (Acceptable(ConfAcfcomp)) {
-	  LcpInfo.his_acfcomp = 1;
+	  lcp->his_acfcomp = 1;
 	  memcpy(ackp, cp, 2);
 	  ackp += 2;
 	} else {
@@ -810,14 +806,14 @@ LcpDecodeConfig(struct bundle *bundle, u_char *cp, int plen, int mode_type)
 #else
 	  memcpy(rejp, cp, 2);
 	  rejp += 2;
-	  LcpInfo.my_reject |= (1 << type);
+	  lcp->my_reject |= (1 << type);
 #endif
 	}
 	break;
       case MODE_NAK:
       case MODE_REJ:
-	LcpInfo.want_acfcomp = 0;
-	LcpInfo.his_reject |= (1 << type);
+	lcp->want_acfcomp = 0;
+	lcp->his_reject |= (1 << type);
 	break;
       }
       break;
@@ -852,7 +848,7 @@ reqreject:
         }
 	memcpy(rejp, cp, length);
 	rejp += length;
-	LcpInfo.my_reject |= (1 << type);
+	lcp->my_reject |= (1 << type);
         if (length != cp[1])
           return;
       }

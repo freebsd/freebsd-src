@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.h,v 1.14.2.4 1998/01/31 02:48:15 brian Exp $
+ * $Id: ccp.h,v 1.14.2.5 1998/02/02 19:32:02 brian Exp $
  *
  *	TODO:
  */
@@ -59,6 +59,8 @@ struct ccpstate {
 
 extern struct ccpstate CcpInfo;
 
+#define fsm2ccp(fp) (fp->proto == PROTO_CCP ? (struct ccpstate *)fp : NULL)
+
 struct ccp_algorithm {
   int id;
   int Conf;					/* A Conf value from vars.h */
@@ -93,4 +95,3 @@ extern void CcpResetInput(u_char);
 extern int CcpOutput(struct link *, int, u_short, struct mbuf *);
 extern struct mbuf *CompdInput(u_short *, struct mbuf *);
 extern void CcpDictSetup(u_short, struct mbuf *);
-extern void CcpDown(void);

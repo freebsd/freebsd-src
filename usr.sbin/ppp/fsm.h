@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.h,v 1.16.2.3 1998/01/31 02:48:18 brian Exp $
+ * $Id: fsm.h,v 1.16.2.4 1998/02/02 19:32:06 brian Exp $
  *
  *	TODO:
  */
@@ -44,6 +44,20 @@
 #define	MODE_ACK	4	/* pseudo mode for ccp negotiations */
 
 #define	OPEN_PASSIVE	-1
+
+struct fsm;
+
+struct fsm_callbacks {
+  void (*LayerUp) (struct fsm *);            /* Layer is now up (tlu) */
+  void (*LayerDown) (struct fsm *);          /* About to come down (tld) */
+  void (*LayerStart) (struct fsm *);         /* Layer about to start up (tls) */
+  void (*LayerFinish) (struct fsm *);        /* Layer now down (tlf) */
+  void (*InitRestartCounter) (struct fsm *); /* Set fsm timer load */
+  void (*SendConfigReq) (struct fsm *);      /* Send REQ please */
+  void (*SendTerminateReq) (struct fsm *);   /* Term REQ just sent */
+  void (*SendTerminateAck) (struct fsm *);   /* Send Term ACK please */
+  void (*DecodeConfig) (struct fsm *, u_char *, int, int);
+};
 
 struct fsm {
   const char *name;		/* Name of protocol */
@@ -76,16 +90,7 @@ struct fsm {
   /* Our high-level link */
   struct bundle *bundle;
 
-  void (*LayerUp) (struct fsm *);            /* Layer is now up (tlu) */
-  void (*LayerDown) (struct fsm *);          /* About to come down (tld) */
-  void (*LayerStart) (struct fsm *);         /* Layer about to start up (tls) */
-  void (*LayerFinish) (struct fsm *);        /* Layer now down (tlf) */
-  void (*InitRestartCounter) (struct fsm *); /* Set fsm timer load */
-  void (*SendConfigReq) (struct fsm *);      /* Send REQ please */
-  void (*SendTerminateReq) (struct fsm *);   /* Term REQ just sent */
-  void (*SendTerminateAck) (struct fsm *);   /* Send Term ACK please */
-  void (*DecodeConfig) (struct bundle *, u_char *, int, int);
-                                             /* Deal with incoming data */
+  const struct fsm_callbacks *fn;
 };
 
 struct fsmheader {

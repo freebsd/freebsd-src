@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.8 1998/02/06 02:22:10 brian Exp $
+ * $Id: command.c,v 1.131.2.9 1998/02/06 02:23:33 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -885,7 +885,7 @@ CloseCommand(struct cmdargs const *arg)
 static int
 DownCommand(struct cmdargs const *arg)
 {
-  LcpDown();
+  bundle_Down(arg->bundle, &arg->bundle->physical->link);
   return 0;
 }
 
