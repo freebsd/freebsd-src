@@ -195,7 +195,7 @@ db_restart_at_pc(watchpt)
 		db_load_count += inst_load(ins);
 		db_store_count += inst_store(ins);
 	    }
-#endif	SOFTWARE_SSTEP
+#endif	/* SOFTWARE_SSTEP */
 	}
 
 	if (db_run_mode == STEP_CONTINUE) {
@@ -297,7 +297,7 @@ db_clear_single_step(regs)
 	}
 }
 
-#endif	SOFTWARE_SSTEP
+#endif	/* SOFTWARE_SSTEP */
 
 extern int	db_cmd_loop_done;
 
