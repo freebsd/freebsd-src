@@ -124,7 +124,7 @@ static char *b_flag = NULL;	/* path to boot code */
 static int i_flag  = 0;		/* replace partition data */
 static int u_flag  = 0;		/* update partition data */
 static int s_flag  = 0;		/* Print a summary and exit */
-static int t_flag  = 0;		/* test only, if f_flag is given */
+static int t_flag  = 0;		/* test only */
 static char *f_flag = NULL;	/* Read config info from file */
 static int v_flag  = 0;		/* Be verbose */
 
@@ -342,11 +342,11 @@ main(int argc, char *argv[])
 		partp->dp_start = dos_sectors;
 		partp->dp_size = (disksecs / dos_cylsecs) * dos_cylsecs -
 		    dos_sectors;
-
 		dos(partp);
 		if (v_flag)
 			print_s0(-1);
-		write_s0();
+		if (!t_flag)
+			write_s0();
 		exit(0);
 	}
 	if (f_flag)
@@ -399,15 +399,13 @@ main(int argc, char *argv[])
 		change_code();
 
 	    if (u_flag || a_flag || B_flag) {
-		if (!t_flag)
-		{
+		if (!t_flag)	{
 		    printf("\nWe haven't changed the partition table yet.  ");
 		    printf("This is your last chance.\n");
 		}
 		print_s0(-1);
-		if (!t_flag)
-		{
-		    if (ok("Should we write new partition table?"))
+		if (!t_flag)	{
+	  	   if (ok("Should we write new partition table?"))
 			write_s0();
 		}
 		else
