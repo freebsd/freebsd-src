@@ -40,6 +40,7 @@
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 
+#include <machine/clock.h>
 #include <machine/joystick.h>
 
 #include <i386/isa/isa.h>
@@ -79,8 +80,6 @@ static struct {
 } joy[NJOY];
 
 
-extern int timer0_max_count;
-
 static int joyprobe (struct isa_device *);
 static int joyattach (struct isa_device *);
 
@@ -97,7 +96,7 @@ static struct cdevsw joy_cdevsw =
 	  joyioctl,	nostop,		nullreset,	nodevtotty,/*joystick */
 	  seltrue,	nommap,		NULL,	"joy",	NULL,	-1 };
 
-static int get_tick ();
+static int get_tick __P((void));
 
 
 static int

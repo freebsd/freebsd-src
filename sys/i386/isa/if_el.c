@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  *
- * $Id: if_el.c,v 1.19 1995/12/05 02:00:49 davidg Exp $
+ * $Id: if_el.c,v 1.20 1995/12/10 13:38:39 phk Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -24,6 +24,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/errno.h>
 #include <sys/ioctl.h>
 #include <sys/mbuf.h>

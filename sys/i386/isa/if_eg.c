@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_eg.c,v 1.8 1995/12/05 02:00:47 davidg Exp $
+ * $Id: if_eg.c,v 1.9 1995/12/10 13:38:38 phk Exp $
  */
 
 /* To do:
@@ -39,6 +39,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/errno.h>
 #include <sys/ioctl.h>
 #include <sys/mbuf.h>
@@ -145,6 +146,13 @@ eg_registerdev(struct isa_device *id, const char *descr)
         dev_attach(kdc);
 }
 
+static void egprintpcb __P((struct eg_softc *sc));
+static void egprintstat __P((int b));
+static int egoutPCB __P((struct eg_softc *sc, int b));
+static int egreadPCBstat __P((struct eg_softc *sc, int statb));
+static int egreadPCBready __P((struct eg_softc *sc));
+static int egwritePCB __P((struct eg_softc *sc));
+static int egreadPCB __P((struct eg_softc *sc));
 static void eginit __P((struct eg_softc *));
 static int egioctl (struct ifnet *, int, caddr_t);
 static void egrecv(struct eg_softc *);

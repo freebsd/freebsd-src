@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.35 1995/12/05 02:00:52 davidg Exp $
+ *  $Id: if_ep.c,v 1.36 1995/12/10 13:38:41 phk Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -59,6 +59,7 @@
 #if defined(__FreeBSD__)
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/conf.h>
 #include <sys/devconf.h>
 #endif
 #include <sys/mbuf.h>
@@ -105,6 +106,10 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
 #include <i386/isa/if_epreg.h>
+
+static int eeprom_rdy __P((struct isa_device *is));
+static int ep_look_for_board_at __P((struct isa_device *is));
+static int get_e __P((struct isa_device *is, int offset));
 
 static int epprobe __P((struct isa_device *));
 static int epattach __P((struct isa_device *));

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.23 1995/12/08 23:20:36 phk Exp $
+ *	$Id: pcaudio.c,v 1.24 1995/12/10 13:39:03 phk Exp $
  */
 
 #include "pca.h"
@@ -106,6 +106,9 @@ static struct cdevsw pca_cdevsw =
  	  pcaioctl,     nostop,         nullreset,      nodevtotty,/* pcaudio */
  	  pcaselect,	nommap,		NULL,	"pca",	NULL,	-1 };
 
+static void pca_continue __P((void));
+static void pca_init __P((void));
+static void pca_pause __P((void));
 
 static inline void conv(const void *table, void *buff, unsigned long n)
 {

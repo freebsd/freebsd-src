@@ -71,7 +71,7 @@ static void trigger(unsigned char device);
 static char spoll(unsigned char device);
 
 static int gpprobe(struct isa_device *dvp);
-static int gpattach();
+static int gpattach(struct isa_device *dvp);
 
 struct   isa_driver gpdriver = {gpprobe, gpattach, "gp"};
 
