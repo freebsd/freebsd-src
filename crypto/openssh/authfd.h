@@ -11,7 +11,7 @@
  * called by a name other than "ssh" or "Secure Shell".
  */
 
-/* RCSID("$OpenBSD: authfd.h,v 1.13 2000/10/09 21:51:00 markus Exp $"); */
+/* RCSID("$OpenBSD: authfd.h,v 1.16 2000/12/20 19:37:21 markus Exp $"); */
 
 #ifndef AUTHFD_H
 #define AUTHFD_H
@@ -51,7 +51,7 @@ typedef struct {
 }       AuthenticationConnection;
 
 /* Returns the number of the authentication fd, or -1 if there is none. */
-int     ssh_get_authentication_socket();
+int     ssh_get_authentication_socket(void);
 
 /*
  * This should be called for any descriptor returned by
@@ -66,13 +66,18 @@ void    ssh_close_authentication_socket(int authfd);
  * connection could not be opened.  The connection should be closed by the
  * caller by calling ssh_close_authentication_connection().
  */
-AuthenticationConnection *ssh_get_authentication_connection();
+AuthenticationConnection *ssh_get_authentication_connection(void);
 
 /*
  * Closes the connection to the authentication agent and frees any associated
  * memory.
  */
 void    ssh_close_authentication_connection(AuthenticationConnection *auth);
+
+/*
+ * Returns the number authentication identity held by the agent.
+ */
+int	ssh_get_num_identities(AuthenticationConnection *auth, int version);
 
 /*
  * Returns the first authentication identity held by the agent or NULL if
@@ -96,16 +101,16 @@ Key	*ssh_get_next_identity(AuthenticationConnection *auth, char **comment, int v
 int
 ssh_decrypt_challenge(AuthenticationConnection *auth,
     Key *key, BIGNUM * challenge,
-    unsigned char session_id[16],
-    unsigned int response_type,
-    unsigned char response[16]);
+    u_char session_id[16],
+    u_int response_type,
+    u_char response[16]);
 
 /* Requests the agent to sign data using key */
 int
 ssh_agent_sign(AuthenticationConnection *auth,
     Key *key,
-    unsigned char **sigp, int *lenp,
-    unsigned char *data, int datalen);
+    u_char **sigp, int *lenp,
+    u_char *data, int datalen);
 
 /*
  * Adds an identity to the authentication server.  This call is not meant to

@@ -23,17 +23,16 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: nchan.c,v 1.19 2000/09/07 20:27:52 deraadt Exp $");
+RCSID("$OpenBSD: nchan.c,v 1.23 2001/02/28 08:54:55 markus Exp $");
 
-#include "ssh.h"
-
+#include "ssh1.h"
+#include "ssh2.h"
 #include "buffer.h"
 #include "packet.h"
 #include "channels.h"
 #include "nchan.h"
-
-#include "ssh2.h"
 #include "compat.h"
+#include "log.h"
 
 /* functions manipulating channel states */
 /*
@@ -54,9 +53,6 @@ static void	chan_send_ieof1(Channel *c);
 static void	chan_send_oclose1(Channel *c);
 static void	chan_send_close2(Channel *c);
 static void	chan_send_eof2(Channel *c);
-
-/* channel cleanup */
-chan_event_fn *chan_delete_if_full_closed	= NULL;
 
 /* helper */
 static void	chan_shutdown_write(Channel *c);
@@ -250,14 +246,6 @@ chan_send_oclose1(Channel *c)
 		break;
 	}
 }
-static void
-chan_delete_if_full_closed1(Channel *c)
-{
-	if (c->istate == CHAN_INPUT_CLOSED && c->ostate == CHAN_OUTPUT_CLOSED) {
-		debug("channel %d: full closed", c->self);
-		channel_free(c->self);
-	}
-}
 
 /*
  * the same for SSH2
@@ -400,22 +388,46 @@ chan_send_close2(Channel *c)
 		c->flags |= CHAN_CLOSE_SENT;
 	}
 }
-static void
-chan_delete_if_full_closed2(Channel *c)
+
+/* shared */
+
+int
+chan_is_dead(Channel *c)
 {
-	if (c->istate == CHAN_INPUT_CLOSED && c->ostate == CHAN_OUTPUT_CLOSED) {
+	if (c->istate != CHAN_INPUT_CLOSED || c->ostate != CHAN_OUTPUT_CLOSED)
+		return 0;
+	if (!compat20) {
+		debug("channel %d: is dead", c->self);
+		return 1;
+	}
+	/*
+	 * we have to delay the close message if the efd (for stderr) is
+	 * still active
+	 */
+	if (((c->extended_usage != CHAN_EXTENDED_IGNORE) &&
+	    buffer_len(&c->extended) > 0)
+#if 0
+	    || ((c->extended_usage == CHAN_EXTENDED_READ) &&
+	    c->efd != -1)
+#endif
+	    ) {
+		debug2("channel %d: active efd: %d len %d type %s",
+		    c->self, c->efd, buffer_len(&c->extended),
+		    c->extended_usage==CHAN_EXTENDED_READ ?
+		       "read": "write");
+	} else {
 		if (!(c->flags & CHAN_CLOSE_SENT)) {
 			chan_send_close2(c);
 		}
 		if ((c->flags & CHAN_CLOSE_SENT) &&
 		    (c->flags & CHAN_CLOSE_RCVD)) {
-			debug("channel %d: full closed2", c->self);
-			channel_free(c->self);
+			debug("channel %d: is dead", c->self);
+			return 1;
 		}
 	}
+	return 0;
 }
 
-/* shared */
 void
 chan_init_iostates(Channel *c)
 {
@@ -436,8 +448,6 @@ chan_init(void)
 		chan_rcvd_ieof			= chan_rcvd_ieof2;
 		chan_write_failed		= chan_write_failed2;
 		chan_obuf_empty			= chan_obuf_empty2;
-
-		chan_delete_if_full_closed	= chan_delete_if_full_closed2;
 	} else {
 		chan_rcvd_oclose		= chan_rcvd_oclose1;
 		chan_read_failed		= chan_read_failed_12;
@@ -446,8 +456,6 @@ chan_init(void)
 		chan_rcvd_ieof			= chan_rcvd_ieof1;
 		chan_write_failed		= chan_write_failed1;
 		chan_obuf_empty			= chan_obuf_empty1;
-
-		chan_delete_if_full_closed	= chan_delete_if_full_closed1;
 	}
 }
 

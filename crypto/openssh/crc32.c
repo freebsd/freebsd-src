@@ -31,7 +31,7 @@
  *      tions for all combinations of data and CRC register values
  *
  *      The values must be right-shifted by eight bits by the "updcrc
- *      logic; the shift must be unsigned (bring in zeroes).  On some
+ *      logic; the shift must be u_(bring in zeroes).  On some
  *      hardware you could probably optimize the shift in assembler by
  *      using byte-swap instructions
  *      polynomial $edb88320
@@ -39,11 +39,11 @@
 
 
 #include "includes.h"
-RCSID("$OpenBSD: crc32.c,v 1.7 2000/09/07 20:27:51 deraadt Exp $");
+RCSID("$OpenBSD: crc32.c,v 1.8 2000/12/19 23:17:56 markus Exp $");
 
 #include "crc32.h"
 
-static unsigned int crc32_tab[] = {
+static u_int crc32_tab[] = {
 	0x00000000L, 0x77073096L, 0xee0e612cL, 0x990951baL, 0x076dc419L,
 	0x706af48fL, 0xe963a535L, 0x9e6495a3L, 0x0edb8832L, 0x79dcb8a4L,
 	0xe0d5e91eL, 0x97d2d988L, 0x09b64c2bL, 0x7eb17cbdL, 0xe7b82d07L,
@@ -100,11 +100,11 @@ static unsigned int crc32_tab[] = {
 
 /* Return a 32-bit CRC of the contents of the buffer. */
 
-unsigned int
-ssh_crc32(const unsigned char *s, unsigned int len)
+u_int
+ssh_crc32(const u_char *s, u_int len)
 {
-	unsigned int i;
-	unsigned int crc32val;
+	u_int i;
+	u_int crc32val;
 
 	crc32val = 0;
 	for (i = 0;  i < len;  i ++) {
