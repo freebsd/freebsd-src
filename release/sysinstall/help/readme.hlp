@@ -100,7 +100,7 @@ searching facilities.  If you wish to use Netscape as your browser,
 you may install the BSDI version from ftp://ftp.mcom.com or simply
 type:
 
-        # cd /usr/ports/www/netscape2
+        # cd /usr/ports/www/netscape3
         # make all install
 
 If you have the Ports collection installed (see the Configuration menu

@@ -1,5 +1,5 @@
 /stand/sysinstall now supports command-line "shortcuts" which can
-often replace outdated commands, like pkg_install.  Multiple commands
+often replace outdated commands, like pkg_manage.  Multiple commands
 can be invoked in sequence, and variables may be set on-the-fly to
 customize the installation program's behavior in various ways.
 
@@ -10,9 +10,9 @@ Syntax:
 Where "var" can be one or more of:
 
 blanktime               Screen blank time setting in seconds
-bootManager             Which boot manager to use: booteasy, standard or none
+bootManager             Select boot manager: booteasy, standard or none
 browserBinary           Which doc browser to use (default: lynx)
-browserPackage          Which package to get browser from (default: lynx pkg)
+browserPackage          Which package to get browser from (default: lynx)
 cpioVerbose             How verbose to be with cpio: high, medium or low
 debug                   Extra debugging?
 disk                    Which disk to operate on (wd0, sd0, etc).
@@ -110,6 +110,5 @@ Invokes the disk partition editor on disk sd0.
 
 
 If /stand/sysinstall is linked to another filename, say
-`/usr/local/bin/configPackages', then the basename will be used as an
-implicit command name.
-
+`/usr/local/bin/configPackages', then the basename will be used
+as an implicit command name.
