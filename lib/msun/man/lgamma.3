@@ -75,11 +75,14 @@ The external integer
 .Fa signgam
 returns the sign of \(*G(x).
 .Pp
-.Fn gamma x
+.Fn gamma
 and
-.Fn gammaf x
-return ln\||\(*G(x)|, with no effect on
-.Fa signgam .
+.Fn gammaf
+are deprecated aliases for
+.Fn lgamma
+and
+.Fn lgammaf ,
+respectively.
 .Sh IDIOSYNCRASIES
 Do not use the expression
 .Dq Li signgam\(**exp(lgamma(x))
@@ -97,8 +100,6 @@ has returned can signgam be correct.
 .\".Pp
 .\"For arguments in its range,
 .\".Fn gamma
-.\"and
-.\".Fn gammaf
 .\"is preferred, as for positive arguments
 .\"it is accurate to within one unit in the last place.
 .\"Exponentiation of
@@ -120,9 +121,9 @@ and
 .Va errno
 is set to
 .Er ERANGE .
-For large non-integer negative values,
-.Fn gamma
-will underflow.
+\."For large non-integer negative values,
+\.".Fn gamma
+\."will underflow.
 .Sh SEE ALSO
 .Xr math 3
 .Sh HISTORY
@@ -135,19 +136,18 @@ The
 function appeared in
 .Bx 4.4
 as a function which computed \(*G(x).
-In many older libraries the function
+This version was used in
+.Fx 1.1 .
+The name
 .Fn gamma
-calculated the same value as
-.Fn lgamma .
-Now
-.Fn gamma
-computes ln\||\(*G(x)|,
-but it uses a different algorithm,
-and it does not set
-.Fa signgam .
+was originally dedicated to the
+.Fn lgamma
+function,
+and that usage was restored by switching to Sun's fdlibm in
+.Fx 1.1.5 .
 The
 .St -isoC-99
 standard specifies a function
 .Fn tgamma
 for computing \(*G(x).
-This function is currently unimplimented in this library.
+This function is currently unimplemented in this library.
