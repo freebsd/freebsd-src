@@ -212,9 +212,9 @@ ata_detach(device_t dev)
 
 #ifdef DEV_ATADISK
     if (scp->devices & ATA_ATA_MASTER && scp->dev_softc[MASTER])
-	ad_detach(scp->dev_softc[MASTER]);
+	ad_detach(scp->dev_softc[MASTER], 1);
     if (scp->devices & ATA_ATA_SLAVE && scp->dev_softc[SLAVE])
-	ad_detach(scp->dev_softc[SLAVE]);
+	ad_detach(scp->dev_softc[SLAVE], 1);
 #endif
 #if defined(DEV_ATAPICD) || defined(DEV_ATAPIFD) || defined(DEV_ATAPIST)
     if (scp->devices & ATA_ATAPI_MASTER && scp->dev_softc[MASTER])
@@ -494,12 +494,12 @@ ata_reset(struct ata_softc *scp)
 
     /* do we have any signs of ATA/ATAPI HW being present ? */
     ATA_OUTB(scp->r_io, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
-    DELAY(1);
+    DELAY(10);
     ostat0 = ATA_INB(scp->r_io, ATA_STATUS);
     if ((ostat0 & 0xf8) != 0xf8 && ostat0 != 0xa5)
 	mask |= 0x01;
     ATA_OUTB(scp->r_io, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
-    DELAY(1);	
+    DELAY(10);	
     ostat1 = ATA_INB(scp->r_io, ATA_STATUS);
     if ((ostat1 & 0xf8) != 0xf8 && ostat1 != 0xa5)
 	mask |= 0x02;
@@ -619,12 +619,11 @@ ata_reinit(struct ata_softc *scp)
     ata_reset(scp);
 
     if ((misdev = devices & ~scp->devices)) {
-	printf("\ndevice(s) disappeared! 0x%02x\n", misdev);
 #ifdef DEV_ATADISK
 	if (misdev & ATA_ATA_MASTER && scp->dev_softc[MASTER])
-	    ad_detach(scp->dev_softc[MASTER]);
+	    ad_detach(scp->dev_softc[MASTER], 0);
 	if (misdev & ATA_ATA_SLAVE && scp->dev_softc[SLAVE])
-	    ad_detach(scp->dev_softc[SLAVE]);
+	    ad_detach(scp->dev_softc[SLAVE], 0);
 #endif
 #if defined(DEV_ATAPICD) || defined(DEV_ATAPIFD) || defined(DEV_ATAPIST)
 	if (misdev & ATA_ATAPI_MASTER && scp->dev_softc[MASTER])
@@ -642,7 +641,6 @@ ata_reinit(struct ata_softc *scp)
 	}
     }
     if ((newdev = ~devices & scp->devices)) {
-	printf("\ndevice(s) appeared! 0x%02x\n", newdev);
 	if (newdev & ATA_ATA_MASTER)
 	    if (ata_getparam(scp, ATA_MASTER, ATA_C_ATA_IDENTIFY))
 		newdev &= ~ATA_ATA_MASTER;
@@ -655,6 +653,8 @@ ata_reinit(struct ata_softc *scp)
 	if (newdev & ATA_ATAPI_SLAVE)
 	    if (ata_getparam(scp, ATA_SLAVE, ATA_C_ATAPI_IDENTIFY))
 		newdev &= ~ATA_ATAPI_SLAVE;
+	if (newdev)
+	    printf("\n");
     }
     scp->active = ATA_IDLE;
 #ifdef DEV_ATADISK
@@ -716,8 +716,10 @@ ata_wait(struct ata_softc *scp, int device, u_int8_t mask)
 	if (scp->status == 0xff) {
 	    ata_printf(scp, device, "no status, reselecting device\n");
 	    ATA_OUTB(scp->r_io, ATA_DRIVE, ATA_D_IBM | device);
-	    DELAY(1);
+	    DELAY(10);
 	    scp->status = ATA_INB(scp->r_io, ATA_STATUS);
+	    if (scp->status == 0xff)
+		return -1;
 	}
 
 	/* are we done ? */
