@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.58 1995/10/23 05:35:48 dyson Exp $
+ * $Id: vm_pageout.c,v 1.59 1995/11/05 20:46:02 dyson Exp $
  */
 
 /*
@@ -95,6 +95,8 @@
 
 /* the kernel process "vm_pageout"*/
 static void vm_pageout __P((void));
+static int vm_pageout_clean __P((vm_page_t, int));
+static int vm_pageout_scan __P((void));
 struct proc *pageproc;
 
 static struct kproc_desc page_kp = {
@@ -155,13 +157,12 @@ static void vm_req_vmdaemon __P((void));
  * inactive queue.  (However, any other page on the inactive queue may
  * move!)
  */
-int
+static int
 vm_pageout_clean(m, sync)
 	vm_page_t m;
 	int sync;
 {
 	register vm_object_t object;
-	int pageout_status[VM_PAGEOUT_PAGE_COUNT];
 	vm_page_t mc[2*VM_PAGEOUT_PAGE_COUNT];
 	int pageout_count;
 	int i, forward_okay, backward_okay, page_base;
@@ -540,7 +541,7 @@ vm_req_vmdaemon()
 /*
  *	vm_pageout_scan does the dirty work for the pageout daemon.
  */
-int
+static int
 vm_pageout_scan()
 {
 	vm_page_t m;
@@ -706,7 +707,6 @@ rescan1:
 		}
 		if (m->object->ref_count && ((m->flags & (PG_REFERENCED|PG_WANTED)) ||
 			pmap_is_referenced(VM_PAGE_TO_PHYS(m)))) {
-			int s;
 
 			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
 			m->flags &= ~PG_REFERENCED;
