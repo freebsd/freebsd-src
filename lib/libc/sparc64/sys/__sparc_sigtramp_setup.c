@@ -42,5 +42,5 @@ void
 __sparc_sigtramp_setup(void)
 {
 
-	sysarch(SPARC_SIGTRAMP_INSTALL, &sia);
+	sysarch(SPARC_SIGTRAMP_INSTALL, (void *)&sia);
 }
