@@ -76,7 +76,7 @@
  */
 
 
-#ident "$Id: dpt_scsi.c,v 1.4.2.1 1998/03/06 23:44:13 julian Exp $"
+#ident "$Id: dpt_scsi.c,v 1.4.2.2 1998/03/23 07:57:27 jkh Exp $"
 #define _DPT_C_
 
 #include "opt_dpt.h"
@@ -115,10 +115,6 @@
 
 #define INLINE	__inline
 
-#ifdef DPT_USE_DPT_SWI
-#define splcam         splbio
-#define splsoftcam     splbio
-#endif
 
 /* Function Prototypes */
 
@@ -155,9 +151,7 @@ static INLINE void	 dpt_sched_queue(dpt_softc_t *dpt);
 static INLINE void	 dpt_IObySize(dpt_softc_t *dpt, dpt_ccb_t *ccb,
 				      int op, int index);
 
-#ifndef DPT_USE_DPT_SWI
 static  void dpt_swi_register(void *);
-#endif
 
 #ifdef DPT_HANDLE_TIMEOUTS
 static void dpt_handle_timeouts(dpt_softc_t *dpt);
@@ -236,7 +230,6 @@ static struct scsi_device dpt_dev =
 
 /* Software Interrupt Vector */
 DPTISR_SET(DPTISR_DPT, dpt_sintr)  /* You need at least one reference */
-#ifndef DPT_USE_DPT_SWI
 SYSINIT(dpt_camswi, SI_SUB_DRIVERS, SI_ORDER_FIRST, dpt_swi_register, NULL)
 
 static void    
@@ -244,7 +237,6 @@ dpt_swi_register(void *unused)
 {
     ihandlers[SWI_CAMBIO] = dpt_sintr;
 }
-#endif
 
 /* These functions allows us to do memory mapped I/O, if hardware supported. */
 
@@ -320,12 +312,7 @@ dpt_sched_queue(dpt_softc_t *dpt)
 	       "No Commands are submitted\n", dpt->unit);
 	return;
     }
-#ifdef DPT_USE_DPT_SWI
-    scheddptisr(DPTISR_DPT)
-    
-#else
     setsoftcambio();
-#endif /* DPT_USE_DPT_SWI */
 }
 
 /*

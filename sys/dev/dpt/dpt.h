@@ -40,14 +40,10 @@
  */
 
 
-#ident "$Id: dpt.h,v 1.1.2.2 1998/03/08 10:58:11 julian Exp $"
+#ident "$Id: dpt.h,v 1.1.2.3 1998/03/23 07:57:20 jkh Exp $"
 
 #ifndef _DPT_H
 #define _DPT_H
-
-/* till we have the CAM stuff, use our own */
-#undef DPT_USE_DPT_SWI
-#define DPT_USE_DPT_SWI	1
 
 extern u_long dpt_unit;
 
