@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.6 (Berkeley) 2/7/94
  *
- *	$Id: procfs_vnops.c,v 1.19 1995/11/16 11:39:11 bde Exp $
+ *	$Id: procfs_vnops.c,v 1.20 1996/01/24 18:41:41 peter Exp $
  */
 
 /*
@@ -737,9 +737,7 @@ procfs_readdir(ap)
 #ifdef PROCFS_ZOMBIE
 		int doingzomb = 0;
 #endif
-		volatile struct proc *p;
-
-		p = allproc;
+		volatile struct proc *p = allproc.lh_first;
 
 #define PROCFS_XFILES	3	/* number of other entries, like "curproc" */
 		pcnt = PROCFS_XFILES;
@@ -772,12 +770,12 @@ procfs_readdir(ap)
 					dp->d_namlen = sprintf(dp->d_name, "%ld", (long) p->p_pid);
 				}
 
-				p = p->p_next;
+				p = p->p_list.le_next;
 
 #ifdef PROCFS_ZOMBIE
 				if (p == 0 && doingzomb == 0) {
 					doingzomb = 1;
-					p = zombproc;
+					p = zombproc.lh_first;
 				}
 #endif
 
