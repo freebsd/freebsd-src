@@ -14,34 +14,13 @@ fi
 
 case "$daily_clean_hoststat_enable" in
     [Yy][Ee][Ss])
-	if [ -z "$daily_clean_hoststat_days" ]; then
-	    echo '$daily_clean_hoststat_enable is enabled but' \
-		'$daily_clean_hoststat_days is not set'
-	    rc=2
-	elif [ ! -d /var/spool/.hoststat ]; then
-	    echo '$daily_clean_hoststat_enable is enabled but' \
-		"/var/spool/.hoststat doesn't exist"
+	if [ -z "$(sendmail -bh 2>&1)" ]; then
 	    rc=2
 	else
 	    echo ""
-	    echo "Removing stale files from /var/spool/.hoststat:"
-
-	    case "$daily_clean_hoststat_verbose" in
-		[Yy][Ee][Ss])
-		    print=-print;;
-		*)
-		    print=;;
-	    esac
-
-	    if [ -d /var/spool/.hoststat ]; then
-		cd /var/spool/.hoststat
-		rc=$(find . ! -name . -mtime +$daily_clean_hoststat_days \
-		    -delete $print | tee /dev/stderr | wc -l)
-		[ -z "$print" ] && rc=0
-		[ $rc -gt 1 ] && rc=1
-	    else
-		rc=3
-	    fi
+	    echo "Removing stale entries from sendmail host status cache:"
+	    rc=0
+	    sendmail -bH || rc=1
 	fi;;
 
     *)  rc=0;;
