@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 10, 2003
+.Dd August 14, 2004
 .Dt GEM 4
 .Os
 .Sh NAME
@@ -52,16 +52,41 @@ well as many Sun UltraSPARCs.
 Cards supported by this driver include:
 .Bl -bullet -compact -offset indent
 .It
-Sun GEM gigabit ethernet
+Sun GEM gigabit Ethernet
 .It
-Sun ERI 10/100 Mbps ethernet
+Sun ERI 10/100 Mbps Ethernet
 .It
 Apple GMAC
 .El
+.Sh NOTES
+On sparc64 the
+.Nm
+driver respects the
+.Va local-mac-address?
+system configuration variable which can be set in the Open Firmware boot
+monitor using the
+.Ic setenv
+command or by
+.Xr eeprom 8 .
+If set to
+.Dq Li false
+(the default), the
+.Nm
+driver will use the system's default MAC address for all of its devices.
+If set to
+.Dq Li true ,
+the unique MAC address of each interface is used if present rather than
+the system's default MAC address.
+.Pp
+Supported interfaces having their own MAC address include the on-board
+Sun ERI 10/100 Mbps and GEM gigabit Ethernet Interfaces on boards equipped
+with more than one Ethernet interface and the Sun GEM gigabit Ethernet
+add-on cards.
 .Sh SEE ALSO
 .Xr hme 4 ,
 .Xr miibus 4 ,
 .Xr netintro 4 ,
+.Xr eeprom 8 ,
 .Xr ifconfig 8
 .Sh HISTORY
 The
