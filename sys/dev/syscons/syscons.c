@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.282 1998/09/29 02:00:56 ache Exp $
+ *	$Id: syscons.c,v 1.283 1998/10/01 11:39:18 yokota Exp $
  */
 
 #include "sc.h"
@@ -144,7 +144,7 @@ static	void		*sc_console_devfs_token;
 static  scr_stat    	*new_scp, *old_scp;
 static  term_stat   	kernel_console;
 static  default_attr    *current_default;
-	int             sc_flags;
+static  int		sc_flags;
 static  int		sc_port = IO_KBD;
 static  KBDC		sc_kbdc = NULL;
 static  char        	init_done = COLD;
@@ -274,6 +274,7 @@ static int history_down_line(scr_stat *scp);
 static int mask2attr(struct term_stat *term);
 static void set_keyboard(int command, int data);
 static void update_leds(int which);
+static void set_destructive_cursor(scr_stat *scp);
 static void set_mouse_pos(scr_stat *scp);
 static int skip_spc_right(scr_stat *scp, u_short *p);
 static int skip_spc_left(scr_stat *scp, u_short *p);
