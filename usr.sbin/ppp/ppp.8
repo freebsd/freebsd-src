@@ -32,7 +32,7 @@ The
 .Fl nat
 flag (or
 .Fl alias
-flag for backwards compatability) does the equivalent of a
+flag for backwards compatibility) does the equivalent of a
 .Dq nat enable yes ,
 enabling
 .Nm Ns No 's
@@ -1009,7 +1009,7 @@ If a value of zero is specified for
 will keep trying until a connection is made.
 .El
 .Pp
-So, for example;
+So, for example:
 .Bd -literal -offset indent
 set redial 10.3 4
 .Ed
@@ -1512,7 +1512,7 @@ host as the gateway for the LAN.
 .Sh PACKET FILTERING
 This implementation supports packet filtering.
 There are four kinds of
-filters; the
+filters: the
 .Em in
 filter, the
 .Em out
@@ -3790,7 +3790,7 @@ for security reasons.
 .Pp
 If the first character of
 .Ar value
-is an exclaimation mark
+is an exclamation mark
 .Pq Dq \&! ,
 .Nm
 treats the remainder of the string as a program that must be executed
@@ -4095,7 +4095,7 @@ values.
 .Pp
 If
 .Ar seconds
-is followed immediately by an exclaimation mark
+is followed immediately by an exclamation mark
 .Pq Dq \&! ,
 .Nm
 will
@@ -4324,7 +4324,7 @@ It is also possible to execute external commands from the chat script.
 To do this, the first character of the expect or send string is an
 exclamation mark
 .Pq Dq \&! .
-If a literal exclaimation mark is required, double it up to
+If a literal exclamation mark is required, double it up to
 .Dq \&!!
 and it will be treated as a single literal
 .Dq \&! .
@@ -4339,7 +4339,7 @@ If
 is running in interactive mode, file descriptor 3 is attached to
 .Pa /dev/tty .
 .Pp
-For example (wrapped for readability);
+For example (wrapped for readability):
 .Bd -literal -offset indent
 set login "TIMEOUT 5 \\"\\" \\"\\" login:--login: ppp \e
 word: ppp \\"!sh \\\\-c \\\\\\"echo \\\\-n label: >&2\\\\\\"\\" \e
