@@ -144,7 +144,7 @@ next:
 				}
 			break;
 		case PASSWD:
-			if (strcmp(*aname, "anonymous") &&
+			if ((*aname == NULL || strcmp(*aname, "anonymous")) &&
 			    fstat(fileno(cfile), &stb) >= 0 &&
 			    (stb.st_mode & 077) != 0) {
 	warnx("Error: .netrc file is readable by others.");
