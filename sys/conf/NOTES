@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.341 1997/06/04 04:55:26 pst Exp $
+#	$Id: LINT,v 1.342 1997/06/04 16:25:05 pst Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -255,6 +255,15 @@ options		DDB
 # the machine to recover from a panic
 #
 options		DDB_UNATTENDED
+
+#
+# If using GDB remote mode to debug the kernel, there's a non-standard
+# extension to the remote protocol that can be used to use the serial
+# port as both the debugging port and the system console.  It's non-
+# standard and you're on your own if you enable it.  See also the
+# "remotechat" variables in the FreeBSD specific version of gdb.
+#
+options		GDB_REMOTE_CHAT
 
 # 
 # KTRACE enables the system-call tracing facility ktrace(2).
