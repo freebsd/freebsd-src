@@ -29,10 +29,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)conv.c	8.1 (Berkeley) 6/6/93";
+static const char sccsid[] = "@(#)conv.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -48,36 +50,44 @@ conv_c(pr, p)
 {
 	extern int deprecated;
 	char buf[10], *str;
+	static char nul[] = "\\0";
+	static char alarm[] = "\\a";
+	static char backspace[] = "\\b";
+	static char formfeed[] = "\\f";
+	static char newline[] = "\\n";
+	static char carriageret[] = "\\r";
+	static char verticaltab[] = "\\v";
+	static char tab[] = "\\t";
 
 	switch(*p) {
 	case '\0':
-		str = "\\0";
+		str = nul;
 		goto strpr;
 	/* case '\a': */
 	case '\007':
 		if (deprecated)		/* od didn't know about \a */
 			break;
-		str = "\\a";
+		str = alarm;
 		goto strpr;
 	case '\b':
-		str = "\\b";
+		str = backspace;
 		goto strpr;
 	case '\f':
-		str = "\\f";
+		str = formfeed;
 		goto strpr;
 	case '\n':
-		str = "\\n";
+		str = newline;
 		goto strpr;
 	case '\r':
-		str = "\\r";
+		str = carriageret;
 		goto strpr;
 	case '\t':
-		str = "\\t";
+		str = tab;
 		goto strpr;
 	case '\v':
 		if (deprecated)
 			break;
-		str = "\\v";
+		str = verticaltab;
 		goto strpr;
 	default:
 		break;
@@ -98,7 +108,7 @@ conv_u(pr, p)
 	u_char *p;
 {
 	extern int deprecated;
-	static char *list[] = {
+	static const char *list[] = {
 		"nul", "soh", "stx", "etx", "eot", "enq", "ack", "bel",
 		 "bs",  "ht",  "lf",  "vt",  "ff",  "cr",  "so",  "si",
 		"dle", "dcl", "dc2", "dc3", "dc4", "nak", "syn", "etb",
