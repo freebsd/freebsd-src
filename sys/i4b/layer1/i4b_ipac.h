@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Sat Dec  5 18:23:50 1998]
+ *      last edit-date: [Tue Jun  8 09:53:26 1999]
  *
  *---------------------------------------------------------------------------
  */
@@ -43,6 +43,10 @@
 #define IPAC_HSCXB_OFF	0x40
 #define IPAC_ISAC_OFF	0x80
 #define IPAC_IPAC_OFF	0xc0
+
+/* chip version */
+
+#define	IPAC_V11	0x01	/* IPAC Version 1.1 */
 
 /*
  * definitions of registers and bits for the IPAC ISDN chip.

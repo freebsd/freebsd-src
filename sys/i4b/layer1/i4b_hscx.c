@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Sat Dec  5 18:23:36 1998]
+ *      last edit-date: [Wed Mar 17 11:59:05 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -55,7 +55,9 @@
 #include <machine/clock.h>
 #include <i386/isa/isa_device.h>
 #else
+#ifndef __bsdi__
 #include <machine/bus.h>
+#endif
 #include <sys/device.h>
 #endif
 
@@ -286,14 +288,23 @@ isic_hscx_irq(register struct isic_softc *sc, u_char ista, int h_chan, u_char ex
 					MPH_Trace_Ind(&hdr, chan->in_mbuf->m_len, chan->in_mbuf->m_data);
 				}
 
-				/* move rx'd data to rx queue */
-
-				IF_ENQUEUE(&chan->rx_queue, chan->in_mbuf);
+				/* silence detection */
 				
-				(*chan->drvr_linktab->bch_rx_data_ready)(chan->drvr_linktab->unit);
-
 				if(!(isic_hscx_silence(chan->in_mbuf->m_data, chan->in_mbuf->m_len)))
 					activity = ACT_RX;
+
+				if(!(IF_QFULL(&chan->rx_queue)))
+				{
+					IF_ENQUEUE(&chan->rx_queue, chan->in_mbuf);
+				}
+				else
+				{
+					i4b_Bfreembuf(chan->in_mbuf);
+				}
+
+				/* signal upper driver that data is available */
+
+				(*chan->drvr_linktab->bch_rx_data_ready)(chan->drvr_linktab->unit);
 				
 				/* alloc new buffer */
 				

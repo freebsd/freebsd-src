@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,11 +29,11 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Sat Dec  5 18:25:12 1998]
+ *      last edit-date: [Sun Feb 14 10:28:26 1999]
  *
  *---------------------------------------------------------------------------*/
 
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__bsdi__)
 #include "isic.h"
 #else
 #define NISIC 1
@@ -57,7 +57,9 @@
 #include <machine/clock.h>
 #include <i386/isa/isa_device.h>
 #else
+#ifndef __bsdi__
 #include <machine/bus.h>
+#endif
 #include <sys/device.h>
 #endif
 

@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 1996, 1998 Hellmuth Michaelis.  All rights reserved.
+ *   Copyright (c) 1996, 1999 Hellmuth Michaelis.  All rights reserved.
  *
  *   Copyright (c) 1996 Gary Jennejohn.  All rights reserved. 
  *
@@ -37,7 +37,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Mon Oct 19 14:30:58 1998]
+ *      last edit-date: [Fri Jul 30 08:16:59 1999]
  *
  *	-hm	rewriting for isic and new trace format
  *	-hm	new option -f, use automatic name for -o
@@ -146,7 +146,7 @@ main(int argc, char *argv[])
 
 	b = &buf[sizeof(i4b_trace_hdr_t)];
 	
-	while( (c = getopt(argc, argv, "abdf:hiln:op:ru:BFPR:T:?")) != EOF)
+	while( (c = getopt(argc, argv, "abdf:hiln:op:ru:BFPR:T:")) != -1)
 	{
 		switch(c)
 		{
@@ -489,7 +489,7 @@ fmt_hdr(i4b_trace_hdr_t *hdr, int frm_len)
 	static char hbuf[256];
 	int i = 0;
 
-	s = localtime(&(hdr->time.tv_sec));
+	s = localtime((time_t *)&(hdr->time.tv_sec));
 
 	if(hdr->type == TRC_CH_I)		/* Layer 1 INFO's */
 	{

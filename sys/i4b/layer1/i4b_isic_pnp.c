@@ -3,7 +3,7 @@
  *
  *   Copyright (c) 1998 German Tischler. All rights reserved.
  *
- *   Copyright (c) 1998 Hellmuth Michaelis. All rights reserved. 
+ *   Copyright (c) 1998, 1999 Hellmuth Michaelis. All rights reserved. 
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -39,7 +39,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Dec 18 20:54:56 1998]
+ *      last edit-date: [Mon Jul  5 15:57:01 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -48,6 +48,11 @@
 #include "pnp.h"
 #include "isic.h"
 #include "opt_i4b.h"
+
+#if NPNP > 0
+#warning "Fix i4b pnp!"
+#undef NPNP
+#endif
 
 #if (NISIC > 0) && (NPNP > 0)
 
@@ -70,29 +75,37 @@ extern void isicintr(int unit);
 
 #include <machine/clock.h>
 #include <i386/isa/isa_device.h>
-#include <i386/isa/pnp.h>
+/* #include <i386/isa/pnp.h> */
 
 #include <i4b/include/i4b_global.h>
 #include <machine/i4b_ioctl.h>
 #include <i4b/layer1/i4b_l1.h>
 
-#define VID_TEL163PNP	0x10212750	/* Teles 16.3 PnP	*/
-#define VID_CREATIXPP	0x0000980e	/* Creatix S0/16 P+P	*/
-#define VID_DYNALINK	0x88167506	/* Dynalink		*/
-#define VID_SEDLBAUER	0x0100274c	/* Sedlbauer WinSpeed	*/
-#define VID_NICCYGO	0x5001814c	/* Neuhaus Niccy GO@	*/
-#define VID_ELSAQS1P	0x33019315	/* ELSA Quickstep1000pro*/
+#define VID_TEL163PNP		0x10212750	/* Teles 16.3 PnP	*/
+#define VID_CREATIXPP		0x0000980e	/* Creatix S0/16 P+P	*/
+#define VID_DYNALINK		0x88167506	/* Dynalink		*/
+#define VID_SEDLBAUER		0x0100274c	/* Sedlbauer WinSpeed	*/
+#define VID_NICCYGO		0x5001814c	/* Neuhaus Niccy GO@	*/
+#define VID_ELSAQS1P		0x33019315	/* ELSA Quickstep1000pro*/
+#define VID_ITK0025 		0x25008b26	/* ITK Ix1 Micro V3	*/
+#define VID_AVMPNP		0x0009cd06	/* AVM Fritz! PnP	*/
+#define VID_SIESURF2		0x2000254d	/* Siemens I-Surf 2.0 PnP*/
+#define VID_ASUSCOM_IPAC	0x90167506	/* Asuscom (with IPAC)	*/	
 
 static struct i4b_pnp_ids {
 	u_long vend_id;
 	char *id_str;
 } i4b_pnp_ids[] = {
-	{ VID_TEL163PNP,	"Teles 16.3 PnP"	},
-	{ VID_CREATIXPP,	"Creatix S0/16 P+P"	},
-	{ VID_DYNALINK,		"Dynalink IS64PH"	},
-	{ VID_SEDLBAUER,	"Sedlbauer WinSpeed"	},
-	{ VID_NICCYGO,		"Dr.Neuhaus Niccy Go@"	},
-	{ VID_ELSAQS1P,		"ELSA QuickStep 1000pro"},	
+	{ VID_TEL163PNP,	"Teles 16.3 PnP"		},
+	{ VID_CREATIXPP,	"Creatix S0/16 P+P"		},
+	{ VID_DYNALINK,		"Dynalink IS64PH"		},
+	{ VID_SEDLBAUER,	"Sedlbauer WinSpeed"		},
+	{ VID_NICCYGO,		"Dr.Neuhaus Niccy Go@"		},
+	{ VID_ELSAQS1P,		"ELSA QuickStep 1000pro"	},	
+	{ VID_ITK0025,		"ITK ix1 Micro V3.0"    	},
+	{ VID_AVMPNP,		"AVM Fritz!Card PnP"		},	
+	{ VID_SIESURF2,		"Siemens I-Surf 2.0 PnP"	},	
+ 	{ VID_ASUSCOM_IPAC,	"Asuscom ISDNLink 128 PnP"	},
 	{ 0 }
 };
 
@@ -156,7 +169,9 @@ static void
 i4b_pnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev)
 {
 	struct pnp_cinfo spci;
+#if !((defined(__FreeBSD_version) && __FreeBSD_version >= 400004))
 	struct isa_device *isa_devp;
+#endif
 
 	if(dev->id_unit != next_isic_unit)
 	{
@@ -211,6 +226,18 @@ i4b_pnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev)
 		case VID_ELSAQS1P:
 			dev->id_flags = FLAG_ELSA_QS1P_ISA;
 			break;
+		case VID_ITK0025:
+			dev->id_flags = FLAG_ITK_IX1;
+			break;
+		case VID_AVMPNP:
+			dev->id_flags = FLAG_AVM_PNP;
+			break;
+		case VID_SIESURF2:
+			dev->id_flags = FLAG_SIEMENS_ISURF2;
+			break;
+		case VID_ASUSCOM_IPAC:
+			dev->id_flags = FLAG_ASUSCOM_IPAC;
+			break;
 	}
 
 	write_pnp_parms(&spci, 0);
@@ -219,13 +246,16 @@ i4b_pnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev)
 	if(dev->id_driver == NULL)
 	{
 		dev->id_driver = &isicdriver;
-
+#if(defined(__FreeBSD_version) && __FreeBSD_version >= 400004)
+		dev->id_id = isa_compat_nextid();
+#else
 		isa_devp = find_isadev(isa_devtab_net, &isicdriver, 0);
 
 		if(isa_devp != NULL)
 		{
 			dev->id_id = isa_devp->id_id;
 		}
+#endif
 	}
 
 	if((dev->id_alive = isic_pnpprobe(dev, spci.port[1])) != 0)
@@ -249,12 +279,10 @@ isic_pnpprobe(struct isa_device *dev, unsigned int iobase2)
 
 	switch(dev->id_flags)
 	{
-#ifndef __FreeBSD__
 #ifdef TEL_S0_16_3_P
 		case FLAG_TELES_S0_163_PnP:
 			ret = isic_probe_s0163P(dev, iobase2);
 			break;
-#endif
 #endif
 
 #ifdef CRTX_S0_P
@@ -286,6 +314,31 @@ isic_pnpprobe(struct isa_device *dev, unsigned int iobase2)
 			ret = isic_probe_Eqs1pi(dev, iobase2);
 			break;
 #endif
+
+#ifdef ITKIX1
+		case FLAG_ITK_IX1:
+			ret = isic_probe_itkix1(dev);
+			break;
+#endif
+
+#ifdef AVM_PNP
+		case FLAG_AVM_PNP:
+			ret = isic_probe_avm_pnp(dev, iobase2);
+			break;
+#endif
+
+#ifdef SIEMENS_ISURF2
+		case FLAG_SIEMENS_ISURF2:
+			ret = isic_probe_siemens_isurf(dev, iobase2);
+			break;
+#endif
+
+#ifdef ASUSCOM_IPAC
+		case FLAG_ASUSCOM_IPAC:
+			ret = isic_probe_asi(dev, iobase2);
+			break;
+#endif
+
 		default:
 			break;
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Fri Dec 18 12:14:07 1998]
+ *      last edit-date: [Mon Jul 26 10:59:56 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -61,7 +61,9 @@
 #if defined(__NetBSD__) && defined(amiga)
 #include <machine/bus.h>
 #else
+#ifndef __bsdi__
 #include <dev/isa/isavar.h>
+#endif
 #endif
 #endif
 
@@ -86,6 +88,48 @@
 
 void isic_settrace(int unit, int val);
 int isic_gettrace(int unit);
+
+#ifdef __bsdi__
+static int isicmatch(struct device *parent, struct cfdata *cf, void *aux);
+static void isicattach(struct device *parent, struct device *self, void *aux);
+struct cfdriver isiccd =
+	{ NULL, "isic", isicmatch, isicattach, DV_IFNET,
+	  sizeof(struct isic_softc) };
+
+int isa_isicmatch(struct device *parent, struct cfdata *cf, struct isa_attach_args *);
+int isapnp_isicmatch(struct device *parent, struct cfdata *cf, struct isa_attach_args *);
+int isa_isicattach(struct device *parent, struct device *self, struct isa_attach_args *ia);
+
+static int
+isicmatch(struct device *parent, struct cfdata *cf, void *aux)
+{
+	struct isa_attach_args *ia = (struct isa_attach_args *) aux;
+	if (ia->ia_bustype == BUS_PCMCIA) {
+		ia->ia_irq = IRQNONE;
+		/* return 1;	Not yet */
+		return 0;	/* for now */
+	}
+	if (ia->ia_bustype == BUS_PNP) {
+		return isapnp_isicmatch(parent, cf, ia);
+	}
+	return isa_isicmatch(parent, cf, ia);
+}
+
+static void
+isicattach(struct device *parent, struct device *self, void *aux)
+{
+	struct isa_attach_args *ia = (struct isa_attach_args *) aux;
+	struct isic_softc *sc = (struct isic_softc *)self;
+
+	sc->sc_flags = sc->sc_dev.dv_flags;
+	isa_isicattach(parent, self, ia);
+	isa_establish(&sc->sc_id, &sc->sc_dev);
+	sc->sc_ih.ih_fun = isicintr;
+	sc->sc_ih.ih_arg = (void *)sc;
+	intr_establish(ia->ia_irq, &sc->sc_ih, DV_NET);
+	/* Could add a shutdown hook here... */
+}
+#endif
 
 #ifdef __FreeBSD__
 void isicintr_sc(struct isic_softc *sc);
@@ -165,7 +209,10 @@ isicintr(void *arg)
 				was_isac_irq = 1;
 			}
 		}
-#ifndef amiga /* XXX should be: #if INTERUPTS_ARE_SHARED */
+
+#ifdef NOTDEF
+
+#if !defined(amiga) && !defined(atari) /* XXX should be: #if INTS_ARE_SHARED */
 #ifdef ELSA_QS1ISA
 		if(sc->sc_cardtyp != CARD_TYPEP_ELSAQS1ISA)
 		{
@@ -175,7 +222,9 @@ isicintr(void *arg)
 #ifdef ELSA_QS1ISA
 		}
 #endif	
-#endif /* AMIGA */
+#endif /* !AMIGA && !ATARI */
+
+#endif /* NOTDEF */
 			
 		HSCX_WRITE(0, H_MASK, 0xff);
 		ISAC_WRITE(I_MASK, 0xff);
@@ -229,10 +278,16 @@ isicintr(void *arg)
 						ipac_irq_stat & IPAC_ISTA_EXB);
 				was_ipac_irq = 1;			
 			}
-			if(ipac_irq_stat & (IPAC_ISTA_ICD | IPAC_ISTA_EXD))
+			if(ipac_irq_stat & IPAC_ISTA_ICD)
 			{
 				/* ISAC interrupt */
 				isic_isac_irq(sc, ISAC_READ(I_ISTA));
+				was_ipac_irq = 1;
+			}
+			if(ipac_irq_stat & IPAC_ISTA_EXD)
+			{
+				/* force ISAC interrupt handling */
+				isic_isac_irq(sc, ISAC_ISTA_EXI);
 				was_ipac_irq = 1;
 			}
 	
@@ -240,10 +295,10 @@ isicintr(void *arg)
 			if(!ipac_irq_stat)
 				break;
 		}
-
+#ifdef NOTDEF
 		if(was_ipac_irq == 0)
 			DBGL1(L1_ERROR, "isicintr", ("WARNING: unit %d, No IRQ from IPAC!\n", sc->sc_unit));
-			
+#endif
 		IPAC_WRITE(IPAC_MASK, 0xff);
 		DELAY(50);
 		IPAC_WRITE(IPAC_MASK, 0xc0);

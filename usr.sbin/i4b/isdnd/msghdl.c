@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Sat Dec 19 09:57:16 1998]
+ *      last edit-date: [Mon Jul 26 13:55:57 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -197,6 +197,7 @@ void
 msg_connect_active_ind(msg_connect_active_ind_t *mp)
 {
 	cfg_entry_t *cep;
+	char *device;
 	
 	if((cep = get_cep_by_cdid(mp->header.cdid)) == NULL)
 	{
@@ -218,6 +219,8 @@ msg_connect_active_ind(msg_connect_active_ind_t *mp)
 	cep->outbytes = INVALID;
 	cep->hangup = 0;
 
+	device = bdrivername(cep->usrdevicename);
+
 	/* set the B-channel to active */
 
 	if((set_channel_busy(cep->isdncontrollerused, cep->isdnchannelused)) == ERROR)
@@ -225,15 +228,17 @@ msg_connect_active_ind(msg_connect_active_ind_t *mp)
 
 	if(cep->direction == DIR_OUT)
 	{
-		log(LL_CHD, "%05d %s outgoing call active (ctl %d, ch %d)",
+		log(LL_CHD, "%05d %s outgoing call active (ctl %d, ch %d, %s%d)",
 			cep->cdid, cep->name,
-			cep->isdncontrollerused, cep->isdnchannelused);
+			cep->isdncontrollerused, cep->isdnchannelused,
+			bdrivername(cep->usrdevicename), cep->usrdeviceunit);
 	}
 	else
 	{
-		log(LL_CHD, "%05d %s incoming call active (ctl %d, ch %d)",
+		log(LL_CHD, "%05d %s incoming call active (ctl %d, ch %d, %s%d)",
 			cep->cdid, cep->name,
-			cep->isdncontrollerused, cep->isdnchannelused);
+			cep->isdncontrollerused, cep->isdnchannelused,
+			bdrivername(cep->usrdevicename), cep->usrdeviceunit);
 	}
 	
 #ifdef USE_CURSES
@@ -502,7 +507,7 @@ msg_ifstatechg_ind(msg_ifstatechg_ind_t *mp)
 	}
 
 	device = bdrivername(cep->usrdevicename);
-	log(LL_DBG, "%s%d: switched to state %d\n", device, cep->usrdeviceunit, mp->state);
+	log(LL_DBG, "%s%d: switched to state %d", device, cep->usrdeviceunit, mp->state);
 }
 
 /*---------------------------------------------------------------------------*
@@ -526,8 +531,7 @@ msg_disconnect_ind(msg_disconnect_ind_t *mp)
 			mp->header.cdid)));
 		cep->saved_call.cdid = CDID_UNUSED;
 
-		if((set_channel_idle(cep->saved_call.controller, cep->saved_call.channel)) == ERROR)
-			log(LL_ERR, "msg_disconnect_ind: set_channel_idle failed!");
+		set_channel_idle(cep->saved_call.controller, cep->saved_call.channel);
 
 		incr_free_channels(cep->saved_call.controller);
 		return;
@@ -630,8 +634,7 @@ msg_disconnect_ind(msg_disconnect_ind_t *mp)
 
 	/* set the B-channel inactive */
 
-	if((set_channel_idle(cep->isdncontrollerused, cep->isdnchannelused)) == ERROR)
-		log(LL_ERR, "msg_disconnect_ind: set_channel_idle failed!");
+	set_channel_idle(cep->isdncontrollerused, cep->isdnchannelused);
 
 	incr_free_channels(cep->isdncontrollerused);
 	
@@ -665,6 +668,40 @@ msg_dialout(msg_dialout_ind_t *mp)
 	if((cep->cdid = get_cdid()) == 0)
 	{
 		DBGL(DL_DRVR, (log(LL_DBG, "msg_dialout: get_cdid() returned 0!")));
+		return;
+	}
+	
+	cep->charge = 0;
+	cep->last_charge = 0;
+
+	next_state(cep, EV_MDO);	
+}
+
+/*---------------------------------------------------------------------------*
+ *	handle incoming DIALOUTNUMBER message
+ *---------------------------------------------------------------------------*/
+void
+msg_dialoutnumber(msg_dialoutnumber_ind_t *mp)
+{
+	cfg_entry_t *cep;
+	
+	DBGL(DL_DRVR, (log(LL_DBG, "msg_dialoutnumber: dial req from %s, unit %d", bdrivername(mp->driver), mp->driver_unit)));
+
+	if((cep = find_by_device_for_dialoutnumber(mp->driver, mp->driver_unit, mp->cmdlen, mp->cmd)) == NULL)
+	{
+		DBGL(DL_DRVR, (log(LL_DBG, "msg_dialoutnumber: config entry reserved or no match")));
+		return;
+	}
+
+	if(cep->inout == DIR_INONLY)
+	{
+		dialresponse(cep, DSTAT_INONLY);
+		return;
+	}
+	
+	if((cep->cdid = get_cdid()) == 0)
+	{
+		DBGL(DL_DRVR, (log(LL_DBG, "msg_dialoutnumber: get_cdid() returned 0!")));
 		return;
 	}
 	
@@ -854,9 +891,11 @@ sendm_connect_req(cfg_entry_t *cep)
 	mcr.driver = cep->usrdevicename;
 	mcr.driver_unit = cep->usrdeviceunit;
 
-	mcr.unitlen_time = cep->unitlength;
-	mcr.idle_time = cep->idle_time_out;		
-	mcr.earlyhup_time = cep->earlyhangup;
+	/* setup the shorthold data */
+	mcr.shorthold_data.shorthold_algorithm = cep->shorthold_algorithm;
+	mcr.shorthold_data.unitlen_time = cep->unitlength;
+	mcr.shorthold_data.idle_time = cep->idle_time_out;		
+	mcr.shorthold_data.earlyhup_time = cep->earlyhangup;
 
 	if(cep->unitlengthsrc == ULSRC_DYN)
 		mcr.unitlen_method = ULEN_METHOD_DYNAMIC;

@@ -1,7 +1,7 @@
 /*
  *   Copyright (c) 1997 Joerg Wunsch. All rights reserved.
  *
- *   Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ *   Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -32,7 +32,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Fri Dec 18 18:08:25 1998]
+ *      last edit-date: [Thu May 20 14:04:13 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -92,6 +92,7 @@ aliasing			{ return ALIASING; }
 aliasfile			{ return ALIASFNAME; }
 answerprog			{ return ANSWERPROG; }
 b1protocol			{ return B1PROTOCOL; }
+beepconnect			{ return BEEPCONNECT; }
 callbackwait			{ return CALLBACKWAIT; }
 calledbackwait			{ return CALLEDBACKWAIT; }
 connectprog			{ return CONNECTPROG; }
@@ -107,6 +108,7 @@ earlyhangup			{ return EARLYHANGUP; }
 entry				{ return ENTRY; }
 idletime-incoming		{ return IDLETIME_IN; }
 idletime-outgoing		{ return IDLETIME_OUT; }
+idle-algorithm-outgoing		{ return IDLE_ALG_OUT; }
 isdncontroller			{ return ISDNCONTROLLER; }
 isdnchannel			{ return ISDNCHANNEL; }
 isdntime			{ return ISDNTIME; }
@@ -136,8 +138,10 @@ regprog				{ return REGPROG; }
 remdial-handling		{ return REMOTE_NUMBERS_HANDLING; }
 remote-phone-dialout		{ return REMOTE_PHONE_DIALOUT; }
 remote-phone-incoming		{ return REMOTE_PHONE_INCOMING; }
+rotatesuffix			{ return ROTATESUFFIX; }
 rtprio				{ return RTPRIO; }
 system				{ return SYSTEM; }
+tinainitprog			{ return TINAINITPROG; }
 unitlength			{ return UNITLENGTH; }
 unitlengthsrc			{ return UNITLENGTHSRC; }
 useacctfile			{ return USEACCTFILE; }

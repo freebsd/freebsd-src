@@ -1,7 +1,7 @@
 /*
  *   Copyright (c) 1997 Andrew Gordon. All rights reserved.
  *
- *   Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ *   Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -40,11 +40,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Thu Dec 10 07:11:15 1998]
- *
- *	-hm	rudimentary PnP support, hint from Andrew Gordon
- *	-hm	more cleanup
- *      -hm     NetBSD patches from Martin 
+ *      last edit-date: [Tue Mar 16 10:39:14 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -200,7 +196,7 @@ tels0163P_read_reg(struct isic_softc *sc, int what, bus_size_t offs)
  *---------------------------------------------------------------------------*/
 #ifdef __FreeBSD__
 int
-isic_probe_s0163P(struct isa_device *dev)
+isic_probe_s0163P(struct isa_device *dev, unsigned int iobase2)
 {
 	struct isic_softc *sc = &isic_sc[dev->id_unit];
 	
@@ -330,7 +326,7 @@ isic_probe_s0163P(struct isa_device *dev)
  *---------------------------------------------------------------------------*/
 #ifdef __FreeBSD__
 int
-isic_attach_s0163P(struct isa_device *dev)
+isic_attach_s0163P(struct isa_device *dev, unsigned int iobase2)
 {
 	outb((dev->id_iobase) + 0x1c, 0);
 	DELAY(SEC_DELAY / 10);

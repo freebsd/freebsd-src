@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Sat Dec  5 18:06:10 1998]
+ *      last edit-date: [Mon May 10 21:35:55 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -61,10 +61,10 @@ init_controller_state(int controller, int ctrl_type, int card_type, int tei)
 			isdn_ctrl_tab[controller].stateb2 = CHAN_IDLE;
 			isdn_ctrl_tab[controller].freechans = MAX_CHANCTRL;
 			isdn_ctrl_tab[controller].tei = tei;
-			log(LL_DMN, "init_controller_state: controller %d is %s",
+			DBGL(DL_RCCF, (log(LL_DBG, "init_controller_state: controller %d is %s",
 			  controller, 
 			  name_of_controller(isdn_ctrl_tab[controller].ctrl_type,
-					     isdn_ctrl_tab[controller].card_type));
+					     isdn_ctrl_tab[controller].card_type))));
 		}
 		else
 		{
@@ -87,14 +87,55 @@ init_controller_state(int controller, int ctrl_type, int card_type, int tei)
 		  name_of_controller(isdn_ctrl_tab[controller].ctrl_type,
 				     isdn_ctrl_tab[controller].card_type));
 	}
+	else if(ctrl_type == CTRL_TINADD)
+	{
+		isdn_ctrl_tab[controller].ctrl_type = ctrl_type;
+		isdn_ctrl_tab[controller].card_type = 0;
+		isdn_ctrl_tab[controller].state = CTRL_DOWN;
+		isdn_ctrl_tab[controller].stateb1 = CHAN_IDLE;
+		isdn_ctrl_tab[controller].stateb2 = CHAN_IDLE;
+		isdn_ctrl_tab[controller].freechans = MAX_CHANCTRL;
+		isdn_ctrl_tab[controller].tei = -1;	
+		log(LL_DMN, "init_controller_state: controller %d is %s",
+		  controller,
+		  name_of_controller(isdn_ctrl_tab[controller].ctrl_type,
+				     isdn_ctrl_tab[controller].card_type));
+		
+	}
 	else
 	{
-		/* XXX active controller init here !!! */
-
 		log(LL_ERR, "init_controller_state: unknown controller type %d", ctrl_type);
 		return(ERROR);
 	}
 	return(GOOD);
+}	
+
+/*--------------------------------------------------------------------------*
+ *	init active controller
+ *--------------------------------------------------------------------------*/
+void
+init_active_controller(void)
+{
+	int ret;
+	int unit = 0;
+	int controller;
+	char cmdbuf[MAXPATHLEN+128];
+
+	for(controller = 0; controller < ncontroller; controller++)
+	{
+		if(isdn_ctrl_tab[controller].ctrl_type == CTRL_TINADD)
+		{
+			DBGL(DL_RCCF, (log(LL_DBG, "init_active_controller, tina-dd %d: executing [%s %d]", unit, tinainitprog, unit)));
+			
+			sprintf(cmdbuf, "%s %d", tinainitprog, unit);
+
+			if((ret = system(cmdbuf)) != 0)
+			{
+				log(LL_ERR, "init_active_controller, tina-dd %d: %s returned %d!", unit, tinainitprog, ret);
+				do_exit(1);
+			}
+		}
+	}
 }	
 
 /*--------------------------------------------------------------------------*
@@ -289,7 +330,7 @@ set_channel_idle(int controller, int channel)
 			break;
 
 		default:
-			log(LL_ERR, "set_channel_idle: controller [%d], invalid channel [%d]!", controller, channel);
+			DBGL(DL_CNST, (log(LL_DBG, "set_channel_idle: controller [%d], invalid channel [%d]!", controller, channel)));
 			return(ERROR);
 			break;
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,7 +32,7 @@
  *		
  * $FreeBSD$
  *
- *      last edit-date: [Sat Dec  5 18:05:40 1998]
+ *      last edit-date: [Sun Feb 14 10:10:03 1999]
  *
  *----------------------------------------------------------------------------*/
 

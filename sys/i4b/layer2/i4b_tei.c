@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Sat Dec  5 18:30:20 1998]
+ *      last edit-date: [Fri May 28 16:14:14 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -213,6 +213,7 @@ build_tei_mgmt_frame(l2_softc_t *l2sc, unsigned char type)
 			panic("build_tei_mgmt_frame: invalid type");
 			break;
 	}
+	l2sc->stat.tx_tei++;
 	return(m);
 }
 

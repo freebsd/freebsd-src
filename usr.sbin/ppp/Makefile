@@ -50,7 +50,7 @@ DPADD+= ${LIBRADIUS}
 .endif
 
 # Remove this line if you've installed I4B 00.83.00 or higher
-NOI4B=TRUE
+#NOI4B=TRUE
 
 .if defined(NOI4B) || ${MACHINE_ARCH} == "alpha"
 CFLAGS+=-DNOI4B

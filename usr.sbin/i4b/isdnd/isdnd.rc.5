@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+.\" Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -24,10 +24,11 @@
 .\"
 .\" $FreeBSD$ 
 .\"
-.\"     last edit-date: [Sat Dec  5 18:10:08 1998]
+.\"     last edit-date: [Wed Jul 28 15:57:02 1999]
 .\"
-.Dd October 27, 1998
-.Dt isdnd.rc 5
+.Dd May 20, 1999
+.Dt ISDND.RC 5
+.Os
 .Sh NAME
 .Nm isdnd.rc
 .Nd isdn4bsd ISDN connection management daemon config file format
@@ -91,6 +92,8 @@ Specifies the name of the accounting file which is used when the keyword
 .Em useacctfile
 (see below) is set to 
 .Em on .
+See also system keyword
+.Em rotatesuffix .
 If this keyword is omitted the system default is used. (optional)
 
 .It Li aliasing
@@ -107,6 +110,11 @@ with the
 utility when alias processing is enabled via the
 .Em aliasing
 keyword. (optional)
+
+.It Li beepconnect
+In fullscreen mode, if this parameter is set to
+.Em on ,
+ring the bell when connecting or disconnecting a call.
 
 .It Li isdntime
 If this parameter is set to
@@ -198,6 +206,14 @@ expects to find the program below the path
 which is prepended to the string specified as a parameter to this keyword.
 (optional)
 
+.It Li rotatesuffix
+Specifies a suffix for renaming the log- and the accountingfilename. In case
+rotatesuffix is used and a USR1 signal is sent to isdnd, the logfile and the
+accounting file is not only closed and reopened but the old logfile is also
+renamed to the former filename with the rotatesuffix string appended.
+If this keyword is omitted, the logfiles are just closed and reopened; this
+is also the default behaviour. (optional)
+
 .It Li rtprio
 Specifies the realtime priority 
 .Nm isdnd
@@ -284,7 +300,7 @@ When a remote site calls, hangup and call back the remote site.
 .El
 
 .It Li dialout-type
-This keyword ist used to configure what type of dialout mode is used.
+This keyword is used to configure what type of dialout mode is used.
 The keyword is mandatory.
 The currently supported parameters are:
 .Pp
@@ -311,6 +327,7 @@ This keyword is used to configure if incoming and outgoing, incoming-only or
 outgoing only connections are possible.
 The keyword is optional, the default is
 .Em inout .
+
 .Pp
 The currently supported parameters are:
 .Pp
@@ -345,12 +362,27 @@ This keyword is optional and is set to 60 seconds by default.
 A (safety) time in seconds which specifies the time to hangup before an
 expected next charging unit will occur. (optional)
 
+.It Li idle-algorithm-outgoing
+The algorithm used to determine when to hang up an outgoing call when the
+line becomes idle. The current algorithms are:
+
+.Pp
+.Bl -tag -width calledback -compact -offset
+.It Ar fix-unit-size
+idle algorithm which assumes fixed sized changing units during the whole call.
+.It Ar var-unit-size
+idle algorithm which assumes that the charging is time based after the first
+units time has expired.
+.El
+
 .It Li idletime-outgoing
 The time in seconds an outgoing connection must be idle before hanging up.
+An idle timeout of zero disables this functionality.
 (optional)
 
 .It Li idletime-incoming
 The time in seconds an incoming connection must be idle before hanging up.
+An idle timeout of zero disables this functionality.
 (optional)
 
 .It Li isdncontroller
@@ -397,8 +429,7 @@ out to a remote site, the number specified here is put into the
 .Em "Calling Party Number Information Element" .
 .Pp
 This keyword is mandatory for the 
-.em
-ipr 
+.Em ipr 
 userland interfaces.
 
 .It Li local-phone-incoming
@@ -448,8 +479,7 @@ out to a remote site, the number specified here is put into the
 .Em "Called Party Number Information Element" .
 .Pp
 This keyword is mandatory for the
-.em
-ipr
+.Em ipr
 interfaces. It may be specified more than once to try to dial to several
 numbers until one succeeds.
 
@@ -510,10 +540,8 @@ ISDN telephony.
 .El
 
 .It Li usrdeviceunit
-Specifies the unit number for the with the
-.em
-usrdevicename
-specified device.
+Specifies the unit number for the device which is specified with
+usrdevicename.
 
 .It Li usedown
 is used to enable the use of the keywords
@@ -535,7 +563,16 @@ address negotiation is complete (i.e.: the connection is useable).
 expects to find the program below the path
 .Pa /etc/isdn
 which is prepended to the string specified as a parameter to this keyword.
-(optional)
+The programs specified by connect and disconnect will get the following
+command line arguments: -d (device) -f (flag) [ -a (addr) ] where 
+.Em device
+is the name of device, e.g. "isp0", 
+.Em flag
+will be "up" if connection just got up, or "down" if interface changed to down 
+state and
+.Em addr
+the address that got assigned to the interface as a dotted-quad ip address
+(optional, only if it can be figured out by isdnd). (optional)
 
 .It Li disconnectprog
 specifies a program run everytime after a connection was shut down.
@@ -567,11 +604,15 @@ is used as a last resort and is therefore set much higher than a charging
 unit time: typical values are one to five minutes.
 
 .It Li outgoing calls
-Outgoing call disconnect time can be setup in one of two ways:
+Outgoing call disconnect time can be setup in one of three ways:
 
 .Bl -tag -width shorthold mode -compact
 .It Li simple mode
-For simple mode, the selected
+For simple mode, the 
+.Em idle-algorithm-outgoing
+must be
+.Em fix-unit-size
+and the selected
 .Em unitlength
 must be 0 (zero) and
 .Em idletime-outgoing
@@ -584,8 +625,12 @@ the call is closed.
 .Pp
 Typical values in simple mode are 10 to 30 seconds.
 
-.It Li shorthold mode
-For shorthold mode, the selected
+.It Li shorthold mode for fixed unit charging
+For shorthold mode, the 
+.Em idle-algorithm-outgoing
+ must be
+.Em fix-unit-size
+ and the selected
 .Em unitlength 
 and 
 .Em idletime-outgoing
@@ -617,6 +662,52 @@ must (!) be greater than the sum of
 and
 .Em earlyhangup !
 
+.It Li shorthold mode for variable unit charging
+For shorthold mode, the 
+.Em idle-algorithm-outgoing
+must be
+.Em var-unit-size
+and the selected
+.Em unitlength 
+and
+.Em idletime-outgoing
+must be greater than 0 (zero);
+.Pp
+
+This shorthold mode is suitable when your calls are billed on
+the elapse time of the call plus a fixed connection charge.
+For example British Telecom bill this way.
+.Pp
+
+Each call is divided into two periods, the first is the
+.Em unchecked
+period and the second is the
+.Em checked
+. The
+.Em checked
+period starts 1 second before the first units time expires.
+.Pp
+During the
+.Em checked
+period if there is no traffic for
+.Em idle-time
+seconds the call is disconnected.
+.Pp
+
+.Bd -literal
+
+|<---unchecked------------------>|<------checked------>
++------------------+-------------+
+|                  |<-idle-time->|
+|<--------------unitlength------->|
+
+.Ed
+
+Experience shows that useful values for idle-time are from 15 to 30 seconds.
+.Pp
+If idle-time is too short an application that is not yet finished with the
+network will cause a new call to be placed.
+.Pp
 .El
 .El
 
@@ -627,15 +718,17 @@ and
 The default configuration file for the
 .Nm isdnd
 ISDN daemon.
-
+.El
 .Sh SEE ALSO
-.Xr isdnd 8
+.Xr regex 3 ,
+.Xr re_format 7 ,
+.Xr isdnd 8 ,
 .Xr isdnmonitor 8
-.Xr regex 3
-.Xr re_format 7
-
-.Sh AUTHOR
+.Sh AUTHORS
 The 
 .Xr isdnd 8
-daemon and this manual page were written by Hellmuth Michaelis. 
-He can be reached at hm@kts.org.
+daemon and this manual page were written by
+.An Hellmuth Michaelis Aq hm@kts.org .
+.Pp
+Additions to this manual page by
+.An Barry Scott Aq barry@scottb.demon.co.uk .

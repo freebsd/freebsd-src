@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Sat Dec  5 18:16:33 1998]
+ *      last edit-date: [Fri Jul 30 08:16:03 1999]
  *
  *----------------------------------------------------------------------------*/
 
@@ -61,7 +61,7 @@ main(int argc, char **argv)
 	
 	extern char *optarg;	
 	
-	while ((i = getopt(argc, argv, "a:d:p:t:?")) != EOF)
+	while ((i = getopt(argc, argv, "a:d:p:t:")) != -1)
 	{
 		switch (i)
 		{
@@ -278,7 +278,7 @@ static void
 usage(void)
 {
 	fprintf(stderr, "\n");
-	fprintf(stderr, "isdntel - isdn telephone answering management support utility (version %s.%s)\n", VERSION, REL);
+	fprintf(stderr, "isdntel - isdn telephone answering management support utility (version %d.%d.%d)\n", VERSION, REL, STEP);
 	fprintf(stderr, "    usage: isdntel -a <filename> -d <directory> -p <command> -t <timeout>\n");
 	fprintf(stderr, "           -a <filename>   use filename as alias file\n");
 	fprintf(stderr, "           -d <directory>  use directory as spool directory\n");

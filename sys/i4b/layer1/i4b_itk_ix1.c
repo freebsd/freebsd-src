@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998 Martin Husemann <martin@rumolt.teuto.de>
+ * Copyright (c) 1998, 1999 Martin Husemann <martin@rumolt.teuto.de>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,11 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Wed Dec 16 14:46:36 1998]
+ *      last edit-date: [Sun Feb 14 10:28:00 1999]
+ *
+ *	mh - created
+ *	mh - fixed FreeBSD problems reported by Kevin Sheehan
+ *	mh - added probe routine
  *
  *---------------------------------------------------------------------------
  *
@@ -49,7 +53,14 @@
  *  - read data from or write data to ITK_ISAC_DATA port or ITK_HSCX_DATA port
  * The two HSCX channel registers are offset by HSCXA (0x00) and HSCXB (0x40).
  *
- * XXX - A reasonable probe routine has to be written.
+ * The probe routine was derived by trial and error from a representative
+ * sample of two cards ;-) The standard way (checking HSCX versions)
+ * was extended by reading a zero from a non existant HSCX register (register
+ * 0xff). Reading the config register gives varying results, so this doesn't
+ * seem to be used as an id register (like the Teles S0/16.3).
+ *
+ * If the probe fails for your card use "options ITK_PROBE_DEBUG" to get
+ * additional debug output.
  *
  *---------------------------------------------------------------------------*/
 
@@ -96,25 +107,34 @@
 
 #include <i4b/include/i4b_global.h>
 
+/* Register offsets */
 #define	ITK_ISAC_DATA	0
 #define	ITK_HSCX_DATA	1
 #define	ITK_ALE		2
 #define	ITK_CONFIG	3
+
+/* Size of IO range to allocate for this card */
 #define	ITK_IO_SIZE	4
 
+/* Register offsets for the two HSCX channels */
 #define	HSCXA	0
 #define	HSCXB	0x40
 
-#ifndef __FreeBSD__
+/*
+ * Local function prototypes
+ */
+#ifdef __FreeBSD__
+/* FreeBSD version */
+static void itkix1_read_fifo(void *buf, const void *base, size_t len);
+static void itkix1_write_fifo(void *base, const void *buf, size_t len);
+static void itkix1_write_reg(u_char *base, u_int offset, u_int v);
+static u_char itkix1_read_reg(u_char *base, u_int offset);
+#else
+/* NetBSD/OpenBSD version */
 static void itkix1_read_fifo(struct isic_softc *sc, int what, void *buf, size_t size);
 static void itkix1_write_fifo(struct isic_softc *sc, int what, const void *buf, size_t size);
 static void itkix1_write_reg(struct isic_softc *sc, int what, bus_size_t offs, u_int8_t data);
 static u_int8_t itkix1_read_reg(struct isic_softc *sc, int what, bus_size_t offs);
-#else
-static u_char itkix1_read_reg(u_char *base, u_int offset);
-static void itkix1_write_reg(u_char *base, u_int offset, u_int v);
-static void itkix1_read_fifo(void *base, const void *buf, size_t len);
-static void itkix1_write_fifo(void *base, const void *buf, size_t len);
 #endif
 
 /*
@@ -124,18 +144,34 @@ static void itkix1_write_fifo(void *base, const void *buf, size_t len);
 int
 isic_probe_itkix1(struct isa_device *dev)
 {
-	u_int8_t hd, cd;
+	u_int8_t hd, hv1, hv2, saveale;
 	int ret;
 
+	/* save old value of this port, we're stomping over it */
+	saveale = inb(dev->id_iobase + ITK_ALE);
+
+	/* select invalid register */
+	outb(dev->id_iobase + ITK_ALE, 0xff);
+	/* get HSCX data for this non existent register */
 	hd = inb(dev->id_iobase + ITK_HSCX_DATA);
-	cd = inb(dev->id_iobase + ITK_CONFIG);
+	/* get HSCX version info */
+	outb(dev->id_iobase + ITK_ALE, HSCXA + H_VSTR);
+	hv1 = inb(dev->id_iobase + ITK_HSCX_DATA);
+	outb(dev->id_iobase + ITK_ALE, HSCXB + H_VSTR);
+	hv2 = inb(dev->id_iobase + ITK_HSCX_DATA);
 
-	ret = (hd == 0 && cd == 0xfc);
+	/* succeed if version bits are OK and we got a zero from the
+	 * non existent register */
+	ret =  (hd == 0) && ((hv1 & 0x0f) == 0x05) && ((hv2 & 0x0f) == 0x05);
 
-#define ITK_PROBE_DEBUG
+	/* retstore save value if we fail (if we succeed the old value
+	 * has no meaning) */
+	if (!ret)
+		outb(dev->id_iobase + ITK_ALE, saveale);
+
 #ifdef ITK_PROBE_DEBUG
-	printf("\nITK ix1 micro probe: hscx = 0x%02x, config = 0x%02x, would have %s\n",
-		hd, cd, ret ? "succeeded" : "failed");
+	printf("\nITK ix1 micro probe: hscx = 0x%02x, v1 = 0x%02x, v2 = 0x%02x, would have %s\n",
+		hd, hv1, hv2, ret ? "succeeded" : "failed");
 	return 1;
 #else
 	return ret;
@@ -147,18 +183,34 @@ isic_probe_itkix1(struct isic_attach_args *ia)
 {
 	bus_space_tag_t t = ia->ia_maps[0].t;
 	bus_space_handle_t h = ia->ia_maps[0].h;
-	u_int8_t hd, cd;
+	u_int8_t hd, hv1, hv2, saveale;
 	int ret;
 
+	/* save old value of this port, we're stomping over it */
+	saveale = bus_space_read_1(t, h, ITK_ALE);
+
+	/* select invalid register */
+	bus_space_write_1(t, h, ITK_ALE, 0xff);
+	/* get HSCX data for this non existent register */
 	hd = bus_space_read_1(t, h, ITK_HSCX_DATA);
-	cd = bus_space_read_1(t, h, ITK_CONFIG);
+	/* get HSCX version info */
+	bus_space_write_1(t, h, ITK_ALE, HSCXA + H_VSTR);
+	hv1 = bus_space_read_1(t, h, ITK_HSCX_DATA);
+	bus_space_write_1(t, h, ITK_ALE, HSCXB + H_VSTR);
+	hv2 = bus_space_read_1(t, h, ITK_HSCX_DATA);
 
-	ret = (hd == 0 && cd == 0xfc);
+	/* succeed if version bits are OK and we got a zero from the
+	 * non existent register */
+	ret =  (hd == 0) && ((hv1 & 0x0f) == 0x05) && ((hv2 & 0x0f) == 0x05);
 
-#define ITK_PROBE_DEBUG
+	/* retstore save value if we fail (if we succeed the old value
+	 * has no meaning) */
+	if (!ret)
+		bus_space_write_1(t, h, ITK_ALE, saveale);
+
 #ifdef ITK_PROBE_DEBUG
-	printf("\nITK ix1 micro probe: hscx = 0x%02x, config = 0x%02x, would have %s\n",
-		hd, cd, ret ? "succeeded" : "failed");
+	printf("\nITK ix1 micro probe: hscx = 0x%02x, v1 = 0x%02x, v2 = 0x%02x, would have %s\n",
+		hd, hv1, hv2, ret ? "succeeded" : "failed");
 	return 1;
 #else
 	return ret;
@@ -267,8 +319,8 @@ int isic_attach_itkix1(struct isic_softc *sc)
 static void             
 itkix1_read_fifo(void *buf, const void *base, size_t len)
 {
-	int port = (u_long)base & ~0x0003;
-	switch ((u_long)base & 3) {
+	u_int port = (u_int)base & ~0x0003;
+	switch ((u_int)base & 3) {
 	case 0:	/* ISAC */
 		outb(port+ITK_ALE, 0);
 		insb(port+ITK_ISAC_DATA, (u_char *)buf, (u_int)len);
@@ -310,8 +362,8 @@ itkix1_read_fifo(struct isic_softc *sc, int what, void *buf, size_t size)
 static void
 itkix1_write_fifo(void *base, const void *buf, size_t len)
 {
-	int port = (u_long)base & ~0x0003;
-	switch ((u_long)base & 3) {
+	u_int port = (u_int)base & ~0x0003;
+	switch ((u_int)base & 3) {
 	case 0:	/* ISAC */
 		outb(port+ITK_ALE, 0);
 		outsb(port+ITK_ISAC_DATA, (u_char *)buf, (u_int)len);
@@ -352,8 +404,8 @@ static void itkix1_write_fifo(struct isic_softc *sc, int what, const void *buf, 
 static void
 itkix1_write_reg(u_char *base, u_int offset, u_int v)
 {
-	int port = (u_long)base & ~0x0003;
-	switch ((u_long)base & 3) {
+	u_int port = (u_int)base & ~0x0003;
+	switch ((u_int)base & 3) {
 	case 0:	/* ISAC */
 		outb(port+ITK_ALE, offset);
 		outb(port+ITK_ISAC_DATA, (u_char)v);
@@ -394,8 +446,8 @@ static void itkix1_write_reg(struct isic_softc *sc, int what, bus_size_t offs, u
 static u_char
 itkix1_read_reg(u_char *base, u_int offset)
 {
-	int port = (u_long)base & ~0x0003;
-	switch ((u_long)base & 3) {
+	u_int port = (u_int)base & ~0x0003;
+	switch ((u_int)base & 3) {
 	case 0:	/* ISAC */
 		outb(port+ITK_ALE, offset);
 		return (inb(port+ITK_ISAC_DATA));
@@ -406,7 +458,6 @@ itkix1_read_reg(u_char *base, u_int offset)
 		outb(port+ITK_ALE, HSCXB+offset);
 		return (inb(port+ITK_HSCX_DATA));
 	}
-	panic("itkix1_read_reg: Fallthrough\n");
 }
 #else
 static u_int8_t itkix1_read_reg(struct isic_softc *sc, int what, bus_size_t offs)

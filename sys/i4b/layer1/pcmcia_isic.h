@@ -35,7 +35,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Mon Nov 30 21:19:14 1998]
+ *      last edit-date: [Sun Feb 14 10:29:33 1999]
  *
  *	-mh	original implementation
  *

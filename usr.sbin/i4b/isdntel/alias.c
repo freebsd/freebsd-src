@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Sat Dec  5 18:15:02 1998]
+ *      last edit-date: [Mon Apr 26 13:53:13 1999]
  *
  *----------------------------------------------------------------------------*/
 
@@ -55,7 +55,7 @@ init_alias(char *filename)
 	struct alias *lasta = NULL;
 	
 	if((fp = fopen(filename, "r")) == NULL)
-		fatal("cannot open aliasfile %s!", filename);
+		return;
 
 	while((fgets(buffer, MAXBUFSZ, fp)) != NULL)
 	{

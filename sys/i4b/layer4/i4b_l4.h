@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Sat Dec  5 18:35:34 1998]
+ *      last edit-date: [Wed Mar 17 16:20:10 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -46,6 +46,7 @@ extern void i4b_l4_connect_ind ( call_desc_t *cd );
 extern void i4b_l4_daemon_attached(void);
 extern void i4b_l4_daemon_detached(void);
 extern void i4b_l4_dialout( int driver, int driver_unit );
+extern void i4b_l4_dialoutnumber(int driver, int driver_unit, int cmdlen, char *cmd);
 extern void i4b_l4_disconnect_ind ( call_desc_t *cd );
 extern void i4b_l4_drvrdisc (int driver, int driver_unit );
 extern void i4b_l4_negcomplete( call_desc_t *cd );

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Sat Dec  5 18:28:15 1998]
+ *      last edit-date: [Tue Mar 16 16:27:12 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -242,6 +242,7 @@ struct l2state_tab {
 void i4b_next_l2state(l2_softc_t *l2sc, int event)
 {
 	int currstate, newstate;
+	int (*savpostfsmfunc)(int) = NULL;
 
 	/* check event number */
 	if(event > N_EVENTS)
@@ -292,8 +293,10 @@ void i4b_next_l2state(l2_softc_t *l2sc, int event)
 	if(l2sc->postfsmfunc != NULL)
 	{
 		DBGL2(L2_F_MSG, "i4b_next_l2state", ("FSM executing postfsmfunc!\n"));
-        	(*l2sc->postfsmfunc)(l2sc->postfsmarg);
+		/* try to avoid an endless loop */
+		savpostfsmfunc = l2sc->postfsmfunc;
 		l2sc->postfsmfunc = NULL;
+        	(*savpostfsmfunc)(l2sc->postfsmarg);
         }
 }
 

@@ -250,6 +250,22 @@ dev_t	chrtoblk __P((dev_t dev));
 int	iskmemdev __P((dev_t dev));
 int	iszerodev __P((dev_t dev));
 void	setconf __P((void));
+
+/*
+ * XXX: This included for when DEVFS resurfaces 
+ */
+
+#define		UID_ROOT	0
+#define		UID_BIN		3
+#define		UID_UUCP	66
+
+#define		GID_WHEEL	0
+#define		GID_KMEM	2
+#define		GID_OPERATOR	5
+#define		GID_BIN		7
+#define		GID_GAMES	13
+#define		GID_DIALER	68
+
 #endif /* KERNEL */
 
 #endif /* !_SYS_CONF_H_ */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Mon Dec 14 13:41:41 1998]
+ *      last edit-date: [Thu May 20 14:11:26 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -141,6 +141,8 @@ set_config_defaults(void)
 		rarr[i].re_flg = 0;
 	}
 
+	strcpy(rotatesuffix, "");
+	
 	/* entry section cleanup */
 	
 	for(i=0; i < CFG_ENTRY_MAX; i++, cep++)
@@ -207,38 +209,38 @@ cfg_setval(int keyword)
 	{
 		case ACCTALL:
 			acct_all = yylval.booln;
-			log(LL_DBG, "system: acctall = %d", yylval.booln);
+			DBGL(DL_RCCF, (log(LL_DBG, "system: acctall = %d", yylval.booln)));
 			break;
 			
 		case ACCTFILE:
 			strcpy(acctfile, yylval.str);
-			log(LL_DBG, "system: acctfile = %s", yylval.str);
+			DBGL(DL_RCCF, (log(LL_DBG, "system: acctfile = %s", yylval.str)));
 			break;
 
 		case ALERT:
 			if(yylval.num < MINALERT)
 			{
 				yylval.num = MINALERT;
-				log(LL_DBG, "entry %d: alert < %d, min = %d", entrycount, MINALERT, yylval.num);
+				DBGL(DL_RCCF, (log(LL_DBG, "entry %d: alert < %d, min = %d", entrycount, MINALERT, yylval.num)));
 			}
 			else if(yylval.num > MAXALERT)
 			{
 				yylval.num = MAXALERT;
-				log(LL_DBG, "entry %d: alert > %d, min = %d", entrycount, MAXALERT, yylval.num);
+				DBGL(DL_RCCF, (log(LL_DBG, "entry %d: alert > %d, min = %d", entrycount, MAXALERT, yylval.num)));
 			}
 				
-			log(LL_DBG, "entry %d: alert = %d", entrycount, yylval.num);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: alert = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].alert = yylval.num;
 			break;
 
 		case ALIASING:
-			log(LL_DBG, "system: aliasing = %d", yylval.booln);
+			DBGL(DL_RCCF, (log(LL_DBG, "system: aliasing = %d", yylval.booln)));
 			aliasing = yylval.booln;
 			break;
 
 		case ALIASFNAME:
 			strcpy(aliasfile, yylval.str);
-			log(LL_DBG, "system: aliasfile = %s", yylval.str);
+			DBGL(DL_RCCF, (log(LL_DBG, "system: aliasfile = %s", yylval.str)));
 			break;
 
 		case ANSWERPROG:
@@ -248,11 +250,11 @@ cfg_setval(int keyword)
 				do_exit(1);
 			}
 			strcpy(cfg_entry_tab[entrycount].answerprog, yylval.str);
-			log(LL_DBG, "entry %d: answerprog = %s", entrycount, yylval.str);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: answerprog = %s", entrycount, yylval.str)));
 			break;
 			
 		case B1PROTOCOL:
-			log(LL_DBG, "entry %d: b1protocol = %s", entrycount, yylval.str);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: b1protocol = %s", entrycount, yylval.str)));
 			if(!(strcmp(yylval.str, "raw")))
 				cfg_entry_tab[entrycount].b1protocol = BPROT_NONE;
 			else if(!(strcmp(yylval.str, "hdlc")))
@@ -264,14 +266,19 @@ cfg_setval(int keyword)
 			}
 			break;
 
+		case BEEPCONNECT:
+			do_bell = yylval.booln;
+			DBGL(DL_RCCF, (log(LL_DBG, "system: beepconnect = %d", yylval.booln)));
+			break;
+
 		case CALLBACKWAIT:
 			if(yylval.num < CALLBACKWAIT_MIN)
 			{
 				yylval.num = CALLBACKWAIT_MIN;
-				log(LL_DBG, "entry %d: callbackwait < %d, min = %d", entrycount, CALLBACKWAIT_MIN, yylval.num);
+				DBGL(DL_RCCF, (log(LL_DBG, "entry %d: callbackwait < %d, min = %d", entrycount, CALLBACKWAIT_MIN, yylval.num)));
 			}
-				
-			log(LL_DBG, "entry %d: callbackwait = %d", entrycount, yylval.num);
+
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: callbackwait = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].callbackwait = yylval.num;
 			break;
 			
@@ -279,10 +286,10 @@ cfg_setval(int keyword)
 			if(yylval.num < CALLEDBACKWAIT_MIN)
 			{
 				yylval.num = CALLEDBACKWAIT_MIN;
-				log(LL_DBG, "entry %d: calledbackwait < %d, min = %d", entrycount, CALLEDBACKWAIT_MIN, yylval.num);
+				DBGL(DL_RCCF, (log(LL_DBG, "entry %d: calledbackwait < %d, min = %d", entrycount, CALLEDBACKWAIT_MIN, yylval.num)));
 			}
 
-			log(LL_DBG, "entry %d: calledbackwait = %d", entrycount, yylval.num);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: calledbackwait = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].calledbackwait = yylval.num;
 			break;
 
@@ -293,11 +300,11 @@ cfg_setval(int keyword)
 				do_exit(1);
 			}
 			strcpy(cfg_entry_tab[entrycount].connectprog, yylval.str);
-			log(LL_DBG, "entry %d: connectprog = %s", entrycount, yylval.str);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: connectprog = %s", entrycount, yylval.str)));
 			break;
 			
 		case DIALOUTTYPE:
-			log(LL_DBG, "entry %d: dialouttype = %s", entrycount, yylval.str);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: dialouttype = %s", entrycount, yylval.str)));
 			if(!(strcmp(yylval.str, "normal")))
 				cfg_entry_tab[entrycount].dialouttype = DIALOUT_NORMAL;
 			else if(!(strcmp(yylval.str, "calledback")))
@@ -310,17 +317,17 @@ cfg_setval(int keyword)
 			break;
 
 		case DIALRETRIES:
-			log(LL_DBG, "entry %d: dialretries = %d", entrycount, yylval.num);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: dialretries = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].dialretries = yylval.num;
 			break;
 
 		case DIALRANDINCR:
-			log(LL_DBG, "entry %d: dialrandincr = %d", entrycount, yylval.booln);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: dialrandincr = %d", entrycount, yylval.booln)));
 			cfg_entry_tab[entrycount].dialrandincr = yylval.booln;
 			break;
 
 		case DIRECTION:
-			log(LL_DBG, "entry %d: direction = %s", entrycount, yylval.str);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: direction = %s", entrycount, yylval.str)));
 
 			if(!(strcmp(yylval.str, "inout")))
 				cfg_entry_tab[entrycount].inout = DIR_INOUT;
@@ -342,7 +349,7 @@ cfg_setval(int keyword)
 				do_exit(1);
 			}
 			strcpy(cfg_entry_tab[entrycount].disconnectprog, yylval.str);
-			log(LL_DBG, "entry %d: disconnectprog = %s", entrycount, yylval.str);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: disconnectprog = %s", entrycount, yylval.str)));
 			break;
 
 		case DOWNTRIES:
@@ -351,7 +358,7 @@ cfg_setval(int keyword)
 			else if(yylval.num < DOWN_TRIES_MIN)
 				yylval.num = DOWN_TRIES_MIN;
 		
-			log(LL_DBG, "entry %d: downtries = %d", entrycount, yylval.num);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: downtries = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].downtries = yylval.num;
 			break;
 
@@ -361,28 +368,46 @@ cfg_setval(int keyword)
 			else if(yylval.num < DOWN_TIME_MIN)
 				yylval.num = DOWN_TIME_MIN;
 		
-			log(LL_DBG, "entry %d: downtime = %d", entrycount, yylval.num);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: downtime = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].downtime = yylval.num;
 			break;
 
 		case EARLYHANGUP:
-			log(LL_DBG, "entry %d: earlyhangup = %d", entrycount, yylval.num);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: earlyhangup = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].earlyhangup = yylval.num;
 			break;
 
+		case IDLE_ALG_OUT:
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: idle-algorithm-outgoing = %s", entrycount, yylval.str)));
+
+			if(!(strcmp(yylval.str, "fix-unit-size")))
+			{
+				cfg_entry_tab[entrycount].shorthold_algorithm = SHA_FIXU;
+			}
+			else if(!(strcmp(yylval.str, "var-unit-size")))
+			{
+				cfg_entry_tab[entrycount].shorthold_algorithm = SHA_VARU;
+			}
+			else
+			{
+				log(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"idle-algorithm-outgoing\" at line %d!", lineno);
+				config_error_flag++;
+			}
+			break;
+
 		case IDLETIME_IN:
-			log(LL_DBG, "entry %d: idle_time_in = %d", entrycount, yylval.num);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: idle_time_in = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].idle_time_in = yylval.num;
 			break;
 			
 		case IDLETIME_OUT:
-			log(LL_DBG, "entry %d: idle_time_out = %d", entrycount, yylval.num);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: idle_time_out = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].idle_time_out = yylval.num;
 			break;
 
 		case ISDNCONTROLLER:
 			cfg_entry_tab[entrycount].isdncontroller = yylval.num;
-			log(LL_DBG, "entry %d: isdncontroller = %d", entrycount, yylval.num);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: isdncontroller = %d", entrycount, yylval.num)));
 			break;
 
 		case ISDNCHANNEL:
@@ -391,15 +416,15 @@ cfg_setval(int keyword)
 				case 0:
 				case -1:
 					cfg_entry_tab[entrycount].isdnchannel = CHAN_ANY;
-					log(LL_DBG, "entry %d: isdnchannel = any", entrycount);
+					DBGL(DL_RCCF, (log(LL_DBG, "entry %d: isdnchannel = any", entrycount)));
 					break;
 				case 1:
 					cfg_entry_tab[entrycount].isdnchannel = CHAN_B1;
-					log(LL_DBG, "entry %d: isdnchannel = one", entrycount);
+					DBGL(DL_RCCF, (log(LL_DBG, "entry %d: isdnchannel = one", entrycount)));
 					break;
 				case 2:
 					cfg_entry_tab[entrycount].isdnchannel = CHAN_B2;
-					log(LL_DBG, "entry %d: isdnchannel = two", entrycount);
+					DBGL(DL_RCCF, (log(LL_DBG, "entry %d: isdnchannel = two", entrycount)));
 					break;
 				default:
 					log(LL_DBG, "entry %d: isdnchannel value out of range", entrycount);
@@ -409,52 +434,55 @@ cfg_setval(int keyword)
 			break;
 
 		case ISDNTIME:
-			log(LL_DBG, "system: isdntime = %d", yylval.booln);
+			DBGL(DL_RCCF, (log(LL_DBG, "system: isdntime = %d", yylval.booln)));
 			isdntime = yylval.booln;
 			break;
 
 		case ISDNTXDELIN:
 			cfg_entry_tab[entrycount].isdntxdelin = yylval.num;
-			log(LL_DBG, "entry %d: isdntxdel-incoming = %d", entrycount, yylval.num);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: isdntxdel-incoming = %d", entrycount, yylval.num)));
 			break;
 
 		case ISDNTXDELOUT:
 			cfg_entry_tab[entrycount].isdntxdelout = yylval.num;
-			log(LL_DBG, "entry %d: isdntxdel-outgoing = %d", entrycount, yylval.num);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: isdntxdel-outgoing = %d", entrycount, yylval.num)));
 			break;
 
 		case LOCAL_PHONE_DIALOUT:
-			log(LL_DBG, "entry %d: local_phone_dialout = %s", entrycount, yylval.str);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: local_phone_dialout = %s", entrycount, yylval.str)));
 			strcpy(cfg_entry_tab[entrycount].local_phone_dialout, yylval.str);
 			break;
 
 		case LOCAL_PHONE_INCOMING:
-			log(LL_DBG, "entry %d: local_phone_incoming = %s", entrycount, yylval.str);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: local_phone_incoming = %s", entrycount, yylval.str)));
 			strcpy(cfg_entry_tab[entrycount].local_phone_incoming, yylval.str);
 			break;
 
 		case MONITORPORT:
 			monitorport = yylval.num;
-			log(LL_DBG, "system: monitorport = %d", yylval.num);
+			DBGL(DL_RCCF, (log(LL_DBG, "system: monitorport = %d", yylval.num)));
 			break;
 
 		case MONITORSW:
-			if (yylval.booln && inhibit_monitor) {
+			if (yylval.booln && inhibit_monitor)
+			{
 				do_monitor = 0;
-				log(LL_DBG, "system: monitor-enable overriden by command line flag");
-			} else {
-			do_monitor = yylval.booln;
-				log(LL_DBG, "system: monitor-enable = %d", yylval.booln);
+				DBGL(DL_RCCF, (log(LL_DBG, "system: monitor-enable overriden by command line flag")));
+			}
+			else
+			{
+				do_monitor = yylval.booln;
+				DBGL(DL_RCCF, (log(LL_DBG, "system: monitor-enable = %d", yylval.booln)));
 			}
 			break;
 
 		case NAME:
-			log(LL_DBG, "entry %d: name = %s", entrycount, yylval.str);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: name = %s", entrycount, yylval.str)));
 			strcpy(cfg_entry_tab[entrycount].name, yylval.str);
 			break;
 
 		case REACTION:
-			log(LL_DBG, "entry %d: dialin_reaction = %s", entrycount, yylval.str);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: dialin_reaction = %s", entrycount, yylval.str)));
 			if(!(strcmp(yylval.str, "accept")))
 				cfg_entry_tab[entrycount].dialin_reaction = REACT_ACCEPT;
 			else if(!(strcmp(yylval.str, "reject")))
@@ -480,8 +508,8 @@ cfg_setval(int keyword)
 				break;
 			}				
 			
-			log(LL_DBG, "entry %d: remote_phone_dialout #%d = %s",
-				entrycount, cfg_entry_tab[entrycount].remote_numbers_count, yylval.str);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: remote_phone_dialout #%d = %s",
+				entrycount, cfg_entry_tab[entrycount].remote_numbers_count, yylval.str)));
 
 			strcpy(cfg_entry_tab[entrycount].remote_numbers[cfg_entry_tab[entrycount].remote_numbers_count].number, yylval.str);
 			cfg_entry_tab[entrycount].remote_numbers[cfg_entry_tab[entrycount].remote_numbers_count].flag = 0;
@@ -491,7 +519,7 @@ cfg_setval(int keyword)
 			break;
 
 		case REMOTE_NUMBERS_HANDLING:			
-			log(LL_DBG, "entry %d: remdial_handling = %s", entrycount, yylval.str);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: remdial_handling = %s", entrycount, yylval.str)));
 			if(!(strcmp(yylval.str, "next")))
 				cfg_entry_tab[entrycount].remote_numbers_handling = RNH_NEXT;
 			else if(!(strcmp(yylval.str, "last")))
@@ -515,7 +543,7 @@ cfg_setval(int keyword)
 					config_error_flag++;
 					break;
 				}
-				log(LL_DBG, "entry %d: remote_phone_incoming #%d = %s", entrycount, n, yylval.str);
+				DBGL(DL_RCCF, (log(LL_DBG, "entry %d: remote_phone_incoming #%d = %s", entrycount, n, yylval.str)));
 				strcpy(cfg_entry_tab[entrycount].remote_phone_incoming[n].number, yylval.str);
 				cfg_entry_tab[entrycount].incoming_numbers_count++;
 			}
@@ -523,11 +551,11 @@ cfg_setval(int keyword)
 
 		case RATESFILE:
 			strcpy(ratesfile, yylval.str);
-			log(LL_DBG, "system: ratesfile = %s", yylval.str);
+			DBGL(DL_RCCF, (log(LL_DBG, "system: ratesfile = %s", yylval.str)));
 			break;
 
 		case RATETYPE:
-			log(LL_DBG, "entry %d: ratetype = %d", entrycount, yylval.num);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: ratetype = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].ratetype = yylval.num;
 			break;
 		
@@ -535,17 +563,17 @@ cfg_setval(int keyword)
 			if(yylval.num < RECOVERYTIME_MIN)
 			{
 				yylval.num = RECOVERYTIME_MIN;
-				log(LL_DBG, "entry %d: recoverytime < %d, min = %d", entrycount, RECOVERYTIME_MIN, yylval.num);
+				DBGL(DL_RCCF, (log(LL_DBG, "entry %d: recoverytime < %d, min = %d", entrycount, RECOVERYTIME_MIN, yylval.num)));
 			}
 
-			log(LL_DBG, "entry %d: recoverytime = %d", entrycount, yylval.num);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: recoverytime = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].recoverytime = yylval.num;
 			break;
 		
 		case REGEXPR:
 			if(nregexpr >= MAX_RE)
 			{
-				log(LL_DBG, "system: regexpr #%d >= MAX_RE", nregexpr);
+				log(LL_ERR, "system: regexpr #%d >= MAX_RE", nregexpr);
 				config_error_flag++;
 				break;
 			}
@@ -554,7 +582,7 @@ cfg_setval(int keyword)
 		        {
                 		char buf[256];
                 		regerror(i, &(rarr[nregexpr].re), buf, sizeof(buf));
-				log(LL_DBG, "system: regcomp error for %s: [%s]", yylval.str, buf);
+				log(LL_ERR, "system: regcomp error for %s: [%s]", yylval.str, buf);
 				config_error_flag++;
                 		break;
 			}
@@ -562,13 +590,13 @@ cfg_setval(int keyword)
 			{
 				if((rarr[nregexpr].re_expr = malloc(strlen(yylval.str)+1)) == NULL)
 				{
-					log(LL_DBG, "system: regexpr malloc error error for %s", yylval.str);
+					log(LL_ERR, "system: regexpr malloc error error for %s", yylval.str);
 					config_error_flag++;
 					break;
 				}
 				strcpy(rarr[nregexpr].re_expr, yylval.str);
 
-				log(LL_DBG, "system: regexpr %s stored into slot %d", yylval.str, nregexpr);
+				DBGL(DL_RCCF, (log(LL_DBG, "system: regexpr %s stored into slot %d", yylval.str, nregexpr)));
 				
 				if(rarr[nregexpr].re_prog != NULL)
 					rarr[nregexpr].re_flg = 1;
@@ -581,24 +609,29 @@ cfg_setval(int keyword)
 		case REGPROG:
 			if(nregprog >= MAX_RE)
 			{
-				log(LL_DBG, "system: regprog #%d >= MAX_RE", nregprog);
+				log(LL_ERR, "system: regprog #%d >= MAX_RE", nregprog);
 				config_error_flag++;
 				break;
 			}
 			if((rarr[nregprog].re_prog = malloc(strlen(yylval.str)+1)) == NULL)
 			{
-				log(LL_DBG, "system: regprog malloc error error for %s", yylval.str);
+				log(LL_ERR, "system: regprog malloc error error for %s", yylval.str);
 				config_error_flag++;
 				break;
 			}
 			strcpy(rarr[nregprog].re_prog, yylval.str);
 
-			log(LL_DBG, "system: regprog %s stored into slot %d", yylval.str, nregprog);
+			DBGL(DL_RCCF, (log(LL_DBG, "system: regprog %s stored into slot %d", yylval.str, nregprog)));
 			
 			if(rarr[nregprog].re_expr != NULL)
 				rarr[nregprog].re_flg = 1;
 
 			nregprog++;
+			break;
+
+		case ROTATESUFFIX:
+			strcpy(rotatesuffix, yylval.str);
+			DBGL(DL_RCCF, (log(LL_DBG, "system: rotatesuffix = %s", yylval.str)));
 			break;
 
 		case RTPRIO:
@@ -607,24 +640,29 @@ cfg_setval(int keyword)
 			if(rt_prio < RTP_PRIO_MIN || rt_prio > RTP_PRIO_MAX)
 			{
 				config_error_flag++;
-				log(LL_DBG, "system: error, rtprio (%d) out of range!", yylval.num);
+				log(LL_ERR, "system: error, rtprio (%d) out of range!", yylval.num);
 			}
 			else
 			{
-				log(LL_DBG, "system: rtprio = %d", yylval.num);
+				DBGL(DL_RCCF, (log(LL_DBG, "system: rtprio = %d", yylval.num)));
 			}
 #else
 			rt_prio = RTPRIO_NOTUSED;
 #endif
 			break;
 
+		case TINAINITPROG:
+			strcpy(tinainitprog, yylval.str);
+			DBGL(DL_RCCF, (log(LL_DBG, "system: tinainitprog = %s", yylval.str)));
+			break;
+
 		case UNITLENGTH:
-			log(LL_DBG, "entry %d: unitlength = %d", entrycount, yylval.num);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: unitlength = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].unitlength = yylval.num;
 			break;
 
 		case UNITLENGTHSRC:
-			log(LL_DBG, "entry %d: unitlengthsrc = %s", entrycount, yylval.str);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: unitlengthsrc = %s", entrycount, yylval.str)));
 			if(!(strcmp(yylval.str, "none")))
 				cfg_entry_tab[entrycount].unitlengthsrc = ULSRC_NONE;
 			else if(!(strcmp(yylval.str, "cmdl")))
@@ -643,7 +681,7 @@ cfg_setval(int keyword)
 			break;
 
 		case USRDEVICENAME:
-			log(LL_DBG, "entry %d: usrdevicename = %s", entrycount, yylval.str);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: usrdevicename = %s", entrycount, yylval.str)));
 			if(!strcmp(yylval.str, "rbch"))
 				cfg_entry_tab[entrycount].usrdevicename = BDRV_RBCH;
 			else if(!strcmp(yylval.str, "tel"))
@@ -652,6 +690,8 @@ cfg_setval(int keyword)
 				cfg_entry_tab[entrycount].usrdevicename = BDRV_IPR;
 			else if(!strcmp(yylval.str, "isp"))
 				cfg_entry_tab[entrycount].usrdevicename = BDRV_ISPPP;
+			else if(!strcmp(yylval.str, "ibc"))
+				cfg_entry_tab[entrycount].usrdevicename = BDRV_IBC;
 			else
 			{
 				log(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"usrdevicename\" at line %d!", lineno);
@@ -660,17 +700,17 @@ cfg_setval(int keyword)
 			break;
 
 		case USRDEVICEUNIT:
-			log(LL_DBG, "entry %d: usrdeviceunit = %d", entrycount, yylval.num);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: usrdeviceunit = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].usrdeviceunit = yylval.num;
 			break;
 
 		case USEACCTFILE:
 			useacctfile = yylval.booln;
-			log(LL_DBG, "system: useacctfile = %d", yylval.booln);
+			DBGL(DL_RCCF, (log(LL_DBG, "system: useacctfile = %d", yylval.booln)));
 			break;
 
 		case USEDOWN:
-			log(LL_DBG, "entry %d: usedown = %d", entrycount, yylval.booln);
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: usedown = %d", entrycount, yylval.booln)));
 			cfg_entry_tab[entrycount].usedown = yylval.booln;
 			break;
 
@@ -1071,7 +1111,25 @@ print_config(void)
 		}
 
 		if(!((cep->inout == DIR_INONLY) || (cep->usrdevicename == BDRV_TEL)))
+		{
+			char *s;
 			fprintf(PFILE, "idletime-outgoing     = %d\t\t# outgoing call idle timeout\n", cep->idle_time_out);
+
+			switch( cep->shorthold_algorithm )
+			{
+				case SHA_FIXU:
+					s = "fix-unit-size";
+					break;
+				case SHA_VARU:
+					s = "var-unit-size";
+					break;
+				default:
+					s = "error!!!";
+					break;
+			}
+
+			fprintf(PFILE, "idle-algorithm-outgoing     = %s\t\t# outgoing call idle algorithm\n", s);
+		}
 
 		if(!(cep->inout == DIR_OUTONLY))
 			fprintf(PFILE, "idletime-incoming     = %d\t\t# incoming call idle timeout\n", cep->idle_time_in);

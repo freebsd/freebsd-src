@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Sat Dec  5 18:33:16 1998]
+ *      last edit-date: [Tue Apr 27 16:46:51 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -304,7 +304,7 @@ n_connect_response(u_int cdid, int response, int cause)
 	}
 	else
 	{
-		DBGL3(L3_ERR, "n_connect_response", ("ERROR, invalid channel %d\n", cd->channelid));
+		DBGL3(L3_MSG, "n_connect_response", ("Warning, invalid channelid %d, response = %d\n", cd->channelid, response));
 	}
 }
 

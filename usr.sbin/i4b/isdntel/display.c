@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Sat Dec  5 18:15:40 1998]
+ *      last edit-date: [Mon Apr 26 13:57:08 1999]
  *
  *----------------------------------------------------------------------------*/
 
@@ -60,7 +60,7 @@ init_screen(void)
 	keypad(main_w, TRUE);			/* use special keys */
 	scrollok(main_w, TRUE);
 
-	sprintf(buffer, " isdntel %s.%s ", VERSION, REL);
+	sprintf(buffer, " isdntel %d.%d.%d ", VERSION, REL, STEP);
 
 	move(0, 0);
 	standout();

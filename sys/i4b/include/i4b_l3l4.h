@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *	last edit-date: [Sat Dec  5 18:04:58 1998]
+ *	last edit-date: [Wed Mar 17 16:16:40 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -81,7 +81,7 @@ typedef struct i4l_driver_bchan_linktab {
 #define ACT_TX 1
 	void (*line_connected)(int unit, void *cde);
 	void (*line_disconnected)(int unit, void *cde);
-	void (*dial_response)(int unit, int stat);
+	void (*dial_response)(int unit, int stat, cause_t cause);
 	void (*updown_ind)(int unit, int updown);		
 } drvr_link_t;
 
@@ -200,9 +200,7 @@ typedef struct
 	time_t	max_idle_time;		/* max time without activity	*/
 
 					/* for outgoing connections:	*/	
-	time_t	unitlen_time;		/* length of a charging unit	*/
-	time_t	idle_time;		/* idle time before end of unit	*/
-	time_t	earlyhup_time;		/* safety time zone at end of unit */
+	msg_shorthold_t shorthold_data;	/* shorthold data to use */
 
 	int	aocd_flag;		/* AOCD used for unitlength calc*/
 	time_t	last_aocd_time;		/* last time AOCD received	*/

@@ -1,7 +1,7 @@
 /*
  *   Copyright (c) 1997 Joerg Wunsch. All rights reserved.
  *
- *   Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ *   Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -32,7 +32,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Sat Dec  5 18:12:26 1998]
+ *      last edit-date: [Thu May 20 14:05:26 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -72,63 +72,68 @@ int		entrycount = -1;
 %token		ACCTALL
 %token		ACCTFILE
 %token		ALERT
-%token		ALIASING
 %token		ALIASFNAME
+%token		ALIASING
 %token		ANSWERPROG
 %token		B1PROTOCOL
+%token		BEEPCONNECT
 %token		CALLBACKWAIT
 %token		CALLEDBACKWAIT
+%token		CALLIN
+%token		CALLOUT
+%token		CHANNELSTATE
 %token		CONNECTPROG
-%token		DIALRETRIES
-%token		DIALRANDINCR
 %token		DIALOUTTYPE
+%token		DIALRANDINCR
+%token		DIALRETRIES
 %token		DIRECTION
 %token		DISCONNECTPROG
-%token		DOWNTRIES
 %token		DOWNTIME
+%token		DOWNTRIES
 %token		EARLYHANGUP
 %token		ENTRY
+%token		FULLCMD
 %token		IDLETIME_IN
 %token		IDLETIME_OUT
-%token		ISDNCONTROLLER
+%token		IDLE_ALG_OUT
 %token		ISDNCHANNEL
+%token		ISDNCONTROLLER
 %token		ISDNTIME
 %token		ISDNTXDELIN
 %token		ISDNTXDELOUT
 %token		LOCAL_PHONE_DIALOUT
 %token		LOCAL_PHONE_INCOMING
-%token		MONITORSW
-%token		MONITORPORT
+%token		LOGEVENTS
 %token		MONITOR
 %token		MONITORACCESS
-%token		FULLCMD
-%token		RESTRICTEDCMD
-%token		CHANNELSTATE
-%token		CALLIN
-%token		CALLOUT
-%token		LOGEVENTS
+%token		MONITORPORT
+%token		MONITORSW
 %token		NAME
 %token		NO
 %token		OFF
 %token		ON
 %token		RATESFILE
-%token 		RATETYPE
-%token		REMOTE_NUMBERS_HANDLING
-%token		REMOTE_PHONE_INCOMING
-%token		REMOTE_PHONE_DIALOUT
+%token		RATETYPE
 %token		REACTION
 %token		RECOVERYTIME
 %token		REGEXPR
 %token		REGPROG
+%token		REMOTE_NUMBERS_HANDLING
+%token		REMOTE_PHONE_DIALOUT
+%token		REMOTE_PHONE_INCOMING
+%token		RESTRICTEDCMD
+%token		ROTATESUFFIX
 %token		RTPRIO
 %token		SYSTEM
+%token		TINAINITPROG
 %token		UNITLENGTH
 %token		UNITLENGTHSRC
 %token		USEACCTFILE
+%token		USEDOWN
 %token		USRDEVICENAME
 %token		USRDEVICEUNIT
-%token		USEDOWN
 %token		YES
+
 
 %token	<str>	NUMBERSTR
 
@@ -285,11 +290,13 @@ boolean:	  NO			{ $$ = FALSE; }
 sysfilekeyword:	  RATESFILE		{ $$ = RATESFILE; }
 		| ACCTFILE		{ $$ = ACCTFILE; }
 		| ALIASFNAME		{ $$ = ALIASFNAME; }
+		| TINAINITPROG		{ $$ = TINAINITPROG; }
 		;
 
 sysboolkeyword:	  USEACCTFILE		{ $$ = USEACCTFILE; }
 		| ALIASING		{ $$ = ALIASING; }
 		| ACCTALL		{ $$ = ACCTALL; }
+		| BEEPCONNECT		{ $$ = BEEPCONNECT; }
 		| ISDNTIME		{ $$ = ISDNTIME; }
 		| MONITORSW		{ $$ = MONITORSW; }
 		;
@@ -298,7 +305,8 @@ sysnumkeyword:	  MONITORPORT		{ $$ = MONITORPORT; }
 		| RTPRIO		{ $$ = RTPRIO; }
 		;
 
-sysstrkeyword:	  REGEXPR		{ $$ = REGEXPR; }
+sysstrkeyword:	  ROTATESUFFIX		{ $$ = ROTATESUFFIX; }
+		| REGEXPR		{ $$ = REGEXPR; }
 		| REGPROG		{ $$ = REGPROG; }
 		;
 
@@ -351,6 +359,7 @@ strkeyword:	  ANSWERPROG		{ $$ = ANSWERPROG; }
 		| DIALOUTTYPE		{ $$ = DIALOUTTYPE; }
 		| DIRECTION		{ $$ = DIRECTION; }
 		| DISCONNECTPROG	{ $$ = DISCONNECTPROG; }
+		| IDLE_ALG_OUT		{ $$ = IDLE_ALG_OUT; }
 		| LOCAL_PHONE_INCOMING	{ $$ = LOCAL_PHONE_INCOMING; }
 		| LOCAL_PHONE_DIALOUT	{ $$ = LOCAL_PHONE_DIALOUT; }
 		| NAME			{ $$ = NAME; }		

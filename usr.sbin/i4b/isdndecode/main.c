@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Dec 18 18:12:52 1998]
+ *      last edit-date: [Fri Jul 30 08:14:58 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -90,7 +90,7 @@ main(int argc, char *argv[])
 
 	b = &buf[sizeof(i4b_trace_hdr_t)];
 	
-	while( (c = getopt(argc, argv, "abdf:hiln:op:u:BPR:T:?")) != EOF)
+	while( (c = getopt(argc, argv, "abdf:hiln:op:u:BPR:T:")) != -1)
 	{
 		switch(c)
 		{
@@ -377,7 +377,7 @@ fmt_hdr(i4b_trace_hdr_t *hdr, int frm_len)
 	static char hbuf[256];
 	int i = 0;
 
-	s = localtime(&(hdr->time.tv_sec));
+	s = localtime((time_t *)&(hdr->time.tv_sec));
 
 	if(hdr->type == TRC_CH_I)		/* Layer 1 INFO's */
 	{
@@ -750,7 +750,7 @@ void
 usage(void)
 {
 	fprintf(stderr,"\n");
-	fprintf(stderr,"isdndecode - isdn4bsd package ISDN decoder for passive cards (%02d.%02d)\n", VERSION, REL);
+	fprintf(stderr,"isdndecode - isdn4bsd package ISDN decoder for passive cards (%d.%d.%d)\n", VERSION, REL, STEP);
 	fprintf(stderr,"usage: isdntrace -a -b -d -f <file> -h -i -l -n <val> -o -p <file> -r -u <unit>\n");
 	fprintf(stderr,"                 -B -P -R <unit> -T <unit>\n");
 	fprintf(stderr,"       -a        analyzer mode ................................... (default off)\n");

@@ -49,7 +49,7 @@
  *
  * $FreeBSD$
  *
- *	last edit-date: [Sun Dec 13 10:49:25 1998]
+ *	last edit-date: [Sun Feb 14 10:28:31 1999]
  *
  *	-hm	adding driver to i4b
  *	-hm	adjustments for FreeBSD < 2.2.6, no PnP support yet

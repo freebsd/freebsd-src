@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Sat Dec  5 18:27:13 1998]
+ *      last edit-date: [Fri May 28 15:51:17 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -65,7 +65,16 @@ typedef struct {
 	struct	callout_handle T200_callout;
 	struct	callout_handle T202_callout;
 	struct	callout_handle T203_callout;
+	struct	callout_handle IFQU_callout;	
 #endif
+
+/*
+ * i4b_iframe.c, i4b_i_frame_queued_up(): value of IFQU_DLY
+ * some experimentation Gary did showed a minimal value of (hz/20) was
+ * possible to let this work, Gary suggested using (hz/10) but i settled
+ * down to using (hz/5) for now (-hm).
+ */
+#define IFQU_DLY (hz/5)		/* reschedule I-FRAME-QUEUED-UP 0.2 sec */
 
 	int	vr;		/* receive sequence frame counter */
 	int	vs;		/* transmit sequence frame counter */
@@ -94,6 +103,11 @@ typedef struct {
 	
 	int (*postfsmfunc)(int);/* function to be called at fsm exit */
 	int	postfsmarg;	/* argument for above function */
+
+	/* statistics */
+
+	lapdstat_t	stat;	/* lapd protocol statistics */
+
 } l2_softc_t;
 
 extern l2_softc_t l2_softc[];

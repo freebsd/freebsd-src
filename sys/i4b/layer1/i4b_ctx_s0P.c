@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Mon Dec 14 17:26:30 1998]
+ *      last edit-date: [Sun Feb 14 10:25:33 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -97,7 +97,7 @@ void isic_attach_Cs0P(struct isic_softc *sc);
 #endif
 
 #ifdef __FreeBSD__
-#include <i386/isa/pnp.h>
+/* #include <i386/isa/pnp.h> */
 extern void isicintr ( int unit );
 #endif
 

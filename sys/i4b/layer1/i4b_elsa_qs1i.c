@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 14 17:27:08 1998]
+ *      last edit-date: [Tue Mar 16 15:42:10 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -46,7 +46,11 @@
 
 #endif
 
-#if (NISIC > 0) && (NPNP > 0) && defined(ELSA_QS1ISA)
+/* 
+ * this driver works for both the ELSA QuickStep 1000 PNP and the ELSA
+ * PCC-16
+ */
+#if (NISIC > 0) && (((NPNP > 0) && defined(ELSA_QS1ISA)) || defined(ELSA_PCC16))
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -63,7 +67,7 @@
 #endif
 #include <machine/clock.h>
 #include <i386/isa/isa_device.h>
-#include <i386/isa/pnp.h>
+/* #include <i386/isa/pnp.h> */
 #else
 #include <machine/bus.h>
 #include <sys/device.h>
@@ -86,7 +90,7 @@
 #include <i4b/layer1/i4b_hscx.h>
 
 #ifdef __FreeBSD__
-/* static void i4b_eq1i_clrirq(void* base); */
+static void i4b_eq1i_clrirq(void* base);
 #else
 static void i4b_eq1i_clrirq(struct isic_softc *sc);
 void isic_attach_Eqs1pi __P((struct isic_softc *sc));
@@ -125,13 +129,12 @@ void isic_attach_Eqs1pi __P((struct isic_softc *sc));
  *      ELSA QuickStep 1000pro/ISA clear IRQ routine
  *---------------------------------------------------------------------------*/
 #ifdef __FreeBSD__
-#ifdef notdef
 static void
 i4b_eq1i_clrirq(void* base)
 {
 	outb((u_int)base + ELSA_OFF_IRQ, 0);
 }
-#endif
+
 #else
 static void
 i4b_eq1i_clrirq(struct isic_softc *sc)
@@ -402,9 +405,7 @@ isic_probe_Eqs1pi(struct isa_device *dev, unsigned int iobase2)
 
 	/* setup access routines */
 
-/* XXX no "sc_clearirq" in sight... /phk
-	sc->sc_clearirq = i4b_eq1i_clrirq;
-*/ 
+	sc->clearirq = i4b_eq1i_clrirq;
 	sc->readreg = eqs1pi_read_reg;
 	sc->writereg = eqs1pi_write_reg;
 
