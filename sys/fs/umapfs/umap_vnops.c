@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)umap_vnops.c	8.6 (Berkeley) 5/22/95
- * $Id: umap_vnops.c,v 1.17 1997/05/25 04:50:01 peter Exp $
+ * $Id: umap_vnops.c,v 1.18 1997/08/02 14:32:26 bde Exp $
  */
 
 /*
@@ -225,7 +225,8 @@ umap_bypass(ap)
 			goto out;
 		vppp = VOPARG_OFFSETTO(struct vnode***,
 				 descp->vdesc_vpp_offset, ap);
-		error = umap_node_create(old_vps[0]->v_mount, **vppp, *vppp);
+		if (*vppp)
+			error = umap_node_create(old_vps[0]->v_mount, **vppp, *vppp);
 	};
 
  out:
