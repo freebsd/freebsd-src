@@ -1,6 +1,10 @@
 /*
  * National Semiconductor DS8390 NIC register definitions 
  *
+ * $Id$
+ *
+ * Modification history
+ *
  * $Log:	if_edreg.h,v $
  * Revision 1.5  93/08/25  20:38:34  davidg
  * added define for card type WD8013WC (10BaseT)
