@@ -171,8 +171,10 @@ void
 thread_getcontext(struct thread *td, ucontext_t *uc)
 {
 
-# XXX this is declared in a MD include file, i386/include/ucontext.h but
-# is used in MI code.
+/*
+ * XXX this is declared in a MD include file, i386/include/ucontext.h but
+ * is used in MI code.
+ */
 #ifdef __i386__
 	get_mcontext(td, &uc->uc_mcontext);
 #endif
@@ -189,8 +191,10 @@ thread_setcontext(struct thread *td, ucontext_t *uc)
 {
 	int ret;
 
-# XXX this is declared in a MD include file, i386/include/ucontext.h but
-# is used in MI code.
+/*
+ * XXX this is declared in a MD include file, i386/include/ucontext.h but
+ * is used in MI code.
+ */
 #ifdef __i386__
 	ret = set_mcontext(td, &uc->uc_mcontext);
 #else
