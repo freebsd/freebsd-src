@@ -427,6 +427,8 @@ device		musycc	# LMC/SBE LMC1504 quad T1/E1
 #  The `gif' device implements IPv6 over IP4 tunneling,
 #  IPv4 over IPv6 tunneling, IPv4 over IPv4 tunneling and
 #  IPv6 over IPv6 tunneling.
+#  The `gre' device implements two types of IP4 over IP4 tunneling:
+#  GRE and MOBILE, as specified in the RFC1701 and RFC2004.
 #  The XBONEHACK option allows the same pair of addresses to be configured on
 #  multiple gif interfaces.
 #  The `faith' device captures packets sent to it and diverts them
@@ -453,6 +455,7 @@ device		disc			#Discard device (ds0, ds1, etc)
 device		tap			#Virtual Ethernet driver
 device		tun			#Tunnel driver (ppp(8), nos-tun(8))
 device		sl			#Serial Line IP
+device		gre			#IP over IP tunneling
 device		ppp			#Point-to-point protocol
 options 	PPP_BSDCOMP		#PPP BSD-compress support
 options 	PPP_DEFLATE		#PPP zlib/deflate/gzip support
