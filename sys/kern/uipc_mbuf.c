@@ -714,13 +714,26 @@ m_print(const struct mbuf *m)
 int
 m_fixhdr(struct mbuf *m0)
 {
-	struct mbuf *m = m0;
-	int len = 0;
+	int len;
 
-	while (m) {
-		len += m->m_len;
-		m = m->m_next;
-	}
+	len = m_length(m0, NULL);
 	m0->m_pkthdr.len = len;
-	return len;
+	return (len);
+}
+
+int
+m_length(struct mbuf *m0, struct mbuf **last)
+{
+	struct mbuf *m;
+	int len;
+
+	len = 0;
+	for (m = m0; m != NULL; m = m->m_next) {
+		len += m->m_len;
+		if (m->m_next == NULL)
+			break;
+	}
+	if (last != NULL)
+		*last = m;
+	return (len);
 }
