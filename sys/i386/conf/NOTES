@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.427 1998/04/20 04:30:47 julian Exp $
+#	$Id: LINT,v 1.428 1998/04/22 18:18:16 mjacob Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -794,7 +794,7 @@ device		npx0	at isa? port "IO_NPX" iosiz 0x0 flags 0x0 irq 13 vector npxintr
 # aic: Adaptec 152x and sound cards using the Adaptec AIC-6360 (slow!)
 # bt: Most Buslogic controllers
 # nca: ProAudioSpectrum cards using the NCR 5380 or Trantor T130
-# uha: UltraStore 14F and 34F
+# uha: UltraStor ULTRA 14F/24F/34F
 # sea: Seagate ST01/02 8 bit controller (slow!)
 # wds: Western Digital WD7000 controller (no scatter/gather!).
 #
