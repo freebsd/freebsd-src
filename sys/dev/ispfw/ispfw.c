@@ -31,12 +31,8 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/bio.h>
-#include <sys/disk.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/linker.h>
 
 #include <dev/ispfw/asm_1040.h>
 #include <dev/ispfw/asm_1080.h>
