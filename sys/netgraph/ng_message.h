@@ -98,7 +98,7 @@ struct ng_mesg {
  * Interfaces within the kernel are defined by a different 
  * value (see NG_ABI_VERSION in netgraph.g)
  */
-#define NG_VERSION	5
+#define NG_VERSION	6
 
 /* Flags field flags */
 #define NGF_ORIG	0x00000000	/* the msg is the original request */
