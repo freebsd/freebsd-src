@@ -47,11 +47,10 @@
 #define RTLD_LOCAL	0	/* Opposite of RTLD_GLOBAL, and the default */
 
 /*
- * Special handle argument for dlsym().  It causes the search for the
- * symbol to begin in the next shared object after the one containing
- * the caller.
+ * Special handle arguments for dlsym().
  */
-#define RTLD_NEXT	((void *) -1)
+#define RTLD_NEXT	((void *) -1)	/* Search subsequent objects */
+#define RTLD_DEFAULT	((void *) -2)	/* Use default search algorithm */
 
 /*
  * Structure filled in by dladdr().
