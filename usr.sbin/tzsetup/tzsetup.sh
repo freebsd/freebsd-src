@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: tzsetup.sh,v 1.2 1994/09/18 18:27:30 ache Exp $
+# $Id: tzsetup.sh,v 1.3 1994/11/02 00:00:17 ache Exp $
 #
 # Copyright 1994, Garrett A. Wollman.  All rights reserved.
 # This script is subject to the terms and conditions listed at the
@@ -82,7 +82,7 @@ EOF
 	if askyn "Do you want a local CMOS clock" $curr; then
 		touch /etc/wall_cmos_clock
 		if [ $curr = "n" ] && askyn "Start now" y; then
-			/sbin/adjkerntz
+			/sbin/adjkerntz -i
 		fi
 	else
 		rm -f /etc/wall_cmos_clock
