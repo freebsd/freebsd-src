@@ -82,8 +82,10 @@ when a large number of processes are sleeping on the same address,
 but only one of them can actually do any useful work when made
 runnable.
 .Pp
-.Nm Tsleep
-is the general sleep call.  Suspends the current process until a wakeup is
+The
+.Nm tsleep
+function is the general sleep call.
+Suspends the current process until a wakeup is
 performed on the specified identifier.
 The process will then be made
 runnable with the specified
@@ -110,8 +112,9 @@ is returned if the system call should be interrupted by the signal
 (return
 .Er EINTR ) .
 .Pp
-.Nm Msleep
-is a variation on tsleep.
+The
+.Nm sleep
+function is a variation on tsleep.
 The parameter
 .Ar mtx
 is a mutex, which will be exited before sleeping, and entered before
