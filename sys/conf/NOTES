@@ -2375,6 +2375,9 @@ options 	SIEMENS_ISURF2
 # Asuscom ISDNlink 128K ISA
 options 	ASUSCOM_IPAC
 #
+# Eicon Diehl DIVA 2.0 and 2.02
+options       EICON_DIVA
+#
 # PCI bus Cards:
 # --------------
 #

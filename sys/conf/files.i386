@@ -312,6 +312,7 @@ i4b/layer1/isic/i4b_tel_s016.c		optional	isic
 i4b/layer1/isic/i4b_tel_s0163.c		optional	isic
 i4b/layer1/isic/i4b_tel_s08.c		optional	isic
 i4b/layer1/isic/i4b_usr_sti.c		optional	isic
+i4b/layer1/isic/i4b_diva.c		optional	isic
 #
 # isdn4bsd, iwic
 #
