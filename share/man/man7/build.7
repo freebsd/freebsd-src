@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 13, 2004
+.Dd February 23, 2005
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -90,6 +90,11 @@ Rebuild the kernel and the kernel modules.
 Install the kernel and the kernel modules.
 .It Cm reinstallkernel
 Reinstall the kernel and the kernel modules.
+.It Cm kernel
+Equivalent to
+.Cm buildkernel
+followed by
+.Cm installkernel
 .El
 .Pp
 For more information about the ports build process, see
@@ -148,6 +153,7 @@ make TARGET_ARCH=alpha DESTDIR=/clients/axp installworld
 .Ed
 .Sh SEE ALSO
 .Xr cc 1 ,
+.Xr config 8 ,
 .Xr install 1 ,
 .Xr make 1 ,
 .Xr make.conf 5 ,
