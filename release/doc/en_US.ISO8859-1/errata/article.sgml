@@ -195,6 +195,14 @@
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:37.kqueue.asc">FreeBSD-SA-02:37</ulink>.
       This problem was corrected in &os; &release.point;.</para>
 
+    <para>Several bounds-checking bugs in system calls could result in
+      some system calls returning a large portion of kernel memory.
+      More details can be found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:38.signed-error.asc">FreeBSD-SA-02:38</ulink>.
+      This problem was corrected in time for &os; &release.point;,
+      although not mentioned in the accompanying release
+      documentation.</para>
+
 ]]>
   </sect1>
 
