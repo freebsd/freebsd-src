@@ -21,12 +21,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <ctype.h>
 #include <err.h>
 #include "lib.h"
 #include "add.h"
 
 
-#define STARTSTRING "tar cf - "
+#define STARTSTRING "tar cf -"
 #define TOOBIG(str) \
     (((int)strlen(str) + FILENAME_MAX + where_count > maxargs) ||\
 	((int)strlen(str) + FILENAME_MAX + perm_count > maxargs))
@@ -74,6 +75,28 @@ rollback(const char *name, const char *home, PackingList start, PackingList stop
 		dir = home;
 	}
     }
+}
+
+#define add_char(buf, len, pos, ch) do {\
+    if ((pos) < (len)) { \
+        buf[(pos)] = (ch); \
+        buf[(pos) + 1] = '\0'; \
+    } \
+    ++(pos); \
+} while (0)
+
+int
+add_arg(char *buf, int len, const char *str)
+{
+    int i = 0;
+
+    add_char(buf, len, i, ' ');
+    for (; *str != '\0'; ++str) {
+	if (!isalnum(*str) && *str != '/' && *str != '.' && *str != '-')
+	    add_char(buf, len, i, '\\');
+	add_char(buf, len, i, *str);
+    }
+    return (i);
 }
 
 void
@@ -129,11 +152,6 @@ extract_plist(const char *home, Package *pkg)
 	    if (!Fake) {
 		char try[FILENAME_MAX];
 
-		if (strrchr(p->name,'\'')) {
-		  cleanup(0);
-		  errx(2, "%s: Bogus filename \"%s\"", __func__, p->name);
-		}
-
 		/* first try to rename it into place */
 		snprintf(try, FILENAME_MAX, "%s/%s", Directory, p->name);
 		if (fexists(try)) {
@@ -157,7 +175,7 @@ extract_plist(const char *home, Package *pkg)
 		    if (p->name[0] == '/' || TOOBIG(p->name)) {
 			PUSHOUT(Directory);
 		    }
-		    add_count = snprintf(&perm_args[perm_count], maxargs - perm_count, "'%s' ", p->name);
+		    add_count = add_arg(&perm_args[perm_count], maxargs - perm_count, p->name);
 		    if (add_count < 0 || add_count >= maxargs - perm_count) {
 			cleanup(0);
 			errx(2, "%s: oops, miscounted strings!", __func__);
@@ -177,15 +195,13 @@ extract_plist(const char *home, Package *pkg)
 		    else if (p->name[0] == '/' || TOOBIG(p->name)) {
 			PUSHOUT(Directory);
 		    }
-		    add_count = snprintf(&where_args[where_count], maxargs - where_count, " '%s'", p->name);
+		    add_count = add_arg(&where_args[where_count], maxargs - where_count, p->name);
 		    if (add_count < 0 || add_count >= maxargs - where_count) {
 			cleanup(0);
 			errx(2, "%s: oops, miscounted strings!", __func__);
 		    }
 		    where_count += add_count;
-		    add_count = snprintf(&perm_args[perm_count],
-					 maxargs - perm_count,
-					 "'%s' ", p->name);
+		    add_count = add_arg(&perm_args[perm_count], maxargs - perm_count, p->name);
 		    if (add_count < 0 || add_count >= maxargs - perm_count) {
 			cleanup(0);
 			errx(2, "%s: oops, miscounted strings!", __func__);
