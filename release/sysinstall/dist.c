@@ -567,16 +567,10 @@ distExtractAll(dialogMenuItem *self)
     int retries = 0;
     char buf[512];
 
-    /* First try to initialize the state of things */
-    if (!Dists) {
-	msgConfirm("You haven't selected any distributions to extract.");
-	return DITEM_FAILURE;
-    }
-    if (!mediaVerify())
+    /* paranoia */
+    if (!Dists || !mediaVerify() || !mediaDevice->init(mediaDevice))
 	return DITEM_FAILURE;
 
-    if (!mediaDevice->init(mediaDevice))
-	return DITEM_FAILURE;
     dialog_clear_norefresh();
     msgNotify("Attempting to install all selected distributions..");
     /* Try for 3 times around the loop, then give up. */
@@ -592,7 +586,7 @@ distExtractAll(dialogMenuItem *self)
 	msgConfirm("Couldn't extract the following distributions.  This may\n"
 		   "be because they were not available on the installation\n"
 		   "media you've chosen:\n\n\t%s", buf);
-	return DITEM_FAILURE | DITEM_RESTORE;
+	return DITEM_SUCCESS | DITEM_RESTORE;
     }
     return DITEM_SUCCESS;
 }
