@@ -101,6 +101,7 @@ CODA
 CD9660
 FFS
 NFS
+NWFS
 
 # If you are following the conditions in the copyright, 
 # you can enable soft-updates which will speed up a lot of thigs 
@@ -221,6 +222,7 @@ IPSTEALTH
 IPX			opt_ipx.h
 IPXIP			opt_ipx.h
 IPTUNNEL		opt_ipx.h
+NCP			opt_ncp.h
 NETATALK		opt_atalk.h
 PPP_BSDCOMP		opt_ppp.h
 PPP_DEFLATE		opt_ppp.h
