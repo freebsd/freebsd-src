@@ -68,7 +68,6 @@ static void	aac_get_bus_info(struct aac_softc *sc);
 
 /* Command Processing */
 static void	aac_timeout(struct aac_softc *sc);
-static int	aac_map_command(struct aac_command *cm);
 static void	aac_complete(void *context, int pending);
 static int	aac_bio_command(struct aac_softc *sc, struct aac_command **cmp);
 static void	aac_bio_complete(struct aac_command *cm);
@@ -654,13 +653,18 @@ void
 aac_startio(struct aac_softc *sc)
 {
 	struct aac_command *cm;
+	int error;
 
 	debug_called(2);
 
-	if (sc->flags & AAC_QUEUE_FRZN)
-		return;
-
 	for (;;) {
+		/*
+		 * This flag might be set if the card is out of resources.
+		 * Checking it here prevents an infinite loop of deferrals.
+		 */
+		if (sc->flags & AAC_QUEUE_FRZN)
+			break;
+
 		/*
 		 * Try to get a command that's been put off for lack of 
 		 * resources
@@ -678,47 +682,30 @@ aac_startio(struct aac_softc *sc)
 		if (cm == NULL)
 			break;
 
+		/* don't map more than once */
+		if (cm->cm_flags & AAC_CMD_MAPPED)
+			panic("aac: command %p already mapped", cm);
+
 		/*
-		 * Try to give the command to the controller.  Any error is
-		 * catastrophic since it means that bus_dmamap_load() failed.
+		 * Set up the command to go to the controller.  If there are no
+		 * data buffers associated with the command then it can bypass
+		 * busdma.
 		 */
-		if (aac_map_command(cm) != 0)
-			panic("aac: error mapping command %p\n", cm);
+		if (cm->cm_datalen != 0) {
+			error = bus_dmamap_load(sc->aac_buffer_dmat,
+						cm->cm_datamap, cm->cm_data,
+						cm->cm_datalen,
+						aac_map_command_sg, cm, 0);
+			if (error == EINPROGRESS) {
+				debug(1, "freezing queue\n");
+				sc->flags |= AAC_QUEUE_FRZN;
+				error = 0;
+			} else
+				panic("aac_startio: unexpected error %d from "
+				      "busdma\n", error);
+		} else
+			aac_map_command_sg(cm, NULL, 0, 0);
 	}
-}
-
-/*
- * Deliver a command to the controller; allocate controller resources at the
- * last moment when possible.
- */
-static int
-aac_map_command(struct aac_command *cm)
-{
-	struct aac_softc *sc;
-	int error;
-
-	debug_called(2);
-
-	sc = cm->cm_sc;
-	error = 0;
-
-	/* don't map more than once */
-	if (cm->cm_flags & AAC_CMD_MAPPED)
-		panic("aac: command %p already mapped", cm);
-
-	if (cm->cm_datalen != 0) {
-		error = bus_dmamap_load(sc->aac_buffer_dmat, cm->cm_datamap,
-					cm->cm_data, cm->cm_datalen,
-					aac_map_command_sg, cm, 0);
-		if (error == EINPROGRESS) {
-			debug(1, "freezing queue\n");
-			sc->flags |= AAC_QUEUE_FRZN;
-			error = 0;
-		}
-	} else {
-		aac_map_command_sg(cm, NULL, 0, 0);
-	}
-	return (error);
 }
 
 /*
@@ -1285,9 +1272,10 @@ aac_map_command_sg(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 				BUS_DMASYNC_PREWRITE);
 	cm->cm_flags |= AAC_CMD_MAPPED;
 
-	/* put the FIB on the outbound queue */
+	/* Put the FIB on the outbound queue */
 	if (aac_enqueue_fib(sc, cm->cm_queue, cm) == EBUSY) {
 		aac_unmap_command(cm);
+		sc->flags |= AAC_QUEUE_FRZN;
 		aac_requeue_ready(cm);
 	}
 
