@@ -1,6 +1,6 @@
-<!-- $Id: handbook.sgml,v 1.12 1997/03/06 07:25:47 hanai Exp $ -->
+<!-- $Id: handbook.sgml,v 1.13 1997/03/21 06:57:50 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.68 -->
+<!-- Original revision: 1.69 -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
 
@@ -25,7 +25,7 @@
 %sections;
 
 <!-- The currently released version of FreeBSD -->
-<!ENTITY rel.current CDATA "2.2">
+<!ENTITY rel.current CDATA "2.2.1">
 
 ]>
 
@@ -36,7 +36,7 @@
       <author>
 	<name>FreeBSD ドキュメンテーションプロジェクト</name>
       </author>
-      <date>1997年3月</date>
+      <date>1997年4月</date>
 
 <abstract>FreeBSD へようこそ! このハンドブックは<bf>FreeBSD Release
 &rel.current;</bf>のインストールおよび, 日常での使い方について記述したもので, 
