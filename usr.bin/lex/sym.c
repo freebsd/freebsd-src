@@ -26,7 +26,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-/* $Header: sym.c,v 1.2 94/01/04 14:33:06 vern Exp $ */
+/* $Header: /home/daffy/u0/vern/flex/RCS/sym.c,v 2.19 95/03/04 16:11:04 vern Exp $ */
 
 #include "flexdef.h"
 
@@ -75,9 +75,9 @@ int table_size;
 		flex_alloc( sizeof( struct hash_entry ) );
 
 	if ( new_entry == NULL )
-		flexfatal( "symbol table memory allocation failed" );
+		flexfatal( _( "symbol table memory allocation failed" ) );
 
-	if ( (successor = table[hash_val]) )
+	if ( (successor = table[hash_val]) != 0 )
 		{
 		new_entry->next = successor;
 		successor->prev = new_entry;
@@ -150,7 +150,7 @@ int table_size;
 	return &empty_entry;
 	}
 
-    
+
 /* hashfunct - compute the hash value for "str" and hash size "hash_size" */
 
 int hashfunct( str, hash_size )
@@ -185,7 +185,7 @@ Char definition[];
 	if ( addsym( copy_string( name ),
 			(char *) copy_unsigned_string( definition ), 0,
 			ndtbl, NAME_TABLE_HASH_SIZE ) )
-		synerr( "name defined twice" );
+		synerr( _( "name defined twice" ) );
 	}
 
 
@@ -214,7 +214,6 @@ void scextend()
 	scxclu = reallocate_integer_array( scxclu, current_max_scs );
 	sceof = reallocate_integer_array( sceof, current_max_scs );
 	scname = reallocate_char_ptr_array( scname, current_max_scs );
-	actvsc = reallocate_integer_array( actvsc, current_max_scs );
 	}
 
 
@@ -231,7 +230,7 @@ int xcluflg;
 	char *copy_string();
 
 	/* Generate start condition definition, for use in BEGIN et al. */
-	printf( "#define %s %d\n", str, lastsc );
+	action_define( str, lastsc );
 
 	if ( ++lastsc >= current_max_scs )
 		scextend();
@@ -240,7 +239,8 @@ int xcluflg;
 
 	if ( addsym( scname[lastsc], (char *) 0, lastsc,
 			sctbl, START_COND_HASH_SIZE ) )
-		format_pinpoint_message( "start condition %s declared twice",
+		format_pinpoint_message(
+				_( "start condition %s declared twice" ),
 					str );
 
 	scset[lastsc] = mkstate( SYM_EPSILON );

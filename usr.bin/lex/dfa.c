@@ -26,7 +26,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-/* $Header: dfa.c,v 1.2 94/01/04 14:33:16 vern Exp $ */
+/* $Header: /home/daffy/u0/vern/flex/RCS/dfa.c,v 2.26 95/04/20 13:53:14 vern Exp $ */
 
 #include "flexdef.h"
 
@@ -60,7 +60,7 @@ int state[];
 		if ( backing_up_report )
 			{
 			fprintf( backing_up_file,
-				"State #%d is non-accepting -\n", ds );
+				_( "State #%d is non-accepting -\n" ), ds );
 
 			/* identify the state */
 			dump_associated_rules( backing_up_file, ds );
@@ -101,7 +101,7 @@ int state[];
 void check_trailing_context( nfa_states, num_states, accset, nacc )
 int *nfa_states, num_states;
 int *accset;
-register int nacc;
+int nacc;
 	{
 	register int i, j;
 
@@ -127,7 +127,7 @@ register int nacc;
 				if ( accset[j] & YY_TRAILING_HEAD_MASK )
 					{
 					line_warning(
-						"dangerous trailing context",
+					_( "dangerous trailing context" ),
 						rule_linenum[ar] );
 					return;
 					}
@@ -170,7 +170,7 @@ int ds;
 
 	bubble( rule_set, num_associated_rules );
 
-	fprintf( file, " associated rule line numbers:" );
+	fprintf( file, _( " associated rule line numbers:" ) );
 
 	for ( i = 1; i <= num_associated_rules; ++i )
 		{
@@ -208,7 +208,7 @@ int state[];
 		out_char_set[i] = state[ec];
 		}
 
-	fprintf( file, " out-transitions: " );
+	fprintf( file, _( " out-transitions: " ) );
 
 	list_character_set( file, out_char_set );
 
@@ -216,7 +216,7 @@ int state[];
 	for ( i = 0; i < csize; ++i )
 		out_char_set[i] = ! out_char_set[i];
 
-	fprintf( file, "\n jam-transitions: EOF " );
+	fprintf( file, _( "\n jam-transitions: EOF " ) );
 
 	list_character_set( file, out_char_set );
 
@@ -352,7 +352,8 @@ ADD_STATE(state) \
 		if ( IS_MARKED(stk[stkpos]) )
 			UNMARK_STATE(stk[stkpos])
 		else
-			flexfatal( "consistency check failed in epsclosure()" );
+			flexfatal(
+			_( "consistency check failed in epsclosure()" ) );
 		}
 
 	*ns_addr = numstates;
@@ -398,7 +399,7 @@ void ntod()
 	int num_full_table_rows;	/* used only for -f */
 	int *nset, *dset;
 	int targptr, totaltrans, i, comstate, comfreq, targ;
-	int *epsclosure(), snstods(), symlist[CSIZE + 1];
+	int symlist[CSIZE + 1];
 	int num_start_states;
 	int todo_head, todo_next;
 
@@ -435,7 +436,7 @@ void ntod()
 	if ( trace )
 		{
 		dumpnfa( scset[1] );
-		fputs( "\n\nDFA Dump:\n\n", stderr );
+		fputs( _( "\n\nDFA Dump:\n\n" ), stderr );
 		}
 
 	inittbl();
@@ -510,7 +511,7 @@ void ntod()
 			state[i] = 0;
 
 		place_state( state, 0, 0 );
-		dfaacc[i].dfaacc_state = 0;
+		dfaacc[0].dfaacc_state = 0;
 		}
 
 	else if ( fulltbl )
@@ -531,19 +532,18 @@ void ntod()
 		/* Unless -Ca, declare it "short" because it's a real
 		 * long-shot that that won't be large enough.
 		 */
-		printf( "static const %s yy_nxt[][%d] =\n    {\n",
+		out_str_dec( "static yyconst %s yy_nxt[][%d] =\n    {\n",
 			/* '}' so vi doesn't get too confused */
 			long_align ? "long" : "short", num_full_table_rows );
+
+		outn( "    {" );
 
 		/* Generate 0 entries for state #0. */
 		for ( i = 0; i < num_full_table_rows; ++i )
 			mk2data( 0 );
 
-		/* Force ',' and dataflush() next call to mk2data().*/
-		datapos = NUMDATAITEMS;
-
-		/* Force extra blank line next dataflush(). */
-		dataline = NUMDATALINES;
+		dataflush();
+		outn( "    },\n" );
 		}
 
 	/* Create the first states. */
@@ -582,7 +582,7 @@ void ntod()
 		{
 		if ( ! snstods( nset, 0, accset, 0, 0, &end_of_buffer_state ) )
 			flexfatal(
-				"could not create unique end-of-buffer state" );
+			_( "could not create unique end-of-buffer state" ) );
 
 		++numas;
 		++num_start_states;
@@ -603,7 +603,7 @@ void ntod()
 		dsize = dfasiz[ds];
 
 		if ( trace )
-			fprintf( stderr, "state # %d:\n", ds );
+			fprintf( stderr, _( "state # %d:\n" ), ds );
 
 		sympartition( dset, dsize, symlist, duplist );
 
@@ -677,15 +677,25 @@ void ntod()
 				}
 			}
 
-		numsnpairs = numsnpairs + totaltrans;
-
 		if ( caseins && ! useecs )
 			{
 			register int j;
 
 			for ( i = 'A', j = 'a'; i <= 'Z'; ++i, ++j )
+				{
+				if ( state[i] == 0 && state[j] != 0 )
+					/* We're adding a transition. */
+					++totaltrans;
+
+				else if ( state[i] != 0 && state[j] == 0 )
+					/* We're taking away a transition. */
+					--totaltrans;
+
 				state[i] = state[j];
+				}
 			}
+
+		numsnpairs += totaltrans;
 
 		if ( ds > num_start_states )
 			check_for_backing_up( ds, state );
@@ -698,6 +708,8 @@ void ntod()
 
 		if ( fulltbl )
 			{
+			outn( "    {" );
+
 			/* Supply array's 0-element. */
 			if ( ds == end_of_buffer_state )
 				mk2data( -end_of_buffer_state );
@@ -710,11 +722,8 @@ void ntod()
 				 */
 				mk2data( state[i] ? state[i] : -ds );
 
-			/* Force ',' and dataflush() next call to mk2data().*/
-			datapos = NUMDATAITEMS;
-
-			/* Force extra blank line next dataflush(). */
-			dataline = NUMDATALINES;
+			dataflush();
+			outn( "    },\n" );
 			}
 
 		else if ( fullspd )
@@ -977,7 +986,8 @@ int ds[], dsize, transsym, nset[];
 			}
 
 		else if ( sym >= 'A' && sym <= 'Z' && caseins )
-			flexfatal( "consistency check failed in symfollowset" );
+			flexfatal(
+			_( "consistency check failed in symfollowset" ) );
 
 		else if ( sym == SYM_EPSILON )
 			{ /* do nothing */
@@ -1030,7 +1040,7 @@ int symlist[], duplist[];
 			if ( tch < -lastccl || tch >= csize )
 				{
 				flexfatal(
-			"bad transition character detected in sympartition()" );
+		_( "bad transition character detected in sympartition()" ) );
 				}
 
 			if ( tch >= 0 )
