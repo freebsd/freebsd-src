@@ -550,7 +550,7 @@ i386_set_watch(watchnum, watchaddr, size, access, d)
 	case DBREG_DR7_WRONLY:
 	case DBREG_DR7_RDWR:
 		break;
-	default : return (-1); break;
+	default : return (-1);
 	}
 	
 	/*
@@ -560,7 +560,7 @@ i386_set_watch(watchnum, watchaddr, size, access, d)
 	case 1	: mask = 0x00; break;
 	case 2	: mask = 0x01 << 2; break;
 	case 4	: mask = 0x03 << 2; break;
-	default : return (-1); break;
+	default : return (-1);
 	}
 
 	mask |= access;
