@@ -5,7 +5,7 @@
 PROG=	ls
 SRCS=	cmp.c ls.c print.c util.c
 
-.if !defined(RELEASE_BUILD_FIXIT)
+.if !defined(RELEASE_CRUNCH)
 CFLAGS+= -DCOLORLS
 LDADD+= -ltermcap
 DPADD+= ${LIBTERMCAP}
