@@ -72,7 +72,8 @@ implements a system of 4 multibyte codesets.
 A multibyte character in the first codeset consists of
 .Ar len1
 bytes starting with a byte in the range of 0x00 to 0x7f.
-To allow use of ASCII,
+To allow use of
+.Tn ASCII ,
 .Ar len1
 is always 1.
 A multibyte character in the second codeset consists of
@@ -86,7 +87,7 @@ A multibyte character in the fourth codeset consists of
 bytes starting with the byte 0x8f.
 .Pp
 The
-.Va wchar_t
+.Vt wchar_t
 encoding of
 .Nm EUC
 multibyte characters is dependent on the
@@ -95,7 +96,7 @@ and
 .Ar mask
 arguments.
 First, the bytes are moved into a
-.Va wchar_t
+.Vt wchar_t
 as follows:
 .Bd -literal
 byte0 << ((\fIlen\fPN-1) * 8) | byte1 << ((\fIlen\fPN-2) * 8) | ... | byte\fIlen\fPN-1
@@ -113,7 +114,7 @@ argument is reduced by 1.
 For example, the
 .Li ja_JP.eucJP
 locale has the following
-.Ev VARIABLE
+.Va VARIABLE
 line:
 .Bd -literal
 VARIABLE	1 0x0000 2 0x8080 2 0x0080 3 0x8000 0x8080
@@ -132,6 +133,6 @@ Notice that the global
 .Ar mask
 is set to 0x8080, this implies that from those 2 bits the codeset can
 be determined.
-.Sh "SEE ALSO"
+.Sh SEE ALSO
 .Xr mklocale 1 ,
 .Xr setlocale 3

@@ -41,14 +41,17 @@
 .Dt WCSTOMBS 3
 .Os
 .Sh NAME
-.Nm wcstombs ,
+.Nm wcstombs
 .Nd convert a wide-character string to a character string
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In stdlib.h
 .Ft size_t
-.Fn wcstombs "char * restrict mbstring" "const wchar_t * restrict wcstring" "size_t nbytes"
+.Fo wcstombs
+.Fa "char * restrict mbstring" "const wchar_t * restrict wcstring"
+.Fa "size_t nbytes"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn wcstombs

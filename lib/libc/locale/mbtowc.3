@@ -48,7 +48,10 @@
 .Sh SYNOPSIS
 .In stdlib.h
 .Ft int
-.Fn mbtowc "wchar_t * restrict wcharp" "const char * restrict mbchar" "size_t nbytes"
+.Fo mbtowc
+.Fa "wchar_t * restrict wcharp" "const char * restrict mbchar"
+.Fa "size_t nbytes"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn mbtowc
@@ -89,7 +92,7 @@ the number of bytes processed in
 or returns \-1 if no multibyte character
 could be recognized or converted.
 In this case,
-.Fn mbtowc Ns No 's
+.Fn mbtowc Ns 's
 internal conversion state is undefined.
 .Sh ERRORS
 The
