@@ -14,4 +14,4 @@ isp3:
   !bg ppp -background vpn3 vpn
 
 vpn:
-  set server /var/tmp/vpn "" 0177
+  set server /var/run/ppp/vpn "" 0177
