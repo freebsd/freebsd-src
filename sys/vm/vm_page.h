@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.16 1995/03/01 23:30:01 davidg Exp $
+ * $Id: vm_page.h,v 1.17 1995/03/26 23:33:14 davidg Exp $
  */
 
 /*
@@ -256,7 +256,7 @@ int vm_page_bits __P((int, int));
  * overhead and should be used only for *very* temporary
  * holding ("wiring").
  */
-static inline void
+static __inline void
 vm_page_hold(vm_page_t mem)
 {
 	mem->hold_count++;
@@ -266,7 +266,7 @@ vm_page_hold(vm_page_t mem)
 #include <sys/systm.h>		/* make GCC shut up */
 #endif
 
-static inline void
+static __inline void
 vm_page_unhold(vm_page_t mem)
 {
 #ifdef DIAGNOSTIC
@@ -277,7 +277,7 @@ vm_page_unhold(vm_page_t mem)
 #endif
 }
 
-static inline void
+static __inline void
 vm_page_protect(vm_page_t mem, int prot)
 {
 	if (prot == VM_PROT_NONE) {

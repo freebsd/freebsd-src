@@ -31,21 +31,21 @@
  * SUCH DAMAGE.
  *
  *	@(#)libkern.h	8.1 (Berkeley) 6/10/93
- * $Id: libkern.h,v 1.5 1994/11/14 14:56:46 bde Exp $
+ * $Id: libkern.h,v 1.6 1995/03/16 18:12:58 bde Exp $
  */
 
 #include <sys/types.h>
 
-static inline int imax(int a, int b) { return (a > b ? a : b); }
-static inline int imin(int a, int b) { return (a < b ? a : b); }
-static inline long lmax(long a, long b) { return (a > b ? a : b); }
-static inline long lmin(long a, long b) { return (a < b ? a : b); }
-static inline u_int max(u_int a, u_int b) { return (a > b ? a : b); }
-static inline u_int min(u_int a, u_int b) { return (a < b ? a : b); }
-static inline quad_t qmax(quad_t a, quad_t b) { return (a > b ? a : b); }
-static inline quad_t qmin(quad_t a, quad_t b) { return (a < b ? a : b); }
-static inline u_long ulmax(u_long a, u_long b) { return (a > b ? a : b); }
-static inline u_long ulmin(u_long a, u_long b) { return (a < b ? a : b); }
+static __inline int imax(int a, int b) { return (a > b ? a : b); }
+static __inline int imin(int a, int b) { return (a < b ? a : b); }
+static __inline long lmax(long a, long b) { return (a > b ? a : b); }
+static __inline long lmin(long a, long b) { return (a < b ? a : b); }
+static __inline u_int max(u_int a, u_int b) { return (a > b ? a : b); }
+static __inline u_int min(u_int a, u_int b) { return (a < b ? a : b); }
+static __inline quad_t qmax(quad_t a, quad_t b) { return (a > b ? a : b); }
+static __inline quad_t qmin(quad_t a, quad_t b) { return (a < b ? a : b); }
+static __inline u_long ulmax(u_long a, u_long b) { return (a > b ? a : b); }
+static __inline u_long ulmin(u_long a, u_long b) { return (a < b ? a : b); }
 
 /* Prototypes for non-quad routines. */
 int	 bcmp __P((const void *, const void *, size_t));
