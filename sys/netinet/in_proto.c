@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$Id: in_proto.c,v 1.40 1997/05/25 06:09:23 peter Exp $
+ *	$Id: in_proto.c,v 1.41 1997/09/16 11:43:55 bde Exp $
  */
+
+#include "opt_tcpdebug.h"
 
 #include <sys/param.h>
 #include <sys/queue.h>

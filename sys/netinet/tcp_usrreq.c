@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.33 1997/08/16 19:15:40 wollman Exp $
+ *	$Id: tcp_usrreq.c,v 1.34 1997/09/14 03:10:40 peter Exp $
  */
+
+#include "opt_tcpdebug.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

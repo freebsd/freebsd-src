@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.59 1997/07/01 05:42:16 jdp Exp $
+ *	$Id: tcp_input.c,v 1.60 1997/08/16 19:15:39 wollman Exp $
  */
+
+#include "opt_tcpdebug.h"
 
 #ifndef TUBA_INCLUDE
 #include <sys/param.h>
