@@ -65,11 +65,6 @@ ENTRY(casuptr)
 	bic	r14, r14, #(I32_bit) ; \
 	msr	cpsr_all, r14
 
-ENTRY(disable_intr)
-	IRQdisableALL
-ENTRY(enable_intr)
-	IRQenableALL
-
 /*
  * memset: Sets a block of memory to the specified value
  *
