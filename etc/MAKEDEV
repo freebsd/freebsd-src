@@ -91,6 +91,13 @@
 # PC-CARD (previously called PCMCIA) support
 #	card*	PC-CARD slots
 #
+# ISDN devices:
+#	i4b	isdnd call control device
+#	i4bctl	debugging control device
+#	i4btrc* trace data interface(s), one per passive card
+#	i4btel* telephony interface(s)
+#	i4brbch* raw b channel access device(s)
+#
 # Special purpose devices:
 #	apm	Advanced Power Management BIOS
 #	bpf*	packet filter
@@ -114,7 +121,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.179 1999/01/03 16:48:03 n_hibma Exp $
+#	$Id: MAKEDEV,v 1.180 1999/01/06 16:18:05 yokota Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -216,7 +223,10 @@ all)
 	sh MAKEDEV ch0 perfmon tw0			# cdev, miscellaneous
 	sh MAKEDEV apm card0 card1			# cdev, laptop
 	sh MAKEDEV pass4 xpt2				# cdev, CAM
+	sh MAKEDEV i4b i4bctl i4btrc0 i4btrc1		# cdev, ISDN
+	sh MAKEDEV i4brbch0 i4brbch1 i4btel0 i4btel1	# cdev, ISDN
 	;;
+
 std)
 	mknod console	c 0 0;	chmod 600 console
 	mknod drum	c 4 0;	chmod 640 drum;		chgrp kmem drum
@@ -1280,6 +1290,39 @@ kbd*)
 	unit=`expr $i : 'kbd\(.*\)'`
 	chr=112
 	mknod kbd$unit c $chr $unit
+	;;
+
+i4b)
+	mknod i4b c 60 0
+	chown root:wheel i4b
+	chmod 600 i4b
+	;;
+
+i4bctl)
+	mknod i4bctl c 55 0
+	chown root:wheel i4bctl
+	chmod 600 i4bctl
+	;;
+
+i4brbch*)
+	unit=`expr $i : 'i4brbch\(.*\)'`
+	mknod i4brbch$unit c 57 $unit
+	chown root:wheel i4brbch$unit
+	chmod 600 i4brbch$unit
+	;;
+
+i4btel*)
+	unit=`expr $i : 'i4btel\(.*\)'`
+	mknod i4btel$unit c 56 $unit
+	chown root:wheel i4btel$unit
+	chmod 600 i4btel$unit
+	;;
+
+i4btrc*)
+	unit=`expr $i : 'i4btrc\(.*\)'`
+	mknod i4btrc$unit c 59 $unit
+	chown root:wheel i4btrc$unit
+	chmod 600 i4btrc$unit
 	;;
 
 local)
