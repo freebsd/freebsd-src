@@ -75,14 +75,14 @@ pid_t client_pid;
 struct mon mon_host;
 
 void	init_nsm(void);
-int	main __P((int, char **));
-void	nlm_prog_0 __P((struct svc_req *, SVCXPRT *));
-void	nlm_prog_1 __P((struct svc_req *, SVCXPRT *));
-void	nlm_prog_3 __P((struct svc_req *, SVCXPRT *));
-void	nlm_prog_4 __P((struct svc_req *, SVCXPRT *));
-void	usage __P((void));
+int	main(int, char **);
+void	nlm_prog_0(struct svc_req *, SVCXPRT *);
+void	nlm_prog_1(struct svc_req *, SVCXPRT *);
+void	nlm_prog_3(struct svc_req *, SVCXPRT *);
+void	nlm_prog_4(struct svc_req *, SVCXPRT *);
+void	usage(void);
 
-void sigalarm_handler __P((void));
+void sigalarm_handler(void);
 
 const char *transports[] = { "udp", "tcp", "udp6", "tcp6" };
 
