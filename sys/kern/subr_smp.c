@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.93 1999/03/05 16:38:10 bde Exp $
+ *	$Id: mp_machdep.c,v 1.94 1999/04/07 17:08:40 peter Exp $
  */
 
 #include "opt_smp.h"
@@ -1927,6 +1927,9 @@ start_all_aps(u_int boot_addr)
 	for (i = 0; i < mp_ncpus; i++) {
 		bcopy( (int *) PTD + KPTDI, (int *) IdlePTDS[i] + KPTDI, NKPDE * sizeof (int));
 	}
+	wait_ap(1000000);
+	if (smp_started == 0)
+		printf("WARNING: Failed to start all APs\n");
 
 	/* number of APs actually started */
 	return mp_ncpus - 1;
