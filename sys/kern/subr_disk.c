@@ -313,6 +313,8 @@ diskopen(dev_t dev, int oflags, int devtype, struct thread *td)
 		error = dp->d_devsw->d_open(pdev, oflags, devtype, td);
 		dp->d_label->d_secsize = dp->d_sectorsize;
 		dp->d_label->d_secperunit = dp->d_mediasize / dp->d_sectorsize;
+		dp->d_label->d_nsectors = dp->d_fwsectors;
+		dp->d_label->d_ntracks = dp->d_fwheads;
 	}
 
 	/* Inherit properties from the whole/raw dev_t */
