@@ -11,38 +11,28 @@
 flush
 .Nm ipfw
 zero
-.Oo
-.Ar number
-.Oc
+.Op Ar number
 .Nm ipfw
 delete
 .Ar number
 .Nm ipfw
-.Oo
-.Fl aftN
-.Oc
+.Op Fl aftN
 list
 .Nm ipfw
 add
-.Oo
-.Ar number
-.Oc
+.Op Ar number
 .Ar action 
-.Oo
-log
-.Oc
+.Op Ar log
 .Ar proto
 from
 .Ar src
 to
 .Ar dst
-.Oo 
+.Oo
 via
-.Ar name|ipno
+.Ar name | ipno
 .Oc
-.Oo 
-.Ar options
-.Oc
+.Op Ar options
 .Sh DESCRIPTION
 If used as shown in the first synopsis line, the
 .Ar file
@@ -83,7 +73,7 @@ One rule is always present:
 .Bd -literal -offset center
 65535 deny all from any to any
 .Ed
-
+.Pp
 This rule is the default policy, i.e., don't allow anything at all.
 Your job in setting up rules is to modify this policy to match your needs.
 .Pp
@@ -105,33 +95,33 @@ Try to resolve addresses and service names in output.
 .Pp
 .Ar action :
 .Bl -hang -offset flag -width 1234567890123456
-.It Nm allow
+.It Ar allow
 Allow packets that match rule.
 The search terminates.
-.It Nm pass
+.It Ar pass
 Same as allow.
-.It Nm accept
+.It Ar accept
 Same as allow.
-.It Nm count
+.It Ar count
 Update counters for all packets that match rule.
 The search continues with the next rule.
-.It Nm deny
+.It Ar deny
 Discard packets that match this rule.
 The search terminates.
-.It Nm reject
+.It Ar reject
 Discard packets that match this rule, and try to send an ICMP notice.
 The search terminates.
-.It Nm divert port
+.It Ar divert port
 Divert packets that match this rule to the divert socket bound to port
 .Ar port .
 The search terminates.
 .El
 .Pp
 When a packet matches a rule with the
-.Nm log
+.Ar log
 keyword, a message will be printed on the console.
 If the kernel was compiled with the
-.Nm IP_FIREWALL_VERBOSE_LIMIT
+.Dv IP_FIREWALL_VERBOSE_LIMIT
 option, then logging will cease after the number of packets
 specified by the option are received for that particular
 chain entry.  Logging may then be re-enabled by clearing
@@ -139,17 +129,17 @@ the packet counter for that entry.
 .Pp
 .Ar proto :
 .Bl -hang -offset flag -width 1234567890123456
-.It Nm ip
+.It Ar ip
 All packets match.
-.It Nm all
+.It Ar all
 All packets match.
-.It Nm tcp
+.It Ar tcp
 Only TCP packets match.
-.It Nm udp
+.It Ar udp
 Only UDP packets match.
-.It Nm icmp
+.It Ar icmp
 Only ICMP packets match.
-.It Nm <number|name>
+.It Ar <number|name>
 Only packets for the specified protocol matches (see
 .Pa /etc/protocols
 for a complete list).
@@ -193,8 +183,9 @@ Service names (from
 may not be used instead of a numeric port value.
 Also, note that a range may only be specified as the first value,
 and the port list is limited to
-.Nm IP_FW_MAX_PORTS
-(as defined in /usr/src/sys/netinet/ip_fw.h)
+.Dv IP_FW_MAX_PORTS
+(as defined in 
+.Pa /usr/src/sys/netinet/ip_fw.h )
 ports.
 .Pp
 If ``via''
@@ -225,13 +216,13 @@ Matches if the IP header contains the comma separated list of
 options specified in
 .Ar spec .
 The supported IP options are:
-.Nm ssrr 
+.Ar ssrr 
 (strict source route),
-.Nm lsrr 
+.Ar lsrr 
 (loose source route),
-.Nm rr 
+.Ar rr 
 (record packet route), and
-.Nm ts 
+.Ar ts 
 (timestamp).
 The absence of a particular option may be denoted
 with a ``!''.
@@ -246,13 +237,13 @@ Matches if the TCP header contains the comma separated list of
 flags specified in
 .Ar spec .
 The supported TCP flags are:
-.Nm fin ,
-.Nm syn ,
-.Nm rst ,
-.Nm psh ,
-.Nm ack ,
+.Ar fin ,
+.Ar syn ,
+.Ar rst ,
+.Ar psh ,
+.Ar ack ,
 and
-.Nm urg .
+.Ar urg .
 The absence of a particular flag may be denoted
 with a ``!''.
 .It icmptypes Ar types
@@ -264,7 +255,7 @@ or individual types separated by commas.
 .Sh CHECKLIST
 Here are some important points to consider when designing your
 rules:
-.Bl -bullet -hang -offset flag -width 1234567890123456
+.Bl -bullet -hang -offset flag 
 .It 
 Remember that you filter both packets going in and out.
 Most connections need packets going in both directions.
@@ -288,12 +279,12 @@ I recommend this command line:
 modload /lkm/ipfw_mod.o && \e
 ipfw add 32000 allow all from any to any
 .Ed
-
+.Pp
 Along the same lines, doing an
 .Bd -literal -offset center
 ipfw flush
 .Ed
-
+.Pp
 in similar surroundings is also a bad idea.
 .Sh PACKET DIVERSION
 A divert socket bound to the specified port will receive all packets diverted

@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: adduser.8,v 1.12 1996/08/28 17:54:13 adam Exp $
+.\" $Id: addgroup.8,v 1.2 1996/12/23 00:10:14 mpp Exp $
 
 .Dd Oct, 30, 1996
 .Dt ADDGROUP 8
@@ -34,17 +34,19 @@
 .Nm 
 .Op Fl g Ar gid 
 .Ar group 
-.Op Ar user Op , Ar user,...
+.Op Ar user Ns , Ns Ar user,...
 .Sh DESCRIPTION
+The
 .Nm 
-add a group to
+command adds a group to the
 .Xr group 5
 database.
-Optional 
+The optional
 .Ar user
-initialized the group with group members.
+is added to the group membership list.
+The
 .Ar user
-may be a comma separated list of user names.
+argument may be a comma separated list of user names.
 If 
 .Ar group
 already exists 
@@ -52,14 +54,14 @@ already exists
 add
 .Ar user
 to the
-.Ar group.
+.Ar group .
 .Sh OPTIONS
 .Bl -tag -width Ds
 .It Sy -g gid
 Create new group with group id
 .Ar gid
-if possible or higher. Default gid is 1000. 
-This option has only affects for new groups. 
+if possible or the next higher id that is available. Default gid is 1000. 
+This option only applies to new groups. 
 .El
 .Sh EXAMPLES
 .Pp
@@ -70,7 +72,7 @@ Add group `cracau' with group identification 5000 or higher.
 $ addgroup foo blech,bar
 .Pp
 Add user `blech' and user `bar' to group `foo'. Create group
-`foo' if not exists.
+`foo' if it does not exist.
 .Sh SEE ALSO
 .Xr group 5 ,
 .Xr adduser 8 ,

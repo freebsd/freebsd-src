@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.19 1996/09/17 19:34:56 wosch Exp $
+# $Id: adduser.perl,v 1.23 1996/12/23 00:10:19 mpp Exp $
 
 
 # read variables
@@ -307,9 +307,9 @@ sub new_users_name {
     local($name);
 
     while(1) {
-	$name = &confirm_list("Enter username", 1, "a-z0-9", "");
-	if (length($name) > 8) {
-	    warn "Username is longer than 8 chars\a\n";
+	$name = &confirm_list("Enter username", 1, "A-Za-z0-9_", "");
+	if (length($name) > 16) {
+	    warn "Username is longer than 16 chars\a\n";
 	    next;
 	}
 	last if (&new_users_name_valid($name) eq $name);
@@ -789,7 +789,7 @@ usage: adduser
     [-message message_file]
     [-noconfig]
     [-shell shell]
-    [-s|-silent|-q|-quit]
+    [-s|-silent|-q|-quiet]
     [-uid uid_start]
     [-v|-verbose]
 
@@ -854,7 +854,7 @@ sub parse_arguments {
 	shift @argv;
 	last if /^--$/;
 	if    (/^--?(v|verbose)$/)	{ $verbose = 1 }
-	elsif (/^--?(s|silent|q|quit)$/)  { $verbose = 0 }
+	elsif (/^--?(s|silent|q|quiet)$/)  { $verbose = 0 }
 	elsif (/^--?(debug)$/)	    { $verbose = 2 }
 	elsif (/^--?(h|help|\?)$/)	{ &usage }
 	elsif (/^--?(home)$/)	 { $home = $argv[0]; shift @argv }
