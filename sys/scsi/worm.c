@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.29.2.1 1996/11/06 19:21:53 joerg Exp $
+ *      $Id: worm.c,v 1.29.2.2 1997/03/05 13:56:28 joerg Exp $
  */
 
 #include "opt_bounce.h"
@@ -65,6 +65,7 @@
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_disk.h>
 #include <scsi/scsi_worm.h>
+#include <sys/dkstat.h>
 /* #include <scsi/scsi_cd.h> */ /* XXX a CD-R includes all CD functionality */
 
 struct worm_quirks
@@ -89,6 +90,7 @@ struct worm_quirks
 struct scsi_data
 {
 	struct buf_queue_head buf_queue;
+	int dkunit;		/* disk stats unit number */
 	u_int32_t n_blks;		/* Number of blocks (0 for bogus) */
 	u_int32_t blk_size;	/* Size of each blocks */
 #ifdef	DEVFS
@@ -202,6 +204,18 @@ struct worm_quirks worm_quirks[] = {
 	{0}
 };
 
+static inline void
+worm_registerdev(int unit)
+{
+	if (dk_ndrive < DK_NDRIVE) {
+		sprintf(dk_names[dk_ndrive], "worm%d", unit);
+		dk_wpms[dk_ndrive] = (1*1024*1024/2);	/* 1MB/sec XXX - fake! */
+		SCSI_DATA(&worm_switch, unit)->dkunit = dk_ndrive++;
+	} else {
+		SCSI_DATA(&worm_switch, unit)->dkunit = -1;
+	}
+}
+
 static errval
 worm_size(struct scsi_link *sc_link, int flags)
 {
@@ -238,6 +252,7 @@ worm_size(struct scsi_link *sc_link, int flags)
 static errval
 wormattach(struct scsi_link *sc_link)
 {
+	u_int32_t unit = sc_link->dev_unit;
 #ifdef DEVFS
 	int mynor;
 #endif
@@ -257,6 +272,7 @@ wormattach(struct scsi_link *sc_link)
 		devfs_add_devswf(&worm_cdevsw, mynor | SCSI_CONTROL_MASK,
 				 DV_CHR, 0, 0, 0600, "rworm%d.ctl", mynor);
 #endif
+	worm_registerdev(unit);
 	return 0;
 }
 
@@ -350,6 +366,11 @@ wormstart(unit, flags)
 			100000,
 			bp,
 			flags | SCSI_NOSLEEP) == SUCCESSFULLY_QUEUED) {
+			if (worm->dkunit >= 0) {	/* Cloned from od.c, possibly with same mistakes. :) */
+				dk_xfer[worm->dkunit]++;
+				dk_seek[worm->dkunit] = 1; /* single track */
+				dk_wds[worm->dkunit] += bp->b_bcount >> 6;
+			}
 			if ((bp->b_flags & B_READ) == B_WRITE)
 				worm->worm_flags |= WORMFL_WRITTEN;
 		} else {
