@@ -1,0 +1,315 @@
+{
+#include "main.h"
+#include "sets.h"
+#include <stdio.h> 
+
+extern FILE *eventfile_h, *actfile; 
+}
+
+*fmq
+
+	novocab
+	nobnf
+	nofirst
+	nofollow
+	noparsetable
+	noerrortables
+	nos
+	noe
+
+*terminals
+
+ID		 	0	0	{ char *address; }
+STRUCT		0	0
+SYNONYM		0	0
+PREDICATE		0	0	{ char *address; }
+ACTION		0	0	{ char *address; }
+/*
+FSTRING		0	0	{ char *address; }
+*/
+PROTOCOL	0	0	
+LBRACK		0	0
+RBRACK		0	0
+LANGLE		0	0
+EQUAL		0	0
+COMMA		0	0
+STAR		0	0
+EVENTS		0	0
+TRANSITIONS	0	0
+INCLUDE		0	0
+STATES		0	0
+SEMI		0	0
+PCB			0	0		{ char *address; }
+DEFAULT		0	0
+NULLACTION	0 	0
+SAME		0 	0
+
+*nonterminals
+
+pcb				{ char *address; int isevent; }
+syn				{ int type; }
+setlist			{ struct Object *setnum; }
+setlisttail		{ struct Object *setnum; }
+part			{ unsigned char type; }
+parttail		{ unsigned char type; }
+partrest		{ unsigned char type; char *address; }
+setstruct		{ struct Object *object; }
+setdef			{ unsigned char type,keep; char *address; struct Object *object; }
+translist		
+transition	
+event			{ struct Object *object;  }
+oldstate		{	struct Object *object;	}
+newstate		{	struct Object *object;	}
+predicatepart 	{	char *string; }
+actionpart		{ 	char *string; struct Object *oldstate; struct Object *newstate; }
+
+*productions
+
+program 	::= 
+				STAR PROTOCOL ID 
+				{	
+					if(strlen($ID.address) > 50 ) {
+						fprintf(stderr, 
+						"Protocol name may not exceed 50 chars in length.\n"); 
+						Exit(-1);
+					}
+					strcpy(protocol, $ID.address); 
+					openfiles(protocol); 
+				}
+				STAR includelist
+				PCB  
+				{ 
+					$$pcb.isevent = 0; 
+				}
+				pcb 
+				{
+				  fprintf(actfile, "\ntypedef %s %s%s;\n",
+							  $pcb[7].address,protocol, PCBNAME); 
+				  $$syn.type = PCB_SYN;
+				} 
+				syn 
+				STAR STATES { $$part.type = (unsigned char) STATESET; } part
+				STAR { end_states(eventfile_h); } EVENTS 
+				{ $$pcb.isevent = 1; }
+				pcb 
+				{
+					fprintf(eventfile_h, "\t"); /* fmq gags on single chars */
+					includecode(eventfile_h, $pcb[14].address);
+					fprintf(eventfile_h, "\n"); /* fmq gags on single chars */
+					$$syn.type = EVENT_SYN;
+				}
+				syn 
+				{ 
+				  	$$part.type = (unsigned char)EVENTSET; 
+				} 
+				part 
+				STAR { end_events(); } 
+				TRANSITIONS 
+				{ 
+					putincludes();
+					putdriver(actfile, 9);
+				} 
+				translist
+;
+pcb 	::=  STRUCT  
+			 {	if($pcb.isevent)  {
+					fprintf(stderr, 
+					"Event is a list of objects enclosed by \"{}\"\n");
+					Exit(-1);
+				}
+			  fprintf(eventfile_h, "struct "); 
+			}
+			 ACTION { $pcb.address = $ACTION.address; }
+			 optsemi
+		::=	 ACTION 
+			{	if( ! $pcb.isevent)  {
+					fprintf(stderr, 
+					"Pcb requires a type or structure definition.\"{}\"\n");
+					Exit(-1);
+				}
+			   $pcb.address = $ACTION.address; 
+			}
+			 optsemi
+		::=  ID {  $pcb.address = $ID.address; } optsemi
+;
+
+syn ::= SYNONYM ID { synonyms[$syn.type] = stash( $ID.address ); }
+		::= 
+;
+
+optsemi ::= SEMI 
+		::= 
+;
+includelist ::= INCLUDE ACTION { includecode(actfile, $ACTION.address);} STAR
+			::=
+;
+part ::= ID 
+		{ 
+			$$partrest.address = $ID.address;
+			$$partrest.type = $part.type; 
+		}
+		partrest  
+		{ $$parttail.type = $part.type; } 
+		parttail
+;
+parttail ::= { $$part.type = $parttail.type; } part 
+		::=  
+;
+partrest ::=  EQUAL 
+			{ 
+			  if(  lookup( $partrest.type, $partrest.address ) ) {
+				fprintf(stderr, "bnf:trying to redefine obj type 0x%x, adr %s\n",
+					$partrest.type, $partrest.address);
+				Exit(-1);
+			  } 
+			  $$setdef.type = $partrest.type;
+			  $$setdef.address = stash( $partrest.address );
+			  $$setdef.keep = 1;
+			} setdef { $$setstruct.object = $setdef.object; } setstruct
+
+	::=  ACTION 
+		{ 
+		 defineitem($partrest.type, 
+					$partrest.address, $ACTION.address); 
+		}
+
+	::= { 
+			defineitem($partrest.type, $partrest.address, (char *)0);
+		}
+;
+
+setstruct ::= ACTION 
+			{
+				if($setstruct.object)  {
+					/* WHEN COULD THIS BE FALSE?? 
+					 * isn't it supposed to be setstruct.object???
+					 * (it used to be $ACTION.address)
+					 */
+
+					$setstruct.object->obj_struc = $ACTION.address;
+					fprintf(eventfile_h, 
+						"struct %s %s%s;\n\n", $ACTION.address, 
+						EV_PREFIX,  $setstruct.object->obj_name);
+				}
+			}
+		::=
+;
+
+setdef ::= LBRACK 
+		{ 
+			$$setlist.setnum = 
+			defineset($setdef.type, $setdef.address, $setdef.keep); 
+		} setlist RBRACK { $setdef.object = $setlist.setnum; }
+;
+
+setlist ::= ID 
+	{ 
+		member($setlist.setnum, $ID.address); 
+				$$setlisttail.setnum = $setlist.setnum; 
+	} setlisttail 
+;
+
+setlisttail ::= COMMA { $$setlist.setnum = $setlisttail.setnum; } setlist
+		::=
+;
+translist		::=	 transition  translisttail 
+;
+translisttail	::= translist
+	::=	
+;
+transition ::=  newstate { transno ++; } LANGLE EQUAL EQUAL oldstate  
+	event 
+	{ 
+	 	CurrentEvent /* GAG! */ = $event.object; 
+	 }
+	predicatepart
+	{ 
+		$$actionpart.string = $predicatepart.string; 
+		$$actionpart.newstate = $newstate.object; 
+		$$actionpart.oldstate = $oldstate.object;
+	}
+	actionpart
+	SEMI
+;
+
+predicatepart ::= PREDICATE
+	{ 
+		 $predicatepart.string = stash ( $PREDICATE.address );
+	}
+	::= DEFAULT
+	{ 
+		$predicatepart.string = (char *)0;
+	}
+;
+
+actionpart ::=  
+	ACTION
+	{
+	  statetable( $actionpart.string, $actionpart.oldstate, 
+					$actionpart.newstate,
+					acttable(actfile, $ACTION.address ), 
+					CurrentEvent ); 
+	  if( print_trans ) {
+	  	dump_trans( $actionpart.string, $actionpart.oldstate, 
+					$actionpart.newstate,
+					$ACTION.address, CurrentEvent ); 
+	  }
+	}
+	::= NULLACTION
+	{
+	  statetable($actionpart.string, $actionpart.oldstate, $actionpart.newstate,
+				  0, CurrentEvent ); /* KLUDGE - remove this */
+	  if( print_trans ) {
+	  	dump_trans( $actionpart.string, $actionpart.oldstate, 
+					$actionpart.newstate,
+					"NULLACTION", CurrentEvent ); 
+	  }
+	}
+;
+
+oldstate ::= ID 
+	{	
+		$oldstate.object = Lookup(STATESET, $ID.address);
+	}
+	::= {
+			$$setdef.address = (char *)0;
+			$$setdef.type = (unsigned char)STATESET; 
+			$$setdef.keep = 0;
+		}
+		setdef 
+		{ 
+			$oldstate.object = $setdef.object; 
+		}
+;
+
+newstate ::= ID 
+	{ 
+		$newstate.object = Lookup(STATESET, $ID.address); 
+	}
+;
+
+newstate ::= SAME 
+	{ 
+		extern struct Object *SameState;
+
+		$newstate.object = SameState;
+	}
+;
+
+event ::= ID 
+		{
+			$event.object = Lookup(EVENTSET, $ID.address); 
+		}
+	::= 
+		{
+			$$setdef.address = (char *)0;
+			$$setdef.type = (unsigned char)EVENTSET; 
+			$$setdef.keep = 0;
+		}
+		setdef 
+		{ 
+			$event.object = $setdef.object; 
+		}
+;
+
+*end
