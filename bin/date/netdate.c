@@ -147,7 +147,7 @@ loop:
 	if (!getsockopt(s,
 	    SOL_SOCKET, SO_ERROR, (char *)&err, &length) && err) {
 		if (err != ECONNREFUSED)
-			warn("send (delayed error)");
+			warnc(err, "send (delayed error)");
 		goto bad;
 	}
 
