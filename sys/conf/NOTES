@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.560 1999/02/22 18:19:57 des Exp $
+#	$Id: LINT,v 1.561 1999/03/01 21:19:18 sos Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1016,6 +1016,7 @@ controller      aha0    at isa? port ? cam irq ?
 #controller	ata0
 #device		atadisk0	# ATA disk drives
 #device		atapicd0	# ATAPI CDROM drives
+#device		atapifd0	# ATAPI floppy drives
 #device		atapist0	# ATAPI tape drives
 #
 # If you need ISA only devices, this is the lines to add:
