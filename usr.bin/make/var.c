@@ -1160,38 +1160,6 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, int *lengthPtr, Boolean *freePtr)
 
 	    DEBUGF(VAR, ("Applying :%c to \"%s\"\n", *tstr, str));
 	    switch (*tstr) {
-		case 'U':
-			if (tstr[1] == endc || tstr[1] == ':') {
-				Buffer buf;
-				buf = Buf_Init(MAKE_BSIZE);
-				for (cp = str; *cp ; cp++)
-					Buf_AddByte(buf, (Byte) toupper(*cp));
-
-				Buf_AddByte(buf, (Byte) '\0');
-				newStr = (char *) Buf_GetAll(buf, (int *) NULL);
-				Buf_Destroy(buf, FALSE);
-
-				cp = tstr + 1;
-				termc = *cp;
-				break;
-			}
-			/* FALLTHROUGH */
-		case 'L':
-			if (tstr[1] == endc || tstr[1] == ':') {
-				Buffer buf;
-				buf = Buf_Init(MAKE_BSIZE);
-				for (cp = str; *cp ; cp++)
-					Buf_AddByte(buf, (Byte) tolower(*cp));
-
-				Buf_AddByte(buf, (Byte) '\0');
-				newStr = (char *) Buf_GetAll(buf, (int *) NULL);
-				Buf_Destroy(buf, FALSE);
-
-				cp = tstr + 1;
-				termc = *cp;
-				break;
-			}
-			/* FALLTHROUGH */
 		case 'N':
 		case 'M':
 		{
@@ -1494,6 +1462,22 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, int *lengthPtr, Boolean *freePtr)
 		    free(pattern.matches);
 		    break;
 		}
+		case 'L':
+		    if (tstr[1] == endc || tstr[1] == ':') {
+			Buffer buf;
+			buf = Buf_Init(MAKE_BSIZE);
+			for (cp = str; *cp ; cp++)
+			    Buf_AddByte(buf, (Byte) tolower(*cp));
+
+			Buf_AddByte(buf, (Byte) '\0');
+			newStr = (char *) Buf_GetAll(buf, (int *) NULL);
+			Buf_Destroy(buf, FALSE);
+
+			cp = tstr + 1;
+			termc = *cp;
+			break;
+		    }
+		    /* FALLTHROUGH */
 		case 'O':
 		    if (tstr[1] == endc || tstr[1] == ':') {
 			newStr = VarSortWords(str, SortIncreasing);
@@ -1518,6 +1502,22 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, int *lengthPtr, Boolean *freePtr)
 			break;
 		    }
 		    /*FALLTHRU*/
+		case 'U':
+		    if (tstr[1] == endc || tstr[1] == ':') {
+			Buffer buf;
+			buf = Buf_Init(MAKE_BSIZE);
+			for (cp = str; *cp ; cp++)
+			    Buf_AddByte(buf, (Byte) toupper(*cp));
+
+			Buf_AddByte(buf, (Byte) '\0');
+			newStr = (char *) Buf_GetAll(buf, (int *) NULL);
+			Buf_Destroy(buf, FALSE);
+
+			cp = tstr + 1;
+			termc = *cp;
+			break;
+		    }
+		    /* FALLTHROUGH */
 		case 'H':
 		    if (tstr[1] == endc || tstr[1] == ':') {
 			newStr = VarModify (str, VarHead, (void *)0);
