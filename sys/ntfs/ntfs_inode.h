@@ -55,17 +55,18 @@
 #define	IN_PRELOADED	0x4000	/* loaded from directory entry */
 
 struct ntnode {
-	LIST_ENTRY(ntnode) i_hash;
+	LIST_ENTRY(ntnode)	i_hash;
 	struct ntnode  *i_next;
 	struct ntnode **i_prev;
-	struct ntfsmount *i_mp;
+	struct ntfsmount       *i_mp;
 	ino_t           i_number;
 	dev_t           i_dev;
 	u_int32_t       i_flag;
+	int		i_lock;
 	int		i_usecount;
 
-	LIST_HEAD(,fnode) i_fnlist;
-	struct ntvattr *i_vattrp;	/* ntvattrs list */
+	LIST_HEAD(,fnode)	i_fnlist;
+	LIST_HEAD(,ntvattr)	i_valist;
 
 	long		i_nlink;	/* MFR */
 	ino_t		i_mainrec;	/* MFR */
@@ -77,7 +78,7 @@ struct ntnode {
 };
 
 #define	FN_PRELOADED	0x0001
-#define	FN_DEFAULT	0x0002
+#define	FN_VALID	0x0002
 #define	FN_AATTRNAME	0x0004	/* space allocated for f_attrname */
 struct fnode {
 	struct lock	f_lock;		/* Must be first */
