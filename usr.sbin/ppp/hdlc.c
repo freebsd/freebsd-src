@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.39 1999/02/11 10:14:08 brian Exp $
+ * $Id: hdlc.c,v 1.40 1999/03/29 08:21:26 brian Exp $
  *
  *	TODO:
  */
@@ -558,35 +558,41 @@ hdlc_Input(struct bundle *bundle, struct mbuf * bp, struct physical *physical)
 }
 
 /*
- *  Detect a HDLC frame
+ * Detect a HDLC frame
  */
 
-static const char *FrameHeaders[] = {
-  "\176\377\003\300\041",
-  "\176\377\175\043\300\041",
-  "\176\177\175\043\100\041",
-  "\176\175\337\175\043\300\041",
-  "\176\175\137\175\043\100\041",
-  NULL,
+static const struct frameheader {
+  const u_char *data;
+  int len;
+} FrameHeaders[] = {
+  { "\176\377\003\300\041", 5 },
+  { "\176\377\175\043\300\041", 6 },
+  { "\176\177\175\043\100\041", 6 },
+  { "\176\175\337\175\043\300\041", 7 },
+  { "\176\175\137\175\043\100\041", 7 },
+  { NULL, 0 }
 };
 
-u_char *
-hdlc_Detect(struct physical *physical, u_char *cp, int n)
+int
+hdlc_Detect(u_char const **cp, int n, int issync)
 {
-  const char *fp, **hp;
-  char *ptr;
+  const struct frameheader *fh;
+  const u_char *h;
+  size_t len, cmp;
 
-  cp[n] = '\0';				/* be sure to null terminate */
-  ptr = NULL;
-  for (hp = FrameHeaders; *hp; hp++) {
-    fp = *hp;
-    if (physical_IsSync(physical))
-      fp++;
-    ptr = strstr((char *)cp, fp);	/* XXX: cp may have embedded NULs */
-    if (ptr)
-      break;
+  while (n) {
+    for (fh = FrameHeaders; fh->len; fh++) {
+      h = issync ? fh->data + 1 : fh->data;
+      len = issync ? fh->len - 1 : fh->len;
+      cmp = n >= len ? len : n;
+      if (memcmp(*cp, h, cmp) == 0)
+        return cmp == len;
+    }
+    n--;
+    (*cp)++;
   }
-  return (u_char *)ptr;
+
+  return 0;
 }
 
 int
