@@ -312,7 +312,7 @@
 
       <para>The cm driver now supports IPX. &merged;</para>
 
-      <para arch="i386,pc98">The &man.rue.4; network has been added,
+      <para arch="i386,pc98">The &man.rue.4; network driver has been added,
 	providing support for Ethernet adapters based on the RealTek
 	RTL8150 USB to Fast Ethernet controller chip.</para>
 
