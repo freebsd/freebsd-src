@@ -469,8 +469,7 @@ legacy_pcib_write_ivar(device_t dev, device_t child, int which,
 	return ENOENT;
 }
 
-
-struct resource *
+static struct resource *
 legacy_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
