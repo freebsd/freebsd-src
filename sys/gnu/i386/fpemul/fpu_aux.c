@@ -62,9 +62,7 @@
 
 
 #include <sys/param.h>
-#include <sys/systm.h>		/* for printf() in EXCEPTION() and
-				 * to bring in <machine/cpufunc.h
-				 */
+#include <sys/systm.h>
 #include <sys/proc.h>
 #include <machine/cpu.h>
 #include <machine/pcb.h>
