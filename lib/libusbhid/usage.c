@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
-#include "libusb.h"
+#include "libusbhid.h"
 
 #define _PATH_HIDTABLE "/usr/share/misc/usb_hid_usages"
 
