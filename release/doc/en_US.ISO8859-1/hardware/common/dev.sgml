@@ -767,6 +767,33 @@
       </itemizedlist>
     </para>
 
+    <para arch="i386">Compaq Intelligent Drive Array Controllers
+      (ida driver)
+
+      <itemizedlist>
+	<listitem>
+	  <para>Compaq SMART Array 221</para>
+	</listitem>
+
+	<listitem>
+	  <para>Compaq Integrated SMART Array Controller</para>
+	</listitem>
+
+	<listitem>
+	  <para>Compaq SMART Array 4200, 4250ES Controllers</para>
+	</listitem>
+
+	<listitem>
+	  <para>Compaq SMART Array 3200, 3100ES Controller</para>
+	</listitem>
+
+	<listitem>
+	  <para>Compaq SMART-2/DH, SMART-2/SL, SMART-2/P, SMART-2E, and
+	    SMART Controllers</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
     <para arch="i386">SCSI adapters utilizing the Command Interface
     for SCSI-3 Support (ciss driver)
       <itemizedlist>
@@ -2378,6 +2405,31 @@
 	</listitem>
       </itemizedlist>
     </para>
+
+    <para arch="i386">LAN Media Corp WAN adapters based on the DEC
+      <quote>Tulip</quote> Fast Ethernet controller (lmc
+      driver)
+
+      <itemizedlist>
+        <listitem>
+	  <para>LMC1000 Synchronous Serial Interface adapter</para>
+        </listitem>
+
+        <listitem>
+	  <para>LMC1200 T1/E1 WAN adapter</para>
+        </listitem>
+
+        <listitem>
+	  <para>LMC5200 High Speed Synchronous Interface (HSSI)
+	    adapter</para>
+        </listitem>
+
+        <listitem>
+	  <para>LMC5245 DS3 WAN adapter</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+
   </sect2>
 
   <sect2>

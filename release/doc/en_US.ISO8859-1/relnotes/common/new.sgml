@@ -822,6 +822,10 @@
 	the Sun HME Fast Ethernet adapter, onboard on many Sun Ultra
 	series machines.</para>
 
+      <para>The lmc driver has been added to support LAN Media
+	Corp WAN adapters based on the DEC <quote>Tulip</quote> PCI
+	Fast Ethernet controller.</para>
+
       <para role="historic">The &man.lge.4; driver has been added to support the Level
 	1 LXT1001 NetCellerator Gigabit Ethernet controller chip. This
 	device is used on some fiber optic GigE cards from SMC, D-Link
