@@ -861,6 +861,9 @@ rt_newaddrmsg(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt)
 	struct mbuf *m = NULL;
 	struct ifnet *ifp = ifa->ifa_ifp;
 
+	KASSERT(cmd == RTM_ADD || cmd == RTM_DELETE,
+		("unexpected cmd %u", cmd));
+
 	if (route_cb.any_count == 0)
 		return;
 	for (pass = 1; pass < 3; pass++) {
