@@ -82,7 +82,7 @@
 #define	R_ARM_RPC24		254
 #define	R_ARM_RBASE		255
 
-#define R_ARM_COUNT		33	/* Count of defined relocation types. */
+#define	R_ARM_COUNT		33	/* Count of defined relocation types. */
 
 
 /* Define "machine" characteristics */
