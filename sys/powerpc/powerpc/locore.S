@@ -86,36 +86,6 @@ GLOBAL(proc0paddr)
 	.long	0			/* proc0 p_addr */
 GLOBAL(PTmap)
 	.long	0			/* PTmap */
-GLOBAL(decrnest)
-	.long	0
-
-GLOBAL(intrnames)
-	.asciz	"irq0", "irq1", "irq2", "irq3"
-	.asciz	"irq4", "irq5", "irq6", "irq7"
-	.asciz	"irq8", "irq9", "irq10", "irq11"
-	.asciz	"irq12", "irq13", "irq14", "irq15"
-	.asciz	"irq16", "irq17", "irq18", "irq19"
-	.asciz	"irq20", "irq21", "irq22", "irq23"
-	.asciz	"irq24", "irq25", "irq26", "irq27"
-	.asciz	"irq28", "irq29", "irq30", "irq31"
-	.asciz	"irq32", "irq33", "irq34", "irq35"
-	.asciz	"irq36", "irq37", "irq38", "irq39"
-	.asciz	"irq40", "irq41", "irq42", "irq43"
-	.asciz	"irq44", "irq45", "irq46", "irq47"
-	.asciz	"irq48", "irq49", "irq50", "irq51"
-	.asciz	"irq52", "irq53", "irq54", "irq55"
-	.asciz	"irq56", "irq57", "irq58", "irq59"
-	.asciz	"irq60", "irq61", "irq62", "irq63"
-	.asciz	"clock", "softclock", "softnet", "softserial"
-GLOBAL(eintrnames)
-	.align	4
-GLOBAL(intrcnt)
-	.long	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-	.long	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-	.long	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-	.long	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-	.long	0,0,0,0
-GLOBAL(eintrcnt)
 
 GLOBAL(ofmsr)
 	.long	0			/* msr used in Open Firmware */

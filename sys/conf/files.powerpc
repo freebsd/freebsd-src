@@ -21,6 +21,7 @@ powerpc/powerpc/elf_machdep.c	standard
 powerpc/powerpc/extintr.c	standard
 powerpc/powerpc/fpu.c		standard
 powerpc/powerpc/fuswintr.c	standard
+powerpc/powerpc/interrupt.c	standard
 powerpc/powerpc/machdep.c	standard
 powerpc/powerpc/nexus.c		standard
 powerpc/powerpc/ofwmagic.s	standard

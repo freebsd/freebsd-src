@@ -83,7 +83,8 @@ static const char rcsid[] =
 /*
  * Initially we assume a processor with a bus frequency of 12.5 MHz.
  */
-static u_long ticks_per_sec = 12500000;
+u_int			tickspending;
+static u_long		ticks_per_sec = 12500000;
 static u_long		ns_per_tick = 80;
 static long		ticks_per_intr;
 static volatile u_long	lasttb;
@@ -189,28 +190,25 @@ decr_intr(struct clockframe *frame)
 	 */
 	lasttb = tb + tick - ticks_per_intr;
 
-	/*
-	 * This probably needs some kind of locking.
-	 */
-
-	intrcnt[CNT_CLOCK]++;
-
 	nticks += tickspending;
 	tickspending = 0;
 
 	/*
 	 * Reenable interrupts
 	 */
+#if 0
 	msr = mfmsr();
 	mtmsr(msr | PSL_EE | PSL_RI);
-	
+#endif	
 	/*
 	 * Do standard timer interrupt stuff.
 	 * Do softclock stuff only on the last iteration.
 	 */
+#if 0
 	while (--nticks > 0) {
 		hardclock(frame);
 	}
+#endif
 	hardclock(frame);
 }
 
