@@ -101,6 +101,16 @@ mfdec(void)
 	return (value);
 }
 
+static __inline register_t
+mfpvr(void)
+{
+	register_t	value;
+
+	__asm __volatile ("mfpvr %0" : "=r"(value));
+
+	return (value);
+}
+
 static __inline void
 eieio(void)
 {
