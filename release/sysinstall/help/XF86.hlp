@@ -1,20 +1,12 @@
 
-
-
-README for XFree86[tm] 3.3.2
-
-
-
-
-
-			 README for XFree86[tm] 3.3.2
+			 README for XFree86[tm] 3.3.2.3
 
 
 			   The XFree86 Project, Inc
 
 
-				28 January 1998
-
+				 20 July 1998
+  
 
 
 				   Abstract
@@ -24,10 +16,12 @@ README for XFree86[tm] 3.3.2
      maintenance release, fixing bugs found in XFree86 3.3.1.  The release
      is available as source patches against the X Consortium X11R6.3 code
      and the XFree86 3.3.1 release.  Binary distributions for many archi-
-     tectures are also available, including a binary upgrade for XFree86
-     3.3.1.
+     tectures are also available.
 
 
+[ FreeBSD Project Note: 3.3.2.3 is a security release relative to 3.3.2.
+  Where 3.3.2 is referred to below, understand that "3.3.2.3" is actually
+  being referred to. ]
 
 1.  What's new in XFree86 3.3.2
 
