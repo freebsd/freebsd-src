@@ -23,33 +23,38 @@
  */
 
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/scanner.l,v 1.81 2001/09/14 01:40:57 fenner Exp $ (LBL)";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/libpcap/scanner.l,v 1.95.2.3 2004/03/28 21:45:33 fenner Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <sys/types.h>
-#include <sys/time.h>
-
 #include <ctype.h>
-#include <unistd.h>
 #include <string.h>
 
 #include "pcap-int.h"
 
 #include "gencode.h"
-#include <pcap-namedb.h>
 #ifdef INET6
-#include <netdb.h>
-#include <sys/socket.h>
+#ifdef WIN32
+#include <pcap-stdinc.h>
+
+#ifdef __MINGW32__
+#include "IP6_misc.h"
+#endif
+#else /* WIN32 */
+#include <sys/socket.h>	/* for "struct sockaddr" in "struct addrinfo" */
+#include <netdb.h>	/* for "struct addrinfo" */
+#endif /* WIN32 */
+
 /* Workaround for AIX 4.3 */
 #if !defined(AI_NUMERICHOST)
 #define AI_NUMERICHOST 0x04
 #endif
 #endif /*INET6*/
+#include <pcap-namedb.h>
 #include "tokdefs.h"
 
 #ifdef HAVE_OS_PROTO_H
@@ -77,11 +82,11 @@ N		([0-9]+|(0X|0x)[0-9A-Fa-f]+)
 B		([0-9A-Fa-f][0-9A-Fa-f]?)
 W		([0-9A-Fa-f][0-9A-Fa-f]?[0-9A-Fa-f]?[0-9A-Fa-f]?)
 
-%a 15000
-%o 17000
+%a 16000
+%o 19000
 %e 6000
 %k 4000
-%p 19000
+%p 25000
 %n 2000
 
 V680		{W}:{W}:{W}:{W}:{W}:{W}:{W}:{W}
@@ -167,7 +172,7 @@ dst		return DST;
 src		return SRC;
 
 link|ether|ppp|slip  return LINK;
-fddi|tr		return LINK;
+fddi|tr|wlan	return LINK;
 arp		return ARP;
 rarp		return RARP;
 ip		return IP;
@@ -210,6 +215,14 @@ esis		return ESIS;
 es-is		return ESIS;
 isis		return ISIS;
 is-is		return ISIS;
+l1              return L1;
+l2              return L2;
+iih             return IIH;
+lsp             return LSP;
+snp             return SNP;
+csnp            return CSNP;
+psnp            return PSNP;
+
 clnp		return CLNP;
 
 stp		return STP;
@@ -220,7 +233,7 @@ netbeui		return NETBEUI;
 
 host		return HOST;
 net		return NET;
-mask		return MASK;
+mask		return NETMASK;
 port		return PORT;
 proto		return PROTO;
 protochain	{
@@ -235,7 +248,7 @@ gateway		return GATEWAY;
 
 less		return LESS;
 greater		return GREATER;
-byte		return BYTE;
+byte		return CBYTE;
 broadcast	return TK_BROADCAST;
 multicast	return TK_MULTICAST;
 
@@ -249,7 +262,29 @@ outbound	return OUTBOUND;
 
 vlan		return VLAN;
 
-[ \n\t]			;
+lane		return LANE;
+llc		return LLC;
+metac		return METAC;
+bcc		return BCC;
+oam		return OAM;
+oamf4		return OAMF4;
+oamf4ec		return OAMF4EC;
+oamf4sc		return OAMF4SC;
+sc		return SC;
+ilmic		return ILMIC;
+vpi		return VPI;
+vci		return VCI;
+connectmsg	return CONNECTMSG;
+metaconnect	return METACONNECT;
+
+on|ifname	return PF_IFNAME;
+rset|ruleset	return PF_RSET;
+rnr|rulenum	return PF_RNR;
+srnr|subrulenum	return PF_SRNR;
+reason		return PF_REASON;
+action		return PF_ACTION;
+
+[ \r\n\t]		;
 [+\-*/:\[\]!<>()&|=]	return yytext[0];
 ">="			return GEQ;
 "<="			return LEQ;
@@ -273,7 +308,7 @@ ${B}			{ yylval.e = pcap_ether_aton(((char *)yytext)+1);
 			  if (getaddrinfo(yytext, NULL, &hints, &res))
 				bpf_error("bogus IPv6 address %s", yytext);
 			  else {
-				yylval.e = sdup((char *)yytext); return HID6;
+				yylval.s = sdup((char *)yytext); return HID6;
 			  }
 #else
 			  bpf_error("IPv6 address %s not supported", yytext);

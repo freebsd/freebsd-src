@@ -30,9 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#) $Header: /tcpdump/master/libpcap/pcap-int.h,v 1.33 2001/08/24 07:46:52 guy Exp $ (LBL)
- *
  * $FreeBSD$
+ * @(#) $Header: /tcpdump/master/libpcap/pcap-int.h,v 1.55.2.4 2003/12/15 01:42:24 guy Exp $ (LBL)
  */
 
 #ifndef pcap_int_h
@@ -44,13 +43,24 @@ extern "C" {
 
 #include <pcap.h>
 
+#ifdef WIN32
+#include <packet32.h>
+#endif /* WIN32 */
+
 /*
  * Savefile
  */
+typedef enum {
+	NOT_SWAPPED,
+	SWAPPED,
+	MAYBE_SWAPPED
+} swapped_type_t;
+
 struct pcap_sf {
 	FILE *rfile;
 	int swapped;
 	int hdrsize;
+	swapped_type_t lengths_swapped;
 	int version_major;
 	int version_minor;
 	u_char *base;
@@ -71,17 +81,35 @@ struct pcap_md {
 	int	clear_promisc;	/* must clear promiscuous mode when we close */
 	int	cooked;		/* using SOCK_DGRAM rather than SOCK_RAW */
 	int	lo_ifindex;	/* interface index of the loopback device */
-	char 	*device;	/* device name */
+	char	*device;	/* device name */
 	struct pcap *next;	/* list of open promiscuous sock_packet pcaps */
+#endif
+
+#ifdef HAVE_DAG_API
+	void	*dag_mem_base;	/* DAG card memory base address */
+	u_int	dag_mem_bottom;	/* DAG card current memory bottom pointer */
+	u_int	dag_mem_top;	/* DAG card current memory top pointer */
+	int	dag_fcs_bits;	/* Number of checksum bits from link layer */
+	int dag_offset_flags; /* Flags to pass to dag_offset(). */
 #endif
 };
 
 struct pcap {
+#ifdef WIN32
+	ADAPTER *adapter;
+	LPPACKET Packet;
+	int timeout;
+	int nonblock;
+#else
 	int fd;
+	int selectable_fd;
+#endif /* WIN32 */
 	int snapshot;
 	int linktype;
 	int tzoff;		/* timezone offset */
 	int offset;		/* offset for proper alignment */
+
+	int break_loop;		/* flag set to force break from packet-reading loop */
 
 	struct pcap_sf sf;
 	struct pcap_md md;
@@ -99,15 +127,27 @@ struct pcap {
 	 */
 	u_char *pkt;
 
-	
+	/*
+	 * Methods.
+	 */
+	int	(*read_op)(pcap_t *, int cnt, pcap_handler, u_char *);
+	int	(*setfilter_op)(pcap_t *, struct bpf_program *);
+	int	(*set_datalink_op)(pcap_t *, int);
+	int	(*getnonblock_op)(pcap_t *, char *);
+	int	(*setnonblock_op)(pcap_t *, int, char *);
+	int	(*stats_op)(pcap_t *, struct pcap_stat *);
+	void	(*close_op)(pcap_t *);
+
 	/*
 	 * Placeholder for filter code if bpf not in kernel.
 	 */
 	struct bpf_program fcode;
 
-	char errbuf[PCAP_ERRBUF_SIZE];
+	char errbuf[PCAP_ERRBUF_SIZE + 1];
 	int dlt_count;
 	int *dlt_list;
+
+	struct pcap_pkthdr pcap_header;	/* This is needed for the pcap_next_ex() to work */
 };
 
 /*
@@ -182,6 +222,7 @@ int	yylex(void);
 int	pcap_offline_read(pcap_t *, int, pcap_handler, u_char *);
 int	pcap_read(pcap_t *, int cnt, pcap_handler, u_char *);
 
+
 /*
  * Ultrix, DEC OSF/1^H^H^H^H^H^H^H^H^HDigital UNIX^H^H^H^H^H^H^H^H^H^H^H^H
  * Tru64 UNIX, and NetBSD pad to make everything line up on a nice boundary.
@@ -197,14 +238,54 @@ int	pcap_read(pcap_t *, int cnt, pcap_handler, u_char *);
 	 strlen((y)))
 #endif
 
-#ifdef linux
-void	pcap_close_linux(pcap_t *);
+#include <stdarg.h>
+
+#if !defined(HAVE_SNPRINTF)
+#define snprintf pcap_snprintf
+extern int snprintf (char *, size_t, const char *, ...);
+#endif
+
+#if !defined(HAVE_VSNPRINTF)
+#define vsnprintf pcap_vsnprintf
+extern int vsnprintf (char *, size_t, const char *, va_list ap);
+#endif
+
+/*
+ * Routines that most pcap implementations can use for non-blocking mode.
+ */
+#ifndef WIN32
+int	pcap_getnonblock_fd(pcap_t *, char *);
+int	pcap_setnonblock_fd(pcap_t *p, int, char *);
+#endif
+
+/*
+ * Internal interfaces for "pcap_findalldevs()".
+ *
+ * "pcap_platform_finddevs()" is a platform-dependent routine to
+ * add devices not found by the "standard" mechanisms (SIOCGIFCONF,
+ * "getifaddrs()", etc..
+ *
+ * "pcap_add_if()" adds an interface to the list of interfaces.
+ */
+int	pcap_platform_finddevs(pcap_if_t **, char *);
+int	add_addr_to_iflist(pcap_if_t **, char *, u_int, struct sockaddr *,
+	    size_t, struct sockaddr *, size_t, struct sockaddr *, size_t,
+	    struct sockaddr *, size_t, char *);
+int	pcap_add_if(pcap_if_t **, char *, u_int, const char *, char *);
+struct sockaddr *dup_sockaddr(struct sockaddr *, size_t);
+int	add_or_find_if(pcap_if_t **, pcap_if_t **, const char *, u_int,
+	    const char *, char *);
+
+#ifdef WIN32
+char	*pcap_win32strerror(void);
 #endif
 
 /* XXX */
 extern	int pcap_fddipad;
 
 int	install_bpf_program(pcap_t *, struct bpf_program *);
+
+int	pcap_strcasecmp(const char *, const char *);
 
 #ifdef __cplusplus
 }
