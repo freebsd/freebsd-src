@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id$
+ *      $Id: aha1542.c,v 1.66 1997/02/22 09:35:52 peter Exp $
  */
 
 /*
@@ -48,6 +48,8 @@
 #else /*KERNEL */
 #define NAHA 1
 #endif /*KERNEL */
+
+#include "ioconf.h"
 
 /************************** board definitions *******************************/
 
