@@ -4,7 +4,7 @@
 # (in reverse order from n'th to 1'st most commonly used)
 # to move them to the front of termcap
 #
-MAN5=	termcap.0
+MAN5=	termcap.5
 
 CLEANFILES+=	termcap termcap.db
 
