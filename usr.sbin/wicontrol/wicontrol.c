@@ -50,7 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/ethernet.h>
 
-#include <net/if_ieee80211.h>
+#include <net80211/ieee80211.h>
+#include <net80211/ieee80211_ioctl.h>
 #include <dev/wi/if_wavelan_ieee.h>
 #include <dev/wi/if_wireg.h>
 
@@ -63,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 
 static int wi_getval(const char *, struct wi_req *);
+static int wi_getvalmaybe(const char *, struct wi_req *);
 static void wi_setval(const char *, struct wi_req *);
 static void wi_printstr(struct wi_req *);
 static void wi_setstr(const char *, int, char *);
@@ -121,7 +123,7 @@ printb(char *s, uint32_t v, char *bits)
 }
 
 static int
-wi_getval(const char *iface, struct wi_req *wreq)
+_wi_getval(const char *iface, struct wi_req *wreq)
 {
 	struct ifreq		ifr;
 	int			s;
@@ -139,6 +141,28 @@ wi_getval(const char *iface, struct wi_req *wreq)
 	close(s);
 
 	return (retval);
+}
+
+static int
+wi_getval(const char *iface, struct wi_req *wreq)
+{
+	if (_wi_getval(iface, wreq) == -1) {
+		if (errno != EINPROGRESS)
+			err(1, "SIOCGWAVELAN");
+		return (-1);
+	}
+	return (0);
+}
+
+static int
+wi_getvalmaybe(const char *iface, struct wi_req *wreq)
+{
+	if (_wi_getval(iface, wreq) == -1) {
+		if (errno != EINPROGRESS && errno != EINVAL)
+			err(1, "SIOCGWAVELAN");
+		return (-1);
+	}
+	return (0);
 }
 
 static void
@@ -496,10 +520,10 @@ wi_printhex(struct wi_req *wreq)
 	return;
 }
 
-static int
+static float
 get_wiaprate(int inrate)
 {
-	int rate;
+	float rate;
 
 	switch (inrate) {
 	case WI_APRATE_1:
@@ -528,11 +552,11 @@ get_wiaprate(int inrate)
 void
 wi_printaplist(const char *iface)
 {
-	int			prism2;
+	int			prism2, len, i = 0, j, r;
 	struct wi_req		wreq;
-	struct wi_apinfo	*w;
-	int i, nstations;
-	float rate;
+	struct wi_scan_p2_hdr	*wi_p2_h;
+	struct wi_scan_res	*res;
+	float			rate;
 
 	if (!quiet)
 		printf("Available APs:\n");
@@ -547,8 +571,13 @@ wi_printaplist(const char *iface)
 		prism2 = 0;
 
 	/* send out a scan request */
-	wreq.wi_len = 1;
-	wreq.wi_type = WI_RID_SCAN_APS;
+	wreq.wi_len = prism2 ? 3 : 1;
+	wreq.wi_type = WI_RID_SCAN_REQ;
+
+	if (prism2) {
+		wreq.wi_val[0] = 0x3FFF;
+		wreq.wi_val[1] = 0x000F;
+	}
 
 	wi_setval(iface, &wreq);
 
@@ -564,34 +593,74 @@ wi_printaplist(const char *iface)
 		wreq.wi_type = WI_RID_SCAN_RES;
 	} while (wi_getval(iface, &wreq) == -1 && errno == EINPROGRESS);
 
-	nstations = *(int *)wreq.wi_val;
-	if (!quiet) {
-		printf("%d station%s:\n", nstations, nstations == 1 ? "" : "s");
-		printf("SSID                 BSSID             Chan    SN   S   N   Intrvl  Capinfo\n");
+	if (prism2) {
+		wi_p2_h = (struct wi_scan_p2_hdr *)wreq.wi_val;
+
+		/* if the reason is 0, this info is invalid */
+		if (wi_p2_h->wi_reason == 0)
+			return;
+
+		i = 4;
 	}
-	w =  (struct wi_apinfo *)(((char *)&wreq.wi_val) + sizeof(int));
-	for ( i = 0; i < nstations; i++, w++) {
-		printf("%-20.*s %02x:%02x:%02x:%02x:%02x:%02x   %-2d "
-		    "[ %3d %3d %3d ]    %-3d  "
-		    , w->namelen, w->name
-		    , w->bssid[0]&0xff, w->bssid[1]&0xff
-		    , w->bssid[2]&0xff, w->bssid[3]&0xff
-		    , w->bssid[4]&0xff, w->bssid[5]&0xff
-		    , w->channel
-		    , w->quality, w->signal, w->noise
-		    , w->interval
-		);
 
-		if (!quiet) {
+	len = prism2 ? WI_PRISM2_RES_SIZE : WI_WAVELAN_RES_SIZE;
+
+	if (!quiet) {
+		int nstations = ((wreq.wi_len * 2) - i) / len;
+		printf("%d station%s:\n", nstations, nstations == 1 ? "" : "s");
+		printf("%-16.16s            BSSID         Chan     SN  S  N  Intrvl Capinfo\n", "SSID");
+	}
+	for (; i < (wreq.wi_len * 2) - len; i += len) {
+		res = (struct wi_scan_res *)((char *)wreq.wi_val + i);
+
+		res->wi_ssid[res->wi_ssid_len] = '\0';
+
+		printf("%-16.16s  [ %02x:%02x:%02x:%02x:%02x:%02x ]  [ %-2d ]  "
+		    "[ %2d %2d %2d ]  %3d  ", res->wi_ssid,
+		    res->wi_bssid[0], res->wi_bssid[1], res->wi_bssid[2],
+		    res->wi_bssid[3], res->wi_bssid[4], res->wi_bssid[5],
+		    res->wi_chan, res->wi_signal - res->wi_noise,
+		    res->wi_signal, res->wi_noise, res->wi_interval);
+
+		if (!quiet && res->wi_capinfo) {
 			printf("[ ");
-			if (w->capinfo & IEEE80211_CAPINFO_ESS)
-				printf("ESS ");
-			if (w->capinfo & IEEE80211_CAPINFO_PRIVACY)
-				printf("WEP ");
-			printf("]\n              ");
+			if (res->wi_capinfo & WI_CAPINFO_ESS)
+				printf("ess ");
+			if (res->wi_capinfo & WI_CAPINFO_IBSS)
+				printf("ibss ");
+			if (res->wi_capinfo & IEEE80211_CAPINFO_CF_POLLABLE)
+				printf("cfp  ");
+			if (res->wi_capinfo & IEEE80211_CAPINFO_CF_POLLREQ)
+				printf("cfpr ");
+			if (res->wi_capinfo & WI_CAPINFO_PRIV)
+				printf("priv ");
+			if (res->wi_capinfo & IEEE80211_CAPINFO_SHORT_PREAMBLE)
+				printf("shpr ");
+			if (res->wi_capinfo & IEEE80211_CAPINFO_PBCC)
+				printf("pbcc ");
+			if (res->wi_capinfo & IEEE80211_CAPINFO_CHNL_AGILITY)
+				printf("chna ");
+			if (res->wi_capinfo & IEEE80211_CAPINFO_SHORT_SLOTTIME)
+				printf("shst ");
+			if (res->wi_capinfo & IEEE80211_CAPINFO_DSSSOFDM)
+				printf("ofdm ");
+			printf("]  ");
+		}
 
-			rate = get_wiaprate(w->rate);
-			if (rate) printf("* %2.1f *\n", rate);
+		if (prism2 && res->wi_srates[0] != 0) {
+			printf("\n%16s  [ ", "");
+			for (j = 0; j < 10 && res->wi_srates[j] != 0; j++) {
+				r = res->wi_srates[j] & IEEE80211_RATE_VAL;
+				if (r & 1)
+					printf("%d.%d", r / 2, (r % 2) * 5);
+				else
+					printf("%d", r / 2);
+				printf("%s ", res->wi_srates[j] & IEEE80211_RATE_BASIC ? "b" : "");
+			}
+			printf("]  ");
+			rate = get_wiaprate(res->wi_rate);
+			if (rate)
+				printf("* %2.1f *\n", rate);
 		}
 		putchar('\n');
 	}
@@ -682,7 +751,7 @@ wi_dumpinfo(const char *iface)
 		wreq.wi_len = WI_MAX_DATALEN;
 		wreq.wi_type = w[i].wi_code;
 
-		if (wi_getval(iface, &wreq) == -1)
+		if (wi_getvalmaybe(iface, &wreq) == -1)
 			continue;
 		printf("%s", w[i].wi_str);
 		switch(w[i].wi_type) {
