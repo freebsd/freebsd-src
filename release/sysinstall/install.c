@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.25 1995/06/05 00:53:13 jkh Exp $
+ * $Id: install.c,v 1.70.2.26 1995/06/05 03:15:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -335,12 +335,6 @@ make_filesystems(void)
 	return FALSE;
     }
 
-    /* Copy the dev files */
-    if (vsystem("find -x /dev | cpio -pdmv /mnt")) {
-	msgConfirm("Couldn't clone the /dev files!");
-	return FALSE;
-    }
-
     /* Now buzz through the rest of the partitions and mount them too */
     for (i = 0; devs[i]; i++) {
 	if (!devs[i]->enabled)
@@ -392,6 +386,13 @@ make_filesystems(void)
 	    }
 	}
     }
+
+    /* Copy the boot floppy's dev files */
+    if (vsystem("find -x /dev | cpio -pdmv /mnt")) {
+	msgConfirm("Couldn't clone the /dev files!");
+	return FALSE;
+    }
+
     command_sort();
     command_execute();
     return TRUE;
