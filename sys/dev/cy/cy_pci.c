@@ -96,7 +96,7 @@ cy_pci_probe(dev)
 	if (device_id != 0x0100120e && device_id != 0x0101120e)
 		return (ENXIO);
 	device_set_desc(dev, "Cyclades Cyclom-Y Serial Adapter");
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

@@ -456,7 +456,7 @@ s3pci_probe(device_t dev)
 	bus_set_resource(dev, SYS_RES_IOPORT, 1,
 				S3_ENHANCED_IO, S3_ENHANCED_IO_SIZE);
 
-	return 0;
+	return BUS_PROBE_DEFAULT;
 
 };
 

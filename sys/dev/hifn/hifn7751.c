@@ -193,17 +193,17 @@ hifn_probe(device_t dev)
 {
 	if (pci_get_vendor(dev) == PCI_VENDOR_INVERTEX &&
 	    pci_get_device(dev) == PCI_PRODUCT_INVERTEX_AEON)
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	if (pci_get_vendor(dev) == PCI_VENDOR_HIFN &&
 	    (pci_get_device(dev) == PCI_PRODUCT_HIFN_7751 ||
 	     pci_get_device(dev) == PCI_PRODUCT_HIFN_7951 ||
 	     pci_get_device(dev) == PCI_PRODUCT_HIFN_7955 ||
 	     pci_get_device(dev) == PCI_PRODUCT_HIFN_7956 ||
 	     pci_get_device(dev) == PCI_PRODUCT_HIFN_7811))
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	if (pci_get_vendor(dev) == PCI_VENDOR_NETSEC &&
 	    pci_get_device(dev) == PCI_PRODUCT_NETSEC_7751)
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	return (ENXIO);
 }
 

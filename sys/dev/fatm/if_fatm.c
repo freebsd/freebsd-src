@@ -129,7 +129,7 @@ fatm_probe(device_t dev)
 		if (pci_get_vendor(dev) == fatm_devs[i].vid &&
 		    pci_get_device(dev) == fatm_devs[i].did) {
 			device_set_desc(dev, fatm_devs[i].name);
-			return (0);
+			return (BUS_PROBE_DEFAULT);
 		}
 	return (ENXIO);
 }

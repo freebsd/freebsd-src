@@ -129,7 +129,7 @@ hme_pci_probe(device_t dev)
 	if (pci_get_vendor(dev) == PCI_VENDOR_SUN &&
 	    pci_get_device(dev) ==  PCI_PRODUCT_SUN_HMENETWORK) {
 		device_set_desc(dev, "Sun HME 10/100 Ethernet");
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	}
 	return (ENXIO);
 }
