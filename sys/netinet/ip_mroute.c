@@ -13,6 +13,7 @@
  */
 
 #include "opt_mrouting.h"
+#include "opt_random_ip_id.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1581,7 +1582,11 @@ encap_send(ip, vifp, m)
      */
     ip_copy = mtod(mb_copy, struct ip *);
     *ip_copy = multicast_encap_iphdr;
+#ifdef RANDOM_IP_ID
+    ip_copy->ip_id = ip_randomid();
+#else
     ip_copy->ip_id = htons(ip_id++);
+#endif
     ip_copy->ip_len += len;
     ip_copy->ip_src = vifp->v_lcl_addr;
     ip_copy->ip_dst = vifp->v_rmt_addr;

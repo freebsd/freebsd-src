@@ -2045,7 +2045,11 @@ ipsec4_encapsulate(m, sav)
 		ipseclog((LOG_ERR, "IPv4 ipsec: size exceeds limit: "
 			"leave ip_len as is (invalid packet)\n"));
 	}
+#ifdef RANDOM_IP_ID
+	ip->ip_id = ip_randomid();
+#else
 	ip->ip_id = htons(ip_id++);
+#endif
 	bcopy(&((struct sockaddr_in *)&sav->sah->saidx.src)->sin_addr,
 		&ip->ip_src, sizeof(ip->ip_src));
 	bcopy(&((struct sockaddr_in *)&sav->sah->saidx.dst)->sin_addr,
