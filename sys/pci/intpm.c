@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: intpm.c,v 1.8 1999/05/07 18:03:26 peter Exp $
+ *	$Id: intpm.c,v 1.9 1999/05/08 21:59:39 dfr Exp $
  */
 
 #include "pci.h"
@@ -149,7 +149,6 @@ static device_method_t intpm_pci_methods[] = {
 static driver_t intpm_pci_driver = {
   "intpm",
   intpm_pci_methods,
-  DRIVER_TYPE_MISC,
   sizeof(struct intpm_pci_softc)
 };
 
@@ -722,7 +721,7 @@ intpm_attach(device_t dev)
 		  device_printf(dev,"could not allocate irq");
 		  return ENOMEM;
 		}
-		error=bus_setup_intr(dev,res,(driver_intr_t *) intpm_intr,sciic,&ih);
+		error=bus_setup_intr(dev,res,INTR_TYPE_MISC, (driver_intr_t *) intpm_intr,sciic,&ih);
                 if(error){
                         device_printf(dev,"Failed to map intr\n");
 			return error;
