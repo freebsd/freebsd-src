@@ -8,7 +8,7 @@ SCRIPTS		 = tbmaster.pl tinderbox.pl
 MANDIR		?= ${HOME}/man/man
 MANOWN		?= ${USER}
 MANGRP		?= ${USER}
-MAN		 = tinderbox.1
+MAN		 = tbmaster.1 tinderbox.1
 
 SUBDIR		 = www
 
