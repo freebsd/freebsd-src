@@ -528,46 +528,48 @@ ata_reset(struct ata_channel *ch)
 	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
 	    DELAY(10);
     	    ATA_IDX_INB(ch, ATA_ERROR);
-
 	    stat0 = ATA_IDX_INB(ch, ATA_STATUS);
 	    if (!(stat0 & ATA_S_BUSY)) {
 		/* check for ATAPI signature while its still there */
 		lsb = ATA_IDX_INB(ch, ATA_CYL_LSB);
 		msb = ATA_IDX_INB(ch, ATA_CYL_MSB);
-		ATA_IDX_OUTB(ch, ATA_CYL_LSB, 0x00);
-		ATA_IDX_OUTB(ch, ATA_CYL_MSB, 0x00);
 		if (bootverbose)
 		    ata_printf(ch, ATA_MASTER, "ATAPI %02x %02x\n", lsb, msb);
-		if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB)
+		if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB) {
 		    ch->devices |= ATA_ATAPI_MASTER;
+		    ATA_IDX_OUTB(ch, ATA_CYL_LSB, 0x00);
+		    ATA_IDX_OUTB(ch, ATA_CYL_MSB, 0x00);
+		}
 	    }
 	}
 	if (stat1 & ATA_S_BUSY) {
 	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
 	    DELAY(10);
     	    ATA_IDX_INB(ch, ATA_ERROR);
-
 	    stat1 = ATA_IDX_INB(ch, ATA_STATUS);
 	    if (!(stat1 & ATA_S_BUSY)) {
 		/* check for ATAPI signature while its still there */
 		lsb = ATA_IDX_INB(ch, ATA_CYL_LSB);
 		msb = ATA_IDX_INB(ch, ATA_CYL_MSB);
-		ATA_IDX_OUTB(ch, ATA_CYL_LSB, 0x00);
-		ATA_IDX_OUTB(ch, ATA_CYL_MSB, 0x00);
 		if (bootverbose)
 		    ata_printf(ch, ATA_SLAVE, "ATAPI %02x %02x\n", lsb, msb);
-		if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB)
+		if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB) {
 		    ch->devices |= ATA_ATAPI_SLAVE;
+		    ATA_IDX_OUTB(ch, ATA_CYL_LSB, 0x00);
+		    ATA_IDX_OUTB(ch, ATA_CYL_MSB, 0x00);
+		}
 	    }
 	}
 	if (mask == 0x01)      /* wait for master only */
-	    if (!(stat0 & ATA_S_BUSY))
+	    if (!(stat0 & ATA_S_BUSY) || (stat0 == 0xff && timeout > 20))
 		break;
 	if (mask == 0x02)      /* wait for slave only */
-	    if (!(stat1 & ATA_S_BUSY))
+	    if (!(stat1 & ATA_S_BUSY) || (stat1 == 0xff && timeout > 20))
 		break;
 	if (mask == 0x03)      /* wait for both master & slave */
-	    if (!(stat0 & ATA_S_BUSY) && !(stat1 & ATA_S_BUSY))
+	    if ((!(stat0 & ATA_S_BUSY) && !(stat1 & ATA_S_BUSY)) ||
+		(stat0 == 0xff && stat1 == 0xff && timeout > 20))
+
 		break;
 	DELAY(100000);
     }	
@@ -759,7 +761,7 @@ ata_pio_read(struct ata_request *request, int length)
 			  size / sizeof(int32_t));
 
     if (request->transfersize < length) {
-	ata_prtdev(request->device, "WARNING - %s read data overrun %d/%d\n",
+	ata_prtdev(request->device, "WARNING - %s read data overrun %d>%d\n",
 		   ata_cmd2str(request), length, request->transfersize);
 	for (resid = request->transfersize; resid < length;
 	     resid += sizeof(int16_t))
@@ -784,7 +786,7 @@ ata_pio_write(struct ata_request *request, int length)
 			   size / sizeof(int32_t));
 
     if (request->transfersize < length) {
-	ata_prtdev(request->device, "WARNING - %s write data underrun %d/%d\n",
+	ata_prtdev(request->device, "WARNING - %s write data underrun %d>%d\n",
 		   ata_cmd2str(request), length, request->transfersize);
 	for (resid = request->transfersize; resid < length;
 	     resid += sizeof(int16_t))
