@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cia.c,v 1.11 1998/11/15 18:25:16 dfr Exp $
+ *	$Id: cia.c,v 1.12 1998/11/28 09:55:16 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -719,7 +719,7 @@ cia_init()
 		chipset = cia_bwx_chipset;
 	cia_hae_mem = REGVAL(CIA_CSR_HAE_MEM);
 
-#if 1
+#if 0
 	chipset = cia_swiz_chipset; /* XXX */
 	cia_ispyxis = 0;
 #endif
