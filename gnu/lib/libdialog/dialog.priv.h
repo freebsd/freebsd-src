@@ -30,6 +30,7 @@
 #include <locale.h>
 #endif
 
+  
 /*
  * Change these if you want
  */
@@ -163,13 +164,15 @@ extern int parse_rc(void);
 #ifdef HAVE_NCURSES
 void color_setup(void);
 #endif
+
 void attr_clear(WINDOW *win, int height, int width, chtype attr);
-void print_autowrap(WINDOW *win, unsigned char *prompt, int height, int width, int maxwidth, int y, int x, int center, int rawmode);
+void print_autowrap(WINDOW *win, unsigned char *prompt, int height, int width, int maxwidth,
+		    int y, int x, int center, int rawmode);
 void print_button(WINDOW *win, unsigned char *label, int y, int x, int selected);
 FILE *raw_popen(const char *program, char * const *argv, const char *type);
 int raw_pclose(FILE *iop);
 void display_helpfile(void);
 void display_helpline(WINDOW *w, int y, int width);
-void print_arrows(WINDOW *dialog, int scroll, int menu_height, int item_no,
-		  int box_x, int box_y, int tag_x, int cur_x, int cur_y);
+void print_arrows(WINDOW *dialog, int scroll, int menu_height, int item_no, int box_x,
+		  int box_y, int tag_x, int cur_x, int cur_y);
 
