@@ -619,6 +619,7 @@ options		SAFE_RNDTEST	# enable rndtest support
 # apm: Laptop Advanced Power Management (experimental)
 # pmtimer: Timer device driver for power management events (APM or ACPI)
 # spigot: The Creative Labs Video Spigot video-acquisition board
+# cy: Cyclades serial driver
 # digi: Digiboard driver
 # gp:  National Instruments AT-GPIB and AT-GPIB/TNT board, PCMCIA-GPIB
 # asc: GI1904-based hand scanners, e.g. the Trust Amiscan Grey
@@ -692,13 +693,12 @@ hint.spigot.0.maddr="0xee000"
 device		apm
 hint.apm.0.flags="0x20"
 device		pmtimer			# Adjust system timer at wakeup time
-device		gp
-hint.gp.0.at="isa"
-hint.gp.0.port="0x2c0"
-device		gsc	1
-hint.gsc.0.at="isa"
-hint.gsc.0.port="0x270"
-hint.gsc.0.drq="3"
+device		cy	1
+options 	CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
+hint.cy.0.at="isa"
+hint.cy.0.irq="10"
+hint.cy.0.maddr="0xd4000"
+hint.cy.0.msize="0x2000"
 device		digi
 hint.digi.0.at="isa"
 hint.digi.0.port="0x104"
@@ -711,6 +711,13 @@ device		digi_EPCX_PCI
 device		digi_Xe
 device		digi_Xem
 device		digi_Xr
+device		gp
+hint.gp.0.at="isa"
+hint.gp.0.port="0x2c0"
+device		gsc	1
+hint.gsc.0.at="isa"
+hint.gsc.0.port="0x270"
+hint.gsc.0.drq="3"
 device		asc	1
 hint.asc.0.at="isa"
 hint.asc.0.port="0x3EB"
@@ -877,18 +884,8 @@ options 	COMPAQ_M610
 # PCI bus Cards:
 # --------------
 #
-# Cyclades Cyclom-Y PCI serial driver
-device		cy	1
-options 	CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
-hint.cy.0.at="isa"
-hint.cy.0.irq="10"
-hint.cy.0.maddr="0xd4000"
-hint.cy.0.msize="0x2000"
-#
-#---------------------------------------------------------------------------
 # ELSA MicroLink ISDN/PCI (same as ELSA QuickStep 1000pro PCI)
 options 	ELSA_QS1PCI
-#
 #
 #---------------------------------------------------------------------------
 #	ifpnp driver for AVM Fritz!Card PnP
