@@ -1240,11 +1240,34 @@ devfs_revoke(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
+	struct vnode *vq;
 	struct devfs_dirent *de;
+	struct cdev *dev;
 
+	KASSERT((ap->a_flags & REVOKEALL) != 0, ("devfs_revoke !REVOKEALL"));
 	de = vp->v_data;
 	de->de_vnode = NULL;
-	vop_revoke(ap);
+
+	VI_LOCK(vp);
+	/*
+	 * If a vgone (or vclean) is already in progress,
+	 * wait until it is done and return.
+	 */
+	if (vp->v_iflag & VI_XLOCK) {
+		vp->v_iflag |= VI_XWANT;
+		msleep(vp, VI_MTX(vp), PINOD | PDROP, "vop_revokeall", 0);
+		return (0);
+	}
+	VI_UNLOCK(vp);
+	dev = vp->v_rdev;
+	for (;;) {
+		dev_lock();
+		vq = SLIST_FIRST(&dev->si_hlist);
+		dev_unlock();
+		if (vq == NULL)
+			break;
+		vgone(vq);
+	}
 	return (0);
 }
 
