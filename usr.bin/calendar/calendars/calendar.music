@@ -1,7 +1,7 @@
 /*
  * Music
  *
- * $Id: calendar.music,v 1.2 1996/01/28 19:12:24 wosch Exp $
+ * $Id: calendar.music,v 1.3 1996/01/29 00:33:00 wosch Exp $
  */
 
 #ifndef _calendar_music_
@@ -13,7 +13,7 @@
 01/08	David Bowie (then David Robert Jones) is born in London, 1947
 01/09	James Patrick Page (Led Zeppelin) is born in Middlesex, England, 1945
 01/10	Blues guitarist Howlin' Wolf dies in Chicago, 1976
-01/10	Jim Croce is born in Phildelphia, 1943
+01/10	Jim Croce is born in Philadelphia, 1943
 01/10	Pat Benatar is born in Long Island, 1952
 01/10	Rod Stewart is born in Glasgow, Scotland, 1945
 01/13	Eric Clapton plays the "Rainbow Concert" in London, 1973
@@ -107,7 +107,7 @@
 07/14	Woodie Guthrie born, 1912
 07/16	Cream forms in the U.K., 1966
 07/16	Harry Chapin dies on Long Island Expressway, 1981
-07/17	"Yellow Submarine" premieres at the London Pavilon, 1968
+07/17	"Yellow Submarine" premieres at the London Pavilion, 1968
 07/20	Carlos Santana is born in Autlan, Mexico, 1947
 07/25	Bob Dylan goes electric at the Newport Folk Festival, 1965
 07/25	Crosby, Stills, Nash & Young debut at the Fillmore East, 1969
