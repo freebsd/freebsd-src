@@ -32,15 +32,20 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)soelim.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
+#include <err.h>
 #include <stdio.h>
 /*
  * soelim - a filter to process n/troff input eliminating .so's
@@ -60,6 +65,9 @@ static char sccsid[] = "@(#)soelim.c	8.1 (Berkeley) 6/6/93";
  */
 #define	STDIN_NAME	"-"
 
+int process __P((char *));
+
+int
 main(argc, argv)
 	int argc;
 	char *argv[];
@@ -79,7 +87,8 @@ main(argc, argv)
 	exit(0);
 }
 
-int process(file)
+int
+process(file)
 	char *file;
 {
 	register char *cp;
@@ -93,7 +102,7 @@ int process(file)
 	} else {
 		soee = fopen(file, "r");
 		if (soee == NULL) {
-			perror(file);
+			warn(file);
 			return(-1);
 		}
 	}
