@@ -1805,6 +1805,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	anychanged = 0;
 
 	vm_page_lock_queues();
+	sched_pin();
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = pdnxt) {
 		unsigned pdirindex;
@@ -1839,7 +1840,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			pt_entry_t *pte;
 			vm_page_t m;
 
-			if ((pte = pmap_pte(pmap, sva)) == NULL)
+			if ((pte = pmap_pte_quick(pmap, sva)) == NULL)
 				continue;
 			pbits = *pte;
 			if (pbits & PG_MANAGED) {
@@ -1868,6 +1869,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	}
 	if (anychanged)
 		pmap_invalidate_all(pmap);
+	sched_unpin();
 	vm_page_unlock_queues();
 	PMAP_UNLOCK(pmap);
 }
