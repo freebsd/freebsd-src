@@ -110,7 +110,7 @@ ITEMS:'
 	libftpio's version was accidentally bumped a few days ago.  This
 	has been corrected.  You may need to remove /usr/lib/libftpio.so.6
 	before doing your next buildworld/installworld pair.  It certainly
-	won't hurt to remove it before the update proceedure.  It will
+	won't hurt to remove it before the update procedure.  It will
 	break fetch until a new one is built, but ftp can be used in the
 	interrum if needed.
 
@@ -186,7 +186,7 @@ ITEMS:'
 	may work).
 
 20000612:
-	Peter took an axe to config(8).  Besure that you read his mail
+	Peter took an axe to config(8).  Be sure that you read his mail
 	on the topic before even thinking about updating.  You will
 	need to create a /boot/device.hints or add a hints directive
 	to your config file to compile them in statically.  The format
@@ -228,7 +228,7 @@ ITEMS:'
 
 20000417:
 	The method that we brand ELF binaries has changed to be more
-	acceptible to the binutils maintainers.  You will need to
+	acceptable to the binutils maintainers.  You will need to
 	rebrand your ELF binaries that aren't native.  One problem
 	binary is the Linux ldconfig.  After your make world, but
 	before you reboot, you'll neeed to issue:
@@ -243,7 +243,7 @@ ITEMS:'
 	to the start of /etc/rc.conf.
 
 20000319:
-	The ISA and PCI compatability shims have been connected to the
+	The ISA and PCI compatibility shims have been connected to the
 	options COMPAT_OLDISA and COMPAT_OLDPCI.  If you are using old
 	style PCI or ISA drivers (i.e. tx, voxware, etc.) you must
 	include the appropriate option in your kernel config.  Drivers
@@ -251,7 +251,7 @@ ITEMS:'
 	5.0-RELEASE, targeted for 2001.
 
 20000318:
-	We've entered the tradtional post release dumping party.
+	We've entered the traditional post release dumping party.
 	Large kernel changes are being committed and are in the
 	works.  It is important to keep the systems' klds and kernel
 	in sync as kernel interfaces and structures are changing.
@@ -283,7 +283,7 @@ COMMON ITEMS:
 	To build a kernel
 	-----------------
 	If you are updating from a prior version of FreeBSD (even one just
-	a few days old), you should follow this proceedure. With a
+	a few days old), you should follow this procedure. With a
 	/usr/obj tree with a fresh buildworld,
 	make buildkernel KERNEL=YOUR_KERNEL_HERE
 	make installkernel KERNEL=YOUR_KERNEL_HERE
@@ -338,7 +338,7 @@ COMMON ITEMS:
 
 FORMAT:
 
-This file contains a list, in reverse chronologocal order, of major
+This file contains a list, in reverse chronological order, of major
 breakages in tracking -current.  Not all things will be listed here,
 and it only starts on March 15, 2000.  Updating files can found in
 previous releases if your system is older than this.
