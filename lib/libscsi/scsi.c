@@ -30,7 +30,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * $Id: scsi.c,v 1.1.1.1 1995/01/24 12:10:11 dufault Exp $
+ * $Id: scsi.c,v 1.2 1995/01/25 00:33:50 dufault Exp $
  */
 #include <stdlib.h>
 #include <stdio.h>
@@ -132,20 +132,11 @@ scsireq_t *scsireq_new(void)
  *
  */
 
-#define ARG_PUT(ARG) \
-do \
-{ \
-	if (arg_put) \
-		(*arg_put)(puthook, letter, (void *)((long)(ARG)), 1, field_name); \
-	else \
-		*(va_arg(ap, int *)) = (ARG); \
-} while (0)
-
 static int do_buff_decode(u_char *databuf, size_t len,
 void (*arg_put)(void *, int , void *, int, char *), void *puthook,
 char *fmt, va_list ap)
 {
-	int decoded = 0;
+	int assigned = 0;
 	int width;
 	int suppress;
 	int plus;
@@ -156,17 +147,44 @@ char *fmt, va_list ap)
 	char letter;
 	char field_name[80];
 
+#	define ARG_PUT(ARG) \
+	do \
+	{ \
+		if (!suppress) \
+		{ \
+			if (arg_put) \
+				(*arg_put)(puthook, letter, \
+				(void *)((long)(ARG)), 1, field_name); \
+			else \
+				*(va_arg(ap, int *)) = (ARG); \
+			assigned++; \
+		} \
+		field_name[0] = 0; \
+		suppress = 0; \
+	} while (0)
+
 	u_char bits = 0;	/* For bit fields */
 	int shift = 0;		/* Bits already shifted out */
 	suppress = 0;
+	field_name[0] = 0;
 
 	while (!done)
 	{
 		switch(letter = *fmt)
 		{
-			case ' ':
+			case ' ':	/* White space */
 			case '\t':
+			case '\r':
+			case '\n':
+			case '\f':
 			fmt++;
+			break;
+
+			case '#':	/* Comment */
+			while (*fmt && (*fmt != '\n'))
+				fmt++;
+			if (fmt)
+				fmt++;	/* Skip '\n' */
 			break;
 
 			case '*':	/* Suppress assignment */
@@ -185,7 +203,8 @@ char *fmt, va_list ap)
 
 					fmt++;
 				}
-				fmt++;	/* Skip '}' */
+				if (fmt)
+					fmt++;	/* Skip '}' */
 				field_name[i] = 0;
 			}
 			break;
@@ -209,10 +228,7 @@ char *fmt, va_list ap)
 				shift, bits, value, width, mask[width]);
 #endif
 
-				if (!suppress)
-					ARG_PUT(value);
-				else
-					suppress = 0;
+				ARG_PUT(value);
 
 				shift -= width;
 			}
@@ -226,43 +242,31 @@ char *fmt, va_list ap)
 			switch(width)
 			{
 				case 1:
-				if (!suppress)
-					ARG_PUT(*databuf);
-				else
-					suppress = 0;
+				ARG_PUT(*databuf);
 				databuf++;
 				break;
 
 				case 2:
-				if (!suppress)
-					ARG_PUT(
-					(*databuf) << 8 |
-					*(databuf + 1));
-				else
-					suppress = 0;
+				ARG_PUT(
+				(*databuf) << 8 |
+				*(databuf + 1));
 				databuf += 2;
 				break;
 
 				case 3:
-				if (!suppress)
-					ARG_PUT(
-					(*databuf) << 16 |
-					(*(databuf + 1)) << 8 |
-					*(databuf + 2));
-				else
-					suppress = 0;
+				ARG_PUT(
+				(*databuf) << 16 |
+				(*(databuf + 1)) << 8 |
+				*(databuf + 2));
 				databuf += 3;
 				break;
 
 				case 4:
-				if (!suppress)
-					ARG_PUT(
-					(*databuf) << 24 |
-					(*(databuf + 1)) << 16 |
-					(*(databuf + 2)) << 8 |
-					*(databuf + 3));
-				else
-					suppress = 0;
+				ARG_PUT(
+				(*databuf) << 24 |
+				(*(databuf + 1)) << 16 |
+				(*(databuf + 2)) << 8 |
+				*(databuf + 3));
 				databuf += 4;
 				break;
 
@@ -279,7 +283,6 @@ char *fmt, va_list ap)
 			width = strtol(fmt, &fmt, 10);
 			if (!suppress)
 			{
-
 				if (arg_put)
 					(*arg_put)(puthook, letter, databuf, width, field_name);
 				else
@@ -295,11 +298,11 @@ char *fmt, va_list ap)
 							*p = 0;
 					}
 				}
+				assigned++;
 			}
-			else
-				suppress = 0;
 			databuf += width;
-			decoded++;
+			field_name[0] = 0;
+			suppress = 0;
 			break;
 
 			case 's':	/* Seek */
@@ -330,7 +333,6 @@ char *fmt, va_list ap)
 			else
 				databuf = base + width;	/* Absolute seek */
 
-			decoded++;
 			break;
 
 			case 0:
@@ -343,7 +345,7 @@ char *fmt, va_list ap)
 		}
 	}
 
-	return decoded;
+	return assigned;
 }
 
 int scsireq_decode(scsireq_t *scsireq, char *fmt, ...)
@@ -438,6 +440,13 @@ char *fmt, int *width_p, int *value_p, char *name, int n_name, int *error_p)
 					state = DONE;
 				else if (isspace(*p))
 					p++;
+				else if (*p == '#')
+				{
+					while (*p && *p != '\n')
+						p++;
+					if (p)
+						p++;
+				}
 				else if (*p == '{')
 				{
 					int i = 0;
