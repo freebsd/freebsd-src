@@ -10,7 +10,7 @@ WARNS?=	2
 DPADD=	${LIBINSTALL} ${LIBMD}
 LDADD=	${LIBINSTALL} -lmd
 
-.if !defined(NOCRYPT) && !defined(NOSECURE) && !defined(NO_OPENSSL)
+.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
 DPADD+=	${LIBSSL} ${LIBCRYPTO}
 LDADD+=	-lssl -lcrypto
 .endif
