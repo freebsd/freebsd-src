@@ -42,7 +42,7 @@ typedef struct {
 
 extern PATH_T to;
 extern uid_t myuid;
-extern int iflag, pflag, fflag, myumask;
+extern int iflag, pflag, myumask;
 
 #include <sys/cdefs.h>
 
