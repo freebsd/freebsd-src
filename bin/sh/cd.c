@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: cd.c,v 1.2 1994/09/24 02:57:24 davidg Exp $
  */
 
 #ifndef lint
@@ -55,6 +55,7 @@ static char sccsid[] = "@(#)cd.c	8.1 (Berkeley) 5/31/93";
 #include "mystring.h"
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/unistd.h>
 #include <errno.h>
 
 
@@ -336,12 +337,16 @@ getpwd() {
 	int status;
 	struct job *jp;
 	int pip[2];
+	char *pwd_bin = "/bin/pwd";
 
 	if (curdir)
 		return;
 	INTOFF;
 	if (pipe(pip) < 0)
 		error("Pipe call failed");
+	/* make a fall-back guess, otherwise we're simply screwed */
+	if (access(pwd_bin, X_OK) == -1)
+		pwd_bin = "/stand/pwd";
 	jp = makejob((union node *)NULL, 1);
 	if (forkshell(jp, (union node *)NULL, FORK_NOJOB) == 0) {
 		close(pip[0]);
@@ -350,8 +355,8 @@ getpwd() {
 			copyfd(pip[1], 1);
 			close(pip[1]);
 		}
-		execl("/bin/pwd", "pwd", (char *)0);
-		error("Cannot exec /bin/pwd");
+		execl(pwd_bin, "pwd", (char *)0);
+		error("Cannot exec %s", pwd_bin);
 	}
 	close(pip[1]);
 	pip[1] = -1;
