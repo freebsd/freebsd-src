@@ -29,6 +29,11 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+/*
+ * Code cleanup, bug-fix and extension
+ * by Tatsumi Hosokawa <hosokawa@mt.cs.keio.ac.jp>
+ */
+
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,6 +46,10 @@ static const char rcsid[] =
 
 #include "readcis.h"
 
+#ifdef RATOCLAN
+static int	rex5588 = 0;
+#endif
+
 static int read_attr(int, char *, int);
 static int ck_linktarget(int, off_t, int);
 static void cis_info(struct cis *, unsigned char *, int);
@@ -48,6 +57,7 @@ static void device_desc(unsigned char *, int, struct dev_mem *);
 static void config_map(struct cis *, unsigned char *, int);
 static void cis_config(struct cis *, unsigned char *, int);
 static void cis_func_id(struct cis *, unsigned char *, int);
+static void cis_network_ext(struct cis *, unsigned char *, int);
 static struct tuple_list *read_one_tuplelist(int, int, off_t);
 static struct tuple_list *read_tuples(int);
 static struct tuple *find_tuple_in_list(struct tuple_list *, unsigned char);
@@ -56,6 +66,12 @@ static struct tuple_info *get_tuple_info(unsigned char);
 static struct tuple_info tuple_info[] = {
 	{"Null tuple", 0x00, 0},
 	{"Common memory descriptor", 0x01, 255},
+	{"Long link to next chain for CardBus", 0x02, 255},
+	{"Indirect access", 0x03, 255},
+	{"Configuration map for CardBus", 0x04, 255},
+	{"Configuration entry for CardBus", 0x05, 255},
+	{"Long link to next chain for MFC", 0x06, 255},
+	{"Base address register for CardBus", 0x07, 6},
 	{"Checksum", 0x10, 5},
 	{"Long link to attribute memory", 0x11, 4},
 	{"Long link to common memory", 0x12, 4},
@@ -73,7 +89,7 @@ static struct tuple_info tuple_info[] = {
 	{"Geometry info for common memory", 0x1E, 255},
 	{"Geometry info for attribute memory", 0x1F, 255},
 	{"Manufacturer ID", 0x20, 4},
-	{"Functional ID", 0x21, 255},
+	{"Functional ID", 0x21, 2},
 	{"Functional EXT", 0x22, 255},
 	{"Software interleave", 0x23, 2},
 	{"Version 2 Info", 0x40, 255},
@@ -82,8 +98,8 @@ static struct tuple_info tuple_info[] = {
 	{"Byte order", 0x43, 2},
 	{"Card init date", 0x44, 4},
 	{"Battery replacement", 0x45, 4},
-	{"Organisation", 0x46, 255},
-	{"Terminator", 0xFF, 255},
+	{"Organization", 0x46, 255},
+	{"Terminator", 0xFF, 0},
 	{0, 0, 0}
 };
 
@@ -104,7 +120,7 @@ readcis(int fd)
 
 	for (tl = cp->tlist; tl; tl = tl->next)
 		for (tp = tl->tuples; tp; tp = tp->next) {
-#if 0
+#if DEBUG
 			printf("tuple code = 0x%02x, data is\n", tp->code);
 			dump(tp->data, tp->length);
 #endif
@@ -124,10 +140,13 @@ readcis(int fd)
 			case CIS_CONFIG:	/* 0x1B */
 				cis_config(cp, tp->data, tp->length);
 				break;
-			case CIS_FUNC_ID:       /* 0x21 */
+			case CIS_FUNC_ID:	/* 0x21 */
 				cis_func_id(cp, tp->data, tp->length);
 				break;
- 
+			case CIS_FUNC_EXT:	/* 0x22 */
+				if (cp->func_id1 == 6)	/* LAN adaptor */
+					cis_network_ext(cp, tp->data, tp->length);
+				break;
 			}
 		}
 	return (cp);
@@ -175,19 +194,45 @@ freecis(struct cis *cp)
 static void
 cis_info(struct cis *cp, unsigned char *p, int len)
 {
-	*cp->manuf = *cp->vers = *cp->add_info1 = *cp->add_info2 = '\0';
 	cp->maj_v = *p++;
 	cp->min_v = *p++;
-	strncpy(cp->manuf, p, CIS_MAXSTR - 1);
-	while (*p++);
-	strncpy(cp->vers, p, CIS_MAXSTR - 1);
-	while (*p++);
-	strncpy(cp->add_info1, p, CIS_MAXSTR - 1);
-	while (*p++);
-	strncpy(cp->add_info2, p, CIS_MAXSTR - 1);
+	len -= 2;
+	if (cp->manuf) {
+		free(cp->manuf);
+		cp->manuf = NULL;
+	}
+	if (len > 1 && *p != 0xff) {
+		cp->manuf = strdup(p);
+		while (*p++ && --len > 0);
+	}
+	if (cp->vers) {
+		free(cp->vers);
+		cp->vers = NULL;
+	}
+	if (len > 1 && *p != 0xff) {
+		cp->vers = strdup(p);
+		while (*p++ && --len > 0);
+	} else {
+		cp->vers = strdup("?");
+	}
+	if (cp->add_info1) {
+		free(cp->add_info1);
+		cp->add_info1 = NULL;
+	}
+	if (len > 1 && *p != 0xff) {
+		cp->add_info1 = strdup(p);
+		while (*p++ && --len > 0);
+	}
+	if (cp->add_info2) {
+		free(cp->add_info2);
+		cp->add_info2 = NULL;
+	}
+	if (len > 1 && *p != 0xff)
+		cp->add_info2 = strdup(p);
 }
+
 /*
- *      Fills in CIS function ID.
+ *	Fills in CIS function ID.
  */
 static void
 cis_func_id(struct cis *cp, unsigned char *p, int len)
@@ -195,6 +240,88 @@ cis_func_id(struct cis *cp, unsigned char *p, int len)
 	cp->func_id1 = *p++;
 	cp->func_id2 = *p++;
 }
+
+static void
+cis_network_ext(struct cis *cp, unsigned char *p, int len)
+{
+	int i;
+
+	switch (p[0]) {
+	case 4:		/* Node ID */
+		if (len <= 2 || len < p[1] + 2)
+			return;
+
+		if (cp->lan_nid)
+			free(cp->lan_nid);
+		cp->lan_nid = xmalloc(p[1]);
+
+		for (i = 0; i <= p[1]; i++)
+			cp->lan_nid[i] = p[i + 1];
+		break;
+	}
+}
+
+/*
+ *	"FUJITSU LAN Card (FMV-J182)" has broken CIS
+ */
+static int
+fmvj182_check(unsigned char *p)
+{
+	char    manuf[BUFSIZ], vers[BUFSIZ];
+
+	p++;			/* major version */
+	p++;			/* minor version */
+	strncpy(manuf, p, sizeof(manuf) - 1);
+	while (*p++);
+	strncpy(vers, p, sizeof(vers) - 1);
+	if (!strcmp(manuf, "FUJITSU") && !strcmp(vers, "LAN Card(FMV-J182)"))
+		return 1;
+	else
+		return 0;
+}
+
+#ifdef RATOCLAN
+/*
+ *	"RATOC LAN Card (REX-5588)" has broken CIS
+ */
+static int
+rex5588_check(unsigned char *p)
+{
+	char    manuf[BUFSIZ], vers[BUFSIZ];
+
+	p++;			/* major version */
+	p++;			/* minor version */
+	strncpy(manuf, p, sizeof(manuf) - 1);
+	while (*p++);
+	strncpy(vers, p, sizeof(manuf) - 1);
+	if (!strcmp(manuf, "PCMCIA LAN MBH10304  ES"))
+		return 1;
+	else
+		return 0;
+}
+#endif
+
+#ifdef HSSYNTH
+/*
+ *	Broken CIS for "HITACHI MICROCOMPUTER SYSTEM LTD." "MSSHVPC02"
+ */
+static int
+hss_check(unsigned char *p)
+{
+	char    manuf[BUFSIZ], vers[BUFSIZ];
+
+	p++;			/* major version */
+	p++;			/* minor version */
+	strncpy(manuf, p, sizeof(manuf) - 1);
+	while (*p++);
+	strncpy(vers, p, sizeof(vers) - 1);
+	if (!strcmp(manuf, "HITACHI MICROCOMPUTER SYSTEMS LTD.")
+	 && !strcmp(vers, "MSSHVPC02"))
+		return 1;
+	else
+		return 0;
+}
+#endif	/* HSSYNTH */
 
 /*
  *	device_desc - decode device descriptor.
@@ -209,7 +336,7 @@ device_desc(unsigned char *p, int len, struct dev_mem *dp)
 		dp->speed = *p & 7;
 		p++;
 		if (*p != 0xFF) {
-			dp->addr = *p >> 3;
+			dp->addr = (*p >> 3) & 0xF;
 			dp->units = *p & 7;
 		}
 		p++;
@@ -224,19 +351,48 @@ static void
 config_map(struct cis *cp, unsigned char *p, int len)
 {
 	unsigned char *p1;
-	int     i;
-	union {
-		unsigned long l;
-		unsigned char b[4];
-	} u;
+	int rlen = (*p & 3) + 1;
 
 	p1 = p + 1;
 	cp->last_config = *p1++ & 0x3F;
-	u.l = 0;
-	for (i = 0; i <= (*p & 3); i++)
-		u.b[i] = *p1++;
-	cp->reg_addr = u.l;
+	cp->reg_addr = parse_num(rlen | 0x10, p1, &p1, 0);
 	cp->ccrs = *p1;
+}
+
+/*
+ *	Parse variable length value.
+ */
+u_int
+parse_num(int sz, u_char *p, u_char **q, int ofs)
+{
+	u_int num = 0;
+
+	switch (sz) {	
+	case 0:
+	case 0x10:
+		break;
+	case 1:
+	case 0x11:
+		num = (*p++) + ofs;
+		break;
+	case 2:
+	case 0x12:
+		num = tpl16(p) + ofs;
+		p += 2;
+		break;
+	case 0x13:
+		num = tpl24(p) + ofs;
+		p += 3;
+		break;
+	case 3:
+	case 0x14:
+		num = tpl32(p) + ofs;
+		p += 4;
+		break;
+	}
+	if (q)
+		*q = p;
+	return num;
 }
 
 /*
@@ -247,14 +403,8 @@ cis_config(struct cis *cp, unsigned char *p, int len)
 {
 	int     x;
 	int     i, j;
-	union {
-		unsigned long l;
-		unsigned char b[4];
-	} u;
 	struct cis_config *conf, *last;
-	struct cis_memblk *mem;
 	unsigned char feat;
-	struct cis_memblk *lastmem = 0;
 
 	conf = xmalloc(sizeof(*conf));
 	if ((last = cp->conf) != 0) {
@@ -263,12 +413,16 @@ cis_config(struct cis *cp, unsigned char *p, int len)
 		last->next = conf;
 	} else
 		cp->conf = conf;
-	conf->id = *p & 0x3F;
-	if (*p & 0x40)
+ 	conf->id = *p & 0x3F;	/* Config index */
+#ifdef RATOCLAN
+	if (rex5588 && conf->id >= 0x08 && conf->id <= 0x1d)
+		conf->id |= 0x20;
+#endif
+ 	if (*p & 0x40)		/* Default flag */
 		cp->def_config = conf;
 	if (*p++ & 0x80)
-		p++;
-	feat = *p++;
+ 		p++;		/* Interface byte skip */
+ 	feat = *p++;		/* Features byte */
 	for (i = 0; i < CIS_FEAT_POWER(feat); i++) {
 		unsigned char parms = *p++;
 
@@ -292,59 +446,22 @@ cis_config(struct cis *cp, unsigned char *p, int len)
 		if (CIS_IO_RANGE & *p)
 			conf->io_blks = CIS_IO_BLKS(p[1]) + 1;
 		conf->io_addr = CIS_IO_ADDR(*p);
-		conf->io_bus = (*p >> 5) & 3;
+		conf->io_bus = (*p >> 5) & 3; /* CIS_IO_8BIT | CIS_IO_16BIT */
 		if (*p++ & CIS_IO_RANGE) {
-			struct cis_ioblk *io, *last = 0;
+			struct cis_ioblk *io;
+			struct cis_ioblk *last_io = NULL;
+
 			i = CIS_IO_ADSZ(*p);
 			j = CIS_IO_BLKSZ(*p++);
 			for (x = 0; x < conf->io_blks; x++) {
 				io = xmalloc(sizeof(*io));
-				if (last)
-					last->next = io;
+				if (last_io)
+					last_io->next = io;
 				else
 					conf->io = io;
-				last = io;
-				u.l = 0;
-				switch (i) {
-				case 0:
-					break;
-				case 1:
-					u.b[0] = *p++;
-					break;
-				case 2:
-					u.b[0] = *p++;
-					u.b[1] = *p++;
-					break;
-				case 3:
-					u.b[0] = *p++;
-					u.b[1] = *p++;
-					u.b[2] = *p++;
-					u.b[3] = *p++;
-					break;
-				}
-				io->addr = u.l;
-				u.l = 0;
-				switch (j) {
-				case 0:
-					break;
-				case 1:
-					u.b[0] = *p++;
-					u.l++;
-					break;
-				case 2:
-					u.b[0] = *p++;
-					u.b[1] = *p++;
-					u.l++;
-					break;
-				case 3:
-					u.b[0] = *p++;
-					u.b[1] = *p++;
-					u.b[2] = *p++;
-					u.b[3] = *p++;
-					u.l++;
-					break;
-				}
-				io->size = u.l;
+				last_io = io;
+				io->addr = parse_num(i, p, &p, 0);
+				io->size = parse_num(j, p, &p, 1);
 			}
 		}
 	}
@@ -353,7 +470,7 @@ cis_config(struct cis *cp, unsigned char *p, int len)
 		conf->irqlevel = *p & 0xF;
 		conf->irq_flags = *p & 0xF0;
 		if (*p++ & CIS_IRQ_MASK) {
-			conf->irq_mask = (p[1] << 8) | p[0];
+			conf->irq_mask = tpl16(p);
 			p += 2;
 		}
 	}
@@ -363,43 +480,39 @@ cis_config(struct cis *cp, unsigned char *p, int len)
 	case 1:
 		conf->memspace = 1;
 		conf->mem = xmalloc(sizeof(*conf->mem));
-		conf->mem->length = ((p[1] << 8) | p[0]) << 8;
+		conf->mem->length = tpl16(p) << 8;
 		break;
 	case 2:
 		conf->memspace = 1;
 		conf->mem = xmalloc(sizeof(*conf->mem));
-		conf->mem->length = ((p[1] << 8) | p[0]) << 8;
-		conf->mem->address = ((p[3] << 8) | p[2]) << 8;
+		conf->mem->length = tpl16(p) << 8;
+		conf->mem->address = tpl16(p + 2) << 8;
 		break;
-	case 3:
+	case 3: {
+		struct cis_memblk *mem;
+		struct cis_memblk *last_mem = NULL;
+
 		conf->memspace = 1;
 		x = *p++;
 		conf->memwins = CIS_MEM_WINS(x);
 		for (i = 0; i < conf->memwins; i++) {
 			mem = xmalloc(sizeof(*mem));
-			if (i == 0)
-				conf->mem = mem;
+			if (last_mem)
+				last_mem->next = mem;
 			else
-				lastmem->next = mem;
-			lastmem = mem;
-			u.l = 0;
-			for (j = 0; j < CIS_MEM_LENSZ(x); j++)
-				u.b[j] = *p++;
-			mem->length = u.l << 8;
-			u.l = 0;
-			for (j = 0; j < CIS_MEM_ADDRSZ(x); j++)
-				u.b[j] = *p++;
-			mem->address = u.l << 8;
+				conf->mem = mem;
+			last_mem = mem;
+			mem->length = parse_num(CIS_MEM_LENSZ(x) | 0x10, p, &p, 0) << 8;
+			mem->address = parse_num(CIS_MEM_ADDRSZ(x) | 0x10, p, &p, 0) << 8;
 			if (x & CIS_MEM_HOST) {
-				u.l = 0;
-				for (j = 0; j < CIS_MEM_ADDRSZ(x); j++)
-					u.b[j] = *p++;
-				mem->host_address = u.l << 8;
+				mem->host_address = parse_num(CIS_MEM_ADDRSZ(x) | 0x10,
+							      p, &p, 0) << 8;
 			}
 		}
 		break;
+	    }
 	}
-	if (feat & 0x80) {
+	if (feat & CIS_FEAT_MISC) {
 		conf->misc_valid = 1;
 		conf->misc = *p++;
 	}
@@ -443,12 +556,9 @@ read_tuples(int fd)
 			tp = find_tuple_in_list(last_tl, CIS_LONGLINK_C);
 		}
 		if (tp && tp->length == 4) {
-			offs = tp->data[0] |
-			    (tp->data[1] << 8) |
-			    (tp->data[2] << 16) |
-			    (tp->data[3] << 24);
+			offs = tpl32(tp->data);
 #ifdef	DEBUG
-			printf("Checking long link at %ld (%s memory)\n",
+			printf("Checking long link at %qd (%s memory)\n",
 			    offs, flag ? "Attribute" : "Common");
 #endif
 			/* If a link was found, read the tuple list from it. */
@@ -468,7 +578,7 @@ read_tuples(int fd)
 	if (find_tuple_in_list(tlist, CIS_NOLINK) == 0 && tlist->next == 0 &&
 	    ck_linktarget(fd, (off_t) 0, 0)) {
 #ifdef	DEBUG
-		printf("Reading long link at %ld (%s memory)\n",
+		printf("Reading long link at %qd (%s memory)\n",
 		    offs, flag ? "Attribute" : "Common");
 #endif
 		tlist->next = read_one_tuplelist(fd, 0, (off_t) 0);
@@ -487,6 +597,10 @@ read_one_tuplelist(int fd, int flags, off_t offs)
 	struct tuple_info *tinfo;
 	int     total = 0;
 	unsigned char code, length;
+	int     fmvj182 = 0;
+#ifdef HSSYNTH
+	int     hss = 0;
+#endif	/* HSSYNTH */
 
 	/* Check to see if this memory has already been scanned. */
 	for (tl = tlist; tl; tl = tl->next)
@@ -507,11 +621,17 @@ read_one_tuplelist(int fd, int flags, off_t offs)
 			continue;
 		tp = xmalloc(sizeof(*tp));
 		tp->code = code;
-		if (read_attr(fd, &length, 1) != 1) {
-			warn("CIS len read");
-			break;
+		if (code == CIS_END)
+			length = 0;
+		else {
+			if (read_attr(fd, &length, 1) != 1) {
+				warn("CIS len read");
+				break;
+			}
+			total++;
+			if (fmvj182 && (code == 0x1b) && (length == 25))
+				length = 31;
 		}
-		total++;
 		tp->length = length;
 #ifdef	DEBUG
 		printf("Tuple code = 0x%x, len = %d\n", code, length);
@@ -534,11 +654,23 @@ read_one_tuplelist(int fd, int flags, off_t offs)
 		 * or the length is illegal.
 		 */
 		tinfo = get_tuple_info(code);
-		if (tinfo == 0 || (tinfo->length != 255 && tinfo->length != length)) {
+		if (code == CIS_INFO_V1) {
+			/* Hack for broken CIS of FMV-J182 Ethernet card */
+			fmvj182 = fmvj182_check(tp->data);
+#ifdef RATOCLAN
+			/* Hack for RATOC LAN card */
+			rex5588 = rex5588_check(tp->data);
+#endif /* RATOCLAN */
+#ifdef	HSSYNTH
+			/* Hack for Hitachi Speech Synthesis card */
+			hss = hss_check(tp->data);
+#endif	/* HSSYNTH */
+		}
+		if (tinfo == NULL || (tinfo->length != 255 && tinfo->length > length)) {
 			printf("code %s ignored\n", tuple_name(code));
 			tp->code = CIS_NULL;
 		}
-		if (tl->tuples == 0)
+		if (tl->tuples == NULL)
 			tl->tuples = tp;
 		else
 			last_tp->next = tp;

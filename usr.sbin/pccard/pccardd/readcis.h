@@ -26,7 +26,6 @@
  * $FreeBSD$
  */
 
-#define	CIS_MAXSTR	254
 struct tuple {
 	struct tuple *next;
 	unsigned char code;
@@ -111,10 +110,10 @@ struct cis_config {
  */
 struct cis {
 	struct tuple_list *tlist;
-	char    manuf[CIS_MAXSTR];
-	char    vers[CIS_MAXSTR];
-	char    add_info1[CIS_MAXSTR];
-	char    add_info2[CIS_MAXSTR];
+	char    *manuf;
+	char    *vers;
+	char    *add_info1;
+	char    *add_info2;
 	unsigned char maj_v, min_v;
 	unsigned char last_config;
 	unsigned char ccrs;
@@ -124,11 +123,21 @@ struct cis {
 	struct dev_mem common_mem;
 	struct cis_config *def_config;
 	struct cis_config *conf;
+	unsigned char *lan_nid;
 };
 
+#define	tpl32(tp)	((*((tp) + 3) << 24) | \
+			 (*((tp) + 2) << 16) | \
+			 (*((tp) + 1) << 8)  | *(tp))
+#define	tpl24(tp)	((*((tp) + 2) << 16) | \
+			 (*((tp) + 1) << 8)  | *(tp))
+#define	tpl16(tp)	((*((tp) + 1) << 8)  | *(tp))
+
 void   *xmalloc(int);
+void    dump(unsigned char *, int);
 void    dumpcis(struct cis *);
 void    freecis(struct cis *);
 struct cis *readcis(int);
 
 char   *tuple_name(unsigned char);
+u_int   parse_num(int, u_char *, u_char **, int);
