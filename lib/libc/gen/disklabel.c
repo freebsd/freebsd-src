@@ -79,11 +79,6 @@ getdiskbyname(name)
 	    (*cq = *cp) && *cq != '|' && *cq != ':')
 		cq++, cp++;
 	*cq = '\0';
-	/*
-	 * boot name (optional)  xxboot, bootxx
-	 */
-	cgetstr(buf, "b0", &dp->d_boot0);
-	cgetstr(buf, "b1", &dp->d_boot1);
 
 	if (cgetstr(buf, "ty", &cq) > 0 && strcmp(cq, "removable") == 0)
 		dp->d_flags |= D_REMOVABLE;
