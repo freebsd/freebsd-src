@@ -471,12 +471,8 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
       long sig;
 
       sig = args[sc->offset];
-      if (sig > 0 && sig < NSIG) {
-	int i;
-	asprintf(&tmp, "sig%s", sys_signame[sig]);
-	for (i = 0; tmp[i] != '\0'; ++i)
-	  tmp[i] = toupper(tmp[i]);
-      } else
+      tmp = strsig(sig);
+      if (tmp == NULL)
         asprintf(&tmp, "%ld", sig);
     }
     break;

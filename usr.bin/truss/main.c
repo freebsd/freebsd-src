@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/resource.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -138,6 +139,23 @@ set_etype(struct trussinfo *trussinfo) {
   return funcs;
 }
 
+char *
+strsig(int sig)
+{
+	char *ret;
+
+	ret = NULL;
+	if (sig > 0 && sig < NSIG) {
+		int i;
+		asprintf(&ret, "sig%s", sys_signame[sig]);
+		if (ret == NULL)
+			return (NULL);
+		for (i = 0; ret[i] != '\0'; ++i)
+			ret[i] = toupper(ret[i]);
+	}
+	return (ret);
+}
+
 int
 main(int ac, char **av) {
   int c;
@@ -149,6 +167,7 @@ main(int ac, char **av) {
   char *fname = NULL;
   int sigexit = 0;
   struct trussinfo *trussinfo;
+  char *signame;
 
   /* Initialize the trussinfo struct */
   trussinfo = (struct trussinfo *)malloc(sizeof(struct trussinfo));
@@ -285,7 +304,10 @@ START_TRACE:
 	funcs->exit_syscall(trussinfo, pfs.val);
 	break;
       case S_SIG:
-	fprintf(trussinfo->outfile, "SIGNAL %lu\n", pfs.val);
+	signame = strsig(pfs.val);
+	fprintf(trussinfo->outfile, "SIGNAL %lu (%s)\n", pfs.val,
+	    signame == NULL ? "?" : signame);
+	free(signame);
 	sigexit = pfs.val;
 	break;
       case S_EXIT:
