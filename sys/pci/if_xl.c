@@ -1410,8 +1410,10 @@ xl_attach(dev)
 	rid = XL_PCI_LOMEM;
 	res = SYS_RES_MEMORY;
 
+#if 0
 	sc->xl_res = bus_alloc_resource(dev, res, &rid,
 	    0, ~0, 1, RF_ACTIVE);
+#endif
 
 	if (sc->xl_res != NULL) {
 		sc->xl_flags |= XL_FLAG_USE_MMIO;
