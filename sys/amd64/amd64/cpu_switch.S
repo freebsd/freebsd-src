@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.8 1994/08/03 02:45:30 davidg Exp $
+ *	$Id: swtch.s,v 1.9 1994/08/06 09:17:44 davidg Exp $
  */
 
 #include "npx.h"	/* for NNPX */
@@ -386,9 +386,6 @@ ENTRY(savectx)
 	popl	%ecx
 1:
 #endif	/* NNPX > 0 */
-
-	movl	_CMAP2,%edx			/* save temporary map PTE */
-	movl	%edx,PCB_CMAP2(%ecx)		/* in our context */
 
 	cmpl	$0,8(%esp)
 	je	1f
