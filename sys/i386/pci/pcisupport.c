@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 2.5 94/10/09 21:10:29 wolf Oct11 $
+**  $Id: pcisupport.c,v 1.1 1994/10/12 02:27:08 se Exp $
 **
 **  Device driver for INTEL PCI chipsets.
 **
@@ -316,12 +316,17 @@ static	char*	vga_probe (pcici_t tag, pcidi_t type)
 
 static	void	vga_attach(pcici_t tag, int unit)
 {
+/*
+**	Breaks some systems.
+**	The assigned adresses _have_ to be announced to the console driver.
+*/
+#if 0
 	vm_offset_t va;
 	vm_offset_t pa;
 	int reg;
-
 	for (reg = PCI_MAP_REG_START; reg < PCI_MAP_REG_END; reg += 4)
 		(void) pci_map_mem (tag, reg, &va, &pa);
+#endif
 }
 
 /*---------------------------------------------------------
