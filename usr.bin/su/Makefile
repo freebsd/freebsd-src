@@ -1,8 +1,12 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
 
 PROG=	su
-LDADD=	-lcrypt
-DPADD=	${LIBCRYPT}
+LDADD=	-lcrypt -lskey
+DPADD=	${LIBCRYPT} ${LIBSKEY}
+SRCS=	su.c login_skey.c
+CFLAGS+=-DSKEY
+
+.PATH:	${.CURDIR}/../login
 
 .if exists(${DESTDIR}/usr/lib/libkrb.a) && (defined(MAKE_KERBEROS) \
 	|| defined(MAKE_EBONES))
