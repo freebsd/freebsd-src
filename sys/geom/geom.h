@@ -219,6 +219,7 @@ void g_spoil(struct g_provider *pp, struct g_consumer *cp);
 int g_std_access(struct g_provider *pp, int dr, int dw, int de);
 void g_std_done(struct bio *bp);
 void g_std_spoiled(struct g_consumer *cp);
+void g_wither_geom(struct g_geom *gp, int error);
 
 /* geom_io.c */
 struct bio * g_clone_bio(struct bio *);
