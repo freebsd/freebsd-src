@@ -287,8 +287,11 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 
 	PROC_LOCK(p);
 	mtx_lock(&p->p_sigacts->ps_mtx);
-	if (sig == 0)
+	if (sig == 0) {
 		sig = cursig(td);	/* XXXKSE */
+		if (sig == 0 && td->td_flags & TDF_INTERRUPT)
+			rval = td->td_intrval;
+	}
 	if (sig != 0) {
 		if (SIGISMEMBER(p->p_sigacts->ps_sigintr, sig))
 			rval = EINTR;
@@ -452,8 +455,11 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 
 	PROC_LOCK(p);
 	mtx_lock(&p->p_sigacts->ps_mtx);
-	if (sig == 0)
+	if (sig == 0) {
 		sig = cursig(td);
+		if (sig == 0 && td->td_flags & TDF_INTERRUPT)
+			rval = td->td_intrval;
+	}
 	if (sig != 0) {
 		if (SIGISMEMBER(p->p_sigacts->ps_sigintr, sig))
 			rval = EINTR;
