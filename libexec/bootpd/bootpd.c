@@ -19,7 +19,7 @@ PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
-	$Id: bootpd.c,v 1.8 1998/06/03 20:01:28 joerg Exp $
+	$Id: bootpd.c,v 1.9 1998/12/12 20:56:53 dillon Exp $
 
 ************************************************************************/
 
@@ -634,6 +634,8 @@ handle_request()
 	char *clntpath;
 	char *homedir, *bootfile;
 	int n;
+
+	bp->bp_file[sizeof(bp->bp_file)-1] = '\0';
 
 	/* XXX - SLIP init: Set bp_ciaddr = recv_addr here? */
 
