@@ -742,7 +742,7 @@
         <title>isdn4bsd</title>
 
 	<para><application>isdn4bsd</application> has been updated to
-	version 0.96.00.</para>
+	version 1.0.1.</para>
 
 	<para>The &man.ihfc.4; driver for supporting Cologne Chip
         Designs HFC devices under <application>isdn4bsd</application>
