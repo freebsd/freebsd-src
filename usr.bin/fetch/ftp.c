@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftp.c,v 1.8 1997/10/06 01:09:56 fenner Exp $
+ *	$Id: ftp.c,v 1.9 1997/10/08 18:43:53 fenner Exp $
  */
 
 #include <sys/types.h>
@@ -375,6 +375,13 @@ ftp_retrieve(struct fetch_state *fs)
 		}
 	}
 	size = ftpGetSize(ftp, ftps->ftp_remote_file);
+	if (size > 0 && fs->fs_expectedsize != -1 && size != fs->fs_expectedsize) {
+		warnx("%s: size mismatch, expected=%lu / actual=%lu",
+		      ftps->ftp_remote_path, 
+		      (unsigned long)fs->fs_expectedsize, 
+		      (unsigned long)size);
+		return EX_DATAERR;
+	}
 	modtime = ftpGetModtime(ftp, ftps->ftp_remote_file);
 	if (modtime <= 0) {	/* xxx */
 		warnx("%s: cannot get remote modification time", 
