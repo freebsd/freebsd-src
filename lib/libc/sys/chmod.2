@@ -88,17 +88,12 @@ defined in
 
 #define S_ISUID 0004000    /* set user id on execution */
 #define S_ISGID 0002000    /* set group id on execution */
-#define S_ISVTX 0001000    /* save swapped text even after use */
+#define S_ISVTX 0001000    /* sticky bit */
 .Ed
 .Pp
-The
+The FreeBSD VM system totally ignores the sticky bit (
 .Dv ISVTX
-(the
-.Em sticky bit )
-indicates to the system which executable files are shareable (the
-default) and the system maintains the program text of the files
-in the swap area. The sticky bit may only be set by the super user
-on shareable executable files.
+) for executables.
 .Pp
 If mode
 .Dv ISVTX
