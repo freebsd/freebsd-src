@@ -33,11 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.20.4.4 1996/02/02 18:31:59 davidg Exp $
+ *	$Id: swtch.s,v 1.20.4.5 1996/03/12 05:49:48 nate Exp $
  */
 
 #include "npx.h"	/* for NNPX */
 #include "assym.s"	/* for preprocessor defines */
+#include "apm.h"	/* for NAPM */
 #include <sys/errno.h>	/* for error codes */
 
 #include <machine/asmacros.h>	/* for miscellaneous assembly macros */
