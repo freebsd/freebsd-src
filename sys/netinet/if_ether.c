@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.13 1995/03/16 18:14:49 bde Exp $
+ * $Id: if_ether.c,v 1.14 1995/04/26 18:10:52 pst Exp $
  */
 
 /*
@@ -270,17 +270,16 @@ arprequest(ac, sip, tip, enaddr)
 	ea = mtod(m, struct ether_arp *);
 	eh = (struct ether_header *)sa.sa_data;
 	bzero((caddr_t)ea, sizeof (*ea));
-	bcopy((caddr_t)etherbroadcastaddr, (caddr_t)eh->ether_dhost,
-	    sizeof(eh->ether_dhost));
+	(void)memcpy(eh->ether_dhost, etherbroadcastaddr, sizeof(eh->ether_dhost));
 	eh->ether_type = ETHERTYPE_ARP;		/* if_output will swap */
 	ea->arp_hrd = htons(ARPHRD_ETHER);
 	ea->arp_pro = htons(ETHERTYPE_IP);
 	ea->arp_hln = sizeof(ea->arp_sha);	/* hardware address length */
 	ea->arp_pln = sizeof(ea->arp_spa);	/* protocol address length */
 	ea->arp_op = htons(ARPOP_REQUEST);
-	bcopy((caddr_t)enaddr, (caddr_t)ea->arp_sha, sizeof(ea->arp_sha));
-	bcopy((caddr_t)sip, (caddr_t)ea->arp_spa, sizeof(ea->arp_spa));
-	bcopy((caddr_t)tip, (caddr_t)ea->arp_tpa, sizeof(ea->arp_tpa));
+	(void)memcpy(ea->arp_sha, enaddr, sizeof(ea->arp_sha));
+	(void)memcpy(ea->arp_spa, sip, sizeof(ea->arp_spa));
+	(void)memcpy(ea->arp_tpa, tip, sizeof(ea->arp_tpa));
 	sa.sa_family = AF_UNSPEC;
 	sa.sa_len = sizeof(sa);
 	(*ac->ac_if.if_output)(&ac->ac_if, m, &sa, (struct rtentry *)0);
@@ -309,8 +308,7 @@ arpresolve(ac, rt, m, dst, desten, rt0)
 	struct sockaddr_dl *sdl;
 
 	if (m->m_flags & M_BCAST) {	/* broadcast */
-		bcopy((caddr_t)etherbroadcastaddr, (caddr_t)desten,
-		    sizeof(etherbroadcastaddr));
+		(void)memcpy(desten, etherbroadcastaddr, sizeof(etherbroadcastaddr));
 		return (1);
 	}
 	if (m->m_flags & M_MCAST) {	/* multicast */
@@ -336,7 +334,7 @@ arpresolve(ac, rt, m, dst, desten, rt0)
 	 */
 	if ((rt->rt_expire == 0 || rt->rt_expire > time.tv_sec) &&
 	    sdl->sdl_family == AF_LINK && sdl->sdl_alen != 0) {
-		bcopy(LLADDR(sdl), desten, sdl->sdl_alen);
+		(void)memcpy(desten, LLADDR(sdl), sdl->sdl_alen);
 		return 1;
 	}
 	/*
@@ -429,8 +427,8 @@ in_arpinput(m)
 
 	ea = mtod(m, struct ether_arp *);
 	op = ntohs(ea->arp_op);
-	bcopy((caddr_t)ea->arp_spa, (caddr_t)&isaddr, sizeof (isaddr));
-	bcopy((caddr_t)ea->arp_tpa, (caddr_t)&itaddr, sizeof (itaddr));
+	(void)memcpy(&isaddr, ea->arp_spa, sizeof (isaddr));
+	(void)memcpy(&itaddr, ea->arp_tpa, sizeof (itaddr));
 	for (ia = in_ifaddr; ia; ia = ia->ia_next)
 		if (ia->ia_ifp == &ac->ac_if) {
 			maybe_ia = ia;
@@ -464,8 +462,8 @@ in_arpinput(m)
 		    bcmp((caddr_t)ea->arp_sha, LLADDR(sdl), sdl->sdl_alen))
 			log(LOG_INFO, "arp info overwritten for %s by %s\n",
 			    inet_ntoa(isaddr), ether_sprintf(ea->arp_sha));
-		bcopy((caddr_t)ea->arp_sha, LLADDR(sdl),
-			    sdl->sdl_alen = sizeof(ea->arp_sha));
+		(void)memcpy(LLADDR(sdl), ea->arp_sha, sizeof(ea->arp_sha));
+		sdl->sdl_alen = sizeof(ea->arp_sha);
 		if (rt->rt_expire)
 			rt->rt_expire = time.tv_sec + arpt_keep;
 		rt->rt_flags &= ~RTF_REJECT;
@@ -484,10 +482,8 @@ reply:
 	}
 	if (itaddr.s_addr == myaddr.s_addr) {
 		/* I am the target */
-		bcopy((caddr_t)ea->arp_sha, (caddr_t)ea->arp_tha,
-		    sizeof(ea->arp_sha));
-		bcopy((caddr_t)ac->ac_enaddr, (caddr_t)ea->arp_sha,
-		    sizeof(ea->arp_sha));
+		(void)memcpy(ea->arp_tha, ea->arp_sha, sizeof(ea->arp_sha));
+		(void)memcpy(ea->arp_sha, ac->ac_enaddr, sizeof(ea->arp_sha));
 	} else {
 		la = arplookup(itaddr.s_addr, 0, SIN_PROXY);
 		if (la == NULL) {
@@ -513,10 +509,8 @@ reply:
 				rtfree(rt);
 				goto out;
 			}
-			bcopy((caddr_t)ea->arp_sha, (caddr_t)ea->arp_tha,
-			      sizeof(ea->arp_sha));
-			bcopy(ac->ac_enaddr, (caddr_t)ea->arp_sha,
-			      sizeof(ea->arp_sha));
+			(void)memcpy(ea->arp_tha, ea->arp_sha, sizeof(ea->arp_sha));
+			(void)memcpy(ea->arp_sha, ac->ac_enaddr, sizeof(ea->arp_sha));
 			rtfree(rt);
 #ifdef DEBUG_PROXY
 			printf("arp: proxying for %s\n", 
@@ -527,21 +521,18 @@ reply:
 #endif
 		} else {
 			rt = la->la_rt;
-			bcopy((caddr_t)ea->arp_sha, (caddr_t)ea->arp_tha,
-			      sizeof(ea->arp_sha));
+			(void)memcpy(ea->arp_tha, ea->arp_sha, sizeof(ea->arp_sha));
 			sdl = SDL(rt->rt_gateway);
-			bcopy(LLADDR(sdl), (caddr_t)ea->arp_sha,
-			      sizeof(ea->arp_sha));
+			(void)memcpy(ea->arp_sha, LLADDR(sdl), sizeof(ea->arp_sha));
 		}
 	}
 
-	bcopy((caddr_t)ea->arp_spa, (caddr_t)ea->arp_tpa, sizeof(ea->arp_spa));
-	bcopy((caddr_t)&itaddr, (caddr_t)ea->arp_spa, sizeof(ea->arp_spa));
+	(void)memcpy(ea->arp_tpa, ea->arp_spa, sizeof(ea->arp_spa));
+	(void)memcpy(ea->arp_spa, &itaddr, sizeof(ea->arp_spa));
 	ea->arp_op = htons(ARPOP_REPLY);
 	ea->arp_pro = htons(ETHERTYPE_IP); /* let's be sure! */
 	eh = (struct ether_header *)sa.sa_data;
-	bcopy((caddr_t)ea->arp_tha, (caddr_t)eh->ether_dhost,
-	    sizeof(eh->ether_dhost));
+	(void)memcpy(eh->ether_dhost, ea->arp_tha, sizeof(eh->ether_dhost));
 	eh->ether_type = ETHERTYPE_ARP;
 	sa.sa_family = AF_UNSPEC;
 	sa.sa_len = sizeof(sa);

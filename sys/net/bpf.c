@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.4 1994/10/09 07:35:03 davidg Exp $
+ * $Id: bpf.c,v 1.5 1995/03/14 09:14:10 davidg Exp $
  */
 
 #include "bpfilter.h"
@@ -1039,7 +1039,7 @@ bpf_mcopy(src_arg, dst_arg, len)
 		if (m == 0)
 			panic("bpf_mcopy");
 		count = min(m->m_len, len);
-		bcopy(mtod(m, caddr_t), (caddr_t)dst, count);
+		(void)memcpy((caddr_t)dst, mtod(m, caddr_t), count);
 		m = m->m_next;
 		dst += count;
 		len -= count;
