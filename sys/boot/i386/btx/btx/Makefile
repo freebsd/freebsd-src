@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1998/09/14 18:27:05 msmith Exp $
+#	$Id: Makefile,v 1.3 1998/09/17 23:52:04 msmith Exp $
 
 M4?=	m4
 
@@ -16,13 +16,8 @@ btx: btx.o
 .endif
 
 btx.o: btx.m4 btx.s
-	${M4} btx.m4 btx.s | ${AS} ${AFLAGS} -o ${.TARGET}
+	(cd ${.CURDIR}; ${M4} btx.m4 btx.s) | ${AS} ${AFLAGS} -o ${.TARGET}
 
-clean:
-	rm -f btx btx.out btx.o
+CLEANFILES+= btx btx.out btx.o
 
-depend:
-
-cleandepend:
-
-install:
+.include <bsd.prog.mk>
