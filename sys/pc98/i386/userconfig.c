@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.7 1996/10/09 21:46:01 asami Exp $
+ **      $Id: userconfig.c,v 1.8 1996/10/23 07:25:04 asami Exp $
  **/
 
 /**
@@ -283,8 +283,6 @@ static DEV_INFO device_info[] = {
 {"cy",          "Cyclades multiport async adapter",	0,		CLS_COMMS},
 #endif
 {"lpt",         "Parallel printer port",		0,		CLS_COMMS},
-{"nic",         "ISDN driver",				0,		CLS_COMMS},
-{"nnic",        "ISDN driver",				0,		CLS_COMMS},
 #ifndef PC98
 {"gp",          "National Instruments AT-GPIB/TNT driver",	0,	CLS_COMMS},
 #endif
@@ -2249,7 +2247,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.7 1996/10/09 21:46:01 asami Exp $
+ *      $Id: userconfig.c,v 1.8 1996/10/23 07:25:04 asami Exp $
  */
 
 #include "scbus.h"

@@ -28,7 +28,11 @@
  */
 
 #define PATMGR_C
+#ifdef PC98
+#include <pc98/pc98/sound/sound_config.h>
+#else
 #include <i386/isa/sound/sound_config.h>
+#endif
 
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_SEQUENCER)
 

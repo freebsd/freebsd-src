@@ -28,7 +28,11 @@
  *
  */
 
+#ifdef PC98
+#include <pc98/pc98/sound/local.h>
+#else
 #include <i386/isa/sound/local.h>
+#endif
 #include <i386/isa/sound/os.h>
 #include <i386/isa/sound/soundvers.h>
 
@@ -358,8 +362,13 @@ struct channel_info {
 #define OPEN_WRITE	2
 #define OPEN_READWRITE	3
 
+#ifdef PC98
+#include <pc98/pc98/sound/sound_calls.h>
+#include <pc98/pc98/sound/dev_table.h>
+#else
 #include <i386/isa/sound/sound_calls.h>
 #include <i386/isa/sound/dev_table.h>
+#endif
 
 #ifndef DEB
 #define DEB(x)
