@@ -31,16 +31,8 @@ Boston, MA 02111-1307, USA.  */
 /* Output assembler code to FILE to call the profiler.  */
 #define NO_PROFILE_COUNTERS 1
 
-#undef FUNCTION_PROFILER
-#define FUNCTION_PROFILER(FILE, LABELNO)  \
-{									\
-  if (TARGET_64BIT && flag_pic)						\
-    fprintf (FILE, "\tcall\t*mcount@PLT\n");				\
-  else if (flag_pic)							\
-    fprintf (FILE, "\tcall\t*mcount@GOT(%%ebx)\n");			\
-  else									\
-    fprintf (FILE, "\tcall\tmcount\n");					\
-}
+#undef MCOUNT_NAME
+#define MCOUNT_NAME "mcount"
 
 #undef SIZE_TYPE
 #define SIZE_TYPE (TARGET_64BIT ? "long unsigned int" : "unsigned int")
@@ -79,9 +71,8 @@ Boston, MA 02111-1307, USA.  */
 /* i386 System V Release 4 uses DWARF debugging info.
    x86-64 ABI specifies DWARF2.  */
 
-#undef DWARF2_DEBUGGING_INFO
 #undef DWARF_DEBUGGING_INFO
-#define DWARF2_DEBUGGING_INFO
+#define DWARF2_DEBUGGING_INFO 1
 #define DWARF2_UNWIND_INFO 1
 /* Incorrectly autodetected in cross compilation.  */
 #undef HAVE_AS_DWARF2_DEBUG_LINE
