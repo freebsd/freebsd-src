@@ -1,4 +1,7 @@
 # split.awk --- do split in awk
+#
+# Requires ord and chr library functions
+#
 # Arnold Robbins, arnold@gnu.org, Public Domain
 # May 1993
 
@@ -32,13 +35,14 @@ BEGIN {
         close(out)
         if (s2 == "z") {
             if (s1 == "z") {
-                printf("split: %s is too large to split\n", \
+                printf("split: %s is too large to split\n",
                        FILENAME) > "/dev/stderr"
                 exit 1
             }
             s1 = chr(ord(s1) + 1)
             s2 = "a"
-        } else
+        }
+        else
             s2 = chr(ord(s2) + 1)
         out = (outfile s1 s2)
         tcount = 1

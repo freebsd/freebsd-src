@@ -1,4 +1,6 @@
 # assert --- assert that a condition is true. Otherwise exit.
+
+#
 # Arnold Robbins, arnold@gnu.org, Public Domain
 # May, 1993
 

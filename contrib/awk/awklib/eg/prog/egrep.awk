@@ -1,4 +1,5 @@
 # egrep.awk --- simulate egrep in awk
+#
 # Arnold Robbins, arnold@gnu.org, Public Domain
 # May 1993
 
@@ -9,6 +10,8 @@
 #    -i    ignore case
 #    -l    print filenames only
 #    -e    argument is pattern
+#
+# Requires getopt and file transition library functions
 
 BEGIN {
     while ((c = getopt(ARGC, ARGV, "ce:svil")) != -1) {
@@ -69,18 +72,20 @@ function endfile(file)
     if (! matches)
         next
 
-    if (no_print && ! count_only)
-        nextfile
+    if (! count_only) {
+        if (no_print)
+            nextfile
 
-    if (filenames_only && ! count_only) {
-        print FILENAME
-        nextfile
+        if (filenames_only) {
+            print FILENAME
+            nextfile
+        }
+
+        if (do_filenames)
+            print FILENAME ":" $0
+        else
+            print
     }
-
-    if (do_filenames && ! count_only)
-        print FILENAME ":" $0
-    else if (! count_only)
-        print
 }
 END    \
 {
@@ -91,6 +96,7 @@ END    \
 function usage(    e)
 {
     e = "Usage: egrep [-csvil] [-e pat] [files ...]"
+    e = e "\n\tegrep [-csvil] pat [files ...]"
     print e > "/dev/stderr"
     exit 1
 }

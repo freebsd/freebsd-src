@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991-2000 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991-2001 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -45,8 +45,7 @@ static void grow_table P((NODE *symbol));
 /* concat_exp --- concatenate expression list into a single string */
 
 NODE *
-concat_exp(tree)
-register NODE *tree;
+concat_exp(register NODE *tree)
 {
 	register NODE *r;
 	char *str;
@@ -92,8 +91,7 @@ register NODE *tree;
 /* assoc_clear --- flush all the values in symbol[] before doing a split() */
 
 void
-assoc_clear(symbol)
-NODE *symbol;
+assoc_clear(NODE *symbol)
 {
 	int i;
 	NODE *bucket, *next;
@@ -118,10 +116,7 @@ NODE *symbol;
 /* hash --- calculate the hash function of the string in subs */
 
 unsigned int
-hash(s, len, hsize)
-register const char *s;
-register size_t len;
-unsigned long hsize;
+hash(register const char *s, register size_t len, unsigned long hsize)
 {
 	register unsigned long h = 0;
 
@@ -208,10 +203,7 @@ unsigned long hsize;
 /* assoc_find --- locate symbol[subs] */
 
 static NODE *				/* NULL if not found */
-assoc_find(symbol, subs, hash1)
-NODE *symbol;
-register NODE *subs;
-int hash1;
+assoc_find(NODE *symbol, register NODE *subs, int hash1)
 {
 	register NODE *bucket;
 	NODE *s1, *s2;
@@ -238,8 +230,7 @@ int hash1;
 /* in_array --- test whether the array element symbol[subs] exists or not */
 
 int
-in_array(symbol, subs)
-NODE *symbol, *subs;
+in_array(NODE *symbol, NODE *subs)
 {
 	register int hash1;
 	int ret;
@@ -249,7 +240,7 @@ NODE *symbol, *subs;
 	if (symbol->type == Node_array_ref)
 		symbol = symbol->orig_array;
 	if ((symbol->flags & SCALAR) != 0)
-		fatal("attempt to use scalar as array");
+		fatal(_("attempt to use scalar `%s' as array"), symbol->vname);
 	/*
 	 * evaluate subscript first, it could have side effects
 	 */
@@ -274,8 +265,7 @@ NODE *symbol, *subs;
  */
 
 NODE **
-assoc_lookup(symbol, subs)
-NODE *symbol, *subs;
+assoc_lookup(NODE *symbol, NODE *subs, int reference)
 {
 	register int hash1;
 	register NODE *bucket;
@@ -285,7 +275,7 @@ NODE *symbol, *subs;
 	(void) force_string(subs);
 
 	if ((symbol->flags & SCALAR) != 0)
-		fatal("attempt to use scalar as array");
+		fatal(_("attempt to use scalar `%s' as array"), symbol->vname);
 
 	if (symbol->var_array == NULL) {
 		if (symbol->type != Node_var_array) {
@@ -307,15 +297,21 @@ NODE *symbol, *subs;
 		}
 	}
 
+	if (do_lint && reference) {
+		subs->stptr[subs->stlen] = '\0';
+		lintwarn(_("reference to uninitialized element `%s[\"%s\"]'"),
+		      symbol->vname, subs->stptr);
+	}
+
 	/* It's not there, install it. */
 	if (do_lint && subs->stlen == 0)
-		warning("subscript of array `%s' is null string",
+		lintwarn(_("subscript of array `%s' is null string"),
 			symbol->vname);
 
 	/* first see if we would need to grow the array, before installing */
 	symbol->table_size++;
 	if ((symbol->flags & ARRAYMAXED) == 0
-	    && symbol->table_size/symbol->array_size > AVG_CHAIN_MAX) {
+	    && (symbol->table_size / symbol->array_size) > AVG_CHAIN_MAX) {
 		grow_table(symbol);
 		/* have to recompute hash value for new size */
 		hash1 = hash(subs->stptr, subs->stlen,
@@ -324,8 +320,27 @@ NODE *symbol, *subs;
 
 	getnode(bucket);
 	bucket->type = Node_ahash;
-	bucket->ahname = dupnode(subs);
+
+	/*
+	 * Freeze this string value --- it must never
+	 * change, no matter what happens to the value
+	 * that created it or to CONVFMT, etc.
+	 *
+	 * One day: Use an atom table to track array indices,
+	 * and avoid the extra memory overhead.
+	 */
+	if (subs->flags & TEMP)
+		bucket->ahname = dupnode(subs);
+	else
+		bucket->ahname = copynode(subs);
+
 	free_temp(subs);
+
+	/* array subscripts are strings */
+	bucket->ahname->flags &= ~(NUMBER|NUM);
+	bucket->ahname->flags |= (STRING|STR);
+	/* ensure that this string value never changes */
+	bucket->ahname->stfmt = -1;
 
 	bucket->ahvalue = Nnull_string;
 	bucket->ahnext = symbol->var_array[hash1];
@@ -336,8 +351,7 @@ NODE *symbol, *subs;
 /* do_delete --- perform `delete array[s]' */
 
 void
-do_delete(symbol, tree)
-NODE *symbol, *tree;
+do_delete(NODE *symbol, NODE *tree)
 {
 	register int hash1;
 	register NODE *bucket, *last;
@@ -354,7 +368,7 @@ NODE *symbol, *tree;
 		if (symbol->var_array == NULL)
 			return;
 	} else
-		fatal("delete: illegal use of variable `%s' as array",
+		fatal(_("delete: illegal use of variable `%s' as array"),
 			symbol->vname);
 
 	if (tree == NULL) {	/* delete array */
@@ -387,7 +401,7 @@ NODE *symbol, *tree;
 
 	if (bucket == NULL) {
 		if (do_lint)
-			warning("delete: index `%s' not in array `%s'",
+			lintwarn(_("delete: index `%s' not in array `%s'"),
 				subs->stptr, symbol->vname);
 		free_temp(subs);
 		return;
@@ -420,11 +434,10 @@ NODE *symbol, *tree;
  */
 
 void
-do_delete_loop(symbol, tree)
-NODE *symbol, *tree;
+do_delete_loop(NODE *symbol, NODE *tree)
 {
 	size_t i;
-	NODE *n, **lhs;
+	NODE **lhs;
 	Func_ptr after_assign = NULL;
 
 	if (symbol->type == Node_param_list) {
@@ -438,13 +451,13 @@ NODE *symbol, *tree;
 		if (symbol->var_array == NULL)
 			return;
 	} else
-		fatal("delete: illegal use of variable `%s' as array",
+		fatal(_("delete: illegal use of variable `%s' as array"),
 			symbol->vname);
 
 	/* get first index value */
 	for (i = 0; i < symbol->array_size; i++) {
 		if (symbol->var_array[i] != NULL) {
-			lhs = get_lhs(tree->lnode, & after_assign);
+			lhs = get_lhs(tree->lnode, & after_assign, FALSE);
 			unref(*lhs);
 			*lhs = dupnode(symbol->var_array[i]->ahname);
 			break;
@@ -455,71 +468,10 @@ NODE *symbol, *tree;
 	assoc_clear(symbol);
 }
 
-/* assoc_scan --- start a ``for (iggy in foo)'' loop */
-
-void
-assoc_scan(symbol, lookat)
-NODE *symbol;
-struct search *lookat;
-{
-	lookat->sym = symbol;
-	lookat->idx = 0;
-	lookat->bucket = NULL;
-	lookat->retval = NULL;
-	if (symbol->var_array != NULL)
-		assoc_next(lookat);
-}
-
-/* assoc_next --- actually find the next element in array */
-
-void
-assoc_next(lookat)
-struct search *lookat;
-{
-	register NODE *symbol = lookat->sym;
-	
-	if (symbol == NULL)
-		fatal("null symbol in assoc_next");
-	if (symbol->var_array == NULL || lookat->idx > symbol->array_size) {
-		lookat->retval = NULL;
-		return;
-	}
-	/*
-	 * This is theoretically unsafe.  The element bucket might have
-	 * been freed if the body of the scan did a delete on the next
-	 * element of the bucket.  The only way to do that is by array
-	 * reference, which is unlikely.  Basically, if the user is doing
-	 * anything other than an operation on the current element of an
-	 * assoc array while walking through it sequentially, all bets are
-	 * off.  (The safe way is to register all search structs on an
-	 * array with the array, and update all of them on a delete or
-	 * insert)
-	 */
-	if (lookat->bucket != NULL) {
-		lookat->retval = lookat->bucket->ahname;
-		lookat->bucket = lookat->bucket->ahnext;
-		return;
-	}
-	for (; lookat->idx < symbol->array_size; lookat->idx++) {
-		NODE *bucket;
-
-		if ((bucket = symbol->var_array[lookat->idx]) != NULL) {
-			lookat->retval = bucket->ahname;
-			lookat->bucket = bucket->ahnext;
-			lookat->idx++;
-			return;
-		}
-	}
-	lookat->retval = NULL;
-	lookat->bucket = NULL;
-	return;
-}
-
 /* grow_table --- grow a hash table */
 
 static void
-grow_table(symbol)
-NODE *symbol;
+grow_table(NODE *symbol)
 {
 	NODE **old, **new, *chain, *next;
 	int i, j;
@@ -581,7 +533,6 @@ NODE *symbol;
 			/* remove from old list, add to new */
 			chain->ahnext = new[hash1];
 			new[hash1] = chain;
-
 		}
 	}
 	free(old);
@@ -598,8 +549,7 @@ done:
 /* pr_node --- print simple node info */
 
 static void
-pr_node(n)
-NODE *n;
+pr_node(NODE *n)
 {
 	if ((n->flags & (NUM|NUMBER)) != 0)
 		printf("%g", n->numbr);
@@ -610,24 +560,23 @@ NODE *n;
 /* assoc_dump --- dump the contents of an array */
 
 NODE *
-assoc_dump(symbol)
-NODE *symbol;
+assoc_dump(NODE *symbol)
 {
 	int i;
 	NODE *bucket;
 
 	if (symbol->var_array == NULL) {
-		printf("%s: empty (null)\n", symbol->vname);
+		printf(_("%s: empty (null)\n"), symbol->vname);
 		return tmp_number((AWKNUM) 0);
 	}
 
 	if (symbol->table_size == 0) {
-		printf("%s: empty (zero)\n", symbol->vname);
+		printf(_("%s: empty (zero)\n"), symbol->vname);
 		return tmp_number((AWKNUM) 0);
 	}
 
-	printf("%s: table_size = %d, array_size = %d\n", symbol->vname,
-			symbol->table_size, symbol->array_size);
+	printf(_("%s: table_size = %d, array_size = %d\n"), symbol->vname,
+			(int) symbol->table_size, (int) symbol->array_size);
 
 	for (i = 0; i < symbol->array_size; i++) {
 		for (bucket = symbol->var_array[i]; bucket != NULL;
@@ -651,20 +600,19 @@ NODE *symbol;
 /* do_adump --- dump an array: interface to assoc_dump */
 
 NODE *
-do_adump(tree)
-NODE *tree;
+do_adump(NODE *tree)
 {
 	NODE *r, *a;
 
 	a = tree->lnode;
 
 	if (a->type == Node_param_list) {
-		printf("%s: is paramater\n", a->vname);
+		printf(_("%s: is paramater\n"), a->vname);
 		a = stack_ptr[a->param_cnt];
 	}
 
 	if (a->type == Node_array_ref) {
-		printf("%s: array_ref to %s\n", a->vname,
+		printf(_("%s: array_ref to %s\n"), a->vname,
 					a->orig_array->vname);
 		a = a->orig_array;
 	}
@@ -672,4 +620,239 @@ NODE *tree;
 	r = assoc_dump(a);
 
 	return r;
+}
+
+/*
+ * The following functions implement the builtin
+ * asort function.  Initial work by Alan J. Broder,
+ * ajb@woti.com.
+ */
+
+/* dup_table --- duplicate input symbol table "symbol" */
+
+static void
+dup_table(NODE *symbol, NODE *newsymb)
+{
+	NODE **old, **new, *chain, *bucket;
+	int i;
+	unsigned long cursize;
+
+	/* find the current hash size */
+	cursize = symbol->array_size;
+
+	new = NULL;
+
+	/* input is a brand new hash table, so there's nothing to copy */
+	if (symbol->var_array == NULL)
+		newsymb->table_size = 0;
+	else {
+		/* old hash table there, dupnode stuff into a new table */
+
+		/* allocate new table */
+		emalloc(new, NODE **, cursize * sizeof(NODE *), "dup_table");
+		memset(new, '\0', cursize * sizeof(NODE *));
+
+		/* do the copying/dupnode'ing */
+		old = symbol->var_array;
+		for (i = 0; i < cursize; i++) {
+			if (old[i] != NULL) {
+				for (chain = old[i]; chain != NULL;
+						chain = chain->ahnext) {
+					/* get a node for the linked list */
+					getnode(bucket);
+					bucket->type = Node_ahash;
+
+					/*
+					 * copy the corresponding name and
+					 * value from the original input list
+					 */
+					bucket->ahname = dupnode(chain->ahname);
+					bucket->ahvalue = dupnode(chain->ahvalue);
+
+					/*
+					 * put the node on the corresponding
+					 * linked list in the new table
+					 */
+					bucket->ahnext = new[i];
+					new[i] = bucket;
+				}
+			}
+		}
+		newsymb->table_size = symbol->table_size;
+	}
+
+	newsymb->var_array = new;
+	newsymb->array_size = cursize;
+}
+
+/* merge --- do a merge of two sorted lists */
+
+static NODE *
+merge(NODE *left, NODE *right)
+{
+	NODE *ans, *cur;
+
+	if (cmp_nodes(left->ahvalue, right->ahvalue) <= 0) {
+		ans = cur = left;
+		left  = left->ahnext;
+	} else {
+		ans = cur = right;
+		right = right->ahnext;
+	}
+
+	while (left != NULL && right != NULL) {
+		if (cmp_nodes(left->ahvalue, right->ahvalue) <= 0) {
+			cur->ahnext = left;
+			cur = left;
+			left  = left->ahnext;
+		} else {
+			cur->ahnext = right;
+			cur = right;
+			right = right->ahnext;
+		}
+	}
+
+	cur->ahnext = (left != NULL ? left : right);
+
+	return ans;
+}
+
+/* merge_sort --- recursively sort the left and right sides of a list */
+
+static NODE *
+merge_sort(NODE *left, int size)
+{
+	NODE *right, *tmp;
+	int i, half;
+
+	if (size <= 1)
+		return left;
+
+	/* walk down the list, till just one before the midpoint */
+	tmp = left;
+	half = size / 2;
+	for (i = 0; i < half-1; i++)
+		tmp = tmp->ahnext;
+
+	/* split the list into two parts */
+	right = tmp->ahnext;
+	tmp->ahnext = NULL;
+
+	/* sort the left and right parts of the list */
+	left  = merge_sort(left,       half);
+	right = merge_sort(right, size-half);
+
+	/* merge the two sorted parts of the list */
+	return merge(left, right);
+}
+
+
+/*
+ * assoc_from_list -- Populate an array with the contents of a list of NODEs, 
+ * using increasing integers as the key.
+ */
+
+static void
+assoc_from_list(NODE *symbol, NODE *list)
+{
+	NODE *next;
+	int i = 0;
+	register int hash1;
+
+	for (; list != NULL; list = next) {
+		next = list->ahnext;
+
+		/* make an int out of i++ */
+		i++;
+		list->ahname = make_number((AWKNUM) i);
+		(void) force_string(list->ahname);
+
+		/* find the bucket where it belongs */
+		hash1 = hash(list->ahname->stptr, list->ahname->stlen,
+				symbol->array_size);
+
+		/* link the node into the chain at that bucket */
+		list->ahnext = symbol->var_array[hash1];
+		symbol->var_array[hash1] = list;
+	}
+}
+
+/*
+ * assoc_sort_inplace --- sort all the values in symbol[], replacing
+ * the sorted values back into symbol[], indexed by integers starting with 1.
+ */
+
+static NODE *
+assoc_sort_inplace(NODE *symbol)
+{
+	int i, num;
+	NODE *bucket, *next, *list;
+
+	if (symbol->var_array == NULL
+	    || symbol->array_size <= 0
+	    || symbol->table_size <= 0)
+		return tmp_number((AWKNUM) 0);
+
+	/* build a linked list out of all the entries in the table */
+	list = NULL;
+	num = 0;
+	for (i = 0; i < symbol->array_size; i++) {
+		for (bucket = symbol->var_array[i]; bucket != NULL; bucket = next) {
+			next = bucket->ahnext;
+			unref(bucket->ahname);
+			bucket->ahnext = list;
+			list = bucket;
+			num++;
+		}
+		symbol->var_array[i] = NULL;
+	}
+
+	/*
+	 * Sort the linked list of NODEs.
+	 * (The especially nice thing about using a merge sort here is that
+	 * we require absolutely no additional storage. This is handy if the
+	 * array has grown to be very large.)
+	 */
+	list = merge_sort(list, num);
+
+	/*
+	 * now repopulate the original array, using increasing
+	 * integers as the key
+	 */
+	assoc_from_list(symbol, list);
+
+	return tmp_number((AWKNUM) num);
+}
+
+/* do_asort --- do the actual work to sort the input array */
+
+NODE *
+do_asort(NODE *tree)
+{
+	NODE *src, *dest;
+
+	src = tree->lnode;
+	dest = NULL;
+
+	if (src->type == Node_param_list)
+		src = stack_ptr[src->param_cnt];
+	if (src->type == Node_array_ref)
+		src = src->orig_array;
+	if (src->type != Node_var_array)
+		fatal(_("asort: first argument is not an array"));
+
+	if (tree->rnode != NULL) {  /* 2nd optional arg */
+		dest = tree->rnode->lnode;
+		if (dest->type == Node_param_list)
+			dest = stack_ptr[dest->param_cnt];
+		if (dest->type == Node_array_ref)
+			dest = dest->orig_array;
+		if (dest->type != Node_var && dest->type != Node_var_array)
+			fatal(_("asort: second argument is not an array"));
+		dest->type = Node_var_array;
+		assoc_clear(dest);
+		dup_table(src, dest);
+	}
+
+	return dest != NULL ? assoc_sort_inplace(dest) : assoc_sort_inplace(src);
 }

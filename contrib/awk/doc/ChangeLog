@@ -1,3 +1,44 @@
+Sun Jun  3 13:04:44 2001  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* Release 3.1.0: Release tar file made.  And there was
+	  rejoicing.
+
+Mon May 14 19:57:31 2001  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* gawk.texi, gawkinet.texi: Versions for distribution
+	  put in place.
+	* gawk.1, awkcard.in: Minor edits for consistency of
+	  usage, formatting.
+
+Wed Nov 22 14:57:59 2000  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* gawk.texi, gawk.1, awkcard.in: Removed all documentation
+	  of abort.
+
+Sun Aug 13 11:23:50 2000  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* gawk.texi, gawk.1, awkcard.in: documented sort function
+	  and optional third argument to match.
+
+Sun Aug 13 00:40:41 2000  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* gawk.texi: hardwired publisher info.
+	* publisher.texi: Removed.  Not needed any more.
+	* gawkinet.texi: Added title page stuff.
+
+Thu Jul  5 21:05:57 2000  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* gawk.texi: moved to use of @command, @option everywhere
+	  appropriate.  Removed all @page and @group in anticipation
+	  of re-page breaking.  Updated stuff for install-info.
+	  Added FDL.
+
+Tue Nov 10 11:42:26 1998  Arnold D. Robbins  <arnold@gnu.org>
+
+	* publisher.texi: new file with publisher related info.
+	* Makefile.in: updated dvi and postscript targets to make
+	  them lots smarter about not reformatting if need be.
+
 Mon Aug  7 15:23:00 2000  Arnold D. Robbins  <arnold@skeeve.com>
 
 	* Release 3.0.6: Release tar file made.
@@ -52,7 +93,7 @@ Thu Jul 29 23:15:34 1999  Arnold D. Robbins  <arnold@skeeve.com>
 	  install it directly.
 
 Wed Jun 30 16:14:36 1999  Arnold D. Robbins  <arnold@gnu.org>
-
+  
 	* Release 3.0.4: Release tar file made.  This time for sure.
 
 Wed Oct  7 21:59:33 1998  Arnold D. Robbins  <arnold@gnu.org>
