@@ -25,12 +25,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
 #include <sys/diskmbr.h>
+#include <sys/uuid.h>
+#include <sys/gpt.h>
 #include <paths.h>
 #include "libdisk.h"
 
 #include <ctype.h>
 #include <errno.h>
 #include <assert.h>
+#include <uuid.h>
 
 #define DOSPTYP_EXTENDED        5
 #ifdef DEBUG
@@ -58,6 +61,33 @@ chunk_name(chunk_e type)
 	}
 };
 
+static chunk_e
+uuid_type(uuid_t *uuid)
+{
+	static uuid_t _efi = GPT_ENT_TYPE_EFI;
+	static uuid_t _mbr = GPT_ENT_TYPE_MBR;
+	static uuid_t _fbsd = GPT_ENT_TYPE_FREEBSD;
+	static uuid_t _swap = GPT_ENT_TYPE_FREEBSD_SWAP;
+	static uuid_t _ufs = GPT_ENT_TYPE_FREEBSD_UFS;
+	static uuid_t _vinum = GPT_ENT_TYPE_FREEBSD_VINUM;
+
+	if (uuid_is_nil(uuid, NULL))
+		return (unused);
+	if (uuid_equal(uuid, &_efi, NULL))
+		return (fat);
+	if (uuid_equal(uuid, &_mbr, NULL))
+		return (mbr);
+	if (uuid_equal(uuid, &_fbsd, NULL))
+		return (freebsd);
+	if (uuid_equal(uuid, &_swap, NULL))
+		return (part);
+	if (uuid_equal(uuid, &_ufs, NULL))
+		return (part);
+	if (uuid_equal(uuid, &_vinum, NULL))
+		return (part);
+	return (spare);
+}
+
 struct disk *
 Open_Disk(const char *name)
 {
@@ -67,6 +97,7 @@ Open_Disk(const char *name)
 struct disk *
 Int_Open_Disk(const char *name)
 {
+	uuid_t uuid;
 	char *conftxt = NULL;
 	struct disk *d;
 	size_t txtsize;
@@ -177,7 +208,16 @@ Int_Open_Disk(const char *name)
 				break;
 			b = strsep(&p, " ");
 			o = strtoimax(b, &r, 0);
-			if (*r) { printf("BARF %d <%d>\n", __LINE__, *r); exit (0); }
+			if (*r) {
+				uint32_t status;
+
+				uuid_from_string(b, &uuid, &status);
+				if (status != uuid_s_ok) {
+					printf("BARF %d <%d>\n", __LINE__, *r);
+					exit (0);
+				}
+				o = uuid_type(&uuid);
+			}
 			if (!strcmp(a, "o"))
 				off = o;
 			else if (!strcmp(a, "i"))
@@ -222,18 +262,18 @@ Int_Open_Disk(const char *name)
 		printf("%s [%s] %jd %jd\n", t, n, (intmax_t)(off / s), (intmax_t) (len / s));
 		if (!strcmp(t, "SUN"))
 			i = Add_Chunk(d, off, len, n, part, 0, 0, 0);
-		else if (!strcmp(t, "MBR") && ty == 165)
+		else if (!strncmp(t, "MBR", 3) && ty == 165)
 			i = Add_Chunk(d, off, len, n, freebsd, ty, 0, 0);
-		else if (!strcmp(t, "MBR"))
+		else if (!strncmp(t, "MBR", 3))
 			i = Add_Chunk(d, off, len, n, mbr, ty, 0, 0);
 		else if (!strcmp(t, "BSD"))
 			i = Add_Chunk(d, off, len, n, part, 0, 0, 0);
 		else if (!strcmp(t, "PC98"))
 			i = Add_Chunk(d, off, len, n, pc98, 0, 0, 0);
 		else if (!strcmp(t, "GPT"))
-			i = Add_Chunk(d, off, len, n, gpt, 0, 0, 0);
+			i = Add_Chunk(d, off, len, n, ty, 0, 0, 0);
 		else
-			{printf("BARF %d\n", __LINE__); exit(0); }
+			{ printf("BARF %d\n", __LINE__); exit(0); }
 		printf("error = %d\n", i);
 	}
 	/* PLATFORM POLICY BEGIN ------------------------------------- */
