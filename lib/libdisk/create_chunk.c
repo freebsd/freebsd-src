@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.8 1995/05/03 22:36:50 phk Exp $
+ * $Id: create_chunk.c,v 1.9 1995/05/04 07:00:53 phk Exp $
  *
  */
 
@@ -40,7 +40,6 @@ Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
 	/* Allocate the first swap-partition we find */
 	for (c1 = c->part; c1 ; c1 = c1->next) { 
 		if (c1->type == unused) continue;
-		if (c1->type == reserved) continue;
 		if (c1->subtype != FS_SWAP) continue;
 		sprintf(c1->name,"%s%c",c->name,SWAP_PART+'a');
 		break;
@@ -49,7 +48,6 @@ Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
 	/* Allocate the first root-partition we find */
 	for (c1 = c->part; c1 ; c1 = c1->next) { 
 		if (c1->type == unused) continue;
-		if (c1->type == reserved) continue;
 		if (!(c1->flags & CHUNK_IS_ROOT)) continue;
 		sprintf(c1->name,"%s%c",c->name,0+'a');
 		break;
@@ -70,7 +68,6 @@ Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
 	for (c1 = c->part; c1 ; c1 = c1->next) {
 		const char order[] = "efghabd";
 		if (c1->type == unused) continue;
-		if (c1->type == reserved) continue;
 		if (strcmp("X",c1->name)) continue;
 
 		for(j=0;j<strlen(order);j++) {
@@ -101,7 +98,6 @@ Fixup_Extended_Names(struct disk *d, struct chunk *c)
 		if (c1->type == freebsd)
 			Fixup_FreeBSD_Names(d,c1);
 		if (c1->type == unused) continue;
-		if (c1->type == reserved) continue;
 		if (strcmp(c1->name, "X")) continue;
 		for(j=5;j<=29;j++) {
 			p = malloc(12);
@@ -136,8 +132,6 @@ Fixup_Names(struct disk *d)
 		if (c2->type == extended)
 			Fixup_Extended_Names(d,c2);
 		if (c2->type == unused)
-			continue;
-		if (c2->type == reserved)
 			continue;
 		p = malloc(12);
 		if(!p) err(1,"malloc failed");
