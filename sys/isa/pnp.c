@@ -383,6 +383,7 @@ pnp_scan_resdata(device_t parent, pnp_id *p, int csn)
 	struct isa_config *config;
 	struct pnp_set_config_arg *csnldn;
 	int priority = 0;
+	int seenalt = 0;
 	char *desc = 0;
 
 	bzero(&card, sizeof card);
@@ -431,6 +432,7 @@ pnp_scan_resdata(device_t parent, pnp_id *p, int csn)
 				ISA_SET_CONFIG_CALLBACK(parent, dev,
 							pnp_set_config,
 							csnldn);
+				seenalt = 0;
 				ldn++;
 				break;
 		    
@@ -498,6 +500,7 @@ pnp_scan_resdata(device_t parent, pnp_id *p, int csn)
 			case PNP_TAG_END_DEPENDANT:
 				ISA_ADD_CONFIG(parent, dev, priority, config);
 				config = &logdev;
+				seenalt = 1;
 				break;
 
 			case PNP_TAG_IO_RANGE:
@@ -541,6 +544,9 @@ pnp_scan_resdata(device_t parent, pnp_id *p, int csn)
 				break;
 
 			case PNP_TAG_END:
+				if (!seenalt)
+					ISA_ADD_CONFIG(parent, dev,
+						       priority, config);
 				scanning = 0;
 				break;
 
