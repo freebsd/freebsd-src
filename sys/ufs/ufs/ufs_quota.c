@@ -435,8 +435,8 @@ quotaon(p, mp, type, fname)
 	 * NB: only need to add dquot's for inodes being modified.
 	 */
 again:
-	for (vp = mp->mnt_vnodelist.lh_first; vp != NULL; vp = nextvp) {
-		nextvp = vp->v_mntvnodes.le_next;
+	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nextvp) {
+		nextvp = TAILQ_NEXT(vp, v_nmntvnodes);
 		if (vp->v_type == VNON || vp->v_writecount == 0)
 			continue;
 		if (vget(vp, LK_EXCLUSIVE, p))
@@ -447,7 +447,7 @@ again:
 			break;
 		}
 		vput(vp);
-		if (vp->v_mntvnodes.le_next != nextvp || vp->v_mount != mp)
+		if (TAILQ_NEXT(vp, v_nmntvnodes) != nextvp || vp->v_mount != mp)
 			goto again;
 	}
 	ump->um_qflags[type] &= ~QTF_OPENING;
@@ -480,8 +480,8 @@ quotaoff(p, mp, type)
 	 * deleting any references to quota file being closed.
 	 */
 again:
-	for (vp = mp->mnt_vnodelist.lh_first; vp != NULL; vp = nextvp) {
-		nextvp = vp->v_mntvnodes.le_next;
+	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nextvp) {
+		nextvp = TAILQ_NEXT(vp, v_nmntvnodes);
 		if (vp->v_type == VNON)
 			continue;
 		if (vget(vp, LK_EXCLUSIVE, p))
@@ -491,7 +491,7 @@ again:
 		ip->i_dquot[type] = NODQUOT;
 		dqrele(vp, dq);
 		vput(vp);
-		if (vp->v_mntvnodes.le_next != nextvp || vp->v_mount != mp)
+		if (TAILQ_NEXT(vp, v_nmntvnodes) != nextvp || vp->v_mount != mp)
 			goto again;
 	}
 	dqflush(qvp);
@@ -667,10 +667,10 @@ qsync(mp)
 	 */
 	simple_lock(&mntvnode_slock);
 again:
-	for (vp = mp->mnt_vnodelist.lh_first; vp != NULL; vp = nextvp) {
+	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nextvp) {
 		if (vp->v_mount != mp)
 			goto again;
-		nextvp = vp->v_mntvnodes.le_next;
+		nextvp = TAILQ_NEXT(vp, v_nmntvnodes);
 		if (vp->v_type == VNON)
 			continue;
 		simple_lock(&vp->v_interlock);
@@ -689,7 +689,7 @@ again:
 		}
 		vput(vp);
 		simple_lock(&mntvnode_slock);
-		if (vp->v_mntvnodes.le_next != nextvp)
+		if (TAILQ_NEXT(vp, v_nmntvnodes) != nextvp)
 			goto again;
 	}
 	simple_unlock(&mntvnode_slock);

@@ -336,10 +336,11 @@ union_unmount(mp, mntflags, p)
 		int n;
 
 		/* count #vnodes held on mount list */
-		for (n = 0, vp = mp->mnt_vnodelist.lh_first;
-				vp != NULLVP;
-				vp = vp->v_mntvnodes.le_next)
+		for (n = 0, vp = TAILQ_FIRST(&mp->mnt_nvnodelist);
+		    vp != NULLVP;
+		    vp = TAILQ_NEXT(vp, v_nmntvnodes)) {
 			n++;
+		}
 
 		/* if this is unchanged then stop */
 		if (n == freeing)
