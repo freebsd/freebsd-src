@@ -122,8 +122,10 @@ depend: kernel-depend
 clean:  kernel-clean
 cleandepend:  kernel-cleandepend
 tags:  kernel-tags
-install install.debug: kernel-install
-reinstall reinstall.debug: kernel-reinstall
+install: kernel-install
+install.debug: kernel-install.debug
+reinstall: kernel-reinstall
+reinstall.debug: kernel-reinstall.debug
 
 .if !defined(DEBUG)
 FULLKERNEL=	${KERNEL_KO}
@@ -266,8 +268,10 @@ clean:  modules-clean
 cleandepend:  modules-cleandepend
 cleandir:  modules-cleandir
 tags:  modules-tags
-install install.debug: modules-install
-reinstall reinstall.debug: modules-reinstall
+install: modules-install
+install.debug: modules-install.debug
+reinstall: modules-reinstall
+reinstall.debug: modules-reinstall.debug
 .endif
 
 MKMODULESENV=	MAKEOBJDIRPREFIX=${.OBJDIR}/modules KMODDIR=${KODIR}
