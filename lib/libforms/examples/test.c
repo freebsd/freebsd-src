@@ -12,6 +12,7 @@
  * its use.
  */
 
+#include <stdio.h>
 #include "../forms.h"
 
 main()
@@ -68,7 +69,11 @@ main()
 	initscr();
 
 	initfrm(&form);
-
+	if (!form.window) {
+		fprintf(stderr, "\nUnable to initialize forms library.\n");
+		endwin();
+		exit(1);
+	}
 	keypad(form.window, TRUE);
 	while (!(res = update_form(&form)));
 
