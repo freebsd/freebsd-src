@@ -77,14 +77,17 @@ static int ips_pci_attach(device_t dev)
 		sc->ips_adapter_reinit = ips_morpheus_reinit;
                 sc->ips_adapter_intr = ips_morpheus_intr;
 		sc->ips_issue_cmd    = ips_issue_morpheus_cmd;
+		sc->ips_poll_cmd     = ips_morpheus_poll;
         } else if(pci_get_device(dev) == IPS_COPPERHEAD_DEVICE_ID){
 		sc->ips_adapter_reinit = ips_copperhead_reinit;
                 sc->ips_adapter_intr = ips_copperhead_intr;
 		sc->ips_issue_cmd    = ips_issue_copperhead_cmd;
+		sc->ips_poll_cmd     = ips_copperhead_poll;
 	} else if (pci_get_device(dev) == IPS_MARCO_DEVICE_ID){
 		sc->ips_adapter_reinit = ips_morpheus_reinit;
 		sc->ips_adapter_intr = ips_morpheus_intr;
 		sc->ips_issue_cmd = ips_issue_morpheus_cmd;
+		sc->ips_poll_cmd     = ips_morpheus_poll;
 	} else
                 goto error;
         /* make sure busmastering is on */
@@ -123,7 +126,7 @@ static int ips_pci_attach(device_t dev)
                 device_printf(dev, "irq allocation failed\n");
                 goto error;
         }
-	if(bus_setup_intr(dev, sc->irqres, INTR_TYPE_BIO, sc->ips_adapter_intr, sc, &sc->irqcookie)){
+	if(bus_setup_intr(dev, sc->irqres, INTR_TYPE_BIO|INTR_MPSAFE, sc->ips_adapter_intr, sc, &sc->irqcookie)){
                 device_printf(dev, "irq setup failed\n");
                 goto error;
         }
@@ -138,8 +141,8 @@ static int ips_pci_attach(device_t dev)
 				/* numsegs   */	IPS_MAX_SG_ELEMENTS,
 				/* maxsegsize*/	BUS_SPACE_MAXSIZE_32BIT,
 				/* flags     */	0,
-				/* lockfunc  */ busdma_lock_mutex,
-				/* lockarg   */ &Giant,
+				/* lockfunc  */ NULL,
+				/* lockarg   */ NULL,
 				&sc->adapter_dmatag) != 0) {
                 printf("IPS can't alloc dma tag\n");
                 goto error;
@@ -147,6 +150,7 @@ static int ips_pci_attach(device_t dev)
 	sc->ips_ich.ich_func = ips_intrhook;
 	sc->ips_ich.ich_arg = sc;
 	mtx_init(&sc->queue_mtx, "IPS bioqueue lock", MTX_DEF, 0);
+	sema_init(&sc->cmd_sema, 0, "IPS Command Semaphore");
 	bioq_init(&sc->queue);
 	if (config_intrhook_establish(&sc->ips_ich) != 0) {
 		printf("IPS can't establish configuration hook\n");
@@ -181,6 +185,8 @@ static int ips_pci_free(ips_softc_t *sc)
         if(sc->iores)
                 bus_release_resource(sc->dev, sc->iotype, sc->rid, sc->iores);
 	sc->configured = 0;
+	mtx_destroy(&sc->queue_mtx);
+	sema_destroy(&sc->cmd_sema);
 	return 0;
 }
 
