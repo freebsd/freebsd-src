@@ -34,14 +34,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: arith_lex.l,v 1.2 1994/09/24 02:57:22 davidg Exp $
  */
 
 #ifndef lint
 static char sccsid[] = "@(#)arith_lex.l	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
-#include "y.tab.h"
+#include "arith.tab.h"
 
 extern yylval;
 extern char *arith_buf, *arith_startbuf;
