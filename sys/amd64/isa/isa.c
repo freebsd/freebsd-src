@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.106 1997/10/12 08:31:41 jkh Exp $
+ *	$Id: isa.c,v 1.107 1997/11/21 18:13:58 bde Exp $
  */
 
 /*
@@ -335,11 +335,10 @@ haveseen_isadev(dvp, checkbits)
 			return status;
 #endif
 #ifdef RESOURCE_CHECK
-	if (!dvp->id_conflicts) {
+	if (!dvp->id_conflicts)
 		status = check_pciconflict(dvp, checkbits);
-	} else if (bootverbose)
+	else if (bootverbose)
 		printf("\tnot checking for resource conflicts ...\n");
-	}
 #endif /* RESOURCE_CHECK */
 	return(status);
 }
@@ -348,7 +347,8 @@ haveseen_isadev(dvp, checkbits)
  * Configure all ISA devices
  */
 void
-isa_configure() {
+isa_configure()
+{
 	struct isa_device *dvp;
 
 	printf("Probing for devices on the ISA bus:\n");
@@ -435,8 +435,6 @@ isa_configure() {
 /*
  * Configure an ISA device.
  */
-
-
 static void
 config_isadev(isdp, mp)
 	struct isa_device *isdp;
@@ -697,7 +695,8 @@ isa_dma_release(chan)
  * isa_dmacascade(): program 8237 DMA controller channel to accept
  * external dma control by a board.
  */
-void isa_dmacascade(chan)
+void
+isa_dmacascade(chan)
 	int chan;
 {
 #ifdef DIAGNOSTIC
@@ -719,7 +718,8 @@ void isa_dmacascade(chan)
  * isa_dmastart(): program 8237 DMA controller channel, avoid page alignment
  * problems by using a bounce buffer.
  */
-void isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
+void
+isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 {
 	vm_offset_t phys;
 	int waport;
@@ -841,7 +841,8 @@ void isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 	}
 }
 
-void isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
+void
+isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 {  
 #ifdef DIAGNOSTIC
 	if (chan & ~VALID_DMA_MASK)
@@ -874,7 +875,8 @@ void isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
  */
 
 static int
-isa_dmarangecheck(caddr_t va, u_int length, int chan) {
+isa_dmarangecheck(caddr_t va, u_int length, int chan)
+{
 	vm_offset_t phys, priorpage = 0, endva;
 	u_int dma_pgmsk = (chan & 4) ?  ~(128*1024-1) : ~(64*1024-1);
 
@@ -1034,7 +1036,8 @@ find_display()
  *
  */
 
-struct isa_device *find_isadev(table, driverp, unit)
+struct isa_device *
+find_isadev(table, driverp, unit)
 	struct isa_device *table;
 	struct isa_driver *driverp;
 	int unit;
