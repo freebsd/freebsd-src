@@ -32,7 +32,11 @@
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <sys/extattr.h>
+#include <sys/param.h>
+#include <sys/mount.h>
+
 #include <ufs/ufs/extattr.h>
+
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,8 +54,8 @@ usage(void)
 	    "usage:\n"
 	    "  extattrctl start [path]\n"
 	    "  extattrctl stop [path]\n"
-	    "  extattrctl initattr [-p] [-r [kroa]] [-w [kroa]] [attrsize] "
-	    "[attrfile]\n"
+	    "  extattrctl initattr [-p path] [-r [kroa]] [-w [kroa]] "
+	    "[attrsize] [attrfile]\n"
 	    "  extattrctl enable [path] [attrname] [attrfile]\n"
 	    "  extattrctl disable [path] [attrname]\n");
 	exit(-1);
@@ -85,19 +89,37 @@ extattr_level_from_string(char *string)
 	}
 }
 
+long
+num_inodes_by_path(char *path)
+{
+	struct statfs	buf;
+	int	error;
+
+	error = statfs(path, &buf);
+	if (error) {
+		perror("statfs");
+		return (-1);
+	}
+
+	return (buf.f_files);
+}
+
 int
 initattr(int argc, char *argv[])
 {
 	struct ufs_extattr_fileheader	uef;
-	int	initattr_pflag = 0;
+	char	*fs_path = NULL;
+	char	*zero_buf = NULL;
+	long	loop, num_inodes;
 	int	initattr_rlevel = UFS_EXTATTR_PERM_OWNER;
 	int	initattr_wlevel = UFS_EXTATTR_PERM_OWNER;
 	int	ch, i, error;
 
-	while ((ch = getopt(argc, argv, "prw")) != -1)
+	optind = 0;
+	while ((ch = getopt(argc, argv, "p:rw")) != -1)
 		switch (ch) {
 		case 'p':
-			initattr_pflag = 1;
+			fs_path = strdup(optarg);
 			break;
 		case 'r':
 			initattr_rlevel = extattr_level_from_string(optarg);
@@ -129,12 +151,28 @@ initattr(int argc, char *argv[])
 		uef.uef_size = atoi(argv[0]);
 		if (write(i, &uef, sizeof(uef)) == -1)
 			error = -1;
-		else if (initattr_pflag) {
-
+		else if (fs_path) {
+			zero_buf = (char *) (malloc(uef.uef_size));
+			if (zero_buf == NULL) {
+				perror("malloc");
+				unlink(argv[1]);
+				return (-1);
+			}
+			memset(zero_buf, 0, uef.uef_size);
+			num_inodes = num_inodes_by_path(fs_path);
+			for (loop = 0; loop < num_inodes; loop++) {
+				error = write(i, zero_buf, uef.uef_size);
+				if (error != uef.uef_size) {
+					perror("write");
+					unlink(argv[1]);
+					return (-1);
+				}
+			}
 		}
 	}
 	if (i == -1 || error == -1) {
-		perror("argv[1]");
+		perror(argv[1]);
+		unlink(argv[1]);
 		return (-1);
 	}
 
