@@ -38,6 +38,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,6 +53,8 @@
 #include "lockd.h"
 #include "lockd_lock.h"
 #include <nfsclient/nfs.h>
+
+#define DAEMON_USERNAME	"daemon"
 
 #define nfslockdans(_v, _ansp)	\
 	((_ansp)->la_vers = _v, \
@@ -74,11 +77,7 @@ int	unlock_request(LOCKD_MSG *);
 /*
  * will break because fifo needs to be repopened when EOF'd
  */
-#ifdef SETUID_DAEMON
 #define lockd_seteuid(uid)	seteuid(uid)
-#else
-#define lockd_seteuid(uid)	(1)
-#endif
 
 #define d_calls (debug_level > 1)
 #define d_args (debug_level > 2)
@@ -108,14 +107,18 @@ client_request(void)
 	fd_set rdset;
 	int fd, nr, ret;
 	pid_t child;
+	uid_t daemon_uid;
+	mode_t old_umask;
+	struct passwd *pw;
 
 	/* Recreate the NLM fifo. */
 	(void)unlink(_PATH_LCKFIFO);
-	(void)umask(S_IXGRP|S_IXOTH);
+	old_umask = umask(S_IXGRP|S_IXOTH);
 	if (mkfifo(_PATH_LCKFIFO, S_IWUSR | S_IRUSR)) {
 		syslog(LOG_ERR, "mkfifo: %s: %m", _PATH_LCKFIFO);
 		exit (1);
 	}
+	umask(old_umask);
 
 	/*
 	 * Create a separate process, the client code is really a separate
@@ -139,9 +142,16 @@ client_request(void)
 	(void)gethostname(hostname, sizeof(hostname) - 1);
 
 	/* Open the fifo for reading. */
-	if ((fd = open(_PATH_LCKFIFO, O_RDONLY | O_NONBLOCK)) < 0)
+	if ((fd = open(_PATH_LCKFIFO, O_RDONLY | O_NONBLOCK)) == -1) {
 		syslog(LOG_ERR, "open: %s: %m", _PATH_LCKFIFO);
-
+		goto err;
+	}
+	pw = getpwnam(DAEMON_USERNAME);
+	if (pw == NULL) {
+		syslog(LOG_ERR, "getpwnam: %s: %m", DAEMON_USERNAME);
+		goto err;
+	}
+	daemon_uid = pw->pw_uid;
 	/* drop our root priviledges */
 	(void)lockd_seteuid(daemon_uid);
 
