@@ -26,7 +26,7 @@
  *
  * 	From Id: probe_keyboard.c,v 1.13 1997/06/09 05:10:55 bde Exp
  *
- *	$Id: vidconsole.c,v 1.6 1998/10/11 10:07:52 peter Exp $
+ *	$Id: vidconsole.c,v 1.7 1998/10/28 19:24:15 msmith Exp $
  */
 
 #include <stand.h>
@@ -92,11 +92,19 @@ vidc_init(int arg)
 static void
 vidc_putchar(int c)
 {
-    v86.ctl = 0;
-    v86.addr = 0x10;
-    v86.eax = 0xe00 | c;
-    v86.ebx = 0x7;
-    v86int();
+    int		i;
+
+    if (c == '\t') {
+	/* lame tab expansion */
+	for (i = 0; i < 8; i++)
+	    vidc_putchar(' ');
+    } else {
+	v86.ctl = 0;
+	v86.addr = 0x10;
+	v86.eax = 0xe00 | c;
+	v86.ebx = 0x7;
+	v86int();
+    }
 }
 
 static int
