@@ -579,7 +579,7 @@ psycho_attach(device_t dev)
 		PSYCHO_WRITE8(sc, map, mr | INTMAP_V);
 	}
 	for (map = PSR_SCSI_INT_MAP, clr = PSR_SCSI_INT_CLR, n = 0;
-	     map <= PSR_FFB1_INT_MAP; map += 8, clr += 8, n++) {
+	     map < PSR_FFB0_INT_MAP; map += 8, clr += 8, n++) {
 		mr = PSYCHO_READ8(sc, map);
 #ifdef PSYCHO_DEBUG
 		device_printf(dev, "intr map (obio) %d: %#lx, clr: %#lx\n", n,
@@ -673,7 +673,7 @@ psycho_find_intrmap(struct psycho_softc *sc, int ino, bus_addr_t *intrmapptr,
 	/* Hunt thru obio first */
 	diag = PSYCHO_READ8(sc, PSR_OBIO_INT_DIAG);
 	for (intrmap = PSR_SCSI_INT_MAP, intrclr = PSR_SCSI_INT_CLR;
-	     intrmap <= PSR_FFB1_INT_MAP; intrmap += 8, intrclr += 8,
+	     intrmap < PSR_FFB0_INT_MAP; intrmap += 8, intrclr += 8,
 	     diag >>= 2) {
 		im = PSYCHO_READ8(sc, intrmap);
 		if (INTINO(im) == ino) {
@@ -689,6 +689,10 @@ psycho_find_intrmap(struct psycho_softc *sc, int ino, bus_addr_t *intrmapptr,
 		for (intrmap = PSR_PCIA0_INT_MAP, intrclr = PSR_PCIA0_INT_CLR;
 		     intrmap <= PSR_PCIB3_INT_MAP; intrmap += 8, intrclr += 32,
 		     diag >>= 8) {
+			if (sc->sc_mode == PSYCHO_MODE_PSYCHO &&
+			    (intrmap == PSR_PCIA2_INT_MAP ||
+			     intrmap ==  PSR_PCIA3_INT_MAP))
+				continue;
 			im = PSYCHO_READ8(sc, intrmap);
 			if (((im ^ ino) & 0x3c) == 0) {
 				intrclr += 8 * (ino & 3);
