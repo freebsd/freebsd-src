@@ -21,7 +21,6 @@ static char	elsieid[] = "@(#)localtime.c	7.57";
 
 #include <sys/types.h>
 #include <sys/stat.h>
-
 #include "private.h"
 #include "tzfile.h"
 #include "fcntl.h"
