@@ -305,16 +305,6 @@ inw(u_int port)
 	return (data);
 }
 
-static __inline u_int
-loadandclear(volatile u_int *addr)
-{
-	u_int	result;
-
-	__asm __volatile("xorl %0,%0; xchgl %1,%0"
-			 : "=&r" (result) : "m" (*addr));
-	return (result);
-}
-
 static __inline void
 outbv(u_int port, u_char data)
 {
@@ -525,7 +515,6 @@ void	invd		__P((void));
 void	invlpg		__P((u_int addr));
 void	invltlb		__P((void));
 u_short	inw		__P((u_int port));
-u_int	loadandclear	__P((u_int *addr));
 void	outb		__P((u_int port, u_char data));
 void	outl		__P((u_int port, u_int data));
 void	outsb		__P((u_int port, void *addr, size_t cnt));
