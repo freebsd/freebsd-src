@@ -20,6 +20,7 @@
 #include <string.h>
 #include <termcap.h>
 #include <sgtty.h>
+#include <locale.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -56,6 +57,7 @@ int             std_in = 0, std_out = 1;
 
 int             clear_ok = 0;
 struct sgttyb   sgo;
+struct tchars	tco;
 char            tbuf[1024], buf[1024];
 
 
@@ -87,19 +89,26 @@ void
 set_tty()
 {
 	struct sgttyb   sgn;
+	struct tchars	tc;
+
 	ioctl(std_in, TIOCGETP, &sgo);
-	/* bcopy(&sgn, &sgo, sizeof(struct sgttyb)); */
+	ioctl(std_in, TIOCGETC, &tco);
 	sgn = sgo;
+	tc = tco;
 	sgn.sg_flags |= CBREAK;
 	sgn.sg_flags &= ~ECHO;
 	ospeed = sgo.sg_ospeed;
+	tc.t_intrc = 17;	/* ^Q */
+	tc.t_quitc = 17;	/* ^Q */
 	ioctl(std_in, TIOCSETP, &sgn);
+	ioctl(std_in, TIOCSETC, &tc);
 }
 
 void
 unset_tty()
 {
 	ioctl(std_in, TIOCSETP, &sgo);
+	ioctl(std_in, TIOCSETC, &tco);
 }
 
 
@@ -262,6 +271,8 @@ main(ac, av)
 	extern int      optind;
 	char            ch, *buf, chb[READB_LEN];
 	fd_set          fd_s;
+
+	(void) setlocale(LC_TIME, "");
 
 	if (getuid() != 0)
 		fatal(NULL);
