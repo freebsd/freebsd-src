@@ -166,7 +166,7 @@ main(argc, argv)
 				++aflag;
 			}
 			if (!(outf = fopen(outfile, aflag ? "a" : "w")))
-				err(exit_val, "%s", outfile);
+				err(1, "%s", outfile);
 			put_entries(head);
 			(void)fclose(outf);
 			if (uflag) {
