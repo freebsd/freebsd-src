@@ -135,12 +135,3 @@ The
 .Nm
 driver was written by
 .An Bill Paul Aq wpaul@ee.columbia.edu .
-.Sh BUGS
-For some reason, outgoing bulk transfers (i.e. packet transmissions)
-fail if the transfer is exactly a multiple of 64 bytes in size. The
-.Nm
-driver works around this by padding such transfers up by one additional
-byte. This does not affect connectivity, however it does cause packets
-to occasionaly appear on the wire with one additional byte for no good
-reason. It is not known if this bug is due to a problem with Pegasus
-chip itself or some peculiarity of the underlying USB support.
