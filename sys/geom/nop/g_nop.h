@@ -30,7 +30,7 @@
 #define	_G_NOP_H_
 
 #define	G_NOP_CLASS_NAME	"NOP"
-#define	G_NOP_VERSION		0
+#define	G_NOP_VERSION		1
 #define	G_NOP_SUFFIX		".nop"
 
 #ifdef _KERNEL

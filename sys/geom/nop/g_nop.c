@@ -266,7 +266,7 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 }
 
 static void
-g_nop_ctl_config(struct gctl_req *req, struct g_class *mp)
+g_nop_ctl_configure(struct gctl_req *req, struct g_class *mp)
 {
 	struct g_provider *pp;
 	intmax_t *failprob;
@@ -395,8 +395,8 @@ g_nop_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 	if (strcmp(verb, "create") == 0) {
 		g_nop_ctl_create(req, mp);
 		return;
-	} else if (strcmp(verb, "config") == 0) {
-		g_nop_ctl_config(req, mp);
+	} else if (strcmp(verb, "configure") == 0) {
+		g_nop_ctl_configure(req, mp);
 		return;
 	} else if (strcmp(verb, "destroy") == 0) {
 		g_nop_ctl_destroy(req, mp);

@@ -47,7 +47,7 @@ struct g_command class_commands[] = {
 		G_OPT_SENTINEL
 	    }
 	},
-	{ "config", G_FLAG_VERBOSE, NULL,
+	{ "configure", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "failprob", &failprob, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
@@ -68,6 +68,6 @@ usage(const char *name)
 {
 
 	fprintf(stderr, "usage: %s create [-v] [-f failprob] <dev1> [dev2 [...]]\n", name);
-	fprintf(stderr, "       %s config [-v] [-f failprob] <dev1> [dev2 [...]]\n", name);
-	fprintf(stderr, "       %s destroy [-fv] <dev1> [dev2 [...]]\n", name);
+	fprintf(stderr, "       %s configure [-v] [-f failprob] <prov1> [prov2 [...]]\n", name);
+	fprintf(stderr, "       %s destroy [-fv] <prov1> [prov2 [...]]\n", name);
 }
