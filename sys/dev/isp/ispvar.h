@@ -1,5 +1,5 @@
-/* $Id: ispvar.h,v 1.7 1998/12/28 19:22:27 mjacob Exp $ */
-/* release_12_28_98_A+ */
+/* $Id: ispvar.h,v 1.8 1999/01/10 02:51:48 mjacob Exp $ */
+/* release_5_11_99 */
 /*
  * Soft Definitions for for Qlogic ISP SCSI adapters.
  *
@@ -37,7 +37,7 @@
 #ifndef	_ISPVAR_H
 #define	_ISPVAR_H
 
-#ifdef	__NetBSD__
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <dev/ic/ispmbox.h>
 #endif
 #ifdef	__FreeBSD__
@@ -48,10 +48,10 @@
 #endif
 
 #define	ISP_CORE_VERSION_MAJOR	1
-#define	ISP_CORE_VERSION_MINOR	5
+#define	ISP_CORE_VERSION_MINOR	8
 
 /*
- * Vector for MD code to provide specific services.
+ * Vector for bus specific code to provide specific services.
  */
 struct ispsoftc;
 struct ispmdvec {
@@ -77,13 +77,17 @@ struct ispmdvec {
 };
 
 #define	MAX_TARGETS	16
+#ifdef	ISP2100_FABRIC
+#define	MAX_FC_TARG	256
+#else
 #define	MAX_FC_TARG	126
+#endif
 #define	DEFAULT_LOOPID	113
 
 /* queue length must be a power of two */
 #define	QENTRY_LEN			64
 #define	RQUEST_QUEUE_LEN		MAXISPREQUEST
-#define	RESULT_QUEUE_LEN		(MAXISPREQUEST/4)
+#define	RESULT_QUEUE_LEN		(MAXISPREQUEST/2)
 #define	ISP_QUEUE_ENTRY(q, idx)		((q) + ((idx) * QENTRY_LEN))
 #define	ISP_QUEUE_SIZE(n)		((n) * QENTRY_LEN)
 #define	ISP_NXT_QENTRY(idx, qlen)	(((idx) + 1) & ((qlen)-1))
@@ -91,36 +95,42 @@ struct ispmdvec {
 	((in == out)? (qlen - 1) : ((in > out)? \
 		((qlen - 1) - (in - out)) : (out - in - 1)))
 /*
- * SCSI (as opposed to FC-PH) Specific Host Adapter Parameters
+ * SCSI Specific Host Adapter Parameters- per bus, per target
  */
 
 typedef struct {
-        u_int		isp_req_ack_active_neg	: 1,	
+	u_int		isp_gotdparms		: 1,
+        		isp_req_ack_active_neg	: 1,	
 	        	isp_data_line_active_neg: 1,
 			isp_cmd_dma_burst_enable: 1,
 			isp_data_dma_burst_enabl: 1,
 			isp_fifo_threshold	: 3,
+			isp_ultramode		: 1,
 			isp_diffmode		: 1,
-			isp_fast_mttr		: 1,
+			isp_lvdmode		: 1,
+						: 1,
 			isp_initiator_id	: 4,
         		isp_async_data_setup	: 4;
         u_int16_t	isp_selection_timeout;
         u_int16_t	isp_max_queue_depth;
-	u_int16_t	isp_clock;
 	u_int8_t	isp_tag_aging;
        	u_int8_t	isp_bus_reset_delay;
         u_int8_t	isp_retry_count;
         u_int8_t	isp_retry_delay;
 	struct {
-		u_int	dev_update	:	1,
-			dev_enable	:	1,
-			exc_throttle	:	7,
-			sync_offset	:	4,
-			sync_period	:	8;
-		u_int16_t dev_flags;		/* persistent device flags */
-		u_int16_t cur_dflags;		/* current device flags */
+		u_int	dev_enable	:	1,	/* ignored */
+					:	1,
+			dev_update	:	1,
+			dev_refresh	:	1,
+			exc_throttle	:	8,
+			cur_offset	:	4,
+			sync_offset	:	4;
+		u_int8_t	cur_period;	/* current sync period */
+		u_int8_t	sync_period;	/* goal sync period */
+		u_int16_t	dev_flags;	/* goal device flags */
+		u_int16_t	cur_dflags;	/* current device flags */
 	} isp_devparam[MAX_TARGETS];
-} sdparam;	/* scsi device parameters */
+} sdparam;
 
 /*
  * Device Flags
@@ -135,10 +145,12 @@ typedef struct {
 #define	DPARM_RENEG	0x0100
 #define	DPARM_NARROW	0x0080	/* Possibly only available with >= 7.55 fw */
 #define	DPARM_ASYNC	0x0040	/* Possibly only available with >= 7.55 fw */
-#define	DPARM_DEFAULT	(0xFFFF & ~DPARM_QFRZ)
+#define	DPARM_DEFAULT	(0xFF00 & ~DPARM_QFRZ)
 #define	DPARM_SAFE_DFLT	(DPARM_DEFAULT & ~(DPARM_WIDE|DPARM_SYNC|DPARM_TQING))
 
 
+/* technically, not really correct, as they need to be rated based upon clock */
+#define	ISP_40M_SYNCPARMS	0x080a
 #define ISP_20M_SYNCPARMS	0x080c
 #define ISP_10M_SYNCPARMS	0x0c19
 #define ISP_08M_SYNCPARMS	0x0c25
@@ -149,16 +161,23 @@ typedef struct {
  * Fibre Channel Specifics
  */
 typedef struct {
-	u_int64_t		isp_wwn;	/* WWN of adapter */
+	u_int8_t		isp_gotdparms;
+	u_int8_t		isp_reserved;
 	u_int8_t		isp_loopid;	/* hard loop id */
 	u_int8_t		isp_alpa;	/* ALPA */
 	u_int8_t		isp_execthrottle;
         u_int8_t		isp_retry_delay;
         u_int8_t		isp_retry_count;
 	u_int8_t		isp_fwstate;	/* ISP F/W state */
+	u_int64_t		isp_wwn;	/* WWN of adapter */
 	u_int16_t		isp_maxalloc;
 	u_int16_t		isp_maxfrmlen;
 	u_int16_t		isp_fwoptions;
+	/*
+	 * Port Data Base
+	 */
+	isp_pdb_t		isp_pdb[MAX_FC_TARG];
+
 	/*
 	 * Scratch DMA mapped in area to fetch Port Database stuff, etc.
 	 */
@@ -228,20 +247,21 @@ struct ispsoftc {
 	struct ispmdvec *	isp_mdvec;
 
 	/*
-	 * Mostly nonvolatile state, debugging, etc..
+	 * Mostly nonvolatile state.
 	 */
 
-	u_int				: 8,
+	u_int		isp_clock	: 8,
 			isp_confopts	: 8,
-					: 2,
+			isp_fast_mttr	: 1,
+					: 1,
+			isp_used	: 1,
 			isp_dblev	: 3,
-			isp_gotdparms	: 1,
 			isp_dogactive	: 1,
 			isp_bustype	: 1,	/* BUS Implementation */
 			isp_type	: 8;	/* HBA Type and Revision */
 
-	u_int16_t		isp_fwrev;	/* Running F/W revision */
-	u_int16_t		isp_romfw_rev;	/* 'ROM' F/W revision */
+	u_int16_t		isp_fwrev[3];	/* Running F/W revision */
+	u_int16_t		isp_romfw_rev[3]; /* 'ROM' F/W revision */
 	void * 			isp_param;
 
 	/*
@@ -249,11 +269,12 @@ struct ispsoftc {
 	 */
 
 	volatile u_int
-				:	19,
+				:	13,
 		isp_state	:	3,
-		isp_sendmarker	:	1,	/* send a marker entry */
-		isp_update	:	1,	/* update paramters */
-		isp_nactive	:	9;	/* how many commands active */
+				:	2,
+		isp_sendmarker	:	2,	/* send a marker entry */
+		isp_update	:	2,	/* update parameters */
+		isp_nactive	:	10;	/* how many commands active */
 
 	/*
 	 * Result and Request Queue indices.
@@ -272,7 +293,7 @@ struct ispsoftc {
 	 * jeez, so I blow a couple of KB per host adapter...
 	 * and it *is* faster.
 	 */
-	volatile ISP_SCSI_XFER_T *isp_xflist[RQUEST_QUEUE_LEN];
+	ISP_SCSI_XFER_T *isp_xflist[RQUEST_QUEUE_LEN];
 
 	/*
 	 * request/result queues and dma handles for them.
@@ -317,9 +338,12 @@ struct ispsoftc {
  * ISP Configuration Options
  */
 #define	ISP_CFG_NORELOAD	0x80	/* don't download f/w */
+#define	ISP_CFG_NONVRAM		0x40	/* ignore NVRAM */
 
-#define	ISP_FW_REV(maj, min)	((maj) << 10| (min))
+#define	ISP_FW_REV(maj, min, mic)	((maj << 24) | (min << 16) | mic)
+#define	ISP_FW_REVX(xp)	((xp[0]<<24) | (xp[1] << 16) | xp[2])
 
+ 
 /*
  * Bus (implementation) types
  */
@@ -336,11 +360,19 @@ struct ispsoftc {
 #define	ISP_HA_SCSI_1040	0x4
 #define	ISP_HA_SCSI_1040A	0x5
 #define	ISP_HA_SCSI_1040B	0x6
+#define	ISP_HA_SCSI_1040C	0x7
+#define	ISP_HA_SCSI_1080	0xd
+#define	ISP_HA_SCSI_12X0	0xe
 #define	ISP_HA_FC		0xf0
 #define	ISP_HA_FC_2100		0x10
 
+#define	IS_SCSI(isp)	(isp->isp_type & ISP_HA_SCSI)
+#define	IS_1080(isp)	(isp->isp_type == ISP_HA_SCSI_1080)
+#define	IS_12X0(isp)	(isp->isp_type == ISP_HA_SCSI_12X0)
+#define	IS_FC(isp)	(isp->isp_type & ISP_HA_FC)
+
 /*
- * Macros to read, write ISP registers through MD code
+ * Macros to read, write ISP registers through bus specific code.
  */
 
 #define	ISP_READ(isp, reg)	\
@@ -403,13 +435,14 @@ int isp_intr __P((void *));
 int32_t ispscsicmd __P((ISP_SCSI_XFER_T *));
 
 /*
- * Platform Dependent to Internal Control Point
+ * Platform Dependent to External to Internal Control Function
  *
  * For: 	Aborting a running command	- arg is an ISP_SCSI_XFER_T *
  *		Resetting a Device		- arg is target to reset
  *		Resetting a BUS			- arg is ignored
  *		Updating parameters		- arg is ignored
  *
+ * First argument is this instance's softc pointer.
  * Second argument is an index into xflist array.
  * Assumes all locks must be held already.
  */
@@ -418,8 +451,29 @@ typedef enum {
 	ISPCTL_RESET_DEV,
 	ISPCTL_ABORT_CMD,
 	ISPCTL_UPDATE_PARAMS,
+	ISPCTL_FCLINK_TEST
 } ispctl_t;
 int isp_control __P((struct ispsoftc *, ispctl_t, void *));
+
+
+/*
+ * Platform Dependent to Internal to External Control Function
+ * (each platform must provide such a function)
+ *
+ * For: 	Announcing Target Paramter Changes (arg is target)
+ *
+ * Assumes all locks are held.
+ */
+
+typedef enum {
+	ISPASYNC_NEW_TGT_PARAMS,
+	ISPASYNC_BUS_RESET,		/* Bus Reset */
+	ISPASYNC_LOOP_DOWN,		/* Obvious FC only */
+	ISPASYNC_LOOP_UP,		/* "" */
+	ISPASYNC_PDB_CHANGE_COMPLETE,	/* "" */
+	ISPASYNC_CHANGE_NOTIFY		/* "" */
+} ispasync_t;
+int isp_async __P((struct ispsoftc *, ispasync_t, void *));
 
 /*
  * lost command routine (XXXX IN TRANSITION XXXX)
