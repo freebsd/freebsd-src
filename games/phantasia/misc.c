@@ -2,6 +2,7 @@
  * misc.c  Phantasia miscellaneous support routines
  */
 
+#include <string.h>
 #include "include.h"
 
 
