@@ -829,7 +829,7 @@ witness_enter(struct mtx *m, int flags, const char *file, int line)
 		return;
 	if (witness_dead)
 		goto out;
-	if (cold)
+	if (cold || panicstr)
 		goto out;
 
 	if (!mtx_legal2block())
