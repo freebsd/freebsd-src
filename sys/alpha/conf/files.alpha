@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.alpha,v 1.4 1998/07/22 08:24:39 dfr Exp $
+#	$Id: files.alpha,v 1.5 1998/08/10 07:53:58 dfr Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -22,6 +22,8 @@ alpha/alpha/dec_kn20aa.c	optional	dec_kn20aa
 alpha/alpha/dec_2100_a50.c	optional	dec_2100_a50
 alpha/alpha/dec_st550.c		optional	dec_st550
 alpha/alpha/dec_axppci_33.c	optional	dec_axppci_33
+alpha/alpha/dec_3000_300.c	optional	dec_3000_300
+alpha/alpha/dec_3000_500.c	optional	dec_3000_500
 alpha/alpha/mountroot.c		optional	slice
 alpha/alpha/ipl_funcs.c		standard
 alpha/alpha/pal.s		standard
@@ -70,6 +72,16 @@ alpha/tlsb/kftxx.c		optional	kft
 alpha/tlsb/mcclock_tlsb.c	optional	gbus
 alpha/tlsb/zs_tlsb.c		optional	gbus
 alpha/tlsb/dwlpx.c		optional	dwlpx
+alpha/tc/tcasic.c		optional	tcasic
+alpha/tc/tc.c			optional	tc
+alpha/tc/ioasic.c		optional	tc
+alpha/tc/mcclock_ioasic.c	optional	tc
+alpha/tc/if_le_ioasic.c		optional	le device-driver
+alpha/tc/if_le_dec.c		optional	le device-driver
+alpha/tc/am7990.c		optional	le device-driver
+alpha/tc/tcds.c			optional	tcds device-driver
+alpha/tc/tcds_dma.c		optional	tcds device-driver
+alpha/tc/esp.c			optional	esp device-driver
 dev/dec/mcclock.c		standard
 dev/dec/mcclock_if.m		standard				\
 	dependency	"$S/kern/makedevops.sh"					\
@@ -126,5 +138,6 @@ libkern/alpha/ntohl.S		standard
 libkern/alpha/ntohs.S		standard
 isa/sio.c			optional	sio device-driver
 isa/kbdio.c			optional        psm     device-driver
+isa/psm.c			optional	psm	device-driver
 isa/kbdio.c			optional        sc      device-driver
 isa/syscons.c			optional	sc	device-driver
