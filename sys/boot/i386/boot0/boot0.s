@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: boot0.s,v 1.1.1.1 1998/10/05 10:08:37 rnordier Exp $
+#	$Id: boot0.s,v 1.2 1998/10/09 17:19:51 rnordier Exp $
 
 # A 512-byte boot manager.
 
@@ -38,7 +38,7 @@ start:		cld 				# String ops inc
 		movsl				#  code
 		movb $0x10,%cl			# Words to clear
 		rep				# Zero
-		stosl				#  then
+		stosl				#  them
 		incb1(-0xe,_di_)		# Sector number
 		jmpnwi(main-LOAD+ORIGIN)	# To relocated code
 
@@ -126,7 +126,8 @@ main.11:	movwir(LOAD,_bx)		# Address for read
 		jc main.5			# If error
 		cmpwi2(0xaa55,0x1fe,_bx_)	# Bootable?
 		jne main.5			# No
-		callwi(putn)			# To next line
+		movwir(crlf,_si)		# Leave some
+		callwi(puts)			#  space
 		jmp *%ebx			# Invoke bootstrap
 
 # Display routines
