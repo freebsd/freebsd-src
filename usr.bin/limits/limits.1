@@ -17,7 +17,7 @@
 .\" 5. Modifications may be freely made to this file providing the above
 .\"    conditions are met.
 .\"
-.\"	$Id: limits.1,v 1.8 1998/06/04 21:05:58 steve Exp $
+.\"	$Id: limits.1,v 1.12 1999/08/14 06:39:48 chris Exp $
 .\"
 .Dd January 15, 1996
 .Dt LIMITS 1
@@ -273,7 +273,7 @@ as well that apply to the 'news' account, you might use:
 .Dl eval `limits -U news -aBec 0`
 .Pp
 As with the 
-.Xr setrlimit 3
+.Xr setrlimit 2
 call, only the superuser may raise process "hard" resource limits.
 Non-root users may, however, lower them or change "soft" resource limits
 within to any value below the hard limit.
