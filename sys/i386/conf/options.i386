@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.73 1998/02/20 02:44:18 steve Exp $
+#	$Id: options.i386,v 1.74 1998/02/20 04:19:15 steve Exp $
 
 BOUNCEPAGES		opt_bounce.h
 DISABLE_PSE
@@ -11,6 +11,7 @@ IBCS2			opt_dontuse.h
 COMPAT_LINUX		opt_dontuse.h
 
 SHOW_BUSYBUFS
+TUNE_1542
 PANIC_REBOOT_WAIT_TIME	opt_panic.h
 MAXMEM
 PERFMON			opt_perfmon.h
