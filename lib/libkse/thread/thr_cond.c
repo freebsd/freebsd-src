@@ -47,6 +47,9 @@
 static inline struct pthread	*cond_queue_deq(pthread_cond_t);
 static inline void		cond_queue_remove(pthread_cond_t, pthread_t);
 static inline void		cond_queue_enq(pthread_cond_t, pthread_t);
+static void			cond_wait_backout(void *);
+static inline void		check_continuation(struct pthread *,
+				    struct pthread_cond *, pthread_mutex_t *);
 
 /*
  * Double underscore versions are cancellation points.  Single underscore
@@ -171,8 +174,7 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 	struct pthread	*curthread = _get_curthread();
 	int	rval = 0;
 	int	done = 0;
-	int	interrupted = 0;
-	int	unlock_mutex = 1;
+	int	mutex_locked = 1;
 	int	seqno;
 
 	if (cond == NULL)
@@ -198,10 +200,11 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 	 * and backed out of the waiting queue prior to executing the
 	 * signal handler.
 	 */
-	do {
-		/* Lock the condition variable structure: */
-		THR_LOCK_ACQUIRE(curthread, &(*cond)->c_lock);
 
+	/* Lock the condition variable structure: */
+	THR_LOCK_ACQUIRE(curthread, &(*cond)->c_lock);
+	seqno = (*cond)->c_seqno;
+	do {
 		/*
 		 * If the condvar was statically allocated, properly
 		 * initialize the tail queue.
@@ -217,9 +220,6 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 		case COND_TYPE_FAST:
 			if ((mutex == NULL) || (((*cond)->c_mutex != NULL) &&
 			    ((*cond)->c_mutex != *mutex))) {
-				/* Unlock the condition variable structure: */
-				THR_LOCK_RELEASE(curthread, &(*cond)->c_lock);
-
 				/* Return invalid argument error: */
 				rval = EINVAL;
 			} else {
@@ -233,15 +233,11 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 				 */
 				cond_queue_enq(*cond, curthread);
 
-				/* Remember the mutex and sequence number: */
-				(*cond)->c_mutex = *mutex;
-				seqno = (*cond)->c_seqno;
-
 				/* Wait forever: */
 				curthread->wakeup_time.tv_sec = -1;
 
 				/* Unlock the mutex: */
-				if ((unlock_mutex != 0) &&
+				if (mutex_locked &&
 				    ((rval = _mutex_cv_unlock(mutex)) != 0)) {
 					/*
 					 * Cannot unlock the mutex, so remove
@@ -249,22 +245,18 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 					 * variable queue:
 					 */
 					cond_queue_remove(*cond, curthread);
-
-					/* Check for no more waiters: */
-					if (TAILQ_FIRST(&(*cond)->c_queue) == NULL)
-						(*cond)->c_mutex = NULL;
-
-					/* Unlock the condition variable structure: */
-					THR_LOCK_RELEASE(curthread, &(*cond)->c_lock);
 				}
 				else {
+					/* Remember the mutex: */
+					(*cond)->c_mutex = *mutex;
+
 					/*
 					 * Don't unlock the mutex the next
 					 * time through the loop (if the
 					 * thread has to be requeued after
 					 * handling a signal).
 					 */
-					unlock_mutex = 0;
+					mutex_locked = 0;
 
 					/*
 					 * This thread is active and is in a
@@ -277,6 +269,7 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 
 					/* Remember the CV: */
 					curthread->data.cond = *cond;
+					curthread->sigbackout = cond_wait_backout;
 					THR_SCHED_UNLOCK(curthread, curthread);
 
 					/* Unlock the CV structure: */
@@ -285,8 +278,6 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 
 					/* Schedule the next thread: */
 					_thr_sched_switch(curthread);
-
-					curthread->data.cond = NULL;
 
 					/*
 					 * XXX - This really isn't a good check
@@ -299,41 +290,39 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 					 * should be sent "as soon as possible".
 					 */
 					done = (seqno != (*cond)->c_seqno);
-
-					if (THR_IN_SYNCQ(curthread)) {
+					if (done && !THR_IN_CONDQ(curthread)) {
 						/*
-						 * Lock the condition variable
-						 * while removing the thread.
+						 * The thread is dequeued, so
+						 * it is safe to clear these.
 						 */
-						THR_LOCK_ACQUIRE(curthread,
-						    &(*cond)->c_lock);
+						curthread->data.cond = NULL;
+						curthread->sigbackout = NULL;
+						check_continuation(curthread,
+						    NULL, mutex);
+						return (_mutex_cv_lock(mutex));
+					}
 
+					/* Relock the CV structure: */
+					THR_LOCK_ACQUIRE(curthread,
+					    &(*cond)->c_lock);
+
+					/*
+					 * Clear these after taking the lock to
+					 * prevent a race condition where a
+					 * signal can arrive before dequeueing
+					 * the thread.
+					 */
+					curthread->data.cond = NULL;
+					curthread->sigbackout = NULL;
+					done = (seqno != (*cond)->c_seqno);
+
+					if (THR_IN_CONDQ(curthread)) {
 						cond_queue_remove(*cond,
 						    curthread);
 
 						/* Check for no more waiters: */
 						if (TAILQ_FIRST(&(*cond)->c_queue) == NULL)
 							(*cond)->c_mutex = NULL;
-
-						THR_LOCK_RELEASE(curthread,
-						    &(*cond)->c_lock);
-					}
-
-					/*
-					 * Save the interrupted flag; locking
-					 * the mutex may destroy it.
-					 */
-					interrupted = curthread->interrupted;
-
-					/*
-					 * Note that even though this thread may
-					 * have been canceled, POSIX requires
-					 * that the mutex be reaquired prior to
-					 * cancellation.
-					 */
-					if (done || interrupted) {
-						rval = _mutex_cv_lock(mutex);
-						unlock_mutex = 1;
 					}
 				}
 			}
@@ -341,17 +330,20 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 
 		/* Trap invalid condition variable types: */
 		default:
-			/* Unlock the condition variable structure: */
-			THR_LOCK_RELEASE(curthread, &(*cond)->c_lock);
-
 			/* Return an invalid argument error: */
 			rval = EINVAL;
 			break;
 		}
 
-		if ((interrupted != 0) && (curthread->continuation != NULL))
-			curthread->continuation((void *) curthread);
+		check_continuation(curthread, *cond,
+		    mutex_locked ? NULL : mutex);
 	} while ((done == 0) && (rval == 0));
+
+	/* Unlock the condition variable structure: */
+	THR_LOCK_RELEASE(curthread, &(*cond)->c_lock);
+
+	if (mutex_locked == 0)
+		_mutex_cv_lock(mutex);
 
 	/* Return the completion status: */
 	return (rval);
@@ -378,8 +370,7 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 	struct pthread	*curthread = _get_curthread();
 	int	rval = 0;
 	int	done = 0;
-	int	interrupted = 0;
-	int	unlock_mutex = 1;
+	int	mutex_locked = 1;
 	int	seqno;
 
 	THR_ASSERT(curthread->locklevel == 0,
@@ -407,10 +398,11 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 	 * and backed out of the waiting queue prior to executing the
 	 * signal handler.
 	 */
-	do {
-		/* Lock the condition variable structure: */
-		THR_LOCK_ACQUIRE(curthread, &(*cond)->c_lock);
 
+	/* Lock the condition variable structure: */
+	THR_LOCK_ACQUIRE(curthread, &(*cond)->c_lock);
+	seqno = (*cond)->c_seqno;
+	do {
 		/*
 		 * If the condvar was statically allocated, properly
 		 * initialize the tail queue.
@@ -428,9 +420,6 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 			    ((*cond)->c_mutex != *mutex))) {
 				/* Return invalid argument error: */
 				rval = EINVAL;
-
-				/* Unlock the condition variable structure: */
-				THR_LOCK_RELEASE(curthread, &(*cond)->c_lock);
 			} else {
 				/* Set the wakeup time: */
 				curthread->wakeup_time.tv_sec = abstime->tv_sec;
@@ -447,12 +436,8 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 				 */
 				cond_queue_enq(*cond, curthread);
 
-				/* Remember the mutex and sequence number: */
-				(*cond)->c_mutex = *mutex;
-				seqno = (*cond)->c_seqno;
-
 				/* Unlock the mutex: */
-				if ((unlock_mutex != 0) &&
+				if (mutex_locked &&
 				   ((rval = _mutex_cv_unlock(mutex)) != 0)) {
 					/*
 					 * Cannot unlock the mutex; remove the
@@ -460,21 +445,17 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 					 * variable queue: 
 					 */
 					cond_queue_remove(*cond, curthread);
-
-					/* Check for no more waiters: */
-					if (TAILQ_FIRST(&(*cond)->c_queue) == NULL)
-						(*cond)->c_mutex = NULL;
-
-					/* Unlock the condition variable structure: */
-					THR_LOCK_RELEASE(curthread, &(*cond)->c_lock);
 				} else {
+					/* Remember the mutex: */
+					(*cond)->c_mutex = *mutex;
+
 					/*
 					 * Don't unlock the mutex the next
 					 * time through the loop (if the
 					 * thread has to be requeued after
 					 * handling a signal).
 					 */
-					unlock_mutex = 0;
+					mutex_locked = 0;
 
 					/*
 					 * This thread is active and is in a
@@ -487,6 +468,7 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 
 					/* Remember the CV: */
 					curthread->data.cond = *cond;
+					curthread->sigbackout = cond_wait_backout;
 					THR_SCHED_UNLOCK(curthread, curthread);
 
 					/* Unlock the CV structure: */
@@ -495,8 +477,6 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 
 					/* Schedule the next thread: */
 					_thr_sched_switch(curthread);
-
-					curthread->data.cond = NULL;
 
 					/*
 					 * XXX - This really isn't a good check
@@ -509,38 +489,45 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 					 * should be sent "as soon as possible".
 					 */
 					done = (seqno != (*cond)->c_seqno);
+					if (done && !THR_IN_CONDQ(curthread)) {
+						/*
+						 * The thread is dequeued, so
+						 * it is safe to clear these.
+						 */
+						curthread->data.cond = NULL;
+						curthread->sigbackout = NULL;
+						check_continuation(curthread,
+						    NULL, mutex);
+						return (_mutex_cv_lock(mutex));
+					}
+
+					/* Relock the CV structure: */
+					THR_LOCK_ACQUIRE(curthread,
+					    &(*cond)->c_lock);
+
+					/*
+					 * Clear these after taking the lock to
+					 * prevent a race condition where a
+					 * signal can arrive before dequeueing
+					 * the thread.
+					 */
+					curthread->data.cond = NULL;
+					curthread->sigbackout = NULL;
+
+					done = (seqno != (*cond)->c_seqno);
 
 					if (THR_IN_CONDQ(curthread)) {
-						/*
-						 * Lock the condition variable
-						 * while removing the thread.
-						 */
-						THR_LOCK_ACQUIRE(curthread,
-						    &(*cond)->c_lock);
-
 						cond_queue_remove(*cond,
 						    curthread);
 
 						/* Check for no more waiters: */
 						if (TAILQ_FIRST(&(*cond)->c_queue) == NULL)
 							(*cond)->c_mutex = NULL;
-
-						THR_LOCK_RELEASE(curthread,
-						    &(*cond)->c_lock);
 					}
 
-					/*
-					 * Save the interrupted flag; locking
-					 * the mutex may destroy it.
-					 */
-					interrupted = curthread->interrupted;
 					if (curthread->timeout != 0) {
 						/* The wait timedout. */
 						rval = ETIMEDOUT;
-						(void)_mutex_cv_lock(mutex);
-					} else if (interrupted || done) {
-						rval = _mutex_cv_lock(mutex);
-						unlock_mutex = 1;
 					}
 				}
 			}
@@ -548,17 +535,20 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 
 		/* Trap invalid condition variable types: */
 		default:
-			/* Unlock the condition variable structure: */
-			THR_LOCK_RELEASE(curthread, &(*cond)->c_lock);
-
 			/* Return an invalid argument error: */
 			rval = EINVAL;
 			break;
 		}
 
-		if ((interrupted != 0) && (curthread->continuation != NULL))
-			curthread->continuation((void *)curthread);
+		check_continuation(curthread, *cond,
+		    mutex_locked ? NULL : mutex);
 	} while ((done == 0) && (rval == 0));
+
+	/* Unlock the condition variable structure: */
+	THR_LOCK_RELEASE(curthread, &(*cond)->c_lock);
+
+	if (mutex_locked == 0)
+		_mutex_cv_lock(mutex);
 
 	/* Return the completion status: */
 	return (rval);
@@ -615,6 +605,7 @@ _pthread_cond_signal(pthread_cond_t * cond)
 			    != NULL) {
 				THR_SCHED_LOCK(curthread, pthread);
 				cond_queue_remove(*cond, pthread);
+				pthread->sigbackout = NULL;
 				if ((pthread->kseg == curthread->kseg) &&
 				    (pthread->active_priority >
 				    curthread->active_priority))
@@ -681,6 +672,7 @@ _pthread_cond_broadcast(pthread_cond_t * cond)
 			    != NULL) {
 				THR_SCHED_LOCK(curthread, pthread);
 				cond_queue_remove(*cond, pthread);
+				pthread->sigbackout = NULL;
 				if ((pthread->kseg == curthread->kseg) &&
 				    (pthread->active_priority >
 				    curthread->active_priority))
@@ -712,9 +704,31 @@ _pthread_cond_broadcast(pthread_cond_t * cond)
 
 __strong_reference(_pthread_cond_broadcast, _thr_cond_broadcast);
 
-void
-_cond_wait_backout(struct pthread *curthread)
+static inline void
+check_continuation(struct pthread *curthread, struct pthread_cond *cond,
+    pthread_mutex_t *mutex)
 {
+	if ((curthread->interrupted != 0) &&
+	    (curthread->continuation != NULL)) {
+		if (cond != NULL)
+			/* Unlock the condition variable structure: */
+			THR_LOCK_RELEASE(curthread, &cond->c_lock);
+		/*
+		 * Note that even though this thread may have been
+		 * canceled, POSIX requires that the mutex be
+		 * reaquired prior to cancellation.
+		 */
+		if (mutex != NULL)
+			_mutex_cv_lock(mutex);
+		curthread->continuation((void *) curthread);
+		PANIC("continuation returned in pthread_cond_wait.\n");
+	}
+}
+
+static void
+cond_wait_backout(void *arg)
+{
+	struct pthread *curthread = (struct pthread *)arg;
 	pthread_cond_t	cond;
 
 	cond = curthread->data.cond;
@@ -740,6 +754,8 @@ _cond_wait_backout(struct pthread *curthread)
 		/* Unlock the condition variable structure: */
 		THR_LOCK_RELEASE(curthread, &cond->c_lock);
 	}
+	/* No need to call this again. */
+	curthread->sigbackout = NULL;
 }
 
 /*
