@@ -31,7 +31,7 @@
 .Sh NAME
 .Nm lnc
 .Nd
-ethernet device driver
+AMD Lance/PCnet Ethernet device driver
 .Sh SYNOPSIS
 .Cd "device lnc0 at isa? port 0x280 net irq 10 drq 0 vector lncintr"
 .Sh DESCRIPTION
@@ -42,19 +42,17 @@ including the Am7990 and Am79C960.
 The Ethernet cards supported by the
 .Nm
 interface are:
-.Pp
 .Bl -tag -width -offset ident -compat
 .It Novell NE2100
 .It Novell NE32-VL
 .It Isolan BICC
 .It Digital DEPCA
 .El
-.Pp
 .Sh DIAGNOSTICS
 .Bl -diag
-.It "lnc%d: Framming error"
-A framming error occured.  This means a CRC error also occurred.
-This caused the driver to drop the packet that contained the framming error.
+.It "lnc%d: Framing error"
+A framing error occurred.  This means a CRC error also occurred.
+This caused the driver to drop the packet that contained the framing error.
 .It "lnc%d: Receive CRC error
 The received Ethernet frame failed the CRC checksum.
 This caused the driver to drop the packet that failed the checksum.
@@ -96,11 +94,9 @@ is the same one the card is configured for.
 .It "lnc%d: Transmit buffer error -- Resetting"
 .It "lnc%d: Transmit underflow error -- Resetting"
 .El
-.Pp
 .Sh BUGS
 This driver has the potential of being the most verbose of any of the
 Ethernet device drivers.
-.Pp
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr netintro 4 ,

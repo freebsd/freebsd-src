@@ -43,11 +43,10 @@ Equipment DC21x4x based self-contained Ethernet chips.
 It supports the DEC PCI DE435 card, DEC EISA DE425, DEC DE450, SMC 9332,
 ZNYX ZX314, and others based on the 21040 and 21041 Ethernet controllers or
 the 21140[A] Fast 100Base-T Ethernet controller.
-.Pp
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "de%d: waking device from sleep/snooze mode"
-The 21041 and 21140A chips support suppending the operation of the card.
+The 21041 and 21140A chips support suspending the operation of the card.
 .It "de%d: error: desired IRQ of %d does not match device's actual IRQ of %d"
 The device probe detected that the board is configured for a different 
 interrupt than the one specified in the kernel configuration file.
@@ -59,14 +58,11 @@ devices allowed in a single machine.
 .It "de%d: not configured; 21140 pass 1.1 required (%d.%d found)"
 Certain revisions of the chipset are not supported by this driver.
 .El
-.Pp
 .Sh CAVEATS
 Since the 21040 is available on both EISA and PCI boards, one must be careful
 in how defines the 21040 in the kernel config file.
-.Pp
 .Sh BUGS
 Currently the driver does not support multicast.
-.Pp
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr netintro 4 ,
