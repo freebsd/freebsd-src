@@ -504,9 +504,9 @@ route_UpdateMTU(struct bundle *bundle)
   for (cp = sp; cp < ep; cp += rtm->rtm_msglen) {
     rtm = (struct rt_msghdr *)cp;
     route_ParseHdr(rtm, sa);
-    if (sa[RTAX_DST] && (sa[RTAX_DST]->sa_family == AF_INET ||
+    if (sa[RTAX_DST] && (sa[RTAX_DST]->sa_family == AF_INET
 #ifndef NOINET6
-                         sa[RTAX_DST]->sa_family == AF_INET6
+                         || sa[RTAX_DST]->sa_family == AF_INET6
 #endif
                         ) &&
         sa[RTAX_GATEWAY] && rtm->rtm_index == bundle->iface->index) {
