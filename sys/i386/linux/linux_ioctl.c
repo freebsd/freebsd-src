@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.1 1995/06/25 17:32:35 sos Exp $
+ *  $Id: linux_ioctl.c,v 1.2 1995/11/22 07:43:46 bde Exp $
  */
 
 #include <sys/param.h>
@@ -405,55 +405,55 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
 	    
     case LINUX_TIOCGPGRP:
 	args->cmd = TIOCGPGRP;
-	return ioctl(p, args, retval);
+	return ioctl(p, (struct ioctl_args *)args, retval);
 
     case LINUX_TIOCSPGRP:
 	args->cmd = TIOCSPGRP;
-	return ioctl(p, args, retval);
+	return ioctl(p, (struct ioctl_args *)args, retval);
 
     case LINUX_TIOCGWINSZ:
 	args->cmd = TIOCGWINSZ;
-	return ioctl(p, args, retval);
+	return ioctl(p, (struct ioctl_args *)args, retval);
 
     case LINUX_TIOCSWINSZ:
 	args->cmd = TIOCSWINSZ;
-	return ioctl(p, args, retval);
+	return ioctl(p, (struct ioctl_args *)args, retval);
 
     case LINUX_FIONREAD:
 	args->cmd = FIONREAD;
-	return ioctl(p, args, retval);
+	return ioctl(p, (struct ioctl_args *)args, retval);
 
     case LINUX_FIONBIO:
 	args->cmd = FIONBIO;
-	return ioctl(p, args, retval);
+	return ioctl(p, (struct ioctl_args *)args, retval);
 
     case LINUX_FIOASYNC:
 	args->cmd = FIOASYNC;
-	return ioctl(p, args, retval);
+	return ioctl(p, (struct ioctl_args *)args, retval);
 
     case LINUX_FIONCLEX:
 	args->cmd = FIONCLEX;
-	return ioctl(p, args, retval);
+	return ioctl(p, (struct ioctl_args *)args, retval);
 
     case LINUX_FIOCLEX:
 	args->cmd = FIOCLEX;
-	return ioctl(p, args, retval);
+	return ioctl(p, (struct ioctl_args *)args, retval);
 
     case LINUX_TIOCEXCL:
 	args->cmd = TIOCEXCL;
-	return ioctl(p, args, retval);
+	return ioctl(p, (struct ioctl_args *)args, retval);
 
     case LINUX_TIOCNXCL:
 	args->cmd = TIOCNXCL;
-	return ioctl(p, args, retval);
+	return ioctl(p, (struct ioctl_args *)args, retval);
 
     case LINUX_TIOCCONS:
 	args->cmd = TIOCCONS;
-	return ioctl(p, args, retval);
+	return ioctl(p, (struct ioctl_args *)args, retval);
 
     case LINUX_TIOCNOTTY:
 	args->cmd = TIOCNOTTY;
-	return ioctl(p, args, retval);
+	return ioctl(p, (struct ioctl_args *)args, retval);
 
     case LINUX_TIOCSETD:
 	switch (args->arg) {
