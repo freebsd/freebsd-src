@@ -158,14 +158,16 @@ static	int ubsec_ksigbits(struct crparam *);
 static	void ubsec_kshift_r(u_int, u_int8_t *, u_int, u_int8_t *, u_int);
 static	void ubsec_kshift_l(u_int, u_int8_t *, u_int, u_int8_t *, u_int);
 
+SYSCTL_NODE(_hw, OID_AUTO, ubsec, CTLFLAG_RD, 0, "Broadcom driver parameters");
+
 #ifdef UBSEC_DEBUG
 static	void ubsec_dump_pb(volatile struct ubsec_pktbuf *);
 static	void ubsec_dump_mcr(struct ubsec_mcr *);
 static	void ubsec_dump_ctx2(struct ubsec_ctx_keyop *);
 
 static	int ubsec_debug = 0;
-SYSCTL_INT(_debug, OID_AUTO, ubsec, CTLFLAG_RW, &ubsec_debug,
-	    0, "UBSEC driver debugging printfs");
+SYSCTL_INT(_hw_ubsec, OID_AUTO, debug, CTLFLAG_RW, &ubsec_debug,
+	    0, "control debugging msgs");
 #endif
 
 #define	READ_REG(sc,r) \
@@ -179,8 +181,8 @@ SYSCTL_INT(_debug, OID_AUTO, ubsec, CTLFLAG_RW, &ubsec_debug,
 
 
 struct ubsec_stats ubsecstats;
-SYSCTL_STRUCT(_kern, OID_AUTO, ubsec_stats, CTLFLAG_RD, &ubsecstats,
-	    ubsec_stats, "Broadcom driver statistics");
+SYSCTL_STRUCT(_hw_ubsec, OID_AUTO, stats, CTLFLAG_RD, &ubsecstats,
+	    ubsec_stats, "driver statistics");
 
 static int
 ubsec_probe(device_t dev)
