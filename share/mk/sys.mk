@@ -244,10 +244,6 @@ HTAGSFLAGS=
 
 .endif
 
-.if exists(/etc/defaults/make.conf)
-.include </etc/defaults/make.conf>
-.endif
-
 .if exists(/etc/make.conf)
 .include </etc/make.conf>
 .endif
