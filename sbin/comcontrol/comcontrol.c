@@ -45,7 +45,7 @@ static void
 usage()
 {
 	fprintf(stderr,
-	"usage: comcontrol <filename>|- [dtrwait <n>] [drainwait <n>]\n");
+	"usage: comcontrol <filename> [dtrwait <n>] [drainwait <n>]\n");
 	exit(1);
 }
 
