@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mman.h	8.2 (Berkeley) 1/9/95
- * $Id$
+ * $Id: mman.h,v 1.17 1997/02/22 09:45:34 peter Exp $
  */
 
 #ifndef _SYS_MMAN_H_
@@ -104,7 +104,10 @@
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
+#ifndef _MMAP_DECLARED
+#define	_MMAP_DECLARED
 caddr_t	mmap __P((caddr_t, size_t, int, int, int, off_t));
+#endif
 int	mprotect __P((caddr_t, size_t, int));
 int	munmap __P((caddr_t, size_t));
 int	msync __P((caddr_t, size_t, int));
