@@ -198,7 +198,7 @@
 /* Scatter/Gather list entry. */
 struct twa_sg {
 	bus_addr_t	address;
-	bus_size_t	length;
+	u_int32_t	length;
 } __attribute__ ((packed));
 
 

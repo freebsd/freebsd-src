@@ -657,7 +657,7 @@ twa_fillin_sgl(struct twa_sg *sgl, bus_dma_segment_t *segs, int nsegments)
 
 	for (i = 0; i < nsegments; i++) {
 		sgl[i].address = segs[i].ds_addr;
-		sgl[i].length = segs[i].ds_len;
+		sgl[i].length = (u_int32_t)(segs[i].ds_len);
 	}
 }
 
