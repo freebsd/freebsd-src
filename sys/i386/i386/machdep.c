@@ -587,7 +587,6 @@ sendsig(catcher, sig, mask, code)
  * make sure that the user has not modified the
  * state to gain improper privileges.
  */
-#ifdef COMPAT_43
 int
 osigreturn(td, uap)
 	struct thread *td;
@@ -698,7 +697,6 @@ osigreturn(td, uap)
 	regs->tf_eflags = eflags;
 	return (EJUSTRETURN);
 }
-#endif
 
 int
 sigreturn(td, uap)
