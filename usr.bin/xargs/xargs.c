@@ -380,9 +380,9 @@ prerun(int argc, char **argv, int repls, const char *replstr, char **xp, char **
 	 * Allocate memory to hold the argument list, and
 	 * a NULL at the tail.
 	 */
-	tmp = calloc(argc + 1, sizeof(char**));
+	tmp = malloc((argc + 1) * sizeof(char**));
 	if (tmp == NULL)
-		err(1, "calloc");
+		err(1, "malloc");
 	tmp2 = tmp;
 
 	/*
@@ -415,6 +415,7 @@ prerun(int argc, char **argv, int repls, const char *replstr, char **xp, char **
 	/*
 	 * Run it.
 	 */
+	*tmp = NULL;
 	run(tmp2);
 
 	/*
