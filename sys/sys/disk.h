@@ -28,6 +28,7 @@ struct disk {
 	dev_t			d_dev;
 	struct diskslices	*d_slice;
 	struct disklabel	d_label;
+	LIST_ENTRY(disk)	d_list;
 };
 
 #define DISKFLAG_LOCK		0x1
