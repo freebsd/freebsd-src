@@ -35,7 +35,7 @@
  *
  */
 
-/* Created by ./makestatetext on Sun Feb 28 15:28:55 CST 1999. Do not edit */
+/* Created by ./makestatetext on Thu Mar 25 12:50:46 CST 1999. Do not edit */
 
 /* Drive state texts */
 char *drivestatetext[] =
@@ -51,6 +51,7 @@ char *sdstatetext[] =
 {
     "unallocated",
     "uninit",
+    "referenced",
     "init",
     "empty",
     "initializing",
@@ -67,6 +68,7 @@ char *sdstatetext[] =
 char *plexstatetext[] =
 {
     "unallocated",
+    "referenced",
     "init",
     "faulty",
     "down",
