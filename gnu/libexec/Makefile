@@ -1,5 +1,5 @@
-#	$Id: Makefile,v 1.1 1994/01/30 01:08:18 rgrimes Exp $
+#	$Id: Makefile,v 1.2 1995/01/31 09:29:38 wpaul Exp $
 
-SUBDIR=	uucp ypxfr
+SUBDIR=	uucp
 
 .include <bsd.subdir.mk>
