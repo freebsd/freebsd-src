@@ -2162,7 +2162,7 @@ ata_sii_reset(struct ata_channel *ch)
     ATA_IDX_OUTL(ch, ATA_BMDEVSPEC_1, 0x00000001);
     DELAY(25000);
     ATA_IDX_OUTL(ch, ATA_BMDEVSPEC_1, 0x00000000);
-    DELAY(250000);
+    tsleep(ch, PRIBIO, "siirst", hz);
 }
 
 static void
