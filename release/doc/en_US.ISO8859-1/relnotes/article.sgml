@@ -736,7 +736,7 @@
 	&man.ray.4; interfaces can be modified by
 	&man.raycontrol.8;. &merged;</para>
 
-      <para arch="i386">The &man.rp.4; driver has been updated to
+      <para arch="i386,pc98">The &man.rp.4; driver has been updated to
         version 3.02 and can now be built as a module. &merged;</para>
 
       <para arch="i386" role="historic">The sbni driver, for supporting the Granch
