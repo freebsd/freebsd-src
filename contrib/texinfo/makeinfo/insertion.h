@@ -1,7 +1,7 @@
 /* insertion.h -- declarations for insertion.c.
-   $Id: insertion.h,v 1.8 2001/06/30 00:29:41 karl Exp $
+   $Id: insertion.h,v 1.13 2002/03/28 16:33:48 karl Exp $
 
-   Copyright (C) 1998, 99, 2001 Free Software Foundation, Inc.
+   Copyright (C) 1998, 99, 2001, 02 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,14 +23,15 @@
 /* Must match list in insertion.c.  */
 enum insertion_type
 { 
-  cartouche, defcv, deffn, defivar, defmac, defmethod, defop, defopt,
-  defspec, deftp, deftypefn, deftypefun, deftypeivar, deftypemethod,
-  deftypeop, deftypevar, deftypevr, defun, defvar, defvr, detailmenu,
-  direntry, display, documentdescription, enumerate, example, flushleft,
-  flushright, format, ftable, group, ifclear, ifhtml, ifinfo, ifnothtml,
-  ifnotinfo, ifnottex, ifset, iftex, itemize, lisp, menu, multitable,
-  quotation, rawhtml, rawtex, smalldisplay, smallexample, smallformat,
-  smalllisp, verbatim, table, tex, vtable, bad_type
+  cartouche, copying, defcv, deffn, defivar, defmac, defmethod, defop,
+  defopt, defspec, deftp, deftypefn, deftypefun, deftypeivar,
+  deftypemethod, deftypeop, deftypevar, deftypevr, defun, defvar, defvr,
+  detailmenu, direntry, display, documentdescription, enumerate,
+  example, flushleft, flushright, format, ftable, group, ifclear,
+  ifhtml, ifinfo, ifnothtml, ifnotinfo, ifnotplaintext, ifnottex,
+  ifplaintext, ifset, iftex, itemize, lisp, menu, multitable, quotation,
+  rawhtml, rawtex, smalldisplay, smallexample, smallformat, smalllisp,
+  verbatim, table, tex, vtable, bad_type
 };
 
 typedef struct istack_elt
@@ -55,7 +56,8 @@ extern int had_menu_commentary;
 extern int in_paragraph;
 
 extern void command_name_condition ();
-extern void cm_ifnothtml (), cm_ifhtml(), cm_html ();
+extern void cm_ifhtml (), cm_ifnothtml(), cm_html ();
 extern void cm_ifinfo (), cm_ifnotinfo ();
-extern void cm_ifnottex (), cm_iftex (), cm_tex ();
+extern void cm_ifplaintext (), cm_ifnotplaintext();
+extern void cm_iftex (), cm_ifnottex (), cm_tex ();
 #endif /* !INSERTION_H */

@@ -1,5 +1,5 @@
 /* index.c -- indexing for Texinfo.
-   $Id: index.c,v 1.24 2002/01/22 14:28:07 karl Exp $
+   $Id: index.c,v 1.25 2002/03/19 14:43:04 karl Exp $
 
    Copyright (C) 1998, 99, 2002 Free Software Foundation, Inc.
 
@@ -227,10 +227,17 @@ index_add_arg (name)
          (see the findexerr test).  */
       new->defining_file = xstrdup (input_filename);
       the_indices[which] = new;
-      /* The index breaks if there are colons in the entry. */
+#if 0
+      /* The index breaks if there are colons in the entry.
+         -- This is true, but it's too painful to force changing index
+         entries to use `colon', and too confusing for users.  The real
+         fix is to change Info support to support arbitrary characters
+         in node names, and we're not ready to do that.  --karl,
+         19mar02.  */
       if (strchr (new->entry_text, ':'))
         warning (_("Info cannot handle `:' in index entry `%s'"),
                  new->entry_text);
+#endif
     }
   if (xml)
     xml_insert_indexterm (index_entry, name);

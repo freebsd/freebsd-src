@@ -1,7 +1,7 @@
 /* makeinfo.h -- declarations for Makeinfo.
-   $Id: makeinfo.h,v 1.31 2001/09/11 16:37:51 karl Exp $
+   $Id: makeinfo.h,v 1.37 2002/03/28 16:33:48 karl Exp $
 
-   Copyright (C) 1996, 97, 98, 99, 2000, 01 Free Software Foundation, Inc.
+   Copyright (C) 1996, 97, 98, 99, 2000, 01, 02 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@ DECLARE (int, executing_string, 0);
    stream, because it has already been written. */
 DECLARE (int, me_inhibit_expansion, 0);
 
-extern char *expansion (), *text_expansion ();
+extern char *expansion (), *text_expansion (), *full_expansion ();
 
 /* Current output stream. */
 DECLARE (FILE *, output_stream, NULL);
@@ -129,6 +129,10 @@ DECLARE (int, enable_encoding, 0);
 DECLARE (int, escape_html, 1);
 extern char *escape_string (); /* do HTML escapes */
 
+/* Access key number for next menu entry to be generated (1 to 9, or 10 to
+   mean no access key)  */
+DECLARE (int, next_menu_item_number, 1);
+
 /* Nonzero means that the use of paragraph_start_indent is inhibited.
    @example uses this to line up the left columns of the example text.
    A negative value for this variable is incremented each time it is used.
@@ -143,6 +147,9 @@ DECLARE (char *, current_node, NULL);
 
 /* Command name in the process of being hacked. */
 DECLARE (char *, command, NULL);
+
+/* @copying ... @end copying. */
+DECLARE (char *, copying_text, NULL);
 
 /* @documentdescription ... @end documentdescription. */
 DECLARE (char *, document_description, NULL);
@@ -174,9 +181,15 @@ DECLARE (int, no_headers, 0);
    generating HTML.  (--ifhtml) */
 DECLARE (int, process_html, 0);
 
-/* Nonzero means that we process @ifinfo even when generating HTML.
-   (--ifinfo) */
-DECLARE (int, process_info, 1);
+/* Positive means process @ifinfo (even if not generating Info);
+   zero means don't process @ifinfo (even if we are);
+   -1 means we don't know yet.  (--ifinfo) */
+DECLARE (int, process_info, -1);
+
+/* Positive means process @ifplaintext (even if not generating plain text);
+   zero means we don't process @ifplaintext (even if we are);
+   -1 means we don't know yet.  (--ifplaintext) */
+DECLARE (int, process_plaintext, -1);
 
 /* Nonzero means that we process @tex and @iftex.  (--iftex) */
 DECLARE (int, process_tex, 0);

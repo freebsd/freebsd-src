@@ -1,5 +1,5 @@
 /* xml.c -- xml output.
-   $Id: xml.c,v 1.7 2002/01/16 15:52:45 karl Exp $
+   $Id: xml.c,v 1.11 2002/03/23 20:41:12 karl Exp $
 
    Copyright (C) 2001, 02 Free Software Foundation, Inc.
 
@@ -109,6 +109,7 @@ element texinfoml_element_list [] = {
   { "lisp",                1, 0 },
   { "smalllisp",           1, 0 },
   { "cartouche",           1, 0 },
+  { "copying",             1, 0 },
   { "format",              1, 0 },
   { "smallformat",         1, 0 },
   { "display",             1, 0 },
@@ -243,6 +244,7 @@ element docbook_element_list [] = {
   { "screen",              0, 1 }, /* LISP */
   { "screen",              0, 1 }, /* SMALLLISP */
   { "",                    1, 0 }, /* CARTOUCHE */
+  { "",                    1, 0 }, /* COPYING */
   { "screen",              0, 1 }, /* FORMAT */
   { "screen",              0, 1 }, /* SMALLFORMAT */
   { "screen",              0, 1 }, /* DISPLAY */
