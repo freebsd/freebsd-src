@@ -96,7 +96,7 @@ ed_pci_attach(device_t dev)
         }
 
         error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-                               edintr, sc, &sc->irq_handle);
+	    edintr, sc, &sc->irq_handle);
         if (error) {
                 ed_release_resources(dev);
                 return (error);
