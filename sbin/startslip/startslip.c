@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: startslip.c,v 1.17 1995/09/20 04:56:09 ache Exp $
+ * $Id: startslip.c,v 1.18 1995/09/27 17:15:37 ache Exp $
  */
 
 #ifndef lint
@@ -62,6 +62,7 @@ static char sccsid[] = "@(#)startslip.c	8.1 (Berkeley) 6/5/93";
 #include <string.h>
 #include <unistd.h>
 #include <paths.h>
+#include <err.h>
 
 #define DEFAULT_BAUD    B9600
 int     speed = DEFAULT_BAUD;
@@ -104,6 +105,12 @@ int	debug = 0;
 #endif
 #define	printd	if (debug) printf
 
+int carrier __P((void));
+void down __P((int));
+int getline __P((char *, int, int, time_t));
+static void usage __P((void));
+
+int
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -133,11 +140,8 @@ main(argc, argv)
 			speed = atoi(optarg);
 			break;
 		case 's':
-			if (diali >= MAXDIALS) {
-				(void)fprintf(stderr,
-					"max dial strings number (%d) exceeded\n", MAXDIALS);
-				exit(1);
-			}
+			if (diali >= MAXDIALS)
+				errx(1, "max dial strings number (%d) exceeded", MAXDIALS);
 			dials[diali++] = strdup(optarg);
 			break;
 		case 't':
@@ -465,6 +469,7 @@ restart:
 		printd("sigpause return\n");
 	}
 	goto restart;
+	return(0); /* not reached */
 }
 
 void
@@ -497,6 +502,7 @@ sigterm()
 	terminate = 1;
 }
 
+int
 getline(buf, size, fd, fintimeout)
 	char *buf;
 	int size, fd;
@@ -553,6 +559,7 @@ getline(buf, size, fd, fintimeout)
 	return (0);
 }
 
+int
 carrier()
 {
 	int comstate;
@@ -565,6 +572,7 @@ carrier()
 	return !!(comstate & TIOCM_CD);
 }
 
+void
 down(code)
 {
 	if (fd > -1)
@@ -576,12 +584,13 @@ down(code)
 	exit(code);
 }
 
+static void
 usage()
 {
-	(void)fprintf(stderr, "\
-usage: startslip [-d] [-b speed] [-s string1 [-s string2 [...]]] [-A annexname] \\\n\
-	[-h] [-l] [-U upscript] [-D downscript] [-t script_timeout] [-L]\\\n\
-	[-w retry_pause] [-W maxtries] [-K keepalive] [-O outfill] [-S unit] \\\n\
-	device user passwd\n");
+	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",  
+"usage: startslip [-d] [-b speed] [-s string1 [-s string2 [...]]] [-h] [-l]",
+"                 [-L] [-A annexname] [-U upscript] [-D downscript]",
+"                 [-t script_timeout] [-W maxtries] [-w retry_pause]",
+"                 [-K keepalive] [-O outfill] [-S unit] device user passwd");
 	exit(1);
 }
