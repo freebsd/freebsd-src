@@ -35,6 +35,9 @@
 .Cd "device ppi"
 .Pp
 Minor numbering:  Unit numbers correspond directly to ppbus numbers.
+.Pp
+.In dev/ppbus/ppi.h
+.In dev/ppbus/ppbconf.h
 .Sh DESCRIPTION
 The
 .Nm
@@ -44,9 +47,6 @@ the security problems inherent with the use of the
 .Pa /dev/io
 interface.
 .Sh PROGRAMMING INTERFACE
-.In dev/ppbus/ppi.h
-.In dev/ppbus/ppbconf.h
-.Pp
 All I/O on the
 .Nm
 interface is performed using
