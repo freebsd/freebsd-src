@@ -15,6 +15,19 @@ TYPE=	real
 # THE FOURTH LINE
 #TYPE=	fake
 
+# Try to find these in the build tree
+.if exists(../strfile/strfile)
+STRFILE=../strfile/strfile
+.else
+STRFILE=/usr/games/strfile
+.endif
+
+.if exists(../../caesar/caesar)
+CAESAR=../../caesar/caesar
+.else
+CAESAR=/usr/games/caesar
+.endif
+
 CLEANFILES+=${BLDS}
 
 all: ${FILES} ${BLDS}
@@ -25,13 +38,13 @@ install:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} ${BLDS} \
 	    ${DESTDIR}${SHAREDIR}/games/fortune
 
-fortunes.dat fortunes2.dat fortunes2-o.dat limerick.dat startrek.dat zippy.dat:
-	strfile -rs ${.CURDIR}/${.TARGET:R} ${.TARGET}
+fortunes.dat fortunes2.dat fortunes2-o.dat limerick.dat startrek.dat zippy.dat: ${STRFILE}
+	${STRFILE} -rs ${.CURDIR}/${.TARGET:R} ${.TARGET}
 
-fortunes-o.dat: fortunes-o
-	strfile -rsx fortunes-o ${.TARGET}
+fortunes-o.dat: fortunes-o ${STRFILE}
+	${STRFILE} -rsx fortunes-o ${.TARGET}
 
-fortunes-o: fortunes-o.${TYPE}
-	caesar 13 < ${.ALLSRC} > ${.TARGET}
+fortunes-o: fortunes-o.${TYPE} ${CAESAR}
+	${CAESAR} 13 < ${.ALLSRC} > ${.TARGET}
 
 .include <bsd.prog.mk>
