@@ -546,17 +546,20 @@ get_string(const char *val, const char *sep, u_int8_t *buf, int *lenp)
 			break;
 		}
 		if (hexstr) {
-			if (!isxdigit((u_char)val[0]) ||
-			    !isxdigit((u_char)val[1])) {
+			if (!isxdigit((u_char)val[0])) {
 				warnx("bad hexadecimal digits");
 				return NULL;
 			}
+			if (!isxdigit((u_char)val[1])) {
+				warnx("odd count hexadecimal digits");
+				return NULL;
+			}
 		}
-		if (p > buf + len) {
+		if (p >= buf + len) {
 			if (hexstr)
 				warnx("hexadecimal digits too long");
 			else
-				warnx("strings too long");
+				warnx("string too long");
 			return NULL;
 		}
 		if (hexstr) {
