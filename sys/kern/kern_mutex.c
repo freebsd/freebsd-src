@@ -72,7 +72,8 @@
 
 /* XXXKSE This test will change. */
 #define	thread_running(td)						\
-	((td)->td_kse != NULL && (td)->td_kse->ke_oncpu != NOCPU)
+	(td->td_state == TDS_RUNNING)
+	/* ((td)->td_oncpu != NOCPU) */
 
 /*
  * Lock classes for sleep and spin mutexes.

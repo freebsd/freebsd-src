@@ -767,7 +767,7 @@ fork_exit(callout, arg, frame)
 	}
 	td = curthread;
 	p = td->td_proc;
-	td->td_kse->ke_oncpu = PCPU_GET(cpuid);
+	td->td_oncpu = PCPU_GET(cpuid);
 	p->p_state = PRS_NORMAL;
 	/*
 	 * Finish setting up thread glue.  We need to initialize
