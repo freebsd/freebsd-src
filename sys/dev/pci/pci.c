@@ -1834,7 +1834,7 @@ pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
 	}
 	for (i = 0; i < dinfo->cfg.nummaps; i++)
-		pci_write_config(dev, PCIR_MAPS + i * 4, dinfo->cfg.bar[i], 4);
+		pci_write_config(dev, PCIR_BAR(i), dinfo->cfg.bar[i], 4);
 	pci_write_config(dev, PCIR_BIOS, dinfo->cfg.bios, 4);
 	pci_write_config(dev, PCIR_COMMAND, dinfo->cfg.cmdreg, 2);
 	pci_write_config(dev, PCIR_INTLINE, dinfo->cfg.intline, 1);
@@ -1864,7 +1864,7 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 	if (dinfo->cfg.hdrtype != 0)
 		return;
 	for (i = 0; i < dinfo->cfg.nummaps; i++)
-		dinfo->cfg.bar[i] = pci_read_config(dev, PCIR_MAPS + i * 4, 4);
+		dinfo->cfg.bar[i] = pci_read_config(dev, PCIR_BAR(i), 4);
 	dinfo->cfg.bios = pci_read_config(dev, PCIR_BIOS, 4);
 
 	/*
