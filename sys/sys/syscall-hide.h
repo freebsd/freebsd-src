@@ -47,11 +47,7 @@ HIDE_POSIX(dup)
 HIDE_POSIX(pipe)
 HIDE_POSIX(getegid)
 HIDE_BSD(profil)
-#ifdef KTRACE
 HIDE_BSD(ktrace)
-#else
-HIDE_BSD(ktrace)
-#endif
 HIDE_POSIX(sigaction)
 HIDE_POSIX(getgid)
 HIDE_POSIX(sigprocmask)

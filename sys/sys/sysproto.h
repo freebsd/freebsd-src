@@ -178,15 +178,12 @@ struct	profil_args {
 	u_int offset;
 	u_int scale;
 };
-#ifdef KTRACE
 struct	ktrace_args {
 	char * fname;
 	int ops;
 	int facs;
 	int pid;
 };
-#else
-#endif
 struct	sigaction_args {
 	int signum;
 	struct sigaction * nsa;
@@ -770,10 +767,7 @@ int	dup __P((struct proc *, struct dup_args *, int []));
 int	pipe __P((struct proc *, struct pipe_args *, int []));
 int	getegid __P((struct proc *, struct getegid_args *, int []));
 int	profil __P((struct proc *, struct profil_args *, int []));
-#ifdef KTRACE
 int	ktrace __P((struct proc *, struct ktrace_args *, int []));
-#else
-#endif
 int	sigaction __P((struct proc *, struct sigaction_args *, int []));
 int	getgid __P((struct proc *, struct getgid_args *, int []));
 int	sigprocmask __P((struct proc *, struct sigprocmask_args *, int []));
@@ -937,9 +931,6 @@ struct	olstat_args {
 	char * path;
 	struct ostat * ub;
 };
-#ifdef KTRACE
-#else
-#endif
 struct	ofstat_args {
 	int fd;
 	struct ostat * sb;
