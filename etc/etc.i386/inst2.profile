@@ -60,7 +60,7 @@ do=\E[B:ho=\E[;H:nd=\E[C:up=\E[A:so=\E[7m:se=\E[0m:us=\E[4m:ue=\E[0m:\
 :ac=l\332q\304k\277x\263j\331m\300w\302u\264v\301t\303n\305:\
 :kb=^h:kh=\E[Y:ku=\E[A:kd=\E[B:kl=\E[D:kr=\E[C:"
 OPSYSTEM=FreeBSD
-RELEASE="1.0 EPSILON"
+RELEASE="1.0"
 export TERMCAP
 export TERM
 echo "${OPSYSTEM} Base System Release ${RELEASE}"
