@@ -40,7 +40,7 @@
 .Nd Internet domain name and network number directory service
 .Sh SYNOPSIS
 .Nm whois
-.Op Fl adgprR
+.Op Fl adgiprR
 .Op Fl h Ar host
 .Ar name ...
 .Sh DESCRIPTION
@@ -68,8 +68,19 @@ contact for subdomains of
 .Tn \&.GOV .
 .It Fl h Ar host
 Use the specified host instead of the default NIC
-(whois.internic.net).
+(whois.crsnic.net).
 Either a host name or an IP address may be specified.
+.It Fl i
+Use the Network Solutions Registry for Internet Numbers
+.Pq Tn InterNIC
+database.  It contains network numbers and domain contact information
+for most of
+.Tn \&.COM ,
+.Tn \&.NET ,
+.Tn \&.ORG
+and
+.Tn \&.EDU
+domains.
 .It Fl p
 Use the Asia/Pacific Network Information Center
 .Pq Tn APNIC

@@ -56,7 +56,8 @@ static const char rcsid[] =
 #include <sysexits.h>
 #include <unistd.h>
 
-#define	NICHOST		"whois.internic.net"
+#define NICHOST         "whois.crsnic.net"
+#define INICHOST        "whois.internic.net"
 #define	DNICHOST	"whois.nic.mil"
 #define	GNICHOST	"whois.nic.gov"
 #define	ANICHOST	"whois.arin.net"
@@ -85,7 +86,7 @@ main(argc, argv)
 #endif
 
 	host = NICHOST;
-	while ((ch = getopt(argc, argv, "adgh:prR")) != -1)
+	while ((ch = getopt(argc, argv, "adgh:iprR")) != -1)
 		switch((char)ch) {
 		case 'a':
 			host = ANICHOST;
@@ -98,6 +99,9 @@ main(argc, argv)
 			break;
 		case 'h':
 			host = optarg;
+			break;
+		case 'i':
+			host = INICHOST;
 			break;
 		case 'p':
 			host = PNICHOST;
@@ -159,6 +163,6 @@ main(argc, argv)
 static void
 usage()
 {
-	fprintf(stderr, "usage: whois [-adgprR] [-h hostname] name ...\n");
+	fprintf(stderr, "usage: whois [-adgiprR] [-h hostname] name ...\n");
 	exit(EX_USAGE);
 }
