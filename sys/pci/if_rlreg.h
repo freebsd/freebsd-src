@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_rlreg.h,v 1.4.2.4 1999/06/19 20:21:24 wpaul Exp $
+ *	$Id: if_rlreg.h,v 1.4.2.5 1999/06/20 18:57:14 wpaul Exp $
  */
 
 /*
@@ -434,16 +434,6 @@ struct rl_softc {
  * Addtron device IDs.
  */
 #define ADDTRON_DEVICEID_8139			0x1360
-
-/*
- * SiS vendor ID.
- */
-#define SIS_VENDORID				0x1039
-
-/*
- * SiS device IDs.
- */
-#define SIS_DEVICEID_8139			0x0900
 
 /*
  * Texas Instruments PHY identifiers
