@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: nexus.c,v 1.8 1999/05/08 21:59:22 dfr Exp $
+ *	$Id: nexus.c,v 1.9 1999/05/10 17:56:20 dfr Exp $
  */
 
 /*
@@ -70,11 +70,6 @@
 #endif
 #include <i386/isa/icu.h>
 #include <i386/isa/intr_machdep.h>
-
-#include "pci.h"
-#if NPCI > 0
-#include <pci/pcivar.h>
-#endif
 
 static struct rman irq_rman, drq_rman, port_rman, mem_rman;
 
@@ -197,14 +192,9 @@ nexus_probe(device_t dev)
 	if (child == 0)
 		panic("nexus_probe apm");
 
-#if NPCI > 0
-	/* pci_cfgopen() should come out of here so it could be loadable */
-	if (pci_cfgopen() != 0) {
-		child = device_add_child(dev, "pcib", 0, 0);
-		if (child == 0)
-			panic("nexus_probe pcib");
-	}
-#endif
+	child = device_add_child(dev, "pcib", 0, 0);
+	if (child == 0)
+		panic("nexus_probe pcib");
 
 	child = device_add_child(dev, "eisa", 0, 0);
 	if (child == 0)
@@ -382,43 +372,3 @@ nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 {
 	return (inthand_remove(ih));
 }
-
-static devclass_t	pcib_devclass;
-
-static int
-nexus_pcib_probe(device_t dev)
-{
-	device_set_desc(dev, "PCI host bus adapter");
-
-	device_add_child(dev, "pci", 0, 0);
-
-	return 0;
-}
-
-static device_method_t nexus_pcib_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		nexus_pcib_probe),
-	DEVMETHOD(device_attach,	bus_generic_attach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
-
-	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
-
-	{ 0, 0 }
-};
-
-static driver_t nexus_pcib_driver = {
-	"pcib",
-	nexus_pcib_methods,
-	1,
-};
-
-DRIVER_MODULE(pcib, nexus, nexus_pcib_driver, pcib_devclass, 0, 0);
