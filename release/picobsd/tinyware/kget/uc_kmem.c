@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: uc_kmem.c,v 1.1.1.1 1998/07/14 07:30:54 abial Exp $
+ * $Id: uc_kmem.c,v 1.3 1997/02/22 14:12:28 peter Exp $
  */
 
 #include <sys/types.h>

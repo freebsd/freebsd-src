@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.4 1998/08/10 19:38:39 abial Exp $
+# $Id: Makefile,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
 #
 NOCRYPT?=	yes
 SRC?=/usr/src
@@ -16,7 +16,7 @@ crunch:
 	@cat crunch.conf|sed -e "s@/usr/src@${SRC}@" >>crunch1.conf
 	@crunchgen ${.CURDIR}/crunch1.conf
 	@${MAKE} -f crunch1.mk all NOCRYPT=${NOCRYPT} \
-	    "CFLAGS=${CFLAGS} -DCRUNCHED_BINARY" 2>&1 >/dev/null
+	    "CFLAGS=${CFLAGS} -DCRUNCHED_BINARY" #2>&1 >/dev/null
 
 clean:
 	rm  -f *.o *.stub *.lo *_stub.c *.mk \

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: oinit.c,v 1.8 1998/08/11 06:53:47 abial Exp $
+ *	$Id: oinit.c,v 1.1.1.1 1998/08/27 17:38:45 abial Exp $
  */
 
 /*
@@ -484,7 +484,7 @@ do_command(int shell, char *cmdline)
 	default:
 		while(waitpid(pid,&res,0)!=pid) continue;
 		if(WEXITSTATUS(res)) {
-			printf("%s exited with status %d\n",
+			printf("do_command(%s): exit code=%d\n",
 				av[0],WEXITSTATUS(res));
 		}
 		break;

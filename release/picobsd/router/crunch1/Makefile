@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.2 1998/08/10 19:39:36 abial Exp $
+# $Id: Makefile,v 1.1.1.1 1998/08/27 17:38:44 abial Exp $
 #
 SRC?=/usr/src
 
@@ -9,7 +9,7 @@ crunch:
 	@cat crunch.conf|sed -e "s@/usr/src@${SRC}@" >crunch1.conf
 	@crunchgen ./crunch1.conf
 	@${MAKE} -f crunch1.mk all \
-	    "CFLAGS=${CFLAGS} -DCRUNCHED_BINARY -DNOSECURE -DNOCRYPT" 2>&1 >/dev/null
+	    "CFLAGS=${CFLAGS} -DCRUNCHED_BINARY -DNOSECURE -DNOCRYPT" #2>&1 >/dev/null
 
 clean:
 	rm  -f *.o *.stub *.lo *_stub.c *.mk \
