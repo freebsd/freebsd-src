@@ -405,7 +405,7 @@ retry:
 		 * Get a DMA address for the data
 		 */
 		dma = vtophys(bfr);
-		if (dma == NULL) {
+		if (dma == 0) {
 			fup->fu_stats->st_drv.drv_xm_segdma++;
 			fore_seg_dma_free(hxp, m0, nsegs);
 			KB_FREEALL(m0);
