@@ -2705,18 +2705,6 @@ init_perllib(void)
     incpush(APPLLIB_EXP, TRUE);
 #endif
 
-#ifdef ARCHLIB_EXP
-    incpush(ARCHLIB_EXP, FALSE);
-#endif
-#ifndef PRIVLIB_EXP
-#define PRIVLIB_EXP "/usr/local/lib/perl5:/usr/local/lib/perl"
-#endif
-#if defined(WIN32) 
-    incpush(PRIVLIB_EXP, TRUE);
-#else
-    incpush(PRIVLIB_EXP, FALSE);
-#endif
-
 #ifdef SITEARCH_EXP
     incpush(SITEARCH_EXP, FALSE);
 #endif
@@ -2729,6 +2717,18 @@ init_perllib(void)
 #endif
     if (!PL_tainting)
 	incpush(".", FALSE);
+
+#ifdef ARCHLIB_EXP
+    incpush(ARCHLIB_EXP, FALSE);
+#endif
+#ifndef PRIVLIB_EXP
+#define PRIVLIB_EXP "/usr/local/lib/perl5:/usr/local/lib/perl"
+#endif
+#if defined(WIN32) 
+    incpush(PRIVLIB_EXP, TRUE);
+#else
+    incpush(PRIVLIB_EXP, FALSE);
+#endif
 }
 
 #if defined(DOSISH)
