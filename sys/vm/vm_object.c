@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.157 1999/06/20 21:47:00 alc Exp $
+ * $Id: vm_object.c,v 1.158 1999/07/01 19:53:42 peter Exp $
  */
 
 /*
@@ -876,6 +876,9 @@ vm_object_shadow(object, offset, length)
 	     source->type == OBJT_SWAP))
 		return;
 
+	KASSERT((source->flags & OBJ_ONEMAPPING) == 0,
+		("vm_object_shadow: source object has OBJ_ONEMAPPING set.\n"));
+
 	/*
 	 * Allocate a new object with the given length
 	 */
@@ -896,7 +899,6 @@ vm_object_shadow(object, offset, length)
 	result->backing_object = source;
 	if (source) {
 		TAILQ_INSERT_TAIL(&source->shadow_head, result, shadow_list);
-		vm_object_clear_flag(source, OBJ_ONEMAPPING);
 		source->shadow_count++;
 		source->generation++;
 		result->pg_color = (source->pg_color + OFF_TO_IDX(*offset)) & PQ_L2_MASK;
