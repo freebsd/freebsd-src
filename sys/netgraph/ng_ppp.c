@@ -578,9 +578,11 @@ ng_ppp_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 		}
 		/* FALLTHROUGH */
 	case HOOK_INDEX_ENCRYPT:
-	case HOOK_INDEX_BYPASS:
-		return ng_ppp_output(node, index == HOOK_INDEX_BYPASS,
+		return ng_ppp_output(node, 0,
 		    proto, NG_PPP_BUNDLE_LINKNUM, m, meta);
+
+	case HOOK_INDEX_BYPASS:
+		return ng_ppp_output(node, 1, proto, linkNum, m, meta);
 
 	/* Incoming data */
 	case HOOK_INDEX_DECRYPT:
@@ -684,10 +686,8 @@ ng_ppp_input(node_p node, int bypass, int linkNum, struct mbuf *m, meta_p meta)
 			outHook = priv->hooks[HOOK_INDEX_VJC_UNCOMP];
 		break;
 	case PROT_MP:
-		if (priv->conf.enableMultilink) {
-			NG_FREE_META(meta);
+		if (priv->conf.enableMultilink)
 			return ng_ppp_mp_input(node, linkNum, m, meta);
-		}
 		break;
 	case PROT_APPLETALK:
 		if (priv->conf.enableAtalk)
@@ -722,6 +722,7 @@ bypass:
 
 /*
  * Deliver a frame out a link, either a real one or NG_PPP_BUNDLE_LINKNUM
+ * If the link is not enabled then ENXIO is returned, unless "bypass" is != 0.
  */
 static int
 ng_ppp_output(node_p node, int bypass,
@@ -735,12 +736,13 @@ ng_ppp_output(node_p node, int bypass,
 		linkNum = priv->activeLinks[0];
 
 	/* Check link status (if real) */
-	if (linkNum != NG_PPP_BUNDLE_LINKNUM
-	    && !bypass && !priv->conf.links[linkNum].enableLink)
-		return (ENXIO);
-	if (priv->links[linkNum] == NULL) {
-		NG_FREE_DATA(m, meta);
-		return (ENETDOWN);
+	if (linkNum != NG_PPP_BUNDLE_LINKNUM) {
+		if (!bypass && !priv->conf.links[linkNum].enableLink)
+			return (ENXIO);
+		if (priv->links[linkNum] == NULL) {
+			NG_FREE_DATA(m, meta);
+			return (ENETDOWN);
+		}
 	}
 
 	/* Prepend protocol number, possibly compressed */
@@ -1364,17 +1366,19 @@ ng_ppp_update(node_p node, int newConf)
 	priv->numActiveLinks = 0;
 	priv->allLinksEqual = 1;
 	for (i = 0; i < NG_PPP_MAX_LINKS; i++) {
-		if (priv->conf.links[i].enableLink && priv->links[i] != NULL) {
+		struct ng_ppp_link_config *const lc = &priv->conf.links[i];
+
+		if (lc->enableLink && priv->links[i] != NULL) {
 			priv->activeLinks[priv->numActiveLinks++] = i;
-			if (priv->conf.links[i].latency
-				  != priv->conf.links[0].latency
-			    || priv->conf.links[i].bandwidth
-				  != priv->conf.links[0].bandwidth)
+			if (lc->latency !=
+			      priv->conf.links[priv->activeLinks[0]].latency
+			  || lc->bandwidth !=
+			      priv->conf.links[priv->activeLinks[0]].bandwidth)
 				priv->allLinksEqual = 0;
 		}
 	}
 
-	/* Reset MP state if no longer active */
+	/* Reset MP state if multi-link is no longer active */
 	if (!priv->conf.enableMultilink || priv->numActiveLinks == 0) {
 		ng_ppp_free_frags(node);
 		priv->mpSeqOut = MP_INITIAL_SEQ;
