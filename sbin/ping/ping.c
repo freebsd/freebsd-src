@@ -1442,7 +1442,7 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
-"usage: ping [-QRadfnqrv] [-c count] [-i wait] [-l preload] [-m ttl]",
+"usage: ping [-AQRadfnqrv] [-c count] [-i wait] [-l preload] [-m ttl]",
 "            [-p pattern] "
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
