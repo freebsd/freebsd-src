@@ -137,7 +137,6 @@ fdc_acpi_attach(device_t dev)
 			fde = (uint32_t *)obj->Buffer.Pointer;
 			if (obj->Buffer.Length < 20) {
 				device_printf(dev, "_FDE too small\n");
-				error = ENXIO;
 				goto out;
 			}
 			break;
@@ -150,7 +149,6 @@ fdc_acpi_attach(device_t dev)
 			fde = malloc(pkg->Package.Count * sizeof(uint32_t),
 			    M_TEMP, M_NOWAIT | M_ZERO);
 			if (fde == NULL) {
-				error = ENOMEM;
 				goto out;
 			}
 			for (i = 0; i < pkg->Package.Count; i++) {
