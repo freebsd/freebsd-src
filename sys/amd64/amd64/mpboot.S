@@ -102,11 +102,7 @@ protmode:
 	 */
 	movl	$MSR_EFER, %ecx
 	rdmsr
-#if 0	/* not till we test the NX cpuid bits */
-	orl	$EFER_LME | EFER_SCE | EFER_NXE, %eax
-#else
 	orl	$EFER_LME | EFER_SCE, %eax
-#endif
 	wrmsr
 
 	/*
