@@ -30,8 +30,7 @@
 #include <machine/stdarg.h>
 #include <bootstrap.h>
 
-#define COMPILER_DEPENDENT_INT64	long long
-#define COMPILER_DEPENDENT_UINT64	unsigned long long
+#include "acfreebsd.h"
 #include "actypes.h"
 #include "actbl.h"
 

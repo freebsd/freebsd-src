@@ -58,6 +58,7 @@ AcpiEnterSleepStateS4Bios (
 {
     ACPI_OBJECT_LIST    ArgList;
     ACPI_OBJECT         Arg;
+    UINT32              Value;
 
 
     ACPI_FUNCTION_TRACE ("AcpiEnterSleepStateS4Bios");
@@ -77,7 +78,7 @@ AcpiEnterSleepStateS4Bios (
 
     /* clear wake status */
 
-    AcpiHwBitRegisterWrite (ACPI_BITREG_WAKE_STATUS, 1, ACPI_MTX_LOCK);
+    AcpiSetRegister (ACPI_BITREG_WAKE_STATUS, 1, ACPI_MTX_LOCK);
 
     ACPI_DISABLE_IRQS ();
 
@@ -92,51 +93,13 @@ AcpiEnterSleepStateS4Bios (
     {
         AcpiOsStall(1000000);
         AcpiOsWritePort (AcpiGbl_FADT->SmiCmd, AcpiGbl_FADT->S4BiosReq, 8);
+        AcpiGetRegister (ACPI_BITREG_WAKE_STATUS, &Value, ACPI_MTX_LOCK);
     }
-    while (!AcpiHwBitRegisterRead (ACPI_BITREG_WAKE_STATUS, ACPI_MTX_LOCK));
+    while (!Value);
 
     AcpiHwEnableNonWakeupGpes();
 
     ACPI_ENABLE_IRQS ();
-
-    return_ACPI_STATUS (AE_OK);
-}
-
-
-#undef _COMPONENT
-#define _COMPONENT	ACPI_TABLES
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiSetDsdtTablePtr
- *
- * PARAMETERS:  TablePtr        - pointer to a buffer containing the entire
- *                                DSDT table to override
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Set DSDT table ptr for DSDT overriding.  This function should
- *              be called perior than AcpiLoadTables(). 
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiSetDsdtTablePtr(
-    ACPI_TABLE_HEADER   *TablePtr)
-{
-    ACPI_FUNCTION_TRACE ("AcpiSetDsdtTablePtr");
-
-    if (!TablePtr)
-    {
-        return_ACPI_STATUS (AE_BAD_PARAMETER);
-    }
-
-    if (AcpiGbl_AcpiTables[ACPI_TABLE_DSDT].LoadedIntoNamespace)
-    {
-        return_ACPI_STATUS (AE_ALREADY_EXISTS);
-    }
-
-    AcpiGbl_DSDT = TablePtr;
 
     return_ACPI_STATUS (AE_OK);
 }
