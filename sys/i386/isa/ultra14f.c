@@ -18,7 +18,7 @@
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  * slight mod to make work with 34F as well: Wed Jun  2 18:05:48 WST 1993
  *
- *	$Id: ultra14f.c,v 1.9 1993/10/12 07:15:38 rgrimes Exp $
+ *	$Id: ultra14f.c,v 1.10 1993/10/14 00:07:04 rgrimes Exp $
  */
  
 #include <sys/types.h>
@@ -147,7 +147,7 @@ extern int delaycount;  /* from clock setup code */
 
 #define UHA_SINTEN              0x80    /* system doorbell interupt Enabled */
 #define UHA_ABORT_COMPLETE_EN   0x10    /* abort MSCP command complete int Enabled */
-#define UHA_ICM_ENABLED         0x01    /* ICM interrupt enabled
+#define UHA_ICM_ENABLED         0x01    /* ICM interrupt enabled */
 
 /*
 * UHA_SMASK bits (write)

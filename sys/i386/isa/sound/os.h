@@ -234,7 +234,7 @@ extern int hz;
  * 
  */
 #define GET_TIME() get_time()
-/*#define GET_TIME()	(lbolt)	/* Returns current time (1/HZ secs since boot) */
+/*#define GET_TIME()	(lbolt)*/	/* Returns current time (1/HZ secs since boot) */
 
 /*
  * The following three macros are called before and after atomic
