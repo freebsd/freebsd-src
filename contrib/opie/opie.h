@@ -34,80 +34,6 @@ License Agreement applies to this software.
 #ifndef _OPIE_H
 #define _OPIE_H
 
-#if _OPIE
-
-#if HAVE_VOIDPTR
-#define VOIDPTR void *
-#else /* HAVE_VOIDPTR */
-#define VOIDPTR char *
-#endif /* HAVE_VOIDPTR */
-
-#if HAVE_VOIDRET
-#define VOIDRET void
-#else /* HAVE_VOIDRET */
-#define VOIDRET
-#endif /* HAVE_VOIDRET */
-
-#if HAVE_VOIDARG
-#define NOARGS void
-#else /* HAVE_VOIDARG */
-#define NOARGS
-#endif /* HAVE_VOIDARG */
-
-#if HAVE_ANSIDECL
-#define FUNCTION(arglist, args) (args)
-#define AND ,
-#else /* HAVE_ANSIDECL */
-#define FUNCTION(arglist, args) arglist args;
-#define AND ;
-#endif /* HAVE_ANSIDECL */
-
-#define FUNCTION_NOARGS ()
-
-#ifndef __P
-#if HAVE_ANSIPROTO
-#define __P(x) x
-#else /* HAVE_ANSIPROTO */
-#define __P(x) ()
-#endif /* HAVE_ANSIPROTO */
-#endif /* __P */
-
-#ifndef HAVE_SYS_UTSNAME_H
-struct utsname {
-	char nodename[65];
-	};
-#endif /* HAVE_SYS_UTSNAME_H */
-
-#ifndef _SC_OPEN_MAX
-#define _SC_OPEN_MAX 1
-#endif /* _SC_OPEN_MAX */
-
-#ifndef MAXHOSTNAMELEN
-#define MAXHOSTNAMELEN 1024
-#endif /* MAXHOSTNAMELEN */
-
-#else /* _OPIE */
-#ifdef __STDC__
-#define VOIDRET void
-#define VOIDPTR void *
-#else /* __STDC__ */
-#define VOIDRET
-#define VOIDPTR char *
-#endif /* __STDC__ */
-#endif /* _OPIE */
-
-#ifndef __P
-#ifdef __ARGS
-#define __P __ARGS
-#else /* __ARGS */
-#ifdef __STDC__
-#define __P(x) x
-#else /* __STDC__ */
-#define __P(x) ()
-#endif /* __STDC__ */
-#endif /* __ARGS */
-#endif /* __P */
-
 struct opie {
   int opie_flags;
   char opie_buf[256];
@@ -125,66 +51,39 @@ struct opie {
 #define __OPIE_FLAGS_READ 2
 
 /* Minimum length of a secret password */
-#ifndef OPIE_SECRET_MIN
 #define OPIE_SECRET_MIN 10
-#endif	/* OPIE_SECRET_MIN */
 
 /* Maximum length of a secret password */
-#ifndef OPIE_SECRET_MAX
 #define OPIE_SECRET_MAX 127
-#endif	/* OPIE_SECRET_MAX */
 
 /* Minimum length of a seed */
-#ifndef OPIE_SEED_MIN
 #define OPIE_SEED_MIN 5
-#endif	/* OPIE_SEED_MIN */
 
 /* Maximum length of a seed */
-#ifndef OPIE_SEED_MAX
 #define OPIE_SEED_MAX 16
-#endif	/* OPIE_SEED_MAX */
 
 /* Maximum length of a challenge (otp-md? 9999 seed) */
-#ifndef OPIE_CHALLENGE_MAX
 #define OPIE_CHALLENGE_MAX (7+1+4+1+OPIE_SEED_MAX)
-#endif	/* OPIE_CHALLENGE_MAX */
 
 /* Maximum length of a response that we allow */
-#ifndef OPIE_RESPONSE_MAX
 #define OPIE_RESPONSE_MAX (9+1+19+1+9+OPIE_SEED_MAX+1+19+1+19+1+19)
-#endif	/* OPIE_RESPONSE_MAX */
 
 /* Maximum length of a principal (read: user name) */
-#ifndef OPIE_PRINCIPAL_MAX
 #define OPIE_PRINCIPAL_MAX 32
-#endif	/* OPIE_PRINCIPAL_MAX */
-
-#ifndef __alpha
-#define UINT4 unsigned long
-#else   /* __alpha */
-#define UINT4 unsigned int 
-#endif  /* __alpha */
 
 struct opiemdx_ctx {
-	UINT4 state[4];
-	UINT4 count[2];
+	u_int32_t state[4];
+	u_int32_t count[2];
 	unsigned char buffer[64];
 };
 
-#ifndef SEEK_SET
-#define SEEK_SET 0
-#endif /* SEEK_SET */
-
-#ifndef SEEK_END
-#define SEEK_END 2
-#endif /* SEEK_END */
-
+__BEGIN_DECLS
 int  opieaccessfile __P((char *));
 int  rdnets __P((long));
 int  isaddr __P((register char *));
 int  opiealways __P((char *));
 char *opieatob8 __P((char *,char *));
-VOIDRET  opiebackspace __P((char *));
+void opiebackspace __P((char *));
 char *opiebtoa8 __P((char *,char *));
 char *opiebtoe __P((char *,char *));
 char *opiebtoh __P((char *,char *));
@@ -192,33 +91,43 @@ int  opieetob __P((char *,char *));
 int  opiechallenge __P((struct opie *,char *,char *));
 int  opiegenerator __P((char *,char *,char *));
 int  opiegetsequence __P((struct opie *));
-VOIDRET  opiehash __P((VOIDPTR, unsigned));
+void opiehash __P((void *, unsigned));
 int  opiehtoi __P((register char));
 int  opiekeycrunch __P((int, char *, char *, char *));
 int  opielock __P((char *));
 int  opielookup __P((struct opie *,char *));
-VOIDRET  opiemd4init __P((struct opiemdx_ctx *));
-VOIDRET  opiemd4update __P((struct opiemdx_ctx *,unsigned char *,unsigned int));
-VOIDRET  opiemd4final __P((unsigned char *,struct opiemdx_ctx *));
-VOIDRET  opiemd5init __P((struct opiemdx_ctx *));
-VOIDRET  opiemd5update __P((struct opiemdx_ctx *,unsigned char *,unsigned int));
-VOIDRET  opiemd5final __P((unsigned char *,struct opiemdx_ctx *));
 int  opiepasscheck __P((char *));
-VOIDRET  opierandomchallenge __P((char *));
+void opierandomchallenge __P((char *));
 char * opieskipspace __P((register char *));
-VOIDRET  opiestripcrlf __P((char *));
+void opiestripcrlf __P((char *));
 int  opieverify __P((struct opie *,char *));
-int opiepasswd __P((struct opie *, int, char *, int, char *, char *));
+int  opiepasswd __P((struct opie *, int, char *, int, char *, char *));
 char *opiereadpass __P((char *, int, int));
 int opielogin __P((char *line, char *name, char *host));
+__END_DECLS
 
-#if _OPIE
+#if _OPIE		/* internal glue support */
+
+#define	VOIDPTR void *
+#define	VOIDRET void
+#define	NOARGS	void
+#define	FUNCTION(arglist, args) (args)
+#define	AND	,
+#define	FUNCTION_NOARGS ()
+#define	UINT4	u_int32_t
+
+__BEGIN_DECLS
 struct utmp;
-int __opiegetutmpentry __P((char *, struct utmp *));
+int   __opiegetutmpentry __P((char *, struct utmp *));
+int   __opiereadrec __P((struct opie *));
+int   __opiewriterec __P((struct opie *));
+
 #ifdef EOF
 FILE *__opieopen __P((char *, int, int));
-#endif /* EOF */
-int __opiereadrec __P((struct opie *));
-int __opiewriterec __P((struct opie *));
+#endif
+
+__END_DECLS
+
 #endif /* _OPIE */
+
 #endif /* _OPIE_H */
