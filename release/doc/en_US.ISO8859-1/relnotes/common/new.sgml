@@ -13,42 +13,45 @@
   </copyright>
 
   <abstract>
-    <para>The release notes for &os; &release.current; contain a summary
-      of the changes made in the &os; base system since &release.prev;.
-      Both changes for kernel and userland are listed, as well as
-      applicable security advisories for the base system that were issued since the last
-      release.  Some brief remarks on upgrading are also presented.</para>
+    <para>The release notes for &os; &release.current; contain a
+      summary of the changes made in the &os; base system since
+      &release.prev;.  Both changes for kernel and userland are
+      listed, as well as applicable security advisories for the base
+      system that were issued since the last release.  Some brief
+      remarks on upgrading are also presented.</para>
   </abstract>
 </articleinfo>
 
 <sect1>
   <title>Introduction</title>
 
-  <para>This document contains the release notes for &os; &release.current; on
-  the &arch.print; hardware platform.  It describes new features of &os;
-  that have been added (or changed) since &release.prev;.  It also
-  provides some notes on upgrading from previous versions of &os;.</para>
+  <para>This document contains the release notes for &os;
+    &release.current; on the &arch.print; hardware platform.  It
+    describes new features of &os; that have been added (or changed)
+    since &release.prev;.  It also provides some notes on upgrading
+    from previous versions of &os;.</para>
 
 <![ %release.type.snapshot [
 
   <para>The &release.type; distribution to which these release notes
-  apply represents a point along the &release.branch; development
-  branch between &release.prev; and the future &release.next;.  Some pre-built,
-  binary &release.type; distributions along this branch can be found
-  at <ulink url="&release.url;"></ulink>.</para>
+    apply represents a point along the &release.branch; development
+    branch between &release.prev; and the future &release.next;.  Some
+    pre-built, binary &release.type; distributions along this branch
+    can be found at <ulink url="&release.url;"></ulink>.</para>
 
 ]]>
 
 <![ %release.type.release [
 
-  <para>This distribution of &os; &release.current; is a &release.type;
-  distribution.  It can be found at <ulink
-  url="&release.url;"></ulink> or any of its mirrors.  More
-  information on obtaining this (or other) &release.type; distributions of
-  &os; can be found in the <ulink
-  url="http://www.FreeBSD.org/handbook/mirrors.html"><quote>Obtaining
-  FreeBSD</quote></ulink> appendix in the <ulink
-  url="http://www.FreeBSD.org/handbook/">FreeBSD Handbook</ulink>.</para>
+  <para>This distribution of &os; &release.current; is a
+    &release.type; distribution.  It can be found at <ulink
+    url="&release.url;"></ulink> or any of its mirrors.  More
+    information on obtaining this (or other) &release.type;
+    distributions of &os; can be found in the <ulink
+    url="http://www.FreeBSD.org/handbook/mirrors.html"><quote>Obtaining
+    FreeBSD</quote></ulink> appendix in the <ulink
+    url="http://www.FreeBSD.org/handbook/">FreeBSD
+    Handbook</ulink>.</para>
 
 ]]>
 </sect1>
@@ -77,15 +80,16 @@
   <title>What's New</title>
 
   <para>This section describes the most user-visible new or changed
-  features in &os; since &release.prev;.  Typical release note items
-  document new drivers or hardware support, new commands or options,
-  major bugfixes, or contributed software upgrades.  Security
-  advisories for the base system that were issued after &release.prev; are also listed.</para>
+    features in &os; since &release.prev;.  Typical release note items
+    document new drivers or hardware support, new commands or options,
+    major bugfixes, or contributed software upgrades.  Security
+    advisories for the base system that were issued after
+    &release.prev; are also listed.</para>
 
   <para>Many additional changes were made to &os; that are not listed
-  here for lack of space.  For example, documentation was corrected
-  and improved, minor bugs were fixed, insecure coding practices were
-  audited and corrected, and source code was cleaned up.</para>
+    here for lack of space.  For example, documentation was corrected
+    and improved, minor bugs were fixed, insecure coding practices
+    were audited and corrected, and source code was cleaned up.</para>
 
   <sect2 id="kernel">
     <title>Kernel Changes</title>
@@ -226,7 +230,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
   <title>Upgrading from previous releases of &os;</title>
 
   <para>If you're upgrading from a previous release of &os;, you
-  generally will have three options:
+    generally will have three options:
 
     <itemizedlist>
       <listitem>
@@ -256,22 +260,22 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
   </para>
 
   <para>Please read the <filename>INSTALL.TXT</filename> file for more
-  information, preferably <emphasis>before</emphasis> beginning an
-  upgrade.  If you are upgrading from source, please be sure to read
-  <filename>/usr/src/UPDATING</filename> as well.</para>
+    information, preferably <emphasis>before</emphasis> beginning an
+    upgrade.  If you are upgrading from source, please be sure to read
+    <filename>/usr/src/UPDATING</filename> as well.</para>
 
   <para>Finally, if you want to use one of various means to track the
-  -STABLE or -CURRENT branches of &os;, please be sure to consult the
-  <ulink
-  url="http://www.FreeBSD.org/handbook/current-stable.html"><quote>-CURRENT
-  vs. -STABLE</quote></ulink> section of the <ulink
-  url="http://www.FreeBSD.org/handbook/">FreeBSD
-  Handbook</ulink>.</para>
+    -STABLE or -CURRENT branches of &os;, please be sure to consult
+    the <ulink
+    url="http://www.FreeBSD.org/handbook/current-stable.html"><quote>-CURRENT
+    vs. -STABLE</quote></ulink> section of the <ulink
+    url="http://www.FreeBSD.org/handbook/">FreeBSD
+    Handbook</ulink>.</para>
 
   <important>
     <para>Upgrading &os; should, of course, only be attempted after
-    backing up <emphasis>all</emphasis> data and configuration
-    files.</para>
+      backing up <emphasis>all</emphasis> data and configuration
+      files.</para>
   </important>
 </sect1>
 
