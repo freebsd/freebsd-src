@@ -6,6 +6,7 @@ SUBDIR=	accf_data \
 	accf_http \
 	agp \
 	aha \
+	aic7xxx \
 	amr \
 	an \
 	aue \
