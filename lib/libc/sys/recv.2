@@ -63,8 +63,7 @@ it is connection-oriented.
 .Pp
 If
 .Fa from
-is not
-.Dv NULL ,
+is not a null pointer
 and the socket is not connection-oriented,
 the source address of the message is filled in.
 The
@@ -85,7 +84,7 @@ socket (see
 and is identical to
 .Fn recvfrom
 with a
-.Dv NULL
+null pointer passed as its
 .Fa from
 argument.
 As it is redundant, it may not be supported in future releases.
