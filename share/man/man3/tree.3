@@ -1,39 +1,41 @@
 .\"	$OpenBSD: tree.3,v 1.7 2002/06/12 01:09:20 provos Exp $
-.\"/*
-.\" * Copyright 2002 Niels Provos <provos@citi.umich.edu>
-.\" * All rights reserved.
-.\" *
-.\" * Redistribution and use in source and binary forms, with or without
-.\" * modification, are permitted provided that the following conditions
-.\" * are met:
-.\" * 1. Redistributions of source code must retain the above copyright
-.\" *    notice, this list of conditions and the following disclaimer.
-.\" * 2. Redistributions in binary form must reproduce the above copyright
-.\" *    notice, this list of conditions and the following disclaimer in the
-.\" *    documentation and/or other materials provided with the distribution.
-.\" * 3. All advertising materials mentioning features or use of this software
-.\" *    must display the following acknowledgement:
-.\" *      This product includes software developed by Niels Provos.
-.\" * 4. The name of the author may not be used to endorse or promote products
-.\" *    derived from this software without specific prior written permission.
-.\" *
-.\" * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-.\" * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-.\" * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-.\" * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
-.\" * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
-.\" * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-.\" * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-.\" * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-.\" * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-.\" * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.\" */
+.\"
+.\" Copyright 2002 Niels Provos <provos@citi.umich.edu>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Niels Provos.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
 .Dd February 24, 2002
 .Dt TREE 3
 .Os
 .Sh NAME
-.Nm SPLAY_PROTOTYPE,
-.Nm SPLAY_GENERATE,
+.Nm SPLAY_PROTOTYPE ,
+.Nm SPLAY_GENERATE ,
 .Nm SPLAY_ENTRY ,
 .Nm SPLAY_HEAD ,
 .Nm SPLAY_INITIALIZER ,
@@ -49,8 +51,8 @@
 .Nm SPLAY_INIT ,
 .Nm SPLAY_INSERT ,
 .Nm SPLAY_REMOVE ,
-.Nm RB_PROTOTYPE,
-.Nm RB_GENERATE,
+.Nm RB_PROTOTYPE ,
+.Nm RB_GENERATE ,
 .Nm RB_ENTRY ,
 .Nm RB_HEAD ,
 .Nm RB_INITIALIZER ,
@@ -69,77 +71,75 @@
 .Nm RB_REMOVE
 .Nd "implementations of splay and red-black trees"
 .Sh SYNOPSIS
-.Fd #include <sys/tree.h>
-.Pp
-.Fn SPLAY_PROTOTYPE "NAME" "TYPE" "FIELD" "CMP"
-.Fn SPLAY_GENERATE "NAME" "TYPE" "FIELD" "CMP"
-.Fn SPLAY_ENTRY "TYPE"
-.Fn SPLAY_HEAD "HEADNAME" "TYPE"
+.In sys/tree.h
+.Fn SPLAY_PROTOTYPE NAME TYPE FIELD CMP
+.Fn SPLAY_GENERATE NAME TYPE FIELD CMP
+.Fn SPLAY_ENTRY TYPE
+.Fn SPLAY_HEAD HEADNAME TYPE
 .Ft "struct TYPE *"
 .Fn SPLAY_INITIALIZER "SPLAY_HEAD *head"
 .Fn SPLAY_ROOT "SPLAY_HEAD *head"
-.Ft "bool"
+.Ft bool
 .Fn SPLAY_EMPTY "SPLAY_HEAD *head"
 .Ft "struct TYPE *"
-.Fn SPLAY_NEXT "NAME" "SPLAY_HEAD *head" "struct TYPE *elm"
+.Fn SPLAY_NEXT NAME "SPLAY_HEAD *head" "struct TYPE *elm"
 .Ft "struct TYPE *"
-.Fn SPLAY_MIN "NAME" "SPLAY_HEAD *head"
+.Fn SPLAY_MIN NAME "SPLAY_HEAD *head"
 .Ft "struct TYPE *"
-.Fn SPLAY_MAX "NAME" "SPLAY_HEAD *head"
+.Fn SPLAY_MAX NAME "SPLAY_HEAD *head"
 .Ft "struct TYPE *"
-.Fn SPLAY_FIND "NAME" "SPLAY_HEAD *head" "struct TYPE *elm"
+.Fn SPLAY_FIND NAME "SPLAY_HEAD *head" "struct TYPE *elm"
 .Ft "struct TYPE *"
 .Fn SPLAY_LEFT "struct TYPE *elm" "SPLAY_ENTRY NAME"
 .Ft "struct TYPE *"
 .Fn SPLAY_RIGHT "struct TYPE *elm" "SPLAY_ENTRY NAME"
-.Fn SPLAY_FOREACH "VARNAME" "NAME" "SPLAY_HEAD *head"
+.Fn SPLAY_FOREACH VARNAME NAME "SPLAY_HEAD *head"
 .Ft void
 .Fn SPLAY_INIT "SPLAY_HEAD *head"
 .Ft "struct TYPE *"
-.Fn SPLAY_INSERT "NAME" "SPLAY_HEAD *head" "struct TYPE *elm"
+.Fn SPLAY_INSERT NAME "SPLAY_HEAD *head" "struct TYPE *elm"
 .Ft "struct TYPE *"
-.Fn SPLAY_REMOVE "NAME" "SPLAY_HEAD *head" "struct TYPE *elm"
-.Pp
-.Fn RB_PROTOTYPE "NAME" "TYPE" "FIELD" "CMP"
-.Fn RB_GENERATE "NAME" "TYPE" "FIELD" "CMP"
-.Fn RB_ENTRY "TYPE"
-.Fn RB_HEAD "HEADNAME" "TYPE"
+.Fn SPLAY_REMOVE NAME "SPLAY_HEAD *head" "struct TYPE *elm"
+.Fn RB_PROTOTYPE NAME TYPE FIELD CMP
+.Fn RB_GENERATE NAME TYPE FIELD CMP
+.Fn RB_ENTRY TYPE
+.Fn RB_HEAD HEADNAME TYPE
 .Fn RB_INITIALIZER "RB_HEAD *head"
 .Ft "struct TYPE *"
 .Fn RB_ROOT "RB_HEAD *head"
 .Ft "bool"
 .Fn RB_EMPTY "RB_HEAD *head"
 .Ft "struct TYPE *"
-.Fn RB_NEXT "NAME" "RB_HEAD *head" "struct TYPE *elm"
+.Fn RB_NEXT NAME "RB_HEAD *head" "struct TYPE *elm"
 .Ft "struct TYPE *"
-.Fn RB_MIN "NAME" "RB_HEAD *head"
+.Fn RB_MIN NAME "RB_HEAD *head"
 .Ft "struct TYPE *"
-.Fn RB_MAX "NAME" "RB_HEAD *head"
+.Fn RB_MAX NAME "RB_HEAD *head"
 .Ft "struct TYPE *"
-.Fn RB_FIND "NAME" "RB_HEAD *head" "struct TYPE *elm"
+.Fn RB_FIND NAME "RB_HEAD *head" "struct TYPE *elm"
 .Ft "struct TYPE *"
 .Fn RB_LEFT "struct TYPE *elm" "RB_ENTRY NAME"
 .Ft "struct TYPE *"
 .Fn RB_RIGHT "struct TYPE *elm" "RB_ENTRY NAME"
 .Ft "struct TYPE *"
 .Fn RB_PARENT "struct TYPE *elm" "RB_ENTRY NAME"
-.Fn RB_FOREACH "VARNAME" "NAME" "RB_HEAD *head"
+.Fn RB_FOREACH VARNAME NAME "RB_HEAD *head"
 .Ft void
 .Fn RB_INIT "RB_HEAD *head"
 .Ft "struct TYPE *"
-.Fn RB_INSERT "NAME" "RB_HEAD *head" "struct TYPE *elm"
+.Fn RB_INSERT NAME "RB_HEAD *head" "struct TYPE *elm"
 .Ft "struct TYPE *"
-.Fn RB_REMOVE "NAME" "RB_HEAD *head" "struct TYPE *elm"
+.Fn RB_REMOVE NAME "RB_HEAD *head" "struct TYPE *elm"
 .Sh DESCRIPTION
-These macros defines data structures for different types of trees:
+These macros define data structures for different types of trees:
 splay trees and red-black trees.
 .Pp
 In the macro definitions,
 .Fa TYPE
 is the name tag of a user defined structure that must contain a field of type
-.Li SPLAY_ENTRY ,
+.Vt SPLAY_ENTRY ,
 or
-.Li RB_ENTRY ,
+.Vt RB_ENTRY ,
 named
 .Fa ENTRYNAME .
 The argument
@@ -154,35 +154,44 @@ The argument
 has to be a unique name prefix for every tree that is defined.
 .Pp
 The function prototypes are declared with either
-.Li SPLAY_PROTOTYPE,
+.Fn SPLAY_PROTOTYPE ,
 or
-.Li RB_PROTOTYPE .
+.Fn RB_PROTOTYPE .
 The function bodies are generated with either
-.Li SPLAY_GENERATE,
+.Fn SPLAY_GENERATE ,
 or
-.Li RB_GENERATE .
+.Fn RB_GENERATE .
 See the examples below for further explanation of how these macros are used.
 .Sh SPLAY TREES
-A splay tree is a self-organizing data structure.  Every operation
-on the tree causes a splay to happen.  The splay moves the requested
+A splay tree is a self-organizing data structure.
+Every operation on the tree causes a splay to happen.
+The splay moves the requested
 node to the root of the tree and partly rebalances it.
 .Pp
 This has the benefit that request locality causes faster lookups as
-the requested nodes move to the top of the tree.  On the other hand,
-every lookup causes memory writes.
+the requested nodes move to the top of the tree.
+On the other hand, every lookup causes memory writes.
 .Pp
-The Balance Theorem bounds the total access time for m operations
-and n inserts on an initially empty tree as O((m + n)lg n).  The
-amortized cost for a sequence of m accesses to a splay tree is O(lg n);
+The Balance Theorem bounds the total access time for
+.Ar m
+operations and
+.Ar n
+inserts on an initially empty tree as
+.Fn O "\*[lp]m + n\*[rp]lg n" .
+The
+amortized cost for a sequence of
+.Ar m
+accesses to a splay tree is
+.Fn O "lg n" .
 .Pp
 A splay tree is headed by a structure defined by the
 .Fn SPLAY_HEAD
 macro.
 A
-.Fa SPLAY_HEAD
 structure is declared as follows:
-.Bd -literal -offset indent
-SPLAY_HEAD(HEADNAME, TYPE) head;
+.Bd -ragged -offset indent
+.Fn SPLAY_HEAD HEADNAME TYPE
+.Va head ;
 .Ed
 .Pp
 where
@@ -202,7 +211,7 @@ macro,
 where
 .Fa NAME
 is a unique identifier for this particular tree.
-The 
+The
 .Fa TYPE
 argument is the type of the structure that is being managed
 by the tree.
@@ -213,19 +222,23 @@ argument is the name of the element defined by
 .Pp
 The function bodies are generated with the
 .Fn SPLAY_GENERATE
-macro. It takes the same arguments as the
+macro.
+It takes the same arguments as the
 .Fn SPLAY_PROTOTYPE
 macro, but should be used only once.
 .Pp
 Finally,
 the
 .Fa CMP
-argument is the name of a function used to compare tree noded
-with each other.  The function takes two arguments of type
-.Fa "struct TYPE *" .
+argument is the name of a function used to compare tree nodes
+with each other.
+The function takes two arguments of type
+.Vt "struct TYPE *" .
 If the first argument is smaller than the second, the function returns a
-value smaller than zero. If they are equal, the function returns zero.
-Otherwise, it should return a value greater than zero.  The compare
+value smaller than zero.
+If they are equal, the function returns zero.
+Otherwise, it should return a value greater than zero.
+The compare
 function defines the order of the tree elements.
 .Pp
 The
@@ -236,8 +249,11 @@ macro initializes the tree referenced by
 The splay tree can also be initialized statically by using the
 .Fn SPLAY_INITIALIZER
 macro like this:
-.Bd -literal -offset indent
-SPLAY_HEAD(HEADNAME, TYPE) head = SPLAY_INITIALIZER(&head);
+.Bd -ragged -offset indent
+.Fn SPLAY_HEAD HEADNAME TYPE
+.Va head
+=
+.Fn SPLAY_INITIALIZER &head ;
 .Ed
 .Pp
 The
@@ -276,38 +292,40 @@ for (np = SPLAY_MIN(NAME, &head); np != NULL; np = SPLAY_NEXT(NAME, &head, np))
 Or, for simplicity, one can use the
 .Fn SPLAY_FOREACH
 macro:
-.Bd -literal -offset indent
-SPLAY_FOREACH(np, NAME, head)
+.Bd -ragged -offset indent
+.Fn SPLAY_FOREACH np NAME head
 .Ed
 .Pp
 The
 .Fn SPLAY_EMPTY
 macro should be used to check whether a splay tree is empty.
-.Pp
 .Sh RED-BLACK TREES
 A red-black tree is a binary search tree with the node color as an
-extra attribute.  It fulfills a set of conditions:
-.Bl -enum -compact -offset indent
+extra attribute.
+It fulfills a set of conditions:
+.Bl -enum -offset indent
 .It
-every search path from the root to a leaf consists of the same number of
-black nodes,
+Every search path from the root to a leaf consists of the same number of
+black nodes.
 .It
-each red node (except for the root) has a black parent,
+Each red node (except for the root) has a black parent.
 .It
-each leaf node is black.
+Each leaf node is black.
 .El
 .Pp
-Every operation on a red-black tree is bounded as O(lg n).
-The maximum height of a red-black tree is 2lg (n+1).
+Every operation on a red-black tree is bounded as
+.Fn O "lg n" .
+The maximum height of a red-black tree is
+.Fn 2lg "n + 1" .
 .Pp
 A red-black tree is headed by a structure defined by the
 .Fn RB_HEAD
 macro.
 A
-.Fa RB_HEAD
 structure is declared as follows:
-.Bd -literal -offset indent
-RB_HEAD(HEADNAME, TYPE) head;
+.Bd -ragged -offset indent
+.Fn RB_HEAD HEADNAME TYPE
+.Va head ;
 .Ed
 .Pp
 where
@@ -327,7 +345,7 @@ macro,
 where
 .Fa NAME
 is a unique identifier for this particular tree.
-The 
+The
 .Fa TYPE
 argument is the type of the structure that is being managed
 by the tree.
@@ -338,7 +356,8 @@ argument is the name of the element defined by
 .Pp
 The function bodies are generated with the
 .Fn RB_GENERATE
-macro. It takes the same arguments as the
+macro.
+It takes the same arguments as the
 .Fn RB_PROTOTYPE
 macro, but should be used only once.
 .Pp
@@ -346,11 +365,14 @@ Finally,
 the
 .Fa CMP
 argument is the name of a function used to compare tree noded
-with each other.  The function takes two arguments of type
-.Fa "struct TYPE *" .
+with each other.
+The function takes two arguments of type
+.Vt "struct TYPE *" .
 If the first argument is smaller than the second, the function returns a
-value smaller than zero. If they are equal, the function returns zero.
-Otherwise, it should return a value greater than zero.  The compare
+value smaller than zero.
+If they are equal, the function returns zero.
+Otherwise, it should return a value greater than zero.
+The compare
 function defines the order of the tree elements.
 .Pp
 The
@@ -361,8 +383,11 @@ macro initializes the tree referenced by
 The redblack tree can also be initialized statically by using the
 .Fn RB_INITIALIZER
 macro like this:
-.Bd -literal -offset indent
-RB_HEAD(HEADNAME, TYPE) head = RB_INITIALIZER(&head);
+.Bd -ragged -offset indent
+.Fn RB_HEAD HEADNAME TYPE
+.Va head
+=
+.Fn RB_INITIALIZER &head ;
 .Ed
 .Pp
 The
@@ -394,21 +419,19 @@ The
 and
 .Fn RB_NEXT
 macros can be used to traverse the tree:
-.Bd -literal -offset indent
-for (np = RB_MIN(NAME, &head); np != NULL; np = RB_NEXT(NAME, &head, np))
-.Ed
+.Pp
+.Dl "for (np = RB_MIN(NAME, &head); np != NULL; np = RB_NEXT(NAME, &head, np))"
 .Pp
 Or, for simplicity, one can use the
 .Fn RB_FOREACH
 macro:
-.Bd -literal -offset indent
-RB_FOREACH(np, NAME, head)
+.Bd -ragged -offset indent
+.Fn RB_FOREACH np NAME head
 .Ed
 .Pp
 The
 .Fn RB_EMPTY
 macro should be used to check whether a splay tree is empty.
-.Pp
 .Sh NOTES
 Trying to free a tree in the following way is a common error:
 .Bd -literal -offset indent
@@ -421,7 +444,7 @@ free(head);
 .Pp
 Since
 .Va var
-is free'd, the
+is freed, the
 .Fn FOREACH
 macro refers to a pointer that may have been reallocated already.
 Proper code needs a second variable.
@@ -438,7 +461,7 @@ Both
 and
 .Fn SPLAY_INSERT
 return
-.Va NULL
+.Dv NULL
 if the element was inserted in the tree successfully, otherwise they
 return a pointer to the element with the colliding key.
 .Pp
@@ -447,7 +470,8 @@ Accordingly,
 and
 .Fn SPLAY_REMOVE
 return the pointer to the removed element otherwise they return
-.Va NULL
+.Dv NULL
 to indicate an error.
 .Sh AUTHORS
-The author of the tree macros is Niels Provos.
+The author of the tree macros is
+.An Niels Provos .
