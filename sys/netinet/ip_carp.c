@@ -90,7 +90,7 @@ SYSCTL_DECL(_net_inet_carp);
 struct carp_softc {
 	struct arpcom	 	 sc_ac;		/* Interface clue */
 #define	sc_if			 sc_ac.ac_if
-#define	sc_carpdev		 sc_ac.ac_if.if_carpdev
+	struct ifnet		*sc_carpdev;	/* Pointer to parent interface */
 	struct in_ifaddr 	*sc_ia;		/* primary iface address */
 	struct ip_moptions 	 sc_imo;
 #ifdef INET6
