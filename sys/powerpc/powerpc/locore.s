@@ -153,6 +153,10 @@ __start:
 	mtdbatu	0,9
 	isync
 
+	/* Save the argument pointer and length */
+	mr	20,6
+	mr	21,7
+
 	lis	8,openfirmware_entry@ha
 	stw	5,openfirmware_entry@l(8) /* save client interface handler */
 	mr	3,5
@@ -173,6 +177,10 @@ __start:
 
 	lis	3,kernel_text@ha
 	addi	3,3,kernel_text@l
+
+	/* Restore the argument pointer and length */
+	mr	6,20
+	mr	7,21
 
 	bl	powerpc_init
 	bl	mi_startup
