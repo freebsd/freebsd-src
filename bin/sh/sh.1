@@ -66,9 +66,9 @@ specification of the shell.
 .Ss Overview
 The shell is a command that reads lines from
 either a file or the terminal, interprets them, and
-generally executes other commands. It is the program that is running
-when a user logs into the system (although a user can select
-a different shell with the
+generally executes other commands.
+It is the program that is running when a user logs into the system
+(although a user can select a different shell with the
 .Xr chsh 1
 command).
 The shell
@@ -106,7 +106,8 @@ at login time in the
 .Pa .profile
 file, and commands that are executed for every shell inside the
 .Ev ENV
-file. To set the
+file.
+To set the
 .Ev ENV
 variable to some file, place the following line in your
 .Pa .profile
@@ -211,8 +212,10 @@ running (i.e. when set with the
 .Ic set
 command).
 .It Fl T Li asynctraps
-When waiting for a child, execute traps immediately. If this option is
-not set, traps are executed after the child exits, as specified in
+When waiting for a child, execute traps immediately.
+If this option is not set,
+traps are executed after the child exits,
+as specified in
 .St -p1003.2
 This nonstandard option is useful for putting guarding shells around
 children that block signals.  The surrounding shell may kill the child
@@ -302,9 +305,9 @@ An alias is a name and corresponding value set using the
 .Ic alias
 builtin command.  Whenever a reserved word may occur (see above),
 and after checking for reserved words, the shell
-checks the word to see if it matches an alias. If it does,
-it replaces it in the input stream with its value.  For example,
-if there is an alias called
+checks the word to see if it matches an alias.
+If it does, it replaces it in the input stream with its value.
+For example, if there is an alias called
 .Dq lf
 with the value
 .Dq ls -F ,
@@ -424,9 +427,10 @@ set to the arguments of the shell function.
 The variables which are explicitly placed in the environment of
 the command (by placing assignments to them before the
 function name) are made local to the function and are set
-to the values given. Then the command given in the function
-definition is executed.   The positional parameters are
-restored to their original values when the command completes.
+to the values given.
+Then the command given in the function definition is executed.
+The positional parameters are restored to their original values
+when the command completes.
 This all occurs within the current shell.
 .Pp
 Shell builtin commands are executed internally to the shell, without
@@ -436,8 +440,8 @@ Otherwise, if the command name does not match a function
 or builtin command, the command is searched for as a normal
 program in the filesystem (as described in the next section).
 When a normal program is executed, the shell runs the program,
-passing the arguments and the environment to the
-program. If the program is not a normal executable file
+passing the arguments and the environment to the program.
+If the program is not a normal executable file
 (i.e. if it does not begin with the
 .Qq magic number
 whose
@@ -446,11 +450,11 @@ representation is
 .Qq #! ,
 resulting in an ENOEXEC return value from
 .Fn execve )
-the shell
-will interpret the program in a subshell.  The child shell
-will reinitialize itself in this case, so that the effect will
-be as if a new shell had been invoked to handle the ad-hoc shell
-script, except that the location of hashed commands located in
+the shell will interpret the program in a subshell.
+The child shell will reinitialize itself in this case,
+so that the effect will be
+as if a new shell had been invoked to handle the ad-hoc shell script,
+except that the location of hashed commands located in
 the parent shell will be remembered by the child.
 .Pp
 Note that previous versions of this document
@@ -802,9 +806,10 @@ Tilde expansions, parameter expansions, command substitutions,
 arithmetic expansions, and quote removals that occur within
 a single word expand to a single field.  It is only field
 splitting or pathname expansion that can create multiple
-fields from a single word. The single exception to this
-rule is the expansion of the special parameter @ within
-double-quotes, as was described above.
+fields from a single word.
+The single exception to this rule is
+the expansion of the special parameter @ within double-quotes,
+as was described above.
 .Pp
 The order of word expansion is:
 .Bl -enum
@@ -884,7 +889,8 @@ parameter is unset or null, the expansion of
 word (or a message indicating it is unset if
 word is omitted) is written to standard
 error and the shell exits with a nonzero
-exit status. Otherwise, the value of
+exit status.
+Otherwise, the value of
 parameter is substituted.  An
 interactive shell need not exit.
 .It Li ${parameter:+word}
@@ -958,8 +964,8 @@ splitting, they may be translated into <space>s, depending on the value
 of IFS and quoting that is in effect.)
 .Ss Arithmetic Expansion
 Arithmetic expansion provides a mechanism for evaluating an arithmetic
-expression and substituting its value. The format for arithmetic
-expansion is as follows:
+expression and substituting its value.
+The format for arithmetic expansion is as follows:
 .Bd -literal -offset indent
 $((expression))
 .Ed
@@ -1012,11 +1018,11 @@ characters and they are turned into meta-characters.
 An asterisk
 .Dq *
 matches any string of characters.  A
-question mark matches any single character. A left
-bracket
+question mark matches any single character.
+A left bracket
 .Dq [
-introduces a character class.  The end of
-the character class is indicated by a
+introduces a character class.
+The end of the character class is indicated by a
 .Dq ] ;
 if the
 .Dq ]
@@ -1024,21 +1030,19 @@ is missing then the
 .Dq [
 matches a
 .Dq [
-rather than
-introducing a character class.  A character class matches
-any of the characters between the square brackets.  A
-range of characters may be specified using a minus sign.
-The character class may be complemented by making an
-exclamation point the first character of the character
-class.
+rather than introducing a character class.
+A character class matches any of the characters between the square brackets.
+A range of characters may be specified using a minus sign.
+The character class may be complemented
+by making an exclamation point the first character of the character class.
 .Pp
 To include a
 .Dq ]
-in a character class, make it the first
-character listed (after the
+in a character class, make it the first character listed
+(after the
 .Dq ! ,
-if any).  To include a
-minus sign, make it the first or last character listed.
+if any).
+To include a minus sign, make it the first or last character listed.
 .Ss Builtin Commands
 This section lists the commands which
 are builtin because they need to perform some operation
@@ -1090,16 +1094,16 @@ and the directory name does not begin with a slash (/),
 dot (.) or dot-dot (..),
 then the directories listed in CDPATH will be
 searched for the specified directory.  The format of
-CDPATH is the same as that of PATH. In an interactive shell,
-the cd command will print out the name of
-the directory that it actually switched to if this is
-different from the name that the user gave.  These
-may be different either because the CDPATH mechanism
+CDPATH is the same as that of PATH.
+In an interactive shell,
+the cd command will print out the name of the directory
+that it actually switched to
+if this is different from the name that the user gave.
+These may be different either because the CDPATH mechanism
 was used or because a symbolic link was crossed.
 .It eval string ...
-Concatenate all the arguments with spaces.  Then
-re-parse and execute the
-command.
+Concatenate all the arguments with spaces.
+Then re-parse and execute the command.
 .It exec [ command arg ...  ]
 Unless command is omitted, the shell process is
 replaced with the specified program (which must be a
@@ -1289,11 +1293,10 @@ to executing
 .El
 .Pp
 .It setvar variable value
-Assigns value to variable. (In general it is better
-to write variable=value rather than using setvar.
+Assigns value to variable.
+In general it is better to write variable=value rather than using setvar.
 Setvar is intended to be used in functions that
-assign values to variables whose names are passed as
-parameters.)
+assign values to variables whose names are passed as parameters.
 .It shift [ n ]
 Shift the positional parameters n times.  A shift
 sets the value of $1 to the value of $2, the value of
@@ -1312,7 +1315,8 @@ default action.  The trap command has no effect on
 signals that were ignored on entry to the shell.
 .It type [name] ...
 Interpret each name as a command and print the
-resolution of the command search. Possible resolutions are:
+resolution of the command search.
+Possible resolutions are:
 shell keyword, alias, shell builtin command, command, tracked alias
 and not found.  For aliases the alias expansion is printed;
 for commands and tracked aliases the complete pathname of
@@ -1374,8 +1378,8 @@ The maximal number of simultaneous processes for this user ID.
 Set the value of umask (see
 .Xr umask 2 )
 to the specified
-octal value. If the argument is omitted, the
-umask value is printed.
+octal value.
+If the argument is omitted, the umask value is printed.
 .It unalias [-a] [name]
 If
 .Dq name
@@ -1385,14 +1389,14 @@ If
 is specified, all aliases are removed.
 .It unset name ...
 The specified variables and functions are unset and
-unexported. If a given name corresponds to both a
-variable and a function, both the variable and the
-function are unset.
+unexported.
+If a given name corresponds to both a variable and a function,
+both the variable and the function are unset.
 .It wait [ job ]
 Wait for the specified job to complete and return the
-exit status of the last process in the job. If the
-argument is omitted, wait for all jobs to complete
-and the return an exit status of zero.
+exit status of the last process in the job.
+If the argument is omitted, wait for all jobs to complete
+and return an exit status of zero.
 .El
 .Ss Commandline Editing
 When
