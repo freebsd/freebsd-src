@@ -38,6 +38,9 @@ sparc64/sparc64/elf_machdep.c	standard
 # Otherwise it's they're normal.
 # sparc64/sparc64/locore.s	standard
 # sparc64/sparc64/exception.s	standard
+sparc64/sparc64/eeprom.c	optional	eeprom
+sparc64/sparc64/eeprom_ebus.c	optional	eeprom ebus
+sparc64/sparc64/eeprom_sbus.c	optional	eeprom sbus
 sparc64/sparc64/emul.c		standard
 sparc64/sparc64/fp.c		standard
 sparc64/sparc64/identcpu.c	standard
@@ -50,7 +53,8 @@ sparc64/sparc64/mp_exception.s	optional	smp
 sparc64/sparc64/mp_locore.s	optional	smp
 sparc64/sparc64/mp_machdep.c	optional	smp
 sparc64/sparc64/nexus.c		standard
-sparc64/sparc64/ofw_bus.c	standard
+sparc64/isa/ofw_isa.c		optional	ebus
+sparc64/isa/ofw_isa.c		optional	isa
 sparc64/sparc64/ofw_machdep.c	standard
 sparc64/sparc64/pmap.c		standard
 sparc64/sparc64/pv.c		standard
