@@ -227,9 +227,8 @@ trap(struct trapframe *frame)
 		sticks = td->td_kse->ke_sticks;
 		td->td_frame = frame;
 		KASSERT(td->td_ucred == NULL, ("already have a ucred"));
-		PROC_LOCK(p);
-		td->td_ucred = crhold(p->p_ucred);
-		PROC_UNLOCK(p);
+		if (td->td_ucred != p->p_ucred)
+			cred_update_thread(td);
 
 		/* User Mode Traps */
 		switch (type) {
@@ -297,10 +296,12 @@ trap(struct trapframe *frame)
 	}
 	userret(td, frame, sticks);
 	mtx_assert(&Giant, MA_NOTOWNED);
+#ifdef	INVARIANTS
 	mtx_lock(&Giant);
 	crfree(td->td_ucred);
 	mtx_unlock(&Giant);
 	td->td_ucred = NULL;
+#endif
 }
 
 void
