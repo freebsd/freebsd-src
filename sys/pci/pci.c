@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.73 1997/05/27 04:09:01 fsmp Exp $
+ * $Id: pci.c,v 1.74 1997/05/27 19:24:36 fsmp Exp $
  *
  */
 
@@ -99,11 +99,13 @@ pci_mapsize(unsigned testval)
 	int ln2size;
 
 	testval = pci_mapbase(testval);
-	ln2size = 32;
-	while ((testval & 0x80000000) != 0)
-	{
-		ln2size--;
-		testval <<= 1;
+	ln2size = 0;
+	if (testval != 0) {
+		while ((testval & 1) == 0)
+		{
+			ln2size++;
+			testval >>= 1;
+		}
 	}
 	return (ln2size);
 }
@@ -139,9 +141,19 @@ pci_readmaps(pcicfgregs *cfg, int maxmaps)
 	pcimap *map;
 	int map64 = 0;
 
-	while (maxmaps > 0
-	       && pci_cfgread(cfg, PCIR_MAPS + (maxmaps -1) *4, 4) == 0)
-		maxmaps--;
+	for (i = 0; i < maxmaps; i++) {
+		int reg = PCIR_MAPS + i*4;
+		u_int32_t base;
+		u_int32_t ln2range;
+
+		base = pci_cfgread(cfg, reg, 4);
+		ln2range = pci_maprange(base);
+
+		if (base == 0 || ln2range == 0)
+			maxmaps = i;
+		else if (ln2range > 32)
+			i++;
+	}
 
 	map = malloc(maxmaps * sizeof (pcimap), M_DEVBUF, M_WAITOK);
 	if (map != NULL) {
@@ -168,16 +180,6 @@ pci_readmaps(pcicfgregs *cfg, int maxmaps)
 				/* only fill in base, other fields are 0 */
 				map[i].base     = base;
 				map64 = 0;
-			}
-			if (map[i].type == 0) {
-			/*
-			 * This indicates, that some config space register 
-			 * was mistaken to contain a map, while it in fact
-			 * contains unrelated information!
-			 * Ignore this map and all that might have been
-			 * expected to follow ...
-			 */
-				maxmaps = i;
 			}
 		}
 		cfg->nummaps = maxmaps;
@@ -373,29 +375,28 @@ pci_freecfg(pcicfgregs *cfg)
 static void
 pci_addcfg(pcicfgregs *cfg)
 {
-#ifdef PCI_DEBUG
 	if (bootverbose) {
 		int i;
-		printf("new pci: vendor=0x%04x, dev=0x%04x, revid=0x%02x\n", 
+		printf("found->\tvendor=0x%04x, dev=0x%04x, revid=0x%02x\n", 
 		       cfg->vendor, cfg->device, cfg->revid);
-		printf("\t cmdreg=0x%04x, statreg=0x%04x, cachelnsz=%d (dwords)\n", 
-		       cfg->cmdreg, cfg->statreg, cfg->cachelnsz);
-		printf("\t class=%02x-%02x-%02x, hdrtype=0x%02x, mfdev=%d\n",
+		printf("\tclass=%02x-%02x-%02x, hdrtype=0x%02x, mfdev=%d\n",
 		       cfg->class, cfg->subclass, cfg->progif, cfg->hdrtype, cfg->mfdev);
-		printf("\t lattimer=0x%02x (%d ns), mingnt=0x%02x (%d ns), maxlat=0x%02x (%d ns)\n",
+#ifdef PCI_DEBUG
+		printf("\tcmdreg=0x%04x, statreg=0x%04x, cachelnsz=%d (dwords)\n", 
+		       cfg->cmdreg, cfg->statreg, cfg->cachelnsz);
+		printf("\tlattimer=0x%02x (%d ns), mingnt=0x%02x (%d ns), maxlat=0x%02x (%d ns)\n",
 		       cfg->lattimer, cfg->lattimer * 30, 
 		       cfg->mingnt, cfg->mingnt * 250, cfg->maxlat, cfg->maxlat * 250);
-
+#endif /* PCI_DEBUG */
 		if (cfg->intpin > 0)
-			printf("\t intpin=%c, irq=%d\n", cfg->intpin +'a' -1, cfg->intline);
+			printf("\tintpin=%c, irq=%d\n", cfg->intpin +'a' -1, cfg->intline);
 
 		for (i = 0; i < cfg->nummaps; i++) {
 			pcimap *m = &cfg->map[i];
-			printf("\t map[%d]: type %x, range %2d, base %08x, size %2d\n",
+			printf("\tmap[%d]: type %x, range %2d, base %08x, size %2d\n",
 			       i, m->type, m->ln2range, m->base, m->ln2size);
 		}
 	}
-#endif /* PCI_DEBUG */
 	pci_drvattach(cfg); /* XXX currently defined in pci_compat.c */
 }
 
