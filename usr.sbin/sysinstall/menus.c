@@ -2087,8 +2087,8 @@ DMenu MenuSecurityProfile = {
     "security-related knobs in /etc/rc.conf.",
     "Select a canned security profile - F1 for help",
     "security",						/* help file */
-    { { "X Exit",	"Exit this menu (returning to previous)", NULL, configSecurityModerate },
-      { "Medium",	"Moderate security settings [DEFAULT].", NULL, configSecurityModerate },
+    { { "X Exit",	"Exit this menu (returning to previous)", NULL, dmenuExit },
+      { "Medium",	"Moderate security settings.", NULL, configSecurityModerate },
       { "Extreme",	"Very restrictive security settings.", NULL, configSecurityExtreme },
       { NULL } },
 };
