@@ -1026,6 +1026,18 @@ for a bus mouse, for example.
 is set, these are the additional flags to pass to the
 .Xr moused 8
 daemon.
+.It Ar allscreens_flags
+(str) If set,
+.Xr vidcontrol 1
+is run with these options for each of the virtual terminals
+.Pq Pa /dev/ttyv* .
+For example,
+.Ar -m on
+will enable the mouse pointer on all virtual terminals
+if
+.Ar moused_enable
+is set to
+.Ar YES .
 .It Ar cron_enable
 (bool) If set to
 .Ar YES
