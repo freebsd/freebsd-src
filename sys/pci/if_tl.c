@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.9 1998/06/07 17:12:38 dfr Exp $
+ *	$Id: if_tl.c,v 1.10 1998/06/21 14:53:34 bde Exp $
  */
 
 /*
@@ -217,7 +217,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_tl.c,v 1.9 1998/06/07 17:12:38 dfr Exp $";
+	"$Id: if_tl.c,v 1.10 1998/06/21 14:53:34 bde Exp $";
 #endif
 
 /*
@@ -1425,7 +1425,7 @@ tl_attach_ctlr(config_id, unit)
 	int			s, i, phys = 0;
 	vm_offset_t		pbase, vbase;
 	struct tl_csr		*csr;
-	char			eaddr[ETHER_ADDR_LEN];
+	u_char			eaddr[ETHER_ADDR_LEN];
 	struct tl_mii_frame	frame;
 	u_int32_t		command;
 	struct tl_iflist	*ilist;

@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/* $Id: isp_pci.c,v 1.9 1998/04/17 17:44:36 mjacob Exp $ */
+/* $Id: isp_pci.c,v 1.1 1998/04/22 18:10:34 mjacob Exp $ */
 /*
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
  * FreeBSD Version.
@@ -201,7 +201,7 @@ isp_pci_attach(config_id, unit)
 
 	pcs = malloc(sizeof (struct isp_pcisoftc), M_DEVBUF, M_NOWAIT);
 	if (pcs == NULL) {
-		printf("isp%ld: cannot allocate softc\n", unit);
+		printf("isp%d: cannot allocate softc\n", unit);
 		return;
 	}
 	bzero(pcs, sizeof (struct isp_pcisoftc));
@@ -224,7 +224,7 @@ isp_pci_attach(config_id, unit)
 		}
 	}
 	if (mapped == 0) {
-		printf("isp%ld: unable to map any ports!\n", unit);
+		printf("isp%d: unable to map any ports!\n", unit);
 		free(pcs, M_DEVBUF);
 		return;
 	}
@@ -265,7 +265,7 @@ isp_pci_attach(config_id, unit)
 
 	if (pci_map_int(config_id, (void (*)(void *))isp_intr,
 	    (void *)isp, &IMASK) == 0) {
-		printf("%s: could not map interrupt\n");
+		printf("%s: could not map interrupt\n", isp->isp_name);
 		free(pcs, M_DEVBUF);
 		return;
 	}
@@ -553,7 +553,7 @@ isp_pci_dumpregs(isp)
 	struct ispsoftc *isp;
 {
 	struct isp_pcisoftc *pci = (struct isp_pcisoftc *)isp;
-	printf("%s: PCI Status Command/Status=%x\n", pci->pci_isp.isp_name,
+	printf("%s: PCI Status Command/Status=%lx\n", pci->pci_isp.isp_name,
 	    pci_conf_read(pci->pci_id, PCI_COMMAND_STATUS_REG));
 }
 #endif

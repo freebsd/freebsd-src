@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.40 1998/06/17 14:13:14 bde Exp $
+ *	$Id: od.c,v 1.41 1998/07/04 22:30:24 julian Exp $
  */
 
 /*
@@ -231,10 +231,9 @@ odattach(struct scsi_link *sc_link)
 	 */
 	if(dp->secsiz == 0) dp->secsiz = SECSIZE;
 	if (dp->disksize != 0) {
-		printf("%ldMB (%ld %d byte sectors)",
-		    dp->disksize / ((1024L * 1024L) / dp->secsiz),
-		    dp->disksize,
-		    dp->secsiz);
+		printf("%luMB (%lu %u byte sectors)",
+		    (u_long)(dp->disksize / ((1024L * 1024L) / dp->secsiz)),
+		    (u_long)dp->disksize, dp->secsiz);
 	} else {
 		printf("od not present");
 	}
@@ -302,8 +301,8 @@ od_open(dev, mode, fmt, p, sc_link)
 	}
 
 	SC_DEBUG(sc_link, SDEV_DB1,
-	    ("od_open: dev=0x%lx (unit %ld, partition %d)\n",
-		dev, unit, PARTITION(dev)));
+	    ("od_open: dev=0x%lx (unit %lu, partition %d)\n",
+		(u_long)dev, (u_long)unit, PARTITION(dev)));
 
 	/*
 	 * Try to start the drive, and try to clear "Unit Attention"
@@ -361,8 +360,8 @@ od_open(dev, mode, fmt, p, sc_link)
 	case 2048 :
 		break;
 	default :
-		printf("od%ld: Can't deal with %d bytes logical blocks\n",
-		    unit, od->params.secsiz);
+		printf("od%lu: Can't deal with %u bytes logical blocks\n",
+		    (u_long)unit, od->params.secsiz);
 		Debugger("od");
 		errcode = ENXIO;
 		goto bad;
@@ -391,7 +390,8 @@ od_open(dev, mode, fmt, p, sc_link)
 		goto bad;
 	SC_DEBUG(sc_link, SDEV_DB3, ("Slice tables initialized "));
 
-	SC_DEBUG(sc_link, SDEV_DB3, ("open %ld %ld\n", odstrats, odqueues));
+	SC_DEBUG(sc_link, SDEV_DB3, ("open %lu %lu\n",
+	    (u_long)odstrats, (u_long)odqueues));
 
 	return 0;
 
@@ -491,7 +491,9 @@ od_strategy(struct buf *bp, struct scsi_link *sc_link)
 	/* make sure that the transfer size is a multiple of the sector size */
 	if( (bp->b_bcount % secsize) != 0 ) {
 		bp->b_error = EINVAL;
-		printf("od_strategy: Invalid b_bcount %d at block number: 0x%x\n", bp->b_bcount, bp->b_blkno);
+		printf(
+		"od_strategy: Invalid b_bcount %ld at block number: 0x%lx\n",
+		    bp->b_bcount, (long)bp->b_blkno);
 		goto bad;
 	}
 
@@ -670,7 +672,7 @@ odstart(u_int32_t unit, u_int32_t flags)
 			}
 		} else {
 bad:
-			printf("od%ld: oops not queued\n", unit);
+			printf("od%lu: oops not queued\n", (u_long)unit);
 			bp->b_error = EIO;
 			bp->b_flags |= B_ERROR;
 			biodone(bp);
@@ -694,7 +696,7 @@ od_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p,
 	 * Find the device that the user is talking about
 	 */
 	od = sc_link->sd;
-	SC_DEBUG(sc_link, SDEV_DB1, ("odioctl (0x%x)", cmd));
+	SC_DEBUG(sc_link, SDEV_DB1, ("odioctl (0x%lx)", cmd));
 
 	/*
 	 * If the device is not valid.. abandon ship
@@ -801,10 +803,11 @@ od_size(unit, flags)
 		od->params.heads = 64;
 	} else {
 		SC_DEBUG(sc_link, SDEV_DB3,
-			 ("%ld cyls, %d heads, %d rpm\n",
-			scsi_3btou(&scsi_sense.pages.rigid_geometry.ncyl_2),
-			scsi_sense.pages.rigid_geometry.nheads,
-			scsi_2btou(&scsi_sense.pages.rigid_geometry.medium_rot_rate_1)));
+		    ("%lu cyls, %d heads, %lu rpm\n",
+		    (u_long)scsi_3btou(&scsi_sense.pages.rigid_geometry.ncyl_2),
+		    scsi_sense.pages.rigid_geometry.nheads,
+		    (u_long)scsi_2btou(
+		    &scsi_sense.pages.rigid_geometry.medium_rot_rate_1)));
 
 		od->params.heads = scsi_sense.pages.rigid_geometry.nheads;
 		if (od->params.heads == 0)
