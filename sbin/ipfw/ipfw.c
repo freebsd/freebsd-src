@@ -2217,9 +2217,8 @@ main(ac, av)
 	setbuf(stdout, 0);
 
 	/*
-	 * this is a nasty check on the last argument!!!
-	 * If there happens to be a filename matching a keyword in the current
-	 * directory, things will fail miserably.
+	 * Only interpret the last command line argument as a file to
+	 * be preprocessed if it is specified as an absolute pathname.
 	 */
 
 	if (ac > 1 && av[ac - 1][0] == '/' && access(av[ac - 1], R_OK) == 0) {
