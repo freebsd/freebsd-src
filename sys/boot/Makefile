@@ -1,7 +1,9 @@
 # $FreeBSD$
 
 # Build the add-in FORTH interpreter
+.if ${MACHINE_ARCH} != "ia64"
 SUBDIR+=		ficl
+.endif
 
 # Build OpenFirmware library on PowerPC
 .if ${MACHINE_ARCH} == "powerpc"
@@ -21,5 +23,10 @@ SUBDIR+=		${MACHINE_ARCH}
 #.if ${MACHINE_ARCH} == "alpha"
 #SUBDIR+=		arc
 #.endif
+
+# Build EFI executable on ia64
+.if ${MACHINE_ARCH} == "ia64"
+SUBDIR+=		efi
+.endif
 
 .include <bsd.subdir.mk>
