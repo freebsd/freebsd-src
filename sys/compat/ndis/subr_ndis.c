@@ -97,15 +97,14 @@ __FBSDID("$FreeBSD$");
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/resource_var.h>
 #include <compat/ndis/ntoskrnl_var.h>
+#include <compat/ndis/hal_var.h>
 #include <compat/ndis/ndis_var.h>
 #include <compat/ndis/cfg_var.h>
 #include <dev/if_ndis/if_ndisvar.h>
 
 #define FUNC void(*)(void)
 
-static struct mtx *ndis_interlock;
 static char ndis_filepath[MAXPATHLEN];
-struct mtx_pool *ndis_mtxpool;
 extern struct nd_head ndis_devhead;
 
 SYSCTL_STRING(_hw, OID_AUTO, ndis_filepath, CTLFLAG_RW, ndis_filepath,
@@ -139,6 +138,8 @@ __stdcall static void ndis_create_lock(ndis_spin_lock *);
 __stdcall static void ndis_destroy_lock(ndis_spin_lock *);
 __stdcall static void ndis_lock(ndis_spin_lock *);
 __stdcall static void ndis_unlock(ndis_spin_lock *);
+__stdcall static void ndis_lock_dpr(ndis_spin_lock *);
+__stdcall static void ndis_unlock_dpr(ndis_spin_lock *);
 __stdcall static uint32_t ndis_read_pci(ndis_handle, uint32_t,
 	uint32_t, void *, uint32_t);
 __stdcall static uint32_t ndis_write_pci(ndis_handle, uint32_t,
@@ -296,16 +297,12 @@ int
 ndis_libinit()
 {
 	strcpy(ndis_filepath, "/compat/ndis");
-	ndis_mtxpool = mtx_pool_create("ndis mutex pool",
-	    1024, MTX_DEF | MTX_RECURSE | MTX_DUPOK);;
-	ndis_interlock = mtx_pool_alloc(ndis_mtxpool);
 	return(0);
 }
 
 int
 ndis_libfini()
 {
-	mtx_pool_destroy(&ndis_mtxpool);
 	return(0);
 }
 
@@ -712,35 +709,82 @@ ndis_close_cfg(cfg)
 	return;
 }
 
+/*
+ * Initialize a Windows spinlock.
+ */
 __stdcall static void
 ndis_create_lock(lock)
 	ndis_spin_lock		*lock;
 {
-	lock->nsl_spinlock = (ndis_kspin_lock)mtx_pool_alloc(ndis_mtxpool);
+	lock->nsl_spinlock = 0;
+	lock->nsl_kirql = 0;
+
 	return;
 }
 
+/*
+ * Destroy a Windows spinlock. This is a no-op for now. There are two reasons
+ * for this. One is that it's sort of superfluous: we don't have to do anything
+ * special to deallocate the spinlock. The other is that there are some buggy
+ * drivers which call NdisFreeSpinLock() _after_ calling NdisFreeMemory() on
+ * the block of memory in which the spinlock resides. (Yes, ADMtek, I'm
+ * talking to you.)
+ */
 __stdcall static void
 ndis_destroy_lock(lock)
 	ndis_spin_lock		*lock;
 {
-	/* We use a mutex pool, so this is a no-op. */
+#ifdef notdef
+	lock->nsl_spinlock = 0;
+	lock->nsl_kirql = 0;
+#endif
 	return;
 }
+
+/*
+ * Acquire a spinlock from IRQL <= DISPATCH_LEVEL.
+ */
 
 __stdcall static void
 ndis_lock(lock)
 	ndis_spin_lock		*lock;
 {
-	mtx_pool_lock(ndis_mtxpool, (struct mtx *)lock->nsl_spinlock);
+	lock->nsl_kirql = FASTCALL2(hal_lock,
+	    &lock->nsl_spinlock, DISPATCH_LEVEL);
 	return;
 }
+
+/*
+ * Release a spinlock from IRQL == DISPATCH_LEVEL.
+ */
 
 __stdcall static void
 ndis_unlock(lock)
 	ndis_spin_lock		*lock;
 {
-	mtx_pool_unlock(ndis_mtxpool, (struct mtx *)lock->nsl_spinlock);
+	FASTCALL2(hal_unlock, &lock->nsl_spinlock, lock->nsl_kirql);
+	return;
+}
+
+/*
+ * Acquire a spinlock when already running at IRQL == DISPATCH_LEVEL.
+ */
+__stdcall static void
+ndis_lock_dpr(lock)
+	ndis_spin_lock		*lock;
+{
+	FASTCALL1(ntoskrnl_lock_dpc, &lock->nsl_spinlock);
+	return;
+}
+
+/*
+ * Release a spinlock without leaving IRQL == DISPATCH_LEVEL.
+ */
+__stdcall static void
+ndis_unlock_dpr(lock)
+	ndis_spin_lock		*lock;
+{
+	FASTCALL1(ntoskrnl_unlock_dpc, &lock->nsl_spinlock);
 	return;
 }
 
@@ -2196,13 +2240,14 @@ ndis_insert_head(head, entry, lock)
 {
 	list_entry		*flink;
 
-	mtx_pool_lock(ndis_mtxpool, (struct mtx *)lock->nsl_spinlock);
+	lock->nsl_kirql = FASTCALL2(hal_lock,
+	    &lock->nsl_spinlock, DISPATCH_LEVEL);
 	flink = head->nle_flink;
 	entry->nle_flink = flink;
 	entry->nle_blink = head;
 	flink->nle_blink = entry;
 	head->nle_flink = entry;
-	mtx_pool_unlock(ndis_mtxpool, (struct mtx *)lock->nsl_spinlock);
+	FASTCALL2(hal_unlock, &lock->nsl_spinlock, lock->nsl_kirql);
 
 	return(flink);
 }
@@ -2215,12 +2260,13 @@ ndis_remove_head(head, lock)
 	list_entry		*flink;
 	list_entry		*entry;
 
-	mtx_pool_lock(ndis_mtxpool, (struct mtx *)lock->nsl_spinlock);
+	lock->nsl_kirql = FASTCALL2(hal_lock,
+	    &lock->nsl_spinlock, DISPATCH_LEVEL);
 	entry = head->nle_flink;
 	flink = entry->nle_flink;
 	head->nle_flink = flink;
 	flink->nle_blink = head;
-	mtx_pool_unlock(ndis_mtxpool, (struct mtx *)lock->nsl_spinlock);
+	FASTCALL2(hal_unlock, &lock->nsl_spinlock, lock->nsl_kirql);
 
 	return(entry);
 }
@@ -2233,13 +2279,14 @@ ndis_insert_tail(head, entry, lock)
 {
 	list_entry		*blink;
 
-	mtx_pool_lock(ndis_mtxpool, (struct mtx *)lock->nsl_spinlock);
+	lock->nsl_kirql = FASTCALL2(hal_lock,
+	    &lock->nsl_spinlock, DISPATCH_LEVEL);
 	blink = head->nle_blink;
 	entry->nle_flink = head;
 	entry->nle_blink = blink;
 	blink->nle_flink = entry;
 	head->nle_blink = entry;
-	mtx_pool_unlock(ndis_mtxpool, (struct mtx *)lock->nsl_spinlock);
+	FASTCALL2(hal_unlock, &lock->nsl_spinlock, lock->nsl_kirql);
 
 	return(blink);
 }
@@ -2259,9 +2306,9 @@ ndis_sync_with_intr(intr, syncfunc, syncctx)
 
 	sc = (struct ndis_softc *)intr->ni_block->nmb_ifp;
 	sync = syncfunc;
-	mtx_pool_lock(ndis_mtxpool, sc->ndis_intrmtx);
+	mtx_lock(&sc->ndis_intrmtx);
 	rval = sync(syncctx);
-	mtx_pool_unlock(ndis_mtxpool, sc->ndis_intrmtx);
+	mtx_unlock(&sc->ndis_intrmtx);
 
 	return(rval);
 }
@@ -2853,10 +2900,10 @@ image_patch_table ndis_functbl[] = {
 	{ "NdisCloseConfiguration",	(FUNC)ndis_close_cfg },
 	{ "NdisReadConfiguration",	(FUNC)ndis_read_cfg },
 	{ "NdisOpenConfiguration",	(FUNC)ndis_open_cfg },
-	{ "NdisReleaseSpinLock",	(FUNC)ndis_unlock },
-	{ "NdisDprAcquireSpinLock",	(FUNC)ndis_lock },
-	{ "NdisDprReleaseSpinLock",	(FUNC)ndis_unlock },
 	{ "NdisAcquireSpinLock",	(FUNC)ndis_lock },
+	{ "NdisReleaseSpinLock",	(FUNC)ndis_unlock },
+	{ "NdisDprAcquireSpinLock",	(FUNC)ndis_lock_dpr },
+	{ "NdisDprReleaseSpinLock",	(FUNC)ndis_unlock_dpr },
 	{ "NdisAllocateSpinLock",	(FUNC)ndis_create_lock },
 	{ "NdisFreeSpinLock",		(FUNC)ndis_destroy_lock },
 	{ "NdisFreeMemory",		(FUNC)ndis_free },

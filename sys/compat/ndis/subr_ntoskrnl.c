@@ -121,8 +121,6 @@ __stdcall static slist_entry *ntoskrnl_push_slist_ex(/*slist_header *,
 	slist_entry *,*/ kspin_lock *);
 __stdcall static slist_entry *ntoskrnl_pop_slist_ex(/*slist_header *,
 	kspin_lock * */void);
-__stdcall static void ntoskrnl_lock_dpc(/*kspin_lock * */ void);
-__stdcall static void ntoskrnl_unlock_dpc(/*kspin_lock * */ void);
 __stdcall static uint32_t
 	ntoskrnl_interlock_inc(/*volatile uint32_t * */ void);
 __stdcall static uint32_t
@@ -167,17 +165,17 @@ static uint32_t ntoskrnl_dbgprint(char *, ...);
 __stdcall static void ntoskrnl_debugger(void);
 __stdcall static void dummy(void);
 
-static struct mtx *ntoskrnl_interlock;
-struct mtx *ntoskrnl_dispatchlock;
-extern struct mtx_pool *ndis_mtxpool;
+static struct mtx ntoskrnl_dispatchlock;
+static kspin_lock ntoskrnl_global;
 static int ntoskrnl_kth = 0;
 static struct nt_objref_head ntoskrnl_reflist;
 
 int
 ntoskrnl_libinit()
 {
-	ntoskrnl_interlock = mtx_pool_alloc(ndis_mtxpool);
-	ntoskrnl_dispatchlock = mtx_pool_alloc(ndis_mtxpool);
+	mtx_init(&ntoskrnl_dispatchlock,
+	    "ntoskrnl dispatch lock", MTX_NDIS_LOCK, MTX_DEF);
+	ntoskrnl_init_lock(&ntoskrnl_global);
 	TAILQ_INIT(&ntoskrnl_reflist);
 	return(0);
 }
@@ -185,6 +183,7 @@ ntoskrnl_libinit()
 int
 ntoskrnl_libfini()
 {
+	mtx_destroy(&ntoskrnl_dispatchlock);
 	return(0);
 }
 
@@ -324,16 +323,13 @@ ntoskrnl_wakeup(arg)
 
 	obj = arg;
 
-	mtx_pool_lock(ndis_mtxpool, ntoskrnl_dispatchlock);
+	mtx_lock(&ntoskrnl_dispatchlock);
 	obj->dh_sigstate = TRUE;
 	e = obj->dh_waitlisthead.nle_flink;
 	while (e != &obj->dh_waitlisthead) {
 		w = (wait_block *)e;
 		td = w->wb_kthread;
-		if (td->td_proc->p_flag & P_KTHREAD)
-			kthread_resume(td->td_proc);
-		else
-			wakeup(td);
+		ndis_thresume(td->td_proc);
 		/*
 		 * For synchronization objects, only wake up
 		 * the first waiter.
@@ -342,7 +338,7 @@ ntoskrnl_wakeup(arg)
 			break;
 		e = e->nle_flink;
 	}
-	mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+	mtx_unlock(&ntoskrnl_dispatchlock);
 
 	return;
 }
@@ -436,7 +432,7 @@ ntoskrnl_waitforobj(obj, reason, mode, alertable, duetime)
 	if (obj == NULL)
 		return(STATUS_INVALID_PARAMETER);
 
-	mtx_pool_lock(ndis_mtxpool, ntoskrnl_dispatchlock);
+	mtx_lock(&ntoskrnl_dispatchlock);
 
 	/*
 	 * See if the object is a mutex. If so, and we already own
@@ -455,13 +451,13 @@ ntoskrnl_waitforobj(obj, reason, mode, alertable, duetime)
 			obj->dh_sigstate = FALSE;
 			km->km_acquirecnt++;
 			km->km_ownerthread = curthread->td_proc;
-			mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+			mtx_unlock(&ntoskrnl_dispatchlock);
 			return (STATUS_SUCCESS);
 		}
 	} else if (obj->dh_sigstate == TRUE) {
 		if (obj->dh_type == EVENT_TYPE_SYNC)
 			obj->dh_sigstate = FALSE;
-		mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+		mtx_unlock(&ntoskrnl_dispatchlock);
 		return (STATUS_SUCCESS);
 	}
 
@@ -496,22 +492,18 @@ ntoskrnl_waitforobj(obj, reason, mode, alertable, duetime)
 		}
 	}
 
-	mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+	mtx_unlock(&ntoskrnl_dispatchlock);
 
-	if (td->td_proc->p_flag & P_KTHREAD)
-		error = kthread_suspend(td->td_proc,
-		    duetime == NULL ? 0 : tvtohz(&tv));
-	else
-		error = tsleep(td, PPAUSE|PDROP, "ndisws",
-		    duetime == NULL ? 0 : tvtohz(&tv));
+	error = ndis_thsuspend(td->td_proc,
+	    duetime == NULL ? 0 : tvtohz(&tv));
 
-	mtx_pool_lock(ndis_mtxpool, ntoskrnl_dispatchlock);
+	mtx_lock(&ntoskrnl_dispatchlock);
 
 	/* We timed out. Leave the object alone and return status. */
 
 	if (error == EWOULDBLOCK) {
 		REMOVE_LIST_ENTRY((&w.wb_waitlist));
-		mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+		mtx_unlock(&ntoskrnl_dispatchlock);
 		return(STATUS_TIMEOUT);
 	}
 
@@ -534,7 +526,7 @@ ntoskrnl_waitforobj(obj, reason, mode, alertable, duetime)
 		obj->dh_sigstate = FALSE;
 	REMOVE_LIST_ENTRY((&w.wb_waitlist));
 
-	mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+	mtx_unlock(&ntoskrnl_dispatchlock);
 
 	return(STATUS_SUCCESS);
 }
@@ -565,7 +557,7 @@ ntoskrnl_waitforobjs(cnt, obj, wtype, reason, mode,
 	if (cnt > THREAD_WAIT_OBJECTS && wb_array == NULL)
 		return(STATUS_INVALID_PARAMETER);
 
-	mtx_pool_lock(ndis_mtxpool, ntoskrnl_dispatchlock);
+	mtx_lock(&ntoskrnl_dispatchlock);
 
 	if (wb_array == NULL)
 		w = &_wb_array[0];
@@ -583,8 +575,7 @@ ntoskrnl_waitforobjs(cnt, obj, wtype, reason, mode,
 				km->km_acquirecnt++;
 				km->km_ownerthread = curthread->td_proc;
 				if (wtype == WAITTYPE_ANY) {
-					mtx_pool_unlock(ndis_mtxpool,
-					    ntoskrnl_dispatchlock);
+					mtx_unlock(&ntoskrnl_dispatchlock);
 					return (STATUS_WAIT_0 + i);
 				}
 			}
@@ -592,8 +583,7 @@ ntoskrnl_waitforobjs(cnt, obj, wtype, reason, mode,
 			if (obj[i]->dh_type == EVENT_TYPE_SYNC)
 				obj[i]->dh_sigstate = FALSE;
 			if (wtype == WAITTYPE_ANY) {
-				mtx_pool_unlock(ndis_mtxpool,
-				    ntoskrnl_dispatchlock);
+				mtx_unlock(&ntoskrnl_dispatchlock);
 				return (STATUS_WAIT_0 + i);
 			}
 		}
@@ -633,16 +623,12 @@ ntoskrnl_waitforobjs(cnt, obj, wtype, reason, mode,
 
 	while (wcnt) {
 		nanotime(&t1);
-		mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+		mtx_unlock(&ntoskrnl_dispatchlock);
 
-		if (td->td_proc->p_flag & P_KTHREAD)
-			error = kthread_suspend(td->td_proc,
-			    duetime == NULL ? 0 : tvtohz(&tv));
-		else
-			error = tsleep(td, PPAUSE|PDROP, "ndisws",
-			    duetime == NULL ? 0 : tvtohz(&tv));
+		error = ndis_thsuspend(td->td_proc,
+		    duetime == NULL ? 0 : tvtohz(&tv));
 
-		mtx_pool_lock(ndis_mtxpool, ntoskrnl_dispatchlock);
+		mtx_lock(&ntoskrnl_dispatchlock);
 		nanotime(&t2);
 
 		for (i = 0; i < cnt; i++) {
@@ -678,16 +664,16 @@ ntoskrnl_waitforobjs(cnt, obj, wtype, reason, mode,
 	}
 
 	if (error == EWOULDBLOCK) {
-		mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+		mtx_unlock(&ntoskrnl_dispatchlock);
 		return(STATUS_TIMEOUT);
 	}
 
 	if (wtype == WAITTYPE_ANY && wcnt) {
-		mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+		mtx_unlock(&ntoskrnl_dispatchlock);
 		return(STATUS_WAIT_0 + widx);
 	}
 
-	mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+	mtx_unlock(&ntoskrnl_dispatchlock);
 
 	return(STATUS_SUCCESS);
 }
@@ -880,9 +866,12 @@ ntoskrnl_init_lookaside(lookaside, allocfunc, freefunc,
 	uint32_t		tag;
 	uint16_t		depth;
 {
-	struct mtx		*mtx;
+	bzero((char *)lookaside, sizeof(paged_lookaside_list));
 
-	lookaside->nll_l.gl_size = size;
+	if (size < sizeof(slist_entry))
+		lookaside->nll_l.gl_size = sizeof(slist_entry);
+	else
+		lookaside->nll_l.gl_size = size;
 	lookaside->nll_l.gl_tag = tag;
 	if (allocfunc == NULL)
 		lookaside->nll_l.gl_allocfunc = ntoskrnl_allocfunc;
@@ -894,8 +883,7 @@ ntoskrnl_init_lookaside(lookaside, allocfunc, freefunc,
 	else
 		lookaside->nll_l.gl_freefunc = freefunc;
 
-	mtx = mtx_pool_alloc(ndis_mtxpool);
-	lookaside->nll_obsoletelock = (kspin_lock)mtx;
+	ntoskrnl_init_lock(&lookaside->nll_obsoletelock);
 
 	lookaside->nll_l.gl_depth = LOOKASIDE_DEPTH;
 	lookaside->nll_l.gl_maxdepth = LOOKASIDE_DEPTH;
@@ -928,8 +916,6 @@ ntoskrnl_init_nplookaside(lookaside, allocfunc, freefunc,
 	uint32_t		tag;
 	uint16_t		depth;
 {
-	struct mtx		*mtx;
-
 	bzero((char *)lookaside, sizeof(npaged_lookaside_list));
 
 	if (size < sizeof(slist_entry))
@@ -947,8 +933,7 @@ ntoskrnl_init_nplookaside(lookaside, allocfunc, freefunc,
 	else
 		lookaside->nll_l.gl_freefunc = freefunc;
 
-	mtx = mtx_pool_alloc(ndis_mtxpool);
-	lookaside->nll_obsoletelock = (kspin_lock)mtx;
+	ntoskrnl_init_lock(&lookaside->nll_obsoletelock);
 
 	lookaside->nll_l.gl_depth = LOOKASIDE_DEPTH;
 	lookaside->nll_l.gl_maxdepth = LOOKASIDE_DEPTH;
@@ -987,9 +972,8 @@ ntoskrnl_push_slist(/*head, entry*/ void)
 
 	__asm__ __volatile__ ("" : "=c" (head), "=d" (entry));
 
-	mtx_pool_lock(ndis_mtxpool, ntoskrnl_interlock);
-	oldhead = ntoskrnl_pushsl(head, entry);
-	mtx_pool_unlock(ndis_mtxpool, ntoskrnl_interlock);
+	oldhead = (slist_entry *)FASTCALL3(ntoskrnl_push_slist_ex,
+	    head, entry, &ntoskrnl_global);
 
 	return(oldhead);
 }
@@ -1002,9 +986,8 @@ ntoskrnl_pop_slist(/*head*/ void)
 
 	__asm__ __volatile__ ("" : "=c" (head));
 
-	mtx_pool_lock(ndis_mtxpool, ntoskrnl_interlock);
-	first = ntoskrnl_popsl(head);
-	mtx_pool_unlock(ndis_mtxpool, ntoskrnl_interlock);
+	first = (slist_entry *)FASTCALL2(ntoskrnl_pop_slist_ex,
+	    head, &ntoskrnl_global);
 
 	return(first);
 }
@@ -1016,12 +999,13 @@ ntoskrnl_push_slist_ex(/*head, entry,*/ lock)
 	slist_header		*head;
 	slist_entry		*entry;
 	slist_entry		*oldhead;
+	uint8_t			irql;
 
 	__asm__ __volatile__ ("" : "=c" (head), "=d" (entry));
 
-	mtx_pool_lock(ndis_mtxpool, (struct mtx *)*lock);
+	irql = FASTCALL2(hal_lock, lock, DISPATCH_LEVEL);
 	oldhead = ntoskrnl_pushsl(head, entry);
-	mtx_pool_unlock(ndis_mtxpool, (struct mtx *)*lock);
+	FASTCALL2(hal_unlock, lock, irql);
 
 	return(oldhead);
 }
@@ -1032,36 +1016,38 @@ ntoskrnl_pop_slist_ex(/*head, lock*/ void)
 	slist_header		*head;
 	kspin_lock		*lock;
 	slist_entry		*first;
+	uint8_t			irql;
 
 	__asm__ __volatile__ ("" : "=c" (head), "=d" (lock));
 
-	mtx_pool_lock(ndis_mtxpool, (struct mtx *)*lock);
+	irql = FASTCALL2(hal_lock, lock, DISPATCH_LEVEL);
 	first = ntoskrnl_popsl(head);
-	mtx_pool_unlock(ndis_mtxpool, (struct mtx *)*lock);
+	FASTCALL2(hal_unlock, lock, irql);
 
 	return(first);
 }
 
-__stdcall static void
+__stdcall void
 ntoskrnl_lock_dpc(/*lock*/ void)
 {
 	kspin_lock		*lock;
 
 	__asm__ __volatile__ ("" : "=c" (lock));
 
-	mtx_pool_lock(ndis_mtxpool, (struct mtx *)*lock);
+	while (atomic_cmpset_int((volatile u_int *)lock, 0, 1) == 0)
+		/* do noting */;
 
 	return;
 }
 
-__stdcall static void
+__stdcall void
 ntoskrnl_unlock_dpc(/*lock*/ void)
 {
 	kspin_lock		*lock;
 
 	__asm__ __volatile__ ("" : "=c" (lock));
 
-	mtx_pool_unlock(ndis_mtxpool, (struct mtx *)*lock);
+	atomic_cmpset_int((volatile u_int *)lock, 1, 0);
 
 	return;
 }
@@ -1093,12 +1079,13 @@ ntoskrnl_interlock_addstat(/*addend, inc*/)
 {
 	uint64_t		*addend;
 	uint32_t		inc;
+	uint8_t			irql;
 
 	__asm__ __volatile__ ("" : "=c" (addend), "=d" (inc));
 
-	mtx_pool_lock(ndis_mtxpool, ntoskrnl_interlock);
+	irql = FASTCALL2(hal_lock, &ntoskrnl_global, DISPATCH_LEVEL);
 	*addend += inc;
-	mtx_pool_unlock(ndis_mtxpool, ntoskrnl_interlock);
+	FASTCALL2(hal_unlock, &ntoskrnl_global, irql);
 
 	return;
 };
@@ -1196,7 +1183,7 @@ __stdcall static void
 ntoskrnl_init_lock(lock)
 	kspin_lock		*lock;
 {
-	*lock = (kspin_lock)mtx_pool_alloc(ndis_mtxpool);
+	*lock = 0;
 
 	return;
 }
@@ -1423,18 +1410,18 @@ ntoskrnl_release_mutex(kmutex, kwait)
 	kmutant			*kmutex;
 	uint8_t			kwait;
 {
-	mtx_pool_lock(ndis_mtxpool, ntoskrnl_dispatchlock);
+	mtx_lock(&ntoskrnl_dispatchlock);
 	if (kmutex->km_ownerthread != curthread->td_proc) {
-		mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+		mtx_unlock(&ntoskrnl_dispatchlock);
 		return(STATUS_MUTANT_NOT_OWNED);
 	}
 	kmutex->km_acquirecnt--;
 	if (kmutex->km_acquirecnt == 0) {
 		kmutex->km_ownerthread = NULL;
-		mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+		mtx_unlock(&ntoskrnl_dispatchlock);
 		ntoskrnl_wakeup(&kmutex->km_header);
 	} else
-		mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+		mtx_unlock(&ntoskrnl_dispatchlock);
 
 	return(kmutex->km_acquirecnt);
 }
@@ -1465,10 +1452,10 @@ ntoskrnl_reset_event(kevent)
 {
 	uint32_t		prevstate;
 
-	mtx_pool_lock(ndis_mtxpool, ntoskrnl_dispatchlock);
+	mtx_lock(&ntoskrnl_dispatchlock);
 	prevstate = kevent->k_header.dh_sigstate;
 	kevent->k_header.dh_sigstate = FALSE;
-	mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+	mtx_unlock(&ntoskrnl_dispatchlock);
 
 	return(prevstate);
 }
@@ -1628,7 +1615,7 @@ ntoskrnl_thread_exit(status)
 
 	ntoskrnl_kth--;
 
-        kthread_exit(0);
+	kthread_exit(0);
 	return(0);	/* notreached */
 }
 
@@ -1721,7 +1708,8 @@ ntoskrnl_init_timer_ex(timer, type)
 /*
  * This is a wrapper for Windows deferred procedure calls that
  * have been placed on an NDIS thread work queue. We need it
- * since the DPC could be a _stdcall function.
+ * since the DPC could be a _stdcall function. Also, as far as
+ * I can tell, defered procedure calls must run at DISPATCH_LEVEL.
  */
 static void
 ntoskrnl_run_dpc(arg)
@@ -1729,10 +1717,13 @@ ntoskrnl_run_dpc(arg)
 {
 	__stdcall kdpc_func	dpcfunc;
 	kdpc			*dpc;
+	uint8_t			irql;
 
 	dpc = arg;
 	dpcfunc = (kdpc_func)dpc->k_deferedfunc;
+	irql = FASTCALL1(hal_raise_irql, DISPATCH_LEVEL);
 	dpcfunc(dpc, dpc->k_deferredctx, dpc->k_sysarg1, dpc->k_sysarg2);
+	FASTCALL1(hal_lower_irql, irql);
 
 	return;
 }

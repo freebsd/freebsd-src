@@ -189,6 +189,7 @@ typedef struct nt_dispatch_header nt_dispatch_header;
 #define LOW_LEVEL		0
 #define APC_LEVEL		1
 #define DISPATCH_LEVEL		2
+#define DEVICE_LEVEL		(DISPATCH_LEVEL + 1)
 #define PROFILE_LEVEL		27
 #define CLOCK1_LEVEL		28
 #define CLOCK2_LEVEL		28
@@ -198,6 +199,18 @@ typedef struct nt_dispatch_header nt_dispatch_header;
 
 #define SYNC_LEVEL_UP		DISPATCH_LEVEL
 #define SYNC_LEVEL_MP		(IPI_LEVEL - 1)
+
+#define AT_PASSIVE_LEVEL(td)		\
+	((td)->td_proc->p_flag & P_KTHREAD == FALSE)
+
+#define AT_DISPATCH_LEVEL(td)		\
+	((td)->td_priority == PI_SOFT)
+
+#define AT_DIRQL_LEVEL(td)		\
+	((td)->td_priority < PRI_MIN_KERN)
+
+#define AT_HIGH_LEVEL(td)		\
+	((td)->td_critnest != 0)
 
 struct nt_objref {
 	nt_dispatch_header	no_dh;
@@ -474,7 +487,6 @@ typedef uint32_t (*driver_dispatch)(device_object *, irp *);
 #define NDIS_KSTACK_PAGES	8
 
 extern image_patch_table ntoskrnl_functbl[];
-extern struct mtx *ntoskrnl_dispatchlock;
 
 __BEGIN_DECLS
 extern int ntoskrnl_libinit(void);
@@ -489,13 +501,26 @@ __stdcall extern uint8_t ntoskrnl_set_timer_ex(ktimer *, int64_t,
 	uint32_t, kdpc *);
 __stdcall extern uint8_t ntoskrnl_cancel_timer(ktimer *);
 __stdcall extern uint8_t ntoskrnl_read_timer(ktimer *);
-__stdcall uint32_t ntoskrnl_waitforobj(nt_dispatch_header *, uint32_t,
+__stdcall extern uint32_t ntoskrnl_waitforobj(nt_dispatch_header *, uint32_t,
 	uint32_t, uint8_t, int64_t *);
-__stdcall void ntoskrnl_init_event(nt_kevent *, uint32_t, uint8_t);
-__stdcall void ntoskrnl_clear_event(nt_kevent *);
-__stdcall uint32_t ntoskrnl_read_event(nt_kevent *);
-__stdcall uint32_t ntoskrnl_set_event(nt_kevent *, uint32_t, uint8_t);
-__stdcall uint32_t ntoskrnl_reset_event(nt_kevent *);
+__stdcall extern void ntoskrnl_init_event(nt_kevent *, uint32_t, uint8_t);
+__stdcall extern void ntoskrnl_clear_event(nt_kevent *);
+__stdcall extern uint32_t ntoskrnl_read_event(nt_kevent *);
+__stdcall extern uint32_t ntoskrnl_set_event(nt_kevent *, uint32_t, uint8_t);
+__stdcall extern uint32_t ntoskrnl_reset_event(nt_kevent *);
+__stdcall extern void ntoskrnl_lock_dpc(/*kspin_lock * */ void);
+__stdcall extern void ntoskrnl_unlock_dpc(/*kspin_lock * */ void);
+
+/*
+ * On the Windows x86 arch, KeAcquireSpinLock() and KeReleaseSpinLock()
+ * routines live in the HAL. We try to imitate this behavior.
+ */
+#ifdef __i386__
+#define ntoskrnl_acquire_spinlock(a, b)		\
+	*(b) = FASTCALL(hal_lock, a, 0)
+#define ntoskrnl_release_spinlock(a, b)		\
+	FASTCALL(hal_unlock, a, b)
+#endif /* __i386__ */
 __END_DECLS
 
 #endif /* _NTOSKRNL_VAR_H_ */

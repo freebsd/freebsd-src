@@ -106,9 +106,8 @@ static int ndis_enlarge_thrqueue(int);
 static int ndis_shrink_thrqueue(int);
 static void ndis_runq(void *);
 
-extern struct mtx_pool *ndis_mtxpool;
 static uma_zone_t ndis_packet_zone, ndis_buffer_zone;
-struct mtx *ndis_thr_mtx;
+struct mtx ndis_thr_mtx;
 static STAILQ_HEAD(ndisqhead, ndis_req) ndis_ttodo;
 struct ndisqhead ndis_itodo;
 struct ndisqhead ndis_free;
@@ -207,23 +206,25 @@ ndis_runq(arg)
 	p = arg;
 
 	while (1) {
-		kthread_suspend(p->np_p, 0);
+
+		/* Sleep, but preserve our original priority. */
+		ndis_thsuspend(p->np_p, 0);
 
 		/* Look for any jobs on the work queue. */
 
-		mtx_pool_lock(ndis_mtxpool, ndis_thr_mtx);
+		mtx_lock(&ndis_thr_mtx);
 		p->np_state = NDIS_PSTATE_RUNNING;
 		while(STAILQ_FIRST(p->np_q) != NULL) {
 			r = STAILQ_FIRST(p->np_q);
 			STAILQ_REMOVE_HEAD(p->np_q, link);
-			mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+			mtx_unlock(&ndis_thr_mtx);
 
 			/* Do the work. */
 
 			if (r->nr_func != NULL)
 				(*r->nr_func)(r->nr_arg);
 
-			mtx_pool_lock(ndis_mtxpool, ndis_thr_mtx);
+			mtx_lock(&ndis_thr_mtx);
 			STAILQ_INSERT_HEAD(&ndis_free, r, link);
 
 			/* Check for a shutdown request */
@@ -232,7 +233,7 @@ ndis_runq(arg)
 				die = r;
 		}
 		p->np_state = NDIS_PSTATE_SLEEPING;
-		mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+		mtx_unlock(&ndis_thr_mtx);
 
 		/* Bail if we were told to shut down. */
 
@@ -242,6 +243,7 @@ ndis_runq(arg)
 
 	wakeup(die);
 	kthread_exit(0);
+	return; /* notreached */
 }
 
 static int
@@ -250,7 +252,9 @@ ndis_create_kthreads()
 	struct ndis_req		*r;
 	int			i, error = 0;
 
-	ndis_thr_mtx = mtx_pool_alloc(ndis_mtxpool);
+	mtx_init(&ndis_thr_mtx, "NDIS thread lock",
+	   MTX_NDIS_LOCK, MTX_DEF);
+
 	STAILQ_INIT(&ndis_ttodo);
 	STAILQ_INIT(&ndis_itodo);
 	STAILQ_INIT(&ndis_free);
@@ -308,6 +312,8 @@ ndis_destroy_kthreads()
 		free(r, M_DEVBUF);
 	}
 
+	mtx_destroy(&ndis_thr_mtx);
+
 	return;
 }
 
@@ -329,16 +335,16 @@ ndis_stop_thread(t)
 
 	/* Create and post a special 'exit' job. */
 
-	mtx_pool_lock(ndis_mtxpool, ndis_thr_mtx);
+	mtx_lock(&ndis_thr_mtx);
 	r = STAILQ_FIRST(&ndis_free);
 	STAILQ_REMOVE_HEAD(&ndis_free, link);
 	r->nr_func = NULL;
 	r->nr_arg = NULL;
 	r->nr_exit = TRUE;
 	STAILQ_INSERT_TAIL(q, r, link);
-	mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+	mtx_unlock(&ndis_thr_mtx);
 
-	kthread_resume(p);
+	ndis_thresume(p);
 
 	/* wait for thread exit */
 
@@ -346,12 +352,12 @@ ndis_stop_thread(t)
 
 	/* Now empty the job list. */
 
-	mtx_pool_lock(ndis_mtxpool, ndis_thr_mtx);
+	mtx_lock(&ndis_thr_mtx);
 	while ((r = STAILQ_FIRST(q)) != NULL) {
 		STAILQ_REMOVE_HEAD(q, link);
 		STAILQ_INSERT_HEAD(&ndis_free, r, link);
 	}
-	mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+	mtx_unlock(&ndis_thr_mtx);
 
 	return;
 }
@@ -367,10 +373,10 @@ ndis_enlarge_thrqueue(cnt)
 		r = malloc(sizeof(struct ndis_req), M_DEVBUF, M_WAITOK);
 		if (r == NULL)
 			return(ENOMEM);
-		mtx_pool_lock(ndis_mtxpool, ndis_thr_mtx);
+		mtx_lock(&ndis_thr_mtx);
 		STAILQ_INSERT_HEAD(&ndis_free, r, link);
 		ndis_jobs++;
-		mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+		mtx_unlock(&ndis_thr_mtx);
 	}
 
 	return(0);
@@ -384,15 +390,15 @@ ndis_shrink_thrqueue(cnt)
 	int			i;
 
 	for (i = 0; i < cnt; i++) {
-		mtx_pool_lock(ndis_mtxpool, ndis_thr_mtx);
+		mtx_lock(&ndis_thr_mtx);
 		r = STAILQ_FIRST(&ndis_free);
 		if (r == NULL) {
-			mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+			mtx_unlock(&ndis_thr_mtx);
 			return(ENOMEM);
 		}
 		STAILQ_REMOVE_HEAD(&ndis_free, link);
 		ndis_jobs--;
-		mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+		mtx_unlock(&ndis_thr_mtx);
 		free(r, M_DEVBUF);
 	}
 
@@ -417,17 +423,17 @@ ndis_unsched(func, arg, t)
 		p = ndis_iproc.np_p;
 	}
 
-	mtx_pool_lock(ndis_mtxpool, ndis_thr_mtx);
+	mtx_lock(&ndis_thr_mtx);
 	STAILQ_FOREACH(r, q, link) {
 		if (r->nr_func == func && r->nr_arg == arg) {
 			STAILQ_REMOVE(q, r, ndis_req, link);
 			STAILQ_INSERT_HEAD(&ndis_free, r, link);
-			mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+			mtx_unlock(&ndis_thr_mtx);
 			return(0);
 		}
 	}
 
-	mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+	mtx_unlock(&ndis_thr_mtx);
 
 	return(ENOENT);
 }
@@ -451,20 +457,20 @@ ndis_sched(func, arg, t)
 		p = ndis_iproc.np_p;
 	}
 
-	mtx_pool_lock(ndis_mtxpool, ndis_thr_mtx);
+	mtx_lock(&ndis_thr_mtx);
 	/*
 	 * Check to see if an instance of this job is already
 	 * pending. If so, don't bother queuing it again.
 	 */
 	STAILQ_FOREACH(r, q, link) {
 		if (r->nr_func == func && r->nr_arg == arg) {
-			mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+			mtx_unlock(&ndis_thr_mtx);
 			return(0);
 		}
 	}
 	r = STAILQ_FIRST(&ndis_free);
 	if (r == NULL) {
-		mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+		mtx_unlock(&ndis_thr_mtx);
 		return(EAGAIN);
 	}
 	STAILQ_REMOVE_HEAD(&ndis_free, link);
@@ -476,7 +482,7 @@ ndis_sched(func, arg, t)
 		s = ndis_tproc.np_state;
 	else
 		s = ndis_iproc.np_state;
-	mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+	mtx_unlock(&ndis_thr_mtx);
 
 	/*
 	 * Post the job, but only if the thread is actually blocked
@@ -486,9 +492,30 @@ ndis_sched(func, arg, t)
 	 * it up until KeWaitForObject() gets woken up on its own.
 	 */
 	if (s == NDIS_PSTATE_SLEEPING)
-		kthread_resume(p);
+		ndis_thresume(p);
 
 	return(0);
+}
+
+int
+ndis_thsuspend(p, timo)
+	struct proc		*p;
+	int			timo;
+{
+	int			error;
+
+	PROC_LOCK(p);
+	error = msleep(&p->p_siglist, &p->p_mtx,
+	    curthread->td_priority|PDROP, "ndissp", timo);
+	return(error);
+}
+
+void
+ndis_thresume(p)
+	struct proc		*p;
+{
+	wakeup(&p->p_siglist);
+	return;
 }
 
 __stdcall static void
@@ -706,6 +733,7 @@ ndis_return_packet(buf, arg)
 	ndis_handle		adapter;
 	ndis_packet		*p;
 	__stdcall ndis_return_handler	returnfunc;
+	uint8_t			irql;
 
 	if (arg == NULL)
 		return;
@@ -722,8 +750,11 @@ ndis_return_packet(buf, arg)
 	sc = p->np_softc;
 	returnfunc = sc->ndis_chars.nmc_return_packet_func;
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
-	if (adapter != NULL)
+	if (adapter != NULL) {
+		irql = FASTCALL1(hal_raise_irql, DISPATCH_LEVEL);
 		returnfunc(adapter, p);
+		FASTCALL1(hal_lower_irql, irql);
+	}
 
 	return;
 }
@@ -1035,6 +1066,7 @@ ndis_set_info(arg, oid, buf, buflen)
 	__stdcall ndis_setinfo_handler	setfunc;
 	uint32_t		byteswritten = 0, bytesneeded = 0;
 	int			error;
+	uint8_t			irql;
 
 	sc = arg;
 	NDIS_LOCK(sc);
@@ -1045,13 +1077,16 @@ ndis_set_info(arg, oid, buf, buflen)
 	if (adapter == NULL || setfunc == NULL)
 		return(ENXIO);
 
+	irql = FASTCALL1(hal_raise_irql, DISPATCH_LEVEL);
 	rval = setfunc(adapter, oid, buf, *buflen,
 	    &byteswritten, &bytesneeded);
+	FASTCALL1(hal_lower_irql, irql);
 
 	if (rval == NDIS_STATUS_PENDING) {
 		PROC_LOCK(curthread->td_proc);
 		error = msleep(&sc->ndis_block.nmb_wkupdpctimer,
-		    &curthread->td_proc->p_mtx, PPAUSE|PDROP,
+		    &curthread->td_proc->p_mtx,
+		    curthread->td_priority|PDROP,
 		    "ndisset", 5 * hz);
 		rval = sc->ndis_block.nmb_setstat;
 	}
@@ -1091,6 +1126,7 @@ ndis_send_packets(arg, packets, cnt)
 	__stdcall ndis_senddone_func		senddonefunc;
 	int			i;
 	ndis_packet		*p;
+	uint8_t			irql;
 
 	sc = arg;
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
@@ -1098,7 +1134,9 @@ ndis_send_packets(arg, packets, cnt)
 		return(ENXIO);
 	sendfunc = sc->ndis_chars.nmc_sendmulti_func;
 	senddonefunc = sc->ndis_block.nmb_senddone_func;
+	irql = FASTCALL1(hal_raise_irql, DISPATCH_LEVEL);
 	sendfunc(adapter, packets, cnt);
+	FASTCALL1(hal_lower_irql, irql);
 
 	for (i = 0; i < cnt; i++) {
 		p = packets[i];
@@ -1126,6 +1164,7 @@ ndis_send_packet(arg, packet)
 	ndis_status		status;
 	__stdcall ndis_sendsingle_handler	sendfunc;
 	__stdcall ndis_senddone_func		senddonefunc;
+	uint8_t			irql;
 
 	sc = arg;
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
@@ -1134,7 +1173,9 @@ ndis_send_packet(arg, packet)
 	sendfunc = sc->ndis_chars.nmc_sendsingle_func;
 	senddonefunc = sc->ndis_block.nmb_senddone_func;
 
+	irql = FASTCALL1(hal_raise_irql, DISPATCH_LEVEL);
 	status = sendfunc(adapter, packet, packet->np_private.npp_flags);
+	FASTCALL1(hal_lower_irql, irql);
 
 	if (status == NDIS_STATUS_PENDING)
 		return(0);
@@ -1210,6 +1251,7 @@ ndis_reset_nic(arg)
 	uint8_t			addressing_reset;
 	struct ifnet		*ifp;
 	int			rval;
+	uint8_t			irql;
 
 	sc = arg;
 	ifp = &sc->arpcom.ac_if;
@@ -1220,11 +1262,14 @@ ndis_reset_nic(arg)
 	if (adapter == NULL || resetfunc == NULL)
 		return(EIO);
 
+	irql = FASTCALL1(hal_raise_irql, DISPATCH_LEVEL);
 	rval = resetfunc(&addressing_reset, adapter);
+	FASTCALL1(hal_lower_irql, irql);
+
 	if (rval == NDIS_STATUS_PENDING) {
 		PROC_LOCK(curthread->td_proc);
 		msleep(sc, &curthread->td_proc->p_mtx,
-		    PPAUSE|PDROP, "ndisrst", 0);
+		    curthread->td_priority|PDROP, "ndisrst", 0);
 	}
 
 	return(0);
@@ -1346,10 +1391,8 @@ ndis_enable_intr(arg)
 	__stdcall ndis_enable_interrupts_handler	intrenbfunc;
 
 	sc = arg;
-	NDIS_LOCK(sc);
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
 	intrenbfunc = sc->ndis_chars.nmc_enable_interrupts_func;
-	NDIS_UNLOCK(sc);
 	if (adapter == NULL || intrenbfunc == NULL)
 		return;
 	intrenbfunc(adapter);
@@ -1392,10 +1435,8 @@ ndis_isr(arg, ourintr, callhandler)
 		return(EINVAL);
 
 	sc = arg;
-	NDIS_LOCK(sc);
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
 	isrfunc = sc->ndis_chars.nmc_isr_func;
-	NDIS_UNLOCK(sc);
 	if (adapter == NULL || isrfunc == NULL)
 		return(ENXIO);
 
@@ -1443,6 +1484,7 @@ ndis_get_info(arg, oid, buf, buflen)
 	__stdcall ndis_queryinfo_handler	queryfunc;
 	uint32_t		byteswritten = 0, bytesneeded = 0;
 	int			error;
+	uint8_t			irql;
 
 	sc = arg;
 	NDIS_LOCK(sc);
@@ -1453,15 +1495,18 @@ ndis_get_info(arg, oid, buf, buflen)
 	if (adapter == NULL || queryfunc == NULL)
 		return(ENXIO);
 
+	irql = FASTCALL1(hal_raise_irql, DISPATCH_LEVEL);
 	rval = queryfunc(adapter, oid, buf, *buflen,
 	    &byteswritten, &bytesneeded);
+	FASTCALL1(hal_lower_irql, irql);
 
 	/* Wait for requests that block. */
 
 	if (rval == NDIS_STATUS_PENDING) {
 		PROC_LOCK(curthread->td_proc);
 		error = msleep(&sc->ndis_block.nmb_wkupdpctimer,
-		    &curthread->td_proc->p_mtx, PPAUSE|PDROP,
+		    &curthread->td_proc->p_mtx,
+		    curthread->td_priority|PDROP,
 		    "ndisget", 5 * hz);
 		rval = sc->ndis_block.nmb_getstat;
 	}
