@@ -63,8 +63,9 @@ function will return zero.
 Otherwise an error number will be returned to
 indicate the error.
 .Sh ERRORS
+The
 .Fn pthread_cond_timedwait
-will fail if:
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The value specified by
@@ -84,6 +85,7 @@ The system time has reached or exceeded the time specified in
 .Xr pthread_cond_signal 3 ,
 .Xr pthread_cond_wait 3
 .Sh STANDARDS
+The
 .Fn pthread_cond_timedwait
-conforms to
+function conforms to
 .St -p1003.1-96 .
