@@ -258,6 +258,7 @@
 #define _normalize_nuo			normalize_nuo
 #define _npx_intr			npx_intr
 #define _npxsave			npxsave
+#define _oszsigcode			oszsigcode
 #define _ovbcopy_vector			ovbcopy_vector
 #define _panic				panic
 #define _pc98_system_parameter		pc98_system_parameter

@@ -58,7 +58,7 @@ extern	void	(*netisrs[32]) __P((void));
 extern	int	nfs_diskless_valid;
 extern	void	(*ovbcopy_vector) __P((const void *from, void *to, size_t len));
 extern	char	sigcode[];
-extern	int	szsigcode;
+extern	int	szsigcode, oszsigcode;
 
 typedef void alias_for_inthand_t __P((u_int cs, u_int ef, u_int esp, u_int ss));
 struct	proc;
@@ -91,7 +91,6 @@ int	i586_copyout __P((const void *kaddr, void *udaddr, size_t len));
 void	i686_pagezero __P((void *addr));
 int	is_physical_memory __P((vm_offset_t addr));
 u_long	kvtop __P((void *addr));
-int	load_gs_param __P((u_int sel));
 void	setidt __P((int idx, alias_for_inthand_t *func, int typ, int dpl,
 		    int selec));
 void	swi_vm __P((void));

@@ -85,6 +85,9 @@ struct	procsig {
 	int	 ps_refcnt;
 };
 
+#define	PS_NOCLDWAIT	0x0001	/* No zombies if child dies */
+#define	PS_NOCLDSTOP	0x0002	/* No SIGCHLD when children stop. */
+
 /*
  * pasleep structure, used by asleep() syscall to hold requested priority
  * and timeout values for await().
@@ -197,6 +200,7 @@ struct	proc {
 #define	p_startcopy	p_sigmask
 
 	sigset_t p_sigmask;	/* Current signal mask. */
+	stack_t	p_sigstk;	/* sp & on stack state variable */
 	u_char	p_priority;	/* Process priority. */
 	u_char	p_usrpri;	/* User-priority based on p_cpu and p_nice. */
 	char	p_nice;		/* Process "nice" value. */
@@ -240,7 +244,6 @@ struct	proc {
 #define	P_ADVLOCK	0x00001	/* Process may hold a POSIX advisory lock. */
 #define	P_CONTROLT	0x00002	/* Has a controlling terminal. */
 #define	P_INMEM		0x00004	/* Loaded into memory. */
-#define	P_NOCLDSTOP	0x00008	/* No SIGCHLD when children stop. */
 #define	P_PPWAIT	0x00010	/* Parent is waiting for child to exec/exit. */
 #define	P_PROFIL	0x00020	/* Has started profiling. */
 #define	P_SELECT	0x00040	/* Selecting; wakeup/waiting danger. */
@@ -264,14 +267,14 @@ struct	proc {
 #define	P_SWAPINREQ	0x80000	/* Swapin request due to wakeup */
 
 /* Marked a kernel thread */
-#define P_BUFEXHAUST	0x100000 /* dirty buffers flush is in progress */
-#define P_KTHREADP	0x200000 /* Process is really a kernel thread */
+#define	P_BUFEXHAUST	0x100000 /* dirty buffers flush is in progress */
+#define	P_KTHREADP	0x200000 /* Process is really a kernel thread */
 
-#define	P_NOCLDWAIT	0x400000 /* No zombies if child dies */
-#define P_DEADLKTREAT   0x800000 /* lock aquisition - deadlock treatment */
+#define	P_DEADLKTREAT   0x800000 /* lock aquisition - deadlock treatment */
 
-#define P_JAILED	0x1000000 /* Process is in jail */
-#define P_NEWSIGSET	0x2000000 /* Process uses new sigset_t */
+#define	P_JAILED	0x1000000 /* Process is in jail */
+#define	P_OLDMASK	0x2000000 /* need to restore mask before pause */
+#define	P_ALTSTACK	0x4000000 /* have alternate signal stack */
 
 /*
  * MOVE TO ucred.h?

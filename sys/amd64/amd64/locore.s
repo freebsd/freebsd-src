@@ -417,19 +417,39 @@ NON_GPROF_ENTRY(sigcode)
 	call	SIGF_HANDLER(%esp)		/* call signal handler */
 	lea	SIGF_UC(%esp),%eax		/* get ucontext_t */
 	pushl	%eax
-	movl	$SYS_osigreturn,%eax
+	testl	$PSL_VM,UC_EFLAGS(%eax)
+	jne	9f
+	movl	UC_GS(%eax),%gs			/* restore %gs */
+9:
+	movl	$SYS_sigreturn,%eax
 	pushl	%eax				/* junk to fake return addr. */
 	int	$0x80				/* enter kernel with args */
-						/* on stack */
-1:
-	jmp	1b
+0:	jmp	0b
+
+	ALIGN_TEXT
+_osigcode:
+	call	SIGF_HANDLER(%esp)		/* call signal handler */
+	lea	SIGF_SC(%esp),%eax		/* get sigcontext */
+	pushl	%eax
+	testl	$PSL_VM,SC_PS(%eax)
+	jne	9f
+	movl	SC_GS(%eax),%gs			/* restore %gs */
+9:
+	movl	$0x01d516,SC_TRAPNO(%eax)	/* magic: 0ldSiG */
+	movl	$SYS_sigreturn,%eax
+	pushl	%eax				/* junk to fake return addr. */
+	int	$0x80				/* enter kernel with args */
+0:	jmp	0b
+
 	ALIGN_TEXT
 _esigcode:
 
 	.data
-	.globl	_szsigcode
+	.globl	_szsigcode, _oszsigcode
 _szsigcode:
 	.long	_esigcode-_sigcode
+_oszsigcode:
+	.long	_esigcode-_osigcode
 	.text
 
 /**********************************************************************
