@@ -70,7 +70,7 @@ pass1b(void)
 		if (got_sigalarm) {
 			setproctitle("%s p1b %d%%", cdevname,
 			    c * 100 / sblock.fs_ncg);
-			got_siginfo = 0;
+			got_sigalarm = 0;
 		}
 		for (i = 0; i < sblock.fs_ipg; i++, inumber++) {
 			if (inumber < ROOTINO)
