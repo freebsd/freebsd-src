@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998,1999,2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -79,20 +79,20 @@ static u_int32_t afd_lun_map = 0;
 static MALLOC_DEFINE(M_AFD, "AFD driver", "ATAPI floppy driver buffers");
 
 int 
-afdattach(struct atapi_softc *atp)
+afdattach(struct ata_device *atadev)
 {
     struct afd_softc *fdp;
     dev_t dev;
 
     fdp = malloc(sizeof(struct afd_softc), M_AFD, M_NOWAIT | M_ZERO);
     if (!fdp) {
-	ata_printf(atp->controller, atp->unit, "out of memory\n");
+	ata_prtdev(atadev, "out of memory\n");
 	return -1;
     }
 
-    fdp->atp = atp;
+    fdp->device = atadev;
     fdp->lun = ata_get_lun(&afd_lun_map);
-    ata_set_name(atp->controller, atp->unit, "afd", fdp->lun);
+    ata_set_name(atadev, "afd", fdp->lun);
     bioq_init(&fdp->queue);
 
     if (afd_sense(fdp)) {
@@ -100,8 +100,7 @@ afdattach(struct atapi_softc *atp)
 	return -1;
     }
 
-    if (!strncmp(ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->model, 
-		 "IOMEGA ZIP", 10))
+    if (!strncmp(atadev->param->model, "IOMEGA ZIP", 10))
 	fdp->transfersize = 64;
 
     devstat_add_entry(&fdp->stats, "afd", fdp->lun, DEV_BSIZE,
@@ -112,27 +111,29 @@ afdattach(struct atapi_softc *atp)
     dev->si_drv1 = fdp;
     dev->si_iosize_max = 252 * DEV_BSIZE;
     fdp->dev = dev;
-    fdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
-    fdp->atp->driver = fdp;
     afd_describe(fdp);
+    atadev->flags |= ATA_D_MEDIA_CHANGED;
+    atadev->driver = fdp;
     return 0;
 }
 
 void
-afddetach(struct atapi_softc *atp)
+afddetach(struct ata_device *atadev)
 {   
-    struct afd_softc *fdp = atp->driver;
+    struct afd_softc *fdp = atadev->driver;
     struct bio *bp;
     
     while ((bp = bioq_first(&fdp->queue))) {
+	bioq_remove(&fdp->queue, bp);
 	biofinish(bp, NULL, ENXIO);
     }
     disk_invalidate(&fdp->disk);
     disk_destroy(fdp->dev);
     devstat_remove_entry(&fdp->stats);
-    ata_free_name(atp->controller, atp->unit);
+    ata_free_name(atadev);
     ata_free_lun(&afd_lun_map, fdp->lun);
     free(fdp, M_AFD);
+    atadev->driver = NULL;
 }   
 
 static int 
@@ -144,21 +145,20 @@ afd_sense(struct afd_softc *fdp)
     int count, error = 0;
 
     /* The IOMEGA Clik! doesn't support reading the cap page, fake it */
-    if (!strncmp(ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->model, 
-		 "IOMEGA Clik!", 12)) {
+    if (!strncmp(fdp->device->param->model, "IOMEGA Clik!", 12)) {
 	fdp->transfersize = 64;
 	fdp->cap.transfer_rate = 500;
 	fdp->cap.heads = 1;
 	fdp->cap.sectors = 2;
 	fdp->cap.cylinders = 39441;
 	fdp->cap.sector_size = 512;
-	atapi_test_ready(fdp->atp);
+	atapi_test_ready(fdp->device);
 	return 0;
     }
 
     /* get drive capabilities, some drives needs this repeated */
     for (count = 0 ; count < 5 ; count++) {
-	if (!(error = atapi_queue_cmd(fdp->atp, ccb, (caddr_t)&fdp->cap,
+	if (!(error = atapi_queue_cmd(fdp->device, ccb, (caddr_t)&fdp->cap,
 				      sizeof(struct afd_cappage),
 				      ATPR_F_READ, 30, NULL, NULL)))
 	    break;
@@ -175,27 +175,24 @@ static void
 afd_describe(struct afd_softc *fdp)
 {
     if (bootverbose) {
-	ata_printf(fdp->atp->controller, fdp->atp->unit,
+	ata_prtdev(fdp->device,
 		   "<%.40s/%.8s> rewriteable drive at ata%d as %s\n",
-		   ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->model,
-		   ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->revision,
-		   device_get_unit(fdp->atp->controller->dev),
-		   (fdp->atp->unit == ATA_MASTER) ? "master" : "slave");
-	ata_printf(fdp->atp->controller, fdp->atp->unit,
+		   fdp->device->param->model, fdp->device->param->revision,
+		   device_get_unit(fdp->device->channel->dev),
+		   (fdp->device->unit == ATA_MASTER) ? "master" : "slave");
+	ata_prtdev(fdp->device,
 		   "%luMB (%u sectors), %u cyls, %u heads, %u S/T, %u B/S\n",
 		   (fdp->cap.cylinders * fdp->cap.heads * fdp->cap.sectors) / 
 		   ((1024L * 1024L) / fdp->cap.sector_size),
 		   fdp->cap.cylinders * fdp->cap.heads * fdp->cap.sectors,
 		   fdp->cap.cylinders, fdp->cap.heads, fdp->cap.sectors,
 		   fdp->cap.sector_size);
-	ata_printf(fdp->atp->controller, fdp->atp->unit, "%dKB/s,",
-		   fdp->lun, fdp->cap.transfer_rate/8);
+	ata_prtdev(fdp->device, "%dKB/s,", fdp->lun, fdp->cap.transfer_rate/8);
 	if (fdp->transfersize)
 	    printf(" transfer limit %d blks,", fdp->transfersize);
-	printf(" %s\n", ata_mode2str(fdp->atp->controller->mode[
-				 ATA_DEV(fdp->atp->unit)]));
+	printf(" %s\n", ata_mode2str(fdp->device->mode));
 	if (fdp->cap.medium_type) {
-	    ata_printf(fdp->atp->controller, fdp->atp->unit, "Medium: ");
+	    ata_prtdev(fdp->device, "Medium: ");
 	    switch (fdp->cap.medium_type) {
 	    case MFD_2DD:
 		printf("720KB DD disk"); break;
@@ -217,16 +214,14 @@ afd_describe(struct afd_softc *fdp)
 	printf("\n");
     }
     else {
-	ata_printf(fdp->atp->controller, fdp->atp->unit,
-		   "%luMB <%.40s> [%d/%d/%d] at ata%d-%s %s\n",
+	ata_prtdev(fdp->device, "%luMB <%.40s> [%d/%d/%d] at ata%d-%s %s\n",
 		   (fdp->cap.cylinders * fdp->cap.heads * fdp->cap.sectors) /
-		       ((1024L * 1024L) / fdp->cap.sector_size),	
-		   ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->model,
+		   ((1024L * 1024L) / fdp->cap.sector_size),	
+		   fdp->device->param->model,
 		   fdp->cap.cylinders, fdp->cap.heads, fdp->cap.sectors,
-		   device_get_unit(fdp->atp->controller->dev),
-		   (fdp->atp->unit == ATA_MASTER) ? "master" : "slave",
-		   ata_mode2str(fdp->atp->controller->
-				mode[ATA_DEV(fdp->atp->unit)]));
+		   device_get_unit(fdp->device->channel->dev),
+		   (fdp->device->unit == ATA_MASTER) ? "master" : "slave",
+		   ata_mode2str(fdp->device->mode));
     }
 }
 
@@ -236,16 +231,15 @@ afdopen(dev_t dev, int flags, int fmt, struct thread *td)
     struct afd_softc *fdp = dev->si_drv1;
     struct disklabel *label = &fdp->disk.d_label;
 
-    atapi_test_ready(fdp->atp);
+    atapi_test_ready(fdp->device);
 
     if (count_dev(dev) == 1)
 	afd_prevent_allow(fdp, 1);
 
     if (afd_sense(fdp))
-	ata_printf(fdp->atp->controller, fdp->atp->unit,
-		   "sense media type failed\n");
+	ata_prtdev(fdp->device, "sense media type failed\n");
 
-    fdp->atp->flags &= ~ATAPI_F_MEDIA_CHANGED;
+    fdp->device->flags &= ~ATA_D_MEDIA_CHANGED;
 
     bzero(label, sizeof *label);
     label->d_secsize = fdp->cap.sector_size;
@@ -294,21 +288,21 @@ afdstrategy(struct bio *bp)
     struct afd_softc *fdp = bp->bio_dev->si_drv1;
     int s;
 
-    if (fdp->atp->flags & ATAPI_F_DETACHING) {
+    if (fdp->device->flags & ATA_D_DETACHING) {
 	biofinish(bp, NULL, ENXIO);
 	return;
     }
 
     s = splbio();
     bioqdisksort(&fdp->queue, bp);
-    ata_start(fdp->atp->controller);
+    ata_start(fdp->device->channel);
     splx(s);
 }
 
 void 
-afd_start(struct atapi_softc *atp)
+afd_start(struct ata_device *atadev)
 {
-    struct afd_softc *fdp = atp->driver;
+    struct afd_softc *fdp = atadev->driver;
     struct bio *bp = bioq_first(&fdp->queue);
     u_int32_t lba;
     u_int16_t count;
@@ -321,7 +315,7 @@ afd_start(struct atapi_softc *atp)
     bioq_remove(&fdp->queue, bp);
 
     /* should reject all queued entries if media have changed. */
-    if (fdp->atp->flags & ATAPI_F_MEDIA_CHANGED) {
+    if (fdp->device->flags & ATA_D_MEDIA_CHANGED) {
 	biofinish(bp, NULL, EIO);
 	return;
     }
@@ -348,7 +342,7 @@ afd_start(struct atapi_softc *atp)
 	ccb[7] = fdp->transfersize>>8;
 	ccb[8] = fdp->transfersize;
 
-	atapi_queue_cmd(fdp->atp, ccb, data_ptr, 
+	atapi_queue_cmd(fdp->device, ccb, data_ptr, 
 			fdp->transfersize * fdp->cap.sector_size,
 			(bp->bio_cmd == BIO_READ) ? ATPR_F_READ : 0, 30,
 			afd_partial_done, bp);
@@ -365,7 +359,7 @@ afd_start(struct atapi_softc *atp)
     ccb[7] = count>>8;
     ccb[8] = count;
 
-    atapi_queue_cmd(fdp->atp, ccb, data_ptr, count * fdp->cap.sector_size,
+    atapi_queue_cmd(fdp->device, ccb, data_ptr, count * fdp->cap.sector_size,
 		    (bp->bio_cmd == BIO_READ) ? ATPR_F_READ : 0, 30,
 		    afd_done, bp);
 }
@@ -417,7 +411,7 @@ afd_eject(struct afd_softc *fdp, int close)
 	return 0;
     if ((error = afd_prevent_allow(fdp, 0)))
 	return error;
-    fdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
+    fdp->device->flags |= ATA_D_MEDIA_CHANGED;
     return afd_start_stop(fdp, 2);
 }
 
@@ -427,7 +421,7 @@ afd_start_stop(struct afd_softc *fdp, int start)
     int8_t ccb[16] = { ATAPI_START_STOP, 0, 0, 0, start,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    return atapi_queue_cmd(fdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL);
+    return atapi_queue_cmd(fdp->device, ccb, NULL, 0, 0, 30, NULL, NULL);
 }
 
 static int
@@ -436,8 +430,7 @@ afd_prevent_allow(struct afd_softc *fdp, int lock)
     int8_t ccb[16] = { ATAPI_PREVENT_ALLOW, 0, 0, 0, lock,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     
-    if (!strncmp(ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->model, 
-		 "IOMEGA Clik!", 12))
+    if (!strncmp(fdp->device->param->model, "IOMEGA Clik!", 12))
 	return 0;
-    return atapi_queue_cmd(fdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL);
+    return atapi_queue_cmd(fdp->device, ccb, NULL, 0, 0, 30, NULL, NULL);
 }

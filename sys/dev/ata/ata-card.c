@@ -50,8 +50,8 @@
 static int
 ata_pccard_match(device_t dev)
 {
-    int		error = 0;
-    u_int32_t	fcn = PCCARD_FUNCTION_UNSPEC;
+    u_int32_t fcn = PCCARD_FUNCTION_UNSPEC;
+    int error = 0;
 
     error = pccard_get_function(dev, &fcn);
     if (error != 0)
@@ -69,7 +69,7 @@ ata_pccard_match(device_t dev)
 static int
 ata_pccard_probe(device_t dev)
 {
-    struct ata_softc *scp = device_get_softc(dev);
+    struct ata_channel *ch = device_get_softc(dev);
     struct resource *io;
     int rid, len, start, end;
     u_long tmp;
@@ -108,8 +108,8 @@ ata_pccard_probe(device_t dev)
     else
 	return ENOMEM;
 
-    scp->channel = 0;
-    scp->flags |= (ATA_USE_16BIT | ATA_NO_SLAVE);
+    ch->unit = 0;
+    ch->flags |= (ATA_USE_16BIT | ATA_NO_SLAVE);
     return ata_probe(dev);
 }
 
@@ -129,7 +129,7 @@ static device_method_t ata_pccard_methods[] = {
 static driver_t ata_pccard_driver = {
     "ata",
     ata_pccard_methods,
-    sizeof(struct ata_softc),
+    sizeof(struct ata_channel),
 };
 
 DRIVER_MODULE(ata, pccard, ata_pccard_driver, ata_devclass, 0, 0);
