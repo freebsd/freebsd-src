@@ -1,6 +1,13 @@
 /*-
  * Copyright (c) 1983, 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * All rights reserved.
+ *
+ * Portions of this software were developed for the FreeBSD Project by
+ * ThinkSec AS and NAI Labs, the Security Research Division of Network
+ * Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -57,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <libutil.h>
+#include <paths.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
@@ -64,8 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 #include <err.h>
-
-#include "pathnames.h"
 
 #ifdef KERBEROS
 #include <openssl/des.h>
@@ -313,7 +319,7 @@ try_connect:
 		if (pid < 0)
 			err(1, "fork");
 	}
-        else
+	else
 		(void)shutdown(rem, 1);
 
 #ifdef KERBEROS
@@ -497,4 +503,3 @@ usage(void)
 #endif
 	exit(1);
 }
-
