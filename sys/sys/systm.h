@@ -35,8 +35,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id: systm.h,v 1.35 1996/01/29 03:20:44 gibbs Exp $
+ *	@(#)systm.h	8.7 (Berkeley) 3/29/95
+ * $Id: systm.h,v 1.38 1996/02/25 09:21:55 hsu Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -107,6 +107,7 @@ extern int boothowto;		/* reboot flags, from console subsystem */
  */
 int	nullop __P((void));
 int	eopnotsupp __P((void));
+int	einval __P((void));
 int	seltrue __P((dev_t dev, int which, struct proc *p));
 int	ureadc __P((int, struct uio *));
 void	*hashinit __P((int count, int type, u_long *hashmask));
