@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: istallion.c,v 1.15 1997/12/16 17:40:00 eivind Exp $
+ * $Id: istallion.c,v 1.16 1998/02/09 06:08:33 eivind Exp $
  */
 
 /*****************************************************************************/
@@ -2507,13 +2507,7 @@ static void stli_ttyoptim(stliport_t *portp, struct termios *tiosp)
 		tp->t_state |= TS_CAN_BYPASS_L_RINT;
 	else
 		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
-
-	if (tp->t_line == SLIPDISC)
-		portp->hotchar = 0xc0;
-	else if (tp->t_line == PPPDISC)
-		portp->hotchar = 0x7e;
-	else
-		portp->hotchar = 0;
+	portp->hotchar = linesw[tp->t_line].l_hotchar;
 }
 
 /*****************************************************************************/

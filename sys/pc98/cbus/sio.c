@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.50 1998/01/24 02:54:39 eivind Exp $
+ *	$Id: sio.c,v 1.51 1998/02/02 07:59:05 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -3283,16 +3283,7 @@ disc_optim(tp, t, com)
 		tp->t_state |= TS_CAN_BYPASS_L_RINT;
 	else
 		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
-	/*
-	 * Prepare to reduce input latency for packet
-	 * discplines with a end of packet character.
-	 */
-	if (tp->t_line == SLIPDISC)
-		com->hotchar = 0xc0;
-	else if (tp->t_line == PPPDISC)
-		com->hotchar = 0x7e;
-	else
-		com->hotchar = 0;
+	com->hotchar = linesw[tp->t_line].l_hotchar;
 }
 
 /*

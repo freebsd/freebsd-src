@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.37 1997/11/22 08:35:42 bde Exp $
+ * $Id: conf.h,v 1.38 1998/01/24 02:01:29 dyson Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -151,6 +151,7 @@ struct linesw {
 	l_rint_t	*l_rint;
 	l_start_t	*l_start;
 	l_modem_t	*l_modem;
+	u_char		l_hotchar;
 };
 
 #ifdef KERNEL

@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.64 1998/01/24 02:54:24 eivind Exp $
+ *	$Id: si.c,v 1.65 1998/01/31 07:23:09 eivind Exp $
  */
 
 #ifndef lint
@@ -2299,18 +2299,7 @@ si_disc_optim(tp, t, pp)
 		tp->t_state |= TS_CAN_BYPASS_L_RINT;
 	else
 		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
-
-	/*
-	 * Prepare to reduce input latency for packet
-	 * discplines with a end of packet character.
-	 */
-	if (tp->t_line == SLIPDISC)
-		pp->sp_hotchar = 0xc0;
-	else if (tp->t_line == PPPDISC)
-		pp->sp_hotchar = 0x7e;
-	else
-		pp->sp_hotchar = 0;
-
+	pp->sp_hotchar = linesw[tp->t_line].l_hotchar;
 	DPRINT((pp, DBG_OPTIM, "bypass: %s, hotchar: %x\n", 
 		(tp->t_state & TS_CAN_BYPASS_L_RINT) ? "on" : "off",
 		pp->sp_hotchar));
