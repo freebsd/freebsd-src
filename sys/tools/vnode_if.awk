@@ -65,7 +65,7 @@ function printh(s) {print s > hfile;}
 
 function add_debug_code(name, arg)
 {
-	if (debug_all_vfs_locks && lockdata[name, arg, "Entry"]) {
+	if (lockdata[name, arg, "Entry"]) {
 		# Add assertions for locking
 		if (lockdata[name, arg, "Entry"] == "L")
 			printh("\tASSERT_VOP_LOCKED("arg", \""uname"\");");
@@ -79,15 +79,19 @@ function add_debug_code(name, arg)
 
 function add_debug_pre(name)
 {
-	if (debug_all_vfs_locks && lockdata[name, "pre"]) {
+	if (lockdata[name, "pre"]) {
+		printh("#ifdef	DEBUG_VFS_LOCKS");
 		printh("\t"lockdata[name, "pre"]"(&a);");
+		printh("#endif");
 	}
 }
 
 function add_debug_post(name)
 {
-	if (debug_all_vfs_locks && lockdata[name, "post"]) {
+	if (lockdata[name, "post"]) {
+		printh("#ifdef	DEBUG_VFS_LOCKS");
 		printh("\t"lockdata[name, "post"]"(&a, rc);");
+		printh("#endif");
 	}
 }
 
@@ -124,8 +128,6 @@ if (!cfile && !hfile)
 
 if (!srcfile)
 	usage();
-
-debug_all_vfs_locks = (ENVIRON["DEBUG_ALL_VFS_LOCKS"] ~ /[Yy][Ee][Ss]/);
 
 common_head = \
     "/*\n" \
