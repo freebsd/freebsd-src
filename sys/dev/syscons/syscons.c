@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.263 1998/06/13 18:53:22 steve Exp $
+ *  $Id: syscons.c,v 1.264 1998/06/24 10:21:30 yokota Exp $
  */
 
 #include "sc.h"
@@ -528,6 +528,7 @@ sckbdprobe(int unit, int flags)
     int codeset;
     int c = -1;
     int m;
+    int res, id;
 
     sc_kbdc = kbdc_open(sc_port);
 
@@ -663,6 +664,17 @@ sckbdprobe(int unit, int flags)
 	 */
 	printf("sc%d: unable to enable the keyboard port and intr.\n", unit);
 	goto fail;
+    }
+    
+    /* Get the ID of the keyboard, if any */
+    empty_kbd_buffer(sc_kbdc, 5);
+    res = send_kbd_command(sc_kbdc, KBDC_SEND_DEV_ID);
+    if (res == KBD_ACK) {
+	/* 10ms delay */
+	DELAY(10000);
+	id = (read_kbd_data(sc_kbdc) << 8) | read_kbd_data(sc_kbdc);
+	if (bootverbose)
+	    printf("sc%d: keyboard device ID: %04x\n", unit, id);
     }
 
     kbdc_set_device_mask(sc_kbdc, m | KBD_KBD_CONTROL_BITS),
@@ -3980,7 +3992,14 @@ next_code:
 	    case SUSP:
 #if NAPM > 0
 		accents = 0;
-		apm_suspend();
+		apm_suspend(PMST_SUSPEND);
+#endif
+		break;
+
+	    case STBY:
+#if NAPM > 0
+		accents = 0;
+		apm_suspend(PMST_STANDBY);
 #endif
 		break;
 
