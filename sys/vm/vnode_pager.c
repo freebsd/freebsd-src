@@ -1188,7 +1188,7 @@ vnode_pager_lock(vm_object_t first_object)
 		VM_OBJECT_UNLOCK(object);
 		if (first_object != object)
 			VM_OBJECT_UNLOCK(first_object);
-		if (vget(vp, LK_CANRECURSE | LK_INTERLOCK | LK_NOPAUSE |
+		if (vget(vp, LK_CANRECURSE | LK_INTERLOCK |
 		    LK_RETRY | LK_SHARED, curthread)) {
 			VM_OBJECT_LOCK(first_object);
 			if (object != first_object)
