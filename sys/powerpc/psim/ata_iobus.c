@@ -34,13 +34,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/disk.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/bio.h>
 #include <sys/malloc.h>
-#include <sys/devicestat.h>
-#include <sys/sysctl.h>
 #include <machine/stdarg.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
@@ -233,12 +229,27 @@ static driver_t ata_iobus_sub_driver = {
 DRIVER_MODULE(ata, ataiobus, ata_iobus_sub_driver, ata_devclass, 0, 0);
 
 static int
+ata_iobus_intrnoop(struct ata_channel *ch)
+{
+
+	return (1);
+}
+ 
+static void
+ata_iobus_locknoop(struct ata_channel *ch, int type)
+{
+}
+
+static int
 ata_iobus_sub_probe(device_t dev)
 {
 	struct ata_channel *ch = device_get_softc(dev);
 
 	/* Only a single unit per controller thus far */
 	ch->unit = 0;
+	ch->flags = (ATA_USE_16BIT|ATA_NO_SLAVE);
+	ch->intr_func = ata_iobus_intrnoop;
+	ch->lock_func = ata_iobus_locknoop;
 
 	return ata_probe(dev);
 }
