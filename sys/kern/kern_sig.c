@@ -1731,8 +1731,7 @@ issignal(td)
 				PICKUP_GIANT();
 				PROC_LOCK(p);
 				break;
-			} else
-			     if (prop & SA_IGNORE) {
+			} else if (prop & SA_IGNORE) {
 				/*
 				 * Except for SIGCONT, shouldn't get here.
 				 * Default action is to ignore; drop it.
