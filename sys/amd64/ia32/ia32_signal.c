@@ -187,6 +187,7 @@ freebsd4_ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
+	mtx_assert(&psp->ps_mtx, MA_OWNED);
 	regs = td->td_frame;
 	oonstack = sigonstack(regs->tf_rsp);
 
@@ -250,6 +251,7 @@ freebsd4_ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		sf.sf_addr = regs->tf_addr;
 		sf.sf_ah = (u_int32_t)(uintptr_t)catcher;
 	}
+	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(p);
 
 	/*
@@ -274,6 +276,7 @@ freebsd4_ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	td->td_pcb->pcb_es = _udatasel;
 	/* leave user %fs and %gs untouched */
 	PROC_LOCK(p);
+	mtx_lock(&psp->ps_mtx);
 }
 #endif	/* COMPAT_FREEBSD4 */
 
@@ -298,6 +301,7 @@ ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		return;
 	}
 #endif
+	mtx_assert(&psp->ps_mtx, MA_OWNED);
 	regs = td->td_frame;
 	oonstack = sigonstack(regs->tf_rsp);
 
@@ -366,6 +370,7 @@ ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		sf.sf_addr = regs->tf_addr;
 		sf.sf_ah = (u_int32_t)(uintptr_t)catcher;
 	}
+	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(p);
 
 	/*
@@ -390,6 +395,7 @@ ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	td->td_pcb->pcb_es = _udatasel;
 	/* leave user %fs and %gs untouched */
 	PROC_LOCK(p);
+	mtx_lock(&psp->ps_mtx);
 }
 
 /*
