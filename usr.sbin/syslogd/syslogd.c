@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.46.2.1 1999/05/01 18:49:17 des Exp $";
+	"$Id: syslogd.c,v 1.51 1999/05/06 13:57:57 dt Exp $";
 #endif /* not lint */
 
 /*
@@ -252,6 +252,7 @@ int	Debug;			/* debug flag */
 char	LocalHostName[MAXHOSTNAMELEN+1];	/* our hostname */
 char	*LocalDomain;		/* our local domain name */
 int	finet = -1;		/* Internet datagram socket */
+int	fklog = -1;		/* /dev/klog */
 int	LogPort;		/* port number for INET connections */
 int	Initialized = 0;	/* set when we have initialized ourselves */
 int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
@@ -282,6 +283,7 @@ void	logmsg __P((int, char *, char *, int));
 void	printline __P((char *, char *));
 void	printsys __P((char *));
 int	p_open __P((char *, pid_t *));
+void	readklog __P((void));
 void	reapchild __P((int));
 char   *ttymsg __P((struct iovec *, int, char *, int));
 static void	usage __P((void));
@@ -295,7 +297,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	int ch, i, l, fklog, len;
+	int ch, i, l, len;
 	struct sockaddr_un sunx, fromunix;
 	struct sockaddr_in sin, frominet;
 	FILE *fp;
@@ -416,7 +418,10 @@ main(argc, argv)
 		}
 	}
 
-	if ((fklog = open(_PATH_KLOG, O_RDONLY, 0)) < 0)
+	if ((fklog = open(_PATH_KLOG, O_RDONLY, 0)) >= 0)
+		if (fcntl(fklog, F_SETFL, O_NONBLOCK) < 0)
+			fklog = -1;
+	if (fklog < 0)
 		dprintf("can't open %s (%d)\n", _PATH_KLOG, errno);
 
 	/* tuck my process id away */
@@ -474,16 +479,8 @@ main(argc, argv)
 			continue;
 		}
 		/*dprintf("got a message (%d, %#x)\n", nfds, readfds);*/
-		if (fklog != -1 && FD_ISSET(fklog, &readfds)) {
-			i = read(fklog, line, MAXLINE - 1);
-			if (i > 0) {
-				line[i] = '\0';
-				printsys(line);
-			} else if (i < 0 && errno != EINTR) {
-				logerror("klog");
-				fklog = -1;
-			}
-		}
+		if (fklog != -1 && FD_ISSET(fklog, &readfds))
+			readklog();
 		if (finet != -1 && FD_ISSET(finet, &readfds)) {
 			len = sizeof(frominet);
 			l = recvfrom(finet, line, MAXLINE, 0,
@@ -581,36 +578,66 @@ printline(hname, msg)
 }
 
 /*
- * Take a raw input line from /dev/klog, split and format similar to syslog().
+ * Read /dev/klog while data are available, split into lines.
  */
 void
-printsys(msg)
-	char *msg;
+readklog()
+{
+	char *p, *q, line[MAXLINE + 1];
+	int len, i;
+
+	len = 0;
+	for (;;) {
+		i = read(fklog, line + len, MAXLINE - 1 - len);
+		if (i > 0)
+			line[i + len] = '\0';
+		else if (i < 0 && errno != EINTR && errno != EAGAIN) {
+			logerror("klog");
+			fklog = -1;
+			break;
+		} else
+			break;
+
+		for (p = line; (q = strchr(p, '\n')) != NULL; p = q + 1) {
+			*q = '\0';
+			printsys(p);
+		}
+		len = strlen(p);
+		if (len >= MAXLINE - 1) {
+			printsys(p);
+			len = 0;
+		}
+		if (len > 0) 
+			memmove(line, p, len + 1);
+	}
+	if (len > 0)
+		printsys(line);
+}
+
+/*
+ * Take a raw input line from /dev/klog, format similar to syslog().
+ */
+void
+printsys(p)
+	char *p;
 {
 	int pri, flags;
-	char *p, *q;
 
-	for (p = msg; *p != '\0'; ) {
-		flags = ISKERNEL | SYNC_FILE | ADDDATE;	/* fsync after write */
-		pri = DEFSPRI;
-		if (*p == '<') {
-			pri = 0;
-			while (isdigit(*++p))
-				pri = 10 * pri + (*p - '0');
-			if (*p == '>')
-				++p;
-		} else {
-			/* kernel printf's come out on console */
-			flags |= IGN_CONS;
-		}
-		if (pri &~ (LOG_FACMASK|LOG_PRIMASK))
-			pri = DEFSPRI;
-		for (q = p; *q != '\0' && *q != '\n'; q++);
-		if (*q != '\0')
-			*q++ = '\0';
-		logmsg(pri, p, LocalHostName, flags);
-		p = q;
+	flags = ISKERNEL | SYNC_FILE | ADDDATE;	/* fsync after write */
+	pri = DEFSPRI;
+	if (*p == '<') {
+		pri = 0;
+		while (isdigit(*++p))
+			pri = 10 * pri + (*p - '0');
+		if (*p == '>')
+			++p;
+	} else {
+		/* kernel printf's come out on console */
+		flags |= IGN_CONS;
 	}
+	if (pri &~ (LOG_FACMASK|LOG_PRIMASK))
+		pri = DEFSPRI;
+	logmsg(pri, p, LocalHostName, flags);
 }
 
 time_t	now;
