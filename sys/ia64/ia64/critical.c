@@ -18,24 +18,7 @@
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <sys/ucontext.h>
-
-void
-cpu_critical_enter(void)
-{
-	struct thread *td;
-
-	td = curthread;
-	td->td_md.md_savecrit = intr_disable();
-}
-
-void
-cpu_critical_exit(void)
-{
-	struct thread *td;
-
-	td = curthread;
-	intr_restore(td->td_md.md_savecrit);
-}
+#include <machine/critical.h>
 
 /*
  * cpu_critical_fork_exit() - cleanup after fork

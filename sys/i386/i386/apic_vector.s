@@ -155,7 +155,7 @@ IDTVEC(vec_name) ;							\
 	cmpl	$0,PCPU(INT_PENDING) ;					\
 	je	2f ;							\
 ;									\
-	call	unpend ;						\
+	call	i386_unpend ;						\
 2: ;									\
 	decl	TD_INTR_NESTING_LEVEL(%ebx) ;				\
 10: ;									\
@@ -232,7 +232,7 @@ IDTVEC(vec_name) ;							\
 	FAKE_MCOUNT(13*4(%esp)) ;		/* XXX avoid dbl cnt */ \
 	cmpl	$0,PCPU(INT_PENDING) ;					\
 	je	9f ;							\
-	call	unpend ;						\
+	call	i386_unpend ;						\
 9: ;									\
 	pushl	$irq_num;			/* pass the IRQ */	\
 	call	sched_ithd ;						\

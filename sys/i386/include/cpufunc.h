@@ -624,10 +624,6 @@ u_int	rcr0(void);
 u_int	rcr3(void);
 u_int	rcr4(void);
 void    reset_dbregs(void);
-void	cpu_critical_enter(void);
-void	cpu_critical_exit(void);
-void	cpu_critical_fork_exit(void);
-void	cpu_thread_link(struct thread *td);
 
 __END_DECLS
 
