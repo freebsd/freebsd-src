@@ -132,7 +132,6 @@ char	*path(const char *);
 char	*raisestr(char *);
 void	remember(const char *);
 void	moveifchanged(const char *, const char *);
-void	newbus_ioconf(void);
 int	yyparse(void);
 int	yylex(void);
 void	options(void);
