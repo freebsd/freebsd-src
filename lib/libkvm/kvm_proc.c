@@ -448,7 +448,8 @@ kvm_getprocs(kd, op, arg, cnt)
 		mib[1] = KERN_PROC;
 		mib[2] = op;
 		mib[3] = arg;
-		st = sysctl(mib, op == KERN_PROC_ALL ? 3 : 4, NULL, &size, NULL, 0);
+		st = sysctl(mib, op == KERN_PROC_ALL || op == KERN_PROC_PROC ?
+		    3 : 4, NULL, &size, NULL, 0);
 		if (st == -1) {
 			_kvm_syserr(kd, kd->program, "kvm_getprocs");
 			return (0);
@@ -478,7 +479,8 @@ kvm_getprocs(kd, op, arg, cnt)
 			    _kvm_realloc(kd, kd->procbase, size);
 			if (kd->procbase == 0)
 				return (0);
-			st = sysctl(mib, op == KERN_PROC_ALL ? 3 : 4,
+			st = sysctl(mib, op == KERN_PROC_ALL ||
+			    op == KERN_PROC_PROC ? 3 : 4,
 			    kd->procbase, &size, NULL, 0);
 		} while (st == -1 && errno == ENOMEM);
 		if (st == -1) {
