@@ -1,0 +1,140 @@
+.\"-
+.\" Copyright (c) 2000 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"       $FreeBSD$
+.\"
+.\" TrustedBSD Project - support for POSIX.1e process capabilities
+.\"
+.Dd April 1, 2000
+.Dt CAP 3
+.Os FreeBSD 5.0
+.Sh NAME
+.Nm cap
+.Nd introduction to the POSIX.1e Capability security API
+.Sh SYNOPSIS
+.Fd #include <sys/types.h>
+.Fd #include <sys/cap.h>
+.Sh DESCRIPTION
+The POSIX.1e Capability interface allows processes to manipulate their
+capability set, subject to capability manipulation restrictions imposed
+by the kernel.  Using the capability API, a process may request a copy
+of its capability state, modify the copy of the state, and resubmit the
+state for use, if permitted.
+.Pp
+A variety of functions are provided for manipulating and managing
+process capability state and working store state:
+.Pp
+.Fn cap_init
+.Pp
+This function is described in
+.Xr cap_init 3 ,
+and may be used to allocate a fresh capability structure with no capability
+flags set.
+.Pp
+.Fn cap_clear
+.Pp
+This function is described in
+.Xr cap_clear 3 ,
+and clears all capability flags in a capability structure.
+.Pp
+.Fn cap_dup
+.Pp
+This function is described in
+.Xr cap_dup 3 ,
+and may be used to duplicate a capability structure.
+.Pp
+.Fn cap_free
+.Pp
+This function is described in
+.Xr cap_free 3 ,
+and may be used to free a capability structure.
+.Pp
+.Fn cap_get_flag ,
+.Fn cap_get_proc
+.Pp
+These functions, described in
+.Xr cap_get_flag 3 ,
+and
+.Xr cap_get_proc 3 ,
+allow retrieval of capability flags from a file, and capability state from
+the current process.
+.Pp
+.Fn cap_set_flag ,
+.Fn cap_set_proc
+.Pp
+These functions, described in
+.Xr cap_set_flag 3 ,
+and
+.Xr cap_set_proc 3 ,
+allow setting of the capability flags for a file, and capability state for
+the current process.
+
+Documentation of the internal kernel interfaces backing these calls may
+be found in
+.Xr cap 9 .
+The syscalls between the internal interfaces and the public library
+routines may change over time, and as such are not documented.  They are
+not intended to be called directly without going through the library.
+.Sh IMPLEMENTATION NOTES
+FreeBSD's support for POSIX.1e interfaces and features is still under
+development at this time.
+.Sh ENVIRONMENT
+POSIX.1e assigns security labels to all objects, extending the security
+functionality described in POSIX.1.  These additional labels provide
+fine-grained discretionary access control, fine-grained capabilities,
+and labels necessary for mandatory access control.  POSIX.2c describes
+a set of userland utilities for manipulating these labels.  These userland
+utilities are not bundled with
+.Fx 5.0
+so as to discourage their
+use in the short term.
+.\" .Sh FILES
+.Sh SEE ALSO
+.Xr cap_clear 3 ,
+.Xr cap_dup 3 ,
+.Xr cap_free 3 ,
+.Xr cap_get_flag 3 ,
+.Xr cap_get_proc 3 ,
+.Xr cap_init 3 ,
+.Xr cap_set_flag 3 ,
+.Xr cap_set_proc 3 ,
+.Xr cap 9
+.Sh STANDARDS
+POSIX.1e is described in IEEE POSIX.1e draft 17.  Discussion
+of the draft continues on the cross-platform POSIX.1e implementation
+mailing list.  To join this list, see the
+.Fx 
+POSIX.1e implementation
+page for more information.
+.Sh HISTORY
+Support for POSIX.1e Capabilities was developed as part of the TrustedBSD
+Project.
+POSIX.1e support was introduced in
+.Fx 4.0 ,
+and development continues.
+.Sh AUTHORS
+.An Robert N M Watson
+.Sh BUGS
+These features are not yet included in the base FreeBSD distribution.
