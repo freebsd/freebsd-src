@@ -333,7 +333,7 @@ aac_startup(void *arg)
 	struct aac_fib *fib;
 	struct aac_mntinfo *mi;
 	struct aac_mntinforesp *mir = NULL;
-	int i = 0;
+	int count = 0, i = 0;
 
 	debug_called(1);
 
@@ -354,14 +354,17 @@ aac_startup(void *arg)
 		mi->MntCount = i;
 		if (aac_sync_fib(sc, ContainerCommand, 0, fib,
 				 sizeof(struct aac_mntinfo))) {
-			debug(2, "error probing container %d", i);
+			device_printf(sc->aac_dev,
+			    "error probing container %d", i);
 			continue;
 		}
 
 		mir = (struct aac_mntinforesp *)&fib->data[0];
+		/* XXX Need to check if count changed */
+		count = mir->MntRespCount;
 		aac_add_container(sc, mir, 0);
 		i++;
-	} while ((i < mir->MntRespCount) && (i < AAC_MAX_CONTAINERS));
+	} while ((i < count) && (i < AAC_MAX_CONTAINERS));
 
 	aac_release_sync_fib(sc);
 
@@ -1859,7 +1862,11 @@ aac_dequeue_fib(struct aac_softc *sc, int queue, u_int32_t *fib_size,
 		error = ENOENT;
 		goto out;
 	}
-	
+
+	/* wrap the pi so the following test works */
+	if (pi >= aac_qinfo[queue].size)
+		pi = 0;
+
 	notify = 0;
 	if (ci == pi + 1)
 		notify++;
@@ -2551,7 +2558,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 	struct aac_mntinforesp *mir = NULL;
 	u_int16_t rsize;
 	int next, found;
-	int added = 0, i = 0;
+	int count = 0, added = 0, i = 0;
 
 	debug_called(2);
 
@@ -2586,11 +2593,13 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 				rsize = sizeof(mir);
 				if (aac_sync_fib(sc, ContainerCommand, 0, fib,
 						 sizeof(struct aac_mntinfo))) {
-					debug(2, "Error probing container %d\n",
-					      i);
+					device_printf(sc->sc_dev,
+					    "Error probing container %d\n", i);
 					continue;
 				}
 				mir = (struct aac_mntinforesp *)&fib->data[0];
+				/* XXX Need to check if count changed */
+				count = mir->MntRespCount;
 				/*
 				 * Check the container against our list.
 				 * co->co_found was already set to 0 in a
@@ -2625,8 +2634,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 					added = 1;
 				}
 				i++;
-			} while ((i < mir->MntRespCount) &&
-				 (i < AAC_MAX_CONTAINERS));
+			} while ((i < count) && (i < AAC_MAX_CONTAINERS));
 			aac_release_sync_fib(sc);
 
 			/*
