@@ -27,14 +27,6 @@
  * $FreeBSD$
  */
 
-#ifdef _KERNEL
-#include "pcm.h"
-#else
-#error why?
-#define NPCM 1
-#endif
-#if NPCM > 0
-
 /*
  * first, include kernel header files.
  */
@@ -176,5 +168,3 @@ void pcm_setswap(device_t dev, pcm_swap_t *swap);
 /* ought to be made obsolete */
 #define	DV_F_DEV_MASK	0x0000ff00	/* force device type/class */
 #define	DV_F_DEV_SHIFT	8		/* force device type/class */
-
-#endif
