@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.13 1994/01/16 02:21:58 martin Exp $
+ *	$Id: locore.s,v 1.14 1994/01/31 04:39:37 davidg Exp $
  */
 
 /*
@@ -46,19 +46,14 @@
  */
 
 #include "npx.h"				/* for NNPX */
-
 #include "assym.s"				/* system definitions */
 #include "machine/psl.h"			/* processor status longword defs */
 #include "machine/pte.h"			/* page table entry definitions */
-
 #include "errno.h"				/* error return codes */
-
 #include "machine/specialreg.h"			/* x86 special registers */
 #include "i386/isa/debug.h"			/* BDE debugging macros */
 #include "machine/cputypes.h"			/* x86 cpu type definitions */
-
 #include "syscall.h"				/* system call numbers */
-
 #include "machine/asmacros.h"			/* miscellaneous asm macros */
 
 /*
@@ -409,17 +404,7 @@ ENTRY(btext)
 	orl	$I386_CR3PAT,%eax
 	movl	%eax,%cr3			/* load ptd addr into mmu */
 	movl	%cr0,%eax			/* get control word */
-/*
- * XXX it is now safe to always (attempt to) set CR0_WP and to set up
- * the page tables assuming it works, so USE_486_WRITE_PROTECT will go
- * away.  The special 386 PTE checking needs to be conditional on
- * whatever distingiushes 486-only kernels from 386-486 kernels.
- */
-#ifdef USE_486_WRITE_PROTECT
-	orl	$CR0_PE|CR0_PG|CR0_WP,%eax	/* enable paging */
-#else
 	orl	$CR0_PE|CR0_PG,%eax		/* enable paging */
-#endif
 	movl	%eax,%cr0			/* and let's page NOW! */
 
 	pushl	$begin				/* jump to high mem */
@@ -476,10 +461,19 @@ reloc_gdt:
 	/*
 	 * now we've run main() and determined what cpu-type we are, we can
 	 * enable WP mode on i486 cpus and above.
+	 */
+#if defined(I486_CPU) || defined(I586_CPU)
+	cmpl    $CPUCLASS_386,_cpu_class
+	je	1f
+	movl	%cr0,%eax			/* get control word */
+	orl	$CR0_WP,%eax			/* enable write protect for all modes */
+	movl	%eax,%cr0			/* and do it */
+#endif
+	/*
 	 * on return from main(), we are process 1
 	 * set up address space and stack so that we can 'return' to user mode
 	 */
-
+1:
 	.globl	__ucodesel,__udatasel
 	movl	__ucodesel,%eax
 	movl	__udatasel,%ecx

@@ -30,12 +30,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.2 1994/01/14 16:23:39 davidg Exp $
+ *	$Id: support.s,v 1.3 1994/01/31 23:47:29 davidg Exp $
  */
 
 #include "assym.s"				/* system definitions */
 #include "errno.h"				/* error return codes */
 #include "machine/asmacros.h"			/* miscellaneous asm macros */
+#include "machine/cputypes.h"			/* types of CPUs */
 
 #define KDSEL		0x10			/* kernel data selector */
 #define IDXSHIFT	10
@@ -61,15 +62,15 @@ ENTRY(__divsi3)
 ENTRY(inb)					/* val = inb(port) */
 	movl	4(%esp),%edx
 	subl	%eax,%eax
-	NOP
 	inb	%dx,%al
+	NOP
 	ret
 
 ENTRY(inw)					/* val = inw(port) */
 	movl	4(%esp),%edx
 	subl	%eax,%eax
-	NOP
 	inw	%dx,%ax
+	NOP
 	ret
 
 ENTRY(insb)					/* insb(port, addr, cnt) */
@@ -78,7 +79,6 @@ ENTRY(insb)					/* insb(port, addr, cnt) */
 	movl	12(%esp),%edi
 	movl	16(%esp),%ecx
 	cld
-	NOP
 	rep
 	insb
 	NOP
@@ -92,7 +92,6 @@ ENTRY(insw)					/* insw(port, addr, cnt) */
 	movl	12(%esp),%edi
 	movl	16(%esp),%ecx
 	cld
-	NOP
 	rep
 	insw
 	NOP
@@ -106,11 +105,11 @@ ENTRY(rtcin)					/* rtcin(val) */
 	NOP
 	xorl	%eax,%eax
 	inb	$0x71,%al
+	NOP
 	ret
 
 ENTRY(outb)					/* outb(port, val) */
 	movl	4(%esp),%edx
-	NOP
 	movl	8(%esp),%eax
 	outb	%al,%dx
 	NOP
@@ -118,7 +117,6 @@ ENTRY(outb)					/* outb(port, val) */
 
 ENTRY(outw)					/* outw(port, val) */
 	movl	4(%esp),%edx
-	NOP
 	movl	8(%esp),%eax
 	outw	%ax,%dx
 	NOP
@@ -130,7 +128,6 @@ ENTRY(outsb)					/* outsb(port, addr, cnt) */
 	movl	12(%esp),%esi
 	movl	16(%esp),%ecx
 	cld
-	NOP
 	rep
 	outsb
 	NOP
@@ -144,7 +141,6 @@ ENTRY(outsw)					/* outsw(port, addr, cnt) */
 	movl	12(%esp),%esi
 	movl	16(%esp),%ecx
 	cld
-	NOP
 	rep
 	outsw
 	NOP
@@ -330,7 +326,8 @@ ENTRY(htonl)
 /* XXX */
 /* Since Gas 1.38 does not grok bswap this has been coded as the
  * equivalent bytes.  This can be changed back to bswap when we
- * upgrade to a newer version of Gas */
+ * upgrade to a newer version of Gas
+ */
 	/* bswap	%eax */
 	.byte	0x0f
 	.byte	0xc8
@@ -401,7 +398,12 @@ ENTRY(copyout)					/* copyout(from_kernel, to_user, len) */
 	cmpl	$VM_MAXUSER_ADDRESS,%eax
 	ja	copyout_fault
 
-#ifndef USE_486_WRITE_PROTECT
+#if defined(I386_CPU)
+
+#if defined(I486_CPU) || defined(I586_CPU)
+	cmpl	$CPUCLASS_386,_cpu_class
+	jne	3f
+#endif
 /*
  * We have to check each PTE for user write permission.
  * The checking may cause a page fault, so it is important to set
@@ -443,9 +445,10 @@ ENTRY(copyout)					/* copyout(from_kernel, to_user, len) */
 	addl	$4,%edx
 	decl	%ecx
 	jnz	1b				/* check next page */
-#endif /* ndef USE_486_WRITE_PROTECT */
+#endif /* I386_CPU */
 
 	/* bcopy(%esi, %edi, %ebx) */
+3:
 	cld
 	movl	%ebx,%ecx
 	shrl	$2,%ecx
@@ -518,6 +521,8 @@ copyin_fault:
  */
 ALTENTRY(fuiword)
 ENTRY(fuword)
+	movl	__udatasel,%ax
+	movl	%ax,%gs
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
@@ -527,6 +532,8 @@ ENTRY(fuword)
 	ret
 
 ENTRY(fusword)
+	movl	__udatasel,%ax
+	movl	%ax,%gs
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
@@ -537,6 +544,8 @@ ENTRY(fusword)
 
 ALTENTRY(fuibyte)
 ENTRY(fubyte)
+	movl	__udatasel,%ax
+	movl	%ax,%gs
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
@@ -556,15 +565,44 @@ fusufault:
 /*
  * su{byte,sword,word}: write a byte(word, longword) to user memory
  */
-#ifdef USE_486_WRITE_PROTECT
 /*
  * we only have to set the right segment selector.
  */
 ALTENTRY(suiword)
 ENTRY(suword)
+	movl	__udatasel,%ax
+	movl	%ax,%gs
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
+
+#if defined(I386_CPU)
+
+#if defined(I486_CPU) || defined(I586_CPU)
+	cmpl	$CPUCLASS_386,_cpu_class
+	jne	2f
+#endif /* I486_CPU || I586_CPU */
+
+	movl	%edx,%eax
+	shrl	$IDXSHIFT,%edx
+	andb	$0xfc,%dl
+	movb	_PTmap(%edx),%dl
+	andb	$0x7,%dl			/* must be VALID + USERACC + WRITE */
+	cmpb	$0x7,%dl
+	je	1f
+
+	/* simulate a trap */
+	pushl	%eax
+	call	_trapwrite
+	popl	%edx				/* remove junk parameter from stack */
+	movl	_curpcb,%ecx			/* restore trashed register */
+	orl	%eax,%eax
+	jnz	fusufault
+1:
+	movl	4(%esp),%edx
+#endif
+
+2:	
 	movl	8(%esp),%eax
 	gs
 	movl	%eax,(%edx)
@@ -573,9 +611,39 @@ ENTRY(suword)
 	ret
 
 ENTRY(susword)
+	movl	__udatasel,%eax
+	movl	%ax,%gs
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
+
+#if defined(I386_CPU)
+
+#if defined(I486_CPU) || defined(I586_CPU)
+	cmpl	$CPUCLASS_386,_cpu_class
+	jne	2f
+#endif /* I486_CPU || I586_CPU */
+
+	movl	%edx,%eax
+	shrl	$IDXSHIFT,%edx
+	andb	$0xfc,%dl
+	movb	_PTmap(%edx),%dl
+	andb	$0x7,%dl			/* must be VALID + USERACC + WRITE */
+	cmpb	$0x7,%dl
+	je	1f
+
+	/* simulate a trap */
+	pushl	%eax
+	call	_trapwrite
+	popl	%edx				/* remove junk parameter from stack */
+	movl	_curpcb,%ecx			/* restore trashed register */
+	orl	%eax,%eax
+	jnz	fusufault
+1:
+	movl	4(%esp),%edx
+#endif
+
+2:
 	movw	8(%esp),%ax
 	gs
 	movw	%ax,(%edx)
@@ -588,108 +656,40 @@ ENTRY(subyte)
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
+
+#if defined(I386_CPU)
+
+#if defined(I486_CPU) || defined(I586_CPU)
+	cmpl	$CPUCLASS_386,_cpu_class
+	jne	2f
+#endif /* I486_CPU || I586_CPU */
+
+	movl	%edx,%eax
+	shrl	$IDXSHIFT,%edx
+	andb	$0xfc,%dl
+	movb	_PTmap(%edx),%dl
+	andb	$0x7,%dl			/* must be VALID + USERACC + WRITE */
+	cmpb	$0x7,%dl
+	je	1f
+
+	/* simulate a trap */
+	pushl	%eax
+	call	_trapwrite
+	popl	%edx				/* remove junk parameter from stack */
+	movl	_curpcb,%ecx			/* restore trashed register */
+	orl	%eax,%eax
+	jnz	fusufault
+1:
+	movl	4(%esp),%edx
+#endif
+
+2:
 	movb	8(%esp),%al
 	gs
 	movb	%al,(%edx)
 	xorl	%eax,%eax
 	movl	%eax,PCB_ONFAULT(%ecx)
 	ret
-
-
-#else /* USE_486_WRITE_PROTECT */
-/*
- * here starts the trouble again: check PTE, twice if word crosses
- * a page boundary.
- */
-/* XXX - page boundary crossing is not handled yet */
-
-ALTENTRY(suibyte)
-ENTRY(subyte)
-	movl	_curpcb,%ecx
-	movl	$fusufault,PCB_ONFAULT(%ecx)
-	movl	4(%esp),%edx
-	movl	%edx,%eax
-	shrl	$IDXSHIFT,%edx
-	andb	$0xfc,%dl
-	movb	_PTmap(%edx),%dl
-	andb	$0x7,%dl			/* must be VALID + USERACC + WRITE */
-	cmpb	$0x7,%dl
-	je	1f
-
-	/* simulate a trap */
-	pushl	%eax
-	call	_trapwrite
-	popl	%edx
-	orl	%eax,%eax
-	jnz	fusufault
-1:
-	movl	4(%esp),%edx
-	movl	8(%esp),%eax
-	gs
-	movb	%al,(%edx)
-	xorl	%eax,%eax
-	movl	_curpcb,%ecx
-	movl	%eax,PCB_ONFAULT(%ecx)
-	ret
-
-ENTRY(susword)
-	movl	_curpcb,%ecx
-	movl	$fusufault,PCB_ONFAULT(%ecx)
-	movl	4(%esp),%edx
-	movl	%edx,%eax
-	shrl	$IDXSHIFT,%edx
-	andb	$0xfc,%dl
-	movb	_PTmap(%edx),%dl
-	andb	$0x7,%dl			/* must be VALID + USERACC + WRITE */
-	cmpb	$0x7,%dl
-	je	1f
-
-	/* simulate a trap */
-	pushl	%eax
-	call	_trapwrite
-	popl	%edx
-	orl	%eax,%eax
-	jnz	fusufault
-1:
-	movl	4(%esp),%edx
-	movl	8(%esp),%eax
-	gs
-	movw	%ax,(%edx)
-	xorl	%eax,%eax
-	movl	_curpcb,%ecx
-	movl	%eax,PCB_ONFAULT(%ecx)
-	ret
-
-ALTENTRY(suiword)
-ENTRY(suword)
-	movl	_curpcb,%ecx
-	movl	$fusufault,PCB_ONFAULT(%ecx)
-	movl	4(%esp),%edx
-	movl	%edx,%eax
-	shrl	$IDXSHIFT,%edx
-	andb	$0xfc,%dl
-	movb	_PTmap(%edx),%dl
-	andb	$0x7,%dl			/* must be VALID + USERACC + WRITE */
-	cmpb	$0x7,%dl
-	je	1f
-
-	/* simulate a trap */
-	pushl	%eax
-	call	_trapwrite
-	popl	%edx
-	orl	%eax,%eax
-	jnz	fusufault
-1:
-	movl	4(%esp),%edx
-	movl	8(%esp),%eax
-	gs
-	movl	%eax,0(%edx)
-	xorl	%eax,%eax
-	movl	_curpcb,%ecx
-	movl	%eax,PCB_ONFAULT(%ecx)
-	ret
-
-#endif /* USE_486_WRITE_PROTECT */
 
 /*
  * copyoutstr(from, to, maxlen, int *lencopied)
@@ -698,8 +698,6 @@ ENTRY(suword)
  *	EFAULT on protection violations. If lencopied is non-zero,
  *	return the actual length in *lencopied.
  */
-#ifdef USE_486_WRITE_PROTECT
-
 ENTRY(copyoutstr)
 	pushl	%esi
 	pushl	%edi
@@ -709,45 +707,14 @@ ENTRY(copyoutstr)
 	movl	12(%esp),%esi			/* %esi = from */
 	movl	16(%esp),%edi			/* %edi = to */
 	movl	20(%esp),%edx			/* %edx = maxlen */
-	incl	%edx
 
-1:
-	decl	%edx
-	jz	4f
-	/*
-	 * gs override doesn't work for stosb.  Use the same explicit check
-	 * as in copyout().  It's much slower now because it is per-char.
-	 * XXX - however, it would be faster to rewrite this function to use
-	 * strlen() and copyout().
-	 */
-	cmpl	$VM_MAXUSER_ADDRESS,%edi
-	jae	cpystrflt
-	lodsb
-	gs
-	stosb
-	orb	%al,%al
-	jnz	1b
+#if defined(I386_CPU)
 
-	/* Success -- 0 byte reached */
-	decl	%edx
-	xorl	%eax,%eax
-	jmp	6f
-4:
-	/* edx is zero -- return ENAMETOOLONG */
-	movl	$ENAMETOOLONG,%eax
-	jmp	6f
+#if defined(I486_CPU) || defined(I586_CPU)
+	cmpl	$CPUCLASS_386,_cpu_class
+	jne	5f
+#endif /* I486_CPU || I586_CPU */
 
-#else	/* ndef USE_486_WRITE_PROTECT */
-
-ENTRY(copyoutstr)
-	pushl	%esi
-	pushl	%edi
-	movl	_curpcb,%ecx
-	movl	$cpystrflt,PCB_ONFAULT(%ecx)
-
-	movl	12(%esp),%esi			/* %esi = from */
-	movl	16(%esp),%edi			/* %edi = to */
-	movl	20(%esp),%edx			/* %edx = maxlen */
 1:
 	/*
 	 * It suffices to check that the first byte is in user space, because
@@ -756,6 +723,7 @@ ENTRY(copyoutstr)
 	 */
 	cmpl	$VM_MAXUSER_ADDRESS,%edi
 	jae	cpystrflt
+
 	movl	%edi,%eax
 	shrl	$IDXSHIFT,%eax
 	andb	$0xfc,%al
@@ -802,9 +770,39 @@ ENTRY(copyoutstr)
 
 	/* edx is zero -- return ENAMETOOLONG */
 	movl	$ENAMETOOLONG,%eax
-	jmp	6f
+	jmp	cpystrflt_x
+#endif /* I386_CPU */
 
-#endif /* USE_486_WRITE_PROTECT */
+#if defined(I486_CPU) || defined(I586_CPU)
+5:
+	incl	%edx
+1:
+	decl	%edx
+	jz	2f
+	/*
+	 * gs override doesn't work for stosb.  Use the same explicit check
+	 * as in copyout().  It's much slower now because it is per-char.
+	 * XXX - however, it would be faster to rewrite this function to use
+	 * strlen() and copyout().
+	 */
+	cmpl	$VM_MAXUSER_ADDRESS,%edi
+	jae	cpystrflt
+
+	lodsb
+	stosb
+	orb	%al,%al
+	jnz	1b
+
+	/* Success -- 0 byte reached */
+	decl	%edx
+	xorl	%eax,%eax
+	jmp	cpystrflt_x
+2:
+	/* edx is zero -- return ENAMETOOLONG */
+	movl	$ENAMETOOLONG,%eax
+	jmp	cpystrflt_x
+
+#endif /* I486_CPU || I586_CPU */
 
 /*
  * copyinstr(from, to, maxlen, int *lencopied)
@@ -822,6 +820,8 @@ ENTRY(copyinstr)
 	movl	12(%esp),%esi			/* %esi = from */
 	movl	16(%esp),%edi			/* %edi = to */
 	movl	20(%esp),%edx			/* %edx = maxlen */
+	movl	__udatasel,%eax
+	movl	%ax,%gs
 	incl	%edx
 
 1:
@@ -844,6 +844,7 @@ ENTRY(copyinstr)
 
 cpystrflt:
 	movl	$EFAULT,%eax
+cpystrflt_x:
 6:
 	/* set *lencopied and return %eax */
 	movl	_curpcb,%ecx
@@ -970,14 +971,14 @@ ENTRY(ssdtosd)
 	popl	%ebx
 	ret
 
-
+#if 0
 /* tlbflush() */
 ENTRY(tlbflush)
 	movl	%cr3,%eax
 	orl	$I386_CR3PAT,%eax
 	movl	%eax,%cr3
 	ret
-
+#endif
 
 /* load_cr0(cr0) */
 ENTRY(load_cr0)
@@ -985,24 +986,20 @@ ENTRY(load_cr0)
 	movl	%eax,%cr0
 	ret
 
-
 /* rcr0() */
 ENTRY(rcr0)
 	movl	%cr0,%eax
 	ret
-
 
 /* rcr2() */
 ENTRY(rcr2)
 	movl	%cr2,%eax
 	ret
 
-
 /* rcr3() */
 ENTRY(rcr3)
 	movl	%cr3,%eax
 	ret
-
 
 /* void load_cr3(caddr_t cr3) */
 ENTRY(load_cr3)
