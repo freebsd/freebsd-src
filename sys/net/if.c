@@ -1267,7 +1267,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 
 #ifdef MAC
 	case SIOCGIFMAC:
-		error = mac_ioctl_ifnet_get(td->td_proc->p_ucred, ifr, ifp);
+		error = mac_ioctl_ifnet_get(td->td_ucred, ifr, ifp);
 		break;
 #endif
 
@@ -1326,7 +1326,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 
 #ifdef MAC
 	case SIOCSIFMAC:
-		error = mac_ioctl_ifnet_set(td->td_proc->p_ucred, ifr, ifp);
+		error = mac_ioctl_ifnet_set(td->td_ucred, ifr, ifp);
 		break;
 #endif
 

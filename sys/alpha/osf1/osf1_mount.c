@@ -134,7 +134,7 @@ osf1_statfs(td, uap)
 	sp = &mp->mnt_stat;
 	vrele(nd.ni_vp);
 #ifdef MAC
-	error = mac_check_mount_stat(td->td_proc->p_ucred, mp);
+	error = mac_check_mount_stat(td->td_ucred, mp);
 	if (error)
 		return (error);
 #endif
@@ -161,7 +161,7 @@ osf1_fstatfs(td, uap)
 		return (error);
 	mp = ((struct vnode *)fp->f_data)->v_mount;
 #ifdef MAC
-	error = mac_check_mount_stat(td->td_proc->p_ucred, mp);
+	error = mac_check_mount_stat(td->td_ucred, mp);
 	if (error) {
 		fdrop(fp, td);
 		return (error);
@@ -198,7 +198,7 @@ osf1_getfsstat(td, uap)
 		nmp = TAILQ_NEXT(mp, mnt_list);
 		if (osf_sfsp && count < maxcount) {
 #ifdef MAC
-			error = mac_check_mount_stat(td->td_proc->p_ucred, mp);
+			error = mac_check_mount_stat(td->td_ucred, mp);
 			if (error)
 				continue;
 #endif
