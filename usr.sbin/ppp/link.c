@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.c,v 1.1.2.5 1998/02/10 03:23:24 brian Exp $
+ *  $Id: link.c,v 1.1.2.6 1998/02/16 00:00:22 brian Exp $
  *
  */
 
@@ -37,8 +37,8 @@
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
-#include "hdlc.h"
 #include "timer.h"
+#include "hdlc.h"
 #include "throughput.h"
 #include "lcpproto.h"
 #include "loadalias.h"

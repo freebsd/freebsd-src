@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.15 1998/02/16 00:00:15 brian Exp $
+ * $Id: lcp.c,v 1.55.2.16 1998/02/17 19:29:11 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -147,22 +147,6 @@ static const char *cftypes[] = {
 
 #define NCFTYPES (sizeof cftypes/sizeof cftypes[0])
 
-static void
-LcpReportTime(void *v)
-{
-  /* Moan about HDLC errors */
-  struct pppTimer *ReportTimer = (struct pppTimer *)v;
-
-  if (LogIsKept(LogDEBUG)) {
-    time_t t = time(NULL);
-    LogPrintf(LogDEBUG, "LcpReportTime: %s\n", ctime(&t));
-  }
-  StopTimer(ReportTimer);
-  ReportTimer->state = TIMER_STOPPED;
-  StartTimer(ReportTimer);
-  HdlcErrorCheck();
-}
-
 int
 ReportLcpStatus(struct cmdargs const *arg)
 {
@@ -203,7 +187,7 @@ LcpInit(struct bundle *bundle, struct physical *physical)
 {
   /* Initialise ourselves */
   FsmInit(&LcpInfo.fsm, bundle, physical2link(physical));
-  HdlcInit();
+  hdlc_Init(&physical->hdlc);
   async_Init(&physical->async);
 
   LcpInfo.his_mru = DEF_MRU;
@@ -225,7 +209,6 @@ LcpInit(struct bundle *bundle, struct physical *physical)
 
   LcpInfo.his_reject = LcpInfo.my_reject = 0;
   LcpInfo.auth_iwait = LcpInfo.auth_ineed = 0;
-  memset(&LcpInfo.ReportTimer, '\0', sizeof LcpInfo.ReportTimer);
   LcpInfo.fsm.maxconfig = 10;
 }
 
@@ -401,7 +384,6 @@ LcpLayerStart(struct fsm *fp)
 static void
 StopAllTimers(void)
 {
-  StopTimer(&LcpInfo.ReportTimer);
   StopIdleTimer();
   StopTimer(&AuthPapInfo.authtimer);
   StopTimer(&AuthChapInfo.authtimer);
@@ -429,22 +411,19 @@ LcpLayerUp(struct fsm *fp)
   if (p) {
     async_SetLinkParams(&p->async, lcp);
     StartLqm(p);
+    hdlc_StartTimer(&p->hdlc);
   } else
     LogPrintf(LogERROR, "LcpLayerUp: Not a physical link !\n");
-
-  StopTimer(&lcp->ReportTimer);
-  lcp->ReportTimer.state = TIMER_STOPPED;
-  lcp->ReportTimer.load = 60 * SECTICKS;
-  lcp->ReportTimer.arg = &lcp->ReportTimer;
-  lcp->ReportTimer.func = LcpReportTime;
-  StartTimer(&lcp->ReportTimer);
 }
 
 static void
 LcpLayerDown(struct fsm *fp)
 {
   /* About to come down */
+  struct physical *p = link2physical(fp->link);
+
   LogPrintf(LogLCP, "LcpLayerDown\n");
+  hdlc_StopTimer(&p->hdlc);
 }
 
 static void

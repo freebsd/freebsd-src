@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.h,v 1.1.2.8 1998/02/13 05:10:22 brian Exp $
+ *  $Id: physical.h,v 1.1.2.9 1998/02/17 19:29:03 brian Exp $
  *
  */
 
@@ -24,6 +24,7 @@ struct physical {
   struct link link;
   struct descriptor desc;
   struct async async;          /* Our async state */
+  struct hdlc hdlc;            /* Our hdlc state */
   int fd;                      /* File descriptor for this device */
   int mbits;                   /* Current DCD status */
   unsigned abort : 1;          /* Something's gone horribly wrong */

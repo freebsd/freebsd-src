@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.25 1998/02/17 19:28:42 brian Exp $
+ * $Id: command.c,v 1.131.2.26 1998/02/18 19:35:14 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -582,7 +582,7 @@ static struct cmdtab const ShowCommands[] = {
   "Show Demand filters", "show dfilteroption .."},
   {"escape", NULL, ShowEscape, LOCAL_AUTH | LOCAL_CX,
   "Show escape characters", "show escape"},
-  {"hdlc", NULL, ReportHdlcStatus, LOCAL_AUTH,
+  {"hdlc", NULL, hdlc_ReportStatus, LOCAL_AUTH | LOCAL_CX,
   "Show HDLC errors", "show hdlc"},
   {"ifilter", NULL, ShowIfilter, LOCAL_AUTH,
   "Show Input filters", "show ifilter option .."},

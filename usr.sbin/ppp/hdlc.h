@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.h,v 1.14.2.4 1998/02/09 19:20:49 brian Exp $
+ * $Id: hdlc.h,v 1.14.2.5 1998/02/18 19:35:20 brian Exp $
  *
  *	TODO:
  */
@@ -59,11 +59,32 @@
 struct physical;
 struct link;
 
-extern void HdlcInit(void);
-extern void HdlcErrorCheck(void);
+struct hdlc {
+  struct pppTimer ReportTimer;
+
+  struct {
+    int badfcs;
+    int badaddr;
+    int badcommand;
+    int unknownproto;
+  } laststats, stats;
+
+  struct {
+    int OutPackets;
+    int OutOctets;
+    int OutLQRs;
+  } lqr;
+};
+
+
+extern void hdlc_Init(struct hdlc *);
+extern void hdlc_StartTimer(struct hdlc *);
+extern void hdlc_StopTimer(struct hdlc *);
+extern int hdlc_ReportStatus(struct cmdargs const *);
+extern const char *hdlc_Protocol2Nam(u_short);
+
 extern void HdlcInput(struct bundle *, struct mbuf *, struct physical *);
 extern void HdlcOutput(struct link *, int, u_short, struct mbuf *bp);
 extern u_short HdlcFcs(u_short, u_char *, int);
-extern int ReportHdlcStatus(struct cmdargs const *);
 extern int ReportProtStatus(struct cmdargs const *);
 extern u_char *HdlcDetect(struct physical *, u_char *, int);

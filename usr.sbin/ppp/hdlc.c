@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.9 1998/02/10 03:23:19 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.10 1998/02/18 19:35:17 brian Exp $
  *
  *	TODO:
  */
@@ -54,17 +54,8 @@
 #include "descriptor.h"
 #include "physical.h"
 #include "prompt.h"
-
-static struct hdlcstat {
-  int badfcs;
-  int badaddr;
-  int badcommand;
-  int unknownproto;
-}        HdlcStat;
-
-static int ifOutPackets;
-static int ifOutOctets;
-static int ifOutLQRs;
+#include "chat.h"
+#include "datalink.h"
 
 static u_short const fcstab[256] = {
    /* 00 */ 0x0000, 0x1189, 0x2312, 0x329b, 0x4624, 0x57ad, 0x6536, 0x74bf,
@@ -102,11 +93,9 @@ static u_short const fcstab[256] = {
 };
 
 void
-HdlcInit()
+hdlc_Init(struct hdlc *hdlc)
 {
-  ifOutOctets = 0;
-  ifOutPackets = 0;
-  ifOutLQRs = 0;
+  memset(hdlc, '\0', sizeof(struct hdlc));
 }
 
 /*
@@ -200,9 +189,9 @@ HdlcOutput(struct link *l, int pri, u_short proto, struct mbuf *bp)
   bp = mhp->next;
 
   lqr = &MyLqrData;
-  lqr->PeerOutPackets = ifOutPackets++;
-  ifOutOctets += plength(mhp) + 1;
-  lqr->PeerOutOctets = ifOutOctets;
+  lqr->PeerOutPackets = p->hdlc.lqr.OutPackets++;
+  p->hdlc.lqr.OutOctets += plength(mhp) + 1;
+  lqr->PeerOutOctets = p->hdlc.lqr.OutOctets;
 
   if (proto == PROTO_LQR) {
     lqr->MagicNumber = LcpInfo.want_magic;
@@ -214,7 +203,7 @@ HdlcOutput(struct link *l, int pri, u_short proto, struct mbuf *bp)
     lqr->PeerInDiscards = HisLqrSave.SaveInDiscards;
     lqr->PeerInErrors = HisLqrSave.SaveInErrors;
     lqr->PeerInOctets = HisLqrSave.SaveInOctets;
-    lqr->PeerOutLQRs = ++ifOutLQRs;
+    lqr->PeerOutLQRs = ++p->hdlc.lqr.OutLQRs;
     LqrDump("LqrOutput", lqr);
     LqrChangeOrder(lqr, (struct lqrdata *) (MBUF_CTOP(bp)));
   }
@@ -353,8 +342,8 @@ static struct {
 
 #define NPROTOCOLS (sizeof protocols/sizeof protocols[0])
 
-static const char *
-Protocol2Nam(u_short proto)
+const char *
+hdlc_Protocol2Nam(u_short proto)
 {
   int f;
 
@@ -432,40 +421,15 @@ DecodePacket(struct bundle *bundle, u_short proto, struct mbuf * bp,
     break;
   default:
     LogPrintf(LogPHASE, "Unknown protocol 0x%04x (%s)\n",
-              proto, Protocol2Nam(proto));
+              proto, hdlc_Protocol2Nam(proto));
     bp->offset -= 2;
     bp->cnt += 2;
     cp = MBUF_CTOP(bp);
     LcpSendProtoRej(cp, bp->cnt);
     HisLqrSave.SaveInDiscards++;
-    HdlcStat.unknownproto++;
+    p->hdlc.stats.unknownproto++;
     pfree(bp);
     break;
-  }
-}
-
-int
-ReportHdlcStatus(struct cmdargs const *arg)
-{
-  prompt_Printf(&prompt, "HDLC level errors\n\n");
-  prompt_Printf(&prompt, "FCS: %u  ADDR: %u  COMMAND: %u  PROTO: %u\n",
-	        HdlcStat.badfcs, HdlcStat.badaddr,
-                HdlcStat.badcommand, HdlcStat.unknownproto);
-  return 0;
-}
-
-static struct hdlcstat laststat;
-
-void
-HdlcErrorCheck()
-{
-  if (memcmp(&HdlcStat, &laststat, sizeof laststat)) {
-    LogPrintf(LogPHASE, "HDLC errors -> FCS: %u ADDR: %u COMD: %u PROTO: %u\n",
-	      HdlcStat.badfcs - laststat.badfcs,
-              HdlcStat.badaddr - laststat.badaddr,
-              HdlcStat.badcommand - laststat.badcommand,
-              HdlcStat.unknownproto - laststat.unknownproto);
-    laststat = HdlcStat;
   }
 }
 
@@ -487,7 +451,7 @@ HdlcInput(struct bundle *bundle, struct mbuf * bp, struct physical *physical)
   if (fcs != GOODFCS) {
     HisLqrSave.SaveInErrors++;
     LogPrintf(LogDEBUG, "HdlcInput: Bad FCS\n");
-    HdlcStat.badfcs++;
+    physical->hdlc.stats.badfcs++;
     pfree(bp);
     return;
   }
@@ -508,7 +472,7 @@ HdlcInput(struct bundle *bundle, struct mbuf * bp, struct physical *physical)
     addr = *cp++;
     if (addr != HDLC_ADDR) {
       HisLqrSave.SaveInErrors++;
-      HdlcStat.badaddr++;
+      physical->hdlc.stats.badaddr++;
       LogPrintf(LogDEBUG, "HdlcInput: addr %02x\n", *cp);
       pfree(bp);
       return;
@@ -516,7 +480,7 @@ HdlcInput(struct bundle *bundle, struct mbuf * bp, struct physical *physical)
     ctrl = *cp++;
     if (ctrl != HDLC_UI) {
       HisLqrSave.SaveInErrors++;
-      HdlcStat.badcommand++;
+      physical->hdlc.stats.badcommand++;
       LogPrintf(LogDEBUG, "HdlcInput: %02x\n", *cp);
       pfree(bp);
       return;
@@ -585,4 +549,58 @@ HdlcDetect(struct physical *physical, u_char *cp, int n)
       break;
   }
   return (u_char *)ptr;
+}
+
+int
+hdlc_ReportStatus(struct cmdargs const *arg)
+{
+  prompt_Printf(&prompt, "HDLC level errors:\n");
+  prompt_Printf(&prompt, " Bad Frame Check Sequence fields: %u\n",
+	        arg->cx->physical->hdlc.stats.badfcs);
+  prompt_Printf(&prompt, " Bad address (!= 0x%02x) fields:    %u\n",
+	        HDLC_ADDR, arg->cx->physical->hdlc.stats.badaddr);
+  prompt_Printf(&prompt, " Bad command (!= 0x%02x) fields:    %u\n",
+	        HDLC_UI, arg->cx->physical->hdlc.stats.badcommand);
+  prompt_Printf(&prompt, " Unrecognised protocol fields:    %u\n",
+	        arg->cx->physical->hdlc.stats.unknownproto);
+  return 0;
+}
+
+static void
+hdlc_ReportTime(void *v)
+{
+  /* Moan about HDLC errors */
+  struct hdlc *hdlc = (struct hdlc *)v;
+
+  StopTimer(&hdlc->ReportTimer);
+  hdlc->ReportTimer.state = TIMER_STOPPED;
+
+  if (memcmp(&hdlc->laststats, &hdlc->stats, sizeof hdlc->stats)) {
+    LogPrintf(LogPHASE,
+              "HDLC errors -> FCS: %u, ADDR: %u, COMD: %u, PROTO: %u\n",
+	      hdlc->stats.badfcs - hdlc->laststats.badfcs,
+              hdlc->stats.badaddr - hdlc->laststats.badaddr,
+              hdlc->stats.badcommand - hdlc->laststats.badcommand,
+              hdlc->stats.unknownproto - hdlc->laststats.unknownproto);
+    hdlc->laststats = hdlc->stats;
+  }
+
+  StartTimer(&hdlc->ReportTimer);
+}
+
+void
+hdlc_StartTimer(struct hdlc *hdlc)
+{
+  StopTimer(&hdlc->ReportTimer);
+  hdlc->ReportTimer.state = TIMER_STOPPED;
+  hdlc->ReportTimer.load = 60 * SECTICKS;
+  hdlc->ReportTimer.arg = hdlc;
+  hdlc->ReportTimer.func = hdlc_ReportTime;
+  StartTimer(&hdlc->ReportTimer);
+}
+
+void
+hdlc_StopTimer(struct hdlc *hdlc)
+{
+  StopTimer(&hdlc->ReportTimer);
 }

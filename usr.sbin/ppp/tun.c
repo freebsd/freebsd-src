@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.c,v 1.6 1998/01/21 02:15:30 brian Exp $
+ *	$Id: tun.c,v 1.6.4.1 1998/02/02 19:32:16 brian Exp $
  */
 
 #include <sys/param.h>
@@ -41,6 +41,7 @@
 #include "command.h"
 #include "mbuf.h"
 #include "log.h"
+#include "timer.h"
 #include "hdlc.h"
 #include "defs.h"
 #include "loadalias.h"

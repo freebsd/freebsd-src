@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.1.2.9 1998/02/16 00:00:56 brian Exp $
+ *  $Id: physical.c,v 1.1.2.10 1998/02/17 19:29:02 brian Exp $
  *
  */
 
@@ -41,8 +41,8 @@
 #include "mbuf.h"
 
 /* Name space pollution for physical.h */
-#include "hdlc.h"
 #include "timer.h"
+#include "hdlc.h"
 #include "throughput.h"
 #include "fsm.h"
 #include "lcp.h"

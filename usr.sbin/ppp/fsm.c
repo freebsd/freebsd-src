@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.9 1998/02/09 19:20:45 brian Exp $
+ * $Id: fsm.c,v 1.27.2.10 1998/02/16 00:00:07 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -689,7 +689,8 @@ FsmRecvProtoRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 
   sp = (u_short *) MBUF_CTOP(bp);
   proto = ntohs(*sp);
-  LogPrintf(fp->LogLevel, "-- Protocol (%04x) was rejected.\n", proto);
+  LogPrintf(fp->LogLevel, "-- Protocol 0x%04x (%s) was rejected.\n",
+            proto, hdlc_Protocol2Nam(proto));
 
   switch (proto) {
   case PROTO_LQR:
