@@ -475,6 +475,7 @@ ah4_input(m, va_alist)
 		s = splimp();
 		if (IF_QFULL(&ipintrq)) {
 			ipsecstat.in_inval++;
+			splx(s);
 			goto fail;
 		}
 		IF_ENQUEUE(&ipintrq, m);
@@ -879,6 +880,7 @@ ah6_input(mp, offp, proto)
 		s = splimp();
 		if (IF_QFULL(&ip6intrq)) {
 			ipsec6stat.in_inval++;
+			splx(s);
 			goto fail;
 		}
 		IF_ENQUEUE(&ip6intrq, m);
