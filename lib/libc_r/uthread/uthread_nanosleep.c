@@ -37,7 +37,7 @@
 #include "pthread_private.h"
 
 int
-_thread_nanosleep(const struct timespec * time_to_sleep,
+nanosleep(const struct timespec * time_to_sleep,
 		  struct timespec * time_remaining)
 {
 	int             ret = 0;
