@@ -1582,6 +1582,7 @@ filt_soread(struct knote *kn, long hint)
 	kn->kn_data = so->so_rcv.sb_cc;
 	if (so->so_state & SS_CANTRCVMORE) {
 		kn->kn_flags |= EV_EOF; 
+		kn->kn_fflags = so->so_error;
 		return (1);
 	}
 	if (so->so_error)	/* temporary udp error */
@@ -1610,6 +1611,7 @@ filt_sowrite(struct knote *kn, long hint)
 	kn->kn_data = sbspace(&so->so_snd);
 	if (so->so_state & SS_CANTSENDMORE) {
 		kn->kn_flags |= EV_EOF; 
+		kn->kn_fflags = so->so_error;
 		return (1);
 	}
 	if (so->so_error)	/* temporary udp error */
