@@ -224,7 +224,7 @@ struct {								\
 } while (0)
 
 #define	STAILQ_LAST(head, type, field)					\
-	(((head)->stqh_last == &(head)->stqh_first) ?			\
+	(STAILQ_EMPTY(head) ?						\
 		NULL :							\
 		strbase(type, (head)->stqh_last, field))
 
