@@ -37,7 +37,7 @@
 .\"
 .Dd October 28, 1999
 .Dt NG_PPPOE 8
-.Os FreeBSD 3
+.Os FreeBSD 4.0
 .Sh NAME
 .Nm ng_pppoe
 .Nd RFC-2516 PPPOE protocol netgraph node type
@@ -128,7 +128,7 @@ The three commands above use a common data structure.
 .Bd -literal -offset 4n
 struct ngpppoe_init_data {
         char    hook[NG_HOOKLEN + 1];   /* hook to monitor on */
-        u_int16_t       data_len;               /* Length of the service name */
+        u_int16_t       data_len;  /* Length of the service name */
         char    data[0];                /* init data goes here */
 };
 .Ed
