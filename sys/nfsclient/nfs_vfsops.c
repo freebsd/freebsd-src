@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_vfsops.c,v 1.7 1994/10/22 17:52:59 phk Exp $
+ * $Id: nfs_vfsops.c,v 1.8 1994/10/23 23:26:18 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -296,7 +296,7 @@ nfs_mountroot()
 	 * Create the rootfs mount point.
 	 */
 	nd->root_args.fh = (nfsv2fh_t *)nd->root_fh;
-	l = ntohl(nd->swap_saddr.sin_addr.s_addr);
+	l = ntohl(nd->root_saddr.sin_addr.s_addr);
 	sprintf(buf,"%ld.%ld.%ld.%ld:%s",
 		(l >> 24) & 0xff, (l >> 16) & 0xff,
 		(l >>  8) & 0xff, (l >>  0) & 0xff,nd->root_hostnam);
