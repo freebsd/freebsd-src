@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: file.c,v 1.24.2.5 1998/09/08 10:42:41 jkh Exp $";
+	"$Id: file.c,v 1.24.2.6 1998/09/11 07:27:18 jkh Exp $";
 #endif
 
 /*
@@ -47,7 +47,7 @@ isdir(char *fname)
 {
     struct stat sb;
 
-    if (stat(fname, &sb) != FAIL && S_ISDIR(sb.st_mode))
+    if (lstat(fname, &sb) != FAIL && S_ISDIR(sb.st_mode))
 	return TRUE;
     else
 	return FALSE;
