@@ -26,7 +26,7 @@
 
 /* Number of IO APICs. */
 #if defined(APIC_IO) && !defined(NAPIC)
-# define NAPIC			1
+# define NAPIC			2
 #endif /* SMP && NAPIC */
 
 
