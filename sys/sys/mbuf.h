@@ -289,15 +289,11 @@ union mext_refcnt {
 #define _MEXT_ALLOC_CNT(m_cnt) MBUFLOCK(				\
 	union mext_refcnt *__mcnt;					\
 									\
+	if ((mext_refcnt_free == NULL) && (m_alloc_ref(1) == 0))	\
+		panic("mbuf subsystem: out of ref counts!");		\
 	__mcnt = mext_refcnt_free;					\
-	if (__mcnt == NULL) {						\
-		if (m_alloc_ref(1) != 0)				\
-			__mcnt = mext_refcnt_free;			\
-		else							\
-			panic("mbuf subsystem: out of ref counts!");	\
-	}								\
 	mext_refcnt_free = __mcnt->next_ref;				\
-	__mcnt->next_ref = NULL;					\
+	__mcnt->refcnt = 0;					\
 	(m_cnt) = __mcnt;						\
 	mbstat.m_refree--;						\
 )
@@ -314,7 +310,7 @@ union mext_refcnt {
 	struct mbuf *__mmm = (m);					\
 									\
 	_MEXT_ALLOC_CNT(__mmm->m_ext.ref_cnt);				\
-	atomic_set_long(&(__mmm->m_ext.ref_cnt->refcnt), 1);		\
+	MEXT_ADD_REF(__mmm);						\
 } while (0)
 
 /*
