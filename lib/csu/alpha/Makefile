@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.3 1998/03/11 20:41:55 jb Exp $
+#	$Id: Makefile,v 1.4 1998/04/01 03:24:19 jb Exp $
 #
 
 SRCS=		crt1.c crtbegin.c crtend.c
@@ -11,6 +11,10 @@ NOPIC=		true
 NOPROFILE=	true
 INTERNALLIB=	true
 CFLAGS=
+
+# Force bootstrap mode until rtld is ported. The headers are broken
+# on alpha as the result of i386 changes.
+BOOTSTRAP=	true
 
 .ifndef	BOOTSTRAP
 CFLAGS+=	-DHAVE_RTLD -I${.CURDIR}/../../../libexec/rtld-elf
