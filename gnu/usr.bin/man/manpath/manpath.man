@@ -38,6 +38,15 @@ looks for the subdirectories
 or
 .Pa MAN .
 If they exist, they are added to the search path.
+If they do not exist, but the directory ends in
+.Pa /bin ,
+.Nm
+replaces
+.Pa /bin
+with
+.Pa /man
+and checks if that directory exists.
+If it exists, it is added to the search path.
 .Pp
 .Nm Manpath
 is used by
