@@ -21,7 +21,7 @@
 /*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_tape.h,v 1.9 1994/09/28 20:16:42 se Exp $
+ *	$Id: scsi_tape.h,v 1.10 1994/10/28 13:19:34 jkh Exp $
  */
 #ifndef	SCSI_SCSI_TAPE_H
 #define SCSI_SCSI_TAPE_H 1
@@ -155,6 +155,94 @@ struct	blk_desc_cipher
 #define ST150_SEC	0x01	/* soft error count */
 #define	SR150_AUI	0x02	/* autoload inhibit */
 };
+
+/*
+ * This structure defines the various mode pages that tapes know about.
+ */
+#define PAGE_HEADERLEN 2
+struct	tape_pages 
+{
+	u_char pg_code;	/* page code    */
+#define ST_PAGE_CONFIGURATION	0x10
+#define ST_PAGE_MEDIUM_PART	0x11
+#define ST_PAGE_MEDIUM_PART2	0x12
+#define ST_PAGE_MEDIUM_PART3	0x13
+#define ST_PAGE_MEDIUM_PART4	0x14
+#define ST_P_CODE	0x3F	/* page code */
+#define ST_P_PS	0x80		/* page savable */
+	u_char pg_length;	/* page length  */
+	union 
+	{
+		struct 
+		{
+			u_char active_format;	/* active format for density*/
+#define ST_P_CAP 0x40	/* change active Partition */
+#define ST_P_CAF 0x20	/* change active format */
+#define ST_P_AF	 0x1F	/* active format */
+			u_char active_partition; /* */
+			u_char write_buffer_full_ratio; /* highwater writing*/
+			u_char read_buffer_empty_ratio; /* lowwater reading*/
+			u_char write_delay_high; /* # 100mSecs before flush*/
+			u_char write_delay_low;	/* of buffer to the media */
+			u_char flags1;		/* various single bit flags */
+#define	ST_P_DBR	0x80 /* supports data-buffer recovery */
+#define	ST_P_BIS	0x40 /* supports Block_ID */
+#define	ST_P_RSmk	0x20 /* Reports setmarks during reads and spaces */
+#define	ST_P_AVC	0x10 /* Supports Automatic Velocity Control */
+#define	ST_P_SOCF	0x0C /* Stop On Consecutive Filemarks, */
+#define	ST_P_RBO	0x02 /* Recoverd Buffered Data order, 1 = LIFO */
+#define	ST_P_REW	0x01 /* Report Early Warning (see SEW) */
+			u_char gap_size;	/*I/B gap,  1=min 0=default */
+			u_char flags2;		/* various single bit flags */
+#define	ST_P_EOD	0xE0 /* What is and EOD....*/
+#define	ST_P_EOD_DEF 	0x00 /* Drive's default	*/
+#define	ST_P_EOD_FMT	0x20 /* define by format */
+#define	ST_P_EOD_SOCF	0x40 /* define by SOCF (above) */
+#define	ST_P_EEG	0x10 /* use EOD above */
+#define	ST_P_SEW	0x04 /* Synchronise at Early warning.. flush buffers*/
+			u_char 	early_warn_high;/* buf size at early warning */
+			u_char 	early_warn_med;	/* after early warning, only */
+			u_char 	early_warn_low;	/* buufer this much data */
+			u_char	data_compress_alg; /* 0 = off, 1 = default */
+			u_char	reserved;	/* The standard says so */
+		} configuration;
+		struct 
+		{
+#define ST_MAXPARTS 16 /*for now*/
+			u_char	max_add_parts; /* that drive allows */
+			u_char	parts_defined; /* max min(ST_MAXPARTS,max_add_parts) */
+			u_char	flags;
+#define	ST_P_FDP 0x80
+#define	ST_P_SDP 0x40
+#define	ST_P_IDP 0x20
+#define	ST_P_PSUM 0x18	/* units of part defs.. */
+#define	ST_P_PSUM_BYTES		0x0	/* units of part defs.. */
+#define	ST_P_PSUM_KBYTES	0x08	/* units of part defs.. */
+#define	ST_P_PSUM_MBYTES	0x10	/* units of part defs.. */
+			u_char	medium_format_recog;
+#define	ST_P_REC_NONE 0x00
+#define	ST_P_REC_FMT 0x01	/* can recognise format of new media */
+#define	ST_P_REC_PART 0x02  /* can recognise partitions of new media */
+#define	ST_P_REC_FMT_PART 0x03	/* can recognise format and parts */
+			u_char	reserved1;
+			u_char	reserved2;
+			struct
+			{
+				u_char	high;
+				u_char	low;
+			}part[ST_MAXPARTS];
+    		} medium_partition;
+		struct 
+		{
+			struct
+			{
+				u_char	high;
+				u_char	low;
+			}part[ST_MAXPARTS];
+    		} medium_partition_extra;
+	}pages;
+};
+
 
 
 

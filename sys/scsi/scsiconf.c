@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.24 1995/03/16 18:15:49 bde Exp $
+ *      $Id: scsiconf.c,v 1.25 1995/03/19 14:29:06 davidg Exp $
  */
 
 #include <sys/types.h>
@@ -473,9 +473,10 @@ scsi_init(void)
 }
 
 /* Feel free to take this out when everyone is sure this config
- * code works well:
+ * code works well.  For now it lets us tell new configurations from
+ * old ones.
  */
-#define CONFIGD() printf(" is configured at ")
+#define CONFIG_NOISE
 
 /* scsi_bus_conf: Figure out which bus this is.  If it is wired in config
  * use that.  Otherwise use the next free one.
@@ -492,7 +493,6 @@ scsi_bus_conf(sc_link_proto)
 	 * next available bus.
 	 */
 
-	printf("scbus");
 	bus = SCCONF_UNSPEC;
 	for (i = 0; scsi_cinit[i].driver; i++) {
 		if (IS_SPECIFIED(scsi_cinit[i].unit))
@@ -500,8 +500,10 @@ scsi_bus_conf(sc_link_proto)
 			if (!strcmp(sc_link_proto->adapter->name, scsi_cinit[i].driver) &&
 			(sc_link_proto->adapter_unit == scsi_cinit[i].unit) )
 			{
-				CONFIGD();
 				bus = scsi_cinit[i].bus;
+#ifdef CONFIG_NOISE
+				printf("Choosing drivers for scbus configured at %d\n", bus);
+#endif
 				break;
 			}
 		}
@@ -509,8 +511,6 @@ scsi_bus_conf(sc_link_proto)
 
 	if (bus == SCCONF_UNSPEC)
 		bus = free_bus++;
-
-	printf("%d: ", bus);
 
 	return bus;
 }
@@ -535,7 +535,7 @@ scsi_assign_unit(struct scsi_link *sc_link)
 		sc_link->scsibus == scsi_dinit[i].cunit) {
 			sc_link->dev_unit = scsi_dinit[i].unit;
 			found = 1;
-#ifdef CONFIGD
+#ifdef CONFIG_NOISE
 			printf("%s is configured at %d\n",
 			sc_link->device->name, sc_link->dev_unit);
 #endif
@@ -564,6 +564,13 @@ scsi_attachdevs(sc_link_proto)
 
 	if ( (scsibus = scsi_bus_conf(sc_link_proto)) == -1) {
 		return;
+	}
+	/*
+	 * if the adapter didn't give us this, set a default
+	 * (compatibility with old adapter drivers)
+	 */
+	if(!(sc_link_proto->opennings)) {
+		sc_link_proto->opennings = 1;
 	}
 	sc_link_proto->scsibus = scsibus;
 	scbus = malloc(sizeof(struct scsibus_data), M_TEMP, M_NOWAIT);
@@ -722,7 +729,6 @@ scsi_probe_bus(int bus, int targ, int lun)
 				sc_link = malloc(sizeof(*sc_link), M_TEMP, M_NOWAIT);
 			}
 			*sc_link = *sc_link_proto;	/* struct copy */
-			sc_link->opennings = 1;
 			sc_link->device = &probe_switch;
 			sc_link->target = targ;
 			sc_link->lun = lun;

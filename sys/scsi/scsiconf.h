@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.19 1995/03/04 20:51:00 dufault Exp $
+ *	$Id: scsiconf.h,v 1.20 1995/03/16 18:15:50 bde Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -138,8 +138,6 @@ struct scsi_adapter
  * Format of adapter_info() response data
  * e.g. maximum number of entries queuable to a device by the adapter
  */
-#define	AD_INF_MAX_CMDS		0x000000FF
-/* 24 bits of other adapter characteristics go here */
 
 /* Don't poke around inside of "scsi_data".  Each low level
  * driver has its own definition for it.
@@ -341,21 +339,21 @@ struct scsi_link
 /* 40*/	struct	scsi_data *sd;	/* Device data structure */
 /* 44+*/struct	scsi_inquiry_data inqbuf;	/* Inquiry data */
 };
-#define	SDEV_MEDIA_LOADED 	0x00000001	/* device figures are still valid */
-#define	SDEV_WAITING	 	0x00000002	/* a process is waiting for this */
-#define	SDEV_OPEN	 		0x00000004	/* at least 1 open session */
 
 /* XXX dufault@hda.com: SDEV_BOUNCE is set down in the adapter drivers
  * in an sc_link structure to indicate that this host adapter requires
- * ISA DMA bounce buffers.  I think eventually the link structure should
+ * ISA DMA bounce buffers.  I think the link structure should
  * be associated only with the type drive and not the adapter driver,
  * and the bounce flag should be in something associated with the
  * adapter driver.
  */
-#define SDEV_BOUNCE			0x00000008	/* unit requires DMA bounce buffer */
-
-#define	SDEV_DBX			0x000000F0	/* debuging flags (scsi_debug.h) */	
-#define SDEV_ONCE_ONLY		0x00010000	/* unit can only be opened once */
+#define	SDEV_MEDIA_LOADED 	0x0001	/* device figures are still valid */
+#define	SDEV_WAITING	 	0x0002	/* a process is waiting for this */
+#define	SDEV_OPEN	 		0x0004	/* at least 1 open session */
+#define SDEV_BOUNCE			0x0008	/* unit requires DMA bounce buffer */
+#define	SDEV_DBX			0x00F0	/* debugging flags (scsi_debug.h) */	
+#define SDEV_ONCE_ONLY		0x0100	/* unit can only be opened once */
+#define SDEV_BOOTVERBOSE	0x0200	/* be noisy during boot */
 
 /*
  * One of these is allocated and filled in for each scsi bus.
@@ -458,11 +456,11 @@ errval scsi_start_unit( struct scsi_link *sc_link, u_int32 flags);
 errval scsi_stop_unit(struct scsi_link *sc_link, u_int32 eject, u_int32 flags);
 void scsi_done(struct scsi_xfer *xs);
 void scsi_user_done(struct scsi_xfer *xs);
-errval scsi_scsi_cmd( struct scsi_link *sc_link, struct scsi_generic *scsi_cmd,
-			u_int32 cmdlen, u_char *data_addr,
-			u_int32 datalen, u_int32 retries,
-			u_int32 timeout, struct buf *bp,
-			u_int32 flags);
+errval scsi_scsi_cmd __P(( struct scsi_link *, struct scsi_generic *,
+			u_int32, u_char *,
+			u_int32, u_int32,
+			u_int32, struct buf *,
+			u_int32));
 int	scsi_do_ioctl __P((dev_t dev, int cmd, caddr_t addr, int mode,
         struct proc *p, struct scsi_link *sc_link));
 
@@ -472,25 +470,27 @@ struct proc *p)));
 
 int scsi_opened_ok __P((dev_t dev, int flag, int type, struct scsi_link *sc_link));
 
-char *scsi_sense_desc(int asc, int ascq);
-void scsi_sense_print(struct scsi_xfer *xs);
-void show_scsi_xs(struct scsi_xfer *xs);
-void show_scsi_cmd(struct scsi_xfer *xs);
-void show_mem(unsigned char * , u_int32);
+char	*scsi_sense_desc	__P((int, int));
+void	scsi_sense_print	__P((struct scsi_xfer *));
+void	show_scsi_xs		__P((struct scsi_xfer *));
+void	show_scsi_cmd		__P((struct scsi_xfer *));
+void	show_mem		__P((unsigned char * , u_int32));
 
-void	scsi_uto3b __P((u_int32 val, u_char *bytes));
-u_int32	scsi_3btou __P((u_char *bytes));
-int32	scsi_3btoi __P((u_char *bytes));
-void	scsi_uto4b __P((u_int32 val, u_char *bytes));
-u_int32	scsi_4btou __P((u_char *bytes));
-void	scsi_uto2b __P((u_int32 val, u_char *bytes));
-u_int32	scsi_2btou __P((u_char *bytes));
+void	scsi_uto3b __P((u_int32 , u_char *));
+u_int32	scsi_3btou __P((u_char *));
+int32	scsi_3btoi __P((u_char *));
+void	scsi_uto4b __P((u_int32, u_char *));
+u_int32	scsi_4btou __P((u_char *));
+void	scsi_uto2b __P((u_int32, u_char *));
+u_int32	scsi_2btou __P((u_char *));
 
-extern void sc_print_addr(struct scsi_link *);
+void sc_print_addr __P((struct scsi_link *));
+void sc_print_start __P((struct scsi_link *));
+void sc_print_finish __P((void));
 
-extern	int scsi_externalize(struct scsi_link *, void *, size_t *);
+extern	int scsi_externalize __P((struct scsi_link *, void *, size_t *));
 
-void	scsi_device_register(struct scsi_device *sd);
+void	scsi_device_register __P((struct scsi_device *sd));
 
 extern struct kern_devconf kdc_scbus0; /* XXX should go away */
 
