@@ -112,8 +112,6 @@
 
 #include <netinet6/ip6protosw.h>
 
-/* we need it for NLOOP. */
-#include "loop.h"
 #include "faith.h"
 #include "gif.h"
 
