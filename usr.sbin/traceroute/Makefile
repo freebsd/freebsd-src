@@ -4,7 +4,10 @@ PROG=	traceroute
 MAN8=	traceroute.8
 BINMODE=4555
 CFLAGS+=-DHAVE_SYS_SELECT_H=1 -DHAVE_SETLINEBUF=1 -DHAVE_RAW_OPTIONS=1 \
-	-DSTDC_HEADERS=1 
+	-DSTDC_HEADERS=1
+.ifndef (NOIPSEC)
+CFLAGS+=-DIPSEC
+.endif
 # RTT Jitter on the internet these days means printing 3 decimal places on
 # > 1000ms times is plain useless.  Uncomment this to enable variable precision
 # reporting, ie: print a variable precision from 0.001ms through 1000ms
@@ -12,6 +15,10 @@ CFLAGS+=-DHAVE_SYS_SELECT_H=1 -DHAVE_SETLINEBUF=1 -DHAVE_RAW_OPTIONS=1 \
 
 SRCS=	version.c traceroute.c
 CLEANFILES+=	version.c
+.ifndef (NOIPSEC)
+DPADD=	${LIBIPSEC}
+LDADD=	-lipsec
+.endif
 
 TRACEROUTE_DISTDIR?= ${.CURDIR}/../../contrib/traceroute
 
