@@ -220,6 +220,7 @@ union mcluster {
 		(m)->m_nextpkt = (struct mbuf *)NULL; \
 		(m)->m_data = (m)->m_pktdat; \
 		(m)->m_flags = M_PKTHDR; \
+		(m)->m_pkthdr.rcvif = NULL; \
 		splx(_ms); \
 	} else { \
 		splx(_ms); \
