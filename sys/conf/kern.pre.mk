@@ -54,7 +54,7 @@ PROF=	-pg
 DEFINED_PROF=	${PROF}
 WERROR?=	-Werror
 INLINE_LIMIT?=	15000
-CFLAGS+=	-finline-limit=${INLINE_LIMIT}
+CFLAGS+=	-finline-limit=${INLINE_LIMIT} -fno-strict-aliasing
 
 
 # Put configuration-specific C flags last (except for ${PROF}) so that they
