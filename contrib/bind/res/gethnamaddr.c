@@ -55,7 +55,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: gethnamaddr.c,v 8.17 1996/08/05 08:31:35 vixie Exp $";
+static char rcsid[] = "$Id: gethnamaddr.c,v 8.20 1996/09/28 06:51:07 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -79,10 +79,12 @@ static char rcsid[] = "$Id: gethnamaddr.c,v 8.17 1996/08/05 08:31:35 vixie Exp $
 #define MULTI_PTRS_ARE_ALIASES 1	/* XXX - experimental */
 
 #if defined(BSD) && (BSD >= 199103) && defined(AF_INET6)
+# include <stdlib.h>
 # include <string.h>
 #else
 # include "../conf/portability.h"
 #endif
+
 #if defined(USE_OPTIONS_H)
 # include <../conf/options.h>
 #endif
@@ -100,7 +102,6 @@ static const char AskedForGot[] =
 			  "gethostby*.getanswer: asked for \"%s\", got \"%s\"";
 
 static char *h_addr_ptrs[MAXADDRS + 1];
-static struct hostent *gethostbyname_ipv4 __P((const char *));
 
 static struct hostent host;
 static char *host_aliases[MAXALIASES];
@@ -166,7 +167,7 @@ getanswer(answer, anslen, qname, qtype)
 	int type, class, buflen, ancount, qdcount;
 	int haveanswer, had_error;
 	int toobig = 0;
-	char tbuf[MAXDNAME+1];
+	char tbuf[MAXDNAME];
 	const char *tname;
 	int (*name_ok) __P((const char *));
 
@@ -340,12 +341,11 @@ getanswer(answer, anslen, qname, qtype)
 				cp += n;
 				continue;	/* XXX - had_error++ ? */
 			}
-			if (haveanswer) {
-				if (n != host.h_length) {
-					cp += n;
-					continue;
-				}
-			} else {
+			if (n != host.h_length) {
+				cp += n;
+				continue;
+			}
+			if (!haveanswer) {
 				register int nn;
 
 				host.h_name = bp;
@@ -416,6 +416,10 @@ gethostbyname(name)
 {
 	struct hostent *hp;
 
+	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
+		h_errno = NETDB_INTERNAL;
+		return (NULL);
+	}
 	if (_res.options & RES_USE_INET6) {
 		hp = gethostbyname2(name, AF_INET6);
 		if (hp)
@@ -500,6 +504,36 @@ gethostbyname2(name, af)
 				return (&host);
 			}
 			if (!isdigit(*cp) && *cp != '.') 
+				break;
+		}
+	if (isxdigit(name[0]) || name[0] == ':')
+		for (cp = name;; ++cp) {
+			if (!*cp) {
+				if (*--cp == '.')
+					break;
+				/*
+				 * All-IPv6-legal, no dot at the end.
+				 * Fake up a hostent as if we'd actually
+				 * done a lookup.
+				 */
+				if (inet_pton(af, name, host_addr) <= 0) {
+					h_errno = HOST_NOT_FOUND;
+					return (NULL);
+				}
+				strncpy(hostbuf, name, MAXDNAME);
+				hostbuf[MAXDNAME] = '\0';
+				bp = hostbuf + MAXDNAME;
+				len = sizeof hostbuf - MAXDNAME;
+				host.h_name = hostbuf;
+				host.h_aliases = host_aliases;
+				host_aliases[0] = NULL;
+				h_addr_ptrs[0] = (char *)host_addr;
+				h_addr_ptrs[1] = NULL;
+				host.h_addr_list = h_addr_ptrs;
+				h_errno = NETDB_SUCCESS;
+				return (&host);
+			}
+			if (!isxdigit(*cp) && *cp != ':' && *cp != '.') 
 				break;
 		}
 

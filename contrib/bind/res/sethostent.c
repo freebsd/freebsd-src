@@ -33,7 +33,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)sethostent.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: sethostent.c,v 8.4 1996/08/05 08:31:35 vixie Exp $";
+static char rcsid[] = "$Id: sethostent.c,v 8.5 1996/09/28 06:51:07 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -42,8 +42,6 @@ static char rcsid[] = "$Id: sethostent.c,v 8.4 1996/08/05 08:31:35 vixie Exp $";
 #include <arpa/nameser.h>
 #include <netdb.h>
 #include <resolv.h>
-
-void _res_close __P((void));
 
 void
 sethostent(stayopen)
@@ -59,5 +57,5 @@ void
 endhostent()
 {
 	_res.options &= ~(RES_STAYOPEN | RES_USEVC);
-	_res_close();
+	res_close();
 }

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)db_dump.c	4.33 (Berkeley) 3/3/91";
-static char rcsid[] = "$Id: db_dump.c,v 8.14 1996/08/05 08:31:30 vixie Exp $";
+static char rcsid[] = "$Id: db_dump.c,v 8.19 1996/10/08 04:51:03 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -55,6 +55,28 @@ static char rcsid[] = "$Id: db_dump.c,v 8.14 1996/08/05 08:31:30 vixie Exp $";
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
  * -
+ * Portions Copyright (c) 1995 by International Business Machines, Inc.
+ *
+ * International Business Machines, Inc. (hereinafter called IBM) grants
+ * permission under its copyrights to use, copy, modify, and distribute this
+ * Software with or without fee, provided that the above copyright notice and
+ * all paragraphs of this notice appear in all copies, and that the name of IBM
+ * not be used in connection with the marketing of any product incorporating
+ * the Software or modifications thereof, without specific, written prior
+ * permission.
+ *
+ * To the extent it has a right to do so, IBM grants an immunity from suit
+ * under its patents, if any, for the use, sale or manufacture of products to
+ * the extent that such products are used for performing Domain Name System
+ * dynamic updates in TCP/IP networks by means of the Software.  No immunity is
+ * granted for any product per se or for any other function of any product.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", AND IBM DISCLAIMS ALL WARRANTIES,
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE.  IN NO EVENT SHALL IBM BE LIABLE FOR ANY SPECIAL,
+ * DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER ARISING
+ * OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE, EVEN
+ * IF IBM IS APPRISED OF THE POSSIBILITY OF SUCH DAMAGES.
  * --Copyright--
  */
 
@@ -260,42 +282,6 @@ doadump()
 	syslog(LOG_NOTICE, "finished dumping nameserver data\n");
 }
 
-#ifdef ALLOW_UPDATES
-/* Create a disk database to back up zones 
- */
-void
-zonedump(zp)
-	register struct zoneinfo *zp;
-{
-	FILE		*fp;
-	char		*fname;
-	struct hashbuf	*htp;
-	char		*op;
-	struct stat	st;
-
-	/* Only dump zone if there is a cache specified */
-	if (zp->z_source && *(zp->z_source)) {
-	    dprintf(1, (ddt, "zonedump(%s)\n", zp->z_source));
-
-	    if ((fp = fopen(zp->z_source, "w")) == NULL)
-		    return;
-	    if (op = strchr(zp->z_origin, '.'))
-		op++;
-	    gettime(&tt);
-	    htp = hashtab;
-	    if (nlookup(zp->z_origin, &htp, &fname, 0) != NULL) {
-		    db_dump(htp, fp, zp-zones, (op == NULL ? "" : op));
-		    zp->z_flags &= ~Z_CHANGED;		/* Checkpointed */
-	    }
-	    (void) my_fclose(fp);
-	    if (stat(zp->z_source, &st) == 0)
-		    zp->z_ftime = st.st_mtime;
-	} else {
-	    dprintf(1, (ddt, "zonedump: no zone to dump\n"));
-	}
-}
-#endif
-
 int
 zt_dump(fp)
 	FILE *fp;
@@ -365,7 +351,12 @@ db_dump(htp, fp, zone, origin)
 	register u_char *cp;
 	u_char *end;
 	char *proto, *sep;
+	int16_t type;
 	int found_data = 0, tab, printed_origin = 0;
+	u_int16_t keyflags;
+	u_char *sigdata;
+	u_char *savecp;
+	char temp_base64[MAX_KEY_BASE64];
 
 	npp = htp->h_tab;
 	nppend = npp + htp->h_size;
@@ -407,7 +398,7 @@ db_dump(htp, fp, zone, origin)
 				    fprintf(fp, ".%s.\t", origin); /* ??? */
 			    } else
 				fprintf(fp, "%s\t", NAME(*np));
-			    if (NAMELEN(*np) < (size_t)8)
+			    if (NAMELEN(*np) < (unsigned)8)
 				tab = 1;
 			    found_data++;
 			} else {
@@ -432,27 +423,29 @@ db_dump(htp, fp, zone, origin)
 				p_type(dp->d_type));
 			cp = (u_char *)dp->d_data;
 			sep = "\t;";
+			type = dp->d_type;
 #ifdef NCACHE
-#ifdef RETURNSOA
-			if (dp->d_rcode == NOERROR_NODATA) {
-			   fprintf(fp, "NODATA%s-$", sep);
-				goto eoln;
-			}
-#else
 			if (dp->d_rcode == NXDOMAIN ||
 			    dp->d_rcode == NOERROR_NODATA) {
+#ifdef RETURNSOA
+				if (dp->d_size == 0) {
+#endif
 				fprintf(fp, "%s%s-$",
 					(dp->d_rcode == NXDOMAIN)
 						?"NXDOMAIN" :"NODATA",
 					sep);
 				goto eoln;
-			}
+#ifdef RETURNSOA
+				} else {
+					type = T_SOA;
+				}
 #endif
+			}
 #endif
 			/*
 			 * Print type specific data
 			 */
-			switch (dp->d_type) {
+			switch (type) {
 			case T_A:
 				switch (dp->d_class) {
 				case C_IN:
@@ -486,24 +479,28 @@ db_dump(htp, fp, zone, origin)
 				break;
 
 			case T_HINFO:
-			case T_ISDN:
+			case T_ISDN: {
+				char buf[256];
 				if ((n = *cp++) != '\0') {
-					fprintf(fp, "\"%.*s\"", (int)n, cp);
+					bcopy(cp, buf, n); buf[n] = '\0';
+					fprintf(fp, "\"%.*s\"", (int)n, buf);
 					cp += n;
 				} else
 					fprintf(fp, "\"\"");
-				if ((n = *cp++) != '\0')
-					fprintf(fp, " \"%.*s\"", (int)n, cp);
-				else
+				if ((n = *cp++) != '\0') {
+					bcopy(cp, buf, n); buf[n] = '\0';
+					fprintf(fp, " \"%.*s\"", (int)n, buf);
+				} else
 					fprintf(fp, " \"\"");
 				break;
+			}
 
 			case T_SOA:
 				fprintf(fp, "%s.", cp);
 				cp += strlen((char *)cp) + 1;
 				fprintf(fp, " %s. (\n", cp);
 #if defined(RETURNSOA) && defined(NCACHE)
-				if (dp->d_rcode == NXDOMAIN)
+				if (dp->d_rcode)
 					fputs(";", fp);
 #endif
 				cp += strlen((char *)cp) + 1;
@@ -518,8 +515,11 @@ db_dump(htp, fp, zone, origin)
 				GETLONG(n, cp);
 				fprintf(fp, " %lu )", (u_long)n);
 #if defined(RETURNSOA) && defined(NCACHE)
-				if (dp->d_rcode == NXDOMAIN) {
-					fprintf(fp,";%s.;NXDOMAIN%s-$",cp,sep);
+				if (dp->d_rcode) {
+					fprintf(fp,";%s.;%s%s-$",cp,
+						(dp->d_rcode == NXDOMAIN) ?
+						"NXDOMAIN" : "NODATA",
+						sep);
 				}
 #endif
 				break;
@@ -540,21 +540,28 @@ db_dump(htp, fp, zone, origin)
 				fprintf(fp, " %s.", cp);
 				break;
 
-			case T_TXT:
 			case T_X25:
+				if ((n = *cp++) != '\0')
+					fprintf(fp, " \"%.*s\"", (int)n, cp);
+				else
+					fprintf(fp, " \"\"");
+				break;
+
+			case T_TXT:
 				end = (u_char *)dp->d_data + dp->d_size;
-				(void) putc('"', fp);
 				while (cp < end) {
-				    if ((n = *cp++) != '\0') {
-					for (j = n ; j > 0 && cp < end ; j--)
-					    if (*cp == '\n') {
-						(void) putc('\\', fp);
-						(void) putc(*cp++, fp);
-					    } else
-						(void) putc(*cp++, fp);
-				    }
+					(void) putc('"', fp);
+					if ((n = *cp++) != '\0') {
+						for (j = n ; j > 0 && cp < end ; j--) {
+							if (*cp == '\n' || *cp == '"' || *cp == '\\')
+								(void) putc('\\', fp);
+							(void) putc(*cp++, fp);
+						}
+					}
+					(void) putc('"', fp);
+					if (cp < end)
+						(void) putc(' ', fp);
 				}
-				(void) fputs("\"", fp);
 				break;
 
 			case T_NSAP:
@@ -580,6 +587,43 @@ db_dump(htp, fp, zone, origin)
 				break;
 			}
 #endif /* LOC_RR */
+
+			case T_NAPTR: {
+				u_int order, preference;
+
+				GETSHORT(order, cp);
+				fprintf(fp, "%lu", (u_long)order);
+ 
+				GETSHORT(preference, cp);
+				fprintf(fp, "%lu", (u_long)preference);
+
+				if (n = *cp++) {
+					fprintf(fp, "\"%.*s\"", (int)n, cp);
+					cp += n;
+				}
+				if (n = *cp++) {
+					fprintf(fp, "\"%.*s\"", (int)n, cp);
+					cp += n;
+				}
+				if (n = *cp++) {
+					fprintf(fp, " \"%.*s\"", (int)n, cp);
+					cp += n;
+				}
+				fprintf(fp, " %s.", cp);
+
+				break;
+			}
+
+			case T_SRV: {
+				u_int priority, weight, port;
+
+				GETSHORT(priority, cp);
+				GETSHORT(weight, cp);
+				GETSHORT(port, cp);
+				fprintf(fp, "\t%u %u %u %s.",
+					priority, weight, port, cp);
+				break;
+			}
 			case T_UINFO:
 				fprintf(fp, "\"%s\"", cp);
 				break;
@@ -619,6 +663,63 @@ db_dump(htp, fp, zone, origin)
 				cp += strlen((char *)cp) + 1;
 				fprintf(fp, " %s.", cp);
 				break;
+
+			case T_KEY:
+			        savecp = cp;  /* save the beginning */
+			/*>>> Flags (unsigned_16) */
+				GETSHORT(keyflags,cp);
+			        fprintf(fp, "0x%04x ", keyflags);
+			/*>>> Protocol (8-bit decimal) */
+				fprintf(fp, "%3u ", *cp++);
+			/*>>> Algorithm id (8-bit decimal) */
+				fprintf(fp, "%3u ", *cp++);
+				
+			/*>>> Public-Key Data (multidigit BASE64) */
+			/*    containing ExponentLen, Exponent, and Modulus */
+				i = b64_ntop(cp, dp->d_size - (cp - savecp),
+				             temp_base64,
+					     sizeof temp_base64);
+				if (i < 0)
+					fprintf(fp, "; BAD BASE64");
+				else
+					fprintf(fp, "%s", temp_base64);
+			        break;
+
+			case T_SIG:
+			        sigdata = cp;
+				/* RRtype (char *) */
+			        GETSHORT(n,cp);
+			        fprintf(fp, "%s ", p_type(n));
+				/* Algorithm id (8-bit decimal) */
+				fprintf(fp, "%d ", *cp++);
+				/* Labels (8-bit decimal) (not saved in file) */
+				/* FIXME -- check value and print err if bad */
+				cp++;
+				/* OTTL (u_long) */
+				GETLONG(n, cp);
+				fprintf(fp, "%lu ", n);
+				/* Texp (u_long) */
+				GETLONG(n, cp);
+				fprintf(fp, "%s ", p_secstodate (n));
+				/* Tsig (u_long) */
+				GETLONG(n, cp);
+				fprintf(fp, "%s ", p_secstodate (n));
+				/* Kfootprint (unsigned_16) */
+			        GETSHORT(n, cp);
+				fprintf(fp, "%lu ", n);
+				/* Signer's Name (char *)  */
+				fprintf(fp, "%s ", cp);
+				cp += strlen((char *)cp) + 1;
+				/* Signature (base64 of any length) */
+				i = b64_ntop(cp, dp->d_size - (cp - sigdata),
+					     temp_base64,
+					     sizeof temp_base64);
+				if (i < 0)
+					fprintf(fp, "; BAD BASE64");
+				else
+					fprintf(fp, "%s", temp_base64);
+			        break;
+
 #ifdef ALLOW_T_UNSPEC
 			case T_UNSPEC:
 				/* Dump binary data out in an ASCII-encoded
@@ -860,7 +961,7 @@ byte_btoa(c, bufp)
 		    register int32_t tmpword = word;
 			
 		    if (tmpword < 0) {	
-			   /* Because some don't support unsigned long */
+			   /* Because some don't support u_long */
 		    	tmp = 32;
 		    	tmpword -= (int32_t)(85 * 85 * 85 * 85 * 32);
 		    }

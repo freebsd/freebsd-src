@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)db_glue.c	4.4 (Berkeley) 6/1/90";
-static char rcsid[] = "$Id: db_glue.c,v 8.13 1996/06/02 08:20:39 vixie Exp $";
+static char rcsid[] = "$Id: db_glue.c,v 8.16 1996/09/22 00:13:10 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -481,23 +481,33 @@ rm_datum(dp, np, pdp)
 		np->n_data = ndp;
 	else
 		pdp->d_next = ndp;
-#ifdef	DATUMREFCNT
+	if ((dp->d_flags & DB_F_ACTIVE) == 0)
+		panic(-1, "rm_datum: DB_F_ACTIVE not set");
+	dp->d_flags &= ~DB_F_ACTIVE;
+	dp->d_next = NULL;
 	if (--(dp->d_rcnt)) {
+#ifdef DEBUG
+		int32_t ii;
+#endif
+
 		switch(dp->d_type) {
 		case T_NS:
 			dprintf(1, (ddt, "rm_datum: %s rcnt = %d\n",
 				dp->d_data, dp->d_rcnt));
 			break;
 		case T_A:
+
+#ifdef DEBUG
+			bcopy(dp->d_data, &ii, sizeof(ii));
+#endif
 			dprintf(1, (ddt, "rm_datum: %08.8X rcnt = %d\n",
-				*(int32_t*)(dp->d_data), dp->d_rcnt));
+				ii, dp->d_rcnt));
 			break;
 		default:
 			dprintf(1, (ddt, "rm_datum: rcnt = %d\n", dp->d_rcnt));
 		}
 	} else
-#endif
-	free((char *)dp);
+		db_free(dp);
 	return (ndp);
 }
 
@@ -551,7 +561,7 @@ getname(np, buf, buflen)
 
 	cp = buf;
 	while (np != NULL) {
-		i = NAMELEN(*np);
+		i = (int) NAMELEN(*np);
 		if (i + 1 >= buflen) {
 			*cp = '\0';
 			syslog(LOG_INFO, "domain name too long: %s...\n", buf);
@@ -718,45 +728,93 @@ samedomain(a, b)
 	const char *a, *b;
 {
 	size_t la, lb;
+	int diff, i, escaped;
 	const char *cp;
 
 	la = strlen(a);
 	lb = strlen(b);
 
-	/* don't count trailing dots, if any. */
-	if (la && a[la-1]=='.')
-		la--;
-	if (lb && b[lb-1]=='.')
-		lb--;
+	/* ignore a trailing label separator (i.e. an unescaped dot) in 'a' */
+	if (la && a[la-1] == '.') {
+		escaped = 0;
+		/* note this loop doesn't get executed if la==1 */
+		for (i = la - 2; i >= 0; i--)
+			if (a[i] == '\\') {
+				if (escaped)
+					escaped = 0;
+				else
+					escaped = 1;
+			} else {
+				break;
+			}
+		if (!escaped)
+			la--;
+	}
+	/* ignore a trailing label separator (i.e. an unescaped dot) in 'b' */
+	if (lb && b[lb-1] == '.') {
+		escaped = 0;
+		/* note this loop doesn't get executed if lb==1 */
+		for (i = lb - 2; i >= 0; i--)
+			if (b[i] == '\\') {
+				if (escaped)
+					escaped = 0;
+				else
+					escaped = 1;
+			} else {
+				break;
+			}
+		if (!escaped)
+			lb--;
+	}
 
-	/* lb==0 means b is the root domain, so a must be in b. */
+	/* lb==0 means 'b' is the root domain, so 'a' must be in 'b'. */
 	if (lb == 0)
 		return (1);
 
-	/* b longer than a means a can't be in b. */
+	/* 'b' longer than 'a' means 'a' can't be in 'b'. */
 	if (lb > la)
 		return (0);
 
 	/* We use strncasecmp because we might be trying to
-	 * ignore trailing dots. */
+	 * ignore a trailing dot. */
 	if (lb == la)
 		return (strncasecmp(a, b, lb) == 0);
 
 	/* Ok, we know la > lb. */
 
-	/* Point at the character before the last 'lb' characters of a. */
-	cp = a + (la - lb - 1);
+	diff = la - lb;
 
-	/* If it isn't '.', can't be a match (this lets us avoid
-	 * having "foobar.com" match "bar.com"). */
-	if (*cp != '.')
+	/* If 'a' is only 1 character longer than 'b', then it can't be
+	   a subdomain of 'b' (because of the need for the '.' label
+	   separator). */
+	if (diff < 2)
 		return (0);
 
-	cp++;
+	/* If the character before the last 'lb' characters of 'b'
+	   isn't '.', then it can't be a match (this lets us avoid
+	   having "foobar.com" match "bar.com"). */
+	if (a[diff-1] != '.')
+		return (0);
 
+	/* We're not sure about that '.', however.  It could be escaped
+           and thus not a really a label separator. */
+	escaped=0;
+	for (i = diff-2; i >= 0; i--)
+		if (a[i] == '\\') {
+			if (escaped)
+				escaped = 0;
+			else
+				escaped = 1;
+		}
+		else
+			break;
+	if (escaped)
+		return (0);
+	  
 	/* We use strncasecmp because we might be trying to
 	 * ignore trailing dots. */
-	return (strncasecmp(cp, b, lb)==0);
+	cp = a + diff;
+	return (strncasecmp(cp, b, lb) == 0);
 }
 
 /*
@@ -784,8 +842,8 @@ data_inaddr(data)
 	struct in_addr ret;
 	u_int32_t tmp;
 
-	bcopy((char *)data, (char *)&tmp, INADDRSZ);
-	ret.s_addr = tmp;
+	GETLONG(tmp, data);
+	ret.s_addr = htonl(tmp);
 	return (ret);
 }
 
@@ -832,4 +890,20 @@ resignal(catch, block, handler)
 	/* Unreliable signals.  Set it back up again. */
 	setsignal(catch, block, handler);
 #endif
+}
+
+void
+db_free(dp)
+	struct databuf *dp;
+{
+	int bytes = DATASIZE(dp->d_size);
+
+	if (dp->d_rcnt != 0)
+		panic(-1, "db_free: d_rcnt != 0");
+	if (dp->d_flags & DB_F_ACTIVE)
+		panic(-1, "db_free: DB_F_ACTIVE set");
+	if (dp->d_next)
+		panic(-1, "db_free: d_next != 0");
+	memset(dp, 0x5E, bytes);
+	free((char*)dp);
 }
