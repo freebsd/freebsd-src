@@ -97,7 +97,7 @@
 
     <para>&man.acct.2; has been changed to open the accounting file in
       append mode, so that &man.accton.8; can be used to enable
-      accounting to an append-only file.</para>
+      accounting to an append-only file. &merged;</para>
 
     <para arch="i386" role="historic">The &man.amdpm.4; driver has been added to
       provide access to the system monitoring functions of the AMD 756
@@ -1972,6 +1972,13 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       not disturb the terminal contents as <command>biff y</command>
       would).</para>
 
+    <para>&man.biff.1; now uses the first terminal associated with the
+      standard input, standard output or standard error file
+      descriptor, in that order.  Thus, it is possible to use the
+      redirection facilities of a shell (<command>biff n &lt;
+      /dev/ttyp1</command>) to toggle the notification for other
+      terminals.</para>
+
     <para arch="pc98" role="historic">&man.boot98cfg.8;, a PC-98 boot manager
       installation and configuration utility, has been
       added. &merged;</para>
@@ -2067,6 +2074,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para role="historic">A number of buffer overflows in &man.config.8; have been
       fixed. &merged;</para>
+
+    <para>&man.cp.1; now takes a (nonstandard) <option>-n</option>
+      option to automatically answer <quote>no</quote> when it would
+      ask to overwrite a file.</para>
 
     <para>A new &man.csplit.1; utility, which splits files based on
       context, has been added.</para>
@@ -2607,6 +2618,13 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       &man.mergemaster.8; run, compares options in
       <filename>/etc/rc.conf</filename> to the default options in
       <filename>/etc/defaults/rc.conf</filename>. &merged;</para>
+
+    <para>&man.mesg.1; now conforms to SUSv3.  Among other things, it
+      now uses the first terminal associated with the standard input,
+      standard output or standard error file descriptor, in that order.
+      Thus, it is possible to use the redirection facilities of a shell
+      (<command>mesg n &lt; /dev/ttyp1</command>) to control write access
+      for other terminals.</para>
 
     <para role="historic">mk_cmds(1) and the associated
       <filename>libss</filename> have been removed; they have been
