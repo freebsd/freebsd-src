@@ -36,7 +36,7 @@
 .\"
 .\"     @(#)boot_i386.8	8.2 (Berkeley) 4/19/94
 .\"
-.\" $Id: boot_i386.8,v 1.9 1998/02/10 00:17:44 msmith Exp $
+.\" $Id: boot_i386.8,v 1.10 1998/03/23 06:36:57 danny Exp $
 .\"
 .Dd April 19, 1994
 .Dt BOOT 8 i386
@@ -84,7 +84,7 @@ prompt.  At this time, the following input will be accepted:
 .It \&?
 Give a short listing of the files in the root directory of the default
 boot device, as a hint about available boot files.
-.It Op bios_drive:interface(unit,part) Op filename Op Fl aCcDdghPrsv
+.It Op bios_drive:interface(unit,part) Op filename Op Fl abCcDdghPrsv
 Specify boot file and flags.
 .Bl -tag -width 10x -compact
 .It bios_drive
@@ -124,12 +124,19 @@ The pathname of the file to boot (relative to the root directory
 on the specified partition).  Defaults to
 .Pa kernel .
 Symbolic links are not supported (hard links are).
-.It Fl acCdDghPrsv
+.It Fl abcCdDghPrsv
 Boot flags:
 .Bl -tag -width "-CXX" -compact
 .It Fl a
 during kernel initialization,
 ask for the device to mount as as the root file system.
+.It Fl b
+puts the screen in 800x600x4 mode (Vesa mode 0x102).
+This is useful on laptops whose graphics
+chips are not supported by XFree86 by the XF86_VGA16 server.
+You need to have a 8x16 font compiled into syscons or loaded as
+part of boot-strap if you actually want to see anything on 
+the screen.
 .It Fl C
 boot from CDROM.
 .It Fl c
@@ -192,6 +199,7 @@ be verbose during device probing (and later).
 .Pp
 You may put a BIOS drive number, a controller type, a unit number,
 a partition, a kernel file name and the 
+.Fl b ,
 .Fl D,
 .Fl h
 or
@@ -231,6 +239,10 @@ The disklabel format used by this version of
 .Bx
 is quite
 different from that of other architectures.
+.Pp
+The kernel's output is invisible (nothing but the cursor can be seen) when
+.Fl b
+is used unless a font has been compiled into the kernel.
 .Pp
 The boot flags are not very self-explanatory, and the alphabet has
 too few characters to implement every potentially useful boot option.
