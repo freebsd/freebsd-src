@@ -33,23 +33,23 @@
 .\" $FreeBSD$
 .\"
 .Dd January 1, 2000
-.Dt SETFLAGS 3
+.Dt STRTOFFLAGS 3
 .Os
 .Sh NAME
-.Nm getflags ,
-.Nm setflags
+.Nm fflagstostr ,
+.Nm strtofflags
 .Nd modify file flag bits
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .Fd #include <unistd.h>
 .Ft char *
-.Fn getflags "u_long flags" "char *def"
+.Fn fflagstostr "u_long flags" "char *def"
 .Ft int
-.Fn setflags "char **stringp" "u_long *setp" "u_long *clrp"
+.Fn strtofflags "char **stringp" "u_long *setp" "u_long *clrp"
 .Sh DESCRIPTION
 The
-.Fn getflags
+.Fn fflagstostr
 function returns a comma separated string of the file flags represented by
 .Fa flags .
 If no flags are set the string
@@ -57,14 +57,14 @@ If no flags are set the string
 is returned instead.
 .Pp
 The
-.Fn setflags
+.Fn strtofflags
 function takes a string of file flags, as described in
 .Xr chflags 1 ,
 parses it, and returns the 'set' flags and 'clear' flags
 such as would be given as arguments to
 .Xr chflags 2 .
 On success
-.Fn setflags
+.Fn strtofflags
 returns 0, otherwise it returns non-zero and
 .Fa stringp
 is left pointing to the offending token.
@@ -73,8 +73,8 @@ is left pointing to the offending token.
 .Xr chflags 2 ,
 .Sh HISTORY
 The
-.Fn getflags
+.Fn strtofflags
 and
-.Fn setflags
+.Fn fflagstostr
 functions first appeared in
 .Fx 4.0 .
