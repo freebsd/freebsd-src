@@ -45,10 +45,11 @@ static const char rcsid[] =
 #include "namespace.h"
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
 #include "un-namespace.h"
 #include "local.h"
 #include "libc_private.h"
@@ -132,7 +133,8 @@ _fseeko(fp, offset, whence)
 		} else if (fp->_flags & __SWR && fp->_p != NULL)
 			curoff += fp->_p - fp->_bf._base;
 
-		if (offset > 0 && offset + (off_t)curoff < 0) {
+		/* curoff always >= 0 */
+		if (offset > 0 && curoff > OFF_MAX - offset) {
 			errno = EOVERFLOW;
 			return (EOF);
 		}
@@ -194,7 +196,8 @@ _fseeko(fp, offset, whence)
 	else {
 		if (_fstat(fp->_file, &st))
 			goto dumb;
-		if (offset > 0 && st.st_size + offset < 0) {
+		/* st.st_size always >= 0 */
+		if (offset > 0 && st.st_size > OFF_MAX - offset) {
 			errno = EOVERFLOW;
 			return (EOF);
 		}
