@@ -248,7 +248,7 @@ copy(argv, type, fts_options)
 	FTSENT *curr;
 	int base = 0, dne, badcp, nlen, rval;
 	char *p, *target_mid;
-	mode_t mask;
+	mode_t mask, mode;
 
 	/*
 	 * Keep an inverted copy of the umask, for use in correcting
@@ -331,19 +331,31 @@ copy(argv, type, fts_options)
 
 		if (curr->fts_info == FTS_DP) {
 			/*
-			 * We are finished copying to this directory.  If
-			 * -p is in effect, set permissions and timestamps.
-			 * Otherwise, if we created this directory, set the
-			 * correct permissions, limited by the umask.
+			 * We are finished with this directory.  If we didn't
+			 * copy it, or otherwise don't need to change its
+			 * attributes, then we are done.
+			 */
+			if (!curr->fts_number)
+				continue;
+			/*
+			 * If -p is in effect, set all the attributes.
+			 * Otherwise, set the correct permissions, limited
+			 * by the umask.  The permissions are often correct
+			 * when the directory is initial made, and we can
+			 * avoid a chmod().  Note that mkdir() does not honour
+			 * setuid, setgid and sticky bits, but we normally
+			 * want to preserve them on directories.
 			 */
 			if (pflag)
 				rval = setfile(curr->fts_statp, 0);
-			else if (curr->fts_number) {
-				mode_t perm = curr->fts_statp->st_mode & mask;
-				if (chmod(to.p_path, perm)) {
-					warn("chmod: %s", to.p_path);
-					rval = 1;
-				}
+			else {
+				mode = curr->fts_statp->st_mode;
+				if ((mode & (S_ISUID | S_ISGID | S_ISTXT)) ||
+				    ((mode | S_IRWXU) & mask) != (mode & mask))
+					if (chmod(to.p_path, mode & mask) != 0){
+						warn("chmod: %s", to.p_path);
+						rval = 1;
+					}
 			}
 			continue;
 		}
@@ -401,19 +413,11 @@ copy(argv, type, fts_options)
 				err(1, "%s", to.p_path);
 			}
 			/*
-			 * Arrange to correct directory permissions later
+			 * Arrange to correct directory attributes later
 			 * (in the post-order phase) if this is a new
-			 * directory and the permissions aren't the final
-			 * ones we want yet.  Note that mkdir() does not
-			 * honour setuid, setgid nor sticky bits, but we
-			 * normally want to preserve them on directories.
+			 * directory, or if the -p flag is in effect.
 			 */
-			{
-			mode_t mode = curr->fts_statp->st_mode;
-			curr->fts_number = dne &&
-			    ((mode & (S_ISUID|S_ISGID|S_ISTXT)) ||
-			    ((mode | S_IRWXU) & mask) != (mode & mask));
-			}
+			curr->fts_number = pflag || dne;
 			break;
 		case S_IFBLK:
 		case S_IFCHR:
