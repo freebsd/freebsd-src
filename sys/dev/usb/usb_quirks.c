@@ -1,12 +1,13 @@
-/*	$NetBSD: usb_quirks.c,v 1.1 1998/07/12 19:52:00 augustss Exp $	*/
+/*	$NetBSD: usb_quirks.c,v 1.6 1998/12/29 15:23:59 augustss Exp $	*/
 /*	FreeBSD $Id$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
- * Author: Lennart Augustsson <augustss@carlstedt.se>
- *         Carlstedt Research & Technology
+ * This code is derived from software contributed to The NetBSD Foundation
+ * by Lennart Augustsson (augustss@carlstedt.se) at
+ * Carlstedt Research & Technology.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,12 +38,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <dev/usb/usb_port.h>
-
 #include <sys/param.h>
 #include <sys/systm.h>
-#if defined(__NetBSD__)
-#include <sys/device.h>
+#if defined(__FreeBSD__)
+#include <sys/bus.h>
 #endif
 #include <sys/select.h>
 
@@ -61,7 +60,10 @@ struct usbd_quirk_entry {
  { USB_VENDOR_INSIDEOUT,USB_PRODUCT_INSIDEOUT_EDGEPORT4, 
    						    0x094, { UQ_SWAP_UNICODE}},
  { USB_VENDOR_UNIXTAR, USB_PRODUCT_UNIXTAR_UTUSB41, 0x100, { UQ_HUB_POWER }},
- { USB_VENDOR_BTC, USB_PRODUCT_BTC_BTC7932,        0x100, { UQ_NO_STRINGS }},
+ { USB_VENDOR_BTC, USB_PRODUCT_BTC_BTC7932,	    0x100, { UQ_NO_STRINGS }},
+ { USB_VENDOR_ADS, USB_PRODUCT_ADS_ENET,	    0x002, { UQ_NO_STRINGS }},
+ { USB_VENDOR_PERACOM, USB_PRODUCT_PERACOM_SERIAL1, 0x101, { UQ_NO_STRINGS }},
+ { USB_VENDOR_JAZZ, USB_PRODUCT_JAZZ_J6502,	    0x0a2, { UQ_BAD_ADC }},
  { 0, 0, 0, { 0 } }
 };
 
@@ -82,7 +84,7 @@ usbd_find_quirk(d)
 #ifdef USB_DEBUG
 	{ extern int usbdebug;
 	if (usbdebug && t->quirks.uq_flags)
-		printf("quirk %d/%d/%x: %d\n", 
+		printf("usbd_find_quirk 0x%04x/0x%04x/%x: %d\n", 
 		       UGETW(d->idVendor), UGETW(d->idProduct),
 		       UGETW(d->bcdDevice), t->quirks.uq_flags);
 	}

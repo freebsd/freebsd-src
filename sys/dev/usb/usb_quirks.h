@@ -1,12 +1,13 @@
-/*	$NetBSD: usb_quirks.h,v 1.1 1998/07/12 19:52:00 augustss Exp $	*/
+/*	$NetBSD: usb_quirks.h,v 1.5 1998/12/29 15:23:59 augustss Exp $	*/
 /*	FreeBSD $Id$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
- * Author: Lennart Augustsson <augustss@carlstedt.se>
- *         Carlstedt Research & Technology
+ * This code is derived from software contributed to The NetBSD Foundation
+ * by Lennart Augustsson (augustss@carlstedt.se) at
+ * Carlstedt Research & Technology.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -39,11 +40,12 @@
 
 struct usbd_quirks {
 	u_int32_t uq_flags;	/* Device problems: */
-#define UQ_NO_SET_PROTO	0x01	/* cannot handle SET PROTOCOL */
+#define UQ_NO_SET_PROTO	0x01	/* cannot handle SET PROTOCOL. */
 #define UQ_SWAP_UNICODE	0x02	/* has some Unicode strings swapped. */
 #define UQ_HUB_POWER	0x04	/* does not respond correctly to get
 				   device status; use get hub status. */
-#define UQ_NO_STRINGS  0x08    /* string descriptors are broken. */
+#define UQ_NO_STRINGS	0x08	/* string descriptors are broken. */
+#define UQ_BAD_ADC	0x10	/* bad audio spec version number. */
 };
 
 extern struct usbd_quirks usbd_no_quirk;

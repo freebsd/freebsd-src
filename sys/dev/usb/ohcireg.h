@@ -1,4 +1,4 @@
-/*	$NetBSD: ohcireg.h,v 1.6 1998/11/25 22:32:04 augustss Exp $	*/
+/*	$NetBSD: ohcireg.h,v 1.7 1998/12/10 23:16:47 augustss Exp $	*/
 /*	FreeBSD $Id$ */
 
 /*
@@ -121,7 +121,8 @@
 #define OHCI_RH_PORT_STATUS(n)	(0x50 + (n)*4) /* 1 based indexing */
 
 #define OHCI_LES (OHCI_PLE | OHCI_IE | OHCI_CLE | OHCI_BLE)
-#define OHCI_ALL_INTRS (OHCI_SO | OHCI_WDH | OHCI_SF | OHCI_RD | OHCI_UE | OHCI_FNO | OHCI_RHSC | OHCI_OC)
+#define OHCI_ALL_INTRS (OHCI_SO | OHCI_WDH | OHCI_SF | OHCI_RD | OHCI_UE | \
+                        OHCI_FNO | OHCI_RHSC | OHCI_OC)
 #define OHCI_NORMAL_INTRS (OHCI_SO | OHCI_WDH | OHCI_RD | OHCI_UE | OHCI_RHSC)
 
 #define OHCI_FSMPS(i) (((i-210)*6/7) << 16)

@@ -1,12 +1,13 @@
-/*	$NetBSD: usbdi.h,v 1.6 1998/08/02 22:30:53 augustss Exp $	*/
+/*	$NetBSD: usbdi.h,v 1.15 1999/01/03 01:00:56 augustss Exp $	*/
 /*	FreeBSD $Id$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
- * Author: Lennart Augustsson <augustss@carlstedt.se>
- *         Carlstedt Research & Technology
+ * This code is derived from software contributed to The NetBSD Foundation
+ * by Lennart Augustsson (augustss@carlstedt.se) at
+ * Carlstedt Research & Technology.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -92,6 +93,7 @@ typedef enum {
 	USBD_TIMEOUT,
 	USBD_SHORT_XFER,
 	USBD_STALLED,
+	USBD_INTERRUPTED,
 
 	USBD_XXX,
 } usbd_status;
@@ -143,7 +145,7 @@ usb_descriptor_t *usbd_get_descriptor
 usb_endpoint_descriptor_t *usbd_interface2endpoint_descriptor
 	__P((usbd_interface_handle iface, u_int8_t address));
 usbd_status usbd_set_configuration
-	__P((usbd_device_handle dev, u_int16_t conf));
+	__P((usbd_device_handle dev, u_int8_t conf));
 usbd_status usbd_retry_request
 	__P((usbd_request_handle reqh, u_int32_t retry_count));
 usbd_status usbd_abort_pipe __P((usbd_pipe_handle pipe));
@@ -216,6 +218,9 @@ usbd_status usbd_do_request
 	__P((usbd_device_handle pipe, usb_device_request_t *req, void *data));
 usbd_status usbd_do_request_async
 	__P((usbd_device_handle pipe, usb_device_request_t *req, void *data));
+usbd_status usbd_do_request_flags
+	__P((usbd_device_handle pipe, usb_device_request_t *req, 
+	     void *data, u_int16_t flags, int *));
 usb_interface_descriptor_t *usbd_get_interface_descriptor
 	__P((usbd_interface_handle iface));
 usb_config_descriptor_t *usbd_get_config_descriptor
@@ -223,6 +228,18 @@ usb_config_descriptor_t *usbd_get_config_descriptor
 usb_device_descriptor_t *usbd_get_device_descriptor
 	__P((usbd_device_handle dev));
 usbd_status usbd_set_interface __P((usbd_interface_handle, int));
+int usbd_get_no_alts __P((usb_config_descriptor_t *, int));
+usbd_status	usbd_get_interface
+	__P((usbd_interface_handle iface, u_int8_t *aiface));
+void usbd_fill_deviceinfo 
+	__P((usbd_device_handle dev, struct usb_device_info *di));
+int usbd_get_interface_altindex __P((usbd_interface_handle iface));
+
+usb_interface_descriptor_t *usbd_find_idesc
+	__P((usb_config_descriptor_t *cd, int iindex, int ano));
+usb_endpoint_descriptor_t *usbd_find_edesc
+	__P((usb_config_descriptor_t *cd, int ifaceidx, int altidx, 
+	     int endptidx));
 
 void usbd_dopoll __P((usbd_interface_handle));
 void usbd_set_polling __P((usbd_interface_handle iface, int on));
@@ -231,9 +248,14 @@ void usbd_set_polling __P((usbd_interface_handle iface, int on));
 
 /* Attach data */
 struct usb_attach_arg {
-	struct usbd_device     *device;
-	struct usbd_interface  *iface;
+	int			port;
+	int			configno;
+	int			ifaceno;
+	usbd_device_handle	device;	/* current device */
+	usbd_interface_handle	iface; /* current interface */
 	int			usegeneric;
+	usbd_interface_handle  *ifaces;	/* all interfaces */
+	int			nifaces; /* number of interfaces */
 };
 
 #if defined(__NetBSD__)
@@ -302,3 +324,18 @@ struct usb_attach_arg {
 void usbd_devinfo __P((usbd_device_handle, int, char *));
 struct usbd_quirks *usbd_get_quirks __P((usbd_device_handle));
 void usbd_set_disco __P((usbd_pipe_handle, void (*)(void *), void *));
+usb_endpoint_descriptor_t *usbd_get_endpoint_descriptor
+	__P((usbd_interface_handle iface, u_int8_t address));
+
+#if defined(__FreeBSD__)
+int usbd_driver_load    __P((module_t mod, int what, void *arg));
+void usbd_device_set_desc __P((device_t device, char *devinfo));
+char *usbd_devname(bdevice *bdev);
+bus_print_child_t usbd_print_child;
+#endif
+
+/* XXX */
+#define splusb splbio
+#define IPL_USB IPL_BIO
+/* XXX */
+

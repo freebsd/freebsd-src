@@ -1,12 +1,13 @@
-/*	$NetBSD: ums.c,v 1.8 1998/08/01 20:11:39 augustss Exp $	*/
-/*	FreeBSD $Id: ums.c,v 1.3 1998/12/14 09:32:24 n_hibma Exp $ */
+/*	$NetBSD: ums.c,v 1.18 1998/12/30 17:46:20 augustss Exp $	*/
+/*	FreeBSD $Id$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
- * Author: Lennart Augustsson <augustss@carlstedt.se>
- *         Carlstedt Research & Technology
+ * This code is derived from software contributed to The NetBSD Foundation
+ * by Lennart Augustsson (augustss@carlstedt.se) at
+ * Carlstedt Research & Technology.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,8 +38,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <dev/usb/usb_port.h>
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -63,7 +62,6 @@
 #include <dev/usb/usbhid.h>
 
 #include <dev/usb/usbdi.h>
-#include <dev/usb/usbdivar.h>
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/usbdevs.h>
 #include <dev/usb/usb_quirks.h>
@@ -79,7 +77,7 @@
 #ifdef USB_DEBUG
 #define DPRINTF(x)	if (umsdebug) printf x
 #define DPRINTFN(n,x)	if (umsdebug>(n)) printf x
-int	umsdebug = 1;
+int	umsdebug = 0;
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
@@ -90,9 +88,9 @@ int	umsdebug = 1;
 #define PS2LBUTMASK	x01
 #define PS2RBUTMASK	x02
 #define PS2MBUTMASK	x04
-#define PS2BUTMASK	0x0f
+#define PS2BUTMASK 0x0f
 
-#define QUEUE_BUFSIZE	240	/* MUST be dividable by 3 _and_ 4 */
+#define QUEUE_BUFSIZE	240	/* MUST be divisible by 3 _and_ 4 */
 
 struct ums_softc {
 	bdevice sc_dev;			/* base device */
@@ -110,7 +108,7 @@ struct ums_softc {
 	int sc_disconnected;	/* device is gone */
 
 	int flags;		/* device configuration */
-#	define UMS_Z		0x01	/* z direction available */
+#define UMS_Z		0x01	/* z direction available */
 	int nbuttons;
 
 #if defined(__NetBSD__)
@@ -131,17 +129,8 @@ struct ums_softc {
 #endif
 };
 
-#define MOUSE_FLAGS_MASK	(HIO_CONST|HIO_RELATIVE)
-#define MOUSE_FLAGS		(HIO_RELATIVE)
-
-#if defined(__NetBSD__)
-int ums_match __P((struct device *, struct cfdata *, void *));
-void ums_attach __P((struct device *, struct device *, void *));
-#elif defined(__FreeBSD__)
-static device_probe_t ums_match;
-static device_attach_t ums_attach;
-static device_detach_t ums_detach;
-#endif
+#define MOUSE_FLAGS_MASK (HIO_CONST|HIO_RELATIVE)
+#define MOUSE_FLAGS (HIO_RELATIVE)
 
 void ums_intr __P((usbd_request_handle, usbd_private_handle, usbd_status));
 void ums_disco __P((void *));
@@ -151,6 +140,13 @@ static void	ums_disable __P((void *));
 
 #if defined(__NetBSD__)
 static int	ums_ioctl __P((void *, u_long, caddr_t, int, struct proc *));
+
+const struct wsmouse_accessops ums_accessops = {
+	ums_enable,
+	ums_ioctl,
+	ums_disable,
+};
+
 #elif defined(__FreeBSD__)
 static d_open_t ums_open;
 static d_close_t ums_close;
@@ -164,57 +160,15 @@ static struct  cdevsw ums_cdevsw = {
 	ums_open,	ums_close,	ums_read,	nowrite,
 	ums_ioctl,	nostop,		nullreset,	nodevtotty,
 	ums_poll,	nommap,
-	NULL,		"ums_",		NULL,		-1
+	NULL,		"ums",		NULL,		-1
 };
 #endif
 
-#if defined(__NetBSD__)
-const struct wsmouse_accessops ums_accessops = {
-	ums_enable,
-	ums_ioctl,
-	ums_disable,
-};
-#endif
+USB_DECLARE_DRIVER(ums);
 
-#if defined(__NetBSD__)
-extern struct cfdriver ums_cd;
-
-struct cfattach ums_ca = {
-	sizeof(struct ums_softc), ums_match, ums_attach
-};
-#elif defined(__FreeBSD__)
-static devclass_t ums_devclass;
-
-static device_method_t ums_methods[] = {
-        DEVMETHOD(device_probe, ums_match),
-        DEVMETHOD(device_attach, ums_attach),
-        DEVMETHOD(device_detach, ums_detach),
-        {0,0}
-};
-
-static driver_t ums_driver = {
-        "ums", 
-        ums_methods,   
-        DRIVER_TYPE_MISC,       
-        sizeof(struct ums_softc)
-};
-#endif
-
-
-#if defined(__NetBSD__)
-int
-ums_match(parent, match, aux)
-	struct device *parent;
-	struct cfdata *match;
-	void *aux;
+USB_MATCH(ums)
 {
-	struct usb_attach_arg *uaa = aux;
-#elif defined(__FreeBSD__)
-static int
-ums_match(device_t device)
-{
-        struct usb_attach_arg *uaa = device_get_ivars(device);
-#endif
+	USB_MATCH_START(ums, uaa);
 	usb_interface_descriptor_t *id;
 	int size, ret;
 	void *desc;
@@ -223,7 +177,7 @@ ums_match(device_t device)
 	if (!uaa->iface)
 		return (UMATCH_NONE);
 	id = usbd_get_interface_descriptor(uaa->iface);
-	if (id->bInterfaceClass != UCLASS_HID)
+	if (!id || id->bInterfaceClass != UCLASS_HID)
 		return (UMATCH_NONE);
 
 	r = usbd_alloc_report_desc(uaa->iface, &desc, &size, M_TEMP);
@@ -240,108 +194,77 @@ ums_match(device_t device)
 	return (ret);
 }
 
-#if defined(__NetBSD__)
-void
-ums_attach(parent, self, aux)
-	struct device *parent;
-	struct device *self;
-	void *aux;
+USB_ATTACH(ums)
 {
-	struct ums_softc *sc = (struct ums_softc *)self;
-	struct usb_attach_arg *uaa = aux;
-#elif defined(__FreeBSD__)
-static int
-ums_attach(device_t self)
-{
-        struct ums_softc *sc = device_get_softc(self);
-        struct usb_attach_arg *uaa = device_get_ivars(self);
-#endif
+	USB_ATTACH_START(ums, sc, uaa);
 	usbd_interface_handle iface = uaa->iface;
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed;
 #if defined(__NetBSD__)
 	struct wsmousedev_attach_args a;
 #endif
-	char devinfo[1024];
 	int size;
 	void *desc;
 	usbd_status r;
+	char devinfo[1024];
 	u_int32_t flags;
-	struct hid_location loc_btn;
 	int i;
+	struct hid_location loc_btn;
 	
 	sc->sc_disconnected = 1;
 	sc->sc_iface = iface;
 	id = usbd_get_interface_descriptor(iface);
 	usbd_devinfo(uaa->device, 0, devinfo);
-#if defined(__FreeBSD__)
-	usb_device_set_desc(self, devinfo);
-	printf("%s%d", device_get_name(self), device_get_unit(self));
-#endif
-	printf(": %s (interface class %d/%d)\n", devinfo,
-	       id->bInterfaceClass, id->bInterfaceSubClass);
-	sc->sc_dev = self;
+	USB_ATTACH_SETUP;
+	printf("%s: %s, iclass %d/%d\n", USBDEVNAME(sc->sc_dev),
+	       devinfo, id->bInterfaceClass, id->bInterfaceSubClass);
 	ed = usbd_interface2endpoint_descriptor(iface, 0);
 	if (!ed) {
-		DEVICE_ERROR(sc->sc_dev, ("could not read endpoint descriptor\n"));
-		ATTACH_ERROR_RETURN;
+		printf("%s: could not read endpoint descriptor\n",
+		       USBDEVNAME(sc->sc_dev));
+		USB_ATTACH_ERROR_RETURN;
 	}
 
 	DPRINTFN(10,("ums_attach: bLength=%d bDescriptorType=%d "
-		     "bEndpointAddress=%d-%s bmAttributes=%d wMaxPacketSize=%d "
-		     "bInterval=%d\n",
-	       ed->bLength, ed->bDescriptorType, ed->bEndpointAddress & UE_ADDR,
-	       ed->bEndpointAddress & UE_IN ? "in" : "out",
-	       ed->bmAttributes & UE_XFERTYPE,
-	       UGETW(ed->wMaxPacketSize), ed->bInterval));
+		     "bEndpointAddress=%d-%s bmAttributes=%d wMaxPacketSize=%d"
+		     " bInterval=%d\n",
+		     ed->bLength, ed->bDescriptorType, 
+		     ed->bEndpointAddress & UE_ADDR,
+		     ed->bEndpointAddress & UE_IN ? "in" : "out",
+		     ed->bmAttributes & UE_XFERTYPE,
+		     UGETW(ed->wMaxPacketSize), ed->bInterval));
 
 	if ((ed->bEndpointAddress & UE_IN) != UE_IN ||
 	    (ed->bmAttributes & UE_XFERTYPE) != UE_INTERRUPT) {
-		DEVICE_ERROR(sc->sc_dev, ("unexpected endpoint\n"));
-		ATTACH_ERROR_RETURN;
+		printf("%s: unexpected endpoint\n",
+		       USBDEVNAME(sc->sc_dev));
+		USB_ATTACH_ERROR_RETURN;
 	}
 
 	r = usbd_alloc_report_desc(uaa->iface, &desc, &size, M_TEMP);
 	if (r != USBD_NORMAL_COMPLETION)
-		ATTACH_ERROR_RETURN;
+		USB_ATTACH_ERROR_RETURN;
 
 	if (!hid_locate(desc, size, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_X),
 		       hid_input, &sc->sc_loc_x, &flags)) {
-		DEVICE_ERROR(sc->sc_dev, ("mouse has no X report\n"));
-		ATTACH_ERROR_RETURN;
+		printf("%s: mouse has no X report\n", USBDEVNAME(sc->sc_dev));
+		USB_ATTACH_ERROR_RETURN;
 	}
-	if ((flags & MOUSE_FLAGS_MASK) != MOUSE_FLAGS)
-		DEVICE_ERROR(sc->sc_dev, ("X report 0x%04x not supported\n",
-						flags));
+	if ((flags & MOUSE_FLAGS_MASK) != MOUSE_FLAGS) {
+		printf("%s: X report 0x%04x not supported\n",
+		       USBDEVNAME(sc->sc_dev), flags);
+		USB_ATTACH_ERROR_RETURN;
+	}
 
 	if (!hid_locate(desc, size, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_Y),
 		       hid_input, &sc->sc_loc_y, &flags)) {
-		DEVICE_ERROR(sc->sc_dev, ("mouse has no Y report\n"));
-		ATTACH_ERROR_RETURN;
+		printf("%s: mouse has no Y report\n", USBDEVNAME(sc->sc_dev));
+		USB_ATTACH_ERROR_RETURN;
 	}
-	if ((flags & MOUSE_FLAGS_MASK) != MOUSE_FLAGS)
-		DEVICE_ERROR(sc->sc_dev, ("Y report 0x%04x not supported\n",
-						flags));
-
-#ifndef USBVERBOSE
-	if (bootverbose)
-#endif
-	{
-		if (hid_locate(desc, size, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_Z),
-				       hid_input, &sc->sc_loc_z, &flags))
-			DEVICE_MSG(sc->sc_dev, ("Device has Z axis\n"));
-		if (hid_locate(desc, size, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_SLIDER),
-				       hid_input, &sc->sc_loc_z, &flags))
-			DEVICE_MSG(sc->sc_dev, ("Device has Slider\n"));
-		if (hid_locate(desc, size, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_DIAL),
-				       hid_input, &sc->sc_loc_z, &flags))
-			DEVICE_MSG(sc->sc_dev, ("Device has Dial\n"));
-		if (hid_locate(desc, size, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_WHEEL),
-				       hid_input, &sc->sc_loc_z, &flags))
-			DEVICE_MSG(sc->sc_dev, ("Device has Wheel\n"));
-		if (hid_locate(desc, size, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_HAT_SWITCH),
-				       hid_input, &sc->sc_loc_z, &flags))
-			DEVICE_MSG(sc->sc_dev, ("Device has Hat Switch\n"));
+	if ((flags & MOUSE_FLAGS_MASK) != MOUSE_FLAGS) {
+		printf("%s: Y report 0x%04x not supported\n",
+		       USBDEVNAME(sc->sc_dev), flags);
+		USB_ATTACH_ERROR_RETURN;
 	}
 
 	/* try to guess the Z activator: first check Z, then WHEEL */
@@ -351,13 +274,8 @@ ums_attach(device_t self)
 		       hid_input, &sc->sc_loc_z, &flags)) {
 		if ((flags & MOUSE_FLAGS_MASK) != MOUSE_FLAGS) {
 			sc->sc_loc_z.size = 0;	/* Bad Z coord, ignore it */
-#if !defined(__FreeBSD__)	/* FIXME */
-		/* IntelliMouse protocol is not properly implemented yet.
-		 * Probably the wisest to use the sysmouse protocol
-		 */
 		} else {
 			sc->flags |= UMS_Z;
-#endif
 		}
 	}
 
@@ -367,15 +285,13 @@ ums_attach(device_t self)
 				hid_input, &loc_btn, 0))
 			break;
 	sc->nbuttons = i - 1;
-	sc->sc_loc_btn = malloc(sizeof(struct hid_location)*sc->nbuttons, M_USBDEV, M_NOWAIT);
+	sc->sc_loc_btn = malloc(sizeof(struct hid_location)*sc->nbuttons, 
+				M_USBDEV, M_NOWAIT);
 	if (!sc->sc_loc_btn)
-		ATTACH_ERROR_RETURN;
+		USB_ATTACH_ERROR_RETURN;
 
-#ifndef USBVERBOSE
-	if (bootverbose)
-#endif
-		DEVICE_MSG(sc->sc_dev, ("%d buttons%s\n",
-			sc->nbuttons, (sc->flags & UMS_Z? " and Z dir.":"")));
+	printf("%s: %d buttons%s\n", USBDEVNAME(sc->sc_dev),
+	       sc->nbuttons, (sc->flags & UMS_Z? " and Z dir." : ""));
 
 	for (i = 1; i <= sc->nbuttons; i++)
 		hid_locate(desc, size, HID_USAGE2(HUP_BUTTON, i),
@@ -385,7 +301,7 @@ ums_attach(device_t self)
 	sc->sc_ibuf = malloc(sc->sc_isize, M_USB, M_NOWAIT);
 	if (!sc->sc_ibuf) {
 		free(sc->sc_loc_btn, M_USB);
-		ATTACH_ERROR_RETURN;
+		USB_ATTACH_ERROR_RETURN;
 	}
 
 	sc->sc_ep_addr = ed->bEndpointAddress;
@@ -444,7 +360,7 @@ ums_attach(device_t self)
 	sc->rsel.si_pid = 0;
 #endif
 
-	ATTACH_SUCCESS_RETURN;
+	USB_ATTACH_SUCCESS_RETURN;
 }
 
 
@@ -488,6 +404,11 @@ ums_intr(reqh, addr, status)
 	int dx, dy, dz;
 	u_char buttons = 0;
 	int i;
+#if defined(__NetBSD__)
+#define UMS_BUT(i) ((i) == 1 || (i) == 2 ? 3 - (i) : i)
+#elif defined(__FreeBSD__)
+#define UMS_BUT(i) (i)
+#endif
 
 	DPRINTFN(5, ("ums_intr: sc=%p status=%d\n", sc, status));
 	DPRINTFN(5, ("ums_intr: data = %02x %02x %02x\n",
@@ -513,9 +434,9 @@ ums_intr(reqh, addr, status)
 	/* NWH Why are you modifying the button assignments here?
 	 * That's the purpose of a high level mouse driver
 	 */
-	for (i = 1; i <= sc->nbuttons; i++)
-		if (hid_get_data(ibuf, &sc->sc_loc_btn[i-1]))
-			buttons |= (1 << (i-1));
+	for (i = 0; i < sc->nbuttons; i++)
+		if (hid_get_data(ibuf, &sc->sc_loc_btn[i]))
+			buttons |= (1 << UMS_BUT(i));
 
 #if defined(__NetBSD__)
 	if (dx || dy || buttons != sc->sc_buttons) {
@@ -559,14 +480,18 @@ ums_intr(reqh, addr, status)
 		}
 #ifdef USB_DEBUG
 		if (sc->qhead > sizeof(sc->qbuf))
-			DPRINTF(("Buffer overrun! %d %d\n", sc->qhead, sizeof(sc->qbuf)));
+			DPRINTF(("Buffer overrun! %d %d\n", 
+				 sc->qhead, sizeof(sc->qbuf)));
 #endif
-		if (sc->qhead >= sizeof(sc->qbuf))	/* wrap round at end of buffer */
+		/* wrap round at end of buffer */
+		if (sc->qhead >= sizeof(sc->qbuf))
 			sc->qhead = 0;
 
-		if (sc->state & UMS_ASLEEP)		/* someone waiting for data */
+		/* someone waiting for data */
+		if (sc->state & UMS_ASLEEP)
 			wakeup(sc);
-		selwakeup(&sc->rsel);			/* wake up any pending selects */
+		/* wake up any pending selects */
+		selwakeup(&sc->rsel);
 		sc->state &= ~UMS_SELECT;
 #endif
 	}
@@ -592,7 +517,7 @@ ums_enable(v)
 	sc->qhead = sc->qtail = 0;
 #ifdef USB_DEBUG
 	if (sizeof(sc->qbuf) % 4 || sizeof(sc->qbuf) % 3) {
-		DPRINTF(("Buffer size not dividable by 3 or 4\n"));
+		DPRINTF(("Buffer size not divisible by 3 or 4\n"));
 		return ENXIO;
 	}
 #endif
@@ -645,11 +570,11 @@ ums_ioctl(v, cmd, data, flag, p)
 {
 	switch (cmd) {
 	case WSMOUSEIO_GTYPE:
-		*(u_int *)data = WSMOUSE_TYPE_PS2;
+		*(u_int *)data = WSMOUSE_TYPE_USB;
 		return (0);
 	}
 
-	return (-1); /* NWH XXX Should we not return something ? */
+	return (-1);
 }
 
 #elif defined(__FreeBSD__)
@@ -808,6 +733,5 @@ ums_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 
 #if defined(__FreeBSD__)
 CDEV_DRIVER_MODULE(ums, usb, ums_driver, ums_devclass,
-			UMS_CDEV_MAJOR, ums_cdevsw, usb_driver_load, 0);
+			UMS_CDEV_MAJOR, ums_cdevsw, usbd_driver_load, 0);
 #endif
-

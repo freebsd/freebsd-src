@@ -1,12 +1,13 @@
-/*	$NetBSD: usbdi_util.h,v 1.4 1998/08/02 22:30:53 augustss Exp $	*/
+/*	$NetBSD: usbdi_util.h,v 1.12 1999/01/01 15:25:57 augustss Exp $	*/
 /*	FreeBSD $Id$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
- * Author: Lennart Augustsson <augustss@carlstedt.se>
- *         Carlstedt Research & Technology
+ * This code is derived from software contributed to The NetBSD Foundation
+ * by Lennart Augustsson (augustss@carlstedt.se) at
+ * Carlstedt Research & Technology.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -73,3 +74,19 @@ usbd_status	usbd_alloc_report_desc
 usbd_status	usbd_alloc_report_desc
 	__P((usbd_interface_handle ifc, void **descp, int *sizep, struct malloc_type * mem));
 #endif
+usbd_status	usbd_get_config
+	__P((usbd_device_handle dev, u_int8_t *conf));
+usbd_status	usbd_get_string_desc
+	__P((usbd_device_handle dev, int sindex, int langid, 
+	     usb_string_descriptor_t *sdesc));
+void		usbd_delay_ms __P((usbd_device_handle, u_int));
+
+
+usbd_status usbd_set_config_no
+	__P((usbd_device_handle dev, int no, int msg));
+usbd_status usbd_set_config_index
+	__P((usbd_device_handle dev, int index, int msg));
+
+usbd_status usbd_bulk_transfer
+	__P((usbd_request_handle reqh, usbd_pipe_handle pipe, u_int16_t flags,
+	     void *buf, u_int32_t *size, char *lbl));
