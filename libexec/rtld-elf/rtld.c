@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.13.2.2 1999/03/24 23:47:56 nate Exp $
+ *      $Id: rtld.c,v 1.13.2.3 1999/04/07 05:10:04 jdp Exp $
  */
 
 /*
@@ -133,9 +133,12 @@ static Obj_Entry **obj_tail;	/* Link field of last object in list */
 static Obj_Entry *obj_main;	/* The main program shared object */
 static Obj_Entry obj_rtld;	/* The dynamic linker shared object */
 
+static Elf_Sym sym_zero;	/* For resolving undefined weak refs. */
+
 #define GDB_STATE(s)	r_debug.r_state = s; r_debug_state();
 
 extern Elf_Dyn _DYNAMIC;
+
 
 /*
  * These are the functions the dynamic linker exports to application
@@ -271,6 +274,10 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     *obj_tail = obj_main;
     obj_tail = &obj_main->next;
     obj_main->refcount++;
+
+    /* Initialize a fake symbol for resolving undefined weak references. */
+    sym_zero.st_info = ELF_ST_INFO(STB_GLOBAL, STT_NOTYPE);
+    sym_zero.st_shndx = SHN_ABS;
 
     dbg("loading LD_PRELOAD libraries");
     if (load_preload_objects() == -1)
@@ -757,6 +764,11 @@ find_symdef(unsigned long symnum, const Obj_Entry *refobj,
     if (weakdef != NULL) {
 	*defobj_out = weakobj;
 	return weakdef;
+    }
+
+    if (ELF_ST_BIND(ref->st_info) == STB_WEAK) {
+	*defobj_out = obj_main;
+	return &sym_zero;
     }
 
     _rtld_error("%s: Undefined symbol \"%s\"", refobj->path, name);
