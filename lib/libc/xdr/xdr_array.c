@@ -78,11 +78,12 @@ xdr_array(xdrs, addrp, sizep, maxsize, elsize, elproc)
 	u_int nodesize;
 
 	/* like strings, arrays are really counted arrays */
-	if (! xdr_u_int(xdrs, sizep)) {
+	if (!xdr_u_int(xdrs, sizep)) {
 		return (FALSE);
 	}
 	c = *sizep;
-	if ((c > maxsize) && (xdrs->x_op != XDR_FREE)) {
+	if ((c > maxsize && UINT_MAX/elsize < c) &&
+	    (xdrs->x_op != XDR_FREE)) {
 		return (FALSE);
 	}
 	nodesize = c * elsize;
@@ -152,7 +153,7 @@ xdr_vector(xdrs, basep, nelem, elemsize, xdr_elem)
 
 	elptr = basep;
 	for (i = 0; i < nelem; i++) {
-		if (! (*xdr_elem)(xdrs, elptr)) {
+		if (!(*xdr_elem)(xdrs, elptr)) {
 			return(FALSE);
 		}
 		elptr += elemsize;
