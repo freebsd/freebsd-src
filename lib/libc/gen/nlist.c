@@ -197,6 +197,19 @@ __aout_fdnlist(fd, list)
 #endif
 
 #ifdef _NLIST_DO_ELF
+
+#if ELF_TARG_CLASS == ELFCLASS32
+
+#define Elf(x)		Elf32_##x
+#define ELF(x)		ELF32_##x
+
+#else
+
+#define Elf(x)		Elf64_##x
+#define ELF(x)		ELF64_##x
+
+#endif
+
 /*
  * __elf_is_okay__ - Determine if ehdr really
  * is ELF and valid for the target platform.
@@ -206,13 +219,13 @@ __aout_fdnlist(fd, list)
  */
 int
 __elf_is_okay__(ehdr)
-	register Elf32_Ehdr *ehdr;
+	register Elf(Ehdr) *ehdr;
 {
 	register int retval = 0;
 	/*
 	 * We need to check magic, class size, endianess,
 	 * and version before we look at the rest of the
-	 * Elf32_Ehdr structure.  These few elements are
+	 * Elf(Ehdr) structure.  These few elements are
 	 * represented in a machine independant fashion.
 	 */
 	if (IS_ELF(*ehdr) &&
@@ -235,19 +248,19 @@ __elf_fdnlist(fd, list)
 {
 	register struct nlist *p;
 	register caddr_t strtab;
-	register Elf32_Off symoff = 0, symstroff = 0;
-	register Elf32_Word symsize = 0, symstrsize = 0;
-	register Elf32_Sword nent, cc, i;
-	Elf32_Sym sbuf[1024];
-	Elf32_Sym *s;
-	Elf32_Ehdr ehdr;
-	Elf32_Shdr *shdr = NULL;
-	Elf32_Word shdr_size;
+	register Elf_Off symoff = 0, symstroff = 0;
+	register Elf_Word symsize = 0, symstrsize = 0;
+	register Elf_Sword nent, cc, i;
+	Elf_Sym sbuf[1024];
+	Elf_Sym *s;
+	Elf_Ehdr ehdr;
+	Elf_Shdr *shdr = NULL;
+	Elf_Word shdr_size;
 	struct stat st;
 
 	/* Make sure obj is OK */
 	if (lseek(fd, (off_t)0, SEEK_SET) == -1 ||
-	    read(fd, &ehdr, sizeof(Elf32_Ehdr)) != sizeof(Elf32_Ehdr) ||
+	    read(fd, &ehdr, sizeof(Elf_Ehdr)) != sizeof(Elf_Ehdr) ||
 	    !__elf_is_okay__(&ehdr) ||
 	    fstat(fd, &st) < 0)
 		return (-1);
@@ -262,9 +275,9 @@ __elf_fdnlist(fd, list)
 	}
 
 	/* mmap section header table */
-	shdr = (Elf32_Shdr *)mmap(NULL, (size_t)shdr_size,
+	shdr = (Elf_Shdr *)mmap(NULL, (size_t)shdr_size,
 				  PROT_READ, 0, fd, (off_t) ehdr.e_shoff);
-	if (shdr == (Elf32_Shdr *)-1)
+	if (shdr == (Elf_Shdr *)-1)
 		return (-1);
 
 	/*
@@ -349,7 +362,7 @@ __elf_fdnlist(fd, list)
 
 					/* XXX - type conversion */
 					/*	 is pretty rude. */
-					switch(ELF32_ST_TYPE(s->st_info)) {
+					switch(ELF(ST_TYPE)(s->st_info)) {
 						case STT_NOTYPE:
 							p->n_type = N_UNDF;
 							break;
@@ -363,7 +376,7 @@ __elf_fdnlist(fd, list)
 							p->n_type = N_FN;
 							break;
 					}
-					if (ELF32_ST_BIND(s->st_info) ==
+					if (ELF(ST_BIND)(s->st_info) ==
 					    STB_LOCAL)
 						p->n_type = N_EXT;
 					p->n_desc = 0;
