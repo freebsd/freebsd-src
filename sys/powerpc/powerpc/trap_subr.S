@@ -46,8 +46,6 @@
 #define	EXC_AST	0x3000
 	.data
 	.align	4
-astpending:
-	.long	0
 cpassert:
 	.asciz	"attempting to return from kernel with no current pmap"
 
@@ -273,48 +271,6 @@ CNAME(isitrap601):
 1:
 	bla	s_isitrap
 CNAME(isi601size)= .-CNAME(isitrap601)
-
-/*
- * This one for the external interrupt handler.
- */
-	.globl	CNAME(extint),CNAME(extsize)
-CNAME(extint):
-	mtsprg	1,1			/* save SP */
-	stmw	28,tempsave(0)		/* free r28-r31 */
-	mflr	28			/* save LR */
-	mfcr	29			/* save CR */
-	mfxer	30			/* save XER */
-	lis	1,intstk+INTSTK@ha	/* get interrupt stack */
-	addi	1,1,intstk+INTSTK@l	/* this is really intr_depth! */
-	lwz	31,0(1)			/* were we already running on intstk? */
-	addic.	31,31,1
-	stw	31,0(1)
-	beq	1f
-	mfsprg	1,1			/* yes, get old SP */
-1:
-	ba	extintr
-CNAME(extsize) = .-CNAME(extint)
-
-/*
- * And this one for the decrementer interrupt handler.
- */
-	.globl	CNAME(decrint),CNAME(decrsize)
-CNAME(decrint):
-	mtsprg	1,1			/* save SP */
-	stmw	28,tempsave(0)		/* free r28-r31 */
-	mflr	28			/* save LR */
-	mfcr	29			/* save CR */
-	mfxer	30			/* save XER */
-	lis	1,intstk+INTSTK@ha	/* get interrupt stack */
-	addi	1,1,intstk+INTSTK@l
-	lwz	31,0(1)			/* were we already running on intstk? */
-	addic.	31,31,1
-	stw	31,0(1)
-	beq	1f
-	mfsprg	1,1			/* yes, get old SP */
-1:
-	ba	decrintr
-CNAME(decrsize) = .-CNAME(decrint)
 
 /*
  * Now the tlb software load for 603 processors:
@@ -579,7 +535,7 @@ CNAME(ipkdbsize) = .-CNAME(ipkdblow)
 	mfsrr1	31;							\
 	stmw	30,savearea+24(0);					\
 	mfmsr	30;							\
-	ori	30,30,(PSL_DR|PSL_IR);					\
+	ori	30,30,(PSL_DR|PSL_IR)@l;				\
 	mtmsr	30;							\
 	isync;								\
 	mfsprg	31,1;							\
@@ -710,16 +666,20 @@ s_trap:
 	mtsr	7,31
 	FRAME_SETUP(tempsave)
 /* Now we can recover interrupts again: */
+#if 0
 	mfmsr	7
 	ori	7,7,(PSL_EE|PSL_ME|PSL_RI)@l
 	mtmsr	7
 	isync
-/* Call C trap code: */
+#endif
+/* Call C interrupt dispatcher: */
 trapagain:
 	addi	3,1,8
-	bl	CNAME(trap)
+	bl	CNAME(powerpc_interrupt)
 	.globl	CNAME(trapexit)
 CNAME(trapexit):
+
+#if 0	
 /* Disable interrupts: */
 	mfmsr	3
 	andi.	3,3,~PSL_EE@l
@@ -728,14 +688,24 @@ CNAME(trapexit):
 	lwz	5,FRAME_SRR1+8(1)
 	mtcr	5
 	bc	4,17,1f			/* branch if PSL_PR is false */
-	lis	3,CNAME(astpending)@ha
-	lwz	4,CNAME(astpending)@l(3)
-	andi.	4,4,1
+
+	mfsprg	3, 0			/* get per-CPU pointer */
+	lwz	4, PC_CURTHREAD(3)	/* deref to get curthread */
+	lwz	3, TD_KSE(4)		/* deref to get current KSE */
+	lwz	4, KE_FLAGS(3)		/* get KSE flags value */
+	andi.	4,4,KEF_ASTPENDING|KEF_NEEDRESCHED
 	beq	1f
-	li	6,EXC_AST
+	li	6,EXC_AST		/* update exception type */
 	stw	6,FRAME_EXC+8(1)
-	b	trapagain
+	mfmsr	3			/* re-enable interrupts */
+	ori	3,3,PSL_EE@l
+	mtmsr	3
+	isync
+	addi	3,1,8
+	bl	CNAME(ast_test)
+	b	trapexit		/* test ast ret value ? */
 1:
+#endif	
 	FRAME_LEAVE(tempsave)
 	rfi
 
@@ -820,157 +790,6 @@ s_isitrap:
 	mfsrr0	3
 	b	s_pte_spill		/* above */
 
-/*
- * External interrupt second level handler
- */
-#define	INTRENTER							\
-/* Save non-volatile registers: */					\
-	stwu	1,-IFRAMELEN(1);	/* temporarily */		\
-	stw	0,IFRAME_R0(1);						\
-	mfsprg	0,1;			/* get original SP */		\
-	stw	0,IFRAME_R1(1);		/* and store it */		\
-	stw	3,IFRAME_R3(1);						\
-	stw	4,IFRAME_R4(1);						\
-	stw	5,IFRAME_R5(1);						\
-	stw	6,IFRAME_R6(1);						\
-	stw	7,IFRAME_R7(1);						\
-	stw	8,IFRAME_R8(1);						\
-	stw	9,IFRAME_R9(1);						\
-	stw	10,IFRAME_R10(1);					\
-	stw	11,IFRAME_R11(1);					\
-	stw	12,IFRAME_R12(1);					\
-	stw	28,IFRAME_LR(1);	/* saved LR */			\
-	stw	29,IFRAME_CR(1);	/* saved CR */			\
-	stw	30,IFRAME_XER(1);	/* saved XER */			\
-	lmw	28,tempsave(0);		/* restore r28-r31 */		\
-	mfctr	6;							\
-	lis	5,CNAME(intr_depth)@ha;				\
-	lwz	5,CNAME(intr_depth)@l(5);				\
-	mfsrr0	4;							\
-	mfsrr1	3;							\
-	stw	6,IFRAME_CTR(1);					\
-	stw	5,IFRAME_INTR_DEPTH(1);					\
-	stw	4,IFRAME_SRR0(1);					\
-	stw	3,IFRAME_SRR1(1);					\
-	mtcr	3;							\
-	bc	4,17,99f;	/* branch if PSL_PR is false */		\
-	lis	3,EMPTY_SEGMENT@h;					\
-	ori	3,3,EMPTY_SEGMENT@l;					\
-	mtsr	0,3;		/* reset SRs so BAT spills work */	\
-	mtsr	1,3;							\
-	mtsr	2,3;							\
-	mtsr	3,3;							\
-	mtsr	4,3;							\
-	mtsr	5,3;							\
-	mtsr	6,3;							\
-	mtsr	7,3;							\
-/* interrupts are recoverable here, and enable translation */		\
-	lis	3,(KERNEL_SEGMENT|SR_KS|SR_KP)@h;			\
-	ori	3,3,(KERNEL_SEGMENT|SR_KS|SR_KP)@l;			\
-	mtsr	KERNEL_SR,3;						\
-99:	mfmsr	5;							\
-	ori	5,5,(PSL_IR|PSL_DR|PSL_RI);				\
-	mtmsr	5;							\
-	isync
-
-	.globl	CNAME(extint_call)
-extintr:
-	INTRENTER
-CNAME(extint_call):
-	bl	CNAME(extint_call)	/* to be filled in later */
-
-intr_exit:
-/* Disable interrupts (should already be disabled) and MMU here: */
-	mfmsr	3
-	andi.	3,3,~(PSL_EE|PSL_ME|PSL_RI|PSL_DR|PSL_IR)@l
-	mtmsr	3
-	isync
-/* restore possibly overwritten registers: */
-	lwz	12,IFRAME_R12(1)
-	lwz	11,IFRAME_R11(1)
-	lwz	10,IFRAME_R10(1)
-	lwz	9,IFRAME_R9(1)
-	lwz	8,IFRAME_R8(1)
-	lwz	7,IFRAME_R7(1)
-	lwz	6,IFRAME_SRR1(1)
-	lwz	5,IFRAME_SRR0(1)
-	lwz	4,IFRAME_CTR(1)
-	lwz	3,IFRAME_XER(1)
-	mtsrr1	6
-	mtsrr0	5
-	mtctr	4
-	mtxer	3
-/* Returning to user mode? */
-	mtcr	6			/* saved SRR1 */
-	bc	4,17,1f			/* branch if PSL_PR is false */
-	mfsprg	31,0
-	lwz	3,PC_CURPMAP(31)
-	lwz	4,PM_SR+0(3)
-	mtsr	0,4			/* Restore SR0 */
-	lwz	4,PM_SR+4(3)
-	mtsr	1,4			/* Restore SR1 */
-	lwz	4,PM_SR+8(3)
-	mtsr	2,4			/* Restore SR2 */
-	lwz	4,PM_SR+12(3)
-	mtsr	3,4			/* Restore SR3 */
-	lwz	4,PM_SR+16(3)
-	mtsr	4,4			/* Restore SR4 */
-	lwz	4,PM_SR+20(3)
-	mtsr	5,4			/* Restore SR5 */
-	lwz	4,PM_SR+24(3)
-	mtsr	6,4			/* Restore SR6 */
-	lwz	4,PM_SR+28(3)
-	mtsr	7,4			/* Restore SR7 */
-	lwz	3,PM_KERNELSR(3)
-	mtsr	KERNEL_SR,3		/* Restore kernel SR */
-	lis	3,CNAME(astpending)@ha /* Test AST pending */
-	lwz	4,CNAME(astpending)@l(3)
-	andi.	4,4,1
-	beq	1f
-/* Setup for entry to realtrap: */
-	lwz	3,IFRAME_R1(1)		/* get saved SP */
-	mtsprg	1,3
-	li	6,EXC_AST
-	stmw	28,tempsave(0)		/* establish tempsave again */
-	mtlr	6
-	lwz	28,IFRAME_LR(1)		/* saved LR */
-	lwz	29,IFRAME_CR(1)		/* saved CR */
-	lwz	6,IFRAME_R6(1)
-	lwz	5,IFRAME_R5(1)
-	lwz	4,IFRAME_R4(1)
-	lwz	3,IFRAME_R3(1)
-	lwz	0,IFRAME_R0(1)
-	lis	30,CNAME(intr_depth)@ha /* adjust reentrancy count */
-	lwz	31,CNAME(intr_depth)@l(30)
-	addi	31,31,-1
-	stw	31,CNAME(intr_depth)@l(30)
-	b	realtrap
-1:
-/* Here is the normal exit of extintr: */
-	lwz	5,IFRAME_CR(1)
-	lwz	6,IFRAME_LR(1)
-	mtcr	5
-	mtlr	6
-	lwz	6,IFRAME_R6(1)
-	lwz	5,IFRAME_R5(1)
-	lis	3,CNAME(intr_depth)@ha /* adjust reentrancy count */
-	lwz	4,CNAME(intr_depth)@l(3)
-	addi	4,4,-1
-	stw	4,CNAME(intr_depth)@l(3)
-	lwz	4,IFRAME_R4(1)
-	lwz	3,IFRAME_R3(1)
-	lwz	0,IFRAME_R0(1)
-	lwz	1,IFRAME_R1(1)
-	rfi
-
-/*
- * Decrementer interrupt second level handler
- */
-decrintr:
-	INTRENTER
-	addi	3,1,8			/* intr frame -> clock frame */
-	bl	CNAME(decr_intr)
-	b	intr_exit
 
 #if defined(DDB)
 /*
