@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1996/10/23 07:24:42 asami Exp $
+#	$Id: Makefile,v 1.2.2.1 1996/11/10 12:12:39 phk Exp $
 #
 
 PROG=	boot
@@ -17,6 +17,7 @@ CFLAGS=		-O2 -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
 		-I${.CURDIR}/../biosboot \
 		-DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
+CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	${CWARNFLAGS}
 
 # Probe the keyboard and use the serial console if the keyboard isn't found.
