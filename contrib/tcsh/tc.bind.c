@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.bind.c,v 3.33 1998/11/24 18:17:40 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.bind.c,v 3.35 2000/11/11 23:03:38 christos Exp $ */
 /*
  * tc.bind.c: Key binding functions
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.bind.c,v 3.33 1998/11/24 18:17:40 christos Exp $")
+RCSID("$Id: tc.bind.c,v 3.35 2000/11/11 23:03:38 christos Exp $")
 
 #include "ed.h"
 #include "ed.defns.h"
@@ -292,11 +292,11 @@ parsebind(s, str)
     switch (*s) {
     case '^':
 	s++;
-#ifndef _OSD_POSIX
+#ifdef IS_ASCII
 	*b++ = (*s == '?') ? '\177' : ((*s & CHAR) & 0237);
-#else /*_OSD_POSIX*/
+#else
 	*b++ = (*s == '?') ? CTL_ESC('\177') : _toebcdic[_toascii[*s & CHAR] & 0237];
-#endif /*_OSD_POSIX*/
+#endif
 	*b = '\0';
 	break;
 
@@ -304,9 +304,9 @@ parsebind(s, str)
     case 'M':
     case 'X':
     case 'C':
-#ifdef WINNT
+#ifdef WINNT_NATIVE
     case 'N':
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 	if (s[1] != '-' || s[2] == '\0') {
 	    bad_spec(s);
 	    return NULL;
@@ -321,20 +321,20 @@ parsebind(s, str)
 	    break;
 
 	case 'C': case 'c':	/* Turn into ^c */
-#ifndef _OSD_POSIX
+#ifdef IS_ASCII
 	    *b++ = (*s == '?') ? '\177' : ((*s & CHAR) & 0237);
-#else /*_OSD_POSIX*/
+#else
 	    *b++ = (*s == '?') ? CTL_ESC('\177') : _toebcdic[_toascii[*s & CHAR] & 0237];
-#endif /*_OSD_POSIX*/
+#endif
 	    *b = '\0';
 	    break;
 
 	case 'X' : case 'x':	/* Turn into ^Xc */
-#ifndef _OSD_POSIX
+#ifdef IS_ASCII
 	    *b++ = 'X' & 0237;
-#else /*_OSD_POSIX*/
+#else
 	    *b++ = _toebcdic[_toascii['X'] & 0237];
-#endif /*_OSD_POSIX*/
+#endif
 	    *b++ = *s;
 	    *b = '\0';
 	    break;
@@ -346,17 +346,17 @@ parsebind(s, str)
 	    	*b++ = *s;
 	    } else {
 #endif /* DSPMBYTE */
-#ifndef _OSD_POSIX
+#ifdef IS_ASCII
 	    *b++ = *s | 0x80;
-#else /*_OSD_POSIX*/
+#else
 	    *b++ = _toebcdic[_toascii[*s] | 0x80];
-#endif /*_OSD_POSIX*/
+#endif
 #ifdef DSPMBYTE
 	    }
 #endif /* DSPMBYTE */
 	    *b = '\0';
 	    break;
-#ifdef WINNT
+#ifdef WINNT_NATIVE
 	case 'N' : case 'n':	/* NT */
 		{
 			Char bnt;
@@ -368,7 +368,7 @@ parsebind(s, str)
 				bad_spec(s);
 		}
 	    break;
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 
 	default:
 	    abort();
@@ -576,9 +576,10 @@ tocontrol(c)
     if (c == '?')
 	c = CTL_ESC('\177');
     else
-#ifndef _OSD_POSIX
+#ifdef IS_ASCII
 	c &= 037;
-#else /* EBCDIC: simulate ASCII-behavior by transforming to ASCII and back */
+#else
+	/* EBCDIC: simulate ASCII-behavior by transforming to ASCII and back */
 	c  = _toebcdic[_toascii[c] & 037];
 #endif
     return (c);
@@ -621,7 +622,7 @@ unparsekey(c)			/* 'c' -> "c", '^C' -> "^" + "C" */
     case '\t':
 	(void) strcpy(cp, "Tab");
 	return (tmp);
-#ifndef _OSD_POSIX
+#ifdef IS_ASCII
     case '\033':
 	(void) strcpy(cp, "Esc");
 	return (tmp);
@@ -638,7 +639,7 @@ unparsekey(c)			/* 'c' -> "c", '^C' -> "^" + "C" */
 	}
 	*cp = '\0';
 	return (tmp);
-#else /*_OSD_POSIX*/
+#else /* IS_ASCII */
     default:
         if (*cp == CTL_ESC('\033')) {
 	    (void) strcpy(cp, "Esc");
@@ -657,7 +658,7 @@ unparsekey(c)			/* 'c' -> "c", '^C' -> "^" + "C" */
 	    xsnprintf(cp, 3, "\\%3.3o", c);
 	    cp += 4;
 	}
-#endif /*_OSD_POSIX*/
+#endif /* IS_ASCII */
     }
 }
 
@@ -898,7 +899,7 @@ dobind(v, dummy)
 			if (i != CTL_ESC('\033') && (CcKeyMap[i] == F_XKEY ||
 					 CcAltMap[i] == F_XKEY)) {
 			    p = buf;
-#ifndef _OSD_POSIX /* this is only for ASCII, not for EBCDIC */
+#ifdef IS_ASCII
 			    if (i > 0177) {
 				*p++ = 033;
 				*p++ = i & ASCII;
@@ -906,9 +907,9 @@ dobind(v, dummy)
 			    else {
 				*p++ = (Char) i;
 			    }
-#else /*_OSD_POSIX*/
+#else
 			    *p++ = (Char) i;
-#endif /*_OSD_POSIX*/
+#endif
 			    for (l = s; *l != 0; l++) {
 				*p++ = *l;
 			    }

@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.dol.c,v 3.42 2000/10/31 16:55:52 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.dol.c,v 3.45 2000/11/19 20:50:43 christos Exp $ */
 /*
  * sh.dol.c: Variable substitutions
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.dol.c,v 3.42 2000/10/31 16:55:52 christos Exp $")
+RCSID("$Id: sh.dol.c,v 3.45 2000/11/19 20:50:43 christos Exp $")
 
 /*
  * C shell
@@ -1025,9 +1025,11 @@ heredoc(term)
     Char  **vp;
     bool    quoted;
     char   *tmp;
+#ifndef WINNT_NATIVE
     struct timeval tv;
 
 again:
+#endif /* WINNT_NATIVE */
     tmp = short2str(shtemp);
 #ifndef O_CREAT
 # define O_CREAT 0
@@ -1043,14 +1045,16 @@ again:
 #endif
     if (open(tmp, O_RDWR|O_CREAT|O_EXCL|O_TEMPORARY) == -1) {
 	int oerrno = errno;
+#ifndef WINNT_NATIVE
 	if (errno == EEXIST) {
 	    if (unlink(tmp) == -1) {
 		(void) gettimeofday(&tv, NULL);
 		shtemp = Strspl(STRtmpsh, putn((((int)tv.tv_sec) ^ 
-		    ((int)tv.tv_usec) ^ ((int)doldol)) & 0x00ffffff));
+		    ((int)tv.tv_usec) ^ ((int)getpid())) & 0x00ffffff));
 	    }
 	    goto again;
 	}
+#endif /* WINNT_NATIVE */
 	(void) unlink(tmp);
 	errno = oerrno;
  	stderror(ERR_SYSTEM, tmp, strerror(errno));
@@ -1065,9 +1069,9 @@ again:
     ocnt = BUFSIZE;
     obp = obuf;
     inheredoc = 1;
-#ifdef WINNT
+#ifdef WINNT_NATIVE
     __dup_stdin = 1;
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
     for (;;) {
 	/*
 	 * Read up a line

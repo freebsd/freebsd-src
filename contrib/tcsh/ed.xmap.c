@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.xmap.c,v 3.21 1999/06/01 20:01:32 christos Exp $ */
+/* $Header: /src/pub/tcsh/ed.xmap.c,v 3.23 2000/11/11 23:03:35 christos Exp $ */
 /*
  * ed.xmap.c: This module contains the procedures for maintaining
  *	      the extended-key map.
@@ -92,7 +92,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: ed.xmap.c,v 3.21 1999/06/01 20:01:32 christos Exp $")
+RCSID("$Id: ed.xmap.c,v 3.23 2000/11/11 23:03:35 christos Exp $")
 
 #include "ed.h"
 #include "ed.defns.h"
@@ -632,13 +632,13 @@ unparsech(cnt, ch)
     }
 
     if (Iscntrl(*ch)) {
-#ifndef _OSD_POSIX
+#ifdef IS_ASCII
 	printbuf[cnt++] = '^';
 	if (*ch == CTL_ESC('\177'))
 	    printbuf[cnt] = '?';
 	else
 	    printbuf[cnt] = *ch | 0100;
-#else /*_OSD_POSIX*/
+#else
 	if (*ch == CTL_ESC('\177'))
 	{
 		printbuf[cnt++] = '^';
@@ -657,7 +657,7 @@ unparsech(cnt, ch)
 		printbuf[cnt++] = ((*ch >> 3) & 7) + '0';
 		printbuf[cnt] = (*ch & 7) + '0';
 	}
-#endif /*_OSD_POSIX*/
+#endif
     }
     else if (*ch == '^') {
 	printbuf[cnt++] = '\\';
@@ -743,7 +743,7 @@ parseescape(ptr)
 			    "Octal constant does not fit in a char.\n"));
 		    return 0;
 		}
-#ifdef _OSD_POSIX
+#ifndef IS_ASCII
 		if (CTL_ESC(val) != val && adrof(STRwarnebcdic))
 		    xprintf(/*CGETS(9, 9, no NLS-String yet!*/
 			    "Warning: Octal constant \\%3.3o is interpreted as EBCDIC value.\n", val/*)*/);
@@ -760,14 +760,14 @@ parseescape(ptr)
     else if ((*p & CHAR) == '^' && (Isalpha(p[1] & CHAR) || 
 				    strchr("@^_?\\|[{]}", p[1] & CHAR))) {
 	p++;
-#ifndef _OSD_POSIX
+#ifdef IS_ASCII
 	c = ((*p & CHAR) == '?') ? CTL_ESC('\177') : ((*p & CHAR) & 0237);
-#else /*_OSD_POSIX*/
+#else
 	c = ((*p & CHAR) == '?') ? CTL_ESC('\177') : _toebcdic[_toascii[*p & CHAR] & 0237];
 	if (adrof(STRwarnebcdic))
 	    xprintf(/*CGETS(9, 9, no NLS-String yet!*/
 		"Warning: Control character ^%c may be interpreted differently in EBCDIC.\n", *p & CHAR /*)*/);
-#endif /*_OSD_POSIX*/
+#endif
     }
     else
 	c = *p;
@@ -788,22 +788,22 @@ unparsestring(str, buf, sep)
 
     b = buf;
     if (sep[0])
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 	*b++ = sep[0];
-#else /* WINNT */
+#else /* WINNT_NATIVE */
 	*b++ = CHAR & sep[0];
-#endif /* !WINNT */
+#endif /* !WINNT_NATIVE */
 
     for (l = 0; l < str->len; l++) {
 	p = str->buf[l];
 	if (Iscntrl(p)) {
-#ifndef _OSD_POSIX
+#ifdef IS_ASCII
 	    *b++ = '^';
 	    if (p == CTL_ESC('\177'))
 		*b++ = '?';
 	    else
 		*b++ = (unsigned char) (p | 0100);
-#else /*_OSD_POSIX*/
+#else
 	    if (_toascii[p] == '\177' || Isupper(_toebcdic[_toascii[p]|0100])
 		 || strchr("@[\\]^_", _toebcdic[_toascii[p]|0100]) != NULL)
 	    {
@@ -817,7 +817,7 @@ unparsestring(str, buf, sep)
 		*b++ = ((p >> 3) & 7) + '0';
 		*b++ = (p & 7) + '0';
 	    }
-#endif /*_OSD_POSIX*/
+#endif
 	}
 	else if (p == '^' || p == '\\') {
 	    *b++ = '\\';
@@ -834,11 +834,11 @@ unparsestring(str, buf, sep)
 	}
     }
     if (sep[0] && sep[1])
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 	*b++ = sep[1];
-#else /* WINNT */
+#else /* WINNT_NATIVE */
 	*b++ = CHAR & sep[1];
-#endif /* !WINNT */
+#endif /* !WINNT_NATIVE */
     *b++ = 0;
     return buf;			/* should check for overflow */
 }
