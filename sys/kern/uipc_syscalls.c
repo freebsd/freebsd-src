@@ -75,11 +75,10 @@
 static void sf_buf_init(void *arg);
 SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL)
 struct sf_buf *sf_buf_alloc(void);
-void sf_buf_free(caddr_t addr, void *args);
+void sf_buf_free(void *addr, void *args);
 
 static int sendit(struct thread *td, int s, struct msghdr *mp, int flags);
-static int recvit(struct thread *td, int s, struct msghdr *mp,
-		  caddr_t namelenp);
+static int recvit(struct thread *td, int s, struct msghdr *mp, void *namelenp);
   
 static int accept1(struct thread *td, struct accept_args *uap, int compat);
 static int getsockname1(struct thread *td, struct getsockname_args *uap,
@@ -143,7 +142,7 @@ socket(td, uap)
 		} else
 			FILEDESC_UNLOCK(fdp);
 	} else {
-		fp->f_data = (caddr_t)so;	/* already has ref count */
+		fp->f_data = so;	/* already has ref count */
 		fp->f_flag = FREAD|FWRITE;
 		fp->f_ops = &socketops;
 		fp->f_type = DTYPE_SOCKET;
@@ -236,8 +235,7 @@ accept1(td, uap, compat)
 	mtx_lock(&Giant);
 	fdp = td->td_proc->p_fd;
 	if (uap->name) {
-		error = copyin((caddr_t)uap->anamelen, (caddr_t)&namelen,
-			sizeof (namelen));
+		error = copyin(uap->anamelen, &namelen, sizeof (namelen));
 		if(error)
 			goto done2;
 	}
@@ -260,7 +258,7 @@ accept1(td, uap, compat)
 			head->so_error = ECONNABORTED;
 			break;
 		}
-		error = tsleep((caddr_t)&head->so_timeo, PSOCK | PCATCH,
+		error = tsleep(&head->so_timeo, PSOCK | PCATCH,
 		    "accept", 0);
 		if (error) {
 			splx(s);
@@ -312,7 +310,7 @@ accept1(td, uap, compat)
 
 	FILE_LOCK(nfp);
 	soref(so);			/* file descriptor reference */
-	nfp->f_data = (caddr_t)so;	/* nfp has ref count from falloc */
+	nfp->f_data = so;		/* nfp has ref count from falloc */
 	nfp->f_flag = fflag;
 	nfp->f_ops = &socketops;
 	nfp->f_type = DTYPE_SOCKET;
@@ -326,8 +324,8 @@ accept1(td, uap, compat)
 		 */	
 		if (uap->name != NULL) {
 			namelen = 0;
-			(void) copyout((caddr_t)&namelen,
-			    (caddr_t)uap->anamelen, sizeof(*uap->anamelen));
+			(void) copyout(&namelen,
+			    uap->anamelen, sizeof(*uap->anamelen));
 		}
 		goto noconnection;
 	}
@@ -348,11 +346,11 @@ accept1(td, uap, compat)
 			((struct osockaddr *)sa)->sa_family =
 			    sa->sa_family;
 #endif
-		error = copyout(sa, (caddr_t)uap->name, (u_int)namelen);
+		error = copyout(sa, uap->name, (u_int)namelen);
 		if (!error)
 gotnoname:
-			error = copyout((caddr_t)&namelen,
-			    (caddr_t)uap->anamelen, sizeof (*uap->anamelen));
+			error = copyout(&namelen,
+			    uap->anamelen, sizeof (*uap->anamelen));
 	}
 noconnection:
 	if (sa)
@@ -449,7 +447,7 @@ connect(td, uap)
 	}
 	s = splnet();
 	while ((so->so_state & SS_ISCONNECTING) && so->so_error == 0) {
-		error = tsleep((caddr_t)&so->so_timeo, PSOCK | PCATCH, "connec", 0);
+		error = tsleep(&so->so_timeo, PSOCK | PCATCH, "connec", 0);
 		if (error)
 			break;
 	}
@@ -502,12 +500,12 @@ socketpair(td, uap)
 		goto free2;
 	fhold(fp1);
 	sv[0] = fd;
-	fp1->f_data = (caddr_t)so1;	/* so1 already has ref count */
+	fp1->f_data = so1;		/* so1 already has ref count */
 	error = falloc(td, &fp2, &fd);
 	if (error)
 		goto free3;
 	fhold(fp2);
-	fp2->f_data = (caddr_t)so2;	/* so2 already has ref count */
+	fp2->f_data = so2;		/* so2 already has ref count */
 	sv[1] = fd;
 	error = soconnect2(so1, so2);
 	if (error)
@@ -530,7 +528,7 @@ socketpair(td, uap)
 	fp2->f_ops = &socketops;
 	fp2->f_type = DTYPE_SOCKET;
 	FILE_UNLOCK(fp2);
-	error = copyout((caddr_t)sv, (caddr_t)uap->rsv, 2 * sizeof (int));
+	error = copyout(sv, uap->rsv, 2 * sizeof (int));
 	fdrop(fp1, td);
 	fdrop(fp2, td);
 	goto done2;
@@ -638,7 +636,7 @@ sendit(td, s, mp, flags)
 	if (KTRPOINT(td, KTR_GENIO)) {
 		iovlen = auio.uio_iovcnt * sizeof (struct iovec);
 		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
-		bcopy((caddr_t)auio.uio_iov, (caddr_t)ktriov, iovlen);
+		bcopy(auio.uio_iov, ktriov, iovlen);
 		ktruio = auio;
 	}
 #endif
@@ -759,7 +757,7 @@ osendmsg(td, uap)
 	int error;
 
 	mtx_lock(&Giant);
-	error = copyin(uap->msg, (caddr_t)&msg, sizeof (struct omsghdr));
+	error = copyin(uap->msg, &msg, sizeof (struct omsghdr));
 	if (error)
 		goto done2;
 	if ((u_int)msg.msg_iovlen >= UIO_SMALLIOV) {
@@ -773,7 +771,7 @@ osendmsg(td, uap)
 	} else {
 		iov = aiov;
 	}
-	error = copyin((caddr_t)msg.msg_iov, (caddr_t)iov,
+	error = copyin(msg.msg_iov, iov,
 	    (unsigned)(msg.msg_iovlen * sizeof (struct iovec)));
 	if (error)
 		goto done;
@@ -806,7 +804,7 @@ sendmsg(td, uap)
 	int error;
 
 	mtx_lock(&Giant);
-	error = copyin(uap->msg, (caddr_t)&msg, sizeof (msg));
+	error = copyin(uap->msg, &msg, sizeof (msg));
 	if (error)
 		goto done2;
 	if ((u_int)msg.msg_iovlen >= UIO_SMALLIOV) {
@@ -821,7 +819,7 @@ sendmsg(td, uap)
 		iov = aiov;
 	}
 	if (msg.msg_iovlen &&
-	    (error = copyin((caddr_t)msg.msg_iov, (caddr_t)iov,
+	    (error = copyin(msg.msg_iov, iov,
 	    (unsigned)(msg.msg_iovlen * sizeof (struct iovec)))))
 		goto done;
 	msg.msg_iov = iov;
@@ -842,7 +840,7 @@ recvit(td, s, mp, namelenp)
 	register struct thread *td;
 	int s;
 	register struct msghdr *mp;
-	caddr_t namelenp;
+	void *namelenp;
 {
 	struct uio auio;
 	register struct iovec *iov;
@@ -878,7 +876,7 @@ recvit(td, s, mp, namelenp)
 	if (KTRPOINT(td, KTR_GENIO)) {
 		iovlen = auio.uio_iovcnt * sizeof (struct iovec);
 		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
-		bcopy((caddr_t)auio.uio_iov, (caddr_t)ktriov, iovlen);
+		bcopy(auio.uio_iov, ktriov, iovlen);
 		ktruio = auio;
 	}
 #endif
@@ -919,14 +917,13 @@ recvit(td, s, mp, namelenp)
 				((struct osockaddr *)fromsa)->sa_family =
 				    fromsa->sa_family;
 #endif
-			error = copyout(fromsa,
-			    (caddr_t)mp->msg_name, (unsigned)len);
+			error = copyout(fromsa, mp->msg_name, (unsigned)len);
 			if (error)
 				goto out;
 		}
 		mp->msg_namelen = len;
 		if (namelenp &&
-		    (error = copyout((caddr_t)&len, namelenp, sizeof (int)))) {
+		    (error = copyout(&len, namelenp, sizeof (int)))) {
 #ifdef COMPAT_OLDSOCK
 			if (mp->msg_flags & MSG_COMPAT)
 				error = 0;	/* old recvfrom didn't check */
@@ -959,7 +956,7 @@ recvit(td, s, mp, namelenp)
 		len = mp->msg_controllen;
 		m = control;
 		mp->msg_controllen = 0;
-		ctlbuf = (caddr_t) mp->msg_control;
+		ctlbuf = mp->msg_control;
 
 		while (m && len > 0) {
 			unsigned int tocopy;
@@ -971,7 +968,7 @@ recvit(td, s, mp, namelenp)
 				tocopy = len;
 			}
 		
-			if ((error = copyout((caddr_t)mtod(m, caddr_t),
+			if ((error = copyout(mtod(m, caddr_t),
 					ctlbuf, tocopy)) != 0)
 				goto out;
 
@@ -1011,8 +1008,8 @@ recvfrom(td, uap)
 
 	mtx_lock(&Giant);
 	if (uap->fromlenaddr) {
-		error = copyin((caddr_t)uap->fromlenaddr,
-		    (caddr_t)&msg.msg_namelen, sizeof (msg.msg_namelen));
+		error = copyin(uap->fromlenaddr,
+		    &msg.msg_namelen, sizeof (msg.msg_namelen));
 		if (error)
 			goto done2;
 	} else {
@@ -1601,7 +1598,7 @@ sf_buf_alloc()
  * Detatch mapped page and release resources back to the system.
  */
 void
-sf_buf_free(caddr_t addr, void *args)
+sf_buf_free(void *addr, void *args)
 {
 	struct sf_buf *sf;
 	struct vm_page *m;
