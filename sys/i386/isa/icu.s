@@ -36,7 +36,7 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- *	$Id: icu.s,v 1.19 1995/02/08 21:46:44 bde Exp $
+ *	$Id: icu.s,v 1.20 1995/02/17 02:22:50 phk Exp $
  */
 
 /*
@@ -203,6 +203,7 @@ swi_ast_phantom:
 	 */
 	cli
 	orl	$SWI_AST_PENDING,_ipending
+	subl	%eax,%eax
 	jmp	doreti_exit	/* SWI_AST is highest so we must be done */
 
 /*
