@@ -6,7 +6,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: tty_subr.c,v 1.12 1995/08/28 09:18:50 julian Exp $
+ * $Id: tty_subr.c,v 1.13 1995/09/09 18:10:10 davidg Exp $
  */
 
 /*
@@ -21,10 +21,6 @@
 #include <sys/clist.h>
 #include <sys/malloc.h>
 
-/*
- * System initialization
- */
-
 static void clist_init __P((void *));
 SYSINIT(clist, SI_SUB_CLIST, SI_ORDER_FIRST, clist_init, NULL)
 
@@ -37,11 +33,15 @@ static int ctotcount;
 #define	INITIAL_CBLOCKS 50
 #endif
 
+static struct cblock *cblock_alloc __P((void));
 static void cblock_alloc_cblocks __P((int number));
+static void cblock_free __P((struct cblock *cblockp));
 static void cblock_free_cblocks __P((int number));
 
 #define	CBLOCK_DIAG
 #ifdef CBLOCK_DIAG
+static void cbstat __P((void));
+
 static void
 cbstat()
 {
@@ -57,8 +57,8 @@ cbstat()
  */
 /* ARGSUSED*/
 static void
-clist_init(udata)
-	void *udata;		/* not used*/
+clist_init(dummy)
+	void *dummy;
 {
 	/*
 	 * Allocate an initial base set of cblocks as a 'slush'.
@@ -136,6 +136,14 @@ clist_alloc_cblocks(clistp, ccmax, ccreserved)
 	int ccreserved;
 {
 	int dcbr;
+
+	/*
+	 * Allow for wasted space at the head.
+	 */
+	if (ccmax != 0)
+		ccmax += CBSIZE - 1;
+	if (ccreserved != 0)
+		ccreserved += CBSIZE - 1;
 
 	clistp->c_cbmax = roundup(ccmax, CBSIZE) / CBSIZE;
 	dcbr = roundup(ccreserved, CBSIZE) / CBSIZE - clistp->c_cbreserved;
