@@ -125,9 +125,6 @@ clkrun_hack(int run)
 		device_get_children(*busp, &pci_children, &pci_childcount);
 		for (j = 0, childp = pci_children; j < pci_childcount; j++, childp++) {
 			if (pci_get_vendor(*childp) == 0x8086 && pci_get_device(*childp) == 0x7113) {
-				free(pci_devices, M_TEMP);
-				free(pci_children, M_TEMP);
-
 				port = (pci_read_config(*childp, 0x41, 1) << 8) + 0x10;
 				/* XXX */
 				btag = I386_BUS_SPACE_IO;
@@ -136,13 +133,15 @@ clkrun_hack(int run)
 				control &= ~0x2000;
 				control |= run? 0 : 0x2000;
 				bus_space_write_2(btag, 0x0, port, control);
+				free(pci_devices, M_TEMP);
+				free(pci_children, M_TEMP);
 				return 0;
 			}
 		}
+		free(pci_children, M_TEMP);
 	}
 
 	free(pci_devices, M_TEMP);
-	free(pci_children, M_TEMP);
 	return ENXIO;
 #else
 	return 0;
