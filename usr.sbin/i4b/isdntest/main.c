@@ -27,7 +27,7 @@
  *	main.c - i4b selftest utility
  *	-----------------------------
  *
- *	$Id: main.c,v 1.11 1999/04/26 12:10:39 hm Exp $ 
+ *	$Id: main.c,v 1.3 1999/05/20 10:14:11 hm Exp $ 
  *
  *      last edit-date: [Mon Apr 26 14:08:40 1999]
  *
@@ -101,7 +101,7 @@ main(int argc, char **argv)
 	incomingnumber[0] = '\0';
 	outgoingnumber[0] = '\0';	
 	
-	while ((c = getopt(argc, argv, "c:d:hi:o:t:w?")) != EOF)
+	while ((c = getopt(argc, argv, "c:d:hi:o:t:w")) != -1)
 	{
 		switch(c)
 		{
