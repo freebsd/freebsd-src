@@ -163,26 +163,26 @@
 
 ENTRY(tl1_kstack_fault)
 	rdpr	%tl, %g1
-	cmp	%g1, 3
-	beq	%xcc, 1f
+1:	cmp	%g1, 2
+	be,a	2f
 	 nop
-	blt	%xcc, 2f
-	 nop
-	sir
 
-1:
 #if KTR_COMPILE & KTR_TRAP
 	CATR(KTR_TRAP, "tl1_kstack_fault: tl=%#lx tpc=%#lx tnpc=%#lx"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	rdpr	%tl, %g2
-	stx	%g2, [%g1 + KTR_PARM1]
-	rdpr	%tpc, %g2
-	stx	%g2, [%g1 + KTR_PARM1]
-	rdpr	%tnpc, %g2
-	stx	%g2, [%g1 + KTR_PARM1]
+	    , %g2, %g3, %g4, 7, 8, 9)
+	rdpr	%tl, %g3
+	stx	%g3, [%g2 + KTR_PARM1]
+	rdpr	%tpc, %g3
+	stx	%g3, [%g2 + KTR_PARM1]
+	rdpr	%tnpc, %g3
+	stx	%g3, [%g2 + KTR_PARM1]
 9:
 #endif
-	wrpr	%g0, 2, %tl
+
+	sub	%g1, 1, %g1
+	wrpr	%g1, 0, %tl
+	ba,a	%xcc, 1b
+	 nop
 
 2:
 #if KTR_COMPILE & KTR_TRAP
