@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2002 David E. O'Brien.  All rights reserved.
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -37,21 +38,29 @@
 #ifndef _STDARG_H_
 #define	_STDARG_H_
 
-#if defined __GNUC__ && ((__GNUC__ == 2 && __GNUC_MINOR__ >= 96) || __GNUC__ > 2)
-#include <machine/gcc_stdarg.h>
-#else /* __GNUC__ */
-
 #include <machine/ansi.h>
 
 typedef _BSD_VA_LIST_	va_list;
 
-#define	__va_size(type) \
-	(((sizeof(type) + sizeof(int) - 1) / sizeof(int)) * sizeof(int))
+#if defined(__GNUC__) && (__GNUC__ == 2 && __GNUC_MINOR__ > 95 || __GNUC__ >= 3)
+
+#define	va_start(ap, last) \
+	__builtin_stdarg_start((ap), (last))
+
+#define	va_arg(ap, type) \
+	__builtin_va_arg((ap), type)
+
+#define	va_end(ap) \
+	__builtin_va_end(ap)
+
+#else	/* ! __GNUC__ post GCC 2.95 */
 
 #ifdef __GNUC__
 #define va_start(ap, last) \
 	((ap) = (va_list)__builtin_next_arg(last))
 #else
+#define	__va_size(type) \
+	(((sizeof(type) + sizeof(int) - 1) / sizeof(int)) * sizeof(int))
 #define	va_start(ap, last) \
 	((ap) = (va_list)&(last) + __va_size(last))
 #endif
@@ -61,6 +70,6 @@ typedef _BSD_VA_LIST_	va_list;
 
 #define	va_end(ap)
 
-#endif /* __GNUC__ */
+#endif /* __GNUC__ post GCC 2.95 */
 
 #endif /* !_STDARG_H_ */

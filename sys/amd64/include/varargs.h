@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2002 David E. O'Brien.  All rights reserved.
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -42,6 +43,21 @@
 #ifndef _VARARGS_H_
 #define	_VARARGS_H_
 
+#if defined(__GNUC__) && (__GNUC__ == 2 && __GNUC_MINOR__ > 95 || __GNUC__ >= 3)
+
+#include <machine/ansi.h>
+
+typedef _BSD_VA_LIST_ va_list;
+typedef int __builtin_va_alist_t __attribute__((__mode__(__word__)));
+
+#define	va_alist		__builtin_va_alist
+#define	va_dcl			__builtin_va_alist_t __builtin_va_alist; ...
+#define	va_start(ap)		__builtin_varargs_start(ap)
+#define	va_arg(ap, type)	__builtin_va_arg((ap), type)
+#define	va_end(ap)		__builtin_va_end(ap)
+
+#else	/* ! __GNUC__ post GCC 2.95 */
+
 typedef char *va_list;
 
 #define	__va_size(type) \
@@ -63,5 +79,7 @@ typedef char *va_list;
 	(*(type *)((ap) += __va_size(type), (ap) - __va_size(type)))
 
 #define	va_end(ap)
+
+#endif /* __GNUC__ post GCC 2.95 */
 
 #endif /* !_VARARGS_H_ */
