@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.33 1995/04/16 12:56:14 davidg Exp $
+ * $Id: swap_pager.c,v 1.34 1995/04/16 13:58:42 davidg Exp $
  */
 
 /*
@@ -1065,7 +1065,7 @@ swap_pager_input(swp, m, count, reqpage)
 	 */
 	pmap_qenter(kva, m, count);
 
-	bp->b_flags = B_BUSY | B_READ | B_CALL;
+	bp->b_flags = B_BUSY | B_READ | B_CALL | B_PAGING;
 	bp->b_iodone = swap_pager_iodone1;
 	bp->b_proc = &proc0;	/* XXX (but without B_PHYS set this is ok) */
 	bp->b_rcred = bp->b_wcred = bp->b_proc->p_ucred;
@@ -1422,7 +1422,7 @@ swap_pager_output(swp, m, count, flags, rtvals)
 	bp->b_spc = spc;
 	bp->b_vnbufs.le_next = NOLIST;
 
-	bp->b_flags = B_BUSY;
+	bp->b_flags = B_BUSY | B_PAGING;
 	bp->b_proc = &proc0;	/* XXX (but without B_PHYS set this is ok) */
 	bp->b_rcred = bp->b_wcred = bp->b_proc->p_ucred;
 	if (bp->b_rcred != NOCRED)
