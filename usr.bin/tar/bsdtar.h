@@ -47,8 +47,8 @@ struct bsdtar {
 	const char	 *filename; /* -f filename */
 	const char	 *create_format; /* -F format */
 	const char	 *start_dir; /* -C dir */
+	const char	 *names_from_file; /* -T file */
 	int		  bytes_per_block; /* -b block_size */
-	int		  records_per_block;
 	int		  verbose;   /* -v */
 	int		  extract_flags; /* Flags for extract operation */
 	char		  symlink_mode; /* H or L, per BSD conventions */
