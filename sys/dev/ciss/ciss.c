@@ -731,7 +731,7 @@ ciss_init_requests(struct ciss_softc *sc)
      */
     sc->ciss_max_requests = min(CISS_MAX_REQUESTS, sc->ciss_cfg->max_outstanding_commands);
     
-    if (1/*bootverbose*/)
+    if (bootverbose)
 	ciss_printf(sc, "using %d of %d available commands\n",
 		    sc->ciss_max_requests, sc->ciss_cfg->max_outstanding_commands);
 
@@ -849,7 +849,7 @@ ciss_identify_adapter(struct ciss_softc *sc)
     sc->ciss_flags |= CISS_FLAG_BMIC_ABORT;
     
     /* print information */
-    if (1/*bootverbose*/) {
+    if (bootverbose) {
 	ciss_printf(sc, "  %d logical drive%s configured\n",
 		    sc->ciss_id->configured_logical_drives,
 		    (sc->ciss_id->configured_logical_drives == 1) ? "" : "s");
@@ -985,7 +985,7 @@ ciss_init_logical(struct ciss_softc *sc)
     /*
      * Save logical drive information.
      */
-    if (1/*bootverbose*/)
+    if (bootverbose)
 	ciss_printf(sc, "%d logical drive%s\n", ndrives, (ndrives > 1) ? "s" : "");
     if (ndrives != sc->ciss_id->configured_logical_drives)
 	ciss_printf(sc, "logical drive map claims %d drives, but adapter claims %d\n",
@@ -1149,7 +1149,7 @@ ciss_identify_logical(struct ciss_softc *sc, struct ciss_ldrive *ld)
     /*
      * Print the drive's basic characteristics.
      */
-    if (1/*bootverbose*/) {
+    if (bootverbose) {
 	ciss_printf(sc, "logical drive %d: %s, %dMB ",
 		    cbc->log_drive, ciss_name_ldrive_org(ld->cl_ldrive->fault_tolerance),
 		    ((ld->cl_ldrive->blocks_available / (1024 * 1024)) *
