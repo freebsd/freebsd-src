@@ -330,6 +330,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <option>link</option> family (<option>ether</option> is still
       accepted for backwards compatability).</para>
 
+    <para>&man.ispppcontrol.8; has been deleted, and its functionality
+      has been folded into &man.spppcontrol.8;.</para>
+
     <para>&man.ldd.1; can now be used on shared libraries, in addition
       to executables.</para>
 
@@ -340,6 +343,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para><filename>libusb</filename> has been renamed as
       <filename>libusbhid</filename>, following NetBSD's naming
       conventions.</para>
+
+    <para>&man.lpd.8; now recognizes the <option>-s</option> flag as
+      the preferred synonym for <option>-p</option> (these flags
+      cause &man.lpd.8; not to open a socket for network print
+      jobs).</para>
 
     <para>&man.m4.1; now accepts a <option>-s</option> flag to cause
       it to emit <literal>#line</literal> directives for use by
@@ -358,6 +366,14 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.ngctl.8; now supports a <option>write</option> command
       to send a data packet down a given hook.</para>
+
+    <para>&man.patch.1; now accepts a <option>-i</option> command-line
+      flag to read a patch from a file, rather than standard
+      input.</para>
+
+    <para>&man.pr.1; now supports the <option>-f</option> and
+      <option>-p</option> flags to pause output going to a
+      terminal.</para>
 
     <para>The &man.usbhidctl.1; utility has been added to manipulate
       USB Human Interface Devices.</para>
