@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.52 1995/12/10 01:47:34 bde Exp $
+ * $Id: st.c,v 1.53 1995/12/10 10:58:30 julian Exp $
  */
 
 /*
@@ -176,7 +176,7 @@ d_strategy_t	ststrategy;
 #define BDEV_MAJOR 5
 static struct bdevsw st_bdevsw = 
 	{ stopen,	stclose,	ststrategy,	stioctl,	/*5*/
-	  nxdump,	zerosize,	0 };
+	  nodump,	nopsize,	0 };
 
 static struct cdevsw st_cdevsw = 
 	{ stopen,	stclose,	rawread,	rawwrite,	/*14*/
