@@ -36,10 +36,11 @@ static char sccsid[] = "@(#)if.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.10 $"
+#ident "$Revision: 1.12 $"
 
 #include "defs.h"
 #include "pathnames.h"
+#include <sys/stat.h>
 
 
 struct parm *parms;
@@ -54,6 +55,7 @@ get_parms(struct interface *ifp)
 {
 	static warned_auth_in, warned_auth_out;
 	struct parm *parmp;
+	int i, num_passwds = 0;
 
 	/* get all relevant parameters
 	 */
@@ -68,9 +70,14 @@ get_parms(struct interface *ifp)
 			 * so get its settings
 			 */
 			ifp->int_state |= parmp->parm_int_state;
-			if (parmp->parm_auth.type != RIP_AUTH_NONE)
-				bcopy(&parmp->parm_auth, &ifp->int_auth,
-				      sizeof(ifp->int_auth));
+			for (i = 0; i < MAX_AUTH_KEYS; i++) {
+				if (parmp->parm_auth[0].type == RIP_AUTH_NONE
+				    || num_passwds >= MAX_AUTH_KEYS)
+					break;
+				bcopy(&parmp->parm_auth[i],
+				      &ifp->int_auth[num_passwds++],
+				      sizeof(ifp->int_auth[0]));
+			}
 			if (parmp->parm_rdisc_pref != 0)
 				ifp->int_rdisc_pref = parmp->parm_rdisc_pref;
 			if (parmp->parm_rdisc_int != 0)
@@ -114,7 +121,7 @@ get_parms(struct interface *ifp)
 		ifp->int_state |= IS_NO_RIP;
 
 	if (!IS_RIP_IN_OFF(ifp->int_state)
-	    && ifp->int_auth.type != RIP_AUTH_NONE
+	    && ifp->int_auth[0].type != RIP_AUTH_NONE
 	    && !(ifp->int_state & IS_NO_RIPV1_IN)
 	    && !warned_auth_in) {
 		msglog("Warning: RIPv1 input via %s"
@@ -123,14 +130,14 @@ get_parms(struct interface *ifp)
 		warned_auth_in = 1;
 	}
 	if (!IS_RIP_OUT_OFF(ifp->int_state)
-	    && ifp->int_auth.type != RIP_AUTH_NONE
-	    && !(ifp->int_state & IS_NO_RIPV1_OUT)
-	    && !warned_auth_out) {
-		msglog("Warning: RIPv1 output via %s"
-		       " will be sent without authentication",
-		       ifp->int_name);
-		warned_auth_out = 1;
-		ifp->int_auth.type = RIP_AUTH_NONE;
+	    && ifp->int_auth[0].type != RIP_AUTH_NONE
+	    && !(ifp->int_state & IS_NO_RIPV1_OUT)) {
+		if (!warned_auth_out) {
+			msglog("Warning: RIPv1 output via %s"
+			       " will be sent without authentication",
+			       ifp->int_name);
+			warned_auth_out = 1;
+		}
 	}
 }
 
@@ -160,6 +167,7 @@ gwkludge(void)
 	struct interface *ifp;
 	naddr dst, netmask, gate;
 	int metric, n;
+	struct stat sb;
 	u_int state;
 	char *type;
 
@@ -167,6 +175,12 @@ gwkludge(void)
 	fp = fopen(_PATH_GATEWAYS, "r");
 	if (fp == 0)
 		return;
+
+	if (0 > fstat(fileno(fp), &sb)) {
+		msglog("could not stat() "_PATH_GATEWAYS);
+		(void)fclose(fp);
+		return;
+	}
 
 	for (;;) {
 		if (0 == fgets(lbuf, sizeof(lbuf)-1, fp))
@@ -185,10 +199,12 @@ gwkludge(void)
 		 */
 		if (strncasecmp("net", lptr, 3)
 		    && strncasecmp("host", lptr, 4)) {
-			p = parse_parms(lptr);
+			p = parse_parms(lptr,
+					(sb.st_uid == 0
+					 && !(sb.st_mode&(S_IRWXG|S_IRWXO))));
 			if (p != 0) {
 				if (strcasecmp(p,lptr))
-					msglog("bad %s in "_PATH_GATEWAYS
+					msglog("%s in "_PATH_GATEWAYS
 					       " entry \"%s\"", p, lptr);
 				else
 					msglog("bad \"%s\" in "_PATH_GATEWAYS,
@@ -225,6 +241,7 @@ gwkludge(void)
 				       " entry \"%s\"", dname, lptr);
 				continue;
 			}
+			HTONL(dst);	/* make network # into IP address */
 		} else {
 			msglog("bad \"%s\" in "_PATH_GATEWAYS
 			       " entry \"%s\"", lptr);
@@ -333,12 +350,14 @@ gwkludge(void)
 
 		trace_if("Add", ifp);
 	}
+
+	(void)fclose(fp);
 }
 
 
 /* strtok(), but honoring backslash
  */
-static int				/* -1=bad */
+static int				/* 0=ok, -1=bad */
 parse_quote(char **linep,
 	    char *delims,
 	    char *delimp,
@@ -352,9 +371,7 @@ parse_quote(char **linep,
 	if (*pc == '\0')
 		return -1;
 
-	for (;;) {
-		if (lim == 0)
-			return -1;
+	while (lim != 0) {
 		c = *pc++;
 		if (c == '\0')
 			break;
@@ -388,11 +405,13 @@ parse_quote(char **linep,
 		--lim;
 	}
 exit:
+	if (lim == 0)
+		return -1;
+
+	*buf = '\0';
 	if (delimp != 0)
 		*delimp = c;
 	*linep = pc-1;
-	if (lim != 0)
-		*buf = '\0';
 	return 0;
 }
 
@@ -413,7 +432,7 @@ parse_ts(time_t *tp,
 			    buf,bufsize)
 	    || buf[bufsize-1] != '\0'
 	    || buf[bufsize-2] != '\0') {
-		sprintf(buf,"timestamp %.25s", val0);
+		sprintf(buf,"bad timestamp %.25s", val0);
 		return buf;
 	}
 	strcat(buf,"\n");
@@ -421,14 +440,14 @@ parse_ts(time_t *tp,
 	if (5 != sscanf(buf, "%u/%u/%u@%u:%u\n",
 			&tm.tm_year, &tm.tm_mon, &tm.tm_mday,
 			&tm.tm_hour, &tm.tm_min)) {
-		sprintf(buf,"timestamp %.25s", val0);
+		sprintf(buf,"bad timestamp %.25s", val0);
 		return buf;
 	}
 	if (tm.tm_year <= 37)
 		tm.tm_year += 100;
 
 	if ((*tp = mktime(&tm)) == -1) {
-		sprintf(buf,"timestamp %.25s", val0);
+		sprintf(buf,"bad timestamp %.25s", val0);
 		return buf;
 	}
 
@@ -436,92 +455,93 @@ parse_ts(time_t *tp,
 }
 
 
-/* Get one or more password, key ID's, and expiration dates in
- * the format
- *	passwd|keyID|year/mon/day@hour:min|year/mon/day@hour:min|passwd|...
+/* Get a password, key ID, and expiration date in the format
+ *	passwd|keyID|year/mon/day@hour:min|year/mon/day@hour:min
  */
 static char *				/* 0 or error message */
-get_passwds(char *tgt,
-	    char *val,
-	    struct parm *parmp,
-	    u_char type)
+get_passwd(char *tgt,
+	   char *val,
+	   struct parm *parmp,
+	   u_char type,
+	   int safe)			/* 1=from secure file */
 {
 	static char buf[80];
 	char *val0, *p, delim;
-	struct auth_key *akp, *akp2;
+	struct auth k, *ap, *ap2;
 	int i;
 	u_long l;
 
 
-	if (parmp->parm_auth.type != RIP_AUTH_NONE)
-		return "duplicate authentication";
-	parmp->parm_auth.type = type;
+	if (!safe)
+		return "unsafe password";
 
-	bzero(buf, sizeof(buf));
+	for (ap = parmp->parm_auth, i = 0;
+	     ap->type != RIP_AUTH_NONE; i++, ap++) {
+		if (i >= MAX_AUTH_KEYS)
+			return "too many passwords";
+	}
 
-	akp = parmp->parm_auth.keys;
-	for (i = 0; i < MAX_AUTH_KEYS; i++, val++, akp++) {
-		if ((delim = *val) == '\0')
-			break;
-		val0 = val;
-		if (0 > parse_quote(&val, "| ,\n\r", &delim,
-				    (char *)akp->key, sizeof(akp->key)))
-			return tgt;
+	bzero(&k, sizeof(k));
+	k.type = type;
+	k.end = -1-DAY;
 
-		akp->end = -1;
+	val0 = val;
+	if (0 > parse_quote(&val, "| ,\n\r", &delim,
+			    (char *)k.key, sizeof(k.key)))
+		return tgt;
 
-		if (delim != '|') {
-			if (type == RIP_AUTH_MD5)
-				return "missing Keyid";
-			break;
-		}
+	if (delim != '|') {
+		if (type == RIP_AUTH_MD5)
+			return "missing Keyid";
+	} else {
 		val0 = ++val;
+		buf[sizeof(buf)-1] = '\0';
 		if (0 > parse_quote(&val, "| ,\n\r", &delim, buf,sizeof(buf))
 		    || buf[sizeof(buf)-1] != '\0'
 		    || (l = strtoul(buf,&p,0)) > 255
 		    || *p != '\0') {
-			sprintf(buf,"KeyID \"%.20s\"", val0);
+			sprintf(buf,"bad KeyID \"%.20s\"", val0);
 			return buf;
 		}
-		for (akp2 = parmp->parm_auth.keys; akp2 < akp; akp2++) {
-			if (akp2->keyid == l) {
-				*val = '\0';
+		for (ap2 = parmp->parm_auth; ap2 < ap; ap2++) {
+			if (ap2->keyid == l) {
 				sprintf(buf,"duplicate KeyID \"%.20s\"", val0);
 				return buf;
 			}
 		}
-		akp->keyid = (int)l;
+		k.keyid = (int)l;
 
-		if (delim != '|')
-			break;
-
-		val0 = ++val;
-		if (0 != (p = parse_ts(&akp->start,&val,val0,&delim,
-				       buf,sizeof(buf))))
-			return p;
-		if (delim != '|')
-			return "missing second timestamp";
-		val0 = ++val;
-		if (0 != (p = parse_ts(&akp->end,&val,val0,&delim,
-				       buf,sizeof(buf))))
-			return p;
-		if ((u_long)akp->start > (u_long)akp->end) {
-			sprintf(buf,"out of order timestamp %.30s",val0);
-			return buf;
+		if (delim == '|') {
+			val0 = ++val;
+			if (0 != (p = parse_ts(&k.start,&val,val0,&delim,
+					       buf,sizeof(buf))))
+				return p;
+			if (delim != '|')
+				return "missing second timestamp";
+			val0 = ++val;
+			if (0 != (p = parse_ts(&k.end,&val,val0,&delim,
+					       buf,sizeof(buf))))
+				return p;
+			if ((u_long)k.start > (u_long)k.end) {
+				sprintf(buf,"out of order timestamp %.30s",
+					val0);
+				return buf;
+			}
 		}
-
-		if (delim != '|')
-			break;
 	}
+	if (delim != '\0')
+		return tgt;
 
-	return (delim != '\0') ? tgt : 0;
+	bcopy(&k, ap, sizeof(*ap));
+	return 0;
 }
 
 
 /* Parse a set of parameters for an interface.
  */
 char *					/* 0 or error message */
-parse_parms(char *line)
+parse_parms(char *line,
+	    int safe)			/* 1=from secure file */
 {
 #define PARS(str) (!strcasecmp(tgt, str))
 #define PARSEQ(str) (!strncasecmp(tgt, str"=", sizeof(str)))
@@ -554,6 +574,7 @@ parse_parms(char *line)
 			free(intnetp);
 			return line;
 		}
+		HTONL(intnetp->intnet_addr);
 		intnetp->intnet_next = intnets;
 		intnets = intnetp;
 		return 0;
@@ -591,7 +612,7 @@ parse_parms(char *line)
 			 * The parm_net stuff is needed to allow several
 			 * -F settings.
 			 */
-			if (!getnet(val, &addr, &mask)
+			if (!getnet(val0, &addr, &mask)
 			    || parm.parm_name[0] != '\0')
 				return tgt;
 			parm.parm_net = addr;
@@ -599,14 +620,21 @@ parse_parms(char *line)
 			parm.parm_name[0] = '\n';
 
 		} else if (PARSEQ("passwd")) {
-			tgt = get_passwds(tgt, val0, &parm, RIP_AUTH_PW);
-			if (tgt)
+			/* since cleartext passwords are so weak allow
+			 * them anywhere
+			 */
+			tgt = get_passwd(tgt,val0,&parm,RIP_AUTH_PW,1);
+			if (tgt) {
+				*val0 = '\0';
 				return tgt;
+			}
 
 		} else if (PARSEQ("md5_passwd")) {
-			tgt = get_passwds(tgt, val0, &parm, RIP_AUTH_MD5);
-			if (tgt)
+			tgt = get_passwd(tgt,val0,&parm,RIP_AUTH_MD5,safe);
+			if (tgt) {
+				*val0 = '\0';
 				return tgt;
+			}
 
 		} else if (PARS("no_ag")) {
 			parm.parm_int_state |= (IS_NO_AG | IS_NO_SUPER_AG);
@@ -693,6 +721,9 @@ parse_parms(char *line)
 			tgates = tg;
 			parm.parm_int_state |= IS_DISTRUST;
 
+		} else if (PARS("redirect_ok")) {
+			parm.parm_int_state |= IS_REDIRECT_OK;
+
 		} else {
 			return tgt;	/* error */
 		}
@@ -708,16 +739,24 @@ parse_parms(char *line)
 char *					/* 0 or error message */
 check_parms(struct parm *new)
 {
-	struct parm *parmp;
+	struct parm *parmp, **parmpp;
+	int i, num_passwds;
 
 	/* set implicit values
 	 */
 	if (new->parm_int_state & IS_NO_ADV_IN)
 		new->parm_int_state |= IS_NO_SOL_OUT;
 
+	for (i = num_passwds = 0; i < MAX_AUTH_KEYS; i++) {
+		if (new->parm_auth[i].type != RIP_AUTH_NONE)
+			num_passwds++;
+	}
+
 	/* compare with existing sets of parameters
 	 */
-	for (parmp = parms; parmp != 0; parmp = parmp->parm_next) {
+	for (parmpp = &parms;
+	     (parmp = *parmpp) != 0;
+	     parmpp = &parmp->parm_next) {
 		if (strcmp(new->parm_name, parmp->parm_name))
 			continue;
 		if (!on_net(htonl(parmp->parm_net),
@@ -726,12 +765,12 @@ check_parms(struct parm *new)
 			       parmp->parm_net, parmp->parm_mask))
 			continue;
 
-		if (parmp->parm_auth.type != RIP_AUTH_NONE
-		    && new->parm_auth.type != RIP_AUTH_NONE
-		    && bcmp(&parmp->parm_auth, &new->parm_auth,
-			    sizeof(parmp->parm_auth))) {
-			return "conflicting, duplicate authentication";
+		for (i = 0; i < MAX_AUTH_KEYS; i++) {
+			if (parmp->parm_auth[i].type != RIP_AUTH_NONE)
+				num_passwds++;
 		}
+		if (num_passwds > MAX_AUTH_KEYS)
+			return "too many conflicting passwords";
 
 		if ((0 != (new->parm_int_state & GROUP_IS_SOL)
 		     && 0 != (parmp->parm_int_state & GROUP_IS_SOL)
@@ -760,10 +799,12 @@ check_parms(struct parm *new)
 		}
 	}
 
+	/* link new entry on the so that when the entries are scanned,
+	 * they affect the result in the order the operator specified.
+	 */
 	parmp = (struct parm*)malloc(sizeof(*parmp));
 	bcopy(new, parmp, sizeof(*parmp));
-	parmp->parm_next = parms;
-	parms = parmp;
+	*parmpp = parmp;
 
 	return 0;
 }
@@ -774,13 +815,13 @@ check_parms(struct parm *new)
  */
 int					/* 0=bad */
 getnet(char *name,
-       naddr *netp,			/* host byte order */
-       naddr *maskp)
+       naddr *netp,			/* a network so host byte order */
+       naddr *maskp)			/* masks are always in host order */
 {
 	int i;
 	struct netent *np;
-	naddr mask;
-	struct in_addr in;
+	naddr mask;			/* in host byte order */
+	struct in_addr in;		/* a network and so host byte order */
 	char hname[MAXHOSTNAMELEN+1];
 	char *mname, *p;
 
@@ -812,7 +853,7 @@ getnet(char *name,
 		/* we cannot use the interfaces here because we have not
 		 * looked at them yet.
 		 */
-		mask = std_mask(in.s_addr);
+		mask = std_mask(htonl(in.s_addr));
 		if ((~mask & in.s_addr) != 0)
 			mask = HOST_MASK;
 	} else {
