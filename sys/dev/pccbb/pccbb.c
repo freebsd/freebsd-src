@@ -740,7 +740,7 @@ cbb_attach(device_t brdev)
 	exca_clrb(&sc->exca, EXCA_INTR, EXCA_INTR_RESET);
 
 	/* turn off power */
-	cbb_power(brdev, CARD_VCC_0V | CARD_VPP_0V);
+	cbb_power(brdev, CARD_OFF);
 
 	/* CSC Interrupt: Card detect interrupt on */
 	cbb_setb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD);
@@ -830,7 +830,7 @@ cbb_shutdown(device_t brdev)
 
 	cbb_set(sc, CBB_SOCKET_MASK, 0);
 
-	cbb_power(brdev, CARD_VCC_0V | CARD_VPP_0V);
+	cbb_power(brdev, CARD_OFF);
 
 	exca_putb(&sc->exca, EXCA_ADDRWIN_ENABLE, 0);
 	pci_write_config(brdev, CBBR_MEMBASE0, 0, 4);
@@ -1173,70 +1173,36 @@ cbb_power(device_t brdev, int volts)
 	uint32_t sockevent;
 	uint8_t reg = 0;
 
-	DEVPRINTF((sc->dev, "cbb_power: %s and %s [%x]\n",
-	    (volts & CARD_VCCMASK) == CARD_VCC_UC ? "CARD_VCC_UC" :
-	    (volts & CARD_VCCMASK) == CARD_VCC_5V ? "CARD_VCC_5V" :
-	    (volts & CARD_VCCMASK) == CARD_VCC_3V ? "CARD_VCC_3V" :
-	    (volts & CARD_VCCMASK) == CARD_VCC_XV ? "CARD_VCC_XV" :
-	    (volts & CARD_VCCMASK) == CARD_VCC_YV ? "CARD_VCC_YV" :
-	    (volts & CARD_VCCMASK) == CARD_VCC_0V ? "CARD_VCC_0V" :
-	    "VCC-UNKNOWN",
-	    (volts & CARD_VPPMASK) == CARD_VPP_UC ? "CARD_VPP_UC" :
-	    (volts & CARD_VPPMASK) == CARD_VPP_12V ? "CARD_VPP_12V" :
-	    (volts & CARD_VPPMASK) == CARD_VPP_VCC ? "CARD_VPP_VCC" :
-	    (volts & CARD_VPPMASK) == CARD_VPP_0V ? "CARD_VPP_0V" :
-	    "VPP-UNKNOWN",
-	    volts));
-
 	status = cbb_get(sc, CBB_SOCKET_STATE);
 	sock_ctrl = cbb_get(sc, CBB_SOCKET_CONTROL);
 
+	sock_ctrl &= ~CBB_SOCKET_CTRL_VCCMASK;
 	switch (volts & CARD_VCCMASK) {
-	case CARD_VCC_UC:
+	case 5:
+		sock_ctrl |= CBB_SOCKET_CTRL_VCC_5V;
 		break;
-	case CARD_VCC_5V:
-		if (CBB_SOCKET_STAT_5VCARD & status) { /* check 5 V card */
-			sock_ctrl &= ~CBB_SOCKET_CTRL_VCCMASK;
-			sock_ctrl |= CBB_SOCKET_CTRL_VCC_5V;
-		} else {
-			device_printf(sc->dev,
-			    "BAD voltage request: no 5 V card\n");
-		}
+	case 3:
+		sock_ctrl |= CBB_SOCKET_CTRL_VCC_3V;
 		break;
-	case CARD_VCC_3V:
-		if (CBB_SOCKET_STAT_3VCARD & status) {
-			sock_ctrl &= ~CBB_SOCKET_CTRL_VCCMASK;
-			sock_ctrl |= CBB_SOCKET_CTRL_VCC_3V;
-		} else {
-			device_printf(sc->dev,
-			    "BAD voltage request: no 3.3 V card\n");
-		}
+	case XV:
+		sock_ctrl |= CBB_SOCKET_CTRL_VCC_XV;
 		break;
-	case CARD_VCC_0V:
-		sock_ctrl &= ~CBB_SOCKET_CTRL_VCCMASK;
+	case YV:
+		sock_ctrl |= CBB_SOCKET_CTRL_VCC_YV;
+		break;
+	case 0:
 		break;
 	default:
 		return (0);			/* power NEVER changed */
 	}
 
-	switch (volts & CARD_VPPMASK) {
-	case CARD_VPP_UC:
-		break;
-	case CARD_VPP_0V:
-		sock_ctrl &= ~CBB_SOCKET_CTRL_VPPMASK;
-		break;
-	case CARD_VPP_VCC:
-		sock_ctrl &= ~CBB_SOCKET_CTRL_VPPMASK;
-		sock_ctrl |= ((sock_ctrl >> 4) & 0x07);
-		break;
-	case CARD_VPP_12V:
-		sock_ctrl &= ~CBB_SOCKET_CTRL_VPPMASK;
-		sock_ctrl |= CBB_SOCKET_CTRL_VPP_12V;
-		break;
-	}
+	/* VPP == VCC */
+	sock_ctrl &= ~CBB_SOCKET_CTRL_VPPMASK;
+	sock_ctrl |= ((sock_ctrl >> 4) & 0x07);
 
 	if (cbb_get(sc, CBB_SOCKET_CONTROL) == sock_ctrl)
 		return (1); /* no change necessary */
+	DEVPRINTF((sc->dev, "cbb_power: %dV\n", volts));
 	if (volts != 0 && sc->chipset == CB_O2MICRO)
 		reg = cbb_o2micro_power_hack(sc);
 
@@ -1247,7 +1213,7 @@ cbb_power(device_t brdev, int volts)
 	 * XXX This busy wait is bogus.  We should wait for a power
 	 * interrupt and then whine if the status is bad.  If we're
 	 * worried about the card not coming up, then we should also
-	 * schedule a timeout which we can cacel in the power interrupt.
+	 * schedule a timeout which we can cancel in the power interrupt.
 	 */
 	timeout = 20;
 	do {
@@ -1274,20 +1240,7 @@ cbb_power(device_t brdev, int volts)
 		device_printf(sc->dev,
 		    "bad Vcc request. ctrl=0x%x, status=0x%x\n",
 		    sock_ctrl ,status);
-		printf("cbb_power: %s and %s [%x]\n",
-		    (volts & CARD_VCCMASK) == CARD_VCC_UC ? "CARD_VCC_UC" :
-		    (volts & CARD_VCCMASK) == CARD_VCC_5V ? "CARD_VCC_5V" :
-		    (volts & CARD_VCCMASK) == CARD_VCC_3V ? "CARD_VCC_3V" :
-		    (volts & CARD_VCCMASK) == CARD_VCC_XV ? "CARD_VCC_XV" :
-		    (volts & CARD_VCCMASK) == CARD_VCC_YV ? "CARD_VCC_YV" :
-		    (volts & CARD_VCCMASK) == CARD_VCC_0V ? "CARD_VCC_0V" :
-		    "VCC-UNKNOWN",
-		    (volts & CARD_VPPMASK) == CARD_VPP_UC ? "CARD_VPP_UC" :
-		    (volts & CARD_VPPMASK) == CARD_VPP_12V ? "CARD_VPP_12V":
-		    (volts & CARD_VPPMASK) == CARD_VPP_VCC ? "CARD_VPP_VCC":
-		    (volts & CARD_VPPMASK) == CARD_VPP_0V ? "CARD_VPP_0V" :
-		    "VPP-UNKNOWN",
-		    volts);
+		printf("cbb_power: %dV\n", volts);
 		goto done;
 	}
 	retval = 1;
@@ -1310,15 +1263,15 @@ cbb_do_power(device_t brdev)
 
 	/* Prefer lowest voltage supported */
 	voltage = cbb_detect_voltage(brdev);
-	cbb_power(brdev, CARD_VCC_0V | CARD_VPP_0V);
+	cbb_power(brdev, CARD_OFF);
 	if (voltage & CARD_YV_CARD)
-		cbb_power(brdev, CARD_VCC_YV | CARD_VPP_VCC);
+		cbb_power(brdev, CARD_VCC(YV));
 	else if (voltage & CARD_XV_CARD)
-		cbb_power(brdev, CARD_VCC_XV | CARD_VPP_VCC);
+		cbb_power(brdev, CARD_VCC(XV));
 	else if (voltage & CARD_3V_CARD)
-		cbb_power(brdev, CARD_VCC_3V | CARD_VPP_VCC);
+		cbb_power(brdev, CARD_VCC(3));
 	else if (voltage & CARD_5V_CARD)
-		cbb_power(brdev, CARD_VCC_5V | CARD_VPP_VCC);
+		cbb_power(brdev, CARD_VCC(5));
 	else {
 		device_printf(brdev, "Unknown card voltage\n");
 		return (ENXIO);
@@ -1370,7 +1323,7 @@ cbb_cardbus_power_enable_socket(device_t brdev, device_t child)
 static void
 cbb_cardbus_power_disable_socket(device_t brdev, device_t child)
 {
-	cbb_power(brdev, CARD_VCC_0V | CARD_VPP_0V);
+	cbb_power(brdev, CARD_OFF);
 	cbb_cardbus_reset(brdev);
 }
 
@@ -1656,7 +1609,7 @@ cbb_pcic_power_disable_socket(device_t brdev, device_t child)
 	DELAY(2*1000);
 
 	/* power down the socket */
-	cbb_power(brdev, CARD_VCC_0V | CARD_VPP_0V);
+	cbb_power(brdev, CARD_OFF);
 	exca_clrb(&sc->exca, EXCA_PWRCTL, EXCA_PWRCTL_OE);
 
 	/* wait 300ms until power fails (Tpf). */
