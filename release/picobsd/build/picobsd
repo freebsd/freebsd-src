@@ -484,10 +484,11 @@ populate_mfs() {
     fi
 
     (
-    cd ${MY_TREE} # so relative paths in crunch.conf have a chance
+    cd ${BUILDDIR}/crunch
     log "---> Making and installing crunch1 from `pwd`..."
     a=${BUILDDIR}/crunch1.conf
-    cat ${MY_TREE}/crunch.conf|sed -e "s@/usr/src@${SRC}@" > $a
+    cat ${MY_TREE}/crunch.conf|sed -e "s@/usr/src@${SRC}@" | \
+	sed -e "s@CWD@${MY_TREE}@" > $a
     arg=""
     if [ -f ${MY_TREE}/crunch.inc ] ; then
 	h="-h ${MY_TREE}/crunch.inc"
