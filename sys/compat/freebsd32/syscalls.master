@@ -361,7 +361,7 @@
 245	UNIMPL	nosys
 246	UNIMPL	nosys
 247	UNIMPL	nosys
-248	UNIMPL	nosys
+248	UNIMPL	ntp_gettime
 249	UNIMPL	nosys
 ; syscall numbers initially used in OpenBSD
 250	MNOPROTO { int minherit(void *addr, size_t len, int inherit); }
