@@ -100,6 +100,8 @@
 #undef DEBUG
 
 #include "wdc.h"
+#include "opt_atapi.h"
+
 #ifndef ATAPI_MODULE
 # include "wcd.h"
 /* # include "wmt.h" -- add your driver here */
@@ -174,7 +176,7 @@ static int atapi_start_cmd (struct atapi *ata, struct atapicmd *ac);
 static int atapi_wait_cmd (struct atapi *ata, struct atapicmd *ac);
 
 extern int wdstart (int ctrlr);
-extern int wcdattach(struct atapi*, int, struct atapi_params*, int, struct kern_devconf*);
+extern int wcdattach(struct atapi*, int, struct atapi_params*, int);
 
 /*
  * Probe the ATAPI device at IDE controller `ctlr', drive `unit'.
@@ -183,7 +185,7 @@ extern int wcdattach(struct atapi*, int, struct atapi_params*, int, struct kern_
 #ifdef ATAPI_MODULE
 static
 #endif
-int atapi_attach (int ctlr, int unit, int port, struct kern_devconf *parent)
+int atapi_attach (int ctlr, int unit, int port)
 {
 	struct atapi *ata = atapitab + ctlr;
 	struct atapi_params *ap;
@@ -245,7 +247,6 @@ int atapi_attach (int ctlr, int unit, int port, struct kern_devconf *parent)
 
 	ata->port = port;
 	ata->ctrlr = ctlr;
-	ata->parent = parent;
 	ata->attached[unit] = 0;
 #ifdef DEBUG
 	ata->debug = 1;
@@ -279,7 +280,7 @@ int atapi_attach (int ctlr, int unit, int port, struct kern_devconf *parent)
 	case AT_TYPE_CDROM:             /* CD-ROM device */
 #if NWCD > 0
 		/* ATAPI CD-ROM */
-		if (wcdattach (ata, unit, ap, ata->debug, parent) < 0)
+		if (wcdattach (ata, unit, ap, ata->debug) < 0)
 			break;
 		/* Device attached successfully. */
 		ata->attached[unit] = 1;

@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.3 1996/08/31 15:06:59 asami Exp $
+ *	$Id: lpt.c,v 1.4 1996/09/03 10:23:44 asami Exp $
  */
 
 /*
@@ -112,7 +112,6 @@
 #include <sys/ioctl.h>
 #include <sys/uio.h>
 #include <sys/syslog.h>
-#include <sys/devconf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
@@ -319,27 +318,6 @@ static struct cdevsw lpt_cdevsw =
 	  seltrue,	nommap,		nostrat,	"lpt",	NULL,	-1 };
 
 
-static struct kern_devconf kdc_lpt[NLPT] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"lpt", 0, { MDDT_ISA, 0, "tty" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* state */
-	"Parallel printer adapter",
-	DC_CLS_PARALLEL | DC_CLS_NETIF /* class */
-} };
-
-static inline void
-lpt_registerdev(struct isa_device *id)
-{
-	if(id->id_unit)
-		kdc_lpt[id->id_unit] = kdc_lpt[0];
-	kdc_lpt[id->id_unit].kdc_unit = id->id_unit;
-	kdc_lpt[id->id_unit].kdc_isa = id;
-	dev_attach(&kdc_lpt[id->id_unit]);
-}
-
 /*
  * Internal routine to lptprobe to do port tests of one byte value
  */
@@ -422,8 +400,6 @@ lptprobe(struct isa_device *dvp)
 	u_char		data;
 	u_char		mask;
 	int		i;
-
-	lpt_registerdev(dvp);
 
 	/*
 	 * Make sure there is some way for lptopen to see that
@@ -511,8 +487,6 @@ lptattach(struct isa_device *isdp)
 		lprintf("lpt%d: Polled port\n", unit);
 	}
 	lprintf("irq %x\n", sc->sc_irq);
-
-	kdc_lpt[unit].kdc_state = DC_IDLE;
 
 #ifdef DEVFS
 	/* XXX what to do about the flags in the minor number? */
@@ -620,7 +594,6 @@ lptopen (dev_t dev, int flags, int fmt, struct proc *p)
 #endif
 
 	sc->sc_state = OPEN;
-	kdc_lpt[unit].kdc_state = DC_BUSY;
 	sc->sc_inbuf = geteblk(BUFSIZE);
 	sc->sc_xfercnt = 0;
 	splx(s);
@@ -682,7 +655,6 @@ lptclose(dev_t dev, int flags, int fmt, struct proc *p)
 		goto end_close;
 
 	sc->sc_state &= ~OPEN;
-	kdc_lpt[minor(dev)].kdc_state = DC_IDLE;
 
 #ifndef PC98
 	/* if the last write was interrupted, don't complete it */

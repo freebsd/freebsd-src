@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
- *	$Id: pc98.h,v 1.1.1.1 1996/06/14 10:04:45 asami Exp $
+ *	$Id: pc98.h,v 1.2 1996/09/03 10:23:48 asami Exp $
  */
 
 #ifndef _PC98_PC98_PC98_H_
@@ -55,62 +55,54 @@
  * Input / Output Port Assignments
  */
 
-#ifndef IO_BEGIN
-#ifndef PC98 /* IBM-PC */
+#ifndef IO_ISABEGIN
 #define	IO_ISABEGIN	0x000		/* 0x000 - Beginning of I/O Registers */
-#endif
 
 /* PC98 IO address ... very dirty (^_^; */
 
 #define IO_ICU1		0x000		/* 8259A Interrupt Controller #1 */
-#define IO_ICU2		0x008		/* 8259A Interrupt Controller #2 */
 #define IO_DMA		0x001		/* 8237A DMA Controller */
+#define IO_ICU2		0x008		/* 8259A Interrupt Controller #2 */
 #define IO_RTC		0x020		/* 4990A RTC */
 #define IO_DMAPG	0x021		/* DMA Page Registers */
 #define IO_COM1		0x030		/* 8251A RS232C serial I/O (int) */
-#define	IO_COM2		0x0b1		/* 8251A RS232C serial I/O (ext) */
-#define	IO_COM3		0x0b9		/* 8251A RS232C serial I/O (ext) */
 #define IO_SYSPORT	0x031		/* 8255A System Port */
+#define IO_PPI		0x035		/* Programmable Peripheral Interface */
 #define IO_LPT		0x040		/* 8255A Printer Port */
 #define IO_KBD		0x041		/* 8251A Keyboard */
-#define IO_PPI		0x035		/* Programmable Peripheral Interface */
 #define IO_NMI		0x050		/* NMI Control */
 #define IO_WAIT		0x05F		/* WAIT 0.6 us */
 #define IO_GDC1		0x060		/* 7220 GDC Text Control */
 #define IO_TIMER	0x071		/* 8253C Timer */
 #define IO_SASI		0x080		/* SASI Hard Disk Controller */
-#define	IO_SOUND	0x188		/* YM2203 FM sound board */
-#define	IO_GDC2		0x0a0		/* 7220 GDC Graphic Control */
-#define	IO_EGC		0x4a0		/* 7220 GDC Graphic Control */
-#define	IO_CGROM	0x0a1		/* Character ROM */
-#define IO_SCSI		0xCC0		/* SCSI Controller */
 #define IO_FD1		0x090		/* 765A 1MB FDC */
-#define IO_FD2		0x0c8		/* 765A 640KB FDC */
+#define	IO_GDC2		0x0a0		/* 7220 GDC Graphic Control */
+#define	IO_CGROM	0x0a1		/* Character ROM */
+#define	IO_COM2		0x0b1		/* 8251A RS232C serial I/O (ext) */
+#define	IO_COM3		0x0b9		/* 8251A RS232C serial I/O (ext) */
 #define IO_FDPORT	0x0be		/* FD I/F port (1M<->640K,EMTON) */
-#define IO_BEEPF	0x3fdb		/* beep frequency */
-#define IO_MOUSE	0x7fd9		/* mouse */
-#define IO_MOUSETM	0xdfbd		/* mouse timer */
+#define IO_FD2		0x0c8		/* 765A 640KB FDC */
+#define IO_SIO1		0x0d0		/* MC16550II ext RS232C */
 #define IO_REEST	0x0F0		/* CPU FPU reset */
 #define IO_A2OEN	0x0F2		/* A20 enable */
 #define IO_A20CT	0x0F6		/* A20 control enable/disable */
 #define IO_NPX		0x0F8		/* Numeric Coprocessor */
+#define	IO_SOUND	0x188		/* YM2203 FM sound board */
+#define	IO_EGC		0x4a0		/* 7220 GDC Graphic Control */
+#define IO_SCSI		0xcc0		/* SCSI Controller */
+#define IO_SIO2		0x8d0		/* MC16550II ext RS232C */
+#define IO_BEEPF	0x3fdb		/* beep frequency */
+#define IO_MOUSE	0x7fd9		/* mouse */
 #define IO_BMS		0x7fd9		/* Bus Mouse */
 #define IO_MSE		0x7fd9		/* Bus Mouse */
-#define IO_SIO1		0x0d0		/* MC16550II ext RS232C */
-#define IO_SIO2		0x8d0		/* MC16550II ext RS232C */
+#define IO_MOUSETM	0xdfbd		/* mouse timer */
 
-/*#ifdef PC98NS*/
-#if 1
-/* Oct 13, ukai */
 #define IO_WD1_NEC	0x640		/* 98note IDE Hard disk controller */
 #define IO_WD1_EPSON	0x80		/* 386note Hard disk controller */
 #define	IO_WD1		IO_WD1_NEC	/* IDE Hard disk controller */
-#endif
 
-#ifndef PC98 /* IBM-PC */
-#define	IO_ISAEND	0x3FF		/* - 0x3FF End of I/O Registers */
-#endif	IO_ISABEGIN
-#endif
+#define	IO_ISAEND	0xFFFF		/* - 0x3FF End of I/O Registers */
+#endif /* !IO_ISABEGIN */
 
 /*
  * Input / Output Port Sizes - these are from several sources, and tend
@@ -118,8 +110,8 @@
  * boards do not fully decode the address, thus 8 ports are used.
  */
 
-#ifndef	IO_PC98SIZES
-#define	IO_PC98SIZES
+#ifndef	IO_ISASIZES
+#define	IO_ISASIZES
 
 #define	IO_COMSIZE	8		/* 8250, 16X50 com controllers (4?) */
 #define	IO_CGASIZE	16		/* CGA controllers */
@@ -139,7 +131,7 @@
 #define IO_EISASIZE	4096		/* EISA controllers */
 #define	IO_PMPSIZE	2		/* 82347 power management peripheral */
 
-#endif	/* IO_PC98SIZES */
+#endif /* !IO_ISASIZES */
 
 /*
  * Input / Output Memory Physical Addresses
@@ -149,7 +141,7 @@
 #define	IOM_BEGIN	0x0a0000		/* Start of I/O Memory "hole" */
 #define	IOM_END		0x100000		/* End of I/O Memory "hole" */
 #define	IOM_SIZE	(IOM_END - IOM_BEGIN)
-#endif	IOM_BEGIN
+#endif /* !RAM_BEGIN */
 
 /*
  * RAM Physical Address Space (ignoring the above mentioned "hole")
@@ -163,7 +155,7 @@
 #define	RAM_END		0x1000000	/* End of RAM Memory */
 #endif
 #define	RAM_SIZE	(RAM_END - RAM_BEGIN)
-#endif	RAM_BEGIN
+#endif /* !RAM_BEGIN */
 
 #ifndef PC98 /* IBM-PC */
 /*
@@ -176,11 +168,6 @@
 #define	CYRIX_EMC	0xC0000000	/* Cyrix EMC */
 #endif	COMPAQ_RAMRELOC
 #endif
-
-/*
- * Obtained from NetBSD/pc98
- */
-#define MADDRUNK -1
 
 #define PC98_VECTOR_SIZE			(0x400)
 #define PC98_SYSTEM_PARAMETER_SIZE		(0x230)
@@ -227,5 +214,10 @@ extern unsigned char	pc98_system_parameter[]; /* in locore.c */
 
 # define PC98_TYPE_CHECK(x)	((pc98_machine_type & (x)) == (x))
 #endif /* KERNEL */
+
+/*
+ * Obtained from NetBSD/pc98
+ */
+#define MADDRUNK -1
 
 #endif /* !_PC98_PC98_PC98_H_ */

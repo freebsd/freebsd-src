@@ -62,7 +62,6 @@
 #include <sys/buf.h>
 #include <sys/proc.h>
 
-#include <sys/devconf.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
 
@@ -210,27 +209,6 @@ struct isa_driver sbicdriver = {
 
 static int sbicunit = 0;
 
-static struct kern_devconf kdc_sbic[NSBIC] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"sbic", 0, { MDDT_ISA, 0, "bio" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,        /* always start out here in probe */
-	"WD33C93A based SCSI host adapter",
-	DC_CLS_MISC             /* host adapters aren't special */
-} };
-
-static inline void
-sbic_registerdev(struct isa_device *id)
-{
-	if(id->id_unit)
-		kdc_sbic[id->id_unit] = kdc_sbic[0];
-	kdc_sbic[id->id_unit].kdc_unit = id->id_unit;
-	kdc_sbic[id->id_unit].kdc_parentdata = id;
-	dev_attach(&kdc_sbic[id->id_unit]);
-}
-
 /*
  * Check if the device can be found at the port given
  * and if so, set ip up ready for further work
@@ -276,9 +254,6 @@ sbicprobe(dev)
 		free(sbic, M_TEMP);
 		return 0;
 	}
-#ifndef DEV_LKM
-	sbic_registerdev(dev);
-#endif /* DEV_LKM */
 
 	dev->id_irq = sbic->sc_int;
 	dev->id_drq = sbic->sc_dma;
@@ -350,7 +325,6 @@ sbicattach(dev)
 	/*
 	 * ask the adapter what subunits are present
 	 */
-	kdc_sbic[unit].kdc_state = DC_BUSY; /* host adapters are always busy */
 	scsi_attachdevs(scbus);
 
 	return 1;

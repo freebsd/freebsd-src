@@ -30,7 +30,6 @@
 #include <pc98/pc98/scsireg.h>
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
-#include <sys/devconf.h>
 
 #include <sys/kernel.h>
 
@@ -207,30 +206,7 @@ struct isa_driver sbicdriver = {
 	"sbic"
 };
 
-static struct kern_devconf kdc_sbic[NSBIC] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"sbic", 0, { MDDT_ISA, 0, "bio" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* always start out here in probe */
-	"55 compatible SCSI board host adapter",
-	DC_CLS_MISC		/* host adapters aren't special */
-} };
-
-static inline void
-sbic_registerdev(struct isa_device *id)
-{
-	if(id->id_unit)
-		kdc_sbic[id->id_unit] = kdc_sbic[0];
-	kdc_sbic[id->id_unit].kdc_unit = id->id_unit;
-	kdc_sbic[id->id_unit].kdc_parentdata = id;
-	dev_attach(&kdc_sbic[id->id_unit]);
-}
-
-
 static int sbicunit = 0;
-
 
 /*
  * Check if the device can be found at the port given
@@ -301,10 +277,6 @@ sbicprobe(struct isa_device *dev)
 		panic("Can't allocate bounce buffer.");
 #endif
 
-#ifndef DEV_LKM
-	sbic_registerdev(dev);
-#endif
-
 	/*
 	 * Try initialize a unit at this location
 	 * sets up dma, loads sbic_init[unit]
@@ -355,7 +327,6 @@ sbicattach(struct isa_device *dev)
 	/*
 	 * ask the adapter what subunits are present
 	 */
-	kdc_sbic[unit].kdc_state = DC_BUSY; /* host adapters are always busy */
 	scsi_attachdevs(scbus);
 	
 	return 1;
