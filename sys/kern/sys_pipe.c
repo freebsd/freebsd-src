@@ -306,6 +306,7 @@ pipe_create(cpipep)
 	 * protect so pipeclose() doesn't follow a junk pointer
 	 * if pipespace() fails.
 	 */
+	bzero(&cpipe->pipe_sel, sizeof(cpipe->pipe_sel));
 	cpipe->pipe_state = 0;
 	cpipe->pipe_peer = NULL;
 	cpipe->pipe_busy = 0;
@@ -329,7 +330,6 @@ pipe_create(cpipep)
 	vfs_timestamp(&cpipe->pipe_ctime);
 	cpipe->pipe_atime = cpipe->pipe_ctime;
 	cpipe->pipe_mtime = cpipe->pipe_ctime;
-	bzero(&cpipe->pipe_sel, sizeof cpipe->pipe_sel);
 
 	return (0);
 }
