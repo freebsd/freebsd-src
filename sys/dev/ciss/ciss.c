@@ -2949,7 +2949,7 @@ ciss_name_device(struct ciss_softc *sc, int bus, int target)
 {
     struct cam_periph	*periph;
 
-    if (CISS_IS_PHYSICAL(bus) == 0)
+    if (CISS_IS_PHYSICAL(bus))
 	return (0);
     if ((periph = ciss_find_periph(sc, bus, target)) != NULL) {
 	sprintf(sc->ciss_logical[bus][target].cl_name, "%s%d",
