@@ -43,9 +43,7 @@ extern long	 BR;		/* baud rate if lp is a tty */
 extern char	*CF;		/* name of cifplot filter (per job) */
 extern char	*DF;		/* name of tex filter (per job) */
 extern long	 DU;		/* daeomon user-id */
-extern long	 FC;		/* flags to clear if lp is a tty */
 extern char	*FF;		/* form feed string */
-extern long	 FS;		/* flags to set if lp is a tty */
 extern char	*GF;		/* name of graph(1G) filter (per job) */
 extern long	 HL;		/* print header last */
 extern char	*IF;		/* name of input filter (created per job) */
@@ -74,9 +72,8 @@ extern long	 SH;		/* suppress header page */
 extern char	*ST;		/* status file name */
 extern char	*TF;		/* name of troff(1) filter (per job) */
 extern char	*TR;		/* trailer string to be output when Q empties */
+extern char	*MS;		/* mode set, a la stty */
 extern char	*VF;		/* name of raster filter (per job) */
-extern long	 XC;		/* flags to clear for local mode */
-extern long	 XS;		/* flags to set for local mode */
 
 extern char	line[BUFSIZ];
 extern char	*bp;		/* pointer into printcap buffer */
