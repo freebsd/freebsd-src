@@ -4,7 +4,6 @@
 PANIC_REBOOT_WAIT_TIME	opt_panic.h
 MAXMEM
 PERFMON			opt_perfmon.h
-KSTACK_PAGES
 
 # Change KVM size.  Changes things all over the kernel.
 KVA_PAGES		opt_global.h
