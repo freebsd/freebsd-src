@@ -173,6 +173,7 @@ forward(fp, style, off, sbp)
 				return;
 		break;
 	default:
+		break;
 	}
 
 	if (fflag) {

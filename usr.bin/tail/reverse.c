@@ -103,6 +103,7 @@ reverse(fp, style, off, sbp)
 			r_buf(fp);
 			break;
 		default:
+			break;
 		}
 }
 
