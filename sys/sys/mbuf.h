@@ -231,9 +231,9 @@ struct mbuf {
  */
 struct mbpstat {
 	u_long	mb_mbfree;
-	u_long	mb_mbpgs;
+	u_long	mb_mbbucks;
 	u_long	mb_clfree;
-	u_long	mb_clpgs;
+	u_long	mb_clbucks;
 	long	mb_mbtypes[MT_NTYPES];
 	short	mb_active;
 };
@@ -257,6 +257,8 @@ struct mbstat {
 	u_long	m_minclsize;	/* min length of data to allocate a cluster */
 	u_long	m_mlen;		/* length of data in an mbuf */
 	u_long	m_mhlen;	/* length of data in a header mbuf */
+	u_int	m_mbperbuck;	/* number of mbufs per "bucket" */
+	u_int	m_clperbuck;	/* number of clusters per "bucket" */
 	/* Number of mbtypes (gives # elems in mbpstat's mb_mbtypes[] array: */
 	short	m_numtypes;
 };

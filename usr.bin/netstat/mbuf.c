@@ -96,11 +96,11 @@ static struct mbtypenames {
  */
 void
 mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
-    u_long mblimaddr, u_long cllimaddr, u_long cpusaddr __unused,
-    u_long pgsaddr, u_long mbpaddr)
+    u_long mbhiaddr, u_long clhiaddr, u_long mbloaddr, u_long clloaddr,
+    u_long cpusaddr __unused, u_long pgsaddr, u_long mbpaddr)
 {
 	int i, j, nmbufs, nmbclusters, page_size, num_objs;
-	u_int mbuf_limit, clust_limit;
+	u_int mbuf_hiwm, clust_hiwm, mbuf_lowm, clust_lowm;
 	u_long totspace[2], totused[2], totnum, totfree;
 	short nmbtypes;
 	size_t mlen;
@@ -144,9 +144,13 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 			goto err;
 		if (kread(nmbufaddr, (char *)&nmbufs, sizeof(int)))
 			goto err;
-		if (kread(mblimaddr, (char *)&mbuf_limit, sizeof(u_int)))
+		if (kread(mbhiaddr, (char *)&mbuf_hiwm, sizeof(u_int)))
 			goto err;
-		if (kread(cllimaddr, (char *)&clust_limit, sizeof(u_int)))
+		if (kread(clhiaddr, (char *)&clust_hiwm, sizeof(u_int)))
+			goto err;
+		if (kread(mbloaddr, (char *)&mbuf_lowm, sizeof(u_int)))
+			goto err;
+		if (kread(clloaddr, (char *)&clust_lowm, sizeof(u_int)))
 			goto err;
 		if (kread(pgsaddr, (char *)&page_size, sizeof(int)))
 			goto err;
@@ -175,15 +179,27 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 			goto err;
 		}
 		mlen = sizeof(u_int);
-		if (sysctlbyname("kern.ipc.mbuf_limit", &mbuf_limit, &mlen,
+		if (sysctlbyname("kern.ipc.mbuf_hiwm", &mbuf_hiwm, &mlen,
 		    NULL, 0) < 0) {
-			warn("sysctl: retrieving mbuf_limit");
+			warn("sysctl: retrieving mbuf_hiwm");
 			goto err;
 		}
 		mlen = sizeof(u_int);
-		if (sysctlbyname("kern.ipc.clust_limit", &clust_limit, &mlen,
+		if (sysctlbyname("kern.ipc.clust_hiwm", &clust_hiwm, &mlen,
 		    NULL, 0) < 0) {
-			warn("sysctl: retrieving clust_limit");
+			warn("sysctl: retrieving clust_hiwm");
+			goto err;
+		}
+		mlen = sizeof(u_int);
+		if (sysctlbyname("kern.ipc.mbuf_lowm", &mbuf_lowm, &mlen,
+		    NULL, 0) < 0) {
+			warn("sysctl: retrieving mbuf_lowm");
+			goto err;
+		}
+		mlen = sizeof(u_int);
+		if (sysctlbyname("kern.ipc.clust_lowm", &clust_lowm, &mlen,
+		    NULL, 0) < 0) {
+			warn("sysctl: retrieving clust_lowm");
 			goto err;
 		}
 		mlen = sizeof(int);
@@ -211,34 +227,33 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 #define MSIZE		(mbstat->m_msize)
 #undef MCLBYTES
 #define	MCLBYTES	(mbstat->m_mclbytes)
-#define	MBPERPG		(page_size / MSIZE)
-#define	CLPERPG		(page_size / MCLBYTES)
 #define	GENLST		(num_objs - 1)
 
 	printf("mbuf usage:\n");
-	printf("\tGEN list:\t%lu/%lu (in use/in pool)\n",
-	    (mbpstat[GENLST]->mb_mbpgs * MBPERPG - mbpstat[GENLST]->mb_mbfree),
-	    (mbpstat[GENLST]->mb_mbpgs * MBPERPG));
-	totnum = mbpstat[GENLST]->mb_mbpgs * MBPERPG;
+	totnum = mbpstat[GENLST]->mb_mbbucks * mbstat->m_mbperbuck;
 	totfree = mbpstat[GENLST]->mb_mbfree;
+	printf("\tGEN cache:\t%lu/%lu (in use/in pool)\n",
+	    totnum - totfree, totnum);
 	for (j = 1; j < nmbtypes; j++)
 		mbtypes[j] += mbpstat[GENLST]->mb_mbtypes[j];
-	totspace[0] = mbpstat[GENLST]->mb_mbpgs * page_size;
+	totspace[0] = mbpstat[GENLST]->mb_mbbucks * mbstat->m_mbperbuck * MSIZE;
 	for (i = 0; i < (num_objs - 1); i++) {
 		if (mbpstat[i]->mb_active == 0)
 			continue;
-		printf("\tCPU #%d list:\t%lu/%lu (in use/in pool)\n", i,
-		    (mbpstat[i]->mb_mbpgs * MBPERPG - mbpstat[i]->mb_mbfree),
-		    (mbpstat[i]->mb_mbpgs * MBPERPG));
-		totspace[0] += mbpstat[i]->mb_mbpgs * page_size;
-		totnum += mbpstat[i]->mb_mbpgs * MBPERPG;
+		printf("\tCPU #%d cache:\t%lu/%lu (in use/in pool)\n", i,
+		    (mbpstat[i]->mb_mbbucks * mbstat->m_mbperbuck -
+		    mbpstat[i]->mb_mbfree),
+		    (mbpstat[i]->mb_mbbucks * mbstat->m_mbperbuck));
+		totspace[0] += mbpstat[i]->mb_mbbucks*mbstat->m_mbperbuck*MSIZE;
+		totnum += mbpstat[i]->mb_mbbucks * mbstat->m_mbperbuck;
 		totfree += mbpstat[i]->mb_mbfree;
 		for (j = 1; j < nmbtypes; j++)
 			mbtypes[j] += mbpstat[i]->mb_mbtypes[j]; 
 	}
 	totused[0] = totnum - totfree;
 	printf("\tTotal:\t\t%lu/%lu (in use/in pool)\n", totused[0], totnum);
-	printf("\tMaximum number allowed on each CPU list: %d\n", mbuf_limit);
+	printf("\tMbuf cache high watermark: %d\n", mbuf_hiwm);
+	printf("\tMbuf cache low watermark: %d\n", mbuf_lowm);
 	printf("\tMaximum possible: %d\n", nmbufs);
 	printf("\tAllocated mbuf types:\n");
 	for (mp = mbtypenames; mp->mt_name; mp++) {
@@ -257,25 +272,27 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 	    * MSIZE)));
 
 	printf("mbuf cluster usage:\n");
-	printf("\tGEN list:\t%lu/%lu (in use/in pool)\n",
-	    (mbpstat[GENLST]->mb_clpgs * CLPERPG - mbpstat[GENLST]->mb_clfree),
-	    (mbpstat[GENLST]->mb_clpgs * CLPERPG));
-	totnum = mbpstat[GENLST]->mb_clpgs * CLPERPG;
+	totnum = mbpstat[GENLST]->mb_clbucks * mbstat->m_clperbuck;
 	totfree = mbpstat[GENLST]->mb_clfree;
-	totspace[1] = mbpstat[GENLST]->mb_clpgs * page_size;
+	printf("\tGEN cache:\t%lu/%lu (in use/in pool)\n",
+	    totnum - totfree, totnum);
+	totspace[1] = mbpstat[GENLST]->mb_clbucks*mbstat->m_clperbuck*MCLBYTES;
 	for (i = 0; i < (num_objs - 1); i++) {
 		if (mbpstat[i]->mb_active == 0)
 			continue;
-		printf("\tCPU #%d list:\t%lu/%lu (in use/in pool)\n", i,
-		    (mbpstat[i]->mb_clpgs * CLPERPG - mbpstat[i]->mb_clfree),
-		    (mbpstat[i]->mb_clpgs * CLPERPG));
-		totspace[1] += mbpstat[i]->mb_clpgs * page_size;
-		totnum += mbpstat[i]->mb_clpgs * CLPERPG;
+		printf("\tCPU #%d cache:\t%lu/%lu (in use/in pool)\n", i,
+		    (mbpstat[i]->mb_clbucks * mbstat->m_clperbuck -
+		    mbpstat[i]->mb_clfree),
+		    (mbpstat[i]->mb_clbucks * mbstat->m_clperbuck));
+		totspace[1] += mbpstat[i]->mb_clbucks * mbstat->m_clperbuck
+		    * MCLBYTES;
+		totnum += mbpstat[i]->mb_clbucks * mbstat->m_clperbuck;
 		totfree += mbpstat[i]->mb_clfree;
 	}
 	totused[1] = totnum - totfree;
 	printf("\tTotal:\t\t%lu/%lu (in use/in pool)\n", totused[1], totnum);
-	printf("\tMaximum number allowed on each CPU list: %d\n", clust_limit);
+	printf("\tCluster cache high watermark: %d\n", clust_hiwm);
+	printf("\tCluster cache low watermark: %d\n", clust_lowm);
 	printf("\tMaximum possible: %d\n", nmbclusters);
 	printf("\t%lu%% of cluster map consumed\n", ((totspace[1] * 100) /
 	    (nmbclusters * MCLBYTES)));
