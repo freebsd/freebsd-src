@@ -143,10 +143,20 @@ nfs_dolock(struct vop_advlock_args *ap)
 	 */
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, _PATH_LCKFIFO, td);
 
-	fmode = FFLAGS(O_WRONLY);
+	fmode = FFLAGS(O_WRONLY | O_NONBLOCK);
 	error = vn_open_cred(&nd, &fmode, 0, thread0.td_ucred);
-	if (error != 0) {
-		return (error == ENOENT ? EOPNOTSUPP : error);
+	switch (error) {
+	case ENOENT:
+	case ENXIO:
+		/*
+		 * Map a failure to find the fifo or no listener on the
+		 * fifo to locking not being supported.
+		 */
+		return (EOPNOTSUPP);
+	case 0:
+		break;
+	default:
+		return (error);
 	}
 	wvp = nd.ni_vp;
 	VOP_UNLOCK(wvp, 0, td);		/* vn_open leaves it locked */
