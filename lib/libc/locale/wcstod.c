@@ -46,7 +46,7 @@ wcstod(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr)
 	static const mbstate_t initial;
 	mbstate_t state;
 	double val;
-	char *buf, *end;
+	char *buf, *end, *p;
 	const wchar_t *wcp;
 	size_t clen, len;
 
@@ -88,12 +88,14 @@ wcstod(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr)
 #if 1					/* Fast, assume 1:1 WC:MBS mapping. */
 		*endptr = (wchar_t *)nptr + (end - buf);
 		(void)clen;
+		(void)p;
 #else					/* Slow, conservative approach. */
 		state = initial;
 		*endptr = (wchar_t *)nptr;
-		while (buf < end &&
-		    (clen = mbrlen(buf, end - buf, &state)) > 0) {
-			buf += clen;
+		p = buf;
+		while (p < end &&
+		    (clen = mbrlen(p, end - p, &state)) > 0) {
+			p += clen;
 			(*endptr)++;
 		}
 #endif
