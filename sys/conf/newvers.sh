@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)newvers.sh	8.1 (Berkeley) 4/20/94
-#	$Id: newvers.sh,v 1.39 1998/10/16 02:08:20 jkh Exp $
+#	$Id: newvers.sh,v 1.40 1998/10/16 06:55:36 jkh Exp $
 
 TYPE="FreeBSD"
 REVISION="3.0"
@@ -90,8 +90,7 @@ fi
 
 touch version
 v=`cat version` u=${USER-root} d=`pwd` h=`hostname` t=`date`
-cat /dev/null > vers.c
-echo "$COPYRIGHT" >> vers.c
+echo "$COPYRIGHT" > vers.c
 echo "char ostype[] = \"${TYPE}\";" >> vers.c
 echo "char osrelease[] = \"${RELEASE}\";" >> vers.c
 echo "int osreldate = ${RELDATE};" >> vers.c
