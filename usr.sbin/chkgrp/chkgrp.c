@@ -47,7 +47,7 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-    unsigned int len;
+    size_t len;
     int n = 0, i, k, e = 0;
     char *gfn, *line, *f[4], *p;
     FILE *gf;
