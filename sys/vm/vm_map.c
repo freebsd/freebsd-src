@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.5 1994/08/18 22:36:04 wollman Exp $
+ * $Id: vm_map.c,v 1.6 1994/10/09 01:52:10 phk Exp $
  */
 
 /*
@@ -752,19 +752,29 @@ vm_map_find(map, object, offset, addr, length, find_space)
 	boolean_t	find_space;
 {
 	register vm_offset_t	start;
-	int			result;
+	int			result, s = 0;
 
 	start = *addr;
 	vm_map_lock(map);
+
+	if (map == kmem_map)
+		s = splhigh();
+
 	if (find_space) {
 		if (vm_map_findspace(map, start, length, addr)) {
 			vm_map_unlock(map);
+			if (map == kmem_map)
+				splx(s);
 			return (KERN_NO_SPACE);
 		}
 		start = *addr;
 	}
 	result = vm_map_insert(map, object, offset, start, start + length);
 	vm_map_unlock(map);
+
+	if (map == kmem_map)
+		splx(s);
+
 	return (result);
 }
 
@@ -1653,12 +1663,18 @@ vm_map_remove(map, start, end)
 	register vm_offset_t	start;
 	register vm_offset_t	end;
 {
-	register int		result;
+	register int		result, s = 0;
+
+	if (map == kmem_map)
+		s = splhigh();
 
 	vm_map_lock(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
 	result = vm_map_delete(map, start, end);
 	vm_map_unlock(map);
+
+	if (map == kmem_map)
+		splx(s);
 
 	return(result);
 }
