@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.36 1995/05/30 08:01:21 rgrimes Exp $
+ *      $Id: bt742a.c,v 1.37 1995/06/19 13:02:09 amurai Exp $
  */
 
 /*
@@ -1389,10 +1389,10 @@ bt_inquire_setup_information(
          *    BT_ROUND_ROBIN command  amurai@spec.co.jp
 	 */
 	if ( bID.firm_revision >= '3' ) {
-		printf("bt%d: Use a Strict Round robin scheme\n", unit);
+		printf("bt%d: Using Strict Round robin scheme\n", unit);
 		bt_cmd(unit, 1, 0, 0, 0, BT_ROUND_ROBIN, BT_STRICT_ROUND_ROBIN);
 	} else {
-		printf("bt%d: Not Use a Round robin scheme\n", unit);
+		printf("bt%d: Not using Strict Round robin scheme\n", unit);
 	}
 
 }
