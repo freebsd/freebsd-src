@@ -56,17 +56,17 @@ static int	match_exclusion(struct match *, const char *pathname);
 static int	match_inclusion(struct match *, const char *pathname);
 
 /*
- * The matching logic here needs to be re-thought.  I started
- * out to try to mimic gtar's matching logic, but found it wasn't
- * really consistent.  In particular 'tar -t' and 'tar -x' interpret
- * patterns on the command line as anchored, but --exclude doesn't.
+ * The matching logic here needs to be re-thought.  I started out to
+ * try to mimic gtar's matching logic, but it's not entirely
+ * consistent.  In particular 'tar -t' and 'tar -x' interpret patterns
+ * on the command line as anchored, but --exclude doesn't.
  */
 
 /*
  * Utility functions to manage exclusion/inclusion patterns
  */
 
-void
+int
 exclude(struct bsdtar *bsdtar, const char *pattern)
 {
 	struct matching *matching;
@@ -76,47 +76,16 @@ exclude(struct bsdtar *bsdtar, const char *pattern)
 	matching = bsdtar->matching;
 	add_pattern(bsdtar, &(matching->exclusions), pattern);
 	matching->exclusions_count++;
+	return (0);
 }
 
-/*
- * Read lines from file and exclude() each one.  This uses
- * a self-sizing buffer to handle arbitrarily-long lines.
- */
-void
+int
 exclude_from_file(struct bsdtar *bsdtar, const char *pathname)
 {
-	FILE *f;
-	char *buff;
-	size_t buff_length, line_length;
-
-	f = fopen(pathname, "r");
-	if (f == NULL)
-		bsdtar_errc(bsdtar, 1, errno, "Couldn't open %s", pathname);
-	buff_length = 256;
-	buff = malloc(buff_length);
-	if (buff == NULL)
-		bsdtar_errc(bsdtar, 1, ENOMEM, "Can't read %s", pathname);
-	while(fgets(buff, buff_length, f) != NULL) {
-		line_length = strlen(buff);
-		while (buff[line_length - 1] != '\n') {
-			buff = realloc(buff, buff_length *= 2);
-			if (buff == NULL)
-				bsdtar_errc(bsdtar, 1, ENOMEM,
-				    "Line too long in %s", pathname);
-			if (fgets(buff + line_length,
-			    buff_length - line_length, f) == NULL)
-				bsdtar_errc(bsdtar, 1, 0,
-				    "Bad input line in %s", pathname);
-			line_length = strlen(buff);
-		}
-		buff[line_length - 1] = '\0';
-		exclude(bsdtar, buff);
-	}
-	free(buff);
-	fclose(f);
+	return (process_lines(bsdtar, pathname, &exclude));
 }
 
-void
+int
 include(struct bsdtar *bsdtar, const char *pattern)
 {
 	struct matching *matching;
@@ -127,6 +96,13 @@ include(struct bsdtar *bsdtar, const char *pattern)
 	add_pattern(bsdtar, &(matching->inclusions), pattern);
 	matching->inclusions_count++;
 	matching->inclusions_unmatched_count++;
+	return (0);
+}
+
+int
+include_from_file(struct bsdtar *bsdtar, const char *pathname)
+{
+	return (process_lines(bsdtar, pathname, &include));
 }
 
 static void

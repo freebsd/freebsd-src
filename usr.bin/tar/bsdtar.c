@@ -91,11 +91,12 @@ const char *tar_opts = "+Bb:C:cF:f:HhjkLlmnOoPprtT:UuvW:wX:xyZz";
 /* Fake short equivalents for long options that otherwise lack them. */
 #define	OPTION_EXCLUDE 1
 #define	OPTION_FAST_READ 2
-#define	OPTION_NODUMP 3
-#define	OPTION_HELP 4
-#define	OPTION_INCLUDE 5
-#define	OPTION_ONE_FILE_SYSTEM 6
-#define OPTION_NO_SAME_PERMISSIONS 7
+#define	OPTION_HELP 3
+#define	OPTION_INCLUDE 4
+#define	OPTION_NODUMP 5
+#define	OPTION_NO_SAME_PERMISSIONS 6
+#define	OPTION_NULL 7
+#define	OPTION_ONE_FILE_SYSTEM 8
 
 const struct option tar_longopts[] = {
 	{ "absolute-paths",     no_argument,       NULL, 'P' },
@@ -127,6 +128,7 @@ const struct option tar_longopts[] = {
 	{ "norecurse",          no_argument,       NULL, 'n' },
 	{ "no-same-owner",	no_argument,	   NULL, 'o' },
 	{ "no-same-permissions",no_argument,	   NULL, OPTION_NO_SAME_PERMISSIONS },
+	{ "null",		no_argument,	   NULL, OPTION_NULL },
 	{ "one-file-system",	no_argument,	   NULL, OPTION_ONE_FILE_SYSTEM },
 	{ "preserve-permissions", no_argument,     NULL, 'p' },
 	{ "read-full-blocks",	no_argument,	   NULL, 'B' },
@@ -199,10 +201,7 @@ main(int argc, char **argv)
         while ((opt = bsdtar_getopt(bsdtar, tar_opts, &option)) != -1) {
 		switch (opt) {
 		case 'B': /* GNU tar */
-			/*
-			 * bsdtar is stream-based internally, so this
-			 * option has no effect.  Just ignore it.
-			 */
+			/* libarchive doesn't need this; just ignore it. */
 			break;
 		case 'b': /* SUSv2 */
 			bsdtar->bytes_per_block = 512 * atoi(optarg);
@@ -280,6 +279,9 @@ main(int argc, char **argv)
 			 * command-line option as a no-op.
 			 */
 			break;
+		case OPTION_NULL: /* GNU tar */
+			bsdtar->option_null++;
+			break;
 		case 'O': /* GNU tar */
 			bsdtar->option_stdout = 1;
 			break;
@@ -314,6 +316,9 @@ main(int argc, char **argv)
 				    opt, mode);
 			mode = opt;
 			break;
+		case 'T': /* GNU tar */
+			bsdtar->names_from_file = optarg;
+			break;
 		case 't': /* SUSv2 */
 			if (mode != '\0')
 				bsdtar_errc(bsdtar, 1, 0,
@@ -321,9 +326,6 @@ main(int argc, char **argv)
 				    opt, mode);
 			mode = opt;
 			bsdtar->verbose++;
-			break;
-		case 'T': /* GNU tar */
-			bsdtar->names_from_file = optarg;
 			break;
 		case 'U': /* GNU tar */
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_UNLINK;
@@ -366,7 +368,7 @@ main(int argc, char **argv)
 				    bsdtar->create_compression);
 			bsdtar->create_compression = opt;
 			break;
-		case 'z': /* GNU tar, star */
+		case 'z': /* GNU tar, star, many others */
 			if (bsdtar->create_compression != '\0')
 				bsdtar_errc(bsdtar, 1, 0,
 				    "Can't specify both -%c and -%c", opt,
@@ -418,10 +420,8 @@ main(int argc, char **argv)
 	}
 	if (bsdtar->create_format != NULL)
 		only_mode(bsdtar, mode, "-F", "c");
-	if (bsdtar->names_from_file != NULL)
-		only_mode(bsdtar, mode, "-T", "cru");
 	if (bsdtar->symlink_mode != '\0') {
-		strcpy(buff, "-X");
+		strcpy(buff, "-?");
 		buff[1] = bsdtar->symlink_mode;
 		only_mode(bsdtar, mode, buff, "cru");
 	}
