@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.13 1994/11/28 23:18:46 se Exp $
+**  $Id: ncr.c,v 1.14 1995/01/12 14:01:13 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -169,13 +169,13 @@
 #include <vm/vm.h>
 #endif /* KERNEL */
 
-#include <i386/pci/ncrreg.h>
+#include <pci/ncrreg.h>
 
 #ifdef __NetBSD__
 #include <sys/device.h>
 #include <i386/pci/pcivar.h>
 #endif /* __NetBSD */
-#include <i386/pci/pcireg.h>
+#include <pci/pcireg.h>
 
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
@@ -1222,7 +1222,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.13 1994/11/28 23:18:46 se Exp $\n";
+	"\n$Id: ncr.c,v 1.14 1995/01/12 14:01:13 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -3333,7 +3333,7 @@ static	void ncr_attach (pcici_t config_id, int unit)
 		ncr_name (np));
 	DELAY (1000000);
 #endif
-	printf ("%s scanning for targets 0..%d ($Revision: 1.13 $)\n",
+	printf ("%s scanning for targets 0..%d ($Revision: 1.14 $)\n",
 		ncr_name (np), MAX_TARGET-1);
 
 	/*
