@@ -1093,7 +1093,7 @@ ginad		634/tcp
 ginad		634/udp
 ldaps		636/tcp    sldap #ldap protocol over TLS/SSL
 ldaps		636/udp    sldap
-aodv		654/tdp    #Ad-Hoc On-Demand Distance Vector Routing Protocol
+aodv		654/tcp    #Ad-Hoc On-Demand Distance Vector Routing Protocol
 aodv		654/udp    #Ad-Hoc On-Demand Distance Vector Routing Protocol
 mdqs		666/tcp
 mdqs		666/udp
@@ -1200,6 +1200,7 @@ rsync		873/udp
 accessbuilder	888/tcp
 accessbuilder	888/udp
 swat		901/tcp			# samba web configuration tool
+rndc		953/tcp			# named's rndc control socket
 ftps-data	989/tcp			# ftp protocol, data, over TLS/SSL
 ftps-data	989/udp
 ftps		990/tcp			# ftp protocol, control, over TLS/SSL
@@ -1923,7 +1924,10 @@ ccmail		3264/tcp   #cc:mail/lotus
 ccmail		3264/udp   #cc:mail/lotus
 dec-notes	3333/tcp   #DEC Notes
 dec-notes	3333/udp   #DEC Notes
+rdp		3389/tcp   #Microsoft Remote Desktop Protocol
 rsvp-encap	3455/udp   #RSVP encapsulated in UDP
+nut		3493/tcp   #Network UPS Tools
+nut		3493/udp   #Network UPS Tools
 mapper-nodemgr	3984/tcp   #MAPPER network node manager
 mapper-nodemgr	3984/udp   #MAPPER network node manager
 mapper-mapethd	3985/tcp   #MAPPER TCP/IP server
@@ -2006,6 +2010,8 @@ hacl-test	5305/tcp
 hacl-test	5305/udp
 cfengine	5308/tcp
 cfengine	5308/udp
+mdns		5353/tcp   #Multicast DNS
+mdns		5353/udp   #Multicast DNS
 postgresql	5432/tcp   #PostgreSQL Database
 postgresql	5432/udp   #PostgreSQL Database
 rplay		5555/udp
