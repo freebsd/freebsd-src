@@ -7,4 +7,8 @@
 ^[aAyY].*
 # noexpr
 ^[nN].*
+# yesstr
+ano
+# nostr
+ne
 # EOF
