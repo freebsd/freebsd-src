@@ -37,9 +37,6 @@
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 #include <netinet/ip_icmp.h>
-
-#include <arpa/inet.h>
-
 #include <netinet/ip_fw.h>
 
 #ifdef IPFIREWALL_DEBUG
@@ -68,7 +65,7 @@
 
 
 /*
- * Returns 1 if the port is matched by the vector, 0 otherwise
+ * Returns TRUE if the port is matched by the vector, FALSE otherwise
  */
 inline
 int port_match(portptr,nports,port,range_flag)
@@ -78,25 +75,25 @@ u_short port;
 int range_flag;
 {
     if (!nports)
-	return 1;
+	return TRUE;
     if (range_flag) {
 	if (portptr[0]<=port && port<=portptr[1]) {
-	    return 1;
+	    return TRUE;
 	}
 	nports-=2;
 	portptr+=2;
     }
     while (nports-->0) {
 	if (*portptr++==port) {
-	    return 1;
+	    return TRUE;
 	}
     }
-    return 0;
+    return FALSE;
 }
 
 
 /*
- * Returns 0 if packet should be dropped, 1 or more if it should be accepted
+ * Returns TRUE if it should be accepted, FALSE otherwise.
  */
 
 #ifdef IPFIREWALL
@@ -122,7 +119,7 @@ struct ip_fw 	*chain;
 		 * to disabling firewall.
 		 */
     if (!chain)
-	return(1);
+	return TRUE;
 
 		/*
 		 * This way we handle fragmented packets.
@@ -132,7 +129,7 @@ struct ip_fw 	*chain;
 		 * stored only in first packet.
 		 */
     if (ip->ip_off&IP_OFFMASK)
-	return(1);
+	return TRUE;
 
     src = ip->ip_src;
     dst = ip->ip_dst;
@@ -258,7 +255,7 @@ via_match:
     	if (ip_fw_policy&IP_FW_P_DENY)
 		goto bad_packet;
 	else
-		goto good_packet;
+		return TRUE;
 
 got_match:
 #ifdef IPFIREWALL_VERBOSE
@@ -296,50 +293,32 @@ got_match:
     }
 #endif
 	if (f->fw_flg&IP_FW_F_ACCEPT)
-		goto good_packet;
-#ifdef noneed
-	else
-		goto bad_packet;
-#endif
+		return TRUE;
 
 bad_packet:
-	if (f) {
-			/*
-			 * Do not ICMP reply to icmp
-			 * packets....:)
-			 */
-		if (f_prt==IP_FW_F_ICMP)
-			goto return_0;
-			/*
-			 * Reply to packets rejected
-			 * by entry with this flag
-			 * set only.
-			 */
-		if (!(f->fw_flg&IP_FW_F_ICMPRPL))
-			goto return_0;
-		m = dtom(ip);
+	m = dtom(ip);
+	if (f != NULL) {
+		/*
+		 * Do not ICMP reply to icmp
+		 * packets....:) or to packets
+		 * rejected by entry without
+		 * the special ICMP reply flag.
+		 */
+		if ((f_prt == IP_FW_F_ICMP) ||
+		    !(f->fw_flg&IP_FW_F_ICMPRPL)) {
+			m_freem(m);
+			return FALSE;
+		}
 		if (f_prt==IP_FW_F_ALL)
    			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0L, 0);
 		else
    			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_PORT, 0L, 0);
-		return 0;
-	} else {
-		/*
-		 * If global icmp flag set we will do
-		 * something here...later..
-		 */
-		goto return_0;
+		return FALSE;
 	}
-return_0:
 	m_freem(m);
-	return 0;
-good_packet:
-	return 1;
+	return FALSE;
 }
 #endif /* IPFIREWALL */
-
-
-
 
 #ifdef IPACCT
 void ip_acct_cnt(ip,rif,chain,nh_conv)
