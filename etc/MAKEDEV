@@ -75,7 +75,7 @@
 #	tw*	xten power controller
 #	snd*	various sound cards
 #
-#	$Id: MAKEDEV,v 1.25 1994/02/07 04:25:07 alm Exp $
+#	$Id: MAKEDEV,v 1.26 1994/02/19 13:17:03 ache Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -469,7 +469,7 @@ speaker)
 	;;
 
 sio*|cua*|ttyd*)
-	unit=`expr $i : '\(.\)$'`
+	unit=`expr $i : '...d*\(.\)'`
 	rm -f tty0$unit cua0$unit ttyd$unit
 	mknod ttyd$unit c 28 $unit
 	mknod cua0$unit c 28 `expr $unit + 128`
@@ -477,7 +477,7 @@ sio*|cua*|ttyd*)
 	;;
 
 tty*)
-	unit=`expr $i : '\(.\)$'`
+	unit=`expr $i : 'tty\(.\)'`
 	rm -f tty0$unit cua0$unit ttyd$unit
 	umask 0
 	mknod tty0$unit c 28 $unit
