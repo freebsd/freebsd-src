@@ -776,18 +776,16 @@ nfs_lookup(struct vop_lookup_args *ap)
 	long len;
 	nfsfh_t *fhp;
 	struct nfsnode *np;
-	int lockparent, wantparent, error = 0, attrflag, fhsize;
+	int wantparent, error = 0, attrflag, fhsize;
 	int v3 = NFS_ISV3(dvp);
 	struct thread *td = cnp->cn_thread;
 
 	*vpp = NULLVP;
-	cnp->cn_flags &= ~PDIRUNLOCK;
 	if ((flags & ISLASTCN) && (dvp->v_mount->mnt_flag & MNT_RDONLY) &&
 	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
 		return (EROFS);
 	if (dvp->v_type != VDIR)
 		return (ENOTDIR);
-	lockparent = flags & LOCKPARENT;
 	wantparent = flags & (LOCKPARENT|WANTPARENT);
 	nmp = VFSTONFS(dvp->v_mount);
 	np = VTONFS(dvp);
@@ -810,20 +808,11 @@ nfs_lookup(struct vop_lookup_args *ap)
 			error = 0;
 		} else if (flags & ISDOTDOT) {
 			VOP_UNLOCK(dvp, 0, td);
-			cnp->cn_flags |= PDIRUNLOCK;
 			error = vget(newvp, LK_EXCLUSIVE, td);
-			if (!error && lockparent && (flags & ISLASTCN)) {
-				error = vn_lock(dvp, LK_EXCLUSIVE, td);
-				if (error == 0)
-					cnp->cn_flags &= ~PDIRUNLOCK;
-			}
-		} else {
+			if (error)
+				vn_lock(dvp, LK_EXCLUSIVE|LK_RETRY, td);
+		} else
 			error = vget(newvp, LK_EXCLUSIVE, td);
-			if (!lockparent || error || !(flags & ISLASTCN)) {
-				VOP_UNLOCK(dvp, 0, td);
-				cnp->cn_flags |= PDIRUNLOCK;
-			}
-		}
 		if (!error) {
 			if (!VOP_GETATTR(newvp, &vattr, cnp->cn_cred, td)
 			 && vattr.va_ctime.tv_sec == VTONFS(newvp)->n_ctime) {
@@ -835,18 +824,15 @@ nfs_lookup(struct vop_lookup_args *ap)
 			     return (0);
 			}
 			cache_purge(newvp);
-			vput(newvp);
-			if (lockparent && dvp != newvp && (flags & ISLASTCN))
-				VOP_UNLOCK(dvp, 0, td);
+			if (dvp != newvp)
+				vput(newvp);
+			else 
+				vrele(newvp);
+			if (flags & ISDOTDOT)
+				vn_lock(dvp, LK_EXCLUSIVE|LK_RETRY, td);
 		}
 		vdrop(newvp);
-		error = vn_lock(dvp, LK_EXCLUSIVE, td);
 		*vpp = NULLVP;
-		if (error) {
-			cnp->cn_flags |= PDIRUNLOCK;
-			return (error);
-		}
-		cnp->cn_flags &= ~PDIRUNLOCK;
 	}
 	error = 0;
 	newvp = NULLVP;
@@ -889,10 +875,6 @@ nfs_lookup(struct vop_lookup_args *ap)
 		*vpp = newvp;
 		m_freem(mrep);
 		cnp->cn_flags |= SAVENAME;
-		if (!lockparent) {
-			VOP_UNLOCK(dvp, 0, td);
-			cnp->cn_flags |= PDIRUNLOCK;
-		}
 		return (0);
 	}
 
@@ -904,15 +886,6 @@ nfs_lookup(struct vop_lookup_args *ap)
 			return (error);
 		}
 		newvp = NFSTOV(np);
-		if (lockparent && (flags & ISLASTCN)) {
-			error = vn_lock(dvp, LK_EXCLUSIVE, td);
-			if (error) {
-				cnp->cn_flags |= PDIRUNLOCK;
-		    		vput(newvp);
-				return (error);
-			}
-		} else
-			cnp->cn_flags |= PDIRUNLOCK;
 	} else if (NFS_CMPFH(np, fhp, fhsize)) {
 		VREF(dvp);
 		newvp = dvp;
@@ -921,10 +894,6 @@ nfs_lookup(struct vop_lookup_args *ap)
 		if (error) {
 			m_freem(mrep);
 			return (error);
-		}
-		if (!lockparent || !(flags & ISLASTCN)) {
-			cnp->cn_flags |= PDIRUNLOCK;
-			VOP_UNLOCK(dvp, 0, td);
 		}
 		newvp = NFSTOV(np);
 	}
@@ -950,10 +919,6 @@ nfsmout:
 		}
 		if ((cnp->cn_nameiop == CREATE || cnp->cn_nameiop == RENAME) &&
 		    (flags & ISLASTCN) && error == ENOENT) {
-			if (!lockparent) {
-				VOP_UNLOCK(dvp, 0, td);
-				cnp->cn_flags |= PDIRUNLOCK;
-			}
 			if (dvp->v_mount->mnt_flag & MNT_RDONLY)
 				error = EROFS;
 			else
