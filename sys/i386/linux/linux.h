@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.h,v 1.8 1996/03/10 22:30:52 peter Exp $
+ *	$Id: linux.h,v 1.9 1996/10/15 19:22:29 bde Exp $
  */
 
 #ifndef _I386_LINUX_LINUX_H_
@@ -96,7 +96,7 @@ struct linux_sigcontext {
 struct linux_sigframe {
 	int	sf_sig;
 	struct	linux_sigcontext sf_sc;
-	sig_t	sf_handler;
+	void	(*sf_handler)(int);
 };
 
 extern int bsd_to_linux_errno[];
@@ -521,6 +521,5 @@ struct trapframe;
 #define LINUX_ASYNC_PGRP_LOCKOUT    	0x0200
 #define LINUX_ASYNC_CALLOUT_NOHUP   	0x0400
 #define LINUX_ASYNC_FLAGS     		0x0FFF
-
 
 #endif /* !_I386_LINUX_LINUX_H_ */
