@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.180 1995/05/12 15:17:55 ache Exp $
+#	$Id: LINT,v 1.181 1995/05/14 02:59:45 davidg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -383,11 +383,15 @@ controller	isa0
 # TUNE_1542 enables the automatic ISA bus speed selection for the
 # Adaptec 1542 boards. Does not work for all boards, use it with caution.
 #
+# BROKEN_KEYBOARD_RESET disables the use of the keyboard controller to
+# reset the CPU for reboot.  This is needed on some systems with broken
+# keyboard controllers.
 options		"AUTO_EOI_1"
 #options	"AUTO_EOI_2"
 options		BOUNCE_BUFFERS
 #options	DUMMY_NOPS
 #options        "TUNE_1542"
+#options	"BROKEN_KEYBOARD_RESET"
 
 # Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
 #device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
