@@ -621,7 +621,6 @@ mount_print(mp)
 	struct mount *mp;
 {
 	int flags;
-	const char *type;
 
 #define ST	mp->mnt_stat
 	(void)printf("*** MOUNT %s %s on %s", ST.f_fstypename,

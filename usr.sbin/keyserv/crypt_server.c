@@ -182,11 +182,7 @@ void load_des(warn, libpath)
 	int warn;
 	char *libpath;
 {
-	DIR *dird;
-	struct dirent *dirp;
 	char dlpath[MAXPATHLEN];
-	int minor = -1;
-	int len;
 
 	if (libpath == NULL) {
 #ifdef OBJFORMAT_ELF

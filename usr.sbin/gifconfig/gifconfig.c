@@ -564,7 +564,6 @@ phys_status(force)
 {
 	char psrcaddr[256];
 	char pdstaddr[256];
-	char hostname[NI_MAXHOST];
 	int flags = NI_NUMERICHOST;
 	char *af;
 #ifndef SIOCGLIFPHYADDR
