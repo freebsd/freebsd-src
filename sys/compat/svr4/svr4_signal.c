@@ -36,12 +36,12 @@
 #include <sys/signalvar.h>
 #include <sys/sysproto.h>
 
-#include <svr4/svr4.h>
-#include <svr4/svr4_types.h>
-#include <svr4/svr4_signal.h>
-#include <svr4/svr4_proto.h>
-#include <svr4/svr4_util.h>
-#include <svr4/svr4_ucontext.h>
+#include <compat/svr4/svr4.h>
+#include <compat/svr4/svr4_types.h>
+#include <compat/svr4/svr4_signal.h>
+#include <compat/svr4/svr4_proto.h>
+#include <compat/svr4/svr4_util.h>
+#include <compat/svr4/svr4_ucontext.h>
 
 #define	svr4_sigmask(n)		(1 << (((n) - 1) & 31))
 #define	svr4_sigword(n)		(((n) - 1) >> 5)

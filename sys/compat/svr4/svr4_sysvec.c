@@ -54,16 +54,16 @@
 #include <machine/cpu.h>
 #include <netinet/in.h>
 
-#include <svr4/svr4.h>
-#include <svr4/svr4_types.h>
-#include <svr4/svr4_syscall.h>
-#include <svr4/svr4_signal.h>
-#include <svr4/svr4_sockio.h>
-#include <svr4/svr4_socket.h>
-#include <svr4/svr4_errno.h>
-#include <svr4/svr4_proto.h>
-#include <svr4/svr4_siginfo.h>
-#include <svr4/svr4_util.h>
+#include <compat/svr4/svr4.h>
+#include <compat/svr4/svr4_types.h>
+#include <compat/svr4/svr4_syscall.h>
+#include <compat/svr4/svr4_signal.h>
+#include <compat/svr4/svr4_sockio.h>
+#include <compat/svr4/svr4_socket.h>
+#include <compat/svr4/svr4_errno.h>
+#include <compat/svr4/svr4_proto.h>
+#include <compat/svr4/svr4_siginfo.h>
+#include <compat/svr4/svr4_util.h>
 
 int bsd_to_svr4_errno[ELAST+1] = {
         0,

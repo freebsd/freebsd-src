@@ -62,19 +62,19 @@
 
 #include <sys/sysproto.h>
 
-#include <svr4/svr4.h>
-#include <svr4/svr4_types.h>
-#include <svr4/svr4_signal.h>
-#include <svr4/svr4_proto.h>
-#include <svr4/svr4_util.h>
-#include <svr4/svr4_sysconfig.h>
-#include <svr4/svr4_dirent.h>
-#include <svr4/svr4_acl.h>
-#include <svr4/svr4_ulimit.h>
-#include <svr4/svr4_statvfs.h>
-#include <svr4/svr4_hrt.h>
-#include <svr4/svr4_mman.h>
-#include <svr4/svr4_wait.h>
+#include <compat/svr4/svr4.h>
+#include <compat/svr4/svr4_types.h>
+#include <compat/svr4/svr4_signal.h>
+#include <compat/svr4/svr4_proto.h>
+#include <compat/svr4/svr4_util.h>
+#include <compat/svr4/svr4_sysconfig.h>
+#include <compat/svr4/svr4_dirent.h>
+#include <compat/svr4/svr4_acl.h>
+#include <compat/svr4/svr4_ulimit.h>
+#include <compat/svr4/svr4_statvfs.h>
+#include <compat/svr4/svr4_hrt.h>
+#include <compat/svr4/svr4_mman.h>
+#include <compat/svr4/svr4_wait.h>
 
 #include <machine/vmparam.h>
 #include <vm/vm.h>

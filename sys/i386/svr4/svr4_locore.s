@@ -1,7 +1,7 @@
 #include "svr4_assym.h"			/* system definitions */
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
 
-#include <svr4/svr4_syscall.h>		/* system call numbers */
+#include <compat/svr4/svr4_syscall.h>		/* system call numbers */
 
 /* $FreeBSD$ */
 	

@@ -74,7 +74,7 @@
 #ifndef	_SVR4_FUSER_H_
 #define	_SVR4_FUSER_H_
 
-#include <svr4/svr4_types.h>
+#include <compat/svr4/svr4_types.h>
 
 struct svr4_f_user {
 	svr4_pid_t	fu_pid;

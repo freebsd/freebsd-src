@@ -49,13 +49,13 @@
 #include <machine/vm86.h>
 #include <machine/vmparam.h>
 
-#include <svr4/svr4.h>
-#include <svr4/svr4_types.h>
-#include <svr4/svr4_signal.h>
+#include <compat/svr4/svr4.h>
+#include <compat/svr4/svr4_types.h>
+#include <compat/svr4/svr4_signal.h>
 #include <i386/svr4/svr4_machdep.h>
-#include <svr4/svr4_ucontext.h>
-#include <svr4/svr4_proto.h>
-#include <svr4/svr4_util.h>
+#include <compat/svr4/svr4_ucontext.h>
+#include <compat/svr4/svr4_proto.h>
+#include <compat/svr4/svr4_util.h>
 
 #undef sigcode
 #undef szsigcode

@@ -31,7 +31,7 @@
 #ifndef	_SVR4_FCNTL_H_
 #define	_SVR4_FCNTL_H_
 
-#include <svr4/svr4_types.h>
+#include <compat/svr4/svr4_types.h>
 #include <sys/fcntl.h>
 
 #define	SVR4_O_RDONLY		0x0000

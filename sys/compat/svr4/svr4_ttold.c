@@ -36,10 +36,10 @@
 #include <sys/ioctl_compat.h>
 #include <sys/termios.h>
 
-#include <svr4/svr4.h>
-#include <svr4/svr4_util.h>
-#include <svr4/svr4_ttold.h>
-#include <svr4/svr4_ioctl.h>
+#include <compat/svr4/svr4.h>
+#include <compat/svr4/svr4_util.h>
+#include <compat/svr4/svr4_ttold.h>
+#include <compat/svr4/svr4_ioctl.h>
 
 
 static void svr4_tchars_to_bsd_tchars __P((const struct svr4_tchars *st,

@@ -43,17 +43,17 @@
 
 #include <netinet/in.h>
 
-#include <svr4/svr4.h>
-#include <svr4/svr4_types.h>
-#include <svr4/svr4_signal.h>
-#include <svr4/svr4_proto.h>
-#include <svr4/svr4_util.h>
-#include <svr4/svr4_stat.h>
-#include <svr4/svr4_ustat.h>
-#include <svr4/svr4_utsname.h>
-#include <svr4/svr4_systeminfo.h>
-#include <svr4/svr4_socket.h>
-#include <svr4/svr4_time.h>
+#include <compat/svr4/svr4.h>
+#include <compat/svr4/svr4_types.h>
+#include <compat/svr4/svr4_signal.h>
+#include <compat/svr4/svr4_proto.h>
+#include <compat/svr4/svr4_util.h>
+#include <compat/svr4/svr4_stat.h>
+#include <compat/svr4/svr4_ustat.h>
+#include <compat/svr4/svr4_utsname.h>
+#include <compat/svr4/svr4_systeminfo.h>
+#include <compat/svr4/svr4_socket.h>
+#include <compat/svr4/svr4_time.h>
 #if defined(NOTYET)
 #include "svr4_fuser.h"
 #endif

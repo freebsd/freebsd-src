@@ -82,12 +82,12 @@
 #include <sys/proc.h>
 #include <sys/time.h>
 
-#include <svr4/svr4.h>
-#include <svr4/svr4_types.h>
-#include <svr4/svr4_signal.h>
-#include <svr4/svr4_proto.h>
-#include <svr4/svr4_util.h>
-#include <svr4/svr4_ipc.h>
+#include <compat/svr4/svr4.h>
+#include <compat/svr4/svr4_types.h>
+#include <compat/svr4/svr4_signal.h>
+#include <compat/svr4/svr4_proto.h>
+#include <compat/svr4/svr4_util.h>
+#include <compat/svr4/svr4_ipc.h>
 
 #if defined(SYSVMSG) || defined(SYSVSHM) || defined(SYSVSEM)
 static void svr4_to_bsd_ipc_perm __P((const struct svr4_ipc_perm *,
