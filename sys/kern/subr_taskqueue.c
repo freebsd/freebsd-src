@@ -235,28 +235,23 @@ taskqueue_swi_giant_run(void *dummy)
 }
 
 static void
-taskqueue_kthread(void *arg)
+taskqueue_thread_loop(void *arg)
 {
-	struct mtx kthread_mutex;
-
-	bzero(&kthread_mutex, sizeof(kthread_mutex));
-
-	mtx_init(&kthread_mutex, "taskqueue kthread", NULL, MTX_DEF);
-
-	mtx_lock(&kthread_mutex);
-
 	for (;;) {
-		mtx_unlock(&kthread_mutex);
+		mtx_lock(&taskqueue_thread->tq_mutex);
+		while (STAILQ_EMPTY(&taskqueue_thread->tq_queue))
+			msleep(taskqueue_thread, &taskqueue_thread->tq_mutex,
+			    PWAIT, "-", 0); 
+		mtx_unlock(&taskqueue_thread->tq_mutex);
 		taskqueue_run(taskqueue_thread);
-		mtx_lock(&kthread_mutex);
-		msleep(&taskqueue_thread, &kthread_mutex, PWAIT, "tqthr", 0); 
 	}
 }
 
 static void
 taskqueue_thread_enqueue(void *context)
 {
-	wakeup(&taskqueue_thread);
+	mtx_assert(&taskqueue_thread->tq_mutex, MA_OWNED);
+	wakeup(taskqueue_thread);
 }
 
 TASKQUEUE_DEFINE(swi, taskqueue_swi_enqueue, 0,
@@ -268,7 +263,7 @@ TASKQUEUE_DEFINE(swi_giant, taskqueue_swi_giant_enqueue, 0,
 		     NULL, SWI_TQ_GIANT, 0, &taskqueue_giant_ih)); 
 
 TASKQUEUE_DEFINE(thread, taskqueue_thread_enqueue, 0,
-		 kthread_create(taskqueue_kthread, NULL,
+		 kthread_create(taskqueue_thread_loop, NULL,
 		 &taskqueue_thread_proc, 0, 0, "taskqueue"));
 
 int
