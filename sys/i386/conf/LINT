@@ -525,6 +525,10 @@ options 	IPFIREWALL_VERBOSE	#print information about
 options 	IPFIREWALL_FORWARD	#enable transparent proxy support
 options 	IPFIREWALL_VERBOSE_LIMIT=100	#limit verbosity
 options 	IPFIREWALL_DEFAULT_TO_ACCEPT	#allow everything by default
+options 	IPV6FIREWALL		#firewall for IPv6
+options 	IPV6FIREWALL_VERBOSE
+options 	IPV6FIREWALL_VERBOSE_LIMIT=100
+options 	IPV6FIREWALL_DEFAULT_TO_ACCEPT
 options 	IPDIVERT		#divert sockets
 options 	IPFILTER		#ipfilter support
 options 	IPFILTER_LOG		#ipfilter logging
