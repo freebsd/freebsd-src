@@ -47,6 +47,8 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <syslog.h>
 
+#include "extern.h"
+
 static	char *types[] =
     { "leave_invite", "look_up", "delete", "announce" };
 #define	NTYPES	(sizeof (types) / sizeof (types[0]))
@@ -56,9 +58,7 @@ static	char *answers[] =
 #define	NANSWERS	(sizeof (answers) / sizeof (answers[0]))
 
 void
-print_request(cp, mp)
-	char *cp;
-	register CTL_MSG *mp;
+print_request(const char *cp, CTL_MSG *mp)
 {
 	char tbuf[80], *tp;
 
@@ -72,9 +72,7 @@ print_request(cp, mp)
 }
 
 void
-print_response(cp, rp)
-	char *cp;
-	register CTL_RESPONSE *rp;
+print_response(const char *cp, CTL_RESPONSE *rp)
 {
 	char tbuf[80], *tp, abuf[80], *ap;
 

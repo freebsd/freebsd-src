@@ -58,10 +58,9 @@ static const char rcsid[] =
 #include <vis.h>
 
 #include "ttymsg.h"
+#include "extern.h"
 
 extern char hostname[];
-
-int print_mesg __P((char *, FILE *, CTL_MSG *, char *));
 
 /*
  * Announce an invitation to talk.
@@ -72,9 +71,7 @@ int print_mesg __P((char *, FILE *, CTL_MSG *, char *));
  * a talk is requested.
  */
 int
-announce(request, remote_machine)
-	CTL_MSG *request;
-	char *remote_machine;
+announce(CTL_MSG *request, const char *remote_machine)
 {
 	char full_tty[32];
 	FILE *tf;
@@ -98,11 +95,8 @@ announce(request, remote_machine)
  * in in vi at the time
  */
 int
-print_mesg(tty, tf, request, remote_machine)
-	char *tty;
-	FILE *tf;
-	CTL_MSG *request;
-	char *remote_machine;
+print_mesg(const char *tty, FILE *tf, CTL_MSG *request,
+    const char *remote_machine)
 {
 	struct timeval clock;
 	time_t clock_sec;
