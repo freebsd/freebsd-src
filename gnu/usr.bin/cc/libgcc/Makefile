@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.16 1998/03/23 12:23:13 bde Exp $
+# $Id: Makefile,v 1.17 1998/07/08 00:45:50 bde Exp $
 #
 
 LIB=	gcc
@@ -67,30 +67,36 @@ ${OBJS}: ${COMMONHDRS}
 
 ${LIB1OBJS}: libgcc1.c
 	${CC} -c ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
 
 ${LIB2OBJS}: libgcc2.c
 	${XCC} -c ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
 
 .if !defined(NOPIC)
 ${LIB1SOBJS}: libgcc1.c
 	${CC} -c -fpic ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
 
 ${LIB2SOBJS}: libgcc2.c
 	${XCC} -c -fpic ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
 .endif
 
 .if !defined(NOPROFILE)
 ${LIB1POBJS}: libgcc1.c
 	${CC} -c -p ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
-	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
 
 ${LIB2POBJS}: libgcc2.c
 	${XCC} -c -p ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
-	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
 .endif
 
 .include <bsd.lib.mk>
