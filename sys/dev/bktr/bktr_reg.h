@@ -542,6 +542,9 @@ struct bktr_softc {
     dev_t           tunerdev_alias;	/* alias /dev/tuner to /dev/tuner0 */
     dev_t           vbidev_alias;	/* alias /dev/vbi to /dev/vbi0 */
     #endif
+    #if (__FreeBSD_version >= 500000)
+    struct mtx      vbimutex;  /* Mutex protecting vbi buffer */
+    #endif
     #if (__FreeBSD_version >= 310000)
     bus_space_tag_t	memt;	/* Bus space register access functions */
     bus_space_handle_t	memh;	/* Bus space register access functions */
