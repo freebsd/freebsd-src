@@ -36,6 +36,7 @@
 #if NSND > 0	/* from "snd.h" */
 #include "uart.h"
 
+#include <sys/select.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <sys/mman.h>
