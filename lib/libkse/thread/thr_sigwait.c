@@ -49,7 +49,8 @@ _sigwait(const sigset_t *set, int *sig)
 	int		i;
 	sigset_t	tempset, waitset;
 	struct sigaction act;
-	
+	kse_critical_t  crit;
+
 	_thr_enter_cancellation_point(curthread);
 
 	/*
@@ -71,8 +72,11 @@ _sigwait(const sigset_t *set, int *sig)
 
 	/*
 	 * Check to see if a pending signal is in the wait mask.
-	 * This has to be atomic. */
+	 * This has to be atomic.
+	 */
 	tempset = curthread->sigpend;
+	crit = _kse_critical_enter();
+	KSE_LOCK_ACQUIRE(curthread->kse, &_thread_signal_lock);
 	SIGSETOR(tempset, _thr_proc_sigpending);
 	SIGSETAND(tempset, waitset);
 	if (SIGNOTEMPTY(tempset)) {
@@ -83,22 +87,18 @@ _sigwait(const sigset_t *set, int *sig)
 		}
 
 		/* Clear the pending signal: */
-		if (sigismember(&curthread->sigpend,i))
-			sigdelset(&curthread->sigpend,i);
+		if (sigismember(&curthread->sigpend, i))
+			sigdelset(&curthread->sigpend, i);
 		else
-			sigdelset(&_thr_proc_sigpending,i);
+			sigdelset(&_thr_proc_sigpending, i);
 
+		KSE_LOCK_RELEASE(curthread->kse, &_thread_signal_lock);
+		_kse_critical_leave(crit);
+		_thr_leave_cancellation_point(curthread);
 		/* Return the signal number to the caller: */
 		*sig = i;
-
-		_thr_leave_cancellation_point(curthread);
 		return (0);
 	}
-
-	/*
-	 * Lock the array of SIG_DFL wait counts.
-	 */
-	THR_LOCK_ACQUIRE(curthread, &_thread_signal_lock);
 
 	/*
 	 * Enter a loop to find the signals that are SIG_DFL.  For
@@ -123,8 +123,8 @@ _sigwait(const sigset_t *set, int *sig)
 		}
 	}
 	/* Done accessing _thread_dfl_count for now. */
-	THR_LOCK_RELEASE(curthread, &_thread_signal_lock);
-
+	KSE_LOCK_RELEASE(curthread->kse, &_thread_signal_lock);
+	_kse_critical_leave(crit);
 	if (ret == 0) {
 		/*
 		 * Save the wait signal mask.  The wait signal
@@ -151,7 +151,8 @@ _sigwait(const sigset_t *set, int *sig)
 	/*
 	 * Relock the array of SIG_DFL wait counts.
 	 */
-	THR_LOCK_ACQUIRE(curthread, &_thread_signal_lock);
+	crit = _kse_critical_enter();
+	KSE_LOCK_ACQUIRE(curthread->kse, &_thread_signal_lock);
 
 	/* Restore the sigactions: */
 	act.sa_handler = SIG_DFL;
@@ -166,10 +167,10 @@ _sigwait(const sigset_t *set, int *sig)
 		}
 	}
 	/* Done accessing _thread_dfl_count. */
-	THR_LOCK_RELEASE(curthread, &_thread_signal_lock);
-
+	KSE_LOCK_RELEASE(curthread->kse, &_thread_signal_lock);
+	_kse_critical_leave(crit);
 	_thr_leave_cancellation_point(curthread);
-	
+
 	/* Return the completion status: */
 	return (ret);
 }

@@ -499,7 +499,7 @@ init_private(void)
 	 * process signal mask and pending signal sets.
 	 */
 	if (_lock_init(&_thread_signal_lock, LCK_ADAPTIVE,
-	    _thr_lock_wait, _thr_lock_wakeup) != 0)
+	    _kse_lock_wait, _kse_lock_wakeup) != 0)
 		PANIC("Cannot initialize _thread_signal_lock");
 	if (_lock_init(&_mutex_static_lock, LCK_ADAPTIVE,
 	    _thr_lock_wait, _thr_lock_wakeup) != 0)
