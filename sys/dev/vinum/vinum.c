@@ -57,7 +57,7 @@ struct cdevsw vinum_cdevsw =
 {
     vinumopen, vinumclose, physread, physwrite,
     vinumioctl, seltrue, nommap, vinumstrategy,
-    "vinum", VINUM_CDEV_MAJOR, nodump, vinumsize,
+    "vinum", VINUM_CDEV_MAJOR, nodump, nopsize,
     D_DISK
 };
 
@@ -540,23 +540,6 @@ vinumclose(dev_t dev,
     default:
 	return ENODEV;					    /* don't know what to do with these */
     }
-}
-
-/* size routine */
-int
-vinumsize(dev_t dev)
-{
-    struct volume *vol;
-    int size;
-
-    vol = &VOL[Volno(dev)];
-
-    if (vol->state == volume_up)
-	size = vol->size;
-    else
-	return 0;					    /* err on the size of conservatism */
-
-    return size;
 }
 
 void
