@@ -507,7 +507,7 @@ startagain:
 	}
     } else {
         for (top = m; m != 0; m = m->m_next) {
-	    if (m->m_len > 3)
+	    if (m->m_len > 1)
 	    	outsw(BASE + EP_W1_TX_PIO_WR_1,
 			mtod(m, caddr_t), m->m_len / 2);
 	    if (m->m_len & 1)
