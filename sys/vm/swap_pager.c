@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.18 1994/11/13 15:36:48 davidg Exp $
+ * $Id: swap_pager.c,v 1.19 1994/12/19 00:02:54 davidg Exp $
  */
 
 /*
@@ -387,7 +387,7 @@ _swap_pager_freespace(swp, start, size)
 	int s;
 
 	s = splbio();
-	for (i = start; i < round_page(start + size - 1); i += PAGE_SIZE) {
+	for (i = start; i < round_page(start + size); i += PAGE_SIZE) {
 		int valid;
 		int *addr = swap_pager_diskaddr(swp, i, &valid);
 		if (addr && *addr != SWB_EMPTY) {
