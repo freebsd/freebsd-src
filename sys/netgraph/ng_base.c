@@ -3602,7 +3602,6 @@ ng_macro_test(item_p item)
 	NG_SEND_MSG_HOOK(error, node, msg, hook, retaddr);
 	NG_SEND_MSG_ID(error, node, msg, retaddr, retaddr);
 	NG_SEND_MSG_PATH(error, node, msg, ".:", retaddr);
-	NG_QUEUE_MSG(error, node, msg, ".:", retaddr);
 	NG_FWD_MSG_HOOK(error, node, item, hook, retaddr);
 }
 #endif /* TESTING */
