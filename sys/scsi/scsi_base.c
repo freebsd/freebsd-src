@@ -8,7 +8,7 @@
  * file.
  * 
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.13 1994/10/02 17:48:51 phk Exp $
+ *      $Id: scsi_base.c,v 1.14 1994/10/08 22:26:36 phk Exp $
  */
 
 #define SPLSD splbio
@@ -28,12 +28,6 @@
 
 static errval sc_err1(struct scsi_xfer *);
 static errval scsi_interpret_sense(struct scsi_xfer *);
-
-#ifdef DDB
-int     Debugger();
-#else	/* DDB */
-#define Debugger()
-#endif	/* DDB */
 
 struct scsi_xfer *next_free_xs;
 
