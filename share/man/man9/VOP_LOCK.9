@@ -56,9 +56,9 @@ same time.
 .Pp
 The arguments are:
 .Bl -tag -width flags
-.It Ar vp
+.It Fa vp
 the vnode being locked or unlocked
-.It Ar flags
+.It Fa flags
 One of the lock request types:
 .Bl -column LK_EXCLUPGRADE -offset indent
 .It Dv LK_SHARED Ta "Shared lock"
@@ -90,7 +90,7 @@ with these control flags:
 .It Dv LK_RETRY Ta "Retry until locked"
 .It Dv LK_NOOBJ Ta "Don't create object"
 .El
-.It Ar td
+.It Fa td
 thread context to use for the locks
 .El
 .Pp

@@ -56,17 +56,17 @@ If a process must wait for an
 external event, it is put on sleep by
 .Fn tsleep .
 The parameter
-.Ar ident
+.Fa ident
 is an arbitrary address that uniquely identifies the event on which
 the process is being asleep.  All processes sleeping on a single
-.Ar ident
+.Fa ident
 are woken up later by
 .Fn wakeup ,
 often called from inside an interrupt routine, to indicate that the
 resource the process was blocking on is available now.
 .Pp
 The parameter
-.Ar wmesg
+.Fa wmesg
 is a string describing the sleep condition for tools like
 .Xr ps 1 .
 Due to the limited space of those programs to display arbitrary strings,
@@ -89,12 +89,12 @@ Suspends the current process until a wakeup is
 performed on the specified identifier.
 The process will then be made
 runnable with the specified
-.Ar priority .
+.Fa priority .
 Sleeps at most
-.Ar timo
+.Fa timo
 \&/ hz seconds (0 means no timeout).
 If
-.Ar pri
+.Fa pri
 includes the
 .Dv PCATCH
 flag, signals are checked before and after sleeping, else signals are
@@ -116,16 +116,16 @@ The
 .Fn msleep
 function is a variation on tsleep.
 The parameter
-.Ar mtx
+.Fa mtx
 is a mutex which will be released before sleeping and reacquired before
 .Fn msleep
 returns.
 If
-.Ar pri
+.Fa pri
 includes the
 .Dv PDROP
 flag, the
-.Ar mtx
+.Fa mtx
 parameter will not be reacquired before returning.
 The mutex is
 used to ensure that a condition can be checked atomically, and
@@ -152,7 +152,7 @@ The
 .Fn sleep
 function used to be the traditional form.
 It did not let you specify a timeout or a
-.Ar wmesg ,
+.Fa wmesg ,
 hence it was discontinued.
 .Sh AUTHORS
 .An -nosplit

@@ -44,14 +44,14 @@
 This converts an inode number into a locked vnode.
 .Pp
 Its arguments are:
-.Bl -tag -width ".Ar flags"
-.It Ar mp
+.Bl -tag -width flags
+.It Fa mp
 The file system.
-.It Ar ino
+.It Fa ino
 The inode representing the file.
-.It Ar flags
+.It Fa flags
 Additional locking flags to pass through.
-.It Ar vpp
+.It Fa vpp
 Return parameter for the vnode.
 .El
 .Pp

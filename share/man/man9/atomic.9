@@ -67,7 +67,7 @@ They can be used to implement reference counts or as building blocks for more
 advanced synchronization primitives such as mutexes.
 .Ss Types
 Each atomic operation operates on a specific
-.Ar type .
+.Fa type .
 The type to use is indicated in the function name.
 The available types that can be used are:
 .Pp
@@ -125,7 +125,7 @@ pseudo-lock requiring further operations to wait until it has completed.
 To denote this, the suffix
 .Dq Li _acq
 is inserted into the function name immediately prior to the
-.Dq Li _ Ns Aq Ar type
+.Dq Li _ Ns Aq Fa type
 suffix.
 For example, to subtract two integers ensuring that any later writes will
 happen after the subtraction is performed, use
@@ -139,7 +139,7 @@ any pending data accesses to be completed before its operation is performed.
 To denote this, the suffix
 .Dq Li _rel
 is inserted into the function name immediately prior to the
-.Dq Li _ Ns Aq Ar type
+.Dq Li _ Ns Aq Fa type
 suffix.
 For example, to add two long integers ensuring that all previous
 writes will happen first, use
