@@ -113,7 +113,7 @@
 
     Note that omitted fields and array elements get their default
     values ("bar" and ary[2]), and that the alignment is handled
-    automatically (the extra 00 byte after "num").  Also, since byte
+    automatically (the extra 00 byte after "alen").  Also, since byte
     order and alignment are inherently machine dependent, so is this
     conversion process.  The above example shows an x86 (little
     endian) encoding.  Also the above example is tricky because the
