@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.2 1996/07/23 07:46:15 asami Exp $
+ *	$Id: if_ed.c,v 1.3 1996/08/30 10:42:59 asami Exp $
  */
 
 /*
@@ -171,41 +171,25 @@ struct ed_softc {
 static struct ed_softc ed_softc[NED];
 
 static int ed_attach		__P((struct ed_softc *, int, int));
-#ifdef PC98
-static int ed_attach_isa	__P((struct pc98_device *));
-#else
 static int ed_attach_isa	__P((struct isa_device *));
-#endif
 
 static void ed_init		__P((struct ed_softc *));
 static int ed_ioctl		__P((struct ifnet *, int, caddr_t));
-#ifdef PC98
-static int ed_probe		__P((struct pc98_device *));
-#else
 static int ed_probe		__P((struct isa_device *));
-#endif
 static void ed_start		__P((struct ifnet *));
 static void ed_reset		__P((struct ifnet *));
 static void ed_watchdog		__P((struct ifnet *));
 
 static void ed_stop		__P((struct ed_softc *));
 static int ed_probe_generic8390	__P((struct ed_softc *));
-#ifdef PC98
-static int ed_probe_WD80x3	__P((struct pc98_device *));
-static int ed_probe_3Com	__P((struct pc98_device *));
-static int ed_probe_Novell	__P((struct pc98_device *));
-static int ed_probe_SIC98	__P((struct pc98_device *));
-#else
 static int ed_probe_WD80x3	__P((struct isa_device *));
 static int ed_probe_3Com	__P((struct isa_device *));
 static int ed_probe_Novell	__P((struct isa_device *));
-#endif
 static int ed_probe_Novell_generic __P((struct ed_softc *, int, int, int));
 #ifdef PC98
-static int ed_probe_HP_pclanp	__P((struct pc98_device *));
-#else
-static int ed_probe_HP_pclanp	__P((struct isa_device *));
+static int ed_probe_SIC98	__P((struct isa_device *));
 #endif
+static int ed_probe_HP_pclanp	__P((struct isa_device *));
 
 #include "pci.h"
 #if NPCI > 0
@@ -214,11 +198,7 @@ void *ed_attach_NE2000_pci	__P((int, int));
 
 #include "crd.h"
 #if NCRD > 0
-#ifdef PC98
-static int ed_probe_pccard	__P((struct pc98_device *, u_char *));
-#else
 static int ed_probe_pccard	__P((struct isa_device *, u_char *));
-#endif
 #endif
 
 static void    ds_getmcaf __P((struct ed_softc *, u_long *));
@@ -358,11 +338,7 @@ card_intr(struct pccard_dev *dp)
 }
 #endif /* NCRD > 0 */
 
-#ifdef PC98
-struct pc98_driver eddriver = {
-#else
 struct isa_driver eddriver = {
-#endif
 	ed_probe,
 	ed_attach_isa,
 	"ed",
@@ -439,11 +415,7 @@ static struct kern_devconf kdc_ed_template = {
 };
 
 static inline void
-#ifdef PC98
-ed_registerdev(struct pc98_device *id, const char *descr)
-#else
 ed_registerdev(struct isa_device *id, const char *descr)
-#endif
 {
 	struct kern_devconf *kdc = &ed_softc[id->id_unit].kdc;
 	*kdc = kdc_ed_template;
@@ -464,11 +436,7 @@ ed_registerdev(struct isa_device *id, const char *descr)
  */
 static int
 ed_probe(isa_dev)
-#ifdef PC98
-	struct pc98_device *isa_dev;
-#else
 	struct isa_device *isa_dev;
-#endif
 {
 	int     nports;
 
@@ -507,9 +475,7 @@ ed_probe(isa_dev)
 	 */
 	ed_softc[isa_dev->id_unit].type = ED_TYPE98_GENERIC;
 	pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_GENERIC);
-#endif
 
-#ifdef PC98
 	if (ED_TYPE98(isa_dev) == ED_TYPE98_GENERIC) {
 #endif
 	nports = ed_probe_WD80x3(isa_dev);
@@ -525,7 +491,6 @@ ed_probe(isa_dev)
 		return (nports);
 #ifdef PC98
 	}
-#endif
 
 	/*
 	 * Allied Telesis SIC-98
@@ -619,11 +584,11 @@ ed_probe(isa_dev)
 		if (nports)
 			return (nports);
 	}
-#ifdef NCDR > 0
+#endif
+
 	nports = ed_probe_HP_pclanp(isa_dev);
 	if (nports)
 		return (nports);
-#endif
 
 	return (0);
 }
@@ -685,11 +650,7 @@ ed_probe_generic8390(sc)
  */
 static int
 ed_probe_WD80x3(isa_dev)
-#ifdef PC98
-	struct pc98_device *isa_dev;
-#else
 	struct isa_device *isa_dev;
-#endif
 {
 	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
 	int     i;
@@ -1083,11 +1044,7 @@ ed_probe_WD80x3(isa_dev)
  */
 static int
 ed_probe_3Com(isa_dev)
-#ifdef PC98
-	struct pc98_device *isa_dev;
-#else
 	struct isa_device *isa_dev;
-#endif
 {
 	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
 	int     i;
@@ -1651,11 +1608,7 @@ ed_probe_Novell_generic(sc, port, unit, flags)
 
 static int
 ed_probe_Novell(isa_dev)
-#ifdef PC98
-	struct pc98_device *isa_dev;
-#else
 	struct isa_device *isa_dev;
-#endif
 {
 	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
 
@@ -1667,6 +1620,119 @@ ed_probe_Novell(isa_dev)
 }
 
 #if NCRD > 0
+
+/*
+ * Probe and vendor-specific initialization routine for PCCARDs
+ */
+static int
+ed_probe_pccard(isa_dev, ether)
+	struct isa_device *isa_dev;
+	u_char *ether;
+{
+	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
+	int     i;
+	u_int   memsize;
+	u_char  isa16bit;
+#ifdef PC98
+	int unit = isa_dev->id_unit;
+#endif
+
+	sc->nic_addr = isa_dev->id_iobase; 
+	sc->gone = 0;
+	sc->is790 = 0;
+	sc->cr_proto = ED_CR_RD2;
+	sc->vendor = ED_VENDOR_PCCARD;
+	sc->type = 0;
+	sc->type_str = "PCCARD";
+	sc->kdc.kdc_description = "PCCARD Ethernet";
+	sc->mem_size = isa_dev->id_msize = memsize = 16384;
+	sc->isa16bit = isa16bit = 1;
+
+	for (i = 0; i < ETHER_ADDR_LEN; ++i)
+		sc->arpcom.ac_enaddr[i] = ether[i];
+
+#if ED_DEBUG
+	printf("type = %x type_str=%s isa16bit=%d memsize=%d id_msize=%d\n",
+	       sc->type, sc->type_str, isa16bit, memsize, isa_dev->id_msize);
+#endif
+
+	i = inb(sc->nic_addr + ED_PC_RESET);
+	DELAY(100000);
+	outb(sc->nic_addr + ED_PC_RESET,i);
+	DELAY(100000);
+	i = inb(sc->nic_addr + ED_PC_MISC);
+	if (!i) {
+		int j;
+		printf("ed_probe_pccard: possible failure\n");
+		for (j=0;j<20 && !i;j++) {
+			printf(".");
+			DELAY(100000);
+			i = inb(sc->nic_addr + ED_PC_MISC);
+		}
+		if (!i) {
+			printf("dead :-(\n");
+			return 0;
+		}
+		printf("\n");
+	}
+	/*
+	 * Set initial values for width/size.
+	 */
+
+	/* Make sure that we really have an 8390 based board */
+	if (!ed_probe_generic8390(sc)) {
+		printf("ed_probe_generic8390 failed\n");
+		return (0);
+	}
+	sc->txb_cnt = 2;
+	sc->tx_page_start = ED_PC_PAGE_OFFSET;
+	sc->rec_page_start = sc->tx_page_start + ED_TXBUF_SIZE * sc->txb_cnt;
+	sc->rec_page_stop = sc->tx_page_start + memsize / ED_PAGE_SIZE;
+
+	sc->mem_shared = 1;
+	sc->mem_start = (caddr_t) isa_dev->id_maddr;
+	sc->mem_size = memsize;
+	sc->mem_end = sc->mem_start + memsize;
+
+	sc->mem_ring = sc->mem_start + 
+		sc->txb_cnt * ED_PAGE_SIZE * ED_TXBUF_SIZE;
+
+	/*
+	 * Now zero memory and verify that it is clear
+	 */
+	bzero(sc->mem_start, memsize);
+
+	for (i = 0; i < memsize; ++i) {
+		if (sc->mem_start[i]) {
+			printf("ed%d: failed to clear shared memory at %lx - check configuration\n",
+			    isa_dev->id_unit, kvtop(sc->mem_start + i));
+
+			return (0);
+		}
+		sc->mem_start[i] = (i - 5) & 0xff;
+	}
+	for (i = 0; i < memsize; ++i) {
+		if ((sc->mem_start[i] & 0xff) != ((i - 5) & 0xff)) {
+			printf("ed%d: shared memory failed at %lx (%x != %x) - check configuration\n",
+			    isa_dev->id_unit, kvtop(sc->mem_start + i),
+			    sc->mem_start[i], (i-5) & 0xff);
+			return (0);
+
+		}
+	}
+
+	i = inb(sc->nic_addr + ED_PC_MISC);
+	if (!i) {
+		printf("ed_probe_pccard: possible failure(2)\n");
+	}
+
+	/* clear any pending interupts that we may have caused */
+	outb(sc->nic_addr + ED_P0_ISR, 0xff);
+
+	return (ED_PC_IO_PORTS);
+}
+
+#endif /* NCRD > 0 */
 
 #define	ED_HPP_TEST_SIZE	16
 
@@ -1694,11 +1760,7 @@ ed_probe_Novell(isa_dev)
  */
 static int
 ed_probe_HP_pclanp(isa_dev)
-#ifdef PC98
 	struct isa_device *isa_dev;
-#else
-	struct isa_device *isa_dev;
-#endif
 {
 	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
 	int n;				/* temp var */
@@ -1707,7 +1769,9 @@ ed_probe_HP_pclanp(isa_dev)
 	u_char irq;			/* board configured IRQ */
 	char test_pattern[ED_HPP_TEST_SIZE];	/* read/write areas for */
 	char test_buffer[ED_HPP_TEST_SIZE];	/* probing card */
-
+#ifdef PC98
+	int unit = isa_dev->id_unit;
+#endif
 
 	/* Fill in basic information */
 	sc->asic_addr = isa_dev->id_iobase + ED_HPP_ASIC_OFFSET;
@@ -1991,126 +2055,8 @@ ed_hpp_set_physical_link(struct ed_softc *sc)
 }
 
 
-/*
- * Probe and vendor-specific initialization routine for PCCARDs
- */
-static int
-ed_probe_pccard(isa_dev, ether)
 #ifdef PC98
-	struct pc98_device *isa_dev;
-#else
-	struct isa_device *isa_dev;
-#endif
-	u_char *ether;
-{
-	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
-	int     i;
-	u_int   memsize;
-	u_char  isa16bit;
-#ifdef PC98
-	int unit = isa_dev->id_unit;
-#endif
-
-	sc->nic_addr = isa_dev->id_iobase; 
-	sc->gone = 0;
-	sc->is790 = 0;
-	sc->cr_proto = ED_CR_RD2;
-	sc->vendor = ED_VENDOR_PCCARD;
-	sc->type = 0;
-	sc->type_str = "PCCARD";
-	sc->kdc.kdc_description = "PCCARD Ethernet";
-	sc->mem_size = isa_dev->id_msize = memsize = 16384;
-	sc->isa16bit = isa16bit = 1;
-
-	for (i = 0; i < ETHER_ADDR_LEN; ++i)
-		sc->arpcom.ac_enaddr[i] = ether[i];
-
-#if ED_DEBUG
-	printf("type = %x type_str=%s isa16bit=%d memsize=%d id_msize=%d\n",
-	       sc->type, sc->type_str, isa16bit, memsize, isa_dev->id_msize);
-#endif
-
-	i = inb(sc->nic_addr + ED_PC_RESET);
-	DELAY(100000);
-	outb(sc->nic_addr + ED_PC_RESET,i);
-	DELAY(100000);
-	i = inb(sc->nic_addr + ED_PC_MISC);
-	if (!i) {
-		int j;
-		printf("ed_probe_pccard: possible failure\n");
-		for (j=0;j<20 && !i;j++) {
-			printf(".");
-			DELAY(100000);
-			i = inb(sc->nic_addr + ED_PC_MISC);
-		}
-		if (!i) {
-			printf("dead :-(\n");
-			return 0;
-		}
-		printf("\n");
-	}
-	/*
-	 * Set initial values for width/size.
-	 */
-
-	/* Make sure that we really have an 8390 based board */
-	if (!ed_probe_generic8390(sc)) {
-		printf("ed_probe_generic8390 failed\n");
-		return (0);
-	}
-	sc->txb_cnt = 2;
-	sc->tx_page_start = ED_PC_PAGE_OFFSET;
-	sc->rec_page_start = sc->tx_page_start + ED_TXBUF_SIZE * sc->txb_cnt;
-	sc->rec_page_stop = sc->tx_page_start + memsize / ED_PAGE_SIZE;
-
-	sc->mem_shared = 1;
-	sc->mem_start = (caddr_t) isa_dev->id_maddr;
-	sc->mem_size = memsize;
-	sc->mem_end = sc->mem_start + memsize;
-
-	sc->mem_ring = sc->mem_start + 
-		sc->txb_cnt * ED_PAGE_SIZE * ED_TXBUF_SIZE;
-
-	/*
-	 * Now zero memory and verify that it is clear
-	 */
-	bzero(sc->mem_start, memsize);
-
-	for (i = 0; i < memsize; ++i) {
-		if (sc->mem_start[i]) {
-			printf("ed%d: failed to clear shared memory at %lx - check configuration\n",
-			    isa_dev->id_unit, kvtop(sc->mem_start + i));
-
-			return (0);
-		}
-		sc->mem_start[i] = (i - 5) & 0xff;
-	}
-	for (i = 0; i < memsize; ++i) {
-		if ((sc->mem_start[i] & 0xff) != ((i - 5) & 0xff)) {
-			printf("ed%d: shared memory failed at %lx (%x != %x) - check configuration\n",
-			    isa_dev->id_unit, kvtop(sc->mem_start + i),
-			    sc->mem_start[i], (i-5) & 0xff);
-			return (0);
-
-		}
-	}
-
-	i = inb(sc->nic_addr + ED_PC_MISC);
-	if (!i) {
-		printf("ed_probe_pccard: possible failure(2)\n");
-	}
-
-	/* clear any pending interupts that we may have caused */
-	outb(sc->nic_addr + ED_P0_ISR, 0xff);
-
-	return (ED_PC_IO_PORTS);
-}
-
-#endif /* NCRD > 0 */
-
-
-#ifdef PC98
-static int ed_probe_SIC98(struct pc98_device* pc98_dev)
+static int ed_probe_SIC98(struct isa_device* pc98_dev)
 {
 	int i;
 	struct ed_softc *sc = &ed_softc[pc98_dev->id_unit];
@@ -2278,11 +2224,7 @@ ed_attach(sc, unit, flags)
 
 static int
 ed_attach_isa(isa_dev)
-#ifdef PC98
-	struct pc98_device *isa_dev;
-#else
 	struct isa_device *isa_dev;
-#endif
 {
 	int unit = isa_dev->id_unit;
 	struct ed_softc *sc = &ed_softc[unit];
@@ -3171,11 +3113,8 @@ ed_ioctl(ifp, command, data)
 			} else {
 				outb(sc->asic_addr + ED_3COM_CR, ED_3COM_CR_XSEL);
 			}
-		}
-#if NCRD > 0
-		else if (sc->vendor == ED_VENDOR_HP) 
+		} else if (sc->vendor == ED_VENDOR_HP) 
 			ed_hpp_set_physical_link(sc);
-#endif
 		break;
 
 	case SIOCADDMULTI:
@@ -3363,6 +3302,7 @@ ed_pio_readmem(sc, src, dst, amount)
 		return;
 	}
 		
+	/* Regular Novell cards */
 	/* select page 0 registers */
 	outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2 | ED_CR_STA);
 

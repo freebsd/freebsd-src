@@ -337,7 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.1.1.1 1996/06/14 10:04:51 asami Exp $ */
+/* $Id: matcd.c,v 1.2 1996/07/30 18:56:16 asami Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
@@ -532,17 +532,10 @@ static struct kern_devconf kdc_matcd[TOTALDRIVES] = { {
            --- not any more :)
 ---------------------------------------------------------------------------*/
 
-#ifdef PC98
-static	int	matcd_probe(struct pc98_device *dev);
-static	int	matcd_attach(struct pc98_device *dev);
-struct	pc98_driver	matcddriver={matcd_probe, matcd_attach,
-				     "matcdc"};
-#else
 static	int	matcd_probe(struct isa_device *dev);
 static	int	matcd_attach(struct isa_device *dev);
 struct	isa_driver	matcddriver={matcd_probe, matcd_attach,
 				     "matcdc"};
-#endif
 
 
 static d_open_t		matcdopen;
@@ -1217,11 +1210,7 @@ int	matcdsize(dev_t dev)
 ---------------------------------------------------------------------------*/
 
 static int
-#ifdef PC98
-matcd_probe(struct pc98_device *dev)
-#else
 matcd_probe(struct isa_device *dev)
-#endif
 {
 	int	i,cdrive;
 	unsigned char	y;
@@ -1365,11 +1354,7 @@ int doprobe(int port,int cdrive)
 		Added in Edit 12.
 ---------------------------------------------------------------------------*/
 
-#ifdef PC98
-static inline void matcd_register(struct pc98_device *id)
-#else
 static inline void matcd_register(struct isa_device *id)
-#endif
 {
 	if(id->id_unit) {
 		kdc_matcd[id->id_unit]=kdc_matcd[0];
@@ -1395,11 +1380,7 @@ static inline void matcd_register(struct isa_device *id)
 ---------------------------------------------------------------------------*/
 
 static int
-#ifdef PC98
-matcd_attach(struct pc98_device *dev)
-#else
 matcd_attach(struct isa_device *dev)
-#endif
 {
 	int	i;
 	unsigned int	z,cdrive;

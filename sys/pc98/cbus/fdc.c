@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.2 1996/07/23 07:46:11 asami Exp $
+ *	$Id: fd.c,v 1.3 1996/07/30 18:55:58 asami Exp $
  *
  */
 
@@ -144,11 +144,7 @@ fd_registerdev(int ctlr, int unit)
 }
 
 static inline void
-#ifdef PC98
-fdc_registerdev(struct pc98_device *dvp)
-#else
 fdc_registerdev(struct isa_device *dvp)
-#endif
 {
 	int unit = dvp->id_unit;
 
@@ -378,21 +374,12 @@ void ftstrategy(struct buf *);
 int ftioctl(dev_t, int, caddr_t, int, struct proc *);
 int ftdump(dev_t);
 int ftsize(dev_t);
-#ifdef PC98
-int ftattach(struct pc98_device *, struct pc98_device *, int);
-#else
 int ftattach(struct isa_device *, struct isa_device *, int);
-#endif
 #endif
 
 /* autoconfig functions */
-#ifdef PC98
-static int fdprobe(struct pc98_device *);
-static int fdattach(struct pc98_device *);
-#else
 static int fdprobe(struct isa_device *);
 static int fdattach(struct isa_device *);
-#endif
 
 /* needed for ft driver, thus exported */
 int in_fdc(fdcu_t);
@@ -455,11 +442,7 @@ static int volatile fd_debug = 0;
 #endif /* DEBUG */
 
 /* autoconfig structure */
-#ifdef PC98
-struct	pc98_driver fdcdriver = {
-#else
 struct	isa_driver fdcdriver = {
-#endif
 	fdprobe, fdattach, "fdc",
 };
 
@@ -476,11 +459,7 @@ static struct bdevsw fd_bdevsw =
 	  nodump,	nopsize,	0,	"fd",	&fd_cdevsw,	-1 };
 
 
-#ifdef PC98
-static struct pc98_device *fdcdevs[NFDC];
-#else
 static struct isa_device *fdcdevs[NFDC];
-#endif
 
 /*
  * Provide hw.devconf information.
@@ -721,11 +700,7 @@ static int pc98_fd_check_ready(fdu)
  * probe for existance of controller
  */
 static int
-#ifdef PC98
-fdprobe(struct pc98_device *dev)
-#else
 fdprobe(struct isa_device *dev)
-#endif
 {
 	fdcu_t	fdcu = dev->id_unit;
 	if(fdc_data[fdcu].flags & FDC_ATTACHED)
@@ -769,11 +744,7 @@ fdprobe(struct isa_device *dev)
  * wire controller into system, look for floppy units
  */
 static int
-#ifdef PC98
-fdattach(struct pc98_device *dev)
-#else
 fdattach(struct isa_device *dev)
-#endif
 {
 	unsigned fdt;
 	fdu_t	fdu;
@@ -784,11 +755,7 @@ fdattach(struct isa_device *dev)
 #if NFT > 0
 	int	unithasfd;
 #endif
-#ifdef PC98
-	struct pc98_device *fdup;
-#else
 	struct isa_device *fdup;
-#endif
 	int ic_type = 0;
 #ifdef DEVFS
 	int	mynor;

@@ -17,7 +17,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id: ft.c,v 1.1.1.1 1996/06/14 10:04:43 asami Exp $
+ *  $Id: ft.c,v 1.2 1996/07/23 07:46:13 asami Exp $
  *
  *  01/19/95 ++sg
  *  Cleaned up recalibrate/seek code at attach time for FreeBSD 2.x.
@@ -301,11 +301,7 @@ static struct ft_data {
 int ftopen(dev_t, int);
 int ftclose(dev_t, int);
 int ftioctl(dev_t, int, caddr_t, int, struct proc *);
-#ifdef PC98
-int ftattach(struct pc98_device *, struct pc98_device *, int);
-#else
 int ftattach(struct isa_device *, struct isa_device *, int);
-#endif
 static timeout_t ft_timeout;
 static void async_cmd(ftu_t);
 static void async_req(ftu_t, int);
@@ -449,11 +445,7 @@ ft_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
  */
 int
 ftattach(isadev, fdup, unithasfd)
-#ifdef PC98
-	struct pc98_device *isadev, *fdup;
-#else
 	struct isa_device *isadev, *fdup;
-#endif
 	int unithasfd;
 {
   fdcu_t fdcu = isadev->id_unit;		/* fdc active unit */

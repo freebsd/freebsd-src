@@ -2,7 +2,7 @@
 # files marked standard are always included.
 #
 # modified for PC-9801 after:
-#	$Id: files.pc98,v 1.1.1.1 1996/06/14 10:04:40 asami Exp $
+#	$Id: files.pc98,v 1.2 1996/07/23 07:45:49 asami Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
@@ -41,6 +41,7 @@ i386/i386/cons.c		standard
 i386/i386/db_disasm.c		optional	ddb
 i386/i386/db_interface.c	optional	ddb
 i386/i386/db_trace.c		optional	ddb
+i386/i386/i386-gdbstub.c	optional	ddb
 pc98/i386/exception.s		standard
 i386/i386/identcpu.c		standard
 i386/i386/in_cksum.c		optional	inet

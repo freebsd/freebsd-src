@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.2 1996/07/23 07:46:22 asami Exp $
+ *	$Id: if_zp.c,v 1.3 1996/08/30 10:43:03 asami Exp $
  */
 /*-
  * TODO:
@@ -188,13 +188,8 @@ static struct zp_softc {
 #endif				/* NAPM > 0 */
 }       zp_softc[NZP];
 
-#ifdef PC98
-static int zpprobe __P((struct pc98_device *));
-static int zpattach __P((struct pc98_device *));
-#else
 static int zpprobe __P((struct isa_device *));
 static int zpattach __P((struct isa_device *));
-#endif
 static int zp_suspend __P((void *visa_dev));
 static int zp_resume __P((void *visa_dev));
 static int zpioctl __P((struct ifnet * ifp, int, caddr_t));
@@ -209,11 +204,7 @@ static void zpstart __P((struct ifnet *));
 static void zpstop __P((int));
 static void zpwatchdog __P((struct ifnet *));
 
-#ifdef PC98
-struct pc98_driver zpdriver = {
-#else
 struct isa_driver zpdriver = {
-#endif
 	zpprobe,
 	zpattach,
 	"zp"
@@ -341,11 +332,7 @@ zp_find_adapter(unsigned char *scratch, int reconfig)
  *	or # of i/o addresses used (if found)
  */
 static int
-#ifdef PC98
-zpprobe(struct pc98_device * isa_dev)
-#else
 zpprobe(struct isa_device * isa_dev)
-#endif
 {
 	struct zp_softc *sc = &zp_softc[isa_dev->id_unit];
 	int     slot;
@@ -459,11 +446,7 @@ static int
 zp_suspend(visa_dev)
 	void   *visa_dev;
 {
-#ifdef PC98
-	struct pc98_device *isa_dev = visa_dev;
-#else
 	struct isa_device *isa_dev = visa_dev;
-#endif
 	struct zp_softc *sc = &zp_softc[isa_dev->id_unit];
 
 	pcic_power_off(sc->slot);
@@ -474,11 +457,7 @@ static int
 zp_resume(visa_dev)
 	void   *visa_dev;
 {
-#ifdef PC98
-	struct pc98_device *isa_dev = visa_dev;
-#else
 	struct isa_device *isa_dev = visa_dev;
-#endif
 
 	prev_slot = 0;
 	reconfig_isadev(isa_dev, &net_imask);
@@ -493,11 +472,7 @@ zp_resume(visa_dev)
 
 static int
 zpattach(isa_dev)
-#ifdef PC98
-	struct pc98_device *isa_dev;
-#else
 	struct isa_device *isa_dev;
-#endif
 {
 	struct zp_softc *sc = &zp_softc[isa_dev->id_unit];
 	struct ifnet *ifp = &sc->arpcom.ac_if;

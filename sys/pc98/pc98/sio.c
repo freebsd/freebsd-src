@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.1.1.1 1996/06/14 10:04:45 asami Exp $
+ *	$Id: sio.c,v 1.2 1996/07/23 07:46:38 asami Exp $
  */
 
 #include "opt_comconsole.h"
@@ -375,31 +375,18 @@ void	siopoll		__P((void));
 #define	siommap		nommap
 #define	siostrategy	nostrategy
 
-#ifdef PC98
-#ifdef COM_ESP
-static	int	espattach	__P((struct pc98_device *isdp, struct com_s *com,
-				     Port_t esp_port));
-#endif
-static	int	sioattach	__P((struct pc98_device *dev));
-#else
 #ifdef COM_ESP
 static	int	espattach	__P((struct isa_device *isdp, struct com_s *com,
 				     Port_t esp_port));
 #endif
 static	int	sioattach	__P((struct isa_device *dev));
-#endif
 static	timeout_t siodtrwakeup;
 static	void	comhardclose	__P((struct com_s *com));
 static	void	siointr1	__P((struct com_s *com));
 static	int	commctl		__P((struct com_s *com, int bits, int how));
 static	int	comparam	__P((struct tty *tp, struct termios *t));
-#ifdef PC98
-static	int	sioprobe	__P((struct pc98_device *dev));
-static	void	sioregisterdev	__P((struct pc98_device *id));
-#else
 static	int	sioprobe	__P((struct isa_device *dev));
 static	void	sioregisterdev	__P((struct isa_device *id));
-#endif
 static	void	siosettimeout	__P((void));
 static	void	comstart	__P((struct tty *tp));
 static	timeout_t comwakeup;
@@ -417,11 +404,7 @@ static char driver_name[] = "sio";
 static	struct com_s	*p_com_addr[NSIO];
 #define	com_addr(unit)	(p_com_addr[unit])
 
-#ifdef PC98
-struct pc98_driver	siodriver = {
-#else
 struct isa_driver	siodriver = {
-#endif
 	sioprobe, sioattach, driver_name
 };
 
@@ -757,11 +740,7 @@ card_intr(struct pccard_dev *dp)
 
 static void
 sioregisterdev(id)
-#ifdef PC98
-	struct pc98_device *id;
-#else
 	struct isa_device *id;
-#endif
 {
 	int	unit;
 
@@ -790,25 +769,17 @@ sioregisterdev(id)
 
 static int
 sioprobe(dev)
-#ifdef PC98
-	struct pc98_device	*dev;
-#else
 	struct isa_device	*dev;
-#endif
 {
 	static bool_t	already_init;
 	bool_t		failures[10];
 	int		fn;
-#ifdef PC98
-	struct pc98_device	*idev;
-#else
 	struct isa_device	*idev;
-#endif
 	Port_t		iobase;
 	u_char		mcr_image;
 	int		result;
 #ifdef PC98
-	struct pc98_device	*xdev;
+	struct isa_device	*xdev;
 	int		irqout=0;
 	int		ret = 0;
 	int		tmp;
@@ -1150,11 +1121,7 @@ espattach(isdp, com, esp_port)
 
 static int
 sioattach(isdp)
-#ifdef PC98
-	struct pc98_device	*isdp;
-#else
 	struct isa_device	*isdp;
-#endif
 {
 	struct com_s	*com;
 	dev_t		dev;

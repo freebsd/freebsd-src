@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.21 1996/05/02 10:43:08 phk Exp $
+ * $Id: aic6360.c,v 1.1.1.1 1996/06/14 10:04:42 asami Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -686,13 +686,8 @@ static int aic_debug = 0; /* AIC_SHOWSTART|AIC_SHOWMISC|AIC_SHOWTRAC; */
 #define AIC_START(str)
 #endif
 
-#ifdef PC98
-static int	aicprobe	__P((struct pc98_device *));
-static int	aicattach	__P((struct pc98_device *));
-#else
 static int	aicprobe	__P((struct isa_device *));
 static int	aicattach	__P((struct isa_device *));
-#endif
 static void	aic_minphys	__P((struct buf *));
 static u_int32_t	aic_adapter_info __P((int));
 static void 	aic_init	__P((struct aic_data *));
@@ -718,11 +713,7 @@ void	aic_dump_driver		__P((void));
 #endif
 
 /* Linkup to the rest of the kernel */
-#ifdef PC98
-struct pc98_driver aicdriver = {
-#else
 struct isa_driver aicdriver = {
-#endif
     aicprobe, aicattach, "aic"
 };
 
@@ -765,11 +756,7 @@ static struct kern_devconf kdc_aic[NAIC] = { {
 } };
 
 static inline void
-#ifdef PC98
-aic_registerdev(struct pc98_device *id)
-#else
 aic_registerdev(struct isa_device *id)
-#endif
 {
 	if(id->id_unit)
 		kdc_aic[id->id_unit] = kdc_aic[0];
@@ -788,11 +775,7 @@ aic_registerdev(struct isa_device *id)
  */
 static int
 aicprobe(dev)
-#ifdef PC98
-	struct pc98_device *dev;
-#else
 	struct isa_device *dev;
-#endif
 {
 	int	unit = aicunit;
 	struct aic_data *aic;
@@ -889,11 +872,7 @@ aic_find(aic)
  */
 static int
 aicattach(dev)
-#ifdef PC98
-	struct pc98_device *dev;
-#else
 	struct isa_device *dev;
-#endif
 {
 	int unit = dev->id_unit;
 	struct aic_data *aic = aicdata[unit];
