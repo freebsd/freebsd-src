@@ -350,9 +350,9 @@ Spawn(const char *prog, const char *acname, const char *provider,
       if (sz >= sizeof(struct ether_header)) {
         
         macaddr = ((struct ether_header *)request)->ether_shost;
-	snprintf(env, sizeof(env), "%s=%2x:%2x:%2x:%2x:%2x:%2x", HISMACADDR,
-	         macaddr[0], macaddr[1], macaddr[2], macaddr[3], macaddr[4],
-	         macaddr[5]);
+        snprintf(env, sizeof(env), "%s=%x:%x:%x:%x:%x:%x", HISMACADDR,
+                 macaddr[0], macaddr[1], macaddr[2], macaddr[3], macaddr[4],
+                 macaddr[5]);
         if (putenv(env) != 0)
           syslog(LOG_INFO, "putenv: cannot set %s: %m", env);
       }
