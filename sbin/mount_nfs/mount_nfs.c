@@ -178,10 +178,9 @@ struct nfhret {
 	long		fhsize;
 	u_char		nfh[NFSX_V3FHMAX];
 };
-#define	DEF_RETRY	10000
 #define	BGRND	1
 #define	ISBGRND	2
-int retrycnt = DEF_RETRY;
+int retrycnt = -1;
 int opflags = 0;
 int nfsproto = IPPROTO_UDP;
 int mnttcp_ok = 1;
@@ -289,7 +288,6 @@ main(argc, argv)
 	    ((char *)ktick.kt.dat) - ((char *)&ktick) != 2 * NFSX_UNSIGNED)
 		fprintf(stderr, "Yikes! NFSKERB structs not packed!!\n");
 #endif /* NFSKERB */
-	retrycnt = DEF_RETRY;
 
 	mntflags = 0;
 	altflags = 0;
@@ -430,7 +428,7 @@ main(argc, argv)
 			break;
 		case 'R':
 			num = strtol(optarg, &p, 10);
-			if (*p || num <= 0)
+			if (*p || num < 0)
 				errx(1, "illegal -R value -- %s", optarg);
 			retrycnt = num;
 			break;
@@ -487,6 +485,8 @@ main(argc, argv)
 	spec = *argv++;
 	name = *argv;
 
+	if (retrycnt == -1)
+		retrycnt = (opflags & BGRND) ? 0 : 1;
 	if (!getnfsargs(spec, nfsargsp))
 		exit(1);
 
@@ -694,7 +694,7 @@ getnfsargs(spec, nfsargsp)
 #endif /* NFSKERB */
 
 	ret = TRYRET_LOCALERR;
-	while (retrycnt > 0) {
+	for (;;) {
 		/*
 		 * Try each entry returned by getaddrinfo(). Note the
 		 * occurence of remote errors by setting `remoteerr'.
@@ -712,14 +712,15 @@ getnfsargs(spec, nfsargsp)
 		if (ret == TRYRET_SUCCESS)
 			break;
 
-		/*
-		 * Exit on failures if not BGRND mode, or if all errors
-		 * were local.
-		 */
-		if ((opflags & BGRND) == 0 || !remoteerr)
+		/* Exit if all errors were local. */
+		if (!remoteerr)
 			exit(1);
 
-		if (--retrycnt <= 0)
+		/*
+		 * If retrycnt == 0, we are to keep retrying forever.
+		 * Otherwise decrement it, and exit if it hits zero.
+		 */
+		if (retrycnt != 0 && --retrycnt == 0)
 			exit(1);
 
 		if ((opflags & (BGRND | ISBGRND)) == BGRND) {
