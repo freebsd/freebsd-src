@@ -27,6 +27,7 @@
 #
 
 PROG=	kldload
+WARNS?=	2
 MAN=	kldload.8
 
 CFLAGS+=-I${.CURDIR}/../../sys
