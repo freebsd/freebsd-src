@@ -49,6 +49,7 @@ static char sccsid[] = "@(#)mkfs.c	8.11 (Berkeley) 5/3/95";
 __FBSDID("$FreeBSD$");
 
 #include <err.h>
+#include <grp.h>
 #include <limits.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -700,10 +701,18 @@ initcg(int cylno, time_t utime)
 /*
  * initialize the file system
  */
-#define PREDEFDIR 2
+#define ROOTLINKCNT 3
 
 struct direct root_dir[] = {
 	{ ROOTINO, sizeof(struct direct), DT_DIR, 1, "." },
+	{ ROOTINO, sizeof(struct direct), DT_DIR, 2, ".." },
+	{ ROOTINO + 1, sizeof(struct direct), DT_DIR, 5, ".snap" },
+};
+
+#define SNAPLINKCNT 2
+
+struct direct snap_dir[] = {
+	{ ROOTINO + 1, sizeof(struct direct), DT_DIR, 1, "." },
 	{ ROOTINO, sizeof(struct direct), DT_DIR, 2, ".." },
 };
 
@@ -711,8 +720,11 @@ void
 fsinit(time_t utime)
 {
 	union dinode node;
+	struct group *grp;
 
 	memset(&node, 0, sizeof node);
+	if ((grp = getgrnam("operator")) == NULL)
+		errx(35, "Cannot retrieve operator gid");
 	if (sblock.fs_magic == FS_UFS1_MAGIC) {
 		/*
 		 * initialize the node
@@ -724,13 +736,27 @@ fsinit(time_t utime)
 		 * create the root directory
 		 */
 		node.dp1.di_mode = IFDIR | UMASK;
-		node.dp1.di_nlink = PREDEFDIR;
-		node.dp1.di_size = makedir(root_dir, PREDEFDIR);
+		node.dp1.di_nlink = ROOTLINKCNT;
+		node.dp1.di_size = makedir(root_dir, ROOTLINKCNT);
 		node.dp1.di_db[0] = alloc(sblock.fs_fsize, node.dp1.di_mode);
 		node.dp1.di_blocks =
 		    btodb(fragroundup(&sblock, node.dp1.di_size));
 		wtfs(fsbtodb(&sblock, node.dp1.di_db[0]), sblock.fs_fsize,
 		    iobuf);
+		iput(&node, ROOTINO);
+		/*
+		 * create the .snap directory
+		 */
+		node.dp1.di_mode |= 020;
+		node.dp1.di_gid = grp->gr_gid;
+		node.dp1.di_nlink = SNAPLINKCNT;
+		node.dp1.di_size = makedir(snap_dir, SNAPLINKCNT);
+		node.dp1.di_db[0] = alloc(sblock.fs_fsize, node.dp1.di_mode);
+		node.dp1.di_blocks =
+		    btodb(fragroundup(&sblock, node.dp1.di_size));
+		wtfs(fsbtodb(&sblock, node.dp1.di_db[0]), sblock.fs_fsize,
+		    iobuf);
+		iput(&node, ROOTINO + 1);
 	} else {
 		/*
 		 * initialize the node
@@ -743,15 +769,28 @@ fsinit(time_t utime)
 		 * create the root directory
 		 */
 		node.dp2.di_mode = IFDIR | UMASK;
-		node.dp2.di_nlink = PREDEFDIR;
-		node.dp2.di_size = makedir(root_dir, PREDEFDIR);
+		node.dp2.di_nlink = ROOTLINKCNT;
+		node.dp2.di_size = makedir(root_dir, ROOTLINKCNT);
 		node.dp2.di_db[0] = alloc(sblock.fs_fsize, node.dp2.di_mode);
 		node.dp2.di_blocks =
 		    btodb(fragroundup(&sblock, node.dp2.di_size));
 		wtfs(fsbtodb(&sblock, node.dp2.di_db[0]), sblock.fs_fsize,
 		    iobuf);
+		iput(&node, ROOTINO);
+		/*
+		 * create the .snap directory
+		 */
+		node.dp2.di_mode |= 020;
+		node.dp2.di_gid = grp->gr_gid;
+		node.dp2.di_nlink = SNAPLINKCNT;
+		node.dp2.di_size = makedir(snap_dir, SNAPLINKCNT);
+		node.dp2.di_db[0] = alloc(sblock.fs_fsize, node.dp2.di_mode);
+		node.dp2.di_blocks =
+		    btodb(fragroundup(&sblock, node.dp2.di_size));
+		wtfs(fsbtodb(&sblock, node.dp2.di_db[0]), sblock.fs_fsize,
+		    iobuf);
+		iput(&node, ROOTINO + 1);
 	}
-	iput(&node, ROOTINO);
 }
 
 /*
