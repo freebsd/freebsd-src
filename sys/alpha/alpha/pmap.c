@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.1 1998/06/10 10:52:59 dfr Exp $
+ *	$Id: pmap.c,v 1.2 1998/07/05 11:58:35 dfr Exp $
  */
 
 /*
@@ -190,6 +190,21 @@
 #define PMAP_INLINE __inline
 #else
 #define PMAP_INLINE
+#endif
+
+#if 1
+
+static void
+pmap_break()
+{
+}
+
+#define PMAP_DEBUG_VA(va) if ((va) == 0x120058000) pmap_break(); else
+
+#endif
+
+#ifndef PMAP_DEBUG_VA
+#define PMAP_DEBUG_VA(va) do {} while(0)
 #endif
 
 /*
@@ -765,6 +780,7 @@ pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
 		pt_entry_t opte;
 		pte = vtopte(tva);
 		opte = *pte;
+		PMAP_DEBUG_VA(va);
 		*pte = npte;
 		if (opte)
 			ALPHA_TBIS(tva);
@@ -785,6 +801,7 @@ pmap_qremove(va, count)
 
 	for (i = 0; i < count; i++) {
 		pte = vtopte(va);
+		PMAP_DEBUG_VA(va);
 		*pte = 0;
 		ALPHA_TBIS(va);
 		va += PAGE_SIZE;
@@ -805,6 +822,7 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 	npte = pmap_phys_to_pte(pa) | PG_KRE | PG_KWE | PG_V;
 	pte = vtopte(va);
 	opte = *pte;
+	PMAP_DEBUG_VA(va);
 	*pte = npte;
 	if (opte)
 		ALPHA_TBIS(va);
@@ -819,6 +837,7 @@ pmap_kremove(vm_offset_t va)
 	register pt_entry_t *pte;
 
 	pte = vtopte(va);
+	PMAP_DEBUG_VA(va);
 	*pte = 0;
 	ALPHA_TBIS(va);
 }
@@ -1679,6 +1698,7 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t* ptq, vm_offset_t va)
 	pv_table_t *ppv;
 
 	oldpte = *ptq;
+	PMAP_DEBUG_VA(va);
 	*ptq = 0;
 	if (oldpte & PG_W)
 		pmap->pm_stats.wired_count -= 1;
@@ -1787,6 +1807,7 @@ pmap_remove_all(vm_offset_t pa)
 
 		tpte = *pte;
 
+		PMAP_DEBUG_VA(pv->pv_va);
 		*pte = 0;
 		if (tpte & PG_W)
 			pv->pv_pmap->pm_stats.wired_count--;
@@ -1971,7 +1992,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_offset_t pa, vm_prot_t prot,
 		err = pmap_remove_pte(pmap, pte, va);
 #if !defined(MAX_PERF)
 		if (err)
-			panic("pmap_enter: pte vanished, va: 0x%x", va);
+			panic("pmap_enter: pte vanished, va: 0x%lx", va);
 #endif
 	}
 
@@ -2019,6 +2040,7 @@ validate:
 	 * to update the pte.
 	 */
 	if (origpte != newpte) {
+		PMAP_DEBUG_VA(va);
 		*pte = newpte;
 		if (origpte)
 			ALPHA_TBIS(va);
@@ -2104,6 +2126,7 @@ retry:
 	 * raise IPL while manipulating pv_table since pmap_enter can be
 	 * called at interrupt time.
 	 */
+	PMAP_DEBUG_VA(va);
 	pmap_insert_entry(pmap, va, mpte, pa);
 
 	/*
@@ -2495,6 +2518,7 @@ pmap_remove_pages(pmap, sva, eva)
 			npv = TAILQ_NEXT(pv, pv_plist);
 			continue;
 		}
+		PMAP_DEBUG_VA(pv->pv_va);
 		*pte = 0;
 
 		ppv = pa_to_pvh(pmap_pte_pa(&tpte));
@@ -2936,10 +2960,10 @@ pmap_activate(struct proc *p)
 
 	if (p == curproc) {
 		alpha_pal_swpctx((u_long)p->p_md.md_pcbpaddr);
-	} else
-	    /* XXX remove after implementing ASNs */
-	    ALPHA_TBIA();
+	}
 
+	/* XXX remove after implementing ASNs */
+	ALPHA_TBIA();
 }
 
 void
