@@ -813,18 +813,18 @@ status_one_geom(struct ggeom *gp, size_t name_len, size_t status_len)
 		name = pp->lg_name;
 	else
 		name = gp->lg_name;
-	printf("%*s", name_len, name);
+	printf("%*s", (int)name_len, name);
 	LIST_FOREACH(conf, &gp->lg_config, lg_config) {
 		if (strcasecmp(conf->lg_name, "state") == 0) {
-			printf("  %*s", status_len, conf->lg_val);
+			printf("  %*s", (int)status_len, conf->lg_val);
 			break;
 		}
 	}
 	if (conf == NULL)
-		printf("  %*s", status_len, "N/A");
+		printf("  %*s", (int)status_len, "N/A");
 	LIST_FOREACH(cp, &gp->lg_consumer, lg_consumer) {
 		if (cp != LIST_FIRST(&gp->lg_consumer))
-			printf("%*s  %*s", name_len, "", status_len, "");
+			printf("%*s  %*s", (int)name_len, "", (int)status_len, "");
 		if (status_one_consumer(cp) && !newline)
 			newline = 1;
 	}
@@ -890,7 +890,7 @@ std_status(struct gctl_req *req, unsigned flags __unused)
 		if (n == 0)
 			goto end;
 	}
-	printf("%*s  %*s  %s\n", name_len, "Name", status_len, "Status",
+	printf("%*s  %*s  %s\n", (int)name_len, "Name", (int)status_len, "Status",
 	    "Components");
 	if (*nargs > 0) {
 		int i;
