@@ -679,6 +679,7 @@ struct dc_softc {
 #define DC_21143_NWAY		0x00000800
 #define DC_128BIT_HASH		0x00001000
 #define DC_64BIT_HASH		0x00002000
+#define DC_TULIP_LEDS		0x00004000
 
 /*
  * register space access macros
