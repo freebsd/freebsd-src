@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.1.1.2 1998/07/26 17:59:48 son Exp $
+ *	$Id: isa_device.h,v 1.53 1998/09/03 21:01:22 nsouch Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -126,7 +126,7 @@ typedef	void	ointhand2_t __P((int unit));
 
 /*
  * The "old" interrupt handlers really have type ointhand2_t although they
- * appear to be declared as having type inthand2_t.  However, if if this
+ * appear to be declared as having type inthand2_t.  However, if this
  * header is included by ioconf.c, pretend that the handlers really have
  * type inthand_t.  Assume that `C' is defined only by ioconf.c.
  */
@@ -143,7 +143,6 @@ inthand2_t	ascintr;
 #ifdef PC98
 inthand2_t	bsintr;
 #endif
-inthand2_t	bt_isa_intr;
 inthand2_t	csintr;
 inthand2_t	cxintr;
 inthand2_t	cyintr;
