@@ -1,4 +1,4 @@
-                    INSTALLATION GUIDE FOR FreeBSD 2.0.5
+                    INSTALLATION GUIDE FOR FreeBSD 2.1
 
 This manual documents the process of installing FreeBSD on your
 machine.  Please also see the Hardware Guide for hardware-specific
@@ -63,7 +63,7 @@ partition and use this for communications between DOS and FreeBSD.
 
 1.3     Can I mount my DOS extended partitions?
 
-This feature isn't in FreeBSD 2.0.5 but should be in 2.1.  We've laid
+This feature isn't in FreeBSD 2.1 but should be in 2.1.  We've laid
 all the groundwork for making this happen, now we just need to do the
 last 1% of the work involved.
 
@@ -304,7 +304,7 @@ can continue over NFS or FTP.
         Options flag.
 
         In order for NFS installation to work, the server must support
-        "subdir mounts"; e.g., if your FreeBSD 2.0.5 distribution directory
+        "subdir mounts"; e.g., if your FreeBSD 2.1 distribution directory
         lives on:  ziggy:/usr/archive/stuff/FreeBSD
         Then ziggy will have to allow the direct mounting of
         /usr/archive/stuff/FreeBSD, not just /usr or /usr/archive/stuff.
@@ -319,7 +319,7 @@ can continue over NFS or FTP.
 2.5.2   Preparing for FTP Installation
 
         FTP installation may be done from any mirror site containing a
-        reasonably up-to-date version of FreeBSD 2.0.5.  A full menu of
+        reasonably up-to-date version of FreeBSD 2.1.  A full menu of
         reasonable choices from almost anywhere in the world is provided
         by the FTP site menu.
 
@@ -329,10 +329,8 @@ can continue over NFS or FTP.
         choice in that menu.  A URL can also be a direct IP address, so
         the following would work in the absence of a name server:
 
-                ftp://192.216.222.4/pub/FreeBSD/2.0.5-RELEASE
+                ftp://192.216.222.4/pub/FreeBSD/2.1-RELEASE
         
-        [Substitute "ALPHA" for "RELEASE" during the ALPHA test period!]
-
         There are two FTP installation modes you can use:
 
            o FTP Active:

@@ -1,5 +1,5 @@
 An ``X-'' prefixed before a distribution set means that the XFree86
-3.1.1u1 base distribution, libraries, manual pages, SVGA server and a
+3.1.2 base distribution, libraries, manual pages, SVGA server and a
 set of default fonts will be selected in addition to the set itself.
 
 If you select such a set, you will also be presented with a set of
@@ -82,7 +82,9 @@ list).  Since breaking this law only gets the _originating_ site
 servers!
 
 A number of "foreign" servers do exist for the benefit of
-non-U.S. sites, one of which is "skeleton.mikom.csir.co.za".
+non-U.S. sites, one of which is:
+
+	ftp://ftp.internat.freebsd.org/pub/FreeBSD
 
 Please get all such export restricted software from there
 if you are outside the U.S., thanks!

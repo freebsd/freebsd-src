@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.12.2.1 1995/08/14 10:49:29 rgrimes Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.1 1995/09/18 16:52:55 peter Exp $
 
 Table of Contents
 -----------------
@@ -69,6 +69,7 @@ flags <devname> <mask>  Set device flags
 enable <devname>        Enable device
 probe <devname>         Return results of device probe
 disable <devname>       Disable device (will not be probed)
+visual			Go to visual mode
 quit                    Exit this configuration utility
 help                    This message
 
@@ -76,13 +77,23 @@ help                    This message
 You may alter nearly all of the default settings present in the FreeBSD
 generic kernel.  This includes reassigning IRQs, disabling troublesome
 devices (or drivers that conflict with the hardware your system has),
-setting special device flags, etc.  
+setting special device flags, etc.
+
+Since people vary widely in terms of personal taste, we have provided
+two interfaces to the UserConfig utility.  If you type `visual' you
+will be placed into the "GUI" based device attributes editor.  If
+you're someone more at home with command-line flavored interfaces then
+simply don't type `visual' at any point! :)
+
+Since the visual interface pretty much describes itself, we'll use the
+more verbose command line interface while describing UserConfig in the
+following examples.
 
 The most common use of UserConfig is to adjust or disable a driver
 which is causing trouble.  The "ls" command displays the current
-settings for all the drivers present in the booted kernel, and
-once you have located an entry of interest you may use the displayed
-device name to change its settings or even disable the driver completely.
+settings for all the drivers present in the booted kernel, and once
+you have located an entry of interest you may use the displayed device
+name to change its settings or even disable the driver completely.
 
 For example, to change the memory address of network adapter 'ed0' to
 the address 0xd4000, you would type

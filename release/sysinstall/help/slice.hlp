@@ -1,15 +1,23 @@
-This is the Main Partition (or ``Slice'') Editor.
+This is the Main Partition (or ``FDISK'') Editor.
 
 Possible commands are printed at the bottom, and the Master Boot Record
 contents are at the top.  You can move up and down with the arrow keys
 and can (C)reate a new partition whenever the "bar" is over a partition
 whose type is set to "unused".
 
+You are expected to leave this screen with at least one partition
+marked "FreeBSD."  Note that unlike Linux, you don't need to create
+multiple FreeBSD fdisk partition entries for different things like
+swap, file systems, etc.  The usual convention is to create ONE
+FreeBSD partition per drive and then subsection this partition into
+swap and file space with the Label editor.
+
+
 The flags field has the following legend:
 
-        '='  -- Partition is properly aligned.
-        '>'  -- The partition doesn't end before cylinder 1024
-        'R'  -- Has been marked as containing the root (/) filesystem
+        '='  -- This partition is properly aligned.
+        '>'  -- This partition doesn't end before cylinder 1024
+        'R'  -- This partition contains the root (/) filesystem
         'B'  -- Partition employs BAD144 bad-spot handling
         'C'  -- This is the FreeBSD 2.0-compatibility partition (default)
         'A'  -- This partition is marked active.
