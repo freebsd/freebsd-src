@@ -98,6 +98,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <ifaddrs.h>
 
 #include "ifconfig.h"
 
@@ -175,6 +176,7 @@ c_func	setip6flags;
 c_func  setip6pltime;
 c_func  setip6vltime;
 c_func2	setip6lifetime;
+c_func	setip6eui64;
 #endif
 c_func	setifipdst;
 c_func	setifflags, setifmetric, setifmtu, setifcap;
@@ -222,6 +224,7 @@ struct	cmd {
 	{ "-autoconf",	-IN6_IFF_AUTOCONF, setip6flags },
 	{ "pltime",     NEXTARG,        setip6pltime },
 	{ "vltime",     NEXTARG,        setip6vltime },
+	{ "eui64",	0,		setip6eui64 },
 #endif
 	{ "range",	NEXTARG,	setatrange },
 	{ "phase",	NEXTARG,	setatphase },
@@ -897,6 +900,40 @@ setip6lifetime(const char *cmd, const char *val, int s,
 		in6_addreq.ifra_lifetime.ia6t_preferred = t + newval;
 		in6_addreq.ifra_lifetime.ia6t_pltime = newval;
 	}
+}
+
+void
+setip6eui64(const char *cmd, int dummy __unused, int s,
+    const struct afswtch *afp)
+{
+	struct ifaddrs *ifap, *ifa;
+	const struct sockaddr_in6 *sin6 = NULL;
+	const struct in6_addr *lladdr = NULL;
+	struct in6_addr *in6;
+
+	if (afp->af_af != AF_INET6)
+		errx(EXIT_FAILURE, "%s not allowed for the AF", cmd);
+ 	in6 = (struct in6_addr *)&in6_addreq.ifra_addr.sin6_addr;
+	if (memcmp(&in6addr_any.s6_addr[8], &in6->s6_addr[8], 8) != 0)
+		errx(EXIT_FAILURE, "interface index is already filled");
+	if (getifaddrs(&ifap) != 0)
+		err(EXIT_FAILURE, "getifaddrs");
+	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+		if (ifa->ifa_addr->sa_family == AF_INET6 &&
+		    strcmp(ifa->ifa_name, name) == 0) {
+			sin6 = (const struct sockaddr_in6 *)ifa->ifa_addr;
+			if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
+				lladdr = &sin6->sin6_addr;
+				break;
+			}
+		}
+	}
+	if (!lladdr)
+		errx(EXIT_FAILURE, "could not determine link local address"); 
+
+ 	memcpy(&in6->s6_addr[8], &lladdr->s6_addr[8], 8);
+
+	freeifaddrs(ifap);
 }
 #endif
 
