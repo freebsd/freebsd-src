@@ -46,6 +46,10 @@ If the file
 exists, it means that CMOS clock keep local time (MS-DOS and MS-Windows
 compatible mode),
 if that file does not exist it means that CMOS clock keep UTC time.
+.Nm Adjkerntz
+passes this state to
+.Pa machdep.wall_cmos_clock
+kernel variable.
 .Pp
 Adjustments may be needed at system startup and shutdown, and
 whenever a time zone change occurs.
@@ -58,19 +62,19 @@ This form handles system startups and shutdowns.
 .Nm Adjkerntz
 is invoked with this option from
 .Pa /etc/rc
-before any other daemons have been started.
+on entry to multi-user mode, before any other daemons have been started.
 .Nm Adjkerntz
 puts itself into the background.
 Then for wall CMOS clock
 .Nm adjkerntz
-reads the local time from the it
+reads the local time from it
 and sets the kernel clock to the corresponding UTC time.
 .Nm Adjkerntz
 also stores the local time zone offset into the
 .Pa machdep.adjkerntz
 kernel variable, for use by subsequent invocations of
 .Nm "'adjkerntz -a'"
-and local time file systems.
+and by local time file systems.
 .Pp
 For wall CMOS clock
 .Nm "'adjkerntz -i'"
@@ -102,7 +106,7 @@ It stores the new offset into the
 kernel variable, and updates the wall CMOS clock to the new local time.
 If
 .Nm "'adjkerntz -a'"
-starts at nonexisten time (inside timezone change), it exits
+was started at nonexisten time (inside timezone change), it exits
 with warning diagnostic unless
 .Fl s
 option is used, in this case
