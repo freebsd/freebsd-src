@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.22 1995/10/15 16:14:42 jfieber Exp $
+#	$Id: bsd.doc.mk,v 1.23 1995/11/29 16:05:08 bde Exp $
 
 PRINTER?=	ascii
 
@@ -88,7 +88,7 @@ obj:
 
 clean:
 	rm -f ${DOC}.${PRINTER} ${DOC}.ps ${DOC}.ascii \
-		${DOC}.ps.gz ${DOC}.ascii.gz [eE]rrs mklog ${CLEANFILES}
+		${DOC}.ps.gz ${DOC}.ascii.gz Errs errs mklog ${CLEANFILES}
 
 cleandir: clean
 	cd ${.CURDIR}; rm -rf obj
