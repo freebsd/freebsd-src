@@ -390,4 +390,18 @@ A: There is a bug in the Mylex driver which results in it ignoring
    the '8GB' geometry mode setting in the BIOS.  Use the 2GB mode 
    instead.
 
+Q: I'm doing an FTP install and the installation program detects and
+   let's me configure my Realtek-based network adapter card, but once the
+   system starts FTPing files over it does so extremely slowly.  (like on
+   the order of 3K per second)
+
+A: The RealTek 8139 and the 8129 10/100 Fast Ethernet cards use the
+   NWAY protocol to autodetect what speed and duplex setting that the hub
+   that the PC is plugged into will support.  Unfortunately older
+   Ethernet hubs that are 10BaseT only don't support this, and in the
+   absense of NWAY negotiation the card will pick 10BaseT full-duplex,
+   instead of 10BaseT half-duplex.  To fix this, the "media 10baseT/UTP"
+   option should be entered into the options area when the network
+   adapter is configured in sysinstall.
+
 [ Please send hardware tips for this Q&A section to jkh@freebsd.org ]
