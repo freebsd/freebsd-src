@@ -190,7 +190,7 @@ ENTRY(os_boot_rendez,0)
 	;;
 	srlz.d
 	mov	r16 = (PTE_P|PTE_MA_WB|PTE_A|PTE_D|PTE_PL_KERN|PTE_AR_RWX)
-	mov	r18 = IA64_ID_PAGE_SHIFT<<2
+	mov	r18 = 28<<2
 	;;
 
 	mov	cr.ifa = r17
