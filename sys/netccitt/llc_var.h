@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)llc_var.h	8.1 (Berkeley) 6/10/93
- * $Id: llc_var.h,v 1.4 1995/05/30 08:08:55 rgrimes Exp $
+ * $Id: llc_var.h,v 1.5 1995/07/29 11:41:24 bde Exp $
  */
 
 #ifndef _NETCCITT_LLC_VAR_H_
@@ -598,17 +598,10 @@ extern int af_link_rts_init_done;
 extern struct ifqueue llcintrq;
 
 extern struct llccb_q llccb_q;
-extern char *frame_names[];
 
 /*
  * Function prototypes
  */
-int sdl_cmp __P((struct sockaddr_dl *, struct sockaddr_dl *));
-int sdl_copy __P((struct sockaddr_dl *, struct sockaddr_dl *));
-int sdl_swapaddr __P((struct sockaddr_dl *, struct sockaddr_dl *));
-int sdl_checkaddrif __P((struct ifnet *, struct sockaddr_dl *));
-int sdl_setaddrif __P((struct ifnet *, u_char *, u_char, u_char,
-		      struct sockaddr_dl *));
 int sdl_sethdrif __P((struct ifnet *, u_char *, u_char, u_char *, u_char, u_char,
 		      struct sdl_hdr *));
 struct npaidbentry *llc_setsapinfo __P((struct ifnet *, u_char, u_char,
@@ -617,33 +610,17 @@ struct npaidbentry *llc_getsapinfo __P((u_char, struct ifnet *));
 struct rtentry *npaidb_enrich __P((short, caddr_t, struct sockaddr_dl *));
 int npaidb_destroy __P((struct rtentry *));
 short llc_seq2slot __P((struct llc_linkcb *, short));
-int llc_state_ADM __P((struct llc_linkcb *, struct llc *, int, int, int));
-int llc_state_CONN __P((struct llc_linkcb *, struct llc *, int, int, int));
-int llc_state_RESET_WAIT __P((struct llc_linkcb *, struct llc *,
-			      int, int, int));
-int llc_state_RESET_CHECK __P((struct llc_linkcb *, struct llc *,
-			       int, int, int));
-int llc_state_SETUP __P((struct llc_linkcb *, struct llc *, int, int, int));
-int llc_state_RESET __P((struct llc_linkcb *, struct llc *, int, int, int));
-int llc_state_D_CONN __P((struct llc_linkcb *, struct llc *, int, int, int));
-int llc_state_ERROR __P((struct llc_linkcb *, struct llc *, int, int, int));
-int llc_state_NBRAcore __P((struct llc_linkcb *, struct llc *, int, int, int));
+void sdl_swapaddr __P((struct sockaddr_dl *, struct sockaddr_dl *));
+
 int llc_state_NORMAL __P((struct llc_linkcb *, struct llc *, int, int, int));
 int llc_state_BUSY __P((struct llc_linkcb *, struct llc *, int, int, int));
 int llc_state_REJECT __P((struct llc_linkcb *, struct llc *, int, int, int));
-int llc_state_AWAIT __P((struct llc_linkcb *, struct llc *, int, int, int));
-int llc_state_AWAIT_BUSY __P((struct llc_linkcb *, struct llc *, int, int, int));
-int llc_state_AWAIT_REJECT __P((struct llc_linkcb *, struct llc *, int, int, int));
 int llc_statehandler __P((struct llc_linkcb *, struct llc *, int, int, int));
-int llc_init __P((void));
+void llc_init __P((void));
 struct llc_linkcb *llc_newlink __P((struct sockaddr_dl *, struct ifnet *,
 				    struct rtentry *, caddr_t, struct rtentry *));
-int llc_dellink __P((struct llc_linkcb *));
+void llc_dellink __P((struct llc_linkcb *));
 int llc_anytimersup __P((struct llc_linkcb *));
-char * llc_getstatename __P((struct llc_linkcb *));
-void llc_link_dump __P((struct llc_linkcb *, const char *));
-void llc_trace __P((struct llc_linkcb *, int, const char *));
-void llc_resetwindow __P((struct llc_linkcb *));
 int llc_decode __P((struct llc *, struct llc_linkcb *));
 void llc_timer __P((void));
 void llcintr __P((void));
