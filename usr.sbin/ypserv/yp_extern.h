@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_extern.h,v 1.1.1.1 1995/12/16 20:54:17 wpaul Exp $
+ *	$Id: yp_extern.h,v 1.2 1995/12/23 21:35:30 wpaul Exp $
  */
 #include <stdio.h>
 #include <string.h>
@@ -72,3 +72,4 @@ extern char	*yp_dnsaddr __P(( const char * ));
 extern int	yp_access __P((const char *, const struct svc_req * ));
 extern int	yp_validdomain __P((const char * ));
 extern DB	*yp_open_db __P(( const char *, const char *));
+extern void	load_securenets __P(( void ));
