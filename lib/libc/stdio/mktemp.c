@@ -79,14 +79,14 @@ char *
 mkdtemp(path)
 	char *path;
 {
-	return(_gettemp(path, (int *)NULL, 1, 0) ? path : (char *)NULL);
+	return (_gettemp(path, (int *)NULL, 1, 0) ? path : (char *)NULL);
 }
 
 char *
 _mktemp(path)
 	char *path;
 {
-	return(_gettemp(path, (int *)NULL, 0, 0) ? path : (char *)NULL);
+	return (_gettemp(path, (int *)NULL, 0, 0) ? path : (char *)NULL);
 }
 
 __warn_references(mktemp,
@@ -96,7 +96,7 @@ char *
 mktemp(path)
 	char *path;
 {
-	return(_mktemp(path));
+	return (_mktemp(path));
 }
 
 static int
@@ -112,12 +112,12 @@ _gettemp(path, doopen, domkdir, slen)
 	int rval;
 	uint32_t rand;
 
-	if (doopen && domkdir) {
+	if (doopen != NULL && domkdir) {
 		errno = EINVAL;
-		return(0);
+		return (0);
 	}
 
-	for (trv = path; *trv; ++trv)
+	for (trv = path; *trv != '\0'; ++trv)
 		;
 	trv -= slen;
 	suffp = trv;
@@ -137,19 +137,17 @@ _gettemp(path, doopen, domkdir, slen)
 	/*
 	 * check the target directory.
 	 */
-	if (doopen || domkdir) {
-		for (;; --trv) {
-			if (trv <= path)
-				break;
+	if (doopen != NULL || domkdir) {
+		for (; trv > path; --trv) {
 			if (*trv == '/') {
 				*trv = '\0';
 				rval = stat(path, &sbuf);
 				*trv = '/';
 				if (rval != 0)
-					return(0);
+					return (0);
 				if (!S_ISDIR(sbuf.st_mode)) {
 					errno = ENOTDIR;
-					return(0);
+					return (0);
 				}
 				break;
 			}
@@ -160,23 +158,23 @@ _gettemp(path, doopen, domkdir, slen)
 		if (doopen) {
 			if ((*doopen =
 			    _open(path, O_CREAT|O_EXCL|O_RDWR, 0600)) >= 0)
-				return(1);
+				return (1);
 			if (errno != EEXIST)
-				return(0);
+				return (0);
 		} else if (domkdir) {
 			if (mkdir(path, 0700) == 0)
-				return(1);
+				return (1);
 			if (errno != EEXIST)
-				return(0);
+				return (0);
 		} else if (lstat(path, &sbuf))
-			return(errno == ENOENT ? 1 : 0);
+			return (errno == ENOENT);
 
 		/* If we have a collision, cycle through the space of filenames */
 		for (trv = start;;) {
 			if (*trv == '\0' || trv == suffp)
-				return(0);
+				return (0);
 			pad = strchr(padchar, *trv);
-			if (pad == NULL || !*++pad)
+			if (pad == NULL || *++pad == '\0')
 				*trv++ = padchar[0];
 			else {
 				*trv++ = *pad;
