@@ -94,6 +94,7 @@ mediaCheck(Option opt)
 }
 
 #define TAPE_PROMPT	"Please enter the tape block size in 512 byte blocks:"
+#define NEWFS_PROMPT	"Please enter newfs(8) parameters:"
 #define RELNAME_PROMPT	"Please specify the release you wish to load or\n\"none\" for a generic release install:"
 #define BPKG_PROMPT	"Please specify the name of the HTML browser package:"
 #define BBIN_PROMPT	"Please specify a full pathname to the HTML browser binary:"
@@ -137,6 +138,8 @@ static Option Options[] = {
       OPT_IS_VAR,	TIMEOUT_PROMPT,		VAR_MEDIA_TIMEOUT,	varCheck	},
 { "Package Temp",	"The directory where package temporary files should go",
       OPT_IS_VAR,	PKG_PROMPT,		VAR_PKG_TMPDIR,		varCheck	},
+{ "Newfs Args",	 	"Default parameters for newfs(8)",
+      OPT_IS_VAR,	NEWFS_PROMPT,		VAR_NEWFS_ARGS,		varCheck	},
 { "Config save",	"Whether or not to save installation kernel config changes",
       OPT_IS_VAR,	NULL,			VAR_KGET,		varCheck	},
 { "Re-scan Devices",	"Re-run sysinstall's initial device probe",

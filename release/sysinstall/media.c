@@ -677,7 +677,7 @@ mediaExtractDist(char *dir, char *dist, FILE *fp)
     /* Make ^C abort the current transfer rather than the whole show */
     new.sa_handler = handle_intr;
     new.sa_flags = 0;
-    new.sa_mask = 0;
+    (void)sigemptyset(&new.sa_mask);
     sigaction(SIGINT, &new, &old);
 
     while ((i = fread(buf, 1, BUFSIZ, fp)) > 0) {

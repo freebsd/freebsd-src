@@ -475,6 +475,7 @@ write_root_xprofile(char *str)
 	fp = fopen(*cp, "w");
 	if (fp) {
 	    fwrite(str, 1, len, fp);
+	    fchmod(fileno(fp), 0755);
 	    fclose(fp);
 	}
     }
