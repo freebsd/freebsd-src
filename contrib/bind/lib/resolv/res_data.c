@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: res_data.c,v 8.17 1999/10/13 17:11:31 vixie Exp $";
+static const char rcsid[] = "$Id: res_data.c,v 8.18 2000/12/23 08:14:58 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"
@@ -80,7 +80,6 @@ struct __res_state _res
 /* Proto. */
 
 int  res_ourserver_p(const res_state, const struct sockaddr_in *);
-void res_pquery(const res_state, const u_char *, int, FILE *);
 
 int
 res_init(void) {

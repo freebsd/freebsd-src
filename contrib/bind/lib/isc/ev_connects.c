@@ -20,7 +20,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: ev_connects.c,v 8.26 2000/02/04 08:28:34 vixie Exp $";
+static const char rcsid[] = "$Id: ev_connects.c,v 8.27 2000/11/14 01:10:37 vixie Exp $";
 #endif
 
 /* Import. */
@@ -256,6 +256,7 @@ evTryAccept(evContext opaqueCtx, evConnID id, int *sys_errno) {
 			return (-1);
 		}
 	}
+	INIT_LINK(new, link);
 	APPEND(ctx->accepts, new, link);
 	*sys_errno = new->ioErrno;
 	return (0);

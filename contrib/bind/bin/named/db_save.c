@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)db_save.c	4.16 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: db_save.c,v 8.27 2000/04/21 06:54:03 vixie Exp $";
+static const char rcsid[] = "$Id: db_save.c,v 8.28 2000/11/29 06:55:48 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -156,7 +156,7 @@ savedata(class, type, ttl, data, size)
 	dp->d_clev = 0;
 	dp->d_secure = DB_S_INSECURE;
 	dp->d_rcode = NOERROR;
-	dp->d_ns = NULL;
+	dp->d_addr.s_addr = htonl(0);
 	dp->d_nstime = 0;
 	memcpy(dp->d_data, data, dp->d_size);
 	return (dp);

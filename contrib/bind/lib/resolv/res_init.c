@@ -70,7 +70,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_init.c	8.1 (Berkeley) 6/7/93";
-static const char rcsid[] = "$Id: res_init.c,v 8.16 2000/05/09 07:10:12 vixie Exp $";
+static const char rcsid[] = "$Id: res_init.c,v 8.17 2000/11/08 06:47:37 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"
@@ -350,6 +350,15 @@ __res_vinit(res_state statp, int preinit) {
 #endif
 	    (void) fclose(fp);
 	}
+/*
+ * Last chance to get a nameserver.  This should not normally
+ * be necessary
+ */
+#ifdef NO_RESOLV_CONF
+	if(nserv == 0)
+		nserv = get_nameservers(statp);
+#endif
+
 	if (statp->defdname[0] == 0 &&
 	    gethostname(buf, sizeof(statp->defdname) - 1) == 0 &&
 	    (cp = strchr(buf, '.')) != NULL)

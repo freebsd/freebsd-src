@@ -175,7 +175,7 @@ Operating System Notes
 		"port/solaris/Makefile.set.gcc" to "port/solaris/Makefile.set".
 
 		If you're using a Solaris release earlier than 2.5 and you have
-		a large number of interfaces on your system, you many need
+		a large number of interfaces on your system, you many need to
 		use a script to "limit descriptors N" (where 'N' is a
 		suitably large number) before execing "named".  On Solaris
 		2.5 and later, the server will do this itself.

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_config.c,v 8.114 2000/04/23 02:18:58 vixie Exp $";
+static const char rcsid[] = "$Id: ns_config.c,v 8.118 2000/12/23 08:14:37 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -1134,6 +1134,7 @@ new_options() {
 	op->stats_interval = 3600;
 	op->ordering = NULL;
 	op->max_ncache_ttl = DEFAULT_MAX_NCACHE_TTL;
+	op->max_host_stats = 0;
 	op->lame_ttl = NTTL;
 	op->heartbeat_interval = 3600;
 	op->max_log_size_ixfr = 20;
@@ -1189,6 +1190,9 @@ set_boolean_option(u_int *op_flags, int bool_opt, int value) {
 	INSIST(op_flags != NULL);
 
 	switch (bool_opt) {
+#ifdef HITCOUNTS
+	case OPTION_HITCOUNT:
+#endif /* HITCOUNTS */
 	case OPTION_NORECURSE:
 	case OPTION_NOFETCHGLUE:
 	case OPTION_FORWARD_ONLY:
@@ -1742,7 +1746,6 @@ free_rrset_order_list(rrset_order_list rol) {
 	}
 	memput(rol, sizeof (*rol));
 }
-
 
 void
 add_to_rrset_order_list(rrset_order_list rol, rrset_order_element roe) {
@@ -2956,7 +2959,7 @@ init_default_log_channels() {
 	char *name;
 	FILE *stream;
 
-	syslog_channel = log_new_syslog_channel(0, log_info, LOG_DAEMON);
+	syslog_channel = log_new_syslog_channel(0, log_info, ISC_FACILITY);
 	if (syslog_channel == NULL || log_inc_references(syslog_channel) < 0)
 		ns_panic(ns_log_config, 0, "couldn't create syslog_channel");
 
@@ -3070,8 +3073,10 @@ shutdown_configuration() {
 	config_initialized = 0;
 }
 
-void
+time_t
 load_configuration(const char *filename) {
+	time_t mtime;
+
 	REQUIRE(config_initialized);
 
 	ns_debug(ns_log_config, 3, "load configuration %s", filename);
@@ -3089,7 +3094,7 @@ load_configuration(const char *filename) {
 	options_installed = 0;
 	logging_installed = 0;
 
-	parse_configuration(filename);
+	mtime = parse_configuration(filename);
 
 	/*
 	 * If the user didn't specify logging or options, but they previously
@@ -3123,4 +3128,5 @@ load_configuration(const char *filename) {
 	loading = 0;
 	/* release queued notifies */
 	notify_afterload();
+	return (mtime);
 }
