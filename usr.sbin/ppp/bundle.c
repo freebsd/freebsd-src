@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.43 1998/04/07 23:45:41 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.44 1998/04/10 13:19:01 brian Exp $
  */
 
 #include <sys/types.h>
@@ -846,6 +846,29 @@ bundle_ShowLinks(struct cmdargs const *arg)
     for (dl = arg->bundle->links; dl; dl = dl->next)
       datalink_Show(dl, arg->prompt);
   }
+
+  return 0;
+}
+
+int
+bundle_ShowStatus(struct cmdargs const *arg)
+{
+  int remaining;
+
+  prompt_Printf(arg->prompt, "Phase %s\n", bundle_PhaseName(arg->bundle));
+  prompt_Printf(arg->prompt, " Interface: %s\n", arg->bundle->dev);
+
+  prompt_Printf(arg->prompt, "\nDefaults:\n");
+  prompt_Printf(arg->prompt, " Auth name: %s\n", arg->bundle->cfg.auth.name);
+  prompt_Printf(arg->prompt, " Idle Timer: ");
+  if (arg->bundle->cfg.idle_timeout) {
+    prompt_Printf(arg->prompt, "%ds", arg->bundle->cfg.idle_timeout);
+    remaining = bundle_RemainingIdleTime(arg->bundle);
+    if (remaining != -1)
+      prompt_Printf(arg->prompt, " (%ds remaining)", remaining);
+    prompt_Printf(arg->prompt, "\n");
+  } else
+    prompt_Printf(arg->prompt, "disabled\n");
 
   return 0;
 }

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.1.2.26 1998/04/05 22:48:02 brian Exp $
+ *	$Id: bundle.h,v 1.1.2.27 1998/04/10 13:19:01 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -103,6 +103,7 @@ extern void bundle_LinkClosed(struct bundle *, struct datalink *);
 
 extern int bundle_FillQueues(struct bundle *);
 extern int bundle_ShowLinks(struct cmdargs const *);
+extern int bundle_ShowStatus(struct cmdargs const *);
 extern void bundle_StartIdleTimer(struct bundle *);
 extern void bundle_SetIdleTimer(struct bundle *, int);
 extern void bundle_StopIdleTimer(struct bundle *);

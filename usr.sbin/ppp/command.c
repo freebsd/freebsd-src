@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.57 1998/04/10 13:19:03 brian Exp $
+ * $Id: command.c,v 1.131.2.58 1998/04/10 23:51:27 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -80,8 +80,6 @@
 #include "chat.h"
 #include "chap.h"
 #include "datalink.h"
-
-static const char *HIDDEN = "********";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -432,23 +430,6 @@ ShowEscape(struct cmdargs const *arg)
 }
 
 static int
-ShowTimeout(struct cmdargs const *arg)
-{
-  int remaining;
-
-  prompt_Printf(arg->prompt, "Idle Timer: ");
-  if (arg->bundle->cfg.idle_timeout) {
-    prompt_Printf(arg->prompt, "%ds\n", arg->bundle->cfg.idle_timeout);
-    remaining = bundle_RemainingIdleTime(arg->bundle);
-    if (remaining != -1)
-      prompt_Printf(arg->prompt, "Remaining:  %ds\n", remaining);
-  } else
-    prompt_Printf(arg->prompt, "disabled\n");
-
-  return 0;
-}
-
-static int
 ShowTimerList(struct cmdargs const *arg)
 {
   ShowTimers(0, arg->prompt);
@@ -478,18 +459,10 @@ ShowStopped(struct cmdargs const *arg)
 }
 
 static int
-ShowAuthKey(struct cmdargs const *arg)
-{
-  prompt_Printf(arg->prompt, "AuthName = %s\n", arg->bundle->cfg.auth.name);
-  prompt_Printf(arg->prompt, "AuthKey  = %s\n", HIDDEN);
-  return 0;
-}
-
-static int
 ShowVersion(struct cmdargs const *arg)
 {
   static char VarVersion[] = "PPP Version 2.0-beta";
-  static char VarLocalVersion[] = "$Date: 1998/04/10 13:19:03 $";
+  static char VarLocalVersion[] = "$Date: 1998/04/10 23:51:27 $";
 
   prompt_Printf(arg->prompt, "%s - %s \n", VarVersion, VarLocalVersion);
   return 0;
@@ -526,8 +499,8 @@ ShowMSExt(struct cmdargs const *arg)
 #endif
 
 static struct cmdtab const ShowCommands[] = {
-  {"auth", NULL, ShowAuthKey, LOCAL_AUTH,
-  "Show auth details", "show auth"},
+  {"bundle", NULL, bundle_ShowStatus, LOCAL_AUTH,
+  "Show bundle details", "show bundle"},
   {"ccp", NULL, ccp_ReportStatus, LOCAL_AUTH | LOCAL_CX_OPT,
   "Show CCP status", "show cpp"},
   {"compress", NULL, ReportCompress, LOCAL_AUTH,
@@ -560,8 +533,6 @@ static struct cmdtab const ShowCommands[] = {
   "Show routing table", "show route"},
   {"stopped", NULL, ShowStopped, LOCAL_AUTH | LOCAL_CX,
   "Show STOPPED timeout", "show stopped"},
-  {"timeout", NULL, ShowTimeout, LOCAL_AUTH,
-  "Show Idle timeout", "show timeout"},
   {"timers", NULL, ShowTimerList, LOCAL_AUTH,
   "Show alarm timers", "show timers"},
   {"version", NULL, ShowVersion, LOCAL_NO_AUTH | LOCAL_AUTH,
@@ -706,7 +677,7 @@ RunCommand(struct bundle *bundle, int argc, char const *const *argv,
         if (n < sizeof buf - 1 && f)
           buf[n++] = ' ';
         if (arghidden(argc, argv, f))
-          strncpy(buf+n, HIDDEN, sizeof buf - n - 1);
+          strncpy(buf+n, "********", sizeof buf - n - 1);
         else
           strncpy(buf+n, argv[f], sizeof buf - n - 1);
         n += strlen(buf+n);

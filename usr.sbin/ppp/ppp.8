@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.13 1998/04/05 22:48:25 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.14 1998/04/10 13:19:17 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -989,7 +989,7 @@ See
 .Pa /etc/ppp/ppp.conf.example .
 .Sh SETTING THE IDLE TIMER
 To check/set the idle timer, use the
-.Dq show timeout
+.Dq show bundle
 and
 .Dq set timeout
 commands:
@@ -2600,8 +2600,8 @@ command if you wish processing to happen in the background.
 .It show Ar var
 This command allows the user to examine the following:
 .Bl -tag -width 20
-.It show auth
-Show the current authname.
+.It show bundle
+Show the current bundle settings.
 .It show ccp
 Show the current CCP compression statistics.
 .It show compress
@@ -2636,8 +2636,8 @@ Show current protocol totals.
 Show the current routing tables.
 .It show stopped
 Show the current stopped timeouts.
-.It show timeout
-Show the current idle timeout value.
+.It show timer
+Show the active alarm timers.
 .It show version
 Show the current version number of
 .Nm ppp .
