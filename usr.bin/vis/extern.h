@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1990, 1993
+ * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,54 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-
-__FBSDID("$FreeBSD$");
-
-#ifndef lint
-static const char sccsid[] = "@(#)foldit.c	8.1 (Berkeley) 6/6/93";
-#endif
-
-#include <stdio.h>
-
-#include "extern.h"
-
-int
-foldit(chunk, col, max)
-	char *chunk;
-	int col, max;
-{
-	char *cp;
-
-	/*
-	 * Keep track of column position. Insert hidden newline
-	 * if this chunk puts us over the limit.
-	 */
-again:
-	cp = chunk;
-	while (*cp) {
-		switch(*cp) {
-		case '\n':
-		case '\r':
-			col = 0;
-			break;
-		case '\t':
-			col = (col + 8) &~ 07;
-			break;
-		case '\b':
-			col = col ? col - 1 : 0;
-			break;
-		default:
-			col++;
-		}
-		if (col > (max - 2)) {
-			printf("\\\n");
-			col = 0;
-			goto again;
-		}
-		cp++;
-	}
-	return (col);
-}
+extern int foldit __P((char *, int, int));
