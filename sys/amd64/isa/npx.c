@@ -575,6 +575,11 @@ npxinit(control)
 	savecrit = critical_enter();
 	npxsave(&dummy);
 	stop_emulating();
+#ifdef CPU_ENABLE_SSE
+	/* XXX npxsave() doesn't actually initialize the fpu in the SSE case. */
+	if (cpu_fxsr)
+		fninit();
+#endif
 	fldcw(&control);
 	if (PCPU_GET(curpcb) != NULL)
 		fpusave(&PCPU_GET(curpcb)->pcb_save);
