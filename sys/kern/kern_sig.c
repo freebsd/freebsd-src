@@ -1053,7 +1053,7 @@ kill(td, uap)
 	register struct proc *p;
 	int error = 0;
 
-	if ((u_int)uap->signum >= _SIG_MAXSIG)
+	if ((u_int)uap->signum > _SIG_MAXSIG)
 		return (EINVAL);
 
 	mtx_lock(&Giant);
@@ -1105,7 +1105,7 @@ okillpg(td, uap)
 {
 	int error;
 
-	if ((u_int)uap->signum >= _SIG_MAXSIG)
+	if ((u_int)uap->signum > _SIG_MAXSIG)
 		return (EINVAL);
 	mtx_lock(&Giant);
 	error = killpg1(td->td_proc, uap->signum, uap->pgid, 0);
