@@ -69,7 +69,6 @@ struct Lst {
 };
 typedef	struct	Lst Lst;
 
-typedef	int CompareProc(const void *, const void *);
 typedef	void *DuplicateProc(void *);
 typedef	void FreeProc(void *);
 
@@ -137,10 +136,7 @@ void	Lst_Concat(Lst *, Lst *, int);
 /*
  * Functions for entire lists
  */
-/* Find an element in a list */
-#define	Lst_Find(LST, D, FN)	(Lst_FindFrom((LST), Lst_First(LST), (D), (FN)))
-/* Find an element starting from somewhere */
-LstNode		*Lst_FindFrom(Lst *, LstNode *, const void *, CompareProc *);
+
 /*
  * See if the given datum is on the list. Returns the LstNode containing
  * the datum
@@ -148,8 +144,15 @@ LstNode		*Lst_FindFrom(Lst *, LstNode *, const void *, CompareProc *);
 LstNode		*Lst_Member(Lst *, void *);
 
 /* Loop through a list. Note, that you may not delete the list element. */
+/*
 #define	LST_FOREACH(PTR, LST)						\
 	for ((PTR) = (LST)->firstPtr; (PTR) != NULL; (PTR) = (PTR)->nextPtr)
+*/
+#define	LST_FOREACH(PTR, LST) \
+	for (LstNode *_tmp1 = (LST)->firstPtr, *_tmp2 = Lst_Succ(_tmp1);\
+	    ((PTR) = _tmp1) != NULL;					\
+	    (Lst_Succ(_tmp1) != _tmp2 ? abort() : (void)0),		\
+	    (_tmp1 = _tmp2), _tmp2 = Lst_Succ(_tmp1))
 
 /*
  * for using the list as a queue
