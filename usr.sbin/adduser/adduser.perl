@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id$
+# $Id: adduser.perl,v 1.27 1997/02/22 16:01:18 peter Exp $
 
 
 # read variables
@@ -245,6 +245,10 @@ sub passwd_read {
     while(<P>) {
 	chop;
 	push(@passwd_backup, $_);
+	# ignore comments
+	next if /^\s*$/;
+	next if /^\s*#/;
+
 	($p_username, $pw, $p_uid, $p_gid, $sh) = (split(/:/, $_))[0..3,9];
 
 	print "$p_username already exists with uid: $username{$p_username}!\n"
@@ -272,6 +276,10 @@ sub group_read {
     while(<G>) {
 	chop;
 	push(@group_backup, $_);
+	# ignore comments
+	next if /^\s*$/;
+	next if /^\s*#/;
+
 	($g_groupname, $pw, $g_gid, $memb) = (split(/:/, $_))[0..3];
 
 	$groupmembers{$g_gid} = $memb;
