@@ -228,7 +228,6 @@ void	vhold __P((struct vnode *));
  */
 extern	struct vnode *rootvnode;	/* root (i.e. "/") vnode */
 extern	int desiredvnodes;		/* number of vnodes desired */
-extern	int extravnodes;		/* extra vnodes to allocate at boot */
 extern	int prtactive;			/* nonzero to call vprint() */
 extern	struct vattr va_null;		/* predefined null vattr structure */
 
