@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.14 1997/04/06 10:10:50 dfr Exp $
+ *  $Id: linux_file.c,v 1.15 1997/11/06 19:28:54 phk Exp $
  */
 
 #include <sys/param.h>
@@ -34,6 +34,7 @@
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>

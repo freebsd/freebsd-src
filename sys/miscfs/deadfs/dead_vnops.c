@@ -31,12 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)dead_vnops.c	8.1 (Berkeley) 6/10/93
- * $Id: dead_vnops.c,v 1.20 1997/10/16 21:59:55 phk Exp $
+ * $Id: dead_vnops.c,v 1.21 1997/10/26 20:55:10 phk Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/vnode.h>
 #include <sys/buf.h>
 

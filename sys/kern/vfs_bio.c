@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.136 1997/12/01 19:04:00 dyson Exp $
+ * $Id: vfs_bio.c,v 1.137 1997/12/02 21:06:45 phk Exp $
  */
 
 /*
@@ -39,6 +39,7 @@
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>

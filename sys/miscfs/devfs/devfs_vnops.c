@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.48 1997/10/27 13:33:37 bde Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.49 1997/11/08 19:02:28 julian Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -10,6 +10,7 @@
 #include <sys/systm.h>
 #include <sys/namei.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/stat.h>
 #include <sys/proc.h>
 #include <sys/time.h>
