@@ -28,12 +28,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: sap.h,v 1.5 1997/02/22 16:00:59 peter Exp $
  */
 #ifndef _SAP_H_
 #define _SAP_H_
-
-#define IPXPROTO_SAP		IPXPROTO_PXP
 
 #define SAP_REQ			1
 #define SAP_RESP		2
@@ -71,10 +69,9 @@ typedef struct sap_entry {
 	int hash;
 	int state;
 	int timer;
-	int metric;
 	}sap_entry;
 
-#define SAPHASHSIZ		32		/* Should be a power of 2 */
+#define SAPHASHSIZ		256		/* Should be a power of 2 */
 #define SAPHASHMASK		(SAPHASHSIZ-1)
 typedef struct sap_hash {
 	struct sap_entry *forw;
@@ -87,12 +84,14 @@ extern struct   sap_packet *sap_msg;
 
 void sapinit(void);
 void sap_input(struct sockaddr *from, int size);
-void sapsndmsg(struct sockaddr *dst, int flags, struct interface *ifp);
-void sap_supply_toall(void);
+void sapsndmsg(struct sockaddr *dst, int flags, struct interface *ifp,
+		int changesonly);
+void sap_supply_toall(int changesonly);
 void sap_supply(struct sockaddr *dst, 
                 int flags, 
 		struct interface *ifp, 
-		int ServType);
+		int ServType,
+		int changesonly);
 
 struct sap_entry *sap_lookup(u_short ServType, char *ServName);
 struct sap_entry *sap_nearestserver(ushort ServType, struct interface *ifp);

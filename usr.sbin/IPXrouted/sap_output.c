@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: sap_output.c,v 1.7 1997/02/22 16:01:00 peter Exp $
  */
 
 /*
@@ -44,7 +44,8 @@
  * the output to the known router.
  */
 void
-sap_supply_toall(void)
+sap_supply_toall(changesonly)
+	int changesonly;
 {
 	register struct interface *ifp;
 	struct sockaddr dst;
@@ -65,15 +66,16 @@ sap_supply_toall(void)
 		ipx_dst->sipx_addr.x_port = htons(IPXPORT_SAP);
 
 		flags = ifp->int_flags & IFF_INTERFACE ? MSG_DONTROUTE : 0;
-		sap_supply(&dst, flags, ifp, SAP_WILDCARD);
+		sap_supply(&dst, flags, ifp, SAP_WILDCARD, changesonly);
 	}
 }
 
 void 
-sapsndmsg(dst, flags, ifp)
+sapsndmsg(dst, flags, ifp, changesonly)
 	struct sockaddr *dst;
 	int flags;
 	struct interface *ifp;
+	int changesonly;
 {
 	struct sockaddr t_dst;
 	struct sockaddr_ipx *ipx_dst;
@@ -104,11 +106,12 @@ sapsndmsg(dst, flags, ifp)
  *    clones.
  */
 void
-sap_supply(dst, flags, ifp, ServType)
+sap_supply(dst, flags, ifp, ServType, changesonly)
 	struct sockaddr *dst;
 	int flags;
 	struct interface *ifp;
 	int ServType;
+	int changesonly;
 {
 	register struct sap_entry *sap;
 	register struct sap_entry *csap; /* Clone route */
@@ -135,10 +138,13 @@ sap_supply(dst, flags, ifp, ServType)
 			n = sap_msg->sap;
 			delay++;
 			if(delay == 2) {
-				usleep(20000);
+				usleep(50000);
 				delay = 0;
 			}
 		}
+
+		if (changesonly && !(sap->state & RTS_CHANGED))
+			continue;
 
 		/*
 		 * Check for the servicetype except if the ServType is

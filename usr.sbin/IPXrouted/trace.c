@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: trace.c,v 1.4 1997/02/22 16:01:04 peter Exp $
  */
 
 #ifndef lint
@@ -216,6 +216,87 @@ traceaction(fd, action, rt)
 	if (!tracepackets && (rt->rt_state & RTS_PASSIVE) == 0 && rt->rt_ifp)
 		dumpif(fd, rt->rt_ifp);
 	fflush(fd);
+}
+
+void
+traceactionlog(action, rt)
+	char *action;
+	struct rt_entry *rt;
+{
+	struct sockaddr_ipx *dst, *gate;
+	static struct bits {
+		int	t_bits;
+		char	*t_name;
+	} flagbits[] = {
+		{ RTF_UP,	"UP" },
+		{ RTF_GATEWAY,	"GATEWAY" },
+		{ RTF_HOST,	"HOST" },
+		{ 0 }
+	}, statebits[] = {
+		{ RTS_PASSIVE,	"PASSIVE" },
+		{ RTS_REMOTE,	"REMOTE" },
+		{ RTS_INTERFACE,"INTERFACE" },
+		{ RTS_CHANGED,	"CHANGED" },
+		{ 0 }
+	};
+	register struct bits *p;
+	register int first;
+	char *cp;
+	char *lstr, *olstr;
+
+	dst = (struct sockaddr_ipx *)&rt->rt_dst;
+	gate = (struct sockaddr_ipx *)&rt->rt_router;
+	asprintf(&lstr, "%s dst %s,", action, ipxdp_ntoa(&dst->sipx_addr));
+	olstr = lstr;
+	asprintf(&lstr, "%s router %s, metric %d, ticks %d, flags",
+	     olstr, ipxdp_ntoa(&gate->sipx_addr), rt->rt_metric, rt->rt_ticks);
+	free(olstr);
+	olstr = lstr;
+	cp = "%s %s";
+	for (first = 1, p = flagbits; p->t_bits > 0; p++) {
+		if ((rt->rt_flags & p->t_bits) == 0)
+			continue;
+		asprintf(&lstr, cp, olstr, p->t_name);
+		free(olstr);
+		olstr = lstr;
+		if (first) {
+			cp = "%s|%s";
+			first = 0;
+		}
+	}
+	asprintf(&lstr, "%s state", olstr);
+	free(olstr);
+	olstr = lstr;
+	cp = "%s %s";
+	for (first = 1, p = statebits; p->t_bits > 0; p++) {
+		if ((rt->rt_state & p->t_bits) == 0)
+			continue;
+		asprintf(&lstr, cp, olstr, p->t_name);
+		free(olstr);
+		olstr = lstr;
+		if (first) {
+			cp = "%s|%s";
+			first = 0;
+		}
+	}
+	syslog(LOG_DEBUG, lstr);
+	free(lstr);
+}
+
+void
+tracesapactionlog(action, sap)
+	char *action;
+	struct sap_entry *sap;
+{
+	syslog(LOG_DEBUG, "%-12.12s  service %04X %-20.20s "
+		    "addr %s.%04X %c metric %d\n",
+		     action,
+		     ntohs(sap->sap.ServType),
+		     sap->sap.ServName,
+		     ipxdp_ntoa(&sap->sap.ipx),
+		     ntohs(sap->sap.ipx.x_port),
+		     (sap->clone ? 'C' : ' '),
+		     ntohs(sap->sap.hops));
 }
 
 void

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sap_tables.c,v 1.3 1997/02/22 16:01:01 peter Exp $
+ *	$Id: sap_tables.c,v 1.4 1997/07/01 00:33:41 bde Exp $
  */
 
 #include "defs.h"
@@ -50,16 +50,9 @@ sapinit(void)
 }
 
 /*
- * XXX Make sure that this hash is good enough.
- *
- * This hash use the first 8 letters of the ServName and the ServType
+ * This hash use the first 14 letters of the ServName and the ServType
  * to create a 32 bit hash value.
- *
- * NOTE: The first two letters of ServName will be used to generate
- * the lower bits of the hash. This is used to index into the hash table.
  */
-#define rol(x)		(((x * 2) & 0xFFFF) + ((x & 0x8000) != 0))
-
 int
 saphash(u_short ServType, char *ServName)
 {
@@ -72,14 +65,18 @@ saphash(u_short ServType, char *ServName)
 
 	hsh = 0;
 
-	for (i=0;i<8;i++) {
-		hsh = rol(hsh) + *ServName;
+#define SMVAL   33
+
+	hsh = hsh * SMVAL + (ServType & 0xff);
+	hsh = hsh * SMVAL + (ServType >> 8);
+
+	for (i=0;i<14;i++) {
+		hsh = hsh * SMVAL + *ServName++;
 		ServName++;
 	}
 
-	hsh = rol(hsh) + (ServType >> 8);
-	hsh = rol(hsh) + (ServType & 0xff);
-	hsh = (hsh >> 7) ^ hsh;
+#undef SMVAL
+
 	return hsh;
 }
 
@@ -171,6 +168,9 @@ sap_add(struct sap_info *si, struct sockaddr *from)
 	register struct sap_entry *nsap;
 	register struct sap_hash *sh;
 
+	if (ntohs(si->hops) == HOPCNT_INFINITY)
+		return;
+
 	FIXLEN(from);
 	nsap = malloc(sizeof(struct sap_entry));
 	if (nsap == NULL)
@@ -187,6 +187,7 @@ sap_add(struct sap_info *si, struct sockaddr *from)
 	sh = &sap_head[nsap->hash & SAPHASHMASK];
 
 	insque(nsap, sh);
+	TRACE_SAP_ACTION("ADD", nsap);
 }
 
 /*
@@ -202,6 +203,7 @@ sap_change(struct sap_entry *sap,
 	struct sap_entry *osap = NULL;
 
 	FIXLEN(from);
+	TRACE_SAP_ACTION("CHANGE FROM", sap);
 	/*
 	 * If the hopcount (metric) is HOPCNT_INFINITY (16) it means that
 	 * a service has gone down. We should keep it like that for 30
@@ -228,6 +230,7 @@ sap_change(struct sap_entry *sap,
 
 			while (osap) {
 				nsap = osap->clone;
+				TRACE_SAP_ACTION("DELETE", osap);
 				free(osap);
 				osap = nsap;
 			}
@@ -239,6 +242,7 @@ sap_change(struct sap_entry *sap,
 			while (osap) {
 				if (equal(&osap->source, from)) {
 					psap->clone = osap->clone;
+					TRACE_SAP_ACTION("DELETE", osap);
 					free(osap);
 					osap = psap->clone;
 				} else {
@@ -261,8 +265,11 @@ sap_change(struct sap_entry *sap,
 	else
 		sap->timer = 0;
 
-	if (osap)
+	if (osap) {
+		TRACE_SAP_ACTION("DELETE", osap);
 		free(osap);
+	}
+	TRACE_SAP_ACTION("CHANGE TO", sap);
 }
 
 /*
@@ -279,6 +286,9 @@ sap_add_clone(struct sap_entry *sap,
 {
 	register struct sap_entry *nsap;
 	register struct sap_entry *csap;
+
+	if (ntohs(clone->hops) == HOPCNT_INFINITY)
+		return;
 
 	FIXLEN(from);
 	nsap = malloc(sizeof(struct sap_entry));
@@ -302,6 +312,7 @@ sap_add_clone(struct sap_entry *sap,
 	while (csap->clone)
 		csap = csap->clone;
 	csap->clone = nsap;
+	TRACE_SAP_ACTION("ADD CLONE", nsap);
 }
 
 /*
@@ -319,5 +330,6 @@ sap_delete(struct sap_entry *sap)
 		return;
 	}
 	remque(sap);
+	TRACE_SAP_ACTION("DELETE", sap);
 	free(sap);
 }
