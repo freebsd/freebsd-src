@@ -277,7 +277,7 @@ msite(argc, argv)
 	fd_set ready;
 	struct sockaddr_in dest;
 	int i, length;
-	struct sockaddr from;
+	struct sockaddr_in from;
 	struct timeval tout;
 	struct tsp msg;
 	struct servent *srvp;
@@ -308,7 +308,7 @@ msite(argc, argv)
 		}
 		bcopy(hp->h_addr, &dest.sin_addr.s_addr, hp->h_length);
 
-		(void)strcpy(msg.tsp_name, myname);
+		(void)strlcpy(msg.tsp_name, myname, sizeof(msg.tsp_name));
 		msg.tsp_type = TSP_MSITE;
 		msg.tsp_vers = TSPVERSION;
 		bytenetorder(&msg);
@@ -325,11 +325,18 @@ msite(argc, argv)
 		FD_SET(sock, &ready);
 		if (select(FD_SETSIZE, &ready, (fd_set *)0, (fd_set *)0,
 			   &tout)) {
-			length = sizeof(struct sockaddr);
+			length = sizeof(from);
 			cc = recvfrom(sock, &msg, sizeof(struct tsp), 0,
-				      &from, &length);
+				      (struct sockaddr *)&from, &length);
 			if (cc < 0) {
 				warn("recvfrom");
+				continue;
+			}
+			if (cc < sizeof(struct tsp)) {
+				fprintf(stderr, 
+				   "short packet (%u/%u bytes) from %s\n",
+				   cc, sizeof(struct tsp),
+				   inet_ntoa(from.sin_addr));
 				continue;
 			}
 			bytehostorder(&msg);
@@ -337,8 +344,12 @@ msite(argc, argv)
 				printf("master timedaemon at %s is %s\n",
 				       tgtname, msg.tsp_name);
 			} else {
-				printf("received wrong ack: %s\n",
-				       tsptype[msg.tsp_type]);
+				if (msg.tsp_type >= TSPTYPENUMBER)
+					printf("unknown ack received: %u\n",
+						msg.tsp_type);
+				else	
+					printf("wrong ack received: %s\n",
+				       		tsptype[msg.tsp_type]);
 			}
 		} else {
 			printf("communication error with %s\n", tgtname);
@@ -397,7 +408,7 @@ testing(argc, argv)
 		msg.tsp_vers = TSPVERSION;
 		if (gethostname(myname, sizeof(myname) - 1) < 0)
 			err(1, "gethostname");
-		(void)strcpy(msg.tsp_name, myname);
+		(void)strlcpy(msg.tsp_name, myname, sizeof(msg.tsp_name));
 		bytenetorder(&msg);
 		if (sendto(sock, &msg, sizeof(struct tsp), 0,
 			   (struct sockaddr*)&sin,
@@ -421,7 +432,7 @@ tracing(argc, argv)
 	int cc;
 	fd_set ready;
 	struct sockaddr_in dest;
-	struct sockaddr from;
+	struct sockaddr_in from;
 	struct timeval tout;
 	struct tsp msg;
 	struct servent *srvp;
@@ -466,11 +477,16 @@ tracing(argc, argv)
 	FD_ZERO(&ready);
 	FD_SET(sock, &ready);
 	if (select(FD_SETSIZE, &ready, (fd_set *)0, (fd_set *)0, &tout)) {
-		length = sizeof(struct sockaddr);
+		length = sizeof(from);
 		cc = recvfrom(sock, &msg, sizeof(struct tsp), 0,
-			      &from, &length);
+			      (struct sockaddr *)&from, &length);
 		if (cc < 0) {
 			warn("recvfrom");
+			return;
+		}
+		if (cc < sizeof(struct tsp)) {
+			fprintf(stderr, "short pack (%u/%u bytes) from %s\n",
+			   cc, sizeof(struct tsp), inet_ntoa(from.sin_addr));
 			return;
 		}
 		bytehostorder(&msg);
@@ -479,9 +495,14 @@ tracing(argc, argv)
 				printf("timed tracing enabled\n");
 			else
 				printf("timed tracing disabled\n");
-		else
-			printf("wrong ack received: %s\n",
+		else {
+			if (msg.tsp_type >= TSPTYPENUMBER)
+				printf("unknown ack received: %u\n",
+					msg.tsp_type);
+			else	
+				printf("wrong ack received: %s\n",
 						tsptype[msg.tsp_type]);
+		}
 	} else
 		printf("communication error\n");
 }
