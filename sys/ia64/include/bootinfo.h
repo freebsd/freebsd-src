@@ -41,9 +41,13 @@
  *		    (u_long), then the bootinfo
  */
 
+#define	BOOTINFO_MAGIC			0xdeadbeeffeedface
+
 struct bootinfo {
-	char		bi_flags[64];		/* boot flags */
+	u_int64_t	bi_magic;		/* BOOTINFO_MAGIC */
+	u_int64_t	bi_version;		/* version 1 */
 	char		bi_kernel[64];		/* name of booted kernel */
+	u_int64_t	bi_boothowto;		/* value for boothowto */
 	u_int64_t	bi_systab;		/* pa of EFI system table */
 	u_int64_t	bi_memmap;		/* pa of EFI memory map */
 	u_int64_t	bi_memmap_size;		/* size of EFI memory map */
