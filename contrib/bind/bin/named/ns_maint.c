@@ -141,8 +141,6 @@ static int		purge_nonglue_2(const char *, struct hashbuf *,
 static pid_t		spawnxfer(char **, struct zoneinfo *);
 #endif
 
-static time_t stats_time;  /* Redundant ??? XXX ogud */
-
 	/* State of all running zone transfers */
 static struct {
 	pid_t 		xfer_pid;
@@ -259,8 +257,6 @@ zone_maint(struct zoneinfo *zp) {
 				zp->z_dumptime = 0;
 				(void)schedule_dump(zp);
 			}
-			if (zp->z_maintain_ixfr_base)
-				ixfr_log_maint(zp);
 		} 
 		if (zp->z_maintain_ixfr_base)
 			ixfr_log_maint(zp);
@@ -807,12 +803,6 @@ startxfer(struct zoneinfo *zp) {
 	argv[argc++] = "-P";
 	sprintf(port_str, "%d", ntohs(zp->z_port) != 0 ? zp->z_port : ns_port);
 	argv[argc++] = port_str;
-	argv[argc++] = "-T";
-	sprintf(tsig_name, "%s.%d", zp->z_origin, getpid());
-	s = tsig_name;
-	while ((s = strchr(s, '/')) != NULL)
-		*s = '_';
-	argv[argc++] = tsig_name;
 #ifdef STUBS
 	if (zp->z_type == Z_STUB)
 		argv[argc++] = "-S";
@@ -883,8 +873,6 @@ startxfer(struct zoneinfo *zp) {
 		}
 #endif
 	}
-	if (tsig_fd > 0)
-		close(tsig_fd);
 
 	argv[argc] = NULL;
 
@@ -921,7 +909,6 @@ startxfer(struct zoneinfo *zp) {
 		ns_warning(ns_log_default,
 			   "startxfer: too many xfers running");
 		zp->z_time = tt.tv_sec + 10;
-		(void)nxfers(zp, -1);
 		return;
 	}
 	
