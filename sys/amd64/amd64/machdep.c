@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2003 Peter Wemm.
  * Copyright (c) 1992 Terrence R. Lambert.
  * Copyright (c) 1982, 1987, 1990 The Regents of the University of California.
  * All rights reserved.
@@ -1254,6 +1255,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 		pmap_kenter((vm_offset_t)msgbufp + off, avail_end + off);
 
 	msgbufinit(msgbufp, MSGBUF_SIZE);
+	fpuinit();
 
 	/* transfer to user mode */
 

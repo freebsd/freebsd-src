@@ -105,7 +105,7 @@ void	fpudrop(void);
 void	fpuexit(struct thread *td);
 int	fpuformat(void);
 int	fpugetregs(struct thread *td, struct savefpu *addr);
-void	fpuinit(u_short control);
+void	fpuinit(void);
 void	fpusave(struct savefpu *addr);
 void	fpusetregs(struct thread *td, struct savefpu *addr);
 int	fputrap(void);
