@@ -208,17 +208,15 @@ ep_pccard_attach(device_t dev)
 	/* ROM size = 0, ROM base = 0 */
 	/* For now, ignore AUTO SELECT feature of 3C589B and later. */
 	CSR_WRITE_2(sc, EP_W0_ADDRESS_CFG, result & 0xc000);
-
 	/* Fake IRQ must be 3 */
-	CSR_WRITE_2(sc, EP_W0_RESOURCE_CFG, (sc->epb.res_cfg & 0x0fff) | 0x3000);
-
+	SET_IRQ(sc, 3);
 	CSR_WRITE_2(sc, EP_W0_PRODUCT_ID, sc->epb.prod_id);
 
 	if (sc->epb.mii_trans) {
 		/*
 		 * turn on the MII transciever
 		 */
-		GO_WINDOW(3);
+		GO_WINDOW(sc, 3);
 		CSR_WRITE_2(sc, EP_W3_OPTIONS, 0x8040);
 		DELAY(1000);
 		CSR_WRITE_2(sc, EP_W3_OPTIONS, 0xc040);

@@ -128,7 +128,7 @@ ep_mca_attach(device_t dev)
 
 	ep_get_media(sc);
 
-	GO_WINDOW(0);
+	GO_WINDOW(sc, 0);
 	SET_IRQ(sc, rman_get_start(sc->irq));
 
 	if ((error = ep_attach(sc))) {
