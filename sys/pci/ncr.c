@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.79 1996/10/10 04:09:37 pst Exp $
+**  $Id: ncr.c,v 1.80 1996/10/11 19:50:09 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1250,7 +1250,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.79 1996/10/10 04:09:37 pst Exp $\n";
+	"\n$Id: ncr.c,v 1.80 1996/10/11 19:50:09 se Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -3286,6 +3286,14 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	if (!pci_map_mem (config_id, 0x14, &np->vaddr, &np->paddr))
 		return;
 
+	/*
+	**	Make the controller's registers available.
+	**	Now the INB INW INL OUTB OUTW OUTL macros
+	**	can be used safely.
+	*/
+
+	np->reg = (struct ncr_reg*) np->vaddr;
+
 #ifdef NCR_IOMAPPED
 	/*
 	**	Try to map the controller chip into iospace.
@@ -3340,14 +3348,6 @@ static	void ncr_attach (pcici_t config_id, int unit)
 
 	np->jump_tcb.l_cmd	= SCR_JUMP;
 	np->jump_tcb.l_paddr	= NCB_SCRIPT_PHYS (np, abort);
-
-	/*
-	**	Make the controller's registers available.
-	**	Now the INB INW INL OUTB OUTW OUTL macros
-	**	can be used safely.
-	*/
-
-	np->reg = (struct ncr_reg*) np->vaddr;
 
 	/*
 	**  Get SCSI addr of host adapter (set by bios?).
