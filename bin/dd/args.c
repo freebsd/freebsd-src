@@ -71,7 +71,7 @@ static quad_t	get_num __P((char *));
 static off_t	get_offset __P((char *));
 
 static const struct arg {
-	char *name;
+	const char *name;
 	void (*f) __P((char *));
 	u_int set, noset;
 } args[] = {
@@ -173,8 +173,9 @@ static int
 c_arg(a, b)
 	const void *a, *b;
 {
+	typedef const struct arg *c_arg_p;
 
-	return (strcmp(((struct arg *)a)->name, ((struct arg *)b)->name));
+	return (strcmp(((c_arg_p)a)->name, ((c_arg_p)b)->name));
 }
 
 static void
@@ -284,7 +285,7 @@ f_skip(arg)
 }
 
 static const struct conv {
-	char *name;
+	const char *name;
 	u_int set, noset;
 	const u_char *ctab;
 } clist[] = {
@@ -330,8 +331,9 @@ static int
 c_conv(a, b)
 	const void *a, *b;
 {
+	typedef const struct conv *c_conv_p;
 
-	return (strcmp(((struct conv *)a)->name, ((struct conv *)b)->name));
+	return (strcmp(((c_conv_p)a)->name, ((c_conv_p)b)->name));
 }
 
 /*
