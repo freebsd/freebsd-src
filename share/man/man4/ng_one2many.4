@@ -176,11 +176,11 @@ through
   ngctl connect fxp3: fxp0:upper lower many3
   # Allow fxp1 through fxp3 to xmit/recv fxp0 frames
   ngctl msg fxp1: setpromisc 1
-  ngctl msg fxp3: setpromisc 1
   ngctl msg fxp2: setpromisc 1
+  ngctl msg fxp3: setpromisc 1
   ngctl msg fxp1: setautosrc 0
-  ngctl msg fxp3: setautosrc 0
   ngctl msg fxp2: setautosrc 0
+  ngctl msg fxp3: setautosrc 0
   # Configure all four links as up
   ngctl msg fxp0:upper \\
     setconfig "{ xmitAlg=1 failAlg=1 enabledLinks=[ 1 1 1 1 ] }"
