@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id$
+.\" $Id: abs.ms,v 1.1 1996/04/13 08:30:08 phk Exp $
 .\"
 .if n .ND
 .TL
@@ -23,10 +23,10 @@ Valbygaardsvej 8
 DK-4200 Slagelse
 Denmark
 .AB
-Malloc/free is one of the oldest part of the C language environment
+Malloc/free is one of the oldest parts of the C language environment
 and obviously the world has changed a bit since it was first made.
-The fact that most UNIX kernels have changed from a swap/segment to
-a virtual memory/page based memory management has not been sufficiently
+The fact that most UNIX kernels have changed from swap/segment to
+virtual memory/page based memory management has not been sufficiently
 reflected in the implementations of the malloc/free API.
 .PP
 A new implementation was designed, written, tested and bench-marked
