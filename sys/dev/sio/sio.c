@@ -185,7 +185,6 @@ struct lbq {
 
 /* com device structure */
 struct com_s {
-	u_int	flags;		/* Copy isa device flags */
 	u_char	state;		/* miscellaneous flag bits */
 	bool_t  active_out;	/* nonzero if the callout device is open */
 	u_char	cfcr_image;	/* copy of value written to CFCR */
@@ -207,6 +206,7 @@ struct com_s {
 	bool_t	st16650a;	/* nonzero if Startech 16650A compatible */
 	int	unit;		/* unit	number */
 	int	dtr_wait;	/* time to hold DTR down on close (* 1/hz) */
+	u_int	flags;		/* copy of device flags */
 	u_int	tx_fifo_size;
 	u_int	wopeners;	/* # processes waiting for DCD in open() */
 
@@ -238,11 +238,11 @@ struct com_s {
 #ifdef COM_ESP
 	Port_t	esp_port;
 #endif
+	Port_t	int_ctl_port;
 	Port_t	int_id_port;
 	Port_t	modem_ctl_port;
 	Port_t	line_status_port;
 	Port_t	modem_status_port;
-	Port_t	intr_ctl_port;	/* Ports of IIR register */
 
 	struct tty	*tp;	/* cross reference */
 
@@ -714,30 +714,37 @@ sioprobe(dev, xrid, rclk, noprobe)
 	sio_setreg(com, com_cfcr, CFCR_8BITS);
 
 	/*
-	 * Some pcmcia cards have the "TXRDY bug", so we check everyone
-	 * for IIR_TXRDY implementation ( Palido 321s, DC-1S... )
+	 * Some PCMCIA cards (Palido 321s, DC-1S, ...) have the "TXRDY bug",
+	 * so we probe for a buggy IIR_TXRDY implementation even in the
+	 * noprobe case.  We don't probe for it in the !noprobe case because
+	 * noprobe is always set for PCMCIA cards and the problem is not
+	 * known to affect any other cards.
 	 */
 	if (noprobe) {
-		/* Reading IIR register twice */
+		/* Read IIR a few times. */
 		for (fn = 0; fn < 2; fn ++) {
 			DELAY(10000);
 			failures[6] = sio_getreg(com, com_iir);
 		}
-		/* Check IIR_TXRDY clear ? */
+
+		/* IIR_TXRDY should be clear.  Is it? */
 		result = 0;
 		if (failures[6] & IIR_TXRDY) {
-			/* No, Double check with clearing IER */
+			/*
+			 * No.  We seem to have the bug.  Does our fix for
+			 * it work?
+			 */
 			sio_setreg(com, com_ier, 0);
 			if (sio_getreg(com, com_iir) & IIR_NOPEND) {
-				/* Ok. We discovered TXRDY bug! */
+				/* Yes.  We discovered the TXRDY bug! */
 				SET_FLAG(dev, COM_C_IIR_TXRDYBUG);
 			} else {
-				/* Unknown, Just omit this chip.. XXX */
+				/* No.  Just fail.  XXX */
 				result = ENXIO;
 				sio_setreg(com, com_mcr, 0);
 			}
 		} else {
-			/* OK. this is well-known guys */
+			/* Yes.  No bug. */
 			CLR_FLAG(dev, COM_C_IIR_TXRDYBUG);
 		}
 		sio_setreg(com, com_ier, 0);
@@ -953,12 +960,12 @@ sioattach(dev, xrid, rclk)
 	com->obufs[1].l_head = com->obuf2;
 
 	com->data_port = iobase + com_data;
+	com->int_ctl_port = iobase + com_ier;
 	com->int_id_port = iobase + com_iir;
 	com->modem_ctl_port = iobase + com_mcr;
 	com->mcr_image = inb(com->modem_ctl_port);
 	com->line_status_port = iobase + com_lsr;
 	com->modem_status_port = iobase + com_msr;
-	com->intr_ctl_port = iobase + com_ier;
 
 	if (rclk == 0)
 		rclk = DEFAULT_RCLK;
@@ -1113,7 +1120,7 @@ determined_type: ;
 	if (unit == comconsole)
 		printf(", console");
 	if (COM_IIR_TXRDYBUG(flags))
-		printf(" with a bogus IIR_TXRDY register");
+		printf(" with a buggy IIR_TXRDY implementation");
 	printf("\n");
 
 	if (sio_fast_ih == NULL) {
@@ -1316,13 +1323,9 @@ open_top:
 		(void) inb(com->data_port);
 		com->prev_modem_status = com->last_modem_status
 		    = inb(com->modem_status_port);
-		if (COM_IIR_TXRDYBUG(com->flags)) {
-			outb(com->intr_ctl_port, IER_ERXRDY | IER_ERLS
-						| IER_EMSC);
-		} else {
-			outb(com->intr_ctl_port, IER_ERXRDY | IER_ETXRDY
-						| IER_ERLS | IER_EMSC);
-		}
+		outb(com->int_ctl_port,
+		     IER_ERXRDY | IER_ERLS | IER_EMSC
+		     | (COM_IIR_TXRDYBUG(com->flags) ? 0 : IER_ETXRDY));
 		mtx_unlock_spin(&sio_lock);
 		/*
 		 * Handle initial DCD.  Callout devices get a fake initial
@@ -1761,15 +1764,15 @@ static void
 siointr1(com)
 	struct com_s	*com;
 {
+	u_char	int_ctl;
+	u_char	int_ctl_new;
 	u_char	line_status;
 	u_char	modem_status;
 	u_char	*ioptr;
 	u_char	recv_data;
-	u_char	int_ctl;
-	u_char	int_ctl_new;
 
 	if (COM_IIR_TXRDYBUG(com->flags)) {
-		int_ctl = inb(com->intr_ctl_port);
+		int_ctl = inb(com->int_ctl_port);
 		int_ctl_new = int_ctl;
 	} else {
 		int_ctl = 0;
@@ -1923,9 +1926,8 @@ cont:
 				}
 			}
 			com->obufq.l_head = ioptr;
-			if (COM_IIR_TXRDYBUG(com->flags)) {
+			if (COM_IIR_TXRDYBUG(com->flags))
 				int_ctl_new = int_ctl | IER_ETXRDY;
-			}
 			if (ioptr >= com->obufq.l_tail) {
 				struct lbq	*qp;
 
@@ -1938,9 +1940,9 @@ cont:
 					com->obufq.l_next = qp;
 				} else {
 					/* output just completed */
-					if (COM_IIR_TXRDYBUG(com->flags)) {
-						int_ctl_new = int_ctl & ~IER_ETXRDY;
-					}
+					if (COM_IIR_TXRDYBUG(com->flags))
+						int_ctl_new = int_ctl
+							      & ~IER_ETXRDY;
 					com->state &= ~CS_BUSY;
 				}
 				if (!(com->state & CS_ODONE)) {
@@ -1950,9 +1952,9 @@ cont:
 					swi_sched(sio_fast_ih, 0);
 				}
 			}
-			if (COM_IIR_TXRDYBUG(com->flags) && (int_ctl != int_ctl_new)) {
-				outb(com->intr_ctl_port, int_ctl_new);
-			}
+			if (COM_IIR_TXRDYBUG(com->flags)
+			    && int_ctl != int_ctl_new)
+				outb(com->int_ctl_port, int_ctl_new);
 		}
 
 		/* finished? */
