@@ -71,6 +71,7 @@ shownode(NODE *n, int f, char const *path)
 static int
 mismatch(NODE *n1, NODE *n2, int differ, char const *path)
 {
+
 	if (n2 == NULL) {
 		shownode(n1, differ, path);
 		return (1);
@@ -151,8 +152,14 @@ walk_in_the_forest(NODE *t1, NODE *t2, char const *path)
 
 	r = 0;
 
-	c1 = t1->child;
-	c2 = t2->child;
+	if (t1 != NULL)
+		c1 = t1->child;
+	else
+		c1 = NULL;
+	if (t2 != NULL)
+		c2 = t2->child;
+	else
+		c2 = NULL;
 	while (c1 != NULL || c2 != NULL) {
 		n1 = n2 = NULL;
 		if (c1 != NULL)
@@ -160,13 +167,21 @@ walk_in_the_forest(NODE *t1, NODE *t2, char const *path)
 		if (c2 != NULL)
 			n2 = c2->next;
 		if (c1 != NULL && c2 != NULL) {
-			i = strcmp(c1->name, c2->name);
-			if (i > 0) {
-				n1 = c1;
-				c1 = NULL;
-			} else if (i < 0) {
+			if (c1->type != F_DIR && c2->type == F_DIR) {
 				n2 = c2;
 				c2 = NULL;
+			} else if (c1->type == F_DIR && c2->type != F_DIR) {
+				n1 = c1;
+				c1 = NULL;
+			} else {
+				i = strcmp(c1->name, c2->name);
+				if (i > 0) {
+					n1 = c1;
+					c1 = NULL;
+				} else if (i < 0) {
+					n2 = c2;
+					c2 = NULL;
+				}
 			}
 		}
 		if (c1 == NULL || c2 == NULL) {
