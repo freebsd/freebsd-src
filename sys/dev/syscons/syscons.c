@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:@(#)syscons.c	1.3 940129
- *	$Id: syscons.c,v 1.30 1994/02/01 11:13:49 ache Exp $
+ *	$Id: syscons.c,v 1.31 1994/02/01 15:09:10 rich Exp $
  *
  */
 
@@ -2389,7 +2389,7 @@ int getchar(void)
 
 u_int sgetc(int noblock)
 {
-	return (scgetc(noblock & 0xff));
+	return (scgetc(noblock) & 0xff);
 }
 
 int pcmmap(dev_t dev, int offset, int nprot)
