@@ -1,6 +1,6 @@
 /* 
- *  perm.h -  header for at(1)
- *  Copyright (C) 1994  Thomas Koenig
+ *  gloadavg.c - get load average for Linux
+ *  Copyright (C) 1993  Thomas Koenig
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,4 +23,47 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-int check_permission();
+#ifndef __FreeBSD__
+#define _POSIX_SOURCE 1
+
+/* System Headers */
+
+#include <stdio.h>
+#else
+#include <stdlib.h>
+#endif
+
+/* Local headers */
+
+#include "gloadavg.h"
+
+/* File scope variables */
+
+static char rcsid[] = "$Id: gloadavg.c,v 1.2 1995/08/10 04:06:54 ache Exp $";
+
+/* Global functions */
+
+double
+gloadavg(void)
+/* return the current load average as a floating point number, or <0 for
+ * error
+ */
+{
+    double result;
+#ifndef __FreeBSD__
+    FILE *fp;
+    
+    if((fp=fopen(PROC_DIR "loadavg","r")) == NULL)
+	result = -1.0;
+    else
+    {
+	if(fscanf(fp,"%lf",&result) != 1)
+	    result = -1.0;
+	fclose(fp);
+    }
+#else
+    if (getloadavg(&result, 1) != 1)
+	    perr("Error in getloadavg");
+#endif
+    return result;
+}
