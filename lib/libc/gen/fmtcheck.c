@@ -37,15 +37,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "namespace.h"
-
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
 
-#ifdef __weak_alias
-__weak_alias(fmtcheck,__fmtcheck)
-#endif
+__weak_reference(__fmtcheck, fmtcheck);
 
 enum __e_fmtcheck_types {
 	FMTCHECK_START,
@@ -225,7 +221,7 @@ get_next_format(const char **pf, EFT eft)
 }
 
 __const char *
-fmtcheck(const char *f1, const char *f2)
+__fmtcheck(const char *f1, const char *f2)
 {
 	const char	*f1p, *f2p;
 	EFT		f1t, f2t;
