@@ -64,6 +64,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pageout.h>
 #include <vm/vm_param.h>
 #include <vm/uma.h>
 #include <vm/uma_int.h>
@@ -330,24 +331,29 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	if (wait & M_ZERO)
 		pflags |= VM_ALLOC_ZERO;
 
-	m = vm_page_alloc(NULL, color++, pflags | VM_ALLOC_NOOBJ);
-
-	if (m) {
-		pa = VM_PAGE_TO_PHYS(m);
-		if (m->md.color != DCACHE_COLOR(pa)) {
-			KASSERT(m->md.colors[0] == 0 && m->md.colors[1] == 0,
-			    ("uma_small_alloc: free page still has mappings!"));
-			PMAP_STATS_INC(uma_nsmall_alloc_oc);
-			m->md.color = DCACHE_COLOR(pa);
-			dcache_page_inval(pa);
-		}
-		va = (void *)TLB_PHYS_TO_DIRECT(pa);
-		if ((m->flags & PG_ZERO) == 0)
-			bzero(va, PAGE_SIZE);
-		return (va);
+	for (;;) {
+		m = vm_page_alloc(NULL, color++, pflags | VM_ALLOC_NOOBJ);
+		if (m == NULL) {
+			if (wait & M_NOWAIT)
+				return (NULL);
+			else
+				VM_WAIT;
+		} else
+			break;
 	}
 
-	return (NULL);	
+	pa = VM_PAGE_TO_PHYS(m);
+	if (m->md.color != DCACHE_COLOR(pa)) {
+		KASSERT(m->md.colors[0] == 0 && m->md.colors[1] == 0,
+		    ("uma_small_alloc: free page still has mappings!"));
+		PMAP_STATS_INC(uma_nsmall_alloc_oc);
+		m->md.color = DCACHE_COLOR(pa);
+		dcache_page_inval(pa);
+	}
+	va = (void *)TLB_PHYS_TO_DIRECT(pa);
+	if ((m->flags & PG_ZERO) == 0)
+		bzero(va, PAGE_SIZE);
+	return (va);
 }
 
 void
