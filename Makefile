@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.44 1995/03/14 21:32:46 roberto Exp $
+#	$Id: Makefile,v 1.45 1995/03/17 04:59:44 phk Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -195,10 +195,9 @@ includes:
 	@echo "--------------------------------------------------------------"
 	@echo
 .if defined(CLOBBER)
-	rm -rf ${DESTDIR}/usr/include
-	mkdir ${DESTDIR}/usr/include
-	chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include
-	chmod 755 ${DESTDIR}/usr/include
+	rm -rf ${DESTDIR}/usr/include/*
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
+		-p ${DESTDIR}/usr/include
 .endif
 	cd ${.CURDIR}/include &&		${MAKE} install
 	cd ${.CURDIR}/gnu/include &&		${MAKE}	install
