@@ -1069,18 +1069,11 @@ device		aha0	at isa?
 device		aic0	at isa?
 
 #
-# Compaq Smart RAID controller.  This driver also uses the major number
-# of wd, in order to be able to boot a pure RAID system.
-# Only one line of each is needed, the code finds all available controllers
-# and devices.
+# Compaq Smart RAID, Mylex DAC960 and AMI MegaRAID controllers.  Only
+# one entry is needed; the code will find and configure all supported
+# controllers.
 #
-device		ida
-device		id
-
-#
-# Mylex DAC960, AMI MegaRAID controllers.  Only one entry is needed; the code
-# will find and configure all supported controllers.
-#
+device		ida		# Compaq Smart RAID
 device		mlx		# Mylex DAC960
 device		amr		# AMI MegaRAID
 
