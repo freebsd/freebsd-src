@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: output.c,v 1.6 1995/10/11 18:57:22 jhay Exp $
+ *	$Id: output.c,v 1.1 1995/10/26 21:28:20 julian Exp $
  */
 
 #ifndef lint
@@ -166,7 +166,7 @@ again:
 		crt = rt->rt_clone;
 		while (crt) {
 			if (crt->rt_ifp == ifp)
-				continue;
+				goto next;
 			crt = crt->rt_clone;
 		}
 
