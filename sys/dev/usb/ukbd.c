@@ -43,6 +43,7 @@
 
 #include "ukbd.h"
 #include "opt_kbd.h"
+#include "opt_ukbd.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -875,6 +876,7 @@ ukbd_read(keyboard_t *kbd, int wait)
 	usbcode = ukbd_getc(state);
 	if (!KBD_IS_ACTIVE(kbd) || (usbcode == -1))
 		return -1;
+	++kbd->kb_count;
 #ifdef UKBD_EMULATE_ATSCANCODE
 	keycode = ukbd_trtab[KEY_INDEX(usbcode)];
 	if (keycode == NN)
@@ -966,6 +968,7 @@ next_code:
 	usbcode = ukbd_getc(state);
 	if (usbcode == -1)
 		return NOKEY;
+	++kbd->kb_count;
 
 #ifdef UKBD_EMULATE_ATSCANCODE
 	/* USB key index -> key code -> AT scan code */
