@@ -37,6 +37,7 @@
 #define __NO_VERSION__
 #include "dev/drm/mga.h"
 #include "dev/drm/drmP.h"
+#include "dev/drm/mga_drm.h"
 #include "dev/drm/mga_drv.h"
 #include "dev/drm/drm.h"
 

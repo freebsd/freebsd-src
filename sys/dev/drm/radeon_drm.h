@@ -233,6 +233,23 @@ typedef struct {
 /* WARNING: If you change any of these defines, make sure to change the
  * defines in the Xserver file (xf86drmRadeon.h)
  */
+
+/* Radeon specific ioctls */
+#define DRM_IOCTL_RADEON_CP_INIT	DRM_IOW( 0x40, drm_radeon_init_t)
+#define DRM_IOCTL_RADEON_CP_START	DRM_IO(  0x41)
+#define DRM_IOCTL_RADEON_CP_STOP	DRM_IOW( 0x42, drm_radeon_cp_stop_t)
+#define DRM_IOCTL_RADEON_CP_RESET	DRM_IO(  0x43)
+#define DRM_IOCTL_RADEON_CP_IDLE	DRM_IO(  0x44)
+#define DRM_IOCTL_RADEON_RESET		DRM_IO(  0x45)
+#define DRM_IOCTL_RADEON_FULLSCREEN	DRM_IOW( 0x46, drm_radeon_fullscreen_t)
+#define DRM_IOCTL_RADEON_SWAP		DRM_IO(  0x47)
+#define DRM_IOCTL_RADEON_CLEAR		DRM_IOW( 0x48, drm_radeon_clear_t)
+#define DRM_IOCTL_RADEON_VERTEX		DRM_IOW( 0x49, drm_radeon_vertex_t)
+#define DRM_IOCTL_RADEON_INDICES	DRM_IOW( 0x4a, drm_radeon_indices_t)
+#define DRM_IOCTL_RADEON_STIPPLE	DRM_IOW( 0x4c, drm_radeon_stipple_t)
+#define DRM_IOCTL_RADEON_INDIRECT	DRM_IOWR(0x4d, drm_radeon_indirect_t)
+#define DRM_IOCTL_RADEON_TEXTURE	DRM_IOWR(0x4e, drm_radeon_texture_t)
+
 typedef struct drm_radeon_init {
 	enum {
 		RADEON_INIT_CP    = 0x01,

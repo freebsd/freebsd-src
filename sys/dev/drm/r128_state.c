@@ -36,6 +36,7 @@
 
 #include "dev/drm/r128.h"
 #include "dev/drm/drmP.h"
+#include "dev/drm/r128_drm.h"
 #include "dev/drm/r128_drv.h"
 #include "dev/drm/drm.h"
 

@@ -35,6 +35,7 @@
 #endif /* __linux__ */
 #include "dev/drm/radeon.h"
 #include "dev/drm/drmP.h"
+#include "dev/drm/radeon_drm.h"
 #include "dev/drm/radeon_drv.h"
 #include "dev/drm/drm.h"
 
