@@ -1,5 +1,3 @@
-/* $FreeBSD$ */
-
 /*
  * Implementation of SVID messages
  *
@@ -18,6 +16,9 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_sysvipc.h"
 

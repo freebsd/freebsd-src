@@ -40,8 +40,6 @@
  *	from: NetBSD: clock_subr.c,v 1.6 2001/07/07 17:04:02 thorpej Exp
  *	and
  *	from: src/sys/i386/isa/clock.c,v 1.176 2001/09/04
- *
- * $FreeBSD$
  */
 
 /*
@@ -58,6 +56,10 @@
  * (seconds since 1/1/1970) and yr/mo/day/hr/min/sec
  * Derived from NetBSD arch/hp300/hp300/clock.c
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

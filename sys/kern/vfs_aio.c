@@ -12,13 +12,14 @@
  * DISCLAIMER:  This code isn't warranted to do anything useful.  Anything
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
- *
- * $FreeBSD$
  */
 
 /*
  * This file contains support for the POSIX 1003.1B AIO/LIO facility.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

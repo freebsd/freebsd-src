@@ -21,9 +21,10 @@
  *	- should generally only be used as leaf mutexes
  *	- pool/pool dependancy ordering cannot be depended on.
  *	- possible L1 cache mastersip contention between cpus
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/proc.h>

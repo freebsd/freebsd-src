@@ -36,12 +36,15 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $FreeBSD$
  */
 
 /*
  * External virtual filesystem routines
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "opt_ddb.h"
 #include "opt_mac.h"
 
