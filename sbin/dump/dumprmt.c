@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)dumprmt.c	8.3 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: dumprmt.c,v 1.11 1998/06/15 06:58:09 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -154,19 +154,19 @@ rmtgetconn()
 		if (sp == NULL) {
 			msg("%s/tcp: unknown service\n",
 			    dokerberos ? "kshell" : "shell");
-			exit(X_ABORT);
+			exit(X_STARTUP);
 		}
 		pwd = getpwuid(getuid());
 		if (pwd == NULL) {
 			msg("who are you?\n");
-			exit(X_ABORT);
+			exit(X_STARTUP);
 		}
 	}
 	if ((cp = strchr(rmtpeer, '@')) != NULL) {
 		tuser = rmtpeer;
 		*cp = '\0';
 		if (!okname(tuser))
-			exit(X_ABORT);
+			exit(X_STARTUP);
 		rmtpeer = ++cp;
 	} else
 		tuser = pwd->pw_name;
