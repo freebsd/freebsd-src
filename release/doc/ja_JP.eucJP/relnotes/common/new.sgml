@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.299
+    Original revision: 1.302
 -->
 
 <articleinfo>
@@ -1457,7 +1457,7 @@ hw.pcic.irq="0"</programlisting>
         に新しく対応しました.
         ACPI の機能は <application>Intel ACPI Component
           Architecture</application> プロジェクトから提供されているもので,
-        ACPI CA 20020214 スナップショットに更新されています.
+        ACPI CA 20020308 スナップショットに更新されています.
 	旧来の APM 標準を用いるアプリケーション向けの後方互換性
 	も提供されました.</para>
 
@@ -1889,7 +1889,8 @@ hw.pcic.irq="0"</programlisting>
       含まれる <quote>一つ違い</quote> バグが修正されました.
       このバグにより, 認証されたリモートユーザが &man.sshd.8;
       にスーパユーザ権限で任意のコードを実行できます.
-      また, 接続している SSH クライアントにそのクライアントユーザの権限で
+      また, 悪意のある SSH サーバがそのクライアントシステムの
+      クライアントユーザの権限で
       任意のコードを実行させることができます.
       (セキュリティ勧告
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.openssh.asc">FreeBSD-SA-02:13</ulink>
@@ -3141,7 +3142,8 @@ hw.pcic.irq="0"</programlisting>
 
       <para>Bell Labs の <application>awk</application>
 	( <quote>BWK awk</quote> や <quote>The One True	AWK</quote>
-	として知られています ) がインポートされました.
+	として知られています ) の 2002/02/10 版スナップショット
+	がインポートされました.
 	sparc64 アーキテクチャでは <command>awk</command> として,
 	それ以外のプラットフォームでは <command>nawk</command>
 	としてインストールされます.</para>
@@ -3277,7 +3279,7 @@ hw.pcic.irq="0"</programlisting>
         4.1.0 に更新されました. &merged;</para>
 
       <para><application>OpenPAM</application>
-        (<quote>Celandine</quote> リリース) が
+        (<quote>Centaury</quote> リリース) が
 	<application>Linux-PAM</application> に代わって
 	import されました.</para>
 
@@ -3288,7 +3290,7 @@ hw.pcic.irq="0"</programlisting>
         の機能を完全に置き換えるものです.</para>
 
       <para><application>Perl</application> がバージョン
-        5.6.0 に更新されました.</para>
+        5.6.1 に更新されました.</para>
 
       <para>&man.routed.8; がバージョン 2.22 に更新されました.
         &merged;</para>
