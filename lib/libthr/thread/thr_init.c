@@ -180,6 +180,9 @@ init_td_common(struct pthread *td, struct pthread_attr *attrp, int reinit)
 		memcpy(&td->attr, attrp, sizeof(struct pthread_attr));
 		td->magic = PTHREAD_MAGIC;
 		TAILQ_INIT(&td->mutexq);
+		td->base_priority = PTHREAD_DEFAULT_PRIORITY;
+		td->active_priority = PTHREAD_DEFAULT_PRIORITY;
+		td->inherited_priority = PTHREAD_MIN_PRIORITY;
 	} else {
 		memset(&td->join_status, 0, sizeof(struct join_status));
 	}
@@ -346,11 +349,6 @@ _thread_init(void)
 	getcontext(&pthread->ctx);
 	pthread->ctx.uc_stack.ss_sp = pthread->stack;
 	pthread->ctx.uc_stack.ss_size = PTHREAD_STACK_INITIAL;
-
-	/* Default the priority of the initial thread: */
-	pthread->base_priority = PTHREAD_DEFAULT_PRIORITY;
-	pthread->active_priority = PTHREAD_DEFAULT_PRIORITY;
-	pthread->inherited_priority = 0;
 
 	/* Initialise the state of the initial thread: */
 	pthread->state = PS_RUNNING;
