@@ -3,7 +3,7 @@
 
 tid="agent timeout test"
 
-TIMEOUT=5
+SSHAGENT_TIMEOUT=10
 
 trace "start agent"
 eval `${SSHAGENT} -s` > /dev/null
@@ -13,7 +13,7 @@ if [ $r -ne 0 ]; then
 else
 	trace "add keys with timeout"
 	for t in rsa rsa1; do
-		${SSHADD} -t ${TIMEOUT} $OBJ/$t > /dev/null 2>&1
+		${SSHADD} -t ${SSHAGENT_TIMEOUT} $OBJ/$t > /dev/null 2>&1
 		if [ $? -ne 0 ]; then
 			fail "ssh-add did succeed exit code 0"
 		fi
@@ -23,10 +23,10 @@ else
 	if [ $n -ne 2 ]; then
 		fail "ssh-add -l did not return 2 keys: $n"
 	fi
-	trace "sleeping 2*${TIMEOUT} seconds"
-	sleep ${TIMEOUT}
-	sleep ${TIMEOUT}
-	${SSHADD} -l 2> /dev/null | grep -q 'The agent has no identities.'
+	trace "sleeping 2*${SSHAGENT_TIMEOUT} seconds"
+	sleep ${SSHAGENT_TIMEOUT}
+	sleep ${SSHAGENT_TIMEOUT}
+	${SSHADD} -l 2> /dev/null | grep 'The agent has no identities.' >/dev/null
 	if [ $? -ne 0 ]; then
 		fail "ssh-add -l still returns keys after timeout"
 	fi

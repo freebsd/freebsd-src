@@ -45,7 +45,7 @@
  * XXX: we should tell the child how many bytes we need.
  */
 
-RCSID("$Id: entropy.c,v 1.44 2002/06/09 19:41:48 mouring Exp $");
+RCSID("$Id: entropy.c,v 1.46 2003/08/25 01:16:21 mouring Exp $");
 
 #ifndef OPENSSL_PRNG_ONLY
 #define RANDOM_SEED_SIZE 48
@@ -75,7 +75,7 @@ seed_rng(void)
 	if (pipe(p) == -1)
 		fatal("pipe: %s", strerror(errno));
 
-	old_sigchld = mysignal(SIGCHLD, SIG_DFL);
+	old_sigchld = signal(SIGCHLD, SIG_DFL);
 	if ((pid = fork()) == -1)
 		fatal("Couldn't fork: %s", strerror(errno));
 	if (pid == 0) {
@@ -89,8 +89,8 @@ seed_rng(void)
 		if (original_uid != original_euid && 
 		    ( seteuid(getuid()) == -1 || 
 		      setuid(original_uid) == -1) ) {
-			fprintf(stderr, "(rand child) setuid(%d): %s\n", 
-			    original_uid, strerror(errno));
+			fprintf(stderr, "(rand child) setuid(%li): %s\n", 
+			    (long int)original_uid, strerror(errno));
 			_exit(1);
 		}
 		
@@ -116,7 +116,7 @@ seed_rng(void)
 	if (waitpid(pid, &ret, 0) == -1)
 	       fatal("Couldn't wait for ssh-rand-helper completion: %s", 
 		   strerror(errno));
-	mysignal(SIGCHLD, old_sigchld);
+	signal(SIGCHLD, old_sigchld);
 
 	/* We don't mind if the child exits upon a SIGPIPE */
 	if (!WIFEXITED(ret) && 

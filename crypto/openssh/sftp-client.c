@@ -28,7 +28,7 @@
 /* XXX: copy between two remote sites */
 
 #include "includes.h"
-RCSID("$OpenBSD: sftp-client.c,v 1.42 2003/03/05 22:33:43 markus Exp $");
+RCSID("$OpenBSD: sftp-client.c,v 1.44 2003/06/28 16:23:06 deraadt Exp $");
 
 #include "openbsd-compat/sys-queue.h"
 
@@ -71,10 +71,10 @@ send_msg(int fd, Buffer *m)
 
 	/* Send length first */
 	PUT_32BIT(mlen, buffer_len(m));
-	if (atomicio(write, fd, mlen, sizeof(mlen)) <= 0)
+	if (atomicio(vwrite, fd, mlen, sizeof(mlen)) <= 0)
 		fatal("Couldn't send packet: %s", strerror(errno));
 
-	if (atomicio(write, fd, buffer_ptr(m), buffer_len(m)) <= 0)
+	if (atomicio(vwrite, fd, buffer_ptr(m), buffer_len(m)) <= 0)
 		fatal("Couldn't send packet: %s", strerror(errno));
 
 	buffer_clear(m);
@@ -507,7 +507,7 @@ do_lstat(struct sftp_conn *conn, char *path, int quiet)
 		if (quiet)
 			debug("Server version does not support lstat operation");
 		else
-			log("Server version does not support lstat operation");
+			logit("Server version does not support lstat operation");
 		return(do_stat(conn, path, quiet));
 	}
 
@@ -875,7 +875,7 @@ do_download(struct sftp_conn *conn, char *remote_path, char *local_path,
 				fatal("Received more data than asked for "
 				    "%u > %u", len, req->len);
 			if ((lseek(local_fd, req->offset, SEEK_SET) == -1 ||
-			    atomicio(write, local_fd, data, len) != len) &&
+			    atomicio(vwrite, local_fd, data, len) != len) &&
 			    !write_error) {
 				write_errno = errno;
 				write_error = 1;

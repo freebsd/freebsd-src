@@ -1,8 +1,6 @@
-/* 
- * $Id: bsd-cray.h,v 1.7 2003/03/21 01:05:38 mouring Exp $
- *
- * bsd-cray.h
- *
+/* $Id: bsd-cray.h,v 1.10 2003/08/29 16:59:52 mouring Exp $ */
+
+/*
  * Copyright (c) 2002, Cray Inc.  (Wendy Palm <wendyp@cray.com>)
  * Significant portions provided by 
  *          Wayne Schroeder, SDSC <schroeder@sdsc.edu>
@@ -34,25 +32,31 @@
  * on UNICOS systems.
  *
  */
+
 #ifndef _BSD_CRAY_H
 #define _BSD_CRAY_H
 
 #ifdef _UNICOS
-void cray_init_job(struct passwd *);		/* init cray job */
-void cray_job_termination_handler(int);		/* process end of job signal */
-void cray_login_failure(char *username, int errcode);
-int cray_access_denied(char *username);
-extern	char   cray_tmpdir[];			/* cray tmpdir */
+
+void cray_init_job(struct passwd *);
+void cray_job_termination_handler(int);
+void cray_login_failure(char *, int );
+int cray_access_denied(char *);
+#define CUSTOM_FAILED_LOGIN 1
+void record_failed_login(const char *, const char *);
+extern char cray_tmpdir[];
+
 #ifndef IA_SSHD
-#define IA_SSHD IA_LOGIN
+# define IA_SSHD IA_LOGIN
 #endif
 #ifndef MAXHOSTNAMELEN
-#define MAXHOSTNAMELEN  64
+# define MAXHOSTNAMELEN  64
 #endif
 #ifndef _CRAYT3E
-#include <sys/ttold.h>
-#define TIOCGPGRP (tIOC|20)
+# include <sys/ttold.h>
+# define TIOCGPGRP (tIOC|20)
 #endif
-#endif
+
+#endif /* UNICOS */
 
 #endif /* _BSD_CRAY_H */

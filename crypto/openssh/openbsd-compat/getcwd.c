@@ -10,6 +10,9 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -29,7 +32,7 @@
 #if !defined(HAVE_GETCWD)
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$OpenBSD: getcwd.c,v 1.7 2002/11/24 01:52:27 cloder Exp $";
+static char rcsid[] = "$OpenBSD: getcwd.c,v 1.9 2003/06/11 21:03:10 deraadt Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -47,7 +50,7 @@ static char rcsid[] = "$OpenBSD: getcwd.c,v 1.7 2002/11/24 01:52:27 cloder Exp $
 	    (dp->d_name[1] == '.' && dp->d_name[2] == '\0')))
 
 char *
-getcwd(char *pt,size_t size)
+getcwd(char *pt, size_t size)
 {
 	register struct dirent *dp;
 	register DIR *dir = NULL;

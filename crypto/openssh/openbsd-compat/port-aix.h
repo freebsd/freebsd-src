@@ -1,3 +1,5 @@
+/* $Id: port-aix.h,v 1.14.2.1 2003/09/19 10:46:22 dtucker Exp $ */
+
 /*
  *
  * Copyright (c) 2001 Gert Doering.  All rights reserved.
@@ -21,10 +23,23 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
 
 #ifdef _AIX
+
+#ifdef WITH_AIXAUTHENTICATE
+# include <login.h>
+# include <userpw.h>
+# if defined(HAVE_SYS_AUDIT_H) && defined(AIX_LOGINFAILED_4ARG)
+#  include <sys/audit.h>
+# endif
+# include <usersec.h>
+#endif
+
+/* Some versions define r_type in the above headers, which causes a conflict */
+#ifdef r_type
+# undef r_type
+#endif
 
 /* AIX 4.2.x doesn't have nanosleep but does have nsleep which is equivalent */
 #if !defined(HAVE_NANOSLEEP) && defined(HAVE_NSLEEP)
@@ -36,5 +51,12 @@
 # include <sys/timers.h>
 #endif
 
-void aix_usrinfo(struct passwd *pw);
+#ifdef WITH_AIXAUTHENTICATE
+# define CUSTOM_FAILED_LOGIN 1
+void record_failed_login(const char *, const char *);
+void aix_setauthdb(const char *);
+#endif
+
+void aix_usrinfo(struct passwd *);
+void aix_remove_embedded_newlines(char *);
 #endif /* _AIX */

@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: groupaccess.c,v 1.5 2002/03/04 17:27:39 stevesk Exp $");
+RCSID("$OpenBSD: groupaccess.c,v 1.6 2003/04/08 20:21:28 itojun Exp $");
 
 #include "groupaccess.h"
 #include "xmalloc.h"
@@ -49,7 +49,7 @@ ga_init(const char *user, gid_t base)
 
 	ngroups = sizeof(groups_bygid) / sizeof(gid_t);
 	if (getgrouplist(user, base, groups_bygid, &ngroups) == -1)
-		log("getgrouplist: groups list too small");
+		logit("getgrouplist: groups list too small");
 	for (i = 0, j = 0; i < ngroups; i++)
 		if ((gr = getgrgid(groups_bygid[i])) != NULL)
 			groups_byname[j++] = xstrdup(gr->gr_name);

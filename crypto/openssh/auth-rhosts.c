@@ -14,7 +14,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth-rhosts.c,v 1.28 2002/05/13 21:26:49 markus Exp $");
+RCSID("$OpenBSD: auth-rhosts.c,v 1.31 2003/06/02 09:17:34 markus Exp $");
 
 #include "packet.h"
 #include "uidswap.h"
@@ -68,7 +68,8 @@ check_rhosts_file(const char *filename, const char *hostname,
 		 * This should be safe because each buffer is as big as the
 		 * whole string, and thus cannot be overwritten.
 		 */
-		switch (sscanf(buf, "%s %s %s", hostbuf, userbuf, dummy)) {
+		switch (sscanf(buf, "%1023s %1023s %1023s", hostbuf, userbuf,
+		    dummy)) {
 		case 0:
 			auth_debug_add("Found empty line in %.100s.", filename);
 			continue;
@@ -155,7 +156,7 @@ auth_rhosts(struct passwd *pw, const char *client_user)
 {
 	const char *hostname, *ipaddr;
 
-	hostname = get_canonical_hostname(options.verify_reverse_mapping);
+	hostname = get_canonical_hostname(options.use_dns);
 	ipaddr = get_remote_ipaddr();
 	return auth_rhosts2(pw, client_user, hostname, ipaddr);
 }
@@ -220,7 +221,7 @@ auth_rhosts2_raw(struct passwd *pw, const char *client_user, const char *hostnam
 	 * not group or world writable.
 	 */
 	if (stat(pw->pw_dir, &st) < 0) {
-		log("Rhosts authentication refused for %.100s: "
+		logit("Rhosts authentication refused for %.100s: "
 		    "no home directory %.200s", pw->pw_name, pw->pw_dir);
 		auth_debug_add("Rhosts authentication refused for %.100s: "
 		    "no home directory %.200s", pw->pw_name, pw->pw_dir);
@@ -229,7 +230,7 @@ auth_rhosts2_raw(struct passwd *pw, const char *client_user, const char *hostnam
 	if (options.strict_modes &&
 	    ((st.st_uid != 0 && st.st_uid != pw->pw_uid) ||
 	    (st.st_mode & 022) != 0)) {
-		log("Rhosts authentication refused for %.100s: "
+		logit("Rhosts authentication refused for %.100s: "
 		    "bad ownership or modes for home directory.", pw->pw_name);
 		auth_debug_add("Rhosts authentication refused for %.100s: "
 		    "bad ownership or modes for home directory.", pw->pw_name);
@@ -256,7 +257,7 @@ auth_rhosts2_raw(struct passwd *pw, const char *client_user, const char *hostnam
 		if (options.strict_modes &&
 		    ((st.st_uid != 0 && st.st_uid != pw->pw_uid) ||
 		    (st.st_mode & 022) != 0)) {
-			log("Rhosts authentication refused for %.100s: bad modes for %.200s",
+			logit("Rhosts authentication refused for %.100s: bad modes for %.200s",
 			    pw->pw_name, buf);
 			auth_debug_add("Bad file modes for %.200s", buf);
 			continue;

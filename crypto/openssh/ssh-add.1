@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-add.1,v 1.38 2003/03/28 10:11:43 jmc Exp $
+.\"	$OpenBSD: ssh-add.1,v 1.39 2003/06/10 09:12:11 jmc Exp $
 .\"
 .\"  -*- nroff -*-
 .\"
@@ -109,20 +109,6 @@ Add key in smartcard
 Remove key in smartcard
 .Ar reader .
 .El
-.Sh FILES
-.Bl -tag -width Ds
-.It Pa $HOME/.ssh/identity
-Contains the protocol version 1 RSA authentication identity of the user.
-.It Pa $HOME/.ssh/id_dsa
-Contains the protocol version 2 DSA authentication identity of the user.
-.It Pa $HOME/.ssh/id_rsa
-Contains the protocol version 2 RSA authentication identity of the user.
-.El
-.Pp
-Identity files should not be readable by anyone but the user.
-Note that
-.Nm
-ignores identity files if they are accessible by others.
 .Sh ENVIRONMENT
 .Bl -tag -width Ds
 .It Ev "DISPLAY" and "SSH_ASKPASS"
@@ -152,11 +138,30 @@ to make this work.)
 Identifies the path of a unix-domain socket used to communicate with the
 agent.
 .El
+.Sh FILES
+.Bl -tag -width Ds
+.It Pa $HOME/.ssh/identity
+Contains the protocol version 1 RSA authentication identity of the user.
+.It Pa $HOME/.ssh/id_dsa
+Contains the protocol version 2 DSA authentication identity of the user.
+.It Pa $HOME/.ssh/id_rsa
+Contains the protocol version 2 RSA authentication identity of the user.
+.El
+.Pp
+Identity files should not be readable by anyone but the user.
+Note that
+.Nm
+ignores identity files if they are accessible by others.
 .Sh DIAGNOSTICS
 Exit status is 0 on success, 1 if the specified command fails,
 and 2 if
 .Nm
 is unable to contact the authentication agent.
+.Sh SEE ALSO
+.Xr ssh 1 ,
+.Xr ssh-agent 1 ,
+.Xr ssh-keygen 1 ,
+.Xr sshd 8
 .Sh AUTHORS
 OpenSSH is a derivative of the original and free
 ssh 1.2.12 release by Tatu Ylonen.
@@ -166,8 +171,3 @@ removed many bugs, re-added newer features and
 created OpenSSH.
 Markus Friedl contributed the support for SSH
 protocol versions 1.5 and 2.0.
-.Sh SEE ALSO
-.Xr ssh 1 ,
-.Xr ssh-agent 1 ,
-.Xr ssh-keygen 1 ,
-.Xr sshd 8

@@ -113,9 +113,11 @@ mm_receive_fd(int socket)
 		fatal("%s: no fd", __func__);
 #else
 	cmsg = CMSG_FIRSTHDR(&msg);
+#ifndef BROKEN_CMSG_TYPE
 	if (cmsg->cmsg_type != SCM_RIGHTS)
 		fatal("%s: expected type %d got %d", __func__,
 		    SCM_RIGHTS, cmsg->cmsg_type);
+#endif
 	fd = (*(int *)CMSG_DATA(cmsg));
 #endif
 	return fd;
