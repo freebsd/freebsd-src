@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.145
+    Original revision: 1.149
 -->
 
 <!--
@@ -282,6 +282,24 @@
       新しく追加されたユーティリティ &man.kldxref.8; は,
       これらのファイルを生成するために使用します.</para>
 
+    <para>新しく, idle 時にページをゼロで初期化する機能が追加されました.
+      これは <varname>vm.zeroidle_enable</varname> sysctl
+      変数を使って有効化できます.</para>
+
+    <para arch="i386">カーネルのロードアドレスがシンボルテーブルに格納されるようになり,
+      ハードコードされたさまざまな定数が削除されました.
+      これにより, 異なるアドレスでコンパイルされたカーネルに対しても
+      &man.ps.1; が正しく動作可能になっています.
+      &merged;</para>
+
+    <para arch="i386">新しいカーネルオプション <varname>KVA_SPACE</varname> が追加されました.
+      これはカーネル仮想アドレス空間の大きさを再設定するために使われます.</para>
+
+    <para>非常に大きいプロセス (あるいは非常に多数のプロセス)
+      のコアダンプが発生した場合でも,
+      マシンが長時間ロックしなくなりました.
+      &merged;</para>
+
     <sect3>
       <title>プロセッサ・マザーボードの対応状況</title>
 
@@ -352,6 +370,13 @@
         (<acronym>SSE</acronym>) が導入されました.
         SSE 対応をカーネルに組み込むかどうかの制御は
         <literal>CPU_ENABLE_SSE</literal> カーネルオプションで行なうことができます.</para>
+
+      <para arch="i386">新しく &man.amdpm.4; ドライバが追加されました.
+        これは AMD 756 チップセットのシステム監視機能へのアクセスを提供します.</para>
+
+      <para>カーネルが, プロセスよりも細かいスケジューリング単位に対応しました
+        (ただし現時点で利用できるのは,
+        一つのプロセスに対して一つのスレッドのみです).</para>
     </sect3>
 
     <sect3>
@@ -407,6 +432,12 @@
 
       <para>&man.an.4; ドライバが Cisco Aironet 350
         シリーズのアダプタに対応しました.
+        &merged;</para>
+
+      <para>&man.an.4; ドライバが <quote>監視 (monitor)</quote>
+        モードに対応しました.  これは
+        &man.ancontrol.8; にオプション
+        <option>-M</option> を指定することで有効になります.
         &merged;</para>
 
       <para arch="i386">&man.el.4;
@@ -481,6 +512,23 @@
         これは 3Com 3XP Typhoon/Sidewinder (3CR990) チップセットベースの
         ネットワークインターフェイスに対応しています.
         &merged;</para>
+
+      <para arch="i386">
+        &man.bge.4; ドライバが追加されました.
+        これは 3Com 3c996-T,
+        SysKonnect SK-9D21, SK-9D41 および
+        Dell PowerEdge 2550 サーバの内蔵ギガビットイーサネット NIC
+        などに使われている Broadcom BCM570x
+        ファミリのギガビットイーサネットコントローラ用ドライバで,
+        TCP/IP チェックサムのオフロード,
+        ジャンボフレーム, VLAN タグ挿入・削除機能に加え,
+        割り込み低減機能に対応しています.</para>
+
+      <para>インターフェイス毎に用意される
+        <varname>ifnet</varname> 構造体に,
+        ネットワークインターフェイスが対応している機能,
+        および, そのうち有効化されている機能を格納する部分が追加されました.
+        また &man.ifconfig.8; が, その機能の検索に対応しています.</para>
     </sect3>
 
     <sect3>
@@ -502,6 +550,14 @@
       <para>複数のリンク上でパケットの多重化を行なう
         netgraph ノードタイプ &man.ng.one2many.4; が新たに追加されました.
         &merged;</para>
+
+      <para>&man.gif.4; で動作する netgraph ノード
+        &man.ng.gif.4; および &man.ng.gif.demux.4;
+        が新しく追加されました.</para>
+
+      <para>IP の入力処理を行なうコードに入る前のキューに格納された
+        IP パケットに対応する
+        netgraph ノード &man.ng.ip.input.4; が新しく追加されました.</para>
 
       <para arch="alpha">SLIP が
         <filename>mfsroot</filename>
@@ -624,6 +680,14 @@
 
       <para>IP マルチキャストが VLAN デバイス上で動作するようになりました.
         また, VLAN コードにあったいくつかのバグも修正されています.</para>
+
+      <para>&man.faith.4; デバイスがロード/アンロード/クローニングに対応しました.</para>
+
+      <para>&man.stf.4; デバイスがクローニングに対応しました.</para>
+            
+      <para>&man.tap.4; デバイスがクローニングに対応しました.</para>
+            
+      <para>&man.vlan.4; デバイスがロード/アンロード/クローニングに対応しました.</para>
     </sect3>
 
     <sect3>
@@ -681,6 +745,13 @@
 
       <para arch="i386">&man.aac.4; が
         Adaptec PCI-SCSI RAID コントローラの FSA ファミリに対応しました.
+        &merged;</para>
+
+      <para arch="i386">The &man.aac.4; ドライバが更新され,
+        アダプタによって発行されるコマンド,
+        ディスクデバイスの脱着, クラッシュダンプ機能,
+        CLI 管理に使われる &man.ioctl.2;
+        コマンドなどを正しく処理できるようになりました.
         &merged;</para>
 
       <para>&man.ahc.4; ドライバに対して非常に数多くの更新や
@@ -803,6 +874,9 @@
 
       <para>クライアント側における
         NFS ロックが実装されました.</para>
+
+      <para>カーネル内で複雑に混ざりあっていた NFS のコードが,
+        保守と将来的な開発を容易にするためにクライアント側とサーバ側に分離されました.</para>
 
       <para>ファイルシステムにアクセス制御リスト (ACLs) が導入されました.
         ACL はファイルやディレクトリに対して,
@@ -1671,6 +1745,12 @@ hw.pcic.irq="0"</programlisting>
       <option>-W</option> オプションフラグは予約済みポート以外からの接続を許可します.
       &merged;</para>
 
+    <para>&man.lpd.8; の制御ファイルにおいて, 一部ですが
+      <literal>o</literal> というタイプの印刷ファイルに対応しました.
+      これは <application>MacOS</application> 10.1 で生成された
+      PostScript 形式ファイルの印刷を可能にするためのものです.
+      &merged;</para>
+
     <para>&man.lpc.8; に改良が加えられました.
       <command>lpc clean</command> は多少安全な動作をするように変更され,
       新しく導入された <command>lpc tclean</command> コマンドにより,
@@ -1816,6 +1896,13 @@ hw.pcic.irq="0"</programlisting>
       また &man.tftp.1; および &man.tftpd.8; は,
       65535 ブロックよち大きいファイルが転送できるように修正されています.
       &merged;</para>
+
+    <para>&man.tftpd.8; が RFC 2349 (TFTP Timeout Interval
+      and Transfer Size Options) に対応しました.
+      この機能は (HP i2000 Itanium サーバが採用している)
+      EFI ブートマネージャのようなファームウェアが
+      <application>TFTP</application>
+      を使ってイメージから起動するために必要となるものです.</para>
 
     <para>&man.vidcontrol.1; に新しいオプション <option>-g</option>
       が追加されました.  これは
@@ -2029,7 +2116,8 @@ hw.pcic.irq="0"</programlisting>
       &merged;</para>
 
     <para>行番号を付加するフィルタプログラム &man.nl.1;
-      が新たに追加されました.</para>
+      が新たに追加されました.
+      &merged;</para>
 
     <para>&man.c89.1; がシェルスクリプトからバイナリ実行ファイルに置き換えられ,
       いくつかあった小さなバグが修正されました.
@@ -2228,6 +2316,18 @@ hw.pcic.irq="0"</programlisting>
 
     <para>&man.groups.1; および &man.whoami.1; シェルスクリプトは
       &man.id.1; へ完全に統合され, 両方とも廃止されました.</para>
+
+    <para>&man.touch.1; に新しいオプション <option>-h</option> が追加されました.
+      これはコマンドの作用をシンボリックリンクのリンク先ではなく,
+      リンクそのものに対して行なうことを指定するものです.</para>
+
+    <para>&man.edquota.8; に新しいオプション <option>-f</option>
+      が追加されました. これは (オプション <option>-p</option>
+      で指定される) quota プロトタイプの設定対象を,
+      一つのファイルシステムに限定するために使われます.</para>
+
+    <para><filename>libgmp</filename> が
+      <filename>libmp</filename> で置き換えられました.</para>
 
     <sect3>
       <title>寄贈ソフトウェア</title>
@@ -2545,7 +2645,8 @@ hw.pcic.irq="0"</programlisting>
           プロトコルの標準が v2 になったこと,
           既存の SSH セションに対する rekeying に対応したこと,
           &man.ssh.1; に
-          <application>SOCKS4</application> proxy が追加されたことが含まれています.</para>
+          <application>SOCKS4</application> proxy が追加されたことが含まれています.
+          &merged;</para>
       </sect4>
 
       <sect4>
