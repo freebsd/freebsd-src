@@ -92,7 +92,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/trm/trm.h>
 
-#define PCI_BASE_ADDR0	0x10
 #define trm_reg_read8(reg)	bus_space_read_1(pACB->tag, pACB->bsh, reg)
 #define trm_reg_read16(reg)	bus_space_read_2(pACB->tag, pACB->bsh, reg)
 #define trm_reg_read32(reg)	bus_space_read_4(pACB->tag, pACB->bsh, reg)
@@ -3189,8 +3188,7 @@ static PACB
 trm_init(u_int16_t unit, device_t pci_config_id)
 {
 	PACB		pACB;
-	int		rid = PCI_BASE_ADDR0;
-	struct resource *iores;
+	int		rid = PCIR_MAPS;
     
  	pACB = (PACB) device_get_softc(pci_config_id);
    	if (!pACB) {
@@ -3198,14 +3196,14 @@ trm_init(u_int16_t unit, device_t pci_config_id)
 		return (NULL);
 	}
 	bzero (pACB, sizeof (struct _ACB));
-	iores = bus_alloc_resource(pci_config_id, SYS_RES_IOPORT
-			, &rid, 0, ~0, 1, RF_ACTIVE);
-    	if (iores == NULL) {
+	pACB->iores = bus_alloc_resource(pci_config_id, SYS_RES_IOPORT, 
+	    &rid, 0, ~0, 1, RF_ACTIVE);
+    	if (pACB->iores == NULL) {
 		printf("trm_init: bus_alloc_resource failed!\n");
 		return (NULL);
 	}
-	pACB->tag = rman_get_bustag(iores);
-	pACB->bsh = rman_get_bushandle(iores);
+	pACB->tag = rman_get_bustag(pACB->iores);
+	pACB->bsh = rman_get_bushandle(pACB->iores);
 	if (bus_dma_tag_create(/*parent_dmat*/                 NULL, 
 	      /*alignment*/                      1,
 	      /*boundary*/                       0,
@@ -3217,15 +3215,22 @@ trm_init(u_int16_t unit, device_t pci_config_id)
 	      /*nsegments*/               TRM_NSEG,
 	      /*maxsegsz*/    TRM_MAXTRANSFER_SIZE,
 	      /*flags*/           BUS_DMA_ALLOCNOW,
-	      &pACB->buffer_dmat) != 0)
-		return (NULL);
+	      &pACB->buffer_dmat) != 0) 
+		goto bad;
 	trm_check_eeprom(&trm_eepromBuf[unit],pACB);
 	trm_initACB(pACB, unit);
    	if (trm_initAdapter(pACB, unit, pci_config_id)) {
 		printf("trm_initAdapter: initial ERROR\n");
-		return (NULL);
+		goto bad;
 	}
 	return (pACB);
+bad:
+	if (pACB->iores)
+		bus_release_resource(pci_config_id, SYS_RES_IOPORT, PCIR_MAPS,
+		    pACB->iores);
+	if (pACB->buffer_dmat)
+		bus_dma_tag_destroy(pACB->buffer_dmat);
+	return (NULL);
 }
 
 static int
@@ -3235,8 +3240,6 @@ trm_attach(device_t pci_config_id)
 	u_long	device_id;
 	PACB	pACB = 0;
 	int	rid = 0;
-	void	*ih;
-	struct resource *irqres;
 	int unit = device_get_unit(pci_config_id);
 	
 	device_id = pci_get_devid(pci_config_id);
@@ -3258,18 +3261,18 @@ trm_attach(device_t pci_config_id)
 	 * Create device queue of SIM(s)
 	 * (MAX_START_JOB - 1) : max_sim_transactions
 	 */
-	irqres = bus_alloc_resource(pci_config_id, SYS_RES_IRQ, &rid, 0, ~0, 1,
-	    RF_SHAREABLE | RF_ACTIVE);
-    	if (irqres == NULL ||
-	    bus_setup_intr(pci_config_id, irqres, 
-	      INTR_TYPE_CAM, trm_Interrupt, pACB, &ih)) {
+	pACB->irq = bus_alloc_resource(pci_config_id, SYS_RES_IRQ, &rid, 0,
+	    ~0, 1, RF_SHAREABLE | RF_ACTIVE);
+    	if (pACB->irq == NULL ||
+	    bus_setup_intr(pci_config_id, pACB->irq, 
+	    INTR_TYPE_CAM, trm_Interrupt, pACB, &pACB->ih)) {
 		printf("trm%d: register Interrupt handler error!\n", unit);
-		return (ENXIO);
+		goto bad;
 	}
 	device_Q = cam_simq_alloc(MAX_START_JOB);
 	if (device_Q == NULL){ 
 		printf("trm%d: device_Q == NULL !\n",unit);
-		return (ENXIO);
+		goto bad;
 	}
 	/*
 	 * Now tell the generic SCSI layer
@@ -3308,16 +3311,11 @@ trm_attach(device_t pci_config_id)
 	if (pACB->psim == NULL) {
 		printf("trm%d: SIM allocate fault !\n",unit);
 		cam_simq_free(device_Q);  /* SIM allocate fault*/
-		return (ENXIO);
+		goto bad;
 	}
 	if (xpt_bus_register(pACB->psim, 0) != CAM_SUCCESS)  {
 		printf("trm%d: xpt_bus_register fault !\n",unit);
-		cam_sim_free(pACB->psim, TRUE); 
-		/* 
-		 * cam_sim_free(pACB->psim, TRUE);  free_devq 
-		 * pACB->psim = NULL;
-		 */
-		return (ENXIO);
+		goto bad;
 	}
 	if (xpt_create_path(&pACB->ppath,
 	      NULL,
@@ -3326,7 +3324,7 @@ trm_attach(device_t pci_config_id)
 	      CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		printf("trm%d: xpt_create_path fault !\n",unit);
 		xpt_bus_deregister(cam_sim_path(pACB->psim));
-		cam_sim_free(pACB->psim, /*free_simq*/TRUE);
+		goto bad;
 		/* 
 		 * cam_sim_free(pACB->psim, TRUE);  free_devq 
 		 * pACB->psim = NULL;
@@ -3334,6 +3332,21 @@ trm_attach(device_t pci_config_id)
 		return (ENXIO);
 	}
 	return (0);
+bad:
+	if (pACB->iores)
+		bus_release_resource(pci_config_id, SYS_RES_IOPORT, PCIR_MAPS,
+		    pACB->iores);
+	if (pACB->buffer_dmat)
+		bus_dma_tag_destroy(pACB->buffer_dmat);
+	if (pACB->ih)
+		bus_teardown_intr(pci_config_id, pACB->irq, pACB->ih);
+	if (pACB->irq)
+		bus_release_resource(pci_config_id, SYS_RES_IRQ, 0, pACB->irq);
+	if (pACB->psim)
+		cam_sim_free(pACB->psim, TRUE);
+	
+	return (ENXIO);
+	
 }
 
 /*
@@ -3354,8 +3367,14 @@ trm_probe(device_t tag)
 }
 
 static int
-trm_detach(PACB pACB)
+trm_detach(device_t dev)
 {
+	PACB pACB = device_get_softc(dev);
+
+	bus_release_resource(dev, SYS_RES_IOPORT, PCIR_MAPS, pACB->iores);
+	bus_dma_tag_destroy(pACB->buffer_dmat);	
+	bus_teardown_intr(dev, pACB->irq, pACB->ih);
+	bus_release_resource(dev, SYS_RES_IRQ, 0, pACB->irq);
 	xpt_async(AC_LOST_DEVICE, pACB->ppath, NULL);
 	xpt_free_path(pACB->ppath);
 	xpt_bus_deregister(cam_sim_path(pACB->psim));

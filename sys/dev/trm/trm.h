@@ -235,6 +235,9 @@ struct	_ACB
 	bus_space_handle_t	bsh;
 	bus_dma_tag_t		buffer_dmat;   /* dmat for buffer I/O */  
 	struct _ACB		*pNextACB;
+
+	struct resource		*iores, *irq;
+	void			*ih;
     /*
      *	          CAM SIM/XPT
      */
