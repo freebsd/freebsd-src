@@ -60,14 +60,14 @@ int		db_load_count;
 int		db_store_count;
 
 #ifndef db_set_single_step
-extern void	db_set_single_step __P((db_regs_t *regs));
+extern void	db_set_single_step(db_regs_t *regs);
 #endif
 #ifndef db_clear_single_step
-extern void	db_clear_single_step __P((db_regs_t *regs));
+extern void	db_clear_single_step(db_regs_t *regs);
 #endif
 
 #ifdef notused
-static void	db_single_step __P((db_regs_t *regs));
+static void	db_single_step(db_regs_t *regs);
 #endif
 
 boolean_t

@@ -49,13 +49,12 @@ static db_breakpoint_t		db_next_free_breakpoint = &db_break_table[0];
 static db_breakpoint_t		db_free_breakpoints = 0;
 static db_breakpoint_t		db_breakpoint_list = 0;
 
-static db_breakpoint_t	db_breakpoint_alloc __P((void));
-static void	db_breakpoint_free __P((db_breakpoint_t bkpt));
-static void	db_delete_breakpoint __P((vm_map_t map, db_addr_t addr));
-static db_breakpoint_t	db_find_breakpoint __P((vm_map_t map, db_addr_t addr));
-static void	db_list_breakpoints __P((void));
-static void	db_set_breakpoint __P((vm_map_t map, db_addr_t addr,
-				       int count));
+static db_breakpoint_t	db_breakpoint_alloc(void);
+static void	db_breakpoint_free(db_breakpoint_t bkpt);
+static void	db_delete_breakpoint(vm_map_t map, db_addr_t addr);
+static db_breakpoint_t	db_find_breakpoint(vm_map_t map, db_addr_t addr);
+static void	db_list_breakpoints(void);
+static void	db_set_breakpoint(vm_map_t map, db_addr_t addr, int count);
 
 static db_breakpoint_t
 db_breakpoint_alloc()

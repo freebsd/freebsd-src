@@ -55,21 +55,20 @@ static db_watchpoint_t	db_next_free_watchpoint = &db_watch_table[0];
 static db_watchpoint_t	db_free_watchpoints = 0;
 static db_watchpoint_t	db_watchpoint_list = 0;
 
-static db_watchpoint_t	db_watchpoint_alloc __P((void));
-static void		db_watchpoint_free __P((db_watchpoint_t watch));
-static void		db_delete_watchpoint __P((vm_map_t map,
-					db_addr_t addr));
+static db_watchpoint_t	db_watchpoint_alloc(void);
+static void		db_watchpoint_free(db_watchpoint_t watch);
+static void		db_delete_watchpoint(vm_map_t map, db_addr_t addr);
 #ifdef notused
-static boolean_t	db_find_watchpoint __P((vm_map_t map, db_addr_t addr,
-					db_regs_t *regs));
+static boolean_t	db_find_watchpoint(vm_map_t map, db_addr_t addr,
+					db_regs_t *regs);
 #endif
-static void		db_list_watchpoints __P((void));
-static void		db_set_watchpoint __P((vm_map_t map, db_addr_t addr,
-				       vm_size_t size));
+static void		db_list_watchpoints(void);
+static void		db_set_watchpoint(vm_map_t map, db_addr_t addr,
+				       vm_size_t size);
 
-int  db_md_set_watchpoint   __P((db_expr_t addr, db_expr_t size));
-int  db_md_clr_watchpoint   __P((db_expr_t addr, db_expr_t size));
-void db_md_list_watchpoints __P((void));
+int  db_md_set_watchpoint(db_expr_t addr, db_expr_t size);
+int  db_md_clr_watchpoint(db_expr_t addr, db_expr_t size);
+void db_md_list_watchpoints(void);
 
 
 db_watchpoint_t

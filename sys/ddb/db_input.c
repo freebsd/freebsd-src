@@ -63,11 +63,11 @@ static int	db_lhist_nlines;
 #define	BLANK		' '
 #define	BACKUP		'\b'
 
-static int	cnmaygetc __P((void));
-static void	db_delete __P((int n, int bwd));
-static int	db_inputchar __P((int c));
-static void	db_putnchars __P((int c, int count));
-static void	db_putstring __P((char *s, int count));
+static int	cnmaygetc(void);
+static void	db_delete(int n, int bwd);
+static int	db_inputchar(int c);
+static void	db_putnchars(int c, int count);
+static void	db_putstring(char *s, int count);
 
 void
 db_putstring(s, count)
