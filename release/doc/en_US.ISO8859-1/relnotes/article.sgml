@@ -457,11 +457,7 @@
       <option>-p</option> flag to force the kernel to pause after each
       line of output during the probing phase. &merged;</para>
 
-      <para arch="i386">The &os; boot loader is now capable of
-      booting from filesystems with 16K disk blocks (the old limit was
-      8K). &merged;</para>
-
-      <para arch="alpha">The &os; boot loader is now capable of
+      <para arch="alpha,i386">The &os; boot loader is now capable of
       booting from filesystems with block sizes larger than 8K. &merged;</para>
 
       <para>The kernel and modules have been moved to the directory
