@@ -59,7 +59,6 @@ fdc_pccard_probe(device_t dev)
 	return ENXIO;
 
 	fdc = device_get_softc(dev);
-	bzero(fdc, sizeof *fdc);
 	fdc->fdc_dev = dev;
 	fdc->fdctl_wr = fdctl_wr_pcmcia;
 	fdc->flags = FDC_ISPCMCIA | FDC_NODMA;
