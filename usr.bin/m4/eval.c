@@ -149,8 +149,7 @@ register int td;
 	 * dolen - find the length of the
 	 * argument
 	 */
-		if (argc > 2)
-			pbnum((argc > 2) ? strlen(argv[2]) : 0);
+		pbnum((argc > 2) ? strlen(argv[2]) : 0);
 		break;
 
 	case INCRTYPE:
