@@ -307,6 +307,8 @@ DRIVER_MODULE(miibus, dc, miibus_driver, miibus_devclass, 0, 0);
 #define SIO_SET(x)	DC_SETBIT(sc, DC_SIO, (x))
 #define SIO_CLR(x)	DC_CLRBIT(sc, DC_SIO, (x))
 
+#define IS_MPSAFE 	0
+
 static void dc_delay(sc)
 	struct dc_softc		*sc;
 {
@@ -1820,7 +1822,8 @@ static int dc_attach(dev)
 		goto fail;
 	}
 
-	error = bus_setup_intr(dev, sc->dc_irq, INTR_TYPE_NET,
+	error = bus_setup_intr(dev, sc->dc_irq, INTR_TYPE_NET | 
+	    (IS_MPSAFE ? INTR_MPSAFE : 0),
 	    dc_intr, sc, &sc->dc_intrhand);
 
 	if (error) {
@@ -2038,6 +2041,7 @@ static int dc_attach(dev)
 	ifp->if_init = dc_init;
 	ifp->if_baudrate = 10000000;
 	ifp->if_snd.ifq_maxlen = DC_TX_LIST_CNT - 1;
+	ifp->if_mpsafe = IS_MPSAFE; 
 
 	/*
 	 * Do MII setup. If this is a 21143, check for a PHY on the
@@ -2100,7 +2104,7 @@ static int dc_attach(dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
-	callout_handle_init(&sc->dc_stat_ch);
+	callout_init(&sc->dc_stat_ch, IS_MPSAFE);
 
 #ifdef SRM_MEDIA
         sc->dc_srm_media = 0;
@@ -2697,9 +2701,9 @@ static void dc_tick(xsc)
 	}
 
 	if (sc->dc_flags & DC_21143_NWAY && !sc->dc_link)
-		sc->dc_stat_ch = timeout(dc_tick, sc, hz/10);
+		callout_reset(&sc->dc_stat_ch, hz/10, dc_tick, sc);
 	else
-		sc->dc_stat_ch = timeout(dc_tick, sc, hz);
+		callout_reset(&sc->dc_stat_ch, hz, dc_tick, sc);
 
 	DC_UNLOCK(sc);
 
@@ -3134,9 +3138,9 @@ static void dc_init(xsc)
 		sc->dc_link = 1;
 	else {
 		if (sc->dc_flags & DC_21143_NWAY)
-			sc->dc_stat_ch = timeout(dc_tick, sc, hz/10);
+			callout_reset(&sc->dc_stat_ch, hz/10, dc_tick, sc);
 		else
-			sc->dc_stat_ch = timeout(dc_tick, sc, hz);
+			callout_reset(&sc->dc_stat_ch, hz, dc_tick, sc);
 	}
 
 #ifdef SRM_MEDIA
@@ -3306,7 +3310,7 @@ static void dc_stop(sc)
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_timer = 0;
 
-	untimeout(dc_tick, sc, sc->dc_stat_ch);
+	callout_stop(&sc->dc_stat_ch);
 
 	DC_CLRBIT(sc, DC_NETCFG, (DC_NETCFG_RX_ON|DC_NETCFG_TX_ON));
 	CSR_WRITE_4(sc, DC_IMR, 0x00000000);
