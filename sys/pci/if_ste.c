@@ -83,7 +83,7 @@ static const char rcsid[] =
  */
 static struct ste_type ste_devs[] = {
 	{ ST_VENDORID, ST_DEVICEID_ST201, "Sundance ST201 10/100BaseTX" },
-	{ DL_VENDORID, DL_DEVICEID_550TX, "D-Link DFE-550TX 10/100BaseTX" },
+	{ DL_VENDORID, DL_DEVICEID_DL10050, "D-Link DL10050 10/100BaseTX" },
 	{ 0, 0, NULL }
 };
 
@@ -927,7 +927,7 @@ ste_attach(dev)
 	 * it is at 0 & 1.  It is rev 0x12.
 	 */
 	if (pci_get_vendor(dev) == DL_VENDORID &&
-	    pci_get_device(dev) == DL_DEVICEID_550TX &&
+	    pci_get_device(dev) == DL_DEVICEID_DL10050 &&
 	    pci_get_revid(dev) == 0x12 )
 		sc->ste_one_phy = 1;
 
