@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.h,v 1.10 1998/05/21 21:44:27 brian Exp $
+ * $Id: chap.h,v 1.11 1999/02/06 02:54:44 brian Exp $
  *
  *	TODO:
  */
@@ -29,12 +29,24 @@ struct physical;
 #define	CHAP_FAILURE	4
 
 struct chap {
+  struct descriptor desc;
+  struct {
+    pid_t pid;
+    int fd;
+    struct {
+      char ptr[AUTHLEN * 2 + 3];	/* Allow for \r\n at the end (- NUL) */
+      int len;
+    } buf;
+  } child;
   struct authinfo auth;
   char challenge[CHAPCHALLENGELEN + AUTHLEN];
   unsigned using_MSChap : 1;	/* A combination of MD4 & DES */
 };
 
-#define auth2chap(a) ((struct chap *)(a))
+#define descriptor2chap(d) \
+  ((d)->type == CHAP_DESCRIPTOR ? (struct chap *)(d) : NULL)
+#define auth2chap(a) (struct chap *)((char *)a - (int)&((struct chap *)0)->auth)
 
 extern void chap_Init(struct chap *, struct physical *);
+extern void chap_ReInit(struct chap *);
 extern void chap_Input(struct physical *, struct mbuf *);

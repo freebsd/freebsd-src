@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: descriptor.h,v 1.4 1998/06/24 19:33:31 brian Exp $
+ *	$Id: descriptor.h,v 1.5 1999/02/06 02:54:45 brian Exp $
  */
 
 #define PHYSICAL_DESCRIPTOR (1)
@@ -34,6 +34,7 @@
 #define BUNDLE_DESCRIPTOR (6)
 #define MPSERVER_DESCRIPTOR (7)
 #define RADIUS_DESCRIPTOR (8)
+#define CHAP_DESCRIPTOR (9)
 
 struct bundle;
 
