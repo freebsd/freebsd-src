@@ -293,7 +293,6 @@ MALLOC_DECLARE(M_SONAME);
 MALLOC_DECLARE(M_ACCF);
 #endif
 
-extern int	showallsockets;
 extern int	maxsockets;
 extern u_long	sb_max;
 extern struct	vm_zone *socket_zone;
