@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.16 1999/06/10 20:40:59 dt Exp $
+ *	$Id: vm_machdep.c,v 1.17 1999/07/01 13:21:32 peter Exp $
  */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
@@ -442,7 +442,7 @@ vm_page_zero_idle()
 			if (vm_page_zero_count >= ZIDLE_HI(cnt.v_free_count))
 				zero_state = 1;
 		}
-		free_rover = (free_rover + PQ_PRIME3) & PQ_L2_MASK;
+		free_rover = (free_rover + PQ_PRIME2) & PQ_L2_MASK;
 		splx(s);
 #ifdef SMP
 		rel_mplock();
