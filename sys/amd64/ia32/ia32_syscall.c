@@ -263,14 +263,14 @@ static void
 ia32_syscall_enable(void *dummy)
 {
 
- 	setidt(0x80, &IDTVEC(int0x80_syscall), SDT_SYSIGT, SEL_UPL, 0);
+ 	setidt(IDT_SYSCALL, &IDTVEC(int0x80_syscall), SDT_SYSIGT, SEL_UPL, 0);
 }
 
 static void
 ia32_syscall_disable(void *dummy)
 {
 
- 	setidt(0x80, &IDTVEC(rsvd), SDT_SYSIGT, SEL_KPL, 0);
+ 	setidt(IDT_SYSCALL, &IDTVEC(rsvd), SDT_SYSIGT, SEL_KPL, 0);
 }
 
 SYSINIT(ia32_syscall, SI_SUB_EXEC, SI_ORDER_ANY, ia32_syscall_enable, NULL);

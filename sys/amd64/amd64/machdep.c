@@ -1172,26 +1172,25 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	/* exceptions */
 	for (x = 0; x < NIDT; x++)
 		setidt(x, &IDTVEC(rsvd), SDT_SYSIGT, SEL_KPL, 0);
-	setidt(0, &IDTVEC(div),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(1, &IDTVEC(dbg),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(2, &IDTVEC(nmi),  SDT_SYSIGT, SEL_KPL, 0);
- 	setidt(3, &IDTVEC(bpt),  SDT_SYSIGT, SEL_UPL, 0);
-	setidt(4, &IDTVEC(ofl),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(5, &IDTVEC(bnd),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(6, &IDTVEC(ill),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(7, &IDTVEC(dna),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(8, &IDTVEC(dblfault), SDT_SYSIGT, SEL_KPL, 1);
-	setidt(9, &IDTVEC(fpusegm),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(10, &IDTVEC(tss),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(11, &IDTVEC(missing),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(12, &IDTVEC(stk),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(13, &IDTVEC(prot),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(14, &IDTVEC(page),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(15, &IDTVEC(rsvd),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(16, &IDTVEC(fpu),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(17, &IDTVEC(align), SDT_SYSIGT, SEL_KPL, 0);
-	setidt(18, &IDTVEC(mchk),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(19, &IDTVEC(xmm), SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_DE, &IDTVEC(div),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_DB, &IDTVEC(dbg),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_NMI, &IDTVEC(nmi),  SDT_SYSIGT, SEL_KPL, 0);
+ 	setidt(IDT_BPT, &IDTVEC(bpt),  SDT_SYSIGT, SEL_UPL, 0);
+	setidt(IDT_OF, &IDTVEC(ofl),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_BR, &IDTVEC(bnd),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_UD, &IDTVEC(ill),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_NM, &IDTVEC(dna),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_DF, &IDTVEC(dblfault), SDT_SYSIGT, SEL_KPL, 1);
+	setidt(IDT_FPUGP, &IDTVEC(fpusegm),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_TS, &IDTVEC(tss),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_NP, &IDTVEC(missing),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_SS, &IDTVEC(stk),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_GP, &IDTVEC(prot),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_PF, &IDTVEC(page),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_MF, &IDTVEC(fpu),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_AC, &IDTVEC(align), SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_MC, &IDTVEC(mchk),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_XF, &IDTVEC(xmm), SDT_SYSIGT, SEL_KPL, 0);
 
 	r_idt.rd_limit = sizeof(idt0) - 1;
 	r_idt.rd_base = (long) idt;
