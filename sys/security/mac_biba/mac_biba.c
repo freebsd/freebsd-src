@@ -102,6 +102,10 @@ SYSCTL_STRING(_security_mac_biba, OID_AUTO, trusted_interfaces, CTLFLAG_RD,
 TUNABLE_STR("security.mac.biba.trusted_interfaces", trusted_interfaces,
     sizeof(trusted_interfaces));
 
+static int	max_compartments = MAC_BIBA_MAX_COMPARTMENTS;
+SYSCTL_INT(_security_mac_biba, OID_AUTO, max_compartments, CTLFLAG_RD,
+    &max_compartments, 0, "Maximum supported compartments");
+
 static int	ptys_equal = 0;
 SYSCTL_INT(_security_mac_biba, OID_AUTO, ptys_equal, CTLFLAG_RW,
     &ptys_equal, 0, "Label pty devices as biba/equal on create");
@@ -116,6 +120,16 @@ static int	mac_biba_slot;
 #define	SLOT(l)	((struct mac_biba *)LABEL_TO_SLOT((l), mac_biba_slot).l_ptr)
 
 MALLOC_DEFINE(M_MACBIBA, "biba label", "MAC/Biba labels");
+
+static __inline int
+biba_bit_set_empty(u_char *set) {
+	int i;
+
+	for (i = 0; i < MAC_BIBA_MAX_COMPARTMENTS >> 3; i++)
+		if (set[i] != 0)
+			return (0);
+	return (1);
+}
 
 static struct mac_biba *
 biba_alloc(int flag)
@@ -150,6 +164,7 @@ static int
 mac_biba_dominate_element(struct mac_biba_element *a,
     struct mac_biba_element *b)
 {
+	int bit;
 
 	switch(a->mbe_type) {
 	case MAC_BIBA_TYPE_EQUAL:
@@ -180,6 +195,11 @@ mac_biba_dominate_element(struct mac_biba_element *a,
 			return (0);
 
 		case MAC_BIBA_TYPE_GRADE:
+			for (bit = 1; bit <= MAC_BIBA_MAX_COMPARTMENTS; bit++)
+				if (!MAC_BIBA_BIT_TEST(bit,
+				    a->mbe_compartments) &&
+				    MAC_BIBA_BIT_TEST(bit, b->mbe_compartments))
+					return (0);
 			return (a->mbe_grade >= b->mbe_grade);
 
 		default:
@@ -310,7 +330,9 @@ mac_biba_valid(struct mac_biba *mac_biba)
 		case MAC_BIBA_TYPE_EQUAL:
 		case MAC_BIBA_TYPE_HIGH:
 		case MAC_BIBA_TYPE_LOW:
-			if (mac_biba->mb_single.mbe_grade != 0)
+			if (mac_biba->mb_single.mbe_grade != 0 ||
+			    !MAC_BIBA_BIT_SET_EMPTY(
+			    mac_biba->mb_single.mbe_compartments))
 				return (EINVAL);
 			break;
 
@@ -330,7 +352,9 @@ mac_biba_valid(struct mac_biba *mac_biba)
 		case MAC_BIBA_TYPE_EQUAL:
 		case MAC_BIBA_TYPE_HIGH:
 		case MAC_BIBA_TYPE_LOW:
-			if (mac_biba->mb_rangelow.mbe_grade != 0)
+			if (mac_biba->mb_rangelow.mbe_grade != 0 ||
+			    !MAC_BIBA_BIT_SET_EMPTY(
+			    mac_biba->mb_rangelow.mbe_compartments))
 				return (EINVAL);
 			break;
 
@@ -345,7 +369,9 @@ mac_biba_valid(struct mac_biba *mac_biba)
 		case MAC_BIBA_TYPE_EQUAL:
 		case MAC_BIBA_TYPE_HIGH:
 		case MAC_BIBA_TYPE_LOW:
-			if (mac_biba->mb_rangehigh.mbe_grade != 0)
+			if (mac_biba->mb_rangehigh.mbe_grade != 0 ||
+			    !MAC_BIBA_BIT_SET_EMPTY(
+			    mac_biba->mb_rangehigh.mbe_compartments))
 				return (EINVAL);
 			break;
 
@@ -366,28 +392,42 @@ mac_biba_valid(struct mac_biba *mac_biba)
 
 static void
 mac_biba_set_range(struct mac_biba *mac_biba, u_short typelow,
-    u_short gradelow, u_short typehigh, u_short gradehigh)
+    u_short gradelow, u_char *compartmentslow, u_short typehigh,
+    u_short gradehigh, u_char *compartmentshigh)
 {
 
 	mac_biba->mb_rangelow.mbe_type = typelow;
 	mac_biba->mb_rangelow.mbe_grade = gradelow;
+	if (compartmentslow != NULL)
+		memcpy(mac_biba->mb_rangelow.mbe_compartments,
+		    compartmentslow,
+		    sizeof(mac_biba->mb_rangelow.mbe_compartments));
 	mac_biba->mb_rangehigh.mbe_type = typehigh;
 	mac_biba->mb_rangehigh.mbe_grade = gradehigh;
+	if (compartmentshigh != NULL)
+		memcpy(mac_biba->mb_rangehigh.mbe_compartments,
+		    compartmentshigh,
+		    sizeof(mac_biba->mb_rangehigh.mbe_compartments));
 	mac_biba->mb_flags |= MAC_BIBA_FLAG_RANGE;
 }
 
 static void
-mac_biba_set_single(struct mac_biba *mac_biba, u_short type, u_short grade)
+mac_biba_set_single(struct mac_biba *mac_biba, u_short type, u_short grade,
+    u_char *compartments)
 {
 
 	mac_biba->mb_single.mbe_type = type;
 	mac_biba->mb_single.mbe_grade = grade;
+	if (compartments != NULL)
+		memcpy(mac_biba->mb_single.mbe_compartments, compartments,
+		    sizeof(mac_biba->mb_single.mbe_compartments));
 	mac_biba->mb_flags |= MAC_BIBA_FLAG_SINGLE;
 }
 
 static void
 mac_biba_copy_range(struct mac_biba *labelfrom, struct mac_biba *labelto)
 {
+
 	KASSERT((labelfrom->mb_flags & MAC_BIBA_FLAG_RANGE) != 0,
 	    ("mac_biba_copy_range: labelfrom not range"));
 
@@ -508,7 +548,7 @@ mac_biba_create_devfs_device(dev_t dev, struct devfs_dirent *devfs_dirent,
 		biba_type = MAC_BIBA_TYPE_EQUAL;
 	else
 		biba_type = MAC_BIBA_TYPE_HIGH;
-	mac_biba_set_single(mac_biba, biba_type, 0);
+	mac_biba_set_single(mac_biba, biba_type, 0, NULL);
 }
 
 static void
@@ -518,7 +558,7 @@ mac_biba_create_devfs_directory(char *dirname, int dirnamelen,
 	struct mac_biba *mac_biba;
 
 	mac_biba = SLOT(label);
-	mac_biba_set_single(mac_biba, MAC_BIBA_TYPE_HIGH, 0);
+	mac_biba_set_single(mac_biba, MAC_BIBA_TYPE_HIGH, 0, NULL);
 }
 
 static void
@@ -577,9 +617,9 @@ mac_biba_create_root_mount(struct ucred *cred, struct mount *mp,
 
 	/* Always mount root as high integrity. */
 	mac_biba = SLOT(fslabel);
-	mac_biba_set_single(mac_biba, MAC_BIBA_TYPE_HIGH, 0);
+	mac_biba_set_single(mac_biba, MAC_BIBA_TYPE_HIGH, 0, NULL);
 	mac_biba = SLOT(mntlabel);
-	mac_biba_set_single(mac_biba, MAC_BIBA_TYPE_HIGH, 0);
+	mac_biba_set_single(mac_biba, MAC_BIBA_TYPE_HIGH, 0, NULL);
 }
 
 static void
@@ -821,8 +861,8 @@ mac_biba_create_ifnet(struct ifnet *ifnet, struct label *ifnetlabel)
 		}
 	}
 set:
-	mac_biba_set_single(dest, grade, 0);
-	mac_biba_set_range(dest, grade, 0, grade, 0);
+	mac_biba_set_single(dest, grade, 0, NULL);
+	mac_biba_set_range(dest, grade, 0, NULL, grade, 0, NULL);
 }
 
 static void
@@ -883,7 +923,7 @@ mac_biba_create_mbuf_linklayer(struct ifnet *ifnet, struct label *ifnetlabel,
 
 	dest = SLOT(mbuflabel);
 
-	mac_biba_set_single(dest, MAC_BIBA_TYPE_EQUAL, 0);
+	mac_biba_set_single(dest, MAC_BIBA_TYPE_EQUAL, 0, NULL);
 }
 
 static void
@@ -1011,8 +1051,9 @@ mac_biba_create_proc0(struct ucred *cred)
 
 	dest = SLOT(&cred->cr_label);
 
-	mac_biba_set_single(dest, MAC_BIBA_TYPE_EQUAL, 0);
-	mac_biba_set_range(dest, MAC_BIBA_TYPE_LOW, 0, MAC_BIBA_TYPE_HIGH, 0);
+	mac_biba_set_single(dest, MAC_BIBA_TYPE_EQUAL, 0, NULL);
+	mac_biba_set_range(dest, MAC_BIBA_TYPE_LOW, 0, NULL,
+	    MAC_BIBA_TYPE_HIGH, 0, NULL);
 }
 
 static void
@@ -1022,8 +1063,9 @@ mac_biba_create_proc1(struct ucred *cred)
 
 	dest = SLOT(&cred->cr_label);
 
-	mac_biba_set_single(dest, MAC_BIBA_TYPE_HIGH, 0);
-	mac_biba_set_range(dest, MAC_BIBA_TYPE_LOW, 0, MAC_BIBA_TYPE_HIGH, 0);
+	mac_biba_set_single(dest, MAC_BIBA_TYPE_HIGH, 0, NULL);
+	mac_biba_set_range(dest, MAC_BIBA_TYPE_LOW, 0, NULL,
+	    MAC_BIBA_TYPE_HIGH, 0, NULL);
 }
 
 static void
