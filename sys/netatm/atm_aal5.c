@@ -370,7 +370,11 @@ atm_aal5_connect(so, addr, p)
 
 		size = atp->atp_attr.aal.v.aal5.forward_max_SDU_size;
 		if (size != T_ATM_ABSENT)
-			(void) sbreserve(&so->so_snd, size);
+			if (!sbreserve(&so->so_snd, size, so, p)) {
+				err = ENOBUFS;
+				ATM_OUTRO();
+			}
+				
 	}
 
 	/*
