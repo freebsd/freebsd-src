@@ -1,4 +1,3 @@
-/*	$NetBSD: uvisor.c,v 1.9 2001/01/23 14:04:14 augustss Exp $	*/
 /*      $FreeBSD$	*/
 
 /* Also already merged from NetBSD:
@@ -208,6 +207,7 @@ struct uvisor_type {
 static const struct uvisor_type uvisor_devs[] = {
 	{{ USB_VENDOR_HANDSPRING, USB_PRODUCT_HANDSPRING_VISOR }, 0 },
 	{{ USB_VENDOR_HANDSPRING, USB_PRODUCT_HANDSPRING_TREO }, PALM4 },
+	{{ USB_VENDOR_HANDSPRING, USB_PRODUCT_HANDSPRING_TREO600 }, PALM4 },
 	{{ USB_VENDOR_PALM, USB_PRODUCT_PALM_M500 }, PALM4 },
 	{{ USB_VENDOR_PALM, USB_PRODUCT_PALM_M505 }, PALM4 },
 	{{ USB_VENDOR_PALM, USB_PRODUCT_PALM_M515 }, PALM4 },
