@@ -8,6 +8,9 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20020615:
+	FreeBSD 4.6-RELEASE.
+
 20020515:
 	The k5su utility installed as part of Kerberos 5 is no longer
 	installed with the set-user-ID bit set by default.  Add
