@@ -58,7 +58,7 @@
 #endif
 
 #define	ISP_CORE_VERSION_MAJOR	1
-#define	ISP_CORE_VERSION_MINOR	14
+#define	ISP_CORE_VERSION_MINOR	16
 
 /*
  * Vector for bus specific code to provide specific services.
@@ -75,7 +75,7 @@ struct ispmdvec {
 	void		(*dv_reset0) __P((struct ispsoftc *));
 	void		(*dv_reset1) __P((struct ispsoftc *));
 	void		(*dv_dregs) __P((struct ispsoftc *));
-	const u_int16_t *dv_ispfw;	/* ptr to f/w */
+	const u_int16_t	*dv_ispfw;	/* ptr to f/w */
 	u_int16_t 	dv_fwlen;	/* length of f/w */
 	u_int16_t	dv_codeorg;	/* code ORG for f/w */
 	u_int32_t	dv_fwrev;	/* f/w revision */
@@ -94,15 +94,7 @@ struct ispmdvec {
 #endif
 
 #define	ISP_MAX_TARGETS(isp)	(IS_FC(isp)? MAX_FC_TARG : MAX_TARGETS)
-#ifdef	ISP2100_SCCLUN
-#define	_ISP_FC_LUN(isp)	65536
-#else
-#define	_ISP_FC_LUN(isp)	16
-#endif
-#define	_ISP_SCSI_LUN(isp)	\
-	((ISP_FW_REVX(isp->isp_fwrev) >= ISP_FW_REV(7, 55, 0))? 32 : 8)
-#define	ISP_MAX_LUNS(isp)	\
-	(IS_FC(isp)? _ISP_FC_LUN(isp) : _ISP_SCSI_LUN(isp))
+#define	ISP_MAX_LUNS(isp)	(isp)->isp_maxluns
 
 
 /*
@@ -322,12 +314,13 @@ struct ispsoftc {
 	u_int16_t		isp_maxcmds;	/* max possible I/O cmds */
 	u_int8_t		isp_type;	/* HBA Chip Type */
 	u_int8_t		isp_revision;	/* HBA Chip H/W Revision */
+	u_int32_t		isp_maxluns;	/* maximum luns supported */
 
 	u_int32_t				: 4,
 				isp_touched	: 1,	/* board ever seen? */
 				isp_fast_mttr	: 1,	/* fast sram */
 				isp_bustype	: 1,	/* SBus or PCI */
-				isp_dogactive	: 1,	/* watchdog running */
+						: 1,
 				isp_dblev	: 8,	/* debug level */
 				isp_clock	: 8,	/* input clock */
 				isp_confopts	: 8;	/* config options */
@@ -336,16 +329,18 @@ struct ispsoftc {
 	 * Volatile state
 	 */
 
-	volatile u_int32_t	:	9,
+	volatile u_int32_t
+		isp_mboxbsy	:	8,	/* mailbox command active */
+				:	1,
 		isp_state	:	3,
 		isp_sendmarker	:	2,	/* send a marker entry */
 		isp_update	:	2,	/* update parameters */
 		isp_nactive	:	16;	/* how many commands active */
-
 	volatile u_int16_t	isp_reqodx;	/* index of last ISP pickup */
 	volatile u_int16_t	isp_reqidx;	/* index of next request */
 	volatile u_int16_t	isp_residx;	/* index of next result */
 	volatile u_int16_t	isp_lasthdls;	/* last handle seed */
+	volatile u_int16_t	isp_mboxtmp[MAX_MAILBOX];
 
 	/*
 	 * Active commands are stored here, indexed by handle functions.
