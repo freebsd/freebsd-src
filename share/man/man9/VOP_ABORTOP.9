@@ -66,6 +66,9 @@ vop_abortop(struct vnode *dvp, struct componentname *cnp)
     return 0;
 }
 .Ed
+.Sh LOCKS
+.Fa dvp
+should be locked on entry and remain locked on return.
 .Sh SEE ALSO
 .Xr vnode 9
 .Sh AUTHORS
