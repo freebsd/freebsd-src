@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.h,v 1.1.1.1 1995/01/31 06:29:56 amurai Exp $
+ * $Id: modem.h,v 1.2 1995/02/26 12:17:46 amurai Exp $
  *
  *	TODO:
  */
@@ -24,7 +24,7 @@
 #define	_MODEM_H_
 #include <termios.h>
 #include "mbuf.h"
-#include "cdefs.h"
+#include <sys/cdefs.h>
 
 extern int RawModem __P((int));
 extern void UnrawModem __P((int));
