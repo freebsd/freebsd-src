@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) split.test 1.9 96/12/30 17:10:16
+# SCCS: @(#) split.test 1.10 97/07/07 16:30:07
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -41,10 +41,21 @@ test split-1.8 {basic split commands} {
         foreach f [split {]\n} {}] {
             append x $f
         }
-        return $x
+        return $x	
     }
     foo
 } {]\n}
+test split-1.9 {basic split commands} {
+    proc foo {} {
+        set x ab\000c
+        set y [split $x {}]
+        return $y
+    }
+    foo
+} "a b \000 c"
+test split-1.10 {basic split commands} {
+    split "a0ab1b2bbb3\000c4" ab\000c
+} {{} 0 {} 1 2 {} {} 3 {} 4}
 
 test split-2.1 {split errors} {
     list [catch split msg] $msg $errorCode

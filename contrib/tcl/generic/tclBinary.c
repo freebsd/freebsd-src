@@ -9,9 +9,10 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclBinary.c 1.16 97/05/19 10:29:18
+ * SCCS: @(#) tclBinary.c 1.20 97/08/11 18:43:09
  */
 
+#include <math.h>
 #include "tclInt.h"
 #include "tclPort.h"
 
@@ -275,9 +276,11 @@ Tcl_BinaryObjCmd(dummy, interp, objc, objv)
 			    count = 1;
 			}
 			if (length >= count) {
-			    memcpy(cursor, str, (size_t) count);
+			    memcpy((VOID *) cursor, (VOID *) str,
+				    (size_t) count);
 			} else {
-			    memcpy(cursor, str, (size_t) length);
+			    memcpy((VOID *) cursor, (VOID *) str,
+				    (size_t) length);
 			    memset(cursor+length, pad,
 			            (size_t) (count - length));
 			}
@@ -877,12 +880,13 @@ FormatNumber(interp, type, src, cursorPtr)
 	     * to the valid range for float.
 	     */
 
-	    if (dvalue > FLT_MAX) {
-		*((float *)(*cursorPtr)) = FLT_MAX;
-	    } else if (dvalue < FLT_MIN) {
-		*((float *)(*cursorPtr)) = FLT_MIN;
+	    if (fabs(dvalue) > (double)FLT_MAX) {
+		*((float *)(*cursorPtr))
+		    = (dvalue >= 0.0) ? FLT_MAX : -FLT_MAX;
+	    } else if (fabs(dvalue) < (double)FLT_MIN) {
+		*((float *)(*cursorPtr)) = (float) 0.0;
 	    } else {
-		*((float *)(*cursorPtr)) = (float)dvalue;
+		*((float *)(*cursorPtr)) = (float) dvalue;
 	    }
 	    (*cursorPtr) += sizeof(float);
 	}

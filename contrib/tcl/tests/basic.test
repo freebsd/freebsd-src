@@ -14,7 +14,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) basic.test 1.6 97/06/20 14:51:18
+# SCCS: @(#) basic.test 1.18 97/08/07 10:36:59
 #
 
 if {[string compare test [info procs test]] == 1} then {source defs}
@@ -82,6 +82,8 @@ test basic-3.1 {HiddenCmdsDeleteProc, invalidate cached refs to deleted hidden c
          [catch {localP} msg] $msg
 } {27 27 {} 1 {invalid command name "p"} {} 1 {invalid command name "localP"}}
 
+# NB: More tests about hide/expose are found in interp.test
+
 test basic-4.1 {Tcl_HideCommand, names of hidden cmds can't have namespace qualifiers} {
     catch {interp delete test_interp}
     interp create test_interp
@@ -92,9 +94,11 @@ test basic-4.1 {Tcl_HideCommand, names of hidden cmds can't have namespace quali
             }
         }
     }
-    list [catch {test_interp hide test_ns_basic::p} msg] $msg \
+    list [catch {test_interp hide test_ns_basic::p x} msg] $msg \
+	 [catch {test_interp hide x test_ns_basic::p} msg1] $msg1 \
          [interp delete test_interp]
-} {1 {hidden command names can't have namespace qualifiers} {}}
+} {1 {can only hide global namespace commands (use rename then hide)} 1 {cannot use namespace qualifiers as hidden commandtoken (rename)} {}}
+
 test basic-4.2 {Tcl_HideCommand, a hidden cmd remembers its containing namespace} {
     catch {namespace delete test_ns_basic}
     catch {rename cmd ""}
@@ -120,7 +124,7 @@ test basic-4.2 {Tcl_HideCommand, a hidden cmd remembers its containing namespace
          [namespace delete test_ns_basic]
 } {:: {} 1 {invalid command name "cmd"} {} :: {}}
 
-test basic-5.1 {Tcl_ExposeCommand, an exposed cmd goes back to its containing namespace unless cmd name has namespace qualifiers} {
+test basic-5.1 {Tcl_ExposeCommand, a command stays in the global namespace and can not go to another namespace} {
     catch {namespace delete test_ns_basic}
     catch {rename cmd ""}
     proc cmd {} {   ;# note that this is global
@@ -130,8 +134,12 @@ test basic-5.1 {Tcl_ExposeCommand, an exposed cmd goes back to its containing na
         proc hideCmd {} {
             interp hide {} cmd
         }
-        proc exposeCmd {} {
+        proc exposeCmdFailing {} {
             interp expose {} cmd ::test_ns_basic::newCmd
+        }
+        proc exposeCmdWorkAround {} {
+            interp expose {} cmd;
+	    rename cmd ::test_ns_basic::newCmd;
         }
         proc callCmd {} {
             cmd
@@ -139,10 +147,11 @@ test basic-5.1 {Tcl_ExposeCommand, an exposed cmd goes back to its containing na
     }
     list [test_ns_basic::callCmd] \
          [test_ns_basic::hideCmd] \
-         [test_ns_basic::exposeCmd] \
+         [catch {test_ns_basic::exposeCmdFailing} msg] $msg \
+         [test_ns_basic::exposeCmdWorkAround] \
          [test_ns_basic::newCmd] \
          [namespace delete test_ns_basic]
-} {:: {} {} :: {}}
+} {:: {} 1 {can not expose to a namespace (use expose to toplevel, then rename)} {} ::test_ns_basic {}}
 test basic-5.2 {Tcl_ExposeCommand, invalidate cached refs to cmd now being exposed} {
     catch {rename p ""}
     catch {rename cmd ""}
@@ -248,7 +257,7 @@ test basic-7.6 {TclRenameCommand, check for command shadowing by newly renamed c
     list [test_ns_basic::callP] \
          [rename q test_ns_basic::p] \
          [test_ns_basic::callP]
-} {{p in ::} {} {q in ::}}
+} {{p in ::} {} {q in ::test_ns_basic}}
 
 test basic-8.1 {Tcl_GetCommandInfo, names for commands created inside namespaces} {
     catch {eval namespace delete [namespace children :: test_ns_*]}
@@ -271,7 +280,7 @@ test basic-8.2 {Tcl_GetCommandInfo, names for commands created outside namespace
          [testcmdtoken name $x]
 } {{p ::test_ns_basic::test_ns_basic2::p} {} {q ::q}}
 
-test namespace-9.1 {Tcl_GetCommandFullName} {
+test basic-9.1 {Tcl_GetCommandFullName} {
     catch {eval namespace delete [namespace children :: test_ns_*]}
     namespace eval test_ns_basic1 {
         namespace export cmd*
@@ -294,7 +303,7 @@ test namespace-9.1 {Tcl_GetCommandFullName} {
     }
 } {::foreach ::test_ns_basic3::q ::test_ns_basic3::p ::test_ns_basic3::cmd1 ::test_ns_basic2::cmd2}
 
-test basic-10.1 {Tcl_DeleteCommand2, invalidate all compiled code if cmd has compile proc} {
+test basic-10.1 {Tcl_DeleteCommandFromToken, invalidate all compiled code if cmd has compile proc} {
     catch {interp delete test_interp}
     catch {unset x}
     interp create test_interp
@@ -314,7 +323,7 @@ test basic-10.1 {Tcl_DeleteCommand2, invalidate all compiled code if cmd has com
          [interp eval test_interp {useSet}] \
          [interp delete test_interp]
 } {123 {set called with a 123} {}}
-test basic-10.2 {Tcl_DeleteCommand2, deleting commands changes command epoch} {
+test basic-10.2 {Tcl_DeleteCommandFromToken, deleting commands changes command epoch} {
     catch {eval namespace delete [namespace children :: test_ns_*]}
     catch {rename p ""}
     proc p {} {
@@ -332,7 +341,7 @@ test basic-10.2 {Tcl_DeleteCommand2, deleting commands changes command epoch} {
          [rename test_ns_basic::p ""] \
          [test_ns_basic::callP]
 } {{namespace p} {} {global p}}
-test basic-10.3 {Tcl_DeleteCommand2, delete imported cmds that refer to a deleted cmd} {
+test basic-10.3 {Tcl_DeleteCommandFromToken, delete imported cmds that refer to a deleted cmd} {
     catch {eval namespace delete [namespace children :: test_ns_*]}
     catch {rename p ""}
     namespace eval test_ns_basic {
@@ -371,6 +380,10 @@ test basic-11.1 {TclObjInvoke, lookup of "unknown" command} {
          [interp delete test_interp]
 } {newAlias 0 {global unknown} {}}
 
+test basic-12.1 {Tcl_CreateTrace, correct command and argc/argv arguments of trace proc} {
+    testcmdtrace {set stuff [info tclversion]}
+} {{info tclversion} {info tclversion} {set stuff [info tclversion]} {set stuff 8.0}}
+
 catch {eval namespace delete [namespace children :: test_ns_*]}
 catch {namespace delete george}
 catch {interp delete test_interp}
@@ -379,3 +392,5 @@ catch {rename q ""}
 catch {rename cmd ""}
 catch {rename value:at: ""}
 catch {unset x}
+set x 0
+unset x

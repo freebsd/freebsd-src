@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) tclvars.n 1.30 97/05/02 13:06:45
+'\" SCCS: @(#) tclvars.n 1.33 97/08/13 17:50:20
 '\" 
 .so man.macros
 .TH tclvars n 8.0 Tcl "Tcl Built-In Commands"
@@ -43,6 +43,64 @@ PATH variable could be exported by the operating system as ``path'',
 ``Path'', ``PaTh'', etc., causing otherwise simple Tcl code to have to
 support many special cases.  All other environment variables inherited by
 Tcl are left unmodified.
+.RE
+.RS
+On the Macintosh, the environment variable is constructed by Tcl as no
+global environment variable exists.  The environment variables that
+are created for Tcl include:
+.TP
+\fBLOGIN\fR
+This holds the Chooser name of the Macintosh.
+.TP
+\fBUSER\fR
+This also holds the Chooser name of the Macintosh.
+.TP
+\fBSYS_FOLDER\fR
+The path to the system directory.
+.TP
+\fBAPPLE_M_FOLDER\fR
+The path to the Apple Menu directory.
+.TP
+\fBCP_FOLDER\fR
+The path to the control panels directory.
+.TP
+\fBDESK_FOLDER\fR
+The path to the desk top directory.
+.TP
+\fBEXT_FOLDER\fR
+The path to the system extensions directory.
+.TP
+\fBPREF_FOLDER\fR
+The path to the preferences directory.
+.TP
+\fBPRINT_MON_FOLDER\fR
+The path to the print monitor directory.
+.TP
+\fBSHARED_TRASH_FOLDER\fR
+The path to the network trash directory.
+.TP
+\fBTRASH_FOLDER\fR
+The path to the trash directory.
+.TP
+\fBSTART_UP_FOLDER\fR
+The path to the start up directory.
+.TP
+\fBPWD\fR
+The path to the application's default directory.
+.PP
+You can also create your own environment variables for the Macintosh.
+A file named  \fITcl Environment Variables\fR may be placed in the
+preferences folder in the Mac system folder.  Each line of this file
+should be of the form \fIVAR_NAME=var_data\fR.
+.PP
+The last alternative is to place environment variables in a 'STR#' 
+resource named \fITcl Environment Variables\fR of the application.  This
+is considered a little more ``Mac like'' than a Unix style Environment
+Variable file.  Each entry in the 'STR#' resource has the same format
+as above.  The source code file \fItclMacEnv.c\fR contains the
+implementation of the env mechanisms.  This file contains many
+#define's that allow customization of the env mechanisms to fit your
+applications needs.
 .RE
 .TP
 \fBerrorCode\fR
@@ -213,15 +271,21 @@ general operating environment of the machine.
 .TP
 \fBtcl_precision\fR
 .VS
-In Tcl versions before 8.0, this variable controlled the
-number of significant digits to include when converting floating-point
-values to strings.
-If the variable was not set then 6 digits were included.
+This variable controls the number of digits to generate
+when converting floating-point values to strings.  It defaults
+to 12.
 17 digits is ``perfect'' for IEEE floating-point in that it allows
 double-precision values to be converted to strings and back to
-binary with no loss of precision.
-As of Tcl 8.0 this variable is ignored and all conversions use the
-full 17 digits.
+binary with no loss of information.  However, using 17 digits prevents
+any rounding, which produces longer, less intuitive results.  For example,
+\fBexpr 1.4\fR returns 1.3999999999999999 with \fBtcl_precision\fR
+set to 17, vs. 1.4 if \fBtcl_precision\fR is 12.
+.RS
+All interpreters in a process share a single \fBtcl_precision\fR value:
+changing it in one interpreter will affect all other interpreters as
+well.  However, safe interpreters are not allowed to modify the
+variable.
+.RE
 .VE
 .TP
 \fBtcl_rcFileName\fR

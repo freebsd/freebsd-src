@@ -5,7 +5,7 @@
 # "autoconf" program (constructs like "@foo@" will get replaced in the
 # actual Makefile.
 #
-# SCCS: @(#) Makefile.in 1.174 97/06/26 17:58:32
+# SCCS: @(#) Makefile.in 1.187 97/08/15 10:23:55
 
 # Current Tcl version;  used in various names.
 
@@ -73,7 +73,12 @@ MANN_INSTALL_DIR =	$(MAN_INSTALL_DIR)/mann
 
 # To change the compiler switches, for example to change from -O
 # to -g, change the following line:
+# On systems where both getcwd(3) and getwd(3) exist, check the man
+# page and if getcwd, like on Solaris, uses popen to pwd(1)
+# add -DUSEGETWD to the flags so getwd will be used instead.
 CFLAGS = -O
+# Solaris recommended:
+#CFLAGS = -O -DUSEGETWD
 
 # To disable ANSI-C procedure prototypes reverse the comment characters
 # on the following lines:
@@ -314,11 +319,22 @@ all: ${TCL_LIB_FILE} tclsh
 
 # The following target is configured by autoconf to generate either
 # a shared library or non-shared library for Tcl.
-
 ${TCL_LIB_FILE}: ${OBJS}
 	rm -f ${TCL_LIB_FILE}
 	@MAKE_LIB@
 	$(RANLIB) ${TCL_LIB_FILE}
+
+# Make target which outputs the list of the .o contained in the Tcl lib
+# usefull to build a single big shared library containing Tcl and other
+# extensions.  used for the Tcl Plugin.  -- dl
+# The dependency on OBJS is not there because we just want the list
+# of objects here, not actually building them
+tclLibObjs:
+	@echo ${OBJS}
+# This targets actually build the objects needed for the lib in the above
+# case
+objs: ${OBJS}
+
 
 tclsh: ${TCLSH_OBJS} ${TCL_LIB_FILE}
 	${CC} @LD_FLAGS@ ${TCLSH_OBJS} @TCL_BUILD_LIB_SPEC@ ${LIBS} \
@@ -343,6 +359,12 @@ test: tcltest
 	LD_LIBRARY_PATH=`pwd`:${LD_LIBRARY_PATH}; export LD_LIBRARY_PATH; \
 	TCL_LIBRARY=${TOP_DIR}/library; export TCL_LIBRARY; \
 	( echo cd $(TOP_DIR)/tests\; source all ) | ./tcltest
+
+# Useful target to launch a built tcltest with the proper path,...
+runtest:
+	LD_LIBRARY_PATH=`pwd`:${LD_LIBRARY_PATH}; export LD_LIBRARY_PATH; \
+	TCL_LIBRARY=${TOP_DIR}/library; export TCL_LIBRARY; \
+	./tcltest
 
 # The following target outputs the name of the top-level source directory
 # for Tcl (it is used by Tk's configure script, for example).  The
@@ -423,7 +445,7 @@ install-libraries:
 		else true; \
 		fi; \
 	    done;
-	@for i in http1.0 ; \
+	@for i in http2.0 http1.0 opt0.1; \
 	    do \
 	    if [ ! -d $(SCRIPT_INSTALL_DIR)/$$i ] ; then \
 		echo "Making directory $(SCRIPT_INSTALL_DIR)/$$i"; \
@@ -439,7 +461,7 @@ install-libraries:
 	    echo "Installing $$i"; \
 	    $(INSTALL_DATA) $$i $(SCRIPT_INSTALL_DIR); \
 	    done;
-	@for i in http1.0 ; \
+	@for i in http2.0 http1.0 opt0.1; \
 	    do \
 	    for j in $(TOP_DIR)/library/$$i/*.tcl ; \
 		do \
@@ -826,7 +848,7 @@ dist: $(UNIX_DIR)/configure
 	mkdir $(DISTDIR)/library
 	cp -p $(TOP_DIR)/license.terms $(TOP_DIR)/library/*.tcl \
 		$(TOP_DIR)/library/tclIndex $(DISTDIR)/library
-	for i in http1.0; \
+	for i in http2.0 http1.0 opt0.1; \
 	    do \
 		mkdir $(DISTDIR)/library/$$i ;\
 		cp -p $(TOP_DIR)/library/$$i/*.tcl $(DISTDIR)/library/$$i; \
@@ -843,8 +865,6 @@ dist: $(UNIX_DIR)/configure
 	cp -p $(TOP_DIR)/tests/*.test $(TOP_DIR)/tests/README \
 		$(TOP_DIR)/tests/all $(TOP_DIR)/tests/remote.tcl \
 		$(TOP_DIR)/tests/defs $(DISTDIR)/tests
-	cp -r -p $(TOP_DIR)/tests/policies $(DISTDIR)/tests/policies
-	find $(DISTDIR)/tests/policies -name SCCS -exec rm -rf {} \;
 	mkdir $(DISTDIR)/win
 	cp -p $(TOP_DIR)/win/*.c $(TOP_DIR)/win/*.h $(TOP_DIR)/win/*.rc \
 		$(DISTDIR)/win
@@ -862,6 +882,7 @@ dist: $(UNIX_DIR)/configure
 	cp -p $(TOP_DIR)/mac/porting.notes $(TOP_DIR)/mac/README $(DISTDIR)/mac
 	cp -p $(TOP_DIR)/mac/*.exp $(TOP_DIR)/mac/*.pch $(DISTDIR)/mac
 	cp -p $(TOP_DIR)/mac/*.doc $(DISTDIR)/mac
+	cp -p $(TOP_DIR)/mac/*.html $(DISTDIR)/mac
 	cp -p $(TOP_DIR)/license.terms $(DISTDIR)/mac
 	mkdir $(DISTDIR)/unix/dltest
 	cp -p $(UNIX_DIR)/dltest/*.c $(UNIX_DIR)/dltest/Makefile.in \
@@ -874,7 +895,7 @@ alldist: dist
 		/proj/tcl/dist/$(DISTNAME).tar.gz \
 		/proj/tcl/dist/$(ZIPNAME)
 	cd /proj/tcl/dist; tar cf $(DISTNAME).tar $(DISTNAME); \
-		gzip -c $(DISTNAME).tar > $(DISTNAME).tar.gz; \
+		gzip -9 -c $(DISTNAME).tar > $(DISTNAME).tar.gz; \
 		compress $(DISTNAME).tar; zip -r8 $(ZIPNAME) $(DISTNAME)
 
 #

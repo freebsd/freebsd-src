@@ -8,7 +8,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclUnixInit.c 1.25 97/06/24 17:28:56
+ * SCCS: @(#) tclUnixInit.c 1.26 97/08/05 20:09:25
  */
 
 #include "tclInt.h"
@@ -74,12 +74,13 @@ static char initScript[] =
     lappend dirs $parentDir/library\n\
     foreach i $dirs {\n\
 	set tcl_library $i\n\
-	if {[file exists $i/init.tcl]} {\n\
+	set tclfile [file join $i init.tcl]\n\
+	if {[file exists $tclfile]} {\n\
             lappend tcl_pkgPath [file dirname $i]\n\
-	    if ![catch {uplevel #0 source $i/init.tcl} msg] {\n\
+	    if ![catch {uplevel #0 [list source $tclfile]} msg] {\n\
 		return\n\
 	    } else {\n\
-		append errors \"$i/init.tcl: $msg\n$errorInfo\n\"\n\
+		append errors \"$tclfile: $msg\n$errorInfo\n\"\n\
 	    }\n\
 	}\n\
     }\n\

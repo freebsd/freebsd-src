@@ -27,6 +27,10 @@ rm xyzzyTe*
 if test "$x" != "xyzzyTestingAVeryLongFileName.foo"; then
     exit
 fi
+if test -r safe.n; then
+    rm -f Base.n
+    ln safe.n Base.n
+fi
 if test -r http.n; then
     rm -f Http.n
     ln http.n Http.n
@@ -754,6 +758,10 @@ fi
 if test -r RecordEval.3; then
     rm -f Tcl_RecordAndEval.3
     ln RecordEval.3 Tcl_RecordAndEval.3
+fi
+if test -r RecEvalObj.3; then
+    rm -f Tcl_RecordAndEvalObj.3
+    ln RecEvalObj.3 Tcl_RecordAndEvalObj.3
 fi
 if test -r RegExp.3; then
     rm -f Tcl_RegExpCompile.3

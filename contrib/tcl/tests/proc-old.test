@@ -13,7 +13,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) proc-old.test 1.30 97/04/30 14:14:47
+# SCCS: @(#) proc-old.test 1.31 97/07/02 16:41:36
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -316,7 +316,7 @@ test proc-old-5.13 {error conditions} {
 } {error in procedure
     while executing
 "error "error in procedure""
-    (procedure "tproc" line 1)
+    (procedure "tproc" line 3)
     invoked from within
 "tproc"}
 test proc-old-5.14 {error conditions} {
@@ -358,7 +358,7 @@ test proc-old-5.16 {error conditions} {
 } {1 {Nested error} {Nested error
     while executing
 "error "Nested error""
-    (procedure "tproc" line 1)
+    (procedure "tproc" line 5)
     invoked from within
 "tproc"} {foo was called: x {} u}}
 

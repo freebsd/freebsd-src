@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclMain.c 1.52 96/10/22 11:23:51
+ * SCCS: @(#) tclMain.c 1.54 97/08/07 19:04:43
  */
 
 #include "tcl.h"
@@ -38,14 +38,13 @@ extern int		isatty _ANSI_ARGS_((int fd));
 extern char *		strcpy _ANSI_ARGS_((char *dst, CONST char *src));
 
 static Tcl_Interp *interp;	/* Interpreter for application. */
-static Tcl_DString command;	/* Used to buffer incomplete commands being
-				 * read from stdin. */
+
 #ifdef TCL_MEM_DEBUG
 static char dumpFile[100];	/* Records where to dump memory allocation
 				 * information. */
-static int quitFlag = 0;	/* 1 means the "checkmem" command was
-				 * invoked, so the application should quit
-				 * and dump memory allocation information. */
+static int quitFlag = 0;	/* 1 means "checkmem" command was called,
+				 * so the application should quit and dump
+				 * memory allocation information. */
 #endif
 
 /*
@@ -78,14 +77,19 @@ static int		CheckmemCmd _ANSI_ARGS_((ClientData clientData,
 
 void
 Tcl_Main(argc, argv, appInitProc)
-    int argc;				/* Number of arguments. */
-    char **argv;			/* Array of argument strings. */
-    Tcl_AppInitProc *appInitProc;	/* Application-specific initialization
-					 * procedure to call after most
-					 * initialization but before starting
-					 * to execute commands. */
+    int argc;			/* Number of arguments. */
+    char **argv;		/* Array of argument strings. */
+    Tcl_AppInitProc *appInitProc;
+				/* Application-specific initialization
+				 * procedure to call after most
+				 * initialization but before starting to
+				 * execute commands. */
 {
-    char buffer[1000], *cmd, *args, *fileName;
+    Tcl_Obj *prompt1NamePtr = NULL;
+    Tcl_Obj *prompt2NamePtr = NULL;
+    Tcl_Obj *resultPtr;
+    Tcl_Obj *commandPtr = NULL;
+    char buffer[1000], *args, *fileName, *bytes;
     int code, gotPartial, tty, length;
     int exitCode = 0;
     Tcl_Channel inChannel, outChannel, errChannel;
@@ -178,29 +182,38 @@ Tcl_Main(argc, argv, appInitProc)
      * eval, since they may have been changed.
      */
 
-    gotPartial = 0;
-    Tcl_DStringInit(&command);
+    commandPtr = Tcl_NewObj();
+    Tcl_IncrRefCount(commandPtr);
+    prompt1NamePtr = Tcl_NewStringObj("tcl_prompt1", -1);
+    Tcl_IncrRefCount(prompt1NamePtr);
+    prompt2NamePtr = Tcl_NewStringObj("tcl_prompt2", -1);
+    Tcl_IncrRefCount(prompt2NamePtr);
+    
     inChannel = Tcl_GetStdChannel(TCL_STDIN);
     outChannel = Tcl_GetStdChannel(TCL_STDOUT);
+    gotPartial = 0;
     while (1) {
 	if (tty) {
-	    char *promptCmd;
+	    Tcl_Obj *promptCmdPtr;
 
-	    promptCmd = Tcl_GetVar(interp,
-		gotPartial ? "tcl_prompt2" : "tcl_prompt1", TCL_GLOBAL_ONLY);
-	    if (promptCmd == NULL) {
-defaultPrompt:
+	    promptCmdPtr = Tcl_ObjGetVar2(interp,
+		    (gotPartial? prompt2NamePtr : prompt1NamePtr),
+		    (Tcl_Obj *) NULL, TCL_GLOBAL_ONLY);
+	    if (promptCmdPtr == NULL) {
+                defaultPrompt:
 		if (!gotPartial && outChannel) {
 		    Tcl_Write(outChannel, "% ", 2);
 		}
 	    } else {
-		code = Tcl_Eval(interp, promptCmd);
+		code = Tcl_EvalObj(interp, promptCmdPtr);
 		inChannel = Tcl_GetStdChannel(TCL_STDIN);
 		outChannel = Tcl_GetStdChannel(TCL_STDOUT);
 		errChannel = Tcl_GetStdChannel(TCL_STDERR);
 		if (code != TCL_OK) {
 		    if (errChannel) {
-			Tcl_Write(errChannel, interp->result, -1);
+			resultPtr = Tcl_GetObjResult(interp);
+			bytes = Tcl_GetStringFromObj(resultPtr, &length);
+			Tcl_Write(errChannel, bytes, length);
 			Tcl_Write(errChannel, "\n", 1);
 		    }
 		    Tcl_AddErrorInfo(interp,
@@ -215,7 +228,7 @@ defaultPrompt:
 	if (!inChannel) {
 	    goto done;
 	}
-        length = Tcl_Gets(inChannel, &command);
+        length = Tcl_GetsObj(inChannel, commandPtr);
 	if (length < 0) {
 	    goto done;
 	}
@@ -224,36 +237,41 @@ defaultPrompt:
 	}
 
         /*
-         * Add the newline removed by Tcl_Gets back to the string.
+         * Add the newline removed by Tcl_GetsObj back to the string.
          */
-        
-        (void) Tcl_DStringAppend(&command, "\n", -1);
 
-	cmd = Tcl_DStringValue(&command);
-	if (!Tcl_CommandComplete(cmd)) {
+	Tcl_AppendToObj(commandPtr, "\n", 1);
+	if (!TclObjCommandComplete(commandPtr)) {
 	    gotPartial = 1;
 	    continue;
 	}
 
 	gotPartial = 0;
-	code = Tcl_RecordAndEval(interp, cmd, 0);
+	code = Tcl_RecordAndEvalObj(interp, commandPtr, 0);
 	inChannel = Tcl_GetStdChannel(TCL_STDIN);
 	outChannel = Tcl_GetStdChannel(TCL_STDOUT);
 	errChannel = Tcl_GetStdChannel(TCL_STDERR);
-	Tcl_DStringFree(&command);
+	Tcl_SetObjLength(commandPtr, 0);
 	if (code != TCL_OK) {
 	    if (errChannel) {
-		Tcl_Write(errChannel, interp->result, -1);
+		resultPtr = Tcl_GetObjResult(interp);
+		bytes = Tcl_GetStringFromObj(resultPtr, &length);
+		Tcl_Write(errChannel, bytes, length);
 		Tcl_Write(errChannel, "\n", 1);
 	    }
-	} else if (tty && (*interp->result != 0)) {
-	    if (outChannel) {
-		Tcl_Write(outChannel, interp->result, -1);
+	} else if (tty) {
+	    resultPtr = Tcl_GetObjResult(interp);
+	    bytes = Tcl_GetStringFromObj(resultPtr, &length);
+	    if ((length > 0) && outChannel) {
+		Tcl_Write(outChannel, bytes, length);
 		Tcl_Write(outChannel, "\n", 1);
 	    }
 	}
 #ifdef TCL_MEM_DEBUG
 	if (quitFlag) {
+	    Tcl_DecrRefCount(commandPtr);
+	    Tcl_DecrRefCount(prompt1NamePtr);
+	    Tcl_DecrRefCount(prompt2NamePtr);
 	    Tcl_DeleteInterp(interp);
 	    Tcl_Exit(0);
 	}
@@ -266,7 +284,16 @@ defaultPrompt:
      * cleanup on exit.  The Tcl_Eval call should never return.
      */
 
-done:
+    done:
+    if (commandPtr != NULL) {
+	Tcl_DecrRefCount(commandPtr);
+    }
+    if (prompt1NamePtr != NULL) {
+	Tcl_DecrRefCount(prompt1NamePtr);
+    }
+    if (prompt2NamePtr != NULL) {
+	Tcl_DecrRefCount(prompt2NamePtr);
+    }
     sprintf(buffer, "exit %d", exitCode);
     Tcl_Eval(interp, buffer);
 }

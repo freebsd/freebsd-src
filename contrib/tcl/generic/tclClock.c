@@ -11,7 +11,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclClock.c 1.36 97/06/02 10:14:17
+ * SCCS: @(#) tclClock.c 1.37 97/07/29 10:29:58
  */
 
 #include "tcl.h"
@@ -79,7 +79,7 @@ Tcl_ClockObjCmd (client, interp, objc, objv)
     switch (index) {
 	case 0:			/* clicks */
 	    if (objc != 2) {
-		Tcl_WrongNumArgs(interp, 1, objv, "clicks");
+		Tcl_WrongNumArgs(interp, 2, objv, NULL);
 		return TCL_ERROR;
 	    }
 	    Tcl_SetLongObj(resultPtr, (long) TclpGetClicks());
@@ -87,8 +87,8 @@ Tcl_ClockObjCmd (client, interp, objc, objv)
 	case 1:			/* format */
 	    if ((objc < 3) || (objc > 7)) {
 		wrongFmtArgs:
-		Tcl_WrongNumArgs(interp, 1, objv,
-			"format clockval ?-format string? ?-gmt boolean?");
+		Tcl_WrongNumArgs(interp, 2, objv,
+			"clockval ?-format string? ?-gmt boolean?");
 		return TCL_ERROR;
 	    }
 
@@ -126,8 +126,8 @@ Tcl_ClockObjCmd (client, interp, objc, objv)
 	case 2:			/* scan */
 	    if ((objc < 3) || (objc > 7)) {
 		wrongScanArgs:
-		Tcl_WrongNumArgs(interp, 1, objv,
-			"scan dateString ?-base clockValue? ?-gmt boolean?");
+		Tcl_WrongNumArgs(interp, 2, objv,
+			"dateString ?-base clockValue? ?-gmt boolean?");
 		return TCL_ERROR;
 	    }
 
@@ -184,7 +184,7 @@ Tcl_ClockObjCmd (client, interp, objc, objv)
 	    return TCL_OK;
 	case 3:			/* seconds */
 	    if (objc != 2) {
-		Tcl_WrongNumArgs(interp, 1, objv, "seconds");
+		Tcl_WrongNumArgs(interp, 2, objv, NULL);
 		return TCL_ERROR;
 	    }
 	    Tcl_SetLongObj(resultPtr, (long) TclpGetSeconds());

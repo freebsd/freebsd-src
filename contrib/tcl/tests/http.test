@@ -1,4 +1,4 @@
-# Commands covered:  http_config, http_get, http_wait, http_reset
+# Commands covered:  http::config, http::geturl, http::wait, http::reset
 #
 # This file contains a collection of tests for the http script library.
 # Sourcing this file into Tcl runs the tests and
@@ -10,14 +10,23 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) http.test 1.9 97/06/24 17:32:56
+#
+# SCCS: @(#) http2.test 1.8 97/08/13 11:16:50
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
-
-if [catch {package require http 1.0}] {
-    catch {puts stderr "Cannot find http package"}
-    return
+if {[catch {package require http 2.0}]} {
+    if {[info exist http2]} {
+	catch {puts stderr "Cannot load http 2.0 package"}
+	return
+    } else {
+	catch {puts stderr "Running http 2.0 tests in slave interp"}
+	set interp [interp create http2]
+	$interp eval [list set http2 "running"]
+	$interp eval [list source [info script]]
+	interp delete $interp
+	return
+    }
 }
 
 ############### The httpd_ procedures implement a stub http server. ########
@@ -117,22 +126,30 @@ upvar #0 httpd$sock data
 
 # Respond to the query.
 
+set bindata "This is binary data\x0d\x0amore\x0dmore\x0amore\x00null"
 proc httpdRespond { sock } {
-    global httpd
+    global httpd bindata port
     upvar #0 httpd$sock data
 
-    set html "<html><head><title>HTTP/1.0 TEST</title></head><body>
+    if {[string match *binary* $data(url)]} {
+	set html "$bindata[info hostname]:$port$data(url)"
+	set type application/octet-stream
+    } else {
+	set type text/html
+
+	set html "<html><head><title>HTTP/1.0 TEST</title></head><body>
 <h1>Hello, World!</h1>
 <h2>$data(proto) $data(url)</h2>
 "
-    if {[info exists data(query)] && [string length $data(query)]} {
-	append html "<h2>Query</h2>\n<dl>\n"
-	foreach {key value} [split $data(query) &=] {
-	    append html "<dt>$key<dd>$value\n"
+	if {[info exists data(query)] && [string length $data(query)]} {
+	    append html "<h2>Query</h2>\n<dl>\n"
+	    foreach {key value} [split $data(query) &=] {
+		append html "<dt>$key<dd>$value\n"
+	    }
+	    append html </dl>\n
 	}
-	append html </dl>\n
+	append html </body></html>
     }
-    append html </body></html>
 
     if {$data(proto) == "HEAD"} {
 	puts $sock "HTTP/1.0 200 OK"
@@ -140,7 +157,7 @@ proc httpdRespond { sock } {
 	puts $sock "HTTP/1.0 200 Data follows"
     }
     puts $sock "Date: [clock format [clock clicks]]"
-    puts $sock "Content-Type: text/html"
+    puts $sock "Content-Type: $type"
     puts $sock "Content-Length: [string length $html]"
     puts $sock ""
     if {$data(proto) != "HEAD"} {
@@ -150,7 +167,7 @@ proc httpdRespond { sock } {
     httpd_log $sock Done ""
     httpdSockDone $sock
 }
-##################### end server ###########################33
+##################### end server ###########################
 
 set port 8010
 if [catch {httpd_init $port} listen] {
@@ -159,46 +176,58 @@ if [catch {httpd_init $port} listen] {
     return
 }
 
-test http-1.1 {http_config} {
-    http_config
-} {-accept */* -proxyfilter httpProxyRequired -proxyhost {} -proxyport {} -useragent {Tcl http client package 1.0}}
+test http-1.1 {http::config} {
+    http::config
+} {-accept */* -proxyfilter http::ProxyRequired -proxyhost {} -proxyport {} -useragent {Tcl http client package 2.0}}
 
-test http-1.2 {http_config} {
-    http_config -proxyfilter
-} httpProxyRequired
+test http-1.2 {http::config} {
+    http::config -proxyfilter
+} http::ProxyRequired
 
-test http-1.3 {http_config} {
-    catch {http_config -junk}
+test http-1.3 {http::config} {
+    catch {http::config -junk}
 } 1
 
-test http-1.4 {http_config} {
-    http_config -proxyhost nowhere.come -proxyport 8080 -proxyfilter myFilter -useragent "Tcl Test Suite"
-    set x [http_config]
-    http_config -proxyhost {} -proxyport {} -proxyfilter httpProxyRequired
+test http-1.4 {http::config} {
+    set savedconf [http::config]
+    http::config -proxyhost nowhere.come -proxyport 8080 -proxyfilter myFilter -useragent "Tcl Test Suite"
+    set x [http::config]
+    eval http::config $savedconf
     set x
 } {-accept */* -proxyfilter myFilter -proxyhost nowhere.come -proxyport 8080 -useragent {Tcl Test Suite}}
 
-test http-1.5 {http_config} {
-    catch {http_config -proxyhost {} -junk 8080}
+test http-1.5 {http::config} {
+    catch {http::config -proxyhost {} -junk 8080}
 } 1
 
-test http-2.1 {http_reset} {
-    catch {http_reset http#1}
+test http-2.1 {http::reset} {
+    catch {http::reset http#1}
 } 0
 
-test http-3.1 {http_get} {
-    catch {http_get -bogus flag}
+test http-3.1 {http::geturl} {
+    catch {http::geturl -bogus flag}
 } 1
-test http-3.2 {http_get} {
-    catch {http_get junk} err
+test http-3.2 {http::geturl} {
+    catch {http::geturl http:junk} err
     set err
-} {Unsupported URL: junk}
+} {Unsupported URL: http:junk}
+
+set url [info hostname]:$port
+test http-3.3 {http::geturl} {
+    set token [http::geturl $url]
+    http::data $token
+} "<html><head><title>HTTP/1.0 TEST</title></head><body>
+<h1>Hello, World!</h1>
+<h2>GET /</h2>
+</body></html>"
 
 set tail /a/b/c
 set url [info hostname]:$port/a/b/c
-test http-3.3 {http_get} {
-    set token [http_get $url]
-    http_data $token
+set binurl [info hostname]:$port/binary
+
+test http-3.4 {http::geturl} {
+    set token [http::geturl $url]
+    http::data $token
 } "<html><head><title>HTTP/1.0 TEST</title></head><body>
 <h1>Hello, World!</h1>
 <h2>GET $tail</h2>
@@ -208,37 +237,37 @@ proc selfproxy {host} {
     global port
     return [list [info hostname] $port]
 }
-test http-3.4 {http_get} {
-    http_config -proxyfilter selfproxy
-    set token [http_get $url]
-    http_config -proxyfilter httpProxyRequired
-    http_data $token
+test http-3.5 {http::geturl} {
+    http::config -proxyfilter selfproxy
+    set token [http::geturl $url]
+    http::config -proxyfilter http::ProxyRequired
+    http::data $token
 } "<html><head><title>HTTP/1.0 TEST</title></head><body>
 <h1>Hello, World!</h1>
 <h2>GET http://$url</h2>
 </body></html>"
 
-test http-3.5 {http_get} {
-    http_config -proxyfilter bogus
-    set token [http_get $url]
-    http_config -proxyfilter httpProxyRequired
-    http_data $token
+test http-3.6 {http::geturl} {
+    http::config -proxyfilter bogus
+    set token [http::geturl $url]
+    http::config -proxyfilter http::ProxyRequired
+    http::data $token
 } "<html><head><title>HTTP/1.0 TEST</title></head><body>
 <h1>Hello, World!</h1>
 <h2>GET $tail</h2>
 </body></html>"
 
-test http-3.6 {http_get} {
-    set token [http_get $url -headers {Pragma no-cache}]
-    http_data $token
+test http-3.7 {http::geturl} {
+    set token [http::geturl $url -headers {Pragma no-cache}]
+    http::data $token
 } "<html><head><title>HTTP/1.0 TEST</title></head><body>
 <h1>Hello, World!</h1>
 <h2>GET $tail</h2>
 </body></html>"
 
-test http-3.7 {http_get} {
-    set token [http_get $url -query Name=Value&Foo=Bar]
-    http_data $token
+test http-3.8 {http::geturl} {
+    set token [http::geturl $url -query Name=Value&Foo=Bar]
+    http::data $token
 } "<html><head><title>HTTP/1.0 TEST</title></head><body>
 <h1>Hello, World!</h1>
 <h2>POST $tail</h2>
@@ -249,33 +278,34 @@ test http-3.7 {http_get} {
 </dl>
 </body></html>"
 
-test http-3.8 {http_get} {
-    set token [http_get $url -validate 1]
-    http_code $token
+test http-3.9 {http::geturl} {
+    set token [http::geturl $url -validate 1]
+    http::code $token
 } "HTTP/1.0 200 OK"
 
-test http-4.1 {httpEvent} {
-    set token [http_get $url]
+
+test http-4.1 {http::Event} {
+    set token [http::geturl $url]
     upvar #0 $token data
     array set meta $data(meta)
     expr ($data(totalsize) == $meta(Content-Length))
 } 1
 
-test http-4.2 {httpEvent} {
-    set token [http_get $url]
+test http-4.2 {http::Event} {
+    set token [http::geturl $url]
     upvar #0 $token data
     array set meta $data(meta)
     string compare $data(type) [string trim $meta(Content-Type)]
 } 0
 
-test http-4.3 {httpEvent} {
-    set token [http_get $url]
-    http_code $token
+test http-4.3 {http::Event} {
+    set token [http::geturl $url]
+    http::code $token
 } {HTTP/1.0 200 Data follows}
 
-test http-4.4 {httpEvent} {
+test http-4.4 {http::Event} {
     set out [open testfile w]
-    set token [http_get $url -channel $out]
+    set token [http::geturl $url -channel $out]
     close $out
     set in [open testfile]
     set x [read $in]
@@ -287,14 +317,26 @@ test http-4.4 {httpEvent} {
 <h2>GET $tail</h2>
 </body></html>"
 
-test http-4.5 {httpEvent} {
+test http-4.5 {http::Event} {
     set out [open testfile w]
-    set token [http_get $url -channel $out]
+    set token [http::geturl $url -channel $out]
     close $out
     upvar #0 $token data
     file delete testfile
     expr $data(currentsize) == $data(totalsize)
 } 1
+
+test http-4.6 {http::Event} {
+    set out [open testfile w]
+    set token [http::geturl $binurl -channel $out]
+    close $out
+    set in [open testfile]
+    fconfigure $in -translation binary
+    set x [read $in]
+    close $in
+    file delete testfile
+    set x
+} "$bindata$binurl"
 
 proc myProgress {token total current} {
     global progress httpLog
@@ -306,55 +348,55 @@ proc myProgress {token total current} {
 if 0 {
     # This test hangs on Windows95 because the client never gets EOF
     set httpLog 1
-    test http-4.6 {httpEvent} {
-	set token [http_get $url -blocksize 50 -progress myProgress]
+    test http-4.6 {http::Event} {
+	set token [http::geturl $url -blocksize 50 -progress myProgress]
 	set progress
     } {111 111}
 }
-test http-4.7 {httpEvent} {
-    set token [http_get $url -progress myProgress]
+test http-4.7 {http::Event} {
+    set token [http::geturl $url -progress myProgress]
     set progress
 } {111 111}
-test http-4.8 {httpEvent} {
-    set token [http_get $url]
-    http_status $token
+test http-4.8 {http::Event} {
+    set token [http::geturl $url]
+    http::status $token
 } {ok}
-test http-4.9 {httpEvent} {
-    set token [http_get $url -progress myProgress]
-    http_code $token
+test http-4.9 {http::Event} {
+    set token [http::geturl $url -progress myProgress]
+    http::code $token
 } {HTTP/1.0 200 Data follows}
-test http-4.10 {httpEvent} {
-    set token [http_get $url -progress myProgress]
-    http_size $token
+test http-4.10 {http::Event} {
+    set token [http::geturl $url -progress myProgress]
+    http::size $token
 } {111}
-test http-4.11 {httpEvent} {
-    set token [http_get $url -timeout 1 -command {#}]
-    http_reset $token
-    http_status $token
+test http-4.11 {http::Event} {
+    set token [http::geturl $url -timeout 1 -command {#}]
+    http::reset $token
+    http::status $token
 } {reset}
-test http-4.12 {httpEvent} {
-    set token [http_get $url -timeout 1 -command {#}]
-    update
-    http_status $token
+test http-4.12 {http::Event} {
+    set token [http::geturl $url -timeout 1 -command {#}]
+    http::wait $token
+    http::status $token
 } {timeout}
 
-test http-5.1 {http_formatQuery} {
-    http_formatQuery name1 value1 name2 "value two"
+test http-5.1 {http::formatQuery} {
+    http::formatQuery name1 value1 name2 "value two"
 } {name1=value1&name2=value+two}
 
-test http-5.2 {http_formatQuery} {
-    http_formatQuery name1 ~bwelch name2 \xa1\xa2\xa2
+test http-5.2 {http::formatQuery} {
+    http::formatQuery name1 ~bwelch name2 \xa1\xa2\xa2
 } {name1=%7ebwelch&name2=%a1%a2%a2}
 
-test http-5.3 {http_formatQuery} {
-    http_formatQuery lines "line1\nline2\nline3"
+test http-5.3 {http::formatQuery} {
+    http::formatQuery lines "line1\nline2\nline3"
 } {lines=line1%0d%0aline2%0d%0aline3}
 
-test http-6.1 {httpProxyRequired} {
-    http_config -proxyhost [info hostname] -proxyport $port
-    set token [http_get $url]
-    http_wait $token
-    http_config -proxyhost {} -proxyport {}
+test http-6.1 {http::ProxyRequired} {
+    http::config -proxyhost [info hostname] -proxyport $port
+    set token [http::geturl $url]
+    http::wait $token
+    http::config -proxyhost {} -proxyport {}
     upvar #0 $token data
     set data(body)
 } "<html><head><title>HTTP/1.0 TEST</title></head><body>

@@ -1,11 +1,11 @@
 '\"
 '\" Copyright (c) 1993 The Regents of the University of California.
-'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\" Copyright (c) 1994-1997 Sun Microsystems, Inc.
 '\"
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) history.n 1.6 96/03/25 20:16:25
+'\" SCCS: @(#) history.n 1.11 97/08/07 16:44:49
 '\" 
 .so man.macros
 .TH history n "" Tcl "Tcl Built-In Commands"
@@ -29,7 +29,7 @@ A number:  if positive, it refers to the event with
 that number (all events are numbered starting at 1).  If the number
 is negative, it selects an event relative to the current event
 (\fB\-1\fR refers to the previous event, \fB\-2\fR to the one before that, and
-so on).
+so on).  Event \fB0\fP refers to the current event.
 .IP [2]
 A string:  selects the most recent event that matches the string.
 An event is considered to match the string either if the string is
@@ -57,10 +57,13 @@ substitution and wish to replace the current event (which invokes the
 substitution) with the command created through substitution.  The return
 value is an empty string.
 .TP
+\fBhistory clear\fR
+Erase the history list.  The current keep limit is retained.
+The history event numbers are reset.
+.TP
 \fBhistory event\fR ?\fIevent\fR?
 Returns the value of the event given by \fIevent\fR.  \fIEvent\fR
-defaults to \fB\-1\fR.  This command causes history revision to occur:
-see below for details.
+defaults to \fB\-1\fR.
 .TP
 \fBhistory info \fR?\fIcount\fR?
 Returns a formatted string (intended for humans to read) giving
@@ -68,10 +71,10 @@ the event number and contents for each of the events in the history
 list except the current event.  If \fIcount\fR is specified
 then only the most recent \fIcount\fR events are returned.
 .TP
-\fBhistory keep \fIcount\fR
+\fBhistory keep \fR?\fIcount\fR?
 This command may be used to change the size of the history list to
 \fIcount\fR events.  Initially, 20 events are retained in the history
-list.  This command returns an empty string.
+list.  If \fIcount\fR is not specified, the current keep limit is returned.
 .TP
 \fBhistory nextid\fR
 Returns the number of the next event to be recorded
@@ -82,87 +85,20 @@ event number in command-line prompts.
 Re-executes the command indicated by \fIevent\fR and return its result.
 \fIEvent\fR defaults to \fB\-1\fR.  This command results in history
 revision:  see below for details.
-.TP
-\fBhistory substitute \fIold new \fR?\fIevent\fR?
-Retrieves the command given by \fIevent\fR
-(\fB\-1\fR by default), replace any occurrences of \fIold\fR by
-\fInew\fR in the command (only simple character equality is supported;
-no wild cards), execute the resulting command, and return the result
-of that execution.  This command results in history
-revision:  see below for details.
-.TP
-\fBhistory words \fIselector\fR ?\fIevent\fR?
-Retrieves from the command given by \fIevent\fR (\fB\-1\fR by default)
-the words given by \fIselector\fR, and return those words in a string
-separated by spaces.  The \fBselector\fR argument has three forms.
-If it is a single number then it selects the word given by that
-number (\fB0\fR for the command name, \fB1\fR for its first argument,
-and so on).  If it consists of two numbers separated by a dash,
-then it selects all the arguments between those two.  Otherwise
-\fBselector\fR is treated as a pattern; all words matching that
-pattern (in the sense of \fBstring match\fR) are returned.  In
-the numeric forms \fB$\fR may be used
-to select the last word of a command.
-For example, suppose the most recent command in the history list is
-.RS
-.CS
-\fBformat  {%s is %d years old} Alice [expr $ageInMonths/12]\fR
-.CE
-Below are some history commands and the results they would produce:
-.DS
-.ta 4c
-.fi
-.UL Command "	"
-.UL Result
-.nf
-
-\fBhistory words $	[expr $ageInMonths/12]\fR
-\fBhistory words 1-2	{%s is %d years  old} Alice\fR
-\fBhistory words *a*o*	{%s is %d years old} [expr $ageInMonths/12]\fR
-.DE
-\fBHistory words\fR results in history revision:  see below for details.
-.RE
 .SH "HISTORY REVISION"
 .PP
-The history options \fBevent\fR, \fBredo\fR, \fBsubstitute\fR,
-and \fBwords\fR result in ``history revision''.
-When one of these options is invoked then the current event
+Pre-8.0 Tcl had a complex history revision mechanism.
+The current mechanism is more limited, and the old
+history operations \fBsubstitute\fP and \fBwords\fP have been removed.
+(As a consolation, the \fBclear\fP operation was added.)
+.PP
+The history option \fBredo\fR results in much simpler ``history revision''.
+When this option is invoked then the most recent event
 is modified to eliminate the history command and replace it with
 the result of the history command.
-For example, suppose that the most recent command in the history
-list is
-.CS
-\fBset a [expr $b+2]\fR
-.CE
-and suppose that the next command invoked is one of the ones on
-the left side of the table below.  The command actually recorded in
-the history event will be the corresponding one on the right side
-of the table.
-.ne 1.5c
-.DS
-.ta 4c
-.fi
-.UL "Command Typed" "	"
-.UL "Command Recorded"
-.nf
-
-\fBhistory redo	set a [expr $b+2]\fR
-\fBhistory s a b	set b [expr $b+2]\fR
-\fBset c [history w 2]	set c [expr $b+2]\fR
-.DE
-History revision is needed because event specifiers like \fB\-1\fR
-are only valid at a particular time:  once more events have been
-added to the history list a different event specifier would be
-needed.
-History revision occurs even when \fBhistory\fR is invoked
-indirectly from the current event (e.g. a user types a command
-that invokes a Tcl procedure that invokes \fBhistory\fR):  the
-top-level command whose execution eventually resulted in a
-\fBhistory\fR command is replaced.
-If you wish to invoke commands like \fBhistory words\fR without
-history revision, you can use \fBhistory event\fR to save the
-current history event and then use \fBhistory change\fR to
-restore it later.
+If you want to redo an event without modifying history, then use
+the \fBevent\fP operation to retrieve some event,
+and the \fBadd\fP operation to add it to history and execute it.
 
 .SH KEYWORDS
-event, history, record, revision
+event, history, record
