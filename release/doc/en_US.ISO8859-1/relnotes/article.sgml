@@ -1542,10 +1542,6 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       directory hierarchy.  This bug has been fixed (see security
       advisory FreeBSD-SA-01:40). &merged;</para>
 
-    <para>&os;'s TCP implementation has been made more resistant to
-      SYN floods, by eliminating the RST segment normally sent when
-      removing a connection from the listen queue.</para>
-
     <para><application>OpenSSH</application> now switches to the
       user's UID before attempting to unlink the authentication
       forwarding file, nullifying the effects of a race.</para>
