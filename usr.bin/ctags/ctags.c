@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1987, 1993, 1994
+ * Copyright (c) 1987, 1993, 1994, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,12 +33,12 @@
 
 #ifndef lint
 static char copyright[] =
-"@(#) Copyright (c) 1987, 1993, 1994\n\
+"@(#) Copyright (c) 1987, 1993, 1994, 1995\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)ctags.c	8.3 (Berkeley) 4/2/94";
+static char sccsid[] = "@(#)ctags.c	8.4 (Berkeley) 2/7/95";
 #endif /* not lint */
 
 #include <err.h>
@@ -77,6 +77,7 @@ char	lbuf[LINE_MAX];
 
 void	init __P((void));
 void	find_entries __P((char *));
+static void usage __P((void));
 
 int
 main(argc, argv)
@@ -125,15 +126,12 @@ main(argc, argv)
 			break;
 		case '?':
 		default:
-			goto usage;
+			usage();
 		}
 	argv += optind;
 	argc -= optind;
-	if (!argc) {
-usage:		(void)fprintf(stderr,
-			"usage: ctags [-BFadtuwvx] [-f tagsfile] file ...\n");
-		exit(1);
-	}
+	if (!argc)
+		usage();
 
 	init();
 
@@ -173,6 +171,13 @@ usage:		(void)fprintf(stderr,
 			}
 		}
 	exit(exit_val);
+}
+
+static void
+usage()
+{
+	(void)fprintf(stderr, "usage: ctags [-BFadtuwvx] [-f tagsfile] file ...\n");
+	exit(1);
 }
 
 /*
