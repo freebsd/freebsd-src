@@ -1,3 +1,3 @@
-SUBDIR = lib cvs mkmodules cvsinit
+SUBDIR = lib cvs mkmodules
 
 .include <bsd.subdir.mk>
