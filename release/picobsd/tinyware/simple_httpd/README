@@ -1,6 +1,6 @@
 Contributed by Marc Nicholas <marc@netstor.com>
 
-This is a simple, non-forking WWW server. It is free for non-commercial
+This is a simple HTTP server. It is free for non-commercial
 use only - see the source code for info on commercial licensing.
 
-$Id: README,v 1.1 1998/08/19 16:24:06 abial Exp $
+$Id: README,v 1.1.1.1 1998/08/27 17:38:45 abial Exp $
