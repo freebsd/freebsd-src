@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
+ * Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,16 +36,16 @@
 
 /* $FreeBSD$ */
 
+#define __INTERNAL_CAPS_VISIBLE
 #include <curses.priv.h>
 
 #include <termcap.h>
 #include <tic.h>
 #include <ctype.h>
 
-#define __INTERNAL_CAPS_VISIBLE
 #include <term_entry.h>
 
-MODULE_ID("$Id: lib_termcap.c,v 1.42 2001/09/22 19:17:31 tom Exp $")
+MODULE_ID("$Id: lib_termcap.c,v 1.43 2002/05/25 12:24:13 tom Exp $")
 
 #define CSI       233
 #define ESC       033		/* ^[ */
