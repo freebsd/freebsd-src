@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx_pci.c#4 $
+ * $Id: //depot/src/aic7xxx/aic7xxx_pci.c#5 $
  *
  * $FreeBSD$
  */
@@ -662,7 +662,7 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 	if (error != 0)
 		return (error);
 	dscommand0 = ahc_inb(ahc, DSCOMMAND0);
-	dscommand0 |= MPARCKEN;
+	dscommand0 |= MPARCKEN|CACHETHEN;
 	if ((ahc->features & AHC_ULTRA2) != 0) {
 
 		/*
@@ -670,7 +670,6 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 		 * some MBs so don't use it.
 		 */
 		dscommand0 &= ~DPARCKEN;
-		dscommand0 |= CACHETHEN;
 	}
 
 	/*
@@ -1588,10 +1587,10 @@ ahc_pci_intr(struct ahc_softc *ahc)
 		       "or write data phase\n", ahc_name(ahc));
 	}
 	if (status1 & SSE) {
-		printf("%s: Signaled System Error Detected\n", ahc_name(ahc));
+		printf("%s: Signal System Error Detected\n", ahc_name(ahc));
 	}
 	if (status1 & RMA) {
-		printf("%s: Signaled a Master Abort\n", ahc_name(ahc));
+		printf("%s: Received a Master Abort\n", ahc_name(ahc));
 	}
 	if (status1 & RTA) {
 		printf("%s: Received a Target Abort\n", ahc_name(ahc));
