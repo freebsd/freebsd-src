@@ -59,6 +59,7 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <sys/signal.h>
 #include <err.h>
 #include <ctype.h>
@@ -67,7 +68,9 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <syslog.h>
 #include <unistd.h>
+#include <varargs.h>
 
 #define	TIMEOUT	15
 
@@ -91,10 +94,12 @@ main(argc, argv)
 	time_t timval_sec;
 	struct itimerval ntimer, otimer;
 	struct tm *timp;
-	int ch, sectimeout, usemine;
+	int ch, failures, sectimeout, usemine;
 	char *ap, *mypw, *ttynam, *tzn;
 	char hostname[MAXHOSTNAMELEN], s[BUFSIZ], s1[BUFSIZ];
 	char *crypt(), *ttyname();
+
+	openlog("lock", LOG_ODELAY, LOG_AUTH);
 
 	sectimeout = TIMEOUT;
 	mypw = NULL;
@@ -181,6 +186,7 @@ main(argc, argv)
 (void)printf("lock: %s on %s. timeout in %d minutes\ntime now is %.20s%s%s",
 	    ttynam, hostname, sectimeout, ap, tzn, ap + 19);
        }
+       failures = 0;
 
 	for (;;) {
 		(void)printf("Key: ");
@@ -197,9 +203,17 @@ main(argc, argv)
 		else if (!strcmp(s, s1))
 			break;
 		(void)printf("\07\n");
+	    	failures++;
+		if (getuid() == 0)
+	    	    syslog(LOG_NOTICE, "%d ROOT UNLOCK FAILURE%s (%s on %s)",
+			failures, failures > 1 ? "S": "", ttynam, hostname);
 		if (ioctl(0, TIOCGETP, &ntty))
 			exit(1);
+		sleep(1);		/* to discourage guessing */
 	}
+	if (getuid() == 0)
+	    syslog(LOG_NOTICE, "ROOT UNLOCK ON hostname %s port %s",
+		   hostname, ttynam);
 	quit();
 	return(0); /* not reached */
 }
