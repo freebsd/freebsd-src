@@ -386,10 +386,10 @@ hifn_attach(device_t dev)
 	sc->sc_dma = (struct hifn_dma *)kva;
 	bzero(sc->sc_dma, sizeof(*sc->sc_dma));
 
-	KASSERT(sc->sc_st0 != NULL, ("hifn_attach: null bar0 tag!"));
-	KASSERT(sc->sc_sh0 != NULL, ("hifn_attach: null bar0 handle!"));
-	KASSERT(sc->sc_st1 != NULL, ("hifn_attach: null bar1 tag!"));
-	KASSERT(sc->sc_sh1 != NULL, ("hifn_attach: null bar1 handle!"));
+	KASSERT(sc->sc_st0 != 0, ("hifn_attach: null bar0 tag!"));
+	KASSERT(sc->sc_sh0 != 0, ("hifn_attach: null bar0 handle!"));
+	KASSERT(sc->sc_st1 != 0, ("hifn_attach: null bar1 tag!"));
+	KASSERT(sc->sc_sh1 != 0, ("hifn_attach: null bar1 handle!"));
 
 	/*
 	 * Reset the board and do the ``secret handshake''
