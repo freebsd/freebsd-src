@@ -36,7 +36,7 @@ MAN9+=	device.9 device_add_child.9 device_delete_child.9 device_enable.9 \
 	bus_generic_print_child.9 bus_generic_read_ivar.9 \
 	bus_generic_shutdown.9 \
 	VOP_ACLCHECK.9 VOP_GETACL.9 VOP_GETEXTATTR.9 VOP_SETACL.9 \
-	VOP_SETEXTATTR.9 acl.9 extattr.9
+	VOP_SETEXTATTR.9 acl.9 extattr.9 kobj.9
 
 MLINKS+=MD5.9 MD5Init.9 MD5.9 MD5Transform.9
 MLINKS+=VOP_ATTRIB.9 VOP_GETATTR.9
@@ -104,5 +104,12 @@ MLINKS+=microtime.9 getmicrotime.9 microtime.9 nanotime.9
 MLINKS+=microtime.9 getnanotime.9
 MLINKS+=microuptime.9 getmicrouptime.9 microuptime.9 nanouptime.9
 MLINKS+=microuptime.9 getnanouptime.9
+
+MLINKS+=kobj.9 kobj_class_compile.9
+MLINKS+=kobj.9 kobj_class_free.9
+MLINKS+=kobj.9 kobj_create.9
+MLINKS+=kobj.9 kobj_init.9
+MLINKS+=kobj.9 kobj_delete.9
+MLINKS+=kobj.9 DEFINE_CLASS.9
 
 .include <bsd.prog.mk>
