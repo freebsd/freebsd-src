@@ -1,3 +1,9 @@
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <stdio.h>
 #include <rpc/rpc.h>
 #include <rpcsvc/sm_inter.h>
@@ -91,7 +97,7 @@ int main(int argc, char **argv)
   if (argc < 2)
   {
     fprintf(stderr, "usage: test <hostname> | crash\n");
-    fprintf(stderr, "Always talks to statd at localhost\n");
+    fprintf(stderr, "always talks to statd at localhost\n");
     exit(1);
   }
 

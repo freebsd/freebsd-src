@@ -31,7 +31,10 @@
  *
  */
 
-
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include "nlm_prot.h"
 
