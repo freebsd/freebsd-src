@@ -120,7 +120,9 @@
       <title>Filesystems</title>
 
       <para arch="i386">smbfs (CIFS) support in kernel has been
-      added.</para>
+      added.  The corresponding userland filesystem mount utility can be found 
+      in the <filename>net/smbfs</filename> port in the &os; Ports 
+      Collection. </para>
 
     </sect3>
 
@@ -239,6 +241,10 @@
     IEEE 802.11 wireless network devices.  &man.wi.4; and
     &man.an.4; devices are supported.</para>
 
+    <para>&man.ifconfig.8; no longer displays the list of supported
+    media by default.  Instead it displays it when the
+    <option>-m</option> is given.</para>
+
     <sect3>
       <title>Contributed Software</title>
 
@@ -250,6 +256,9 @@
       new &man.mdoc.7; macro package (sometimes referred to as
       <literal>mdocNG</literal>), which removes many of the
       limitations of its predecessor.</para>
+
+      <para><application>OpenSSL</application> has been upgraded to
+      0.9.6a.</para>
 
       <para>&man.pim6dd.8; and &man.pim6sd.8; have been removed due to
       restrictive licensing conditions.  These programs are available
