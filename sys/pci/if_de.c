@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.12 1995/05/05 19:44:06 thomas Exp $
+ * $Id: if_de.c,v 1.24 1995/05/05 20:09:51 davidg Exp $
  *
  */
 
@@ -638,11 +638,9 @@ tulip_rx_intr(
 #if NBPFILTER > 0
 	    if (sc->tulip_bpf != NULL) {
 		bpf_tap(sc->tulip_bpf, mtod(m, caddr_t), total_len);
-		if ((eh.ether_dhost[0] & 1) == 0 &&
+		if (sc->tulip_if.if_flags & IFF_PROMISC &&
+		    (eh.ether_dhost[0] & 1) == 0 &&
 		    !TULIP_ADDREQUAL(eh.ether_dhost, sc->tulip_ac.ac_enaddr))
-		    goto next;
-	    } else if (!TULIP_ADDREQUAL(eh.ether_dhost, sc->tulip_ac.ac_enaddr)
-		    && !TULIP_ADDRBRDCST(eh.ether_dhost)) {
 		    goto next;
 	    }
 #endif
@@ -801,7 +799,8 @@ tulip_start(
     tulip_ringinfo_t *ri = &sc->tulip_txinfo;
     tulip_desc_t *sop, *eop;
     struct mbuf *m;
-    tulip_addrvec_t addrvec[TULIP_MAX_TXSEG+1], *avp;
+    static tulip_addrvec_t addrvec[TULIP_MAX_TXSEG+1];
+    tulip_addrvec_t *avp;
     int segcnt;
     tulip_uint32_t d_status;
 
@@ -1009,7 +1008,6 @@ tulip_read_srom(
     const unsigned cmdmask = (SROMCMD_RD << bitwidth);
     const unsigned msb = 1 << (bitwidth + 3 - 1);
     unsigned lastidx = (1 << bitwidth) - 1;
-    int lowbit = 0; 
 
     tulip_idle_srom(sc);
 
