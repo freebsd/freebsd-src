@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char serial_rcsid[] = "$Id: serial.c,v 1.6 1995/08/19 21:25:56 ache Exp $";
+const char serial_rcsid[] = "$Id: serial.c,v 1.7 1996/10/12 10:41:56 joerg Exp $";
 #endif
 
 #include "uudefs.h"
@@ -919,6 +919,9 @@ static struct sbaud_table
 #endif
 #ifdef B115200
   { B115200, 115200 },
+#endif
+#ifdef B230400
+  { B230400, 230400 },
 #endif
   { B0, 0 }
 };
