@@ -80,6 +80,8 @@ __stdcall static uint8_t hal_lock(/*kspin_lock * */void);
 __stdcall static void hal_unlock(/*kspin_lock *, uint8_t*/void);
 __stdcall static uint8_t hal_irql(void);
 __stdcall static uint64_t hal_perfcount(uint64_t *);
+__stdcall static uint8_t hal_raise_irql(/*uint8_t*/ void);
+__stdcall static void hal_lower_irql(/*uint8_t*/ void);
 __stdcall static void dummy (void);
 
 extern struct mtx_pool *ndis_mtxpool;
@@ -245,6 +247,26 @@ hal_perfcount(freq)
 	return((uint64_t)ticks);
 }
 
+__stdcall static uint8_t
+hal_raise_irql(/*irql*/ void)
+{
+	uint8_t			irql;
+
+	__asm__ __volatile__ ("" : "=c" (irql));
+
+	return(0);
+}
+
+__stdcall static void 
+hal_lower_irql(/*irql*/ void)
+{
+	uint8_t			irql;
+
+	__asm__ __volatile__ ("" : "=c" (irql));
+
+	return;
+}
+
 __stdcall
 static void dummy()
 {
@@ -253,23 +275,25 @@ static void dummy()
 }
 
 image_patch_table hal_functbl[] = {
-	{ "KeStallExecutionProcessor", (FUNC)hal_stall_exec_cpu },
-	{ "WRITE_PORT_ULONG", (FUNC)hal_writeport_ulong },
-	{ "WRITE_PORT_USHORT", (FUNC)hal_writeport_ushort },
-	{ "WRITE_PORT_UCHAR", (FUNC)hal_writeport_uchar },
-	{ "WRITE_PORT_BUFFER_ULONG", (FUNC)hal_writeport_buf_ulong },
-	{ "WRITE_PORT_BUFFER_USHORT", (FUNC)hal_writeport_buf_ushort },
-	{ "WRITE_PORT_BUFFER_UCHAR", (FUNC)hal_writeport_buf_uchar },
-	{ "READ_PORT_ULONG", (FUNC)hal_readport_ulong },
-	{ "READ_PORT_USHORT", (FUNC)hal_readport_ushort },
-	{ "READ_PORT_UCHAR", (FUNC)hal_readport_uchar },
-	{ "READ_PORT_BUFFER_ULONG", (FUNC)hal_readport_buf_ulong },
-	{ "READ_PORT_BUFFER_USHORT", (FUNC)hal_readport_buf_ushort },
-	{ "READ_PORT_BUFFER_UCHAR", (FUNC)hal_readport_buf_uchar },
-	{ "KfAcquireSpinLock", (FUNC)hal_lock },
-	{ "KfReleaseSpinLock", (FUNC)hal_unlock },
-	{ "KeGetCurrentIrql", (FUNC)hal_irql },
+	{ "KeStallExecutionProcessor",	(FUNC)hal_stall_exec_cpu },
+	{ "WRITE_PORT_ULONG",		(FUNC)hal_writeport_ulong },
+	{ "WRITE_PORT_USHORT",		(FUNC)hal_writeport_ushort },
+	{ "WRITE_PORT_UCHAR",		(FUNC)hal_writeport_uchar },
+	{ "WRITE_PORT_BUFFER_ULONG",	(FUNC)hal_writeport_buf_ulong },
+	{ "WRITE_PORT_BUFFER_USHORT",	(FUNC)hal_writeport_buf_ushort },
+	{ "WRITE_PORT_BUFFER_UCHAR",	(FUNC)hal_writeport_buf_uchar },
+	{ "READ_PORT_ULONG",		(FUNC)hal_readport_ulong },
+	{ "READ_PORT_USHORT",		(FUNC)hal_readport_ushort },
+	{ "READ_PORT_UCHAR",		(FUNC)hal_readport_uchar },
+	{ "READ_PORT_BUFFER_ULONG",	(FUNC)hal_readport_buf_ulong },
+	{ "READ_PORT_BUFFER_USHORT",	(FUNC)hal_readport_buf_ushort },
+	{ "READ_PORT_BUFFER_UCHAR",	(FUNC)hal_readport_buf_uchar },
+	{ "KfAcquireSpinLock",		(FUNC)hal_lock },
+	{ "KfReleaseSpinLock",		(FUNC)hal_unlock },
+	{ "KeGetCurrentIrql",		(FUNC)hal_irql },
 	{ "KeQueryPerformanceCounter",	(FUNC)hal_perfcount },
+	{ "KfLowerIrql",		(FUNC)hal_lower_irql },
+	{ "KfRaiseIrql",		(FUNC)hal_raise_irql },
 
 	/*
 	 * This last entry is a catch-all for any function we haven't
