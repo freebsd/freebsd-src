@@ -160,15 +160,8 @@ ata_start(struct ata_channel *ch)
     if (ch->flags & ATA_IMMEDIATE_MODE)
 	return;
 
-    /* lock the ATA HW for this request */
-    mtx_lock(&ch->queue_mtx);
-    ch->locking(ch, ATA_LF_LOCK);
-    if (!ATA_LOCK_CH(ch)) {
-	mtx_unlock(&ch->queue_mtx);
-	return;
-    }
-
     /* if we dont have any work, ask the subdriver(s) */
+    mtx_lock(&ch->queue_mtx);
     if (TAILQ_EMPTY(&ch->ata_queue)) {
 	mtx_unlock(&ch->queue_mtx);
 	if (ch->device[MASTER].start)
@@ -177,7 +170,15 @@ ata_start(struct ata_channel *ch)
 	    ch->device[SLAVE].start(&ch->device[SLAVE]);
 	mtx_lock(&ch->queue_mtx);
     }
+
+    /* if we have work todo, try to lock the ATA HW and start transaction */
     if ((request = TAILQ_FIRST(&ch->ata_queue))) {
+	ch->locking(ch, ATA_LF_LOCK);
+	if (!ATA_LOCK_CH(ch)) {
+	    mtx_unlock(&ch->queue_mtx);
+	    return;
+	}
+
 	TAILQ_REMOVE(&ch->ata_queue, request, chain);
 	mtx_unlock(&ch->queue_mtx);
 
@@ -192,15 +193,14 @@ ata_start(struct ata_channel *ch)
 	/* kick HW into action and wait for interrupt if it flies*/
 	if (ch->hw.transaction(request) == ATA_OP_CONTINUES)
 	    return;
-    }
 
-    /* unlock ATA channel HW */
-    ATA_UNLOCK_CH(ch);
-    ch->locking(ch, ATA_LF_UNLOCK);
+	/* unlock ATA channel HW */
+	ATA_UNLOCK_CH(ch);
+	ch->locking(ch, ATA_LF_UNLOCK);
 
-    /* if we have a request here it failed and should be completed */
-    if (request)
+	/* finish up this (failed) request */
 	ata_finish(request);
+    }
     else
 	mtx_unlock(&ch->queue_mtx);
 }

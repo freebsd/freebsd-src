@@ -297,8 +297,9 @@ struct ata_dma {
     u_int32_t			max_iosize;	/* DMA engine max IO size */
     u_int32_t			cur_iosize;	/* DMA engine current IO size */
     int				flags;
-#define ATA_DMA_ACTIVE			0x01	/* DMA transfer in progress */
-#define ATA_DMA_READ			0x02	/* transaction is a read */
+#define ATA_DMA_READ			0x01	/* transaction is a read */
+#define ATA_DMA_LOADED			0x02	/* DMA tables etc loaded */
+#define ATA_DMA_ACTIVE			0x04	/* DMA transfer in progress */
 
     void (*alloc)(struct ata_channel *ch);
     void (*free)(struct ata_channel *ch);

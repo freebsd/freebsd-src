@@ -265,8 +265,7 @@ ata_dmaload(struct ata_device *atadev, caddr_t data, int32_t count, int dir)
 		    dir ? BUS_DMASYNC_PREREAD : BUS_DMASYNC_PREWRITE);
 
     ch->dma->cur_iosize = count;
-    ch->dma->flags = dir ? (ATA_DMA_ACTIVE | ATA_DMA_READ) : ATA_DMA_ACTIVE;
-
+    ch->dma->flags = dir ? (ATA_DMA_LOADED | ATA_DMA_READ) : ATA_DMA_LOADED;
     return 0;
 }
 
@@ -281,7 +280,6 @@ ata_dmaunload(struct ata_channel *ch)
     bus_dmamap_unload(ch->dma->ddmatag, ch->dma->ddmamap);
 
     ch->dma->cur_iosize = 0;
-    ch->dma->flags = 0;
-
+    ch->dma->flags &= ~ATA_DMA_LOADED;
     return 0;
 }
