@@ -156,8 +156,6 @@
 #define MAX_WALK_CACHE_DEPTH        2           /* Objects for parse tree walks (method execution) */
 
 
-#define NS_TABLE_SIZE               4
-
 /* String size constants */
 
 #define MAX_STRING_LENGTH           512
