@@ -48,16 +48,16 @@
 #ifndef _BUF_H
 #define	_BUF_H
 
-#include    "sprite.h"
+#include "sprite.h"
 
 typedef char Byte;
 
 typedef struct Buffer {
-    int	    size; 	/* Current size of the buffer */
-    int     left;	/* Space left (== size - (inPtr - buffer)) */
-    Byte    *buffer;	/* The buffer itself */
-    Byte    *inPtr;	/* Place to write to */
-    Byte    *outPtr;	/* Place to read from */
+	int	size; 		/* Current size of the buffer */
+	int     left;		/* Space left (== size - (inPtr - buffer)) */
+	Byte    *buffer;	/* The buffer itself */
+	Byte    *inPtr;		/* Place to write to */
+	Byte    *outPtr;	/* Place to read from */
 } *Buffer;
 
 /* Buf_AddByte adds a single byte to a buffer. */
