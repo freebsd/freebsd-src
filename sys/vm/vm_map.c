@@ -563,10 +563,17 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		map->first_free = new_entry;
 	}
 
+#if 0
+	/*
+	 * Temporarily removed to avoid MAP_STACK panic, due to
+	 * MAP_STACK being a huge hack.  Will be added back in
+	 * when MAP_STACK (and the user stack mapping) is fixed.
+	 */
 	/*
 	 * It may be possible to simplify the entry
 	 */
 	vm_map_simplify_entry(map, new_entry);
+#endif
 
 	if (cow & (MAP_PREFAULT|MAP_PREFAULT_PARTIAL)) {
 		pmap_object_init_pt(map->pmap, start,
