@@ -34,7 +34,9 @@
  * $FreeBSD$
  */
 
+#include "opt_mac.h"
 #include "opt_param.h"
+
 #include <sys/param.h>
 #include <sys/aio.h> /* for aio_swake proto */
 #include <sys/domain.h>
@@ -43,6 +45,7 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -195,6 +198,9 @@ sonewconn(head, connstatus)
 	so->so_proto = head->so_proto;
 	so->so_timeo = head->so_timeo;
 	so->so_cred = crhold(head->so_cred);
+#ifdef MAC
+	mac_create_socket_from_socket(head, so);
+#endif
 	if (soreserve(so, head->so_snd.sb_hiwat, head->so_rcv.sb_hiwat) ||
 	    (*so->so_proto->pr_usrreqs->pru_attach)(so, 0, NULL)) {
 		sotryfree(so);
