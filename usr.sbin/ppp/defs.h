@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.10 1997/02/22 16:10:10 peter Exp $
+ * $Id: defs.h,v 1.11 1997/04/14 23:48:13 brian Exp $
  *
  *	TODO:
  */
@@ -46,6 +46,8 @@
 #define	SERVER_PORT	3000			/* Base server port no. */
 
 #define	MODEM_CTSRTS	TRUE	/* Default (true): use CTS/RTS signals */
+#define	RECONNECT_TIMER	3	/* Default timer for carrier loss */
+#define	RECONNECT_TRIES	0	/* Default retries on carrier loss */
 #define	REDIAL_PERIOD	30	/* Default Hold time to redial */
 #define	NEXT_REDIAL_PERIOD 3	/* Default Hold time to next number redial */
 
