@@ -208,10 +208,27 @@ signotify(struct thread *td)
 	SIGSETNAND(p->p_siglist, set);
 	SIGSETOR(td->td_siglist, set);
 
-	mtx_lock_spin(&sched_lock);
-	if (SIGPENDING(td))
+	if (SIGPENDING(td)) {
+		mtx_lock_spin(&sched_lock);
 		td->td_flags |= TDF_NEEDSIGCHK | TDF_ASTPENDING;
-	mtx_unlock_spin(&sched_lock);
+		mtx_unlock_spin(&sched_lock);
+	}
+}
+
+int
+sigonstack(size_t sp)
+{
+	struct proc *p = curthread->td_proc;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	return ((p->p_flag & P_ALTSTACK) ?
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+	    ((p->p_sigstk.ss_size == 0) ? (p->p_sigstk.ss_flags & SS_ONSTACK) :
+		((sp - (size_t)p->p_sigstk.ss_sp) < p->p_sigstk.ss_size))
+#else
+	    ((sp - (size_t)p->p_sigstk.ss_sp) < p->p_sigstk.ss_size)
+#endif
+	    : 0);
 }
 
 static __inline int
@@ -1809,6 +1826,7 @@ tdsigwakeup(struct thread *td, int sig, sig_t action)
 	struct proc *p = td->td_proc;
 	register int prop;
 
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	mtx_assert(&sched_lock, MA_OWNED);
 	prop = sigprop(sig);
 	/*
@@ -2144,13 +2162,13 @@ postsig(sig)
 		 * mask from before the sigsuspend is what we want
 		 * restored after the signal processing is completed.
 		 */
-		mtx_lock_spin(&sched_lock);
 		if (td->td_flags & TDF_OLDMASK) {
 			returnmask = td->td_oldsigmask;
+			mtx_lock_spin(&sched_lock);
 			td->td_flags &= ~TDF_OLDMASK;
+			mtx_unlock_spin(&sched_lock);
 		} else
 			returnmask = td->td_sigmask;
-		mtx_unlock_spin(&sched_lock);
 
 		SIGSETOR(td->td_sigmask, ps->ps_catchmask[_SIG_IDX(sig)]);
 		if (!SIGISMEMBER(ps->ps_signodefer, sig))
