@@ -956,8 +956,8 @@ case "${COMP_CONFS}" in
       for RC_CONF_VAR in `grep -i ^[a-z] ${DESTDIR}${CONF_FILE} |
         cut -d '=' -f 1`; do
         echo ''
-        grep ^${RC_CONF_VAR} ${DESTDIR}${CONF_FILE}
-        grep ^${RC_CONF_VAR} ${DESTDIR}/etc/defaults/rc.conf ||
+        grep -w ^${RC_CONF_VAR} ${DESTDIR}${CONF_FILE}
+        grep -w ^${RC_CONF_VAR} ${DESTDIR}/etc/defaults/rc.conf ||
           echo ' * No default variable with this name'
       done
     fi
@@ -979,8 +979,8 @@ case "${PRE_WORLD}" in
 
   for MAKE_VAR in `grep -i ^[a-z] /etc/make.conf | cut -d '=' -f 1`; do
     echo ''
-    grep ^${MAKE_VAR} ${DESTDIR}/etc/make.conf
-    grep ^#${MAKE_VAR} ${MAKE_CONF} ||
+    grep -w ^${MAKE_VAR} ${DESTDIR}/etc/make.conf
+    grep -w ^#${MAKE_VAR} ${MAKE_CONF} ||
       echo ' * No example variable with this name'
   done) | ${PAGER}
   ;;
