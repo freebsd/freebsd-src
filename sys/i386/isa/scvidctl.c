@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: scvidctl.c,v 1.2 1998/09/23 09:59:00 yokota Exp $
+ * $Id: scvidctl.c,v 1.3 1998/09/25 11:55:46 yokota Exp $
  */
 
 #include "sc.h"
@@ -49,6 +49,7 @@ extern scr_stat *cur_console;
 extern int fonts_loaded;
 extern int sc_history_size;
 extern u_char palette[];
+extern int sc_flags;
 
 int
 sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
@@ -121,6 +122,8 @@ sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
     if (scp == cur_console)
 	set_mode(scp);
     scp->status &= ~UNKNOWN_MODE;
+    if (ISTEXTSC(scp) && (sc_flags & CHAR_CURSOR))
+	set_destructive_cursor(scp);
 
     if (tp == NULL)
 	return 0;
