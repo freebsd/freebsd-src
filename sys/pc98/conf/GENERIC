@@ -148,7 +148,7 @@ device		npx0	at nexus? port IO_NPX irq 8
 
 # PCCARD (PCMCIA) support
 device		card
-device		pcic0	at isa? irq 6 port 0x3e0
+device		pcic0	at isa? irq 0 port 0x3e0
 
 # Serial (COM) ports
 #
