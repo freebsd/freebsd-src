@@ -123,7 +123,7 @@ static char *trap_msg[] = {
 	"",					/*  4 unused */
 	"",					/*  5 unused */
 	"arithmetic trap",			/*  6 T_ARITHTRAP */
-	"system forced exception",		/*  7 T_ASTFLT */
+	"",					/*  7 unused */
 	"",					/*  8 unused */
 	"general protection fault",		/*  9 T_PROTFLT */
 	"trace trap",				/* 10 T_TRCTRAP */
