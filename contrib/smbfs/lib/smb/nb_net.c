@@ -34,7 +34,6 @@
  */
 #include <sys/param.h>
 #include <sys/socket.h>
-#include <sys/ioctl.h>
 
 #include <net/if.h>
 
@@ -46,6 +45,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <ifaddrs.h>
 
 #include <netsmb/netbios.h>
 #include <netsmb/smb_lib.h>
@@ -102,77 +102,46 @@ nb_resolvehost_in(const char *name, struct sockaddr **dest)
 int
 nb_enum_if(struct nb_ifdesc **iflist, int maxif)
 {  
-	struct ifconf ifc;
-	struct ifreq *ifrqp;
 	struct nb_ifdesc *ifd;
-	struct in_addr iaddr, imask;
-	char *ifrdata, *iname;
-	int s, rdlen, ifcnt, error, iflags, i;
-	size_t ifrlen;
+	struct ifaddrs *ifp, *p;
+	int i;
 
-	*iflist = NULL;
-	s = socket(AF_INET, SOCK_DGRAM, 0);
-	if (s == -1)
+	if (getifaddrs(&ifp) < 0)
 		return errno;
 
-	rdlen = maxif * sizeof(struct ifreq);
-	ifrdata = malloc(rdlen);
-	if (ifrdata == NULL) {
-		error = ENOMEM;
-		goto bad;
-	}
-	ifc.ifc_len = rdlen;
-	ifc.ifc_buf = ifrdata;
-	if (ioctl(s, SIOCGIFCONF, &ifc) != 0) {
-		error = errno;
-		goto bad;
-	}
-	ifrqp = ifc.ifc_req;
-	ifcnt = ifc.ifc_len / sizeof(struct ifreq);
-	error = 0;
-	for (i = 0; i < ifcnt; i++) {
-		ifrlen = sizeof(struct ifreq);
-		if (ifrqp->ifr_addr.sa_len > sizeof(struct sockaddr))
-			ifrlen += ifrqp->ifr_addr.sa_len
-				- sizeof(struct sockaddr);
+	*iflist = NULL;
+	i = 0;
+	for (p = ifp; p; p = p->ifa_next) {
 
-		if (ifrqp->ifr_addr.sa_family != AF_INET)
-			goto next;
-		iname = ifrqp->ifr_name;
-		if (strlen(iname) >= sizeof(ifd->id_name))
-			goto next;
+		if (i >= maxif)
+			break;
 
-		iaddr = (*(struct sockaddr_in *)&ifrqp->ifr_addr).sin_addr;
-
-		if (ioctl(s, SIOCGIFNETMASK, ifrqp) != 0)
-			goto next;
-		imask = ((struct sockaddr_in *)&ifrqp->ifr_addr)->sin_addr;
-
-		if (ioctl(s, SIOCGIFFLAGS, ifrqp) != 0)
-			goto next;
-		iflags = ifrqp->ifr_flags;
-		if ((iflags & IFF_UP) == 0 || (iflags & IFF_BROADCAST) == 0)
-			goto next;
+		if ((p->ifa_addr->sa_family != AF_INET) ||
+		    ((p->ifa_flags & (IFF_UP|IFF_BROADCAST))
+		     != (IFF_UP|IFF_BROADCAST)))
+			continue;
+		if (strlen(p->ifa_name) >= sizeof(ifd->id_name))
+			continue;
 
 		ifd = malloc(sizeof(struct nb_ifdesc));
-		if (ifd == NULL)
+		if (ifd == NULL) {
+			freeifaddrs(ifp);
+			/* XXX should free stuff already in *iflist */
 			return ENOMEM;
+		}
 		bzero(ifd, sizeof(struct nb_ifdesc));
-		strcpy(ifd->id_name, iname);
-		ifd->id_flags = iflags;
-		ifd->id_addr = iaddr;
-		ifd->id_mask = imask;
+		strcpy(ifd->id_name, p->ifa_name);
+		ifd->id_flags = p->ifa_flags;
+		ifd->id_addr = ((struct sockaddr_in *)p->ifa_addr)->sin_addr;
+		ifd->id_mask = ((struct sockaddr_in *)p->ifa_netmask)->sin_addr;
 		ifd->id_next = *iflist;
 		*iflist = ifd;
-
-next:
-		ifrqp = (struct ifreq *)((caddr_t)ifrqp + ifrlen);
+		i++;
 	}
-bad:
-	free(ifrdata);
-	close(s);
-	return error;
-}  
+
+	freeifaddrs(ifp);
+	return 0;
+}
 
 /*ARGSUSED*/
 /*int
