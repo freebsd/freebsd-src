@@ -22,7 +22,7 @@ LC_ALL=C; export LC_ALL
 ioctl_includes=`
 	cd $1
 	find -s * -name '*.h' -follow |
-		egrep -v '^(netns)/' |
+		egrep -v '^(netns|dev/(asr|dpt|mly|ray|twe|vinum))/' |
 		xargs egrep -l \
 '^#[ 	]*define[ 	]+[A-Za-z_][A-Za-z0-9_]*[ 	]+_IO[^a-z0-9_]' |
 		sed -e 's/^/#include </' -e s'/$/>/'
