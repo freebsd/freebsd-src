@@ -84,6 +84,7 @@ extern int lladdropt_length __P((struct sockaddr_dl *));
 extern void lladdropt_fill __P((struct sockaddr_dl *, struct nd_opt_hdr *));
 extern struct sockaddr_dl *if_nametosdl __P((char *));
 extern int getinet6sysctl __P((int));
+extern int setinet6sysctl __P((int, int));
 
 /* rtsol.c */
 extern int sockopen __P((void));

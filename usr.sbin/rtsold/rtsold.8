@@ -39,15 +39,15 @@
 .\"
 .Sh SYNOPSIS
 .Nm
-.Op Fl dDfm1
+.Op Fl dDfFm1
 .Op Fl O Ar script-name
 .Ar interface ...
 .Nm
-.Op Fl dDfm1
+.Op Fl dDfFm1
 .Op Fl O Ar script-name
 .Fl a
 .Nm rtsol
-.Op Fl dD
+.Op Fl dDF
 .Op Fl O Ar script-name
 .Ar interface ...
 .Nm rtsol
@@ -176,6 +176,18 @@ from becoming a daemon (foreground mode).
 Warning messages are generated to standard error
 instead of
 .Xr syslog 3 .
+.It Fl F
+Configure
+.Xr sysctl 8
+variable related to
+.Nm
+by itself.
+Without
+.Fl F ,
+.Nm
+will not alter and obey the current
+.Xr sysctl 8
+settings.
 .It Fl m
 Enable mobility support.
 If this option is specified,
