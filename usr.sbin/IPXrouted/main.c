@@ -388,7 +388,7 @@ getinfo()
 {
 	FILE *fh;
 
-	fh = fopen("/tmp/ipxrouted.dmp", "a");
+	fh = fopen("/var/log/ipxrouted.dmp", "a");
 	if(fh == NULL)
 		return;
 
