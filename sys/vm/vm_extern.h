@@ -59,7 +59,7 @@ int sstk(struct thread *, void *, int *);
 int swapon(struct thread *, void *, int *);
 #endif			/* TYPEDEF_FOR_UAP */
 
-int kernacc(caddr_t, int, int);
+int kernacc(void *, int, int);
 vm_offset_t kmem_alloc(vm_map_t, vm_size_t);
 vm_offset_t kmem_alloc_nofault(vm_map_t, vm_size_t);
 vm_offset_t kmem_alloc_pageable(vm_map_t, vm_size_t);
@@ -72,7 +72,7 @@ vm_map_t kmem_suballoc(vm_map_t, vm_offset_t *, vm_offset_t *, vm_size_t);
 void munmapfd(struct thread *, int);
 int swaponvp(struct thread *, struct vnode *, dev_t , u_long);
 void swapout_procs(int);
-int useracc(caddr_t, int, int);
+int useracc(void *, int, int);
 int vm_fault(vm_map_t, vm_offset_t, vm_prot_t, int);
 void vm_fault_copy_entry(vm_map_t, vm_map_t, vm_map_entry_t, vm_map_entry_t);
 void vm_fault_unwire(vm_map_t, vm_offset_t, vm_offset_t);
@@ -89,8 +89,8 @@ void vmspace_unshare(struct proc *);
 void vmspace_free(struct vmspace *);
 void vmspace_exitfree(struct proc *);
 void vnode_pager_setsize(struct vnode *, vm_ooffset_t);
-void vslock(caddr_t, u_int);
-void vsunlock(caddr_t, u_int);
+void vslock(void *, u_int);
+void vsunlock(void *, u_int);
 void vm_object_print(/* db_expr_t */ long, boolean_t, /* db_expr_t */ long,
 			  char *);
 int vm_fault_quick(caddr_t v, int prot);

@@ -49,9 +49,9 @@
 .In vm/vm.h
 .In vm/vm_extern.h
 .Ft int
-.Fn kernacc "caddr_t addr" "int len" "int rw"
+.Fn kernacc "void *addr" "int len" "int rw"
 .Ft int
-.Fn useracc "caddr_t addr" "int len" "int rw"
+.Fn useracc "void *addr" "int len" "int rw"
 .Sh DESCRIPTION
 The
 .Fn kernacc

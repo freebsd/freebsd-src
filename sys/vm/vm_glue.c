@@ -130,7 +130,7 @@ static void vm_proc_swapout(struct proc *p);
  */
 int
 kernacc(addr, len, rw)
-	caddr_t addr;
+	void *addr;
 	int len, rw;
 {
 	boolean_t rv;
@@ -157,7 +157,7 @@ kernacc(addr, len, rw)
  */
 int
 useracc(addr, len, rw)
-	caddr_t addr;
+	void *addr;
 	int len, rw;
 {
 	boolean_t rv;
@@ -182,7 +182,7 @@ useracc(addr, len, rw)
  */
 void
 vslock(addr, len)
-	caddr_t addr;
+	void *addr;
 	u_int len;
 {
 
@@ -195,7 +195,7 @@ vslock(addr, len)
  */
 void
 vsunlock(addr, len)
-	caddr_t addr;
+	void *addr;
 	u_int len;
 {
 
