@@ -56,6 +56,10 @@ specifically marked as [MERGED] features.
 The VM system's anonymous storage subsystem (the ``swap pager'') has
 been completely revamped.
 
+An emulator for SVR4 binaries has been added.
+
+Support has been added for direct access to NTFS filesystems.
+
 1.2. SECURITY FIXES
 -------------------
 
@@ -66,6 +70,9 @@ The timezone database has been updated to catch all of the recent changes
 in Europe, the former Soviet Union, and Central and South America.
 The timezone data files now contain a magic number allowing for easy
 identification.
+
+The f77 emulation via f2c has been updated to a current version.
+
 
 2. Supported Configurations
 ---------------------------
