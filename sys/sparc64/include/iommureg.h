@@ -101,6 +101,23 @@
 #define IOMMUCR_EN		0x0000000000000001UL
 
 /*
+ * Diagnostic register definitions.
+ */
+#define	IOMMU_DTAG_VPNBITS	19
+#define	IOMMU_DTAG_VPNMASK	((1 << IOMMU_DTAG_VPNBITS) - 1)
+#define	IOMMU_DTAG_VPNSHIFT	13
+#define IOMMU_DTAG_ERRBITS	3
+#define	IOMMU_DTAG_ERRSHIFT	22
+#define	IOMMU_DTAG_ERRMASK \
+	(((1 << IOMMU_DTAG_ERRBITS) - 1) << IOMMU_DTAG_ERRSHIFT)
+
+#define	IOMMU_DDATA_PGBITS	21
+#define	IOMMU_DDATA_PGMASK	((1 << IOMMU_DDATA_PGBITS) - 1)
+#define	IOMMU_DDATA_PGSHIFT	13
+#define	IOMMU_DDATA_C		(1 << 28)
+#define	IOMMU_DDATA_V		(1 << 30)
+
+/*
  * IOMMU stuff
  */
 /* Entry valid */
@@ -122,11 +139,14 @@
 /* log2 of the IOMMU TTE size. */
 #define	IOTTE_SHIFT		3
 
+/* Streaming buffer line size. */
+#define	STRBUF_LINESZ		64
+
 /*
  * Number of bytes written by a stream buffer flushsync operation to indicate
  * completion.
  */
-#define	STRBUF_FLUSHSYNC_NBYTES	64
+#define	STRBUF_FLUSHSYNC_NBYTES	STRBUF_LINESZ
 
 /*
  * On sun4u each bus controller has a separate IOMMU.  The IOMMU has 
@@ -155,6 +175,7 @@
  *
  */
 
+#define	IOTSB_BASESZ		(1024 << IOTTE_SHIFT)
 #define IOTSB_VEND		(~IO_PAGE_MASK)
 #define IOTSB_VSTART(sz)	(u_int)(IOTSB_VEND << ((sz) + 10)) 
 

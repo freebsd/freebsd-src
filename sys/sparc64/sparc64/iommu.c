@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 1999, 2000 Matthew R. Green
- * Copyright (c) 2001 Thomas Moestl
+ * Copyright (c) 2001-2003 Thomas Moestl
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -151,7 +151,7 @@ static 	void iommu_diag(struct iommu_state *, vm_offset_t va);
 static STAILQ_HEAD(, bus_dmamap) iommu_maplruq =
    STAILQ_HEAD_INITIALIZER(iommu_maplruq);
 
-/* DVMA memory rman. */
+/* DVMA space rman. */
 static struct rman iommu_dvma_rman;
 
 /* Virtual and physical address of the TSB. */
@@ -282,7 +282,7 @@ iommu_init(char *name, struct iommu_state *is, int tsbsize, u_int32_t iovabase,
 	if (iovabase == -1)
 		is->is_dvmabase = IOTSB_VSTART(is->is_tsbsize);
 
-	size = PAGE_SIZE << is->is_tsbsize;
+	size = IOTSB_BASESZ << is->is_tsbsize;
 	printf("DVMA map: %#lx to %#lx\n",
 	    is->is_dvmabase, is->is_dvmabase +
 	    (size << (IO_PAGE_SHIFT - IOTTE_SHIFT)) - 1);
@@ -380,10 +380,8 @@ iommu_enter(struct iommu_state *is, vm_offset_t va, vm_offset_t pa, int flags)
 {
 	int64_t tte;
 
-#ifdef DIAGNOSTIC
-	if (va < is->is_dvmabase)
-		panic("iommu_enter: va %#lx not in DVMA space", va);
-#endif
+	KASSERT(va >= is->is_dvmabase,
+	    ("iommu_enter: va %#lx not in DVMA space", va));
 
 	tte = MAKEIOTTE(pa, !(flags & BUS_DMA_NOWRITE),
 	    !(flags & BUS_DMA_NOCACHE), (flags & BUS_DMA_STREAMING));
@@ -479,12 +477,11 @@ iommu_strbuf_flush_sync(struct iommu_state *is)
 	    timevalcmp(&cur, &end, <=))
 		microuptime(&cur);
 
-#ifdef DIAGNOSTIC
 	if (!*is->is_flushva[0] || !*is->is_flushva[1]) {
 		panic("iommu_strbuf_flush_done: flush timeout %ld, %ld at %#lx",
 		    *is->is_flushva[0], *is->is_flushva[1], is->is_flushpa[0]);
 	}
-#endif
+
 	return (*is->is_flushva[0] && *is->is_flushva[1]);
 }
 
@@ -539,7 +536,7 @@ iommu_dvmamem_alloc(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 
 	/*
 	 * XXX: This will break for 32 bit transfers on machines with more than
-	 * 16G (2 << 34 bytes) of memory.
+	 * 16G (1 << 34 bytes) of memory.
 	 */
 	if ((error = sparc64_dmamem_alloc_map(dt, mapp)) != 0)
 		return (error);
@@ -762,20 +759,6 @@ iommu_dvmamap_sync(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 
 #ifdef IOMMU_DIAG
 
-#define	IOMMU_DTAG_VPNBITS	19
-#define	IOMMU_DTAG_VPNMASK	((1 << IOMMU_DTAG_VPNBITS) - 1)
-#define	IOMMU_DTAG_VPNSHIFT	13
-#define IOMMU_DTAG_ERRBITS	3
-#define	IOMMU_DTAG_ERRSHIFT	22
-#define	IOMMU_DTAG_ERRMASK \
-	(((1 << IOMMU_DTAG_ERRBITS) - 1) << IOMMU_DTAG_ERRSHIFT)
-
-#define	IOMMU_DDATA_PGBITS	21
-#define	IOMMU_DDATA_PGMASK	((1 << IOMMU_DDATA_PGBITS) - 1)
-#define	IOMMU_DDATA_PGSHIFT	13
-#define	IOMMU_DDATA_C		(1 << 28)
-#define	IOMMU_DDATA_V		(1 << 30)
-
 /*
  * Perform an IOMMU diagnostic access and print the tag belonging to va.
  */
@@ -789,7 +772,7 @@ iommu_diag(struct iommu_state *is, vm_offset_t va)
 	membar(StoreStore | StoreLoad);
 	printf("iommu_diag: tte entry %#lx", iommu_tsb[IOTSBSLOT(va)]);
 	if (is->is_dtcmp != 0) {
-		printf(", tag compare register is %#lx\n"
+		printf(", tag compare register is %#lx\n",
 		    IOMMU_READ8(is, is_dtcmp, 0));
 	} else
 		printf("\n");
