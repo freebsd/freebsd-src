@@ -1,4 +1,4 @@
-#	$Id: BSD.root.dist,v 1.26 1997/09/29 11:10:09 ache Exp $
+#	$Id: BSD.root.dist,v 1.27 1997/10/01 13:06:30 ache Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -24,6 +24,8 @@
         ..
         kerberosIV
         ..
+	mail
+	..
         mtree
         ..
         namedb
