@@ -263,29 +263,21 @@ IntToSpeed(int nspeed)
   return B0;
 }
 
-static char *
+char *
 findblank(char *p, int instring)
 {
-  if (instring) {
-    while (*p) {
-      if (*p == '\\') {
-	memmove(p, p + 1, strlen(p));
-	if (!*p)
-	  break;
-      } else if (*p == '"')
-	return (p);
-      p++;
-    }
-    return NULL;
-  } else {
-    while (*p) {
-      if (issep(*p))
-	return (p);
-      p++;
-    }
+  while (*p) {
+    if (*p == '\\') {
+      memmove(p, p + 1, strlen(p));
+      if (!*p)
+        break;
+    } else if ((instring && *p == '"') ||
+               (!instring && (issep(*p) || *p == '#')))
+      return p;
+    p++;
   }
 
-  return p;
+  return instring ? NULL : p;
 }
 
 int
@@ -314,6 +306,8 @@ MakeArgs(char *script, char **pvect, int maxargs)
       script = findblank(script, instring);
       if (script == NULL)
         return -1;
+      else if (*script == '#')
+	*script = '\0';
       else if (*script)
 	*script++ = '\0';
     }
