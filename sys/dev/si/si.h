@@ -80,7 +80,7 @@
 #define	IS_CONTROLDEV(m)	(m & SI_CONTROLDEV_MASK)
 #define	IS_SPECIAL(m)		(m & SI_SPECIAL_MASK)
 
-#define	MINOR2SC(m)	(&si_softc[SI_CARD(m)])
+#define	MINOR2SC(m)	((struct si_softc *)devclass_get_softc(si_devclass, SI_CARD(m)))
 #define	MINOR2PP(m)	(MINOR2SC((m))->sc_ports + SI_PORT((m)))
 #define	MINOR2TP(m)	(MINOR2PP((m))->sp_tty)
 #define	TP2PP(tp)	(MINOR2PP(SI_TTY(minor((tp)->t_dev))))
