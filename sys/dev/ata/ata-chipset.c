@@ -93,6 +93,8 @@ static int ata_promise_mio_dmastop(struct ata_channel *);
 static int ata_serverworks_chipinit(device_t);
 static void ata_serverworks_setmode(struct ata_device *, int);
 static int ata_sii_chipinit(device_t);
+static int ata_sii_mio_allocate(device_t, struct ata_channel *);
+static void ata_sii_intr(void *);
 static void ata_cmd_intr(void *);
 static void ata_sii_setmode(struct ata_device *, int);
 static void ata_cmd_setmode(struct ata_device *, int);
@@ -838,11 +840,6 @@ ata_intel_new_setmode(struct ata_device *atadev, int mode)
 
     mode = ata_limit_mode(atadev, mode, ctlr->chip->max_dma);
 
-    if (mode >= ATA_SA150) {
-	atadev->mode = mode;
-	return;
-    }
-
     if (ctlr->chip->max_dma && mode > ATA_UDMA2 && !(reg54 & (0x10 << devno))) {
 	ata_prtdev(atadev,"DMA limited to UDMA33, non-ATA66 cable or device\n");
 	mode = ATA_UDMA2;
@@ -854,7 +851,10 @@ ata_intel_new_setmode(struct ata_device *atadev, int mode)
 	ata_prtdev(atadev, "%s setting %s on %s chip\n",
 		   (error) ? "failed" : "success",
 		   ata_mode2str(mode), ctlr->chip->text);
-    if (!error) {
+    if (error)
+	return;
+
+    if (ctlr->chip->max_dma < ATA_SA150) {
 	if (mode >= ATA_UDMA0) {
 	    pci_write_config(parent, 0x48, reg48 | (0x0001 << devno), 2);
 	    pci_write_config(parent, 0x4a, (reg4a & ~(0x3 << (devno<<2))) | 
@@ -894,8 +894,8 @@ ata_intel_new_setmode(struct ata_device *atadev, int mode)
 	}
 	pci_write_config(parent, 0x40, (reg40 & ~mask40) | new40, 4);
 	pci_write_config(parent, 0x44, (reg44 & ~mask44) | new44, 1);
-	atadev->mode = mode;
     }
+    atadev->mode = mode;
 }
 
 /*
@@ -1244,11 +1244,6 @@ ata_promise_setmode(struct ata_device *atadev, int mode)
 	break;
     }
 
-    if (mode >= ATA_SA150) {
-	atadev->mode = mode;
-	return;
-    }
-
     error = ata_command(atadev, ATA_C_SETFEATURES, 0, mode, 
 			ATA_C_F_SETXFER, ATA_WAIT_READY);
     if (bootverbose)
@@ -1458,11 +1453,12 @@ ata_sii_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_SII0680, 0x00, 0, SII_SETCLK,          ATA_UDMA6, "SiI 0680" },
-     { ATA_CMD649,  0x00, 0, SII_INTR|SII_ENINTR, ATA_UDMA5, "CMD 649" },
-     { ATA_CMD648,  0x00, 0, SII_INTR|SII_ENINTR, ATA_UDMA4, "CMD 648" },
-     { ATA_CMD646,  0x07, 0, SII_ENINTR,          ATA_UDMA2, "CMD 646U2" },
-     { ATA_CMD646,  0x00, 0, SII_ENINTR,          ATA_WDMA2, "CMD 646" },
+    {{ ATA_SII3112, 0x00, SIIMEMIO, 0,         ATA_SA150, "SiI 3112" },
+     { ATA_SII0680, 0x00, SIIMEMIO, SIISETCLK, ATA_UDMA6, "SiI 0680" },
+     { ATA_CMD649,  0x00, 0,        SIIINTR,   ATA_UDMA5, "CMD 649" },
+     { ATA_CMD648,  0x00, 0,        SIIINTR,   ATA_UDMA4, "CMD 648" },
+     { ATA_CMD646,  0x07, 0,        0,         ATA_UDMA2, "CMD 646U2" },
+     { ATA_CMD646,  0x00, 0,        0,         ATA_WDMA2, "CMD 646" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
@@ -1487,35 +1483,102 @@ ata_sii_chipinit(device_t dev)
 	device_printf(dev, "unable to map interrupt\n");
 	return ENXIO;
     }
-    if ((bus_setup_intr(dev, ctlr->r_irq, INTR_TYPE_BIO | INTR_ENTROPY,
-			ctlr->chip->cfg2 & SII_INTR ? 
-			ata_cmd_intr : ata_generic_intr,
-			ctlr, &ctlr->handle))) {
-	device_printf(dev, "unable to setup interrupt\n");
-	return ENXIO;
-    }
 
-    if (ctlr->chip->cfg2 & SII_ENINTR)
-	pci_write_config(dev, 0x71, 0x01, 1);
+    if (ctlr->chip->cfg1 == SIIMEMIO) {
+	if ((bus_setup_intr(dev, ctlr->r_irq, INTR_TYPE_BIO | INTR_ENTROPY,
+			    ata_sii_intr, ctlr, &ctlr->handle))) {
+	    device_printf(dev, "unable to setup interrupt\n");
+	    return ENXIO;
+	}
+	rid = 0x24;
+	if (!(ctlr->r_io2 = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+					       0, ~0, 1, RF_ACTIVE)))
+	    return ENXIO;
 
-    if (ctlr->chip->cfg2 & SII_SETCLK) {
-	if ((pci_read_config(dev, 0x8a, 1) & 0x30) != 0x10)
-	    pci_write_config(dev, 0x8a, 
-			     (pci_read_config(dev, 0x8a, 1) & 0x0F) | 0x10, 1);
-	if ((pci_read_config(dev, 0x8a, 1) & 0x30) != 0x10)
-	    device_printf(dev, "%s could not set ATA133 clock\n",
-			  ctlr->chip->text);
+	if (ctlr->chip->cfg2 & SIISETCLK) {
+	    if ((pci_read_config(dev, 0x8a, 1) & 0x30) != 0x10)
+		pci_write_config(dev, 0x8a, 
+				 (pci_read_config(dev, 0x8a, 1) & 0x0F)|0x10,1);
+	    if ((pci_read_config(dev, 0x8a, 1) & 0x30) != 0x10)
+		device_printf(dev, "%s could not set ATA133 clock\n",
+			      ctlr->chip->text);
+	}
+	ctlr->allocate = ata_sii_mio_allocate;
 	ctlr->setmode = ata_sii_setmode;
     }
-    else 
-	ctlr->setmode = ata_cmd_setmode;
+    else {
+	if ((bus_setup_intr(dev, ctlr->r_irq, INTR_TYPE_BIO | INTR_ENTROPY,
+			    ctlr->chip->cfg2 & SIIINTR ? 
+			    ata_cmd_intr : ata_generic_intr,
+			    ctlr, &ctlr->handle))) {
+	    device_printf(dev, "unable to setup interrupt\n");
+	    return ENXIO;
+	}
 
-    if ((pci_read_config(dev, 0x51, 1) & 0x08) != 0x08) {
-        device_printf(dev, "secondary channel disabled\n");
-        ctlr->channels = 1;
-    }    
+	if ((pci_read_config(dev, 0x51, 1) & 0x08) != 0x08) {
+	    device_printf(dev, "HW has secondary channel disabled\n");
+	    ctlr->channels = 1;
+	}    
 
+	/* enable interrupt as BIOS might not */
+	pci_write_config(dev, 0x71, 0x01, 1);
+
+        ctlr->setmode = ata_cmd_setmode;
+    }
     return 0;
+}
+
+static int
+ata_sii_mio_allocate(device_t dev, struct ata_channel *ch)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    int i;
+
+    for (i = ATA_DATA; i <= ATA_STATUS; i++) {
+	ch->r_io[i].res = ctlr->r_io2;
+	ch->r_io[i].offset = 0x80 + i + (ch->unit << 6);
+    }
+    ch->r_io[ATA_ALTSTAT].res = ctlr->r_io2;
+    ch->r_io[ATA_ALTSTAT].offset = 0x8a + (ch->unit << 6);
+    ch->r_io[ATA_BMCMD_PORT].res = ctlr->r_io2;
+    ch->r_io[ATA_BMCMD_PORT].offset = 0x00 + (ch->unit << 3);
+    ch->r_io[ATA_BMSTAT_PORT].res = ctlr->r_io2;
+    ch->r_io[ATA_BMSTAT_PORT].offset = 0x02 + (ch->unit << 3);
+    ch->r_io[ATA_BMDTP_PORT].res = ctlr->r_io2;
+    ch->r_io[ATA_BMDTP_PORT].offset = 0x04 + (ch->unit << 3);
+    ch->r_io[ATA_BMDEVSPEC_0].res = ctlr->r_io2;
+    ch->r_io[ATA_BMDEVSPEC_0].offset = 0xa1 + (ch->unit << 6);
+    ch->r_io[ATA_IDX_ADDR].res = ctlr->r_io2;
+
+    if (ctlr->chip->max_dma >= ATA_SA150)
+	ch->flags |= ATA_NO_SLAVE;
+    ctlr->dmainit(ch);
+    return 0;
+}
+
+static void
+ata_sii_intr(void *data)
+{
+    struct ata_pci_controller *ctlr = data;
+    struct ata_channel *ch;
+    u_int8_t dmastat;
+    int unit;
+
+    /* implement this as a toggle instead to balance load XXX */
+    for (unit = 0; unit < 2; unit++) {
+	if (!(ch = ctlr->interrupt[unit].argument))
+	    continue;
+	if (ATA_IDX_INB(ch, ATA_BMDEVSPEC_0) & 0x08) {
+	    if (ch->dma->flags & ATA_DMA_ACTIVE) {
+		if (!((dmastat = (ATA_IDX_INB(ch, ATA_BMSTAT_PORT) &
+				  ATA_BMSTAT_MASK)) & ATA_BMSTAT_INTERRUPT))
+		    continue;
+		ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, dmastat|ATA_BMSTAT_INTERRUPT);
+		DELAY(1);
+	    }
+	    ctlr->interrupt[unit].function(ch);
+	}
+    }
 }
 
 static void
@@ -1551,7 +1614,7 @@ ata_sii_setmode(struct ata_device *atadev, int mode)
 {
     device_t parent = device_get_parent(atadev->channel->dev);
     struct ata_pci_controller *ctlr = device_get_softc(parent);
-    int devno = (atadev->channel->unit << 4) + (ATA_DEV(atadev->unit) << 1);
+    int rego = (atadev->channel->unit << 4) + (ATA_DEV(atadev->unit) << 1);
     int mreg = atadev->channel->unit ? 0x84 : 0x80;
     int mask = 0x03 << (ATA_DEV(atadev->unit) << 2);
     int mval = pci_read_config(parent, mreg, 1) & ~mask;
@@ -1559,7 +1622,8 @@ ata_sii_setmode(struct ata_device *atadev, int mode)
 
     mode = ata_limit_mode(atadev, mode, ctlr->chip->max_dma);
 
-    mode = ata_check_80pin(atadev, mode);
+    if (ctlr->chip->max_dma < ATA_SA150)
+	mode = ata_check_80pin(atadev, mode);
 
     error = ata_command(atadev, ATA_C_SETFEATURES, 0, mode,
 			ATA_C_F_SETXFER, ATA_WAIT_READY);
@@ -1567,20 +1631,24 @@ ata_sii_setmode(struct ata_device *atadev, int mode)
 	ata_prtdev(atadev, "%s setting %s on %s chip\n",
 		   (error) ? "failed" : "success",
 		   ata_mode2str(mode), ctlr->chip->text);
-    if (!error) {
+
+    if (error)
+	return;
+
+    if (ctlr->chip->max_dma < ATA_SA150) {
 	if (mode >= ATA_UDMA0) {
 	    u_int8_t udmatimings[] = { 0xf, 0xb, 0x7, 0x5, 0x3, 0x2, 0x1 };
-	    u_int8_t ureg = 0xac + devno;
+	    u_int8_t ureg = 0xac + rego;
 
 	    pci_write_config(parent, mreg,
 			     mval | (0x03 << (ATA_DEV(atadev->unit) << 2)), 1);
 	    pci_write_config(parent, ureg, 
-			     (pci_read_config(parent, ureg, 1) & 0x3f) |
+			     (pci_read_config(parent, ureg, 1) & ~0x3f) |
 			     udmatimings[mode & ATA_MODE_MASK], 1);
 
 	}
 	else if (mode >= ATA_WDMA0) {
-	    u_int8_t dreg = 0xa8 + devno;
+	    u_int8_t dreg = 0xa8 + rego;
 	    u_int16_t dmatimings[] = { 0x2208, 0x10c2, 0x10c1 };
 
 	    pci_write_config(parent, mreg,
@@ -1589,15 +1657,15 @@ ata_sii_setmode(struct ata_device *atadev, int mode)
 
 	}
 	else {
-	    u_int8_t preg = 0xa4 + devno;
+	    u_int8_t preg = 0xa4 + rego;
 	    u_int16_t piotimings[] = { 0x328a, 0x2283, 0x1104, 0x10c3, 0x10c1 };
 
 	    pci_write_config(parent, mreg,
 			     mval | (0x01 << (ATA_DEV(atadev->unit) << 2)), 1);
 	    pci_write_config(parent, preg, piotimings[mode & ATA_MODE_MASK], 2);
 	}
-	atadev->mode = mode;
     }
+    atadev->mode = mode;
 }
 
 static void
