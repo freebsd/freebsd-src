@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 9, 2004
+.Dd August 9, 2004
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1264,12 +1264,14 @@ the Cisco IOS command:
 .Pp
 This option can be used to make anti-spoofing rules to reject all
 packets with source addresses not from this interface.
+See also the option
+.Cm antispoof .
 .It Cm versrcreach
 For incoming packets,
 a routing table lookup is done on the packet's source address.
 If a route to the source address exists, but not the default route
 or a blackhole/reject route, the packet matches.
-Otherwise the packet does not match.
+Otherwise, the packet does not match.
 All outgoing packets match.
 .Pp
 The name and functionality of the option is intentionally similar to
@@ -1279,6 +1281,23 @@ the Cisco IOS command:
 .Pp
 This option can be used to make anti-spoofing rules to reject all
 packets whose source address is unreachable.
+.It Cm antispoof
+For incoming packets, the packet's source address is checked if it
+belongs to a directly connected network.
+If the network is directly connected, then the interface the packet
+came on in is compared to the interface the network is connected to.
+When incoming interface and directly connected interface are not the
+same, the packet does not match.
+Otherwise, the packet does match.
+All outgoing packets match.
+.Pp
+This option can be used to make anti-spoofing rules to reject all
+packets that pretend to be from a directly connected network but do
+not come in through that interface.
+This option is similar to but more restricted than
+.Cm verrevpath
+because it engages only on packets with source addresses of directly
+connected networks instead of all source addresses.
 .El
 .Sh LOOKUP TABLES
 Lookup tables are useful to handle large sparse address sets,
@@ -2055,6 +2074,23 @@ system on the wrong interface.
 For example, a packet with a source
 address belonging to a host on a protected internal network would be
 dropped if it tried to enter the system from an external interface.
+.Pp
+The
+.Cm antispoof
+option could be used to do similar but more restricted anti-spoofing
+by adding the following to the top of a ruleset:
+.Pp
+.Dl "ipfw add deny ip from any to any not antispoof in"
+.Pp
+This rule drops all incoming packets that appear to be coming from another
+directly connected system but on the wrong interface.
+For example, a packet with a source address of
+.Li 192.168.0.0/24
+, configured on
+.Li fxp0
+, but coming in on
+.Li fxp1
+would be dropped.
 .Ss DYNAMIC RULES
 In order to protect a site from flood attacks involving fake
 TCP packets, it is safer to use dynamic rules:

@@ -2211,6 +2211,16 @@ check_body:
 				     verify_path(src_ip, NULL));
 				break;
 
+			case O_ANTISPOOF:
+				/* Outgoing packets automatically pass/match */
+				if (oif == NULL && hlen > 0 &&
+				    in_localaddr(src_ip))
+					match = verify_path(src_ip,
+							m->m_pkthdr.rcvif);
+				else
+					match = 1;
+				break;
+
 			case O_IPSEC:
 #ifdef FAST_IPSEC
 				match = (m_tag_find(m,
@@ -2844,6 +2854,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_ESTAB:
 		case O_VERREVPATH:
 		case O_VERSRCREACH:
+		case O_ANTISPOOF:
 		case O_IPSEC:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
 				goto bad_size;

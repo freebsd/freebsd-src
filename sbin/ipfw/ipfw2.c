@@ -232,6 +232,7 @@ enum tokens {
 	TOK_MACTYPE,
 	TOK_VERREVPATH,
 	TOK_VERSRCREACH,
+	TOK_ANTISPOOF,
 	TOK_IPSEC,
 	TOK_COMMENT,
 
@@ -345,6 +346,7 @@ struct _s_x rule_options[] = {
 	{ "mac-type",		TOK_MACTYPE },
 	{ "verrevpath",		TOK_VERREVPATH },
 	{ "versrcreach",	TOK_VERSRCREACH },
+	{ "antispoof",		TOK_ANTISPOOF },
 	{ "ipsec",		TOK_IPSEC },
 	{ "//",			TOK_COMMENT },
 
@@ -1290,6 +1292,10 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				printf(" versrcreach");
 				break;
 
+			case O_ANTISPOOF:
+				printf(" antispoof");
+				break;
+
 			case O_IPSEC:
 				printf(" ipsec");
 				break;
@@ -1897,7 +1903,7 @@ help(void)
 "	ipttl LIST | ipversion VER | keep-state | layer2 | limit ... |\n"
 "	mac ... | mac-type LIST | proto LIST | {recv|xmit|via} {IF|IPADDR} |\n"
 "	setup | {tcpack|tcpseq|tcpwin} NN | tcpflags SPEC | tcpoptions SPEC |\n"
-"	verrevpath | versrcreach\n"
+"	verrevpath | versrcreach | antispoof\n"
 );
 exit(0);
 }
@@ -3437,6 +3443,10 @@ read_options:
 
 		case TOK_VERSRCREACH:
 			fill_cmd(cmd, O_VERSRCREACH, 0, 0);
+			break;
+
+		case TOK_ANTISPOOF:
+			fill_cmd(cmd, O_ANTISPOOF, 0, 0);
 			break;
 
 		case TOK_IPSEC:
