@@ -1,5 +1,6 @@
 #ifndef lint
-static const char *rcsid = "$Id$";
+static const char rcsid[] =
+	"$Id: exec.c,v 1.5 1997/02/22 16:09:46 peter Exp $";
 #endif
 
 /*
@@ -22,6 +23,7 @@ static const char *rcsid = "$Id$";
  *
  */
 
+#include <err.h>
 #include "lib.h"
 
 /*
@@ -40,13 +42,13 @@ vsystem(const char *fmt, ...)
     maxargs -= 32;			/* some slop for the sh -c */
     cmd = malloc(maxargs);
     if (!cmd) {
-	whinge("vsystem can't alloc arg space");
+	warnx("vsystem can't alloc arg space");
 	return 1;
     }
 
     va_start(args, fmt);
     if (vsnprintf(cmd, maxargs, fmt, args) > maxargs) {
-	whinge("vsystem args are too long");
+	warnx("vsystem args are too long");
 	return 1;
     }
 #ifdef DEBUG
