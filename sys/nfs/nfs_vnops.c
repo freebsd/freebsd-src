@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.45 1997/03/29 12:40:20 bde Exp $
+ * $Id: nfs_vnops.c,v 1.46 1997/04/04 17:49:33 dfr Exp $
  */
 
 
@@ -2382,8 +2382,7 @@ nfs_readdirplusrpc(vp, uiop, cred)
 				for (cp = cnp->cn_nameptr, i = 1; i <= len;
 				    i++, cp++)
 				    cnp->cn_hash += (unsigned char)*cp * i;
-				if (cnp->cn_namelen <= NCHNAMLEN)
-				    cache_enter(ndp->ni_dvp, ndp->ni_vp, cnp);
+			        cache_enter(ndp->ni_dvp, ndp->ni_vp, cnp);
 			    }
 			} else {
 			    /* Just skip over the file handle */

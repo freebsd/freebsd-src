@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)namei.h	8.5 (Berkeley) 1/9/95
- * $Id$
+ * $Id: namei.h,v 1.13 1997/02/22 09:45:38 peter Exp $
  */
 
 #ifndef _SYS_NAMEI_H_
@@ -153,30 +153,18 @@ struct nameidata {
 
 /*
  * This structure describes the elements in the cache of recent
- * names looked up by namei. NCHNAMLEN is sized to make structure
- * size a power of two to optimize malloc's. Minimum reasonable
- * size is 15.
+ * names looked up by namei.
  */
-
-#ifdef NCH_STATISTICS
-#define	NCHNAMLEN	23	/* maximum name segment length we bother with */
-#else
-#define	NCHNAMLEN	31	/* maximum name segment length we bother with */
-#endif
 
 struct	namecache {
 	LIST_ENTRY(namecache) nc_hash;	/* hash chain */
-	TAILQ_ENTRY(namecache) nc_lru;	/* LRU chain */
+	LIST_ENTRY(namecache) nc_src;	/* source vnode list */
+	TAILQ_ENTRY(namecache) nc_dst;	/* destination vnode list */
 	struct	vnode *nc_dvp;		/* vnode of parent of name */
-	u_long	nc_dvpid;		/* capability number of nc_dvp */
 	struct	vnode *nc_vp;		/* vnode the name refers to */
-	u_long	nc_vpid;		/* capability number of nc_vp */
-#ifdef NCH_STATISTICS
-	u_long	nc_nbr;			/* a serial number */
-	u_long	nc_hits;		/* how many times we got hit */
-#endif
+	char	nc_flag;		/* flag bits */
 	char	nc_nlen;		/* length of name */
-	char	nc_name[NCHNAMLEN];	/* segment name */
+	char	nc_name[0];	/* segment name */
 };
 
 #ifdef KERNEL
