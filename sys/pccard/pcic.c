@@ -251,7 +251,7 @@ pcic_io(struct slot *slt, int win)
 	struct io_desc *ip = &slt->io[win];
 	if (bootverbose) {
 		printf("pcic: I/O win %d flags %x %x-%x\n", win, ip->flags,
-		    ip->start, ip->start+ip->size-1);
+		    ip->start, ip->start + ip->size - 1);
 	}
 
 	switch (win) {
@@ -271,7 +271,7 @@ pcic_io(struct slot *slt, int win)
 		unsigned char x, ioctlv;
 
 		pcic_putw(sp, reg, ip->start);
-		pcic_putw(sp, reg+2, ip->start+ip->size-1);
+		pcic_putw(sp, reg+2, ip->start + ip->size - 1);
 		x = 0;
 		if (ip->flags & IODF_ZEROWS)
 			x |= PCIC_IO_0WS;
@@ -503,29 +503,31 @@ pcic_ioctl(struct slot *slt, int cmd, caddr_t data)
 static int
 pcic_cardbus_power(struct pcic_slot *sp, struct slot *slt)
 {
-	uint32_t reg;
+	uint32_t power;
+	uint32_t state;
 
 	/*
 	 * Preserve the clock stop bit of the socket power register.
 	 */
-	reg = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_POWER);
-	printf("old value 0x%x\n", reg);
-	reg &= CB_SP_CLKSTOP;
+	power = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_POWER);
+	state =  bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
+	printf("old value 0x%x\n", power);
+	power &= ~CB_SP_CLKSTOP;
 
 	switch(slt->pwr.vpp) {
 	default:
 		return (EINVAL);
 	case 0:
-		reg |= CB_SP_VPP_0V;
+		power |= CB_SP_VPP_0V;
 		break;
 	case 33:
-		reg |= CB_SP_VPP_3V;
+		power |= CB_SP_VPP_3V;
 		break;
 	case 50:
-		reg |= CB_SP_VPP_5V;
+		power |= CB_SP_VPP_5V;
 		break;
 	case 120:
-		reg |= CB_SP_VPP_12V;
+		power |= CB_SP_VPP_12V;
 		break;
 	}
 
@@ -533,17 +535,27 @@ pcic_cardbus_power(struct pcic_slot *sp, struct slot *slt)
 	default:
 		return (EINVAL);
 	case 0:
-		reg |= CB_SP_VCC_0V;
+		power |= CB_SP_VCC_0V;
 		break;
 	case 33:
-		reg |= CB_SP_VCC_3V;
+		power |= CB_SP_VCC_3V;
 		break;
 	case 50:
-		reg |= CB_SP_VCC_5V;
+		power |= CB_SP_VCC_5V;
+		break;
+	case -1:
+		if (state & CB_SS_5VCARD)
+			power |= CB_SP_VCC_5V;
+		else if (state & CB_SS_3VCARD)
+			power |= CB_SP_VCC_3V;
+		else if (state & CB_SS_XVCARD)
+			power |= CB_SP_VCC_XV;
+		else if (state & CB_SS_YVCARD)
+			power |= CB_SP_VCC_YV;
 		break;
 	}
-	printf("Setting power reg to 0x%x", reg);
-	bus_space_write_4(sp->bst, sp->bsh, CB_SOCKET_POWER, reg);
+	printf("Setting power reg to 0x%x", power);
+	bus_space_write_4(sp->bst, sp->bsh, CB_SOCKET_POWER, power);
 
 	return (EIO);
 }
@@ -567,53 +579,67 @@ pcic_power(struct slot *slt)
 	if (sc->flags & PCIC_CARDBUS_POWER)
 		return (pcic_cardbus_power(sp, slt));
 
-	if (sc->flags & PCIC_DF_POWER) {
-		/* 
-		 * Look at the VS[12]# bits on the card.  If VS1 is clear
-		 * then we should apply 3.3 volts.
-		 */
-		c = sp->getb(sp, PCIC_CDGC);
-		if ((c & PCIC_VS1STAT) == 0)
-			slt->pwr.vcc = 33;
-	}
-	if (sc->flags & PCIC_PD_POWER) {
-		/*
-		 * The 6710 does it one way, and the '22 and '29 do it
-		 * another.  And it appears that the '32 and '33 yet
-		 * another way (which I don't know).
-		 */
-		switch (sp->controller) {
-		case PCIC_PD6710:
-			c = sp->getb(sp, PCIC_MISC1);
-			if ((c & PCIC_MISC1_5V_DETECT) == 0)
-				slt->pwr.vcc = 33;
-			break;
-		case PCIC_PD6722:
-		case PCIC_PD6729:
-			/*
-			 * VS[12] signals are in slot1's extended reg 0xa.
+	/*
+	 * If we're automatically detecting what voltage to use, then we need
+	 * to ask the bridge what type (voltage-wise) the card is.
+	 */
+	if (slt->pwr.vcc == -1) {
+		if (sc->flags & PCIC_DF_POWER) {
+			/* 
+			 * Look at the VS[12]# bits on the card.  If VS1 is
+			 * clear then the card needs 3.3V instead of 5.0V.
 			 */
-			sp2 = &sc->slots[1];
-			sp2->putb(sp2, PCIC_EXT_IND, PCIC_EXT_DATA);
-			c = sp2->getb(sp2, PCIC_EXTENDED);
-			if (sp == sp2) {	/* slot 1 */
-				if ((c & PCIC_VS1B) == 0)
+			c = sp->getb(sp, PCIC_CDGC);
+			if ((c & PCIC_VS1STAT) == 0)
+				slt->pwr.vcc = 33;
+			else
+				slt->pwr.vcc = 50;
+		}
+		if (sc->flags & PCIC_PD_POWER) {
+			/*
+			 * The 6710 does it one way, and the '22 and '29 do it
+			 * another.  And it appears that the '32 and '33 yet
+			 * another way (which I don't know).
+			 */
+			switch (sp->controller) {
+			case PCIC_PD6710:
+				c = sp->getb(sp, PCIC_MISC1);
+				if ((c & PCIC_MISC1_5V_DETECT) == 0)
 					slt->pwr.vcc = 33;
-			} else {
+				else
+					slt->pwr.vcc = 50;
+				break;
+			case PCIC_PD6722:
+			case PCIC_PD6729:
+				/*
+				 * VS[12] signals are in slot1's
+				 * extended reg 0xa for both slots.
+				 */
+				sp2 = &sc->slots[1];
+				sp2->putb(sp2, PCIC_EXT_IND, PCIC_EXT_DATA);
+				c = sp2->getb(sp2, PCIC_EXTENDED);
+				if (sp == sp2)		/* slot 1 */
+					c >>= 2;
 				if ((c & PCIC_VS1A) == 0)
 					slt->pwr.vcc = 33;
+				else
+					slt->pwr.vcc = 50;
+				break;
+			default:
+				/* I have no idea how do do this for others */
+				break;
 			}
-			break;
-		default:
-			/* I have no idea how do do this for others */
-			break;
-		}
 
-		/*
-		 * Regardless of the above, setting the Auto Power Switch
-		 * enable for the CL-PD 6722 seems to help too.
-		 */
-		reg |= PCIC_APSENA;
+			/*
+			 * Regardless of the above, setting the Auto Power
+			 * Switch Enable appears to help.
+			 */
+			reg |= PCIC_APSENA;
+		}
+		/* Other bridges here */
+		if (bootverbose && slt->pwr.vcc != -1)
+			device_printf(sc->dev, "Autodetected %d.%dV card\n",
+			    slt->pwr.vcc / 10, slt->pwr.vcc %10);
 	}
 
 	/*
@@ -675,6 +701,7 @@ pcic_power(struct slot *slt)
 		if (sc->flags & PCIC_DF_POWER)
 			reg |= PCIC_VCC_3V;
 		break;
+	case -1:			/* Treat default like 5.0V */
 	case 50:
 		if (sc->flags & PCIC_KING_POWER)
 			reg |= PCIC_VCC_5V_KING;
@@ -709,7 +736,7 @@ pcic_power(struct slot *slt)
 	 * parts of the system.  I suspect they are in the pccard bus
 	 * driver, but may be in pccardd as well.
 	 */
-	if (!(sp->getb(sp, PCIC_STATUS) & PCIC_POW) && slt->pwr.vcc == 50) {
+	if (!(sp->getb(sp, PCIC_STATUS) & PCIC_POW) && slt->pwr.vcc == -1) {
 		slt->pwr.vcc = 33;
 		slt->pwr.vpp = 0;
 		return (pcic_power(slt));
