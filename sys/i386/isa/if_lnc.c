@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.c,v 1.51 1999/01/12 00:36:30 eivind Exp $
+ * $Id: if_lnc.c,v 1.52 1999/01/31 00:39:20 paul Exp $
  */
 
 /*
@@ -1344,7 +1344,7 @@ lnc_init(struct lnc_softc *sc)
 
 	s = splimp();
 	lnc_stop(sc);
-	sc->arpcom.ac_if.if_flags |= IFF_BROADCAST | IFF_SIMPLEX; /* XXX??? */
+	sc->arpcom.ac_if.if_flags |= IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST; /* XXX??? */
 
 	/*
 	 * This sets up the memory area for the controller. Memory is set up for
