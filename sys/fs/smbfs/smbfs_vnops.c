@@ -992,17 +992,20 @@ smbfs_advlock(ap)
 	}
 	size = np->n_size;
 	switch (fl->l_whence) {
-	    case SEEK_SET:
-	    case SEEK_CUR:
+
+	case SEEK_SET:
+	case SEEK_CUR:
 		start = fl->l_start;
 		break;
-	    case SEEK_END:
-		if ((fl->l_start > 0 && size > OFF_MAX - fl->l_start) ||
-		    (fl->l_start < 0 && size + fl->l_start > OFF_MAX))
+
+	case SEEK_END:
+		if (size > OFF_MAX ||
+		    (fl->l_start > 0 && size > OFF_MAX - fl->l_start))
 			return EOVERFLOW;
-		start = fl->l_start + size;
+		start = size + fl->l_start;
 		break;
-	    default:
+
+	default:
 		return EINVAL;
 	}
 	if (start < 0)
