@@ -456,6 +456,7 @@ options 	NGATM_ATM
 options 	NGATM_ATMBASE
 options 	NGATM_SSCOP
 options 	NGATM_SSCFU
+options 	NGATM_UNI
 
 device		mn	# Munich32x/Falc54 Nx64kbit/sec cards.
 device		lmc	# tulip based LanMedia WAN cards
