@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.192.2.16 1995/06/10 14:19:56 jkh Exp $
+#	$Id: Makefile,v 1.193 1995/06/11 19:29:26 rgrimes Exp $
 #
 # How to roll a release:
 #
@@ -21,6 +21,12 @@
 EXPORT_DISTS=	games manpages proflibs dict info
 EXTRA_DISTS=	krb des ${EXPORT_DISTS}
 ALL_DISTS=	bin ${EXTRA_DISTS}
+
+# Extra source tarballs; each argument is a pair of source dir and
+# distribution name.  The dist name should not exceed 7 characters
+# (another "s" for "source" will be prepended).
+EXTRA_SRC+=	usr.sbin/sendmail/cf smailcf
+#EXTRA_SRC+=	usr.sbin/config kconf
 
 BOOT1=	etc/protocols etc/sysconfig
 
@@ -299,6 +305,18 @@ release.7:
 				TD=src ARG="$$i" ; \
 		fi ; \
 	done
+.if defined(EXTRA_SRC)
+	@set ${EXTRA_SRC} ; \
+	while [ $$# -ge 2 ] ; do \
+		if [ -d /usr/src/$$1 -a "$$1" != "CVS" ] ; then \
+			cd ${.CURDIR} ; \
+			$(MAKE) doTARBALL SD=/usr/src \
+				TN="s$$2" \
+				TD=src ARG="$$1" ; \
+		fi ; \
+		shift ; shift ; \
+	done
+.endif
 	( cd ${RD}/dists/src && \
 	if [ -f ssecure.aa ] ; then mv ssecure.* ../des ; fi && \
 	if [ -f sebones.aa ] ; then mv sebones.* ../des ; fi )
