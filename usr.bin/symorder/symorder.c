@@ -31,19 +31,19 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 char const copyright[] =
 "@(#) Copyright (c) 1980 The Regents of the University of California.\n\
  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)symorder.c	5.8 (Berkeley) 4/1/91";
+static const char sccsid[] = "@(#)symorder.c	5.8 (Berkeley) 4/1/91";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 /*
  * symorder - reorder symbol table
@@ -74,14 +74,15 @@ struct	exec exec;
 struct	stat stb;
 struct	nlist *newtab, *symtab;
 off_t	sa;
-int	nexclude, nsym, strtabsize, symfound, symkept, small, missing, clean;
+int	strtabsize, symfound, symkept, small, missing, clean;
 char	*kfile, *newstrings, *strings, asym[BUFSIZ];
+size_t	nsym, nexclude;
 
-void badfmt __P((char *));
-int excluded __P((struct nlist *));
-int inlist __P((struct nlist *));
-void reorder __P((struct nlist *, struct nlist *, int));
-int savesymb __P((struct nlist *));
+static void badfmt __P((const char *));
+static int excluded __P((struct nlist *));
+static int inlist __P((struct nlist *));
+static void reorder __P((struct nlist *, struct nlist *, int));
+static int savesymb __P((struct nlist *));
 static void usage __P((void));
 
 int
@@ -89,10 +90,10 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	register struct nlist *p, *symp;
-	register FILE *f, *xfile;
-	register int i;
-	register char *start, *t, *xfilename;
+	struct nlist *p, *symp;
+	FILE *f, *xfile;
+	int i;
+	char *start, *t, *xfilename;
 	int ch, n, o;
 
 	xfilename = NULL;
@@ -179,7 +180,7 @@ main(argc, argv)
 	n = exec.a_syms;
 	if (!(symtab = (struct nlist *)malloc(n)))
 		err(ERREXIT, NULL);
-	if (fread((void *)symtab, 1, n, f) != n)
+	if (fread((void *)symtab, 1, n, f) != (u_char)n)
 		badfmt("corrupted symbol table");
 
 	/* read string table size and string table */
@@ -246,7 +247,7 @@ main(argc, argv)
 		err(ERREXIT, "%s", kfile);
 	if (write(o, (void *)&strtabsize, sizeof(int)) != sizeof(int))
 		err(ERREXIT, "%s", kfile);
-	if (write(o, newstrings, strtabsize - sizeof(int)) !=
+	if ((u_char)write(o, newstrings, strtabsize - sizeof(int)) !=
 	    strtabsize - sizeof(int))
 		err(ERREXIT, "%s", kfile);
 
@@ -255,7 +256,7 @@ main(argc, argv)
 	if ((i = nsym - symfound) > 0) {
 		(void)printf("symorder: %d symbol%s not found:\n",
 		    i, i == 1 ? "" : "s");
-		for (i = 0; i < nsym; i++)
+		for (i = 0; i < (int)nsym; i++)
 			if (order[i].n_value == 0)
 				printf("%s\n", order[i].n_un.n_name);
 		if (!missing)
@@ -266,7 +267,7 @@ main(argc, argv)
 
 int
 savesymb(s)
-	register struct nlist *s;
+	struct nlist *s;
 {
 	if ((s->n_type & N_EXT) != N_EXT)
 		return 0;
@@ -281,11 +282,11 @@ savesymb(s)
 
 void
 reorder(st1, st2, entries)
-	register struct nlist *st1, *st2;
+	struct nlist *st1, *st2;
 	int entries;
 {
-	register struct nlist *p;
-	register int i, n;
+	struct nlist *p;
+	int i, n;
 
 	for (p = st1, n = entries; --n >= 0; ++p)
 		if (inlist(p) != -1)
@@ -304,14 +305,14 @@ reorder(st1, st2, entries)
 
 int
 inlist(p)
-	register struct nlist *p;
+	struct nlist *p;
 {
-	register char *nam;
-	register struct nlist *op;
+	char *nam;
+	struct nlist *op;
 
 	if (p->n_type & N_STAB || p->n_un.n_strx == 0)
 		return (-1);
-	if (p->n_un.n_strx < sizeof(int) || p->n_un.n_strx >= strtabsize)
+	if (p->n_un.n_strx < (int)sizeof(int) || p->n_un.n_strx >= strtabsize)
 		badfmt("corrupted symbol table");
 	nam = &strings[p->n_un.n_strx - sizeof(int)];
 	for (op = &order[nsym]; --op >= order; ) {
@@ -325,14 +326,14 @@ inlist(p)
 
 int
 excluded(p)
-	register struct nlist *p;
+	struct nlist *p;
 {
-	register char *nam;
-	register int x;
+	char *nam;
+	int x;
 
 	if (p->n_type & N_STAB || p->n_un.n_strx == 0)
 		return (0);
-	if (p->n_un.n_strx < sizeof(int) || p->n_un.n_strx >= strtabsize)
+	if (p->n_un.n_strx < (int)sizeof(int) || p->n_un.n_strx >= strtabsize)
 		badfmt("corrupted symbol table");
 	nam = &strings[p->n_un.n_strx - sizeof(int)];
 	for (x = nexclude; --x >= 0; )
@@ -343,7 +344,7 @@ excluded(p)
 
 void
 badfmt(why)
-	char *why;
+	const char *why;
 {
 	errx(ERREXIT, "%s: %s: %s", kfile, why, strerror(EFTYPE));
 }
