@@ -123,7 +123,7 @@ once_again:
 		error = 0;
 		switch (ggio.gctl_cmd) {
 		case BIO_READ:
-			if (ggio.gctl_length > bsize) {
+			if ((size_t)ggio.gctl_length > bsize) {
 				ggio.gctl_data = realloc(ggio.gctl_data,
 				    ggio.gctl_length);
 				if (ggio.gctl_data != NULL)
