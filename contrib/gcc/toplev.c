@@ -4851,17 +4851,22 @@ main (argc, argv)
 	      if (optimize_val != -1)
 		{
 		  optimize = optimize_val;
-#ifdef __alpha__
+#ifdef FORCE_OPTIMIZATION_DOWNGRADE
+#warning FORCE_OPTIMIZATION_DOWNGRADE
+		  if (optimize > FORCE_OPTIMIZATION_DOWNGRADE)
+		    {
+		      optimize = FORCE_OPTIMIZATION_DOWNGRADE;
+		      warning ("\n***\n***\t-O%d converted to \"-O%d\" due to optimizer bugs on this platform\n***\n",
+			      optimize_val,
+			      FORCE_OPTIMIZATION_DOWNGRADE);
+
+		    }
+#endif /*FORCE_OPTIMIZATION_DOWNGRADE*/
+#if defined(__alpha__)
 		  if (optimize > 1)
 		    {
-		      #ifdef FORCE_OPTIMIZATION_DOWNGRADE
-		      optimize = 1;
-		      warning ("\n***\n***\t-O%d converted to \"-O1\" due to optimizer bugs on this platform\n***\n",
-			      optimize_val);
-		      #else
 		      warning ("\n***\n***\tThe -O%d flag TRIGGERS KNOWN OPTIMIZER BUGS ON THIS PLATFORM\n***\n",
 			      optimize_val);
-		      #endif
 		    }
 #endif /*__alpha__*/
 		  optimize_size = 0;
