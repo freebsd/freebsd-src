@@ -1207,7 +1207,7 @@ int
 pccngetc(Dev_t dev)
 {
 	register int s;
-	register u_char *cp;
+	static u_char *cp;
 
 #ifdef XSERVER
 
@@ -1221,24 +1221,39 @@ pccngetc(Dev_t dev)
 
 #endif /* XSERVER */
 
+	if (cp && *cp)
+		/*
+		 * We still have a pending key sequence, e.g.
+		 * from an arrow key.  Deliver this one first.
+		 */
+		return (*cp++);
+
 	s = spltty();		/* block pcrint while we poll */
+	kbd_polling = 1;
 	cp = sgetc(0);
+	kbd_polling = 0;
 	splx(s);
 
 #if ! (PCVT_FREEBSD >= 201)
 	/* this belongs to cons.c */
 	if (*cp == '\r')
-		return('\n');
+		*cp = '\n';
 #endif /* ! (PCVT_FREEBSD >= 201) */
 
-	return (*cp);
+	return (*cp++);
 }
 
 #if PCVT_FREEBSD >= 200
 int
 pccncheckc(Dev_t dev)
 {
-	return (sgetc(1) != 0);	/* did someone press the "Any" key? */
+	char *cp;
+	int x = spltty();
+	kbd_polling = 1;
+	cp = sgetc(1);
+	kbd_polling = 0;
+	splx(x);
+	return (cp != 0);	/* did someone press the "Any" key? */
 }
 #endif /* PCVT_FREEBSD >= 200 */
 

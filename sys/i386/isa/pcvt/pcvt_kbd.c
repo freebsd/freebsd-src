@@ -935,10 +935,10 @@ loop:
 	/* see if there is data from the keyboard available either from */
 	/* the keyboard fifo or from the 8042 keyboard controller	*/
 
-	if ((( noblock) && (pcvt_kbd_count)) ||
-	    ((!noblock) && (inb(CONTROLLER_CTRL) & STATUS_OUTPBF)))
+	if ((noblock && pcvt_kbd_count) ||
+	    ((!noblock || kbd_polling) && (inb(CONTROLLER_CTRL) & STATUS_OUTPBF)))
 	{
-		if (!noblock)		/* source = 8042 */
+		if (!noblock || kbd_polling)	/* source = 8042 */
 		{
 			PCVT_KBD_DELAY();	/* 7 us delay */
 			dt = inb(CONTROLLER_DATA);	/* get from obuf */
@@ -1245,10 +1245,10 @@ no_mouse_event:
 	/* see if there is data from the keyboard available either from */
 	/* the keyboard fifo or from the 8042 keyboard controller	*/
 
-	if ((( noblock) && (pcvt_kbd_count)) ||
-	    ((!noblock) && (inb(CONTROLLER_CTRL) & STATUS_OUTPBF)))
+	if ((noblock && pcvt_kbd_count) ||
+	    ((!noblock || kbd_polling) && (inb(CONTROLLER_CTRL) & STATUS_OUTPBF)))
 	{
-		if (!noblock)		/* source = 8042 */
+		if (!noblock || kbd_polling)	/* source = 8042 */
 		{
 			PCVT_KBD_DELAY();	/* 7 us delay */
 			dt = inb(CONTROLLER_DATA);
@@ -1355,7 +1355,7 @@ regular:
 
 #if PCVT_CTRL_ALT_DEL		/*   Check for cntl-alt-del	*/
 	if((key == 76) && ctrl_down && (meta_down||altgr_down))
-		cpu_reset();
+		shutdown_nice();
 #endif /* PCVT_CTRL_ALT_DEL */
 
 #if !(PCVT_NETBSD || PCVT_FREEBSD >= 200)
