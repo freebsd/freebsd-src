@@ -60,6 +60,7 @@
 #include <netinet/in.h>
 
 #include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
@@ -166,7 +167,7 @@ _ftp_chkerr(int cd)
  * Send a command and check reply
  */
 static int
-_ftp_cmd(int cd, char *fmt, ...)
+_ftp_cmd(int cd, const char *fmt, ...)
 {
     va_list ap;
     size_t len;
@@ -197,8 +198,8 @@ _ftp_cmd(int cd, char *fmt, ...)
 /*
  * Return a pointer to the filename part of a path
  */
-static char *
-_ftp_filename(char *file)
+static const char *
+_ftp_filename(const char *file)
 {
     char *s;
     
@@ -213,7 +214,7 @@ _ftp_filename(char *file)
  * specified file.
  */
 static int
-_ftp_cwd(int cd, char *file)
+_ftp_cwd(int cd, const char *file)
 {
     char *s;
     int e;
@@ -234,9 +235,10 @@ _ftp_cwd(int cd, char *file)
  * Request and parse file stats
  */
 static int
-_ftp_stat(int cd, char *file, struct url_stat *us)
+_ftp_stat(int cd, const char *file, struct url_stat *us)
 {
-    char *ln, *s;
+    char *ln;
+    const char *s;
     struct tm tm;
     time_t t;
     int e;
@@ -447,8 +449,8 @@ _ftp_setup(int csd, int dsd, int mode)
  * Transfer file
  */
 static FILE *
-_ftp_transfer(int cd, char *oper, char *file,
-	      int mode, off_t offset, char *flags)
+_ftp_transfer(int cd, const char *oper, const char *file,
+	      int mode, off_t offset, const char *flags)
 {
     struct sockaddr_storage sin;
     struct sockaddr_in6 *sin6;
@@ -716,7 +718,7 @@ ouch:
  * Log on to FTP server
  */
 static int
-_ftp_connect(struct url *url, struct url *purl, char *flags)
+_ftp_connect(struct url *url, struct url *purl, const char *flags)
 {
     int cd, e, direct, verbose;
 #ifdef INET6
@@ -725,7 +727,8 @@ _ftp_connect(struct url *url, struct url *purl, char *flags)
     int af = AF_INET;
 #endif
     const char *logname;
-    char *user, *pwd;
+    const char *user;
+    const char *pwd;
     char localhost[MAXHOSTNAMELEN];
     char pbuf[MAXHOSTNAMELEN + MAXLOGNAME + 1];
 
@@ -842,7 +845,7 @@ _ftp_isconnected(struct url *url)
  * Check the cache, reconnect if no luck
  */
 static int
-_ftp_cached_connect(struct url *url, struct url *purl, char *flags)
+_ftp_cached_connect(struct url *url, struct url *purl, const char *flags)
 {
     int e, cd;
 
@@ -901,7 +904,7 @@ _ftp_get_proxy(void)
  * Get and stat file
  */
 FILE *
-fetchXGetFTP(struct url *url, struct url_stat *us, char *flags)
+fetchXGetFTP(struct url *url, struct url_stat *us, const char *flags)
 {
     struct url *purl;
     int cd;
@@ -939,7 +942,7 @@ fetchXGetFTP(struct url *url, struct url_stat *us, char *flags)
  * Get file
  */
 FILE *
-fetchGetFTP(struct url *url, char *flags)
+fetchGetFTP(struct url *url, const char *flags)
 {
     return fetchXGetFTP(url, NULL, flags);
 }
@@ -948,7 +951,7 @@ fetchGetFTP(struct url *url, char *flags)
  * Put file
  */
 FILE *
-fetchPutFTP(struct url *url, char *flags)
+fetchPutFTP(struct url *url, const char *flags)
 {
     struct url *purl;
     int cd;
@@ -982,7 +985,7 @@ fetchPutFTP(struct url *url, char *flags)
  * Get file stats
  */
 int
-fetchStatFTP(struct url *url, struct url_stat *us, char *flags)
+fetchStatFTP(struct url *url, struct url_stat *us, const char *flags)
 {
     struct url *purl;
     int cd;
@@ -1019,9 +1022,8 @@ fetchStatFTP(struct url *url, struct url_stat *us, char *flags)
 /*
  * List a directory
  */
-extern void warnx(char *, ...);
 struct url_ent *
-fetchListFTP(struct url *url, char *flags)
+fetchListFTP(struct url *url, const char *flags)
 {
     warnx("fetchListFTP(): not implemented");
     return NULL;
