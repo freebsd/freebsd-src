@@ -120,7 +120,7 @@ newstat_copyout(struct stat *buf, void *ubuf)
 	/* Lie about disk drives which are character devices
 	 * in FreeBSD but block devices under Linux.
 	 */
-	if (tbuf.stat_mode & S_IFCHR &&
+	if (S_ISCHR(tbuf.stat_mode) &&
 	    (dev = udev2dev(buf->st_rdev, 0)) != NODEV) {
 		cdevsw = devsw(dev);
 		if (cdevsw != NULL && (cdevsw->d_flags & D_DISK)) {
