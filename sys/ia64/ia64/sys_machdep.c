@@ -1,22 +1,17 @@
-/*-
+/*
+ * Copyright (c) 2003 Marcel Moolenaar
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -29,32 +24,18 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- * $FreeBSD$
- *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/sysent.h>
-#include <sys/proc.h>
-
-#include <vm/vm.h>
-#include <sys/lock.h>
-#include <vm/pmap.h>
-#include <vm/vm_map.h>
-#include <vm/vm_extern.h>
-
-#include <sys/user.h>
 
 #include <machine/cpu.h>
 #include <machine/sysarch.h>
-
-#include <vm/vm_kern.h>		/* for kernel_map */
-
-#include <machine/fpu.h>
 
 #ifndef _SYS_SYSPROTO_H_
 struct sysarch_args {
@@ -64,13 +45,74 @@ struct sysarch_args {
 #endif
 
 int
-sysarch(td, uap)
-	struct thread *td;
-	register struct sysarch_args *uap;
+sysarch(struct thread *td, struct sysarch_args *uap)
 {
+	struct ia64_iodesc iod;
 	int error;
 
+	error = 0;
 	switch(uap->op) {
+	case IA64_IORD:
+		copyin(uap->parms, &iod, sizeof(iod));
+		switch (iod.width) {
+		case 1:
+			iod.val = inb(iod.port);
+			break;
+		case 2:
+			if (iod.port & 1) {
+				iod.val = inb(iod.port);
+				iod.val |= inb(iod.port + 1) << 8;
+			} else
+				iod.val = inw(iod.port);
+			break;
+		case 4:
+			if (iod.port & 3) {
+				if (iod.port & 1) {
+					iod.val = inb(iod.port);
+					iod.val |= inw(iod.port + 1) << 8;
+					iod.val |= inb(iod.port + 3) << 24;
+				} else {
+					iod.val = inw(iod.port);
+					iod.val |= inw(iod.port + 2) << 16;
+				}
+			} else
+				iod.val = inl(iod.port);
+			break;
+		default:
+			error = EINVAL;
+		}
+		copyout(&iod, uap->parms, sizeof(iod));
+		break;
+	case IA64_IOWR:
+		copyin(uap->parms, &iod, sizeof(iod));
+		switch (iod.width) {
+		case 1:
+			outb(iod.port, iod.val);
+			break;
+		case 2:
+			if (iod.port & 1) {
+				outb(iod.port, iod.val);
+				outb(iod.port + 1, iod.val >> 8);
+			} else
+				outw(iod.port, iod.val);
+			break;
+		case 4:
+			if (iod.port & 3) {
+				if (iod.port & 1) {
+					outb(iod.port, iod.val);
+					outw(iod.port + 1, iod.val >> 8);
+					outb(iod.port + 3, iod.val >> 24);
+				} else {
+					outw(iod.port, iod.val);
+					outw(iod.port + 2, iod.val >> 16);
+				}
+			} else
+				outl(iod.port, iod.val);
+			break;
+		default:
+			error = EINVAL;
+		}
+		break;
 	default:
 		error = EINVAL;
 		break;
