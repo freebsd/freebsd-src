@@ -80,9 +80,9 @@ __FBSDID("$FreeBSD$");
 
 static void	makelabel(const char *, struct disklabel *);
 static int	writelabel(void);
-static int readlabel(int flag);
+static int	readlabel(int flag);
 static void	display(FILE *, const struct disklabel *);
-static int edit(void);
+static int	edit(void);
 static int	editit(void);
 static void	fixlabel(struct disklabel *);
 static char	*skip(char *);
@@ -360,7 +360,7 @@ readboot(void)
 		if (i != st.st_size)
 			err(1, "read error %s", xxboot);
 		return;
-	} 
+	}
 	errx(1, "boot code %s is wrong size", xxboot);
 }
 
@@ -407,7 +407,7 @@ writelabel(void)
 		gctl_ro_param(grq, "verb", -1, "write label");
 		gctl_ro_param(grq, "class", -1, "BSD");
 		gctl_ro_param(grq, "geom", -1, dkname);
-		gctl_ro_param(grq, "label", 148+16*8, 
+		gctl_ro_param(grq, "label", 148+16*8,
 			bootarea + labeloffset + labelsoffset * secsize);
 		errstr = gctl_issue(grq);
 		if (errstr != NULL) {
@@ -825,10 +825,11 @@ getasciilabel(FILE *f, struct disklabel *lp)
 		if (!strcmp(cp, "sectors/track")) {
 			v = strtoul(tp, NULL, 10);
 #if (ULONG_MAX != 0xffffffffUL)
-			if (v == 0 || v > 0xffffffff) {
+			if (v == 0 || v > 0xffffffff)
 #else
-			if (v == 0) {
+			if (v == 0)
 #endif
+			{
 				fprintf(stderr, "line %d: %s: bad %s\n",
 				    lineno, tp, cp);
 				errors++;
@@ -971,9 +972,9 @@ getasciilabel(FILE *f, struct disklabel *lp)
 		fprintf(stderr, "line %d: too few numeric fields\n", lineno); \
 		return (1); \
 	} else { \
-	        char *tmp; \
+		char *tmp; \
 		cp = tp, tp = word(cp); \
-	        (n) = strtoul(cp, &tmp, 10); \
+		(n) = strtoul(cp, &tmp, 10); \
 		if (tmp) (w) = *tmp; \
 	} \
 } while (0)
@@ -1240,7 +1241,7 @@ checklabel(struct disklabel *lp)
 				}
 			} else {
 				/* allow them to be out of order for old-style tables */
-				if (pp->p_offset < current_offset && 
+				if (pp->p_offset < current_offset &&
 				    seen_default_offset && i != RAW_PART &&
 				    pp->p_fstype != FS_VINUM) {
 					fprintf(stderr,
@@ -1251,8 +1252,8 @@ checklabel(struct disklabel *lp)
 					errors++;
 				} else if (pp->p_offset != current_offset &&
 				    i != RAW_PART && seen_default_offset) {
-					/* 
-					 * this may give unneeded warnings if 
+					/*
+					 * this may give unneeded warnings if
 					 * partitions are out-of-order
 					 */
 					warnx(
@@ -1261,7 +1262,7 @@ checklabel(struct disklabel *lp)
 				}
 			}
 			if (i != RAW_PART)
-				current_offset = pp->p_offset + pp->p_size; 
+				current_offset = pp->p_offset + pp->p_size;
 		}
 	}
 
@@ -1309,7 +1310,7 @@ checklabel(struct disklabel *lp)
 		/* this will check for all possible overlaps once and only once */
 		for (j = 0; j < i; j++) {
 			pp2 = &lp->d_partitions[j];
-			if (j != RAW_PART && i != RAW_PART &&	
+			if (j != RAW_PART && i != RAW_PART &&
 			    pp->p_fstype != FS_VINUM &&
 			    pp2->p_fstype != FS_VINUM &&
 			    part_set[i] && part_set[j]) {
