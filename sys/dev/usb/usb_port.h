@@ -107,6 +107,8 @@ __CONCAT(dname,_match)(parent, match, aux) \
 #define USB_MATCH_START(dname, uaa) \
 	struct usb_attach_arg *uaa = aux
 
+#define USB_MATCH_SETUP		/* nop */
+
 #define USB_ATTACH(dname) \
 void \
 __CONCAT(dname,_attach)(parent, self, aux) \
@@ -221,6 +223,8 @@ __CONCAT(dname,_match)(parent, match, aux) \
 #define USB_MATCH_START(dname, uaa) \
 	struct usb_attach_arg *uaa = aux
 
+#define USB_MATCH_SETUP		/* nop */
+
 #define USB_ATTACH(dname) \
 void \
 __CONCAT(dname,_attach)(parent, self, aux) \
@@ -331,6 +335,9 @@ __CONCAT(dname,_match)(device_t self)
 
 #define USB_MATCH_START(dname, uaa) \
         struct usb_attach_arg *uaa = device_get_ivars(self)
+
+#define USB_MATCH_SETUP \
+	sc->sc_dev = self
 
 #define USB_ATTACH(dname) \
 Static int \
