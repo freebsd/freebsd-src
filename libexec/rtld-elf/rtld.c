@@ -77,6 +77,8 @@ static void digest_dynamic(Obj_Entry *);
 static Obj_Entry *digest_phdr(const Elf_Phdr *, int, caddr_t, const char *);
 static Obj_Entry *dlcheck(void *);
 static bool donelist_check(DoneList *, const Obj_Entry *);
+static void errmsg_restore(char *);
+static char *errmsg_save(void);
 static char *find_library(const char *, const Obj_Entry *);
 static const char *gethints(void);
 static void init_dag(Obj_Entry *);
@@ -457,6 +459,30 @@ _rtld_error(const char *fmt, ...)
     va_end(ap);
 }
 
+/*
+ * Return a dynamically-allocated copy of the current error message, if any.
+ */
+static char *
+errmsg_save(void)
+{
+    return error_message == NULL ? NULL : xstrdup(error_message);
+}
+
+/*
+ * Restore the current error message from a copy which was previously saved
+ * by errmsg_save().  The copy is freed.
+ */
+static void
+errmsg_restore(char *saved_msg)
+{
+    if (saved_msg == NULL)
+	error_message = NULL;
+    else {
+	_rtld_error("%s", saved_msg);
+	free(saved_msg);
+    }
+}
+
 static const char *
 basename(const char *name)
 {
@@ -696,7 +722,7 @@ dlcheck(void *handle)
 	if (obj == (Obj_Entry *) handle)
 	    break;
 
-    if (obj == NULL || obj->dl_refcount == 0) {
+    if (obj == NULL || obj->refcount == 0 || obj->dl_refcount == 0) {
 	_rtld_error("Invalid shared object handle %p", handle);
 	return NULL;
     }
@@ -1184,13 +1210,20 @@ static void
 objlist_call_fini(Objlist *list)
 {
     Objlist_Entry *elm;
+    char *saved_msg;
 
+    /*
+     * Preserve the current error message since a fini function might
+     * call into the dynamic linker and overwrite it.
+     */
+    saved_msg = errmsg_save();
     STAILQ_FOREACH(elm, list, link) {
 	if (elm->obj->refcount == 0) {
 	    dbg("calling fini function for %s", elm->obj->path);
 	    (*elm->obj->fini)();
 	}
     }
+    errmsg_restore(saved_msg);
 }
 
 /*
@@ -1202,11 +1235,18 @@ static void
 objlist_call_init(Objlist *list)
 {
     Objlist_Entry *elm;
+    char *saved_msg;
 
+    /*
+     * Preserve the current error message since an init function might
+     * call into the dynamic linker and overwrite it.
+     */
+    saved_msg = errmsg_save();
     STAILQ_FOREACH(elm, list, link) {
 	dbg("calling init function for %s", elm->obj->path);
 	(*elm->obj->init)();
     }
+    errmsg_restore(saved_msg);
 }
 
 static void
@@ -2030,7 +2070,8 @@ unref_dag(Obj_Entry *root)
 {
     const Needed_Entry *needed;
 
-    assert(root->refcount != 0);
+    if (root->refcount == 0)
+	return;
     root->refcount--;
     if (root->refcount == 0)
 	for (needed = root->needed;  needed != NULL;  needed = needed->next)
