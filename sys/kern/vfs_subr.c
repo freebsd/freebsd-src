@@ -80,6 +80,8 @@ static void	vclean(struct vnode *vp, int flags, struct thread *td);
 static void	vlruvp(struct vnode *vp);
 static int	flushbuflist(struct buf *blist, int flags, struct vnode *vp,
 		    int slpflag, int slptimeo, int *errorp);
+static int	vcanrecycle(struct vnode *vp);
+
 
 /*
  * Number of vnodes in existence.  Increased whenever getnewvnode()
@@ -660,6 +662,70 @@ SYSINIT(vnlru, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, &vnlru_kp)
  */
 
 /*
+ * Check to see if a free vnode can be recycled.  If it can, return it locked
+ * with the vn lock, but not interlock.  Otherwise indicate the error.
+ */
+static int
+vcanrecycle(struct vnode *vp)
+{
+	struct thread *td = curthread;
+	vm_object_t object;
+	int error;
+
+	/* Don't recycle if we can't get the interlock */
+	if (!mtx_trylock(&vp->v_interlock))
+		return (EWOULDBLOCK);
+
+	/* We should be able to immediately acquire this */
+	/* XXX This looks like it should panic if it fails */
+	if (vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE, td) != 0)
+		return (EWOULDBLOCK);
+	/*
+	 * Don't recycle if we still have cached pages.
+	 */
+	if (VOP_GETVOBJECT(vp, &object) == 0 &&
+	     (object->resident_page_count ||
+	      object->ref_count)) {
+		VOP_UNLOCK(vp, 0, td);
+		error = EBUSY;
+		goto done;
+	}
+	if (LIST_FIRST(&vp->v_cache_src)) {
+		/*
+		 * note: nameileafonly sysctl is temporary,
+		 * for debugging only, and will eventually be
+		 * removed.
+		 */
+		if (nameileafonly > 0) {
+			/*
+			 * Do not reuse namei-cached directory
+			 * vnodes that have cached
+			 * subdirectories.
+			 */
+			if (cache_leaf_test(vp) < 0) {
+				error = EISDIR;
+				goto done;
+			}
+		} else if (nameileafonly < 0 ||
+			    vmiodirenable == 0) {
+			/*
+			 * Do not reuse namei-cached directory
+			 * vnodes if nameileafonly is -1 or
+			 * if VMIO backing for directories is
+			 * turned off (otherwise we reuse them
+			 * too quickly).
+			 */
+			error = EBUSY;
+			goto done;
+		}
+	}
+	return (0);
+done:
+	VOP_UNLOCK(vp, 0, td);
+	return (error);
+}
+
+/*
  * Return the next vnode from the free list.
  */
 int
@@ -673,7 +739,6 @@ getnewvnode(tag, mp, vops, vpp)
 	struct thread *td = curthread;	/* XXX */
 	struct vnode *vp = NULL;
 	struct mount *vnmp;
-	vm_object_t object;
 
 	s = splbio();
 	/*
@@ -696,84 +761,47 @@ getnewvnode(tag, mp, vops, vpp)
 	mtx_lock(&vnode_free_list_mtx);
 
 	if (freevnodes >= wantfreevnodes && numvnodes >= minvnodes) {
+		int error;
 		int count;
 
 		for (count = 0; count < freevnodes; count++) {
 			vp = TAILQ_FIRST(&vnode_free_list);
-			if (vp == NULL || vp->v_usecount)
-				panic("getnewvnode: free vnode isn't");
+
+			KASSERT(vp->v_usecount == 0, 
+			    ("getnewvnode: free vnode isn't"));
+
 			TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
-
-			/* Don't recycle if we can't get the interlock */
-			if (!mtx_trylock(&vp->v_interlock)) {
-				vp = NULL;
-				continue;
-			}
-
-			/* We should be able to immediately acquire this */
-			if (vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE, td) != 0)
-				continue;
 			/*
-			 * Don't recycle if we still have cached pages.
+			 * We have to drop the free list mtx to avoid lock
+			 * order reversals with interlock.
 			 */
-			if (VOP_GETVOBJECT(vp, &object) == 0 &&
-			     (object->resident_page_count ||
-			      object->ref_count)) {
-				TAILQ_INSERT_TAIL(&vnode_free_list, vp,
-						    v_freelist);
-				VOP_UNLOCK(vp, 0, td);
-				vp = NULL;
-				continue;
-			}
-			if (LIST_FIRST(&vp->v_cache_src)) {
-				/*
-				 * note: nameileafonly sysctl is temporary,
-				 * for debugging only, and will eventually be
-				 * removed.
-				 */
-				if (nameileafonly > 0) {
-					/*
-					 * Do not reuse namei-cached directory
-					 * vnodes that have cached
-					 * subdirectories.
-					 */
-					if (cache_leaf_test(vp) < 0) {
-						VOP_UNLOCK(vp, 0, td);
-						TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
-						vp = NULL;
-						continue;
-					}
-				} else if (nameileafonly < 0 ||
-					    vmiodirenable == 0) {
-					/*
-					 * Do not reuse namei-cached directory
-					 * vnodes if nameileafonly is -1 or
-					 * if VMIO backing for directories is
-					 * turned off (otherwise we reuse them
-					 * too quickly).
-					 */
-					VOP_UNLOCK(vp, 0, td);
-					TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
-					vp = NULL;
-					continue;
-				}
-			}
+			mtx_unlock(&vnode_free_list_mtx);
+			error = vcanrecycle(vp);
 			/*
 			 * Skip over it if its filesystem is being suspended.
 			 */
-			if (vn_start_write(vp, &vnmp, V_NOWAIT) == 0)
+			if (error == 0 &&
+			    vn_start_write(vp, &vnmp, V_NOWAIT) != 0)
+				error = EBUSY;
+
+			mtx_lock(&vnode_free_list_mtx);
+			if (error != 0)
+				TAILQ_INSERT_TAIL(&vnode_free_list, vp,
+				    v_freelist);
+			else
 				break;
-			VOP_UNLOCK(vp, 0, td);
-			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
-			vp = NULL;
 		}
 	}
+	/*
+	 * Unlocked access to this vp is ok because we are assured that there
+	 * are no other references to it.
+	 */
 	if (vp) {
-		mp_fixme("Unlocked v_iflags access.\n");
-		vp->v_iflag |= VI_DOOMED;
-		vp->v_iflag &= ~VI_FREE;
 		freevnodes--;
 		mtx_unlock(&vnode_free_list_mtx);
+
+		vp->v_iflag |= VI_DOOMED;
+		vp->v_iflag &= ~VI_FREE;
 		cache_purge(vp);
 		if (vp->v_type != VBAD) {
 			VOP_UNLOCK(vp, 0, td);
@@ -785,16 +813,14 @@ getnewvnode(tag, mp, vops, vpp)
 
 #ifdef INVARIANTS
 		{
-			int s;
-
 			if (vp->v_data)
 				panic("cleaned vnode isn't");
-			s = splbio();
+			VI_LOCK(vp);
 			if (vp->v_numoutput)
 				panic("Clean vnode has pending I/O's");
-			splx(s);
 			if (vp->v_writecount != 0)
 				panic("Non-zero write count");
+			VI_UNLOCK(vp);
 		}
 #endif
 		if (vp->v_pollinfo) {
@@ -815,15 +841,15 @@ getnewvnode(tag, mp, vops, vpp)
 		KASSERT(vp->v_cleanblkroot == NULL, ("cleanblkroot not NULL"));
 		KASSERT(vp->v_dirtyblkroot == NULL, ("dirtyblkroot not NULL"));
 	} else {
+		numvnodes++;
 		mtx_unlock(&vnode_free_list_mtx);
-		vp = (struct vnode *) uma_zalloc(vnode_zone, M_WAITOK);
-		bzero((char *) vp, sizeof *vp);
+
+		vp = (struct vnode *) uma_zalloc(vnode_zone, M_WAITOK|M_ZERO);
 		mtx_init(&vp->v_interlock, "vnode interlock", NULL, MTX_DEF);
 		vp->v_dd = vp;
 		cache_purge(vp);
 		LIST_INIT(&vp->v_cache_src);
 		TAILQ_INIT(&vp->v_cache_dst);
-		numvnodes++;
 	}
 
 	TAILQ_INIT(&vp->v_cleanblkhd);
