@@ -1268,7 +1268,7 @@ device xe0 at isa? port? irq ?
 device ze0 at isa? port 0x300 net irq 5 iomem 0xd8000
 device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000
 
-device oltr0 at isa?
+#device oltr0 at isa?
 
 #
 # ATM related options

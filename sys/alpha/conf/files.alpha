@@ -120,6 +120,7 @@ alpha/pci/pcibus.c		optional	pci
 alpha/isa/isa.c			optional	isa
 alpha/isa/mcclock_isa.c		optional	isa
 alpha/alpha/elf_machdep.c	standard
+libkern/arc4random.c		standard
 libkern/bcd.c			standard
 libkern/bcmp.c			standard
 libkern/ffs.c			standard
