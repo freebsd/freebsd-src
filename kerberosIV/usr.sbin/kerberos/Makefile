@@ -8,6 +8,8 @@ MAN8=		${KRB4DIR}/man/kerberos.8
 SRCS=		kerberos.c
 CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRB4DIR}/lib/roken \
+		-I${KRB4DIR}/lib/kadm \
+		-I${KRB4DIR}/lib/kdb \
 		-I${KRB4DIR}/lib/krb \
 		-I${KADMOBJDIR} \
 		-I${KRBOBJDIR} \
