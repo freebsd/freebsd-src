@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.304 1998/08/18 07:46:58 msmith Exp $
+ *	$Id: machdep.c,v 1.305 1998/08/31 08:41:36 kato Exp $
  */
 
 #include "apm.h"
@@ -835,8 +835,8 @@ setregs(p, entry, stack)
 	pcb->pcb_fs = _udatasel;
 	pcb->pcb_gs = _udatasel;
 	if (pcb == curpcb) {
-		__asm("mov %0,%%fs" : : "r" (_udatasel));
-		__asm("mov %0,%%gs" : : "r" (_udatasel));
+		__asm("movw %w0,%%fs" : : "r" (_udatasel));
+		__asm("movw %w0,%%gs" : : "r" (_udatasel));
 	}
 
 	/*
