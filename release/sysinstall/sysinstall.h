@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.40 1995/10/26 08:56:10 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.41 1995/10/27 17:00:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -72,7 +72,7 @@
 #define DEV_NAME_MAX		64	/* The maximum length of a device name	*/
 #define DEV_MAX			100	/* The maximum number of devices we'll deal with */
 #define INTERFACE_MAX		50	/* Maximum number of network interfaces we'll deal with */
-#define MAX_FTP_RETRIES		3	/* How many times to beat our heads against the wall */
+#define MAX_FTP_RETRIES		"4"	/* How many times to beat our heads against the wall */
 
 #define RET_FAIL		-1
 #define RET_SUCCESS		0
@@ -357,7 +357,7 @@ extern DMenu		MenuHTMLDoc;		/* HTML Documentation menu			*/
 /*** Prototypes ***/
 
 /* apache.c */
-extern int	installApache(char *str);
+extern int	configApache(char *str);
 
 /* attrs.c */
 extern char	*attr_match(Attribs *attr, char *name);
@@ -380,7 +380,6 @@ extern void	command_func_add(char *key, commandFunc func, void *data);
 extern int	configFstab(void);
 extern void	configSysconfig(void);
 extern void	configResolv(void);
-extern int	configNetworking(char *str);
 extern int	configPorts(char *str);
 extern int	configPackages(char *str);
 extern int	configSaverTimeout(char *str);
@@ -473,17 +472,26 @@ int		index_extract(Device *dev, PkgNodePtr plist);
 /* install.c */
 extern int	installCommit(char *str);
 extern int	installExpress(char *str);
+extern int	installNovice(char *str);
 extern int	installFixit(char *str);
 extern int	installFixup(char *str);
 extern int	installUpgrade(char *str);
 extern int	installPreconfig(char *str);
-extern int	installNetworking(char *str);
 extern int	installFilesystems(char *str);
 extern int	installVarDefaults(char *str);
+
+/* installFinal.c */
+extern int	configGated(char *unused);
+extern int	configAnonFTP(char *unused);
+extern int	configSamba(char *unused);
+extern int	configNFSServer(char *unused);
 
 /* label.c */
 extern int	diskLabelEditor(char *str);
 extern int	diskLabelCommit(char *str);
+
+/* lndir.c */
+extern int	lndir(char *from, char *to);
 
 /* makedevs.c (auto-generated) */
 extern const char	termcap_vt100[];
