@@ -2752,7 +2752,7 @@ except that it issues challenges of a fixed 16 bytes in length and uses a
 combination of MD4, SHA-1 and DES to encrypt the challenge rather than using the
 standard MD5 mechanism.
 .It MSChap|chap80nt
-Default: Disabled and Accepted
+Default: Disabled and Accepted.
 The use of this authentication protocol
 is discouraged as it partially violates the authentication protocol by
 implementing two different mechanisms (LANMan & NT) under the guise of
