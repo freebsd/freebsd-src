@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.73 1994/06/24 22:18:46 jkh Exp $
+#	$Id: Makefile,v 1.74 1994/06/28 05:37:04 jkh Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -21,6 +21,8 @@ BIN2=	motd
 BIN3=	daily weekly monthly
 
 CLEANFILES+= *.o *.lo *.c *.cache *.mk kcopy filesystem
+
+ZIPNSPLIT=	gzip --no-name -9 -c | split -b 240640 -
 
 MTREE=	BSD.local.dist BSD.root.dist BSD.usr.dist BSD.var.dist
 NAMEDB=	localhost.rev named.boot root.cache
@@ -214,9 +216,9 @@ distribution: distrib-dirs
 
 crunch:
 	crunchgen ${.CURDIR}/../contrib/crunch/examples/kcopy.conf
-	make -f kcopy.mk objs exe
+	${MAKE} -f kcopy.mk objs exe
 	crunchgen ${.CURDIR}/../contrib/crunch/examples/filesystem.conf
-	make -f filesystem.mk objs exe
+	${MAKE} -f filesystem.mk objs exe
 
 extract:
 	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
@@ -278,7 +280,7 @@ kcopy_ah.flp:
 	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/kcopy_ah.flp \
 		bs=15b count=160
 	gzip --no-name -9 -c ${RELEASEDIR}/floppies/kcopy_ah.flp \
-		>${RELEASEDIR}/floppies/kcopy_ah.flp.gz
+		>${RELEASEDIR}/floppies/kcopy_ah.flp.gz &
 
 kcopy_bt.flp:
 	${MAKE} kcopy-floppy
@@ -290,7 +292,7 @@ kcopy_bt.flp:
 	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/kcopy_bt.flp \
 		bs=15b count=160
 	gzip --no-name -9 -c ${RELEASEDIR}/floppies/kcopy_bt.flp \
-		>${RELEASEDIR}/floppies/kcopy_bt.flp.gz
+		>${RELEASEDIR}/floppies/kcopy_bt.flp.gz &
 
 cdins-floppy:
 	${MAKE} kcopy-floppy
@@ -317,7 +319,7 @@ cdins_ah.flp:
 	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/cdins_ah.flp \
 		bs=15b count=160
 	gzip --no-name -9 -c ${RELEASEDIR}/floppies/cdins_ah.flp \
-		>${RELEASEDIR}/floppies/cdins_ah.flp.gz
+		>${RELEASEDIR}/floppies/cdins_ah.flp.gz &
 
 cdins_bt.flp:
 	${MAKE} cdins-floppy
@@ -329,7 +331,7 @@ cdins_bt.flp:
 	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/cdins_bt.flp \
 		bs=15b count=160
 	gzip --no-name -9 -c ${RELEASEDIR}/floppies/cdins_bt.flp \
-		>${RELEASEDIR}/floppies/cdins_bt.flp.gz
+		>${RELEASEDIR}/floppies/cdins_bt.flp.gz &
 
 filesyst.flp:
 	disklabel -w -r ${FLOPPY} ${FLOPPY_TYPE} \
@@ -374,7 +376,7 @@ filesyst.flp:
 	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/filesyst.flp \
 		bs=15b count=160
 	gzip --no-name -9 -c ${RELEASEDIR}/floppies/filesyst.flp \
-		>${RELEASEDIR}/floppies/filesyst.flp.gz
+		>${RELEASEDIR}/floppies/filesyst.flp.gz &
 
 cpio.flp:
 	disklabel -w -r ${FLOPPY} ${FLOPPY_TYPE} \
@@ -418,125 +420,98 @@ cpio.flp:
 	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/cpio.flp \
 		bs=15b count=160
 	gzip --no-name -9 -c ${RELEASEDIR}/floppies/cpio.flp \
-		>${RELEASEDIR}/floppies/cpio.flp.gz
+		>${RELEASEDIR}/floppies/cpio.flp.gz &
 
 bin-tarball:
 	(cd ${DESTDIR}; \
 		tar cf - . | \
-		gzip --no-name -9 -c | \
-		split -b 240640 - \
-		${RELEASEDIR}/tarballs/bindist/bin_tgz.)
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/bindist/bin_tgz.)
+
+src-clean:
+	(cd ${DESTDIR}/usr/src; make cleandist)
+	chown -R bin:bin ${DESTDIR}/usr/src
+	chmod -R og-w ${DESTDIR}/usr/src
 
 srcbase-tarball:
 	(cd ${DESTDIR}; \
-		tar -cf - usr/src/[A-Z]* | \
-		gzip --no-name -9 -c | \
-		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srcdist/base.)
+		tar --exclude CVS -cf - usr/src/[A-Z]* | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/base.)
 
 srcbin-tarball:
 	(cd ${DESTDIR}; \
-		tar -cf - usr/src/bin | \
-		gzip --no-name -9 -c | \
-		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srcdist/bin.)
+		tar --exclude CVS -cf - usr/src/bin | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/bin.)
 
 srccontrib-tarball:
 	(cd ${DESTDIR}; \
-		tar -cf - usr/src/contrib | \
-		gzip --no-name -9 -c | \
-		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srcdist/contrib.)
+		tar --exclude CVS -cf - usr/src/contrib | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/contrib.)
 
 srcetc-tarball:
 	(cd ${DESTDIR}; \
-		tar -cf - usr/src/etc | \
-		gzip --no-name -9 -c | \
-		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srcdist/etc.)
+		tar --exclude CVS -cf - usr/src/etc | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/etc.)
 
 srcgames-tarball:
 	(cd ${DESTDIR}; \
-		tar -cf - usr/src/games | \
-		gzip --no-name -9 -c | \
-		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srcdist/games.)
+		tar --exclude CVS -cf - usr/src/games | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/games.)
 
 srcgnu-tarball:
 	(cd ${DESTDIR}; \
-		tar -cf - usr/src/gnu | \
-		gzip --no-name -9 -c | \
-		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srcdist/gnu.)
+		tar --exclude CVS -cf - usr/src/gnu | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/gnu.)
 
 srcinclude-tarball:
 	(cd ${DESTDIR}; \
-		tar -cf - usr/src/include | \
-		gzip --no-name -9 -c | \
-		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srcdist/include.)
+		tar --exclude CVS -cf - usr/src/include | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/include.)
 
 srclib-tarball:
 	(cd ${DESTDIR}; \
-		tar --exclude usr/src/${CRYPT_LIB} -cf - usr/src/lib | \
-		gzip --no-name -9 -c | \
-		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srcdist/lib.)
+		tar --exclude usr/src/${CRYPT_LIB} --exclude CVS -cf - \
+		usr/src/lib | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/lib.)
 
 srclibcrypt-tarball:
 	(cd ${DESTDIR}; \
-		tar -cf - usr/src/${CRYPT_LIB} | \
-		gzip --no-name -9 -c | \
-		split -b 240640 - \
-		${RELEASEDIR}/tarballs/secrdist/libcrypt.)
+		tar --exclude CVS -cf - usr/src/${CRYPT_LIB} | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/secrdist/libcrypt.)
 
 srclibexec-tarball:
 	(cd ${DESTDIR}; \
-		tar -cf - usr/src/libexec | \
-		gzip --no-name -9 -c | \
-		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srcdist/libexec.)
+		tar --exclude CVS -cf - usr/src/libexec | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/libexec.)
 
 srcsbin-tarball:
 	(cd ${DESTDIR}; \
-		tar -cf - usr/src/sbin | \
-		gzip --no-name -9 -c | \
-		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srcdist/sbin.)
+		tar --exclude CVS -cf - usr/src/sbin | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/sbin.)
 
 srcshare-tarball:
 	(cd ${DESTDIR}; \
-		tar -cf - usr/src/share | \
-		gzip --no-name -9 -c | \
-		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srcdist/share.)
+		tar --exclude CVS -cf - usr/src/share | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/share.)
 
 srcsys-tarball:
 	(cd ${DESTDIR}; \
-		tar -cf - usr/src/sys | \
-		gzip --no-name -9 -c | \
-		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srcdist/sys.)
+		tar --exclude CVS -cf - usr/src/sys | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/sys.)
 
 srcusrbin-tarball:
 	(cd ${DESTDIR}; \
-		tar -cf - usr/src/usr.bin | \
-		gzip --no-name -9 -c | \
-		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srcdist/usrbin.)
+		tar --exclude CVS -cf - usr/src/usr.bin | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/usrbin.)
 
 srcusrsbin-tarball:
 	(cd ${DESTDIR}; \
-		tar -cf - usr/src/usr.sbin | \
-		gzip --no-name -9 -c | \
-		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srcdist/usrsbin.)
+		tar --exclude CVS -cf - usr/src/usr.sbin | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/usrsbin.)
 
-src-tarball: srcbase-tarball srcbin-tarball srccontrib-tarball srcetc-tarball \
-	srcgames-tarball srcgnu-tarball srcinclude-tarball srclib-tarball \
-	srclibcrypt-tarball srclibexec-tarball srcsbin-tarball \
-	srcshare-tarball srcsys-tarball srcusrbin-tarball \
-	srcusrsbin-tarball
+src-tarball: src-clean srcbase-tarball srcbin-tarball srccontrib-tarball \
+	srcetc-tarball srcgames-tarball srcgnu-tarball srcinclude-tarball \
+	srclib-tarball srclibcrypt-tarball srclibexec-tarball srcsbin-tarball \
+	srcshare-tarball srcsys-tarball srcusrbin-tarball srcusrsbin-tarball
 
 des-tarball:
 	rm -rf ${RELEASEDIR}/tmpdes
@@ -566,9 +541,7 @@ des-tarball:
 	done
 	(cd ${RELEASEDIR}/tmpdes; \
 		tar cf - . | \
-			gzip --no-name -9 -c | \
-			split -b 240640 - \
-			${RELEASEDIR}/tarballs/secrdist/des_tgz.)
+			${ZIPNSPLIT} ${RELEASEDIR}/tarballs/secrdist/des_tgz.)
 	rm -rf ${RELEASEDIR}/tmpdes
 
 distrib-dirs:
