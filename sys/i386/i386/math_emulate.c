@@ -55,7 +55,8 @@
 #define bswapw(x) __asm__("xchgb %%al,%%ah":"+a" ((short)(x)))
 #define ST(x) (*__st((x)))
 #define PST(x) ((const temp_real *) __st((x)))
-#define	math_abort(tfp, signo) tfp->tf_eip = oldeip; return (signo);
+#define	math_abort(tfp, signo) \
+	do { tfp->tf_eip = oldeip; return (signo);} while(0)
 
 /*
  * We don't want these inlined - it gets too messy in the machine-code.
