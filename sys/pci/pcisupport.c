@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.40.2.4 1997/07/18 19:48:22 se Exp $
+**  $Id: pcisupport.c,v 1.40.2.5 1997/10/10 11:53:38 asami Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -154,6 +154,16 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("Intel 82371SB IDE interface");
 	case 0x70308086:
 		return ("Intel 82437VX PCI cache memory controller");
+	case 0x71008086:
+		return ("Intel 82439TX PCI cache memory controller");
+	case 0x71108086:
+		return ("Intel 82371AB PCI-ISA bridge");
+	case 0x71118086:
+		return ("Intel 82371AB IDE interface");
+	case 0x71128086:
+		return ("Intel 82371AB USB interface");
+	case 0x71138086:
+		return ("Intel 82371AB Power management controller");
 	case 0x12378086:
 		return ("Intel 82440FX (Natoma) PCI and memory controller");
 	case 0x84c48086:
