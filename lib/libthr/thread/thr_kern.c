@@ -117,7 +117,7 @@ _thread_sigunblock()
 }
 
 int
-_thread_suspend(pthread_t pthread, struct timespec *abstime)
+_thread_suspend(pthread_t pthread, const struct timespec *abstime)
 {
 	struct timespec remaining;
 	struct timespec *ts;
