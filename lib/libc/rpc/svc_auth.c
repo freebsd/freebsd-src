@@ -34,12 +34,11 @@
 
 /* #ident	"@(#)svc_auth.c	1.16	94/04/24 SMI" */
 
-#if 0
 #if !defined(lint) && defined(SCCSIDS)
 static char sccsid[] = "@(#)svc_auth.c 1.26 89/02/07 Copyr 1984 Sun Micro";
-static const char rcsid[] = "$FreeBSD$";
 #endif
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * svc_auth.c, Server-side rpc authenticator interface.

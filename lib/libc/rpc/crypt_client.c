@@ -30,6 +30,9 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "namespace.h"
 #include <sys/types.h>
 #include <rpc/des_crypt.h>
@@ -37,10 +40,6 @@
 #include <string.h>
 #include <rpcsvc/crypt.h>
 #include "un-namespace.h"
-
-#ifndef lint
-static const char rcsid[] = "$FreeBSD$";
-#endif
 
 int
 _des_crypt_call(buf, len, dparms)

@@ -25,9 +25,11 @@
  *	and destroyed. Two strings "netid" and "uaddr" are malloc'd
  *	and returned. The SIGALRM processing is modified only if
  *	needed to deal with TCP connections.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "namespace.h"
 #include <stdio.h>
 #include <syslog.h>
