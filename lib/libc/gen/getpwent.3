@@ -53,7 +53,7 @@
 .Fn getpwuid "uid_t uid" 
 .Ft int
 .Fn setpassent "int  stayopen"
-.Ft int
+.Ft void
 .Fn setpwent void
 .Ft void
 .Fn endpwent void
@@ -160,15 +160,15 @@ and
 .Fn getpwuid ,
 return a valid pointer to a passwd structure on success
 and a null pointer if end-of-file is reached or an error occurs.
-The functions
+The
 .Fn setpassent
-and
-.Fn setpwent
-return 0 on failure and 1 on success.
+function returns 0 on failure and 1 on success.
 The
 .Fn endpwent
-function
-has no return value.
+and
+.Fn setpwent
+functions
+have no return value.
 .Sh FILES
 .Bl -tag -width /etc/master.passwd -compact
 .It Pa /etc/pwd.db
