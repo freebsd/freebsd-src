@@ -69,9 +69,9 @@ usleep(useconds)
 		do {
 			(void)nanosleep(&time_to_sleep, &time_remaining);
 			time_to_sleep = time_remaining;
-		} while (!errno || errno == EINTR ||
-			 time_to_sleep.tv_sec != 0 ||
-			 time_to_sleep.tv_nsec != 0);
+		} while ((!errno || errno == EINTR) &&
+			 (time_to_sleep.tv_sec != 0 ||
+			  time_to_sleep.tv_nsec != 0));
 	}
 #else
 	struct timespec time_to_sleep;
@@ -122,8 +122,8 @@ usleep(useconds)
 					   &omask);
 			time_to_sleep = time_remaining;
 		} while (!alarm_termination &&
-			 (!errno || errno == EINTR ||
-			  time_to_sleep.tv_sec != 0 ||
+			 (!errno || errno == EINTR) &&
+			 (time_to_sleep.tv_sec != 0 ||
 			  time_to_sleep.tv_nsec != 0));
 
 		if (!alarm_blocked) {
