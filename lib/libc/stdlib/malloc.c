@@ -201,9 +201,6 @@ struct pgfree {
 /* Set when initialization has been done */
 static unsigned malloc_started;
 
-/* Recusion flag for public interface. */
-static int malloc_active;
-
 /* Number of free pages we cache */
 static unsigned malloc_cache = 16;
 
@@ -274,7 +271,7 @@ static struct pgfree *px;
 const char *_malloc_options;
 
 /* Name of the current public function */
-static char *malloc_func;
+static const char *malloc_func;
 
 /* Macro for mmap */
 #define MMAP(size) \
@@ -1094,83 +1091,40 @@ ifree(void *ptr)
     return;
 }
 
-/*
- * These are the public exported interface routines.
- */
-
-
-void *
-malloc(size_t size)
-{
-    void *r;
-
-    _MALLOC_LOCK();
-    malloc_func = " in malloc():";
-    if (malloc_active++) {
-	wrtwarning("recursive call\n");
-        malloc_active--;
-        _MALLOC_UNLOCK();
-	errno = EDOOFUS;
-	return (NULL);
-    }
-    if (malloc_sysv && !size)
-	r = NULL;
-    else if (!size)
-	r = ZEROSIZEPTR;
-    else
-	r = imalloc(size);
-    UTRACE(0, size, r);
-    malloc_active--;
-    _MALLOC_UNLOCK();
-    if (malloc_xmalloc && r == NULL)
-	wrterror("out of memory\n");
-    if (r == NULL)
-	errno = ENOMEM;
-    return (r);
-}
-
-void
-free(void *ptr)
-{
-    _MALLOC_LOCK();
-    malloc_func = " in free():";
-    if (malloc_active++) {
-	wrtwarning("recursive call\n");
-	malloc_active--;
-        _MALLOC_UNLOCK();
-	errno = EDOOFUS;
-	return;
-    }
-    if (ptr != ZEROSIZEPTR)
-	    ifree(ptr);
-    UTRACE(ptr, 0, 0);
-    malloc_active--;
-    _MALLOC_UNLOCK();
-    return;
-}
-
-void *
-realloc(void *ptr, size_t size)
+static void *
+pubrealloc(void *ptr, size_t size, const char *func)
 {
     void *r;
     int err = 0;
+    static int malloc_active; /* Recusion flag for public interface. */
 
+    /*
+     * If a thread is inside our code with a functional lock held, and then
+     * catches a signal which calls us again, we would get a deadlock if the
+     * lock is not of a recursive type.
+     */
     _MALLOC_LOCK();
-    malloc_func = " in realloc():";
-    if (malloc_active++) {
-	wrtwarning("recursive call\n");
-        malloc_active--;
+    malloc_func = func;
+    if (malloc_active > 0) {
+	if (malloc_active == 1) {
+	    wrtwarning("recursive call\n");
+	    malloc_active = 2;
+	}
         _MALLOC_UNLOCK();
 	errno = EDOOFUS;
 	return (NULL);
-    }
+    } 
+    malloc_active = 1;
+   
     if (ptr == ZEROSIZEPTR)
 	ptr = NULL;
     if (malloc_sysv && !size) {
-	ifree(ptr);
-	r = 0;
+	if (ptr != NULL)
+	    ifree(ptr);
+	r = NULL;
     } else if (!size) {
-	ifree(ptr);
+	if (ptr != NULL)
+	    ifree(ptr);
 	r = ZEROSIZEPTR;
     } else if (ptr == NULL) {
 	r = imalloc(size);
@@ -1180,12 +1134,37 @@ realloc(void *ptr, size_t size)
 	err = (r == NULL);
     }
     UTRACE(ptr, size, r);
-    malloc_active--;
+    malloc_active = 0;
     _MALLOC_UNLOCK();
     if (malloc_xmalloc && err)
 	wrterror("out of memory\n");
     if (err)
 	errno = ENOMEM;
     return (r);
+}
+
+/*
+ * These are the public exported interface routines.
+ */
+
+void *
+malloc(size_t size)
+{
+
+    return (pubrealloc(NULL, size, " in malloc():"));
+}
+
+void
+free(void *ptr)
+{
+
+    pubrealloc(ptr, 0, " in free():");
+}
+
+void *
+realloc(void *ptr, size_t size)
+{
+
+    return (pubrealloc(ptr, size, " in realloc():"));
 }
 
