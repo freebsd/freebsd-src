@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.151 1997/10/05 22:28:50 fsmp Exp $
+#	$Id: Makefile,v 1.152 1997/10/06 09:58:11 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -429,7 +429,7 @@ bootstrap:
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/lex && ${MAKE} bootstrap && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} -DNOLIB && \
+		${MAKE} ${MK_FLAGS} -DNOLIB all && \
 		${MAKE} ${MK_FLAGS} -DNOLIB -B install ${CLEANDIR}
 .if !defined(NOOBJDIR)
 	cd ${.CURDIR}/usr.bin/lex && ${MAKE} obj
@@ -580,7 +580,7 @@ libraries:
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
-.if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
+.if exists(kerberosIV) && !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
 	cd ${.CURDIR}/kerberosIV/lib && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
