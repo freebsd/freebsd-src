@@ -1,11 +1,9 @@
 # $FreeBSD$
 
-OBJS=		btxcsu.o btxsys.o btxv86.o
-CLEANFILES=	crt0.o
-
-all: crt0.o
-
-crt0.o: ${OBJS}
-	${LD} ${LDFLAGS} -i -o ${.TARGET} ${OBJS}
+PROG=	crt0.o
+INTERNALPROG=
+NOMAN=
+SRCS=	btxcsu.s btxsys.s btxv86.s
+LDFLAGS=-Wl,-r
 
 .include <bsd.prog.mk>

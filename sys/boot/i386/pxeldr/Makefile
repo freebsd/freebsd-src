@@ -3,8 +3,11 @@
 # Pick up ../Makefile.inc early.
 .include <bsd.init.mk>
 
+PROG=	${LDR}.out
+INTERNALPROG=
 FILES=	${BOOT}
 MAN=	${BOOT}.8
+SRCS=	${LDR}.s
 CLEANFILES= ${BOOT}
 
 BOOT=	pxeboot
@@ -21,11 +24,7 @@ M4FLAGS+= -DPROBE_KEYBOARD
 M4FLAGS+= -DALWAYS_SERIAL
 .endif
 
-.if exists(${.OBJDIR}/../loader)
 LOADERBIN= ${.OBJDIR}/../loader/loader.bin
-.else
-LOADERBIN= ${.CURDIR}/../loader/loader.bin
-.endif
 
 CLEANFILES+= ${BOOT}.tmp
 
@@ -34,13 +33,12 @@ ${BOOT}: ${LDR} ${LOADER}
 	dd if=${.TARGET}.tmp of=${.TARGET} obs=2k conv=osync
 	rm ${.TARGET}.tmp
 
-CLEANFILES+= ${LDR} ${LDR}.out ${LDR}.o
+CLEANFILES+= ${LDR}
 
 ${LDR}: ${LDR}.out
 	objcopy -S -O binary ${LDR}.out ${.TARGET}
 
-${LDR}.out: ${LDR}.o
-	${LD} -N -e start -Ttext ${ORG} -o ${.TARGET} ${LDR}.o
+LDFLAGS+= -N -e start -Ttext ${ORG}
 
 ${LDR}.o: ${LDR}.s
 	(cd ${.CURDIR}; ${M4} ${M4FLAGS} ${LDR}.s) | \

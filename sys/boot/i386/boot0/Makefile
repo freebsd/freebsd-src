@@ -1,7 +1,11 @@
 # $FreeBSD$
 
+PROG=	${BOOT}.out
+INTERNALPROG=
 FILES=	${BOOT}
-CLEANFILES= ${BOOT} ${BOOT}.out ${BOOT}.o
+NOMAN=
+SRCS=	${BOOT}.s
+CLEANFILES= ${BOOT}
 
 BOOT?=	boot0
 
@@ -30,10 +34,9 @@ AFLAGS+=--defsym FLAGS=${BOOT_BOOT0_FLAGS} \
 	--defsym TICKS=${BOOT_BOOT0_TICKS} \
 	--defsym COMSPEED=${BOOT_BOOT0_COMCONSOLE_SPEED}
 
+LDFLAGS=-N -e start -Ttext ${BOOT_BOOT0_ORG}
+
 ${BOOT}: ${BOOT}.out
 	objcopy -S -O binary ${BOOT}.out ${.TARGET}
-
-${BOOT}.out: ${BOOT}.o
-	${LD} -N -e start -Ttext ${BOOT_BOOT0_ORG} -o ${.TARGET} ${BOOT}.o
 
 .include <bsd.prog.mk>
