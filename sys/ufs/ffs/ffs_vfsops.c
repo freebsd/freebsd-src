@@ -81,13 +81,15 @@ static void	ffs_ifree(struct ufsmount *ump, struct inode *ip);
 static vfs_init_t ffs_init;
 static vfs_uninit_t ffs_uninit;
 static vfs_extattrctl_t ffs_extattrctl;
-static vfs_omount_t ffs_omount;
+static vfs_cmount_t ffs_cmount;
+static vfs_mount_t ffs_mount;
 
 static struct vfsops ufs_vfsops = {
 	.vfs_extattrctl =	ffs_extattrctl,
 	.vfs_fhtovp =		ffs_fhtovp,
 	.vfs_init =		ffs_init,
-	.vfs_omount =		ffs_omount,
+	.vfs_mount =		ffs_mount,
+	.vfs_cmount =		ffs_cmount,
 	.vfs_quotactl =		ufs_quotactl,
 	.vfs_root =		ufs_root,
 	.vfs_statfs =		ffs_statfs,
@@ -108,55 +110,23 @@ static struct buf_ops ffs_ops = {
 	.bop_strategy =	ffs_geom_strategy,
 };
 
-/*
- * ffs_omount
- *
- * Called when mounting local physical media
- *
- * PARAMETERS:
- *		mountroot
- *			mp	mount point structure
- *			path	path to mount point
- *			data	<unused>
- *			ndp	<unused>
- *			p	process (user credentials check [statfs])
- *
- *		mount
- *			mp	mount point structure
- *			path	path to mount point
- *			data	pointer to argument struct in user space
- *			ndp	mount point namei() return (used for
- *				credentials on reload), reused to look
- *				up block device.
- *			p	process (user credentials check)
- *
- * RETURNS:	0	Success
- *		!0	error number (errno.h)
- *
- * LOCK STATE:
- *
- *		ENTRY
- *			mount point is locked
- *		EXIT
- *			mount point is locked
- *
- * NOTES:
- *		A NULL path can be used for a flag since the mount
- *		system call will fail with EFAULT in copyinstr in
- *		namei() if it is a genuine NULL from the user.
- */
+static const char *ffs_opts[] = { "from", "export", NULL };
+
 static int
-ffs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
+ffs_mount(struct mount *mp, struct thread *td)
 {
-	size_t size;
-	struct vnode *devvp, *rootvp;
-	struct ufs_args args;
+	struct vnode *devvp;
 	struct ufsmount *ump = 0;
 	struct fs *fs;
 	int error, flags;
 	mode_t accessmode;
 	struct nameidata ndp;
+	struct export_args *export;
+	char *fspec;
+	int len;
 
+	if (vfs_filteropt(mp->mnt_optnew, ffs_opts))
+		return (EINVAL);
 	if (uma_inode == NULL) {
 		uma_inode = uma_zcreate("FFS inode",
 		    sizeof(struct inode), NULL, NULL, NULL, NULL,
@@ -168,27 +138,10 @@ ffs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 		    sizeof(struct ufs2_dinode), NULL, NULL, NULL, NULL,
 		    UMA_ALIGN_PTR, 0);
 	}
-	if ((mp->mnt_flag & MNT_ROOTFS) && mp->mnt_data == NULL) {
-		if ((error = bdevvp(rootdev, &rootvp))) {
-			printf("ffs_mountroot: can't find rootvp\n");
-			return (error);
-		}
 
-		if ((error = ffs_mountfs(rootvp, mp, td)) != 0)
-			return (error);
-		return (0);
-	}
-
-	/*
-	 * Get mount options, if any.
-	 */
-	if (data != NULL) {
-		error = copyin(data, (caddr_t)&args, sizeof args);
-		if (error)
-			return (error);
-	} else {
-		memset(&args, 0, sizeof args);
-	}
+	fspec = vfs_getopts(mp->mnt_optnew, "from", &error);
+	if (error)
+		return (error);
 
 	/*
 	 * If updating, check whether changing from read-only to
@@ -198,7 +151,8 @@ ffs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 		ump = VFSTOUFS(mp);
 		fs = ump->um_fs;
 		devvp = ump->um_devvp;
-		if (fs->fs_ronly == 0 && (mp->mnt_flag & MNT_RDONLY)) {
+		if (fs->fs_ronly == 0 &&
+		    vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0)) {
 			if ((error = vn_start_write(NULL, &mp, V_WAIT)) != 0)
 				return (error);
 			/*
@@ -234,7 +188,6 @@ ffs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 				fs->fs_pendingblocks = 0;
 				fs->fs_pendinginodes = 0;
 			}
-			fs->fs_ronly = 1;
 			if ((fs->fs_flags & (FS_UNCLEAN | FS_NEEDSFSCK)) == 0)
 				fs->fs_clean = 1;
 			if ((error = ffs_sbupdate(ump, MNT_WAIT)) != 0) {
@@ -249,11 +202,14 @@ ffs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 			g_access(ump->um_cp, 0, -1, 0);
 			g_topology_unlock();
 			PICKUP_GIANT();
+			fs->fs_ronly = 1;
+			mp->mnt_flag |= MNT_RDONLY;
 		}
 		if ((mp->mnt_flag & MNT_RELOAD) &&
 		    (error = ffs_reload(mp, td)) != 0)
 			return (error);
-		if (fs->fs_ronly && (mp->mnt_kern_flag & MNTK_WANTRDWR)) {
+		if (fs->fs_ronly &&
+		    !vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0)) {
 			/*
 			 * If upgrade to read-write by non-root, then verify
 			 * that user has necessary permissions on the device.
@@ -299,6 +255,7 @@ ffs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 			if ((error = vn_start_write(NULL, &mp, V_WAIT)) != 0)
 				return (error);
 			fs->fs_ronly = 0;
+			mp->mnt_flag &= ~MNT_RDONLY;
 			fs->fs_clean = 0;
 			if ((error = ffs_sbupdate(ump, MNT_WAIT)) != 0) {
 				vn_finished_write(mp);
@@ -326,20 +283,25 @@ ffs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 		/*
 		 * If not updating name, process export requests.
 		 */
-		if (args.fspec == 0)
-			return (vfs_export(mp, &args.export));
+		if (fspec == NULL) {
+			error = vfs_getopt(mp->mnt_optnew,
+			    "export", (void **)&export, &len);
+			if (error || len != sizeof *export)
+				return (EINVAL);
+			return (vfs_export(mp, export));
+		}
 		/*
 		 * If this is a snapshot request, take the snapshot.
 		 */
 		if (mp->mnt_flag & MNT_SNAPSHOT)
-			return (ffs_snapshot(mp, args.fspec));
+			return (ffs_snapshot(mp, fspec));
 	}
 
 	/*
 	 * Not an update, or updating the name: look up the name
 	 * and verify that it refers to a sensible disk device.
 	 */
-	NDINIT(&ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, td);
+	NDINIT(&ndp, LOOKUP, FOLLOW, UIO_SYSSPACE, fspec, td);
 	if ((error = namei(&ndp)) != 0)
 		return (error);
 	NDFREE(&ndp, NDF_ONLY_PNBUF);
@@ -392,12 +354,31 @@ ffs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 			return (error);
 		}
 	}
-	/*
-	 * Save "mounted from" device name info for mount point (NULL pad).
-	 */
-	copyinstr(args.fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1, &size);
-	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
+	vfs_mountedfrom(mp, fspec);
 	return (0);
+}
+
+/*
+ * Compatibility with old mount system call.
+ */
+
+static int
+ffs_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
+{
+	struct ufs_args args;
+	int error;
+
+	if (data == NULL)
+		return (EINVAL);
+	error = copyin(data, &args, sizeof args);
+	if (error)
+		return (error);
+
+	ma = mount_argsu(ma, "from", args.fspec, MAXPATHLEN);
+	ma = mount_arg(ma, "export", &args.export, sizeof args.export);
+	error = kernel_mount(ma, flags);
+
+	return (error);
 }
 
 /*
@@ -572,7 +553,6 @@ ffs_mountfs(devvp, mp, td)
 	int error, i, blks, size, ronly;
 	int32_t *lp;
 	struct ucred *cred;
-	size_t strsize;
 	struct g_consumer *cp;
 
 	dev = devvp->v_rdev;
@@ -580,18 +560,6 @@ ffs_mountfs(devvp, mp, td)
 
 	vfs_object_create(devvp, td, td->td_ucred);
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
-#if 0
-	/*
-	 * XXX: check filesystem permissions, they may be more strict
-	 * XXX: than what geom enforces.
-	 * XXX: But since we're root, they wouldn't matter, would they ?
-	 */
-	error = VOP_ACCESS(devvp, ronly ? FREAD : FREAD | FWRITE, FSCRED, td);
-	if (error) {
-		VOP_UNLOCK(devvp, 0, td);
-		return (error);
-	}
-#endif
 	DROP_GIANT();
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "ffs", ronly ? 0 : 1);
@@ -770,11 +738,7 @@ ffs_mountfs(devvp, mp, td)
 	/*
 	 * Set FS local "last mounted on" information (NULL pad)
 	 */
-	copystr(	mp->mnt_stat.f_mntonname,	/* mount point*/
-			fs->fs_fsmnt,			/* copy area*/
-			sizeof(fs->fs_fsmnt) - 1,	/* max size*/
-			&strsize);			/* real size*/
-	bzero( fs->fs_fsmnt + strsize, sizeof(fs->fs_fsmnt) - strsize);
+	vfs_mountedfrom(mp, fs->fs_fsmnt);
 
 	if( mp->mnt_flag & MNT_ROOTFS) {
 		/*
@@ -800,7 +764,6 @@ ffs_mountfs(devvp, mp, td)
 	/*
 	 * Initialize filesystem stat information in mount struct.
 	 */
-	(void)VFS_STATFS(mp, &mp->mnt_stat, td);
 #ifdef UFS_EXTATTR
 #ifdef UFS_EXTATTR_AUTOSTART
 	/*
