@@ -116,13 +116,29 @@ dcons_crom_post_busreset(void *arg)
 static void
 dmamap_cb(void *arg, bus_dma_segment_t *segments, int seg, int error)
 {
-	bus_addr_t *ptr;
+	struct dcons_crom_softc *sc;
 
 	if (error)
 		printf("dcons_dmamap_cb: error=%d\n", error);
 
-	ptr = (bus_addr_t *) arg;
-	*ptr = segments[0].ds_addr;
+	sc = (struct dcons_crom_softc *)arg;
+	sc->bus_addr = segments[0].ds_addr;
+
+	bus_dmamap_sync(sc->dma_tag, sc->dma_map, BUS_DMASYNC_PREWRITE);
+	device_printf(sc->fd.dev,
+#if __FreeBSD_version < 500000
+	    "bus_addr 0x%x\n", sc->bus_addr);
+#else
+	    "bus_addr 0x%jx\n", (uintmax_t)sc->bus_addr);
+#endif
+	if (dcons_paddr != 0) {
+		/* XXX */
+		device_printf(sc->fd.dev, "dcons_paddr is already set\n");
+		return;
+	}
+	dcons_dma_tag = sc->dma_tag;
+	dcons_dma_map = sc->dma_map;
+	dcons_paddr = sc->bus_addr;
 }
 
 static int
@@ -160,22 +176,7 @@ dcons_crom_attach(device_t dev)
 	bus_dmamap_create(sc->dma_tag, 0, &sc->dma_map);
 	bus_dmamap_load(sc->dma_tag, sc->dma_map,
 	    (void *)dcons_buf, dcons_bufsize,
-	    dmamap_cb, &sc->bus_addr, 0);
-	bus_dmamap_sync(sc->dma_tag, sc->dma_map, BUS_DMASYNC_PREWRITE);
-	device_printf(sc->fd.dev,
-#if __FreeBSD_version < 500000
-	    "bus_addr 0x%x\n", sc->bus_addr);
-#else
-	    "bus_addr 0x%jx\n", (uintmax_t)sc->bus_addr);
-#endif
-	if (dcons_paddr != 0) {
-		/* XXX */
-		device_printf(sc->fd.dev, "dcons_paddr is already set\n");
-		return (0);
-	}
-	dcons_dma_tag = sc->dma_tag;
-	dcons_dma_map = sc->dma_map;
-	dcons_paddr = sc->bus_addr;
+	    dmamap_cb, sc, 0);
 	return (0);
 #endif
 }
