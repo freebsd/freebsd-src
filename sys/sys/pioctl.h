@@ -65,6 +65,7 @@ struct procfs_status {
 # define	S_SCX	0x00000008	/* stop on syscall exit */
 # define	S_CORE	0x00000010	/* stop on coredump */
 # define	S_EXIT	0x00000020	/* stop on exit */
+# define	S_ALLSTOPS  0x003f	/* stop on all events */
 
 /*
  * If PF_LINGER is set in procp->p_pfsflags, then the last close
