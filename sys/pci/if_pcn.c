@@ -1203,7 +1203,7 @@ static void pcn_init(xsc)
 	PCN_CSR_SETBIT(sc, PCN_CSR_TFEAT, PCN_TFEAT_PAD_TX);
 
 	/* Disable MII autoneg (we handle this ourselves). */
-	PCN_BCR_CLRBIT(sc, PCN_BCR_MIICTL, PCN_MIICTL_DANAS);
+	PCN_BCR_SETBIT(sc, PCN_BCR_MIICTL, PCN_MIICTL_DANAS);
 
 	if (sc->pcn_type == Am79C978)
 		pcn_bcr_write(sc, PCN_BCR_PHYSEL,
