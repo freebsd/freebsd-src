@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1994,1995 by Andrey A. Chernov, Moscow, Russia.
+ * Copyright (C) 1995 by Andrey A. Chernov, Moscow, Russia.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,30 +24,48 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: termcap.h,v 1.4 1994/12/10 22:01:25 ache Exp $ */
-
-#ifndef _TERMCAP_H_
-#define _TERMCAP_H_
-
-#include <sys/cdefs.h>
-
-__BEGIN_DECLS
-
-extern char PC, *UP, *BC;
 extern short ospeed;
 
-extern int tgetent __P((char *, const char *));
-extern int tgetflag __P((const char *));
-extern int tgetnum __P((const char *));
-extern char *tgetstr __P((const char *, char **));
+static struct stable {
+	long speed;
+	short code;
+} table[] = {
+	{115200,17},
+	{57600, 16},
+	{38400, 15},
+	{19200, 14},
+	{9600,  13},
+	{4800,  12},
+	{2400,  11},
+	{1800,  10},
+	{1200,  9},
+	{600,   8},
+	{300,   7},
+	{200,   6},
+	{150,   5},
+	{134,   4},
+	{110,   3},
+	{75,    2},
+	{50,    1},
+	{0,     0},
+	{-1,    -1}
+};
 
-extern int tputs __P((const char *, int, int (*)(int)));
+void _set_ospeed(long speed)
+{
+	struct stable *stable;
 
-extern char *tgoto __P((const char *, int, int));
-extern char *tparm __P((const char *, ...));
+	if (speed == 0) {
+		ospeed = 0;
+		return;
+	}
+	for (stable = table; stable->speed > 0; stable++) {
+		/* nearest one, rounded down */
+		if (stable->speed <= speed) {
+			ospeed = stable->code;
+			return;
+		}
+	}
+	ospeed = 1;     /* 50, min and not hangup */
+}
 
-extern void _set_ospeed __P((long speed));
-
-__END_DECLS
-
-#endif /* _TERMCAP_H_ */
