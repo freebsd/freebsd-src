@@ -247,9 +247,13 @@ cpu_exit(struct thread *td)
 {
 	struct mdproc *mdp;
 
+	/* Reset pc->pcb_gs and %gs before possibly invalidating it. */
 	mdp = &td->td_proc->p_md;
-	if (mdp->md_ldt)
+	if (mdp->md_ldt) {
+		td->td_pcb->pcb_gs = _udatasel;
+		load_gs(_udatasel);
 		user_ldt_free(td);
+	}
 	reset_dbregs();
 }
 
