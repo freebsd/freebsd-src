@@ -668,7 +668,7 @@ hpfs_vget(
 		vp->v_flag |= VROOT;
 
 	simple_lock_init(&hp->h_interlock);
-	lockinit(&hp->h_lock, PINOD, "hpnode", 0, 0);
+	lockinit(&hp->h_lock, PINOD, "hpnode", VLKTIMEOUT, 0);
 
 	hp->h_flag = H_INVAL;
 	hp->h_vp = vp;

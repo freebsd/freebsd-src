@@ -52,6 +52,7 @@
 #include <sys/filio.h>
 #include <sys/ttycom.h>
 #include <sys/conf.h>
+#include <sys/syslog.h>
 
 static int vn_closefile __P((struct file *fp, struct proc *p));
 static int vn_ioctl __P((struct file *fp, u_long com, caddr_t data, 
@@ -661,7 +662,7 @@ debug_vn_lock(vp, flags, p, filename, line)
 			error = ENOENT;
 		} else {
 			if (vp->v_vxproc != NULL)
-				printf("VXLOCK interlock avoided in vn_lock\n");
+				log(LOG_INFO, "VXLOCK interlock avoided in vn_lock\n");
 #ifdef	DEBUG_LOCKS
 			vp->filename = filename;
 			vp->line = line;

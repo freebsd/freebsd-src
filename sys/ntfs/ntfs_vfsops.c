@@ -968,7 +968,7 @@ ntfs_vgetex(
 	dprintf(("ntfs_vget: vnode: %p for ntnode: %d\n", vp,ino));
 
 #ifdef __FreeBSD__
-	lockinit(&fp->f_lock, PINOD, "fnode", 0, 0);
+	lockinit(&fp->f_lock, PINOD, "fnode", VLKTIMEOUT, 0);
 #endif
 	fp->f_vp = vp;
 	vp->v_data = fp;

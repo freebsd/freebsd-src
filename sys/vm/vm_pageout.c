@@ -187,6 +187,10 @@ SYSCTL_INT(_vm, OID_AUTO, defer_swapspace_pageouts,
 SYSCTL_INT(_vm, OID_AUTO, disable_swapspace_pageouts,
 	CTLFLAG_RW, &disable_swap_pageouts, 0, "Disallow swapout of dirty pages");
 
+static int pageout_lock_miss;
+SYSCTL_INT(_vm, OID_AUTO, pageout_lock_miss,
+	CTLFLAG_RD, &pageout_lock_miss, 0, "vget() lock misses during pageout");
+
 #define VM_PAGEOUT_PAGE_COUNT 16
 int vm_pageout_page_count = VM_PAGEOUT_PAGE_COUNT;
 
@@ -852,16 +856,20 @@ rescan0:
 			 * is holding a locked vnode at just the point where
 			 * the pageout daemon is woken up.
 			 *
-			 * XXX we need to be able to apply a timeout to the
-			 * vget() lock attempt.
+			 * We can't wait forever for the vnode lock, we might
+			 * deadlock due to a vn_read() getting stuck in
+			 * vm_wait while holding this vnode.  We skip the 
+			 * vnode if we can't get it in a reasonable amount
+			 * of time.
 			 */
 
 			if (object->type == OBJT_VNODE) {
 				vp = object->handle;
 
-				if (vget(vp, LK_EXCLUSIVE|LK_NOOBJ, curproc)) {
+				if (vget(vp, LK_EXCLUSIVE|LK_NOOBJ|LK_TIMELOCK, curproc)) {
+					++pageout_lock_miss;
 					if (object->flags & OBJ_MIGHTBEDIRTY)
-						vnodes_skipped++;
+						    vnodes_skipped++;
 					continue;
 				}
 

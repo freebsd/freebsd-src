@@ -144,7 +144,8 @@ acquire(struct lock *lkp, int extflags, int wanted) {
 		lkp->lk_flags |= LK_WAIT_NONZERO;
 		lkp->lk_waitcount++;
 		simple_unlock(&lkp->lk_interlock);
-		error = tsleep(lkp, lkp->lk_prio, lkp->lk_wmesg, lkp->lk_timo);
+		error = tsleep(lkp, lkp->lk_prio, lkp->lk_wmesg, 
+			    ((extflags & LK_TIMELOCK) ? lkp->lk_timo : 0));
 		simple_lock(&lkp->lk_interlock);
 		if (lkp->lk_waitcount == 1) {
 			lkp->lk_flags &= ~LK_WAIT_NONZERO;
@@ -457,7 +458,8 @@ acquiredrain(struct lock *lkp, int extflags) {
 		lkp->lk_flags |= LK_WAITDRAIN;
 		simple_unlock(&lkp->lk_interlock);
 		error = tsleep(&lkp->lk_flags, lkp->lk_prio,
-			lkp->lk_wmesg, lkp->lk_timo);
+			lkp->lk_wmesg, 
+			((extflags & LK_TIMELOCK) ? lkp->lk_timo : 0));
 		simple_lock(&lkp->lk_interlock);
 		if (error)
 			return error;

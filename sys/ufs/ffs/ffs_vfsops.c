@@ -1002,9 +1002,17 @@ loop:
 				simple_lock(&mntvnode_slock);
 			}
 		} else {
+			/*
+			 * We must reference the vp to prevent it from
+			 * getting ripped out from under UFS_UPDATE, since
+			 * we are not holding a vnode lock.  XXX why aren't
+			 * we holding a vnode lock?
+			 */
+			VREF(vp);
 			simple_unlock(&mntvnode_slock);
 			/* UFS_UPDATE(vp, waitfor == MNT_WAIT); */
 			UFS_UPDATE(vp, 0);
+			vrele(vp);
 			simple_lock(&mntvnode_slock);
 		}
 		if (TAILQ_NEXT(vp, v_nmntvnodes) != nvp)
@@ -1097,7 +1105,7 @@ restart:
 		return (error);
 	}
 	bzero((caddr_t)ip, sizeof(struct inode));
-	lockinit(&ip->i_lock, PINOD, "inode", 0, LK_CANRECURSE);
+	lockinit(&ip->i_lock, PINOD, "inode", VLKTIMEOUT, LK_CANRECURSE);
 	vp->v_data = ip;
 	/*
 	 * FFS supports lock sharing in the stack of vnodes

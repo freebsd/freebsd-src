@@ -232,6 +232,11 @@ struct vattr {
  */
 #define	VNOVAL	(-1)
 
+/*
+ * LK_TIMELOCK timeout for vnode locks (used mainly by the pageout daemon)
+ */
+#define VLKTIMEOUT     (hz / 20 + 1)
+
 #ifdef _KERNEL
 
 #ifdef MALLOC_DECLARE
@@ -302,9 +307,9 @@ extern void	(*lease_updatetime) __P((int deltat));
 	 (!(vp)->v_object || \
 	  !((vp)->v_object->ref_count || (vp)->v_object->resident_page_count)))
 
-#define VMIGHTFREE(vp)	\
-	(!((vp)->v_flag & (VFREE|VDOOMED)) && \
-	 !(vp)->v_holdcnt && !(vp)->v_usecount)
+#define VMIGHTFREE(vp) \
+        (!((vp)->v_flag & (VFREE|VDOOMED|VXLOCK)) &&   \
+	 LIST_EMPTY(&(vp)->v_cache_src) && !(vp)->v_usecount)
 
 #define VSHOULDBUSY(vp)	\
 	(((vp)->v_flag & VFREE) && \
