@@ -434,6 +434,12 @@ ed_probe(isa_dev)
 	struct isa_device *isa_dev;
 {
 	int     nports;
+#ifdef PC98
+	int	nports98;
+#define EDNPORTS	nports98
+#else
+#define EDNPORTS	nports
+#endif
 
 #if NCRD > 0
 	/*
@@ -453,10 +459,10 @@ ed_probe(isa_dev)
 	if ((ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) ||
 		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_LPC)) {
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_LPC;
-		pc98_set_register(isa_dev, ED_TYPE98_LPC);
+		nports98 = pc98_set_register(isa_dev, ED_TYPE98_LPC);
 		nports = ed_probe_Novell(isa_dev);
 		if (nports)
-			return (nports);
+			return (EDNPORTS);
 	}
 
 	/*
@@ -464,7 +470,7 @@ ed_probe(isa_dev)
 	 * Allied Telesis CenterCom LA-98-T
 	 */
 	ed_softc[isa_dev->id_unit].type = ED_TYPE98_GENERIC;
-	pc98_set_register(isa_dev, ED_TYPE98_GENERIC);
+	nports98 = pc98_set_register(isa_dev, ED_TYPE98_GENERIC);
 
 	if (ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) {
 #endif
@@ -488,10 +494,10 @@ ed_probe(isa_dev)
 	if ((ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) ||
 		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_SIC)) {
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_SIC;
-		pc98_set_register(isa_dev, ED_TYPE98_SIC);
+		nports98 = pc98_set_register(isa_dev, ED_TYPE98_SIC);
 		nports = ed_probe_SIC98(isa_dev);
 		if (nports)
-			return (nports);
+			return (EDNPORTS);
 	}
 
 	/*
@@ -502,10 +508,10 @@ ed_probe(isa_dev)
 		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_BDN)) {
 		/* LD-BDN */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_BDN;
-		pc98_set_register(isa_dev, ED_TYPE98_BDN);
+		nports98 = pc98_set_register(isa_dev, ED_TYPE98_BDN);
 		nports = ed_probe_Novell(isa_dev);
 		if (nports)
-			return (nports);
+			return (EDNPORTS);
 	}
 
 	/*
@@ -516,10 +522,10 @@ ed_probe(isa_dev)
 		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_LGY)) {
 		/* LGY-98 */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_LGY;
-		pc98_set_register(isa_dev, ED_TYPE98_LGY);
+		nports98 = pc98_set_register(isa_dev, ED_TYPE98_LGY);
 		nports = ed_probe_Novell(isa_dev);
 		if (nports)
-			return (nports);
+			return (EDNPORTS);
 	}
 
 	/*
@@ -530,10 +536,10 @@ ed_probe(isa_dev)
 		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_ICM)) {
 		/* ICM */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_ICM;
-		pc98_set_register(isa_dev, ED_TYPE98_ICM);
+		nports98 = pc98_set_register(isa_dev, ED_TYPE98_ICM);
 		nports = ed_probe_Novell(isa_dev);
 		if (nports)
-			return (nports);
+			return (EDNPORTS);
 	}
 
 	/*
@@ -544,10 +550,10 @@ ed_probe(isa_dev)
 		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_EGY)) {
 		/* EGY-98 */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_EGY;
-		pc98_set_register(isa_dev, ED_TYPE98_EGY);
+		nports98 = pc98_set_register(isa_dev, ED_TYPE98_EGY);
 		nports = ed_probe_Novell(isa_dev);
 		if (nports)
-			return (nports);
+			return (EDNPORTS);
 	}
 
 	/*
@@ -557,10 +563,10 @@ ed_probe(isa_dev)
 		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_LA98)) {
 		/* LA-98 */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_LA98;
-		pc98_set_register(isa_dev, ED_TYPE98_LA98);
+		nports98 = pc98_set_register(isa_dev, ED_TYPE98_LA98);
 		nports = ed_probe_Novell(isa_dev);
 		if (nports)
-			return (nports);
+			return (EDNPORTS);
 	}
 
 	/*
@@ -570,10 +576,10 @@ ed_probe(isa_dev)
 		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_108)) {
 		/* PC-9801-108 */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_108;
-		pc98_set_register(isa_dev, ED_TYPE98_108);
+		nports98 = pc98_set_register(isa_dev, ED_TYPE98_108);
 		nports = ed_probe_Novell(isa_dev);
 		if (nports)
-			return (nports);
+			return (EDNPORTS);
 	}
 
 	/*
@@ -583,10 +589,10 @@ ed_probe(isa_dev)
 		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_CNET98EL)) {
 		/* C-NET(98)E/L */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_CNET98EL;
-		pc98_set_register(isa_dev, ED_TYPE98_CNET98EL);
+		nports98 = pc98_set_register(isa_dev, ED_TYPE98_CNET98EL);
 		nports = ed_probe_CNET98EL(isa_dev);
 		if (nports)
-			return (nports);
+			return (EDNPORTS);
 	}
 
 	/*
@@ -596,10 +602,10 @@ ed_probe(isa_dev)
 		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_CNET98)) {
 		/* C-NET(98) */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_CNET98;
-		pc98_set_register(isa_dev, ED_TYPE98_CNET98);
+		nports98 = pc98_set_register(isa_dev, ED_TYPE98_CNET98);
 		nports = ed_probe_CNET98(isa_dev);
 		if (nports)
-			return (nports);
+			return (EDNPORTS);
 	}
 #endif
 
