@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.22 1994/08/19 00:32:52 jkh Exp $
+ *      $Id: ultra14f.c,v 1.23 1994/08/27 16:14:22 davidg Exp $
  */
 
 #include <sys/types.h>
@@ -264,7 +264,7 @@ int     uhaprobe();
 int     uha_attach();
 int     uhaintr();
 int32   uha_scsi_cmd();
-void    uha_timeout(caddr_t, int);
+timeout_t uha_timeout;
 void	uha_free_mscp();
 int     uha_abort();
 void    uhaminphys();
@@ -1277,7 +1277,8 @@ uha_scsi_cmd(xs)
 }
 
 void
-uha_timeout(caddr_t arg1, int arg2)
+uha_timeout(arg1)
+	void	*arg1;
 {
 	struct mscp *mscp = (struct mscp *)arg1;
 	int     unit;
