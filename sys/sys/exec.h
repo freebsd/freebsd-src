@@ -61,7 +61,7 @@ struct ps_strings {
  * Address of ps_strings structure (in user space).
  */
 #define	PS_STRINGS	(USRSTACK - sizeof(struct ps_strings))
-#define SPARE_USRSPACE	256
+#define SPARE_USRSPACE	4096
 
 struct image_params;
 
