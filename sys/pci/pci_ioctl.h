@@ -11,6 +11,7 @@ struct pcisel {
 
 struct	pci_conf {
     struct pcisel	pc_sel;		/* bus+slot+function */
+    u_char		pc_hdr;		/* PCI header type */
     pcidi_t		pc_devid;	/* device ID */
     pcidi_t		pc_subid;	/* subvendor ID */
     u_int32_t		pc_class;	/* device class */
