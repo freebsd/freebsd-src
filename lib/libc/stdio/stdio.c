@@ -35,7 +35,11 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)stdio.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+		"$Id$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <fcntl.h>
@@ -47,7 +51,8 @@ static char sccsid[] = "@(#)stdio.c	8.1 (Berkeley) 6/4/93";
  * Small standard I/O/seek/close functions.
  * These maintain the `known seek offset' for seek optimisation.
  */
-int __sread(cookie, buf, n)
+int
+__sread(cookie, buf, n)
 	void *cookie;
 	char *buf;
 	int n;
@@ -55,7 +60,7 @@ int __sread(cookie, buf, n)
 	register FILE *fp = cookie;
 	register int ret;
 
-	ret = read(fp->_file, buf, n);
+	ret = read(fp->_file, buf, (size_t)n);
 	/* if the read succeeded, update the current offset */
 	if (ret >= 0)
 		fp->_offset += ret;
@@ -64,7 +69,8 @@ int __sread(cookie, buf, n)
 	return (ret);
 }
 
-int __swrite(cookie, buf, n)
+int
+__swrite(cookie, buf, n)
 	void *cookie;
 	char const *buf;
 	int n;
@@ -74,7 +80,7 @@ int __swrite(cookie, buf, n)
 	if (fp->_flags & __SAPP)
 		(void) lseek(fp->_file, (off_t)0, SEEK_END);
 	fp->_flags &= ~__SOFF;	/* in case FAPPEND mode is set */
-	return (write(fp->_file, buf, n));
+	return (write(fp->_file, buf, (size_t)n));
 }
 
 fpos_t
@@ -87,7 +93,7 @@ __sseek(cookie, offset, whence)
 	register off_t ret;
 
 	ret = lseek(fp->_file, (off_t)offset, whence);
-	if (ret == -1L)
+	if (ret == -1)
 		fp->_flags &= ~__SOFF;
 	else {
 		fp->_flags |= __SOFF;
@@ -96,7 +102,8 @@ __sseek(cookie, offset, whence)
 	return (ret);
 }
 
-int __sclose(cookie)
+int
+__sclose(cookie)
 	void *cookie;
 {
 
