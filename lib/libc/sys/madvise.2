@@ -36,7 +36,7 @@
 .Dt MADVISE 2
 .Os
 .Sh NAME
-.Nm madvise
+.Nm madvise , posix_madvise
 .Nd give advice about use of memory
 .Sh LIBRARY
 .Lb libc
@@ -44,12 +44,17 @@
 .In sys/mman.h
 .Ft int
 .Fn madvise "void *addr" "size_t len" "int behav"
+.Ft int
+.Fn posix_madvise "void *addr" "size_t len" "int behav"
 .Sh DESCRIPTION
 The
 .Fn madvise
 system call
 allows a process that has knowledge of its memory behavior
 to describe it to the system.
+The
+.Fn posix_madvise
+interface is identical and is provided for standards conformance.
 .Pp
 The known behaviors are:
 .Bl -tag -width MADV_SEQUENTIAL
@@ -124,6 +129,15 @@ The process must have superuser privileges.
 This should be used judiciously in processes that must remain running
 for the system to properly function.
 .El
+.Pp
+Portable programs that call the
+.Fn posix_madvise
+interface should use the aliases
+.Dv POSIX_MADV_NORMAL , POSIX_MADV_SEQUENTIAL ,
+.Dv POSIX_MADV_RANDOM , POSIX_MADV_WILLNEED ,
+and
+.Dv POSIX_MADV_DONTNEED
+rather than the flags described above.
 .Sh RETURN VALUES
 .Rv -std madvise
 .Sh ERRORS
@@ -132,6 +146,10 @@ The
 system call will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
+The
+.Fa behav
+argument is not valid.
+.It Bq Er ENOMEM
 The virtual address range specified by the
 .Fa addr
 and
@@ -146,6 +164,11 @@ was specified and the process does not have superuser privileges.
 .Xr mprotect 2 ,
 .Xr msync 2 ,
 .Xr munmap 2
+.Sh STANDARDS
+The
+.Fn posix_madvise
+interface conforms to
+.St -p1003.1-2001 .
 .Sh HISTORY
 The
 .Fn madvise
