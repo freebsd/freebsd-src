@@ -1,4 +1,5 @@
+# $FreeBSD$
 #proc				/proc			procfs	rw 0 0
 #/dev/fd0c			/start_floppy		ufs	rw 1 1
-#/dev/wd0s1			/dos		msdos	rw 0 0
-#/dev/wcd0c			/cdrom		cd9660	ro,noauto 0 0
+#/dev/wd0s1			/dos			msdosfs	rw 0 0
+#/dev/wcd0c			/cdrom			cd9660	ro,noauto 0 0
