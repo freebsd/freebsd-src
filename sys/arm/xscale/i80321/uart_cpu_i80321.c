@@ -48,10 +48,6 @@ uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 	return ((b1->bsh == b2->bsh && b1->bst == b2->bst) ? 1 : 0);
 }
 
-extern int got_mmu;
-
-void
-DO_corb(void);
 int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
@@ -66,9 +62,6 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->parity = UART_PARITY_NONE;
 	uart_bus_space_io = &obio_bs_tag;
 	uart_bus_space_mem = NULL;
-#if 0
-	bus_space_map(di->bas.bst, 0xfe800000, 8, 0, &di->bas.bsh);
-#endif
 	di->bas.bsh = 0xfe800000;
 	return (0);
 }
