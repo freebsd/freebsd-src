@@ -599,17 +599,23 @@ pcic_power(struct slot *slt)
 			/*
 			 * The 6710 does it one way, and the '22 and '29 do it
 			 * another.  And it appears that the '32 and '33 yet
-			 * another way (which I don't know).
+			 * another way (which I don't know).  The '22 can also
+			 * do it the same way as a '10 does it, despite what
+			 * the datasheets say.  Some laptops with '22 don't
+			 * seem to have the signals wired right for the '29
+			 * method to work, so we always use the '10 method for
+			 * the '22.  The laptops that don't work hang solid
+			 * when the pccard memory is accessed.
 			 */
 			switch (sp->controller) {
 			case PCIC_PD6710:
+			case PCIC_PD6722:
 				c = sp->getb(sp, PCIC_MISC1);
 				if ((c & PCIC_MISC1_5V_DETECT) == 0)
 					slt->pwr.vcc = 33;
 				else
 					slt->pwr.vcc = 50;
 				break;
-			case PCIC_PD6722:
 			case PCIC_PD6729:
 				/*
 				 * VS[12] signals are in slot1's
