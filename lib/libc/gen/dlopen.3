@@ -32,7 +32,7 @@
 .\" @(#) dlopen.3 1.6 90/01/31 SMI
 .\" $FreeBSD$
 .\"
-.Dd May 28, 2002
+.Dd September 10, 2002
 .Os
 .Dt DLOPEN 3
 .Sh NAME
@@ -45,9 +45,9 @@
 .Ft void *
 .Fn dlopen "const char *path" "int mode"
 .Ft void *
-.Fn dlsym "void *handle" "const char *symbol"
+.Fn dlsym "void * restrict handle" "const char * restrict symbol"
 .Ft dlfunc_t
-.Fn dlfunc "void *handle" "const char *symbol"
+.Fn dlfunc "void * restrict handle" "const char * restrict symbol"
 .Ft const char *
 .Fn dlerror "void"
 .Ft int
