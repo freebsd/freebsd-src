@@ -2382,6 +2382,9 @@
         <listitem>
 	  <para>Diamond Rio 500, 600, and 800 MP3 players (&man.urio.4; driver)</para>
 	</listitem>
+	<listitem>
+	  <para>D-Link DSB-R100 USB Radio (ufm driver)</para>
+	</listitem>
       </itemizedlist>
     </para>
     <para arch="i386">Modems (umodem driver)
