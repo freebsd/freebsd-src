@@ -40,8 +40,8 @@ __FBSDID("$FreeBSD$");
 
 int cmos_wall = 0;	/* True when wall time is in cmos clock, else UTC */
 
-void
-usage()
+static void
+usage(void)
 {
 	fprintf(stderr, "%s\n%s\n",
 		"usage: apm [-ablstzZ] [-d enable ] [ -e enable ] "
@@ -54,7 +54,7 @@ usage()
  * Return 1 for boolean true, and 0 for false, according to the
  * interpretation of the string argument given.
  */
-int
+static int
 is_true(const char *boolean) {
 	char *endp;
 	long val;
@@ -74,9 +74,11 @@ is_true(const char *boolean) {
 	warnx("invalid boolean argument \"%s\"", boolean);
 	usage();
 	/* NOTREACHED */
+
+	return (0);
 }
 
-int
+static int
 int2bcd(int i)
 {
 	int retval = 0;
@@ -93,7 +95,7 @@ int2bcd(int i)
 	return retval;
 }
 
-int
+static int
 bcd2int(int bcd)
 {
 	int retval = 0;
@@ -110,28 +112,28 @@ bcd2int(int bcd)
 	return retval;
 }
 
-void 
+static void 
 apm_suspend(int fd)
 {
 	if (ioctl(fd, APMIO_SUSPEND, NULL) == -1)
 		err(1, "ioctl(APMIO_SUSPEND)");
 }
 
-void 
+static void 
 apm_standby(int fd)
 {
 	if (ioctl(fd, APMIO_STANDBY, NULL) == -1)
 		err(1, "ioctl(APMIO_STANDBY)");
 }
 
-void 
+static void 
 apm_getinfo(int fd, apm_info_t aip)
 {
 	if (ioctl(fd, APMIO_GETINFO, aip) == -1)
 		err(1, "ioctl(APMIO_GETINFO)");
 }
 
-void 
+static void 
 apm_enable(int fd, int enable) {
 
 	if (enable) {
@@ -143,36 +145,34 @@ apm_enable(int fd, int enable) {
 	}
 }
 
-void 
+static void 
 print_all_info(int fd, apm_info_t aip, int bioscall_available)
 {
 	struct apm_bios_arg args;
 	int apmerr;
+	const char *batt_msg[] = { "high", "low", "critical", "charging" };
+	const char *line_msg[] = { "off-line", "on-line" };
 
 	printf("APM version: %d.%d\n", aip->ai_major, aip->ai_minor);
-	printf("APM Management: %s\n", (aip->ai_status ? "Enabled" : "Disabled"));
+	printf("APM Management: %s\n", aip->ai_status ? "Enabled" : "Disabled");
 	printf("AC Line status: ");
-	if (aip->ai_acline == 255)
+	if (aip->ai_acline >= 255)
 		printf("unknown");
 	else if (aip->ai_acline > 1)
 		printf("invalid value (0x%x)", aip->ai_acline);
-	else {
-		char *messages[] = { "off-line", "on-line" };
-		printf("%s", messages[aip->ai_acline]);
-	}
+	else
+		printf("%s", line_msg[aip->ai_acline]);
 	printf("\n");
 	printf("Battery status: ");
-	if (aip->ai_batt_stat == 255)
+	if (aip->ai_batt_stat >= 255)
 		printf("unknown");
 	else if (aip->ai_batt_stat > 3)
-			printf("invalid value (0x%x)", aip->ai_batt_stat);
-	else {
-		char *messages[] = { "high", "low", "critical", "charging" };
-		printf("%s", messages[aip->ai_batt_stat]);
-	}
+		printf("invalid value (0x%x)", aip->ai_batt_stat);
+	else
+		printf("%s", batt_msg[aip->ai_batt_stat]);
 	printf("\n");
 	printf("Remaining battery life: ");
-	if (aip->ai_batt_life == 255)
+	if (aip->ai_batt_life >= 255)
 		printf("unknown\n");
 	else if (aip->ai_batt_life <= 100)
 		printf("%d%%\n", aip->ai_batt_life);
@@ -194,10 +194,10 @@ print_all_info(int fd, apm_info_t aip, int bioscall_available)
 	}
 	if (aip->ai_infoversion >= 1) {
 		printf("Number of batteries: ");
-		if (aip->ai_batteries == (u_int) -1)
+		if (aip->ai_batteries >= 255)
 			printf("unknown\n");
 		else {
-			int i;
+			u_int i;
 			struct apm_pwstatus aps;
 
 			printf("%d\n", aip->ai_batteries);
@@ -208,26 +208,21 @@ print_all_info(int fd, apm_info_t aip, int bioscall_available)
 					continue;
 				printf("Battery %d:\n", i);
 				printf("\tBattery status: ");
-				if (aps.ap_batt_flag != 255 &&
+				if (aps.ap_batt_flag <= 255 &&
 				    (aps.ap_batt_flag & APM_BATT_NOT_PRESENT)) {
 					printf("not present\n");
 					continue;
 				}
-				if (aps.ap_batt_stat == 255)
+				if (aps.ap_batt_stat >= 255)
 					printf("unknown\n");
 				else if (aps.ap_batt_stat > 3)
 					printf("invalid value (0x%x)\n",
 					       aps.ap_batt_stat);
-				else {
-					char *messages[] = { "high",
-							     "low",
-							     "critical",
-							     "charging" };
+				else
 					printf("%s\n",
-					       messages[aps.ap_batt_stat]);
-				}
+					       batt_msg[aps.ap_batt_stat]);
 				printf("\tRemaining battery life: ");
-				if (aps.ap_batt_life == 255)
+				if (aps.ap_batt_life >= 255)
 					printf("unknown\n");
 				else if (aps.ap_batt_life <= 100)
 					printf("%d%%\n", aps.ap_batt_life);
@@ -343,14 +338,14 @@ print_all_info(int fd, apm_info_t aip, int bioscall_available)
  * currently, it can turn off the display, but the display never comes
  * back until the machine suspend/resumes :-).
  */
-void 
+static void 
 apm_display(int fd, int newstate)
 {
 	if (ioctl(fd, APMIO_DISPLAY, &newstate) == -1)
 		err(1, "ioctl(APMIO_DISPLAY)");
 }
 
-void
+static void
 apm_haltcpu(int fd, int enable) {
 
 	if (enable) {
@@ -362,7 +357,7 @@ apm_haltcpu(int fd, int enable) {
 	}
 }
 
-void
+static void
 apm_set_timer(int fd, int delta)
 {
 	time_t tmr;
@@ -394,7 +389,7 @@ int
 main(int argc, char *argv[])
 {
 	int	c, fd;
-	int     sleep = 0, all_info = 1, apm_status = 0, batt_status = 0;
+	int     dosleep = 0, all_info = 1, apm_status = 0, batt_status = 0;
 	int     display = -1, batt_life = 0, ac_status = 0, standby = 0;
 	int	batt_time = 0, delta = 0, enable = -1, haltcpu = -1;
 	char	*cmdname;
@@ -410,7 +405,7 @@ main(int argc, char *argv[])
 		cmdname = argv[0];
 
 	if (strcmp(cmdname, "zzz") == 0) {
-		sleep = 1;
+		dosleep = 1;
 		all_info = 0;
 		goto finish_option;
 	}
@@ -455,7 +450,7 @@ main(int argc, char *argv[])
 			all_info = 0;
 			break;
 		case 'z':
-			sleep = 1;
+			dosleep = 1;
 			all_info = 0;
 			break;
 		case 'Z':
@@ -470,7 +465,8 @@ main(int argc, char *argv[])
 		argv += optind;
 	}
 finish_option:
-	if (haltcpu != -1 || enable != -1 || display != -1 || delta || sleep || standby) {
+	if (haltcpu != -1 || enable != -1 || display != -1 || delta || dosleep
+	    || standby) {
 		fd = open(APMDEV, O_RDWR);
 		bioscall_available = 1;
 	} else if ((fd = open(APMDEV, O_RDWR)) >= 0)
@@ -485,7 +481,7 @@ finish_option:
 		apm_haltcpu(fd, haltcpu);
 	if (delta)
 		apm_set_timer(fd, delta);
-	if (sleep)
+	if (dosleep)
 		apm_suspend(fd);
 	else if (standby)
 		apm_standby(fd);
