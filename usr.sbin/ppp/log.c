@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: log.c,v 1.9 1997/05/04 02:39:03 ache Exp $
+ * $Id: log.c,v 1.10 1997/05/07 23:30:48 brian Exp $
  *
  */
 #include "defs.h"
@@ -151,9 +151,11 @@ vlogprintf(format, ap)
 char *format;
 va_list ap;
 {
-  vsnprintf(logptr, sizeof(logbuff)-(logptr-logbuff), format, ap);
-  logptr += strlen(logptr);
-  LogFlush();
+  if (logptr) {
+    vsnprintf(logptr, sizeof(logbuff)-(logptr-logbuff), format, ap);
+    logptr += strlen(logptr);
+    LogFlush();
+  }
 }
 
 void
