@@ -89,7 +89,9 @@ static char _hostname[MAXHOSTNAMELEN];
 static int help(int, char **);
 static int call(intrtn_t, ...);
 static void cmdrc(char *, char *);
+#ifdef INET6
 static int switch_af(struct addrinfo **);
+#endif
 static int togglehelp(void);
 static int send_tncmd(void (*)(int, int), const char *, char *);
 static int setmod(int);
@@ -2078,7 +2080,9 @@ tn(int argc, char *argv[])
 	hostname = _hostname;
     }
     res0 = res;
+ #ifdef INET6
  af_again:
+ #endif
     if (srcroute != 0) {
         static char hostbuf[BUFSIZ];
 
@@ -2560,10 +2564,12 @@ static int
 sourceroute(struct addrinfo *ai, char *arg, char **cpp, int *lenp, int *protop, int *optp)
 {
 	static char buf[1024 + ALIGNBYTES];	/*XXX*/
-	struct cmsghdr *cmsg;
 	char *cp, *cp2, *lsrp, *ep;
 	struct sockaddr_in *_sin;
+#ifdef INET6
 	struct sockaddr_in6 *sin6;
+	struct cmsghdr *cmsg;
+#endif
 	struct addrinfo hints, *res;
 	int error;
 	char c;
