@@ -32,7 +32,7 @@
 .\"	@(#)make.1	8.8 (Berkeley) 6/13/95
 .\" $FreeBSD$
 .\"
-.Dd December 2, 2004
+.Dd January 26, 2005
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -590,6 +590,20 @@ environment variable made available for all programs which
 executes; compare with the
 .Ic .MAKEFLAGS
 special target below.
+.Pp
+When passing macro definitions and flag arguments in the
+.Ev MAKEFLAGS
+environment variable,
+space and tab characters are quoted by preceding them with a backslash.
+When reading the
+.Ev MAKEFLAGS
+variable from the environment,
+all sequences of a backslash and one of space or tab
+are replaced just with their second character
+without causing a word break.
+Any other occurences of a backslash are retained.
+Groups of unquoted space, tab and newline characters cause word
+breaking.
 .It Va MFLAGS
 This variable is provided for backward compatibility and
 contains all the options from the
@@ -1467,3 +1481,12 @@ all:
      ...
 \&.endfor
 .Ed
+.Pp
+A trailing backslash in a variable value defined on the command line causes
+the delimiting space in the
+.Ev MAKEFLAGS
+environment variable to be preceeded by that backslash.
+That causes a submake to not treat that space as a word delimiter.
+Fixing this requires a larger rewrite of the code handling command line
+macros and assignments to
+.Va .MAKEFLAGS .

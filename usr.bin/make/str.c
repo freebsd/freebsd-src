@@ -223,6 +223,105 @@ done:	argv[argc] = NULL;
 }
 
 /*
+ * Quote a string for appending it to MAKEFLAGS. According to Posix the
+ * kind of quoting here is implementation-defined. This quoting must ensure
+ * that the parsing of MAKEFLAGS's contents in a sub-shell yields the same
+ * options, option arguments and macro definitions as in the calling make.
+ * We simply quote all blanks, which according to Posix are space and tab
+ * in the POSIX locale. Don't use isblank because in that case makes with
+ * different locale settings could not communicate. We must also quote
+ * backslashes obviously.
+ */
+char *
+MAKEFLAGS_quote(const char *str)
+{
+	char *ret, *q;
+	const char *p;
+
+	/* assume worst case - everything has to be quoted */
+	ret = emalloc(strlen(str) * 2 + 1);
+
+	p = str;
+	q = ret;
+	while (*p != '\0') {
+		switch (*p) {
+
+		  case ' ':
+		  case '\t':
+			*q++ = '\\';
+			break;
+
+		  default:
+			break;
+		}
+		*q++ = *p++;
+	}
+	*q++ = '\0';
+	return (ret);
+}
+
+char **
+MAKEFLAGS_break(const char *str, int *pargc)
+{
+	char *q, *start;
+	int len;
+
+	/* allocate room for a copy of the string */
+	if ((len = strlen(str) + 1) > curlen)
+		buffer = erealloc(buffer, curlen = len);
+
+	start = NULL;
+	*pargc = 1;
+
+	for (q = buffer;;) {
+		switch (*str) {
+		  case ' ':
+		  case '\t':
+			/* word separator */
+			if (start == NULL) {
+				/* not in a word */
+				str++;
+				continue;
+			}
+			/* FALLTHRU */
+		  case '\0':
+			if (start == NULL)
+				goto done;
+
+			/* finish word */
+			*q++ = '\0';
+			if (argmax == *pargc) {
+				argmax *= 2;
+				argv = erealloc(argv,
+				    sizeof(*argv) * (argmax + 1));
+			}
+			argv[(*pargc)++] = start;
+			start = NULL;
+
+			if (*str++ == '\0')
+				goto done;
+			continue;
+
+		  case '\\':
+			if (str[1] == ' ' || str[1] == '\t')
+				/* was a quote */
+				str++;
+			break;
+
+		  default:
+			break;
+		}
+		if (start == NULL)
+			/* start of new word */
+			start = q;
+		*q++ = *str++;
+	}
+  done:
+	argv[(*pargc)] = NULL;
+	return (argv);
+}
+
+/*
  * Str_Match --
  *
  * See if a particular string matches a particular pattern.

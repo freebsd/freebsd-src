@@ -144,14 +144,21 @@ static char *objdir;			/* where we chdir'ed to */
 static void
 MFLAGS_append(char *flag, char *arg)
 {
+	char *str;
 
 	Var_Append(MAKEFLAGS, flag, VAR_GLOBAL);
-	if (arg != NULL)
-		Var_Append(MAKEFLAGS, arg, VAR_GLOBAL);
+	if (arg != NULL) {
+		str = MAKEFLAGS_quote(arg);
+		Var_Append(MAKEFLAGS, str, VAR_GLOBAL);
+		free(str);
+	}
 
 	Var_Append("MFLAGS", flag, VAR_GLOBAL);
-	if (arg != NULL)
-		Var_Append("MFLAGS", arg, VAR_GLOBAL);
+	if (arg != NULL) {
+		str = MAKEFLAGS_quote(arg);
+		Var_Append("MFLAGS", str, VAR_GLOBAL);
+		free(str);
+	}
 }
 
 /*-
@@ -340,7 +347,7 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 	 */
 	for (argv += optind, argc -= optind; *argv; ++argv, --argc)
 		if (Parse_IsVar(*argv)) {
-			char *ptr = Var_Quote(*argv);
+			char *ptr = MAKEFLAGS_quote(*argv);
 
 			Var_Append(MAKEFLAGS, ptr, VAR_GLOBAL);
 			free(ptr);
@@ -376,7 +383,7 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
  *	Only those that come from the various arguments.
  */
 void
-Main_ParseArgLine(char *line)
+Main_ParseArgLine(char *line, int mflags)
 {
 	char **argv;			/* Manufactured argument vector */
 	int argc;			/* Number of arguments in argv */
@@ -388,7 +395,11 @@ Main_ParseArgLine(char *line)
 	if (!*line)
 		return;
 
-	argv = brk_string(line, &argc, TRUE);
+	if (mflags)
+		argv = MAKEFLAGS_break(line, &argc);
+	else
+		argv = brk_string(line, &argc, TRUE);
+
 	MainParseArgs(argc, argv);
 }
 
@@ -622,7 +633,7 @@ main(int argc, char **argv)
 	 * (Note this is *not* MAKEFLAGS since /bin/make uses that and it's
 	 * in a different format).
 	 */
-	Main_ParseArgLine(getenv("MAKEFLAGS"));
+	Main_ParseArgLine(getenv("MAKEFLAGS"), 1);
 
 	MainParseArgs(argc, argv);
 

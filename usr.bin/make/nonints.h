@@ -62,7 +62,7 @@ int For_Eval(char *);
 void For_Run(int);
 
 /* main.c */
-void Main_ParseArgLine(char *);
+void Main_ParseArgLine(char *, int);
 char *Cmd_Exec(char *, char **);
 void Debug(const char *, ...);
 void Error(const char *, ...);
@@ -92,6 +92,8 @@ void Parse_MainName(Lst *);
 void str_init(void);
 char *str_concat(const char *, const char *, int);
 char **brk_string(char *, int *, Boolean);
+char *MAKEFLAGS_quote(const char *);
+char **MAKEFLAGS_break(const char *, int *);
 int Str_Match(const char *, const char *);
 const char *Str_SYSVMatch(const char *, const char *, int *);
 void Str_SYSVSubst(Buffer, const char *, const char *, int);
