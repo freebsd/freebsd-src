@@ -132,7 +132,7 @@ void free_drive(struct drive *drive);
 void down_drive(struct drive *drive);
 void remove_drive(int driveno);
 
-int vinum_scandisk(char *drivename[], int drives);
+int vinum_scandisk(char *drivename);
 
 /* I/O */
 d_open_t vinumopen;
