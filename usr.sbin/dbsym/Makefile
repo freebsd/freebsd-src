@@ -1,3 +1,5 @@
+#	$Id$
+
 PROG=	dbsym
 NOMAN=	noman
 

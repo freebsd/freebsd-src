@@ -1,12 +1,21 @@
 /* Written by Pace Willisson (pace@blitz.com)
  * and placed in the public domain.
  */
+
+#ifndef lint
+static char rcsid[] = "$Id: dbsym.c,v 1.8 1993/08/02 17:57:02 mycroft Exp $";
+#endif /* not lint */
+
 #include <stdio.h>
+#include <stdlib.h>
 #include <a.out.h>
+#include <stab.h>
+#include <machine/param.h>
 
-char *malloc ();
+#define FILE_OFFSET(vadr) (((vadr) - text_adr) - N_DATADDR(hdr) + \
+			   N_DATOFF(hdr) + N_TXTADDR(hdr))
 
-#define FILE_OFFSET(vadr) (((vadr) & ~0xff000000)-N_DATADDR(hdr)+N_DATOFF(hdr))
+u_int text_adr = KERNBASE;
 
 struct nlist *old_syms;
 int num_old_syms;
@@ -24,10 +33,13 @@ int db_symtab_adr;
 
 int avail;
 
+int force = 0;
+int zap_locals = 0;
+int debugging = 0;
 
 usage ()
 {
-	fprintf (stderr, "usage: dbsym file\n");
+	fprintf (stderr, "usage: dbsym [-fgx] [-T addr] file\n");
 	exit (1);
 }
 
@@ -46,8 +58,22 @@ char **argv;
 	int len;
 
 
-	while ((c = getopt (argc, argv, "")) != EOF) {
+	while ((c = getopt (argc, argv, "fgxT:")) != EOF) {
 		switch (c) {
+		case 'f':
+			force = 1;
+			break;
+		case 'g':
+			debugging = 1;
+			break;
+                case 'x':
+                        zap_locals = 1;
+                        break;
+		case 'T':
+			text_adr = strtoul(optarg, &p, 16);
+			if (*p)
+				err("illegal text address: %s", optarg);
+			break;
 		default:
 			usage ();
 		}
@@ -113,16 +139,43 @@ char **argv;
 
 	nsp = new_syms;
 	for (i = 0, sp = old_syms; i < num_old_syms; i++, sp++) {
-		if (sp->n_type & N_STAB)
+		if (zap_locals && !(sp->n_type & N_EXT))
 			continue;
+
+		if (sp->n_type & N_STAB)
+			switch (sp->n_type & ~N_EXT) {
+				case N_SLINE:
+					if (debugging)
+						*nsp++ = *sp;
+					continue;
+				case N_FUN:
+				case N_PSYM:
+				case N_SO:
+					if (!debugging)
+						continue;
+					goto skip_tests;
+					break;
+				default:
+					continue;
+			}
+
+		if ((sp->n_type & ~N_EXT) == N_UNDF)
+			continue;
+                
+                if (!debugging && (sp->n_type & ~N_EXT) == N_FN)
+			continue;
+
 		if (sp->n_un.n_strx == 0)
 			continue;
 
-		if (sp->n_value < 0xfe000000)
+		if (sp->n_value < text_adr)
 			continue;
 
-		if (sp->n_value >= 0xff000000)
+		if (sp->n_value > (text_adr + hdr.a_text + hdr.a_data +
+				   hdr.a_bss))
 			continue;
+
+		skip_tests:
 
 		name = old_strtab + sp->n_un.n_strx;
 
@@ -131,12 +184,15 @@ char **argv;
 		if (len == 0)
 			continue;
 
-		if (len >= 2 && name[len - 2] == '.' && name[len - 1] == 'o')
-			continue;
-
 		if (strcmp (name, "gcc_compiled.") == 0)
 			continue;
 
+		if (strcmp (name, "gcc2_compiled.") == 0)
+			continue;
+
+                if (strcmp (name, "___gnu_compiled_c") == 0)
+			continue;
+                        
 		*nsp = *sp;
 
 		nsp->n_un.n_strx = new_strtab_size;
@@ -150,10 +206,12 @@ char **argv;
 			db_symtabsize_adr = sp->n_value;
 	}
 	
-	if (db_symtab_adr == 0 || db_symtabsize_adr == 0) {
-		fprintf (stderr, "couldn't find db_symtab symbols\n");
-		exit (1);
-	}
+	if (db_symtab_adr == 0 || db_symtabsize_adr == 0)
+		if (!force) {
+			fprintf (stderr, "couldn't find db_symtab symbols\n");
+			exit (1);
+		} else
+			exit (0);
 
 	*(int *)new_strtab = new_strtab_size;
 	num_new_syms = nsp - new_syms;
