@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7870.c,v 1.40 1996/10/25 06:43:10 gibbs Exp $
+ *	$Id: aic7870.c,v 1.42 1996/11/05 07:59:28 gibbs Exp $
  */
 
 #if defined(__FreeBSD__)
@@ -377,6 +377,19 @@ ahc_pci_attach(parent, self, aux)
 #ifdef AHC_SHARE_SCBS
 				shared_scb_data = first_398X->scb_data;
 #endif
+			if (aic398X_count == 3) {
+				/*
+				 * This is the last device on this RAID
+				 * controller, so reset our counts.
+				 * XXX This won't work for the multiple 3980
+				 * controllers since they have only 2 channels,
+				 * but I'm not even sure if Adaptec actually
+				 * went through with their plans to produce
+				 * this controller.
+				 */
+				aic398X_count = 0;
+				first_398X = NULL;
+			}
 			break;
 	case PCI_DEVICE_ID_ADAPTEC_3940U:
 	case PCI_DEVICE_ID_ADAPTEC_3940:
@@ -414,12 +427,6 @@ ahc_pci_attach(parent, self, aux)
 		ahc_t = AHC_AIC7850;
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_AIC7810:
-		/*
-		 * This is the first device probed on a RAID
-		 * controller, so reset our counts.
-		 */
-		aic398X_count = 0;
-		first_398X = NULL;
 		printf("RAID functionality unsupported\n");
 		return;
 	default:
@@ -440,6 +447,20 @@ ahc_pci_attach(parent, self, aux)
 		ultra_enb = bus_io_read_1(pa->pa_bc, ioh, SXFRCTL0) & ULTRAEN;
 #endif
 
+#if AHC_DEBUG
+	{
+		u_int32_t config_info;
+		config_info = pci_conf_read(config_id, DEVCONFIG);
+		printf("DEVCONF == 0x%x\n", config_info);
+
+		outb(io_port + HCNTRL, IRQMS|INTEN|PAUSE);
+		printf("SEECTL == 0x%x, BRDCTL == 0x%x\n"
+		       "SXFRCTL0 == 0x%x, SXFRCTL1 == 0x%x\n",
+			inb(io_port + SEECTL), inb(io_port + 0x1D),
+			inb(io_port + SXFRCTL0), inb(io_port + SXFRCTL1));
+	}
+#endif
+
 #if defined(__FreeBSD__)
 	ahc_reset(io_port);
 #elif defined(__NetBSD__)
@@ -447,6 +468,7 @@ ahc_pci_attach(parent, self, aux)
 	ahc_reset(ahc->sc_dev.dv_xname, pa->pa_bc, ioh);
 #endif
 
+#ifdef AHC_SHARE_SCBS
 	if (ahc_t & AHC_AIC7870) {
 #if defined(__FreeBSD__)
 		u_int32_t devconfig = pci_conf_read(config_id, DEVCONFIG);
@@ -454,8 +476,6 @@ ahc_pci_attach(parent, self, aux)
 		u_int32_t devconfig =
 			pci_conf_read(pa->pa_pc, pa->pa_tag, DEVCONFIG);
 #endif
-
-#ifdef AHC_SHARE_SCBS
 		if (devconfig & (RAMPSM)) {
 			/* XXX Assume 9bit SRAM and enable parity checking */
 			devconfig |= EXTSCBPEN;
@@ -476,8 +496,8 @@ ahc_pci_attach(parent, self, aux)
 				       DEVCONFIG, devconfig);
 #endif
 		}
-#endif
 	}
+#endif
 
 #if defined(__FreeBSD__)
 	if ((ahc = ahc_alloc(unit, io_port, vaddr, ahc_t, ahc_f,
