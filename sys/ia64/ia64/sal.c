@@ -99,6 +99,7 @@ ia64_sal_init(struct sal_system_table *saltab)
 			if (bootverbose)
 				printf("SMP: AP wake-up vector: 0x%lx\n",
 				    dp->sale_vector);
+#ifdef SMP
 			for (ipi = 0; ipi < IPI_COUNT; ipi++)
 				mp_ipi_vector[ipi] = dp->sale_vector + ipi;
 
@@ -108,6 +109,7 @@ ia64_sal_init(struct sal_system_table *saltab)
 			    0, 0, 0);
 
 			mp_hardware = 1;
+#endif
 			break;
 		}
 		}
