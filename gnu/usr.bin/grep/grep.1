@@ -1,234 +1,375 @@
-.TH GREP 1 "1988 December 13" "GNU Project" \" -*- nroff -*-
-.UC 4
+.TH GREP 1 "1992 September 10" "GNU Project"
 .SH NAME
-grep, egrep \- print lines matching a regular expression
-.SH SYNOPSIS
+grep, egrep, fgrep \- print lines matching a pattern
+.SH SYNOPOSIS
 .B grep
 [
-.B \-CVbchilnsvwx
-] [
-.BI \- num
-] [
-.B \-AB
-.I num
-] [ [
+.BR \- [[ AB "] ]\c"
+.I "num"
+]
+[
+.BR \- [ CEFGVBchilnsvwx ]
+]
+[
 .B \-e
 ]
-.I expr
+.I pattern
 |
-.B \-f
-.I file
+.BI \-f file
 ] [
-.I "files ..."
+.I files...
 ]
 .SH DESCRIPTION
-.I Grep
-searches the files listed in the arguments (or standard
-input if no files are given) for all lines that contain a match for
-the given
-.IR expr .
-If any lines match, they are printed.
 .PP
-Also, if any matches were found,
-.I grep
-exits with a status of 0, but if no matches were found it exits
-with a status of 1.  This is useful for building shell scripts that
-use
-.I grep
-as a condition for, for example, the
-.I if
-statement.
+.B Grep
+searches the named input
+.I files
+(or standard input if no files are named, or
+the file name
+.B \-
+is given)
+for lines containing a match to the given
+.IR pattern .
+By default,
+.B grep
+prints the matching lines.
 .PP
-When invoked as
-.I egrep
-the syntax of the
-.I expr
-is slightly different; See below.
-.br
-.SH "REGULAR EXPRESSIONS"
-.RS 2.5i
-.ta 1i 2i
-.sp
-.ti -2.0i
-(grep)	(egrep)		(explanation)
-.sp
-.ti -2.0i
-\fIc\fP	\fIc\fP	a single (non-meta) character matches itself.
-.sp
-.ti -2.0i
-\&.	.	matches any single character except newline.
-.sp
-.ti -2.0i
-\\?	?	postfix operator; preceeding item is optional.
-.sp
-.ti -2.0i
-\(**	\(**	postfix operator; preceeding item 0 or
-more times.
-.sp
-.ti -2.0i
-\\+	+	postfix operator; preceeding item 1 or
-more times.
-.sp
-.ti -2.0i
-\\|	|	infix operator; matches either
-argument.
-.sp
-.ti -2.0i
-^	^	matches the empty string at the beginning of a line.
-.sp
-.ti -2.0i
-$	$	matches the empty string at the end of a line.
-.sp
-.ti -2.0i
-\\<	\\<	matches the empty string at the beginning of a word.
-.sp
-.ti -2.0i
-\\>	\\>	matches the empty string at the end of a word.
-.sp
-.ti -2.0i
-[\fIchars\fP]	[\fIchars\fP]	match any character in the given class; if the
-first character after [ is ^, match any character
-not in the given class; a range of characters may
-be specified by \fIfirst\-last\fP; for example, \\W
-(below) is equivalent to the class [^A\-Za\-z0\-9]
-.sp
-.ti -2.0i
-\\( \\)	( )	parentheses are used to override operator precedence.
-.sp
-.ti -2.0i
-\\\fIdigit\fP	\\\fIdigit\fP	\\\fIn\fP matches a repeat of the text
-matched earlier in the regexp by the subexpression inside the nth
-opening parenthesis.
-.sp
-.ti -2.0i
-\\	\\	any special character may be preceded
-by a backslash to match it literally.
-.sp
-.ti -2.0i
-(the following are for compatibility with GNU Emacs)
-.sp
-.ti -2.0i
-\\b	\\b	matches the empty string at the edge of a word.
-.sp
-.ti -2.0i
-\\B	\\B	matches the empty string if not at the edge of a word.
-.sp
-.ti -2.0i
-\\w	\\w	matches word-constituent characters (letters & digits).
-.sp
-.ti -2.0i
-\\W	\\W	matches characters that are not word-constituent.
-.RE
-.PP
-Operator precedence is (highest to lowest) ?, \(**, and +, concatenation,
-and finally |.  All other constructs are syntactically identical to
-normal characters.  For the truly interested, the file dfa.c describes
-(and implements) the exact grammar understood by the parser.
-.SH OPTIONS
+There are three major variants of
+.BR grep ,
+controlled by the following options.
+.PD 0
 .TP
-.BI \-A " num"
-print <num> lines of context after every matching line
+.B \-G
+Interpret
+.I pattern
+as a basic regular expression (see below).  This is the default.
 .TP
-.BI \-B " num"
-print
-.I num
-lines of context before every matching line
+.B \-E
+Interpret
+.I pattern
+as an extended regular expression (see below).
 .TP
-.B \-C
-print 2 lines of context on each side of every match
+.B \-F
+Interpret
+.I pattern
+as a list of fixed strings, separated by newlines,
+any of which is to be matched.
+.LP
+In addition, two variant programs
+.B egrep
+and
+.B fgrep
+are available.
+.B Egrep
+is similiar (but not identical) to
+.BR "grep\ \-E" ,
+and is compatible with the historical Unix
+.BR egrep .
+.B Fgrep
+is the same as
+.BR "grep\ \-F" .
+.PD
+.LP
+All variants of
+.B grep
+understand the following options:
+.PD 0
 .TP
 .BI \- num
-print
+Matches will be printed with
 .I num
-lines of context on each side of every match
+lines of leading and trailing context.  However,
+.B grep
+will never print any given line more than once.
+.TP
+.BI \-A " num"
+Print
+.I num
+lines of trailing context after matching lines.
+.TP
+.BI \-B " num"
+Print
+.I num
+lines of leading context before matching lines.
+.TP
+.B \-C
+Equivalent to
+.BR \-2 .
 .TP
 .B \-V
-print the version number on the diagnostic output
+Print the version number of
+.B grep
+to standard error.  This version number should
+be included in all bug reports (see below).
 .TP
 .B \-b
-print every match preceded by its byte offset
+Print the byte offset within the input file before
+each line of output.
 .TP
 .B \-c
-print a total count of matching lines only
+Suppress normal output; instead print a count of
+matching lines for each input file.
+With the
+.B \-v
+option (see below), count non-matching lines.
 .TP
-.BI \-e " expr"
-search for
-.IR expr ;
-useful if
-.I expr
-begins with \-
+.BI \-e " pattern"
+Use
+.I pattern
+as the pattern; useful to protect patterns beginning with
+.BR \- .
 .TP
 .BI \-f " file"
-search for the expression contained in
-.I file
+Obtain the pattern from
+.IR file .
 .TP
 .B \-h
-don't display filenames on matches
+Suppress the prefixing of filenames on output
+when multiple files are searched.
 .TP
 .B \-i
-ignore case difference when comparing strings
+Ignore case distinctions in both the
+.I pattern
+and the input files.
+.TP
+.B \-L
+Suppress normal output; instead print the name
+of each input file from which no output would
+normally have been printed.
 .TP
 .B \-l
-list files containing matches only
+Suppress normal output; instead print
+the name of each input file from which output
+would normally have been printed.
 .TP
 .B \-n
-print each match preceded by its line number
+Prefix each line of output with the line number
+within its input file.
+.TP
+.B \-q
+Quiet; suppress normal output.
 .TP
 .B \-s
-run silently producing no output except error messages
+Suppress error messages about nonexistent or unreadable files.
 .TP
 .B \-v
-print only lines that contain no matches for the <expr>
+Invert the sense of matching, to select non-matching lines.
 .TP
 .B \-w
-print only lines where the match is a complete word
+Select only those lines containing matches that form whole words.
+The test is that the matching substring must either be at the
+beginning of the line, or preceded by a non-word constituent
+character.  Similarly, it must be either at the end of the line
+or followed by a non-word constituent character.  Word-constituent
+characters are letters, digits, and the underscore.
 .TP
 .B \-x
-print only lines where the match is a whole line
-.SH "SEE ALSO"
-emacs(1), ed(1), sh(1),
-.I "GNU Emacs Manual"
-.SH INCOMPATIBILITIES
-The following incompatibilities with UNIX
-.I grep
-exist:
+Select only those matches that exactly match the whole line.
+.PD
+.SH "REGULAR EXPRESSIONS"
 .PP
-.RS 0.5i
-The context-dependent meaning of \(** is not quite the same (grep only).
+A regular expression is a pattern that describes a set of strings.
+Regular expressions are constructed analagously to arithmetic
+expressions, by using various operators to combine smaller expressions.
 .PP
-.B \-b
-prints a byte offset instead of a block offset.
+.B Grep
+understands two different versions of regular expression syntax:
+``basic'' and ``extended.''  In
+.RB "GNU\ " grep ,
+there is no difference in available functionality using either syntax.
+In other implementations, basic regular expressions are less powerful.
+The following description applies to extended regular expressions;
+differences for basic regular expressions are summarized afterwards.
 .PP
-The {\fIm,n\fP} construct of System V grep is not implemented.
+The fundamental building blocks are the regular expressions that match
+a single character.  Most characters, including all letters and digits,
+are regular expressions that match themselves.  Any metacharacter with
+special meaning may be quoted by preceding it with a backslash.
 .PP
+A list of characters enclosed by
+.B [
+and
+.B ]
+matches any single
+character in that list; if the first character of the list
+is the caret
+.B ^
+then it matches any character
+.I not
+in the list.
+For example, the regular expression
+.B [0123456789]
+matches any single digit.  A range of ASCII characters
+may be specified by giving the first and last characters, separated
+by a hyphen.
+Finally, certain named classes of characters are predefined.
+Their names are self explanatory, and they are
+.BR [:alnum:] ,
+.BR [:alpha:] ,
+.BR [:cntrl:] ,
+.BR [:digit:] ,
+.BR [:graph:] ,
+.BR [:lower:] ,
+.BR [:print:] ,
+.BR [:punct:] ,
+.BR [:space:] ,
+.BR [:upper:] ,
+and
+.BR [:xdigit:].
+For example, 
+.B [[:alnum:]]
+means
+.BR [0-9A-Za-z] ,
+except the latter form is dependent upon the ASCII character encoding,
+whereas the former is portable.
+(Note that the brackets in these class names are part of the symbolic
+names, and must be included in addition to the brackets delimiting
+the bracket list.)  Most metacharacters lose their special meaning
+inside lists.  To include a literal
+.B ]
+place it first in the list.  Similarly, to include a literal
+.B ^
+place it anywhere but first.  Finally, to include a literal
+.B \-
+place it last.
+.PP
+The period
+.B .
+matches any single character.
+The symbol
+.B \ew
+is a synonym for
+.B [[:alnum:]]
+and
+.B \eW
+is a synonym for
+.BR [^[:alnum]] .
+.PP
+The caret
+.B ^
+and the dollar sign
+.B $
+are metacharacters that respectively match the empty string at the
+beginning and end of a line.
+The symbols
+.B \e<
+and
+.B \e>
+respectively match the empty string at the beginning and end of a word.
+The symbol
+.B \eb
+matches the empty string at the edge of a word,
+and
+.B \eB
+matches the empty string provided it's
+.I not
+at the edge of a word.
+.PP
+A regular expression matching a single character may be followed
+by one of several repetition operators:
+.PD 0
+.TP
+.B ?
+The preceding item is optional and matched at most once.
+.TP
+.B *
+The preceding item will be matched zero or more times.
+.TP
+.B +
+The preceding item will be matched one or more times.
+.TP
+.BI { n }
+The preceding item is matched exactly
+.I n
+times.
+.TP
+.BI { n ,}
+The preceding item is matched
+.I n
+or more times.
+.TP
+.BI {, m }
+The preceding item is optional and is matched at most
+.I m
+times.
+.TP
+.BI { n , m }
+The preceding item is matched at least
+.I n
+times, but not more than
+.I m
+times.
+.PD
+.PP
+Two regular expressions may be concatenated; the resulting
+regular expression matches any string formed by concatenating
+two substrings that respectively match the concatenated
+subexpressions.
+.PP
+Two regular expressions may be joined by the infix operator
+.BR | ;
+the resulting regular expression matches any string matching
+either subexpression.
+.PP
+Repetition takes precedence over concatenation, which in turn
+takes precedence over alternation.  A whole subexpression may be
+enclosed in parentheses to override these precedence rules.
+.PP
+The backreference
+.BI \e n\c
+\&, where
+.I n
+is a single digit, matches the substring
+previously matched by the
+.IR n th
+parenthesized subexpression of the regular expression.
+.PP
+In basic regular expressions the metacharacters
+.BR ? ,
+.BR + ,
+.BR { ,
+.BR | ,
+.BR ( ,
+and
+.BR )
+lose their special meaning; instead use the backslashed
+versions
+.BR \e? ,
+.BR \e+ ,
+.BR \e{ ,
+.BR \e| ,
+.BR \e( ,
+and
+.BR \e) .
+.PP
+In
+.B egrep
+the metacharacter
+.B {
+loses its special meaning; instead use
+.BR \e{ .
+.SH DIAGNOSTICS
+.PP
+Normally, exit status is 0 if matches were found,
+and 1 if no matches were found.  (The
+.B \-v
+option inverts the sense of the exit status.)
+Exit status is 2 if there were syntax errors
+in the pattern, inaccessible input files, or
+other system errors.
 .SH BUGS
-GNU \fIe?grep\fP has been thoroughly debugged and tested over a period
-of several years; we think it's a reliable beast or we wouldn't
-distribute it.  If by some fluke of the universe you discover a bug,
-send a detailed description (including options, regular expressions,
-and a copy of an input file that can reproduce it) to mike@ai.mit.edu.
 .PP
-.SH AUTHORS
-Mike Haertel wrote the deterministic regexp code and the bulk
-of the program.
+Email bug reports to
+.BR bug-gnu-utils@prep.ai.mit.edu .
+Be sure to include the word ``grep'' somewhere in the ``Subject:'' field.
 .PP
-James A. Woods is responsible for the hybridized search strategy
-of using Boyer-Moore-Gosper fixed-string search as a filter
-before calling the general regexp matcher.
+Large repetition counts in the
+.BI { m , n }
+construct may cause grep to use lots of memory.
+In addition,
+certain other obscure regular expressions require exponential time
+and space, and may cause
+.B grep
+to run out of memory.
 .PP
-Arthur David Olson contributed code that finds fixed strings for
-the aforementioned BMG search for a large class of regexps.
-.PP
-Richard Stallman wrote the backtracking regexp matcher that is used
-for \\\fIdigit\fP backreferences, as well as the GNU getopt.  The
-backtracking matcher was originally written for GNU Emacs.
-.PP
-D. A. Gwyn wrote the C alloca emulation that is provided so
-System V machines can run this program.  (Alloca is used only
-by RMS' backtracking matcher, and then only rarely, so there
-is no loss if your machine doesn't have a "real" alloca.)
-.PP
-Scott Anderson and Henry Spencer designed the regression tests
-used in the "regress" script.
-.PP
-Paul Placeway wrote the original version of this manual page.
+Backreferences are very slow, and may require exponential time.
