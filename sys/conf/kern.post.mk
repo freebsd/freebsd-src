@@ -98,12 +98,10 @@ _kernel-depend: assym.s vnode_if.h ${BEFORE_DEPEND} \
 	    ${SYSTEM_SFILES} ${MFILES:T:S/.m$/.h/}
 	if [ -f .olddep ]; then mv .olddep .depend; fi
 	rm -f .newdep
-	MKDEP_CPP="${CC} -E" CC="${CC}" \
-	    ${MAKE} -V CFILES -V SYSTEM_CFILES -V GEN_CFILES | xargs \
-	    mkdep -a -f .newdep ${CFLAGS}
-	MKDEP_CPP="${CC} -E" \
-	    ${MAKE} -V SFILES -V SYSTEM_SFILES | xargs \
-	    mkdep -a -f .newdep ${ASM_CFLAGS}
+	${MAKE} -V CFILES -V SYSTEM_CFILES -V GEN_CFILES | xargs \
+	    env MKDEP_CPP="${CC} -E" CC="${CC}" mkdep -a -f .newdep ${CFLAGS}
+	${MAKE} -V SFILES -V SYSTEM_SFILES | xargs \
+	    env MKDEP_CPP="${CC} -E" mkdep -a -f .newdep ${ASM_CFLAGS}
 	rm -f .depend
 	mv .newdep .depend
 
