@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.25 1996/07/09 18:12:37 ache Exp $
+ * $Id: kern_sig.c,v 1.26 1996/10/19 01:06:20 davidg Exp $
  */
 
 #include "opt_ktrace.h"
@@ -108,8 +108,7 @@ sigaction(p, uap, retval)
 	int bit, error;
 
 	signum = uap->signum;
-	if (signum <= 0 || signum >= NSIG ||
-	    signum == SIGKILL || signum == SIGSTOP)
+	if (signum <= 0 || signum >= NSIG)
 		return (EINVAL);
 	sa = &vec;
 	if (uap->osa) {
@@ -135,6 +134,9 @@ sigaction(p, uap, retval)
 		if ((error = copyin((caddr_t)uap->nsa, (caddr_t)sa,
 		    sizeof (vec))))
 			return (error);
+		if ((signum == SIGKILL || signum == SIGSTOP) &&
+		    sa->sa_handler != SIG_DFL)
+			return (EINVAL);
 		setsigvec(p, signum, sa);
 	}
 	return (0);
@@ -343,8 +345,7 @@ osigvec(p, uap, retval)
 	int bit, error;
 
 	signum = uap->signum;
-	if (signum <= 0 || signum >= NSIG ||
-	    signum == SIGKILL || signum == SIGSTOP)
+	if (signum <= 0 || signum >= NSIG)
 		return (EINVAL);
 	sv = &vec;
 	if (uap->osv) {
@@ -372,6 +373,9 @@ osigvec(p, uap, retval)
 		if ((error = copyin((caddr_t)uap->nsv, (caddr_t)sv,
 		    sizeof (vec))))
 			return (error);
+		if ((signum == SIGKILL || signum == SIGSTOP) &&
+		    sv->sv_handler != SIG_DFL)
+			return (EINVAL);
 #ifdef COMPAT_SUNOS
 		sv->sv_flags |= SA_USERTRAMP;
 #endif
