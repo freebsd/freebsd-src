@@ -73,6 +73,8 @@ device		ebus
 device		isa
 device		pci
 device		sbus
+device		central
+device		fhc
 
 # Floppy drives
 #device		fdc
