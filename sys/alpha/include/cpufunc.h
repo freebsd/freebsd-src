@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: cpufunc.h,v 1.1 1998/06/10 10:54:51 dfr Exp $
  */
 
 #ifndef _MACHINE_CPUFUNC_H_
@@ -40,6 +40,21 @@
 #define outb(port, data)	chipset.outb(port, data)
 #define outw(port, data)	chipset.outw(port, data)
 #define outl(port, data)	chipset.outl(port, data)
+
+#define readb(pa)		chipset.readb(pa)
+#define readw(pa)		chipset.readw(pa)
+#define readl(pa)		chipset.readl(pa)
+#define writeb(pa,v)		chipset.writeb(pa,v)
+#define writew(pa,v)		chipset.writew(pa,v)
+#define writel(pa,v)		chipset.writel(pa,v)
+
+/*
+ * String version of IO memory access ops:
+ */
+extern void memcpy_fromio(void *, u_int32_t, size_t);
+extern void memcpy_toio(u_int32_t, void *, size_t);
+extern void memset_io(u_int32_t, int, size_t);
+
 
 #endif /* KERNEL */
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chipset.h,v 1.1 1998/06/10 10:54:32 dfr Exp $
+ *	$Id: chipset.h,v 1.2 1998/07/12 16:16:22 dfr Exp $
  */
 
 #ifndef _MACHINE_CHIPSET_H_
@@ -35,6 +35,13 @@ typedef u_int32_t	alpha_chipset_inl_t(u_int32_t port);
 typedef void		alpha_chipset_outb_t(u_int32_t port, u_int8_t data);
 typedef void		alpha_chipset_outw_t(u_int32_t port, u_int16_t data);
 typedef void		alpha_chipset_outl_t(u_int32_t port, u_int32_t data);
+
+typedef u_int8_t	alpha_chipset_readb_t(u_int32_t pa);
+typedef u_int16_t	alpha_chipset_readw_t(u_int32_t pa);
+typedef u_int32_t	alpha_chipset_readl_t(u_int32_t pa);
+typedef void		alpha_chipset_writeb_t(u_int32_t pa, u_int8_t data);
+typedef void		alpha_chipset_writew_t(u_int32_t pa, u_int16_t data);
+typedef void		alpha_chipset_writel_t(u_int32_t pa, u_int32_t data);
 
 typedef int		alpha_chipset_maxdevs_t(u_int bus);
 typedef u_int8_t	alpha_chipset_cfgreadb_t(u_int, u_int, u_int, u_int);
@@ -58,6 +65,16 @@ typedef struct alpha_chipset {
     alpha_chipset_outb_t*	outb;
     alpha_chipset_outw_t*	outw;
     alpha_chipset_outl_t*	outl;
+
+    /*
+     * Memory access
+     */
+    alpha_chipset_readb_t*	readb;
+    alpha_chipset_readw_t*	readw;
+    alpha_chipset_readl_t*	readl;
+    alpha_chipset_writeb_t*	writeb;
+    alpha_chipset_writew_t*	writew;
+    alpha_chipset_writel_t*	writel;
 
     /*
      * PCI configuration access
