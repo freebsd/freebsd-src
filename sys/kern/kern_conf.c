@@ -258,12 +258,18 @@ minor(struct cdev *x)
 int
 dev2unit(struct cdev *x)
 {
-	int i;
 
 	if (x == NULL)
 		return NODEV;
-	i = minor(x);
-	return ((i & 0xff) | (i >> 8));
+	return (minor2unit(minor(x));
+}
+
+int
+minor2unit(int _minor)
+{
+
+	KASSERT((_minor & 0xff00) == 0, ("Illegal minor %x", _minor));
+	return ((_minor & 0xff) | (_minor >> 8));
 }
 
 int

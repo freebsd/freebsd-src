@@ -219,6 +219,8 @@ struct cdevsw {
 
 #define NUMCDEVSW 256
 
+#define MAXMINOR	0xffff00ff
+
 /*
  * XXX: do not use MAJOR_AUTO unless you have no choice.  In general drivers
  * should just not initialize .d_maj and that will DTRT.
@@ -266,6 +268,7 @@ int	dev2unit(struct cdev *_dev);
 void	dev_lock(void);
 void	dev_unlock(void);
 int	unit2minor(int _unit);
+int	minor2unit(int _minor);
 void	setconf(void);
 
 void devfs_create(struct cdev *dev);
