@@ -7533,7 +7533,7 @@ unable to parse %s; `author' not in the expected place", rcsfile);
 unable to parse %s; `state' not in the expected place", rcsfile);
     vnode->state = rcsbuf_valcopy (rcsbuf, value, 0, (size_t *) NULL);
     /* The value is optional, according to rcsfile(5).  */
-    if (value != NULL && STREQ (value, "dead"))
+    if (value != NULL && STREQ (value, RCSDEAD))
     {
 	vnode->dead = 1;
     }
@@ -7619,7 +7619,7 @@ unable to parse %s; `state' not in the expected place", rcsfile);
 	    vnode->dead = 1;
 	    if (vnode->state != NULL)
 		free (vnode->state);
-	    vnode->state = xstrdup ("dead");
+	    vnode->state = xstrdup (RCSDEAD);
 	    continue;
 	}
 	/* if we have a new revision number, we're done with this delta */

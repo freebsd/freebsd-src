@@ -75,14 +75,14 @@ shifts[] = {
  * single letter indicating the scrambling method.  As of this
  * writing, the only legal method is 'A', but check the code for more
  * up-to-date information.  The copy will have been allocated with
- * malloc(). 
+ * xmalloc(). 
  *
- * descramble(SCRM) returns STR, again in its own malloc'd space.
+ * descramble(SCRM) returns STR, again in its own xmalloc'd space.
  * descramble() uses SCRM[0] to determine which method of unscrambling
  * to use.  If it does not recognize the method, it dies with error.
  */
 
-/* Return a malloc'd, scrambled version of STR. */
+/* Return a xmalloc'd, scrambled version of STR. */
 char *
 scramble (str)
     char *str;

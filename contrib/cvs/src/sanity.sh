@@ -4336,9 +4336,6 @@ ${PROG} [a-z]*: use .${PROG} commit. to remove this file permanently"
 	  dotest_fail death2-diff-1 "${testcvs} -q diff file1" \
 "${PROG} [a-z]*: file1 was removed, no comparison available"
 
-	  # If the DIFF that CVS is using (options.h) is Sun diff, this
-	  # test is said to fail (I think the /dev/null is the part
-	  # that differs), along with a number of the other similar tests.
 	  dotest_fail death2-diff-2 "${testcvs} -q diff -N -c file1" \
 "Index: file1
 ===================================================================
