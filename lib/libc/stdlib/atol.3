@@ -40,7 +40,7 @@
 .Dt ATOL 3
 .Os
 .Sh NAME
-.Nm atol
+.Nm atol , atoll
 .Nd convert
 .Tn ASCII
 string to long integer
@@ -50,6 +50,8 @@ string to long integer
 .In stdlib.h
 .Ft long
 .Fn atol "const char *nptr"
+.Ft long long
+.Fn atoll "const char *nptr"
 .Sh DESCRIPTION
 The
 .Fn atol
@@ -63,6 +65,19 @@ It is equivalent to:
 .Bd -literal -offset indent
 strtol(nptr, (char **)NULL, 10);
 .Ed
+.Pp
+The
+.Fn atoll
+function converts the initial portion of the string pointed to by
+.Ar nptr
+to
+.Em long long integer
+representation.
+.Pp
+It is equivalent to:
+.Bd -literal -offset indent
+strtoll(nptr, (char **)NULL, 10);
+.Ed
 .Sh SEE ALSO
 .Xr atof 3 ,
 .Xr atoi 3 ,
@@ -75,3 +90,9 @@ The
 function
 conforms to
 .St -isoC .
+.Pp
+The
+.Fn atoll
+function
+conforms to
+.St -isoC-99 .
