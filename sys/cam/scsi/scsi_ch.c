@@ -330,7 +330,7 @@ chasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 
 		cgd = (struct ccb_getdev *)arg;
 
-		if (cgd->pd_type != T_CHANGER)
+		if (SID_TYPE(&cgd->inq_data)!= T_CHANGER)
 			break;
 
 		/*
@@ -396,7 +396,7 @@ chregister(struct cam_periph *periph, void *arg)
 	devstat_add_entry(&softc->device_stats, "ch",
 			  periph->unit_number, 0,
 			  DEVSTAT_NO_BLOCKSIZE | DEVSTAT_NO_ORDERED_TAGS,
-			  cgd->pd_type | DEVSTAT_TYPE_IF_SCSI,
+			  SID_TYPE(&cgd->inq_data)| DEVSTAT_TYPE_IF_SCSI,
 			  DEVSTAT_PRIORITY_OTHER);
 
 	/* Register the device */

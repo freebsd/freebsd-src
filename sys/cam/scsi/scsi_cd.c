@@ -498,7 +498,8 @@ cdasync(void *callback_arg, u_int32_t code,
 
 		cgd = (struct ccb_getdev *)arg;
 
-		if ((cgd->pd_type != T_CDROM) && (cgd->pd_type != T_WORM))
+		if (SID_TYPE(&cgd->inq_data) != T_CDROM
+		    && SID_TYPE(&cgd->inq_data) != T_WORM)
 			break;
 
 		/*
@@ -604,7 +605,7 @@ cdregister(struct cam_periph *periph, void *arg)
 	 * the structure and indicate that we don't have the blocksize
 	 * yet.  Unlike other SCSI peripheral drivers, we explicitly set
 	 * the device type here to be CDROM, rather than just ORing in
-	 * cgd->pd_type.  This is because this driver can attach to either
+	 * the device type.  This is because this driver can attach to either
 	 * CDROM or WORM devices, and we want this peripheral driver to
 	 * show up in the devstat list as a CD peripheral driver, not a
 	 * WORM peripheral driver.  WORM drives will also have the WORM
@@ -1689,7 +1690,7 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 						scsi_sense_key_text[sense_key],
 						scsi_sense_desc(asc,ascq,
 								&cgd.inq_data));
-				else if (cgd.pd_type == T_CDROM) { 
+				else if (SID_TYPE(&cgd.inq_data) == T_CDROM) {
 					/*
 					 * We only print out an error for
 					 * CDROM type devices.  For WORM
