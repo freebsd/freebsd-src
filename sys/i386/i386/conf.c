@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.96 1995/09/08 03:37:51 julian Exp $
+ *	$Id: conf.c,v 1.97 1995/09/09 18:09:43 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -63,10 +63,8 @@ d_rdwr_t rawread, rawwrite;
 #define nowrite		noread
 #define noioc		(d_ioctl_t *)enodev
 #define nostop		(d_stop_t *)enodev
-#define noreset		(d_reset_t *)enodev
 #define noselect	(d_select_t *)enodev
-#define nommap		(d_mmap_t *)enodev
-#define nostrat		(d_strategy_t *)enodev
+#define nostrat		nostrategy
 #define nodump		(d_dump_t *)enodev
 #define	nodevtotty	(d_ttycv_t *)nullop
 
@@ -82,11 +80,6 @@ d_rdwr_t rawread, rawwrite;
 #define nxselect	(d_select_t *)enxio
 #define nxmmap		(d_mmap_t *)enxio
 #define	nxdevtotty	(d_ttycv_t *)nullop
-
-#define nullopen	(d_open_t *)nullop
-#define nullclose	(d_close_t *)nullop
-#define nullstop	(d_stop_t *)nullop
-#define nullreset	(d_reset_t *)nullop
 
 #define zerosize	(d_psize_t *)0
 
@@ -469,43 +462,6 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 
 /* console */
 #include "machine/cons.h"
-
-/* more console */
-#include "sc.h"
-#include "vt.h"
-#if NSC > 0
-# if NVT > 0 && !defined(LINT)
-#  error "sc0 and vt0 are mutually exclusive"
-# endif
-d_open_t	scopen;
-d_close_t	scclose;
-d_rdwr_t	scread, scwrite;
-d_ioctl_t	scioctl;
-d_mmap_t	scmmap;
-d_ttycv_t	scdevtotty;
-#elif NVT > 0
-d_open_t	pcopen;
-d_close_t	pcclose;
-d_rdwr_t	pcread, pcwrite;
-d_ioctl_t	pcioctl;
-d_mmap_t	pcmmap;
-d_ttycv_t	pcdevtotty;
-#define scopen		pcopen
-#define scclose		pcclose
-#define scread		pcread
-#define scwrite		pcwrite
-#define scioctl		pcioctl
-#define scmmap		pcmmap
-#define	scdevtotty	pcdevtotty
-#else  /* neither syscons nor pcvt, i.e. no grafx console driver */
-#define scopen		nxopen
-#define scclose		nxclose
-#define scread		nxread
-#define scwrite		nxwrite
-#define scioctl		nxioctl
-#define scmmap		nxmmap
-#define	scdevtotty	nxdevtotty
-#endif /* NSC > 0, NVT > 0 */
 
 /* /dev/mem */
 d_open_t	mmopen;
@@ -1166,9 +1122,9 @@ struct cdevsw	cdevsw[] =
 	{ spigot_open,	spigot_close,	spigot_read,	spigot_write,	/*11*/
 	  spigot_ioctl,	nostop,		nullreset,	nodevtotty,/* Spigot */
 	  spigot_select, spigot_mmap,	NULL },
-	{ scopen,	scclose,	scread,		scwrite,	/*12*/
-	  scioctl,	nullstop,	nullreset,	scdevtotty,/* sc */
-	  ttselect,	scmmap,		NULL },
+	{ nxopen,	nxclose,	nxread,		nxwrite,	/*12*/
+	  nxioctl,	nxstop,		nxreset,	nxdevtotty,/* sc, ... */
+	  nxselect,	nxmmap,		NULL },
 	{ sdopen,	sdclose,	rawread,	rawwrite,	/*13*/
 	  sdioctl,	nostop,		nullreset,	nodevtotty,/* sd */
 	  seltrue,	nommap,		sdstrategy },
@@ -1468,4 +1424,66 @@ chrtoblk(dev)
 		return (NODEV);
 	}
 	return (makedev(blkmaj, minor(dev)));
+}
+
+int
+getmajorbyname(name)
+	const char *name;
+{
+
+	if (strcmp(name, "sc") == 0)
+		return (12);
+	if (strcmp(name, "vt") == 0)
+		return (12);
+	return (NULL);
+}
+
+
+static struct cdevsw *getcdevbyname __P((const char *name));
+static struct cdevsw *
+getcdevbyname(name)
+	const char *name;
+{
+	int maj;
+
+	maj = getmajorbyname(name);
+	return (maj < 0 ? NULL : &cdevsw[maj]);
+}
+
+int
+register_cdev(name, cdp)
+	const char *name;
+	const struct cdevsw *cdp;
+{
+	struct cdevsw *dst_cdp;
+
+	dst_cdp = getcdevbyname(name);
+	if (dst_cdp == NULL)
+		return (ENXIO);
+	if (dst_cdp->d_open != nxopen)
+		return (EBUSY);
+	*dst_cdp = *cdp;
+	return (0);
+}
+
+static struct cdevsw nxcdevsw = {
+	nxopen,		nxclose,	nxread,		nxwrite,
+	nxioctl,	nxstop,		nxreset,	nxdevtotty,
+	nxselect,	nxmmap,		NULL,
+};
+
+int
+unregister_cdev(name, cdp)
+	const char *name;
+	const struct cdevsw *cdp;
+{
+	struct cdevsw *dst_cdp;
+
+	dst_cdp = getcdevbyname(name);
+	if (dst_cdp == NULL)
+		return (ENXIO);
+	if (dst_cdp->d_open != cdp->d_open)
+		return (EBUSY);
+	*dst_cdp = nxcdevsw;
+	return (0);
 }

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.h	7.2 (Berkeley) 5/9/91
- *	$Id: cons.h,v 1.9 1995/04/24 16:43:01 bde Exp $
+ *	$Id: cons.h,v 1.10 1995/09/10 18:57:26 bde Exp $
  */
 
 #ifndef _MACHINE_CONS_H_
@@ -59,6 +59,12 @@ cn_init_t	pccninit;
 cn_getc_t	pccngetc;
 cn_checkc_t	pccncheckc;
 cn_putc_t	pccnputc;
+
+cn_probe_t	sccnprobe;
+cn_init_t	sccninit;
+cn_getc_t	sccngetc;
+cn_checkc_t	sccncheckc;
+cn_putc_t	sccnputc;
 
 cn_probe_t	siocnprobe;
 cn_init_t	siocninit;
