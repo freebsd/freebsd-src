@@ -1,8 +1,4 @@
-#ifndef lint
-#ifndef NOID
-static const char	elsieid[] = "@(#)zdump.c	7.28";
-#endif /* !defined NOID */
-#endif /* !defined lint */
+static const char	elsieid[] = "@(#)zdump.c	7.31";
 
 #ifndef lint
 static const char rcsid[] =
@@ -164,6 +160,10 @@ char *	argv[];
 #endif /* defined(TEXTDOMAINDIR) */
 	(void) textdomain(TZ_DOMAIN);
 #endif /* HAVE_GETTEXT - 0 */
+	for (i = 1; i < argc; ++i)
+		if (strcmp(argv[i], "--version") == 0) {
+			errx(EXIT_SUCCESS, "%s", elsieid);
+		}
 	vflag = 0;
 	cutoff = NULL;
 	while ((c = getopt(argc, argv, "c:v")) == 'c' || c == 'v')
@@ -273,7 +273,8 @@ char *	argv[];
 static void
 usage(void)
 {
-	fprintf(stderr, _("usage: zdump [-v] [-c cutoff] zonename ...\n"));
+	fprintf(stderr,
+_("usage: zdump [--version] [-v] [-c cutoff] zonename ...\n"));
 	exit(EXIT_FAILURE);
 }
 
