@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.184 1998/02/09 06:08:16 eivind Exp $
+ *	$Id: pmap.c,v 1.185 1998/02/10 17:30:26 eivind Exp $
  */
 
 /*
@@ -384,7 +384,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 		 * Note that we have enabled PSE mode
 		 */
 		pseflag = PG_PS;
-		ptditmp = (unsigned) kernel_pmap->pm_pdir[KPTDI];
+		ptditmp = *((unsigned *)PTmap + i386_btop(KERNBASE));
 		ptditmp &= ~(NBPDR - 1);
 		ptditmp |= PG_V | PG_RW | PG_PS | PG_U | pgeflag;
 		pdir4mb = ptditmp;
