@@ -494,9 +494,9 @@ skin(name)
 				*cp2++ = ' ';
 			}
 			*cp2++ = c;
-			if (c == ',' && !gotlt) {
+			if (c == ',' && *cp == ' ' && !gotlt) {
 				*cp2++ = ' ';
-				for (; *cp == ' '; cp++)
+				while (*++cp == ' ')
 					;
 				lastsp = 0;
 				bufend = cp2;
@@ -505,8 +505,8 @@ skin(name)
 	}
 	*cp2 = '\0';
 
-	if ((nbuf = realloc(nbuf, strlen(nbuf) + 1)) == NULL)
-		err(1, "Out of memory");
+	if ((cp = realloc(nbuf, strlen(nbuf) + 1)) != NULL)
+		nbuf = cp;
 	return (nbuf);
 }
 
