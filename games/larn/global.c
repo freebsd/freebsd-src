@@ -20,7 +20,6 @@
 
 #include "header.h"
 extern int score[],srcount,dropflag;
-extern int random;/*	the random number seed			*/
 extern short playerx,playery,lastnum;
 extern char cheat,level,monstnamelist[];
 extern char lastmonst[],*what[],*who[];
@@ -610,12 +609,12 @@ packweight()
 rnd(x)
 	int x;
 	{
-	return((((randx=randx*1103515245+12345)>>7)%(x))+1);
+	return((random()%x)+1);
 	}
 
 rund(x)
 	int x;
 	{
-	return((((randx=randx*1103515245+12345)>>7)%(x))  );
+	return(random()%x);
 	}
 #endif MACRORND
