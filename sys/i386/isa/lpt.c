@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.20 1994/10/10 01:12:27 phk Exp $
+ *	$Id: lpt.c,v 1.21 1994/10/23 21:27:28 wollman Exp $
  */
 
 /*
@@ -807,16 +807,6 @@ lptioctl(dev_t dev, int cmd, caddr_t data, int flag)
 
 #ifdef INET
 
-static inline void
-ob1(u_int port, u_char data)
-{
-    __asm __volatile("
-	decl %%edx
-	outb %%al,%%dx
-	incl %%edx
-	" : : "a" (data), "d" (port));
-}
-
 static void
 lpattach(struct	lpt_softc *sc,int unit)
 {
@@ -888,7 +878,7 @@ lpioctl(struct ifnet *ifp, int cmd, caddr_t data)
 	if (((ifp->if_flags & IFF_UP)) && (!(ifp->if_flags & IFF_RUNNING))) {
 	    if(lpinittables())
 		return ENOBUFS;
-	    sc->sc_ifbuf = malloc(ifr->ifr_metric+LPHDR,M_DEVBUF,M_NOWAIT);
+	    sc->sc_ifbuf = malloc(sc->sc_if.if_mtu+LPHDR,M_DEVBUF,M_WAITOK);
 	    if(!sc->sc_ifbuf)
 		return ENOBUFS;
 
@@ -924,47 +914,30 @@ lpintr(int unit)
 {
 	struct lpt_softc *sc = lpt_sc + unit;
 	int len,s,j;
-        const int port = sc->sc_port+1;
+        int port = sc->sc_port+1;
 	u_char *bp;
+	u_long c, cl;
+	struct mbuf *top;
 
 	s = splimp();
 	while((inb(port)&0x40)) {
-	    {
-	    u_long c, cl;
 	    len = sc->sc_if.if_mtu + LPHDR;
 	    bp = sc->sc_ifbuf;
 	    while(len--) {
-	    __asm __volatile("
-		inb  %%dx,%%al
-		movzbl %%al,%0
-		decl %%edx
-		movb $8,%%al
-		outb %%al,%%dx
-		incl %%edx
-		" : "=b" (cl) : "d" (port) : "a");
-		{
-	        j = LPMAXSPIN2;
+		cl = inb(port--);
+		outb(port++,8);
+		j = LPMAXSPIN2;
 		while((inb(port)&0x40))
 		    if(!--j) goto err;
-		}
-	    __asm __volatile("
-		inb  %%dx,%%al
-		movzbl %%al,%0
-		decl %%edx
-		xorl %%eax,%%eax
-		outb %%al,%%dx
-		incl %%edx
-		" : "=b" (c) : "d" (port) : "a");
+		c = inb(port--);
+		outb(port++,0);
 		*bp++= trecvh[cl] | trecvl[c];
-		{
-	        j = LPMAXSPIN2;
+		j = LPMAXSPIN2;
 		while(!((cl=inb(port)) & 0x40)) {
 		    if(cl != c && (((cl=inb(port))^0xb8)&0xf8) == (c&0xf8))
 			goto end;
 		    if(!--j) goto err;
 		}
-		}
-	    }
 	    }
 	end:
 	    len = bp - sc->sc_ifbuf;
@@ -981,32 +954,12 @@ lpintr(int unit)
 	    len -= LPHDR;
 	    sc->sc_if.if_ipackets++;
 	    sc->sc_if.if_ibytes += len;
-	    {
-	    struct mbuf *top, *m, *m2;
-	    bp = sc->sc_ifbuf+LPHDR;
-	    MGETHDR(m, M_DONTWAIT, MT_DATA);
-	    top = m;
-	    m->m_len=0;
-	    m->m_pkthdr.len = len;
-	    m->m_pkthdr.rcvif = &sc->sc_if;
-	    while(len > 0) {
-		m2 = m;
-		MGET(m, M_DONTWAIT, MT_DATA);
-		if(len > MINCLSIZE) {
-		    MCLGET(m, M_DONTWAIT);
-		}
-		m->m_len=0;
-		m2->m_next = m;
-		j = min(len,M_TRAILINGSPACE(m));
-		bcopy(bp, mtod(m, caddr_t), j);
-		m->m_len=j;
-		len -= j;
-		bp += j;
-		}
-	    IF_ENQUEUE(&ipintrq, top);
-	    schednetisr(NETISR_IP);
+	    top = m_devget(sc->sc_ifbuf+LPHDR, len, 0, &sc->sc_if, 0);
+	    if(top) {
+		    IF_ENQUEUE(&ipintrq, top);
+		    schednetisr(NETISR_IP);
 	    }
-	    }
+	}
 	goto done;
     err:
 	outb(sc->sc_port,0x00);
@@ -1051,28 +1004,28 @@ lpoutput(struct ifnet *ifp, struct mbuf *m,
 	lptintr(ifp->if_unit);
     }
     i = LPMAXSPIN1;
-    ob1(port,txmith[0x08]);
+    outb(port-1,txmith[0x08]);
     while(!(inb(port)&0x40)) if(!--i) goto end;
-    ob1(port,txmitl[0x08]);
+    outb(port-1,txmitl[0x08]);
     while((inb(port)&0x40)) if(!--i) goto end;
 
     i = LPMAXSPIN2;
-    ob1(port,txmith[0x00]);
+    outb(port-1,txmith[0x00]);
     while(!(inb(port)&0x40)) if(!--i) goto end;
-    ob1(port,txmitl[0x00]);
+    outb(port-1,txmitl[0x00]);
     while((inb(port)&0x40)) if(!--i) goto end;
 
     do {
 	cp = mtod(mm,u_char *);
 	for(;mm->m_len--;i=LPMAXSPIN2) {
-	    ob1(port,txmith[*cp]);
+	    outb(port-1,txmith[*cp]);
 	    while(!(inb(port)&0x40)) if(!--i) goto end;
-	    ob1(port,txmitl[*cp++]);
+	    outb(port-1,txmitl[*cp++]);
 	    while((inb(port)&0x40)) if(!--i) goto end;
 	} 
     } while ((mm = mm->m_next));
 end:
-    ob1(port,txmitl[cp[-1]] ^ 0x17);
+    outb(port-1,txmitl[cp[-1]] ^ 0x17);
     if(i)  {
 	ifp->if_opackets++;
 	ifp->if_obytes += m->m_pkthdr.len;
