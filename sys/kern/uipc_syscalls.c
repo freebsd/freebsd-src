@@ -1022,7 +1022,7 @@ recvfrom(td, uap)
 	aiov.iov_len = uap->len;
 	msg.msg_control = 0;
 	msg.msg_flags = uap->flags;
-	error = recvit(td, uap->s, &msg, (caddr_t)uap->fromlenaddr);
+	error = recvit(td, uap->s, &msg, uap->fromlenaddr);
 done2:
 	mtx_unlock(&Giant);
 	return(error);
@@ -1071,7 +1071,7 @@ orecv(td, uap)
 	aiov.iov_len = uap->len;
 	msg.msg_control = 0;
 	msg.msg_flags = uap->flags;
-	error = recvit(td, uap->s, &msg, (caddr_t)0);
+	error = recvit(td, uap->s, &msg, NULL);
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -1096,8 +1096,7 @@ orecvmsg(td, uap)
 	struct iovec aiov[UIO_SMALLIOV], *iov;
 	int error;
 
-	error = copyin((caddr_t)uap->msg, (caddr_t)&msg,
-	    sizeof (struct omsghdr));
+	error = copyin(uap->msg, &msg, sizeof (struct omsghdr));
 	if (error)
 		return (error);
 
@@ -1114,16 +1113,16 @@ orecvmsg(td, uap)
 		iov = aiov;
 	}
 	msg.msg_flags = uap->flags | MSG_COMPAT;
-	error = copyin((caddr_t)msg.msg_iov, (caddr_t)iov,
+	error = copyin(msg.msg_iov, iov,
 	    (unsigned)(msg.msg_iovlen * sizeof (struct iovec)));
 	if (error)
 		goto done;
 	msg.msg_iov = iov;
-	error = recvit(td, uap->s, &msg, (caddr_t)&uap->msg->msg_namelen);
+	error = recvit(td, uap->s, &msg, &uap->msg->msg_namelen);
 
 	if (msg.msg_controllen && error == 0)
-		error = copyout((caddr_t)&msg.msg_controllen,
-		    (caddr_t)&uap->msg->msg_accrightslen, sizeof (int));
+		error = copyout(&msg.msg_controllen,
+		    &uap->msg->msg_accrightslen, sizeof (int));
 done:
 	if (iov != aiov)
 		FREE(iov, M_IOV);
@@ -1150,7 +1149,7 @@ recvmsg(td, uap)
 	register int error;
 
 	mtx_lock(&Giant);
-	error = copyin((caddr_t)uap->msg, (caddr_t)&msg, sizeof (msg));
+	error = copyin(uap->msg, &msg, sizeof (msg));
 	if (error)
 		goto done2;
 	if ((u_int)msg.msg_iovlen >= UIO_SMALLIOV) {
@@ -1171,14 +1170,14 @@ recvmsg(td, uap)
 #endif
 	uiov = msg.msg_iov;
 	msg.msg_iov = iov;
-	error = copyin((caddr_t)uiov, (caddr_t)iov,
+	error = copyin(uiov, iov,
 	    (unsigned)(msg.msg_iovlen * sizeof (struct iovec)));
 	if (error)
 		goto done;
-	error = recvit(td, uap->s, &msg, (caddr_t)0);
+	error = recvit(td, uap->s, &msg, NULL);
 	if (!error) {
 		msg.msg_iov = uiov;
-		error = copyout((caddr_t)&msg, (caddr_t)uap->msg, sizeof(msg));
+		error = copyout(&msg, uap->msg, sizeof(msg));
 	}
 done:
 	if (iov != aiov)
@@ -1274,8 +1273,7 @@ getsockopt(td, uap)
 	if ((error = fgetsock(td, uap->s, &so, NULL)) != 0)
 		goto done2;
 	if (uap->val) {
-		error = copyin((caddr_t)uap->avalsize, (caddr_t)&valsize,
-		    sizeof (valsize));
+		error = copyin(uap->avalsize, &valsize, sizeof (valsize));
 		if (error)
 			goto done1;
 		if (valsize < 0) {
@@ -1296,8 +1294,7 @@ getsockopt(td, uap)
 	error = sogetopt(so, &sopt);
 	if (error == 0) {
 		valsize = sopt.sopt_valsize;
-		error = copyout((caddr_t)&valsize,
-				(caddr_t)uap->avalsize, sizeof (valsize));
+		error = copyout(&valsize, uap->avalsize, sizeof (valsize));
 	}
 done1:
 	fputsock(so);
@@ -1329,7 +1326,7 @@ getsockname1(td, uap, compat)
 	mtx_lock(&Giant);
 	if ((error = fgetsock(td, uap->fdes, &so, NULL)) != 0)
 		goto done2;
-	error = copyin((caddr_t)uap->alen, (caddr_t)&len, sizeof (len));
+	error = copyin(uap->alen, &len, sizeof (len));
 	if (error)
 		goto done1;
 	sa = 0;
@@ -1346,11 +1343,10 @@ getsockname1(td, uap, compat)
 	if (compat)
 		((struct osockaddr *)sa)->sa_family = sa->sa_family;
 #endif
-	error = copyout(sa, (caddr_t)uap->asa, (u_int)len);
+	error = copyout(sa, uap->asa, (u_int)len);
 	if (error == 0)
 gotnothing:
-		error = copyout((caddr_t)&len, (caddr_t)uap->alen,
-		    sizeof (len));
+		error = copyout(&len, uap->alen, sizeof (len));
 bad:
 	if (sa)
 		FREE(sa, M_SONAME);
@@ -1414,7 +1410,7 @@ getpeername1(td, uap, compat)
 		error = ENOTCONN;
 		goto done1;
 	}
-	error = copyin((caddr_t)uap->alen, (caddr_t)&len, sizeof (len));
+	error = copyin(uap->alen, &len, sizeof (len));
 	if (error)
 		goto done1;
 	sa = 0;
@@ -1431,11 +1427,11 @@ getpeername1(td, uap, compat)
 		((struct osockaddr *)sa)->sa_family =
 		    sa->sa_family;
 #endif
-	error = copyout(sa, (caddr_t)uap->asa, (u_int)len);
+	error = copyout(sa, uap->asa, (u_int)len);
 	if (error)
 		goto bad;
 gotnothing:
-	error = copyout((caddr_t)&len, (caddr_t)uap->alen, sizeof (len));
+	error = copyout(&len, uap->alen, sizeof (len));
 bad:
 	if (sa)
 		FREE(sa, M_SONAME);
