@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$Id: e_asin.S,v 1.2.8.3 1997/12/09 14:42:53 steve Exp $")
+RCSID("$Id: e_asin.S,v 1.2.8.4 1997/12/28 19:40:55 steve Exp $")
 
 /*
  * asin(x) = atan2(x, sqrt(1  - x^2).

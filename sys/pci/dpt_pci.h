@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  */
 
-#ident "$Id: dpt_pci.h,v 1.1.2.1 1998/03/06 23:45:09 julian Exp $"
+#ident "$Id: dpt_pci.h,v 1.1.2.2 1998/03/23 07:53:52 jkh Exp $"
 
 #define DPT_VENDOR_ID             0x00001044
 #define DPT_DEVICE_ID             0x0000a400

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: loadalias.h,v 1.1.2.2 1998/01/26 20:04:52 brian Exp $
  */
 
 struct aliasHandlers {

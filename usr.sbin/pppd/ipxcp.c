@@ -19,7 +19,7 @@
 
 #ifdef IPX_CHANGE
 #ifndef lint
-static char rcsid[] = "$Id: ipxcp.c,v 1.4 1998/06/20 18:02:11 peter Exp $";
+static char rcsid[] = "$Id: ipxcp.c,v 1.4.2.1 1998/06/23 21:41:35 peter Exp $";
 #endif
 
 /*

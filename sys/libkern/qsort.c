@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: qsort.c,v 1.5 1996/08/31 14:48:04 bde Exp $
+ * $Id: qsort.c,v 1.5.2.1 1998/07/07 05:23:58 gibbs Exp $
  */
 
 #include <stdlib.h>

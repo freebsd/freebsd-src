@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnpinfo.c,v 1.1.1.1 1997/09/19 15:36:00 jmg Exp $
+ *      $Id: pnpinfo.c,v 1.2 1997/11/12 08:48:13 jmg Exp $
  */
 
 #include <sys/time.h>

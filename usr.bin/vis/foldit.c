@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)foldit.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: foldit.c,v 1.2.6.1 1997/08/26 06:30:32 charnier Exp $";
 #endif /* not lint */
 
 #include <stdio.h>

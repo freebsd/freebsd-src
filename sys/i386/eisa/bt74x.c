@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: bt74x.c,v 1.7.2.1 1998/05/06 18:58:47 gibbs Exp $
+ *	$Id: bt74x.c,v 1.7.2.2 1998/06/14 16:42:29 gibbs Exp $
  */
 
 #include "eisa.h"

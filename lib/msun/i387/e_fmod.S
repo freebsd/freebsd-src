@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$Id: e_fmod.S,v 1.2.8.2 1997/12/09 14:42:55 steve Exp $")
+RCSID("$Id: e_fmod.S,v 1.2.8.3 1997/12/28 19:40:58 steve Exp $")
 
 ENTRY(__ieee754_fmod)
 	fldl	12(%esp)

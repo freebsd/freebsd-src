@@ -20,7 +20,7 @@
  *
  * Display/change(+runprogram)/eval resource limits.
  *
- *	$Id: limits.c,v 1.4 1997/05/10 19:00:58 davidn Exp $
+ *	$Id: limits.c,v 1.4.2.1 1997/07/22 07:22:51 charnier Exp $
  */
 
 #include <err.h>

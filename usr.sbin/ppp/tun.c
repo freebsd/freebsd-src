@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: tun.c,v 1.6.2.1 1998/01/26 20:05:29 brian Exp $
  */
 
 #include <sys/param.h>

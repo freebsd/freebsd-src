@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: closure.c,v 1.1.1.1.8.1 1998/03/08 14:52:21 jkh Exp $
  */
 
 #ifndef lint

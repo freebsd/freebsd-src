@@ -1,5 +1,5 @@
 #	@(#)Makefile	5.3 (Berkeley) 5/12/90
-#	$Id$
+#	$Id: Makefile,v 1.4.2.1 1998/03/08 14:52:18 jkh Exp $
 
 PROG=	yacc
 SRCS=	closure.c error.c lalr.c lr0.c main.c mkpar.c output.c reader.c \

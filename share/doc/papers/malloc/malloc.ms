@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id: malloc.ms,v 1.6 1997/02/22 13:03:37 peter Exp $
+.\" $Id: malloc.ms,v 1.3.2.2 1997/03/15 23:34:40 jkh Exp $
 .\"
 .ds RH Malloc and free
 .NH

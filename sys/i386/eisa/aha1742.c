@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.55 1996/09/06 23:06:54 phk Exp $
+ *      $Id: aha1742.c,v 1.55.2.1 1998/05/06 18:58:43 gibbs Exp $
  */
 
 #include <sys/types.h>

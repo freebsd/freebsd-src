@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 12/15/93
-#	$Id: Makefile,v 1.8 1996/09/22 21:55:29 wosch Exp $
+#	$Id: Makefile,v 1.8.2.1 1998/03/06 01:47:51 jkh Exp $
 
 PROG=	telnetd
 CFLAGS+=-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS

@@ -3,7 +3,7 @@ $ ee.i18n.guide for more information
 $ 
 $ For ee patchlevel 3
 $ 
-$ $Header: /home/ncvs/src/usr.bin/ee/nls/pl_PL.ISO_8859-2/ee.msg,v 1.3 1998/01/12 07:53:17 charnier Exp $
+$ $Header: /home/ncvs/src/usr.bin/ee/nls/pl_PL.ISO_8859-2/ee.msg,v 1.3.2.1 1998/03/08 08:09:04 jkh Exp $
 $ 
 $set 1
 $quote "

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: asmacros.h,v 1.16 1997/04/22 06:55:32 jdp Exp $
+ *	$Id: asmacros.h,v 1.9.2.7 1998/01/03 08:51:43 obrien Exp $
  */
 
 #ifndef _MACHINE_ASMACROS_H_

@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: 3c5x9.c,v 1.10 1997/09/21 21:35:21 gibbs Exp $
+ *	$Id: 3c5x9.c,v 1.7.2.1 1998/05/06 18:58:42 gibbs Exp $
  */
 
 #include "eisa.h"

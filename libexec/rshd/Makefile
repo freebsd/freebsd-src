@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.1 (Berkeley) 6/4/93
-# $Id$
+# $Id: Makefile,v 1.4.6.2 1998/02/18 11:52:17 markm Exp $
 
 PROG=	rshd
 SRCS=	rshd.c

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pred.c,v 1.7.2.4 1997/08/25 00:34:37 brian Exp $
+ * $Id: pred.c,v 1.7.2.5 1998/01/26 20:05:14 brian Exp $
  */
 
 #include <sys/param.h>

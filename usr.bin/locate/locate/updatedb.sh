@@ -26,7 +26,7 @@
 #
 # updatedb - update locate database for local mounted filesystems
 #
-# $Id: updatedb.sh,v 1.5.2.1 1997/12/13 18:21:05 sef Exp $
+# $Id: updatedb.sh,v 1.5.2.2 1998/07/17 04:19:12 jkh Exp $
 
 LOCATE_CONFIG="/etc/locate.rc"
 if [ -f "$LOCATE_CONFIG" -a -r "$LOCATE_CONFIG" ]; then

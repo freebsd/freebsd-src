@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.81.2.29 1997/09/21 17:11:24 itojun Exp $
+ *      $Id: aic7xxx.c,v 1.81.2.30 1997/09/27 19:47:12 gibbs Exp $
  */
 /*
  * TODO:

@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_pcb.c
  *
- * $Id: ipx_pcb.c,v 1.5 1996/03/11 15:13:53 davidg Exp $
+ * $Id: ipx_pcb.c,v 1.5.4.1 1997/06/28 09:22:37 jhay Exp $
  */
 
 #include <sys/param.h>

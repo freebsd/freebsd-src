@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.28.2.1 1996/12/19 18:34:49 joerg Exp $
+ * $Id: mse.c,v 1.28.2.2 1998/01/20 03:51:26 yokota Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and

@@ -1,5 +1,5 @@
 #	from @(#)Makefile.inc	8.2 (Berkeley) 2/21/94
-#	$Id: Makefile.inc,v 1.2 1997/05/03 03:49:52 jb Exp $
+#	$Id: Makefile.inc,v 1.1.1.1.8.1 1997/06/24 03:51:27 julian Exp $
 #
 CFLAGS+=-D__DBINTERFACE_PRIVATE
 

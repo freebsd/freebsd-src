@@ -1,4 +1,4 @@
-/*	$Id: ftp_var.h,v 1.6 1997/12/13 20:38:18 pst Exp $	*/
+/*	$Id: ftp_var.h,v 1.3.2.1 1998/01/28 02:27:58 msmith Exp $	*/
 /*	$NetBSD: ftp_var.h,v 1.20.2.1 1997/11/18 01:01:37 mellon Exp $	*/
 
 /*

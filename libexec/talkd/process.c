@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)process.c	8.2 (Berkeley) 11/16/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: process.c,v 1.5.2.1 1997/12/18 07:30:10 charnier Exp $";
 #endif /* not lint */
 
 /*

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: err.c,v 1.2.8.1 1997/08/24 21:41:31 jkh Exp $
+ *	$Id: err.c,v 1.2.8.2 1998/01/31 17:06:14 joerg Exp $
  */
 
 #ifndef lint

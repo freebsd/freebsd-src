@@ -37,7 +37,7 @@
 
 /* File scope variables */
 
-static char rcsid[] = "$Id: panic.c,v 1.4 1995/08/21 12:32:47 ache Exp $";
+static char rcsid[] = "$Id: panic.c,v 1.4.2.1 1997/06/24 06:38:50 charnier Exp $";
 
 /* External variables */
 

@@ -1,4 +1,4 @@
-#	$Id: $
+#	$Id: Makefile,v 1.5 1996/09/30 19:49:14 fenner Exp $
 
 PROG=	traceroute
 MAN8=	traceroute.8

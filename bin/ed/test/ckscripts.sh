@@ -3,7 +3,7 @@
 # and compares their output against the .r files, which contain
 # the correct output
 #
-#	$Id$
+#	$Id: ckscripts.sh,v 1.3 1996/09/22 21:51:29 wosch Exp $
 
 PATH="/bin:/usr/bin:/usr/local/bin/:."
 ED=$1

@@ -1,6 +1,6 @@
 # Makefile for libopie
 #
-# $Id: Makefile,v 1.1.1.1.2.1 1997/02/22 05:16:10 nate Exp $
+# $Id: Makefile,v 1.1.1.1.2.2 1997/03/09 09:28:29 pst Exp $
 #
 OPIE_DIST?=	${.CURDIR}/../../contrib/opie
 DIST_DIR=	${OPIE_DIST}/${.CURDIR:T}

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.inc,v 1.17 1996/10/01 03:44:29 peter Exp $
+# $Id: Makefile.inc,v 1.17.2.1 1998/07/08 13:03:00 jkh Exp $
 #
 
 # Sometimes this is .include'd several times...

@@ -197,8 +197,6 @@ distVerifyFlags(void)
 	XF86Dists |= DIST_XF86_SERVER;
     if (XF86FontDists)
 	XF86Dists |= DIST_XF86_FONTS;
-    if (XF86Dists || XF86ServerDists || XF86FontDists)
-	Dists |= DIST_XF86;
     if (isDebug())
 	msgDebug("Dist Masks: Dists: %0x, DES: %0x, Srcs: %0x\nXServer: %0x, XFonts: %0x, XDists: %0x\n",
 		 Dists, DESDists, SrcDists, XF86ServerDists, XF86FontDists, XF86Dists);
@@ -262,12 +260,13 @@ distSetXDeveloper(dialogMenuItem *self)
 {
     int i;
 
-    i = distSetDeveloper(self);
-    Dists |= DIST_XF86;
+    distReset(NULL);
+    Dists = _DIST_DEVELOPER | DIST_XF86;
+    SrcDists = DIST_SRC_ALL;
     XF86Dists = DIST_XF86_BIN | DIST_XF86_SET | DIST_XF86_CFG | DIST_XF86_LIB | DIST_XF86_PROG | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
     XF86ServerDists = DIST_XF86_SERVER_SVGA | DIST_XF86_SERVER_VGA16;
     XF86FontDists = DIST_XF86_FONTS_MISC;
-    i |= distSetXF86(NULL);
+    i = distSetXF86(NULL) | distMaybeSetDES(self) | distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
 }
@@ -302,12 +301,12 @@ distSetXUser(dialogMenuItem *self)
 {
     int i;
 
-    i = distSetUser(self);
-    Dists |= DIST_XF86;
+    distReset(NULL);
+    Dists = _DIST_USER | DIST_XF86;
     XF86ServerDists = DIST_XF86_SERVER_SVGA | DIST_XF86_SERVER_VGA16;
     XF86Dists = DIST_XF86_BIN | DIST_XF86_SET | DIST_XF86_CFG | DIST_XF86_LIB | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
     XF86FontDists = DIST_XF86_FONTS_MISC;
-    i |= distSetXF86(NULL);
+    i = distSetXF86(NULL) | distMaybeSetDES(self) | distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
 }
@@ -325,7 +324,7 @@ distSetEverything(dialogMenuItem *self)
 {
     int i;
 
-    Dists = DIST_ALL | DIST_XF86;
+    Dists = DIST_ALL;
     SrcDists = DIST_SRC_ALL;
     XF86Dists = DIST_XF86_ALL;
     XF86ServerDists = DIST_XF86_SERVER_ALL;
@@ -775,7 +774,6 @@ distExtractAll(dialogMenuItem *self)
     if (!mediaVerify() || !mediaDevice->init(mediaDevice))
 	return DITEM_FAILURE;
 
-    distVerifyFlags();
     dialog_clear_norefresh();
     msgNotify("Attempting to install all selected distributions..");
     /* Try for 3 times around the loop, then give up. */

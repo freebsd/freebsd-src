@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_outputfl.c
  *
- * $Id: ipx_outputfl.c,v 1.4 1996/03/11 15:13:52 davidg Exp $
+ * $Id: ipx_outputfl.c,v 1.4.4.1 1997/06/28 09:22:36 jhay Exp $
  */
 
 #include <sys/param.h>

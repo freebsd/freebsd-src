@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: which.pl,v 1.8.2.2 1998/01/24 13:40:18 helbig Exp $
+# $Id: which.pl,v 1.8.2.3 1998/03/08 14:33:16 jkh Exp $
 
 $all = $silent = $found = 0;
 @path = split(/:/, $ENV{'PATH'});

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdio.h	8.4 (Berkeley) 1/4/94
- *	$Id: stdio.h,v 1.8.2.1 1997/06/21 17:46:03 bde Exp $
+ *	$Id: stdio.h,v 1.8.2.2 1998/02/17 00:48:17 jkh Exp $
  */
 
 #ifndef	_STDIO_H_

@@ -1,4 +1,4 @@
-/*	$Id: chio.c,v 1.1.1.1.2.2 1997/08/24 10:29:16 jkh Exp $	*/
+/*	$Id: chio.c,v 1.1.1.1.2.3 1998/02/15 10:49:26 jkh Exp $	*/
 
 /*
  * Copyright (c) 1996 Jason R. Thorpe <thorpej@and.com>

@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: inet.c,v 1.5 1996/01/06 21:09:45 peter Exp $
+ * $Id: inet.c,v 1.5.2.1 1996/11/11 23:37:40 phk Exp $
  */
 
 

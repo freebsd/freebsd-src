@@ -1,4 +1,4 @@
-/* $RCSfile: eval.c,v $$Revision: 1.2 $$Date: 1995/05/30 05:03:03 $
+/* $RCSfile: eval.c,v $$Revision: 1.2.6.1 $$Date: 1998/02/15 16:30:09 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: eval.c,v $
+ * Revision 1.2.6.1  1998/02/15 16:30:09  jkh
+ * MFC: security tweak, support for -T and -B flags.
+ *
  * Revision 1.2  1995/05/30 05:03:03  rgrimes
  * Remove trailing whitespace.
  *

@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)nologin.sh	8.1 (Berkeley) 6/5/93
-#	$Id$
+#	$Id: nologin.sh,v 1.1.1.1.8.2 1998/07/17 20:13:43 jkh Exp $
 #
 
 echo 'This account is currently not available.'

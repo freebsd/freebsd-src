@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: cd.h,v 1.2.2.1 1998/02/15 11:32:24 jkh Exp $
  */
 
 char *getpwd __P((void));

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.7.2.8 1997/09/09 22:01:25 brian Exp $
+ * $Id: auth.c,v 1.7.2.9 1998/01/26 20:04:18 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.

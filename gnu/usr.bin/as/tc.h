@@ -18,7 +18,7 @@
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /*
- * $Id: tc.h,v 1.2 1995/05/30 04:46:38 rgrimes Exp $
+ * $Id: tc.h,v 1.3 1996/10/01 00:12:02 peter Exp $
  */
 
 

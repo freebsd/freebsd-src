@@ -1,6 +1,6 @@
 /*
  * readelf.h 
- * @(#)$Id: readelf.h,v 1.2 1997/03/29 22:26:03 jdp Exp $
+ * @(#)$Id: readelf.h,v 1.2.2.1 1997/08/18 18:59:22 jdp Exp $
  *
  * Provide elf data structures for non-elf machines, allowing file
  * non-elf hosts to determine if an elf binary is stripped.

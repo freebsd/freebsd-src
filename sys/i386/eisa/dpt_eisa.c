@@ -32,7 +32,7 @@
  */
 
 /*
- * $Id: dpt_eisa.c,v 1.1 1998/03/11 00:30:12 julian Exp $
+ * $Id: dpt_eisa.c,v 1.1.2.1 1998/05/17 21:07:37 gibbs Exp $
  */
 
 #include "eisa.h"

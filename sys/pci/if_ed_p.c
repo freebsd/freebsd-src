@@ -17,7 +17,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: if_ed_p.c,v 1.5.2.5 1998/02/27 22:30:36 se Exp $
+ *	$Id: if_ed_p.c,v 1.5.2.6 1998/03/17 21:12:13 danny Exp $
  */
 
 #include "pci.h"

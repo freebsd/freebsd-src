@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: if_tunvar.h,v 1.1.2.1 1998/01/26 19:58:22 brian Exp $
  */
 
 #ifndef _NET_IF_TUNVAR_H_

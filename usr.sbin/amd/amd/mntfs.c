@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: mntfs.c,v 1.1.1.1 1994/05/26 05:22:01 rgrimes Exp $
+ * $Id: mntfs.c,v 1.1.1.1.8.1 1998/03/09 10:08:05 jkh Exp $
  */
 
 #ifndef lint

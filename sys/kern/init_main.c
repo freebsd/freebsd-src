@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.51.2.6 1998/01/04 18:00:53 wosch Exp $
+ * $Id: init_main.c,v 1.51.2.7 1998/05/06 19:10:57 gibbs Exp $
  */
 
 #include "opt_rlimit.h"

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1 1996/03/09 17:31:08 wosch Exp wosch $
+# $Id: Makefile,v 1.11 1996/03/10 18:52:05 wosch Exp $
 
 SHPROG=	apropos
 

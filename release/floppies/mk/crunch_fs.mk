@@ -1,5 +1,5 @@
 ###
-#	$Id: crunch_fs.mk,v 1.1 1997/07/16 12:24:29 julian Exp $
+#	$Id: crunch_fs.mk,v 1.1 1997/07/22 02:51:02 julian Exp $
 #
 # This is included to make a floppy that includes a crunch file
 #

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.40 1996/09/19 08:28:16 phk Exp $
+ *	$Id: swtch.s,v 1.41 1996/10/16 18:37:58 bde Exp $
  */
 
 #include "apm.h"

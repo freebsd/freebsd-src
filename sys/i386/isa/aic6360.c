@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.24.2.2 1997/10/30 00:38:17 nate Exp $
+ * $Id: aic6360.c,v 1.24.2.3 1998/04/18 23:25:01 nate Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and

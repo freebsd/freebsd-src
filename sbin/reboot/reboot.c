@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: reboot.c,v 1.3.2.3 1997/09/14 19:41:49 jkh Exp $
+ *	$Id: reboot.c,v 1.3.2.4 1998/07/17 20:13:48 jkh Exp $
  */
 
 #ifndef lint

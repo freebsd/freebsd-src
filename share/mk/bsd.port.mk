@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.227.2.38 1998/05/30 22:40:59 jkh Exp $
+#	$Id: bsd.port.mk,v 1.227.2.39 1998/07/19 18:02:39 se Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.

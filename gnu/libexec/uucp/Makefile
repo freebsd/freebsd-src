@@ -1,5 +1,5 @@
 # This is the Makefile for Taylor UUCP
-# $Id: Makefile,v 1.3 1995/01/01 21:58:01 ache Exp $
+# $Id: Makefile,v 1.4 1996/08/17 22:27:05 wosch Exp $
 
 # subdir 'sample' called by /usr/src/etc/Makefile
 SUBDIR=		libunix libuucp libuuconf \

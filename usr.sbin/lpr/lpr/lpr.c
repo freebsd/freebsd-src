@@ -48,7 +48,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: lpr.c	8.4 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: lpr.c,v 1.10.2.5 1997/09/25 06:33:04 charnier Exp $";
 #endif /* not lint */
 
 /*

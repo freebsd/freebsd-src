@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.1.2.11 1998/07/06 08:29:47 julian Exp $
+ *	$Id: ip_divert.c,v 1.1.2.12 1998/07/06 08:48:38 julian Exp $
  */
 
 #include "opt_ipfw.h"

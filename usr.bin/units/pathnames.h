@@ -1,4 +1,4 @@
-/*	$Id: pathnames.h,v 1.3 1996/04/06 06:01:00 thorpej Exp $	*/
+/*	$Id: pathnames.h,v 1.1.1.1 1996/06/08 03:43:43 alex Exp $	*/
 
 /*
  * Copyright (c) 1993 Christopher G. Demetriou

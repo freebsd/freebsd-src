@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/4/94
-#	$Id: Makefile,v 1.17.2.3 1997/05/10 19:48:12 davidn Exp $
+#	$Id: Makefile,v 1.17.2.4 1998/03/05 12:21:16 jkh Exp $
 
 PROG=	ftpd
 MAN8=	ftpd.8

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1995/10/31 21:41:56 peter Exp $
+#	$Id: Makefile,v 1.3.2.1 1998/06/23 21:48:49 peter Exp $
 
 PROG=	pppstats
 SRCS=	pppstats.c

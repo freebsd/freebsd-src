@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)networkdelta.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: networkdelta.c,v 1.2 1997/10/22 06:19:48 charnier Exp $";
+	"$Id: networkdelta.c,v 1.1.1.1.8.1 1997/11/07 07:42:14 charnier Exp $";
 #endif /* not lint */
 
 #include "globals.h"

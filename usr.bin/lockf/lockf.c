@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: lockf.c,v 1.7 1998/07/08 05:29:05 jdp Exp $
+ * $Id: lockf.c,v 1.1.1.1.2.5 1998/07/08 05:33:46 jdp Exp $
  */
 
 #include <sys/types.h>

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_freprt_rcsid[] = "$Id: freprt.c,v 1.5 1995/06/21 19:22:33 ian Rel $";
+const char _uuconf_freprt_rcsid[] = "$Id: freprt.c,v 1.3 1995/08/19 21:27:09 ache Exp $";
 #endif
 
 /* Free the memory allocated for a port.  */

@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * library functions for userconfig library
  *
- * $Id: uc_main.c,v 1.13.4.4 1997/01/19 10:59:06 jkh Exp $
+ * $Id: uc_main.c,v 1.13.4.5 1998/02/19 02:22:08 jkh Exp $
  */
 
 #include <sys/types.h>

@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.20 1996/07/13 22:52:50 dyson Exp $
+ * $Id: sys_pipe.c,v 1.21 1996/10/11 02:27:30 dyson Exp $
  */
 
 #ifndef OLD_PIPE

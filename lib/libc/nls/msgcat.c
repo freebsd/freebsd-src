@@ -1,4 +1,4 @@
-/*	$Id: msgcat.c,v 1.18 1998/07/14 18:27:43 ache Exp $ */
+/*	$Id: msgcat.c,v 1.5.2.4 1998/07/14 18:29:20 ache Exp $ */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.

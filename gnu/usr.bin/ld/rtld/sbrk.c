@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: sbrk.c,v 1.1 1993/12/11 21:06:36 jkh Exp $
+ *	$Id: sbrk.c,v 1.2 1996/10/01 01:52:03 peter Exp $
  */
 
 #include <machine/vmparam.h>

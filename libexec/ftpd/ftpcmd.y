@@ -45,7 +45,7 @@
 static char sccsid[] = "@(#)ftpcmd.y	8.3 (Berkeley) 4/6/94";
 #endif
 static const char rcsid[] =
-	"$Id: ftpcmd.y,v 1.8.2.2 1997/12/12 07:20:23 charnier Exp $";
+	"$Id: ftpcmd.y,v 1.8.2.3 1998/03/05 12:24:16 jkh Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

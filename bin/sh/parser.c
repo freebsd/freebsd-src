@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: parser.c,v 1.16 1996/09/10 02:42:33 peter Exp $
+ *	$Id: parser.c,v 1.16.2.1 1997/08/25 09:10:30 jkh Exp $
  */
 
 #ifndef lint

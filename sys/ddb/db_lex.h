@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_lex.h,v 1.6 1995/11/24 13:52:59 bde Exp $
+ *	$Id: db_lex.h,v 1.7 1995/11/29 10:25:26 phk Exp $
  */
 
 #ifndef _DDB_DB_LEX_H_

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iplist.h,v 1.2.2.1 1998/01/26 20:04:48 brian Exp $
+ *	$Id: iplist.h,v 1.2.2.2 1998/06/28 10:39:30 brian Exp $
  */
 
 struct iplist {

@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile.inc,v 1.1 1996/05/04 08:02:01 peter Exp $
 
 BOOTDIR=	/usr/libdata/stallion
 

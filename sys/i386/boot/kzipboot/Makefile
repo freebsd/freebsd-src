@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 1995/08/15 19:36:02 joerg Exp $
+# $Id: Makefile,v 1.4 1995/10/06 02:57:22 peter Exp $
 
 PROG= kztail.o kzhead.o
 BINMODE = 444	# target is a relocatable object

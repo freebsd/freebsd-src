@@ -1,4 +1,4 @@
-/* $Id: arc4random.c,v 1.1 1996/12/28 06:33:01 dm Exp $ */
+/* $Id: arc4random.c,v 1.1 1997/06/14 01:15:41 ache Exp $ */
 
 /*
  * Arc4 random number generator for OpenBSD.

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_diasub_rcsid[] = "$Id: diasub.c,v 1.6 1995/06/21 19:22:08 ian Rel $";
+const char _uuconf_diasub_rcsid[] = "$Id: diasub.c,v 1.3 1995/08/19 21:26:57 ache Exp $";
 #endif
 
 /* Clear the information in a dialer.  */

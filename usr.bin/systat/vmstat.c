@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: vmstat.c,v 1.19.2.3 1997/08/14 06:33:30 charnier Exp $";
 #endif /* not lint */
 
 /*

@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.66 1996/09/03 22:26:31 bde Exp $
+ * $Id: kern_sysctl.c,v 1.66.2.1 1996/12/18 11:45:41 bde Exp $
  */
 
 #include <sys/param.h>

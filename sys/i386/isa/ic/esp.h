@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: esp.h,v 1.1 1995/12/29 13:18:58 bde Exp $
  */
 
 #ifndef _IC_ESP_H_

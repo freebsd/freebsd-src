@@ -9,7 +9,7 @@
  *
  * Ari Suutari <suutari@iki.fi>
  *
- * $Id$
+ * $Id: natd.c,v 1.2.2.6 1998/07/18 11:11:25 jkh Exp $
  */
 
 #include <sys/types.h>

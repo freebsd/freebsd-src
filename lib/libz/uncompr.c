@@ -3,7 +3,7 @@
  * For conditions of distribution and use, see copyright notice in zlib.h 
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libz/uncompr.c,v 1.1.1.1.2.1 1998/02/28 06:19:08 steve Exp $ */
 
 #include "zlib.h"
 

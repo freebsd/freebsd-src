@@ -26,7 +26,7 @@
  */
 #ifndef	lint
 static char *moduleid = 
-	"@(#)$Id: file.c,v 1.3.2.2 1997/08/18 18:59:06 jdp Exp $";
+	"@(#)$Id: file.c,v 1.3.2.3 1998/07/16 23:52:07 jkh Exp $";
 #endif	/* lint */
 
 #include <stdio.h>

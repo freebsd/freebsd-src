@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_ipc.c,v 1.8 1996/12/17 19:52:25 swallace Exp $
+ * $Id: ibcs2_ipc.c,v 1.7.2.1 1996/12/24 07:06:35 swallace Exp $
  */
 
 #include <sys/param.h>

@@ -7,7 +7,7 @@
 #	$ cd /usr/share/examples/printing
 #	$ epfe < ../../doc/handbook/printing.sgml
 #
-# $Id$
+# $Id: epfe.pl,v 1.3 1997/02/22 14:08:19 peter Exp $
 
 $in = 0; @a = ();
 sub Print { s/\&amp\;/&/g; push(@a,$_); }

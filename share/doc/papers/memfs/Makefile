@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	1.8 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.6 1997/02/22 13:03:48 peter Exp $
+#	$Id: Makefile,v 1.4.2.1 1997/03/15 23:34:50 jkh Exp $
 
 VOLUME=	papers
 DOC=	memfs

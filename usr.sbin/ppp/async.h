@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: async.h,v 1.2.2.1 1998/01/26 20:04:17 brian Exp $
  */
 
 extern void AsyncInit(void);

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1.2.3 1997/03/03 15:11:52 bde Exp $
+# $Id: Makefile,v 1.1.2.4 1997/04/03 06:20:32 jkh Exp $
 
 DISTRIBUTION=	compat21
 

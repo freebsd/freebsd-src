@@ -1,5 +1,5 @@
 /*
- * $Id: md5.c,v 1.7.2.2 1998/03/06 08:15:33 jkh Exp $
+ * $Id: md5.c,v 1.7.2.3 1998/07/17 20:13:26 jkh Exp $
  *
  * Derived from:
  */
@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: md5.c,v 1.7.2.3 1998/07/17 20:13:26 jkh Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

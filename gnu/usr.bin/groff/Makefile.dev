@@ -2,7 +2,7 @@
 # Client Makefiles define DEV and DEVFILES and provide rules for
 # individual font files
 #
-# $Id: Makefile.dev,v 2.2 1996/09/09 18:05:00 phk Exp $
+# $Id: Makefile.dev,v 2.2.2.1 1998/03/03 06:37:06 jkh Exp $
 
 .include "../Makefile.cfg"
 

@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: os-solaris2.h,v 1.16 96/07/05 22:11:23 leres Locked $ (LBL)
+ * @(#) $Header: /home/ncvs/src/contrib/traceroute/lbl/os-solaris2.h,v 1.1.1.1 1996/09/30 19:09:55 fenner Exp $ (LBL)
  */
 
 /* Signal routines are this type */

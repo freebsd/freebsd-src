@@ -542,8 +542,8 @@ configXEnvironment(dialogMenuItem *self)
     }
     else {
 	dialog_clear_norefresh();
-	msgConfirm("The XFree86 setup utility you chose does not appear to be installed!\n"
-		   "Please install this before attempting to configure XFree86.");
+	msgConfirm("XFree86 does not appear to be installed!  Please install\n"
+		   "The XFree86 distribution before attempting to configure it.");
 	return DITEM_FAILURE | DITEM_RESTORE;
     }
 }

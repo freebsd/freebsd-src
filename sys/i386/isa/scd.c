@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.25.2.1 1998/05/06 19:09:11 gibbs Exp $ */
+/* $Id: scd.c,v 1.25.2.2 1998/07/07 05:23:20 gibbs Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 

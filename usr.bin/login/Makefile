@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.1 (Berkeley) 7/19/93
-# $Id$
+# $Id: Makefile,v 1.13.6.2 1998/02/18 12:07:38 markm Exp $
 
 PROG=	login
 MAN1=	login.1

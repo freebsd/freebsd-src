@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswd_comm.c,v 1.1.1.1 1996/02/12 15:09:01 wpaul Exp $
+ *	$Id: yppasswd_comm.c,v 1.1.1.1.2.1 1996/11/15 18:25:51 peter Exp $
  */
 
 /*
@@ -73,7 +73,7 @@
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yppasswd_comm.c,v 1.1.1.1 1996/02/12 15:09:01 wpaul Exp $";
+static const char rcsid[] = "$Id: yppasswd_comm.c,v 1.1.1.1.2.1 1996/11/15 18:25:51 peter Exp $";
 #endif
 
 char *sockname = "/var/run/ypsock";

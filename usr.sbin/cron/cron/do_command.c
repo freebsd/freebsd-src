@@ -17,7 +17,7 @@
 
 #if !defined(lint) && !defined(LINT)
 static const char rcsid[] =
-	"$Id: do_command.c,v 1.6.2.2 1997/09/16 07:01:42 charnier Exp $";
+	"$Id: do_command.c,v 1.6.2.3 1998/03/09 11:41:45 jkh Exp $";
 #endif
 
 

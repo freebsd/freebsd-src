@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1996/06/23 14:27:52 bde Exp $
+#	$Id: Makefile,v 1.5.2.1 1998/03/06 05:26:59 jkh Exp $
 
 .PATH:	${.CURDIR}/../../sys/netinet
 KMOD=	ipfw_mod

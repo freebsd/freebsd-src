@@ -12,7 +12,7 @@
 #  3) If no label has been found, use MYADDR if it exists.
 #
 #
-# $Id$
+# $Id: ppp.linkdown.sample,v 1.1.2.1 1998/01/30 19:54:37 brian Exp $
 #
 #########################################################################
 

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.9 1997/08/23 05:26:32 jmg Exp $
+#	$Id: Makefile,v 1.8.2.1 1997/08/25 12:54:43 jmg Exp $
 
 PROG=		troff
 SRCS=		env.cc node.cc input.cc div.cc symbol.cc dictionary.cc reg.cc \

@@ -10,7 +10,7 @@
  *
  * See LEGAL.NOTICE
  *
- * $Id: names.h,v 1.5 1997/03/18 19:37:21 mpp Exp $
+ * $Id: names.h,v 1.2.2.1 1997/08/18 18:59:15 jdp Exp $
  */
 
 /* these types are used to index the table 'types': keep em in sync! */

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: vjcomp.h,v 1.5.2.1 1998/01/26 20:05:34 brian Exp $
  */
 
 extern void VjInit(int);

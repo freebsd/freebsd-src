@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$Id: s_ilogb.S,v 1.3.2.2 1997/12/09 14:43:05 steve Exp $")
+RCSID("$Id: s_ilogb.S,v 1.3.2.3 1997/12/28 19:41:17 steve Exp $")
 
 ENTRY(ilogb)
 	pushl	%ebp

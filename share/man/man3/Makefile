@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 12/13/93
-#	$Id: Makefile,v 1.10 1996/08/20 08:22:00 julian Exp $
+#	$Id: Makefile,v 1.10.2.1 1998/03/06 14:05:53 jkh Exp $
 
 MAN3=	assert.3 bitstring.3 end.3 fpgetround.3 intro.3 pthread.3 queue.3 \
 	stdarg.3 sysexits.3

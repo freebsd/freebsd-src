@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id: time.h,v 1.8 1996/09/19 18:21:20 nate Exp $
+ * $Id: time.h,v 1.8.2.1 1998/01/29 03:14:20 msmith Exp $
  */
 
 #ifndef _SYS_TIME_H_

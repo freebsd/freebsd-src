@@ -1,5 +1,5 @@
 # bootpd/Makefile
-# $Id: Makefile,v 1.4 1996/01/23 01:57:58 pst Exp $
+# $Id: Makefile,v 1.5 1996/02/02 17:48:33 mpp Exp $
 
 PROG=	bootpd
 CFLAGS+= -DETC_ETHERS

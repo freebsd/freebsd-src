@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.51.2.6 1997/10/23 18:04:55 joerg Exp $
+ * $Id: vfs_syscalls.c,v 1.51.2.7 1998/07/03 03:50:31 dg Exp $
  */
 
 /*

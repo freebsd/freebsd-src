@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_vport_rcsid[] = "$Id: vport.c,v 1.9 1995/06/21 19:25:19 ian Rel $";
+const char _uuconf_vport_rcsid[] = "$Id: vport.c,v 1.4 1995/08/19 21:28:40 ache Exp $";
 #endif
 
 #include <errno.h>

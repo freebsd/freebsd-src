@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: ch.c,v 1.34.2.1 1997/03/07 09:34:26 joerg Exp $
+ *      $Id: ch.c,v 1.34.2.2 1998/07/15 23:33:31 jkh Exp $
  */
 
 #include "opt_scsi.h"

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pax.c,v 1.5.2.2 1997/09/14 13:07:29 jkh Exp $
+ *	$Id: pax.c,v 1.5.2.3 1998/02/15 11:18:28 jkh Exp $
  */
 
 #ifndef lint

@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: wdc_p.c,v 1.1 1997/03/11 23:17:26 se Exp $
+ *	$Id: wdc_p.c,v 1.1.2.1 1997/04/28 19:33:20 se Exp $
  */
 
 /*

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: skeleton.c,v 1.5.2.4 1998/03/08 14:53:00 jkh Exp $
  */
 
 #ifndef lint

@@ -1,5 +1,5 @@
 # Makefile for libpcap
-# $Id: Makefile,v 1.12.2.1 1997/10/26 22:48:31 jkh Exp $
+# $Id: Makefile,v 1.12.2.2 1998/02/18 02:46:31 jkh Exp $
 
 LIB=    pcap
 SRCS=	grammar.c tokdefs.h pcap-bpf.c \

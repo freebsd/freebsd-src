@@ -1,4 +1,4 @@
-.\"	$Id: eicon.nr,v 1.4 1997/02/22 13:00:12 peter Exp $
+.\"	$Id: eicon.nr,v 1.2.2.1 1997/03/15 23:31:17 jkh Exp $
 .\"
 .sh 2 "X.25 Public Data Network Support"
 .pp

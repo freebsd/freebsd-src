@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/mktemp/mktemp.c,v 1.1.2.1 1998/04/18 10:56:48 obrien Exp $
  */
 
 /*

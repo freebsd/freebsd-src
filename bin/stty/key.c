@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: key.c,v 1.4.6.2 1997/08/25 09:24:04 jkh Exp $
+ *	$Id: key.c,v 1.4.6.3 1998/07/16 09:35:51 jkh Exp $
  */
 
 #ifndef lint

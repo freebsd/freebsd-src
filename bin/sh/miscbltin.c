@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: miscbltin.c,v 1.8.2.1 1997/08/25 09:10:10 jkh Exp $
+ *	$Id: miscbltin.c,v 1.8.2.2 1998/02/15 11:32:25 jkh Exp $
  */
 
 #ifndef lint

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: verbose.c,v 1.1.1.1.8.1 1998/03/08 14:53:07 jkh Exp $
  */
 
 #ifndef lint

@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: mount_msdos.c,v 1.15 1998/06/30 06:23:42 charnier Exp $";
+	"$Id: mount_msdos.c,v 1.5.2.2 1998/07/16 02:02:02 jkh Exp $";
 #endif /* not lint */
 
 #ifndef __FreeBSD_version

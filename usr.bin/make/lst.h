@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)lst.h	8.1 (Berkeley) 6/6/93
- *	$Id$
+ *	$Id: lst.h,v 1.5 1996/10/08 04:05:58 steve Exp $
  */
 
 /*-

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: dol.c,v 1.3 1995/05/30 00:06:31 rgrimes Exp $
+ *	$Id: dol.c,v 1.3.6.1 1997/08/24 21:41:30 jkh Exp $
  */
 
 #ifndef lint

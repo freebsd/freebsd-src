@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.246.2.90 1998/07/16 10:35:10 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: output.c,v 1.3.2.1 1996/11/28 08:26:35 phk Exp $
+ *	$Id: output.c,v 1.3.2.2 1997/07/06 08:14:18 jhay Exp $
  */
 
 #ifndef lint

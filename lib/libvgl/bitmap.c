@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: bitmap.c,v 1.8 1997/08/15 12:32:59 sos Exp $
+ *  $Id: bitmap.c,v 1.1 1997/08/17 21:09:34 sos Exp $
  */
 
 #include <sys/types.h>

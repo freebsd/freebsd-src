@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.4 (Berkeley) 5/5/95
-#	$Id: Makefile,v 1.15.2.2 1997/08/25 21:16:13 jkh Exp $
+#	$Id: Makefile,v 1.15.2.3 1997/10/26 22:46:55 jkh Exp $
 
 PROG=	sh
 SHSRCS=	alias.c cd.c echo.c error.c eval.c exec.c expand.c \

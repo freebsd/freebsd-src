@@ -24,7 +24,7 @@
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * $Id: ioctl_fd.h,v 1.8 1996/01/30 22:54:34 mpp Exp $
+ * $Id: ioctl_fd.h,v 1.9 1996/09/21 14:58:03 bde Exp $
  */
 
 #ifndef	_MACHINE_IOCTL_FD_H_

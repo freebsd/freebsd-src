@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: random.c,v 1.4.2.1 1998/03/01 17:43:20 jkh Exp $
  *
  */
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.19 1996/08/20 07:17:48 smpatel Exp $
+ * $Id: sys_generic.c,v 1.20 1996/08/20 15:03:41 smpatel Exp $
  */
 
 #include "opt_ktrace.h"

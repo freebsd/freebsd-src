@@ -1,4 +1,4 @@
-/* $RCSfile: toke.c,v $$Revision: 1.2.6.1 $$Date: 1997/08/08 20:54:51 $
+/* $RCSfile: toke.c,v $$Revision: 1.2.6.2 $$Date: 1997/08/27 17:19:19 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: toke.c,v $
+ * Revision 1.2.6.2  1997/08/27 17:19:19  joerg
+ * MFC: rev 1.4, pass all args down to scanident()
+ *
  * Revision 1.2.6.1  1997/08/08 20:54:51  joerg
  * MFC: fix buffer overflow condition.
  *

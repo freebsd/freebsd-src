@@ -1,5 +1,5 @@
-.\"$Header: program.nr,v 1.1 88/12/05 18:10:57 nhall Exp $
-.\"$Source: /usr/argo/doc/kernel/RCS/program.nr,v $
+.\"$Header: /home/ncvs/src/share/doc/iso/ucb/Attic/program.nr,v 1.1.1.1 1994/05/30 19:08:12 rgrimes Exp $
+.\"$Source: /home/ncvs/src/share/doc/iso/ucb/Attic/program.nr,v $
 .\"
 .\"
 .\" FONT CONVENTIONS

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nqnfs.h	8.1 (Berkeley) 6/10/93
- * $Id: nqnfs.h,v 1.9 1995/11/21 12:54:42 bde Exp $
+ * $Id: nqnfs.h,v 1.10 1995/12/17 21:12:38 phk Exp $
  */
 
 #ifndef _NFS_NQNFS_H_

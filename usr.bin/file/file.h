@@ -1,6 +1,6 @@
 /*
  * file.h - definitions for file(1) program
- * @(#)$Id: file.h,v 1.3.2.2 1997/08/18 18:59:08 jdp Exp $
+ * @(#)$Id: file.h,v 1.3.2.3 1998/07/16 23:52:08 jkh Exp $
  *
  * Copyright (c) Ian F. Darwin, 1987.
  * Written by Ian F. Darwin.

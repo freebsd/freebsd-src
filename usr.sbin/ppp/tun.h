@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.h,v 1.3.2.1 1998/01/26 20:05:29 brian Exp $
+ *	$Id: tun.h,v 1.3.2.2 1998/06/27 12:05:28 brian Exp $
  */
 
 struct tun_data {

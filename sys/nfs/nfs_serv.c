@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.34.2.3 1998/03/01 22:33:27 steve Exp $
+ * $Id: nfs_serv.c,v 1.34.2.4 1998/05/20 11:36:37 peter Exp $
  */
 
 /*

@@ -1,4 +1,4 @@
-/*	$Id: bootp_subr.c,v 1.1.4.3 1997/08/15 13:31:16 tegge Exp $	*/
+/*	$Id: bootp_subr.c,v 1.1.4.4 1998/01/18 20:10:22 tegge Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass

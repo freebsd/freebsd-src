@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_mib.c,v 1.1 1996/07/30 19:17:00 wollman Exp $
+ *	$Id: if_mib.c,v 1.2 1996/10/12 19:49:24 bde Exp $
  */
 
 #include <sys/param.h>

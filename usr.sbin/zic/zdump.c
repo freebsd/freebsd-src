@@ -6,7 +6,7 @@ static char	elsieid[] = "@(#)zdump.c	7.24";
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: zdump.c,v 1.3.2.1 1998/03/09 14:14:31 jkh Exp $";
 #endif /* not lint */
 
 /*

@@ -1,5 +1,5 @@
 #	from @(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile.inc,v 1.3 1997/05/03 03:50:02 jb Exp $
+#	$Id: Makefile.inc,v 1.2.8.1 1997/06/24 03:51:35 julian Exp $
 
 # regex sources
 .PATH: ${.CURDIR}/../libc/regex

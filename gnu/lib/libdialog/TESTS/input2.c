@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $Id: input1.c,v 1.1 1996/01/01 03:45:25 jkh Exp $
+ * $Id: input2.c,v 1.1 1996/12/14 16:14:21 jkh Exp $
  */
 
 #include <stdio.h>

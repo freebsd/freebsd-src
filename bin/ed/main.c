@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.6.2.1 1997/08/24 21:50:21 jkh Exp $
+ *	$Id: main.c,v 1.6.2.2 1998/02/15 11:10:07 jkh Exp $
  */
 
 #ifndef lint

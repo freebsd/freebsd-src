@@ -1,4 +1,4 @@
-#	$Id: bsd.dep.mk,v 1.8.2.4 1998/03/07 13:17:52 jkh Exp $
+#	$Id: bsd.dep.mk,v 1.8.2.5 1998/06/14 16:10:47 steve Exp $
 #
 # The include file <bsd.dep.mk> handles Makefile dependencies.
 #

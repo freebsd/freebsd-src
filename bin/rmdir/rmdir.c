@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rmdir.c,v 1.2.8.1 1997/08/25 08:43:06 jkh Exp $
+ *	$Id: rmdir.c,v 1.2.8.2 1998/07/16 09:35:48 jkh Exp $
  */
 
 #ifndef lint
@@ -44,7 +44,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)rmdir.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rmdir.c,v 1.2.8.2 1998/07/16 09:35:48 jkh Exp $";
 #endif /* not lint */
 
 #include <err.h>

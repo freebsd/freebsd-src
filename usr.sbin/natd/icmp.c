@@ -7,7 +7,7 @@
  *
  * Ari Suutari <suutari@iki.fi>
  *
- * $Id: icmp.c,v 1.2.2.2 1998/02/20 15:42:04 brian Exp $
+ * $Id: icmp.c,v 1.2.2.3 1998/03/09 13:51:13 jkh Exp $
  */
 
 /*
@@ -19,7 +19,7 @@
  *
  * Ari Suutari <suutari@iki.fi>
  *
- * $Id$
+ * $Id: icmp.c,v 1.2.2.3 1998/03/09 13:51:13 jkh Exp $
  */
 
 #include <stdlib.h>

@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.21.2.2 1997/05/11 12:48:33 bde Exp $
+ *	$Id: diskslice_machdep.c,v 1.21.2.3 1997/09/30 19:48:30 joerg Exp $
  */
 
 #include <stddef.h>

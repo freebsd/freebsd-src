@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: lstDatum.c,v 1.2 1996/10/08 04:07:20 steve Exp $
  */
 
 #ifndef lint

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)machdep.h	8.2 (Berkeley) 5/4/95
- *	$Id: machdep.h,v 1.2 1994/09/24 02:57:43 davidg Exp $
+ *	$Id: machdep.h,v 1.3 1996/09/01 10:20:32 peter Exp $
  */
 
 /*

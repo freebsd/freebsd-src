@@ -1,0 +1,3385 @@
+Sun Apr  7 18:23:36 1996  Fred Fish  <fnf@cygnus.com>
+
+	From: Miles Bader  <miles@gnu.ai.mit.edu>
+	* configure.in: Use AC_CHECK_TOOL to find ar & ranlib.
+	* configure: Regenerate with autoconf.
+	
+Wed Apr  3 16:22:16 1996  Fred Fish  <fnf@cygnus.com>
+
+	* configure.in (mips-sony-bsd*): Fix typo in AC_DEFINE.
+	(AC_CHECK_HEADERS): Check for sys/time.h
+	(AC_HEADER_TIME): Add macro.
+	* configure: Regenerate with autoconf.
+	* config.in: Regenerate with autoheader.
+	* sysdep.h: Use TIME_WITH_SYS_TIME and HAVE_SYS_TIME_H
+	to control what combination of <time> and <sys/time.h>
+	get included.
+	
+Wed Mar 20 16:53:12 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* coffcode.h (coff_add_missing_symbols): Ifdef out.
+	(coff_write_object_contents): Don't call coff_add_missing_symbols.
+	* coffgen.c (coff_section_symbol): Ifdef out.
+
+Mon Mar 18 12:54:41 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* elf32-mips.c (mips_elf_gprel32_reloc): Initialize gp if
+	output_bfd is not NULL.
+
+Thu Mar 14 17:12:06 1996  Doug Evans  <dje@charmed.cygnus.com>
+
+	* coffgen.c (coff_get_normalized_symtab): Call bfd_zalloc instead
+	of bfd_alloc (fixes fix_line not being initialized).
+	Delete zeroing of fix_{value,tag,end,scnlen} fields.
+
+Thu Mar 14 16:06:06 1996  Jeffrey A Law  (law@cygnus.com)
+
+	* coffcode.h: Allow specific backends to override the
+	bfd_link_add_symbols routine.
+
+	* coff-h8300.c: Include genlink.h.
+	(howto_table): Add R_MEM_INDIRECT.
+	(rtype2howto): Support R_MEM_INDIRECT.
+	(h8300_reloc16_extra_cases): Handle R_MEM_INDIRECT like R_RELBYTE
+	for now.
+	
+Tue Mar 12 12:41:17 1996  David Mosberger-Tang  <davidm@koala.azstarnet.com>
+
+	* coff-alpha.c (alpha_relocate_section): Use
+	info->callbacks_warning, rather than _bfd_error_handler, for
+	"multiple gp" warning.
+
+Tue Mar 12 12:10:55 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* linker.c (bfd_wrapped_link_hash_lookup): New function.
+	(_bfd_generic_link_add_one_symbol): Remove BFD_ASSERT on hash
+	table string.  Use bfd_wrapped_link_hash_lookup.
+	(_bfd_generic_link_write_global_symbol): Remove BFD_ASSERT on hash
+	table string.
+	* aoutx.h (aout_link_write_symbols): Use the name from the hash
+	table, if any, when writing out symbols.
+	(aout_link_input_section_std): Use the name from the hash table,
+	if any, when reporting undefined symbols.
+	(aout_link_input_section_ext): Likewise.
+	(aout_link_reloc_link_order): Use bfd_wrapped_link_hash_lookup.
+	* bout.c (get_value): Likewise.
+	* cofflink.c (_bfd_coff_reloc_link_order): Likewise.
+	* ecoff.c (ecoff_reloc_link_order): Likewise.
+	* elflink.h (elf_link_add_object_symbols): Likewise.
+	(elf_reloc_link_order): Likewise.	
+	* linker.c (_bfd_generic_link_output_symbols): Likewise.
+	(_bfd_generic_reloc_link_order): Likewise.
+	(default_indirect_link_order): Likewise.
+	* reloc16.c (bfd_coff_reloc16_get_value): Likewise.
+	* sunos.c (sunos_add_one_symbol): Likewise.
+	* xcofflink.c (xcoff_link_add_symbols): Likewise.
+	(bfd_xcoff_link_count_reloc): Likewise.
+	(xcoff_reloc_link_order): Likewise.
+
+	* ecoffswap.h (ecoff_swap_fdr_in): If ECOFF_64, turn 0xffffffff
+	into -1 for intern->rss.
+
+	* configure: Rebuild with autoconf 2.8.
+
+Mon Mar 11 12:28:31 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* stab-syms.c (__define_stab_duplicate): Define.
+	(bfd_get_stab_name): Rename from aout_stab_name.  Rewrite to use a
+	switch.
+	* bfd-in.h (bfd_get_stab_name): Declare.
+	* bfd-in2.h: Rebuild.
+	* Makefile.in: Rebuild dependencies.
+	(BFD_LIBS): Add stab-syms.o.
+	(BFD_LIBS_CFILES): Add stab-syms.c.
+	(BFD32_BACKENDS): Remove stab-syms.o.
+	(BFD32_BACKENDS_CFILES): Remove stab-syms.c.
+	* configure.in: Don't list stab-syms.o in bfd_backends.
+	* configure: Rebuild.
+	* libaout.h (aout_stab_name): Don't declare.
+	* aoutx.h (NAME(aout,get_symbol_info)): Call bfd_get_stab_name,
+	not aout_stab_name.
+
+Fri Mar  8 11:26:20 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* elf.c (assign_file_positions_for_segments): Adjust file offset
+	for section alignment even if SEC_LOAD is not set.
+
+Tue Mar  5 12:02:23 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Don't set SHLIB or SHLINK to an empty string,
+	since they appear as targets in Makefile.in.
+	* configure: Rebuild.
+
+	* sunos.c (sunos_scan_ext_relocs): If not making a shared library,
+	don't fiddle with a symbol which is not defined anywhere.
+
+Mon Mar  4 12:49:16 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* xcofflink.c (xcoff_mark): Treat undefined imported symbols as
+	though they are defined in a shared library.
+	(xcoff_build_ldsyms): Likewise.
+
+	* coffgen.c (coff_find_nearest_line): Don't look at the line
+	numbers for the section if section->lineno is NULL.
+
+	* elf.c (_bfd_elf_symbol_from_bfd_symbol): Print a useful error
+	message rather than calling BFD_ASSERT.
+	* elfcode.h (write_relocs): Check return value of
+	_bfd_elf_symbol_from_bfd_symbol.
+
+Fri Mar  1 09:42:59 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* elf32-ppc.c (ppc_elf_add_symbol_hook): Don't set SEC_LOAD flag
+	for .sbss section.
+
+Wed Feb 28 11:25:47 1996  Jeffrey A Law  (law@cygnus.com)
+
+	* libhppa.h (hppa_reloc_field_selector_type): Add R_HPPA_NLSEL
+	and R_HPPA_NLRSEL.
+	(e_nsel, e_nlsel, e_nlrsel): Undefine.  Add to
+	hppa_reloc_field_selector_type_alt.
+	(hppa_field_adjust): Handle e_nlsel, e_nlrsel.  Fix e_nsel handling.
+	* som.c (hppa_som_gen_reloc_type): Handle N', NL' NLR' field
+	selectors.
+	(som_write_fixups): Finish handling of R_N0SEL and R_N1SEL.
+
+Wed Feb 28 11:00:24 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* elf.c (assign_file_positions_for_segments): Adjust the segment
+	memory size for the alignment of a SEC_ALLOC section, not just a
+	SEC_LOAD section.
+
+Tue Feb 27 14:17:31 1996  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* m68klinux.c: New file.
+	* hosts/m68klinux.h: New file.
+	* config.bfd (m68*-*-linuxaout*, m68*-*-linux*): New targets.
+	* configure.in (m68*-*-linux*): New native host.
+	(m68klinux_vec): New vector.
+	* configure: Rebuild.
+	* targets.c (m68klinux_vec): Declare.
+	* i386linux.c (bfd_i386linux_size_dynamic_sections): Renamed from
+	bfd_linux_size_dynmic_sections to avoid clash with m68klinux.c.
+	* bfd-in.h (bfd_i386linux_size_dynamic_sections): Rename
+	declaration from bfd_linux_size_dynamic_sections.
+	(bfd_m68klinux_size_dynamic_sections): Declare.
+	* bfd-in2.h: Rebuild.
+	* Makefile.in: Rebuild dependencies.
+	(BFD32_BACKENDS): Add m68klinux.o.
+	(BFD32_BACKENDS_CFILES): Add m68klinux.c.
+
+Tue Feb 27 11:31:34 1996  Jeffrey A Law  (law@cygnus.com)
+
+	* libhppa.h (pa_arch): Add pa20.
+	(hppa_reloc_field_selector_type): Add R_HPPA_NSEL.
+	(e_nsel): Undefine.  Add to hppa_reloc_field_selector_type_alt.
+	(hppa_field_adjust): Handle e_nsel.
+	* som.c: Provide default definitions for many new relocs found only
+	in hpux10 include files.
+	(som_fixup_formats): Add several new relocs from hpux10.
+	(som_hppa_howto_table): Add hpux10 relocs.
+	(som_write_fixups): Handle R_N0SEL and R_N1SEL hpux10 relocs.
+
+Mon Feb 26 12:52:48 1996  Stan Shebs  <shebs@andros.cygnus.com>
+
+	* mpw-make.sed: Edit out recent shared library support, and
+	rules to rebuild .h files using doc/chew.
+
+Mon Feb 26 14:48:39 1996  David Mosberger-Tang  <davidm@AZStarNet.com>
+
+	* ecoff.c (ecoff_compute_section_file_positions): Adjust the file
+	size even of sections with no contents.
+
+Mon Feb 26 14:01:13 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* cofflink.c (_bfd_coff_link_input_bfd): When merging, skip names
+	starting with '$' the way we skip names starting with '.'.  When
+	updating x_endndx, don't be fooled by an index which has been
+	merged.
+
+	* cofflink.c (_bfd_coff_link_input_bfd): Don't try to optimize a
+	struct/union/enum type with no elements.
+
+Sat Feb 24 11:38:58 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* bfd.c (bfd_errmsg): Handle a NULL return from strerror.
+
+	* archive.c (bfd_generic_archive_p): If the first file in the
+	archive can not be recognized as an object, don't assume that this
+	is the wrong format.
+
+	* elf.c (bfd_elf_set_dt_needed_name): Don't do anything if the
+	format is not bfd_object.
+	(bfd_elf_get_dt_soname): Likewise.
+
+Wed Feb 21 13:58:04 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* coff-sh.c (sh_relax_delete_bytes): Correct range of R_SH_USES
+	reloc.
+
+Tue Feb 20 16:22:44 1996  J.T. Conklin  <jtc@rtl.cygnus.com>
+
+	* bfd.c (tdata): Add netbsd_core_data.
+	* bfd-in2.h: Regenerated.
+
+Tue Feb 20 16:50:02 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* sunos.c (SUNOS_CONSTRUCTOR): Define.
+	(sunos_add_one_symbol): Don't let a symbol from a dynamic object
+	override a constructor symbol.  Set SUNOS_CONSTRUCTOR when
+	appropriate.
+
+	* bout.c (b_out_squirt_out_relocs): Use udata.i rather than flags
+	to get the symbol index, matching 14 Jul 95 change.
+
+Tue Feb 20 08:26:27 1996  Fred Fish  <fnf@phydeaux.cygnus.com>
+
+	* coff-alpha.c (alpha_ecoff_get_relocated_section_contents):
+	Remove duplicate definition of gp.
+
+Mon Feb 19 12:37:41 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* coff-alpha.c (alpha_ecoff_get_relocated_section_contents): Don't
+	assume that we can set the GP value and then get the same value,
+	since it won't be true if the output file is neither ELF nor
+	ECOFF.
+	* coff-mips.c (mips_adjust_reloc_in): Don't bother to use
+	_bfd_get_gp_value here.
+	(mips_gprel_reloc): Don't assume we can set and get the GP value.
+	* elf32-mips.c (mips_elf_hi16_reloc): Get gp value from
+	mips_elf_final_gp.
+	(mips_elf_lo16_reloc): Likewise.
+	(mips_elf_final_gp): Add pgp parameter.  Set it to the GP value.
+	Don't require that the BFD be ELF.
+	(mips_elf_gprel16_reloc): Get gp value from mips_elf_final_gp.
+	(mips_elf_gprel32_reloc): Likewise.
+	(mips_elf_relocate_section): Don't assume we can set and get the
+	GP value.
+	(mips_elf_finish_dynamic_symbol): Don't bother to use
+	_bfd_get_gp_value here.
+
+	* elf32-mips.c (mips_elf_create_procedure_table): Initialize sv.
+	Don't change epdr between malloc and free.  Be careful not to free
+	NULL pointers.  Zero out the first RPDR.
+
+	* configure.host: On Linux, only pass -rpath option if $(libdir)
+	is neither /lib nor /usr/lib.  From Alan Modra
+	<alan@mullet.Levels.UniSA.Edu.Au>.
+
+	* elf-bfd.h (struct elf_obj_tdata): Rename dt_needed_name to
+	dt_name.
+	(elf_dt_name): Rename from elf_dt_needed_name.
+	* elf.c (bfd_elf_set_dt_needed_name): Use elf_dt_name, not
+	elf_dt_needed_name.
+	(bfd_elf_get_dt_soname): New function.
+	* elflink.h (elf_link_add_object_symbols): Use elf_dt_name, not
+	elf_dt_needed_name.  Save the SONAME back in elf_dt_name.
+	* bfd-in.h (bfd_elf_get_dt_soname): Declare.
+	* bfd-in2.h: Rebuild.
+
+Mon Feb 19 02:50:23 1996  Doug Evans  <dje@charmed.cygnus.com>
+
+	* elf32-sparc.c (elf32_sparc_reloc_type_lookup): Renamed from
+	_bfd_sparc_elf_reloc_type_lookup.
+	(bfd_elf32_bfd_reloc_type_lookup): Update.
+	* elf64-sparc.c (SPARC64_OLD_RELOCS): Define.
+	(sparc64_elf_howto_table): Define.
+	(sparc_reloc_map): Define.
+	(sparc64_elf_reloc_type_lookup): New function.
+	(sparc_elf_wdisp16_reloc): New function.
+	(elf_info_to_howto): Use sparc64_elf_howto_table.
+	(sparc64_elf_relocate_section): Likewise.
+	(bfd_elf64_bfd_reloc_type_lookup): Update.
+
+Sun Feb 18 15:02:25 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.host: Check for 'do not mix' from native linker before
+	trying to use -rpath.
+
+Fri Feb 16 12:46:18 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* bfd.c (_bfd_get_gp_value): New function.
+	(_bfd_set_gp_value): New function.
+	* libbfd-in.h (_bfd_get_gp_value): Declare.
+	(_bfd_set_gp_value): Declare.
+	* libbfd.h: Rebuild.
+	* coff-alpha.c (alpha_ecoff_get_relocated_section_contents): Use
+	_bfd_get_gp_value and _bfd_set_gp_value rather than referring
+	directly to the fields in the tdata information.
+	(alpha_relocate_section): Likewise.
+	* coff-mips.c (mips_adjust_reloc_in): Likewise.
+	(mips_gprel_reloc): Likewise.
+	(mips_relocate_section): Likewise.
+	* elf32-mips.c (mips_elf_hi16_reloc): Likewise.
+	(mips_elf_lo16_reloc): Likewise.
+	(mips_elf_final_gp): Likewise.
+	(mips_elf_gprel16_reloc): Likewise.
+	(mips_elf_gprel32_reloc): Likewise.
+	(mips_elf_relocate_section): Likewise.
+	(mips_elf_finish_dynamic_symbol): Likewise.
+
+	* bout.c (b_out_set_arch_mach): Recognize bfd_mach_i960_jx.
+
+Thu Feb 15 11:29:13 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Call AC_PROG_CC before configure.host.
+	* configure: Rebuild.
+	* configure.host: Don't set information which autoconf should
+	figure out, namely CC, CFLAGS, LDFLAGS, AR, and RANLIB.
+
+	* configure.host: Remove go32 and win32 host information, since it
+	should no longer be needed.
+
+	* elf.c (map_sections_to_segments): If we have a .dynamic section,
+	then start a new segment rather than put a writable section in a
+	readonly segment.
+
+	* configure.host: Set RPATH_ENVVAR.
+
+	* Makefile.in: Rebuild dependencies.
+
+	* elflink.c (_bfd_elf_create_linker_section): Remove unused
+	zero_section variable.
+
+Thu Feb 15 10:39:17 1996  H.J. Lu  <hjl@zoom.com>
+
+	* Makefile.in ($(srcdir)/bfd-in2.h): Rename target from bfd-in2.h.
+	($(srcdir)/libbfd.h): Rename from libbfd.h.
+	($(srcdir)/libcoff.h): Rename from libcoff.h.
+
+Wed Feb 14 16:29:07 1996  Martin Anantharaman  <martin@mail.imech.uni-duisburg.de>
+
+	* ieee.c (ieee_write_expression): Only use an R variable for a
+	local symbol.  Don't output a zero offset.  Handle a zero address.
+	(SRC_MASK, PCREL_OFFSET): Define based on KEEPMINUSPCININST.
+	(rel32_howto, rel16_howto, rel8_howto): Use SRC_MASK and
+	PCREL_OFFSET.
+	(parse_expression): Don't try to handle multiple occurrences of a
+	P variable.  Handle I variables differently from X variables.  Fix
+	the order of minus expressions.
+	(ieee_slurp_external_symbols): Generate an I variable for an NN
+	record.  Fix handling of ATI and ATX records.
+	(ieee_slurp_sections): Only set minimal section attributes.
+	Adjust them later, based on the section contents.
+	(ieee_object_p): Read in the file until just after the ME record.
+	Call ieee_slurp_section_data to set the section flags.
+	(do_one): Add iterations parameter.  Only repeat the first load
+	item.  Set the section and file reloc flags.
+	(ieee_slurp_section_data): Set section flags.  Pass iterations to
+	do_one.
+	(ieee_canonicalize_reloc): Handle I variables.
+	(do_with_relocs): Only emit relocation size when necessary.
+	Increase MAXRUN to 127.  Change ov to be assigned, and take
+	src_mask and pcrel_offset into account.
+	(ieee_write_data_part): Skip sections that are not loaded.
+	(ieee_write_external_part): Don't output optional last entry of WX
+	records.
+	(ieee_write_me_part): Make setting of me_record neater.
+	(ieee_generic_stat_arch_elt): Get the size of an archive element.
+
+	* syms.c (stt): Add entries for zerovars, vars, and code.
+
+	* elfcode.h (validate_reloc): New static function.
+	(write_relocs): Call validate_reloc for non ELF relocs.
+
+	* elfxx-target.h (elf_symbol_leading_char): Define if not defined.
+	(TARGET_BIG_SYM): Use elf_symbol_leading_char.
+	(TARGET_LITTLE_SYM): Likewise.
+
+	* config.bfd (m68*-*-psos*): New target.
+
+Tue Feb 13 15:56:22 1996  Bryan Ford  <baford@snake.cs.utah.edu>
+
+	* i386msdos.c: Remove some #if 0 code.
+	(msdos_write_object_contents): Don't include empty sections in the
+	size computation, regardless of their address.
+
+Tue Feb 13 15:36:37 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* elf32-ppc.c (ppc_elf_relocate_section): Don't segfault if dynboj
+	is NULL, ie, the -r switch is used.
+
+Tue Feb 13 14:35:15 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* reloc.c (BFD_RELOC_MIPS_GOT_HI16): Define.
+	(BFD_RELOC_MIPS_GOT_LO16): Define.
+	(BFD_RELOC_MIPS_CALL_HI16, BFD_RELOC_MIPS_CALL_LO16): Define.
+	* bfd-in2.h, libbfd.h: Rebuild.
+	* elf32-mips.c (mips_reloc_map): Map new relocs.
+
+	* configure.host: Set HDLFLAGS for *-*-hpux with --enable-shared.
+
+	* Makefile.in ($(SHLINK)): Check ts against $(SHLIB), not
+	$(SHLINK).
+
+	* ieee.c (get_symbol): Set the section to bfd_abs_section.
+	(do_with_relocs): If EXEC_P is set and there are no relocs, use a
+	simple number for the section address, rather than an expression.
+	Limit the number of bytes between relocs to MAXRUN.
+	(ieee_write_me_part): Set me_record to the file offset after the
+	start address.
+	(ieee_write_processor): New static function.
+	(ieee_write_object_contents): Use ieee_write_processor.
+
+Fri Feb  9 10:53:00 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.host: Use ${CC-gcc} when testing for -rpath on SunOS.
+
+	* coff-aux.c: Change include of aux.h to aux-coff.h.
+
+Thu Feb  8 14:01:03 1996  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* elf32-m68k.c (elf_m68k_relocate_section): For a R_68K_RELATIVE
+	relocation put the addend both in the reloc entry and the data.
+	(elf_m68k_finish_dynamic_symbol): Likewise.  Mask out marker in
+	GOT offset value.
+
+	* elf32-m68k.c (elf_m68k_relocate_section): If -Bsymbolic, resolve
+	a R_68K_PCxx reloc against a defined global symbol directly.
+	(elf_m68k_check_relocs): Don't count such a reloc.
+
+	* elf32-m68k.c (elf_m68k_check_relocs): Don't record a symbol with
+	a PLTxx reloc as dynamic.  Disallow PLTxxO reloc against a local
+	symbol for now, otherwise always record the symbol as dynamic.
+	(elf_m68k_adjust_dynamic_symbol): If a symbol with a PLTxx reloc
+	is not referenced by a dynamic object, and we are not making a
+	shared object, then don't make a PLT entry.  If we do make a PLT
+	entry, make sure the symbol has been recorded as dynamic.
+
+Wed Feb  7 13:56:06 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.host: When making a shared library, set HLDFLAGS to
+	pass an appropriate -rpath option.  Use the make variable SONAME
+	as the shared library soname, rather than computing it here.  On
+	SunOS, build stamp-tshlink in place of $(SHLINK).
+	* Makefile.in (SONAME): New variable.
+	($(SHLINK)): Make a link to the transformed name, as well.
+	(stamp-tshlink): New target.
+	(install): Skip stamp-tshlink during install.
+
+Wed Feb  7 13:37:39 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* elf32-ppc.c (ppc_elf_add_symbol_hook): Do not assume that the
+	linker sections have been set up yet.
+
+	* elf.c (make_mapping): Add an additional argument to suppress
+	making the first section include the program headers.
+	(map_sections_to_segments): If the user used -Ttext such that the
+	program headers are on a different page, do not set the flags
+	saying that this section includes the program headers.
+
+Tue Feb  6 14:04:49 1996  J.T. Conklin  <jtc@rtl.cygnus.com>
+
+	* configure.in (*-*-netbsd*): Set COREFILE to netbsd-core.c.
+	don't define TRAD_HEADER.
+	* configure: Rebuild.
+
+	* netbsd-core.c: New file, support for NetBSD core files.
+	* hosts/*nbsd.h: Removed.
+
+Tue Feb  6 11:47:49 1996  Doug Evans  <dje@charmed.cygnus.com>
+
+	* reloc.c (BFD_RELOC_SPARC_[567]): New reloc types.
+	(BFD_RELOC_SPARC_LO7 reloc type): Deleted.
+	* libbfd.h, bfd-in2.h: Regenerated.
+	* elf32-sparc.c (_bfd_sparc_elf_reloc_type_lookup): Renamed from
+	bfd_elf32_bfd_reloc_type_lookup.
+	(reloc_type{,_names}): Deleted.
+	(_bfd_sparc_elf_howto_table): Renamed from elf_sparc_howto_table.
+	Add sparc64 relocs.
+	(sparc_reloc_map): Add sparc64 relocs.
+	(sparc_elf_notsupported_reloc): New static function.
+	(sparc_elf_wdisp16_reloc): New static function.
+	(elf32_sparc_check_relocs): Handle R_SPARC_WDISP{16,19}.
+	(elf32_sparc_relocate_section): Likewise.
+	(bfd_elf32_bfd_reloc_type_lookup): Define.
+	* elf64-sparc.c (sparc64_elf_wdisp16_reloc): Deleted.
+	(reloc_type{,_names}): Deleted.
+	(elf_sparc_howto_table): Deleted.
+	(sparc_reloc_map): Deleted.
+	(_bfd_sparc_elf_howto_table): Renamed from elf_sparc_howto_table.
+	(bfd_elf64_bfd_reloc_type_lookup): Change from function to #define.
+
+Tue Feb  6 12:12:22 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.host: Make SHLIB_CFLAGS include $(PICFLAG) on a
+	*-*-hpux* host.
+
+	* Makefile.in (program_transform_name): New variable.
+	(install): Transform library name before installing it.
+
+Mon Feb  5 10:38:27 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* archures.c (bfd_mach_i960_hx): Define.
+	* bfd-in2.h: Rebuild.
+	* cpu-i960.c (scan_960_mach): Accept machine "hx".
+	(MATRIX): Expand entries for HX.
+	(arch_info_struct): Add i960:hx entry.
+	* bout.c (b_out_set_arch_mach): Handle bfd_mach_i960_hx.
+	* coffcode.h (coff_set_arch_mach_hook): Handle F_I960HX.
+	(coff_set_flags): Handle bfd_mach_i960_hx.
+
+	Support for building as a shared library, based on patches from
+	Alan Modra <alan@spri.levels.unisa.edu.au>:
+	* configure.in: Add AC_ARG_ENABLE for shared and commonbfdlib.
+	New substitutions: ALLLIBS, PICFLAG, SHLIB, SHLIB_CC,
+	SHLIB_CFLAGS, COMMON_SHLIB, PICLIST, SHLINK.
+	* configure: Rebuild.
+	* configure.host: If --enable-shared, adjust shared library stuff
+	based on the host.  If the host is SunOS, and the linker supports
+	-rpath, set HLDFLAGS to use it.
+	* Makefile.in (ALLLIBS): New variable.
+	(PICFLAG, SHLIB, SHLIB_CC, SHLIB_CFLAGS): New variables.
+	(COMMON_SHLIB, SHLINK): New variables.
+	(.c.o): If PICFLAG is set, compile twice, once PIC, once normal.
+	(STAGESTUFF): Remove variable.
+	(all): Depend upon $(ALLLIBS) and @PICLIST@ rather than
+	$(TARGETLIB).
+	(stamp-ofiles): New target, like old ofiles target, but build
+	using a temporary file and move-if-change, and touch stamp-ofiles
+	when done.
+	(ofiles): Just depend upon stamp-ofiles.
+	(stamp-piclist, piclist): New targets.
+	($(SHLIB), $(SHLINK)): New targets.
+	(targets.o, archures.o): Build twice if PICFLAG is set.
+	(do_mostlyclean): Remove pic/*.o.
+	(do_clean): Remove stamp-ofiles, $(SHLIB), $(SHLINK), piclist, and
+	stamp-piclist.
+	(do_distclean): Remove pic and stamp-picdir.
+	(install): Install shared libraries.
+	($(OFILES)): Depend upon stamp-picdir.
+	(stamp-picdir): New target.
+
+	* libcoff-in.h: Add comment reminding people that libcoff.h is a
+	generated file.
+	* libcoff.h: Rebuild.
+
+	* elflink.h (elf_adjust_dynamic_symbol): Don't try to get the
+	flavour of a section with no owner.
+
+	* elf32-mips.c (mips_elf_create_dynamic_sections): Clear
+	ELF_LINK_NON_ELF flag.
+	(mips_elf_create_got_section): Likewise.
+
+	* elf.c: Revert last change, since it breaks dynamic linking.
+	* elf-bfd.h (struct elf_backend_data): Remove want_hdr_in_seg
+	field.
+	* elf32-mips.c (elf_backend_want_hdr_in_seg): Don't define.
+	* elfxx-target.h (elf_backend_want_hdr_in_seg): Don't define.
+	(elfNN_bed): Don't initialize want_hdr_in_seg field.
+
+Sun Feb  4 20:45:13 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* elf.c (assign_file_positions_for_segments): If the backend does
+	not want the elf header or the program headers in the address
+	space, do not include them in the calculations.
+
+	* elf32-ppc.c (ppc_elf_additional_program_headers): New hook
+	function to determine if we need additional program headers.
+	(ppc_elf_modify_segment_map): Define as a NOP function for now.
+	(ppc_elf_create_linker_section): .sdata2 is a read-only section.
+
+Sat Feb  3 23:00:03 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* coffcode.h: Move today's libcoff.h change into coffcode.h.
+
+Sat Feb  3 15:43:44 1996  Fred Fish  <fnf@cygnus.com>
+
+	* libcoff.h (bfd_coff_link_add_one_symbol): Combine macro args
+	back into one line.  Some compilers (sunos 4.1.3 for example)
+	won't accept args split across more than one line.
+
+Fri Feb  2 11:42:15 1996  Steve Chamberlain  <sac@slash.cygnus.com>
+
+	* aclocal.m4 (BFD_BINARY_FOPEN): Understand cygwin32.
+	* configure: Regenerate.
+
+Fri Feb  2 12:12:16 1996  Jeffrey A Law  (law@cygnus.com)
+
+	* elf32-hppa.c (elf32_hppa_backend_symbol_table_processing): Don't
+	try to do arithmetic on a void *, cast it to a unsigned char * first.
+
+Thu Feb  1 16:04:06 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* elf-bfd.h (ELF_LINK_NON_ELF): Define.
+	* elf.c (_bfd_elf_link_hash_newfunc): Set elf_link_hash_flags to
+	ELF_LINK_NON_ELF.
+	* elflink.h (elf_link_add_object_symbols): Reset ELF_LINK_NON_ELF
+	flag for a newly defined symbol.
+	(NAME(bfd_elf,record_link_assignment)): Likewise.
+	(elf_adjust_dynamic_symbol): If ELF_LINK_NON_ELF is set, try to
+	set the DEF or REF_REGULAR flags correctly.
+
+	* Makefile.in (bfd-in2.h): Make bfd.h, not protos, in docdir.
+	(libbfd.h, libcoff.h): Corresponding change.
+
+	* elf32-i386.c (elf_i386_check_relocs): Don't record a symbol with
+	a PLT32 reloc as dynamic.
+	(elf_i386_adjust_dynamic_symbol): If a symbol with a PLT32 reloc
+	is not referenced by a dynamic object, and we are not making a
+	shared object, then don't make a PLT entry.  If we do make a PLT
+	entry, make sure the symbol has been recorded as dynamic.
+
+Wed Jan 31 17:23:32 1996  Steve Chamberlain  <sac@slash.cygnus.com>
+
+	* coff-i386.c (coff_i386_reloc_type_lookup): Add BFD_RELOC_32_PCREL.
+	* config.bfd (i[345]86-*-win32): Becomes i[345]86-*-cygwin32.
+	(powerpcle-*-cygwin32): New.
+	* peicode.h (add_data_entry): Get address from vma.
+
+Wed Jan 31 16:23:57 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* elflink.c (_bfd_elf_create_linker_section): If the symbol
+	attached to the section has already been created as an undefined
+	symbol, treat it as if it hasn't been created yet.
+
+Wed Jan 31 16:16:53 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* elflink.h (elf_bfd_final_link): Don't output initial dummy
+	symbol or section symbols if stripping all symbols and this is not
+	a relocateable link.  Don't output the symbol string table if
+	there are no symbols.
+	(elf_link_flush_output_syms): Don't do anything if there are no
+	symbols to flush.
+
+Wed Jan 31 12:55:49 1996  Richard Henderson  <rth@tamu.edu>
+
+	* coff-aux.c: New file.
+	* hosts/m68kaux.h: New file.
+	* config.bfd (m68*-apple-aux*): New target.
+	* configure.in (m68*-apple-aux*): New native host.
+	(m68kaux_coff_vec): New vector.
+	* configure: Rebuild.
+	* targets.c (m68kaux_coff_vec): Declare.
+	* coffcode.h (bfd_coff_backend_data): Add field
+	_bfd_coff_link_add_one_symbol.
+	(bfd_coff_link_add_one_symbol): Define.
+	(compare_arelent_ptr): New static function if TARG_AUX.
+	(coff_write_relocs): If TARG_AUX, sort the relocs.
+	(coff_write_object_contents): Set A/UX aouthdr magic number.
+	(coff_link_add_one_symbol): Define if not defined.
+	(bfd_coff_std_swap_table): Initialize new field.
+	* libcoff.h: Rebuild.
+	* cofflink.c (coff_link_add_symbols): Call
+	bfd_coff_link_add_one_symbol rather than
+	_bfd_generic_link_add_one_symbol.
+	* coff-m68k.c (COFF_PAGE_SIZE): Don't define if already defined.
+	* coff-alpha.c (alpha_ecoff_backend_data): Initialize new field.
+	* coff-mips.c (mips_ecoff_backend_data): Likewise.
+	* Makefile.in: Rebuild dependencies.
+	(BFD32_BACKENDS): Add coff-aux.o.
+	(BFD32_BACKENDS_CFILES): Add coff-aux.c.
+
+Wed Jan 31 11:37:46 1996  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* elf32-m68k.c (elf_m68k_relocate_section): Fix R_68K_GOT*
+	relocation; ignore addend with R_68K_{GOT,PLT}*O relocation.
+
+Tue Jan 30 12:09:04 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in (do_maintainer_clean): Remove $(srcdir)/bfd-in2.h,
+	$(srcdir)/libbfd.h and $(srcdir)/libcoff.h.
+	(maintainer-clean): Warn about deleting special files.
+	(bfd-in2.h, libbfd.h, libcoff.h): New targets.
+
+	* elf32-hppa.c (elf32_hppa_relocate_section): Handle indirect and
+	warning symbols correctly.
+	* elf32-i386.c (elf_i386_relocate_section): Likewise.
+	* elf32-m68k.c (elf_m68k_relocate_section): Likewise.
+	* elf32-mips.c (mips_elf_relocate_section): Likewise.
+	* elf32-ppc.c (ppc_elf_relocate_section): Likewise.
+	* elf32-sparc.c (elf32_sparc_relocate_section): Likewise.
+	* elf64-sparc.c (sparc64_elf_relocate_section): Likewise.
+
+	* syms.c (_bfd_stab_section_find_nearest_line): Add casts to avoid
+	warnings.
+
+Mon Jan 29 14:27:24 1996  Kim Knuttila  <krk@cygnus.com>
+
+	* libcoff-in.h: aligned newly exported names with bfd naming 
+	conventions. Removed an erroneous define of POWERPC_LE_PE.
+ 	* libcoff.h: Rebuild.
+	* cofflink.c, coff-ppc.c: the above function name changes
+
+Mon Jan 29 13:06:28 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	From Basim Kadhim <kadhim@spock.cs.colorado.edu>:
+	* ecoff.c (struct extsym_info): Define.
+	(_bfd_ecoff_bfd_final_link): Pass a pointer to struct extsym_info
+	to ecoff_link_write_external.
+	(ecoff_link_write_external): Accept a struct extsym_info pointer.
+	Strip symbols when appropriate.
+
+	Based on patches from Ronald F. Guilmette <rfg@monkeys.com>:
+	* syms.c (BSF_OBJECT): Define.
+	(bfd_print_symbol_vandf): Print 'O' for BSF_OBJECT.
+	* bfd-in2.h: Rebuild.
+	* elfcode.h (elf_slurp_symbol_table): Set BSF_OBJECT for an
+	STT_OBJECT symbol.
+	* elf.c (swap_out_syms): Only set type to STT_OBJECT if BSF_OBJECT
+	is set.
+
+	* elf32-i386.c (elf_i386_relocate_section): If -Bsymbolic, when
+	copying relocs into a shared object, treat a defined global symbol
+	as a local symbol.
+	* elf32-m68k.c (elf_m68k_relocate_section): Likewise.
+	* elf32-mips.c (mips_elf_relocate_section): Likewise.
+	* elf32-sparc.c (elf32_sparc_relocate_section): Likewise.
+
+	* elflink.h (elf_link_add_object_symbols): Only set weakdef to a
+	real defined symbol, not to a weak defined symbol.
+
+Mon Jan 29 11:34:36 1996  Kim Knuttila  <krk@cygnus.com>
+
+	* cofflink.c: removed the POWERPC_LE_PE hack, promoted some types
+	and made a few static functions externs.
+
+	* coff-ppc.c (ppc_bfd_coff_final_link): new function, replaces the
+	POWERPC_LE_PE hack in cofflink.
+
+	* libcoff-in.h: promoted the following from cofflink.c to allow
+	_bfd_coff_final_link to be overridden -  STRING_SIZE_SIZE,
+	coff_debug_merge_element, struct coff_debug_merge_type, 
+	coff_debug_merge_hash_entry, coff_debug_merge_hash_table,
+	coff_debug_merge_hash_table_init,  coff_debug_merge_hash_table_free,
+	coff_debug_merge_hash_lookup, coff_link_section_info, 
+	coff_final_link_info, coff_debug_merge_hash_newfunc,
+	coff_write_global_sym, coff_link_input_bfd, coff_reloc_link_order.
+
+	* libcoff.h: re-gen'd
+
+Fri Jan 26 18:33:35 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* syms.c: Include "bfdlink.h".
+	(struct stab_find_info): Define.
+	(_bfd_stab_section_find_nearest_line): New function.
+	* libbfd-in.h (_bfd_stab_section_find_nearest_line): Declare.
+	* libbfd.h: Rebuild.
+	* elf-bfd.h (struct elf_obj_tdata): Add line_info field.
+	* elf.c (_bfd_elf_find_nearest_line): Try calling
+	_bfd_stab_section_find_nearest_line before searching the ELF
+	symbol table.  Find the closest STT_FUNC symbol, not the last one.
+	* libcoff-in.h (coff_data_type): Add line_info field.
+ 	* libcoff.h: Rebuild.
+	* coffgen.c (coff_find_nearest_line): Try calling
+	_bfd_stab_section_find_nearest_line before searching the COFF
+	symbol table.
+	* Makefile.in: Rebuild dependencies.
+
+Fri Jan 26 16:11:19 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* elf32-ppc.c (R_PPC_EMB_SDA21 relocations): Make relocation size
+	4 bytes, so we get the correct value when updating the register
+	field in little endian mode.
+
+Thu Jan 25 12:14:16 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* libcoff-in.h (struct xcoff_tdata): Remove toc_section and
+	entry_section fields.  Add sntoc and snentry fields.
+	* libcoff.h: Rebuild.
+	* coffcode.h (coff_mkobject_hook): Initialize sntoc and snentry,
+	not toc_section and entry_section (the COFF file does not have any
+	sections at this point).
+	(coff_write_object_contents): Set o_snentry and o_sntoc from
+	snentry and sntoc rather than entry_section and toc_section.
+	* coff-rs6000.c (xcoff_copy_private_bfd_data): Copy sntoc and
+	snentry, not toc_section and entry_section.
+	* xcofflink.c (bfd_xcoff_size_dynamic_sections): Don't set
+	entry_section from hentry.
+	(xcoff_link_input_bfd): If a defined symbol has XCOFF_ENTRY set,
+	set snenty.
+	(xcoff_link_input_bfd): Set sntoc, not toc_section.
+	(xcoff_write_global_symbol): Get toc_section from sntoc, rather
+	than using toc_section directly.
+
+	* archures.c: Add missing `.' in enum bfd_architecture.
+	* bfd-in2.h: Rebuild.
+
+	* config.bfd (i[345]86-*-sco*elf*): Use bfd_elf32_i386_vec.  From
+	Robert Lipe <robertl@arnet.com>.
+
+Thu Jan 25 12:08:51 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* elf32-ppc.c (ppc_elf_size_dynamic_sections): Add .rela.sdata{,2}
+	to sections we allocate.  Use bfd_zalloc to allocate initialial
+	sections, not bfd_alloc.
+	(ppc_elf_check_relocs): Remove BFD_ASSERTs for !shared from
+	SDA{,2}I16 relocations.
+	(ppc_elf_add_symbol_hook): Use the value of -G nn to determine
+	whether to put something in .sbss or not.
+	(ppc_elf_relocate_section): Add support for more relocations.  Add
+	in sec->output_offset where appropriate.  Make error messages
+	include the symbol name.
+
+	* elflink.c (_bfd_elf_create_linker_section): Lookup symbol before
+	trying to add it to the symbol table, so _GLOBAL_OFFSET_TABLE_
+	doesn't get redefined messages if -shared.
+
+	* elflink.h (elf_create_pointer_linker_section) Only bump RELA
+	section if the rel_section field has been set up.
+
+Wed Jan 24 20:40:26 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* elf32-ppc.c (ppc_elf_relocate_section): Fix typo in eabi
+	relocations.
+
+Wed Jan 24 10:38:34 1996  Doug Evans  <dje@charmed.cygnus.com>
+
+	* elf32-sparc.c (elf32_sparc_merge_private_bfd_data): Delete checking
+	of flags, only flags used are controlled by mach number.  Bump up
+	output file mach number to highest of input file mach numbers.
+	(elf32_sparc_object_p): Watch for EF_SPARC_SUN_US1.
+	(elf32_sparc_final_write_processing): Set EF_SPARC_SUN_US1 if v8plusa.
+
+	* config.bfd (sparc64-*-{sysv4*,solaris2*}): Comment out
+	bfd_elf64_sparc_vec support.
+
+Tue Jan 23 14:33:05 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* elf32-ppc.c (ppc_elf_copy_private_bfd_data): Don't complain if
+	the embedded bit is set on some objects and not on others.  Just
+	or it together.
+	(ppc_elf_relocate_section): Implement R_PPC_EMB_{SDA21,RELSDA}
+	relocations.
+
+Tue Jan 23 14:22:45 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* coffcode.h (coff_new_section_hook): Don't try to align the
+	.stabstr section.
+
+	* coffcode.h (coff_set_section_contents): Fix the handling of the
+	.lib section to work even if the entire section contents are
+	written at once.  From Gvran Uddeborg <gvran@uddeborg.pp.se> and
+	Robert Lipe <robertl@arnet.com>.
+
+Mon Jan 22 18:45:51 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* elflink.h (elf_finish_pointer_linker_section): Don't allocate
+	memory here for contents.
+
+	* elf32-ppc.c (ppc_elf_relocate_section): Bump up _SDA_BASE_ and
+	_SDA2_BASE_ by 32768.
+	(ppc_elf_size_dynamic_sections): #if out PLT code which we haven't
+	started using.  Allocate contents for .sdata and .sdata2 sections
+	also.
+	(ppc_elf_check_relocs): Use bfd_get_section_name in debug message,
+	rather than _name.
+	(ppc_elf_finish_dynamic_symbol): Remove code that attempted to
+	size _SDA{,2}_BASE_.
+	(ppc_elf_relocate_section): Change how sdata{,2} relocations are
+	done.
+
+Mon Jan 22 08:52:04 1996  Doug Evans  <dje@charmed.cygnus.com>
+
+	* elflink.h (elf_finish_pointer_linker_section): Fix typo.
+
+	* archures.c (bfd_mach_sparc_v9): Renamed from bfd_mach_sparc64.
+	(bfd_mach_sparc_{v8plus,v8plusa}): Define.
+	(bfd_mach_sparc_v9a): Define.
+	(bfd_mach_sparc_v9_p): Define.
+	* bfd-in2.h: Regenerated.
+	* aoutx.h (aout,machine_type): bfd_mach_sparc64 renamed to
+	bfd_mach_sparc_v9.
+	* elf64-sparc.c (sparc64_elf_object_p): Likewise.
+	* config.bfd (sparc64-*-sysv4*,sparc64-*-solaris2*): Set targ_defvec
+	to bfd_elf32_sparc_vec.
+	* cpu-sparc.c (arch_info_struct): Renamed from sparc_arch_info.
+	Add v8plus{,a} support.
+	Add v9a support.
+	(sparc_compatible): New function.
+	* elf32-sparc.h: #include "elf/sparc.h".
+	(elf32_sparc_merge_private_bfd_data, elf32_sparc_object_p,
+	elf32_sparc_final_write_processing): New functions.
+	(bfd_elf32_bfd_merge_private_bfd_data, elf_backend_object_p,
+	elf_backend_final_write_processing): Define.
+
+Mon Jan 22 11:21:51 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* elf-bfd.h (struct elf_link_hash_entry): Add
+	linker_section_pointer field.
+	(enum elf_linker_section_enum): Enumeration for new way of
+	creating linker dynamic sections and symbols.
+	(elf_linker_section{,_pointers}): New structures for creating
+	dynamic sections and symbols.
+	(elf_obj_tdata): Add linker_section_pointers and linker_section
+	fields.
+	(elf_local_ptr_offsets,elf_linker_section): New accessor macros.
+	(_bfd_elf_create_linker_section): New declarations.
+	(_bfd_elf_find_pointer_linker_section): Ditto.
+	(bfd_elf{32,64}_{create,finish}_pointer_linker_section): Ditto.
+	(_bfd_elf_make_linker_section_rela): Ditto.
+
+	* elf.c (_bfd_elf_link_hash_newfunc): Initialize new fields.
+
+	* elf32-ppc.c (ppc_elf_create_dynamic_sections): Delete.
+	(ppc_elf_create_linker_section): New function to create the
+	sections .got, .sdata, and .sdata2.
+	(ppc_elf_size_dynamic_sections): Zap .rela.{sdata,sdata2} if
+	needed.
+	(ppc_elf_check_relocs): Support more of the eabi relocations.
+	(ppc_elf_relocate_section): Ditto.
+	(ppc_elf_finish_dynamic_symbols): Adjust _SDA{,2}_BASE_ by 32768
+	if the .sdata{,2} + .sbss{,2} section size is > 32k.
+
+	* elflink.h (elf_create_pointer_linker_section): New function to
+	create initialized pointers in dynamic linker sections.
+	(elf_finish_pointer_linker_section): Actually intialize the
+	pointers created above.
+
+	* elfcode.h (bfd_elf{32,64}_create_pointer_linker_section): New
+	macros to provide both 32 and 64 bit versions of
+	elf_create_pointer_linker_section.
+	(bfd_elf{32,64}_finish_pointer_linker_section): New macros to
+	provide both 32 and 64 bit versions of
+	elf_finish_pointer_linker_section.
+
+	* elflink.c (_bfd_elf_create_linker_section): New function to
+	create a linker section.
+	(_bfd_elf_find_pointer_linker_section): Find a unique pointer to a
+	given address in the linker pointer offsets created for a given
+	symbol.
+	(_bfd_elf_make_linker_section_rela): Make a RELA section
+	corresponding to the generated linker section.
+
+Sat Jan 20 08:36:10 1996  Doug Evans  <dje@canuck.cygnus.com>
+
+	* elf32-sparc.c (ELF_MACHINE_ALT1): Define.
+
+Thu Jan 18 18:25:34 1996  Kim Knuttila  <krk@cygnus.com>
+
+	* coff-ppc.c (coff_ppc_relocate_section): changed TOCDEFN relocs.
+	(coff_ppc_relocate_section): Handle special values for gcc built dlls.
+	(dump_toc): fix diagnosing code to identify out-of-toc-bounds entries.
+	Also begin the toc at 4 as an eye catcher ('31313131' marks the first
+	toc entry in an objdump) for now.
+	(ppc_do_last, ppc_get_last): New function - needed to save processing 
+	the toc owner to the end.
+	(ppc_coff_swap_sym_in_hook): Removed an incorrect hack for doing the 
+	toc owner last.
+
+	* cofflink.c (_bfd_coff_final_link): Added a new hack to keep the 
+	toc owner from being done till last. Must define POWERPC_LE_PC 
+	to enable it.
+
+	* coffcode.h (coff_set_alignment_hook): alignment setting for .stab
+
+	* peicode.h (coff_swap_scnhdr_out): set section flags for stab/str
+	to INFO.
+	(coff_swap_aouthdr_out): Removed a non-working hack for computing the
+	SizeOfImage for PowerPC. Ignore the size of the .junk section.
+
+Thu Jan 18 17:42:12 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* elfcore.h: Include <signal.h> before <sys/procfs.h>.
+
+Wed Jan 17 12:40:14 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* cpu-powerpc.c (arch_info_struct): Change last entry to not point
+	back to first.
+	(bfd_powerpc_arch): Point at first entry in arch_info_struct.
+
+Tue Jan 16 15:10:49 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* elf.c (assign_file_positions_for_segments): Don't increment file
+	offset for a segment which contains no loadable sections.
+
+Mon Jan 15 17:46:27 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* reloc.c: Add new PowerPC relocations.
+	* {bfd-in2,libbfd}.h: Regenerate.
+
+	* elf32-ppc.c (ppc_elf_howto_raw): Add more PPC relocations.
+	(ppc_elf_reloc_type_lookup): Lookup new relocations.
+
+Mon Jan 15 14:29:44 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* aoutx.h (howto_table_ext): Fix RELOC_BASE10 and RELOC_BASE22
+	entries.
+
+	* sunos.c (sunos_scan_ext_relocs): Don't fail assert if
+        info->shared.
+
+	* coffgen.c (coff_find_nearest_line): Don't try to cache
+	information in sections that are not owned by a BFD.  From Richard
+	Henderson <richard@atheist.tamu.edu>.
+
+	* elf32-mips.c: Numerous changes to dynamic linking code, mostly
+	from Kazumoto Kojima <kkojima@info.kanagawa-u.ac.jp>.
+	* elflink.h (elf_link_output_extsym): Remove special check for
+	_rld_new_interface.
+
+	* ecoffswap.h: Add prototypes for static functions.
+
+Sun Jan 14 21:36:08 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* elf32-ppc.c (ppc_elf_{unsupported,std}_reloc): Remove functions.
+	(ppc_elf_howto_raw): Remove ppc_elf_{unsupported,std}_reloc
+	references.
+	(ppc_elf_relocate_section):  No longer allow .sdata/.sbss sections
+	to satisfy a TOC16 relocation. 	Rewrite unsupported relocation
+	support.  Begin support for R_PPC_SDA{2,}REL.
+
+Sat Jan 13 09:36:52 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* elf32-ppc.c (ppc_elf_create_dynamic_sections): New function to
+	create the .got and .got.neg sections.
+	(ppc_elf_size_dynamic_sections): Call it.
+	(ppc_elf_check_relocs): Call it.
+	(ppc_elf_size_dynamic_sections): Support .got.neg, just like .got.
+	(ppc_elf_check_relocs): Add error messages for relocations we
+	don't yet support.  Do not include R_PPC_SDAREL16 like a GOT
+	relocation.
+
+Fri Jan 12 15:27:59 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* elf32-ppc.c (ppc_elf_fake_sections): Define, and handle the new
+	section flags for V.4 and eabi.
+
+Fri Jan 12 13:59:16 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* elf.c (assign_file_positions_for_segments): If a segment
+	contains no sections, don't mark it as readable.
+
+	* elf-bfd.h (_bfd_elf_section_from_bfd_section): Declare.
+	* elfcode.h (_bfd_elf_section_from_bfd_section): Don't declare.
+
+	* elf.c (_bfd_elf_print_private_bfd_data): Dump contents of
+	dynamic section, if there is one.
+	* elf-bfd.h (struct elf_size_info): Add swap_dyn_in field.
+	(bfd_elf32_swap_dyn_in): Change type of second parameter to PTR.
+	(bfd_elf64_swap_dyn_in): Likewise.
+	* elfcode.h (elf_swap_dyn_in): Change type of second parameter to
+	PTR.
+	(NAME(_bfd_elf,size_info)): Initialize swap_dyn_in field.
+
+	* elf32-i386.c (elf_i386_size_dynamic_sections): Don't create a
+	DT_TEXTREL entry because of .rel.plt.  From Martin Pirker
+	<pirker@eiunix.tuwien.ac.at>.
+
+Thu Jan 11 17:06:14 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* section.c (SEC_{EXCLUDE,SORT_ENTRIES}): New section flags for
+	PowerPC V.4 and eabi.
+ 	* bfd-in2.h: Regenerate.
+	* libfd.h: Regenerate.
+
+	* elfxx-target.h (TARGET_{BIG,LITTLE}_SYM): Add new flags.
+
+	* elf32-ppc.c (ppc_elf_section_from_shdr): Support SHT_ORDERED
+	section type and SHF_EXCLUDE section flag, turning them into the
+	appropriate bfd section flag.
+
+Thu Jan 11 11:23:30 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* xcofflink.c (xcoff_link_add_symbols): Create the special
+	sections if we see a DYNAMIC object, in case that is the only
+	XCOFF input object we see.
+	
+	* elf32-mips.c: Extensive changes for a start at dynamic linking
+	support, from Kazumoto Kojima <kkojima@info.kanagawa-u.ac.jp>.
+
+	* elf-bfd.h (struct elf_backend_data): Add type_change_ok field.
+	(struct elf_backend_data): Remove
+	elf_backend_create_program_headers field.  Add
+	elf_backend_additional_program_headers and
+	elf_backend_modify_segment_map fields.
+	* elfxx-target.h (elf_backend_type_change_ok): Define if not
+	defined.
+	(elf_backend_additional_program_headers): Likewise.
+	(elf_backend_modify_segment_map): Likewise.
+	(elf_backend_create_program_headers): Don't define.
+	(elfNN_bed): Change to account for field changes.
+	* elf.c (assign_file_positions_for_segments): Call new
+	modify_segment_map backend function.  Don't call old
+	create_program_headers backend function.
+	(get_program_header_size): Call additional_program_headers rather
+	than create_program_headers.
+	* elflink.h (elf_link_add_object_symbols): Initialize
+	type_change_ok from new backend field.
+	(elf_link_output_extsym): Don't warn if _rld_new_interface is
+	defined.
+	(elf_reloc_link_order): Treat a reloc against a defined symbol as
+	a reloc against the appropriate section.
+
+	* elf-bfd.h (struct bfd_elf_section_data): Add tdata field.
+	(struct elf_obj_tdata): Rename ppc_flags_init field to flags_init.
+	(elf_flags_init): Rename from elf_ppc_flags_init.
+	* elf32-ppc.c (ppc_elf_set_private_flags): Use elf_flags_init, not
+	elf_ppc_flags_init.
+	(ppc_elf_copy_private_bfd_data): Likewise.
+	(ppc_elf_merge_private_bfd_data): Likewise.
+
+	* elf32-m68k.c (howto_table): Change src_mask to 0 for all
+	relocation entries.
+
+Tue Jan  9 15:22:53 1996  David Mosberger-Tang  <davidm@azstarnet.com>
+
+	* coff-alpha.c (alpha_relocate_section): During final link, allow
+ 	output .lita section to be bigger than 64k by adjusting gp value
+ 	on a per-input section basis.
+	* libecoff.h (struct ecoff_tdata): Add issued_multiple_gp_warning
+	field.
+	(struct ecoff_section_tdata): Add gp field.
+
+Tue Jan  9 12:00:36 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	Handle Alpha ECOFF changes in OSF/1 3.2.
+	* libecoff.h (struct ecoff_backend_data): Add get_elt_at_filepos
+	field.
+	* coff-alpha.c: Include "aout/ar.h".
+	(alpha_ecoff_get_relocated_section_contents): Don't require an
+	ALPHA_R_IGNORE reloc after an ALPHA_R_GPDISP reloc, since OSF/1
+	3.2 doesn't generate one.
+	(alpha_relocate_section): Likewise.
+	(alpha_ecoff_slurp_armap): Define.
+	(alpha_ecoff_slurp_extended_name_table): Define.
+	(alpha_ecoff_construct_extended_name_table): Define.
+	(alpha_ecoff_truncate_arname): Define.
+	(alpha_ecoff_write_armap): Define.
+	(alpha_ecoff_generic_stat_arch_elt): Define.
+	(alpha_ecoff_update_armap_timestamp): Define.
+	(ARFZMAG): Define.
+	(alpha_ecoff_read_ar_hdr): New static function.
+	(alpha_ecoff_get_elt_at_filepos): New static function.
+	(alpha_ecoff_openr_next_archived_file): New static function.
+	(alpha_ecoff_get_elt_at_index): New static function.
+	(alpha_ecoff_backend_data): Initialize get_elt_at_filepos field.
+	(ecoffalpha_little_vec): Change BFD_JUMP_TABLE_ARCHIVE from
+	_bfd_ecoff to alpha_ecoff.
+	* ecoff.c (ecoff_link_add_archive_symbols): Use get_elt_at_filepos
+	field from backend structure, rather than always calling
+	_bfd_get_elt_at_filepos.
+	* coff-mips.c (mips_ecoff_backend_data): Initialize
+	get_elt_at_filepos field.
+	* archive.c (_bfd_generic_read_ar_hdr_mag): New function, copied
+	from _bfd_generic_read_ar_hdr with minor changes.
+	(_bfd_generic_read_ar_hdr): Use _bfd_generic_read_ar_hdr_mag.
+	* libbfd-in.h (_bfd_generic_read_ar_hdr_mag): Declare.
+	* libbfd.h: Rebuild.
+
+	* bfd-in.h (BFD_IN_MEMORY): Define.
+	* libbfd-in.h (struct bfd_in_memory): Define.
+	* libbfd.c (bfd_read): Handle BFD_IN_MEMORY flag.
+	(bfd_get_file_window): Don't try to map a BFD_IN_MEMORY file.
+	(bfd_write, bfd_stat): Abort if BFD_IN_MEMORY is set.
+	(bfd_tell, bfd_flush, bfd_seek): Handle BFD_IN_MEMORY flag.
+	* bfd.c (struct _bfd): Change iostream field from char * to PTR.
+	(bfd_get_size): Handle BFD_IN_MEMORY flag.
+	* cache.c (bfd_cache_close): Ignore BFD_IN_MEMORY files.
+	(bfd_open_file): Cast to PTR, not char *, when setting iostream.
+	(bfd_cache_lookup_worker): Abort if BFD_IN_MEMORY is set.
+	* opncls.c (bfd_fdopenr): Cast to PTR, not char *, when setting
+	iostream.
+	(bfd_openstreamr): Likewise.
+	* aoutx.h (NAME(aout,some_aout_object_p)): Only fstat iostream if
+	BFD_IN_MEMORY is not set.
+	* riscix.c (riscix_some_aout_object_p): Likewise.
+	* bfd-in2.h, libbfd.h: Rebuild.
+
+	* targets.c (bfd_target): Add _bfd_get_elt_at_index field.
+	(BFD_JUMP_TABLE_ARCHIVE): Add _get_elt_at_index.
+	(bfd_get_elt_at_index): Define.
+	* archive.c (_bfd_generic_get_elt_at_index): Rename from
+	bfd_get_elt_at_index.  Change index parameter from int to
+	symindex.
+	* libbfd-in.h (_bfd_generic_get_elt_at_index): Declare.
+	(_bfd_noarchive_get_elt_at_index): Define.
+	(_bfd_archive_bsd_get_elt_at_index): Define.
+	(_bfd_archive_coff_get_elt_at_index): Define.
+	* bfd-in2.h, libbfd.h: Rebuild.
+	* aout-target.h (MY_get_elt_at_index): Define if not defined.
+	* coff-rs6000.c (xcoff_get_elt_at_index): Define.
+	* ieee.c (ieee_get_elt_at_index): Define.
+	* libecoff.h (_bfd_ecoff_get_elt_at_index): Define.
+	* oasys.c (oasys_get_elt_at_index): Define.
+	* som.c (som_get_elt_at_index): Define.
+
+	* ecoff.c (_bfd_ecoff_find_nearest_line): Don't restrict line
+	numbers to the .text section.
+
+Mon Jan  8 17:00:57 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ieee.c (ieee_write_debug_part): Change return type to boolean.
+	If there is a SEC_DEBUGGING section, get the contents of the debug
+	information part from it.
+	(ieee_set_section_contents): Store the contents of a SEC_DEBUGGING
+	section in memory.
+	(ieee_write_object_contents): Check ieee_write_debug_part return.
+
+Thu Jan  4 17:12:37 1996  Fred Fish  <fnf@cygnus.com>
+
+	* config.bfd (i[345]86-*-freebsd*): Add target.
+	* configure.in (i386freebsd_vec): Add vec.
+	* configure: Regenerate.
+	* Makefile.in (BFD32_BACKENDS): Add i386freebsd.o.
+	(BFD32_BACKENDS_CFILES): Add i386freebsd.c.
+	Rebuild dependencies..
+	* freebsd.h: New file.
+	* i386freebsd.c: New file.
+	* targets.c (i386freebsd_vec): Declare.
+	(bfd_target_vector): Add i386freebsd_vec.
+	* i386linux.c (SEGMENT_SIZE): Define as TARGET_PAGE_SIZE
+	* i386netbsd.c (SEGMENT_SIZE):  Define as TARGET_PAGE_SIZE
+	
+Thu Jan  4 16:27:46 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ieee.c (ieee_slurp_debug): New static function.
+	(ieee_object_p): Call it.
+	(ieee_slurp_section_data): Skip debugging sections.
+	(ieee_get_reloc_upper_bound): Likewise.
+	(ieee_get_section_contents): Likewise.
+	(ieee_canonicalize_reloc): Likewise.
+	(ieee_write_section_part): Likewise.
+	(ieee_write_debug_part): Likewise.
+	(ieee_write_data_part): Likewise.
+	(init_for_output): Likewise.
+
+Wed Jan  3 19:42:47 1996  Michael Meissner  <meissner@wogglebug.tiac.net>
+
+	* elf32-ppc.c (ppc_elf_relocate_section): Make @GOT relocations
+	work.
+	(ppc_elf_howto_raw): Just use bfd_elf_generic_reloc for all howto
+	relocs, since ppc_elf_relocate_section handles the linker case.
+	(ppc_elf_{addr16_ha,got16,toc16,brtaken}_reloc): Delete, no longer
+	used.
+	(ppc_elf_{addr16_ha,got16,toc16,brtaken}_inner): Merge these into
+	ppc_elf_relocate_section since that is now the only caller.
+	(ppc_elf_relocate_section): Ditto.
+
+Wed Jan  3 15:11:30 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* coffcode.h (coff_write_object_contents): If we don't know the
+	section of the entry point for an XCOFF executable, always set the
+	entry address to -1.
+
+Tue Jan  2 14:17:15 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* elf.c (bfd_section_from_shdr): Add support for note sections.
+
+Tue Jan  2 13:10:25 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* bfd-in.h (struct _symbol_info): Add stab_type field.
+	* bfd-in2.h: Rebuild.
+	* aoutx.h (NAME(aout,get_symbol_info)): Set stab_type.
+
+	* elf32-ppc.c: Remove trailing newline from calls to
+        _bfd_error_handler.
+	(ppc_elf_merge_private_bfd_data): Only warn about endianness
+	difference if target endianness is known.
+
+Thu Dec 21 12:43:49 1995  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* elf32-ppc.c (ppc_elf_howto_raw): Add a phony reloc to handle the
+	old style TOC16 references without using R_PPC_GOT.
+	(ppc_reloc_type): Ditto.
+	(ppc_elf_reloc_type_lookup): Add support for TOC16.
+	(ppc_elf_toc16_inner): Renamed from ppc_elf_got16_inner.
+	(ppc_elf_toc16_reloc): Renamed from ppc_elf_toc16_reloc.
+	(ppc_elf_got16_{inner,reloc}): Stubs for real GOT support.
+	(ppc_elf_check_relocs): New function for GOT/PLT support that is
+	work in progress.
+	(ppc_elf_adjust_dynamic_symbol): Ditto.
+	(ppc_elf_adjust_dynindx): Ditto.
+	(ppc_elf_size_dynamic_sections): Ditto.
+	(ppc_elf_finish_dynamic_symbol): Ditto.
+	(ppc_elf_finish_dynamic_sections): Ditto.
+	(ELF_DYNAMIC_INTERPRETER): Define.
+
+Wed Dec 20 19:14:18 1995  Ken Raeburn  <raeburn@cygnus.com>
+
+	* elf.c (copy_private_bfd_data): When attaching sections to
+	segments ignore sections that won't be allocated.  Patch from
+	Andreas Schwab.
+
+Tue Dec 19 20:01:43 1995  Ken Raeburn  <raeburn@cygnus.com>
+
+	* config.bfd: Match on m68k-cbm-* only if OS doesn't match
+	anything else.
+
+Tue Dec 19 16:38:59 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* coff-i960.c (CALC_ADDEND): Define.
+	(coff_i960_relocate_section): Add the input section VMA to the
+	addend for PC relative relocs.
+
+Sun Dec 17 20:11:55 1995  Kim Knuttila  <krk@cygnus.com>
+
+	* peicode.h (pe_print_pdata): Must test the entire entry for zero
+	to correctly terminate.
+
+Fri Dec 15 12:05:57 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* targets.c (enum bfd_endian): Define.
+	(bfd_target): Rename byteorder_big_p to byteorder, and change it
+	from boolean to enum bfd_endian.  Change header_byteorder_big_p
+	correspondingly.
+	* bfd-in.h (bfd_big_endian, bfd_little_endian): New macros.
+	(bfd_header_big_endian, bfd_header_little_endian): New macros.
+	* bfd-in2.h: Rebuild.
+	* All targets: Change initialization of byteorder and
+	header_byteorder to use enum bfd_endian values rather than
+	booleans.
+	* All files: Change all references to byteorder_big_p and
+	header_byteorder_big_p to use new bfd_*_endian macros.
+
+	* coffgen.c (make_a_section_from_file): Set lma to s_paddr, not
+	s_vaddr.
+	* coffcode.h (coff_write_object_contents): Set s_paddr to lma, not
+	vma.
+	* ecoff.c (_bfd_ecoff_write_object_contents): Likewise.
+
+Fri Dec 15 07:32:09 1995  steve chamberlain  <sac@slash.cygnus.com>
+
+	* pe[i]-i386.c (TARGET_UNDERSCORE): Define to '_'.
+
+Thu Dec 14 13:45:37 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ieee.c: Lots of minor cleanups.  Make many functions return
+	errors rather than calling abort.  Also:
+	(ieee_write_twobyte): Remove; change callers to call existing
+	ieee_write_2bytes function.
+	(ieee_write_expression): Don't output the section twice when
+	outputting a local symbol.  Don't emit an extraneous zero if there
+	is only one term.
+	(ieee_slurp_sections): Set the lma as well as the vma.
+	(ieee_archive_p): Use bfd_alloc_grow rather than an obstack.
+
+	* ihex.c (ihex_set_arch_mach): Don't accept any architecture, just
+	a recognized one or bfd_arch_unknown.
+	(ihex_get_symtab_upper_bound): Define as bfd_0l, to permit objcopy
+	to succeed.
+	(ihex_get_symtab): Likewise.
+
+Wed Dec 13 15:44:06 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* aoutx.h: Include <ctype.h>.
+	(struct aout_link_includes_table): Define.
+	(struct aout_link_includes_totals): Define.
+	(struct aout_link_includes_entry): Define.
+	(aout_link_includes_lookup): Define macro.
+	(struct aout_final_link_info): Add includes field.
+	(aout_link_includes_newfunc): New static function.
+	(NAME(aout,final_link)): Initialize includes hash table.
+	(aout_link_write_symbols): Eliminate duplicate N_BINCL entries.
+
+Wed Dec 13 10:52:14 1995  Stan Shebs  <shebs@andros.cygnus.com>
+
+	* mpw-config.in: Match on mips-*-* instead of mips-idt-ecoff.
+
+Wed Dec 13 11:07:45 1995  Kim Knuttila  <krk@cygnus.com>
+
+	* coff-ppc.c (coff_ppc_relocate_section): removed debugging code.
+
+Tue Dec 12 17:42:06 1995  Kim Knuttila  <krk@cygnus.com>
+
+	* peicode.h (pe_print_reloc): New function to dump the .reloc section.
+	(pe_print_private_bfd_data): call pe_print_reloc.
+	* coffcode.h (coff_set_alignment_hook): .reloc section alignment.
+	* coff-ppc.c (in_reloc_p): Added missing non-eligible relocs. Spiffed
+	up some debugging as well.
+
+Tue Dec 12 11:34:23 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config.bfd: Handle sparc-*-elf*.  From Ronald F. Guilmette
+	<rfg@monkeys.com>.
+
+Fri Dec  8 17:47:07 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* elflink.h (elf_link_add_object_symbols): Set section_count to 0
+	when setting sections to NULL.
+
+Wed Dec  6 17:05:37 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* xcofflink.c (struct xcoff_loader_info): Add export_defineds
+	field.
+	(bfd_xcoff_size_dynamic_sections): Add export_defineds parameter.
+	(xcoff_build_ldsyms): If export_defineds is set, set XCOFF_EXPORT
+	for all symbols.
+	* bfd-in.h (bfd_xcoff_size_dynamic_sections): Update declaration.
+	* bfd-in2.h: Rebuild.
+
+Mon Dec  4 16:40:47 1995  Kim Knuttila  <krk@cygnus.com>
+
+	* coffcode.h (coff_set_alignment_hook): Removed some debugging printf's
+
+Mon Dec  4 11:25:39 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ihex.c (ihex_scan): Handle record types 4 and 5.
+	(ihex_object_p): Permit types 4 and 5.
+	(ihex_set_section_contents): Remove check for out of range
+	addresses.
+	(ihex_write_object_contents): Generate types 4 and 5.
+
+	* elflink.h (elf_link_output_extsym): Just ignore warning and
+	indirect references to symbols which don't really exist.
+
+Sun Dec  3 19:00:27 1995  Kim Knuttila  <krk@cygnus.com>
+
+	* peicode.h (pe_print_idata): Minor format fixes
+	(pe_print_edata): New function. Under private printing, this formats
+	the edata section of a PE file.
+	(pe_print_private_bfd_data): Added call to pe_print_edata.
+
+Sun Dec  3 16:46:54 1995  Richard Earnshaw (rearnsha@armltd.co.uk)
+
+	* aout-arm.c (MY_swap_std_reloc_out): Use KEEPIT to get the symbol
+	index, don't call stoi.
+
+Fri Dec  1 14:46:51 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* srec.c (srec_scan): Set lma as well as vma.
+
+	* ihex.c: New file; support for Intel Hex format.
+	* targets.c (enum bfd_flavour): Add bfd_target_ihex_flavour.
+	(ihex_vec): Declare.
+	(bfd_target_vector): Always include ihex_vec.
+	* bfd.c (struct _bfd): Add ihex_data field to tdata union.
+	* Makefile.in: Rebuild dependencies.
+	(BFD_LIBS): Add ihex.o
+	(BFD_LIBS_CFILES): Add ihex.c.
+	* bfd-in2.h: Rebuild.
+
+	* elf.c (assign_file_positions_for_segments): Sort the sections in
+	each segment.
+	(get_program_header_size): Return the right size if segment_map is
+	not NULL.
+	(copy_private_bfd_data): Don't bother to sort the sections.
+
+	* bfd.c (bfd_record_phdr): New function.
+	* bfd-in.h (bfd_record_phdr): Declare.
+	* bfd_in2.h: Rebuild.
+
+	* elf32-sparc.c (elf32_sparc_relocate_section): Remove bogus
+	BFD_ASSERT.
+
+	* libbfd.c (bfd_malloc, bfd_realloc): New functions.
+	(bfd_zmalloc): Return PTR, not char *.  Take size_t, not
+	bfd_size_type.
+	* libbfd-in.h (bfd_malloc, bfd_realloc): Declare.
+	(bfd_zmalloc): Change declaration.
+	* libbfd.h: Rebuild.
+	* Many files: Use bfd_malloc and bfd_realloc rather than malloc
+	and realloc.  Don't set bfd_error_no_memory if they fail.
+
+Thu Nov 30 19:32:26 1995  Kim Knuttila  <krk@cygnus.com>
+
+	* coff-ppc.c: Added macros to tidy up toc cell treatment. Numerous
+	uses as well. Added a new howto to deal with TOCREL16 relocs that 
+	are TOCDEFN as well.
+	(coff_ppc_relocate_section): Expanded treatment of ADDR32NB relocs
+	to handle RVA relocs from dlltool.
+	(ppc_coff_rtype2howto): TOCDEFN reloc addition.
+	(coff_ppc_rtype_to_howto): TOCDEFN reloc addition.
+	(ppc_coff_reloc_type_lookup): TOCDEFN reloc addition.
+
+	* coffcode.h (coff_set_alignment_hook): check idata$X sections 
+	to get the right section alignment.
+
+Thu Nov 30 16:48:18 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* elf.c (_bfd_elf_make_section_from_shdr): Don't set lma based on
+	p_paddr if p_paddr is zero.
+	(make_mapping): Set includes_filehdr and includes_phdrs for first
+	PT_LOAD segment.
+	(map_sections_to_segments): Set includes_phdrs for PT_PHDR
+	segment.
+	(assign_file_positions_for_segments): Handle includes_filehdr and
+	includes_phdrs.  Remove special handling of PT_PHDR and first
+	PT_LOAD segments.
+	(copy_private_bfd_data): Set includes_filehdr and includes_phdr
+	when appropriate.  Remove special handling of PT_PHDR segment.
+	Use a more complex condition for when a section is included in a
+	segment to handle Solaris linker oddities.
+
+Thu Nov 30 11:17:33 1995  Manfred Hollstein KS/EF4A 60/1F/110 #40283  <manfred@lts.sel.alcatel.de>
+
+	* coff-m88k.c (howto_table): Reformatted for easier reading;
+	special_function now points to new function m88k_special_reloc.
+	(howto_hvrt16): Function previously used for handling HVRT16 relocs
+	removed.
+	(rtype2howto): Do not add reloc's r_offset to the addend, this will
+	be done correctly by m88k_special_reloc.
+	(reloc_processing): New function to be used by RELOC_PROCESSING.
+	(RELOC_PROCESSING): Define to call reloc_processing.
+
+Wed Nov 29 12:42:36 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* peicode.h (pe_print_idata): Call malloc rather than xmalloc.
+	(pe_print_pdata): Likewise.
+
+	* opncls.c (bfd_alloc_by_size_t): Set bfd_error_no_memory if
+	obstack_alloc fails.
+	(bfd_alloc_finish): Set bfd_error_no_memory if obstack_finish
+	fails.
+	* libbfd.c (bfd_zmalloc): Set bfd_error_no_memory if malloc fails.
+	* Many files: don't set bfd_error_no_memory if one of the above
+	routines fails.
+
+	* elf.c (assign_file_positions_for_segments): Don't adjust p_paddr
+	if p_paddr_valid is set.
+	(copy_private_bfd_data): New static function.
+	(_bfd_elf_copy_private_section_data): Call copy_private_bfd_data.
+
+	* elf.c (assign_file_positions_for_segments): Fix case where extra
+	program headers were allocated.
+
+	* elf.c (_bfd_elf_print_private_bfd_data): New function.
+	* elf-bfd.h (_bfd_elf_print_private_bfd_data): Declare.
+	* elfxx-target.h (bfd_elfNN_bfd_print_private_bfd_data): Define to
+	_bfd_elf_print_private_bfd_data.
+
+	* coff-alpha.c (alpha_ecoff_swap_reloc_in): Don't abort if
+	r_symndx is RELOC_SECTION_NONE for an ALPHA_R_IGNORE reloc.
+	Change a RELOC_SECTION_LITA symndx to RELOC_SECTION_ABS.
+	(alpha_ecoff_swap_reloc_out): Change RELOC_SECTION_ABS to
+	RELOC_SECTION_LITA for ALPHA_R_IGNORE.
+	(alpha_adjust_reloc_out): For ALPHA_R_IGNORE, don't change
+	RELOC_SECTION_ABS to RELOC_SECTION_NONE.
+
+Tue Nov 28 16:59:50 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* elf-bfd.h (struct elf_obj_tdata): Add segment_map field.
+	* elf.c (make_mapping): New static function.
+	(map_sections_to_segments): New static function.
+	(elf_sort_sections): New static function.
+	(assign_file_positions_for_segments): New static function.
+	(map_program_segments): Remove.
+	(get_program_header_size): Remove sorted_hdrs, count, and
+	maxpagesize parameters.  Simplify.
+	(assign_file_positions_except_relocs): When generating an
+	executable, use assign_file_positions_for_segments.
+	(elf_sort_hdrs): Remove.
+	(_bfd_elf_sizeof_headers): Remove eliminated parameters from call
+	to get_program_header_size.
+
+Mon Nov 27 12:27:46 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* hp300hpux.c (MY(callback)): Set lma as well as vma.
+
+	* configure, config.in: Regenerate with autoconf 2.7.
+
+	* elf32-i386.c (elf_backend_plt_readonly): Set correctly, to 1.
+	* elf32-sparc.c (elf_backend_plt_readonly): Set correctly, to 0.
+
+Wed Nov 22 12:02:09 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ecoff.c (_bfd_ecoff_new_section_hook): Handle .rconst section.
+	(ecoff_sec_to_styp_flags): Likewise.
+	(_bfd_ecoff_styp_to_sec_flags): Handle STYP_RCONST.
+	(ecoff_set_symbol_info): Handle scRConst.
+	(ecoff_slurp_reloc_table): Handle RELOC_SECTION_RCONST.
+	(ecoff_compute_section_file_positions): Handle .rconst section.
+	(_bfd_ecoff_write_object_contents): Likewise.
+	(ecoff_link_check_archive_element): Handle scRConst.
+	(ecoff_link_add_externals): Likewise.
+	(ecoff_link_write_external): Handle .rconst section.
+	(ecoff_reloc_link_order): Likewise.
+	* ecofflink.c (bfd_ecoff_debug_accumulate): Handle scRConst.
+	* coff-alpha.c (alpha_convert_external_reloc): Handle .rconst
+	section.
+	(alpha_relocate_section): Handle RELOC_SECTION_RCONST.
+
+	* sunos.c (sunos_scan_dynamic_symbol): Only set written if the
+	DEF_DYNAMIC flag is set.
+
+Tue Nov 21 13:25:29 1995  Ken Raeburn  <raeburn@cygnus.com>
+
+	* host-aout.c: If TRAD_HEADER is defined, include it.
+
+Tue Nov 21 13:03:57 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* aclocal.m4 (AC_PROG_CC): Remove local definition.
+	(BFD_BINARY_FOPEN): Require AC_CANONICAL_SYSTEM.
+	(BFD_NEED_DECLARATION): New function.
+	* configure.in: Use BFD_NEED_DECLARATION.
+	* acconfig.h: Put NEED_DECLARATION_* in @TOP@ section.
+	* configure, config.in: Rebuild with autoconf 2.6.
+
+	* xcofflink.c (bfd_xcoff_size_dynamic_sections): Clear
+	special_sections before returning when called with a non XCOFF
+	BFD.
+
+	* coffgen.c (coff_renumber_symbols): Sort common symbols with
+	global symbols.
+
+	* coffcode.h (coff_compute_section_file_positions): Only pad the
+	previous section to force file alignment when creating an
+	executable.
+
+Mon Nov 20 14:54:09 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* coffcode.h (coff_compute_section_file_positions): If
+	RS6000COFF_C, set up the .debug section.
+
+	* xcofflink.c (xcoff_link_input_bfd): Adjust the TOC anchor value
+	if it is not large enough to accomodate the entire TOC area with
+	signed 16 bit offsets.
+	(xcoff_write_global_symbol): Handle negative TOC offsets in global
+	linkage code.
+	(_bfd_ppc_xcoff_relocate_section): Adjust relocations against a
+	TOC anchor to use the TOC value used in the output file.
+
+Sat Nov 18 18:01:41 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* coffgen.c (_bfd_coff_get_external_symbols): Cast malloc return.
+	(_bfd_coff_read_string_table): Likewise.
+
+Sat Nov 18 19:43:04 1995  Richard Earnshaw (rearnsha@armltd.co.uk)
+
+	* pe-arm.c: Fix typos.
+	* coff-arm.c: Likewise.
+
+Fri Nov 17 16:22:04 1995  Kim Knuttila  <krk@cygnus.com>
+
+	* coff-ppc.c (list_ele): Added "cat"egory member.
+	(record_toc): New category parameter (priv or pub).
+	(ppc_record_toc_entry): Check to see if toc bounds exceeded.
+	(ppc_process_before_allocation): Removed embrionic data-in-toc from
+	the mainline. It addes extra toc cells in error.
+	(ppc_coff_swap_sym_in_hook): Added some documentation.
+	(dump_toc): Can now diagnose "virtual toc" chicanery.
+
+Fri Nov 17 10:41:25 1995  Philippe De Muyter  <phdm@info.ucl.ac.be>
+
+	* elf-bfd.h (struct elf_link_hash_table): Change type of
+	dynsymcount and bucketcount fields from size_t to bfd_size_type.
+
+Fri Nov 17 10:02:58 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* coffcode.h (coff_pointerize_aux_hook): I960 version: don't
+	pointerize C_LEAFSTAT or C_LEAFEXT entries.
+
+	* elflink.h (NAME(bfd_elf,size_dynamic_sections)): Only create
+	DT_INIT and DT_FINI entries if the _init or _fini symbol is
+	defined or mentioned in a regular file.
+
+Thu Nov 16 15:16:42 1995  Kim Knuttila  <krk@cygnus.com>
+
+	* coff-ppc.c (ppc_record_data_in_toc_entry): new function
+	(coff_ppc_relocate_section): Handle TOCDEFN attribute
+	(coff_ppc_relocate_section): Correct REL24 handling
+	(ppc_process_before_allocation): Correct TOCDEFN handling
+
+	* peicode.h (dir_names): Added name descriptions
+
+Thu Nov 16 03:38:03 1995  Ken Raeburn  <raeburn@cygnus.com>
+
+	* VERSION: Updated to cygnus-2.6.
+
+Wed Nov 15 19:30:07 1995  Ken Raeburn  <raeburn@cygnus.com>
+
+	* targets.c (m68k4knetbsd_vec): Declare.
+
+Wed Nov 15 18:05:52 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* targets.c (bfd_target): Change type of second argument to
+	_bfd_print_private_bfd_data from void * to PTR.
+	* libbfd-in.h (_bfd_generic_bfd_print_private_bfd_data): Cast
+	using PTR rather than void *.
+	* bfd-in2, libbfd.h: Rebuild.
+	* peicode.h (pe_print_private_bfd_data): Change vfile from void *
+	to PTR.
+	* elfxx-target.h (bfd_elfNN_bfd_print_private_bfd_data): Define as
+	_bfd_generic_bfd_print_private_bfd_data rather than casting
+	bfd_true.
+
+Wed Nov 15 04:09:14 1995  Ken Raeburn  <raeburn@cygnus.com>
+
+	* Makefile.in (.dep1): Fix stupid typo in last change.  Remove any
+	"DO NOT DELETE" lines or blank lines that mkdep writes on some
+	systems.
+	(BFD_LIBS_CFILES, ALL_MACHINES_CFILES, BFD32_BACKENDS_CFILES,
+	BFD64_BACKENDS_CFILES): New variables.
+	(CFILES): Use them.
+	
+Tue Nov 14 11:52:23 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* peicode.h (coff_swap_aouthdr_out): For PPC PE, start isize at 0,
+	not at the file position of the first section.
+	* coffcode.h (coff_compute_section_file_positions): Avoid using
+	unportable #elif.
+	(coff_write_object_contents): When generating a PPC PE executable
+	with no symbols, round up the file size to a COFF_PAGE_SIZE
+	boundary.
+	* cofflink.c (_bfd_coff_final_link): If there are no symbols,
+	don't write out a string table.
+
+	* elf.c (bfd_section_from_shdr): When using a different section
+	header, pass the new one to _bfd_elf_make_section_from_shdr.
+	(elf_fake_sections): Don't set sh_info and sh_entsize fields.
+	(elf_map_symbols): Add section VMA to symbol value when comparing
+	against 0.
+	(_bfd_elf_compute_section_file_positions): Only build symbol table
+	if there are some symbols.  Set file offset of symtab and strtab
+	sections.
+	(assign_file_positions_except_relocs): Remove dosyms parameter.
+	Change all callers.  Never set file offset of symtab and strtab
+	sections.
+	(_bfd_elf_copy_private_section_data): New function.
+	(MAP_ONESYMTAB, MAP_DYNSYMTAB, MAP_STRTAB, MAP_SHSTRTAB): Define.
+	(_bfd_elf_copy_private_symbol_data): New function.
+	(swap_out_syms): Check for special mapping of st_shndx created by
+	copy_private_symbol_data.
+	* elfxx-target.h: Use new copy routines.
+	* elf-bfd.h (_bfd_elf_copy_private_symbol_data): Declare.
+	(_bfd_elf_copy_private_section_data): Declare.
+
+	* config.bfd (sh-*-*): Set targ_defvec to shcoff_vec.
+
+	* coffcode.h (coff_slurp_symbol_table): If COFF_WITH_PE, handle
+	C_NT_WEAK.
+
+	* coff-sh.c (shlcoff_vec): Use _bfd_generic_archive_p, not
+	_bfd_dummy_target, matching the recent change to archive
+	recognition.
+
+Mon Nov 13 13:24:38 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* libbfd.c (bfd_get_file_window): Use casts to avoid doing
+	arithmetic on PTR types.
+
+	* aout-target.h (MY(callback)): Set the lma of the sections.
+
+	* ecoff.c (ecoff_reloc_link_order): Turn a reloc against a defined
+	symbol into a reloc against the section.
+
+Mon Nov 13 07:31:35 1995  Kim Knuttila  <krk@cygnus.com>
+
+	* coff-ppc.c (ppc_coff_link_hash_entry): added support for inline
+	glue for the relocs: IMGLUE and IFGLUE.
+	(record_toc): new function - tracks toc contents
+	(ppc_mark_symbol_as_glue): new function - supports the IMGLUE reloc
+	(coff_ppc_relocate_section): Added support and fixes for IMGLUE/IFGLUE
+	(ppc_coff_rtype2howto): removed invalid IMGLUE hack
+	(coff_ppc_rtype_to_howto): removed invalid IMGLUE hack
+	(ppc_record_toc_entry): Removed a debug define (duh)
+
+	* peicode.h (coff_swap_scnhdr_out): Fixed invalid strcmp for ".reldata"
+	(pe_print_idata): New function - formats the idata section data
+	(pe_print_pdata): New function - formats the pdata section data
+	(pe_print_private_bfd_data): calls to above
+
+Sun Nov 12 12:23:24 1995  Stan Shebs  <shebs@andros.cygnus.com>
+
+	* Makefile.in (bfd_libs_here, etc): Provide empty definitions.
+	* coff-rs6000.c (rs6000coff_vec): Add conditional defines
+	TARGET_SYM and TARGET_NAME for vector and BFD name.
+	* coff-pmac.c (pmac_xcoff_vec): Remove.
+	(TARGET_SYM, TARGET_NAME): Define.
+	* coffcode.h (coff_set_arch_mach_hook) [POWERMAC]: Set the
+	machine to 0, not all PowerMacs are 601s.
+
+Fri Nov 10 12:10:14 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* elfcode.h (elf_object_p): Read in any program headers.
+	* elf.c (_bfd_elf_make_section_from_shdr): Adjust section lma
+	based on the program headers, if any.
+	(elf_fake_sections): Set sh_addr from the vma, not the lma.
+	(map_program_segments): Set p_paddr of program headers based on
+	the lma.
+
+Thu Nov  9 13:01:31 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* archive.c (bfd_generic_archive_p): Preserve tdata in case of
+	failure.
+
+	* aoutx.h (NAME(aout,final_link)): Report a reasonable error when
+	trying to do a relocateable link with a non-a.out object file.
+
+	* archive.c (bfd_generic_archive_p): Check the first object file
+	in an archive even if target_defaulted is set.  If the object file
+	has the wrong xvec, reject it.
+
+	* aoutx.h (NAME(aout,set_section_contents)): If a section can not
+	be represented, report the name via _bfd_error_handler.
+	(translate_to_native_sym_flags): Likewise.
+	* elf32-mips.c (mips_elf_final_link): Likewise.
+	* oasys.c (oasys_write_sections): Likewise.
+
+	* coffcode.h (coff_set_alignment_hook): Write RS6000COFF_C version
+	which checks for STYP_OVRFLO sections.
+	(coff_compute_section_file_positions): If RS6000COFF_C, handle
+	reloc and lineno count overflows.
+	(coff_write_object_contents): Call coff_count_linenumbers before
+	coff_compute_section_file_positions.  If RS6000COFF_C, handle
+	reloc and lineno count overflows.
+	* xcofflink.c (_bfd_xcoff_bfd_final_link): Count line numbers and
+	relocs before dealing with .pad sections.  Count overflow section
+	headers when handling .pad sections.
+
+	* coffcode.h (coff_write_object_contents): Set a.out vstamp to 1
+	if RS6000COFF_C.
+
+	* xcofflink.c (XCOFF_DESCRIPTOR): Define.
+	(struct xcoff_link_hash_table): Add descriptor_section and
+	special_sections fields.
+	(_bfd_xcoff_bfd_link_hash_table_create): Initialize new fields.
+	(xcoff_link_add_symbols): Set linkage section alignment.  Create
+	descriptor section.  Check for magic symbol names (_text, etc.),
+	and record them in special_sections if found.  Set
+	XCOFF_DESCRIPTOR flag for a function descriptor, and set its
+	descriptor field to point back to the function code symbol.
+	(xcoff_sweep): Always mark the special descriptor_section.
+	(bfd_xcoff_export_symbol): Check whether the symbol might be a
+	function descriptor, and mark it if it is.
+	(bfd_xcoff_size_dynamic_sections): Add new special_sections
+	parameter, and fill it in.  Allocate space for the descriptor
+	section.
+	(xcoff_build_ldsyms): Set XCOFF_DEF_REGULAR flag when defining
+	global linkage code.  If an undefined function descriptor is
+	exported, arrange to define it.  Warn about any other undefined
+	exported symbol.
+	(_bfd_xcoff_bfd_final_link): Write out the descriptor section.
+	(xcoff_write_global_symbol): Create a function descriptor when
+	necessary.
+	* bfd-in.h (bfd_xcoff_size_dynamic_sections): Update declaration.
+	* bfd-in2.h: Rebuild.
+
+Thu Nov  9 08:40:23 1995  Kim Knuttila  <krk@cygnus.com>
+
+	* coff-ppc.c (ppc_coff_link_hash_entry): new types for hashing
+	(ppc_coff_link_hash_table): new types for hashing
+	(ppc_coff_link_hash_newfunc): hash entry constructor
+	(ppc_coff_link_hash_table_init): hash table initializer
+	(ppc_coff_link_hash_table_create): hash table constructor
+	(ppc_record_toc_entry): changed references to hash table
+	(coff_ppc_relocate_section): changed references to hash table
+
+	* libcoff-in.h (coff_link_hash_entry): removed toc_offset
+	* libcoff.h: Rebuild
+
+	* cofflink.c (_bfd_coff_link_hash_newfunc): removed toc_offset init
+	(coff_link_add_symbols): removed toc_offset init
+
+Thu Nov  9 04:00:38 1995  Ken Raeburn  <raeburn@cygnus.com>
+
+	* Makefile.in (.dep1): Make sure the file mkdep is to write exists
+	first.
+
+	* configure.in: Added new option --with[out]-mmap.  Set USE_MMAP
+	if it is given and mmep is available.
+	* acconfig.h: Undef USE_MMAP.
+	* configure, config.in: Regenerated.
+	* aoutx.h: If USE_MMAP is not defined, do all symbol and string
+	table handling the old way.
+	(aout_get_external_symbols): Don't complain if last byte of string
+	table is nonzero.
+	* libbfd.c [HAVE_MADVISE]: Include sys/types.h and sys/mman.h.
+	(bfd_free_window) [! USE_MMAP]: Don't define.
+	(bfd_get_file_window,
+	_bfd_generic_get_section_contents_in_window) [! USE_MMAP]: Abort.
+
+Wed Nov  8 20:03:44 1995  Eric Freudenthal <freudenthal@nyu.edu>
+
+	* coff-a29k.c (SIGN_EXTEND_HWORD): Use ~0xffff rather than
+	0xffff0000.
+
+Wed Nov  8 11:31:11 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* coff-a29k.c (a29k_reloc): Change handling of R_IREL reloc to be
+	compatible with AMD generated COFF files.  Try to support both AMD
+	and GNU formats simultaneously.
+	(coff_a29k_relocate_section): Likewise.
+
+	* libbfd.c (bfd_get_file_window): Change writable parameter from
+	int to boolean; update all callers.  Pass MAP_SHARED if not
+	writable--it's required on Solaris.  Cast fprintf argument to
+	avoid warning.
+	* bfd-in.h (bfd_get_file_window): Update declaration.
+	* bfd-in2.h: Rebuild.
+	* aoutx.h: Update calls to bfd_get_file_window.
+
+	* xcofflink.c (XCOFF_DEF_DYNAMIC): Rename from XCOFF_REF_DYNAMIC.
+	Change all uses.
+	(xcoff_swap_ldhdr_in): New static function.
+	(xcoff_swap_ldsym_in): New static function.
+	(xcoff_find_reloc): Handle the case of a single reloc correctly.
+	(xcoff_link_add_symbols): If we just created a descriptor, pass it
+	to _bfd_generic_link_add_one_symbol, to save a hash lookup.
+	Handle XTY_ER/XMC_XO symbols correctly.
+	(xcoff_link_add_dynamic_symbols): Rewrite to read .loader symbols
+	rather than normal symbol table.
+	(bfd_xcoff_import_symbol): It's not an error if the symbol is
+	already defined with the same absolute value.
+	(xcoff_mark): When considering called symbols, check whether the
+	descriptor is from a dynamic object, rather than the symbol
+	itself.
+	(xcoff_build_ldsyms): Likewise.
+
+	* libbfd.c (bfd_get_file_window): Change return type to boolean.
+	Cast realloc and malloc return values.  If malloc or realloc fail,
+	set bfd_error_no_memory.
+	* bfd-in.h (bfd_get_file_window): Change type to boolean.
+	* bfd-in2.h: Rebuild.
+
+Tue Nov  7 11:53:48 1995  Kim Knuttila  <krk@cygnus.com>
+
+	* coff-ppc.c (ppc_record_toc_entry): new function.
+	(in_reloc_p): changed return value.
+	(coff_ppc_relocate_section): much rework.
+	(ppc_allocate_toc_section): new function.
+	(ppc_process_before_allocation): new function.
+	(ppc_coff_swap_sym_in_hook): new function.
+
+	* cofflink.c (_bfd_coff_link_hash_newfunc): initialize toc_offset.
+	(coff_link_add_symbols): initialize toc_offset.
+
+	* peicode.h (coff_swap_sym_in): Added coff_swap_sym_in_hook
+	(coff_swap_aouthdr_out): Added more sections to the data
+	dictionary for the pe file header. Also changed linker version
+	number on the ppc side.
+	(dir_names): small improvements to the dictionary printing.
+	(pe_mkobject_hook): save the file level flags.
+
+	* libcoff-in.h (coff_link_hash_entry): added toc_offset field
+	(pe_tdata): added real_flags field
+	(coff_tdata): added local_toc_sym_map and access macro
+
+	* libcoff.h (coff_link_hash_entry): added toc_offset field
+	(pe_tdata): added real_flags field
+	(coff_tdata): added local_toc_sym_map and access macro
+
+	* coffcode.h (coff_set_alignment_hook): added hook for PE.
+	(coff_mkobject): init for local_toc_sym_map
+	(coff_write_object_contents): set the internal_a.magic to
+        IMAGE_NT_OPTIONAL_HDR_MAGIC which appears to be what other
+	ppc compilers use.
+
+Tue Nov  7 13:48:58 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ecofflink.c (_bfd_ecoff_locate_line): Keep looking through stabs
+	entries until both the line number address and the function name
+	address are too large.
+
+	* configure.in: Call AC_CHECK_PROG to find and cache AR.
+	* configure: Rebuilt.
+
+	* aclocal.m4 (BFD_CC_FOR_BUILD): Don't define CC_FOR_BUILD if it
+	is defined in the environment.
+
+Tue Nov  7 10:57:24 1995  Jeffrey A Law  (law@cygnus.com)
+
+	* som.c (som_get_section_contents_in_window): Define to use
+	generic version.
+
+Mon Nov  6 17:13:15 1995  Harry Dolan  <dolan@ssd.intel.com>
+
+	* coff-i860.c: New file, based on coff-i386.c.
+	* cpu-i860.c: New file, based on cpu-i386.c.
+	* hosts/i860mach3.h: New file, based on hosts/i386mach3.h.
+	* config.bfd (i860-*-mach3*, i860-*-osf1*, i860-*-coff*): New
+	targets, using i860coff_vec.
+	* configure.in (i860-*-mach3*, i860-*-osf1*): New hosts, using
+	trad-core.o and hosts/i860mach3.h.
+	(i860coff_vec): Use coff-i860.o and cofflink.o.
+	* configure: Rebuild.
+	* Makefile.in: Rebuild dependencies.
+	(ALL_MACHINES): Add cpu-i860.o.
+	(BFD32_BACKENDS): Add coff-i860.o.
+	(CFILES): Add cpu-i860.c and coff-i860.c.
+	* targets.c (i860coff_vec): Declare.
+	(bfd_target_vector): Add &i860coff_vec.	
+	* archures.c (bfd_i860_arch): Declare.
+	(bfd_archures_list): Add &bfd_i860_arch.
+	* coffcode.h (coff_set_arch_mach_hook): Handle I860 magic number.
+	(coff_set_flags): Handle bfd_arch_i860.
+	(coff_write_object_contents): Handle I860 a.out magic number.
+
+Mon Nov  6 14:34:07 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* xcofflink.c (xcoff_link_add_symbols): Set the alignment power of
+	the created .tc section to 2.
+	(xcoff_mark): Don't keep a .loader reloc for a call to an
+	undefined symbol when creating a shared library.
+	(xcoff_build_ldsyms): When creating a shared library, generate
+	global linkage code for a call to an undefined symbol.
+
+Sun Nov  5 21:44:13 1995  Ken Raeburn  <raeburn@cygnus.com>
+
+	* Makefile.in (CFILES): Rebuild list from BFD_LIBS, ALL_MACHINES,
+	BFD32_BACKENDS, BFD64_BACKENDS.
+	(.dep1): Put mkdep output in a separate file.
+	Rebuilt dependencies.
+
+	* ecoff.c (_bfd_ecoff_slurp_armap): Cast _bfd_read_ar_hdr return
+	value.
+
+	Permit use of mmap when available:
+
+	* configure.in: Check for mmap, madvise, mprotect.
+	* config.in, configure: Regenerated.
+
+	* libbfd.c (struct _bfd_window_internal): Define type.
+	(bfd_init_window, bfd_free_window, bfd_get_file_window): New
+	functions.
+	(ok_to_map): New static variable for debugging.
+	(_bfd_generic_get_section_contents_in_window): New function.
+	* bfd-in.h (bfd_window_internal): Declare type.
+	(bfd_window): Define type.
+	(bfd_init_window, bfd_free_window, bfd_get_file_window): Declare.
+	* libbfd-in.h (_bfd_generic_get_section_contents_in_window):
+	Declare.
+
+	* libaout.h (struct aoutdata): Add two window fields.
+	(obj_aout_sym_window, obj_aout_string_window): New macros.
+	* aoutx.h (some_aout_object_p): Initialize windows.
+	(aout_get_external_symbols): Get symbol data and strings in
+	windows instead of explicitly allocated buffers.
+	(slurp_symbol_table): Free window instead of memory.
+	(bfd_free_cached_info): Release windows instead of freeing storage
+	directly.
+	(aout_link_free_symbols): Ditto.
+
+	* targets.c (bfd_target): Add new field for
+	get_section_contents_in_window.
+	(BFD_JUMP_TABLE_GENERIC): Updated.
+	* aout-adobe.c, aout-target.h, binary.c, bout.c, coff-alpha.c,
+	coff-mips.c, elfxx-target.h, i386msdos.c, i386os9k.c, ieee.c,
+	libcoff-in.h, oasys.c, srec.c, tekhex.c, versados.c: Added new
+	macros for get_section_contents_in_window field.
+
+Sat Nov  4 12:23:26 1995  Fred Fish  <fnf@cygnus.com>
+
+	* core.c: Renamed to corefile.c
+	* makefile.dos (OBJS): Change core.o to corefile.o
+	* Makefile.in (CFILES, BFD_LIBS): Use corefile.c instead of core.c
+	
+Fri Nov  3 15:54:59 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* xcofflink.c (xcoff_link_add_symbols): Rename local variable sub
+	to o.  Clobber and restore the list of new csects around the call
+	to _bfd_generic_link_add_one_symbol, in case it wants to report a
+	linker error and the linker wants to read the symbol table.  Reset
+	the line number count of a real section even if it has no relocs.
+	(_bfd_xcoff_bfd_final_link): If shared, set the DYNAMIC flag.
+
+	* coffgen.c (_bfd_coff_read_string_table): Warn if the string size
+	is too small.
+
+Thu Nov  2 23:16:39 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* xcofflink.c (_bfd_ppc_xcoff_relocate_section): Don't warn about
+	an undefined symbol in a shared link.
+
+	* linker.c (_bfd_generic_link_add_one_symbol): Correct type of
+	oldtype from bfd_link_order_type to bfd_link_hash_type.  From
+	phdm@info.ucl.ac.be (Philippe De Muyter).
+
+Wed Nov  1 14:26:02 1995  Manfred Hollstein KS/EF4A 60/1F/110 #40283  <manfred@lts.sel.alcatel.de>
+
+	* coff-m88k.c (rtype2howto): New static function.
+	(RTYPE2HOWTO): Use it rather than a macro definition.
+
+	* coffcode.h (coff_write_object_contents): set internal_a.magic
+	to PAGEMAGICPEXECPAGED #if defined (M68) && !defined (LYNXOS).
+
+	* configure.in: m68*-motorola-sysv* does not use ptrace-core.o;
+	define TRAD_HEADER to new file hosts/delta68.h.
+	m88*-motorola-sysv*, however, does use ptrace-core.o.
+	* hosts/delta68.h: New file.
+
+	* ptrace-core.c (ptrace_unix_core_file_p): change bfd_zmalloc to
+	bfd_zalloc; provide proper parm abfd to calls to bfd_zalloc.
+
+Wed Nov  1 13:51:54 1995  Ken Raeburn  <raeburn@cygnus.com>
+
+	* i386linux.c (MY(vec)): Declare before use.
+
+Wed Nov  1 11:45:07 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* reloc16.c (bfd_coff_reloc16_get_relocated_section_contents):
+	Pass input_bfd, not in_bfd, to bfd_coff_reloc16_extra_cases.
+
+	* elf.c (bfd_elf_set_dt_needed_name): Don't do anything if the
+	BFD is not of the right type.
+	(bfd_elf_get_needed_list): Likewise.
+	* i386linux.c (bfd_linux_size_dynamic_sections): Likewise.
+	* sunos.c (bfd_sunos_get_needed_list): Likewise.
+	* xcofflink.c (XCOFF_XVECP): Define.
+	(bfd_xcoff_link_record_set): Don't do anything if the BFD is not
+	of the right type.
+	(bfd_xcoff_import_symbol): Likewise.
+	(bfd_xcoff_export_symbol): Likewise.
+	(bfd_xcoff_link_count_reloc): Likewise.
+	(bfd_xcoff_record_link_assignment): Likewise.
+	(bfd_xcoff_size_dynamic_sections): Likewise.
+
+	* sunos.c (sunos_scan_ext_relocs): Only check the reloc symbol
+	table index against the number of symbols for a base relative
+	reloc.
+
+	* coff-rs6000.c (_bfd_xcoff_sizeof_headers): Change from macro to
+	static function.
+	* xcofflink.c (_bfd_xcoff_bfd_link_hash_table_create): Set
+	full_aouthdr flag here...
+	(_bfd_xcoff_bfd_final_link): ...not here.
+
+Tue Oct 31 12:52:02 1995  Fred Fish  <fnf@cygnus.com>
+
+	* libelf.h:  Rename to elf-bfd.h to avoid conflict with
+	systems that have a system <libelf.h>.
+	* Makefile.in: Globally replace libelf.h with elf-bfd.h.
+	* bfd.c, elf.c, elf32-arc.c, elf32-gen.c, elf32-hppa.c,
+	elf32-hppa.h, elf32-i386.c, elf32-i860.c, elf32-m68k.c,
+	elf32-m88k.c, elf32-mips.c, elf32-ppc.c, elf32-sparc.c,
+	elf64-gen.c, elf64-sparc.c, elfcode.h, elflink.c,
+	elfxx-target.h: Include elf-bfd.h rather than libelf.h.
+	* elfxx-target.h: Change libelf.h reference to elf-bfd.h.
+
+Tue Oct 31 15:30:07 1995  David Mosberger-Tang  <davidm@azstarnet.com>
+
+	* ecoff.c (ecoff_set_symbol_info): Add new parameter weak.  If
+	set, set BSF_WEAK in symbol.  Change all callers.
+	(ecoff_get_extr): Set weakext based on BSF_WEAK.
+	(ecoff_link_add_externals): If weakext is set, pass BSF_WEAK to
+	_bfd_generic_link_add_one_symbol.
+	(ecoff_indirect_link_order): Check that the section tdata relocs
+	are not NULL before using them.
+
+	* configure.in (alpha*-*-linux*): Set COREFILE to trad-core.o and
+	define TRAD_HEADER as hosts/alphalinux.h.
+	* configure: Rebuild.
+	* hosts/alphalinux.h: New file.
+	* trad-core.c (trad_unix_core_file_p): Cast u.u_ar0 to bfd_vma,
+	not int.
+
+Tue Oct 31 12:34:11 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* coffcode.h (coff_slurp_symbol_table): Accept C_BCOMM and
+	C_ECOMM storage classes.
+
+	* xcofflink.c (xcoff_mark_symbol): New static function, broken out
+	of xcoff_mark.
+	(xcoff_mark): Call xcoff_mark_symbol.
+	(bfd_xcoff_export_symbol): Call xcoff_mark_symbol.
+	(bfd_xcoff_link_count_reloc): Call xcoff_mark_symbol rather than
+	doing it by hand.
+	(xcoff_build_ldsyms): Build a .loader symbol for an export symbol.
+
+Mon Oct 30 14:53:48 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* xcofflink.c (struct xcoff_final_link_info): Add new line_filepos
+	field.
+	(xcoff_find_reloc): New static function.
+	(xcoff_link_add_symbols): Use it.
+	(_bfd_xcoff_bfd_final_link): Set finfo.line_filepos.
+	(xcoff_link_input_bfd): Handle C_BINCL and C_EINCL.  Don't
+	relocate the value of C_DECL.
+
+	* elf.c (elf_fake_sections): Remove bogus BFD_ASSERT.
+
+Sat Oct 28 01:25:34 1995  steve chamberlain  <sac@slash.cygnus.com>
+
+	* cofflink.c (_bfd_coff_generic_relocate_section): Make
+	callback decide what goes in .relocs.
+	* pe[i]-i386.c (TARGET_UNDERSCORE): Define.
+	* peicode.h (pe_mkobject_hook): Only copy aouthdr if
+	there is one.
+
+Sat Oct 28 01:51:02 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* xcofflink.c (xcoff_link_add_symbols): Handle csects in the
+	absolute section.
+
+Fri Oct 27 18:14:39 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* xcofflink.c: More improvements, mostly to fix handling of
+	constructors and a few other special cases.
+	* coff-rs6000.c (rs6000coff_vec): Set symbol_leading_char back to
+	zero, reverting yesterday's change.
+	* bfd-in.h (bfd_xcoff_link_record_set): Declare.
+	(bfd_xcoff_link_count_reloc): Declare.
+	(bfd_xcoff_record_link_assignment): Declare.
+	* bfd-in2.h: Rebuild.
+
+Fri Oct 27 14:42:15 1995  Niklas Hallqvist  <niklas@appli.se>
+
+	* PORTING, aout-arm.c, aout-encap.c, aout-rce.c, aout-target.h,
+	aoutx.h, gen-aout.c, host-aout.c, hp300bsd.c, i386aout.c
+	i386bsd.c, i386dynix.c, i386linux.c, i386lynx.c, i386mach3.c,
+	i386netbsd.c, m68klynx.c, m88kmach3.c, mipsbsd.c, newsos3.c,
+	ns32knetbsd.c, pc532-mach.c, riscix.c, sparclynx.c, sparcnetbsd.c:
+	Change PAGE_SIZE to TARGET_PAGE_SIZE.
+
+	* m68knetbsd.c: Ditto as well as add support for the m68k4k object
+	format.
+
+	* netbsd.h: Double ditto (incl. m68k4k support).  NetBSD's text
+	segments includes the a.out header.  See to that the magic number
+	*always* is big-endian.
+
+	* config.bfd: Add m68*-hp*-netbsd* case.  Cross-pollinate m68k and
+	m68k4k NetBSD configurations.
+
+	* configure.in, configure: Separate i386 & mips NetBSD
+	configurations from other BSD ones.  Don't assume DEC is the only
+	thing NetBSD/mips run on.  Add {m68k,ns32k,sparc}-*-netbsd*
+	configurations.  Add support for m68k4k NetBSD object format.
+
+	* libaout.h: Added M_68K4K_NETBSD magic.
+
+	* m68k4knetbsd.c: New file.
+	
+	* hosts/{m68k,sparc}nbsd.h: Don't define HOST_BIG_ENDIAN_P.
+
+	* hosts/nbsd.h: Define HOST_BIG_ENDIAN_P according to
+	<machine/endian.h>.
+
+	* hosts/mipsnbsd.h: New file.
+	
+Thu Oct 26 14:16:47 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* xcofflink.c: Numerous changes to get closer to a working XCOFF
+	linker.
+	* libcoff-in.h (struct xcoff_tdata): Add full_aouthdr,
+	toc_section, and entry_section fields.
+	(struct xcoff_section_tdata): Remove ldrel_count field.
+	* libcoff.h: Rebuild.
+	* coffcode.h (coff_mkobject_hook): Initialize new xcoff_data
+	fields.
+	(coff_compute_section_file_positions): If RS6000COFF_C, generate
+	full a.out header if full_aouthdr is set in xcoff_data.
+	(coff_write_object_contents): Likewise.  Set o_snentry and o_sntoc
+	based on sections stored in xcoff_data.
+	* coff-rs6000.c (xcoff_copy_private_bfd_data): Copy new xcoff_data
+	fields.
+	(xcoff_reloc_type_lookup): Handle BFD_RELOC_CTOR.
+	(rs6000coff_vec): Set symbol_leading_char to '.'.
+	* coffgen.c (coff_get_symbol_info): If fix_value is set, fix the
+	value stored in ret rather than returning a pointer value.
+	
+Wed Oct 25 23:10:39 1995  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* config.bfd (powerpc{,le}-{elf,sysv4,eabi,solaris2}): Remove MAC
+	format for now.
+
+Wed Oct 25 16:19:27 1995  Jeffrey A Law  (law@cygnus.com)
+
+	* som.c (som_slurp_string_table): Allocate the strings with malloc
+	since they're free'd by free_cached_info.
+	(som_slurp_symbol_table): Similarly for the symbol table.
+
+Wed Oct 25 14:59:22 1995  Per Bothner  <bothner@kalessin.cygnus.com>
+
+	* Makefile.in (diststuff):  Don't make headers.
+
+Wed Oct 25 11:32:54 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in: Rebuild dependencies.
+
+	* sunos.c (bfd_sunos_record_link_assignment): Don't do anything if
+	output_bfd is not SunOS.
+	(bfd_sunos_size_dynamic_sections): Likewise.  Don't scan relocs of
+	non-SunOS input files.
+
+	* xcofflink.c: Extensive changes to support linking shared objects
+	and generating a .loader section.
+	* libcoff-in.h (struct xcoff_tdata): Add import_file_id field.
+	(struct xcoff_section_tdata): Add lineno_count, first_symndx,
+	last_symndx, and ldrel_count fields.
+	* libcoff.h: Rebuild.
+	* coff-rs6000.c (xcoff_howto_table): Correct reloc names.
+	* coffcode.h (styp_to_sec_flags): Don't set any flags if STYP_PAD
+	is set.
+	* bfd-in.h (bfd_xcoff_import_symbol): Declare.
+	(bfd_xcoff_export_symbol): Declare.
+	(bfd_xcoff_size_dynamic_sections): Declare.
+	* bfd-in2.h: Rebuild.
+
+Tue Oct 24 17:44:20 1995  Stan Shebs  <shebs@andros.cygnus.com>
+
+	* configure.in: Add xcofflink.o to pmac_xcoff_vec.
+	* configure: Rebuild.
+	* mpw-config.in: Add xcofflink.c.o to powerpc-apple-macos.
+	* coff-pmac.c: Include coff-rs6000.c instead of duplicating its
+	contents.
+	(pmac_xcoff_vec): Update to use new xcoff support.
+	* coff-rs6000.c (xcoff_generic_stat_arch_elt): Make static.
+	(xcoff_write_armap): Declare buf as unsigned char.
+	* xcofflink.c (xcoff_link_add_symbols): Declare a local as PTR.
+
+	* mpw-make.sed: Generalize subdir_do edit.
+	
+Tue Oct 24 10:25:01 1995  Jeffrey A Law  (law@cygnus.com)
+
+	* hppabsd-core.c (make_bfd_asection): Initialize asect->filepos
+	correctly.  Don't initialize asect->vma.
+
+Fri Oct 20 13:23:48 1995  Ken Raeburn  <raeburn@cygnus.com>
+
+	* opncls.c (_bfd_new_bfd): If _bfd_chunksize wasn't preset, use
+	something a little less than the page size.
+
+Thu Oct 19 13:06:09 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* coff-i960.c (coff_i960_adjust_symndx): Clear *adjustedp.
+
+Wed Oct 18 16:20:08 1995  steve chamberlain  <sac@slash.cygnus.com>
+
+	* coff-i386.c (coff_i386_reloc_type_lookup): New.
+	* coffcode.h (coff_write_object_contents): If .bss is before
+	.data us that as data_start.
+	* cofflink.c (_bfd_coff_generic_relocate_section): Get reloc
+	calc correct.
+	* peicode.h (add_data_entry): Use _cooked_size of data directory.
+	(coff_swap_outhdr_out): Hardwire in version number.
+	
+Wed Oct 18 16:50:54 1995  Ken Raeburn  <raeburn@cygnus.com>
+
+	* sunos.c (sunos_add_dynamic_symbols): Rename local variables
+	major and minor to *_vno, since the former are also macros in
+	SunOS header files.  Cast result of bfd_alloc to appropriate
+	type.
+
+	* coffgen.c (coff_find_nearest_line): Cast used_by_bfd value
+	before assigning to sec_data.
+
+Wed Oct 18 13:25:17 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ecoff.c (_bfd_ecoff_find_nearest_line): The offset argument is
+	now relative to the section, not absolute.
+	* ecofflink.c (_bfd_ecoff_locate_line): Use the right symbol to
+	get the file name when there is a N_SO directory name.  When
+	handling stabs, remember that section->vma was added to the
+	offset.
+
+Tue Oct 17 18:24:54 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* sunos.c (struct sunos_link_hash_table): Add needed field.
+	(sunos_link_hash_table_create): Call bfd_release, not free.
+	(sunos_link_hash_table_create): Initialize needed field.
+	(sunos_add_dynamic_symbols): Record needed objects.
+	(bfd_sunos_get_needed_list): New function.
+	* bfd-in.h (bfd_sunos_get_needed_list): Declare.
+	* bfd-in2.h: Rebuild.
+
+Mon Oct 16 14:43:59 1995  steve chamberlain  <sac@slash.cygnus.com>
+
+	* libcoff-in.h (pe_data_type.in_reloc_p): New.
+
+Mon Oct 16 10:52:50 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* bfd-in.h (struct bfd_link_needed_list): Rename from
+	bfd_elf_link_needed_list.
+	* bfd-in2.h: Rebuild.
+	* elf.c, elflink.h, libelf.h: Corresponding changes.
+
+	Add start at AIX linker support; no shared libraries yet.
+	* xcofflink.c: New file.
+	* configure.in (rs600coff_vec): Use xcofflink.o.
+	* configure: Rebuild.
+	* libcoff-in.h (struct xcoff_tdata): Add csects and debug_indices
+	fields.
+	(struct xcoff_section_tdata): Define.
+	(xcoff_section_data): Define macro.
+	(_bfd_xcoff_bfd_link_hash_table_create): Declare.
+	(_bfd_xcoff_bfd_link_add_symbols): Declare.
+	(_bfd_xcoff_bfd_final_link): Declare.
+	(_bfd_ppc_xcoff_relocate_section): Declare.
+	* libcoff.h: Rebuild.
+	* coff-rs6000.c: Clean up a bit.
+	(xcoff_mkobject): Default modtype to 1L, not RE.  Initialize
+	cputype, csects, and debug_indices.
+	(xcoff_copy_private_bfd_data): Copy cputype.
+	(xcoff_howto_table): Rename from rs6000coff_howto_table.
+	(xcoff_rtype2howto): Rename from rs6000coff_rtype2howto.
+	(xcoff_reloc_type_lookup): Rename from
+	rs6000coff_reloc_type_lookup.
+	(coff_relocate_section): Define.
+	(_bfd_xcoff_sizeof_headers): Define.
+	(_bfd_xcoff_bfd_get_relocated_section_contents): Define.
+	(_bfd_xcoff_bfd_relax_section): Define.
+	(_bfd_xcoff_bfd_link_split_section): Define.
+	(rs6000coff_vec): For BFD_JUMP_TABLE_LINK, use _bfd_xcoff, not
+	coff.
+	* coffcode.h (coff_compute_section_file_positions): If AIX,
+	increment sofar by SMALL_AOUTSZ if not executable.
+	(coff_write_object_contents): If AIX, always output an a.out
+	header; if not executable, header size of SMALL_AOUTSZ.
+	* hash.c (struct bfd_strtab_hash): Add xcoff field.
+	(_bfd_stringtab_init): Initialize xcoff field.
+	(_bfd_xcoff_stringtab_init): New function.
+	(_bfd_stringtab_add): In XCOFF mode, leave two bytes for length.
+	(_bfd_stringtab_emit): In XCOFF mode, write out length.
+	* libbfd-in.h (_bfd_xcoff_stringtab_init): Declare.
+	* libbfd.h: Rebuild.
+	* Makefile.in: Rebuild dependencies.
+	(BFD32_BACKENDS): Add xcofflink.o.
+	(CFILES): Add xcofflink.c.
+
+	* elf32-mips.c (mips_elf_symbol_processing): Set SEC_ALLOC, not
+	SEC_NO_FLAGS, for .acommon section.  From Peter Schauer
+	<Peter.Schauer@Regent.E-Technik.TU-Muenchen.DE>.
+
+Sat Oct 14 21:36:02 1995  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* coff-ppc.c (in_reloc_p): Add, clone from coff-i386.c.
+
+Fri Oct 13 17:48:43 1995  Ken Raeburn  <raeburn@cygnus.com>
+
+	* acconfig.h (HAVE_SYS_PROCFS_H): Undef, with comment.
+	* config.in: Regenerated.
+
+	* opncls.c (getpagesize) [!HAVE_GETPAGESIZE]: Define as 2048.
+	(_bfd_chunksize): New variable.
+	(_bfd_new_bfd): Set it to getpagesize() if negative, and use it
+	for obstack chunk size.
+	* configure.in: Check for getpagesize.
+	* configure: Regenerated.
+
+	Mon Sep 25 22:49:32 1995  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* trad-core.c (rawptr): Make it a local variable of
+ 	ptrace_unix_core_file_p.
+
+Fri Oct 13 11:22:01 1995  steve chamberlain  <sac@slash.cygnus.com>
+
+	* coff-arm.c (in_reloc_p): New.
+	* coff-i386.c (in_reloc_p): New.
+	* coffcode.h: Allways include peicode.h if COFF_WITH_PE.
+	(coff_write_object_contents): Only set has_reloc_section
+	if PE_IMAGE.
+	* cofflink.c (_bfd_coff_generic_relocate_section): Call
+	in_reloc_p to decide if reloc should be emitted.
+	* libcoff.h (pe_data_type.in_reloc_p): New.
+	* peicode.h (pe_mkobject): Initialize in_reloc_p.
+
+Wed Oct 11 00:49:29 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* cofflink.c (_bfd_coff_internal_syment_name): Move to coffgen.c.
+	(_bfd_coff_read_internal_relocs): Likewise.
+	* coffgen.c (_bfd_coff_internal_syment_name): Copy from coffgen.c.
+	(_bfd_coff_read_internal_relocs): Likewise.
+
+	* elflink.h (elf_link_add_object_symbols): Correct conditions
+	under which type and size change warnings are issued.
+
+Tue Oct 10 18:32:46 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* coffgen.c (coff_count_linenumbers): Don't count line numbers for
+	a symbol which is not in a real section.
+	(coff_write_native_symbol): Corresponding change.
+
+	* cofflink.c (_bfd_coff_link_hash_newfunc): Rename from
+	coff_link_hash_newfunc and make non-static.
+	(_bfd_coff_link_hash_table_init): New function, broken out of
+	_bfd_coff_link_hash_table_create.
+	(_bfd_coff_link_hash_table_create): Use it.
+	(process_embedded_commands): Make static.
+	* libcoff-in.h ((_bfd_coff_link_hash_newfunc): Declare.
+	(_bfd_coff_link_hash_table_init): Declare.
+	* libcoff.h: Rebuild.
+
+	* coffcode.h (coff_mkobject_hook): If RS6000COFF_C, set cputype
+	field in XCOFF tdata.
+	(coff_set_arch_mach_hook): Check ifdef RS6000COFF_C, not ifdef
+	U802ROMAGIC, for clarity.  Try to set arch and machine correctly
+	based on cputype stored in a.out header, or in n_type of initial
+	.file symbol.
+	(coff_write_object_contents): Set cputype correctly in a.out
+	header.
+	(coff_slurp_symbol_table): Add casts to file_ptr to avoid
+	warnings.
+	* coffswap.h (coff_swap_aouthdr_in): Swap in cputype field.
+	(coff_swap_aouthdr_out): Swap out cputype field.  Don't clear
+	old resv1 field.
+	* libcoff-in.h (struct xcoff_tdata): Add cputype field.
+	* libcoff.h: Rebuild.
+
+	* cpu-rs6000.c (rs6000_compatible): New static function.
+	(bfd_rs6000_arch): Use it.
+	* cpu-powerpc.c (powerpc_compatible): New static function.
+	(arch_info_struct): Define various flavours of PowerPC.
+	(bfd_powerpc_arch): Use powerpc_compatible.  Point at
+	arch_info_struct.
+
+Tue Oct 10 10:50:46 1995  Fred Fish  <fnf@cygnus.com>
+
+	* Makefile.in (FLAGS_TO_PASS):  Remove BISON.
+
+Tue Oct 10 01:28:29 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* elflink.h (elf_link_add_object_symbols): Don't warn about
+	changing the size or type if the old definition was weak.
+
+Mon Oct  9 11:24:08 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* coffcode.h (combined_entry_type): Add fix_line field.
+	(coff_slurp_line_table): Warn if we try to set the lineno field of
+	a symbol twice.
+	(coff_slurp_symbol_table): If RS6000COFF_C, handle C_BINCL and
+	C_EINCL by setting fix_line.  Fix C_BSTAT symbol value.
+	* coffgen.c (coff_mangle_symbols): Handle fix_line.
+	(coff_write_symbol): Only use N_DEBUG if the symbol is in the
+	absolute section.
+	(coff_print_symbol): Print fix_value symbols in a useful fashion.
+	* libcoff.h: Rebuild.
+
+	* libcoff-in.h (struct xcoff_tdata): Define.
+	(xcoff_data): Define.
+	* bfd.c (struct _bfd): Add xcoff_obj_data field to tdata union.
+	* bfd-in2.h, libcoff.h: Rebuild.
+	* coff-rs6000.c (xcoff_mkobject): New static function.
+	(coff_mkobject): Define.
+	(xcoff_copy_private_bfd_data): New static function.
+	(coff_bfd_copy_private_bfd_data): Define.
+	(rs6000coff_howto_table): Change R_TOC complain_on_overflow from
+	signed to bitfield.
+	(rs6000coff_vec): Add DYNAMIC to object_flags.
+	* coffcode.h (sec_to_styp_flags): If RS6000COFF_C, handle .pad and
+	.loader sections specially.
+	(coff_new_section_hook): If RS6000COFF_C, get the .text and .data
+	section alignment from the XCOFF tdata information.
+	(coff_mkobject_hook): If RS6000COFF_C, set DYNAMIC based on
+	F_SHROBJ, and copy the extra a.out header information into the
+	XCOFF tdata structure.
+	(coff_write_object_contents): If RS6000COFF_C, set F_SHROBJ,
+	F_DYNLOAD and the extra a.out header information.
+	(coff_slurp_symbol_table): Set BSF_NOT_AT_END for a C_EXT or
+	C_HIDEXT symbol with attached csect information.
+	* coffswap.h (coff_swap_aouthdr_in): If RS6000COFF_C, swap
+	in the o_maxdata field.
+	(coff_swap_aouthdr_out): If RS6000COFF_C, swap extra XCOFF fields.
+	* coffgen.c (coff_renumber_symbols): Don't move any symbol to the
+	end if BSF_NOT_AT_END is set.
+
+	* targets.c (bfd_target): Rename _bfd_read_ar_hdr field to
+	_bfd_read_ar_hdr_fn.
+	* libbfd-in.h (_bfd_read_ar_hdr): Update accordingly.
+	* bfd-in2.h, libbfd.h: Rebuild.
+	* archive.c (_bfd_get_elt_at_filepos): Cast _bfd_read_ar_hdr
+	return value.
+	(do_slurp_bsd_armap, do_slurp_coff_armap): Likewise.
+	(bfd_slurp_bsd_armap_f2): Likewise.
+	(_bfd_slurp_extended_name_table): Likewise.
+
+Fri Oct  6 16:18:35 1995  Ken Raeburn  <raeburn@cygnus.com>
+
+	Mon Sep 25 22:49:32 1995  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* archive.c (bfd_get_next_mapent): Return BFD_NO_MORE_SYMBOLS
+	when the symbol table is empty.
+
+	* elf32-m68k.c (elf_m68k_size_dynamic_sections): Don't reserve
+	space for section symbols, since we don't output them either.
+	(elf_m68k_adjust_dynindx): Removed.
+
+	* ptrace-core.c (rawptr): Make it a local variable of
+ 	ptrace_unix_core_file_p.
+
+Fri Oct  6 12:24:47 1995  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* coff-rs6000.c (xcoff_write_archive_contents): Return false, not
+	NULL.
+
+	* config.bfd (powerpc{,le}-{elf,sysv4,eabi,solaris2}): Add NT, and
+	Mac object file formats.
+
+Fri Oct  6 12:04:02 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* coffgen.c (coff_fix_symbol_name): Don't try to set up file
+	auxent if there isn't one.
+	(coff_write_symbols): If there is no file auxent, use SYMNMLEN
+	rather than FILNMLEN as the maximum name length.
+
+	* coffcode.h (bfd_coff_backend_data): Add new field
+	_bfd_coff_print_aux.
+	(bfd_coff_print_aux): New static function.
+	(coff_pointerize_aux_hook (RS6000COFF_C version)): Pointerize the
+	scnlen field of an XTY_LD csect aux entry.
+	(coff_print_aux): New static function.
+	(coff_slurp_symbol_table): Don't pointerize scnlen field; now done
+	in coff_pointerize_aux_hook.
+	(bfd_coff_std_swap_table): Initialize new field.
+	* coffgen.c (coff_print_symbol): Call bfd_coff_print_aux.
+	* libcoff.h: Rebuild.
+	* coff-alpha.c (alpha_ecoff_backend_data): Initialize new field.
+	* coff-mips.c (mips_ecoff_backend_data): Likewise.
+
+	* coffcode.h (coff_write_object_contents): On AIX, clear F_RELFLG
+	if there are symbols, for native AIX ld compatibility.
+
+	* coffcode.h (bfd_coff_backend_data): Add new field
+	_bfd_coff_pointerize_aux_hook.
+	(coff_pointerize_aux_hook): Define as a function if RS6000COFF_C
+	or I960, and as 0 otherwise.
+	(bfd_coff_std_swap_table): Initialize new field.
+	* libcoff.h: Rebuild.
+	* coffgen.c (coff_pointerize_aux): Change parameters  to take
+	symbol pointer instead of type and class, and to take aux index.
+	Call _bfd_coff_pointerize_aux_hook if it is defined.
+	(coff_get_normalized_symtab): Always call coff_pointerize_aux.
+	* coff-alpha.c (alpha_ecoff_backend_data): Initialize all fields.
+	* coff-mips.c (mips_ecoff_backend_data): Likewise.
+
+	* coff-rs6000.c: Add full support for AIX archives.  Rewrite old
+	read-only/host-only support.
+
+	* coffcode.h (coff_slurp_symbol_table): Set C_HIDEXT symbols to be
+	BSF_LOCAL.
+	(OTHER_GLOBAL_CLASS): Do not define to be C_HIDEXT if
+	RS6000COFF_C.
+
+	* targets.c (bfd_target): Add _bfd_read_ar_hdr field.  Modify
+	BFD_JUMP_TABLE_ARCHIVE accordingly.
+	* libbfd-in.h (_bfd_snarf_ar_hdr): Don't declare.
+	(_bfd_compute_and_write_armap): Declare.
+	(_bfd_generic_read_ar_hdr): Declare.
+	(_bfd_read_ar_hdr): Define.
+	(_bfd_noarchive_read_ar_hdr): Define.
+	(_bfd_archive_bsd_read_ar_hdr): Define.
+	(_bfd_archive_coff_read_ar_hdr): Define.
+	* archive.c: Change all callers of _bfd_snarf_ar_hdr to call
+	_bfd_read_ar_hdr instead.
+	(_bfd_generic_read_ar_hdr): Rename from _bfd_snarf_ar_hdr.
+	(_bfd_compute_and_write_armap): Rename from
+	compute_and_write_armap.  Make non-static.  Change all callers.
+	* ecoff.c (_bfd_ecoff_slurp_armap): Call _bfd_read_ar_hdr rather
+	than _bfd_snarf_ar_hdr.
+	* aout-target.h (MY_read_ar_hdr): Define if not defined.
+	* ieee.c (ieee_read_ar_hdr): Define.
+	* libecoff.h (_bfd_ecoff_read_ar_hdr): Define.
+	* oasys.c (oasys_read_ar_hdr): Define.
+	* som.c (som_read_ar_hdr): Define.
+	* bfd-in2.h, libbfd.h: Rebuild.
+
+Thu Oct  5 14:04:07 1995  steve chamberlain  <sac@slash.cygnus.com>
+
+	* peicode.c (coff_swap_filehdr_in): If symptr is
+	zero, there aren't any symbols, even if nsyms is set.
+
+Thu Oct  5 11:45:02 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* libecoff.h (struct ecoff_backend_data): Add adjust_headers
+	field.
+	* ecoff.c (ecoff_sec_to_styp_flags): Check for various Alpha
+	sections, and set styp correctly for them: .got, .hash, .dynamic,
+	.liblist, .rel.dyn, .conflic, .dynstr, .dynsym, .comment.
+	(_bfd_ecoff_styp_to_sec_flags): Check for various Alpha section
+	types.
+	(ecoff_sort_hdrs): New static function.
+	(ecoff_compute_section_file_positions): Return boolean, not void.
+	Sort the sections by VMA before looking through them.  Put the
+	first non SEC_ALLOC section on a new page.  Put every SEC_ALLOC
+	section on an appropriate boundary within the page.
+	(ecoff_compute_reloc_file_positions): Check return value of
+	ecoff_compute_section_file_positions.
+	(_bfd_ecoff_set_section_contents): Likewise.
+	(_bfd_ecoff_write_object_contents): Check for various Alpha
+	section types when incrementing text_size and data_size.  Call
+	adjust_headers backend function if it exists.
+	* coff-alpha.c (alpha_adjust_headers): New static function.
+	(alpha_ecoff_backend_data): Initialize adjust_headers field.
+	* coff-mips.c (mips_ecoff_backend_data): Likewise.
+
+	* hosts/i386bsd.h: Restore file incorrectly deleted on Sep 6.
+
+Wed Oct  4 18:15:02 1995  Jeff Law  (law@hurl.cygnus.com)
+
+	* rs6000-core.c (CORE_VERSION_1): Use CORE_VERSION_1 instead
+	of ALTERNATE_AIX_CORE_FORMAT.
+	* configure.in (aix4): No longer need CORE_FLAGS.
+	* configure: Updated.
+
+Wed Oct  4 15:36:36 1995  Ken Raeburn  <raeburn@cygnus.com>
+
+	NS32k changes from Ian Dall:
+	* aoutx.h (MY_final_link_relocate, MY_relocate_contents): New
+	macros.
+	(aout_link_input_section_std, aout_link_input_section_ext,
+	aout_link_reloc_link_order): Call them instead of _bfd_*
+	versions.
+	* aout-target.h (MY_exec_header_not_counted): New macro, defaults
+	to zero.
+	(backend_data): Use it instead of hardcoded zero.
+
+	* aout-ns32k.c (CTOR_TABLE_RELOC_HOWTO): New macro.
+	(MY_swap_std_reloc_out): Use udata.i for KEEPIT, don't call stoi.
+
+	* ns32knetbsd.c: Include bfd.h.
+	(MY_text_includes_header, MY_bfd_reloc_type_lookup): New macros.
+	(MY_bfd_reloc_type_lookup): Declare function too.
+	* pc532-mach.c (set_sizes): Don't declare.
+	(MY_text_includes_header, MY_exec_header_not_counted): Define.
+	(backend_data, MY_backend_data): Don't define.
+
+	* config.bfd: Treat ns32k-pc532-ux* like ns32k-pc532-mach*, and
+	ns32k-*-lites* like ns32k-*-netbsd*.
+
+	* hosts/nbsd.h: Swap order of sys/vmparam.h and sys/param.h, to
+	compile on lites.
+
+Wed Oct  4 14:15:52 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* coffcode.h (coff_write_object_contents): Restore setting
+	f_timdat to 0, deleted on August 22.
+
+Tue Oct  3 16:28:32 1995  steve chamberlain  <sac@slash.cygnus.com>
+
+	* coffcode.h (coff_bfd_copy_private_symbol_data,
+	coff_bfd_copy_private_section_data,
+	coff_bfd_copy_private_bfd_data): ifdef to allow overrides.
+	* peicode.h (coff_bfd_copy_private_bfd_data): New
+	(pe_bfd_copy_private_bfd_data): New.
+	(coff_swap_scnhdr_in): Swap bss size into the right place.
+	(pe_print_private_bfd_data): Add some newlines.
+
+Tue Oct  3 11:53:04 1995  Jeff Law  (law@hurl.cygnus.com)
+
+	* som.c (setup_sections): Don't die if a space has no subspaces.
+
+Mon Oct  2 14:08:55 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* elflink.h (elf_link_add_object_symbols): Don't let a weak
+	dynamic symbol override a common symbol.  Don't change the size or
+	type if they have been set and the new symbol is not a definition.
+	Warn if the size or type changes.
+
+Sun Oct  1 01:34:41 1995  Jeff Law  (law@hurl.cygnus.com)
+
+        * som.c (som_begin_writing): Don't write the symbol table or
+	symbol	strings.
+	(som_finish_writing): Write them here.  Place them after the
+	subspace data, but before the relocs.
+
+Fri Sep 29 11:01:55 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* sunos.c (sunos_add_one_symbol): Just pass false, not
+	info->shared_library, to sunos_create_dynamic_sections.
+	(sunos_scan_ext_relocs): Don't warn about a reloc in the .text
+	section.
+	(sunos_check_dynamic_reloc): Remove .text section assertion.
+
+Thu Sep 28 18:48:47 1995  Stan Shebs  <shebs@andros.cygnus.com>
+
+	* config.bfd: Add powerpc-*-macos*, powerpc-*-mpw*.
+	* configure, configure.in: Add pmac_xcoff_vec case.
+	* Makefile.in (BFD32_BACKENDS): Add coff-pmac.o.
+	* coff-pmac.c: New file, PowerMac XCOFF support.
+	* coffcode.h (coff_set_arch_mach_hook): Add PowerMac case.
+	* targets.c (pmac_xcoff_vec): Declare.
+
+	* mpw-config.in: Various changes to be compatible with the
+	autoconf-based configury.
+	* mpw-make.sed: New file, sed commands to translate Unix
+	makefile into MPW syntax.
+	* mpw-make.in: Remove.
+	* hosts/mpw.h: Remove.
+	* bfd-in.h, bfd-in2.h: If MPW, include the file that defines
+	true and false as enums, then define TRUE_FALSE_ALREADY_DEFINED.
+
+Thu Sep 28 17:06:23 1995  steve chamberlain  <sac@slash.cygnus.com>
+
+	* binary.c (binary_get_symtab): Return an empty string on error.
+	* opncls.c (bfd_fdpenr): Change WIN32 restriction to WINGDB.
+
+Thu Sep 28 15:30:44 1995  Kim Knuttila  <krk@nellie>
+
+	* coff-ppc.c: Reformatted according to gnu conventions
+	              Removed irrelevant "if 0" code
+
+Thu Sep 28 11:19:53 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* hp300hpux.c (convert_sym_type): Treat secondary symbols as weak
+	symbols rather than as indirect symbols.
+	(MY(slurp_symbol_table)): Don't do anything special about
+	secondary symbols.
+
+	* coffcode.h (coff_new_section_hook): Make sure that the alignment
+	of .ctors and .dtors sections is no larger than 2.
+
+	* sunos.c (sunos_add_one_symbol): Don't change
+	bfd_link_hash_common to bfd_link_hash_new, since it may be on the
+	undef list.
+	(bfd_sunos_record_link_assignment): Don't put __DYNAMIC in the
+	dynamic symbols when creating a shared library.
+	(sunos_scan_ext_relocs): Handle relocs correctly when creating a
+	shared library.
+	(sunos_scan_dynamic_symbol): Don't mark the __DYNAMIC symbol as
+	written even if it is not defined in a regular object.
+	(sunos_write_dynamic_symbol): Use plt_offset for the address of
+	the jump table reloc.  Add an assertion.  Use RELOC_JMP_SLOT
+	rather than the constant 22.
+	(sunos_check_dynamic_reloc): Handle creating a shared library.
+	(sunos_finish_dynamic_link): Set the first entry in the GOT to
+	zero when creating a shared library.
+	* aoutx.h (NAME(aout,final_link)): If there is a symbol __DYNAMIC,
+	write it out at the start of the symbol table.
+
+	* Makefile.in (BFD32_BACKENDS): Add coff-arm.o.
+
+Thu Sep 28 00:58:05 1995  Doug Evans  <dje@deneb.cygnus.com>
+
+	* config.bfd: Add arm-*-coff.
+	* configure.in, configure: Add armcoff_{little,big}_vec.
+	* targets.c (armcoff_{little,big}_vec): Declare.
+	(bfd_target_vector): Add armcoff_{little,big}_vec.
+	* coff-arm.c (armcoff_{little,big}_vec): Always define.
+
+Wed Sep 27 10:37:14 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* targets.c (bfd_find_target): Remove debugging code.
+
+Wed Sep 27 07:23:39 1995  Kim Knuttila  <krk@nellie>
+
+	* coff-ppc.c, pe-ppc.c, pei-ppc.c: Initial bfd for coff/PE 
+        support on powerpc.
+	* Makefile.in: added *-ppc files
+	* coffcode.h: ppc MAGIC, and use peicode.h rather than coffswap.h to
+        allow pe based .o's to be shared with other tools on ppc/NT
+	* config.bfd: added powerpc[le]-[pe|winnt] config support
+	* configure, configure.in: added bfd_powerpc[le]_pe[i]_vec 
+	* peicode.h: Added more section flags for PE on ppc
+	             Added coff_swap_filehdr_out to allow peicode.h to be
+		     used for non-image PE files on ppc.
+		     Check for image, or not, before copying pe_opthdr
+	* targets.c: Added new bfd's
+	* targets.c: Removed two inactive bfds that shouldn't have made it this
+                     far.
+
+Tue Sep 26 14:06:41 1995  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* elf32-ppc.c (ppc_reloc_type): Rename from reloc_type, and use
+	explicit values to initialize all relocs.  Change all users.
+	(ppc_elf_brtaken_inner): New function to handle branch predicition
+	relocs.
+	(ppc_elf_brtaken_reloc): Ditto.
+	(ppc_elf_howto_raw): Use new functions.  Make sure all unsupported
+	relocs use ppc_elf_unsupported_reloc.
+	(ppc_elf_merge_private_bfd_data): Keep track of whether an error
+	needs to be reported.
+	(ppc_elf_relocate_section): Support branch prediction relocs.
+
+Tue Sep 26 12:48:05 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* bfd.c (bfd_assert): Remove \n from string passed to
+        _bfd_error_handler.
+
+	* coff-i386.c: (TWO_DATA_SECS): Don't define.
+	* coffcode.h (bfd_coff_backend_data): Remove _bfd_make_section_hook.
+	(bfd_coff_make_section_hook): Don't define.
+	(coff_make_section_hook): Remove.
+	(sec_to_styp_flags): Remove TWO_DATA_SECS case.
+	(styp_to_sec_flags): Likewise.
+	(coff_write_object_contents): Likewise.
+	(bfd_coff_std_swap_table): Don't initialize make_section_hook
+	field.
+	* libcoff.h: Rebuild.
+	* coffgen.c (make_a_section_from_file): Just call
+	bfd_make_section_anyway, not bfd_make_section or
+	bfd_coff_make_section_hook.
+	* ecoff.c (_bfd_ecoff_make_section_hook): Remove.
+	* libecoff.h (_bfd_ecoff_make_section_hook): Don't declare.
+	* coff-alpha.c (alpha_ecoff_backend_data): Don't initialize
+	make_section_hook field.
+	* coff-mips.c (mips_ecoff_backend_data): Likewise.
+
+	* aoutx.h (translate_from_native_sym_flags): Don't try to stuff
+	pointers into value field for warning and indirect symbols; just
+	leave the value field alone.
+	* linker.c (generic_link_add_symbol_list): Use next symbol for
+	warning and indirect symbols, rather than looking in symbol value.
+	* ecoff.c (ecoff_set_symbol_info): Remove indirect_ptr_ptr
+	parameter.  Change all callers.  Remove support for indirect
+	symbols; it didn't work anyhow.
+	(_bfd_ecoff_slurp_symbol_table): Remove indirect_ptr variable.
+	* syms.c: Change comments about BSF_WARNING and BSF_INDIRECT.
+	* bfd-in2.h: Rebuild.
+
+Mon Sep 25 16:04:09 1995  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* elf32-ppc.c (ppc_elf_howto_raw): For all 14-bit branch relocs,
+	go back to telling the tools this reloc operates on 32 bits.
+
+Mon Sep 25 11:48:02 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* aout-adobe.c (aout_adobe_callback): Use _bfd_error_handler
+	rather than a direct fprintf.
+	* archive.c (_bfd_write_archive_contents): Likewise.
+	* coffcode.h (coff_slurp_symbol_table): Likewise.
+	* elf32-ppc.c (ppc_elf_merge_private_bfd_data): Likewise.
+	(ppc_elf_unsupported_reloc): Likewise.
+	(ppc_elf_relocate_section): Likewise.
+	* i386linux.c (linux_tally_symbols): Likewise.
+	(linux_finish_dynamic_link): Likewise.
+	* osf-core.c (osf_core_core_file_p): Likewise.
+	* rs6000-core.c (rs6000coff_get_section_contents): Likewise.
+	* som.c (som_sizeof_headers): Likewise.
+	* srec.c (srec_bad_byte): Likewise.
+	* bfd.c (bfd_assert): Likewise.  Also change file to be const.
+	* libbfd-in.h (bfd_assert): Declare first parameter const.
+	* libbfd.h: Rebuild.
+	* coff-a29k.c (a29k_reloc): Don't bother to fprintf; returning
+	bfd_reloc_overflow is enough.
+	* coff-h8300.c (rtype2howto): Don't bother to fprintf; just abort.
+	* coff-h8500.c (rtype2howto): Likewise.
+	* coff-z8k.c (rtype2howto): Likewise.
+	* coffcode.h (dummy_reloc16_extra_cases): Likewise.
+	* elf.c (_bfd_elf_get_lineno): Likewise.
+	(_bfd_elf_no_info_to_howto): Likewise.
+	(_bfd_elf_no_info_to_howto_rel): Likewise.
+	* hp300hpux.c (convert_sym_type): Likewise.
+	(MY(swap_std_reloc_in)): Likewise.
+	* elf.c (bfd_section_from_shdr): Remove #if 0 sections.
+
+	* libaout.h (struct aoutdata): Add line_buf field.
+	* aoutx.h (NAME(aout,find_nearest_line)): Remove statics buffer
+	and filename_buffer.  Instead, use a malloc buffer stored in the
+	new line_buf field.  Remove length restrictions.
+
+	* coffgen.c (string_size): Remove static variable.
+	(debug_string_size, debug_string_section): Likewise.
+	(coff_fix_symbol_name): Add string_size_p, debug_string_section_p,
+	and debug_string_size_p parameters.  Use them instead of the
+	global variables.  Change all callers.
+	(coff_write_symbol): Likewise.
+	(coff_write_alien_symbol, coff_write_native_symbol): Likewise.
+	(coff_write_symbols): Add local variables to replace removed
+	global variables.
+
+	* libcoff-in.h (struct coff_section_tdata): Add offset, i,
+	function, and line_base fields.
+	* libcoff.h: Rebuild.
+	* coffgen.c (coff_find_nearest_line): Use section tdata to cache
+	information, rather than using static variables.
+
+	* sunos.c (sunos_read_dynamic_info): Adjust offsets in an NMAGIC
+	file.  From Peter DeWolf <pld@amt.tay1.dec.com>.
+
+	* init.c (initialized): Remove static variable.
+	(bfd_init): Don't bother setting initialized.
+	(bfd_check_init): Remove.
+	* opncls.c (_bfd_new_bfd): Don't call bfd_check_init.
+	* libbfd.h: Rebuild.
+
+Sat Sep 23 01:22:23 1995  Peter Schauer  (pes@regent.e-technik.tu-muenchen.de)
+
+	* rs6000-core.c (rs6000coff_core_p):  Don't check the core file
+	size for full core dumps. Copy core file header to private data.
+	(rs6000coff_core_file_failing_command,
+	rs6000coff_core_file_failing_signal):  New functions to extract
+	the file name and terminating signal from the core file.
+	* coff-rs6000.c:  Use them.
+
+Fri Sep 22 17:44:47 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	Change arch info to be const, initialized at compile time.
+	* archures.c: Reindent many functions.  Change CONST to const.
+	(bfd_arch_info_type): Make arch_name const.  Remove disassemble;
+	nothing set it anyhow.  Make next const.
+	(bfd_arch_info_list): Remove.
+	(bfd_archures_list): Rename from archures_init_table.  Change from
+	a table of function pointers to a table of bfd_arch_info_type
+	structure addresses.
+	(bfd_scan_arch): Rewrite accordingly.  Return a const pointer.
+	(bfd_lookup_arch): Likewise.
+	(bfd_set_arch_info): Rewrite accordingly.  Change argument to be a
+	const pointer.
+	(bfd_default_arch_struct): Make const.
+	(bfd_arch_init, bfd_arch_linkin): Remove.
+	(bfd_get_arch_info): Return a const pointer.
+	* init.c (bfd_init): Don't call bfd_arch_init.
+	* bfd.c (struct _bfd): Make arch_info const.
+	* bfd-in2.h: Rebuild.
+	* libbfd.h: Rebuild.
+	* configure.in: Put & before everything in $selarchs.
+	* configure: Rebuild.
+	* cpu-*.c: Change bfd_*_arch from a function which calls
+	bfd_arch_linkin to a const structure.
+	* ieee.c (ieee_object_p): Make arch const.
+
+Fri Sep 22 16:23:18 1995  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* reloc.c (bfd_reloc_code_type): Add relocations to support all of
+	PowerPC V.4.
+	* bfd-in2.h: Regenerate.
+	* libbfd.h: Regenerate.
+
+	* elf32-ppc.c (reloc_type): Update names to match current draft.
+	(ppc_elf_howto_raw): Mark 14 bit relocs as short sized and PC
+	relative.  Update names to current V.4 draft.
+	(ppc_elf_reloc_type_lookup): Add support for more relocations.
+	(ppc_elf_relocate_section): Rename relocations to match draft.
+
+Thu Sep 21 21:53:18 1995  Michael Meissner  <meissner@cygnus.com>
+
+	* elf32-ppc.c (ppc_elf_merge_private_bfd_data): Allow modules
+	compiled with -mrelocatable-lib to be linked with either normal
+	modules or -mrelocatable modules.
+
+Wed Sep 20 12:03:26 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* coffcode.h (coff_write_object_contents): Clear the vstamp field
+	in the a.out header.
+
+	* aoutx.h (NAME(aout,swap_ext_reloc_out)): Don't set r_extern for
+	a reloc against a local symbol, even if it's not a section.
+
+Tue Sep 19 17:02:26 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* targets.c (bfd_target): Remove unused align_power_min field.
+	* bfd-in2.h: Rebuild.
+	* All backends: Remove initialization of align_power_min.
+
+Tue Sep 19 14:02:21 1995  steve chamberlain  <sac@slash.cygnus.com>
+
+	* peicode.h (coff_swap_scnhdr_out): Get sizes for BSS right.
+
+Mon Sep 18 14:35:01 1995  Arne H. Juul  <arnej@pvv.unit.no>
+
+	* config.bfd (mips-dec-netbsd*): New target.
+	* configure.host (mips-dec-netbsd*): New host.
+	* configure.in (mips-dec-netbsd*): New native.
+	* configure: Rebuild.
+
+Fri Sep 15 10:24:36 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	Make the COFF backend linker merge common types:
+	* cofflink.c (struct coff_debug_merge_element): Define.
+	(struct coff_debug_merge_type): Define.
+	(struct coff_debug_merge_hash_entry): Define.
+	(struct coff_debug_merge_hash_table): Define.
+	(coff_debug_merge_hash_table_init): Define.
+	(coff_debug_merge_hash_table_free): Define.
+	(coff_debug_merge_hash_lookup): Define.
+	(struct coff_final_link_info): Add debug_merge field.
+	(coff_debug_merge_hash_newfunc): New static function.
+	(_bfd_coff_final_link): Allocate and free debug_merge table.
+	(coff_link_input_bfd): Merge identical enum, struct and union
+	types.
+
+Thu Sep 14 14:53:58 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	Convert i960 COFF to use COFF backend linker.
+	* coff-i960.c (coff_i960_relocate): Use a coff_section_data
+	structure to store the symbol being used.
+	(coff_i960_start_final_link): New static function.
+	(coff_i960_relocate_section): New static function.
+	(coff_i960_adjust_symndx): New static function.
+	(coff_start_final_link): Define.
+	(coff_relocate_section): Define.
+	(coff_adjust_symndx): Define.
+	* coffcode.h (bfd_coff_backend_data): Add new callback function
+	_bfd_coff_start_final_link.
+	(bfd_coff_start_final_link): Define.
+	(coff_start_final_link): Define if not defined.
+	(bfd_coff_std_swap_table): Add coff_start_final_link.
+	* cofflink.c (_bfd_coff_internal_syment_name): Make globally
+	visible.
+	(_bfd_coff_final_link): Call bfd_coff_start_final_link if the
+	function callback is not NULL.
+	* libcoff-in.h (struct coff_section_tdata): Add tdata field.
+	(_bfd_coff_internal_syment_name): Declare.
+	* libcoff.h: Rebuild.
+	* configure.in (icoff_big_vec): Add cofflink.o.
+	(icoff_little_vec): Likewise.
+	* configure: Rebuild.
+
+Wed Sep 13 17:38:23 1995  Fred Fish  <fnf@rtl.cygnus.com>
+
+	* Makefile.in (clean-info): Remove extraneous tab from line
+	following action.
+
+Wed Sep 13 13:27:53 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* cofflink.c (coff_link_input_bfd): Fail if a section with no
+	contents has relocs.
+
+Thu Sep 12 12:45:34 1995  steve chamberlain  <sac@slash.cygnus.com>
+
+	* coffcode.h (coff_compute_section_file_positions): Keep the
+	raw size safe. 
+	(coff_write_object_contents): Remember if it's a relocatable
+	file.
+	* libcoff-in.h (pe_data_type): New member 'has_reloc_section'
+	* peicode.h (coff_swap_filehdr_out): Clear not-reloc flag
+	if relocatable file. Swap out saved raw size.
+
+Tue Sep 12 12:14:33 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in (do_maintainer_clean): Rename from do_realclean.
+	(maintainer-clean): Rename from realclean, passing
+	maintainer-clean down to subdirectories, but leave realclean as a
+	synonym.
+
+	* linker.c (_bfd_generic_link_add_one_symbol): Pass symbol name to
+	warning callback.
+
+	* dep-in.sed: Remove config.h from generated dependencies.
+
+	* sunos.c (sunos_slurp_dynamic_symtab): New static function,
+	broken out of sunos_canonicalize_dynamic_symtab.
+	(sunos_canonicalize_dynamic_symtab): Call new function
+	sunos_slurp_dynamic_symtab.
+	(sunos_add_dynamic_symbols): Add three new parameters.  Return the
+	dynamic symbol table to the caller.
+	* aoutx.h (aout_link_add_symbols): Permit add_dynamic_symbols
+	callback to override the symbols being read.
+	* libaout.h (struct aout_backend_data): Add three new parameters
+	to add_dynamic_symbols callback.
+
+	Extensive minor changes to avoid various gcc warnings.  Also:
+	* Makefile.in (BFD32_BACKENDS): Remove coff-arm.o.
+	* archures.c (bfd_arch_info_type): Change mach field from long to
+	unsigned long.
+	(bfd_lookup_arch): Change machine parameter from long to unsigned
+	long.
+
+Mon Sep 11 10:55:47 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* sunos.c (sunos_scan_std_relocs): Fix BFD_ASSERT: it's OK to find
+	a symbol with a non-zero plt_offset.
+
+Fri Sep  8 11:47:24 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* elfcode.h (align_file_position): Remove; not used.
+
+	* configure.in: Only check for <sys/procfs.h> on a native system,
+	and make sure it defines prstatus_t.
+	* configure: Rebuild.
+
+Thu Sep  7 12:48:01 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* sunos.c (sunos_write_dynamic_symbol): Correct m68k abort test.
+
+	* config.in: Rename from config.h.in.
+	* configure.in: Call AC_CONFIG_HEADER with config.h:config.in.
+	Check for config.h:config.in when creating stamp-h.
+	* configure: Rebuild.
+	* Makefile.in (stamp-h): Depend upon config.in rather than
+	config.h.in.  Set CONFIG_HEADERS to config.h:config.in when
+	calling config.status.
+
+	* Makefile.in (do_distclean): Remove config.h and stamp-h.
+	(Makefile): Just rebuild Makefile.
+	(config.h, stamp-h): New targets.
+	* configure.in: Create stamp-h when rebuilding config.h.
+	* configure: Rebuild.
+
+Wed Sep  6 15:00:33 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Call AC_CONFIG_HEADER.  Substitute
+	HOST_64BIT_LONG.  Check that various header files exist.  Check
+	that fcntl exists.  Call BFD_BINARY_FOPEN.  Check whether malloc
+	and/or free need to be declared.  Don't make a link to sysdep.h.
+	Define TRAD_HEADER for various hosts.
+	* configure: Rebuild.
+	* configure.host: Don't set my_host.  Add definitions taken from
+	host header files for various entries.  Remove entries which now
+	do nothing.
+	* acconfig.h: New file.
+	* config.h.in: New file, built by autoheader.
+	* sysdep.h: New file.
+	* Makefile.in (do_distclean): Don't remove sysdep.h.
+	(RECONFIG): Remove.
+	(LOCAL_H_DEPS): New variable.
+	($(BFD_LIBS)): Use $(LOCAL_H_DEPS) rather than libbfd.h and
+	$(RECONFIG).
+	($(BFD_MACHINES), $(BFD_BACKENDS)): Likewise.
+	($(OPTIONAL_BACKENDS)): Likewise.
+	(stmp-bfd.h): Just substitute for BFD_HOST_64BIT_LONG, rather than
+	looking through sysdep.h.
+	* bfd-in.h (BFD_HOST_64BIT_LONG): Define; set by Makefile.
+	(BFD_HOST_64_BIT): Define based on BFD_HOST_64BIT_LONG.
+	(fprintf_vma, sprintf_vma): Likewise.
+	(int64_type, uint64_type): Don't define.
+	* bfd-in2.h: Rebuild.
+	* archures.c, bfd.c, srec.c: Include <ctype.h>.
+	* elfcore.h: Check HAVE_SYS_PROCFS_H rather than HAVE_PROCFS.
+	* lynx-core.c: Include stuff from old hosts/lynx.h.
+	* opncls.c (bfd_fdopenr): Check HAVE_FNCTL and defined (F_GETFL),
+	rather than NO_FCNTL.
+	* targets.c (bfd_target_list): Check HOST_HPPAHPUX and ! __STDC__
+	rather than NATIVE_HPPAHPUX_COMPILER.
+	* trad-core.c: Don't include <errno.h>.  Include TRAD_HEADER if it
+	is defined.
+	* hosts/*.h: Remove all header files which merely include,
+	declare, and define things.  Leave header files which define
+	information needed by trad-core.c.
+
+	* aclocal.m4 (BFD_BINARY_FOPEN): Define.
+	(BFD_CC_FOR_BUILD): Define.
+	* configure.in: Use BFD_CC_FOR_BUILD.
+	* configure: Rebuild.
+
+Tue Sep  5 19:35:28 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* aclocal.m4: Don't try to grep ../Makefile if it doesn't exist.
+	* configure: Rebuild.
+
+	* coff-sparc.c (CALC_ADDEND): Don't set the addend to the value of
+	a global symbol.
+
+Tue Sep  5 12:48:26 1995  Jason Molenda   (crash@phydeaux.cygnus.com)
+
+	* config.bfd: i386pe_ve -> i386pe_vec.
+
+Mon Sep  4 14:02:43 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.host: Incorporate host Makefile fragments by setting
+	shell variables.
+	* configure.in: Call AC_PROG_CC.  Substitute CFLAGS, HDEFINES and
+	AR.  Call AC_PROG_INSTALL.  Substitute CC_FOR_BUILD, choosing a
+	value based on whether the code is being compiled by a cross
+	compiler.  Don't substitute host_makefile_frag or frags.
+	* aclocal.m4: New file to define local AC_PROG_CC.
+	* configure: Rebuild.
+	* Makefile.in (INSTALL): Set to @INSTALL@.
+	(INSTALL_PROGRAM): Set to @INSTALL_PROGRAM@.
+	(INSTALL_DATA): Set to @INSTALL_DATA@.
+	(AR): Set to @AR@.
+	(CC): Define as @CC@.
+	(CFLAGS): Set to @CFLAGS@.
+	(CC_FOR_BUILD): Set to @CC_FOR_BUILD@.
+	(@host_makefile_frag@): Remove.
+	(ALL_CFLAGS): Change $(HDEFINES) to @HDEFINES@.  Move $(CFLAGS)
+	after other options.
+	(config.status): Remove dependency upon @frags@.
+	* config/*.mh, config/README: Remove.
+
+	* config.bfd: Rewrite to incorporate the contents of the Makefile
+	fragments by setting shell variables, rather than merely returning
+	the name of a Makefile fragment.
+	* configure.in: Use shell variables set by config.bfd rather than
+	looking at the target Makefile fragment files.  Don't substitute
+	target_makefile_frag.  Do substitute TDEFINES.
+	* configure: Rebuild.
+	* Makefile.in (@target_makefile_frag@): Remove.
+	(ALL_CFLAGS): Change $(TDEFINES) to @TDEFINES@.
+	* config/*.mt: Remove.
+
+Mon Sep  4 03:13:28 1995  Ken Raeburn  <raeburn@cygnus.com>
+
+	* configure.in: Put changequote lines around "i[345]86" patterns
+	section of core file support.
+
+Sun Sep  3 11:31:58 1995  Jeff Law  (law@snake.cs.utah.edu)
+
+	* som.c (som_bfd_print_private_bfd_data): Define to use the
+	generic version.
+
+Fri Sep  1 17:08:40 1995  steve chamberlain  <sac@slash.cygnus.com>
+
+	* peicode.h (coff_swap_aouthdr_in): Add ImageBase to
+	entry, text_start and data_start.
+
+Fri Sep  1 18:06:28 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in (OFILES): Remove $(TDEPFILES).
+	* config/apollo.mt (TDEPFILES): Remove.
+	* config/README: Update.
+
+	* configure.in: For a native configuration, set COREFILE and
+	COREFLAG based on the canonical host name.
+	* configure: Rebuild.
+	* Makefile.in: Rebuild dependencies.
+	(ALL_CFLAGS): Add @COREFLAG@.
+	(OFILES): Replace $(HDEPFILES) with @COREFILE@.
+	* coff-rs6000.c: Check AIX_CORE rather than HOST_AIX for core file
+	support routines.  Check LYNX_CORE rather than HOST_LYNX.
+	* lynx-core.c: Check LYNX_CORE rather than HOST_LYNX.
+	* i386lynx.c: Likewise.
+	* m68klynx.c: Likewise.
+	* sparclynx.c: Likewise.
+	* rs6000-core.c: Check AIX_CORE rather than HOST_AIX.
+	* *-core.c: Comment changes.
+	* config/decstation.mh (HDEPFILES): Remove.
+	(HDEFINES): Remove -DTRAD_CORE.
+	* config/irix3.mh (RANLIB): Remove.
+	* config/irix4.mh (HDEPFILES, RANLIB): Remove.
+	(HDEFINES): Remove -DIRIX_CORE.
+	* config/riscos.mh (RANLIB, HDEPFILES): Remove.
+	(HDEFINES): Remove -DTRAD_CORE.
+	* config/ncr3000.mh (AR_FLAGS, RANLIB): Remove.
+	* config/ultra3.mh (RANLIB): Remove.
+	* config/aix4.mh, config/alphaosf.mh, config/amix.mh: Remove.
+	* config/apollo.mh, config/delta68.mh, config/delta88.mh: Remove.
+	* config/dpx2.mh, config/esix.mh, config/harris.mh: Remove.
+	* config/hp300.mh, config/hp300bsd.mh, config/hppabsd.mh: Remove.
+	* config/hppahpux.mh, config/hppaosf.mh: Remove.
+	* config/i386aix.mh, config/i386bsd.mh: Remove.
+	* config/i386linux.mh, config/i386mach3.mh: Remove.
+	* config/i386sco.mh, config/i386v.mh, config/i386v4.mh: Remove.
+	* config/irix5.mh, config/m88kmach3.mh, config/mipsbsd.mh: Remove.
+	* config/mipsmach3.mh, config/news-mips.mh: Remove.
+	* config/news.mh, config/pc532mach.mh, config/riscix.mh: Remove.
+	* config/rs600.mh, config/rs6000lynx.mh: Remove.
+	* config/solaris2.mh, config/stratus.mh: Remove.
+	* config/symmetry.mh, config/sysv4.mh, config/tahoe.mh: Remove.
+	* config/vaxbsd.mh, config/vaxult.mh, config/vaxult2.mh: Remove.
+
+Fri Sep  1 15:18:50 1995  Kazumoto Kojima  <kkojima@info.kanagawa-u.ac.jp>
+
+	* elflink.h (elf_bfd_final_link): Don't change a DT_INIT or
+	DT_FINI entry if the appropriate symbol is not in the hash table.
+
+	* libelf.h (struct elf_backend_data): Add create_program_headers
+	and want_hdr_in_seg fields.
+	* elfxx-target.h (elf_backend_want_hdr_in_seg): Define if not
+	defined.
+	(elf_backend_create_program_headers): Likewise.
+	(elfNN_bed): Initialize create_program_headers and
+	want_hdr_in_seg.
+	* elf.c (get_program_header_size): Call create_program_headers
+	backend routine.
+	(map_program_segments): Check want_hdr_in_seg backend field.  Call
+	create_program_headers backend routine.
+
+	* elf.c (assign_file_positions_except_relocs): Align non allocated
+	sections when creating an executable.
+
+	* elfcode.h (elf_swap_phdr_in): Make non static.
+	(elf_swap_phdr_out): Make non static.
+	* libelf.h (bfd_elf32_swap_phdr_in): Declare.
+	(bfd_elf32_swap_phdr_out): Declare.
+	(bfd_elf64_swap_phdr_in): Declare.
+	(bfd_elf64_swap_phdr_out): Declare.
+
+	* ecofflink.c (ecoff_collect_shuffle): New static function.
+	(_bfd_ecoff_get_accumulated_pdr): New function.
+	(_bfd_ecoff_get_accumulated_sym): New function.
+	(_bfd_ecoff_get_accumulated_ss): New function.
+	* libbfd-in.h (_bfd_ecoff_get_accumulated_pdr): Declare.
+	(_bfd_ecoff_get_accumulated_sym): Declare.
+	(_bfd_ecoff_get_accumulated_ss): Declare.
+	* libbfd.h: Rebuild.
+
+Fri Sep  1 13:20:25 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* libecoff.h (_bfd_ecoff_bfd_print_private_bfd_data): Fix typo.
+
+	* elflink.h (elf_link_add_object_symbols): Handle indirect and
+	warning symbols.  If any section is named .gnu.warning.XXX, treat
+	the contents as a warning to be issued if the symbol XXX is
+	referenced.
+	(elf_link_output_extsym): For an indirect or warning symbol, just
+	output the symbol it points to.
+
+	* linker.c (_bfd_link_hash_newfunc): Don't bother to set bfd_error
+	if bfd_hash_allocate fails, since it will already be set.
+	(generic_link_hash_newfunc): Likewise.
+	(archive_hash_newfunc): Likewise.
+	(hash_entry_bfd): New static function.
+	(_bfd_generic_link_add_one_symbol): Pass new arguments to warning
+	callback.  Allocate a new warning using the hash table newfunc.
+	Use bfd_hash_replace to update the entry in the hash table, rather
+	than assuming we can copy the fields with structure assignment.
+
+	* hash.c (bfd_hash_replace): New function.
+	* bfd-in.h (bfd_hash_replace): Declare.
+	* bfd-in2.h: Rebuild.
+
+Fri Sep  1 08:12:50 1995  James G. Smith  <jsmith@beauty.cygnus.com>
+
+	* config.bfd: Add mips*vr4300-*-elf* target.
+	* config/mipsbvr4300.mt: Added.
+
+See file ChangeLog.2
+
+
+Local Variables:
+mode: indented-text
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

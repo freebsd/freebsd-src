@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1994/12/02 23:53:23 wollman Exp $
+#	$Id: Makefile,v 1.3 1996/08/09 22:44:55 julian Exp $
 
 SUBDIR=	comcontrol fdisk ft mount_msdos nextboot
 #NOTYET: cxconfig

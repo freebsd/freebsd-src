@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.4.2.1 1997/04/11 17:54:00 asami Exp $
 
 PROG=	info
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)csh.h	8.1 (Berkeley) 5/31/93
- *	$Id: csh.h,v 1.2 1994/09/24 02:53:52 davidg Exp $
+ *	$Id: csh.h,v 1.2.8.1 1997/08/24 21:41:29 jkh Exp $
  */
 
 /*

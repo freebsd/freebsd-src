@@ -1,5 +1,5 @@
 ###
-#	$Id: Makefile,v 1.2 1996/08/22 09:45:43 julian Exp $
+#	$Id: Makefile,v 1.2.4.1 1998/07/16 10:26:56 jkh Exp $
 #
 # What are we if we weren't told..
 CRUNCHDIRS= ../crunch

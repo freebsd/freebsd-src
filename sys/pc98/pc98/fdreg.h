@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)fdreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: fdreg.h,v 1.8 1994/09/25 23:37:38 phk Exp $
+ *	$Id: fdreg.h,v 1.2 1996/09/10 09:37:53 asami Exp $
  */
 
 /*

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: fastfind.c,v 1.6.2.1 1997/07/22 07:25:26 charnier Exp $
+ * $Id: fastfind.c,v 1.6.2.2 1998/07/17 04:19:05 jkh Exp $
  */
 
 

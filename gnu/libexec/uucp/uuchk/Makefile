@@ -1,5 +1,5 @@
 # Makefile for uuchk
-# $Id: Makefile,v 1.4 1995/05/14 17:00:58 ache Exp $
+# $Id: Makefile,v 1.4.6.1 1998/03/03 06:09:27 jkh Exp $
 
 BINDIR=		$(sbindir)
 

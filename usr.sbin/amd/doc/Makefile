@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.2.6.1 1997/04/11 16:58:46 asami Exp $
+# $Id: Makefile,v 1.2.6.2 1998/03/09 10:08:21 jkh Exp $
 #
 # Copyright (c) 1990 Jan-Simon Pendry
 # Copyright (c) 1990 Imperial College of Science, Technology & Medicine

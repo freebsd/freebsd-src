@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 # 
-# $Id$
+# $Id: scsi-defects.pl,v 1.2 1997/02/22 14:08:36 peter Exp $
 #
 
 #

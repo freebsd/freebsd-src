@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	6.3 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.4 1997/02/22 13:02:58 peter Exp $
+#	$Id: Makefile,v 1.2.6.1 1997/03/15 23:34:02 jkh Exp $
 
 VOLUME=	papers
 DOC=	diskperf

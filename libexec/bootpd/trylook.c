@@ -1,7 +1,7 @@
 /*
  * trylook.c - test program for lookup.c
  *
- *	$Id$
+ *	$Id: trylook.c,v 1.2 1996/09/22 21:52:35 wosch Exp $
  */
 
 #include <sys/types.h>

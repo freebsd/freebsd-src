@@ -9,7 +9,7 @@ use and modify. Please send modifications and/or suggestions + bug fixes to
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: bootparamd.c,v 1.3.2.3 1998/03/09 13:50:32 jkh Exp $";
+	"$Id: bootparamd.c,v 1.3.2.4 1998/07/18 11:08:53 jkh Exp $";
 #endif /* not lint */
 
 #include <rpc/rpc.h>

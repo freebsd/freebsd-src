@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1996/01/05 09:09:30 graichen Exp $
+#	$Id: Makefile,v 1.2 1996/09/05 17:15:44 bde Exp $
 
 PROG=	spray
 MAN8=	spray.8

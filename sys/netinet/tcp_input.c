@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.54.2.9 1998/05/18 17:08:29 guido Exp $
+ *	$Id: tcp_input.c,v 1.54.2.10 1998/05/18 17:12:44 guido Exp $
  */
 
 #include "opt_tcpdebug.h"

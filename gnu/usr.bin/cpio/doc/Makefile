@@ -1,7 +1,7 @@
 # Note that this files is under a "BSD" copyright (c) by David O'Brien 1997, 
 # even though it may live in src/gnu/...
 
-# $Id: Makefile,v 1.2 1997/08/21 08:26:55 obrien Exp $
+# $Id: Makefile,v 1.2.2.1 1997/08/21 08:50:35 obrien Exp $
 
 .PATH:	${.CURDIR}/../../../../contrib/cpio
 

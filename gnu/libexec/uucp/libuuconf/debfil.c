@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_debfil_rcsid[] = "$Id: debfil.c,v 1.6 1995/06/21 19:21:57 ian Rel $";
+const char _uuconf_debfil_rcsid[] = "$Id: debfil.c,v 1.3 1995/08/19 21:26:53 ache Exp $";
 #endif
 
 /* Get the name of the UUCP debugging file.  */

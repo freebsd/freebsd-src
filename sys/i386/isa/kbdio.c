@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kbdio.c,v 1.1.2.5 1997/02/07 11:02:44 yokota Exp $
+ * $Id: kbdio.c,v 1.1.2.6 1997/03/09 06:32:23 yokota Exp $
  */
 
 #include "sc.h"

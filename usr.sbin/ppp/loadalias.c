@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: loadalias.c,v 1.1.2.8 1998/04/25 09:17:50 brian Exp $
+ *	$Id: loadalias.c,v 1.1.2.9 1998/06/28 10:39:33 brian Exp $
  */
 
 #include <sys/param.h>

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_xenix.c,v 1.7 1996/03/28 19:53:20 swallace Exp $
+ *	$Id: ibcs2_xenix.c,v 1.7.4.1 1998/02/14 14:31:26 jkh Exp $
  */
 
 #include <sys/param.h>

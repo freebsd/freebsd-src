@@ -36,7 +36,7 @@
  *
  *	@(#)activate.c	8.2 (Berkeley) 3/27/94
  *
- * $Id: activate.c,v 1.1.1.1 1994/05/26 06:34:32 rgrimes Exp $
+ * $Id: activate.c,v 1.1.1.1.8.1 1998/07/17 20:13:32 jkh Exp $
  */
 
 #include <stdio.h>

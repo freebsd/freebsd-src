@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_fd.c,v 1.2.2.2 1998/02/13 01:35:55 julian Exp $
+ * $Id: uthread_fd.c,v 1.2.2.3 1998/05/26 22:11:30 jb Exp $
  *
  */
 #include <errno.h>

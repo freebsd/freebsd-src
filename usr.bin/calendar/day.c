@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: day.c,v 1.6.4.2 1997/06/24 06:49:25 charnier Exp $
+ *	$Id: day.c,v 1.6.4.3 1998/03/08 06:18:11 jkh Exp $
  */
 
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: defs.c,v 1.11.2.2 1998/03/09 13:51:59 jkh Exp $
+ *	$Id: defs.c,v 1.11.2.3 1998/03/13 03:25:16 brian Exp $
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1994/09/08 02:51:32 wollman Exp $
+#	$Id: Makefile,v 1.1.8.1 1997/06/29 06:05:24 pst Exp $
 
 LIB=		mrouted
 NOPROFILE=	yes

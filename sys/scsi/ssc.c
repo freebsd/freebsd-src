@@ -49,7 +49,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *End copyright
- * $Id: ssc.c,v 1.12 1996/03/28 16:51:12 scrappy Exp $
+ * $Id: ssc.c,v 1.12.6.1 1997/12/30 03:46:58 brian Exp $
  */
 
 #include <sys/types.h>

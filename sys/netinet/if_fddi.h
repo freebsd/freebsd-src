@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_fddi.h	8.1 (Berkeley) 6/10/93
- * $Id: if_fddi.h,v 1.3 1996/01/26 09:29:21 phk Exp $
+ * $Id: if_fddi.h,v 1.3.4.1 1997/02/08 15:13:45 joerg Exp $
  */
 
 #ifndef _NETINET_IF_FDDI_H_

@@ -54,7 +54,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: fpu_emu.h,v 1.3 1994/06/10 07:44:19 rich Exp $
+ *     $Id: fpu_emu.h,v 1.4 1996/09/10 08:23:37 bde Exp $
  *
  */
 

@@ -25,7 +25,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- * $Id$
+ * $Id: si3_t225.c,v 1.1.2.1 1998/03/23 19:36:25 peter Exp $
  */
 
 /* SI3_T225.C Version, Bootstrap and Download Code Arrays... */

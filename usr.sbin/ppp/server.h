@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: server.h,v 1.1.2.3 1998/01/26 20:05:18 brian Exp $
  */
 
 extern int server;

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)var.h	8.2 (Berkeley) 5/4/95
- *	$Id: var.h,v 1.3 1996/09/01 10:21:54 peter Exp $
+ *	$Id: var.h,v 1.3.2.1 1997/08/25 09:10:52 jkh Exp $
  */
 
 /*

@@ -1,7 +1,7 @@
 /*
  * dovend.c : Inserts all but the first few vendor options.
  *
- *	$Id$
+ *	$Id: dovend.c,v 1.2 1996/09/22 21:52:04 wosch Exp $
  */
 
 #include <sys/types.h>

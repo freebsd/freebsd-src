@@ -28,7 +28,7 @@
 # 
 # usage: mklocatedb [-presort] < filelist > database
 #
-# $Id: mklocatedb.sh,v 1.2.2.1 1997/12/13 18:21:02 sef Exp $
+# $Id: mklocatedb.sh,v 1.2.2.2 1998/07/17 04:19:11 jkh Exp $
 
 
 # The directory containing locate subprograms

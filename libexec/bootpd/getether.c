@@ -7,7 +7,7 @@
  * If you figure out how to do this on another system,
  * please let me know.  <gwr@mc.com>
  *
- *	$Id: getether.c,v 1.4.2.1 1997/12/24 18:58:02 imp Exp $
+ *	$Id: getether.c,v 1.4.2.2 1998/02/18 05:55:31 jkh Exp $
  */
 
 #include <sys/types.h>

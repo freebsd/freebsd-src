@@ -1,4 +1,4 @@
-$Id: majors.pc98,v 1.5.2.9 1998/03/11 15:28:46 kato Exp $
+$Id: majors.pc98,v 1.5.2.10 1998/05/04 00:58:33 kato Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.50.2.18 1998/07/06 09:05:32 julian Exp $
+ * $Id: ip_input.c,v 1.50.2.19 1998/07/08 08:51:38 dg Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 

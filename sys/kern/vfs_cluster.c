@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.38.2.1 1996/12/15 09:54:11 davidg Exp $
+ * $Id: vfs_cluster.c,v 1.38.2.2 1997/05/14 08:19:25 dfr Exp $
  */
 
 #include <sys/param.h>

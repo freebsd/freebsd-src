@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: sched.h,v 1.1 1998/03/08 02:17:26 jb Exp $
+ * $Id: sched.h,v 1.2.2.1 1998/04/30 06:59:23 tg Exp $
  *
  * POSIX 1003.1c scheduling definitions.
  *

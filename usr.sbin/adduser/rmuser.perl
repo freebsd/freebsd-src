@@ -30,7 +30,7 @@
 #
 # Guy Helmer <ghelmer@cs.iastate.edu>, 02/23/97
 #
-#	$Id: rmuser.perl,v 1.1 1996/11/17 03:51:33 wosch Exp $
+#	$Id: rmuser.perl,v 1.1.2.1 1997/07/28 11:45:19 wosch Exp $
 
 sub LOCK_SH {0x01;}
 sub LOCK_EX {0x02;}

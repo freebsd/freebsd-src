@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: throughput.c,v 1.4.2.1 1998/01/26 20:05:25 brian Exp $
  */
 
 #include <sys/param.h>

@@ -15,7 +15,7 @@
 # The University of Texas at Austin
 # Austin, Texas  78712
 #
-# $Id: apropos.sh,v 1.6 1996/09/14 23:20:33 wosch Exp $
+# $Id: apropos.sh,v 1.7 1996/09/27 17:36:50 wosch Exp $
 
 
 PATH=/bin:/usr/bin:$PATH

@@ -32,7 +32,7 @@
  *
  *	@(#)scanc.c	8.1 (Berkeley) 6/10/93
  *
- * $Id: scanc.c,v 1.4 1995/07/11 18:50:47 bde Exp $
+ * $Id: scanc.c,v 1.5 1996/08/31 16:52:32 bde Exp $
  */
 
 #include <sys/libkern.h>

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ps.c,v 1.13.2.2 1997/06/06 16:09:12 charnier Exp $
+ *	$Id: ps.c,v 1.13.2.3 1998/02/18 22:55:00 dima Exp $
  */
 
 #ifndef lint

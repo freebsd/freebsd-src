@@ -1,5 +1,5 @@
 /*	$NetBSD: if_media.c,v 1.1 1997/03/17 02:55:15 thorpej Exp $	*/
-/*	$Id: if_media.c,v 1.2 1997/05/03 20:58:10 peter Exp $ */
+/*	$Id: if_media.c,v 1.2.2.1 1997/06/30 10:59:14 peter Exp $ */
 
 /*
  * Copyright (c) 1997

@@ -1,4 +1,4 @@
-/*	$Id: ppp_deflate.c,v 1.11 1998/06/20 16:55:44 peter Exp $	*/
+/*	$Id: ppp_deflate.c,v 1.11.2.1 1998/06/23 21:33:21 peter Exp $	*/
 
 /*
  * ppp_deflate.c - interface the zlib procedures for Deflate compression

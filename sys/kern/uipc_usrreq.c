@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.15.4.1 1996/12/14 14:41:06 joerg Exp $
+ *	$Id: uipc_usrreq.c,v 1.15.4.2 1997/08/15 13:54:00 wollman Exp $
  */
 
 #include <sys/param.h>

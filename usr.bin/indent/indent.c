@@ -46,7 +46,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)indent.c	5.17 (Berkeley) 6/7/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: indent.c,v 1.1.1.1.8.1 1997/07/16 06:41:29 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
