@@ -101,22 +101,36 @@ Specify the maximum number of times a service can be invoked
 in one minute; the default is 256.
 .It Fl a
 Specify a specific IP address to bind to.
-Or a hostname can also be specified, and then an IP address and/or an
-IPv6 address corresponds to the hostname is used. Usually hostname
-specification is used in conjunction with
+Alternatively, a hostname can be specified,
+in which case the IPv4 or IPv6 address
+which corresponds to that hostname is used.
+Usually a hostname is specified when
+.Nm
+is run inside a
 .Xr jail 8 ,
-where the hostname corresponds to a jail environment.
-
-When hostname specification is used and either of IPv4 bind and IPv6
-bind is desired, you need to specify 2 entry for each service, one for
-IPv4 and one for IPv6, in /etc/inetd.conf.
+in which case the hostname corresponds to the
+.Xr jail 8
+environment.
+.Pp
+When hostname specification is used
+and both IPv4 and IPv6 bindings are desired,
+one entry with the appropriate
+.Em protocol
+type for each binding
+is required for each service in
+.Pa /etc/inetd.conf .
 For example,
-.Bd -literal
-telnet       stream  tcp4  nowait root  /usr/libexec/telnetd  telnetd
-telnet       stream  tcp6  nowait root  /usr/libexec/telnetd  telnetd
-.Ed
-
-See explanation for protocol field in /etc/inetd.conf for details.
+a TCP-based service would need two entries,
+one using
+.Dq tcp4
+for the
+.Em protocol
+and the other using
+.Dq tcp6 .
+See the explanation of the
+.Pa /etc/inetd.conf
+.Em protocol
+field below.
 .It Fl p
 Specify an alternate file in which to store the process ID.
 .El
@@ -236,42 +250,54 @@ must be a valid protocol as given in
 Examples might be
 .Dq tcp
 or
-.Dq udp .
-In this case, this entry only accept IPv4 to keep backword
-compatibility.
+.Dq udp ,
+both of which imply IPv4 for backward compatibility.
 The names
-.Dq tcp4 ,
+.Dq tcp4
+and
 .Dq udp4
-specialized the entry to IPv4 only.
+specify IPv4 only.
 The names
-.Dq tcp6 ,
+.Dq tcp6
+and
 .Dq udp6
-specialized the entry to IPv6 only.
+specify IPv6 only.
 The names
-.Dq tcp46 ,
+.Dq tcp46
+and
 .Dq udp46
-let the entry accept each of IPv4 and IPv6 via AF_INET6 wildcard binded socket.
+specify that the entry accepts both IPv6 and IPv6 connections
+via a wildcard
+.Dv AF_INET6
+socket.
 If it is desired that the service is reachable via T/TCP, one should
 specify
-.Dq tcp/ttcp .
-This entry only accept IPv4 to keep backword compatibility.
+.Dq tcp/ttcp ,
+which implies IPv4 for backward compatibility.
 The name
-.Dq tcp4/ttcp ,
-specialized the entry to IPv4 only.
+.Dq tcp4/ttcp
+specifies IPv4 only, while
+.Dq tcp6/ttcp
+specifies IPv6 only.
 The name
-.Dq tcp6/ttcp ,
-specialized the entry to IPv6 only.
-The name
-.Dq tcp46/ttcp ,
-let the entry accept each of IPv4 and IPv6 via AF_INET6 wildcard binded socket.
-Rpc based services are specified with the 
+.Dq tcp46/ttcp
+specify that the entry accepts both IPv6 and IPv6 connections
+via a wildcard
+.Dv AF_INET6
+socket.
+Rpc based services
+(for which only IPv4 is supported at this time)
+are specified with the 
 .Dq rpc/tcp
 or 
 .Dq rpc/udp 
 service type.
-Currently only IPv4 is supported for rpc services.
 TCPMUX services must use 
-.Dq tcp .
+.Dq tcp ,
+.Dq tcp4 ,
+.Dq tcp6
+or
+.Dq tcp46 .
 .Pp
 The
 .Em wait/nowait
@@ -477,9 +503,6 @@ in
 tcpmux	stream	tcp	nowait	root	internal
 .Ed
 .Pp
-Or if you wish to provide TCPMUX services also over IPv6, you can
-specify tcp46 or tcp6 instead of tcp above.
-.Pp
 When given the
 .Fl l
 option
@@ -546,8 +569,7 @@ as specified in
 should be used as the daemon name for
 .Dq internal
 services.
-.Sh TCPMUX
-.Pp
+.Ss TCPMUX
 .Tn RFC 1078 
 describes the TCPMUX protocol:
 ``A TCP client connects to a foreign host on TCP port 1.  It sends the
@@ -572,30 +594,29 @@ causes
 .Nm
 to list TCPMUX services in
 .Pa inetd.conf .
-.Sh IPSEC
-The implementation includes tiny hack to support IPsec policy setting for
-each of the socket.
+.Ss IPsec
+The implementation includes a tiny hack
+to support IPsec policy settings for each socket.
 A special form of comment line, starting with
-.Dq Li "#@" ,
-will work as policy specifier.
-The content of the above comment line will be treated as IPsec policy string,
+.Dq Li #@ ,
+is interpreted as a policy specifier.
+Everything after the
+.Dq Li #@
+will be used as an IPsec policy string,
 as described in
 .Xr ipsec_set_policy 3 .
-A
-.Li "#@"
-line will affect all the following lines in
-.Pa inetd.conf ,
-so you may want to reset IPsec policy by using a comment line with
-.Li "#@"
-only
-.Pq with no policy string .
+Each
+policy specifier is applied to all the following lines in
+.Pa inetd.conf
+until the next policy specifier.
+An empty policy specifer resets the IPsec policy.
 .Pp
-If invalid IPsec policy string appears on
+If an invalid IPsec policy specifier appears in
 .Pa inetd.conf ,
 .Nm
-will leave error message using
-.Xr syslog 3 ,
-and terminates itself.
+will provide an error message via the
+.Xr syslog 3
+interface and abort execution.
 .Sh "FILES"
 .Bl -tag -width /var/run/inetd.pid -compact
 .It Pa /etc/inetd.conf
@@ -736,8 +757,8 @@ based services is modeled after that
 provided by
 .Tn SunOS
 4.1.
-IPsec hack was made by KAME project, in 1999.
+The IPsec hack was contributed by the KAME project in 1999.
 The
-.Tn FreeBSD
+.Fx
 TCP Wrappers support first appeared in 
 .Fx 3.2 .
