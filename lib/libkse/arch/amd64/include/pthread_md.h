@@ -62,8 +62,10 @@ struct kcb {
 };
 
 struct tcb {
-	struct tdv		*tcb_tdv;
+	struct tcb		*tcb_self;	/* required by rtld */
+	void			*tcb_dtv;	/* required by rtld */
 	struct pthread		*tcb_thread;
+	void			*tcb_spare[1];	/* align tcb_tmbx to 16 bytes */
 	struct kse_thr_mailbox	tcb_tmbx;
 };
 
@@ -138,7 +140,7 @@ __kcb_readandclear64(volatile u_long *addr)
 /*
  * The constructors.
  */
-struct tcb	*_tcb_ctor(struct pthread *);
+struct tcb	*_tcb_ctor(struct pthread *, int);
 void		_tcb_dtor(struct tcb *tcb);
 struct kcb	*_kcb_ctor(struct kse *);
 void		_kcb_dtor(struct kcb *);
