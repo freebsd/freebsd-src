@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <grp.h>
 #include <login_cap.h>
+#include <paths.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,6 +28,7 @@
 #include <unistd.h>
 
 static void	usage(void);
+extern char	**environ;
 
 #define GET_USER_INFO do {						\
 	pwd = getpwnam(username);					\
@@ -51,13 +53,17 @@ main(int argc, char **argv)
 	struct jail j;
 	struct passwd *pwd;
 	struct in_addr in;
-	int ch, groups[NGROUPS], ngroups, uflag, Uflag;
+	int ch, groups[NGROUPS], lflag, ngroups, uflag, Uflag;
 	char *username;
+	static char *cleanenv;
+	const char *shell, *p;
 
 	uflag = Uflag = 0;
 	username = NULL;
+	lflag = uflag = Uflag = 0;
+	username = cleanenv = NULL;
 
-	while ((ch = getopt(argc, argv, "u:U:")) != -1) {
+	while ((ch = getopt(argc, argv, "lu:U:")) != -1) {
 		switch (ch) {
 		case 'u':
 			username = optarg;
@@ -66,6 +72,9 @@ main(int argc, char **argv)
 		case 'U':
 			username = optarg;
 			Uflag = 1;
+			break;
+		case 'l':
+			lflag = 1;
 			break;
 		default:
 			usage();
@@ -77,6 +86,8 @@ main(int argc, char **argv)
 	if (argc < 4)
 		usage();
 	if (uflag && Uflag)
+		usage();
+	if (lflag && username == NULL)
 		usage();
 	if (uflag)
 		GET_USER_INFO;
@@ -94,6 +105,10 @@ main(int argc, char **argv)
 	if (username != NULL) {
 		if (Uflag)
 			GET_USER_INFO;
+		if (lflag) {
+			p = getenv("TERM");
+			environ = &cleanenv;
+		}
 		if (setgroups(ngroups, groups) != 0)
 			err(1, "setgroups");
 		if (setgid(pwd->pw_gid) != 0)
@@ -102,6 +117,19 @@ main(int argc, char **argv)
 		    LOGIN_SETALL & ~LOGIN_SETGROUP) != 0)
 			err(1, "setusercontext");
 		login_close(lcap);
+	}
+	if (lflag) {
+		if (*pwd->pw_shell)
+			shell = pwd->pw_shell;
+		else
+			shell = _PATH_BSHELL;
+		if (chdir(pwd->pw_dir) < 0)
+			errx(1, "no home directory");
+		setenv("HOME", pwd->pw_dir, 1);
+		setenv("SHELL", shell, 1);
+		setenv("USER", pwd->pw_name, 1);
+		if (p)
+			setenv("TERM", p, 1);
 	}
 	if (execv(argv[3], argv + 3) != 0)
 		err(1, "execv: %s", argv[3]);
@@ -113,7 +141,7 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s%s\n",
-	     "usage: jail [-u username | -U username]",
+	     "usage: jail [-l -u username | -U username]",
 	     " path hostname ip-number command ...");
 	exit(1);
 }

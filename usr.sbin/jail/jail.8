@@ -41,7 +41,7 @@
 .Nd "imprison process and its descendants"
 .Sh SYNOPSIS
 .Nm
-.Op Fl u Ar username | Fl U Ar username
+.Op Fl l Fl u Ar username | Fl U Ar username
 .Ar path hostname ip-number command ...
 .Sh DESCRIPTION
 The
@@ -50,6 +50,24 @@ command imprisons a process and all future descendants.
 .Pp
 The options are as follows:
 .Bl -tag -width ".Fl u Ar username"
+.It Fl l
+Run program in the clean environment.
+The environment is discarded except for
+.Ev HOME ,
+.Ev SHELL ,
+.Ev TERM
+and
+.Ev USER .
+.Ev HOME
+and
+.Ev SHELL
+are set to the target login's default values.
+.Ev USER
+is set to the target login.
+.Ev TERM
+is imported from your current environment.
+The environment variables from the login class capability database for the
+target login are also set.
 .It Fl u Ar username
 The user name from host environment as whom the
 .Ar command
