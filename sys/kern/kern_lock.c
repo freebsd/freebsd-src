@@ -335,12 +335,8 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 			error = acquire(&lkp, extflags, LK_SHARE_NONZERO);
 			lkp->lk_flags &= ~LK_WANT_UPGRADE;
 
-			if (error) {
-			         if ((lkp->lk_flags & ( LK_WANT_EXCL | LK_WAIT_NONZERO)) == (LK_WANT_EXCL | LK_WAIT_NONZERO))
-			                   wakeup((void *)lkp);
-			         break;
-			}
-
+			if (error)
+				break;
 			lkp->lk_flags |= LK_HAVE_EXCL;
 			lkp->lk_lockholder = thr;
 			if (lkp->lk_exclusivecount != 0)
@@ -386,20 +382,17 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 		/*
 		 * Try to acquire the want_exclusive flag.
 		 */
-		error = acquire(&lkp, extflags,  LK_WANT_EXCL);
+		error = acquire(&lkp, extflags, (LK_HAVE_EXCL | LK_WANT_EXCL));
 		if (error)
 			break;
 		lkp->lk_flags |= LK_WANT_EXCL;
 		/*
 		 * Wait for shared locks and upgrades to finish.
 		 */
-		error = acquire(&lkp, extflags, LK_HAVE_EXCL | LK_WANT_UPGRADE | LK_SHARE_NONZERO);
+		error = acquire(&lkp, extflags, LK_WANT_UPGRADE | LK_SHARE_NONZERO);
 		lkp->lk_flags &= ~LK_WANT_EXCL;
-		if (error) {
-			if (lkp->lk_flags & LK_WAIT_NONZERO)		
-			         wakeup((void *)lkp);
+		if (error)
 			break;
-		}	
 		lkp->lk_flags |= LK_HAVE_EXCL;
 		lkp->lk_lockholder = thr;
 		if (lkp->lk_exclusivecount != 0)
