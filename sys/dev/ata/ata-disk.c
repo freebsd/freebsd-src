@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-disk.c,v 1.4 1999/03/07 21:49:14 sos Exp $
+ *	$Id: ata-disk.c,v 1.5 1999/03/28 18:57:18 sos Exp $
  */
 
 #include "ata.h"
@@ -370,12 +370,14 @@ printf("adstrategy: entered\n");
 	|| bp->b_bcount % DEV_BSIZE != 0) {
         bp->b_error = EINVAL; 
         bp->b_flags |= B_ERROR;
-        goto done;
+        biodone(bp);
+	return;
     }
 
-    if (dscheck(bp, adp->slices) <= 0)
-        goto done;
-
+    if (dscheck(bp, adp->slices) <= 0) {
+	biodone(bp);
+	return;
+    }
 
     /* hang around if somebody else is labelling */
     if (adp->flags & AD_F_LABELLING)
@@ -392,11 +394,6 @@ printf("adstrategy: entered\n");
 
     splx(s);
     return;
-
-done:                           
-    s = splbio();   
-    biodone(bp);
-    splx(s);
 }
 
 static int
@@ -665,7 +662,7 @@ ad_version(u_int16_t version)
 static void 
 ad_drvinit(void)
 {
-    static ad_devsw_installed = 0;
+    static int32_t ad_devsw_installed = 0;
 
     if (!ad_devsw_installed) {
         cdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &ad_cdevsw);
