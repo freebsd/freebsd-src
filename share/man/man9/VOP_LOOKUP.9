@@ -98,14 +98,14 @@ is specified, information usable in
 creating, renaming, or deleting a directory entry may be calculated.
 .Pp
 Overall outline of VOP_LOOKUP:
-.Bd -filled -offset indent
+.Bd -ragged -offset indent
 Check accessibility of directory.
 Look for name in cache, if found, then return name.
 Search for name in directory, goto to found or notfound as appropriate.
 .Ed
 .Pp
 notfound:
-.Bd -filled -offset indent
+.Bd -ragged -offset indent
 If creating or renaming and at end of pathname,
 return
 .Er EJUSTRETURN ,
@@ -114,7 +114,7 @@ leaving info on available slots else return
 .Ed
 .Pp
 found:
-.Bd -filled -offset indent
+.Bd -ragged -offset indent
 If at end of path and deleting, return information to allow delete.
 If at end of path and renaming, lock target
 inode and return info to allow rename.

@@ -179,8 +179,7 @@ channel selection, diversity, transmit power and transmit speed.
 .It Fl i Ar iface Fl t Ar 0|1|2|3|4
 Select transmit speed.
 The available settings are as follows:
-.Bd -filled -offset indent
-.Bl -column "TX rate " "NIC speed "
+.Bl -column "TX rate " "NIC speed " -offset indent
 .Em "TX rate	NIC speed"
 0	Auto -- NIC selects optimal speed
 1	1Mbps fixed
@@ -188,22 +187,19 @@ The available settings are as follows:
 3	5.5Mbps fixed
 4	11Mbps fixed
 .El
-.Ed
 .Pp
 Note that the 5.5 and 11Mbps settings are only supported on the 4800
 series adapters: the 4500 series adapters have a maximum speed of 2Mbps.
 .It Fl i Ar iface Fl s Ar 0|1|2|3
 Set power save mode.
 Valid selections are as follows:
-.Bd -filled -offset indent
-.Bl -column "Selection " "Power save mode "
+.Bl -column "Selection " "Power save mode " -offset indent
 .Em "Selection	Power save mode"
 0	None - power save disabled
 1	Constantly awake mode (CAM)
 2	Power Save Polling (PSP)
 3	Fast Power Save Polling (PSP-CAM)
 .El
-.Ed
 .Pp
 Note that for IBSS (ad-hoc) mode, only PSP mode is supported, and only
 if the ATIM window is non-zero.
@@ -242,15 +238,13 @@ Aironet devices can be configured with up
 to two antennas, and transmit and receive diversity can be configured
 accordingly.
 Valid selections are as follows:
-.Bd -filled -offset indent
-.Bl -column "Selection " "Diversity "
+.Bl -column "Selection " "Diversity " -offset indent
 .Em "Selection	Diversity"
 0	Select factory default diversity
 1	Antenna 1 only
 2	Antenna 2 only
 3	Antenna 1 and 2
 .El
-.Ed
 .Pp
 The receive and transmit diversity can be set independently.
 The user
@@ -363,8 +357,7 @@ Recognized regulatory authorities include
 the FCC (United States), ETSI (Europe), France and Japan.
 Frequencies
 in the table are specified in Mhz.
-.Bd -filled -offset indent
-.Bl -column "Channel ID " "FCC " "ETSI " "France " "Japan "
+.Bl -column "Channel ID " "FCC " "ETSI " "France " "Japan " -offset indent
 .Em "Channel ID	FCC	ETSI	France	Japan"
 1	2412	2412	-	-
 2	2417	2417	-	-
@@ -381,7 +374,6 @@ in the table are specified in Mhz.
 13	-	2472	2472	-
 14	-	-	-	2484
 .El
-.Ed
 .Pp
 If an illegal channel is specified, the
 NIC will revert to its default channel.

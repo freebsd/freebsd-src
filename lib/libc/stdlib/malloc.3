@@ -297,7 +297,7 @@ function returns no value.
 The major difference between this implementation and other allocation
 implementations is that the free pages are not accessed unless allocated,
 and are aggressively returned to the kernel for reuse.
-.Bd -filled -offset indent
+.Bd -ragged -offset indent
 Most allocation implementations will store a data structure containing a
 linked list in the free chunks of memory,
 used to tie all the free memory together.
