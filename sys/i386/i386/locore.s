@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.22 1994/09/02 01:29:20 davidg Exp $
+ *	$Id: locore.s,v 1.23 1994/09/04 00:33:00 davidg Exp $
  */
 
 /*
@@ -213,6 +213,36 @@ NON_GPROF_ENTRY(btext)
 	testl	%eax,%eax
 	jnz	1f
 	movl	$CPU_486,_cpu-KERNBASE
+
+	/* check for Cyrix 486DLC -- based on check routine  */
+	/* documented in "Cx486SLC/e SMM Programmer's Guide" */
+	xorw	%dx,%dx
+	cmpw	%dx,%dx			# set flags to known state
+	pushfw
+	popw	%cx			# store flags in ecx
+	movw	$0xffff,%ax
+	movw	$0x0004,%bx
+	divw	%bx
+	pushfw
+	popw	%ax
+	andw	$0x08d5,%ax		# mask off important bits
+	andw	$0x08d5,%cx
+	cmpw	%ax,%cx
+
+	jnz	2f			# if flags changed, Intel chip
+
+	movl	$CPU_486DLC,_cpu-KERNBASE # set CPU value for Cyrix
+	movl	$0x69727943,_cpu_vendor-KERNBASE	# store vendor string
+	movw	$0x0078,_cpu_vendor-KERNBASE+4
+
+	invd				# Start with guaranteed clean cache
+	/* Disable caching of the ISA hole only. */
+	movb	$CCR0,%al		# Configuration Register index (CCR0)
+	outb	%al,$0x22
+	inb	$0x23,%al 
+	orb	$CCR0_NC1,%al
+	outb	%al,$0x23
+	invd
 	jmp	2f
 
 1:	/* Use the `cpuid' instruction. */
