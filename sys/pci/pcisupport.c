@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.107 1999/05/08 21:59:41 dfr Exp $
+**  $Id: pcisupport.c,v 1.108 1999/05/09 16:32:00 peter Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -1108,8 +1108,6 @@ chip_match(device_t dev)
 	/* XXX New info added-in */
         case 0x05711106:
 		return("VIA 82C586B IDE controller");
-	case 0x30381106:
-		return("VIA 82C586B USB controller");
 #endif
 
 	/* NEC -- vendor 0x1033 */
