@@ -1,0 +1,126 @@
+# Commands covered:  lsort
+#
+# This file contains a collection of tests for one or more of the Tcl
+# built-in commands.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1991-1993 The Regents of the University of California.
+# Copyright (c) 1994 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) lsort.test 1.8 96/02/16 08:56:17
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+test lsort-1.1 {lsort command} {
+    lsort {abdeq ab 1 ac a}
+} {1 a ab abdeq ac}
+test lsort-1.2 {lsort command} {
+    lsort -decreasing {abdeq ab 1 ac a}
+} {ac abdeq ab a 1}
+test lsort-1.3 {lsort command} {
+    lsort -increasing {abdeq ab 1 ac a}
+} {1 a ab abdeq ac}
+test lsort-1.4 {lsort command} {
+    lsort {{one long element}}
+} {{one long element}}
+test lsort-1.5 {lsort command} {
+    lsort {}
+} {}
+test lsort-1.6 {lsort with characters needing backslashes} {
+    lsort {$ \\ [] \{}
+} {{$} {[]} \\ \{}
+
+test lsort-2.1 {lsort -integer} {
+    lsort -integer -inc {1 180 62 040 180 -42 33 0x40}
+} {-42 1 040 33 62 0x40 180 180}
+test lsort-2.2 {lsort -integer} {
+    lsort -int -dec {1 180 62 040 180 -42 33 0x40}
+} {180 180 0x40 62 33 040 1 -42}
+test lsort-2.3 {lsort -integer} {
+    list [catch {lsort -integer {xxx 180.2 62 040 180 -42 33 0x40}} msg] $msg $errorInfo
+} {1 {expected integer but got "xxx"} {expected integer but got "xxx"
+    (converting list element from string to integer)
+    invoked from within
+"lsort -integer {xxx 180.2 62 040 180 -42 33 0x40}"}}
+test lsort-2.4 {lsort -integer} {
+    list [catch {lsort -integer {1 180.2 62 040 180 -42 33 0x40}} msg] $msg $errorInfo
+} {1 {expected integer but got "180.2"} {expected integer but got "180.2"
+    (converting list element from string to integer)
+    invoked from within
+"lsort -integer {1 180.2 62 040 180 -42 33 0x40}"}}
+
+test lsort-3.1 {lsort -real} {
+    lsort -real {1 180.1 62 040 180 -42.7 33}
+} {-42.7 1 33 040 62 180 180.1}
+test lsort-3.2 {lsort -real} {
+    lsort -r -d {1 180.1 62 040 180 -42.7 33}
+} {180.1 180 62 040 33 1 -42.7}
+test lsort-3.3 {lsort -real} {
+    list [catch {lsort -real -inc {xxx 20 62 180 -42.7 33}} msg] $msg $errorInfo
+} {1 {expected floating-point number but got "xxx"} {expected floating-point number but got "xxx"
+    (converting list element from string to real)
+    invoked from within
+"lsort -real -inc {xxx 20 62 180 -42.7 33}"}}
+test lsort-3.4 {lsort -real} {
+    list [catch {lsort -real -inc {1 0x40 62 180 -42.7 33}} msg] $msg $errorInfo
+} {1 {expected floating-point number but got "0x40"} {expected floating-point number but got "0x40"
+    (converting list element from string to real)
+    invoked from within
+"lsort -real -inc {1 0x40 62 180 -42.7 33}"}}
+
+proc lsort1 {a b} {
+    expr {2*([string match x* $a] - [string match x* $b])
+	    + [string match *y $a] - [string match *y $b]}
+}
+proc lsort2 {a b} {
+    error "comparison error"
+}
+proc lsort3 {a b} {
+    concat "foobar"
+}
+
+test lsort-4.1 {lsort -command} {
+    lsort -command lsort1 {xxx yyy abc {xx y}}
+} {abc yyy xxx {xx y}}
+test lsort-4.2 {lsort -command} {
+    lsort -command lsort1 -dec {xxx yyy abc {xx y}}
+} {{xx y} xxx yyy abc}
+test lsort-4.3 {lsort -command} {
+    list [catch {lsort -command lsort2 -dec {1 1 1 1}} msg] $msg $errorInfo
+} {1 {comparison error} {comparison error
+    while executing
+"error "comparison error""
+    (procedure "lsort2" line 2)
+    invoked from within
+"lsort2 1 1"
+    (user-defined comparison command)
+    invoked from within
+"lsort -command lsort2 -dec {1 1 1 1}"}}
+test lsort-4.4 {lsort -command} {
+    list [catch {lsort -command lsort3 -dec {1 2 3 4}} msg] $msg $errorInfo
+} {1 {comparison command returned non-numeric result} {comparison command returned non-numeric result
+    while executing
+"lsort -command lsort3 -dec {1 2 3 4}"}}
+test lsort-4.5 {lsort -command} {
+    list [catch {lsort -command {xxx yyy xxy abc}} msg] $msg
+} {1 {"-command" must be followed by comparison command}}
+
+test lsort-5.1 {lsort errors} {
+    list [catch lsort msg] $msg
+} {1 {wrong # args: should be "lsort ?-ascii? ?-integer? ?-real? ?-increasing? ?-decreasing? ?-command string? list"}}
+test lsort-5.2 {lsort errors} {
+    list [catch {lsort a b} msg] $msg
+} {1 {bad switch "a": must be -ascii, -integer, -real, -increasing -decreasing, or -command}}
+test lsort-5.3 {lsort errors} {
+    list [catch {lsort "\{"} msg] $msg
+} {1 {unmatched open brace in list}}
+test lsort-5.4 {lsort errors} {
+    list [catch {lsort -in {1 180.0 040 62 180 -42.7 33}} msg] $msg
+} {1 {bad switch "-in": must be -ascii, -integer, -real, -increasing -decreasing, or -command}}
+test lsort-5.5 {lsort errors: disallow recursion} {
+    proc x args {lsort {a b c}}
+    list [catch {lsort -command x {3 7}} msg] $msg
+} {1 {can't invoke "lsort" recursively}}

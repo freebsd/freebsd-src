@@ -1,0 +1,211 @@
+# Commands covered:  foreach, for, continue, break
+#
+# This file contains a collection of tests for one or more of the Tcl
+# built-in commands.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1991-1993 The Regents of the University of California.
+# Copyright (c) 1994 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) for.test 1.11 96/02/16 08:55:55
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+# Basic "foreach" operation.
+
+test for-1.1 {basic foreach tests} {
+    set a {}
+    foreach i {a b c d} {
+	set a [concat $a $i]
+    }
+    set a
+} {a b c d}
+test for-1.2 {basic foreach tests} {
+    set a {}
+    foreach i {a b {{c d} e} {123 {{x}}}} {
+	set a [concat $a $i]
+    }
+    set a
+} {a b {c d} e 123 {{x}}}
+test for-1.3 {basic foreach tests} {catch {foreach} msg} 1
+test for-1.4 {basic foreach tests} {
+    catch {foreach} msg
+    set msg
+} {wrong # args: should be "foreach varList list ?varList list ...? command"}
+test for-1.5 {basic foreach tests} {catch {foreach i} msg} 1
+test for-1.6 {basic foreach tests} {
+    catch {foreach i} msg
+    set msg
+} {wrong # args: should be "foreach varList list ?varList list ...? command"}
+test for-1.7 {basic foreach tests} {catch {foreach i j} msg} 1
+test for-1.8 {basic foreach tests} {
+    catch {foreach i j} msg
+    set msg
+} {wrong # args: should be "foreach varList list ?varList list ...? command"}
+test for-1.9 {basic foreach tests} {catch {foreach i j k l} msg} 1
+test for-1.10 {basic foreach tests} {
+    catch {foreach i j k l} msg
+    set msg
+} {wrong # args: should be "foreach varList list ?varList list ...? command"}
+test for-1.11 {basic foreach tests} {
+    set a {}
+    foreach i {} {
+	set a [concat $a $i]
+    }
+    set a
+} {}
+test for-1.11 {foreach errors} {
+    list [catch {foreach {{a}{b}} {1 2 3} {}} msg] $msg
+} {1 {list element in braces followed by "{b}" instead of space}}
+test for-1.12 {foreach errors} {
+    list [catch {foreach a {{1 2}3} {}} msg] $msg
+} {1 {list element in braces followed by "3" instead of space}}
+catch {unset a}
+test for-1.13 {foreach errors} {
+    catch {unset a}
+    set a(0) 44
+    list [catch {foreach a {1 2 3} {}} msg] $msg
+} {1 {couldn't set loop variable: "a"}}
+catch {unset a}
+test for-1.14 {parallel foreach tests} {
+    set x {}
+    foreach {a b} {1 2 3 4} {
+	append x $b $a
+    }
+    set x
+} {2143}
+test for-1.15 {parallel foreach tests} {
+    set x {}
+    foreach {a b} {1 2 3 4 5} {
+	append x $b $a
+    }
+    set x
+} {21435}
+test for-1.16 {parallel foreach tests} {
+    set x {}
+    foreach a {1 2 3} b {4 5 6} {
+	append x $b $a
+    }
+    set x
+} {415263}
+test for-1.17 {parallel foreach tests} {
+    set x {}
+    foreach a {1 2 3} b {4 5 6 7 8} {
+	append x $b $a
+    }
+    set x
+} {41526378}
+test for-1.18 {parallel foreach tests} {
+    set x {}
+    foreach {a b} {a b A B aa bb} c {c C cc CC} {
+	append x $a $b $c
+    }
+    set x
+} {abcABCaabbccCC}
+test for-1.19 {parallel foreach tests} {
+    set x {}
+    foreach a {1 2 3} b {1 2 3} c {1 2 3} d {1 2 3} e {1 2 3} {
+	append x $a $b $c $d $e
+    }
+    set x
+} {111112222233333}
+test for-1.20 {parallel foreach tests} {
+    set x {}
+    foreach a {} b {1 2 3} c {1 2} d {1 2 3 4} e {{1 2}} {
+	append x $a $b $c $d $e
+    }
+    set x
+} {1111 2222334}
+
+# Check "continue".
+
+test for-2.1 {continue tests} {catch continue} 4
+test for-2.2 {continue tests} {
+    set a {}
+    foreach i {a b c d} {
+	if {[string compare $i "b"] == 0} continue
+	set a [concat $a $i]
+    }
+    set a
+} {a c d}
+test for-2.3 {continue tests} {
+    set a {}
+    foreach i {a b c d} {
+	if {[string compare $i "b"] != 0} continue
+	set a [concat $a $i]
+    }
+    set a
+} {b}
+test for-2.4 {continue tests} {catch {continue foo} msg} 1
+test for-2.5 {continue tests} {
+    catch {continue foo} msg
+    set msg
+} {wrong # args: should be "continue"}
+
+# Check "break".
+
+test for-3.1 {break tests} {catch break} 3
+test for-3.2 {break tests} {
+    set a {}
+    foreach i {a b c d} {
+	if {[string compare $i "c"] == 0} break
+	set a [concat $a $i]
+    }
+    set a
+} {a b}
+test for-3.3 {break tests} {catch {break foo} msg} 1
+test for-3.4 {break tests} {
+    catch {break foo} msg
+    set msg
+} {wrong # args: should be "break"}
+
+# Check "for" and its use of continue and break.
+
+test for-4.1 {for tests} {
+    set a {}
+    for {set i 1} {$i<6} {set i [expr $i+1]} {
+	set a [concat $a $i]
+    }
+    set a
+} {1 2 3 4 5}
+test for-4.2 {for tests} {
+    set a {}
+    for {set i 1} {$i<6} {set i [expr $i+1]} {
+	if $i==4 continue
+	set a [concat $a $i]
+    }
+    set a
+} {1 2 3 5}
+test for-4.3 {for tests} {
+    set a {}
+    for {set i 1} {$i<6} {set i [expr $i+1]} {
+	if $i==4 break
+	set a [concat $a $i]
+    }
+    set a
+} {1 2 3}
+test for-4.4 {for tests} {catch {for 1 2 3} msg} 1
+test for-4.5 {for tests} {
+    catch {for 1 2 3} msg
+    set msg
+} {wrong # args: should be "for start test next command"}
+test for-4.6 {for tests} {catch {for 1 2 3 4 5} msg} 1
+test for-4.7 {for tests} {
+    catch {for 1 2 3 4 5} msg
+    set msg
+} {wrong # args: should be "for start test next command"}
+test for-4.8 {for tests} {
+    set a {xyz}
+    for {set i 1} {$i<6} {set i [expr $i+1]} {}
+    set a
+} xyz
+test for-4.9 {for tests} {
+    set a {}
+    for {set i 1} {$i<6} {set i [expr $i+1]; if $i==4 break} {
+	set a [concat $a $i]
+    }
+    set a
+} {1 2 3}

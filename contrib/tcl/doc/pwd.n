@@ -1,0 +1,25 @@
+'\"
+'\" Copyright (c) 1993 The Regents of the University of California.
+'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\"
+'\" See the file "license.terms" for information on usage and redistribution
+'\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+'\" 
+'\" SCCS: @(#) pwd.n 1.5 96/03/25 20:21:30
+'\" 
+.so man.macros
+.TH pwd n "" Tcl "Tcl Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+pwd \- Return the current working directory
+.SH SYNOPSIS
+\fBpwd\fR
+.BE
+
+.SH DESCRIPTION
+.PP
+Returns the path name of the current working directory.
+
+.SH KEYWORDS
+working directory

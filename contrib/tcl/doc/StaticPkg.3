@@ -1,0 +1,67 @@
+'\"
+'\" Copyright (c) 1995-1996 Sun Microsystems, Inc.
+'\"
+'\" See the file "license.terms" for information on usage and redistribution
+'\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+'\" 
+'\" SCCS: @(#) StaticPkg.3 1.3 96/03/15 08:29:37
+'\" 
+.so man.macros
+.TH Tcl_StaticPackage 3 7.5 Tcl "Tcl Library Procedures"
+.BS
+.SH NAME
+Tcl_StaticPackage \- make a statically linked package available via the \fBload\fR command
+.SH SYNOPSIS
+.nf
+\fB#include <tcl.h>\fR
+.sp
+\fBTcl_StaticPackage\fR(\fIinterp, pkgName, initProc, safeInitProc\fR)
+.SH ARGUMENTS
+.AS Tcl_PackageInitProc *safeInitProc
+.AP Tcl_Interp *interp in
+If not NULL, points to an interpreter into which the package has
+already been loaded (i.e., the caller has already invoked the
+appropriate initialization procedure).  NULL means the package
+hasn't yet been incorporated into any interpreter.
+.AP char *pkgName in
+Name of the package;  should be properly capitalized (first letter
+upper-case, all others lower-case).
+.AP Tcl_PackageInitProc *initProc in
+Procedure to invoke to incorporate this package into a trusted
+interpreter.
+.AP Tcl_PackageInitProc *safeInitProc in
+Procedure to call to incorporate this package into a safe interpreter
+(one that will execute untrusted scripts).   NULL means the package
+can't be used in safe interpreters.
+.BE
+
+.SH DESCRIPTION
+.PP
+This procedure may be invoked to announce that a package has been
+linked statically with a Tcl application and,  optionally, that it
+has already been loaded into an interpreter.
+\fBTcl_StaticPackage\fR is typically invoked by the \fBTcl_AppInit\fR
+procedure for the application.
+Once \fBTcl_StaticPackage\fR has been invoked for a package, it
+may be loaded into interpreters using the \fBload\fR command.
+.PP
+When the \fBload\fR command is used later to load the package into
+an interpreter, one of \fIinitProc\fR and \fIsafeInitProc\fR will
+be invoked, depending on whether the target interpreter is safe
+or not.
+\fIinitProc\fR and \fIsafeInitProc\fR must both match the
+following prototype:
+.CS
+typedef int Tcl_PackageInitProc(Tcl_Interp *\fIinterp\fR);
+.CE
+The \fIinterp\fR argument identifies the interpreter in which the
+package is to be loaded.  The initialization procedure must return
+\fBTCL_OK\fR or \fBTCL_ERROR\fR to indicate whether or not it completed
+successfully;  in the event of an error it should set \fIinterp->result\fR
+to point to an error message.
+The result or error from the initialization procedure will be returned
+as the result of the \fBload\fR command that caused the
+initialization procedure to be invoked.
+
+.SH KEYWORDS
+initialization procedure, package, static linking

@@ -1,0 +1,709 @@
+#!/bin/sh
+# This script is invoked when installing manual entries.  It generates
+# additional links to manual entries, corresponding to the procedure
+# and command names described by the manual entry.  For example, the
+# Tcl manual entry Hash.3 describes procedures Tcl_InitHashTable,
+# Tcl_CreateHashEntry, and many more.  This script will make hard
+# links so that Tcl_InitHashTable.3, Tcl_CreateHashEntry.3, and so
+# on all refer to Hash.3 in the installed directory.
+#
+# Because of the length of command and procedure names, this mechanism
+# only works on machines that support file names longer than 14 characters.
+# This script checks to see if long file names are supported, and it
+# doesn't make any links if they are not.
+#
+# The script takes one argument, which is the name of the directory
+# where the manual entries have been installed.
+
+if test $# != 1; then
+    echo "Usage: mkLinks dir"
+    exit 1
+fi
+
+echo foo >  xyzzyTestingAVeryLongFileName.foo
+x=`echo xyzzyTe*`
+rm xyzzyTe*
+if test "$x" != "xyzzyTestingAVeryLongFileName.foo"; then
+    exit
+fi
+if test -r $1/AddErrInfo.3; then
+    rm -f $1/Tcl_AddErrorInfo.3
+    ln $1/AddErrInfo.3 $1/Tcl_AddErrorInfo.3
+fi
+if test -r $1/AllowExc.3; then
+    rm -f $1/Tcl_AllowExceptions.3
+    ln $1/AllowExc.3 $1/Tcl_AllowExceptions.3
+fi
+if test -r $1/AppInit.3; then
+    rm -f $1/Tcl_AppInit.3
+    ln $1/AppInit.3 $1/Tcl_AppInit.3
+fi
+if test -r $1/SetResult.3; then
+    rm -f $1/Tcl_AppendElement.3
+    ln $1/SetResult.3 $1/Tcl_AppendElement.3
+fi
+if test -r $1/SetResult.3; then
+    rm -f $1/Tcl_AppendResult.3
+    ln $1/SetResult.3 $1/Tcl_AppendResult.3
+fi
+if test -r $1/Async.3; then
+    rm -f $1/Tcl_AsyncCreate.3
+    ln $1/Async.3 $1/Tcl_AsyncCreate.3
+fi
+if test -r $1/Async.3; then
+    rm -f $1/Tcl_AsyncDelete.3
+    ln $1/Async.3 $1/Tcl_AsyncDelete.3
+fi
+if test -r $1/Async.3; then
+    rm -f $1/Tcl_AsyncInvoke.3
+    ln $1/Async.3 $1/Tcl_AsyncInvoke.3
+fi
+if test -r $1/Async.3; then
+    rm -f $1/Tcl_AsyncMark.3
+    ln $1/Async.3 $1/Tcl_AsyncMark.3
+fi
+if test -r $1/BackgdErr.3; then
+    rm -f $1/Tcl_BackgroundError.3
+    ln $1/BackgdErr.3 $1/Tcl_BackgroundError.3
+fi
+if test -r $1/Backslash.3; then
+    rm -f $1/Tcl_Backslash.3
+    ln $1/Backslash.3 $1/Tcl_Backslash.3
+fi
+if test -r $1/CallDel.3; then
+    rm -f $1/Tcl_CallWhenDeleted.3
+    ln $1/CallDel.3 $1/Tcl_CallWhenDeleted.3
+fi
+if test -r $1/DoWhenIdle.3; then
+    rm -f $1/Tcl_CancelIdleCall.3
+    ln $1/DoWhenIdle.3 $1/Tcl_CancelIdleCall.3
+fi
+if test -r $1/OpenFileChnl.3; then
+    rm -f $1/Tcl_Close.3
+    ln $1/OpenFileChnl.3 $1/Tcl_Close.3
+fi
+if test -r $1/CmdCmplt.3; then
+    rm -f $1/Tcl_CommandComplete.3
+    ln $1/CmdCmplt.3 $1/Tcl_CommandComplete.3
+fi
+if test -r $1/Concat.3; then
+    rm -f $1/Tcl_Concat.3
+    ln $1/Concat.3 $1/Tcl_Concat.3
+fi
+if test -r $1/SplitList.3; then
+    rm -f $1/Tcl_ConvertElement.3
+    ln $1/SplitList.3 $1/Tcl_ConvertElement.3
+fi
+if test -r $1/CrtSlave.3; then
+    rm -f $1/Tcl_CreateAlias.3
+    ln $1/CrtSlave.3 $1/Tcl_CreateAlias.3
+fi
+if test -r $1/CrtChannel.3; then
+    rm -f $1/Tcl_CreateChannel.3
+    ln $1/CrtChannel.3 $1/Tcl_CreateChannel.3
+fi
+if test -r $1/CrtChnlHdlr.3; then
+    rm -f $1/Tcl_CreateChannelHandler.3
+    ln $1/CrtChnlHdlr.3 $1/Tcl_CreateChannelHandler.3
+fi
+if test -r $1/CrtCloseHdlr.3; then
+    rm -f $1/Tcl_CreateCloseHandler.3
+    ln $1/CrtCloseHdlr.3 $1/Tcl_CreateCloseHandler.3
+fi
+if test -r $1/CrtCommand.3; then
+    rm -f $1/Tcl_CreateCommand.3
+    ln $1/CrtCommand.3 $1/Tcl_CreateCommand.3
+fi
+if test -r $1/Notifier.3; then
+    rm -f $1/Tcl_CreateEventSource.3
+    ln $1/Notifier.3 $1/Tcl_CreateEventSource.3
+fi
+if test -r $1/Exit.3; then
+    rm -f $1/Tcl_CreateExitHandler.3
+    ln $1/Exit.3 $1/Tcl_CreateExitHandler.3
+fi
+if test -r $1/CrtFileHdlr.3; then
+    rm -f $1/Tcl_CreateFileHandler.3
+    ln $1/CrtFileHdlr.3 $1/Tcl_CreateFileHandler.3
+fi
+if test -r $1/Hash.3; then
+    rm -f $1/Tcl_CreateHashEntry.3
+    ln $1/Hash.3 $1/Tcl_CreateHashEntry.3
+fi
+if test -r $1/CrtInterp.3; then
+    rm -f $1/Tcl_CreateInterp.3
+    ln $1/CrtInterp.3 $1/Tcl_CreateInterp.3
+fi
+if test -r $1/CrtMathFnc.3; then
+    rm -f $1/Tcl_CreateMathFunc.3
+    ln $1/CrtMathFnc.3 $1/Tcl_CreateMathFunc.3
+fi
+if test -r $1/CrtModalTmt.3; then
+    rm -f $1/Tcl_CreateModalTimeout.3
+    ln $1/CrtModalTmt.3 $1/Tcl_CreateModalTimeout.3
+fi
+if test -r $1/CrtSlave.3; then
+    rm -f $1/Tcl_CreateSlave.3
+    ln $1/CrtSlave.3 $1/Tcl_CreateSlave.3
+fi
+if test -r $1/CrtTimerHdlr.3; then
+    rm -f $1/Tcl_CreateTimerHandler.3
+    ln $1/CrtTimerHdlr.3 $1/Tcl_CreateTimerHandler.3
+fi
+if test -r $1/CrtTrace.3; then
+    rm -f $1/Tcl_CreateTrace.3
+    ln $1/CrtTrace.3 $1/Tcl_CreateTrace.3
+fi
+if test -r $1/DString.3; then
+    rm -f $1/Tcl_DStringAppend.3
+    ln $1/DString.3 $1/Tcl_DStringAppend.3
+fi
+if test -r $1/DString.3; then
+    rm -f $1/Tcl_DStringAppendElement.3
+    ln $1/DString.3 $1/Tcl_DStringAppendElement.3
+fi
+if test -r $1/DString.3; then
+    rm -f $1/Tcl_DStringEndSublist.3
+    ln $1/DString.3 $1/Tcl_DStringEndSublist.3
+fi
+if test -r $1/DString.3; then
+    rm -f $1/Tcl_DStringFree.3
+    ln $1/DString.3 $1/Tcl_DStringFree.3
+fi
+if test -r $1/DString.3; then
+    rm -f $1/Tcl_DStringGetResult.3
+    ln $1/DString.3 $1/Tcl_DStringGetResult.3
+fi
+if test -r $1/DString.3; then
+    rm -f $1/Tcl_DStringInit.3
+    ln $1/DString.3 $1/Tcl_DStringInit.3
+fi
+if test -r $1/DString.3; then
+    rm -f $1/Tcl_DStringLength.3
+    ln $1/DString.3 $1/Tcl_DStringLength.3
+fi
+if test -r $1/DString.3; then
+    rm -f $1/Tcl_DStringResult.3
+    ln $1/DString.3 $1/Tcl_DStringResult.3
+fi
+if test -r $1/DString.3; then
+    rm -f $1/Tcl_DStringSetLength.3
+    ln $1/DString.3 $1/Tcl_DStringSetLength.3
+fi
+if test -r $1/DString.3; then
+    rm -f $1/Tcl_DStringStartSublist.3
+    ln $1/DString.3 $1/Tcl_DStringStartSublist.3
+fi
+if test -r $1/DString.3; then
+    rm -f $1/Tcl_DStringValue.3
+    ln $1/DString.3 $1/Tcl_DStringValue.3
+fi
+if test -r $1/AssocData.3; then
+    rm -f $1/Tcl_DeleteAssocData.3
+    ln $1/AssocData.3 $1/Tcl_DeleteAssocData.3
+fi
+if test -r $1/CrtChnlHdlr.3; then
+    rm -f $1/Tcl_DeleteChannelHandler.3
+    ln $1/CrtChnlHdlr.3 $1/Tcl_DeleteChannelHandler.3
+fi
+if test -r $1/CrtCloseHdlr.3; then
+    rm -f $1/Tcl_DeleteCloseHandler.3
+    ln $1/CrtCloseHdlr.3 $1/Tcl_DeleteCloseHandler.3
+fi
+if test -r $1/CrtCommand.3; then
+    rm -f $1/Tcl_DeleteCommand.3
+    ln $1/CrtCommand.3 $1/Tcl_DeleteCommand.3
+fi
+if test -r $1/Notifier.3; then
+    rm -f $1/Tcl_DeleteEventSource.3
+    ln $1/Notifier.3 $1/Tcl_DeleteEventSource.3
+fi
+if test -r $1/Exit.3; then
+    rm -f $1/Tcl_DeleteExitHandler.3
+    ln $1/Exit.3 $1/Tcl_DeleteExitHandler.3
+fi
+if test -r $1/CrtFileHdlr.3; then
+    rm -f $1/Tcl_DeleteFileHandler.3
+    ln $1/CrtFileHdlr.3 $1/Tcl_DeleteFileHandler.3
+fi
+if test -r $1/Hash.3; then
+    rm -f $1/Tcl_DeleteHashEntry.3
+    ln $1/Hash.3 $1/Tcl_DeleteHashEntry.3
+fi
+if test -r $1/Hash.3; then
+    rm -f $1/Tcl_DeleteHashTable.3
+    ln $1/Hash.3 $1/Tcl_DeleteHashTable.3
+fi
+if test -r $1/CrtInterp.3; then
+    rm -f $1/Tcl_DeleteInterp.3
+    ln $1/CrtInterp.3 $1/Tcl_DeleteInterp.3
+fi
+if test -r $1/CrtModalTmt.3; then
+    rm -f $1/Tcl_DeleteModalTimeout.3
+    ln $1/CrtModalTmt.3 $1/Tcl_DeleteModalTimeout.3
+fi
+if test -r $1/CrtTimerHdlr.3; then
+    rm -f $1/Tcl_DeleteTimerHandler.3
+    ln $1/CrtTimerHdlr.3 $1/Tcl_DeleteTimerHandler.3
+fi
+if test -r $1/CrtTrace.3; then
+    rm -f $1/Tcl_DeleteTrace.3
+    ln $1/CrtTrace.3 $1/Tcl_DeleteTrace.3
+fi
+if test -r $1/DetachPids.3; then
+    rm -f $1/Tcl_DetachPids.3
+    ln $1/DetachPids.3 $1/Tcl_DetachPids.3
+fi
+if test -r $1/DoOneEvent.3; then
+    rm -f $1/Tcl_DoOneEvent.3
+    ln $1/DoOneEvent.3 $1/Tcl_DoOneEvent.3
+fi
+if test -r $1/DoWhenIdle.3; then
+    rm -f $1/Tcl_DoWhenIdle.3
+    ln $1/DoWhenIdle.3 $1/Tcl_DoWhenIdle.3
+fi
+if test -r $1/CallDel.3; then
+    rm -f $1/Tcl_DontCallWhenDeleted.3
+    ln $1/CallDel.3 $1/Tcl_DontCallWhenDeleted.3
+fi
+if test -r $1/OpenFileChnl.3; then
+    rm -f $1/Tcl_Eof.3
+    ln $1/OpenFileChnl.3 $1/Tcl_Eof.3
+fi
+if test -r $1/Eval.3; then
+    rm -f $1/Tcl_Eval.3
+    ln $1/Eval.3 $1/Tcl_Eval.3
+fi
+if test -r $1/Eval.3; then
+    rm -f $1/Tcl_EvalFile.3
+    ln $1/Eval.3 $1/Tcl_EvalFile.3
+fi
+if test -r $1/Preserve.3; then
+    rm -f $1/Tcl_EventuallyFree.3
+    ln $1/Preserve.3 $1/Tcl_EventuallyFree.3
+fi
+if test -r $1/Exit.3; then
+    rm -f $1/Tcl_Exit.3
+    ln $1/Exit.3 $1/Tcl_Exit.3
+fi
+if test -r $1/ExprLong.3; then
+    rm -f $1/Tcl_ExprBoolean.3
+    ln $1/ExprLong.3 $1/Tcl_ExprBoolean.3
+fi
+if test -r $1/ExprLong.3; then
+    rm -f $1/Tcl_ExprDouble.3
+    ln $1/ExprLong.3 $1/Tcl_ExprDouble.3
+fi
+if test -r $1/ExprLong.3; then
+    rm -f $1/Tcl_ExprLong.3
+    ln $1/ExprLong.3 $1/Tcl_ExprLong.3
+fi
+if test -r $1/ExprLong.3; then
+    rm -f $1/Tcl_ExprString.3
+    ln $1/ExprLong.3 $1/Tcl_ExprString.3
+fi
+if test -r $1/Notifier.3; then
+    rm -f $1/Tcl_FileReady.3
+    ln $1/Notifier.3 $1/Tcl_FileReady.3
+fi
+if test -r $1/FindExec.3; then
+    rm -f $1/Tcl_FindExecutable.3
+    ln $1/FindExec.3 $1/Tcl_FindExecutable.3
+fi
+if test -r $1/Hash.3; then
+    rm -f $1/Tcl_FindHashEntry.3
+    ln $1/Hash.3 $1/Tcl_FindHashEntry.3
+fi
+if test -r $1/Hash.3; then
+    rm -f $1/Tcl_FirstHashEntry.3
+    ln $1/Hash.3 $1/Tcl_FirstHashEntry.3
+fi
+if test -r $1/OpenFileChnl.3; then
+    rm -f $1/Tcl_Flush.3
+    ln $1/OpenFileChnl.3 $1/Tcl_Flush.3
+fi
+if test -r $1/GetFile.3; then
+    rm -f $1/Tcl_FreeFile.3
+    ln $1/GetFile.3 $1/Tcl_FreeFile.3
+fi
+if test -r $1/CrtSlave.3; then
+    rm -f $1/Tcl_GetAlias.3
+    ln $1/CrtSlave.3 $1/Tcl_GetAlias.3
+fi
+if test -r $1/CrtSlave.3; then
+    rm -f $1/Tcl_GetAliases.3
+    ln $1/CrtSlave.3 $1/Tcl_GetAliases.3
+fi
+if test -r $1/AssocData.3; then
+    rm -f $1/Tcl_GetAssocData.3
+    ln $1/AssocData.3 $1/Tcl_GetAssocData.3
+fi
+if test -r $1/GetInt.3; then
+    rm -f $1/Tcl_GetBoolean.3
+    ln $1/GetInt.3 $1/Tcl_GetBoolean.3
+fi
+if test -r $1/CrtChannel.3; then
+    rm -f $1/Tcl_GetChannelBufferSize.3
+    ln $1/CrtChannel.3 $1/Tcl_GetChannelBufferSize.3
+fi
+if test -r $1/CrtChannel.3; then
+    rm -f $1/Tcl_GetChannelFile.3
+    ln $1/CrtChannel.3 $1/Tcl_GetChannelFile.3
+fi
+if test -r $1/CrtChannel.3; then
+    rm -f $1/Tcl_GetChannelInstanceData.3
+    ln $1/CrtChannel.3 $1/Tcl_GetChannelInstanceData.3
+fi
+if test -r $1/CrtChannel.3; then
+    rm -f $1/Tcl_GetChannelName.3
+    ln $1/CrtChannel.3 $1/Tcl_GetChannelName.3
+fi
+if test -r $1/OpenFileChnl.3; then
+    rm -f $1/Tcl_GetChannelOption.3
+    ln $1/OpenFileChnl.3 $1/Tcl_GetChannelOption.3
+fi
+if test -r $1/CrtChannel.3; then
+    rm -f $1/Tcl_GetChannelType.3
+    ln $1/CrtChannel.3 $1/Tcl_GetChannelType.3
+fi
+if test -r $1/CrtCommand.3; then
+    rm -f $1/Tcl_GetCommandInfo.3
+    ln $1/CrtCommand.3 $1/Tcl_GetCommandInfo.3
+fi
+if test -r $1/GetInt.3; then
+    rm -f $1/Tcl_GetDouble.3
+    ln $1/GetInt.3 $1/Tcl_GetDouble.3
+fi
+if test -r $1/SetErrno.3; then
+    rm -f $1/Tcl_GetErrno.3
+    ln $1/SetErrno.3 $1/Tcl_GetErrno.3
+fi
+if test -r $1/GetFile.3; then
+    rm -f $1/Tcl_GetFile.3
+    ln $1/GetFile.3 $1/Tcl_GetFile.3
+fi
+if test -r $1/GetFile.3; then
+    rm -f $1/Tcl_GetFileInfo.3
+    ln $1/GetFile.3 $1/Tcl_GetFileInfo.3
+fi
+if test -r $1/Hash.3; then
+    rm -f $1/Tcl_GetHashKey.3
+    ln $1/Hash.3 $1/Tcl_GetHashKey.3
+fi
+if test -r $1/Hash.3; then
+    rm -f $1/Tcl_GetHashValue.3
+    ln $1/Hash.3 $1/Tcl_GetHashValue.3
+fi
+if test -r $1/GetInt.3; then
+    rm -f $1/Tcl_GetInt.3
+    ln $1/GetInt.3 $1/Tcl_GetInt.3
+fi
+if test -r $1/CrtSlave.3; then
+    rm -f $1/Tcl_GetMaster.3
+    ln $1/CrtSlave.3 $1/Tcl_GetMaster.3
+fi
+if test -r $1/GetOpnFl.3; then
+    rm -f $1/Tcl_GetOpenFile.3
+    ln $1/GetOpnFl.3 $1/Tcl_GetOpenFile.3
+fi
+if test -r $1/CrtSlave.3; then
+    rm -f $1/Tcl_GetSlave.3
+    ln $1/CrtSlave.3 $1/Tcl_GetSlave.3
+fi
+if test -r $1/CrtSlave.3; then
+    rm -f $1/Tcl_GetSlaves.3
+    ln $1/CrtSlave.3 $1/Tcl_GetSlaves.3
+fi
+if test -r $1/GetStdChan.3; then
+    rm -f $1/Tcl_GetStdChannel.3
+    ln $1/GetStdChan.3 $1/Tcl_GetStdChannel.3
+fi
+if test -r $1/SetVar.3; then
+    rm -f $1/Tcl_GetVar.3
+    ln $1/SetVar.3 $1/Tcl_GetVar.3
+fi
+if test -r $1/SetVar.3; then
+    rm -f $1/Tcl_GetVar2.3
+    ln $1/SetVar.3 $1/Tcl_GetVar2.3
+fi
+if test -r $1/OpenFileChnl.3; then
+    rm -f $1/Tcl_Gets.3
+    ln $1/OpenFileChnl.3 $1/Tcl_Gets.3
+fi
+if test -r $1/Eval.3; then
+    rm -f $1/Tcl_GlobalEval.3
+    ln $1/Eval.3 $1/Tcl_GlobalEval.3
+fi
+if test -r $1/Hash.3; then
+    rm -f $1/Tcl_HashStats.3
+    ln $1/Hash.3 $1/Tcl_HashStats.3
+fi
+if test -r $1/Hash.3; then
+    rm -f $1/Tcl_InitHashTable.3
+    ln $1/Hash.3 $1/Tcl_InitHashTable.3
+fi
+if test -r $1/OpenFileChnl.3; then
+    rm -f $1/Tcl_InputBlocked.3
+    ln $1/OpenFileChnl.3 $1/Tcl_InputBlocked.3
+fi
+if test -r $1/Interp.3; then
+    rm -f $1/Tcl_Interp.3
+    ln $1/Interp.3 $1/Tcl_Interp.3
+fi
+if test -r $1/CrtInterp.3; then
+    rm -f $1/Tcl_InterpDeleted.3
+    ln $1/CrtInterp.3 $1/Tcl_InterpDeleted.3
+fi
+if test -r $1/CrtSlave.3; then
+    rm -f $1/Tcl_IsSafe.3
+    ln $1/CrtSlave.3 $1/Tcl_IsSafe.3
+fi
+if test -r $1/LinkVar.3; then
+    rm -f $1/Tcl_LinkVar.3
+    ln $1/LinkVar.3 $1/Tcl_LinkVar.3
+fi
+if test -r $1/CrtSlave.3; then
+    rm -f $1/Tcl_MakeSafe.3
+    ln $1/CrtSlave.3 $1/Tcl_MakeSafe.3
+fi
+if test -r $1/SplitList.3; then
+    rm -f $1/Tcl_Merge.3
+    ln $1/SplitList.3 $1/Tcl_Merge.3
+fi
+if test -r $1/Hash.3; then
+    rm -f $1/Tcl_NextHashEntry.3
+    ln $1/Hash.3 $1/Tcl_NextHashEntry.3
+fi
+if test -r $1/OpenFileChnl.3; then
+    rm -f $1/Tcl_OpenCommandChannel.3
+    ln $1/OpenFileChnl.3 $1/Tcl_OpenCommandChannel.3
+fi
+if test -r $1/OpenFileChnl.3; then
+    rm -f $1/Tcl_OpenFileChannel.3
+    ln $1/OpenFileChnl.3 $1/Tcl_OpenFileChannel.3
+fi
+if test -r $1/OpenTcp.3; then
+    rm -f $1/Tcl_OpenTcpClient.3
+    ln $1/OpenTcp.3 $1/Tcl_OpenTcpClient.3
+fi
+if test -r $1/OpenTcp.3; then
+    rm -f $1/Tcl_OpenTcpServer.3
+    ln $1/OpenTcp.3 $1/Tcl_OpenTcpServer.3
+fi
+if test -r $1/PkgRequire.3; then
+    rm -f $1/Tcl_PkgProvide.3
+    ln $1/PkgRequire.3 $1/Tcl_PkgProvide.3
+fi
+if test -r $1/PkgRequire.3; then
+    rm -f $1/Tcl_PkgRequire.3
+    ln $1/PkgRequire.3 $1/Tcl_PkgRequire.3
+fi
+if test -r $1/AddErrInfo.3; then
+    rm -f $1/Tcl_PosixError.3
+    ln $1/AddErrInfo.3 $1/Tcl_PosixError.3
+fi
+if test -r $1/Preserve.3; then
+    rm -f $1/Tcl_Preserve.3
+    ln $1/Preserve.3 $1/Tcl_Preserve.3
+fi
+if test -r $1/PrintDbl.3; then
+    rm -f $1/Tcl_PrintDouble.3
+    ln $1/PrintDbl.3 $1/Tcl_PrintDouble.3
+fi
+if test -r $1/Notifier.3; then
+    rm -f $1/Tcl_QueueEvent.3
+    ln $1/Notifier.3 $1/Tcl_QueueEvent.3
+fi
+if test -r $1/OpenFileChnl.3; then
+    rm -f $1/Tcl_Read.3
+    ln $1/OpenFileChnl.3 $1/Tcl_Read.3
+fi
+if test -r $1/DetachPids.3; then
+    rm -f $1/Tcl_ReapDetachedProcs.3
+    ln $1/DetachPids.3 $1/Tcl_ReapDetachedProcs.3
+fi
+if test -r $1/RecordEval.3; then
+    rm -f $1/Tcl_RecordAndEval.3
+    ln $1/RecordEval.3 $1/Tcl_RecordAndEval.3
+fi
+if test -r $1/RegExp.3; then
+    rm -f $1/Tcl_RegExpCompile.3
+    ln $1/RegExp.3 $1/Tcl_RegExpCompile.3
+fi
+if test -r $1/RegExp.3; then
+    rm -f $1/Tcl_RegExpExec.3
+    ln $1/RegExp.3 $1/Tcl_RegExpExec.3
+fi
+if test -r $1/RegExp.3; then
+    rm -f $1/Tcl_RegExpMatch.3
+    ln $1/RegExp.3 $1/Tcl_RegExpMatch.3
+fi
+if test -r $1/RegExp.3; then
+    rm -f $1/Tcl_RegExpRange.3
+    ln $1/RegExp.3 $1/Tcl_RegExpRange.3
+fi
+if test -r $1/Preserve.3; then
+    rm -f $1/Tcl_Release.3
+    ln $1/Preserve.3 $1/Tcl_Release.3
+fi
+if test -r $1/SetResult.3; then
+    rm -f $1/Tcl_ResetResult.3
+    ln $1/SetResult.3 $1/Tcl_ResetResult.3
+fi
+if test -r $1/SplitList.3; then
+    rm -f $1/Tcl_ScanElement.3
+    ln $1/SplitList.3 $1/Tcl_ScanElement.3
+fi
+if test -r $1/OpenFileChnl.3; then
+    rm -f $1/Tcl_Seek.3
+    ln $1/OpenFileChnl.3 $1/Tcl_Seek.3
+fi
+if test -r $1/AssocData.3; then
+    rm -f $1/Tcl_SetAssocData.3
+    ln $1/AssocData.3 $1/Tcl_SetAssocData.3
+fi
+if test -r $1/CrtChannel.3; then
+    rm -f $1/Tcl_SetChannelBufferSize.3
+    ln $1/CrtChannel.3 $1/Tcl_SetChannelBufferSize.3
+fi
+if test -r $1/OpenFileChnl.3; then
+    rm -f $1/Tcl_SetChannelOption.3
+    ln $1/OpenFileChnl.3 $1/Tcl_SetChannelOption.3
+fi
+if test -r $1/CrtCommand.3; then
+    rm -f $1/Tcl_SetCommandInfo.3
+    ln $1/CrtCommand.3 $1/Tcl_SetCommandInfo.3
+fi
+if test -r $1/CrtChannel.3; then
+    rm -f $1/Tcl_SetDefaultTranslation.3
+    ln $1/CrtChannel.3 $1/Tcl_SetDefaultTranslation.3
+fi
+if test -r $1/SetErrno.3; then
+    rm -f $1/Tcl_SetErrno.3
+    ln $1/SetErrno.3 $1/Tcl_SetErrno.3
+fi
+if test -r $1/AddErrInfo.3; then
+    rm -f $1/Tcl_SetErrorCode.3
+    ln $1/AddErrInfo.3 $1/Tcl_SetErrorCode.3
+fi
+if test -r $1/Hash.3; then
+    rm -f $1/Tcl_SetHashValue.3
+    ln $1/Hash.3 $1/Tcl_SetHashValue.3
+fi
+if test -r $1/Notifier.3; then
+    rm -f $1/Tcl_SetMaxBlockTime.3
+    ln $1/Notifier.3 $1/Tcl_SetMaxBlockTime.3
+fi
+if test -r $1/SetRecLmt.3; then
+    rm -f $1/Tcl_SetRecursionLimit.3
+    ln $1/SetRecLmt.3 $1/Tcl_SetRecursionLimit.3
+fi
+if test -r $1/SetResult.3; then
+    rm -f $1/Tcl_SetResult.3
+    ln $1/SetResult.3 $1/Tcl_SetResult.3
+fi
+if test -r $1/GetStdChan.3; then
+    rm -f $1/Tcl_SetStdChannel.3
+    ln $1/GetStdChan.3 $1/Tcl_SetStdChannel.3
+fi
+if test -r $1/SetVar.3; then
+    rm -f $1/Tcl_SetVar.3
+    ln $1/SetVar.3 $1/Tcl_SetVar.3
+fi
+if test -r $1/SetVar.3; then
+    rm -f $1/Tcl_SetVar2.3
+    ln $1/SetVar.3 $1/Tcl_SetVar2.3
+fi
+if test -r $1/Sleep.3; then
+    rm -f $1/Tcl_Sleep.3
+    ln $1/Sleep.3 $1/Tcl_Sleep.3
+fi
+if test -r $1/SplitList.3; then
+    rm -f $1/Tcl_SplitList.3
+    ln $1/SplitList.3 $1/Tcl_SplitList.3
+fi
+if test -r $1/StaticPkg.3; then
+    rm -f $1/Tcl_StaticPackage.3
+    ln $1/StaticPkg.3 $1/Tcl_StaticPackage.3
+fi
+if test -r $1/StrMatch.3; then
+    rm -f $1/Tcl_StringMatch.3
+    ln $1/StrMatch.3 $1/Tcl_StringMatch.3
+fi
+if test -r $1/OpenFileChnl.3; then
+    rm -f $1/Tcl_Tell.3
+    ln $1/OpenFileChnl.3 $1/Tcl_Tell.3
+fi
+if test -r $1/TraceVar.3; then
+    rm -f $1/Tcl_TraceVar.3
+    ln $1/TraceVar.3 $1/Tcl_TraceVar.3
+fi
+if test -r $1/TraceVar.3; then
+    rm -f $1/Tcl_TraceVar2.3
+    ln $1/TraceVar.3 $1/Tcl_TraceVar2.3
+fi
+if test -r $1/Translate.3; then
+    rm -f $1/Tcl_TranslateFileName.3
+    ln $1/Translate.3 $1/Tcl_TranslateFileName.3
+fi
+if test -r $1/LinkVar.3; then
+    rm -f $1/Tcl_UnlinkVar.3
+    ln $1/LinkVar.3 $1/Tcl_UnlinkVar.3
+fi
+if test -r $1/SetVar.3; then
+    rm -f $1/Tcl_UnsetVar.3
+    ln $1/SetVar.3 $1/Tcl_UnsetVar.3
+fi
+if test -r $1/SetVar.3; then
+    rm -f $1/Tcl_UnsetVar2.3
+    ln $1/SetVar.3 $1/Tcl_UnsetVar2.3
+fi
+if test -r $1/TraceVar.3; then
+    rm -f $1/Tcl_UntraceVar.3
+    ln $1/TraceVar.3 $1/Tcl_UntraceVar.3
+fi
+if test -r $1/TraceVar.3; then
+    rm -f $1/Tcl_UntraceVar2.3
+    ln $1/TraceVar.3 $1/Tcl_UntraceVar2.3
+fi
+if test -r $1/UpVar.3; then
+    rm -f $1/Tcl_UpVar.3
+    ln $1/UpVar.3 $1/Tcl_UpVar.3
+fi
+if test -r $1/UpVar.3; then
+    rm -f $1/Tcl_UpVar2.3
+    ln $1/UpVar.3 $1/Tcl_UpVar2.3
+fi
+if test -r $1/LinkVar.3; then
+    rm -f $1/Tcl_UpdateLinkedVar.3
+    ln $1/LinkVar.3 $1/Tcl_UpdateLinkedVar.3
+fi
+if test -r $1/Eval.3; then
+    rm -f $1/Tcl_VarEval.3
+    ln $1/Eval.3 $1/Tcl_VarEval.3
+fi
+if test -r $1/TraceVar.3; then
+    rm -f $1/Tcl_VarTraceInfo.3
+    ln $1/TraceVar.3 $1/Tcl_VarTraceInfo.3
+fi
+if test -r $1/TraceVar.3; then
+    rm -f $1/Tcl_VarTraceInfo2.3
+    ln $1/TraceVar.3 $1/Tcl_VarTraceInfo2.3
+fi
+if test -r $1/Notifier.3; then
+    rm -f $1/Tcl_WaitForEvent.3
+    ln $1/Notifier.3 $1/Tcl_WaitForEvent.3
+fi
+if test -r $1/Notifier.3; then
+    rm -f $1/Tcl_WatchFile.3
+    ln $1/Notifier.3 $1/Tcl_WatchFile.3
+fi
+if test -r $1/OpenFileChnl.3; then
+    rm -f $1/Tcl_Write.3
+    ln $1/OpenFileChnl.3 $1/Tcl_Write.3
+fi
+if test -r $1/pkgMkIndex.n; then
+    rm -f $1/pkg_mkIndex.n
+    ln $1/pkgMkIndex.n $1/pkg_mkIndex.n
+fi
+exit 0

@@ -1,0 +1,63 @@
+# This file tests the functions in tclFHandle.c file.
+#
+# This file contains a collection of tests for one or more of the Tcl
+# built-in commands.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1995-1996 by Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) fhandle.test 1.3 96/03/26 11:49:04
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+if {[info commands testfhandle] == {}} {
+    puts "This application hasn't been compiled with the \"testfhandle\""
+    puts "command, so I can't test the procedures in tclFHandle.c."
+    return 
+} 
+
+test fhandle-1.1 {file handle creation/retrieval} {
+    testfhandle get 0 2 3
+    testfhandle get 1 2 3
+    set result [testfhandle compare 0 1]
+    testfhandle free 0
+    set result
+} {equal}
+test fhandle-1.2 {file handle creation/retrieval} {
+    testfhandle get 0 2 3
+    testfhandle get 1 2 4
+    set result [testfhandle compare 0 1]
+    testfhandle free 0
+    set result
+} {notequal}
+test fhandle-1.3 {file handle creation/retrieval} {
+    testfhandle get 0 2 3
+    testfhandle get 1 2 4
+    set result [testfhandle compare 0 1]
+    testfhandle free 0
+    testfhandle free 1
+    set result
+} {notequal}
+test fhandle-1.4 {file handle creation/retrieval} {
+    testfhandle get 0 2 3
+    testfhandle get 1 5 3
+    set result [testfhandle compare 0 1]
+    testfhandle free 0
+    testfhandle free 1
+    set result
+} {notequal}
+test fhandle-1.5 {file handle creation/retrieval} {
+    testfhandle get 0 5 6
+    set result [testfhandle info2 0]
+    testfhandle free 0
+    set result
+} {5 6}
+test fhandle-1.6 {file handle creation/retrieval} {
+    testfhandle get 0 5 6
+    set result [testfhandle info1 0]
+    testfhandle free 0
+    set result
+} {5}

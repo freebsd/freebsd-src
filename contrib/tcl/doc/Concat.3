@@ -1,0 +1,51 @@
+'\"
+'\" Copyright (c) 1989-1993 The Regents of the University of California.
+'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\"
+'\" See the file "license.terms" for information on usage and redistribution
+'\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+'\" 
+'\" SCCS: @(#) Concat.3 1.10 96/03/25 19:58:01
+'\" 
+.so man.macros
+.TH Tcl_Concat 3 "" Tcl "Tcl Library Procedures"
+.BS
+.SH NAME
+Tcl_Concat \- concatenate a collection of strings
+.SH SYNOPSIS
+.nf
+\fB#include <tcl.h>\fR
+.sp
+char *
+\fBTcl_Concat\fR(\fIargc, argv\fR)
+.SH ARGUMENTS
+.AP int argc in
+Number of strings.
+.AP char *argv[] in
+Array of strings to concatenate.  Must have \fIargc\fR entries.
+.BE
+
+.SH DESCRIPTION
+.PP
+\fBTcl_Concat\fR is a utility procedure used by several of the
+Tcl commands.  Given a collection of strings, it concatenates
+them together into a single string, with the original strings
+separated by spaces.  This procedure behaves differently than
+\fBTcl_Merge\fR, in that the arguments are simply concatenated:
+no effort is made to ensure proper list structure.
+However, in most common usage the arguments will all be proper
+lists themselves;  if this is true, then the result will also have
+proper list structure.
+.PP
+\fBTcl_Concat\fR eliminates leading and trailing white space as it
+copies strings from \fBargv\fR to the result.  If an element of
+\fBargv\fR consists of nothing but white space, then that string
+is ignored entirely.  This white-space removal was added to make
+the output of the \fBconcat\fR command cleaner-looking.
+.PP
+The result string is dynamically allocated
+using \fBmalloc()\fR;  the caller must eventually release the space
+by calling \fBfree()\fR.
+
+.SH KEYWORDS
+concatenate, strings

@@ -1,0 +1,59 @@
+'\"
+'\" Copyright (c) 1996 Sun Microsystems, Inc.
+'\"
+'\" See the file "license.terms" for information on usage and redistribution
+'\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+'\" 
+'\" SCCS: @(#) PkgRequire.3 1.4 96/02/15 20:03:16
+'\" 
+.so man.macros
+.TH Tcl_PkgRequire 3 7.5 Tcl "Tcl Library Procedures"
+.BS
+.SH NAME
+Tcl_PkgRequire, Tcl_PkgProvide \- package version control
+.SH SYNOPSIS
+.nf
+\fB#include <tcl.h>\fR
+.sp
+char *
+\fBTcl_PkgRequire\fR(\fIinterp, name, version, exact\fR)
+.sp
+int
+\fBTcl_PkgProvide\fR(\fIinterp, name, version\fR)
+.SH ARGUMENTS
+.AS Tcl_FreeProc clientData
+.AP Tcl_Interp *interp in
+Interpreter where package is needed or available.
+.AP char *name in
+Name of package.
+.AP char *version in
+A version string consisting of one or more decimal numbers
+separated by dots.
+.AP int exact in
+Non-zero means that only the particular version specified by
+\fIversion\fR is acceptable.
+Zero means that newer versions than \fIversion\fR are also
+acceptable as long as they have the same major version number
+as \fIversion\fR.
+.BE
+
+.SH DESCRIPTION
+.PP
+These procedures provide C-level interfaces to Tcl's package and
+version management facilities.
+\fBTcl_PkgRequire\fR is equivalent to the \fBpackage require\fR
+command, and \fBTcl_PkgProvide\fR is equivalent to the
+\fBpackage provide\fR command.
+See the documentation for the Tcl commands for details on what these
+procedures do.
+If \fBTcl_PkgRequire\fR completes successfully it returns a pointer
+to the version string for the version of the package that is provided
+in the interpreter (which may be different than \fIversion\fR); if
+an error occurs it returns NULL and leaves an error message in
+\fIinterp->result\fR.
+\fBTcl_PkgProvide\fR returns TCL_OK if it completes successfully;
+if an error occurs it returns TCL_ERROR and leaves an error message
+in \fIinterp->result\fR.
+
+.SH KEYWORDS
+package, provide, require, version
