@@ -25,13 +25,13 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: clocks.7,v 1.1 1996/04/05 08:51:22 joerg Exp $
 .\" "
 .Dd April 1, 1996
 .Os
 .Dt CLOCKS 7
 .Sh NAME
-.Nm timer
+.Nm clocks
 .Nd various system timers
 .Sh SYNOPSIS
 .Fd #include <time.h>
@@ -53,23 +53,35 @@ The clock reported by
 .Xr clock 3 .
 This is a virtual clock with a frequency that happens to be 128.  It's
 actual frequency is given by the macro CLOCKS_PER_SEC.  Note that
-CLOCKS_PER_SEC may be floating point.  Don't use clock() in new
-programs under FreeBSD.  It is feeble compared with
+CLOCKS_PER_SEC may be floating point.  Don't use 
+.Fn clock
+in new programs under FreeBSD.  It is feeble compared with
 .Xr getrusage 2 .
 It is provided for ANSI conformance.  It is implemented by calling
-getrusage() and throwing away information and resolution.
+.Fn getrusage
+and throwing away information and resolution.
 .It
 The clock reported by
 .Xr times 3 .
 This is a virtual clock with a frequency that happens to be 128.  It's
 actual frequency is given by the macro CLK_TCK (deprecated; don't use)
-and by sysconf(_SC_CLK_TCK) and by
+and by 
+.Fn sysconf SC_CLK_TCK
+and by
 .Xr sysctl 3 .
-Note that its frequency may be different fro CLOCKS_PER_SEC.  Don't
-use times() in new programs under FreeBSD.  It is feeble compared with
-gettimeofday() together with getrusage().  It is provided for POSIX
-conformance.  It is implemented by calling gettimeofday() and
-getrusage() and throwing away information and resolution.
+Note that its frequency may be different from CLOCKS_PER_SEC.  Don't
+use 
+.Xr times 3
+in new programs under FreeBSD.  It is feeble compared with
+.Xr gettimeofday 2
+together with 
+.Fn getrusage .
+It is provided for POSIX
+conformance.  It is implemented by calling 
+.Fn gettimeofday
+and
+.Fn getrusage
+and throwing away information and resolution.
 .It
 The profiling clock.  This is a real clock with frequency 1024.
 It is used mainly by
@@ -92,7 +104,7 @@ to applications in
 .Xr gettimeofday 2 ,
 .Xr select 2 ,
 .Xr getitimer 2 ,
-...  This is the clock that should normally be used
+etc...  This is the clock that should normally be used
 by BSD applications.
 .It
 the i8254 clock.  This is a real clock with a nominal frequency of
