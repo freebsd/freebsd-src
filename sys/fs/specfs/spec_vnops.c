@@ -562,15 +562,13 @@ spec_freeblks(ap)
 		daddr_t a_length;
 	} */ *ap;
 {
-	struct cdevsw *bsw;
 	struct buf *bp;
 
 	/*
 	 * XXX: This assumes that strategy does the deed right away.
 	 * XXX: this may not be TRTTD.
 	 */
-	bsw = devsw(ap->a_vp->v_rdev);
-	if ((bsw->d_flags & D_CANFREE) == 0)
+	if ((ap->a_vp->v_rdev->si_flags & SI_CANDELETE) == 0)
 		return (0);
 	bp = geteblk(ap->a_length);
 	bp->b_iocmd = BIO_DELETE;
