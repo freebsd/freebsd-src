@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.42 1996/01/25 18:31:58 se Exp $
+**  $Id: pci.c,v 1.43 1996/01/27 20:14:31 wollman Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -122,8 +122,11 @@ not_supported (pcici_t tag, u_long type);
 static void
 pci_bus_config (void);
 
-static void
+static int
 pci_bridge_config (void);
+
+static int
+pci_mfdev (int bus, int device);
 
 /*========================================================
 **
@@ -344,28 +347,69 @@ done:
 **========================================================
 */
 
+static int
+pci_mfdev (int bus, int device)
+{
+    pcici_t tag0,tag1;
+    int	pci_id0, pci_id1;
+
+    /*
+    ** Detect a multi-function device that complies to the PCI 2.0 spec
+    */
+    tag0 = pcibus->pb_tag  (bus, device, 0);
+    if (pcibus->pb_read (tag0, PCI_HEADER_MISC) & PCI_HEADER_MULTIFUNCTION)
+	return 1;
+
+    /*
+    ** Well, as always: Theory and implementation of PCI ...
+    **
+    ** If there is a valid device ID returned for function 1 AND
+    **		the device ID of function 0 and 1 is different OR
+    **		the first mapping register of 0 and 1 differs,
+    ** then assume a multi-function device anyway ...
+    **
+    ** Example of such a broken device: ISA and IDE chip i83371FB (Triton)
+    */
+    tag1 = pcibus->pb_tag  (bus, device, 1);
+    pci_id1 = pcibus->pb_read (tag1, PCI_ID_REG);
+
+    if (pci_id1 != 0xffffffff) {
+
+	pci_id0 = pcibus->pb_read (tag0, PCI_ID_REG);
+
+	if (pci_id0 != pci_id1)
+	    return 1;
+
+	if (pcibus->pb_read (tag0, PCI_MAP_REG_START) 
+			!= pcibus->pb_read (tag1, PCI_MAP_REG_START))
+	    return 1;
+    }
+    return 0;
+}
+
 static void
 pci_bus_config (void)
 {
+	int	bus_no;
 	u_char  device;
 	u_char	reg;
 	pcici_t tag, mtag;
 	pcidi_t type;
 	u_long  data;
 	int     unit;
-	int     pciint;
-	int     irq;
+	u_char	pciint;
+	u_char	irq;
 
-	struct pci_device *dvp;
+	struct	pci_device *dvp;
 
-	struct pci_devconf *pdcp;
+	struct	pci_devconf *pdcp;
 
 	/*
 	**	first initialize the bridge (bus controller chip)
 	*/
-	pci_bridge_config ();
+	bus_no = pci_bridge_config ();
 
-	printf ("Probing for devices on PCI bus %d:\n", pcicb->pcicb_bus);
+	printf ("Probing for devices on PCI bus %d:\n", bus_no);
 #ifndef PCI_QUIET
 	if (bootverbose && !pci_info_done) {
 		pci_info_done=1;
@@ -382,7 +426,7 @@ pci_bus_config (void)
 	    	continue;
 
 	    for (func=0; func <= maxfunc; func++) {
-		tag  = pcibus->pb_tag  (pcicb->pcicb_bus, device, func);
+		tag  = pcibus->pb_tag  (bus_no, device, func);
 		type = pcibus->pb_read (tag, PCI_ID_REG);
 
 		if ((!type) || (type==0xfffffffful)) continue;
@@ -406,10 +450,10 @@ pci_bus_config (void)
 			goto real_device;
 		}
 		if (device & 0x10) {
-			mtag=pcibus->pb_tag (pcicb->pcicb_bus,
+			mtag=pcibus->pb_tag (bus_no,
 				(u_char)(device & ~0x10), 0);
 		} else if (device & 0x08) {
-			mtag=pcibus->pb_tag (pcicb->pcicb_bus,
+			mtag=pcibus->pb_tag (bus_no,
 				(u_char)(device & ~0x08), 0);
 		} else goto real_device;
 
@@ -424,21 +468,21 @@ pci_bus_config (void)
 		if (dvp==NULL) continue;
 		if (bootverbose)
 			printf ("%s? <%s> mirrored on pci%d:%d\n",
-				dvp->pd_name, name, pcicb->pcicb_bus, device);
+				dvp->pd_name, name, bus_no, device);
 #endif
 		continue;
 
 	real_device:
-		/*
-		 * Ack.  The Triton PIIX doesn't correctly set
-		 * the multifunction bit.  Fake it.
-		 */
-		if (type == 0x122e8086) {
-			maxfunc = 1;
+
+		if (bootverbose) {
+		    printf ("\tconfig header: 0x%08x 0x%08x 0x%08x 0x%08x\n",
+			    pci_conf_read (tag, 0),
+			    pci_conf_read (tag, 4),
+			    pci_conf_read (tag, 8),
+			    pci_conf_read (tag, 12));
 		}
 
-		if (func == 0 && (pcibus->pb_read (tag, PCI_HEADER_MISC) 
-						& PCI_HEADER_MULTIFUNCTION)) {
+		if (func == 0 && pci_mfdev (bus_no, device)) {
 			maxfunc = 7;
 		}
 
@@ -446,8 +490,7 @@ pci_bus_config (void)
 #ifndef PCI_QUIET
 			if (pci_conf_count)
 				continue;
-			printf("%s%d:%d: ", pcibus->pb_name,
-				pcicb->pcicb_bus, device);
+			printf("%s%d:%d: ", pcibus->pb_name, bus_no, device);
 			not_supported (tag, type);
 #endif
 			continue;
@@ -493,13 +536,13 @@ pci_bus_config (void)
 			**	and we cannot bind the pci interrupt.
 			*/
 
-			if (irq)
+			if (irq && (irq != 0xff))
 				printf ("%d", irq);
 			else
 				printf ("??");
 		};
 
-		printf (" on pci%d:%d\n", pcicb->pcicb_bus, device);
+		printf (" on pci%d:%d\n", bus_no, device);
 
 		/*
 		**	Read the current mapping,
@@ -566,7 +609,7 @@ pci_bus_config (void)
 			malloc (sizeof (struct pci_devconf),M_DEVBUF,M_WAITOK);
 		bzero(pdcp, sizeof(struct pci_devconf));
 
-		pdcp -> pdc_pi.pi_bus    = pcicb->pcicb_bus;
+		pdcp -> pdc_pi.pi_bus    = bus_no;
 		pdcp -> pdc_pi.pi_device = device;
 		pdcp -> pdc_pi.pi_func   = func;
 
@@ -632,7 +675,7 @@ pci_bus_config (void)
 			**	check for uninitialized bridge.
 			*/
 			if (secondary == 0 || secondary < primary ||
-				pcicb->pcicb_bus != primary)
+				bus_no != primary)
 			{
 				printf ("\tINCORRECTLY or NEVER CONFIGURED.\n");
 				/*
@@ -776,17 +819,17 @@ pci_bus_config (void)
 	if (bootverbose) {
 	    if (pcicb->pcicb_mamount)
 		printf ("%s%d: uses %d bytes of memory from %x upto %x.\n",
-			pcibus->pb_name, pcicb->pcicb_bus,
+			pcibus->pb_name, bus_no,
 			pcicb->pcicb_mamount,
 			pcicb->pcicb_mfrom, pcicb->pcicb_mupto);
 	    if (pcicb->pcicb_pamount)
 		printf ("%s%d: uses %d bytes of I/O space from %x upto %x.\n",
-			pcibus->pb_name, pcicb->pcicb_bus,
+			pcibus->pb_name, bus_no,
 			pcicb->pcicb_pamount,
 			pcicb->pcicb_pfrom, pcicb->pcicb_pupto);
 	    if (pcicb->pcicb_bfrom)
 		printf ("%s%d: subordinate busses from %x upto %x.\n",
-			pcibus->pb_name, pcicb->pcicb_bus,
+			pcibus->pb_name, bus_no,
 			pcicb->pcicb_bfrom, pcicb->pcicb_bupto);
 	}
 #endif
@@ -801,16 +844,16 @@ pci_bus_config (void)
 **========================================================
 */
 
-static void
+static int
 pci_bridge_config (void)
 {
 	pcici_t tag;
 	struct pcicb* parent;
 
 	tag = pcicb->pcicb_bridge;
-	if (!tag.tag) return;
+	if (tag.tag) {
 
-	if (!pcicb->pcicb_bus) {
+	    if (!pcicb->pcicb_bus) {
 		u_int data;
 		/*
 		**	Get the lowest available bus number.
@@ -844,14 +887,16 @@ pci_bridge_config (void)
 			pci_conf_write (parent->pcicb_bridge,
 				PCI_PCI_BRIDGE_BUS_REG, data);
 		}
-	}
+	    }
 
-	if (!pcicb->pcicb_membase) {
+	    if (!pcicb->pcicb_membase) {
 		u_int size = 0x100000;
 		pcicb->pcicb_membase = pci_memalloc (pcicb->pcicb_up, 0, size);
 		if (pcicb->pcicb_membase)
 			pcicb->pcicb_memlimit = pcicb->pcicb_membase+size-1;
+	    }
 	}
+	return pcicb->pcicb_bus;
 }
 
 /*-----------------------------------------------------------------
