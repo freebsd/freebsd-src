@@ -1,4 +1,4 @@
-#	$Id: bsd.info.mk,v 1.46 1997/11/09 15:03:12 wosch Exp $
+#	$Id: bsd.info.mk,v 1.47 1997/12/16 18:29:48 bde Exp $
 #
 # The include file <bsd.info.mk> handles installing GNU (tech)info files.
 # Texinfo is a documentation system that uses a single source
@@ -166,11 +166,7 @@ ${x:S/$/-install/}: ${DESTDIR}${INFODIR}/${INFODIRFILE}
 
 .PHONY: ${INSTALLINFODIRS}
 
-# The default is "info" and it can never be "bin"
-DISTRIBUTION?=	info
-.if ${DISTRIBUTION} == "bin"
-DISTRIBUTION=	info
-.endif
+DISTRIBUTION?=	bin
 
 .if !target(distribute)
 distribute: _SUBDIR
