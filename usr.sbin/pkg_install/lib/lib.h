@@ -1,4 +1,4 @@
-/* $Id: lib.h,v 1.25 1997/10/08 07:48:03 charnier Exp $ */
+/* $Id: lib.h,v 1.26 1998/02/16 17:16:47 jkh Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance
@@ -66,7 +66,9 @@
 #define COMMENT_FNAME		"+COMMENT"
 #define DESC_FNAME		"+DESC"
 #define INSTALL_FNAME		"+INSTALL"
+#define POST_INSTALL_FNAME	"+POST-INSTALL"
 #define DEINSTALL_FNAME		"+DEINSTALL"
+#define POST_DEINSTALL_FNAME	"+POST-DEINSTALL"
 #define REQUIRE_FNAME		"+REQUIRE"
 #define REQUIRED_BY_FNAME	"+REQUIRED_BY"
 #define DISPLAY_FNAME		"+DISPLAY"

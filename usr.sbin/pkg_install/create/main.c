@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: main.c,v 1.16 1997/06/06 12:19:11 jkh Exp $";
+	"$Id: main.c,v 1.17 1997/10/08 07:46:23 charnier Exp $";
 #endif
 
 /*
@@ -18,7 +18,7 @@ static const char rcsid[] =
 #include "lib.h"
 #include "create.h"
 
-static char Options[] = "YNOhvf:p:P:c:d:i:k:r:t:X:D:m:s:";
+static char Options[] = "YNOhvf:p:P:c:d:i:I:k:K:r:t:X:D:m:s:";
 
 char	*Prefix		= NULL;
 char	*Comment        = NULL;
@@ -26,7 +26,9 @@ char	*Desc		= NULL;
 char	*SrcDir		= NULL;
 char	*Display	= NULL;
 char	*Install	= NULL;
+char	*PostInstall	= NULL;
 char	*DeInstall	= NULL;
+char	*PostDeInstall	= NULL;
 char	*Contents	= NULL;
 char	*Require	= NULL;
 char	*ExcludeFrom	= NULL;
@@ -87,8 +89,16 @@ main(int argc, char **argv)
 	    Install = optarg;
 	    break;
 
+	case 'I':
+	    PostInstall = optarg;
+	    break;
+
 	case 'k':
 	    DeInstall = optarg;
+	    break;
+
+	case 'K':
+	    PostDeInstall = optarg;
 	    break;
 
 	case 'r':
@@ -151,10 +161,11 @@ main(int argc, char **argv)
 static void
 usage()
 {
-    fprintf(stderr, "%s\n%s\n%s\n%s\n",
+    fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
 "usage: pkg_create [-YNOhv] [-P pkgs] [-p prefix] [-f contents] [-i iscript]",
-"                  [-k dscript] [-r rscript] [-t template] [-X excludefile]",
-"                  [-D displayfile] [-m mtreefile] -c comment -d description",
-"                  -f packlist pkg-name");
+"                  [-I piscript] [-k dscript] [-K pdscript] [-r rscript] ",
+"                  [-t template] [-X excludefile] [-D displayfile] ",
+"                  [-m mtreefile] -c comment -d description -f packlist ",
+"                  pkg-name");
     exit(1);
 }
