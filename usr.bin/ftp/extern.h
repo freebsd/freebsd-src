@@ -77,6 +77,7 @@ char   *hookup __P((const char *, char *));
 void	idle __P((int, char **));
 int     initconn __P((void));
 void	intr __P((void));
+int	isipv6addr __P((const char *));
 void	list_vertical __P((StringList *));
 void	lcd __P((int, char **));
 int	login __P((const char *, char *, char *));
