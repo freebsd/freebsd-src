@@ -1,0 +1,41 @@
+#!/bin/sh
+#
+# Copyright (c) 2003-2004 Poul-Henning Kamp.
+#
+# See /usr/share/examples/etc/bsd-style-copyright for license terms.
+#
+# $FreeBSD$
+#
+# Called as:
+#
+# ${.CURDIR}/i386.diskimage $SECTS $HD $SC $DATASLICE ${.OBJDIR}/_.w ${.OBJDIR}/_.i
+#
+# XXX: newfs params.
+
+set -ex
+
+dd if=/dev/zero of=/tmp/$$.d count=$1
+MD=`mdconfig -a -t vnode -f /tmp/$$.d -x $3 -y $2`
+rm -f /tmp/$$.d
+(
+sl=`expr "(" $1 - $3 - $4 ")" / 2`
+echo p 1 165 $3 $sl
+echo p 2 165 `expr $3 + $sl` $sl
+echo p 3 165 `expr $3 + $sl + $sl` $4
+) > /tmp/$$
+cat /tmp/$$
+fdisk -i -f /tmp/$$ $MD
+fdisk $MD
+boot0cfg -B -b /boot/boot0sio -s 1 -m 3 $MD 
+rm -f /tmp/$$
+bsdlabel -w -B ${MD}s1
+newfs -O1 -U ${MD}s1a
+newfs -O1 -U ${MD}s3
+mount /dev/${MD}s1a /mnt
+(cd $5 && find . -print | cpio -dump /mnt) || true
+df /mnt
+umount /mnt
+dd if=/dev/${MD}s1 of=/dev/${MD}s2 bs=64k
+dd if=/dev/${MD} of=$6 bs=64k
+dd if=/dev/${MD}s1 of=${6}.s1 bs=64k
+mdconfig -d -u ${MD}
