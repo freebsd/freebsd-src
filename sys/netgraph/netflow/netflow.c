@@ -398,8 +398,10 @@ ng_netflow_cache_init(priv_p priv)
 	    NBUCKETS * sizeof(struct flow_hash_entry),
 	    M_NETFLOW, M_WAITOK | M_ZERO);
 
-	if (priv->hash == NULL)
+	if (priv->hash == NULL) {
+		FREE(priv->cache, M_NETFLOW);
 		return (ENOMEM);
+	}
 
 	TAILQ_INIT(&priv->work_queue);
 	SLIST_INIT(&priv->free_list);
@@ -458,11 +460,9 @@ ng_netflow_flow_add(priv_p priv, struct mbuf **m, iface_p iface)
 	register struct flow_entry	*fle;
 	struct flow_rec		r;
 	int			plen;
-	int			error = 1;
+	int			error = 0;
 	uint32_t		slot;
 	uint8_t			tcp_flags = 0;
-
-	priv->info.nfinfo_packets ++;
 
 	/* Try to fill *rec */
 	bzero(&r, sizeof(r));
@@ -472,6 +472,11 @@ ng_netflow_flow_add(priv_p priv, struct mbuf **m, iface_p iface)
 	slot = ip_hash(&r);
 
 	mtx_lock(&priv->work_mtx);
+
+	/* Update node statistics. */
+	priv->info.nfinfo_packets ++;
+	priv->info.nfinfo_bytes += plen;
+
 	fle = hash_lookup(h, slot, &r); /* New flow entry or existent? */
 
 	if (fle) {	/* an existent entry */
@@ -496,7 +501,6 @@ ng_netflow_flow_add(priv_p priv, struct mbuf **m, iface_p iface)
 			TAILQ_INSERT_TAIL(&priv->work_queue, fle, fle_work);
 
 		mtx_unlock(&priv->work_mtx);
-		priv->info.nfinfo_bytes += plen;
 
 	} else {	/* a new flow entry */
 
@@ -508,6 +512,7 @@ ng_netflow_flow_add(priv_p priv, struct mbuf **m, iface_p iface)
 	mtx_assert(&priv->work_mtx, MA_NOTOWNED);
 	mtx_assert(&priv->expire_mtx, MA_NOTOWNED);
 	mtx_assert(&priv->free_mtx, MA_NOTOWNED);
+
 	return (0);
 }
 
