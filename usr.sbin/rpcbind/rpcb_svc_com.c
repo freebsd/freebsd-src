@@ -121,7 +121,7 @@ static int del_pmaplist __P((RPCB *));
  */
 /* ARGSUSED */
 void *
-rpcbproc_set_com(void *arg, struct svc_req *rqstp, SVCXPRT *transp,
+rpcbproc_set_com(void *arg, struct svc_req *rqstp __unused, SVCXPRT *transp,
 		 rpcvers_t rpcbversnum)
 {
 	RPCB *regp = (RPCB *)arg;
@@ -209,7 +209,7 @@ map_set(RPCB *regp, char *owner)
  */
 /* ARGSUSED */
 void *
-rpcbproc_unset_com(void *arg, struct svc_req *rqstp, SVCXPRT *transp,
+rpcbproc_unset_com(void *arg, struct svc_req *rqstp __unused, SVCXPRT *transp,
 		   rpcvers_t rpcbversnum)
 {
 	RPCB *regp = (RPCB *)arg;
@@ -284,7 +284,7 @@ map_unset(RPCB *regp, char *owner)
 }
 
 void
-delete_prog(int prog)
+delete_prog(unsigned int prog)
 {
 	RPCB reg;
 	register rpcblist_ptr rbl;
@@ -303,8 +303,8 @@ delete_prog(int prog)
 }
 
 void *
-rpcbproc_getaddr_com(RPCB *regp, struct svc_req *rqstp, SVCXPRT *transp,
-		     rpcvers_t rpcbversnum, rpcvers_t verstype)
+rpcbproc_getaddr_com(RPCB *regp, struct svc_req *rqstp __unused,
+		     SVCXPRT *transp, rpcvers_t rpcbversnum, rpcvers_t verstype)
 {
 	static char *uaddr;
 	char *saddr = NULL;
@@ -346,8 +346,8 @@ rpcbproc_getaddr_com(RPCB *regp, struct svc_req *rqstp, SVCXPRT *transp,
 
 /* ARGSUSED */
 void *
-rpcbproc_gettime_com(void *arg, struct svc_req *rqstp, SVCXPRT *transp,
-		     rpcvers_t rpcbversnum)
+rpcbproc_gettime_com(void *arg __unused, struct svc_req *rqstp __unused,
+		     SVCXPRT *transp __unused, rpcvers_t rpcbversnum __unused)
 {
 	static time_t curtime;
 
@@ -361,8 +361,8 @@ rpcbproc_gettime_com(void *arg, struct svc_req *rqstp, SVCXPRT *transp,
  */
 /* ARGSUSED */
 void *
-rpcbproc_uaddr2taddr_com(void *arg, struct svc_req *rqstp, SVCXPRT *transp,
-			 rpcvers_t rpcbversnum)
+rpcbproc_uaddr2taddr_com(void *arg, struct svc_req *rqstp __unused,
+			 SVCXPRT *transp, rpcvers_t rpcbversnum __unused)
 {
 	char **uaddrp = (char **)arg;
 	struct netconfig *nconf;
@@ -388,8 +388,8 @@ rpcbproc_uaddr2taddr_com(void *arg, struct svc_req *rqstp, SVCXPRT *transp,
  */
 /* ARGSUSED */
 void *
-rpcbproc_taddr2uaddr_com(void *arg, struct svc_req *rqstp, SVCXPRT *transp,
-			 rpcvers_t rpcbversnum)
+rpcbproc_taddr2uaddr_com(void *arg, struct svc_req *rqstp __unused,
+			 SVCXPRT *transp, rpcvers_t rpcbversnum __unused)
 {
 	struct netbuf *taddr = (struct netbuf *)arg;
 	static char *uaddr;
@@ -1297,8 +1297,8 @@ static void
 find_versions(rpcprog_t prog, char *netid, rpcvers_t *lowvp, rpcvers_t *highvp)
 {
 	register rpcblist_ptr rbl;
-	int lowv = 0;
-	int highv = 0;
+	unsigned int lowv = 0;
+	unsigned int highv = 0;
 
 	for (rbl = list_rbl; rbl != NULL; rbl = rbl->rpcb_next) {
 		if ((rbl->rpcb_map.r_prog != prog) ||
@@ -1426,7 +1426,7 @@ del_pmaplist(RPCB *arg)
 {
 	struct pmaplist *pml;
 	struct pmaplist *prevpml, *fnd;
-	long prot;
+	unsigned long prot;
 
 	if (strcmp(arg->r_netid, udptrans) == 0) {
 		/* It is UDP! */

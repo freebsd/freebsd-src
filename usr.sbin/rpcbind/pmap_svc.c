@@ -167,7 +167,7 @@ find_service_pmap(rpcprog_t prog, rpcvers_t vers, rpcprot_t prot)
 }
 
 static bool_t
-pmapproc_change(struct svc_req *rqstp, SVCXPRT *xprt, unsigned long op)
+pmapproc_change(struct svc_req *rqstp __unused, SVCXPRT *xprt, unsigned long op)
 {
 	struct pmap reg;
 	RPCB rpcbreg;
@@ -261,7 +261,7 @@ done_change:
 
 /* ARGSUSED */
 static bool_t
-pmapproc_getport(struct svc_req *rqstp, SVCXPRT *xprt)
+pmapproc_getport(struct svc_req *rqstp __unused, SVCXPRT *xprt)
 {
 	struct pmap reg;
 	long lport;
@@ -342,7 +342,7 @@ sendreply:
 
 /* ARGSUSED */
 static bool_t
-pmapproc_dump(struct svc_req *rqstp, SVCXPRT *xprt)
+pmapproc_dump(struct svc_req *rqstp __unused, SVCXPRT *xprt)
 {
 	if (!svc_getargs(xprt, (xdrproc_t)xdr_void, NULL)) {
 		svcerr_decode(xprt);

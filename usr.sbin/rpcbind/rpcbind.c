@@ -60,6 +60,7 @@ static	char sccsid[] = "@(#)rpcbind.c 1.35 89/04/21 Copyr 1984 Sun Micro";
 #ifdef PORTMAP
 #include <netinet/in.h>
 #endif
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <netconfig.h>
@@ -644,7 +645,7 @@ rbllist_add(rpcprog_t prog, rpcvers_t vers, struct netconfig *nconf,
  * Catch the signal and die
  */
 static void
-terminate(int dummy)
+terminate(int dummy __unused)
 {
 #ifdef WARMSTART
 	syslog(LOG_ERR,
@@ -717,7 +718,7 @@ parseargs(int argc, char *argv[])
 }
 
 void
-reap(int dummy)
+reap(int dummy __unused)
 {
 	int save_errno = errno;
  
@@ -727,7 +728,7 @@ reap(int dummy)
 }
 
 void
-toggle_verboselog(int dummy)
+toggle_verboselog(int dummy __unused)
 {
 	verboselog = !verboselog;
 }

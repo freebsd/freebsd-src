@@ -295,7 +295,8 @@ network_init()
 #ifdef INET6
 	struct ifaddrs *ifap, *ifp;
 	struct ipv6_mreq mreq6;
-	int ifindex, s;
+	unsigned int ifindex;
+	int s;
 #endif
 	int ecode;
 	struct addrinfo hints, *res;
