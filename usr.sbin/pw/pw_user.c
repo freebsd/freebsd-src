@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_user.c,v 1.17 1997/03/03 07:59:54 ache Exp $
+ *	$Id: pw_user.c,v 1.18 1997/03/11 14:11:43 ache Exp $
  */
 
 #include <unistd.h>
@@ -49,6 +49,8 @@
 #else
 #define LOGNAMESIZE (MAXLOGNAME-1)
 #endif
+
+static          randinit;
 
 static int      print_user(struct passwd * pwd, int pretty);
 static uid_t    pw_uidpolicy(struct userconf * cnf, struct cargs * args);
@@ -835,15 +837,19 @@ pw_pwcrypt(char *password)
 	/*
 	 * Calculate a salt value
 	 */
-	srandom((unsigned long) (time(NULL) ^ getpid()));
+	if (!randinit) {
+		randinit = 1;
+#ifdef __FreeBSD__
+		if (srandomdev() < 0)
+#endif
+			srandom((unsigned long) (time(NULL) ^ getpid()));
+	}
 	for (i = 0; i < 8; i++)
 		salt[i] = chars[random() % 63];
 	salt[i] = '\0';
 
 	return strcpy(buf, crypt(password, salt));
 }
-
-#if defined(__FreeBSD__)
 
 #if defined(USE_MD5RAND)
 u_char *
@@ -877,23 +883,6 @@ pw_getrand(u_char *buf, int len)	/* cryptographically secure rng */
 	return buf;
 }
 
-#else	/* Use random device (preferred) */
-
-static u_char *
-pw_getrand(u_char *buf, int len)
-{
-	int		fd;
-	fd = open("/dev/urandom", O_RDONLY);
-	if (fd==-1)
-		cmderr(EX_OSFILE, "can't open /dev/urandom: %s\n", strerror(errno));
-	else if (read(fd, buf, len)!=len)
-		cmderr(EX_IOERR, "read error on /dev/urandom\n");
-	close(fd);
-	return buf;
-}
-
-#endif
-
 #else	/* Portable version */
 
 static u_char *
@@ -902,7 +891,7 @@ pw_getrand(u_char *buf, int len)
 	int i;
 
 	for (i = 0; i < len; i++) {
-		unsigned val = random();
+		unsigned long val = random();
 		/* Use all bits in the random value */
 		buf[i]=(u_char)((val >> 24) ^ (val >> 16) ^ (val >> 8) ^ val);
 	}
@@ -920,7 +909,13 @@ pw_password(struct userconf * cnf, struct cargs * args, char const * user)
 
 	switch (cnf->default_password) {
 	case -1:		/* Random password */
-		srandom((unsigned long) (time(NULL) ^ getpid()));
+		if (!randinit) {
+			randinit = 1;
+#ifdef __FreeBSD__
+			if (srandomdev() < 0)
+#endif
+				srandom((unsigned long) (time(NULL) ^ getpid()));
+		}
 		l = (random() % 8 + 8);	/* 8 - 16 chars */
 		pw_getrand(rndbuf, l);
 		for (i = 0; i < l; i++)
