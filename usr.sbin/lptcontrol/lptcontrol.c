@@ -31,24 +31,17 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <ctype.h>
+#include <dev/ppbus/lptio.h>
+
 #include <err.h>
-#include <limits.h>
-#include <paths.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <fcntl.h>
 #include <unistd.h>
 
-#include <dev/ppbus/lptio.h>
-#include <sys/file.h>
-#include <sys/ioctl.h>
-#include <sys/types.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-
-#define PATH_LPCTL	_PATH_DEV "lpctl"
-#define DEFAULT_DEVICE	_PATH_DEV "lpt0"
-#define IRQ_INVALID	-1
+#define DEFAULT_DEVICE	"/dev/lpt0.ctl"
+#define IRQ_UNSPECIFIED	-1
 #define DO_POLL		0
 #define USE_IRQ		1
 #define USE_EXT_MODE	2
@@ -56,40 +49,58 @@ __FBSDID("$FreeBSD$");
 
 static void usage(void)
 {
-	fprintf(stderr, "usage: lptcontrol -i | -p | -s | -e [-d device]\n");
+	fprintf(stderr,
+		"usage: lptcontrol -e | -i | -p | -s [[-d] controldevice]\n");
 	exit(1);
 }
 
-static void set_interrupt_status(int irq_status, const char * file)
+int main (int argc, char **argv)
 {
-	int	fd;
+	const char *device;
+	int fd;
+	int irq_status;
+	int opt;
 
-	if((fd = open(file, O_WRONLY, 0660)) < 0)
-		err(1, "open");
-	if(ioctl(fd, LPT_IRQ, &irq_status) < 0)
-		err(1, "ioctl");
-	close(fd);
-}
-
-int main (int argc, char * argv[])
-{
-	int		opt;
-	int		irq_status = IRQ_INVALID;
-	const char	*device = DEFAULT_DEVICE;
-
-	while((opt = getopt(argc, argv, "ipesd:")) != -1)
-		switch(opt) {
-		case 'i': irq_status = USE_IRQ; break;
-		case 'p': irq_status = DO_POLL; break;
-		case 'e': irq_status = USE_EXT_MODE; break;
-		case 's': irq_status = USE_STD_MODE; break;
-		case 'd': device = optarg; break;
-		default : usage();
+	device = DEFAULT_DEVICE;
+	irq_status = IRQ_UNSPECIFIED;
+	while ((opt = getopt(argc, argv, "d:eips")) != -1)
+		switch (opt) {
+		case 'd':
+			device = optarg;
+			break;
+		case 'e':
+			irq_status = USE_EXT_MODE;
+			break;
+		case 'i':
+			irq_status = USE_IRQ;
+			break;
+		case 'p':
+			irq_status = DO_POLL;
+			break;
+		case 's':
+			irq_status = USE_STD_MODE;
+			break;
+		case '?':
+		default:
+			usage();
+			/* NOTREACHED */
 		}
-	if(irq_status == IRQ_INVALID)
+	argc -= optind;
+	argv += optind;
+	/* POLA: DTRT if -d was forgotten, but device name was specified. */
+	if (argc == 1) {
+		device = argv[0];
+		--argc;
+	}
+
+	if (irq_status == IRQ_UNSPECIFIED || argc != 0)
 		usage();
 
-	set_interrupt_status(irq_status, device);
+	if ((fd = open(device, O_WRONLY, 0660)) < 0)
+		err(1, "open");
+	if (ioctl(fd, LPT_IRQ, &irq_status) < 0)
+		err(1, "ioctl");
+	close(fd);
 
-	exit(0);
+	return(0);
 }
