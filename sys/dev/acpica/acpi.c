@@ -113,6 +113,8 @@ static struct resource *acpi_alloc_resource(device_t bus, device_t child,
 			u_long count, u_int flags);
 static int	acpi_release_resource(device_t bus, device_t child, int type,
 			int rid, struct resource *r);
+static void	acpi_delete_resource(device_t bus, device_t child, int type,
+		    int rid);
 static uint32_t	acpi_isa_get_logicalid(device_t dev);
 static int	acpi_isa_get_compatid(device_t dev, uint32_t *cids, int count);
 static char	*acpi_device_id_probe(device_t bus, device_t dev, char **ids);
@@ -173,6 +175,7 @@ static device_method_t acpi_methods[] = {
     DEVMETHOD(bus_get_resource,		bus_generic_rl_get_resource),
     DEVMETHOD(bus_alloc_resource,	acpi_alloc_resource),
     DEVMETHOD(bus_release_resource,	acpi_release_resource),
+    DEVMETHOD(bus_delete_resource,	acpi_delete_resource),
     DEVMETHOD(bus_child_pnpinfo_str,	acpi_child_pnpinfo_str_method),
     DEVMETHOD(bus_child_location_str,	acpi_child_location_str_method),
     DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
@@ -1071,6 +1074,15 @@ out:
     return (ret);
 }
 
+static void
+acpi_delete_resource(device_t bus, device_t child, int type, int rid)
+{
+    struct resource_list *rl;
+
+    rl = acpi_get_rlist(bus, child);
+    resource_list_delete(rl, type, rid);
+}
+
 /* Allocate an IO port or memory resource, given its GAS. */
 int
 acpi_bus_alloc_gas(device_t dev, int *type, int *rid, ACPI_GENERIC_ADDRESS *gas,
@@ -1105,6 +1117,12 @@ acpi_bus_alloc_gas(device_t dev, int *type, int *rid, ACPI_GENERIC_ADDRESS *gas,
     if (!ACPI_VALID_ADDRESS(gas->Address) || gas->RegisterBitWidth == 0)
 	return (EINVAL);
 
+    /*
+     * Delete any previous resource before setting the new one.  Note this
+     * will panic if the resource is still allocated but that will reveal
+     * any driver bugs.
+     */
+    bus_delete_resource(dev, res_type, *rid);
     bus_set_resource(dev, res_type, *rid, gas->Address,
 	gas->RegisterBitWidth / 8);
     *res = bus_alloc_resource_any(dev, res_type, rid, RF_ACTIVE);
