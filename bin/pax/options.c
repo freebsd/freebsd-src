@@ -481,7 +481,7 @@ pax_options(int argc, char **argv)
 			break;
 		case 'X':
 			/*
-			 * do not pass over mount points in the file system
+			 * do not pass over mount points in the filesystem
 			 */
 			Xflag = 1;
 			flg |= CXF;
@@ -772,7 +772,7 @@ tar_options(int argc, char **argv)
 			break;
 		case 'X':
 			/*
-			 * do not pass over mount points in the file system
+			 * do not pass over mount points in the filesystem
 			 */
 			Xflag = 1;
 			break;
