@@ -9,18 +9,9 @@ MISRCS+=abort.c abs.c atexit.c atof.c atoi.c atol.c atoll.c \
 	getsubopt.c hcreate.c heapsort.c imaxabs.c imaxdiv.c \
 	labs.c ldiv.c llabs.c lldiv.c malloc.c merge.c putenv.c \
 	qsort.c radixsort.c rand.c random.c reallocf.c realpath.c \
-	setenv.c strfmon.c strhash.c strtoimax.c strtol.c strtoll.c \
+	setenv.c strfmon.c strhash.c strtod.c strtoimax.c strtol.c strtoll.c \
 	strtoq.c strtoul.c strtoull.c strtoumax.c strtouq.c system.c \
 	tdelete.c tfind.c tsearch.c twalk.c
-
-.if ${MACHINE_ARCH} == "alpha"
-#  XXX Temporary until the assumption that a long is 32-bits is resolved
-#  XXX FreeBSD's code. NetBSD kludged this with Long = int32_t and
-#  XXX ULong = u_int32_t
-SRCS+=	netbsd_strtod.c
-.else
-SRCS+=	strtod.c
-.endif
 
 # machine-dependent stdlib sources
 .if exists(${.CURDIR}/../libc/${MACHINE_ARCH}/stdlib/Makefile.inc)
