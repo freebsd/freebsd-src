@@ -65,6 +65,9 @@ modified by raycontrol(8).
 The bug that made certain CDROM drives fail to attach when connected
 to a SCSI card driven by 'isp' has been fixed. 
 
+A bug in the ed(4) driver that could cause panics with very short
+packets and BPF or bridging active has been fixed.
+
 A bug in FFS that could cause superblock corruption on very large
 filesystems has been corrected.
 
@@ -208,6 +211,13 @@ package against its recorded checksums (to see if it's been modified
 post-installation).  Naturally, this mechanism is only as secure as
 the contents of /var/db/pkg if it's to be used for auditing
 purposes.
+
+vidcontrol(1) now accepts a -g parameter to select custom text
+geometry in the VESA_800x600 raster text mode.
+
+The rfork_thread(3) library call has been added as a helper function
+to rfork(2).  Using this function should avoid the need to implement
+complex stack swap code.
 
 
 2. Supported Configurations
