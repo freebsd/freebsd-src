@@ -74,6 +74,7 @@ int	 ffs(int);
 #ifndef	HAVE_INLINE_FLS
 int	 fls(int);
 #endif
+int	 fnmatch(const char *, const char *, int);
 int	 locc(int, char *, u_int);
 void	 qsort(void *base, size_t nmemb, size_t size,
 	    int (*compar)(const void *, const void *));
@@ -112,5 +113,17 @@ memset(void *b, int c, size_t len)
 			*bb++ = c;
 	return (b);
 }
+
+/* fnmatch() return values. */
+#define	FNM_NOMATCH	1	/* Match failed. */
+
+/* fnmatch() flags. */
+#define	FNM_NOESCAPE	0x01	/* Disable backslash escaping. */
+#define	FNM_PATHNAME	0x02	/* Slash must be matched by slash. */
+#define	FNM_PERIOD	0x04	/* Period must be matched by period. */
+#define	FNM_LEADING_DIR	0x08	/* Ignore /<tail> after Imatch. */
+#define	FNM_CASEFOLD	0x10	/* Case insensitive search. */
+#define	FNM_IGNORECASE	FNM_CASEFOLD
+#define	FNM_FILE_NAME	FNM_PATHNAME
 
 #endif /* !_SYS_LIBKERN_H_ */

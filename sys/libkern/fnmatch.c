@@ -32,25 +32,18 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
-
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)fnmatch.c	8.2 (Berkeley) 4/16/94";
-#endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 /*
  * Function fnmatch() as specified in POSIX 1003.2-1992, section B.6.
  * Compares a filename or pathname to a pattern.
  */
 
-#include <ctype.h>
-#include <fnmatch.h>
-#include <string.h>
-#include <stdio.h>
-
-#include "collate.h"
+#include <sys/param.h>
+#include <sys/ctype.h>
+#include <sys/libkern.h>
 
 #define	EOS	'\0'
 
@@ -101,12 +94,12 @@ fnmatch(pattern, string, flags)
 			if (c == EOS)
 				if (flags & FNM_PATHNAME)
 					return ((flags & FNM_LEADING_DIR) ||
-					    strchr(string, '/') == NULL ?
+					    index(string, '/') == NULL ?
 					    0 : FNM_NOMATCH);
 				else
 					return (0);
 			else if (c == '/' && flags & FNM_PATHNAME) {
-				if ((string = strchr(string, '/')) == NULL)
+				if ((string = index(string, '/')) == NULL)
 					return (FNM_NOMATCH);
 				break;
 			}
@@ -218,16 +211,12 @@ rangematch(pattern, test, flags, newp)
 			if (flags & FNM_CASEFOLD)
 				c2 = tolower((unsigned char)c2);
 
-			if (__collate_load_error ?
-			    c <= test && test <= c2 :
-			       __collate_range_cmp(c, test) <= 0
-			    && __collate_range_cmp(test, c2) <= 0
-			   )
+			if (c <= test && test <= c2)
 				ok = 1;
 		} else if (c == test)
 			ok = 1;
 	} while ((c = *pattern++) != ']');
 
-	*newp = (char *)pattern;
+	*newp = (char *)(uintptr_t)pattern;
 	return (ok == negate ? RANGE_NOMATCH : RANGE_MATCH);
 }
