@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)shutdown.8	8.1 (Berkeley) 6/5/93
-.\"	$Id$
+.\"	$Id: shutdown.8,v 1.4 1998/08/03 06:22:43 charnier Exp $
 .\"
 .Dd June 5, 1993
 .Dt SHUTDOWN 8
@@ -71,6 +71,8 @@ system multi-user with logins disabled (for all but super-user).
 Prevent the normal
 .Xr sync 2
 before stopping.
+.It Fl p
+The system will turn the power off after shutdown if it can.
 .It Fl r 
 .Nm Shutdown
 executes
