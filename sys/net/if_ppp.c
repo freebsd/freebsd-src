@@ -1571,7 +1571,7 @@ ppp_inproc(sc, m)
       rv = IF_HANDOFF(&sc->sc_inq, m, NULL);
     else
       rv = netisr_queue(isr, m);
-    if (rv) {
+    if (!rv) {
 	if (sc->sc_flags & SC_DEBUG)
 	    if_printf(ifp, "input queue full\n");
 	ifp->if_iqdrops++;
