@@ -756,7 +756,7 @@ fill_kinfo_proc(p, kp)
 			/* Things in the kse */
 			kp->ki_rqindex = ke->ke_rqindex;
 			kp->ki_oncpu = ke->ke_oncpu;
-			kp->ki_pctcpu = ke->ke_pctcpu;
+			kp->ki_pctcpu = sched_pctcpu(ke);
 		} else {
 			kp->ki_oncpu = -1;
 			kp->ki_lastcpu = -1;
