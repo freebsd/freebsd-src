@@ -1046,7 +1046,7 @@ epic_set_media_speed __P((
 
 		epic_write_phy_register( sc->iobase, DP83840_BMCR, media );
 
-		outl( sc->iobase + TXCON,((tgtmedia&ITM_GMASK)==IFM_FDX)?TXCON_LOOPBACK_MODE_FULL_DUPLEX|TXCON_DEFAULT:TXCON_DEFAULT );
+		outl( sc->iobase + TXCON,((tgtmedia&IFM_GMASK)==IFM_FDX)?TXCON_LOOPBACK_MODE_FULL_DUPLEX|TXCON_DEFAULT:TXCON_DEFAULT );
 	}
 #else
 	if( ifp->if_flags & IFF_LINK0 ) {
