@@ -511,6 +511,11 @@
       <para><application>tcsh</application> has been updated to version
       6.11.</para>
 
+      <para arch="i386">Version 1.4.1 of the <application>smbfs</application>
+      userland utilities have been imported.  &man.smbutil.1; and
+      &man.mount.smbfs.8; are now available in the base system,
+      without the need to install the <port>net/smbfs</port> port.</para>
+
       <para>The timezone database has been updated to the
       <filename>tzdata2001d</filename> release.</para>
 
