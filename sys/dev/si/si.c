@@ -47,11 +47,7 @@ static const char si_copyright1[] =  "@(#) Copyright (C) Specialix International
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#ifndef BURN_BRIDGES
-#if defined(COMPAT_43)
-#include <sys/ioctl_compat.h>
-#endif
-#endif
+#include <sys/serial.h>
 #include <sys/tty.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
@@ -92,37 +88,25 @@ static const char si_copyright1[] =  "@(#) Copyright (C) Specialix International
 #define JET_INT_COUNT 100	/* max of 100 ints per second */
 #define RXINT_COUNT 1	/* one rxint per 10 milliseconds */
 
-enum si_mctl { GET, SET, BIS, BIC };
-
 static void si_command(struct si_port *, int, int);
-static int si_modem(struct si_port *, enum si_mctl, int);
-static void si_write_enable(struct si_port *, int);
 static int si_Sioctl(struct cdev *, u_long, caddr_t, int, struct thread *);
 static void si_start(struct tty *);
 static void si_stop(struct tty *, int);
 static timeout_t si_lstart;
-static void sihardclose(struct si_port *pp);
 
-#ifdef SI_DEBUG
-static char	*si_mctl2str(enum si_mctl cmd);
-#endif
+static t_break_t sibreak;
+static t_close_t siclose;
+static t_modem_t simodem;
+static t_open_t siopen;
 
 static int	siparam(struct tty *, struct termios *);
 
 static void	si_modem_state(struct si_port *pp, struct tty *tp, int hi_ip);
 static char *	si_modulename(int host_type, int uart_type);
 
-static	d_open_t	siopen;
-static	d_close_t	siclose;
-static	d_write_t	siwrite;
-static	d_ioctl_t	siioctl;
-
-static struct cdevsw si_cdevsw = {
+static struct cdevsw si_Scdevsw = {
 	.d_version =	D_VERSION,
-	.d_open =	siopen,
-	.d_close =	siclose,
-	.d_write =	siwrite,
-	.d_ioctl =	siioctl,
+	.d_ioctl =	si_Sioctl,
 	.d_name =	"si",
 	.d_flags =	D_TTY | D_NEEDGIANT,
 };
@@ -197,7 +181,7 @@ static void si_poll(void *);
  * Array of adapter types and the corresponding RAM size. The order of
  * entries here MUST match the ordinal of the adapter type.
  */
-static char *si_type[] = {
+static const char *si_type[] = {
 	"EMPTY",
 	"SIHOST",
 	"SIMCA",		/* FreeBSD does not support Microchannel */
@@ -255,6 +239,7 @@ siattach(device_t dev)
 	int unit;
 	struct si_softc *sc;
 	struct si_port *pp;
+	struct tty *tp;
 	volatile struct si_channel *ccbp;
 	volatile struct si_reg *regp;
 	volatile caddr_t maddr;
@@ -553,17 +538,21 @@ try_next:
 
 		for (x = 0; x < nport; x++, pp++, ccbp++) {
 			pp->sp_ccb = ccbp;	/* save the address */
-			pp->sp_tty = ttyalloc();
 			pp->sp_pend = IDLE_CLOSE;
 			pp->sp_state = 0;	/* internal flag */
-			pp->sp_iin.c_iflag = TTYDEF_IFLAG;
-			pp->sp_iin.c_oflag = TTYDEF_OFLAG;
-			pp->sp_iin.c_cflag = TTYDEF_CFLAG;
-			pp->sp_iin.c_lflag = TTYDEF_LFLAG;
-			termioschars(&pp->sp_iin);
-			pp->sp_iin.c_ispeed = pp->sp_iin.c_ospeed =
-				TTYDEF_SPEED;;
-			pp->sp_iout = pp->sp_iin;
+#ifdef SI_DEBUG
+			sprintf(pp->sp_name, "si%r%r", unit, x);
+#endif
+			tp = pp->sp_tty = ttyalloc();
+			tp->t_sc = pp;
+			tp->t_break = sibreak;
+			tp->t_close = siclose;
+			tp->t_modem = simodem;
+			tp->t_open = siopen;
+			tp->t_oproc = si_start;
+			tp->t_param = siparam;
+			tp->t_stop = si_stop;
+			ttycreate(tp, NULL, 0, MINOR_CALLOUT, "A%r%r", unit, x);
 		}
 try_next2:
 		if (modp->sm_next == 0) {
@@ -587,56 +576,13 @@ try_next2:
 		done_chartimes = 1;
 	}
 
-/*	path	name	devsw		minor	type   uid gid perm*/
-	for (x = 0; x < sc->sc_nport; x++) {
-		/* sync with the manuals that start at 1 */
-		y = x + 1 + unit * (1 << SI_CARDSHIFT);
-		make_dev(&si_cdevsw, x, 0, 0, 0600, "ttyA%02d", y);
-		make_dev(&si_cdevsw, x + 0x00080, 0, 0, 0600, "cuaA%02d", y);
-		make_dev(&si_cdevsw, x + 0x10000, 0, 0, 0600, "ttyiA%02d", y);
-		make_dev(&si_cdevsw, x + 0x10080, 0, 0, 0600, "cuaiA%02d", y);
-		make_dev(&si_cdevsw, x + 0x20000, 0, 0, 0600, "ttylA%02d", y);
-		make_dev(&si_cdevsw, x + 0x20080, 0, 0, 0600, "cualA%02d", y);
-	}
-	make_dev(&si_cdevsw, 0x40000, 0, 0, 0600, "si_control");
+	make_dev(&si_Scdevsw, 0, 0, 0, 0600, "si_control");
 	return (0);
 }
 
 static	int
-siopen(struct cdev *dev, int flag, int mode, struct thread *td)
+siopen(struct tty *tp, struct cdev *dev)
 {
-	int oldspl, error;
-	int card, port;
-	struct si_softc *sc;
-	struct tty *tp;
-	volatile struct si_channel *ccbp;
-	struct si_port *pp;
-	int mynor = minor(dev);
-
-	/* quickly let in /dev/si_control */
-	if (IS_CONTROLDEV(mynor)) {
-		if ((error = suser(td)))
-			return(error);
-		return(0);
-	}
-
-	card = SI_CARD(mynor);
-	sc = devclass_get_softc(si_devclass, card);
-	if (sc == NULL)
-		return (ENXIO);
-
-	if (sc->sc_type == SIEMPTY) {
-		DPRINT((0, DBG_OPEN|DBG_FAIL, "si%d: type %s??\n",
-			card, sc->sc_typename));
-		return(ENXIO);
-	}
-
-	port = SI_PORT(mynor);
-	if (port >= sc->sc_nport) {
-		DPRINT((0, DBG_OPEN|DBG_FAIL, "si%d: nports %d\n",
-			card, sc->sc_nport));
-		return(ENXIO);
-	}
 
 #ifdef	POLL
 	/*
@@ -647,416 +593,33 @@ siopen(struct cdev *dev, int flag, int mode, struct thread *td)
 		init_finished = 1;
 	}
 #endif
-
-	/* initial/lock device */
-	if (IS_STATE(mynor)) {
-		return(0);
-	}
-
-	pp = sc->sc_ports + port;
-	tp = pp->sp_tty;			/* the "real" tty */
-	dev->si_tty = tp;
-	ccbp = pp->sp_ccb;			/* Find control block */
-	DPRINT((pp, DBG_ENTRY|DBG_OPEN, "siopen(%s,%x,%x,%x)\n",
-		devtoname(dev), flag, mode, td));
-
-	oldspl = spltty();			/* Keep others out */
-	error = 0;
-
-open_top:
-	error = ttydtrwaitsleep(tp);
-	if (error != 0)
-		goto out;
-
-	if (tp->t_state & TS_ISOPEN) {
-		/*
-		 * The device is open, so everything has been initialised.
-		 * handle conflicts.
-		 */
-		if (IS_CALLOUT(mynor)) {
-			if (!pp->sp_active_out) {
-				error = EBUSY;
-				goto out;
-			}
-		} else {
-			if (pp->sp_active_out) {
-				if (flag & O_NONBLOCK) {
-					error = EBUSY;
-					goto out;
-				}
-				error = tsleep(&pp->sp_active_out,
-						TTIPRI|PCATCH, "sibi", 0);
-				if (error != 0)
-					goto out;
-				goto open_top;
-			}
-		}
-		if (tp->t_state & TS_XCLUDE &&
-		    suser(td)) {
-			DPRINT((pp, DBG_OPEN|DBG_FAIL,
-				"already open and EXCLUSIVE set\n"));
-			error = EBUSY;
-			goto out;
-		}
-	} else {
-		/*
-		 * The device isn't open, so there are no conflicts.
-		 * Initialize it. Avoid sleep... :-)
-		 */
-		DPRINT((pp, DBG_OPEN, "first open\n"));
-		tp->t_oproc = si_start;
-		tp->t_stop = si_stop;
-		tp->t_param = siparam;
-		tp->t_dev = dev;
-		tp->t_termios = mynor & SI_CALLOUT_MASK
-				? pp->sp_iout : pp->sp_iin;
-
-		(void) si_modem(pp, SET, TIOCM_DTR|TIOCM_RTS);
-
-		++pp->sp_wopeners;	/* in case of sleep in siparam */
-
-		error = siparam(tp, &tp->t_termios);
-
-		--pp->sp_wopeners;
-		if (error != 0)
-			goto out;
-		/* XXX: we should goto_top if siparam slept */
-
-		/* set initial DCD state */
-		pp->sp_last_hi_ip = ccbp->hi_ip;
-		if ((pp->sp_last_hi_ip & IP_DCD) || IS_CALLOUT(mynor)) {
-			ttyld_modem(tp, 1);
-		}
-	}
-
-	/* whoops! we beat the close! */
-	if (pp->sp_state & SS_CLOSING) {
-		/* try and stop it from proceeding to bash the hardware */
-		pp->sp_state &= ~SS_CLOSING;
-	}
-
-	/*
-	 * Wait for DCD if necessary
-	 */
-	if (!(tp->t_state & TS_CARR_ON) &&
-	    !IS_CALLOUT(mynor) &&
-	    !(tp->t_cflag & CLOCAL) &&
-	    !(flag & O_NONBLOCK)) {
-		++pp->sp_wopeners;
-		DPRINT((pp, DBG_OPEN, "sleeping for carrier\n"));
-		error = tsleep(TSA_CARR_ON(tp), TTIPRI|PCATCH, "sidcd", 0);
-		--pp->sp_wopeners;
-		if (error != 0)
-			goto out;
-		goto open_top;
-	}
-
-	error = ttyld_open(tp, dev);
-	ttyldoptim(tp);
-	if (tp->t_state & TS_ISOPEN && IS_CALLOUT(mynor))
-		pp->sp_active_out = TRUE;
-
-	pp->sp_state |= SS_OPEN;	/* made it! */
-
-out:
-	splx(oldspl);
-
-	DPRINT((pp, DBG_OPEN, "leaving siopen\n"));
-
-	if (!(tp->t_state & TS_ISOPEN) && pp->sp_wopeners == 0)
-		sihardclose(pp);
-
-	return(error);
-}
-
-static	int
-siclose(struct cdev *dev, int flag, int mode, struct thread *td)
-{
-	struct si_port *pp;
-	struct tty *tp;
-	int oldspl;
-	int error = 0;
-	int mynor = minor(dev);
-
-	if (IS_SPECIAL(mynor))
-		return(0);
-
-	oldspl = spltty();
-
-	pp = MINOR2PP(mynor);
-	tp = pp->sp_tty;
-
-	DPRINT((pp, DBG_ENTRY|DBG_CLOSE, "siclose(%s,%x,%x,%x) sp_state:%x\n",
-		devtoname(dev), flag, mode, td, pp->sp_state));
-
-	/* did we sleep and loose a race? */
-	if (pp->sp_state & SS_CLOSING) {
-		/* error = ESOMETING? */
-		goto out;
-	}
-
-	/* begin race detection.. */
-	pp->sp_state |= SS_CLOSING;
-
-	si_write_enable(pp, 0);		/* block writes for ttywait() */
-
-	/* THIS MAY SLEEP IN TTYWAIT!!! */
-	ttyld_close(tp, flag);
-
-	si_write_enable(pp, 1);
-
-	/* did we sleep and somebody started another open? */
-	if (!(pp->sp_state & SS_CLOSING)) {
-		/* error = ESOMETING? */
-		goto out;
-	}
-	/* ok. we are now still on the right track.. nuke the hardware */
-
-	if (pp->sp_state & SS_LSTART) {
-		untimeout(si_lstart, (caddr_t)pp, pp->lstart_ch);
-		pp->sp_state &= ~SS_LSTART;
-	}
-
-	sihardclose(pp);
-	tty_close(tp);
-	pp->sp_state &= ~SS_OPEN;
-
-out:
-	DPRINT((pp, DBG_CLOSE|DBG_EXIT, "close done, returning\n"));
-	splx(oldspl);
-	return(error);
+	return(0);
 }
 
 static void
-sihardclose(struct si_port *pp)
-{
-	int oldspl;
-	struct tty *tp;
-	volatile struct si_channel *ccbp;
-
-	oldspl = spltty();
-
-	tp = pp->sp_tty;
-	ccbp = pp->sp_ccb;			/* Find control block */
-	if (tp->t_cflag & HUPCL ||
-	    (!pp->sp_active_out &&
-	     !(ccbp->hi_ip & IP_DCD) &&
-	     !(pp->sp_iin.c_cflag && CLOCAL)) ||
-	    !(tp->t_state & TS_ISOPEN)) {
-
-		(void) si_modem(pp, BIC, TIOCM_DTR|TIOCM_RTS);
-		(void) si_command(pp, FCLOSE, SI_NOWAIT);
-
-		ttydtrwaitstart(tp);
-	}
-	pp->sp_active_out = FALSE;
-	wakeup(&pp->sp_active_out);
-	wakeup(TSA_CARR_ON(tp));
-
-	splx(oldspl);
-}
-
-static	int
-siwrite(struct cdev *dev, struct uio *uio, int flag)
+siclose(struct tty *tp)
 {
 	struct si_port *pp;
-	struct tty *tp;
-	int error = 0;
-	int mynor = minor(dev);
-	int oldspl;
 
-	if (IS_SPECIAL(mynor)) {
-		DPRINT((0, DBG_ENTRY|DBG_FAIL|DBG_WRITE, "siwrite(CONTROLDEV!!)\n"));
-		return(ENODEV);
-	}
-	pp = MINOR2PP(mynor);
-	tp = pp->sp_tty;
-	DPRINT((pp, DBG_WRITE, "siwrite(%s,%x,%x)\n", devtoname(dev), uio, flag));
-
-	oldspl = spltty();
-	/*
-	 * If writes are currently blocked, wait on the "real" tty
-	 */
-	while (pp->sp_state & SS_BLOCKWRITE) {
-		pp->sp_state |= SS_WAITWRITE;
-		DPRINT((pp, DBG_WRITE, "in siwrite, wait for SS_BLOCKWRITE to clear\n"));
-		if ((error = ttysleep(tp, (caddr_t)pp, TTOPRI|PCATCH,
-				     "siwrite", tp->t_timeout))) {
-			if (error == EWOULDBLOCK)
-				error = EIO;
-			goto out;
-		}
-	}
-
-	error = ttyld_write(tp, uio, flag);
-out:
-	splx(oldspl);
-	return (error);
+	pp = tp->t_sc;
+	(void) si_command(pp, FCLOSE, SI_NOWAIT);
 }
 
-
-static	int
-siioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+static void
+sibreak(struct tty *tp, int sig)
 {
 	struct si_port *pp;
-	struct tty *tp;
-	int error;
-	int mynor = minor(dev);
-	int oldspl;
-	int blocked = 0;
-#ifndef BURN_BRIDGES
-#if defined(COMPAT_43)
-	u_long oldcmd;
-	struct termios term;
-#endif
-#endif
 
-	if (IS_SI_IOCTL(cmd))
-		return(si_Sioctl(dev, cmd, data, flag, td));
-
-	pp = MINOR2PP(mynor);
-	tp = pp->sp_tty;
-
-	DPRINT((pp, DBG_ENTRY|DBG_IOCTL, "siioctl(%s,%lx,%x,%x)\n",
-		devtoname(dev), cmd, data, flag));
-	if (IS_STATE(mynor)) {
-		struct termios *ct;
-
-		switch (mynor & SI_STATE_MASK) {
-		case SI_INIT_STATE_MASK:
-			ct = IS_CALLOUT(mynor) ? &pp->sp_iout : &pp->sp_iin;
-			break;
-		case SI_LOCK_STATE_MASK:
-			ct = IS_CALLOUT(mynor) ? &pp->sp_lout : &pp->sp_lin;
-			break;
-		default:
-			return (ENODEV);
-		}
-		switch (cmd) {
-		case TIOCSETA:
-			error = suser(td);
-			if (error != 0)
-				return (error);
-			*ct = *(struct termios *)data;
-			return (0);
-		case TIOCGETA:
-			*(struct termios *)data = *ct;
-			return (0);
-		case TIOCGETD:
-			*(int *)data = TTYDISC;
-			return (0);
-		case TIOCGWINSZ:
-			bzero(data, sizeof(struct winsize));
-			return (0);
-		default:
-			return (ENOTTY);
-		}
-	}
-	/*
-	 * Do the old-style ioctl compat routines...
-	 */
-#ifndef BURN_BRIDGES
-#if defined(COMPAT_43)
-	term = tp->t_termios;
-	oldcmd = cmd;
-	error = ttsetcompat(tp, &cmd, data, &term);
-	if (error != 0)
-		return (error);
-	if (cmd != oldcmd)
-		data = (caddr_t)&term;
-#endif
-#endif
-	/*
-	 * Do the initial / lock state business
-	 */
-	if (cmd == TIOCSETA || cmd == TIOCSETAW || cmd == TIOCSETAF) {
-		int     cc;
-		struct termios *dt = (struct termios *)data;
-		struct termios *lt = mynor & SI_CALLOUT_MASK
-				     ? &pp->sp_lout : &pp->sp_lin;
-
-		dt->c_iflag = (tp->t_iflag & lt->c_iflag) |
-			(dt->c_iflag & ~lt->c_iflag);
-		dt->c_oflag = (tp->t_oflag & lt->c_oflag) |
-			(dt->c_oflag & ~lt->c_oflag);
-		dt->c_cflag = (tp->t_cflag & lt->c_cflag) |
-			(dt->c_cflag & ~lt->c_cflag);
-		dt->c_lflag = (tp->t_lflag & lt->c_lflag) |
-			(dt->c_lflag & ~lt->c_lflag);
-		for (cc = 0; cc < NCCS; ++cc)
-			if (lt->c_cc[cc] != 0)
-				dt->c_cc[cc] = tp->t_cc[cc];
-		if (lt->c_ispeed != 0)
-			dt->c_ispeed = tp->t_ispeed;
-		if (lt->c_ospeed != 0)
-			dt->c_ospeed = tp->t_ospeed;
-	}
-
-	/*
-	 * Block user-level writes to give the ttywait()
-	 * a chance to completely drain for commands
-	 * that require the port to be in a quiescent state.
-	 */
-	switch (cmd) {
-	case TIOCSETAW:
-	case TIOCSETAF:
-	case TIOCDRAIN:
-#ifndef BURN_BRIDGES
-#ifdef COMPAT_43
-	case TIOCSETP:
-#endif
-#endif
-		blocked++;	/* block writes for ttywait() and siparam() */
-		si_write_enable(pp, 0);
-	}
-
-	error = ttyioctl(dev, cmd, data, flag, td);
-	ttyldoptim(tp);
-	if (error != ENOTTY)
-		goto out;
-
-	oldspl = spltty();
-
-	error = 0;
-	switch (cmd) {
-	case TIOCSBRK:
+	pp = tp->t_sc;
+	if (sig)
 		si_command(pp, SBREAK, SI_WAIT);
-		break;
-	case TIOCCBRK:
+	else
 		si_command(pp, EBREAK, SI_WAIT);
-		break;
-	case TIOCSDTR:
-		(void) si_modem(pp, SET, TIOCM_DTR|TIOCM_RTS);
-		break;
-	case TIOCCDTR:
-		(void) si_modem(pp, SET, 0);
-		break;
-	case TIOCMSET:
-		(void) si_modem(pp, SET, *(int *)data);
-		break;
-	case TIOCMBIS:
-		(void) si_modem(pp, BIS, *(int *)data);
-		break;
-	case TIOCMBIC:
-		(void) si_modem(pp, BIC, *(int *)data);
-		break;
-	case TIOCMGET:
-		*(int *)data = si_modem(pp, GET, 0);
-		break;
-	default:
-		error = ENOTTY;
-	}
-	splx(oldspl);
-
-out:
-	DPRINT((pp, DBG_IOCTL|DBG_EXIT, "siioctl ret %d\n", error));
-	if (blocked)
-		si_write_enable(pp, 1);
-	return(error);
 }
+
 
 /*
- * Handle the Specialix ioctls. All MUST be called via the CONTROL device
+ * Handle the Specialix ioctls on the control dev.
  */
 static int
 si_Sioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
@@ -1069,7 +632,6 @@ si_Sioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 	int *ip, error = 0;
 	int oldspl;
 	int card, port;
-	int mynor = minor(dev);
 
 	DPRINT((0, DBG_ENTRY|DBG_IOCTL, "si_Sioctl(%s,%lx,%x,%x)\n",
 		devtoname(dev), cmd, data, flag));
@@ -1079,11 +641,6 @@ si_Sioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 	DPRINT((0, DBG_IOCTL, "TCSI_CCB=%x\n", TCSI_CCB));
 	DPRINT((0, DBG_IOCTL, "TCSI_TTY=%x\n", TCSI_TTY));
 #endif
-
-	if (!IS_CONTROLDEV(mynor)) {
-		DPRINT((0, DBG_IOCTL|DBG_FAIL, "not called from control device!\n"));
-		return(ENODEV);
-	}
 
 	oldspl = spltty();	/* better safe than sorry */
 
@@ -1210,7 +767,7 @@ out:
 static int
 siparam(struct tty *tp, struct termios *t)
 {
-	struct si_port *pp = TP2PP(tp);
+	struct si_port *pp = tp->t_sc;
 	volatile struct si_channel *ccbp;
 	int oldspl, cflag, iflag, oflag, lflag;
 	int error = 0;		/* shutup gcc */
@@ -1356,13 +913,13 @@ siparam(struct tty *tp, struct termios *t)
 	/* ========== set DTR etc ========== */
 	/* Hangup if ospeed == 0 */
 	if (t->c_ospeed == 0) {
-		(void) si_modem(pp, BIC, TIOCM_DTR|TIOCM_RTS);
+		(void) simodem(tp, 0, SER_DTR | SER_RTS);
 	} else {
 		/*
 		 * If the previous speed was 0, may need to re-enable
 		 * the modem signals
 		 */
-		(void) si_modem(pp, SET, TIOCM_DTR|TIOCM_RTS);
+		(void) simodem(tp, SER_DTR | SER_RTS, 0);
 	}
 
 	DPRINT((pp, DBG_PARAM, "siparam, complete: MR1 %x MR2 %x HI_MASK %x PRTCL %x HI_BREAK %x\n",
@@ -1373,70 +930,44 @@ siparam(struct tty *tp, struct termios *t)
 }
 
 /*
- * Enable or Disable the writes to this channel...
- * "state" ->  enabled = 1; disabled = 0;
- */
-static void
-si_write_enable(struct si_port *pp, int state)
-{
-	int oldspl;
-
-	oldspl = spltty();
-
-	if (state) {
-		pp->sp_state &= ~SS_BLOCKWRITE;
-		if (pp->sp_state & SS_WAITWRITE) {
-			pp->sp_state &= ~SS_WAITWRITE;
-			/* thunder away! */
-			wakeup(pp);
-		}
-	} else {
-		pp->sp_state |= SS_BLOCKWRITE;
-	}
-
-	splx(oldspl);
-}
-
-/*
  * Set/Get state of modem control lines.
  * Due to DCE-like behaviour of the adapter, some signals need translation:
  *	TIOCM_DTR	DSR
  *	TIOCM_RTS	CTS
  */
 static int
-si_modem(struct si_port *pp, enum si_mctl cmd, int bits)
+simodem(struct tty *tp, int sigon, int sigoff)
 {
+	struct si_port *pp;
 	volatile struct si_channel *ccbp;
 	int x;
 
-	DPRINT((pp, DBG_ENTRY|DBG_MODEM, "si_modem(%x,%s,%x)\n", pp, si_mctl2str(cmd), bits));
+	pp = tp->t_sc;
+	DPRINT((pp, DBG_ENTRY|DBG_MODEM, "simodem(%x,%x)\n", sigon, sigoff));
 	ccbp = pp->sp_ccb;		/* Find channel address */
-	switch (cmd) {
-	case GET:
+	if (sigon == 0 && sigoff == 0) {
 		x = ccbp->hi_ip;
-		bits = TIOCM_LE;
-		if (x & IP_DCD)		bits |= TIOCM_CAR;
-		if (x & IP_DTR)		bits |= TIOCM_DTR;
-		if (x & IP_RTS)		bits |= TIOCM_RTS;
-		if (x & IP_RI)		bits |= TIOCM_RI;
-		return(bits);
-	case SET:
-		ccbp->hi_op &= ~(OP_DSR|OP_CTS);
-		/* fall through */
-	case BIS:
-		x = 0;
-		if (bits & TIOCM_DTR)
-			x |= OP_DSR;
-		if (bits & TIOCM_RTS)
-			x |= OP_CTS;
-		ccbp->hi_op |= x;
-		break;
-	case BIC:
-		if (bits & TIOCM_DTR)
-			ccbp->hi_op &= ~OP_DSR;
-		if (bits & TIOCM_RTS)
-			ccbp->hi_op &= ~OP_CTS;
+		/*
+		 * XXX: not sure this is correct, should it be CTS&DSR ?
+		 * XXX: or do we (just) miss CTS & DSR ?
+		 */
+		if (x & IP_DCD)		sigon |= SER_DCD;
+		if (x & IP_DTR)		sigon |= SER_DTR;
+		if (x & IP_RTS)		sigon |= SER_RTS;
+		if (x & IP_RI)		sigon |= SER_RI;
+		return (sigon);
 	}
+
+	x = ccbp->hi_op;
+	if (sigon & SER_DTR)
+		x |= OP_DSR;
+	if (sigoff & SER_DTR)
+		x &= ~OP_DSR;
+	if (sigon & SER_RTS)
+		x |= OP_CTS;
+	if (sigoff & SER_RTS)
+		x &= ~OP_CTS;
+	ccbp->hi_op = x;
 	return 0;
 }
 
@@ -1457,7 +988,7 @@ si_modem_state(struct si_port *pp, struct tty *tp, int hi_ip)
 		if (pp->sp_last_hi_ip & IP_DCD) {
 			DPRINT((pp, DBG_INTR, "modem carr off\n"));
 			if (ttyld_modem(tp, 0))
-				(void) si_modem(pp, SET, 0);
+				(void) simodem(tp, 0, SER_DTR | SER_RTS);
 		}
 	}
 	pp->sp_last_hi_ip = hi_ip;
@@ -1838,7 +1369,7 @@ si_start(struct tty *tp)
 	oldspl = spltty();
 
 	qp = &tp->t_outq;
-	pp = TP2PP(tp);
+	pp = tp->t_sc;
 
 	DPRINT((pp, DBG_ENTRY|DBG_START,
 		"si_start(%x) t_state %x sp_state %x t_outq.c_cc %d\n",
@@ -1934,15 +1465,16 @@ si_lstart(void *arg)
 		pp, pp->sp_state));
 
 	oldspl = spltty();
+	tp = pp->sp_tty;
 
-	if ((pp->sp_state & SS_OPEN) == 0 || (pp->sp_state & SS_LSTART) == 0) {
+	if ((tp->t_state & TS_ISOPEN) == 0 ||
+	    (pp->sp_state & SS_LSTART) == 0) {
 		splx(oldspl);
 		return;
 	}
 	pp->sp_state &= ~SS_LSTART;
 	pp->sp_state |= SS_INLSTART;
 
-	tp = pp->sp_tty;
 
 	/* deal with the process exit case */
 	ttwwakeup(tp);
@@ -1963,16 +1495,16 @@ si_stop(struct tty *tp, int rw)
 	volatile struct si_channel *ccbp;
 	struct si_port *pp;
 
-	pp = TP2PP(tp);
+	pp = tp->t_sc;
 	ccbp = pp->sp_ccb;
 
-	DPRINT((TP2PP(tp), DBG_ENTRY|DBG_STOP, "si_stop(%x,%x)\n", tp, rw));
+	DPRINT((pp, DBG_ENTRY|DBG_STOP, "si_stop(%x,%x)\n", tp, rw));
 
 	/* XXX: must check (rw & FWRITE | FREAD) etc flushing... */
 	if (rw & FWRITE) {
 		/* what level are we meant to be flushing anyway? */
 		if (tp->t_state & TS_BUSY) {
-			si_command(TP2PP(tp), WFLUSH, SI_NOWAIT);
+			si_command(pp, WFLUSH, SI_NOWAIT);
 			tp->t_state &= ~TS_BUSY;
 			ttwwakeup(tp);	/* Bruce???? */
 		}
@@ -2071,29 +1603,11 @@ si_dprintf(struct si_port *pp, int flags, const char *fmt, ...)
 	if ((pp == NULL && (si_debug&flags)) ||
 	    (pp != NULL && ((pp->sp_debug&flags) || (si_debug&flags)))) {
 		if (pp != NULL)
-			printf("%ci%d(%d): ", 's',
-				(int)SI_CARD(minor(pp->sp_tty->t_dev)),
-				(int)SI_PORT(minor(pp->sp_tty->t_dev)));
+			printf("%s: ", pp->sp_name);
 		va_start(ap, fmt);
 		vprintf(fmt, ap);
 		va_end(ap);
 	}
-}
-
-static char *
-si_mctl2str(enum si_mctl cmd)
-{
-	switch (cmd) {
-	case GET:
-		return("GET");
-	case SET:
-		return("SET");
-	case BIS:
-		return("BIS");
-	case BIC:
-		return("BIC");
-	}
-	return("BAD");
 }
 
 #endif	/* DEBUG */
