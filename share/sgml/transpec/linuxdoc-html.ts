@@ -1,6 +1,6 @@
 <!--
 
-  $Id$
+  $Id: linuxdoc-html.ts,v 1.1.1.1 1996/09/08 02:37:39 jfieber Exp $
 
   Copyright (C) 1996
        John R. Fieber.  All rights reserved.
@@ -53,416 +53,369 @@
 
 <transpec>
 
-<cmap>
-&cmap;
-</cmap>
+<!-- Character and SDATA entity mapping -->
+<cmap>&cmap;</cmap>
+<smap>&sdata;</smap>
 
-<smap>
-&sdata;
-</smap>
+<!-- Transform rules -->
 
 <rule>
 <match>
 <gi>LINUXDOC
-<action>
-<start>
 </rule>
 
 <rule>
 <match>
   <gi>ARTICLE
-<action>
-  <start>
-    <end>
 </rule>
 
 <rule>
 <match>
   <gi>REPORT
-<action>
-  <start>
-  <end>
 </rule>
 
 <rule>
 <match>
   <gi>BOOK
-<action>
-  <start>
-  <end>
 </rule>
 
 <rule>
 <match>
   <gi>NOTES
-<action>
-  <start>
-  <end>
 </rule>
 
 <rule>
 <match>
   <gi>MANPAGE
-<action>
-  <start>
-  <end>
 </rule>
 
 <rule>
 <match>
   <gi>TITLEPAG
-<action>
-  <start>
-  <end>
 </rule>
 
 <rule>
 <match>
   <gi>TITLE
 <action>
-  <start>^&lt;@@title&gt;
-  <end>
+  <start>^&lt;@@title&gt;</start>
 </rule>
 
 <rule>
 <match>
   <gi>SUBTITLE
 <action>
-  <start>^&lt;h2&gt;
-  <end>&lt;/h2&gt;^
+  <start>^&lt;h2&gt;</start>
+  <end>&lt;/h2&gt;^</end>
 </rule>
 
 <rule>
 <match>
 <gi>DATE
-<action>
-<start>
 </rule>
 
 <rule>
 <match>
   <gi>AUTHOR
-<action>
-  <start>
-  <end>
 </rule>
 
 <rule>
 <match>
   <gi>NAME
 <action>
-  <start>^&lt;h2&gt;
-  <end>&lt;/h2&gt;
+  <start>^&lt;h2&gt;</start>
+  <end>&lt;/h2&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>AND
 <action>
-  <start>and 
-  <end>
+  <start>and </start>
 </rule>
 
 <rule>
 <match>
   <gi>THANKS
 <action>
-  <start>^Thanks 
-  <end>
+  <start>^Thanks </start>
 </rule>
 
 <rule>
 <match>
   <gi>INST
 <action>
-  <start>^&lt;h3&gt;
-  <end>&lt;/h3&gt;^
+  <start>^&lt;h3&gt;</start>
+  <end>&lt;/h3&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>NEWLINE
 <action>
-  <start>&lt;br&gt;
+  <start>&lt;br&gt;</start>
 </rule>
 
 <rule>
 <match>
   <gi>LABEL
 <action>
-  <start>^&lt;@@label&gt;${ID}^
+  <start>^&lt;@@label&gt;${ID}^</start>
 </rule>
 
 <rule>
 <match>
   <gi>HEADER
-<action>
-  <start>
-  <end>
 </rule>
 
 <rule>
 <match>
   <gi>LHEAD
 <action>
-  <start>^&lt;!-- 
-  <end>--&gt;^
+  <start>^&lt;!-- </start>
+  <end>--&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>RHEAD
 <action>
-  <start>^&lt;!-- 
-  <end>--&gt;^
+  <start>^&lt;!-- </start>
+  <end>--&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>COMMENT
 <action>
-  <start>^&lt;h4&gt;Comment&lt;/h4&gt;^
-  <end>
+  <start>^&lt;h4&gt;Comment&lt;/h4&gt;^</start>
 </rule>
 
 <rule>
 <match>
   <gi>ABSTRACT
 <action>
-  <start>^&lt;p&gt;&lt;hr&gt;&lt;em&gt;
-  <end>&lt;/em&gt;&lt;hr&gt;&lt;/p&gt;^
+  <start>^&lt;p&gt;&lt;hr&gt;&lt;em&gt;</start>
+  <end>&lt;/em&gt;&lt;hr&gt;&lt;/p&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>APPENDIX
 <action>
-  <start>^&lt;h2&gt;Appendix&lt;/h2&gt;^
-  <end>
+  <start>^&lt;h2&gt;Appendix&lt;/h2&gt;^</start>
 </rule>
 
 <rule>
 <match>
   <gi>TOC
-<action>
-  <start>
-  <end>
 </rule>
 
 <rule>
 <match>
   <gi>LOF
-<action>
-  <start>
-  <end>
 </rule>
 
 <rule>
 <match>
   <gi>LOT
-<action>
-  <start>
-  <end>
 </rule>
 
 <rule>
 <match>
   <gi>PART
 <action>
-  <start>^&lt;@@part&gt;
-  <end>
+  <start>^&lt;@@part&gt;</start>
 </rule>
 
 <rule>
 <match>
   <gi>CHAPT
 <action>
-  <start>^&lt;@@sect&gt;
-  <end>^&lt;@@endsect&gt;^
+  <start>^&lt;@@sect&gt;</start>
+  <end>^&lt;@@endsect&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>SECT
 <action>
-  <start>^&lt;@@sect&gt;
-  <end>^&lt;@@endsect&gt;^
+  <start>^&lt;@@sect&gt;</start>
+  <end>^&lt;@@endsect&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>SECT1
 <action>
-  <start>^&lt;@@sect&gt;
-  <end>^&lt;@@endsect&gt;^
+  <start>^&lt;@@sect&gt;</start>
+  <end>^&lt;@@endsect&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>SECT2
 <action>
-  <start>^&lt;@@sect&gt;
-  <end>^&lt;@@endsect&gt;^
+  <start>^&lt;@@sect&gt;</start>
+  <end>^&lt;@@endsect&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>SECT3
 <action>
-  <start>^&lt;@@sect&gt;
-  <end>^&lt;@@endsect&gt;^
+  <start>^&lt;@@sect&gt;</start>
+  <end>^&lt;@@endsect&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>SECT4
 <action>
-  <start>^&lt;@@sect&gt;
-  <end>^&lt;@@endsect&gt;^
+  <start>^&lt;@@sect&gt;</start>
+  <end>^&lt;@@endsect&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>HEADING
 <action>
-  <start>^&lt;@@head&gt;
-  <end>^&lt;@@endhead&gt;^
+  <start>^&lt;@@head&gt;</start>
+  <end>^&lt;@@endhead&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>P
 <action>
-  <start>&lt;p&gt;
-  <end>&lt;/p&gt;^
+  <start>&lt;p&gt;</start>
+  <end>&lt;/p&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>ITEMIZE
 <action>
-  <start>^&lt;ul&gt;^
-  <end>^&lt;/ul&gt;^
+  <start>^&lt;ul&gt;^</start>
+  <end>^&lt;/ul&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>ENUM
 <action>
-  <start>^&lt;ol&gt;^
-  <end>^&lt;/ol&gt;^
+  <start>^&lt;ol&gt;^</start>
+  <end>^&lt;/ol&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>DESCRIP
 <action>
-  <start>^&lt;dl&gt;^
-  <end>^&lt;/dl&gt;^
+  <start>^&lt;dl&gt;^</start>
+  <end>^&lt;/dl&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>ITEM
 <action>
-  <start>^&lt;li&gt;
-  <end>&lt;/li&gt;^
+  <start>^&lt;li&gt;</start>
+  <end>&lt;/li&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>TAG
 <action>
-  <start>&lt;dt&gt;&lt;b&gt;
-  <end>&lt;/b&gt;&lt;dd&gt;
+  <start>&lt;dt&gt;&lt;b&gt;</start>
+  <end>&lt;/b&gt;&lt;dd&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>CITE
 <action>
-  <start>[&lt;i&gt;${ID}&lt;/i&gt;]
-  <end>
+  <start>[&lt;i&gt;${ID}&lt;/i&gt;]</start>
 </rule>
 
 <rule>
 <match>
   <gi>NCITE
 <action>
-  <start>[&lt;i&gt;${NOTE} (${ID})&lt;/i&gt;]
-  <end>
+  <start>[&lt;i&gt;${NOTE} (${ID})&lt;/i&gt;]</start>
 </rule>
 
 <rule>
 <match>
   <gi>FOOTNOTE
 <action>
-  <start>^&lt;sl&gt;
-  <end>&lt;/sl&gt;^
+  <start>^&lt;sl&gt;</start>
+  <end>&lt;/sl&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>SQ
 <action>
-  <start>"
-  <end>"
+  <start>"</start>
+  <end>"</end>
 </rule>
 
 <rule>
 <match>
   <gi>LQ
 <action>
-  <start>^&lt;LQ&gt;^
-  <end>^&lt;/LQ&gt;^
+  <start>^&lt;LQ&gt;^</start>
+  <end>^&lt;/LQ&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>EM
 <action>
-  <start>&lt;em&gt;
-  <end>&lt;/em&gt;
+  <start>&lt;em&gt;</start>
+  <end>&lt;/em&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>BF
 <action>
-  <start>&lt;b&gt;
-  <end>&lt;/b&gt;
+  <start>&lt;b&gt;</start>
+  <end>&lt;/b&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>IT
 <action>
-  <start>&lt;i&gt;
-  <end>&lt;/i&gt;
+  <start>&lt;i&gt;</start>
+  <end>&lt;/i&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>SF
 <action>
-  <start>&lt;SF&gt;
-  <end>&lt;/SF&gt;
+  <start>&lt;SF&gt;</start>
+  <end>&lt;/SF&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>SL
 <action>
-  <start>&lt;i&gt;
-  <end>&lt;/i&gt;
+  <start>&lt;i&gt;</start>
+  <end>&lt;/i&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>TT
 <action>
-  <start>&lt;code&gt;
-  <end>&lt;/code&gt;
+  <start>&lt;code&gt;</start>
+  <end>&lt;/code&gt;</end>
 </rule>
 
 <rule>
@@ -470,14 +423,14 @@
   <gi>URL HTMLURL
   <attval>NAME .
 <action>
-  <start>&lt;A href="${URL}">${NAME}&lt;/A>
+  <start>&lt;A href="${URL}">${NAME}&lt;/A></start>
 </rule>
 
 <rule>
 <match>
   <gi>URL HTMLURL
 <action>
-  <start>&lt;A href="${URL}">${URL}&lt;/A>
+  <start>&lt;A href="${URL}">${URL}&lt;/A></start>
 </rule>
 
 <rule>
@@ -485,587 +438,568 @@
   <gi>REF
   <attval>NAME .
 <action>
-  <start>
-^&lt;@@ref&gt;${ID}
-${NAME}&lt;/A&gt;
+  <start>^&lt;@@ref&gt;${ID}
+${NAME}&lt;/A&gt;</start>
 </rule>
 
 <rule>
 <match>
   <gi>REF
 <action>
-  <start>
-^&lt;@@ref&gt;${ID}
-${ID}&lt;/A&gt;
+  <start>^&lt;@@ref&gt;${ID}
+${ID}&lt;/A&gt;</start>
 </rule>
 
 <rule>
 <match>
   <gi>HREF
 <action>
-  <start>^&lt;@@ref&gt;${ID}^
-  <end>
+  <start>^&lt;@@ref&gt;${ID}^</start>
 </rule>
 
 <rule>
 <match>
   <gi>PAGEREF
 <action>
-  <start>^&lt;@@ref&gt;${ID}^
-  <end>
+  <start>^&lt;@@ref&gt;${ID}^</start>
 </rule>
 
 <rule>
 <match>
   <gi>X
-<action>
-  <start>
-  <end>
 </rule>
 
 <rule>
 <match>
   <gi>MC
 <action>
-  <start>&lt;MC&gt;
-  <end>&lt;/MC&gt;
+  <start>&lt;MC&gt;</start>
+  <end>&lt;/MC&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>BIBLIO
 <action>
-  <start>^&lt;BIBLIO STYLE="${STYLE}" FILES="${FILES}"&gt;^
-  <end>
+  <start>^&lt;BIBLIO STYLE="${STYLE}" FILES="${FILES}"&gt;^</start>
 </rule>
 
 <rule>
 <match>
   <gi>CODE
 <action>
-  <start>^&lt;hr&gt;&lt;pre&gt;^
-  <end>^&lt;/pre&gt;&lt;hr&gt;^
+  <start>^&lt;hr&gt;&lt;pre&gt;^</start>
+  <end>^&lt;/pre&gt;&lt;hr&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>VERB
 <action>
-  <start>^&lt;pre&gt;^
-  <end>^&lt;/pre&gt;^
+  <start>^&lt;pre&gt;^</start>
+  <end>^&lt;/pre&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>TSCREEN
 <action>
-  <start>^&lt;blockquote&gt;&lt;code&gt;^
-  <end>^&lt;/code&gt;&lt;/blockquote&gt;^
+  <start>^&lt;blockquote&gt;&lt;code&gt;^</start>
+  <end>^&lt;/code&gt;&lt;/blockquote&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>QUOTE
 <action>
-  <start>^&lt;blockquote&gt;^
-  <end>^&lt;/blockquote&gt;^
+  <start>^&lt;blockquote&gt;^</start>
+  <end>^&lt;/blockquote&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>DEF
 <action>
-  <start>^&lt;DEF&gt;
-  <end>^&lt;/DEF&gt;^
+  <start>^&lt;DEF&gt;</start>
+  <end>^&lt;/DEF&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>PROP
 <action>
-  <start>^&lt;PROP&gt;
-  <end>^&lt;/PROP&gt;^
+  <start>^&lt;PROP&gt;</start>
+  <end>^&lt;/PROP&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>LEMMA
 <action>
-  <start>^&lt;LEMMA&gt;
-  <end>^&lt;/LEMMA&gt;^
+  <start>^&lt;LEMMA&gt;</start>
+  <end>^&lt;/LEMMA&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>COROLL
 <action>
-  <start>^&lt;COROLL&gt;
-  <end>^&lt;/COROLL&gt;^
+  <start>^&lt;COROLL&gt;</start>
+  <end>^&lt;/COROLL&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>PROOF
 <action>
-  <start>^&lt;PROOF&gt;
-  <end>^&lt;/PROOF&gt;^
+  <start>^&lt;PROOF&gt;</start>
+  <end>^&lt;/PROOF&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>THEOREM
 <action>
-  <start>^&lt;THEOREM&gt;
-  <end>^&lt;/THEOREM&gt;^
+  <start>^&lt;THEOREM&gt;</start>
+  <end>^&lt;/THEOREM&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>THTAG
 <action>
-  <start>&lt;THTAG&gt;
-  <end>&lt;/THTAG&gt;
+  <start>&lt;THTAG&gt;</start>
+  <end>&lt;/THTAG&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>F
 <action>
-  <start>&lt;F&gt;
-  <end>&lt;/F&gt;
+  <start>&lt;F&gt;</start>
+  <end>&lt;/F&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>DM
 <action>
-  <start>^&lt;DM&gt;^
-  <end>^&lt;/DM&gt;^
+  <start>^&lt;DM&gt;^</start>
+  <end>^&lt;/DM&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>EQ
 <action>
-  <start>^&lt;EQ&gt;^
-  <end>^&lt;/EQ&gt;^
+  <start>^&lt;EQ&gt;^</start>
+  <end>^&lt;/EQ&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>FR
 <action>
-  <start>&lt;FR&gt;
-  <end>&lt;/FR&gt;
+  <start>&lt;FR&gt;</start>
+  <end>&lt;/FR&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>NU
 <action>
-  <start>&lt;NU&gt;
-  <end>&lt;/NU&gt;
+  <start>&lt;NU&gt;</start>
+  <end>&lt;/NU&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>DE
 <action>
-  <start>&lt;DE&gt;
-  <end>&lt;/DE&gt;
+  <start>&lt;DE&gt;</start>
+  <end>&lt;/DE&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>LIM
 <action>
-  <start>&lt;LIM&gt;
-  <end>&lt;/LIM&gt;
+  <start>&lt;LIM&gt;</start>
+  <end>&lt;/LIM&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>OP
 <action>
-  <start>&lt;OP&gt;
-  <end>&lt;/OP&gt;
+  <start>&lt;OP&gt;</start>
+  <end>&lt;/OP&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>LL
 <action>
-  <start>&lt;LL&gt;
-  <end>&lt;/LL&gt;
+  <start>&lt;LL&gt;</start>
+  <end>&lt;/LL&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>UL
 <action>
-  <start>&lt;UL&gt;
-  <end>&lt;/UL&gt;
+  <start>&lt;UL&gt;</start>
+  <end>&lt;/UL&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>OPD
 <action>
-  <start>&lt;OPD&gt;
-  <end>&lt;/OPD&gt;
+  <start>&lt;OPD&gt;</start>
+  <end>&lt;/OPD&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>PR
 <action>
-  <start>&lt;PR&gt;
-  <end>&lt;/PR&gt;
+  <start>&lt;PR&gt;</start>
+  <end>&lt;/PR&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>IN
 <action>
-  <start>&lt;INT&gt;
-  <end>&lt;/INT&gt;
+  <start>&lt;INT&gt;</start>
+  <end>&lt;/INT&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>SUM
 <action>
-  <start>&lt;SUM&gt;
-  <end>&lt;/SUM&gt;
+  <start>&lt;SUM&gt;</start>
+  <end>&lt;/SUM&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>ROOT
 <action>
-  <start>&lt;ROOT&gt;
-  <end>&lt;/ROOT&gt;
+  <start>&lt;ROOT&gt;</start>
+  <end>&lt;/ROOT&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>AR
 <action>
-  <start>&lt;AR&gt;
-  <end>&lt;/AR&gt;
+  <start>&lt;AR&gt;</start>
+  <end>&lt;/AR&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>ARR
 <action>
-  <start>&lt;ARR&gt;
-  <end>
+  <start>&lt;ARR&gt;</start>
 </rule>
 
 <rule>
 <match>
   <gi>ARC
 <action>
-  <start>&lt;ARC&gt;
-  <end>
+  <start>&lt;ARC&gt;</start>
 </rule>
 
 <rule>
 <match>
   <gi>SUP
 <action>
-  <start>&lt;SUP&gt;
-  <end>&lt;/SUP&gt;
+  <start>&lt;SUP&gt;</start>
+  <end>&lt;/SUP&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>INF
 <action>
-  <start>&lt;INF&gt;
-  <end>&lt;/INF&gt;
+  <start>&lt;INF&gt;</start>
+  <end>&lt;/INF&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>UNL
 <action>
-  <start>&lt;UNL&gt;
-  <end>&lt;/UNL&gt;
+  <start>&lt;UNL&gt;</start>
+  <end>&lt;/UNL&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>OVL
 <action>
-  <start>&lt;OVL&gt;
-  <end>&lt;/OVL&gt;
+  <start>&lt;OVL&gt;</start>
+  <end>&lt;/OVL&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>RF
 <action>
-  <start>&lt;RF&gt;
-  <end>&lt;/RF&gt;
+  <start>&lt;RF&gt;</start>
+  <end>&lt;/RF&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>V
 <action>
-  <start>&lt;V&gt;
-  <end>&lt;/V&gt;
+  <start>&lt;V&gt;</start>
+  <end>&lt;/V&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>FI
 <action>
-  <start>&lt;FI&gt;
-  <end>&lt;/FI&gt;
+  <start>&lt;FI&gt;</start>
+  <end>&lt;/FI&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>PHR
 <action>
-  <start>&lt;PHR&gt;
-  <end>&lt;/PHR&gt;
+  <start>&lt;PHR&gt;</start>
+  <end>&lt;/PHR&gt;</end>
 </rule>
 
 <rule>
 <match>
   <gi>TU
 <action>
-  <start>&lt;TU&gt;
-  <end>
+  <start>&lt;TU&gt;</start>
 </rule>
 
 <rule>
 <match>
   <gi>FIGURE
 <action>
-  <start>^&lt;FIGURE&gt;^
-  <end>^&lt;/FIGURE&gt;^
+  <start>^&lt;FIGURE&gt;^</start>
+  <end>^&lt;/FIGURE&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>EPS
 <action>
-  <start>^&lt;EPS FILE="${FILE}"&gt;^
-  <end>
+  <start>^&lt;EPS FILE="${FILE}"&gt;^</start>
 </rule>
 
 <rule>
 <match>
   <gi>PH
 <action>
-  <start>^&lt;PH VSPACE="${VSPACE}"&gt;^
-  <end>
+  <start>^&lt;PH VSPACE="${VSPACE}"&gt;^</start>
 </rule>
 
 <rule>
 <match>
   <gi>CAPTION
 <action>
-  <start>^&lt;CAPTION&gt;
-  <end>&lt;/CAPTION&gt;^
+  <start>^&lt;CAPTION&gt;</start>
+  <end>&lt;/CAPTION&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>TABLE
 <action>
-  <start>^&lt;TABLE&gt;^
-  <end>^&lt;/TABLE&gt;^
+  <start>^&lt;TABLE&gt;^</start>
+  <end>^&lt;/TABLE&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>TABULAR
 <action>
-  <start>^&lt;br&gt;^
-  <end>^
+  <start>^&lt;br&gt;^</start>
+  <end>^</end>
 </rule>
 
 <rule>
 <match>
   <gi>ROWSEP
 <action>
-  <start>&lt;br&gt;^
-  <end>
+  <start>&lt;br&gt;^</start>
 </rule>
 
 <rule>
 <match>
   <gi>COLSEP
-<action>
-  <start>
-  <end>
 </rule>
 
 <rule>
 <match>
   <gi>HLINE
 <action>
-  <start>^&lt;hr&gt;^
-  <end>
+  <start>^&lt;hr&gt;^</start>
 </rule>
 
 <rule>
 <match>
   <gi>SLIDES
 <action>
-  <start>^&lt;SLIDES&gt;^
-  <end>^&lt;/SLIDES&gt;^
+  <start>^&lt;SLIDES&gt;^</start>
+  <end>^&lt;/SLIDES&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>SLIDE
 <action>
-  <start>^&lt;SLIDE&gt;^
-  <end>^&lt;/SLIDE&gt;^
+  <start>^&lt;SLIDE&gt;^</start>
+  <end>^&lt;/SLIDE&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>LETTER
 <action>
-  <start>^&lt;LETTER OPTS="${OPTS}"&gt;^
-  <end>^&lt;/LETTER&gt;^
+  <start>^&lt;LETTER OPTS="${OPTS}"&gt;^</start>
+  <end>^&lt;/LETTER&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>TELEFAX
 <action>
-  <start>^&lt;TELEFAX OPTS="${OPTS}"&gt;^
-  <end>^&lt;/TELEFAX&gt;^
+  <start>^&lt;TELEFAX OPTS="${OPTS}"&gt;^</start>
+  <end>^&lt;/TELEFAX&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>OPENING
 <action>
-  <start>^&lt;OPENING&gt;
-  <end>&lt;/OPENING&gt;^
+  <start>^&lt;OPENING&gt;</start>
+  <end>&lt;/OPENING&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>FROM
 <action>
-  <start>^&lt;FROM&gt;
-  <end>^&lt;/FROM&gt;^
+  <start>^&lt;FROM&gt;</start>
+  <end>^&lt;/FROM&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>TO
 <action>
-  <start>^&lt;TO&gt;
-
-  <end>^&lt;/TO&gt;^
+  <start>^&lt;TO&gt;</start>
+  <end>^&lt;/TO&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>ADDRESS
 <action>
-  <start>^&lt;ADDRESS&gt;^
-  <end>^&lt;/ADDRESS&gt;^
+  <start>^&lt;ADDRESS&gt;^</start>
+  <end>^&lt;/ADDRESS&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>EMAIL
 <action>
-  <start>^&lt;@@email&gt;
-  <end>&lt;@@endemail&gt;^
+  <start>^&lt;@@email&gt;</start>
+  <end>&lt;@@endemail&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>PHONE
 <action>
-  <start>^&lt;PHONE&gt;
-  <end>&lt;/PHONE&gt;^
+  <start>^&lt;PHONE&gt;</start>
+  <end>&lt;/PHONE&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>FAX
 <action>
-  <start>^&lt;FAX&gt;
-  <end>&lt;/FAX&gt;^
+  <start>^&lt;FAX&gt;</start>
+  <end>&lt;/FAX&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>SUBJECT
 <action>
-  <start>^&lt;SUBJECT&gt;
-  <end>&lt;/SUBJECT&gt;^
+  <start>^&lt;SUBJECT&gt;</start>
+  <end>&lt;/SUBJECT&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>SREF
 <action>
-  <start>^&lt;SREF&gt;
-  <end>&lt;/SREF&gt;^
+  <start>^&lt;SREF&gt;</start>
+  <end>&lt;/SREF&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>RREF
 <action>
-  <start>^&lt;RREF&gt;
-  <end>&lt;/RREF&gt;^
+  <start>^&lt;RREF&gt;</start>
+  <end>&lt;/RREF&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>RDATE
 <action>
-  <start>^&lt;RDATE&gt;
-  <end>&lt;/RDATE&gt;^
+  <start>^&lt;RDATE&gt;</start>
+  <end>&lt;/RDATE&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>CLOSING
 <action>
-  <start>^&lt;CLOSING&gt;
-  <end>&lt;/CLOSING&gt;^
+  <start>^&lt;CLOSING&gt;</start>
+  <end>&lt;/CLOSING&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>CC
 <action>
-  <start>^&lt;CC&gt;
-  <end>&lt;/CC&gt;^
+  <start>^&lt;CC&gt;</start>
+  <end>&lt;/CC&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>ENCL
 <action>
-  <start>^&lt;ENCL&gt;
-  <end>&lt;/ENCL&gt;^
+  <start>^&lt;ENCL&gt;</start>
+  <end>&lt;/ENCL&gt;^</end>
 </rule>
 
 <rule>
 <match>
   <gi>PS
 <action>
-  <start>^&lt;PS&gt;^
-  <end>^&lt;/PS&gt;^
+  <start>^&lt;PS&gt;^</start>
+  <end>^&lt;/PS&gt;^</end>
 
 
 </transpec>

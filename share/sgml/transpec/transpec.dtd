@@ -1,6 +1,6 @@
 <!-- 
 
-  $Id: transpec.dtd,v 1.1.1.1 1996/01/16 05:14:10 jfieber Exp $
+  $Id: transpec.dtd,v 1.1.1.1 1996/09/08 02:37:40 jfieber Exp $
 
   Copyright (C) 1996
        John R. Fieber.  All rights reserved.
@@ -87,11 +87,11 @@ character and data mapping.
 <!ELEMENT action   - o  (do | end | ignore | incr | message | replace 
     	    	    	 | quit | set | start)+>
 <!ELEMENT do       - o	(#PCDATA)>
-<!ELEMENT end      - o	(#PCDATA)>
+<!ELEMENT end      - -	(#PCDATA)>
 <!ELEMENT ignore   - o	(#PCDATA)>
 <!ELEMENT incr     - o	(#PCDATA)>
 <!ELEMENT message  - o	(#PCDATA)>
-<!ELEMENT replace  - o	(#PCDATA)>
+<!ELEMENT replace  - -	(#PCDATA)>
 <!ELEMENT quit     - o	(#PCDATA)>
 <!ELEMENT set      - o	(#PCDATA)>
-<!ELEMENT start    - o	(#PCDATA)>
+<!ELEMENT start    - -	(#PCDATA)>

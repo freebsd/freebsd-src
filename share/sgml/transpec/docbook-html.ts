@@ -1,6 +1,6 @@
 <!--
 
-  $Id$
+  $Id: docbook-html.ts,v 1.1 1996/11/09 02:04:05 jfieber Exp $
 
   Copyright (C) 1996
        John R. Fieber.  All rights reserved.
@@ -93,9 +93,9 @@
 <action>
 <start>&lt;P ALIGN="CENTER">&lt;STRONG>Abstract&lt;/STRONG>&lt;/P>
 &lt;BLOCKQUOTE>
-${_attval ID &r.astart;}
+${_attval ID &r.astart;}</start>
 <end>^${_attval ID &r.aend;}
-&lt;/BLOCKQUOTE>^
+&lt;/BLOCKQUOTE>^</end>
 </rule>
 
 <rule>
@@ -122,7 +122,7 @@ ${_attval ID &r.astart;}
 <match>
 <gi>AFFILIATION
 <action>
-<start>&lt;BR>
+<start>&lt;BR></start>
 </rule>
 
 <rule>
@@ -164,7 +164,7 @@ ${_attval ID &r.astart;}
 <match>
 <gi>AUTHOR
 <action>
-<start>^&lt;P>
+<start>^&lt;P></start>
 <!-- <end>&lt;/P>^ -->
 </rule>
 
@@ -213,9 +213,9 @@ ${_attval ID &r.astart;}
 <gi>BLOCKQUOTE
 <action>
 <start>^&lt;BLOCKQUOTE>
-${_attval ID &r.astart;}^
+${_attval ID &r.astart;}^</start>
 <end>^${_attval ID &r.aend;}
-&lt;/BLOCKQUOTE>^
+&lt;/BLOCKQUOTE>^</end>
 </rule>
 
 <rule>
@@ -224,15 +224,15 @@ ${_attval ID &r.astart;}^
 <action>
 <start>^&lt;!-- Generated on ${date} using ${transpec} -->
 &lt;!DOCTYPE html PUBLIC "-//W3C//DTD HTML 3.2//EN">
-&lt;HTML>&lt;TITLE>${_followrel descendant TITLE &r.pass;}&lt;/TITLE>&lt;BODY>^
-<end>^&lt;/BODY>&lt;/HTML>
+&lt;HTML>&lt;TITLE>${_followrel descendant TITLE &r.pass;}&lt;/TITLE>&lt;BODY>^</start>
+<end>^&lt;/BODY>&lt;/HTML></end>
 </rule>
 
 <rule>
 <match>
 <gi>BOOKBIBLIO
 <action>
-<start>^&lt;H1>${_followrel child TITLE &r.pass;}&lt;/H1>
+<start>^&lt;H1>${_followrel child TITLE &r.pass;}&lt;/H1></start>
 </rule>
 
 <rule>
@@ -244,8 +244,8 @@ ${_attval ID &r.astart;}^
 <match>
 <gi>BRIDGEHEAD
 <action>
-<start>^&lt;H4>&lt;EM>
-<end>&lt;/EM>&lt;/H4>^
+<start>^&lt;H4>&lt;EM></start>
+<end>&lt;/EM>&lt;/H4>^</end>
 </rule>
 
 <rule>
@@ -260,8 +260,8 @@ ${_attval ID &r.astart;}^
 <gi>CHAPTER
 <action>
 <start>^&lt;!-- Start CHAPTER ${chapnum} (${ID}): 
-${_followrel child TITLE &r.pass;} -->^
-<end>^&lt;!-- End CHAPTER -->^
+${_followrel child TITLE &r.pass;} -->^</start>
+<end>^&lt;!-- End CHAPTER -->^</end>
 <incr>chapnum 
 <set>sect1num	1
 </rule>
@@ -270,16 +270,16 @@ ${_followrel child TITLE &r.pass;} -->^
 <match>
 <gi>CITATION
 <action>
-<start>&lt;CITE>
-<end>&lt;/CITE>
+<start>&lt;CITE></start>
+<end>&lt;/CITE></end>
 </rule>
 
 <rule>
 <match>
 <gi>CITEREFENTRY
 <action>
-<start>&lt;TT>
-<end>&lt;/TT>
+<start>&lt;TT></start>
+<end>&lt;/TT></end>
 </rule>
 
 <rule>
@@ -331,8 +331,8 @@ ${_followrel child TITLE &r.pass;} -->^
 <match>
 <gi>COMPUTEROUTPUT
 <action>
-<start>&lt;CODE>
-<end>&lt;/CODE>
+<start>&lt;CODE></start>
+<end>&lt;/CODE></end>
 </rule>
 
 <rule>
@@ -427,16 +427,16 @@ ${_followrel child TITLE &r.pass;} -->^
 <match>
 <gi>EMAIL
 <action>
-<start>&lt;A HREF="mailto:${_action &r.pass;}">
-<end>&lt;/A>
+<start>&lt;A HREF="mailto:${_action &r.pass;}"></start>
+<end>&lt;/A></end>
 </rule>
 
 <rule>
 <match>
 <gi>EMPHASIS
 <action>
-<start>&lt;EM>
-<end>&lt;/EM>
+<start>&lt;EM></start>
+<end>&lt;/EM></end>
 </rule>
 
 <rule>
@@ -444,16 +444,16 @@ ${_followrel child TITLE &r.pass;} -->^
 <gi>ENTRY
 <context>ROW THEAD
 <action>
-<start>^&lt;TH>
-<end>&lt;/TH>^
+<start>^&lt;TH></start>
+<end>&lt;/TH>^</end>
 </rule>
 
 <rule>
 <match>
 <gi>ENTRY
 <action>
-<start>^&lt;TD>
-<end>&lt;/TD>^
+<start>^&lt;TD></start>
+<end>&lt;/TD>^</end>
 </rule>
 
 <rule>
@@ -471,8 +471,8 @@ ${_followrel child TITLE &r.pass;} -->^
 <gi>EQUATION
 <action>
 <start>^&lt;HR>${_attval ID &r.astart;}&lt;STRONG>${_gi M} ${eqnum}:&lt;/STRONG>
-${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
-<end>^&lt;HR>^
+${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
+<end>^&lt;HR>^</end>
 <incr>eqnum
 </rule>
 
@@ -491,8 +491,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <gi>EXAMPLE
 <action>
 <start>^&lt;HR>${_attval ID &r.astart;}&lt;STRONG>${_gi M} ${exnum}:&lt;/STRONG>
-${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
-<end>^&lt;HR>^
+${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
+<end>^&lt;HR>^</end>
 <incr>exnum
 </rule>
 
@@ -506,8 +506,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <gi>FIGURE
 <action>
 <start>^&lt;HR>${_attval ID &r.astart;}&lt;STRONG>${_gi M} ${fignum}:&lt;/STRONG>
-${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
-<end>^&lt;HR>^
+${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
+<end>^&lt;HR>^</end>
 <incr>fignum
 </rule>
 
@@ -515,24 +515,24 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <match>
 <gi>FILENAME
 <action>
-<start>&lt;B>
-<end>&lt;/B>
+<start>&lt;B></start>
+<end>&lt;/B></end>
 </rule>
 
 <rule>
 <match>
 <gi>FIRSTNAME
 <action>
-<start>^
-<end>^
+<start>^</start>
+<end>^</end>
 </rule>
 
 <rule>
 <match>
 <gi>FIRSTTERM
 <action>
-<start>&lt;STRONG>
-<end>&lt;/STRONG>
+<start>&lt;STRONG></start>
+<end>&lt;/STRONG></end>
 </rule>
 
 <rule>
@@ -549,8 +549,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <match>
 <gi>FOREIGNPHRASE
 <action>
-<start>&lt;EM>
-<end>&lt;/EM>
+<start>&lt;EM></start>
+<end>&lt;/EM></end>
 </rule>
 
 <rule>
@@ -588,16 +588,16 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <gi>GLOSSARY
 <action>
 <start>&lt;H1>${_find gi TITLE &r.pass;}&lt;/H1>
-&lt;DL>^
-<end>&lt;/DL>
+&lt;DL>^</start>
+<end>&lt;/DL></end>
 </rule>
 
 <rule>
 <match>
 <gi>GLOSSDEF
 <action>
-<start>&lt;DD>
-<end>&lt;/DD>^
+<start>&lt;DD></start>
+<end>&lt;/DD>^</end>
 </rule>
 
 <rule>
@@ -629,15 +629,15 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <match>
 <gi>GLOSSTERM
 <action>
-<start>^&lt;DT>&lt;STRONG>
-<end>&lt;/STRONG>&lt;/DT>
+<start>^&lt;DT>&lt;STRONG></start>
+<end>&lt;/STRONG>&lt;/DT></end>
 </rule>
 
 <rule>
 <match>
 <gi>GRAPHIC
 <action>
-<replace>^&lt;P>&lt;A HREF="${_filename}">[image]&lt;/A>&lt;/P>^
+<replace>^&lt;P>&lt;A HREF="${_filename}">[image]&lt;/A>&lt;/P>^</replace>
 </rule>
 
 <rule>
@@ -708,8 +708,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <match>
 <gi>INFORMALTABLE
 <action>
-<start>^&lt;TABLE>^
-<end>^&lt;/TABLE>^
+<start>^&lt;TABLE>^</start>
+<end>^&lt;/TABLE>^</end>
 </rule>
 
 <rule>
@@ -758,17 +758,17 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <context>PARA
 <action>
 <start>&lt;/P>
-&lt;UL>^
+&lt;UL>^</start>
 <end>^&lt;/UL>
-&lt;P>
+&lt;P></end>
 </rule>
 
 <rule>
 <match>
 <gi>ITEMIZEDLIST
 <action>
-<start>^&lt;UL>^
-<end>^&lt;/UL>^
+<start>^&lt;UL>^</start>
+<end>^&lt;/UL>^</end>
 </rule>
 
 <rule>
@@ -805,8 +805,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <match>
 <gi>LINEANNOTATION
 <action>
-<start>&lt;EM>
-<end>&lt;/EM>
+<start>&lt;EM></start>
+<end>&lt;/EM></end>
 </rule>
 
 <rule>
@@ -819,16 +819,16 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <gi>LISTITEM
 <context>VARLISTENTRY
 <action>
-<start>^&lt;DD>
-<end>&lt;/DD>^
+<start>^&lt;DD></start>
+<end>&lt;/DD>^</end>
 </rule>
 
 <rule>
 <match>
 <gi>LISTITEM
 <action>
-<start>^&lt;LI>
-<end>&lt;/LI>^
+<start>^&lt;LI></start>
+<end>&lt;/LI>^</end>
 </rule>
 
 <rule>
@@ -841,8 +841,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <match>
 <gi>LITERAL
 <action>
-<start>&lt;CODE>
-<end>&lt;/CODE>
+<start>&lt;CODE></start>
+<end>&lt;/CODE></end>
 </rule>
 
 <rule>
@@ -851,17 +851,17 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <context>PARA
 <action>
 <start>&lt;/P>
-&lt;PRE>^
+&lt;PRE>^</start>
 <end>^&lt;/PRE>
-&lt;P>
+&lt;P></end>
 </rule>
 
 <rule>
 <match>
 <gi>LITERALLAYOUT
 <action>
-<start>^&lt;PRE>
-<end>^&lt;/PRE>
+<start>^&lt;PRE></start>
+<end>^&lt;/PRE></end>
 </rule>
 
 <rule>
@@ -878,8 +878,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <match>
 <gi>MANVOLNUM
 <action>
-<start>(
-<end>)
+<start>(</start>
+<end>)</end>
 </rule>
 
 <rule>
@@ -896,8 +896,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <match>
 <gi>MEMBER
 <action>
-<start>^&lt;LI>
-<end>&lt;/LI>^
+<start>^&lt;LI></start>
+<end>&lt;/LI>^</end>
 </rule>
 
 <rule>
@@ -993,17 +993,17 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <context>PARA
 <action>
 <start>&lt;/P>
-&lt;OL>^
+&lt;OL>^</start>
 <end>^&lt;/OL>
-&lt;P>
+&lt;P></end>
 </rule>
 
 <rule>
 <match>
 <gi>ORDEREDLIST
 <action>
-<start>^&lt;OL>^
-<end>^&lt;/OL>^
+<start>^&lt;OL>^</start>
+<end>^&lt;/OL>^</end>
 </rule>
 
 <rule>
@@ -1041,8 +1041,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <gi>PARA
 <context>LISTITEM|VARLISTENTRY|GLOSSDEF
 <action>
-<start>^&lt;P>
-<end>&lt;/P>
+<start>^&lt;P></start>
+<end>&lt;/P></end>
 </rule>
 
 <rule>
@@ -1055,7 +1055,7 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <match>
 <gi>PARA
 <action>
-<start>^&lt;P>
+<start>^&lt;P></start>
 <!-- <end>&lt;/P> -->
 </rule>
 
@@ -1135,17 +1135,17 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <context>PARA
 <action>
 <start>&lt;/P>
-&lt;BLOCKQUOTE>&lt;PRE>^
+&lt;BLOCKQUOTE>&lt;PRE>^</start>
 <end>^&lt;/PRE>&lt;/BLOCKQUOTE>
-&lt;P>
+&lt;P></end>
 </rule>
 
 <rule>
 <match>
 <gi>PROGRAMLISTING
 <action>
-<start>^&lt;PRE>^
-<end>^&lt;/PRE>^
+<start>^&lt;PRE>^</start>
+<end>^&lt;/PRE>^</end>
 </rule>
 
 <rule>
@@ -1157,8 +1157,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <match>
 <gi>PUBDATE
 <action>
-<start>&lt;P>
-<end>&lt;/P>
+<start>&lt;P></start>
+<end>&lt;/P></end>
 </rule>
 
 <rule>
@@ -1180,8 +1180,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <match>
 <gi>QUOTE
 <action>
-<start>``
-<end>''
+<start>``</start>
+<end>''</end>
 </rule>
 
 <rule>
@@ -1198,7 +1198,7 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <match>
 <gi>REFENTRY
 <action>
-<start>^&lt;!-- Reference Entry -->
+<start>^&lt;!-- Reference Entry --></start>
 </rule>
 
 <rule>
@@ -1211,8 +1211,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <match>
 <gi>REFENTRYTITLE
 <action>
-<start>&lt;HR>&lt;H2>${_followrel ancestor REFENTRY 4}
-<end>${_followrel ancestor REFENTRY 5}&lt;/H2>
+<start>&lt;HR>&lt;H2>${_followrel ancestor REFENTRY 4}</start>
+<end>${_followrel ancestor REFENTRY 5}&lt;/H2></end>
 </rule>
 
 <rule>
@@ -1236,8 +1236,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <match>
 <gi>REFNAME
 <action>
-<start>^&lt;STRONG>
-<end>^&lt;/STRONG> -^
+<start>^&lt;STRONG></start>
+<end>^&lt;/STRONG> -^</end>
 </rule>
 
 <rule>
@@ -1245,8 +1245,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <gi>REFNAMEDIV
 <action>
 <start> ^&lt;H3>Name&lt;/H3>
-&lt;P>
-<end>^&lt;/P>^
+&lt;P></start>
+<end>^&lt;/P>^</end>
 </rule>
 
 <rule>
@@ -1283,8 +1283,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <match>
 <gi>REPLACEABLE
 <action>
-<start>&lt;i>
-<end>&lt;/i>
+<start>&lt;i></start>
+<end>&lt;/i></end>
 </rule>
 
 <rule>
@@ -1316,8 +1316,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <match>
 <gi>ROW
 <action>
-<start>^&lt;TR valign="top">^
-<end>^&lt;/TR>^
+<start>^&lt;TR valign="top">^</start>
+<end>^&lt;/TR>^</end>
 </rule>
 
 <rule>
@@ -1456,8 +1456,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <gi>SGMLTAG
 <attval>class PARAMENTITY
 <action>
-<start>&lt;CODE>%
-<end>&lt;/CODE>
+<start>&lt;CODE>%</start>
+<end>&lt;/CODE></end>
 </rule>
 
 <rule>
@@ -1465,8 +1465,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <gi>SGMLTAG
 <attval>class GENENTITY
 <action>
-<start>&lt;CODE>&amp;
-<end>;&lt;/CODE>
+<start>&lt;CODE>&amp;</start>
+<end>;&lt;/CODE></end>
 </rule>
 
 <rule>
@@ -1474,8 +1474,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <gi>SGMLTAG
 <attval>class STARTTAG
 <action>
-<start>&lt;CODE>&amp;lt;
-<end>>&lt;/CODE>
+<start>&lt;CODE>&amp;lt;</start>
+<end>>&lt;/CODE></end>
 </rule>
 
 <rule>
@@ -1483,8 +1483,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <gi>SGMLTAG
 <attval>class ENDTAG
 <action>
-<start>&lt;CODE>&amp;lt;/
-<end>>&lt;/CODE>
+<start>&lt;CODE>&amp;lt;/</start>
+<end>>&lt;/CODE></end>
 </rule>
 
 <rule>
@@ -1492,8 +1492,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <gi>SGMLTAG
 <attval>class PI
 <action>
-<start>&lt;CODE>&amp;lt;?
-<end>>&lt;/CODE>
+<start>&lt;CODE>&amp;lt;?</start>
+<end>>&lt;/CODE></end>
 </rule>
 
 <rule>
@@ -1501,8 +1501,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <gi>SGMLTAG
 <attval>class PI
 <action>
-<start>&lt;CODE>&amp;lt;--
-<end>--&amp;lt;/CODE>
+<start>&lt;CODE>&amp;lt;--</start>
+<end>--&amp;lt;/CODE></end>
 </rule>
 
 <!-- catchall for remaining types of tags -->
@@ -1510,8 +1510,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <match>
 <gi>SGMLTAG
 <action>
-<start>&lt;CODE>&amp;lt;
-<end>&amp;gt;&lt;/CODE>
+<start>&lt;CODE>&amp;lt;</start>
+<end>&amp;gt;&lt;/CODE></end>
 </rule>
 
 
@@ -1537,8 +1537,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <match>
 <gi>SIMPLELIST
 <action>
-<start>^&lt;UL>^
-<end>^&lt;/UL>^
+<start>^&lt;UL>^</start>
+<end>^&lt;/UL>^</end>
 </rule>
 
 <rule>
@@ -1585,8 +1585,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <match>
 <gi>SUBTITLE
 <action>
-<start>^&lt;P>&lt;EM>
-<end>&lt;/EM>&lt;/P>^
+<start>^&lt;P>&lt;EM></start>
+<end>&lt;/EM>&lt;/P>^</end>
 </rule>
 
 <rule>
@@ -1598,8 +1598,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <match>
 <gi>SURNAME
 <action>
-<start>^
-<end>^
+<start>^</start>
+<end>^</end>
 </rule>
 
 <rule>
@@ -1623,17 +1623,17 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <context>PARA
 <action>
 <start>&lt;/P>
-&lt;BLOCKQUOTE>&lt;PRE>^
+&lt;BLOCKQUOTE>&lt;PRE>^</start>
 <end>^&lt;/PRE>&lt;/BLOCKQUOTE>
-&lt;P>
+&lt;P></end>
 </rule>
 
 <rule>
 <match>
 <gi>SYNOPSIS
 <action>
-<start>^&lt;PRE>^
-<end>^&lt;/PRE>^
+<start>^&lt;PRE>^</start>
+<end>^&lt;/PRE>^</end>
 </rule>
 
 <rule>
@@ -1647,8 +1647,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^
 <attval>frame none
 <action>
 <start>^${_attval ID &r.astart;}&lt;STRONG>${_gi M} ${tabnum}:&lt;/STRONG>
-${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE>^
-<end>^&lt;/TABLE>^
+${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE>^</start>
+<end>^&lt;/TABLE>^</end>
 <incr>tabnum
 </rule>
 
@@ -1657,8 +1657,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE>^
 <gi>TABLE
 <action>
 <start>^${_attval ID &r.astart;}&lt;STRONG>${_gi M} ${tabnum}:&lt;/STRONG>
-${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border">^
-<end>^&lt;/TABLE>^
+${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border">^</start>
+<end>^&lt;/TABLE>^</end>
 <incr>tabnum
 </rule>
 
@@ -1671,8 +1671,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <match>
 <gi>TERM
 <action>
-<start>^&lt;DT>
-<end>&lt;/DT>^
+<start>^&lt;DT></start>
+<end>&lt;/DT>^</end>
 </rule>
 
 <rule>
@@ -1714,8 +1714,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <gi>TITLE
 <context>PREFACE
 <action>
-<start>^&lt;H1>
-<end>&lt;/H1>^
+<start>^&lt;H1></start>
+<end>&lt;/H1>^</end>
 </rule>
 
 <rule>
@@ -1724,8 +1724,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <context>SECT1
 <relation>ancestor PREFACE
 <action>
-<start>^&lt;H2>
-<end>&lt;/H2>^
+<start>^&lt;H2></start>
+<end>&lt;/H2>^</end>
 </rule>
 
 <rule>
@@ -1734,8 +1734,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <context>SECT2
 <relation>ancestor PREFACE
 <action>
-<start>^&lt;H3>
-<end>&lt;/H3>^
+<start>^&lt;H3></start>
+<end>&lt;/H3>^</end>
 </rule>
 
 <rule>
@@ -1744,8 +1744,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <context>SECT3
 <relation>ancestor PREFACE
 <action>
-<start>^&lt;H4>
-<end>&lt;/H4>^
+<start>^&lt;H4></start>
+<end>&lt;/H4>^</end>
 </rule>
 
 <!-- Title in bookbiblio -->
@@ -1765,8 +1765,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <gi>TITLE
 <context>CHAPTER
 <action>
-<start>^&lt;H1>${_followrel parent CHAPTER 4}Chapter ${chapnum}:&lt;BR>^
-<end>${_followrel parent CHAPTER 5}&lt;/H1>^
+<start>^&lt;H1>${_followrel parent CHAPTER 4}Chapter ${chapnum}:&lt;BR>^</start>
+<end>${_followrel parent CHAPTER 5}&lt;/H1>^</end>
 </rule>
 
 <rule>
@@ -1774,8 +1774,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <gi>TITLE
 <context>^REF.*
 <action>
-<start>^&lt;H3>
-<end>^&lt;/H3>
+<start>^&lt;H3></start>
+<end>^&lt;/H3></end>
 </rule>
 
 <rule>
@@ -1783,8 +1783,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <gi>TITLE
 <context>SECT1
 <action>
-<start>^&lt;H2>${_followrel parent SECT1 4}${chapnum}.${sect1num}^
-<end>${_followrel parent SECT1 5}&lt;/H2>^
+<start>^&lt;H2>${_followrel parent SECT1 4}${chapnum}.${sect1num}^</start>
+<end>${_followrel parent SECT1 5}&lt;/H2>^</end>
 </rule>
 
 <rule>
@@ -1792,8 +1792,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <gi>TITLE
 <context>SECT2
 <action>
-<start>^&lt;H3>${_followrel parent SECT2 4}${chapnum}.${sect1num}.${sect2num}^
-<end>${_followrel parent SECT2 5}&lt;/H3>^
+<start>^&lt;H3>${_followrel parent SECT2 4}${chapnum}.${sect1num}.${sect2num}^</start>
+<end>${_followrel parent SECT2 5}&lt;/H3>^</end>
 </rule>
 
 <rule>
@@ -1801,8 +1801,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <gi>TITLE
 <context>SECT3
 <action>
-<start>^&lt;H4>${_followrel parent SECT3 4}${chapnum}.${sect1num}.${sect2num}.${sect3num}^
-<end>${_followrel parent SECT1 5}&lt;/H4>^
+<start>^&lt;H4>${_followrel parent SECT3 4}${chapnum}.${sect1num}.${sect2num}.${sect3num}^</start>
+<end>${_followrel parent SECT1 5}&lt;/H4>^</end>
 </rule>
 
 <rule>
@@ -1810,8 +1810,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <gi>TITLE
 <context>SECT4
 <action>
-<start>^&lt;H4>${_followrel parent SECT4 4}
-<end>${_followrel parent SECT4 5}&lt;/H4>^
+<start>^&lt;H4>${_followrel parent SECT4 4}</start>
+<end>${_followrel parent SECT4 5}&lt;/H4>^</end>
 </rule>
 
 <rule>
@@ -1819,8 +1819,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <gi>TITLE
 <context>SECT5
 <action>
-<start>^&lt;H4>${_followrel parent SECT5 4}
-<end>${_followrel parent SECT5 5}&lt;/H4>^
+<start>^&lt;H4>${_followrel parent SECT5 4}</start>
+<end>${_followrel parent SECT5 5}&lt;/H4>^</end>
 </rule>
 
 <rule>
@@ -1917,7 +1917,7 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <match>
 <gi>TRADEMARK
 <action>
-<end>(TM)
+<end>(TM)</end>
 </rule>
 
 <rule>
@@ -1929,16 +1929,16 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <match>
 <gi>ULINK
 <action>
-<start>&lt;A href="${URL}">
-<end>&lt;/A>
+<start>&lt;A href="${URL}"></start>
+<end>&lt;/A></end>
 </rule>
 
 <rule>
 <match>
 <gi>USERINPUT
 <action>
-<start>&lt;B>
-<end>&lt;/B>
+<start>&lt;B></start>
+<end>&lt;/B></end>
 </rule>
 
 <rule>
@@ -1951,16 +1951,16 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <gi>VARIABLELIST
 <context>PARA
 <action>
-<start>&lt;/P>^&lt;DL>^
-<end>^&lt;/DL>^&lt;P>
+<start>&lt;/P>^&lt;DL>^</start>
+<end>^&lt;/DL>^&lt;P></end>
 </rule>
 
 <rule>
 <match>
 <gi>VARIABLELIST
 <action>
-<start>^&lt;DL>^
-<end>^&lt;/DL>^
+<start>^&lt;DL>^</start>
+<end>^&lt;/DL>^</end>
 </rule>
 
 <rule>
@@ -1994,15 +1994,15 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <match>
 <gi>XREF
 <action>
-<replace>&lt;A HREF="#${LINKEND}">&lt;EM>${_chasetogi TITLE &r.pass}&lt;/EM>&lt;/A>
+<replace>&lt;A HREF="#${LINKEND}">&lt;EM>${_chasetogi TITLE &r.pass}&lt;/EM>&lt;/A></replace>
 </rule>
 
 <rule>
 <match>
 <gi>YEAR
 <action>
-<start>^
-<end>^
+<start>^</start>
+<end>^</end>
 </rule>
 
 <!-- Taken from osf-book transpec -->
@@ -2016,7 +2016,7 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <match>
 <gi>_name
 <action>
-<start>&lt;A NAME="${ID id}">
+<start>&lt;A NAME="${ID id}"></start>
 <ignore>all
 </rule>
 
@@ -2024,7 +2024,7 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <match>
 <gi>_name-end
 <action>
-<start>&lt;/A>
+<start>&lt;/A></start>
 <ignore>all
 </rule>
 
@@ -2032,14 +2032,14 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <match>
 <gi>_anchor-start
 <action>
-<replace>${_attval ID &r.astart;}
+<replace>${_attval ID &r.astart;}</replace>
 </rule>
 
 <rule id="5">
 <match>
 <gi>_anchor-end
 <action>
-<replace>${_attval ID &r.aend;}
+<replace>${_attval ID &r.aend;}</replace>
 </rule>
 
 <rule id="&r.ignore;">
@@ -2054,8 +2054,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <gi>_admonition
 <action>
 <start>^&lt;TABLE border="border">
- &lt;TR>&lt;TD>&lt;P align="center">&lt;STRONG>${_attval ID &r.astart;}${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;/STRONG>&lt;/P>^
-<end>^&lt;/TD>&lt;/TR>&lt;/TABLE>^
+ &lt;TR>&lt;TD>&lt;P align="center">&lt;STRONG>${_attval ID &r.astart;}${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;/STRONG>&lt;/P>^</start>
+<end>^&lt;/TD>&lt;/TR>&lt;/TABLE>^</end>
 </rule>
 
 <rule id="&r.admonb;">
@@ -2063,15 +2063,15 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <gi>_admonition
 <action>
 <start>^&lt;TABLE border="border">
- &lt;TR>&lt;TD>^
-<end>^&lt;/TD>&lt;/TR>&lt;/TABLE>^
+ &lt;TR>&lt;TD>^</start>
+<end>^&lt;/TD>&lt;/TR>&lt;/TABLE>^</end>
 </rule>
 
 <rule id="8">
 <match>
 <gi>_titletext
 <action>
-<start>${_attval ID &r.astart;}${ttext}${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}
+<start>${_attval ID &r.astart;}${ttext}${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}</start>
 <ignore>all
 </rule>
 
@@ -2079,14 +2079,14 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <match>
 <gi>_Start
 <action>
-<start>^&lt;!-- Magic _Start GI -->^
+<start>^&lt;!-- Magic _Start GI -->^</start>
 </rule>
 
 <rule>
 <match>
 <gi>_End
 <action>
-<start>^&lt;!-- Magic _End GI -->^
+<start>^&lt;!-- Magic _End GI -->^</start>
 </rule>
 
 </transpec>
