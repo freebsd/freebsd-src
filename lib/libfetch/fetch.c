@@ -39,7 +39,7 @@
 #include "fetch.h"
 #include "common.h"
 
-
+auth_t	 fetchAuthMethod;
 int	 fetchLastErrCode;
 char	 fetchLastErrString[MAXERRSTRING];
 int	 fetchTimeout;
