@@ -75,6 +75,7 @@
 .Nm TAILQ_ENTRY ,
 .Nm TAILQ_FIRST ,
 .Nm TAILQ_FOREACH ,
+.Nm TAILQ_FOREACH_REVERSE ,
 .Nm TAILQ_HEAD ,
 .Nm TAILQ_INIT ,
 .Nm TAILQ_INSERT_AFTER ,
@@ -89,6 +90,7 @@
 .Nm CIRCLEQ_ENTRY ,
 .Nm CIRCLEQ_FIRST ,
 .Nm CIRCLEQ_FOREACH ,
+.Nm CIRCLEQ_FOREACH_REVERSE ,
 .Nm CIRCLEQ_HEAD ,
 .Nm CIRCLEQ_INIT ,
 .Nm CIRCLEQ_INSERT_AFTER ,
@@ -146,6 +148,7 @@ lists, tail queues, and circular queues
 .Fn TAILQ_ENTRY "TYPE"
 .Fn TAILQ_FIRST "TAILQ_HEAD *head"
 .Fn TAILQ_FOREACH "TYPE *var" "TAILQ_HEAD *head" "TAILQ_ENTRY NAME"
+.Fn TAILQ_FOREACH_REVERSE "TYPE *var" "TAILQ_HEAD *head" "HEADNAME" "TAILQ_ENTRY NAME"
 .Fn TAILQ_HEAD "HEADNAME" "TYPE"
 .Fn TAILQ_INIT "TAILQ_HEAD *head"
 .Fn TAILQ_INSERT_AFTER "TAILQ_HEAD *head" "TYPE *listelm" "TYPE *elm" "TAILQ_ENTRY NAME"
@@ -161,6 +164,7 @@ lists, tail queues, and circular queues
 .Fn CIRCLEQ_ENTRY "TYPE"
 .Fn CIRCLEQ_FIRST "CIRCLEQ_HEAD *head"
 .Fn CIRCLEQ_FOREACH "TYPE *var" "CIRCLEQ_HEAD *head" "CIRCLEQ_ENTRY NAME"
+.Fn CIRCLEQ_FOREACH_REVERSE "TYPE *var" "CIRCLEQ_HEAD *head" "CIRCLEQ_ENTRY NAME"
 .Fn CIRCLEQ_HEAD "HEADNAME" "TYPE"
 .Fn CIRCLEQ_INIT "CIRCLEQ_HEAD *head"
 .Fn CIRCLEQ_INSERT_AFTER "CIRCLEQ_HEAD *head" "TYPE *listelm" "TYPE *elm" "CIRCLEQ_ENTRY NAME"
@@ -239,6 +243,8 @@ Tail queues add the following functionality:
 .Bl -enum -compact -offset indent
 .It
 Entries can be added at the end of a list.
+.It
+They may be traversed backwards, from tail to head.
 .El
 However:
 .Bl -enum -compact -offset indent
@@ -764,6 +770,13 @@ in the forward direction, assigning each element in turn to
 .Fa var .
 .Pp
 The macro
+.Nm TAILQ_FOREACH_REVERSE
+traverses the tail queue referenced by
+.Fa head
+in the reverse direction, assigning each element in turn to
+.Fa var .
+.Pp
+The macro
 .Nm TAILQ_INIT
 initializes the tail queue referenced by
 .Fa head .
@@ -842,6 +855,9 @@ free(n2);
 					/* Forward traversal. */
 TAILQ_FOREACH(np, &head, entries)
 	np-> ...
+					/* Reverse traversal. */
+TAILQ_FOREACH_REVERSE(np, &head, tailhead, entries)
+	np-> ...
 					/* TailQ Deletion. */
 while (!TAILQ_EMPTY(head)) {
 	n1 = TAILQ_FIRST(&head);
@@ -911,6 +927,13 @@ The macro
 traverses the circle queue referenced by
 .Fa head
 in the forward direction, assigning each element in turn to
+.Fa var .
+.Pp
+The macro
+.Nm CICRLEQ_FOREACH_REVERSE
+traverses the circle queue referenced by
+.Fa head
+in the reverse direction, assigning each element in turn to
 .Fa var .
 .Pp
 The macro
@@ -991,7 +1014,7 @@ free(n1);
 CIRCLEQ_FOREACH(np, &head, entries)
 	np-> ...
 					/* Reverse traversal. */
-for (np = CIRCLEQ_LAST(&head); np != (void *)&head; np = CIRCLEQ_PREV(np->entries))
+CIRCLEQ_FOREACH_REVERSE(np, &head, entries)
 	np-> ...
 					/* CircleQ Deletion. */
 while (CIRCLEQ_FIRST(&head) != (void *)&head) {
