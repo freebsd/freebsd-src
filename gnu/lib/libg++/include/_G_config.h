@@ -1,5 +1,11 @@
 /* AUTOMATICALLY GENERATED; DO NOT EDIT! */ 
 #ifndef _G_config_h
+/*
+ * XXX This #include added by hand, it SHOULD NOT be here, but we do
+ * not currently have the tools that Automatically generate this file and must
+ * resort to this hackery to make it compile under FreeBSD 2.X
+ */
+#include <sys/types.h>
 #define _G_config_h
 #define _G_LIB_VERSION "0.65"
 #define _G_NAMES_HAVE_UNDERSCORE 1
