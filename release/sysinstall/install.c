@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.27 1995/06/05 03:32:54 jkh Exp $
+ * $Id: install.c,v 1.70.2.28 1995/06/05 04:39:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -280,8 +280,13 @@ installCommit(char *str)
 	    return 0;
 	}
     }
+
+    /* Resurrect /dev */
     if (vsystem("cd /dev; sh MAKEDEV all"))
 	msgConfirm("MAKEDEV returned non-zero status");
+    /* This gives us our slice entries back, which we saved for this */
+    if (vsystem("mv -f /tmp/dev/* /dev"))
+	msgConfirm("Unable to move all the old devs back.  Hmmm!");
 
     dialog_clear();
     msgConfirm("Installation completed successfully, now  press [ENTER] to return\nto the main menu. If you have any network devices you have not yet\nconfigured, see the Interface configuration item on the\nConfiguration menu.");
@@ -393,7 +398,12 @@ make_filesystems(void)
 	msgConfirm("Couldn't clone the /dev files!");
 	return FALSE;
     }
-
+    Mkdir("/mnt/tmp", NULL);
+    if (vsystem("find -x /dev | cpio -pdmv /mnt/tmp")) {
+	msgConfirm("Couldn't create a backup copy of the /dev files!");
+	return FALSE;
+    }
+    
     command_sort();
     command_execute();
     return TRUE;
