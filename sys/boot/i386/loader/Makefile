@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.25 1999/01/09 20:14:46 msmith Exp $
+# $Id: Makefile,v 1.26 1999/01/10 20:20:27 msmith Exp $
 
 BASE=		loader
 PROG=		${BASE}
@@ -82,6 +82,9 @@ ${BASE}.help: help.common help.i386
 	perl ${.CURDIR}/../../common/merge_help.pl ${.ALLSRC} > ${.TARGET}
 
 beforeinstall:
+.if exists(${DESTDIR}/boot/loader)
+	mv ${DESTDIR}/boot/loader ${DESTDIR}/boot/loader.old
+.endif
 .if exists(${.OBJDIR}/loader.help)
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.OBJDIR}/${BASE}.help ${DESTDIR}/boot
