@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.30 1997/03/17 11:08:14 davidg Exp $
+ *	$Id: if_fxp.c,v 1.31 1997/03/21 08:00:11 davidg Exp $
  */
 
 /*
@@ -35,7 +35,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/ioctl.h>
+#include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>

@@ -14,14 +14,14 @@
  *
  * Version 1.9, Wed Oct  4 18:58:15 MSK 1995
  *
- * $Id$
+ * $Id: if_spppsubr.c,v 1.16 1997/02/22 09:41:09 peter Exp $
  */
 #undef DEBUG
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/ioctl.h>
+#include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/mbuf.h>
 
