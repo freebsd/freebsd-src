@@ -280,6 +280,8 @@ nfs/nfs_vfsops.c	optional nfs_server
 nfs/nfs_vnops.c		optional nfs
 nfs/nfs_vnops.c		optional nfs_client
 nfs/nfs_vnops.c		optional nfs_server
+nfs/bootp_subr.c	optional bootp
+nfs/krpc_subr.c		optional bootp
 pccard/pccard.c		optional crd
 pccard/pcic.c		optional pcic device-driver
 pci/aic7870.c		optional ahc device-driver			\

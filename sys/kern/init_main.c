@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.25 1995/05/19 03:26:43 davidg Exp $
+ * $Id: init_main.c,v 1.25.4.1 1996/02/22 11:09:58 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -100,6 +100,9 @@ struct	timeval boottime;
 struct	timeval runtime;
 
 static void start_init __P((struct proc *p, void *framep));
+#ifdef BOOTP
+extern void bootpc_init __P((void));
+#endif
 
 #if __GNUC__ >= 2
 void __main() {}
@@ -283,6 +286,9 @@ main(framep)
 	roundrobin(NULL);
 	schedcpu(NULL);
 
+#ifdef BOOTP
+	bootpc_init();
+#endif
 	/* Mount the root file system. */
 	if ((*mountroot)())
 		panic("cannot mount root");

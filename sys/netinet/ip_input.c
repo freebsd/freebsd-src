@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.22.4.5 1996/03/25 17:42:41 phk Exp $
+ * $Id: ip_input.c,v 1.22.4.6 1996/09/08 13:46:46 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -294,6 +294,10 @@ next:
 
 		if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr)
 			goto ours;
+#ifdef BOOTP_COMPAT
+		if (IA_SIN(ia)->sin_addr.s_addr == INADDR_ANY)
+			goto ours;
+#endif
 		if (ia->ia_ifp &&
 #ifdef	DIRECTED_BROADCAST
 		    ia->ia_ifp == m->m_pkthdr.rcvif &&
