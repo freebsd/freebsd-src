@@ -43,8 +43,13 @@
  *		    number when the interface changes for now...
  */
 
-#ifndef _QUICKCAM_H
-#define _QUICKCAM_H 1
+#ifndef	_MACHINE_QUICKCAM_H_
+#define	_MACHINE_QUICKCAM_H_
+
+#ifndef KERNEL
+#include <sys/types.h>
+#endif
+#include <sys/ioccom.h>
 
 #ifndef	_IOR
 /* SCO doesn't have _IOR/_IOW for ioctls, so fake it out to keep things clean*/
@@ -84,4 +89,4 @@ struct qcam {
 #define	QC_ZOOM_150		0x01		/* 1.5x */
 #define	QC_ZOOM_200		0x02		/* 2.0x */
 
-#endif
+#endif /* !_MACHINE_QUICKCAM_H_ */
