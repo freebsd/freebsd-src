@@ -1287,7 +1287,7 @@ tcp_rtlookup(inp)
 		/* No route yet, so try to acquire one */
 		if (inp->inp_faddr.s_addr != INADDR_ANY) {
 			ro->ro_dst.sa_family = AF_INET;
-			ro->ro_dst.sa_len = sizeof(ro->ro_dst);
+			ro->ro_dst.sa_len = sizeof(struct sockaddr_in);
 			((struct sockaddr_in *) &ro->ro_dst)->sin_addr =
 				inp->inp_faddr;
 			rtalloc(ro);
@@ -1314,7 +1314,7 @@ tcp_rtlookup6(inp)
 
 			dst6 = (struct sockaddr_in6 *)&ro6->ro_dst;
 			dst6->sin6_family = AF_INET6;
-			dst6->sin6_len = sizeof(ro6->ro_dst);
+			dst6->sin6_len = sizeof(*dst6);
 			dst6->sin6_addr = inp->in6p_faddr;
 			rtalloc((struct route *)ro6);
 			rt = ro6->ro_rt;
