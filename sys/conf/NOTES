@@ -1200,9 +1200,6 @@ hint.wds.0.drq="6"
 # default.
 options 	AHC_ALLOW_MEMIO
 
-# Enable diagnostic sequencer code.
-options 	AHC_DEBUG_SEQUENCER
-
 # Dump the contents of the ahc controller configuration PROM.
 options 	AHC_DUMP_EEPROM
 
