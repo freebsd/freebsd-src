@@ -321,7 +321,14 @@ again:
 	}
 	if(i >= MAX_RETRY) {
 		device_printf(sc->fc.dev, "cannot read phy\n");
+#if 0
 		return 0; /* XXX */
+#else
+		if (++retry < MAX_RETRY) {
+			DELAY(1000);
+			goto again;
+		}
+#endif
 	}
 	/* Make sure that SCLK is started */
 	stat = OREAD(sc, FWOHCI_INTSTAT);
@@ -457,6 +464,7 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 		contigmalloc(CROMSIZE * 2, M_DEVBUF, M_NOWAIT, 0, ~0, 1<<10, 0);
 
 	if(sc->cromptr == NULL){
+		device_printf(dev, "cromptr alloc failed.");
 		return ENOMEM;
 	}
 	sc->fc.dev = dev;
@@ -591,15 +599,30 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 #define	OHCI_SIDSIZE	(1 << 11)
 	sc->fc.sid_buf = (u_int32_t *) vm_page_alloc_contig( OHCI_SIDSIZE,
 					0x10000, 0xffffffff, OHCI_SIDSIZE);
+	if (sc->fc.sid_buf == NULL) {
+		device_printf(dev, "sid_buf alloc failed.\n");
+		return ENOMEM;
+	}
+
 	OWRITE(sc,  OHCI_SID_BUF, vtophys(sc->fc.sid_buf));
 	sc->fc.sid_buf++;
 	OWRITE(sc, OHCI_LNKCTL, OHCI_CNTL_SID);
 
 	fwohci_db_init(&sc->arrq);
+	if ((sc->arrq.flags & FWOHCI_DBCH_INIT) == 0)
+		return ENOMEM;
+
 	fwohci_db_init(&sc->arrs);
+	if ((sc->arrs.flags & FWOHCI_DBCH_INIT) == 0)
+		return ENOMEM;
 
 	fwohci_db_init(&sc->atrq);
+	if ((sc->atrq.flags & FWOHCI_DBCH_INIT) == 0)
+		return ENOMEM;
+
 	fwohci_db_init(&sc->atrs);
+	if ((sc->atrs.flags & FWOHCI_DBCH_INIT) == 0)
+		return ENOMEM;
 
 	reg = OREAD(sc, FWOHCIGUID_H);
 	for( i = 0 ; i < 4 ; i ++){
@@ -643,7 +666,6 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 				i ++, db_tr = STAILQ_NEXT(db_tr, link)){
 		db_tr->xfer = NULL;
 	}
-	sc->atrq.flags = sc->atrs.flags = 0;
 
 	OWRITE(sc, FWOHCI_RETRY,
 		(0xffff << 16 )| (0x0f << 8) | (0x0f << 4) | 0x0f) ;
@@ -683,6 +705,31 @@ fwohci_cyctimer(struct firewire_comm *fc)
 	db = &_dbtr->db[ (_cnt > 2) ? (_cnt -1) : 0];			\
 } while (0)
 	
+int
+fwohci_detach(struct fwohci_softc *sc, device_t dev)
+{
+	int i;
+
+	if (sc->fc.sid_buf != NULL)
+		contigfree((void *)(uintptr_t)sc->fc.sid_buf,
+					OHCI_SIDSIZE, M_DEVBUF);
+	if (sc->cromptr != NULL)
+		contigfree((void *)sc->cromptr, CROMSIZE * 2, M_DEVBUF);
+
+	fwohci_db_free(&sc->arrq);
+	fwohci_db_free(&sc->arrs);
+
+	fwohci_db_free(&sc->atrq);
+	fwohci_db_free(&sc->atrs);
+
+	for( i = 0 ; i < sc->fc.nisodma ; i ++ ){
+		fwohci_db_free(&sc->it[i]);
+		fwohci_db_free(&sc->ir[i]);
+	}
+
+	return 0;
+}
+
 static void
 fwohci_start(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 {
@@ -1015,21 +1062,26 @@ fwohci_db_free(struct fwohci_dbch *dbch)
 	struct fwohcidb_tr *db_tr;
 	int idb;
 
+	if ((dbch->flags & FWOHCI_DBCH_INIT) == 0)
+		return;
+
 	if(!(dbch->xferq.flag & FWXFERQ_EXTBUF)){
 		for(db_tr = STAILQ_FIRST(&dbch->db_trq), idb = 0;
 			idb < dbch->ndb;
 			db_tr = STAILQ_NEXT(db_tr, link), idb++){
-			free(db_tr->buf, M_DEVBUF);
-			db_tr->buf = NULL;
+			if (db_tr->buf != NULL) {
+				free(db_tr->buf, M_DEVBUF);
+				db_tr->buf = NULL;
+			}
 		}
 	}
 	dbch->ndb = 0;
 	db_tr = STAILQ_FIRST(&dbch->db_trq);
 	contigfree((void *)(uintptr_t)(volatile void *)db_tr->db,
 		sizeof(struct fwohcidb) * dbch->ndesc * dbch->ndb, M_DEVBUF);
-	/* Attach DB to DMA ch. */
 	free(db_tr, M_DEVBUF);
 	STAILQ_INIT(&dbch->db_trq);
+	dbch->flags &= ~FWOHCI_DBCH_INIT;
 }
 
 static void
@@ -1049,8 +1101,9 @@ fwohci_db_init(struct fwohci_dbch *dbch)
 	STAILQ_INIT(&dbch->db_trq);
 	db_tr = (struct fwohcidb_tr *)
 		malloc(sizeof(struct fwohcidb_tr) * dbch->ndb,
-		M_DEVBUF, M_DONTWAIT);
+		M_DEVBUF, M_DONTWAIT | M_ZERO);
 	if(db_tr == NULL){
+		printf("fwochi_db_init: malloc failed\n");
 		return;
 	}
 	db = (struct fwohcidb *)
@@ -1058,6 +1111,7 @@ fwohci_db_init(struct fwohci_dbch *dbch)
 		M_DEVBUF, M_DONTWAIT, 0x10000, 0xffffffff, PAGE_SIZE, 0ul);
 	if(db == NULL){
 		printf("fwochi_db_init: contigmalloc failed\n");
+		free(db_tr, M_DEVBUF);
 		return;
 	}
 	bzero(db, sizeof (struct fwohcidb) * dbch->ndesc * dbch->ndb);
@@ -1082,6 +1136,7 @@ fwohci_db_init(struct fwohci_dbch *dbch)
 			= STAILQ_FIRST(&dbch->db_trq);
 	dbch->top = STAILQ_FIRST(&dbch->db_trq);
 	dbch->bottom = dbch->top;
+	dbch->flags = FWOHCI_DBCH_INIT;
 }
 
 static int

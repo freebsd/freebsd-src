@@ -58,6 +58,7 @@ typedef struct fwohci_softc {
 			caddr_t buf;
 		} frag;
 		int flags;
+#define	FWOHCI_DBCH_INIT	(1<<0)
 #define	FWOHCI_DBCH_FULL	(1<<1)
 		int buf_offset;
 	} arrq, arrs, atrq, atrs, it[OHCI_DMA_ITCH], ir[OHCI_DMA_IRCH];
@@ -67,4 +68,5 @@ typedef struct fwohci_softc {
 } fwohci_softc_t;
 void fwohci_intr __P((void *arg));
 int fwohci_init __P((struct fwohci_softc *, device_t));
+int fwohci_detach __P((struct fwohci_softc *, device_t));
 int fwohci_shutdown __P((device_t dev));
