@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.323 1997/09/20 17:10:09 joerg Exp $
+#	$Id: Makefile,v 1.324 1997/09/30 08:09:03 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -255,8 +255,8 @@ release.1:
 release.2:
 	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/bin
 	cd ${.CURDIR}/.. && make distribute DISTDIR=${RD}/trees
-.if exists(${.CURDIR}/../kerberos4) && !defined(NOKERBEROS)
-	cd ${.CURDIR}/../kerberos4 && ( \
+.if exists(${.CURDIR}/../kerberosIV) && !defined(NOKERBEROS)
+	cd ${.CURDIR}/../kerberosIV && ( \
 		make bootstrap &&\
 		make obj all help-distribute DISTDIR=${RD}/trees &&\
 		make kprog \
