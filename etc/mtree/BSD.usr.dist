@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.92 1997/07/19 15:21:45 jfieber Exp $
+#	$Id: BSD.usr.dist,v 1.93 1997/07/25 20:36:54 phk Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -15,8 +15,6 @@
     ..
     lib
 	compat
-	..
-	tclpkg
 	..
     ..
     libdata

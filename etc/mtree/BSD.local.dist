@@ -1,4 +1,4 @@
-#     $Id: BSD.local.dist,v 1.28 1997/06/10 07:55:10 asami Exp $
+#     $Id: BSD.local.dist,v 1.29 1997/07/25 20:36:54 phk Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -14,7 +14,9 @@
     info
     ..
     lib
-	    tclpkg
+    ..
+    libdata
+	    tcl
 	    ..
     ..
     libexec

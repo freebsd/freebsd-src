@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.18 1997/02/22 15:08:06 peter Exp $
+# $Id: Makefile,v 1.19 1997/07/25 19:51:44 phk Exp $
 #
 # This file is generated automatically, do not edit it here!
 #
@@ -31,7 +31,7 @@ LINKS+=	${LIBDIR}/lib${LIB}.a ${LIBDIR}/lib${LIB}${SHLIB_MAJOR}.a
 
 CFLAGS+= -DNO_VALUES_H=1 -DHAVE_UNISTD_H=1 -DUSE_TERMIOS=1 -DHAVE_SYS_TIME_H=1 -DTIME_WITH_SYS_TIME=1 -DHAVE_TM_ZONE=1 -DHAVE_TM_GMTOFF=1 -DSTDC_HEADERS=1 -DNEED_MATHERR=1 -DHAVE_SIGNED_CHAR=1 -DHAVE_SYS_IOCTL_H=1 -DHAVE_SYS_FILIO_H=1 -DTCL_SHLIB_EXT=\".so\"
 CFLAGS+=	-DTCL_LIBRARY=\"${TCL_LIBRARY}\"
-CFLAGS+=	-DTCL_PACKAGE_PATH=\"/usr/lib/tclpkg\ /usr/local/lib/tclpkg\"
+CFLAGS+=	-DTCL_PACKAGE_PATH=\"/usr/libdata/tcl\ /usr/local/libdata/tcl\"
 
 LDADD+= -lm
 DPADD+= ${LIBM}
