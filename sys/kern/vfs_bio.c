@@ -2620,7 +2620,7 @@ void
 biodone(register struct buf * bp)
 {
 	int s;
-	void    (*b_iodone) __P((struct buf *));
+	void    (*biodone) __P((struct buf *));
 
 	s = splbio();
 
@@ -2641,9 +2641,9 @@ biodone(register struct buf * bp)
 
 	/* call optional completion function if requested */
 	if (bp->b_iodone != NULL) {
-		b_iodone = bp->b_iodone;
+		biodone = bp->b_iodone;
 		bp->b_iodone = NULL;
-		(*b_iodone) (bp);
+		(*biodone) (bp);
 		splx(s);
 		return;
 	}
