@@ -32,9 +32,15 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)sleep.c	8.1 (Berkeley) 6/4/93";
+#endif
+static char rcsid[] =
+	"$Id$";
 #endif /* LIBC_SCCS and not lint */
 
+#include <errno.h>
+#include <limits.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -45,14 +51,19 @@ sleep(seconds)
 	struct timespec time_to_sleep;
 	struct timespec time_remaining;
 
-	if (seconds != 0) {
-		time_to_sleep.tv_sec = seconds;
-		time_to_sleep.tv_nsec = 0;
-		time_remaining = time_to_sleep;
-		(void)nanosleep(&time_to_sleep, &time_remaining);
-		seconds = time_remaining.tv_sec;
-		if (time_remaining.tv_nsec > 0)
-			seconds++;      /* round up */
-	}
-	return (seconds);
+	/*
+	 * Avoid overflow when `seconds' is huge.  This assumes that
+	 * the maximum value for a time_t is >= LONG_MAX.
+	 */
+	if (seconds > LONG_MAX)
+		return (seconds - LONG_MAX + sleep(LONG_MAX));
+
+	time_to_sleep.tv_sec = seconds;
+	time_to_sleep.tv_nsec = 0;
+	if (nanosleep(&time_to_sleep, &time_remaining) != -1)
+		return (0);
+	if (errno != EINTR)
+		return (seconds);		/* best guess */
+	return (time_remaining.tv_sec +
+		(time_remaining.tv_nsec != 0)); /* round up */
 }
