@@ -116,6 +116,7 @@ static	int ether_resolvemulti __P((struct ifnet *, struct sockaddr **,
 				    struct sockaddr *));
 u_char	etherbroadcastaddr[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 #define senderr(e) { error = (e); goto bad;}
+#define	IFP2AC(IFP) ((struct arpcom *)IFP)
 
 #ifdef NETGRAPH
 #include <netgraph/ng_ether.h>
@@ -732,6 +733,9 @@ ether_ifattach(ifp)
 	sdl->sdl_type = IFT_ETHER;
 	sdl->sdl_alen = ifp->if_addrlen;
 	bcopy(((struct arpcom *)ifp)->ac_enaddr, LLADDR(sdl), ifp->if_addrlen);
+#ifdef	NETGRAPH
+	ngether_init(ifp);
+#endif	/* NETGRAPH */
 }
 
 SYSCTL_NODE(_net_link, IFT_ETHER, ether, CTLFLAG_RW, 0, "Ethernet");
