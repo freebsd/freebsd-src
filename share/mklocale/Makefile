@@ -21,9 +21,9 @@ LOCALES=        bg_BG.CP1251 \
 
 LOCALEDIR=	${DESTDIR}/usr/share/locale
 
-ASCIILINKS=	en_AU en_CA en_GB en_US
+ASCIILINKS=	en_AU en_CA en_GB en_NZ en_US
 LATIN1LINKS = \
-	da_DK de_AT de_CH de_DE en_AU en_CA en_GB en_US es_ES fi_FI \
+	da_DK de_AT de_CH de_DE en_AU en_CA en_GB en_NZ en_US es_ES fi_FI \
 	fr_BE fr_CA fr_CH fr_FR is_IS it_CH it_IT nl_BE nl_NL no_NO \
 	pt_PT sv_SE
 

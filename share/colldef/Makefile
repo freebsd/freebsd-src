@@ -26,13 +26,13 @@ LOCALES=	bg_BG.CP1251 \
 
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
-ASCIILINKS = en_AU.US-ASCII en_CA.US-ASCII en_GB.US-ASCII \
+ASCIILINKS = en_AU.US-ASCII en_CA.US-ASCII en_GB.US-ASCII en_NZ.US-ASCII \
 	en_US.US-ASCII ko_KR.EUC ja_JP.EUC ja_JP.SJIS zh_CN.EUC
 
 ZHLINKS=	zh_TW.Big5
 
 LATIN1LINKS = \
-	da_DK en_AU en_CA en_GB en_US fi_FI \
+	da_DK en_AU en_CA en_GB en_NZ en_US fi_FI \
 	fr_BE fr_CA fr_CH fr_FR it_CH it_IT nl_BE nl_NL no_NO \
 	pt_PT
 
