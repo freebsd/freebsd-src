@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.71 1998/02/09 06:11:06 eivind Exp $
+ * $Id: ffs_vfsops.c,v 1.72 1998/02/25 04:47:04 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -83,6 +83,7 @@ static struct vfsops ufs_vfsops = {
 	ffs_statfs,
 	ffs_sync,
 	ffs_vget,
+	vfs_vrele,
 	ffs_fhtovp,
 	ffs_vptofh,
 	ffs_init,
