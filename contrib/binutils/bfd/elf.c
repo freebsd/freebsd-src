@@ -2,27 +2,30 @@
    Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
-This file is part of BFD, the Binary File Descriptor library.
+   This file is part of BFD, the Binary File Descriptor library.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+
 
 /* $FreeBSD$ */
 
 /*
 
-SECTION
+
+/*  SECTION
+    
 	ELF backends
 
 	BFD support for ELF formats is being worked on.
@@ -31,8 +34,7 @@ SECTION
 
 	Documentation of the internals of the support code still needs
 	to be written.  The code is changing quickly enough that we
-	haven't bothered yet.
- */
+	haven't bothered yet.  */
 
 /* For sparc64-cross-sparc32.  */
 #define _SYSCALL32
@@ -2218,7 +2220,8 @@ elf_fake_sections (abfd, asect, failedptrarg)
       this_hdr->sh_entsize = 4;
     }
   else if ((asect->flags & SEC_ALLOC) != 0
-	   && ((asect->flags & (SEC_LOAD | SEC_HAS_CONTENTS)) == 0))
+	   && (((asect->flags & (SEC_LOAD | SEC_HAS_CONTENTS)) == 0)
+	       || (asect->flags & SEC_NEVER_LOAD) != 0))
     this_hdr->sh_type = SHT_NOBITS;
   else
     this_hdr->sh_type = SHT_PROGBITS;
@@ -4161,7 +4164,7 @@ _bfd_elf_symbol_from_bfd_symbol (abfd, asym_ptr_ptr)
 #if DEBUG & 4
   {
     fprintf (stderr,
-	     _("elf_symbol_from_bfd_symbol 0x%.8lx, name = %s, sym num = %d, flags = 0x%.8lx%s\n"),
+	     "elf_symbol_from_bfd_symbol 0x%.8lx, name = %s, sym num = %d, flags = 0x%.8lx%s\n",
 	     (long) asym_ptr, asym_ptr->name, idx, flags,
 	     elf_symbol_flags (flags));
     fflush (stderr);
