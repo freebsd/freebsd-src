@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.243 1998/01/07 08:40:34 yokota Exp $
+ *  $Id: syscons.c,v 1.244 1998/01/09 09:06:55 yokota Exp $
  */
 
 #include "sc.h"
@@ -109,6 +109,8 @@ static  scr_stat    	main_console;
 static  scr_stat    	*console[MAXCONS];
 #ifdef DEVFS
 static	void		*sc_devfs_token[MAXCONS];
+static	void		*sc_mouse_devfs_token;
+static	void		*sc_console_devfs_token;
 #endif
 	scr_stat    	*cur_console;
 static  scr_stat    	*new_scp, *old_scp;
@@ -749,8 +751,12 @@ scattach(struct isa_device *dev)
 
 #ifdef DEVFS
     for (vc = 0; vc < MAXCONS; vc++)
-        sc_devfs_token[vc] = devfs_add_devswf(&scdevsw, vc, DV_CHR, UID_ROOT,
-					      GID_WHEEL, 0600, "ttyv%n", vc);
+        sc_devfs_token[vc] = devfs_add_devswf(&scdevsw, vc, DV_CHR,
+				UID_ROOT, GID_WHEEL, 0600, "ttyv%n", vc);
+    sc_mouse_devfs_token = devfs_add_devswf(&scdevsw, SC_MOUSE, DV_CHR,
+				UID_ROOT, GID_WHEEL, 0600, "sysmouse");
+    sc_console_devfs_token = devfs_add_devswf(&scdevsw, SC_CONSOLE, DV_CHR,
+				UID_ROOT, GID_WHEEL, 0600, "consolectl");
 #endif
     return 0;
 }
