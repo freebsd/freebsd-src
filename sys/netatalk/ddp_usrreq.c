@@ -23,7 +23,7 @@
 #include <netatalk/at_extern.h>
 
 static u_long	ddp_sendspace = DDP_MAXSZ; /* Max ddp size + 1 (ddp_type) */
-static u_long	ddp_recvspace = 10 * ( 587 + sizeof( struct sockaddr_at ));
+static u_long	ddp_recvspace = 10 * (587 + sizeof(struct sockaddr_at));
 
 static struct ifqueue atintrq1, atintrq2, aarpintrq;
 
@@ -35,18 +35,18 @@ ddp_attach(struct socket *so, int proto, struct thread *td)
 	int		s;
 	
 
-	ddp = sotoddpcb( so );
-	if ( ddp != NULL ) {
-	    return( EINVAL);
+	ddp = sotoddpcb(so);
+	if (ddp != NULL) {
+	    return (EINVAL);
 	}
 
 	s = splnet();
-	error = at_pcballoc( so );
+	error = at_pcballoc(so);
 	splx(s);
 	if (error) {
 	    return (error);
 	}
-	return (soreserve( so, ddp_sendspace, ddp_recvspace ));
+	return (soreserve(so, ddp_sendspace, ddp_recvspace));
 }
 
 static int
@@ -55,14 +55,14 @@ ddp_detach(struct socket *so)
 	struct ddpcb	*ddp;
 	int		s;
 	
-	ddp = sotoddpcb( so );
-	if ( ddp == NULL ) {
-	    return( EINVAL);
+	ddp = sotoddpcb(so);
+	if (ddp == NULL) {
+	    return (EINVAL);
 	}
 	s = splnet();
-	at_pcbdetach( so, ddp );
+	at_pcbdetach(so, ddp);
 	splx(s);
-	return(0);
+	return (0);
 }
 
 static int      
@@ -72,9 +72,9 @@ ddp_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	int		error = 0;
 	int		s;
 	
-	ddp = sotoddpcb( so );
-	if ( ddp == NULL ) {
-	    return( EINVAL);
+	ddp = sotoddpcb(so);
+	if (ddp == NULL) {
+	    return (EINVAL);
 	}
 	s = splnet();
 	error = at_pcbsetaddr(ddp, nam, td);
@@ -89,21 +89,21 @@ ddp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	int		error = 0;
 	int		s;
 	
-	ddp = sotoddpcb( so );
-	if ( ddp == NULL ) {
-	    return( EINVAL);
+	ddp = sotoddpcb(so);
+	if (ddp == NULL) {
+	    return (EINVAL);
 	}
 
-	if ( ddp->ddp_fsat.sat_port != ATADDR_ANYPORT ) {
-	    return(EISCONN);
+	if (ddp->ddp_fsat.sat_port != ATADDR_ANYPORT) {
+	    return (EISCONN);
 	}
 
 	s = splnet();
-	error = at_pcbconnect( ddp, nam, td );
+	error = at_pcbconnect(ddp, nam, td);
 	splx(s);
-	if ( error == 0 )
-	    soisconnected( so );
-	return(error);
+	if (error == 0)
+	    soisconnected(so);
+	return (error);
 }
 
 static int
@@ -113,20 +113,20 @@ ddp_disconnect(struct socket *so)
 	struct ddpcb	*ddp;
 	int		s;
 	
-	ddp = sotoddpcb( so );
-	if ( ddp == NULL ) {
-	    return( EINVAL);
+	ddp = sotoddpcb(so);
+	if (ddp == NULL) {
+	    return (EINVAL);
 	}
-	if ( ddp->ddp_fsat.sat_addr.s_node == ATADDR_ANYNODE ) {
-	    return(ENOTCONN);
+	if (ddp->ddp_fsat.sat_addr.s_node == ATADDR_ANYNODE) {
+	    return (ENOTCONN);
 	}
 
 	s = splnet();
-	at_pcbdisconnect( ddp );
+	at_pcbdisconnect(ddp);
 	ddp->ddp_fsat.sat_addr.s_node = ATADDR_ANYNODE;
 	splx(s);
-	soisdisconnected( so );
-	return(0);
+	soisdisconnected(so);
+	return (0);
 }
 
 static int
@@ -134,12 +134,12 @@ ddp_shutdown(struct socket *so)
 {
 	struct ddpcb	*ddp;
 
-	ddp = sotoddpcb( so );
-	if ( ddp == NULL ) {
-		return( EINVAL);
+	ddp = sotoddpcb(so);
+	if (ddp == NULL) {
+		return (EINVAL);
 	}
-	socantsendmore( so );
-	return(0);
+	socantsendmore(so);
+	return (0);
 }
 
 static int
@@ -150,39 +150,39 @@ ddp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	int		error = 0;
 	int		s;
 	
-	ddp = sotoddpcb( so );
-	if ( ddp == NULL ) {
-		return(EINVAL);
+	ddp = sotoddpcb(so);
+	if (ddp == NULL) {
+		return (EINVAL);
 	}
 
-    	if ( control && control->m_len ) {
-		return(EINVAL);
+    	if (control && control->m_len) {
+		return (EINVAL);
     	}
 
-	if ( addr ) {
-		if ( ddp->ddp_fsat.sat_port != ATADDR_ANYPORT ) {
-			return(EISCONN);
+	if (addr) {
+		if (ddp->ddp_fsat.sat_port != ATADDR_ANYPORT) {
+			return (EISCONN);
 		}
 
 		s = splnet();
 		error = at_pcbconnect(ddp, addr, td);
-		splx( s );
-		if ( error ) {
-			return(error);
+		splx(s);
+		if (error) {
+			return (error);
 		}
 	} else {
-		if ( ddp->ddp_fsat.sat_port == ATADDR_ANYPORT ) {
-			return(ENOTCONN);
+		if (ddp->ddp_fsat.sat_port == ATADDR_ANYPORT) {
+			return (ENOTCONN);
 		}
 	}
 
 	s = splnet();
-	error = ddp_output( m, so );
-	if ( addr ) {
-	    at_pcbdisconnect( ddp );
+	error = ddp_output(m, so);
+	if (addr) {
+	    at_pcbdisconnect(ddp);
 	}
 	splx(s);
-	return(error);
+	return (error);
 }
 
 static int
@@ -191,15 +191,15 @@ ddp_abort(struct socket *so)
 	struct ddpcb	*ddp;
 	int		s;
 	
-	ddp = sotoddpcb( so );
-	if ( ddp == NULL ) {
-		return(EINVAL);
+	ddp = sotoddpcb(so);
+	if (ddp == NULL) {
+		return (EINVAL);
 	}
-	soisdisconnected( so );
+	soisdisconnected(so);
 	s = splnet();
-	at_pcbdetach( so, ddp );
+	at_pcbdetach(so, ddp);
 	splx(s);
-	return(0);
+	return (0);
 }
 
 void 
@@ -219,12 +219,12 @@ ddp_init(void)
 
 #if 0
 static void 
-ddp_clean(void )
+ddp_clean(void)
 {
     struct ddpcb	*ddp;
 
-    for ( ddp = ddpcb; ddp; ddp = ddp->ddp_next ) {
-	at_pcbdetach( ddp->ddp_socket, ddp );
+    for (ddp = ddpcb; ddp; ddp = ddp->ddp_next) {
+	at_pcbdetach(ddp->ddp_socket, ddp);
     }
 }
 #endif
@@ -232,7 +232,7 @@ ddp_clean(void )
 static int
 at_setpeeraddr(struct socket *so, struct sockaddr **nam)
 {
-	return(EOPNOTSUPP);
+	return (EOPNOTSUPP);
 }
 
 static int
@@ -240,12 +240,12 @@ at_setsockaddr(struct socket *so, struct sockaddr **nam)
 {
 	struct ddpcb	*ddp;
 
-	ddp = sotoddpcb( so );
-	if ( ddp == NULL ) {
-	    return( EINVAL);
+	ddp = sotoddpcb(so);
+	if (ddp == NULL) {
+	    return (EINVAL);
 	}
-	at_sockaddr( ddp, nam );
-	return(0);
+	at_sockaddr(ddp, nam);
+	return (0);
 }
 
 struct pr_usrreqs ddp_usrreqs = {
