@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: serial.S,v 1.10 1998/01/01 13:01:31 bde Exp $
+ *	$Id: serial.S,v 1.11 1998/02/01 22:39:24 bde Exp $
  */
 
 /*
@@ -67,7 +67,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 	.file	"serial.S"
 
-#include <i386/isa/sioreg.h>
+#include <isa/sioreg.h>
 #include "asm.h"
 
 	.text
