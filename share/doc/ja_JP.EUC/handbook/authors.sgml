@@ -1,6 +1,6 @@
-<!-- $Id: authors.sgml,v 1.1.1.1 1996/11/15 05:14:38 asami Exp $ -->
+<!-- $Id: authors.sgml,v 1.2 1996/12/01 20:32:34 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.40 -->
+<!-- Original revision: 1.41 -->
 
 <!-- 
 Names and email address of contributing authors and CVS committers.
@@ -19,6 +19,10 @@ and double quotes.
 <!ENTITY a.davidg "David Greenman 
   <tt><htmlurl url='mailto:davidg@FreeBSD.ORG' 
   name='&lt;davidg@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.pds "Peter da Silva
+  <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
+  name='&lt;pds@FreeBSD.ORG&gt;'></tt>">
 
 <!ENTITY a.dufault "Peter Dufault 
   <tt><htmlurl url='mailto:dufault@FreeBSD.ORG' 
