@@ -274,7 +274,9 @@ atapi_transfer(struct atapi_request *request)
     /* if DMA enabled setup DMA hardware */
     request->flags &= ~ATPR_F_DMA_USED; 
     if ((atadev->mode >= ATA_DMA) &&
-	(request->ccb[0] == ATAPI_READ || request->ccb[0] == ATAPI_READ_BIG ||
+	(request->ccb[0] == ATAPI_READ || 
+	 request->ccb[0] == ATAPI_READ_BIG ||
+	 request->ccb[0] == ATAPI_READ_CD ||
 	 ((request->ccb[0] == ATAPI_WRITE ||
 	   request->ccb[0] == ATAPI_WRITE_BIG) &&
 	  !(atadev->channel->flags & ATA_ATAPI_DMA_RO))) &&
@@ -283,7 +285,8 @@ atapi_transfer(struct atapi_request *request)
     }
 
     /* start ATAPI operation */
-    if (ata_command(atadev, ATA_C_PACKET_CMD, (request->bytecount << 8), 0,
+    if (ata_command(atadev, ATA_C_PACKET_CMD, 
+		    min(request->bytecount, 65534) << 8, 0,
 		    (request->flags & ATPR_F_DMA_USED) ? ATA_F_DMA : 0,
 		    ATA_IMMEDIATE))
 	ata_prtdev(atadev, "failure to send ATAPI packet command\n");

@@ -292,7 +292,7 @@ acd_make_dev(struct acd_softc *cdp)
 static void
 acd_set_ioparm(struct acd_softc *cdp)
 {
-    cdp->dev->si_iosize_max = (65534 / cdp->block_size) * cdp->block_size;
+    cdp->dev->si_iosize_max = ((256*DEV_BSIZE)/cdp->block_size)*cdp->block_size;
     cdp->dev->si_bsize_phys = cdp->block_size;
 }
 

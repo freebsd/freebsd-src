@@ -107,12 +107,7 @@ afdattach(struct ata_device *atadev)
     dev = disk_create(fdp->lun, &fdp->disk, 0, &afd_cdevsw, &afddisk_cdevsw);
     dev->si_drv1 = fdp;
     fdp->dev = dev;
-
-    if (!strncmp(atadev->param->model, "IOMEGA ZIP", 10) ||
-	!strncmp(atadev->param->model, "IOMEGA Clik!", 12))
-	fdp->dev->si_iosize_max = 64 * DEV_BSIZE;
-    else
-	fdp->dev->si_iosize_max = 127 * DEV_BSIZE;
+    fdp->dev->si_iosize_max = 256 * DEV_BSIZE;
 
     afd_describe(fdp);
     atadev->flags |= ATA_D_MEDIA_CHANGED;
@@ -328,7 +323,7 @@ afd_start(struct ata_device *atadev)
     }
 
     lba = bp->bio_pblkno;
-    count = min(bp->bio_bcount, fdp->dev->si_iosize_max) / fdp->cap.sector_size;
+    count = bp->bio_bcount / fdp->cap.sector_size;
     data_ptr = bp->bio_data;
     bp->bio_resid = bp->bio_bcount; 
 
