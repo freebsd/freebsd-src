@@ -1086,11 +1086,10 @@ ifconf(cmd, data)
 						sizeof (ifr));
 				ifrp++;
 			} else {
-				if (space < sa->sa_len - sizeof(*sa))
+				if (space < sizeof (ifr) + sa->sa_len -
+					    sizeof(*sa))
 					break;
 				space -= sa->sa_len - sizeof(*sa);
-				if (space < sizeof (ifr))
-					break;
 				error = copyout((caddr_t)&ifr, (caddr_t)ifrp,
 						sizeof (ifr.ifr_name));
 				if (error == 0)
@@ -1115,8 +1114,6 @@ ifconf(cmd, data)
 			ifrp++;
 		}
 	}
-	if (space < 0)
-		panic("ifconf: space < 0");
 	ifc->ifc_len -= space;
 	return (error);
 }
