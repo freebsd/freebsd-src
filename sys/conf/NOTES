@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.81 1994/09/19 15:45:02 dfr Exp $
+#	$Id: LINT,v 1.82 1994/09/22 19:37:30 wollman Exp $
 #
 
 machine		"i386"
@@ -62,7 +62,6 @@ options		DSI_SOFT_MODEM		#code for DSI Softmodems
 #  the sound drivers.
 
 # Multicast support.
-options		MULTICAST		# Multicast code
 options		MROUTING		# Multicast routing
 
 #
