@@ -61,16 +61,14 @@ struct group_entry *gtable[TABLESIZE];
 struct member_entry *mtable[TABLESIZE];
 
 static void
-usage()
+usage(void)
 {
 	fprintf (stderr,"usage: revnetgroup -u|-h [-f netgroup file]\n");
 	exit(1);
 }
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	FILE *fp;
 	char readbuf[LINSIZ];
