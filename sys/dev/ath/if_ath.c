@@ -2512,7 +2512,7 @@ ath_rx_proc(void *arg, int npending)
 	struct mbuf *m;
 	struct ieee80211_node *ni;
 	struct ath_node *an;
-	int len;
+	int len, type;
 	u_int phyerr;
 	HAL_STATUS status;
 
@@ -2719,7 +2719,7 @@ rx_accept:
 		/*
 		 * Send frame up for processing.
 		 */
-		ieee80211_input(ic, m, ni,
+		type = ieee80211_input(ic, m, ni,
 			ds->ds_rxstat.rs_rssi, ds->ds_rxstat.rs_tstamp);
 
 		if (sc->sc_softled) {
@@ -2729,8 +2729,7 @@ rx_accept:
 			 * is mainly for station mode where we depend on
 			 * periodic beacon frames to trigger the poll event.
 			 */
-			if (sc->sc_ipackets != ifp->if_ipackets) {
-				sc->sc_ipackets = ifp->if_ipackets;
+			if (type == IEEE80211_FC0_TYPE_DATA) {
 				sc->sc_rxrate = ds->ds_rxstat.rs_rate;
 				ath_led_event(sc, ATH_LED_RX);
 			} else if (ticks - sc->sc_ledevent >= sc->sc_ledidle)
