@@ -12,10 +12,6 @@ SRCS+=	gethostbydns.c gethostbyht.c gethostbynis.c gethostnamadr.c \
 	res_debug.c res_init.c res_mkquery.c res_query.c res_send.c \
 	send.c
 
-# dig(1) requires the resolver to be compiled with debugging enabled
-# if you don't care abut dig, you may comment this out
-CFLAGS+=-DDEBUG
-
 # machine-dependent net sources
 .include "${.CURDIR}/${MACHINE}/net/Makefile.inc"
 
