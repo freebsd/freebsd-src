@@ -812,6 +812,8 @@ installFixupBin(dialogMenuItem *self)
 	/* BOGON #1: Resurrect /dev after bin distribution screws it up */
 	dialog_clear_norefresh();
 	msgNotify("Remaking all devices.. Please wait!");
+	if (!Fake)
+	    (void)unmount("/dev", MNT_FORCE);
 	if (vsystem("cd /dev; sh MAKEDEV all")) {
 	    msgConfirm("MAKEDEV returned non-zero status");
 	    return DITEM_FAILURE | DITEM_RESTORE;
@@ -1070,8 +1072,6 @@ installFilesystems(dialogMenuItem *self)
 
     command_sort();
     command_execute();
-    if (!mountfailed && !Fake)
-	unmount("/mnt/dev", MNT_FORCE);
     dialog_clear_norefresh();
     return DITEM_SUCCESS | DITEM_RESTORE;
 }
