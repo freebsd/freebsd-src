@@ -962,6 +962,12 @@ options 	SCSI_NO_SENSE_STRINGS
 options 	SCSI_NO_OP_STRINGS
 options 	SCSI_DELAY=8000	# Be pessimistic about Joe SCSI device
 
+# Options for the CAM SCSI disk driver:
+# DA_OLD_QUIRKS: Restore old USB and firewire quirks that have been
+#		 deprecated.  Please also email scsi@freebsd.org if you
+#		 have a device that needs this option.
+options		DA_OLD_QUIRKS
+
 # Options for the CAM CDROM driver:
 # CHANGER_MIN_BUSY_SECONDS: Guaranteed minimum time quantum for a changer LUN
 # CHANGER_MAX_BUSY_SECONDS: Maximum time quantum per changer LUN, only
