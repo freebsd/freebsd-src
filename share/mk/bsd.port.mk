@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.165.2.21 1997/01/12 12:40:51 asami Exp $
+# $Id: bsd.port.mk,v 1.165.2.22 1997/01/25 02:52:10 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -416,9 +416,11 @@ SCRIPTS_ENV+=	${INSTALL_MACROS}
 .undef NO_PACKAGE
 .endif
 
+PLIST?=		${PKGDIR}/PLIST
+
 PKG_CMD?=		/usr/sbin/pkg_create
 .if !defined(PKG_ARGS)
-PKG_ARGS=		-v -c ${PKGDIR}/COMMENT -d ${PKGDIR}/DESCR -f ${PKGDIR}/PLIST -p ${PREFIX} -P "`${MAKE} package-depends|sort -u`"
+PKG_ARGS=		-v -c ${PKGDIR}/COMMENT -d ${PKGDIR}/DESCR -f ${PLIST} -p ${PREFIX} -P "`${MAKE} package-depends|sort -u`"
 .if exists(${PKGDIR}/INSTALL)
 PKG_ARGS+=		-i ${PKGDIR}/INSTALL
 .endif
@@ -448,22 +450,24 @@ MOTIFLIB?=	-L${X11BASE}/lib -lXm
 .endif
 .endif
 
-ECHO?=		/bin/echo
-CAT?=		/bin/cat
-CP?=		/bin/cp
-SETENV?=	/usr/bin/env
-RM?=		/bin/rm
-MKDIR?=		/bin/mkdir -p
-RMDIR?=		/bin/rmdir
 AWK?=		/usr/bin/awk
 BASENAME?=	/usr/bin/basename
+CAT?=		/bin/cat
+CP?=		/bin/cp
+ECHO?=		/bin/echo
 FALSE?=		/usr/bin/false
 GREP?=		/usr/bin/grep
+GUNZIP_CMD?=	/usr/bin/gunzip -f
 GZCAT?=		/usr/bin/gzcat
 GZIP?=		-9
 GZIP_CMD?=	/usr/bin/gzip -nf ${GZIP}
-GUNZIP_CMD?=	/usr/bin/gunzip -f
+LDCONFIG?=	/sbin/ldconfig
+MKDIR?=		/bin/mkdir -p
+MV?=		/bin/mv
+RM?=		/bin/rm
+RMDIR?=		/bin/rmdir
 SED?=		/usr/bin/sed
+SETENV?=	/usr/bin/env
 TR?=		/usr/bin/tr
 
 # Used to print all the '===>' style prompts - override this to turn them off.
@@ -489,7 +493,8 @@ MASTER_SITE_TEX_CTAN?=  \
         ftp://ftp.cdrom.com/pub/tex/ctan/${MASTER_SITE_SUBDIR}/  \
         ftp://wuarchive.wustl.edu/packages/TeX/${MASTER_SITE_SUBDIR}/  \
         ftp://ftp.funet.fi/pub/TeX/CTAN/${MASTER_SITE_SUBDIR}/  \
-        ftp.tex.ac.uk/public/ctan/tex-archive/${MASTER_SITE_SUBDIR}/
+        ftp://ftp.tex.ac.uk/public/ctan/tex-archive/${MASTER_SITE_SUBDIR}/  \
+        ftp://ftp.dante.de/tex-archive/${MASTER_SITE_SUBDIR}/
 
 MASTER_SITE_SUNSITE?=	\
 	ftp://sunsite.unc.edu/pub/Linux/${MASTER_SITE_SUBDIR}/ \
@@ -965,7 +970,7 @@ do-install:
 
 .if !target(do-package)
 do-package:
-	@if [ -e ${PKGDIR}/PLIST ]; then \
+	@if [ -e ${PLIST} ]; then \
 		${ECHO_MSG} "===>  Building package for ${PKGNAME}"; \
 		if [ -d ${PACKAGES} ]; then \
 			if [ ! -d ${PKGREPOSITORY} ]; then \
@@ -1026,6 +1031,17 @@ _PORT_USE: .USE
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} build-depends lib-depends misc-depends
 .endif
 .if make(real-install)
+.if !defined(NO_PKG_REGISTER) && !defined(FORCE_PKG_REGISTER)
+	@if [ -d ${PKG_DBDIR}/${PKGNAME} ]; then \
+		${ECHO_MSG} "===>  ${PKGNAME} is already installed - perhaps an older version?"; \
+		${ECHO_MSG} "      If so, you may wish to \`\`pkg_delete ${PKGNAME}'' and install"; \
+		${ECHO_MSG} "      this port again by \`\`make reinstall'' to upgrade it properly."; \
+		${ECHO_MSG} "      If you really wish to overwrite the old port of ${PKGNAME}"; \
+		${ECHO_MSG} "      without deleting it first, set the variable \"FORCE_PKG_REGISTER\""; \
+		${ECHO_MSG} "      in your environment or the \"make install\" command line."; \
+		exit 1; \
+	fi
+.endif
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} run-depends lib-depends
 .endif
 .if make(real-install)
@@ -1213,8 +1229,10 @@ pre-distclean:
 .if !target(distclean)
 distclean: pre-distclean clean
 	@${ECHO_MSG} "===>  Dist cleaning for ${PKGNAME}"
-	@(cd ${_DISTDIR}; \
-	${RM} -f ${DISTFILES} ${PATCHFILES})
+	@(if [ -d ${_DISTDIR} ]; then \
+		cd ${_DISTDIR}; \
+		${RM} -f ${DISTFILES} ${PATCHFILES}; \
+	fi)
 .if defined(DIST_SUBDIR)
 	@${RMDIR} ${_DISTDIR}  
 .endif
@@ -1325,7 +1343,11 @@ package-name:
 package-depends:
 	@for i in ${RUN_DEPENDS} ${LIB_DEPENDS} ${DEPENDS}; do \
 		dir=`${ECHO} $$i | ${SED} -e 's/.*://'`; \
-		(cd $$dir ; ${MAKE} package-name package-depends); \
+		if [ -d $$dir ]; then \
+			(cd $$dir ; ${MAKE} package-name package-depends); \
+		else \
+			${ECHO_MSG} "Warning: \"$$dir\" non-existent -- @pkgdep registration incomplete" >&2; \
+		fi; \
 	done
 .endif
 
@@ -1580,7 +1602,7 @@ print-package-depends:
 
 .if !target(fake-pkg)
 fake-pkg:
-	@if [ ! -f ${PKGDIR}/PLIST -o ! -f ${PKGDIR}/COMMENT -o ! -f ${PKGDIR}/DESCR ]; then ${ECHO} "** Missing package files for ${PKGNAME} - installation not recorded."; exit 1; fi
+	@if [ ! -f ${PLIST} -o ! -f ${PKGDIR}/COMMENT -o ! -f ${PKGDIR}/DESCR ]; then ${ECHO} "** Missing package files for ${PKGNAME} - installation not recorded."; exit 1; fi
 	@if [ ! -d ${PKG_DBDIR} ]; then ${RM} -f ${PKG_DBDIR}; ${MKDIR} ${PKG_DBDIR}; fi
 .if defined(FORCE_PKG_REGISTER)
 	@${RM} -rf ${PKG_DBDIR}/${PKGNAME}
@@ -1600,7 +1622,7 @@ fake-pkg:
 		if [ -f ${PKGDIR}/REQ ]; then \
 			${CP} ${PKGDIR}/REQ ${PKG_DBDIR}/${PKGNAME}/+REQ; \
 		fi; \
-		for dep in `make package-depends | sort -u`; do \
+		for dep in `make package-depends ECHO_MSG=/usr/bin/true | sort -u`; do \
 			if [ -d ${PKG_DBDIR}/$$dep ]; then \
 				if ! ${GREP} ^${PKGNAME}$$ ${PKG_DBDIR}/$$dep/+REQUIRED_BY \
 					>/dev/null 2>&1; then \
@@ -1608,10 +1630,6 @@ fake-pkg:
 				fi; \
 			fi; \
 		done; \
-	else \
-		${ECHO_MSG} "===>  ${PKGNAME} is already installed - perhaps an older version?"; \
-		${ECHO_MSG} "      If so, you may wish to \`\`pkg_delete ${PKGNAME}'' and install"; \
-		${ECHO_MSG} "      this port again by \`\`make reinstall'' to upgrade it properly."; \
 	fi
 .endif
 
