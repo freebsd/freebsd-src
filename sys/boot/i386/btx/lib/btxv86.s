@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id:$
+#	$Id: btxv86.s,v 1.1 1998/09/14 10:37:00 rnordier Exp $
 
 #
 # BTX V86 interface.
@@ -48,11 +48,13 @@
 #
 # V86 interface function.
 #
-__v86int:	pushl $__v86			# Push pointer
+__v86int:	popl __v86ret			# Save return address
+		pushl $__v86			# Push pointer
 		call __v86_swap			# Load V86 registers
 		int $INT_V86			# To BTX
 		call __v86_swap			# Load user registers
 		addl $0x4,%esp			# Discard pointer
+		pushl __v86ret			# Restore return address
 		ret 				# To user
 #
 # Swap V86 and user registers.
@@ -80,3 +82,4 @@ __v86_swap:	xchgl %ebp,0x4(%esp,1)		# Swap pointer, EBP
 # V86 interface structure.
 #
 		.comm __v86,SIZ_V86
+		.comm __v86ret,4
