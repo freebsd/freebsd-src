@@ -234,10 +234,7 @@ mseprobe(idp)
 {
 	register struct mse_softc *sc = &mse_sc[idp->id_unit];
 	register int i;
-	static int once;
 
-	if (!once++)
-		cdevsw_add(&mse_cdevsw);
 	/*
 	 * Check for each mouse type in the table.
 	 */
