@@ -54,6 +54,8 @@
 #include <sys/ttycom.h>
 #include <sys/conf.h>
 
+#include <machine/mutex.h>
+
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 
@@ -640,10 +642,10 @@ debug_vn_lock(vp, flags, p, filename, line)
 	
 	do {
 		if ((flags & LK_INTERLOCK) == 0)
-			simple_lock(&vp->v_interlock);
+			mtx_enter(&vp->v_interlock, MTX_DEF);
 		if (vp->v_flag & VXLOCK) {
 			vp->v_flag |= VXWANT;
-			simple_unlock(&vp->v_interlock);
+			mtx_exit(&vp->v_interlock, MTX_DEF);
 			tsleep((caddr_t)vp, PINOD, "vn_lock", 0);
 			error = ENOENT;
 		} else {

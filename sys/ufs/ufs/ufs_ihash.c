@@ -42,6 +42,8 @@
 #include <sys/malloc.h>
 #include <sys/proc.h>
 
+#include <machine/mutex.h>
+
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufs_extern.h>
@@ -108,7 +110,7 @@ loop:
 	for (ip = INOHASH(dev, inum)->lh_first; ip; ip = ip->i_hash.le_next) {
 		if (inum == ip->i_number && dev == ip->i_dev) {
 			vp = ITOV(ip);
-			simple_lock(&vp->v_interlock);
+			mtx_enter(&vp->v_interlock, MTX_DEF);
 			simple_unlock(&ufs_ihash_slock);
 			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p))
 				goto loop;
@@ -130,7 +132,7 @@ ufs_ihashins(ip)
 	struct ihashhead *ipp;
 
 	/* lock the inode, then put it on the appropriate hash list */
-	lockmgr(&ip->i_vnode->v_lock, LK_EXCLUSIVE, (struct simplelock *)0, p);
+	lockmgr(&ip->i_vnode->v_lock, LK_EXCLUSIVE, (struct mtx *)0, p);
 
 	simple_lock(&ufs_ihash_slock);
 	ipp = INOHASH(ip->i_dev, ip->i_number);

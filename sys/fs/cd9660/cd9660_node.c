@@ -49,6 +49,8 @@
 #include <sys/malloc.h>
 #include <sys/stat.h>
 
+#include <machine/mutex.h>
+
 #include <isofs/cd9660/iso.h>
 #include <isofs/cd9660/cd9660_node.h>
 #include <isofs/cd9660/cd9660_mount.h>
@@ -108,7 +110,7 @@ loop:
 	for (ip = isohashtbl[INOHASH(dev, inum)]; ip; ip = ip->i_next) {
 		if (inum == ip->i_number && dev == ip->i_dev) {
 			vp = ITOV(ip);
-			simple_lock(&vp->v_interlock);
+			mtx_enter(&vp->v_interlock, MTX_DEF);
 			simple_unlock(&cd9660_ihash_slock);
 			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p))
 				goto loop;
@@ -138,7 +140,7 @@ cd9660_ihashins(ip)
 	*ipp = ip;
 	simple_unlock(&cd9660_ihash_slock);
 
-	lockmgr(&ip->i_vnode->v_lock, LK_EXCLUSIVE, (struct simplelock *)0, p);
+	lockmgr(&ip->i_vnode->v_lock, LK_EXCLUSIVE, (struct mtx *)0, p);
 }
 
 /*
@@ -218,6 +220,7 @@ cd9660_reclaim(ap)
 		vrele(ip->i_devvp);
 		ip->i_devvp = 0;
 	}
+	lockdestroy(&ip->i_vnode->v_lock);
 	FREE(vp->v_data, M_ISOFSNODE);
 	vp->v_data = NULL;
 	return (0);

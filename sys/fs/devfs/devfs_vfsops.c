@@ -96,6 +96,7 @@ devfs_mount(mp, path, data, ndp, p)
 
 	error = devfs_root(mp, &rvp);
 	if (error) {
+		lockdestroy(&fmp->dm_lock);
 		FREE(fmp, M_DEVFS);
 		return (error);
 	}
@@ -142,6 +143,7 @@ devfs_unmount(mp, mntflags, p)
 	vrele(rootvp);
 	vgone(rootvp);
 	mp->mnt_data = 0;
+	lockdestroy(&fmp->dm_lock);
 	free(fmp, M_DEVFS);
 	return 0;
 }

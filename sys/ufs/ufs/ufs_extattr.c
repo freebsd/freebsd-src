@@ -855,4 +855,5 @@ ufs_extattr_vnode_inactive(struct vnode *vp, struct proc *p)
 		ufs_extattr_rm(vp, uele->uele_attrname, 0, p);
 
 	ufs_extattr_uepm_unlock(ump, p);
+	lockdestroy(&ump->um_extattr.uepm_lock);
 }

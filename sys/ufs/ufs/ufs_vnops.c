@@ -60,6 +60,8 @@
 #include <sys/event.h>
 #include <sys/conf.h>
 
+#include <machine/mutex.h>
+
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
@@ -282,10 +284,10 @@ ufs_close(ap)
 {
 	register struct vnode *vp = ap->a_vp;
 
-	simple_lock(&vp->v_interlock);
+	mtx_enter(&vp->v_interlock, MTX_DEF);
 	if (vp->v_usecount > 1)
 		ufs_itimes(vp);
-	simple_unlock(&vp->v_interlock);
+	mtx_exit(&vp->v_interlock, MTX_DEF);
 	return (0);
 }
 
@@ -1857,10 +1859,10 @@ ufsspec_close(ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-	simple_lock(&vp->v_interlock);
+	mtx_enter(&vp->v_interlock, MTX_DEF);
 	if (vp->v_usecount > 1)
 		ufs_itimes(vp);
-	simple_unlock(&vp->v_interlock);
+	mtx_exit(&vp->v_interlock, MTX_DEF);
 	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_close), ap));
 }
 
@@ -1931,10 +1933,10 @@ ufsfifo_close(ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-	simple_lock(&vp->v_interlock);
+	mtx_enter(&vp->v_interlock, MTX_DEF);
 	if (vp->v_usecount > 1)
 		ufs_itimes(vp);
-	simple_unlock(&vp->v_interlock);
+	mtx_exit(&vp->v_interlock, MTX_DEF);
 	return (VOCALL(fifo_vnodeop_p, VOFFSET(vop_close), ap));
 }
 

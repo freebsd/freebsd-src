@@ -51,6 +51,8 @@
 #include <sys/disklabel.h>
 #include <sys/malloc.h>
 
+#include <machine/mutex.h>
+
 #include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/ufsmount.h>
@@ -394,7 +396,7 @@ ffs_reload(mp, cred, p)
 	if (devvp->v_tag != VT_MFS && vn_isdisk(devvp, NULL)) {
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
 		vfs_object_create(devvp, p, p->p_ucred);
-		simple_lock(&devvp->v_interlock);
+		mtx_enter(&devvp->v_interlock, MTX_DEF);
 		VOP_UNLOCK(devvp, LK_INTERLOCK, p);
 	}
 
@@ -469,7 +471,7 @@ loop:
 		/*
 		 * Step 5: invalidate all cached file data.
 		 */
-		simple_lock(&vp->v_interlock);
+		mtx_enter(&vp->v_interlock, MTX_DEF);
 		simple_unlock(&mntvnode_slock);
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p)) {
 			goto loop;
@@ -551,7 +553,7 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	if (devvp->v_tag != VT_MFS && vn_isdisk(devvp, NULL)) {
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
 		vfs_object_create(devvp, p, cred);
-		simple_lock(&devvp->v_interlock);
+		mtx_enter(&devvp->v_interlock, MTX_DEF);
 		VOP_UNLOCK(devvp, LK_INTERLOCK, p);
 	}
 
@@ -933,13 +935,13 @@ loop:
 		 */
 		if (vp->v_mount != mp)
 			goto loop;
-		simple_lock(&vp->v_interlock);
+		mtx_enter(&vp->v_interlock, MTX_DEF);
 		nvp = vp->v_mntvnodes.le_next;
 		ip = VTOI(vp);
 		if (vp->v_type == VNON || ((ip->i_flag &
 		     (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0 &&
 		     TAILQ_EMPTY(&vp->v_dirtyblkhd))) {
-			simple_unlock(&vp->v_interlock);
+			mtx_exit(&vp->v_interlock, MTX_DEF);
 			continue;
 		}
 		if (vp->v_type != VCHR) {
@@ -957,7 +959,7 @@ loop:
 			simple_lock(&mntvnode_slock);
 		} else {
 			simple_unlock(&mntvnode_slock);
-			simple_unlock(&vp->v_interlock);
+			mtx_exit(&vp->v_interlock, MTX_DEF);
 			UFS_UPDATE(vp, wait);
 			simple_lock(&mntvnode_slock);
 		}

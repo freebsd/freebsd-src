@@ -698,6 +698,8 @@ hpfs_reclaim(ap)
 		hp->h_devvp = NULL;
 	}
 
+	lockdestroy(&hp->hlock);
+
 	vp->v_data = NULL;
 
 	FREE(hp, M_HPFSNO);

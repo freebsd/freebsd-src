@@ -155,6 +155,7 @@ ufs_reclaim(ap)
 		}
 	}
 #endif
+	lockdestroy(&vp->v_lock);
 	FREE(vp->v_data, VFSTOUFS(vp->v_mount)->um_malloctype);
 	vp->v_data = 0;
 	return (0);

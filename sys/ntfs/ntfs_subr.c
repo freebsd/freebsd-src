@@ -361,7 +361,7 @@ ntfs_ntget(ip)
 	dprintf(("ntfs_ntget: get ntnode %d: %p, usecount: %d\n",
 		ip->i_number, ip, ip->i_usecount));
 
-	simple_lock(&ip->i_interlock);
+	mtx_enter(&ip->i_interlock, MTX_DEF);
 	ip->i_usecount++;
 	LOCKMGR(&ip->i_lock, LK_EXCLUSIVE | LK_INTERLOCK, &ip->i_interlock);
 
@@ -410,7 +410,7 @@ ntfs_ntlookup(
 
 	/* init lock and lock the newborn ntnode */
 	lockinit(&ip->i_lock, PINOD, "ntnode", 0, LK_EXCLUSIVE);
-	simple_lock_init(&ip->i_interlock);
+	mtx_init(&ip->i_interlock, "ntnode interlock", MTX_DEF);
 	ntfs_ntget(ip);
 
 	ntfs_nthashins(ip);
@@ -440,7 +440,7 @@ ntfs_ntput(ip)
 	dprintf(("ntfs_ntput: rele ntnode %d: %p, usecount: %d\n",
 		ip->i_number, ip, ip->i_usecount));
 
-	simple_lock(&ip->i_interlock);
+	mtx_enter(&ip->i_interlock, MTX_DEF);
 	ip->i_usecount--;
 
 #ifdef DIAGNOSTIC
@@ -464,6 +464,10 @@ ntfs_ntput(ip)
 			LIST_REMOVE(vap,va_list);
 			ntfs_freentvattr(vap);
 		}
+		mtx_exit(&ip->i_interlock, MTX_DEF);
+		mtx_destroy(&ip->i_interlock);
+		lockdestroy(&ip->i_lock);
+
 		FREE(ip, M_NTFSNTNODE);
 	} else {
 		LOCKMGR(&ip->i_lock, LK_RELEASE|LK_INTERLOCK, &ip->i_interlock);
@@ -477,9 +481,9 @@ void
 ntfs_ntref(ip)
 	struct ntnode *ip;
 {
-	simple_lock(&ip->i_interlock);
+	mtx_enter(&ip->i_interlock, MTX_DEF);
 	ip->i_usecount++;
-	simple_unlock(&ip->i_interlock);
+	mtx_exit(&ip->i_interlock, MTX_DEF);
 
 	dprintf(("ntfs_ntref: ino %d, usecount: %d\n",
 		ip->i_number, ip->i_usecount));
@@ -496,13 +500,13 @@ ntfs_ntrele(ip)
 	dprintf(("ntfs_ntrele: rele ntnode %d: %p, usecount: %d\n",
 		ip->i_number, ip, ip->i_usecount));
 
-	simple_lock(&ip->i_interlock);
+	mtx_enter(&ip->i_interlock, MTX_DEF);
 	ip->i_usecount--;
 
 	if (ip->i_usecount < 0)
 		panic("ntfs_ntrele: ino: %d usecount: %d \n",
 		      ip->i_number,ip->i_usecount);
-	simple_unlock(&ip->i_interlock);
+	mtx_exit(&ip->i_interlock, MTX_DEF);
 }
 
 /*
@@ -771,6 +775,9 @@ ntfs_frele(
 		FREE(fp->f_attrname, M_TEMP);
 	if (fp->f_dirblbuf)
 		FREE(fp->f_dirblbuf, M_NTFSDIR);
+#ifdef __FreeBSD__
+	lockdestroy(&fp->f_lock);
+#endif
 	FREE(fp, M_NTFSFNODE);
 	ntfs_ntrele(ip);
 }
@@ -1913,6 +1920,13 @@ ntfs_toupper_init()
 	ntfs_toupper_tab = (wchar *) NULL;
 	lockinit(&ntfs_toupper_lock, PVFS, "ntfs_toupper", 0, 0);
 	ntfs_toupper_usecount = 0;
+}
+
+void
+ntfs_toupper_destroy(void)
+{
+
+	lockdestroy(&ntfs_toupper_lock);
 }
 
 /*

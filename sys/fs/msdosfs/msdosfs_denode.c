@@ -61,6 +61,8 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
+#include <machine/mutex.h>
+
 #include <msdosfs/bpb.h>
 #include <msdosfs/msdosfsmount.h>
 #include <msdosfs/direntry.h>
@@ -138,7 +140,7 @@ loop:
 		    && dev == dep->de_dev
 		    && dep->de_refcnt != 0) {
 			vp = DETOV(dep);
-			simple_lock(&vp->v_interlock);
+			mtx_enter(&vp->v_interlock, MTX_DEF);
 			simple_unlock(&dehash_slock);
 			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p))
 				goto loop;
@@ -278,7 +280,7 @@ deget(pmp, dirclust, diroffset, depp)
 	 * of at the start of msdosfs_hashins() so that reinsert() can
 	 * call msdosfs_hashins() with a locked denode.
 	 */
-	if (lockmgr(&ldep->de_lock, LK_EXCLUSIVE, (struct simplelock *)0, p))
+	if (lockmgr(&ldep->de_lock, LK_EXCLUSIVE, (struct mtx *)0, p))
 		panic("deget: unexpected lock failure");
 
 	/*
@@ -660,6 +662,7 @@ msdosfs_reclaim(ap)
 #if 0 /* XXX */
 	dep->de_flag = 0;
 #endif
+	lockdestroy(&dep->de_lock);
 	FREE(dep, M_MSDOSFSNODE);
 	vp->v_data = NULL;
 
