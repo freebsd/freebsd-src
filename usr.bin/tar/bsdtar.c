@@ -138,6 +138,7 @@ static const struct option tar_longopts[] = {
 	{ "extract",            no_argument,       NULL, 'x' },
 	{ "fast-read",          no_argument,       NULL, OPTION_FAST_READ },
 	{ "file",               required_argument, NULL, 'f' },
+	{ "files-from",         required_argument, NULL, 'T' },
 	{ "format",             required_argument, NULL, OPTION_FORMAT },
 	{ "gunzip",             no_argument,       NULL, 'z' },
 	{ "gzip",               no_argument,       NULL, 'z' },
@@ -272,6 +273,9 @@ main(int argc, char **argv)
 		case OPTION_HELP:
 			long_help(bsdtar);
 			exit(0);
+			break;
+		case 'I': /* GNU tar */
+			bsdtar->names_from_file = optarg;
 			break;
 		case OPTION_INCLUDE:
 			if (include(bsdtar, optarg))
