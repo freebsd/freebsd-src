@@ -70,9 +70,6 @@ int callwheelsize, callwheelbits, callwheelmask;
 struct callout_tailq *callwheel;
 int softticks;			/* Like ticks, but for softclock(). */
 struct mtx callout_lock;
-#ifdef DIAGNOSTIC
-struct mtx callout_dont_sleep;
-#endif
 
 static struct callout *nextsoftcheck;	/* Next callout to be checked. */
 
@@ -123,9 +120,6 @@ kern_timeout_callwheel_init(void)
 		TAILQ_INIT(&callwheel[i]);
 	}
 	mtx_init(&callout_lock, "callout", NULL, MTX_SPIN | MTX_RECURSE);
-#ifdef DIAGNOSTIC
-	mtx_init(&callout_dont_sleep, "callout_dont_sleep", NULL, MTX_DEF);
-#endif
 }
 
 /*
@@ -154,11 +148,6 @@ softclock(void *dummy)
 	int depth;
 	int mpcalls;
 	int gcalls;
-#ifdef DIAGNOSTIC
-	struct bintime bt1, bt2;
-	struct timespec ts2;
-	static uint64_t maxdt = 18446744073709551LL;	/* 1 msec */
-#endif
 
 #ifndef MAX_SOFTCLOCK_STEPS
 #define MAX_SOFTCLOCK_STEPS 100 /* Maximum allowed value of steps. */
@@ -218,24 +207,7 @@ softclock(void *dummy)
 				} else {
 					mpcalls++;
 				}
-#ifdef DIAGNOSTIC
-				binuptime(&bt1);
-				mtx_lock(&callout_dont_sleep);
-#endif
 				c_func(c_arg);
-#ifdef DIAGNOSTIC
-				mtx_unlock(&callout_dont_sleep);
-				binuptime(&bt2);
-				bintime_sub(&bt2, &bt1);
-				if (bt2.frac > maxdt) {
-					maxdt = bt2.frac;
-					bintime2timespec(&bt2, &ts2);
-					printf(
-			"Expensive timeout(9) function: %p(%p) %ld.%09ld s\n",
-					c_func, c_arg,
-					(long)ts2.tv_sec, ts2.tv_nsec);
-				}
-#endif
 				if (!(c_flags & CALLOUT_MPSAFE))
 					mtx_unlock(&Giant);
 				mtx_lock_spin(&callout_lock);
