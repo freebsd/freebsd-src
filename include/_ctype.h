@@ -116,11 +116,11 @@ __END_DECLS
 #define isspecial(c)    __istype((c), _T)
 #endif
 
-/* See comments in <machine/ansi.h> about _BSD_RUNE_T_. */
+/* See comments in <machine/ansi.h> about _BSD_CT_RUNE_T_. */
 __BEGIN_DECLS
-unsigned long	___runetype __P((_BSD_RUNE_T_));
-_BSD_RUNE_T_	___tolower __P((_BSD_RUNE_T_));
-_BSD_RUNE_T_	___toupper __P((_BSD_RUNE_T_));
+unsigned long	___runetype __P((_BSD_CT_RUNE_T_));
+_BSD_CT_RUNE_T_	___tolower __P((_BSD_CT_RUNE_T_));
+_BSD_CT_RUNE_T_	___toupper __P((_BSD_CT_RUNE_T_));
 __END_DECLS
 
 /*
@@ -139,28 +139,28 @@ __END_DECLS
 #if !defined(_DONT_USE_CTYPE_INLINE_) && \
     (defined(_USE_CTYPE_INLINE_) || defined(__GNUC__) || defined(__cplusplus))
 static __inline int
-__istype(_BSD_RUNE_T_ _c, unsigned long _f)
+__istype(_BSD_CT_RUNE_T_ _c, unsigned long _f)
 {
 	return (_c < 0 || _c >= _CACHED_RUNES) ? !!(___runetype(_c) & _f) :
 	       !!(_CurrentRuneLocale->runetype[_c] & _f);
 }
 
 static __inline int
-__isctype(_BSD_RUNE_T_ _c, unsigned long _f)
+__isctype(_BSD_CT_RUNE_T_ _c, unsigned long _f)
 {
 	return (_c < 0 || _c >= _CACHED_RUNES) ? 0 :
 	       !!(_DefaultRuneLocale.runetype[_c] & _f);
 }
 
-static __inline _BSD_RUNE_T_
-__toupper(_BSD_RUNE_T_ _c)
+static __inline _BSD_CT_RUNE_T_
+__toupper(_BSD_CT_RUNE_T_ _c)
 {
 	return (_c < 0 || _c >= _CACHED_RUNES) ? ___toupper(_c) :
 	       _CurrentRuneLocale->mapupper[_c];
 }
 
-static __inline _BSD_RUNE_T_
-__tolower(_BSD_RUNE_T_ _c)
+static __inline _BSD_CT_RUNE_T_
+__tolower(_BSD_CT_RUNE_T_ _c)
 {
 	return (_c < 0 || _c >= _CACHED_RUNES) ? ___tolower(_c) :
 	       _CurrentRuneLocale->maplower[_c];
@@ -169,10 +169,10 @@ __tolower(_BSD_RUNE_T_ _c)
 #else /* not using inlines */
 
 __BEGIN_DECLS
-int		__istype __P((_BSD_RUNE_T_, unsigned long));
-int		__isctype __P((_BSD_RUNE_T_, unsigned long));
-_BSD_RUNE_T_	__toupper __P((_BSD_RUNE_T_));
-_BSD_RUNE_T_	__tolower __P((_BSD_RUNE_T_));
+int		__istype __P((_BSD_CT_RUNE_T_, unsigned long));
+int		__isctype __P((_BSD_CT_RUNE_T_, unsigned long));
+_BSD_CT_RUNE_T_	__toupper __P((_BSD_CT_RUNE_T_));
+_BSD_CT_RUNE_T_	__tolower __P((_BSD_CT_RUNE_T_));
 __END_DECLS
 #endif /* using inlines */
 
