@@ -191,8 +191,11 @@ USB_MATCH(uhid)
 	id = usbd_get_interface_descriptor(uaa->iface);
 	if (id == NULL || id->bInterfaceClass != UICLASS_HID)
 		return (UMATCH_NONE);
+#if 0
 	if (uaa->matchlvl)
 		return (uaa->matchlvl);
+#endif
+
 	return (UMATCH_IFACECLASS_GENERIC);
 }
 
