@@ -1,4 +1,4 @@
-/*	$NetBSD: ums.c,v 1.19 1999/01/08 11:58:25 augustss Exp $	*/
+/*	$NetBSD: ums.c,v 1.22 1999/01/12 22:06:48 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -36,6 +36,10 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/*
+ * HID spec: http://www.usb.org/developers/data/usbhid10.pdf
  */
 
 #include <sys/param.h>
@@ -439,7 +443,7 @@ ums_intr(reqh, addr, status)
 
 	dx =  hid_get_data(ibuf, &sc->sc_loc_x);
 	dy = -hid_get_data(ibuf, &sc->sc_loc_y);
-	dz =  hid_get_data(ibuf, &sc->sc_loc_z);
+	dz = -hid_get_data(ibuf, &sc->sc_loc_z);
 	for (i = 0; i < sc->nbuttons; i++)
 		if (hid_get_data(ibuf, &sc->sc_loc_btn[i]))
 			buttons |= (1 << UMS_BUT(i));
