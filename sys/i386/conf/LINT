@@ -1410,6 +1410,16 @@ device uart0	at isa? port 0x330 irq 5
 # For pnp sound cards:
 #device		pcm0
 
+# The bridge drivers for sound cards. Do not forget pcm as well.
+#
+# sbc:  Creative SoundBlaster ISA PnP
+# gusc: Gravis UltraSound ISA PnP/non-PnP
+# csa:  Crystal Semiconductor CS461x/428x PCI
+
+#device		sbc0
+#device		gusc0
+#device		csa0
+
 # Not controlled by `snd'
 device		pca0 at isa? port IO_TIMER1
 
