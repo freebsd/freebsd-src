@@ -1791,21 +1791,33 @@ controller	isp0
 #				  to disable the loading of firmware on.
 #	SCSI_ISP_FABRIC		  enable loading of Fabric f/w flavor (2100).
 #	SCSI_ISP_SCCLUN		  enable loading of expanded lun f/w (2100).
+#	SCSI_ISP_WWN		- define a WWN to use as a default
 #
 #	ISP_DISABLE_1020_SUPPORT	Disable support for 1020/1040 cards
 #	ISP_DISABLE_1080_SUPPORT	Disable support for 1080/1240 cards
 #	ISP_DISABLE_2100_SUPPORT	Disable support for 2100 cards
 #	(these really just to save code space)
 #	(use of all three will cause the driver to not compile)
-options 	SCSI_ISP_NO_FWLOAD_MASK=0x12	# disable FW load for isp1 and
-						# isp4
+#
+#	ISP_COMPILE_FW		-	compile all firmware in
+#	ISP_COMPILE_1020_FW	-	compile in 1020/1040 firmware
+#	ISP_COMPILE_1080_FW	-	compile in 1080/1240/1280 firmware
+#	ISP_COMPILE_2100_FW	-	compile in 2100 firmware
+#	ISP_COMPILE_2200_FW	-	compile in 2200 firmware
+#
+options 	SCSI_ISP_NO_FWLOAD_MASK=0x12	# disable FW load for isp1, isp4
 options 	SCSI_ISP_NO_NVRAM_MASK=0x1	# disable NVRAM for isp0
 options 	SCSI_ISP_PREFER_MEM_MAP=0	# prefer I/O mapping
 options 	SCSI_ISP_FCDUPLEX=0x4		# isp2 is a Fibre Channel card
 						# we want in full duplex mode.
+options		SCSI_ISP_WWN="0x5000000099990000"
 #options 	ISP_DISABLE_1020_SUPPORT
 #options 	ISP_DISABLE_1080_SUPPORT
 #options 	ISP_DISABLE_2100_SUPPORT
+#options	ISP_COMPILE_1020_FW=1
+#options	ISP_COMPILE_1080_FW=1
+#options	ISP_COMPILE_2100_FW=1
+#options	ISP_COMPILE_2200_FW=1
 
 device		al0
 device		ax0
