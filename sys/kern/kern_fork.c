@@ -217,14 +217,15 @@ fork1(td, flags, pages, procp)
 		return (EINVAL);
 
 	p1 = td->td_proc;
-	mtx_lock(&Giant);
 
 	/*
 	 * Here we don't create a new process, but we divorce
 	 * certain parts of a process from itself.
 	 */
 	if ((flags & RFPROC) == 0) {
+		mtx_lock(&Giant);
 		vm_forkproc(td, NULL, NULL, flags);
+		mtx_unlock(&Giant);
 
 		/*
 		 * Close all file descriptors.
@@ -251,7 +252,6 @@ fork1(td, flags, pages, procp)
 			} else
 				FILEDESC_UNLOCK(p1->p_fd);
 		}
-		mtx_unlock(&Giant);
 		*procp = NULL;
 		return (0);
 	}
@@ -270,6 +270,7 @@ fork1(td, flags, pages, procp)
 		 * where they will try restart in the parent and will
 		 * be aborted in the child.
 		 */
+		mtx_lock(&Giant);
 		PROC_LOCK(p1);
 		if (thread_single(SINGLE_NO_EXIT)) {
 			/* Abort. Someone else is single threading before us. */
@@ -278,6 +279,7 @@ fork1(td, flags, pages, procp)
 			return (ERESTART);
 		}
 		PROC_UNLOCK(p1);
+		mtx_unlock(&Giant);
 		/*
 		 * All other activity in this process
 		 * is now suspended at the user boundary,
@@ -290,6 +292,9 @@ fork1(td, flags, pages, procp)
 #ifdef MAC
 	mac_init_proc(newproc);
 #endif
+
+	/* We have to lock the process tree while we look for a pid. */
+	sx_slock(&proctree_lock);
 
 	/*
 	 * Although process entries are dynamically created, we still keep
@@ -365,8 +370,10 @@ again:
 		for (; p2 != NULL; p2 = LIST_NEXT(p2, p_list)) {
 			PROC_LOCK(p2);
 			while (p2->p_pid == trypid ||
-			    p2->p_pgrp->pg_id == trypid ||
-			    p2->p_session->s_sid == trypid) {
+			    (p2->p_pgrp != NULL &&
+			    (p2->p_pgrp->pg_id == trypid ||
+			    (p2->p_session != NULL &&
+			    p2->p_session->s_sid == trypid)))) {
 				trypid++;
 				if (trypid >= pidchecked) {
 					PROC_UNLOCK(p2);
@@ -375,12 +382,15 @@ again:
 			}
 			if (p2->p_pid > trypid && pidchecked > p2->p_pid)
 				pidchecked = p2->p_pid;
-			if (p2->p_pgrp->pg_id > trypid &&
-			    pidchecked > p2->p_pgrp->pg_id)
-				pidchecked = p2->p_pgrp->pg_id;
-			if (p2->p_session->s_sid > trypid &&
-			    pidchecked > p2->p_session->s_sid)
-				pidchecked = p2->p_session->s_sid;
+			if (p2->p_pgrp != NULL) {
+				if (p2->p_pgrp->pg_id > trypid &&
+				    pidchecked > p2->p_pgrp->pg_id)
+					pidchecked = p2->p_pgrp->pg_id;
+				if (p2->p_session != NULL &&
+				    p2->p_session->s_sid > trypid &&
+				    pidchecked > p2->p_session->s_sid)
+					pidchecked = p2->p_session->s_sid;
+			}
 			PROC_UNLOCK(p2);
 		}
 		if (!doingzomb) {
@@ -389,6 +399,7 @@ again:
 			goto again;
 		}
 	}
+	sx_sunlock(&proctree_lock);
 
 	/*
 	 * RFHIGHPID does not mess with the lastpid counter during boot.
@@ -529,6 +540,7 @@ again:
 	p2->p_textvp = p1->p_textvp;
 	if (p2->p_textvp)
 		VREF(p2->p_textvp);
+	mtx_unlock(&Giant); /* XXX: for VREF() */
 	p2->p_fd = fd;
 	p2->p_fdtol = fdtol;
 
@@ -656,6 +668,7 @@ again:
 	 * Finish creating the child process.  It will return via a different
 	 * execution path later.  (ie: directly into user mode)
 	 */
+	mtx_lock(&Giant);
 	vm_forkproc(td, p2, td2, flags);
 
 	if (flags == (RFFDG | RFPROC)) {
@@ -682,6 +695,7 @@ again:
 	 *   What if they have an error? XXX
 	 */
 	EVENTHANDLER_INVOKE(process_fork, p1, p2, flags);
+	mtx_unlock(&Giant);
 
 	/*
 	 * Set the child start time and mark the process as being complete.
@@ -735,10 +749,10 @@ again:
 	/*
 	 * Return child proc pointer to parent.
 	 */
-	mtx_unlock(&Giant);
 	*procp = p2;
 	return (0);
 fail:
+	sx_sunlock(&proctree_lock);
 	if (ppsratecheck(&lastfail, &curfail, 1))
 		printf("maxproc limit exceeded by uid %i, please see tuning(7) and login.conf(5).\n",
 			uid);
@@ -753,7 +767,6 @@ fail:
 		PROC_UNLOCK(p1);
 	}
 	tsleep(&forksleep, PUSER, "fork", hz / 2);
-	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -811,7 +824,6 @@ fork_exit(callout, arg, frame)
 	PROC_LOCK(p);
 	if (p->p_flag & P_KTHREAD) {
 		PROC_UNLOCK(p);
-		mtx_lock(&Giant);
 		printf("Kernel thread \"%s\" (pid %d) exited prematurely.\n",
 		    p->p_comm, p->p_pid);
 		kthread_exit(0);
