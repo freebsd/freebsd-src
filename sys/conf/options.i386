@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.97 1998/12/27 13:36:44 phk Exp $
+#	$Id: options.i386,v 1.98 1998/12/27 14:21:08 sos Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -102,3 +102,39 @@ FDC_YE				opt_fdc.h
 
 # Video spigot
 SPIGOT_UNSECURE		opt_spigot.h
+# -------------------------------
+# isdn4bsd: passive ISA cards
+# -------------------------------
+TEL_S0_8		opt_i4b.h
+TEL_S0_16		opt_i4b.h
+TEL_S0_16_3		opt_i4b.h
+AVM_A1			opt_i4b.h
+USR_STI			opt_i4b.h
+ITKIX1			opt_i4b.h
+# -------------------------------
+# isdn4bsd: passive ISA PnP cards
+# -------------------------------
+CRTX_S0_P		opt_i4b.h
+DRN_NGO                 opt_i4b.h
+TEL_S0_16_3_P		opt_i4b.h
+SEDLBAUER		opt_i4b.h
+DYNALINK		opt_i4b.h
+ELSA_QS1ISA		opt_i4b.h
+# -------------------------------
+# isdn4bsd: passive PCI cards
+# -------------------------------
+ELSA_QS1PCI		opt_i4b.h
+# -------------------------------
+# isdn4bsd: passive PCMCIA cards
+# -------------------------------
+AVM_A1_PCMCIA		opt_i4b.h
+# -------------------------------
+# isdn4bsd: misc options
+# -------------------------------
+# temporary workaround for SMP machines
+I4B_SMP_WORKAROUND      opt_i4b.h
+# enable VJ compression code for ipr i/f
+IPR_VJ			opt_i4b.h
+# -------------------------------
+# EOF
+# -------------------------------
