@@ -31,7 +31,7 @@
  *
  */
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #endif
@@ -41,22 +41,18 @@
 #include <sys/socket.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 #include <sys/malloc.h>
 #endif
 
 #include <net/if.h>
 #include <net/route.h>
 #include <netinet/in.h>
-#if !defined(__FreeBSD__)
+#ifndef __FreeBSD__
 #include <netinet/ip_ipsp.h>
 #endif
 
 #include <net/pfvar.h>
-
-#if defined(FreeBSD__)
-MALLOC_DECLARE(M_RTABLE);
-#endif
 
 #define ACCEPT_FLAGS(oklist)			\
 	do {					\
@@ -125,7 +121,7 @@ struct pfr_walktree {
 
 #define senderr(e)	do { rv = (e); goto _bad; } while (0)
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 uma_zone_t		 pfr_ktable_pl;
 uma_zone_t		 pfr_kentry_pl;
 #else
@@ -193,7 +189,7 @@ int			 pfr_ktable_cnt;
 void
 pfr_initialize(void)
 {
-#if !defined(__FreeBSD__)
+#ifndef __FreeBSD__
 	pool_init(&pfr_ktable_pl, sizeof(struct pfr_ktable), 0, 0, 0,
 	    "pfrktable", NULL);
 	pool_init(&pfr_kentry_pl, sizeof(struct pfr_kentry), 0, 0, 0,
@@ -249,7 +245,7 @@ pfr_add_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	struct pfr_kentry	*p, *q;
 	struct pfr_addr		 ad;
 	int			 i, rv, s, xadd = 0;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	int			ec;
 	/*
 	 * XXX Is it OK under LP64 environments?
@@ -272,7 +268,7 @@ pfr_add_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 		return (ENOMEM);
 	SLIST_INIT(&workq);
 	for (i = 0; i < size; i++) {
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		PF_COPYIN(addr+i, &ad, sizeof(ad), ec);
 		if (ec)
 			senderr(EFAULT);
@@ -306,7 +302,7 @@ pfr_add_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 				xadd++;
 			}
 		}
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		if (flags & PFR_FLAG_FEEDBACK) {
 			PF_COPYOUT(&ad, addr+i, sizeof(ad), ec);
 			if (ec)
@@ -349,7 +345,7 @@ pfr_del_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	struct pfr_kentry	*p;
 	struct pfr_addr		 ad;
 	int			 i, rv, s, xdel = 0;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	int			ec;
 #endif
 
@@ -364,7 +360,7 @@ pfr_del_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	pfr_mark_addrs(kt);
 	SLIST_INIT(&workq);
 	for (i = 0; i < size; i++) {
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		PF_COPYIN(addr+i, &ad, sizeof(ad), ec);
 		if (ec)
 			senderr(EFAULT);
@@ -391,7 +387,7 @@ pfr_del_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 			SLIST_INSERT_HEAD(&workq, p, pfrke_workq);
 			xdel++;
 		}
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		if (flags & PFR_FLAG_FEEDBACK) {
 			PF_COPYOUT(&ad, addr+i, sizeof(ad), ec);
 			if (ec)
@@ -428,7 +424,7 @@ pfr_set_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	struct pfr_kentry	*p, *q;
 	struct pfr_addr		 ad;
 	int			 i, rv, s, xadd = 0, xdel = 0, xchange = 0;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	int			ec;
 	/*
 	 * XXX Is it OK under LP64 environments?
@@ -454,7 +450,7 @@ pfr_set_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	SLIST_INIT(&delq);
 	SLIST_INIT(&changeq);
 	for (i = 0; i < size; i++) {
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		PF_COPYIN(addr+i, &ad, sizeof(ad), ec);
 		if (ec)
 			senderr(EFAULT);
@@ -496,7 +492,7 @@ pfr_set_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 			}
 		}
 _skip:
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		if (flags & PFR_FLAG_FEEDBACK) {
 			PF_COPYOUT(&ad, addr+i, sizeof(ad), ec);
 			if (ec)
@@ -518,7 +514,7 @@ _skip:
 		SLIST_FOREACH(p, &delq, pfrke_workq) {
 			pfr_copyout_addr(&ad, p);
 			ad.pfra_fback = PFR_FB_DELETED;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 			PF_COPYOUT(&ad, addr+size+i, sizeof(ad), ec);
 			if (ec)
 				senderr(EFAULT);
@@ -567,7 +563,7 @@ pfr_tst_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	struct pfr_kentry	*p;
 	struct pfr_addr		 ad;
 	int			 i, xmatch = 0;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	int			ec;
 #endif
 
@@ -579,7 +575,7 @@ pfr_tst_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 		return (ESRCH);
 
 	for (i = 0; i < size; i++) {
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		PF_COPYIN(addr+i, &ad, sizeof(ad), ec);
 		if (ec)
 			return (EFAULT);
@@ -598,7 +594,7 @@ pfr_tst_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 		    (p->pfrke_not ? PFR_FB_NOTMATCH : PFR_FB_MATCH);
 		if (p != NULL && !p->pfrke_not)
 			xmatch++;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		PF_COPYOUT(&ad, addr+i, sizeof(ad), ec);
 		if (ec)
 			return (EFAULT);
@@ -635,13 +631,13 @@ pfr_get_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int *size,
 	w.pfrw_op = PFRW_GET_ADDRS;
 	w.pfrw_addr = addr;
 	w.pfrw_free = kt->pfrkt_cnt;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	rv = kt->pfrkt_ip4->rnh_walktree(kt->pfrkt_ip4, pfr_walktree, &w);
 #else
 	rv = rn_walktree(kt->pfrkt_ip4, pfr_walktree, &w);
 #endif
 	if (!rv)
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		rv = kt->pfrkt_ip6->rnh_walktree(kt->pfrkt_ip6, pfr_walktree, 
 		    &w);
 #else
@@ -667,7 +663,7 @@ pfr_get_astats(struct pfr_table *tbl, struct pfr_astats *addr, int *size,
 	struct pfr_walktree	 w;
 	struct pfr_kentryworkq	 workq;
 	int			 rv, s;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	/*
 	 * XXX Is it OK under LP64 environments?
 	 */
@@ -693,13 +689,13 @@ pfr_get_astats(struct pfr_table *tbl, struct pfr_astats *addr, int *size,
 	w.pfrw_free = kt->pfrkt_cnt;
 	if (flags & PFR_FLAG_ATOMIC)
 		s = splsoftnet();
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	rv = kt->pfrkt_ip4->rnh_walktree(kt->pfrkt_ip4, pfr_walktree, &w);
 #else
 	rv = rn_walktree(kt->pfrkt_ip4, pfr_walktree, &w);
 #endif
 	if (!rv)
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		rv = kt->pfrkt_ip6->rnh_walktree(kt->pfrkt_ip6, pfr_walktree, 
 		    &w);
 #else
@@ -732,7 +728,7 @@ pfr_clr_astats(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	struct pfr_kentry	*p;
 	struct pfr_addr		 ad;
 	int			 i, rv, s, xzero = 0;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	int			ec;
 #endif
 
@@ -744,7 +740,7 @@ pfr_clr_astats(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 		return (ESRCH);
 	SLIST_INIT(&workq);
 	for (i = 0; i < size; i++) {
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		PF_COPYIN(addr+i, &ad, sizeof(ad), ec);
 		if (ec)
 			senderr(EFAULT);
@@ -758,7 +754,7 @@ pfr_clr_astats(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 		if (flags & PFR_FLAG_FEEDBACK) {
 			ad.pfra_fback = (p != NULL) ?
 			    PFR_FB_CLEARED : PFR_FB_NONE;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 			PF_COPYOUT(&ad, addr+i, sizeof(ad), ec);
 			if (ec)
 				senderr(EFAULT);
@@ -830,7 +826,7 @@ pfr_enqueue_addrs(struct pfr_ktable *kt, struct pfr_kentryworkq *workq,
 	w.pfrw_op = sweep ? PFRW_SWEEP : PFRW_ENQUEUE;
 	w.pfrw_workq = workq;
 	if (kt->pfrkt_ip4 != NULL)
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		if (kt->pfrkt_ip4->rnh_walktree(kt->pfrkt_ip4, pfr_walktree, 
 		    &w))
 #else
@@ -838,7 +834,7 @@ pfr_enqueue_addrs(struct pfr_ktable *kt, struct pfr_kentryworkq *workq,
 #endif
 			printf("pfr_enqueue_addrs: IPv4 walktree failed.\n");
 	if (kt->pfrkt_ip6 != NULL)
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		if (kt->pfrkt_ip6->rnh_walktree(kt->pfrkt_ip6, pfr_walktree, 
 		    &w))
 #else
@@ -856,13 +852,13 @@ pfr_mark_addrs(struct pfr_ktable *kt)
 
 	bzero(&w, sizeof(w));
 	w.pfrw_op = PFRW_MARK;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	if (kt->pfrkt_ip4->rnh_walktree(kt->pfrkt_ip4, pfr_walktree, &w))
 #else
 	if (rn_walktree(kt->pfrkt_ip4, pfr_walktree, &w))
 #endif
 		printf("pfr_mark_addrs: IPv4 walktree failed.\n");
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	if (kt->pfrkt_ip6->rnh_walktree(kt->pfrkt_ip6, pfr_walktree, &w))
 #else
 	if (rn_walktree(kt->pfrkt_ip6, pfr_walktree, &w))
@@ -1014,12 +1010,12 @@ pfr_reset_feedback(struct pfr_addr *addr, int size)
 {
 	struct pfr_addr	ad;
 	int		i;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	int		ec;
 #endif
 
 	for (i = 0; i < size; i++) {
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		PF_COPYIN(addr+i, &ad, sizeof(ad), ec);
 		if (ec)
 			break;
@@ -1028,7 +1024,7 @@ pfr_reset_feedback(struct pfr_addr *addr, int size)
 			break;
 #endif
 		ad.pfra_fback = PFR_FB_NONE;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		PF_COPYOUT(&ad, addr+i, sizeof(ad), ec);
 		if (ec)
 			break;
@@ -1150,7 +1146,7 @@ pfr_walktree(struct radix_node *rn, void *arg)
 	struct pfr_kentry	*ke = (struct pfr_kentry *)rn;
 	struct pfr_walktree	*w = arg;
 	int			 s;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	int			ec;
 #endif
 
@@ -1171,7 +1167,7 @@ pfr_walktree(struct radix_node *rn, void *arg)
 			struct pfr_addr ad;
 
 			pfr_copyout_addr(&ad, ke);
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 			PF_COPYOUT(&ad, w->pfrw_addr, sizeof(ad), ec);
 			if (ec)
 				return (EFAULT);
@@ -1196,7 +1192,7 @@ pfr_walktree(struct radix_node *rn, void *arg)
 			splx(s);
 			as.pfras_tzero = ke->pfrke_tzero;
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 			PF_COPYOUT(&as, w->pfrw_astats, sizeof(as), ec);
 			if (ec)
 				return (EFAULT);
@@ -1258,7 +1254,7 @@ pfr_add_tables(struct pfr_table *tbl, int size, int *nadd, int flags)
 	struct pfr_ktableworkq	 addq, changeq;
 	struct pfr_ktable	*p, *q, *r, key;
 	int			 i, rv, s, xadd = 0;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	int			ec;
 	/*
 	 * XXX Is it OK under LP64 environments?
@@ -1272,7 +1268,7 @@ pfr_add_tables(struct pfr_table *tbl, int size, int *nadd, int flags)
 	SLIST_INIT(&addq);
 	SLIST_INIT(&changeq);
 	for (i = 0; i < size; i++) {
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		PF_COPYIN(tbl+i, &key.pfrkt_t, sizeof(key.pfrkt_t), ec);
 		if (ec)
 			senderr(EFAULT);
@@ -1352,14 +1348,14 @@ pfr_del_tables(struct pfr_table *tbl, int size, int *ndel, int flags)
 	struct pfr_ktableworkq	 workq;
 	struct pfr_ktable	*p, *q, key;
 	int			 i, s, xdel = 0;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	int			ec;
 #endif
 
 	ACCEPT_FLAGS(PFR_FLAG_ATOMIC+PFR_FLAG_DUMMY);
 	SLIST_INIT(&workq);
 	for (i = 0; i < size; i++) {
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		PF_COPYIN(tbl+i, &key.pfrkt_t, sizeof(key.pfrkt_t), ec);
 		if (ec)
 			return (EFAULT);
@@ -1400,7 +1396,7 @@ pfr_get_tables(struct pfr_table *filter, struct pfr_table *tbl, int *size,
 {
 	struct pfr_ktable	*p;
 	int			 n, nn;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	int			ec;
 #endif
 
@@ -1417,7 +1413,7 @@ pfr_get_tables(struct pfr_table *filter, struct pfr_table *tbl, int *size,
 			continue;
 		if (n-- <= 0)
 			continue;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		PF_COPYOUT(&p->pfrkt_t, tbl++, sizeof(*tbl), ec);
 		if (ec)
 			return (EFAULT);
@@ -1441,7 +1437,7 @@ pfr_get_tstats(struct pfr_table *filter, struct pfr_tstats *tbl, int *size,
 	struct pfr_ktable	*p;
 	struct pfr_ktableworkq	 workq;
 	int			 s, n, nn;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	int			ec;
 	/*
 	 * XXX Is it OK under LP64 environments?
@@ -1470,7 +1466,7 @@ pfr_get_tstats(struct pfr_table *filter, struct pfr_tstats *tbl, int *size,
 			continue;
 		if (!(flags & PFR_FLAG_ATOMIC))
 			s = splsoftnet();
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		PF_COPYOUT(&p->pfrkt_ts, tbl++, sizeof(*tbl), ec);
 		if (ec) {
 			splx(s);
@@ -1505,7 +1501,7 @@ pfr_clr_tstats(struct pfr_table *tbl, int size, int *nzero, int flags)
 	struct pfr_ktableworkq	 workq;
 	struct pfr_ktable	*p, key;
 	int			 i, s, xzero = 0;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	int			ec;
 	/*
 	 * XXX Is it OK under LP64 environments?
@@ -1518,7 +1514,7 @@ pfr_clr_tstats(struct pfr_table *tbl, int size, int *nzero, int flags)
 	ACCEPT_FLAGS(PFR_FLAG_ATOMIC+PFR_FLAG_DUMMY+PFR_FLAG_ADDRSTOO);
 	SLIST_INIT(&workq);
 	for (i = 0; i < size; i++) {
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		PF_COPYIN(tbl+i, &key.pfrkt_t, sizeof(key.pfrkt_t), ec);
 		if (ec)
 			return (EFAULT);
@@ -1553,7 +1549,7 @@ pfr_set_tflags(struct pfr_table *tbl, int size, int setflag, int clrflag,
 	struct pfr_ktableworkq	 workq;
 	struct pfr_ktable	*p, *q, key;
 	int			 i, s, xchange = 0, xdel = 0;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	int			ec;
 #endif
 
@@ -1564,7 +1560,7 @@ pfr_set_tflags(struct pfr_table *tbl, int size, int setflag, int clrflag,
 		return (EINVAL);
 	SLIST_INIT(&workq);
 	for (i = 0; i < size; i++) {
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		PF_COPYIN(tbl+i, &key.pfrkt_t, sizeof(key.pfrkt_t), ec);
 		if (ec)
 			return (EFAULT);
@@ -1652,7 +1648,7 @@ pfr_ina_define(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	struct pfr_addr		 ad;
 	struct pf_ruleset	*rs;
 	int			 i, rv, xadd = 0, xaddr = 0;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	int			ec;
 #endif
 
@@ -1701,7 +1697,7 @@ _skip:
 	}
 	SLIST_INIT(&addrq);
 	for (i = 0; i < size; i++) {
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		PF_COPYIN(addr+i, &ad, sizeof(ad), ec);
 		if (ec)
 			senderr(EFAULT);
@@ -1757,7 +1753,7 @@ pfr_ina_commit(struct pfr_table *trs, u_int32_t ticket, int *nadd,
 	struct pfr_ktableworkq	 workq;
 	struct pf_ruleset	*rs;
 	int			 s, xadd = 0, xchange = 0;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	/*
 	 * XXX Is it OK under LP64 environments?
 	 */
@@ -2192,7 +2188,7 @@ pfr_attach_table(struct pf_ruleset *rs, char *name)
 	}
 	kt = pfr_lookup_table(&tbl);
 	if (kt == NULL) {
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		/*
 		 * XXX Is it OK under LP64 environments?
 		 */
@@ -2323,14 +2319,14 @@ pfr_kentry_byidx(struct pfr_ktable *kt, int idx, int af)
 
 	switch(af) {
 	case AF_INET:
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		kt->pfrkt_ip4->rnh_walktree(kt->pfrkt_ip4, pfr_walktree, &w);
 #else
 		rn_walktree(kt->pfrkt_ip4, pfr_walktree, &w);
 #endif
 		return w.pfrw_kentry;
 	case AF_INET6:
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		kt->pfrkt_ip6->rnh_walktree(kt->pfrkt_ip6, pfr_walktree, &w);
 #else
 		rn_walktree(kt->pfrkt_ip6, pfr_walktree, &w);
