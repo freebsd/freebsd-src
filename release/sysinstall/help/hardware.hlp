@@ -281,6 +281,7 @@ nic:    Dr Neuhaus NICCY 3008, 3009 & 5000 ISDN cards
 opl:    Yamaha OPL-2 and OPL-3 FM - SB, SB Pro, SB 16, ProAudioSpectrum
 pas:    ProAudioSpectrum PCM and MIDI
 pca:    PCM audio ("/dev/audio") through your PC speaker
+pcm:    PCM audio on most modern ISA audio codecs
 psm:    PS/2 mouse port
 rc:     RISCom/8 multiport card
 sb:     SoundBlaster PCM - SoundBlaster, SB Pro, SB16, ProAudioSpectrum
