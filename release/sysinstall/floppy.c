@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.6.2.8 1995/06/04 05:15:25 jkh Exp $
+ * $Id: floppy.c,v 1.6.2.9 1995/06/05 12:03:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -163,29 +163,31 @@ mediaGetFloppy(Device *dev, char *file, Attribs *dist_attrs)
 	}
 
     fd = open(buf, O_RDONLY);
-    extn = rindex(buf, '.');
-    snprintf(attrib, 10, "cksum%s", extn);
-    val = attr_match(dist_attrs, attrib);
-    if (val == NULL) {
-	msgConfirm("Cannot find checksum information (%s) for file %s!", attrib, file);
-	return -1;
-    }
-
-    var = strdup(val);
-    if (isDebug())
-	msgDebug("attr_match(%s,%s) returned `%s'\n", dist_attrs, attrib);
-
-    cval1 = strtol(var, &extn, 10);
-    clen1 = strtol(extn, NULL, 10);
-
-    if (crc(fd, &cval2, &clen2) != 0) {
-	msgConfirm("crc() of file `%s' failed!", file);
-	return -1;
-    }
-
-    if ((cval1 != cval2) || (clen1 != clen2)) {
-	msgConfirm("Invalid file `%s' (checksum `%ul %ul' should be %s)", file, cval2, clen2, var);
-	return -1;
+    if (dist_attrs!=NULL) {
+	extn = rindex(buf, '.');
+	snprintf(attrib, 10, "cksum%s", extn);
+	val = attr_match(dist_attrs, attrib);
+	if (val == NULL) {
+	    msgConfirm("Cannot find checksum information (%s) for file %s!", attrib, file);
+	    return -1;
+	}
+	
+	var = strdup(val);
+	if (isDebug())
+	    msgDebug("attr_match(%s,%s) returned `%s'\n", dist_attrs, attrib);
+	
+	cval1 = strtol(var, &extn, 10);
+	clen1 = strtol(extn, NULL, 10);
+	
+	if (crc(fd, &cval2, &clen2) != 0) {
+	    msgConfirm("crc() of file `%s' failed!", file);
+	    return -1;
+	}
+	
+	if ((cval1 != cval2) || (clen1 != clen2)) {
+	    msgConfirm("Invalid file `%s' (checksum `%ul %ul' should be %s)", file, cval2, clen2, var);
+	    return -1;
+	}
     }
     
     return fd;
