@@ -36,10 +36,6 @@ for the first time.
 The following lines show message recipients,
 one per line.
 .Pp
-.Nm Mailq
-is identical to
-.Dq Li "sendmail -bp" .
-.Pp
 The options are as follows:
 .Bl -tag -width Ds
 .It Fl v
@@ -58,6 +54,14 @@ and the name of the alias this command expanded from, if any.
 The
 .Nm mailq
 utility exits 0 on success, and >0 if an error occurs.
+.Sh NOTES
+.Nm Mailq
+is identical to
+.Dq Li "sendmail -bp" .
+Most of the options which apply to
+.Xr sendmail 8
+also apply to
+.Nm mailq .
 .Sh SEE ALSO
 .Xr sendmail 8
 .Sh HISTORY
