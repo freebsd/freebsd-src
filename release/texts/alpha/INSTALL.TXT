@@ -56,7 +56,7 @@ FreeBSD/alpha supports the following alpha platforms:
 	EB64+, Aspen Alpine, etc.
 	AlphaStation 200, 250, 255, 400
 	AlphaStation 500, 600
-	AlphaServer 1000 (1000A untested)
+	AlphaServer 1000, 1000A
 	Digital Personal Workstation 433, 500, 600
 	Compaq Professional Workstation XP900, XP1000, AlphaServer DS10
 	AlphaServer DS20 (single CPU only)
