@@ -54,7 +54,6 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
- * $FreeBSD$
  */
 
 #include <openssl/idea.h>
