@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: ports.7,v 1.9.2.1 1999/04/29 21:41:11 hoek Exp $
+.\" $Id: ports.7,v 1.12 1999/07/12 02:33:47 hoek Exp $
 .\"
 .Dd January 25, 1998
 .Dt PORTS 7
@@ -53,7 +53,7 @@ to install the application.
 .Pp
 It is possible to download and use ports from the FreeBSD repository
 that are newer than the installed system; however it is important to
-install the appropriate "Upgrade Kit" from http://www.FreeBSD.ORG/ports/
+install the appropriate "Upgrade Kit" from http://www.FreeBSD.org/ports/
 first!  The
 .Xr portcheckout 1
 script (also a port, of course!) will help to download new ports.
@@ -61,11 +61,11 @@ script (also a port, of course!) will help to download new ports.
 For more information about using ports, see
 .Nm The Ports Collection
 (file:/usr/share/doc/handbook/ports.html --or--
-http://www.FreeBSD.ORG/handbook/ports.html).
+http://www.FreeBSD.org/handbook/ports.html).
 For information about creating new ports, see
 .Nm Porting applications
 (file:/usr/share/doc/handbook/porting.html --or--
-http://www.FreeBSD.ORG/handbook/porting.html).
+http://www.FreeBSD.org/handbook/porting.html).
 Both are part of the FreeBSD Handbook.
 .Pp
 .Sh TARGETS
@@ -178,17 +178,9 @@ and
 .It Ar readmes
 Create a port's
 .Pa README.html .
-You may need to
-.Xr fetch 1
-ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/ports/templates/README.port
-and set
-.Ev TEMPLATES
-to its directory.  This is intended for would-be release engineers -- most
-people can just read
-.Pa pkg/COMMENT
-and
-.Pa pkg/DESCR .
-.El
+This can be used from
+.Pa /usr/ports
+to create a browsable web of all ports on your system!
 .Sh ENVIRONMENT VARIABLES
 You can change all of these.
 .Bl -tag -width MASTER_SITES
@@ -205,6 +197,10 @@ and
 .Pa /usr/pkgsrc
 on
 .Nx .
+.It Ev WRKDIRPREFIX
+Where to create any temporary files.  Useful if
+.Ev PORTSDIR
+is read-only (perhaps mounted from a cdrom).
 .It Ev DISTDIR
 Where to find/put distfiles, normally
 .Pa distfiles/
@@ -280,7 +276,7 @@ The big Kahuna.
 .Pp
 The FreeBSD handbook
 .Pp
-http://www.FreeBSD.ORG/ports
+http://www.FreeBSD.org/ports
 .Pq searchable index of all ports
 .Sh AUTHORS
 This man page was originated by
@@ -292,6 +288,10 @@ and the awesome ports team.
 .Nm The Ports Collection
 appeared in
 .Fx 1.0 .
+It has since spread to
+.Nx
+and
+.Ox .
 .Sh BUGS
 Ports documentation is split over four places ---
 .Pa /usr/ports/Mk/bsd.port.mk ,
