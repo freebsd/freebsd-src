@@ -630,7 +630,7 @@ ENTRY(fork_trampoline, 0)
 	mov	b0=r5
 	mov	out0=r4
 	mov	out1=r6
-	mov	out2=sp
+	add	out2=16,sp
 	;;
 	br.call.sptk.few b6=fork_exit
 
