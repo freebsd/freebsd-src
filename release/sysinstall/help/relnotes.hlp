@@ -5,12 +5,47 @@
 1. What's New since 2.1.0-RELEASE?
 ----------------------------------
 
+Device Drivers:
+---------------
+
 Adaptec AIC7850 support has been added.
+
+The Intel EtherExpress Pro/100B PCI ethernet card is now supported.
+
+The 3COM 3C590 and 3C595 ethernet cards are now supported.
+
+Real PCI Buslogic support (new driver and probing order).
+
+The ARNET (now Digiboard) Sync 570i high-speed serial card is now supported.
+
+The Matrox Meteor frame grabber card is better supported.
+
+The Connectix Quickcam is now supported.
+
+Worm driver - it is now possible to burn CDROMs using the Plasmon or HP 4080i
+CDR drives (see `wormcontrol(1)').
+
+
+Kernel features:
+----------------
 
 Various VM system enhancements and more than a few bugs fixed.
 
 A concatenated disk driver for simple types of RAID applications.
 See the man page for ccd(4) for more inforamation.
+
+Real PCI support (probed before ISA).
+
+The Linux emulation is now good enough to run the Linux version of
+Netscape, with JAVA support (as well as a number of other Linux
+utilities).
+
+The pipe code has been substantially sped up, as have some components
+of the VM system.
+
+
+Userland code updates:
+----------------------
 
 The system installation tool has been revamped with slightly different
 menu behavior and a number of bugs have been fixed.  It's hoped that
@@ -18,25 +53,7 @@ this installation will be more intuitive for new users than previous
 ones (feedback welcomed, of course) as well as more useful in the
 post-install scenario (I know, I keep saying this :-).
 
-The Intel EtherExpress Pro/100B PCI ethernet card is now supported.
-
-The 3COM 3C590 and 3C595 ethernet cards are now supported.
-
-The ARNET (now Digiboard) Sync 570i high-speed serial card is now supported.
-
-The Linux emulation is now good enough to run the Linux version of
-Netscape, with JAVA support (as well as a number of other Linux
-utilities).
-
-The Matrox Meteor frame grabber card is better supported.
-
-The Connectix Quickcam is now supported.
-
-It is now possible to burn CDROMs using the Plasmon or HP 4080i
-CDR drives (see `wormcontrol(1)').
-
-The pipe code has been substantially sped up, as have some components
-of the VM system.
+Many improvements to the NIS code.
 
 
 2. Technical overview
@@ -479,4 +496,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.1.2.15 1996/06/14 18:36:28 jkh Exp $
+$Id: relnotes.hlp,v 1.1.2.16 1996/06/25 19:05:48 jkh Exp $
