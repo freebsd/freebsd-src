@@ -1154,7 +1154,8 @@ fw_poll(dev_t dev, int events, fw_proc *td)
 /*
  * To lookup node id. from EUI64.
  */
-u_int16_t fw_noderesolve(struct firewire_comm *fc, struct fw_eui64 eui)
+u_int16_t
+fw_noderesolve(struct firewire_comm *fc, struct fw_eui64 eui)
 {
 	struct fw_device *fwdev;
 	for(fwdev = TAILQ_FIRST(&fc->devices); fwdev != NULL;
@@ -1191,48 +1192,6 @@ fw_asyreq(struct firewire_comm *fc, int sub, struct fw_xfer *xfer)
 	}
 	fp = (struct fw_pkt *)xfer->send.buf;
 
-#if 0
-	switch(fp->mode.common.tcode){
-	case FWTCODE_STREAM:
-		len = ntohs(fp->mode.stream.len) + 4;
-		break;
-	case FWTCODE_RREQQ:
-	case FWTCODE_WRES:
-	case FWTCODE_PHY:
-		len = 12;
-		break;
-	case FWTCODE_WREQQ:
-	case FWTCODE_RRESQ:
-		len = 16;
-		break;
-	default:
-		len = ntohs(fp->mode.rresb.len) + 16;
-		break;
-	}
-	if( len >  xfer->send.len ){
-		printf("len > send.len\n");
-		return EINVAL; 
-	}
-	switch(fp->mode.common.tcode){
-	case FWTCODE_WREQQ:
-	case FWTCODE_WREQB:
-	case FWTCODE_RREQQ:
-	case FWTCODE_RREQB:
-	case FWTCODE_LREQ:
-	case FWTCODE_PHY:
-	case FWTCODE_STREAM:
-		xferq = fc->atq;
-		break;
-	case FWTCODE_WRES:
-	case FWTCODE_RRESQ:
-	case FWTCODE_RRESB:
-	case FWTCODE_LRES:
-		xferq = fc->ats;
-		break;
-	default:
-		return EINVAL;
-	}
-#else
 	tcode = fp->mode.common.tcode & 0xf;
 	info = &fc->tcode[tcode];
 	if (info->flag == 0) {
@@ -1254,7 +1213,7 @@ fw_asyreq(struct firewire_comm *fc, int sub, struct fw_xfer *xfer)
 		return EINVAL; 
 	}
 	xfer->send.len = len;
-#endif
+
 	if(xferq->start == NULL){
 		printf("xferq->start == NULL\n");
 		return EINVAL;
@@ -1266,28 +1225,11 @@ fw_asyreq(struct firewire_comm *fc, int sub, struct fw_xfer *xfer)
 	}
 
 
-#if 0
-	switch(tcode){
-	case FWTCODE_WREQQ:
-	case FWTCODE_WREQB:
-	case FWTCODE_RREQQ:
-	case FWTCODE_RREQB:
-	case FWTCODE_LREQ:
-		if((tl = fw_get_tlabel(fc, xfer)) == -1 ){
-			return EIO;
-		}
-		fp->mode.hdr.tlrt = tl << 2;
-		break;
-	default:
-		break;
-	}
-#else
 	if (info->flag & FWTI_TLABEL) {
 		if((tl = fw_get_tlabel(fc, xfer)) == -1 )
 			return EIO;
 		fp->mode.hdr.tlrt = tl << 2;
 	}
-#endif
 
 	xfer->tl = tl;
 	xfer->tcode = tcode;
@@ -1346,7 +1288,9 @@ fw_xfer_timeout(void *arg)
 /*
  * Async. request with given xfer structure.
  */
-static void fw_asystart(struct fw_xfer *xfer){
+static void
+fw_asystart(struct fw_xfer *xfer)
+{
 	struct firewire_comm *fc = xfer->fc;
 	int s;
 	if(xfer->retry++ >= fc->max_asyretry){
@@ -1378,6 +1322,7 @@ static void fw_asystart(struct fw_xfer *xfer){
 #endif
 	return;
 }
+
 static int
 fw_mmap (dev_t dev, vm_offset_t offset, int nproto)
 {  
@@ -1391,12 +1336,14 @@ fw_mmap (dev_t dev, vm_offset_t offset, int nproto)
 
 	return EINVAL;
 }
+
 static int
 firewire_match( device_t dev )
 {
 	device_set_desc(dev, "IEEE1394(Firewire) bus");
 	return -140;
 }
+
 /*
  * The attach routine.
  */
@@ -1472,6 +1419,7 @@ firewire_add_child(device_t dev, int order, const char *name, int unit)
 
 	return child;
 }
+
 /*
  * Dettach it.
  */
@@ -1481,10 +1429,7 @@ firewire_detach( device_t dev )
 	struct firewire_softc *sc;
 
 	sc = (struct firewire_softc *)device_get_softc(dev);
-#if 0
-	printf("%s:dettach prevented", device_get_nameunit(dev));
-	return(EINVAL);
-#endif
+
 #if __FreeBSD_version >= 500000
 	destroy_dev(sc->dev);
 #else
@@ -1508,10 +1453,12 @@ firewire_shutdown( device_t dev )
 	return 0;
 }
 #endif
+
 /*
- * Call ater bus reset.
+ * Called after bus reset.
  */
-void fw_busreset(struct firewire_comm *fc)
+void
+fw_busreset(struct firewire_comm *fc)
 {
 	int i;
 	struct fw_xfer *xfer;
@@ -1601,9 +1548,9 @@ void fw_busreset(struct firewire_comm *fc)
 	CSRARC(fc, STATE_CLEAR) &= ~(1 << 23 | 1 << 15 | 1 << 14 );
 	CSRARC(fc, STATE_SET) = CSRARC(fc, STATE_CLEAR);
 }
+
 /* Call once after reboot */
-void fw_init(fc)
-	struct firewire_comm *fc;
+void fw_init(struct firewire_comm *fc)
 {
 	int i;
 	struct csrdir *csrd;
@@ -1733,13 +1680,12 @@ void fw_init(fc)
 	fw_bindadd(fc, fwb);
 #endif
 }
+
 /*
  * To lookup binded process from IEEE1394 address.
  */
 static struct fw_bind *
-fw_bindlookup(fc, dest_hi, dest_lo)
-struct firewire_comm *fc;
-u_int32_t dest_lo, dest_hi;
+fw_bindlookup(struct firewire_comm *fc, u_int32_t dest_hi, u_int32_t dest_lo)
 {
 	struct fw_bind *tfw;
 	for(tfw = STAILQ_FIRST(&fc->binds) ; tfw != NULL ;
@@ -1753,10 +1699,12 @@ u_int32_t dest_lo, dest_hi;
 	}
 	return(NULL);
 }
+
 /*
  * To bind IEEE1394 address block to process.
  */
-int fw_bindadd(struct firewire_comm *fc, struct fw_bind *fwb)
+int
+fw_bindadd(struct firewire_comm *fc, struct fw_bind *fwb)
 {
 	struct fw_bind *tfw, *tfw2 = NULL;
 	int err = 0;
@@ -1803,7 +1751,8 @@ out:
 /*
  * To free IEEE1394 address block.
  */
-int fw_bindremove(struct firewire_comm *fc, struct fw_bind *fwb)
+int
+fw_bindremove(struct firewire_comm *fc, struct fw_bind *fwb)
 {
 	int s;
 
@@ -1820,7 +1769,8 @@ int fw_bindremove(struct firewire_comm *fc, struct fw_bind *fwb)
 /*
  * To free transaction label.
  */
-static void fw_tl_free ( struct firewire_comm *fc, struct fw_xfer *xfer )
+static void
+fw_tl_free(struct firewire_comm *fc, struct fw_xfer *xfer)
 {
 	struct tlabel *tl;
 	int s = splfw();
@@ -1837,10 +1787,12 @@ static void fw_tl_free ( struct firewire_comm *fc, struct fw_xfer *xfer )
 	splx(s);
 	return;
 }
+
 /*
  * To obtain XFER structure by transaction label.
  */
-static struct fw_xfer *fw_tl2xfer ( struct firewire_comm *fc, int node, int tlabel )
+static struct fw_xfer *
+fw_tl2xfer(struct firewire_comm *fc, int node, int tlabel)
 {
 	struct fw_xfer *xfer;
 	struct tlabel *tl;
@@ -1850,10 +1802,6 @@ static struct fw_xfer *fw_tl2xfer ( struct firewire_comm *fc, int node, int tlab
 		tl = STAILQ_NEXT(tl, link)){
 		if(tl->xfer->dst == node){
 			xfer = tl->xfer;
-#if 0
-			STAILQ_REMOVE(&fc->tlabels[tlabel], tl, tlabel, link);
-			free(tl, M_DEVBUF);
-#endif
 			splx(s);
 			return(xfer);
 		}
@@ -1861,41 +1809,25 @@ static struct fw_xfer *fw_tl2xfer ( struct firewire_comm *fc, int node, int tlab
 	splx(s);
 	return(NULL);
 }
+
 /*
  * To allocate IEEE1394 XFER structure.
  */
-struct fw_xfer *fw_xfer_alloc()
+struct fw_xfer *
+fw_xfer_alloc()
 {
 	struct fw_xfer *xfer;
-#if 0
-	xfer = malloc(sizeof(struct fw_xfer), M_DEVBUF, M_DONTWAIT);
-#else
+
 	xfer = malloc(sizeof(struct fw_xfer), M_DEVBUF, M_DONTWAIT | M_ZERO);
-#endif
-	if(xfer == NULL) return xfer;
-#if 0 /* xfer->tl = 0 was missing.. */
-	xfer->act_type = FWACT_NULL;
-	xfer->fc = NULL;
-	xfer->retry = 0;
-	xfer->resp = 0;
-	xfer->state = FWXF_INIT;
+	if (xfer == NULL)
+		return xfer;
+
 	xfer->time = time_second;
 	xfer->sub = -1;
-	xfer->send.buf = NULL;
-	xfer->send.off = 0;
-	xfer->send.len = 0;
-	xfer->recv.buf = NULL;
-	xfer->recv.off = 0;
-	xfer->recv.len = 0;
-	xfer->retry_req = NULL;
-	xfer->act.hand = NULL;
-	xfer->sc = NULL;
-#else
-	xfer->time = time_second;
-	xfer->sub = -1;
-#endif
+
 	return xfer;
 }
+
 /*
  * IEEE1394 XFER post process.
  */
@@ -1923,7 +1855,8 @@ fw_xfer_done(struct fw_xfer *xfer)
 /*
  * To free IEEE1394 XFER structure. 
  */
-void fw_xfer_free( struct fw_xfer* xfer)
+void
+fw_xfer_free( struct fw_xfer* xfer)
 {
 	int s;
 	if(xfer == NULL ) return;
@@ -2014,14 +1947,6 @@ fw_phy_config(struct firewire_comm *fc, int root_node, int gap_count)
 static void
 fw_print_sid(u_int32_t sid)
 {
-#if 0
-	printf("node:%d link:%d gap:%d spd:%d del:%d con:%d pwr:%d"
-		" p0:%d p1:%d p2:%d i:%d m:%d\n",
-		FWPHYSIDNODE(sid), FWPHYSIDLINK(sid), FWPHYSIDGAP(sid),
-		FWPHYSIDSPD(sid), FWPHYSIDDEL(sid), FWPHYSIDCON(sid),
-		FWPHYSIDPWR(sid), FWPHYSIDP0(sid), FWPHYSIDP1(sid),
-		FWPHYSIDP2(sid), FWPHYSIDIR(sid), FWPHYSIDMORE(sid));
-#else
 	union fw_self_id *s;
 	s = (union fw_self_id *) &sid;
 	printf("node:%d link:%d gap:%d spd:%d del:%d con:%d pwr:%d"
@@ -2030,7 +1955,6 @@ fw_print_sid(u_int32_t sid)
 		s->p0.phy_speed, s->p0.phy_delay, s->p0.contender,
 		s->p0.power_class, s->p0.port0, s->p0.port1,
 		s->p0.port2, s->p0.initiated_reset, s->p0.more_packets);
-#endif
 }
 #endif
 
@@ -2161,10 +2085,12 @@ void fw_sidrcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int off)
 	fw_bus_probe(fc);
 #endif
 }
+
 /*
  * To probe devices on the IEEE1394 bus. 
  */
-static void fw_bus_probe(struct firewire_comm *fc)
+static void
+fw_bus_probe(struct firewire_comm *fc)
 {
 	int s;
 	struct fw_device *fwdev, *next;
@@ -2196,10 +2122,12 @@ static void fw_bus_probe(struct firewire_comm *fc)
 	fw_bus_explore(fc);
 	splx(s);
 }
+
 /*
  * To collect device informations on the IEEE1394 bus. 
  */
-static void fw_bus_explore(struct firewire_comm *fc )
+static void
+fw_bus_explore(struct firewire_comm *fc )
 {
 	int err = 0;
 	struct fw_device *fwdev, *tfwdev;
@@ -2265,9 +2193,6 @@ loop:
 		fwdev->speed = fc->speed_map->speed[fc->nodeid][fc->ongonode];
 #endif
 
-#if 0
-		TAILQ_INSERT_TAIL(&fc->devices, fwdev, link);
-#else
 		tfwdev = TAILQ_FIRST(&fc->devices);
 		while( tfwdev != NULL &&
 			(tfwdev->eui.hi > fwdev->eui.hi) &&
@@ -2280,7 +2205,6 @@ loop:
 		}else{
 			TAILQ_INSERT_BEFORE(tfwdev, fwdev, link);
 		}
-#endif
 
 		printf("%s:Discover new %s device ID:%08x%08x\n", device_get_nameunit(fc->dev), linkspeed[fwdev->speed], fc->ongoeui.hi, fc->ongoeui.lo);
 
@@ -2335,9 +2259,10 @@ done:
 	return;
 
 }
+
 /* Portable Async. request read quad */
-struct fw_xfer *asyreqq(struct firewire_comm *fc,
-	u_int8_t spd, u_int8_t tl, u_int8_t rt,
+struct fw_xfer *
+asyreqq(struct firewire_comm *fc, u_int8_t spd, u_int8_t tl, u_int8_t rt,
 	u_int32_t addr_hi, u_int32_t addr_lo,
 	void (*hand) __P((struct fw_xfer*)))
 {
@@ -2381,10 +2306,13 @@ struct fw_xfer *asyreqq(struct firewire_comm *fc,
 	}
 	return xfer;
 }
+
 /*
  * Callback for the IEEE1394 bus information collection. 
  */
-static void fw_bus_explore_callback(struct fw_xfer *xfer){
+static void
+fw_bus_explore_callback(struct fw_xfer *xfer)
+{
 	struct firewire_comm *fc;
 	struct fw_pkt *sfp,*rfp;
 	struct csrhdr *chdr;
@@ -2531,10 +2459,13 @@ nextnode:
 	fw_bus_explore(fc);
 	return;
 }
+#if 0
 /*
  * Async. write responce support for kernel internal use. 
  */
-int fw_writeres(struct firewire_comm *fc, u_int32_t dst, u_int32_t tlrt){
+int
+fw_writeres(struct firewire_comm *fc, u_int32_t dst, u_int32_t tlrt)
+{
 	int err = 0;
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
@@ -2569,10 +2500,14 @@ int fw_writeres(struct firewire_comm *fc, u_int32_t dst, u_int32_t tlrt){
 
 	return err;
 }
+
 /*
  * Async. read responce block support for kernel internal use. 
  */
-int fw_readresb(struct firewire_comm *fc, u_int32_t dst, u_int32_t tlrt, u_int32_t len, u_int32_t *buf){
+int
+fw_readresb(struct firewire_comm *fc, u_int32_t dst, u_int32_t tlrt,
+	u_int32_t len, u_int32_t *buf)
+{
 	int err = 0;
 	struct fw_xfer *xfer ;
 	struct fw_pkt *fp;
@@ -2609,10 +2544,14 @@ int fw_readresb(struct firewire_comm *fc, u_int32_t dst, u_int32_t tlrt, u_int32
 	fw_xfer_free( xfer);
 	return err;
 }
+
 /*
  * Async. write request block support for kernel internal use. 
  */
-int fw_writereqb(struct firewire_comm *fc, u_int32_t addr_hi, u_int32_t addr_lo, u_int len, u_int32_t *buf){
+int
+fw_writereqb(struct firewire_comm *fc, u_int32_t addr_hi, u_int32_t addr_lo,
+	u_int len, u_int32_t *buf)
+{
 	int err = 0;
 	struct fw_xfer *xfer ;
 	struct fw_pkt *fp;
@@ -2650,10 +2589,12 @@ int fw_writereqb(struct firewire_comm *fc, u_int32_t addr_hi, u_int32_t addr_lo,
 	fw_xfer_free( xfer);
 	return err;
 }
+
 /*
  * Async. read request support for kernel internal use. 
  */
-int fw_readreqq(struct firewire_comm *fc, u_int32_t addr_hi, u_int32_t addr_lo, u_int32_t *ret){
+int
+fw_readreqq(struct firewire_comm *fc, u_int32_t addr_hi, u_int32_t addr_lo, u_int32_t *ret){
 	int err = 0;
 	struct fw_xfer *xfer ;
 	struct fw_pkt *fp, *rfp;
@@ -2693,6 +2634,7 @@ int fw_readreqq(struct firewire_comm *fc, u_int32_t addr_hi, u_int32_t addr_lo, 
 	fw_xfer_free( xfer);
 	return err;
 }
+#endif
 /*
  * To obtain CSR register values.
  */
