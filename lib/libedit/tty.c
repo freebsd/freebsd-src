@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -475,18 +477,6 @@ tty_setup(el)
     el->el_tty.t_tabs  = tty__gettabs(&el->el_tty.t_ex);
     el->el_tty.t_eight = tty__geteightbit(&el->el_tty.t_ex);
 
-    el->el_tty.t_ex.c_iflag &= ~el->el_tty.t_t[EX_IO][M_INP].t_clrmask;
-    el->el_tty.t_ex.c_iflag |=  el->el_tty.t_t[EX_IO][M_INP].t_setmask;
-
-    el->el_tty.t_ex.c_oflag &= ~el->el_tty.t_t[EX_IO][M_OUT].t_clrmask;
-    el->el_tty.t_ex.c_oflag |=  el->el_tty.t_t[EX_IO][M_OUT].t_setmask;
-
-    el->el_tty.t_ex.c_cflag &= ~el->el_tty.t_t[EX_IO][M_CTL].t_clrmask;
-    el->el_tty.t_ex.c_cflag |=  el->el_tty.t_t[EX_IO][M_CTL].t_setmask;
-
-    el->el_tty.t_ex.c_lflag &= ~el->el_tty.t_t[EX_IO][M_LIN].t_clrmask;
-    el->el_tty.t_ex.c_lflag |=  el->el_tty.t_t[EX_IO][M_LIN].t_setmask;
-
     /*
      * Reset the tty chars to reasonable defaults
      * If they are disabled, then enable them.
@@ -506,17 +496,7 @@ tty_setup(el)
                     el->el_tty.t_c[EX_IO][rst] != el->el_tty.t_vdisable)
                     el->el_tty.t_c[EX_IO][rst]  = el->el_tty.t_c[TS_IO][rst];
         }
-        tty__setchar(&el->el_tty.t_ex, el->el_tty.t_c[EX_IO]);
-        if (tty_setty(el, &el->el_tty.t_ex) == -1) {
-#ifdef DEBUG_TTY
-            (void) fprintf(el->el_errfile, "tty_setup: tty_setty: %s\n",
-			   strerror(errno));
-#endif /* DEBUG_TTY */
-            return(-1);
-        }
     }
-    else
-        tty__setchar(&el->el_tty.t_ex, el->el_tty.t_c[EX_IO]);
 
     el->el_tty.t_ed.c_iflag &= ~el->el_tty.t_t[ED_IO][M_INP].t_clrmask;
     el->el_tty.t_ed.c_iflag |=  el->el_tty.t_t[ED_IO][M_INP].t_setmask;
@@ -810,20 +790,14 @@ tty_rawmode(el)
     el->el_tty.t_eight = tty__geteightbit(&el->el_tty.t_ts);
     el->el_tty.t_speed = tty__getspeed(&el->el_tty.t_ts);
 
-    if (tty__getspeed(&el->el_tty.t_ex) != el->el_tty.t_speed ||
-	tty__getspeed(&el->el_tty.t_ed) != el->el_tty.t_speed) {
-	(void) cfsetispeed(&el->el_tty.t_ex, el->el_tty.t_speed);
-	(void) cfsetospeed(&el->el_tty.t_ex, el->el_tty.t_speed);
+    if (tty__getspeed(&el->el_tty.t_ed) != el->el_tty.t_speed) {
 	(void) cfsetispeed(&el->el_tty.t_ed, el->el_tty.t_speed);
 	(void) cfsetospeed(&el->el_tty.t_ed, el->el_tty.t_speed);
     }
 
     if (tty__cooked_mode(&el->el_tty.t_ts)) {
-	if (el->el_tty.t_ts.c_cflag != el->el_tty.t_ex.c_cflag) {
-	    el->el_tty.t_ex.c_cflag  = el->el_tty.t_ts.c_cflag;
-	    el->el_tty.t_ex.c_cflag &= ~el->el_tty.t_t[EX_IO][M_CTL].t_clrmask;
-	    el->el_tty.t_ex.c_cflag |=  el->el_tty.t_t[EX_IO][M_CTL].t_setmask;
-
+	if ((el->el_tty.t_ts.c_cflag != el->el_tty.t_ex.c_cflag) &&
+	    (el->el_tty.t_ts.c_cflag != el->el_tty.t_ed.c_cflag)) {
 	    el->el_tty.t_ed.c_cflag  = el->el_tty.t_ts.c_cflag;
 	    el->el_tty.t_ed.c_cflag &= ~el->el_tty.t_t[ED_IO][M_CTL].t_clrmask;
 	    el->el_tty.t_ed.c_cflag |=  el->el_tty.t_t[ED_IO][M_CTL].t_setmask;
@@ -831,10 +805,6 @@ tty_rawmode(el)
 
 	if ((el->el_tty.t_ts.c_lflag != el->el_tty.t_ex.c_lflag) &&
 	    (el->el_tty.t_ts.c_lflag != el->el_tty.t_ed.c_lflag)) {
-	    el->el_tty.t_ex.c_lflag = el->el_tty.t_ts.c_lflag;
-	    el->el_tty.t_ex.c_lflag &= ~el->el_tty.t_t[EX_IO][M_LIN].t_clrmask;
-	    el->el_tty.t_ex.c_lflag |=  el->el_tty.t_t[EX_IO][M_LIN].t_setmask;
-
 	    el->el_tty.t_ed.c_lflag = el->el_tty.t_ts.c_lflag;
 	    el->el_tty.t_ed.c_lflag &= ~el->el_tty.t_t[ED_IO][M_LIN].t_clrmask;
 	    el->el_tty.t_ed.c_lflag |=  el->el_tty.t_t[ED_IO][M_LIN].t_setmask;
@@ -842,10 +812,6 @@ tty_rawmode(el)
 
 	if ((el->el_tty.t_ts.c_iflag != el->el_tty.t_ex.c_iflag) &&
 	    (el->el_tty.t_ts.c_iflag != el->el_tty.t_ed.c_iflag)) {
-	    el->el_tty.t_ex.c_iflag = el->el_tty.t_ts.c_iflag;
-	    el->el_tty.t_ex.c_iflag &= ~el->el_tty.t_t[EX_IO][M_INP].t_clrmask;
-	    el->el_tty.t_ex.c_iflag |=  el->el_tty.t_t[EX_IO][M_INP].t_setmask;
-
 	    el->el_tty.t_ed.c_iflag = el->el_tty.t_ts.c_iflag;
 	    el->el_tty.t_ed.c_iflag &= ~el->el_tty.t_t[ED_IO][M_INP].t_clrmask;
 	    el->el_tty.t_ed.c_iflag |=  el->el_tty.t_t[ED_IO][M_INP].t_setmask;
@@ -853,10 +819,6 @@ tty_rawmode(el)
 
 	if ((el->el_tty.t_ts.c_oflag != el->el_tty.t_ex.c_oflag) &&
 	    (el->el_tty.t_ts.c_oflag != el->el_tty.t_ed.c_oflag)) {
-	    el->el_tty.t_ex.c_oflag = el->el_tty.t_ts.c_oflag;
-	    el->el_tty.t_ex.c_oflag &= ~el->el_tty.t_t[EX_IO][M_OUT].t_clrmask;
-	    el->el_tty.t_ex.c_oflag |=  el->el_tty.t_t[EX_IO][M_OUT].t_setmask;
-
 	    el->el_tty.t_ed.c_oflag = el->el_tty.t_ts.c_oflag;
 	    el->el_tty.t_ed.c_oflag &= ~el->el_tty.t_t[ED_IO][M_OUT].t_clrmask;
 	    el->el_tty.t_ed.c_oflag |=  el->el_tty.t_t[ED_IO][M_OUT].t_setmask;
@@ -902,11 +864,13 @@ tty_rawmode(el)
 		    if (el->el_tty.t_t[EX_IO][M_CHAR].t_clrmask & C_SH(i))
 			el->el_tty.t_c[EX_IO][i] = el->el_tty.t_vdisable;
 		}
-		tty__setchar(&el->el_tty.t_ex, el->el_tty.t_c[EX_IO]);
 	    }
 
 	}
     }
+
+    if (el->el_tty.t_mode == EX_IO)
+	el->el_tty.t_ex = el->el_tty.t_ts;
 
     if (tty_setty(el, &el->el_tty.t_ed) == -1) {
 #ifdef DEBUG_TTY
