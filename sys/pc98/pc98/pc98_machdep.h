@@ -31,4 +31,7 @@
 void	pc98_init_dmac __P((void));
 void	pc98_getmemsize __P((void));
 
+struct disk_parms;
+int	sd_bios_parms __P((struct disk_parms *, struct scsi_link *));
+
 #endif /* __PC98_PC98_PC98_MACHDEP_H__ */
