@@ -59,6 +59,7 @@
 #define DEF_FSMRETRY 3		/* FSM retry frequency */
 #define DEF_FSMTRIES 5		/* Default max retries */
 #define DEF_FSMAUTHTRIES 3	/* Default max auth retries */
+#define DEF_IFQUEUE 30		/* Default interface queue size */
 
 #define	CONFFILE 	"ppp.conf"
 #define	LINKUPFILE 	"ppp.linkup"
