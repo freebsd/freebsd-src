@@ -84,6 +84,9 @@ int	keepalive = 1;
 int	log_success;		/* If TRUE, log all successful accesses */
 int	sent_null;
 int	no_delay;
+#ifdef CRYPT
+int	doencrypt = 0;
+#endif
 
 void	 doit __P((struct sockaddr_in *));
 void	 error __P((const char *, ...));
@@ -92,19 +95,11 @@ int	 local_domain __P((char *));
 char	*topdomain __P((char *));
 void	 usage __P((void));
 
-#ifdef	KERBEROS
-#include <des.h>
-#include <krb.h>
-#define	VERSION_SIZE	9
-#define SECURE_MESSAGE  "This rsh session is using DES encryption for all transmissions.\r\n"
-#define	OPTIONS		"alnkvxDL"
-char	authbuf[sizeof(AUTH_DAT)];
-char	tickbuf[sizeof(KTEXT_ST)];
-int	doencrypt, use_kerberos, vacuous;
-Key_schedule	schedule;
-#else
-#define	OPTIONS	"alnDL"
+#ifndef NO_PAM
+extern int auth_pam __P((char *));
 #endif
+
+#define	OPTIONS	"alnDL"
 
 int
 main(argc, argv)
@@ -130,20 +125,10 @@ main(argc, argv)
 		case 'n':
 			keepalive = 0;
 			break;
-#ifdef	KERBEROS
-		case 'k':
-			use_kerberos = 1;
-			break;
-
-		case 'v':
-			vacuous = 1;
-			break;
-
 #ifdef CRYPT
 		case 'x':
 			doencrypt = 1;
 			break;
-#endif
 #endif
 		case 'D':
 			no_delay = 1;
@@ -160,17 +145,11 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-#ifdef	KERBEROS
-	if (use_kerberos && vacuous) {
-		syslog(LOG_ERR, "only one of -k and -v allowed");
-		exit(2);
-	}
 #ifdef CRYPT
-	if (doencrypt && !use_kerberos) {
+	if (doencrypt) {
 		syslog(LOG_ERR, "-k is required for -x");
 		exit(2);
 	}
-#endif
 #endif
 
 	fromlen = sizeof (from);
@@ -217,21 +196,13 @@ doit(fromp)
 	char *cp, sig, buf[BUFSIZ];
 	char cmdbuf[NCARGS+1], locuser[16], remuser[16];
 	char fromhost[MAXHOSTNAMELEN];
+	int retval;
+#ifdef	CRYPT
+	int rc;
+	int pv1[2], pv2[2];
+#endif
 #ifdef	LOGIN_CAP
 	login_cap_t *lc;
-#endif
-
-#ifdef	KERBEROS
-	AUTH_DAT	*kdata = (AUTH_DAT *) NULL;
-	KTEXT		ticket = (KTEXT) NULL;
-	char		instance[INST_SZ], version[VERSION_SIZE];
-	struct		sockaddr_in	fromaddr;
-	int		rc;
-	long		authopts;
-	int		pv1[2], pv2[2];
-	fd_set		wready, writeto;
-
-	fromaddr = *fromp;
 #endif
 
 	(void) signal(SIGINT, SIG_DFL);
@@ -280,17 +251,14 @@ doit(fromp)
       }
 #endif
 
-#ifdef	KERBEROS
-	if (!use_kerberos)
-#endif
-		if (fromp->sin_port >= IPPORT_RESERVED ||
-		    fromp->sin_port < IPPORT_RESERVED/2) {
-			syslog(LOG_NOTICE|LOG_AUTH,
-			    "connection from %s on illegal port %u",
-			    inet_ntoa(fromp->sin_addr),
-			    fromp->sin_port);
-			exit(1);
-		}
+	if (fromp->sin_port >= IPPORT_RESERVED ||
+	    fromp->sin_port < IPPORT_RESERVED/2) {
+		syslog(LOG_NOTICE|LOG_AUTH,
+		    "connection from %s on illegal port %u",
+		    inet_ntoa(fromp->sin_addr),
+		    fromp->sin_port);
+		exit(1);
+	}
 
 	(void) alarm(60);
 	port = 0;
@@ -316,17 +284,14 @@ doit(fromp)
 			syslog(LOG_ERR, "can't get stderr port: %m");
 			exit(1);
 		}
-#ifdef	KERBEROS
-		if (!use_kerberos)
-#endif
-			if (port >= IPPORT_RESERVED ||
-			    port < IPPORT_RESERVED/2) {
-				syslog(LOG_NOTICE|LOG_AUTH,
-				    "2nd socket from %s on unreserved port %u",
-				    inet_ntoa(fromp->sin_addr),
-				    port);
-				exit(1);
-			}
+		if (port >= IPPORT_RESERVED ||
+		    port < IPPORT_RESERVED/2) {
+			syslog(LOG_NOTICE|LOG_AUTH,
+			    "2nd socket from %s on unreserved port %u",
+			    inet_ntoa(fromp->sin_addr),
+			    port);
+			exit(1);
+		}
 		fromp->sin_port = htons(port);
 		if (connect(s, (struct sockaddr *)fromp, sizeof (*fromp)) < 0) {
 			syslog(LOG_INFO, "connect second port %d: %m", port);
@@ -334,60 +299,29 @@ doit(fromp)
 		}
 	}
 
-#ifdef	KERBEROS
-	if (vacuous) {
-		error("rshd: remote host requires Kerberos authentication\n");
-		exit(1);
-	}
-#endif
-
-#ifdef notdef
-	/* from inetd, socket is already on 0, 1, 2 */
-	dup2(f, 0);
-	dup2(f, 1);
-	dup2(f, 2);
-#endif
 	errorstr = NULL;
 	realhostname(fromhost, sizeof(fromhost) - 1, &fromp->sin_addr);
 	fromhost[sizeof(fromhost) - 1] = '\0';
 
-#ifdef	KERBEROS
-	if (use_kerberos) {
-		kdata = (AUTH_DAT *) authbuf;
-		ticket = (KTEXT) tickbuf;
-		authopts = 0L;
-		strcpy(instance, "*");
-		version[VERSION_SIZE - 1] = '\0';
 #ifdef CRYPT
-		if (doencrypt) {
-			struct sockaddr_in local_addr;
-			rc = sizeof(local_addr);
-			if (getsockname(0, (struct sockaddr *)&local_addr,
-			    &rc) < 0) {
-				syslog(LOG_ERR, "getsockname: %m");
-				error("rlogind: getsockname: %m");
-				exit(1);
-			}
-			authopts = KOPT_DO_MUTUAL;
-			rc = krb_recvauth(authopts, 0, ticket,
-				"rcmd", instance, &fromaddr,
-				&local_addr, kdata, "", schedule,
-				version);
-			des_set_key(&kdata->session, schedule);
-		} else
-#endif
-			rc = krb_recvauth(authopts, 0, ticket, "rcmd",
-				instance, &fromaddr,
-				(struct sockaddr_in *) 0,
-				kdata, "", NULL, version);
-		if (rc != KSUCCESS) {
-			error("Kerberos authentication failure: %s\n",
-				  krb_err_txt[rc]);
+	if (doencrypt) {
+		struct sockaddr_in local_addr;
+		rc = sizeof(local_addr);
+		if (getsockname(0, (struct sockaddr *)&local_addr,
+		    &rc) < 0) {
+			syslog(LOG_ERR, "getsockname: %m");
+			error("rlogind: getsockname: %m");
 			exit(1);
 		}
-	} else
+		authopts = KOPT_DO_MUTUAL;
+		rc = krb_recvauth(authopts, 0, ticket,
+			"rcmd", instance, &fromaddr,
+			&local_addr, kdata, "", schedule,
+			version);
+		des_set_key(&kdata->session, schedule);
+	}
 #endif
-		getstr(remuser, sizeof(remuser), "remuser");
+	getstr(remuser, sizeof(remuser), "remuser");
 
 	getstr(locuser, sizeof(locuser), "locuser");
 	getstr(cmdbuf, sizeof(cmdbuf), "command");
@@ -427,19 +361,20 @@ doit(fromp)
 		pwd->pw_dir = "/";
 	}
 
-#ifdef	KERBEROS
-	if (use_kerberos) {
-		if (pwd->pw_passwd != 0 && *pwd->pw_passwd != '\0') {
-			if (kuserok(kdata, locuser) != 0) {
-				syslog(LOG_INFO|LOG_AUTH,
-				    "Kerberos rsh denied to %s.%s@%s",
-				    kdata->pname, kdata->pinst, kdata->prealm);
-				error("Login incorrect.\n");
-				exit(1);
-			}
+#ifndef  NO_PAM
+	retval = auth_pam(locuser);
+
+	if (retval) {
+		if (retval == -1) {
+			syslog(LOG_ERR,"PAM authentication failed");
 		}
-	} else
-#endif
+		else {
+			syslog(LOG_ERR,
+				"User %s failed PAM authentication", locuser);
+			exit(1);
+		}
+	}
+#endif 
 
 		if (errorstr ||
 		    (pwd->pw_expire && time(NULL) >= pwd->pw_expire) ||
@@ -502,7 +437,6 @@ fail:
 			exit(1);
 		}
 #ifdef CRYPT
-#ifdef KERBEROS
 		if (doencrypt) {
 			if (pipe(pv1) < 0) {
 				error("Can't make 2nd pipe.\n");
@@ -514,7 +448,6 @@ fail:
 			}
 		}
 #endif
-#endif
 		pid = fork();
 		if (pid == -1)  {
 			error("Can't fork; try again.\n");
@@ -522,7 +455,6 @@ fail:
 		}
 		if (pid) {
 #ifdef CRYPT
-#ifdef KERBEROS
 			if (doencrypt) {
 				static char msg[] = SECURE_MESSAGE;
 				(void) close(pv1[1]);
@@ -531,7 +463,6 @@ fail:
 					schedule, &kdata->session);
 
 			} else
-#endif
 #endif
 			{
 				(void) close(0);
@@ -548,7 +479,6 @@ fail:
 			else
 				nfd = s;
 #ifdef CRYPT
-#ifdef KERBEROS
 			if (doencrypt) {
 				FD_ZERO(&writeto);
 				FD_SET(pv2[0], &writeto);
@@ -558,7 +488,6 @@ fail:
 				nfd = MAX(nfd, pv1[0]);
 			} else
 #endif
-#endif
 				ioctl(pv[0], FIONBIO, (char *)&one);
 
 			/* should set s nbio! */
@@ -566,7 +495,6 @@ fail:
 			do {
 				ready = readfrom;
 #ifdef CRYPT
-#ifdef KERBEROS
 				if (doencrypt) {
 					wready = writeto;
 					if (select(nfd, &ready,
@@ -575,19 +503,16 @@ fail:
 						break;
 				} else
 #endif
-#endif
 					if (select(nfd, &ready, (fd_set *)0,
 					  (fd_set *)0, (struct timeval *)0) < 0)
 						break;
 				if (FD_ISSET(s, &ready)) {
 					int	ret;
 #ifdef CRYPT
-#ifdef KERBEROS
 					if (doencrypt)
 						ret = des_enc_read(s, &sig, 1,
 						schedule, &kdata->session);
 					else
-#endif
 #endif
 						ret = read(s, &sig, 1);
 					if (ret <= 0)
@@ -603,20 +528,17 @@ fail:
 						FD_CLR(pv[0], &readfrom);
 					} else {
 #ifdef CRYPT
-#ifdef KERBEROS
 						if (doencrypt)
 							(void)
 							  des_enc_write(s, buf, cc,
 								schedule, &kdata->session);
 						else
 #endif
-#endif
 							(void)
 							  write(s, buf, cc);
 					}
 				}
 #ifdef CRYPT
-#ifdef KERBEROS
 				if (doencrypt && FD_ISSET(pv1[0], &ready)) {
 					errno = 0;
 					cc = read(pv1[0], buf, sizeof(buf));
@@ -641,13 +563,10 @@ fail:
 						(void) write(pv2[0], buf, cc);
 				}
 #endif
-#endif
 
 			} while (FD_ISSET(s, &readfrom) ||
 #ifdef CRYPT
-#ifdef KERBEROS
 			    (doencrypt && FD_ISSET(pv1[0], &readfrom)) ||
-#endif
 #endif
 			    FD_ISSET(pv[0], &readfrom));
 			exit(0);
@@ -656,7 +575,6 @@ fail:
 		(void) close(s);
 		(void) close(pv[0]);
 #ifdef CRYPT
-#ifdef KERBEROS
 		if (doencrypt) {
 			close(pv1[0]); close(pv2[0]);
 			dup2(pv1[1], 1);
@@ -664,7 +582,6 @@ fail:
 			close(pv1[1]);
 			close(pv2[1]);
 		}
-#endif
 #endif
 		dup2(pv[1], 2);
 		close(pv[1]);
@@ -694,14 +611,6 @@ fail:
 #endif
 	endpwent();
 	if (log_success || pwd->pw_uid == 0) {
-#ifdef	KERBEROS
-		if (use_kerberos)
-		    syslog(LOG_INFO|LOG_AUTH,
-			"Kerberos shell from %s.%s@%s on %s as %s, cmd='%.80s'",
-			kdata->pname, kdata->pinst, kdata->prealm,
-			fromhost, locuser, cmdbuf);
-		else
-#endif
 		    syslog(LOG_INFO|LOG_AUTH, "%s@%s as %s: cmd='%.80s'",
 			remuser, fromhost, locuser, cmdbuf);
 	}
