@@ -46,7 +46,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)join.c	8.3 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: join.c,v 1.3.2.2 1997/07/16 06:45:32 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -515,6 +515,9 @@ obsolete(argv)
 			/*
 			 * The original join allowed "-a", which meant the
 			 * same as -a1 plus -a2.  POSIX 1003.2, Draft 11.2
+		/* skip if not an option */
+		if (ap[0] != '-')
+			continue;
 			 * only specifies this as "-a 1" and "a -2", so we
 			 * have to use another option flag, one that is
 			 * unlikely to ever be used or accidentally entered
