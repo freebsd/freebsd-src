@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: sgmlfmt.pl,v 1.14 1996/09/29 18:27:12 jfieber Exp $
+# $Id: sgmlfmt.pl,v 1.15 1996/09/29 19:42:51 jfieber Exp $
 
 #  Copyright (C) 1996
 #       John R. Fieber.  All rights reserved.
@@ -231,8 +231,11 @@ $filecount = 0;			# file counter
 
 sub gen_html {
     local($i, $sl);
-    $tmpfile = "/tmp/sgmlf.$$";
 
+    # Remove any lingering link file
+    unlink("${fileroot}.ln");
+
+    $tmpfile = "/tmp/sgmlf.$$";
     @cleanfiles = (@cleanfiles, "$tmpfile", "${fileroot}.html", 
     	"${fileroot}_toc.html", "${fileroot}.ln");
     open(bar, ">$tmpfile");
