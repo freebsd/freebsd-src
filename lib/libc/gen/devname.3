@@ -32,7 +32,7 @@
 .\"     @(#)devname.3	8.2 (Berkeley) 4/29/95
 .\" $FreeBSD$
 .\"
-.Dd April 29, 1995
+.Dd July 18, 1999
 .Dt DEVNAME 3
 .Os
 .Sh NAME
@@ -50,18 +50,28 @@ The
 .Fn devname
 function returns a pointer to the name of the block or character
 device in
-.Dq Pa /dev
+.Pa /dev
 with a device number of
 .Fa dev ,
 and a file type matching the one encoded in
 .Fa type
-which must be one of S_IFBLK or S_IFCHR.
-If no device matches the specified values, or no information is
-available, NULL is returned.
-.Pp
-The traditional display for applications when no device is
-found is the string
-.Dq ?? .
+which must be one of
+.Dv S_IFBLK
+or
+.Dv S_IFCHR .
+To find the right name,
+.Fn devname
+first searches the device database created by
+.Xr dev_mkdb 8 ;
+if that fails, it asks the kernel via the
+.Va kern.devname
+sysctl.
+If it was still unable to come up with a suitable name,
+it will format the information encapsulated in
+.Fa dev
+and
+.Fa type
+in a human-readable format.
 .Sh SEE ALSO
 .Xr stat 2 ,
 .Xr dev_mkdb 8
@@ -70,3 +80,8 @@ The
 .Fn devname
 function call appeared in
 .Bx 4.4 .
+.Sh BUGS
+The
+.Fn devname
+function returns a poiner to an internal static object;
+thus, subsequent calls will modify the same buffer.
