@@ -117,3 +117,4 @@ chrdev	name		comments
 76	scc		IBM Smart Capture Card (ohashi@mickey.ai.kyutech.ac.jp)
 77	cyy		Cyclades Ye/PCI serial card
 78	gd		Geometry disk
+79	ipl		IP Filter
