@@ -263,7 +263,7 @@ get_new_sid(node_p node)
 	sessp sp;
 	hook_p	hook;
 	u_int16_t val; 
-	priv_p privp = node->private;
+	priv_p privp = NG_NODE_PRIVATE(node);
 
 AAA
 restart:
@@ -278,12 +278,12 @@ restart:
 	}
 
 	/* Check it isn't already in use */
-	LIST_FOREACH(hook, &node->hooks, hooks) {
+	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
 		/* don't check special hooks */
-		if ((hook->private == &privp->debug_hook)
-		||  (hook->private == &privp->ethernet_hook)) 
+		if ((NG_HOOK_PRIVATE(hook) == &privp->debug_hook)
+		||  (NG_HOOK_PRIVATE(hook) == &privp->ethernet_hook)) 
 			continue;
-		sp = hook->private;
+		sp = NG_HOOK_PRIVATE(hook);
 		if (sp->Session_ID == val)
 			goto restart;
 	}
@@ -423,17 +423,17 @@ pppoe_match_svc(node_p node, char *svc_name, int svc_len)
 {
 	sessp	sp	= NULL;
 	negp	neg	= NULL;
-	priv_p	privp	= node->private;
+	priv_p	privp	= NG_NODE_PRIVATE(node);
 	hook_p hook;
 
 AAA
-	LIST_FOREACH(hook, &node->hooks, hooks) {
+	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
 
 		/* skip any hook that is debug or ethernet */
-		if ((hook->private == &privp->debug_hook)
-		||  (hook->private == &privp->ethernet_hook))
+		if ((NG_HOOK_PRIVATE(hook) == &privp->debug_hook)
+		||  (NG_HOOK_PRIVATE(hook) == &privp->ethernet_hook))
 			continue;
-		sp = hook->private;
+		sp = NG_HOOK_PRIVATE(hook);
 
 		/* Skip any sessions which are not in LISTEN mode. */
 		if ( sp->state != PPPOE_LISTENING)
@@ -471,20 +471,20 @@ pppoe_findsession(node_p node, struct pppoe_full_hdr *wh)
 {
 	sessp	sp = NULL;
 	hook_p hook = NULL;
-	priv_p	privp = node->private;
+	priv_p	privp = NG_NODE_PRIVATE(node);
 	u_int16_t	session = ntohs(wh->ph.sid);
 
 	/*
 	 * find matching peer/session combination.
 	 */
 AAA
-	LIST_FOREACH(hook, &node->hooks, hooks) {
+	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
 		/* don't check special hooks */
-		if ((hook->private == &privp->debug_hook)
-		||  (hook->private == &privp->ethernet_hook)) {
+		if ((NG_HOOK_PRIVATE(hook) == &privp->debug_hook)
+		||  (NG_HOOK_PRIVATE(hook) == &privp->ethernet_hook)) {
 			continue;
 		}
-		sp = hook->private;
+		sp = NG_HOOK_PRIVATE(hook);
 		if ( ( (sp->state == PPPOE_CONNECTED)
 		    || (sp->state == PPPOE_NEWCONNECTED) )
 		&& (sp->Session_ID == session)
@@ -501,18 +501,18 @@ static hook_p
 pppoe_finduniq(node_p node, struct pppoe_tag *tag)
 {
 	hook_p hook = NULL;
-	priv_p	privp = node->private;
+	priv_p	privp = NG_NODE_PRIVATE(node);
 	union uniq		uniq;
 
 AAA
 	bcopy(tag->tag_data, uniq.bytes, sizeof(void *));
 	/* cycle through all known hooks */
-	LIST_FOREACH(hook, &node->hooks, hooks) {
+	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
 		/* don't check special hooks */
-		if ((hook->private == &privp->debug_hook)
-		||  (hook->private == &privp->ethernet_hook)) 
+		if ((NG_HOOK_PRIVATE(hook) == &privp->debug_hook)
+		||  (NG_HOOK_PRIVATE(hook) == &privp->ethernet_hook)) 
 			continue;
-		if (uniq.pointer == hook->private)
+		if (uniq.pointer == NG_HOOK_PRIVATE(hook))
 			break;
 	}
 	return (hook);
@@ -544,7 +544,7 @@ AAA
 		return (ENOMEM);
 
 	/* Link structs together; this counts as our one reference to *nodep */
-	node->private = privdata;
+	NG_NODE_SET_PRIVATE(node, privdata);
 	privdata->node = node;
 	return (0);
 }
@@ -561,16 +561,16 @@ AAA
 static int
 ng_pppoe_newhook(node_p node, hook_p hook, const char *name)
 {
-	const priv_p privp = node->private;
+	const priv_p privp = NG_NODE_PRIVATE(node);
 	sessp sp;
 
 AAA
 	if (strcmp(name, NG_PPPOE_HOOK_ETHERNET) == 0) {
 		privp->ethernet_hook = hook;
-		hook->private = &privp->ethernet_hook;
+		NG_HOOK_SET_PRIVATE(hook, &privp->ethernet_hook);
 	} else if (strcmp(name, NG_PPPOE_HOOK_DEBUG) == 0) {
 		privp->debug_hook = hook;
-		hook->private = &privp->debug_hook;
+		NG_HOOK_SET_PRIVATE(hook, &privp->debug_hook);
 	} else {
 		/*
 		 * Any other unique name is OK.
@@ -582,7 +582,7 @@ AAA
 				return (ENOMEM);
 		}
 
-		hook->private = sp;
+		NG_HOOK_SET_PRIVATE(hook, sp);
 		sp->hook = hook;
 	}
 	return(0);
@@ -597,7 +597,7 @@ AAA
 static int
 ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	priv_p privp = node->private;
+	priv_p privp = NG_NODE_PRIVATE(node);
 	struct ngpppoe_init_data *ourmsg = NULL;
 	struct ng_mesg *resp = NULL;
 	int error = 0;
@@ -638,19 +638,19 @@ AAA
 			ourmsg->hook[sizeof(ourmsg->hook) - 1] = '\0';
 
 			/* cycle through all known hooks */
-			LIST_FOREACH(hook, &node->hooks, hooks) {
-				if (hook->name
-				&& strcmp(hook->name, ourmsg->hook) == 0)
+			LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
+				if (NG_HOOK_NAME(hook)
+				&& strcmp(NG_HOOK_NAME(hook), ourmsg->hook) == 0)
 					break;
 			}
 			if (hook == NULL) {
 				LEAVE(ENOENT);
 			}
-			if ((hook->private == &privp->debug_hook)
-			||  (hook->private == &privp->ethernet_hook)) {
+			if ((NG_HOOK_PRIVATE(hook) == &privp->debug_hook)
+			||  (NG_HOOK_PRIVATE(hook) == &privp->ethernet_hook)) {
 				LEAVE(EINVAL);
 			}
-			sp = hook->private;
+			sp = NG_HOOK_PRIVATE(hook);
 
 			/*
 			 * PPPOE_SERVICE advertisments are set up
@@ -848,9 +848,9 @@ AAA
 static int
 ng_pppoe_rcvdata(hook_p hook, item_p item)
 {
-	node_p			node = hook->node;
-	const priv_p		privp = node->private;
-	sessp			sp = hook->private;
+	node_p			node = NG_HOOK_NODE(hook);
+	const priv_p		privp = NG_NODE_PRIVATE(node);
+	sessp			sp = NG_HOOK_PRIVATE(hook);
 	struct pppoe_full_hdr	*wh;
 	struct pppoe_hdr	*ph;
 	int			error = 0;
@@ -868,14 +868,14 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 
 AAA
 	NGI_GET_M(item, m);
-	if (hook->private == &privp->debug_hook) {
+	if (NG_HOOK_PRIVATE(hook) == &privp->debug_hook) {
 		/*
 		 * Data from the debug hook gets sent without modification
 		 * straight to the ethernet. 
 		 */
-		NG_FWD_DATA( error, item, privp->ethernet_hook);
+		NG_FWD_ITEM_HOOK( error, item, privp->ethernet_hook);
 	 	privp->packets_out++;
-	} else if (hook->private == &privp->ethernet_hook) {
+	} else if (NG_HOOK_PRIVATE(hook) == &privp->ethernet_hook) {
 		/*
 		 * Incoming data. 
 		 * Dig out various fields from the packet.
@@ -952,7 +952,7 @@ AAA
 					printf("no service tag\n");
 					LEAVE(ENETUNREACH);
 				}
-				sendhook = pppoe_match_svc(hook->node,
+				sendhook = pppoe_match_svc(NG_HOOK_NODE(hook),
 			    		tag->tag_data, ntohs(tag->tag_len));
 				if (sendhook) {
 					NG_FWD_NEW_DATA(error, item,
@@ -987,7 +987,7 @@ AAA
 				 * Check the session is in the right state.
 				 * It needs to be in PPPOE_SINIT.
 				 */
-				sp = sendhook->private;
+				sp = NG_HOOK_PRIVATE(sendhook);
 				if (sp->state != PPPOE_SINIT) {
 					printf("session in wrong state\n");
 					LEAVE(ENETUNREACH);
@@ -1044,7 +1044,7 @@ AAA
 				 * then this is a retry by the client.
 				 * so be nice, and resend.
 				 */
-				sp = sendhook->private;
+				sp = NG_HOOK_PRIVATE(sendhook);
 				if (sp->state == PPPOE_NEWCONNECTED) {
 					/*
 					 * Whoa! drop back to resend that 
@@ -1119,7 +1119,7 @@ AAA
 				 * Check the session is in the right state.
 				 * It needs to be in PPPOE_SREQ.
 				 */
-				sp = sendhook->private;
+				sp = NG_HOOK_PRIVATE(sendhook);
 				if (sp->state != PPPOE_SREQ) {
 					LEAVE(ENETUNREACH);
 				}
@@ -1176,7 +1176,7 @@ AAA
 				LEAVE (ENETUNREACH);
 				break;
 			}
-			sp = sendhook->private;
+			sp = NG_HOOK_PRIVATE(sendhook);
 			m_adj(m, sizeof(*wh));
 			if (m->m_pkthdr.len < length) {
 				/* Packet too short, dump it */
@@ -1220,7 +1220,7 @@ AAA
 		 * So we can decide how to handle it.
 		 * Check the hook's state.
 		 */
-		sp = hook->private;
+		sp = NG_HOOK_PRIVATE(hook);
 		switch (sp->state) {
 		case	PPPOE_NEWCONNECTED:
 		case	PPPOE_CONNECTED: {
@@ -1349,12 +1349,11 @@ quit:
 static int
 ng_pppoe_shutdown(node_p node)
 {
-	const priv_p privdata = node->private;
+	const priv_p privdata = NG_NODE_PRIVATE(node);
 
 AAA
-	node->flags |= NG_INVALID;
-	node->private = NULL;
-	ng_unref(privdata->node);
+	NG_NODE_SET_PRIVATE(node, NULL);
+	NG_NODE_UNREF(privdata->node);
 	FREE(privdata, M_NETGRAPH);
 	return (0);
 }
@@ -1379,21 +1378,21 @@ ng_pppoe_connect(hook_p hook)
 static int
 ng_pppoe_disconnect(hook_p hook)
 {
-	node_p node = hook->node;
-	priv_p privp = node->private;
+	node_p node = NG_HOOK_NODE(hook);
+	priv_p privp = NG_NODE_PRIVATE(node);
 	sessp	sp;
 	int 	hooks;
 
 AAA
-	hooks = node->numhooks; /* this one already not counted */
-	if (hook->private == &privp->debug_hook) {
+	hooks = NG_NODE_NUMHOOKS(node); /* this one already not counted */
+	if (NG_HOOK_PRIVATE(hook) == &privp->debug_hook) {
 		privp->debug_hook = NULL;
-	} else if (hook->private == &privp->ethernet_hook) {
+	} else if (NG_HOOK_PRIVATE(hook) == &privp->ethernet_hook) {
 		privp->ethernet_hook = NULL;
-		if ((node->flags & NG_INVALID) == 0)
+		if (NG_NODE_IS_VALID(node))
 			ng_rmnode_self(node);
 	} else {
-		sp = hook->private;
+		sp = NG_HOOK_PRIVATE(hook);
 		if (sp->state != PPPOE_SNONE ) {
 			pppoe_send_event(sp, NGM_PPPOE_CLOSE);
 		}
@@ -1452,14 +1451,14 @@ AAA
 			FREE(sp->neg, M_NETGRAPH);
 		}
 		FREE(sp, M_NETGRAPH);
-		hook->private = NULL;
+		NG_HOOK_SET_PRIVATE(hook, NULL);
 		/* work out how many session hooks there are */
 		/* Node goes away on last session hook removal */
 		if (privp->ethernet_hook) hooks -= 1;
 		if (privp->debug_hook) hooks -= 1;
 	}
-	if ((node->numhooks == 0)
-	&& ((node->flags & NG_INVALID) == 0))
+	if ((NG_NODE_NUMHOOKS(node) == 0)
+	&& (NG_NODE_IS_VALID(node)))
 		ng_rmnode_self(node);
 	return (0);
 }
@@ -1472,11 +1471,11 @@ pppoe_ticker(void *arg)
 {
 	int s = splnet();
 	hook_p hook = arg;
-	sessp	sp = hook->private;
+	sessp	sp = NG_HOOK_PRIVATE(hook);
 	negp	neg = sp->neg;
 	int	error = 0;
 	struct mbuf *m0 = NULL;
-	priv_p privp = hook->node->private;
+	priv_p privp = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 
 AAA
 	switch(sp->state) {
@@ -1521,7 +1520,7 @@ sendpacket(sessp sp)
 	struct mbuf *m0 = NULL;
 	hook_p hook = sp->hook;
 	negp	neg = sp->neg;
-	priv_p	privp = hook->node->private;
+	priv_p	privp = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 
 AAA
 	switch(sp->state) {
@@ -1628,7 +1627,7 @@ AAA
 	if (msg == NULL)
 		return (ENOMEM);
 	sts = (struct ngpppoe_sts *)msg->data;
-	strncpy(sts->hook, sp->hook->name, NG_HOOKLEN + 1);
-	NG_SEND_MSG_ID(error, sp->hook->node, msg, sp->creator, NULL);
+	strncpy(sts->hook, NG_HOOK_NAME(sp->hook), NG_HOOKLEN + 1);
+	NG_SEND_MSG_ID(error, NG_HOOK_NODE(sp->hook), msg, sp->creator, NULL);
 	return (error);
 }

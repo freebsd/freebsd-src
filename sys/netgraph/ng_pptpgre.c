@@ -279,7 +279,7 @@ ng_pptpgre_constructor(node_p node)
 	if (priv == NULL)
 		return (ENOMEM);
 
-	node->private = priv;
+	NG_NODE_SET_PRIVATE(node, priv);
 
 	/* Initialize state */
 	callout_handle_init(&priv->ackp.sackTimer);
@@ -295,7 +295,7 @@ ng_pptpgre_constructor(node_p node)
 static int
 ng_pptpgre_newhook(node_p node, hook_p hook, const char *name)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	hook_p *hookPtr;
 
 	/* Check hook name */
@@ -321,7 +321,7 @@ ng_pptpgre_newhook(node_p node, hook_p hook, const char *name)
 static int
 ng_pptpgre_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_mesg *resp = NULL;
 	int error = 0;
 	struct ng_mesg *msg;
@@ -385,8 +385,8 @@ done:
 static int
 ng_pptpgre_rcvdata(hook_p hook, item_p item)
 {
-	const node_p node = hook->node;
-	const priv_p priv = node->private;
+	const node_p node = NG_HOOK_NODE(hook);
+	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	/* If not configured, reject */
 	if (!priv->conf.enabled) {
@@ -408,17 +408,16 @@ ng_pptpgre_rcvdata(hook_p hook, item_p item)
 static int
 ng_pptpgre_shutdown(node_p node)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	/* Reset node */
 	ng_pptpgre_reset(node);
 
 	/* Take down netgraph node */
-	node->flags |= NG_INVALID;
 	bzero(priv, sizeof(*priv));
 	FREE(priv, M_NETGRAPH);
-	node->private = NULL;
-	ng_unref(node);
+	NG_NODE_SET_PRIVATE(node, NULL);
+	NG_NODE_UNREF(node);
 	return (0);
 }
 
@@ -428,8 +427,8 @@ ng_pptpgre_shutdown(node_p node)
 static int
 ng_pptpgre_disconnect(hook_p hook)
 {
-	const node_p node = hook->node;
-	const priv_p priv = node->private;
+	const node_p node = NG_HOOK_NODE(hook);
+	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	/* Zero out hook pointer */
 	if (hook == priv->upper)
@@ -440,8 +439,8 @@ ng_pptpgre_disconnect(hook_p hook)
 		panic("%s: unknown hook", __FUNCTION__);
 
 	/* Go away if no longer connected to anything */
-	if ((node->numhooks == 0)
-	&& ((node->flags & NG_INVALID) == 0))
+	if ((NG_NODE_NUMHOOKS(node) == 0)
+	&& (NG_NODE_IS_VALID(node)))
 		ng_rmnode_self(node);
 	return (0);
 }
@@ -456,7 +455,7 @@ ng_pptpgre_disconnect(hook_p hook)
 static int
 ng_pptpgre_xmit(node_p node, item_p item)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_pptpgre_ackp *const a = &priv->ackp;
 	u_char buf[sizeof(struct greheader) + 2 * sizeof(u_int32_t)];
 	struct greheader *const gre = (struct greheader *)buf;
@@ -561,7 +560,7 @@ ng_pptpgre_xmit(node_p node, item_p item)
 static int
 ng_pptpgre_recv(node_p node, item_p item)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	int iphlen, grelen, extralen;
 	struct greheader *gre;
 	struct ip *ip;
@@ -739,7 +738,7 @@ badAck:
 static void
 ng_pptpgre_start_recv_ack_timer(node_p node)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_pptpgre_ackp *const a = &priv->ackp;
 	int remain, ticks;
 
@@ -761,7 +760,7 @@ ng_pptpgre_start_recv_ack_timer(node_p node)
 		return;			/* XXX potential hang here */
 	}
 	*a->rackTimerPtr = node;	/* insures the correct timeout event */
-	node->refs++;
+	NG_NODE_REF(node);
 
 	/* Be conservative: timeout() can return up to 1 tick early */
 	ticks = (((remain * hz) + PPTP_TIME_SCALE - 1) / PPTP_TIME_SCALE) + 1;
@@ -779,18 +778,18 @@ ng_pptpgre_recv_ack_timeout(void *arg)
 {
 	int s = splnet();
 	const node_p node = *((node_p *)arg);
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_pptpgre_ackp *const a = &priv->ackp;
 
 	/* This complicated stuff is needed to avoid race conditions */
 	FREE(arg, M_NETGRAPH);
-	KASSERT(node->refs > 0, ("%s: no refs", __FUNCTION__));
-	if ((node->flags & NG_INVALID) != 0) {	/* shutdown race condition */
-		ng_unref(node);
+	KASSERT(node->nd_refs > 0, ("%s: no nd_refs", __FUNCTION__));
+	if (NG_NODE_NOT_VALID(node)) {	/* shutdown race condition */
+		NG_NODE_UNREF(node);
 		splx(s);
 		return;
 	}
-	ng_unref(node);
+	NG_NODE_UNREF(node);
 	if (arg != a->rackTimerPtr) {	/* timer stopped race condition */
 		splx(s);
 		return;
@@ -827,7 +826,7 @@ ng_pptpgre_recv_ack_timeout(void *arg)
 static void
 ng_pptpgre_start_send_ack_timer(node_p node, int ackTimeout)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_pptpgre_ackp *const a = &priv->ackp;
 	int ticks;
 
@@ -839,7 +838,7 @@ ng_pptpgre_start_send_ack_timer(node_p node, int ackTimeout)
 		return;			/* XXX potential hang here */
 	}
 	*a->sackTimerPtr = node;
-	node->refs++;
+	NG_NODE_REF(node);
 
 	/* Be conservative: timeout() can return up to 1 tick early */
 	ticks = (((ackTimeout * hz) + PPTP_TIME_SCALE - 1) / PPTP_TIME_SCALE);
@@ -858,18 +857,18 @@ ng_pptpgre_send_ack_timeout(void *arg)
 {
 	int s = splnet();
 	const node_p node = *((node_p *)arg);
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_pptpgre_ackp *const a = &priv->ackp;
 
 	/* This complicated stuff is needed to avoid race conditions */
 	FREE(arg, M_NETGRAPH);
-	KASSERT(node->refs > 0, ("%s: no refs", __FUNCTION__));
-	if ((node->flags & NG_INVALID) != 0) {	/* shutdown race condition */
-		ng_unref(node);
+	KASSERT(node->nd_refs > 0, ("%s: no nd_refs", __FUNCTION__));
+	if (NG_NODE_NOT_VALID(node)) {	/* shutdown race condition */
+		NG_NODE_UNREF(node);
 		splx(s);
 		return;
 	}
-	ng_unref(node);
+	NG_NODE_UNREF(node);
 	if (a->sackTimerPtr != arg) {	/* timer stopped race condition */
 		splx(s);
 		return;
@@ -891,7 +890,7 @@ ng_pptpgre_send_ack_timeout(void *arg)
 static void
 ng_pptpgre_reset(node_p node)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_pptpgre_ackp *const a = &priv->ackp;
 
 	/* Reset adaptive timeout state */
@@ -930,7 +929,7 @@ ng_pptpgre_reset(node_p node)
 static pptptime_t
 ng_pptpgre_time(node_p node)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct timeval tv;
 	pptptime_t t;
 

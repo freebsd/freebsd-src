@@ -855,7 +855,7 @@ musycc_config(node_p node, char *set, char *ret)
 	enum framing wframing;
 	int i;
 
-	sc = node->private;
+	sc = NG_NODE_PRIVATE(node);
 	csc = sc->csc;
 	if (csc->state == C_IDLE) 
 		init_card(csc);
@@ -941,7 +941,7 @@ musycc_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 	
 	NGI_GET_MSG(item, msg);
-	sc = node->private;
+	sc = NG_NODE_PRIVATE(node);
 	if (msg->header.typecookie != NGM_GENERIC_COOKIE)
 		goto out;
 
@@ -995,7 +995,7 @@ musycc_newhook(node_p node, hook_p hook, const char *name)
 	u_int32_t ts, chan;
 	int nbit;
 
-	sc = node->private;
+	sc = NG_NODE_PRIVATE(node);
 	csc = sc->csc;
 
 	while (csc->state != C_RUNNING)
@@ -1033,7 +1033,7 @@ musycc_newhook(node_p node, hook_p hook, const char *name)
 	sch->ts = ts;
 	sch->hook = hook;
 	sch->tx_limit = nbit * 8;
-	hook->private = sch;
+	NG_HOOK_SET_PRIVATE(hook, sch);
 	return(0);
 }
 
@@ -1049,7 +1049,7 @@ musycc_rcvdata(hook_p hook, item_p item)
 	struct mbuf *m2;
 	struct mbuf *m;
 
-	sch = hook->private;
+	sch = NG_HOOK_PRIVATE(hook);
 	sc = sch->sc;
 	csc = sc->csc;
 	ch = sch->chan;
@@ -1116,7 +1116,7 @@ musycc_connect(hook_p hook)
 	int nts, nbuf, i, nmd, ch;
 	struct mbuf *m;
 
-	sch = hook->private;
+	sch = NG_HOOK_PRIVATE(hook);
 	sc = sch->sc;
 	csc = sc->csc;
 	ch = sch->chan;
@@ -1231,7 +1231,7 @@ musycc_connect(hook_p hook)
 	tsleep(&sc->last, PZERO + PCATCH, "con4", hz);
 	sc->reg->srd = sc->last = 0x0820 + ch;
 	tsleep(&sc->last, PZERO + PCATCH, "con3", hz);
-	hook->peer->flags |= HK_QUEUE;
+	NG_HOOK_FORCE_QUEUE(NG_HOOK_PEER(hook));
 
 	return (0);
 
@@ -1254,7 +1254,7 @@ musycc_disconnect(hook_p hook)
 	struct schan *sch;
 	int i, ch;
 
-	sch = hook->private;
+	sch = NG_HOOK_PRIVATE(hook);
 	sc = sch->sc;
 	csc = sc->csc;
 	ch = sch->chan;
@@ -1452,12 +1452,13 @@ musycc_attach(device_t self)
 			printf("ng_make_node_common() failed %d\n", error);
 			continue;
 		}	
-		sc->node->private = sc;
+		NG_NODE_SET_PRIVATE(sc->node, sc);
 		sprintf(sc->nodename, "sync-%d-%d-%d",
 			csc->bus,
 			csc->slot,
 			i);
 		error = ng_name_node(sc->node, sc->nodename);
+		/* XXX Apparently failure isn't a problem */
 	}
 	csc->ram = (struct globalr *)&csc->serial[0].mycg->cg;
 	sc = &csc->serial[0];

@@ -45,6 +45,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -98,7 +99,7 @@ ngh_rcvdata(hook_p hook, item_p item)
 static int
 ngh_disconnect(hook_p hook)
 {
-	if (hook->node->numhooks == 0)
-		ng_rmnode_self(hook->node);
+	if (NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
+		ng_rmnode_self(NG_HOOK_NODE(hook));
 	return (0);
 }
