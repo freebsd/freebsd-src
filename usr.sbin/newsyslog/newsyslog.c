@@ -1186,6 +1186,7 @@ movefile(char *from, char *to, int perm, int owner_uid, int group_gid)
 static void
 createdir(char *dirpart)
 {
+	int res;
 	char *s, *d;
 	char mkdirpath[MAXPATHLEN];
 	struct stat st;
@@ -1195,14 +1196,25 @@ createdir(char *dirpart)
 
 	for (;;) {
 		*d++ = *s++;
-		if (*s == '/' || *s == '\0') {
-			*d = '\0';
-			if (lstat(mkdirpath, &st))
-				mkdir(mkdirpath, 0755);
+		if (*s != '/' && *s != '\0')
+			continue;
+		*d = '\0';
+		res = lstat(mkdirpath, &st);
+		if (res != 0) {
+			if (noaction) {
+				printf("mkdir %s\n", mkdirpath);
+			} else {
+				res = mkdir(mkdirpath, 0755);
+				if (res != 0)
+					err(1, "Error on mkdir(\"%s\") for -a",
+					    mkdirpath);
+			}
 		}
 		if (*s == '\0')
 			break;
 	}
+	if (verbose)
+		printf("created directory '%s' for -a\n", dirpart);
 }
 
 /*-
