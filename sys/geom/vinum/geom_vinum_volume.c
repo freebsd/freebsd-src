@@ -46,6 +46,7 @@ static void
 gv_volume_orphan(struct g_consumer *cp)
 {
 	struct g_geom *gp;
+	struct gv_volume *v;
 	int error;
 
 	g_topology_assert();
@@ -60,7 +61,9 @@ gv_volume_orphan(struct g_consumer *cp)
 	g_destroy_consumer(cp);	
 	if (!LIST_EMPTY(&gp->consumer))
 		return;
-	g_free(gp->softc);
+	v = gp->softc;
+	v->geom = NULL;
+	gp->softc = NULL;
 	g_wither_geom(gp, error);
 }
 

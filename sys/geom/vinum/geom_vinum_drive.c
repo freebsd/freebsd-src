@@ -264,6 +264,8 @@ static void
 gv_drive_orphan(struct g_consumer *cp)
 {
 	struct g_geom *gp;
+	struct gv_drive *d;
+	struct gv_sd *s;
 	int error;
 
 	g_topology_assert();
@@ -278,6 +280,15 @@ gv_drive_orphan(struct g_consumer *cp)
 	g_destroy_consumer(cp);	
 	if (!LIST_EMPTY(&gp->consumer))
 		return;
+	d = gp->softc;
+	printf("gvinum: lost drive '%s'\n", d->name);
+	d->geom = NULL;
+	LIST_FOREACH(s, &d->subdisks, from_drive) {
+		s->provider = NULL;
+		s->consumer = NULL;
+	}
+	gv_set_drive_state(d, GV_DRIVE_DOWN, GV_SETSTATE_FORCE);
+	gp->softc = NULL;
 	g_wither_geom(gp, error);
 }
 
