@@ -767,7 +767,7 @@ ehci_idone(struct ehci_xfer *ex)
 	struct ehci_pipe *epipe = (struct ehci_pipe *)xfer->pipe;
 	ehci_soft_qtd_t *sqtd, *lsqtd;
 	u_int32_t status = 0, nstatus = 0;
-	int actlen;
+	int actlen, cerr;
 	u_int pkts_left;
 
 	DPRINTFN(/*12*/2, ("ehci_idone: ex=%p\n", ex));
@@ -841,19 +841,19 @@ ehci_idone(struct ehci_xfer *ex)
 	    UGETW(xfer->pipe->endpoint->edesc->wMaxPacketSize);
 	epipe->nexttoggle ^= pkts_left % 2;
 
-	status &= EHCI_QTD_STATERRS;
-	DPRINTFN(/*10*/2, ("ehci_idone: len=%d, actlen=%d, status=0x%x\n",
-			   xfer->length, actlen, status));
+	cerr = EHCI_QTD_GET_CERR(status);
+	DPRINTFN(/*10*/2, ("ehci_idone: len=%d, actlen=%d, cerr=%d, "
+	    "status=0x%x\n", xfer->length, actlen, cerr, status));
 	xfer->actlen = actlen;
-	if (status != 0) {
+	if ((status & EHCI_QTD_HALTED) != 0) {
 #ifdef EHCI_DEBUG
 		char sbuf[128];
 
 		bitmask_snprintf((u_int32_t)status,
-				 "\20\7HALTED\6BUFERR\5BABBLE\4XACTERR"
-				 "\3MISSED", sbuf, sizeof(sbuf));
+		    "\20\7HALTED\6BUFERR\5BABBLE\4XACTERR"
+		    "\3MISSED\2SPLIT\1PING", sbuf, sizeof(sbuf));
 
-		DPRINTFN((status == EHCI_QTD_HALTED) ? 2 : 0,
+		DPRINTFN(2,
 			 ("ehci_idone: error, addr=%d, endpt=0x%02x, "
 			  "status 0x%s\n",
 			  xfer->pipe->device->address,
@@ -864,7 +864,7 @@ ehci_idone(struct ehci_xfer *ex)
 			ehci_dump_sqtds(ex->sqtdstart);
 		}
 #endif
-		if (status == EHCI_QTD_HALTED)
+		if ((status & EHCI_QTD_BABBLE) == 0 && cerr > 0)
 			xfer->status = USBD_STALLED;
 		else
 			xfer->status = USBD_IOERROR; /* more info XXX */
