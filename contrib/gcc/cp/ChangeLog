@@ -1,3 +1,120 @@
+2003-02-05  Release Manager
+
+	* GCC 3.2.2 Released.
+
+2003-02-03  Mark Mitchell  <mark@codesourcery.com>
+	
+	PR C++/7129
+	* operators.def: Add <?= and >?=.
+	
+2003-01-28  Christian Cornelssen  <ccorn@cs.tu-berlin.de>
+
+	* Make-lang.in (c++.install-common, c++.install-man)
+	(c++.uninstall): Prepend $(DESTDIR) to destination paths
+	in all (un)installation commands.
+	(c++.install-common): Rewrite $(LN) commands to support
+	DESTDIR with "ln" as well as with "ln -s".
+
+2003-01-22  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/9328
+	* error.c (dump_decl): For an OVERLOAD, just print the name of the
+	function; it doesn't make sense to try to print its type.
+	* semantics.c (finish_typeof): Issue errors about invalid uses.
+
+2003-01-21  Jeffrey D. Oldham  <oldham@codesourcery.com>
+
+	PR c++/47
+	* cp-tree.h (lookup_nested_field): Add declaration.
+	* decl.c (lookup_name_real): Call lookup_nested_field.
+	* search.c (lookup_nested_field): Add function.
+
+2002-12-26  Nathan Sidwell  <nathan@codesourcery.com>
+
+	PR c++/8503
+	Remove DR 295 implementation.
+	* pt.c (check_cv_quals_for_unify): Disable function & method cases.
+	* tree.c (cp_build_qualified_type_real): Likewise. Don't warn
+	about ignoring volatile qualifiers.
+
+2002-12-18  Kriang Lerdsuwanakij  <lerdsuwa@users.sourceforge.net>
+
+	* parse.y (bad_parm): Add missing argument to error function call.
+
+2002-12-18  Kriang Lerdsuwanakij  <lerdsuwa@users.sourceforge.net>
+
+	PR c++/8442
+	* decl2.c (handle_class_head): Verify if the looked up name is a
+	type or template.
+	* pt.c (convert_template_argument): Fix type or template template
+	parameter decision logic.
+
+2002-12-13  Joe Buck <jbuck@synopsys.com>
+
+	* parse.y (class_head_defn): Set CLASSTYPE_DECLARED_CLASS for
+	anonymous structs.
+
+2002-12-13  Gabriel Dos Reis  <gdr@integrable-solutions.net>
+	
+        PR C++/8031
+	* cvt.c (convert_to_pointer_force): Don't try comparing against
+	erronous type.
+
+2002-12-10  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/8372
+	* pt.c (tsubst_copy): Handle destructor names more correctly.
+
+2002-12-05  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* error.c (dump_expr): Fix format specifier warning.
+
+2002-12-04  Gabriel Dos Reis  <gdr@integrable-solutions.net>
+
+	PR C++/8799
+	* error.c (dump_expr): Don't ever try to dump a non-existent
+        expression.
+
+2002-12-02  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/8615
+	* error.c (dump_expr): Handle character constants with
+	TREE_OVERFLOW set.
+
+2002-12-01  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/5919
+	* pt.c (unify): Use variably_modified_type_p to test validity of
+	template argument types.
+
+2002-12-01  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/8727
+	* cp-tree.h (lang_type_class): Add typeinfo_var.
+	(CLASSTYPE_TYPEINFO_VAR): New macro.
+	* rtti.c (get_tinfo_decl): Use it.
+
+	PR c++/8663
+	* init.c (expand_member_init): Always get the main variant of a
+	base class.
+
+2002-12-01  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/8332
+	PR c++/8493
+	* decl.c (cxx_init_decl_processing): Use size_type_node, not
+	c_size_type_node.
+	* decl2.c (coerce_new_type): Likewise.
+	* except.c (do_allocate_exception): Likewise.
+	* typeck.c (c_sizeof): Likewise.
+	(c_sizeof_nowarn): Likewise.
+
+2002-11-30  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/8214
+	* typeck.c (convert_for_assignment): Do not use
+	decl_constant_value on the operand.
+
 2002-11-19  Release Manager
 
 	* GCC 3.2.1 Released.

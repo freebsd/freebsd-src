@@ -1,6 +1,6 @@
 /* Definitions for C++ parsing and type checking.
    Copyright (C) 1987, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002 Free Software Foundation, Inc.
+   2000, 2001, 2002, 2003 Free Software Foundation, Inc.
    Contributed by Michael Tiemann (tiemann@cygnus.com)
 
 This file is part of GNU CC.
@@ -1266,6 +1266,7 @@ struct lang_type
 
   tree primary_base;
   tree vfields;
+  tree typeinfo_var;
   tree vbases;
   tree tags;
   tree size;
@@ -1686,6 +1687,12 @@ struct lang_type
 /* Used by various search routines.  */
 #define IDENTIFIER_MARKED(NODE) TREE_LANG_FLAG_0 (NODE)
 
+/* The std::type_info variable representing this class, or NULL if no
+   such variable has been created.  This field is only set for the
+   TYPE_MAIN_VARIANT of the class.  */
+#define CLASSTYPE_TYPEINFO_VAR(NODE) \
+  (TYPE_LANG_SPECIFIC (NODE)->typeinfo_var)
+
 /* Accessor macros for the vfield slots in structures.  */
 
 /* The virtual function pointer fields that this type contains.  For a
@@ -4055,6 +4062,7 @@ extern tree get_dynamic_cast_base_type          PARAMS ((tree, tree));
 extern void type_access_control			PARAMS ((tree, tree));
 extern int accessible_p                         PARAMS ((tree, tree));
 extern tree lookup_field			PARAMS ((tree, tree, int, int));
+extern tree lookup_nested_field			PARAMS ((tree, int));
 extern int lookup_fnfields_1                    PARAMS ((tree, tree));
 extern tree lookup_fnfields			PARAMS ((tree, tree, int));
 extern tree lookup_member			PARAMS ((tree, tree, int, int));
