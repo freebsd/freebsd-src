@@ -34,7 +34,6 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
-#include <sys/mbuf.h>
 
 #include <stdlib.h>
 #include <unistd.h>
