@@ -1,12 +1,19 @@
 			SENDMAIL RELEASE NOTES
-	     @(#)RELEASE_NOTES	8.7.3.1 (Berkeley) 12/3/95
+	     @(#)RELEASE_NOTES	8.7.4.1 (Berkeley) 2/18/96
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
 
-8.7.3/8.7.3	95/12/xx
+8.7.4/8.7.3	96/02/18
+	SECURITY: In some cases it was still possible for an attacker to
+		insert newlines into a queue file, thus allowing access to
+		any user (except root).
+	CONFIG: no changes -- it is not a bug that the configuration
+		version number is unchanged.
+
+8.7.3/8.7.3	95/12/03
 	Fix botch in name server timeout in RCPT code; this problem caused
 		two responses in SMTP, which breaks things horribly.  Fix
 		from Gregory Neil Shapiro of WPI.
@@ -1461,6 +1468,13 @@ summary of the changes in that release.
 		cf/domain/cs-hidden.m4
 		contrib/rcpt-streaming
 		src/Makefiles/Makefile.SunOS.5.x
+
+8.6.13/8.6.12	95/01/25
+	SECURITY: In some cases it was still possible for an attacker to
+		insert newlines into a queue file, thus allowing access to
+		any user (except root).
+	CONFIG: no changes -- it is not a bug that the configuration
+		version number is unchanged.
 
 8.6.12/8.6.12	95/03/28
 	Fix to IDENT code (it was getting the size of the reply buffer
