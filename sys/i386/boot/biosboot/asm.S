@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:13  rpd
- *	$Id: asm.S,v 1.2 1993/10/16 19:11:27 rgrimes Exp $
+ *	$Id: asm.S,v 1.3 1994/08/30 01:38:02 bde Exp $
  */
 
 
@@ -63,88 +63,96 @@ CR0_PE_OFF	=	0xfffffffe
 	.text
 
 /*
-#
-# real_to_prot()
-# 	transfer from real mode to protected mode.
-*/
+ *
+ * real_to_prot()
+ * 	transfer from real mode to protected mode.
+ */
 
 ENTRY(real_to_prot)
-	# guarantee that interrupt is disabled when in prot mode
+	/* guarantee that interrupt is disabled when in prot mode */
 	cli
 
-	# load the gdtr
+	/* load the gdtr */
 	addr32
 	data32
 	lgdt	EXT(Gdtr)
 
-	# set the PE bit of CR0
+	/* set the PE bit of CR0 */
 	mov	%cr0, %eax
 
 	data32
 	or	$CR0_PE_ON, %eax
 	mov	%eax, %cr0 
 
-	# make intrasegment jump to flush the processor pipeline and
-	# reload CS register
+	/*
+	 * make intrasegment jump to flush the processor pipeline and
+	 * reload CS register
+	 */
 	data32
 	ljmp	$0x18, $xprot
 
 xprot:
-	# we are in USE32 mode now
-	# set up the protected mode segment registers : DS, SS, ES
+	/*
+	 * we are in USE32 mode now
+	 * set up the protected mode segment registers : DS, SS, ES
+	 */
 	mov	$0x20, %eax
 	movw	%ax, %ds
 	movw	%ax, %ss
 	movw	%ax, %es
 
 #ifdef BDE_DEBUGGER
-	# load idtr so we can debug
+	/* load idtr so we can debug */
 	lidt	EXT(Idtr_prot)
 #endif
 
 	ret
 
 /*
-#
-# prot_to_real()
-# 	transfer from protected mode to real mode
-# 
-*/
+ *
+ * prot_to_real()
+ * 	transfer from protected mode to real mode
+ * 
+ */
 
 ENTRY(prot_to_real)
 
-	# set up a dummy stack frame for the second seg change.
+	/* set up a dummy stack frame for the second seg change. */
 	movl 	_ouraddr, %eax
 	sarl	$4, %eax
 	pushw	%ax
-	movw	$xreal, %ax	# gas botches pushw $xreal - extra bytes 0, 0
-	pushw	%ax		# decode to add %al, (%eax) (%al usually 0)
+	movw	$xreal, %ax	/* gas botches pushw $xreal, extra bytes 0, 0 */
+	pushw	%ax		/* decode to add %al, (%eax) (%al usually 0) */
 
-	# Change to use16 mode.
+	/* Change to use16 mode. */
 	ljmp	$0x28, $x16
 
 x16:
-	# clear the PE bit of CR0
+	/* clear the PE bit of CR0 */
 	mov	%cr0, %eax
 	data32
 	and 	$CR0_PE_OFF, %eax
 	mov	%eax, %cr0
 
-	# make intersegment jmp to flush the processor pipeline
-	# using the fake stack frame set up earlier
-	# and reload CS register
+	/*
+	 * make intersegment jmp to flush the processor pipeline
+	 * using the fake stack frame set up earlier
+	 * and reload CS register
+	 */
 	lret
 
 xreal:
-	# we are in real mode now
-	# set up the real mode segment registers : DS, SS, ES
+	/*
+	 * we are in real mode now
+	 * set up the real mode segment registers : DS, SS, ES
+	 */
 	movw	%cs, %ax
 	movw	%ax, %ds
 	movw	%ax, %ss
 	movw	%ax, %es
 
 #ifdef BDE_DEBUGGER
-	# load idtr so we can debug
+	/* load idtr so we can debug */
 	addr32
 	data32
 	lidt	EXT(Idtr_real)
@@ -154,49 +162,47 @@ xreal:
 	ret
 
 /*
-#
-# startprog(phyaddr)
-#	start the program on protected mode where phyaddr is the entry point
-#
-*/
+ * startprog(phyaddr)
+ *	start the program on protected mode where phyaddr is the entry point
+ */
 
 ENTRY(startprog)
 	push	%ebp
 	mov	%esp, %ebp
 
-	# get things we need into registers
-	movl	0x8(%ebp), %ecx		# entry offset 
-	movl	0x0c(%ebp), %eax	# &argv
+	/* get things we need into registers */
+	movl	0x8(%ebp), %ecx		/* entry offset  */
+	movl	0x0c(%ebp), %eax	/* &argv */
 
-	# make a new stack at 0:0xa0000 (big segs)
+	/* make a new stack at 0:0xa0000 (big segs) */
 	mov	$0x10, %ebx
 	movw	%bx, %ss
 	movl	$0xa0000, %ebx
 	movl	%ebx, %esp
 	
-	# push some number of args onto the stack
-	pushl	$0			# nominally a cyl offset in the boot.
-	pushl	0x8(%eax)		# argv[2] = bootdev
-	pushl	0x4(%eax)		# argv[1] = howto
-	pushl	$0			# dummy 'return' address
+	/* push some number of args onto the stack */
+	pushl	$0			/* was a cyl offset in the boot. */
+	pushl	0x8(%eax)		/* argv[2] = bootdev */
+	pushl	0x4(%eax)		/* argv[1] = howto */
+	pushl	$0			/* dummy 'return' address */
 	
-	# push on our entry address
-	mov	$0x08, %ebx		# segment
+	/* push on our entry address */
+	mov	$0x08, %ebx		/* segment */
 	pushl	%ebx
 	pushl	%ecx
 
-	# convert over the other data segs
+	/* convert over the other data segs */
 	mov	$0x10, %ebx
 	movw	%bx, %ds
 	movw	%bx, %es
 
-	# convert the PC (and code seg)
+	/* convert the PC (and code seg) */
 	lret
 /*
-#
-# pbzero( dst, cnt)
-#	where src is a virtual address and dst is a physical address
-*/
+ *
+ * pbzero( dst, cnt)
+ *	where src is a virtual address and dst is a physical address
+ */
 
 ENTRY(pbzero)
 	push	%ebp
@@ -208,13 +214,13 @@ ENTRY(pbzero)
 
 	cld
 
-	# set %es to point at the flat segment
+	/* set %es to point at the flat segment */
 	mov	$0x10, %eax
 	movw	%ax, %es
 
-	mov	0x8(%ebp), %edi		# destination
-	mov	0xc(%ebp), %ecx		# count
-	mov	$0x0, %eax		# value
+	mov	0x8(%ebp), %edi		/* destination */
+	mov	0xc(%ebp), %ecx		/* count */
+	mov	$0x0, %eax		/* value */
 
 	rep
 	stosb
@@ -227,11 +233,9 @@ ENTRY(pbzero)
 
 	ret
 /*
-#
-# pcpy(src, dst, cnt)
-#	where src is a virtual address and dst is a physical address
-#
-*/
+ * pcpy(src, dst, cnt)
+ *	where src is a virtual address and dst is a physical address
+ */
 
 ENTRY(pcpy)
 	push	%ebp
@@ -243,13 +247,13 @@ ENTRY(pcpy)
 
 	cld
 
-	# set %es to point at the flat segment
+	/* set %es to point at the flat segment */
 	mov	$0x10, %eax
 	movw	%ax, %es
 
-	mov	0x8(%ebp), %esi		# source
-	mov	0xc(%ebp), %edi		# destination
-	mov	0x10(%ebp), %ecx	# count
+	mov	0x8(%ebp), %esi		/* source */
+	mov	0xc(%ebp), %edi		/* destination */
+	mov	0x10(%ebp), %ecx	/* count */
 
 	rep
 	movsb
