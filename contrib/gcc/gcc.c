@@ -2098,7 +2098,7 @@ pexecute (search_flag, program, argv, not_last)
       /* Exec the program.  */
       (*func) (program, argv);
       perror_exec (program);
-      exit (-1);
+      _exit (1);
       /* NOTREACHED */
       return 0;
 
