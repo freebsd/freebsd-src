@@ -762,13 +762,14 @@ sioprobe(dev, xrid, noprobe)
 
 	irqs = irqmap[1] & ~irqmap[0];
 	if (bus_get_resource(idev, SYS_RES_IRQ, 0, &xirq, NULL) == 0 &&
-	    ((1 << xirq) & irqs) == 0)
+	    ((1 << xirq) & irqs) == 0) {
 		printf(
 		"sio%d: configured irq %ld not in bitmap of probed irqs %#x\n",
 		    device_get_unit(dev), xirq, irqs);
 		printf(
 		"sio%d: port may not be enabled in BIOS\n",
 		    device_get_unit(dev));
+	}
 	if (bootverbose)
 		printf("sio%d: irq maps: %#x %#x %#x %#x\n",
 		    device_get_unit(dev),
