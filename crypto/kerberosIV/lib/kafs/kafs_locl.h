@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998, 1999 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -36,13 +36,14 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: kafs_locl.h,v 1.3 1997/05/04 23:04:44 assar Exp $ */
+/* $Id: kafs_locl.h,v 1.12.2.1 1999/07/22 03:22:05 assar Exp $ */
 
 #ifndef __KAFS_LOCL_H__
 #define __KAFS_LOCL_H__
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
-#include <protos.h>
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,7 +58,7 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#if defined(HAVE_SYS_IOCTL_H) && SunOS != 4
+#if defined(HAVE_SYS_IOCTL_H) && SunOS != 40
 #include <sys/ioctl.h>
 #endif
 #ifdef HAVE_SYS_FILIO_H
@@ -73,6 +74,13 @@
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
+#ifdef HAVE_NETINET_IN6_H
+#include <netinet/in6.h>
+#endif
+#ifdef HAVE_NETINET6_IN6_H
+#include <netinet6/in6.h>
+#endif
+
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif
@@ -85,12 +93,45 @@
 #endif
 #include <roken.h>
 
+#ifdef KRB5
+#include <krb5.h>
+#endif
+#ifdef KRB4
 #include <krb.h>
+#endif
 #include <kafs.h>
 
 #include <resolve.h>
 
 #include "afssysdefs.h"
 
+struct kafs_data;
+typedef int (*afslog_uid_func_t)(struct kafs_data*, const char*, uid_t,
+				 const char *);
+
+typedef int (*get_cred_func_t)(struct kafs_data*, const char*, const char*, 
+				    const char*, CREDENTIALS*);
+
+typedef char* (*get_realm_func_t)(struct kafs_data*, const char*);
+
+typedef struct kafs_data {
+    afslog_uid_func_t afslog_uid;
+    get_cred_func_t get_cred;
+    get_realm_func_t get_realm;
+    void *data;
+} kafs_data;
+
+int _kafs_afslog_all_local_cells(kafs_data*, uid_t, const char*);
+
+int _kafs_get_cred(kafs_data*, const char*, const char*, const char *, 
+		  CREDENTIALS*);
+
+int
+_kafs_realm_of_cell(kafs_data *data, const char *cell, char **realm);
+
+#ifdef _AIX
+int aix_pioctl(char*, int, struct ViceIoctl*, int);
+int aix_setpag(void);
+#endif
 
 #endif /* __KAFS_LOCL_H__ */

@@ -21,9 +21,24 @@ or implied warranty.
 
 #include "krb_locl.h"
 
-RCSID("$Id: debug_decl.c,v 1.6 1997/03/23 03:53:07 joda Exp $");
+RCSID("$Id: debug_decl.c,v 1.10 1999/06/16 15:10:38 joda Exp $");
 
 /* Declare global debugging variables. */
 
 int krb_ap_req_debug = 0;
 int krb_debug = 0;
+int krb_dns_debug = 0;
+
+int
+krb_enable_debug(void)
+{
+    krb_ap_req_debug = krb_debug = krb_dns_debug = 1;
+    return 0;
+}
+
+int
+krb_disable_debug(void)
+{
+    krb_ap_req_debug = krb_debug = krb_dns_debug = 0;
+    return 0;
+}

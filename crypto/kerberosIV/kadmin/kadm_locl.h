@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: kadm_locl.h,v 1.25 1997/05/20 18:40:43 bg Exp $ */
+/* $Id: kadm_locl.h,v 1.30 1998/11/18 19:44:05 assar Exp $ */
 
 #include "config.h"
 #include "protos.h"
@@ -94,6 +94,9 @@
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
 
 #ifdef HAVE_SYSLOG_H
 #include <syslog.h>
@@ -103,6 +106,9 @@
 
 #ifdef SOCKS
 #include <socks.h>
+/* This doesn't belong here. */
+struct tm *localtime(const time_t *);
+struct hostent  *gethostbyname(const char *);
 #endif
 
 #include <roken.h>
@@ -118,6 +124,8 @@
 #include <kadm_err.h>
 #include <acl.h>
 
+#include <krb_log.h>
+
 #include "kadm_server.h"
 #include "pw_check.h"
 
@@ -129,20 +137,23 @@ extern char *acldir;
 extern Kadm_Server server_parm;
 
 /* Utils */
-int kadm_change __P((char *, char *, char *, des_cblock));
-int kadm_add_entry __P((char *, char *, char *, Kadm_vals *, Kadm_vals *));
-int kadm_mod_entry __P((char *, char *, char *, Kadm_vals *, Kadm_vals *, Kadm_vals *));
-int kadm_get_entry __P((char *, char *, char *, Kadm_vals *, u_char *, Kadm_vals *));
-int kadm_delete_entry __P((char *, char *, char *, Kadm_vals *));
-int kadm_ser_cpw __P((u_char *, int, AUTH_DAT *, u_char **, int *));
-int kadm_ser_add __P((u_char *, int, AUTH_DAT *, u_char **, int *));
-int kadm_ser_mod __P((u_char *, int, AUTH_DAT *, u_char **, int *));
-int kadm_ser_get __P((u_char *, int, AUTH_DAT *, u_char **, int *));
-int kadm_ser_delete __P((u_char *, int, AUTH_DAT *, u_char **, int *));
-int kadm_ser_init __P((int inter, char realm[]));
-int kadm_ser_in __P((u_char **, int *));
+int kadm_change (char *, char *, char *, des_cblock);
+int kadm_add_entry (char *, char *, char *, Kadm_vals *, Kadm_vals *);
+int kadm_mod_entry (char *, char *, char *, Kadm_vals *, Kadm_vals *, Kadm_vals *);
+int kadm_get_entry (char *, char *, char *, Kadm_vals *, u_char *, Kadm_vals *);
+int kadm_delete_entry (char *, char *, char *, Kadm_vals *);
+int kadm_ser_cpw (u_char *, int, AUTH_DAT *, u_char **, int *);
+int kadm_ser_add (u_char *, int, AUTH_DAT *, u_char **, int *);
+int kadm_ser_mod (u_char *, int, AUTH_DAT *, u_char **, int *);
+int kadm_ser_get (u_char *, int, AUTH_DAT *, u_char **, int *);
+int kadm_ser_delete (u_char *, int, AUTH_DAT *, u_char **, int *);
+int kadm_ser_init (int inter, char realm[], struct in_addr);
+int kadm_ser_in (u_char **, int *, u_char *);
 
-int get_pw_new_pwd  __P((char *pword, int pwlen, krb_principal *pr, int print_realm));
+int get_pw_new_pwd  (char *pword, int pwlen, krb_principal *pr, int print_realm);
 
 /* cracklib */
-char *FascistCheck __P((char *password, char *path, char **strings));
+char *FascistCheck (char *password, char *path, char **strings);
+
+void
+random_password(char *pw, size_t len, u_int32_t *low, u_int32_t *high);

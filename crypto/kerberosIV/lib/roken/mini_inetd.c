@@ -38,8 +38,10 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: mini_inetd.c,v 1.10 1997/05/02 14:30:07 assar Exp $");
+RCSID("$Id: mini_inetd.c,v 1.13 1998/02/05 22:54:33 assar Exp $");
 #endif
+
+#include <stdio.h>
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -53,6 +55,13 @@ RCSID("$Id: mini_inetd.c,v 1.10 1997/05/02 14:30:07 assar Exp $");
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
+#ifdef HAVE_NETINET_IN6_H
+#include <netinet/in6.h>
+#endif
+#ifdef HAVE_NETINET6_IN6_H
+#include <netinet6/in6.h>
+#endif
+
 
 #include <roken.h>
 
@@ -60,18 +69,23 @@ void
 mini_inetd (int port)
 {
      struct sockaddr_in sa;
-     int s = socket(AF_INET, SOCK_STREAM, 0);
+     int s;
      int s2;
-     int one = 1;
-     if(s < 0){
+
+     s = socket(AF_INET, SOCK_STREAM, 0);
+     if(s < 0) {
 	  perror("socket");
 	  exit(1);
      }
 #if defined(SO_REUSEADDR) && defined(HAVE_SETSOCKOPT)
-     if(setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (void *)&one,
-		   sizeof(one)) < 0){
-	  perror("setsockopt");
-	  exit(1);
+     {
+	 int one = 1;
+
+	 if(setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (void *)&one,
+		       sizeof(one)) < 0){
+	     perror("setsockopt");
+	     exit(1);
+	 }
      }
 #endif
      memset(&sa, 0, sizeof(sa));

@@ -1,4 +1,4 @@
-.\" $Id: kerberos.1,v 1.2 1996/06/12 21:29:16 bg Exp $
+.\" $Id: kerberos.1,v 1.3 1997/11/07 12:37:34 bg Exp $
 .\" Copyright 1989 by the Massachusetts Institute of Technology.
 .\"
 .\" For copying and distribution information,
@@ -171,13 +171,13 @@ Kerberos
 supports the following network services:
 .IR rlogin ,
 .IR rsh ,
+.IR rcp ,
+.IR pop ,
+.IR ftp ,
+.IR telnet ,
+.IR AFS
 and
-.IR rcp .
-Other services are being worked on,
-such as the
-.IR pop
-mail system and NFS (network file system),
-but are not yet available.
+.IR NFS.
 
 .SH "SEE ALSO"
 kdestroy(1), kinit(1), klist(1), kpasswd(1), des_crypt(3), kerberos(3),

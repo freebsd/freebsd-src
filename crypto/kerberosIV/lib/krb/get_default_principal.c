@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998, 1999 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -38,14 +38,13 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: get_default_principal.c,v 1.10 1997/04/01 08:18:28 joda Exp $");
+RCSID("$Id: get_default_principal.c,v 1.12 1999/03/13 21:24:51 assar Exp $");
 
 int
 krb_get_default_principal(char *name, char *instance, char *realm)
 {
   char *file;
   int ret;
-
   char *p;
 
   if ((file = getenv("KRBTKFILE")) == NULL)
@@ -58,7 +57,6 @@ krb_get_default_principal(char *name, char *instance, char *realm)
   p = getenv("KRB4PRINCIPAL");
   if(p && kname_parse(name, instance, realm, p) == KSUCCESS)
       return 1;
-      
 
 #ifdef HAVE_PWD_H
   {
@@ -68,11 +66,11 @@ krb_get_default_principal(char *name, char *instance, char *realm)
       return -1;
     }
 
-    strcpy(name, pw->pw_name);
-    strcpy(instance, "");
+    strcpy_truncate (name, pw->pw_name, ANAME_SZ);
+    strcpy_truncate (instance, "", INST_SZ);
     krb_get_lrealm(realm, 1);
 
-    if(strcmp(name, "root") == 0){
+    if(strcmp(name, "root") == 0) {
       p = NULL;
 #if defined(HAVE_GETLOGIN) && !defined(POSIX_GETLOGIN)
       p = getlogin();
@@ -82,13 +80,13 @@ krb_get_default_principal(char *name, char *instance, char *realm)
       if(p == NULL)
 	p = getenv("LOGNAME");
       if(p){
-	strncpy (name, p, ANAME_SZ);
-	name[ANAME_SZ - 1] = '\0';
-	strcpy(instance, "root");
+	  strcpy_truncate (name, p, ANAME_SZ);
+	  strcpy_truncate (instance, "root", INST_SZ);
       }
     }
     return 1;
   }
-#endif
+#else
   return -1;
+#endif
 }

@@ -1,4 +1,4 @@
-/* 
+/*
   Copyright (C) 1989 by the Massachusetts Institute of Technology
 
    Export of this software from the United States of America is assumed
@@ -30,7 +30,7 @@ or implied warranty.
 
 #include "kadm_locl.h"
 
-RCSID("$Id: admin_server.c,v 1.41 1997/05/27 15:52:53 bg Exp $");
+RCSID("$Id: admin_server.c,v 1.47 1999/07/07 12:41:07 assar Exp $");
 
 /* Almost all procs and such need this, so it is global */
 admin_params prm;		/* The command line parameters struct */
@@ -40,7 +40,7 @@ char *acldir = DEFAULT_ACL_DIR;
 static char krbrlm[REALM_SZ];
 
 static unsigned pidarraysize = 0;
-static int *pidarray = (int *)0;
+static int *pidarray = NULL;
 
 static int exit_now = 0;
 
@@ -138,15 +138,19 @@ process_client(int fd, struct sockaddr_in *who)
     int dat_len;
     u_short dlen;
     int retval;
-    int on = 1;
     Principal service;
     des_cblock skey;
     int more;
     int status;
 
 #if defined(SO_KEEPALIVE) && defined(HAVE_SETSOCKOPT)
-    if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&on, sizeof(on)) < 0)
-	krb_log("setsockopt keepalive: %d",errno);
+    {
+	int on = 1;
+	    
+	if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE,
+		       (void *)&on, sizeof(on)) < 0)
+	    krb_log("setsockopt keepalive: %d",errno);
+    }
 #endif
 
     server_parm.recv_addr = *who;
@@ -158,18 +162,20 @@ process_client(int fd, struct sockaddr_in *who)
     /* need to set service key to changepw.KRB_MASTER */
 
     status = kerb_get_principal(server_parm.sname, server_parm.sinst, &service,
-			    1, &more);
+				1, &more);
     if (status == -1) {
       /* db locked */
-      int32_t retcode = KADM_DB_INUSE;
       char *pdat;
       
-      dat_len = KADM_VERSIZE + sizeof(retcode);
-      dat = (u_char *) malloc((unsigned)dat_len);
+      dat_len = KADM_VERSIZE + 4;
+      dat = (u_char *) malloc(dat_len);
+      if (dat == NULL) {
+	  krb_log("malloc failed");
+	  cleanexit(4);
+      }
       pdat = (char *) dat;
-      retcode = htonl((u_int32_t) KADM_DB_INUSE);
-      strncpy(pdat, KADM_ULOSE, KADM_VERSIZE);
-      memcpy(pdat+KADM_VERSIZE, &retcode, sizeof(retcode));
+      memcpy(pdat, KADM_ULOSE, KADM_VERSIZE);
+      krb_put_int (KADM_DB_INUSE, pdat + KADM_VERSIZE, 4, 4);
       goto out;
     } else if (!status) {
       krb_log("no service %s.%s",server_parm.sname, server_parm.sinst);
@@ -185,6 +191,15 @@ process_client(int fd, struct sockaddr_in *who)
     memset(skey, 0, sizeof(skey));
 
     while (1) {
+	void *errpkt;
+
+	errpkt = malloc(KADM_VERSIZE + 4);
+	if (errpkt == NULL) {
+	    krb_log("malloc: no memory");
+	    close(fd);
+	    cleanexit(4);
+	}
+
 	if ((retval = krb_net_read(fd, &dlen, sizeof(u_short))) !=
 	    sizeof(u_short)) {
 	    if (retval < 0)
@@ -199,7 +214,7 @@ process_client(int fd, struct sockaddr_in *who)
 	}
 	dat_len = ntohs(dlen);
 	dat = (u_char *) malloc(dat_len);
-	if (!dat) {
+	if (dat == NULL) {
 	    krb_log("malloc: No memory");
 	    close(fd);
 	    cleanexit(4);
@@ -215,7 +230,7 @@ process_client(int fd, struct sockaddr_in *who)
     	if (exit_now) {
 	    cleanexit(0);
 	}
-	if ((retval = kadm_ser_in(&dat,&dat_len)) != KADM_SUCCESS)
+	if ((retval = kadm_ser_in(&dat, &dat_len, errpkt)) != KADM_SUCCESS)
 	    krb_log("processing request: %s", error_message(retval));
     
 	/* kadm_ser_in did the processing and returned stuff in
@@ -307,6 +322,8 @@ kadm_listen(void)
 #ifndef DEBUG
 	    /* if you want a sep daemon for each server */
 	    if ((pid = fork())) {
+		void *tmp;
+
 		/* parent */
 		if (pid < 0) {
 		    krb_log("fork: %s",error_message(errno));
@@ -315,12 +332,14 @@ kadm_listen(void)
 		}
 		/* fork succeded: keep tabs on child */
 		close(peer_fd);
-		if (pidarray) {
-		    pidarray = (int *)realloc(pidarray, ++pidarraysize);
-		    pidarray[pidarraysize-1] = pid;
+		tmp = realloc(pidarray,
+			      (pidarraysize + 1) * sizeof(*pidarray));
+		if(tmp == NULL) {
+		    krb_log ("malloc: no memory. pid %u on its own",
+			     (unsigned)pid);
 		} else {
-		    pidarray = (int *)malloc(pidarraysize = 1);
-		    pidarray[0] = pid;
+		    pidarray = tmp;
+		    pidarray[pidarraysize++] = pid;
 		}
 	    } else {
 		/* child */
@@ -356,18 +375,20 @@ main(int argc, char **argv)		/* admin_server main routine */
 {
     int errval;
     int c;
+    struct in_addr i_addr;
 
     set_progname (argv[0]);
 
     umask(077);		/* Create protected files */
 
+    i_addr.s_addr = INADDR_ANY;
     /* initialize the admin_params structure */
     prm.sysfile = KADM_SYSLOG;		/* default file name */
     prm.inter = 0;
 
     memset(krbrlm, 0, sizeof(krbrlm));
 
-    while ((c = getopt(argc, argv, "f:hmnd:a:r:")) != EOF)
+    while ((c = getopt(argc, argv, "f:hmnd:a:r:i:")) != EOF)
 	switch(c) {
 	case 'f':			/* Syslog file name change */
 	    prm.sysfile = optarg;
@@ -388,15 +409,22 @@ main(int argc, char **argv)		/* admin_server main routine */
 		      optarg, error_message(errval));
 	    break;
 	case 'r':
-	    strncpy(krbrlm, optarg, sizeof(krbrlm) - 1);
+	    strcpy_truncate (krbrlm, optarg, sizeof(krbrlm));
+	    break;
+	case 'i':
+	    /* Only listen on this address */
+	    if(inet_aton (optarg, &i_addr) == 0) {
+		fprintf (stderr, "Bad address: %s\n", optarg);
+		exit (1);
+	    }
 	    break;
 	case 'h':			/* get help on using admin_server */
 	default:
-	    errx(1, "Usage: kadmind [-h] [-n] [-m] [-r realm] [-d dbname] [-f filename] [-a acldir]");
+	    errx(1, "Usage: kadmind [-h] [-n] [-m] [-r realm] [-d dbname] [-f filename] [-a acldir] [-i address_to_listen_on]");
 	}
 
     if (krbrlm[0] == 0)
-	if (krb_get_lrealm(krbrlm, 0) != KSUCCESS)
+	if (krb_get_lrealm(krbrlm, 1) != KSUCCESS)
 	    errx (1, "Unable to get local realm.  Fix krb.conf or use -r.");
 
     printf("KADM Server %s initializing\n",KADM_VERSTR);
@@ -414,7 +442,7 @@ main(int argc, char **argv)		/* admin_server main routine */
 	byebye();
     }
     /* set up the server_parm struct */
-    if ((errval = kadm_ser_init(prm.inter, krbrlm))==KADM_SUCCESS) {
+    if ((errval = kadm_ser_init(prm.inter, krbrlm, i_addr))==KADM_SUCCESS) {
 	kerb_fini();			/* Close the Kerberos database--
 					   will re-open later */
 	errval = kadm_listen();		/* listen for calls to server from

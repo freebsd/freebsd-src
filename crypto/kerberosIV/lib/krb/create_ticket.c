@@ -38,7 +38,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: create_ticket.c,v 1.12 1997/04/01 08:18:21 joda Exp $");
+RCSID("$Id: create_ticket.c,v 1.13 1998/06/09 19:25:17 joda Exp $");
 
 /*
  * Create ticket takes as arguments information that should be in a
@@ -103,21 +103,52 @@ krb_create_ticket(KTEXT tkt,	/* Gets filled in by the ticket */
 		  des_cblock *key) /* Service's secret key */
 {
     unsigned char *p = tkt->dat;
+    int tmp;
+    size_t rem = sizeof(tkt->dat);
 
     memset(tkt, 0, sizeof(KTEXT_ST));
 
-    p += krb_put_int(flags, p, 1);
-    p += krb_put_nir(pname, pinstance, prealm, p);
+    tmp = krb_put_int(flags, p, rem, 1);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
+
+    tmp = krb_put_nir(pname, pinstance, prealm, p, rem);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
     
-    p += krb_put_address(paddress, p);
+    tmp = krb_put_address(paddress, p, rem);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
     
+    if (rem < 8)
+	return KFAILURE;
     memcpy(p, session, 8);
     p += 8;
+    rem -= 8;
 
-    p += krb_put_int(life, p, 1);
-    p += krb_put_int(time_sec, p, 4);
+    tmp = krb_put_int(life, p, rem, 1);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
 
-    p += krb_put_nir(sname, sinstance, NULL, p);
+    tmp = krb_put_int(time_sec, p, rem, 4);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
+
+    tmp = krb_put_nir(sname, sinstance, NULL, p, rem);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
 
     /* multiple of eight bytes */
     tkt->length = (p - tkt->dat + 7) & ~7;

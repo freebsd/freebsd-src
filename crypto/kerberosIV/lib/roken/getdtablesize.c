@@ -38,12 +38,14 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: getdtablesize.c,v 1.8 1997/04/20 05:51:06 assar Exp $");
+RCSID("$Id: getdtablesize.c,v 1.9 1997/07/11 20:20:26 assar Exp $");
 #endif
 
 #include "roken.h"
 
+#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
+#endif
 #ifdef TIME_WITH_SYS_TIME
 #include <sys/time.h>
 #include <time.h>
@@ -55,7 +57,9 @@ RCSID("$Id: getdtablesize.c,v 1.8 1997/04/20 05:51:06 assar Exp $");
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>

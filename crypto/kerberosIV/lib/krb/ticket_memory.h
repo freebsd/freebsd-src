@@ -40,7 +40,7 @@
  * Author: d93-jka@nada.kth.se - June 1996
  */
 
-/* $Id: ticket_memory.h,v 1.6 1997/04/20 06:25:12 assar Exp $ */
+/* $Id: ticket_memory.h,v 1.7 1998/06/03 02:31:05 joda Exp $ */
 
 #ifndef	TICKET_MEMORY_H
 #define TICKET_MEMORY_H
@@ -56,6 +56,7 @@ typedef struct _tktmem
   char pinst[INST_SZ];	/* Principal's instance */
   int last_cred_no;
   CREDENTIALS cred_vec[CRED_VEC_SZ];
+  time_t kdc_diff;
 } tktmem;
 
 int newTktMem(const char *tf_name);

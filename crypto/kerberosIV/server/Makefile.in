@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.24 1997/05/02 17:52:00 assar Exp $
+# $Id: Makefile.in,v 1.30 1999/03/10 19:01:17 joda Exp $
 
 SHELL = /bin/sh
 
@@ -6,10 +6,12 @@ srcdir = @srcdir@
 VPATH = @srcdir@
 
 CC = @CC@
+LINK = @LINK@
 AR = ar
 RANLIB = @RANLIB@
 DEFS = @DEFS@
-CFLAGS = @CFLAGS@
+CFLAGS = @CFLAGS@ $(WFLAGS)
+WFLAGS = @WFLAGS@
 LD_FLAGS = @LD_FLAGS@
 
 INSTALL = @INSTALL@
@@ -38,17 +40,17 @@ Wall:
 	make CFLAGS="-g -Wall -Wno-comment -Wmissing-prototypes -Wmissing-declarations -D__USE_FIXED_PROTOTYPES__"
 
 .c.o:
-	$(CC) -c $(CPPFLAGS) $(DEFS) -I../include -I$(srcdir) $(CFLAGS) $<
+	$(CC) -c $(DEFS) -I../include -I$(srcdir) $(CPPFLAGS) $(CFLAGS) $<
 
 install: all
-	$(MKINSTALLDIRS) $(libexecdir)
+	$(MKINSTALLDIRS) $(DESTDIR)$(libexecdir)
 	for x in $(PROGS); do \
-	  $(INSTALL_PROGRAM) $$x $(libexecdir)/`echo $$x | sed '$(transform)'`; \
+	  $(INSTALL_PROGRAM) $$x $(DESTDIR)$(libexecdir)/`echo $$x | sed '$(transform)'`; \
 	done
 
 uninstall:
 	for x in $(PROGS); do \
-	  rm -f $(libexecdir)/`echo $$x | sed '$(transform)'`; \
+	  rm -f $(DESTDIR)$(libexecdir)/`echo $$x | sed '$(transform)'`; \
 	done
 
 TAGS: $(SOURCES)
@@ -67,13 +69,9 @@ distclean: clean
 realclean: distclean
 	rm -f TAGS
 
-dist: $(DISTFILES)
-	for file in $(DISTFILES); do \
-	  ln $$file ../`cat ../.fname`/lib \
-	    || cp -p $$file ../`cat ../.fname`/lib; \
-	done
-
 kerberos$(EXECSUFFIX): kerberos.o
-	$(CC) $(LD_FLAGS) $(LDFLAGS) -o $@ kerberos.o -L../lib/kdb -lkdb -L../lib/krb -lkrb -L../lib/des -ldes -L../lib/roken -lroken $(LIB_DBM) $(LIBS) -lroken
+	$(LINK) $(LD_FLAGS) $(LDFLAGS) -o $@ kerberos.o -L../lib/kdb -lkdb -L../lib/krb -lkrb -L../lib/des -ldes -L../lib/roken -lroken $(LIB_DBM) $(LIBS) -lroken
 
 $(OBJECTS): ../include/config.h
+
+.PHONY: all Wall install uninstall check clean mostlyclean distclean realclean

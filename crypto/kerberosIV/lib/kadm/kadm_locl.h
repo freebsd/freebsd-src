@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: kadm_locl.h,v 1.9 1997/05/20 18:40:44 bg Exp $ */
+/* $Id: kadm_locl.h,v 1.11 1998/10/05 13:56:42 joda Exp $ */
 
 #include "config.h"
 #include "protos.h"
@@ -44,6 +44,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -66,6 +67,9 @@
 
 #ifdef SOCKS
 #include <socks.h>
+/* This doesn't belong here. */
+struct tm *localtime(const time_t *);
+struct hostent  *gethostbyname(const char *);
 #endif
 
 #include <roken.h>

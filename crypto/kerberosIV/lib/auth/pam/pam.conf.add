@@ -1,0 +1,13 @@
+# To get this to work, you will have to add entries to /etc/pam.conf
+#
+# To make login kerberos-aware, you might change pam.conf to look
+# like:
+
+# login authorization
+login   auth       sufficient   /lib/security/pam_krb4.so
+login   auth       required     /lib/security/pam_securetty.so
+login   auth       required     /lib/security/pam_unix_auth.so
+login   account    required     /lib/security/pam_unix_acct.so
+login   password   required     /lib/security/pam_unix_passwd.so
+login   session    required     /lib/security/pam_krb4.so
+login   session    required     /lib/security/pam_unix_session.so

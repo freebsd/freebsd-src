@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 1999 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: xdbm.h,v 1.2 1997/04/01 08:19:16 joda Exp $ */
+/* $Id: xdbm.h,v 1.3 1999/05/08 02:25:22 assar Exp $ */
 
 /* Generic *dbm include file */
 
@@ -49,6 +49,9 @@
 #include <dbm.h>
 #elif defined(HAVE_RPCSVC_DBM_H)
 #include <rpcsvc/dbm.h>
+#elif defined(HAVE_DB_H)
+#define DB_DBM_HSEARCH 1
+#include <db.h>
 #endif
 
 /* Macros to convert ndbm names to dbm names.

@@ -21,7 +21,7 @@ or implied warranty.
 
 #include "krb_locl.h"
 
-RCSID("$Id: mk_err.c,v 1.6 1997/03/23 03:53:14 joda Exp $");
+RCSID("$Id: mk_err.c,v 1.7 1998/06/09 19:25:22 joda Exp $");
 
 /*
  * This routine creates a general purpose error reply message.  It
@@ -47,10 +47,11 @@ int32_t
 krb_mk_err(u_char *p, int32_t e, char *e_string)
 {
     unsigned char *start = p;
-    p += krb_put_int(KRB_PROT_VERSION, p, 1);
-    p += krb_put_int(AUTH_MSG_APPL_ERR, p, 1);
     
-    p += krb_put_int(e, p, 4);
-    p += krb_put_string(e_string, p);
+    p += krb_put_int(KRB_PROT_VERSION, p, 1, 1);
+    p += krb_put_int(AUTH_MSG_APPL_ERR, p, 1, 1);
+    
+    p += krb_put_int(e, p, 4, 4);
+    p += krb_put_string(e_string, p, strlen(e_string) + 1);
     return p - start;
 }

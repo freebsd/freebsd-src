@@ -1,5 +1,5 @@
 #
-# $Id: inetd.conf.changes,v 1.12 1996/10/27 11:58:02 bg Exp $
+# $Id: inetd.conf.changes,v 1.13 1997/09/03 15:48:23 bg Exp $
 #
 # Turn off vanilla rshd and rlogind with an informational message.
 # If you really want this security problem remove the '-v' option!
@@ -18,7 +18,7 @@ eklogin	stream	tcp nowait root	/usr/athena/libexec/rlogind rlogind -k -x
 # Kerberized telnet and ftp, consider adding '-a user' to
 # disallow cleartext passwords to both telnetd and ftpd.
 telnet	stream	tcp nowait root /usr/athena/libexec/telnetd telnetd -a none
-ftp	stream	tcp nowait root	/usr/athena/libexec/ftpd ftpd -a none
+ftp	stream	tcp nowait root	/usr/athena/libexec/ftpd ftpd -l -a none
 #
 # Kerberized POP. Server principal is pop.hostname, *not* rcmd.hostname!
 #kpop	stream	tcp nowait root	/usr/athena/libexec/popper popper -k

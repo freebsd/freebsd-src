@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998, 1999 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -38,12 +38,19 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: getaddrs.c,v 1.19 1997/04/01 08:18:29 joda Exp $");
+RCSID("$Id: getaddrs.c,v 1.26.2.1 1999/07/22 03:15:33 assar Exp $");
 
-#if defined(HAVE_SYS_IOCTL_H) && SunOS != 4
+#if defined(HAVE_SYS_IOCTL_H) && SunOS != 40
 #include <sys/ioctl.h>
 #endif
 #ifdef HAVE_NET_IF_H
+#ifdef __osf__
+struct rtentry;
+struct mbuf;
+#endif
+#ifdef _AIX
+#undef __P /* XXX hack for AIX 4.3 */
+#endif
 #include <net/if.h>
 #endif
 
@@ -62,7 +69,7 @@ k_get_all_addrs (struct in_addr **l)
      char name[MaxHostNameLen];
      struct hostent *he;
 
-     if (k_gethostname(name, sizeof(name)) < 0)
+     if (gethostname(name, sizeof(name)) < 0)
 	  return -1;
      he = gethostbyname (name);
      if (he == NULL)
@@ -74,57 +81,75 @@ k_get_all_addrs (struct in_addr **l)
      return 1;
 #else
      int fd;
-     char buf[BUFSIZ];
+     char *inbuf = NULL;
+     size_t in_len = 8192;
      struct ifreq ifreq;
      struct ifconf ifconf;
      int num, j;
      char *p;
+     size_t sz;
 
+     *l = NULL;
      fd = socket(AF_INET, SOCK_DGRAM, 0);
      if (fd < 0)
 	  return -1;
 
-     ifconf.ifc_len = sizeof(buf);
-     ifconf.ifc_buf = buf;
-     if(ioctl(fd, SIOCGIFCONF, &ifconf) < 0)
-	  return -1;
+     for(;;) {
+	 void *tmp;
+
+	 tmp = realloc (inbuf, in_len);
+	 if (tmp == NULL)
+	     goto fail;
+	 inbuf = tmp;
+
+	 ifconf.ifc_len = in_len;
+	 ifconf.ifc_buf = inbuf;
+
+	 if(ioctl(fd, SIOCGIFCONF, &ifconf) < 0)
+	     goto fail;
+	 if(ifconf.ifc_len + sizeof(ifreq) < in_len)
+	     break;
+	 in_len *= 2;
+     }
      num = ifconf.ifc_len / sizeof(struct ifreq);
      *l = malloc(num * sizeof(struct in_addr));
-     if(*l == NULL) {
-	  close (fd);
-	  return -1;
-     }
+     if(*l == NULL)
+	 goto fail;
 
      j = 0;
      ifreq.ifr_name[0] = '\0';
-     for (p = ifconf.ifc_buf; p < ifconf.ifc_buf + ifconf.ifc_len;) {
+     for (p = ifconf.ifc_buf; p < ifconf.ifc_buf + ifconf.ifc_len; p += sz) {
           struct ifreq *ifr = (struct ifreq *)p;
-#ifdef SOCKADDR_HAS_SA_LEN
-	  size_t sz = sizeof(ifr->ifr_name) + ifr->ifr_addr.sa_len;
-#else
-	  size_t sz = sizeof(*ifr);
+	  sz = sizeof(*ifr);
+#ifdef HAVE_STRUCT_SOCKADDR_SA_LEN
+	  sz = max(sz, sizeof(ifr->ifr_name) + ifr->ifr_addr.sa_len);
 #endif
+
 	  if(strncmp(ifreq.ifr_name, ifr->ifr_name, sizeof(ifr->ifr_name))) {
-	       if(ioctl(fd, SIOCGIFFLAGS, ifr) < 0) {
-		    close (fd);
-		    free (*l);
-		    return -1;
+	      if(ioctl(fd, SIOCGIFFLAGS, ifr) < 0)
+		  continue;
+	      if (ifr->ifr_flags & IFF_UP) {
+		  if(ioctl(fd, SIOCGIFADDR, ifr) < 0) 
+		      continue;
+		  (*l)[j++] = ((struct sockaddr_in *)&ifr->ifr_addr)->sin_addr;
 	       }
-	       if (ifr->ifr_flags & IFF_UP) {
-		    if(ioctl(fd, SIOCGIFADDR, ifr) < 0) {
-			 close (fd);
-			 free (*l);
-			 return -1;
-		    }
-		    (*l)[j++] = ((struct sockaddr_in *)&ifr->ifr_addr)->sin_addr;
-	       }
-	       ifreq = *ifr;
+	      ifreq = *ifr;
 	  }
-	  p = p + sz;
      }
-     if (j != num)
-	  *l = realloc (*l, j * sizeof(struct in_addr));
+     if (j != num) {
+	 void *tmp;
+	 tmp = realloc (*l, j * sizeof(struct in_addr));
+	 if(tmp == NULL)
+	     goto fail;
+	 *l = tmp;
+     }
      close (fd);
+     free(inbuf);
      return j;
+fail:
+     close(fd);
+     free(inbuf);
+     free(*l);
+     return -1;
 #endif /* SIOCGIFCONF */
 }

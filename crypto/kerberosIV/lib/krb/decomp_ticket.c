@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -38,7 +38,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: decomp_ticket.c,v 1.16 1997/04/01 08:18:22 joda Exp $");
+RCSID("$Id: decomp_ticket.c,v 1.19 1998/11/22 09:42:36 assar Exp $");
 
 /*
  * This routine takes a ticket and pointers to the variables that
@@ -82,19 +82,22 @@ decomp_ticket(KTEXT tkt,	/* The ticket to be decoded */
 
     *flags = *p++;
 
-    little_endian = (*flags >> K_FLAG_ORDER) & 1;
+    little_endian = *flags & 1;
 
     if(strlen((char*)p) > ANAME_SZ)
 	return KFAILURE;
-    p += krb_get_string(p, pname);
+    p += krb_get_string(p, pname, ANAME_SZ);
 
     if(strlen((char*)p) > INST_SZ)
 	return KFAILURE;
-    p += krb_get_string(p, pinstance);
+    p += krb_get_string(p, pinstance, INST_SZ);
 
     if(strlen((char*)p) > REALM_SZ)
 	return KFAILURE;
-    p += krb_get_string(p, prealm);
+    p += krb_get_string(p, prealm, REALM_SZ);
+
+    if (*prealm == '\0')
+	krb_get_lrealm (prealm, 1);
 
     if(tkt->length - (p - tkt->dat) < 8 + 1 + 4)
 	return KFAILURE;
@@ -109,11 +112,11 @@ decomp_ticket(KTEXT tkt,	/* The ticket to be decoded */
 
     if(strlen((char*)p) > SNAME_SZ)
 	return KFAILURE;
-    p += krb_get_string(p, sname);
+    p += krb_get_string(p, sname, SNAME_SZ);
 
     if(strlen((char*)p) > INST_SZ)
 	return KFAILURE;
-    p += krb_get_string(p, sinstance);
+    p += krb_get_string(p, sinstance, INST_SZ);
 
     return KSUCCESS;
 }

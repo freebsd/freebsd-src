@@ -38,7 +38,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: warnerr.c,v 1.6 1997/04/02 14:59:54 bg Exp $");
+RCSID("$Id: warnerr.c,v 1.7 1997/11/12 00:09:08 joda Exp $");
 #endif
 
 #include "roken.h"
@@ -65,7 +65,7 @@ set_progname(char *argv0)
 }
 
 void
-warnerr(int doexit, int eval, int doerrno, const char *fmt, va_list ap)
+warnerr(int doerrno, const char *fmt, va_list ap)
 {
     int sverrno = errno;
     if(__progname != NULL){
@@ -81,6 +81,4 @@ warnerr(int doexit, int eval, int doerrno, const char *fmt, va_list ap)
     if(doerrno)
 	fprintf(stderr, "%s", strerror(sverrno));
     fprintf(stderr, "\n");
-    if(doexit)
-	exit(eval);
 }
