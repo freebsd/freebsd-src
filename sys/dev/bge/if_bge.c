@@ -139,6 +139,10 @@ static struct bge_type bge_devs[] = {
 		"Broadcom BCM5702X Gigabit Ethernet" },
 	{ BCOM_VENDORID, BCOM_DEVICEID_BCM5703X,
 		"Broadcom BCM5703X Gigabit Ethernet" },
+	{ BCOM_VENDORID, BCOM_DEVICEID_BCM5704C,
+		"Broadcom BCM5704C Dual Gigabit Ethernet" },
+	{ BCOM_VENDORID, BCOM_DEVICEID_BCM5704S,
+		"Broadcom BCM5704S Dual Gigabit Ethernet" },
 	{ SK_VENDORID, SK_DEVICEID_ALTIMA,
 		"SysKonnect Gigabit Ethernet" },
 	{ ALTIMA_VENDORID, ALTIMA_DEVICE_AC1000,
@@ -483,6 +487,7 @@ bge_miibus_readreg(dev, phy, reg)
 		switch(sc->bge_asicrev) {
 		case BGE_ASICREV_BCM5701_B5:
 		case BGE_ASICREV_BCM5703_A2:
+		case BGE_ASICREV_BCM5704_A0:
 			return(0);
 		}
 
