@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_param.h,v 1.9 1998/07/22 06:21:55 phk Exp $
+ * $Id: vm_param.h,v 1.10 1999/06/20 04:55:29 alc Exp $
  */
 
 /*
@@ -72,37 +72,6 @@
 #define	_VM_PARAM_
 
 #include <machine/vmparam.h>
-
-#if 0
-
-/*
- *	The machine independent pages are refered to as PAGES.  A page
- *	is some number of hardware pages, depending on the target machine.
- */
-#define DEFAULT_PAGE_SIZE	4096
-
-/*
- *	All references to the size of a page should be done with PAGE_SIZE
- *	or PAGE_SHIFT.  The fact they are variables is hidden here so that
- *	we can easily make them constant if we so desire.
- */
-#ifndef PAGE_SIZE
-#define	PAGE_SIZE	cnt.v_page_size	/* size of page */
-#endif
-#ifndef PAGE_MASK
-#define PAGE_MASK	page_mask	/* size of page - 1 */
-#endif
-#ifndef PAGE_SHIFT
-#define PAGE_SHIFT	page_shift	/* bits to shift for pages */
-#endif
-
-#endif
-
-#ifdef KERNEL
-extern vm_size_t page_mask;
-extern int page_shift;
-
-#endif
 
 /*
  * CTL_VM identifiers
@@ -152,10 +121,6 @@ extern int page_shift;
 #ifdef KERNEL
 #define num_pages(x) \
 	((vm_offset_t)((((vm_offset_t)(x)) + PAGE_MASK) >> PAGE_SHIFT))
-
-extern vm_size_t mem_size;	/* size of physical memory (bytes) */
-extern vm_offset_t first_addr;	/* first physical page */
-extern vm_offset_t last_addr;	/* last physical page */
 #endif				/* KERNEL */
 #endif				/* ASSEMBLER */
 #endif				/* _VM_PARAM_ */

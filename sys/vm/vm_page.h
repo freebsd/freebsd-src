@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.60 1999/05/02 23:57:14 alc Exp $
+ * $Id: vm_page.h,v 1.61 1999/06/19 18:42:53 alc Exp $
  */
 
 /*
@@ -275,9 +275,6 @@ extern int vm_page_zero_count;
 
 extern vm_page_t vm_page_array;		/* First resident page in table */
 extern long first_page;			/* first physical page number */
-
- /* ... represented in vm_page_array */
-extern long last_page;			/* last physical page number */
 
 #define VM_PAGE_TO_PHYS(entry)	((entry)->phys_addr)
 
