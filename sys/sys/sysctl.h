@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.3 1994/08/08 00:30:12 wollman Exp $
+ * $Id: sysctl.h,v 1.4 1994/08/08 15:41:08 wollman Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -130,7 +130,8 @@ struct ctlname {
 #define	KERN_BOOTTIME		21	/* struct: time kernel was booted */
 #define KERN_DOMAINNAME		22	/* string: YP domain name */
 #define KERN_UPDATEINTERVAL	23	/* int: update process sleep time */
-#define	KERN_MAXID		24	/* number of valid kern ids */
+#define KERN_OSRELDATE		24	/* int: OS release date */
+#define	KERN_MAXID		25	/* number of valid kern ids */
 
 #define CTL_KERN_NAMES { \
 	{ 0, 0 }, \
@@ -157,6 +158,7 @@ struct ctlname {
 	{ "boottime", CTLTYPE_STRUCT }, \
 	{ "domainname", CTLTYPE_STRING }, \
 	{ "update", CTLTYPE_INT }, \
+	{ "osreldate", CTLTYPE_INT }, \
 }
 
 /* 
