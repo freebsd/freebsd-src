@@ -3477,6 +3477,10 @@ ciss_notify_logical(struct ciss_softc *sc, struct ciss_notify *cn)
 	    ciss_printf(sc, "logical drive %d (%s) media exchanged, ready to go online\n",
 			cn->data.logical_status.logical_drive, ld->cl_name);
 	    ciss_accept_media(sc, ld);
+
+	    ld->cl_update = 1;
+	    ld->cl_status = ciss_decode_ldrive_status(cn->data.logical_status.new_state);
+	    ciss_notify_rescan_logical(sc);
 	    break;
 
 	case 2:
