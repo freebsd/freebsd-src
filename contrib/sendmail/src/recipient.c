@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+ * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -11,11 +12,14 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)recipient.c	8.163 (Berkeley) 1/23/1999";
-#endif /* not lint */
+static char id[] = "@(#)$Id: recipient.c,v 8.231.14.5 2000/06/27 20:15:46 gshapiro Exp $";
+#endif /* ! lint */
 
-# include "sendmail.h"
-# include <grp.h>
+#include <sendmail.h>
+
+
+static void	includetimeout __P((void));
+static ADDRESS	*self_reference __P((ADDRESS *));
 
 /*
 **  SENDTOLIST -- Designate a send list.
@@ -70,7 +74,7 @@ sendtolist(list, ctladdr, sendq, aliaslevel, e)
 
 	if (tTd(25, 1))
 	{
-		printf("sendto: %s\n   ctladdr=", list);
+		dprintf("sendto: %s\n   ctladdr=", list);
 		printaddr(ctladdr, FALSE);
 	}
 
@@ -89,11 +93,17 @@ sendtolist(list, ctladdr, sendq, aliaslevel, e)
 	/* make sure we have enough space to copy the string */
 	i = strlen(list) + 1;
 	if (i <= sizeof buf)
+	{
 		bufp = buf;
+		i = sizeof buf;
+	}
 	else
 		bufp = xalloc(i);
-	strcpy(bufp, denlstring(list, FALSE, TRUE));
+	(void) strlcpy(bufp, denlstring(list, FALSE, TRUE), i);
 
+#if _FFR_ADDR_TYPE
+	define(macid("{addr_type}", NULL), "e r", e);
+#endif /* _FFR_ADDR_TYPE */
 	for (p = bufp; *p != '\0'; )
 	{
 		auto char *delimptr;
@@ -113,37 +123,36 @@ sendtolist(list, ctladdr, sendq, aliaslevel, e)
 		if (ctladdr != NULL)
 		{
 			ADDRESS *b;
-			extern ADDRESS *self_reference __P((ADDRESS *, ENVELOPE *));
 
 			/* self reference test */
 			if (sameaddr(ctladdr, a))
 			{
 				if (tTd(27, 5))
 				{
-					printf("sendtolist: QSELFREF ");
+					dprintf("sendtolist: QSELFREF ");
 					printaddr(ctladdr, FALSE);
 				}
 				ctladdr->q_flags |= QSELFREF;
 			}
 
 			/* check for address loops */
-			b = self_reference(a, e);
+			b = self_reference(a);
 			if (b != NULL)
 			{
 				b->q_flags |= QSELFREF;
 				if (tTd(27, 5))
 				{
-					printf("sendtolist: QSELFREF ");
+					dprintf("sendtolist: QSELFREF ");
 					printaddr(b, FALSE);
 				}
 				if (a != b)
 				{
 					if (tTd(27, 5))
 					{
-						printf("sendtolist: QDONTSEND ");
+						dprintf("sendtolist: QS_DONTSEND ");
 						printaddr(a, FALSE);
 					}
-					a->q_flags |= QDONTSEND;
+					a->q_state = QS_DONTSEND;
 					b->q_flags |= a->q_flags & QNOTREMOTE;
 					continue;
 				}
@@ -177,7 +186,118 @@ sendtolist(list, ctladdr, sendq, aliaslevel, e)
 	e->e_to = oldto;
 	if (bufp != buf)
 		free(bufp);
-	return (naddrs);
+#if _FFR_ADDR_TYPE
+	define(macid("{addr_type}", NULL), NULL, e);
+#endif /* _FFR_ADDR_TYPE */
+	return naddrs;
+}
+/*
+**  REMOVEFROMLIST -- Remove addresses from a send list.
+**
+**	The parameter is a comma-separated list of recipients to remove.
+**	Note that it only deletes matching addresses.  If those addresses
+**	have been expended already in the sendq, it won't mark the
+**	expanded recipients as QS_REMOVED.
+**
+**	Parameters:
+**		list -- the list to remove.
+**		sendq -- a pointer to the head of a queue to remove
+**			these addresses from.
+**		e -- the envelope in which to remove these recipients.
+**
+**	Returns:
+**		The number of addresses removed from the list.
+**
+*/
+
+int
+removefromlist(list, sendq, e)
+	char *list;
+	ADDRESS **sendq;
+	ENVELOPE *e;
+{
+	char delimiter;		/* the address delimiter */
+	int naddrs;
+	int i;
+	char *p;
+	char *oldto = e->e_to;
+	char *bufp;
+	char buf[MAXNAME + 1];
+
+	if (list == NULL)
+	{
+		syserr("removefromlist: null list");
+		return 0;
+	}
+
+	if (tTd(25, 1))
+		dprintf("removefromlist: %s\n", list);
+
+	/* heuristic to determine old versus new style addresses */
+	if (strchr(list, ',') != NULL || strchr(list, ';') != NULL ||
+	    strchr(list, '<') != NULL || strchr(list, '(') != NULL)
+		e->e_flags &= ~EF_OLDSTYLE;
+	delimiter = ' ';
+	if (!bitset(EF_OLDSTYLE, e->e_flags))
+		delimiter = ',';
+
+	naddrs = 0;
+
+	/* make sure we have enough space to copy the string */
+	i = strlen(list) + 1;
+	if (i <= sizeof buf)
+	{
+		bufp = buf;
+		i = sizeof buf;
+	}
+	else
+		bufp = xalloc(i);
+	(void) strlcpy(bufp, denlstring(list, FALSE, TRUE), i);
+
+#if _FFR_ADDR_TYPE
+	define(macid("{addr_type}", NULL), "e r", e);
+#endif /* _FFR_ADDR_TYPE */
+	for (p = bufp; *p != '\0'; )
+	{
+		ADDRESS a;		/* parsed address to be removed */
+		ADDRESS *q;
+		ADDRESS **pq;
+		char *delimptr;
+
+		/* parse the address */
+		while ((isascii(*p) && isspace(*p)) || *p == ',')
+			p++;
+		if (parseaddr(p, &a, RF_COPYALL,
+			      delimiter, &delimptr, e) == NULL)
+		{
+			p = delimptr;
+			continue;
+		}
+		p = delimptr;
+		for (pq = sendq; (q = *pq) != NULL; pq = &q->q_next)
+		{
+			if (!QS_IS_DEAD(q->q_state) &&
+			    sameaddr(q, &a))
+			{
+				if (tTd(25, 5))
+				{
+					dprintf("removefromlist: QS_REMOVED ");
+					printaddr(&a, FALSE);
+				}
+				q->q_state = QS_REMOVED;
+				naddrs++;
+				break;
+			}
+		}
+	}
+
+	e->e_to = oldto;
+	if (bufp != buf)
+		free(bufp);
+#if _FFR_ADDR_TYPE
+	define(macid("{addr_type}", NULL), NULL, e);
+#endif /* _FFR_ADDR_TYPE */
+	return naddrs;
 }
 /*
 **  RECIPIENT -- Designate a message recipient
@@ -187,7 +307,7 @@ sendtolist(list, ctladdr, sendq, aliaslevel, e)
 **	Parameters:
 **		a -- the (preparsed) address header for the recipient.
 **		sendq -- a pointer to the head of a queue to put the
-**			recipient in.  Duplicate supression is done
+**			recipient in.  Duplicate suppression is done
 **			in this queue.
 **		aliaslevel -- the current alias nesting depth.
 **		e -- the current envelope.
@@ -210,14 +330,13 @@ recipient(a, sendq, aliaslevel, e)
 	register ADDRESS *q;
 	ADDRESS **pq;
 	register struct mailer *m;
-	register char *p;
+	register char *p = NULL;
 	bool quoted = FALSE;		/* set if the addr has a quote bit */
 	int findusercount = 0;
-	bool initialdontsend = bitset(QDONTSEND, a->q_flags);
-	int i;
+	bool initialdontsend = QS_IS_DEAD(a->q_state);
+	int i, buflen;
 	char *buf;
 	char buf0[MAXNAME + 1];		/* unquoted image of the user name */
-	extern void alias __P((ADDRESS *, ADDRESS **, int, ENVELOPE *));
 
 	e->e_to = a->q_paddr;
 	m = a->q_mailer;
@@ -226,7 +345,7 @@ recipient(a, sendq, aliaslevel, e)
 		a->q_flags |= QPRIMARY;
 	if (tTd(26, 1))
 	{
-		printf("\nrecipient (%d): ", aliaslevel);
+		dprintf("\nrecipient (%d): ", aliaslevel);
 		printaddr(a, FALSE);
 	}
 
@@ -239,14 +358,70 @@ recipient(a, sendq, aliaslevel, e)
 			e->e_origrcpt = "";
 	}
 
+#if _FFR_GEN_ORCPT
+	/* set ORCPT DSN arg if not already set */
+	if (a->q_orcpt == NULL)
+	{
+		for (q = a; q->q_alias != NULL; q = q->q_alias)
+			continue;
+
+		/* check for an existing ORCPT */
+		if (q->q_orcpt != NULL)
+			a->q_orcpt = q->q_orcpt;
+		else
+		{
+			/* make our own */
+			bool b = FALSE;
+			char *qp;
+			char obuf[MAXLINE];
+
+			if (e->e_from.q_mailer != NULL)
+				p = e->e_from.q_mailer->m_addrtype;
+			if (p == NULL)
+				p = "rfc822";
+			(void) strlcpy(obuf, p, sizeof obuf);
+			(void) strlcat(obuf, ";", sizeof obuf);
+
+			qp = q->q_paddr;
+
+			/* FFR: Needs to strip comments from stdin addrs */
+
+			/* strip brackets from address */
+			if (*qp == '<')
+			{
+				b = qp[strlen(qp) - 1] == '>';
+				if (b)
+					qp[strlen(qp) - 1] = '\0';
+				qp++;
+			}
+
+			p = xtextify(denlstring(qp, TRUE, FALSE), NULL);
+
+			if (strlcat(obuf, p, sizeof obuf) >= sizeof obuf)
+			{
+				/* if too big, don't use it */
+				obuf[0] = '\0';
+			}
+
+			/* undo damage */
+			if (b)
+				qp[strlen(qp)] = '>';
+
+			if (obuf[0] != '\0')
+				a->q_orcpt = newstr(obuf);
+		}
+	}
+#endif /* _FFR_GEN_ORCPT */
+
 	/* break aliasing loops */
 	if (aliaslevel > MaxAliasRecursion)
 	{
-		a->q_flags |= QBADADDR;
+		a->q_state = QS_BADADDR;
 		a->q_status = "5.4.6";
-		usrerr("554 aliasing/forwarding loop broken (%d aliases deep; %d max)",
-			aliaslevel, MaxAliasRecursion);
-		return (a);
+		usrerrenh(a->q_status,
+			  "554 aliasing/forwarding loop broken (%d aliases deep; %d max)",
+			  aliaslevel, MaxAliasRecursion);
+		return a;
 	}
 
 	/*
@@ -256,10 +431,16 @@ recipient(a, sendq, aliaslevel, e)
 	/* get unquoted user for file, program or user.name check */
 	i = strlen(a->q_user);
 	if (i >= sizeof buf0)
-		buf = xalloc(i + 1);
+	{
+		buflen = i + 1;
+		buf = xalloc(buflen);
+	}
 	else
+	{
 		buf = buf0;
-	(void) strcpy(buf, a->q_user);
+		buflen = sizeof buf0;
+	}
+	(void) strlcpy(buf, a->q_user, buflen);
 	for (p = buf; *p != '\0' && !quoted; p++)
 	{
 		if (*p == '\\')
@@ -272,28 +453,32 @@ recipient(a, sendq, aliaslevel, e)
 	{
 		if (a->q_alias == NULL)
 		{
-			a->q_flags |= QBADADDR;
+			a->q_state = QS_BADADDR;
 			a->q_status = "5.7.1";
-			usrerr("550 Cannot mail directly to programs");
+			usrerrenh(a->q_status,
+				  "550 Cannot mail directly to programs");
 		}
 		else if (bitset(QBOGUSSHELL, a->q_alias->q_flags))
 		{
-			a->q_flags |= QBADADDR;
+			a->q_state = QS_BADADDR;
 			a->q_status = "5.7.1";
 			if (a->q_alias->q_ruser == NULL)
-				usrerr("550 UID %d is an unknown user: cannot mail to programs",
-					a->q_alias->q_uid);
+				usrerrenh(a->q_status,
+					  "550 UID %d is an unknown user: cannot mail to programs",
+					  a->q_alias->q_uid);
 			else
-				usrerr("550 User %s@%s doesn't have a valid shell for mailing to programs",
-					a->q_alias->q_ruser, MyHostName);
+				usrerrenh(a->q_status,
+					  "550 User %s@%s doesn't have a valid shell for mailing to programs",
+					  a->q_alias->q_ruser, MyHostName);
 		}
 		else if (bitset(QUNSAFEADDR, a->q_alias->q_flags))
 		{
-			a->q_flags |= QBADADDR;
+			a->q_state = QS_BADADDR;
 			a->q_status = "5.7.1";
-			a->q_rstatus = newstr("Unsafe for mailing to programs");
-			usrerr("550 Address %s is unsafe for mailing to programs",
-				a->q_alias->q_paddr);
+			a->q_rstatus = newstr("550 Unsafe for mailing to programs");
+			usrerrenh(a->q_status,
+				  "550 Address %s is unsafe for mailing to programs",
+				  a->q_alias->q_paddr);
 		}
 	}
 
@@ -302,7 +487,7 @@ recipient(a, sendq, aliaslevel, e)
 	**	If they are there already, return, otherwise continue.
 	**	If the list is empty, just add it.  Notice the cute
 	**	hack to make from addresses suppress things correctly:
-	**	the QDONTSEND bit will be set in the send list.
+	**	the QS_DUPLICATE state will be set in the send list.
 	**	[Please note: the emphasis is on "hack."]
 	*/
 
@@ -314,17 +499,32 @@ recipient(a, sendq, aliaslevel, e)
 		{
 			if (tTd(26, 1))
 			{
-				printf("%s in sendq: ", a->q_paddr);
+				dprintf("%s in sendq: ", a->q_paddr);
 				printaddr(q, FALSE);
 			}
 			if (!bitset(QPRIMARY, q->q_flags))
 			{
-				if (!bitset(QDONTSEND, a->q_flags))
+				if (!QS_IS_DEAD(a->q_state))
 					message("duplicate suppressed");
+				else
+					q->q_state = QS_DUPLICATE;
 				q->q_flags |= a->q_flags;
 			}
-			else if (bitset(QSELFREF, q->q_flags))
-				q->q_flags |= a->q_flags & ~QDONTSEND;
+			else if (bitset(QSELFREF, q->q_flags)
+#if _FFR_MILTER
+				 || q->q_state == QS_REMOVED
+#endif /* _FFR_MILTER */
+				 )
+			{
+#if _FFR_MILTER
+				/*
+				**  If an earlier milter removed the address,
+				**  a later one can still add it back.
+				*/
+#endif /* _FFR_MILTER */
+				q->q_state = a->q_state;
+				q->q_flags |= a->q_flags;
+			}
 			a = q;
 			goto done;
 		}
@@ -344,21 +544,22 @@ recipient(a, sendq, aliaslevel, e)
   trylocaluser:
 	if (tTd(29, 7))
 	{
-		printf("at trylocaluser: ");
+		dprintf("at trylocaluser: ");
 		printaddr(a, FALSE);
 	}
 
-	if (bitset(QDONTSEND|QBADADDR|QVERIFIED, a->q_flags))
+	if (!QS_IS_OK(a->q_state))
 		goto testselfdestruct;
 
 	if (m == InclMailer)
 	{
-		a->q_flags |= QDONTSEND;
+		a->q_state = QS_INCLUDED;
 		if (a->q_alias == NULL)
 		{
-			a->q_flags |= QBADADDR;
+			a->q_state = QS_BADADDR;
 			a->q_status = "5.7.1";
-			usrerr("550 Cannot mail directly to :include:s");
+			usrerrenh(a->q_status,
+				  "550 Cannot mail directly to :include:s");
 		}
 		else
 		{
@@ -370,95 +571,86 @@ recipient(a, sendq, aliaslevel, e)
 			{
 				if (LogLevel > 2)
 					sm_syslog(LOG_ERR, e->e_id,
-						"include %s: transient error: %s",
-						shortenstring(a->q_user, MAXSHORTSTR),
-						errstring(ret));
-				a->q_flags |= QQUEUEUP;
-				a->q_flags &= ~QDONTSEND;
-				usrerr("451 Cannot open %s: %s",
+						  "include %s: transient error: %s",
+						  shortenstring(a->q_user, MAXSHORTSTR),
+						  errstring(ret));
+				a->q_state = QS_QUEUEUP;
+				usrerr("451 4.2.4 Cannot open %s: %s",
 					shortenstring(a->q_user, MAXSHORTSTR),
 					errstring(ret));
 			}
 			else if (ret != 0)
 			{
-				a->q_flags |= QBADADDR;
+				a->q_state = QS_BADADDR;
 				a->q_status = "5.2.4";
-				usrerr("550 Cannot open %s: %s",
-					shortenstring(a->q_user, MAXSHORTSTR),
-					errstring(ret));
+				usrerrenh(a->q_status,
+					  "550 Cannot open %s: %s",
+					  shortenstring(a->q_user, MAXSHORTSTR),
+					  errstring(ret));
 			}
 		}
 	}
 	else if (m == FileMailer)
 	{
-		extern bool writable __P((char *, ADDRESS *, int));
-
 		/* check if writable or creatable */
 		if (a->q_alias == NULL)
 		{
-			a->q_flags |= QBADADDR;
+			a->q_state = QS_BADADDR;
 			a->q_status = "5.7.1";
-			usrerr("550 Cannot mail directly to files");
+			usrerrenh(a->q_status,
+				  "550 Cannot mail directly to files");
 		}
 		else if (bitset(QBOGUSSHELL, a->q_alias->q_flags))
 		{
-			a->q_flags |= QBADADDR;
+			a->q_state = QS_BADADDR;
 			a->q_status = "5.7.1";
 			if (a->q_alias->q_ruser == NULL)
-				usrerr("550 UID %d is an unknown user: cannot mail to files",
-					a->q_alias->q_uid);
+				usrerrenh(a->q_status,
+					  "550 UID %d is an unknown user: cannot mail to files",
+					  a->q_alias->q_uid);
 			else
-				usrerr("550 User %s@%s doesn't have a valid shell for mailing to files",
-					a->q_alias->q_ruser, MyHostName);
+				usrerrenh(a->q_status,
+					  "550 User %s@%s doesn't have a valid shell for mailing to files",
+					  a->q_alias->q_ruser, MyHostName);
 		}
 		else if (bitset(QUNSAFEADDR, a->q_alias->q_flags))
 		{
-			a->q_flags |= QBADADDR;
+			a->q_state = QS_BADADDR;
 			a->q_status = "5.7.1";
-			a->q_rstatus = newstr("Unsafe for mailing to files");
-			usrerr("550 Address %s is unsafe for mailing to files",
-				a->q_alias->q_paddr);
-		}
-		else if (strcmp(buf, "/dev/null") == 0)
-		{
-			/* /dev/null is always accepted */
-		}
-		else if (!writable(buf, a->q_alias, SFF_CREAT))
-		{
-			a->q_flags |= QBADADDR;
-			giveresponse(EX_CANTCREAT, m, NULL, a->q_alias,
-				     (time_t) 0, e);
+			a->q_rstatus = newstr("550 Unsafe for mailing to files");
+			usrerrenh(a->q_status,
+				  "550 Address %s is unsafe for mailing to files",
+				  a->q_alias->q_paddr);
 		}
 	}
 
 	/* try aliasing */
-	if (!quoted && !bitset(QDONTSEND, a->q_flags) &&
+	if (!quoted && QS_IS_OK(a->q_state) &&
 	    bitnset(M_ALIASABLE, m->m_flags))
 		alias(a, sendq, aliaslevel, e);
 
-# if USERDB
+#if USERDB
 	/* if not aliased, look it up in the user database */
-	if (!bitset(QDONTSEND|QNOTREMOTE|QVERIFIED, a->q_flags) &&
+	if (!bitset(QNOTREMOTE, a->q_flags) &&
+	    QS_IS_SENDABLE(a->q_state) &&
 	    bitnset(M_CHECKUDB, m->m_flags))
 	{
-		extern int udbexpand __P((ADDRESS *, ADDRESS **, int, ENVELOPE *));
-
 		if (udbexpand(a, sendq, aliaslevel, e) == EX_TEMPFAIL)
 		{
-			a->q_flags |= QQUEUEUP;
+			a->q_state = QS_QUEUEUP;
 			if (e->e_message == NULL)
 				e->e_message = newstr("Deferred: user database error");
 			if (LogLevel > 8)
 				sm_syslog(LOG_INFO, e->e_id,
-					"deferred: udbexpand: %s",
-					errstring(errno));
+					  "deferred: udbexpand: %s",
+					  errstring(errno));
 			message("queued (user database error): %s",
 				errstring(errno));
 			e->e_nrcpts++;
 			goto testselfdestruct;
 		}
 	}
-# endif
+#endif /* USERDB */
 
 	/*
 	**  If we have a level two config file, then pass the name through
@@ -469,16 +661,15 @@ recipient(a, sendq, aliaslevel, e)
 
 	if (tTd(29, 5))
 	{
-		printf("recipient: testing local?  cl=%d, rr5=%lx\n\t",
+		dprintf("recipient: testing local?  cl=%d, rr5=%lx\n\t",
 			ConfigLevel, (u_long) RewriteRules[5]);
 		printaddr(a, FALSE);
 	}
-	if (!bitset(QNOTREMOTE|QDONTSEND|QQUEUEUP|QVERIFIED, a->q_flags) &&
-	    ConfigLevel >= 2 && RewriteRules[5] != NULL &&
-	    bitnset(M_TRYRULESET5, m->m_flags))
+	if (ConfigLevel >= 2 && RewriteRules[5] != NULL &&
+	    bitnset(M_TRYRULESET5, m->m_flags) &&
+	    !bitset(QNOTREMOTE, a->q_flags) &&
+	    QS_IS_OK(a->q_state))
 	{
-		extern void maplocaluser __P((ADDRESS *, ADDRESS **, int, ENVELOPE *));
-
 		maplocaluser(a, sendq, aliaslevel + 1, e);
 	}
 
@@ -487,21 +678,23 @@ recipient(a, sendq, aliaslevel, e)
 	**  and deliver it.
 	*/
 
-	if (!bitset(QDONTSEND|QQUEUEUP|QVERIFIED, a->q_flags) &&
+	if (QS_IS_OK(a->q_state) &&
 	    bitnset(M_HASPWENT, m->m_flags))
 	{
 		auto bool fuzzy;
 		register struct passwd *pw;
-		extern void forward __P((ADDRESS *, ADDRESS **, int, ENVELOPE *));
 
 		/* warning -- finduser may trash buf */
 		pw = finduser(buf, &fuzzy);
 		if (pw == NULL || strlen(pw->pw_name) > MAXNAME)
 		{
-			a->q_flags |= QBADADDR;
-			a->q_status = "5.1.1";
-			giveresponse(EX_NOUSER, m, NULL, a->q_alias,
-				     (time_t) 0, e);
+			{
+				a->q_state = QS_BADADDR;
+				a->q_status = "5.1.1";
+				a->q_rstatus = newstr("550 5.1.1 User unknown");
+				giveresponse(EX_NOUSER, a->q_status, m, NULL,
+					     a->q_alias, (time_t) 0, e);
+			}
 		}
 		else
 		{
@@ -513,15 +706,16 @@ recipient(a, sendq, aliaslevel, e)
 				a->q_user = newstr(pw->pw_name);
 				if (findusercount++ > 3)
 				{
-					a->q_flags |= QBADADDR;
+					a->q_state = QS_BADADDR;
 					a->q_status = "5.4.6";
-					usrerr("554 aliasing/forwarding loop for %s broken",
-						pw->pw_name);
+					usrerrenh(a->q_status,
+						  "554 aliasing/forwarding loop for %s broken",
+						  pw->pw_name);
 					goto done;
 				}
 
 				/* see if it aliases */
-				(void) strcpy(buf, pw->pw_name);
+				(void) strlcpy(buf, pw->pw_name, buflen);
 				goto trylocaluser;
 			}
 			if (strcmp(pw->pw_dir, "/") == 0)
@@ -542,41 +736,42 @@ recipient(a, sendq, aliaslevel, e)
 			if (bitset(EF_VRFYONLY, e->e_flags))
 			{
 				/* don't do any more now */
-				a->q_flags |= QVERIFIED;
+				a->q_state = QS_VERIFIED;
 			}
 			else if (!quoted)
 				forward(a, sendq, aliaslevel, e);
 		}
 	}
-	if (!bitset(QDONTSEND, a->q_flags))
+	if (!QS_IS_DEAD(a->q_state))
 		e->e_nrcpts++;
 
   testselfdestruct:
 	a->q_flags |= QTHISPASS;
 	if (tTd(26, 8))
 	{
-		printf("testselfdestruct: ");
+		dprintf("testselfdestruct: ");
 		printaddr(a, FALSE);
 		if (tTd(26, 10))
 		{
-			printf("SENDQ:\n");
+			dprintf("SENDQ:\n");
 			printaddr(*sendq, TRUE);
-			printf("----\n");
+			dprintf("----\n");
 		}
 	}
 	if (a->q_alias == NULL && a != &e->e_from &&
-	    bitset(QDONTSEND, a->q_flags))
+	    QS_IS_DEAD(a->q_state))
 	{
 		for (q = *sendq; q != NULL; q = q->q_next)
 		{
-			if (!bitset(QDONTSEND, q->q_flags))
+			if (!QS_IS_DEAD(q->q_state))
 				break;
 		}
 		if (q == NULL)
 		{
-			a->q_flags |= QBADADDR;
+			a->q_state = QS_BADADDR;
 			a->q_status = "5.4.6";
-			usrerr("554 aliasing/forwarding loop broken");
+			usrerrenh(a->q_status,
+				  "554 aliasing/forwarding loop broken");
 		}
 	}
 
@@ -601,7 +796,7 @@ recipient(a, sendq, aliaslevel, e)
 		for (q = *sendq; q != NULL; q = q->q_next)
 		{
 			if (bitset(QTHISPASS, q->q_flags) &&
-			    !bitset(QDONTSEND|QBADADDR, q->q_flags))
+			    QS_IS_SENDABLE(q->q_state))
 			{
 				nrcpts++;
 				only = q;
@@ -625,14 +820,15 @@ recipient(a, sendq, aliaslevel, e)
 			/* arrange for return receipt */
 			e->e_flags |= EF_SENDRECEIPT;
 			a->q_flags |= QEXPANDED;
-			if (e->e_xfp != NULL && bitset(QPINGONSUCCESS, a->q_flags))
+			if (e->e_xfp != NULL &&
+			    bitset(QPINGONSUCCESS, a->q_flags))
 				fprintf(e->e_xfp,
 					"%s... expanded to multiple addresses\n",
 					a->q_paddr);
 		}
 	}
 	a->q_flags |= QRCPTOK;
-	return (a);
+	return a;
 }
 /*
 **  FINDUSER -- find the password entry for a user.
@@ -667,7 +863,7 @@ finduser(name, fuzzyp)
 	bool tryagain;
 
 	if (tTd(29, 4))
-		printf("finduser(%s): ", name);
+		dprintf("finduser(%s): ", name);
 
 	*fuzzyp = FALSE;
 
@@ -679,17 +875,17 @@ finduser(name, fuzzyp)
 	if (*p == '\0')
 	{
 		if (tTd(29, 4))
-			printf("failed (numeric input)\n");
+			dprintf("failed (numeric input)\n");
 		return NULL;
 	}
-#endif
+#endif /* HESIOD */
 
 	/* look up this login name using fast path */
 	if ((pw = sm_getpwnam(name)) != NULL)
 	{
 		if (tTd(29, 4))
-			printf("found (non-fuzzy)\n");
-		return (pw);
+			dprintf("found (non-fuzzy)\n");
+		return pw;
 	}
 
 	/* try mapping it to lower case */
@@ -705,7 +901,7 @@ finduser(name, fuzzyp)
 	if (tryagain && (pw = sm_getpwnam(name)) != NULL)
 	{
 		if (tTd(29, 4))
-			printf("found (lower case)\n");
+			dprintf("found (lower case)\n");
 		*fuzzyp = TRUE;
 		return pw;
 	}
@@ -715,7 +911,7 @@ finduser(name, fuzzyp)
 	if (!MatchGecos)
 	{
 		if (tTd(29, 4))
-			printf("not found (fuzzy disabled)\n");
+			dprintf("not found (fuzzy disabled)\n");
 		return NULL;
 	}
 
@@ -734,16 +930,16 @@ finduser(name, fuzzyp)
 		if (strcasecmp(pw->pw_name, name) == 0)
 		{
 			if (tTd(29, 4))
-				printf("found (case wrapped)\n");
+				dprintf("found (case wrapped)\n");
 			break;
 		}
-# endif
+# endif /* 0 */
 
 		buildfname(pw->pw_gecos, pw->pw_name, buf, sizeof buf);
-		if (strchr(buf, ' ') != NULL && !strcasecmp(buf, name))
+		if (strchr(buf, ' ') != NULL && strcasecmp(buf, name) == 0)
 		{
 			if (tTd(29, 4))
-				printf("fuzzy matches %s\n", pw->pw_name);
+				dprintf("fuzzy matches %s\n", pw->pw_name);
 			message("sending to login name %s", pw->pw_name);
 			break;
 		}
@@ -751,16 +947,16 @@ finduser(name, fuzzyp)
 	if (pw != NULL)
 		*fuzzyp = TRUE;
 	else if (tTd(29, 4))
-		printf("no fuzzy match found\n");
+		dprintf("no fuzzy match found\n");
 # if DEC_OSF_BROKEN_GETPWENT	/* DEC OSF/1 3.2 or earlier */
 	endpwent();
-# endif
+# endif /* DEC_OSF_BROKEN_GETPWENT */
 	return pw;
-#else
+#else /* MATCHGECOS */
 	if (tTd(29, 4))
-		printf("not found (fuzzy disabled)\n");
+		dprintf("not found (fuzzy disabled)\n");
 	return NULL;
-#endif
+#endif /* MATCHGECOS */
 }
 /*
 **  WRITABLE -- predicate returning if the file is writable.
@@ -790,14 +986,14 @@ bool
 writable(filename, ctladdr, flags)
 	char *filename;
 	ADDRESS *ctladdr;
-	int flags;
+	long flags;
 {
-	uid_t euid;
-	gid_t egid;
-	char *uname;
+	uid_t euid = 0;
+	gid_t egid = 0;
+	char *user = NULL;
 
 	if (tTd(44, 5))
-		printf("writable(%s, 0x%x)\n", filename, flags);
+		dprintf("writable(%s, 0x%lx)\n", filename, flags);
 
 	/*
 	**  File does exist -- check that it is writable.
@@ -807,37 +1003,37 @@ writable(filename, ctladdr, flags)
 	{
 		euid = geteuid();
 		egid = getegid();
-		uname = NULL;
+		user = NULL;
 	}
 	else if (ctladdr != NULL)
 	{
 		euid = ctladdr->q_uid;
 		egid = ctladdr->q_gid;
-		uname = ctladdr->q_user;
+		user = ctladdr->q_user;
 	}
 	else if (bitset(SFF_RUNASREALUID, flags))
 	{
 		euid = RealUid;
 		egid = RealGid;
-		uname = RealUserName;
+		user = RealUserName;
 	}
 	else if (FileMailer != NULL && !bitset(SFF_ROOTOK, flags))
 	{
 		euid = FileMailer->m_uid;
 		egid = FileMailer->m_gid;
-		uname = NULL;
+		user = NULL;
 	}
 	else
 	{
 		euid = egid = 0;
-		uname = NULL;
+		user = NULL;
 	}
 	if (!bitset(SFF_ROOTOK, flags))
 	{
 		if (euid == 0)
 		{
 			euid = DefUid;
-			uname = DefUser;
+			user = DefUser;
 		}
 		if (egid == 0)
 			egid = DefGid;
@@ -846,12 +1042,12 @@ writable(filename, ctladdr, flags)
 	    (ctladdr == NULL || !bitset(QGOODUID, ctladdr->q_flags)))
 		flags |= SFF_SETUIDOK;
 
-	if (!bitset(DBS_FILEDELIVERYTOSYMLINK, DontBlameSendmail))
+	if (!bitnset(DBS_FILEDELIVERYTOSYMLINK, DontBlameSendmail))
 		flags |= SFF_NOSLINK;
-	if (!bitset(DBS_FILEDELIVERYTOHARDLINK, DontBlameSendmail))
+	if (!bitnset(DBS_FILEDELIVERYTOHARDLINK, DontBlameSendmail))
 		flags |= SFF_NOHLINK;
 
-	errno = safefile(filename, euid, egid, uname, flags, S_IWRITE, NULL);
+	errno = safefile(filename, euid, egid, user, flags, S_IWRITE, NULL);
 	return errno == 0;
 }
 /*
@@ -891,7 +1087,6 @@ writable(filename, ctladdr, flags)
 */
 
 static jmp_buf	CtxIncludeTimeout;
-static void	includetimeout __P((void));
 
 int
 include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
@@ -909,59 +1104,81 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 	register EVENT *ev = NULL;
 	int nincludes;
 	int mode;
+	volatile bool maxreached = FALSE;
 	register ADDRESS *ca;
-	volatile uid_t saveduid, uid;
-	volatile gid_t savedgid, gid;
-	char *volatile uname;
+	volatile uid_t saveduid;
+	volatile gid_t savedgid;
+	volatile uid_t uid;
+	volatile gid_t gid;
+	char *volatile user;
 	int rval = 0;
-	volatile int sfflags = SFF_REGONLY;
+	volatile long sfflags = SFF_REGONLY;
 	register char *p;
 	bool safechown = FALSE;
 	volatile bool safedir = FALSE;
 	struct stat st;
 	char buf[MAXLINE];
-	extern bool chownsafe __P((int, bool));
 
 	if (tTd(27, 2))
-		printf("include(%s)\n", fname);
+		dprintf("include(%s)\n", fname);
 	if (tTd(27, 4))
-		printf("   ruid=%d euid=%d\n", (int) getuid(), (int) geteuid());
+		dprintf("   ruid=%d euid=%d\n",
+			(int) getuid(), (int) geteuid());
 	if (tTd(27, 14))
 	{
-		printf("ctladdr ");
+		dprintf("ctladdr ");
 		printaddr(ctladdr, FALSE);
 	}
 
 	if (tTd(27, 9))
-		printf("include: old uid = %d/%d\n",
-		       (int) getuid(), (int) geteuid());
+		dprintf("include: old uid = %d/%d\n",
+			(int) getuid(), (int) geteuid());
 
 	if (forwarding)
 		sfflags |= SFF_MUSTOWN|SFF_ROOTOK|SFF_NOWLINK;
 
+	/*
+	**  If RunAsUser set, won't be able to run programs as user
+	**  so mark them as unsafe unless the administrator knows better.
+	*/
+
+	if ((geteuid() != 0 || RunAsUid != 0) &&
+	    !bitnset(DBS_NONROOTSAFEADDR, DontBlameSendmail))
+	{
+		if (tTd(27, 4))
+			dprintf("include: not safe (euid=%d, RunAsUid=%d)\n",
+				(int) geteuid(), (int) RunAsUid);
+		ctladdr->q_flags |= QUNSAFEADDR;
+	}
+
 	ca = getctladdr(ctladdr);
-	if (ca == NULL)
+	if (ca == NULL ||
+	    (ca->q_uid == DefUid && ca->q_gid == 0))
 	{
 		uid = DefUid;
 		gid = DefGid;
-		uname = DefUser;
+		user = DefUser;
 	}
 	else
 	{
 		uid = ca->q_uid;
 		gid = ca->q_gid;
-		uname = ca->q_user;
+		user = ca->q_user;
 	}
-#if HASSETREUID || USESETEUID
+#if MAILER_SETUID_METHOD != USE_SETUID
 	saveduid = geteuid();
 	savedgid = getegid();
 	if (saveduid == 0)
 	{
 		if (!DontInitGroups)
 		{
-			if (initgroups(uname, gid) == -1)
+			if (initgroups(user, gid) == -1)
+			{
+				rval = EAGAIN;
 				syserr("include: initgroups(%s, %d) failed",
-					uname, gid);
+					user, gid);
+				goto resetuid;
+			}
 		}
 		else
 		{
@@ -969,29 +1186,46 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 
 			gidset[0] = gid;
 			if (setgroups(1, gidset) == -1)
+			{
+				rval = EAGAIN;
 				syserr("include: setgroups() failed");
+				goto resetuid;
+			}
 		}
 
 		if (gid != 0 && setgid(gid) < -1)
+		{
+			rval = EAGAIN;
 			syserr("setgid(%d) failure", gid);
+			goto resetuid;
+		}
 		if (uid != 0)
 		{
-# if USESETEUID
+# if MAILER_SETUID_METHOD == USE_SETEUID
 			if (seteuid(uid) < 0)
+			{
+				rval = EAGAIN;
 				syserr("seteuid(%d) failure (real=%d, eff=%d)",
 					uid, getuid(), geteuid());
-# else
+				goto resetuid;
+			}
+# endif /* MAILER_SETUID_METHOD == USE_SETEUID */
+# if MAILER_SETUID_METHOD == USE_SETREUID
 			if (setreuid(0, uid) < 0)
+			{
+				rval = EAGAIN;
 				syserr("setreuid(0, %d) failure (real=%d, eff=%d)",
 					uid, getuid(), geteuid());
-# endif
+				goto resetuid;
+			}
+# endif /* MAILER_SETUID_METHOD == USE_SETREUID */
 		}
 	}
-#endif
+#endif /* MAILER_SETUID_METHOD != USE_SETUID */
 
 	if (tTd(27, 9))
-		printf("include: new uid = %d/%d\n",
-		       (int) getuid(), (int) geteuid());
+		dprintf("include: new uid = %d/%d\n",
+			(int) getuid(), (int) geteuid());
 
 	/*
 	**  If home directory is remote mounted but server is down,
@@ -1000,7 +1234,7 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 
 	if (setjmp(CtxIncludeTimeout) != 0)
 	{
-		ctladdr->q_flags |= QQUEUEUP;
+		ctladdr->q_state = QS_QUEUEUP;
 		errno = 0;
 
 		/* return pseudo-error code */
@@ -1012,6 +1246,7 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 	else
 		ev = NULL;
 
+
 	/* check for writable parent directory */
 	p = strrchr(fname, '/');
 	if (p != NULL)
@@ -1019,7 +1254,8 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 		int ret;
 
 		*p = '\0';
-		ret = safedirpath(fname, uid, gid, uname, sfflags|SFF_SAFEDIRPATH);
+		ret = safedirpath(fname, uid, gid, user,
+				  sfflags|SFF_SAFEDIRPATH, 0, 0);
 		if (ret == 0)
 		{
 			/* in safe directory: relax chown & link rules */
@@ -1028,22 +1264,24 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 		}
 		else
 		{
-			if (bitset((forwarding ?
-				    DBS_FORWARDFILEINUNSAFEDIRPATH :
-				    DBS_INCLUDEFILEINUNSAFEDIRPATH),
-				   DontBlameSendmail))
+			if (bitnset((forwarding ?
+				     DBS_FORWARDFILEINUNSAFEDIRPATH :
+				     DBS_INCLUDEFILEINUNSAFEDIRPATH),
+				    DontBlameSendmail))
 				sfflags |= SFF_NOPATHCHECK;
-			else if (bitset((forwarding ?
-					 DBS_FORWARDFILEINGROUPWRITABLEDIRPATH :
-					 DBS_INCLUDEFILEINGROUPWRITABLEDIRPATH),
-					DontBlameSendmail) &&
+			else if (bitnset((forwarding ?
+					  DBS_FORWARDFILEINGROUPWRITABLEDIRPATH :
+					  DBS_INCLUDEFILEINGROUPWRITABLEDIRPATH),
+					 DontBlameSendmail) &&
 				 ret == E_SM_GWDIR)
 			{
-				DontBlameSendmail |= DBS_GROUPWRITABLEDIRPATHSAFE;
-				ret = safedirpath(fname, uid,
-						  gid, uname,
-						  sfflags|SFF_SAFEDIRPATH);
-				DontBlameSendmail &= ~DBS_GROUPWRITABLEDIRPATHSAFE;
+				setbitn(DBS_GROUPWRITABLEDIRPATHSAFE,
+					DontBlameSendmail);
+				ret = safedirpath(fname, uid, gid, user,
+						  sfflags|SFF_SAFEDIRPATH,
+						  0, 0);
+				clrbitn(DBS_GROUPWRITABLEDIRPATHSAFE,
+					DontBlameSendmail);
 				if (ret == 0)
 					sfflags |= SFF_NOPATHCHECK;
 				else
@@ -1052,10 +1290,10 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 			else
 				sfflags |= SFF_SAFEDIRPATH;
 			if (ret > E_PSEUDOBASE &&
-			    !bitset((forwarding ?
-				     DBS_FORWARDFILEINUNSAFEDIRPATHSAFE :
-				     DBS_INCLUDEFILEINUNSAFEDIRPATHSAFE),
-				    DontBlameSendmail))
+			    !bitnset((forwarding ?
+				      DBS_FORWARDFILEINUNSAFEDIRPATHSAFE :
+				      DBS_INCLUDEFILEINUNSAFEDIRPATHSAFE),
+				     DontBlameSendmail))
 			{
 				if (LogLevel >= 12)
 					sm_syslog(LOG_INFO, e->e_id,
@@ -1069,31 +1307,31 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 
 	/* allow links only in unwritable directories */
 	if (!safedir &&
-	    !bitset((forwarding ?
-		     DBS_LINKEDFORWARDFILEINWRITABLEDIR :
-		     DBS_LINKEDINCLUDEFILEINWRITABLEDIR),
-		    DontBlameSendmail))
+	    !bitnset((forwarding ?
+		      DBS_LINKEDFORWARDFILEINWRITABLEDIR :
+		      DBS_LINKEDINCLUDEFILEINWRITABLEDIR),
+		     DontBlameSendmail))
 		sfflags |= SFF_NOLINK;
 
-	rval = safefile(fname, uid, gid, uname, sfflags, S_IREAD, &st);
+	rval = safefile(fname, uid, gid, user, sfflags, S_IREAD, &st);
 	if (rval != 0)
 	{
 		/* don't use this :include: file */
 		if (tTd(27, 4))
-			printf("include: not safe (uid=%d): %s\n",
+			dprintf("include: not safe (uid=%d): %s\n",
 				(int) uid, errstring(rval));
 	}
 	else if ((fp = fopen(fname, "r")) == NULL)
 	{
 		rval = errno;
 		if (tTd(27, 4))
-			printf("include: open: %s\n", errstring(rval));
+			dprintf("include: open: %s\n", errstring(rval));
 	}
 	else if (filechanged(fname, fileno(fp), &st))
 	{
 		rval = E_SM_FILECHANGE;
 		if (tTd(27, 4))
-			printf("include: file changed after open\n");
+			dprintf("include: file changed after open\n");
 	}
 	if (ev != NULL)
 		clrevent(ev);
@@ -1107,27 +1345,29 @@ resetuid:
 		{
 # if USESETEUID
 			if (seteuid(0) < 0)
-				syserr("seteuid(0) failure (real=%d, eff=%d)",
+				syserr("!seteuid(0) failure (real=%d, eff=%d)",
 					getuid(), geteuid());
-# else
+# else /* USESETEUID */
 			if (setreuid(-1, 0) < 0)
-				syserr("setreuid(-1, 0) failure (real=%d, eff=%d)",
+				syserr("!setreuid(-1, 0) failure (real=%d, eff=%d)",
 					getuid(), geteuid());
 			if (setreuid(RealUid, 0) < 0)
-				syserr("setreuid(%d, 0) failure (real=%d, eff=%d)",
+				syserr("!setreuid(%d, 0) failure (real=%d, eff=%d)",
 					RealUid, getuid(), geteuid());
-# endif
+# endif /* USESETEUID */
 		}
-		setgid(savedgid);
+		if (setgid(savedgid) < 0)
+			syserr("!setgid(%d) failure (real=%d eff=%d)",
+			       savedgid, getgid(), getegid());
 	}
-#endif
+#endif /* HASSETREUID || USESETEUID */
 
 	if (tTd(27, 9))
-		printf("include: reset uid = %d/%d\n",
-		       (int) getuid(), (int) geteuid());
+		dprintf("include: reset uid = %d/%d\n",
+			(int) getuid(), (int) geteuid());
 
 	if (rval == E_SM_OPENTIMEOUT)
-		usrerr("451 open timeout on %s", fname);
+		usrerr("451 4.4.1 open timeout on %s", fname);
 
 	if (fp == NULL)
 		return rval;
@@ -1136,18 +1376,22 @@ resetuid:
 	{
 		rval = errno;
 		syserr("Cannot fstat %s!", fname);
+		(void) fclose(fp);
 		return rval;
 	}
 
 	/* if path was writable, check to avoid file giveaway tricks */
 	safechown = chownsafe(fileno(fp), safedir);
 	if (tTd(27, 6))
-		printf("include: parent of %s is %s, chown is %ssafe\n",
+		dprintf("include: parent of %s is %s, chown is %ssafe\n",
 			fname,
 			safedir ? "safe" : "dangerous",
 			safechown ? "" : "un");
 
-	if (ca == NULL && safechown)
+	/* if no controlling user or coming from an alias delivery */
+	if (safechown &&
+	    (ca == NULL ||
+	     (ca->q_uid == DefUid && ca->q_gid == 0)))
 	{
 		ctladdr->q_uid = st.st_uid;
 		ctladdr->q_gid = st.st_gid;
@@ -1165,7 +1409,10 @@ resetuid:
 
 		pw = sm_getpwuid(st.st_uid);
 		if (pw == NULL)
+		{
+			ctladdr->q_uid = st.st_uid;
 			ctladdr->q_flags |= QBOGUSSHELL;
+		}
 		else
 		{
 			char *sh;
@@ -1179,10 +1426,10 @@ resetuid:
 			{
 				if (LogLevel >= 12)
 					sm_syslog(LOG_INFO, e->e_id,
-						"%s: user %s has bad shell %s, marked %s",
-						shortenstring(fname, MAXSHORTSTR),
-						pw->pw_name, sh,
-						safechown ? "bogus" : "unsafe");
+						  "%s: user %s has bad shell %s, marked %s",
+						  shortenstring(fname, MAXSHORTSTR),
+						  pw->pw_name, sh,
+						  safechown ? "bogus" : "unsafe");
 				if (safechown)
 					ctladdr->q_flags |= QBOGUSSHELL;
 				else
@@ -1194,10 +1441,9 @@ resetuid:
 	if (bitset(EF_VRFYONLY, e->e_flags))
 	{
 		/* don't do any more now */
-		ctladdr->q_flags |= QVERIFIED;
-		ctladdr->q_flags &= ~QDONTSEND;
+		ctladdr->q_state = QS_VERIFIED;
 		e->e_nrcpts++;
-		xfclose(fp, "include", fname);
+		(void) fclose(fp);
 		return rval;
 	}
 
@@ -1210,24 +1456,24 @@ resetuid:
 	*/
 
 	mode = S_IWOTH;
-	if (!bitset((forwarding ?
-		     DBS_GROUPWRITABLEFORWARDFILESAFE :
-		     DBS_GROUPWRITABLEINCLUDEFILESAFE),
-		    DontBlameSendmail))
+	if (!bitnset((forwarding ?
+		      DBS_GROUPWRITABLEFORWARDFILESAFE :
+		      DBS_GROUPWRITABLEINCLUDEFILESAFE),
+		     DontBlameSendmail))
 		mode |= S_IWGRP;
 
 	if (bitset(mode, st.st_mode))
 	{
 		if (tTd(27, 6))
-			printf("include: %s is %s writable, marked unsafe\n",
+			dprintf("include: %s is %s writable, marked unsafe\n",
 				shortenstring(fname, MAXSHORTSTR),
 				bitset(S_IWOTH, st.st_mode) ? "world" : "group");
 		if (LogLevel >= 12)
 			sm_syslog(LOG_INFO, e->e_id,
-				"%s: %s writable %s file, marked unsafe",
-				shortenstring(fname, MAXSHORTSTR),
-				bitset(S_IWOTH, st.st_mode) ? "world" : "group",
-				forwarding ? "forward" : ":include:");
+				  "%s: %s writable %s file, marked unsafe",
+				  shortenstring(fname, MAXSHORTSTR),
+				  bitset(S_IWOTH, st.st_mode) ? "world" : "group",
+				  forwarding ? "forward" : ":include:");
 		ctladdr->q_flags |= QUNSAFEADDR;
 	}
 
@@ -1236,13 +1482,10 @@ resetuid:
 	LineNumber = 0;
 	ctladdr->q_flags &= ~QSELFREF;
 	nincludes = 0;
-	while (fgets(buf, sizeof buf, fp) != NULL)
+	while (fgets(buf, sizeof buf, fp) != NULL && !maxreached)
 	{
-		register char *p = strchr(buf, '\n');
-
+		fixcrlf(buf, TRUE);
 		LineNumber++;
-		if (p != NULL)
-			*p = '\0';
 		if (buf[0] == '#' || buf[0] == '\0')
 			continue;
 
@@ -1264,27 +1507,40 @@ resetuid:
 		e->e_to = NULL;
 		message("%s to %s",
 			forwarding ? "forwarding" : "sending", buf);
-		if (forwarding && LogLevel > 9)
+		if (forwarding && LogLevel > 10)
 			sm_syslog(LOG_INFO, e->e_id,
-				"forward %.200s => %s",
-				oldto, shortenstring(buf, MAXSHORTSTR));
+				  "forward %.200s => %s",
+				  oldto, shortenstring(buf, MAXSHORTSTR));
 
 		nincludes += sendtolist(buf, ctladdr, sendq, aliaslevel + 1, e);
+
+		if (forwarding &&
+		    MaxForwardEntries > 0 &&
+		    nincludes >= MaxForwardEntries)
+		{
+			/* just stop reading and processing further entries */
+			/* additional: (?)
+			ctladdr->q_state = QS_DONTSEND;
+			**/
+			syserr("Attempt to forward to more then %d addresses (in %s)!",
+				MaxForwardEntries,fname);
+			maxreached = TRUE;
+		}
 	}
 
 	if (ferror(fp) && tTd(27, 3))
-		printf("include: read error: %s\n", errstring(errno));
+		dprintf("include: read error: %s\n", errstring(errno));
 	if (nincludes > 0 && !bitset(QSELFREF, ctladdr->q_flags))
 	{
 		if (tTd(27, 5))
 		{
-			printf("include: QDONTSEND ");
+			dprintf("include: QS_DONTSEND ");
 			printaddr(ctladdr, FALSE);
 		}
-		ctladdr->q_flags |= QDONTSEND;
+		ctladdr->q_state = QS_DONTSEND;
 	}
 
-	(void) xfclose(fp, "include", fname);
+	(void) fclose(fp);
 	FileName = oldfilename;
 	LineNumber = oldlinenumber;
 	e->e_to = oldto;
@@ -1344,7 +1600,7 @@ getctladdr(a)
 {
 	while (a != NULL && !bitset(QGOODUID, a->q_flags))
 		a = a->q_alias;
-	return (a);
+	return a;
 }
 /*
 **  SELF_REFERENCE -- check to see if an address references itself
@@ -1360,22 +1616,20 @@ getctladdr(a)
 **
 **	Parameters:
 **		a -- the address to check.
-**		e -- the current envelope.
 **
 **	Returns:
 **		The address that should be retained.
 */
 
-ADDRESS *
-self_reference(a, e)
+static ADDRESS *
+self_reference(a)
 	ADDRESS *a;
-	ENVELOPE *e;
 {
 	ADDRESS *b;		/* top entry in self ref loop */
 	ADDRESS *c;		/* entry that point to a real mail box */
 
 	if (tTd(27, 1))
-		printf("self_reference(%s)\n", a->q_paddr);
+		dprintf("self_reference(%s)\n", a->q_paddr);
 
 	for (b = a->q_alias; b != NULL; b = b->q_alias)
 	{
@@ -1386,7 +1640,7 @@ self_reference(a, e)
 	if (b == NULL)
 	{
 		if (tTd(27, 1))
-			printf("\t... no self ref\n");
+			dprintf("\t... no self ref\n");
 		return NULL;
 	}
 
@@ -1394,14 +1648,14 @@ self_reference(a, e)
 	**  Pick the first address that resolved to a real mail box
 	**  i.e has a pw entry.  The returned value will be marked
 	**  QSELFREF in recipient(), which in turn will disable alias()
-	**  from marking it QDONTSEND, which mean it will be used
+	**  from marking it as QS_IS_DEAD(), which mean it will be used
 	**  as a deliverable address.
 	**
 	**  The 2 key thing to note here are:
 	**	1) we are in a recursive call sequence:
 	**		alias->sentolist->recipient->alias
 	**	2) normally, when we return back to alias(), the address
-	**	   will be marked QDONTSEND, since alias() assumes the
+	**	   will be marked QS_EXPANDED, since alias() assumes the
 	**	   expanded form will be used instead of the current address.
 	**	   This behaviour is turned off if the address is marked
 	**	   QSELFREF We set QSELFREF when we return to recipient().
@@ -1411,15 +1665,15 @@ self_reference(a, e)
 	while (c != NULL)
 	{
 		if (tTd(27, 10))
-			printf("  %s", c->q_user);
+			dprintf("  %s", c->q_user);
 		if (bitnset(M_HASPWENT, c->q_mailer->m_flags))
 		{
 			if (tTd(27, 2))
-				printf("\t... getpwnam(%s)... ", c->q_user);
+				dprintf("\t... getpwnam(%s)... ", c->q_user);
 			if (sm_getpwnam(c->q_user) != NULL)
 			{
 				if (tTd(27, 2))
-					printf("found\n");
+					dprintf("found\n");
 
 				/* ought to cache results here */
 				if (sameaddr(b, c))
@@ -1428,7 +1682,7 @@ self_reference(a, e)
 					return c;
 			}
 			if (tTd(27, 2))
-				printf("failed\n");
+				dprintf("failed\n");
 		}
 		else
 		{
@@ -1437,7 +1691,8 @@ self_reference(a, e)
 			    b->q_mailer == c->q_mailer)
 			{
 				if (tTd(27, 2))
-					printf("\t... local match (%s)\n", c->q_user);
+					dprintf("\t... local match (%s)\n",
+						c->q_user);
 				if (sameaddr(b, c))
 					return b;
 				else
@@ -1445,12 +1700,12 @@ self_reference(a, e)
 			}
 		}
 		if (tTd(27, 10))
-			printf("\n");
+			dprintf("\n");
 		c = c->q_alias;
 	}
 
 	if (tTd(27, 1))
-		printf("\t... cannot break loop for \"%s\"\n", a->q_paddr);
+		dprintf("\t... cannot break loop for \"%s\"\n", a->q_paddr);
 
 	return NULL;
 }

@@ -1,6 +1,7 @@
 divert(-1)
 #
-# Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+#	All rights reserved.
 # Copyright (c) 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
 #	The Regents of the University of California.  All rights reserved.
@@ -12,9 +13,9 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)aix2.m4	8.8 (Berkeley) 5/19/1998')
+VERSIONID(`$Id: aix2.m4,v 8.12 1999/04/12 17:34:36 ca Exp $')
 define(`LOCAL_MAILER_PATH', /bin/bellmail)dnl
 define(`LOCAL_MAILER_ARGS', mail $u)dnl
-define(`LOCAL_MAILER_FLAGS', `mn9')dnl
+_DEFIFNOT(`LOCAL_MAILER_FLAGS', `mn9')dnl
 define(`confEBINDIR', `/usr/lib')dnl
 define(`confTIME_ZONE', `USE_TZ')dnl

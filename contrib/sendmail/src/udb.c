@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+ * Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+ *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -10,33 +11,31 @@
  *
  */
 
-#include "sendmail.h"
+#include <sendmail.h>
 
 #ifndef lint
-#if USERDB
-static char sccsid [] = "@(#)udb.c	8.71 (Berkeley) 1/17/1999 (with USERDB)";
-#else
-static char sccsid [] = "@(#)udb.c	8.71 (Berkeley) 1/17/1999 (without USERDB)";
-#endif
-#endif
+# if USERDB
+static char id[] = "@(#)$Id: udb.c,v 8.111 1999/11/16 02:04:04 gshapiro Exp $ (with USERDB)";
+# else /* USERDB */
+static char id[] = "@(#)$Id: udb.c,v 8.111 1999/11/16 02:04:04 gshapiro Exp $ (without USERDB)";
+# endif /* USERDB */
+#endif /* ! lint */
 
 #if USERDB
 
-#include <errno.h>
-
-#ifdef NEWDB
-# include <db.h>
-# ifndef DB_VERSION_MAJOR
-#  define DB_VERSION_MAJOR 1
-# endif
-#else
-# define DBT	struct _data_base_thang_
+# ifdef NEWDB
+#  include <db.h>
+#  ifndef DB_VERSION_MAJOR
+#   define DB_VERSION_MAJOR 1
+#  endif /* ! DB_VERSION_MAJOR */
+# else /* NEWDB */
+#  define DBT	struct _data_base_thang_
 DBT
 {
 	void	*data;		/* pointer to data */
 	size_t	size;		/* length of data */
 };
-#endif
+# endif /* NEWDB */
 
 /*
 **  UDB.C -- interface between sendmail and Berkeley User Data Base.
@@ -53,56 +52,61 @@ struct udbent
 	char	*udb_default;		/* default host for outgoing mail */
 	union
 	{
+# if NETINET || NETINET6
 		/* type UE_REMOTE -- do remote call for lookup */
 		struct
 		{
-			struct sockaddr_in _udb_addr;	/* address */
+			SOCKADDR	_udb_addr;	/* address */
 			int		_udb_timeout;	/* timeout */
 		} udb_remote;
-#define udb_addr	udb_u.udb_remote._udb_addr
-#define udb_timeout	udb_u.udb_remote._udb_timeout
+#  define udb_addr	udb_u.udb_remote._udb_addr
+#  define udb_timeout	udb_u.udb_remote._udb_timeout
+# endif /* NETINET || NETINET6 */
 
 		/* type UE_FORWARD -- forward message to remote */
 		struct
 		{
 			char	*_udb_fwdhost;	/* name of forward host */
 		} udb_forward;
-#define udb_fwdhost	udb_u.udb_forward._udb_fwdhost
+# define udb_fwdhost	udb_u.udb_forward._udb_fwdhost
 
-#ifdef NEWDB
+# ifdef NEWDB
 		/* type UE_FETCH -- lookup in local database */
 		struct
 		{
 			char	*_udb_dbname;	/* pathname of database */
 			DB	*_udb_dbp;	/* open database ptr */
 		} udb_lookup;
-#define udb_dbname	udb_u.udb_lookup._udb_dbname
-#define udb_dbp		udb_u.udb_lookup._udb_dbp
-#endif
+#  define udb_dbname	udb_u.udb_lookup._udb_dbname
+#  define udb_dbp	udb_u.udb_lookup._udb_dbp
+# endif /* NEWDB */
 	} udb_u;
 };
 
-#define UDB_EOLIST	0	/* end of list */
-#define UDB_SKIP	1	/* skip this entry */
-#define UDB_REMOTE	2	/* look up in remote database */
-#define UDB_DBFETCH	3	/* look up in local database */
-#define UDB_FORWARD	4	/* forward to remote host */
-#define UDB_HESIOD	5	/* look up via hesiod */
+# define UDB_EOLIST	0	/* end of list */
+# define UDB_SKIP	1	/* skip this entry */
+# define UDB_REMOTE	2	/* look up in remote database */
+# define UDB_DBFETCH	3	/* look up in local database */
+# define UDB_FORWARD	4	/* forward to remote host */
+# define UDB_HESIOD	5	/* look up via hesiod */
 
-#define MAXUDBENT	10	/* maximum number of UDB entries */
+# define MAXUDBENT	10	/* maximum number of UDB entries */
 
 
 struct udb_option
 {
-	char	*name;
-	char	*val;
+	char	*udbo_name;
+	char	*udbo_val;
 };
 
-#ifdef HESIOD
-extern int hes_udb_get __P((DBT *, DBT *));
-#endif
-extern int _udbx_init __P((ENVELOPE *));
-/*
+# ifdef HESIOD
+static int	hes_udb_get __P((DBT *, DBT *));
+# endif /* HESIOD */
+static char	*udbmatch __P((char *, char *));
+static int	_udbx_init __P((ENVELOPE *));
+static int	_udb_parsespec __P((char *, struct udb_option [], int));
+
+/*
 **  UDBEXPAND -- look up user in database and expand
 **
 **	Parameters:
@@ -120,12 +124,8 @@ extern int _udbx_init __P((ENVELOPE *));
 **		Modifies sendq.
 */
 
-int	UdbPort = 1616;
-int	UdbTimeout = 10;
-
-struct udbent	UdbEnts[MAXUDBENT + 1];
-int		UdbSock = -1;
-bool		UdbInitialized = FALSE;
+static struct udbent	UdbEnts[MAXUDBENT + 1];
+static bool		UdbInitialized = FALSE;
 
 int
 udbexpand(a, sendq, aliaslevel, e)
@@ -144,14 +144,14 @@ udbexpand(a, sendq, aliaslevel, e)
 	char *user;
 	char keybuf[MAXKEY];
 
-	bzero(&key, sizeof key);
-	bzero(&info, sizeof info);
+	memset(&key, '\0', sizeof key);
+	memset(&info, '\0', sizeof info);
 
 	if (tTd(28, 1))
-		printf("udbexpand(%s)\n", a->q_paddr);
+		dprintf("udbexpand(%s)\n", a->q_paddr);
 
 	/* make certain we are supposed to send to this address */
-	if (bitset(QDONTSEND|QVERIFIED, a->q_flags))
+	if (!QS_IS_SENDABLE(a->q_state))
 		return EX_OK;
 	e->e_to = a->q_paddr;
 
@@ -183,23 +183,22 @@ udbexpand(a, sendq, aliaslevel, e)
 		return EX_OK;
 
 	/* build actual database key */
-	(void) strcpy(keybuf, user);
-	(void) strcat(keybuf, ":maildrop");
+	(void) strlcpy(keybuf, user, sizeof keybuf);
+	(void) strlcat(keybuf, ":maildrop", sizeof keybuf);
 	keylen = strlen(keybuf);
 
 	breakout = FALSE;
 	for (up = UdbEnts; !breakout; up++)
 	{
-		char *user;
 		int usersize;
 		int userleft;
 		char userbuf[MEMCHUNKSIZE];
-#if defined(HESIOD) && defined(HES_GETMAILHOST)
+# if defined(HESIOD) && defined(HES_GETMAILHOST)
 		char pobuf[MAXNAME];
-#endif
-#if defined(NEWDB) && DB_VERSION_MAJOR > 1
+# endif /* defined(HESIOD) && defined(HES_GETMAILHOST) */
+# if defined(NEWDB) && DB_VERSION_MAJOR > 1
 		DBC *dbc = NULL;
-#endif
+# endif /* defined(NEWDB) && DB_VERSION_MAJOR > 1 */
 
 		user = userbuf;
 		userbuf[0] = '\0';
@@ -216,66 +215,66 @@ udbexpand(a, sendq, aliaslevel, e)
 
 		switch (up->udb_type)
 		{
-#ifdef NEWDB
+# ifdef NEWDB
 		  case UDB_DBFETCH:
 			key.data = keybuf;
 			key.size = keylen;
 			if (tTd(28, 80))
-				printf("udbexpand: trying %s (%d) via db\n",
+				dprintf("udbexpand: trying %s (%d) via db\n",
 					keybuf, keylen);
-#if DB_VERSION_MAJOR < 2
+#  if DB_VERSION_MAJOR < 2
 			i = (*up->udb_dbp->seq)(up->udb_dbp, &key, &info, R_CURSOR);
-#else
+#  else /* DB_VERSION_MAJOR < 2 */
 			i = 0;
 			if (dbc == NULL &&
-# if DB_VERSION_MAJOR > 2 || DB_VERSION_MINOR >=6
+#   if DB_VERSION_MAJOR > 2 || DB_VERSION_MINOR >= 6
 			    (errno = (*up->udb_dbp->cursor)(up->udb_dbp,
 							    NULL, &dbc, 0)) != 0)
-# else
+#   else /* DB_VERSION_MAJOR > 2 || DB_VERSION_MINOR >= 6 */
 			    (errno = (*up->udb_dbp->cursor)(up->udb_dbp,
 							    NULL, &dbc)) != 0)
-# endif
+#   endif /* DB_VERSION_MAJOR > 2 || DB_VERSION_MINOR >= 6 */
 				i = -1;
 			if (i != 0 || dbc == NULL ||
 			    (errno = dbc->c_get(dbc, &key,
 						&info, DB_SET)) != 0)
 				i = 1;
-#endif
+#  endif /* DB_VERSION_MAJOR < 2 */
 			if (i > 0 || info.size <= 0)
 			{
 				if (tTd(28, 2))
-					printf("udbexpand: no match on %s (%d)\n",
+					dprintf("udbexpand: no match on %s (%d)\n",
 						keybuf, keylen);
-#if DB_VERSION_MAJOR > 1
-				if (dbc != NULL) 
+#  if DB_VERSION_MAJOR > 1
+				if (dbc != NULL)
 				{
 					(void) dbc->c_close(dbc);
 					dbc = NULL;
 				}
-#endif
+#  endif /* DB_VERSION_MAJOR > 1 */
 				break;
 			}
 			if (tTd(28, 80))
-				printf("udbexpand: match %.*s: %.*s\n",
+				dprintf("udbexpand: match %.*s: %.*s\n",
 					(int) key.size, (char *) key.data,
 					(int) info.size, (char *) info.data);
 
 			a->q_flags &= ~QSELFREF;
 			while (i == 0 && key.size == keylen &&
-					bcmp(key.data, keybuf, keylen) == 0)
+			       memcmp(key.data, keybuf, keylen) == 0)
 			{
 				char *p;
 
 				if (bitset(EF_VRFYONLY, e->e_flags))
 				{
-					a->q_flags |= QVERIFIED;
-#if DB_VERSION_MAJOR > 1
+					a->q_state = QS_VERIFIED;
+#  if DB_VERSION_MAJOR > 1
 					if (dbc != NULL)
 					{
 						(void) dbc->c_close(dbc);
 						dbc = NULL;
 					}
-#endif
+#  endif /* DB_VERSION_MAJOR > 1 */
 					return EX_OK;
 				}
 
@@ -289,7 +288,7 @@ udbexpand(a, sendq, aliaslevel, e)
 						size = info.size;
 					nuser = xalloc(usersize + size);
 
-					bcopy(user, nuser, usersize);
+					memmove(nuser, user, usersize);
 					if (user != userbuf)
 						free(user);
 					user = nuser;
@@ -302,48 +301,48 @@ udbexpand(a, sendq, aliaslevel, e)
 					*p++ = ',';
 					userleft--;
 				}
-				bcopy(info.data, p, info.size);
+				memmove(p, info.data, info.size);
 				p[info.size] = '\0';
 				userleft -= info.size;
 
 				/* get the next record */
-#if DB_VERSION_MAJOR < 2
+#  if DB_VERSION_MAJOR < 2
 				i = (*up->udb_dbp->seq)(up->udb_dbp, &key, &info, R_NEXT);
-#else
+#  else /* DB_VERSION_MAJOR < 2 */
 				i = 0;
 				if ((errno = dbc->c_get(dbc, &key,
 							&info, DB_NEXT)) != 0)
 					i = 1;
-#endif
+#  endif /* DB_VERSION_MAJOR < 2 */
 			}
 
-#if DB_VERSION_MAJOR > 1
+#  if DB_VERSION_MAJOR > 1
 			if (dbc != NULL)
 			{
 				(void) dbc->c_close(dbc);
 				dbc = NULL;
 			}
-#endif
+#  endif /* DB_VERSION_MAJOR > 1 */
 
 			/* if nothing ever matched, try next database */
 			if (!breakout)
 				break;
 
 			message("expanded to %s", user);
-			if (LogLevel >= 10)
+			if (LogLevel > 10)
 				sm_syslog(LOG_INFO, e->e_id,
-					"expand %.100s => %s",
-					e->e_to,
-					shortenstring(user, MAXSHORTSTR));
+					  "expand %.100s => %s",
+					  e->e_to,
+					  shortenstring(user, MAXSHORTSTR));
 			naddrs = sendtolist(user, a, sendq, aliaslevel + 1, e);
 			if (naddrs > 0 && !bitset(QSELFREF, a->q_flags))
 			{
 				if (tTd(28, 5))
 				{
-					printf("udbexpand: QDONTSEND ");
+					dprintf("udbexpand: QS_EXPANDED ");
 					printaddr(a, FALSE);
 				}
-				a->q_flags |= QDONTSEND;
+				a->q_state = QS_EXPANDED;
 			}
 			if (i < 0)
 			{
@@ -357,24 +356,24 @@ udbexpand(a, sendq, aliaslevel, e)
 			**  it into the envelope.
 			*/
 
-			bzero(&key, sizeof key);
-			bzero(&info, sizeof info);
-			(void) strcpy(keybuf, a->q_user);
-			(void) strcat(keybuf, ":mailsender");
+			memset(&key, '\0', sizeof key);
+			memset(&info, '\0', sizeof info);
+			(void) strlcpy(keybuf, a->q_user, sizeof keybuf);
+			(void) strlcat(keybuf, ":mailsender", sizeof keybuf);
 			keylen = strlen(keybuf);
 			key.data = keybuf;
 			key.size = keylen;
 
-#if DB_VERSION_MAJOR < 2
+#  if DB_VERSION_MAJOR < 2
 			i = (*up->udb_dbp->get)(up->udb_dbp, &key, &info, 0);
-#else
+#  else /* DB_VERSION_MAJOR < 2 */
 			i = errno = (*up->udb_dbp->get)(up->udb_dbp, NULL,
 							&key, &info, 0);
-#endif
+#  endif /* DB_VERSION_MAJOR < 2 */
 			if (i != 0 || info.size <= 0)
 				break;
 			a->q_owner = xalloc(info.size + 1);
-			bcopy(info.data, a->q_owner, info.size);
+			memmove(a->q_owner, info.data, info.size);
 			a->q_owner[info.size] = '\0';
 
 			/* announce delivery; NORECEIPT bit set later */
@@ -387,14 +386,14 @@ udbexpand(a, sendq, aliaslevel, e)
 			e->e_flags |= EF_SENDRECEIPT;
 			a->q_flags |= QDELIVERED|QEXPANDED;
 			break;
-#endif
+# endif /* NEWDB */
 
-#ifdef HESIOD
+# ifdef HESIOD
 		  case UDB_HESIOD:
 			key.data = keybuf;
 			key.size = keylen;
 			if (tTd(28, 80))
-				printf("udbexpand: trying %s (%d) via hesiod\n",
+				dprintf("udbexpand: trying %s (%d) via hesiod\n",
 					keybuf, keylen);
 			/* look up the key via hesiod */
 			i = hes_udb_get(&key, &info);
@@ -406,16 +405,16 @@ udbexpand(a, sendq, aliaslevel, e)
 			}
 			else if (i > 0 || info.size <= 0)
 			{
-#if HES_GETMAILHOST
+#  if HES_GETMAILHOST
 				struct hes_postoffice *hp;
-#endif
+#  endif /* HES_GETMAILHOST */
 
 				if (tTd(28, 2))
-					printf("udbexpand: no match on %s (%d)\n",
+					dprintf("udbexpand: no match on %s (%d)\n",
 						(char *) keybuf, (int) keylen);
-#if HES_GETMAILHOST
+#  if HES_GETMAILHOST
 				if (tTd(28, 8))
-					printf("  ... trying hes_getmailhost(%s)\n",
+					dprintf("  ... trying hes_getmailhost(%s)\n",
 						a->q_user);
 				hp = hes_getmailhost(a->q_user);
 				if (hp == NULL)
@@ -427,7 +426,7 @@ udbexpand(a, sendq, aliaslevel, e)
 						return EX_TEMPFAIL;
 					}
 					if (tTd(28, 2))
-						printf("hes_getmailhost(%s): %d\n",
+						dprintf("hes_getmailhost(%s): %d\n",
 							a->q_user, hes_error());
 					break;
 				}
@@ -435,7 +434,7 @@ udbexpand(a, sendq, aliaslevel, e)
 				    sizeof pobuf - 2)
 				{
 					if (tTd(28, 2))
-						printf("hes_getmailhost(%s): expansion too long: %.30s@%.30s\n",
+						dprintf("hes_getmailhost(%s): expansion too long: %.30s@%.30s\n",
 							a->q_user,
 							hp->po_name,
 							hp->po_host);
@@ -445,44 +444,44 @@ udbexpand(a, sendq, aliaslevel, e)
 				snprintf(pobuf, sizeof pobuf, "%s@%s",
 					hp->po_name, hp->po_host);
 				info.size = strlen(info.data);
-#else
+#  else /* HES_GETMAILHOST */
 				break;
-#endif
+#  endif /* HES_GETMAILHOST */
 			}
 			if (tTd(28, 80))
-				printf("udbexpand: match %.*s: %.*s\n",
+				dprintf("udbexpand: match %.*s: %.*s\n",
 					(int) key.size, (char *) key.data,
 					(int) info.size, (char *) info.data);
 			a->q_flags &= ~QSELFREF;
 
 			if (bitset(EF_VRFYONLY, e->e_flags))
 			{
-				a->q_flags |= QVERIFIED;
+				a->q_state = QS_VERIFIED;
 				return EX_OK;
 			}
 
 			breakout = TRUE;
 			if (info.size >= usersize)
 				user = xalloc(info.size + 1);
-			bcopy(info.data, user, info.size);
+			memmove(user, info.data, info.size);
 			user[info.size] = '\0';
 
 			message("hesioded to %s", user);
-			if (LogLevel >= 10)
+			if (LogLevel > 10)
 				sm_syslog(LOG_INFO, e->e_id,
-					"hesiod %.100s => %s",
-					e->e_to,
-					shortenstring(user, MAXSHORTSTR));
+					  "hesiod %.100s => %s",
+					  e->e_to,
+					  shortenstring(user, MAXSHORTSTR));
 			naddrs = sendtolist(user, a, sendq, aliaslevel + 1, e);
 
 			if (naddrs > 0 && !bitset(QSELFREF, a->q_flags))
 			{
 				if (tTd(28, 5))
 				{
-					printf("udbexpand: QDONTSEND ");
+					dprintf("udbexpand: QS_EXPANDED ");
 					printaddr(a, FALSE);
 				}
-				a->q_flags |= QDONTSEND;
+				a->q_state = QS_EXPANDED;
 			}
 
 			/*
@@ -490,8 +489,8 @@ udbexpand(a, sendq, aliaslevel, e)
 			**  it into the envelope.
 			*/
 
-			(void) strcpy(keybuf, a->q_user);
-			(void) strcat(keybuf, ":mailsender");
+			(void) strlcpy(keybuf, a->q_user, sizeof keybuf);
+			(void) strlcat(keybuf, ":mailsender", sizeof keybuf);
 			keylen = strlen(keybuf);
 			key.data = keybuf;
 			key.size = keylen;
@@ -499,10 +498,10 @@ udbexpand(a, sendq, aliaslevel, e)
 			if (i != 0 || info.size <= 0)
 				break;
 			a->q_owner = xalloc(info.size + 1);
-			bcopy(info.data, a->q_owner, info.size);
+			memmove(a->q_owner, info.data, info.size);
 			a->q_owner[info.size] = '\0';
 			break;
-#endif /* HESIOD */
+# endif /* HESIOD */
 
 		  case UDB_REMOTE:
 			/* not yet implemented */
@@ -510,7 +509,10 @@ udbexpand(a, sendq, aliaslevel, e)
 
 		  case UDB_FORWARD:
 			if (bitset(EF_VRFYONLY, e->e_flags))
+			{
+				a->q_state = QS_VERIFIED;
 				return EX_OK;
+			}
 			i = strlen(up->udb_fwdhost) + strlen(a->q_user) + 1;
 			if (i >= usersize)
 			{
@@ -518,7 +520,7 @@ udbexpand(a, sendq, aliaslevel, e)
 				user = xalloc(usersize);
 			}
 			(void) snprintf(user, usersize, "%s@%s",
-				a->q_user, up->udb_fwdhost);
+					a->q_user, up->udb_fwdhost);
 			message("expanded to %s", user);
 			a->q_flags &= ~QSELFREF;
 			naddrs = sendtolist(user, a, sendq, aliaslevel + 1, e);
@@ -526,10 +528,10 @@ udbexpand(a, sendq, aliaslevel, e)
 			{
 				if (tTd(28, 5))
 				{
-					printf("udbexpand: QDONTSEND ");
+					dprintf("udbexpand: QS_EXPANDED ");
 					printaddr(a, FALSE);
 				}
-				a->q_flags |= QDONTSEND;
+				a->q_state = QS_EXPANDED;
 			}
 			breakout = TRUE;
 			break;
@@ -566,13 +568,25 @@ char *
 udbsender(sender)
 	char *sender;
 {
-	extern char *udbmatch __P((char *, char *));
-
 	return udbmatch(sender, "mailname");
 }
+/*
+**  UDBMATCH -- match user in field, return result of lookup.
+**
+**	Parameters:
+**		user -- the name of the user.
+**		field -- the field to lookup.
+**
+**	Returns:
+**		The external name for this sender, if derivable from the
+**			database.
+**		NULL -- if nothing is changed from the database.
+**
+**	Side Effects:
+**		none.
+*/
 
-
-char *
+static char *
 udbmatch(user, field)
 	char *user;
 	char *field;
@@ -585,7 +599,7 @@ udbmatch(user, field)
 	char keybuf[MAXKEY];
 
 	if (tTd(28, 1))
-		printf("udbmatch(%s, %s)\n", user, field);
+		dprintf("udbmatch(%s, %s)\n", user, field);
 
 	if (!UdbInitialized)
 	{
@@ -613,9 +627,7 @@ udbmatch(user, field)
 		return NULL;
 
 	/* build database key */
-	(void) strcpy(keybuf, user);
-	(void) strcat(keybuf, ":");
-	(void) strcat(keybuf, field);
+	(void) snprintf(keybuf, sizeof keybuf, "%s:%s", user, field);
 	keylen = strlen(keybuf);
 
 	for (up = UdbEnts; up->udb_type != UDB_EOLIST; up++)
@@ -626,54 +638,54 @@ udbmatch(user, field)
 
 		switch (up->udb_type)
 		{
-#ifdef NEWDB
+# ifdef NEWDB
 		  case UDB_DBFETCH:
-			bzero(&key, sizeof key);
-			bzero(&info, sizeof info);
+			memset(&key, '\0', sizeof key);
+			memset(&info, '\0', sizeof info);
 			key.data = keybuf;
 			key.size = keylen;
-#if DB_VERSION_MAJOR < 2
+#  if DB_VERSION_MAJOR < 2
 			i = (*up->udb_dbp->get)(up->udb_dbp, &key, &info, 0);
-#else
+#  else /* DB_VERSION_MAJOR < 2 */
 			i = errno = (*up->udb_dbp->get)(up->udb_dbp, NULL,
 							&key, &info, 0);
-#endif
+#  endif /* DB_VERSION_MAJOR < 2 */
 			if (i != 0 || info.size <= 0)
 			{
 				if (tTd(28, 2))
-					printf("udbmatch: no match on %s (%d) via db\n",
-							keybuf, keylen);
+					dprintf("udbmatch: no match on %s (%d) via db\n",
+						keybuf, keylen);
 				continue;
 			}
 
 			p = xalloc(info.size + 1);
-			bcopy(info.data, p, info.size);
+			memmove(p, info.data, info.size);
 			p[info.size] = '\0';
 			if (tTd(28, 1))
-				printf("udbmatch ==> %s\n", p);
+				dprintf("udbmatch ==> %s\n", p);
 			return p;
-#endif
+# endif /* NEWDB */
 
-#ifdef HESIOD
+# ifdef HESIOD
 		  case UDB_HESIOD:
 			key.data = keybuf;
 			key.size = keylen;
-			i = hes_udb_get(&key, &info); 
+			i = hes_udb_get(&key, &info);
 			if (i != 0 || info.size <= 0)
 			{
 				if (tTd(28, 2))
-					printf("udbmatch: no match on %s (%d) via hesiod\n",
-							keybuf, keylen);
+					dprintf("udbmatch: no match on %s (%d) via hesiod\n",
+						keybuf, keylen);
 				continue;
 			}
 
 			p = xalloc(info.size + 1);
-			bcopy(info.data, p, info.size);
+			memmove(p, info.data, info.size);
 			p[info.size] = '\0';
 			if (tTd(28, 1))
-				printf("udbmatch ==> %s\n", p);
+				dprintf("udbmatch ==> %s\n", p);
 			return p;
-#endif /* HESIOD */
+# endif /* HESIOD */
 		}
 	}
 
@@ -687,31 +699,31 @@ udbmatch(user, field)
 	*/
 
 	/* build database key */
-	(void) strcpy(keybuf, user);
-	(void) strcat(keybuf, ":maildrop");
+	(void) strlcpy(keybuf, user, sizeof keybuf);
+	(void) strlcat(keybuf, ":maildrop", sizeof keybuf);
 	keylen = strlen(keybuf);
 
 	for (up = UdbEnts; up->udb_type != UDB_EOLIST; up++)
 	{
 		switch (up->udb_type)
 		{
-#ifdef NEWDB
+# ifdef NEWDB
 		  case UDB_DBFETCH:
 			/* get the default case for this database */
 			if (up->udb_default == NULL)
 			{
-				bzero(&key, sizeof key);
-				bzero(&info, sizeof info);
+				memset(&key, '\0', sizeof key);
+				memset(&info, '\0', sizeof info);
 				key.data = ":default:mailname";
 				key.size = strlen(key.data);
-#if DB_VERSION_MAJOR < 2
+#  if DB_VERSION_MAJOR < 2
 				i = (*up->udb_dbp->get)(up->udb_dbp,
 							&key, &info, 0);
-#else
+#  else /* DB_VERSION_MAJOR < 2 */
 				i = errno = (*up->udb_dbp->get)(up->udb_dbp,
 								NULL, &key,
 								&info, 0);
-#endif
+#  endif /* DB_VERSION_MAJOR < 2 */
 				if (i != 0 || info.size <= 0)
 				{
 					/* no default case */
@@ -721,23 +733,23 @@ udbmatch(user, field)
 
 				/* save the default case */
 				up->udb_default = xalloc(info.size + 1);
-				bcopy(info.data, up->udb_default, info.size);
+				memmove(up->udb_default, info.data, info.size);
 				up->udb_default[info.size] = '\0';
 			}
 			else if (up->udb_default[0] == '\0')
 				continue;
 
 			/* we have a default case -- verify user:maildrop */
-			bzero(&key, sizeof key);
-			bzero(&info, sizeof info);
+			memset(&key, '\0', sizeof key);
+			memset(&info, '\0', sizeof info);
 			key.data = keybuf;
 			key.size = keylen;
-#if DB_VERSION_MAJOR < 2
+#  if DB_VERSION_MAJOR < 2
 			i = (*up->udb_dbp->get)(up->udb_dbp, &key, &info, 0);
-#else
+#  else /* DB_VERSION_MAJOR < 2 */
 			i = errno = (*up->udb_dbp->get)(up->udb_dbp, NULL,
 							&key, &info, 0);
-#endif
+#  endif /* DB_VERSION_MAJOR < 2 */
 			if (i != 0 || info.size <= 0)
 			{
 				/* nope -- no aliasing for this user */
@@ -745,23 +757,22 @@ udbmatch(user, field)
 			}
 
 			/* they exist -- build the actual address */
-			p = xalloc(strlen(user) + strlen(up->udb_default) + 2);
-			(void) strcpy(p, user);
-			(void) strcat(p, "@");
-			(void) strcat(p, up->udb_default);
+			i = strlen(user) + strlen(up->udb_default) + 2;
+			p = xalloc(i);
+			(void) snprintf(p, i, "%s@%s", user, up->udb_default);
 			if (tTd(28, 1))
-				printf("udbmatch ==> %s\n", p);
+				dprintf("udbmatch ==> %s\n", p);
 			return p;
-#endif
+# endif /* NEWDB */
 
-#ifdef HESIOD
+# ifdef HESIOD
 		  case UDB_HESIOD:
 			/* get the default case for this database */
 			if (up->udb_default == NULL)
 			{
 				key.data = ":default:mailname";
 				key.size = strlen(key.data);
-				i = hes_udb_get(&key, &info); 
+				i = hes_udb_get(&key, &info);
 
 				if (i != 0 || info.size <= 0)
 				{
@@ -772,7 +783,7 @@ udbmatch(user, field)
 
 				/* save the default case */
 				up->udb_default = xalloc(info.size + 1);
-				bcopy(info.data, up->udb_default, info.size);
+				memmove(up->udb_default, info.data, info.size);
 				up->udb_default[info.size] = '\0';
 			}
 			else if (up->udb_default[0] == '\0')
@@ -789,15 +800,14 @@ udbmatch(user, field)
 			}
 
 			/* they exist -- build the actual address */
-			p = xalloc(strlen(user) + strlen(up->udb_default) + 2);
-			(void) strcpy(p, user);
-			(void) strcat(p, "@");
-			(void) strcat(p, up->udb_default);
+			i = strlen(user) + strlen(up->udb_default) + 2;
+			p = xalloc(i);
+			(void) snprintf(p, i, "%s@%s", user, up->udb_default);
 			if (tTd(28, 1))
-				printf("udbmatch ==> %s\n", p);
+				dprintf("udbmatch ==> %s\n", p);
 			return p;
 			break;
-#endif /* HESIOD */
+# endif /* HESIOD */
 		}
 	}
 
@@ -831,7 +841,7 @@ udb_map_lookup(map, name, av, statp)
 	char keybuf[MAXNAME + 1];
 
 	if (tTd(28, 20) || tTd(38, 20))
-		printf("udb_map_lookup(%s, %s)\n", map->map_mname, name);
+		dprintf("udb_map_lookup(%s, %s)\n", map->map_mname, name);
 
 	if (bitset(MF_NOFOLDCASE, map->map_mflags))
 	{
@@ -843,7 +853,7 @@ udb_map_lookup(map, name, av, statp)
 
 		if (keysize > sizeof keybuf - 1)
 			keysize = sizeof keybuf - 1;
-		bcopy(name, keybuf, keysize);
+		memmove(keybuf, name, keysize);
 		keybuf[keysize] = '\0';
 		makelower(keybuf);
 		key = keybuf;
@@ -872,9 +882,9 @@ udb_map_lookup(map, name, av, statp)
 **		Fills in the UdbEnts structure from UdbSpec.
 */
 
-#define MAXUDBOPTS	27
+# define MAXUDBOPTS	27
 
-int
+static int
 _udbx_init(e)
 	ENVELOPE *e;
 {
@@ -888,7 +898,7 @@ _udbx_init(e)
 # ifdef UDB_DEFAULT_SPEC
 	if (UdbSpec == NULL)
 		UdbSpec = UDB_DEFAULT_SPEC;
-# endif
+# endif /* UDB_DEFAULT_SPEC */
 
 	p = UdbSpec;
 	up = UdbEnts;
@@ -896,15 +906,7 @@ _udbx_init(e)
 	{
 		char *spec;
 		int l;
-# if 0
-		auto int rcode;
-		int nmx;
-		int i;
-		register struct hostent *h;
-		char *mxhosts[MAXMXHOSTS + 1];
-# endif
 		struct udb_option opts[MAXUDBOPTS + 1];
-		extern int _udb_parsespec __P((char *, struct udb_option [], int));
 
 		while (*p == ' ' || *p == '\t' || *p == ',')
 			p++;
@@ -930,14 +932,6 @@ _udbx_init(e)
 		**	In the sendmail tradition, the leading character
 		**	defines the semantics of the rest of the entry.
 		**
-		**	+hostname --	send a datagram to the udb server
-		**			on host "hostname" asking for the
-		**			home mail server for this user.
-		**	*hostname --	similar to +hostname, except that the
-		**			hostname is searched as an MX record;
-		**			resulting hosts are searched as for
-		**			+mxhostname.  If no MX host is found,
-		**			this is the same as +hostname.
 		**	@hostname --	forward email to the indicated host.
 		**			This should be the last in the list,
 		**			since it always matches the input.
@@ -949,60 +943,6 @@ _udbx_init(e)
 
 		switch (*spec)
 		{
-#if 0
-		  case '+':	/* search remote database */
-		  case '*':	/* search remote database (expand MX) */
-			if (*spec == '*')
-			{
-#if NAMED_BIND
-				nmx = getmxrr(spec + 1, mxhosts, FALSE, &rcode);
-#else
-				mxhosts[0] = spec + 1;
-				nmx = 1;
-				rcode = 0;
-#endif
-				if (tTd(28, 16))
-				{
-					int i;
-
-					printf("getmxrr(%s): %d", spec + 1, nmx);
-					for (i = 0; i <= nmx; i++)
-						printf(" %s", mxhosts[i]);
-					printf("\n");
-				}
-			}
-			else
-			{
-				nmx = 1;
-				mxhosts[0] = spec + 1;
-			}
-
-			for (i = 0; i < nmx; i++)
-			{
-				h = sm_gethostbyname(mxhosts[i]);
-				if (h == NULL)
-					continue;
-				up->udb_type = UDB_REMOTE;
-				up->udb_pid = getpid();
-				up->udb_addr.sin_family = h->h_addrtype;
-				bcopy(h->h_addr_list[0],
-				      (char *) &up->udb_addr.sin_addr,
-				      INADDRSZ);
-				up->udb_addr.sin_port = UdbPort;
-				up->udb_timeout = UdbTimeout;
-				ents++;
-				up++;
-			}
-
-			/* set up a datagram socket */
-			if (UdbSock < 0)
-			{
-				UdbSock = socket(AF_INET, SOCK_DGRAM, 0);
-				(void) fcntl(UdbSock, F_SETFD, 1);
-			}
-			break;
-#endif
-
 		  case '@':	/* forward to remote host */
 			up->udb_type = UDB_FORWARD;
 			up->udb_pid = getpid();
@@ -1011,7 +951,7 @@ _udbx_init(e)
 			up++;
 			break;
 
-#ifdef HESIOD
+# ifdef HESIOD
 		  case 'h':	/* use hesiod */
 		  case 'H':
 			if (strcasecmp(spec, "hesiod") != 0)
@@ -1021,9 +961,9 @@ _udbx_init(e)
 			ents++;
 			up++;
 			break;
-#endif /* HESIOD */
+# endif /* HESIOD */
 
-#ifdef NEWDB
+# ifdef NEWDB
 		  case '/':	/* look up remote name */
 			l = strlen(spec);
 			if (l > 3 && strcmp(&spec[l - 3], ".db") == 0)
@@ -1033,44 +973,82 @@ _udbx_init(e)
 			else
 			{
 				up->udb_dbname = xalloc(l + 4);
-				strcpy(up->udb_dbname, spec);
-				strcat(up->udb_dbname, ".db");
+				(void) strlcpy(up->udb_dbname, spec, l + 4);
+				(void) strlcat(up->udb_dbname, ".db", l + 4);
 			}
 			errno = 0;
-#if DB_VERSION_MAJOR < 2
+#  if DB_VERSION_MAJOR < 2
 			up->udb_dbp = dbopen(up->udb_dbname, O_RDONLY,
 					     0644, DB_BTREE, NULL);
-#else
-			up->udb_dbp = NULL;
-			errno = db_open(up->udb_dbname, DB_BTREE, DB_RDONLY,
-					0644, NULL, NULL, &up->udb_dbp);
-#endif
+#  else /* DB_VERSION_MAJOR < 2 */
+			{
+				int flags = DB_RDONLY;
+#  if DB_VERSION_MAJOR > 2
+				int ret;
+#  endif /* DB_VERSION_MAJOR > 2 */
+
+#  if !HASFLOCK && defined(DB_FCNTL_LOCKING)
+				flags |= DB_FCNTL_LOCKING;
+#  endif /* !HASFLOCK && defined(DB_FCNTL_LOCKING) */
+
+				up->udb_dbp = NULL;
+
+#  if DB_VERSION_MAJOR > 2
+				ret = db_create(&up->udb_dbp, NULL, 0);
+				if (ret != 0)
+				{
+					(void) up->udb_dbp->close(up->udb_dbp,
+								  0);
+					up->udb_dbp = NULL;
+				}
+				else
+				{
+					ret = up->udb_dbp->open(up->udb_dbp,
+								up->udb_dbname,
+								NULL,
+								DB_BTREE,
+								flags,
+								0644);
+					if (ret != 0)
+					{
+						(void) up->udb_dbp->close(up->udb_dbp, 0);
+						up->udb_dbp = NULL;
+					}
+				}
+				errno = ret;
+#  else /* DB_VERSION_MAJOR > 2 */
+				errno = db_open(up->udb_dbname, DB_BTREE,
+						flags, 0644, NULL,
+						NULL, &up->udb_dbp);
+#  endif /* DB_VERSION_MAJOR > 2 */
+			}
+#  endif /* DB_VERSION_MAJOR < 2 */
 			if (up->udb_dbp == NULL)
 			{
 				if (tTd(28, 1))
 				{
-					int saveerrno = errno;
+					int save_errno = errno;
 
-#if DB_VERSION_MAJOR < 2
-					printf("dbopen(%s): %s\n",
-#else
-					printf("db_open(%s): %s\n",
-#endif
+#  if DB_VERSION_MAJOR < 2
+					dprintf("dbopen(%s): %s\n",
+#  else /* DB_VERSION_MAJOR < 2 */
+					dprintf("db_open(%s): %s\n",
+#  endif /* DB_VERSION_MAJOR < 2 */
 						up->udb_dbname,
 						errstring(errno));
-					errno = saveerrno;
+					errno = save_errno;
 				}
 				if (errno != ENOENT && errno != EACCES)
 				{
 					if (LogLevel > 2)
 						sm_syslog(LOG_ERR, e->e_id,
-#if DB_VERSION_MAJOR < 2
-							"dbopen(%s): %s",
-#else
-							"db_open(%s): %s",
-#endif
-							up->udb_dbname,
-							errstring(errno));
+#  if DB_VERSION_MAJOR < 2
+							  "dbopen(%s): %s",
+#  else /* DB_VERSION_MAJOR < 2 */
+							  "db_open(%s): %s",
+#  endif /* DB_VERSION_MAJOR < 2 */
+							  up->udb_dbname,
+							  errstring(errno));
 					up->udb_type = UDB_EOLIST;
 					if (up->udb_dbname != spec)
 						free(up->udb_dbname);
@@ -1082,11 +1060,11 @@ _udbx_init(e)
 			}
 			if (tTd(28, 1))
 			{
-#if DB_VERSION_MAJOR < 2
-				printf("_udbx_init: dbopen(%s)\n",
-#else
-				printf("_udbx_init: db_open(%s)\n",
-#endif
+#  if DB_VERSION_MAJOR < 2
+				dprintf("_udbx_init: dbopen(%s)\n",
+#  else /* DB_VERSION_MAJOR < 2 */
+				dprintf("_udbx_init: db_open(%s)\n",
+#  endif /* DB_VERSION_MAJOR < 2 */
 					up->udb_dbname);
 			}
 			up->udb_type = UDB_DBFETCH;
@@ -1094,10 +1072,12 @@ _udbx_init(e)
 			ents++;
 			up++;
 			break;
-#endif
+# endif /* NEWDB */
 
 		  default:
+# ifdef HESIOD
 badspec:
+# endif /* HESIOD */
 			syserr("Unknown UDB spec %s", spec);
 			break;
 		}
@@ -1110,34 +1090,34 @@ badspec:
 		{
 			switch (up->udb_type)
 			{
-#if DAEMON
+# if DAEMON
 			  case UDB_REMOTE:
-				printf("REMOTE: addr %s, timeo %d\n",
+				dprintf("REMOTE: addr %s, timeo %d\n",
 					anynet_ntoa((SOCKADDR *) &up->udb_addr),
 					up->udb_timeout);
 				break;
-#endif
+# endif /* DAEMON */
 
 			  case UDB_DBFETCH:
-#ifdef NEWDB
-				printf("FETCH: file %s\n",
+# ifdef NEWDB
+				dprintf("FETCH: file %s\n",
 					up->udb_dbname);
-#else
-				printf("FETCH\n");
-#endif
+# else /* NEWDB */
+				dprintf("FETCH\n");
+# endif /* NEWDB */
 				break;
 
 			  case UDB_FORWARD:
-				printf("FORWARD: host %s\n",
+				dprintf("FORWARD: host %s\n",
 					up->udb_fwdhost);
 				break;
 
 			  case UDB_HESIOD:
-				printf("HESIOD\n");
+				dprintf("HESIOD\n");
 				break;
 
 			  default:
-				printf("UNKNOWN\n");
+				dprintf("UNKNOWN\n");
 				break;
 			}
 		}
@@ -1152,28 +1132,26 @@ badspec:
 	*/
 
   tempfail:
-#ifdef NEWDB
+# ifdef NEWDB
 	for (up = UdbEnts; up->udb_type != UDB_EOLIST; up++)
 	{
 		if (up->udb_type == UDB_DBFETCH)
 		{
-#if DB_VERSION_MAJOR < 2
+#  if DB_VERSION_MAJOR < 2
 			(*up->udb_dbp->close)(up->udb_dbp);
-#else
+#  else /* DB_VERSION_MAJOR < 2 */
 			errno = (*up->udb_dbp->close)(up->udb_dbp, 0);
-#endif
+#  endif /* DB_VERSION_MAJOR < 2 */
 			if (tTd(28, 1))
-			{
-				printf("_udbx_init: db->close(%s)\n",
+				dprintf("_udbx_init: db->close(%s)\n",
 					up->udb_dbname);
-			}
 		}
 	}
-#endif
+# endif /* NEWDB */
 	return EX_TEMPFAIL;
 }
 
-int
+static int
 _udb_parsespec(udbspec, opt, maxopts)
 	char *udbspec;
 	struct udb_option opt[];
@@ -1194,11 +1172,11 @@ _udb_parsespec(udbspec, opt, maxopts)
 		if (spec_end != NULL)
 			*spec_end++ = '\0';
 
-		opt[optnum].name = spec;
-		opt[optnum].val = NULL;
+		opt[optnum].udbo_name = spec;
+		opt[optnum].udbo_val = NULL;
 		p = strchr(spec, '=');
 		if (p != NULL)
-			opt[optnum].val = ++p;
+			opt[optnum].udbo_val = ++p;
 	}
 	return optnum;
 }
@@ -1226,28 +1204,26 @@ _udbx_close()
 	{
 		if (up->udb_pid != pid)
 			continue;
-		
-#ifdef NEWDB
+
+# ifdef NEWDB
 		if (up->udb_type == UDB_DBFETCH)
 		{
-#if DB_VERSION_MAJOR < 2
+#  if DB_VERSION_MAJOR < 2
 			(*up->udb_dbp->close)(up->udb_dbp);
-#else
+#  else /* DB_VERSION_MAJOR < 2 */
 			errno = (*up->udb_dbp->close)(up->udb_dbp, 0);
-#endif
+#  endif /* DB_VERSION_MAJOR < 2 */
 		}
 		if (tTd(28, 1))
-		{
-			printf("_udbx_init: db->close(%s)\n",
+			dprintf("_udbx_init: db->close(%s)\n",
 				up->udb_dbname);
-		}
-#endif
+# endif /* NEWDB */
 	}
 }
 
-#ifdef HESIOD
+# ifdef HESIOD
 
-int
+static int
 hes_udb_get(key, info)
 	DBT *key;
 	DBT *info;
@@ -1256,9 +1232,8 @@ hes_udb_get(key, info)
 	char **hp;
 	char kbuf[MAXKEY + 1];
 
-	if (strlen(key->data) >= (SIZE_T) sizeof kbuf)
+	if (strlcpy(kbuf, key->data, sizeof kbuf) >= (SIZE_T) sizeof kbuf)
 		return 0;
-	strcpy(kbuf, key->data);
 	name = kbuf;
 	type = strrchr(name, ':');
 	if (type == NULL)
@@ -1268,18 +1243,18 @@ hes_udb_get(key, info)
 		return 1;
 
 	if (tTd(28, 1))
-		printf("hes_udb_get(%s, %s)\n", name, type);
+		dprintf("hes_udb_get(%s, %s)\n", name, type);
 
 	/* make the hesiod query */
-#ifdef HESIOD_INIT
+#  ifdef HESIOD_INIT
 	if (HesiodContext == NULL && hesiod_init(&HesiodContext) != 0)
 		return -1;
 	hp = hesiod_resolve(HesiodContext, name, type);
-#else
+#  else /* HESIOD_INIT */
 	hp = hes_resolve(name, type);
-#endif /* HESIOD_INIT */
+#  endif /* HESIOD_INIT */
 	*--type = ':';
-#ifdef HESIOD_INIT
+#  ifdef HESIOD_INIT
 	if (hp == NULL)
 		return 1;
 	if (*hp == NULL)
@@ -1289,7 +1264,7 @@ hes_udb_get(key, info)
 			return -1;
 		return 1;
 	}
-#else
+#  else /* HESIOD_INIT */
 	if (hp == NULL || hp[0] == NULL)
 	{
 		/* network problem or timeout */
@@ -1298,7 +1273,7 @@ hes_udb_get(key, info)
 
 		return 1;
 	}
-#endif /* HESIOD_INIT */
+#  endif /* HESIOD_INIT */
 	else
 	{
 		/*
@@ -1314,13 +1289,13 @@ hes_udb_get(key, info)
 	}
 
 	if (tTd(28, 80))
-		printf("hes_udb_get => %s\n", *hp);
+		dprintf("hes_udb_get => %s\n", *hp);
 
 	return 0;
 }
-#endif /* HESIOD */
+# endif /* HESIOD */
 
-#else /* not USERDB */
+#else /* USERDB */
 
 int
 udbexpand(a, sendq, aliaslevel, e)

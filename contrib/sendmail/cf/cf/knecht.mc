@@ -1,6 +1,7 @@
 divert(-1)
 #
-# Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+#	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
 #	The Regents of the University of California.  All rights reserved.
@@ -16,8 +17,8 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)knecht.mc	8.31 (Berkeley) 1/30/1999')
-OSTYPE(bsd4.4)dnl
+VERSIONID(`$Id: knecht.mc,v 8.37 1999/11/19 05:18:12 gshapiro Exp $')
+OSTYPE(bsdi)dnl
 DOMAIN(generic)dnl
 define(`confFORWARD_PATH', `$z/.forward.$w:$z/.forward+$h:$z/.forward')dnl
 define(`confDEF_USER_ID', `mailnull')dnl
@@ -27,10 +28,10 @@ define(`confCOPY_ERRORS_TO', `Postmaster')dnl
 define(`confTO_QUEUEWARN', `8h')dnl
 define(`confTRUSTED_USERS', `www')dnl
 define(`confPRIVACY_FLAGS', ``authwarnings,noexpn,novrfy'')dnl
-FEATURE(virtusertable, `hash /etc/mail/virtusertable')dnl
+FEATURE(virtusertable)dnl
 FEATURE(access_db)dnl
 FEATURE(local_lmtp)dnl
-define(`LOCAL_MAILER_FLAGS', CONCAT(LOCAL_MAILER_FLAGS,P))dnl
+MODIFY_MAILER_FLAGS(`LOCAL', `+P')dnl
 MAILER(local)dnl
 MAILER(smtp)dnl
 
@@ -39,10 +40,9 @@ LOCAL_CONFIG
 #  Regular expression to reject:
 #    * numeric-only localparts from aol.com and msn.com
 #    * localparts starting with a digit from juno.com
-#    * localparts longer than 10 characters from aol.com
 #
 Kcheckaddress regex -a@MATCH
-   ^([0-9]+<@(aol|msn)\.com|[0-9][^<]*<@juno\.com|.{10}[^<]+<@aol\.com)\.?>
+   ^([0-9]+<@(aol|msn)\.com|[0-9][^<]*<@juno\.com)\.?>
 
 #
 #  Names that won't be allowed in a To: line (local-part and domains)

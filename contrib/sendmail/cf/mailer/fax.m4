@@ -1,6 +1,7 @@
 PUSHDIVERT(-1)
 #
-# Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+#	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
 #	The Regents of the University of California.  All rights reserved.
@@ -26,9 +27,10 @@ POPDIVERT
 ###   FAX Mailer specification   ###
 ####################################
 
-VERSIONID(`@(#)fax.m4	8.11 (Berkeley) 5/19/1998')
+VERSIONID(`$Id: fax.m4,v 8.15 1999/10/18 04:57:53 gshapiro Exp $')
 
-Mfax,		P=FAX_MAILER_PATH, F=DFMhu, S=14, R=24, M=FAX_MAILER_MAX, T=X-Phone/X-FAX/X-Unix,
+Mfax,		P=FAX_MAILER_PATH, F=DFMhu, S=14, R=24,
+		M=FAX_MAILER_MAX, T=X-Phone/X-FAX/X-Unix,
 		A=FAX_MAILER_ARGS
 
 LOCAL_CONFIG

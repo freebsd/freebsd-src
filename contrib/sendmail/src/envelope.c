@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+ * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -11,10 +12,11 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)envelope.c	8.122 (Berkeley) 1/25/1999";
-#endif /* not lint */
+static char id[] = "@(#)$Id: envelope.c,v 8.180.14.3 2000/06/29 05:30:23 gshapiro Exp $";
+#endif /* ! lint */
 
-#include "sendmail.h"
+#include <sendmail.h>
+
 
 /*
 **  NEWENVELOPE -- allocate a new envelope
@@ -41,10 +43,15 @@ newenvelope(e, parent)
 		parent = e->e_parent;
 	clearenvelope(e, TRUE);
 	if (e == CurEnv)
-		bcopy((char *) &NullAddress, (char *) &e->e_from, sizeof e->e_from);
+		memmove((char *) &e->e_from,
+			(char *) &NullAddress,
+			sizeof e->e_from);
 	else
-		bcopy((char *) &CurEnv->e_from, (char *) &e->e_from, sizeof e->e_from);
+		memmove((char *) &e->e_from,
+			(char *) &CurEnv->e_from,
+			sizeof e->e_from);
 	e->e_parent = parent;
+	assign_queueid(e);
 	e->e_ctime = curtime();
 	if (parent != NULL)
 		e->e_msgpriority = parent->e_msgsize;
@@ -53,7 +60,7 @@ newenvelope(e, parent)
 	if (CurEnv->e_xfp != NULL)
 		(void) fflush(CurEnv->e_xfp);
 
-	return (e);
+	return e;
 }
 /*
 **  DROPENVELOPE -- deallocate an envelope.
@@ -80,29 +87,29 @@ dropenvelope(e, fulldrop)
 	bool failure_return = FALSE;
 	bool delay_return = FALSE;
 	bool success_return = FALSE;
+	bool pmnotify = bitset(EF_PM_NOTIFY, e->e_flags);
+	bool done = FALSE;
 	register ADDRESS *q;
 	char *id = e->e_id;
 	char buf[MAXLINE];
 
 	if (tTd(50, 1))
 	{
-		extern void printenvflags __P((ENVELOPE *));
-
-		printf("dropenvelope %lx: id=", (u_long) e);
+		dprintf("dropenvelope %lx: id=", (u_long) e);
 		xputs(e->e_id);
-		printf(", flags=");
+		dprintf(", flags=");
 		printenvflags(e);
 		if (tTd(50, 10))
 		{
-			printf("sendq=");
+			dprintf("sendq=");
 			printaddr(e->e_sendqueue, TRUE);
 		}
 	}
 
 	if (LogLevel > 84)
 		sm_syslog(LOG_DEBUG, id,
-			"dropenvelope, e_flags=0x%x, OpMode=%c, pid=%d",
-			e->e_flags, OpMode, getpid());
+			  "dropenvelope, e_flags=0x%lx, OpMode=%c, pid=%d",
+			  e->e_flags, OpMode, getpid());
 
 	/* we must have an id to remove disk files */
 	if (id == NULL)
@@ -126,41 +133,38 @@ dropenvelope(e, fulldrop)
 	if (curtime() > e->e_ctime + TimeOuts.to_q_return[e->e_timeoutclass])
 		message_timeout = TRUE;
 
+	if (TimeOuts.to_q_return[e->e_timeoutclass] == NOW &&
+	    !bitset(EF_RESPONSE, e->e_flags))
+	{
+		message_timeout = TRUE;
+		e->e_flags |= EF_FATALERRS|EF_CLRQUEUE;
+	}
+
 	e->e_flags &= ~EF_QUEUERUN;
 	for (q = e->e_sendqueue; q != NULL; q = q->q_next)
 	{
-		if (bitset(QQUEUEUP, q->q_flags) &&
-		    bitset(QDONTSEND, q->q_flags))
-		{
-			/* I'm not sure how this happens..... */
-			if (tTd(50, 2))
-			{
-				printf("Bogus flags: ");
-				printaddr(q, FALSE);
-			}
-			q->q_flags &= ~QDONTSEND;
-		}
-		if (!bitset(QBADADDR|QDONTSEND|QSENT, q->q_flags))
+		if (QS_IS_UNDELIVERED(q->q_state))
 			queueit = TRUE;
-#if XDEBUG
-		else if (bitset(QQUEUEUP, q->q_flags))
-			sm_syslog(LOG_DEBUG, e->e_id,
-				"dropenvelope: q_flags = %x, paddr = %s",
-				q->q_flags, q->q_paddr);
-#endif
 
 		/* see if a notification is needed */
 		if (bitset(QPINGONFAILURE, q->q_flags) &&
-		    ((message_timeout && bitset(QQUEUEUP, q->q_flags)) ||
-		     bitset(QBADADDR, q->q_flags)))
+		    ((message_timeout && QS_IS_QUEUEUP(q->q_state)) ||
+		     QS_IS_BADADDR(q->q_state) ||
+		     (TimeOuts.to_q_return[e->e_timeoutclass] == NOW &&
+		      !bitset(EF_RESPONSE, e->e_flags))))
+
 		{
 			failure_return = TRUE;
-			if (q->q_owner == NULL && !emptyaddr(&e->e_from))
+			if (!done && q->q_owner == NULL &&
+			    !emptyaddr(&e->e_from))
+			{
 				(void) sendtolist(e->e_from.q_paddr, NULLADDR,
 						  &e->e_errorqueue, 0, e);
+				done = TRUE;
+			}
 		}
 		else if (bitset(QPINGONSUCCESS, q->q_flags) &&
-			 ((bitset(QSENT, q->q_flags) &&
+			 ((QS_IS_SENT(q->q_state) &&
 			   bitnset(M_LOCALMAILER, q->q_mailer->m_flags)) ||
 			  bitset(QRELAYED|QEXPANDED|QDELIVERED, q->q_flags)))
 		{
@@ -176,14 +180,15 @@ dropenvelope(e, fulldrop)
 	*/
 
 	if (!queueit)
+		/* EMPTY */
 		/* nothing to do */ ;
 	else if (message_timeout)
 	{
 		if (failure_return)
 		{
 			(void) snprintf(buf, sizeof buf,
-				"Cannot send message within %s",
-				pintvl(TimeOuts.to_q_return[e->e_timeoutclass], FALSE));
+					"Cannot send message for %s",
+					pintvl(TimeOuts.to_q_return[e->e_timeoutclass], FALSE));
 			if (e->e_message != NULL)
 				free(e->e_message);
 			e->e_message = newstr(buf);
@@ -195,9 +200,9 @@ dropenvelope(e, fulldrop)
 		fprintf(e->e_xfp, "Message will be deleted from queue\n");
 		for (q = e->e_sendqueue; q != NULL; q = q->q_next)
 		{
-			if (!bitset(QBADADDR|QDONTSEND|QSENT, q->q_flags))
+			if (QS_IS_UNDELIVERED(q->q_state))
 			{
-				q->q_flags |= QBADADDR;
+				q->q_state = QS_BADADDR;
 				q->q_status = "4.4.7";
 			}
 		}
@@ -215,7 +220,10 @@ dropenvelope(e, fulldrop)
 		{
 			for (q = e->e_sendqueue; q != NULL; q = q->q_next)
 			{
-				if (bitset(QQUEUEUP, q->q_flags) &&
+				if (QS_IS_QUEUEUP(q->q_state) &&
+#if _FFR_NODELAYDSN_ON_HOLD
+				    !bitnset(M_HOLD, q->q_mailer->m_flags) &&
+#endif /* _FFR_NODELAYDSN_ON_HOLD */
 				    bitset(QPINGONDELAY, q->q_flags))
 				{
 					q->q_flags |= QDELAYED;
@@ -242,7 +250,7 @@ dropenvelope(e, fulldrop)
 	}
 
 	if (tTd(50, 2))
-		printf("failure_return=%d delay_return=%d success_return=%d queueit=%d\n",
+		dprintf("failure_return=%d delay_return=%d success_return=%d queueit=%d\n",
 			failure_return, delay_return, success_return, queueit);
 
 	/*
@@ -254,11 +262,12 @@ dropenvelope(e, fulldrop)
 	{
 		for (q = e->e_sendqueue; q != NULL; q = q->q_next)
 		{
-			if (!bitset(QDONTSEND, q->q_flags) &&
+			if ((QS_IS_OK(q->q_state) ||
+			     QS_IS_VERIFIED(q->q_state)) &&
 			    bitset(QPINGONFAILURE, q->q_flags))
 			{
 				failure_return = TRUE;
-				q->q_flags |= QBADADDR;
+				q->q_state = QS_BADADDR;
 			}
 		}
 	}
@@ -274,7 +283,8 @@ dropenvelope(e, fulldrop)
 		auto ADDRESS *rlist = NULL;
 
 		if (tTd(50, 8))
-			printf("dropenvelope(%s): sending return receipt\n", id);
+			dprintf("dropenvelope(%s): sending return receipt\n",
+				id);
 		e->e_flags |= EF_SENDRECEIPT;
 		(void) sendtolist(e->e_from.q_paddr, NULLADDR, &rlist, 0, e);
 		(void) returntosender("Return receipt", rlist, RTSF_NO_BODY, e);
@@ -287,10 +297,8 @@ dropenvelope(e, fulldrop)
 
 	if ((failure_return || delay_return) && e->e_errormode != EM_QUIET)
 	{
-		extern void savemail __P((ENVELOPE *, bool));
-
 		if (tTd(50, 8))
-			printf("dropenvelope(%s): saving mail\n", id);
+			dprintf("dropenvelope(%s): saving mail\n", id);
 		savemail(e, !bitset(EF_NO_BODY_RETN, e->e_flags));
 	}
 
@@ -298,16 +306,28 @@ dropenvelope(e, fulldrop)
 	**  Arrange to send warning messages to postmaster as requested.
 	*/
 
-	if ((failure_return || bitset(EF_PM_NOTIFY, e->e_flags)) &&
+	if ((failure_return || pmnotify) &&
 	    PostMasterCopy != NULL &&
-	    !bitset(EF_RESPONSE, e->e_flags) && e->e_class >= 0)
+	    !bitset(EF_RESPONSE, e->e_flags) &&
+	    e->e_class >= 0)
 	{
 		auto ADDRESS *rlist = NULL;
+		char pcopy[MAXNAME];
 
-		if (tTd(50, 8))
-			printf("dropenvelope(%s): sending postmaster copy\n", id);
-		(void) sendtolist(PostMasterCopy, NULLADDR, &rlist, 0, e);
-		(void) returntosender(e->e_message, rlist, RTSF_PM_BOUNCE, e);
+		if (failure_return)
+		{
+			expand(PostMasterCopy, pcopy, sizeof pcopy, e);
+
+			if (tTd(50, 8))
+				dprintf("dropenvelope(%s): sending postmaster copy to %s\n",
+					id, pcopy);
+			(void) sendtolist(pcopy, NULLADDR, &rlist, 0, e);
+		}
+		if (pmnotify)
+			(void) sendtolist("postmaster", NULLADDR,
+					  &rlist, 0, e);
+		(void) returntosender(e->e_message, rlist,
+				      RTSF_PM_BOUNCE|RTSF_NO_BODY, e);
 	}
 
 	/*
@@ -316,42 +336,42 @@ dropenvelope(e, fulldrop)
 
 simpledrop:
 	if (tTd(50, 8))
-		printf("dropenvelope(%s): at simpledrop, queueit=%d\n",
+		dprintf("dropenvelope(%s): at simpledrop, queueit=%d\n",
 			id, queueit);
 	if (!queueit || bitset(EF_CLRQUEUE, e->e_flags))
 	{
 		if (tTd(50, 1))
 		{
-			extern void printenvflags __P((ENVELOPE *));
-
-			printf("\n===== Dropping [dq]f%s... queueit=%d, e_flags=",
+			dprintf("\n===== Dropping [dq]f%s... queueit=%d, e_flags=",
 				e->e_id, queueit);
 			printenvflags(e);
 		}
 		xunlink(queuename(e, 'd'));
 		xunlink(queuename(e, 'q'));
 
-		if (LogLevel > 10)
-			sm_syslog(LOG_INFO, id, "done");
+		if (e->e_ntries > 0 && LogLevel > 9)
+			sm_syslog(LOG_INFO, id, "done; delay=%s, ntries=%d",
+				  pintvl(curtime() - e->e_ctime, TRUE),
+				  e->e_ntries);
 	}
 	else if (queueit || !bitset(EF_INQUEUE, e->e_flags))
 	{
 #if QUEUE
 		queueup(e, FALSE);
 #else /* QUEUE */
-		syserr("554 dropenvelope: queueup");
+		syserr("554 5.3.0 dropenvelope: queueup");
 #endif /* QUEUE */
 	}
 
 	/* now unlock the job */
 	if (tTd(50, 8))
-		printf("dropenvelope(%s): unlocking job\n", id);
+		dprintf("dropenvelope(%s): unlocking job\n", id);
 	closexscript(e);
 	unlockqueue(e);
 
 	/* make sure that this envelope is marked unused */
 	if (e->e_dfp != NULL)
-		(void) xfclose(e->e_dfp, "dropenvelope df", e->e_id);
+		(void) bfclose(e->e_dfp);
 	e->e_dfp = NULL;
 	e->e_id = NULL;
 	e->e_flags &= ~EF_HAS_DF;
@@ -389,9 +409,9 @@ clearenvelope(e, fullclear)
 	{
 		/* clear out any file information */
 		if (e->e_xfp != NULL)
-			(void) xfclose(e->e_xfp, "clearenvelope xfp", e->e_id);
+			(void) bfclose(e->e_xfp);
 		if (e->e_dfp != NULL)
-			(void) xfclose(e->e_dfp, "clearenvelope dfp", e->e_id);
+			(void) bfclose(e->e_dfp);
 		e->e_xfp = e->e_dfp = NULL;
 	}
 
@@ -399,13 +419,13 @@ clearenvelope(e, fullclear)
 	STRUCTCOPY(BlankEnvelope, *e);
 	e->e_message = NULL;
 	if (Verbose)
-		e->e_sendmode = SM_DELIVER;
+		set_delivery_mode(SM_DELIVER, e);
 	bh = BlankEnvelope.e_header;
 	nhp = &e->e_header;
 	while (bh != NULL)
 	{
 		*nhp = (HDR *) xalloc(sizeof *bh);
-		bcopy((char *) bh, (char *) *nhp, sizeof *bh);
+		memmove((char *) *nhp, (char *) bh, sizeof *bh);
 		bh = bh->h_link;
 		nhp = &(*nhp)->h_link;
 	}
@@ -416,7 +436,7 @@ clearenvelope(e, fullclear)
 **	In Daemon mode, this is done in the child.
 **
 **	Parameters:
-**		none.
+**		e -- the envelope to use.
 **
 **	Returns:
 **		none.
@@ -438,15 +458,19 @@ initsys(e)
 	register char *p;
 	extern char *ttyname();
 #endif /* TTYNAME */
-	extern void settime __P((ENVELOPE *));
 
 	/*
 	**  Give this envelope a reality.
 	**	I.e., an id, a transcript, and a creation time.
 	*/
 
+	setnewqueue(e);
 	openxscript(e);
 	e->e_ctime = curtime();
+#if _FFR_QUEUEDELAY
+	e->e_queuealg = QueueAlg;
+	e->e_queuedelay = QueueInitDelay;
+#endif /* _FFR_QUEUEDELAY */
 
 	/*
 	**  Set OutChannel to something useful if stdout isn't it.
@@ -464,7 +488,7 @@ initsys(e)
 	*/
 
 	/* process id */
-	(void) snprintf(pbuf, sizeof pbuf, "%d", getpid());
+	(void) snprintf(pbuf, sizeof pbuf, "%d", (int) getpid());
 	define('p', newstr(pbuf), e);
 
 	/* hop count */
@@ -473,6 +497,9 @@ initsys(e)
 
 	/* time as integer, unix time, arpa time */
 	settime(e);
+
+	/* Load average */
+	(void)sm_getla(e);
 
 #ifdef TTYNAME
 	/* tty name */
@@ -493,7 +520,7 @@ initsys(e)
 **  SETTIME -- set the current time.
 **
 **	Parameters:
-**		none.
+**		e -- the envelope in which the macros should be set.
 **
 **	Returns:
 **		none.
@@ -511,14 +538,13 @@ settime(e)
 	char tbuf[20];				/* holds "current" time */
 	char dbuf[30];				/* holds ctime(tbuf) */
 	register struct tm *tm;
-	extern struct tm *gmtime();
 
 	now = curtime();
 	tm = gmtime(&now);
 	(void) snprintf(tbuf, sizeof tbuf, "%04d%02d%02d%02d%02d", tm->tm_year + 1900,
-			tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min);
+			tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min);
 	define('t', newstr(tbuf), e);
-	(void) strcpy(dbuf, ctime(&now));
+	(void) strlcpy(dbuf, ctime(&now), sizeof dbuf);
 	p = strchr(dbuf, '\n');
 	if (p != NULL)
 		*p = '\0';
@@ -546,38 +572,42 @@ settime(e)
 */
 
 #ifndef O_APPEND
-#define O_APPEND	0
-#endif
+# define O_APPEND	0
+#endif /* ! O_APPEND */
 
 void
 openxscript(e)
 	register ENVELOPE *e;
 {
 	register char *p;
-	int fd;
 
 	if (e->e_xfp != NULL)
 		return;
+
+#if 0
+	if (e->e_lockfp == NULL && bitset(EF_INQUEUE, e->e_flags))
+		syserr("openxscript: job not locked");
+#endif /* 0 */
+
 	p = queuename(e, 'x');
-	fd = open(p, O_WRONLY|O_CREAT|O_APPEND, FileMode);
-	if (fd < 0)
+	e->e_xfp = bfopen(p, FileMode, XscriptFileBufferSize,
+			  SFF_NOTEXCL|SFF_OPENASROOT);
+
+	if (e->e_xfp == NULL)
 	{
 		syserr("Can't create transcript file %s", p);
-		fd = open("/dev/null", O_WRONLY, 0644);
-		if (fd < 0)
+		e->e_xfp = fopen("/dev/null", "r+");
+		if (e->e_xfp == NULL)
 			syserr("!Can't open /dev/null");
 	}
-	e->e_xfp = fdopen(fd, "a");
-	if (e->e_xfp == NULL)
-		syserr("!Can't create transcript stream %s", p);
-#ifdef HASSETVBUF
-	setvbuf(e->e_xfp, NULL, _IOLBF, 0);
-#else
-	setlinebuf(e->e_xfp);
-#endif
+#if HASSETVBUF
+	(void) setvbuf(e->e_xfp, NULL, _IOLBF, 0);
+#else /* HASSETVBUF */
+	(void) setlinebuf(e->e_xfp);
+#endif /* HASSETVBUF */
 	if (tTd(46, 9))
 	{
-		printf("openxscript(%s):\n  ", p);
+		dprintf("openxscript(%s):\n  ", p);
 		dumpfd(fileno(e->e_xfp), TRUE, FALSE);
 	}
 }
@@ -600,7 +630,11 @@ closexscript(e)
 {
 	if (e->e_xfp == NULL)
 		return;
-	(void) xfclose(e->e_xfp, "closexscript", e->e_id);
+#if 0
+	if (e->e_lockfp == NULL)
+		syserr("closexscript: job not locked");
+#endif /* 0 */
+	(void) bfclose(e->e_xfp);
 	e->e_xfp = NULL;
 }
 /*
@@ -659,7 +693,7 @@ setsender(from, e, delimptr, delimchar, internal)
 	extern char *FullName;
 
 	if (tTd(45, 1))
-		printf("setsender(%s)\n", from == NULL ? "" : from);
+		dprintf("setsender(%s)\n", from == NULL ? "" : from);
 
 	/*
 	**  Figure out the real user executing us.
@@ -675,11 +709,16 @@ setsender(from, e, delimptr, delimchar, internal)
 	if (ConfigLevel < 2)
 		SuprErrs = TRUE;
 
-	e->e_from.q_flags = QBADADDR;
+#if _FFR_ADDR_TYPE
+	define(macid("{addr_type}", NULL), "e s", e);
+#endif /* _FFR_ADDR_TYPE */
+	/* preset state for then clause in case from == NULL */
+	e->e_from.q_state = QS_BADADDR;
+	e->e_from.q_flags = 0;
 	if (from == NULL ||
 	    parseaddr(from, &e->e_from, RF_COPYALL|RF_SENDERADDR,
 		      delimchar, delimptr, e) == NULL ||
-	    bitset(QBADADDR, e->e_from.q_flags) ||
+	    QS_IS_BADADDR(e->e_from.q_state) ||
 	    e->e_from.q_mailer == ProgMailer ||
 	    e->e_from.q_mailer == FileMailer ||
 	    e->e_from.q_mailer == InclMailer)
@@ -703,16 +742,17 @@ setsender(from, e, delimptr, delimchar, internal)
 				p = ebuf;
 			}
 			sm_syslog(LOG_NOTICE, e->e_id,
-				"setsender: %s: invalid or unparseable, received from %s",
-				shortenstring(from, 83), p);
+				  "setsender: %s: invalid or unparsable, received from %s",
+				  shortenstring(from, 83), p);
 		}
 		if (from != NULL)
 		{
-			if (!bitset(QBADADDR, e->e_from.q_flags))
+			if (!QS_IS_BADADDR(e->e_from.q_state))
 			{
 				/* it was a bogus mailer in the from addr */
 				e->e_status = "5.1.7";
-				usrerr("553 Invalid sender address");
+				usrerrenh(e->e_status,
+					  "553 Invalid sender address");
 			}
 			SuprErrs = TRUE;
 		}
@@ -727,31 +767,30 @@ setsender(from, e, delimptr, delimchar, internal)
 			if (parseaddr(from = newstr(nbuf), &e->e_from,
 				      RF_COPYALL, ' ', NULL, e) == NULL &&
 			    parseaddr(from = "postmaster", &e->e_from,
-			    	      RF_COPYALL, ' ', NULL, e) == NULL)
-				syserr("553 setsender: can't even parse postmaster!");
+				      RF_COPYALL, ' ', NULL, e) == NULL)
+				syserr("553 5.3.0 setsender: can't even parse postmaster!");
 		}
 	}
 	else
 		FromFlag = TRUE;
-	e->e_from.q_flags |= QDONTSEND;
+	e->e_from.q_state = QS_SENDER;
 	if (tTd(45, 5))
 	{
-		printf("setsender: QDONTSEND ");
+		dprintf("setsender: QS_SENDER ");
 		printaddr(&e->e_from, FALSE);
 	}
 	SuprErrs = FALSE;
 
-# if USERDB
+#if USERDB
 	if (bitnset(M_CHECKUDB, e->e_from.q_mailer->m_flags))
 	{
 		register char *p;
-		extern char *udbsender __P((char *));
 
 		p = udbsender(e->e_from.q_user);
 		if (p != NULL)
 			from = p;
 	}
-# endif /* USERDB */
+#endif /* USERDB */
 
 	if (bitnset(M_HASPWENT, e->e_from.q_mailer->m_flags))
 	{
@@ -795,7 +834,7 @@ setsender(from, e, delimptr, delimchar, internal)
 		}
 		else
 		{
-			e->e_from.q_home = "/no/such/directory";
+			e->e_from.q_home = NULL;
 		}
 		if (FullName != NULL && !internal)
 			define('x', FullName, e);
@@ -825,19 +864,22 @@ setsender(from, e, delimptr, delimchar, internal)
 		/* don't need to give error -- prescan did that already */
 		if (LogLevel > 2)
 			sm_syslog(LOG_NOTICE, e->e_id,
-				"cannot prescan from (%s)",
-				shortenstring(from, MAXSHORTSTR));
+				  "cannot prescan from (%s)",
+				  shortenstring(from, MAXSHORTSTR));
 		finis(TRUE, ExitStat);
 	}
 	(void) rewrite(pvp, 3, 0, e);
 	(void) rewrite(pvp, 1, 0, e);
 	(void) rewrite(pvp, 4, 0, e);
+#if _FFR_ADDR_TYPE
+	define(macid("{addr_type}", NULL), NULL, e);
+#endif /* _FFR_ADDR_TYPE */
 	bp = buf + 1;
 	cataddr(pvp, NULL, bp, sizeof buf - 2, '\0');
 	if (*bp == '@' && !bitnset(M_NOBRACKET, e->e_from.q_mailer->m_flags))
 	{
 		/* heuristic: route-addr: add angle brackets */
-		strcat(bp, ">");
+		(void) strlcat(bp, ">", sizeof buf - 1);
 		*--bp = '<';
 	}
 	e->e_sender = newstr(bp);
@@ -848,12 +890,17 @@ setsender(from, e, delimptr, delimchar, internal)
 	    bitnset(M_CANONICAL, e->e_from.q_mailer->m_flags))
 	{
 		char **lastat;
-		extern char **copyplist __P((char **, bool));
 
 		/* get rid of any pesky angle brackets */
+#if _FFR_ADDR_TYPE
+		define(macid("{addr_type}", NULL), "e s", e);
+#endif /* _FFR_ADDR_TYPE */
 		(void) rewrite(pvp, 3, 0, e);
 		(void) rewrite(pvp, 1, 0, e);
 		(void) rewrite(pvp, 4, 0, e);
+#if _FFR_ADDR_TYPE
+		define(macid("{addr_type}", NULL), NULL, e);
+#endif /* _FFR_ADDR_TYPE */
 
 		/* strip off to the last "@" sign */
 		for (lastat = NULL; *pvp != NULL; pvp++)
@@ -864,7 +911,7 @@ setsender(from, e, delimptr, delimchar, internal)
 			e->e_fromdomain = copyplist(lastat, TRUE);
 			if (tTd(45, 3))
 			{
-				printf("Saving from domain: ");
+				dprintf("Saving from domain: ");
 				printav(e->e_fromdomain);
 			}
 		}
@@ -886,7 +933,7 @@ struct eflags
 	u_long	ef_bit;
 };
 
-struct eflags	EnvelopeFlags[] =
+static struct eflags	EnvelopeFlags[] =
 {
 	{ "OLDSTYLE",		EF_OLDSTYLE	},
 	{ "INQUEUE",		EF_INQUEUE	},

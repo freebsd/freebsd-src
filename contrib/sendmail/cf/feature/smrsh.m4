@@ -1,6 +1,7 @@
 divert(-1)
 #
-# Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+#	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
 #	The Regents of the University of California.  All rights reserved.
@@ -12,12 +13,14 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)smrsh.m4	8.8 (Berkeley) 5/19/1998')
+VERSIONID(`$Id: smrsh.m4,v 8.14 1999/11/18 05:06:23 ca Exp $')
 divert(-1)
 
 ifdef(`_MAILER_local_',
-	`errprint(`*** FEATURE(smrsh) must occur before MAILER(local)')')dnl
+	`errprint(`*** FEATURE(smrsh) must occur before MAILER(local)
+')')dnl
 define(`LOCAL_SHELL_PATH',
-	ifelse(_ARG_, `',
+	ifelse(defn(`_ARG_'), `',
 		ifdef(`confEBINDIR', confEBINDIR, `/usr/libexec')`/smrsh',
 		_ARG_))
+_DEFIFNOT(`LOCAL_SHELL_ARGS', `smrsh -c $u')
