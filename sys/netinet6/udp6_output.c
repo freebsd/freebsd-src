@@ -70,6 +70,7 @@
 #include "opt_inet6.h"
 
 #include <sys/param.h>
+#include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
@@ -213,7 +214,7 @@ udp6_output(in6p, m, addr6, control, td)
 			goto release;
 		}
 		if (in6p->in6p_lport == 0 &&
-		    (error = in6_pcbsetport(laddr, in6p, td)) != 0)
+		    (error = in6_pcbsetport(laddr, in6p, td->td_ucred)) != 0)
 			goto release;
 	} else {
 		if (IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_faddr)) {
