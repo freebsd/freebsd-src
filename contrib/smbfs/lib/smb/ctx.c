@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, Boris Popov
+ * Copyright (c) 2000-2002, Boris Popov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ctx.c,v 1.22 2001/12/26 04:10:52 bp Exp $
+ * $Id: ctx.c,v 1.24 2002/04/13 14:35:28 bp Exp $
  */
 #include <sys/param.h>
 #include <sys/sysctl.h>
@@ -64,7 +64,9 @@ smb_ctx_init(struct smb_ctx *ctx, int argc, char *argv[],
 	int minlevel, int maxlevel, int sharetype)
 {
 	int  opt, error = 0;
+	uid_t euid;
 	const char *arg, *cp;
+	struct passwd *pwd;
 
 	bzero(ctx,sizeof(*ctx));
 	error = nb_ctx_create(&ctx->ct_nb);
@@ -92,8 +94,14 @@ smb_ctx_init(struct smb_ctx *ctx, int argc, char *argv[],
 	ctx->ct_sh.ioc_group = SMBM_ANY_GROUP;
 
 	nb_ctx_setscope(ctx->ct_nb, "");
-	smb_ctx_setuser(ctx, getpwuid(geteuid())->pw_name);
-	endpwent();
+	euid = geteuid();
+	if ((pwd = getpwuid(euid)) != NULL) {
+		smb_ctx_setuser(ctx, pwd->pw_name);
+		endpwent();
+	} else if (euid == 0)
+		smb_ctx_setuser(ctx, "root");
+	else
+		return 0;
 	if (argv == NULL)
 		return 0;
 	for (opt = 1; opt < argc; opt++) {
@@ -564,7 +572,7 @@ smb_ctx_gethandle(struct smb_ctx *ctx)
 	char buf[20];
 
 	/*
-	 * First try to open as clone
+	 * First, try to open as cloned device
 	 */
 	fd = open("/dev/"NSMB_NAME, O_RDWR);
 	if (fd >= 0) {

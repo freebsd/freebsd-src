@@ -1,4 +1,4 @@
-# $Id: Makefile.inc,v 1.10 2001/05/03 10:05:47 bp Exp $
+# $Id: Makefile.inc,v 1.11 2002/04/16 02:57:46 bp Exp $
 
 .ifmake !clean && !cleandepend
 .if !defined(PREFIX)
@@ -25,6 +25,8 @@ CFLAGS	+= -I../kernel
 .else
 CFLAGS	+= -I${SYSDIR}
 .endif
+
+CFLAGS += -I../include
 
 .if defined(SMBGDB)
 CFLAGS+= -ggdb
