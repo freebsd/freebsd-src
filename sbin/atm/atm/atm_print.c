@@ -394,7 +394,7 @@ print_asrv_info(si)
 		for (i = 0; i < si->asp_nprefix; i++) {
 			printf("%s", inet_ntoa(*addr));
 			addr++;
-			printf("/0x%0lx", ntohl(addr->s_addr));
+			printf("/0x%0lx", (u_long)ntohl(addr->s_addr));
 			addr++;
 			if (i < si->asp_nprefix -1)
 				printf(", ");
@@ -690,7 +690,7 @@ print_intf_stats(pi)
 	/*
 	 * Print the interface statistics
 	 */
-	printf("%-9s  %7ld %8ld  %5ld %7ld %8ld  %5ld  %5ld\n",
+	printf("%-9s  %7lld %8lld  %5lld %7lld %8lld  %5lld  %5lld\n",
 			pi->app_intf,
 			pi->app_ipdus,
 			pi->app_ibytes,
