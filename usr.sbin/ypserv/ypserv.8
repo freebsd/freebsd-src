@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: ypserv.8,v 1.14 1997/11/01 15:55:09 jseger Exp $
+.\"	$Id: ypserv.8,v 1.15 1998/03/23 08:31:07 charnier Exp $
 .\"
 .Dd February 4, 1995
 .Dt YPSERV 8
@@ -165,6 +165,11 @@ database is maintained through
 .Tn NIS .
 .Pp
 .Sh NOTES
+.Ss Setting Up Master and Slave Servers
+.Xr ypinit 8
+is a convenient script that will help setup master and slave
+.Tn NIS
+servers.
 .Ss Limitations
 There are two problems inherent with password shadowing in
 .Tn NIS
@@ -408,6 +413,7 @@ host access control file
 .Xr db 3 ,
 .Xr yp 4 ,
 .Xr ypbind 8 ,
+.Xr ypinit 8 ,
 .Xr yppasswdd 8 ,
 .Xr yppush 8 ,
 .Xr ypxfr 8
