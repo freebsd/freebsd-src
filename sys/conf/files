@@ -77,6 +77,7 @@ ddb/db_print.c		optional ddb
 ddb/db_ps.c		optional ddb
 ddb/db_run.c		optional ddb
 ddb/db_sym.c		optional ddb
+ddb/db_sysctl.c		optional ddb
 ddb/db_trap.c		optional ddb
 ddb/db_variables.c	optional ddb
 ddb/db_watch.c		optional ddb
