@@ -227,7 +227,7 @@ chgsbsize(uid, hiwat, to, max)
 /*
  * Is p an inferior of the current process?
  */
-inT
+int
 inferior(p)
 	register struct proc *p;
 {
