@@ -1946,6 +1946,47 @@ telnet(char *user __unusedhere)
     }
 }
 
+#if	0	/* XXX - this not being in is a bug */
+/*
+ * nextitem()
+ *
+ *	Return the address of the next "item" in the TELNET data
+ * stream.  This will be the address of the next character if
+ * the current address is a user data character, or it will
+ * be the address of the character following the TELNET command
+ * if the current address is a TELNET IAC ("I Am a Command")
+ * character.
+ */
+
+static char *
+nextitem(char *current)
+{
+    if ((*current&0xff) != IAC) {
+	return current+1;
+    }
+    switch (*(current+1)&0xff) {
+    case DO:
+    case DONT:
+    case WILL:
+    case WONT:
+	return current+3;
+    case SB:		/* loop forever looking for the SE */
+	{
+	    char *look = current+2;
+
+	    for (;;) {
+		if ((*look++&0xff) == IAC) {
+		    if ((*look++&0xff) == SE) {
+			return look;
+		    }
+		}
+	    }
+	}
+    default:
+	return current+2;
+    }
+}
+#endif	/* 0 */
 
 /*
  * netclear()
