@@ -1,12 +1,8 @@
-PROG= rcsmerge
+PROG=	rcsmerge
 SRCS=	rcsmerge.c 
-
-.if exists(${.CURDIR}/../lib/obj)
-LDADD=  -L${.CURDIR}/../lib/obj -lrcs
-.else
-LDADD=  -L${.CURDIR}/../lib/ -lrcs
-.endif
-
 CFLAGS+= -I${.CURDIR}/../lib
+LDADD=	${LIBRCS}
+DPADD=	${LIBRCS}
 
+.include "../../Makefile.inc"
 .include <bsd.prog.mk>
