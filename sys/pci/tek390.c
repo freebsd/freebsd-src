@@ -1231,6 +1231,16 @@ int DC390_initAdapter( PACB pACB, ULONG io_port, UCHAR Irq, USHORT index,
 }
 
 
+#ifdef PCI_COMPAT
+static pcicfgregs *cfg;
+#define DC390_EnableCfg(a,b)
+#define DC390_DisableCfg(a)
+#define DC390_inByte(a,reg) pci_cfgread(cfg,reg,1)
+#define DC390_inWord(a,reg) pci_cfgread(cfg,reg,2)
+#define DC390_inDword(a,reg) pci_cfgread(cfg,reg,4)
+#define DC390_OutB(a,reg,val) pci_cfgwrite(cfg,reg,val,1)
+#else
+
 void
 DC390_EnableCfg( USHORT mechnum, UCHAR regval )
 {
@@ -1366,6 +1376,7 @@ DC390_OutB(USHORT mechnum, UCHAR regval, UCHAR bval )
     splx(flags);
 }
 
+#endif /PCI_COMPAT */
 
 void
 DC390_EnDisableCE( UCHAR mode, USHORT mechnum, PUCHAR regval )
@@ -1527,6 +1538,9 @@ USHORT
 DC390_ToMech( USHORT Mechnum, pcici_t config_id )
 {
 
+#ifdef PCI_COMPAT
+    cfg = config_id;
+#else
     if(Mechnum == 2)
     {
 	mech2bus = config_id.cfg2.forward;	/* Bus num */
@@ -1537,6 +1551,7 @@ DC390_ToMech( USHORT Mechnum, pcici_t config_id )
     {
 	mech1addr = config_id.cfg1;
     }
+#endif /* PCI_COMPAT */
     return(0);
 }
 
