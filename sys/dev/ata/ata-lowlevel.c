@@ -303,7 +303,8 @@ ata_end_transaction(struct ata_request *request)
 	    request->u.ata.count = ATA_IDX_INB(ch, ATA_COUNT);
 	    request->u.ata.lba = ATA_IDX_INB(ch, ATA_SECTOR) |
 				 (ATA_IDX_INB(ch, ATA_CYL_LSB) << 8) |
-				 (ATA_IDX_INB(ch, ATA_CYL_MSB) << 16);
+				 (ATA_IDX_INB(ch, ATA_CYL_MSB) << 16) |
+	    			 ((ATA_IDX_INB(ch, ATA_DRIVE) & 0x0f) << 24);
 	}
 
 	/* if we got an error we are done with the HW */
