@@ -309,10 +309,8 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 	    !(m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK)) &&
 	    ipip_allow != 2) {
 	    	IFNET_RLOCK();
-		for (ifp = ifnet.tqh_first; ifp != 0;
-		     ifp = ifp->if_list.tqe_next) {
-			for (ifa = ifp->if_addrlist.tqh_first; ifa != 0;
-			     ifa = ifa->ifa_list.tqe_next) {
+		TAILQ_FOREACH(ifp, &ifnet, if_link) {
+			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 #ifdef INET
 				if (ipo) {
 					if (ifa->ifa_addr->sa_family !=
