@@ -4,7 +4,7 @@ The FreeBSD Russian Documentation Project
 $FreeBSD$
 $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/installation/common/install.sgml,v 1.5 2004/09/06 14:05:03 den Exp $
 
-Original revision: 1.28
+Original revision: 1.30
 
 install.sgml
 
@@ -76,10 +76,8 @@ from {alpha,i386}/INSTALL.TXT.
 <!-- i386/pc98 text starts here -->
 
     <para arch="i386,pc98">&os; для &arch.print; для установки и работы
-      требуется 486 процессор или выше (хотя с другим ядром &os; может
-      работать на процессорах 386), как минимум 8 мегабайт оперативной
-      памяти для установки и
-      7 мегабайта для запуска.  Вам потребуется как
+      требуется 486 процессор или выше и как минимум 24&nbsp;мегабайт
+      оперативной памяти.  Вам потребуется как
       минимум 150MB свободного места на жестком диске для минимальной
       установки.  Ниже дана информация по урезанию существующего
       раздела DOS для установки &os;.</para>
