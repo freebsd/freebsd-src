@@ -633,7 +633,6 @@ pmap_init(phys_start, phys_end)
 		m = &vm_page_array[i];
 		TAILQ_INIT(&m->md.pv_list);
 		m->md.pv_list_count = 0;
-		m->md.pv_flags = 0;
  	}
 
 	/*
@@ -2899,19 +2898,6 @@ pmap_clear_modify(vm_page_t m)
 			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 		}
 	}
-}
-
-/*
- *	pmap_page_is_free:
- *
- *	Called when a page is freed to allow pmap to clean up
- *	any extra state associated with the page.  In this case
- *	clear modified/referenced bits.
- */
-void
-pmap_page_is_free(vm_page_t m)
-{
-	m->md.pv_flags = 0;
 }
 
 /*
