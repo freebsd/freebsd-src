@@ -14,7 +14,7 @@ SRCS=	c-common.c c-dump.c c-format.c c-opts.c \
 	caller-save.c calls.c combine.c convert.c cse.c \
 	dbxout.c dwarfout.c dwarf2out.c dwarf2asm.c emit-rtl.c explow.c expmed.c expr.c \
 	final.c flow.c fold-const.c function.c getpwd.c global.c graph.c \
-	gtype-desc.c hash.c haifa-sched.c \
+	gtype-desc.c haifa-sched.c \
 	integrate.c jump.c lcm.c local-alloc.c loop.c optabs.c \
 	print-rtl.c print-tree.c \
 	ra.c ra-build.c ra-colorize.c ra-debug.c ra-rewrite.c \
