@@ -371,11 +371,14 @@ vxsetlink(sc)
      * (if present on card or AUI if not).
      */
     /* Set the xcvr. */
-    if(ifp->if_flags & IFF_LINK0 && sc->vx_connectors & CONNECTOR_AUI) {
+    if(ifp->if_flags & IFF_LINK0 && sc->vx_connectors & 
+				connector_table[CONNECTOR_AUI].bit) {
 	i = CONNECTOR_AUI;
-    } else if(ifp->if_flags & IFF_LINK1 && sc->vx_connectors & CONNECTOR_BNC) {
+    } else if(ifp->if_flags & IFF_LINK1 && sc->vx_connectors & 
+				connector_table[CONNECTOR_BNC].bit) {
 	i = CONNECTOR_BNC;
-    } else if(ifp->if_flags & IFF_LINK2 && sc->vx_connectors & CONNECTOR_UTP) {
+    } else if(ifp->if_flags & IFF_LINK2 && sc->vx_connectors & 
+				connector_table[CONNECTOR_UTP].bit) {
 	i = CONNECTOR_UTP;
     } else {
 	i = sc->vx_connector;
