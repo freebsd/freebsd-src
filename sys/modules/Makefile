@@ -8,8 +8,7 @@ SUBDIR=	aha al ax ccd cd9660 coda dm fdesc fxp if_disc if_ppp if_sl if_tun \
 
 # XXX some of these can move to the general case when de-i386'ed
 .if ${MACHINE_ARCH} == "i386"
-# XXX broken bktr
-SUBDIR+=coff fpu gnufpu ibcs2 linux splash streams \
+SUBDIR+=bktr coff fpu gnufpu ibcs2 linux splash streams \
 	svr4 syscons vesa vinum
 .endif
 
