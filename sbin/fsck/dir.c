@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)dir.c	8.8 (Berkeley) 4/28/95";
+static const char sccsid[] = "@(#)dir.c	8.8 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -85,9 +85,9 @@ propagate()
 			inp = *inpp;
 			if (inp->i_parent == 0)
 				continue;
-			if (statemap[inp->i_parent] == DFOUND &&
-			    statemap[inp->i_number] == DSTATE) {
-				statemap[inp->i_number] = DFOUND;
+			if (inoinfo(inp->i_parent)->ino_state == DFOUND &&
+			    inoinfo(inp->i_number)->ino_state == DSTATE) {
+				inoinfo(inp->i_number)->ino_state = DFOUND;
 				change++;
 			}
 		}
@@ -120,6 +120,8 @@ dirscan(idesc)
 	idesc->id_loc = 0;
 	for (dp = fsck_readdir(idesc); dp != NULL; dp = fsck_readdir(idesc)) {
 		dsize = dp->d_reclen;
+		if (dsize > sizeof(dbuf))
+			dsize = sizeof(dbuf);
 		memmove(dbuf, dp, (size_t)dsize);
 #		if (BYTE_ORDER == LITTLE_ENDIAN)
 			if (!newinofmt) {
@@ -150,7 +152,7 @@ dirscan(idesc)
 			dirty(bp);
 			sbdirty();
 		}
-		if (n & STOP) 
+		if (n & STOP)
 			return (n);
 	}
 	return (idesc->id_filesize > 0 ? KEEPON : STOP);
@@ -232,8 +234,7 @@ dircheck(idesc, dp)
 	int spaceleft;
 
 	spaceleft = DIRBLKSIZ - (idesc->id_loc % DIRBLKSIZ);
-	if (dp->d_ino >= maxino ||
-	    dp->d_reclen == 0 ||
+	if (dp->d_reclen == 0 ||
 	    dp->d_reclen > spaceleft ||
 	    (dp->d_reclen & 0x3) != 0)
 		return (0);
@@ -303,24 +304,52 @@ adjust(idesc, lcnt)
 	register struct inodesc *idesc;
 	int lcnt;
 {
-	register struct dinode *dp;
+	struct dinode *dp;
+	int saveresolved;
 
 	dp = ginode(idesc->id_number);
 	if (dp->di_nlink == lcnt) {
-		if (linkup(idesc->id_number, (ino_t)0) == 0)
-			clri(idesc, "UNREF", 0);
-	} else {
+		/*
+		 * If we have not hit any unresolved problems, are running
+		 * in preen mode, and are on a filesystem using soft updates,
+		 * then just toss any partially allocated files.
+		 */
+		if (resolved && preen && usedsoftdep) {
+			clri(idesc, "UNREF", 1);
+			return;
+		} else {
+			/*
+			 * The filesystem can be marked clean even if
+			 * a file is not linked up, but is cleared.
+			 * Hence, resolved should not be cleared when
+			 * linkup is answered no, but clri is answered yes.
+			 */
+			saveresolved = resolved;
+			if (linkup(idesc->id_number, (ino_t)0, NULL) == 0) {
+				resolved = saveresolved;
+				clri(idesc, "UNREF", 0);
+				return;
+			}
+			/*
+			 * Account for the new reference created by linkup().
+			 */
+			dp = ginode(idesc->id_number);
+			lcnt--;
+		}
+	}
+	if (lcnt != 0) {
 		pwarn("LINK COUNT %s", (lfdir == idesc->id_number) ? lfname :
 			((dp->di_mode & IFMT) == IFDIR ? "DIR" : "FILE"));
 		pinode(idesc->id_number);
 		printf(" COUNT %d SHOULD BE %d",
 			dp->di_nlink, dp->di_nlink - lcnt);
-		if (preen) {
+		if (preen || usedsoftdep) {
 			if (lcnt < 0) {
 				printf("\n");
 				pfatal("LINK COUNT INCREASING");
 			}
-			printf(" (ADJUSTED)\n");
+			if (preen)
+				printf(" (ADJUSTED)\n");
 		}
 		if (preen || reply("ADJUST") == 1) {
 			dp->di_nlink -= lcnt;
@@ -351,7 +380,7 @@ mkentry(idesc)
 	dirp->d_ino = idesc->id_parent;	/* ino to be entered is in id_parent */
 	dirp->d_reclen = newent.d_reclen;
 	if (newinofmt)
-		dirp->d_type = typemap[idesc->id_parent];
+		dirp->d_type = inoinfo(idesc->id_parent)->ino_type;
 	else
 		dirp->d_type = 0;
 	dirp->d_namlen = newent.d_namlen;
@@ -384,23 +413,23 @@ chgino(idesc)
 		return (KEEPON);
 	dirp->d_ino = idesc->id_parent;
 	if (newinofmt)
-		dirp->d_type = typemap[idesc->id_parent];
+		dirp->d_type = inoinfo(idesc->id_parent)->ino_type;
 	else
 		dirp->d_type = 0;
 	return (ALTERED|STOP);
 }
 
 int
-linkup(orphan, parentdir)
+linkup(orphan, parentdir, name)
 	ino_t orphan;
 	ino_t parentdir;
+	char *name;
 {
 	register struct dinode *dp;
 	int lostdir;
 	ino_t oldlfdir;
 	struct inodesc idesc;
 	char tempname[BUFSIZ];
-	extern int pass4check();
 
 	memset(&idesc, 0, sizeof(struct inodesc));
 	dp = ginode(orphan);
@@ -428,6 +457,7 @@ linkup(orphan, parentdir)
 				lfdir = allocdir(ROOTINO, (ino_t)0, lfmode);
 				if (lfdir != 0) {
 					if (makeentry(ROOTINO, lfdir, lfname) != 0) {
+						numdirs++;
 						if (preen)
 							printf(" (CREATED)\n");
 					} else {
@@ -463,21 +493,21 @@ linkup(orphan, parentdir)
 		idesc.id_type = ADDR;
 		idesc.id_func = pass4check;
 		idesc.id_number = oldlfdir;
-		adjust(&idesc, lncntp[oldlfdir] + 1);
-		lncntp[oldlfdir] = 0;
+		adjust(&idesc, inoinfo(oldlfdir)->ino_linkcnt + 1);
+		inoinfo(oldlfdir)->ino_linkcnt = 0;
 		dp = ginode(lfdir);
 	}
-	if (statemap[lfdir] != DFOUND) {
+	if (inoinfo(lfdir)->ino_state != DFOUND) {
 		pfatal("SORRY. NO lost+found DIRECTORY\n\n");
 		return (0);
 	}
 	(void)lftempname(tempname, orphan);
-	if (makeentry(lfdir, orphan, tempname) == 0) {
+	if (makeentry(lfdir, orphan, (name ? name : tempname)) == 0) {
 		pfatal("SORRY. NO SPACE IN lost+found DIRECTORY");
 		printf("\n\n");
 		return (0);
 	}
-	lncntp[orphan]--;
+	inoinfo(orphan)->ino_linkcnt--;
 	if (lostdir) {
 		if ((changeino(orphan, "..", lfdir) & ALTERED) == 0 &&
 		    parentdir != (ino_t)-1)
@@ -485,10 +515,12 @@ linkup(orphan, parentdir)
 		dp = ginode(lfdir);
 		dp->di_nlink++;
 		inodirty();
-		lncntp[lfdir]++;
+		inoinfo(lfdir)->ino_linkcnt++;
 		pwarn("DIR I=%lu CONNECTED. ", orphan);
-		if (parentdir != (ino_t)-1)
-			printf("PARENT WAS I=%lu\n", parentdir);
+		if (parentdir != (ino_t)-1) {
+			printf("PARENT WAS I=%lu\n", (u_long)parentdir);
+			inoinfo(parentdir)->ino_linkcnt++;
+		}
 		if (preen == 0)
 			printf("\n");
 	}
@@ -527,7 +559,7 @@ makeentry(parent, ino, name)
 	struct dinode *dp;
 	struct inodesc idesc;
 	char pathbuf[MAXPATHLEN + 1];
-	
+
 	if (parent < ROOTINO || parent >= maxino ||
 	    ino < ROOTINO || ino >= maxino)
 		return (0);
@@ -645,19 +677,20 @@ allocdir(parent, request, mode)
 	dp->di_nlink = 2;
 	inodirty();
 	if (ino == ROOTINO) {
-		lncntp[ino] = dp->di_nlink;
+		inoinfo(ino)->ino_linkcnt = dp->di_nlink;
 		cacheino(dp, ino);
 		return(ino);
 	}
-	if (statemap[parent] != DSTATE && statemap[parent] != DFOUND) {
+	if (inoinfo(parent)->ino_state != DSTATE &&
+	    inoinfo(parent)->ino_state != DFOUND) {
 		freeino(ino);
 		return (0);
 	}
 	cacheino(dp, ino);
-	statemap[ino] = statemap[parent];
-	if (statemap[ino] == DSTATE) {
-		lncntp[ino] = dp->di_nlink;
-		lncntp[parent]++;
+	inoinfo(ino)->ino_state = inoinfo(parent)->ino_state;
+	if (inoinfo(ino)->ino_state == DSTATE) {
+		inoinfo(ino)->ino_linkcnt = dp->di_nlink;
+		inoinfo(parent)->ino_linkcnt++;
 	}
 	dp = ginode(parent);
 	dp->di_nlink++;
