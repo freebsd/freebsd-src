@@ -132,12 +132,10 @@ cbcp_input(unit, inpacket, pktlen)
     GETCHAR(id, inp);
     GETSHORT(len, inp);
 
-#if 0
-    if (len > pktlen) {
+    if (len < CBCP_MINLEN || len > pktlen) {
         syslog(LOG_ERR, "CBCP packet: invalid length");
         return;
     }
-#endif
 
     len -= CBCP_MINLEN;
  
@@ -271,11 +269,15 @@ cbcp_recvreq(us, pckt, pcktlen)
 
     address[0] = 0;
 
-    while (len) {
+    while (len > 1) {
         syslog(LOG_DEBUG, "length: %d", len);
 
 	GETCHAR(type, pckt);
 	GETCHAR(opt_len, pckt);
+
+	if (len < opt_len)
+		break;
+	len -= opt_len;
 
 	if (opt_len > 2)
 	    GETCHAR(delay, pckt);
@@ -305,7 +307,6 @@ cbcp_recvreq(us, pckt, pcktlen)
 	case CB_CONF_LIST:
 	    break;
 	}
-	len -= opt_len;
     }
 
     cbcp_resp(us);
@@ -399,10 +400,13 @@ cbcp_recvack(us, pckt, len)
     int opt_len;
     char address[256];
 
-    if (len) {
+    if (len > 1) {
         GETCHAR(type, pckt);
 	GETCHAR(opt_len, pckt);
      
+	if (opt_len > len)
+		return;
+
 	if (opt_len > 2)
 	    GETCHAR(delay, pckt);
 
