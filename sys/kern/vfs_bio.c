@@ -2702,7 +2702,8 @@ allocbuf(struct buf *bp, int size)
 				} else {
 					free(bp->b_data, M_BIOBUF);
 					if (bp->b_bufsize) {
-						atomic_add_int(&bufmallocspace,
+						atomic_subtract_int(
+						    &bufmallocspace,
 						    bp->b_bufsize);
 						bufspacewakeup();
 						bp->b_bufsize = 0;
