@@ -378,7 +378,7 @@ ndis_attach(dev)
 	 * init routine may trigger an interrupt.
 	 */
 
-	error = bus_setup_intr(dev, sc->ndis_irq, INTR_TYPE_NET,
+	error = bus_setup_intr(dev, sc->ndis_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    ndis_intr, sc, &sc->ndis_intrhand);
 
 	if (error) {
