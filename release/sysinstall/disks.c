@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.9 1995/10/07 11:55:15 jkh Exp $
+ * $Id: disks.c,v 1.31.2.10 1995/10/11 00:59:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -250,8 +250,9 @@ diskPartition(Disk *d)
 	    char *val, geometry[80];
 
 	    snprintf(geometry, 80, "%lu/%lu/%lu", d->bios_cyl, d->bios_hd, d->bios_sect);
-	    val = msgGetInput(geometry,
-"Please specify the new geometry in cyl/hd/sect format.\nDon't forget to use the two slash (/) separator characters!\nIt's not possible to parse the field without them.");
+	    val = msgGetInput(geometry, "Please specify the new geometry in cyl/hd/sect format.\n"
+			      "Don't forget to use the two slash (/) separator characters!\n"
+			      "It's not possible to parse the field without them.");
 	    if (val) {
 		d->bios_cyl = strtol(val, &val, 0);
 		d->bios_hd = strtol(val + 1, &val, 0);
@@ -278,12 +279,15 @@ diskPartition(Disk *d)
 			  "have the option of not modifying the disk until *all*\n"
 			  "configuration information has been entered, at which\n"
 			  "point you can do it all at once.  If you're unsure, then\n"
-			  "choose No at this dialog."))
-	      diskPartitionWrite(NULL);
+			  "choose No at this dialog.")) {
+		if (diskPartitionWrite(NULL) != RET_SUCCESS)
+		    msgConfirm("Disk partition write returned an error status!");
+	    }
 	    break;
 
 	case '|':
-	    if (!msgYesNo("Are you sure you want to go into Wizard mode?\nNo seat belts whatsoever are provided!")) {
+	    if (!msgYesNo("Are you SURE you want to go into Wizard mode?\n"
+			  "No seat belts whatsoever are provided!")) {
 		dialog_clear();
 		end_dialog();
 		DialogActive = FALSE;
@@ -391,11 +395,15 @@ diskPartitionEditor(char *str)
 }
 
 static u_char *
-getBootMgr(void)
+getBootMgr(int disk)
 {
     extern u_char mbr[], bteasy17[];
+    static char str[80];
 
     /* Figure out what kind of MBR the user wants */
+    sprintf(str, "Install Boot Manager for Drive %s?", disk == 0 ? "ZERO" :
+	    disk == 1 ? "ONE" : "<ILLEGAL>");
+    MenuMBRType.title = str;
     if (dmenuOpenSimple(&MenuMBRType)) {
 	switch (BootMgr) {
 	case 0:
@@ -436,13 +444,15 @@ diskPartitionWrite(char *str)
  	/* Don't trash the MBR if the first (and therefore only) chunk is marked for a truly dedicated
  	   disk (i.e., the disklabel starts at sector 0), even in cases where the user has requested
  	   booteasy or a "standard" MBR -- both would be fatal in this case. */
- 	if (!i && (mbrContents = getBootMgr()) != NULL && (d->chunks->part->flags & CHUNK_FORCE_ALL) != CHUNK_FORCE_ALL)
+ 	if (i < 2 && (mbrContents = getBootMgr(i)) != NULL && (d->chunks->part->flags & CHUNK_FORCE_ALL) != CHUNK_FORCE_ALL)
 	    Set_Boot_Mgr(d, mbrContents);
 
 	Set_Boot_Blocks(d, boot1, boot2);
 	msgNotify("Writing partition information to drive %s", d->name);
-	Write_Disk(d);
-
+	if (Write_Disk(d)) {
+	    msgConfirm("ERROR: Unable to write data to disk %s!", d->name);
+	    return RET_FAIL;
+	}
 	/* Now scan for bad blocks, if necessary */
 	for (c1 = d->chunks->part; c1; c1 = c1->next) {
 	    if (c1->flags & CHUNK_BAD144) {

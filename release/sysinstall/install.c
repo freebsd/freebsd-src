@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.26 1995/10/12 07:35:33 jkh Exp $
+ * $Id: install.c,v 1.71.2.27 1995/10/12 08:00:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -57,14 +57,14 @@ static Boolean	root_extract(void);
 static void	create_termcap(void);
 
 static Boolean
-checkLabels(Chunk **rdev)
+checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
 {
     Device **devs;
     Disk *disk;
     Chunk *c1, *c2, *rootdev, *swapdev, *usrdev;
     int i;
 
-    *rdev = rootdev = swapdev = usrdev = NULL;
+    *rdev = *sdev = *udev = rootdev = swapdev = usrdev = NULL;
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     /* First verify that we have a root device */
     for (i = 0; devs[i]; i++) {
@@ -80,17 +80,23 @@ checkLabels(Chunk **rdev)
 		    if (c2->type == part && c2->subtype != FS_SWAP && c2->private) {
 			if (c2->flags & CHUNK_IS_ROOT) {
 			    if (rootdev) {
-				msgConfirm("WARNING:  You have more than one root device set?!\nUsing the first one found.");
+				msgConfirm("WARNING:  You have more than one root device set?!\n"
+					   "Using the first one found.");
 				continue;
 			    }
 			    rootdev = c2;
+			    if (isDebug())
+				msgDebug("Found rootdev at %s!\n", rootdev->name);
 			}
 			else if (!strcmp(((PartInfo *)c2->private)->mountpoint, "/usr")) {
 			    if (usrdev) {
-				msgConfirm("WARNING:  You have more than one /usr filesystem.\nUsing the first one found.");
+				msgConfirm("WARNING:  You have more than one /usr filesystem.\n"
+					   "Using the first one found.");
 				continue;
 			    }
 			    usrdev = c2;
+			    if (isDebug())
+				msgDebug("Found usrdev at %s!\n", usrdev->name);
 			}
 		    }
 		}
@@ -109,6 +115,8 @@ checkLabels(Chunk **rdev)
 		for (c2 = c1->part; c2; c2 = c2->next) {
 		    if (c2->type == part && c2->subtype == FS_SWAP) {
 			swapdev = c2;
+			if (isDebug())
+			    msgDebug("Found swapdev at %s!\n", swapdev->name);
 			break;
 		    }
 		}
@@ -116,17 +124,26 @@ checkLabels(Chunk **rdev)
 	}
     }
 
-    if (!rootdev) {
-	msgConfirm("No root device found - you must label a partition as /\n in the label editor.");
-	return FALSE;
-    }
     *rdev = rootdev;
-    if (!swapdev) {
-	msgConfirm("No swap devices found - you must create at least one\nswap partition.");
+    if (!rootdev) {
+	msgConfirm("No root device found - you must label a partition as /\n"
+		   "in the label editor.");
 	return FALSE;
     }
+
+    *sdev = swapdev;
+    if (!swapdev) {
+	msgConfirm("No swap devices found - you must create at least one\n"
+		   "swap partition.");
+	return FALSE;
+    }
+
+    *udev = usrdev;
     if (!usrdev)
-	msgConfirm("WARNING:  No /usr filesystem found.  This is not technically\nan error if your root filesystem is big enough (or you later\nintend to get your /usr filesystem over NFS), but it may otherwise\ncause you trouble and is not recommended procedure if you don't know what you are doing!");
+	msgConfirm("WARNING:  No /usr filesystem found.  This is not technically\n"
+		   "an error if your root filesystem is big enough (or you later\n"
+		   "intend to mount your /usr filesystem over NFS), but it may otherwise\n"
+		   "cause you trouble if you're not exactly sure what you are doing!");
     return TRUE;
 }
 
@@ -149,14 +166,18 @@ installInitial(void)
 
     /* If we refuse to proceed, bail. */
     if (msgYesNo("Last Chance!  Are you SURE you want continue the installation?\n\n"
-		 "If you're running this on an existing system, we STRONGLY\n"
-		 "encourage you to make proper backups before proceeding.\n"
-		 "We take no responsibility for lost disk contents!"))
+		 "If you're running this on a disk with data you wish to save\n"
+		 "then WE STRONGLY ENCOURAGE YOU TO MAKE PROPER BACKUPS before\n"
+		 "proceeding!\n\n"
+		 "We can take no responsibility for lost disk contents!"))
 	return FALSE;
 
-    (void)diskPartitionWrite(NULL);
+    if (diskPartitionWrite(NULL) != RET_SUCCESS) {
+	msgConfirm("installInitial:  Unable to write disk partition information.");
+	return FALSE;
+    }
 
-    if (!installFilesystems()) {
+    if (installFilesystems() != RET_SUCCESS) {
 	msgConfirm("Couldn't make filesystems properly.  Aborting.");
 	return FALSE;
     }
@@ -233,6 +254,7 @@ installFixit(char *str)
     else {
 	int i, fd;
 	extern int login_tty(int);
+	struct termios foo;
 
 	for (i = 0; i < 64; i++)
 	    close(i);
@@ -244,6 +266,14 @@ installFixit(char *str)
 	    msgNotify("Can't set controlling terminal");
 	    exit(1);
 	}
+	signal(SIGTTOU, SIG_IGN);
+	if (tcgetattr(fd, &foo) != -1) {
+	    foo.c_cc[VERASE] = '\010';
+	    if (tcsetattr(fd, TCSANOW, &foo) == -1)
+		printf("WARNING: Unable to set erase character.\n");
+	}
+	else
+	    printf("WARNING: Unable to get terminal attributes!\n");
 	printf("When you're finished with this shell, please type exit.\n");
 	setenv("PATH", "/bin:/sbin:/usr/bin:/usr/sbin:/stand:/mnt2/stand", 1);
 	execlp("sh", "-sh", 0);
@@ -327,10 +357,10 @@ installExpress(char *str)
 
     if (msgYesNo("Since you're running the express installation, a few\n"
 		 "post-configuration questions will be asked at this point.\n\n"
-		 "Our packages collection contains many useful things, from\n"
+		 "Our packages collection contains many useful utilities, from\n"
 		 "text editors to WEB servers, and is definitely worth browsing\n"
-		 "through, even if you don't install any of it for now.\n\n"
-		 "Would you like to browse a selection of additional packaged\n"
+		 "through even if you don't install any of it for now.\n\n"
+		 "Would you like to browse the selection of packaged\n"
 		 "software at this time?"))
 	configPackages(NULL);
 
@@ -357,38 +387,45 @@ installExpress(char *str)
 int
 installCommit(char *str)
 {
+    int i;
+
     if (!mediaVerify())
 	return RET_FAIL;
 
+    i = RET_SUCCESS;
     if (RunningAsInit) {
 	if (installInitial() == RET_FAIL)
-	    return RET_FAIL;
-	if (configFstab() == RET_FAIL)
-	    return RET_FAIL;
-    }
-    if (RunningAsInit && !root_extract()) {
-	msgConfirm("Failed to load the ROOT distribution.  Please correct\nthis problem and try again.");
-	return RET_FAIL;
+	    i = RET_FAIL;
+	else if (configFstab() == RET_FAIL)
+	    i = RET_FAIL;
+	else if (!root_extract()) {
+	    msgConfirm("Failed to load the ROOT distribution.  Please correct\n"
+		       "this problem and try again.");
+	    i = RET_FAIL;
+	}
     }
 
-    if (distExtractAll(NULL) == RET_FAIL)
-	return RET_FAIL;
+    if (i != RET_FAIL && distExtractAll(NULL) == RET_FAIL)
+	i = RET_FAIL;
 
-    if (!installFixup())
-	return RET_FAIL;
+    if (i != RET_FAIL && installFixup() != RET_SUCCESS)
+	i = RET_FAIL;
 
     dialog_clear();
     /* We get a NULL value for str if run from installExpress(), in which case we don't want to print the following */
     if (str) {
-	if (Dists)
-	    msgConfirm("Installation completed with some errors.  You may wish\nto scroll through the debugging messages on ALT-F2 with the scroll-lock\nfeature.  Press [ENTER] to return to the installation menu.");
+	if (Dists || i == RET_FAIL)
+	    msgConfirm("Installation completed with some errors.  You may wish to\n"
+		       "scroll through the debugging messages on ALT-F2 with the\n"
+		       "scroll-lock feature.  Press [ENTER] to return to the\n"
+		       "installation menu.");
 	else
 	    msgConfirm("Installation completed successfully, now  press [ENTER] to return\nto the main menu. If you have any network devices you have not yet\nconfigured, see the Interface configuration item on the\nConfiguration menu.");
     }
-    return RET_SUCCESS;
+    return i;
 }
 
-Boolean
+int
 installFixup(void)
 {
     Device **devs;
@@ -450,24 +487,30 @@ installFixup(void)
 }
 
 /* Go newfs and/or mount all the filesystems we've been asked to */
-Boolean
+int
 installFilesystems(void)
 {
     int i;
     Disk *disk;
-    Chunk *c1, *c2, *rootdev;
+    Chunk *c1, *c2, *rootdev, *swapdev, *usrdev;
     Device **devs;
     PartInfo *p;
-    Boolean RootReadOnly;
     char dname[40];
+    extern int MakeDevChunk(Chunk *c, char *n);
 
-    if (!checkLabels(&rootdev))
-	return FALSE;
+    if (!checkLabels(&rootdev, &swapdev, &usrdev))
+	return RET_FAIL;
     p = (PartInfo *)rootdev->private;
     command_clear();
 
     /* First, create and mount the root device */
-    MakeDevChunk(rootdev, "/dev");
+    sprintf(dname, "/dev/%s", rootdev->name);
+    if (!MakeDev(rootdev, "/dev") || !file_readable(dname)) {
+	msgConfirm("Unable to make device node for %s in /dev!\n"
+		   "The installation will be aborted.", rootdev->name);
+	return RET_FAIL;
+    }
+    
     if (strcmp(p->mountpoint, "/"))
 	msgConfirm("Warning: %s is marked as a root partition but is mounted on %s", rootdev->name, p->mountpoint);
 
@@ -475,26 +518,27 @@ installFilesystems(void)
 	int i;
 
 	msgNotify("Making a new root filesystem on %s", rootdev->name);
-	i = vsystem("%s /dev/%s", p->newfs_cmd, rootdev->name);
+	i = vsystem("%s /dev/r%s", p->newfs_cmd, rootdev->name);
 	if (i) {
-	    msgConfirm("Unable to make new root filesystem on /dev/%s!\n"
+	    msgConfirm("Unable to make new root filesystem on /dev/r%s!\n"
 		       "Command returned status %d", rootdev->name, i);
-	    return FALSE;
+	    return RET_FAIL;
 	}
-	RootReadOnly = FALSE;
     }
     else {
-	RootReadOnly = TRUE;
-	msgConfirm("Warning:  You have selected a Read-Only root device\nand may be unable to find the appropriate device entries on it\nif it is from an older pre-slice version of FreeBSD.");
-	msgNotify("Checking integrity of existing %s filesystem", rootdev->name);
-	i = vsystem("fsck -y /dev/%s", rootdev->name);
+	msgConfirm("Warning:  You have selected a Read-Only root device and\n"
+		   "and may be unable to find the appropriate device entries\n"
+		   "on it if it is from an older pre-slice version of FreeBSD.");
+	msgNotify("Checking integrity of existing %s filesystem.", rootdev->name);
+	i = vsystem("fsck -y /dev/r%s", rootdev->name);
 	if (i)
-	    msgConfirm("Warning: fsck returned status off %d - this partition may be\nunsafe to use.", i);
+	    msgConfirm("Warning: fsck returned status of %d for /dev/r%s.\n"
+		       "This partition may be unsafe to use.", i, rootdev->name);
     }
     sprintf(dname, "/dev/%s", rootdev->name);
     if (Mount("/mnt", dname)) {
 	msgConfirm("Unable to mount the root file system on %s!  Giving up.", dname);
-	return FALSE;
+	return RET_FAIL;
     }
 
     /* Now buzz through the rest of the partitions and mount them too */
@@ -506,14 +550,13 @@ installFilesystems(void)
 	disk = (Disk *)devs[i]->private;
 	if (!disk->chunks) {
 	    msgConfirm("No chunk list found for %s!", disk->name);
-	    return FALSE;
+	    return RET_FAIL;
+	}
+	if (p->newfs) {
+	    Mkdir("/mnt/dev", NULL);
+	    MakeDevChunk(disk->chunks, "/mnt/dev");
 	}
 
-	/* Make the proper device mount points in /mnt/dev */
-	if (!(RootReadOnly && disk == rootdev->disk)) {
-	    Mkdir("/mnt/dev", NULL);
-	    MakeDevDisk(disk, "/mnt/dev");
-	}
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {
 		for (c2 = c1->part; c2; c2 = c2->next) {
@@ -542,7 +585,7 @@ installFilesystems(void)
 		    }
 		}
 	    }
-	    else if (c1->type == fat && c1->private && !RootReadOnly) {
+	    else if (c1->type == fat && c1->private && p->newfs) {
 		char name[FILENAME_MAX];
 
 		sprintf(name, "/mnt%s", ((PartInfo *)c1->private)->mountpoint);
@@ -552,14 +595,14 @@ installFilesystems(void)
     }
 
     /* Copy the boot floppy's dev files */
-    if (vsystem("find -x /dev | cpio -pdmv /mnt")) {
+    if (p->newfs && vsystem("find -x /dev | cpio -pdmv /mnt")) {
 	msgConfirm("Couldn't clone the /dev files!");
-	return FALSE;
+	return RET_FAIL;
     }
     
     command_sort();
     command_execute();
-    return TRUE;
+    return RET_SUCCESS;
 }
 
 /* Copy the boot floppy contents into /stand */
