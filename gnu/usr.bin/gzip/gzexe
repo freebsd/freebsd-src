@@ -74,7 +74,7 @@ for i do
     continue
   fi
   case "`basename $i`" in
-  gzip | tail | chmod | ln | sleep | rm)
+  sh | gzip | tail | chmod | ln | sleep | rm)
 	echo "${x}: $i would depend on itself"; continue ;;
   esac
   if test -z "$cpmod"; then
