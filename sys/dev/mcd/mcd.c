@@ -52,7 +52,6 @@ static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #include <sys/fcntl.h>
 #include <sys/buf.h>
 #include <sys/cdio.h>
-#include <sys/dkbad.h>
 #include <sys/disklabel.h>
 #include <sys/kernel.h>
 
@@ -580,8 +579,6 @@ MCD_TRACE("ioctl called 0x%lx\n", cmd);
 	}
 
 	switch (cmd) {
-	case DIOCSBAD:
-		return EINVAL;
 	case DIOCGDINFO:
 		*(struct disklabel *) addr = cd->dlabel;
 		return 0;
