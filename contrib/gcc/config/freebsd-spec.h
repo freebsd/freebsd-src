@@ -1,3 +1,10 @@
+/*
+  %{!ansi:								\
+    %{!std=*:-D_LONGLONG}						\
+    %{std=gnu*:-D_LONGLONG} }						\
+  %{std=c99:-D_LONGLONG}						\
+
+*/
 /* Base configuration file for all FreeBSD targets.
    Copyright (C) 1999, 2000, 2001 Free Software Foundation, Inc.
 
@@ -90,7 +97,12 @@ Boston, MA 02111-1307, USA.  */
 
 
 /* Provide a CPP_SPEC appropriate for FreeBSD.  We just deal with the GCC 
-   option `-posix', and PIC issues.  */
+   option `-posix', and PIC issues.  Try to detect support for the
+   `long long' type.  Unfortunately the GCC spec parser will not allow us
+   to properly detect the "iso9899:1990" and "iso9899:199409" forms of
+   -std=c89.  Because of the ':' in the -std argument. :-(  I have left
+   them in the spec as a place holder in hopes someone knows a way to make
+   the detection of them work.  */
 
 #define FBSD_CPP_SPEC "							\
   %(cpp_cpu)								\
@@ -98,6 +110,7 @@ Boston, MA 02111-1307, USA.  */
   %{munderscores: -D__UNDERSCORES__}					\
   %{maout: %{!mno-underscores: -D__UNDERSCORES__}}			\
   %{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__}		\
+  %{!ansi:%{!std=c89:%{!std=iso9899.1990:%{!std=iso9899.199409:-D_LONGLONG}}}} \
   %{posix:-D_POSIX_SOURCE}"
 
 /* Provide a STARTFILE_SPEC appropriate for FreeBSD.  Here we add
