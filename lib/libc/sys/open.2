@@ -245,6 +245,9 @@ operation was interrupted by a signal.
 or
 .Dv O_EXLOCK
 is specified but the underlying file system does not support locking.
+.It Bq Er EOPNOTSUPP
+The named file is a special file mounted through a filesystem that
+does not support access to it (e.g. NFS).
 .It Bq Er EWOULDBLOCK
 .Dv O_NONBLOCK
 and one of
@@ -316,7 +319,8 @@ and
 .Xr lseek 2 ,
 .Xr read 2 ,
 .Xr umask 2 ,
-.Xr write 2
+.Xr write 2 ,
+.Xr fopen 3
 .Sh HISTORY
 The
 .Fn open
