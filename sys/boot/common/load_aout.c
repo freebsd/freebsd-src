@@ -227,7 +227,7 @@ aout_loadimage(struct preloaded_file *fp, int fd, vm_offset_t loadaddr, struct e
     	addr += sizeof(ehdr->a_syms);
 
     	/* symbol table */
-    	printf("symbols=[0x%x+0x%lx", sizeof(ehdr->a_syms), ehdr->a_syms);
+    	printf("symbols=[0x%lx+0x%lx", (long)sizeof(ehdr->a_syms),ehdr->a_syms);
     	if (archsw.arch_readin(fd, addr, ehdr->a_syms) != ehdr->a_syms)
 		return(0);
     	addr += ehdr->a_syms;
@@ -237,7 +237,7 @@ aout_loadimage(struct preloaded_file *fp, int fd, vm_offset_t loadaddr, struct e
     	archsw.arch_copyin(&ss, addr, sizeof(ss));
     	addr += sizeof(ss);
     	ss -= sizeof(ss);
-    	printf("+0x%x+0x%x]", sizeof(ss), ss);
+    	printf("+0x%lx+0x%x]", (long)sizeof(ss), ss);
     	if (archsw.arch_readin(fd, addr, ss) != ss)
 		return(0);
     	addr += ss;
