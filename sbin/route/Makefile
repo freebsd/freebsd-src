@@ -7,7 +7,7 @@ SRCS=	route.c keywords.h
 CFLAGS+=-I. -Wall -DNS
 CFLAGS+=-DINET6
 WARNS=	0
-CLEANFILES+=keywords.h
+CLEANFILES+=keywords.h _keywords.tmp
 
 keywords.h: keywords
 	sed -e '/^#/d' -e '/^$$/d' ${.CURDIR}/keywords > _keywords.tmp
@@ -19,8 +19,4 @@ keywords.h: keywords
 	    > ${.TARGET}
 	rm -f _keywords.tmp
 
-./keywords.h:	keywords.h
-
 .include <bsd.prog.mk>
-
-route .depend lint tags: keywords.h
