@@ -419,7 +419,9 @@ div_attach(struct socket *so, int proto, struct thread *td)
 	/* The socket is always "connected" because
 	   we always know "where" to send the packet */
 	INP_UNLOCK(inp);
+	SOCK_LOCK(so);
 	so->so_state |= SS_ISCONNECTED;
+	SOCK_UNLOCK(so);
 	return 0;
 }
 
