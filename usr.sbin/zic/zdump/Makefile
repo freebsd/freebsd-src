@@ -3,7 +3,6 @@
 .PATH:	${.CURDIR}/..
 
 PROG=	zdump
-WARNS?=	2
 
 SRCS=	zdump.c ialloc.c scheck.c
 MAN=	${.CURDIR}/../zdump.8

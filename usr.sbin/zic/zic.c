@@ -89,7 +89,6 @@ static int	addtype P((long gmtoff, const char * abbr, int isdst,
 static void	leapadd P((time_t t, int positive, int rolling, int count));
 static void	adjleap P((void));
 static void	associate P((void));
-static int	atcomp P((const void * avp, const void * bvp));
 static int	ciequal P((const char * ap, const char * bp));
 static void	convert P((long val, char * buf));
 static void	dolink P((const char * fromfile, const char * tofile));
@@ -130,7 +129,6 @@ static void	setgroup P((gid_t *flag, const char *name));
 static void	setuser P((uid_t *flag, const char *name));
 static time_t	tadd P((time_t t1, long t2));
 static void	usage P((void));
-static void	warning P((const char * const string));
 static void	writezone P((const char * name));
 static int	yearistype P((int year, const char * type));
 
@@ -1362,14 +1360,12 @@ FILE * const	fp;
 
 static int
 atcomp(avp, bvp)
-const void *	avp;
-const void *	bvp;
+void *	avp;
+void *	bvp;
 {
-	if (((const struct attype *) avp)->at <
-	    ((const struct attype *) bvp)->at)
+	if (((struct attype *) avp)->at < ((struct attype *) bvp)->at)
 		return -1;
-	else if (((const struct attype *) avp)->at >
-	    ((const struct attype *) bvp)->at)
+	else if (((struct attype *) avp)->at > ((struct attype *) bvp)->at)
 		return 1;
 	else	return 0;
 }
