@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.7.2.1 1997/05/09 17:36:19 brian Exp $
+ * $Id: lqr.c,v 1.7.2.2 1997/05/19 02:02:22 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -110,8 +110,8 @@ SendLqrReport()
        */
       LogPrintf(LOG_PHASE_BIT, "** 1 Too many ECHO packets are lost. **\n");
       lqmmethod = 0;   /* Prevent rcursion via LcpClose() */
+      reconnect(RECON_TRUE);
       LcpClose();
-      reconnectRequired = 1;
     } else {
       bp = mballoc(sizeof(struct lqrdata), MB_LQR);
       HdlcOutput(PRI_LINK, PROTO_LQR, bp);
@@ -121,8 +121,8 @@ SendLqrReport()
     if (echoseq - gotseq > 5) {
       LogPrintf(LOG_PHASE_BIT, "** 2 Too many ECHO packets are lost. **\n");
       lqmmethod = 0;   /* Prevent rcursion via LcpClose() */
+      reconnect(RECON_TRUE);
       LcpClose();
-      reconnectRequired = 1;
     } else
       SendEchoReq();
   }

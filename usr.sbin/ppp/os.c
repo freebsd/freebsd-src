@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.7.2.4 1997/05/09 17:36:27 brian Exp $
+ * $Id: os.c,v 1.7.2.5 1997/05/19 02:02:26 brian Exp $
  *
  */
 #include "fsm.h"
@@ -185,6 +185,7 @@ OsLinkup()
   if (linkup == 0) {
     if (setuid(0) < 0)
 	logprintf("setuid failed\n");
+    reconnectState = RECON_UNKNOWN;
     if (mode & MODE_BACKGROUND && BGFiledes[1] != -1) {
         char c = EX_NORMAL;
         if (write(BGFiledes[1],&c,1) == 1)

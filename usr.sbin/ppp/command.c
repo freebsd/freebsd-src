@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.24.2.11 1997/05/19 02:02:17 brian Exp $
+ * $Id: command.c,v 1.24.2.12 1997/05/24 10:29:26 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -637,8 +637,8 @@ char **argv;
 static int
 CloseCommand()
 {
+  reconnect(RECON_FALSE);
   LcpClose();
-  reconnectCount = 0;
   if (mode & MODE_BACKGROUND)
       Cleanup(EX_NORMAL);
   return(1);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.16 1997/05/23 05:24:21 brian Exp $
+ * $Id: main.c,v 1.22.2.17 1997/05/24 10:29:28 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -223,8 +223,8 @@ int signo;
    }
    else {
      LogPrintf(LOG_PHASE_BIT, "Signal %d, terminate.\n", signo);
+     reconnect(RECON_FALSE);
      LcpClose();
-     reconnectCount = 0;
      Cleanup(EX_TERM);
    }
 }
@@ -756,7 +756,7 @@ DoLoop()
 
   timeout.tv_sec = 0;
   timeout.tv_usec = 0;
-  reconnectRequired = 0;
+  reconnectState = RECON_UNKNOWN;
 
   if (mode & MODE_BACKGROUND)
     dial_up = TRUE;			/* Bring the line up */
@@ -780,7 +780,7 @@ DoLoop()
      * back up.
      */
     if (LcpFsm.state <= ST_CLOSED) {
-      if (dial_up != TRUE && reconnectRequired) {
+      if (dial_up != TRUE && reconnectState == RECON_TRUE) {
         if (++reconnectCount <= VarReconnectTries) {
           LogPrintf(LOG_PHASE_BIT, "Connection lost, re-establish (%d/%d)\n",
                     reconnectCount, VarReconnectTries);
@@ -794,8 +794,8 @@ DoLoop()
           if (mode & MODE_BACKGROUND)
             Cleanup(EX_DEAD);
         }
+        reconnectState = RECON_ENVOKED;
       }
-      reconnectRequired = 0;
     }
 
    /*
@@ -821,6 +821,7 @@ DoLoop()
 	  ModemTimeout();
 	  PacketMode();
 	  dial_up = FALSE;
+          reconnectState = RECON_UNKNOWN;
 	  tries = 0;
 	} else {
 	  CloseModem();
@@ -834,6 +835,8 @@ DoLoop()
 	    /* I give up !  Can't get through :( */
 	    StartRedialTimer(VarRedialTimeout);
 	    dial_up = FALSE;
+            reconnectState = RECON_UNKNOWN;
+            reconnectCount = 0;
 	    tries = 0;
 	  } else if (VarNextPhone == NULL)
 	    /* Dial failed. Keep quite during redial wait period. */
