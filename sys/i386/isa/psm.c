@@ -423,6 +423,7 @@ psmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 void
 psmintr(int unit)
 {
+        struct psm_softc *sc = &psm_softc[unit];
 	int ioport = psmaddr[unit];
 
 	sc->inq.queue[sc->inq.last++ % MSBSZ] = inb(ioport+PSM_DATA);
