@@ -37,59 +37,43 @@
 #include <machine/resource.h>
 #include <sys/rman.h>
  
-#include <isa/isavar.h>
 #include <dev/aic/aic6360reg.h>
 #include <dev/aic/aicvar.h>
-  
-struct aic_isa_softc {
+
+struct aic_pccard_softc {
 	struct	aic_softc sc_aic;
 	struct	resource *sc_port;
 	struct	resource *sc_irq;
-	struct	resource *sc_drq;
 	void	*sc_ih;
 };
 
-static int aic_isa_alloc_resources __P((device_t));
-static void aic_isa_release_resources __P((device_t));
-static int aic_isa_probe __P((device_t));
-static int aic_isa_attach __P((device_t));
+static int aic_pccard_alloc_resources __P((device_t));
+static void aic_pccard_release_resources __P((device_t));
+static int aic_pccard_probe __P((device_t));
+static int aic_pccard_attach __P((device_t));
 
-static u_int aic_isa_ports[] = { 0x340, 0x140 };
-#define	AIC_ISA_NUMPORTS (sizeof(aic_isa_ports) / sizeof(aic_isa_ports[0]))
-#define	AIC_ISA_PORTSIZE 0x20
+#define	AIC_PCCARD_PORTSIZE 0x20
 
 static int
-aic_isa_alloc_resources(device_t dev)
+aic_pccard_alloc_resources(device_t dev)
 {
-	struct aic_isa_softc *sc = device_get_softc(dev);
+	struct aic_pccard_softc *sc = device_get_softc(dev);
 	int rid;
 
-	sc->sc_port = sc->sc_irq = sc->sc_drq = 0;
+	sc->sc_port = sc->sc_irq = 0;
 
 	rid = 0;
 	sc->sc_port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-					0ul, ~0ul, AIC_ISA_PORTSIZE, RF_ACTIVE);
+	    0ul, ~0ul, AIC_PCCARD_PORTSIZE, RF_ACTIVE);
 	if (!sc->sc_port)
 		return (ENOMEM);
 
-	if (isa_get_irq(dev) != -1) {
-		rid = 0;
-		sc->sc_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-						0ul, ~0ul, 1, RF_ACTIVE);
-		if (!sc->sc_irq) {
-			aic_isa_release_resources(dev);
-			return (ENOMEM);
-		}
-	}
-
-	if (isa_get_drq(dev) != -1) {
-		rid = 0;
-		sc->sc_drq = bus_alloc_resource(dev, SYS_RES_DRQ, &rid,
-						0ul, ~0ul, 1, RF_ACTIVE);
-		if (!sc->sc_drq) {
-			aic_isa_release_resources(dev);
-			return (ENOMEM);
-		}
+	rid = 0;
+	sc->sc_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+	    0ul, ~0ul, 1, RF_ACTIVE);
+	if (!sc->sc_irq) {
+		aic_pccard_release_resources(dev);
+		return (ENOMEM);
 	}
 
 	sc->sc_aic.unit = device_get_unit(dev);
@@ -99,73 +83,43 @@ aic_isa_alloc_resources(device_t dev)
 }
 
 static void
-aic_isa_release_resources(device_t dev)
+aic_pccard_release_resources(device_t dev)
 {
-	struct aic_isa_softc *sc = device_get_softc(dev);
+	struct aic_pccard_softc *sc = device_get_softc(dev);
 
 	if (sc->sc_port)
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->sc_port);
 	if (sc->sc_irq)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq);
-	if (sc->sc_drq)
-		bus_release_resource(dev, SYS_RES_DRQ, 0, sc->sc_drq);
-	sc->sc_port = sc->sc_irq = sc->sc_drq = 0;
+	sc->sc_port = sc->sc_irq = 0;
 }
 
 static int
-aic_isa_probe(device_t dev)
+aic_pccard_probe(device_t dev)
 {
-	struct aic_isa_softc *sc = device_get_softc(dev);
+	struct aic_pccard_softc *sc = device_get_softc(dev);
 	struct aic_softc *aic = &sc->sc_aic;
-	int numports, i;
-	u_int port, *ports;
-	u_int8_t porta;
 
-	if (isa_get_vendorid(dev))
+	if (aic_pccard_alloc_resources(dev))
 		return (ENXIO);
-
-	port = isa_get_port(dev);
-	if (port != -1) {
-		ports = &port;
-		numports = 1;
-	} else {
-		ports = aic_isa_ports;
-		numports = AIC_ISA_NUMPORTS;
-	}
-
-	for (i = 0; i < numports; i++) {
-		if (bus_set_resource(dev, SYS_RES_IOPORT, 0, ports[i],
-				     AIC_ISA_PORTSIZE))
-			continue;
-		if (aic_isa_alloc_resources(dev))
-			continue;
-		if (!aic_probe(aic)) {
-			aic_isa_release_resources(dev);
-			break;
-		}
-		aic_isa_release_resources(dev);
-	}
-
-	if (i == numports)
+	if (aic_probe(aic)) {
+		aic_pccard_release_resources(dev);
 		return (ENXIO);
+	}
+	aic_pccard_release_resources(dev);
 
-	porta = aic_inb(aic, PORTA);
-	if (isa_get_irq(dev) == -1)
-		bus_set_resource(dev, SYS_RES_IRQ, 0, PORTA_IRQ(porta), 1);
-	if ((aic->flags & AIC_DMA_ENABLE) && isa_get_drq(dev) == -1)
-		bus_set_resource(dev, SYS_RES_DRQ, 0, PORTA_DRQ(porta), 1);
 	device_set_desc(dev, "Adaptec 6260/6360 SCSI controller");
 	return (0);
 }
 
 static int
-aic_isa_attach(device_t dev)
+aic_pccard_attach(device_t dev)
 {
-	struct aic_isa_softc *sc = device_get_softc(dev);
+	struct aic_pccard_softc *sc = device_get_softc(dev);
 	struct aic_softc *aic = &sc->sc_aic;
 	int error;
 
-	error = aic_isa_alloc_resources(dev);
+	error = aic_pccard_alloc_resources(dev);
 	if (error) {
 		device_printf(dev, "resource allocation failed\n");
 		return (error);
@@ -174,26 +128,31 @@ aic_isa_attach(device_t dev)
 	error = aic_attach(aic);
 	if (error) {
 		device_printf(dev, "attach failed\n");
-		aic_isa_release_resources(dev);
+		aic_pccard_release_resources(dev);
 		return (error);
 	}
 
 	error = bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_CAM, aic_intr,
-				aic, &sc->sc_ih);
+	    aic, &sc->sc_ih);
 	if (error) {
 		device_printf(dev, "failed to register interrupt handler\n");
-		aic_isa_release_resources(dev);
+		aic_pccard_release_resources(dev);
 		return (error);
 	}
 	return (0);
 }
 
 static int
-aic_isa_detach(device_t dev)
+aic_pccard_detach(device_t dev)
 {
-	struct aic_isa_softc *sc = device_get_softc(dev);
+	struct aic_pccard_softc *sc = device_get_softc(dev);
 	struct aic_softc *aic = &sc->sc_aic;
 	int error;
+
+	error = bus_teardown_intr(dev, sc->sc_irq, sc->sc_ih);
+	if (error) {
+		device_printf(dev, "failed to unregister interrupt handler\n");
+	}
 
 	error = aic_detach(aic);
 	if (error) {
@@ -201,28 +160,23 @@ aic_isa_detach(device_t dev)
 		return (error);
 	}
 
-	error = bus_teardown_intr(dev, sc->sc_irq, sc->sc_ih);
-	if (error) {
-		device_printf(dev, "failed to unregister interrupt handler\n");
-	}
-
-	aic_isa_release_resources(dev);
+	aic_pccard_release_resources(dev);
 	return (0);
 }
 
-static device_method_t aic_isa_methods[] = {
+static device_method_t aic_pccard_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		aic_isa_probe),
-	DEVMETHOD(device_attach,	aic_isa_attach),
-	DEVMETHOD(device_detach,	aic_isa_detach),
+	DEVMETHOD(device_probe,		aic_pccard_probe),
+	DEVMETHOD(device_attach,	aic_pccard_attach),
+	DEVMETHOD(device_detach,	aic_pccard_detach),
 	{ 0, 0 }
 };
 
-static driver_t aic_isa_driver = {
+static driver_t aic_pccard_driver = {
 	"aic",
-	aic_isa_methods, sizeof(struct aic_isa_softc),
+	aic_pccard_methods, sizeof(struct aic_pccard_softc),
 };
 
 extern devclass_t aic_devclass;
 
-DRIVER_MODULE(aic, isa, aic_isa_driver, aic_devclass, 0, 0);
+DRIVER_MODULE(aic, pccard, aic_pccard_driver, aic_devclass, 0, 0);
