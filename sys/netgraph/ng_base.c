@@ -1330,7 +1330,7 @@ ng_con_nodes(node_p node, const char *name, node_p node2, const char *name2)
 		return (error);
 	/* Allocate the other hook and link it up */
 	NG_ALLOC_HOOK(hook2);
-	if (hook == NULL) {
+	if (hook2 == NULL) {
 		TRAP_ERROR();
 		ng_destroy_hook(hook);	/* XXX check ref counts so far */
 		NG_HOOK_UNREF(hook);	/* including our ref */
