@@ -1226,6 +1226,9 @@ do_child(Session *s, const char *command)
 	struct passwd *pw = s->pw;
 	u_int i;
 	int ttyfd = s->ttyfd;
+#ifdef HAVE_LOGIN_CAP
+	int lc_requirehome, lc_nocheckmail;
+#endif
 
 	/* remove hostkey from the child's memory */
 	destroy_sensitive_data();
@@ -1284,6 +1287,12 @@ do_child(Session *s, const char *command)
 	 */
 	endpwent();
 
+#ifdef HAVE_LOGIN_CAP
+	lc_requirehome = login_getcapbool(lc, "requirehome", 0);
+	lc_nocheckmail = login_getcapbool(lc, "nocheckmail", 0);
+	login_close(lc);
+#endif
+
 	/*
 	 * Close any extra open file descriptors so that we don\'t have them
 	 * hanging around in clients.  Note that we want to do this after
@@ -1316,7 +1325,7 @@ do_child(Session *s, const char *command)
 		fprintf(stderr, "Could not chdir to home directory %s: %s\n",
 		    pw->pw_dir, strerror(errno));
 #ifdef HAVE_LOGIN_CAP
-		if (login_getcapbool(lc, "requirehome", 0))
+		if (lc_requirehome)
 			exit(1);
 #endif
 	}
@@ -1367,7 +1376,11 @@ do_child(Session *s, const char *command)
 		 * Check for mail if we have a tty and it was enabled
 		 * in server options.
 		 */
-		if (ttyfd != -1 && options.check_mail) {
+		if (ttyfd != -1 && options.check_mail
+#ifdef HAVE_LOGIN_CAP
+		    && !lc_nocheckmail
+#endif
+		   ) {
 			char *mailbox;
 			struct stat mailstat;
 
