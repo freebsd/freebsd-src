@@ -110,55 +110,24 @@ struct	servtab {
 #define	se_nomapped		se_flags.se_nomapped
 #define	se_reset		se_flags.se_reset
 
-void		chargen_dg __P((int, struct servtab *));
-void		chargen_stream __P((int, struct servtab *));
-void		close_sep __P((struct servtab *));
-void		flag_signal __P((int));
-void		flag_config __P((int));
-void		config __P((void));
-void		daytime_dg __P((int, struct servtab *));
-void		daytime_stream __P((int, struct servtab *));
-void		discard_dg __P((int, struct servtab *));
-void		discard_stream __P((int, struct servtab *));
-void		echo_dg __P((int, struct servtab *));
-void		echo_stream __P((int, struct servtab *));
-void		endconfig __P((void));
-struct servtab *enter __P((struct servtab *));
-void		freeconfig __P((struct servtab *));
-struct servtab *getconfigent __P((void));
-void		iderror __P((int, int, int, char *));
-void		ident_stream __P((int, struct servtab *));
-void		machtime_dg __P((int, struct servtab *));
-void		machtime_stream __P((int, struct servtab *));
-int		matchservent __P((char *, char *, char *));
-char	       *newstr __P((char *));
-char	       *nextline __P((FILE *));
-void		print_service __P((char *, struct servtab *));
-void		addchild __P((struct servtab *, int));
-void		flag_reapchild __P((int));
-void		reapchild __P((void));
-void		enable __P((struct servtab *));
-void		disable __P((struct servtab *));
-void		flag_retry __P((int));
-void		retry __P((void));
-int		setconfig __P((void));
-void		setup __P((struct servtab *));
-#ifdef IPSEC
-void		ipsecsetup __P((struct servtab *));
-#endif
+int		check_loop __P((const struct sockaddr *, const struct servtab *sep));
+int		getvalue __P((const char *, int *, const char *));
+char	       *newstr __P((const char *));
+void		inetd_setproctitle __P((const char *, int));
+void		print_service __P((const char *, const struct servtab *));
 char	       *sskip __P((char **));
 char	       *skip __P((char **));
 struct servtab *tcpmux __P((int));
-int		cpmip __P((struct servtab *, int));
-void		inetd_setproctitle __P((char *, int));
-int		check_loop __P((struct sockaddr *, struct servtab *sep));
 
-void		unregisterrpc __P((register struct servtab *sep));
+extern int	 debug;
+extern struct servtab *servtab;
+
+typedef void (bi_fn_t) __P((int, struct servtab *));
 
 struct biltin {
-	char	*bi_service;		/* internally provided service name */
+	const char *bi_service;		/* internally provided service name */
 	int	bi_socktype;		/* type of socket supported */
 	short	bi_fork;		/* 1 if should fork before call */
 	int	bi_maxchild;		/* max number of children, -1=default */
-	void	(*bi_fn)();		/* function which performs it */
+	bi_fn_t	*bi_fn;			/* function which performs it */
 };
