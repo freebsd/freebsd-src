@@ -2196,7 +2196,7 @@ _bfd_coff_is_local_label_name (abfd, name)
      bfd *abfd ATTRIBUTE_UNUSED;
      const char *name;
 {
-  return name[0] == '.' && name[1] == 'L';
+  return (boolean) (name[0] == '.' && name[1] == 'L');
 }
 
 /* Provided a BFD, a section and an offset (in bytes, not octets) into the

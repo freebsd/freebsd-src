@@ -92,7 +92,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "itbl-ops.h"
-#include "itbl-parse.h"
+#include <itbl-parse.h>
 
 /* #define DEBUG */
 

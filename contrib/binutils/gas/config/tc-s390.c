@@ -17,7 +17,7 @@
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
    Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA. */
+   02111-1307, USA.  */
 
 #include <stdio.h>
 #include "as.h"
@@ -82,7 +82,7 @@ static void s390_literals PARAMS ((int));
 const pseudo_typeS md_pseudo_table[] =
 {
   { "align", s_align_bytes, 0 },
-  /* Pseudo-ops which must be defined. */
+  /* Pseudo-ops which must be defined.  */
   { "bss",      s390_bss,       0 },
   { "insn",     s390_insn,      0 },
   /* Pseudo-ops which must be overridden.  */
@@ -121,7 +121,7 @@ struct pd_reg
      sp     has the value 15
      lit    has the value 12
 
-   The table is sorted. Suitable for searching by a binary search. */
+   The table is sorted. Suitable for searching by a binary search.  */
 
 static const struct pd_reg pre_defined_registers[] =
 {
@@ -312,7 +312,7 @@ const int md_short_jump_size = 4;
 const int md_long_jump_size = 4;
 #endif
 
-CONST char *md_shortopts = "A:m:kVQ:";
+const char *md_shortopts = "A:m:kVQ:";
 struct option md_longopts[] = {
   {NULL, no_argument, NULL, 0}
 };
@@ -560,7 +560,7 @@ s390_insert_operand (insn, operand, val, file, line)
     {
       addressT min, max;
 
-      max = (((addressT) 1 << (operand->bits - 1))<<1) - 1;
+      max = (((addressT) 1 << (operand->bits - 1)) << 1) - 1;
       min = (offsetT) 0;
       uval = (addressT) val;
       /* Length x in an instructions has real length x+1.  */
@@ -591,7 +591,7 @@ s390_insert_operand (insn, operand, val, file, line)
   /* Insert fragments of the operand byte for byte.  */
   offset = operand->shift + operand->bits;
   uval <<= (-offset) & 7;
-  insn += (offset - 1)/8;
+  insn += (offset - 1) / 8;
   while (uval != 0)
     {
       *insn-- |= uval;
@@ -724,7 +724,7 @@ static int lp_count = 0;
 static int lpe_count = 0;
 
 static int
-s390_exp_compare(exp1, exp2)
+s390_exp_compare (exp1, exp2)
      expressionS *exp1;
      expressionS *exp2;
 {
@@ -771,8 +771,8 @@ s390_exp_compare(exp1, exp2)
 	&&   (exp1->X_op_symbol  == exp2->X_op_symbol)
 	&&   (exp1->X_add_number == exp2->X_add_number);
     default:
-    return 0;
-  }
+      return 0;
+    }
 }
 
 /* Test for @lit and if its present make an entry in the literal pool and
@@ -852,7 +852,7 @@ s390_lit_suffix (str_p, exp_p, suffix)
       /* Processing for 'normal' data types.  */
       for (lpe = lpe_list; lpe != NULL; lpe = lpe->next)
 	if (lpe->nbytes == nbytes && lpe->reloc == reloc
-	    && s390_exp_compare(exp_p, &lpe->ex) != 0)
+	    && s390_exp_compare (exp_p, &lpe->ex) != 0)
 	  break;
     }
 
@@ -866,7 +866,7 @@ s390_lit_suffix (str_p, exp_p, suffix)
 	}
       else
 	{
-	  lpe = (struct s390_lpe *) xmalloc(sizeof (struct s390_lpe));
+	  lpe = (struct s390_lpe *) xmalloc (sizeof (struct s390_lpe));
 	}
 
       lpe->ex = *exp_p;
@@ -877,7 +877,7 @@ s390_lit_suffix (str_p, exp_p, suffix)
 	    lpe->floatnum = generic_floating_point_number;
 	  else if (exp_p->X_add_number <= 4)
 	    memcpy (lpe->bignum, generic_bignum,
-		    exp_p->X_add_number*sizeof (LITTLENUM_TYPE));
+		    exp_p->X_add_number * sizeof (LITTLENUM_TYPE));
 	  else
 	    as_bad (_("Big number is too big"));
 	}
@@ -888,13 +888,13 @@ s390_lit_suffix (str_p, exp_p, suffix)
       if (lp_sym == NULL)
 	{
 	  sprintf (tmp_name, ".L\001%i", lp_count);
-	  lp_sym = symbol_make(tmp_name);
+	  lp_sym = symbol_make (tmp_name);
 	}
 
       /* Make name for literal pool entry.  */
       sprintf (tmp_name, ".L\001%i\002%i", lp_count, lpe_count);
       lpe_count++;
-      lpe->sym = symbol_make(tmp_name);
+      lpe->sym = symbol_make (tmp_name);
 
       /* Add to literal pool list.  */
       lpe->next = NULL;
@@ -984,7 +984,7 @@ s390_elf_cons (nbytes)
     }
   while (*input_line_pointer++ == ',');
 
-  input_line_pointer--;		/* Put terminator back into stream. */
+  input_line_pointer--;		/* Put terminator back into stream.  */
   demand_empty_rest_of_line ();
 }
 
@@ -1019,7 +1019,8 @@ md_gather_operands (str, insn, opcode)
   char *f;
   int fc, i;
 
-  while (ISSPACE (*str)) str++;
+  while (ISSPACE (*str))
+    str++;
 
   parentheses = 0;
   skip_optional = 0;
@@ -1047,7 +1048,8 @@ md_gather_operands (str, insn, opcode)
       hold = input_line_pointer;
       input_line_pointer = str;
 
-      if (! register_name (&ex))    /* parse the operand */
+      /* Parse the operand.  */
+      if (! register_name (&ex))
 	expression (&ex);
 
       str = input_line_pointer;
@@ -1397,7 +1399,7 @@ s390_insn (ignore)
 
   if (strcmp (opformat->name, "e") != 0 && *input_line_pointer++ != ',')
     as_bad (_("missing comma after insn constant\n"));
-  
+
   if ((s = strchr (input_line_pointer, '\n')) != NULL)
     *s = '\0';
   input_line_pointer = md_gather_operands (input_line_pointer, insn,
@@ -1453,7 +1455,7 @@ s390_literals (ignore)
   struct s390_lpe *lpe;
 
   if (lp_sym == NULL || lpe_count == 0)
-    return;     /* nothing to be done */
+    return;     /* Nothing to be done.  */
 
   /* Emit symbol for start of literal pool.  */
   S_SET_SEGMENT (lp_sym, now_seg);
@@ -1492,7 +1494,7 @@ s390_literals (ignore)
 		generic_floating_point_number = lpe->floatnum;
 	      else
 		memcpy (generic_bignum, lpe->bignum,
-			lpe->ex.X_add_number*sizeof (LITTLENUM_TYPE));
+			lpe->ex.X_add_number * sizeof (LITTLENUM_TYPE));
 	    }
 	  emit_expr (&lpe->ex, lpe->nbytes);
 	}
@@ -1590,18 +1592,18 @@ symbolS *
 md_undefined_symbol (name)
      char *name;
 {
-  if (*name == '_' && *(name+1) == 'G'
+  if (*name == '_' && *(name + 1) == 'G'
       && strcmp (name, "_GLOBAL_OFFSET_TABLE_") == 0)
-   {
-     if (!GOT_symbol)
-      {
-        if (symbol_find (name))
-          as_bad (_("GOT already in symbol table"));
-        GOT_symbol = symbol_new (name, undefined_section,
-                                 (valueT) 0, &zero_address_frag);
-      }
-     return GOT_symbol;
-   }
+    {
+      if (!GOT_symbol)
+	{
+	  if (symbol_find (name))
+	    as_bad (_("GOT already in symbol table"));
+	  GOT_symbol = symbol_new (name, undefined_section,
+				   (valueT) 0, &zero_address_frag);
+	}
+      return GOT_symbol;
+    }
   return 0;
 }
 
@@ -1623,17 +1625,16 @@ md_pcrel_from_section (fixp, sec)
    to make sure that the dynamic relocations are done correctly, so in
    some cases we force the original symbol to be used.  */
 int
-tc_s390_fix_adjustable(fixP)
-     fixS * fixP;
+tc_s390_fix_adjustable (fixP)
+     fixS *fixP;
 {
   /* Prevent all adjustments to global symbols.  */
   if (S_IS_EXTERN (fixP->fx_addsy))
     return 0;
   if (S_IS_WEAK (fixP->fx_addsy))
     return 0;
-  /* Don't adjust pc-relative references to merge sections.  */
-  if ((S_GET_SEGMENT(fixP->fx_addsy)->flags & SEC_MERGE) != 0 
-      && fixP->fx_pcrel)
+  /* Don't adjust references to merge sections.  */
+  if ((S_GET_SEGMENT (fixP->fx_addsy)->flags & SEC_MERGE) != 0)
     return 0;
   /* adjust_reloc_syms doesn't know about the GOT.  */
   if (   fixP->fx_r_type == BFD_RELOC_32_GOTOFF
@@ -1698,11 +1699,11 @@ md_apply_fix3 (fixP, valP, seg)
      segT seg;
 {
   char *where;
-  valueT value = * valP;
+  valueT value = *valP;
 
   where = fixP->fx_frag->fr_literal + fixP->fx_where;
 
-  if (fixP->fx_subsy != NULL) 
+  if (fixP->fx_subsy != NULL)
     {
       if ((fixP->fx_addsy != NULL
 	   && S_GET_SEGMENT (fixP->fx_addsy) == S_GET_SEGMENT (fixP->fx_subsy)
@@ -1712,24 +1713,24 @@ md_apply_fix3 (fixP, valP, seg)
       if (!S_IS_DEFINED (fixP->fx_subsy))
 	as_bad_where (fixP->fx_file, fixP->fx_line,
 		      _("unresolved fx_subsy symbol that must be resolved"));
-      value -= S_GET_VALUE(fixP->fx_subsy);
+      value -= S_GET_VALUE (fixP->fx_subsy);
 
       if (S_GET_SEGMENT (fixP->fx_subsy) == seg && ! fixP->fx_pcrel)
 	value += MD_PCREL_FROM_SECTION (fixP, seg);
     }
-  
-  if (fixP->fx_addsy != NULL) 
+
+  if (fixP->fx_addsy != NULL)
     {
       if ((fixP->fx_subsy != NULL
 	   && S_GET_SEGMENT (fixP->fx_addsy) == S_GET_SEGMENT (fixP->fx_subsy)
-	   && SEG_NORMAL (S_GET_SEGMENT(fixP->fx_addsy)))
+	   && SEG_NORMAL (S_GET_SEGMENT (fixP->fx_addsy)))
 	  || (S_GET_SEGMENT (fixP->fx_addsy) == seg
 	      && fixP->fx_pcrel && TC_RELOC_RTSYM_LOC_FIXUP (fixP))
-	  || (!fixP->fx_pcrel 
+	  || (!fixP->fx_pcrel
 	      && S_GET_SEGMENT (fixP->fx_addsy) == absolute_section)
 	  || (S_GET_SEGMENT (fixP->fx_addsy) != undefined_section
 	      && !bfd_is_com_section (S_GET_SEGMENT (fixP->fx_addsy))
-	      && TC_FIX_ADJUSTABLE(fixP)))
+	      && TC_FIX_ADJUSTABLE (fixP)))
 	value -= S_GET_VALUE (fixP->fx_addsy);
 
       if (fixP->fx_pcrel)
@@ -1965,8 +1966,8 @@ tc_gen_reloc (seg, fixp)
   if (reloc->howto == NULL)
     {
       as_bad_where (fixp->fx_file, fixp->fx_line,
-                    _("cannot represent relocation type %s"),
-                    bfd_get_reloc_code_name (code));
+		    _("cannot represent relocation type %s"),
+		    bfd_get_reloc_code_name (code));
       /* Set howto to a garbage value so that we can keep going.  */
       reloc->howto = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_32);
       assert (reloc->howto != NULL);

@@ -713,7 +713,7 @@ boolean
 bfd_is_undefined_symclass (symclass)
      int symclass;
 {
-  return symclass == 'U' || symclass == 'w' || symclass == 'v';
+  return (boolean) (symclass == 'U' || symclass == 'w' || symclass == 'v');
 }
 
 /*
@@ -1069,7 +1069,7 @@ _bfd_stab_section_find_nearest_line (abfd, symbols, section, offset, pfound,
       saw_fun = 1;
       for (stab = info->stabs; stab < info->stabs + stabsize; stab += STABSIZE)
 	{
-	  if (stab[TYPEOFF] == N_SO)
+	  if (stab[TYPEOFF] == (bfd_byte) N_SO)
 	    {
 	      /* N_SO with null name indicates EOF */
 	      if (bfd_get_32 (abfd, stab + STRDXOFF) == 0)
@@ -1083,12 +1083,12 @@ _bfd_stab_section_find_nearest_line (abfd, symbols, section, offset, pfound,
 
 	      /* two N_SO's in a row is a filename and directory. Skip */
 	      if (stab + STABSIZE < info->stabs + stabsize
-		  && *(stab + STABSIZE + TYPEOFF) == N_SO)
+		  && *(stab + STABSIZE + TYPEOFF) == (bfd_byte) N_SO)
 		{
 		  stab += STABSIZE;
 		}
 	    }
-	  else if (stab[TYPEOFF] == N_FUN)
+	  else if (stab[TYPEOFF] == (bfd_byte) N_FUN)
 	    {
 	      saw_fun = 1;
 	      ++info->indextablesize;
@@ -1157,7 +1157,7 @@ _bfd_stab_section_find_nearest_line (abfd, symbols, section, offset, pfound,
 		{
 		  last_stab = stab;
 		  if (stab + STABSIZE >= info->stabs + stabsize
-		      || *(stab + STABSIZE + TYPEOFF) != N_SO)
+		      || *(stab + STABSIZE + TYPEOFF) != (bfd_byte) N_SO)
 		    {
 		      directory_name = NULL;
 		    }

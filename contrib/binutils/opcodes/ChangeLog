@@ -1,3 +1,19 @@
+2002-10-30  Daniel Jacobowitz  <drow@mvista.com>
+
+	* po/opcodes.pot: Regenerated.
+
+2002-10-28  Daniel Jacobowitz  <drow@mvista.com>
+
+	Merge from mainline:
+	2002-10-07  Nathan Tallent  <eraxxon@alumni.rice.edu>
+	* sparc-opc.c (sparc_opcodes) <fb, fba, fbe, fbz, fbg, fbge,
+	fbl, fble, fblg, fbn, fbne, fbnz, fbo, fbu, fbue, fbug, fbuge,
+	fbul, fbule>: Add conditional/unconditional branch
+	classification.
+
+	2002-09-24  Nick Clifton  <nickc@redhat.com>
+	* po/de.po: Updated Danish translation file.
+
 2002-09-04  Nick Clifton  <nickc@redhat.com>
 	    Daniel Jacobowitz  <drow@mvista.com>
 

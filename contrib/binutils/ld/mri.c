@@ -31,7 +31,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "ldlang.h"
 #include "ldmisc.h"
 #include "mri.h"
-#include "ldgram.h"
+#include <ldgram.h>
 #include "libiberty.h"
 
 struct section_name_struct {

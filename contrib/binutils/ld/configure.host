@@ -25,7 +25,7 @@ case "${host}" in
   # Older versions of gcc do not use a specs file.  In those cases,
   # gcc -print-file-name=specs will simply print specs.  We create a
   # dummy specs files to handle this.
-  echo "-dynamic-linker `${CC} --print-file-name=ld-elf.so.1`" > specs
+  echo "-dynamic-linker `${CC} --print-prog-name=ld-elf.so.1`" > specs
   HOSTING_CRT0='-dynamic-linker `${CC} --print-file-name=ld-elf.so.1` `${CC} --print-file-name=crt1.o` `${CC} --print-file-name=crti.o` `${CC} --print-file-name=crtbegin.o`'
   HOSTING_LIBS='-L`dirname \`${CC} --print-file-name=libc.so\`` '"$HOSTING_LIBS"' `if [ -f ../gcc/crtend.o ]; then echo ../gcc/crtend.o; else ${CC} --print-file-name=crtend.o; fi` `${CC} --print-file-name=crtn.o`'
   ;;

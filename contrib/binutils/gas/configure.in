@@ -115,14 +115,8 @@ changequote([,])dnl
     endian=
     case ${cpu} in
       alpha*)		cpu_type=alpha ;;
-      armeb)		cpu_type=arm endian=big ;;
-      arm*)		cpu_type=arm endian=little ;;
-      armb*)		cpu_type=arm endian=little ;;
-      armv*l)		cpu_type=arm endian=little ;;
-      armv*b)		cpu_type=arm endian=big ;;
-      xscale*)		cpu_type=arm endian=little ;;
-      strongarm*)	cpu_type=arm endian=little ;;
-      thumb*)		cpu_type=arm endian=little ;;
+      arm*b|xscale*b|strongarm*b) cpu_type=arm endian=big ;;
+      arm*|xscale*|strongarm*)    cpu_type=arm endian=little ;;
       hppa*)		cpu_type=hppa ;;
 changequote(,)dnl
       i[3456]86)	cpu_type=i386 arch=i386;;

@@ -70,7 +70,9 @@ INSTOBJEXT = @INSTOBJEXT@
 
 .po.gmo:
 	file=$(srcdir)/`echo $* | sed 's,.*/,,'`.gmo \
-	  && rm -f $$file && $(GMSGFMT) -o $$file $<
+	  && test -w $$file \
+	  && (rm -f $$file && $(GMSGFMT) -o $$file $< ) \
+	  || echo "$$file is not writable"
 
 .po.cat:
 	sed -f ../intl/po2msg.sed < $< > $*.msg \

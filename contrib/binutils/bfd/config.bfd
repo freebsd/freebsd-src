@@ -359,8 +359,8 @@ case "${targ}" in
     targ_defvec=bfd_elf32_i386_vec
     targ_selvecs=i386coff_vec
     ;;
-  i[3456]86-*-nto-qnx*)
-    targ_defvec=bfd_elf32_i386qnx_vec
+  i[3456]86-*-nto*)
+    targ_defvec=bfd_elf32_i386_vec
     targ_selvecs=i386coff_vec
     ;;
   i[3456]86-*-chorus*)
@@ -888,10 +888,12 @@ case "${targ}" in
 
   s390-*-linux*)
     targ_defvec=bfd_elf32_s390_vec
+    targ64_selvecs=bfd_elf64_s390_vec
     ;;
 #ifdef BFD64
   s390x-*-linux*)
     targ_defvec=bfd_elf64_s390_vec
+    targ_selvecs=bfd_elf32_s390_vec
     ;;
 #endif
 
@@ -925,9 +927,11 @@ case "${targ}" in
     ;;
   sh*eb-*-linux*)
     targ_defvec=bfd_elf32_shblin_vec
+    targ_selvecs=bfd_elf32_shlin_vec
     ;;
   sh*-*-linux*)
     targ_defvec=bfd_elf32_shlin_vec
+    targ_selvecs=bfd_elf32_shblin_vec
     ;;
 
 #ifdef BFD64

@@ -2237,7 +2237,7 @@ dump_data (abfd)
 		    stop_offset = bfd_section_size (abfd, section) / opb;
 		}
 	      for (addr_offset = start_offset;
-		   addr_offset < stop_offset; addr_offset += onaline)
+		   addr_offset < stop_offset; addr_offset += onaline / opb)
 		{
 		  bfd_size_type j;
 
@@ -2255,7 +2255,8 @@ dump_data (abfd)
 		    }
 
 		  printf (" ");
-		  for (j = addr_offset; j < addr_offset * opb + onaline; j++)
+		  for (j = addr_offset * opb;
+		       j < addr_offset * opb + onaline; j++)
 		    {
 		      if (j >= stop_offset * opb)
 			printf (" ");

@@ -1293,10 +1293,10 @@ bfd_record_phdr (abfd, type, flags_valid, flags, at_valid, at,
   m->p_type = type;
   m->p_flags = flags;
   m->p_paddr = at;
-  m->p_flags_valid = flags_valid;
-  m->p_paddr_valid = at_valid;
-  m->includes_filehdr = includes_filehdr;
-  m->includes_phdrs = includes_phdrs;
+  m->p_flags_valid = (unsigned int) flags_valid;
+  m->p_paddr_valid = (unsigned int) at_valid;
+  m->includes_filehdr = (unsigned int) includes_filehdr;
+  m->includes_phdrs = (unsigned int) includes_phdrs;
   m->count = count;
   if (count > 0)
     memcpy (m->sections, secs, count * sizeof (asection *));
