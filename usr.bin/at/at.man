@@ -1,4 +1,4 @@
-.\" $Id: at.man,v 1.6 1997/02/22 19:54:05 peter Exp $
+.\" $Id: at.man,v 1.7 1998/03/23 07:40:30 charnier Exp $
 .Dd April 12, 1995
 .Dt "AT" 1
 .Os "FreeBSD 2.1"
@@ -220,7 +220,7 @@ For
 shows completed but not yet deleted jobs in the queue; otherwise
 shows the time the job will be executed.
 .It Fl c
-Cats the jobs listed on the command line to standart output.
+Cats the jobs listed on the command line to standard output.
 .Sh FILES
 .Bl -tag -width _ATJOB_DIR/_LOCKFILE -compact
 .It Pa _ATJOB_DIR
