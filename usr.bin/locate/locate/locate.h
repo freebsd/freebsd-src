@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 1995 Wolfram Schneider <wosch@FreeBSD.org>. Berlin.
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -31,6 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)locate.h	8.1 (Berkeley) 6/6/93
+ *	$Id$
  */
 
 /* Symbolic constants shared by locate.c and code.c */
@@ -39,6 +41,7 @@
 #define	OFFSET		14		/* abs value of max likely diff */
 #define	PARITY		0200		/* parity bit */
 #define	SWITCH		30		/* switch code */
+#define UMLAUT          31              /* an 8 bit char followed */
 
 /* 	0-28	likeliest differential counts + offset to make nonnegative */
 #define LDC_MIN         0
