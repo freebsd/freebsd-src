@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bios.c,v 1.4 1997/08/06 11:08:01 peter Exp $
+ *      $Id: bios.c,v 1.5 1997/09/01 01:12:50 bde Exp $
  */
 
 /*
@@ -126,6 +126,7 @@ bios32_init(void *junk)
 	}
 	
     }
+
     /* look for the DMI signature */
     if ((sigaddr = bios_sigsearch(0, "_DMI_", 5, 16, 0)) != 0) {
 
@@ -149,7 +150,12 @@ bios32_init(void *junk)
 	    printf("Bad DMI table checksum!\n");
 	}
     }
-
+    if (bootverbose) {
+	    /* look for other know signatures */
+	    printf("Other BIOS signatures found:\n");
+	    printf("ACPI: %08x\n", bios_sigsearch(0, "FACP", 4, 1, 0));
+	    printf("$PnP: %08x\n", bios_sigsearch(0, "$PnP", 4, 16, 0));
+    }
 }
 
 /*
