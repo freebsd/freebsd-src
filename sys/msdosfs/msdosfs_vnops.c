@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.17.2.2 1995/09/12 08:57:53 davidg Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.17.2.3 1995/10/09 06:13:08 davidg Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -204,64 +204,6 @@ msdosfs_close(ap)
 	return 0;
 }
 
-/*
- * This routine will go into sys/kern/vfs_subr.c one day!
- *
- * Do the usual access checking.
- * file_node, uid and gid are from the vnode in question,
- * while acc_mode and cred are from the VOP_ACCESS parameter list.
- */
-static int
-vaccess(file_mode, uid, gid, acc_mode, cred)
-	mode_t file_mode;
-	uid_t uid;
-	gid_t gid;
-	mode_t acc_mode;
-	struct ucred *cred;
-{
-	mode_t mask;
-	int i;
-	register gid_t *gp;
-
-	/* User id 0 always gets access. */
-	if (cred->cr_uid == 0)
-		return 0;
-
-	mask = 0;
-
-	/* Otherwise, check the owner. */
-	if (cred->cr_uid == uid) {
-		if (acc_mode & VEXEC)
-			mask |= S_IXUSR;
-		if (acc_mode & VREAD)
-			mask |= S_IRUSR;
-		if (acc_mode & VWRITE)
-			mask |= S_IWUSR;
-		return (file_mode & mask) == mask ? 0 : EACCES;
-	}
-
-	/* Otherwise, check the groups. */
-	for (i = 0, gp = cred->cr_groups; i < cred->cr_ngroups; i++, gp++)
-		if (gid == *gp) {
-			if (acc_mode & VEXEC)
-				mask |= S_IXGRP;
-			if (acc_mode & VREAD)
-				mask |= S_IRGRP;
-			if (acc_mode & VWRITE)
-				mask |= S_IWGRP;
-			return (file_mode & mask) == mask ? 0 : EACCES;
-		}
-
-	/* Otherwise, check everyone else. */
-	if (acc_mode & VEXEC)
-		mask |= S_IXOTH;
-	if (acc_mode & VREAD)
-		mask |= S_IROTH;
-	if (acc_mode & VWRITE)
-		mask |= S_IWOTH;
-	return (file_mode & mask) == mask ? 0 : EACCES;
-}
-
 int
 msdosfs_access(ap)
 	struct vop_access_args /* {
@@ -271,15 +213,71 @@ msdosfs_access(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	mode_t dosmode;
+	struct vnode *vp = ap->a_vp;
 	struct denode *dep = VTODE(ap->a_vp);
 	struct msdosfsmount *pmp = dep->de_pmp;
+	struct ucred *cred = ap->a_cred;
+	mode_t mask, file_mode, mode = ap->a_mode;
+	register gid_t *gp;
+	int i;
 
-	dosmode = (S_IXUSR|S_IXGRP|S_IXOTH) | (S_IRUSR|S_IRGRP|S_IROTH) |
+	file_mode = (S_IXUSR|S_IXGRP|S_IXOTH) | (S_IRUSR|S_IRGRP|S_IROTH) |
 	    ((dep->de_Attributes & ATTR_READONLY) ? 0 : (S_IWUSR|S_IWGRP|S_IWOTH));
-	dosmode &= pmp->pm_mask;
+	file_mode &= pmp->pm_mask;
 
-	return vaccess(dosmode, pmp->pm_uid, pmp->pm_gid, ap->a_mode, ap->a_cred);
+	/*
+	 * Disallow write attempts on read-only file systems;
+	 * unless the file is a socket, fifo, or a block or
+	 * character device resident on the file system.
+	 */
+	if (mode & VWRITE) {
+		switch (vp->v_type) {
+		case VDIR:
+		case VLNK:
+		case VREG:
+			if (vp->v_mount->mnt_flag & MNT_RDONLY)
+				return (EROFS);
+			break;
+		}
+	}
+
+	/* User id 0 always gets access. */
+	if (cred->cr_uid == 0)
+		return 0;
+
+	mask = 0;
+
+	/* Otherwise, check the owner. */
+	if (cred->cr_uid == pmp->pm_uid) {
+		if (mode & VEXEC)
+			mask |= S_IXUSR;
+		if (mode & VREAD)
+			mask |= S_IRUSR;
+		if (mode & VWRITE)
+			mask |= S_IWUSR;
+		return (file_mode & mask) == mask ? 0 : EACCES;
+	}
+
+	/* Otherwise, check the groups. */
+	for (i = 0, gp = cred->cr_groups; i < cred->cr_ngroups; i++, gp++)
+		if (pmp->pm_gid == *gp) {
+			if (mode & VEXEC)
+				mask |= S_IXGRP;
+			if (mode & VREAD)
+				mask |= S_IRGRP;
+			if (mode & VWRITE)
+				mask |= S_IWGRP;
+			return (file_mode & mask) == mask ? 0 : EACCES;
+		}
+
+	/* Otherwise, check everyone else. */
+	if (mode & VEXEC)
+		mask |= S_IXOTH;
+	if (mode & VREAD)
+		mask |= S_IROTH;
+	if (mode & VWRITE)
+		mask |= S_IWOTH;
+	return (file_mode & mask) == mask ? 0 : EACCES;
 }
 
 int
@@ -348,85 +346,27 @@ msdosfs_setattr(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	int error = 0;
+	struct vnode *vp = ap->a_vp;
 	struct denode *dep = VTODE(ap->a_vp);
 	struct vattr *vap = ap->a_vap;
 	struct ucred *cred = ap->a_cred;
-
-#ifdef MSDOSFS_DEBUG
-	printf("msdosfs_setattr(): vp %08x, vap %08x, cred %08x, p %08x\n",
-	       ap->a_vp, vap, cred, ap->a_p);
-#endif
-	if ((vap->va_type != VNON) ||
-	    (vap->va_nlink != VNOVAL) ||
-	    (vap->va_fsid != VNOVAL) ||
-	    (vap->va_fileid != VNOVAL) ||
-	    (vap->va_blocksize != VNOVAL) ||
-	    (vap->va_rdev != VNOVAL) ||
-	    (vap->va_bytes != VNOVAL) ||
-	    (vap->va_gen != VNOVAL)) {
-#ifdef MSDOSFS_DEBUG
-		printf("msdosfs_setattr(): returning EINVAL\n");
-		printf("    va_type %d, va_nlink %x, va_fsid %x, va_fileid %x\n",
-		       vap->va_type, vap->va_nlink, vap->va_fsid, vap->va_fileid);
-		printf("    va_blocksize %x, va_rdev %x, va_bytes %x, va_gen %x\n",
-		       vap->va_blocksize, vap->va_rdev, vap->va_bytes, vap->va_gen);
-#endif
-		return EINVAL;
-	}
-
-	if (vap->va_uid != (uid_t)VNOVAL || vap->va_gid != (uid_t)VNOVAL) {
-		if ((cred->cr_uid != dep->de_pmp->pm_uid ||
-		     vap->va_uid != dep->de_pmp->pm_uid ||
-		     (vap->va_gid != dep->de_pmp->pm_gid &&
-		      !groupmember(vap->va_gid, cred))) &&
-		    (error = suser(cred, &ap->a_p->p_acflag)))
-			return error;
-		if (vap->va_uid != dep->de_pmp->pm_uid ||
-		    vap->va_gid != dep->de_pmp->pm_gid)
-			return EINVAL;
-	}
-	if (vap->va_size != VNOVAL) {
-		if (ap->a_vp->v_type == VDIR)
-			return EISDIR;
-		error = detrunc(dep, vap->va_size, 0, cred, ap->a_p);
-		if (error)
-			return error;
-	}
-	if (vap->va_mtime.ts_sec != VNOVAL) {
-		if (cred->cr_uid != dep->de_pmp->pm_uid &&
-		    (error = suser(cred, &ap->a_p->p_acflag)) &&
-		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
-		    (error = VOP_ACCESS(ap->a_vp, VWRITE, cred, ap->a_p))))
-			return error;
-		dep->de_flag |= DE_UPDATE;
-		error = deupdat(dep, &vap->va_mtime, 1);
-		if (error)
-			return error;
-	}
+	int error = 0;
 
 	/*
-	 * DOS files only have the ability to have their writability
-	 * attribute set, so we use the owner write bit to set the readonly
-	 * attribute.
+	 * Check for unsettable attributes.
 	 */
-	if (vap->va_mode != (u_short) VNOVAL) {
-		if (cred->cr_uid != dep->de_pmp->pm_uid &&
-		    (error = suser(cred, &ap->a_p->p_acflag)))
-			return error;
-
-		/* We ignore the read and execute bits */
-		if (vap->va_mode & VWRITE)
-			dep->de_Attributes &= ~ATTR_READONLY;
-		else
-			dep->de_Attributes |= ATTR_READONLY;
-		dep->de_flag |= DE_MODIFIED;
+	if ((vap->va_type != VNON) || (vap->va_nlink != VNOVAL) ||
+	    (vap->va_fsid != VNOVAL) || (vap->va_fileid != VNOVAL) ||
+	    (vap->va_blocksize != VNOVAL) || (vap->va_rdev != VNOVAL) ||
+	    (vap->va_bytes != VNOVAL) || (vap->va_gen != VNOVAL)) {
+		return (EINVAL);
 	}
-
 	if (vap->va_flags != VNOVAL) {
+		if (vp->v_mount->mnt_flag & MNT_RDONLY)
+			return (EROFS);
 		if (cred->cr_uid != dep->de_pmp->pm_uid &&
 		    (error = suser(cred, &ap->a_p->p_acflag)))
-			return error;
+			return (error);
 		/*
 		 * We are very inconsistent about handling unsupported
 		 * attributes.  We ignored the the access time and the
@@ -449,6 +389,73 @@ msdosfs_setattr(ap)
 			dep->de_Attributes &= ~ATTR_ARCHIVE;
 		else if (!(dep->de_Attributes & ATTR_DIRECTORY))
 			dep->de_Attributes |= ATTR_ARCHIVE;
+		dep->de_flag |= DE_MODIFIED;
+	}
+
+	if (vap->va_uid != (uid_t)VNOVAL || vap->va_gid != (uid_t)VNOVAL) {
+		if (vp->v_mount->mnt_flag & MNT_RDONLY)
+			return (EROFS);
+		if ((cred->cr_uid != dep->de_pmp->pm_uid ||
+		     vap->va_uid != dep->de_pmp->pm_uid ||
+		     (vap->va_gid != dep->de_pmp->pm_gid &&
+		      !groupmember(vap->va_gid, cred))) &&
+		    (error = suser(cred, &ap->a_p->p_acflag)))
+			return error;
+		if (vap->va_uid != dep->de_pmp->pm_uid ||
+		    vap->va_gid != dep->de_pmp->pm_gid)
+			return EINVAL;
+	}
+	if (vap->va_size != VNOVAL) {
+		/*
+		 * Disallow write attempts on read-only file systems;
+		 * unless the file is a socket, fifo, or a block or
+		 * character device resident on the file system.
+		 */
+		switch (vp->v_type) {
+		case VDIR:
+			return (EISDIR);
+		case VLNK:
+		case VREG:
+			if (vp->v_mount->mnt_flag & MNT_RDONLY)
+				return (EROFS);
+			break;
+		}
+		error = detrunc(dep, vap->va_size, 0, cred, ap->a_p);
+		if (error)
+			return error;
+	}
+	if (vap->va_mtime.ts_sec != VNOVAL) {
+		if (vp->v_mount->mnt_flag & MNT_RDONLY)
+			return (EROFS);
+		if (cred->cr_uid != dep->de_pmp->pm_uid &&
+		    (error = suser(cred, &ap->a_p->p_acflag)) &&
+		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
+		    (error = VOP_ACCESS(vp, VWRITE, cred, ap->a_p))))
+			return error;
+		dep->de_flag |= DE_UPDATE;
+		error = deupdat(dep, &vap->va_mtime, 1);
+		if (error)
+			return error;
+	}
+
+	/*
+	 * DOS files only have the ability to have their writability
+	 * attribute set, so we use the owner write bit to set the readonly
+	 * attribute.
+	 */
+	error = 0;
+	if (vap->va_mode != (u_short) VNOVAL) {
+		if (vp->v_mount->mnt_flag & MNT_RDONLY)
+			return (EROFS);
+		if (cred->cr_uid != dep->de_pmp->pm_uid &&
+		    (error = suser(cred, &ap->a_p->p_acflag)))
+			return error;
+
+		/* We ignore the read and execute bits */
+		if (vap->va_mode & VWRITE)
+			dep->de_Attributes &= ~ATTR_READONLY;
+		else
+			dep->de_Attributes |= ATTR_READONLY;
 		dep->de_flag |= DE_MODIFIED;
 	}
 	return error;

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.24.4.1 1995/09/26 04:08:15 davidg Exp $
+ * $Id: ufs_vnops.c,v 1.24.4.2 1995/10/09 07:42:46 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -122,9 +122,9 @@ ufs_mknod(ap)
 		struct vattr *a_vap;
 	} */ *ap;
 {
-	register struct vattr *vap = ap->a_vap;
-	register struct vnode **vpp = ap->a_vpp;
-	register struct inode *ip;
+	struct vattr *vap = ap->a_vap;
+	struct vnode **vpp = ap->a_vpp;
+	struct inode *ip;
 	int error;
 
 	error = ufs_makeinode(MAKEIMODE(vap->va_type, vap->va_mode),
@@ -209,33 +209,32 @@ ufs_access(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct inode *ip = VTOI(vp);
-	register struct ucred *cred = ap->a_cred;
+	struct vnode *vp = ap->a_vp;
+	struct inode *ip = VTOI(vp);
+	struct ucred *cred = ap->a_cred;
 	mode_t mask, mode = ap->a_mode;
 	register gid_t *gp;
-	int i;
-#ifdef QUOTA
-	int error;
-#endif
+	int i, error;
 
-#ifdef DIAGNOSTIC
-	if (!VOP_ISLOCKED(vp)) {
-		vprint("ufs_access: not locked", vp);
-		panic("ufs_access: not locked");
-	}
-#endif
-#ifdef QUOTA
-	if (mode & VWRITE)
+	/*
+	 * Disallow write attempts on read-only file systems;
+	 * unless the file is a socket, fifo, or a block or
+	 * character device resident on the file system.
+	 */
+	if (mode & VWRITE) {
 		switch (vp->v_type) {
 		case VDIR:
 		case VLNK:
 		case VREG:
+			if (vp->v_mount->mnt_flag & MNT_RDONLY)
+				return (EROFS);
+#ifdef QUOTA
 			if (error = getinoquota(ip))
 				return (error);
+#endif
 			break;
 		}
-#endif
+	}
 
 	/* If immutable bit set, nobody gets to write it. */
 	if ((mode & VWRITE) && (ip->i_flags & IMMUTABLE))
@@ -336,11 +335,11 @@ ufs_setattr(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	register struct vattr *vap = ap->a_vap;
-	register struct vnode *vp = ap->a_vp;
-	register struct inode *ip = VTOI(vp);
-	register struct ucred *cred = ap->a_cred;
-	register struct proc *p = ap->a_p;
+	struct vattr *vap = ap->a_vap;
+	struct vnode *vp = ap->a_vp;
+	struct inode *ip = VTOI(vp);
+	struct ucred *cred = ap->a_cred;
+	struct proc *p = ap->a_p;
 	struct timeval atimeval, mtimeval;
 	int error;
 
@@ -354,6 +353,8 @@ ufs_setattr(ap)
 		return (EINVAL);
 	}
 	if (vap->va_flags != VNOVAL) {
+		if (vp->v_mount->mnt_flag & MNT_RDONLY)
+			return (EROFS);
 		if (cred->cr_uid != ip->i_uid &&
 		    (error = suser(cred, &p->p_acflag)))
 			return (error);
@@ -378,19 +379,35 @@ ufs_setattr(ap)
 	 * Go through the fields and update iff not VNOVAL.
 	 */
 	if (vap->va_uid != (uid_t)VNOVAL || vap->va_gid != (gid_t)VNOVAL) {
+		if (vp->v_mount->mnt_flag & MNT_RDONLY)
+			return (EROFS);
 		error = ufs_chown(vp, vap->va_uid, vap->va_gid, cred, p);
 		if (error)
 			return (error);
 	}
 	if (vap->va_size != VNOVAL) {
-		if (vp->v_type == VDIR)
+		/*
+		 * Disallow write attempts on read-only file systems;
+		 * unless the file is a socket, fifo, or a block or
+		 * character device resident on the file system.
+		 */
+		switch (vp->v_type) {
+		case VDIR:
 			return (EISDIR);
+		case VLNK:
+		case VREG:
+			if (vp->v_mount->mnt_flag & MNT_RDONLY)
+				return (EROFS);
+			break;
+		}
 		error = VOP_TRUNCATE(vp, vap->va_size, 0, cred, p);
 		if (error)
 			return (error);
 	}
 	ip = VTOI(vp);
 	if (vap->va_atime.ts_sec != VNOVAL || vap->va_mtime.ts_sec != VNOVAL) {
+		if (vp->v_mount->mnt_flag & MNT_RDONLY)
+			return (EROFS);
 		if (cred->cr_uid != ip->i_uid &&
 		    (error = suser(cred, &p->p_acflag)) &&
 		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
@@ -409,8 +426,11 @@ ufs_setattr(ap)
 			return (error);
 	}
 	error = 0;
-	if (vap->va_mode != (mode_t)VNOVAL)
+	if (vap->va_mode != (mode_t)VNOVAL) {
+		if (vp->v_mount->mnt_flag & MNT_RDONLY)
+			return (EROFS);
 		error = ufs_chmod(vp, (int)vap->va_mode, cred, p);
+	}
 	return (error);
 }
 
@@ -636,9 +656,9 @@ ufs_remove(ap)
 		struct componentname *a_cnp;
 	} */ *ap;
 {
-	register struct inode *ip;
-	register struct vnode *vp = ap->a_vp;
-	register struct vnode *dvp = ap->a_dvp;
+	struct inode *ip;
+	struct vnode *vp = ap->a_vp;
+	struct vnode *dvp = ap->a_dvp;
 	int error;
 
 	ip = VTOI(vp);
@@ -671,10 +691,10 @@ ufs_link(ap)
 		struct componentname *a_cnp;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct vnode *tdvp = ap->a_tdvp;
-	register struct componentname *cnp = ap->a_cnp;
-	register struct inode *ip;
+	struct vnode *vp = ap->a_vp;
+	struct vnode *tdvp = ap->a_tdvp;
+	struct componentname *cnp = ap->a_cnp;
+	struct inode *ip;
 	struct timeval tv;
 	int error;
 
@@ -760,10 +780,10 @@ ufs_rename(ap)
 	struct vnode *tvp = ap->a_tvp;
 	register struct vnode *tdvp = ap->a_tdvp;
 	struct vnode *fvp = ap->a_fvp;
-	register struct vnode *fdvp = ap->a_fdvp;
-	register struct componentname *tcnp = ap->a_tcnp;
-	register struct componentname *fcnp = ap->a_fcnp;
-	register struct inode *ip, *xp, *dp;
+	struct vnode *fdvp = ap->a_fdvp;
+	struct componentname *tcnp = ap->a_tcnp;
+	struct componentname *fcnp = ap->a_fcnp;
+	struct inode *ip, *xp, *dp;
 	struct dirtemplate dirbuf;
 	struct timeval tv;
 	int doingdirectory = 0, oldparent = 0, newparent = 0;
@@ -1264,10 +1284,10 @@ ufs_rmdir(ap)
 		struct componentname *a_cnp;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct vnode *dvp = ap->a_dvp;
-	register struct componentname *cnp = ap->a_cnp;
-	register struct inode *ip, *dp;
+	struct vnode *vp = ap->a_vp;
+	struct vnode *dvp = ap->a_dvp;
+	struct componentname *cnp = ap->a_cnp;
+	struct inode *ip, *dp;
 	int error;
 
 	ip = VTOI(vp);

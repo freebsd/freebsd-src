@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.25.4.1 1995/08/25 01:49:11 davidg Exp $
+ * $Id: vfs_syscalls.c,v 1.25.4.2 1995/09/18 05:30:19 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -1391,13 +1391,9 @@ chflags(p, uap, retval)
 	vp = nd.ni_vp;
 	LEASE_CHECK(vp, p, p->p_ucred, LEASE_WRITE);
 	VOP_LOCK(vp);
-	if (vp->v_mount->mnt_flag & MNT_RDONLY)
-		error = EROFS;
-	else {
-		VATTR_NULL(&vattr);
-		vattr.va_flags = uap->flags;
-		error = VOP_SETATTR(vp, &vattr, p->p_ucred, p);
-	}
+	VATTR_NULL(&vattr);
+	vattr.va_flags = uap->flags;
+	error = VOP_SETATTR(vp, &vattr, p->p_ucred, p);
 	vput(vp);
 	return (error);
 }
@@ -1427,13 +1423,9 @@ fchflags(p, uap, retval)
 	vp = (struct vnode *)fp->f_data;
 	LEASE_CHECK(vp, p, p->p_ucred, LEASE_WRITE);
 	VOP_LOCK(vp);
-	if (vp->v_mount->mnt_flag & MNT_RDONLY)
-		error = EROFS;
-	else {
-		VATTR_NULL(&vattr);
-		vattr.va_flags = uap->flags;
-		error = VOP_SETATTR(vp, &vattr, p->p_ucred, p);
-	}
+	VATTR_NULL(&vattr);
+	vattr.va_flags = uap->flags;
+	error = VOP_SETATTR(vp, &vattr, p->p_ucred, p);
 	VOP_UNLOCK(vp);
 	return (error);
 }
@@ -1464,13 +1456,9 @@ chmod(p, uap, retval)
 	vp = nd.ni_vp;
 	LEASE_CHECK(vp, p, p->p_ucred, LEASE_WRITE);
 	VOP_LOCK(vp);
-	if (vp->v_mount->mnt_flag & MNT_RDONLY)
-		error = EROFS;
-	else {
-		VATTR_NULL(&vattr);
-		vattr.va_mode = uap->mode & ALLPERMS;
-		error = VOP_SETATTR(vp, &vattr, p->p_ucred, p);
-	}
+	VATTR_NULL(&vattr);
+	vattr.va_mode = uap->mode & ALLPERMS;
+	error = VOP_SETATTR(vp, &vattr, p->p_ucred, p);
 	vput(vp);
 	return (error);
 }
@@ -1500,13 +1488,9 @@ fchmod(p, uap, retval)
 	vp = (struct vnode *)fp->f_data;
 	LEASE_CHECK(vp, p, p->p_ucred, LEASE_WRITE);
 	VOP_LOCK(vp);
-	if (vp->v_mount->mnt_flag & MNT_RDONLY)
-		error = EROFS;
-	else {
-		VATTR_NULL(&vattr);
-		vattr.va_mode = uap->mode & ALLPERMS;
-		error = VOP_SETATTR(vp, &vattr, p->p_ucred, p);
-	}
+	VATTR_NULL(&vattr);
+	vattr.va_mode = uap->mode & ALLPERMS;
+	error = VOP_SETATTR(vp, &vattr, p->p_ucred, p);
 	VOP_UNLOCK(vp);
 	return (error);
 }
@@ -1538,14 +1522,10 @@ chown(p, uap, retval)
 	vp = nd.ni_vp;
 	LEASE_CHECK(vp, p, p->p_ucred, LEASE_WRITE);
 	VOP_LOCK(vp);
-	if (vp->v_mount->mnt_flag & MNT_RDONLY)
-		error = EROFS;
-	else {
-		VATTR_NULL(&vattr);
-		vattr.va_uid = uap->uid;
-		vattr.va_gid = uap->gid;
-		error = VOP_SETATTR(vp, &vattr, p->p_ucred, p);
-	}
+	VATTR_NULL(&vattr);
+	vattr.va_uid = uap->uid;
+	vattr.va_gid = uap->gid;
+	error = VOP_SETATTR(vp, &vattr, p->p_ucred, p);
 	vput(vp);
 	return (error);
 }
@@ -1576,14 +1556,10 @@ fchown(p, uap, retval)
 	vp = (struct vnode *)fp->f_data;
 	LEASE_CHECK(vp, p, p->p_ucred, LEASE_WRITE);
 	VOP_LOCK(vp);
-	if (vp->v_mount->mnt_flag & MNT_RDONLY)
-		error = EROFS;
-	else {
-		VATTR_NULL(&vattr);
-		vattr.va_uid = uap->uid;
-		vattr.va_gid = uap->gid;
-		error = VOP_SETATTR(vp, &vattr, p->p_ucred, p);
-	}
+	VATTR_NULL(&vattr);
+	vattr.va_uid = uap->uid;
+	vattr.va_gid = uap->gid;
+	error = VOP_SETATTR(vp, &vattr, p->p_ucred, p);
 	VOP_UNLOCK(vp);
 	return (error);
 }
@@ -1625,15 +1601,11 @@ utimes(p, uap, retval)
 	vp = nd.ni_vp;
 	LEASE_CHECK(vp, p, p->p_ucred, LEASE_WRITE);
 	VOP_LOCK(vp);
-	if (vp->v_mount->mnt_flag & MNT_RDONLY)
-		error = EROFS;
-	else {
-		vattr.va_atime.ts_sec = tv[0].tv_sec;
-		vattr.va_atime.ts_nsec = tv[0].tv_usec * 1000;
-		vattr.va_mtime.ts_sec = tv[1].tv_sec;
-		vattr.va_mtime.ts_nsec = tv[1].tv_usec * 1000;
-		error = VOP_SETATTR(vp, &vattr, p->p_ucred, p);
-	}
+	vattr.va_atime.ts_sec = tv[0].tv_sec;
+	vattr.va_atime.ts_nsec = tv[0].tv_usec * 1000;
+	vattr.va_mtime.ts_sec = tv[1].tv_sec;
+	vattr.va_mtime.ts_nsec = tv[1].tv_usec * 1000;
+	error = VOP_SETATTR(vp, &vattr, p->p_ucred, p);
 	vput(vp);
 	return (error);
 }

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
- * $Id: vfs_lookup.c,v 1.7.4.1 1995/08/25 01:49:10 davidg Exp $
+ * $Id: vfs_lookup.c,v 1.7.4.2 1995/09/12 08:39:06 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -422,7 +422,7 @@ unionlookup:
 		 * If creating and at end of pathname, then can consider
 		 * allowing file to be created.
 		 */
-		if (rdonly || (ndp->ni_dvp->v_mount->mnt_flag & MNT_RDONLY)) {
+		if (rdonly) {
 			error = EROFS;
 			goto bad;
 		}
@@ -510,19 +510,12 @@ nextname:
 		goto dirloop;
 	}
 	/*
-	 * Check for read-only file systems.
+	 * Disallow directory write attempts on read-only file systems.
 	 */
-	if (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME) {
-		/*
-		 * Disallow directory write attempts on read-only
-		 * file systems.
-		 */
-		if (rdonly || (dp->v_mount->mnt_flag & MNT_RDONLY) ||
-		    (wantparent &&
-		     (ndp->ni_dvp->v_mount->mnt_flag & MNT_RDONLY))) {
-			error = EROFS;
-			goto bad2;
-		}
+	if (rdonly &&
+	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)) {
+		error = EROFS;
+		goto bad2;
 	}
 	if (cnp->cn_flags & SAVESTART) {
 		ndp->ni_startdir = ndp->ni_dvp;
@@ -638,7 +631,7 @@ relookup(dvp, vpp, cnp)
 		 * If creating and at end of pathname, then can consider
 		 * allowing file to be created.
 		 */
-		if (rdonly || (dvp->v_mount->mnt_flag & MNT_RDONLY)) {
+		if (rdonly) {
 			error = EROFS;
 			goto bad;
 		}
@@ -663,19 +656,12 @@ relookup(dvp, vpp, cnp)
 #endif
 
 	/*
-	 * Check for read-only file systems.
+	 * Disallow directory write attempts on read-only file systems.
 	 */
-	if (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME) {
-		/*
-		 * Disallow directory write attempts on read-only
-		 * file systems.
-		 */
-		if (rdonly || (dp->v_mount->mnt_flag & MNT_RDONLY) ||
-		    (wantparent &&
-		     (dvp->v_mount->mnt_flag & MNT_RDONLY))) {
-			error = EROFS;
-			goto bad2;
-		}
+	if (rdonly &&
+	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)) {
+		error = EROFS;
+		goto bad2;
 	}
 	/* ASSERT(dvp == ndp->ni_startdir) */
 	if (cnp->cn_flags & SAVESTART)
