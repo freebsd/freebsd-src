@@ -1234,10 +1234,9 @@ bad:
  * === On return ===
  *   *dst is unchanged;
  *   *lrt0 points to the (possibly new) route to the final destination
- *	(NOTE: different meaning from what it was on input)
  *   *lrt points to the route to the next hop
  *
- * Their values are meaningul ONLY if no error is returned.
+ * Their values are meaningful ONLY if no error is returned.
  */
 int
 rt_check(struct rtentry **lrt, struct rtentry **lrt0, struct sockaddr *dst)
