@@ -148,17 +148,11 @@ options(int cmdline)
 		argptr++;
 		if ((c = *p++) == '-') {
 			val = 1;
-                        if (p[0] == '\0' || (p[0] == '-' && p[1] == '\0')) {
-                                if (!cmdline) {
-                                        /* "-" means turn off -x and -v */
-                                        if (p[0] == '\0')
-                                                xflag = vflag = 0;
-                                        /* "--" means reset params */
-                                        else if (*argptr == NULL)
-						setparam(argptr);
-                                }
-				break;	  /* "-" or  "--" terminates options */
-			}
+			/* A "-" or  "--" terminates options */
+			if (p[0] == '\0')
+				goto end_options1;
+			if (p[0] == '-' && p[1] == '\0')
+				goto end_options2;
 		} else if (c == '+') {
 			val = 0;
 		} else {
@@ -190,6 +184,44 @@ options(int cmdline)
 				setoption(c, val);
 			}
 		}
+	}
+	return;
+
+	/* When processing `set', a single "-" means turn off -x and -v */
+end_options1:
+	if (!cmdline) {
+		xflag = vflag = 0;
+		return;
+	}
+
+	/*
+	 * When processing `set', a "--" means the remaining arguments
+	 * replace the positional parameters in the active shell.  If
+	 * there are no remaining options, then all the positional
+	 * parameters are cleared (equivalent to doing ``shift $#'').
+	 */
+end_options2:
+	if (!cmdline) {
+		if (*argptr == NULL)
+			setparam(argptr);
+		return;
+	}
+
+	/*
+	 * At this point we are processing options given to 'sh' on a command
+	 * line.  If an end-of-options marker ("-" or "--") is followed by an
+	 * arg of "#", then skip over all remaining arguments.  Some scripting
+	 * languages (e.g.: perl) document that /bin/sh will implement this
+	 * behavior, and they recommend that users take advantage of it to
+	 * solve certain issues that can come up when writing a perl script.
+	 * Yes, this feature is in /bin/sh to help users write perl scripts.
+	 */
+	p = *argptr;
+	if (p != NULL && p[0] == '#' && p[1] == '\0') {
+		while (*argptr != NULL)
+			argptr++;
+		/* We need to keep the final argument */
+		argptr--;
 	}
 }
 
