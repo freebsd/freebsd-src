@@ -313,6 +313,11 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 
 		PAM_LOG("PRELIM round");
 
+		if (getuid() == 0 &&
+		    (pwd->pw_fields & _PWF_SOURCE) == _PWF_FILES)
+			/* root doesn't need the old password */
+			return (pam_set_item(pamh, PAM_OLDAUTHTOK, ""));
+
 		if (pwd->pw_passwd[0] == '\0'
 		    && pam_test_option(&options, PAM_OPT_NULLOK, NULL)) {
 			/*
@@ -338,7 +343,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 		PAM_LOG("UPDATE round");
 
 		retval = pam_get_authtok(pamh,
-		    PAM_AUTHTOK, &old_pass, NULL);
+		    PAM_OLDAUTHTOK, &old_pass, NULL);
 		if (retval != PAM_SUCCESS)
 			return (retval);
 		PAM_LOG("Got old password");
