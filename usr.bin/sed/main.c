@@ -344,6 +344,7 @@ mf_fgets(sp, spflag)
 		fname = files->fname;
 		if ((f = fopen(fname, "r")) == NULL) {
 			warn("%s", fname);
+			rval = 1;
 			continue;
 		}
 		if (inplace != NULL && *inplace == '\0')
