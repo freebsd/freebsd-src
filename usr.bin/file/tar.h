@@ -5,7 +5,7 @@
  *
  * Created 25 August 1985 by John Gilmore, ihnp4!hoptoad!gnu.
  *
- * $FreeBSD$ # checkin only
+ * $Id$ # checkin only
  */
 
 /*

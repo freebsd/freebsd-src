@@ -1,7 +1,7 @@
 /*
  * Русские праздники
  *
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef _ru_SU_KOI8_R_common_

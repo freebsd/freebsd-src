@@ -3,9 +3,18 @@
 
 /*
  * Patchlevel file for Ian Darwin's MAGIC command.
- * $FreeBSD$
+ * $Id$
  *
  * $Log: patchlevel.h,v $
+ * Revision 1.4  1997/01/14 06:59:48  jkh
+ * Make the long-awaited change from $Id$ to $Id$
+ *
+ * This will make a number of things easier in the future, as well as (finally!)
+ * avoiding the Id-smashing problem which has plagued developers for so long.
+ *
+ * Boy, I'm glad we're not using sup anymore.  This update would have been
+ * insane otherwise.
+ *
  * Revision 1.3  1996/01/23 12:40:20  mpp
  * Merged changes to resolve conflicts with file 3.19 import.
  *

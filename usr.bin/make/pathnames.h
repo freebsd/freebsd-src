@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pathnames.h	5.2 (Berkeley) 6/1/90
- *	$FreeBSD$
+ *	$Id$
  */
 
 #define	_PATH_OBJDIR		"obj"

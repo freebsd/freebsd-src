@@ -4,7 +4,7 @@
  *		   information if recognized
  *	uncompress(method, old, n, newch) - uncompress old into new,
  *					    using method, return sizeof new
- * $FreeBSD$
+ * $Id$
  */
 #include <stdio.h>
 #include <stdlib.h>

@@ -46,7 +46,7 @@
 
 #ifndef	lint
 static char *moduleid =
-	"@(#)$FreeBSD$";
+	"@(#)$Id$";
 #endif	/* lint */
 
 int

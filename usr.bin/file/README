@@ -1,5 +1,5 @@
 ** README for file(1) Command **
-@(#) $FreeBSD$
+@(#) $Id$
 
 This is Release 3.x of Ian Darwin's (copyright but distributable)
 file(1) command.  Release 3.x is scheduled for inclusion in the
