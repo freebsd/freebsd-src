@@ -1,4 +1,4 @@
-# $Id: README,v 1.10 1997/08/17 20:26:36 jdp Exp $
+# $Id: README,v 1.11 1997/09/05 04:59:22 jdp Exp $
 
 This directory contains sample "supfiles" for obtaining and updating
 the FreeBSD sources via the Internet.  These supfiles will work
@@ -27,6 +27,10 @@ FreeBSD, use these files:
 
     secure-cvs-supfile		International secure distribution
 				(outside USA and Canada)
+
+To maintain a copy of the FreeBSD bug database, use the file:
+
+    gnats-supfile               FreeBSD bug database
 
 The supfiles contained in this directory all obtain their updates
 from cvsup.FreeBSD.org.  Please choose one of the servers listed
