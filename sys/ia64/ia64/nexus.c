@@ -49,6 +49,7 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/interrupt.h>
+#include <machine/intr.h>
 
 #include <machine/vmparam.h>
 #include <vm/vm.h>

@@ -34,6 +34,8 @@
 #include <sys/systm.h>
 #include <machine/sapicvar.h>
 #include <machine/sapicreg.h>
+#include <sys/bus.h>
+#include <machine/intr.h>
 
 static MALLOC_DEFINE(M_SAPIC, "sapic", "I/O SAPIC devices");
 
