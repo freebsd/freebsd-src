@@ -4,6 +4,5 @@
 
 KMOD=	vesa
 SRCS=	vesa.c scvesactl.c opt_vga.h opt_vesa.h
-NOMAN=
 
 .include <bsd.kmod.mk>

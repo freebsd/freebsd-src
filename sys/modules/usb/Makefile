@@ -26,6 +26,4 @@ SRCS+=	uhci_pci.c uhci.c uhcireg.h uhcivar.h
 SRCS+=	ohci_pci.c ohci.c ohcireg.h ohcivar.h
 SRCS+=	opt_bus.h pci_if.h
 
-NOMAN=
-
 .include <bsd.kmod.mk>

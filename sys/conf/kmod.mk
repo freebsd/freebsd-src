@@ -32,8 +32,6 @@
 #
 # KMODUNLOAD	Command to unload a kernel module [/sbin/kldunload]
 #
-# NOMAN		KLD does not have a manual page if set.
-#
 # PROG          The name of the kernel module to build.
 #		If not supplied, ${KMOD}.o is used.
 #
@@ -63,7 +61,7 @@
 #               put the stuff into the right "distribution".
 #
 # 	install:
-#               install the program and its manual pages; if the Makefile
+#               install the kernel module; if the Makefile
 #               does not itself define the target install, the targets
 #               beforeinstall and afterinstall may also be used to cause
 #               actions immediately before and after the install target
@@ -77,7 +75,6 @@
 #
 # bsd.obj.mk: clean, cleandir and obj
 # bsd.dep.mk: cleandepend, depend and tags
-# bsd.man.mk: maninstall
 #
 
 KMODLOAD?=	/sbin/kldload
@@ -176,24 +173,17 @@ ${KMOD}.kld: ${OBJS}
 .endif
 
 
-.if !defined(NOMAN)
-.if 0
-MAN?=	${KMOD}.4
-.endif
-.include <bsd.man.mk>
-.else
 .if !target(all-man)
 all-man: _SUBDIR
 .endif
 .if !target(maninstall)
 maninstall: _SUBDIR
 .endif
-.endif
 
 _ILINKS=@ machine
 
 .MAIN: all
-all: objwarn ${PROG} all-man _SUBDIR
+all: objwarn ${PROG} _SUBDIR
 
 beforedepend: ${_ILINKS}
 	@rm -f .depend
@@ -276,11 +266,7 @@ realinstall: _SUBDIR
 .endif
 
 install: afterinstall _SUBDIR
-.if !defined(NOMAN)
-afterinstall: realinstall maninstall
-.else
 afterinstall: realinstall
-.endif
 realinstall: beforeinstall
 .endif
 

@@ -3,6 +3,5 @@
 
 KMOD=	ng_pppoe
 SRCS= 	ng_pppoe.c
-NOMAN=
 
 .include <bsd.kmod.mk>

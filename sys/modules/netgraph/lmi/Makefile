@@ -3,6 +3,5 @@
 
 KMOD=	ng_lmi
 SRCS= 	ng_lmi.c
-NOMAN=
 
 .include <bsd.kmod.mk>

@@ -4,7 +4,6 @@
 
 KMOD=	ip_mroute
 SRCS=	ip_mroute.c opt_mrouting.h opt_random_ip_id.h
-NOMAN=
 
 CFLAGS+= -DMROUTE_KLD
 

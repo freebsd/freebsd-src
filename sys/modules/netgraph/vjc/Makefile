@@ -5,6 +5,5 @@
 
 KMOD=	ng_vjc
 SRCS= 	ng_vjc.c slcompress.c
-NOMAN=
 
 .include <bsd.kmod.mk>

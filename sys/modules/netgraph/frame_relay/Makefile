@@ -3,6 +3,5 @@
 
 KMOD=	ng_frame_relay
 SRCS= 	ng_frame_relay.c
-NOMAN=
 
 .include <bsd.kmod.mk>

@@ -4,6 +4,5 @@
 
 KMOD=	green_saver
 SRCS=	green_saver.c
-NOMAN=
 
 .include <bsd.kmod.mk>

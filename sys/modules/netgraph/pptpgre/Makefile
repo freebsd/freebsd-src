@@ -3,6 +3,5 @@
 
 KMOD=	ng_pptpgre
 SRCS= 	ng_pptpgre.c
-NOMAN=
 
 .include <bsd.kmod.mk>
