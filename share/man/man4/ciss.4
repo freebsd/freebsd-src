@@ -60,7 +60,16 @@ and it is dubious whether they would provide major performance improvements
 except under extreme load.
 .Pp
 Non-disk devices (such as internal DATs and devices
-attached to the external SCSI bus) are not yet supported.
+attached to the external SCSI bus) are supported as normal CAM devices
+provided that they are exported by the controller firmware and are not
+marked as being masked.  Masked devices can be exposed by setting the
+.Va hw.ciss.expose_hidden_physical
+tunable to non-zero at boot time.  Direct Access devices (such as disk
+drives) are only exposed as
+.Xr pass 4
+devices.  Hot-insertion and removal of devices is supported but a bus
+rescan might be necessary.
+
 .Pp
 Supported controllers include:
 .Pp
