@@ -13,7 +13,7 @@ CSCOPEDIRS=	coda compat conf contrib crypto ddb dev fs gnu i4b isa \
 		netinet netinet6 netipx netkey netnatm netncp netsmb nfs \
 		pccard pci posix4 sys ufs vm ${ARCHDIR}
 
-ARCHDIR	?=	i386
+ARCHDIR	?=	${MACHINE}
 
 # Loadable kernel modules
 
