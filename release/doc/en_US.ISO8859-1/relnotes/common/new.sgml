@@ -931,15 +931,6 @@
     <para>The supported release of <application>KDE</application> has
       been updated from 3.1.2 to 3.1.4. &merged;</para>
 
-    <para>The versions of <application>GNOME</application> and
-      <application>KDE</application> included on release disc 1
-      (and installable from the &man.sysinstall.8; <quote>X
-      Desktops</quote> menu) are now <quote>Lite Edition</quote>,
-      packages, rather than the more full-featured meta-packages.
-      These packages are streamlined to provide users with the core
-      essentials for each desktop, while still fitting within the
-      space constraints of release disc 1.</para>
-
   </sect2>
 
   <sect2 id="doc">
