@@ -563,15 +563,15 @@ ata_generic_reset(struct ata_channel *ch)
 	}
     }
 
+    if (bootverbose)
+	ata_printf(ch, -1, "reset tp1 mask=%02x ostat0=%02x ostat1=%02x\n",
+		   mask, ostat0, ostat1);
+
     /* if nothing showed up there is no need to get any further */
     /* SOS is that too strong?, we just might loose devices here XXX */
     ch->devices = 0;
     if (!mask)
 	return;
-
-    if (bootverbose)
-	ata_printf(ch, -1, "reset tp1 mask=%02x ostat0=%02x ostat1=%02x\n",
-		   mask, ostat0, ostat1);
 
     /* reset (both) devices on this channel */
     ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
