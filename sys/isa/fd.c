@@ -82,20 +82,11 @@
 #include <isa/fdc.h>
 #include <isa/rtc.h>
 
-#ifdef FDC_YE
-#undef FDC_YE
-#warning "fix FDC_YE! - newbus casualty"
-#endif
-
 /* misuse a flag to identify format operation */
 #define B_FORMAT B_XXX
 
 /* configuration flags */
 #define FDC_PRETEND_D0	(1 << 0)	/* pretend drive 0 to be there */
-#ifdef FDC_YE
-#define FDC_IS_PCMCIA  (1 << 1)		/* if successful probe, then it's
-					   a PCMCIA device */
-#endif
 #define FDC_NO_FIFO	(1 << 2)	/* do not enable FIFO  */
 
 /* internally used only, not really from CMOS: */
@@ -201,11 +192,6 @@ static devclass_t fd_devclass;
 * fdsu is the floppy drive unit number on that controller. (sub-unit)	*
 \***********************************************************************/
 
-#ifdef FDC_YE
-#include "card.h"
-static int yeattach(struct isa_device *);
-#endif
-
 /* needed for ft driver, thus exported */
 int in_fdc(struct fdc_data *);
 int out_fdc(struct fdc_data *, int);
@@ -245,9 +231,7 @@ static int fifo_threshold = 8;	/* XXX: should be accessible via sysctl */
 #define	MOTORWAIT	10
 #define	IOTIMEDOUT	11
 #define	RESETCOMPLETE	12
-#ifdef FDC_YE
 #define PIOREAD		13
-#endif
 
 #ifdef	FDC_DEBUG
 static char const * const fdstates[] =
@@ -265,9 +249,7 @@ static char const * const fdstates[] =
 "MOTORWAIT",
 "IOTIMEDOUT",
 "RESETCOMPLETE",
-#ifdef FDC_YE
 "PIOREAD",
-#endif
 };
 
 /* CAUTION: fd_debug causes huge amounts of logging output */
@@ -338,11 +320,6 @@ static void yeunload(struct pccard_devinfo *); 		/* Disable driver */
 static int yeintr(struct pccard_devinfo *); 		/* Interrupt handler */
 
 PCCARD_MODULE(fdc, yeinit, yeunload, yeintr, 0, bio_imask);
-
-/*
- * this is the secret PIO data port (offset from base)
- */
-#define FDC_YE_DATAPORT 6
 
 /*
  *	Initialize the device - called from Slot manager.
@@ -810,14 +787,6 @@ fdc_probe(device_t dev)
 		}
 	}
 
-#ifdef FDC_YE
-	/*
-	 * don't succeed on probe; wait
-	 * for PCCARD subsystem to do it
-	 */
-	if (device_get_flags(fdc->fdc_dev) & FDC_IS_PCMCIA)
-		return(0);
-#endif
 out:
 	fdc_release_resources(fdc);
 	return (error);
@@ -1141,10 +1110,10 @@ static int yeattach(struct isa_device *dev)
 	int     st0, st3, i;
 	fdc->fdcu = fdcu;
 	/*
-	 * the FDC_PCMCIA flag is used to to indicate special PIO is used
+	 * the FDC_NODMA flag is used to to indicate special PIO is used
 	 * instead of DMA
 	 */
-	fdc->flags = FDC_ATTACHED|FDC_PCMCIA;
+	fdc->flags = FDC_ATTACHED|FDC_NODMA;
 	fdc->state = DEVIDLE;
 	/* reset controller, turn motor off, clear fdout mirror reg */
 	fdout_wr(fdc, ((fdc->fdout = 0)));
@@ -1525,17 +1494,11 @@ fdstrategy(struct buf *bp)
 		panic("fdstrategy: buf for nonexistent device (%#lx, %#lx)",
 		      (u_long)major(bp->b_dev), (u_long)minor(bp->b_dev));
 	fdc = fd->fdc;
-#ifdef FDC_YE
 	if (fd->type == NO_TYPE) {
 		bp->b_error = ENXIO;
 		bp->b_flags |= B_ERROR;
-		/*
-		 * I _refuse_ to use a goto
-		 */
-		biodone(bp);
-		return;
+		goto bad;
 	};
-#endif
 
 	fdblk = 128 << (fd->ft->secsize);
 	if (!(bp->b_flags & B_FORMAT)) {
@@ -1671,37 +1634,38 @@ fdc_intr(void *xfdc)
 		;
 }
 
-#ifdef FDC_YE
 /*
  * magic pseudo-DMA initialization for YE FDC. Sets count and
  * direction
  */
-#define SET_BCDR(wr,cnt,port) outb(port,(((cnt)-1) & 0xff)); \
-	outb(port+1,((wr ? 0x80 : 0) | ((((cnt)-1) >> 8) & 0x7f)))
+#define SET_BCDR(fdc,wr,cnt,port) \
+	bus_space_write_1(fdc->portt, fdc->porth, fdc->port_off + port,	 \
+	    ((cnt)-1) & 0xff);						 \
+	bus_space_write_1(fdc->portt, fdc->porth, fdc->port_off + port + 1, \
+	    ((wr ? 0x80 : 0) | ((((cnt)-1) >> 8) & 0x7f)));
 
 /*
  * fdcpio(): perform programmed IO read/write for YE PCMCIA floppy
  */
-static int fdcpio(fdcu_t fdcu, long flags, caddr_t addr, u_int count)
+static int fdcpio(fdc_p fdc, long flags, caddr_t addr, u_int count)
 {
 	u_char *cptr = (u_char *)addr;
-	fdc_p fdc = &fdc_data[fdcu];
-	int io = fdc->baseport;
 
 	if (flags & B_READ) {
 		if (fdc->state != PIOREAD) {
 			fdc->state = PIOREAD;
 			return(0);
 		};
-		SET_BCDR(0,count,io);
-		insb(io+FDC_YE_DATAPORT,cptr,count);
+		SET_BCDR(fdc, 0, count, 0);
+		bus_space_read_multi_1(fdc->portt, fdc->porth, fdc->port_off +
+		    FDC_YE_DATAPORT, cptr, count);
 	} else {
-		outsb(io+FDC_YE_DATAPORT,cptr,count);
-		SET_BCDR(0,count,io);
+		bus_space_write_multi_1(fdc->portt, fdc->porth, fdc->port_off +
+		    FDC_YE_DATAPORT, cptr, count);
+		SET_BCDR(fdc, 0, count, 0);
 	};
 	return(1);
 }
-#endif /* FDC_YE */
 
 /***********************************************************************\
 * The controller state machine.						*
@@ -1894,9 +1858,7 @@ fdstate(fdc_p fdc)
 		}
 
 		fd->track = b_cylinder;
-#ifdef FDC_YE
-		if (!(fdc->flags & FDC_PCMCIA))
-#endif
+		if (!(fdc->flags & FDC_NODMA))
 			isa_dmastart(bp->b_flags, bp->b_data+fd->skip,
 				format ? bp->b_bcount : fdblk, fdc->dmachan);
 		sectrac = fd->ft->sectrac;
@@ -1939,12 +1901,10 @@ fdstate(fdc_p fdc)
 		}
 
 		if (format) {
-#ifdef FDC_YE
-			if (fdc->flags & FDC_PCMCIA)
-				(void)fdcpio(fdcu,bp->b_flags,
+			if (fdc->flags & FDC_NODMA)
+				(void)fdcpio(fdc,bp->b_flags,
 					bp->b_data+fd->skip,
 					bp->b_bcount);
-#endif
 			/* formatting */
 			if(fd_cmd(fdc, 6,  NE7CMD_FORMAT, head << 2 | fdu,
 				  finfo->fd_formb_secshift,
@@ -1959,24 +1919,22 @@ fdstate(fdc_p fdc)
 				return (retrier(fdc));
 			}
 		} else {
-#ifdef FDC_YE
-			if (fdc->flags & FDC_PCMCIA) {
+			if (fdc->flags & FDC_NODMA) {
 				/*
 				 * this seems to be necessary even when
 				 * reading data
 				 */
-				SET_BCDR(1,fdblk,fdc->baseport);
+				SET_BCDR(fdc, 1, fdblk, 0);
 
 				/*
 				 * perform the write pseudo-DMA before
 				 * the WRITE command is sent
 				 */
 				if (!read)
-					(void)fdcpio(fdcu,bp->b_flags,
+					(void)fdcpio(fdc,bp->b_flags,
 					    bp->b_data+fd->skip,
 					    fdblk);
 			}
-#endif
 			if (fd_cmd(fdc, 9,
 				   (read ? NE7CMD_READ : NE7CMD_WRITE),
 				   head << 2 | fdu,  /* head & unit */
@@ -1996,16 +1954,14 @@ fdstate(fdc_p fdc)
 				return (retrier(fdc));
 			}
 		}
-#ifdef FDC_YE
-		if (fdc->flags & FDC_PCMCIA)
+		if (fdc->flags & FDC_NODMA)
 			/*
 			 * if this is a read, then simply await interrupt
 			 * before performing PIO
 			 */
-			if (read && !fdcpio(fdcu,bp->b_flags,
+			if (read && !fdcpio(fdc,bp->b_flags,
 			    bp->b_data+fd->skip,fdblk)) {
-				fd->tohandle = timeout(fd_iotimeout, 
-					(caddr_t)fdcu, hz);
+				fd->tohandle = timeout(fd_iotimeout, fdc, hz);
 				return(0);      /* will return later */
 			};
 
@@ -2013,20 +1969,17 @@ fdstate(fdc_p fdc)
 		 * write (or format) operation will fall through and
 		 * await completion interrupt
 		 */
-#endif
 		fdc->state = IOCOMPLETE;
 		fd->tohandle = timeout(fd_iotimeout, fdc, hz);
 		return (0);	/* will return later */
-#ifdef FDC_YE
 	case PIOREAD:
 		/* 
 		 * actually perform the PIO read.  The IOCOMPLETE case
 		 * removes the timeout for us.  
 		 */
-		(void)fdcpio(fdcu,bp->b_flags,bp->b_data+fd->skip,fdblk);
+		(void)fdcpio(fdc,bp->b_flags,bp->b_data+fd->skip,fdblk);
 		fdc->state = IOCOMPLETE;
 		/* FALLTHROUGH */
-#endif
 	case IOCOMPLETE: /* IO DONE, post-analyze */
 		untimeout(fd_iotimeout, fdc, fd->tohandle);
 
@@ -2044,9 +1997,7 @@ fdstate(fdc_p fdc)
 		/* FALLTHROUGH */
 
 	case IOTIMEDOUT:
-#ifdef FDC_YE
-		if (!(fdc->flags & FDC_PCMCIA))
-#endif
+		if (!(fdc->flags & FDC_NODMA))
 			isa_dmadone(bp->b_flags, bp->b_data + fd->skip,
 				format ? bp->b_bcount : fdblk, fdc->dmachan);
 		if (fdc->status[0] & NE7_ST0_IC) {
