@@ -553,8 +553,7 @@ char *(*get_userid)();
     pp = *(hp->next_proc++);
     hp->remaining--;
     
-
-    /* get the process's user struct and set cputime */
+    /* get the process's command name */
     if ((PP(pp, p_flag) & P_INMEM) == 0) {
 	/*
 	 * Print swapped processes as <pname>
@@ -570,12 +569,12 @@ char *(*get_userid)();
 	comm[COMSIZ - 1] = '\0';
     }
 
-#if 0
-    /* This does not produce the correct results */
-    cputime = PP(pp, p_uticks) + PP(pp, p_sticks) + PP(pp, p_iticks);
-#endif
-    /* This does not count interrupts */
-    cputime = (PP(pp, p_runtime) / 1000 + 500) / 1000;
+    /*
+     * Convert the process's runtime from microseconds to seconds.  This
+     * time includes the interrupt time although that is not wanted here.
+     * ps(1) is similarly sloppy.
+     */
+    cputime = (PP(pp, p_runtime) + 500000) / 1000000;
 
     /* calculate the base for cpu percentages */
     pct = pctdouble(PP(pp, p_pctcpu));
@@ -737,7 +736,8 @@ static unsigned char sorted_state[] =
      (result = lresult > 0 ? 1 : lresult < 0 ? -1 : 0) == 0)
 
 #define ORDERKEY_CPTICKS \
-  if ((result = PP(p2, p_runtime) - PP(p1, p_runtime)) == 0)
+  if ((result = PP(p2, p_runtime) > PP(p1, p_runtime) ? 1 : \
+                PP(p2, p_runtime) < PP(p1, p_runtime) ? -1 : 0) == 0)
 
 #define ORDERKEY_STATE \
   if ((result = sorted_state[(unsigned char) PP(p2, p_stat)] - \
