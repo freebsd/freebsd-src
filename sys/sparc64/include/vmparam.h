@@ -103,7 +103,16 @@
  * Virtual size (bytes) for various kernel submaps.
  */
 #ifndef	VM_KMEM_SIZE
-#define	VM_KMEM_SIZE		(12*1024*1024)
+#define	VM_KMEM_SIZE		(16*1024*1024)
+#endif
+
+/*
+ * How many physical pages per KVA page allocated.
+ * min(max(VM_KMEM_SIZE, Physical memory/VM_KMEM_SIZE_SCALE), VM_KMEM_SIZE_MAX)
+ * is the total KVA space allocated for kmem_map.
+ */
+#ifndef VM_KMEM_SIZE_SCALE
+#define	VM_KMEM_SIZE_SCALE	(3)
 #endif
 
 /*
