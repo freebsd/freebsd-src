@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_var.h
  *
- * $Id: ipx_var.h,v 1.2 1995/10/31 23:36:40 julian Exp $
+ * $Id: ipx_var.h,v 1.3 1995/11/04 09:03:27 julian Exp $
  */
 
 #ifndef _NETIPX_IPX_VAR_H_
@@ -43,15 +43,60 @@
  * IPX Kernel Structures and Variables
  */
 struct	ipxstat {
-	int	ipxs_badsum;		/* checksum bad */
-	int	ipxs_tooshort;		/* packet too short */
-	int	ipxs_toosmall;		/* not enough data */
-	int	ipxs_badhlen;		/* ip header length < data size */
-	int	ipxs_badlen;		/* ip length < ip header length */
+	u_long	ipxs_total;		/* total packets received */
+	u_long	ipxs_badsum;		/* checksum bad */
+	u_long	ipxs_tooshort;		/* packet too short */
+	u_long	ipxs_toosmall;		/* not enough data */
+	u_long	ipxs_forward;		/* packets forwarded */
+	u_long	ipxs_cantforward;	/* packets rcvd for unreachable dest */
+	u_long	ipxs_delivered;		/* datagrams delivered to upper level*/
+	u_long	ipxs_localout;		/* total ipx packets generated here */
+	u_long	ipxs_odropped;		/* lost packets due to nobufs, etc. */
+	u_long	ipxs_noroute;		/* packets discarded due to no route */
+	u_long	ipxs_mtutoosmall;	/* the interface mtu is too small */
 };
 
 #ifdef KERNEL
-extern struct ipxstat ipxstat;
-#endif
 
-#endif
+extern int ipxcksum;
+extern long ipx_pexseq;
+extern struct ipxstat ipxstat;
+extern struct ipxpcb ipxrawpcb;
+extern struct pr_usrreqs ipx_usrreqs;
+extern struct pr_usrreqs ripx_usrreqs;
+extern struct sockaddr_ipx ipx_netmask;
+extern struct sockaddr_ipx ipx_hostmask;
+
+extern union ipx_net ipx_zeronet;
+extern union ipx_host ipx_zerohost;
+extern union ipx_net ipx_broadnet;
+extern union ipx_host ipx_broadhost;
+
+struct ifnet;
+struct ipx_addr;
+struct mbuf;
+struct route;
+struct sockaddr;
+struct socket;
+
+void	ipx_abort __P((struct ipxpcb *ipxp));
+u_short	ipx_cksum __P((struct mbuf *m, int len));
+int	ipx_control __P((struct socket *so, int cmd, caddr_t data,
+			 struct ifnet *ifp));
+void	ipx_ctlinput __P((int cmd, struct sockaddr *arg_as_sa, void *dummy));
+int	ipx_ctloutput __P((int req, struct socket *so, int level, int name,
+			   struct mbuf **value));
+void	ipx_drop __P((struct ipxpcb *ipxp, int errno));
+void	ipx_init __P((void));
+void	ipx_input __P((struct mbuf *m, struct ipxpcb *ipxp));
+void	ipxintr __P((void));
+int	ipx_outputfl __P((struct mbuf *m0, struct route *ro, int flags));
+int	ipx_output_type20 __P((struct mbuf *));
+int	ipx_peeraddr __P((struct socket *so, struct mbuf *nam));
+void	ipx_printhost __P((struct ipx_addr *addr));
+int	ipx_sockaddr __P((struct socket *so, struct mbuf *nam));
+void	ipx_watch_output __P((struct mbuf *m, struct ifnet *ifp));
+
+#endif /* KERNEL */
+
+#endif /* !_NETIPX_IPX_VAR_H_ */

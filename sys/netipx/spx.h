@@ -33,7 +33,7 @@
  *
  *	@(#)spx.h
  *
- * $Id: spx.h,v 1.6 1995/12/16 02:14:34 bde Exp $
+ * $Id: spx.h,v 1.7 1996/01/30 22:58:51 mpp Exp $
  */
 
 #ifndef _NETIPX_SPX_H_
@@ -169,33 +169,16 @@ struct spxpcb {
 
 #ifdef KERNEL
 
-void	spx_abort __P((struct ipxpcb *ipxp));
-struct spxpcb *
-	spx_close __P((struct spxpcb *cb));
+extern struct pr_usrreqs spx_usrreqs;
+extern struct pr_usrreqs spx_usrreq_sps;
+
 void	spx_ctlinput __P((int cmd, struct sockaddr *arg_as_sa, void *dummy));
 int	spx_ctloutput __P((int req, struct socket *so, int level, int name,
 			   struct mbuf **value));
-struct spxpcb *
-	spx_disconnect __P((struct spxpcb *cb));
-struct spxpcb *
-	spx_drop __P((struct spxpcb *cb, int errno));
 void	spx_fasttimo __P((void));
 void	spx_init __P((void));
 void	spx_input __P((struct mbuf *m, struct ipxpcb *ipxp));
-int	spx_output __P((struct spxpcb *cb, struct mbuf *m0));
-void	spx_quench __P((struct ipxpcb *ipxp));
-int	spx_reass __P((struct spxpcb *cb, struct spx *si));
-void	spx_setpersist __P((struct spxpcb *cb));
 void	spx_slowtimo __P((void));
-void	spx_template __P((struct spxpcb *cb));
-struct spxpcb *
-	spx_timers __P((struct spxpcb *cb, int timer));
-struct spxpcb *
-	spx_usrclosed __P((struct spxpcb *cb));
-int	spx_usrreq __P((struct socket *so, int req, struct mbuf *m,
-			struct mbuf *nam, struct mbuf *controlp));
-int	spx_usrreq_sp __P((struct socket *so, int req, struct mbuf *m,
-			   struct mbuf *nam, struct mbuf *controlp));
 
 #endif /* KERNEL */
 

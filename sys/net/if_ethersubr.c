@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.26 1996/10/18 15:59:25 jkh Exp $
+ * $Id: if_ethersubr.c,v 1.26.2.1 1996/11/21 16:43:55 phk Exp $
  */
 
 #include <sys/param.h>
@@ -174,15 +174,23 @@ ether_output(ifp, m0, dst, rt0)
 #endif
 #ifdef IPX
 	case AF_IPX:
+		{
+		struct ifaddr *ia;
+
 		type = htons(ETHERTYPE_IPX);
  		bcopy((caddr_t)&(((struct sockaddr_ipx *)dst)->sipx_addr.x_host),
 		    (caddr_t)edst, sizeof (edst));
-		if (!bcmp((caddr_t)edst, (caddr_t)&ipx_thishost, sizeof(edst)))
-			return (looutput(ifp, m, dst, rt));
+		for (ia = ifp->if_addrlist; ia != NULL; ia = ia->ifa_next)
+			if(ia->ifa_addr->sa_family == AF_IPX &&
+			   !bcmp((caddr_t)edst,
+				 (caddr_t)&((struct ipx_ifaddr *)ia)->ia_addr.sipx_addr.x_host,
+				 sizeof(edst)))
+				return (looutput(ifp, m, dst, rt));
 		/* If broadcasting on a simplex interface, loopback a copy */
 		if ((m->m_flags & M_BCAST) && (ifp->if_flags & IFF_SIMPLEX))
 			mcopy = m_copy(m, 0, (int)M_COPYALL);
 		break;
+		}
 #endif
 #ifdef NETATALK
 	case AF_APPLETALK:

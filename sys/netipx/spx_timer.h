@@ -33,7 +33,7 @@
  *
  *	@(#)spx_timer.h
  *
- * $Id: spx_timer.h,v 1.4 1995/11/04 09:03:39 julian Exp $
+ * $Id: spx_timer.h,v 1.5 1996/01/30 22:58:53 mpp Exp $
  */
 
 #ifndef _NETIPX_SPX_TIMER_H_
@@ -121,8 +121,4 @@ char *spxtimers[] =
 		(tv) = (tvmax); \
 }
 
-#ifdef KERNEL
-extern int spx_backoff[];
-#endif
-
-#endif
+#endif /* !_NETIPX_SPX_TIMER_H_ */
