@@ -1,9 +1,10 @@
-#	$Id: options.alpha,v 1.6 1998/08/21 23:43:15 gpalmer Exp $
+#	$Id: options.alpha,v 1.7 1998/09/16 08:22:09 dfr Exp $
 
 EV5			opt_global.h
 EV4			opt_global.h
 DEC_KN8AE		opt_cpu.h
 DEC_EB164		opt_cpu.h
+DEC_EB64PLUS		opt_cpu.h
 DEC_KN20AA		opt_cpu.h
 DEC_2100_A50		opt_cpu.h
 DEC_ST550		opt_cpu.h
