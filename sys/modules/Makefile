@@ -74,6 +74,7 @@ SUBDIR=	accf_data \
 	txp \
 	ucom \
 	ufm \
+	uftdi \
 	ugen \
 	uhid \
 	ukbd \
