@@ -4,8 +4,8 @@
  * $FreeBSD$
  */
 
-#ifndef _SPARC_IEEEFP_H_
-#define _SPARC_IEEEFP_H_
+#ifndef _MACHINE_IEEEFP_H_
+#define _MACHINE_IEEEFP_H_
 
 typedef int fp_except_t;
 #define FP_X_IMP	0x01	/* imprecise (loss of precision) */
@@ -21,4 +21,4 @@ typedef enum {
 	FP_RM=3			/* round toward negative infinity */
 } fp_rnd_t;
 
-#endif /* _SPARC_IEEEFP_H_ */
+#endif /* _MACHINE_IEEEFP_H_ */
