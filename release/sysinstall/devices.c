@@ -95,6 +95,7 @@ static struct _devname {
     { DEVICE_TYPE_NETWORK,	"ed",		"Novell NE1000/2000; 3C503; NE2000-compatible PCMCIA"		},
     { DEVICE_TYPE_NETWORK,	"ep",		"3Com 3C509 ethernet card/3C589 PCMCIA"				},
     { DEVICE_TYPE_NETWORK,	"el",		"3Com 3C501 ethernet card"					},
+    { DEVICE_TYPE_NETWORK,	"em",		"Intel(R) PRO/1000 ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"ex",		"Intel EtherExpress Pro/10 ethernet card"			},
     { DEVICE_TYPE_NETWORK,	"fe",		"Fujitsu MB86960A/MB86965A ethernet card"			},
     { DEVICE_TYPE_NETWORK,	"ie",		"AT&T StarLAN 10 and EN100; 3Com 3C507; NI5210"			},
