@@ -40,12 +40,12 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/select.h>
-#include <sys/poll.h>
 #include <sys/md5.h>
+#include <sys/poll.h>
 #include <sys/random.h>
+#include <sys/select.h>
+#include <sys/systm.h>
 
 #ifdef __i386__
 #include <i386/isa/icu.h>
