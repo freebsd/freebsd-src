@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: savemail.c,v 8.212.4.12 2001/01/07 19:31:05 gshapiro Exp $";
+static char id[] = "@(#)$Id: savemail.c,v 8.212.4.13 2001/05/03 17:24:15 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -1413,7 +1413,7 @@ xtextify(t, taboo)
 	if (l > bplen)
 	{
 		if (bp != NULL)
-			free(bp);
+			sm_free(bp);
 		bp = xalloc(l);
 		bplen = l;
 	}
@@ -1466,7 +1466,7 @@ xuntextify(t)
 	if (l > bplen)
 	{
 		if (bp != NULL)
-			free(bp);
+			sm_free(bp);
 		bp = xalloc(l);
 		bplen = l;
 	}

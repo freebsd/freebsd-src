@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: envelope.c,v 8.180.14.6 2000/11/30 00:39:46 gshapiro Exp $";
+static char id[] = "@(#)$Id: envelope.c,v 8.180.14.10 2001/05/03 17:24:06 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -132,7 +132,7 @@ dropenvelope(e, fulldrop)
 	*/
 
 	now = curtime();
-	if (now > e->e_ctime + TimeOuts.to_q_return[e->e_timeoutclass])
+	if (now >= e->e_ctime + TimeOuts.to_q_return[e->e_timeoutclass])
 		message_timeout = TRUE;
 
 	if (TimeOuts.to_q_return[e->e_timeoutclass] == NOW &&
@@ -150,7 +150,7 @@ dropenvelope(e, fulldrop)
 
 		/* see if a notification is needed */
 		if (bitset(QPINGONFAILURE, q->q_flags) &&
-		    ((message_timeout && QS_IS_QUEUEUP(q->q_state)) ||
+		    ((message_timeout && QS_IS_UNDELIVERED(q->q_state)) ||
 		     QS_IS_BADADDR(q->q_state) ||
 		     (TimeOuts.to_q_return[e->e_timeoutclass] == NOW &&
 		      !bitset(EF_RESPONSE, e->e_flags))))
@@ -192,7 +192,7 @@ dropenvelope(e, fulldrop)
 					"Cannot send message for %s",
 					pintvl(TimeOuts.to_q_return[e->e_timeoutclass], FALSE));
 			if (e->e_message != NULL)
-				free(e->e_message);
+				sm_free(e->e_message);
 			e->e_message = newstr(buf);
 			message(buf);
 			e->e_flags |= EF_CLRQUEUE;
@@ -210,7 +210,7 @@ dropenvelope(e, fulldrop)
 		}
 	}
 	else if (TimeOuts.to_q_warning[e->e_timeoutclass] > 0 &&
-		 now > e->e_ctime + TimeOuts.to_q_warning[e->e_timeoutclass])
+		 now >= e->e_ctime + TimeOuts.to_q_warning[e->e_timeoutclass])
 	{
 		if (!bitset(EF_WARNING|EF_RESPONSE, e->e_flags) &&
 		    e->e_class >= 0 &&
@@ -222,7 +222,7 @@ dropenvelope(e, fulldrop)
 		{
 			for (q = e->e_sendqueue; q != NULL; q = q->q_next)
 			{
-				if (QS_IS_QUEUEUP(q->q_state) &&
+				if (QS_IS_UNDELIVERED(q->q_state) &&
 #if _FFR_NODELAYDSN_ON_HOLD
 				    !bitnset(M_HOLD, q->q_mailer->m_flags) &&
 #endif /* _FFR_NODELAYDSN_ON_HOLD */
@@ -239,7 +239,7 @@ dropenvelope(e, fulldrop)
 				"Warning: could not send message for past %s",
 				pintvl(TimeOuts.to_q_warning[e->e_timeoutclass], FALSE));
 			if (e->e_message != NULL)
-				free(e->e_message);
+				sm_free(e->e_message);
 			e->e_message = newstr(buf);
 			message(buf);
 			e->e_flags |= EF_WARNING;
