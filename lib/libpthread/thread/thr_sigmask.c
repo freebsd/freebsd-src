@@ -48,33 +48,35 @@ _pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 	struct pthread *curthread = _get_curthread();
 	int ret;
 
+	if (! _kse_isthreaded())
+		_kse_setthreaded(1);
+
+	THR_SCHED_LOCK(curthread, curthread);
 	ret = 0;
 	if (oset != NULL)
 		/* Return the current mask: */
-		*oset = curthread->tmbx.tm_context.uc_sigmask;
+		*oset = curthread->sigmask;
 
 	/* Check if a new signal set was provided by the caller: */
 	if (set != NULL) {
-		THR_SCHED_LOCK(curthread, curthread);
-
 		/* Process according to what to do: */
 		switch (how) {
 		/* Block signals: */
 		case SIG_BLOCK:
 			/* Add signals to the existing mask: */
-			SIGSETOR(curthread->tmbx.tm_context.uc_sigmask, *set);
+			SIGSETOR(curthread->sigmask, *set);
 			break;
 
 		/* Unblock signals: */
 		case SIG_UNBLOCK:
 			/* Clear signals from the existing mask: */
-			SIGSETNAND(curthread->tmbx.tm_context.uc_sigmask, *set);
+			SIGSETNAND(curthread->sigmask, *set);
 			break;
 
 		/* Set the signal process mask: */
 		case SIG_SETMASK:
 			/* Set the new mask: */
-			curthread->tmbx.tm_context.uc_sigmask = *set;
+			curthread->sigmask = *set;
 			break;
 
 		/* Trap invalid actions: */
@@ -84,13 +86,7 @@ _pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 			ret = -1;
 			break;
 		}
-
-		if (ret == 0) {
-			curthread->sigmask =
-			    curthread->tmbx.tm_context.uc_sigmask;
-			curthread->sigmask_seqno++;
-		}
-
+		SIG_CANTMASK(curthread->sigmask);
 		THR_SCHED_UNLOCK(curthread, curthread);
 
 		/*
@@ -98,6 +94,7 @@ _pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 		 */
 		if (ret == 0)
 		    _thr_sig_check_pending(curthread);
-	}
+	} else
+		THR_SCHED_UNLOCK(curthread, curthread);
 	return (ret);
 }

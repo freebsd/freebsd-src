@@ -43,16 +43,21 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 {
 	int ret = 0;
 	struct sigaction gact;
+	struct pthread *curthread;
+	kse_critical_t crit;	
 
 	/* Check if the signal number is out of range: */
-	if (sig < 1 || sig > NSIG) {
+	if (sig < 1 || sig > _SIG_MAXSIG) {
 		/* Return an invalid argument: */
 		errno = EINVAL;
 		ret = -1;
 	} else {
-		if (_thr_initial == NULL)
-			_libpthread_init(NULL);
+		if (!_kse_isthreaded())
+			return __sys_sigaction(sig, act, oact);
 
+		crit = _kse_critical_enter();
+		curthread = _get_curthread();
+		KSE_LOCK_ACQUIRE(curthread->kse, &_thread_signal_lock);
 		/*
 		 * Check if the existing signal action structure contents are
 		 * to be returned: 
@@ -99,6 +104,8 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 		    	if (__sys_sigaction(sig, &gact, NULL) != 0)
 				ret = -1;
 		}
+		KSE_LOCK_RELEASE(curthread->kse, &_thread_signal_lock);
+		_kse_critical_leave(crit);
 	}
 
 	/* Return the completion status: */

@@ -45,7 +45,7 @@ _pthread_kill(pthread_t pthread, int sig)
 	int ret;
 
 	/* Check for invalid signal numbers: */
-	if (sig < 0 || sig >= NSIG)
+	if (sig < 0 || sig > _SIG_MAXSIG)
 		/* Invalid signal: */
 		ret = EINVAL;
 	/*
