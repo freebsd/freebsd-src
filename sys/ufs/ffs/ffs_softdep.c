@@ -52,7 +52,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)ffs_softdep.c	9.53 (McKusick) 1/16/00
+ *	from: @(#)ffs_softdep.c	9.54 (McKusick) 1/16/00
  * $FreeBSD$
  */
 
@@ -680,8 +680,9 @@ softdep_flushfiles(oldmnt, flags, p)
 	 * but we give it a few extra just to be sure.
 	 */
 	devvp = VFSTOUFS(oldmnt)->um_devvp;
-	for (loopcnt = 10; loopcnt > 0; loopcnt--) {
+	for (loopcnt = 10; loopcnt > 0; ) {
 		if (softdep_process_worklist(oldmnt) == 0) {
+			loopcnt--;
 			/*
 			 * Do another flush in case any vnodes were brought in
 			 * as part of the cleanup operations.
@@ -1771,7 +1772,9 @@ deallocate_dependencies(bp, inodedep)
 			     dirrem = LIST_NEXT(dirrem, dm_next)) {
 				LIST_REMOVE(dirrem, dm_next);
 				dirrem->dm_dirinum = pagedep->pd_ino;
-				if (inodedep == NULL)
+				if (inodedep == NULL ||
+				    (inodedep->id_state & ALLCOMPLETE) ==
+				     ALLCOMPLETE)
 					add_to_worklist(&dirrem->dm_list);
 				else
 					WORKLIST_INSERT(&inodedep->id_bufwait,
@@ -3589,10 +3592,9 @@ softdep_update_inodeblock(ip, bp, waitfor)
 	 * to track.
 	 */
 	ACQUIRE_LOCK(&lk);
-	if (ip->i_effnlink != ip->i_nlink) {
-		(void) inodedep_lookup(ip->i_fs, ip->i_number, DEPALLOC,
-		    &inodedep);
-	} else if (inodedep_lookup(ip->i_fs, ip->i_number, 0, &inodedep) == 0) {
+	if (inodedep_lookup(ip->i_fs, ip->i_number, 0, &inodedep) == 0) {
+		if (ip->i_effnlink != ip->i_nlink)
+			panic("softdep_update_inodeblock: bad link count");
 		FREE_LOCK(&lk);
 		return;
 	}
