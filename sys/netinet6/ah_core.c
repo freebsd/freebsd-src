@@ -1472,10 +1472,8 @@ ah6_calccksum(m, ahdat, len, algo, sav)
 			ip6copy.ip6_vfc &= ~IPV6_VERSION_MASK;
 			ip6copy.ip6_vfc |= IPV6_VERSION;
 			ip6copy.ip6_hlim = 0;
-			if (IN6_IS_ADDR_LINKLOCAL(&ip6copy.ip6_src))
-				ip6copy.ip6_src.s6_addr16[1] = 0x0000;
-			if (IN6_IS_ADDR_LINKLOCAL(&ip6copy.ip6_dst))
-				ip6copy.ip6_dst.s6_addr16[1] = 0x0000;
+			in6_clearscope(&ip6copy.ip6_src); /* XXX */
+			in6_clearscope(&ip6copy.ip6_dst); /* XXX */
 			(algo->update)(&algos, (u_int8_t *)&ip6copy,
 				       sizeof(struct ip6_hdr));
 		} else {

@@ -114,6 +114,7 @@ ip6_forward(m, srcrt)
 	int error, type = 0, code = 0;
 	struct mbuf *mcopy = NULL;
 	struct ifnet *origifp;	/* maybe unnecessary */
+	u_int32_t srczone, dstzone;
 #ifdef IPSEC
 	struct secpolicy *sp = NULL;
 #endif
@@ -360,8 +361,9 @@ ip6_forward(m, srcrt)
 	 * unreachable error with Code 2 (beyond scope of source address).
 	 * [draft-ietf-ipngwg-icmp-v3-02.txt, Section 3.1]
 	 */
-	if (in6_addr2scopeid(m->m_pkthdr.rcvif, &ip6->ip6_src) !=
-	    in6_addr2scopeid(rt->rt_ifp, &ip6->ip6_src)) {
+	if (in6_addr2zoneid(m->m_pkthdr.rcvif, &ip6->ip6_src, &srczone) ||
+	    in6_addr2zoneid(rt->rt_ifp, &ip6->ip6_src, &dstzone) ||
+		srczone != dstzone) {
 		ip6stat.ip6s_cantforward++;
 		ip6stat.ip6s_badscope++;
 		in6_ifstat_inc(rt->rt_ifp, ifs6_in_discard);
