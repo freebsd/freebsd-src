@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.48 1994/08/13 03:50:13 wollman Exp $
+ *	$Id: sio.c,v 1.49 1994/08/18 05:09:35 davidg Exp $
  */
 
 #include "sio.h"
@@ -266,7 +266,7 @@ static	void	commctl		__P((struct com_s *com, int bits, int how));
 static	int	comparam	__P((struct tty *tp, struct termios *t));
 static	int	sioprobe	__P((struct isa_device *dev));
 static	void	comstart	__P((struct tty *tp));
-static	void	comwakeup	__P((caddr_t chan, int ticks));
+static	timeout_t comwakeup;
 static	int	tiocm_xxx2mcr	__P((int tiocm_xxx));
 
 /* table and macro for fast conversion from a unit number to its com struct */
@@ -570,7 +570,7 @@ determined_type: ;
 	com_addr(unit) = com;
 	splx(s);
 	if (!comwakeup_started) {
-		comwakeup((caddr_t) NULL, 0);
+		comwakeup((caddr_t) NULL);
 		comwakeup_started = TRUE;
 	}
 	return (1);
@@ -1724,13 +1724,12 @@ commctl(com, bits, how)
 }
 
 static void
-comwakeup(chan, ticks)
-	caddr_t	chan;
-	int	ticks;
+comwakeup(chan)
+	void *chan;
 {
 	int	unit;
 
-	timeout((timeout_func_t)comwakeup, (caddr_t) NULL, hz / 100);
+	timeout(comwakeup, (caddr_t) NULL, hz / 100);
 
 	if (com_events != 0) {
 #ifndef OLD_INTERRUPT_HANDLING

@@ -21,27 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.2 1994/08/12 11:42:37 davidg Exp $
- *
- * $Log: if_le.c,v $
- * Revision 1.2  1994/08/12  11:42:37  davidg
- * Added conditionals to make this compile cleanly in FreeBSD 2.0.
- *
- * Revision 1.1  1994/08/12  06:51:10  davidg
- * New ethernet device driver from Matt Thomas:
- *
- * This driver supports all the DEC EtherWORKS III NICs (DE203, DE204,
- * and DE205) and the later DEC EtherWORKS II NICs (DE200, DE201, DE202,
- * DE422).  DEPCA-style boards prior to the DE200 have not been tested
- * and may not work.
- *
- * Submitted by:	Matt Thomas (thomas@lkg.dec.com)
- *
- * Revision 1.8  1994/08/05  20:20:54  thomas
- * Enable change log
- *
- * Revision 1.7  1994/08/05  20:20:14  thomas
- * *** empty log message ***
+ * $Id: if_le.c,v 1.3 1994/08/20 03:48:39 davidg Exp $
  *
  */
 

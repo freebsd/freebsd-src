@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.31 1994/08/19 21:02:05 ats Exp $
+ *      $Id: aha1542.c,v 1.32 1994/08/20 03:48:37 davidg Exp $
  */
 
 /*
@@ -310,7 +310,7 @@ void	aha_done();
 int     ahaattach();
 int     ahaintr();
 int32   aha_scsi_cmd();
-void	aha_timeout(caddr_t);
+timeout_t aha_timeout;
 void    ahaminphys();
 u_int32 aha_adapter_info();
 
@@ -684,7 +684,7 @@ ahaintr(unit)
 #endif /*AHADEBUG */
 			}
 			if (ccb) {
-				untimeout((timeout_func_t)aha_timeout, (caddr_t)ccb);
+				untimeout(aha_timeout, (caddr_t)ccb);
 				aha_done(unit, ccb);
 			}
 			aha->aha_mbx.mbi[i].stat = AHA_MBI_FREE;
@@ -1216,7 +1216,7 @@ aha_scsi_cmd(xs)
 		bcopy(xs->cmd, &ccb->scsi_cmd, ccb->scsi_cmd_length);
 	if (!(flags & SCSI_NOMASK)) {
 		s = splbio();	/* stop instant timeouts */
-		timeout((timeout_func_t)aha_timeout, (caddr_t)ccb, (xs->timeout * hz) / 1000);
+		timeout(aha_timeout, (caddr_t)ccb, (xs->timeout * hz) / 1000);
 		aha_startmbx(ccb->mbx);
 		/*
 		 * Usually return SUCCESSFULLY QUEUED
@@ -1277,7 +1277,7 @@ aha_poll(unit, xs, ccb)
 		 * because we are polling,
 		 * take out the timeout entry aha_timeout made
 		 */
-		untimeout((timeout_func_t)aha_timeout, (caddr_t)ccb);
+		untimeout(aha_timeout, (caddr_t)ccb);
 		count = 2000;
 		while (count) {
 			/*
@@ -1435,7 +1435,7 @@ aha_bus_speed_check(unit, speed)
 #endif	/*TUNE_1542*/
 
 void
-aha_timeout(caddr_t arg1)
+aha_timeout(void *arg1)
 {
 	struct aha_ccb * ccb = (struct aha_ccb *)arg1;
 	int     unit;
@@ -1471,7 +1471,7 @@ aha_timeout(caddr_t arg1)
 		printf("\n");
 		aha_abortmbx(ccb->mbx);
 		/* 4 secs for the abort */
-		timeout((timeout_func_t)aha_timeout, (caddr_t)ccb, 4 * hz);
+		timeout(aha_timeout, (caddr_t)ccb, 4 * hz);
 		ccb->flags = CCB_ABORTED;
 	} splx(s);
 }
