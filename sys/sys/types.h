@@ -174,11 +174,22 @@ typedef	__rlim_t	rlim_t;		/* resource limit */
 #endif
 
 typedef	__segsz_t	segsz_t;	/* segment size (in pages) */
+
+#ifndef _SUSECONDS_T_DECLARED
+typedef	__suseconds_t	suseconds_t;	/* microseconds (signed) */
+#define	_SUSECONDS_T_DECLARED
+#endif
+
 typedef	__u_register_t	u_register_t;
 
 #ifndef _UID_T_DECLARED
 typedef	__uid_t		uid_t;		/* user id */
 #define	_UID_T_DECLARED
+#endif
+
+#ifndef _USECONDS_T_DECLARED
+typedef	__useconds_t	useconds_t;	/* microseconds (unsigned) */
+#define	_USECONDS_T_DECLARED
 #endif
 
 typedef	__vm_offset_t	vm_offset_t;
