@@ -1576,7 +1576,7 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 	resource_list_add(rl, type, *rid, start, end, count);
 	rle = resource_list_find(rl, type, *rid);
 	if (rle == NULL)
-		panic("pci_alloc_map: unexpedly can't find resource.");
+		panic("pci_alloc_map: unexpectedly can't find resource.");
 	rle->res = res;
 	if (bootverbose)
 		device_printf(child,
