@@ -49,7 +49,9 @@ typedef	int		__nl_item;
 typedef	__uint16_t	__nlink_t;	/* link count */
 typedef	__int64_t	__off_t;	/* file offset */
 typedef	__int32_t	__pid_t;	/* process [group] */
-typedef	__int64_t	__rlim_t;	/* resource limit (XXX not unsigned) */
+typedef	__int64_t	__rlim_t;	/* resource limit - intentionally */
+					/* signed, because of legacy code */
+					/* that uses -1 for RLIM_INFINITY */
 typedef	__uint8_t	__sa_family_t;
 typedef	__uint32_t	__socklen_t;
 typedef	long		__suseconds_t;	/* microseconds (signed) */
