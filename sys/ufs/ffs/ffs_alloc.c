@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.8 (Berkeley) 2/21/94
- * $Id: ffs_alloc.c,v 1.9 1995/03/03 22:13:15 davidg Exp $
+ * $Id: ffs_alloc.c,v 1.10 1995/03/10 22:11:50 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -111,7 +111,7 @@ ffs_alloc(ip, lbn, bpref, size, cred, bnp)
 		panic("ffs_alloc: bad size");
 	}
 	if (cred == NOCRED)
-		panic("ffs_alloc: missing credential\n");
+		panic("ffs_alloc: missing credential");
 #endif /* DIAGNOSTIC */
 	if (size == fs->fs_bsize && fs->fs_cstotal.cs_nbfree == 0)
 		goto nospace;
@@ -181,7 +181,7 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 		panic("ffs_realloccg: bad size");
 	}
 	if (cred == NOCRED)
-		panic("ffs_realloccg: missing credential\n");
+		panic("ffs_realloccg: missing credential");
 #endif /* DIAGNOSTIC */
 	if (cred->cr_uid != 0 && freespace(fs, fs->fs_minfree) <= 0)
 		goto nospace;
@@ -1296,7 +1296,7 @@ ffs_vfree(ap)
 	pip = VTOI(ap->a_pvp);
 	fs = pip->i_fs;
 	if ((u_int)ino >= fs->fs_ipg * fs->fs_ncg)
-		panic("ifree: range: dev = 0x%x, ino = %d, fs = %s\n",
+		panic("ifree: range: dev = 0x%x, ino = %d, fs = %s",
 		    pip->i_dev, ino, fs->fs_fsmnt);
 	cg = ino_to_cg(fs, ino);
 	error = bread(pip->i_devvp, fsbtodb(fs, cgtod(fs, cg)),

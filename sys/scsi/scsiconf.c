@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.23 1995/03/15 14:22:08 dufault Exp $
+ *      $Id: scsiconf.c,v 1.24 1995/03/16 18:15:49 bde Exp $
  */
 
 #include <sys/types.h>
@@ -568,7 +568,7 @@ scsi_attachdevs(sc_link_proto)
 	sc_link_proto->scsibus = scsibus;
 	scbus = malloc(sizeof(struct scsibus_data), M_TEMP, M_NOWAIT);
 	if(scbus == 0 || extend_set(scbusses, scsibus, scbus) == 0) {
-		panic("scsi_attachdevs: malloc\n");
+		panic("scsi_attachdevs: malloc");
 	}
 	bzero(scbus, sizeof(struct scsibus_data));
 	scbus->adapter_link = sc_link_proto;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_ip.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: ns_ip.c,v 1.2 1994/08/02 07:51:50 davidg Exp $
  */
 
 /*
@@ -304,7 +304,7 @@ bad:
 nsipstart(ifp)
 struct ifnet *ifp;
 {
-	panic("nsip_start called\n");
+	panic("nsip_start called");
 }
 
 struct ifreq ifr = {"nsip0"};

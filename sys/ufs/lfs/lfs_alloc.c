@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_alloc.c	8.4 (Berkeley) 1/4/94
- * $Id: lfs_alloc.c,v 1.4 1994/08/29 06:09:14 davidg Exp $
+ * $Id: lfs_alloc.c,v 1.5 1994/10/10 01:04:48 phk Exp $
  */
 
 #include <sys/param.h>
@@ -237,7 +237,7 @@ lfs_vfree(ap)
 		LFS_SEGENTRY(sup, fs, datosn(fs, old_iaddr), bp);
 #ifdef DIAGNOSTIC
 		if (sup->su_nbytes < sizeof(struct dinode))
-			panic("lfs_vfree: negative byte count (segment %d)\n",
+			panic("lfs_vfree: negative byte count (segment %d)",
 			    datosn(fs, old_iaddr));
 #endif
 		sup->su_nbytes -= sizeof(struct dinode);

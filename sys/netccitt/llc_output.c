@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)llc_output.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: llc_output.c,v 1.2 1994/08/02 07:47:18 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -137,7 +137,7 @@ llc_resend(struct llc_linkcb *linkp, int cmdrsp, int pollfinal)
 	if (linkp->llcl_slotsfree < linkp->llcl_window)
 		/* assert lock between nr_received & V(S) */
 		if (linkp->llcl_nr_received != linkp->llcl_vs)
-			panic("llc: V(S) != N(R) received\n");
+			panic("llc: V(S) != N(R) received");
 
 		for (slot = llc_seq2slot(linkp, linkp->llcl_vs);
 		     slot != linkp->llcl_freeslot; 

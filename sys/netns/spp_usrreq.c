@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spp_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: spp_usrreq.c,v 1.2 1994/08/02 07:52:00 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -87,7 +87,7 @@ spp_input(m, nsp)
 
 	sppstat.spps_rcvtotal++;
 	if (nsp == 0) {
-		panic("No nspcb in spp_input\n");
+		panic("No nspcb in spp_input");
 		return;
 	}
 

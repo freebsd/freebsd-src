@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.13 1995/03/12 08:11:34 davidg Exp $
+ * $Id: vm_mmap.c,v 1.14 1995/03/16 18:17:19 bde Exp $
  */
 
 /*
@@ -750,7 +750,7 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 			 * never fail
 			 */
 			if (!vm_map_lookup_entry(map, *addr, &entry)) {
-				panic("vm_mmap: missing map entry!!!\n");
+				panic("vm_mmap: missing map entry!!!");
 			}
 
 			entry->copy_on_write = TRUE;

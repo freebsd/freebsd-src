@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_segment.c	8.5 (Berkeley) 1/4/94
- * $Id: lfs_segment.c,v 1.6 1995/01/04 23:46:32 gibbs Exp $
+ * $Id: lfs_segment.c,v 1.7 1995/01/09 16:05:22 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -225,7 +225,7 @@ lfs_vflush(vp)
 	} while (lfs_writeseg(fs, sp) && ip->i_number == LFS_IFILE_INUM);
 
 	if (vp->v_dirtyblkhd.lh_first != NULL)
-		panic("lfs_vflush: dirty bufs!!!\n");
+		panic("lfs_vflush: dirty bufs!!!");
 
 #ifdef DOSTATS
 	++lfs_stats.nwrites;
@@ -1111,7 +1111,7 @@ lfs_callback(bp)
        fs = (struct lfs *)bp->b_saveaddr;
 #ifdef DIAGNOSTIC
 	if (fs->lfs_iocount == 0)
-		panic("lfs_callback: zero iocount\n");
+		panic("lfs_callback: zero iocount");
 #endif
 	if (--fs->lfs_iocount == 0)
 		wakeup(&fs->lfs_iocount);
