@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.26 1998/01/06 00:58:31 brian Exp $
+ * $Id: hdlc.c,v 1.27 1998/01/10 01:55:10 brian Exp $
  *
  *	TODO:
  */
@@ -49,7 +49,7 @@
 #include "modem.h"
 #include "ccp.h"
 
-struct hdlcstat {
+static struct hdlcstat {
   int badfcs;
   int badaddr;
   int badcommand;
@@ -59,10 +59,8 @@ struct hdlcstat {
 static int ifOutPackets;
 static int ifOutOctets;
 static int ifOutLQRs;
-static int ifInPackets;
-static int ifInOctets;
 
-struct protostat {
+static struct protostat {
   u_short number;
   const char *name;
   u_long in_count;
@@ -121,8 +119,8 @@ u_char EscMap[33];
 void
 HdlcInit()
 {
-  ifInOctets = ifOutOctets = 0;
-  ifInPackets = ifOutPackets = 0;
+  ifOutOctets = 0;
+  ifOutPackets = 0;
   ifOutLQRs = 0;
 }
 
@@ -138,7 +136,7 @@ HdlcFcs(u_short fcs, u_char * cp, int len)
   return (fcs);
 }
 
-inline u_short
+static inline u_short
 HdlcFcsBuf(u_short fcs, struct mbuf *m)
 {
   int len;
@@ -173,7 +171,7 @@ HdlcOutput(int pri, u_short proto, struct mbuf * bp)
         return;
 
   if (DEV_IS_SYNC)
-    mfcs = NULLBUFF;
+    mfcs = NULL;
   else
     mfcs = mballoc(2, MB_HDLCOUT);
 
@@ -371,7 +369,7 @@ Protocol2Nam(u_short proto)
   return "unrecognised protocol";
 }
 
-void
+static void
 DecodePacket(u_short proto, struct mbuf * bp)
 {
   u_char *cp;
@@ -406,7 +404,7 @@ DecodePacket(u_short proto, struct mbuf * bp)
   case PROTO_VJUNCOMP:
   case PROTO_VJCOMP:
     bp = VjCompInput(bp, proto);
-    if (bp == NULLBUFF) {
+    if (bp == NULL) {
       break;
     }
     /* fall down */
@@ -517,9 +515,6 @@ HdlcInput(struct mbuf * bp)
     return;
   }
   cp = MBUF_CTOP(bp);
-
-  ifInPackets++;
-  ifInOctets += bp->cnt;
 
   if (!LcpInfo.want_acfcomp) {
 

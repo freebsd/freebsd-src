@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.25 1997/12/28 21:55:04 brian Exp $
+ * $Id: timer.c,v 1.26 1997/12/29 22:23:52 brian Exp $
  *
  *  TODO:
  */
@@ -27,17 +27,15 @@
 #include <errno.h>
 #endif
 #include <sys/time.h>
-#include <stdio.h>
 #include <unistd.h>
 
 #include "command.h"
 #include "mbuf.h"
 #include "log.h"
-#include "defs.h"
 #include "sig.h"
 #include "timer.h"
 
-struct pppTimer *TimerList = NULL;
+static struct pppTimer *TimerList = NULL;
 
 static void StopTimerNoBlock(struct pppTimer *);
 static void InitTimerService(void);
@@ -143,7 +141,7 @@ StopTimerNoBlock(struct pppTimer * tp)
   tp->state = TIMER_STOPPED;
 }
 
-void
+static void
 TimerService()
 {
   struct pppTimer *tp, *exp, *wt;

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.h,v 1.9 1997/11/22 03:37:40 brian Exp $
+ * $Id: mbuf.h,v 1.10 1997/12/03 10:23:50 brian Exp $
  *
  *	TODO:
  */
@@ -35,8 +35,6 @@ struct mqueue {
   struct mbuf *last;
   int qlen;
 };
-
-#define	NULLBUFF	((struct mbuf *)0)
 
 #define MBUF_CTOP(bp)   (bp->base + bp->offset)
 

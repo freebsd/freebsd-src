@@ -23,12 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.c,v 1.4 1997/12/21 12:11:09 brian Exp $
+ *	$Id: tun.c,v 1.5 1998/01/11 17:53:27 brian Exp $
  */
 
 #include <sys/param.h>
 #include <sys/time.h>
-#include <sys/select.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <net/if.h>

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.25 1997/12/24 09:28:50 brian Exp $
+ * $Id: auth.c,v 1.26 1998/01/05 01:35:17 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -31,20 +31,15 @@
 
 #include "command.h"
 #include "mbuf.h"
-#include "log.h"
 #include "defs.h"
 #include "timer.h"
 #include "fsm.h"
-#include "lcpproto.h"
 #include "ipcp.h"
 #include "loadalias.h"
 #include "vars.h"
-#include "filter.h"
 #include "auth.h"
 #include "chat.h"
 #include "systems.h"
-#include "iplist.h"
-#include "route.h"
 
 void
 LocalAuthInit()
