@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppbconf.c,v 1.10 1999/01/10 12:04:55 nsouch Exp $
+ *	$Id: ppbconf.c,v 1.11 1999/01/10 16:41:14 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -289,34 +289,40 @@ ppb_scan_bus(struct ppb_data *ppb)
 		ppb_1284_terminate(&pnpdev);
 	}
 
-#if 0
-	if (!(error = ppb_1284_negociate(&pnpdev, PPB_NIBBLE, PPB_REQUEST_ID))) {
-		printf("/NIBBLE_ID");
-		ppb_1284_terminate(&pnpdev);
-	}
+	/* try more IEEE1284 modes */
+	if (bootverbose) {
+		if (!(error = ppb_1284_negociate(&pnpdev, PPB_NIBBLE,
+				PPB_REQUEST_ID))) {
+			printf("/NIBBLE_ID");
+			ppb_1284_terminate(&pnpdev);
+		}
 
-	if (!(error = ppb_1284_negociate(&pnpdev, PPB_PS2, PPB_REQUEST_ID))) {
-		printf("/PS2_ID");
-		ppb_1284_terminate(&pnpdev);
-	}
+		if (!(error = ppb_1284_negociate(&pnpdev, PPB_PS2,
+				PPB_REQUEST_ID))) {
+			printf("/PS2_ID");
+			ppb_1284_terminate(&pnpdev);
+		}
 
-	if (!(error = ppb_1284_negociate(&pnpdev, PPB_ECP, PPB_REQUEST_ID))) {
-		printf("/ECP_ID");
-		ppb_1284_terminate(&pnpdev);
-	}
+		if (!(error = ppb_1284_negociate(&pnpdev, PPB_ECP,
+				PPB_REQUEST_ID))) {
+			printf("/ECP_ID");
+			ppb_1284_terminate(&pnpdev);
+		}
 
-	if (!(error = ppb_1284_negociate(&pnpdev, PPB_ECP,
-					PPB_REQUEST_ID | PPB_USE_RLE))) {
-		printf("/ECP_RLE_ID");
-		ppb_1284_terminate(&pnpdev);
-	}
-#endif
+		if (!(error = ppb_1284_negociate(&pnpdev, PPB_ECP,
+				PPB_REQUEST_ID | PPB_USE_RLE))) {
+			printf("/ECP_RLE_ID");
+			ppb_1284_terminate(&pnpdev);
+		}
 
-	if (!(error = ppb_1284_negociate(&pnpdev, PPB_COMPATIBLE,
+		if (!(error = ppb_1284_negociate(&pnpdev, PPB_COMPATIBLE,
 				PPB_EXTENSIBILITY_LINK))) {
-                printf("/Extensibility Link");
-		ppb_1284_terminate(&pnpdev);
-        }
+			printf("/Extensibility Link");
+			ppb_1284_terminate(&pnpdev);
+		}
+	}
+
+	printf("\n");
 
 	/* detect PnP devices */
 	ppb->class_id = ppb_pnp_detect(ppb, &pnpdev);
