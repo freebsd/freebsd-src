@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.1 1999/01/30 06:29:48 newton Exp $
 
 .PATH:	${.CURDIR}/../../i386/svr4 ${.CURDIR}/../../svr4
 KMOD=	svr4
@@ -19,7 +19,7 @@ CFLAGS+= -DDEBUG_SVR4
 
 EXPORT_SYMS=_svr4_mod
 CLEANFILES+= vnode_if.h vnode_if.c svr4_genassym.o svr4_genassym \
-	svr4_assym.h opt_compat.h opt_vmpage.h .depend
+	svr4_assym.h opt_compat.h opt_vmpage.h
 
 build-tools: svr4_genassym
 
@@ -34,9 +34,7 @@ svr4_genassym.o:	svr4_genassym.c svr4.h @ machine
 	${CC} -c ${CFLAGS} -UKERNEL ${.IMPSRC}
 
 svr4_genassym:	svr4_genassym.o
-	${CC} ${CFLAGS} ${.ALLSRC} -o ${.TARGET}
-
-svr4_sysvec.o: opt_vmpage.h opt_compat.h
+	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 opt_compat.h:
 	echo "#define COMPAT_43 1" > opt_compat.h
