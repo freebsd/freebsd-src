@@ -22,10 +22,10 @@ it for whichever filesystems you wish to run with the soft update policy.
 This is done with the -n option to tunefs(8) on the UNMOUNTED filesystems,
 e.g. from single-user mode you'd do something like:
 
-	tunefs -n enable /dev/rsd0s1d
+	tunefs -n enable /usr
 
-To permanently enable soft updates on that filesystem (or at least until
-a corresponding ``tunefs -n disable'' is done).
+To permanently enable soft updates on the /usr filesystem (or at least
+until a corresponding ``tunefs -n disable'' is done).
 
 IMPORTANT NOTE:  The Soft Updates code is currently in ALPHA test.
 Use at your own risk!
