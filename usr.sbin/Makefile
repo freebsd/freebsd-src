@@ -6,7 +6,8 @@
 SUBDIR=	XNSrouted accton amd arp chown chroot dev_mkdb diskpart \
 	edquota inetd kgmon kvm_mkdb lpr mtree portmap pstat \
 	pwd_mkdb quotaon repquota routed rmt rwhod sendmail \
-	sliplogin sysctl syslogd traceroute trpt trsp vipw
+	sliplogin sysctl syslogd traceroute trpt trsp vipw \
+	ypbind yppoll ypset
 
 .if   make(clean) || make(cleandir)
 SUBDIR+=bad144 config config.new eeprom iostat timed 
