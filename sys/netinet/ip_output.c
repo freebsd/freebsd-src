@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.33 1996/03/26 18:56:51 fenner Exp $
+ *	$Id: ip_output.c,v 1.34 1996/04/03 13:52:20 phk Exp $
  */
+
+#define _IP_VHL
 
 #include <sys/param.h>
 #include <sys/queue.h>
@@ -57,6 +59,7 @@
 #ifdef vax
 #include <machine/mtpr.h>
 #endif
+#include <machine/in_cksum.h>
 
 u_short ip_id;
 
@@ -89,30 +92,15 @@ ip_output(m0, opt, ro, flags, imo)
 	struct mbuf *m = m0;
 	int hlen = sizeof (struct ip);
 	int len, off, error = 0;
-	/*
-	 * It might seem obvious at first glance that one could easily
-	 * make a one-behind cache out of this by simply making `iproute'
-	 * static and eliminating the bzero() below.  However, this turns
-	 * out not to work, for two reasons:
-	 *
-	 * 1) This routine needs to be reentrant.  It can be called
-	 * recursively from encapsulating network interfaces, and it
-	 * is always called recursively from ip_mforward().
-	 *
-	 * 2) You turn out not to gain much.  There is already a one-
-	 * behind cache implemented for the specific case of forwarding,
-	 * and sends on a connected socket will use a route associated
-	 * with the PCB.  The only cases left are sends on unconnected
-	 * and raw sockets, and if these cases are really significant,
-	 * something is seriously wrong.
-	 */
-	struct route iproute;
 	struct sockaddr_in *dst;
 	struct in_ifaddr *ia;
 
 #ifdef	DIAGNOSTIC
 	if ((m->m_flags & M_PKTHDR) == 0)
 		panic("ip_output no HDR");
+	if (!ro)
+		panic("ip_output no route, proto = %d",
+		      mtod(m, struct ip *)->ip_p);
 #endif
 	if (opt) {
 		m = ip_insertoptions(m, opt, &len);
@@ -123,21 +111,14 @@ ip_output(m0, opt, ro, flags, imo)
 	 * Fill in IP header.
 	 */
 	if ((flags & (IP_FORWARDING|IP_RAWOUTPUT)) == 0) {
-		ip->ip_v = IPVERSION;
+		ip->ip_vhl = IP_MAKE_VHL(IPVERSION, hlen >> 2);
 		ip->ip_off &= IP_DF;
 		ip->ip_id = htons(ip_id++);
-		ip->ip_hl = hlen >> 2;
 		ipstat.ips_localout++;
 	} else {
-		hlen = ip->ip_hl << 2;
+		hlen = IP_VHL_HL(ip->ip_vhl) << 2;
 	}
-	/*
-	 * Route packet.
-	 */
-	if (ro == 0) {
-		ro = &iproute;
-		bzero((caddr_t)ro, sizeof (*ro));
-	}
+
 	dst = (struct sockaddr_in *)&ro->ro_dst;
 	/*
 	 * If there is a cached route,
@@ -349,7 +330,11 @@ sendit:
 		ip->ip_len = htons((u_short)ip->ip_len);
 		ip->ip_off = htons((u_short)ip->ip_off);
 		ip->ip_sum = 0;
-		ip->ip_sum = in_cksum(m, hlen);
+		if (ip->ip_vhl == IP_VHL_BORING) {
+			ip->ip_sum = in_cksum_hdr(ip);
+		} else {
+			ip->ip_sum = in_cksum(m, hlen);
+		}
 		error = (*ifp->if_output)(ifp, m,
 				(struct sockaddr *)dst, ro->ro_rt);
 		goto done;
@@ -405,7 +390,7 @@ sendit:
 		*mhip = *ip;
 		if (hlen > sizeof (struct ip)) {
 			mhlen = ip_optcopy(ip, mhip) + sizeof (struct ip);
-			mhip->ip_hl = mhlen >> 2;
+			mhip->ip_vhl = IP_MAKE_VHL(IPVERSION, mhlen >> 2);
 		}
 		m->m_len = mhlen;
 		mhip->ip_off = ((off - hlen) >> 3) + (ip->ip_off & ~IP_MF);
@@ -427,7 +412,11 @@ sendit:
 		m->m_pkthdr.rcvif = (struct ifnet *)0;
 		mhip->ip_off = htons((u_short)mhip->ip_off);
 		mhip->ip_sum = 0;
-		mhip->ip_sum = in_cksum(m, mhlen);
+		if (mhip->ip_vhl == IP_VHL_BORING) {
+			mhip->ip_sum = in_cksum_hdr(ip);
+		} else {
+			mhip->ip_sum = in_cksum(m, mhlen);
+		}
 		*mnext = m;
 		mnext = &m->m_nextpkt;
 		ipstat.ips_ofragments++;
@@ -442,7 +431,11 @@ sendit:
 	ip->ip_len = htons((u_short)m->m_pkthdr.len);
 	ip->ip_off = htons((u_short)(ip->ip_off | IP_MF));
 	ip->ip_sum = 0;
-	ip->ip_sum = in_cksum(m, hlen);
+	if (ip->ip_vhl == IP_VHL_BORING) {
+		ip->ip_sum = in_cksum_hdr(ip);
+	} else {
+		ip->ip_sum = in_cksum(m, hlen);
+	}
 sendorfree:
 	for (m = m0; m; m = m0) {
 		m0 = m->m_nextpkt;
@@ -458,9 +451,6 @@ sendorfree:
 		ipstat.ips_fragmented++;
     }
 done:
-	if (ro == &iproute && (flags & IP_ROUTETOIF) == 0 && ro->ro_rt)
-		RTFREE(ro->ro_rt);
-
 	return (error);
 bad:
 	m_freem(m0);
@@ -511,7 +501,7 @@ ip_insertoptions(m, opt, phlen)
 	ip = mtod(m, struct ip *);
 	(void)memcpy(ip + 1, p->ipopt_list, (unsigned)optlen);
 	*phlen = sizeof(struct ip) + optlen;
-	ip->ip_hl = *phlen >> 2;
+	ip->ip_vhl = IP_MAKE_VHL(IPVERSION, *phlen >> 2);
 	ip->ip_len += optlen;
 	return (m);
 }
@@ -529,7 +519,7 @@ ip_optcopy(ip, jp)
 
 	cp = (u_char *)(ip + 1);
 	dp = (u_char *)(jp + 1);
-	cnt = (ip->ip_hl << 2) - sizeof (struct ip);
+	cnt = (IP_VHL_HL(ip->ip_vhl) << 2) - sizeof (struct ip);
 	for (; cnt > 0; cnt -= optlen, cp += optlen) {
 		opt = cp[0];
 		if (opt == IPOPT_EOL)
@@ -1231,7 +1221,29 @@ ip_mloopback(ifp, m, dst)
 		ip->ip_len = htons((u_short)ip->ip_len);
 		ip->ip_off = htons((u_short)ip->ip_off);
 		ip->ip_sum = 0;
-		ip->ip_sum = in_cksum(copym, ip->ip_hl << 2);
+		if (ip->ip_vhl == IP_VHL_BORING) {
+			ip->ip_sum = in_cksum_hdr(ip);
+		} else {
+			ip->ip_sum = in_cksum(copym, 
+					      IP_VHL_HL(ip->ip_vhl) << 2);
+		}
+		/*
+		 * NB:
+		 * We can't simply call ip_input() directly because
+		 * the ip_mforward() depends on the `input interface'
+		 * being set to something unreasonable so that we don't
+		 * attempt to forward the looped-back copy.  
+		 * It's also not clear whether there are any lingering
+		 * reentrancy problems in other areas which might be
+		 * exposed by this code.  For the moment, we'll err
+		 * on the side of safety by continuing to abuse
+		 * loinput().
+		 */
+#ifdef notdef
+		copym->m_pkthdr.rcvif = &loif[0];
+		ip_input(copym)
+#else
 		(void) looutput(ifp, copym, (struct sockaddr *)dst, NULL);
+#endif
 	}
 }
