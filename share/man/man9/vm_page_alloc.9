@@ -80,10 +80,14 @@ be accessed.
 The page will only be returned successfully if the free count is greater
 than zero.
 .It Dv VM_ALLOC_ZERO
-The same as
-.Dv VM_ALLOC_NORMAL
-except the page returned is zeroed.
-.El
+Indicate a preference for a pre-zeroed page.
+There is no guarantee that the page thus returned will be zeroed, but
+it will be marked as such.
+.It Dv VM_ALLOC_NOOBJ
+The page is associated with an unmanaged memory region, that is, there
+is no backing VM object.
+This is typically used to allocate pages within the kernel virtual
+address space.
 .El
 .Sh RETURN VALUES
 The
