@@ -109,7 +109,8 @@ struct aic_softc {
 #define	AIC_IDLE		0x00
 #define	AIC_SELECTING		0x01
 #define	AIC_RESELECTED		0x02
-#define	AIC_HASNEXUS		0x03
+#define	AIC_RECONNECTING	0x03
+#define	AIC_HASNEXUS		0x04
 
 #define	AIC_MSG_IDENTIFY	0x01
 #define	AIC_MSG_TAG_Q		0x02
