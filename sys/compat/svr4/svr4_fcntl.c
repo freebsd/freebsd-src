@@ -249,6 +249,7 @@ fd_revoke(p, fd)
 	struct vnode *vp;
 	struct mount *mp;
 	struct vattr vattr;
+	struct ucred *uc;
 	int error, *retval;
 
 	retval = p->p_retval;
@@ -265,12 +266,20 @@ fd_revoke(p, fd)
 		goto out;
 	}
 
-	if ((error = VOP_GETATTR(vp, &vattr, p->p_ucred, p)) != 0)
+	PROC_LOCK(p);
+	uc = p->p_ucred;
+	crhold(uc);
+	PROC_UNLOCK(p);
+	if ((error = VOP_GETATTR(vp, &vattr, uc, p)) != 0) {
+		crfree(uc);
 		goto out;
+	}
 
-	if (p->p_ucred->cr_uid != vattr.va_uid &&
-	    (error = suser(p)) != 0)
+	if (uc->cr_uid != vattr.va_uid && (error = suser(p)) != 0) {
+		crfree(uc);
 		goto out;
+	}
+	crfree(uc);
 
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		goto out;
@@ -294,6 +303,7 @@ fd_truncate(p, fd, flp)
 	off_t start, length;
 	struct vnode *vp;
 	struct vattr vattr;
+	struct ucred *uc;
 	int error, *retval;
 	struct ftruncate_args ft;
 
@@ -309,7 +319,13 @@ fd_truncate(p, fd, flp)
 	if (fp->f_type != DTYPE_VNODE || vp->v_type == VFIFO)
 		return ESPIPE;
 
-	if ((error = VOP_GETATTR(vp, &vattr, p->p_ucred, p)) != 0)
+	PROC_LOCK(p);
+	uc = p->p_ucred;
+	crhold(uc);
+	PROC_UNLOCK(p);
+	error = VOP_GETATTR(vp, &vattr, uc, p);
+	crfree(uc);
+	if (error != 0)
 		return error;
 
 	length = vattr.va_size;
@@ -366,17 +382,23 @@ svr4_sys_open(p, uap)
 
 	retval = p->p_retval[0];
 
+	PROC_LOCK(p);
 	if (!(SCARG(&cup, flags) & O_NOCTTY) && SESS_LEADER(p) &&
 	    !(p->p_flag & P_CONTROLT)) {
 #if defined(NOTYET)
 		struct filedesc	*fdp = p->p_fd;
 		struct file	*fp = fdp->fd_ofiles[retval];
 
+		PROC_UNLOCK(p);
 		/* ignore any error, just give it a try */
 		if (fp->f_type == DTYPE_VNODE)
 			fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0, p);
-#endif
+	} else
+		PROC_UNLOCK(p);
+#else
 	}
+	PROC_UNLOCK(p);
+#endif
 	return error;
 }
 
@@ -414,20 +436,19 @@ svr4_sys_creat64(p, uap)
 }
 
 int
-svr4_sys_llseek(p, v)
+svr4_sys_llseek(p, uap)
 	register struct proc *p;
-	struct svr4_sys_llseek_args *v;
+	struct svr4_sys_llseek_args *uap;
 {
-	struct svr4_sys_llseek_args *uap = v;
 	struct lseek_args ap;
 
 	SCARG(&ap, fd) = SCARG(uap, fd);
 
 #if BYTE_ORDER == BIG_ENDIAN
-	SCARG(&ap, offset) = (((long long) SCARG(uap, offset1)) << 32) | 
+	SCARG(&ap, offset) = (((u_int64_t) SCARG(uap, offset1)) << 32) | 
 		SCARG(uap, offset2);
 #else
-	SCARG(&ap, offset) = (((long long) SCARG(uap, offset2)) << 32) | 
+	SCARG(&ap, offset) = (((u_int64_t) SCARG(uap, offset2)) << 32) | 
 		SCARG(uap, offset1);
 #endif
 	SCARG(&ap, whence) = SCARG(uap, whence);
