@@ -263,11 +263,11 @@ opencal()
 			_exit(1);
 		};
 		if (setgid(getegid()) < 0) {
-			fprintf(stderr, "calendar: setegid failed\n");
+			fprintf(stderr, "calendar: setgid failed\n");
 			_exit(1);
 		}
 		if (setuid(uid) < 0) {
-			fprintf(stderr, "caelndar: setuid failed\n");
+			fprintf(stderr, "calendar: setuid failed\n");
 			_exit(1);
 		}
 		execl(_PATH_CPP, "cpp", "-P", "-I.", _PATH_INCLUDE, NULL);
@@ -326,11 +326,11 @@ closecal(fp)
 			_exit(1);
 		};
 		if (setgid(getegid()) < 0) {
-			fprintf(stderr, "calendar: setegid failed\n");
+			fprintf(stderr, "calendar: setgid failed\n");
 			_exit(1);
 		}
 		if (setuid(uid) < 0) {
-			fprintf(stderr, "caelndar: setuid failed\n");
+			fprintf(stderr, "calendar: setuid failed\n");
 			_exit(1);
 		}
 		execl(_PATH_SENDMAIL, "sendmail", "-i", "-t", "-F",
