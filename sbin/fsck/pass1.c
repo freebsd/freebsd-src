@@ -89,6 +89,12 @@ pass1()
 		inumber = c * sblock.fs_ipg;
 		setinodebuf(inumber);
 		inosused = sblock.fs_ipg;
+		if (got_siginfo) {
+			printf("%s: phase 1: cyl group %d of %d (%d%%)\n",
+			    cdevname, c, sblock.fs_ncg,
+			    c * 100 / sblock.fs_ncg);
+			got_siginfo = 0;
+		}
 		/*
 		 * If we are using soft updates, then we can trust the
 		 * cylinder group inode allocation maps to tell us which

@@ -59,6 +59,12 @@ pass3()
 	char namebuf[MAXNAMLEN+1];
 
 	for (inpindex = inplast - 1; inpindex >= 0; inpindex--) {
+		if (got_siginfo) {
+			printf("%s: phase 3: dir %d of %d (%d%%)\n", cdevname,
+			    inplast - inpindex - 1, inplast,
+			    (inplast - inpindex - 1) * 100 / inplast);
+			got_siginfo = 0;
+		}
 		inp = inpsort[inpindex];
 		state = inoinfo(inp->i_number)->ino_state;
 		if (inp->i_number == ROOTINO ||

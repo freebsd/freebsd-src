@@ -546,6 +546,13 @@ voidquit(sig)
 	(void)signal(SIGQUIT, SIG_DFL);
 }
 
+void
+infohandler(sig)
+	int sig;
+{
+	got_siginfo = 1;
+}
+
 /*
  * determine whether an inode should be fixed.
  */

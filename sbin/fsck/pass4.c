@@ -62,6 +62,12 @@ pass4()
 	idesc.id_type = ADDR;
 	idesc.id_func = pass4check;
 	for (cg = 0; cg < sblock.fs_ncg; cg++) {
+		if (got_siginfo) {
+			printf("%s: phase 4: cyl group %d of %d (%d%%)\n",
+			    cdevname, cg, sblock.fs_ncg,
+			    cg * 100 / sblock.fs_ncg);
+			got_siginfo = 0;
+		}
 		inumber = cg * sblock.fs_ipg;
 		for (i = 0; i < inostathead[cg].il_numalloced; i++, inumber++) {
 			if (inumber < ROOTINO)

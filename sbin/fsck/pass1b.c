@@ -65,6 +65,12 @@ pass1b()
 	duphead = duplist;
 	inumber = 0;
 	for (c = 0; c < sblock.fs_ncg; c++) {
+		if (got_siginfo) {
+			printf("%s: phase 1b: cyl group %d of %d (%d%%)\n",
+			    cdevname, c, sblock.fs_ncg,
+			    c * 100 / sblock.fs_ncg);
+			got_siginfo = 0;
+		}
 		for (i = 0; i < sblock.fs_ipg; i++, inumber++) {
 			if (inumber < ROOTINO)
 				continue;
