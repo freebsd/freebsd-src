@@ -224,7 +224,9 @@ SYSCTL_INT(_hw, OID_AUTO, availpages, CTLFLAG_RD, &physmem, 0, "");
 /* must be 2 less so 0 0 can signal end of chunks */
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
 
+#ifdef COMPAT_43
 void osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code);
+#endif
 
 static void identifycpu __P((void));
 
