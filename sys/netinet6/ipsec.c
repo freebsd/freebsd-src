@@ -1311,8 +1311,11 @@ ipsec_deepcopy_policy(src)
 	struct ipsecrequest *r;
 	struct secpolicy *dst;
 
+	if (src == NULL)
+		return NULL;
+
 	dst = key_newsp(0);
-	if (src == NULL || dst == NULL)
+	if (dst == NULL)
 		return NULL;
 
 	/*
