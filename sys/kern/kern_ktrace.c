@@ -662,7 +662,7 @@ utrace(td, uap)
 	req = ktr_getrequest(KTR_USER);
 	if (req == NULL) {
 		free(cp, M_KTRACE);
-		return (0);
+		return (ENOMEM);
 	}
 	req->ktr_header.ktr_buffer = cp;
 	req->ktr_header.ktr_len = uap->len;

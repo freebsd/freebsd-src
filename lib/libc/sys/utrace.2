@@ -65,15 +65,17 @@ Otherwise, a value of -1 is returned and
 is set to indicate the error.
 .Sh ERRORS
 .Bl -tag -width Er
-.It Bq Er ENOSYS
-Currently running kernel was compiled without
-.Xr ktrace 2
-support (option KTRACE).
 .It Bq Er EINVAL
 Specified data length
 .Fa len
 was bigger than
 .Dv KTR_USER_MAXLEN .
+.It Bq Er ENOMEM
+Insufficient memory to honor the request.
+.It Bq Er ENOSYS
+Currently running kernel was compiled without
+.Xr ktrace 2
+support (option KTRACE).
 .El
 .Sh SEE ALSO
 .Xr kdump 1 ,
