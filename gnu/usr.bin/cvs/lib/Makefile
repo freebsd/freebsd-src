@@ -11,7 +11,8 @@ MAINTAINER=	peter@FreeBSD.org
 LIB=		cvs
 INTERNALLIB=	YES
 
-CFLAGS+= -I${.CURDIR} -I${CVSDIR}/src -DHAVE_CONFIG_H
+CFLAGS+= -I${.CURDIR} -I${CVSDIR}/src -I${CVSDIR}/lib
+CFLAGS+= -DHAVE_CONFIG_H
 YFLAGS=
 
 SRCS=	argmatch.c getdate.y getline.c \
