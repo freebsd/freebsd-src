@@ -301,13 +301,13 @@ ipx_setpeeraddr(ipxp, nam)
 	struct sockaddr **nam;
 {
 	struct sockaddr_ipx *sipx, ssipx;
-
+	
 	sipx = &ssipx;
-	bzero((caddr_t)sipx, sizeof(*sipx));
+	bzero(sipx, sizeof(*sipx));
 	sipx->sipx_len = sizeof(*sipx);
 	sipx->sipx_family = AF_IPX;
 	sipx->sipx_addr = ipxp->ipxp_faddr;
-	*nam = sodupsockaddr((struct sockaddr *)sipx, M_NOWAIT);
+	*nam = sodupsockaddr((struct sockaddr *)sipx, M_WAITOK);
 }
 
 struct ipxpcb *
