@@ -230,6 +230,12 @@ boot</screen>
       does not work for RAID5 volumes on machines with a single processor.
       The configurations other than RAID5 (such as RAID1) should work correctly.
       This problem has been fixed on the RELENG_5 branch.</para>
+
+    <para>(9 Nov 2004) The &os; 5.3-RELEASE Migration Guide should have stated
+      that <filename>/usr/sbin/nslookup</filename> and
+      <filename>/usr/sbin/nsupdate</filename> included in
+      <application>BIND 8</application> have to be removed during
+      the source-based upgrade procedure.</para>
   </sect1>
 
   <sect1 id="late-news">
