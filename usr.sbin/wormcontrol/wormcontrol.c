@@ -35,7 +35,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: wormcontrol.c,v 1.7 1997/10/27 12:25:38 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -150,6 +150,18 @@ main(int argc, char **argv)
 			errx(EX_USAGE, "missing TOC type parameter");
 		if (ioctl(fd, WORMIOCFIXATION, &f) == -1)
 			err(EX_IOERR, "ioctl(WORMIOFIXATION)");
+	}
+	else if (eq(argv[0], "blank")) {
+#define CDRIOCBLANK     _IO('c',100)    /* Blank a CDRW disc */
+		if (ioctl(fd, CDRIOCBLANK) == -1)
+			err(EX_IOERR, "ioctl(CDRIOCBLANK)");
+	}
+	else if (eq(argv[0], "nextwriteable")) {
+		int addr;
+#define CDRIOCNEXTWRITEABLEADDR _IOR('c',101,int)
+		if (ioctl(fd, CDRIOCNEXTWRITEABLEADDR, &addr) == -1)
+			err(EX_IOERR, "ioctl(CDRIOCNEXTWRITEABLEADDR)");
+		printf("%d\n", addr);
 	}
 	else
 		errx(EX_USAGE, "unknown command: %s", argv[0]);
