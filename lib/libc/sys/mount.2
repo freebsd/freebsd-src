@@ -74,6 +74,13 @@ at the time
 of a successful mount are swept under the carpet so to speak, and
 are unavailable until the file system is unmounted.
 .Pp
+By default only the super-user may call the
+.Fn mount
+function.
+This restriction can be removed by setting the sysctl
+.Em vfs.usermount
+to a non-zero value.
+.Pp
 The following
 .Fa flags
 may be specified to
@@ -81,17 +88,19 @@ suppress default semantics which affect file system access.
 .Bl -tag -width MNT_SYNCHRONOUS
 .It Dv MNT_RDONLY
 The file system should be treated as read-only;
-Even the super-user may not write on it.
+even the super-user may not write on it.
 Specifying MNT_UPDATE without this option will upgrade
 a read-only file system to read/write.
 .It Dv MNT_NOEXEC
 Do not allow files to be executed from the file system.
 .It Dv MNT_NOSUID
 Do not honor setuid or setgid bits on files when executing them.
+This flag is set automatically when the caller is not the super-user.
 .It Dv MNT_NOATIME
 Disable update of file access times.
 .It Dv MNT_NODEV
 Do not interpret special files on the file system.
+This flag is set automatically when the caller is not the super-user.
 .It Dv MNT_SUIDDIR
 Directories with the SUID bit set chown new files to their own owner.
 .It Dv MNT_SYNCHRONOUS
@@ -178,7 +187,8 @@ The
 system call will fail when one of the following occurs:
 .Bl -tag -width Er
 .It Bq Er EPERM
-The caller is not the super-user.
+The caller is neither the super-user nor the owner of
+.Ar dir .
 .It Bq Er ENAMETOOLONG
 A component of a pathname exceeded 255 characters,
 or the entire length of a path name exceeded 1023 characters.
@@ -261,7 +271,9 @@ The
 system call may fail with one of the following errors:
 .Bl -tag -width Er
 .It Bq Er EPERM
-The caller is not the super-user.
+The caller is neither the super-user nor the user who issued the corresponding
+.Xr mount 2
+call.
 .It Bq Er ENOTDIR
 A component of the path is not a directory.
 .It Bq Er ENAMETOOLONG
@@ -290,6 +302,7 @@ mounted.
 .Sh SEE ALSO
 .Xr lsvfs 1 ,
 .Xr mount 8 ,
+.Xr sysctl 8 ,
 .Xr umount 8
 .Sh BUGS
 Some of the error codes need translation to more obvious messages.
