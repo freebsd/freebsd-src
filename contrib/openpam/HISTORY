@@ -1,4 +1,35 @@
 ============================================================================
+OpenPAM Cinchona						2002-04-08
+
+ - ENHANCE: Improved documentation for several API functions.
+
+ - BUGFIX: Fix bug in pam_set_data() that would result in corruption
+   of the module data list.
+
+ - BUGFIX: Allocate the correct amount of memory for the environment
+   list in pam_putenv().
+
+ - ENHANCE: Change pam_get_authtok()'s prototype so the caller can
+   specify what token it wants.  Also introduce PAM_OLDAUTHTOK_PROMPT.
+
+ - BUGFIX: Plug memory leak in pam_get_user() / pam_get_authtok(), and
+   reduce differences between these very similar functions.
+
+ - ENHANCE: Check flags carefully in pam_authenticate() and
+   pam_chauthtok().
+
+ - BUGFIX: Fix bugs in portability code; libpam now builds on NetBSD.
+
+ - ENHANCE: In pam_get_authtok(), if PAM_OLDAUTHTOK is set, we're
+   asked for PAM_AUTHTOK, and we have to prompt the user, prompt her
+   twice and compare the responses.
+
+ - ENHANCE: Add openpam_{borrow,restore}_cred(), for temporarily
+   switching to user credentials.
+
+ - ENHANCE: Add openpam_free_data(), a generic cleanup function for
+   pam_set_data() consumers.
+============================================================================
 OpenPAM	Centaury						2002-03-14
 
  - BUGFIX: Add missing #include <string.h> to openpam_log.c.
@@ -16,7 +47,7 @@ OpenPAM	Centaury						2002-03-14
 
  - ENHANCE: Suppress debugging logs, unless compiled with -DDEBUG.
 ============================================================================
-OpenPAM Celandine 2002-03-05
+OpenPAM Celandine						2002-03-05
 
  - BUGFIX: PAM_TRY_AGAIN is a valid return value for pam_chauthtok().
 
@@ -83,4 +114,4 @@ OpenPAM	Calamite						2002-02-09
 
 First (beta) release.
 ============================================================================
-$P4: //depot/projects/openpam/HISTORY#6 $
+$P4: //depot/projects/openpam/HISTORY#8 $

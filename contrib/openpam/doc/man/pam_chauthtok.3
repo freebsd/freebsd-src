@@ -31,9 +31,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/openpam/doc/man/pam_chauthtok.3#9 $
+.\" $P4: //depot/projects/openpam/doc/man/pam_chauthtok.3#10 $
 .\"
-.Dd March 7, 2002
+.Dd April 8, 2002
 .Dt PAM_CHAUTHTOK 3
 .Os
 .Sh NAME
@@ -46,7 +46,23 @@
 .Ft int
 .Fn pam_chauthtok "pam_handle_t *pamh" "int flags"
 .Sh DESCRIPTION
-No description available.
+The
+.Nm
+function attempts to change the authentication token
+for the user associated with the pam context specified by the
+.Va pamh
+argument.
+.Pp
+The
+.Va flags
+argument is the binary or of zero or more of the following
+values:
+.Pp
+.Bd -literal
+	=PAM_SILENT
+		Do not emit any messages.
+	=PAM_CHANGE_EXPIRED_AUTHTOK
+		Change only those authentication tokens that have expired.
 .Sh RETURN VALUES
 The
 .Nm

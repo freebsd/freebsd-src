@@ -31,9 +31,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/openpam/doc/man/pam_authenticate.3#9 $
+.\" $P4: //depot/projects/openpam/doc/man/pam_authenticate.3#10 $
 .\"
-.Dd March 7, 2002
+.Dd April 8, 2002
 .Dt PAM_AUTHENTICATE 3
 .Os
 .Sh NAME
@@ -46,7 +46,31 @@
 .Ft int
 .Fn pam_authenticate "pam_handle_t *pamh" "int flags"
 .Sh DESCRIPTION
-No description available.
+The
+.Nm
+function attempts to authenticate the user
+associated with the pam context specified by the
+.Va pamh
+argument.
+.Pp
+The application is free to call
+.Nm
+as many times as it
+wishes, but some modules may maintain an internal retry counter and
+return
+.Dv PAM_MAXTRIES
+when it exceeds some preset or hardcoded limit.
+.Pp
+The
+.Va flags
+argument is the binary or of zero or more of the following
+values:
+.Pp
+.Bd -literal
+	=PAM_SILENT
+		Do not emit any messages.
+	=PAM_DISALLOW_NULL_AUTHTOK
+		Fail if the user's authentication token is null.
 .Sh RETURN VALUES
 The
 .Nm

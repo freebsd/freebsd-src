@@ -31,35 +31,33 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/openpam/doc/man/openpam_get_option.3#5 $
+.\" $P4: //depot/projects/openpam/doc/man/openpam_free_data.3#1 $
 .\"
 .Dd April 8, 2002
-.Dt OPENPAM_GET_OPTION 3
+.Dt OPENPAM_FREE_DATA 3
 .Os
 .Sh NAME
-.Nm openpam_get_option
-.Nd returns the value of a module option
+.Nm openpam_free_data
+.Nd generic cleanup function
 .Sh LIBRARY
 .Lb libpam
 .Sh SYNOPSIS
 .In security/pam_appl.h
-.Ft const char *
-.Fn openpam_get_option "pam_handle_t *pamh" "const char *option"
+.Ft void
+.Fn openpam_free_data "pam_handle_t *pamh" "void *data" "int status"
 .Sh DESCRIPTION
 The
 .Nm
-function returns the value of the specified
-option in the context of the currently executing service module, or
-.Dv NULL
-if the option is not set or no module is currently executing.
-.Sh RETURN VALUES
-The
-.Nm
-function returns
-.Dv NULL
-on failure.
+is a cleanup function suitable for passing to
+.Xr pam_set_data 3 .
+It simply releases the data by passing its
+.Va data
+argument to
+.Xr free 3 .
 .Sh SEE ALSO
-.Xr pam 3
+.Xr free 3 ,
+.Xr pam 3 ,
+.Xr pam_set_data 3
 .Sh STANDARDS
 The
 .Nm
