@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.2 (Berkeley) 11/15/93
- * $Id: in.c,v 1.14.4.1 1995/07/23 03:38:11 davidg Exp $
+ * $Id: in.c,v 1.14.4.2 1996/01/30 21:41:34 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -186,7 +186,7 @@ in_control(so, cmd, data, ifp)
 	struct in_ifaddr *oia;
 	struct in_aliasreq *ifra = (struct in_aliasreq *)data;
 	struct sockaddr_in oldaddr;
-	int error, hostIsNew, maskIsNew;
+	int error, hostIsNew, maskIsNew, s;
 	u_long i;
 	struct multi_kludge *mk;
 
@@ -234,6 +234,12 @@ in_control(so, cmd, data, ifp)
 				return (ENOBUFS);
 			bzero((caddr_t)oia, sizeof *oia);
 			ia = in_ifaddr;
+			/*
+			 * Protect from ipintr() traversing address list
+			 * while we're modifying it.
+			 */
+			s = splnet();
+
 			if (ia) {
 				for ( ; ia->ia_next; ia = ia->ia_next)
 					continue;
@@ -261,6 +267,7 @@ in_control(so, cmd, data, ifp)
 			ia->ia_ifp = ifp;
 			if (!(ifp->if_flags & IFF_LOOPBACK))
 				in_interfaces++;
+			splx(s);
 		}
 		break;
 
@@ -372,6 +379,12 @@ in_control(so, cmd, data, ifp)
 			return ENOBUFS;
 
 		in_ifscrub(ifp, ia);
+		/*
+		 * Protect from ipintr() traversing address list
+		 * while we're modifying it.
+		 */
+		s = splnet();
+
 		if ((ifa = ifp->if_addrlist) == (struct ifaddr *)ia)
 			ifp->if_addrlist = ifa->ifa_next;
 		else {
@@ -398,6 +411,7 @@ in_control(so, cmd, data, ifp)
 		if (!oia->ia_multiaddrs.lh_first) {
 			IFAFREE(&oia->ia_ifa);
 			FREE(mk, M_IPMADDR);
+			splx(s);
 			break;
 		}
 
@@ -439,6 +453,7 @@ in_control(so, cmd, data, ifp)
 		}
 
 		IFAFREE((&oia->ia_ifa));
+		splx(s);
 		break;
 
 	default:
