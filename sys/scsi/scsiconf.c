@@ -12,14 +12,6 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         2       00149
- * --------------------         -----   ----------------------
- *
- * 16 Feb 93	Julian Elischer		ADDED for SCSI system
- * 23 May 93	Rodney W. Grimes	ADDED Pioneer DRM-600 cd changer
  */
 
 /*
@@ -27,9 +19,11 @@
  */
 
 /*
-$Log:
-*
-*/
+ * $Log:
+ * 23 May 93  Rodney W. Grimes        ADDED Pioneer DRM-600 cd changer
+ *
+ */
+
 #include <sys/types.h>
 #include "st.h"
 #include "sd.h"
