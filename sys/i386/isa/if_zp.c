@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.40 1997/10/26 04:36:14 nate Exp $
+ *	$Id: if_zp.c,v 1.41 1997/11/07 09:20:28 phk Exp $
  */
 /*-
  * TODO:
@@ -114,6 +114,7 @@
 #include "zp.h"
 
 #include "bpfilter.h"
+#include "opt_ipx.h"
 
 #include <sys/param.h>
 #if defined(__FreeBSD__)

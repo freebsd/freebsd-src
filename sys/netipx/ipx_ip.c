@@ -33,12 +33,14 @@
  * 
  *	@(#)ipx_ip.c
  *
- * $Id: ipx_ip.c,v 1.15 1997/05/10 09:58:52 jhay Exp $
+ * $Id: ipx_ip.c,v 1.16 1997/06/26 19:35:47 jhay Exp $
  */
 
 /*
  * Software interface driver for encapsulating IPX in IP.
  */
+
+#include "opt_ipx.h"
 
 #ifdef IPXIP
 #include <sys/param.h>

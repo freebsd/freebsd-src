@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  *
- * $Id: if_el.c,v 1.30 1997/03/24 11:32:43 bde Exp $
+ * $Id: if_el.c,v 1.31 1997/07/20 14:09:57 bde Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -21,6 +21,7 @@
  */
 #include "el.h"
 #include "bpfilter.h"
+#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

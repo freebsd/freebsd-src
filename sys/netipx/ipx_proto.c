@@ -33,8 +33,10 @@
  *
  *	@(#)ipx_proto.c
  *
- * $Id: ipx_proto.c,v 1.10 1997/05/10 09:58:54 jhay Exp $
+ * $Id: ipx_proto.c,v 1.11 1997/06/26 19:35:55 jhay Exp $
  */
+
+#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/socket.h>

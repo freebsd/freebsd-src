@@ -33,8 +33,10 @@
  * SUCH DAMAGE.
  *
  *	from: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp
- * $Id: if_fddisubr.c,v 1.21 1997/10/29 07:59:27 julian Exp $
+ * $Id: if_fddisubr.c,v 1.22 1997/11/18 13:37:56 bde Exp $
  */
+
+#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
