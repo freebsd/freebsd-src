@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.59 1999/03/23 03:06:25 bde Exp $
+#	$Id: bsd.kmod.mk,v 1.60 1999/04/20 14:33:24 peter Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 #
@@ -15,7 +15,7 @@
 # KMOD          The name of the loadable kernel module to build.
 #
 # KMODDIR	Base path for loadable kernel modules
-#		(see lkm(4)). [/modules]
+#		(see kld(4)). [/modules]
 #
 # KMODOWN	LKM owner. [${BINOWN}]
 #
