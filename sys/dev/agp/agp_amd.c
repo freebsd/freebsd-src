@@ -67,12 +67,12 @@ struct agp_amd_gatt {
 };
 
 struct agp_amd_softc {
-	struct agp_softc agp;
-	struct resource *regs;	/* memory mapped control registers */
-	bus_space_tag_t bst;	/* bus_space tag */
-	bus_space_handle_t bsh;	/* bus_space handle */
-	u_int32_t	initial_aperture; /* aperture size at startup */
-	struct agp_amd_gatt *gatt;
+	struct agp_softc	agp;
+	struct resource	       *regs;	/* memory mapped control registers */
+	bus_space_tag_t		bst;	/* bus_space tag */
+	bus_space_handle_t	bsh;	/* bus_space handle */
+	u_int32_t		initial_aperture; /* aperture size at startup */
+	struct agp_amd_gatt    *gatt;
 };
 
 static struct agp_amd_gatt *
@@ -187,16 +187,12 @@ agp_amd_match(device_t dev)
 		return NULL;
 
 	switch (pci_get_devid(dev)) {
-
-	case 0x700e1022:
-		return ("AMD 761 host to AGP bridge");
-		
 	case 0x70061022:
 		return ("AMD 751 host to AGP bridge");
-	
+	case 0x700e1022:
+		return ("AMD 761 host to AGP bridge");
 	case 0x700c1022:
 		return ("AMD 762 host to AGP bridge");
-
 	};
 
 	return NULL;
