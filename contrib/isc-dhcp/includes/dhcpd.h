@@ -101,6 +101,9 @@ typedef struct hash_table class_hash_t;
 	 (((x) >> OPTION_HASH_EXP) & \
 	  (OPTION_HASH_PTWO - 1))) % OPTION_HASH_SIZE;
 
+#define NOLINK 0
+#define HAVELINK 1
+
 enum dhcp_shutdown_state {
 	shutdown_listeners,
 	shutdown_omapi_connections,
@@ -780,8 +783,10 @@ struct interface_info {
 	unsigned remote_id_len;		/* Length of Remote ID. */
 
 	char name [IFNAMSIZ];		/* Its name... */
-	int linkstatus;			/* Link status */
-	int ieee80211;			/* True if media is ieee80211 */
+	int ieee80211;			/* True if media is ieee802.11 */
+	int havemedia;			/* True if we have a media table */
+	int linkstate;			/* True if we have link */
+	int forcediscover;		/* True if a discover is needed */
 	int index;			/* Its index. */
 	int rfdesc;			/* Its read file descriptor. */
 	int wfdesc;			/* Its write file descriptor, if
@@ -1859,6 +1864,7 @@ void send_decline PROTO ((void *));
 void state_reboot PROTO ((void *));
 #ifdef ENABLE_POLLING_MODE
 void state_link PROTO (());
+void state_background PROTO ((void *));
 #endif
 void state_init PROTO ((void *));
 void state_selecting PROTO ((void *));
@@ -1866,6 +1872,11 @@ void state_requesting PROTO ((void *));
 void state_bound PROTO ((void *));
 void state_stop PROTO ((void *));
 void state_panic PROTO ((void *));
+
+#ifdef __FreeBSD__
+void set_ieee80211 PROTO ((struct interface_info *));
+#endif
+int interface_active PROTO ((struct interface_info *));
 
 void bind_lease PROTO ((struct client_state *));
 
