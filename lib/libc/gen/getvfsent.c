@@ -26,7 +26,7 @@ static int _vfs_index = 0;
 static int
 initvfs(void)
 {
-	int mib[2] = { CTL_FS, FS_VFSCONF };
+	int mib[2] = { CTL_VFS, VFS_VFSCONF };
 	size_t size = 0;
 	int rv;
 

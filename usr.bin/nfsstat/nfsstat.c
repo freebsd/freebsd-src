@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)nfsstat.c	8.1 (Berkeley) 6/6/93";*/
 static const char rcsid[] =
-	"$Id: nfsstat.c,v 1.4 1995/10/29 09:53:00 phk Exp $";
+	"$Id: nfsstat.c,v 1.5 1995/10/30 15:44:44 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -163,7 +163,7 @@ readstats(stp)
 		int name[3];
 		size_t buflen = sizeof *stp;
 
-		name[0] = CTL_FS;
+		name[0] = CTL_VFS;
 		name[1] = MOUNT_NFS;
 		name[2] = NFS_NFSSTATS;
 
