@@ -734,6 +734,7 @@ free_sd(int sdno)
 	    sd->sectors);
     if (sd->plexno >= 0)
 	PLEX[sd->plexno].subdisks--;			    /* one less subdisk */
+    destroy_dev(sd->dev);
     bzero(sd, sizeof(struct sd));			    /* and clear it out */
     sd->state = sd_unallocated;
     vinum_conf.subdisks_used--;				    /* one less sd */
@@ -811,6 +812,7 @@ free_plex(int plexno)
 	Free(plex->sdnos);
     if (plex->lock)
 	Free(plex->lock);
+    destroy_dev(plex->dev);
     bzero(plex, sizeof(struct plex));			    /* and clear it out */
     plex->state = plex_unallocated;
 }
@@ -881,6 +883,7 @@ free_volume(int volno)
     struct volume *vol;
 
     vol = &VOL[volno];
+    destroy_dev(vol->dev);
     bzero(vol, sizeof(struct volume));			    /* and clear it out */
     vol->state = volume_unallocated;
 }
@@ -1220,6 +1223,8 @@ config_subdisk(int update)
     if (sd->sectors < 0)
 	throw_rude_remark(EINVAL, "sd %s has no length spec", sd->name);
 
+    sd->dev = make_dev(&vinum_cdevsw, VINUMRMINOR(VINUM_SD_TYPE, sdno),
+	UID_ROOT, GID_WHEEL, S_IRUSR|S_IWUSR, "vinum/sd/%s", sd->name);
     if (state != sd_unallocated)			    /* we had a specific state to set */
 	sd->state = state;				    /* do it now */
     else if (sd->state == sd_unallocated)		    /* no, nothing set yet, */
@@ -1376,6 +1381,9 @@ config_plex(int update)
 
     if (plex->organization == plex_disorg)
 	throw_rude_remark(EINVAL, "No plex organization specified");
+
+    plex->dev = make_dev(&vinum_cdevsw, VINUMRMINOR(VINUM_PLEX_TYPE, plexno),
+	UID_ROOT, GID_WHEEL, S_IRUSR|S_IWUSR, "vinum/plex/%s", plex->name);
 
     if ((plex->volno < 0)				    /* we don't have a volume */
     &&(!detached))					    /* and we wouldn't object */
@@ -1534,7 +1542,10 @@ config_volume(int update)
     /* Find out how big our volume is */
     for (i = 0; i < vol->plexes; i++)
 	vol->size = max(vol->size, PLEX[vol->plex[i]].length);
+
     vinum_conf.volumes_used++;				    /* one more in use */
+    vol->dev = make_dev(&vinum_cdevsw, VINUMRMINOR(VINUM_VOLUME_TYPE, volno),
+	UID_ROOT, GID_WHEEL, S_IRUSR|S_IWUSR, "vinum/vol/%s", vol->name);
 }
 
 /*
@@ -1686,23 +1697,29 @@ remove_sd_entry(int sdno, int force, int recurse)
     ||(sd->state == sd_unallocated)) {			    /* or nothing there */
 	ioctl_reply->error = EINVAL;
 	strcpy(ioctl_reply->msg, "No such subdisk");
+	return;
     } else if (sd->flags & VF_OPEN) {			    /* we're open */
 	ioctl_reply->error = EBUSY;			    /* no getting around that */
 	return;
     } else if (sd->plexno >= 0) {			    /* we have a plex */
-	if (force) {					    /* do it at any cost */
+	if (!force) {					    /* do it at any cost */
+	    ioctl_reply->error = EBUSY;			    /* can't do that */
+	    return;
+	} else {
 	    struct plex *plex = &PLEX[sd->plexno];	    /* point to our plex */
 	    int mysdno;
 
 	    for (mysdno = 0;				    /* look for ourselves */
 		mysdno < plex->subdisks && &SD[plex->sdnos[mysdno]] != sd;
 		mysdno++);
-	    if (mysdno == plex->subdisks)		    /* didn't find it */
+	    if (mysdno == plex->subdisks) {		    /* didn't find it */
 		log(LOG_ERR,
 		    "Error removing subdisk %s: not found in plex %s\n",
 		    SD[mysdno].name,
 		    plex->name);
-	    else {					    /* remove the subdisk from plex */
+		ioctl_reply->error = EINVAL;
+		return;
+	    } else {					    /* remove the subdisk from plex */
 		if (mysdno < (plex->subdisks - 1))	    /* not the last subdisk */
 		    bcopy(&plex->sdnos[mysdno + 1],
 			&plex->sdnos[mysdno],
@@ -1719,14 +1736,10 @@ remove_sd_entry(int sdno, int force, int recurse)
 	     */
 	    if (plex->organization != plex_concat)	    /* not concatenated, */
 		set_plex_state(plex->plexno, plex_faulty, setstate_force); /* need to reinitialize */
-	    log(LOG_INFO, "vinum: removing %s\n", sd->name);
-	    free_sd(sdno);
-	} else
-	    ioctl_reply->error = EBUSY;			    /* can't do that */
-    } else {
-	log(LOG_INFO, "vinum: removing %s\n", sd->name);
-	free_sd(sdno);
+	}
     }
+    log(LOG_INFO, "vinum: removing %s\n", sd->name);
+    free_sd(sdno);
 }
 
 /* remove a plex */
