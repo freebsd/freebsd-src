@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=	gdbtui
+PROG=	gdbtui${GDB_SUFFIX}
 SRCS=	tui-main.c
 NOMAN=
 
