@@ -47,7 +47,6 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
-#include <sys/malloc.h>
 #include <sys/errno.h>
 
 #include <net/if.h>
@@ -98,8 +97,8 @@ atm_output(ifp, m0, dst, rt0)
 	u_int16_t etype = 0;			/* if using LLC/SNAP */
 	int s, error = 0, sz;
 	struct atm_pseudohdr atmdst, *ad;
-	register struct mbuf *m = m0;
-	register struct rtentry *rt;
+	struct mbuf *m = m0;
+	struct rtentry *rt;
 	struct atmllc *atmllc;
 	struct atmllc *llc_hdr = NULL;
 	u_int32_t atm_flags;
@@ -329,11 +328,11 @@ atm_ifattach(ifp)
 	ifp->if_snd.ifq_maxlen = 50;	/* dummy */
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
-	for (ifa = ifp->if_addrlist.tqh_first; ifa != 0;
-	    ifa = ifa->ifa_list.tqe_next)
+	for (ifa = TAILQ_FIRST(&ifp->if_addrlist); ifa != 0;
+	    ifa = TAILQ_NEXT(ifa, ifa_list))
 #elif defined(__FreeBSD__) && (__FreeBSD__ > 2)
-	for (ifa = ifp->if_addrhead.tqh_first; ifa; 
-	    ifa = ifa->ifa_link.tqe_next)
+	for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa; 
+	    ifa = TAILQ_NEXT(ifa, ifa_link))
 #elif defined(__FreeBSD__) || defined(__bsdi__)
 	for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next) 
 #endif
