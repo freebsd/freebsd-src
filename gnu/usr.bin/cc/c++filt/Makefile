@@ -8,6 +8,7 @@ PROG=	c++filt
 SRCS=	cplus-dem.c getopt.c getopt1.c underscore.c
 BINDIR=	/usr/libexec/${OBJFORMAT}
 NOMAN=	1
+
 CFLAGS+= -DMAIN -DIN_GCC -DVERSION=\"$(version)\"
 
 CLEANFILES= tmp-dum.c tmp-dum.s underscore.c

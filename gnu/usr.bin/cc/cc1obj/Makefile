@@ -12,9 +12,10 @@ SRCS+=	c-aux-info.c c-common.c c-convert.c c-decl.c c-iterate.c c-lex.c \
 BINDIR=	/usr/libexec
 NOMAN=	1
 NOSHARED=yes
-DPADD+=	${LIBCC_INT} 
-LDADD+=	${LIBCC_INT}
 
 CFLAGS+= -I${GCCDIR}/objc
+
+DPADD+=	${LIBCC_INT} 
+LDADD+=	${LIBCC_INT}
 
 .include <bsd.prog.mk>
