@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.75 1998/02/02 17:37:05 jhay Exp $
+#	$Id: Makefile,v 1.246.2.76 1998/02/10 18:31:14 jkh Exp $
 #
 # How to roll a release:
 #
@@ -137,7 +137,8 @@ rerelease release:
 .if !defined(NODOC)
 	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -d ${CVSROOT} co -P doc
 	cd ${CHROOTDIR}/usr/ports && for i in ${DOCPORTS}; do \
-	  (cd $$i; make fetch DISTDIR=${CHROOTDIR}/usr/ports/distfiles ); \
+	  (cd $$i; make fetch MASTER_SITE_OVERRIDE=file:/usr/ports/distfiles/ \
+	    DISTDIR=${CHROOTDIR}/usr/ports/distfiles ); \
         done
 .endif
 .endif
