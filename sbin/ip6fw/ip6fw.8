@@ -499,7 +499,7 @@ is probably not as straightforward as you would think
 .Em ( "not supported" ) .
 I recommend this command line:
 .Bd -literal -offset center
-kldload /modules/ip6fw_mod.o && \e
+kldload ip6fw && \e
 ip6fw add 32000 allow all from any to any
 .Ed
 .Pp
