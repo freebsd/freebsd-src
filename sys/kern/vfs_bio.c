@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.193.2.3 1999/01/31 05:30:12 dillon Exp $
+ * $Id: vfs_bio.c,v 1.193.2.4 1999/03/03 17:43:17 julian Exp $
  */
 
 /*
@@ -997,8 +997,9 @@ trytofreespace:
 		/* wait for a free buffer of any kind */
 		needsbuffer |= VFS_BIO_NEED_ANY;
 		do
-			tsleep(&needsbuffer, (PRIBIO + 4) | slpflag, "newbuf",
-			    slptimeo);
+			if (tsleep(&needsbuffer, (PRIBIO + 4) | slpflag,
+			    "newbuf", slptimeo))
+				return (NULL);
 		while (needsbuffer & VFS_BIO_NEED_ANY);
 		return (0);
 	}
