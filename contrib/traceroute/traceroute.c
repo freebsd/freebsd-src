@@ -660,10 +660,10 @@ main(int argc, char **argv)
 
 #if	defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
 	if (setpolicy(s, "in bypass") < 0)
-		errx(1, ipsec_strerror());
+		errx(1, "%s", ipsec_strerror());
 
 	if (setpolicy(s, "out bypass") < 0)
-		errx(1, ipsec_strerror());
+		errx(1, "%s", ipsec_strerror());
 #endif	/* defined(IPSEC) && defined(IPSEC_POLICY_IPSEC) */
 
 	if (sndsock < 0) {
@@ -740,10 +740,10 @@ main(int argc, char **argv)
 
 #if	defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
 	if (setpolicy(sndsock, "in bypass") < 0)
-		errx(1, ipsec_strerror());
+		errx(1, "%s", ipsec_strerror());
 
 	if (setpolicy(sndsock, "out bypass") < 0)
-		errx(1, ipsec_strerror());
+		errx(1, "%s", ipsec_strerror());
 #endif	/* defined(IPSEC) && defined(IPSEC_POLICY_IPSEC) */
 
 	Fprintf(stderr, "%s to %s (%s)",
@@ -882,15 +882,19 @@ int
 wait_for_reply(register int sock, register struct sockaddr_in *fromp,
     register struct timeval *tp)
 {
-	fd_set fds;
+	fd_set *fdsp;
+	size_t nfds;
 	struct timeval now, wait;
 	struct timezone tz;
 	register int cc = 0;
 	register int error;
 	int fromlen = sizeof(*fromp);
 
-	FD_ZERO(&fds);
-	FD_SET(sock, &fds);
+	nfds = howmany(sock + 1, NFDBITS);
+	if ((fdsp = malloc(nfds)) == NULL)
+		err(1, "malloc");
+	memset(fdsp, 0, nfds);
+	FD_SET(sock, fdsp);
 
 	wait.tv_sec = tp->tv_sec + waittime;
 	wait.tv_usec = tp->tv_usec;
@@ -901,7 +905,7 @@ wait_for_reply(register int sock, register struct sockaddr_in *fromp,
 		wait.tv_usec = 1;
 	}
 
-	error = select(sock + 1, &fds, (fd_set *)0, (fd_set *)0, &wait);
+	error = select(sock + 1, fdsp, NULL, NULL, &wait);
 	if (error == -1 && errno == EINVAL) {
 		Fprintf(stderr, "%s: botched select() args\n", prog);
 		exit(1);
@@ -910,6 +914,7 @@ wait_for_reply(register int sock, register struct sockaddr_in *fromp,
 		cc = recvfrom(s, (char *)packet, sizeof(packet), 0,
 			    (struct sockaddr *)fromp, &fromlen);
 
+	free(fdsp);
 	return(cc);
 }
 
@@ -923,7 +928,7 @@ setpolicy(so, policy)
 
 	buf = ipsec_set_policy(policy, strlen(policy));
 	if (buf == NULL) {
-		warnx(ipsec_strerror());
+		warnx("%s", ipsec_strerror());
 		return -1;
 	}
 	(void)setsockopt(so, IPPROTO_IP, IP_IPSEC_POLICY,
