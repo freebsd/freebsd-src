@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 Michael Smith
+ * Copyright (c) 2000, 2001 Michael Smith
  * Copyright (c) 2000 BSDi
  * All rights reserved.
  *
@@ -51,98 +51,98 @@
 #define ACPI_BUS_SPACE_IO	I386_BUS_SPACE_IO
 #define ACPI_BUS_HANDLE		0
 
-UINT8
-AcpiOsIn8(ACPI_IO_ADDRESS InPort)
-{
-    return(bus_space_read_1(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, InPort));
-}
-
-UINT16
-AcpiOsIn16(ACPI_IO_ADDRESS InPort)
-{
-    return(bus_space_read_2(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, InPort));
-}
-
-UINT32
-AcpiOsIn32(ACPI_IO_ADDRESS InPort)
-{
-    return(bus_space_read_4(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, InPort));
-}
-
-void
-AcpiOsOut8(ACPI_IO_ADDRESS OutPort, UINT8 Value)
-{
-    bus_space_write_1(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, OutPort, Value);
-}
-
-void
-AcpiOsOut16(ACPI_IO_ADDRESS OutPort, UINT16 Value)
-{
-    bus_space_write_2(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, OutPort, Value);
-}
-
-void
-AcpiOsOut32(ACPI_IO_ADDRESS OutPort, UINT32 Value)
-{
-    bus_space_write_4(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, OutPort, Value);
-}
-
 ACPI_STATUS
-AcpiOsReadPciCfgByte (UINT32 Bus, UINT32 DeviceFunction, UINT32 Register, UINT8 *Value)
+AcpiOsReadPort (
+    ACPI_IO_ADDRESS	InPort,
+    void		*Value,
+    UINT32		Width)
 {
-    u_int32_t	result;
+    switch (Width) {
+    case 8:
+        *(u_int8_t *)Value = bus_space_read_1(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, InPort);
+        break;
+    case 16:
+        *(u_int16_t *)Value = bus_space_read_2(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, InPort);
+        break;
+    case 32:
+        *(u_int32_t *)Value = bus_space_read_4(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, InPort);
+        break;
+    default:
+        /* debug trap goes here */
+    }
 
-    if (!pci_cfgregopen())
-	return(AE_NOT_EXIST);
-    result = pci_cfgregread(Bus, DeviceFunction >> 16, DeviceFunction & 0xff, Register, 1);
-    *Value = (UINT8)result;
     return(AE_OK);
 }
 
 ACPI_STATUS
-AcpiOsReadPciCfgWord (UINT32 Bus, UINT32 DeviceFunction, UINT32 Register, UINT16 *Value)
+AcpiOsWritePort (
+    ACPI_IO_ADDRESS	OutPort,
+    NATIVE_UINT		Value,
+    UINT32		Width)
 {
-    u_int32_t	result;
+    switch (Width) {
+    case 8:
+        bus_space_write_1(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, OutPort, Value);
+        break;
+    case 16:
+        bus_space_write_2(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, OutPort, Value);
+        break;
+    case 32:
+        bus_space_write_4(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, OutPort, Value);
+        break;
+    default:
+        /* debug trap goes here */
+    }
 
-    if (!pci_cfgregopen())
-	return(AE_NOT_EXIST);
-    result = pci_cfgregread(Bus, DeviceFunction >> 16, DeviceFunction & 0xff, Register, 2);
-    *Value = (UINT16)result;
     return(AE_OK);
 }
 
 ACPI_STATUS
-AcpiOsReadPciCfgDword (UINT32 Bus, UINT32 DeviceFunction, UINT32 Register, UINT32 *Value)
+AcpiOsReadPciConfiguration (
+    ACPI_PCI_ID		*PciId,
+    UINT32		Register,
+    void		*Value,
+    UINT32		Width)
 {
+    u_int32_t	byte_width = Width / 8;
+    u_int32_t	val;
+
     if (!pci_cfgregopen())
-	return(AE_NOT_EXIST);
-    *Value = pci_cfgregread(Bus, DeviceFunction >> 16, DeviceFunction & 0xff, Register, 4);
+        return(AE_NOT_EXIST);
+
+    val = pci_cfgregread(PciId->Bus, PciId->Device, PciId->Function, Register, byte_width);
+    switch (Width) {
+    case 8:
+	*(u_int8_t *)Value = val & 0xff;
+	break;
+    case 16:
+	*(u_int16_t *)Value = val & 0xffff;
+	break;
+    case 32:
+	*(u_int32_t *)Value = val;
+	break;
+    default:
+	/* debug trap goes here */
+    }
+    
+
     return(AE_OK);
 }
 
-ACPI_STATUS
-AcpiOsWritePciCfgByte (UINT32 Bus, UINT32 DeviceFunction, UINT32 Register, UINT8 Value)
-{
-    if (!pci_cfgregopen())
-	return(AE_NOT_EXIST);
-    pci_cfgregwrite(Bus, DeviceFunction >> 16, DeviceFunction & 0xff, Register, (u_int32_t)Value, 1);
-    return(AE_OK);
-}
 
 ACPI_STATUS
-AcpiOsWritePciCfgWord (UINT32 Bus, UINT32 DeviceFunction, UINT32 Register, UINT16 Value)
+AcpiOsWritePciConfiguration (
+    ACPI_PCI_ID		*PciId,
+    UINT32		Register,
+    NATIVE_UINT		Value,
+    UINT32		Width)
 {
-    if (!pci_cfgregopen())
-	return(AE_NOT_EXIST);
-    pci_cfgregwrite(Bus, DeviceFunction >> 16, DeviceFunction & 0xff, Register, (u_int32_t)Value, 2);
-    return(AE_OK);
-}
+    u_int32_t	byte_width = Width / 8;
 
-ACPI_STATUS
-AcpiOsWritePciCfgDword (UINT32 Bus, UINT32 DeviceFunction, UINT32 Register, UINT32 Value)
-{
     if (!pci_cfgregopen())
-	return(AE_NOT_EXIST);
-    pci_cfgregwrite(Bus, DeviceFunction >> 16, DeviceFunction & 0xff, Register, (u_int32_t)Value, 4);
+    	return(AE_NOT_EXIST);
+
+    pci_cfgregwrite(PciId->Bus, PciId->Device, PciId->Function, Register, Value, byte_width);
+
     return(AE_OK);
 }

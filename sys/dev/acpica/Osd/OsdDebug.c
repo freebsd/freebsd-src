@@ -49,13 +49,6 @@
 #include "acdebug.h"
 #include <dev/acpica/acpivar.h>
 
-ACPI_STATUS
-AcpiOsBreakpoint(NATIVE_CHAR *Message)
-{
-    Debugger(Message);
-    return(AE_OK);
-}
-
 UINT32
 AcpiOsGetLine(NATIVE_CHAR *Buffer)
 {
@@ -78,6 +71,32 @@ AcpiOsDbgAssert(void *FailedAssertion, void *FileName, UINT32 LineNumber, NATIVE
 {
     printf("ACPI: %s:%d - %s\n", (char *)FileName, LineNumber, Message);
     printf("ACPI: assertion  %s\n", (char *)FailedAssertion);
+}
+
+ACPI_STATUS
+AcpiOsSignal (
+    UINT32                  Function,
+    void                    *Info)
+{
+    ACPI_SIGNAL_FATAL_INFO	*fatal;
+    NATIVE_CHAR			*message;
+    
+    switch(Function) {
+    case ACPI_SIGNAL_FATAL:
+	fatal = (ACPI_SIGNAL_FATAL_INFO *)Info;
+	panic("ACPI fatal signal, type 0x%x  code 0x%x  argument 0x%x",
+	      fatal->Type, fatal->Code, fatal->Argument);
+	break;
+	
+    case ACPI_SIGNAL_BREAKPOINT:
+	message = (NATIVE_CHAR *)Info;
+	Debugger(message);
+	break;
+
+    default:
+	return(AE_BAD_PARAMETER);
+    }
+    return(AE_OK);
 }
 
 #ifdef ENABLE_DEBUGGER
