@@ -333,6 +333,12 @@ Returns the current file's line number.
 .It Ic __file__
 Returns the current file's name.
 .El
+.Sh DIAGNOSTICS
+.Ex -std
+.Pp
+The
+.Ic m4exit
+macro may be used to change the exit status from the input file.
 .Sh COMPATIBILITY
 .Nm
 follows the Single Unix 2 specification, along with a few extensions taken
@@ -373,6 +379,17 @@ All builtins do expand without arguments in many other
 Many other
 .Nm
 have dire size limitations with respect to buffer sizes.
+.Sh STANDARDS
+The
+.Nm
+utility
+conforms to
+.St -p1003.1-2001 .
+.Sh HISTORY
+An
+.Nm
+command appeared in
+.At v7 .
 .Sh AUTHORS
 Ozan Yigit <oz@sis.yorku.ca> and Richard A. O'Keefe (ok@goanna.cs.rmit.OZ.AU).
 GNU-m4 compatibility extensions by Marc Espie <espie@cvs.openbsd.org>.
