@@ -72,6 +72,7 @@
 #include <netinet/in_pcb.h>
 #include <netinet/ip_var.h>
 
+#include <vm/uma.h>
 #include <vm/vm.h>
 
 #include <sys/mac_policy.h>
@@ -113,7 +114,7 @@ SYSCTL_INT(_security_mac_mls, OID_AUTO, max_compartments, CTLFLAG_RD,
 static int	mac_mls_slot;
 #define	SLOT(l)	((struct mac_mls *)LABEL_TO_SLOT((l), mac_mls_slot).l_ptr)
 
-MALLOC_DEFINE(M_MACMLS, "mls label", "MAC/MLS labels");
+static uma_zone_t	zone_mls;
 
 static __inline int
 mls_bit_set_empty(u_char *set) {
@@ -128,11 +129,8 @@ mls_bit_set_empty(u_char *set) {
 static struct mac_mls *
 mls_alloc(int flag)
 {
-	struct mac_mls *mac_mls;
 
-	mac_mls = malloc(sizeof(struct mac_mls), M_MACMLS, M_ZERO | flag);
-
-	return (mac_mls);
+	return (uma_zalloc(zone_mls, flag | M_ZERO));
 }
 
 static void
@@ -140,7 +138,7 @@ mls_free(struct mac_mls *mac_mls)
 {
 
 	if (mac_mls != NULL)
-		free(mac_mls, M_MACMLS);
+		uma_zfree(zone_mls, mac_mls);
 	else
 		atomic_add_int(&destroyed_not_inited, 1);
 }
@@ -458,6 +456,8 @@ static void
 mac_mls_init(struct mac_policy_conf *conf)
 {
 
+	zone_mls = uma_zcreate("mac_mls", sizeof(struct mac_mls), NULL,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 }
 
 /*
