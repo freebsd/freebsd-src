@@ -45,9 +45,7 @@ driver.
 The NWID doesn't affect in this mode.
 .Pp
 For more information on configuring this device, see
-.Xr ifconfig 8
-and
-.Xr ifmedia 4 .
+.Xr ifconfig 8 .
 .Sh HARDWARE
 Cards supported by the
 .Nm
@@ -67,6 +65,10 @@ driver include:
 .It Netwave AirSurfer Plus
 1Mbps Frequency Hopping PCCARD adapter
 .It Netwave AirSurfer Pro
+2Mbps Direct Sequence PCCARD adapter
+.It Nokia C020 WLAN
+2Mbps Direct Sequence PCCARD adapter
+.It Farallon SkyLINE
 2Mbps Direct Sequence PCCARD adapter
 .El
 .Pp
@@ -89,38 +91,17 @@ For DS radio cards,
 mediaopt can be used for
 .Xr wi 4
 compatible adhoc mode.
+In addition to these station modes,
+.Em hostap
+mediaopt can be used to create a host-based access point.
 .Sh DIAGNOSTICS
 .Bl -diag
-.It "awi0: unable to allocate memory space; using i/o only"
-Indicates that the driver was not able to allocate 32kb of PCMCIA bus
-address space into which to map the device; the driver will use the
-(slightly slower) i/o-space only access methods to read and write to
-the shared memory.
-Since by default,
-.Nx 
-only allocates 16kb of
-address space per PCMCIA controller, this message is in some sense to
-be expected and should not be a cause for alarm.
-See
-.Xr pcmcia 4
-for information on how to increase the memory available to the PCMCIA
-controller.
+.It "awi0: awi_pccard_probe: bad banner:"
+The device failed to initialize its firmware.
 .It "awi0: failed to complete selftest (%s)"
 The device failed to complete its self test.
-.It "awi0: synced with no-bssid at channel %d"
-The device is ready to relay traffic at specified channel.
-.It "awi0: synced with %s ssid %s at channel %d"
-The device has successfully synchronized with at least one of the
-identified stations and is ready to relay traffic.
-.It "awi0: associated with %s ssid %s channel %d signal %d"
-The device has successfully synchronized with the identified Access
-Point and is ready to relay traffic.
-.It "awi0: authentication failed (reason %d)"
-.It "awi0: association failed (reason %d)"
-The access point refuses the association request from the device.
-.It "awi0: no recent beacons from %s; rescanning"
-The device has not seen a beacon from its currently associated Access
-Point recently, and is looking for a new access point.
+In some circumstances, resetting device after power on fails.
+Re-inserting the card or down-then-up interface may be helpful.
 .It "awi0: transmit timeout"
 The device failed to generate an interrupt to acknowledge a
 transmitted packet.
@@ -129,16 +110,15 @@ The system was unable to obtain the lock to access shared memory.
 .It "awi0: command %d failed %x"
 The device failed to complete the request from the system.
 .El
-.Sh BUGS
-Doesn't create IBSS itself.
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr cnw 4 ,
-.Xr ifmedia 4 ,
+.Xr card 4 ,
 .Xr miibus 4 ,
 .Xr netintro 4 ,
-.Xr pcmcia 4 ,
+.Xr pccard 4 ,
 .Xr wi 4 ,
+.Xr wlan 4 ,
 .Xr ifconfig 8
 .Rs
 .%T Am79C930 PCnet Mobile Single-Chip Wireless LAN Media Access Controller
