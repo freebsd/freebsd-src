@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.26 1996/10/31 14:24:35 phk Exp $ */
+/* $Id: main.c,v 1.27 1996/11/10 14:46:50 peter Exp $ */
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -301,9 +301,13 @@ ftpget()
     }
     if ((lp = getenv("FTP_LOGIN")) == NULL)
 	lp = "anonymous";
-    ftp = ftpLogin(host, lp, ftp_pw, 0, ftp_verbose);
-    if (!ftp) 
-	err(1, "couldn't open FTP connection or login to %s.", host);
+    ftp = ftpLogin(host, lp, ftp_pw, 0, ftp_verbose, &status);
+    if (!ftp) {
+	if (status)
+	    errx(1, "%s: %s", host, ftpErrString(status));
+	else
+	    err(1, "couldn't open FTP connection to %s.", host);
+    }
     
     /* Time to set our defaults */
     ftpBinary (ftp);
