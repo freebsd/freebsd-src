@@ -220,6 +220,8 @@ uipc_peeraddr(struct socket *so, struct sockaddr **nam)
 	if (unp->unp_conn && unp->unp_conn->unp_addr)
 		*nam = dup_sockaddr((struct sockaddr *)unp->unp_conn->unp_addr,
 				    1);
+	else
+		*nam = dup_sockaddr((struct sockaddr *)&sun_noname, 1);
 	return 0;
 }
 
