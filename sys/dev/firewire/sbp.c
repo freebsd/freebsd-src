@@ -300,7 +300,7 @@ static void sbp_detach_target __P((struct sbp_target *));
 static void sbp_timeout __P((void *arg));
 static void sbp_mgm_orb __P((struct sbp_dev *, int));
 
-MALLOC_DEFINE(M_SBP, "sbp", "SBP-II/Firewire");
+MALLOC_DEFINE(M_SBP, "sbp", "SBP-II/FireWire");
 
 /* cam related functions */
 static void	sbp_action(struct cam_sim *sim, union ccb *ccb);
@@ -1251,7 +1251,7 @@ END_DEBUG
 	case T_DIRECT:
 		/* 
 		 * XXX Convert Direct Access device to RBC.
-		 * I've never seen Firewire DA devices which support READ_6.
+		 * I've never seen FireWire DA devices which support READ_6.
 		 */
 #if 1
 		if (SID_TYPE(inq) == T_DIRECT)
@@ -1332,7 +1332,7 @@ SBP_DEBUG(0)
 				" len:%x stat:%x orb:%x%08x\n",
 			sbp_status->src, sbp_status->resp, sbp_status->dead,
 			sbp_status->len, sbp_status->status,
-			ntohl(sbp_status->orb_hi), ntohl(sbp_status->orb_lo));
+			ntohs(sbp_status->orb_hi), ntohl(sbp_status->orb_lo));
 		sbp_show_sdev_info(sdev, 2);
 		status = sbp_status->status;
 		switch(sbp_status->resp) {
@@ -1723,7 +1723,7 @@ SBP_DEBUG(1)
 				ccb->ccb_h.func_code);
 END_DEBUG
 
-			ccb->ccb_h.status = CAM_TID_INVALID;
+			ccb->ccb_h.status = CAM_DEV_NOT_THERE;
 			xpt_done(ccb);
 			return;
 		}
@@ -1743,7 +1743,7 @@ SBP_DEBUG(0)
 				ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
 				ccb->ccb_h.func_code);
 END_DEBUG
-			ccb->ccb_h.status = CAM_TID_INVALID;
+			ccb->ccb_h.status = CAM_DEV_NOT_THERE;
 			xpt_done(ccb);
 			return;
 		}

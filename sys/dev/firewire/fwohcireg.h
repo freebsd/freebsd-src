@@ -300,27 +300,6 @@ struct fwohcidb_tr{
 /*
  * OHCI info structure.
  */
-#if 0
-struct fwohci_softc {
-	struct fw_softc fc;
-	volatile struct ohci_registers *base;
-	int		init;
-#define	SIDPHASE	1
-	u_int32_t	flags;
-	struct 		fwohcidb_tr *db_tr[OHCI_MAX_DMA_CH];
-	struct 		fwohcidb_tr *db_first[OHCI_MAX_DMA_CH];
-	struct 		fwohcidb_tr *db_last[OHCI_MAX_DMA_CH];
-        struct {
-		int		tail;
-		struct fwohcidb_tr *db_tr;
-		struct fwohcidb *db;
-        }dbdvtx[MAX_DVFRAME], dbdvrx[MAX_DVFRAME];
-	int		ndb[OHCI_MAX_DMA_CH];
-        u_int32_t	isohdr[OHCI_MAX_DMA_CH];
-        int		queued[OHCI_MAX_DMA_CH];
-        int		dma_ch[OHCI_MAX_DMA_CH];
-};
-#endif
 struct fwohci_txpkthdr{
 	union{
 		u_int32_t ld[4];
@@ -377,6 +356,8 @@ struct fwohci_trailer{
 
 #define OHCI_INT_PHY_SID	(0x1 << 16)
 #define OHCI_INT_PHY_BUS_R	(0x1 << 17)
+
+#define OHCI_INT_REG_FAIL	(0x1 << 18)
 
 #define OHCI_INT_PHY_INT	(0x1 << 19)
 #define OHCI_INT_CYC_START	(0x1 << 20)
