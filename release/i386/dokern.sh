@@ -18,7 +18,6 @@ sed	\
 	-e '/PSEUDOFS/d' \
 	-e '/SOFTUPDATES/d' \
 	-e '/SYSV/d' \
-	-e '/UFS_ACL/d' \
 	-e '/UFS_DIRHASH/d' \
 	-e '/WITNESS/d' \
 	-e '/_KPOSIX_PRIORITY_SCHEDULING/d' \
