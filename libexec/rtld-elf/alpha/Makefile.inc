@@ -1,0 +1,1 @@
+CFLAGS+=	-mno-fp-regs
