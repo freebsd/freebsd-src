@@ -159,8 +159,6 @@ typedef struct clockframe {
 	unsigned int if_pc;
 } clockframe_t;
 
-int kdb_trap(int, struct trapframe *);
-
 /*
  * Switch frame
  */
