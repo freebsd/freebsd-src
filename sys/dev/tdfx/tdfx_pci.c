@@ -1,6 +1,39 @@
+/*
+ * Copyright (c) 2000 by Coleman Kane <cokane@FreeBSD.org>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *      This product includes software developed by Gardner Buchanan.
+ * 4. The name of Gardner Buchanan may not be used to endorse or promote
+ *    products derived from this software without specific prior written
+ *    permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ *   $FreeBSD$
+ */
+
 /* 3dfx driver for FreeBSD 4.x - Finished 11 May 2000, 12:25AM ET
  *
- * Copyright (C) 2000, by Coleman Kane <cokane@pohl.ececs.uc.edu>, 
+ * Copyright (C) 2000, by Coleman Kane <cokane@FreeBSD.org>, 
  * based upon the 3dfx driver written for linux, by Daryll Straus, Jon Taylor,
  * and Jens Axboe, located at http://linux.3dfx.com.
  */
@@ -24,7 +57,6 @@
 #include <sys/ioccom.h>
 #include <sys/kernel.h>
 #include	<sys/malloc.h>
-/*#include <sys/memrange.h>*/
 #include <sys/mman.h>
 #include <sys/signalvar.h>
 #include <sys/systm.h>
@@ -42,6 +74,9 @@
 #include <machine/resource.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+#ifdef TDFX_LINUX
+#include <dev/tdfx/tdfx_linux.h>
+#endif
 
 #include <dev/tdfx/tdfx_io.h>
 #include <dev/tdfx/tdfx_vars.h>
@@ -65,6 +100,10 @@ static device_method_t tdfx_methods[] = {
 };
 
 MALLOC_DEFINE(M_TDFX,"TDFX Driver","3DFX Graphics[/2D]/3D Accelerator(s)");
+
+#ifdef TDFX_LINUX
+LINUX_IOCTL_SET(tdfx, LINUX_IOCTL_TDFX_MIN, LINUX_IOCTL_TDFX_MAX);
+#endif
 
 /* Char. Dev. file operations structure */
 static struct cdevsw tdfx_cdev = {
@@ -157,7 +196,7 @@ tdfx_attach(device_t dev) {
 	 * bitshift).
 	 */
 	tdfx_info->addr0 = (pci_read_config(dev, 0x10, 4) & 0xffff0000);
-#ifdef TDFX_VERBOSE
+#ifdef DEBUG
 	device_printf(dev, "Base0 @ 0x%x\n", tdfx_info->addr0);
 #endif
 
@@ -165,14 +204,14 @@ tdfx_attach(device_t dev) {
 	tdfx_info->memrange = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 1,
 			RF_ACTIVE);
 	if(tdfx_info->memrange == NULL) {
-#ifdef TDFX_VERBOSE
+#ifdef DEBUG
 		device_printf(dev, "Error mapping mem, won't be able to use mmap()\n");
 #endif
 		tdfx_info->memrid = 0;
 	}
 	else {
 		tdfx_info->memrid = rid;
-#ifdef TDFX_VERBOSE
+#ifdef DEBUG
 		device_printf(dev, "Mapped to: 0x%x\n", 
 				(unsigned int)rman_get_start(tdfx_info->memrange));
 #endif
@@ -184,7 +223,7 @@ tdfx_attach(device_t dev) {
 	 */
 
 	if(tdfx_setmtrr(dev) != 0) {
-#ifdef TDFX_VERBOSE
+#ifdef DEBUG
 		device_printf(dev, "Some weird error setting MTRRs");
 #endif
 		return -1;
@@ -215,7 +254,7 @@ tdfx_detach(device_t dev) {
 		mem driver checks for it, we should remove it in order
 		to free an MTRR for another device */
 	retval = tdfx_clrmtrr(dev);
-#ifdef TDFX_VERBOSE 
+#ifdef DEBUG
 	if(retval != 0) 
 		printf("tdfx: For some reason, I couldn't clear the mtrr\n");
 #endif
@@ -224,7 +263,7 @@ tdfx_detach(device_t dev) {
 
 static int
 tdfx_shutdown(device_t dev) {
-#ifdef TDFX_VERBOSE
+#ifdef DEBUG
 	device_printf(dev, "tdfx: Device Shutdown\n");
 #endif
 	return 0;
@@ -279,7 +318,7 @@ tdfx_setmtrr(device_t dev) {
 	retval = mem_range_attr_set(&tdfx_info->mrdesc, &act);
 
 	if(retval == 0) {
-#ifdef TDFX_VERBOSE
+#ifdef DEBUG
 		device_printf(dev, "MTRR Set Correctly for tdfx\n");
 #endif
 	} else if((pci_get_devid(dev) == PCI_DEVICE_3DFX_VOODOO2) ||
@@ -294,7 +333,7 @@ tdfx_setmtrr(device_t dev) {
 		/*
 		 * If, for some reason, we can't set the MTRR (N/A?) we may still continue
 		 */
-#ifdef TDFX_VERBOSE
+#ifdef DEBUG
 		if(retval == 0) {
 			device_printf(dev, "MTRR Set Type Uncacheable
 					%x\n", (u_int32_t)tdfx_info->mrdesc.mr_base);
@@ -303,7 +342,7 @@ tdfx_setmtrr(device_t dev) {
 		}
 #endif
 	}
-#ifdef TDFX_VERBOSE
+#ifdef DEBUG
 	else {
 		device_printf(dev, "Couldn't Set MTRR\n");
 		return 0;
@@ -322,7 +361,7 @@ tdfx_open(dev_t dev, int flags, int fmt, struct proc *p)
 	struct tdfx_softc *tdfx_info = devclass_get_softc(tdfx_devclass, 
 			UNIT(minor(dev)));
 	if(tdfx_info->busy != 0) return EBUSY;
-#ifdef	TDFX_VERBOSE
+#ifdef	DEBUG
 	printf("3dfx: Opened by #%d\n", p->p_pid);
 #endif
 	/* Set the driver as busy */
@@ -341,7 +380,7 @@ tdfx_close(dev_t dev, int fflag, int devtype, struct proc* p)
 		UNIT(minor(dev)));
 	if(tdfx_info->busy == 0) return EBADF;
 	tdfx_info->busy = 0;
-#ifdef	TDFX_VERBOSE
+#ifdef	DEBUG
 	printf("Closed by #%d\n", p->p_pid);
 #endif
 	return 0;
@@ -363,7 +402,7 @@ tdfx_mmap(dev_t dev, vm_offset_t offset, int nprot)
 	
 	/* If, for some reason, its not configured, we bail out */
 	if(tdfx_info == NULL) {
-#ifdef	TDFX_VERBOSE
+#ifdef	DEBUG
 	   printf("tdfx: tdfx_info (softc) is NULL\n");
 #endif
 	   return -1;
@@ -373,7 +412,7 @@ tdfx_mmap(dev_t dev, vm_offset_t offset, int nprot)
 	if((offset & 0xff000000) == tdfx_info->addr0)
 		offset &= 0xffffff;
 	if((offset >= 0x1000000) || (offset < 0)) {
-#ifdef  TDFX_VERBOSE
+#ifdef  DEBUG
 	   printf("tdfx: offset %x out of range\n", offset);
 #endif
 	   return -1;
@@ -410,7 +449,7 @@ tdfx_query_fetch(u_int cmd, struct tdfx_pio_data *piod)
 	/*piod->device &= 0xf;*/
 	if((piod == NULL) ||(tdfx_count <= piod->device) ||
 			(piod->device < 0)) {
-#ifdef TDFX_VERBOSE
+#ifdef DEBUG
 		printf("tdfx: Bad device or internal struct in tdfx_query_fetch\n");
 #endif
 		return -EINVAL;
@@ -490,7 +529,7 @@ tdfx_query_update(u_int cmd, struct tdfx_pio_data *piod)
 
 	if((piod == NULL) || (piod->device >= (tdfx_count &
 					0xf))) {
-#ifdef TDFX_VERBOSE
+#ifdef DEBUG
 		printf("tdfx: Bad struct or device in tdfx_query_update\n");
 #endif
 		return -EINVAL;
@@ -616,7 +655,7 @@ tdfx_do_query(u_int cmd, struct tdfx_pio_data *piod)
 			break;
 		default:
 			/* In case we are thrown a bogus sub-command! */
-#ifdef TDFX_VERBOSE
+#ifdef DEBUG
 			printf("Bad Sub-cmd: 0x%x\n", _IOC_NR(cmd));
 #endif
 			return -EINVAL;
@@ -660,7 +699,7 @@ tdfx_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc * p)
 {
 	int retval = 0;
 	struct tdfx_pio_data *piod = (struct tdfx_pio_data*)data;
-#ifdef	TDFX_VERBOSE
+#ifdef	DEBUG
 	printf("IOCTL'd by #%d, cmd: 0x%x, data: 0x%x\n", p->p_pid, (u_int32_t)cmd,
 			(unsigned int)piod);
 #endif
@@ -680,7 +719,7 @@ tdfx_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc * p)
 		default:
 			/* Technically, we won't reach this from linux emu, but when glide
 			 * finally gets ported, watch out! */
-#ifdef TDFX_VERBOSE
+#ifdef DEBUG
 			printf("Bad IOCTL from #%d\n", p->p_pid);
 #endif
 			return ENXIO;
@@ -688,6 +727,29 @@ tdfx_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc * p)
 
 	return 0;
 }
+
+#ifdef TDFX_LINUX
+/*
+ * Linux emulation IOCTL for /dev/tdfx
+ */
+static int
+linux_ioctl_tdfx(struct proc* p, struct linux_ioctl_args* args)
+{
+   int error = 0;
+   u_long cmd = args->cmd & 0xffff;
+
+   /* The structure passed to ioctl has two shorts, one int
+      and one void*. */
+   char d_pio[2*sizeof(short) + sizeof(int) + sizeof(void*)];
+
+   struct file *fp = p->p_fd->fd_ofiles[args->fd];
+
+   /* We simply copy the data and send it right to ioctl */
+   copyin((caddr_t)args->arg, &d_pio, sizeof(d_pio));
+   error = fo_ioctl(fp, cmd, (caddr_t)&d_pio, p);
+   return error;
+}
+#endif /* TDFX_LINUX */
 
 
 /* This is the device driver struct. This is sent to the driver subsystem to
