@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amd.c,v 1.6 1999/09/30 21:01:29 ezk Exp $
+ * $Id: amd.c,v 1.8.2.3 2001/01/10 03:22:59 ezk Exp $
  * $FreeBSD$
  *
  */
@@ -178,8 +178,8 @@ daemon_mode(void)
   if (gopt.flags & CFM_PRINT_PID) {
     if (STREQ(gopt.pid_file, "/dev/stdout")) {
       printf("%ld\n", (long) am_mypid);
+      /* flush stdout, just in case */
       fflush(stdout);
-      /* do not fclose stdout */
     } else {
       FILE *f;
       mode_t prev_umask = umask(0022); /* set secure temporary umask */
@@ -477,7 +477,7 @@ main(int argc, char *argv[])
   verstr = strtok(get_version_string(), "\n");
   plog(XLOG_INFO, "AM-UTILS VERSION INFORMATION:");
   while (verstr) {
-    plog(XLOG_INFO, verstr);
+    plog(XLOG_INFO, "%s", verstr);
     verstr = strtok(NULL, "\n");
   }
 
