@@ -55,6 +55,13 @@
 #define MDL_VA(b)						\
 	((void *)((char *)((b)->nb_startva) + (b)->nb_byteoffset))
 
+#define WDM_MAJOR		1
+#define WDM_MINOR_WIN98		0x00
+#define WDM_MINOR_WINME		0x05
+#define WDM_MINOR_WIN2000	0x10
+#define WDM_MINOR_WINXP		0x20
+#define WDM_MINOR_WIN2003	0x30
+
 /*-
  * The ndis_kspin_lock type is called KSPIN_LOCK in MS-Windows.
  * According to the Windows DDK header files, KSPIN_LOCK is defined like this:
