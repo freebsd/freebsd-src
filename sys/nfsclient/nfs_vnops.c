@@ -1824,7 +1824,7 @@ nfsmout:
 	 */
 	if (error == EEXIST || (!error && !gotvp)) {
 		if (newvp) {
-			vrele(newvp);
+			vput(newvp);
 			newvp = NULL;
 		}
 		error = nfs_lookitup(dvp, cnp->cn_nameptr, len, cnp->cn_cred,
@@ -1837,7 +1837,7 @@ nfsmout:
 	}
 	if (error) {
 		if (newvp)
-			vrele(newvp);
+			vput(newvp);
 	} else
 		*ap->a_vpp = newvp;
 	return (error);
