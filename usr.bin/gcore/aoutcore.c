@@ -100,7 +100,7 @@ main(argc, argv)
 	struct exec exec;
 	int ch, cnt, efd, fd, sflag, uid;
 	char *binfile, *corefile;
-	char errbuf[_POSIX2_LINE_MAX], fname[MAXPATHLEN + 1];
+	char errbuf[_POSIX2_LINE_MAX], fname[MAXPATHLEN];
 	int is_aout;
 
 	sflag = 0;
