@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -42,7 +37,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include<config.h>
-RCSID("$Id: pam.c,v 1.18 1999/03/17 22:37:10 assar Exp $");
+RCSID("$Id: pam.c,v 1.22 1999/12/02 16:58:37 joda Exp $");
 #endif
 
 #include <stdio.h>
@@ -150,10 +145,10 @@ auth_su(pam_handle_t *pamh, int flags, char *user, struct pam_conv *conv)
     
     pw = getpwuid(getuid());
     if(strcmp(user, "root") == 0){
-	strcpy_truncate(pr.name, pw->pw_name, sizeof(pr.name));
-	strcpy_truncate(pr.instance, "root", sizeof(pr.instance));
+	strlcpy(pr.name, pw->pw_name, sizeof(pr.name));
+	strlcpy(pr.instance, "root", sizeof(pr.instance));
     }else{
-	strcpy_truncate(pr.name, user, sizeof(pr.name));
+	strlcpy(pr.name, user, sizeof(pr.name));
 	pr.instance[0] = 0;
     }
     pmsg = &msg;
@@ -212,7 +207,7 @@ pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
 int
 pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
-    char *tkt;
+    char *tkt, *var;
     void *user;
     const char *homedir = NULL;
 
@@ -225,7 +220,11 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
     }
 
     pam_get_data(pamh, "KRBTKFILE", (const void**)&tkt);
-    setenv("KRBTKFILE", tkt, 1);
+    var = malloc(strlen("KRBTKFILE=") + strlen(tkt) + 1);
+    strcpy(var, "KRBTKFILE=");
+    strcat(var, tkt);
+    putenv(var);
+    pam_putenv(pamh, var);
     if(k_hasafs()){
 	k_setpag();
 	krb_afslog_home(0, 0, homedir);

@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the 
  *    documentation and/or other materials provided with the distribution. 
  *
- * 3. All advertising materials mentioning features or use of this software 
- *    must display the following acknowledgement: 
- *      This product includes software developed by Kungliga Tekniska 
- *      Högskolan and its contributors. 
- *
- * 4. Neither the name of the Institute nor the names of its contributors 
+ * 3. Neither the name of the Institute nor the names of its contributors 
  *    may be used to endorse or promote products derived from this software 
  *    without specific prior written permission. 
  *
@@ -38,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: get_default_username.c,v 1.1.2.1 1999/07/22 03:19:27 assar Exp $");
+RCSID("$Id: get_default_username.c,v 1.3 1999/12/02 16:58:46 joda Exp $");
 #endif /* HAVE_CONFIG_H */
 
 #include "roken.h"
@@ -72,7 +67,7 @@ get_default_username (void)
 	struct passwd *pwd;
 
 	if (user != NULL) {
-	    pwd = k_getpwnam ((char *)user);
+	    pwd = k_getpwnam (user);
 	    if (pwd != NULL && pwd->pw_uid == uid)
 		return user;
 	}

@@ -43,7 +43,7 @@
 %{
 
 #include "ftpd_locl.h"
-RCSID("$Id: ftpcmd.y,v 1.48 1999/05/08 02:22:43 assar Exp $");
+RCSID("$Id: ftpcmd.y,v 1.56 1999/10/26 11:56:23 assar Exp $");
 
 off_t	restart_point;
 
@@ -98,6 +98,7 @@ static int		 yylex (void);
 	ABOR	DELE	CWD	LIST	NLST	SITE
 	sTAT	HELP	NOOP	MKD	RMD	PWD
 	CDUP	STOU	SMNT	SYST	SIZE	MDTM
+	EPRT	EPSV
 
 	UMASK	IDLE	CHMOD
 
@@ -105,7 +106,9 @@ static int		 yylex (void);
 	CONF	ENC
 
 	KAUTH	KLIST	KDESTROY KRBTKFILE AFSLOG
-	FIND	URL
+	LOCATE	URL
+
+	FEAT	OPTS
 
 	LEXERR
 
@@ -151,9 +154,23 @@ cmd
 			}
 			reply(200, "PORT command successful.");
 		}
+	| EPRT SP STRING CRLF
+		{
+			eprt ($3);
+			free ($3);
+		}
 	| PASV CRLF
 		{
-			passive();
+			pasv ();
+		}
+	| EPSV CRLF
+		{
+			epsv (NULL);
+		}
+	| EPSV SP STRING CRLF
+		{
+			epsv ($3);
+			free ($3);
 		}
 	| TYPE SP type_code CRLF
 		{
@@ -224,24 +241,30 @@ cmd
 		}
 	| RETR SP pathname CRLF check_login
 		{
-			if ($5 && $3 != NULL)
-				retrieve(0, $3);
-			if ($3 != NULL)
-				free($3);
+			char *name = $3;
+
+			if ($5 && name != NULL)
+				retrieve(0, name);
+			if (name != NULL)
+				free(name);
 		}
 	| STOR SP pathname CRLF check_login
 		{
-			if ($5 && $3 != NULL)
-				do_store($3, "w", 0);
-			if ($3 != NULL)
-				free($3);
+			char *name = $3;
+
+			if ($5 && name != NULL)
+				do_store(name, "w", 0);
+			if (name != NULL)
+				free(name);
 		}
 	| APPE SP pathname CRLF check_login
 		{
-			if ($5 && $3 != NULL)
-				do_store($3, "a", 0);
-			if ($3 != NULL)
-				free($3);
+			char *name = $3;
+
+			if ($5 && name != NULL)
+				do_store(name, "a", 0);
+			if (name != NULL)
+				free(name);
 		}
 	| NLST CRLF check_login
 		{
@@ -250,33 +273,23 @@ cmd
 		}
 	| NLST SP STRING CRLF check_login
 		{
-			if ($5 && $3 != NULL)
-				send_file_list($3);
-			if ($3 != NULL)
-				free($3);
+			char *name = $3;
+
+			if ($5 && name != NULL)
+				send_file_list(name);
+			if (name != NULL)
+				free(name);
 		}
 	| LIST CRLF check_login
 		{
-#ifdef HAVE_LS_A
-		  char *cmd = "/bin/ls -lA";
-#else
-		  char *cmd = "/bin/ls -la";
-#endif
-			if ($3)
-				retrieve(cmd, "");
-			
+		    if($3)
+			list_file(".");
 		}
 	| LIST SP pathname CRLF check_login
 		{
-#ifdef HAVE_LS_A
-		  char *cmd = "/bin/ls -lA %s";
-#else
-		  char *cmd = "/bin/ls -la %s";
-#endif
-			if ($5 && $3 != NULL)
-				retrieve(cmd, $3);
-			if ($3 != NULL)
-				free($3);
+		    if($5)
+			list_file($3);
+		    free($3);
 		}
 	| sTAT SP pathname CRLF check_login
 		{
@@ -388,6 +401,20 @@ cmd
 			if ($3)
 				cwd("..");
 		}
+	| FEAT CRLF
+		{
+			lreply(211, "Supported features:");
+			lreply(0, " MDTM");
+			lreply(0, " REST STREAM");
+			lreply(0, " SIZE");
+			reply(211, "End");
+		}
+	| OPTS SP STRING CRLF
+		{
+			free ($3);
+			reply(501, "Bad options");
+		}
+
 	| SITE SP HELP CRLF
 		{
 			help(sitetab, (char *) 0);
@@ -522,16 +549,15 @@ cmd
 #ifdef KRB4
 		    if(guest)
 			reply(500, "Can't be done as guest.");
-		    else if($7){
+		    else if($7)
 			afslog($5);
-		    }
 		    if($5)
 			free($5);
 #else
 		    reply(500, "Command not implemented.");
 #endif
 		}
-	| SITE SP FIND SP STRING CRLF check_login
+	| SITE SP LOCATE SP STRING CRLF check_login
 		{
 		    if($7 && $5 != NULL)
 			find($5);
@@ -696,9 +722,11 @@ host_port
 	: NUMBER COMMA NUMBER COMMA NUMBER COMMA NUMBER COMMA
 		NUMBER COMMA NUMBER
 		{
-			data_dest.sin_family = AF_INET;
-			data_dest.sin_port = htons($9 * 256 + $11);
-			data_dest.sin_addr.s_addr = 
+			struct sockaddr_in *sin = (struct sockaddr_in *)data_dest;
+
+			sin->sin_family = AF_INET;
+			sin->sin_port = htons($9 * 256 + $11);
+			sin->sin_addr.s_addr = 
 			    htonl(($1 << 24) | ($3 << 16) | ($5 << 8) | $7);
 		}
 	;
@@ -901,7 +929,9 @@ struct tab cmdtab[] = {		/* In order defined in RFC 765 */
 	{ "REIN", REIN, ARGS, 0,	"(reinitialize server state)" },
 	{ "QUIT", QUIT, ARGS, 1,	"(terminate service)", },
 	{ "PORT", PORT, ARGS, 1,	"<sp> b0, b1, b2, b3, b4" },
+	{ "EPRT", EPRT, STR1, 1,	"<sp> string" },
 	{ "PASV", PASV, ARGS, 1,	"(set server in passive mode)" },
+	{ "EPSV", EPSV, OSTR, 1,	"[<sp> foo]" },
 	{ "TYPE", TYPE, ARGS, 1,	"<sp> [ A | E | I | L ]" },
 	{ "STRU", STRU, ARGS, 1,	"(specify file structure)" },
 	{ "MODE", MODE, ARGS, 1,	"(specify transfer mode)" },
@@ -952,6 +982,10 @@ struct tab cmdtab[] = {		/* In order defined in RFC 765 */
 	{ "CONF", CONF,	STR1, 1,	"<sp> confidentiality command" },
 	{ "ENC",  ENC,	STR1, 1,	"<sp> privacy command" },
 
+	/* RFC2389 */
+	{ "FEAT", FEAT, ARGS, 1,	"" },
+	{ "OPTS", OPTS, ARGS, 1,	"<sp> command [<sp> options]" },
+
 	{ NULL,   0,    0,    0,	0 }
 };
 
@@ -967,7 +1001,8 @@ struct tab sitetab[] = {
 	{ "KRBTKFILE", KRBTKFILE, STR1, 1, "<sp> ticket-file" },
 	{ "AFSLOG", AFSLOG, OSTR, 1,	"[<sp> cell]" },
 
-	{ "FIND", FIND, STR1, 1,	"<sp> globexpr" },
+	{ "LOCATE", LOCATE, STR1, 1,	"<sp> globexpr" },
+	{ "FIND", LOCATE, STR1, 1,	"<sp> globexpr" },
 
 	{ "URL",  URL,  ARGS, 1,	"?" },
 	
@@ -996,7 +1031,7 @@ ftpd_getline(char *s, int n)
 	cs = s;
 /* tmpline may contain saved command from urgent mode interruption */
 	if(ftp_command){
-	  strcpy_truncate(s, ftp_command, n);
+	  strlcpy(s, ftp_command, n);
 	  if (debug)
 	    syslog(LOG_DEBUG, "command: %s", s);
 #ifdef XXX
@@ -1162,7 +1197,10 @@ yylex(void)
 		dostr1:
 			if (cbuf[cpos] == ' ') {
 				cpos++;
-				state = state == OSTR ? STR2 : ++state;
+				if(state == OSTR)
+				    state = STR2;
+				else
+				    state++;
 				return (SP);
 			}
 			break;
@@ -1335,7 +1373,7 @@ help(struct tab *ctab, char *s)
 			columns = 1;
 		lines = (NCMDS + columns - 1) / columns;
 		for (i = 0; i < lines; i++) {
-		    strcpy_truncate (buf, "   ", sizeof(buf));
+		    strlcpy (buf, "   ", sizeof(buf));
 		    for (j = 0; j < columns; j++) {
 			c = ctab + j * lines + i;
 			snprintf (buf + strlen(buf),
@@ -1347,13 +1385,13 @@ help(struct tab *ctab, char *s)
 			    break;
 			w = strlen(c->name) + 1;
 			while (w < width) {
-			    strcat_truncate (buf,
+			    strlcat (buf,
 					     " ",
 					     sizeof(buf));
 			    w++;
 			}
 		    }
-		    lreply(214, buf);
+		    lreply(214, "%s", buf);
 		}
 		reply(214, "Direct comments to kth-krb-bugs@pdc.kth.se");
 		return;

@@ -142,7 +142,7 @@ void *dlopen(const char *path, int mode)
 		if (errno == ENOEXEC) {
 			char *tmp[BUFSIZ/sizeof(char *)];
 			if (loadquery(L_GETMESSAGES, tmp, sizeof(tmp)) == -1)
-				strcpy_truncate(errbuf,
+				strlcpy(errbuf,
 						strerror(errno),
 						sizeof(errbuf));
 			else {
@@ -151,7 +151,7 @@ void *dlopen(const char *path, int mode)
 					caterr(*p);
 			}
 		} else
-			strcat_truncate(errbuf,
+			strlcat(errbuf,
 					strerror(errno),
 					sizeof(errbuf));
 		return NULL;
@@ -231,29 +231,29 @@ static void caterr(char *s)
 		p++;
 	switch(atoi(s)) {
 	case L_ERROR_TOOMANY:
-		strcat_truncate(errbuf, "to many errors", sizeof(errbuf));
+		strlcat(errbuf, "to many errors", sizeof(errbuf));
 		break;
 	case L_ERROR_NOLIB:
-		strcat_truncate(errbuf, "can't load library", sizeof(errbuf));
-		strcat_truncate(errbuf, p, sizeof(errbuf));
+		strlcat(errbuf, "can't load library", sizeof(errbuf));
+		strlcat(errbuf, p, sizeof(errbuf));
 		break;
 	case L_ERROR_UNDEF:
-		strcat_truncate(errbuf, "can't find symbol", sizeof(errbuf));
-		strcat_truncate(errbuf, p, sizeof(errbuf));
+		strlcat(errbuf, "can't find symbol", sizeof(errbuf));
+		strlcat(errbuf, p, sizeof(errbuf));
 		break;
 	case L_ERROR_RLDBAD:
-		strcat_truncate(errbuf, "bad RLD", sizeof(errbuf));
-		strcat_truncate(errbuf, p, sizeof(errbuf));
+		strlcat(errbuf, "bad RLD", sizeof(errbuf));
+		strlcat(errbuf, p, sizeof(errbuf));
 		break;
 	case L_ERROR_FORMAT:
-		strcat_truncate(errbuf, "bad exec format in", sizeof(errbuf));
-		strcat_truncate(errbuf, p, sizeof(errbuf));
+		strlcat(errbuf, "bad exec format in", sizeof(errbuf));
+		strlcat(errbuf, p, sizeof(errbuf));
 		break;
 	case L_ERROR_ERRNO:
-		strcat_truncate(errbuf, strerror(atoi(++p)), sizeof(errbuf));
+		strlcat(errbuf, strerror(atoi(++p)), sizeof(errbuf));
 		break;
 	default:
-		strcat_truncate(errbuf, s, sizeof(errbuf));
+		strlcat(errbuf, s, sizeof(errbuf));
 		break;
 	}
 }
@@ -519,7 +519,7 @@ static int readExports(ModulePtr mp)
 			 * must copy the first SYMNMLEN chars and make
 			 * sure we have a zero byte at the end.
 			 */
-		        strcpy_truncate (tmpsym, ls->l_name,
+		        strlcpy (tmpsym, ls->l_name,
 					 SYMNMLEN + 1);
 			symname = tmpsym;
 		}

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.in,v 1.29 1999/03/21 17:11:58 joda Exp $
+# $Id: Makefile.in,v 1.30 1999/11/15 10:20:50 assar Exp $
 #
 
 SHELL = /bin/sh
@@ -39,7 +39,8 @@ LD_FLAGS = @REAL_LD_FLAGS@
 @lib_deps_yes@	   -lc
 @lib_deps_no@LIB_DEPS =
 
-LIB = libsia_krb4.$(SHLIBEXT)
+LIBNAME = libsia_krb4
+LIB = $(LIBNAME).$(SHLIBEXT)
 
 SOURCES = sia.c posix_getpw.c
 

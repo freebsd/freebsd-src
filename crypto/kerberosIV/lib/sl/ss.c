@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the 
  *    documentation and/or other materials provided with the distribution. 
  *
- * 3. All advertising materials mentioning features or use of this software 
- *    must display the following acknowledgement: 
- *      This product includes software developed by Kungliga Tekniska 
- *      Högskolan and its contributors. 
- *
- * 4. Neither the name of the Institute nor the names of its contributors 
+ * 3. Neither the name of the Institute nor the names of its contributors 
  *    may be used to endorse or promote products derived from this software 
  *    without specific prior written permission. 
  *
@@ -40,7 +35,7 @@
 #include <com_err.h>
 #include "ss.h"
 
-RCSID("$Id: ss.c,v 1.3 1998/11/22 09:47:24 assar Exp $");
+RCSID("$Id: ss.c,v 1.4 1999/12/02 16:58:55 joda Exp $");
 
 struct ss_subst {
     char *name;

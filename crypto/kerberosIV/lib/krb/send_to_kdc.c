@@ -22,15 +22,15 @@ or implied warranty.
 #include "krb_locl.h"
 #include <base64.h>
 
-RCSID("$Id: send_to_kdc.c,v 1.69 1999/06/29 21:18:09 bg Exp $");
+RCSID("$Id: send_to_kdc.c,v 1.71 1999/11/25 02:20:53 assar Exp $");
 
 struct host {
     struct sockaddr_in addr;
+    const char *hostname;
     enum krb_host_proto proto;
 };
 
-static int send_recv(KTEXT pkt, KTEXT rpkt, int f,
-		     struct sockaddr_in *adr);
+static int send_recv(KTEXT pkt, KTEXT rpkt, struct host *host);
 
 /*
  * send_to_kdc() sends a message to the Kerberos authentication
@@ -72,6 +72,20 @@ krb_use_admin_server(int flag)
     return old;
 }
 
+#define PROXY_VAR "krb4_proxy"
+
+static int
+expand (struct host **ptr, size_t sz)
+{
+    void *tmp;
+
+    tmp = realloc (*ptr, sz) ;
+    if (tmp == NULL)
+	return SKDC_CANT;
+    *ptr = tmp;
+    return 0;
+}
+
 int
 send_to_kdc(KTEXT pkt, KTEXT rpkt, const char *realm)
 {
@@ -84,6 +98,10 @@ send_to_kdc(KTEXT pkt, KTEXT rpkt, const char *realm)
     char lrealm[REALM_SZ];
     struct krb_host *k_host;
     struct host *hosts = malloc(sizeof(*hosts));
+    const char *proxy = krb_get_config_string (PROXY_VAR);
+
+    if (hosts == NULL)
+	return SKDC_CANT;
 
     if (client_timeout == -1) {
 	const char *to;
@@ -100,29 +118,26 @@ send_to_kdc(KTEXT pkt, KTEXT rpkt, const char *realm)
 	}
     }
 
-    if (hosts == NULL)
-	return SKDC_CANT;
-
     /*
      * If "realm" is non-null, use that, otherwise get the
      * local realm.
      */
-    if (realm)
-	strcpy_truncate(lrealm, realm, REALM_SZ);
-    else
+    if (realm == NULL) {
 	if (krb_get_lrealm(lrealm,1)) {
 	    if (krb_debug)
 		krb_warning("send_to_kdc: can't get local realm\n");
 	    return(SKDC_CANT);
 	}
+	realm = lrealm;
+    }
     if (krb_debug)
-	krb_warning("lrealm is %s\n", lrealm);
+	krb_warning("lrealm is %s\n", realm);
 
     no_host = 1;
     /* get an initial allocation */
     n_hosts = 0;
     for (i = 1;
-	 (k_host = krb_get_host(i, lrealm, krb_use_admin_server_flag)); 
+	 (k_host = krb_get_host(i, realm, krb_use_admin_server_flag)); 
 	 ++i) {
 	char *p;
 	char **addr_list;
@@ -130,42 +145,56 @@ send_to_kdc(KTEXT pkt, KTEXT rpkt, const char *realm)
 	int n_addrs;
 	struct host *tmp;
 
-        if (krb_debug)
-	    krb_warning("Getting host entry for %s...", k_host->host);
-        host = gethostbyname(k_host->host);
-        if (krb_debug) {
-	    krb_warning("%s.\n",
-			host ? "Got it" : "Didn't get it");
-        }
-        if (host == NULL)
-            continue;
-        no_host = 0;    /* found at least one */
+	if (k_host->proto == PROTO_HTTP && proxy != NULL) {
+	    n_addrs = 1;
+	    no_host = 0;
 
-	n_addrs = 0;
-	for (addr_list = host->h_addr_list; *addr_list != NULL; ++addr_list)
-	    ++n_addrs;
+	    retval = expand (&hosts, (n_hosts + n_addrs) * sizeof(*hosts));
+	    if (retval)
+		goto rtn;
 
-	tmp = realloc (hosts, (n_hosts + n_addrs) * sizeof(*hosts));
-	if (tmp == NULL) {
-	    free (hosts);
-	    return SKDC_CANT;
-	}
-	hosts = tmp;
+	    memset (&hosts[n_hosts].addr, 0, sizeof(struct sockaddr_in));
+	    hosts[n_hosts].addr.sin_port = htons(k_host->port);
+	    hosts[n_hosts].proto         = k_host->proto;
+	    hosts[n_hosts].hostname      = k_host->host;
+	} else {
+	    if (krb_debug)
+		krb_warning("Getting host entry for %s...", k_host->host);
+	    host = gethostbyname(k_host->host);
+	    if (krb_debug) {
+		krb_warning("%s.\n",
+			    host ? "Got it" : "Didn't get it");
+	    }
+	    if (host == NULL)
+		continue;
+	    no_host = 0;    /* found at least one */
 
-	for (addr_list = host->h_addr_list, j = 0;
-	     (p = *addr_list) != NULL;
-	     ++addr_list, ++j) {
-	    memset (&hosts[n_hosts + j].addr, 0, sizeof(struct sockaddr_in));
-	    hosts[n_hosts + j].addr.sin_family = host->h_addrtype;
-	    hosts[n_hosts + j].addr.sin_port   = htons(k_host->port);
-	    hosts[n_hosts + j].proto           = k_host->proto;
-	    memcpy(&hosts[n_hosts + j].addr.sin_addr, p,
-		   sizeof(struct in_addr));
+	    n_addrs = 0;
+	    for (addr_list = host->h_addr_list;
+		 *addr_list != NULL;
+		 ++addr_list)
+		++n_addrs;
+
+	    retval = expand (&hosts, (n_hosts + n_addrs) * sizeof(*hosts));
+	    if (retval)
+		goto rtn;
+
+	    for (addr_list = host->h_addr_list, j = 0;
+		 (p = *addr_list) != NULL;
+		 ++addr_list, ++j) {
+		memset (&hosts[n_hosts + j].addr, 0,
+			sizeof(struct sockaddr_in));
+		hosts[n_hosts + j].addr.sin_family = host->h_addrtype;
+		hosts[n_hosts + j].addr.sin_port   = htons(k_host->port);
+		hosts[n_hosts + j].proto           = k_host->proto;
+		hosts[n_hosts + j].hostname        = k_host->host;
+		memcpy(&hosts[n_hosts + j].addr.sin_addr, p,
+		       sizeof(struct in_addr));
+	    }
 	}
 
 	for (j = 0; j < n_addrs; ++j) {
-	    if (send_recv(pkt, rpkt, hosts[n_hosts + j].proto,
-			  &hosts[n_hosts + j].addr)) {
+	    if (send_recv(pkt, rpkt, &hosts[n_hosts + j])) {
 		retval = KSUCCESS;
 		goto rtn;
 	    }
@@ -184,9 +213,7 @@ send_to_kdc(KTEXT pkt, KTEXT rpkt, const char *realm)
     /* retry each host in sequence */
     for (retry = 0; retry < CLIENT_KRB_RETRY; ++retry) {
 	for (i = 0; i < n_hosts; ++i) {
-	    if (send_recv(pkt, rpkt,
-			  hosts[i].proto,
-			  &hosts[i].addr)) {
+	    if (send_recv(pkt, rpkt, &hosts[i])) {
 		retval = KSUCCESS;
 		goto rtn;
 	    }
@@ -205,24 +232,26 @@ udp_socket(void)
 }
 
 static int
-udp_connect(int s, struct sockaddr_in *adr)
+udp_connect(int s, struct host *host)
 {
     if(krb_debug) {
-	krb_warning("connecting to %s udp, port %d\n", 
-		    inet_ntoa(adr->sin_addr), 
-		    ntohs(adr->sin_port));
+	krb_warning("connecting to %s (%s) udp, port %d\n", 
+		    host->hostname,
+		    inet_ntoa(host->addr.sin_addr),
+		    ntohs(host->addr.sin_port));
     }
-    return connect(s, (struct sockaddr*)adr, sizeof(*adr));
+    return connect(s, (struct sockaddr*)&host->addr, sizeof(host->addr));
 }
 
 static int
-udp_send(int s, struct sockaddr_in* adr, KTEXT pkt)
+udp_send(int s, struct host *host, KTEXT pkt)
 {
     if(krb_debug) {
-	krb_warning("sending %d bytes to %s, udp port %d\n", 
+	krb_warning("sending %d bytes to %s (%s), udp port %d\n", 
 		    pkt->length,
-		    inet_ntoa(adr->sin_addr), 
-		    ntohs(adr->sin_port));
+		    host->hostname,
+		    inet_ntoa(host->addr.sin_addr), 
+		    ntohs(host->addr.sin_port));
     }
     return send(s, pkt->dat, pkt->length, 0);
 }
@@ -234,25 +263,28 @@ tcp_socket(void)
 }
 
 static int
-tcp_connect(int s, struct sockaddr_in *adr)
+tcp_connect(int s, struct host *host)
 {
     if(krb_debug) {
-	krb_warning("connecting to %s, tcp port %d\n", 
-		    inet_ntoa(adr->sin_addr), 
-		    ntohs(adr->sin_port));
+	krb_warning("connecting to %s (%s), tcp port %d\n", 
+		    host->hostname,
+		    inet_ntoa(host->addr.sin_addr), 
+		    ntohs(host->addr.sin_port));
     }
-    return connect(s, (struct sockaddr*)adr, sizeof(*adr));
+    return connect(s, (struct sockaddr*)&host->addr, sizeof(host->addr));
 }
 
 static int
-tcp_send(int s, struct sockaddr_in* adr, KTEXT pkt)
+tcp_send(int s, struct host *host, KTEXT pkt)
 {
     unsigned char len[4];
+
     if(krb_debug) {
-	krb_warning("sending %d bytes to %s, tcp port %d\n", 
+	krb_warning("sending %d bytes to %s (%s), tcp port %d\n", 
 		    pkt->length,
-		    inet_ntoa(adr->sin_addr), 
-		    ntohs(adr->sin_port));
+		    host->hostname,
+		    inet_ntoa(host->addr.sin_addr), 
+		    ntohs(host->addr.sin_port));
     }
     krb_put_int(pkt->length, len, sizeof(len), 4);
     if(send(s, len, sizeof(len), 0) != sizeof(len))
@@ -305,24 +337,23 @@ url_parse(const char *url, char *host, size_t len, short *port)
     return 0;
 }
 
-#define PROXY_VAR "krb4_proxy"
-
 static int
-http_connect(int s, struct sockaddr_in *adr)
+http_connect(int s, struct host *host)
 {
     const char *proxy = krb_get_config_string(PROXY_VAR);
-    char host[MaxHostNameLen];
+    char proxy_host[MaxHostNameLen];
     short port;
     struct hostent *hp;
     struct sockaddr_in sin;
+
     if(proxy == NULL) {
 	if(krb_debug)
 	    krb_warning("Not using proxy.\n");
-	return tcp_connect(s, adr);
+	return tcp_connect(s, host);
     }
-    if(url_parse(proxy, host, sizeof(host), &port) < 0)
+    if(url_parse(proxy, proxy_host, sizeof(proxy_host), &port) < 0)
 	return -1;
-    hp = gethostbyname(host);
+    hp = gethostbyname(proxy_host);
     if(hp == NULL)
 	return -1;
     memset(&sin, 0, sizeof(sin));
@@ -331,36 +362,38 @@ http_connect(int s, struct sockaddr_in *adr)
     sin.sin_port = port;
     if(krb_debug) {
 	krb_warning("connecting to proxy on %s (%s) port %d\n", 
-		    host, inet_ntoa(sin.sin_addr), ntohs(port));
+		    proxy_host, inet_ntoa(sin.sin_addr), ntohs(port));
     }
     return connect(s, (struct sockaddr*)&sin, sizeof(sin));
 }
 
 static int
-http_send(int s, struct sockaddr_in* adr, KTEXT pkt)
+http_send(int s, struct host *host, KTEXT pkt)
 {
+    const char *proxy = krb_get_config_string (PROXY_VAR);
     char *str;
     char *msg;
 
     if(base64_encode(pkt->dat, pkt->length, &str) < 0)
 	return -1;
-    if(krb_get_config_string(PROXY_VAR)) {
+    if(proxy != NULL) {
 	if(krb_debug) {
 	    krb_warning("sending %d bytes to %s, tcp port %d (via proxy)\n", 
 			pkt->length,
-			inet_ntoa(adr->sin_addr), 
-			ntohs(adr->sin_port));
+			host->hostname,
+			ntohs(host->addr.sin_port));
 	}
 	asprintf(&msg, "GET http://%s:%d/%s HTTP/1.0\r\n\r\n",
-		 inet_ntoa(adr->sin_addr),
-		 ntohs(adr->sin_port),
+		 host->hostname,
+		 ntohs(host->addr.sin_port),
 		 str);
     } else {
 	if(krb_debug) {
-	    krb_warning("sending %d bytes to %s, http port %d\n", 
+	    krb_warning("sending %d bytes to %s (%s), http port %d\n", 
 			pkt->length,
-			inet_ntoa(adr->sin_addr), 
-			ntohs(adr->sin_port));
+			host->hostname,
+			inet_ntoa(host->addr.sin_addr), 
+			ntohs(host->addr.sin_port));
 	}
 	asprintf(&msg, "GET %s HTTP/1.0\r\n\r\n", str);
     }
@@ -415,8 +448,8 @@ static struct proto_descr {
     int proto;
     int stream_flag;
     int (*socket)(void);
-    int (*connect)(int, struct sockaddr_in*);
-    int (*send)(int, struct sockaddr_in*, KTEXT);
+    int (*connect)(int, struct host *host);
+    int (*send)(int, struct host *host, KTEXT);
     int (*recv)(void*, size_t, KTEXT);
 } protos[] = {
     { PROTO_UDP, 0, udp_socket, udp_connect, udp_send, udptcp_recv },
@@ -425,7 +458,7 @@ static struct proto_descr {
 };
 
 static int
-send_recv(KTEXT pkt, KTEXT rpkt, int proto, struct sockaddr_in *adr)
+send_recv(KTEXT pkt, KTEXT rpkt, struct host *host)
 {
     int i;
     int s;
@@ -433,18 +466,18 @@ send_recv(KTEXT pkt, KTEXT rpkt, int proto, struct sockaddr_in *adr)
     int offset = 0;
     
     for(i = 0; i < sizeof(protos) / sizeof(protos[0]); i++){
-	if(protos[i].proto == proto)
+	if(protos[i].proto == host->proto)
 	    break;
     }
     if(i == sizeof(protos) / sizeof(protos[0]))
 	return FALSE;
     if((s = (*protos[i].socket)()) < 0)
 	return FALSE;
-    if((*protos[i].connect)(s, adr) < 0){
+    if((*protos[i].connect)(s, host) < 0) {
 	close(s);
 	return FALSE;
     }
-    if((*protos[i].send)(s, adr, pkt) < 0){
+    if((*protos[i].send)(s, host, pkt) < 0) {
 	close(s);
 	return FALSE;
     }

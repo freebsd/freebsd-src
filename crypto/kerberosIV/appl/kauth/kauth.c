@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -46,7 +41,7 @@
 
 #include "kauth.h"
 
-RCSID("$Id: kauth.c,v 1.92 1999/06/29 21:19:35 bg Exp $");
+RCSID("$Id: kauth.c,v 1.97 1999/12/02 16:58:31 joda Exp $");
 
 krb_principal princ;
 static char srvtab[MaxPathLen];
@@ -59,11 +54,16 @@ static void
 usage(void)
 {
     fprintf(stderr,
-	    "Usage: %s -n <name> [-r remoteuser] [-t remote ticketfile] "
-	    "[-l lifetime (in minutes) ] [-f srvtab ] "
-	    "[-c AFS cell name ] [-h hosts... [--]] [command ... ]\n",
-	    __progname);
-    fprintf(stderr, "\nA fully qualified name can be given user[.instance][@realm]\nRealm is converted to uppercase!\n");
+	    "Usage:\n"
+	    "  %s [name]\n"
+	    "or\n"
+	    "  %s [-ad] [-n name] [-r remoteuser] [-t remote ticketfile]\n"
+	    "        [-l lifetime (in minutes) ] [-f srvtab ] [-c AFS cell name ]\n"
+	    "        [-h hosts... [--]] [command ... ]\n\n",
+	    __progname, __progname);
+    fprintf(stderr, 
+	    "A fully qualified name can be given: user[.instance][@realm]\n"
+	    "Realm is converted to uppercase!\n");
     exit(1);
 }
 
@@ -139,6 +139,56 @@ key_to_key(const char *user,
     return 0;
 }
 
+static int
+get_ticket_address(krb_principal *princ, des_cblock *key)
+{
+    int code;
+    unsigned char flags;
+    krb_principal service;
+    u_int32_t addr;
+    struct in_addr addr2;
+    des_cblock session;
+    int life;
+    u_int32_t time_sec;
+    des_key_schedule schedule;
+    CREDENTIALS c;
+	
+    code = get_ad_tkt(princ->name, princ->instance, princ->realm, 0);
+    if(code) {
+	warnx("get_ad_tkt: %s\n", krb_get_err_text(code));
+	return code;
+    }
+    code = krb_get_cred(princ->name, princ->instance, princ->realm, &c);
+    if(code) {
+	warnx("krb_get_cred: %s\n", krb_get_err_text(code));
+	return code;
+    }
+
+    des_set_key(key, schedule);
+    code = decomp_ticket(&c.ticket_st, 
+			 &flags,
+			 princ->name,
+			 princ->instance,
+			 princ->realm,
+			 &addr,
+			 session,
+			 &life,
+			 &time_sec,
+			 service.name,
+			 service.instance,
+			 key,
+			 schedule);
+    if(code) {
+	warnx("decomp_ticket: %s\n", krb_get_err_text(code));
+	return code;
+    }
+    memset(&session, 0, sizeof(session));
+    memset(schedule, 0, sizeof(schedule));
+    addr2.s_addr = addr;
+    fprintf(stdout, "ticket address = %s\n", inet_ntoa(addr2));
+} 
+
+
 int
 main(int argc, char **argv)
 {
@@ -147,6 +197,7 @@ main(int argc, char **argv)
     int c;
     char *file;
     int pflag = 0;
+    int aflag = 0;
     int version_flag = 0;
     char passwd[100];
     des_cblock key;
@@ -174,20 +225,24 @@ main(int argc, char **argv)
 	strupr(princ.realm);
       }
 
-    while ((c = getopt(argc, argv, "r:t:f:hdl:n:c:v")) != EOF)
+    while ((c = getopt(argc, argv, "ar:t:f:hdl:n:c:v")) != -1)
 	switch (c) {
+	case 'a':
+	    aflag++;
+	    break;
 	case 'd':
 	    krb_enable_debug();
 	    _kafs_debug = 1;
+	    aflag++;
 	    break;
 	case 'f':
-	    strcpy_truncate(srvtab, optarg, sizeof(srvtab));
+	    strlcpy(srvtab, optarg, sizeof(srvtab));
 	    break;
 	case 't':
-	    strcpy_truncate(remote_tktfile, optarg, sizeof(remote_tktfile));
+	    strlcpy(remote_tktfile, optarg, sizeof(remote_tktfile));
 	    break;
 	case 'r':
-	    strcpy_truncate(remoteuser, optarg, sizeof(remoteuser));
+	    strlcpy(remoteuser, optarg, sizeof(remoteuser));
 	    break;
 	case 'l':
 	    lifetime = atoi(optarg);
@@ -215,6 +270,8 @@ main(int argc, char **argv)
 	    host = argv + optind;
 	    for(nhost = 0; optind < argc && *argv[optind] != '-'; ++optind)
 		++nhost;
+	    if(nhost == 0)
+		usage();
 	    break;
 	case 'v':
 	    version_flag++;
@@ -238,24 +295,22 @@ main(int argc, char **argv)
     /* With root tickets assume remote user is root */
     if (*remoteuser == '\0') {
       if (strcmp(princ.instance, "root") == 0)
-	strcpy_truncate(remoteuser, princ.instance, sizeof(remoteuser));
+	strlcpy(remoteuser, princ.instance, sizeof(remoteuser));
       else
-	strcpy_truncate(remoteuser, princ.name, sizeof(remoteuser));
+	strlcpy(remoteuser, princ.name, sizeof(remoteuser));
     }
 
     more_args = argc - optind;
   
     if (princ.realm[0] == '\0')
 	if (krb_get_lrealm(princ.realm, 1) != KSUCCESS)
-	    strcpy_truncate(princ.realm, KRB_REALM, REALM_SZ);
+	    strlcpy(princ.realm, KRB_REALM, REALM_SZ);
   
     if (more_args) {
 	int f;
       
 	do{
-	    snprintf(tf, sizeof(tf),
-		     TKT_ROOT "%u_%u",
-		     (unsigned)getuid(),
+	    snprintf(tf, sizeof(tf), "%s%u_%u", TKT_ROOT, (unsigned)getuid(),
 		     (unsigned)(getpid()*time(0)));
 	    f = open(tf, O_CREAT|O_EXCL|O_RDWR);
 	}while(f < 0);
@@ -296,6 +351,9 @@ main(int argc, char **argv)
 	memset (key, 0, sizeof(key));
 	errx (1, "%s", krb_get_err_text(code));
     }
+
+    if(aflag)
+	get_ticket_address(&princ, &key);
 
     if (k_hasafs()) {
 	if (more_args)

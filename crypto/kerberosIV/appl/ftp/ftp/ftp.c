@@ -32,16 +32,19 @@
  */
 
 #include "ftp_locl.h"
-RCSID ("$Id: ftp.c,v 1.55 1999/06/02 20:12:22 joda Exp $");
+RCSID ("$Id: ftp.c,v 1.60 1999/10/28 19:32:17 assar Exp $");
 
-struct sockaddr_in hisctladdr;
-struct sockaddr_in data_addr;
+struct sockaddr_storage hisctladdr_ss;
+struct sockaddr *hisctladdr = (struct sockaddr *)&hisctladdr_ss;
+struct sockaddr_storage data_addr_ss;
+struct sockaddr *data_addr  = (struct sockaddr *)&data_addr_ss;
+struct sockaddr_storage myctladdr_ss;
+struct sockaddr *myctladdr = (struct sockaddr *)&myctladdr_ss;
 int data = -1;
 int abrtflag = 0;
 jmp_buf ptabort;
 int ptabflg;
 int ptflag = 0;
-struct sockaddr_in myctladdr;
 off_t restart_point = 0;
 
 
@@ -50,77 +53,76 @@ FILE *cin, *cout;
 typedef void (*sighand) (int);
 
 char *
-hookup (char *host, int port)
+hookup (const char *host, int port)
 {
-    struct hostent *hp = 0;
+    struct hostent *hp = NULL;
     int s, len;
     static char hostnamebuf[MaxHostNameLen];
+    int error;
+    int af;
+    char **h;
+    int ret;
 
-    memset (&hisctladdr, 0, sizeof (hisctladdr));
-    if (inet_aton (host, &hisctladdr.sin_addr)) {
-	hisctladdr.sin_family = AF_INET;
-	strcpy_truncate (hostnamebuf, host, sizeof (hostnamebuf));
-    } else {
-	hp = gethostbyname (host);
-	if (hp == NULL) {
-	    warnx("%s: %s", host, hstrerror(h_errno));
-	    code = -1;
-	    return NULL;
-	}
-	hisctladdr.sin_family = hp->h_addrtype;
-	memmove(&hisctladdr.sin_addr,
-		hp->h_addr_list[0],
-		sizeof(hisctladdr.sin_addr));
-	strcpy_truncate (hostnamebuf, hp->h_name, sizeof (hostnamebuf));
-    }
-    hostname = hostnamebuf;
-    s = socket (hisctladdr.sin_family, SOCK_STREAM, 0);
-    if (s < 0) {
-	warn ("socket");
+#ifdef HAVE_IPV6
+    if (hp == NULL)
+	hp = getipnodebyname (host, AF_INET6, 0, &error);
+#endif
+    if (hp == NULL)
+	hp = getipnodebyname (host, AF_INET, 0, &error);
+
+    if (hp == NULL) {
+	warnx ("%s: %s", host, hstrerror(error));
 	code = -1;
-	return (0);
+	return NULL;
     }
-    hisctladdr.sin_port = port;
-    while (connect (s, (struct sockaddr *) & hisctladdr, sizeof (hisctladdr)) < 0) {
-	if (hp && hp->h_addr_list[1]) {
-	    int oerrno = errno;
-	    char *ia;
+    strlcpy (hostnamebuf, hp->h_name, sizeof(hostnamebuf));
+    hostname = hostnamebuf;
+    af = hisctladdr->sa_family = hp->h_addrtype;
 
-	    ia = inet_ntoa (hisctladdr.sin_addr);
-	    errno = oerrno;
-	    warn ("connect to address %s", ia);
-	    hp->h_addr_list++;
-	    memmove (&hisctladdr.sin_addr,
-		     hp->h_addr_list[0],
-		     sizeof (hisctladdr.sin_addr));
-	    fprintf (stdout, "Trying %s...\n",
-		     inet_ntoa (hisctladdr.sin_addr));
+    for (h = hp->h_addr_list;
+	 *h != NULL;
+	 ++h) {
+	
+	s = socket (af, SOCK_STREAM, 0);
+	if (s < 0) {
+	    warn ("socket");
+	    code = -1;
+	    freehostent (hp);
+	    return (0);
+	}
+
+	socket_set_address_and_port (hisctladdr, *h, port);
+
+	ret = connect (s, hisctladdr, socket_sockaddr_size(hisctladdr));
+	if (ret < 0) {
+	    char addr[256];
+
+	    if (inet_ntop (af, socket_get_address(hisctladdr),
+			   addr, sizeof(addr)) == NULL)
+		strlcpy (addr, "unknown address",
+				 sizeof(addr));
+	    warn ("connect %s", addr);
 	    close (s);
-	    s = socket (hisctladdr.sin_family, SOCK_STREAM, 0);
-	    if (s < 0) {
-		warn ("socket");
-		code = -1;
-		return (0);
-	    }
 	    continue;
 	}
-	warn ("connect");
-	code = -1;
-	goto bad;
+	break;
     }
-    len = sizeof (myctladdr);
-    if (getsockname (s, (struct sockaddr *) & myctladdr, &len) < 0) {
+    freehostent (hp);
+    if (ret < 0) {
+	code = -1;
+	close (s);
+	return NULL;
+    }
+
+    len = sizeof(myctladdr_ss);
+    if (getsockname (s, myctladdr, &len) < 0) {
 	warn ("getsockname");
 	code = -1;
-	goto bad;
+	close (s);
+	return NULL;
     }
-#if defined(IP_TOS) && defined(HAVE_SETSOCKOPT)
-    {
-	int tos = IPTOS_LOWDELAY;
-
-    if (setsockopt(s, IPPROTO_IP, IP_TOS, (char *)&tos, sizeof(int)) < 0)
-	warn("setsockopt TOS (ignored)");
-    }
+#ifdef IPTOS_LOWDELAY
+    socket_set_tos (s, IPTOS_LOWDELAY);
 #endif
     cin = fdopen (s, "r");
     cout = fdopen (s, "w");
@@ -198,7 +200,7 @@ login (char *host)
 	else
 	    user = tmp;
     }
-    strcpy_truncate(username, user, sizeof(username));
+    strlcpy(username, user, sizeof(username));
     n = command("USER %s", user);
     if (n == CONTINUE) {
 	if(sec_complete)
@@ -238,7 +240,7 @@ login (char *host)
 	return (1);
     for (n = 0; n < macnum; ++n) {
 	if (!strcmp("init", macros[n].mac_name)) {
-	    strcpy_truncate (line, "$init", sizeof (line));
+	    strlcpy (line, "$init", sizeof (line));
 	    makeargv();
 	    domacro(margc, margv);
 	    break;
@@ -375,7 +377,7 @@ getreply (int expecteof)
 			osa.sa_handler != SIG_IGN)
 			osa.sa_handler (SIGINT);
 #endif
-		    if (code == 227) {
+		    if (code == 227 || code == 229) {
 			char *p, *q;
 
 			pasv[0] = 0;
@@ -565,6 +567,11 @@ copy_stream (FILE * from, FILE * to)
 #endif
 
     if (fstat (fileno (from), &st) == 0 && S_ISREG (st.st_mode)) {
+	/*
+	 * mmap zero bytes has potential of loosing, don't do it.
+	 */
+	if (st.st_size == 0)
+	    return 0;
 	chunk = mmap (0, st.st_size, PROT_READ, MAP_SHARED, fileno (from), 0);
 	if (chunk != (void *) MAP_FAILED) {
 	    int res;
@@ -1120,6 +1127,225 @@ abort:
     signal (SIGINT, oldintr);
 }
 
+static int
+parse_epsv (const char *str)
+{
+    char sep;
+    char *end;
+    int port;
+
+    if (*str == '\0')
+	return -1;
+    sep = *str++;
+    if (sep != *str++)
+	return -1;
+    if (sep != *str++)
+	return -1;
+    port = strtol (str, &end, 0);
+    if (str == end)
+	return -1;
+    if (end[0] != sep || end[1] != '\0')
+	return -1;
+    return htons(port);
+}
+
+static int
+parse_pasv (struct sockaddr_in *sin, const char *str)
+{
+    int a0, a1, a2, a3, p0, p1;
+
+    /*
+     * What we've got at this point is a string of comma separated
+     * one-byte unsigned integer values. The first four are the an IP
+     * address. The fifth is the MSB of the port number, the sixth is the
+     * LSB. From that we'll prepare a sockaddr_in.
+     */
+
+    if (sscanf (str, "%d,%d,%d,%d,%d,%d",
+		&a0, &a1, &a2, &a3, &p0, &p1) != 6) {
+	printf ("Passive mode address scan failure. "
+		"Shouldn't happen!\n");
+	return -1;
+    }
+    if (a0 < 0 || a0 > 255 ||
+	a1 < 0 || a1 > 255 ||
+	a2 < 0 || a2 > 255 ||
+	a3 < 0 || a3 > 255 ||
+	p0 < 0 || p0 > 255 ||
+	p1 < 0 || p1 > 255) {
+	printf ("Can't parse passive mode string.\n");
+	return -1;
+    }
+    memset (sin, 0, sizeof(*sin));
+    sin->sin_family      = AF_INET;
+    sin->sin_addr.s_addr = htonl ((a0 << 24) | (a1 << 16) |
+				  (a2 << 8) | a3);
+    sin->sin_port = htons ((p0 << 8) | p1);
+    return 0;
+}
+
+static int
+passive_mode (void)
+{
+    int port;
+
+    data = socket (myctladdr->sa_family, SOCK_STREAM, 0);
+    if (data < 0) {
+	warn ("socket");
+	return (1);
+    }
+    if (options & SO_DEBUG)
+	socket_set_debug (data);
+    if (command ("EPSV") != COMPLETE) {
+	if (command ("PASV") != COMPLETE) {
+	    printf ("Passive mode refused.\n");
+	    goto bad;
+	}
+    }
+
+    /*
+     * Parse the reply to EPSV or PASV
+     */
+
+    port = parse_epsv (pasv);
+    if (port > 0) {
+	data_addr->sa_family = myctladdr->sa_family;
+	socket_set_address_and_port (data_addr,
+				     socket_get_address (hisctladdr),
+				     port);
+    } else {
+	if (parse_pasv ((struct sockaddr_in *)data_addr, pasv) < 0)
+	    goto bad;
+    }
+
+    if (connect (data, data_addr, socket_sockaddr_size (data_addr)) < 0) {
+	warn ("connect");
+	goto bad;
+    }
+#ifdef IPTOS_THROUGHPUT
+    socket_set_tos (data, IPTOS_THROUGHPUT);
+#endif
+    return (0);
+bad:
+    close (data);
+    data = -1;
+    sendport = 1;
+    return (1);
+}
+
+
+static int
+active_mode (void)
+{
+    int tmpno = 0;
+    int len;
+    int result;
+
+noport:
+    data_addr->sa_family = myctladdr->sa_family;
+    socket_set_address_and_port (data_addr, socket_get_address (myctladdr),
+				 sendport ? 0 : socket_get_port (myctladdr));
+
+    if (data != -1)
+	close (data);
+    data = socket (data_addr->sa_family, SOCK_STREAM, 0);
+    if (data < 0) {
+	warn ("socket");
+	if (tmpno)
+	    sendport = 1;
+	return (1);
+    }
+    if (!sendport)
+	socket_set_reuseaddr (data, 1);
+    if (bind (data, data_addr, socket_sockaddr_size (data_addr)) < 0) {
+	warn ("bind");
+	goto bad;
+    }
+    if (options & SO_DEBUG)
+	socket_set_debug (data);
+    len = sizeof (data_addr_ss);
+    if (getsockname (data, data_addr, &len) < 0) {
+	warn ("getsockname");
+	goto bad;
+    }
+    if (listen (data, 1) < 0)
+	warn ("listen");
+    if (sendport) {
+	char *cmd;
+	char addr_str[256];
+	int inet_af;
+	int overbose;
+
+	if (inet_ntop (data_addr->sa_family, socket_get_address (data_addr),
+		       addr_str, sizeof(addr_str)) == NULL)
+	    errx (1, "inet_ntop failed");
+	switch (data_addr->sa_family) {
+	case AF_INET :
+	    inet_af = 1;
+	    break;
+#ifdef HAVE_IPV6
+	case AF_INET6 :
+	    inet_af = 2;
+	    break;
+#endif
+	default :
+	    errx (1, "bad address family %d", data_addr->sa_family);
+	}
+
+	asprintf (&cmd, "EPRT |%d|%s|%d|",
+		  inet_af, addr_str, ntohs(socket_get_port (data_addr)));
+
+	overbose = verbose;
+	if (debug == 0)
+	    verbose  = -1;
+
+	result = command (cmd);
+
+	verbose = overbose;
+
+	if (result == ERROR) {
+	    struct sockaddr_in *sin = (struct sockaddr_in *)data_addr;
+
+	    unsigned int a = ntohl(sin->sin_addr.s_addr);
+	    unsigned int p = ntohs(sin->sin_port);
+
+	    if (data_addr->sa_family != AF_INET) {
+		warnx ("remote server doesn't support EPRT");
+		goto bad;
+	    }
+
+	    result = command("PORT %d,%d,%d,%d,%d,%d", 
+			     (a >> 24) & 0xff,
+			     (a >> 16) & 0xff,
+			     (a >> 8) & 0xff,
+			     a & 0xff,
+			     (p >> 8) & 0xff,
+			     p & 0xff);
+	    if (result == ERROR && sendport == -1) {
+		sendport = 0;
+		tmpno = 1;
+		goto noport;
+	    }
+	    return (result != COMPLETE);
+	}
+	return result != COMPLETE;
+    }
+    if (tmpno)
+	sendport = 1;
+
+
+#ifdef IPTOS_THROUGHPUT
+    socket_set_tos (data, IPTOS_THROUGHPUT);
+#endif
+    return (0);
+bad:
+    close (data);
+    data = -1;
+    if (tmpno)
+	sendport = 1;
+    return (1);
+}
+
 /*
  * Need to start a listen on the data channel before we send the command,
  * otherwise the server's connect may fail.
@@ -1127,147 +1353,23 @@ abort:
 int
 initconn (void)
 {
-    int result, len, tmpno = 0;
-    int on = 1;
-    int a0, a1, a2, a3, p0, p1;
-
-    if (passivemode) {
-	data = socket (AF_INET, SOCK_STREAM, 0);
-	if (data < 0) {
-	    perror ("ftp: socket");
-	    return (1);
-	}
-#if defined(SO_DEBUG) && defined(HAVE_SETSOCKOPT)
-	if ((options & SO_DEBUG) &&
-	    setsockopt (data, SOL_SOCKET, SO_DEBUG, (char *) &on,
-			sizeof (on)) < 0)
-	    perror ("ftp: setsockopt (ignored)");
-#endif
-	if (command ("PASV") != COMPLETE) {
-	    printf ("Passive mode refused.\n");
-	    goto bad;
-	}
-
-	/*
-	 * What we've got at this point is a string of comma separated
-	 * one-byte unsigned integer values. The first four are the an IP
-	 * address. The fifth is the MSB of the port number, the sixth is the
-	 * LSB. From that we'll prepare a sockaddr_in.
-	 */
-
-	if (sscanf (pasv, "%d,%d,%d,%d,%d,%d",
-		    &a0, &a1, &a2, &a3, &p0, &p1) != 6) {
-	    printf ("Passive mode address scan failure. "
-		    "Shouldn't happen!\n");
-	    goto bad;
-	}
-	if (a0 < 0 || a0 > 255 ||
-	    a1 < 0 || a1 > 255 ||
-	    a2 < 0 || a2 > 255 ||
-	    a3 < 0 || a3 > 255 ||
-	    p0 < 0 || p0 > 255 ||
-	    p1 < 0 || p1 > 255) {
-	    printf ("Can't parse passive mode string.\n");
-	    goto bad;
-	}
-	memset(&data_addr, 0, sizeof(data_addr));
-	data_addr.sin_family = AF_INET;
-	data_addr.sin_addr.s_addr = htonl ((a0 << 24) | (a1 << 16) |
-					   (a2 << 8) | a3);
-	data_addr.sin_port = htons ((p0 << 8) | p1);
-
-	if (connect (data, (struct sockaddr *) & data_addr,
-		     sizeof (data_addr)) < 0) {
-	    perror ("ftp: connect");
-	    goto bad;
-	}
-#if defined(IP_TOS) && defined(HAVE_SETSOCKOPT)
-	on = IPTOS_THROUGHPUT;
-	if (setsockopt (data, IPPROTO_IP, IP_TOS, (char *) &on,
-			sizeof (int)) < 0)
-	    perror ("ftp: setsockopt TOS (ignored)");
-#endif
-	return (0);
-    }
-noport:
-    data_addr = myctladdr;
-    if (sendport)
-	data_addr.sin_port = 0;	/* let system pick one */
-    if (data != -1)
-	close (data);
-    data = socket (AF_INET, SOCK_STREAM, 0);
-    if (data < 0) {
-	warn ("socket");
-	if (tmpno)
-	    sendport = 1;
-	return (1);
-    }
-#if defined(SO_REUSEADDR) && defined(HAVE_SETSOCKOPT)
-    if (!sendport)
-	if (setsockopt (data, SOL_SOCKET, SO_REUSEADDR, (char *) &on, sizeof (on)) < 0) {
-	    warn ("setsockopt (reuse address)");
-	    goto bad;
-	}
-#endif
-    if (bind (data, (struct sockaddr *) & data_addr, sizeof (data_addr)) < 0) {
-	warn ("bind");
-	goto bad;
-    }
-#if defined(SO_DEBUG) && defined(HAVE_SETSOCKOPT)
-    if (options & SO_DEBUG &&
-     setsockopt (data, SOL_SOCKET, SO_DEBUG, (char *) &on, sizeof (on)) < 0)
-	warn ("setsockopt (ignored)");
-#endif
-    len = sizeof (data_addr);
-    if (getsockname (data, (struct sockaddr *) & data_addr, &len) < 0) {
-	warn ("getsockname");
-	goto bad;
-    }
-    if (listen (data, 1) < 0)
-	warn ("listen");
-    if (sendport) {
-	unsigned int a = ntohl(data_addr.sin_addr.s_addr);
-	unsigned int p = ntohs(data_addr.sin_port);
-
-	result = command("PORT %d,%d,%d,%d,%d,%d", 
-			 (a >> 24) & 0xff,
-			 (a >> 16) & 0xff,
-			 (a >> 8) & 0xff,
-			 a & 0xff,
-			 (p >> 8) & 0xff,
-			 p & 0xff);
-	if (result == ERROR && sendport == -1) {
-	    sendport = 0;
-	    tmpno = 1;
-	    goto noport;
-	}
-	return (result != COMPLETE);
-    }
-    if (tmpno)
-	sendport = 1;
-#if defined(IP_TOS) && defined(HAVE_SETSOCKOPT)
-    on = IPTOS_THROUGHPUT;
-    if (setsockopt (data, IPPROTO_IP, IP_TOS, (char *) &on, sizeof (int)) < 0)
-	warn ("setsockopt TOS (ignored)");
-#endif
-    return (0);
-bad:
-    close (data), data = -1;
-    if (tmpno)
-	sendport = 1;
-    return (1);
+    if (passivemode) 
+	return passive_mode ();
+    else
+	return active_mode ();
 }
 
 FILE *
-dataconn (char *lmode)
+dataconn (const char *lmode)
 {
-    struct sockaddr_in from;
-    int s, fromlen = sizeof (from), tos;
+    struct sockaddr_storage from_ss;
+    struct sockaddr *from = (struct sockaddr *)&from_ss;
+    int s, fromlen = sizeof (from_ss);
 
     if (passivemode)
 	return (fdopen (data, lmode));
 
-    s = accept (data, (struct sockaddr *) & from, &fromlen);
+    s = accept (data, from, &fromlen);
     if (s < 0) {
 	warn ("accept");
 	close (data), data = -1;
@@ -1275,10 +1377,8 @@ dataconn (char *lmode)
     }
     close (data);
     data = s;
-#if defined(IP_TOS) && defined(HAVE_SETSOCKOPT)
-    tos = IPTOS_THROUGHPUT;
-    if (setsockopt (s, IPPROTO_IP, IP_TOS, (char *) &tos, sizeof (int)) < 0)
-	warn ("setsockopt TOS (ignored)");
+#ifdef IPTOS_THROUGHPUT
+    socket_set_tos (s, IPTOS_THROUGHPUT);
 #endif
     return (fdopen (data, lmode));
 }
@@ -1334,8 +1434,8 @@ pswitch (int flag)
     static struct comvars {
 	int connect;
 	char name[MaxHostNameLen];
-	struct sockaddr_in mctl;
-	struct sockaddr_in hctl;
+	struct sockaddr_storage mctl;
+	struct sockaddr_storage hctl;
 	FILE *in;
 	FILE *out;
 	int tpe;
@@ -1371,14 +1471,14 @@ pswitch (int flag)
     ip->connect = connected;
     connected = op->connect;
     if (hostname) {
-	strcpy_truncate (ip->name, hostname, sizeof (ip->name));
+	strlcpy (ip->name, hostname, sizeof (ip->name));
     } else
 	ip->name[0] = 0;
     hostname = op->name;
-    ip->hctl = hisctladdr;
-    hisctladdr = op->hctl;
-    ip->mctl = myctladdr;
-    myctladdr = op->mctl;
+    ip->hctl = hisctladdr_ss;
+    hisctladdr_ss = op->hctl;
+    ip->mctl = myctladdr_ss;
+    myctladdr_ss = op->mctl;
     ip->in = cin;
     cin = op->in;
     ip->out = cout;
@@ -1397,16 +1497,16 @@ pswitch (int flag)
     mcase = op->mcse;
     ip->ntflg = ntflag;
     ntflag = op->ntflg;
-    strcpy_truncate (ip->nti, ntin, sizeof (ip->nti));
-    strcpy_truncate (ntin, op->nti, 17);
-    strcpy_truncate (ip->nto, ntout, sizeof (ip->nto));
-    strcpy_truncate (ntout, op->nto, 17);
+    strlcpy (ip->nti, ntin, sizeof (ip->nti));
+    strlcpy (ntin, op->nti, 17);
+    strlcpy (ip->nto, ntout, sizeof (ip->nto));
+    strlcpy (ntout, op->nto, 17);
     ip->mapflg = mapflag;
     mapflag = op->mapflg;
-    strcpy_truncate (ip->mi, mapin, MaxPathLen);
-    strcpy_truncate (mapin, op->mi, MaxPathLen);
-    strcpy_truncate (ip->mo, mapout, MaxPathLen);
-    strcpy_truncate (mapout, op->mo, MaxPathLen);
+    strlcpy (ip->mi, mapin, MaxPathLen);
+    strlcpy (mapin, op->mi, MaxPathLen);
+    strlcpy (ip->mo, mapout, MaxPathLen);
+    strlcpy (mapout, op->mo, MaxPathLen);
     signal(SIGINT, oldintr);
     if (abrtflag) {
 	abrtflag = 0;
@@ -1580,7 +1680,7 @@ gunique (char *local)
 	warn ("local: %s", local);
 	return NULL;
     }
-    strcpy_truncate (new, local, sizeof(new));
+    strlcpy (new, local, sizeof(new));
     cp = new + strlen(new);
     *cp++ = '.';
     while (!d) {

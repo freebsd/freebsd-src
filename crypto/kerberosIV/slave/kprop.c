@@ -19,7 +19,7 @@ provided "as is" without express or implied warranty.
 
 #include "slav_locl.h"
 
-RCSID("$Id: kprop.c,v 1.36 1999/03/11 20:57:07 bg Exp $");
+RCSID("$Id: kprop.c,v 1.37 1999/09/16 20:41:59 assar Exp $");
 
 #include "kprop.h"
 
@@ -208,7 +208,7 @@ prop_to_slaves(struct slave_host *sl,
 		    p_my_host_name = krb_get_phost (my_host_name);
 		    /* copy it to make sure gethostbyname static doesn't
 		     * screw us. */
-		    strcpy_truncate (kprop_service_instance,
+		    strlcpy (kprop_service_instance,
 				     p_my_host_name,
 				     INST_SZ);
 		    kerror = krb_get_svc_in_tkt (KPROP_SERVICE_NAME, 
@@ -434,7 +434,7 @@ main(int argc, char **argv)
 	else if (strcmp (argv[i], "-realm") == 0) {
 	    i++;
 	    if (i < argc)
-		strcpy_truncate(my_realm, argv[i], REALM_SZ);
+		strlcpy(my_realm, argv[i], REALM_SZ);
 	    else
 		usage();
 	} else if (strcmp (argv[i], "-force") == 0)

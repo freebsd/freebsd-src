@@ -21,7 +21,7 @@ or implied warranty.
 
 #include "krb_locl.h"
 
-RCSID("$Id: getrealm.c,v 1.35 1998/08/31 10:40:06 assar Exp $");
+RCSID("$Id: getrealm.c,v 1.36 1999/09/16 20:41:51 assar Exp $");
 
 #ifndef MATCH_SUBDOMAINS
 #define MATCH_SUBDOMAINS 0
@@ -77,7 +77,7 @@ dns_find_realm(char *hostname, char *realm)
 	    struct resource_record *rr = r->head;
 	    while(rr){
 		if(rr->type == T_TXT){
-		    strcpy_truncate(realm, rr->u.txt, REALM_SZ);
+		    strlcpy(realm, rr->u.txt, REALM_SZ);
 		    dns_free_data(r);
 		    return level;
 		}
@@ -131,7 +131,7 @@ file_find_realm(const char *phost, const char *domain,
 	tmp_realm = tok;
 	if (strcasecmp(tmp_host, phost) == 0) {
 	    /* exact match of hostname, so return the realm */
-	    strcpy_truncate(ret_realm, tmp_realm, ret_realm_sz);
+	    strlcpy(ret_realm, tmp_realm, ret_realm_sz);
 	    ret = 0;
 	    break;
 	}
@@ -140,7 +140,7 @@ file_find_realm(const char *phost, const char *domain,
 	    do {
 		if(strcasecmp(tmp_host, cp) == 0){
 		    /* domain match, save for later */ 
-		    strcpy_truncate(ret_realm, tmp_realm, ret_realm_sz);
+		    strlcpy(ret_realm, tmp_realm, ret_realm_sz);
 		    ret = 0;
 		    break;
 		}
@@ -174,7 +174,7 @@ krb_realmofhost(const char *host)
     if (domain) {
 	char *cp;
 	  
-	strcpy_truncate(ret_realm, &domain[1], REALM_SZ);
+	strlcpy(ret_realm, &domain[1], REALM_SZ);
 	/* Upper-case realm */
 	for (cp = ret_realm; *cp; cp++)
 	    *cp = toupper(*cp);

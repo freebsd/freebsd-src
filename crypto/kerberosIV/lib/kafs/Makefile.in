@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.in,v 1.49 1999/03/10 19:01:15 joda Exp $
+# $Id: Makefile.in,v 1.50 1999/09/16 20:41:46 assar Exp $
 #
 
 SHELL = /bin/sh
@@ -41,9 +41,9 @@ LIB = $(LIBNAME).$(LIBEXT) $(AFS_EXTRA_LIBS)
 
 SOURCES = afssys.c afskrb.c common.c afslib.c
 
-EXTRA_SOURCE = issuid.c strcpy_truncate.c strcat_truncate.c
+EXTRA_SOURCE = issuid.c strlcpy.c strlcat.c
 
-EXTRA_OBJECT = issuid.o strcpy_truncate.o strcat_truncate.o
+EXTRA_OBJECT = issuid.o strlcpy.o strlcat.o
 
 OBJECTS = afssys.o afskrb.o common.o $(EXTRA_OBJECT) $(AFS_EXTRA_OBJS)
 
@@ -109,9 +109,9 @@ roken_rename.h:
 issuid.c:
 	$(LN_S) $(srcdir)/../roken/issuid.c .
 
-strcat_truncate.c:
-	$(LN_S) $(srcdir)/../roken/strcat_truncate.c .
+strlcat.c:
+	$(LN_S) $(srcdir)/../roken/strlcat.c .
 
-strcpy_truncate.c:
-	$(LN_S) $(srcdir)/../roken/strcpy_truncate.c .
+strlcpy.c:
+	$(LN_S) $(srcdir)/../roken/strlcpy.c .
 

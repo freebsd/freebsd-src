@@ -22,7 +22,7 @@ or implied warranty.
 #include "config.h"
 #include "protos.h"
 
-RCSID("$Id: acl_files.c,v 1.13 1999/03/13 21:21:32 assar Exp $");
+RCSID("$Id: acl_files.c,v 1.14 1999/09/16 20:41:43 assar Exp $");
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -373,7 +373,7 @@ acl_load(char *name)
     }
 
     /* Set up the acl */
-    strcpy_truncate(acl_cache[i].filename, name, LINESIZE);
+    strlcpy(acl_cache[i].filename, name, LINESIZE);
     if((acl_cache[i].fd = open(name, O_RDONLY, 0)) < 0) return(-1);
     /* Force reload */
     acl_cache[i].acl = (struct hashtbl *) 0;

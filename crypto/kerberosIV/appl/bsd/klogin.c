@@ -33,7 +33,7 @@
 
 #include "bsd_locl.h"
 
-RCSID("$Id: klogin.c,v 1.24 1999/03/15 13:34:12 bg Exp $");
+RCSID("$Id: klogin.c,v 1.27 1999/10/04 16:11:48 bg Exp $");
 
 #ifdef KERBEROS
 
@@ -53,52 +53,25 @@ multiple_get_tkt(char *name,
 		 int life,
 		 char *password)
 {
+  int ret;
   int n;
   char rlm[256];
-#define ERICSSON_COMPAT 1
-#ifdef  ERICSSON_COMPAT
-  FILE *f;
 
-  f = fopen("/etc/krb.localrealms", "r");
-  if (f != NULL) {
-    while (fgets(rlm, sizeof(rlm), f) != NULL) {
-      if (rlm[strlen(rlm) - 1] == '\n')
-	rlm[strlen(rlm) - 1] = '\0';
-	    
-      if (krb_get_pw_in_tkt(name,
-			    instance,
-			    rlm,
-			    service,
-			    realm,
-			    life,
-			    password) == KSUCCESS) {
-	fclose(f);
-	return KSUCCESS;
-      }
-    }
-    return krb_get_pw_in_tkt(name,
-			     instance,
-			     realm,
-			     service,
-			     realm,
-			     life,
-			     password);
-  }
-#endif
   /* First try to verify against the supplied realm. */
-  if (krb_get_pw_in_tkt(name, instance, realm, service, realm, life, password)
-      == KSUCCESS)
+  ret = krb_get_pw_in_tkt(name, instance, realm, service, realm, life,
+			  password);
+  if(ret == KSUCCESS)
     return KSUCCESS;
 
   /* Verify all local realms, except the supplied realm. */
   for (n = 1; krb_get_lrealm(rlm, n) == KSUCCESS; n++)
-    if (strcmp(rlm, realm) != 0)
-      if (krb_get_pw_in_tkt(name, instance, rlm,service, realm, life, password)
-	  == KSUCCESS)
+    if (strcmp(rlm, realm) != 0) {
+      ret = krb_get_pw_in_tkt(name, instance, rlm,service, rlm,life, password);
+      if (ret == KSUCCESS)
 	return KSUCCESS;
+    }
 
-  return KFAILURE;
-
+  return ret;
 }
 
 /*
@@ -194,7 +167,7 @@ klogin(struct passwd *pw, char *instance, char *localhost, char *password)
     if (chown(TKT_FILE, pw->pw_uid, pw->pw_gid) < 0)
 	syslog(LOG_ERR, "chown tkfile (%s): %m", TKT_FILE);
 
-    strcpy_truncate(savehost, krb_get_phost(localhost), sizeof(savehost));
+    strlcpy(savehost, krb_get_phost(localhost), sizeof(savehost));
 
 #ifdef KLOGIN_PARANOID
     /*

@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,7 +33,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: get_host.c,v 1.45 1999/06/29 21:18:02 bg Exp $");
+RCSID("$Id: get_host.c,v 1.48 1999/12/02 16:58:41 joda Exp $");
 
 static struct host_list {
     struct krb_host *this;
@@ -77,7 +72,7 @@ parse_address(char *address, enum krb_host_proto *proto,
 	p = strchr(address, '/');
 	if(p){
 	    char prot[32];
-	    strcpy_truncate (prot, address,
+	    strlcpy (prot, address,
 			     min(p - address + 1, sizeof(prot)));
 	    if(strcasecmp(prot, "udp") == 0) 
 		*proto = PROTO_UDP;
@@ -98,7 +93,7 @@ parse_address(char *address, enum krb_host_proto *proto,
 	*host = malloc(q - p + 1);
 	if (*host == NULL)
 	    return -1;
-	strcpy_truncate (*host, p, q - p + 1);
+	strlcpy (*host, p, q - p + 1);
 	q++;
 	{
 	    struct servent *sp = getservbyname(q, NULL);
@@ -118,7 +113,7 @@ parse_address(char *address, enum krb_host_proto *proto,
 	    *host = malloc(q - p + 1);
 	    if (*host == NULL)
 		return -1;
-	    strcpy_truncate (*host, p, q - p + 1);
+	    strlcpy (*host, p, q - p + 1);
 	} else {
 	    *host = strdup(p);
 	    if(*host == NULL)
@@ -307,7 +302,7 @@ srv_find_realm(char *realm, char *proto, char *service)
 }
 
 struct krb_host*
-krb_get_host(int nth, char *realm, int admin)
+krb_get_host(int nth, const char *realm, int admin)
 {
     struct host_list *p;
     static char orealm[REALM_SZ];
@@ -315,7 +310,7 @@ krb_get_host(int nth, char *realm, int admin)
     if(orealm[0] == 0 || strcmp(realm, orealm)){
 	/* quick optimization */
 	if(realm && realm[0]){
-	    strcpy_truncate (orealm, realm, sizeof(orealm));
+	    strlcpy (orealm, realm, sizeof(orealm));
 	}else{
 	    int ret = krb_get_lrealm(orealm, 1);
 	    if(ret != KSUCCESS)
@@ -377,7 +372,7 @@ krb_get_krbhst(char *host, char *realm, int nth)
     struct krb_host *p = krb_get_host(nth, realm, 0);
     if(p == NULL)
 	return KFAILURE;
-    strcpy_truncate (host, p->host, MaxHostNameLen);
+    strlcpy (host, p->host, MaxHostNameLen);
     return KSUCCESS;
 }
 
@@ -387,6 +382,6 @@ krb_get_admhst(char *host, char *realm, int nth)
     struct krb_host *p = krb_get_host(nth, realm, 1);
     if(p == NULL)
 	return KFAILURE;
-    strcpy_truncate (host, p->host, MaxHostNameLen);
+    strlcpy (host, p->host, MaxHostNameLen);
     return KSUCCESS;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997, 1999 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the 
  *    documentation and/or other materials provided with the distribution. 
  *
- * 3. All advertising materials mentioning features or use of this software 
- *    must display the following acknowledgement: 
- *      This product includes software developed by Kungliga Tekniska 
- *      Högskolan and its contributors. 
- *
- * 4. Neither the name of the Institute nor the names of its contributors 
+ * 3. Neither the name of the Institute nor the names of its contributors 
  *    may be used to endorse or promote products derived from this software 
  *    without specific prior written permission. 
  *
@@ -36,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: getarg.h,v 1.5 1998/08/18 20:26:11 assar Exp $ */
+/* $Id: getarg.h,v 1.10 1999/12/02 16:58:46 joda Exp $ */
 
 #ifndef __GETARG_H__
 #define __GETARG_H__
@@ -46,7 +41,15 @@
 struct getargs{
     const char *long_name;
     char short_name;
-    enum { arg_integer, arg_string, arg_flag, arg_negative_flag, arg_strings } type;
+    enum { arg_integer, 
+	   arg_string, 
+	   arg_flag, 
+	   arg_negative_flag, 
+	   arg_strings,
+	   arg_double,
+	   arg_collect,
+	   arg_counter
+    } type;
     void *value;
     const char *help;
     const char *arg_help;
@@ -62,6 +65,18 @@ typedef struct getarg_strings {
     int num_strings;
     char **strings;
 } getarg_strings;
+
+typedef int (*getarg_collect_func)(int short_opt,
+				   int argc,
+				   char **argv,
+				   int *optind,
+				   int *optarg,
+				   void *data);
+
+typedef struct getarg_collect_info {
+    getarg_collect_func func;
+    void *data;
+} getarg_collect_info;
 
 int getarg(struct getargs *args, size_t num_args, 
 	   int argc, char **argv, int *optind);

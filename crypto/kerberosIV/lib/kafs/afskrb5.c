@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,7 +33,7 @@
 
 #include "kafs_locl.h"
 
-RCSID("$Id: afskrb5.c,v 1.7 1999/07/07 12:30:06 assar Exp $");
+RCSID("$Id: afskrb5.c,v 1.13 1999/12/02 16:58:39 joda Exp $");
 
 struct krb5_kafs_data {
     krb5_context context;
@@ -64,37 +59,44 @@ get_cred(kafs_data *data, const char *name, const char *inst,
 	krb5_free_principal(d->context, in_creds.server);
 	return ret;
     }
+    in_creds.session.keytype = KEYTYPE_DES;
     ret = krb5_get_credentials(d->context, 0, d->id, &in_creds, &out_creds);
     krb5_free_principal(d->context, in_creds.server);
     krb5_free_principal(d->context, in_creds.client);
     if(ret)
 	return ret;
-    ret = krb524_convert_creds_kdc(d->context, out_creds, c);
+    ret = krb524_convert_creds_kdc(d->context, d->id, out_creds, c);
     krb5_free_creds(d->context, out_creds);
     return ret;
 }
 
 static krb5_error_code
-afslog_uid_int(kafs_data *data, const char *cell, uid_t uid,
+afslog_uid_int(kafs_data *data, const char *cell, const char *rh, uid_t uid,
 	       const char *homedir)
 {
     krb5_error_code ret;
     CREDENTIALS c;
-    krb5_realm lrealm; /* local realm */
+    krb5_principal princ;
+    krb5_realm *trealm; /* ticket realm */
     struct krb5_kafs_data *d = data->data;
     
     if (cell == 0 || cell[0] == 0)
 	return _kafs_afslog_all_local_cells (data, uid, homedir);
 
-    ret = krb5_get_default_realm(d->context, &lrealm);
-    if(ret || (d->realm && strcmp(d->realm, lrealm) == 0)){
-	free(lrealm);
-	lrealm = NULL;
+    ret = krb5_cc_get_principal (d->context, d->id, &princ);
+    if (ret)
+	return ret;
+
+    trealm = krb5_princ_realm (d->context, princ);
+
+    if (d->realm != NULL && strcmp (d->realm, *trealm) == 0) {
+	trealm = NULL;
+	krb5_free_principal (d->context, princ);
     }
 
-    ret = _kafs_get_cred(data, cell, d->realm, lrealm, &c);
-    if(lrealm)
-	free(lrealm);
+    ret = _kafs_get_cred(data, cell, d->realm, *trealm, &c);
+    if(trealm)
+	krb5_free_principal (d->context, princ);
     
     if(ret == 0)
 	ret = kafs_settoken(cell, uid, &c);
@@ -131,7 +133,7 @@ krb5_afslog_uid_home(krb5_context context,
     d.context = context;
     d.id = id;
     d.realm = realm;
-    return afslog_uid_int(&kd, cell, uid, homedir);
+    return afslog_uid_int(&kd, cell, 0, uid, homedir);
 }
 
 krb5_error_code

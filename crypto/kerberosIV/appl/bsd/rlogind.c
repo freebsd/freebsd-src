@@ -42,7 +42,7 @@
 
 #include "bsd_locl.h"
 
-RCSID("$Id: rlogind.c,v 1.107.2.1 1999/07/22 03:14:39 assar Exp $");
+RCSID("$Id: rlogind.c,v 1.109 1999/11/25 05:27:38 assar Exp $");
 
 extern int __check_rhosts_file;
 
@@ -319,7 +319,7 @@ main(int argc, char **argv)
     openlog("rlogind", LOG_PID | LOG_CONS, LOG_AUTH);
 
     opterr = 0;
-    while ((ch = getopt(argc, argv, ARGSTR)) != EOF)
+    while ((ch = getopt(argc, argv, ARGSTR)) != -1)
 	switch (ch) {
 	case 'D':
 	    no_delay = 1;
