@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.36 1994/09/09 22:03:51 wollman Exp $
+#	$Id: Makefile.i386,v 1.37 1994/09/16 10:23:46 jkh Exp $
 #
 # Makefile for FreeBSD
 #
@@ -60,7 +60,7 @@ SFILES=	${I386}/i386/exception.s ${I386}/i386/microtime.s \
 	${I386}/i386/support.s ${I386}/i386/swtch.s
 SYSTEM_CFILES= ioconf.c param.c vnode_if.c
 SYSTEM_SFILES= ${I386}/i386/locore.s
-SYSTEM_OBJS=locore.o ${OBJS} ioconf.o param.o vnode_if.o
+SYSTEM_OBJS=locore.o vnode_if.o ${OBJS} ioconf.o param.o 
 SYSTEM_DEP=Makefile symbols.sort ${SYSTEM_OBJS} libkern.a
 SYSTEM_LD_HEAD= 	@echo loading $@; rm -f $@
 SYSTEM_LD= @${LD} -Bstatic -Z -T ${LOAD_ADDRESS} -o $@ -X ${SYSTEM_OBJS} vers.o libkern.a
