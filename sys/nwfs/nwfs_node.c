@@ -37,7 +37,6 @@
 #include <sys/time.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
-#include <sys/namei.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
@@ -46,9 +45,6 @@
 #include <vm/vm_prot.h>
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
-#include <vm/vm_pager.h>
-#include <vm/vnode_pager.h>
-#include <vm/vm_zone.h>
 #include <sys/queue.h>
 
 #include <netncp/ncp.h>

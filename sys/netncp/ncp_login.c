@@ -36,14 +36,10 @@
 #include <sys/malloc.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
-#include <sys/kernel.h>
-#include <sys/poll.h>
-#include <sys/mbuf.h>
 #include <sys/socket.h>
 
 #include <netncp/ncp.h>
 #include <netncp/ncp_conn.h>
-#include <netncp/ncp_sock.h>
 #include <netncp/ncp_subr.h>
 #include <netncp/ncp_ncp.h>
 #include <netncp/ncp_rq.h>

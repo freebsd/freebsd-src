@@ -47,7 +47,6 @@
 #include <netncp/ncp_subr.h>
 #include <netncp/ncp_rq.h>
 #include <netncp/ncp_ncp.h>
-#include <netncp/ncp_user.h>
 #include <netncp/nwerror.h>
 
 int ncp_debuglevel = 0;

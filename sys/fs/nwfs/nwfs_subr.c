@@ -34,17 +34,14 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/proc.h>
 #include <sys/malloc.h>
 #include <machine/clock.h>
 #include <sys/time.h>
-#include <sys/namei.h>
 
 #include <netncp/ncp.h>
 #include <netncp/ncp_conn.h>
 #include <netncp/ncp_ncp.h>
 #include <netncp/ncp_subr.h>
-#include <netncp/ncp_user.h>
 #include <netncp/ncp_rq.h>
 #include <netncp/nwerror.h>
 
