@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.20 1997/07/21 13:11:02 kato Exp $
+ *	$Id: fd.c,v 1.21 1997/09/17 08:01:07 kato Exp $
  *
  */
 
@@ -315,6 +315,10 @@ static int fdstate(fdcu_t, fdc_p);
 static int retrier(fdcu_t);
 static int fdformat(dev_t, struct fd_formb *, struct proc *);
 
+static int enable_fifo(fdc_p fdc);
+
+static int fifo_threshold = 8;	/* XXX: should be accessible via sysctl */
+
 
 #define DEVIDLE		0
 #define FINDWORK	1
@@ -435,6 +439,46 @@ fd_cmd(fdcu_t fdcu, int n_out, ...)
 		}
 	}
 
+	return 0;
+}
+
+static int 
+enable_fifo(fdc_p fdc)
+{
+	int i, j;
+
+	if ((fdc->flags & FDC_HAS_FIFO) == 0) {
+		
+		/*
+		 * XXX: 
+		 * Cannot use fd_cmd the normal way here, since
+		 * this might be an invalid command. Thus we send the
+		 * first byte, and check for an early turn of data directon.
+		 */
+		
+		if (out_fdc(fdc->fdcu, I8207X_CONFIGURE) < 0)
+			return fdc_err(fdc->fdcu, "Enable FIFO failed\n");
+		
+		/* If command is invalid, return */
+		j = 100000;
+		while ((i = inb(fdc->baseport + FDSTS) & (NE7_DIO | NE7_RQM))
+		       != NE7_RQM && j-- > 0)
+			if (i == (NE7_DIO | NE7_RQM)) {
+				fdc_reset(fdc);
+				return FD_FAILED;
+			}
+		if (j<0 || 
+		    fd_cmd(fdc->fdcu, 3,
+			   0, (fifo_threshold - 1) & 0xf, 0, 0) < 0) {
+			fdc_reset(fdc);
+			return fdc_err(fdc->fdcu, "Enable FIFO failed\n");
+		}
+		fdc->flags |= FDC_HAS_FIFO;
+		return 0;
+	}
+	if (fd_cmd(fdc->fdcu, 4,
+		   I8207X_CONFIGURE, 0, (fifo_threshold - 1) & 0xf, 0, 0) < 0)
+		return fdc_err(fdc->fdcu, "Re-enable FIFO failed\n");
 	return 0;
 }
 
@@ -811,6 +855,13 @@ fdattach(struct isa_device *dev)
 				fdc->fdct = FDC_UNKNOWN;
 				break;
 			}
+			if (fdc->fdct != FDC_NE765 &&
+			    fdc->fdct != FDC_UNKNOWN && 
+			    enable_fifo(fdc) == 0) {
+				printf("fdc%d: FIFO enabled", fdcu);
+				printf(", %d bytes threshold\n", 
+				       fifo_threshold);
+			}
 		}
 		if ((fd_cmd(fdcu, 2, NE7CMD_SENSED, fdsu, 1, &st3) == 0) &&
 		    (st3 & NE7_ST3_T0)) {
@@ -1070,6 +1121,9 @@ set_motor(fdcu_t fdcu, int fdsu, int turnon)
 			     NE7_SPEC_1(3, 240), NE7_SPEC_2(2, 0),
 			     0);
 #endif
+		if (fdc_data[fdcu].flags & FDC_HAS_FIFO)
+			(void) enable_fifo(&fdc_data[fdcu]);
+
 	}
 }
 
@@ -1163,6 +1217,8 @@ fdc_reset(fdc_p fdc)
 		     NE7_SPEC_1(3, 240), NE7_SPEC_2(2, 0),
 		     0);
 #endif
+	if (fdc->flags & FDC_HAS_FIFO)
+		(void) enable_fifo(fdc);
 }
 
 /****************************************************************************/
