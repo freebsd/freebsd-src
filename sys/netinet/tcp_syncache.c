@@ -379,7 +379,7 @@ syncache_timer(xslot)
         if (callout_pending(&tcp_syncache.tt_timerq[slot]) ||
             !callout_active(&tcp_syncache.tt_timerq[slot])) {
 		/* XXX can this happen? */
-		INP_INFO_WLOCK(&tcbinfo);
+		INP_INFO_WUNLOCK(&tcbinfo);
                 return;
         }
         callout_deactivate(&tcp_syncache.tt_timerq[slot]);
@@ -416,7 +416,7 @@ syncache_timer(xslot)
 	if (nsc != NULL)
 		callout_reset(&tcp_syncache.tt_timerq[slot],
 		    nsc->sc_rxttime - ticks, syncache_timer, (void *)(slot));
-	INP_INFO_WLOCK(&tcbinfo);
+	INP_INFO_WUNLOCK(&tcbinfo);
 }
 
 /*
