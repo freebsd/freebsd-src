@@ -35,7 +35,6 @@ struct pcic_slot {
 	struct pcic_softc *sc;		/* Back pointer to softc */
 	u_char (*getb)(struct pcic_slot *, int);
 	void   (*putb)(struct pcic_slot *, int, u_char);
-	void   (*intrack)(struct pcic_slot *);
 	bus_space_tag_t bst;
 	bus_space_handle_t bsh;
 };
@@ -61,11 +60,14 @@ struct pcic_softc
 	int			irqrid;	/* Irq rid */
 	struct resource		*irqres;/* Irq resource */
 	void			*ih;	/* Our interrupt handler. */
+	int			irq;
 	device_t		dev;	/* Our device */
 	bus_space_tag_t		bst;	/* Bus tag for our regs */
 	bus_space_handle_t	bsh;	/* Bus handle for our regs */
+	void (*slot_poll)(void *);
 	struct callout_handle	timeout_ch;
 	struct pcic_slot	slots[PCIC_MAX_SLOTS];
+	int			cd_pending;
 };
 
 extern devclass_t	pcic_devclass;
