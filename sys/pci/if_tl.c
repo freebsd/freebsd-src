@@ -339,6 +339,14 @@ static void tl_dio_clrbit	__P((struct tl_softc *, int, int));
 static void tl_dio_setbit16	__P((struct tl_softc *, int, int));
 static void tl_dio_clrbit16	__P((struct tl_softc *, int, int));
 
+#ifdef TL_USEIOSPACE
+#define TL_RES		SYS_RES_IOPORT
+#define TL_RID		TL_PCI_LOIO
+#else
+#define TL_RES		SYS_RES_MEMORY
+#define TL_RID		TL_PCI_LOMEM
+#endif
+
 static device_method_t tl_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		tl_probe),
@@ -1531,9 +1539,6 @@ static int tl_attach(dev)
 	device_t		dev;
 {
 	int			s, i, phys = 0;
-#ifndef TL_USEIOSPACE
-	vm_offset_t		pbase, vbase;
-#endif
 	u_int32_t		command;
 	u_int16_t		did, vid;
 	struct tl_type		*t;
@@ -1635,6 +1640,7 @@ static int tl_attach(dev)
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->tl_irq == NULL) {
+		bus_release_resource(dev, TL_RES, TL_RID, sc->tl_res);
 		printf("tl%d: couldn't map interrupt\n", unit);
 		error = ENXIO;
 		goto fail;
@@ -1644,6 +1650,8 @@ static int tl_attach(dev)
 	    tl_intr, sc, &sc->tl_intrhand);
 
 	if (error) {
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->tl_res);
+		bus_release_resource(dev, TL_RES, TL_RID, sc->tl_res);
 		printf("tl%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
@@ -1664,14 +1672,9 @@ static int tl_attach(dev)
 				M_DEVBUF, M_NOWAIT);
 
 	if (sc->tl_ldata_ptr == NULL) {
+		bus_teardown_intr(dev, sc->tl_irq, sc->tl_intrhand);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->tl_irq);
-#ifdef TL_USEIOSPACE
-		bus_release_resource(dev, SYS_RES_IOPORT,
-		    TL_PCI_LOIO, sc->tl_res);
-#else
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    TL_PCI_LOMEM, sc->tl_res);
-#endif
+		bus_release_resource(dev, TL_RES, TL_RID, sc->tl_res);
 		printf("tl%d: no memory for list buffers!\n", unit);
 		error = ENXIO;
 		goto fail;
@@ -1713,14 +1716,9 @@ static int tl_attach(dev)
 	 */
 	if (tl_read_eeprom(sc, (caddr_t)&sc->arpcom.ac_enaddr,
 				sc->tl_eeaddr, ETHER_ADDR_LEN)) {
+		bus_teardown_intr(dev, sc->tl_irq, sc->tl_intrhand);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->tl_irq);
-#ifdef TL_USEIOSPACE
-		bus_release_resource(dev, SYS_RES_IOPORT,
-		    TL_PCI_LOIO, sc->tl_res);
-#else
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    TL_PCI_LOMEM, sc->tl_res);
-#endif
+		bus_release_resource(dev, TL_RES, TL_RID, sc->tl_res);
 		free(sc->tl_ldata_ptr, M_DEVBUF);
 		printf("tl%d: failed to read station address\n", unit);
 		error = ENXIO;
@@ -1793,14 +1791,9 @@ static int tl_attach(dev)
 		if (!sc->tl_phy_sts)
 			continue;
 		if (tl_attach_phy(sc)) {
+			bus_teardown_intr(dev, sc->tl_irq, sc->tl_intrhand);
 			bus_release_resource(dev, SYS_RES_IRQ, 0, sc->tl_irq);
-#ifdef TL_USEIOSPACE
-			bus_release_resource(dev, SYS_RES_IOPORT,
-			    TL_PCI_LOIO, sc->tl_res);
-#else
-			bus_release_resource(dev, SYS_RES_MEMORY,
-			    TL_PCI_LOMEM, sc->tl_res);
-#endif
+			bus_release_resource(dev, TL_RES, TL_RID, sc->tl_res);
 			free(sc->tl_ldata_ptr, M_DEVBUF);
 			printf("tl%d: failed to attach a phy %d\n", unit, i);
 			error = ENXIO;
@@ -1876,11 +1869,7 @@ static int tl_detach(dev)
 
 	bus_teardown_intr(dev, sc->tl_irq, sc->tl_intrhand);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->tl_irq);
-#ifdef TL_USEIOSPACE
-	bus_release_resource(dev, SYS_RES_IOPORT, TL_PCI_LOIO, sc->tl_res);
-#else
-	bus_release_resource(dev, SYS_RES_MEMORY, TL_PCI_LOMEM, sc->tl_res);
-#endif
+	bus_release_resource(dev, TL_RES, TL_RID, sc->tl_res);
 
 	splx(s);
 
