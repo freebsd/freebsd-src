@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.75 1999/04/25 04:06:43 kato Exp $
+ **      $Id: userconfig.c,v 1.76 1999/05/06 09:15:20 kato Exp $
  **/
 
 /**
@@ -856,6 +856,8 @@ static void
 savelist(DEV_LIST *list, int active)
 {
     struct isa_device	*id_p,*id_pn;
+    struct isa_driver	*isa_drv;
+    char *name = list->device->id_driver->name;
 
     while (list)
     {
@@ -872,8 +874,18 @@ savelist(DEV_LIST *list, int active)
 		if (id_p->id_id == list->device->id_id) 
 		{
 		    id_pn = id_p->id_next;
+		    isa_drv = id_p->id_driver;
+		    if (isa_drv && isa_drv->name)
+			    free(isa_drv->name, M_DEVL);
+		    if (isa_drv)
+			    free(isa_drv, M_DEVL);
 		    bcopy(list->device,id_p,sizeof(struct isa_device));
 		    save_resource(list->device);
+		    isa_drv = malloc(sizeof(struct isa_driver),M_DEVL,M_WAITOK);
+		    isa_drv->name = malloc(strlen(name) + 1, M_DEVL,M_WAITOK);
+		    strcpy(isa_drv->name, name);
+		    id_p->id_driver = isa_drv;
+		    id_pn->id_next = isa_devlist;
 		    id_p->id_next = id_pn;
 		    break;
 		}
@@ -883,6 +895,10 @@ savelist(DEV_LIST *list, int active)
 		id_pn = malloc(sizeof(struct isa_device),M_DEVL,M_WAITOK);
 		bcopy(list->device,id_pn,sizeof(struct isa_device));
 		save_resource(list->device);
+		isa_drv = malloc(sizeof(struct isa_driver),M_DEVL, M_WAITOK);
+		isa_drv->name = malloc(strlen(name) + 1, M_DEVL,M_WAITOK);
+		strcpy(isa_drv->name, name);
+		id_pn->id_driver = isa_drv;
 		id_pn->id_next = isa_devlist;
 		isa_devlist = id_pn;			/* park at top of list */
 	    }
@@ -1394,13 +1410,14 @@ drawline(int row, int detail, DEV_LIST *list, int inverse, char *dhelp)
     nb[58] = '\0';
     pad(nb,60);
     if (list->conflicts)			/* device in conflict? */
+    {
 	if (inverse)
 	{
 	    strcpy(nb+54," !nCONF!i ");		/* tag conflict, careful of length */
 	}else{
 	    strcpy(nb+54," !iCONF!n ");		/* tag conflict, careful of length */
 	}
-
+    }
     if (list->comment == DEV_DEVICE)
     {
 	sprintf(db,"%s%d",list->dev,list->unit);
@@ -2538,7 +2555,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.75 1999/04/25 04:06:43 kato Exp $
+ *      $Id: userconfig.c,v 1.76 1999/05/06 09:15:20 kato Exp $
  */
 
 #include "scbus.h"
@@ -3377,6 +3394,8 @@ load_devtab(void)
 	val = 0;
 	resource_int_value(name, unit, "disabled", &val);
 	isa_devtab[dt].id_enabled = !val;
+	resource_int_value(name, unit, "conflicts",
+		(int *)&isa_devtab[dt].id_conflicts);
 	isa_drvtab[dt].name = malloc(strlen(name) + 1, M_DEVL,M_WAITOK);
 	strcpy(isa_drvtab[dt].name, name);
 	dt++;
@@ -3611,25 +3630,20 @@ list_scsi(CmdParm *parms)
 static void
 save_resource(struct isa_device *idev)
 {
-    int i;
     char *name;
     int unit;
-    int count = resource_count();
 
-    for (i = 0; i < count; i++) {
-	name = resource_query_name(i);
-	unit = resource_query_unit(i);
-	if (unit != idev->id_unit || strcmp(name, idev->id_driver->name) != 0)
-	    continue;
-	resource_set_int(i, "port", idev->id_iobase);
-	resource_set_int(i, "irq", 1 << (idev->id_irq < 0 ? 0 : idev->id_irq));
-	resource_set_int(i, "drq", idev->id_drq);
-	resource_set_int(i, "maddr", (int)idev->id_maddr);
-	resource_set_int(i, "msize", idev->id_msize);
-	resource_set_int(i, "flags", idev->id_flags);
-	resource_set_int(i, "disabled", !idev->id_enabled);
-	break;
-    }
+    name = idev->id_driver->name;
+    unit = idev->id_unit;
+    resource_set_int(name, unit, "port", idev->id_iobase);
+    resource_set_int(name, unit, "irq",
+		     1 << (idev->id_irq < 0 ? 0 : idev->id_irq));
+    resource_set_int(name, unit, "drq", idev->id_drq);
+    resource_set_int(name, unit, "maddr", (int)idev->id_maddr);
+    resource_set_int(name, unit, "msize", idev->id_msize);
+    resource_set_int(name, unit, "flags", idev->id_flags);
+    resource_set_int(name, unit, "disabled", !idev->id_enabled);
+    resource_set_int(name, unit, "conflicts", idev->id_conflicts);
 }
 
 static int
@@ -3637,14 +3651,26 @@ save_dev(idev)
 struct isa_device 	*idev;
 {
 	struct isa_device	*id_p,*id_pn;
+	struct isa_driver	*isa_drv;
+	char *name = idev->id_driver->name;
 
 	for (id_p=isa_devlist;
 	id_p;
 	id_p=id_p->id_next) {
 		if (id_p->id_id == idev->id_id) {
 			id_pn = id_p->id_next;
+			isa_drv = id_p->id_driver;
+			if (isa_drv && isa_drv->name)
+				free(isa_drv->name, M_DEVL);
+			if (isa_drv)
+				free(isa_drv, M_DEVL);
 			bcopy(idev,id_p,sizeof(struct isa_device));
 			save_resource(idev);
+			isa_drv = malloc(sizeof(struct isa_driver),M_DEVL,
+				M_WAITOK);
+			isa_drv->name = malloc(strlen(name) + 1, M_DEVL,M_WAITOK);
+			strcpy(isa_drv->name, name);
+			id_p->id_driver = isa_drv;
 			id_p->id_next = id_pn;
 			return 1;
 		}
@@ -3652,6 +3678,10 @@ struct isa_device 	*idev;
 	id_pn = malloc(sizeof(struct isa_device),M_DEVL,M_WAITOK);
 	bcopy(idev,id_pn,sizeof(struct isa_device));
 	save_resource(idev);
+	isa_drv = malloc(sizeof(struct isa_driver),M_DEVL, M_WAITOK);
+	isa_drv->name = malloc(strlen(name) + 1, M_DEVL,M_WAITOK);
+	strcpy(isa_drv->name, name);
+	id_pn->id_driver = isa_drv;
 	id_pn->id_next = isa_devlist;
 	isa_devlist = id_pn;
 	return 0;
