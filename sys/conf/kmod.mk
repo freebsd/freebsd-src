@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.22 1996/06/17 15:11:10 bde Exp $
+#	$Id: bsd.kmod.mk,v 1.23 1996/06/24 04:24:00 jkh Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 # <bsd.kmod.mk> includes the file named "../Makefile.inc" if it exists,
@@ -208,5 +208,5 @@ vnode_if.h:	${KERN}/vnode_if.sh ${KERN}/vnode_if.src
 
 ./vnode_if.h:	vnode_if.h
 
-.include <bsd.dep.mk>
 .include <bsd.obj.mk>
+.include <bsd.dep.mk>
