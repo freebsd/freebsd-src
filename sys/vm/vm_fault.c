@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.11 1994/10/23 06:15:03 davidg Exp $
+ * $Id: vm_fault.c,v 1.12 1994/11/06 09:55:29 davidg Exp $
  */
 
 /*
@@ -1246,18 +1246,22 @@ vm_fault_additional_pages(first_object, first_offset, m, rbehind, raheada, marra
 	 * in memory or on disk not in same object
 	 */
 	toffset = offset - NBPG;
-	if( rbehind*NBPG > offset)
-		rbehind = offset / NBPG;
-	startoffset = offset - rbehind*NBPG;
-	while (toffset >= startoffset) {
-		if (!vm_fault_page_lookup(first_object, toffset - offsetdiff, &rtobject, &rtoffset, &rtm) ||
-		    rtm != 0 || rtobject != object) {
-			startoffset = toffset + NBPG;
-			break;
+	if( toffset < offset) {
+		if( rbehind*NBPG > offset)
+			rbehind = offset / NBPG;
+		startoffset = offset - rbehind*NBPG;
+		while (toffset >= startoffset) {
+			if (!vm_fault_page_lookup(first_object, toffset - offsetdiff, &rtobject, &rtoffset, &rtm) ||
+			    rtm != 0 || rtobject != object) {
+				startoffset = toffset + NBPG;
+				break;
+			}
+			if( toffset == 0)
+				break;
+			toffset -= NBPG;
 		}
-		if( toffset == 0)
-			break;
-		toffset -= NBPG;
+	} else {
+		startoffset = offset;
 	}
 
 	/*
