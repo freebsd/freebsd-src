@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.178 1996/12/23 18:40:11 andreas Exp $ -->
+<!-- $Id: contrib.sgml,v 1.179 1996/12/24 15:37:41 andreas Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -344,7 +344,7 @@
 	  <item>Ronald Kuehn &lt;kuehn@rz.tu-clausthal.de&gt;
 	  <item>Sander Vesik &lt;sander@haldjas.folklore.ee&gt;
 	  <item>Sandro Sigala &lt;ssigala@globalnet.it&gt;
-	  <item>Sascha Blank &lt;nf03@Uni-Trier.de&gt;
+	  <item>Sascha Blank &lt;blank@fox.uni-trier.de&gt;
 	  <item>Sascha Wildner &lt;swildner@channelz.GUN.de&gt;
 	  <item>Scott Blachowicz &lt;scott@sabami.seaslug.org&gt;
 	  <item>Serge V. Vakulenko &lt;vak@zebub.msk.su&gt;
