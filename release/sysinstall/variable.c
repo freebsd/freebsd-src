@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: variable.c,v 1.11.2.2 1996/12/12 11:18:30 jkh Exp $
+ * $Id: variable.c,v 1.11.2.3 1997/01/17 08:53:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -146,8 +146,11 @@ char *
 variable_get_value(char *var, char *prompt)
 {
     char *cp;
-    
-    if ((cp = msgGetInput(variable_get(var), prompt)) != NULL)
+
+    cp = variable_get(var);
+    if (cp && variable_get(VAR_NONINTERACTIVE))
+	return cp;
+    else if ((cp = msgGetInput(cp, prompt)) != NULL)
 	variable_set2(var, cp);
     else
 	cp = NULL;
