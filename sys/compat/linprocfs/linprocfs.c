@@ -449,8 +449,8 @@ linprocfs_doversion(PFS_FILL_ARGS)
 	char osname[LINUX_MAX_UTSNAME];
 	char osrelease[LINUX_MAX_UTSNAME];
 
-	linux_get_osname(td->td_proc, osname);
-	linux_get_osrelease(td->td_proc, osrelease);
+	linux_get_osname(td, osname);
+	linux_get_osrelease(td, osrelease);
 
 	sbuf_printf(sb,
 	    "%s version %s (des@freebsd.org) (gcc version " __VERSION__ ")"
