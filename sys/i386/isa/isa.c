@@ -53,7 +53,7 @@
  *					aid in bug reports.
  * 27 May 93	Guido van Rooij		New routine add find_isa_dev
  */
-static char rcsid[] = "$Header: /usr/src/sys.386bsd/i386/isa/RCS/isa.c,v 1.2 92/01/21 14:34:23 william Exp Locker: root $";
+static char rcsid[] = "$Header: /home/cvs/386BSD/src/sys.386bsd/i386/isa/isa.c,v 1.1.1.1 1993/06/12 14:58:01 rgrimes Exp $";
 
 /*
  * code to manage AT bus
@@ -236,13 +236,6 @@ config_isadev(isdp, mp)
 		if (isdp->id_alive) {
 			printf("%s%d", dp->name, isdp->id_unit);
 			/*
-			 * The attach should really be after all the printf's
-			 * but until all the drivers are fixed do it here.
-			 * There is a comment below that shows where this
-			 * really belongs.  Rod Grimes 04/10/93
-			 */
-			(*dp->attach)(isdp);
-			/*
 			 * Only print the I/O address range if id_alive != -1
 			 * Right now this is a temporary fix just for the new
 			 * NPX code so that if it finds a 486 that can use trap
@@ -269,7 +262,8 @@ config_isadev(isdp, mp)
 				printf(" flags 0x%x", isdp->id_flags);
 			printf(" on isa\n");
 
-			/* This is the place the attach should be done! */
+			(*dp->attach)(isdp);
+
 			if(isdp->id_irq) {
 				int intrno;
 
