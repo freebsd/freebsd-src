@@ -113,6 +113,10 @@ static struct kue_type kue_devs[] = {
 	    "KLSI USB ethernet" },
 	{ USB_VENDOR_ADS, USB_PRODUCT_ADS_ENET,
 	    "KLSI USB ethernet" },
+	{ USB_VENDOR_ATEN, USB_PRODUCT_ATEN_UC10T,
+	    "KLSI USB ethernet" },
+	{ USB_VENDOR_NETGEAR, USB_PRODUCT_NETGEAR_EA101,
+	    "KLSI USB ethernet" },
 	{ USB_VENDOR_PERACOM, USB_PRODUCT_PERACOM_ENET,
 	    "KLSI USB ethernet" },
 	{ USB_VENDOR_PERACOM, USB_PRODUCT_PERACOM_ENET2,
@@ -120,6 +124,10 @@ static struct kue_type kue_devs[] = {
 	{ USB_VENDOR_ENTREGA, USB_PRODUCT_ENTREGA_E45,
 	    "KLSI USB ethernet" },
 	{ USB_VENDOR_3COM, USB_PRODUCT_3COM_3C19250,
+	    "KLSI USB ethernet" },
+	{ USB_VENDOR_DLINK, USB_PRODUCT_DLINK_DSB650C,
+	    "KLSI USB ethernet" },
+	{ USB_VENDOR_SMC, USB_PRODUCT_SMC_2102USB,
 	    "KLSI USB ethernet" },
 	{ 0, 0, NULL }
 };
