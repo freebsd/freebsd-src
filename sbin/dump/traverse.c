@@ -139,36 +139,77 @@ blockest(union dinode *dp)
 int
 mapfiles(ino_t maxino, long *tapesize)
 {
-	int mode;
-	ino_t ino;
-	union dinode *dp;
+	int i, cg, mode, inosused;
 	int anydirskipped = 0;
+	union dinode *dp;
+	struct cg *cgp;
+	ino_t ino;
+	char *cp;
 
-	for (ino = ROOTINO; ino < maxino; ino++) {
-		dp = getino(ino, &mode);
-		if (mode == 0)
-			continue;
+	if ((cgp = malloc(sblock->fs_cgsize)) == NULL)
+		quit("mapfiles: cannot allocate memory.\n");
+	for (cg = 0; cg < sblock->fs_ncg; cg++) {
+		ino = cg * sblock->fs_ipg;
+		bread(fsbtodb(sblock, cgtod(sblock, cg)), (char *)cgp,
+		    sblock->fs_cgsize);
+		if (sblock->fs_magic == FS_UFS2_MAGIC)
+			inosused = cgp->cg_initediblk;
+		else
+			inosused = sblock->fs_ipg;
 		/*
-		 * Everything must go in usedinomap so that a check
-		 * for "in dumpdirmap but not in usedinomap" to detect
-		 * dirs with nodump set has a chance of succeeding
-		 * (this is used in mapdirs()).
+		 * If we are using soft updates, then we can trust the
+		 * cylinder group inode allocation maps to tell us which
+		 * inodes are allocated. We will scan the used inode map
+		 * to find the inodes that are really in use, and then
+		 * read only those inodes in from disk.
 		 */
-		SETINO(ino, usedinomap);
-		if (mode == IFDIR)
-			SETINO(ino, dumpdirmap);
-		if (WANTTODUMP(dp)) {
-			SETINO(ino, dumpinomap);
-			if (mode != IFREG && mode != IFDIR && mode != IFLNK)
-				*tapesize += 1;
-			else
-				*tapesize += blockest(dp);
-			continue;
+		if (sblock->fs_flags & FS_DOSOFTDEP) {
+			if (!cg_chkmagic(cgp))
+				quit("mapfiles: cg %d: bad magic number\n", cg);
+			cp = &cg_inosused(cgp)[(inosused - 1) / CHAR_BIT];
+			for ( ; inosused > 0; inosused -= CHAR_BIT, cp--) {
+				if (*cp == 0)
+					continue;
+				for (i = 1 << (CHAR_BIT - 1); i > 0; i >>= 1) {
+					if (*cp & i)
+						break;
+					inosused--;
+				}
+				break;
+			}
+			if (inosused <= 0)
+				continue;
 		}
-		if (mode == IFDIR) {
-			if (!nonodump && (DIP(dp, di_flags) & UF_NODUMP))
-				CLRINO(ino, usedinomap);
-			anydirskipped = 1;
+		for (i = 0; i < inosused; i++, ino++) {
+			if (ino < ROOTINO ||
+			    (dp = getino(ino, &mode)) == NULL ||
+			    (mode & IFMT) == 0)
+				continue;
+			/*
+			 * Everything must go in usedinomap so that a check
+			 * for "in dumpdirmap but not in usedinomap" to detect
+			 * dirs with nodump set has a chance of succeeding
+			 * (this is used in mapdirs()).
+			 */
+			SETINO(ino, usedinomap);
+			if (mode == IFDIR)
+				SETINO(ino, dumpdirmap);
+			if (WANTTODUMP(dp)) {
+				SETINO(ino, dumpinomap);
+				if (mode != IFREG &&
+				    mode != IFDIR &&
+				    mode != IFLNK)
+					*tapesize += 1;
+				else
+					*tapesize += blockest(dp);
+				continue;
+			}
+			if (mode == IFDIR) {
+				if (!nonodump &&
+				    (DIP(dp, di_flags) & UF_NODUMP))
+					CLRINO(ino, usedinomap);
+				anydirskipped = 1;
+			}
 		}
 	}
 	/*
