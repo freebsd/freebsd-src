@@ -44,15 +44,16 @@
 #include <sys/disk.h>
 #include <sys/file.h>
 #include <sys/signalvar.h>
+#include <sys/time.h>
 
 #include <machine/bus_memio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 
 #include <dev/aac/aacreg.h>
+#include <dev/aac/aac_ioctl.h>
 #include <dev/aac/aacvar.h>
 #include <dev/aac/aac_tables.h>
-#include <dev/aac/aac_ioctl.h>
 
 devclass_t	aac_devclass;
 
@@ -60,7 +61,7 @@ static void	aac_startup(void *arg);
 
 /* Command Processing */
 static void	aac_startio(struct aac_softc *sc);
-static void	aac_timeout(struct aac_command *cm);
+static void	aac_timeout(struct aac_softc *sc);
 static int	aac_start(struct aac_command *cm);
 static void	aac_complete(void *context, int pending);
 static int	aac_bio_command(struct aac_softc *sc, struct aac_command **cmp);
@@ -72,9 +73,9 @@ static void	aac_host_response(struct aac_softc *sc);
 /* Command Buffer Management */
 static int	aac_alloc_command(struct aac_softc *sc, struct aac_command **cmp);
 static void	aac_release_command(struct aac_command *cm);
-static void	aac_map_command_cluster(void *arg, bus_dma_segment_t *segs, int nseg, int error);
-static void	aac_alloc_command_cluster(struct aac_softc *sc);
-static void	aac_free_command_cluster(struct aac_command_cluster *cmc);
+static void	aac_map_command_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error);
+static int	aac_alloc_commands(struct aac_softc *sc);
+static void	aac_free_commands(struct aac_softc *sc);
 static void	aac_map_command(struct aac_command *cm);
 static void	aac_unmap_command(struct aac_command *cm);
 
@@ -140,10 +141,10 @@ static d_close_t	aac_close;
 static d_ioctl_t	aac_ioctl;
 static int		aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib);
 static void		aac_handle_aif(struct aac_softc *sc, struct aac_aif_command *aif);
-static int		aac_return_aif(struct aac_softc *sc, caddr_t uptr);
 #ifdef AAC_COMPAT_LINUX
 static int		aac_linux_rev_check(struct aac_softc *sc, caddr_t udata);
 static int		aac_linux_getnext_aif(struct aac_softc *sc, caddr_t arg);
+static int		aac_linux_return_aif(struct aac_softc *sc, caddr_t uptr);
 #endif
 
 #define AAC_CDEV_MAJOR	150
@@ -165,11 +166,6 @@ static struct cdevsw aac_cdevsw = {
     -1,			/* bmaj */
 };
 
-/* Timeout for giving up on a command sent to the controller */
-#ifndef AAC_CMD_TIMEOUT
-#define AAC_CMD_TIMEOUT 15
-#endif
-
 /********************************************************************************
  ********************************************************************************
                                                                  Device Interface
@@ -189,11 +185,11 @@ aac_attach(struct aac_softc *sc)
     /*
      * Initialise per-controller queues.
      */
-    TAILQ_INIT(&sc->aac_freecmds);
-    TAILQ_INIT(&sc->aac_ready);
-    TAILQ_INIT(&sc->aac_completed);    
-    TAILQ_INIT(&sc->aac_clusters);
-    bioq_init(&sc->aac_bioq);
+    aac_initq_free(sc);
+    aac_initq_ready(sc);
+    aac_initq_busy(sc);
+    aac_initq_complete(sc);
+    aac_initq_bio(sc);
 
 #if __FreeBSD_version >= 500005
     /*
@@ -209,9 +205,15 @@ aac_attach(struct aac_softc *sc)
     sc->aac_state |= AAC_STATE_SUSPEND;
 
     /*
+     * Allocate command structures.
+     */
+    if ((error = aac_alloc_commands(sc)) != 0)
+	return(error);
+
+    /*
      * Initialise the adapter.
      */
-    if ((error = aac_init(sc)))
+    if ((error = aac_init(sc)) != 0)
 	return(error);
 
     /* 
@@ -222,7 +224,6 @@ aac_attach(struct aac_softc *sc)
     /*
      * Register to probe our containers later.
      */
-    bzero(&sc->aac_ich, sizeof(struct intr_config_hook));
     sc->aac_ich.ich_func = aac_startup;
     sc->aac_ich.ich_arg = sc;
     if (config_intrhook_establish(&sc->aac_ich) != 0) {
@@ -303,36 +304,38 @@ aac_startup(void *arg)
 
     /* enable interrupts now */
     AAC_UNMASK_INTERRUPTS(sc);
+
+    /* enable the timeout watchdog */
+    timeout((timeout_t*)aac_timeout, sc, AAC_PERIODIC_INTERVAL * hz);
 }
 
 /********************************************************************************
  * Free all of the resources associated with (sc)
  *
  * Should not be called if the controller is active.
- *
- * XXX verify that we are freeing all our resources here...
  */
 void
 aac_free(struct aac_softc *sc)
 {
-    struct aac_command_cluster	*cmc;
-
     debug_called(1);
 
     /* remove the control device */
     if (sc->aac_dev_t != NULL)
 	destroy_dev(sc->aac_dev_t);
 
-    /* throw away any command buffers */
-    while ((cmc = aac_dequeue_cluster(sc)) != NULL)
-	aac_free_command_cluster(cmc);
+    /* throw away any FIB buffers, discard the FIB DMA tag */
+    if (sc->aac_fibs != NULL)
+	aac_free_commands(sc);
+    if (sc->aac_fib_dmat)
+	bus_dma_tag_destroy(sc->aac_fib_dmat);
 
     /* destroy the common area */
     if (sc->aac_common) {
 	bus_dmamap_unload(sc->aac_common_dmat, sc->aac_common_dmamap);
 	bus_dmamem_free(sc->aac_common_dmat, sc->aac_common, sc->aac_common_dmamap);
-	bus_dma_tag_destroy(sc->aac_common_dmat);
     }
+    if (sc->aac_common_dmat)
+	bus_dma_tag_destroy(sc->aac_common_dmat);
 
     /* disconnect the interrupt handler */
     if (sc->aac_intr)
@@ -343,10 +346,6 @@ aac_free(struct aac_softc *sc)
     /* destroy data-transfer DMA tag */
     if (sc->aac_buffer_dmat)
 	bus_dma_tag_destroy(sc->aac_buffer_dmat);
-
-    /* destroy FIB DMA tag */
-    if (sc->aac_buffer_dmat)
-	bus_dma_tag_destroy(sc->aac_fib_dmat);
 
     /* destroy the parent DMA tag */
     if (sc->aac_parent_dmat)
@@ -384,7 +383,7 @@ aac_detach(device_t dev)
  *
  * This function is called before detach or system shutdown.
  *
- * Note that we can assume that the camq on the controller is empty, as we won't
+ * Note that we can assume that the bioq on the controller is empty, as we won't
  * allow shutdown if any device is open.
  */
 int
@@ -522,17 +521,12 @@ aac_startio(struct aac_softc *sc)
 	cm = aac_dequeue_ready(sc);
 
 	/* try to build a command off the bio queue (ignore error return) */
-	aac_bio_command(sc, &cm);
+	if (cm == NULL)
+	    aac_bio_command(sc, &cm);
 
 	/* nothing to do? */
 	if (cm == NULL)
 	    break;
-
-	/* Set a timeout for this command to be completed by the controller */
-	/* Disable this for now until the timeout queue is fixed or the driver
-	 * can watch timeouts itself
-	 * cm->timeout_handle = timeout((timeout_t*)aac_timeout, cm, AAC_CMD_TIMEOUT * hz);
-	 */
 
 	/* try to give the command to the controller */
 	if (aac_start(cm) == EBUSY) {
@@ -543,27 +537,6 @@ aac_startio(struct aac_softc *sc)
     }
 }
 
-static void
-aac_timeout(struct aac_command *cm)
-{
-	struct aac_softc *sc;
-	struct bio *bp;
-	struct aac_disk  *ad;
-
-	sc = cm->cm_sc;
-	bp = (struct bio*)cm->cm_private;
-	ad = (struct aac_disk *)bp->bio_dev->si_drv1;
-
-	device_printf(sc->aac_dev, "Timeout waiting for controller to respond to command\n");
-
-	/* Should try to requeue the command... is it possible?  Bail for now */
-	bp->bio_error = EIO;
-	bp->bio_flags |= BIO_ERROR;
-	devstat_end_transaction_bio(&ad->ad_stats, bp);
-	biodone(bp);
-	aac_release_command(cm);
-}
-	
 /********************************************************************************
  * Deliver a command to the controller; allocate controller resources at the
  * last moment when possible.
@@ -572,25 +545,30 @@ static int
 aac_start(struct aac_command *cm)
 {
     struct aac_softc	*sc = cm->cm_sc;
+    int			s, error;
 
     debug_called(2);
 
     /* get the command mapped */
     aac_map_command(cm);
 
-    /* fix up the address values */
+    /* fix up the address values in the FIB */
     cm->cm_fib->Header.SenderFibAddress = (u_int32_t)cm->cm_fib;
     cm->cm_fib->Header.ReceiverFibAddress = cm->cm_fibphys;
 
     /* save a pointer to the command for speedy reverse-lookup */
-    cm->cm_fib->Header.SenderData = (u_int32_t)cm;		/* XXX ack, sizing */
+    cm->cm_fib->Header.SenderData = (u_int32_t)cm;	/* XXX 64-bit physical address issue */
 
     /* put the FIB on the outbound queue */
+    s = splbio();
     if (aac_enqueue_fib(sc, AAC_ADAP_NORM_CMD_QUEUE, cm->cm_fib->Header.Size, 
-			cm->cm_fib->Header.ReceiverFibAddress))
-	return(EBUSY);
-
-    return(0);
+			cm->cm_fib->Header.ReceiverFibAddress)) {
+	error = EBUSY;
+    } else {
+	aac_enqueue_busy(cm);
+	error = 0;
+    }
+    return(error);
 }
 
 /********************************************************************************
@@ -645,8 +623,9 @@ aac_host_response(struct aac_softc *sc)
 	if (cm == NULL) {
 	    AAC_PRINT_FIB(sc, fib);
 	} else {
+	    aac_remove_busy(cm);
 	    aac_unmap_command(cm);		/* XXX defer? */
-	    aac_enqueue_completed(cm);
+	    aac_enqueue_complete(cm);
 	}
     }
 
@@ -671,9 +650,9 @@ aac_complete(void *context, int pending)
 
     /* pull completed commands off the queue */
     for (;;) {
-	cm = aac_dequeue_completed(sc);
+	cm = aac_dequeue_complete(sc);
 	if (cm == NULL)
-	    return;
+	    break;
 	cm->cm_flags |= AAC_CMD_COMPLETED;
 
 	/* is there a completion handler? */
@@ -684,6 +663,9 @@ aac_complete(void *context, int pending)
 	    wakeup(cm);
 	}
     }
+
+    /* see if we can start some more I/O */
+    aac_startio(sc);
 }
 
 /********************************************************************************
@@ -698,7 +680,7 @@ aac_submit_bio(struct bio *bp)
     debug_called(2);
 
     /* queue the BIO and try to get some work done */
-    bioq_insert_tail(&sc->aac_bioq, bp);
+    aac_enqueue_bio(sc, bp);
     aac_startio(sc);
 }
 
@@ -714,23 +696,22 @@ aac_bio_command(struct aac_softc *sc, struct aac_command **cmp)
     struct aac_blockwrite	*bw;
     struct aac_disk		*ad;
     struct bio			*bp;
-    int				s;
 
     debug_called(2);
 
     /* get the resources we will need */
     cm = NULL;
-    s = splbio();
-    if ((bp = bioq_first(&sc->aac_bioq)))
-	bioq_remove(&sc->aac_bioq, bp);
-    splx(s);
-    if (bp == NULL)			/* no work? */
+    if ((bp = aac_dequeue_bio(sc)) == NULL)
 	goto fail;
     if (aac_alloc_command(sc, &cm))	/* get a command */
 	goto fail;
 
     /* fill out the command */
+    cm->cm_data = (void *)bp->bio_data;
+    cm->cm_datalen = bp->bio_bcount;
+    cm->cm_complete = aac_bio_complete;
     cm->cm_private = bp;
+    cm->cm_timestamp = time_second;
 
     /* build the FIB */
     fib = cm->cm_fib;
@@ -745,9 +726,6 @@ aac_bio_command(struct aac_softc *sc, struct aac_command **cmp)
 
     /* build the read/write request */
     ad = (struct aac_disk *)bp->bio_dev->si_drv1;
-    cm->cm_data = (void *)bp->bio_data;
-    cm->cm_datalen = bp->bio_bcount;
-    cm->cm_complete = aac_bio_complete;
     if (BIO_IS_READ(bp)) {
 	br = (struct aac_blockread *)&fib->data[0];
 	br->Command = VM_CtBlockRead;
@@ -774,7 +752,7 @@ aac_bio_command(struct aac_softc *sc, struct aac_command **cmp)
 
 fail:
     if (bp != NULL)
-	bioq_insert_tail(&sc->aac_bioq, bp);
+	aac_enqueue_bio(sc, bp);
     if (cm != NULL)
 	aac_release_command(cm);
     return(ENOMEM);
@@ -786,17 +764,10 @@ fail:
 static void
 aac_bio_complete(struct aac_command *cm)
 {
-    struct aac_softc			*sc = cm->cm_sc;
     struct aac_blockread_response	*brr;
     struct aac_blockwrite_response	*bwr;
     struct bio				*bp;
     AAC_FSAStatus			status;
-
-    /* kill the timeout timer */
-    /* Disable this for now until the timeout queue is fixed or the driver
-     * can watch timeouts itself
-     * untimeout((timeout_t *)aac_timeout, cm, cm->timeout_handle);
-     */
 
     /* fetch relevant status and then release the command */
     bp = (struct bio *)cm->cm_private;
@@ -815,11 +786,10 @@ aac_bio_complete(struct aac_command *cm)
     } else {
 	bp->bio_error = EIO;
 	bp->bio_flags |= BIO_ERROR;
-	
-	/* XXX be more verbose? */
-	device_printf(sc->aac_dev, "I/O error %d (%s)\n", status, AAC_COMMAND_STATUS(status));
+	/* pass an error string out to the disk layer */
+	bp->bio_driver1 = aac_describe_code(aac_command_status_table, status);
     }
-    aac_complete_bio(bp);	/* XXX rename one of these functions! */
+    aac_biodone(bp);
 }
 
 /********************************************************************************
@@ -859,15 +829,22 @@ aac_alloc_command(struct aac_softc *sc, struct aac_command **cmp)
 
     debug_called(3);
 
-    cm = aac_dequeue_free(sc);
-    if (cm == NULL) {
-	aac_alloc_command_cluster(sc);
-	cm = aac_dequeue_free(sc);
-    }
-    if (cm == NULL)
+    if ((cm = aac_dequeue_free(sc)) == NULL)
 	return(ENOMEM);
 
-    /* initialise the command/FIB */
+    *cmp = cm;
+    return(0);
+}
+
+/********************************************************************************
+ * Release a command back to the freelist.
+ */
+static void
+aac_release_command(struct aac_command *cm)
+{
+    debug_called(3);
+
+    /* (re)initialise the command/FIB */
     cm->cm_sgtable = NULL;
     cm->cm_flags = 0;
     cm->cm_complete = NULL;
@@ -885,90 +862,67 @@ aac_alloc_command(struct aac_softc *sc, struct aac_command **cmp)
     cm->cm_fib->Header.SenderFibAddress = (u_int32_t)cm->cm_fib;
     cm->cm_fib->Header.ReceiverFibAddress = cm->cm_fibphys;
 
-    *cmp = cm;
-    return(0);
-}
-
-/********************************************************************************
- * Release a command back to the freelist.
- */
-static void
-aac_release_command(struct aac_command *cm)
-{
-    debug_called(3);
-
     aac_enqueue_free(cm);
 }
 
 /********************************************************************************
- * Map helper for command cluster allocation. Tell each of the FIBs what its
- * address in the adapter's space is, fill in a few other fields.
+ * Map helper for command/FIB allocation.
  */
 static void
-aac_map_command_cluster(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+aac_map_command_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
-    struct aac_command_cluster	*cmc = (struct aac_command_cluster *)arg;
+    struct aac_softc	*sc = (struct aac_softc *)arg;
 
     debug_called(3);
 
-    cmc->cmc_fibphys = segs[0].ds_addr;
+    sc->aac_fibphys = segs[0].ds_addr;
 }
 
 /********************************************************************************
- * Allocate and initialise a cluster of commands.
+ * Allocate and initialise commands/FIBs for this adapter.
  */
-static void
-aac_alloc_command_cluster(struct aac_softc *sc)
+static int
+aac_alloc_commands(struct aac_softc *sc)
 {
-    struct aac_command_cluster	*cmc;
     struct aac_command		*cm;
     int				i;
  
     debug_called(1);
 
-    cmc = malloc(sizeof(struct aac_command_cluster), M_DEVBUF,
-	M_NOWAIT | M_ZERO);
-    if (cmc != NULL) {
-	/* allocate the FIB cluster in DMAable memory and load it */
-	if (bus_dmamem_alloc(sc->aac_fib_dmat, (void **)&cmc->cmc_fibs, BUS_DMA_NOWAIT, &cmc->cmc_fibmap)) {
-	    free(cmc, M_DEVBUF);
-	    return;
-	}
-	bus_dmamap_load(sc->aac_fib_dmat, cmc->cmc_fibmap, cmc->cmc_fibs, 
-			AAC_CLUSTER_COUNT * sizeof(struct aac_fib), aac_map_command_cluster, cmc, 0);
-
-	aac_enqueue_cluster(sc, cmc);
-	for (i = 0; i < AAC_CLUSTER_COUNT; i++) {
-	    cm = &cmc->cmc_command[i];
-	    cm->cm_sc = sc;
-	    cm->cm_fib = cmc->cmc_fibs + i;
-	    cm->cm_fibphys = cmc->cmc_fibphys + (i * sizeof(struct aac_fib));
-
-	    if (!bus_dmamap_create(sc->aac_buffer_dmat, 0, &cm->cm_datamap))
-		aac_release_command(cm);
-	}
-    } else {
-	debug(2, "can't allocate memeory for command cluster");
+    /* allocate the FIBs in DMAable memory and load them */
+    if (bus_dmamem_alloc(sc->aac_fib_dmat, (void **)&sc->aac_fibs, BUS_DMA_NOWAIT, &sc->aac_fibmap)) {
+	return(ENOMEM);
     }
+    bus_dmamap_load(sc->aac_fib_dmat, sc->aac_fibmap, sc->aac_fibs, 
+		    AAC_FIB_COUNT * sizeof(struct aac_fib), aac_map_command_helper, sc, 0);
+
+    /* initialise constant fields in the command structure */
+    for (i = 0; i < AAC_FIB_COUNT; i++) {
+	cm = &sc->aac_command[i];
+	cm->cm_sc = sc;
+	cm->cm_fib = sc->aac_fibs + i;
+	cm->cm_fibphys = sc->aac_fibphys + (i * sizeof(struct aac_fib));
+
+	if (!bus_dmamap_create(sc->aac_buffer_dmat, 0, &cm->cm_datamap))
+	    aac_release_command(cm);
+    }
+    return(0);
 }
 
 /********************************************************************************
- * Free a command cluster.
+ * Free FIBs owned by this adapter.
  */
 static void
-aac_free_command_cluster(struct aac_command_cluster *cmc)
+aac_free_commands(struct aac_softc *sc)
 {
-    struct aac_softc	*sc = cmc->cmc_command[0].cm_sc;
     int			i;
 
     debug_called(1);
 
-    for (i = 0; i < AAC_CLUSTER_COUNT; i++)
-	bus_dmamap_destroy(sc->aac_buffer_dmat, cmc->cmc_command[i].cm_datamap);
-    bus_dmamap_unload(sc->aac_fib_dmat, cmc->cmc_fibmap);
-    bus_dmamem_free(sc->aac_fib_dmat, cmc->cmc_fibs, cmc->cmc_fibmap);
-
-    free(cmc, M_DEVBUF);
+    for (i = 0; i < AAC_FIB_COUNT; i++)
+	bus_dmamap_destroy(sc->aac_buffer_dmat, sc->aac_command[i].cm_datamap);
+    bus_dmamap_unload(sc->aac_fib_dmat, sc->aac_fibmap);
+    bus_dmamem_free(sc->aac_fib_dmat, sc->aac_fibs, sc->aac_fibmap);
 }
 
 /********************************************************************************
@@ -1142,11 +1096,13 @@ aac_init(struct aac_softc *sc)
 
     /*
      * Initialise FIB queues.  Note that it appears that the layout of the indexes
-     * and the segmentation of the entries is mandated by the adapter, which is 
+     * and the segmentation of the entries may be mandated by the adapter, which is 
      * only told about the base of the queue index fields.
      *
      * The initial values of the indices are assumed to inform the adapter
-     * of the sizes of the respective queues.
+     * of the sizes of the respective queues, and theoretically it could work out
+     * the entire layout of the queue structures from this.  We take the easy
+     * route and just lay this area out like everyone else does.
      *
      * The Linux driver uses a much more complex scheme whereby several header
      * records are kept for each queue.  We use a couple of generic list manipulation
@@ -1196,8 +1152,8 @@ aac_init(struct aac_softc *sc)
      * Give the init structure to the controller.
      */
     if (aac_sync_command(sc, AAC_MONKER_INITSTRUCT, 
-			  sc->aac_common_busaddr + offsetof(struct aac_common, ac_init),
-			  0, 0, 0, NULL)) {
+			 sc->aac_common_busaddr + offsetof(struct aac_common, ac_init),
+			 0, 0, 0, NULL)) {
 	device_printf(sc->aac_dev, "error establishing init structure\n");
 	return(EIO);
     }
@@ -1210,8 +1166,8 @@ aac_init(struct aac_softc *sc)
  */
 static int
 aac_sync_command(struct aac_softc *sc, u_int32_t command,
-		       u_int32_t arg0, u_int32_t arg1, u_int32_t arg2, u_int32_t arg3,
-		       u_int32_t *sp)
+		 u_int32_t arg0, u_int32_t arg1, u_int32_t arg2, u_int32_t arg3,
+		 u_int32_t *sp)
 {
     time_t	then;
     u_int32_t	status;
@@ -1243,7 +1199,7 @@ aac_sync_command(struct aac_softc *sc, u_int32_t command,
     status = AAC_GET_MAILBOXSTATUS(sc);
     if (sp != NULL)
 	*sp = status;
-    return(0);	/* check command return status? */
+    return(0);
 }
 
 /********************************************************************************
@@ -1285,7 +1241,7 @@ aac_sync_fib(struct aac_softc *sc, u_int32_t command, u_int32_t xferstate,
      * Give the FIB to the controller, wait for a response.
      */
     if (aac_sync_command(sc, AAC_MONKER_SYNCFIB, fib->Header.ReceiverFibAddress,
-			  0, 0, 0, NULL)) {
+			 0, 0, 0, NULL)) {
 	debug(2, "IO error");
 	return(EIO);
     }
@@ -1324,9 +1280,10 @@ static struct {
  * Atomically insert an entry into the nominated queue, returns 0 on success or EBUSY
  * if the queue is full.
  *
- * XXX note that it would be more efficient to defer notifying the controller in
- * the case where we may be inserting several entries in rapid succession, but
- * implementing this usefully is difficult.
+ * Note: it would be more efficient to defer notifying the controller in
+ *       the case where we may be inserting several entries in rapid succession, but
+ *       implementing this usefully may be difficult (it would involve a separate
+ *       queue/notify interface).
  */
 static int
 aac_enqueue_fib(struct aac_softc *sc, int queue, u_int32_t fib_size, u_int32_t fib_addr)
@@ -1413,6 +1370,41 @@ aac_dequeue_fib(struct aac_softc *sc, int queue, u_int32_t *fib_size, struct aac
 out:
     splx(s);
     return(error);
+}
+
+/********************************************************************************
+ * Check for commands that have been outstanding for a suspiciously long time,
+ * and complain about them.
+ */
+static void
+aac_timeout(struct aac_softc *sc)
+{
+    int		s;
+    struct	aac_command *cm;
+    time_t	deadline;
+
+    /* simulate an interrupt to handle possibly-missed interrupts */
+    aac_intr(sc);
+
+    /* kick the I/O queue to restart it in the case of deadlock */
+    aac_startio(sc);
+
+    /* traverse the busy command list, bitch about late commands once only */
+    deadline = time_second - AAC_CMD_TIMEOUT;
+    s = splbio();
+    TAILQ_FOREACH(cm, &sc->aac_busy, cm_link) {
+	if ((cm->cm_timestamp  < deadline) && !(cm->cm_flags & AAC_CMD_TIMEDOUT)) {
+	    cm->cm_flags |= AAC_CMD_TIMEDOUT;
+	    device_printf(sc->aac_dev, "COMMAND TIMED OUT AFTER %d SECONDS\n", 
+			  (int)(time_second - cm->cm_timestamp));
+	    AAC_PRINT_FIB(sc, cm->cm_fib);
+	}
+    }
+    splx(s);
+
+    /* reset the timer for next time */
+    timeout((timeout_t*)aac_timeout, sc, AAC_PERIODIC_INTERVAL * hz);
+    return;
 }
 
 /********************************************************************************
@@ -1600,7 +1592,7 @@ aac_describe_controller(struct aac_softc *sc)
     if (bufsize != sizeof(*info)) {
 	device_printf(sc->aac_dev, "RequestAdapterInfo returned wrong data size (%d != %d)\n",
 		      bufsize, sizeof(*info));
-	return;
+	/*return;*/
     }
     info = (struct aac_adapter_info *)&buf[0];
 
@@ -1630,7 +1622,7 @@ aac_describe_code(struct aac_code_lookup *table, u_int32_t code)
     for (i = 0; table[i].string != NULL; i++)
 	if (table[i].code == code)
 	    return(table[i].string);
-    return(table[i+1].string);
+    return(table[i + 1].string);
 }
 
 /*****************************************************************************
@@ -1671,43 +1663,65 @@ aac_close(dev_t dev, int flags, int fmt, struct proc *p)
 static int
 aac_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 {
-    struct aac_softc	*sc = dev->si_drv1;
-    int			error = 0, i;
+    union aac_statrequest	*as = (union aac_statrequest *)arg;
+    struct aac_softc		*sc = dev->si_drv1;
+    int				error = 0;
+#ifdef AAC_COMPAT_LINUX
+    int				i;
+#endif
 
     debug_called(2);
 
     switch (cmd) {
+    case AACIO_STATS:
+	switch (as->as_item) {
+	case AACQ_FREE:
+	case AACQ_BIO:
+	case AACQ_READY:
+	case AACQ_BUSY:
+	case AACQ_COMPLETE:
+	    bcopy(&sc->aac_qstat[as->as_item], &as->as_qstat, sizeof(struct aac_qstat));
+	    break;
+	default:
+	    error = ENOENT;
+	    break;
+	}
+	break;
+	
 #ifdef AAC_COMPAT_LINUX
     case FSACTL_SENDFIB:
-	debug(0, "FSACTL_SENDFIB");
+	debug(1, "FSACTL_SENDFIB");
 	error = aac_ioctl_sendfib(sc, arg);
 	break;
     case FSACTL_AIF_THREAD:
-	debug(0, "FSACTL_AIF_THREAD");
+	debug(1, "FSACTL_AIF_THREAD");
 	error = EINVAL;
 	break;
     case FSACTL_OPEN_GET_ADAPTER_FIB:
-	debug(0, "FSACTL_OPEN_GET_ADAPTER_FIB");
+	debug(1, "FSACTL_OPEN_GET_ADAPTER_FIB");
 	/*
 	 * Pass the caller out an AdapterFibContext.
 	 *
 	 * Note that because we only support one opener, we
 	 * basically ignore this.  Set the caller's context to a magic
 	 * number just in case.
+	 *
+	 * The Linux code hands the driver a pointer into kernel space,
+	 * and then trusts it when the caller hands it back.  Aiee!
 	 */
 	i = AAC_AIF_SILLYMAGIC;
 	error = copyout(&i, arg, sizeof(i));
 	break;
     case FSACTL_GET_NEXT_ADAPTER_FIB:
-	debug(0, "FSACTL_GET_NEXT_ADAPTER_FIB");
+	debug(1, "FSACTL_GET_NEXT_ADAPTER_FIB");
 	error = aac_linux_getnext_aif(sc, arg);
 	break;
     case FSACTL_CLOSE_GET_ADAPTER_FIB:
-	debug(0, "FSACTL_CLOSE_GET_ADAPTER_FIB");
+	debug(1, "FSACTL_CLOSE_GET_ADAPTER_FIB");
 	/* don't do anything here */
 	break;
     case FSACTL_MINIPORT_REV_CHECK:
-	debug(0, "FSACTL_MINIPORT_REV_CHECK");
+	debug(1, "FSACTL_MINIPORT_REV_CHECK");
 	error = aac_linux_rev_check(sc, arg);
 	break;
 #endif
@@ -1802,28 +1816,6 @@ aac_handle_aif(struct aac_softc *sc, struct aac_aif_command *aif)
 }
 
 /********************************************************************************
- * Hand the next AIF off the top of the queue out to userspace.
- */
-static int
-aac_return_aif(struct aac_softc *sc, caddr_t uptr)
-{
-    int		error, s;
-
-    debug_called(2);
-
-    s = splbio();
-    if (sc->aac_aifq_tail == sc->aac_aifq_head) {
-	error = EAGAIN;
-    } else {
-	error = copyout(&sc->aac_aifq[sc->aac_aifq_tail], uptr, sizeof(struct aac_aif_command));
-	if (!error)
-	    sc->aac_aifq_tail = (sc->aac_aifq_tail + 1) % AAC_AIFQ_LENGTH;
-    }
-    splx(s);
-    return(error);
-}
-
-/********************************************************************************
  ********************************************************************************
                                                        Linux Management Interface
  ********************************************************************************
@@ -1860,7 +1852,7 @@ aac_linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 }
 
 /********************************************************************************
- * Return the Revision of the driver to the userspace and check to see if the
+ * Return the Revision of the driver to userspace and check to see if the
  * userspace app is possibly compatible.  This is extremely bogus right now
  * because I have no idea how to handle the versioning of this driver.  It is
  * needed, though, to get aaccli working.
@@ -1914,14 +1906,14 @@ aac_linux_getnext_aif(struct aac_softc *sc, caddr_t arg)
 	} else {
 
 	    s = splbio();
-	    error = aac_return_aif(sc, agf.AifFib);
+	    error = aac_linux_return_aif(sc, agf.AifFib);
 
 	    if ((error == EAGAIN) && (agf.Wait)) {
 		sc->aac_state |= AAC_STATE_AIF_SLEEPER;
 		while (error == EAGAIN) {
 		    error = tsleep(sc->aac_aifq, PRIBIO | PCATCH, "aacaif", 0);
 		    if (error == 0)
-			error = aac_return_aif(sc, agf.AifFib);
+			error = aac_linux_return_aif(sc, agf.AifFib);
 		}
 		sc->aac_state &= ~AAC_STATE_AIF_SLEEPER;
 	    }
@@ -1930,5 +1922,28 @@ aac_linux_getnext_aif(struct aac_softc *sc, caddr_t arg)
     }
     return(error);
 }
+
+/********************************************************************************
+ * Hand the next AIF off the top of the queue out to userspace.
+ */
+static int
+aac_linux_return_aif(struct aac_softc *sc, caddr_t uptr)
+{
+    int		error, s;
+
+    debug_called(2);
+
+    s = splbio();
+    if (sc->aac_aifq_tail == sc->aac_aifq_head) {
+	error = EAGAIN;
+    } else {
+	error = copyout(&sc->aac_aifq[sc->aac_aifq_tail], uptr, sizeof(struct aac_aif_command));
+	if (!error)
+	    sc->aac_aifq_tail = (sc->aac_aifq_tail + 1) % AAC_AIFQ_LENGTH;
+    }
+    splx(s);
+    return(error);
+}
+
 
 #endif /* AAC_COMPAT_LINUX */
