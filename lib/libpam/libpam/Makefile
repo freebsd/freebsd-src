@@ -76,6 +76,6 @@ beforeinstall:
 		${HDRS3} ${DESTDIR}/usr/include/security
 
 security:
-	ln -s ${PAMDIR}/libpam_misc security
+	ln -sf ${PAMDIR}/libpam_misc security
 
 .include <bsd.lib.mk>
