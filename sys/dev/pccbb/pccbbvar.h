@@ -38,15 +38,6 @@ struct intrhand {
 	STAILQ_ENTRY(intrhand) entries;
 };
 
-struct pccbb_socketreg {
-	u_int32_t	socket_event;
-	u_int32_t	socket_mask;
-	u_int32_t	socket_state;
-	u_int32_t	socket_force;
-	u_int32_t	socket_control;
-	u_int32_t	socket_power;
-};
-
 struct pccbb_reslist {
 	SLIST_ENTRY(pccbb_reslist) link;
 	struct	resource *res;
@@ -66,7 +57,8 @@ struct pccbb_softc {
 	struct		resource *sc_base_res;
 	struct		resource *sc_irq_res;
 	void		*sc_intrhand;
-	struct		pccbb_socketreg *sc_socketreg;
+	bus_space_tag_t sc_bst;
+	bus_space_handle_t sc_bsh;
 	u_int8_t	sc_secbus;
 	u_int8_t	sc_subbus;
 	struct		mtx sc_mtx;

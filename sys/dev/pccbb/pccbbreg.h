@@ -157,3 +157,10 @@
 #define	PCCBB_SOCKET_CTRL_STOPCLK	0x80
 
 #include <dev/pccbb/pccbbdevid.h>
+
+#define PCCBB_SOCKET_EVENT		0x00
+#define PCCBB_SOCKET_MASK		0x04
+#define PCCBB_SOCKET_STATE		0x08
+#define PCCBB_SOCKET_FORCE		0x0c
+#define PCCBB_SOCKET_CONTROL		0x10
+#define PCCBB_SOCKET_POWER		0x14
