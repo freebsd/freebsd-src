@@ -66,7 +66,7 @@ extern int screen_trashed;
 extern int lnloop;
 extern int linenums;
 extern int scroll;
-extern int reading;
+extern volatile int reading;
 
 #ifdef SIGTSTP
 /*
