@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -53,40 +55,29 @@ static char sccsid[] = "@(#)telldir.c	8.1 (Berkeley) 6/4/93";
  * cookie returned by getdirentries and the offset within the buffer
  * associated with that return value.
  */
-struct ddloc {
-	struct	ddloc *loc_next;/* next structure in list */
+struct _ddloc {
+	LIST_ENTRY(_ddloc) loc_lqe; /* entry in list */
 	long	loc_index;	/* key associated with structure */
 	long	loc_seek;	/* magic cookie returned by getdirentries */
 	long	loc_loc;	/* offset of entry in buffer */
-	const DIR* loc_dirp;	/* directory which used this entry */
 };
-
-#define	NDIRHASH	32	/* Num of hash lists, must be a power of 2 */
-#define	LOCHASH(i)	((i)&(NDIRHASH-1))
-
-static long	dd_loccnt;	/* Index of entry for sequential readdir's */
-static struct	ddloc *dd_hash[NDIRHASH];   /* Hash list heads for ddlocs */
 
 /*
  * return a pointer into a directory
  */
 long
 telldir(dirp)
-	const DIR *dirp;
+	DIR *dirp;
 {
-	register int index;
-	register struct ddloc *lp;
+	struct _ddloc *lp;
 
-	if ((lp = (struct ddloc *)malloc(sizeof(struct ddloc))) == NULL)
+	if ((lp = (struct _ddloc *)malloc(sizeof(struct _ddloc))) == NULL)
 		return (-1);
-	index = dd_loccnt++;
-	lp->loc_index = index;
+	lp->loc_index = dirp->dd_loccnt++;
 	lp->loc_seek = dirp->dd_seek;
 	lp->loc_loc = dirp->dd_loc;
-	lp->loc_dirp = dirp;
-	lp->loc_next = dd_hash[LOCHASH(index)];
-	dd_hash[LOCHASH(index)] = lp;
-	return (index);
+	LIST_INSERT_HEAD(&dirp->dd_locq, lp, loc_lqe);
+	return (lp->loc_index);
 }
 
 /*
@@ -95,20 +86,15 @@ telldir(dirp)
  */
 void
 _seekdir(dirp, loc)
-	register DIR *dirp;
+	DIR *dirp;
 	long loc;
 {
-	register struct ddloc *lp;
-	register struct ddloc **prevlp;
+	struct _ddloc *lp;
 	struct dirent *dp;
 
-	prevlp = &dd_hash[LOCHASH(loc)];
-	lp = *prevlp;
-	while (lp != NULL) {
+	LIST_FOREACH(lp, &dirp->dd_locq, loc_lqe) {
 		if (lp->loc_index == loc)
 			break;
-		prevlp = &lp->loc_next;
-		lp = lp->loc_next;
 	}
 	if (lp == NULL)
 		return;
@@ -124,7 +110,7 @@ _seekdir(dirp, loc)
 	}
 found:
 #ifdef SINGLEUSE
-	*prevlp = lp->loc_next;
+	LIST_REMOVE(lp, loc_lqe);
 	free((caddr_t)lp);
 #endif
 }
@@ -134,24 +120,16 @@ found:
  */
 void
 _reclaim_telldir(dirp)
-	register const DIR *dirp;
+	DIR *dirp;
 {
-	register struct ddloc *lp;
-	register struct ddloc **prevlp;
-	int i;
+	struct _ddloc *lp;
+	struct _ddloc *templp;
 
-	for (i = 0; i < NDIRHASH; i++) {
-		prevlp = &dd_hash[i];
-		lp = *prevlp;
-		while (lp != NULL) {
-			if (lp->loc_dirp == dirp) {
-				*prevlp = lp->loc_next;
-				free((caddr_t)lp);
-				lp = *prevlp;
-				continue;
-			}
-			prevlp = &lp->loc_next;
-			lp = lp->loc_next;
-		}
+	lp = LIST_FIRST(&dirp->dd_locq);
+	while (lp != NULL) {
+		templp = lp;
+		lp = LIST_NEXT(lp, loc_lqe);
+		free(templp);
 	}
+	LIST_INIT(&dirp->dd_locq);
 }
