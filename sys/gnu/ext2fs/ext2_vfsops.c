@@ -218,13 +218,16 @@ ext2_mount(mp, path, data, ndp, p)
 			error = ext2_reload(mp, ndp->ni_cnd.cn_cred, p);
 		if (error)
 			return (error);
+		devvp = ump->um_devvp;
+		if (ext2_check_sb_compat(fs->s_es, devvp->v_rdev,
+		    (mp->mnt_kern_flag & MNTK_WANTRDWR) == 0) != 0)
+			return (EPERM);
 		if (fs->s_rd_only && (mp->mnt_kern_flag & MNTK_WANTRDWR)) {
 			/*
 			 * If upgrade to read-write by non-root, then verify
 			 * that user has necessary permissions on the device.
 			 */
 			if (p->p_ucred->cr_uid != 0) {
-				devvp = ump->um_devvp;
 				vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
 				if ((error = VOP_ACCESS(devvp, VREAD | VWRITE,
 				    p->p_ucred, p)) != 0) {
