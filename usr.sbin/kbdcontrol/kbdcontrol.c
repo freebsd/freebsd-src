@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kbdcontrol.c,v 1.23 1999/03/10 10:36:51 yokota Exp $";
+	"$Id: kbdcontrol.c,v 1.24 1999/03/17 11:42:18 gpalmer Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -88,6 +88,13 @@ char fkey_table[96][MAXFK] = {
 /* 93-96 */	""      , ""      , ""      , ""      ,
 	};
 
+const int	delays[]  = {250, 500, 750, 1000};
+const int	repeats[] = { 34,  38,  42,  46,  50,  55,  59,  63,
+			      68,  76,  84,  92, 100, 110, 118, 126,
+			     136, 152, 168, 184, 200, 220, 236, 252,
+			     272, 304, 336, 368, 400, 440, 472, 504};
+const int	ndelays = (sizeof(delays) / sizeof(int));
+const int	nrepeats = (sizeof(repeats) / sizeof(int));
 int 		hex = 0;
 int 		number;
 char 		letter;
@@ -810,14 +817,18 @@ set_keyrates(char *opt)
 	int arg[2];
 	int repeat;
 	int delay;
+	int r, d;
 
-	if (!strcmp(opt, "slow"))
+	if (!strcmp(opt, "slow")) {
 		delay = 1000, repeat = 500;
-	else if (!strcmp(opt, "normal"))
+		d = 3, r = 31;
+	} else if (!strcmp(opt, "normal")) {
 		delay = 500, repeat = 125;
-	else if (!strcmp(opt, "fast"))
+		d = 1, r = 15;
+	} else if (!strcmp(opt, "fast")) {
 		delay = repeat = 0;
-	else {
+		d = r = 0;
+	} else {
 		int		n;
 		char		*v1;
 
@@ -831,12 +842,22 @@ badopt:
 			warnx("argument to -r must be delay.repeat");
 			return;
 		}
+		for (n = 0; n < ndelays - 1; n++)
+			if (delay <= delays[n])
+				break;
+		d = n;
+		for (n = 0; n < nrepeats - 1; n++)
+			if (repeat <= repeats[n])
+				break;
+		r = n;
 	}
 
 	arg[0] = delay;
 	arg[1] = repeat;
-	if (ioctl(0, KDSETREPEAT, arg))
-		warn("setting keyboard rate");
+	if (ioctl(0, KDSETREPEAT, arg)) {
+		if (ioctl(0, KDSETRAD, (d << 5) | r))
+			warn("setting keyboard rate");
+	}
 }
 
 
