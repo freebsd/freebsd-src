@@ -77,7 +77,7 @@ extern	int cartridge;
 extern	char *host;
 char	*nexttape;
 
-static	int atomic __P((int (*)(), int, char *, int));
+static	int atomic __P((ssize_t (*)(), int, char *, int));
 static	void doslave __P((int, int));
 static	void enslave __P((void));
 static	void flushtape __P((void));
@@ -855,7 +855,8 @@ doslave(cmd, slave_number)
  */
 static int
 atomic(func, fd, buf, count)
-	int (*func)(), fd;
+	ssize_t (*func)();
+	int fd;
 	char *buf;
 	int count;
 {
