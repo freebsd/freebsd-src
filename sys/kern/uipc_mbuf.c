@@ -105,7 +105,6 @@ m_getm(struct mbuf *m, int len, int how, short type)
 	int i;
 
 	KASSERT(len >= 0, ("m_getm(): len is < 0"));
-	MBUF_CHECKSLEEP(how);
 
 	/* If m != NULL, we will append to the end of that chain. */
 	if (m != NULL)
@@ -331,7 +330,6 @@ m_prepend(struct mbuf *m, int len, int how)
 {
 	struct mbuf *mn;
 
-	MBUF_CHECKSLEEP(how);
 	if (m->m_flags & M_PKTHDR)
 		MGETHDR(mn, how, m->m_type);
 	else
