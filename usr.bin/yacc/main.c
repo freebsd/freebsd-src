@@ -62,7 +62,7 @@ char vflag;
 
 char *symbol_prefix;
 char *file_prefix = "y";
-char *temp_form = "yacc.XXXXXXX";
+char *temp_form = "yacc.XXXXXXXXXXX";
 
 int lineno;
 int outline;
