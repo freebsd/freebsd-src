@@ -101,8 +101,8 @@ As an example,
 .Pa /etc/exports
 can contain the following lines:
 .Bd -literal -offset indent
-<ROOT> -maproot=0 -alldirs <list of diskless clients>
-/usr -alldirs <list of diskless clients>
+<ROOT> -ro -maproot=0 -alldirs <list of diskless clients>
+/usr -ro -alldirs <list of diskless clients>
 .Ed
 .Pp
 where
