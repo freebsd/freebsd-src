@@ -147,8 +147,6 @@ main(int argc, char *argv[])
 			break;
 		case 'n':
 			xmitsize = get_bytes(optarg);
-			if (xmitsize > KTTCP_MAX_XMIT)
-				xmitsize = KTTCP_MAX_XMIT;
 			xmitset = 1;
 			break;
 		case 'p':
