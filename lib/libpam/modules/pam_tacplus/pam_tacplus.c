@@ -47,15 +47,15 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #define PAM_SM_AUTH
-#define PAM_SM_ACCOUNT
-#define PAM_SM_SESSION
-#define PAM_SM_PASSWORD
 
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
 #include <security/pam_mod_misc.h>
 
-enum { PAM_OPT_CONF=PAM_OPT_STD_MAX, PAM_OPT_TEMPLATE_USER };
+enum {
+	PAM_OPT_CONF = PAM_OPT_STD_MAX,
+	PAM_OPT_TEMPLATE_USER
+};
 
 static struct opttab other_options[] = {
 	{ "conf",		PAM_OPT_CONF },
@@ -114,8 +114,8 @@ set_msg(struct tac_handle *tach, const char *msg)
 }
 
 PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc,
-    const char **argv)
+pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
+    int argc, const char *argv[])
 {
 	struct options options;
 	int retval;
@@ -135,40 +135,40 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc,
 	tach = tac_open();
 	if (tach == NULL) {
 		syslog(LOG_CRIT, "tac_open failed");
-		PAM_RETURN(PAM_SERVICE_ERR);
+		return (PAM_SERVICE_ERR);
 	}
 	if (tac_config(tach, conf_file) == -1) {
 		syslog(LOG_ALERT, "tac_config: %s", tac_strerror(tach));
 		tac_close(tach);
-		PAM_RETURN(PAM_SERVICE_ERR);
+		return (PAM_SERVICE_ERR);
 	}
 	if (tac_create_authen(tach, TAC_AUTHEN_LOGIN, TAC_AUTHEN_TYPE_ASCII,
 	    TAC_AUTHEN_SVC_LOGIN) == -1) {
 		syslog(LOG_CRIT, "tac_create_authen: %s", tac_strerror(tach));
 		tac_close(tach);
-		PAM_RETURN(PAM_SERVICE_ERR);
+		return (PAM_SERVICE_ERR);
 	}
 
 	PAM_LOG("Done tac_open() ... tac_close()");
 
 	retval = do_item(pamh, tach, PAM_USER, tac_set_user, "tac_set_user");
 	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
+		return (retval);
 
 	PAM_LOG("Done user");
 
 	retval = do_item(pamh, tach, PAM_TTY, tac_set_port, "tac_set_port");
 	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
+		return (retval);
 
 	PAM_LOG("Done tty");
 
 	retval = do_item(pamh, tach, PAM_RHOST, tac_set_rem_addr,
 	    "tac_set_rem_addr");
 	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
+		return (retval);
 
-	for ( ; ; ) {
+	for (;;) {
 		char *srvr_msg;
 		size_t msg_len;
 		const char *user_msg;
@@ -181,7 +181,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc,
 			syslog(LOG_CRIT, "tac_send_authen: %s",
 			    tac_strerror(tach));
 			tac_close(tach);
-			PAM_RETURN(PAM_AUTHINFO_UNAVAIL);
+			return (PAM_AUTHINFO_UNAVAIL);
 		}
 		status = TAC_AUTHEN_STATUS(sflags);
 		if (!TAC_AUTHEN_NOECHO(sflags))
@@ -205,7 +205,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc,
 				 */
 				retval = pam_get_item(pamh, PAM_USER, &item);
 				if (retval != PAM_SUCCESS)
-					PAM_RETURN(retval);
+					return (retval);
 				user = (const char *)item;
 				if (getpwnam(user) == NULL) {
 					pam_set_item(pamh, PAM_USER,
@@ -213,17 +213,17 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc,
 					PAM_LOG("Using template user");
 				}
 			}
-			PAM_RETURN(PAM_SUCCESS);
+			return (PAM_SUCCESS);
 
 		case TAC_AUTHEN_STATUS_FAIL:
 			tac_close(tach);
 			PAM_VERBOSE_ERROR("TACACS+ authentication failed");
-			PAM_RETURN(PAM_AUTH_ERR);
+			return (PAM_AUTH_ERR);
 
 		case TAC_AUTHEN_STATUS_GETUSER:
 		case TAC_AUTHEN_STATUS_GETPASS:
 			if ((srvr_msg = get_msg(tach)) == NULL)
-				PAM_RETURN(PAM_SERVICE_ERR);
+				return (PAM_SERVICE_ERR);
 			if (status == TAC_AUTHEN_STATUS_GETUSER)
 				retval = pam_get_user(pamh, &user_msg,
 				    *srvr_msg ? srvr_msg : NULL);
@@ -235,30 +235,30 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc,
 			if (retval != PAM_SUCCESS) {
 				/* XXX - send a TACACS+ abort packet */
 				tac_close(tach);
-				PAM_RETURN(retval);
+				return (retval);
 			}
 			if (set_msg(tach, user_msg) == -1)
-				PAM_RETURN(PAM_SERVICE_ERR);
+				return (PAM_SERVICE_ERR);
 			break;
 
 		case TAC_AUTHEN_STATUS_GETDATA:
 			if ((srvr_msg = get_msg(tach)) == NULL)
-				PAM_RETURN(PAM_SERVICE_ERR);
+				return (PAM_SERVICE_ERR);
 			retval = pam_prompt(pamh,
 			    pam_test_option(&options, PAM_OPT_ECHO_PASS, NULL)
-			        ? PAM_PROMPT_ECHO_ON : PAM_PROMPT_ECHO_OFF,
+				? PAM_PROMPT_ECHO_ON : PAM_PROMPT_ECHO_OFF,
 			    &data_msg, "%s", *srvr_msg ? srvr_msg : "Data:");
 			free(srvr_msg);
 			if (retval != PAM_SUCCESS) {
 				/* XXX - send a TACACS+ abort packet */
 				tac_close(tach);
-				PAM_RETURN(retval);
+				return (retval);
 			}
 			retval = set_msg(tach, data_msg);
 			memset(data_msg, 0, strlen(data_msg));
 			free(data_msg);
 			if (retval == -1)
-				PAM_RETURN(PAM_SERVICE_ERR);
+				return (PAM_SERVICE_ERR);
 			break;
 
 		case TAC_AUTHEN_STATUS_ERROR:
@@ -272,7 +272,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc,
 				syslog(LOG_CRIT,
 				    "tac_send_authen: server detected error");
 			tac_close(tach);
-			PAM_RETURN(PAM_AUTHINFO_UNAVAIL);
+			return (PAM_AUTHINFO_UNAVAIL);
 			break;
 
 		case TAC_AUTHEN_STATUS_RESTART:
@@ -281,69 +281,17 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc,
 			syslog(LOG_CRIT,
 			    "tac_send_authen: unexpected status %#x", status);
 			tac_close(tach);
-			PAM_RETURN(PAM_AUTHINFO_UNAVAIL);
+			return (PAM_AUTHINFO_UNAVAIL);
 		}
 	}
 }
 
 PAM_EXTERN int
-pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
+pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_acct_mgmt(pam_handle_t *pamh __unused, int flags __unused, int argc ,const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_chauthtok(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_open_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
+	return (PAM_IGNORE);
 }
 
 PAM_MODULE_ENTRY("pam_tacplus");

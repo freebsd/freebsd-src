@@ -36,94 +36,58 @@ __FBSDID("$FreeBSD$");
 
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
-#include <security/pam_mod_misc.h>
-
-#define NOBODY "nobody"
 
 PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char **argv)
+pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
-	int retval;
 	const char *user;
+	int r;
 
-	pam_std_option(&options, NULL, argc, argv);
+	if ((r = pam_get_user(pamh, &user, NULL)) != PAM_SUCCESS)
+		return (r);
 
-	PAM_LOG("Options processed");
-
-	/* We always need to know who the user is */
-	user = NULL;
-	retval = pam_get_user(pamh, &user, NULL);
-	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
-
-	PAM_LOG("Got user: %s", user);
-
-	if (user == NULL || *user == '\0')
-		pam_set_item(pamh, PAM_USER, (const void *)NOBODY);
-	user = NULL;
-
-	PAM_RETURN(PAM_SUCCESS);
+	return (PAM_SUCCESS);
 }
 
 PAM_EXTERN int
-pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
+pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_SUCCESS);
+	return (PAM_SUCCESS);
 }
 
 PAM_EXTERN int
-pam_sm_acct_mgmt(pam_handle_t *pamh __unused, int flags __unused, int argc ,const char **argv)
+pam_sm_acct_mgmt(pam_handle_t *pamh __unused, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_SUCCESS);
+	return (PAM_SUCCESS);
 }
 
 PAM_EXTERN int
-pam_sm_chauthtok(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
+pam_sm_chauthtok(pam_handle_t *pamh __unused, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_SUCCESS);
+	return (PAM_SUCCESS);
 }
 
 PAM_EXTERN int
-pam_sm_open_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
+pam_sm_open_session(pam_handle_t *pamh __unused, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_SUCCESS);
+	return (PAM_SUCCESS);
 }
 
 PAM_EXTERN int
-pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
+pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_SUCCESS);
+	return (PAM_SUCCESS);
 }
 
 PAM_MODULE_ENTRY("pam_permit");

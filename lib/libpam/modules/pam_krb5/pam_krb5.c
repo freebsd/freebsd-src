@@ -4,7 +4,7 @@
  * All rights reserved
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
- * 
+ *
  * Portions of this software were developed for the FreeBSD Project by
  * ThinkSec AS and NAI Labs, the Security Research Division of Network
  * Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
@@ -22,13 +22,13 @@
  * 3. The name of the author may not be used to endorse or promote
  *    products derived from this software without specific prior
  *    written permission.
- * 
+ *
  * ALTERNATIVELY, this product may be distributed under the terms of
  * the GNU Public License, in which case the provisions of the GPL are
  * required INSTEAD OF the above restrictions.  (This clause is
  * necessary due to a potential bad interaction between the GPL and
  * the restrictions contained in a BSD-style copyright.)
- * 
+ *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -41,17 +41,17 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * ---------------------------------------------------------------------------
- * 
+ *
  * This software may contain code from Naomaru Itoi:
- * 
+ *
  * PAM-kerberos5 module Copyright notice.
  * Naomaru Itoi <itoi@eecs.umich.edu>, June 24, 1997.
- * 
+ *
  * ----------------------------------------------------------------------------
  * COPYRIGHT (c)  1997
  * THE REGENTS OF THE UNIVERSITY OF MICHIGAN
  * ALL RIGHTS RESERVED
- * 
+ *
  * PERMISSION IS GRANTED TO USE, COPY, CREATE DERIVATIVE WORKS AND REDISTRIBUTE
  * THIS SOFTWARE AND SUCH DERIVATIVE WORKS FOR ANY PURPOSE, SO LONG AS THE NAME
  * OF THE UNIVERSITY OF MICHIGAN IS NOT USED IN ANY ADVERTISING OR PUBLICITY
@@ -59,7 +59,7 @@
  * WRITTEN PRIOR AUTHORIZATION.  IF THE ABOVE COPYRIGHT NOTICE OR ANY OTHER
  * IDENTIFICATION OF THE UNIVERSITY OF MICHIGAN IS INCLUDED IN ANY COPY OF ANY
  * PORTION OF THIS SOFTWARE, THEN THE DISCLAIMER BELOW MUST ALSO BE INCLUDED.
- * 
+ *
  * THE SOFTWARE IS PROVIDED AS IS, WITHOUT REPRESENTATION FROM THE UNIVERSITY OF
  * MICHIGAN AS TO ITS FITNESS FOR ANY PURPOSE, AND WITHOUT WARRANTY BY THE
  * UNIVERSITY OF MICHIGAN OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING
@@ -69,19 +69,19 @@
  * CONSEQUENTIAL DAMAGES, WITH RESPECT TO ANY CLAIM ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OF THE SOFTWARE, EVEN IF IT HAS BEEN OR IS HEREAFTER
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * PAM-kerberos5 module is written based on PAM-kerberos4 module
  * by Derrick J. Brashear and kerberos5-1.0pl1 by M.I.T. kerberos team.
  * Permission to use, copy, modify, distribute this software is hereby
  * granted, as long as it is granted by Derrick J. Brashear and
- * M.I.T. kerberos team. Followings are their copyright information.  
+ * M.I.T. kerberos team. Followings are their copyright information.
  * ----------------------------------------------------------------------------
- * 
+ *
  * This software may contain code from Derrick J. Brashear:
- * 
- * 
+ *
+ *
  * Copyright (c) Derrick J. Brashear, 1996. All rights reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -94,13 +94,13 @@
  * 3. The name of the author may not be used to endorse or promote
  *    products derived from this software without specific prior
  *    written permission.
- * 
+ *
  * ALTERNATIVELY, this product may be distributed under the terms of
  * the GNU Public License, in which case the provisions of the GPL are
  * required INSTEAD OF the above restrictions.  (This clause is
  * necessary due to a potential bad interaction between the GPL and
  * the restrictions contained in a BSD-style copyright.)
- * 
+ *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -112,23 +112,23 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * ----------------------------------------------------------------------------
- * 
+ *
  * This software may contain code from MIT Kerberos 5:
- * 
+ *
  * Copyright Notice and Legal Administrivia
  * ----------------------------------------
- * 
+ *
  * Copyright (C) 1996 by the Massachusetts Institute of Technology.
- * 
+ *
  * All rights reserved.
- * 
+ *
  * Export of this software from the United States of America may require
  * a specific license from the United States Government.  It is the
  * responsibility of any person or organization contemplating export to
  * obtain such a license before exporting.
- * 
+ *
  * WITHIN THAT CONSTRAINT, permission to use, copy, modify, and
  * distribute this software and its documentation for any purpose and
  * without fee is hereby granted, provided that the above copyright
@@ -139,62 +139,62 @@
  * permission.  M.I.T. makes no representations about the suitability of
  * this software for any purpose.  It is provided "as is" without express
  * or implied warranty.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- * 
+ *
  * Individual source code files are copyright MIT, Cygnus Support,
  * OpenVision, Oracle, Sun Soft, and others.
- * 
+ *
  * Project Athena, Athena, Athena MUSE, Discuss, Hesiod, Kerberos, Moira,
  * and Zephyr are trademarks of the Massachusetts Institute of Technology
  * (MIT).  No commercial use of these trademarks may be made without
  * prior written permission of MIT.
- * 
+ *
  * "Commercial use" means use of a name in a product or other for-profit
  * manner.  It does NOT prevent a commercial firm from referring to the
  * MIT trademarks in order to convey information (although in doing so,
  * recognition of their trademark status should be given).
- * 
+ *
  * The following copyright and permission notice applies to the
  * OpenVision Kerberos Administration system located in kadmin/create,
  * kadmin/dbutil, kadmin/passwd, kadmin/server, lib/kadm5, and portions
  * of lib/rpc:
- * 
+ *
  *    Copyright, OpenVision Technologies, Inc., 1996, All Rights Reserved
- * 
- *    WARNING: Retrieving the OpenVision Kerberos Administration system 
- *    source code, as described below, indicates your acceptance of the 
- *    following terms.  If you do not agree to the following terms, do not 
+ *
+ *    WARNING: Retrieving the OpenVision Kerberos Administration system
+ *    source code, as described below, indicates your acceptance of the
+ *    following terms.  If you do not agree to the following terms, do not
  *    retrieve the OpenVision Kerberos administration system.
- * 
+ *
  *    You may freely use and distribute the Source Code and Object Code
  *    compiled from it, with or without modification, but this Source
  *    Code is provided to you "AS IS" EXCLUSIVE OF ANY WARRANTY,
  *    INCLUDING, WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY OR
  *    FITNESS FOR A PARTICULAR PURPOSE, OR ANY OTHER WARRANTY, WHETHER
  *    EXPRESS OR IMPLIED.  IN NO EVENT WILL OPENVISION HAVE ANY LIABILITY
- *    FOR ANY LOST PROFITS, LOSS OF DATA OR COSTS OF PROCUREMENT OF 
+ *    FOR ANY LOST PROFITS, LOSS OF DATA OR COSTS OF PROCUREMENT OF
  *    SUBSTITUTE GOODS OR SERVICES, OR FOR ANY SPECIAL, INDIRECT, OR
- *    CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, INCLUDING, 
- *    WITHOUT LIMITATION, THOSE RESULTING FROM THE USE OF THE SOURCE 
- *    CODE, OR THE FAILURE OF THE SOURCE CODE TO PERFORM, OR FOR ANY 
+ *    CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, INCLUDING,
+ *    WITHOUT LIMITATION, THOSE RESULTING FROM THE USE OF THE SOURCE
+ *    CODE, OR THE FAILURE OF THE SOURCE CODE TO PERFORM, OR FOR ANY
  *    OTHER REASON.
- * 
+ *
  *    OpenVision retains all copyrights in the donated Source Code. OpenVision
  *    also retains copyright to derivative works of the Source Code, whether
- *    created by OpenVision or by a third party. The OpenVision copyright 
- *    notice must be preserved if derivative works are made based on the 
+ *    created by OpenVision or by a third party. The OpenVision copyright
+ *    notice must be preserved if derivative works are made based on the
  *    donated Source Code.
- * 
- *    OpenVision Technologies, Inc. has donated this Kerberos 
- *    Administration system to MIT for inclusion in the standard 
- *    Kerberos 5 distribution.  This donation underscores our 
- *    commitment to continuing Kerberos technology development 
- *    and our gratitude for the valuable work which has been 
+ *
+ *    OpenVision Technologies, Inc. has donated this Kerberos
+ *    Administration system to MIT for inclusion in the standard
+ *    Kerberos 5 distribution.  This donation underscores our
+ *    commitment to continuing Kerberos technology development
+ *    and our gratitude for the valuable work which has been
  *    performed by MIT and the Kerberos community.
- * 
+ *
  */
 
 #include <sys/cdefs.h>
@@ -216,7 +216,6 @@ __FBSDID("$FreeBSD$");
 
 #define	PAM_SM_AUTH
 #define	PAM_SM_ACCOUNT
-#define	PAM_SM_SESSION
 #define	PAM_SM_PASSWORD
 
 #include <security/pam_appl.h>
@@ -237,7 +236,13 @@ static void	compat_free_data_contents(krb5_context, krb5_data *);
 #define PASSWORD_PROMPT		"Password:"
 #define NEW_PASSWORD_PROMPT	"New Password:"
 
-enum { PAM_OPT_AUTH_AS_SELF=PAM_OPT_STD_MAX, PAM_OPT_CCACHE, PAM_OPT_FORWARDABLE, PAM_OPT_NO_CCACHE, PAM_OPT_REUSE_CCACHE };
+enum {
+	PAM_OPT_AUTH_AS_SELF = PAM_OPT_STD_MAX,
+	PAM_OPT_CCACHE,
+	PAM_OPT_FORWARDABLE,
+	PAM_OPT_NO_CCACHE,
+	PAM_OPT_REUSE_CCACHE
+};
 
 static struct opttab other_options[] = {
 	{ "auth_as_self",	PAM_OPT_AUTH_AS_SELF },
@@ -252,7 +257,8 @@ static struct opttab other_options[] = {
  * authentication management
  */
 PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char **argv)
+pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
+    int argc, const char *argv[])
 {
 	krb5_error_code krbret;
 	krb5_context pam_context;
@@ -272,13 +278,13 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 
 	retval = pam_get_user(pamh, &user, USER_PROMPT);
 	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
+		return (retval);
 
 	PAM_LOG("Got user: %s", user);
 
 	retval = pam_get_item(pamh, PAM_RUSER, (const void **)&sourceuser);
 	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
+		return (retval);
 
 	PAM_LOG("Got ruser: %s", sourceuser);
 
@@ -292,7 +298,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 	krbret = krb5_init_context(&pam_context);
 	if (krbret != 0) {
 		PAM_VERBOSE_ERROR("Kerberos 5 error");
-		PAM_RETURN(PAM_SERVICE_ERR);
+		return (PAM_SERVICE_ERR);
 	}
 
 	PAM_LOG("Context initialised");
@@ -479,11 +485,12 @@ cleanup3:
 	if (retval != PAM_SUCCESS)
 		PAM_VERBOSE_ERROR("Kerberos 5 refuses you");
 
-	PAM_RETURN(retval);
+	return (retval);
 }
 
 PAM_EXTERN int
-pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
+pam_sm_setcred(pam_handle_t *pamh, int flags,
+    int argc, const char *argv[])
 {
 
 	krb5_error_code krbret;
@@ -506,30 +513,30 @@ pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	PAM_LOG("Options processed");
 
 	if (flags & PAM_DELETE_CRED)
-		PAM_RETURN(PAM_SUCCESS);
+		return (PAM_SUCCESS);
 
 	if (flags & PAM_REFRESH_CRED)
-		PAM_RETURN(PAM_SUCCESS);
+		return (PAM_SUCCESS);
 
 	if (flags & PAM_REINITIALIZE_CRED)
-		PAM_RETURN(PAM_SUCCESS);
+		return (PAM_SUCCESS);
 
 	if (!(flags & PAM_ESTABLISH_CRED))
-		PAM_RETURN(PAM_SERVICE_ERR);
+		return (PAM_SERVICE_ERR);
 
 	PAM_LOG("Establishing credentials");
 
 	/* Get username */
 	retval = pam_get_item(pamh, PAM_USER, (const void **)&user);
 	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
+		return (retval);
 
 	PAM_LOG("Got user: %s", user);
 
 	krbret = krb5_init_context(&pam_context);
 	if (krbret != 0) {
 		PAM_LOG("Error krb5_init_context(): %s", error_message(krbret));
-		PAM_RETURN(PAM_SERVICE_ERR);
+		return (PAM_SERVICE_ERR);
 	}
 
 	PAM_LOG("Context initialised");
@@ -711,15 +718,16 @@ cleanup3:
 	setegid(egid);
 
 	PAM_LOG("Done seteuid() & setegid()");
-	
-	PAM_RETURN(retval);
+
+	return (retval);
 }
 
-/* 
+/*
  * account management
  */
 PAM_EXTERN int
-pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused, int argc, const char **argv)
+pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
+    int argc, const char *argv[])
 {
 	krb5_error_code krbret;
 	krb5_context pam_context;
@@ -735,20 +743,20 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused, int argc, const char **
 
 	retval = pam_get_item(pamh, PAM_USER, (const void **)&user);
 	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
+		return (retval);
 
 	PAM_LOG("Got user: %s", user);
 
 	retval = pam_get_data(pamh, "ccache", (const void **)&ccache);
 	if (retval != PAM_SUCCESS)
-		PAM_RETURN(PAM_SUCCESS);
+		return (PAM_SUCCESS);
 
 	PAM_LOG("Got ccache");
 
 	krbret = krb5_init_context(&pam_context);
 	if (krbret != 0) {
 		PAM_LOG("Error krb5_init_context(): %s", error_message(krbret));
-		PAM_RETURN(PAM_PERM_DENIED);
+		return (PAM_PERM_DENIED);
 	}
 
 	PAM_LOG("Context initialised");
@@ -774,44 +782,16 @@ cleanup:
 	krb5_free_context(pam_context);
 	PAM_LOG("Done cleanup");
 
-	PAM_RETURN(retval);
+	return (retval);
 
 }
 
-/* 
- * session management
- *
- * logging only
- */
-PAM_EXTERN int
-pam_sm_open_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_SUCCESS);
-}
-
-PAM_EXTERN int
-pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_SUCCESS);
-}
-
-/* 
+/*
  * password management
  */
 PAM_EXTERN int
-pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
+pam_sm_chauthtok(pam_handle_t *pamh, int flags,
+    int argc, const char *argv[])
 {
 	krb5_error_code krbret;
 	krb5_context pam_context;
@@ -829,18 +809,18 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	PAM_LOG("Options processed");
 
 	if (!(flags & PAM_UPDATE_AUTHTOK))
-		PAM_RETURN(PAM_AUTHTOK_ERR);
+		return (PAM_AUTHTOK_ERR);
 
 	retval = pam_get_item(pamh, PAM_USER, (const void **)&user);
 	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
+		return (retval);
 
 	PAM_LOG("Got user: %s", user);
 
 	krbret = krb5_init_context(&pam_context);
 	if (krbret != 0) {
 		PAM_LOG("Error krb5_init_context(): %s", error_message(krbret));
-		PAM_RETURN(PAM_SERVICE_ERR);
+		return (PAM_SERVICE_ERR);
 	}
 
 	PAM_LOG("Context initialised");
@@ -941,7 +921,7 @@ cleanup3:
 
 	PAM_LOG("Done cleanup3");
 
-	PAM_RETURN(retval);
+	return (retval);
 }
 
 PAM_MODULE_ENTRY("pam_krb5");
@@ -1003,10 +983,10 @@ verify_krb_v5_tgt(krb5_context context, krb5_ccache ccache,
 		phost[BUFSIZ - 1] = '\0';
 
 		/*
-	         * Do we have service/<host> keys?
-	         * (use default/configured keytab, kvno IGNORE_VNO to get the
-	         * first match, and ignore enctype.)
-	         */
+		 * Do we have service/<host> keys?
+		 * (use default/configured keytab, kvno IGNORE_VNO to get the
+		 * first match, and ignore enctype.)
+		 */
 		retval = krb5_kt_read_service_key(context, NULL, princ, 0, 0,
 		    &keyblock);
 		if (retval != 0)

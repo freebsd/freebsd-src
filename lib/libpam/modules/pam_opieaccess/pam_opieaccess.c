@@ -46,108 +46,49 @@ __FBSDID("$FreeBSD$");
 #include <syslog.h>
 
 #define PAM_SM_AUTH
-#define PAM_SM_ACCOUNT
-#define PAM_SM_SESSION
-#define PAM_SM_PASSWORD
 
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
 #include <security/pam_mod_misc.h>
 
 PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char **argv)
+pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 	struct opie opie;
 	struct passwd *pwent;
 	char *luser, *rhost;
 	int r;
 
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
 	r = pam_get_item(pamh, PAM_USER, (const void **)&luser);
 	if (r != PAM_SUCCESS)
-		PAM_RETURN(r);
+		return (r);
 	if (luser == NULL)
-		PAM_RETURN(PAM_SERVICE_ERR);
+		return (PAM_SERVICE_ERR);
 
 	pwent = getpwnam(luser);
 	if (pwent == NULL || opielookup(&opie, luser) != 0)
-		PAM_RETURN(PAM_IGNORE);
-	
+		return (PAM_IGNORE);
+
 	r = pam_get_item(pamh, PAM_RHOST, (const void **)&rhost);
 	if (r != PAM_SUCCESS)
-		PAM_RETURN(r);
-	
+		return (r);
+
 	if ((rhost == NULL || opieaccessfile(rhost)) &&
 	    opiealways(pwent->pw_dir) != 0)
-		PAM_RETURN(PAM_IGNORE);
-	
+		return (PAM_IGNORE);
+
 	PAM_VERBOSE_ERROR("Refused; remote host is not in opieaccess");
 
-	PAM_RETURN(PAM_AUTH_ERR);
+	return (PAM_AUTH_ERR);
 }
 
 PAM_EXTERN int
-pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
+pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_SUCCESS);
-}
-
-PAM_EXTERN int
-pam_sm_acct_mgmt(pam_handle_t *pamh __unused, int flags __unused, int argc ,const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_chauthtok(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_open_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
+	return (PAM_SUCCESS);
 }
 
 PAM_MODULE_ENTRY("pam_opieaccess");
