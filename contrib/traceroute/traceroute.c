@@ -906,9 +906,9 @@ wait_for_reply(register int sock, register struct sockaddr_in *fromp,
 	int fromlen = sizeof(*fromp);
 
 	nfds = howmany(sock + 1, NFDBITS);
-	if ((fdsp = malloc(nfds)) == NULL)
+	if ((fdsp = malloc(nfds * sizeof(fd_mask))) == NULL)
 		err(1, "malloc");
-	memset(fdsp, 0, nfds);
+	memset(fdsp, 0, nfds * sizeof(fd_mask));
 	FD_SET(sock, fdsp);
 
 	wait.tv_sec = tp->tv_sec + waittime;
