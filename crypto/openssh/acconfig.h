@@ -1,4 +1,4 @@
-/* $Id: acconfig.h,v 1.166 2003/09/16 01:52:19 dtucker Exp $ */
+/* $Id: acconfig.h,v 1.173 2004/02/06 05:24:31 dtucker Exp $ */
 
 /*
  * Copyright (c) 1999-2003 Damien Miller.  All rights reserved.
@@ -41,6 +41,12 @@
 /* Define if your setregid() is broken */
 #undef BROKEN_SETREGID
 
+/* Define if your setresuid() is broken */
+#undef BROKEN_SETRESUID
+
+/* Define if your setresgid() is broken */
+#undef BROKEN_SETRESGID
+
 /* Define to a Set Process Title type if your system is */
 /* supported by bsd-setproctitle.c */
 #undef SPT_TYPE
@@ -58,6 +64,9 @@
 /* If your header files don't define LOGIN_PROGRAM, then use this (detected) */
 /* from environment and PATH */
 #undef LOGIN_PROGRAM_FALLBACK
+
+/* Full path of your "passwd" program */
+#undef _PATH_PASSWD_PROG
 
 /* Define if your password has a pw_class field */
 #undef HAVE_PW_CLASS_IN_PASSWD
@@ -88,6 +97,9 @@
 
 /* Define if you have the getuserattr function.  */
 #undef HAVE_GETUSERATTR
+
+/* Define if you have the basename function. */
+#undef HAVE_BASENAME
 
 /* Work around problematic Linux PAM modules handling of PAM_TTY */
 #undef PAM_TTY_KLUDGE
@@ -246,6 +258,9 @@
 
 /* Define this if you are using the Heimdal version of Kerberos V5 */
 #undef HEIMDAL
+
+/* Define this if you want to use libkafs' AFS support */
+#undef USE_AFS
 
 /* Define if you want S/Key support */
 #undef SKEY
@@ -415,14 +430,14 @@
 #undef LOCKED_PASSWD_PREFIX
 #undef LOCKED_PASSWD_SUBSTR
 
-/* Define if DNS support is to be activated */
-#undef DNS
-
 /* Define if getrrsetbyname() exists */
 #undef HAVE_GETRRSETBYNAME
 
 /* Define if HEADER.ad exists in arpa/nameser.h */
 #undef HAVE_HEADER_AD
+
+/* Define if your resolver libs need this for getrrsetbyname */
+#undef BIND_8_COMPAT
 
 @BOTTOM@
 

@@ -1,4 +1,4 @@
-/*	$OpenBSD: key.h,v 1.22 2003/06/24 08:23:46 markus Exp $	*/
+/*	$OpenBSD: key.h,v 1.23 2003/11/10 16:23:41 jakob Exp $	*/
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -55,33 +55,33 @@ struct Key {
 	DSA	*dsa;
 };
 
-Key	*key_new(int);
-Key	*key_new_private(int);
-void	 key_free(Key *);
-Key	*key_demote(Key *);
-int	 key_equal(Key *, Key *);
-char	*key_fingerprint(Key *, enum fp_type, enum fp_rep);
-u_char	*key_fingerprint_raw(Key *, enum fp_type, u_int *);
-char	*key_type(Key *);
-int	 key_write(Key *, FILE *);
-int	 key_read(Key *, char **);
-u_int	 key_size(Key *);
+Key		*key_new(int);
+Key		*key_new_private(int);
+void		 key_free(Key *);
+Key		*key_demote(const Key *);
+int		 key_equal(const Key *, const Key *);
+char		*key_fingerprint(const Key *, enum fp_type, enum fp_rep);
+u_char		*key_fingerprint_raw(const Key *, enum fp_type, u_int *);
+const char	*key_type(const Key *);
+int		 key_write(const Key *, FILE *);
+int		 key_read(Key *, char **);
+u_int		 key_size(const Key *);
 
 Key	*key_generate(int, u_int);
-Key	*key_from_private(Key *);
+Key	*key_from_private(const Key *);
 int	 key_type_from_name(char *);
 
-Key	*key_from_blob(u_char *, u_int);
-int	 key_to_blob(Key *, u_char **, u_int *);
-char	*key_ssh_name(Key *);
-int	 key_names_valid2(const char *);
+Key		*key_from_blob(const u_char *, u_int);
+int		 key_to_blob(const Key *, u_char **, u_int *);
+const char	*key_ssh_name(const Key *);
+int		 key_names_valid2(const char *);
 
-int	 key_sign(Key *, u_char **, u_int *, u_char *, u_int);
-int	 key_verify(Key *, u_char *, u_int, u_char *, u_int);
+int	 key_sign(const Key *, u_char **, u_int *, const u_char *, u_int);
+int	 key_verify(const Key *, const u_char *, u_int, const u_char *, u_int);
 
-int	 ssh_dss_sign(Key *, u_char **, u_int *, u_char *, u_int);
-int	 ssh_dss_verify(Key *, u_char *, u_int, u_char *, u_int);
-int	 ssh_rsa_sign(Key *, u_char **, u_int *, u_char *, u_int);
-int	 ssh_rsa_verify(Key *, u_char *, u_int, u_char *, u_int);
+int	 ssh_dss_sign(const Key *, u_char **, u_int *, const u_char *, u_int);
+int	 ssh_dss_verify(const Key *, const u_char *, u_int, const u_char *, u_int);
+int	 ssh_rsa_sign(const Key *, u_char **, u_int *, const u_char *, u_int);
+int	 ssh_rsa_verify(const Key *, const u_char *, u_int, const u_char *, u_int);
 
 #endif

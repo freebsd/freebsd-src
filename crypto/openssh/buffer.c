@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: buffer.c,v 1.19 2003/09/18 07:54:48 markus Exp $");
+RCSID("$OpenBSD: buffer.c,v 1.21 2003/11/21 11:57:03 djm Exp $");
 
 #include "xmalloc.h"
 #include "buffer.h"
@@ -105,7 +105,7 @@ restart:
 		goto restart;
 	}
 	/* Increase the size of the buffer and retry. */
-	
+
 	newlen = buffer->alloc + len + 32768;
 	if (newlen > 0xa00000)
 		fatal("buffer_append_space: alloc %u not supported",
@@ -169,7 +169,7 @@ buffer_ptr(Buffer *buffer)
 void
 buffer_dump(Buffer *buffer)
 {
-	int i;
+	u_int i;
 	u_char *ucp = buffer->buf;
 
 	for (i = buffer->offset; i < buffer->end; i++) {

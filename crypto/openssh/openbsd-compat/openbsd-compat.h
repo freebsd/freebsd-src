@@ -1,4 +1,4 @@
-/* $Id: openbsd-compat.h,v 1.24 2003/08/29 16:59:52 mouring Exp $ */
+/* $Id: openbsd-compat.h,v 1.25 2004/01/21 06:07:23 djm Exp $ */
 
 /*
  * Copyright (c) 1999-2003 Damien Miller.  All rights reserved.
@@ -138,8 +138,9 @@ unsigned int arc4random(void);
 void arc4random_stir(void);
 #endif /* !HAVE_ARC4RANDOM */
 
-
-
+#ifndef HAVE_OPENPTY
+int openpty(int *, int *, char *, struct termios *, struct winsize *);
+#endif /* HAVE_OPENPTY */
 
 /* #include <sys/types.h> XXX needed? For size_t */
 

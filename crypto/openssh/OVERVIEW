@@ -5,7 +5,7 @@ to developers.]
 
 This document is intended for those who wish to read the ssh source
 code.  This tries to give an overview of the structure of the code.
-      
+
 Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>
 Updated 17 Nov 1995.
 Updated 19 Oct 1999 for OpenSSH-1.2
@@ -20,7 +20,7 @@ There are some subsystems/abstractions that are used by a number of
 these programs.
 
   Buffer manipulation routines
-      
+
     - These provide an arbitrary size buffer, where data can be appended.
       Data can be consumed from either end.  The code is used heavily
       throughout ssh.  The basic buffer manipulation functions are in
@@ -28,7 +28,7 @@ these programs.
       data types is in bufaux.c.
 
   Compression Library
-  
+
     - Ssh uses the GNU GZIP compression library (ZLIB).
 
   Encryption/Decryption
@@ -89,7 +89,7 @@ these programs.
       code is linked into the server.  The routines also manipulate
       known hosts files using code in hostfile.c.  Code in canohost.c
       is used to retrieve the canonical host name of the remote host.
-      Code in match.c is used to match host names.  
+      Code in match.c is used to match host names.
 
     - In the client end, authentication code is in sshconnect.c.  It
       reads Passwords/passphrases using code in readpass.c.  It reads
@@ -147,10 +147,10 @@ these programs.
       operations, and finally the server enters the normal session
       mode by calling server_loop in serverloop.c.  This does the real
       work, calling functions in other modules.
-      
+
     - The code for the server is in sshd.c.  It contains a lot of
       stuff, including:
-        - server main program
+	- server main program
 	- waiting for connections
 	- processing new connection
 	- authentication
@@ -162,9 +162,9 @@ these programs.
 
     - There are several other files in the distribution that contain
       various auxiliary routines:
-        ssh.h	     the main header file for ssh (various definitions)
-        getput.h     byte-order independent storage of integers
-        includes.h   includes most system headers.  Lots of #ifdefs.
+	ssh.h	     the main header file for ssh (various definitions)
+	getput.h     byte-order independent storage of integers
+	includes.h   includes most system headers.  Lots of #ifdefs.
 	tildexpand.c expand tilde in file names
 	uidswap.c    uid-swapping
 	xmalloc.c    "safe" malloc routines

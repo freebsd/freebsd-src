@@ -1,3 +1,5 @@
+/* OPENBSD ORIGINAL: lib/libc/gen/readpassphrase.c */
+
 /*	$OpenBSD: readpassphrase.c,v 1.16 2003/06/17 21:56:23 millert Exp $	*/
 
 /*

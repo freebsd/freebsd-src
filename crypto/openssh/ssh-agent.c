@@ -35,7 +35,7 @@
 
 #include "includes.h"
 #include "openbsd-compat/sys-queue.h"
-RCSID("$OpenBSD: ssh-agent.c,v 1.112 2003/09/18 08:49:45 markus Exp $");
+RCSID("$OpenBSD: ssh-agent.c,v 1.117 2003/12/02 17:01:15 markus Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/md5.h>
@@ -179,7 +179,7 @@ confirm_key(Identity *id)
 	p = read_passphrase(prompt, RP_ALLOW_EOF);
 	if (p != NULL) {
 		/*
-		 * Accept empty responses and responses consisting 
+		 * Accept empty responses and responses consisting
 		 * of the word "yes" as affirmative.
 		 */
 		if (*p == '\0' || *p == '\n' || strcasecmp(p, "yes") == 0)
@@ -949,7 +949,7 @@ after_select(fd_set *readset, fd_set *writeset)
 }
 
 static void
-cleanup_socket(void *p)
+cleanup_socket(void)
 {
 	if (socket_name[0])
 		unlink(socket_name);
@@ -957,17 +957,17 @@ cleanup_socket(void *p)
 		rmdir(socket_dir);
 }
 
-static void
+void
 cleanup_exit(int i)
 {
-	cleanup_socket(NULL);
-	exit(i);
+	cleanup_socket();
+	_exit(i);
 }
 
 static void
 cleanup_handler(int sig)
 {
-	cleanup_socket(NULL);
+	cleanup_socket();
 	_exit(2);
 }
 
@@ -1100,7 +1100,7 @@ main(int ac, char **av)
 
 	if (agentsocket == NULL) {
 		/* Create private directory for agent socket */
-		strlcpy(socket_dir, "/tmp/ssh-XXXXXXXX", sizeof socket_dir);
+		strlcpy(socket_dir, "/tmp/ssh-XXXXXXXXXX", sizeof socket_dir);
 		if (mkdtemp(socket_dir) == NULL) {
 			perror("mkdtemp: private socket dir");
 			exit(1);
@@ -1138,7 +1138,7 @@ main(int ac, char **av)
 #ifdef HAVE_CYGWIN
 	umask(prev_mask);
 #endif
-	if (listen(sock, 128) < 0) {
+	if (listen(sock, SSH_LISTEN_BACKLOG) < 0) {
 		perror("listen");
 		cleanup_exit(1);
 	}
@@ -1209,7 +1209,6 @@ main(int ac, char **av)
 #endif
 
 skip:
-	fatal_add_cleanup(cleanup_socket, NULL);
 	new_socket(AUTH_SOCKET, sock);
 	if (ac > 0) {
 		mysignal(SIGALRM, check_parent_exists);

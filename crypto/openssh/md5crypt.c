@@ -1,9 +1,9 @@
 /*
  * ----------------------------------------------------------------------------
  * "THE BEER-WARE LICENSE" (Revision 42):
- * <phk@login.dknet.dk> wrote this file.  As long as you retain this 
- * notice you can do whatever you want with this stuff. If we meet some 
- * day, and you think this stuff is worth it, you can buy me a beer in 
+ * <phk@login.dknet.dk> wrote this file.  As long as you retain this
+ * notice you can do whatever you want with this stuff. If we meet some
+ * day, and you think this stuff is worth it, you can buy me a beer in
  * return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  */
@@ -13,7 +13,7 @@
 #if defined(HAVE_MD5_PASSWORDS) && !defined(HAVE_MD5_CRYPT)
 #include <openssl/md5.h>
 
-RCSID("$Id: md5crypt.c,v 1.7 2003/05/30 06:58:23 dtucker Exp $");
+RCSID("$Id: md5crypt.c,v 1.9 2003/11/21 12:56:47 djm Exp $");
 
 /* 0 ... 63 => ascii - 64 */
 static unsigned char itoa64[] =
@@ -35,7 +35,7 @@ to64(unsigned long v, int n)
 		*s++ = itoa64[v&0x3f];
 		v >>= 6;
 	}
-	
+
 	return (buf);
 }
 

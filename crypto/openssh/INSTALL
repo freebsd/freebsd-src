@@ -4,21 +4,21 @@
 You will need working installations of Zlib and OpenSSL.
 
 Zlib 1.1.4 or greater:
-http://www.gzip.org/zlib/ 
+http://www.gzip.org/zlib/
 
 OpenSSL 0.9.6 or greater:
 http://www.openssl.org/
 
-(OpenSSL 0.9.5a is partially supported, but some ciphers (SSH protocol 1 
+(OpenSSL 0.9.5a is partially supported, but some ciphers (SSH protocol 1
 Blowfish) do not work correctly.)
 
 OpenSSH can utilise Pluggable Authentication Modules (PAM) if your system
 supports it. PAM is standard on Redhat and Debian Linux, Solaris and
 HP-UX 11.
 
-NB. If you operating system supports /dev/random, you should configure 
-OpenSSL to use it. OpenSSH relies on OpenSSL's direct support of 
-/dev/random. If you don't you will have to rely on ssh-rand-helper, which 
+NB. If you operating system supports /dev/random, you should configure
+OpenSSL to use it. OpenSSH relies on OpenSSL's direct support of
+/dev/random. If you don't you will have to rely on ssh-rand-helper, which
 is inferior to a good kernel-based solution.
 
 PAM:
@@ -37,7 +37,7 @@ http://www.jmknoble.net/software/x11-ssh-askpass/
 
 PRNGD:
 
-If your system lacks Kernel based random collection, the use of Lutz 
+If your system lacks Kernel based random collection, the use of Lutz
 Jaenicke's PRNGd is recommended.
 
 http://www.aet.tu-cottbus.de/personen/jaenicke/postfix_tls/prngd.html
@@ -54,7 +54,7 @@ http://www.sparc.spb.su/solaris/skey/
 
 If you wish to use --with-skey then you will need the above library
 installed.  No other current S/Key library is currently known to be
-supported. 
+supported.
 
 2. Building / Installation
 --------------------------
@@ -73,7 +73,7 @@ installation prefix, use the --prefix option to configure:
 make
 make install
 
-Will install OpenSSH in /opt/{bin,etc,lib,sbin}. You can also override 
+Will install OpenSSH in /opt/{bin,etc,lib,sbin}. You can also override
 specific paths, for example:
 
 ./configure --prefix=/opt --sysconfdir=/etc/ssh
@@ -104,40 +104,42 @@ There are a few other options to the configure script:
 --with-pam enables PAM support. If PAM support is compiled in, it must
 also be enabled in sshd_config (refer to the UsePAM directive).
 
---with-prngd-socket=/some/file allows you to enable EGD or PRNGD 
-support and to specify a PRNGd socket. Use this if your Unix lacks 
-/dev/random and you don't want to use OpenSSH's builtin entropy 
+--with-prngd-socket=/some/file allows you to enable EGD or PRNGD
+support and to specify a PRNGd socket. Use this if your Unix lacks
+/dev/random and you don't want to use OpenSSH's builtin entropy
 collection support.
 
---with-prngd-port=portnum allows you to enable EGD or PRNGD support 
-and to specify a EGD localhost TCP port. Use this if your Unix lacks 
-/dev/random and you don't want to use OpenSSH's builtin entropy 
+--with-prngd-port=portnum allows you to enable EGD or PRNGD support
+and to specify a EGD localhost TCP port. Use this if your Unix lacks
+/dev/random and you don't want to use OpenSSH's builtin entropy
 collection support.
 
---with-lastlog=FILE will specify the location of the lastlog file. 
+--with-lastlog=FILE will specify the location of the lastlog file.
 ./configure searches a few locations for lastlog, but may not find
 it if lastlog is installed in a different place.
 
 --without-lastlog will disable lastlog support entirely.
 
---with-osfsia, --without-osfsia will enable or disable OSF1's Security 
+--with-osfsia, --without-osfsia will enable or disable OSF1's Security
 Integration Architecture.  The default for OSF1 machines is enable.
 
---with-skey=PATH will enable S/Key one time password support. You will 
+--with-skey=PATH will enable S/Key one time password support. You will
 need the S/Key libraries and header files installed for this to work.
 
 --with-tcp-wrappers will enable TCP Wrappers (/etc/hosts.allow|deny)
 support. You will need libwrap.a and tcpd.h installed.
 
 --with-md5-passwords will enable the use of MD5 passwords. Enable this
-if your operating system uses MD5 passwords without using PAM.
+if your operating system uses MD5 passwords and the system crypt() does
+not support them directly (see the crypt(3/3c) man page). If enabled, the
+resulting binary will support both MD5 and traditional crypt passwords.
 
---with-utmpx enables utmpx support. utmpx support is automatic for 
+--with-utmpx enables utmpx support. utmpx support is automatic for
 some platforms.
 
 --without-shadow disables shadow password support.
 
---with-ipaddr-display forces the use of a numeric IP address in the 
+--with-ipaddr-display forces the use of a numeric IP address in the
 $DISPLAY environment variable. Some broken systems need this.
 
 --with-default-path=PATH allows you to specify a default $PATH for sessions
@@ -167,35 +169,35 @@ CFLAGS="-O -m486" LDFLAGS="-s" LIBS="-lrubbish" LD="/usr/foo/ld" ./configure
 3. Configuration
 ----------------
 
-The runtime configuration files are installed by in ${prefix}/etc or 
+The runtime configuration files are installed by in ${prefix}/etc or
 whatever you specified as your --sysconfdir (/usr/local/etc by default).
 
-The default configuration should be instantly usable, though you should 
+The default configuration should be instantly usable, though you should
 review it to ensure that it matches your security requirements.
 
 To generate a host key, run "make host-key". Alternately you can do so
-manually using the following commands: 
+manually using the following commands:
 
     ssh-keygen -t rsa1 -f /etc/ssh/ssh_host_key -N ""
     ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key -N ""
     ssh-keygen -t dsa -f /etc/ssh/ssh_host_dsa_key -N ""
 
 Replacing /etc/ssh with the correct path to the configuration directory.
-(${prefix}/etc or whatever you specified with --sysconfdir during 
+(${prefix}/etc or whatever you specified with --sysconfdir during
 configuration)
 
 If you have configured OpenSSH with EGD support, ensure that EGD is
 running and has collected some Entropy.
 
-For more information on configuration, please refer to the manual pages 
+For more information on configuration, please refer to the manual pages
 for sshd, ssh and ssh-agent.
 
 4. Problems?
 ------------
 
-If you experience problems compiling, installing or running OpenSSH. 
+If you experience problems compiling, installing or running OpenSSH.
 Please refer to the "reporting bugs" section of the webpage at
 http://www.openssh.com/
 
 
-$Id: INSTALL,v 1.56.2.4 2003/09/23 09:24:21 djm Exp $
+$Id: INSTALL,v 1.63 2003/11/21 12:48:55 djm Exp $

@@ -162,10 +162,10 @@ case $os in
 		os=-chorusos
 		basic_machine=$1
 		;;
- 	-chorusrdb)
- 		os=-chorusrdb
+	-chorusrdb)
+		os=-chorusrdb
 		basic_machine=$1
- 		;;
+		;;
 	-hiux*)
 		os=-hiuxwe2
 		;;
@@ -748,7 +748,7 @@ case $basic_machine in
 	pbb)
 		basic_machine=m68k-tti
 		;;
-        pc532 | pc532-*)
+	pc532 | pc532-*)
 		basic_machine=ns32k-pc532
 		;;
 	pentium | p5 | k5 | k6 | nexgen | viac3)
@@ -775,22 +775,22 @@ case $basic_machine in
 	power)	basic_machine=power-ibm
 		;;
 	ppc)	basic_machine=powerpc-unknown
-	        ;;
+		;;
 	ppc-*)	basic_machine=powerpc-`echo $basic_machine | sed 's/^[^-]*-//'`
 		;;
 	ppcle | powerpclittle | ppc-le | powerpc-little)
 		basic_machine=powerpcle-unknown
-	        ;;
+		;;
 	ppcle-* | powerpclittle-*)
 		basic_machine=powerpcle-`echo $basic_machine | sed 's/^[^-]*-//'`
 		;;
 	ppc64)	basic_machine=powerpc64-unknown
-	        ;;
+		;;
 	ppc64-*) basic_machine=powerpc64-`echo $basic_machine | sed 's/^[^-]*-//'`
 		;;
 	ppc64le | powerpc64little | ppc64-le | powerpc64-little)
 		basic_machine=powerpc64le-unknown
-	        ;;
+		;;
 	ppc64le-* | powerpc64little-*)
 		basic_machine=powerpc64le-`echo $basic_machine | sed 's/^[^-]*-//'`
 		;;
@@ -886,11 +886,11 @@ case $basic_machine in
 	sun386 | sun386i | roadrunner)
 		basic_machine=i386-sun
 		;;
-        sv1)
+	sv1)
 		basic_machine=sv1-cray
 		os=-unicos
 		;;
-        sx*-nec)
+	sx*-nec)
 		basic_machine=sx6-nec
 		os=-sysv
 		;;
@@ -948,8 +948,8 @@ case $basic_machine in
 		os=-vms
 		;;
 	vpp*|vx|vx-*)
-               basic_machine=f301-fujitsu
-               ;;
+	       basic_machine=f301-fujitsu
+	       ;;
 	vxworks960)
 		basic_machine=i960-wrs
 		os=-vxworks
@@ -974,7 +974,7 @@ case $basic_machine in
 		basic_machine=i386-pc
 		os=-windows32-msvcrt
 		;;
-        xps | xps100)
+	xps | xps100)
 		basic_machine=xps100-honeywell
 		;;
 	ymp)
@@ -1029,7 +1029,7 @@ case $basic_machine in
 	sparc | sparcv9 | sparcv9b)
 		basic_machine=sparc-sun
 		;;
-        cydra)
+	cydra)
 		basic_machine=cydra-cydrome
 		;;
 	orion)
@@ -1074,8 +1074,8 @@ esac
 if [ x"$os" != x"" ]
 then
 case $os in
-        # First match some system type aliases
-        # that might get confused with valid system types.
+	# First match some system type aliases
+	# that might get confused with valid system types.
 	# -solaris* is a basic system type, with this one exception.
 	-solaris1 | -solaris1.*)
 		os=`echo $os | sed -e 's|solaris1|sunos4|'`
@@ -1179,7 +1179,7 @@ case $os in
 		os=-rtmk-nova
 		;;
 	-ns2 )
-	        os=-nextstep2
+		os=-nextstep2
 		;;
 	-nsk*)
 		os=-nsk
@@ -1218,8 +1218,8 @@ case $os in
 	-xenix)
 		os=-xenix
 		;;
-        -*mint | -mint[0-9]* | -*MiNT | -MiNT[0-9]*)
-	        os=-mint
+	-*mint | -mint[0-9]* | -*MiNT | -MiNT[0-9]*)
+		os=-mint
 		;;
 	-none)
 		;;
@@ -1256,7 +1256,7 @@ case $basic_machine in
 	pdp10-*)
 		os=-tops20
 		;;
-        pdp11-*)
+	pdp11-*)
 		os=-none
 		;;
 	*-dec | vax-*)
@@ -1349,19 +1349,19 @@ case $basic_machine in
 	*-next)
 		os=-nextstep3
 		;;
-        *-gould)
+	*-gould)
 		os=-sysv
 		;;
-        *-highlevel)
+	*-highlevel)
 		os=-bsd
 		;;
 	*-encore)
 		os=-bsd
 		;;
-        *-sgi)
+	*-sgi)
 		os=-irix
 		;;
-        *-siemens)
+	*-siemens)
 		os=-sysv4
 		;;
 	*-masscomp)

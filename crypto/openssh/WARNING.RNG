@@ -44,16 +44,16 @@ the specified program.
 
 The random number code will also read and save a seed file to
 ~/.ssh/prng_seed. This contents of this file are added to the random
-number generator at startup. The goal here is to maintain as much 
+number generator at startup. The goal here is to maintain as much
 randomness between sessions as possible.
 
 The default entropy collection code has two main problems:
 
 1. It is slow.
 
-Executing each program in the list can take a large amount of time,   
-especially on slower machines. Additionally some program can take a   
-disproportionate time to execute.                                     
+Executing each program in the list can take a large amount of time,
+especially on slower machines. Additionally some program can take a
+disproportionate time to execute.
 
 Tuning the default entropy collection code is difficult at this point.
 It requires doing 'times ./ssh-rand-helper'  and modifying the
@@ -93,4 +93,4 @@ If you are forced to use ssh-rand-helper consider still downloading
 prngd/egd and configure OpenSSH using --with-prngd-port=xx or
 --with-prngd-socket=xx (refer to INSTALL for more information).
 
-$Id: WARNING.RNG,v 1.5 2002/04/14 13:16:05 djm Exp $
+$Id: WARNING.RNG,v 1.6 2003/11/21 12:48:55 djm Exp $

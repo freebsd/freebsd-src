@@ -24,7 +24,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: kexgexc.c,v 1.1 2003/02/16 17:09:57 markus Exp $");
+RCSID("$OpenBSD: kexgexc.c,v 1.2 2003/12/08 11:00:47 markus Exp $");
 
 #include "xmalloc.h"
 #include "key.h"
@@ -49,16 +49,14 @@ kexgex_client(Kex *kex)
 	nbits = dh_estimate(kex->we_need * 8);
 
 	if (datafellows & SSH_OLD_DHGEX) {
-		debug("SSH2_MSG_KEX_DH_GEX_REQUEST_OLD sent");
-
 		/* Old GEX request */
 		packet_start(SSH2_MSG_KEX_DH_GEX_REQUEST_OLD);
 		packet_put_int(nbits);
 		min = DH_GRP_MIN;
 		max = DH_GRP_MAX;
-	} else {
-		debug("SSH2_MSG_KEX_DH_GEX_REQUEST sent");
 
+		debug("SSH2_MSG_KEX_DH_GEX_REQUEST_OLD(%u) sent", nbits);
+	} else {
 		/* New GEX request */
 		min = DH_GRP_MIN;
 		max = DH_GRP_MAX;
@@ -66,6 +64,9 @@ kexgex_client(Kex *kex)
 		packet_put_int(min);
 		packet_put_int(nbits);
 		packet_put_int(max);
+
+		debug("SSH2_MSG_KEX_DH_GEX_REQUEST(%u<%u<%u) sent",
+		    min, nbits, max);
 	}
 #ifdef DEBUG_KEXDH
 	fprintf(stderr, "\nmin = %d, nbits = %d, max = %d\n",

@@ -1,4 +1,4 @@
-/* $Id: bsd-cray.h,v 1.10 2003/08/29 16:59:52 mouring Exp $ */
+/* $Id: bsd-cray.h,v 1.11 2004/01/30 03:34:22 dtucker Exp $ */
 
 /*
  * Copyright (c) 2002, Cray Inc.  (Wendy Palm <wendyp@cray.com>)
@@ -53,7 +53,6 @@ extern char cray_tmpdir[];
 # define MAXHOSTNAMELEN  64
 #endif
 #ifndef _CRAYT3E
-# include <sys/ttold.h>
 # define TIOCGPGRP (tIOC|20)
 #endif
 

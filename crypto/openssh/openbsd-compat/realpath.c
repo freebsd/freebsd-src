@@ -1,3 +1,5 @@
+/* OPENBSD ORIGINAL: lib/libc/stdlib/realpath.c */
+
 /*
  * Copyright (c) 1994
  *	The Regents of the University of California.  All rights reserved.
@@ -150,7 +152,7 @@ loop:
 			serrno = ENAMETOOLONG;
 			goto err1;
 		}
-		if (needslash == 0)
+		if (needslash)
 			strlcat(resolved, "/", MAXPATHLEN);
 		strlcat(resolved, wbuf, MAXPATHLEN);
 	}

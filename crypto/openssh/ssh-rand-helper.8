@@ -1,4 +1,4 @@
-.\" $Id: ssh-rand-helper.8,v 1.1 2002/04/14 09:27:13 djm Exp $
+.\" $Id: ssh-rand-helper.8,v 1.2 2003/11/21 12:48:56 djm Exp $
 .\"
 .\" Copyright (c) 2002 Damien Miller.  All rights reserved.
 .\"
@@ -34,22 +34,22 @@
 .Op Fl b Ar bytes
 .Sh DESCRIPTION
 .Nm
-is a small helper program used by 
+is a small helper program used by
 .Xr ssh 1 ,
 .Xr ssh-add 1 ,
 .Xr ssh-agent 1 ,
 .Xr ssh-keygen 1 ,
-.Xr ssh-keyscan 1 
+.Xr ssh-keyscan 1
 and
 .Xr sshd 8
-to gather random numbers of cryptographic quality if the 
+to gather random numbers of cryptographic quality if the
 .Xr openssl 4
 library has not been configured to provide them itself.
 .Pp
-Normally 
+Normally
 .Nm
 will generate a strong random seed and provide it to the calling
-program via standard output. If standard output is a tty, 
+program via standard output. If standard output is a tty,
 .Nm
 will instead print the seed in hexidecimal format unless told otherwise.
 .Pp
@@ -57,19 +57,19 @@ will instead print the seed in hexidecimal format unless told otherwise.
 will by default gather random numbers from the system commands listed
 in
 .Pa /etc/ssh/ssh_prng_cmds .
-The output of each of the commands listed will be hashed and used to 
-generate a random seed for the calling program. 
+The output of each of the commands listed will be hashed and used to
+generate a random seed for the calling program.
 .Nm
-will also store seed files in 
+will also store seed files in
 .Pa ~/.ssh/prng_seed
 between executions.
 .Pp
-Alternately, 
+Alternately,
 .Nm
-may be configured at build time to collect random numbers from a 
+may be configured at build time to collect random numbers from a
 EGD/PRNGd server via a unix domain or localhost tcp socket.
 .Pp
-This program is not intended to be run by the end-user, so the few 
+This program is not intended to be run by the end-user, so the few
 commandline options are for debugging purposes only.
 .Bl -tag -width Ds
 .It Fl b Ar bytes
