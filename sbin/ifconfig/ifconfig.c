@@ -783,7 +783,7 @@ at_status(force)
 			return;
 		sat = &null_sat;
 	}
-	nr = (struct netrange *) &sat->sat_zero;
+	nr = &sat->sat_range.r_netrange;
 	printf("\tatalk %d.%d range %d-%d phase %d",
 		ntohs(sat->sat_addr.s_net), sat->sat_addr.s_node,
 		ntohs(nr->nr_firstnet), ntohs(nr->nr_lastnet), nr->nr_phase);
@@ -1012,7 +1012,7 @@ at_getaddr(char *addr, int which)
 	if (which == MASK)
 		errx(1, "AppleTalk does not use netmasks\n");
 	if (sscanf(addr, "%u.%u", &net, &node) != 2
-	    || net == 0 || net > 0xffff || node == 0 || node > 0xfe)
+	    || net > 0xffff || node > 0xfe)
 		errx(1, "%s: illegal address", addr);
 	sat->sat_addr.s_net = htons(net);
 	sat->sat_addr.s_node = node;
@@ -1055,7 +1055,7 @@ printf("\tatalk %d.%d range %d-%d phase %d\n",
 		    || (u_short) ntohs(at_nr.nr_lastnet) <
 			(u_short) ntohs(sat->sat_addr.s_net))
 		errx(1, "AppleTalk address is not in range");
-	*((struct netrange *) &sat->sat_zero) = at_nr;
+	sat->sat_range.r_netrange = at_nr;
 }
 
 #ifdef NS
