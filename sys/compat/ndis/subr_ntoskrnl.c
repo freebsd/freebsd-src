@@ -1609,6 +1609,9 @@ ntoskrnl_thread_exit(status)
 
 	ntoskrnl_kth--;
 
+#if __FreeBSD_version < 502113
+	mtx_lock(&Giant);
+#endif
 	kthread_exit(0);
 	return(0);	/* notreached */
 }

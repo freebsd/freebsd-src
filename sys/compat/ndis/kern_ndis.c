@@ -244,6 +244,9 @@ ndis_runq(arg)
 	}
 
 	wakeup(die);
+#if __FreeBSD_version < 502113
+	mtx_lock(&Giant);
+#endif
 	kthread_exit(0);
 	return; /* notreached */
 }
