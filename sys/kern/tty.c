@@ -112,9 +112,9 @@ static void	ttyrubo(struct tty *tp, int cnt);
 static void	ttyunblock(struct tty *tp);
 static int	ttywflush(struct tty *tp);
 static int	filt_ttyread(struct knote *kn, long hint);
-static void 	filt_ttyrdetach(struct knote *kn);
+static void	filt_ttyrdetach(struct knote *kn);
 static int	filt_ttywrite(struct knote *kn, long hint);
-static void 	filt_ttywdetach(struct knote *kn);
+static void	filt_ttywdetach(struct knote *kn);
 
 /*
  * Table with character classes and parity. The 8th bit indicates parity,
@@ -817,7 +817,7 @@ ttioctl(tp, cmd, data, flag)
 
 	case FIOSETOWN:
 		/*
-		 * Policy -- Don't allow FIOSETOWN on someone else's 
+		 * Policy -- Don't allow FIOSETOWN on someone else's
 		 *           controlling tty
 		 */
 		if (tp->t_session != NULL && !isctty(p, tp))
@@ -1790,7 +1790,7 @@ read:
 		 */
 		if (error)
 			break;
- 		if (uio->uio_resid == 0)
+		if (uio->uio_resid == 0)
 			break;
 		first = 0;
 	}
@@ -1830,11 +1830,11 @@ slowcase:
 		/*
 		 * Give user character.
 		 */
- 		error = ureadc(c, uio);
+		error = ureadc(c, uio);
 		if (error)
 			/* XXX should ungetc(c, qp). */
 			break;
- 		if (uio->uio_resid == 0)
+		if (uio->uio_resid == 0)
 			break;
 		/*
 		 * In canonical mode check for a "break character"
@@ -2522,7 +2522,7 @@ proc_compare(p1, p2)
 		return (p2->p_pid > p1->p_pid);	/* tie - return highest pid */
 	}
 	/*
- 	 * weed out zombies
+	 * weed out zombies
 	 */
 	switch (TESTAB(p1->p_stat == SZOMB, p2->p_stat == SZOMB)) {
 	case ONLYA:
@@ -2609,9 +2609,9 @@ ttymalloc(tp)
 
 	if (tp)
 		return(tp);
-        tp = malloc(sizeof *tp, M_TTYS, M_WAITOK | M_ZERO);
+	tp = malloc(sizeof *tp, M_TTYS, M_WAITOK | M_ZERO);
 	ttyregister(tp);
-        return (tp);
+	return (tp);
 }
 
 #if 0 /* XXX not yet usable: session leader holds a ref (see kern_exit.c). */
@@ -2623,7 +2623,7 @@ void
 ttyfree(tp)
 	struct tty *tp;
 {
-        free(tp, M_TTYS);
+	free(tp, M_TTYS);
 }
 #endif /* 0 */
 
