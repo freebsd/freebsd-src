@@ -41,6 +41,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
+#include <sys/mbuf.h>
 
 #include <sys/iconv.h>
 
