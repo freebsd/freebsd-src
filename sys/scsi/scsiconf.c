@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.56 1996/03/09 07:13:57 peter Exp $
+ *      $Id: scsiconf.c,v 1.57 1996/03/10 07:13:10 gibbs Exp $
  */
 
 #include "opt_scsi.h"
@@ -31,7 +31,6 @@
 #include <sys/conf.h>
 
 #include <machine/clock.h>
-#include <machine/cpu.h>	/* XXX For bootverbose (funny place) */
 
 #include "scbus.h"
 

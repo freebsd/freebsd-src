@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.22 1996/02/06 18:51:04 wollman Exp $
+ * $Id: bpf.c,v 1.23 1996/03/28 14:33:11 scrappy Exp $
  */
 
 #include "bpfilter.h"
@@ -53,7 +53,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <machine/cpu.h>	/* for bootverbose */
 #include <sys/mbuf.h>
 #include <sys/buf.h>
 #include <sys/time.h>

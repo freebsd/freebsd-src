@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.68 1996/03/19 15:03:00 bde Exp $
+**  $Id: ncr.c,v 1.69 1996/03/31 03:17:50 gibbs Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -182,12 +182,12 @@
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/kernel.h>
+#ifdef __NetBSD__
+#define bootverbose	1
+#endif
 #include <sys/sysctl.h>
 #ifndef __NetBSD__
 #include <machine/clock.h>
-#include <machine/cpu.h> /* bootverbose */
-#else
-#define bootverbose	1
 #endif
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -1254,7 +1254,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.68 1996/03/19 15:03:00 bde Exp $\n";
+	"\n$Id: ncr.c,v 1.69 1996/03/31 03:17:50 gibbs Exp $\n";
 
 static u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.21 1995/12/16 00:27:59 bde Exp $
+**  $Id: pcibus.c,v 1.22 1996/03/29 15:01:51 bde Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -40,8 +40,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-
-#include <machine/cpu.h> /* bootverbose */
 
 #include <i386/isa/icu.h>
 #include <i386/isa/isa.h>

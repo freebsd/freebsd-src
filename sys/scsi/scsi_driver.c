@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.c,v 1.13 1996/01/20 15:05:50 joerg Exp $
+ * $Id: scsi_driver.c,v 1.14 1996/03/10 07:13:08 gibbs Exp $
  *
  */
 #include <sys/types.h>
@@ -46,8 +46,6 @@
 #include <sys/devconf.h>
 #include <sys/malloc.h>
 #include <sys/fcntl.h>
-
-#include <machine/cpu.h>	/* XXX For bootverbose (funny place) */
 
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>

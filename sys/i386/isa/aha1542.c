@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.56 1996/03/10 07:04:42 gibbs Exp $
+ *      $Id: aha1542.c,v 1.57 1996/03/31 18:19:38 gibbs Exp $
  */
 
 /*
@@ -32,7 +32,6 @@
 #include <sys/proc.h>
 
 #include <machine/clock.h>
-#include <machine/cpu.h>	/* XXX for bootverbose: a funny place */
 #include <machine/stdarg.h>
 
 #include <vm/vm.h>
