@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftp.c,v 1.5 1997/03/06 10:01:54 jmg Exp $
+ *	$Id: ftp.c,v 1.6 1997/03/11 15:13:28 jmg Exp $
  */
 
 #include <sys/types.h>
@@ -66,8 +66,8 @@ struct uri_scheme ftp_scheme =
 static int 
 ftp_parse(struct fetch_state *fs, const char *uri)
 {
-	const char *p, *colon, *slash, *q;
-	char *hostname, *atsign;
+	const char *p, *slash, *q;
+	char *hostname, *atsign, *colon;
 	unsigned port;
 	struct ftp_state *ftps;
 
@@ -80,29 +80,30 @@ ftp_parse(struct fetch_state *fs, const char *uri)
 	}
 
 	p += 2;
-	colon = strchr(p, ':');
 	slash = strchr(p, '/');
-	if (colon && slash && colon < slash)
-		q = colon;
-	else
-		q = slash;
-	if (q == 0) {
+	if (slash == 0) {
 		warnx("`%s': malformed `ftp' URL", uri);
 		return EX_USAGE;
 	}
-	hostname = alloca(q - p + 1);
+	hostname = alloca(slash - p + 1);
 	hostname[0] = '\0';
-	strncat(hostname, p, q - p);
-	p = slash;
+	strncat(hostname, p, slash - p);
 
-	if (colon && colon < slash && colon + 1 != slash) {
+	if ((atsign = strrchr(hostname, '@')) == 0)
+		q = hostname;
+	else
+		q = atsign + 1;
+
+	if ((colon = strchr(q, ':')) != 0)
+		*colon = '\0';
+
+	if (colon && *(colon + 1)) {
 		unsigned long ul;
 		char *ep;
 
 		errno = 0;
 		ul = strtoul(colon + 1, &ep, 10);
-		if (ep != slash || ep == colon + 1 || errno != 0
-		    || ul < 1 || ul > 65534) {
+		if (*ep || errno != 0 || ul < 1 || ul > 65534) {
 			if (errno)
 				warn("`%s': invalid port in URL", uri);
 			else
@@ -118,6 +119,8 @@ ftp_parse(struct fetch_state *fs, const char *uri)
 	p = slash + 1;
 
 	ftps = safe_malloc(sizeof *ftps);
+	ftps->ftp_password = 0;
+	ftps->ftp_user = 0;
 
 	/*
 	 * Now, we have a copy of the hostname in hostname, the specified port
@@ -125,7 +128,6 @@ ftp_parse(struct fetch_state *fs, const char *uri)
 	 * of the URI.  We just need to check for a user in the hostname,
 	 * and then save all the bits in our state.
 	 */
-	atsign = strrchr(hostname, '@');
 	if (atsign) {
 		if (atsign[1] == '\0') {
 			warnx("`%s': malformed `ftp' hostname", hostname);
@@ -134,12 +136,19 @@ ftp_parse(struct fetch_state *fs, const char *uri)
 		}
 
 		*atsign = '\0';
+		if ((colon = strchr(hostname, ':')) != 0)
+			*colon = '\0';
+		if (hostname[0] == '\0') {
+			warnx("`%s': malformed `ftp' user", atsign + 1);
+			free(ftps);
+			return EX_USAGE;
+		}
+		if (colon != 0)
+			ftps->ftp_password = percent_decode(colon + 1);
 		ftps->ftp_user = percent_decode(hostname);
 		ftps->ftp_hostname = safe_strdup(atsign + 1);
-	} else {
-		ftps->ftp_user = 0;
+	} else
 		ftps->ftp_hostname = safe_strdup(hostname);
-	}
 	ftps->ftp_port = port;
 
 	p = ftps->ftp_remote_file = percent_decode(p);
@@ -150,7 +159,8 @@ ftp_parse(struct fetch_state *fs, const char *uri)
 		fs->fs_outputfile = slash ? slash + 1 : p;
 	}
 
-	ftps->ftp_password = getenv("FTP_PASSWORD");
+	if (ftps->ftp_password == 0)
+		ftps->ftp_password = getenv("FTP_PASSWORD");
 	if (ftps->ftp_password != 0) {
 		ftps->ftp_password = safe_strdup(ftps->ftp_password);
 	} else {
@@ -170,11 +180,10 @@ ftp_parse(struct fetch_state *fs, const char *uri)
 		setenv("FTP_PASSWORD", pw, 0); /* cache the result */
 	}
 
-	if (ftps->ftp_user == 0) {
-		const char *user = getenv("FTP_LOGIN");
-		if (user != 0)
-			ftps->ftp_user = safe_strdup(user);
-	}
+	if (ftps->ftp_user == 0)
+		ftps->ftp_user = getenv("FTP_LOGIN");
+	if (ftps->ftp_user != 0)
+		ftps->ftp_user = safe_strdup(ftps->ftp_user);
 
 	fs->fs_proto = ftps;
 	fs->fs_close = ftp_close;
