@@ -210,7 +210,7 @@ struct preloaded_file
 struct file_format
 {
     /* Load function must return EFTYPE if it can't handle the module supplied */
-    int		(* l_load)(char *filename, vm_offset_t dest, struct preloaded_file **result);
+    int		(* l_load)(char *filename, u_int64_t dest, struct preloaded_file **result);
     /* Only a loader that will load a kernel (first module) should have an exec handler */
     int		(* l_exec)(struct preloaded_file *mp);
 };
@@ -231,7 +231,9 @@ int  file_addmodule(struct preloaded_file *fp, char *modname, int version,
 
 
 /* MI module loaders */
-int	elf_loadfile(char *filename, vm_offset_t dest, struct preloaded_file **result);
+#ifdef __elfN
+int	__elfN(loadfile)(char *filename, u_int64_t dest, struct preloaded_file **result);
+#endif
 
 /*
  * Support for commands 

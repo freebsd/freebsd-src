@@ -94,9 +94,9 @@
 
 #define _KERNEL
 
-static int	elf_exec(struct preloaded_file *amp);
+static int	elf64_exec(struct preloaded_file *amp);
 
-struct file_format ia64_elf = { elf_loadfile, elf_exec };
+struct file_format ia64_elf = { elf64_loadfile, elf64_exec };
 
 static __inline u_int64_t
 disable_ic()
@@ -136,7 +136,7 @@ enter_kernel(u_int64_t start, struct bootinfo *bi)
 }
 
 static int
-elf_exec(struct preloaded_file *fp)
+elf64_exec(struct preloaded_file *fp)
 {
 	struct file_metadata	*md;
 	Elf_Ehdr		*hdr;
