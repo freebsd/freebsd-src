@@ -29,9 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)tcp.4	8.1 (Berkeley) 6/5/93
+.\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
+.\"	$Id$
 .\"
-.Dd June 5, 1993
+.Dd February 14, 1995
 .Dt TCP 4
 .Os BSD 4.2
 .Sh NAME
@@ -79,6 +80,11 @@ call to accept incoming connections.  Only active sockets may
 use the
 .Xr connect 2
 call to initiate connections.
+.Tn TCP
+also supports a more datagram-like mode, called Transaction
+.Tn TCP ,
+which is described in
+.Xr ttcp 4 .
 .Pp
 Passive sockets may
 .Dq underspecify
@@ -102,10 +108,12 @@ through which packets are being transmitted and received.  Normally
 this address corresponds to the peer entity's network.
 .Pp
 .Tn TCP
-supports one socket option which is set with
+supports a number of socket options which can be set with
 .Xr setsockopt 2
 and tested with
-.Xr getsockopt 2 .
+.Xr getsockopt 2 :
+.Bl -tag -width TCP_NODELAYx
+.It Dv TCP_NODELAY
 Under most circumstances,
 .Tn TCP
 sends data when it is presented;
@@ -115,19 +123,57 @@ an acknowledgement is received.
 For a small number of clients, such as window systems
 that send a stream of mouse events which receive no replies,
 this packetization may cause significant delays.
-Therefore,
-.Tn TCP
-provides a boolean option,
+The boolean option
 .Dv TCP_NODELAY
-(from
-.Aq Pa netinet/tcp.h ,
-to defeat this algorithm.
+defeats this algorithm.
+.It Dv TCP_MAXSEG
+By default, a sender\- and receiver-TCP
+will negotiate among themselves to determine the maximum segment size
+to be used for each connection.  The
+.Dv TCP_MAXSEG
+option allows the user to determine the result of this negotiation,
+and to reduce it if desired.
+.It Dv TCP_NOOPT
+.Tn TCP
+usually sends a number of options in each packet, corresponding to
+various
+.Tn TCP
+extensions which are provided in this implementation.  The boolean
+option
+.Dv TCP_NOOPT
+is provided to disable 
+.Tn TCP
+option use on a per-connection basis.
+.It Dv TCP_NOPUSH
+By convention, the sender-TCP
+will set the
+.Dq push
+bit and begin transmission immediately (if permitted) at the end of
+every user call to
+.Xr write
+or
+.Xr writev .
+The
+.Dv TCP_NOPUSH
+option is provided to allow servers to easily make use of Transaction
+TCP (see
+.Xr ttcp 4 ).
+When the option is set to a non-zero value,
+.Tn TCP
+will delay sending any data at all until either the socket is closed,
+or the internal send buffer is filled.
+.El
+.Pp
 The option level for the
 .Xr setsockopt
 call is the protocol number for
 .Tn TCP ,
 available from
-.Xr getprotobyname 3 .
+.Xr getprotobyname 3 ,
+or
+.Dv IPPROTO_TCP .
+All options are declared in
+.Aq Pa netinet/tcp.h .
 .Pp
 Options at the
 .Tn IP
@@ -137,6 +183,30 @@ see
 .Xr ip 4 .
 Incoming connection requests that are source-routed are noted,
 and the reverse source route is used in responding.
+.Sh MIB VARIABLES
+The
+.Nm
+protocol implements three variables in the
+.Li net.inet
+branch of the
+.Xr sysctl 3
+MIB.
+.Bl -tag -width TCPCTL_DO_RFC1644
+.It Dv TCPCTL_DO_RFC1323
+.Pq tcp.rfc1323
+Implement the window scaling and timestamp options of RFC 1323
+(default true).
+.It Dv TCPCTL_DO_RFC1644
+.Pq tcp.rfc1644
+Implement Transaction
+.Tn TCP ,
+as described in RFC 1644.
+.It Dv TCPCTL_MSSDFLT
+.Pq tcp.mssdflt
+The default value used for the maximum segment size
+.Pq Dq MSS
+when no advice to the contrary is received from MSS negotiation.
+.El
 .Sh DIAGNOSTICS
 A socket operation may fail with one of the following errors returned:
 .Bl -tag -width [EADDRNOTAVAIL]
@@ -171,11 +241,33 @@ address.
 .Sh SEE ALSO
 .Xr getsockopt 2 ,
 .Xr socket 2 ,
+.Xr sysctl 3 ,
 .Xr intro 4 ,
 .Xr inet 4 ,
-.Xr ip 4
+.Xr ip 4 ,
+.Xr ttcp 4
+.Rs
+.%A V. Jacobson, R. Braden, and D. Borman
+.%T "TCP Extensions for High Performance"
+.%O RFC 1323
+.Re
+.Rs
+.%A R. Braden
+.%T "T/TCP \- TCP Extensions for Transactions"
+.%O RFC 1644
+.Re
 .Sh HISTORY
 The
 .Nm
-protocol stack appeared in
+protocol appeared in
 .Bx 4.2 .
+The RFC 1323 extensions for window scaling and timestamps were added
+in
+.Bx 4.4 .
+The
+.Tn "Transaction TCP"
+extensions were added in
+.Tn FreeBSD
+2.0, based on code written for
+.Tn SunOS
+by Robert Braden and Liming Wei.
