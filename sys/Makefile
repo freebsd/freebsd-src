@@ -1,8 +1,8 @@
-#	$Id: Makefile,v 1.7 1997/02/22 09:27:56 peter Exp $
+#	$Id: Makefile,v 1.8 1997/07/13 07:36:20 jkh Exp $
 
 .if defined(MACHINE_PC98) && ${MACHINE_PC98} == "yes"
 SUBDIR=	pc98/boot
-.else
+.elif	exists(${MACHINE}/boot)
 SUBDIR=	${MACHINE}/boot
 .endif
 
