@@ -123,13 +123,6 @@ daemon.
 (str) List of directories to search for startup script files.
 .It Ar local_periodic
 (str) List of directories to search for periodic scripts.
-.It Ar man_locales
-(str) Space separated list of man locales installed at system. This value
-is used in periodic when calling
-.Xr catman 1
-or
-.Xr makewhatis 1 .
-They will be executed with -locale option for each of these locales.
 .It Ar hostname
 (str) The Fully Qualified Domain Name of your host on the network.
 This should almost certainly be set to something meaningful, even if
