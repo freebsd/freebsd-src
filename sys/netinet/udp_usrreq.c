@@ -688,9 +688,10 @@ udp_output(inp, m, addr, control, td)
 {
 	register struct udpiphdr *ui;
 	register int len = m->m_pkthdr.len;
-	struct in_addr laddr;
+	struct in_addr faddr, laddr;
 	struct sockaddr_in *sin;
-	int s = 0, error = 0;
+	int error = 0;
+	u_short fport, lport;
 
 #ifdef MAC
 	mac_create_mbuf_from_socket(inp->inp_socket, m);
@@ -704,26 +705,36 @@ udp_output(inp, m, addr, control, td)
 		goto release;
 	}
 
+	laddr = inp->inp_laddr;
+	lport = inp->inp_lport;
 	if (addr) {
 		sin = (struct sockaddr_in *)addr;
 		if (td && jailed(td->td_ucred))
 			prison_remote_ip(td->td_ucred, 0, &sin->sin_addr.s_addr);
-		laddr = inp->inp_laddr;
 		if (inp->inp_faddr.s_addr != INADDR_ANY) {
 			error = EISCONN;
 			goto release;
 		}
-		/*
-		 * Must block input while temporarily connected.
-		 */
-		s = splnet();
-		error = in_pcbconnect(inp, addr, td);
-		if (error) {
-			splx(s);
+		error = in_pcbconnect_setup(inp, addr, &laddr.s_addr, &lport,
+		    &faddr.s_addr, &fport, NULL, td);
+		if (error)
 			goto release;
+
+		/* Commit the local port if newly assigned. */
+		if (inp->inp_laddr.s_addr == INADDR_ANY &&
+		    inp->inp_lport == 0) {
+			inp->inp_lport = lport;
+			if (in_pcbinshash(inp) != 0) {
+				inp->inp_lport = 0;
+				error = EAGAIN;
+				goto release;
+			}
+			inp->inp_flags |= INP_ANONPORT;
 		}
 	} else {
-		if (inp->inp_faddr.s_addr == INADDR_ANY) {
+		faddr = inp->inp_faddr;
+		fport = inp->inp_fport;
+		if (faddr.s_addr == INADDR_ANY) {
 			error = ENOTCONN;
 			goto release;
 		}
@@ -735,8 +746,6 @@ udp_output(inp, m, addr, control, td)
 	M_PREPEND(m, sizeof(struct udpiphdr), M_DONTWAIT);
 	if (m == 0) {
 		error = ENOBUFS;
-		if (addr)
-			splx(s);
 		goto release;
 	}
 
@@ -747,10 +756,10 @@ udp_output(inp, m, addr, control, td)
 	ui = mtod(m, struct udpiphdr *);
 	bzero(ui->ui_x1, sizeof(ui->ui_x1));	/* XXX still needed? */
 	ui->ui_pr = IPPROTO_UDP;
-	ui->ui_src = inp->inp_laddr;
-	ui->ui_dst = inp->inp_faddr;
-	ui->ui_sport = inp->inp_lport;
-	ui->ui_dport = inp->inp_fport;
+	ui->ui_src = laddr;
+	ui->ui_dst = faddr;
+	ui->ui_sport = lport;
+	ui->ui_dport = fport;
 	ui->ui_ulen = htons((u_short)len + sizeof(struct udphdr));
 
 	/*
@@ -772,12 +781,6 @@ udp_output(inp, m, addr, control, td)
 	error = ip_output(m, inp->inp_options, &inp->inp_route,
 	    (inp->inp_socket->so_options & (SO_DONTROUTE | SO_BROADCAST)),
 	    inp->inp_moptions, inp);
-
-	if (addr) {
-		in_pcbdisconnect(inp);
-		inp->inp_laddr = laddr;	/* XXX rehash? */
-		splx(s);
-	}
 	return (error);
 
 release:
