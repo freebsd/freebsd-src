@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.162 1995/05/13 23:37:16 asami Exp $
+# $Id: bsd.port.mk,v 1.163 1995/05/16 10:31:25 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -365,8 +365,7 @@ is_depended:	install
 # They still check to see if the target exists, and if so don't
 # do anything, since you might want to set this globally for a
 # group of ports in a Makefile.inc, but still be able to
-# override from an individual Makefile (since you can't _
-# undefine_ a variable in make!).
+# override from an individual Makefile.
 ################################################################
 
 .if defined(NO_EXTRACT) && !target(extract)
