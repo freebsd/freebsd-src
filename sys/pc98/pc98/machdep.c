@@ -224,6 +224,7 @@ static struct pcpu __pcpu;
 
 struct mtx sched_lock;
 struct mtx Giant;
+struct mtx icu_lock;
 
 static void
 cpu_startup(dummy)
@@ -1808,9 +1809,7 @@ init386(first)
 	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
 	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF);
 	mtx_init(&clock_lock, "clk", MTX_SPIN | MTX_RECURSE);
-#ifdef SMP
-	mtx_init(&imen_mtx, "imen", MTX_SPIN);
-#endif
+	mtx_init(&icu_lock, "icu", MTX_SPIN);
 	mtx_lock(&Giant);
 
 	/* make ldt memory segments */
