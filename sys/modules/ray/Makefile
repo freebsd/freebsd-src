@@ -4,6 +4,6 @@
 
 KMOD=	if_ray
 SRCS=	if_ray.c
-SRCS+=	device_if.h bus_if.h card_if.h opt_inet.h
+SRCS+=	device_if.h bus_if.h card_if.h opt_inet.h pccarddevs.h
 
 .include <bsd.kmod.mk>

@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 
 #include <dev/pccard/pccardvar.h>
-#include <dev/pccard/pccarddevs.h>
+#include "pccarddevs.h"
 #include "card_if.h"
 
 #include <dev/an/if_aironet_ieee.h>

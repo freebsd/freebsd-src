@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/cs/if_csvar.h>
 #include <dev/cs/if_csreg.h>
 #include <dev/pccard/pccardvar.h>
-#include <dev/pccard/pccarddevs.h>
+#include "pccarddevs.h"
 
 #include "card_if.h"
 

@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <dev/ata/ata-all.h>
 #include <dev/pccard/pccard_cis.h>
-#include <dev/pccard/pccarddevs.h>
+#include "pccarddevs.h"
 #include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccardvar.h>
 

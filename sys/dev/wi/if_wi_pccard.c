@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pccard/pccardvar.h>
 #if __FreeBSD_version >= 500000
-#include <dev/pccard/pccarddevs.h>
+#include "pccarddevs.h"
 #endif
 
 #include <dev/wi/if_wavelan_ieee.h>
