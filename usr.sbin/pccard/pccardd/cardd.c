@@ -192,6 +192,7 @@ void
 card_removed(struct slot *sp)
 {
 	struct card *cp;
+	struct allocblk *sio;
 	int in_use = 0;
 
 	if (sp->config && sp->config->driver && sp->card)
@@ -210,10 +211,14 @@ card_removed(struct slot *sp)
 	sp->cis = 0;
 	sp->config = 0;
 	/* release io */
-	bit_nset(io_avail, sp->io.addr, sp->io.addr + sp->io.size - 1);
+	if (sp->flags & IO_ASSIGNED) 
+            for (sio = &sp->io; sio; sio = sio->next)
+                if (sio->addr && sio->size)
+			bit_nset(io_avail, sio->addr, sio->addr + sio->size - 1);
 	/* release irq */
-	if (sp->irq)
-		pool_irq[sp->irq] = 1;
+	if (sp->flags & IRQ_ASSIGNED)
+		if (sp->irq >= 1 && sp->irq <= 15)
+			pool_irq[sp->irq] = 1;
 }
 
 /* CIS string comparison */
