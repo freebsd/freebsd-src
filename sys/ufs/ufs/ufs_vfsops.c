@@ -201,7 +201,10 @@ ufs_fhtovp(mp, ufhp, vpp)
 		return (error);
 	}
 	ip = VTOI(nvp);
-	if (ip->i_mode == 0 || ip->i_gen != ufhp->ufid_gen) {
+	if (ip->i_mode == 0 ||
+	    ip->i_gen != ufhp->ufid_gen ||
+	    (VFSTOUFS(mp)->um_i_effnlink_valid ? ip->i_effnlink :
+	    ip->i_nlink) <= 0) {
 		vput(nvp);
 		*vpp = NULLVP;
 		return (ESTALE);
