@@ -4,7 +4,7 @@
 
 		Eric Allman <eric@CS.Berkeley.EDU>
 
-		@(#)README	8.111 (Berkeley) 1/16/97
+		@(#)README	8.120 (Berkeley) 6/14/97
 
 
 This document describes the sendmail configuration files being used
@@ -34,7 +34,8 @@ SunOS's /usr/5bin/m4 or BSD-Net/2's m4 both work.  GNU m4 version 1.1
 or later also works.  Unfortunately, I'm told that the M4 on BSDI 1.0
 doesn't work -- you'll have to use a Net/2 or GNU version.  GNU m4 is
 available from ftp://prep.ai.mit.edu/pub/gnu/m4-1.4.tar.gz (check for
-the latest version).
+the latest version).  EXCEPTIONS: DEC's m4 on Digital UNIX 4.x is broken
+(3.x is fine).  Use GNU m4 on this platform.
 
 IF YOU DON'T HAVE A BERKELEY MAKE, don't despair!  Just run
 "m4 ../m4/cf.m4 foo.mc > foo.cf" -- that should be all you need.
@@ -120,7 +121,7 @@ Let's examine a typical .mc file:
 
 	#
 	#  This is a Berkeley-specific configuration file for HP-UX 9.x.
-	#  It applies only the the Computer Science Division at Berkeley,
+	#  It applies only to the Computer Science Division at Berkeley,
 	#  and should not be used elsewhere.   It is provided on the sendmail
 	#  distribution as a sample only.  To create your own configuration
 	#  file, create an appropriate domain file in ../domain, change the
@@ -306,11 +307,11 @@ POP_MAILER_FLAGS	[Penu] Flags added to POP mailer.  Flags "lsDFM"
 POP_MAILER_ARGS		[pop $u] The arguments passed to the POP mailer.
 PROCMAIL_MAILER_PATH	[/usr/local/bin/procmail] The path to the procmail
 			program.  This is also used by FEATURE(local_procmail).
-PROCMAIL_MAILER_FLAGS	[Shu] Flags added to Procmail mailer.  Flags
-			``DFMmn'' are always set.  This is NOT used by
+PROCMAIL_MAILER_FLAGS	[SPhnu9] Flags added to Procmail mailer.  Flags
+			``DFM'' are always set.  This is NOT used by
 			FEATURE(local_procmail); tweak LOCAL_MAILER_FLAGS
 			instead.
-PROCMAIL_MAILER_ARGS	[procmail -m $h $f $u] The arguments passed to
+PROCMAIL_MAILER_ARGS	[procmail -Y -m $h $f $u] The arguments passed to
 			the Procmail mailer.  This is NOT used by
 			FEATURE(local_procmail); tweak LOCAL_MAILER_ARGS
 			instead.
@@ -656,7 +657,10 @@ genericstable	This feature will cause certain addresses originating in the
 		The key for this table is either the full address or the
 		unqualified username (the former is tried first); the
 		value is the new user address.  If the new user address does
-		not include a domain, $j is used.
+		not include a domain, $j is used.  Note that the address must
+		being looked up must be fully qualified.  For local mail, it
+		is necessary to use FEATURE(always_add_domain) for the
+		addresses to be qualified.
 
 virtusertable	A domain-specific form of aliasing, allowing multiple
 		virtual domains to be hosted on one machine.  For example,
@@ -669,18 +673,28 @@ virtusertable	A domain-specific form of aliasing, allowing multiple
 		then mail addressed to info@foo.com will be sent to the
 		address foo-info, mail addressed to info@bar.com will be
 		delivered to bar-info, and mail addressed to anyone at
-		baz.org will be sent to jane@elsewhere.net.  All the host
-		names on the left hand side (foo.com, bar.com, and baz.org)
-		must be in $=w.  The default map definition is:
+		baz.org will be sent to jane@elsewhere.net.  The username
+		from the original address is passed as %1 allowing:
+
+			@foo.org	%1@elsewhere.com
+
+		meaning someone@foo.org will be sent to someone@elsewhere.com.
+
+		All the host names on the left hand side (foo.com, bar.com,
+		and baz.org) must be in $=w.  The default map definition is:
 
 			hash -o /etc/virtusertable
 
 		A new definition can be specified as the second argument of
-		the FEATURE macro.
+		the FEATURE macro, such as
+
+			FEATURE(virtusertable, dbm -o /etc/mail/virtusers)
 
 nodns		We aren't running DNS at our site (for example,
 		we are UUCP-only connected).  It's hard to consider
 		this a "feature", but hey, it had to go somewhere.
+		Actually, as of 8.7 this is a no-op -- remove "dns" from
+		the hosts service switch entry instead.
 
 nullclient	This is a special case -- it creates a stripped down
 		configuration file containing nothing but support for
@@ -1062,6 +1076,23 @@ specified with a terminal dot:
 	      note the trailing dot ---^
 
 
++--------------------------------+
+| ADDING NEW MAILERS OR RULESETS |
++--------------------------------+
+
+Sometimes you may need to add entirely new mailers or rulesets.  They
+should be introduced with the constructs MAILER_DEFINITIONS and
+LOCAL_RULESETS respectively.  For example:
+
+	MAILER_DEFINITIONS
+	Mmymailer, ...
+	...
+
+	LOCAL_RULESETS
+	Scheck_relay
+	...
+
+
 +-------------------------------+
 | NON-SMTP BASED CONFIGURATIONS |
 +-------------------------------+
@@ -1101,10 +1132,6 @@ use:
 
 That is, send directly only to things you found in your DNS lookup;
 anything else goes through SMART_HOST.
-
-If you are not running DNS at all, it is important to use
-FEATURE(nodns) to avoid having sendmail queue everything waiting
-for the name server to come up.
 
 
 +-----------+
@@ -1278,7 +1305,7 @@ Sam Leffler's FlexFAX software is still in beta test -- but he expects a
 public version out "later this week" [as of 3/1/93].  The following
 blurb is direct from Sam:
 
-	$Header: /home/ncvs/src/usr.sbin/sendmail/cf/README,v 1.1.1.6 1997/01/27 07:36:30 peter Exp $
+	$Header: /home/ncvs/src/usr.sbin/sendmail/cf/README,v 1.1.1.7 1997/06/27 14:52:36 peter Exp $
 
 	How To Obtain This Software (in case all you get is this file)
 	--------------------------------------------------------------
@@ -1522,11 +1549,19 @@ confHOST_STATUS_DIRECTORY HostStatusDirectory
 					named directory tree.  This need not be
 					a full pathname, in which case it is
 					interpreted relative to the queue
-					directory.  This option also
-					single-threads connections to each
-					host, i.e., prevents multiple
-					connections to a single server from
-					this client.
+					directory.
+confSINGLE_THREAD_DELIVERY  SingleThreadDelivery
+					[False] If this option and the
+					HostStatusDirectory option are both
+					set, single thread deliveries to other
+					hosts.  That is, don't allow any two
+					sendmails on this host to connect
+					simultaneously to any other single
+					host.  This can slow down delivery in
+					some cases, in particular since a
+					cached but otherwise idle connection
+					to a host will prevent other sendmails
+					from connecting to the other host.
 confUSE_ERRORS_TO*	UserErrorsTo	[False] Use the Errors-To: header to
 					deliver error messages.  This should
 					not be necessary because of general
@@ -1669,7 +1704,7 @@ confSEPARATE_PROC	ForkEachJob	[False] Run all deliveries in a separate
 confWORK_CLASS_FACTOR	ClassFactor	[1800] Priority multiplier for class.
 confWORK_TIME_FACTOR	RetryFactor	[90000] Cost of each delivery attempt.
 confQUEUE_SORT_ORDER	QueueSortOrder	[Priority] Queue sort algorithm:
-					Priority or Host.
+					Priority, Host, or Time.
 confMIN_QUEUE_AGE	MinQueueAge	[0] The minimum amount of time a job
 					must sit in the queue between queue
 					runs.  This allows you to set the
@@ -1782,18 +1817,6 @@ confRUN_AS_USER		RunAsUser	[undefined] If set, become this user
 					files will be written as this user.
 					Intended for use only on firewalls
 					where users do not have accounts.
-confSINGLE_THREAD_DELIVERY  SingleThreadDelivery
-					[False] If this option and the
-					HostStatusDirectory option are both
-					set, single thread deliveries to other
-					hosts.  That is, don't allow any two
-					sendmails on this host to connect
-					simultaneously to any other single
-					host.  This can slow down delivery in
-					some cases, in particular since a
-					cached but otherwise idle connection
-					to a host will prevent other sendmails
-					from connecting to the other host.
 
 See also the description of OSTYPE for some parameters that can be
 tweaked (generally pathnames to mailers).
@@ -1935,7 +1958,7 @@ CLASSES
    O	operators that indicate network operations (cannot be in local names)
    P	top level pseudo-domains: BITNET, DECNET, FAX, UUCP, etc.
    Q
-   R
+   R	domains we are willing to relay (pass anti-spam filters)
    S
    T
    U	locally connected UUCP hosts
