@@ -888,7 +888,7 @@ code:
 ;
 
 code:
-	T_BMOV destination ',' source ',' immediate_or_a ret ';'
+	T_BMOV destination ',' source ',' immediate ret ';'
 	{
 		format_1_instr(AIC_OP_BMOV, &$2, &$6, &$4, $7);
 	}
@@ -899,8 +899,8 @@ code:
 	{
 		expression_t immed;
 
-		make_expression(&immed, 0xff);
-		format_1_instr(AIC_OP_AND, &$2, &immed, &$4, $5);
+		make_expression(&immed, 1);
+		format_1_instr(AIC_OP_BMOV, &$2, &immed, &$4, $5);
 	}
 ;
 
