@@ -29,7 +29,8 @@ or implied warranty.
 
 #include "kadm_locl.h"
 
-RCSID("$Id: kadm_cli_wrap.c,v 1.27 1999/09/16 20:41:46 assar Exp $");
+/* RCSID("$Id: kadm_cli_wrap.c,v 1.27 1999/09/16 20:41:46 assar Exp $");*/
+RCSID("$FreeBSD$");
 
 static Kadm_Client client_parm;
 
@@ -165,6 +166,8 @@ kadm_cli_out(u_char *dat, int dat_len, u_char **ret_dat, int *ret_siz)
 	int retval;
 	char tmp[4];
 
+	*ret_dat = NULL;
+	*ret_siz = 0;
 	dlen = (u_int16_t) dat_len;
 
 	if (dat_len != (int)dlen)
@@ -193,6 +196,8 @@ kadm_cli_out(u_char *dat, int dat_len, u_char **ret_dat, int *ret_siz)
 
 	if ((retval = krb_net_read(client_parm.admin_fd,  *ret_dat,
 				   dlen) != dlen)) {
+	    free(*ret_dat);
+	    *ret_dat = NULL;
 	    if (retval < 0)
 		return(errno);		/* XXX */
 	    else
@@ -237,6 +242,9 @@ kadm_cli_send(u_char *st_dat,	/* the actual data */
 	u_char *return_dat;
 	int tmp;
 	void *tmp_ptr;
+
+	*ret_dat = NULL;
+	*ret_siz = 0;
 
 	act_st = malloc(KADM_VERSIZE); /* verstr stored first */
 	if (act_st == NULL) {
@@ -309,7 +317,7 @@ kadm_cli_send(u_char *st_dat,	/* the actual data */
 	    clear_secrets();
 	    return retdat;
 	}
-#define RET_N_FREE2(r) {free(*ret_dat); clear_secrets(); return(r);}
+#define RET_N_FREE2(r) {free(*ret_dat); *ret_dat = NULL; clear_secrets(); return(r);}
 
 	/* first see if it's a YOULOUSE */
 	if ((*ret_siz >= KADM_VERSIZE) &&
@@ -410,9 +418,7 @@ int kadm_change_pw_plain(unsigned char *newkey, char *password, char **pw_msg)
 	    msg[0]=0;
 	  *pw_msg=msg;
 	}
-
-	if (ret_st)
-	    free(ret_st);
+	free(ret_st);
 	
 	kadm_cli_disconn();
 	return(retc);
@@ -481,8 +487,8 @@ kadm_add(Kadm_vals *vals)
 	    /* ret_st has vals */
 	    if (stream_to_vals(ret_st, vals, ret_sz) < 0)
 		retc = KADM_LENGTH_ERROR;
-	    free(ret_st);
 	}
+	free(ret_st);
 	kadm_cli_disconn();
 	return(retc);
 }
@@ -539,8 +545,8 @@ kadm_mod(Kadm_vals *vals1, Kadm_vals *vals2)
 	    /* ret_st has vals */
 	    if (stream_to_vals(ret_st, vals2, ret_sz) < 0)
 		retc = KADM_LENGTH_ERROR;
-	    free(ret_st);
 	}
+	free(ret_st);
 	kadm_cli_disconn();
 	return(retc);
 }
@@ -571,6 +577,7 @@ kadm_del(Kadm_vals *vals)
     }
     retc = kadm_cli_send(st2, st_len + 1, &ret_st, &ret_sz);
     free(st2);
+    free(ret_st);
     kadm_cli_disconn();
     return(retc);
 }
@@ -618,8 +625,8 @@ kadm_get(Kadm_vals *vals, u_char *fl)
 	    /* ret_st has vals */
 	    if (stream_to_vals(ret_st, vals, ret_sz) < 0)
 		retc = KADM_LENGTH_ERROR;
-	    free(ret_st);
 	}
+	free(ret_st);
 	kadm_cli_disconn();
 	return(retc);
 }
