@@ -91,6 +91,7 @@ static void	cpu_reset_proxy __P((void));
 static u_int	cpu_reset_proxyid;
 static volatile u_int	cpu_reset_proxy_active;
 #endif
+extern int	_ucodesel, _udatasel;
 
 /*
  * quick version of vm_fault
@@ -155,18 +156,18 @@ cpu_fork(p1, p2, flags)
 	 */
 	p2->p_md.md_regs = (struct trapframe *)
 			   ((int)p2->p_addr + UPAGES * PAGE_SIZE - 16) - 1;
-	*p2->p_md.md_regs = *p1->p_md.md_regs;
+	bcopy(p1->p_md.md_regs, p2->p_md.md_regs, sizeof(*p2->p_md.md_regs));
 
 	/*
 	 * Set registers for trampoline to user mode.  Leave space for the
 	 * return address on stack.  These are the kernel mode register values.
 	 */
 	pcb2->pcb_cr3 = vtophys(vmspace_pmap(p2->p_vmspace)->pm_pdir);
-	pcb2->pcb_edi = p2->p_md.md_regs->tf_edi;
-	pcb2->pcb_esi = (int)fork_return;
-	pcb2->pcb_ebp = p2->p_md.md_regs->tf_ebp;
+	pcb2->pcb_edi = 0;
+	pcb2->pcb_esi = (int)fork_return;	/* fork_trampoline argument */
+	pcb2->pcb_ebp = 0;
 	pcb2->pcb_esp = (int)p2->p_md.md_regs - sizeof(void *);
-	pcb2->pcb_ebx = (int)p2;
+	pcb2->pcb_ebx = (int)p2;		/* fork_trampoline argument */
 	pcb2->pcb_eip = (int)fork_trampoline;
 	/*
 	 * pcb2->pcb_ldt:	duplicated below, if necessary.
@@ -199,8 +200,8 @@ cpu_fork(p1, p2, flags)
 	 * Now, cpu_switch() can schedule the new process.
 	 * pcb_esp is loaded pointing to the cpu_switch() stack frame
 	 * containing the return address when exiting cpu_switch.
-	 * This will normally be to proc_trampoline(), which will have
-	 * %ebx loaded with the new proc's pointer.  proc_trampoline()
+	 * This will normally be to fork_trampoline(), which will have
+	 * %ebx loaded with the new proc's pointer.  fork_trampoline()
 	 * will set up a stack to call fork_return(p, frame); to complete
 	 * the return to user-mode.
 	 */
