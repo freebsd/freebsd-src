@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: boot1.s,v 1.2 1998/10/13 21:35:42 rnordier Exp $
+#	$Id: boot1.s,v 1.3 1998/10/27 20:19:24 rnordier Exp $
 
 		.set MEM_REL,0x600		# Relocation address
 		.set MEM_ARG,0x800		# Arguments
@@ -156,7 +156,9 @@ return: 	ret				# Generic return
 
 # Read from disk
 
-read:		testb %dh,%dh			# Try for extensions?
+read:		tstbim(0x80,MEM_REL+flags-start)# Extensions enabled?
+		jz read.3			# No
+		testb %dh,%dh			# Try for extensions?
 		jz read.3			# No
 		movwir(0x55aa,_bx)		# Magic
 		pushl %edx			# Save
@@ -238,6 +240,8 @@ read.7: 	ret				# To caller
 msg_read:	.asciz "Read error"
 msg_part:	.asciz "No bootable partition"
 msg_boot:	.asciz "\r\nHit return to reboot: "
+
+flags:		.byte FLAGS			# Flags
 
 		.org PRT_OFF,0x90
 
