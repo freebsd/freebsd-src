@@ -158,8 +158,8 @@ shm_find_segment_by_key(key)
 	for (i = 0; i < shmalloced; i++)
 		if ((shmsegs[i].shm_perm.mode & SHMSEG_ALLOCATED) &&
 		    shmsegs[i].shm_perm.key == key)
-			return i;
-	return -1;
+			return (i);
+	return (-1);
 }
 
 static struct shmid_ds *
@@ -171,13 +171,13 @@ shm_find_segment_by_shmid(shmid)
 
 	segnum = IPCID_TO_IX(shmid);
 	if (segnum < 0 || segnum >= shmalloced)
-		return NULL;
+		return (NULL);
 	shmseg = &shmsegs[segnum];
 	if ((shmseg->shm_perm.mode & (SHMSEG_ALLOCATED | SHMSEG_REMOVED))
 	    != SHMSEG_ALLOCATED ||
 	    shmseg->shm_perm.seq != IPCID_TO_SEQ(shmid))
-		return NULL;
-	return shmseg;
+		return (NULL);
+	return (shmseg);
 }
 
 static struct shmid_ds *
@@ -186,12 +186,12 @@ shm_find_segment_by_shmidx(int segnum)
 	struct shmid_ds *shmseg;
 
 	if (segnum < 0 || segnum >= shmalloced)
-		return NULL;
+		return (NULL);
 	shmseg = &shmsegs[segnum];
 	if ((shmseg->shm_perm.mode & (SHMSEG_ALLOCATED | SHMSEG_REMOVED))
 	    != SHMSEG_ALLOCATED )
-		return NULL;
-	return shmseg;
+		return (NULL);
+	return (shmseg);
 }
 
 static void
@@ -230,7 +230,7 @@ shm_delete_mapping(p, shmmap_s)
 	result = vm_map_remove(&p->p_vmspace->vm_map, shmmap_s->va,
 	    shmmap_s->va + size);
 	if (result != KERN_SUCCESS)
-		return EINVAL;
+		return (EINVAL);
 	shmmap_s->shmid = -1;
 	shmseg->shm_dtime = time_second;
 	if ((--shmseg->shm_nattch <= 0) &&
@@ -238,7 +238,7 @@ shm_delete_mapping(p, shmmap_s)
 		shm_deallocate_segment(shmseg);
 		shm_last_free = segnum;
 	}
-	return 0;
+	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -456,7 +456,7 @@ done2:
 	mtx_unlock(&Giant);
 	return (error);
 #else
-	return EINVAL;
+	return (EINVAL);
 #endif
 }
 
@@ -591,18 +591,18 @@ shmget_existing(td, uap, mode, segnum)
 		shmseg->shm_perm.mode |= SHMSEG_WANTED;
 		error = tsleep(shmseg, PLOCK | PCATCH, "shmget", 0);
 		if (error)
-			return error;
-		return EAGAIN;
+			return (error);
+		return (EAGAIN);
 	}
 	if ((uap->shmflg & (IPC_CREAT | IPC_EXCL)) == (IPC_CREAT | IPC_EXCL))
-		return EEXIST;
+		return (EEXIST);
 	error = ipcperm(td, &shmseg->shm_perm, mode);
 	if (error)
-		return error;
+		return (error);
 	if (uap->size && uap->size > shmseg->shm_segsz)
-		return EINVAL;
+		return (EINVAL);
 	td->td_retval[0] = IXSEQ_TO_IPCID(segnum, shmseg->shm_perm);
-	return 0;
+	return (0);
 }
 
 static int
@@ -619,19 +619,19 @@ shmget_allocate_segment(td, uap, mode)
 	GIANT_REQUIRED;
 
 	if (uap->size < shminfo.shmmin || uap->size > shminfo.shmmax)
-		return EINVAL;
+		return (EINVAL);
 	if (shm_nused >= shminfo.shmmni) /* Any shmids left? */
-		return ENOSPC;
+		return (ENOSPC);
 	size = round_page(uap->size);
 	if (shm_committed + btoc(size) > shminfo.shmall)
-		return ENOMEM;
+		return (ENOMEM);
 	if (shm_last_free < 0) {
 		shmrealloc();	/* Maybe expand the shmsegs[] array. */
 		for (i = 0; i < shmalloced; i++)
 			if (shmsegs[i].shm_perm.mode & SHMSEG_FREE)
 				break;
 		if (i == shmalloced)
-			return ENOSPC;
+			return (ENOSPC);
 		segnum = i;
 	} else  {
 		segnum = shm_last_free;
@@ -684,7 +684,7 @@ shmget_allocate_segment(td, uap, mode)
 		wakeup(shmseg);
 	}
 	td->td_retval[0] = shmid;
-	return 0;
+	return (0);
 }
 
 /*
