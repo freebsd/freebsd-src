@@ -63,7 +63,6 @@ ia64/ia64/trap.c		standard
 ia64/ia64/vm_machdep.c		standard
 ia64/isa/isa.c			optional	isa
 ia64/isa/isa_dma.c		optional	isa
-ia64/pci/nexus_pcib.c		optional	pci
 ia64/pci/pci_cfgreg.c		optional	pci
 dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_isa.c		optional	aic isa
