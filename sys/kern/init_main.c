@@ -82,7 +82,7 @@ void mi_startup(void);				/* Should be elsewhere */
 static struct session session0;
 static struct pgrp pgrp0;
 struct	proc proc0;
-struct	thread *thread0;
+struct	thread thread0;
 static struct procsig procsig0;
 static struct filedesc0 filedesc0;
 static struct plimit limit0;
@@ -273,15 +273,12 @@ proc0_init(void *dummy __unused)
 	register struct filedesc0	*fdp;
 	register unsigned i;
 	struct thread *td;
+	struct ksegrp *kg;
+	struct kse *ke;
 
 	GIANT_REQUIRED;
-	/*
-	 * This assumes the proc0 struct has already been linked
-	 * using proc_linkup() in the machine specific initialisation
-	 * e.g. i386_init()
-	 */
 	p = &proc0;
-	td = thread0;
+	td = &thread0;
 
 	/*
 	 * Initialize magic number.
@@ -289,7 +286,7 @@ proc0_init(void *dummy __unused)
 	p->p_magic = P_MAGIC;
 
 	/*
-	 * Initialize process and pgrp structures.
+	 * Initialize thread, process and pgrp structures.
 	 */
 	procinit();
 
@@ -323,6 +320,8 @@ proc0_init(void *dummy __unused)
 	p->p_sysent = &aout_sysvec;
 #endif
 
+	ke = &proc0.p_kse;	/* XXXKSE */
+	kg = &proc0.p_ksegrp;	/* XXXKSE */
 	p->p_flag = P_SYSTEM;
 	p->p_sflag = PS_INMEM;
 	p->p_stat = SRUN;
@@ -624,7 +623,7 @@ create_init(const void *udata __unused)
 {
 	int error;
 
-	error = fork1(thread0, RFFDG | RFPROC | RFSTOPPED, &initproc);
+	error = fork1(&thread0, RFFDG | RFPROC | RFSTOPPED, &initproc);
 	if (error)
 		panic("cannot fork init: %d\n", error);
 	PROC_LOCK(initproc);
@@ -633,7 +632,7 @@ create_init(const void *udata __unused)
 	mtx_lock_spin(&sched_lock);
 	initproc->p_sflag |= PS_INMEM;
 	mtx_unlock_spin(&sched_lock);
-	cpu_set_fork_handler(&initproc->p_thread, start_init, NULL);
+	cpu_set_fork_handler(FIRST_THREAD_IN_PROC(initproc), start_init, NULL);
 }
 SYSINIT(init, SI_SUB_CREATE_INIT, SI_ORDER_FIRST, create_init, NULL)
 
@@ -643,10 +642,12 @@ SYSINIT(init, SI_SUB_CREATE_INIT, SI_ORDER_FIRST, create_init, NULL)
 static void
 kick_init(const void *udata __unused)
 {
+	struct thread *td;
 
+	td = FIRST_THREAD_IN_PROC(initproc);
 	mtx_lock_spin(&sched_lock);
 	initproc->p_stat = SRUN;
-	setrunqueue(&initproc->p_thread); /* XXXKSE */
+	setrunqueue(FIRST_THREAD_IN_PROC(initproc)); /* XXXKSE */
 	mtx_unlock_spin(&sched_lock);
 }
 SYSINIT(kickinit, SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST, kick_init, NULL)

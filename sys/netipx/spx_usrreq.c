@@ -223,7 +223,7 @@ spx_input(m, ipxp)
 		laddr = ipxp->ipxp_laddr;
 		if (ipx_nullhost(laddr))
 			ipxp->ipxp_laddr = si->si_dna;
-		if (ipx_pcbconnect(ipxp, (struct sockaddr *)sipx, thread0)) {
+		if (ipx_pcbconnect(ipxp, (struct sockaddr *)sipx, &thread0)) {
 			ipxp->ipxp_laddr = laddr;
 			spx_istat.noconn++;
 			goto drop;

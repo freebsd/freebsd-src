@@ -158,7 +158,7 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 	int pktscale;
 	struct sockaddr *saddr;
 	struct sockaddr_in *sin;
-	struct thread *td = thread0; /* only used for socreate and sobind */
+	struct thread *td = &thread0; /* only used for socreate and sobind */
 
 	nmp->nm_so = (struct socket *)0;
 	saddr = nmp->nm_nam;
@@ -1067,7 +1067,7 @@ nfs_timer(void *arg)
 	struct nfsmount *nmp;
 	int timeo;
 	int s, error;
-	struct thread *td = thread0; /* XXX for credentials, will break if sleep */
+	struct thread *td = &thread0; /* XXX for credentials, will break if sleep */
 
 	s = splnet();
 	TAILQ_FOREACH(rep, &nfs_reqq, r_chain) {

@@ -153,7 +153,7 @@ exec_linux_imgact_try(imgp)
 		if ((error = exec_shell_imgact(imgp)) == 0) {
 			char *rpath = NULL;
 
-			linux_emul_find(&imgp->proc->p_thread, NULL,
+			linux_emul_find(FIRST_THREAD_IN_PROC(imgp->proc), NULL,
 			    imgp->interpreter_name, &rpath, 0);
 			if (rpath != imgp->interpreter_name) {
 				int len = strlen(rpath) + 1;

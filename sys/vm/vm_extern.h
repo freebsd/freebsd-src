@@ -80,7 +80,7 @@ void vm_fault_copy_entry __P((vm_map_t, vm_map_t, vm_map_entry_t, vm_map_entry_t
 void vm_fault_unwire __P((vm_map_t, vm_offset_t, vm_offset_t));
 int vm_fault_wire __P((vm_map_t, vm_offset_t, vm_offset_t));
 int vm_fault_user_wire __P((vm_map_t, vm_offset_t, vm_offset_t));
-void vm_forkproc __P((struct thread *, struct proc *, int));
+void vm_forkproc __P((struct thread *, struct proc *, struct thread *, int));
 void vm_waitproc __P((struct proc *));
 int vm_mmap __P((vm_map_t, vm_offset_t *, vm_size_t, vm_prot_t, vm_prot_t, int, void *, vm_ooffset_t));
 vm_offset_t vm_page_alloc_contig __P((vm_offset_t, vm_offset_t, vm_offset_t, vm_offset_t));

@@ -650,17 +650,16 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 
 	}
 
-	proc_linkup(&proc0);
+	proc_linkup(&proc0, &proc0.p_ksegrp, &proc0.p_kse, &thread0);
 	/*
 	 * Init mapping for u page(s) for proc 0
 	 */
 	proc0uarea = (struct user *)pmap_steal_memory(UAREA_PAGES * PAGE_SIZE);
 	proc0kstack = (vm_offset_t)kstack;
 	proc0.p_uarea = proc0uarea;
-	thread0 = &proc0.p_thread;
-	thread0->td_kstack = proc0kstack;
-	thread0->td_pcb = (struct pcb *)
-	    (thread0->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	thread0.td_kstack = proc0kstack;
+	thread0.td_pcb = (struct pcb *)
+	    (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 	/*
 	 * Setup the global data for the bootstrap cpu.
 	 */
@@ -682,14 +681,14 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	 *
 	 * XXX what is all this +/- 16 stuff?
 	 */
-	thread0->td_frame = (struct trapframe *)thread0->td_pcb - 1;
-	thread0->td_pcb->pcb_sp = (u_int64_t)thread0->td_frame - 16;
-	thread0->td_pcb->pcb_bspstore = (u_int64_t)proc0kstack;
+	thread0.td_frame = (struct trapframe *)thread0.td_pcb - 1;
+	thread0.td_pcb->pcb_sp = (u_int64_t)thread0.td_frame - 16;
+	thread0.td_pcb->pcb_bspstore = (u_int64_t)proc0kstack;
 
 	/* Setup curproc so that mutexes work */
-	PCPU_SET(curthread, thread0);
+	PCPU_SET(curthread, &thread0);
 
-	LIST_INIT(&thread0->td_contested);
+	LIST_INIT(&thread0.td_contested);
 
 	/*
 	 * Initialise mutexes.

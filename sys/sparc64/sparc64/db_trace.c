@@ -141,7 +141,7 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 				db_printf("pid %d swapped out\n", pid);
 				return;
 			}
-			td = &p->p_thread;	/* XXXKSE */
+			td = FIRST_THREAD_IN_PROC(p);	/* XXXKSE */
 			addr = td->td_pcb->pcb_fp;
 		}
 	}

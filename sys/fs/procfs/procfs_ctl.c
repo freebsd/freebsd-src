@@ -190,7 +190,7 @@ out:
 	/*
 	 * do single-step fixup if needed
 	 */
-	FIX_SSTEP(&p->p_thread);		/* XXXKSE */
+	FIX_SSTEP(FIRST_THREAD_IN_PROC(p));		/* XXXKSE */
 #endif
 
 	/*
@@ -242,10 +242,11 @@ out:
 
 	/*
 	 * Step.  Let the target process execute a single instruction.
+	 * What does it mean to single step a threaded program? 
 	 */
 	case PROCFS_CTL_STEP:
 		PROC_UNLOCK(p);
-		error = proc_sstep(&p->p_thread); /* XXXKSE */
+		error = proc_sstep(FIRST_THREAD_IN_PROC(p)); /* XXXKSE */
 		PRELE(p);
 		if (error)
 			return (error);
@@ -299,7 +300,7 @@ out:
 
 	mtx_lock_spin(&sched_lock);
 	if (p->p_stat == SSTOP)
-		setrunnable(&p->p_thread); /* XXXKSE */
+		setrunnable(FIRST_THREAD_IN_PROC(p)); /* XXXKSE */
 	mtx_unlock_spin(&sched_lock);
 	return (0);
 }
@@ -347,12 +348,14 @@ procfs_doprocctl(PFS_FILL_ARGS)
 			printf("procfs: got a sig%s\n", sbuf_data(sb));
 			PROC_LOCK(p);
 			mtx_lock_spin(&sched_lock);
+
+/* This is very broken XXXKSE */
 			if (TRACE_WAIT_P(td->td_proc, p)) {
 				p->p_xstat = nm->nm_val;
 #ifdef FIX_SSTEP
-				FIX_SSTEP(&p->p_thread);   /* XXXKSE */
+				FIX_SSTEP(FIRST_THREAD_IN_PROC(p));   /* XXXKSE */
 #endif
-				setrunnable(&p->p_thread); /* XXXKSE */
+				setrunnable(FIRST_THREAD_IN_PROC(p)); /* XXXKSE */
 				mtx_unlock_spin(&sched_lock);
 			} else {
 				mtx_unlock_spin(&sched_lock);

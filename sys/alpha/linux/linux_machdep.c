@@ -166,7 +166,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	PROC_LOCK(p2);
 	p2->p_sigparent = exit_signal;
 	PROC_UNLOCK(p2);
-	p2->p_thread.td_pcb->pcb_hw.apcb_usp = (unsigned long)args->stack;
+	FIRST_THREAD_IN_PROC(p2)->td_pcb->pcb_hw.apcb_usp = (unsigned long)args->stack;
 
 #ifdef DEBUG
 	if (ldebug(clone))
@@ -179,7 +179,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	 */
 	mtx_lock_spin(&sched_lock);
 	p2->p_stat = SRUN;
-	setrunqueue(&p2->p_thread);
+	setrunqueue(FIRST_THREAD_IN_PROC(p2));
 	mtx_unlock_spin(&sched_lock);
 
 	td->td_retval[0] = p2->p_pid;

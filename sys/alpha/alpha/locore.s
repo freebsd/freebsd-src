@@ -119,7 +119,7 @@
 	/*
 	 * Switch to proc0's PCB.
 	 */
-	ldq	t0,thread0		/* get phys addr of pcb */
+	lda	t0,thread0		/* get phys addr of pcb */
 	ldq	a0,TD_MD_PCBPADDR(t0)
 	SWITCH_CONTEXT
 

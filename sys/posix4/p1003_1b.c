@@ -128,7 +128,7 @@ int sched_setparam(struct thread *td,
 			e = ESRCH;
 			goto done2;
 		}
-		targettd = &targetp->p_thread; /* XXXKSE */
+		targettd = FIRST_THREAD_IN_PROC(targetp); /* XXXKSE */
 	}
 
 	e = p_cansched(td->td_proc, targetp);
@@ -164,7 +164,7 @@ int sched_getparam(struct thread *td,
 			e = ESRCH;
 			goto done2;
 		}
-		targettd = &targetp->p_thread; /* XXXKSE */
+		targettd = FIRST_THREAD_IN_PROC(targetp); /* XXXKSE */
 	}
 
 	e = p_cansee(td->td_proc, targetp);
@@ -206,7 +206,7 @@ int sched_setscheduler(struct thread *td,
 			e = ESRCH;
 			goto done2;
 		}
-		targettd = &targetp->p_thread; /* XXXKSE */
+		targettd = FIRST_THREAD_IN_PROC(targetp); /* XXXKSE */
 	}
 
 	e = p_cansched(td->td_proc, targetp);
@@ -241,7 +241,7 @@ int sched_getscheduler(struct thread *td,
 			e = ESRCH;
 			goto done2;
 		}
-		targettd = &targetp->p_thread; /* XXXKSE */
+		targettd = FIRST_THREAD_IN_PROC(targetp); /* XXXKSE */
 	}
 
 	e = p_cansee(td->td_proc, targetp);
@@ -317,7 +317,7 @@ int sched_rr_get_interval(struct thread *td,
 			e = ESRCH;
 			goto done2;
 		}
-		targettd = &targetp->p_thread; /* XXXKSE */
+		targettd = FIRST_THREAD_IN_PROC(targetp); /* XXXKSE */
 	}
 
 	e = p_cansee(td->td_proc, targetp);

@@ -337,7 +337,7 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 				db_printf("pid %d swapped out\n", pid);
 				return;
 			}
-			pcb = p->p_thread.td_pcb;	/* XXXKSE */
+			pcb = FIRST_THREAD_IN_PROC(p)->td_pcb;	/* XXXKSE */
 			frame = (struct i386_frame *)pcb->pcb_ebp;
 			if (frame == NULL)
 				frame = (struct i386_frame *)

@@ -1270,7 +1270,7 @@ psignal(p, sig)
 	 * For now there is one thread per proc.
 	 * Effectively select one sucker thread..
 	 */
-	td = &p->p_thread;
+	td = FIRST_THREAD_IN_PROC(p);
 	mtx_lock_spin(&sched_lock);
 	if ((p->p_ksegrp.kg_nice > NZERO) && (action == SIG_DFL) &&
 	    (prop & SA_KILL) && ((p->p_flag & P_TRACED) == 0))
@@ -1411,7 +1411,7 @@ psignal(p, sig)
 				}
 				mtx_unlock_spin(&sched_lock);
 			} else {
-				if (p->p_thread.td_wchan == NULL)
+				if (td->td_wchan == NULL)
 					goto run;
 				p->p_stat = SSLEEP;
 				mtx_unlock_spin(&sched_lock);

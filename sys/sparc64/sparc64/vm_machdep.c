@@ -88,15 +88,14 @@ cpu_exit(struct thread *td)
  * ready to run and return to user mode.
  */
 void
-cpu_fork(struct thread *td1, struct proc *p2, int flags)
+cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 {
-	struct thread *td2;
 	struct md_utrap *ut;
 	struct trapframe *tf;
 	struct frame *fp;
 	struct pcb *pcb;
 
-	KASSERT(td1 == curthread || td1 == thread0,
+	KASSERT(td1 == curthread || td1 == &thread0,
 	    ("cpu_fork: p1 not curproc and not proc0"));
 
 	if ((flags & RFPROC) == 0)
@@ -106,7 +105,6 @@ cpu_fork(struct thread *td1, struct proc *p2, int flags)
 		ut->ut_refcnt++;
 	p2->p_md.md_utrap = ut;
 
-	td2 = &p2->p_thread;
 	/* The pcb must be aligned on a 64-byte boundary. */
 	pcb = (struct pcb *)((td2->td_kstack + KSTACK_PAGES * PAGE_SIZE -
 	    sizeof(struct pcb)) & ~0x3fUL);
