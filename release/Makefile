@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.18 1994/11/06 04:07:38 jkh Exp $
+#	$Id: Makefile,v 1.19 1994/11/06 11:24:58 jkh Exp $
 #
 
 #For a 1.2MB boot floppy.
@@ -26,6 +26,7 @@ CPIO1+= ftp rsh sed telnet rlogin
 
 CPIO2=  etc/services
 
+CPIO3=	extract.sh
 # Somewhat on the rough side...
 CLEANFILES+=	*.o *.c *.cache *.mk *.lo ${CPIO1} *.flp *.gz 
 CLEANFILES+=	boot_flp boot_${FDLABEL}.flp cpio_flp_1
@@ -89,9 +90,10 @@ boot_${FDLABEL}.flp:
 	ls -l boot.flp*
 
 cpio.flp:
-	( cd /${DESTDIR} ; ls ${CPIO2} | cpio -H newc -oa ) | cpio -ivd
 	for i in ${CPIO1} ; do rm -f ./$$i ; ln cpio_flp_1 ./$$i ; done
-	ls ${CPIO1} ${CPIO2} | cpio -H newc -oa | gzip -9 > cpio.flp
+	( cd /${DESTDIR} ; ls ${CPIO2} | cpio -H newc -oa ) | cpio -ivd
+	( cd ${.CURDIR} ; ls ${CPIO3} | cpio -H newc -oa ) | cpio -ivd
+	ls ${CPIO1} ${CPIO2} ${CPIO3} | cpio -H newc -oa | gzip -9 > cpio.flp
 	gzip -9 -v < cpio.flp > cpio.flp.gz
 	ls -l cpio.flp*
 
@@ -107,8 +109,7 @@ small.floppies:
 floppies: crunch boot.flp cpio.flp
 
 release20: 
-	( cd ${.CURDIR} ; ${MAKE} cleandist)
-	( cd ${.CURDIR} ; ${MAKE} obj)
+	( cd ${.CURDIR} ; ${MAKE} clean)
 	-mkdir ${RELEASEDIR}
 	chflags -R noschg ${RELEASEDIR}/.
 	rm -rf ${RELEASEDIR}/*
@@ -116,6 +117,7 @@ release20:
 		${MAKE} world NOCRYPT=yes)
 	( cd ${.CURDIR}/../etc ;  \
 		${MAKE} release-dirs )
+	( cd ${.CURDIR} ; ${MAKE} obj)
 	( cd ${.CURDIR} ;  \
 		${MAKE} kernel DESTDIR=${RELEASEDIR}/filesys )
 	install ${COPY} -m 644 ${.CURDIR}/../sys/compile/GENERIC/kernel \
