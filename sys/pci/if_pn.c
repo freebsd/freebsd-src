@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pn.c,v 1.22 1999/07/02 04:17:13 peter Exp $
+ *	$Id: if_pn.c,v 1.53 1999/05/28 18:45:26 wpaul Exp wpaul $
  */
 
 /*
@@ -77,12 +77,20 @@
 #include <net/bpf.h>
 #endif
 
+#include "opt_bdg.h"
+#ifdef BRIDGE
+#include <net/bridge.h>
+#endif
+
 #include <vm/vm.h>              /* for vtophys */
 #include <vm/pmap.h>            /* for vtophys */
 #include <machine/clock.h>      /* for DELAY */
 #include <machine/bus_pio.h>
 #include <machine/bus_memio.h>
 #include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/bus.h>
+#include <sys/rman.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -97,9 +105,8 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_pn.c,v 1.22 1999/07/02 04:17:13 peter Exp $";
+	"$Id: if_pn.c,v 1.53 1999/05/28 18:45:26 wpaul Exp wpaul $";
 #endif
-
 
 /*
  * Various supported device vendors/types and their names.
@@ -128,12 +135,13 @@ static struct pn_type pn_phys[] = {
 	{ 0, 0, "<MII-compliant physical interface>" }
 };
 
-static unsigned long pn_count = 0;
-static const char *pn_probe	__P((pcici_t, pcidi_t));
-static void pn_attach		__P((pcici_t, int));
+static int pn_probe		__P((device_t));
+static int pn_attach		__P((device_t));
+static int pn_detach		__P((device_t));
 
 static int pn_newbuf		__P((struct pn_softc *,
-						struct pn_chain_onefrag *));
+					struct pn_chain_onefrag *,
+					struct mbuf *));
 static int pn_encap		__P((struct pn_softc *, struct pn_chain *,
 						struct mbuf *));
 
@@ -151,7 +159,7 @@ static int pn_ioctl		__P((struct ifnet *, u_long, caddr_t));
 static void pn_init		__P((void *));
 static void pn_stop		__P((struct pn_softc *));
 static void pn_watchdog		__P((struct ifnet *));
-static void pn_shutdown		__P((int, void *));
+static void pn_shutdown		__P((device_t));
 static int pn_ifmedia_upd	__P((struct ifnet *));
 static void pn_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
 
@@ -173,6 +181,33 @@ static void pn_setfilt		__P((struct pn_softc *));
 static void pn_reset		__P((struct pn_softc *));
 static int pn_list_rx_init	__P((struct pn_softc *));
 static int pn_list_tx_init	__P((struct pn_softc *));
+
+#ifdef PN_USEIOSPACE
+#define PN_RES			SYS_RES_IOPORT
+#define PN_RID			PN_PCI_LOIO
+#else
+#define PN_RES			SYS_RES_MEMORY
+#define PN_RID			PN_PCI_LOMEM
+#endif
+
+static device_method_t pn_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		pn_probe),
+	DEVMETHOD(device_attach,	pn_attach),
+	DEVMETHOD(device_detach,	pn_detach),
+	DEVMETHOD(device_shutdown,	pn_shutdown),
+	{ 0, 0 }
+};
+
+static driver_t pn_driver = {
+	"pn",
+	pn_methods,
+	sizeof(struct pn_softc),
+};
+
+static devclass_t pn_devclass;
+
+DRIVER_MODULE(pn, pci, pn_driver, pn_devclass, 0, 0);
 
 #define PN_SETBIT(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg,				\
@@ -925,10 +960,8 @@ static void pn_reset(sc)
  * Probe for a Lite-On PNIC chip. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
  */
-static const char *
-pn_probe(config_id, device_id)
-	pcici_t			config_id;
-	pcidi_t			device_id;
+static int pn_probe(dev)
+	device_t		dev;
 {
 	struct pn_type		*t;
 	u_int32_t		rev;
@@ -936,44 +969,42 @@ pn_probe(config_id, device_id)
 	t = pn_devs;
 
 	while(t->pn_name != NULL) {
-		if ((device_id & 0xFFFF) == t->pn_vid &&
-		    ((device_id >> 16) & 0xFFFF) == t->pn_did) {
+		if ((pci_get_vendor(dev) == t->pn_vid) &&
+		    (pci_get_device(dev) == t->pn_did)) {
 			if (t->pn_did == PN_DEVICEID_PNIC) {
-				rev = pci_conf_read(config_id,
-				    PN_PCI_REVISION) & 0xFF;
+				rev = pci_read_config(dev,
+				    PN_PCI_REVISION, 4) & 0xFF;
 				switch(rev & PN_REVMASK) {
 				case PN_REVID_82C168:
-					return(t->pn_name);
+					device_set_desc(dev, t->pn_name);
+					return(0);
 					break;
 				case PN_REVID_82C169:
 					t++;
-					return(t->pn_name);
+					device_set_desc(dev, t->pn_name);
+					return(0);
 				default:
 					printf("unknown PNIC rev: %x\n", rev);
 					break;
 				}
 			}
-			return(t->pn_name);
+			device_set_desc(dev, t->pn_name);
+			return(0);
 		}
 		t++;
 	}
 
-	return(NULL);
+	return(ENXIO);
 }
 
 /*
  * Attach the interface. Allocate softc structures, do ifmedia
  * setup and ethernet/BPF attach.
  */
-static void
-pn_attach(config_id, unit)
-	pcici_t			config_id;
-	int			unit;
+static int pn_attach(dev)
+	device_t		dev;
 {
 	int			s, i;
-#ifndef PN_USEIOSPACE
-	vm_offset_t		pbase, vbase;
-#endif
 	u_char			eaddr[ETHER_ADDR_LEN];
 	u_int32_t		command;
 	struct pn_softc		*sc;
@@ -986,98 +1017,101 @@ pn_attach(config_id, unit)
 #ifdef PN_RX_BUG_WAR
 	u_int32_t		revision = 0;
 #endif
+	int			unit, error = 0, rid;
 
 	s = splimp();
 
-	sc = malloc(sizeof(struct pn_softc), M_DEVBUF, M_NOWAIT);
-	if (sc == NULL) {
-		printf("pn%d: no memory for softc struct!\n", unit);
-		return;
-	}
+	sc = device_get_softc(dev);
+	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct pn_softc));
 
 	/*
 	 * Handle power management nonsense.
 	 */
-
-	command = pci_conf_read(config_id, PN_PCI_CAPID) & 0x000000FF;
+	command = pci_read_config(dev, PN_PCI_CAPID, 4) & 0x000000FF;
 	if (command == 0x01) {
 
-		command = pci_conf_read(config_id, PN_PCI_PWRMGMTCTRL);
+		command = pci_read_config(dev, PN_PCI_PWRMGMTCTRL, 4);
 		if (command & PN_PSTATE_MASK) {
 			u_int32_t		iobase, membase, irq;
 
 			/* Save important PCI config data. */
-			iobase = pci_conf_read(config_id, PN_PCI_LOIO);
-			membase = pci_conf_read(config_id, PN_PCI_LOMEM);
-			irq = pci_conf_read(config_id, PN_PCI_INTLINE);
+			iobase = pci_read_config(dev, PN_PCI_LOIO, 4);
+			membase = pci_read_config(dev, PN_PCI_LOMEM, 4);
+			irq = pci_read_config(dev, PN_PCI_INTLINE, 4);
 
 			/* Reset the power state. */
 			printf("pn%d: chip is in D%d power mode "
 			"-- setting to D0\n", unit, command & PN_PSTATE_MASK);
 			command &= 0xFFFFFFFC;
-			pci_conf_write(config_id, PN_PCI_PWRMGMTCTRL, command);
+			pci_write_config(dev, PN_PCI_PWRMGMTCTRL, command, 4);
 
 			/* Restore PCI config data. */
-			pci_conf_write(config_id, PN_PCI_LOIO, iobase);
-			pci_conf_write(config_id, PN_PCI_LOMEM, membase);
-			pci_conf_write(config_id, PN_PCI_INTLINE, irq);
+			pci_write_config(dev, PN_PCI_LOIO, iobase, 4);
+			pci_write_config(dev, PN_PCI_LOMEM, membase, 4);
+			pci_write_config(dev, PN_PCI_INTLINE, irq, 4);
 		}
 	}
 
 	/*
 	 * Map control/status registers.
 	 */
-	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
 	command |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_conf_write(config_id, PCI_COMMAND_STATUS_REG, command);
-	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	pci_write_config(dev, PCI_COMMAND_STATUS_REG, command, 4);
+	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
 
 #ifdef PN_USEIOSPACE
 	if (!(command & PCIM_CMD_PORTEN)) {
 		printf("pn%d: failed to enable I/O ports!\n", unit);
-		free(sc, M_DEVBUF);
+		error = ENXIO;
 		goto fail;
 	}
-
-	if (!pci_map_port(config_id, PN_PCI_LOIO,
-					(pci_port_t *)&(sc->pn_bhandle))) {
-		printf ("pn%d: couldn't map ports\n", unit);
-		goto fail;
-	}
-#ifdef __i386__
-	sc->pn_btag = I386_BUS_SPACE_IO;
-#endif
-#ifdef __alpha__
-	sc->pn_btag = ALPHA_BUS_SPACE_IO;
-#endif
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("pn%d: failed to enable memory mapping!\n", unit);
+		error = ENXIO;
+		goto fail;
+	}
+#endif
+
+	rid = PN_RID;
+	sc->pn_res = bus_alloc_resource(dev, PN_RES, &rid,
+	    0, ~0, 1, RF_ACTIVE);
+
+	if (sc->pn_res == NULL) {
+		printf ("pn%d: couldn't map ports/memory\n", unit);
+		error = ENXIO;
 		goto fail;
 	}
 
-	if (!pci_map_mem(config_id, PN_PCI_LOMEM, &vbase, &pbase)) {
-		printf ("pn%d: couldn't map memory\n", unit);
-		goto fail;
-	}
-	sc->pn_bhandle = vbase;
-#ifdef __i386__
-	sc->pn_btag = I386_BUS_SPACE_MEM;
-#endif
-#ifdef __alpha__
-	sc->pn_btag = ALPHA_BUS_SPACE_MEM;
-#endif
-#endif
+	sc->pn_btag = rman_get_bustag(sc->pn_res);
+	sc->pn_bhandle = rman_get_bushandle(sc->pn_res);
 
 	/* Allocate interrupt */
-	if (!pci_map_int(config_id, pn_intr, sc, &net_imask)) {
+	rid = 0;
+	sc->pn_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	    RF_SHAREABLE | RF_ACTIVE);
+
+	if (sc->pn_irq == NULL) {
 		printf("pn%d: couldn't map interrupt\n", unit);
+		bus_release_resource(dev, PN_RES, PN_RID, sc->pn_res);
+		error = ENXIO;
+		goto fail;
+	}
+
+	error = bus_setup_intr(dev, sc->pn_irq, INTR_TYPE_NET,
+	    pn_intr, sc, &sc->pn_intrhand);
+
+	if (error) {
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->pn_res);
+		bus_release_resource(dev, PN_RES, PN_RID, sc->pn_res);
+		printf("pn%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
 
 	/* Save the cache line size. */
-	sc->pn_cachesize = pci_conf_read(config_id, PN_PCI_CACHELEN) & 0xFF;
+	sc->pn_cachesize = pci_read_config(dev, PN_PCI_CACHELEN, 4) & 0xFF;
 
 	/* Reset the adapter. */
 	pn_reset(sc);
@@ -1098,8 +1132,11 @@ pn_attach(config_id, unit)
 	sc->pn_ldata_ptr = malloc(sizeof(struct pn_list_data) + 8,
 				M_DEVBUF, M_NOWAIT);
 	if (sc->pn_ldata_ptr == NULL) {
-		free(sc, M_DEVBUF);
 		printf("pn%d: no memory for list buffers!\n", unit);
+		bus_teardown_intr(dev, sc->pn_irq, sc->pn_intrhand);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->pn_res);
+		bus_release_resource(dev, PN_RES, PN_RID, sc->pn_res);
+		error = ENXIO;
 		goto fail;
 	}
 
@@ -1117,13 +1154,18 @@ pn_attach(config_id, unit)
 	bzero(sc->pn_ldata, sizeof(struct pn_list_data));
 
 #ifdef PN_RX_BUG_WAR
-	revision = pci_conf_read(config_id, PN_PCI_REVISION) & 0x000000FF;
+	revision = pci_read_config(dev, PN_PCI_REVISION, 4) & 0x000000FF;
 	if (revision == PN_169B_REV || revision == PN_169_REV ||
 	    (revision & 0xF0) == PN_168_REV) {
 		sc->pn_rx_war = 1;
-		sc->pn_rx_buf = malloc(PN_RXLEN * 5, M_DEVBUF, M_NOWAIT);
+		sc->pn_rx_buf = malloc(PN_RXLEN * 16, M_DEVBUF, M_NOWAIT);
 		if (sc->pn_rx_buf == NULL) {
 			printf("pn%d: no memory for workaround buffer\n", unit);
+			bus_teardown_intr(dev, sc->pn_irq, sc->pn_intrhand);
+			bus_release_resource(dev, SYS_RES_IRQ, 0, sc->pn_res);
+			bus_release_resource(dev, PN_RES, PN_RID, sc->pn_res);
+			free(sc->pn_ldata_ptr, M_DEVBUF);
+			error = ENXIO;
 			goto fail;
 		}
 	} else {
@@ -1186,7 +1228,13 @@ pn_attach(config_id, unit)
 				sc->pn_unit, sc->pn_pinfo->pn_name);
 
 		pn_getmode_mii(sc);
-		pn_autoneg_mii(sc, PN_FLAG_FORCEDELAY, 1);
+		if (cold) {
+			pn_autoneg_mii(sc, PN_FLAG_FORCEDELAY, 1);
+			pn_stop(sc);
+		} else {
+			pn_init(sc);
+			pn_autoneg_mii(sc, PN_FLAG_SCHEDDELAY, 1);
+		}
 	} else {
 		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T, 0, NULL);
 		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T|IFM_HDX, 0, NULL);
@@ -1198,11 +1246,17 @@ pn_attach(config_id, unit)
 		    IFM_ETHER|IFM_100_TX|IFM_FDX, 0, NULL);
 		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_100_T4, 0, NULL);
 		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_AUTO, 0, NULL);
-		pn_autoneg(sc, PN_FLAG_FORCEDELAY, 1);
+		pn_init(sc);
+		if (cold) {
+			pn_autoneg(sc, PN_FLAG_FORCEDELAY, 1);
+			pn_stop(sc);
+		} else {
+			pn_init(sc);
+			pn_autoneg(sc, PN_FLAG_SCHEDDELAY, 1);
+		}
 	}
 
 	media = sc->ifmedia.ifm_media;
-	pn_stop(sc);
 	ifmedia_set(&sc->ifmedia, media);
 
 	/*
@@ -1214,11 +1268,40 @@ pn_attach(config_id, unit)
 #if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
-	at_shutdown(pn_shutdown, sc, SHUTDOWN_POST_SYNC);
 
 fail:
 	splx(s);
-	return;
+	return(error);
+}
+
+static int pn_detach(dev)
+	device_t		dev;
+{
+	struct pn_softc		*sc;
+	struct ifnet		*ifp;
+	int			s;
+
+	s = splimp();
+
+	sc = device_get_softc(dev);
+	ifp = &sc->arpcom.ac_if;
+
+	if_detach(ifp);
+	pn_stop(sc);
+
+	bus_teardown_intr(dev, sc->pn_irq, sc->pn_intrhand);
+	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->pn_res);
+	bus_release_resource(dev, PN_RES, PN_RID, sc->pn_res);
+
+	free(sc->pn_ldata_ptr, M_DEVBUF);
+#ifdef PN_RX_BUG_WAR
+	free(sc->pn_rx_buf, M_DEVBUF);
+#endif
+	ifmedia_removeall(&sc->ifmedia);
+
+	splx(s);
+
+	return(0);
 }
 
 /*
@@ -1268,7 +1351,7 @@ static int pn_list_rx_init(sc)
 	for (i = 0; i < PN_RX_LIST_CNT; i++) {
 		cd->pn_rx_chain[i].pn_ptr =
 			(struct pn_desc *)&ld->pn_rx_list[i];
-		if (pn_newbuf(sc, &cd->pn_rx_chain[i]) == ENOBUFS)
+		if (pn_newbuf(sc, &cd->pn_rx_chain[i], NULL) == ENOBUFS)
 			return(ENOBUFS);
 		if (i == (PN_RX_LIST_CNT - 1)) {
 			cd->pn_rx_chain[i].pn_nextdesc = &cd->pn_rx_chain[0];
@@ -1293,38 +1376,51 @@ static int pn_list_rx_init(sc)
  * MCLBYTES is 2048, so we have to subtract one otherwise we'll
  * overflow the field and make a mess.
  */
-static int pn_newbuf(sc, c)
+static int pn_newbuf(sc, c, m)
 	struct pn_softc		*sc;
 	struct pn_chain_onefrag	*c;
+	struct mbuf		*m;
 {
 	struct mbuf		*m_new = NULL;
 
-	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-	if (m_new == NULL) {
-		printf("pn%d: no memory for rx list -- packet dropped!\n",
-								sc->pn_unit);
-		return(ENOBUFS);
+	if (m == NULL) {
+		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+		if (m_new == NULL) {
+			printf("pn%d: no memory for rx list "
+			    "-- packet dropped!\n", sc->pn_unit);
+			return(ENOBUFS);
+		}
+
+		MCLGET(m_new, M_DONTWAIT);
+		if (!(m_new->m_flags & M_EXT)) {
+			printf("pn%d: no memory for rx list -- "
+			    "packet dropped!\n", sc->pn_unit);
+			m_freem(m_new);
+			return(ENOBUFS);
+		}
+		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
+	} else {
+		m_new = m;
+		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
+		m_new->m_data = m_new->m_ext.ext_buf;
 	}
 
-	MCLGET(m_new, M_DONTWAIT);
-	if (!(m_new->m_flags & M_EXT)) {
-		printf("pn%d: no memory for rx list -- packet dropped!\n",
-								sc->pn_unit);
-		m_freem(m_new);
-		return(ENOBUFS);
-	}
+	/*
+	 * Leave a couple of empty leading bytes; we'll need them later
+	 * when we fix up things for proper payload alignment.
+	 */
+	m_adj(m_new, sizeof(u_int64_t));
 
 	/*
 	 * Zero the buffer. This is part of the workaround for the
 	 * promiscuous mode bug in the revision 33 PNIC chips.
 	 */
-	bzero((char *)mtod(m_new, char *), MCLBYTES);
-	m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
+	bzero((char *)mtod(m_new, char *), m_new->m_len);
 
 	c->pn_mbuf = m_new;
-	c->pn_ptr->pn_status = PN_RXSTAT;
 	c->pn_ptr->pn_data = vtophys(mtod(m_new, caddr_t));
 	c->pn_ptr->pn_ctl = PN_RXCTL_RLINK | PN_RXLEN;
+	c->pn_ptr->pn_status = PN_RXSTAT;
 
 	return(0);
 }
@@ -1458,9 +1554,8 @@ static void pn_rxeof(sc)
 
 	while(!((rxstat = sc->pn_cdata.pn_rx_head->pn_ptr->pn_status) &
 							PN_RXSTAT_OWN)) {
-#ifdef __alpha__
 		struct mbuf		*m0 = NULL;
-#endif
+
 		cur_rx = sc->pn_cdata.pn_rx_head;
 		sc->pn_cdata.pn_rx_head = cur_rx->pn_nextdesc;
 
@@ -1495,9 +1590,7 @@ static void pn_rxeof(sc)
 			ifp->if_ierrors++;
 			if (rxstat & PN_RXSTAT_COLLSEEN)
 				ifp->if_collisions++;
-			cur_rx->pn_ptr->pn_status = PN_RXSTAT;
-			cur_rx->pn_ptr->pn_ctl = PN_RXCTL_RLINK | PN_RXLEN;
-			bzero((char *)mtod(cur_rx->pn_mbuf, char *), MCLBYTES);
+			pn_newbuf(sc, cur_rx, cur_rx->pn_mbuf);
 			continue;
 		}
 
@@ -1508,66 +1601,31 @@ static void pn_rxeof(sc)
 		/* Trim off the CRC. */
 		total_len -= ETHER_CRC_LEN;
 
-		/*
-		 * Try to conjure up a new mbuf cluster. If that
-		 * fails, it means we have an out of memory condition and
-		 * should leave the buffer in place and continue. This will
-		 * result in a lost packet, but there's little else we
-		 * can do in this situation.
-		 */
-		if (pn_newbuf(sc, cur_rx) == ENOBUFS) {
-			ifp->if_ierrors++;
-			cur_rx->pn_ptr->pn_status = PN_RXSTAT;
-			cur_rx->pn_ptr->pn_ctl = PN_RXCTL_RLINK | PN_RXLEN;
-			bzero((char *)mtod(cur_rx->pn_mbuf, char *), MCLBYTES);
-			continue;
-		}
-
-#ifdef __alpha__
-		/*
-		 * Grrrr! On the alpha platform, the start of the
-		 * packet data must be longword aligned so that ip_input()
-		 * doesn't perform any unaligned accesses when it tries
-		 * to fiddle with the IP header. But the PNIC is stupid
-		 * and wants RX buffers to start on longword boundaries.
-		 * So we can't just shift the DMA address over a few
-		 * bytes to alter the payload alignment. Instead, we
-		 * have to chop out ethernet and IP header parts of
-		 * the packet and place then in a separate mbuf with
-		 * the alignment fixed up properly.
-		 *
-		 * As if this chip wasn't broken enough already.
-		 */
-		MGETHDR(m0, M_DONTWAIT, MT_DATA);
+		m0 = m_devget(mtod(m, char *) - ETHER_ALIGN,
+		     total_len + ETHER_ALIGN, 0, ifp, NULL);
+		pn_newbuf(sc, cur_rx, m);
 		if (m0 == NULL) {
 			ifp->if_ierrors++;
-			cur_rx->pn_ptr->pn_status = PN_RXSTAT;
-			cur_rx->pn_ptr->pn_ctl = PN_RXCTL_RLINK | PN_RXLEN;
-			bzero((char *)mtod(cur_rx->pn_mbuf, char *), MCLBYTES);
 			continue;
 		}
-
-		m0->m_data += 2;
-		if (total_len <= (MHLEN - 2)) {
-			bcopy(mtod(m, caddr_t), mtod(m0, caddr_t), total_len);
-			m_freem(m);
-			m = m0;
-			m->m_pkthdr.len = m->m_len = total_len;
-		} else {
-			bcopy(mtod(m, caddr_t), mtod(m0, caddr_t), (MHLEN - 2));
-			m->m_len = total_len - (MHLEN - 2);
-			m->m_data += (MHLEN - 2);
-			m0->m_next = m;
-			m0->m_len = (MHLEN - 2);
-			m = m0;
-			m->m_pkthdr.len = total_len;
-		}
-#else
-		m->m_pkthdr.len = m->m_len = total_len;
-#endif
+		m_adj(m0, ETHER_ALIGN);
+		m = m0;
 		ifp->if_ipackets++;
 		eh = mtod(m, struct ether_header *);
-		m->m_pkthdr.rcvif = ifp;
+
+#ifdef BRIDGE
+		if (do_bridge) {
+			struct ifnet		*bdg_ifp;
+			bdg_ifp = bridge_in(m);
+			if (bdg_ifp != BDG_LOCAL && bdg_ifp != BDG_DROP)
+				bdg_forward(&m, bdg_ifp);
+			if (((bdg_ifp != BDG_LOCAL) && (bdg_ifp != BDG_BCAST) &&
+			    (bdg_ifp != BDG_MCAST)) || bdg_ifp == BDG_DROP) {
+				m_freem(m);
+				continue;
+			}
+		}
+#endif
 
 #if NBPF > 0
 		/*
@@ -2186,6 +2244,8 @@ static void pn_watchdog(ifp)
 			pn_autoneg(sc, PN_FLAG_DELAYTIMEO, 1);
 		else
 			pn_autoneg_mii(sc, PN_FLAG_DELAYTIMEO, 1);
+		if (!(ifp->if_flags & IFF_UP))
+			pn_stop(sc);
 		return;
 	}
 
@@ -2257,22 +2317,14 @@ static void pn_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void pn_shutdown(howto, arg)
-	int			howto;
-	void			*arg;
+static void pn_shutdown(dev)
+	device_t		dev;
 {
-	struct pn_softc		*sc = (struct pn_softc *)arg;
+	struct pn_softc		*sc;
+
+	sc = device_get_softc(dev);
 
 	pn_stop(sc);
 
 	return;
 }
-
-static struct pci_device pn_device = {
-	"pn",
-	pn_probe,
-	pn_attach,
-	&pn_count,
-	NULL
-};
-COMPAT_PCI_DRIVER(pn, pn_device);
