@@ -50,7 +50,7 @@ static MALLOC_DEFINE(M_DEVT, "struct cdev *", "struct cdev *storage");
 extern unsigned char reserved_majors[256];
 
 /*
- * This is the number of hash-buckets.  Experiements with 'real-life'
+ * This is the number of hash-buckets.  Experiments with 'real-life'
  * dev_t's show that a prime halfway between two powers of two works
  * best.
  */
@@ -241,7 +241,7 @@ devsw(struct cdev *dev)
 }
 
 /*
- * struct cdev *and u_dev_t primitives
+ * struct cdev * and u_dev_t primitives
  */
 
 int
@@ -675,8 +675,8 @@ dev_stdclone(char *name, char **namep, const char *stem, int *unit)
  * we do "on-demand" devices, using rman or other "private" methods 
  * will be very tricky to lock down properly once we lock down this file.
  *
- * Instead we give the drivers these routines which puts the struct cdev *'s that
- * are to be managed on their own list, and gives the driver the ability
+ * Instead we give the drivers these routines which puts the struct cdev *'s
+ * that are to be managed on their own list, and gives the driver the ability
  * to ask for the first free unit number or a given specified unit number.
  *
  * In addition these routines support paired devices (pty, nmdm and similar)
@@ -781,7 +781,7 @@ clone_cleanup(struct clonedevs **cdp)
 }
 
 /*
- * Helper sysctl for devname(3).  We're given a {u}struct cdev *and return
+ * Helper sysctl for devname(3).  We're given a struct cdev * and return
  * the name, if any, registered by the device driver.
  */
 static int
