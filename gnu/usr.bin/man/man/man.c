@@ -714,9 +714,10 @@ ultimate_source (name, path)
      char *name;
      char *path;
 {
+  static  char buf[BUFSIZ];
+  static  char ult[BUFSIZ];
+
   FILE *fp;
-  char buf[BUFSIZ];
-  char ult[BUFSIZ];
   char *beg;
   char *end;
 
@@ -919,7 +920,7 @@ make_roff_command (file)
 
   if ((fp = fopen (file, "r")) != NULL)
     {
-      cp = &line[0];
+      cp = line;
       fgets (line, 100, fp);
       if (*cp++ == '\'' && *cp++ == '\\' && *cp++ == '"' && *cp++ == ' ')
 	{
@@ -1030,7 +1031,7 @@ make_cat_file (path, man_file, cat_file)
       fclose (fp);
       unlink (cat_file);
 
-      roff_command = make_roff_command (man_file, 0);
+      roff_command = make_roff_command (man_file);
       if (roff_command == NULL)
 	return 0;
       else
@@ -1099,7 +1100,7 @@ format_and_display (path, man_file, cat_file)
   
   if (troff)
     {
-      roff_command = make_roff_command (man_file, 1);
+      roff_command = make_roff_command (man_file);
       if (roff_command == NULL)
 	return 0;
       else
@@ -1158,7 +1159,7 @@ format_and_display (path, man_file, cat_file)
 		   * Couldn't create cat file.  Just format it and
 		   * display it through the pager. 
 		   */
-		  roff_command = make_roff_command (man_file, 0);
+		  roff_command = make_roff_command (man_file);
 		  if (roff_command == NULL)
 		    return 0;
 		  else
