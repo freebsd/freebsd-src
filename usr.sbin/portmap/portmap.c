@@ -194,7 +194,7 @@ main(argc, argv)
 	check_startup();
 	(void)signal(SIGCHLD, reap);
 	svc_run();
-	syslog(LOG_ERR, "run_svc returned unexpectedly");
+	syslog(LOG_ERR, "svc_run returned unexpectedly");
 	abort();
 }
 
