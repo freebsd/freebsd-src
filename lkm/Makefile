@@ -1,8 +1,12 @@
-#	$Id: Makefile,v 1.12 1995/08/24 09:06:17 phk Exp $
+#	$Id: Makefile,v 1.13 1995/10/10 08:23:13 swallace Exp $
 
-SUBDIR=	cd9660 coff fdesc ibcs2 if_disc if_ppp if_sl if_tun \
-	ipfw kernfs linux msdos nfs nullfs \
-	pcic portal procfs syscons umapfs union
+#
+# temp. disabled:
+# atapi coff ibcs2 ipfw linux syscons wcd
+#
+SUBDIR= cd9660 fdesc if_disc if_ppp if_sl if_tun \
+	kernfs msdos nfs nullfs \
+	pcic portal procfs umapfs union
 #
 # Doesn't work:
 # mfs
