@@ -2,7 +2,7 @@
  *  Device driver optimized for the Symbios/LSI 53C896/53C895A/53C1010 
  *  PCI-SCSI controllers.
  *
- *  Copyright (C) 1999  Gerard Roudier <groudier@club-internet.fr>
+ *  Copyright (C) 1999-2000  Gerard Roudier <groudier@club-internet.fr>
  *
  *  This driver also supports the following Symbios/LSI PCI-SCSI chips:
  *	53C810A, 53C825A, 53C860, 53C875, 53C876, 53C885, 53C895.
@@ -168,8 +168,9 @@ struct Symbios_nvram {
 	u_char	num_hba;	/* 0x04 */
 	u_char	num_devices;	/* 0x10 */
 	u_char	max_scam_devices;	/* 0x04 */
-	u_char	num_valid_scam_devives;	/* 0x00 */
-	u_char	rsvd;
+	u_char	num_valid_scam_devices;	/* 0x00 */
+	u_char	flags2;
+#define SYMBIOS_AVOID_BUS_RESET		(1<<2)
 
 /* Boot order 14 bytes * 4 */
 	struct Symbios_host{
