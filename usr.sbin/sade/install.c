@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.138 1996/11/09 11:57:40 joerg Exp $
+ * $Id: install.c,v 1.139 1996/11/09 16:25:47 joerg Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -595,7 +595,8 @@ installFixup(dialogMenuItem *self)
 	if (file_readable("/kernel.GENERIC")) {
 #ifdef SAVE_USERCONFIG
 	    /* Snapshot any boot -c changes back to the GENERIC kernel */
-	    save_userconfig_to_kernel("/kernel.GENERIC");
+	    if (!strcmp(variable_get(VAR_RELNAME), RELEASE_NAME))
+		save_userconfig_to_kernel("/kernel.GENERIC");
 #endif
 	    if (vsystem("cp -p /kernel.GENERIC /kernel")) {
 		msgConfirm("Unable to link /kernel into place!");
