@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id: kern_xxx.c,v 1.20 1995/11/20 12:14:40 phk Exp $
+ * $Id: kern_xxx.c,v 1.21 1995/12/02 18:58:50 bde Exp $
  */
 
 #include <sys/param.h>
@@ -40,7 +40,6 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
-#include <vm/vm.h>
 #include <sys/sysctl.h>
 #include <sys/utsname.h>
 #include <sys/signalvar.h>
