@@ -30,8 +30,6 @@
 /*
  * Core ACPI subsystem ioctls
  */
-#define ACPIIO_ENABLE		_IO('P', 1)
-#define ACPIIO_DISABLE		_IO('P', 2)
 #define ACPIIO_SETSLPSTATE	_IOW('P', 3, int)
 
 struct acpi_battdesc {
