@@ -555,3 +555,27 @@ vop_setextattr {
 	IN struct ucred *cred;
 	IN struct proc *p;
 };
+
+#
+#% createvobject	vp	L L L
+#
+vop_createvobject {
+	IN struct vnode *vp;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+#
+#% destroyvobject	vp	L L L
+#
+vop_destroyvobject {
+	IN struct vnode *vp;
+};
+
+#
+#% getvobject	vp	L L L
+#
+vop_getvobject {
+	IN struct vnode *vp;
+	OUT struct vm_object **objpp;
+};
