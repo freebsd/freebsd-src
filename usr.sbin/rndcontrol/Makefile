@@ -1,4 +1,4 @@
-#	$id$
+#	$FreeBSD$
 
 PROG=		rndcontrol
 CFLAGS+=	-Wall
