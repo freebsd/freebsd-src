@@ -3,11 +3,6 @@
  * $FreeBSD$
  */
 
-typedef struct _sbdev_info {
-
-} sbdev_info ;
-
-extern int sbc_major, sbc_minor ;
 /*
  * sound blaster registers
  */
@@ -150,6 +145,47 @@ extern int sbc_major, sbc_minor ;
 #define BD_F_DMARUN	0x2000
 #define BD_F_DMARUN2	0x4000
 #define BD_F_DUPLEX	0x8000
+
+/*
+ * Mixer registers of SB Pro
+ */
+#define VOC_VOL		0x04
+#define MIC_VOL		0x0A
+#define MIC_MIX		0x0A
+#define RECORD_SRC	0x0C
+#define IN_FILTER	0x0C
+#define OUT_FILTER	0x0E
+#define MASTER_VOL	0x22
+#define FM_VOL		0x26
+#define CD_VOL		0x28
+#define LINE_VOL	0x2E
+#define IRQ_NR		0x80
+#define DMA_NR		0x81
+#define IRQ_STAT	0x82
+
+/*
+ * Additional registers on the SG NX Pro
+ */
+#define COVOX_VOL	0x42
+#define TREBLE_LVL	0x44
+#define BASS_LVL	0x46
+
+#define FREQ_HI         (1 << 3)/* Use High-frequency ANFI filters */
+#define FREQ_LOW        0	/* Use Low-frequency ANFI filters */
+#define FILT_ON         0	/* Yes, 0 to turn it on, 1 for off */
+#define FILT_OFF        (1 << 5)
+
+#define MONO_DAC	0x00
+#define STEREO_DAC	0x02
+
+/*
+ * Mixer registers of SB16
+ */
+#define SB16_IMASK_L	0x3d
+#define SB16_IMASK_R	0x3e
+#define SB16_OMASK	0x3c
+
+#ifndef SB_NOMIXER
 /*
  * sound/sb_mixer.h
  *
@@ -209,52 +245,6 @@ extern int sbc_major, sbc_minor ;
      SOUND_MASK_LINE | SOUND_MASK_MIC | SOUND_MASK_CD | \
      SOUND_MASK_IGAIN | SOUND_MASK_OGAIN | \
      SOUND_MASK_VOLUME | SOUND_MASK_BASS | SOUND_MASK_TREBLE)
-
-/*
- * Mixer registers
- *
- * NOTE!	RECORD_SRC == IN_FILTER
- */
-
-/*
- * Mixer registers of SB Pro
- */
-#define VOC_VOL		0x04
-#define MIC_VOL		0x0A
-#define MIC_MIX		0x0A
-#define RECORD_SRC	0x0C
-#define IN_FILTER	0x0C
-#define OUT_FILTER	0x0E
-#define MASTER_VOL	0x22
-#define FM_VOL		0x26
-#define CD_VOL		0x28
-#define LINE_VOL	0x2E
-#define IRQ_NR		0x80
-#define DMA_NR		0x81
-#define IRQ_STAT	0x82
-
-/*
- * Additional registers on the SG NX Pro
- */
-#define COVOX_VOL	0x42
-#define TREBLE_LVL	0x44
-#define BASS_LVL	0x46
-
-#define FREQ_HI         (1 << 3)/* Use High-frequency ANFI filters */
-#define FREQ_LOW        0	/* Use Low-frequency ANFI filters */
-#define FILT_ON         0	/* Yes, 0 to turn it on, 1 for off */
-#define FILT_OFF        (1 << 5)
-
-#define MONO_DAC	0x00
-#define STEREO_DAC	0x02
-
-/*
- * Mixer registers of SB16
- */
-#define SB16_IMASK_L	0x3d
-#define SB16_IMASK_R	0x3e
-#define SB16_OMASK	0x3c
-
 
 #ifndef __SB_MIXER_C__
 mixer_tab       sbpro_mix;
@@ -379,4 +369,4 @@ static u_char sb16_recmasks_R[SOUND_MIXER_NRDEVICES] =
 #define SRC_CD          3	/* Select CD recording source */
 #define SRC_LINE        7	/* Use Line-in for recording source */
 
-
+#endif
