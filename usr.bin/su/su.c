@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)su.c	8.3 (Berkeley) 4/2/94";
 */
 static const char rcsid[] =
-	"$Id: su.c,v 1.13 1996/03/11 22:14:52 markm Exp $";
+	"$Id: su.c,v 1.6.4.4 1996/06/23 14:07:40 markm Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -293,7 +293,8 @@ main(argc, argv)
 			cleanenv[0] = NULL;
 			environ = cleanenv;
 			(void)setenv("PATH", _PATH_DEFPATH, 1);
-			(void)setenv("TERM", p, 1);
+			if (p)
+				(void)setenv("TERM", p, 1);
 			if (chdir(pwd->pw_dir) < 0)
 				errx(1, "no directory");
 		}
