@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.11 1999/03/05 04:54:59 obrien Exp $
+# $Id: Makefile,v 1.10 1999/04/04 16:36:31 obrien Exp $
 #
 
 .include "../Makefile.inc"
@@ -8,7 +8,6 @@
 
 PROG =	c++
 SRCS =	gcc.c g++spec.c
-BINDIR=	/usr/bin
 LINKS=	${BINDIR}/c++ ${BINDIR}/g++
 LINKS+=	${BINDIR}/c++ ${BINDIR}/CC
 NOMAN=	1
