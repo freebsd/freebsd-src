@@ -20,12 +20,6 @@ HIDEGAME=hidegame
 DPSRCS+= hack.onames.h
 CLEANFILES+= hack.onames.h makedefs
 
-#
-# Need to be suid for created savefiles and bones, they must not be
-# altered by user and can't be pre-created
-#
-SUIDGAME=suidgame
-
 .depend: hack.onames.h
 
 hack.onames.h: makedefs def.objects.h
@@ -37,7 +31,7 @@ makedefs: makedefs.c
 beforeinstall:
 	${INSTALL} -c -o bin -g bin -m ${NOBINMODE} /dev/null \
 	    ${DESTDIR}/var/games/hackdir/perm
-	${INSTALL} -c -o bin -g ${BINGRP} -m 464 /dev/null \
+	${INSTALL} -c -o bin -g ${BINGRP} -m 460 /dev/null \
 	    ${DESTDIR}/var/games/hackdir/record
 	${INSTALL} -c -o bin -g ${BINGRP} -m 440 ${.CURDIR}/rumors \
 	    ${DESTDIR}/var/games/hackdir/rumors
