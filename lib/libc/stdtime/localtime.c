@@ -171,8 +171,8 @@ static char		lcl_TZname[TZ_STRLEN_MAX + 1];
 static int		lcl_is_set;
 static int		gmt_is_set;
 #ifdef	_THREAD_SAFE
-static struct pthread_mutex	_lcl_mutexd = PTHREAD_MUTEX_INITIALIZER;
-static struct pthread_mutex	_gmt_mutexd = PTHREAD_MUTEX_INITIALIZER;
+static struct pthread_mutex	_lcl_mutexd = PTHREAD_MUTEX_STATIC_INITIALIZER;
+static struct pthread_mutex	_gmt_mutexd = PTHREAD_MUTEX_STATIC_INITIALIZER;
 static pthread_mutex_t		lcl_mutex   = &_lcl_mutexd;
 static pthread_mutex_t		gmt_mutex   = &_gmt_mutexd;
 #endif
@@ -1096,7 +1096,7 @@ localtime(timep)
 const time_t * const	timep;
 {
 #ifdef	_THREAD_SAFE
-	static struct pthread_mutex _localtime_mutex = PTHREAD_MUTEX_INITIALIZER;
+	static struct pthread_mutex _localtime_mutex = PTHREAD_MUTEX_STATIC_INITIALIZER;
 	static pthread_mutex_t localtime_mutex = &_localtime_mutex;
 	static pthread_key_t localtime_key = -1;
 	struct tm *p_tm;
@@ -1178,7 +1178,7 @@ gmtime(timep)
 const time_t * const	timep;
 {
 #ifdef	_THREAD_SAFE
-	static struct pthread_mutex _gmtime_mutex = PTHREAD_MUTEX_INITIALIZER;
+	static struct pthread_mutex _gmtime_mutex = PTHREAD_MUTEX_STATIC_INITIALIZER;
 	static pthread_mutex_t gmtime_mutex = &_gmtime_mutex;
 	static pthread_key_t gmtime_key = -1;
 	struct tm *p_tm;
