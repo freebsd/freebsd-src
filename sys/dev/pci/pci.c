@@ -815,9 +815,6 @@ static int
 pci_probe(device_t dev)
 {
 
-	if (pcib_get_bus(dev) < 0)
-		return (ENXIO);
-	
 	device_set_desc(dev, "PCI bus");
 
 	/* Allow other subclasses to override this driver. */
