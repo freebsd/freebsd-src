@@ -97,9 +97,15 @@ void chn_rdupdate(struct pcm_channel *c);
 
 int chn_notify(struct pcm_channel *c, u_int32_t flags);
 
+#ifdef	USING_MUTEX
 #define CHN_LOCK(c) mtx_lock((struct mtx *)((c)->lock))
 #define CHN_UNLOCK(c) mtx_unlock((struct mtx *)((c)->lock))
 #define CHN_LOCKASSERT(c)
+#else
+#define CHN_LOCK(c)
+#define CHN_UNLOCK(c)
+#define CHN_LOCKASSERT(c)
+#endif
 
 int fmtvalid(u_int32_t fmt, u_int32_t *fmtlist);
 
