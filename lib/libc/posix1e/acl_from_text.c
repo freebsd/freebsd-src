@@ -123,11 +123,11 @@ acl_from_text(const char *buf_p)
 
 	/* Local copy we can mess up. */
 	mybuf_p = strdup(buf_p);
-	if (!mybuf_p)
+	if (mybuf_p == NULL)
 		return(NULL);
 
 	acl = acl_init(3);
-	if (!acl) {
+	if (acl == NULL) {
 		free(mybuf_p);
 		return(NULL);
 	}
@@ -143,7 +143,7 @@ acl_from_text(const char *buf_p)
 		while ((entry = strsep(&notcomment, ","))) {
 			/* Now split into three ':' delimited fields. */
 			tag = strsep(&entry, ":");
-			if (!tag) {
+			if (tag == NULL) {
 				errno = EINVAL;
 				goto error_label;
 			}
@@ -158,7 +158,7 @@ acl_from_text(const char *buf_p)
 			string_trim_trailing_whitespace(tag);
 
 			qualifier = strsep(&entry, ":");
-			if (!qualifier) {
+			if (qualifier == NULL) {
 				errno = EINVAL;
 				goto error_label;
 			}
@@ -166,7 +166,7 @@ acl_from_text(const char *buf_p)
 			string_trim_trailing_whitespace(qualifier);
 
 			permission = strsep(&entry, ":");
-			if ((!permission) || (entry)) {
+			if (permission == NULL || entry) {
 				errno = EINVAL;
 				goto error_label;
 			}

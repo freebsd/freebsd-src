@@ -63,7 +63,7 @@ acl_to_text(acl_t acl, ssize_t *len_p)
 	acl_perm_t	 ae_perm, effective_perm, mask_perm;
 
 	buf = strdup("");
-	if (!buf)
+	if (buf == NULL)
 		return(NULL);
 
 	if (acl == NULL) {
