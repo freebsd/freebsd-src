@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.31 1999/02/06 02:54:47 brian Exp $
+ * $Id: pap.c,v 1.32 1999/02/20 01:12:45 brian Exp $
  *
  *	TODO:
  */
@@ -29,6 +29,7 @@
 #include <sys/un.h>
 
 #include <stdlib.h>
+#include <string.h>
 #include <termios.h>
 
 #include "mbuf.h"
