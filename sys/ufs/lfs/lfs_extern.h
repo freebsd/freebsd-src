@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_extern.h	8.6 (Berkeley) 5/8/95
- * $Id: lfs_extern.h,v 1.17 1997/10/12 20:26:15 phk Exp $
+ * $Id: lfs_extern.h,v 1.18 1997/10/16 10:49:44 phk Exp $
  */
 
 #ifndef _UFS_LFS_LFS_EXTERN_H_
@@ -68,7 +68,7 @@ int	 lfs_segwrite __P((struct mount *, int));
 #define	 lfs_sysctl ((int (*) __P((int *, u_int, void *, size_t *, void *, \
                                     size_t, struct proc *)))eopnotsupp)
 int	 lfs_truncate __P((struct vnode *, off_t, int, struct ucred *, struct proc *));
-int	 lfs_update __P((struct vop_update_args *));
+int	 lfs_update __P((struct vnode *, struct timeval *, struct timeval *, int));
 void	 lfs_updatemeta __P((struct segment *));
 int	 lfs_valloc __P((struct vnode *, int, struct ucred *, struct vnode **));
 int	 lfs_vcreate __P((struct mount *, ino_t, struct vnode **));

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.19 (Berkeley) 5/27/95
- * $Id: cd9660_vnops.c,v 1.43 1997/10/15 13:22:39 phk Exp $
+ * $Id: cd9660_vnops.c,v 1.44 1997/10/16 10:47:47 phk Exp $
  */
 
 #include <sys/param.h>
@@ -59,14 +59,9 @@
 #include <isofs/cd9660/iso_rrip.h>
 
 static int cd9660_setattr __P((struct vop_setattr_args *));
-static int cd9660_open __P((struct vop_open_args *));
-static int cd9660_close __P((struct vop_close_args *));
 static int cd9660_access __P((struct vop_access_args *));
 static int cd9660_getattr __P((struct vop_getattr_args *));
 static int cd9660_read __P((struct vop_read_args *));
-static int cd9660_ioctl __P((struct vop_ioctl_args *));
-static int cd9660_mmap __P((struct vop_mmap_args *));
-static int cd9660_seek __P((struct vop_seek_args *));
 struct isoreaddir;
 static int iso_uiodir __P((struct isoreaddir *idp, struct dirent *dp,
 			   off_t off));
@@ -114,42 +109,6 @@ cd9660_setattr(ap)
 			return (0);
 		}
 	}
-	return (0);
-}
-
-/*
- * Open called.
- *
- * Nothing to do.
- */
-/* ARGSUSED */
-static int
-cd9660_open(ap)
-	struct vop_open_args /* {
-		struct vnode *a_vp;
-		int  a_mode;
-		struct ucred *a_cred;
-		struct proc *a_p;
-	} */ *ap;
-{
-	return (0);
-}
-
-/*
- * Close called
- *
- * Update the times on the inode on writeable file systems.
- */
-/* ARGSUSED */
-static int
-cd9660_close(ap)
-	struct vop_close_args /* {
-		struct vnode *a_vp;
-		int  a_fflag;
-		struct ucred *a_cred;
-		struct proc *a_p;
-	} */ *ap;
-{
 	return (0);
 }
 
@@ -355,60 +314,6 @@ cd9660_read(ap)
 		brelse(bp);
 	} while (error == 0 && uio->uio_resid > 0 && n != 0);
 	return (error);
-}
-
-/* ARGSUSED */
-static int
-cd9660_ioctl(ap)
-	struct vop_ioctl_args /* {
-		struct vnode *a_vp;
-		u_long a_command;
-		caddr_t  a_data;
-		int  a_fflag;
-		struct ucred *a_cred;
-		struct proc *a_p;
-	} */ *ap;
-{
-	printf("You did ioctl for isofs !!\n");
-	return (ENOTTY);
-}
-
-/*
- * Mmap a file
- *
- * NB Currently unsupported.
- */
-/* ARGSUSED */
-static int
-cd9660_mmap(ap)
-	struct vop_mmap_args /* {
-		struct vnode *a_vp;
-		int  a_fflags;
-		struct ucred *a_cred;
-		struct proc *a_p;
-	} */ *ap;
-{
-
-	return (EINVAL);
-}
-
-/*
- * Seek on a file
- *
- * Nothing to do, so just return.
- */
-/* ARGSUSED */
-static int
-cd9660_seek(ap)
-	struct vop_seek_args /* {
-		struct vnode *a_vp;
-		off_t  a_oldoff;
-		off_t  a_newoff;
-		struct ucred *a_cred;
-	} */ *ap;
-{
-
-	return (0);
 }
 
 /*
@@ -962,23 +867,17 @@ struct vnodeopv_entry_desc cd9660_vnodeop_entries[] = {
 	{ &vop_access_desc,		(vop_t *) cd9660_access },
 	{ &vop_bmap_desc,		(vop_t *) cd9660_bmap },
 	{ &vop_cachedlookup_desc,	(vop_t *) cd9660_lookup },
-	{ &vop_close_desc,		(vop_t *) cd9660_close },
-	{ &vop_fsync_desc,		(vop_t *) nullop },
 	{ &vop_getattr_desc,		(vop_t *) cd9660_getattr },
 	{ &vop_inactive_desc,		(vop_t *) cd9660_inactive },
-	{ &vop_ioctl_desc,		(vop_t *) cd9660_ioctl },
 	{ &vop_islocked_desc,		(vop_t *) cd9660_islocked },
 	{ &vop_lock_desc,		(vop_t *) cd9660_lock },
 	{ &vop_lookup_desc,		(vop_t *) vfs_cache_lookup },
-	{ &vop_mmap_desc,		(vop_t *) cd9660_mmap },
-	{ &vop_open_desc,		(vop_t *) cd9660_open },
 	{ &vop_pathconf_desc,		(vop_t *) cd9660_pathconf },
 	{ &vop_print_desc,		(vop_t *) cd9660_print },
 	{ &vop_read_desc,		(vop_t *) cd9660_read },
 	{ &vop_readdir_desc,		(vop_t *) cd9660_readdir },
 	{ &vop_readlink_desc,		(vop_t *) cd9660_readlink },
 	{ &vop_reclaim_desc,		(vop_t *) cd9660_reclaim },
-	{ &vop_seek_desc,		(vop_t *) cd9660_seek },
 	{ &vop_setattr_desc,		(vop_t *) cd9660_setattr },
 	{ &vop_strategy_desc,		(vop_t *) cd9660_strategy },
 	{ &vop_unlock_desc,		(vop_t *) cd9660_unlock },

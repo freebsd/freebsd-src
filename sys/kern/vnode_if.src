@@ -31,7 +31,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.src	8.12 (Berkeley) 5/14/95
-# $Id: vnode_if.src,v 1.13 1997/09/14 02:35:25 peter Exp $
+# $Id: vnode_if.src,v 1.14 1997/10/16 10:48:00 phk Exp $
 #
 
 #
@@ -240,17 +240,6 @@ vop_fsync {
 };
 
 #
-# XXX - not used
-# Needs work: Is newoff right?  What's it mean?
-#
-vop_seek {
-	IN struct vnode *vp;
-	IN off_t oldoff;
-	IN off_t newoff;
-	IN struct ucred *cred;
-};
-
-#
 #% remove	dvp	L U U
 #% remove	vp	L U U
 #
@@ -445,16 +434,6 @@ vop_advlock {
 vop_reallocblks {
 	IN struct vnode *vp;
 	IN struct cluster_save *buflist;
-};
-
-#
-#% update	vp	L L L
-#
-vop_update {
-	IN struct vnode *vp;
-	IN struct timeval *access;
-	IN struct timeval *modify;
-	IN int waitfor;
 };
 
 vop_getpages {

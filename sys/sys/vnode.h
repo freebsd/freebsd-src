@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.50 1997/10/12 20:26:07 phk Exp $
+ * $Id: vnode.h,v 1.51 1997/10/16 10:49:13 phk Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -381,13 +381,6 @@ struct vop_generic_args {
 	/* other random data follows, presumably */
 };
 
-/*
- * A default routine for vnops we shouldn't hit
- */
-int vn_defaultop __P((struct vop_generic_args *ap));
-
-/* XXX: compat until fixed all places*/
-#define vn_default_error vn_defaultop
 
 #ifdef DEBUG_VFS_LOCKS
 /*
@@ -513,8 +506,19 @@ int	vop_noislocked __P((struct vop_islocked_args *));
 int	vop_nolock __P((struct vop_lock_args *));
 int	vop_nopoll __P((struct vop_poll_args *));
 int	vop_nounlock __P((struct vop_unlock_args *));
+int	vop_stdpathconf __P((struct vop_pathconf_args *));
 int	vop_revoke __P((struct vop_revoke_args *));
 int	vop_sharedlock __P((struct vop_lock_args *));
+int	vop_eopnotsupp __P((struct vop_generic_args *ap));
+int	vop_ebadf __P((struct vop_generic_args *ap));
+int	vop_einval __P((struct vop_generic_args *ap));
+int	vop_enotty __P((struct vop_generic_args *ap));
+int	vop_defaultop __P((struct vop_generic_args *ap));
+int	vop_null __P((struct vop_generic_args *ap));
+
+/* XXX: compat until fixed all places*/
+#define vn_default_error vop_defaultop
+
 struct vnode *
 	checkalias __P((struct vnode *vp, dev_t nvp_rdev, struct mount *mp));
 void 	vput __P((struct vnode *vp));

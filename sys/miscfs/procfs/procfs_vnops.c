@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.35 1997/10/15 10:04:38 phk Exp $
+ *	$Id: procfs_vnops.c,v 1.36 1997/10/16 10:48:40 phk Exp $
  */
 
 /*
@@ -64,10 +64,8 @@ static int	procfs_bmap __P((struct vop_bmap_args *));
 static int	procfs_close __P((struct vop_close_args *));
 static int	procfs_getattr __P((struct vop_getattr_args *));
 static int	procfs_inactive __P((struct vop_inactive_args *));
-static int	procfs_ioctl __P((struct vop_ioctl_args *));
 static int	procfs_lookup __P((struct vop_lookup_args *));
 static int	procfs_open __P((struct vop_open_args *));
-static int	procfs_pathconf __P((struct vop_pathconf_args *ap));
 static int	procfs_print __P((struct vop_print_args *));
 static int	procfs_readdir __P((struct vop_readdir_args *));
 static int	procfs_readlink __P((struct vop_readlink_args *));
@@ -185,24 +183,6 @@ procfs_close(ap)
 }
 
 /*
- * do an ioctl operation on pfsnode (vp).
- * (vp) is not locked on entry or exit.
- */
-static int
-procfs_ioctl(ap)
-	struct vop_ioctl_args /* {
-		struct vnode *a_vp;
-		int a_command;
-		caddr_t a_data;
-		int a_fflag;
-		struct ucred *a_cred;
-		struct proc *a_p;
-	} */ *ap;
-{
-	return (ENOTTY);
-}
-
-/*
  * do block mapping for pfsnode (vp).
  * since we don't use the buffer cache
  * for procfs this function should never
@@ -279,43 +259,6 @@ procfs_reclaim(ap)
 {
 
 	return (procfs_freevp(ap->a_vp));
-}
-
-/*
- * Return POSIX pathconf information applicable to special devices.
- */
-static int
-procfs_pathconf(ap)
-	struct vop_pathconf_args /* {
-		struct vnode *a_vp;
-		int a_name;
-		int *a_retval;
-	} */ *ap;
-{
-
-	switch (ap->a_name) {
-	case _PC_LINK_MAX:
-		*ap->a_retval = LINK_MAX;
-		return (0);
-	case _PC_MAX_CANON:
-		*ap->a_retval = MAX_CANON;
-		return (0);
-	case _PC_MAX_INPUT:
-		*ap->a_retval = MAX_INPUT;
-		return (0);
-	case _PC_PIPE_BUF:
-		*ap->a_retval = PIPE_BUF;
-		return (0);
-	case _PC_CHOWN_RESTRICTED:
-		*ap->a_retval = 1;
-		return (0);
-	case _PC_VDISABLE:
-		*ap->a_retval = _POSIX_VDISABLE;
-		return (0);
-	default:
-		return (EINVAL);
-	}
-	/* NOTREACHED */
 }
 
 /*
@@ -950,16 +893,14 @@ static struct vnodeopv_entry_desc procfs_vnodeop_entries[] = {
 	{ &vop_create_desc,		(vop_t *) procfs_badop },
 	{ &vop_getattr_desc,		(vop_t *) procfs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) procfs_inactive },
-	{ &vop_ioctl_desc,		(vop_t *) procfs_ioctl },
 	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
 	{ &vop_link_desc,		(vop_t *) procfs_badop },
 	{ &vop_lock_desc,		(vop_t *) vop_nolock },
 	{ &vop_lookup_desc,		(vop_t *) procfs_lookup },
 	{ &vop_mkdir_desc,		(vop_t *) procfs_badop },
 	{ &vop_mknod_desc,		(vop_t *) procfs_badop },
-	{ &vop_mmap_desc,		(vop_t *) procfs_badop },
 	{ &vop_open_desc,		(vop_t *) procfs_open },
-	{ &vop_pathconf_desc,		(vop_t *) procfs_pathconf },
+	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
 	{ &vop_print_desc,		(vop_t *) procfs_print },
 	{ &vop_read_desc,		(vop_t *) procfs_rw },
 	{ &vop_readdir_desc,		(vop_t *) procfs_readdir },
@@ -968,11 +909,9 @@ static struct vnodeopv_entry_desc procfs_vnodeop_entries[] = {
 	{ &vop_remove_desc,		(vop_t *) procfs_badop },
 	{ &vop_rename_desc,		(vop_t *) procfs_badop },
 	{ &vop_rmdir_desc,		(vop_t *) procfs_badop },
-	{ &vop_seek_desc,		(vop_t *) procfs_badop },
 	{ &vop_setattr_desc,		(vop_t *) procfs_setattr },
 	{ &vop_symlink_desc,		(vop_t *) procfs_badop },
 	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
-	{ &vop_update_desc,		(vop_t *) nullop },
 	{ &vop_write_desc,		(vop_t *) procfs_rw },
 	{ NULL, NULL }
 };

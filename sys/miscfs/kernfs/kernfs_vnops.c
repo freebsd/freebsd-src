@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.15 (Berkeley) 5/21/95
- * $Id: kernfs_vnops.c,v 1.23 1997/10/15 10:04:23 phk Exp $
+ * $Id: kernfs_vnops.c,v 1.24 1997/10/16 10:48:29 phk Exp $
  */
 
 /*
@@ -109,7 +109,6 @@ static int	kernfs_enotsupp __P((void));
 static int	kernfs_getattr __P((struct vop_getattr_args *ap));
 static int	kernfs_inactive __P((struct vop_inactive_args *ap));
 static int	kernfs_lookup __P((struct vop_lookup_args *ap));
-static int	kernfs_open __P((struct vop_open_args *ap));
 static int	kernfs_pathconf __P((struct vop_pathconf_args *ap));
 static int	kernfs_print __P((struct vop_print_args *ap));
 static int	kernfs_read __P((struct vop_read_args *ap));
@@ -312,20 +311,6 @@ found:
 #ifdef KERNFS_DIAGNOSTIC
 	printf("kernfs_lookup: newvp = %x\n", fvp);
 #endif
-	return (0);
-}
-
-static int
-kernfs_open(ap)
-	struct vop_open_args /* {
-		struct vnode *a_vp;
-		int  a_mode;
-		struct ucred *a_cred;
-		struct proc *a_p;
-	} */ *ap;
-{
-
-	/* Only need to check access permissions. */
 	return (0);
 }
 
@@ -636,42 +621,6 @@ kernfs_reclaim(ap)
 	return (0);
 }
 
-/*
- * Return POSIX pathconf information applicable to special devices.
- */
-static int
-kernfs_pathconf(ap)
-	struct vop_pathconf_args /* {
-		struct vnode *a_vp;
-		int a_name;
-		int *a_retval;
-	} */ *ap;
-{
-
-	switch (ap->a_name) {
-	case _PC_LINK_MAX:
-		*ap->a_retval = LINK_MAX;
-		return (0);
-	case _PC_MAX_CANON:
-		*ap->a_retval = MAX_CANON;
-		return (0);
-	case _PC_MAX_INPUT:
-		*ap->a_retval = MAX_INPUT;
-		return (0);
-	case _PC_PIPE_BUF:
-		*ap->a_retval = PIPE_BUF;
-		return (0);
-	case _PC_CHOWN_RESTRICTED:
-		*ap->a_retval = 1;
-		return (0);
-	case _PC_VDISABLE:
-		*ap->a_retval = _POSIX_VDISABLE;
-		return (0);
-	default:
-		return (EINVAL);
-	}
-	/* NOTREACHED */
-}
 
 /*
  * Print out the contents of a kernfs vnode.
@@ -703,20 +652,16 @@ static struct vnodeopv_entry_desc kernfs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vn_default_error },
 	{ &vop_access_desc,		(vop_t *) kernfs_access },
 	{ &vop_bmap_desc,		(vop_t *) kernfs_badop },
-	{ &vop_close_desc,		(vop_t *) nullop },
-	{ &vop_fsync_desc,		(vop_t *) nullop },
 	{ &vop_getattr_desc,		(vop_t *) kernfs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) kernfs_inactive },
 	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
 	{ &vop_lock_desc,		(vop_t *) vop_nolock },
 	{ &vop_lookup_desc,		(vop_t *) kernfs_lookup },
-	{ &vop_open_desc,		(vop_t *) kernfs_open },
-	{ &vop_pathconf_desc,		(vop_t *) kernfs_pathconf },
+	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
 	{ &vop_print_desc,		(vop_t *) kernfs_print },
 	{ &vop_read_desc,		(vop_t *) kernfs_read },
 	{ &vop_readdir_desc,		(vop_t *) kernfs_readdir },
 	{ &vop_reclaim_desc,		(vop_t *) kernfs_reclaim },
-	{ &vop_seek_desc,		(vop_t *) nullop },
 	{ &vop_setattr_desc,		(vop_t *) kernfs_setattr },
 	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
 	{ &vop_write_desc,		(vop_t *) kernfs_write },
