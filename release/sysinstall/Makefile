@@ -22,12 +22,6 @@ LDADD+= -L${.CURDIR}/../libdisk -ldisk
 
 DPADD= ${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO} ${LIBUTIL}
 
-.if exists(${.CURDIR}/../../sys/i386/boot/biosboot/obj)
-BOOTS=${.CURDIR}/../../sys/i386/boot/biosboot/obj
-.else
-BOOTS=${.CURDIR}/../../sys/i386/boot/biosboot
-.endif
-
 .if exists(${.CURDIR}/../../share/syscons/scrnmaps/obj)
 MKSCRNMAP=${.CURDIR}/../../share/syscons/scrnmaps/obj/koi8-r2cp866.mk
 .else
@@ -37,10 +31,6 @@ MKSCRNMAP=${.CURDIR}/../../share/syscons/scrnmaps/koi8-r2cp866.mk
 makedevs.c:	Makefile rtermcap
 	rm -f makedevs.tmp
 	echo '#include <sys/types.h>' > makedevs.tmp
-	uudecode < ${.CURDIR}/bteasy17.uu
-	file2c 'const unsigned char boot0[] = {' '};' \
-		< bteasy17 >> makedevs.tmp
-	rm -rf bteasy17
 	./rtermcap cons25 | \
 		file2c 'const char termcap_cons25[] = {' ',0};' \
 		>> makedevs.tmp

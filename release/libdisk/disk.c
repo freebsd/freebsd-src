@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.19 1995/05/30 08:28:11 rgrimes Exp $
+ * $Id: disk.c,v 1.19.2.1 1995/06/03 08:40:28 jkh Exp $
  *
  */
 
@@ -208,7 +208,9 @@ Debug_Disk(struct disk *d)
 {
 	printf("Debug_Disk(%s)",d->name);
 	printf("  flags=%lx",d->flags);
+#if 0
 	printf("  real_geom=%lu/%lu/%lu",d->real_cyl,d->real_hd,d->real_sect);
+#endif
 	printf("  bios_geom=%lu/%lu/%lu\n",d->bios_cyl,d->bios_hd,d->bios_sect);
 	printf("  boot1=%p, boot2=%p, bootmgr=%p\n",
 		d->boot1,d->boot2,d->bootmgr);
@@ -251,6 +253,7 @@ Clone_Disk(struct disk *d)
 	return d2;
 }
 
+#if 0
 void
 Collapse_Disk(struct disk *d)
 {
@@ -258,6 +261,7 @@ Collapse_Disk(struct disk *d)
 	while(Collapse_Chunk(d,d->chunks))
 		;
 }
+#endif
 
 static char * device_list[] = {"wd","sd",0};
 
