@@ -32,15 +32,17 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/5/93";
+static char sccsid[] = "@(#)misc.c	8.2 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/types.h>
-#include <unistd.h>
+
+#include <err.h>
 #include <errno.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "extern.h"
 
 void
@@ -53,38 +55,9 @@ get(fd, off, p, len)
 	int rbytes;
 
 	if (lseek(fd, off, SEEK_SET) < 0)
-		err("%s: %s", special, strerror(errno));
+		err(1, "%s", special);
 	if ((rbytes = read(fd, p, len)) < 0)
-		err("%s: %s", special, strerror(errno));
+		err(1, "%s", special);
 	if (rbytes != len)
-		err("%s: short read (%d, not %d)", special, rbytes, len);
-}
-
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
-void
-#if __STDC__
-err(const char *fmt, ...)
-#else
-err(fmt, va_alist)
-	char *fmt;
-	va_dcl
-#endif
-{
-	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	(void)fprintf(stderr, "dumplfs: ");
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	exit(1);
-	/* NOTREACHED */
+		errx(1, "%s: short read (%d, not %d)", special, rbytes, len);
 }
