@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_domain.c	8.2 (Berkeley) 10/18/93
- *	$Id: uipc_domain.c,v 1.19 1998/05/15 20:11:29 wollman Exp $
+ *	$Id: uipc_domain.c,v 1.20 1999/01/21 00:26:41 julian Exp $
  */
 
 #include <sys/param.h>
@@ -58,13 +58,8 @@
  * passed to the doamin_add() function.
  */
 
-static int	x_save_spl;			/* used by kludge*/
-static void kludge_splimp __P((void *));
-static void kludge_splx __P((void *));
 static void domaininit __P((void *));
-SYSINIT(splimp, SI_SUB_PROTO_BEGIN, SI_ORDER_FIRST, kludge_splimp, &x_save_spl)
 SYSINIT(domain, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, domaininit, NULL)
-SYSINIT(splx, SI_SUB_PROTO_END, SI_ORDER_FIRST, kludge_splx, &x_save_spl)
 
 static void	pffasttimo __P((void *));
 static void	pfslowtimo __P((void *));
@@ -76,7 +71,7 @@ struct domain *domains;
  * Note: you cant unload it again because  a socket may be using it.
  * XXX can't fail at this time.
  */
-static int
+static void
 net_init_domain(struct domain *dp)
 {
 	register struct protosw *pr;
@@ -99,7 +94,6 @@ net_init_domain(struct domain *dp)
 	max_hdr = max_linkhdr + max_protohdr;
 	max_datalen = MHLEN - max_hdr;
 	splx(s);
-	return (0);
 }
 
 /*
@@ -107,28 +101,24 @@ net_init_domain(struct domain *dp)
  * Note: you cant unload it again because  a socket may be using it.
  * XXX can't fail at this time.
  */
-int
-net_add_domain(struct domain *dp)
+void
+net_add_domain(void *data)
 {
-	int	s, error;
+	int	s;
+	struct domain *dp;
 
+	dp = (struct domain *)data;
 	s = splnet();
 	dp->dom_next = domains;
 	domains = dp;
 	splx(s);
-	error = net_init_domain(dp);
-	max_hdr = max_linkhdr + max_protohdr;
-	max_datalen = MHLEN - max_hdr;
-	return (error);
+	net_init_domain(dp);
 }
-
-extern struct linker_set domain_set;
 
 /* ARGSUSED*/
 static void
 domaininit(void *dummy)
 {
-	register struct domain *dp, **dpp;
 	/*
 	 * Before we do any setup, make sure to initialize the
 	 * zone allocator we get struct sockets from.  The obvious
@@ -147,61 +137,9 @@ domaininit(void *dummy)
 	if (max_linkhdr < 16)		/* XXX */
 		max_linkhdr = 16;
 
-	/*
-	 * NB - local domain is always present.
-	 */
-	net_add_domain(&localdomain);
-
-	/* 
-	 * gather up as many protocols as we have statically linked.
-	 * XXX we need to do this because when we ask the routing
-	 * protocol to initialise it will want to examine all 
-	 * installed protocols. This needs fixing before protocols
-	 * that use the standard routing can become modules.
-	 */
-	for (dpp = (struct domain **)domain_set.ls_items; *dpp; dpp++) {
-		(**dpp).dom_next = domains;
-		domains = *dpp;
-	}
-
-	/*
-	 * Now ask them all to init (XXX including the routing domain,
-	 * see above)
-	 */
-	for (dp = domains; dp; dp = dp->dom_next)
-		net_init_domain(dp);
-
 	timeout(pffasttimo, (void *)0, 1);
 	timeout(pfslowtimo, (void *)0, 1);
 }
-
-
-/*
- * The following two operations are kludge code.  Most likely, they should
- * be done as a "domainpreinit()" for the first function and then rolled
- * in as the last act of "domaininit()" for the second.
- *
- * In point of fact, it is questionable why other initialization prior
- * to this does not also take place at splimp by default.
- */
-static void
-kludge_splimp(udata)
-	void *udata;
-{
-	int	*savesplp = udata;
-
-	*savesplp = splimp();
-}
-
-static void
-kludge_splx(udata)
-	void *udata;
-{
-	int	*savesplp = udata;
-
-	splx(*savesplp);
-}
-
 
 
 struct protosw *
