@@ -2535,7 +2535,7 @@ pmap_pvdump(pa)
 	printf("pa %x", pa);
 	for (pv = TAILQ_FIRST(pa_to_pvh(pa));
 		pv;
-		pv = TAILQ_NEXT(pv->pv_list)) {
+		pv = TAILQ_NEXT(pv, pv_list)) {
 #ifdef used_to_be
 		printf(" -> pmap %x, va %x, flags %x",
 		    pv->pv_pmap, pv->pv_va, pv->pv_flags);
