@@ -67,6 +67,10 @@
 #ifndef _NETINET6_ICMPV6_H_
 #define _NETINET6_ICMPV6_H_
 
+#if !defined(_KERNEL) && !defined(__KAME_NETINET_ICMP6_H_INCLUDED_)
+#error "do not include netinet6/icmp6.h directly, include netinet/icmp6.h"
+#endif
+
 #define ICMPV6_PLD_MAXLEN	1232	/* IPV6_MMTU - sizeof(struct ip6_hdr)
 					   - sizeof(struct icmp6_hdr) */
 

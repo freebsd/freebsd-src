@@ -32,6 +32,8 @@
 #ifndef _NETINET_ICMP6_H_
 #define	_NETINET_ICMP6_H_
 
+#define	__KAME_NETINET_ICMP6_H_INCLUDED_
 #include <netinet6/icmp6.h>
+#undef	__KAME_NETINET_ICMP6_H_INCLUDED_
 
 #endif /* !_NETINET_ICMP6_H_ */

@@ -29,4 +29,6 @@
  * $FreeBSD$
  */
 
+#define	__KAME_NETINET_IP6_H_INCLUDED_
 #include <netinet6/ip6.h>
+#undef __KAME_NETINET_IP6_H_INCLUDED_

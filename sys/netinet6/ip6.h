@@ -67,6 +67,12 @@
 #ifndef _NETINET6_IPV6_H_
 #define _NETINET6_IPV6_H_
 
+#if !defined(_KERNEL) && !defined(__KAME_NETINET_IP6_H_INCLUDED_)
+#if 0 /* XXX: waiting for contrib/addrtoname.c fix */
+#error "do not include netinet6/ip6.h directly, include netinet/ip6.h"
+#endif
+#endif
+
 /*
  * Definition for internet protocol version 6.
  * RFC 2460
