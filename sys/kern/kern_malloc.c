@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.33 1997/10/11 10:41:44 peter Exp $
+ * $Id: kern_malloc.c,v 1.34 1997/10/11 10:49:43 phk Exp $
  */
 
 #include <sys/param.h>
@@ -253,7 +253,7 @@ free(addr, type)
 	register struct malloc_type *ksp = type;
 
 	if (!type->ks_next)
-		malloc_init(type);
+		panic("freeing with unknown type (%s)", type->ks_shortdesc);
 
 #ifdef DIAGNOSTIC
 	if ((char *)addr < kmembase || (char *)addr >= kmemlimit) {
