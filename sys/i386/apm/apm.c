@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.62 1997/10/23 04:18:49 nate Exp $
+ *	$Id: apm.c,v 1.63 1997/11/04 17:37:52 nate Exp $
  */
 
 #include <sys/param.h>
@@ -403,7 +403,7 @@ apm_suspend(void)
 		if (apm_suspend_system() == 0)
 			apm_processevent();
 		else
-			// Failure, 'resume' the system again
+			/* Failure, 'resume' the system again */
 			apm_execute_hook(hook[APM_HOOK_RESUME]);
 	}
 }
