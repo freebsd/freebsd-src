@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mount.c	8.25 (Berkeley) 5/8/95";
 #else
 static const char rcsid[] =
-	"$Id: mount.c,v 1.19 1997/08/24 21:02:49 steve Exp $";
+	"$Id: mount.c,v 1.20 1997/09/27 13:44:17 kato Exp $";
 #endif
 #endif /* not lint */
 
@@ -97,6 +97,7 @@ static struct opt {
 	{ MNT_UNION,		"union" },
 	{ MNT_NOCLUSTERR,	"noclusterr" },
 	{ MNT_NOCLUSTERW,	"noclusterw" },
+	{ MNT_SUIDDIR,		"suiddir" },
 	{ NULL }
 };
 

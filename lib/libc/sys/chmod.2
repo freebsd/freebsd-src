@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)chmod.2	8.1 (Berkeley) 6/4/93
-.\"	$Id: chmod.2,v 1.9 1997/03/21 20:57:18 mpp Exp $
+.\"	$Id: chmod.2,v 1.10 1997/08/17 00:19:28 steve Exp $
 .\"
 .Dd June 4, 1993
 .Dt CHMOD 2
@@ -111,6 +111,25 @@ set by any user on a directory which the user owns or has appropriate
 permissions.
 For more details of the properties of the sticky bit, see
 .Xr sticky 8 .
+.Pp
+If mode ISUID (set UID) is set on a directory,
+and the MNT_SUIDDIR option was used in the mount of the filesystem,
+then the owner of any new files and sub-directories
+created within this directory are set 
+to be the same as the owner of that directory.
+If this function is enabled, new directories will inherit
+the bit from their parents.  Execute bits are removed from
+the file, and it will not be given to root. This behaviour does not change the
+requirements for the user to be allowed to write the file, but only the eventual
+owner after it has been created. Group inheritance is not effected.
+.Pp
+This feature is designed for use on fileservers serving PC users via
+ftp, SAMBA, or netatalk. It provides security holes for shell users and as
+such should not be used on shell machines, especially on home directories.
+This option requires the SUIDDIR
+option in the kernel to work. Only UFS filesystems support this option.
+For more details of the suiddir mount option, see 
+.Xr mount 8 .
 .Pp
 Writing or changing the owner of a file
 turns off the set-user-id and set-group-id bits

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mntopts.h	8.7 (Berkeley) 3/29/95
- *	$Id: mntopts.h,v 1.10 1997/08/25 21:02:21 bde Exp $
+ *	$Id: mntopts.h,v 1.11 1997/09/27 13:44:08 kato Exp $
  */
 
 struct mntopt {
@@ -54,6 +54,7 @@ struct mntopt {
 #define MOPT_GROUPQUOTA		{ "groupquota",	0, 0, 0 }
 #define MOPT_NOCLUSTERR		{ "clusterr",	1, MNT_NOCLUSTERR, 0 }
 #define MOPT_NOCLUSTERW		{ "clusterw",	1, MNT_NOCLUSTERW, 0 }
+#define MOPT_SUIDDIR		{ "suiddir",	0, MNT_SUIDDIR, 0 }
 
 /* Control flags. */
 #define MOPT_FORCE		{ "force",	0, MNT_FORCE, 0 }
@@ -77,6 +78,7 @@ struct mntopt {
 	MOPT_NOATIME,							\
 	MOPT_NODEV,							\
 	MOPT_NOEXEC,							\
+	MOPT_SUIDDIR,		/* must be before MOPT_NOSUID */	\
 	MOPT_NOSUID,							\
 	MOPT_RDONLY,							\
 	MOPT_UNION,							\
