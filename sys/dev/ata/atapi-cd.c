@@ -211,7 +211,6 @@ acddetach(struct ata_device *atadev)
 		free(entry, M_ACD);
 	    }
 	    devstat_remove_entry(cdp->driver[subdev]->stats);
-	    free(cdp->driver[subdev]->stats, M_ACD);
 	    ata_free_lun(&acd_lun_map, cdp->driver[subdev]->lun);
 	    free(cdp->driver[subdev], M_ACD);
 	}
@@ -228,7 +227,6 @@ acddetach(struct ata_device *atadev)
     destroy_dev(cdp->dev);
     EVENTHANDLER_DEREGISTER(dev_clone, cdp->clone_evh);
     devstat_remove_entry(cdp->stats);
-    free(cdp->stats, M_ACD);
     ata_free_name(atadev);
     ata_free_lun(&acd_lun_map, cdp->lun);
     free(cdp, M_ACD);
