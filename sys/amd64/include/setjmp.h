@@ -32,7 +32,7 @@
  *
  */
 
-#define	_JBLEN	8		/* Size of the jmp_buf on x86. */
+#define	_JBLEN	11		/* Size of the jmp_buf on x86. */
 
 /*
  * jmp_buf and sigjmp_buf are encapsulated in different structs to force
