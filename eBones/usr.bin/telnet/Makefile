@@ -31,66 +31,26 @@
 # SUCH DAMAGE.
 #
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
+#	$Id$
 #
 
 PROG=	telnet
 
-CFLAGS+=-DTERMCAP -DKLUDGELINEMODE -DUSE_TERMIO
-CFLAGS+=-DENV_HACK
+SRCS=	authenc.c commands.c main.c network.c ring.c sys_bsd.c telnet.c \
+	terminal.c tn3270.c utilities.c
+
+CFLAGS+=-DTERMCAP -DKLUDGELINEMODE -DUSE_TERMIO -DENV_HACK -DENCRYPTION
 CFLAGS+=-I${.CURDIR}/../../lib
 LDADD+= -L${TELNETOBJDIR} -ltermcap -ltelnet
-DPADD+= ${TELNETOBJDIR}/libtelnet.a
+DPADD+= ${TELNETOBJDIR}/libtelnet.a ${LIBTERMCAP}
 
-#ifdef	ENCRYPTION
-
-CFLAGS += -DENCRYPTION
-
-.if exists(${DESTDIR}/usr/lib/libkrb.a) && (defined(MAKE_EBONES) \
-	|| defined(MAKE_KERBEROS))
-CFLAGS+=-DAUTHENTICATION
-CFLAGS+= -DKRB4
+.if exists(${DESTDIR}/usr/lib/libkrb.a) && (defined(MAKE_EBONES))
+CFLAGS+=-DAUTHENTICATION -DKRB4
 LDADD+= -ldes -lkrb
 DPADD+= ${LIBDES} ${LIBKRB}
 .endif
 
-#.if exists(${DESTDIR}/usr/lib/libkrb5.a) && (defined(MAKE_EBONES) \
-#       || defined(MAKE_KERBEROS))
-#CFLAGS+=-DAUTHENTICATION
-#CFLAGS+= -DKRB5 -DFORWARD
-#LDADD+= -ldes -lkrb5
-#DPADD+= ${LIBDES}
-#.endif
-
 # Used only in krb4encpwd.c and rsaencpwd.c (libtelnet), not yet active
 #LDADD+= -ldescrypt
 
-#endif	/* ENCRYPTION */
-
-DPADD+=  ${LIBTERMCAP}
-
-SRCS=	authenc.c commands.c main.c network.c ring.c sys_bsd.c telnet.c \
-	terminal.c tn3270.c utilities.c
-
-# These are the sources that have encryption stuff in them.
-CRYPT_SRC= authenc.c commands.c externs.h main.c network.c
-CRYPT_SRC+= ring.c ring.h telnet.c terminal.c utilities.c Makefile
-NOCRYPT_DIR=${.CURDIR}/Nocrypt
-
 .include <bsd.prog.mk>
-
-nocrypt:
-#ifdef	ENCRYPTION
-	@for i in ${CRYPT_SRC}; do \
-	    if [ ! -d ${NOCRYPT_DIR} ]; then \
-		echo Creating subdirectory ${NOCRYPT_DIR}; \
-		mkdir ${NOCRYPT_DIR}; \
-	    fi; \
-	    echo ${NOCRYPT_DIR}/$$i; \
-	    unifdef -UENCRYPTION ${.CURDIR}/$$i | \
-		sed "s/ || defined(ENCRYPTION)//" > ${NOCRYPT_DIR}/$$i; \
-	done
-
-placeholder:
-#else	/* ENCRYPTION */
-	@echo "Encryption code already removed."
-#endif	/* ENCRYPTION */
