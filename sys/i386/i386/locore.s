@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.52.4.3 1996/01/30 08:00:14 davidg Exp $
+ *	$Id: locore.s,v 1.52.4.4 1996/10/16 02:15:56 jkh Exp $
  */
 
 /*
@@ -309,7 +309,7 @@ got_common_bi_size:
 	movl	%eax,_bootdev-KERNBASE
 #if defined(USERCONFIG_BOOT) && defined(USERCONFIG)
 	movl	$0x10200, %esi
-	movl	_userconfig_from_boot-KERNBASE,%edi
+	lea	_userconfig_from_boot-KERNBASE,%edi
 	movl	$512,%ecx
 	cld
 	rep
