@@ -352,6 +352,8 @@ aio_onceonly(void)
 	jobrefid = 1;
 	async_io_version = _POSIX_VERSION;
 	p31b_setcfg(CTL_P1003_1B_AIO_LISTIO_MAX, AIO_LISTIO_MAX);
+	p31b_setcfg(CTL_P1003_1B_AIO_MAX, MAX_AIO_QUEUE);
+	p31b_setcfg(CTL_P1003_1B_AIO_PRIO_DELTA_MAX, 0);
 }
 
 /*
@@ -375,6 +377,8 @@ aio_unload(void)
 	rm_at_exec(aio_proc_rundown);
 	kqueue_del_filteropts(EVFILT_AIO);
 	p31b_setcfg(CTL_P1003_1B_AIO_LISTIO_MAX, 0);
+	p31b_setcfg(CTL_P1003_1B_AIO_MAX, 0);
+	p31b_setcfg(CTL_P1003_1B_AIO_PRIO_DELTA_MAX, 0);
 	return (0);
 }
 
