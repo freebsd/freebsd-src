@@ -541,7 +541,7 @@ havelabel:
 	if (t_or_u_flag && secpercyl != lp->d_secpercyl)
 		fprintf(stderr, "%s (%d) %s (%lu)\n",
 			"Warning: calculated sectors per cylinder", secpercyl,
-			"disagrees with disk label", lp->d_secpercyl);
+			"disagrees with disk label", (u_long)lp->d_secpercyl);
 	if (maxbpg == 0)
 		maxbpg = MAXBLKPG(bsize);
 	headswitch = lp->d_headswitch;
