@@ -108,7 +108,7 @@ ieee80211_sysctl_attach(struct ieee80211com *ic)
 #endif
 	/* XXX inherit from tunables */
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-		"inact", CTLTYPE_INT | CTLFLAG_RW, &ic->ic_inact_run, 0,
+		"inact_run", CTLTYPE_INT | CTLFLAG_RW, &ic->ic_inact_run, 0,
 		ieee80211_sysctl_inact, "I",
 		"station inactivity timeout (sec)");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
