@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnp.h,v 1.2 1997/09/18 08:04:13 jmg Exp $
+ *      $Id: pnp.h,v 1.3 1997/09/19 15:20:25 jmg Exp $
  */
 
 #ifndef _I386_ISA_PNP_H_
@@ -228,10 +228,6 @@
 #define _32BIT_FIXED_LOC_DESC	0x6
 #define LG_RES_RESERVED		0x7-0x7f
 
-#ifdef KERNEL
-
-#include <i386/isa/isa_device.h>
-
 /*
  * pnp_cinfo contains Configuration Information. They are used
  * to communicate to the device driver the actual configuration
@@ -257,6 +253,10 @@ struct pnp_cinfo {
 		u_long range;	/* Memory Range *OR* Upper Limit */
 	} mem[4];
 };
+
+#ifdef KERNEL
+
+#include <i386/isa/isa_device.h>
 
 struct pnp_device {
     char *pd_name;
