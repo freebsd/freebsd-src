@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mv.c,v 1.8.2.1 1997/08/25 08:33:11 jkh Exp $
+ *	$Id: mv.c,v 1.8.2.2 1998/02/15 11:16:28 jkh Exp $
  */
 
 #ifndef lint
@@ -113,8 +113,10 @@ main(argc, argv)
 	(void)strcpy(path, argv[argc - 1]);
 	baselen = strlen(path);
 	endp = &path[baselen];
-	*endp++ = '/';
-	++baselen;
+	if (!baselen || *(endp - 1) != '/') {
+		*endp++ = '/';
+		++baselen;
+	}
 	for (rval = 0; --argc; ++argv) {
 		/*
 		 * Find the last component of the source pathname.  It
