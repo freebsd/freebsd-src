@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.105 1999/06/23 23:02:38 msmith Exp $
+ *	$Id: mp_machdep.c,v 1.106 1999/07/20 06:52:26 msmith Exp $
  */
 
 #include "opt_smp.h"
@@ -45,6 +45,7 @@
 #ifdef BETTER_CLOCK
 #include <sys/dkstat.h>
 #endif
+#include <sys/cons.h>	/* cngetc() */
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -72,8 +73,6 @@
 #include <machine/specialreg.h>
 #include <machine/cputypes.h>
 #include <machine/globaldata.h>
-
-#include <i386/i386/cons.h>	/* cngetc() */
 
 #if defined(APIC_IO)
 #include <machine/md_var.h>		/* setidt() */

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_command.c,v 1.31 1999/05/09 10:51:03 phk Exp $
+ *	$Id: db_command.c,v 1.32 1999/07/01 19:42:55 peter Exp $
  */
 
 /*
@@ -38,8 +38,7 @@
 #include <sys/linker_set.h>
 #include <sys/reboot.h>
 #include <sys/systm.h>
-
-#include <machine/cons.h>
+#include <sys/cons.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_command.h>

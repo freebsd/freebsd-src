@@ -56,10 +56,9 @@
 #include <sys/reboot.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/cons.h>
 
 #include <vm/vm.h>
-
-#include <machine/cons.h>
 
 #include <machine/db_machdep.h>
 #include <machine/pal.h>

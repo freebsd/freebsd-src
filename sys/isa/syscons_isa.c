@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: syscons_isa.c,v 1.5 1999/06/22 14:13:41 yokota Exp $
+ * $Id: syscons_isa.c,v 1.6 1999/06/24 09:06:48 yokota Exp $
  */
 
 #include "sc.h"
@@ -36,8 +36,8 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/cons.h>
 
-#include <machine/cons.h>
 #include <machine/console.h>
 
 #ifdef __i386__

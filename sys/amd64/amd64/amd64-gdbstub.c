@@ -95,8 +95,7 @@
 #include <sys/param.h>
 #include <sys/reboot.h>
 #include <sys/systm.h>
-
-#include <machine/cons.h>
+#include <sys/cons.h>
 
 #include <ddb/ddb.h>
 

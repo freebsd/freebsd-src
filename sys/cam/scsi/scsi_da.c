@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.29 1999/07/06 01:40:03 mjacob Exp $
+ *      $Id: scsi_da.c,v 1.30 1999/07/07 18:14:01 mjacob Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -40,8 +40,8 @@
 #include <sys/diskslice.h>
 #include <sys/malloc.h>
 #include <sys/conf.h>
+#include <sys/cons.h>
 
-#include <machine/cons.h>
 #include <machine/md_var.h>
 
 #include <vm/vm.h>

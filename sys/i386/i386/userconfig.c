@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.149 1999/07/25 04:32:46 wpaul Exp $
+ **      $Id: userconfig.c,v 1.150 1999/07/25 13:16:06 cracauer Exp $
  **/
 
 /**
@@ -116,8 +116,8 @@
 #include <sys/linker.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
+#include <sys/cons.h>
 
-#include <machine/cons.h>
 #include <machine/md_var.h>
 #include <machine/limits.h>
 
@@ -2544,7 +2544,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.149 1999/07/25 04:32:46 wpaul Exp $
+ *      $Id: userconfig.c,v 1.150 1999/07/25 13:16:06 cracauer Exp $
  */
 
 #include "scbus.h"
