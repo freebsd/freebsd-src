@@ -89,8 +89,10 @@ struct ispmdvec {
 /*
  * 'Types'
  */
-#ifndef	ISP_DMA_ADDR_T
-#define	ISP_DMA_ADDR_T	u_int32_t
+#ifdef	ISP_DAC_SUPPORTED
+typedef	u_int64_t	isp_dma_addr_t;
+#else
+typedef	u_int32_t	isp_dma_addr_t;
 #endif
 
 /*
@@ -307,7 +309,7 @@ typedef struct {
 	 * Scratch DMA mapped in area to fetch Port Database stuff, etc.
 	 */
 	caddr_t			isp_scratch;
-	ISP_DMA_ADDR_T		isp_scdma;
+	isp_dma_addr_t		isp_scdma;
 #ifdef	ISP_FW_CRASH_DUMP
 	u_int16_t		*isp_dump_data;
 #endif
@@ -429,8 +431,8 @@ typedef struct ispsoftc {
 	 */
 	caddr_t			isp_rquest;
 	caddr_t			isp_result;
-	ISP_DMA_ADDR_T		isp_rquest_dma;
-	ISP_DMA_ADDR_T		isp_result_dma;
+	isp_dma_addr_t		isp_rquest_dma;
+	isp_dma_addr_t		isp_result_dma;
 } ispsoftc_t;
 
 #define	SDPARAM(isp)	((sdparam *) (isp)->isp_param)
@@ -566,8 +568,13 @@ typedef struct ispsoftc {
 /*
  * DMA cookie macros
  */
+#ifdef	ISP_DAC_SUPPORTRED
+#define	DMA_WD3(x)	(((x) >> 48) & 0xffff)
+#define	DMA_WD2(x)	(((x) >> 32) & 0xffff)
+#else
 #define	DMA_WD3(x)	0
 #define	DMA_WD2(x)	0
+#endif
 #define	DMA_WD1(x)	(((x) >> 16) & 0xffff)
 #define	DMA_WD0(x)	(((x) & 0xffff))
 
@@ -703,7 +710,7 @@ int isp_control(struct ispsoftc *, ispctl_t, void *);
  * we had better let the OS determine login policy.
  *
  * ISPASYNC_PROMENADE has an argument that is a pointer to an integer which
- * is an index into the portdb in the softc ('target'). Whether that entrie's
+ * is an index into the portdb in the softc ('target'). Whether that entry's
  * valid tag is set or not says whether something has arrived or departed.
  * The name refers to a favorite pastime of many city dwellers- watching
  * people come and go, talking of Michaelangelo, and so on..
@@ -772,10 +779,10 @@ void isp_prt(struct ispsoftc *, int level, const char *, ...);
  *
  *	INLINE		-	platform specific define for 'inline' functions
  *
- *	ISP_DMA_ADDR_T	-	platform specific dma address coookie- basically
- *				the largest integer that can hold the 32 or
- *				64 bit value appropriate for the QLogic's DMA
- *				addressing. Defaults to u_int32_t.
+ *	ISP_DAC_SUPPORTED -	Is DAC (Dual Address Cycle) is supported?
+ *				Basically means whether or not DMA for PCI
+ *				PCI cards (Ultra2 or better or FC) works
+ *				above 4GB.
  *
  *	ISP2100_SCRLEN	-	length for the Fibre Channel scratch DMA area
  *
