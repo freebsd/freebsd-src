@@ -174,6 +174,11 @@ GLOBAL_FUNC(witness_spin_check)
 #define	GLOBALDATA		(&globaldata)
 #endif
 
+#ifndef	curproc
+struct proc;
+extern struct proc *curproc;
+#endif
+#define	CURTHD			curproc
 #define	CURPROC			curproc
 
 #define	PCPU_SET(name, value)	(_global_##name##_set((int)value))
