@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.36 1996/05/16 11:47:42 jkh Exp $
+ * $Id: package.c,v 1.37 1996/05/23 16:34:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -63,6 +63,15 @@ package_exists(char *name)
     return !status;
 }
 
+/* SIGPIPE handler */
+static Boolean sigpipe_caught = FALSE;
+
+static void
+catch_pipe(int sig)
+{
+    sigpipe_caught = TRUE;
+}
+
 /* Extract a package based on a namespec and a media device */
 int
 package_extract(Device *dev, char *name, Boolean depended)
@@ -101,6 +110,7 @@ package_extract(Device *dev, char *name, Boolean depended)
 	pid_t pid;
 
 	msgNotify("Adding %s%s\nfrom %s", path, depended ? " (as a dependency)" : "", dev->name);
+        signal(SIGPIPE, catch_pipe);
 	pipe(pfd);
 	pid = fork();
 	if (!pid) {
@@ -121,7 +131,7 @@ package_extract(Device *dev, char *name, Boolean depended)
 	    tot = 0;
 	    (void)gettimeofday(&start, (struct timezone *)0);
 
-	    while ((i = read(fd, buf, BUFSIZ)) > 0) {
+	    while (!sigpipe_caught && (i = read(fd, buf, BUFSIZ)) > 0) {
 		int seconds;
 
 		tot += i;
@@ -143,17 +153,25 @@ package_extract(Device *dev, char *name, Boolean depended)
 	    }
 	    close(pfd[1]);
 	    dev->close(dev, fd);
-	    msgInfo("Package %s read successfully - waiting for pkg_add", name);
+	    if (sigpipe_caught)
+		msgDebug("Caught SIGPIPE while trying to install the %s package.\n", name);
+	    else
+		msgInfo("Package %s read successfully - waiting for pkg_add", name);
 	    refresh();
 	    i = waitpid(pid, &tot, 0);
-	    if (i < 0 || WEXITSTATUS(tot)) {
-		msgNotify("Add of package %s aborted due to some error -\n"
-			  "Please check the debug screen for more info.");
+	    if (sigpipe_caught || i < 0 || WEXITSTATUS(tot)) {
+		if (variable_get(VAR_NO_CONFIRM))
+		    msgNotify("Add of package %s aborted due to some error -\n"
+			      "Please check the debug screen for more info.", name);
+		else
+		    msgConfirm("Add of package %s aborted due to some error -\n"
+			      "Please check the debug screen for more info.", name);
 	    }
 	    else
 		msgNotify("Package %s was added successfully", name);
 	    sleep(1);
 	    restorescr(w);
+	    sigpipe_caught = FALSE;
 	}
     }
     else {
