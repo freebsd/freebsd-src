@@ -425,12 +425,13 @@ vm86_initialize(void)
 	pcb = &vml->vml_pcb;
 	ext = &vml->vml_ext;
 
-	mtx_init(&vm86_lock, "vm86 lock", NULL, MTX_DEF);
+	mtx_init(&vm86_lock, "vm86 lock", NULL, MTX_SPIN);
 
 	bzero(pcb, sizeof(struct pcb));
 	pcb->new_ptd = vm86pa | PG_V | PG_RW | PG_U;
 	pcb->vm86_frame = vm86paddr - sizeof(struct vm86frame);
 	pcb->pgtable_va = vm86paddr;
+	pcb->pcb_flags = PCB_VM86CALL; 
 	pcb->pcb_ext = ext;
 
 	bzero(ext, sizeof(struct pcb_ext)); 
@@ -577,9 +578,9 @@ vm86_intcall(int intnum, struct vm86frame *vmf)
 		return (EINVAL);
 
 	vmf->vmf_trapno = intnum;
-	mtx_lock(&vm86_lock);
+	mtx_lock_spin(&vm86_lock);
 	retval = vm86_bioscall(vmf);
-	mtx_unlock(&vm86_lock);
+	mtx_unlock_spin(&vm86_lock);
 	return (retval);
 }
 
@@ -599,7 +600,7 @@ vm86_datacall(intnum, vmf, vmc)
 	u_int page;
 	int i, entry, retval;
 
-	mtx_lock(&vm86_lock);
+	mtx_lock_spin(&vm86_lock);
 	for (i = 0; i < vmc->npages; i++) {
 		page = vtophys(vmc->pmap[i].kva & PG_FRAME);
 		entry = vmc->pmap[i].pte_num; 
@@ -616,7 +617,7 @@ vm86_datacall(intnum, vmf, vmc)
 		pte[entry] = vmc->pmap[i].old_pte;
 		pmap_invalidate_page(kernel_pmap, vmc->pmap[i].kva);
 	}
-	mtx_unlock(&vm86_lock);
+	mtx_unlock_spin(&vm86_lock);
 
 	return (retval);
 }

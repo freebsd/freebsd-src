@@ -44,9 +44,8 @@
 	.data
 	ALIGN_DATA
 
-	.globl	in_vm86call, vm86pcb
+	.globl	vm86pcb
 
-in_vm86call:		.long	0
 vm86pcb:		.long	0
 
 	.text
@@ -129,8 +128,6 @@ ENTRY(vm86_bioscall)
 	
 	call	vm86_prepcall		/* finish setup */
 
-	movl	$1,in_vm86call		/* set flag for trap() */
-
 	/*
 	 * Return via doreti
 	 */
@@ -157,8 +154,6 @@ ENTRY(vm86_biosret)
 	movl	%eax,0(%ebx)		/* restore old pte */
 	popl	%eax
 	movl	%eax,%cr3		/* install old page table */
-
-	movl	$0,in_vm86call		/* reset trapflag */
 
 	movl	PCPU(TSS_GDT),%ebx		/* entry in GDT */
 	movl	SCR_TSS0(%edx),%eax

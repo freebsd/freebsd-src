@@ -145,7 +145,6 @@ struct vm86_intcall_args {
 };
 
 #ifdef _KERNEL
-extern	int in_vm86call;
 extern 	int vm86paddr;
 
 struct thread;

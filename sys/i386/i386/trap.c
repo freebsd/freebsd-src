@@ -260,7 +260,8 @@ trap(frame)
 #endif	/* DEVICE_POLLING */
 
         if ((ISPL(frame.tf_cs) == SEL_UPL) ||
-	    ((frame.tf_eflags & PSL_VM) && !in_vm86call)) {
+	    ((frame.tf_eflags & PSL_VM) && 
+		!(PCPU_GET(curpcb)->pcb_flags & PCB_VM86CALL))) {
 		/* user trap */
 
 		sticks = td->td_kse->ke_sticks;
@@ -311,9 +312,7 @@ trap(frame)
 		case T_PROTFLT:		/* general protection fault */
 		case T_STKFLT:		/* stack fault */
 			if (frame.tf_eflags & PSL_VM) {
-				mtx_lock(&Giant);
 				i = vm86_emulate((struct vm86frame *)&frame);
-				mtx_unlock(&Giant);
 				if (i == 0)
 					goto user;
 				break;
@@ -466,9 +465,7 @@ trap(frame)
 		case T_PROTFLT:		/* general protection fault */
 		case T_STKFLT:		/* stack fault */
 			if (frame.tf_eflags & PSL_VM) {
-				mtx_lock(&Giant);
 				i = vm86_emulate((struct vm86frame *)&frame);
-				mtx_unlock(&Giant);
 				if (i != 0)
 					/*
 					 * returns to original process
@@ -482,7 +479,7 @@ trap(frame)
 			/* FALL THROUGH */
 
 		case T_SEGNPFLT:	/* segment not present fault */
-			if (in_vm86call)
+			if (PCPU_GET(curpcb)->pcb_flags & PCB_VM86CALL)
 				break;
 
 			if (td->td_intr_nesting_level != 0)
@@ -584,7 +581,8 @@ trap(frame)
 			 * debugging the kernel.
 			 */
 			/* XXX Giant */
-			if (user_dbreg_trap() && !in_vm86call) {
+			if (user_dbreg_trap() && 
+			   !(PCPU_GET(curpcb)->pcb_flags & PCB_VM86CALL)) {
 				/*
 				 * Reset breakpoint bits because the
 				 * processor doesn't
