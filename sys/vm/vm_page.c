@@ -180,7 +180,7 @@ vm_offset_t
 vm_page_startup(starta, enda, vaddr)
 	register vm_offset_t starta;
 	vm_offset_t enda;
-	register vm_offset_t vaddr;
+	vm_offset_t vaddr;
 {
 	register vm_offset_t mapped;
 	register struct vm_page **bucket;
@@ -242,8 +242,6 @@ vm_page_startup(starta, enda, vaddr)
 	 *
 	 * Note: This computation can be tweaked if desired.
 	 */
-	vm_page_buckets = (struct vm_page **)vaddr;
-	bucket = vm_page_buckets;
 	if (vm_page_bucket_count == 0) {
 		vm_page_bucket_count = 1;
 		while (vm_page_bucket_count < atop(total))
@@ -257,12 +255,12 @@ vm_page_startup(starta, enda, vaddr)
 	 */
 	new_end = end - vm_page_bucket_count * sizeof(struct vm_page *);
 	new_end = trunc_page(new_end);
-	mapped = round_page(vaddr);
-	vaddr = pmap_map(mapped, new_end, end,
+	mapped = pmap_map(&vaddr, new_end, end,
 	    VM_PROT_READ | VM_PROT_WRITE);
-	vaddr = round_page(vaddr);
-	bzero((caddr_t) mapped, vaddr - mapped);
+	bzero((caddr_t) mapped, end - new_end);
 
+	vm_page_buckets = (struct vm_page **)mapped;
+	bucket = vm_page_buckets;
 	for (i = 0; i < vm_page_bucket_count; i++) {
 		*bucket = NULL;
 		bucket++;
@@ -281,20 +279,15 @@ vm_page_startup(starta, enda, vaddr)
 	    (end - new_end)) / PAGE_SIZE;
 
 	end = new_end;
+
 	/*
 	 * Initialize the mem entry structures now, and put them in the free
 	 * queue.
 	 */
-	vm_page_array = (vm_page_t) vaddr;
-	mapped = vaddr;
-
-	/*
-	 * Validate these addresses.
-	 */
-
 	new_end = trunc_page(end - page_range * sizeof(struct vm_page));
-	mapped = pmap_map(mapped, new_end, end,
+	mapped = pmap_map(&vaddr, new_end, end,
 	    VM_PROT_READ | VM_PROT_WRITE);
+	vm_page_array = (vm_page_t) mapped;
 
 	/*
 	 * Clear all of the page structures
@@ -321,7 +314,7 @@ vm_page_startup(starta, enda, vaddr)
 			pa += PAGE_SIZE;
 		}
 	}
-	return (mapped);
+	return (vaddr);
 }
 
 /*
