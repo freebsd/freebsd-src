@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
-.\"	$Id: find.1,v 1.17 1998/11/29 12:00:06 bde Exp $
+.\"	$Id: find.1,v 1.19 1999/04/19 08:26:00 jkoshy Exp $
 .\"
 .Dd May 9, 1995
 .Dt FIND 1
@@ -45,13 +45,13 @@
 .Nm find
 .Op Fl H | Fl L | Fl P
 .Op Fl Xdsx
-.Op Fl f Ar file
-.Op Ar file ...
+.Op Fl f Ar pathname
+.Op Ar pathname ...
 .Ar expression
 .Sh DESCRIPTION
 .Nm Find
 recursively descends the directory tree for each
-.Ar file
+.Ar pathname
 listed, evaluating an
 .Ar expression
 (composed of the ``primaries'' and ``operands'' listed below) in terms
@@ -400,11 +400,11 @@ A preceding plus sign means ``more than n'', a preceding minus sign means
 The primaries may be combined using the following operators.
 The operators are listed in order of decreasing precedence.
 .Bl -tag -width (expression) 
-.It Cm \&( Ns Ar expression Ns Cm \&) 
+.It Cm \&( Ar expression Cm \&) 
 This evaluates to true if the parenthesized expression evaluates to
 true.
 .Pp
-.It Cm \&! Ns Ar expression 
+.It Cm \&! Ar expression 
 This is the unary
 .Tn NOT
 operator.
