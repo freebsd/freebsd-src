@@ -1,17 +1,11 @@
 # $FreeBSD$
 
-.include "../Makefile.cfg"
+DEVICEDIR?=	${fontdir}/dev${DEV}
 
-FONTDIR?=	/usr/share/groff_font
-DEVICEDIR?=	$(FONTDIR)/dev$(DEV)
-FONTOWN?=	${BINOWN}
-FONTGRP?=	${BINGRP}
-FONTMODE?=	${NOBINMODE}
-
-all:	$(DEVFILES)
+all: ${DEVFILES}
 
 beforeinstall: ${DEVFILES}
-	${INSTALL} -c -o ${FONTOWN} -g ${FONTGRP} -m ${FONTMODE} \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 		${.ALLSRC} ${DESTDIR}${DEVICEDIR}
 
 .include <bsd.prog.mk>
