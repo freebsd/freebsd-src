@@ -203,6 +203,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, inflight_stab, CTLFLAG_RW,
 
 static struct inpcb *tcp_notify(struct inpcb *, int);
 static void	tcp_discardcb(struct tcpcb *);
+static void	tcp_isn_tick(void *);
 
 /*
  * Target size of TCP PCB hash tables. Must be a power of two.
@@ -228,6 +229,7 @@ struct	tcpcb_mem {
 
 static uma_zone_t tcpcb_zone;
 static uma_zone_t tcptw_zone;
+struct callout isn_callout;
 
 /*
  * Tcp initialization
@@ -286,6 +288,18 @@ tcp_init()
 	syncache_init();
 	tcp_hc_init();
 	tcp_reass_init();
+	callout_init(&isn_callout, CALLOUT_MPSAFE);
+	tcp_isn_tick(NULL);
+	EVENTHANDLER_REGISTER(shutdown_pre_sync, tcp_fini, NULL,
+		SHUTDOWN_PRI_DEFAULT);
+}
+
+void
+tcp_fini(xtp)
+	void *xtp;
+{
+	callout_stop(&isn_callout);
+
 }
 
 /*
@@ -1225,7 +1239,7 @@ tcp6_ctlinput(cmd, sa, d)
  * depends on this property.  In addition, these ISNs should be
  * unguessable so as to prevent connection hijacking.  To satisfy
  * the requirements of this situation, the algorithm outlined in
- * RFC 1948 is used to generate sequence numbers.
+ * RFC 1948 is used, with only small modifications. 
  *
  * Implementation details:
  *
@@ -1234,6 +1248,18 @@ tcp6_ctlinput(cmd, sa, d)
  * recycling on high speed LANs while still leaving over an hour
  * before rollover.
  *
+ * As reading the *exact* system time is too expensive to be done
+ * whenever setting up a TCP connection, we increment the time
+ * offset in two ways.  First, a small random positive increment
+ * is added to isn_offset for each connection that is set up.
+ * Second, the function tcp_isn_tick fires once per clock tick
+ * and increments isn_offset as necessary so that sequence numbers
+ * are incremented at approximately ISN_BYTES_PER_SECOND.  The
+ * random positive increments serve only to ensure that the same
+ * exact sequence number is never sent out twice (as could otherwise
+ * happen when a port is recycled in less than the system tick
+ * interval.)
+ *
  * net.inet.tcp.isn_reseed_interval controls the number of seconds
  * between seeding of isn_secret.  This is normally set to zero,
  * as reseeding should not be necessary.
@@ -1241,9 +1267,12 @@ tcp6_ctlinput(cmd, sa, d)
  */
 
 #define ISN_BYTES_PER_SECOND 1048576
+#define ISN_STATIC_INCREMENT 4096
+#define ISN_RANDOM_INCREMENT (4096 - 1)
 
 u_char isn_secret[32];
 int isn_last_reseed;
+u_int32_t isn_offset, isn_offset_old;
 MD5_CTX isn_ctx;
 
 tcp_seq
@@ -1282,8 +1311,30 @@ tcp_new_isn(tp)
 	MD5Update(&isn_ctx, (u_char *) &isn_secret, sizeof(isn_secret));
 	MD5Final((u_char *) &md5_buffer, &isn_ctx);
 	new_isn = (tcp_seq) md5_buffer[0];
-	new_isn += ticks * (ISN_BYTES_PER_SECOND / hz);
+	isn_offset += ISN_STATIC_INCREMENT +
+		(arc4random() & ISN_RANDOM_INCREMENT);
+	new_isn += isn_offset;
 	return new_isn;
+}
+
+/*
+ * Increment the offset to the next ISN_BYTES_PER_SECOND / hz boundary
+ * to keep time flowing at a relatively constant rate.  If the random
+ * increments have already pushed us past the projected offset, do nothing.
+ */
+static void
+tcp_isn_tick(xtp)
+	void *xtp;
+{
+	u_int32_t projected_offset;
+	
+	projected_offset = isn_offset_old + ISN_BYTES_PER_SECOND / hz;
+
+	if (projected_offset > isn_offset)
+		isn_offset = projected_offset;
+
+	isn_offset_old = isn_offset;
+	callout_reset(&isn_callout, 1, tcp_isn_tick, NULL);
 }
 
 /*
