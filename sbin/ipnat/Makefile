@@ -4,6 +4,7 @@
 
 PROG=	ipnat
 MAN=	ipnat.8 ipnat.4 ipnat.5
+MLINKS=	ipnat.5 ipnat.conf.5
 SRCS=	ipnat.c kmem.c natparse.c common.c printnat.c
 CFLAGS+=-DUSE_INET6 -DIPL_NAME=\"/dev/ipl\"
 CFLAGS+=-I- -I${.CURDIR}/../../sys/contrib/ipfilter
