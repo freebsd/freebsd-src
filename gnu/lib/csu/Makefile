@@ -38,7 +38,7 @@ BEGINSRC?=	crtstuff.c
 ENDSRC?=	crtstuff.c
 
 all: ${OBJS} ${SOBJS} ${TGTOBJS}
-${OBJS} ${SOBJS}: tm.h
+${OBJS} ${SOBJS}: ${SRCS:M*.h}
 
 CLEANFILES=	${OBJS} ${SOBJS} ${TGTOBJS}
 
