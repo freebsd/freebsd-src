@@ -235,7 +235,7 @@
 
 /* Small Resource Item names */
 #define PNP_TAG_VERSION		0x1
-#define PNP_TAG_LOGIGAL_DEVICE	0x2
+#define PNP_TAG_LOGICAL_DEVICE	0x2
 #define PNP_TAG_COMPAT_DEVICE	0x3
 #define PNP_TAG_IRQ_FORMAT	0x4
 #define PNP_TAG_DMA_FORMAT	0x5
