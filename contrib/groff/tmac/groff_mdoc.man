@@ -1677,8 +1677,6 @@ and their results are:
 .Lb libcurses
 .It Li libedit
 .Lb libedit
-.It Li libedit
-.Lb libedit
 .It Li libevent
 .Lb libevent
 .It Li libform

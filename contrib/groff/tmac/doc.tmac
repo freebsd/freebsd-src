@@ -2501,7 +2501,9 @@
 .    nop \)\s[\n[doc-fontmode-size-stack\n[doc-fontmode-depth]]u]\c
 .
 .    nr doc-fontmode-font-stack\n[doc-fontmode-depth] 0
+.    nr doc-curr-font \n[.f]
 .    nr doc-fontmode-size-stack\n[doc-fontmode-depth] 0
+.    nr doc-curr-size \n[.ps]
 .    nr doc-fontmode-depth -1
 .  \}
 .  el \
@@ -6156,7 +6158,7 @@
 .    \}\}\}
 .    el \{\
 .      tm1 "Usage: .An {-nosplit | -split}
-.      tm1         .An author_name ... (#\n[.c])
+.      tm1 "       .An author_name ... (#\n[.c])
 .  \}\}
 .
 .  if \n[doc-in-authors-section] \{\
