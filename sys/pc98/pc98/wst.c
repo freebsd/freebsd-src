@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: wst.c,v 1.12 1998/09/15 18:16:38 sos Exp $
  */
 
 #include "wdc.h"
@@ -199,7 +199,6 @@ static
 int wstattach(struct atapi *ata, int unit, struct atapi_params *ap, int debug);
 static int wst_sense(struct wst *t);
 static void wst_describe(struct wst *t);
-static int wst_open(dev_t dev, int chardev);
 static void wst_poll_dsc(struct wst *t);
 static void wst_start(struct wst *t);
 static void wst_done(struct wst *t, struct buf *bp, int resid, struct atapires result);
@@ -230,9 +229,7 @@ int
 wstattach(struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 {
     struct wst *t;
-    struct atapires result;
-    int lun, i;
-    char buffer[255];
+    int lun;
 
     if (wstnlun >= NUNIT) {
         printf("wst: too many units\n");
@@ -348,9 +345,7 @@ int
 wstopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
     int lun = UNIT(dev);
-    char buffer[255];
     struct wst *t;
-    struct atapires result;
 
     /* Check that the device number and that the ATAPI driver is loaded. */
     if (lun >= wstnlun || !atapi_request_immediate) {

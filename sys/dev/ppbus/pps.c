@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: pps.c,v 1.10 1998/08/03 19:14:31 msmith Exp $
+ * $Id: pps.c,v 1.11 1998/08/24 16:31:27 phk Exp $
  *
  * This driver implements a draft-mogul-pps-api-02.txt PPS source.
  *
@@ -153,7 +153,6 @@ ppsintr(int unit)
 {
 	struct pps_data *sc = softc[unit];
 	struct timespec tc;
-	struct timeval tv;
 
 	nanotime(&tc);
 	if (!(ppb_rstr(&sc->pps_dev) & nACK))
@@ -171,6 +170,8 @@ ppsintr(int unit)
 	sc->ppsinfo.assert_sequence++;
 #ifdef PPS_SYNC
 	if (sc->ppsparam.mode & PPS_HARDPPSONASSERT) {
+		struct timeval tv;
+
 		tv.tv_sec = tc.tv_sec;
 		tv.tv_usec = tc.tv_nsec / 1000;
 		hardpps(&tv, tv.tv_usec);

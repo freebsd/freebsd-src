@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.44 1998/10/28 13:36:58 dg Exp $
+ * $Id: sys_pipe.c,v 1.45 1998/11/11 10:03:55 truckman Exp $
  */
 
 /*
@@ -308,8 +308,6 @@ static __inline void
 pipeselwakeup(cpipe)
 	struct pipe *cpipe;
 {
-	struct proc *p;
-
 	if (cpipe->pipe_state & PIPE_SEL) {
 		cpipe->pipe_state &= ~PIPE_SEL;
 		selwakeup(&cpipe->pipe_sel);

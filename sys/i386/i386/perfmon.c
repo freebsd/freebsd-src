@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: perfmon.c,v 1.14 1997/12/28 17:33:01 phk Exp $
+ *	$Id: perfmon.c,v 1.15 1997/12/29 23:36:56 phk Exp $
  */
 
 #include <sys/param.h>
@@ -46,8 +46,10 @@ static int msr_pmc[NPMC];
 static unsigned int ctl_shadow[NPMC];
 static quad_t pmc_shadow[NPMC];	/* used when ctr is stopped on P5 */
 static int (*writectl)(int);
+#ifndef SMP
 static int writectl5(int);
 static int writectl6(int);
+#endif
 
 /*
  * Must be called after cpu_class is set up.
@@ -195,6 +197,7 @@ perfmon_reset(int pmc)
 	return EBUSY;
 }
 
+#ifndef SMP
 /*
  * Unfortunately, the performance-monitoring registers are laid out
  * differently in the P5 and P6.  We keep everything in P6 format
@@ -245,6 +248,7 @@ writectl5(int pmc)
 	wrmsr(msr_ctl[0], newval);
 	return 0;		/* XXX should check for unimplemented bits */
 }
+#endif /* !SMP */
 
 /*
  * Now the user-mode interface, called from a subdevice of mem.c.

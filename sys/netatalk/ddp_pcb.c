@@ -60,7 +60,6 @@ static int
 ddp_detach(struct socket *so)
 {
 	struct ddpcb	*ddp;
-	int		error = 0;
 	int		s;
 	
 	ddp = sotoddpcb( so );
@@ -119,7 +118,6 @@ ddp_disconnect(struct socket *so)
 {
 
 	struct ddpcb	*ddp;
-	int		error = 0;
 	int		s;
 	
 	ddp = sotoddpcb( so );
@@ -142,9 +140,7 @@ static int
 ddp_shutdown(struct socket *so)
 {
 	struct ddpcb	*ddp;
-	int		error = 0;
-	int		s;
-	
+
 	ddp = sotoddpcb( so );
 	if ( ddp == NULL ) {
 		return( EINVAL);
@@ -536,9 +532,7 @@ static int
 at_setsockaddr(struct socket *so, struct sockaddr **nam)
 {
 	struct ddpcb	*ddp;
-	int		error = 0;
-	int		s;
-	
+
 	ddp = sotoddpcb( so );
 	if ( ddp == NULL ) {
 	    return( EINVAL);

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: loran.c,v 1.11 1998/10/24 19:55:09 phk Exp $
+ * $Id: loran.c,v 1.12 1998/12/04 22:54:46 archie Exp $
  *
  * This device-driver helps the userland controlprogram for a LORAN-C
  * receiver avoid monopolizing the CPU.
@@ -204,8 +204,6 @@ static u_int64_t ticker;
 
 static u_char par;
 
-static struct datapoint *this, *next;
-
 static MALLOC_DEFINE(M_LORAN, "Loran", "Loran datapoints");
 
 static int loranerror;
@@ -317,8 +315,6 @@ loranattach(struct isa_device *isdp)
 static	int
 loranopen (dev_t dev, int flags, int fmt, struct proc *p)
 {
-	u_long ef;
-	struct datapoint *this;
 	int idx;
 
 	idx = minor(dev);
@@ -595,7 +591,6 @@ loran_get_timecount(struct timecounter *tc)
 {
 	unsigned count;
 	u_long ef;
-	u_int high, low;
 
 	ef = read_eflags();
 	disable_intr();

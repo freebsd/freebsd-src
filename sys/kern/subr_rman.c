@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_rman.c,v 1.1 1998/10/29 01:48:36 wollman Exp $
+ *	$Id: subr_rman.c,v 1.2 1998/11/23 09:33:35 bde Exp $
  */
 
 /*
@@ -79,7 +79,6 @@ int
 rman_init(struct rman *rm)
 {
 	static int once;
-	struct resource *r;
 
 	if (once == 0) {
 		once = 1;

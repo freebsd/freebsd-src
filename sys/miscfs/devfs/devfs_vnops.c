@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.61 1998/09/30 20:33:46 sos Exp $
+ *	$Id: devfs_vnops.c,v 1.62 1998/10/31 15:31:23 peter Exp $
  */
 
 
@@ -639,9 +639,6 @@ devfs_xwrite(struct vop_write_args *ap)
                 struct ucred *a_cred;
         } */
 {
-	dn_p	file_node;
-	int	error;
-
 	switch (ap->a_vp->v_type) {
 	case VREG:
 		return(EINVAL);
@@ -1337,8 +1334,7 @@ static int
 devfs_open( struct vop_open_args *ap)
 {
 	struct proc *p = ap->a_p;
-	struct vnode *bvp, *vp = ap->a_vp;
-	dev_t bdev, dev = (dev_t)vp->v_rdev;
+	struct vnode *vp = ap->a_vp;
 	int error;
 	dn_p	dnp;
 
@@ -1387,7 +1383,7 @@ devfs_read( struct vop_read_args *ap)
 	daddr_t bn, nextbn;
 	long bsize, bscale;
 	struct partinfo dpart;
-	int n, on, majordev;
+	int n, on;
 	d_ioctl_t *ioctl;
 	int error = 0;
 	dev_t dev;
@@ -1777,11 +1773,8 @@ static int
 devfs_close(struct vop_close_args *ap)
 {
 	register struct vnode *vp = ap->a_vp;
-	struct proc *p = ap->a_p;
-	dev_t dev = vp->v_rdev;
-	d_close_t *devclose;
-	int mode, error;
-	dn_p	dnp;
+	int error;
+	dn_p dnp;
 
 	if (error = devfs_vntodn(vp,&dnp))
 		return error;

@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.39 1998/08/16 01:21:49 bde Exp $
+ *  dgb.c $Id: dgb.c,v 1.40 1998/08/23 08:26:39 bde Exp $
  *
  *  Digiboard driver.
  *
@@ -407,10 +407,8 @@ dgbprobe(dev)
 	struct isa_device	*dev;
 {
 	struct dgb_softc *sc= &dgb_softc[dev->id_unit];
-	int i, v, t;
+	int i, v;
 	u_long win_size;  /* size of vizible memory window */
-	u_char *mem;
-	int addr;
 	int unit=dev->id_unit;
 
 	sc->unit=dev->id_unit;
@@ -525,7 +523,6 @@ dgbattach(dev)
 	int addr;
 	struct dgb_p *port;
 	volatile struct board_chan *bc;
-	struct global_data *gd;
 	int shrinkmem;
 	int nfails;
 	ushort *pstat;
@@ -1283,7 +1280,6 @@ dgbpoll(unit_c)
 	int rhead, rtail;
 	int whead, wtail;
 	int size;
-	int c=0;
 	u_char *ptr;
 	int ocount;
 	int ibuf_full,obuf_full;
@@ -1512,7 +1508,6 @@ dgbpoll(unit_c)
 				        setwin(sc,0);
 				        }
 			        }
-			end_of_buffer: ;
 			}
 			bc->idata=1;   /* require event on incoming data */ 
 
@@ -1957,7 +1952,6 @@ dgbparam(tp, t)
 	struct termios	*t;
 {
 	int dev=tp->t_dev;
-	int mynor=minor(dev);
 	int unit=MINOR_TO_UNIT(dev);
 	int pnum=MINOR_TO_PORT(dev);
 	struct dgb_softc *sc=&dgb_softc[unit];
@@ -1968,7 +1962,7 @@ dgbparam(tp, t)
 	int mval;
 	int iflag;
 	int hflow;
-	int s,cs;
+	int cs;
 
 	BoardMemWinState ws=bmws_get();
 
@@ -2170,7 +2164,6 @@ dgbstop(tp, rw)
 	struct dgb_p *port;
 	struct dgb_softc *sc;
 	volatile struct board_chan *bc;
-	int head;
 	int s;
 
 	BoardMemWinState ws=bmws_get();

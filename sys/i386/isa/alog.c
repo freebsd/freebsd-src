@@ -522,7 +522,6 @@ static int sync_clock2 (int unit, long period)
 static int alog_attach (struct isa_device *idp)
 {
   int unit = idp->id_unit;  /* this device unit number */   
-  int iobase = idp->id_iobase; /* the base address of the unit */ 
   talog_unit *info; /* pointer to driver specific info for unit */
   int chan; /* the channel used for creating devfs nodes */
    

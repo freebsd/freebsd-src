@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.213 1998/11/24 20:25:52 eivind Exp $
+ *	$Id: pmap.c,v 1.214 1998/11/27 01:14:21 tegge Exp $
  */
 
 /*
@@ -297,7 +297,9 @@ pmap_bootstrap(firstaddr, loadaddr)
 {
 	vm_offset_t va;
 	pt_entry_t *pte;
+#ifdef SMP
 	int i, j;
+#endif
 
 	avail_start = firstaddr;
 
@@ -1131,7 +1133,6 @@ pmap_swapin_proc(p)
  */
 static int 
 _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m) {
-	int s;
 
 	while (vm_page_sleep(m, "pmuwpt", NULL));
 
@@ -1262,7 +1263,6 @@ pmap_pinit(pmap)
 	/*
 	 * allocate the page directory page
 	 */
-retry:
 	ptdpg = vm_page_grab( pmap->pm_pteobj, PTDPTDI,
 			VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 
@@ -1296,7 +1296,6 @@ pmap_release_free_page(pmap, p)
 	struct pmap *pmap;
 	vm_page_t p;
 {
-	int s;
 	unsigned *pde = (unsigned *) pmap->pm_pdir;
 	/*
 	 * This code optimizes the case of freeing non-busy
@@ -2439,7 +2438,6 @@ pmap_object_init_pt(pmap, addr, object, pindex, size, limit)
 		((addr & (NBPDR - 1)) == 0) &&
 		((size & (NBPDR - 1)) == 0) ) {
 		int i;
-		int s;
 		vm_page_t m[1];
 		unsigned int ptepindex;
 		int npdes;

@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_lookup.c,v 1.25 1998/05/18 10:24:26 dt Exp $ */
+/*	$Id: msdosfs_lookup.c,v 1.26 1998/09/13 15:40:31 dt Exp $ */
 /*	$NetBSD: msdosfs_lookup.c,v 1.37 1997/11/17 15:36:54 ws Exp $	*/
 
 /*-
@@ -61,9 +61,6 @@
 #include <msdosfs/msdosfsmount.h>
 #include <msdosfs/fat.h>
 
-static int	markdeleted __P((struct msdosfsmount *pmp, u_long dirclust,
-				 u_long diroffset));
-
 /*
  * When we search a directory the blocks containing directory entries are
  * read and examined.  The directory entries contain information that would
@@ -109,7 +106,6 @@ msdosfs_lookup(ap)
 	struct msdosfsmount *pmp;
 	struct buf *bp = 0;
 	struct direntry *dep = NULL;
-	struct ucred *cred = cnp->cn_cred;
 	u_char dosfilename[12];
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.75 1998/12/01 21:50:58 sos Exp $
+**  $Id: pcisupport.c,v 1.76 1998/12/04 22:54:56 archie Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -1085,8 +1085,10 @@ static char* vga_probe (pcici_t tag, pcidi_t typea)
 	if (vendor && chip) {
 		char *buf;
 		int len;
+#if 0
 		int i;
 		int reqmapmem;
+#endif
 
 		if (type == 0) {
 			type = "SVGA controller";

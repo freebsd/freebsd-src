@@ -809,10 +809,11 @@ static	struct cdevsw	rp_cdevsw = {
 
 static int rp_controller_port = 0;
 static int rp_num_ports_open = 0;
-static int rp_timeout;
 static int	ndevs = 0;
 static int	minor_to_unit[128];
+#if 0
 static	struct	tty	rp_tty[128];
+#endif
 
 static int rp_num_ports[4];	/* Number of ports on each controller */
 
@@ -858,7 +859,7 @@ static _INLINE_ void rp_do_receive(struct rp_port *rp, struct tty *tp,
 {
 	int	spl;
 	unsigned	int	CharNStat;
-	int	ToRecv, wRecv, ch;
+	int	ToRecv, ch;
 
 	ToRecv = sGetRxCnt(cp);
 	if(ToRecv == 0)
@@ -924,7 +925,7 @@ static _INLINE_ void rp_handle_port(struct rp_port *rp)
 	CHANNEL_t	*cp;
 	struct	tty	*tp;
 	unsigned	int	IntMask, ChanStatus;
-	int	oldcts, ToRecv;
+     /*	int	oldcts; */
 
 	if(!rp)
 		return;
@@ -1023,9 +1024,8 @@ int
 rpprobe(dev)
 struct isa_device *dev;
 {
-	struct	isa_device	*idev;
 	int controller, unit;
-	int i, aiop, num_aiops;
+	int aiop, num_aiops;
 	unsigned int aiopio[MAX_AIOPS_PER_BOARD];
 	CONTROLLER_t *ctlp;
 
@@ -1070,7 +1070,7 @@ static void
 rp_pciattach(pcici_t tag, int unit)
 {
 	dev_t	rp_dev;
-	int	success, rpmajor, oldspl;
+	int	success, oldspl;
 	u_short iobase;
 	int	num_ports, num_chan, num_aiops;
 	int	aiop, chan, port;
@@ -1079,7 +1079,6 @@ rp_pciattach(pcici_t tag, int unit)
 	struct	rp_port *rp;
 	struct	tty	*tty;
 	CONTROLLER_t	*ctlp;
-	char	status;
 
 	success = pci_map_port(tag, 0x10, &iobase);
 	if(!success)
@@ -1183,7 +1182,7 @@ struct	isa_device	*dev;
 {
 	struct	isa_device	*idev;
 	dev_t	rp_dev;
-	int	iobase, unit, rpmajor, oldspl;
+	int	iobase, unit, /*rpmajor,*/ oldspl;
 	int	num_ports, num_chan, num_aiops;
 	int	aiop, chan, port;
 	int	ChanStatus, line, i, count;
@@ -1191,7 +1190,6 @@ struct	isa_device	*dev;
 	struct	rp_port *rp;
 	struct	tty	*tty;
 	CONTROLLER_t	*ctlp;
-	char	status;
 
 	iobase = dev->id_iobase;
 	unit = dev->id_unit;
@@ -1303,7 +1301,7 @@ rpopen(dev, flag, mode, p)
 	struct	proc	*p;
 {
 	struct	rp_port *rp;
-	int	unit, i, port, mynor, umynor, flags;  /* SG */
+	int	unit, port, mynor, umynor, flags;  /* SG */
 	struct	tty	*tp;
 	int	oldspl, error;
 	unsigned int	IntMask, ChanStatus;
@@ -1450,7 +1448,7 @@ rpclose(dev, flag, mode, p)
 	int	flag, mode;
 	struct	proc	*p;
 {
-	int	oldspl, unit, mynor, umynor, port, status, i; /* SG */
+	int	oldspl, unit, mynor, umynor, port; /* SG */
 	struct	rp_port *rp;
 	struct	tty	*tp;
 	CHANNEL_t	*cp;
@@ -1483,7 +1481,7 @@ rpclose(dev, flag, mode, p)
 static void
 rphardclose(struct rp_port *rp)
 {
-	int	status, oldspl, mynor;
+	int	mynor;
 	struct	tty	*tp;
 	CHANNEL_t	*cp;
 
@@ -1525,7 +1523,7 @@ rpread(dev, uio, flag)
 {
 	struct	rp_port *rp;
 	struct	tty	*tp;
-	int	unit, i, mynor, umynor, port, error = 0; /* SG */
+	int	unit, mynor, umynor, port, error = 0; /* SG */
 
    umynor = (((minor(dev) >> 16) -1) * 32);    /* SG */
 	port  = (minor(dev) & 0x1f);                /* SG */
@@ -1549,7 +1547,7 @@ rpwrite(dev, uio, flag)
 {
 	struct	rp_port *rp;
 	struct	tty	*tp;
-	int	unit, i, mynor, port, umynor, error = 0; /* SG */
+	int	unit, mynor, port, umynor, error = 0; /* SG */
 
    umynor = (((minor(dev) >> 16) -1) * 32);    /* SG */
 	port  = (minor(dev) & 0x1f);                /* SG */
@@ -1594,9 +1592,8 @@ rpioctl(dev, cmd, data, flag, p)
 	CHANNEL_t	*cp;
 	struct tty	*tp;
 	int	unit, mynor, port, umynor;            /* SG */
-	int	oldspl, cflag, iflag, oflag, lflag;
-	int	i, error = 0;
-	char	status;
+	int	oldspl;
+	int	error = 0;
 	int	arg, flags, result, ChanStatus;
 	int	oldcmd;
 	struct	termios term, *t;
@@ -1804,9 +1801,9 @@ rpparam(tp, t)
 {
 	struct rp_port	*rp;
 	CHANNEL_t	*cp;
-	int	unit, i, mynor, port, umynor;               /* SG */
+	int	unit, mynor, port, umynor;               /* SG */
 	int	oldspl, cflag, iflag, oflag, lflag;
-	int	ospeed, flags;
+	int	ospeed;
 
 
    umynor = (((minor(tp->t_dev) >> 16) -1) * 32);    /* SG */
@@ -1942,10 +1939,10 @@ rpstart(tp)
 	struct rp_port	*rp;
 	CHANNEL_t	*cp;
 	struct	clist	*qp;
-	int	unit, i, mynor, port, umynor;               /* SG */
-	char	status, ch, flags;
+	int	unit, mynor, port, umynor;               /* SG */
+	char	ch, flags;
 	int	spl, xmit_fifo_room;
-	int	count, ToRecv;
+	int	count;
 
 
    umynor = (((minor(tp->t_dev) >> 16) -1) * 32);    /* SG */
@@ -2002,11 +1999,8 @@ rpstop(tp, flag)
 {
 	struct rp_port	*rp;
 	CHANNEL_t	*cp;
-	struct	clist	*qp;
 	int	unit, mynor, port, umynor;                  /* SG */
-	char	status, ch;
-	int	spl, xmit_fifo_room;
-	int	i, count;
+	int	spl;
 
    umynor = (((minor(tp->t_dev) >> 16) -1) * 32);    /* SG */
 	port  = (minor(tp->t_dev) & 0x1f);                /* SG */
@@ -2044,7 +2038,7 @@ struct tty *
 rpdevtotty(dev_t dev)
 {
 	struct	rp_port *rp;
-	int	unit, i, port, mynor, umynor;         /* SG */
+	int	unit, port, mynor, umynor;         /* SG */
 
    umynor = (((minor(dev) >> 16) -1) * 32);    /* SG */
 	port  = (minor(dev) & 0x1f);                /* SG */

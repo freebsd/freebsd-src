@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: adw_pci.c,v 1.1 1998/10/07 03:20:49 gibbs Exp $
  */
 
 #include <pci.h>
@@ -89,7 +89,9 @@ adwpciattach(pcici_t config_id, int unit)
 	u_int32_t	   id;
 	u_int32_t	   command;
 	vm_offset_t	   vaddr;
+#ifdef ADW_ALLOW_MEMIO
 	vm_offset_t	   paddr;
+#endif
 	u_int16_t	   io_port;
 	bus_space_tag_t    tag;
 	bus_space_handle_t bsh;

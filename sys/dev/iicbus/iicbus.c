@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iicbus.c,v 1.4 1998/11/08 18:42:34 nsouch Exp $
+ *	$Id: iicbus.c,v 1.5 1998/11/22 22:01:42 nsouch Exp $
  *
  */
 
@@ -125,8 +125,6 @@ iicbus_probe(device_t dev)
 	return (0);
 }
 
-static int iicdev_found[LAST_SLAVE_ADDR+1];
-
 static int 
 iic_probe_device(device_t dev, u_char addr)
 {
@@ -155,11 +153,9 @@ iic_probe_device(device_t dev, u_char addr)
 static int
 iicbus_attach(device_t dev)
 {
-	struct iicbus_softc *sc = device_get_softc(dev);
 	struct iicbus_device *iicdev;
 	device_t child;
-	int addr, count;
-	char byte;
+	int addr;
 
 	iicbus_reset(dev, IIC_FASTEST, 0, NULL);
 
@@ -265,8 +261,6 @@ iicbus_read_ivar(device_t bus, device_t dev, int index, u_long* result)
 static int
 iicbus_write_ivar(device_t bus, device_t dev, int index, u_long val)
 {
-	struct iicbus_device* iicdev = DEVTOIICBUS(dev);
-
 	switch (index) {
 	default:
 		return (ENOENT);

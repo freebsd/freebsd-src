@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppbconf.c,v 1.7 1998/09/13 18:26:26 nsouch Exp $
+ *	$Id: ppbconf.c,v 1.8 1998/09/20 14:41:54 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -257,7 +257,6 @@ end_detect:
 int
 ppb_attachdevs(struct ppb_data *ppb)
 {
-	int error;
 	struct ppb_device *dev;
 	struct ppb_driver **p_drvpp, *p_drvp;
 
