@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mountd.8	8.4 (Berkeley) 4/28/95
-.\"	$Id: mountd.8,v 1.7 1997/02/22 14:33:02 peter Exp $
+.\"	$Id: mountd.8,v 1.8 1997/03/11 12:43:44 peter Exp $
 .\"
 .Dd April 28, 1995
 .Dt MOUNTD 8
@@ -67,6 +67,8 @@ The
 option allows non-root mount requests to be served.
 This should only be specified if there are clients such as PC's,
 that require it.
+It will automatically clear the vfs.nfs.nfs_privport sysctl flag, which
+controls if the kernel will accept nfs requests form reserved ports only.
 .It Fl r
 The
 .Fl r
