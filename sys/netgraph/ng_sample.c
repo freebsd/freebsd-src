@@ -306,10 +306,10 @@ ng_xxx_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 		 */
 		dlci = ((struct XXX_hookinfo *) hook->private)->dlci;
 		if (dlci == 1023) {
-			ng_queue_data(hook->peer, m, meta);
+			return(ng_queue_data(hook->peer, m, meta));
 		}
 	}
-	ng_xxx_rcvdataq(hook, m, meta);
+	return(ng_xxx_rcvdataq(hook, m, meta));
 }
 
 /*
