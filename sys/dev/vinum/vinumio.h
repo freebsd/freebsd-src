@@ -36,7 +36,12 @@
  * $Id: vinumio.h,v 1.10 1998/08/10 05:46:19 grog Exp grog $
  */
 
+#ifdef DEBUG
+#define MAX_IOCTL_REPLY 4096
+#else
 #define MAX_IOCTL_REPLY 256
+#endif
+
 #define L 'F'						    /* ID letter of our ioctls */
 /* VINUM_CREATE returns a buffer of this kind */
 struct _ioctl_reply {
@@ -130,3 +135,7 @@ struct vinum_rename_msg {
 
 #define VINUM_RENAME		_IOC(IOC_IN | IOC_OUT, L, 89, MAX_IOCTL_REPLY) /* reset object stats */
 #define VINUM_REPLACE		_IOC(IOC_IN | IOC_OUT, L, 90, MAX_IOCTL_REPLY) /* reset object stats */
+
+#ifdef DEBUG
+#define VINUM_RQINFO		_IOWR(L, 91, struct rqinfo) /* get request info [i] from trace buffer */
+#endif

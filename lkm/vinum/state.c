@@ -164,8 +164,12 @@ set_sd_state(int sdno, enum sdstate state, enum setstateflags flags)
     printf("vinum: subdisk %s is %s\n", sd->name, sd_state(sd->state));
     if ((flags & setstate_norecurse) == 0)
 	set_plex_state(sd->plexno, plex_up, setstate_recursing); /* update plex state */
-    if ((flags & (setstate_configuring | setstate_recursing)) == 0) /* save config now */
-	save_config();
+    if ((flags & (setstate_configuring | setstate_recursing)) == 0) { /* save config now */
+	if (setstate_noupdate)				    /* we can't update now, */
+	    vinum_conf.flags |= VF_DIRTYCONFIG;		    /* wait until later */
+	else
+	    save_config();
+    }
     return status;
 }
 
