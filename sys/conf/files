@@ -814,6 +814,7 @@ dev/usb/hid.c		optional usb
 dev/usb/if_aue.c	optional aue
 dev/usb/if_axe.c	optional axe
 dev/usb/if_cue.c	optional cue
+dev/usb/if_udav.c	optional udav
 dev/usb/if_kue.c	optional kue
 dev/usb/if_rue.c	optional rue
 dev/usb/ehci.c		optional ehci

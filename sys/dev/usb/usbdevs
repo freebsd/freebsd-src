@@ -559,6 +559,7 @@ product CONNECTIX QUICKCAM	0x0001	QuickCam
 product COREGA ETHER_USB_T	0x0001	Ether USB-T
 product COREGA FETHER_USB_TX	0x0004	FEther USB-TX
 product COREGA FETHER_USB_TXS	0x000d	FEther USB-TXS
+product COREGA FETHER_USB_TXC	0x9601	FEther USB-TXC
 
 /* Creative products */
 product CREATIVE NOMAD_II	0x1002	Nomad II MP3 player
