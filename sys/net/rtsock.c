@@ -85,6 +85,7 @@ static int	rt_msg2(int, struct rt_addrinfo *, caddr_t, struct walkarg *);
 static int	rt_xaddrs(caddr_t, caddr_t, struct rt_addrinfo *);
 static int	sysctl_dumpentry(struct radix_node *rn, void *vw);
 static int	sysctl_iflist(int af, struct walkarg *w);
+static int	sysctl_ifmalist(int af, struct walkarg *w);
 static int	route_output(struct mbuf *, struct socket *);
 static void	rt_setmetrics(u_long, struct rt_metrics *, struct rt_metrics *);
 static void	rt_dispatch(struct mbuf *, struct sockaddr *);
@@ -684,6 +685,10 @@ again:
 		len = sizeof(struct if_msghdr);
 		break;
 
+	case RTM_NEWMADDR:
+		len = sizeof(struct ifma_msghdr);
+		break;
+
 	default:
 		len = sizeof(struct rt_msghdr);
 	}
@@ -1014,6 +1019,61 @@ done:
 	return (error);
 }
 
+int
+sysctl_ifmalist(af, w)
+	int	af;
+	register struct	walkarg *w;
+{
+	register struct ifnet *ifp;
+	struct ifmultiaddr *ifma;
+	struct	rt_addrinfo info;
+	int	len, error = 0;
+
+	bzero((caddr_t)&info, sizeof(info));
+	/* IFNET_RLOCK(); */		/* could sleep XXX */
+	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+		if (w->w_arg && w->w_arg != ifp->if_index)
+			continue;
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			if (af && af != ifma->ifma_addr->sa_family)
+				continue;
+			if (jailed(curproc->p_ucred) &&
+			    prison_if(curproc->p_ucred, ifma->ifma_addr))
+				continue;
+			info.rti_addrs = RTA_IFA;
+			info.rti_info[RTAX_IFA] = ifma->ifma_addr;
+			if (TAILQ_FIRST(&ifp->if_addrhead)) {
+				info.rti_addrs |= RTA_IFP;
+				info.rti_info[RTAX_IFP] =
+				    TAILQ_FIRST(&ifp->if_addrhead)->ifa_addr;
+			} else
+				info.rti_info[RTAX_IFP] = NULL;
+
+			if (ifma->ifma_addr->sa_family != AF_LINK) {
+				info.rti_addrs |= RTA_GATEWAY;
+				info.rti_info[RTAX_GATEWAY] = ifma->ifma_lladdr;
+			} else
+				info.rti_info[RTAX_GATEWAY] = NULL;
+
+			len = rt_msg2(RTM_NEWMADDR, &info, 0, w);
+			if (w->w_req && w->w_tmem) {
+				register struct ifma_msghdr *ifmam;
+
+				ifmam = (struct ifma_msghdr *)w->w_tmem;
+				ifmam->ifmam_index = ifma->ifma_ifp->if_index;
+				ifmam->ifmam_flags = 0;
+				ifmam->ifmam_addrs = info.rti_addrs;
+				error = SYSCTL_OUT(w->w_req, w->w_tmem, len);
+				if (error)
+					goto done;
+			}
+		}
+	}
+done:
+	/* IFNET_RUNLOCK(); */ /* XXX */
+	return (error);
+}
+
 static int
 sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 {
@@ -1066,6 +1126,11 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 
 	case NET_RT_IFLIST:
 		error = sysctl_iflist(af, &w);
+		break;
+
+	case NET_RT_IFMALIST:
+		error = sysctl_ifmalist(af, &w);
+		break;
 	}
 	splx(s);
 	if (w.w_tmem)
