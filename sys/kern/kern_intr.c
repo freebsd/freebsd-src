@@ -62,13 +62,10 @@ void	*softclock_ih;
 struct	ithd *clk_ithd;
 struct	ithd *tty_ithd;
 
-static struct	mtx ithread_list_lock;
-
 static MALLOC_DEFINE(M_ITHREAD, "ithread", "Interrupt Threads");
 
 static void	ithread_update(struct ithd *);
 static void	ithread_loop(void *);
-static void	ithread_init(void *);
 static void	start_softintr(void *);
 static void	swi_net(void *);
 
@@ -120,6 +117,7 @@ ithread_update(struct ithd *ithd)
 	struct proc *p;
 	int entropy;
 
+	mtx_assert(&ithd->it_lock, MA_OWNED);
 	p = ithd->it_proc;
 	if (p == NULL)
 		return;
@@ -178,6 +176,8 @@ ithread_create(struct ithd **ithread, int vector, int flags,
 	ithd->it_enable = enable;
 	ithd->it_flags = flags;
 	TAILQ_INIT(&ithd->it_handlers);
+	mtx_init(&ithd->it_lock, "ithread", MTX_DEF);
+	mtx_lock(&ithd->it_lock);
 
 	va_start(ap, fmt);
 	vsnprintf(ithd->it_name, sizeof(ithd->it_name), fmt, ap);
@@ -186,6 +186,7 @@ ithread_create(struct ithd **ithread, int vector, int flags,
 	error = kthread_create(ithread_loop, ithd, &p, RFSTOPPED | RFHIGHPID,
 	    "%s", ithd->it_name);
 	if (error) {
+		mtx_destroy(&ithd->it_lock);
 		free(ithd, M_ITHREAD);
 		return (error);
 	}
@@ -196,6 +197,7 @@ ithread_create(struct ithd **ithread, int vector, int flags,
 	p->p_ithd = ithd;
 	if (ithread != NULL)
 		*ithread = ithd;
+	mtx_unlock(&ithd->it_lock);
 
 	CTR1(KTR_INTR, __func__ ": created %s", ithd->it_name);
 	return (0);
@@ -205,16 +207,22 @@ int
 ithread_destroy(struct ithd *ithread)
 {
 
-	if (ithread == NULL || !TAILQ_EMPTY(&ithread->it_handlers))
+	if (ithread == NULL)
 		return (EINVAL);
 
-	mtx_lock_spin(&sched_lock);
+	mtx_lock(&ithread->it_lock);
+	if (!TAILQ_EMPTY(&ithread->it_handlers)) {
+		mtx_unlock(&ithread->it_lock);
+		return (EINVAL);
+	}
 	ithread->it_flags |= IT_DEAD;
+	mtx_lock_spin(&sched_lock);
 	if (ithread->it_proc->p_stat == SWAIT) {
 		ithread->it_proc->p_stat = SRUN;
 		setrunqueue(ithread->it_proc);
 	}
 	mtx_unlock_spin(&sched_lock);
+	mtx_unlock(&ithread->it_lock);
 	CTR1(KTR_INTR, __func__ ": killing %s", ithread->it_name);
 	return (0);
 }
@@ -246,7 +254,7 @@ ithread_add_handler(struct ithd* ithread, const char *name,
 	if (flags & INTR_ENTROPY)
 		ih->ih_flags |= IH_ENTROPY;
 
-	mtx_lock_spin(&ithread_list_lock);
+	mtx_lock(&ithread->it_lock);
 	if ((flags & INTR_EXCL) !=0 && !TAILQ_EMPTY(&ithread->it_handlers))
 		goto fail;
 	if (!TAILQ_EMPTY(&ithread->it_handlers) &&
@@ -261,7 +269,7 @@ ithread_add_handler(struct ithd* ithread, const char *name,
 	else
 		TAILQ_INSERT_BEFORE(temp_ih, ih, ih_next);
 	ithread_update(ithread);
-	mtx_unlock_spin(&ithread_list_lock);
+	mtx_unlock(&ithread->it_lock);
 
 	if (cookiep != NULL)
 		*cookiep = ih;
@@ -270,7 +278,7 @@ ithread_add_handler(struct ithd* ithread, const char *name,
 	return (0);
 
 fail:
-	mtx_unlock_spin(&ithread_list_lock);
+	mtx_unlock(&ithread->it_lock);
 	free(ih, M_ITHREAD);
 	return (EINVAL);
 }
@@ -292,12 +300,12 @@ ithread_remove_handler(void *cookie)
 		handler->ih_name));
 	CTR2(KTR_INTR, __func__ ": removing %s from %s", handler->ih_name,
 	    ithread->it_name);
-	mtx_lock_spin(&ithread_list_lock);
+	mtx_lock(&ithread->it_lock);
 #ifdef INVARIANTS
 	TAILQ_FOREACH(ih, &ithread->it_handlers, ih_next)
 		if (ih == handler)
 			goto ok;
-	mtx_unlock_spin(&ithread_list_lock);
+	mtx_unlock(&ithread->it_lock);
 	panic("interrupt handler \"%s\" not found in interrupt thread \"%s\"",
 	    ih->ih_name, ithread->it_name);
 ok:
@@ -316,15 +324,14 @@ ok:
 		 * it on the list.
 		 */
 		ithread->it_need = 1;
-	} else {
+	} else 
 		TAILQ_REMOVE(&ithread->it_handlers, handler, ih_next);
-		ithread_update(ithread);
-	}
 	mtx_unlock_spin(&sched_lock);
-	mtx_unlock_spin(&ithread_list_lock);
-
-	if ((handler->ih_flags & IH_DEAD) == 0)
-		free(handler, M_ITHREAD);
+	if ((handler->ih_flags & IH_DEAD) != 0)
+		msleep(handler, &ithread->it_lock, PUSER, "itrmh", 0);
+	ithread_update(ithread);
+	mtx_unlock(&ithread->it_lock);
+	free(handler, M_ITHREAD);
 	return (0);
 }
 
@@ -473,6 +480,7 @@ ithread_loop(void *arg)
 			CTR2(KTR_INTR, __func__ ": pid %d: (%s) exiting",
 			    p->p_pid, p->p_comm);
 			p->p_ithd = NULL;
+			mtx_destroy(&ithd->it_lock);
 			mtx_lock(&Giant);
 			free(ithd, M_ITHREAD);
 			kthread_exit(0);
@@ -499,20 +507,16 @@ restart:
 				    (void *)ih->ih_handler, ih->ih_argument,
 				    ih->ih_flags);
 
-				if ((ih->ih_flags & IH_MPSAFE) == 0)
-					mtx_lock(&Giant);
 				if ((ih->ih_flags & IH_DEAD) != 0) {
-					mtx_lock_spin(&ithread_list_lock);
+					mtx_lock(&ithd->it_lock);
 					TAILQ_REMOVE(&ithd->it_handlers, ih,
 					    ih_next);
-					ithread_update(ithd);
-					mtx_unlock_spin(&ithread_list_lock);
-					if (!mtx_owned(&Giant))
-						mtx_lock(&Giant);
-					free(ih, M_ITHREAD);
-					mtx_unlock(&Giant);
+					wakeup(ih);
+					mtx_unlock(&ithd->it_lock);
 					goto restart;
 				}
+				if ((ih->ih_flags & IH_MPSAFE) == 0)
+					mtx_lock(&Giant);
 				ih->ih_handler(ih->ih_argument);
 				if ((ih->ih_flags & IH_MPSAFE) == 0)
 					mtx_unlock(&Giant);
@@ -540,17 +544,6 @@ restart:
 		mtx_unlock_spin(&sched_lock);
 	}
 }
-
-/*
- * Initialize mutex used to protect ithread handler lists.
- */
-static void
-ithread_init(void *dummy)
-{
-
-	mtx_init(&ithread_list_lock, "ithread list lock", MTX_SPIN);
-}
-SYSINIT(ithread_init, SI_SUB_INTR, SI_ORDER_FIRST, ithread_init, NULL);
 
 /*
  * Start standard software interrupt threads
