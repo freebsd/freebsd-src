@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.82 1998/09/09 11:13:55 kato Exp $
+#	$Id: Makefile,v 1.83 1998/09/15 10:22:37 gibbs Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -40,7 +40,7 @@ PFILES=	mqueue.h sched.h semaphore.h \
 
 LFILES=	errno.h fcntl.h poll.h syslog.h termios.h
 
-LDIRS=	msdosfs net netns netatalk netinet netipx netkey nfs \
+LDIRS=	msdosfs net netns netatalk netatm netinet netipx netkey nfs \
 		pccard posix4 sys vm cam \
 		# netccitt netiso
 

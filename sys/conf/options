@@ -1,4 +1,4 @@
-#	$Id: options,v 1.96 1998/09/14 19:56:36 sos Exp $
+#	$Id: options,v 1.97 1998/09/15 09:59:15 gibbs Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -202,6 +202,13 @@ TCPDEBUG
 IPFILTER		opt_ipfilter.h
 IPFILTER_LOG		opt_ipfilter.h
 IPFILTER_LKM		opt_ipfilter.h
+
+# ATM (HARP version)
+ATM_CORE		opt_atm.h
+ATM_IP			opt_atm.h
+ATM_SIGPVC		opt_atm.h
+ATM_SPANS		opt_atm.h
+ATM_UNI			opt_atm.h
 
 # XXX Conflict: # of devices vs network protocol (Native ATM).
 # This makes "atm.h" unusable.
