@@ -54,7 +54,7 @@ u_int g_raid3_debug = 0;
 TUNABLE_INT("kern.geom.raid3.debug", &g_raid3_debug);
 SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, debug, CTLFLAG_RW, &g_raid3_debug, 0,
     "Debug level");
-static u_int g_raid3_timeout = 8;
+static u_int g_raid3_timeout = 4;
 SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, timeout, CTLFLAG_RW, &g_raid3_timeout,
     0, "Time to wait on all raid3 components");
 static u_int g_raid3_reqs_per_sync = 5;
@@ -465,6 +465,7 @@ g_raid3_init_disk(struct g_raid3_softc *sc, struct g_provider *pp,
 	disk->d_sync.ds_consumer = NULL;
 	disk->d_sync.ds_offset = md->md_sync_offset;
 	disk->d_sync.ds_offset_done = md->md_sync_offset;
+	disk->d_sync.ds_resync = -1;
 	disk->d_sync.ds_syncid = md->md_syncid;
 	if (errorp != NULL)
 		*errorp = 0;
@@ -1228,8 +1229,7 @@ g_raid3_sync_one(struct g_raid3_softc *sc)
 	bp->bio_parent = NULL;
 	bp->bio_cmd = BIO_READ;
 	bp->bio_offset = disk->d_sync.ds_offset * (sc->sc_ndisks - 1);
-	bp->bio_length = MIN(G_RAID3_MAX_IO_SIZE,
-	    sc->sc_mediasize - bp->bio_offset);
+	bp->bio_length = MIN(MAXPHYS, sc->sc_mediasize - bp->bio_offset);
 	bp->bio_cflags = 0;
 	bp->bio_done = g_raid3_sync_done;
 	bp->bio_data = disk->d_sync.ds_data;
@@ -1318,6 +1318,9 @@ g_raid3_sync_request(struct bio *bp)
 		return;
 	    }
 	case BIO_WRITE:
+	    {
+		struct g_raid3_disk_sync *sync;
+
 		if (bp->bio_error != 0) {
 			G_RAID3_LOGREQ(0, bp,
 			    "Synchronization request failed (error=%d).",
@@ -1330,9 +1333,12 @@ g_raid3_sync_request(struct bio *bp)
 			return;
 		}
 		G_RAID3_LOGREQ(3, bp, "Synchronization request finished.");
-		disk->d_sync.ds_offset_done = bp->bio_offset + bp->bio_length;
+		sync = &disk->d_sync;
+		sync->ds_offset_done = bp->bio_offset + bp->bio_length;
 		g_destroy_bio(bp);
-		if (disk->d_sync.ds_offset_done ==
+		if (sync->ds_resync != -1)
+			return;
+		if (sync->ds_offset_done ==
 		    sc->sc_mediasize / (sc->sc_ndisks - 1)) {
 			/*
 			 * Disk up-to-date, activate it.
@@ -1340,8 +1346,7 @@ g_raid3_sync_request(struct bio *bp)
 			g_raid3_event_send(disk, G_RAID3_DISK_STATE_ACTIVE,
 			    G_RAID3_EVENT_DONTWAIT);
 			return;
-		} else if ((disk->d_sync.ds_offset_done %
-		    (G_RAID3_MAX_IO_SIZE * 100)) == 0) {
+		} else if (sync->ds_offset_done % (MAXPHYS * 100) == 0) {
 			/*
 			 * Update offset_done on every 100 blocks.
 			 * XXX: This should be configurable.
@@ -1351,6 +1356,7 @@ g_raid3_sync_request(struct bio *bp)
 			g_topology_unlock();
 		}
 		return;
+	    }
 	default:
 		KASSERT(1 == 0, ("Invalid command here: %u (device=%s)",
 		    bp->bio_cmd, sc->sc_name));
@@ -1403,8 +1409,23 @@ g_raid3_register_request(struct bio *pbp)
 		break;
 	case BIO_WRITE:
 	case BIO_DELETE:
+	    {
+		struct g_raid3_disk_sync *sync;
+
 		ndisks = sc->sc_ndisks;
+
+		if (sc->sc_syncdisk == NULL)
+			break;
+		sync = &sc->sc_syncdisk->d_sync;
+		if (offset >= sync->ds_offset)
+			break;
+		if (offset + length <= sync->ds_offset_done)
+			break;
+		if (offset >= sync->ds_resync && sync->ds_resync != -1)
+			break;
+		sync->ds_resync = offset - (offset % MAXPHYS);
 		break;
+	    }
 	}
 	for (n = 0; n < ndisks; n++) {
 		disk = &sc->sc_disks[n];
@@ -1572,6 +1593,7 @@ g_raid3_worker(void *arg)
 {
 	struct g_raid3_softc *sc;
 	struct g_raid3_disk *disk;
+	struct g_raid3_disk_sync *sync;
 	struct g_raid3_event *ep;
 	struct bio *bp;
 	u_int nreqs;
@@ -1649,10 +1671,15 @@ g_raid3_worker(void *arg)
 			 */
 			nreqs = 0;
 			disk = sc->sc_syncdisk;
-			if (disk->d_sync.ds_offset <
+			sync = &disk->d_sync;
+			if (sync->ds_offset <
 			    sc->sc_mediasize / (sc->sc_ndisks - 1) &&
-			    disk->d_sync.ds_offset ==
-			    disk->d_sync.ds_offset_done) {
+			    sync->ds_offset == sync->ds_offset_done) {
+				if (sync->ds_resync != -1) {
+					sync->ds_offset = sync->ds_resync;
+					sync->ds_offset_done = sync->ds_resync;
+					sync->ds_resync = -1;
+				}
 				g_raid3_sync_one(sc);
 			}
 			G_RAID3_DEBUG(5, "%s: I'm here 2.", __func__);
@@ -1801,7 +1828,7 @@ g_raid3_sync_start(struct g_raid3_softc *sc)
 	error = g_access(disk->d_sync.ds_consumer, 1, 0, 0);
 	KASSERT(error == 0, ("Cannot open %s (error=%d).",
 	    disk->d_softc->sc_name, error));
-	disk->d_sync.ds_data = malloc(G_RAID3_MAX_IO_SIZE, M_RAID3, M_WAITOK);
+	disk->d_sync.ds_data = malloc(MAXPHYS, M_RAID3, M_WAITOK);
 	sc->sc_syncdisk = disk;
 }
 
@@ -2704,9 +2731,6 @@ g_raid3_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_topology_assert();
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
 	G_RAID3_DEBUG(2, "Tasting %s.", pp->name);
-	/* Skip providers with 0 sectorsize. */
-	if (pp->sectorsize == 0)
-		return (NULL);
 
 	gp = g_new_geomf(mp, "raid3:taste");
 	/* This orphan function should be never called. */
