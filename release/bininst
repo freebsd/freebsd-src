@@ -195,9 +195,10 @@ set_tmpdir()
 	dialog --title "Chose temporary directory" --clear \
 --inputbox "Please specify the name of a directory containing enough
 free space to hold the temporary files for this distribution.
-At minimum, a binary distribution will require around 10MB.
-At maximum, a srcdist may take 60MB or more.  If the directory
-you specify does not exist, it will be created for you.\n\n" \
+At minimum, a binary distribution will require around 21MB of
+temporary space.  At maximum, a srcdist may take 40MB or more.
+If the directory you specify does not exist, it will be created
+for you.\n\n" \
 16 72 "/usr/tmp" 2> ${TMP}/inputbox.tmp.$$
 	if ! handle_rval $?; then return 1; fi
 	tmp_dir=`cat ${TMP}/inputbox.tmp.$$`
