@@ -1,3 +1,5 @@
+# $FreeBSD$
+#
 # This is for use with a US keyboard, with only the
 # Hungarian accented characters added to it, and some tricks:
 # The accented characters are available as Alt + something: (and the upper
