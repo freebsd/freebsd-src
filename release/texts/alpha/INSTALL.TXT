@@ -57,6 +57,7 @@ FreeBSD/alpha supports the following alpha platforms:
 	AlphaStation 200, 250, 255, 400
 	AlphaStation 500, 600
 	Digital Personal Workstation 433, 500, 600
+	Compaq Professional Workstation XP900, XP1000, AlphaServer DS10
 	DEC3000/300 family (netboot only)
 	DEC3000/[4-9]00 family (netboot only)
 
