@@ -50,10 +50,10 @@ int		pci_write_ivar(device_t dev, device_t child, int which,
 int		pci_set_powerstate_method(device_t dev, device_t child,
 		    int state);
 int		pci_get_powerstate_method(device_t dev, device_t child);
-u_int32_t	pci_read_config_method(device_t dev, device_t child, 
+uint32_t	pci_read_config_method(device_t dev, device_t child, 
 		    int reg, int width);
 void		pci_write_config_method(device_t dev, device_t child, 
-		    int reg, u_int32_t val, int width);
+		    int reg, uint32_t val, int width);
 int		pci_enable_busmaster_method(device_t dev, device_t child);
 int		pci_disable_busmaster_method(device_t dev, device_t child);
 int		pci_enable_io_method(device_t dev, device_t child, int space);
