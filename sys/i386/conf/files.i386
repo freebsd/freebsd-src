@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.216 1998/12/31 08:17:08 luigi Exp $
+#	$Id: files.i386,v 1.217 1999/01/01 08:09:58 peter Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -24,6 +24,17 @@ font8x16.o			optional	std8x16font		\
 	no-implicit-rule before-depend \
 	clean		"${STD8X16FONT}-8x16 font8x16.c" 
 #
+dev/fb/fb.c			optional	fb	device-driver
+dev/fb/fb.c			optional	vga	device-driver
+dev/fb/splash.c			optional	splash
+dev/kbd/atkbd.c			optional	atkbd	device-driver
+dev/kbd/atkbdc.c		optional	atkbdc	device-driver
+dev/kbd/kbd.c			optional	atkbd	device-driver
+dev/kbd/kbd.c			optional	kbd	device-driver
+#dev/kbd/kbd.c			optional	ukbd	device-driver
+dev/syscons/syscons.c		optional	sc	device-driver
+dev/syscons/scvidctl.c		optional	sc	device-driver
+dev/syscons/scvesactl.c		optional	sc	device-driver
 i386/apm/apm.c			optional	apm	device-driver
 i386/apm/apm_setup.s		optional	apm
 i386/eisa/dpt_eisa.c		optional	eisa dpt device-driver
@@ -98,6 +109,8 @@ i386/isa/aha_isa.c		optional	aha	device-driver
 #i386/isa/aic6360.c              optional        aic     device-driver
 i386/isa/aic_isa.c              optional        aic     device-driver
 i386/isa/alog.c                 optional        alog    device-driver
+i386/isa/atkbd_isa.c		optional	atkbd	device-driver
+i386/isa/atkbdc_isa.c		optional	atkbdc	device-driver
 i386/isa/bt_isa.c		optional	bt	device-driver
 i386/isa/clock.c		standard
 i386/isa/cronyx.c		optional	cx	device-driver
@@ -133,9 +146,6 @@ i386/isa/intr_machdep.c		standard
 i386/isa/isa.c			optional	isa	device-driver
 i386/isa/istallion.c		optional	stli	device-driver
 i386/isa/joy.c			optional        joy     device-driver
-i386/isa/kbdio.c		optional        psm     device-driver
-i386/isa/kbdio.c		optional        sc      device-driver
-i386/isa/kbdio.c		optional        vt      device-driver
 i386/isa/loran.c		optional	loran	device-driver
 i386/isa/lpt.c			optional	lpt	device-driver
 i386/isa/labpc.c		optional	labpc	device-driver
@@ -235,11 +245,8 @@ i386/isa/sound/cs4232.c		optional	css	device-driver
 i386/isa/spigot.c		optional	spigot	device-driver
 i386/isa/spkr.c			optional	speaker	device-driver
 i386/isa/stallion.c		optional	stl	device-driver
-i386/isa/syscons.c		optional	sc	device-driver
-i386/isa/scvidctl.c		optional	sc	device-driver
-i386/isa/scvesactl.c		optional	sc	device-driver
-i386/isa/videoio.c		optional	sc	device-driver
-i386/isa/vesa.c			optional	sc	device-driver
+i386/isa/vesa.c			optional	vga	device-driver
+i386/isa/vga_isa.c		optional	vga	device-driver
 i386/isa/tw.c			optional	tw	device-driver
 i386/isa/wd.c			optional	wdc	device-driver
 i386/isa/wd.c			optional	wd	device-driver

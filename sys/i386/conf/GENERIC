@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.141 1999/01/01 08:09:57 peter Exp $
+#	$Id: GENERIC,v 1.142 1999/01/09 18:12:07 wpaul Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -108,10 +108,20 @@ controller	matcd0	at isa? port 0x230 bio
 
 device		scd0	at isa? port 0x230 bio
 
+# atkbdc0 controlls both the keyboard and the PS/2 mouse
+controller	atkbdc0	at isa? port IO_KBD tty
+device		atkbd0	at isa? tty irq 1
+device		psm0	at isa? tty irq 12
+
+device		vga0	at isa? port ? conflicts
+
+# splash screen/screen saver
+pseudo-device	splash
+
 # syscons is the default console driver, resembling an SCO console
-device		sc0	at isa? port IO_KBD conflicts tty irq 1
+device		sc0	at isa? tty
 # Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
-#device		vt0	at isa? port IO_KBD conflicts tty irq 1
+#device		vt0	at isa? tty
 #options		XSERVER			# support for X server
 #options		FAT_CURSOR		# start with block cursor
 # If you have a ThinkPAD, uncomment this along with the rest of the PCVT lines
@@ -135,8 +145,6 @@ device		sio2	at isa? disable port "IO_COM3" tty irq 5
 device		sio3	at isa? disable port "IO_COM4" tty irq 9
 
 device		lpt0	at isa? port? tty irq 7
-
-device		psm0	at isa? port IO_KBD conflicts tty irq 12
 
 # Order is important here due to intrusive probes, do *not* alphabetize
 # this list of network interfaces until the probes have been fixed.

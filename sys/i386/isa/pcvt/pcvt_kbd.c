@@ -91,11 +91,9 @@ static void	doreset ( void );
 static void	ovlinit ( int force );
 static void 	settpmrate ( int rate );
 static void	setlockkeys ( int snc );
-#ifndef _I386_ISA_KBDIO_H_
+#ifndef _DEV_KBD_KBDREG_H_
 static int	kbc_8042cmd ( int val );
-#else
-static int 	set_keyboard_param( int command, int data );
-#endif /* !_I386_ISA_KBDIO_H_ */
+#endif /* !_DEV_KBD_KBDREG_H_ */
 static int	getokeydef ( unsigned key, struct kbd_ovlkey *thisdef );
 static int 	getckeydef ( unsigned key, struct kbd_ovlkey *thisdef );
 static int	rmkeydef ( int key );
@@ -170,7 +168,7 @@ do_vgapage(int page)
 
 #define PCVT_UPDLED_LOSES_INTR	0	/* disabled for now */
 
-#if PCVT_UPDLED_LOSES_INTR || defined(_I386_ISA_KBDIO_H_)
+#if PCVT_UPDLED_LOSES_INTR || defined(_DEV_KBD_KBDREG_H_)
 
 /*---------------------------------------------------------------------------*
  *	check for lost keyboard interrupts
@@ -203,7 +201,7 @@ static struct callout_handle lost_intr_ch =
 static void
 check_for_lost_intr (void *arg)
 {
-#ifndef _I386_ISA_KBDIO_H_
+#ifndef _DEV_KBD_KBDREG_H_
 	lost_intr_timeout_queued = 0;
 	if (inb(CONTROLLER_CTRL) & STATUS_OUTPBF)
 	{
@@ -215,19 +213,20 @@ check_for_lost_intr (void *arg)
 	int opri;
 
 	lost_intr_timeout_queued = 0;
-	if (kbdc_lock(kbdc, TRUE)) {
+	if ((*kbdsw[kbd->kb_index]->lock)(kbd, TRUE)) {
 		opri = spltty ();
-		kbdc_lock(kbdc, FALSE);
-		if (kbdc_data_ready(kbdc)) 
+		(*kbdsw[kbd->kb_index]->lock)(kbd, FALSE);
+		if ((*kbdsw[kbd->kb_index]->check)(kbd))
 			pcrint (0);
 		splx (opri);
 	}
+
 	lost_intr_ch = timeout(check_for_lost_intr, (void *)NULL, hz);
 	lost_intr_timeout_queued = 1;
-#endif /* !_I386_ISA_KBDIO_H_ */
+#endif /* !_DEV_KBD_KBDREG_H_ */
 }
 
-#endif /* PCVT_UPDLED_LOSES_INTR || defined(_I386_ISA_KBDIO_H_) */
+#endif /* PCVT_UPDLED_LOSES_INTR || defined(_DEV_KBD_KBDREG_H_) */
 
 /*---------------------------------------------------------------------------*
  *	update keyboard led's
@@ -242,13 +241,19 @@ update_led(void)
 	int opri, new_ledstate;
 
 	opri = spltty();
+#ifndef _DEV_KBD_KBDREG_H_
 	new_ledstate = (vsp->scroll_lock) |
 		       (vsp->num_lock * 2) |
 		       (vsp->caps_lock * 4);
+#else
+	new_ledstate = ((vsp->scroll_lock) ? LED_SCR : 0) |
+		       ((vsp->num_lock) ? LED_NUM : 0) |
+		       ((vsp->caps_lock) ? LED_CAP : 0);
+#endif /* _DEV_KBD_KBDREG_H_ */
 
 	if (new_ledstate != ledstate)
 	{
-#ifndef _I386_ISA_KBDIO_H_
+#ifndef _DEV_KBD_KBDREG_H_
 		int response1, response2;
 
 		ledstate = LEDSTATE_UPDATE_PENDING;
@@ -296,19 +301,20 @@ update_led(void)
 			printf(
 			"Keyboard LED command not ACKed (responses %#x %#x)\n",
 			       response1, response2);
-#else /* _I386_ISA_KBDIO_H_ */
+#else /* _DEV_KBD_KBDREG_H_ */
 
-		if (kbdc == NULL) {
+		if (kbd == NULL) {
 			ledstate = new_ledstate;
 			splx(opri);
 		} else {
 			ledstate = LEDSTATE_UPDATE_PENDING;
 			splx(opri);
-			if (set_keyboard_param(KBDC_SET_LEDS, new_ledstate) == 0) 
+			if ((*kbdsw[kbd->kb_index]->ioctl)(kbd, KDSETLED,
+					(caddr_t)&new_ledstate) == 0) 
 				ledstate = new_ledstate;
 		}
 
-#endif /* !_I386_ISA_KBDIO_H_ */
+#endif /* !_DEV_KBD_KBDREG_H_ */
 
 #if PCVT_UPDLED_LOSES_INTR
 		if (lost_intr_timeout_queued)
@@ -320,7 +326,7 @@ update_led(void)
 
 	}
 
-#ifndef _I386_ISA_KBDIO_H_
+#ifndef _DEV_KBD_KBDREG_H_
 	splx(opri);
 #endif 
 
@@ -333,7 +339,7 @@ update_led(void)
 static void
 settpmrate(int rate)
 {
-#ifndef _I386_ISA_KBDIO_H_
+#ifndef _DEV_KBD_KBDREG_H_
 	tpmrate = rate & 0x7f;
 	if(kbd_cmd(KEYB_C_TYPEM) != 0)
 		printf("Keyboard TYPEMATIC command timeout\n");
@@ -341,12 +347,13 @@ settpmrate(int rate)
 		printf("Keyboard TYPEMATIC data timeout\n");
 #else
 	tpmrate = rate & 0x7f;
-	if (set_keyboard_param(KBDC_SET_TYPEMATIC, tpmrate) != 0)
+	if ((*kbdsw[kbd->kb_index]->ioctl)(kbd, KDSETRAD,
+					   (caddr_t)&tpmrate) == 0) 
 		printf("pcvt: failed to set keyboard TYPEMATIC.\n");
-#endif /* !_I386_ISA_KBDIO_H_ */
+#endif /* !_DEV_KBD_KBDREG_H_ */
 }
 
-#ifndef _I386_ISA_KBDIO_H_
+#ifndef _DEV_KBD_KBDREG_H_
 /*---------------------------------------------------------------------------*
  *	Pass command to keyboard controller (8042)
  *---------------------------------------------------------------------------*/
@@ -408,64 +415,7 @@ kbd_response(void)
 
 	return ch;
 }
-#else
-static int
-set_keyboard_param(int command, int data)
-{
-    int s;
-#if 0
-    int c;
-#endif
-
-    if (kbdc == NULL)
-	return 1;
-
-    /* prevent the timeout routine from polling the keyboard */
-    if (!kbdc_lock(kbdc, TRUE)) 
-	return 1;
-
-    /* disable the keyboard and mouse interrupt */
-    s = spltty();
-#if 0
-    c = get_controller_command_byte(kbdc);
-    if ((c == -1) 
-	|| !set_controller_command_byte(kbdc, 
-            kbdc_get_device_mask(kbdc),
-            KBD_DISABLE_KBD_PORT | KBD_DISABLE_KBD_INT
-                | KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
-	/* CONTROLLER ERROR */
-        kbdc_lock(kbdc, FALSE);
-	splx(s);
-	return 1;
-    }
-    /* 
-     * Now that the keyboard controller is told not to generate 
-     * the keyboard and mouse interrupts, call `splx()' to allow 
-     * the other tty interrupts. The clock interrupt may also occur, 
-     * but the timeout routine (`scrn_timer()') will be blocked 
-     * by the lock flag set via `kbdc_lock()'
-     */
-    splx(s);
-#endif
-
-    if (send_kbd_command_and_data(kbdc, command, data) != KBD_ACK)
-        send_kbd_command(kbdc, KBDC_ENABLE_KBD);
-
-#if 0
-    /* restore the interrupts */
-    if (!set_controller_command_byte(kbdc,
-            kbdc_get_device_mask(kbdc),
-	    c & (KBD_KBD_CONTROL_BITS | KBD_AUX_CONTROL_BITS))) { 
-	/* CONTROLLER ERROR */
-    }
-#else
-    splx(s);
-#endif
-    kbdc_lock(kbdc, FALSE);
-
-    return 0;
-}
-#endif /* !_I386_ISA_KBDIO_H_ */
+#endif /* _DEV_KBD_KBDREG_H_ */
 
 #if PCVT_SCANSET > 1
 /*---------------------------------------------------------------------------*
@@ -474,7 +424,7 @@ set_keyboard_param(int command, int data)
 void
 kbd_emulate_pc(int do_emulation)
 {
-#ifndef _I386_ISA_KBDIO_H_
+#ifndef _DEV_KBD_KBDREG_H_
 	int cmd, timeo = 10000;
 
 	cmd = COMMAND_SYSFLG|COMMAND_IRQEN; /* common base cmd */
@@ -492,9 +442,9 @@ kbd_emulate_pc(int do_emulation)
 			break;
 	outb(CONTROLLER_DATA, cmd);
 #else
-	set_controller_command_byte(kbdc, KBD_TRANSLATION, 
+	set_controller_command_byte(*(KBDC *)kbd->kb_data, KBD_TRANSLATION, 
 		(do_emulation) ? KBD_TRANSLATION : 0);
-#endif /* !_I386_ISA_KBDIO_H_ */
+#endif /* !_DEV_KBD_KBDREG_H_ */
 }
 
 #endif /* PCVT_SCANSET > 1 */
@@ -510,7 +460,7 @@ kbd_emulate_pc(int do_emulation)
 static
 void doreset(void)
 {
-#ifndef _I386_ISA_KBDIO_H_
+#ifndef _DEV_KBD_KBDREG_H_
 	int again = 0;
 	int once = 0;
 	int response, opri;
@@ -671,10 +621,8 @@ r_entry:
 
 #endif /* PCVT_KEYBDID */
 
-#else /* _I386_ISA_KBDIO_H_ */
-	int c;
-	int m;
-	int s;
+#else /* _DEV_KBD_KBDREG_H_ */
+	int type;
 
 	if (!reset_keyboard)	/* no, we are not ready to reset */
 		return;
@@ -684,29 +632,11 @@ r_entry:
 		lost_intr_timeout_queued = 0;
 	}
 
-	if (kbdc == NULL)
-		kbdc = kbdc_open(IO_KBD);
+	if (kbd == NULL)
+		return;		/* shouldn't happen */
+	(*kbdsw[kbd->kb_index]->init)(kbd);
 
-	if (!kbdc_lock(kbdc, TRUE))	/* strange, somebody got there first */
-		return;
-
-	/* remove any noise */
-	empty_both_buffers(kbdc, 10);
-
-	s = spltty();
-
-	/* save the current controller command byte */
-	m = kbdc_get_device_mask(kbdc) & ~KBD_KBD_CONTROL_BITS;
-	c = get_controller_command_byte(kbdc);
-	if (c == -1) {
-		/* CONTROLLER ERROR */
-		kbdc_set_device_mask(kbdc, m);
-		kbdc_lock(kbdc, FALSE);
-		kbdc = NULL;
-		splx(s);
-    		printf("pcvt: unable to get the command byte.\n");
-		return;
-	}
+	ledstate = LEDSTATE_UPDATE_PENDING;
 
 #if PCVT_USEKBDSEC		/* security enabled */
 
@@ -726,105 +656,33 @@ r_entry:
 
 #endif /* PCVT_USEKBDSEC */
 
-	/* disable the keyboard interrupt and the aux port and interrupt */
-        if (!set_controller_command_byte(kbdc,
-                KBD_KBD_CONTROL_BITS | KBD_TRANSLATION | KBD_OVERRIDE_KBD_LOCK,
-                KBD_ENABLE_KBD_PORT | KBD_DISABLE_KBD_INT | KBDINITCMD)) {
-    		/* CONTROLLER ERROR: there is very little we can do... */
-		kbdc_set_device_mask(kbdc, m);
-		kbdc_lock(kbdc, FALSE);
-		kbdc = NULL;
-		splx(s);
-    		printf("pcvt: unable to set the command byte.\n");
-		return;
-        }
-	splx(s);
-    
-        /* reset keyboard hardware */
-	ledstate = LEDSTATE_UPDATE_PENDING;
-        if (!reset_kbd(kbdc)) {
-		/* KEYBOARD ERROR */
-    		empty_both_buffers(kbdc, 10);
-    		test_controller(kbdc);
-    		test_kbd_port(kbdc);
-    		/* 
-		 * We could disable the keyboard port and interrupt now... 
-		 * but, the keyboard may still exist. 
-    		 */
-    		printf("pcvt: failed to reset the keyboard.\n"); 
-		/* try to restore the original command byte */
-		set_controller_command_byte(kbdc, 0xff, c);
-		kbdc_set_device_mask(kbdc, m);
-		kbdc_lock(kbdc, FALSE);
-		kbdc = NULL;
-		return;
-	}
-    
-#if PCVT_KEYBDID
-
-	keyboard_type = KB_UNKNOWN;
-	if (send_kbd_command(kbdc, KBDC_SEND_DEV_ID) == KBD_ACK) {
-		DELAY(10000);	/* 10msec delay */
-		switch (read_kbd_data(kbdc)) {
-		case KEYB_R_MF2ID1:
-			switch (read_kbd_data(kbdc)) {
-			case KEYB_R_MF2ID2:
-			case KEYB_R_MF2ID2HP:
-				keyboard_type = KB_MFII;
-				break;
-			case -1:
-			default:
-				break;
-			}
-			break;
-		case -1:
-			keyboard_type = KB_AT;
-			/* fall through */
-		default:
-			/* XXX: should we read the second byte? */
-    			empty_both_buffers(kbdc, 10);	/* XXX */
-			break;
-		}
-	} else {
-		/* 
-		 * The send ID command failed. This error is considered
-		 * benign, but may need recovery. 
-		 */ 
-    		empty_both_buffers(kbdc, 10);
-    		test_controller(kbdc);
-    		test_kbd_port(kbdc);
-	}
-
-#else /* PCVT_KEYBDID */
+	set_controller_command_byte(*(KBDC *)kbd->kb_data,
+		KBD_OVERRIDE_KBD_LOCK | KBD_TRANSLATION, KBDINITCMD);
 
 	keyboard_type = KB_MFII;	/* force it .. */
-
-#endif /* PCVT_KEYBDID */
-
-	/* enable the keyboard port and intr. */
-	if (!set_controller_command_byte(kbdc, 
-        	KBD_KBD_CONTROL_BITS, 
-    	        KBD_ENABLE_KBD_PORT | KBD_ENABLE_KBD_INT)) {
-    		/* CONTROLLER ERROR 
-    		 * This is serious; we are left with the disabled 
-		 * keyboard intr. 
-    		 */
-    		printf("pcvt: failed to enable the keyboard port and intr.\n");
-		kbdc_set_device_mask(kbdc, m);
-		kbdc_lock(kbdc, FALSE);
-		kbdc = NULL;
-		return;
+#if PCVT_KEYBDID
+	type = KB_101;
+	(*kbdsw[kbd->kb_index]->ioctl)(kbd, KDGKBTYPE, (caddr_t)&type);
+	switch (type)
+	{
+	case KB_84:
+		keyboard_type = KB_AT;
+		break;
+	case KB_101:
+		keyboard_type = KB_MFII;
+		break;
+	default:
+		keyboard_type = KB_UNKNOWN;
+		break;
 	}
-    
-	kbdc_set_device_mask(kbdc, m | KBD_KBD_CONTROL_BITS);
-	kbdc_lock(kbdc, FALSE);
+#endif /* PCVT_KEYBDID */
 
 	update_led();
 
 	lost_intr_ch = timeout(check_for_lost_intr, (void *)NULL, hz);
 	lost_intr_timeout_queued = 1;
 
-#endif /* !_I386_ISA_KBDIO_H_ */
+#endif /* !_DEV_KBD_KBDREG_H_ */
 }
 
 /*---------------------------------------------------------------------------*
@@ -1246,15 +1104,15 @@ sgetc(int noblock)
 	static char	keybuf[2] = {0}; /* the second 0 is a delimiter! */
 #endif /* XSERVER */
 
-#ifdef _I386_ISA_KBDIO_H_
+#ifdef _DEV_KBD_KBDREG_H_
 	int 		c;
-#endif /* _I386_ISA_KBDIO_H_ */
+#endif /* _DEV_KBD_KBDREG_H_ */
 
 loop:
 
 #ifdef XSERVER
 
-#ifndef _I386_ISA_KBDIO_H_
+#ifndef _DEV_KBD_KBDREG_H_
 
 #if PCVT_KBD_FIFO
 
@@ -1289,7 +1147,7 @@ loop:
 
 #endif /* !PCVT_KBD_FIFO */
 
-#else /* _I386_ISA_KBDIO_H_ */
+#else /* _DEV_KBD_KBDREG_H_ */
 
 #if PCVT_KBD_FIFO
 	if (pcvt_kbd_count) {
@@ -1302,18 +1160,18 @@ loop:
 	} else
 #endif /* PCVT_KBD_FIFO */
 	if (!noblock) {
-		while ((c = read_kbd_data(kbdc)) == -1)
+		while ((c = (*kbdsw[kbd->kb_index]->read)(kbd, TRUE)) == -1)
 			;
 		dt = c;
 	} else {
-		if ((c = read_kbd_data_no_wait(kbdc)) == -1)
+		if ((c = (*kbdsw[kbd->kb_index]->read)(kbd, FALSE)) == -1)
 			return NULL;
 		dt = c;
 	}
 
 	{
 
-#endif /* !_I386_ISA_KBDIO_H_ */
+#endif /* !_DEV_KBD_KBDREG_H_ */
 
 		/*
 		 * If x mode is active, only care for locking keys, then
@@ -1591,7 +1449,7 @@ no_mouse_event:
 
 #else /* !XSERVER */
 
-#ifndef  _I386_ISA_KBDIO_H_
+#ifndef  _DEV_KBD_KBDREG_H_
 
 #  if PCVT_KBD_FIFO
 
@@ -1628,7 +1486,7 @@ no_mouse_event:
 
 #endif /* !PCVT_KBD_FIFO */
 
-#else /* _I386_ISA_KBDIO_H_ */
+#else /* _DEV_KBD_KBDREG_H_ */
 
 #if PCVT_KBD_FIFO
 	if (pcvt_kbd_count) {
@@ -1641,20 +1499,20 @@ no_mouse_event:
 	} else
 #endif /* PCVT_KBD_FIFO */
 	if (!noblock) {
-		while ((c = read_kbd_data(kbdc)) == -1)
+		while ((c = (*kbdsw[kbd->kb_index]->read)(kbd, TRUE)) == -1)
 			;
 		dt = c;
 	} else {
-		if ((c = read_kbd_data_no_wait(kbdc)) == -1)
+		if ((c = (*kbdsw[kbd->kb_index]->read)(kbd, FALSE)) == -1)
 			return NULL;
 		dt = c;
 	}
 
-#endif /* !_I386_ISA_KBDIO_H_ */
+#endif /* !_DEV_KBD_KBDREG_H_ */
 
 #endif /* !XSERVER */
 
-#ifndef _I386_ISA_KBDIO_H_
+#ifndef _DEV_KBD_KBDREG_H_
 	else
 	{
 		if(noblock)
@@ -1662,7 +1520,7 @@ no_mouse_event:
 		else
 			goto loop;
 	}
-#endif /* !_I386_ISA_KBDIO_H_ */
+#endif /* !_DEV_KBD_KBDREG_H_ */
 
 #if PCVT_SHOWKEYS
 	showkey (' ', dt);

@@ -25,40 +25,24 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: saver.h,v 1.13 1998/11/04 03:49:38 peter Exp $
+ *	$Id: saver.h,v 1.14 1998/12/31 13:40:26 des Exp $
  */
 #include <machine/apm_bios.h>
 #include <machine/console.h>
 
-#include <i386/isa/videoio.h>
-#include <i386/isa/syscons.h>
+#include <dev/fb/fbreg.h>
+#include <dev/fb/splashreg.h>
 
+#include <dev/syscons/syscons.h>
+
+#define set_video_mode(adp, mode, pal, border)				\
+	{								\
+		(*vidsw[(adp)->va_index]->set_mode)((adp), (mode));	\
+		(*vidsw[(adp)->va_index]->load_palette)((adp), (pal));	\
+		(*vidsw[(adp)->va_index]->set_border)((adp), (border));	\
+	}
+#define get_mode_info(adp, mode, buf)					\
+	(*vidsw[(adp)->va_index]->get_info)((adp), (mode), (buf))
+	
 extern scr_stat	*cur_console;
-extern u_short	*Crtat;
-extern u_int	crtc_addr;
-extern char	crtc_type;
 extern char	scr_map[];
-extern int	scrn_blanked;
-extern int	fonts_loaded;
-extern char	font_8[], font_14[], font_16[];
-extern char	palette[];
-
-#define SAVER_MODULE(name) \
-	static int name ## _modevent(module_t mod, int type, void *data) \
-	{ \
-		switch ((modeventtype_t)type) { \
-		case MOD_LOAD: \
-			return name ## _load(); \
-		case MOD_UNLOAD: \
-			return name ## _unload(); \
-		default: \
-			break; \
-		} \
-		return 0; \
-	} \
-	static moduledata_t name ## _mod = { \
-		#name, \
-		name ## _modevent, \
-		NULL \
-	}; \
-	DECLARE_MODULE(name, name ## _mod, SI_SUB_PSEUDO, SI_ORDER_MIDDLE)

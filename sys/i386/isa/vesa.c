@@ -23,14 +23,20 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vesa.c,v 1.10 1998/12/30 11:21:08 yokota Exp $
+ * $Id: $
  */
 
-#include "sc.h"
+#include "vga.h"
+#include "opt_vga.h"
 #include "opt_vesa.h"
 #include "opt_vm86.h"
+#include "opt_fb.h"
 
-#if (NSC > 0 && defined(VESA) && defined(VM86)) || defined(KLD_MODULE)
+#ifdef VGA_NO_MODE_CHANGE
+#undef VESA
+#endif
+
+#if (NVGA > 0 && defined(VESA) && defined(VM86)) || defined(KLD_MODULE)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -46,7 +52,18 @@
 #include <machine/pc/bios.h>
 #include <machine/pc/vesa.h>
 
-#include <i386/isa/videoio.h>
+#include <dev/fb/fbreg.h>
+#include <dev/fb/vgareg.h>
+
+#ifndef __i386__
+#include <isa/isareg.h>
+#else
+#include <i386/isa/isa.h>
+#endif
+
+#ifndef VESA_DEBUG
+#define VESA_DEBUG	1
+#endif
 
 /* VESA video adapter state buffer stub */
 struct adp_state {
@@ -59,11 +76,14 @@ typedef struct adp_state adp_state_t;
 /* VESA video adapter */
 static video_adapter_t *vesa_adp = NULL;
 static int vesa_state_buf_size = 0;
+#if 0
 static void *vesa_state_buf = NULL;
+#endif
 
 /* VESA functions */
+static int			vesa_nop(void);
+static vi_probe_t		vesa_probe;
 static vi_init_t		vesa_init;
-static vi_adapter_t		vesa_adapter;
 static vi_get_info_t		vesa_get_info;
 static vi_query_mode_t		vesa_query_mode;
 static vi_set_mode_t		vesa_set_mode;
@@ -78,17 +98,34 @@ static vi_load_state_t		vesa_load_state;
 static vi_set_win_org_t		vesa_set_origin;
 static vi_read_hw_cursor_t	vesa_read_hw_cursor;
 static vi_set_hw_cursor_t	vesa_set_hw_cursor;
+static vi_set_hw_cursor_shape_t	vesa_set_hw_cursor_shape;
+static vi_mmap_t		vesa_mmap;
 static vi_diag_t		vesa_diag;
 
-static struct vidsw vesavidsw = {
-	vesa_init,	vesa_adapter,	vesa_get_info,	vesa_query_mode,
-	vesa_set_mode,	vesa_save_font,	vesa_load_font,	vesa_show_font,
-	vesa_save_palette,vesa_load_palette,vesa_set_border,vesa_save_state,
-	vesa_load_state,vesa_set_origin,vesa_read_hw_cursor,vesa_set_hw_cursor,
+static video_switch_t vesavidsw = {
+	vesa_probe,
+	vesa_init,
+	vesa_get_info,
+	vesa_query_mode,
+	vesa_set_mode,
+	vesa_save_font,
+	vesa_load_font,
+	vesa_show_font,
+	vesa_save_palette,
+	vesa_load_palette,
+	vesa_set_border,
+	vesa_save_state,
+	vesa_load_state,
+	vesa_set_origin,
+	vesa_read_hw_cursor,
+	vesa_set_hw_cursor,
+	vesa_set_hw_cursor_shape,
+	(vi_blank_display_t *)vesa_nop,
+	vesa_mmap,
 	vesa_diag,
 };
 
-static struct vidsw prevvidsw;
+static video_switch_t *prevvidsw;
 
 /* VESA BIOS video modes */
 #define VESA_MAXMODES	64
@@ -111,6 +148,7 @@ static char *vesa_revstr = NULL;
 /* local macros and functions */
 #define BIOS_SADDRTOLADDR(p) ((((p) & 0xffff0000) >> 12) + ((p) & 0x0000ffff))
 
+static int int10_set_mode(int mode);
 static int vesa_bios_get_mode(int mode, struct vesa_mode *vmode);
 static int vesa_bios_set_mode(int mode);
 static int vesa_bios_set_dac(int bits);
@@ -144,6 +182,18 @@ dump_buffer(u_char *buf, size_t len)
 	if ((++i % 16) == 0)
 	    printf("\n");
     }
+}
+
+/* INT 10 BIOS calls */
+static int
+int10_set_mode(int mode)
+{
+	struct vm86frame vmf;
+
+	bzero(&vmf, sizeof(vmf));
+	vmf.vmf_eax = 0x0000 | mode;
+	vm86_intcall(0x10, &vmf);
+	return 0;
 }
 
 /* VESA BIOS calls */
@@ -362,8 +412,10 @@ vesa_bios_init(void)
 	if ((err != 0) || (vmf.vmf_eax != 0x4f) || bcmp("VESA", buf, 4))
 		return 1;
 	vesa_adp_info = (struct vesa_info *)buf;
-	if (bootverbose)
+	if (bootverbose) {
+		printf("VESA: information block\n");
 		dump_buffer(buf, 64);
+	}
 	if (vesa_adp_info->v_flags & V_NONVGA)
 		return 1;
 
@@ -446,42 +498,101 @@ vesa_clear_modes(video_info_t *info, int color)
 	}
 }
 
-/* exported functions */
+/* entry points */
 
 static int
-vesa_init(void)
+vesa_configure(int flags)
 {
+	video_adapter_t *adp;
 	int adapters;
+	int error;
 	int i;
 
-	adapters = (*prevvidsw.init)();
-	for (i = 0; i < adapters; ++i) {
-		if ((vesa_adp = (*prevvidsw.adapter)(i)) == NULL)
-			continue;
-		if (vesa_adp->va_type == KD_VGA) {
-			vesa_adp->va_flags |= V_ADP_VESA;
-			return adapters;
-		}
-	}
-	vesa_adp = NULL;
-	return adapters;
-}
+	if (vesa_init_done)
+		return 0;
+	if (flags & VIO_PROBE_ONLY)
+		return 0;		/* XXX */
 
-static video_adapter_t
-*vesa_adapter(int ad)
-{
-	return (*prevvidsw.adapter)(ad);
+	/*
+	 * If the VESA module has already been loaded, abort loading 
+	 * the module this time.
+	 */
+	for (i = 0; (adp = vid_get_adapter(i)) != NULL; ++i) {
+		if (adp->va_flags & V_ADP_VESA)
+			return ENXIO;
+		if (adp->va_type == KD_VGA)
+			break;
+	}
+	/*
+	 * The VGA adapter is not found.  This is because either 
+	 * 1) the VGA driver has not been initialized, or 2) the VGA card
+	 * is not present.  If 1) is the case, we shall defer
+	 * initialization for now and try again later.
+	 */
+	if (adp == NULL) {
+		vga_sub_configure = vesa_configure;
+		return ENODEV;
+	}
+
+	/* count number of registered adapters */
+	for (++i; vid_get_adapter(i) != NULL; ++i)
+		;
+	adapters = i;
+
+	/* call VESA BIOS */
+	vesa_adp = adp;
+	if (vesa_bios_init()) {
+		vesa_adp = NULL;
+		return ENXIO;
+	}
+	vesa_adp->va_flags |= V_ADP_VESA;
+
+	/* remove conflicting modes if we have more than one adapter */
+	if (adapters > 1) {
+		vesa_clear_modes(vesa_vmode,
+				 (vesa_adp->va_flags & V_ADP_COLOR) ? 
+				     V_INFO_COLOR : 0);
+	}
+
+	if ((error = vesa_load_ioctl()) == 0) {
+		prevvidsw = vidsw[vesa_adp->va_index];
+		vidsw[vesa_adp->va_index] = &vesavidsw;
+		vesa_init_done = TRUE;
+	} else {
+		vesa_adp = NULL;
+		return error;
+	}
+
+	return 0;
 }
 
 static int
-vesa_get_info(int ad, int mode, video_info_t *info)
+vesa_nop(void)
+{
+	return 0;
+}
+
+static int
+vesa_probe(int unit, video_adapter_t **adpp, void *arg, int flags)
+{
+	return (*prevvidsw->probe)(unit, adpp, arg, flags);
+}
+
+static int
+vesa_init(int unit, video_adapter_t *adp, int flags)
+{
+	return (*prevvidsw->init)(unit, adp, flags);
+}
+
+static int
+vesa_get_info(video_adapter_t *adp, int mode, video_info_t *info)
 {
 	int i;
 
-	if ((*prevvidsw.get_info)(ad, mode, info) == 0)
+	if ((*prevvidsw->get_info)(adp, mode, info) == 0)
 		return 0;
 
-	if (ad != vesa_adp->va_index)
+	if (adp != vesa_adp)
 		return 1;
 
 	mode = vesa_map_gen_mode_num(vesa_adp->va_type, 
@@ -498,13 +609,13 @@ vesa_get_info(int ad, int mode, video_info_t *info)
 }
 
 static int
-vesa_query_mode(int ad, video_info_t *info)
+vesa_query_mode(video_adapter_t *adp, video_info_t *info)
 {
 	int i;
 
-	if ((i = (*prevvidsw.query_mode)(ad, info)) != -1)
+	if ((i = (*prevvidsw->query_mode)(adp, info)) != -1)
 		return i;
-	if (ad != vesa_adp->va_index)
+	if (adp != vesa_adp)
 		return -1;
 
 	for (i = 0; vesa_vmode[i].vi_mode != EOT; ++i) {
@@ -536,17 +647,19 @@ vesa_query_mode(int ad, video_info_t *info)
 }
 
 static int
-vesa_set_mode(int ad, int mode)
+vesa_set_mode(video_adapter_t *adp, int mode)
 {
 	video_info_t info;
+#if 0
 	size_t len;
+#endif
 
-	if (ad != vesa_adp->va_index)
-		return (*prevvidsw.set_mode)(ad, mode);
+	if (adp != vesa_adp)
+		return (*prevvidsw->set_mode)(adp, mode);
 
 	mode = vesa_map_gen_mode_num(vesa_adp->va_type, 
 				     vesa_adp->va_flags & V_ADP_COLOR, mode);
-#ifdef SC_VIDEO_DEBUG
+#if VESA_DEBUG > 0
 	printf("VESA: set_mode(): %d(%x) -> %d(%x)\n",
 		vesa_adp->va_mode, vesa_adp->va_mode, mode, mode);
 #endif
@@ -554,37 +667,40 @@ vesa_set_mode(int ad, int mode)
 	 * If the current mode is a VESA mode and the new mode is not,
 	 * restore the state of the adapter first, so that non-standard, 
 	 * extended SVGA registers are set to the state compatible with
-	 * the standard VGA modes. Otherwise (*prevvidsw.set_mode)() 
+	 * the standard VGA modes. Otherwise (*prevvidsw->set_mode)() 
 	 * may not be able to set up the new mode correctly.
 	 */
 	if (VESA_MODE(vesa_adp->va_mode)) {
-		if ((*prevvidsw.get_info)(ad, mode, &info) == 0) {
+		if ((*prevvidsw->get_info)(adp, mode, &info) == 0) {
+			int10_set_mode(vesa_adp->va_initial_bios_mode);
+#if 0
 			/* assert(vesa_state_buf != NULL); */
 		    	if ((vesa_state_buf == NULL)
-			    || vesa_load_state(ad, vesa_state_buf))
+			    || vesa_load_state(adp, vesa_state_buf))
 				return 1;
 			free(vesa_state_buf, M_DEVBUF);
 			vesa_state_buf = NULL;
-#ifdef SC_VIDEO_DEBUG
+#if VESA_DEBUG > 0
 			printf("VESA: restored\n");
 #endif
+#endif /* 0 */
 		}
 		/* 
-		 * once (*prevvidsw.get_info)() succeeded, 
-		 * (*prevvidsw.set_mode)() below won't fail...
+		 * once (*prevvidsw->get_info)() succeeded, 
+		 * (*prevvidsw->set_mode)() below won't fail...
 		 */
 	}
 
 	/* we may not need to handle this mode after all... */
-	if ((*prevvidsw.set_mode)(ad, mode) == 0)
+	if ((*prevvidsw->set_mode)(adp, mode) == 0)
 		return 0;
 
 	/* is the new mode supported? */
-	if (vesa_get_info(ad, mode, &info))
+	if (vesa_get_info(adp, mode, &info))
 		return 1;
 	/* assert(VESA_MODE(mode)); */
 
-#ifdef SC_VIDEO_DEBUG
+#if VESA_DEBUG > 0
 	printf("VESA: about to set a VESA mode...\n");
 #endif
 	/* 
@@ -592,27 +708,29 @@ vesa_set_mode(int ad, int mode)
 	 * so that the adapter state can be restored later when a non-VESA
 	 * mode is to be set up. See above.
 	 */
+#if 0
 	if (!VESA_MODE(vesa_adp->va_mode) && (vesa_state_buf == NULL)) {
-		len = vesa_save_state(ad, NULL, 0);
+		len = vesa_save_state(adp, NULL, 0);
 		vesa_state_buf = malloc(len, M_DEVBUF, M_WAITOK);
-		if (vesa_save_state(ad, vesa_state_buf, len)) {
-#ifdef SC_VIDEO_DEBUG
+		if (vesa_save_state(adp, vesa_state_buf, len)) {
+#if VESA_DEBUG > 0
 			printf("VESA: state save failed! (len=%d)\n", len);
 #endif
 			free(vesa_state_buf, M_DEVBUF);
 			vesa_state_buf = NULL;
 			return 1;
 		}
-#ifdef SC_VIDEO_DEBUG
+#if VESA_DEBUG > 0
 		printf("VESA: saved (len=%d)\n", len);
 		dump_buffer(vesa_state_buf, len);
 #endif
 	}
+#endif /* 0 */
 
 	if (vesa_bios_set_mode(mode))
 		return 1;
 
-#ifdef SC_VIDEO_DEBUG
+#if VESA_DEBUG > 0
 	printf("VESA: mode set!\n");
 #endif
 	vesa_adp->va_mode = mode;
@@ -620,7 +738,7 @@ vesa_set_mode(int ad, int mode)
 	vesa_adp->va_flags |= 
 		(info.vi_flags & V_INFO_COLOR) ? V_ADP_COLOR : 0;
 	vesa_adp->va_crtc_addr =
-		(vesa_adp->va_flags & V_ADP_COLOR) ? COLOR_BASE : MONO_BASE;
+		(vesa_adp->va_flags & V_ADP_COLOR) ? COLOR_CRTC : MONO_CRTC;
 	vesa_adp->va_window = BIOS_PADDRTOVADDR(info.vi_window);
 	vesa_adp->va_window_size = info.vi_window_size;
 	vesa_adp->va_window_gran = info.vi_window_gran;
@@ -632,58 +750,63 @@ vesa_set_mode(int ad, int mode)
 		vesa_adp->va_buffer_size = info.vi_buffer_size;
 	}
 
+	/* move hardware cursor out of the way */
+	(*vidsw[adp->va_index]->set_hw_cursor)(adp, -1, -1);
+
 	return 0;
 }
 
 static int
-vesa_save_font(int ad, int page, int fontsize, u_char *data, int ch, int count)
+vesa_save_font(video_adapter_t *adp, int page, int fontsize, u_char *data,
+	       int ch, int count)
 {
-	return (*prevvidsw.save_font)(ad, page, fontsize, data, ch, count);
+	return (*prevvidsw->save_font)(adp, page, fontsize, data, ch, count);
 }
 
 static int
-vesa_load_font(int ad, int page, int fontsize, u_char *data, int ch, int count)
+vesa_load_font(video_adapter_t *adp, int page, int fontsize, u_char *data,
+	       int ch, int count)
 {
-	return (*prevvidsw.load_font)(ad, page, fontsize, data, ch, count);
+	return (*prevvidsw->load_font)(adp, page, fontsize, data, ch, count);
 }
 
 static int
-vesa_show_font(int ad, int page)
+vesa_show_font(video_adapter_t *adp, int page)
 {
-	return (*prevvidsw.show_font)(ad, page);
+	return (*prevvidsw->show_font)(adp, page);
 }
 
 static int
-vesa_save_palette(int ad, u_char *palette)
+vesa_save_palette(video_adapter_t *adp, u_char *palette)
 {
-	if ((ad != vesa_adp->va_index) || !(vesa_adp_info->v_flags & V_DAC8) 
+	if ((adp != vesa_adp) || !(vesa_adp_info->v_flags & V_DAC8) 
 	    || vesa_bios_set_dac(8))
-		return (*prevvidsw.save_palette)(ad, palette);
+		return (*prevvidsw->save_palette)(adp, palette);
 
 	return vesa_bios_save_palette(0, 256, palette);
 }
 
 static int
-vesa_load_palette(int ad, u_char *palette)
+vesa_load_palette(video_adapter_t *adp, u_char *palette)
 {
-	if ((ad != vesa_adp->va_index) || !(vesa_adp_info->v_flags & V_DAC8) 
+	if ((adp != vesa_adp) || !(vesa_adp_info->v_flags & V_DAC8) 
 	    || vesa_bios_set_dac(8))
-		return (*prevvidsw.load_palette)(ad, palette);
+		return (*prevvidsw->load_palette)(adp, palette);
 
 	return vesa_bios_load_palette(0, 256, palette);
 }
 
 static int
-vesa_set_border(int ad, int color)
+vesa_set_border(video_adapter_t *adp, int color)
 {
-	return (*prevvidsw.set_border)(ad, color);
+	return (*prevvidsw->set_border)(adp, color);
 }
 
 static int
-vesa_save_state(int ad, void *p, size_t size)
+vesa_save_state(video_adapter_t *adp, void *p, size_t size)
 {
-	if (ad != vesa_adp->va_index)
-		return (*prevvidsw.save_state)(ad, p, size);
+	if (adp != vesa_adp)
+		return (*prevvidsw->save_state)(adp, p, size);
 
 	if (vesa_state_buf_size == 0)
 		vesa_state_buf_size = vesa_bios_state_buf_size();
@@ -699,18 +822,17 @@ vesa_save_state(int ad, void *p, size_t size)
 }
 
 static int
-vesa_load_state(int ad, void *p)
+vesa_load_state(video_adapter_t *adp, void *p)
 {
-	if ((ad != vesa_adp->va_index) 
-	    || (((adp_state_t *)p)->sig != V_STATE_SIG))
-		return (*prevvidsw.load_state)(ad, p);
+	if ((adp != vesa_adp) || (((adp_state_t *)p)->sig != V_STATE_SIG))
+		return (*prevvidsw->load_state)(adp, p);
 
 	return vesa_bios_save_restore(STATE_LOAD, ((adp_state_t *)p)->regs, 
 				      vesa_state_buf_size);
 }
 
 static int
-vesa_set_origin(int ad, off_t offset)
+vesa_set_origin(video_adapter_t *adp, off_t offset)
 {
 	struct vm86frame vmf;
 	int err;
@@ -721,8 +843,8 @@ vesa_set_origin(int ad, off_t offset)
 	 * error checking is kept minimal and let the VESA BIOS to 
 	 * detect error.
 	 */
-	if (ad != vesa_adp->va_index) 
-		return (*prevvidsw.set_win_org)(ad, offset);
+	if (adp != vesa_adp) 
+		return (*prevvidsw->set_win_org)(adp, offset);
 
 	if (vesa_adp->va_window_gran == 0)
 		return 1;
@@ -735,26 +857,45 @@ vesa_set_origin(int ad, off_t offset)
 }
 
 static int
-vesa_read_hw_cursor(int ad, int *col, int *row)
+vesa_read_hw_cursor(video_adapter_t *adp, int *col, int *row)
 {
-	return (*prevvidsw.read_hw_cursor)(ad, col, row);
+	return (*prevvidsw->read_hw_cursor)(adp, col, row);
 }
 
 static int
-vesa_set_hw_cursor(int ad, int col, int row)
+vesa_set_hw_cursor(video_adapter_t *adp, int col, int row)
 {
-	return (*prevvidsw.set_hw_cursor)(ad, col, row);
+	return (*prevvidsw->set_hw_cursor)(adp, col, row);
 }
 
 static int
-vesa_diag(int level)
+vesa_set_hw_cursor_shape(video_adapter_t *adp, int base, int height,
+			 int celsize, int blink)
 {
+	return (*prevvidsw->set_hw_cursor_shape)(adp, base, height, celsize,
+						 blink);
+}
+
+static int
+vesa_mmap(video_adapter_t *adp, vm_offset_t offset)
+{
+	return (*prevvidsw->mmap)(adp, offset);
+}
+
+static int
+vesa_diag(video_adapter_t *adp, int level)
+{
+#if VESA_DEBUG > 1
 	struct vesa_mode vmode;
 	int i;
+#endif
+
+	if (adp != vesa_adp)
+		return 1;
 
 #ifndef KLD_MODULE
 	/* call the previous handler first */
-	(*prevvidsw.diag)(level);
+	(*prevvidsw->diag)(adp, level);
 #endif
 
 	/* general adapter information */
@@ -784,6 +925,7 @@ vesa_diag(int level)
 			printf("VESA: %s\n", vesa_revstr);
 	}
 
+#if VESA_DEBUG > 1
 	/* mode information */
 	for (i = 0;
 		(i < (M_VESA_MODE_MAX - M_VESA_BASE + 1))
@@ -818,70 +960,31 @@ vesa_diag(int level)
 		printf("size:%dk, gran:%dk\n",
 		       vmode.v_wsize, vmode.v_wgran);
 	}
+#endif
 
 	return 0;
 }
 
 /* module loading */
 
-#ifdef KLD_MODULE
-static
-#endif
-int
+static int
 vesa_load(void)
 {
-	int adapters;
 	int error;
-#ifdef KLD_MODULE
 	int s;
-#endif
-	int i;
 
 	if (vesa_init_done)
 		return 0;
 
-	/*
-	 * If the VESA module is statically linked to the kernel, or
-	 * it has already been loaded, abort loading this module this time.
-	 */
-	vesa_adp = NULL;
-	adapters = (*biosvidsw.init)();
-	for (i = 0; i < adapters; ++i) {
-		if ((vesa_adp = (*biosvidsw.adapter)(i)) == NULL)
-			continue;
-		if (vesa_adp->va_flags & V_ADP_VESA)
-			return ENXIO;
-		if (vesa_adp->va_type == KD_VGA)
-			break;
-	}
-	/* if a VGA adapter is not found, abort */
-	if (i >= adapters)
-		return ENXIO;
-
-	if (vesa_bios_init())
-		return ENXIO;
-	vesa_adp->va_flags |= V_ADP_VESA;
-
-	/* remove conflicting modes if we have more than one adapter */
-	if (adapters > 1) {
-		vesa_clear_modes(vesa_vmode,
-				 (vesa_adp->va_flags & V_ADP_COLOR) ? 
-				     V_INFO_COLOR : 0);
-	}
-
-#ifdef KLD_MODULE
+	/* locate a VGA adapter */
 	s = spltty();
-#endif
-	if ((error = vesa_load_ioctl()) == 0) {
-		bcopy(&biosvidsw, &prevvidsw, sizeof(prevvidsw));
-		bcopy(&vesavidsw, &biosvidsw, sizeof(vesavidsw));
-		vesa_init_done = TRUE;
-	}
-#ifdef KLD_MODULE
+	vesa_adp = NULL;
+	error = vesa_configure(0);
 	splx(s);
 
+#ifdef KLD_MODULE
 	if (error == 0)
-		vesa_diag(bootverbose);
+		vesa_diag(vesa_adp, bootverbose);
 #endif
 
 	return error;
@@ -905,9 +1008,9 @@ vesa_unload(void)
 
 	s = spltty();
 	if ((error = vesa_unload_ioctl()) == 0) {
-		if (vesa_adp)
+		if (vesa_adp != NULL)
 			vesa_adp->va_flags &= ~V_ADP_VESA;
-		bcopy(&prevvidsw, &biosvidsw, sizeof(biosvidsw));
+		vidsw[vesa_adp->va_index] = prevvidsw;
 	}
 	splx(s);
 
@@ -934,8 +1037,13 @@ static moduledata_t vesa_mod = {
 	NULL,
 };
 
-DECLARE_MODULE(vesa, vesa_mod, SI_SUB_PSEUDO, SI_ORDER_MIDDLE);
+DECLARE_MODULE(vesa, vesa_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
+
+#else /* KLD_MODULE */
+
+SYSINIT(vesa, SI_SUB_DRIVERS, SI_ORDER_MIDDLE,
+	(void (*)(void *))vesa_load, NULL);
 
 #endif /* KLD_MODULE */
 
-#endif /* (NSC > 0 && VESA && VM86) || KLD_MODULE */
+#endif /* (NVGA > 0 && VESA && VM86) || KLD_MODULE */

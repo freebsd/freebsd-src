@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: star_saver.c,v 1.16 1998/09/17 19:40:30 sos Exp $
+ *	$Id: star_saver.c,v 1.17 1998/11/04 03:49:39 peter Exp $
  */
 
 #include <sys/param.h>
@@ -41,13 +41,14 @@
 #define NUM_STARS	50
 
 static u_short *window;
+static int blanked;
 
 /*
  * Alternate saver that got its inspiration from a well known utility
  * package for an inferior^H^H^H^H^H^Hfamous OS.
  */
-static void
-star_saver(int blank)
+static int
+star_saver(video_adapter_t *adp, int blank)
 {
 	scr_stat	*scp = cur_console;
 	int		cell, i;
@@ -57,15 +58,15 @@ star_saver(int blank)
 	static u_short 	stars[NUM_STARS][2];
 
 	if (blank) {
-		if (!ISTEXTSC(scp))
-			return;
-		if (scrn_blanked <= 0) {
-			scp->status |= SAVER_RUNNING;
-			window = (u_short *)(*biosvidsw.adapter)(scp->adp)->va_window;
-			scrn_blanked = 1;
-			fillw((FG_LIGHTGREY|BG_BLACK)<<8|scr_map[0x20], window,
-			      scp->xsize * scp->ysize);
+		if (adp->va_mode_flags & V_INFO_GRAPHICS)
+			return ENODEV;
+		if (!blanked) {
+			window = (u_short *)adp->va_window;
+			/* clear the screen and set the border color */
+			fillw(((FG_LIGHTGREY|BG_BLACK) << 8) | scr_map[0x20],
+			      window, scp->xsize * scp->ysize);
 			set_border(scp, 0);
+			blanked = TRUE;
 			for(i=0; i<NUM_STARS; i++) {
 				stars[i][0] =
 					random() % (scp->xsize*scp->ysize);
@@ -82,24 +83,26 @@ star_saver(int blank)
 		}
 	}
 	else {
-		if (scrn_blanked > 0) {
-			set_border(scp, scp->border);
-			scrn_blanked = 0;
-			scp->status &= ~SAVER_RUNNING;
-		}
+		blanked = FALSE;
 	}
+	return 0;
 }
 
 static int
-star_saver_load(void)
+star_init(video_adapter_t *adp)
 {
-	return add_scrn_saver(star_saver);
+	blanked = FALSE;
+	return 0;
 }
 
 static int
-star_saver_unload(void)
+star_term(video_adapter_t *adp)
 {
-	return remove_scrn_saver(star_saver);
+	return 0;
 }
 
-SAVER_MODULE(star_saver);
+static scrn_saver_t star_module = {
+	"star_saver", star_init, star_term, star_saver, NULL,
+};
+
+SAVER_MODULE(star_saver, star_module);

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: daemon_saver.c,v 1.11 1998/09/17 19:40:30 sos Exp $
+ *	$Id: daemon_saver.c,v 1.12 1998/11/04 03:49:38 peter Exp $
  */
 
 #include <sys/param.h>
@@ -49,6 +49,7 @@
 static char *message;
 static int messagelen;
 static u_short *window;
+static int blanked;
 
 /* Who is the author of this ASCII pic? */
 
@@ -184,8 +185,8 @@ draw_string(int xpos, int ypos, int xoff, char *s, int len)
 			scr_map[s[x]]|(FG_LIGHTGREEN|BG_BLACK)<<8;
 }
 
-static void
-daemon_saver(int blank)
+static int
+daemon_saver(video_adapter_t *adp, int blank)
 {
 	static int txpos = 10, typos = 10;
 	static int txdir = -1, tydir = -1;
@@ -198,20 +199,19 @@ daemon_saver(int blank)
 	int min, max;
 
 	if (blank) {
-		if (!ISTEXTSC(scp))
-			return;
-		if (scrn_blanked == 0) {
-			scp->status |= SAVER_RUNNING;
-			window = (u_short *)(*biosvidsw.adapter)(scp->adp)->va_window;
+		if (adp->va_mode_flags & V_INFO_GRAPHICS)
+			return ENODEV;
+		if (blanked == 0) {
+			window = (u_short *)adp->va_window;
 			/* clear the screen and set the border color */
 			fillw(((FG_LIGHTGREY|BG_BLACK) << 8) | scr_map[0x20],
 			      window, scp->xsize * scp->ysize);
 			set_border(scp, 0);
 			xlen = ylen = tlen = 0;
 		}
-		if (scrn_blanked++ < 2)
-			return;
-		scrn_blanked = 1;
+		if (blanked++ < 2)
+			return 0;
+		blanked = 1;
 
  		clear_daemon(dxpos, dypos, dxdir, xoff, yoff, xlen, ylen);
 		clear_string(txpos, typos, toff, (char *)message, tlen);
@@ -322,39 +322,31 @@ daemon_saver(int blank)
  		draw_daemon(dxpos, dypos, dxdir, xoff, yoff, xlen, ylen);
 		draw_string(txpos, typos, toff, (char *)message, tlen);
 	} else {
-		if (scrn_blanked > 0) {
-			set_border(scp, scp->border);
-			scrn_blanked = 0;
-			scp->status &= ~SAVER_RUNNING;
-		}
+		blanked = 0;
 	}
+	return 0;
 }
 
 static int
-daemon_saver_load(void)
+daemon_init(video_adapter_t *adp)
 {
-	int err;
-
 	messagelen = strlen(hostname) + 3 + strlen(ostype) + 1 + 
 	    strlen(osrelease);
 	message = malloc(messagelen + 1, M_DEVBUF, M_WAITOK);
 	sprintf(message, "%s - %s %s", hostname, ostype, osrelease);
-
-	err = add_scrn_saver(daemon_saver);
-	if (err != 0)
-		free(message, M_DEVBUF);
-	return err;
+	blanked = 0;
+	return 0;
 }
 
 static int
-daemon_saver_unload(void)
+daemon_term(video_adapter_t *adp)
 {
-	int err;
-
-	err = remove_scrn_saver(daemon_saver);
-	if (err == 0)
-		free(message, M_DEVBUF);
-	return err;
+	free(message, M_DEVBUF);
+	return 0;
 }
 
-SAVER_MODULE(daemon_saver);
+static scrn_saver_t daemon_module = {
+	"daemon_saver", daemon_init, daemon_term, daemon_saver, NULL,
+};
+
+SAVER_MODULE(daemon_saver, daemon_module);
