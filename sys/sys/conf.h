@@ -220,7 +220,7 @@ struct cdevsw {
 
 #define NUMCDEVSW 256
 
-#define MAXMINOR	0xffff00ff
+#define MAXMINOR	0xffff00ffU
 
 /*
  * XXX: do not use MAJOR_AUTO unless you have no choice.  In general drivers
@@ -269,7 +269,7 @@ int	dev2unit(struct cdev *_dev);
 void	dev_lock(void);
 void	dev_unlock(void);
 int	unit2minor(int _unit);
-int	minor2unit(int _minor);
+u_int	minor2unit(u_int _minor);
 void	setconf(void);
 
 void devfs_create(struct cdev *dev);
