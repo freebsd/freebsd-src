@@ -404,7 +404,7 @@ esac
 # Early pass to set the variables we can
 #
 if [ -r /etc/rc.sysctl ]; then
-	. /etc/rc.sysctl first
+	sh /etc/rc.sysctl first
 fi
 
 # Configure serial devices
@@ -917,7 +917,7 @@ fi
 # Late pass to set variables we missed the first time
 #
 if [ -r /etc/rc.sysctl ]; then
-	. /etc/rc.sysctl last
+	sh /etc/rc.sysctl last
 fi
 
 # Raise kernel security level.  This should be done only after `fsck' has
