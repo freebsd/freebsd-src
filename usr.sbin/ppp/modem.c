@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.46 1998/04/10 13:19:13 brian Exp $
+ * $Id: modem.c,v 1.77.2.47 1998/04/10 13:22:38 brian Exp $
  *
  *  TODO:
  */
@@ -758,11 +758,10 @@ modem_Close(struct physical *modem)
   if (modem->link.Timer.load)
     modem_Hangup(modem, force_hack);
 
-  *modem->name.full = '\0';
-  modem->name.base = modem->name.full;
-
   if (!isatty(modem->fd)) {
     modem_PhysicalClose(modem);
+    *modem->name.full = '\0';
+    modem->name.base = modem->name.full;
     return;
   }
 
@@ -798,6 +797,8 @@ modem_LogicalClose(struct physical *modem)
     modem_PhysicalClose(modem);
     modem_Unlock(modem);
   }
+  *modem->name.full = '\0';
+  modem->name.base = modem->name.full;
 }
 
 static void
