@@ -692,6 +692,9 @@ typedef struct ndis_task_ipsec ndis_task_ipsec;
 #define NDIS_ATTRIBUTE_NOT_CO_NDIS			0x00000100
 #define NDIS_ATTRIBUTE_USES_SAFE_BUFFER_APIS		0x00000200
 
+#define NDIS_SERIALIZED(block)		\
+	(((block)->nmb_flags & NDIS_ATTRIBUTE_DESERIALIZE) == 0)
+
 enum ndis_media_state {
 	nmc_connected,
 	nmc_disconnected
@@ -875,7 +878,7 @@ struct ndis_timer {
 
 typedef struct ndis_timer ndis_timer;
 
-typedef void (*ndis_timer_function)(void *, void *, void *, void *);
+typedef __stdcall void (*ndis_timer_function)(void *, void *, void *, void *);
 
 struct ndis_miniport_timer {
 	struct ktimer		nmt_ktimer;
@@ -1504,6 +1507,53 @@ extern image_patch_table ndis_functbl[];
 #define NDIS_PSTATE_RUNNING	1
 #define NDIS_PSTATE_SLEEPING	2
 
+#define NdisQueryPacket(p, pbufcnt, bufcnt, firstbuf, plen)		\
+	do {								\
+		if ((firstbuf) != NULL) {				\
+			ndis_buffer		**_first;		\
+			_first = firstbuf;				\
+			*(_first) = (p)->np_private.npp_head;		\
+		}							\
+		if ((plen) || (bufcnt) || (pbufcnt)) {			\
+			if ((p)->np_private.npp_validcounts == FALSE) {	\
+				ndis_buffer		*tmp;		\
+				unsigned int		tlen = 0, pcnt = 0; \
+				unsigned int		add = 0;	\
+				unsigned int		pktlen, off;	\
+									\
+				tmp = (p)->np_private.npp_head;		\
+				while (tmp != NULL) {			\
+					off = MmGetMdlByteOffset(tmp);	\
+					pktlen = MmGetMdlByteCount(tmp);\
+					tlen += pktlen;			\
+					pcnt +=				\
+					    NDIS_BUFFER_TO_SPAN_PAGES(tmp); \
+					add++;				\
+					tmp = tmp->mdl_next;		\
+				}					\
+				(p)->np_private.npp_count = add;	\
+				(p)->np_private.npp_totlen = tlen;	\
+				(p)->np_private.npp_physcnt = pcnt;	\
+				(p)->np_private.npp_validcounts = TRUE;	\
+			}						\
+			if (pbufcnt) {					\
+				unsigned int		*_pbufcnt;	\
+				_pbufcnt = (pbufcnt);			\
+				*(_pbufcnt) = (p)->np_private.npp_physcnt; \
+			}						\
+			if (bufcnt) {					\
+				unsigned int		*_bufcnt;	\
+				_bufcnt = (bufcnt);			\
+				*(_bufcnt) = (p)->np_private.npp_count;	\
+			}						\
+			if (plen) {					\
+				unsigned int		*_plen;		\
+				_plen = (plen);				\
+				*(_plen) = (p)->np_private.npp_totlen;	\
+			}						\
+		}							\
+	} while (0)
+
 __BEGIN_DECLS
 extern int ndis_libinit(void);
 extern int ndis_libfini(void);
@@ -1528,7 +1578,6 @@ extern int ndis_halt_nic(void *);
 extern int ndis_shutdown_nic(void *);
 extern int ndis_init_nic(void *);
 extern int ndis_isr(void *, int *, int *);
-extern int ndis_intrhand(void *);
 extern void ndis_return_packet(void *, void *);
 extern void ndis_enable_intr(void *);
 extern void ndis_disable_intr(void *);
@@ -1539,7 +1588,7 @@ extern int ndis_add_sysctl(void *, char *, char *, char *, int);
 extern int ndis_flush_sysctls(void *);
 extern int ndis_sched(void (*)(void *), void *, int);
 extern int ndis_unsched(void (*)(void *), void *, int);
-extern int ndis_thsuspend(struct proc *, int);
+extern int ndis_thsuspend(struct proc *, struct mtx *, int);
 extern void ndis_thresume(struct proc *);
 extern int ndis_strcasecmp(const char *, const char *);
 extern int ndis_strncasecmp(const char *, const char *, size_t);

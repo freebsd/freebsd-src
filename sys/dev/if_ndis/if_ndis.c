@@ -110,7 +110,6 @@ static funcptr ndis_linksts_wrap;
 static funcptr ndis_linksts_done_wrap;
 
 static void ndis_intr		(void *);
-static void ndis_intrtask	(void *);
 static void ndis_tick		(void *);
 static void ndis_ticktask	(void *);
 static void ndis_start		(struct ifnet *);
@@ -1086,9 +1085,7 @@ ndis_linksts(adapter, status, sbuf, slen)
 	block = adapter;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 
-	NDIS_LOCK(sc);
 	block->nmb_getstat = status;
-	NDIS_UNLOCK(sc);
 
 	return;
 }
@@ -1105,11 +1102,8 @@ ndis_linksts_done(adapter)
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 	ifp = &sc->arpcom.ac_if;
 
-	NDIS_LOCK(sc);
-	if (!NDIS_INITIALIZED(sc)) {
-		NDIS_UNLOCK(sc);
+	if (!NDIS_INITIALIZED(sc))
 		return;
-	}
 
 	switch (block->nmb_getstat) {
 	case NDIS_STATUS_MEDIA_CONNECT:
@@ -1127,24 +1121,6 @@ ndis_linksts_done(adapter)
 	default:
 		break;
 	}
-
-	NDIS_UNLOCK(sc);
-	return;
-}
-
-static void
-ndis_intrtask(arg)
-	void			*arg;
-{
-	struct ndis_softc	*sc;
-	struct ifnet		*ifp;
-
-	sc = arg;
-	ifp = &sc->arpcom.ac_if;
-
-	ndis_intrhand(sc);
-
-	ndis_enable_intr(sc);
 
 	return;
 }
@@ -1177,7 +1153,7 @@ ndis_intr(arg)
 	KeReleaseSpinLock(&intr->ni_dpccountlock, irql);
 
 	if ((is_our_intr || call_isr))
-		ndis_sched(ndis_intrtask, sc, NDIS_SWI);
+		IoRequestDpc(sc->ndis_block->nmb_deviceobj, NULL, sc);
 
 	return;
 }
@@ -1216,7 +1192,8 @@ ndis_ticktask(xsc)
 	hangfunc = sc->ndis_chars->nmc_checkhang_func;
 
 	if (hangfunc != NULL) {
-		rval = hangfunc(sc->ndis_block->nmb_miniportadapterctx);
+		rval = MSCALL1(hangfunc,
+		    sc->ndis_block->nmb_miniportadapterctx);
 		if (rval == TRUE) {
 			ndis_reset_nic(sc);
 			return;
@@ -1466,35 +1443,8 @@ ndis_init(xsc)
 	 * Cancel pending I/O and free all RX/TX buffers.
 	 */
 	ndis_stop(sc);
-
-	NDIS_LOCK(sc);
-	sc->ndis_block->nmb_getstat = 0;
 	if (ndis_init_nic(sc))
 		return;
-
-	/*
-	 * 802.11 NDIS drivers are supposed to generate a link
-	 * down event right when you initialize them. You wait
-	 * until this event occurs before trying to futz with
-	 * the device. Some drivers will actually set the event
-	 * during the course of MiniportInitialize(), which means
-	 * by the time it completes, the device is ready for us
-	 * to interact with it. But some drivers don't signal the
-	 * event until after MiniportInitialize() (they probably
-	 * need to wait for a device interrupt to occur first).
-	 * We have to be careful to handle both cases. After we
-	 * call ndis_init_nic(), we have to see if a status event
-	 * was triggered. If it wasn't, we have to wait for it
-	 * to occur before we can proceed.
-	 */
-	if (sc->ndis_80211 & !sc->ndis_block->nmb_getstat) {
-		error = msleep(&sc->ndis_block->nmb_getstat,
-		    &sc->ndis_mtx, curthread->td_priority,
-		    "ndiswait", 5 * hz);
-	}
-
-	sc->ndis_block->nmb_getstat = 0;
-	NDIS_UNLOCK(sc);
 
 	/* Init our MAC address */
 
@@ -2293,14 +2243,17 @@ ndis_wi_ioctl_set(ifp, command, data)
 static int
 ndis_80211_ioctl_get(struct ifnet *ifp, u_long command, caddr_t data)
 {
-	struct ndis_softc		*sc;
-	struct ieee80211req		*ireq;
+	struct ndis_softc	*sc;
+	struct ieee80211req	*ireq;
 	ndis_80211_bssid_list_ex	*bl;
-	ndis_wlan_bssid_ex		*wb;
+	ndis_wlan_bssid_ex	*wb;
 	struct ieee80211req_scan_result	*sr, *bsr;
-	int				error, len, i, j;
-	char				*cp;
-	
+	int			error, len, i, j;
+	char			*cp;
+	uint8_t			nodename[IEEE80211_NWID_LEN];
+	uint16_t		nodename_u[IEEE80211_NWID_LEN + 1];
+	char			*acode;
+
 	sc = ifp->if_softc;
 	ireq = (struct ieee80211req *) data;
 		
@@ -2324,11 +2277,13 @@ ndis_80211_ioctl_get(struct ifnet *ifp, u_long command, caddr_t data)
 			 * Check if we have enough space left for this ap
 			 */
 			j = roundup(sizeof(*sr) + wb->nwbx_ssid.ns_ssidlen
-			    + wb->nwbx_ielen - sizeof(struct ndis_80211_fixed_ies),
+			    + wb->nwbx_ielen -
+			    sizeof(struct ndis_80211_fixed_ies),
 			    sizeof(uint32_t));
 			if (len + j > ireq->i_len)
 				break;
-			bcopy(&wb->nwbx_macaddr, &sr->isr_bssid, sizeof(sr->isr_bssid));
+			bcopy(&wb->nwbx_macaddr, &sr->isr_bssid,
+			    sizeof(sr->isr_bssid));
 			if (wb->nwbx_privacy)
 				sr->isr_capinfo |= IEEE80211_CAPINFO_PRIVACY;
 			sr->isr_rssi = wb->nwbx_rssi + 200;
@@ -2346,7 +2301,8 @@ ndis_80211_ioctl_get(struct ifnet *ifp, u_long command, caddr_t data)
 				/* XXX - check units */
 				if (wb->nwbx_supportedrates[j] == 0)
 					break;
-				sr->isr_rates[j] = wb->nwbx_supportedrates[j] & 0x7f;
+				sr->isr_rates[j] =
+				    wb->nwbx_supportedrates[j] & 0x7f;
 			}
 			sr->isr_nrates = j;
 			sr->isr_ssid_len = wb->nwbx_ssid.ns_ssidlen;
@@ -2355,18 +2311,31 @@ ndis_80211_ioctl_get(struct ifnet *ifp, u_long command, caddr_t data)
 			cp += sr->isr_ssid_len;
 			sr->isr_ie_len = wb->nwbx_ielen
 			    - sizeof(struct ndis_80211_fixed_ies);
-			bcopy((char *)wb->nwbx_ies + sizeof(struct ndis_80211_fixed_ies),
+			bcopy((char *)wb->nwbx_ies +
+			    sizeof(struct ndis_80211_fixed_ies),
 			    cp, sr->isr_ie_len);
 			sr->isr_len = roundup(sizeof(*sr) + sr->isr_ssid_len
 			    + sr->isr_ie_len, sizeof(uint32_t));
 			len += sr->isr_len;
-			sr = (struct ieee80211req_scan_result *)((char *)sr + sr->isr_len);
+			sr = (struct ieee80211req_scan_result *)((char *)sr +
+			    sr->isr_len);
 			wb = (ndis_wlan_bssid_ex *)((char *)wb + wb->nwbx_len);
 		}
 		ireq->i_len = len;
 		error = copyout(bsr, ireq->i_data, len);
 		free(bl, M_DEVBUF);
 		free(bsr, M_DEVBUF);
+		break;
+	case IEEE80211_IOC_STATIONNAME:
+		error = ndis_get_info(sc, OID_GEN_MACHINE_NAME,
+		    &nodename_u, &len);
+		if (error)
+			break;
+		acode = nodename;
+		bzero((char *)nodename, IEEE80211_NWID_LEN);
+		ndis_unicode_to_ascii(nodename_u, len, &acode);
+		ireq->i_len = len / 2 + 1;
+		error = copyout(acode, ireq->i_data, ireq->i_len);
 		break;
 	default:
 		error = ieee80211_ioctl(&sc->ic, command, data);
@@ -2381,16 +2350,39 @@ ndis_80211_ioctl_set(struct ifnet *ifp, u_long command, caddr_t data)
 	struct ndis_softc	*sc;
 	struct ieee80211req	*ireq;
 	int			error, len;
-	
+	uint8_t			nodename[IEEE80211_NWID_LEN];
+	uint16_t		nodename_u[IEEE80211_NWID_LEN + 1];
+	uint16_t		*ucode;
+
 	sc = ifp->if_softc;
 	ireq = (struct ieee80211req *) data;
 		
 	switch (ireq->i_type) {
 	case IEEE80211_IOC_SCAN_REQ:
 		len = 0;
-		error = ndis_set_info(sc, OID_802_11_BSSID_LIST_SCAN, NULL, &len);
+		error = ndis_set_info(sc, OID_802_11_BSSID_LIST_SCAN,
+		    NULL, &len);
 		tsleep(&error, PPAUSE|PCATCH, "ssidscan", hz * 2);
 		rt_ieee80211msg(ifp, RTM_IEEE80211_SCAN, NULL, 0);
+		break;
+	case IEEE80211_IOC_STATIONNAME:
+		error = suser(curthread);
+		if (error)
+			break;
+		if (ireq->i_val != 0 ||
+		    ireq->i_len > IEEE80211_NWID_LEN) {
+			error = EINVAL;
+			break;
+		}
+		bzero((char *)nodename, IEEE80211_NWID_LEN);
+		error = copyin(ireq->i_data, nodename, ireq->i_len);
+		if (error)
+			break;
+		ucode = nodename_u;
+		ndis_ascii_to_unicode((char *)nodename, &ucode);
+		len = ireq->i_len * 2;
+		error = ndis_set_info(sc, OID_GEN_MACHINE_NAME,
+		    &nodename_u, &len);
 		break;
 	default:
 		error = ieee80211_ioctl(&sc->ic, command, data);
