@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.7 1996/01/11 17:48:46 phk Exp $
+ * $Id: hdlc.c,v 1.8 1996/01/30 20:04:31 phk Exp $
  *
  *	TODO:
  */
@@ -243,7 +243,7 @@ struct mbuf *bp;
     Pred1Input(bp);
     break;
   default:
-    LogPrintf(LOG_PHASE, "Unknown protocol 0x%04x\n", proto);
+    LogPrintf(LOG_PHASE_BIT, "Unknown protocol 0x%04x\n", proto);
     bp->offset -= 2;
     bp->cnt += 2;
     cp = MBUF_CTOP(bp);
@@ -299,7 +299,7 @@ HdlcErrorCheck()
   struct hdlcstat *op = &laststat;
 
   if (bcmp(hp, op, sizeof(laststat))) {
-    LogPrintf(LOG_PHASE, "HDLC errors -> FCS: %u ADDR: %u COMD: %u PROTO: %u\n",
+    LogPrintf(LOG_PHASE_BIT, "HDLC errors -> FCS: %u ADDR: %u COMD: %u PROTO: %u\n",
 	hp->badfcs - op->badfcs, hp->badaddr - op->badaddr,
 	hp->badcommand - op->badcommand, hp->unknownproto - op->unknownproto);
   }
