@@ -65,6 +65,7 @@ idle_setup(void *dummy)
 		if (error)
 			panic("idle_setup: kthread_create error %d\n", error);
 
+		gd->gd_idleproc->p_flag |= P_NOLOAD;
 		gd->gd_idleproc->p_stat = SRUN;
 	}
 }

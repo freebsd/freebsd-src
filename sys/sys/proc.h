@@ -266,7 +266,7 @@ struct	proc {
 #define	SSLEEP	3		/* Sleeping on an address. */
 #define	SSTOP	4		/* Process debugging or suspension. */
 #define	SZOMB	5		/* Awaiting collection by parent. */
-#define	SWAIT	6		/* Waiting for interrupt or CPU. */
+#define	SWAIT	6		/* Waiting for interrupt. */
 #define	SMTX	7		/* Blocked on a mutex. */
 
 /* These flags are kept in p_flags. */
@@ -284,6 +284,7 @@ struct	proc {
 #define	P_WAITED	0x01000	/* Debugging process has waited for child. */
 #define	P_WEXIT		0x02000	/* Working on exiting. */
 #define	P_EXEC		0x04000	/* Process called exec. */
+#define P_NOLOAD	0x08000	/* Ignore during load avg calculations. */
 
 /* Should probably be changed into a hold count. */
 /* was	P_NOSWAP	0x08000	was: Do not swap upages; p->p_hold */
