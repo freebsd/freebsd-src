@@ -139,7 +139,6 @@ g_bsd_ledec_disklabel(u_char *ptr, struct disklabel *d)
 		g_bsd_ledec_partition(ptr + 148 + 16 * i, &d->d_partitions[i]);
 }
 
-#if 0
 static void
 g_bsd_leenc_partition(u_char *ptr, struct partition *d)
 {
@@ -195,8 +194,6 @@ g_bsd_leenc_disklabel(u_char *ptr, struct disklabel *d)
 	for (i = 0; i < MAXPARTITIONS; i++)
 		g_bsd_leenc_partition(ptr + 148 + 16 * i, &d->d_partitions[i]);
 }
-
-#endif
 
 /*
  * For reasons which were valid and just in their days, FreeBSD/i386 uses
@@ -507,10 +504,29 @@ g_bsd_ioctl(void *arg)
 	ms->inram = *dl;
 	inram2ondisk(ms);
 
-	/* XXX: DIOCWDINFO write to disk */
-
-	/* return the request */
-	g_io_deliver(bp, 0);
+	if (gio->cmd == DIOCSDINFO) {
+		g_io_deliver(bp, 0);
+		return;
+	}
+	KASSERT(gio->cmd == DIOCWDINFO, ("Unknown ioctl in g_bsd_ioctl"));
+	cp = LIST_FIRST(&gp->consumer);
+	/* Get sector size, we need it to read data. */
+	error = g_getattr("GEOM::sectorsize", cp, &secsize);
+	if (error || secsize < 512) {
+		g_io_deliver(bp, error);
+		return;
+	}
+	secoff = ms->labeloffset % secsize;
+	buf = g_read_data(cp, ms->labeloffset - secoff, secsize, &error);
+	if (buf == NULL || error != 0) {
+		g_io_deliver(bp, error);
+		return;
+	}
+	dl = &ms->ondisk;
+	g_bsd_leenc_disklabel(buf + secoff, dl);
+	error = g_write_data(cp, ms->labeloffset - secoff, buf, secsize);
+	g_free(buf);
+	g_io_deliver(bp, error);
 	return;
 }
 
