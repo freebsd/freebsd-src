@@ -65,22 +65,12 @@ procfs_doregs(curp, p, pfs, uio)
 		return EAGAIN;
 	if (!CHECKIO(curp, p) || p_trespass(curp, p))
 		return EPERM;
-	kl = sizeof(r);
-	kv = (char *) &r;
-
-	kv += uio->uio_offset;
-	kl -= uio->uio_offset;
-	if (kl > uio->uio_resid)
-		kl = uio->uio_resid;
 
 	PHOLD(p);
 
-	if (kl < 0)
-		error = EINVAL;
-	else
-		error = procfs_read_regs(p, &r);
+	error = procfs_read_regs(p, &r);
 	if (error == 0)
-		error = uiomove(kv, kl, uio);
+		error = uiomove(&r, sizeof(r), uio);
 	if (error == 0 && uio->uio_rw == UIO_WRITE) {
 		if (p->p_stat != SSTOP)
 			error = EBUSY;
