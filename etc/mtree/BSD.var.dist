@@ -33,6 +33,8 @@
         pkg
         ..
     ..
+    empty
+    ..
 /set gname=games mode=0775
     games
         hackdir         mode=0770
