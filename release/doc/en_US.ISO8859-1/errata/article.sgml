@@ -329,6 +329,13 @@ hw.ata.atapi_dma="1"</programlisting>
       &os; &release.current; on 16 July 2002, as well as &os;
       &release.point;.</para>
 
+    <para>The item in the <quote>Filesystems</quote> section of the
+      release notes contains a small grammatical error.  It should
+      read: <quote>A bug has been fixed in soft updates that could
+      cause occasional filesystem corruption if the system is shut
+      down immediately after performing heavy filesystem activities,
+      such as installing a new kernel or other software.</quote></para>
+
 ]]>
   </sect1>
 </article>
