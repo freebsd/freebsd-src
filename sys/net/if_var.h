@@ -459,6 +459,15 @@ int	if_clone_destroy __P((const char *));
 #define IF_LLADDR(ifp)							\
     LLADDR((struct sockaddr_dl *) ifaddr_byindex((ifp)->if_index)->ifa_addr)
 
+#ifdef DEVICE_POLLING
+enum poll_cmd {	POLL_ONLY, POLL_AND_CHECK_STATUS, POLL_DEREGISTER };
+
+typedef	void poll_handler_t __P((struct ifnet *ifp,
+		enum poll_cmd cmd, int count));
+int    ether_poll_register __P((poll_handler_t *h, struct ifnet *ifp));
+int    ether_poll_deregister __P((struct ifnet *ifp));
+#endif /* DEVICE_POLLING */
+
 #endif /* _KERNEL */
 
 #endif /* !_NET_IF_VAR_H_ */

@@ -1273,6 +1273,13 @@ static void sis_rxeof(sc)
 
 	while(SIS_OWNDESC(&sc->sis_ldata.sis_rx_list[i])) {
 
+#ifdef DEVICE_POLLING
+		if (ifp->if_ipending & IFF_POLLING) {
+			if (sc->rxcycles <= 0)
+				break;
+			sc->rxcycles--;
+		}
+#endif /* DEVICE_POLLING */
 		cur_rx = &sc->sis_ldata.sis_rx_list[i];
 		rxstat = cur_rx->sis_rxstat;
 		bus_dmamap_sync(sc->sis_tag,
@@ -1441,6 +1448,55 @@ static void sis_tick(xsc)
 	return;
 }
 
+#ifdef DEVICE_POLLING
+static poll_handler_t sis_poll;
+
+static void
+sis_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+	struct  sis_softc *sc = ifp->if_softc;
+	SIS_LOCK(sc);
+	if (cmd == POLL_DEREGISTER) { /* final call, enable interrupts */
+		CSR_WRITE_4(sc, SIS_IER, 1);
+		goto done;
+	}
+
+	/*
+	 * On the sis, reading the status register also clears it.
+	 * So before returning to intr mode we must make sure that all
+	 * possible pending sources of interrupts have been served.
+	 * In practice this means run to completion the *eof routines,
+	 * and then call the interrupt routine
+	 */
+	sc->rxcycles = count;
+	sis_rxeof(sc);
+	sis_txeof(sc);
+	if (ifp->if_snd.ifq_head != NULL)
+		sis_start(ifp);
+
+	if (sc->rxcycles > 0 || cmd == POLL_AND_CHECK_STATUS) {
+		u_int32_t	status;
+
+		/* Reading the ISR register clears all interrupts. */
+		status = CSR_READ_4(sc, SIS_ISR);
+
+		if (status & (SIS_ISR_RX_ERR|SIS_ISR_RX_OFLOW))
+			sis_rxeoc(sc);
+
+		if (status & (SIS_ISR_RX_IDLE))
+			SIS_SETBIT(sc, SIS_CSR, SIS_CSR_RX_ENABLE);
+
+		if (status & SIS_ISR_SYSERR) {
+			sis_reset(sc);
+			sis_init(sc);
+		}
+	}
+done:
+	SIS_UNLOCK(sc);
+	return;
+}
+#endif /* DEVICE_POLLING */
+
 static void sis_intr(arg)
 	void			*arg;
 {
@@ -1452,6 +1508,15 @@ static void sis_intr(arg)
 	ifp = &sc->arpcom.ac_if;
 
 	SIS_LOCK(sc);
+#ifdef DEVICE_POLLING
+	if (ifp->if_ipending & IFF_POLLING)
+		goto done;
+	if (ether_poll_register(sis_poll, ifp)) { /* ok, disable interrupts */
+		CSR_WRITE_4(sc, SIS_IER, 0);
+		goto done;
+	}
+#endif /* DEVICE_POLLING */
+
 	/* Supress unwanted interrupts */
 	if (!(ifp->if_flags & IFF_UP)) {
 		sis_stop(sc);
@@ -1741,6 +1806,15 @@ static void sis_init(xsc)
 	 * Enable interrupts.
 	 */
 	CSR_WRITE_4(sc, SIS_IMR, SIS_INTRS);
+#ifdef DEVICE_POLLING
+	/*
+	 * ... only enable interrupts if we are not polling, make sure
+	 * they are off otherwise.
+	 */
+	if (ifp->if_ipending & IFF_POLLING)
+		CSR_WRITE_4(sc, SIS_IER, 0);
+	else
+#endif /* DEVICE_POLLING */
 	CSR_WRITE_4(sc, SIS_IER, 1);
 
 	/* Enable receiver and transmitter. */
@@ -1910,7 +1984,9 @@ static void sis_stop(sc)
 	untimeout(sis_tick, sc, sc->sis_stat_ch);
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
-
+#ifdef DEVICE_POLLING
+	ether_poll_deregister(ifp);
+#endif
 	CSR_WRITE_4(sc, SIS_IER, 0);
 	CSR_WRITE_4(sc, SIS_IMR, 0);
 	SIS_SETBIT(sc, SIS_CSR, SIS_CSR_TX_DISABLE|SIS_CSR_RX_DISABLE);

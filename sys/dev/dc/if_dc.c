@@ -2473,6 +2473,13 @@ static void dc_rxeof(sc)
 
 	while(!(sc->dc_ldata->dc_rx_list[i].dc_status & DC_RXSTAT_OWN)) {
 
+#ifdef DEVICE_POLLING
+		if (ifp->if_ipending & IFF_POLLING) {
+			if (sc->rxcycles <= 0)
+				break;
+			sc->rxcycles--;
+		}
+#endif /* DEVICE_POLLING */
 		cur_rx = &sc->dc_ldata->dc_rx_list[i];
 		rxstat = cur_rx->dc_status;
 		m = sc->dc_cdata.dc_rx_chain[i];
@@ -2786,6 +2793,60 @@ static void dc_tx_underrun(sc)
 	return;
 }
 
+#ifdef DEVICE_POLLING
+static poll_handler_t dc_poll;
+
+static void
+dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+	struct  dc_softc *sc = ifp->if_softc;
+
+	if (cmd == POLL_DEREGISTER) { /* final call, enable interrupts */
+		/* Re-enable interrupts. */
+		CSR_WRITE_4(sc, DC_IMR, DC_INTRS);
+		return;
+	}
+	sc->rxcycles = count;
+	dc_rxeof(sc);
+	dc_txeof(sc);
+	if (ifp->if_snd.ifq_head != NULL && !(ifp->if_flags & IFF_OACTIVE))
+		dc_start(ifp);
+
+	if (cmd == POLL_AND_CHECK_STATUS) { /* also check status register */
+		u_int32_t	status;
+
+		status = CSR_READ_4(sc, DC_ISR);
+		status &= (DC_ISR_RX_WATDOGTIMEO|DC_ISR_RX_NOBUF|
+			DC_ISR_TX_NOBUF|DC_ISR_TX_IDLE|DC_ISR_TX_UNDERRUN|
+			DC_ISR_BUS_ERR);
+		if (!status)
+			return ;
+		/* ack what we have */
+		CSR_WRITE_4(sc, DC_ISR, status);
+
+		if (status & (DC_ISR_RX_WATDOGTIMEO|DC_ISR_RX_NOBUF) ) {
+			u_int32_t r = CSR_READ_4(sc, DC_FRAMESDISCARDED);
+			ifp->if_ierrors += (r & 0xffff) + ((r >> 17) & 0x7ff);
+
+			if (dc_rx_resync(sc))
+				dc_rxeof(sc);
+		}
+		/* restart transmit unit if necessary */
+		if (status & DC_ISR_TX_IDLE && sc->dc_cdata.dc_tx_cnt)
+			CSR_WRITE_4(sc, DC_TXSTART, 0xFFFFFFFF);
+
+		if (status & DC_ISR_TX_UNDERRUN)
+			dc_tx_underrun(sc);
+
+		if (status & DC_ISR_BUS_ERR) {
+			printf("dc_poll: dc%d bus error\n", sc->dc_unit);
+			dc_reset(sc);
+			dc_init(sc);
+		}
+	}
+}
+#endif /* DEVICE_POLLING */
+
 static void dc_intr(arg)
 	void			*arg;
 {
@@ -2800,6 +2861,14 @@ static void dc_intr(arg)
 
 	DC_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
+#ifdef DEVICE_POLLING
+	if (ifp->if_ipending & IFF_POLLING)
+		goto done;
+	if (ether_poll_register(dc_poll, ifp)) { /* ok, disable interrupts */
+		CSR_WRITE_4(sc, DC_IMR, 0x00000000);
+		goto done;
+	}
+#endif /* DEVICE_POLLING */
 
 	/* Suppress unwanted interrupts */
 	if (!(ifp->if_flags & IFF_UP)) {
@@ -2864,6 +2933,7 @@ static void dc_intr(arg)
 	if (ifp->if_snd.ifq_head != NULL)
 		dc_start(ifp);
 
+done:
 	DC_UNLOCK(sc);
 
 	return;
@@ -3163,6 +3233,16 @@ static void dc_init(xsc)
 	/*
 	 * Enable interrupts.
 	 */
+#ifdef DEVICE_POLLING
+	/*
+	 * ... but only if we are not polling, and make sure they are off in
+	 * the case of polling. Some cards (e.g. fxp) turn interrupts on
+	 * after a reset.
+	 */
+	if (ifp->if_ipending & IFF_POLLING)
+		CSR_WRITE_4(sc, DC_IMR, 0x00000000);
+	else
+#endif
 	CSR_WRITE_4(sc, DC_IMR, DC_INTRS);
 	CSR_WRITE_4(sc, DC_ISR, 0xFFFFFFFF);
 
@@ -3378,6 +3458,9 @@ static void dc_stop(sc)
 	callout_stop(&sc->dc_stat_ch);
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+#ifdef DEVICE_POLLING
+	ether_poll_deregister(ifp);
+#endif
 
 	DC_CLRBIT(sc, DC_NETCFG, (DC_NETCFG_RX_ON|DC_NETCFG_TX_ON));
 	CSR_WRITE_4(sc, DC_IMR, 0x00000000);
