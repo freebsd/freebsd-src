@@ -43,7 +43,6 @@ static const char rcsid[] =
  */
 
 #include <sys/types.h>
-#include <sys/dkstat.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
