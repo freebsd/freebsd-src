@@ -117,6 +117,7 @@
 #define	KSTACK_PAGES	2		/* pages of kstack (with pcb) */
 #endif
 #define	KSTACK_GUARD_PAGES	1	/* pages of kstack guard; 0 disables */
+#define	UAREA_PAGES	1		/* pages of u-area */
 
 
 /*
