@@ -25,11 +25,10 @@
  *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
- *
- * $FreeBSD$
  */
 
 #include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * C library -- _setjmp, _longjmp

@@ -24,12 +24,8 @@
  * SUCH DAMAGE.
  */
 
-/*
- * $FreeBSD$
- */
-
 #include <machine/asm.h>
-
+__FBSDID("$FreeBSD$");
 
 /*
  * A0-A5 are the first 6 arguments to the start routine with the
