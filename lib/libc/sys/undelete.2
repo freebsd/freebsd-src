@@ -31,7 +31,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)undelete.2	8.4 (Berkeley) 10/18/94
-.\"     $Id$
+.\"     $Id: undelete.2,v 1.2 1999/07/12 20:48:53 nik Exp $
 .\"
 .Dd October 18, 1994
 .Dt UNDELETE 2
@@ -70,8 +70,6 @@ succeeds unless:
 .Bl -tag -width ENAMETOOLONGAA
 .It Bq Er ENOTDIR
 A component of the path prefix is not a directory.
-.It Bq Er EINVAL
-The pathname contains a character with the high-order bit set.
 .It Bq Er ENAMETOOLONG
 A component of a pathname exceeded 255 characters,
 or an entire path name exceeded 1023 characters.
