@@ -244,8 +244,13 @@ fifo_open(ap)
 		} else {
 			while (fip->fi_readers == 0) {
 				VOP_UNLOCK(vp, 0, td);
+				/*
+				 * XXX: Some race I havn't located is solved
+				 * by timing out after a sec.  Race seen when
+				 * sendmail hangs here during boot /phk
+				 */
 				error = tsleep((caddr_t)&fip->fi_writers,
-				    PCATCH | PSOCK, "fifoow", 0);
+				    PCATCH | PSOCK, "fifoow", hz);
 				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 				if (error)
 					goto bad;
