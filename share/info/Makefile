@@ -3,8 +3,6 @@
 
 NOOBJ=  noobj
 
-all clean cleandir depend lint tags:
-
 beforeinstall:
 .if !exists(${DESTDIR}${INFODIR})
 	@echo "Warning: the directory ${DESTDIR}${INFODIR} does not exist!"
@@ -18,9 +16,7 @@ beforeinstall:
 .endif          
 	${INSTALL} -c -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} dir-tmpl \
 		${DESTDIR}${INFODIR}/dir-tmpl
-.if !exists(${DESTDIR}${INFODIR}/dir)
 	${INSTALL} -c -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \
 		 dir-tmpl ${DESTDIR}${INFODIR}/dir
-.endif
 
 .include <bsd.prog.mk>
