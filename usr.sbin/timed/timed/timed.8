@@ -195,13 +195,15 @@ on those networks for which it is operating as a slave.
 If it finds that there are no trusted masters on a network,
 it will begin the election process on that network.
 .Pp
-One way to synchronize a group of machines is to use an
-.Tn NTP
-daemon to
+One way to synchronize a group of machines is to use
+.Xr ntpd 8
+to
 synchronize the clock of one machine to a distant standard or a radio
 receiver and
 .Fl F Ar hostname
-to tell its timed daemon to trust only itself.
+to tell its
+.Nm
+to trust only itself.
 .Pp
 Messages printed by the kernel on the system console occur with
 interrupts disabled.
@@ -258,6 +260,7 @@ log file for master
 .Xr gettimeofday 2 ,
 .Xr icmp 4 ,
 .Xr networks 5 ,
+.Xr ntpd 8 ,
 .Xr timedc 8
 .Rs
 .%T "TSP: The Time Synchronization Protocol for UNIX 4.3BSD"
