@@ -75,7 +75,7 @@ boot.img:	boot.nohdr
 all:		boot.img
 
 install:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
 		boot.img ${DESTDIR}${BINDIR}/cdboot
 
 .include <bsd.kern.mk>

@@ -6,7 +6,7 @@ SRCS	= bus_if.h device_if.h isa_if.h joy.c
 MAN	= joy.8
 
 afterinstall:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${.CURDIR}/joy.sh ${DESTDIR}/usr/bin/joy
 
 .include <bsd.kmod.mk>

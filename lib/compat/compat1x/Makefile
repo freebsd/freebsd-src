@@ -20,7 +20,7 @@ ${lib}:	${lib}.gz.uu
 .endfor
 
 beforeinstall:
-	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} ${LIBS} \
+	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} ${LIBS} \
 		${DESTDIR}${LIBCOMPATDIR}/aout
 
 # Get all the fruit, even though we don't set PROG.

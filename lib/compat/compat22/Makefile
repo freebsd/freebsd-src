@@ -27,9 +27,9 @@ ${lib}:	${.CURDIR}/${lib}.bz2.uu
 .endfor
 
 beforeinstall:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} ld.so \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} ld.so \
 		${DESTDIR}/usr/libexec
-	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} ${LIBS} \
+	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} ${LIBS} \
 		${DESTDIR}${LIBCOMPATDIR}/aout
 	@${ECHO} "libcrypt.so.2.0 -> libscrypt.so.2.0" ; \
 		cd ${DESTDIR}${LIBCOMPATDIR}/aout ; \

@@ -7,7 +7,7 @@ LDADD=		${LIBBIB} ${LIBGROFF} -lm
 CLEANFILES=	${MAN}
 
 beforeinstall:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 	    ${DIST_DIR}/eign ${DESTDIR}${SHAREDIR}/dict/
 
 .include <bsd.prog.mk>

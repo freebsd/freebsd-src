@@ -5,7 +5,7 @@
 MAN=	prefix.8
 
 realinstall:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${.CURDIR}/prefix.sh ${DESTDIR}${BINDIR}/prefix
 
 .include <bsd.prog.mk>

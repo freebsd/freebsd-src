@@ -103,10 +103,10 @@ CLEANFILES+=	${DOC}.ascii ${DOC}.ascii${DCOMPRESS_EXT} \
 realinstall:
 .if ${PRINTERDEVICE} == "html"
 	cd ${SRCDIR}; \
-		${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+		${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${DOC}*.html ${DESTDIR}${BINDIR}/${VOLUME}
 .else
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${DFILE} ${DESTDIR}${BINDIR}/${VOLUME}
 .endif
 

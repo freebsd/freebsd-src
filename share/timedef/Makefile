@@ -62,7 +62,7 @@ all: ${LOCALES:S/$/.out/g}
 
 afterinstall:
 	for l in ${LOCALES}; do \
-		${INSTALL} ${COPY} -m 644 -o ${BINOWN} -g ${BINGRP} $$l.out \
+		${INSTALL} -m 644 -o ${BINOWN} -g ${BINGRP} $$l.out \
 			   ${LOCALEDIR}/$$l/LC_TIME; \
 	done
 	for l in ${LATIN15LINKS}; do \

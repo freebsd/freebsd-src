@@ -50,7 +50,7 @@ stringify.sed:
 	ln -sf ${SRCDIR}/ld/emultempl/astring.sed ${.TARGET}
 
 afterinstall:
-	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${LDSCRIPTS:S|^|ldscripts/|} ${DESTDIR}${SCRIPTDIR}
 
 .include <bsd.prog.mk>

@@ -13,7 +13,7 @@ install:
 	@echo user-ppp in dial-in server under i4b, please copy it into /etc/isdn.
 
 installetc:	i4brunppp
-	${INSTALL} ${COPY} -m ${BINMODE} -o ${BINOWN} -g ${BINGRP} \
+	${INSTALL} -m ${BINMODE} -o ${BINOWN} -g ${BINGRP} \
 		${.CURDIR}/i4brunppp ${RUNPPPDEST}
 
 .include <bsd.prog.mk>

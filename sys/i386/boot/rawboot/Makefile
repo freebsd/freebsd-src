@@ -75,7 +75,7 @@ rawboot:	boot.nohdr
 all:		rawboot
 
 install:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
 		rawboot ${DESTDIR}${BINDIR}/rawboot
 
 .include <bsd.kern.mk>

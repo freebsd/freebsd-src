@@ -5,7 +5,7 @@ DEVICEDIR?=	${fontdir}/dev${DEV}
 all: ${DEVFILES}
 
 beforeinstall: ${DEVFILES}
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 		${.ALLSRC} ${DESTDIR}${DEVICEDIR}
 
 .include <bsd.prog.mk>

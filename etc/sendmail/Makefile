@@ -80,18 +80,18 @@ install:	${INSTALL_CF} ${INSTALL_SUBMIT_CF}
 .endif
 .if defined(INSTALL_CF)
 .if ${INSTALL_CF} != ${DEST_CF}
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 ${INSTALL_CF} \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 ${INSTALL_CF} \
 		${DEST_CF}
 .endif
 .endif
 .if defined(SENDMAIL_ADDITIONAL_CF)
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		${SENDMAIL_ADDITIONAL_CF} ${DESTDIR}/etc/mail
 .endif
 .ifndef SENDMAIL_SET_USER_ID
 .if defined(INSTALL_SUBMIT_CF)
 .if ${INSTALL_SUBMIT_CF} != ${DEST_SUBMIT_CF}
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		${INSTALL_SUBMIT_CF} ${DEST_SUBMIT_CF}
 .endif
 .endif
@@ -103,37 +103,37 @@ distribution:	freebsd.cf freebsd.mc ${INSTALL_CF} ${INSTALL_SUBMIT_CF}
 	@echo ">>> ERROR: Both SENDMAIL_CF and SENDMAIL_MC can not be set"
 	@false
 .endif
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 ${.CURDIR}/freebsd.mc \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 ${.CURDIR}/freebsd.mc \
 		${DESTDIR}/etc/mail/freebsd.mc
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 freebsd.cf \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 freebsd.cf \
 		${DESTDIR}/etc/mail/freebsd.cf
 .if defined(INSTALL_CF)
 .if ${INSTALL_CF} != ${DEST_CF}
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 ${INSTALL_CF} \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 ${INSTALL_CF} \
 		${DEST_CF}
 .endif
 .else
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 freebsd.cf \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 freebsd.cf \
 		${DEST_CF}
 .endif
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${CFDIR}/cf/submit.mc \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 ${CFDIR}/cf/submit.mc \
 	    ${DESTDIR}/etc/mail/freebsd.submit.mc
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${CFDIR}/cf/submit.cf \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 ${CFDIR}/cf/submit.cf \
 	    ${DESTDIR}/etc/mail/freebsd.submit.cf
 .ifndef SENDMAIL_SET_USER_ID
 .if defined(INSTALL_SUBMIT_CF)
 .if ${INSTALL_SUBMIT_CF} != ${DEST_SUBMIT_CF}
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		${INSTALL_SUBMIT_CF} ${DEST_SUBMIT_CF}
 .endif
 .else
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${CFDIR}/cf/submit.cf \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 ${CFDIR}/cf/submit.cf \
 	    ${DEST_SUBMIT_CF}
 .endif
 .endif
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${SMDIR}/helpfile \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 ${SMDIR}/helpfile \
 	    ${DESTDIR}/etc/mail/helpfile
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 640 /dev/null \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 640 /dev/null \
 	    ${DESTDIR}/var/log/sendmail.st
 
 .include <bsd.prog.mk>

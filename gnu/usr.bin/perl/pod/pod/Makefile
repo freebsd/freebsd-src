@@ -31,7 +31,7 @@ CLEANFILES+= ${.OBJDIR}/${I}.pod ${I}.1
 
 install:
 	cd ${PERL5SRC}/pod ;\
-	${INSTALL} ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE} \
+	${INSTALL} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE} \
 		${PODS} ${DESTDIR}/usr/libdata/perl/${VERSION}/pod
 
 .PATH: ${PERL5SRC}/pod

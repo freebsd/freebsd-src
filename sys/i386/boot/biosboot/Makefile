@@ -79,11 +79,11 @@ boot2:		boot.nohdr
 all:		boot1 boot2
 
 install:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		boot1 boot2 ${DESTDIR}${BINDIR}/
 
 install-boothelp:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 		${.CURDIR}/boot.help ${DESTDIR}/
 
 .include <bsd.kern.mk>

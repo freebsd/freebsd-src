@@ -40,7 +40,7 @@ sgcrt0.o: scrt0.o
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 realinstall:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${OBJS} \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 ${OBJS} \
 		${DESTDIR}${LIBDIR}
 
 depend:	.depend

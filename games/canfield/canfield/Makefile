@@ -10,7 +10,7 @@ MLINKS=	canfield.6 cfscores.6
 
 beforeinstall:
 .if !exists(${DESTDIR}/var/games/cfscores)
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/games/cfscores
 .endif
 

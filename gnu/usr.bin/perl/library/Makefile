@@ -9,17 +9,17 @@ beforeinstall:
 	@cd ${.OBJDIR}/lib ;\
 	for i in `find . \! -type d \! -name \*.3.gz` ; do \
 		j=`echo $$i|sed -e 's|auto/DynaLoader|mach/auto/DynaLoader|'` ;\
-		${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+		${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 			$$i ${DESTDIR}/usr/libdata/perl/${VERSION}/$$j ;\
 	done
 	@cd ${.OBJDIR}/lib ;\
-	${INSTALL} ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE} \
+	${INSTALL} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE} \
 		*.3.gz ${DESTDIR}/usr/share/perl/man/man3
 	@cd ${.OBJDIR} ;\
-	${INSTALL} ${COPY} -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
+	${INSTALL} -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
 		*.h ${DESTDIR}/usr/libdata/perl/${VERSION}/mach/CORE
 	@cd ${.OBJDIR} ;\
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		Config.pm ${DESTDIR}/usr/libdata/perl/${VERSION}/mach
 
 CLEANFILES= ext.libs autosplit pod2man pod2man.PL man3pages

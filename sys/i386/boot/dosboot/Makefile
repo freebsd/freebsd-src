@@ -10,7 +10,7 @@ STRIP=
 all:	${MPROG}
 
 install:	${MPROG}
-	${INSTALL} ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${INSTALLFLAGS} ${MPROG} ${DESTDIR}${BINDIR}
 
 

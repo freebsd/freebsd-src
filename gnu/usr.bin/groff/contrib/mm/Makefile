@@ -20,7 +20,7 @@ CLEANFILES+=	${MAN}
 beforeinstall:
 .for locale in ${LOCALE}
 .if !exists(${locale}) || empty(${locale})
-	${INSTALL} ${COPY} -o ${FILESOWN} -g ${FILESGRP} -m ${FILESMODE} \
+	${INSTALL} -o ${FILESOWN} -g ${FILESGRP} -m ${FILESMODE} \
 		/dev/null ${DESTDIR}${TMACDIR}/mm/${locale}
 .endif
 .endfor

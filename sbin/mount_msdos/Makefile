@@ -17,7 +17,7 @@ TABLES= iso22dos iso72dos koi2dos koi8u2dos
 
 afterinstall:
 	cd ${.CURDIR} && \
-	    ${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${SHAREMODE} \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${SHAREMODE} \
 	    ${TABLES} ${TABDIR}
 
 .include <bsd.prog.mk>

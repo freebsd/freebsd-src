@@ -12,7 +12,7 @@ HIDEGAME=hidegame
 
 beforeinstall:
 .if !exists(${DESTDIR}/var/games/robots_roll)
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/games/robots_roll
 .endif
 

@@ -26,7 +26,7 @@ beforeinstall: etc-examples ${SHARED}
 FILES!=	find -L ${dir} \( -name CVS -prune \) -o -type f -print
 .for file in ${FILES}
 copies::
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 ${file} ${DDIR}/${file}
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 ${file} ${DDIR}/${file}
 .endfor
 .endfor
 

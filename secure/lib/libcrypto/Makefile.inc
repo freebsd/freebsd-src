@@ -58,5 +58,5 @@ openssl/evp.h: ${LCRYPTO_SRC}/evp/evp.h
 .if !defined(MAKE_IDEA) || ${MAKE_IDEA} != YES
 	sed '/^#ifndef NO_IDEA$$/,/^#endif$$/d' ${.OODATE} > ${.TARGET}
 .else
-	${INSTALL} ${COPY} -m 444 ${.OODATE} ${.TARGET}
+	${INSTALL} -m 444 ${.OODATE} ${.TARGET}
 .endif
