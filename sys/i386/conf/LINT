@@ -426,6 +426,17 @@ options 	IPSEC_DEBUG		#debug for IP security
 #
 #options 	IPSEC_FILTERGIF		#filter ipsec packets from a tunnel
 
+#
+# Experimental IPsec implementation that uses the kernel crypto
+# framework.  This cannot be configured together with IPSEC and
+# (currently) supports only IPv4.  To use this you must also
+# configure the crypto device (see below).  Note that with this
+# you get all the IPsec protocols (e.g. there is no FAST_IPSEC_ESP).
+# IPSEC_DEBUG is used, as above, to configure debugging support
+# within the IPsec protocols.
+#
+#options 	FAST_IPSEC		#new IPsec
+
 options 	IPX			#IPX/SPX communications protocols
 options 	IPXIP			#IPX in IP encapsulation (not available)
 options 	IPTUNNEL		#IP in IPX encapsulation (not available)
