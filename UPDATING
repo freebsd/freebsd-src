@@ -1379,9 +1379,13 @@ COMMON ITEMS:
 
 	To just build a kernel when you know that it won't mess you up
 	--------------------------------------------------------------
-	cd src/sys/{i386,alpha}/conf
+	This assumes you are already running a 5.X system.  Replace
+	${arch} with the architecture of your machine (e.g. "i386",
+	"alpha", "amd64", "ia64", "pc98", "sparc64", etc).
+
+	cd src/sys/${arch}/conf
 	config KERNEL_NAME_HERE
-	cd ../../compile/KERNEL_NAME_HERE
+	cd ../compile/KERNEL_NAME_HERE
 	make depend
 	make
 	make install	
