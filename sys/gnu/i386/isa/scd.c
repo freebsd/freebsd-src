@@ -33,7 +33,7 @@
  */
 
 
-/* $Id: scd.c,v 1.4 1995/01/29 22:51:37 jkh Exp $ */
+/* $Id: scd.c,v 1.5 1995/01/30 05:29:03 phk Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -117,6 +117,8 @@ struct scd_data {
 	struct disklabel dlabel;
 	int	openflag;
 	struct {
+              unsigned char adr :4;
+              unsigned char ctl :4; /* xcdplayer needs this */
 		unsigned char start_msf[3];
 	} toc[MAX_TRACKS];
 	short	first_track;
@@ -163,6 +165,11 @@ static int scd_playmsf(int unit, struct ioc_play_msf *msf);
 static int scd_play(int unit, struct ioc_play_msf *msf);
 static int scd_subchan(int unit, struct ioc_read_subchannel *sc);
 static int read_subcode(int unit, struct sony_subchannel_position_data *sc);
+
+/* for xcdplayer */
+static int scd_toc_header(int unit, struct ioc_toc_header *th);
+static int scd_toc_entrys(int unit, struct ioc_read_toc_entry *te);
+#define SCD_LASTPLUS1 170 /* don't ask, xcdplayer passes this in */
 
 extern	int	hz;
 
@@ -434,7 +441,9 @@ scdioctl(dev_t dev, int cmd, caddr_t addr, int flags)
 	case CDIOCREADSUBCHANNEL:
 		return scd_subchan(unit, (struct ioc_read_subchannel *) addr);
 	case CDIOREADTOCHEADER:
+              return scd_toc_header (unit, (struct ioc_toc_header *) addr);
 	case CDIOREADTOCENTRYS:
+              return scd_toc_entrys (unit, (struct ioc_read_toc_entry*) addr);
 	case CDIOCSETPATCH:
 	case CDIOCGETVOL:
 	case CDIOCSETVOL:
@@ -1219,6 +1228,8 @@ read_toc(dev_t dev)
 	if (cd->last_track > (MAX_TRACKS-2))
 		cd->last_track = MAX_TRACKS-2;
 	for (j = 0, i = cd->first_track; i <= cd->last_track; i++, j++) {
+              cd->toc[i].adr = tl[j].adr;
+              cd->toc[i].ctl = tl[j].ctl; /* for xcdplayer */
 		bcopy(tl[j].start_msf, cd->toc[i].start_msf, 3);
 #ifdef SCD_DEBUG
 		if (scd_debuglevel > 0) {
@@ -1451,4 +1462,132 @@ waitfor_status_bits(int unit, int bits_set, int bits_clear)
 		printf("scd%d: timeout.\n", unit);
 	return EIO;
 }
+
+/* these two routines for xcdplayer - "borrowed" from mcd.c */
+static int
+scd_toc_header (int unit, struct ioc_toc_header* th)
+{
+      struct scd_data *cd = scd_data + unit;
+      int rc;
+
+      if (!(cd->flags & SCDTOC) && (rc = read_toc(unit)) != 0) {
+              print_error(unit, rc);
+              return EIO;
+      }
+
+      th->starting_track = cd->first_track;
+      th->ending_track = cd->last_track;
+      th->len = 0; /* not used */
+
+      return 0;
+}
+
+static int
+scd_toc_entrys (int unit, struct ioc_read_toc_entry *te)
+{
+      struct scd_data *cd = scd_data + unit;
+      struct cd_toc_entry toc_entry;
+      int rc, i, len = te->data_len;
+
+      if (!(cd->flags & SCDTOC) && (rc = read_toc(unit)) != 0) {
+              print_error(unit, rc);
+              return EIO;
+      }
+
+      /* find the toc to copy*/
+      i = te->starting_track;
+      if (i == SCD_LASTPLUS1)
+              i = cd->last_track + 1;
+      
+      /* verify starting track */
+      if (i < cd->first_track || i > cd->last_track+1)
+              return EINVAL;
+
+      /* valid length ? */
+      if (len < sizeof(struct cd_toc_entry)
+              || (len % sizeof(struct cd_toc_entry)) != 0)
+              return EINVAL;
+
+      /* copy the toc data */
+      toc_entry.control = cd->toc[i].ctl;
+      toc_entry.addr_type = te->address_format;
+      toc_entry.track = i;
+      if (te->address_format == CD_MSF_FORMAT) {
+              toc_entry.addr.msf.unused = 0;
+              toc_entry.addr.msf.minute = bcd2bin(cd->toc[i].start_msf[0]);
+              toc_entry.addr.msf.second = bcd2bin(cd->toc[i].start_msf[1]);
+              toc_entry.addr.msf.frame = bcd2bin(cd->toc[i].start_msf[2]);
+      }
+
+      /* copy the data back */
+      if (copyout(&toc_entry, te->data, sizeof(struct cd_toc_entry)) != 0)
+              return EFAULT;
+
+      return 0;
+}
+
+
+/* these two routines for xcdplayer - "borrowed" from mcd.c */
+static int
+scd_toc_header (int unit, struct ioc_toc_header* th)
+{
+      struct scd_data *cd = scd_data + unit;
+      int rc;
+
+      if (!(cd->flags & SCDTOC) && (rc = read_toc(unit)) != 0) {
+              print_error(unit, rc);
+              return EIO;
+      }
+
+      th->starting_track = cd->first_track;
+      th->ending_track = cd->last_track;
+      th->len = 0; /* not used */
+
+      return 0;
+}
+
+static int
+scd_toc_entrys (int unit, struct ioc_read_toc_entry *te)
+{
+      struct scd_data *cd = scd_data + unit;
+      struct cd_toc_entry toc_entry;
+      int rc, i, len = te->data_len;
+
+      if (!(cd->flags & SCDTOC) && (rc = read_toc(unit)) != 0) {
+              print_error(unit, rc);
+              return EIO;
+      }
+
+      /* find the toc to copy*/
+      i = te->starting_track;
+      if (i == SCD_LASTPLUS1)
+              i = cd->last_track + 1;
+      
+      /* verify starting track */
+      if (i < cd->first_track || i > cd->last_track+1)
+              return EINVAL;
+
+      /* valid length ? */
+      if (len < sizeof(struct cd_toc_entry)
+              || (len % sizeof(struct cd_toc_entry)) != 0)
+              return EINVAL;
+
+      /* copy the toc data */
+      toc_entry.control = cd->toc[i].ctl;
+      toc_entry.addr_type = te->address_format;
+      toc_entry.track = i;
+      if (te->address_format == CD_MSF_FORMAT) {
+              toc_entry.addr.msf.unused = 0;
+              toc_entry.addr.msf.minute = bcd2bin(cd->toc[i].start_msf[0]);
+              toc_entry.addr.msf.second = bcd2bin(cd->toc[i].start_msf[1]);
+              toc_entry.addr.msf.frame = bcd2bin(cd->toc[i].start_msf[2]);
+      }
+
+      /* copy the data back */
+      if (copyout(&toc_entry, te->data, sizeof(struct cd_toc_entry)) != 0)
+              return EFAULT;
+
+      return 0;
+}
+
 #endif /* NSCD > 0 */
