@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vmparam.h	5.9 (Berkeley) 5/12/91
- *	$Id: vmparam.h,v 1.28 1998/02/05 03:31:53 dyson Exp $
+ *	$Id: vmparam.h,v 1.29 1998/02/23 07:42:40 dyson Exp $
  */
 
 
@@ -52,9 +52,9 @@
 /*
  * Virtual memory related constants, all in bytes
  */
-#define	MAXTSIZ		(16UL*1024*1024)	/* max text size */
+#define	MAXTSIZ		(128UL*1024*1024)	/* max text size */
 #ifndef DFLDSIZ
-#define	DFLDSIZ		(64UL*1024*1024)	/* initial data size limit */
+#define	DFLDSIZ		(128UL*1024*1024)	/* initial data size limit */
 #endif
 #ifndef MAXDSIZ
 #define	MAXDSIZ		(512UL*1024*1024)	/* max data size */
