@@ -300,6 +300,8 @@ g_io_deliver(struct bio *bp, int error)
 	if (error == ENOMEM) {
 		if (bootverbose)
 			printf("ENOMEM %p on %p(%s)\n", bp, pp, pp->name);
+		bp->bio_children = 0;
+		bp->bio_inbed = 0;
 		g_io_request(bp, cp);
 		pace++;
 		return;
