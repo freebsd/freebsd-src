@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.34 1996/06/12 14:02:06 jkh Exp $
+ * $Id: index.c,v 1.35 1996/06/14 14:33:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -132,6 +132,17 @@ new_pkg_node(char *name, node_type type)
     return tmp;
 }
 
+static char *
+strip(char *buf)
+{
+    int i;
+
+    for (i = 0; buf[i]; i++)
+	if (buf[i] == '\t' || buf[i] == '\n')
+	    buf[i] = ' ';
+    return buf;
+}
+
 static IndexEntryPtr
 new_index(char *name, char *pathto, char *prefix, char *comment, char *descr, char *maint, char *deps)
 {
@@ -141,7 +152,7 @@ new_index(char *name, char *pathto, char *prefix, char *comment, char *descr, ch
     tmp->path =		_strdup(pathto);
     tmp->prefix =	_strdup(prefix);
     tmp->comment =	_strdup(comment);
-    tmp->descrfile =	_strdup(descr);
+    tmp->descrfile =	strip(_strdup(descr));
     tmp->maintainer =	_strdup(maint);
     tmp->deps =		_strdup(deps);
     return tmp;
@@ -388,7 +399,7 @@ pkg_checked(dialogMenuItem *self)
 
     i = index_search(plist, kp->name, NULL) ? TRUE : FALSE;
     if (kp->type == PACKAGE && plist)
-	return i || (!RunningAsInit && package_exists(kp->name));
+	return i || package_exists(kp->name);
     else
 	return FALSE;
 }
@@ -405,7 +416,7 @@ pkg_fire(dialogMenuItem *self)
 	sp = index_search(plist, kp->name, NULL);
 	/* Not already selected? */
 	if (!sp) {
-	    if (RunningAsInit || !package_exists(kp->name)) {
+	    if (!package_exists(kp->name)) {
 		PkgNodePtr np = (PkgNodePtr)safe_malloc(sizeof(PkgNode));
 
 		*np = *kp;
@@ -433,6 +444,11 @@ pkg_fire(dialogMenuItem *self)
 void
 pkg_selected(dialogMenuItem *self, int is_selected)
 {
+    PkgNodePtr kp = self->data;
+
+    if (!is_selected || kp->type != PACKAGE)
+	return;
+    msgInfo(kp->desc);
 }
 
 int
@@ -453,7 +469,7 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
     /* Figure out if this menu is full of "leaves" or "branches" */
     for (kp = top->kids; kp && kp->name; kp = kp->next) {
 	int len;
-	    
+
 	++n;
 	if (kp->type == PACKAGE && plist) {
 	    hasPackages = TRUE;
