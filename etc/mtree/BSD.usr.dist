@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.74.2.17 1998/01/23 20:12:37 jkh Exp $
+#	$Id: BSD.usr.dist,v 1.74.2.18 1998/02/07 19:04:36 ache Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -205,8 +205,6 @@
 /set type=dir uname=games gname=bin mode=0755
         games           uname=bin
             atc
-            ..
-            boggle
             ..
             fortune
             ..
