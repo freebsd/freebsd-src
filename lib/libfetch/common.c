@@ -54,7 +54,9 @@ __FBSDID("$FreeBSD$");
  * Error messages for resolver errors
  */
 static struct fetcherr _netdb_errlist[] = {
+#ifdef EAI_NODATA
 	{ EAI_NODATA,	FETCH_RESOLV,	"Host not found" },
+#endif
 	{ EAI_AGAIN,	FETCH_TEMP,	"Transient resolver failure" },
 	{ EAI_FAIL,	FETCH_RESOLV,	"Non-recoverable resolver failure" },
 	{ EAI_NONAME,	FETCH_RESOLV,	"No address record" },
