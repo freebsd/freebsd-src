@@ -665,7 +665,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
   size_t sz;
   u_int32_t magic, accmap;
   u_short mru, phmtu, maxmtu, maxmru, wantmtu, wantmru, proto;
-  struct lqrreq *req;
+  struct lqrreq req;
   char request[20], desc[22];
   struct mp *mp;
   struct physical *p = link2physical(fp->link);
@@ -933,24 +933,24 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
       break;
 
     case TY_QUALPROTO:
-      req = (struct lqrreq *)opt;
+      memcpy(&req, opt, sizeof req);
       log_Printf(LogLCP, "%s proto %x, interval %lums\n",
-                request, ntohs(req->proto), (u_long)ntohl(req->period) * 10);
+                request, ntohs(req.proto), (u_long)ntohl(req.period) * 10);
       switch (mode_type) {
       case MODE_REQ:
-        if (ntohs(req->proto) != PROTO_LQR || !IsAccepted(lcp->cfg.lqr)) {
+        if (ntohs(req.proto) != PROTO_LQR || !IsAccepted(lcp->cfg.lqr)) {
           fsm_rej(dec, opt);
           lcp->my_reject |= (1 << opt->hdr.id);
         } else {
-          lcp->his_lqrperiod = ntohl(req->period);
+          lcp->his_lqrperiod = ntohl(req.period);
           if (lcp->his_lqrperiod < MIN_LQRPERIOD * 100)
             lcp->his_lqrperiod = MIN_LQRPERIOD * 100;
-          req->period = htonl(lcp->his_lqrperiod);
+          req.period = htonl(lcp->his_lqrperiod);
           fsm_ack(dec, opt);
         }
         break;
       case MODE_NAK:
-        lcp->want_lqrperiod = ntohl(req->period);
+        lcp->want_lqrperiod = ntohl(req.period);
         break;
       case MODE_REJ:
         lcp->his_reject |= (1 << opt->hdr.id);
