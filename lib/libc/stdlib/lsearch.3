@@ -4,7 +4,7 @@
 .\" All rights reserved.
 .\"
 .\" As long as the above copyright statement and this notice remain
-.\" unchanged, you can do what ever you want with this file. 
+.\" unchanged, you can do what ever you want with this file.
 .\"
 .\" $FreeBSD$
 .\"
@@ -19,14 +19,17 @@
 .Lb libc
 .Sh SYNOPSIS
 .In search.h
-.Ft void *
-.Fn lsearch "const void *key" "void *base" "size_t *nelp" "size_t width" \
-    "int (*compar)(const void *, const void *)"
-.Ft void *
-.Fn lfind "const void *key" "const void *base" "size_t *nelp" "size_t width" \
-    "int (*compar)(const void *, const void *)"
+.Ft "void *"
+.Fo lsearch
+.Fa "const void *key" "void *base" "size_t *nelp" "size_t width"
+.Fa "int \*[lp]*compar\*[rp]\*[lp]const void *, const void *\*[rp]"
+.Fc
+.Ft "void *"
+.Fo lfind
+.Fa "const void *key" "const void *base" "size_t *nelp" "size_t width"
+.Fa "int \*[lp]*compar\*[rp]\*[lp]const void *, const void *\*[rp]"
+.Fc
 .Sh DESCRIPTION
-.Pp
 The
 .Fn lsearch
 and
@@ -36,13 +39,13 @@ the one to be sought using a supplied comparison function.
 .Pp
 .Fa key
 points to an element that matches the one that is searched.
-The array's address in memory is denoted by the 
+The array's address in memory is denoted by the
 .Fa base
 argument.
-The width of one element (i.e. the size as returned by
+The width of one element (i.e., the size as returned by
 .Fn sizeof )
-is passed as the   
-.Fa width 
+is passed as the
+.Fa width
 argument.
 The number of valid elements contained in the array (not the number of
 elements the array has space reserved for) is given in the integer pointed
@@ -51,10 +54,10 @@ to by
 The
 .Fa compar
 argument points to a function which compares its two arguments and returns
-zero if they are matching and non-zero otherwise.
+zero if they are matching, and non-zero otherwise.
 .Pp
-If no matching element was found in the array, 
-.Fn lsearch 
+If no matching element was found in the array,
+.Fn lsearch
 copies
 .Fa key
 into the position after the last element and increments the
