@@ -62,7 +62,7 @@
 
 #define	KTR_TSB		KTR_CT3
 
-ASSERT_EQUAL(sizeof(struct tte), 1 << TTE_SHIFT);
+CTASSERT((1 << TTE_SHIFT) == sizeof(struct tte));
 
 struct tte *tsb_kernel;
 vm_offset_t tsb_kernel_phys;
