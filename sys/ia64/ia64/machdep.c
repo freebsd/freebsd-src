@@ -217,18 +217,21 @@ cpu_switch(struct thread *old, struct thread *new)
 	struct pcb *oldpcb, *newpcb;
 
 	oldpcb = old->td_pcb;
-	oldpcb->pcb_current_pmap = PCPU_GET(current_pmap);
 #if IA32
 	ia32_savectx(oldpcb);
 #endif
 	if (!savectx(oldpcb)) {
 		newpcb = new->td_pcb;
-		pmap_install(newpcb->pcb_current_pmap);
+		oldpcb->pcb_current_pmap =
+		    pmap_switch(newpcb->pcb_current_pmap);
 		PCPU_SET(curthread, new);
 #if IA32
 		ia32_restorectx(newpcb);
 #endif
 		restorectx(newpcb);
+		/* We should not get here. */
+		panic("cpu_switch: restorectx() returned");
+		/* NOTREACHED */
 	}
 }
 
@@ -238,7 +241,7 @@ cpu_throw(struct thread *old __unused, struct thread *new)
 	struct pcb *newpcb;
 
 	newpcb = new->td_pcb;
-	pmap_install(newpcb->pcb_current_pmap);
+	(void)pmap_switch(newpcb->pcb_current_pmap);
 	PCPU_SET(curthread, new);
 #if IA32
 	ia32_restorectx(newpcb);
