@@ -65,10 +65,6 @@ extern _RuneLocale	*_Read_RuneMagi(FILE *);
 extern size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
     size_t, mbstate_t * __restrict);
 extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
-extern size_t __emulated_mbrtowc(wchar_t * __restrict, const char * __restrict,
-    size_t, mbstate_t * __restrict ps);
-extern size_t __emulated_wcrtomb(char * __restrict, wchar_t,
-    mbstate_t * __restrict ps);
 extern rune_t __emulated_sgetrune(const char *, size_t, const char **);
 extern int __emulated_sputrune(rune_t, char *, size_t, char **);
 extern size_t	_none_mbrtowc(wchar_t * __restrict, const char * __restrict,
@@ -156,8 +152,8 @@ __setrunelocale(const char *encoding)
 	}
 	(void)fclose(fp);
 
-	__mbrtowc = __emulated_mbrtowc;
-	__wcrtomb = __emulated_wcrtomb;
+	__mbrtowc = NULL;
+	__wcrtomb = NULL;
 	rl->sputrune = __emulated_sputrune;
 	rl->sgetrune = __emulated_sgetrune;
 	if (strcmp(rl->encoding, "NONE") == 0)
