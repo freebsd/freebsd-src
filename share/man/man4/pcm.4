@@ -149,10 +149,14 @@ Device probe messages can be examined with the
 .Xr dmesg 8
 utility.
 .Pp
-All the appropriate device nodes and symbolic links
-for the
+On systems with
+.Xr devfs 5 ,
+supported device nodes will be created automatically.
+For systems without
+.Xr devfs 5 ,
+appropriate device nodes and symbolic links for the
 .Ql pcm0
-device would created with the following commands:
+device can be created with the following commands:
 .Bd -literal -offset indent
 cd /dev; sh MAKEDEV snd0
 .Ed
@@ -190,6 +194,7 @@ rewritten in
 .Fx 4.0 .
 .Sh SEE ALSO
 .Xr csa 4 ,
+.Xr devfs 5 ,
 .Xr gusc 4 ,
 .Xr sbc 4
 .Sh AUTHORS
