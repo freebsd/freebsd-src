@@ -68,7 +68,8 @@ static void		pci_fixancient(pcicfgregs *cfg);
 
 static int		pci_porten(device_t pcib, int b, int s, int f);
 static int		pci_memen(device_t pcib, int b, int s, int f);
-static int		pci_add_map(device_t pcib, int b, int s, int f, int reg, 
+static int		pci_add_map(device_t pcib, device_t bus, device_t dev,
+			    int b, int s, int f, int reg,
 			    struct resource_list *rl);
 static void		pci_add_resources(device_t pcib, device_t bus,
 			    device_t dev);
@@ -82,13 +83,15 @@ static int		pci_modevent(module_t mod, int what, void *arg);
 static void		pci_hdrtypedata(device_t pcib, int b, int s, int f, 
 			    pcicfgregs *cfg);
 static void		pci_read_extcap(device_t pcib, pcicfgregs *cfg);
+static void		pci_cfg_restore(device_t, struct pci_devinfo *);
+static void		pci_cfg_save(device_t, struct pci_devinfo *, int);
 
 static device_method_t pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pci_probe),
 	DEVMETHOD(device_attach,	pci_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_suspend,	pci_suspend),
 	DEVMETHOD(device_resume,	pci_resume),
 
 	/* Bus interface */
@@ -96,7 +99,7 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(bus_probe_nomatch,	pci_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	pci_read_ivar),
 	DEVMETHOD(bus_write_ivar,	pci_write_ivar),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
+	DEVMETHOD(bus_driver_added,	pci_driver_added),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
@@ -613,6 +616,7 @@ pci_enable_io_method(device_t dev, device_t child, int space)
 		return (EINVAL);
 	}
 	pci_set_command_bit(dev, child, bit);
+	/* Some devices seem to need a brief stall here, what do to? */
 	command = PCI_READ_CONFIG(dev, child, PCIR_COMMAND, 2);
 	if (command & bit)
 		return (0);
@@ -719,11 +723,12 @@ pci_memen(device_t pcib, int b, int s, int f)
  * register is a 32bit map register or 2 if it is a 64bit register.
  */
 static int
-pci_add_map(device_t pcib, int b, int s, int f, int reg,
-	    struct resource_list *rl)
+pci_add_map(device_t pcib, device_t bus, device_t dev,
+    int b, int s, int f, int reg, struct resource_list *rl)
 {
 	uint32_t map;
 	uint64_t base;
+	uint64_t start, end, count;
 	uint8_t ln2size;
 	uint8_t ln2range;
 	uint32_t testval;
@@ -731,25 +736,34 @@ pci_add_map(device_t pcib, int b, int s, int f, int reg,
 	int type;
 
 	map = PCIB_READ_CONFIG(pcib, b, s, f, reg, 4);
-
-	if (map == 0 || map == 0xffffffff)
-		return (1); /* skip invalid entry */
-
 	PCIB_WRITE_CONFIG(pcib, b, s, f, reg, 0xffffffff, 4);
 	testval = PCIB_READ_CONFIG(pcib, b, s, f, reg, 4);
 	PCIB_WRITE_CONFIG(pcib, b, s, f, reg, map, 4);
 
-	base = pci_mapbase(map);
 	if (pci_maptype(map) & PCI_MAPMEM)
 		type = SYS_RES_MEMORY;
 	else
 		type = SYS_RES_IOPORT;
 	ln2size = pci_mapsize(testval);
 	ln2range = pci_maprange(testval);
-	if (ln2range == 64) {
+	base = pci_mapbase(map);
+
+	/*
+	 * For I/O registers, if bottom bit is set, and the next bit up
+	 * isn't clear, we know we have a BAR that doesn't conform to the
+	 * spec, so ignore it.  Also, sanity check the size of the data
+	 * areas to the type of memory involved.
+	 */
+	if ((testval & 0x1) == 0x1 &&
+	    (testval & 0x2) != 0)
+		return (1);
+	if ((type == SYS_RES_MEMORY && ln2size < 5) ||
+	    (type == SYS_RES_IOPORT && ln2size < 3))
+		return (1);
+
+	if (ln2range == 64)
 		/* Read the other half of a 64bit map register */
 		base |= (uint64_t) PCIB_READ_CONFIG(pcib, b, s, f, reg + 4, 4) << 32;
-	}
 
 	if (bootverbose) {
 		printf("\tmap[%02x]: type %x, range %2d, base %08x, size %2d",
@@ -765,9 +779,10 @@ pci_add_map(device_t pcib, int b, int s, int f, int reg,
 
 	/*
 	 * This code theoretically does the right thing, but has
-	 * undesirable side effects in some cases where
-	 * peripherals respond oddly to having these bits
-	 * enabled.  Leave them alone by default.
+	 * undesirable side effects in some cases where peripherals
+	 * respond oddly to having these bits enabled.  Let the user
+	 * be able to turn them off (since pci_enable_io_modes is 1 by
+	 * default).
 	 */
 	if (pci_enable_io_modes) {
 		/* Turn on resources that have been left off by a lazy BIOS */
@@ -787,9 +802,23 @@ pci_add_map(device_t pcib, int b, int s, int f, int reg,
 		if (type == SYS_RES_MEMORY && !pci_memen(pcib, b, s, f))
 			return (1);
 	}
-	resource_list_add(rl, type, reg, base, base + (1 << ln2size) - 1,
-	    (1 << ln2size));
+	/*
+	 * If base is 0, then we have problems.  It is best to ignore
+	 * such entires for the moment.  These will be allocated later if
+	 * the driver specifically requests them.
+	 */
+	if (base == 0)
+		return 1;
+	start = base;
+	end = base + (1 << ln2size) - 1;
+	count = 1 << ln2size;
+	resource_list_add(rl, type, reg, start, end, count);
 
+	/*
+	 * Not quite sure what to do on failure of allocating the resource
+	 * since I can postulate several right answers.
+	 */
+	resource_list_alloc(rl, bus, dev, type, &reg, start, end, count, 0);
 	return ((ln2range == 64) ? 2 : 1);
 }
 
@@ -805,14 +834,13 @@ pci_add_resources(device_t pcib, device_t bus, device_t dev)
 	b = cfg->bus;
 	s = cfg->slot;
 	f = cfg->func;
-	for (i = 0; i < cfg->nummaps;) {
-		i += pci_add_map(pcib, b, s, f, PCIR_BAR(i), rl);
-	}
+	for (i = 0; i < cfg->nummaps;)
+		i += pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(i), rl);
 
 	for (q = &pci_quirks[0]; q->devid; q++) {
 		if (q->devid == ((cfg->device << 16) | cfg->vendor)
 		    && q->type == PCI_QUIRK_MAP_REG)
-			pci_add_map(pcib, b, s, f, q->arg1, rl);
+			pci_add_map(pcib, bus, dev, b, s, f, q->arg1, rl);
 	}
 
 	if (cfg->intpin > 0 && PCI_INTERRUPT_VALID(cfg->intline)) {
@@ -873,6 +901,8 @@ pci_add_child(device_t bus, struct pci_devinfo *dinfo)
 	pcib = device_get_parent(bus);
 	dinfo->cfg.dev = device_add_child(bus, NULL, -1);
 	device_set_ivars(dinfo->cfg.dev, dinfo);
+	pci_cfg_save(dinfo->cfg.dev, dinfo, 0);
+	pci_cfg_restore(dinfo->cfg.dev, dinfo);
 	pci_add_resources(pcib, bus, dinfo->cfg.dev);
 	pci_print_verbose(dinfo);
 }
@@ -907,6 +937,52 @@ pci_attach(device_t dev)
 	return (bus_generic_attach(dev));
 }
 
+int
+pci_suspend(device_t dev)
+{
+	int numdevs;
+	device_t *devlist;
+	device_t child;
+	struct pci_devinfo *dinfo;
+	int i;
+
+	/*
+	 * Save the pci configuration space for each child.  We don't need
+	 * to do this, unless the BIOS suspend code powers down the bus and
+	 * the devices on the bus.
+	 */
+	device_get_children(dev, &devlist, &numdevs);
+	for (i = 0; i < numdevs; i++) {
+		child = devlist[i];
+		dinfo = (struct pci_devinfo *) device_get_ivars(child);
+		pci_cfg_save(child, dinfo, 0);
+	}
+	free(devlist, M_TEMP);
+	return (bus_generic_suspend(dev));
+}
+
+int
+pci_resume(device_t dev)
+{
+	int numdevs;
+	device_t *devlist;
+	device_t child;
+	struct pci_devinfo *dinfo;
+	int i;
+
+	/*
+	 * Restore the pci configuration space for each child.
+	 */
+	device_get_children(dev, &devlist, &numdevs);
+	for (i = 0; i < numdevs; i++) {
+		child = devlist[i];
+		dinfo = (struct pci_devinfo *) device_get_ivars(child);
+		pci_cfg_restore(child, dinfo);
+	}
+	free(devlist, M_TEMP);
+	return (bus_generic_resume(dev));
+}
+
 static void
 pci_load_vendor_data(void)
 {
@@ -920,6 +996,34 @@ pci_load_vendor_data(void)
 		/* terminate the database */
 		pci_vendordata[pci_vendordata_size] = '\n';
 	}
+}
+
+void
+pci_driver_added(device_t dev, driver_t *driver)
+{
+	int numdevs;
+	device_t *devlist;
+	device_t child;
+	struct pci_devinfo *dinfo;
+	int i;
+
+	device_printf(dev, "driver added\n");
+	DEVICE_IDENTIFY(driver, dev);
+	device_get_children(dev, &devlist, &numdevs);
+	for (i = 0; i < numdevs; i++) {
+		child = devlist[i];
+		if (device_get_state(child) != DS_NOTPRESENT)
+			continue;
+		dinfo = device_get_ivars(child);
+		pci_print_verbose(dinfo);
+/*XXX???*/	/* resource_list_init(&dinfo->cfg.resources); */
+		printf("pci%d:%d:%d: reprobing on driver added\n",
+		    dinfo->cfg.bus, dinfo->cfg.slot, dinfo->cfg.func);
+		pci_cfg_restore(child, dinfo);
+		if (device_probe_and_attach(child) != 0)
+			pci_cfg_save(child, dinfo, 1);
+	}
+	free(devlist, M_TEMP);
 }
 
 int
@@ -1047,6 +1151,7 @@ pci_probe_nomatch(device_t dev, device_t child)
 	}
 	printf(" at device %d.%d (no driver attached)\n",
 	    pci_get_slot(child), pci_get_function(child));
+	pci_cfg_save(child, (struct pci_devinfo *) device_get_ivars(child), 1);
 	return;
 }
 
@@ -1326,18 +1431,78 @@ DB_SHOW_COMMAND(pciregs, db_pci_dump)
 }
 #endif /* DDB */
 
+/*
+ * XXX I'm not sure the following is good for 64-bit bars.
+ */
+static struct resource *
+pci_alloc_map(device_t dev, device_t child, int type, int *rid,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(child);
+	struct resource_list *rl = &dinfo->resources;
+	struct resource_list_entry *rle;
+	struct resource *res;
+	uint32_t map, testval;
+	int mapsize;
+
+	/*
+	 * Weed out the bogons, and figure out how large the BAR/map is.
+	 */
+	map = pci_read_config(child, *rid, 4);
+	if (pci_maptype(map) & PCI_MAPMEM) {
+		if (type != SYS_RES_MEMORY) {
+			device_printf(child, "rid %#x says memory, driver wants %d failed.\n", *rid, type);
+			return (NULL);
+		}
+	} else {
+		if (type != SYS_RES_IOPORT) {
+			device_printf(child, "rid %#x says ioport, driver wants %d failed.\n", *rid, type);
+			return (NULL);
+		}
+	}
+	pci_write_config(child, *rid, 0xffffffff, 4);
+	testval = pci_read_config(child, *rid, 4);
+
+	/*
+	 * Allocate enough resource, and then write back the
+	 * appropriate bar for that resource (this is the part
+	 * I'm not sure is good for 64-bit bars).
+	 */
+	mapsize = pci_mapsize(testval);
+	count = 1 << mapsize;
+	if (RF_ALIGNMENT(flags) < mapsize)
+	    flags = (flags & ~RF_ALIGNMENT_MASK) | RF_ALIGNMENT_LOG2(mapsize);
+	res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child, type, rid,
+	    start, end, count, flags);
+	if (res == NULL) {
+		device_printf(child, "%#lx bytes of rid %#x res %d failed.\n",
+		    count, *rid, type);
+		pci_write_config(child, *rid, map, 4);
+		return (NULL);
+	}
+	resource_list_add(rl, type, *rid, start, end, count);
+	rle = resource_list_find(rl, type, *rid);
+	if (rle == NULL)
+		panic("pci_alloc_map: unexpedly can't find resource.");
+	rle->res = res;
+	device_printf(child, "Lazy allocation of %#lx bytes rid %#x type %d at %#lx\n",
+	    count, *rid, type, rman_get_start(res));
+	pci_write_config(child, *rid, rman_get_start(res), 4);
+	return (res);
+}
+
+
 struct resource *
 pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		   u_long start, u_long end, u_long count, u_int flags)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	struct resource_list *rl = &dinfo->resources;
+	struct resource_list_entry *rle;
 	pcicfgregs *cfg = &dinfo->cfg;
 
 	/*
 	 * Perform lazy resource allocation
-	 *
-	 * XXX add support here for SYS_RES_IOPORT and SYS_RES_MEMORY
 	 */
 	if (device_get_parent(child) == dev) {
 		switch (type) {
@@ -1363,16 +1528,39 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			if (*rid < PCIR_BAR(cfg->nummaps)) {
 				/*
 				 * Enable the I/O mode.  We should
-				 * also be allocating resources
-				 * too. XXX
+				 * also be assigning resources too
+				 * when none are present.  The
+				 * resource_list_alloc kind of sorta does
+				 * this...
 				 */
 				if (PCI_ENABLE_IO(dev, child, type))
 					return (NULL);
 			}
+			rle = resource_list_find(rl, type, *rid);
+			if (rle == NULL)
+				return (pci_alloc_map(dev, child, type, rid,
+				    start, end, count, flags));
 			break;
 		}
+		/*
+		 * If we've already allocated the resource, then
+		 * return it now.  But first we may need to activate
+		 * it, since we don't allocate the resource as active
+		 * above.  Normally this would be done down in the
+		 * nexus, but since we short-circuit that path we have
+		 * to do its job here.  Not sure if we should free the
+		 * resource if it fails to activate.
+		 */
+		rle = resource_list_find(rl, type, *rid);
+		if (rle != NULL && rle->res != NULL) {
+			device_printf(child, "Bus reserved %#lx bytes for rid %#x type %d at %#lx\n", rman_get_size(rle->res), *rid, type, rman_get_start(rle->res));
+			if ((flags & RF_ACTIVE) && 
+			    bus_generic_activate_resource(dev, child, type,
+			    *rid, rle->res) != 0)
+				return NULL;
+			return (rle->res);
+		}
 	}
-
 	return (resource_list_alloc(rl, dev, child, type, rid,
 	    start, end, count, flags));
 }
@@ -1416,13 +1604,9 @@ pci_delete_resource(device_t dev, device_t child, int type, int rid)
 struct resource_list *
 pci_get_resource_list (device_t dev, device_t child)
 {
-	struct pci_devinfo *	dinfo = device_get_ivars(child);
-	struct resource_list *  rl = &dinfo->resources;
+	struct pci_devinfo *dinfo = device_get_ivars(child);
 
-	if (!rl)
-		return (NULL);
-
-	return (rl);
+	return (&dinfo->resources);
 }
 
 uint32_t
@@ -1447,7 +1631,7 @@ pci_write_config_method(device_t dev, device_t child, int reg,
 }
 
 int
-pci_child_location_str_method(device_t cbdev, device_t child, char *buf,
+pci_child_location_str_method(device_t dev, device_t child, char *buf,
     size_t buflen)
 {
 	struct pci_devinfo *dinfo;
@@ -1459,7 +1643,7 @@ pci_child_location_str_method(device_t cbdev, device_t child, char *buf,
 }
 
 int
-pci_child_pnpinfo_str_method(device_t cbdev, device_t child, char *buf,
+pci_child_pnpinfo_str_method(device_t dev, device_t child, char *buf,
     size_t buflen)
 {
 	struct pci_devinfo *dinfo;
@@ -1506,34 +1690,86 @@ pci_modevent(module_t mod, int what, void *arg)
 	return (0);
 }
 
-int
-pci_resume(device_t dev)
+static void
+pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 {
-	int			numdevs;
-	int			i;
-	device_t		*children;
-	device_t		child;
-	struct pci_devinfo	*dinfo;
-	pcicfgregs		*cfg;
+	int i;
 
-	device_get_children(dev, &children, &numdevs);
-
-	for (i = 0; i < numdevs; i++) {
-		child = children[i];
-
-		dinfo = device_get_ivars(child);
-		cfg = &dinfo->cfg;
-		if (cfg->intpin > 0 && PCI_INTERRUPT_VALID(cfg->intline)) {
-			cfg->intline = PCI_ASSIGN_INTERRUPT(dev, child);
-			if (PCI_INTERRUPT_VALID(cfg->intline)) {
-				pci_write_config(child, PCIR_INTLINE,
-				    cfg->intline, 1);
-			}
-		}
-	}
-
-	free(children, M_TEMP);
-
-	return (bus_generic_resume(dev));
+	/*
+	 * Only do header type 0 devices.  Type 1 devices are bridges, which
+	 * we know need special treatment.  Type 2 devices are cardbus bridges
+	 * which also require special treatment.  Other types are unknown, and
+	 * we err on the side of safety by ignoring them.
+	 */
+	if (dinfo->cfg.hdrtype != 0)
+		return;
+	printf("pci%d:%d:%d: setting power state D0\n", dinfo->cfg.bus,
+	    dinfo->cfg.slot, dinfo->cfg.func);
+	pci_set_powerstate(dev, PCI_POWERSTATE_D0);
+	for (i = 0; i < dinfo->cfg.nummaps; i++)
+		pci_write_config(dev, PCIR_MAPS + i * 4, dinfo->cfg.bar[i], 4);
+	pci_write_config(dev, PCIR_BIOS, dinfo->cfg.bios, 4);
+	pci_write_config(dev, PCIR_COMMAND, dinfo->cfg.cmdreg, 2);
+	pci_write_config(dev, PCIR_INTLINE, dinfo->cfg.intline, 1);
+	pci_write_config(dev, PCIR_INTPIN, dinfo->cfg.intpin, 1);
+	pci_write_config(dev, PCIR_MINGNT, dinfo->cfg.mingnt, 1);
+	pci_write_config(dev, PCIR_MAXLAT, dinfo->cfg.maxlat, 1);
+	pci_write_config(dev, PCIR_CACHELNSZ, dinfo->cfg.cachelnsz, 1);
+	pci_write_config(dev, PCIR_LATTIMER, dinfo->cfg.lattimer, 1);
 }
 
+static void
+pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
+{
+	int i;
+	uint32_t cls;
+
+	/*
+	 * Only do header type 0 devices.  Type 1 devices are bridges, which
+	 * we know need special treatment.  Type 2 devices are cardbus bridges
+	 * which also require special treatment.  Other types are unknown, and
+	 * we err on the side of safety by ignoring them.  Powering down
+	 * bridges should not be undertaken lightly.
+	 */
+	if (dinfo->cfg.hdrtype != 0)
+		return;
+	for (i = 0; i < dinfo->cfg.nummaps; i++)
+		dinfo->cfg.bar[i] = pci_read_config(dev, PCIR_MAPS + i * 4, 4);
+	dinfo->cfg.bios = pci_read_config(dev, PCIR_BIOS, 4);
+
+	/*
+	 * Some drivers apparently write to these registers w/o
+	 * updating our cahced copy.  No harm happens if we update the
+	 * copy, so do so here so we can restore them.  The COMMAND
+	 * register is modified by the bus w/o updating the cache.  This
+	 * should represent the normally writable portion of the 'defined'
+	 * part of type 0 headers.  In theory we also need to save/restore
+	 * the PCI capability structures we know about, but apart from power
+	 * we don't know any that are writable.
+	 */
+	dinfo->cfg.cmdreg = pci_read_config(dev, PCIR_COMMAND, 2);
+	dinfo->cfg.intline = pci_read_config(dev, PCIR_INTLINE, 1);
+	dinfo->cfg.intpin = pci_read_config(dev, PCIR_INTPIN, 1);
+	dinfo->cfg.mingnt = pci_read_config(dev, PCIR_MINGNT, 1);
+	dinfo->cfg.maxlat = pci_read_config(dev, PCIR_MAXLAT, 1);
+	dinfo->cfg.cachelnsz = pci_read_config(dev, PCIR_CACHELNSZ, 1);
+	dinfo->cfg.lattimer = pci_read_config(dev, PCIR_LATTIMER, 1);
+
+	/*
+	 * don't set the state for display devices and for memory devices
+	 * since bad things happen.  we should (a) have drivers that can easily
+	 * detach and (b) use generic drivers for these devices so that some
+	 * device actually attaches.  We need to make sure that when we
+	 * implement (a) we don't power the device down on a reattach.
+	 *
+	 * John and Nate also tell me that we should be running the power up
+	 * and power down hooks when we change power state for those nodes
+	 * that have ACPI hooks in the tree.
+	 */
+	cls = pci_get_class(dev);
+	if (setstate && cls != PCIC_DISPLAY && cls != PCIC_MEMORY) {
+		pci_set_powerstate(dev, PCI_POWERSTATE_D3);
+		printf("pci%d:%d:%d: setting power state D3\n", dinfo->cfg.bus,
+		    dinfo->cfg.slot, dinfo->cfg.func);
+	}
+}
