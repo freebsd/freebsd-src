@@ -1819,6 +1819,24 @@ rl_rxeofcplus(sc)
 		bus_dmamap_unload(sc->rl_ldata.rl_mtag,
 		    sc->rl_ldata.rl_rx_dmamap[i]);
 
+		/*
+		 * NOTE: For some reason that I can't comprehend,
+		 * the RealTek engineers decided not to implement
+		 * the 'frame alignment error' bit in the 8169's
+		 * status word. Unfortunately, rather than simply
+		 * mark the bit as 'reserved,' they took it away
+		 * completely and shifted the other status bits
+		 * over one slot. The OWN, EOR, FS and LS bits are
+		 * still in the same places, as is the frame length
+		 * field. We have already extracted the frame length
+		 * and checked the OWN bit, so to work around this
+		 * problem, we shift the status bits one space to
+		 * the right so that we can evaluate everything else
+		 * correctly.
+		 */
+		if (sc->rl_type == RL_8169)
+			rxstat >>= 1;
+
 		if (rxstat & RL_RDESC_STAT_RXERRSUM) {
 			ifp->if_ierrors++;
 			rl_newbuf(sc, i, m);
