@@ -6,6 +6,9 @@
 # /etc/namedb/localhost.rev
 #
 
+PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin
+export PATH
+
 if [ "`hostname -s`" != "`hostname`" ]; then
 	# hostname must contain domain
 
