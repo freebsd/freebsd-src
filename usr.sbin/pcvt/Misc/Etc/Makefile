@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-FILES=	Termcap Terminfo pcvt.el rc.local uemacs.tar.Z.uu xmodmap-german
+FILES=	Termcap Terminfo pcvt.el rc.local xmodmap-german
 
 NOOBJ=
 
