@@ -524,8 +524,8 @@ static int
 mdstart_swap(struct md_s *sc, struct bio *bp)
 {
 	struct sf_buf *sf;
-	int i, rv;
-	int offs, len, lastp, lastend;
+	int rv, offs, len, lastend;
+	vm_pindex_t i, lastp;
 	vm_page_t m;
 	u_char *p;
 
