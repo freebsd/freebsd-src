@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  *
- * $Id: if_el.c,v 1.38 1998/10/22 05:58:39 bde Exp $
+ * $Id: if_el.c,v 1.39 1998/12/07 21:58:21 archie Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -146,6 +146,29 @@ el_probe(struct isa_device *idev)
 	}
 }
 
+/* Do a hardware reset of the 3c501.  Do not call until after el_probe()! */
+static __inline void
+el_hardreset(int unit)
+{
+	register struct el_softc *sc;
+	register int base;
+	register int j;
+
+	sc = &el_softc[unit];
+	base = sc->el_base;
+
+	/* First reset the board */
+	outb(base+EL_AC,EL_AC_RESET);
+	DELAY(5);
+	outb(base+EL_AC,0);
+
+	/* Then give it back its ethernet address.  Thanks to the mach
+	 * source code for this undocumented goodie...
+	 */
+	for(j=0;j<ETHER_ADDR_LEN;j++)
+		outb(base+j,sc->arpcom.ac_enaddr[j]);
+}
+
 /* Attach the interface to the kernel data structures.  By the time
  * this is called, we know that the card exists at the given I/O address.
  * We still assume that the IRQ given is correct.
@@ -218,28 +241,6 @@ static void el_stop(int unit)
 
 	sc = &el_softc[unit];
 	outb(sc->el_base+EL_AC,0);
-}
-
-/* Do a hardware reset of the 3c501.  Do not call until after el_probe()! */
-static __inline void el_hardreset(int unit)
-{
-	register struct el_softc *sc;
-	register int base;
-	register int j;
-
-	sc = &el_softc[unit];
-	base = sc->el_base;
-
-	/* First reset the board */
-	outb(base+EL_AC,EL_AC_RESET);
-	DELAY(5);
-	outb(base+EL_AC,0);
-
-	/* Then give it back its ethernet address.  Thanks to the mach
-	 * source code for this undocumented goodie...
-	 */
-	for(j=0;j<ETHER_ADDR_LEN;j++)
-		outb(base+j,sc->arpcom.ac_enaddr[j]);
 }
 
 /* Initialize interface.  */
@@ -405,7 +406,8 @@ el_start(struct ifnet *ifp)
  * to the board.  Call at splimp or interrupt, after downloading data!
  * Returns 0 on success, non-0 on failure
  */
-static int el_xmit(struct el_softc *sc,int len)
+static int
+el_xmit(struct el_softc *sc,int len)
 {
 	int gpl;
 	int i;
@@ -427,8 +429,53 @@ static int el_xmit(struct el_softc *sc,int len)
 	return(0);
 }
 
+/* Pass a packet up to the higher levels. */
+static __inline void
+elread(struct el_softc *sc,caddr_t buf,int len)
+{
+	register struct ether_header *eh;
+	struct mbuf *m;
+
+	eh = (struct ether_header *)buf;
+
+#if NBPFILTER > 0
+	/*
+	 * Check if there's a bpf filter listening on this interface.
+	 * If so, hand off the raw packet to bpf.
+	 */
+	if(sc->arpcom.ac_if.if_bpf) {
+		bpf_tap(&sc->arpcom.ac_if, buf, 
+			len + sizeof(struct ether_header));
+
+		/*
+		 * Note that the interface cannot be in promiscuous mode if
+		 * there are no bpf listeners.  And if el are in promiscuous
+		 * mode, el have to check if this packet is really ours.
+		 *
+		 * This test does not support multicasts.
+		 */
+		if((sc->arpcom.ac_if.if_flags & IFF_PROMISC)
+		   && bcmp(eh->ether_dhost,sc->arpcom.ac_enaddr,
+			   sizeof(eh->ether_dhost)) != 0
+		   && bcmp(eh->ether_dhost,etherbroadcastaddr,
+			   sizeof(eh->ether_dhost)) != 0)
+			return;
+	}
+#endif
+
+	/*
+	 * Pull packet off interface.
+	 */
+	m = elget(buf,len,0,&sc->arpcom.ac_if);
+	if(m == 0)
+		return;
+
+	ether_input(&sc->arpcom.ac_if,eh,m);
+}
+
 /* controller interrupt */
-static void elintr(int unit)
+static void
+elintr(int unit)
 {
 	register struct el_softc *sc;
 	register int base;
@@ -521,49 +568,6 @@ static void elintr(int unit)
 	(void)inb(base+EL_RXC);
 	outb(base+EL_AC,(EL_AC_IRQE|EL_AC_RX));
 	return;
-}
-
-/* Pass a packet up to the higher levels. */
-static __inline void elread(struct el_softc *sc,caddr_t buf,int len)
-{
-	register struct ether_header *eh;
-	struct mbuf *m;
-
-	eh = (struct ether_header *)buf;
-
-#if NBPFILTER > 0
-	/*
-	 * Check if there's a bpf filter listening on this interface.
-	 * If so, hand off the raw packet to bpf.
-	 */
-	if(sc->arpcom.ac_if.if_bpf) {
-		bpf_tap(&sc->arpcom.ac_if, buf, 
-			len + sizeof(struct ether_header));
-
-		/*
-		 * Note that the interface cannot be in promiscuous mode if
-		 * there are no bpf listeners.  And if el are in promiscuous
-		 * mode, el have to check if this packet is really ours.
-		 *
-		 * This test does not support multicasts.
-		 */
-		if((sc->arpcom.ac_if.if_flags & IFF_PROMISC)
-		   && bcmp(eh->ether_dhost,sc->arpcom.ac_enaddr,
-			   sizeof(eh->ether_dhost)) != 0
-		   && bcmp(eh->ether_dhost,etherbroadcastaddr,
-			   sizeof(eh->ether_dhost)) != 0)
-			return;
-	}
-#endif
-
-	/*
-	 * Pull packet off interface.
-	 */
-	m = elget(buf,len,0,&sc->arpcom.ac_if);
-	if(m == 0)
-		return;
-
-	ether_input(&sc->arpcom.ac_if,eh,m);
 }
 
 /*
