@@ -1030,7 +1030,7 @@ COMMON ITEMS:
 	
 	<make sure you have good level 0 dumps>
 	<maybe fix /etc/fstab>				[7]
-	make buildworld
+	make buildworld					[9]
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE	[8]
 	cp src/sys/${MACHINE}/conf/GENERIC.hints /boot/device.hints [2]
 	make installkernel KERNCONF=YOUR_KERNEL_HERE
@@ -1111,6 +1111,8 @@ COMMON ITEMS:
 	option in your kernel.  Failure to do so may leave you with a system
 	that is hard to boot to recover.
 
+	[9] When checking out sources, you must include the -P flag to have
+	cvs prune empty directories.
 FORMAT:
 
 This file contains a list, in reverse chronological order, of major
