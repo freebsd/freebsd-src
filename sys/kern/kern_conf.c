@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.55 1999/08/08 18:42:47 phk Exp $
+ * $Id: kern_conf.c,v 1.56 1999/08/13 10:29:20 phk Exp $
  */
 
 #include <sys/param.h>
@@ -192,6 +192,17 @@ minor(dev_t x)
 	if (x == NODEV)
 		return NOUDEV;
 	return(x->si_udev & 0xffff00ff);
+}
+
+int
+lminor(dev_t x)
+{
+	int i;
+
+	if (x == NODEV)
+		return NOUDEV;
+	i = minor(x);
+	return ((i & 0xff) | (i >> 8));
 }
 
 dev_t
