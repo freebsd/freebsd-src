@@ -47,14 +47,15 @@ in this Software without prior written authorization from the X Consortium.
    	%  lndir ../X
 */
 
+#include <sys/param.h>
+#include <sys/stat.h>
+
+#include <dirent.h>
+#include <errno.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/errno.h>
-#include <sys/stat.h>
-#include <sys/param.h>
-#include <errno.h>
-#include <dirent.h>
-#include <stdarg.h>
+
 #include "sysinstall.h"
 
 #ifndef MAXPATHLEN
