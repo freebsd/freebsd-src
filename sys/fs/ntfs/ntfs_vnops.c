@@ -622,7 +622,7 @@ ntfs_lookup(ap)
 	struct componentname *cnp = ap->a_cnp;
 	struct ucred *cred = cnp->cn_cred;
 	int error;
-	dprintf(("ntfs_lookup: \"%.*s\" (%ld bytes) in %d, wp: %d \n",
+	dprintf(("ntfs_lookup: \"%.*s\" (%ld bytes) in %d\n",
 		(int)cnp->cn_namelen, cnp->cn_nameptr, cnp->cn_namelen,
 		dip->i_number));
 
