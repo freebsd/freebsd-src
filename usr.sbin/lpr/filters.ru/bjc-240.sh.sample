@@ -1,4 +1,11 @@
 #!/bin/sh
+#
+# Canon BJC-240 Setup script
+#
+# Settings are:
+# Epson LQ emulation, A4, Code Page 866, 66 lines, Roman font, Smoothing,
+# HQ mode, no CR translation, power off in 10min, auto power on
+#
 
 printf "\033[K\00200\037" | tr 0 "\0"
 
@@ -9,7 +16,7 @@ Font=Roman
 PageLength=12
 CodePage=866
 AutoLF=Off
-TextScaleMode=Off
+TextScaleMode=On
 AutoCR=Off
 CharacterSet=Set2
 AGM=Off
@@ -25,7 +32,7 @@ Font=Roman
 PageLength=12
 CodePage=866
 AutoLF=Off
-TextScaleMode=Off
+TextScaleMode=On
 CharacterSet=Graphics
 International=USA
 BJLEND
@@ -45,7 +52,7 @@ cat << EOF4
 BJLSTART
 ControlMode=Common
 PrintMode=HQ
-Reduction=On
+Reduction=Off
 Smoothing=On
 PaperSelect=A4
 I/D-Buffer=Input
