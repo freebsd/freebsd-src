@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.19 1997/06/14 00:21:23 ache Exp $
+ * $Id: chap.c,v 1.20 1997/08/25 00:29:06 brian Exp $
  *
  *	TODO:
  */
@@ -95,7 +95,8 @@ RecvChapTalk(struct fsmheader * chp, struct mbuf * bp)
   int arglen, keylen, namelen;
   char *cp, *argp, *ap, *name, *digest;
   char *keyp;
-  MD5_CTX context;		/* context */
+  MD4_CTX MD4context;		/* context for MD4 */
+  MD5_CTX MD5context;		/* context for MD5 */
   char answer[100];
   char cdigest[16];
 
@@ -138,9 +139,15 @@ RecvChapTalk(struct fsmheader * chp, struct mbuf * bp)
     bcopy(cp, ap, valsize);
     LogDumpBuff(LogDEBUG, "recv", ap, valsize);
     ap += valsize;
-    MD5Init(&context);
-    MD5Update(&context, answer, ap - answer);
-    MD5Final(digest, &context);
+    if (VarEncMD4) {
+      MD4Init(&MD4context);
+      MD4Update(&MD4context, answer, ap - answer);
+      MD4Final(digest, &MD4context);
+    } else {
+      MD5Init(&MD5context);
+      MD5Update(&MD5context, answer, ap - answer);
+      MD5Final(digest, &MD5context);
+    }
     LogDumpBuff(LogDEBUG, "answer", digest, 16);
     bcopy(name, digest + 16, namelen);
     ap += namelen;
@@ -159,10 +166,17 @@ RecvChapTalk(struct fsmheader * chp, struct mbuf * bp)
       *ap++ = chp->id;
       bcopy(keyp, ap, keylen);
       ap += keylen;
-      MD5Init(&context);
-      MD5Update(&context, answer, ap - answer);
-      MD5Update(&context, challenge_data + 1, challenge_len);
-      MD5Final(cdigest, &context);
+      if (VarEncMD4) {
+        MD4Init(&MD4context);
+        MD4Update(&MD4context, answer, ap - answer);
+        MD4Update(&MD4context, challenge_data + 1, challenge_len);
+        MD4Final(cdigest, &MD4context);
+      } else {
+        MD5Init(&MD5context);
+        MD5Update(&MD5context, answer, ap - answer);
+        MD5Update(&MD5context, challenge_data + 1, challenge_len);
+        MD5Final(cdigest, &MD5context);
+      }
       LogDumpBuff(LogDEBUG, "got", cp, 16);
       LogDumpBuff(LogDEBUG, "expect", cdigest, 16);
 
