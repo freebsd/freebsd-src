@@ -4,13 +4,14 @@
 #			ptx spell spline struct units xsend
 # XXX MISSING SOURCES:	file grep sort
 # XXX MISSING Makefile:	uucp
+# XXX Use GNU versions:	ld man
 SUBDIR=	apply apropos ar banner basename bdes biff cal calendar \
 	cap_mkdb checknr chflags chpass cksum col colcrt colrm column \
 	comm compress cpp ctags cut dirname du \
 	env error expand false find finger fmt fold fpr from \
 	fsplit fstat ftp gcore gprof head hexdump id indent \
 	join jot kdump ktrace lam last lastcomm leave locate \
-	lock logger login logname lorder m4 mail make man mesg mkdep \
+	lock logger login logname lorder m4 mail make mesg mkdep \
 	mkfifo mklocale mkstr more msgs mt netstat nfsstat nice nm nohup \
 	pagesize passwd paste patch pr printenv printf quota \
 	ranlib rdist renice rev rlogin rs rsh ruptime rwho sccs \
