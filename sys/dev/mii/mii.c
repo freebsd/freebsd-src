@@ -110,17 +110,14 @@ int miibus_probe(dev)
 {
 	struct mii_attach_args	ma, *args;
 	struct mii_data		*mii;
-	device_t		child = NULL, parent, *children;
-	int			bmsr, capmask = 0xFFFFFFFF, nchildren;
+	device_t		child = NULL, parent;
+	int			bmsr, capmask = 0xFFFFFFFF;
 
 	mii = device_get_softc(dev);
 	parent = device_get_parent(dev);
 	LIST_INIT(&mii->mii_phys);
 
 	for (ma.mii_phyno = 0; ma.mii_phyno < MII_NPHY; ma.mii_phyno++) {
-		device_get_children(dev, &children, &nchildren);
-		if (nchildren)
-			break;
 		/*
 		 * Check to see if there is a PHY at this address.  Note,
 		 * many braindead PHYs report 0/0 in their ID registers,
