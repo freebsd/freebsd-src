@@ -1,14 +1,8 @@
 /*
- * Copyright (C) 1995-2000 by Darren Reed.
+ * Copyright (C) 1995-2001 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  */
-#if !defined(lint)
-static const char sccsid[] = "@(#)ip_state.c	1.8 6/5/96 (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$FreeBSD$";
-#endif
 
 #include <sys/errno.h>
 #include <sys/types.h>
@@ -97,6 +91,12 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 # endif
 #endif
 
+#if !defined(lint)
+static const char sccsid[] = "@(#)ip_state.c	1.8 6/5/96 (C) 1993-2000 Darren Reed";
+/* static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.30.2.38 2001/07/23 13:49:46 darrenr Exp $"; */
+static const char rcsid[] = "@(#)$FreeBSD$";
+#endif
+
 #ifndef	MIN
 # define	MIN(a,b)	(((a)<(b))?(a):(b))
 #endif
@@ -140,7 +140,9 @@ u_long	fr_tcpidletimeout = FIVE_DAYS,
 	fr_tcpclosed = 120,
 	fr_tcphalfclosed = 2 * 2 * 3600,    /* 2 hours */
 	fr_udptimeout = 240,
-	fr_icmptimeout = 120;
+	fr_udpacktimeout = 24,
+	fr_icmptimeout = 120,
+	fr_icmpacktimeout = 12;
 int	fr_statemax = IPSTATE_MAX,
 	fr_statesize = IPSTATE_SIZE;
 int	fr_state_doflush = 0,
@@ -241,6 +243,7 @@ caddr_t data;
 	if (error)
 		return EFAULT;
 
+	WRITE_ENTER(&ipf_state);
 	for (sp = ips_list; sp; sp = sp->is_next)
 		if ((sp->is_p == st.is_p) && (sp->is_v == st.is_v) &&
 		    !bcmp((char *)&sp->is_src, (char *)&st.is_src,
@@ -249,7 +252,6 @@ caddr_t data;
 			  sizeof(st.is_dst)) &&
 		    !bcmp((char *)&sp->is_ps, (char *)&st.is_ps,
 			  sizeof(st.is_ps))) {
-			WRITE_ENTER(&ipf_state);
 #ifdef	IPFILTER_LOG
 			ipstate_log(sp, ISL_REMOVE);
 #endif
@@ -257,6 +259,7 @@ caddr_t data;
 			RWLOCK_EXIT(&ipf_state);
 			return 0;
 		}
+	RWLOCK_EXIT(&ipf_state);
 	return ESRCH;
 }
 
@@ -502,8 +505,7 @@ u_int flags;
 	u_int pass;
 	int out;
 
-	if (fr_state_lock || (fin->fin_off & IP_OFFMASK) ||
-	    (fin->fin_fi.fi_fl & FI_SHORT))
+	if (fr_state_lock || (fin->fin_off != 0) || (fin->fin_fl & FI_SHORT))
 		return NULL;
 	if (ips_num == fr_statemax) {
 		ips_stats.iss_max++;
@@ -663,7 +665,7 @@ u_int flags;
 	is->is_secmsk = 0xffff;
 	is->is_auth = fin->fin_fi.fi_auth;
 	is->is_authmsk = 0xffff;
-	is->is_flags = fin->fin_fi.fi_fl & FI_CMP;
+	is->is_flags = fin->fin_fl & FI_CMP;
 	is->is_flags |= FI_CMP << 4;
 	is->is_flags |= flags & (FI_WILDP|FI_WILDA);
 	if (flags & (FI_WILDP|FI_WILDA))
@@ -717,6 +719,8 @@ tcphdr_t *tcp;
 	 * Find difference between last checked packet and this packet.
 	 */
 	source = IP6EQ(fin->fin_fi.fi_src, is->is_src);
+	if (source && (ntohs(is->is_sport) != fin->fin_data[0]))
+		source = 0;
 	fdata = &is->is_tcp.ts_data[!source];
 	tdata = &is->is_tcp.ts_data[source];
 	seq = ntohl(tcp->th_seq);
@@ -809,7 +813,7 @@ tcphdr_t *tcp;
 	u_short sp, dp;
 	void *ifp;
 
-	rev = fin->fin_rev = IP6NEQ(is->is_dst, dst);
+	rev = IP6NEQ(is->is_dst, dst);
 	ifp = fin->fin_ifp;
 	out = fin->fin_out;
 
@@ -817,6 +821,12 @@ tcphdr_t *tcp;
 		flags = is->is_flags;
 		sp = tcp->th_sport;
 		dp = tcp->th_dport;
+		if (!rev) {
+			if (!(flags & FI_W_SPORT) && (sp != is->is_sport))
+				rev = 1;
+			else if (!(flags & FI_W_DPORT) && (dp != is->is_dport))
+				rev = 1;
+		}
 	} else {
 		flags = is->is_flags & FI_WILDA;
 		sp = 0;
@@ -871,10 +881,10 @@ tcphdr_t *tcp;
 	if (tcp == NULL)
 		flags = is->is_flags & (FI_CMP|(FI_CMP<<4));
 
-	if (((fin->fin_fi.fi_fl & (flags >> 4)) != (flags & FI_CMP)) ||
-	    ((fin->fin_fi.fi_optmsk & is->is_optmsk) != is->is_opt) ||
-	    ((fin->fin_fi.fi_secmsk & is->is_secmsk) != is->is_sec) ||
-	    ((fin->fin_fi.fi_auth & is->is_authmsk) != is->is_auth))
+	if (((fin->fin_fl & (flags >> 4)) != (flags & FI_CMP)) ||
+	    (fin->fin_fi.fi_optmsk != is->is_opt) ||
+	    (fin->fin_fi.fi_secmsk != is->is_sec) ||
+	    (fin->fin_fi.fi_auth != is->is_auth))
 		return 0;
 
 	if ((flags & (FI_W_SPORT|FI_W_DPORT))) {
@@ -924,16 +934,11 @@ tcphdr_t *tcp;
 	if (ret >= 0) {
 		is->is_ifp[ret] = ifp;
 #ifdef	_KERNEL
-		strncpy(is->is_ifname[out], IFNAME(fin->fin_ifp),
-			sizeof(is->is_ifname[1]));
+		strncpy(is->is_ifname[ret], IFNAME(fin->fin_ifp),
+			sizeof(is->is_ifname[ret]));
 #endif
 	}
-#ifdef  _KERNEL
-	if (ret >= 0) {
-		strncpy(is->is_ifname[out], IFNAME(fin->fin_ifp),
-			sizeof(is->is_ifname[1]));
-	}
-#endif
+	fin->fin_rev = rev;
 	return 1;
 }
 
@@ -1209,8 +1214,7 @@ fr_info_t *fin;
 	frentry_t *fr;
 	tcphdr_t *tcp;
 
-	if (fr_state_lock || (fin->fin_off & IP_OFFMASK) ||
-	    (fin->fin_fi.fi_fl & FI_SHORT))
+	if (fr_state_lock || (fin->fin_off != 0) || (fin->fin_fl & FI_SHORT))
 		return NULL;
 
 	is = NULL;
@@ -1254,7 +1258,10 @@ fr_info_t *fin;
 			if ((is->is_p == pr) && (is->is_v == v) &&
 			    fr_matchsrcdst(is, src, dst, fin, NULL) &&
 			    fr_matchicmpqueryreply(v, is, ic)) {
-				is->is_age = fr_icmptimeout;
+				if (fin->fin_rev)
+					is->is_age = fr_icmpacktimeout;
+				else
+					is->is_age = fr_icmptimeout;
 				break;
 			}
 		}
@@ -1302,6 +1309,11 @@ retry_tcpudp:
 					if (!fr_tcpstate(is, fin, ip, tcp)) {
 						continue;
 					}
+				} else if ((pr == IPPROTO_UDP)) {
+					if (fin->fin_rev)
+						is->is_age = fr_udpacktimeout;
+					else
+						is->is_age = fr_udptimeout;
 				}
 				break;
 			}
@@ -1420,7 +1432,8 @@ void fr_stateunload()
 	ips_stats.iss_inuse = 0;
 	ips_num = 0;
 	RWLOCK_EXIT(&ipf_state);
-	KFREES(ips_table, fr_statesize * sizeof(ipstate_t *));
+	if (ips_table)
+		KFREES(ips_table, fr_statesize * sizeof(ipstate_t *));
 	ips_table = NULL;
 }
 

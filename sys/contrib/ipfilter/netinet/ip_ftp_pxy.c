@@ -22,6 +22,22 @@ extern	kmutex_t	ipf_rw;
 #define	IPF_MAX227LEN	51
 #define	IPF_FTPBUFSZ	96	/* This *MUST* be >= 53! */
 
+#define	FTPXY_GO	0
+#define	FTPXY_INIT	1
+#define	FTPXY_USER_1	2
+#define	FTPXY_USOK_1	3
+#define	FTPXY_PASS_1	4
+#define	FTPXY_PAOK_1	5
+#define	FTPXY_AUTH_1	6
+#define	FTPXY_AUOK_1	7
+#define	FTPXY_ADAT_1	8
+#define	FTPXY_ADOK_1	9
+#define	FTPXY_ACCT_1	10
+#define	FTPXY_ACOK_1	11
+#define	FTPXY_USER_2	12
+#define	FTPXY_USOK_2	13
+#define	FTPXY_PASS_2	14
+#define	FTPXY_PAOK_2	15
 
 int ippr_ftp_client __P((fr_info_t *, ip_t *, nat_t *, ftpinfo_t *, int));
 int ippr_ftp_complete __P((char *, size_t));
@@ -75,6 +91,7 @@ nat_t *nat;
 	f = &ftp->ftp_side[1];
 	f->ftps_rptr = f->ftps_buf;
 	f->ftps_wptr = f->ftps_buf;
+	ftp->ftp_passok = FTPXY_INIT;
 	return 0;
 }
 
@@ -215,7 +232,7 @@ int dlen;
 		sum2 -= sum1;
 		sum2 = (sum2 & 0xffff) + (sum2 >> 16);
 
-		fix_outcksum(&ip->ip_sum, sum2);
+		fix_outcksum(fin, &ip->ip_sum, sum2);
 #endif
 		ip->ip_len += inc;
 	}
@@ -255,6 +272,7 @@ int dlen;
 		fi.fin_dlen = sizeof(*tcp2);
 		fi.fin_dp = (char *)tcp2;
 		fi.fin_fr = &natfr;
+		fi.fin_out = 1;
 		swip = ip->ip_src;
 		fi.fin_fi.fi_saddr = nat->nat_inip.s_addr;
 		ip->ip_src = nat->nat_inip;
@@ -297,11 +315,36 @@ int dlen;
 	}
 	cmd[i] = '\0';
 
-	if ((ftp->ftp_passok == 0) && !strncmp(cmd, "USER ", 5))
-		 ftp->ftp_passok = 1;
-	else if ((ftp->ftp_passok == 2) && !strncmp(cmd, "PASS ", 5))
-		 ftp->ftp_passok = 3;
-	else if ((ftp->ftp_passok == 4) && !ippr_ftp_pasvonly &&
+	ftp->ftp_incok = 0;
+	if (!strncmp(cmd, "USER ", 5) || !strncmp(cmd, "XAUT ", 5)) {
+		if (ftp->ftp_passok == FTPXY_ADOK_1 ||
+		    ftp->ftp_passok == FTPXY_AUOK_1) {
+			ftp->ftp_passok = FTPXY_USER_2;
+			ftp->ftp_incok = 1;
+		} else {
+			ftp->ftp_passok = FTPXY_USER_1;
+			ftp->ftp_incok = 1;
+		}
+	} else if (!strncmp(cmd, "AUTH ", 5)) {
+		ftp->ftp_passok = FTPXY_AUTH_1;
+		ftp->ftp_incok = 1;
+	} else if (!strncmp(cmd, "PASS ", 5)) {
+		if (ftp->ftp_passok == FTPXY_USOK_1) {
+			ftp->ftp_passok = FTPXY_PASS_1;
+			ftp->ftp_incok = 1;
+		} else if (ftp->ftp_passok == FTPXY_USOK_2) {
+			ftp->ftp_passok = FTPXY_PASS_2;
+			ftp->ftp_incok = 1;
+		}
+	} else if ((ftp->ftp_passok == FTPXY_AUOK_1) &&
+		   !strncmp(cmd, "ADAT ", 5)) {
+		ftp->ftp_passok = FTPXY_ADAT_1;
+		ftp->ftp_incok = 1;
+	} else if ((ftp->ftp_passok == FTPXY_PAOK_2) &&
+		 !strncmp(cmd, "ACCT ", 5)) {
+		ftp->ftp_passok = FTPXY_ACCT_1;
+		ftp->ftp_incok = 1;
+	} else if ((ftp->ftp_passok == FTPXY_GO) && !ippr_ftp_pasvonly &&
 		 !strncmp(cmd, "PORT ", 5)) {
 		inc = ippr_ftp_port(fin, ip, nat, f, dlen);
 	} else if (ippr_ftp_insecure && !ippr_ftp_pasvonly &&
@@ -332,12 +375,13 @@ int dlen;
 	int inc;
 	char *s;
 
+#define	PASV_REPLEN	24
 	/*
 	 * Check for PASV reply message.
 	 */
 	if (dlen < IPF_MIN227LEN)
 		return 0;
-	else if (strncmp(f->ftps_rptr, "227 Entering Passive Mode", 25))
+	else if (strncmp(f->ftps_rptr, "227 Entering Passive Mod", PASV_REPLEN))
 		return 0;
 
 	tcp = (tcphdr_t *)fin->fin_dp;
@@ -345,7 +389,7 @@ int dlen;
 	/*
 	 * Skip the PORT command + space
 	 */
-	s = f->ftps_rptr + 25;
+	s = f->ftps_rptr + PASV_REPLEN;
 	while (*s && !isdigit(*s))
 		s++;
 	/*
@@ -372,6 +416,8 @@ int dlen;
 		return 0;
 
 	if (*s == ')')
+		s++;
+	if (*s == '.')
 		s++;
 	if (*s == '\n')
 		s--;
@@ -445,7 +491,7 @@ int dlen;
 		sum2 -= sum1;
 		sum2 = (sum2 & 0xffff) + (sum2 >> 16);
 
-		fix_outcksum(&ip->ip_sum, sum2);
+		fix_outcksum(fin, &ip->ip_sum, sum2);
 #endif /* SOLARIS || defined(__sgi) */
 		ip->ip_len += inc;
 	}
@@ -469,12 +515,13 @@ int dlen;
 		tcp2->th_win = htons(8192);
 		tcp2->th_sport = 0;		/* XXX - fake it for nat_new */
 		tcp2->th_off = 5;
-		fi.fin_data[1] = a5 << 8 | a6;
+		fi.fin_data[0] = a5 << 8 | a6;
 		fi.fin_dlen = sizeof(*tcp2);
-		tcp2->th_dport = htons(fi.fin_data[1]);
-		fi.fin_data[0] = 0;
+		tcp2->th_dport = htons(fi.fin_data[0]);
+		fi.fin_data[1] = 0;
 		fi.fin_dp = (char *)tcp2;
 		fi.fin_fr = &natfr;
+		fi.fin_out = 1;
 		swip = ip->ip_src;
 		swip2 = ip->ip_dst;
 		fi.fin_fi.fi_daddr = ip->ip_src.s_addr;
@@ -511,17 +558,38 @@ int dlen;
 	rptr = f->ftps_rptr;
 	wptr = f->ftps_wptr;
 
-	if ((ftp->ftp_passok == 1) && !strncmp(rptr, "331", 3))
-		 ftp->ftp_passok = 2;
-	else if ((ftp->ftp_passok == 3) && !strncmp(rptr, "230", 3))
-		 ftp->ftp_passok = 4;
-	else if ((ftp->ftp_passok == 3) && !strncmp(rptr, "530", 3))
-		 ftp->ftp_passok = 0;
-	else if ((ftp->ftp_passok == 4) && !strncmp(rptr, "227 ", 4)) {
-		inc = ippr_ftp_pasv(fin, ip, nat, f, dlen);
+	if (!isdigit(*rptr) || !isdigit(*(rptr + 1)) || !isdigit(*(rptr + 2)))
+		return inc;
+	if (ftp->ftp_passok == FTPXY_GO) {
+		if (!strncmp(rptr, "227 ", 4))
+			inc = ippr_ftp_pasv(fin, ip, nat, f, dlen);
 	} else if (ippr_ftp_insecure && !strncmp(rptr, "227 ", 4)) {
 		inc = ippr_ftp_pasv(fin, ip, nat, f, dlen);
+	} else if (*rptr == '5' || *rptr == '4')
+		ftp->ftp_passok = FTPXY_INIT;
+	else if (ftp->ftp_incok) {
+		if (*rptr == '3') {
+			if (ftp->ftp_passok == FTPXY_ACCT_1)
+				ftp->ftp_passok = FTPXY_GO;
+			else
+				ftp->ftp_passok++;
+		} else if (*rptr == '2') {
+			switch (ftp->ftp_passok)
+			{
+			case FTPXY_USER_1 :
+			case FTPXY_USER_2 :
+			case FTPXY_PASS_1 :
+			case FTPXY_PASS_2 :
+			case FTPXY_ACCT_1 :
+				ftp->ftp_passok = FTPXY_GO;
+				break;
+			default :
+				ftp->ftp_passok += 3;
+				break;
+			}
+		}
 	}
+	ftp->ftp_incok = 0;
 	while ((*rptr++ != '\n') && (rptr < wptr))
 		;
 	f->ftps_rptr = rptr;

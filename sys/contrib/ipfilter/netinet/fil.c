@@ -1,16 +1,8 @@
 /*
- * Copyright (C) 1993-2000 by Darren Reed.
+ * Copyright (C) 1993-2001 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  */
-#if !defined(lint)
-static const char sccsid[] = "@(#)fil.c	1.36 6/5/96 (C) 1993-2000 Darren Reed";
-/* static const char rcsid[] = "@(#)$Id: fil.c,v 2.3.2.16 2000/01/27 08:49:37 darrenr Exp $"; */
-static const char rcsid[] = "@(#)$FreeBSD$";
-#endif
-
 #include <sys/errno.h>
 #include <sys/types.h>
 #include <sys/param.h>
@@ -103,6 +95,12 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 
 #include <machine/in_cksum.h>
 
+#if !defined(lint)
+static const char sccsid[] = "@(#)fil.c	1.36 6/5/96 (C) 1993-2000 Darren Reed";
+/* static const char rcsid[] = "@(#)$Id: fil.c,v 2.35.2.39 2001/07/18 13:30:32 darrenr Exp $"; */
+static const char rcsid[] = "@(#)$FreeBSD$";
+#endif
+
 #ifndef	_KERNEL
 # include "ipf.h"
 # include "ipt.h"
@@ -118,12 +116,6 @@ extern	int	opts;
 # if SOLARIS || defined(__sgi)
 extern	KRWLOCK_T	ipf_mutex, ipf_auth, ipf_nat;
 extern	kmutex_t	ipf_rw;
-# endif
-# if SOLARIS
-#  define	FR_NEWAUTH(m, fi, ip, qif)	fr_newauth((mb_t *)m, fi, \
-							   ip, qif)
-# else /* SOLARIS */
-#  define	FR_NEWAUTH(m, fi, ip, qif)	fr_newauth((mb_t *)m, fi, ip)
 # endif /* SOLARIS || __sgi */
 #endif /* _KERNEL */
 
@@ -229,7 +221,7 @@ fr_info_t *fin;
 	if (v == 4) {
 		fin->fin_id = ip->ip_id;
 		fi->fi_tos = ip->ip_tos;
-		off = (ip->ip_off & IP_OFFMASK) << 3;
+		off = (ip->ip_off & IP_OFFMASK);
 		tcp = (tcphdr_t *)((char *)ip + hlen);
 		(*(((u_short *)fi) + 1)) = (*(((u_short *)ip) + 4));
 		fi->fi_src.i6[1] = 0;
@@ -242,7 +234,7 @@ fr_info_t *fin;
 		fi->fi_daddr = ip->ip_dst.s_addr;
 		p = ip->ip_p;
 		fi->fi_fl = (hlen > sizeof(ip_t)) ? FI_OPTIONS : 0;
-		if (ip->ip_off & 0x3fff)
+		if (ip->ip_off & (IP_MF|IP_OFFMASK))
 			fi->fi_fl |= FI_FRAG;
 		plen = ip->ip_len;
 		fin->fin_dlen = plen - hlen;
@@ -263,6 +255,7 @@ fr_info_t *fin;
 		fi->fi_fl = 0;
 		plen = ntohs(ip6->ip6_plen);
 		fin->fin_dlen = plen;
+		plen += sizeof(*ip6);
 	}
 #endif
 	else
@@ -271,6 +264,7 @@ fr_info_t *fin;
 	fin->fin_off = off;
 	fin->fin_plen = plen;
 	fin->fin_dp = (void *)tcp;
+	off <<= 3;
 
 	switch (p)
 	{
@@ -318,25 +312,34 @@ fr_info_t *fin;
 
 			icmp = (icmphdr_t *)tcp;
 
-			if (icmp->icmp_type == ICMP_ECHOREPLY ||
-			    icmp->icmp_type == ICMP_ECHO)
+			switch (icmp->icmp_type)
+			{
+			case ICMP_ECHOREPLY :
+			case ICMP_ECHO :
+			/* Router discovery messages - RFC 1256 */
+			case ICMP_ROUTERADVERT :
+			case ICMP_ROUTERSOLICIT :
 				minicmpsz = ICMP_MINLEN;
-
+				break;
 			/*
 			 * type(1) + code(1) + cksum(2) + id(2) seq(2) +
 			 * 3*timestamp(3*4)
 			 */
-			else if (icmp->icmp_type == ICMP_TSTAMP ||
-				 icmp->icmp_type == ICMP_TSTAMPREPLY)
+			case ICMP_TSTAMP :
+			case ICMP_TSTAMPREPLY :
 				minicmpsz = 20;
-
+				break;
 			/*
 			 * type(1) + code(1) + cksum(2) + id(2) seq(2) +
 			 * mask(4)
 			 */
-			else if (icmp->icmp_type == ICMP_MASKREQ ||
-				 icmp->icmp_type == ICMP_MASKREPLY)
+			case ICMP_MASKREQ :
+			case ICMP_MASKREPLY :
 				minicmpsz = 12;
+				break;
+			default :
+				break;
+			}
 		}
 
 		if ((!(plen >= hlen + minicmpsz) && !off) ||
@@ -525,7 +528,7 @@ fr_info_t *fin;
 	 * satisfy the "short" class too).
 	 */
 	if (err && (fin->fin_fi.fi_p == IPPROTO_TCP)) {
-		if (fin->fin_fi.fi_fl & FI_SHORT)
+		if (fin->fin_fl & FI_SHORT)
 			return !(ft->ftu_tcpf | ft->ftu_tcpfm);
 		/*
 		 * Match the flags ?  If not, abort this match.
@@ -560,10 +563,7 @@ void *m;
 	fin->fin_fr = NULL;
 	fin->fin_rule = 0;
 	fin->fin_group = 0;
-	if (fin->fin_v == 4)
-		off = ip->ip_off & IP_OFFMASK;
-	else
-		off = 0;
+	off = fin->fin_off;
 	pass |= (fi->fi_fl << 24);
 
 	if ((fi->fi_fl & FI_TCPUDP) && (fin->fin_dlen > 3) && !off)
@@ -790,7 +790,7 @@ int out;
 	mb_t *mc = NULL;
 # if !defined(__SVR4) && !defined(__svr4__)
 #  ifdef __sgi
-	char hbuf[(0xf << 2) + sizeof(struct icmp) + sizeof(ip_t) + 8];
+	char hbuf[128];
 #  endif
 	int up;
 
@@ -815,6 +815,9 @@ int out;
 # ifdef	USE_INET6
 	if (v == 6) {
 		len = ntohs(((ip6_t*)ip)->ip6_plen);
+		if (!len)
+			return -1;	/* potential jumbo gram */
+		len += sizeof(ip6_t);
 		p = ((ip6_t *)ip)->ip6_nxt;
 	} else
 # endif
@@ -823,7 +826,8 @@ int out;
 		len = ip->ip_len;
 	}
 
-	if ((p == IPPROTO_TCP || p == IPPROTO_UDP || p == IPPROTO_ICMP
+	if ((p == IPPROTO_TCP || p == IPPROTO_UDP ||
+	    (v == 4 && p == IPPROTO_ICMP)
 # ifdef USE_INET6
 	    || (v == 6 && p == IPPROTO_ICMPV6)
 # endif
@@ -945,15 +949,12 @@ int out;
 	}
 #endif
 	pass = fr_pass;
-	if (fin->fin_fi.fi_fl & FI_SHORT) {
+	if (fin->fin_fl & FI_SHORT) {
 		ATOMIC_INCL(frstats[out].fr_short);
 	}
 
 	READ_ENTER(&ipf_mutex);
 
-	if (fin->fin_fi.fi_fl & FI_SHORT)
-		ATOMIC_INCL(frstats[out].fr_short);
-	
 	/*
 	 * Check auth now.  This, combined with the check below to see if apass
 	 * is 0 is to ensure that we don't count the packet twice, which can
@@ -977,8 +978,18 @@ int out;
 		}
 	}
 
-	if (apass || (!(fr = ipfr_knownfrag(ip, fin)) &&
-	    !(fr = fr_checkstate(ip, fin)))) {
+	if (!apass) {
+		if ((fin->fin_fl & FI_FRAG) == FI_FRAG)
+			fr = ipfr_knownfrag(ip, fin);
+		if (!fr && !(fin->fin_fl & FI_SHORT))
+			fr = fr_checkstate(ip, fin);
+		if (fr != NULL)
+			pass = fr->fr_flags;
+		if (fr && (pass & FR_LOGFIRST))
+			pass &= ~(FR_LOGFIRST|FR_LOG);
+	}
+
+	if (apass || !fr) {
 		/*
 		 * If a packet is found in the auth table, then skip checking
 		 * the access lists for permission but we do need to consider
@@ -1013,22 +1024,26 @@ int out;
 					ATOMIC_INCL(frstats[out].fr_nom);
 				}
 			}
-			fr = fin->fin_fr;
 		} else
 			pass = apass;
+		fr = fin->fin_fr;
 
 		/*
 		 * If we fail to add a packet to the authorization queue,
 		 * then we drop the packet later.  However, if it was added
 		 * then pretend we've dropped it already.
 		 */
-		if ((pass & FR_AUTH))
-			if (fr_newauth((mb_t *)m, fin, ip) != 0)
+		if ((pass & FR_AUTH)) {
+			if (fr_newauth((mb_t *)m, fin, ip) != 0) {
 #ifdef	_KERNEL
 				m = *mp = NULL;
 #else
 				;
 #endif
+				error = 0;
+			} else
+				error = ENOSPC;
+		}
 
 		if (pass & FR_PREAUTH) {
 			READ_ENTER(&ipf_auth);
@@ -1043,7 +1058,7 @@ int out;
 
 		fin->fin_fr = fr;
 		if ((pass & (FR_KEEPFRAG|FR_KEEPSTATE)) == FR_KEEPFRAG) {
-			if (fin->fin_fi.fi_fl & FI_FRAG) {
+			if (fin->fin_fl & FI_FRAG) {
 				if (ipfr_newfrag(ip, fin, pass) == -1) {
 					ATOMIC_INCL(frstats[out].fr_bnfr);
 				} else {
@@ -1167,7 +1182,7 @@ logit:
 				send_icmp_err(ip, ICMP_UNREACH, fin, dst);
 				ATOMIC_INCL(frstats[0].fr_ret);
 			} else if (((pass & FR_RETMASK) == FR_RETRST) &&
-				   !(fin->fin_fi.fi_fl & FI_SHORT)) {
+				   !(fin->fin_fl & FI_SHORT)) {
 				if (send_reset(ip, fin) == 0) {
 					ATOMIC_INCL(frstats[1].fr_ret);
 				}
@@ -1180,7 +1195,7 @@ logit:
 				verbose("- forged ICMP unreachable sent\n");
 				ATOMIC_INCL(frstats[0].fr_ret);
 			} else if (((pass & FR_RETMASK) == FR_RETRST) &&
-				   !(fin->fin_fi.fi_fl & FI_SHORT)) {
+				   !(fin->fin_fl & FI_SHORT)) {
 				verbose("- TCP RST sent\n");
 				ATOMIC_INCL(frstats[1].fr_ret);
 			}
@@ -1209,15 +1224,17 @@ logit:
 		frdest_t *fdp = &fr->fr_tif;
 
 		if (((pass & FR_FASTROUTE) && !out) ||
-		    (fdp->fd_ifp && fdp->fd_ifp != (struct ifnet *)-1)) {
-			if (ipfr_fastroute(m, fin, fdp) == 0)
-				m = *mp = NULL;
-		}
-		if (mc)
-			ipfr_fastroute(mc, fin, &fr->fr_dif);
+		    (fdp->fd_ifp && fdp->fd_ifp != (struct ifnet *)-1))
+			(void) ipfr_fastroute(m, mp, fin, fdp);
+
+		if (mc != NULL)
+			(void) ipfr_fastroute(mc, &mc, fin, &fr->fr_dif);
 	}
-	if (!(pass & FR_PASS) && m)
+
+	if (!(pass & FR_PASS) && m) {
 		m_freem(m);
+		m = *mp = NULL;
+	}
 #   ifdef __sgi
 	else if (changed && up && m)
 		m_copyback(m, 0, up, hbuf);
@@ -1228,12 +1245,11 @@ logit:
 		frdest_t *fdp = &fr->fr_tif;
 
 		if (((pass & FR_FASTROUTE) && !out) ||
-		    (fdp->fd_ifp && fdp->fd_ifp != (struct ifnet *)-1)) {
-			if (ipfr_fastroute(ip, m, mp, fin, fdp) == 0)
-				m = *mp = NULL;
-		}
-		if (mc)
-			ipfr_fastroute(ip, mc, mp, fin, &fr->fr_dif);
+		    (fdp->fd_ifp && fdp->fd_ifp != (struct ifnet *)-1))
+			(void) ipfr_fastroute(ip, m, mp, fin, fdp);
+
+		if (mc != NULL)
+			(void) ipfr_fastroute(ip, mc, &mc, fin, &fr->fr_dif);
 	}
 # endif /* !SOLARIS */
 	return (pass & FR_PASS) ? 0 : error;
@@ -1465,7 +1481,7 @@ nodata:
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: fil.c,v 2.35.2.30 2000/12/17 05:49:22 darrenr Exp $
+ * $Id: fil.c,v 2.35.2.39 2001/07/18 13:30:32 darrenr Exp $
  */
 /*
  * Copy data from an mbuf chain starting "off" bytes from the beginning,
@@ -1914,7 +1930,7 @@ void frsync()
 		ip_statesync(ifp);
 	}
 	ip_natsync((struct ifnet *)-1);
-# endif
+# endif /* !SOLARIS */
 
 	WRITE_ENTER(&ipf_mutex);
 	frsynclist(ipacct[0][fr_active]);

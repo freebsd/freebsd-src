@@ -1,9 +1,7 @@
 /*
- * Copyright (C) 1997-2000 by Darren Reed.
+ * Copyright (C) 1997-2001 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  *
  * $Id: ip_proxy.h,v 2.8.2.4 2000/12/02 00:15:03 darrenr Exp $
  * $FreeBSD$
@@ -103,7 +101,8 @@ typedef struct  ftpside {
 } ftpside_t;
 
 typedef struct  ftpinfo {
-	u_int   	ftp_passok;
+	int 	  	ftp_passok;
+	int		ftp_incok;
 	ftpside_t	ftp_side[2];
 } ftpinfo_t;
 
