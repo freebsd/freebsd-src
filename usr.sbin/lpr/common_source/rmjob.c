@@ -191,6 +191,8 @@ process(file)
 	while (getline(cfp)) {
 		switch (line[0]) {
 		case 'U':  /* unlink associated files */
+			if (strchr(line+1, '/') || strncmp(line+1, "df", 2))
+				break;
 			if (from != host)
 				printf("%s: ", host);
 			printf(unlink(line+1) ? "cannot dequeue %s\n" :
