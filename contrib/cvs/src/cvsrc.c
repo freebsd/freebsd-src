@@ -30,7 +30,7 @@ void
 read_cvsrc (argc, argv, cmdname)
     int *argc;
     char ***argv;
-    char *cmdname;
+    const char *cmdname;
 {
     char *homedir;
     char *homeinit;

@@ -91,6 +91,8 @@ run_add_arg (s)
 	run_argv[run_argc] = (char *) 0;	/* not post-incremented on purpose! */
 }
 
+
+
 int
 run_exec (stin, stout, sterr, flags)
     const char *stin;
@@ -129,10 +131,10 @@ run_exec (stin, stout, sterr, flags)
 	cvs_outerr (")\n", 0);
     }
     if (noexec && (flags & RUN_REALLY) == 0)
-	return (0);
+	return 0;
 
     /* make sure that we are null terminated, since we didn't calloc */
-    run_add_arg ((char *) 0);
+    run_add_arg ((char *)0);
 
     /* setup default file descriptor numbers */
     shin = 0;
@@ -170,8 +172,8 @@ run_exec (stin, stout, sterr, flags)
     }
 
     /* Make sure we don't flush this twice, once in the subprocess.  */
-    fflush (stdout);
-    fflush (stderr);
+    cvs_flushout();
+    cvs_flusherr();
 
     /* The output files, if any, are now created.  Do the fork and dups.
 
@@ -251,7 +253,7 @@ run_exec (stin, stout, sterr, flags)
 #ifdef BSD_SIGNALS
     if (flags & RUN_SIGIGNORE)
     {
-	memset ((char *) &vec, 0, sizeof (vec));
+	memset ((char *)&vec, 0, sizeof (vec));
 	vec.sv_handler = SIG_IGN;
 	(void) sigvec (SIGINT, &vec, &ivec);
 	(void) sigvec (SIGQUIT, &vec, &qvec);
@@ -300,17 +302,17 @@ run_exec (stin, stout, sterr, flags)
 #ifdef POSIX_SIGNALS
     if (flags & RUN_SIGIGNORE)
     {
-	(void) sigaction (SIGINT, &iact, (struct sigaction *) NULL);
-	(void) sigaction (SIGQUIT, &qact, (struct sigaction *) NULL);
+	(void) sigaction (SIGINT, &iact, (struct sigaction *)NULL);
+	(void) sigaction (SIGQUIT, &qact, (struct sigaction *)NULL);
     }
     else
-	(void) sigprocmask (SIG_SETMASK, &sigset_omask, (sigset_t *) NULL);
+	(void) sigprocmask (SIG_SETMASK, &sigset_omask, (sigset_t *)NULL);
 #else
 #ifdef BSD_SIGNALS
     if (flags & RUN_SIGIGNORE)
     {
-	(void) sigvec (SIGINT, &ivec, (struct sigvec *) NULL);
-	(void) sigvec (SIGQUIT, &qvec, (struct sigvec *) NULL);
+	(void) sigvec (SIGINT, &ivec, (struct sigvec *)NULL);
+	(void) sigvec (SIGQUIT, &qvec, (struct sigvec *)NULL);
     }
     else
 	(void) sigsetmask (mask);
@@ -344,8 +346,10 @@ run_exec (stin, stout, sterr, flags)
   out0:
     if (rerrno)
 	errno = rerrno;
-    return (rc);
+    return rc;
 }
+
+
 
 void
 run_print (fp)
@@ -398,7 +402,7 @@ run_popen (cmd, mode)
 
 int
 piped_child (command, tofdp, fromfdp)
-     char **command;
+     const char **command;
      int *tofdp;
      int *fromfdp;
 {
@@ -436,7 +440,8 @@ piped_child (command, tofdp, fromfdp)
 	if (dup2 (from_child_pipe[1], STDOUT_FILENO) < 0)
 	    error (1, errno, "cannot dup2 pipe");
 
-	execvp (command[0], command);
+	/* Okay to cast out const below - execvp don't return anyhow.  */
+	execvp ((char *)command[0], (char **)command);
 	error (1, errno, "cannot exec %s", command[0]);
     }
     if (close (to_child_pipe[0]) < 0)
@@ -455,7 +460,7 @@ close_on_exec (fd)
      int fd;
 {
 #ifdef F_SETFD
-    if (fcntl (fd, F_SETFD, 1))
+    if (fcntl (fd, F_SETFD, 1) == -1)
 	error (1, errno, "can't set close-on-exec flag on %d", fd);
 #endif
 }

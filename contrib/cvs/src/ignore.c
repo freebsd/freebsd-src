@@ -165,6 +165,8 @@ ign_add_file (file, hold)
     free (line);
 }
 
+
+
 /* Parse a line of space-separated wildcards and add them to the list. */
 void
 ign_add (ign, hold)
@@ -183,6 +185,16 @@ ign_add (ign, hold)
 	if (isspace ((unsigned char) *ign))
 	    continue;
 
+	/* If we have used up all the space, add some more.  Do this before
+	   processing `!', since an "empty" list still contains the `CVS'
+	   entry.  */
+	if (ign_count >= ign_size)
+	{
+	    ign_size += IGN_GROW;
+	    ign_list = (char **) xrealloc ((char *) ign_list,
+					   (ign_size + 1) * sizeof (char *));
+	}
+
 	/*
 	 * if we find a single character !, we must re-set the ignore list
 	 * (saving it if necessary).  We also catch * as a special case in a
@@ -198,8 +210,10 @@ ign_add (ign, hold)
 
 		for (i = 0; i < ign_count; i++)
 		    free (ign_list[i]);
-		ign_count = 0;
-		ign_list[0] = NULL;
+		ign_count = 1;
+		/* Always ignore the "CVS" directory.  */
+		ign_list[0] = xstrdup("CVS");
+		ign_list[1] = NULL;
 
 		/* if we are doing a '!', continue; otherwise add the '*' */
 		if (*ign == '!')
@@ -223,18 +237,12 @@ ign_add (ign, hold)
 		for (i = 0; i < ign_count; i++)
 		    s_ign_list[i] = ign_list[i];
 		s_ign_count = ign_count;
-		ign_count = 0;
-		ign_list[0] = NULL;
+		ign_count = 1;
+		/* Always ignore the "CVS" directory.  */
+		ign_list[0] = xstrdup ("CVS");
+		ign_list[1] = NULL;
 		continue;
 	    }
-	}
-
-	/* If we have used up all the space, add some more */
-	if (ign_count >= ign_size)
-	{
-	    ign_size += IGN_GROW;
-	    ign_list = (char **) xrealloc ((char *) ign_list,
-					   (ign_size + 1) * sizeof (char *));
 	}
 
 	/* find the end of this token */
@@ -255,12 +263,11 @@ ign_add (ign, hold)
     }
 }
 
-/* Set to 1 if filenames should be matched in a case-insensitive
-   fashion.  Note that, contrary to the name and placement in ignore.c,
-   this is no longer just for ignore patterns.  */
-int ign_case;
 
-/* Return 1 if the given filename should be ignored by update or import. */
+
+/* Return true if the given filename should be ignored by update or import,
+ * else return false.
+ */
 int
 ign_name (name)
     char *name;
@@ -268,47 +275,17 @@ ign_name (name)
     char **cpp = ign_list;
 
     if (cpp == NULL)
-	return (0);
-
-    if (ign_case)
-    {
-	/* We do a case-insensitive match by calling fnmatch on copies of
-	   the pattern and the name which have been converted to
-	   lowercase.  FIXME: would be much cleaner to just unify this
-	   with the other case-insensitive fnmatch stuff (FOLD_FN_CHAR
-	   in lib/fnmatch.c; os2_fnmatch in emx/system.c).  */
-	char *name_lower;
-	char *pat_lower;
-	char *p;
-
-	name_lower = xstrdup (name);
-	for (p = name_lower; *p != '\0'; ++p)
-	    *p = tolower (*p);
-	while (*cpp)
-	{
-	    pat_lower = xstrdup (*cpp++);
-	    for (p = pat_lower; *p != '\0'; ++p)
-		*p = tolower (*p);
-	    if (CVS_FNMATCH (pat_lower, name_lower, 0) == 0)
-		goto matched;
-	    free (pat_lower);
-	}
-	free (name_lower);
 	return 0;
-      matched:
-	free (name_lower);
-	free (pat_lower);
-	return 1;
-    }
-    else
-    {
-	while (*cpp)
-	    if (CVS_FNMATCH (*cpp++, name, 0) == 0)
-		return 1;
-	return 0;
-    }
+
+    while (*cpp)
+	if (CVS_FNMATCH (*cpp++, name, 0) == 0)
+	    return 1;
+
+    return 0;
 }
-
+
+
+
 /* FIXME: This list of dirs to ignore stuff seems not to be used.
    Really?  send_dirent_proc and update_dirent_proc both call
    ignore_directory and do_module calls ign_dir_add.  No doubt could
@@ -340,7 +317,7 @@ ign_dir_add (name)
 
 int
 ignore_directory (name)
-    char *name;
+    const char *name;
 {
     int i;
 
@@ -356,7 +333,9 @@ ignore_directory (name)
 
     return 0;
 }
-
+
+
+
 /*
  * Process the current directory, looking for files not in ILIST and
  * not on the global ignore list for this directory.  If we find one,
@@ -369,7 +348,7 @@ void
 ignore_files (ilist, entries, update_dir, proc)
     List *ilist;
     List *entries;
-    char *update_dir;
+    const char *update_dir;
     Ignore_proc proc;
 {
     int subdirs;
@@ -377,7 +356,7 @@ ignore_files (ilist, entries, update_dir, proc)
     struct dirent *dp;
     struct stat sb;
     char *file;
-    char *xdir;
+    const char *xdir;
     List *files;
     Node *p;
 
@@ -386,9 +365,8 @@ ignore_files (ilist, entries, update_dir, proc)
 	subdirs = 0;
     else
     {
-	struct stickydirtag *sdtp;
+	struct stickydirtag *sdtp = entries->list->data;
 
-	sdtp = (struct stickydirtag *) entries->list->data;
 	subdirs = sdtp == NULL || sdtp->subdirs;
     }
 
@@ -451,7 +429,7 @@ ignore_files (ilist, entries, update_dir, proc)
 #ifdef DT_DIR
 		dp->d_type != DT_UNKNOWN ||
 #endif
-		lstat(file, &sb) != -1) 
+		CVS_LSTAT (file, &sb) != -1) 
 	{
 
 	    if (

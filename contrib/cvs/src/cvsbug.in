@@ -48,16 +48,17 @@ DEFAULT_ORGANIZATION="net"
 ## # Newer config information?
 ## [ -f ${GNATS_ROOT}/gnats-adm/config ] && . ${GNATS_ROOT}/gnats-adm/config
 
+# Hack mktemp on systems that don't have it.
+@MKTEMP_SH_FUNCTION@
+MKTEMP="@MKTEMP@"
+
 # What mailer to use.  This must come after the config file, since it is
 # host-dependent.
-if [ -f /usr/sbin/sendmail ]; then
-  MAIL_AGENT="/usr/sbin/sendmail -oi -t"
-else
-  MAIL_AGENT="/usr/lib/sendmail -oi -t"
-fi
+SENDMAIL="@SENDMAIL@"
+MAIL_AGENT="$SENDMAIL -oi -t"
 MAILER=`echo $MAIL_AGENT | sed -e 's, .*,,'`
 if [ ! -f "$MAILER" ] ; then
-	echo "$COMMAND: Cannot file mail program \"$MAILER\"."
+	echo "$COMMAND: Cannot find mail program \"$MAILER\"."
 	echo "$COMMAND: Please fix the MAIL_AGENT entry in the $COMMAND file."
 	exit 1
 fi
@@ -85,9 +86,9 @@ fi
 
 [ -z "$TMPDIR" ] && TMPDIR=/tmp
 
-TEMP=$TMPDIR/p$$
-BAD=$TMPDIR/pbad$$
-REF=$TMPDIR/pf$$
+TEMP="`$MKTEMP $TMPDIR/p.XXXXXX`"
+BAD="`$MKTEMP $TMPDIR/pbad.XXXXXX`"
+REF="`$MKTEMP $TMPDIR/pf.XXXXXX`"
 
 if [ -z "$LOGNAME" -a -n "$USER" ]; then
   LOGNAME=$USER
