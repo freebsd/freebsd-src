@@ -794,7 +794,7 @@ mtx_exit_hard(struct mtx *m, int type)
 
 #ifdef INVARIANTS
 void
-mtx_assert(struct mtx *m, int what)
+_mtx_assert(struct mtx *m, int what, const char *file, int line)
 {
 	switch ((what)) {
 	case MA_OWNED:
@@ -802,23 +802,23 @@ mtx_assert(struct mtx *m, int what)
 	case MA_OWNED | MA_NOTRECURSED:
 		if (!mtx_owned((m)))
 			panic("mutex %s not owned at %s:%d",
-			    (m)->mtx_description, __FILE__, __LINE__);
+			    (m)->mtx_description, file, line);
 		if (mtx_recursed((m))) {
 			if (((what) & MA_NOTRECURSED) != 0)
 				panic("mutex %s recursed at %s:%d",
-				    (m)->mtx_description, __FILE__, __LINE__);
+				    (m)->mtx_description, file, line);
 		} else if (((what) & MA_RECURSED) != 0) {
 			panic("mutex %s unrecursed at %s:%d",
-			    (m)->mtx_description, __FILE__, __LINE__);
+			    (m)->mtx_description, file, line);
 		}
 		break;
 	case MA_NOTOWNED:
 		if (mtx_owned((m)))
 			panic("mutex %s owned at %s:%d",
-			    (m)->mtx_description, __FILE__, __LINE__);
+			    (m)->mtx_description, file, line);
 		break;
 	default:
-		panic("unknown mtx_assert at %s:%d", __FILE__, __LINE__);
+		panic("unknown mtx_assert at %s:%d", file, line);
 	}
 }
 #endif
