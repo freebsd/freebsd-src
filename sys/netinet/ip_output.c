@@ -100,8 +100,7 @@ static void	ip_mloopback
 static int	ip_getmoptions
 	(struct sockopt *, struct ip_moptions *);
 static int	ip_pcbopts(struct inpcb *, int, struct mbuf *);
-static int	ip_setmoptions
-	(struct sockopt *, struct ip_moptions **);
+static int	ip_setmoptions(struct inpcb *, struct sockopt *);
 
 int	ip_optcopy(struct ip *, struct ip *);
 
@@ -1249,7 +1248,7 @@ ip_ctloutput(so, sopt)
 		case IP_MULTICAST_LOOP:
 		case IP_ADD_MEMBERSHIP:
 		case IP_DROP_MEMBERSHIP:
-			error = ip_setmoptions(sopt, &inp->inp_moptions);
+			error = ip_setmoptions(inp, sopt);
 			break;
 
 		case IP_PORTRANGE:
@@ -1567,21 +1566,20 @@ ip_multicast_if(a, ifindexp)
  * Set the IP multicast options in response to user setsockopt().
  */
 static int
-ip_setmoptions(sopt, imop)
-	struct sockopt *sopt;
-	struct ip_moptions **imop;
+ip_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 {
 	int error = 0;
 	int i;
 	struct in_addr addr;
 	struct ip_mreq mreq;
 	struct ifnet *ifp;
-	struct ip_moptions *imo = *imop;
+	struct ip_moptions *imo;
 	struct route ro;
 	struct sockaddr_in *dst;
 	int ifindex;
 	int s;
 
+	imo = inp->inp_moptions;
 	if (imo == NULL) {
 		/*
 		 * No multicast option buffer attached to the pcb;
@@ -1592,7 +1590,7 @@ ip_setmoptions(sopt, imop)
 
 		if (imo == NULL)
 			return (ENOBUFS);
-		*imop = imo;
+		inp->inp_moptions = imo;
 		imo->imo_multicast_ifp = NULL;
 		imo->imo_multicast_addr.s_addr = INADDR_ANY;
 		imo->imo_multicast_vif = -1;
@@ -1854,8 +1852,8 @@ ip_setmoptions(sopt, imop)
 	    imo->imo_multicast_ttl == IP_DEFAULT_MULTICAST_TTL &&
 	    imo->imo_multicast_loop == IP_DEFAULT_MULTICAST_LOOP &&
 	    imo->imo_num_memberships == 0) {
-		free(*imop, M_IPMOPTS);
-		*imop = NULL;
+		free(inp->inp_moptions, M_IPMOPTS);
+		inp->inp_moptions = NULL;
 	}
 
 	return (error);
