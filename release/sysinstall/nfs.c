@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id$
+ * $Id: nfs.c,v 1.18 1997/02/22 14:12:14 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -42,11 +42,11 @@
 #include <sys/mount.h>
 
 Boolean NFSMounted;
+static char mountpoint[] = "/dist";
 
 Boolean
 mediaInitNFS(Device *dev)
 {
-    char *mountpoint = "/dist";
     Device *netDevice = (Device *)dev->private;
 
     if (NFSMounted)
@@ -68,43 +68,26 @@ mediaInitNFS(Device *dev)
 	return FALSE;
     }
     NFSMounted = TRUE;
-    msgDebug("Mounted NFS device %s onto %s\n", dev->name, mountpoint);
+    if (isDebug())
+	msgDebug("Mounted NFS device %s onto %s\n", dev->name, mountpoint);
     return TRUE;
 }
 
 FILE *
 mediaGetNFS(Device *dev, char *file, Boolean probe)
 {
-    char	buf[PATH_MAX];
-
-    if (isDebug())
-	msgDebug("Request for %s from NFS\n", file);
-    snprintf(buf, PATH_MAX, "/dist/%s", file);
-    if (file_readable(buf))
-	return fopen(buf, "r");
-    snprintf(buf, PATH_MAX, "/dist/dists/%s", file);
-    if (file_readable(buf))
-	return fopen(buf, "r");
-    snprintf(buf, PATH_MAX, "/dist/%s/%s", variable_get(VAR_RELNAME), file);
-    if (file_readable(buf))
-	return fopen(buf, "r");
-    snprintf(buf, PATH_MAX, "/dist/%s/dists/%s", variable_get(VAR_RELNAME), file);
-    return fopen(buf, "r");
+    return mediaGenericGet(mountpoint, file);
 }
 
 void
 mediaShutdownNFS(Device *dev)
 {
-    /* Device *netdev = (Device *)dev->private; */
-    char *mountpoint = "/dist";
-
     if (!NFSMounted)
 	return;
+
     msgNotify("Unmounting NFS partition on %s", mountpoint);
     if (unmount(mountpoint, MNT_FORCE) != 0)
 	msgConfirm("Could not unmount the NFS partition: %s", strerror(errno));
-    msgDebug("Unmount of NFS partition successful\n");
-    /* if (netdev) netdev->shutdown(netdev); */
     NFSMounted = FALSE;
     return;
 }
