@@ -80,8 +80,12 @@ struct clockframe {
  * buffer pages are invalid.  On the hp300, request an ast to send us
  * through trap, marking the proc as needing a profiling tick.
  */
-#define	need_proftick(p) \
-	do { (p)->p_flag |= P_OWEUPC; aston(); } while (0)
+#define	need_proftick(p) do {						\
+	mtx_enter(&sched_lock, MTX_SPIN);				\
+	(p)->p_sflag |= PS_OWEUPC;					\
+	mtx_exit(&sched_lock, MTX_SPIN);				\
+	aston();							\
+} while (0)
 
 /*
  * Notify the current process (p) that it has a signal pending,
