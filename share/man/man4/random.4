@@ -57,7 +57,7 @@ To see the devices' current settings, use the command line:
 .Pp
 .Dl sysctl kern.random
 .Pp
-which results in someting like:
+which results in something like:
 .Pp
 .Bd -literal -offset indent
 kern.random.sys.seeded: 1
@@ -74,7 +74,7 @@ kern.random.yarrow.slowoverthresh: 2
 All settings are read/write.
 .Pp
 The
-.Li kern.random.sys.seeded
+.Va kern.random.sys.seeded
 variable indicates whether or not the
 .Nm
 device is in an acceptably secure state
@@ -85,7 +85,7 @@ or as a result of entropy harvesting).
 A reseed will set the value to 1 (non-blocking).
 .Pp
 The
-.Li kern.random.sys.harvest_ethernet
+.Va kern.random.sys.harvest_ethernet
 variable is used to select LAN traffic as an entropy source.
 A zero (0) value means that LAN traffic
 is not considered as an entropy source.
@@ -93,7 +93,7 @@ Set the variable to one (1)
 if you wish to use LAN traffic for entropy harvesting.
 .Pp
 The
-.Li kern.random.sys.harvest_point_to_point
+.Va kern.random.sys.harvest_point_to_point
 variable is used to select serial line traffic as an entropy source.
 (Serial line traffic includes PPP, SLIP and all tun0 traffic.)
 A zero (0) value means such traffic
@@ -102,7 +102,7 @@ Set the variable to one (1)
 if you wish to use it for entropy harvesting.
 .Pp
 The
-.Li kern.random.sys.interrupt
+.Va kern.random.sys.interrupt
 variable is used to select hardware interrupts
 as an entropy source.
 A zero (0) value means interrupts
@@ -116,7 +116,7 @@ are considered as interrupt entropy sources.
 The other variables are explained in the paper describing the
 .Em Yarrow
 algorithm at
-.Li http://www.counterpane.com/yarrow.html .
+.Pa http://www.counterpane.com/yarrow.html .
 .Sh FILES
 .Bl -tag -width /dev/random
 .It Pa /dev/random
