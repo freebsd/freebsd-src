@@ -746,8 +746,6 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 	/* Sanity checks */
 	KASSERT(iffam != NULL, ("%s: iffam", __func__));
 	M_ASSERTPKTHDR(m);
-	if (m == NULL)
-		return (EINVAL);
 	if ((ifp->if_flags & IFF_UP) == 0) {
 		NG_FREE_M(m);
 		return (ENETDOWN);
