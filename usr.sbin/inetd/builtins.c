@@ -343,14 +343,14 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	struct timeval tv = {
 		10,
 		0
-	};
+	}, to;
 	struct passwd *pw = NULL;
 	fd_set fdset;
-	char buf[BUFSIZE], *cp = NULL, *p, **av, *osname = NULL, garbage[7];
+	char buf[BUFSIZE], *cp = NULL, *p, **av, *osname = NULL, garbage[7], e;
 	char *fallback = NULL;
 	socklen_t socklen;
 	ssize_t ssize;
-	size_t size;
+	size_t size, bufsiz;
 	int c, fflag = 0, nflag = 0, rflag = 0, argc = 0, usedfallback = 0;
 	int gflag = 0, getcredfail = 0, onreadlen;
 	u_short lport, fport;
@@ -450,19 +450,42 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	 * "local_port , foreign_port\r\n" (with local being the
 	 * server's port and foreign being the client's.)
 	 */
+	gettimeofday(&to, NULL);
+	to.tv_sec += tv.tv_sec;
+	if ((to.tv_usec += tv.tv_usec) >= 1000000) {
+		to.tv_usec -= 1000000;
+		to.tv_sec++;
+	}
+
+	size = 0;
+	bufsiz = sizeof(buf) - 1;
 	FD_ZERO(&fdset);
-	FD_SET(s, &fdset);
-	if (select(s + 1, &fdset, NULL, NULL, &tv) == -1)
-		iderror(0, 0, s, errno);
-	if (ioctl(s, FIONREAD, &onreadlen) == -1)
-		iderror(0, 0, s, errno);
-	if (onreadlen >= sizeof(buf))
-		onreadlen = sizeof(buf) - 1;
-	ssize = read(s, buf, (size_t)onreadlen);
-	if (ssize == -1)
-		iderror(0, 0, s, errno);
-	buf[ssize] = '\0';
-	if (sscanf(buf, "%hu , %hu", &lport, &fport) != 2)
+ 	while (bufsiz > 0 && (size == 0 || buf[size - 1] != '\n')) {
+		gettimeofday(&tv, NULL);
+		tv.tv_sec = to.tv_sec - tv.tv_sec;
+		tv.tv_usec = to.tv_usec - tv.tv_usec;
+		if (tv.tv_usec < 0) {
+			tv.tv_usec += 1000000;
+			tv.tv_sec--;
+		}
+		if (tv.tv_sec < 0)
+			break;
+		FD_SET(s, &fdset);
+		if (select(s + 1, &fdset, NULL, NULL, &tv) == -1)
+			iderror(0, 0, s, errno);
+		if (ioctl(s, FIONREAD, &onreadlen) == -1)
+			iderror(0, 0, s, errno);
+		if (onreadlen > bufsiz)
+			onreadlen = bufsiz;
+		ssize = read(s, &buf[size], (size_t)onreadlen);
+		if (ssize == -1)
+			iderror(0, 0, s, errno);
+		bufsiz -= ssize;
+		size += ssize;
+ 	}
+	buf[size] = '\0';
+	/* Read two characters, and check for a delimiting character */
+	if (sscanf(buf, "%hu , %hu%c", &lport, &fport, &e) != 3 || isdigit(e))
 		iderror(0, 0, s, 0);
 	if (gflag) {
 		cp = garbage;
