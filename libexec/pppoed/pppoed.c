@@ -73,7 +73,7 @@ static int
 usage(const char *prog)
 {
   fprintf(stderr, "usage: %s [-Fd] [-P pidfile] [-a name] [-e exec | -l label]"
-          " [-p provider] interface\n", prog);
+          " [-n ngdebug] [-p provider] interface\n", prog);
   return EX_USAGE;
 }
 
