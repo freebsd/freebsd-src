@@ -21,10 +21,16 @@
 #include <sys/module.h>
 #include <sys/linker.h>
 #include <sys/mdioctl.h>
+#include <sys/sysctl.h>
+#include <sys/queue.h>
+
+int	 intcmp(const void *, const void *);
+int	 list(const int);
+int	 query(const int, const int);
 
 struct md_ioctl mdio;
 
-enum {UNSET, ATTACH, DETACH} action = UNSET;
+enum {UNSET, ATTACH, DETACH, LIST} action = UNSET;
 
 void mdmaybeload(void);
 
@@ -34,6 +40,7 @@ usage()
 	fprintf(stderr, "Usage:\n");
 	fprintf(stderr, "\tmdconfig -a -t type [-o [no]option]... [ -f file] [-s size] [-u unit]\n");
 	fprintf(stderr, "\tmdconfig -d -u unit\n");
+	fprintf(stderr, "\tmdconfig -l [-u unit]\n");
 	fprintf(stderr, "\t\ttype = {malloc, preload, vnode, swap}\n");
 	fprintf(stderr, "\t\toption = {cluster, compress, reserve, autounit}\n");
 	fprintf(stderr, "\t\tsize = %%d (512 byte blocks), %%dk (kB), %%dm (MB) or %%dg (GB)\n");
@@ -48,7 +55,7 @@ main(int argc, char **argv)
 	int cmdline = 0;
 
 	for (;;) {
-		ch = getopt(argc, argv, "ab:df:o:s:t:u:");
+		ch = getopt(argc, argv, "ab:df:lo:s:t:u:");
 		if (ch == -1)
 			break;
 		switch (ch) {
@@ -62,6 +69,13 @@ main(int argc, char **argv)
 			if (cmdline != 0)
 				usage();
 			action = DETACH;
+			mdio.md_options = MD_AUTOUNIT;
+			cmdline = 3;
+			break;
+		case 'l':
+			if (cmdline != 0)
+				usage();
+			action = LIST;
 			mdio.md_options = MD_AUTOUNIT;
 			cmdline = 3;
 			break;
@@ -132,9 +146,8 @@ main(int argc, char **argv)
 				usage();
 			if (!strncmp(optarg, "/dev/", 5))
 				optarg += 5;
-			if (!strncmp(optarg, "md", 2))
+			if (!strncmp(optarg, MD_NAME, sizeof(MD_NAME) - 1))
 				optarg += 2;
-			mdio.md_unit = strtoul(optarg, NULL, 0);
 			mdio.md_unit = strtoul(optarg, NULL, 0);
 			mdio.md_options &= ~MD_AUTOUNIT;
 			break;
@@ -144,20 +157,121 @@ main(int argc, char **argv)
 	}
 
 	mdmaybeload();
-	fd = open("/dev/mdctl", O_RDWR, 0);
+	fd = open("/dev/" MDCTL_NAME, O_RDWR, 0);
 	if (fd < 0)
-		err(1, "open(/dev/mdctl)");
-	if (action == ATTACH) {
+		err(1, "open(/dev/%s)", MDCTL_NAME);
+	if (action == LIST) {
+		if (mdio.md_options & MD_AUTOUNIT)
+			list(fd);
+		else
+			query(fd, mdio.md_unit);
+	} else if (action == ATTACH) {
 		i = ioctl(fd, MDIOCATTACH, &mdio);
+		if (i < 0)
+			err(1, "ioctl(/dev/%s)", MDCTL_NAME);
 	} else {
 		if (mdio.md_options & MD_AUTOUNIT)
 			usage();
 		i = ioctl(fd, MDIOCDETACH, &mdio);
+		if (i < 0)
+			err(1, "ioctl(/dev/%s)", MDCTL_NAME);
 	}
-	if (i < 0)
-		err(1, "ioctl(/dev/mdctl)");
 	if (mdio.md_options & MD_AUTOUNIT)
-		printf("md%d\n", mdio.md_unit);
+		printf("%s%d\n", MD_NAME, mdio.md_unit);
+	close (fd);
+	return (0);
+}
+
+int
+intcmp(const void *a, const void *b)
+{
+
+	return (*(int *)a - *(int *)b);
+}
+
+struct dl {
+	int		unit;
+	SLIST_ENTRY(dl)	slist;
+};
+
+SLIST_HEAD(, dl) dlist = SLIST_HEAD_INITIALIZER(&dlist);
+
+int
+list(const int fd)
+{
+	char *disklist, *p, *p2, *p3;
+	int unit, dll;
+	struct dl *dp, *di, *dn;
+
+	if (sysctlbyname("kern.disks", NULL, &dll, NULL, NULL) == -1)
+		err(1, "sysctlbyname: kern.disks");
+	if ( (disklist = malloc(dll)) == NULL)
+		err(1, "malloc");
+	if (sysctlbyname("kern.disks", disklist, &dll, NULL, NULL) == -1)
+		err(1, "sysctlbyname: kern.disks");
+
+	for (p = disklist;
+	     (p2 = strsep(&p, " ")) != NULL;) {
+		if (strncmp(p2, MD_NAME, sizeof(MD_NAME) - 1) != 0)
+			continue;
+		p2 += 2;
+		unit = strtoul(p2, &p3, 10);
+		if (p2 == p3)
+			continue;
+		dp = calloc(sizeof *dp, 1);
+		dp->unit = unit;
+		dn = SLIST_FIRST(&dlist);
+		if (dn == NULL || dn->unit > unit) {
+			SLIST_INSERT_HEAD(&dlist, dp, slist);
+		} else {
+			SLIST_FOREACH(di, &dlist, slist) {
+				dn = SLIST_NEXT(di, slist);
+				if (dn == NULL || dn->unit > unit) {
+					SLIST_INSERT_AFTER(di, dp, slist);
+					break;
+				} 
+			} 
+		}
+	}
+	SLIST_FOREACH(di, &dlist, slist) 
+		query(fd, di->unit);
+	while (!SLIST_EMPTY(&dlist)) {
+		di = SLIST_FIRST(&dlist);
+		SLIST_REMOVE_HEAD(&dlist, slist);
+		free(di);
+	}
+	free(disklist);
+	return (0);
+}
+
+int
+query(const int fd, const int unit)
+{
+
+	mdio.md_unit = unit;
+
+	if (ioctl(fd, MDIOCQUERY, &mdio) < 0)
+		err(1, "ioctl(/dev/%s)", MDCTL_NAME);
+
+	switch (mdio.md_type) {
+	case MD_MALLOC:
+		(void)printf("%s%d\tmalloc\t%d KBytes\n", MD_NAME,
+		    mdio.md_unit, mdio.md_size / 2);
+		break;
+	case MD_PRELOAD:
+		(void)printf("%s%d\tpreload\t%d KBytes\n", MD_NAME,
+		    mdio.md_unit, mdio.md_size / 2);
+		break;
+	case MD_SWAP:
+		(void)printf("%s%d\tswap\t%d KBytes\n", MD_NAME,
+		    mdio.md_unit, mdio.md_size / 2);
+		break;
+	case MD_VNODE:
+		(void)printf("%s%d\tvnode\t%d KBytes\n", MD_NAME,
+		    mdio.md_unit, mdio.md_size / 2);
+		break;
+	}
+
 	return (0);
 }
 

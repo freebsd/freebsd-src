@@ -133,7 +133,7 @@ static struct cdevsw md_cdevsw = {
         /* poll */      nopoll,
         /* mmap */      nommap,
         /* strategy */  mdstrategy,
-        /* name */      "md",
+        /* name */      MD_NAME,
         /* maj */       CDEV_MAJOR,
         /* dump */      nodump,
         /* psize */     nopsize,
@@ -149,7 +149,7 @@ static struct cdevsw mdctl_cdevsw = {
         /* poll */      nopoll,
         /* mmap */      nommap,
         /* strategy */  nostrategy,
-        /* name */      "md",
+        /* name */      MD_NAME,
         /* maj */       CDEV_MAJOR
 };
 
@@ -533,7 +533,7 @@ mdinit(struct md_s *sc)
 {
 
 	bioq_init(&sc->bio_queue);
-	devstat_add_entry(&sc->stats, "md", sc->unit, sc->secsize,
+	devstat_add_entry(&sc->stats, MD_NAME, sc->unit, sc->secsize,
 		DEVSTAT_NO_ORDERED_TAGS, 
 		DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_OTHER,
 		DEVSTAT_PRIORITY_OTHER);
@@ -608,7 +608,7 @@ mdcreate_malloc(struct md_ioctl *mdio)
 		for (u = 0; u < sc->nsect; u++)
 			MALLOC(sc->secp[u], u_char *, DEV_BSIZE, M_MDSECT, M_WAITOK | M_ZERO);
 	}
-	printf("md%d: Malloc disk\n", sc->unit);
+	printf("%s%d: Malloc disk\n", MD_NAME, sc->unit);
 	mdinit(sc);
 	return (0);
 }
@@ -833,6 +833,30 @@ mdctlioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		default:
 			return (EOPNOTSUPP);
 		}
+	case MDIOCQUERY:
+		sc = mdfind(mdio->md_unit);
+		if (sc == NULL)
+			return (ENOENT);
+		mdio->md_type = sc->type;
+		mdio->md_options = sc->flags;
+		switch (sc->type) {
+		case MD_MALLOC:
+			mdio->md_size = sc->nsect;
+			break;
+		case MD_PRELOAD:
+			mdio->md_size = sc->nsect;
+			(u_char *)(uintptr_t)mdio->md_base = sc->pl_ptr;
+			break;
+		case MD_SWAP:
+			mdio->md_size = sc->nsect * (PAGE_SIZE / DEV_BSIZE);
+			break;
+		case MD_VNODE:
+			mdio->md_size = sc->nsect;
+			/* XXX fill this in */
+			mdio->md_file = NULL; 
+			break;
+		}
+		return (0);
 	default:
 		return (ENOIOCTL);
 	};
