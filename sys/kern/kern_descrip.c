@@ -46,6 +46,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/conf.h>
 #include <sys/filedesc.h>
@@ -253,13 +254,47 @@ fcntl(td, uap)
 	struct thread *td;
 	register struct fcntl_args *uap;
 {
+	struct flock fl;
+	intptr_t arg;
+	int error;
+
+	error = 0;
+	switch (uap->cmd) {
+	case F_SETLK:
+	case F_GETLK:
+		error = copyin((caddr_t)(intptr_t)uap->arg, &fl, sizeof(fl));
+		arg = (intptr_t)&fl;
+		break;
+	default:
+		arg = uap->arg;
+		break;
+	}
+	if (error)
+		return (error);
+
+	error = kern_fcntl(td, uap->fd, uap->cmd, arg);
+	if (error)
+		return (error);
+
+	switch (uap->cmd) {
+	case F_GETLK:
+		error = copyout(&fl, (caddr_t)(intptr_t)uap->arg, sizeof(fl));
+		break;
+	}
+
+	return (error);
+}
+
+int
+kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
+{
 	register struct proc *p = td->td_proc;
 	register struct filedesc *fdp;
 	register struct file *fp;
 	register char *pop;
 	struct vnode *vp;
+	struct flock *flp;
 	int i, tmp, error = 0, flg = F_POSIX;
-	struct flock fl;
 	u_int newmin;
 	struct proc *leaderp;
 
@@ -267,17 +302,17 @@ fcntl(td, uap)
 
 	fdp = p->p_fd;
 	FILEDESC_LOCK(fdp);
-	if ((unsigned)uap->fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[uap->fd]) == NULL) {
+	if ((unsigned)fd >= fdp->fd_nfiles ||
+	    (fp = fdp->fd_ofiles[fd]) == NULL) {
 		FILEDESC_UNLOCK(fdp);
 		error = EBADF;
 		goto done2;
 	}
-	pop = &fdp->fd_ofileflags[uap->fd];
+	pop = &fdp->fd_ofileflags[fd];
 
-	switch (uap->cmd) {
+	switch (cmd) {
 	case F_DUPFD:
-		newmin = uap->arg;
+		newmin = arg;
 		if (newmin >= p->p_rlimit[RLIMIT_NOFILE].rlim_cur ||
 		    newmin >= maxfilesperproc) {
 			FILEDESC_UNLOCK(fdp);
@@ -288,7 +323,7 @@ fcntl(td, uap)
 			FILEDESC_UNLOCK(fdp);
 			break;
 		}
-		error = do_dup(fdp, uap->fd, i, td->td_retval, td);
+		error = do_dup(fdp, fd, i, td->td_retval, td);
 		break;
 
 	case F_GETFD:
@@ -298,7 +333,7 @@ fcntl(td, uap)
 
 	case F_SETFD:
 		*pop = (*pop &~ UF_EXCLOSE) |
-		    (uap->arg & FD_CLOEXEC ? UF_EXCLOSE : 0);
+		    (arg & FD_CLOEXEC ? UF_EXCLOSE : 0);
 		FILEDESC_UNLOCK(fdp);
 		break;
 
@@ -313,7 +348,7 @@ fcntl(td, uap)
 		fhold(fp);
 		FILEDESC_UNLOCK(fdp);
 		fp->f_flag &= ~FCNTLFLAGS;
-		fp->f_flag |= FFLAGS(uap->arg & ~O_ACCMODE) & FCNTLFLAGS;
+		fp->f_flag |= FFLAGS(arg & ~O_ACCMODE) & FCNTLFLAGS;
 		tmp = fp->f_flag & FNONBLOCK;
 		error = fo_ioctl(fp, FIONBIO, &tmp, td->td_ucred, td);
 		if (error) {
@@ -343,7 +378,7 @@ fcntl(td, uap)
 	case F_SETOWN:
 		fhold(fp);
 		FILEDESC_UNLOCK(fdp);
-		error = fo_ioctl(fp, FIOSETOWN, &uap->arg, td->td_ucred, td);
+		error = fo_ioctl(fp, FIOSETOWN, &arg, td->td_ucred, td);
 		fdrop(fp, td);
 		break;
 
@@ -357,32 +392,26 @@ fcntl(td, uap)
 			error = EBADF;
 			break;
 		}
-		vp = (struct vnode *)fp->f_data;
+		flp = (struct flock *)arg;
+		if (flp->l_whence == SEEK_CUR) {
+			if (fp->f_offset < 0 ||
+			    (flp->l_start > 0 &&
+			     fp->f_offset > OFF_MAX - flp->l_start)) {
+				FILEDESC_UNLOCK(fdp);
+				error = EOVERFLOW;
+				break;
+			}
+			flp->l_start += fp->f_offset;
+		}
+
 		/*
-		 * copyin/lockop may block
+		 * lockop may block
 		 */
 		fhold(fp);
 		FILEDESC_UNLOCK(fdp);
 		vp = (struct vnode *)fp->f_data;
 
-		/* Copy in the lock structure */
-		error = copyin((caddr_t)(intptr_t)uap->arg, &fl, sizeof(fl));
-		if (error) {
-			fdrop(fp, td);
-			break;
-		}
-		if (fl.l_whence == SEEK_CUR) {
-			if (fp->f_offset < 0 ||
-			    (fl.l_start > 0 &&
-			     fp->f_offset > OFF_MAX - fl.l_start)) {
-				fdrop(fp, td);
-				error = EOVERFLOW;
-				break;
-			}
-			fl.l_start += fp->f_offset;
-		}
-
-		switch (fl.l_type) {
+		switch (flp->l_type) {
 		case F_RDLCK:
 			if ((fp->f_flag & FREAD) == 0) {
 				error = EBADF;
@@ -393,7 +422,7 @@ fcntl(td, uap)
 			leaderp = p->p_leader;
 			PROC_UNLOCK(p);
 			error = VOP_ADVLOCK(vp, (caddr_t)leaderp, F_SETLK,
-			    &fl, flg);
+			    flp, flg);
 			break;
 		case F_WRLCK:
 			if ((fp->f_flag & FWRITE) == 0) {
@@ -404,15 +433,15 @@ fcntl(td, uap)
 			p->p_flag |= P_ADVLOCK;
 			leaderp = p->p_leader;
 			PROC_UNLOCK(p);
-			error = VOP_ADVLOCK(vp, (caddr_t)leaderp, F_SETLK,
-			    &fl, flg);
+			error = VOP_ADVLOCK(vp, (caddr_t)leaderp, F_SETLK, flp,
+			    flg);
 			break;
 		case F_UNLCK:
 			PROC_LOCK(p);
 			leaderp = p->p_leader;
 			PROC_UNLOCK(p);
-			error = VOP_ADVLOCK(vp, (caddr_t)leaderp, F_UNLCK,
-				&fl, F_POSIX);
+			error = VOP_ADVLOCK(vp, (caddr_t)leaderp, F_UNLCK, flp,
+			    F_POSIX);
 			break;
 		default:
 			error = EINVAL;
@@ -427,44 +456,33 @@ fcntl(td, uap)
 			error = EBADF;
 			break;
 		}
-		vp = (struct vnode *)fp->f_data;
+		flp = (struct flock *)arg;
+		if (flp->l_type != F_RDLCK && flp->l_type != F_WRLCK &&
+		    flp->l_type != F_UNLCK) {
+			FILEDESC_UNLOCK(fdp);
+			error = EINVAL;
+			break;
+		}
+		if (flp->l_whence == SEEK_CUR) {
+			if ((flp->l_start > 0 &&
+			    fp->f_offset > OFF_MAX - flp->l_start) ||
+			    (flp->l_start < 0 &&
+			     fp->f_offset < OFF_MIN - flp->l_start)) {
+				FILEDESC_UNLOCK(fdp);
+				error = EOVERFLOW;
+				break;
+			}
+			flp->l_start += fp->f_offset;
+		}
 		/*
-		 * copyin/lockop may block
+		 * lockop may block
 		 */
 		fhold(fp);
 		FILEDESC_UNLOCK(fdp);
 		vp = (struct vnode *)fp->f_data;
-
-		/* Copy in the lock structure */
-		error = copyin((caddr_t)(intptr_t)uap->arg, &fl, sizeof(fl));
-		if (error) {
-			fdrop(fp, td);
-			break;
-		}
-		if (fl.l_type != F_RDLCK && fl.l_type != F_WRLCK &&
-		    fl.l_type != F_UNLCK) {
-			fdrop(fp, td);
-			error = EINVAL;
-			break;
-		}
-		if (fl.l_whence == SEEK_CUR) {
-			if ((fl.l_start > 0 &&
-			     fp->f_offset > OFF_MAX - fl.l_start) ||
-			    (fl.l_start < 0 &&
-			     fp->f_offset < OFF_MIN - fl.l_start)) {
-				fdrop(fp, td);
-				error = EOVERFLOW;
-				break;
-			}
-			fl.l_start += fp->f_offset;
-		}
-		error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_GETLK,
-			    &fl, F_POSIX);
+		error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_GETLK, flp,
+		    F_POSIX);
 		fdrop(fp, td);
-		if (error == 0) {
-			error = copyout(&fl, (caddr_t)(intptr_t)uap->arg,
-			    sizeof(fl));
-		}
 		break;
 	default:
 		FILEDESC_UNLOCK(fdp);
