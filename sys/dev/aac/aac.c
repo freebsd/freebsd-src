@@ -241,6 +241,8 @@ aac_attach(struct aac_softc *sc)
 	AAC_LOCK_INIT(&sc->aac_container_lock, "AAC container lock");
 	TAILQ_INIT(&sc->aac_container_tqh);
 
+	/* Initialize the local AIF queue pointers */
+	sc->aac_aifq_head = sc->aac_aifq_tail = AAC_AIFQ_LENGTH;
 
 	/*
 	 * Initialise the adapter.
@@ -2803,23 +2805,25 @@ aac_getnext_aif(struct aac_softc *sc, caddr_t arg)
 static int
 aac_return_aif(struct aac_softc *sc, caddr_t uptr)
 {
-	int error;
+	int next, error;
 
 	debug_called(2);
 
 	AAC_LOCK_ACQUIRE(&sc->aac_aifq_lock);
 	if (sc->aac_aifq_tail == sc->aac_aifq_head) {
-		error = EAGAIN;
-	} else {
-		error = copyout(&sc->aac_aifq[sc->aac_aifq_tail], uptr,
-				sizeof(struct aac_aif_command));
-		if (error)
-			device_printf(sc->aac_dev,
-			    "aac_return_aif: copyout returned %d\n", error);
-		if (!error)
-			sc->aac_aifq_tail = (sc->aac_aifq_tail + 1) %
-					    AAC_AIFQ_LENGTH;
+		AAC_LOCK_RELEASE(&sc->aac_aifq_lock);
+		return (EAGAIN);
 	}
+
+	next = (sc->aac_aifq_tail + 1) % AAC_AIFQ_LENGTH;
+	error = copyout(&sc->aac_aifq[next], uptr,
+			sizeof(struct aac_aif_command));
+	if (error)
+		device_printf(sc->aac_dev,
+		    "aac_return_aif: copyout returned %d\n", error);
+	else
+		sc->aac_aifq_tail = next;
+
 	AAC_LOCK_RELEASE(&sc->aac_aifq_lock);
 	return(error);
 }

@@ -851,9 +851,10 @@ struct aac_aif_command {
 	u_int32_t	seqNumber;	/* To allow ordering of
 					 * reports (if necessary) */
 	union {
-	struct aac_AifEventNotify	EN;	/* Event notify structure */
-	struct aac_AifJobProgressReport	PR[1];	/* Progress report */
-	u_int8_t			AR[AAC_AIF_REPORT_MAX_SIZE];
+		struct aac_AifEventNotify	EN;	/* Event notify */
+		struct aac_AifJobProgressReport	PR[1];	/* Progress report */
+		u_int8_t			AR[AAC_AIF_REPORT_MAX_SIZE];
+		u_int8_t			data[AAC_FIB_DATASIZE - 8];
 	} data;
 } __packed;
 
