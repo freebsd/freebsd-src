@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$OpenBSD: pf_osfp.c,v 1.3 2003/08/27 18:23:36 frantzen Exp $ */
+/*	$OpenBSD: pf_osfp.c,v 1.9 2004/01/04 20:08:42 pvalchev Exp $ */
 
 /*
  * Copyright (c) 2003 Mike Frantzen <frantzen@w4g.org>
@@ -54,6 +54,7 @@ typedef struct pool pool_t;
 # include <errno.h>
 # include <stdio.h>
 # include <stdlib.h>
+# include <string.h>
 # define pool_t			int
 # define pool_get(pool, flags)	malloc(*(pool))
 # define pool_put(pool, item)	free(item)
@@ -64,7 +65,7 @@ typedef struct pool pool_t;
 # endif
 
 # ifdef PFDEBUG
-#  include <stdarg.h>
+#  include <sys/stdarg.h>
 #  define DPFPRINTF(format, x...)	fprintf(stderr, format , ##x)
 # else
 #  define DPFPRINTF(format, x...)	((void)0)
