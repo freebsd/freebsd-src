@@ -38,7 +38,7 @@ CARDS:
   The driver supports most clones of WSS, SB16 and SBPro cards.
   This includes those based on the Crystal CS423x, OPTI931, GUSPnP,
   Yamaha, SB16/32 (both plain ISA, PnP, and the various AWExx).
-  Many PnP cards are directly recognised, for others you might need
+  Many PnP cards are directly recognized, for others you might need
   manual configuration. See the file "CARDS" for more details.
 
 APPLICATIONS:
@@ -83,7 +83,7 @@ APPLICATIONS:
 		    since this is unsupported at the moment...).
 
     The code will probe for common port addresses (0x220, 0x240
-    for SB and clonse, 0x530 for WSS and clones), so you don't need
+    for SB and clones, 0x530 for WSS and clones), so you don't need
     to specify them if your system uses one of them. In case you
     do, note that for WSS cards the code assumes that the board
     occupies 8 IO addresses, the first four used to configure
@@ -199,7 +199,7 @@ Common mistakes:
   expect. The mixer code still does not try to exploit the features of
   each card, and it just provides basic functionalities.
 
---- ACKNWOLEDGEMENTS ---
+--- ACKNOWLEDGMENTS ---
 
 Several people helped, directly or indirectly, in the development of
 this driver. In particular I would like to thank:
@@ -213,12 +213,12 @@ this driver. In particular I would like to thank:
     * Eric J. Schwertfeger for donating an ES1868 card for writing the
       driver (which i haven't done yet...).
     * and many people who had the patience to try the driver
-      on their cards and report success/fauilure and useful
+      on their cards and report success/failure and useful
       information.
 
 It was certainly helpful to have the data sheets for some of the
 devices I support available on the net, especially in the (unfortunately
-rare) cases where the data sheets matched the actual behaviour of
+rare) cases where the data sheets matched the actual behavior of
 the product. Too bad that no one of the chip/card manufacturers I
 have contacted by email regarding missing or inconsistent documentation
 on their products did even care to reply to my messages.
