@@ -228,9 +228,16 @@ void program_name(char *in, char *out, int size)
 
 	q=strrchr(p,'.');
 	if (q == NULL)
-		q = in+size;
-	strncpy(out,p,q-p);
-	out[q-p]='\0';
+		q = p + strlen(p);
+	strncpy(out,p,size-1);
+	if (q-p >= size)
+		{
+		out[size-1]='\0';
+		}
+	else
+		{
+		out[q-p]='\0';
+		}
 	}
 #else
 void program_name(char *in, char *out, int size)
@@ -755,7 +762,7 @@ int set_name_ex(unsigned long *flags, const char *arg)
 
 void print_name(BIO *out, char *title, X509_NAME *nm, unsigned long lflags)
 {
-	char buf[256];
+	char *buf;
 	char mline = 0;
 	int indent = 0;
 	if(title) BIO_puts(out, title);
@@ -764,9 +771,10 @@ void print_name(BIO *out, char *title, X509_NAME *nm, unsigned long lflags)
 		indent = 4;
 	}
 	if(lflags == XN_FLAG_COMPAT) {
-		X509_NAME_oneline(nm,buf,256);
-		BIO_puts(out,buf);
+		buf = X509_NAME_oneline(nm, 0, 0);
+		BIO_puts(out, buf);
 		BIO_puts(out, "\n");
+		OPENSSL_free(buf);
 	} else {
 		if(mline) BIO_puts(out, "\n");
 		X509_NAME_print_ex(out, nm, indent, lflags);
