@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.128 1998/10/14 11:23:48 jkh Exp $
+ * $Id: dist.c,v 1.129 1998/10/15 10:03:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -764,7 +764,7 @@ printSelected(char *buf, int selected, Distribution *me, int *col)
 int
 distExtractAll(dialogMenuItem *self)
 {
-    int retries = 0;
+    int old_dists, retries = 0, status = DITEM_SUCCESS;
     char buf[512];
 
     /* paranoia */
@@ -776,12 +776,21 @@ distExtractAll(dialogMenuItem *self)
     if (!mediaVerify() || !mediaDevice->init(mediaDevice))
 	return DITEM_FAILURE;
 
+    old_dists = Dists;
     distVerifyFlags();
+
     dialog_clear_norefresh();
     msgNotify("Attempting to install all selected distributions..");
+
     /* Try for 3 times around the loop, then give up. */
     while (Dists && ++retries < 3)
 	distExtract(NULL, DistTable);
+
+    /* Only do bin fixup if bin dist was successfully extracted */
+    if ((old_dists & DIST_BIN) && !(Dists & DIST_BIN))
+	status |= installFixupBin(self);
+    if (old_dists & DIST_XF86)
+	status |= installFixupXFree(self);
 
     if (Dists) {
 	int col = 0;
@@ -792,7 +801,7 @@ distExtractAll(dialogMenuItem *self)
 	msgConfirm("Couldn't extract the following distributions.  This may\n"
 		   "be because they were not available on the installation\n"
 		   "media you've chosen:\n\n\t%s", buf);
-	return DITEM_SUCCESS | DITEM_RESTORE;
+	status |= DITEM_RESTORE;
     }
-    return DITEM_SUCCESS;
+    return status;
 }

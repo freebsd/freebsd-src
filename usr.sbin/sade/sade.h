@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.148 1998/09/30 11:49:37 jkh Exp $
+ * $Id: sysinstall.h,v 1.149 1998/10/14 11:23:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -407,13 +407,13 @@ extern void	command_shell_add(char *key, char *fmt, ...);
 extern void	command_func_add(char *key, commandFunc func, void *data);
 
 /* config.c */
-extern int	configFstab(void);
 extern void	configEnvironmentRC_conf(char *config);
 extern void	configEnvironmentResolv(char *config);
 extern void	configRC_conf(char *config);
+extern int	configFstab(dialogMenuItem *self);
 extern int	configRC(dialogMenuItem *self);
 extern int	configRegister(dialogMenuItem *self);
-extern void	configResolv(void);
+extern int	configResolv(dialogMenuItem *self);
 extern int	configPackages(dialogMenuItem *self);
 extern int	configSaver(dialogMenuItem *self);
 extern int	configSaverTimeout(dialogMenuItem *self);
@@ -537,7 +537,8 @@ extern int	installNovice(dialogMenuItem *self);
 extern int	installFixitHoloShell(dialogMenuItem *self);
 extern int	installFixitCDROM(dialogMenuItem *self);
 extern int	installFixitFloppy(dialogMenuItem *self);
-extern int	installFixup(dialogMenuItem *self);
+extern int	installFixupBin(dialogMenuItem *self);
+extern int	installFixupXFree(dialogMenuItem *self);
 extern int	installUpgrade(dialogMenuItem *self);
 extern int	installFilesystems(dialogMenuItem *self);
 extern int	installVarDefaults(dialogMenuItem *self);

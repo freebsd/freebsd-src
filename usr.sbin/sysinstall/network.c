@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.31 1998/07/12 17:11:53 brian Exp $
+ * $Id: network.c,v 1.32 1998/10/01 19:26:02 msmith Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -58,9 +58,15 @@ mediaInitNetwork(Device *dev)
     if (!RunningAsInit || networkInitialized)
 	return TRUE;
 
-    msgDebug("Init routine called for network device %s.\n", dev->name);
-    if (!file_readable("/etc/resolv.conf"))
-	configResolv();
+    if (isDebug())
+	msgDebug("Init routine called for network device %s.\n", dev->name);
+
+    if (!file_readable("/etc/resolv.conf")) {
+	if (DITEM_STATUS(configResolv(NULL)) == DITEM_FAILURE) {
+	    msgConfirm("Can't seem to write out /etc/resolv.conf.  Net cannot be used.");
+	    return FALSE;
+	}
+    }
 
     /* Old PPP process lying around? */
     if (pppPID) {

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.113 1998/09/30 12:33:28 jkh Exp $
+ * $Id: config.c,v 1.114 1998/10/14 01:04:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -168,7 +168,7 @@ seq_num(Chunk *c1)
 }
 
 int
-configFstab(void)
+configFstab(dialogMenuItem *self)
 {
     Device **devs;
     Disk *disk;
@@ -213,49 +213,42 @@ configFstab(void)
     }
     chunk_list[nchunks] = 0;
     chunk_sort();
-
+    
     fstab = fopen("/etc/fstab", "w");
     if (!fstab) {
 	msgConfirm("Unable to create a new /etc/fstab file!  Manual intervention\n"
 		   "will be required.");
 	return DITEM_FAILURE;
     }
-
+    
     check_rootdev(chunk_list, nchunks);
-
+    
     /* Go for the burn */
     msgDebug("Generating /etc/fstab file\n");
     fprintf(fstab, "# Device\t\tMountpoint\tFStype\tOptions\t\tDump\tPass#\n");
     for (i = 0; i < nchunks; i++)
 	fprintf(fstab, "/dev/%s\t\t%s\t\t%s\t%s\t\t%d\t%d\n", name_of(chunk_list[i]), mount_point(chunk_list[i]),
 		fstype(chunk_list[i]), fstype_short(chunk_list[i]), seq_num(chunk_list[i]), seq_num(chunk_list[i]));
-    Mkdir("/proc");
-    fprintf(fstab, "proc\t\t\t/proc\t\tprocfs\trw\t\t0\t0\n");
-
+    
     /* Now look for the CDROMs */
     devs = deviceFind(NULL, DEVICE_TYPE_CDROM);
     cnt = deviceCount(devs);
-
-    /* Write the first one out as /cdrom */
-    if (cnt) {
-	if (Mkdir("/cdrom")) {
-	    msgConfirm("Unable to make mount point for: /cdrom");
-	}
-	else
-	    fprintf(fstab, "/dev/%s\t\t/cdrom\t\tcd9660\tro,noauto\t0\t0\n", devs[0]->name);
-    }
-
-    /* Write the others out as /cdrom<n> */
-    for (i = 1; i < cnt; i++) {
+    
+    /* Write out the CDROM entries */
+    for (i = 0; i < cnt; i++) {
 	char cdname[10];
-
-	sprintf(cdname, "/cdrom%d", i);
-	if (Mkdir(cdname)) {
+	
+	sprintf(cdname, "/cdrom%s", i ? itoa(i) : "");
+	if (Mkdir(cdname))
 	    msgConfirm("Unable to make mount point for: %s", cdname);
-	}
 	else
 	    fprintf(fstab, "/dev/%s\t\t%s\tcd9660\tro,noauto\t0\t0\n", devs[i]->name, cdname);
     }
+    
+    /* And finally, a /proc. */
+    fprintf(fstab, "proc\t\t\t/proc\t\tprocfs\trw\t\t0\t0\n");
+    Mkdir("/proc");
+
     fclose(fstab);
     if (isDebug())
 	msgDebug("Wrote out /etc/fstab file\n");
@@ -264,7 +257,7 @@ configFstab(void)
 
 /* Do the work of sucking in a config file.
  * config is the filename to read in.
- * lines is a fixed (max) sized array of char *.
+ * lines is a fixed (max) sized array of char*
  * returns number of lines read.  line contents
  * are malloc'd and must be freed by the caller.
  */
@@ -506,6 +499,7 @@ configXEnvironment(dialogMenuItem *self)
     char *config, *execfile;
     char *moused;
 
+tryagain:
     dialog_clear_norefresh();
     if (!dmenuOpenSimple(&MenuXF86Config, FALSE))
 	return DITEM_FAILURE | DITEM_RESTORE;
@@ -538,6 +532,8 @@ configXEnvironment(dialogMenuItem *self)
 		       "utility.");
 	dialog_clear();
 	systemExecute(execfile);
+	if (!file_readable("/etc/XF86Config") && !msgYesNo("The XFree86 configuration process seems to have\nfailed.  Would you like to try again?"))
+	    goto tryagain;
 	return DITEM_SUCCESS | DITEM_RESTORE;
     }
     else {
@@ -548,8 +544,8 @@ configXEnvironment(dialogMenuItem *self)
     }
 }
 
-void
-configResolv(void)
+int
+configResolv(dialogMenuItem *ditem)
 {
     FILE *fp;
     char *cp, *dp, *hp;
@@ -560,7 +556,7 @@ configResolv(void)
     Mkdir("/etc");
     fp = fopen("/etc/resolv.conf", "w");
     if (!fp)
-	return;
+	return DITEM_FAILURE;
     if (variable_get(VAR_DOMAINNAME))
 	fprintf(fp, "domain\t%s\n", variable_get(VAR_DOMAINNAME));
     fprintf(fp, "nameserver\t%s\n", cp);
@@ -575,7 +571,7 @@ skip:
     /* Tack ourselves into /etc/hosts */
     fp = fopen("/etc/hosts", "w");
     if (!fp)
-	return;
+	return DITEM_FAILURE;
     /* Add an entry for localhost */
     if (dp)
 	fprintf(fp, "127.0.0.1\t\tlocalhost.%s localhost\n", dp);
@@ -597,6 +593,7 @@ skip:
     fclose(fp);
     if (isDebug())
 	msgDebug("Wrote out /etc/hosts\n");
+    return DITEM_SUCCESS;
 }
 
 int

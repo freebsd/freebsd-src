@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.216 1998/10/13 10:07:43 jkh Exp $
+ * $Id: install.c,v 1.217 1998/10/23 10:27:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -197,6 +197,7 @@ static int
 installInitial(void)
 {
     static Boolean alreadyDone = FALSE;
+    int status = DITEM_SUCCESS;
 
     if (alreadyDone)
 	return DITEM_SUCCESS;
@@ -240,13 +241,18 @@ installInitial(void)
 
     chdir("/");
     variable_set2(RUNNING_ON_ROOT, "yes");
-    configResolv();
+
+    /* Configure various files in /etc */
+    if (DITEM_STATUS(configResolv(NULL)) == DITEM_FAILURE)
+	status = DITEM_FAILURE;
+    if (DITEM_STATUS(configFstab(NULL)) == DITEM_FAILURE)
+	status = DITEM_FAILURE;
 
     /* stick a helpful shell over on the 4th VTY */
     systemCreateHoloshell();
 
     alreadyDone = TRUE;
-    return DITEM_SUCCESS;
+    return status;
 }
 
 int
@@ -665,7 +671,6 @@ installCommit(dialogMenuItem *self)
 {
     int i;
     char *str;
-    Boolean need_bin;
 
     if (!Dists)
 	distConfig(NULL);
@@ -681,13 +686,9 @@ installCommit(dialogMenuItem *self)
     if (isDebug())
 	msgDebug("installCommit: System state is `%s'\n", str);
 
-    if (RunningAsInit) {
-	/* Do things we wouldn't do to a multi-user system */
-	if (DITEM_STATUS((i = installInitial())) == DITEM_FAILURE)
-	    return i;
-	if (DITEM_STATUS((i = configFstab())) == DITEM_FAILURE)
-	    return i;
-    }
+    /* Installation stuff we wouldn't do to a running system */
+    if (RunningAsInit && DITEM_STATUS((i = installInitial())) == DITEM_FAILURE)
+	return i;
 
 try_media:
     if (!mediaDevice->init(mediaDevice)) {
@@ -703,11 +704,9 @@ try_media:
 	    return DITEM_FAILURE | DITEM_RESTORE;
     }
 
-    need_bin = Dists & DIST_BIN;
+    /* Now go get it all */
     i = distExtractAll(self);
-    /* Only do fixup if bin dist was successfully extracted */
-    if (need_bin && !(Dists & DIST_BIN))
-	i |= installFixup(self);
+
     /* When running as init, *now* it's safe to grab the rc.foo vars */
     installEnvironment();
 
@@ -733,33 +732,35 @@ installConfigure(void)
 }
 
 int
-installFixup(dialogMenuItem *self)
+installFixupBin(dialogMenuItem *self)
 {
     Device **devs;
     int i;
 
-    if (!file_readable("/kernel")) {
-	if (file_readable("/kernel.GENERIC")) {
-	    if (vsystem("cp -p /kernel.GENERIC /kernel")) {
-		msgConfirm("Unable to link /kernel into place!");
+    /* All of this is done only as init, just to be safe */
+    if (RunningAsInit) {
+	/* Fix up kernel first */
+	if (!file_readable("/kernel")) {
+	    if (file_readable("/kernel.GENERIC")) {
+		if (vsystem("cp -p /kernel.GENERIC /kernel")) {
+		    msgConfirm("Unable to copy /kernel into place!");
+		    return DITEM_FAILURE;
+		}
+#ifdef SAVE_USERCONFIG
+		/* Snapshot any boot -c changes back to the new kernel */
+		if (!variable_cmp(VAR_RELNAME, RELEASE_NAME))
+		    save_userconfig_to_kernel("/kernel");
+#endif
+	    }
+	    else {
+		msgConfirm("Can't find a kernel image to link to on the root file system!\n"
+			   "You're going to have a hard time getting this system to\n"
+			   "boot from the hard disk, I'm afraid!");
 		return DITEM_FAILURE;
 	    }
-#ifdef SAVE_USERCONFIG
-	    /* Snapshot any boot -c changes back to the new kernel */
-	    if (!variable_cmp(VAR_RELNAME, RELEASE_NAME))
-		save_userconfig_to_kernel("/kernel");
-#endif
 	}
-	else {
-	    msgConfirm("Can't find a kernel image to link to on the root file system!\n"
-		       "You're going to have a hard time getting this system to\n"
-		       "boot from the hard disk, I'm afraid!");
-	    return DITEM_FAILURE;
-	}
-    }
-
-    /* Resurrect /dev after bin distribution screws it up */
-    if (RunningAsInit) {
+	
+	/* BOGON #1: Resurrect /dev after bin distribution screws it up */
 	msgNotify("Remaking all devices.. Please wait!");
 	if (vsystem("cd /dev; sh MAKEDEV all")) {
 	    msgConfirm("MAKEDEV returned non-zero status");
@@ -775,7 +776,7 @@ installFixup(dialogMenuItem *self)
 	for (i = 0; devs[i]; i++) {
 	    Disk *disk = (Disk *)devs[i]->private;
 	    Chunk *c1;
-
+	    
 	    if (!devs[i]->enabled)
 		continue;
 	    if (!disk->chunks)
@@ -790,30 +791,18 @@ installFixup(dialogMenuItem *self)
 		}
 	    }
 	}
-
-	/* Do all the last ugly work-arounds here */
-	msgNotify("Fixing permissions..");
-	/* BOGON #1:  XFree86 requires various specialized fixups */
-	if (directory_exists("/usr/X11R6")) {
-	    vsystem("chmod -R a+r /usr/X11R6");
-	    vsystem("find /usr/X11R6 -type d | xargs chmod a+x");
-
-	    /* Also do bogus minimal package registration so ports don't whine */
-	    if (file_readable("/usr/X11R6/lib/X11/pkgreg.tar.gz"))
-		vsystem("tar xpzf /usr/X11R6/lib/X11/pkgreg.tar.gz -C / && rm /usr/X11R6/lib/X11/pkgreg.tar.gz");
-	}
-
+	
 	/* BOGON #2: We leave /etc in a bad state */
 	chmod("/etc", 0755);
-
+	
 	/* BOGON #3: No /var/db/mountdtab complains */
 	Mkdir("/var/db");
 	creat("/var/db/mountdtab", 0644);
-
+	
 	/* BOGON #4: /compat created by default in root fs */
 	Mkdir("/usr/compat");
 	vsystem("ln -s /usr/compat /compat");
-
+	
 	/* BOGON #5: aliases database not build for bin */
 	vsystem("newaliases");
 
@@ -827,6 +816,27 @@ installFixup(dialogMenuItem *self)
         vsystem("mtree -deU -f /etc/mtree/BSD.root.dist -p /");
         vsystem("mtree -deU -f /etc/mtree/BSD.var.dist -p /var");
         vsystem("mtree -deU -f /etc/mtree/BSD.usr.dist -p /usr");
+
+	/* Do all the last ugly work-arounds here */
+    }
+    return DITEM_SUCCESS;
+}
+
+/* Fix side-effects from the the XFree86 installation */
+int
+installFixupXFree(dialogMenuItem *self)
+{
+    /* BOGON #1:  XFree86 requires various specialized fixups */
+    if (directory_exists("/usr/X11R6")) {
+	msgNotify("Fixing permissions in XFree86 tree..");
+	vsystem("chmod -R a+r /usr/X11R6");
+	vsystem("find /usr/X11R6 -type d | xargs chmod a+x");
+
+	/* Also do bogus minimal package registration so ports don't whine */
+	if (file_readable("/usr/X11R6/lib/X11/pkgreg.tar.gz")) {
+	    msgNotify("Installing package metainfo..");
+	    vsystem("tar xpzf /usr/X11R6/lib/X11/pkgreg.tar.gz -C / && rm /usr/X11R6/lib/X11/pkgreg.tar.gz");
+	}
     }
     return DITEM_SUCCESS;
 }
