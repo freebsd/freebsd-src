@@ -911,8 +911,6 @@ f_nogroup(plan, entry)
 	PLAN *plan;
 	FTSENT *entry;
 {
-	char *group_from_gid();
-
 	return (group_from_gid(entry->fts_statp->st_gid, 1) ? 0 : 1);
 }
 
@@ -935,8 +933,6 @@ f_nouser(plan, entry)
 	PLAN *plan;
 	FTSENT *entry;
 {
-	char *user_from_uid();
-
 	return (user_from_uid(entry->fts_statp->st_uid, 1) ? 0 : 1);
 }
 
