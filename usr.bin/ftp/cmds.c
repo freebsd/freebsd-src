@@ -595,6 +595,11 @@ getit(argc, argv, restartit, mode)
 	if (argc == 2) {
 		argc++;
 		argv[2] = argv[1];
+		if (*argv[1] == '|' && !another(&argc, &argv,
+		    "(warning: remote file starts with '|') local-file")) {
+			code = -1;
+			return (0);
+		}
 		loc++;
 	}
 	if (argc < 2 && !another(&argc, &argv, "remote-file"))
@@ -737,6 +742,14 @@ mget(argc, argv)
 			mflag = 0;
 			continue;
 		}
+		if (!interactive && *cp == '|') {
+			printf("skipping %s for security reasons\n", cp);
+			sleep(2);
+			continue;
+		}
+		if (*cp == '|')
+			printf(
+	    "note: next file starts with '|', which runs it through a pipe\n");
 		if (mflag && confirm(argv[0], cp)) {
 			tp = cp;
 			if (mcase) {
