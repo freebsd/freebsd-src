@@ -62,6 +62,9 @@ Currently these include the
 .Tn NBS
 .Tn Data Encryption Standard (DES) ,
 .Tn MD5
+hash,
+.Tn NT-Hash
+(compatible with Microsoft's NT scheme)
 and
 .Tn Blowfish .
 The algorithm used will depend upon the format of the Salt (following
@@ -178,11 +181,13 @@ Currently supported algorithms are:
 MD5
 .It
 Blowfish
+.It
+NT-Hash
 .El
 .Pp
 Other crypt formats may be easily added.  An example salt would be:
 .Bl -tag -offset indent
-.It Cm "$3$thesalt$rest"
+.It Cm "$4$thesalt$rest"
 .El
 .Pp
 .Ss "Traditional" crypt:
@@ -213,9 +218,10 @@ Valid values are
 .\" NOTICE: Also make sure to update this, too, as well
 .\"
 .Ql des ,
-.Ql blf
+.Ql blf ,
+.Ql md5
 and
-.Ql md5 .
+.Ql nth .
 .Pp
 The
 .Fn crypt_set_format
@@ -253,6 +259,12 @@ function returns a pointer to static data, and subsequent calls to
 will modify the same data.  Likewise,
 .Fn crypt_set_format
 modifies static data.
+.Pp
+The NT-hash scheme does not use a salt,
+and is not hard
+for a competent attacker
+to break.
+Its use is not recommended.
 .Sh HISTORY
 A rotor-based
 .Fn crypt
@@ -276,6 +288,7 @@ Originally written by
 later additions and changes by
 .An Poul-Henning Kamp ,
 .An Mark R V Murray ,
+.An Michael Bretterklieber ,
 .An Kris Kennaway ,
 .An Brian Feldman ,
 .An Paul Herman
