@@ -39,6 +39,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)glob.c	8.3 (Berkeley) 10/13/93";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * glob(3) -- a superset of the one defined in POSIX 1003.2.
@@ -130,33 +132,33 @@ typedef char Char;
 #define	ismeta(c)	(((c)&M_QUOTE) != 0)
 
 
-static int	 compare __P((const void *, const void *));
-static int	 g_Ctoc __P((const Char *, char *, u_int));
-static int	 g_lstat __P((Char *, struct stat *, glob_t *));
-static DIR	*g_opendir __P((Char *, glob_t *));
-static Char	*g_strchr __P((Char *, int));
+static int	 compare(const void *, const void *);
+static int	 g_Ctoc(const Char *, char *, u_int);
+static int	 g_lstat(Char *, struct stat *, glob_t *);
+static DIR	*g_opendir(Char *, glob_t *);
+static Char	*g_strchr(Char *, int);
 #ifdef notdef
-static Char	*g_strcat __P((Char *, const Char *));
+static Char	*g_strcat(Char *, const Char *);
 #endif
-static int	 g_stat __P((Char *, struct stat *, glob_t *));
-static int	 glob0 __P((const Char *, glob_t *, int *));
-static int	 glob1 __P((Char *, glob_t *, int *));
-static int	 glob2 __P((Char *, Char *, Char *, Char *, glob_t *, int *));
-static int	 glob3 __P((Char *, Char *, Char *, Char *, Char *, glob_t *, int *));
-static int	 globextend __P((const Char *, glob_t *, int *));
+static int	 g_stat(Char *, struct stat *, glob_t *);
+static int	 glob0(const Char *, glob_t *, int *);
+static int	 glob1(Char *, glob_t *, int *);
+static int	 glob2(Char *, Char *, Char *, Char *, glob_t *, int *);
+static int	 glob3(Char *, Char *, Char *, Char *, Char *, glob_t *, int *);
+static int	 globextend(const Char *, glob_t *, int *);
 static const Char *	
-		 globtilde __P((const Char *, Char *, size_t, glob_t *));
-static int	 globexp1 __P((const Char *, glob_t *, int *));
-static int	 globexp2 __P((const Char *, const Char *, glob_t *, int *, int *));
-static int	 match __P((Char *, Char *, Char *));
+		 globtilde(const Char *, Char *, size_t, glob_t *);
+static int	 globexp1(const Char *, glob_t *, int *);
+static int	 globexp2(const Char *, const Char *, glob_t *, int *, int *);
+static int	 match(Char *, Char *, Char *);
 #ifdef DEBUG
-static void	 qprintf __P((const char *, Char *));
+static void	 qprintf(const char *, Char *);
 #endif
 
 int
 glob(pattern, flags, errfunc, pglob)
 	const char *pattern;
-	int flags, (*errfunc) __P((const char *, int));
+	int flags, (*errfunc)(const char *, int);
 	glob_t *pglob;
 {
 	const u_char *patnext;
@@ -182,7 +184,10 @@ glob(pattern, flags, errfunc, pglob)
 
 	bufnext = patbuf;
 	bufend = bufnext + MAXPATHLEN - 1;
-	if (flags & GLOB_QUOTE) {
+	if (flags & GLOB_NOESCAPE)
+	    while (bufnext < bufend && (c = *patnext++) != EOS)
+		    *bufnext++ = c;
+	else {
 		/* Protect the quoted characters. */
 		while (bufnext < bufend && (c = *patnext++) != EOS)
 			if (c == QUOTE) {
@@ -195,9 +200,6 @@ glob(pattern, flags, errfunc, pglob)
 			else
 				*bufnext++ = c;
 	}
-	else
-	    while (bufnext < bufend && (c = *patnext++) != EOS)
-		    *bufnext++ = c;
 	*bufnext = EOS;
 
 	if (flags & GLOB_BRACE)
@@ -415,8 +417,7 @@ globtilde(pattern, patbuf, patbuf_len, pglob)
  * The main glob() routine: compiles the pattern (optionally processing
  * quotes), calls glob1() to do the real pattern matching, and finally
  * sorts the list (unless unsorted operation is requested).  Returns 0
- * if things went well, nonzero if errors occurred.  It is not an error
- * to find no matches.
+ * if things went well, nonzero if errors occurred.
  */
 static int
 glob0(pattern, pglob, limit)
@@ -493,12 +494,15 @@ glob0(pattern, pglob, limit)
 	 * and the pattern did not contain any magic characters
 	 * GLOB_NOMAGIC is there just for compatibility with csh.
 	 */
-	if (pglob->gl_pathc == oldpathc &&
-	    ((pglob->gl_flags & GLOB_NOCHECK) ||
-	      ((pglob->gl_flags & GLOB_NOMAGIC) &&
-	       !(pglob->gl_flags & GLOB_MAGCHAR))))
-		return(globextend(pattern, pglob, limit));
-	else if (!(pglob->gl_flags & GLOB_NOSORT))
+	if (pglob->gl_pathc == oldpathc) {
+		if (((pglob->gl_flags & GLOB_NOCHECK) ||
+		    ((pglob->gl_flags & GLOB_NOMAGIC) &&
+			!(pglob->gl_flags & GLOB_MAGCHAR))))
+			return(globextend(pattern, pglob, limit));
+		else
+			return(GLOB_NOMATCH);
+	}
+	if (!(pglob->gl_flags & GLOB_NOSORT))
 		qsort(pglob->gl_pathv + pglob->gl_offs + oldpathc,
 		    pglob->gl_pathc - oldpathc, sizeof(char *), compare);
 	return(0);
@@ -557,7 +561,7 @@ glob2(pathbuf, pathend, pathend_last, pattern, pglob, limit)
 			    (g_stat(pathbuf, &sb, pglob) == 0) &&
 			    S_ISDIR(sb.st_mode)))) {
 				if (pathend + 1 > pathend_last)
-					return (1);
+					return (GLOB_ABORTED);
 				*pathend++ = SEP;
 				*pathend = EOS;
 			}
@@ -572,7 +576,7 @@ glob2(pathbuf, pathend, pathend_last, pattern, pglob, limit)
 			if (ismeta(*p))
 				anymeta = 1;
 			if (q + 1 > pathend_last)
-				return (1);
+				return (GLOB_ABORTED);
 			*q++ = *p++;
 		}
 
@@ -581,7 +585,7 @@ glob2(pathbuf, pathend, pathend_last, pattern, pglob, limit)
 			pattern = p;
 			while (*pattern == SEP) {
 				if (pathend + 1 > pathend_last)
-					return (1);
+					return (GLOB_ABORTED);
 				*pathend++ = *pattern++;
 			}
 		} else			/* Need expansion, recurse. */
@@ -597,7 +601,7 @@ glob3(pathbuf, pathend, pathend_last, pattern, restpattern, pglob, limit)
 	glob_t *pglob;
 	int *limit;
 {
-	register struct dirent *dp;
+	struct dirent *dp;
 	DIR *dirp;
 	int err;
 	char buf[MAXPATHLEN];
@@ -611,7 +615,7 @@ glob3(pathbuf, pathend, pathend_last, pattern, restpattern, pglob, limit)
 	struct dirent *(*readdirfunc)();
 
 	if (pathend > pathend_last)
-		return (1);
+		return (GLOB_ABORTED);
 	*pathend = EOS;
 	errno = 0;
 
@@ -619,10 +623,10 @@ glob3(pathbuf, pathend, pathend_last, pattern, restpattern, pglob, limit)
 		/* TODO: don't call for ENOENT or ENOTDIR? */
 		if (pglob->gl_errfunc) {
 			if (g_Ctoc(pathbuf, buf, sizeof(buf)))
-				return (GLOB_ABEND);
+				return (GLOB_ABORTED);
 			if (pglob->gl_errfunc(buf, errno) ||
 			    pglob->gl_flags & GLOB_ERR)
-				return (GLOB_ABEND);
+				return (GLOB_ABORTED);
 		}
 		return(0);
 	}
@@ -635,8 +639,8 @@ glob3(pathbuf, pathend, pathend_last, pattern, restpattern, pglob, limit)
 	else
 		readdirfunc = readdir;
 	while ((dp = (*readdirfunc)(dirp))) {
-		register u_char *sc;
-		register Char *dc;
+		u_char *sc;
+		Char *dc;
 
 		/* Initial DOT must be matched literally. */
 		if (dp->d_name[0] == DOT && *pattern != DOT)
@@ -683,8 +687,8 @@ globextend(path, pglob, limit)
 	glob_t *pglob;
 	int *limit;
 {
-	register char **pathv;
-	register int i;
+	char **pathv;
+	int i;
 	u_int newsize, len;
 	char *copy;
 	const Char *p;
@@ -734,7 +738,7 @@ globextend(path, pglob, limit)
  */
 static int
 match(name, pat, patend)
-	register Char *name, *pat, *patend;
+	Char *name, *pat, *patend;
 {
 	int ok, negate_range;
 	Char c, k;
@@ -788,8 +792,8 @@ void
 globfree(pglob)
 	glob_t *pglob;
 {
-	register int i;
-	register char **pp;
+	int i;
+	char **pp;
 
 	if (pglob->gl_pathv != NULL) {
 		pp = pglob->gl_pathv + pglob->gl_offs;
@@ -803,7 +807,7 @@ globfree(pglob)
 
 static DIR *
 g_opendir(str, pglob)
-	register Char *str;
+	Char *str;
 	glob_t *pglob;
 {
 	char buf[MAXPATHLEN];
@@ -823,7 +827,7 @@ g_opendir(str, pglob)
 
 static int
 g_lstat(fn, sb, pglob)
-	register Char *fn;
+	Char *fn;
 	struct stat *sb;
 	glob_t *pglob;
 {
@@ -840,7 +844,7 @@ g_lstat(fn, sb, pglob)
 
 static int
 g_stat(fn, sb, pglob)
-	register Char *fn;
+	Char *fn;
 	struct stat *sb;
 	glob_t *pglob;
 {
@@ -885,9 +889,9 @@ g_Ctoc(str, buf, len)
 static void
 qprintf(str, s)
 	const char *str;
-	register Char *s;
+	Char *s;
 {
-	register Char *p;
+	Char *p;
 
 	(void)printf("%s:\n", str);
 	for (p = s; *p; p++)

@@ -187,9 +187,15 @@ consisting of only
 .Fa pattern ,
 with the number of total pathnames is set to 1, and the number of matched
 pathnames set to 0.
+The effect of backslash escaping is present in the pattern returned.
+.It Dv GLOB_NOESCAPE
+By default, a backslash
+.Pq Ql \e
+character is used to escape the following character in the pattern,
+avoiding any special interpretation of the character.
 If
-.Dv GLOB_QUOTE
-is set, its effect is present in the pattern returned.
+.Dv GLOB_NOESCAPE
+is set, backslash escaping is disabled.
 .It Dv GLOB_NOSORT
 By default, the pathnames are sorted in ascending
 .Tn ASCII
@@ -250,12 +256,6 @@ if it does not contain any of the special characters ``*'', ``?'' or ``[''.
 is provided to simplify implementing the historic
 .Xr csh 1
 globbing behavior and should probably not be used anywhere else.
-.It Dv GLOB_QUOTE
-Use the backslash
-.Pq Ql \e
-character for quoting: every occurrence of
-a backslash followed by a character in the pattern is replaced by that
-character, avoiding any special interpretation of the character.
 .It Dv GLOB_TILDE
 Expand patterns that start with
 .Ql ~
@@ -304,7 +304,7 @@ If
 returns non-zero,
 .Fn glob
 stops the scan and returns
-.Dv GLOB_ABEND
+.Dv GLOB_ABORTED
 after setting
 .Fa gl_pathc
 and
@@ -386,12 +386,16 @@ was 0
 was specified in the flags and
 .Fa pglob\->gl_matchc
 or more patterns were matched.
-.It Dv GLOB_ABEND
+.It Dv GLOB_ABORTED
 The scan was stopped because an error was encountered and either
 .Dv GLOB_ERR
 was set or
 .Fa \*(lp*errfunc\*(rp\*(lp\*(rp
 returned non-zero.
+.It Dv GLOB_NOMATCH
+The pattern did not match a pathname and
+.Dv GLOB_NOCHECK
+was not set.
 .El
 .Pp
 The arguments
@@ -430,7 +434,6 @@ that the flags
 .Dv GLOB_LIMIT ,
 .Dv GLOB_MAGCHAR ,
 .Dv GLOB_NOMAGIC ,
-.Dv GLOB_QUOTE ,
 and
 .Dv GLOB_TILDE ,
 and the fields
