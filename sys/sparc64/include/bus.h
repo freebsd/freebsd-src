@@ -980,12 +980,8 @@ struct bus_dma_tag {
 	/*
 	 * DMA memory utility functions.
 	 */
-	int	(*dt_dmamem_alloc_size)(bus_dma_tag_t, bus_dma_tag_t, void **,
-	    int, bus_dmamap_t *, bus_size_t size);
 	int	(*dt_dmamem_alloc)(bus_dma_tag_t, bus_dma_tag_t, void **, int,
 	    bus_dmamap_t *);
-	void	(*dt_dmamem_free_size)(bus_dma_tag_t, bus_dma_tag_t, void *,
-	    bus_dmamap_t, bus_size_t size);
 	void	(*dt_dmamem_free)(bus_dma_tag_t, bus_dma_tag_t, void *,
 	    bus_dmamap_t);
 };
@@ -1096,19 +1092,6 @@ sparc64_dmamap_sync(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t m, int op)
 	sparc64_dmamap_sync((t), (t), (m), (op))
 
 static __inline int
-sparc64_dmamem_alloc_size(bus_dma_tag_t pt, bus_dma_tag_t dt, void **v, int f,
-    bus_dmamap_t *m, bus_size_t s)
-{
-	bus_dma_tag_t lt;
-
-	for (lt = pt; lt->dt_dmamem_alloc_size == NULL; lt = lt->dt_parent)
-		;
-	return ((*lt->dt_dmamem_alloc_size)(lt, dt, v, f, m, s));
-}
-#define	bus_dmamem_alloc_size(t, v, f, m, s)				\
-	sparc64_dmamem_alloc_size((t), (t), (v), (f), (m), (s))
-
-static __inline int
 sparc64_dmamem_alloc(bus_dma_tag_t pt, bus_dma_tag_t dt, void **v, int f,
     bus_dmamap_t *m)
 {
@@ -1120,19 +1103,6 @@ sparc64_dmamem_alloc(bus_dma_tag_t pt, bus_dma_tag_t dt, void **v, int f,
 }
 #define	bus_dmamem_alloc(t, v, f, m)					\
 	sparc64_dmamem_alloc((t), (t), (v), (f), (m))
-
-static __inline void
-sparc64_dmamem_free_size(bus_dma_tag_t pt, bus_dma_tag_t dt, void *v,
-    bus_dmamap_t m, bus_size_t s)
-{
-	bus_dma_tag_t lt;
-
-	for (lt = pt; lt->dt_dmamem_free_size == NULL; lt = lt->dt_parent)
-		;
-	(*lt->dt_dmamem_free_size)(lt, dt, v, m, s);
-}
-#define	bus_dmamem_free_size(t, v, m, s)				\
-	sparc64_dmamem_free_size((t), (t), (v), (m), (s))
 
 static __inline void
 sparc64_dmamem_free(bus_dma_tag_t pt, bus_dma_tag_t dt, void *v,
