@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)vfontedpr.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: vfontedpr.c,v 1.9 1997/08/26 11:08:24 charnier Exp $";
+	"$Id: vfontedpr.c,v 1.10 1997/09/18 14:07:33 phk Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -366,7 +366,7 @@ putScp(os)
     char *blkeptr;			/* end of a lexical block end */
     char *nocomptr;			/* end of a non-comment delimiter */
 
-    _start = os;			/* remember the start for expmatch */
+    s_start = os;			/* remember the start for expmatch */
     _escaped = FALSE;
     if (nokeyw || incomm || instr)
 	goto skip;
@@ -572,14 +572,14 @@ putKcp (start, end, force)
 	if (*start == '\t') {
 	    while (*start == '\t')
 		start++;
-	    i = tabs(_start, start) - margin / 8;
+	    i = tabs(s_start, start) - margin / 8;
 	    printf("\\h'|%dn'", i * 10 + 1 - margin % 8);
 	    continue;
 	}
 
 	if (!nokeyw && !force)
 	    if ((*start == '#' || isidchr(*start))
-	    && (start == _start || !isidchr(start[-1]))) {
+	    && (start == s_start || !isidchr(start[-1]))) {
 		i = iskw(start);
 		if (i > 0) {
 		    ps("\\*(+K");
