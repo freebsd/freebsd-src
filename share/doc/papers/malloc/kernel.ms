@@ -6,13 +6,13 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id: kernel.ms,v 1.1 1996/04/13 08:30:16 phk Exp $
+.\" $Id: kernel.ms,v 1.2 1996/10/05 18:37:06 wosch Exp $
 .\"
 .ds RH The kernel and memory
 .NH
 The kernel and memory
 .PP
-Brk(2) isn't a particular convenient interface,
+Brk(2) isn't a particularly convenient interface,
 it was probably made more to fit the memory model of the 
 hardware being used, than to fill the needs of the programmers.
 .PP
