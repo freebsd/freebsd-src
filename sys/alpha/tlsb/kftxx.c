@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: kftxx.c,v 1.1 1998/06/10 10:55:49 dfr Exp $ */
 /* $NetBSD: kftxx.c,v 1.9 1998/05/14 00:01:32 thorpej Exp $ */
 
 /*
@@ -53,7 +53,6 @@
 #include <alpha/tlsb/kftxxvar.h>
 
 struct kft_softc {
-	struct bus	sc_bus;		/* bus common */
 	int		sc_node;	/* TLSB node */
 	u_int16_t	sc_dtype;	/* device type */
 };
@@ -73,72 +72,37 @@ struct kft_device {
 static devclass_t kft_devclass;
 
 /*
- * Bus handlers.
+ * Device methods
  */
-static bus_print_device_t	kft_print_device;
-static bus_read_ivar_t		kft_read_ivar;
+static int kft_probe(device_t dev);
+static void kft_print_child(device_t dev, device_t child);
+static int kft_read_ivar(device_t dev, device_t child, int which, u_long *result);;
 
-static bus_ops_t kft_bus_ops = {
-	kft_print_device,
-	kft_read_ivar,
-	null_write_ivar,
-	null_map_intr,
+static device_method_t kft_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		kft_probe),
+	DEVMETHOD(device_attach,	bus_generic_attach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	kft_print_child),
+	DEVMETHOD(bus_read_ivar,	kft_read_ivar),
+	DEVMETHOD(bus_write_ivar,	bus_generic_write_ivar),
+	DEVMETHOD(bus_map_intr,		bus_generic_map_intr),
+
+	{ 0, 0 }
 };
 
-static void
-kft_print_device(bus_t bus, device_t dev)
-{
-	struct kft_device *kd = (struct kft_device*) device_get_ivars(dev);
-	device_t busdev = bus_get_device(bus);
-
-	printf(" at %s%d hose %d",
-	       device_get_name(busdev), device_get_unit(busdev),
-	       kd->kd_hosenum);
-}
-
-static int
-kft_read_ivar(bus_t bus, device_t dev,
-	       int index, u_long* result)
-{
-	struct kft_device *kd = (struct kft_device*) device_get_ivars(dev);
-
-	switch (index) {
-	case KFT_IVAR_NAME:
-		*result = (u_long) kd->kd_name;
-		return 0;
-
-	case KFT_IVAR_NODE:
-		*result = (u_long) kd->kd_node;
-		return 0;
-
-	case KFT_IVAR_DTYPE:
-		*result = (u_long) kd->kd_dtype;
-		return 0;
-
-	case KFT_IVAR_HOSENUM:
-		*result = (u_long) kd->kd_hosenum;
-		return 0;
-
-	default:
-		return ENOENT;
-	}
-}
-
-static driver_probe_t kft_bus_probe;
-
-static driver_t kft_bus_driver = {
+static driver_t kft_driver = {
 	"kft",
-	kft_bus_probe,
-	bus_generic_attach,
-	bus_generic_detach,
-	bus_generic_shutdown,
+	kft_methods,
 	DRIVER_TYPE_MISC,
-	sizeof(struct kft_softc),
-	NULL,
+	1,			/* no softc */
 };
 
 static int
-kft_bus_probe(bus_t parent, device_t dev)
+kft_probe(device_t dev)
 {
 	struct kft_softc *sc = (struct kft_softc *) device_get_softc(dev);
 	struct kft_device* kd;
@@ -146,8 +110,6 @@ kft_bus_probe(bus_t parent, device_t dev)
 
 	if (!TLDEV_ISIOPORT(tlsb_get_dtype(dev)))
 		return ENXIO;
-
-	bus_init(&sc->sc_bus, dev, &kft_bus_ops);
 
 	sc->sc_node = tlsb_get_node(dev);
 	sc->sc_dtype = tlsb_get_dtype(dev);
@@ -183,10 +145,48 @@ kft_bus_probe(bus_t parent, device_t dev)
 		kd->kd_node = sc->sc_node;
 		kd->kd_dtype = sc->sc_dtype;
 		kd->kd_hosenum = hoseno;
-		bus_add_device(&sc->sc_bus, kd->kd_name, -1, kd);
+		device_add_child(dev, kd->kd_name, -1, kd);
 	}
 
 	return 0;
 }
 
-DRIVER_MODULE(kft, tlsb, kft_bus_driver, kft_devclass, 0, 0);
+static void
+kft_print_child(device_t bus, device_t dev)
+{
+	struct kft_device *kd = (struct kft_device*) device_get_ivars(dev);
+
+	printf(" at %s%d hose %d",
+	       device_get_name(bus), device_get_unit(bus),
+	       kd->kd_hosenum);
+}
+
+static int
+kft_read_ivar(device_t bus, device_t dev,
+	      int index, u_long* result)
+{
+	struct kft_device *kd = (struct kft_device*) device_get_ivars(dev);
+
+	switch (index) {
+	case KFT_IVAR_NAME:
+		*result = (u_long) kd->kd_name;
+		return 0;
+
+	case KFT_IVAR_NODE:
+		*result = (u_long) kd->kd_node;
+		return 0;
+
+	case KFT_IVAR_DTYPE:
+		*result = (u_long) kd->kd_dtype;
+		return 0;
+
+	case KFT_IVAR_HOSENUM:
+		*result = (u_long) kd->kd_hosenum;
+		return 0;
+
+	default:
+		return ENOENT;
+	}
+}
+
+DRIVER_MODULE(kft, tlsb, kft_driver, kft_devclass, 0, 0);

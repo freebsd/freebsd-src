@@ -1,4 +1,4 @@
-/* $Id: param.h,v 1.2 1998/03/09 05:53:10 jb Exp $ */
+/* $Id: param.h,v 1.3 1998/06/10 10:55:15 dfr Exp $ */
 /* From: NetBSD: param.h,v 1.20 1997/09/19 13:52:53 leo Exp */
 
 /*
@@ -75,7 +75,7 @@
 #define PAGE_MASK	(PAGE_SIZE-1)
 #define NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
 
-#define	KERNBASE	0xfffffc0000230000	/* start of kernel virtual */
+#define	KERNBASE	0xfffffc0000230000LL	/* start of kernel virtual */
 #define	BTOPKERNBASE	((u_long)KERNBASE >> PGSHIFT)
 
 #define	DEV_BSHIFT	9		/* log2(DEV_BSIZE) */

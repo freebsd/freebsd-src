@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: gbusvar.h,v 1.2 1998/06/10 20:40:59 dfr Exp $
  */
 /* $NetBSD: gbusvar.h,v 1.1 1998/05/13 02:50:29 thorpej Exp $ */
 
@@ -81,7 +81,7 @@ enum gbus_device_ivars {
 static __inline T gbus_get_ ## A(device_t dev)				 \
 {									 \
 	u_long v;							 \
-	bus_read_ivar(device_get_parent(dev), dev, GBUS_IVAR_ ## B, &v); \
+	BUS_READ_IVAR(device_get_parent(dev), dev, GBUS_IVAR_ ## B, &v); \
 	return (T) v;							 \
 }
 

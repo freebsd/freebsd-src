@@ -142,14 +142,6 @@
 #define	MC_BASE_NONE	0x60		/* actually, both of these reset */
 #define	MC_BASE_RESET	0x70
 
-
-/*
- * RTC register/NVRAM read and write functions -- machine-dependent.
- * Appropriately manipulate RTC registers to get/put data values.
- */
-u_int mc146818_read __P((void *sc, u_int reg));
-void mc146818_write __P((void *sc, u_int reg, u_int datum));
-
 /*
  * A collection of TOD/Alarm registers.
  */
@@ -159,36 +151,36 @@ typedef u_int mc_todregs[MC_NTODREGS];
  * Get all of the TOD/Alarm registers
  * Must be called at splhigh(), and with the RTC properly set up.
  */
-#define MC146818_GETTOD(sc, regs)					\
+#define MC146818_GETTOD(dev, regs)					\
 	do {								\
 		int i;							\
 									\
 		/* update in progress; spin loop */			\
-		while (mc146818_read(sc, MC_REGA) & MC_REGA_UIP)	\
+		while (MCCLOCK_READ(dev, MC_REGA) & MC_REGA_UIP)	\
 			;						\
 									\
 		/* read all of the tod/alarm regs */			\
 		for (i = 0; i < MC_NTODREGS; i++)			\
-			(*regs)[i] = mc146818_read(sc, i);		\
+			(*regs)[i] = MCCLOCK_READ(dev, i);		\
 	} while (0);
 
 /*
  * Set all of the TOD/Alarm registers
  * Must be called at splhigh(), and with the RTC properly set up.
  */
-#define MC146818_PUTTOD(sc, regs)					\
+#define MC146818_PUTTOD(dev, regs)					\
 	do {								\
 		int i;							\
 									\
 		/* stop updates while setting */			\
-		mc146818_write(sc, MC_REGB,				\
-		    mc146818_read(sc, MC_REGB) | MC_REGB_SET);		\
+		MCCLOCK_WRITE(dev, MC_REGB,				\
+		    MCCLOCK_READ(dev, MC_REGB) | MC_REGB_SET);		\
 									\
 		/* write all of the tod/alarm regs */			\
 		for (i = 0; i < MC_NTODREGS; i++)			\
-			mc146818_write(sc, i, (*regs)[i]);		\
+			MCCLOCK_WRITE(dev, i, (*regs)[i]);		\
 									\
 		/* reenable updates */					\
-		mc146818_write(sc, MC_REGB,				\
-		    mc146818_read(sc, MC_REGB) & ~MC_REGB_SET);		\
+		MCCLOCK_WRITE(dev, MC_REGB,				\
+		    MCCLOCK_READ(dev, MC_REGB) & ~MC_REGB_SET);		\
 	} while (0);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: dwlpx.c,v 1.1 1998/06/10 10:55:41 dfr Exp $
  */
 
 #include "opt_simos.h"
@@ -231,33 +231,37 @@ dwlpx_cfgwritel(u_int b, u_int s, u_int f, u_int r, u_int32_t data)
 	SPARSE_WRITE_LONG(sc->cfg_base, off, data);
 }
 
-static driver_probe_t	dwlpx_probe;
-static driver_attach_t	dwlpx_attach;
+static int dwlpx_probe(device_t dev);
+static int dwlpx_attach(device_t dev);
 static driver_intr_t	dwlpx_intr;
+
+static device_method_t dwlpx_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		dwlpx_probe),
+	DEVMETHOD(device_attach,	dwlpx_attach),
+
+	{ 0, 0 }
+};
 
 static driver_t dwlpx_driver = {
 	"dwlpx",
-	dwlpx_probe,
-	dwlpx_attach,
-	NULL,
-	NULL,
+	dwlpx_methods,
 	DRIVER_TYPE_MISC,
 	sizeof(struct dwlpx_softc),
-	NULL,
 };
 
-
 static int
-dwlpx_probe(bus_t bus, device_t dev)
+dwlpx_probe(device_t dev)
 {
 	if (dwlpx0)
 		return ENXIO;
+	dwlpx0 = dev;
 	device_set_desc(dev, "DWLPA or DWLPB PCI adapter");
 	return 0;
 }
 
 static int
-dwlpx_attach(bus_t bus, device_t dev)
+dwlpx_attach(device_t dev)
 {
 	struct dwlpx_softc* sc = DWLPX_SOFTC(dev);
 	vm_offset_t regs;
@@ -273,7 +277,7 @@ dwlpx_attach(bus_t bus, device_t dev)
 
 	*(u_int32_t*) (regs + PCIA_CTL(0)) = 1;	/* Type1 config cycles */
 
-	bus_map_intr(bus, dev, dwlpx_intr, 0);
+	BUS_MAP_INTR(device_get_parent(dev), dev, dwlpx_intr, 0);
 
 	return 0;
 }

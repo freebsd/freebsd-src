@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id$
+#	$Id: files.alpha,v 1.1 1998/06/10 10:54:08 dfr Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -48,6 +48,14 @@ alpha/alpha/interrupt.c		standard
 alpha/alpha/userconfig.c	optional	userconfig
 alpha/alpha/vm_machdep.c	standard
 alpha/alpha/clock.c		standard
+alpha/alpha/clock_if.m		standard					\
+	dependency	"$S/kern/makedevops.sh"					\
+	clean		"clock_if.c"
+clock_if.h			standard					\ 
+	dependency	"$S/kern/makedevops.sh $S/alpha/alpha/clock_if.m"	\
+	compile-with	"sh $S/kern/makedevops.sh -h $S/alpha/alpha/clock_if.m" \
+	no-obj no-implicit-rule before-depend					\
+	clean		"clock_if.h"
 alpha/alpha/diskslice_machdep.c	standard
 alpha/tlsb/tlsb.c		optional	tlsb
 alpha/tlsb/gbus.c		optional	gbus
@@ -56,8 +64,32 @@ alpha/tlsb/mcclock_tlsb.c	optional	gbus
 alpha/tlsb/zs_tlsb.c		optional	gbus
 alpha/tlsb/dwlpx.c		optional	dwlpx
 dev/dec/mcclock.c		optional	gbus
+dev/dec/mcclock_if.m		optional	gbus				\
+	dependency	"$S/kern/makedevops.sh"					\
+	clean		"mcclock_if.c"
+mcclock_if.h			standard					\ 
+	dependency	"$S/kern/makedevops.sh $S/dev/dec/mcclock_if.m"		\
+	compile-with	"sh $S/kern/makedevops.sh -h $S/dev/dec/mcclock_if.m"	\
+	no-obj no-implicit-rule before-depend					\
+	clean		"mcclock_if.h"
 alpha/pci/pcibus.c		optional	pci
 kern/subr_bus.c			standard
+kern/device_if.m		standard					\
+	dependency	"$S/kern/makedevops.sh"					\
+	clean		"device_if.c"
+device_if.h			standard					\ 
+	dependency	"$S/kern/makedevops.sh $S/kern/device_if.m"		\
+	compile-with	"sh $S/kern/makedevops.sh -h $S/kern/device_if.m"	\
+	no-obj no-implicit-rule before-depend					\
+	clean		"device_if.h"
+kern/bus_if.m			standard					\
+	dependency	"$S/kern/makedevops.sh"					\
+	clean		"bus_if.c"
+bus_if.h			standard					\ 
+	dependency	"$S/kern/makedevops.sh $S/kern/bus_if.m"		\
+	compile-with	"sh $S/kern/makedevops.sh -h $S/kern/bus_if.m"	\
+	no-obj no-implicit-rule before-depend					\
+	clean		"bus_if.h"
 libkern/bcd.c			standard
 libkern/bcmp.c			standard
 libkern/ffs.c			standard
