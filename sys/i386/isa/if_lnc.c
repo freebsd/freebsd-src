@@ -148,11 +148,16 @@ static void lnc_setladrf __P((struct lnc_softc *sc));
 static void lnc_stop __P((struct lnc_softc *sc));
 static void lnc_reset __P((struct lnc_softc *sc));
 static void lnc_free_mbufs __P((struct lnc_softc *sc));
-static int alloc_mbuf_cluster __P((struct lnc_softc *sc, struct host_ring_entry *desc));
-static struct mbuf *chain_mbufs __P((struct lnc_softc *sc, int start_of_packet, int pkt_len));
-static struct mbuf *mbuf_packet __P((struct lnc_softc *sc, int start_of_packet, int pkt_len));
-static void lnc_rint __P((struct lnc_softc *sc));
-static void lnc_tint __P((struct lnc_softc *sc));
+static __inline int alloc_mbuf_cluster __P((struct lnc_softc *sc,
+					    struct host_ring_entry *desc));
+static __inline struct mbuf *chain_mbufs __P((struct lnc_softc *sc,
+					      int start_of_packet,
+					      int pkt_len));
+static __inline struct mbuf *mbuf_packet __P((struct lnc_softc *sc,
+					      int start_of_packet,
+					      int pkt_len));
+static __inline void lnc_rint __P((struct lnc_softc *sc));
+static __inline void lnc_tint __P((struct lnc_softc *sc));
 static int lnc_probe __P((struct isa_device *isa_dev));
 #ifdef PC98
 static int cnet98s_probe __P((struct lnc_softc *sc, unsigned iobase));
@@ -166,8 +171,8 @@ static int pcnet_probe __P((struct lnc_softc *sc));
 static int lnc_attach_sc __P((struct lnc_softc *sc, int unit));
 static int lnc_attach __P((struct isa_device *isa_dev));
 static void lnc_init __P((struct lnc_softc *sc));
-static int mbuf_to_buffer __P((struct mbuf *m, char *buffer));
-static struct mbuf *chain_to_cluster __P((struct mbuf *m));
+static __inline int mbuf_to_buffer __P((struct mbuf *m, char *buffer));
+static __inline struct mbuf *chain_to_cluster __P((struct mbuf *m));
 static void lnc_start __P((struct ifnet *ifp));
 static int lnc_ioctl __P((struct ifnet *ifp, int command, caddr_t data));
 static void lnc_watchdog __P((struct ifnet *ifp));
@@ -183,14 +188,14 @@ void lncintr_sc __P((struct lnc_softc *sc));
 
 struct isa_driver lncdriver = {lnc_probe, lnc_attach, "lnc"};
 
-static inline void
+static __inline void
 write_csr(struct lnc_softc *sc, u_short port, u_short val)
 {
 	outw(sc->rap, port);
 	outw(sc->rdp, val);
 }
 
-static inline u_short
+static __inline u_short
 read_csr(struct lnc_softc *sc, u_short port)
 {
 	outw(sc->rap, port);
@@ -198,7 +203,7 @@ read_csr(struct lnc_softc *sc, u_short port)
 }
 
 #ifdef LNC_MULTICAST
-static inline u_long
+static __inline u_long
 ether_crc(u_char *ether_addr)
 {
 #define POLYNOMIAL 0x04c11db6
@@ -291,7 +296,7 @@ lnc_free_mbufs(struct lnc_softc *sc)
 		m_freem(sc->mbufs);
 }
 
-static inline int
+static __inline int
 alloc_mbuf_cluster(struct lnc_softc *sc, struct host_ring_entry *desc)
 {
 	register struct mds *md = desc->md;
@@ -324,7 +329,7 @@ alloc_mbuf_cluster(struct lnc_softc *sc, struct host_ring_entry *desc)
 	return(0);
 }
 
-static inline struct mbuf *
+static __inline struct mbuf *
 chain_mbufs(struct lnc_softc *sc, int start_of_packet, int pkt_len)
 {
 	struct mbuf *head, *m;
@@ -358,7 +363,7 @@ chain_mbufs(struct lnc_softc *sc, int start_of_packet, int pkt_len)
 	return(head);
 }
 
-static inline struct mbuf *
+static __inline struct mbuf *
 mbuf_packet(struct lnc_softc *sc, int start_of_packet, int pkt_len)
 {
 
@@ -433,7 +438,7 @@ mbuf_packet(struct lnc_softc *sc, int start_of_packet, int pkt_len)
 }
 
 
-static inline void
+static __inline void
 lnc_rint(struct lnc_softc *sc)
 {
 	struct host_ring_entry *next, *start;
@@ -628,7 +633,7 @@ lnc_rint(struct lnc_softc *sc)
 	outw(sc->rdp, RINT | INEA);
 }
 
-static inline void
+static __inline void
 lnc_tint(struct lnc_softc *sc)
 {
 	struct host_ring_entry *next, *start;
@@ -1544,10 +1549,7 @@ lncintr(int unit)
 	lncintr_sc (sc);
 }
 
-
-
-
-static inline int
+static __inline int
 mbuf_to_buffer(struct mbuf *m, char *buffer)
 {
 
@@ -1562,7 +1564,7 @@ mbuf_to_buffer(struct mbuf *m, char *buffer)
 	return(len);
 }
 
-static inline struct mbuf *
+static __inline struct mbuf *
 chain_to_cluster(struct mbuf *m)
 {
 	struct mbuf *new;

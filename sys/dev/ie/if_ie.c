@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.50 1998/02/09 06:08:29 eivind Exp $
+ *	$Id: if_ie.c,v 1.51 1998/03/28 13:24:13 bde Exp $
  */
 
 /*
@@ -195,7 +195,7 @@ static void	sl_chan_attn(int unit);
 
 static void	ee16_reset_586(int unit);
 static void	ee16_chan_attn(int unit);
-static void	ee16_interrupt_enable(struct ie_softc * ie);
+static __inline void ee16_interrupt_enable(struct ie_softc * ie);
 static void	ee16_eeprom_outbits(struct ie_softc * ie, int edata, int cnt);
 static void	ee16_eeprom_clock(struct ie_softc * ie, int state);
 static u_short	ee16_read_eeprom(struct ie_softc * ie, int location);
@@ -215,8 +215,8 @@ static int	ierint(int unit, struct ie_softc * ie);
 static int	ietint(int unit, struct ie_softc * ie);
 static int	iernr(int unit, struct ie_softc * ie);
 static void	start_receiver(int unit);
-static int	ieget(int, struct ie_softc *, struct mbuf **,
-		      struct ether_header *, int *);
+static __inline int ieget(int, struct ie_softc *, struct mbuf **,
+			  struct ether_header *, int *);
 static caddr_t	setup_rfa(caddr_t ptr, struct ie_softc * ie);
 static int	mc_setup(int, caddr_t, volatile struct ie_sys_ctl_block *);
 static void	ie_mc_reset(int unit);
@@ -1057,7 +1057,7 @@ iernr(int unit, struct ie_softc *ie)
  * unrolled for speed.	I'd love to have an inline assembler
  * version of this...
  */
-static inline int
+static __inline int
 ether_equal(u_char * one, u_char * two)
 {
 	if (one[0] != two[0])
@@ -1087,7 +1087,7 @@ ether_equal(u_char * one, u_char * two)
  * only client which will fiddle with IFF_PROMISC is BPF.  This is
  * probably a good assumption, but we do not make it here.  (Yet.)
  */
-static inline int
+static __inline int
 check_eh(struct ie_softc * ie, struct ether_header * eh, int *to_bpf)
 {
 	int	i;
@@ -1193,14 +1193,14 @@ check_eh(struct ie_softc * ie, struct ether_header * eh, int *to_bpf)
  * IE_RBUF_SIZE is an even power of two.  If somehow the act_len exceeds
  * the size of the buffer, then we are screwed anyway.
  */
-static inline int
+static __inline int
 ie_buflen(struct ie_softc * ie, int head)
 {
 	return (ie->rbuffs[head]->ie_rbd_actual
 		& (IE_RBUF_SIZE | (IE_RBUF_SIZE - 1)));
 }
 
-static inline int
+static __inline int
 ie_packet_len(int unit, struct ie_softc * ie)
 {
 	int	i;
@@ -1237,7 +1237,7 @@ ie_packet_len(int unit, struct ie_softc * ie)
  * chain of partially-full mbufs.  This should help to speed up the
  * operation considerably.  (Provided that it works, of course.)
  */
-static inline int
+static __inline int
 ieget(int unit, struct ie_softc *ie, struct mbuf **mp,
       struct ether_header *ehp, int *to_bpf)
 {
@@ -1842,7 +1842,7 @@ ee16_eeprom_clock(struct ie_softc *sc, int state)
 	DELAY(9);		/* EESK must be stable for 8.38 uSec */
 }
 
-static inline void
+static __inline void
 ee16_interrupt_enable(struct ie_softc *sc)
 {
 	DELAY(100);

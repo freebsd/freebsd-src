@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: tty_subr.c,v 1.27 1997/03/24 11:24:37 bde Exp $
+ * $Id: tty_subr.c,v 1.28 1997/10/12 20:24:09 phk Exp $
  */
 
 /*
@@ -91,7 +91,7 @@ clist_init(dummy)
  * Remove a cblock from the cfreelist queue and return a pointer
  * to it.
  */
-static inline struct cblock *
+static __inline struct cblock *
 cblock_alloc()
 {
 	struct cblock *cblockp;
@@ -108,7 +108,7 @@ cblock_alloc()
 /*
  * Add a cblock to the cfreelist queue.
  */
-static inline void
+static __inline void
 cblock_free(cblockp)
 	struct cblock *cblockp;
 {

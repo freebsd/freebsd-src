@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.30 1997/12/16 17:39:57 eivind Exp $
+ *  dgb.c $Id: dgb.c,v 1.31 1998/01/24 02:54:07 eivind Exp $
  *
  *  Digiboard driver.
  *
@@ -311,10 +311,10 @@ static int dgbdebug=0;
 SYSCTL_INT(_debug, OID_AUTO, dgb_debug, CTLFLAG_RW,
 	&dgbdebug, 0, "");
 
-static int setwin __P((struct dgb_softc *sc, unsigned addr));
-static int setinitwin __P((struct dgb_softc *sc, unsigned addr));
-static void hidewin __P((struct dgb_softc *sc));
-static void towin __P((struct dgb_softc *sc, int win));
+static __inline int setwin __P((struct dgb_softc *sc, unsigned addr));
+static __inline int setinitwin __P((struct dgb_softc *sc, unsigned addr));
+static __inline void hidewin __P((struct dgb_softc *sc));
+static __inline void towin __P((struct dgb_softc *sc, int win));
 
 /*Helg: to allow recursive dgb...() calls */
 typedef struct
@@ -349,7 +349,7 @@ bmws_set(BoardMemWinState ws)
 	}
 }
 
-static inline int 
+static __inline int 
 setwin(sc,addr)
 	struct dgb_softc *sc;
 	unsigned int addr;
@@ -364,7 +364,7 @@ setwin(sc,addr)
 	}
 }
 
-static inline int 
+static __inline int 
 setinitwin(sc,addr)
 	struct dgb_softc *sc;
 	unsigned int addr;
@@ -379,7 +379,7 @@ setinitwin(sc,addr)
 	}
 }
 
-static inline void
+static __inline void
 hidewin(sc)
 	struct dgb_softc *sc;
 {
@@ -390,7 +390,7 @@ hidewin(sc)
 		outb(bmws.port=sc->port, bmws.data);
 }
 
-static inline void
+static __inline void
 towin(sc,win)
 	struct dgb_softc *sc;
 	int win;

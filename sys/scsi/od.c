@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.34 1997/12/06 14:27:49 bde Exp $
+ *	$Id: od.c,v 1.35 1998/01/24 02:54:49 eivind Exp $
  */
 
 /*
@@ -175,7 +175,7 @@ static struct scsi_device od_switch =
 	od_strategy,
 };
 
-static inline void
+static __inline void
 od_registerdev(int unit)
 {
 	if(dk_ndrive < DK_NDRIVE) {

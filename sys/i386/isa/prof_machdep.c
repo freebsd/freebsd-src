@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prof_machdep.c,v 1.7 1997/11/24 18:16:23 bde Exp $
+ *	$Id: prof_machdep.c,v 1.8 1997/12/26 20:42:08 phk Exp $
  */
 
 #ifdef GUPROF
@@ -66,7 +66,7 @@ static struct gmonparam saved_gmp;
 #endif /* GUPROF */
 
 #ifdef __GNUC__
-asm("
+__asm("
 GM_STATE	=	0
 GMON_PROF_OFF	=	3
 
@@ -126,7 +126,7 @@ Lmcount_exit:
  * can't just be put in machdep.c because it has to be compiled without -pg.
  */
 #ifdef __GNUC__
-asm("
+__asm("
 	.text
 #
 # Dummy label to be seen when gprof -u hides mexitcount.
@@ -333,7 +333,7 @@ stopguprof(gp)
 
 #else /* !GUPROF */
 #ifdef __GNUC__
-asm("
+__asm("
 	.text
 	.align	4,0x90
 	.globl	mexitcount

@@ -57,12 +57,12 @@ static char    *wr_dma_buf[MAX_AUDIO_DEV];
 static int      audio_format[MAX_AUDIO_DEV];
 static int      local_conversion[MAX_AUDIO_DEV];
 
-#if defined(NO_INLINE_ASM) || !defined(i386)
+#if defined(NO_INLINE_ASM) || !defined(__i386)
 static void
 translate_bytes(const u_char *table, u_char *buff, int n);
 
 #else
-extern inline void
+extern __inline void
 translate_bytes(const void *table, void *buff, int n);
 #endif
 
@@ -148,7 +148,7 @@ audio_release(int dev, struct fileinfo * file)
 
 }
 
-#if defined(NO_INLINE_ASM) || !defined(i386)
+#if defined(NO_INLINE_ASM) || !defined(__i386)
 static void
 translate_bytes(const u_char *table, u_char *buff, int n)
 {
@@ -162,7 +162,7 @@ translate_bytes(const u_char *table, u_char *buff, int n)
 }
 
 #else
-extern inline void
+extern __inline void
 translate_bytes(const void *table, void *buff, int n)
 {
     if (n > 0) {

@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.52 1998/02/09 06:11:02 eivind Exp $
+ *      $Id: worm.c,v 1.53 1998/03/31 01:56:21 jmz Exp $
  */
 
 #include "opt_bounce.h"
@@ -218,7 +218,7 @@ static struct worm_quirks worm_quirks_philips = {
     hp4020i_write_session, hp4020i_read_first_writable_address
 };
 
-static inline void
+static __inline void
 worm_registerdev(int unit)
 {
 	if (dk_ndrive < DK_NDRIVE) {
