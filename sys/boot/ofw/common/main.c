@@ -32,7 +32,6 @@
 #include "libofw.h"
 #include "bootstrap.h"
 
-struct ofw_devdesc	currdev;	/* our current device */
 struct arch_switch	archsw;		/* MI/MD interface boundary */
 
 extern char end[];
@@ -123,41 +122,9 @@ main(int (*openfirm)(void *))
 
 	printf("\n");
 
-	switch (ofw_devicetype(bootpath)) {
-	case DEVT_DISK:
-		currdev.d_dev = &ofwdisk;
-		currdev.d_type = DEVT_DISK;
-		strncpy(currdev.d_kind.ofwdisk.path, bootpath, 64);
-		currdev.d_kind.ofwdisk.unit = ofwd_getunit(bootpath);
-
-		if (currdev.d_kind.ofwdisk.unit == -1) {
-			printf("Could not locate boot device.\n");
-			OF_exit();
-		}
-
-		break;
-
-	case DEVT_NET:
-		currdev.d_dev = &netdev;
-		currdev.d_type = DEVT_NET;
-		strncpy(currdev.d_kind.netif.path, bootpath, 64);
-		/* XXX Only works when we only look for one net device */
-		currdev.d_kind.netif.unit = 0;
-
-		break;
-
-	case DEVT_NONE:
-	default:
-		printf("\n");
-		printf("Could not establish type of boot device.\n");
-		OF_exit();
-		/* NOTREACHED */
-		break;
-	}
-
-	env_setenv("currdev", EV_VOLATILE, ofw_fmtdev(&currdev),
+	env_setenv("currdev", EV_VOLATILE, bootpath,
 	    ofw_setcurrdev, env_nounset);
-	env_setenv("loaddev", EV_VOLATILE, ofw_fmtdev(&currdev), env_noset,
+	env_setenv("loaddev", EV_VOLATILE, bootpath, env_noset,
 	    env_nounset);
 	setenv("LINES", "24", 1);		/* optional */
 

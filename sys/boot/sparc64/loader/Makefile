@@ -16,6 +16,7 @@ LOADER_CD9660_SUPPORT?=	yes
 LOADER_NET_SUPPORT?=	yes
 LOADER_NFS_SUPPORT?=	yes
 LOADER_TFTP_SUPPORT?=	yes
+LOADER_ZIP_SUPPORT?=	yes
 LOADER_GZIP_SUPPORT?=	yes
 LOADER_BZIP2_SUPPORT?=	no
 
@@ -27,6 +28,9 @@ CFLAGS+=	-DLOADER_UFS_SUPPORT
 .endif
 .if ${LOADER_CD9660_SUPPORT} == "yes"
 CFLAGS+=	-DLOADER_CD9660_SUPPORT
+.endif
+.if ${LOADER_ZIP_SUPPORT} == "yes"
+CFLAGS+=	-DLOADER_ZIP_SUPPORT
 .endif
 .if ${LOADER_GZIP_SUPPORT} == "yes"
 CFLAGS+=	-DLOADER_GZIP_SUPPORT
@@ -81,7 +85,7 @@ LIBSTAND=	-lstand
 .endif
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
-LDADD=		${LIBFICL} ${LIBSTAND} ${LIBOFW}
+LDADD=		${LIBFICL} ${LIBOFW} ${LIBSTAND}
 
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
