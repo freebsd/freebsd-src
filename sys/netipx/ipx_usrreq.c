@@ -117,6 +117,7 @@ ipx_input(m, ipxp)
 	struct sockaddr_ipx ipx_ipx;
 
 	KASSERT(ipxp != NULL, ("ipx_input: NUL ipxpcb"));
+	IPX_LOCK_ASSERT(ipxp);
 	/*
 	 * Construct sockaddr format source address.
 	 * Stuff source address and datagram in user buffer.
@@ -162,6 +163,9 @@ ipx_drop(ipxp, errno)
 {
 	struct socket *so = ipxp->ipxp_socket;
 
+	IPX_LIST_LOCK_ASSERT();
+	IPX_LOCK_ASSERT(ipxp);
+
 	/*
 	 * someday, in the IPX world
 	 * we will generate error protocol packets
@@ -189,6 +193,8 @@ ipx_output(ipxp, m0)
 	register struct route *ro;
 	struct mbuf *m;
 	struct mbuf *mprev = NULL;
+
+	IPX_LOCK_ASSERT(ipxp);
 
 	/*
 	 * Calculate data length.
@@ -405,12 +411,12 @@ static int
 ipx_usr_abort(so)
 	struct socket *so;
 {
-	int s;
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 
-	s = splnet();
+	IPX_LIST_LOCK();
+	IPX_LOCK(ipxp);
 	ipx_pcbdetach(ipxp);
-	splx(s);
+	IPX_LIST_UNLOCK();
 	soisdisconnected(so);
 	ACCEPT_LOCK();
 	SOCK_LOCK(so);
@@ -424,15 +430,14 @@ ipx_attach(so, proto, td)
 	int proto;
 	struct thread *td;
 {
-	int error;
-	int s;
 	struct ipxpcb *ipxp = sotoipxpcb(so);
+	int error;
 
 	if (ipxp != NULL)
 		return (EINVAL);
-	s = splnet();
+	IPX_LIST_LOCK();
 	error = ipx_pcballoc(so, &ipxpcb_list, td);
-	splx(s);
+	IPX_LIST_UNLOCK();
 	if (error == 0)
 		error = soreserve(so, ipxsendspace, ipxrecvspace);
 	return (error);
@@ -445,8 +450,14 @@ ipx_bind(so, nam, td)
 	struct thread *td;
 {
 	struct ipxpcb *ipxp = sotoipxpcb(so);
+	int error;
 
-	return (ipx_pcbbind(ipxp, nam, td));
+	IPX_LIST_LOCK();
+	IPX_LOCK(ipxp);
+	error = ipx_pcbbind(ipxp, nam, td);
+	IPX_UNLOCK(ipxp);
+	IPX_LIST_UNLOCK();
+	return (error);
 }
 
 static int
@@ -455,17 +466,21 @@ ipx_connect(so, nam, td)
 	struct sockaddr *nam;
 	struct thread *td;
 {
-	int error;
-	int s;
 	struct ipxpcb *ipxp = sotoipxpcb(so);
+	int error;
 
-	if (!ipx_nullhost(ipxp->ipxp_faddr))
-		return (EISCONN);
-	s = splnet();
+	IPX_LIST_LOCK();
+	IPX_LOCK(ipxp);
+	if (!ipx_nullhost(ipxp->ipxp_faddr)) {
+		error = EISCONN;
+		goto out;
+	}
 	error = ipx_pcbconnect(ipxp, nam, td);
-	splx(s);
 	if (error == 0)
 		soisconnected(so);
+out:
+	IPX_UNLOCK(ipxp);
+	IPX_LIST_UNLOCK();
 	return (error);
 }
 
@@ -473,14 +488,14 @@ static int
 ipx_detach(so)
 	struct socket *so;
 {
-	int s;
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 
 	if (ipxp == NULL)
 		return (ENOTCONN);
-	s = splnet();
+	IPX_LIST_LOCK();
+	IPX_LOCK(ipxp);
 	ipx_pcbdetach(ipxp);
-	splx(s);
+	IPX_LIST_UNLOCK();
 	return (0);
 }
 
@@ -488,15 +503,21 @@ static int
 ipx_disconnect(so)
 	struct socket *so;
 {
-	int s;
 	struct ipxpcb *ipxp = sotoipxpcb(so);
+	int error;
 
-	if (ipx_nullhost(ipxp->ipxp_faddr))
-		return (ENOTCONN);
-	s = splnet();
+	IPX_LIST_LOCK();
+	IPX_LOCK(ipxp);
+	error = 0;
+	if (ipx_nullhost(ipxp->ipxp_faddr)) {
+		error = ENOTCONN;
+		goto out;
+	}
 	ipx_pcbdisconnect(ipxp);
-	splx(s);
 	soisdisconnected(so);
+out:
+	IPX_UNLOCK(ipxp);
+	IPX_LIST_UNLOCK();
 	return (0);
 }
 
@@ -523,25 +544,36 @@ ipx_send(so, flags, m, nam, control, td)
 	int error;
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 	struct ipx_addr laddr;
-	int s = 0;
 
+	/*
+	 * Attempt to only acquire the necessary locks: if the socket is
+	 * already connected, we don't need to hold the IPX list lock to be
+	 * used by ipx_pcbconnect() and ipx_pcbdisconnect(), just the IPX
+	 * pcb lock.
+	 */
 	if (nam != NULL) {
+		IPX_LIST_LOCK();
+		IPX_LOCK(ipxp);
 		laddr = ipxp->ipxp_laddr;
 		if (!ipx_nullhost(ipxp->ipxp_faddr)) {
+			IPX_UNLOCK(ipxp);
+			IPX_LIST_UNLOCK();
 			error = EISCONN;
 			goto send_release;
 		}
 		/*
 		 * Must block input while temporarily connected.
 		 */
-		s = splnet();
 		error = ipx_pcbconnect(ipxp, nam, td);
 		if (error) {
-			splx(s);
+			IPX_UNLOCK(ipxp);
+			IPX_LIST_UNLOCK();
 			goto send_release;
 		}
 	} else {
+		IPX_LOCK(ipxp);
 		if (ipx_nullhost(ipxp->ipxp_faddr)) {
+			IPX_UNLOCK(ipxp);
 			error = ENOTCONN;
 			goto send_release;
 		}
@@ -550,9 +582,11 @@ ipx_send(so, flags, m, nam, control, td)
 	m = NULL;
 	if (nam != NULL) {
 		ipx_pcbdisconnect(ipxp);
-		splx(s);
 		ipxp->ipxp_laddr = laddr;
-	}
+		IPX_UNLOCK(ipxp);
+		IPX_LIST_UNLOCK();
+	} else
+		IPX_UNLOCK(ipxp);
 
 send_release:
 	if (m != NULL)
@@ -586,21 +620,26 @@ ripx_attach(so, proto, td)
 	struct thread *td;
 {
 	int error = 0;
-	int s;
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 
 	if (td != NULL && (error = suser(td)) != 0)
 		return (error);
-	s = splnet();
+	/*
+	 * We hold the IPX list lock for the duration as address parameters
+	 * of the IPX pcb are changed.  Since no one else holds a reference
+	 * to the ipxpcb yet, we don't need the ipxpcb lock here.
+	 */
+	IPX_LIST_LOCK();
 	error = ipx_pcballoc(so, &ipxrawpcb_list, td);
-	splx(s);
 	if (error)
-		return (error);
+		goto out;
+	ipxp = sotoipxpcb(so);
 	error = soreserve(so, ipxsendspace, ipxrecvspace);
 	if (error)
-		return (error);
-	ipxp = sotoipxpcb(so);
+		goto out;
 	ipxp->ipxp_faddr.x_host = ipx_broadhost;
 	ipxp->ipxp_flags = IPXP_RAWIN | IPXP_RAWOUT;
+out:
+	IPX_LIST_UNLOCK();
 	return (error);
 }
