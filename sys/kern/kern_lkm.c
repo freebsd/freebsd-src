@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.50 1998/06/25 11:27:36 phk Exp $
+ * $Id: kern_lkm.c,v 1.51 1998/07/15 06:39:12 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -238,7 +238,7 @@ lkmcioctl(dev, cmd, data, flag, p)
 		resrvp->addr = curp->area; /* ret kernel addr */
 
 #ifdef DEBUG
-		printf("LKM: LMRESERV (actual   = 0x%08x)\n", curp->area);
+		printf("LKM: LMRESERV (actual   = %8p)\n", (void *)curp->area);
 		printf("LKM: LMRESERV (adjusted = 0x%08x)\n",
 			trunc_page(curp->area));
 #endif	/* DEBUG */
@@ -269,8 +269,9 @@ lkmcioctl(dev, cmd, data, flag, p)
 		if ((curp->offset + i) < curp->size) {
 			lkm_state = LKMS_LOADING;
 #ifdef DEBUG
-			printf("LKM: LMLOADBUF (loading @ %d of %d, i = %d)\n",
-			curp->offset, curp->size, i);
+			printf(
+			    "LKM: LMLOADBUF (loading @ %lu of %lu, i = %d)\n",
+			    curp->offset, curp->size, i);
 #endif	/* DEBUG */
 		} else {
 			lkm_state = LKMS_LOADED;
