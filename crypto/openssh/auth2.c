@@ -215,6 +215,7 @@ input_userauth_request(int type, int plen, void *ctxt)
 #endif
 		} else {
 			log("input_userauth_request: illegal user %s", user);
+			authctxt->pw = NULL;
 		}
 		authctxt->user = xstrdup(user);
 		authctxt->service = xstrdup(service);
