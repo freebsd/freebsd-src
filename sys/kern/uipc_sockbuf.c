@@ -53,15 +53,6 @@
 #include <sys/aio.h> /* for aio_swake proto */
 #include <sys/event.h>
 
-/* callbacks/functions for delay accept routines */
-/* socket needs _any_ data to be accepted */
-static void sohasdata(struct socket *so, void *arg, int waitflag);
-/* check for GET/POST */
-static void sohashttpgetorpost(struct socket *so, void *arg, int waitflag);
-/* check for end of HTTP request */
-static void soishttpconnected(struct socket *so, void *arg, int waitflag);
-static char sbindex(struct mbuf **mp, int *begin, int end);
-
 int	maxsockets;
 
 /*
@@ -111,151 +102,15 @@ soisconnecting(so)
 	so->so_state |= SS_ISCONNECTING;
 }
 
-static char
-sbindex(struct mbuf **mp, int *begin, int end)
-{
-	struct mbuf *m = *mp;
-	int diff = end - *begin + 1;
-
-	while (m->m_len < diff) {
-		*begin += m->m_len;
-		diff -= m->m_len;
-		if (m->m_next) {
-			m = m->m_next;
-		} else if (m->m_nextpkt) {
-			m = m->m_nextpkt;
-		} else {
-			panic("sbindex: not enough data");
-		}
-	}
-	*mp = m;
-	return *(mtod(m, char *) + diff - 1);
-}
-
-static void
-sohashttpgetorpost(struct socket *so, void *arg, int waitflag)
-{
-
-	if ((so->so_state & SS_CANTRCVMORE) == 0) {
-		struct mbuf *m;
-
-		if (so->so_rcv.sb_cc < 6)
-			return;
-		m = so->so_rcv.sb_mb;
-		if (bcmp(mtod(m, char *), "GET ", 4) == 0 ||
-			bcmp(mtod(m, char *), "POST ", 5) == 0) {
-			soishttpconnected(so, arg, waitflag);
-		}
-	}
-
-	so->so_upcall = NULL;
-	so->so_rcv.sb_flags &= ~SB_UPCALL;
-	soisconnected(so);
-	return;
-}
-
-static void
-soishttpconnected(struct socket *so, void *arg, int waitflag)
-{
-	char a, b, c;
-	struct mbuf *y, *z;
-
-	if ((so->so_state & SS_CANTRCVMORE) == 0) {
-		/* seek to end and keep track of next to last mbuf */
-		y = so->so_rcv.sb_mb;
-		while (y->m_nextpkt)
-			y = y->m_nextpkt;
-		z = y;	
-		while (y->m_next) {
-			z = y;
-			y = y->m_next;
-		}
-			
-		if (z->m_len + y->m_len > 2) {
-			int index = y->m_len - 1;
-
-			c = *(mtod(y, char *) + index--);
-			switch (index) {
-			case -1:
-				y = z;
-				index = y->m_len - 1;
-				b = *(mtod(y, char *) + index--);
-				break;
-			case 0:
-				b = *(mtod(y, char *) + index--);
-				y = z;
-				index = y->m_len - 1;
-				break;
-			default:
-				b = *(mtod(y, char *) + index--);
-				break;
-			}
-			a = *(mtod(y, char *) + index--);
-		} else {
-			int begin = 0;
-			int end = so->so_rcv.sb_cc - 3;
-
-			y = so->so_rcv.sb_mb;
-			a = sbindex(&y, &begin, end++);
-			b = sbindex(&y, &begin, end++);
-			c = sbindex(&y, &begin, end++);
-		}
-
-		if (c == '\n' && (b == '\n' || (b == '\r' && a == '\n'))) {
-			/* we have all request headers */
-			goto done;
-		} else {
-			/* still need more data */
-			so->so_upcall = soishttpconnected;
-			so->so_rcv.sb_flags |= SB_UPCALL;
-			return;
-		}
-	}
-
-done:
-	so->so_upcall = NULL;
-	so->so_rcv.sb_flags &= ~SB_UPCALL;
-	soisconnected(so);
-	return;
-}
-
-static void
-sohasdata(struct socket *so, void *arg, int waitflag)
-{
-
-	if (!soreadable(so)) {
-		return;
-	}
-
-	so->so_upcall = NULL;
-	so->so_rcv.sb_flags &= ~SB_UPCALL;
-	soisconnected(so);
-	return;
-}
-
 void
 soisconnected(so)
 	struct socket *so;
 {
 	struct socket *head = so->so_head;
-	int	s;
 
 	so->so_state &= ~(SS_ISCONNECTING|SS_ISDISCONNECTING|SS_ISCONFIRMING);
 	so->so_state |= SS_ISCONNECTED;
 	if (head && (so->so_state & SS_INCOMP)) {
-		if ((so->so_options & (SO_DELAYACCEPT|SO_HTTPACCEPT)) != 0) {
-			s = splnet();
-			if (!soreadable(so)) {
-				if ((so->so_options & SO_DELAYACCEPT) != 0)
-					so->so_upcall = sohasdata;
-				else
-					so->so_upcall = sohashttpgetorpost;
-				so->so_rcv.sb_flags |= SB_UPCALL;
-				splx(s);
-				return;
-			}
-			splx(s);
-		}
 		TAILQ_REMOVE(&head->so_incomp, so, so_list);
 		head->so_incqlen--;
 		so->so_state &= ~SS_INCOMP;
