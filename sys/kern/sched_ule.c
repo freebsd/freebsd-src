@@ -138,8 +138,8 @@ struct td_sched *thread0_sched = &td_sched;
  * PRI_BASE:	The start of the dynamic range.
  */
 #define	SCHED_PRI_RANGE		(PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE + 1)
-#define	SCHED_PRI_NRESV		PRIO_TOTAL
-#define	SCHED_PRI_NHALF		(PRIO_TOTAL / 2)
+#define	SCHED_PRI_NRESV		((PRIO_MAX - PRIO_MIN) + 1)
+#define	SCHED_PRI_NHALF		(SCHED_PRI_NRESV / 2)
 #define	SCHED_PRI_NTHRESH	(SCHED_PRI_NHALF - 1)
 #define	SCHED_PRI_BASE		(PRI_MIN_TIMESHARE)
 #define	SCHED_PRI_INTERACT(score)					\
@@ -212,7 +212,7 @@ struct kseq {
 	struct runq	*ksq_curr;		/* Current queue. */
 	int		ksq_loads[KSEQ_NCLASS];	/* Load for each class */
 	int		ksq_load;		/* Aggregate load. */
-	short		ksq_nice[PRIO_TOTAL + 1]; /* KSEs in each nice bin. */
+	short		ksq_nice[SCHED_PRI_NRESV]; /* KSEs in each nice bin. */
 	short		ksq_nicemin;		/* Least nice. */
 #ifdef SMP
 	unsigned int	ksq_rslices;	/* Slices on run queue */
@@ -281,7 +281,7 @@ kseq_print(int cpu)
 	printf("\tload IDLE:      %d\n", kseq->ksq_loads[PRI_IDLE]);
 	printf("\tnicemin:\t%d\n", kseq->ksq_nicemin);
 	printf("\tnice counts:\n");
-	for (i = 0; i < PRIO_TOTAL + 1; i++)
+	for (i = 0; i < SCHED_PRI_NRESV; i++)
 		if (kseq->ksq_nice[i])
 			printf("\t\t%d = %d\n",
 			    i - SCHED_PRI_NHALF, kseq->ksq_nice[i]);
@@ -349,7 +349,7 @@ kseq_nice_rem(struct kseq *kseq, int nice)
 	    kseq->ksq_loads[PRI_TIMESHARE] == 0)
 		return;
 
-	for (; n < SCHED_PRI_NRESV + 1; n++)
+	for (; n < SCHED_PRI_NRESV; n++)
 		if (kseq->ksq_nice[n]) {
 			kseq->ksq_nicemin = n - SCHED_PRI_NHALF;
 			return;
