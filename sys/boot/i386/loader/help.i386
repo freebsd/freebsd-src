@@ -1,0 +1,16 @@
+################################################################################
+# Treboot DReboot the system
+
+	reboot
+
+	Causes the system to immediately reboot.
+
+################################################################################
+# Theap DDisplay memory management statistics
+
+	heap
+
+	Requests debugging output from the heap manager.  For debugging use
+	only.
+
+################################################################################
