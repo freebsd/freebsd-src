@@ -399,15 +399,12 @@ extern int errno;
 #endif	/* BSDi */
 
 #ifdef __FreeBSD__
-#       define System "FreeBSD"
-#       define GZCAT "/usr/bin/gzcat"
-#       define HAS_DOMAINNAME 1
+#               define System "FreeBSD"
+#               define GZCAT "/usr/bin/gzcat"
+#		define HAS_DOMAINNAME 1
 #       include <sys/types.h>
 #       include <sys/param.h>   /* this two for BSD definition */
 				/* to avoid redefinition of it to 1 */
-#if __FreeBSD__ > 1
-#		define SYSSELECTH 1
-#endif
 #       define HERROR 1
 #	define TERMIOS 1
 #       define HAS_GETCWD 1
