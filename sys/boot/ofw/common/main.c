@@ -42,6 +42,7 @@ extern char bootprog_date[];
 extern char bootprog_maker[];
 
 phandle_t	chosen;
+u_int32_t	acells;
 
 static char bootargs[128];
 
@@ -60,31 +61,40 @@ init_heap(void)
 	setheap(base, (void *)((int)base + HEAP_SIZE));
 }
 
-uint32_t
+uint64_t
 memsize(void)
 {
 	ihandle_t	meminstance;
 	phandle_t	memory;
 	struct ofw_reg	reg[4];
+	struct ofw_reg2	reg2[8];
 	int		i;
-	int		sz, memsz;
+	u_int64_t	sz, memsz;
 
 	OF_getprop(chosen, "memory", &meminstance, sizeof(meminstance));
 	memory = OF_instance_to_package(meminstance);
 
-	sz = OF_getprop(memory, "reg", &reg, sizeof(reg));
+	if (acells == 1) {
+		sz = OF_getprop(memory, "reg", &reg, sizeof(reg));
+		sz /= sizeof(struct ofw_reg);
 
-	sz /= sizeof(struct ofw_reg);
+		for (i = 0, memsz = 0; i < sz; i++)
+			memsz += reg[i].size;
+	} else if (acells == 2) {
+		sz = OF_getprop(memory, "reg", &reg2, sizeof(reg2));
+		sz /= sizeof(struct ofw_reg2);
 
-	for (i = 0, memsz = 0; i < sz; i++)
-		memsz += reg[i].size;
-	
+		for (i = 0, memsz = 0; i < sz; i++)
+			memsz += reg2[i].size;
+	}
+
 	return (memsz);
 }
 
 int
 main(int (*openfirm)(void *))
 {
+	phandle_t	root;
 	int		i;
 	char		bootpath[64];
 	char		*ch;
@@ -96,7 +106,11 @@ main(int (*openfirm)(void *))
 	 */
 	OF_init(openfirm);
 
+	root = OF_finddevice("/");
 	chosen = OF_finddevice("/chosen");
+
+	acells = 1;
+	OF_getprop(root, "#address-cells", &acells, sizeof(acells));
 
 	/*
          * Set up console.
@@ -125,7 +139,7 @@ main(int (*openfirm)(void *))
 	printf("\n");
 	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
 	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
-	printf("Memory: %dKB\n", memsize() / 1024);
+	printf("Memory: %lldKB\n", memsize() / 1024);
 
 	OF_getprop(chosen, "bootpath", bootpath, 64);
 	ch = index(bootpath, ':');
@@ -142,7 +156,7 @@ main(int (*openfirm)(void *))
 	bargc = 0;
 	parse(&bargc, &bargv, bootargs);
 	if (bargc == 1)
-		env_setenv("currdev", EV_VOLATILE, bargv[0], ofw_setcurrdev, 
+		env_setenv("currdev", EV_VOLATILE, bargv[0], ofw_setcurrdev,
 		    env_nounset);
 	else
 		env_setenv("currdev", EV_VOLATILE, bootpath,
@@ -180,6 +194,6 @@ int
 command_memmap(int argc, char **argv)
 {
 
-	ofw_memmap();
+	ofw_memmap(acells);
 	return (CMD_OK);
 }
