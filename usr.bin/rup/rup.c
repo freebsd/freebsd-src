@@ -31,26 +31,30 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
 
-#include <err.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <unistd.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/socket.h>
-#include <netdb.h>
+
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
-#include <arpa/inet.h>
+
 #undef FSHIFT			/* Use protocol's shift and scale values */
 #undef FSCALE
+
 #include <rpcsvc/rstat.h>
+
+#include <arpa/inet.h>
+
+#include <err.h>
+#include <netdb.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <time.h>
+#include <unistd.h>
 
 #define HOST_WIDTH 15
 
@@ -59,7 +63,8 @@ struct host_list {
 	struct in_addr addr;
 } *hosts;
 
-int search_host(struct in_addr addr)
+static int
+search_host(struct in_addr addr)
 {
 	struct host_list *hp;
 
@@ -73,7 +78,8 @@ int search_host(struct in_addr addr)
 	return(0);
 }
 
-void remember_host(struct in_addr addr)
+static void
+remember_host(struct in_addr addr)
 {
 	struct host_list *hp;
 
@@ -84,7 +90,7 @@ void remember_host(struct in_addr addr)
 	hosts = hp;
 }
 
-int
+static int
 rstat_reply(caddr_t replyp, struct sockaddr_in *raddrp)
 {
 	struct tm *tmp_time;
@@ -152,7 +158,7 @@ rstat_reply(caddr_t replyp, struct sockaddr_in *raddrp)
 	return(0);
 }
 
-int
+static int
 onehost(char *host)
 {
 	CLIENT *rstat_clnt;
@@ -188,21 +194,21 @@ onehost(char *host)
 	return (0);
 }
 
-void
-allhosts()
+static void
+allhosts(void)
 {
 	statstime host_stat;
 	enum clnt_stat clnt_stat;
 
 	clnt_stat = clnt_broadcast(RSTATPROG, RSTATVERS_TIME, RSTATPROC_STATS,
 				   xdr_void, NULL,
-				   xdr_statstime, (char *)&host_stat, rstat_reply);
+				   xdr_statstime, &host_stat, rstat_reply);
 	if (clnt_stat != RPC_SUCCESS && clnt_stat != RPC_TIMEDOUT)
 		errx(1, "%s", clnt_sperrno(clnt_stat));
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: rup [hosts ...]\n");
 	exit(1);
