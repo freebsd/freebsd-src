@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.69 2003/08/21 18:05:35 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.70 2003/09/20 05:23:50 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.184 2003/07/26 10:39:32 martin Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -627,6 +627,9 @@
 #define	PCMCIA_STR_PLANEX_2_GWNS11H	"Planex GW-NS11H"
 
 /* Proxim */
+#define	PCMCIA_CIS_PROXIM_HARMONY	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_PROXIM_HARMONY	0x0002
+#define	PCMCIA_STR_PROXIM_HARMONY	"Proxim HARMONY 80211B"
 #define	PCMCIA_CIS_PROXIM_ROAMABOUT_2400FH	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_PROXIM_ROAMABOUT_2400FH	0x1058
 #define	PCMCIA_STR_PROXIM_ROAMABOUT_2400FH	"Digital RoamAbout 2400FH"
