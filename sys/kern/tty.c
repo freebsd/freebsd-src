@@ -2422,17 +2422,26 @@ ttyinfo(struct tty *tp)
 			if (pick->p_flag & P_SA) {
 				stmp = "KSE" ;  /* XXXKSE */
 			} else {
-				if (td) {
-					if (TD_ON_RUNQ(td) ||
-					    (TD_IS_RUNNING(td))) {
-						stmp = "running";
+				if (td != NULL) {
+					if (TD_ON_RUNQ(td)) {
+						if (TD_IS_RUNNING(td))
+							stmp = "running";
+						else
+							stmp = "runnable";
+					} else if (TD_IS_SLEEPING(td)) {
+						if (TD_ON_SLEEPQ(td))
+							stmp = td->td_wmesg;
+						else
+							stmp = "unknown";
 					} else if (TD_ON_LOCK(td)) {
 						stmp = td->td_lockname;
 						sprefix = "*";
-					} else if (td->td_wmesg) {
-						stmp = td->td_wmesg;
+					} else if (TD_IS_SUSPENDED(td)) {
+						stmp = "suspended";
+					} else if (TD_AWAITING_INTR(td)) {
+						stmp = "intrwait";
 					} else {
-						stmp = "iowait";
+						stmp = "unknown";
 					}
 				} else {
 					stmp = "threadless";
