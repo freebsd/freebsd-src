@@ -207,9 +207,10 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			/* Add the thread to the linked list of all threads: */
 			TAILQ_INSERT_HEAD(&_thread_list, new_thread, tle);
 
-			if (pattr->suspend == PTHREAD_CREATE_SUSPENDED)
+			if (pattr->suspend == PTHREAD_CREATE_SUSPENDED) {
+				new_thread->flags |= PTHREAD_FLAGS_SUSPENDED;
 				new_thread->state = PS_SUSPENDED;
-			else {
+			} else {
 				new_thread->state = PS_RUNNING;
 				PTHREAD_PRIOQ_INSERT_TAIL(new_thread);
 			}
