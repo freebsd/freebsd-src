@@ -492,8 +492,6 @@ freebsd4_sendsig(catcher, sig, mask, code)
 		sf.sf_si.si_signo = sig;
 		sf.sf_si.si_code = code;
 		sf.sf_si.si_addr = (void *)regs->tf_err;
-		sf.sf_si.si_pid = p->p_pid;
-		sf.sf_si.si_uid = p->p_ucred->cr_uid;
 	} else {
 		/* Old FreeBSD-style arguments. */
 		sf.sf_siginfo = code;
@@ -629,8 +627,6 @@ sendsig(catcher, sig, mask, code)
 		sf.sf_si.si_signo = sig;
 		sf.sf_si.si_code = code;
 		sf.sf_si.si_addr = (void *)regs->tf_err;
-		sf.sf_si.si_pid = p->p_pid;
-		sf.sf_si.si_uid = p->p_ucred->cr_uid;
 	} else {
 		/* Old FreeBSD-style arguments. */
 		sf.sf_siginfo = code;
