@@ -18,23 +18,22 @@
 /* SUPPRESS 593 on yyerrlab *//* Label was not used */
 /* SUPPRESS 593 on yynewstate *//* Label was not used */
 /* SUPPRESS 595 on yypvt *//* Automatic variable may be used before set */
-#include "config.h"
-#include "clibrary.h"
+
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/timeb.h>
 #include <ctype.h>
+#include <fts.h>
+#include <time.h>
 
-#if defined(_HPUX_SOURCE)
-# include <alloca.h>
-#endif
+#include "find.h"
 
-#ifdef TM_IN_SYS_TIME
-# include <sys/time.h>
-#else
-# include <time.h>
-#endif
+#define CTYPE(isXXXXX, c)	(isXXXXX((c)))
+#define SIZEOF(array)		(sizeof array / sizeof array[0])
+#define ENDOF(array)		(&array[SIZEOF(array)])
 
-#include "libinn.h"
-#include "macros.h"
-
+typedef const char	*STRING;
+typedef struct timeb	TIMEINFO;
 
 #define yylhs		date_yylhs
 #define yylen		date_yylen
@@ -51,7 +50,7 @@
 
 
 static int date_lex(void);
-
+int yyparse(void);
 
     /* See the LeapYears table in Convert. */
 #define EPOCH		1970
@@ -112,10 +111,7 @@ static MERIDIAN	yyMeridian;
 static time_t	yyRelMonth;
 static time_t	yyRelSeconds;
 
-
-extern struct tm	*localtime();
-
-static void		date_error();
+static void		date_error(const char *);
 %}
 
 %union {
@@ -496,21 +492,45 @@ static TABLE	TimezoneTable[] = {
 
 
 
+static int
+GetTimeInfo(TIMEINFO *Now)
+{
+    static time_t       NextHour;
+    static long         LastTzone;
+    struct tm           *tm;
+    int                 secondsUntilNextHour;
+    struct timeval      tv;
+
+    /* Get the basic time. */
+    if (gettimeofday(&tv, (struct timezone *) 0) == -1)
+        return -1;
+    Now->time = tv.tv_sec;
+    Now->millitm = tv.tv_usec;
+
+    /* Now get the timezone if the last time < HH:00:00 <= now for some HH.  */
+    if (NextHour <= Now->time) {
+        tm = localtime(&Now->time);
+        if (tm == NULL)
+            return -1;
+        secondsUntilNextHour = 60 * (60 - tm->tm_min) - tm->tm_sec;
+        LastTzone = (0 - tm->tm_gmtoff) / 60;
+        NextHour = Now->time + secondsUntilNextHour;
+    }
+    Now->timezone = LastTzone;
+    return 0;
+}
+
+
 /* ARGSUSED */
 static void
-date_error(s)
-    char	*s;
+date_error(const char *s __unused)
 {
     /* NOTREACHED */
 }
 
 
 static time_t
-ToSeconds(Hours, Minutes, Seconds, Meridian)
-    time_t	Hours;
-    time_t	Minutes;
-    time_t	Seconds;
-    MERIDIAN	Meridian;
+ToSeconds(time_t Hours, time_t Minutes, time_t Seconds, MERIDIAN Meridian)
 {
     if (Minutes < 0 || Minutes > 59 || Seconds < 0 || Seconds > 61)
 	return -1;
@@ -531,15 +551,7 @@ ToSeconds(Hours, Minutes, Seconds, Meridian)
 
 
 static time_t
-Convert(Month, Day, Year, Hours, Minutes, Seconds, Meridian, dst)
-    time_t	Month;
-    time_t	Day;
-    time_t	Year;
-    time_t	Hours;
-    time_t	Minutes;
-    time_t	Seconds;
-    MERIDIAN	Meridian;
-    DSTMODE	dst;
+Convert(time_t Month, time_t Day, time_t Year, time_t Hours, time_t Minutes, time_t Seconds, MERIDIAN Meridian, DSTMODE dst)
 {
     static int	DaysNormal[13] = {
 	0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
@@ -596,9 +608,7 @@ Convert(Month, Day, Year, Hours, Minutes, Seconds, Meridian, dst)
 
 
 static time_t
-DSTcorrect(Start, Future)
-    time_t	Start;
-    time_t	Future;
+DSTcorrect(time_t Start, time_t Future)
 {
     time_t	StartDay;
     time_t	FutureDay;
@@ -610,9 +620,7 @@ DSTcorrect(Start, Future)
 
 
 static time_t
-RelativeMonth(Start, RelMonth)
-    time_t	Start;
-    time_t	RelMonth;
+RelativeMonth(time_t Start, time_t RelMonth)
 {
     struct tm	*tm;
     time_t	Month;
@@ -783,7 +791,6 @@ static int date_lex(void)
 
 time_t parsedate(char *p, TIMEINFO *now)
 {
-    extern int		date_parse();
     struct tm		*tm;
     TIMEINFO		ti;
     time_t		Start;
@@ -798,7 +805,7 @@ time_t parsedate(char *p, TIMEINFO *now)
     yyYear = tm->tm_year + 1900;
     yyMonth = tm->tm_mon + 1;
     yyDay = tm->tm_mday;
-    yyTimezone = now->tzone;
+    yyTimezone = now->timezone;
     yyDSTmode = DSTmaybe;
     yyHour = 0;
     yyMinutes = 0;

@@ -69,7 +69,6 @@ static PLAN *palloc(OPTION *);
 static long long find_parsenum(PLAN *, const char *, char *, char *);
 static long long find_parsetime(PLAN *, const char *, char *);
 static char *nextarg(OPTION *, char ***);
-time_t get_date(char *, struct timeb *);
 
 #define	COMPARE(a, b) do {						\
 	switch (plan->flags & F_ELG_MASK) {				\
@@ -999,7 +998,7 @@ c_newer(option, argvp)
 	new = palloc(option);
 	/* compare against what */
 	if (option->flags & F_TIME2_T) {
-		new->t_data = get_date(fn_or_tspec, (struct timeb *) 0);
+		new->t_data = parsedate(fn_or_tspec, (struct timeb *) 0);
 		if (new->t_data == (time_t) -1)
 			errx(1, "Can't parse date/time: %s", fn_or_tspec);
 	} else {
