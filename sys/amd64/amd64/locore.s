@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.105 1998/03/23 19:52:27 jlemon Exp $
+ *	$Id: locore.s,v 1.106 1998/04/04 13:24:11 phk Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -87,57 +87,6 @@
 	.set	_APTmap,APTDPTDI << PDRSHIFT
 	.set	_APTD,_APTmap + (APTDPTDI * PAGE_SIZE)
 	.set	_APTDpde,_PTD + (APTDPTDI * PDESIZE)
-
-#ifdef SMP
-	.globl	_SMP_prvstart
-	.set	_SMP_prvstart,(MPPTDI << PDRSHIFT)
-
-	.globl	_SMP_prvpage,_SMP_prvpt,_lapic,_SMP_ioapic
-	.globl	_prv_CPAGE1,_prv_CPAGE2,_prv_CPAGE3
-	.globl	_idlestack,_idlestack_top
-	.set	_SMP_prvpage,_SMP_prvstart
-	.set	_SMP_prvpt,_SMP_prvstart + PAGE_SIZE
-	.set	_lapic,_SMP_prvstart + (2 * PAGE_SIZE)
-	.set	_idlestack,_SMP_prvstart + (3 * PAGE_SIZE)
-	.set	_idlestack_top,_SMP_prvstart + (( 3 + UPAGES) * PAGE_SIZE)
-	.set	_prv_CPAGE1,_SMP_prvstart + ((3 + UPAGES) * PAGE_SIZE)
-	.set	_prv_CPAGE2,_SMP_prvstart + ((4 + UPAGES) * PAGE_SIZE)
-	.set	_prv_CPAGE3,_SMP_prvstart + ((5 + UPAGES) * PAGE_SIZE)
-	.set	_SMP_ioapic,_SMP_prvstart + (16 * PAGE_SIZE)
-
-	.globl	_cpuid,_curproc,_curpcb,_npxproc,_cpu_lockid
-	.globl	_common_tss,_other_cpus,_my_idlePTD,_ss_tpr
-	.globl	_prv_CMAP1,_prv_CMAP2,_prv_CMAP3
-	.globl	_inside_intr
-	.set	_cpuid,_SMP_prvpage+0		/* [0] */
-	.set	_curproc,_SMP_prvpage+4		/* [1] */
-	.set	_curpcb,_SMP_prvpage+8		/* [2] */
-	.set	_npxproc,_SMP_prvpage+12	/* [3] */
-						/* [4,5] was runtime, free */
-	.set	_cpu_lockid,_SMP_prvpage+24	/* [6] */
-	.set	_other_cpus,_SMP_prvpage+28	/* [7] bitmap of available CPUs,
-						    excluding ourself */
-	.set	_my_idlePTD,_SMP_prvpage+32	/* [8] */
-	.set	_ss_tpr,_SMP_prvpage+36		/* [9] */
-	.set	_prv_CMAP1,_SMP_prvpage+40	/* [10] */
-	.set	_prv_CMAP2,_SMP_prvpage+44	/* [11] */
-	.set	_prv_CMAP3,_SMP_prvpage+48	/* [12] */
-	.set	_inside_intr,_SMP_prvpage+52	/* [13] */
-	.set	_common_tss,_SMP_prvpage+56	/* 102 (ie: 104) bytes long */
-
-#ifdef VM86
-	.globl	_common_tssd
-	.set	_common_tssd,_common_tss+104	/* 8 bytes long */
-	.globl	_private_tss
-	.set	_private_tss,_common_tss+112
-	.globl	_my_tr
-	.set	_my_tr,_common_tss+116
-#endif
-
-/* Fetch the .set's for the local apic */
-#include "i386/i386/mp_apicdefs.s"
-
-#endif
 
 /*
  * Globals
@@ -417,6 +366,7 @@ begin:
 	movl	_proc0paddr,%eax
 	movl	_IdlePTD, %esi
 	movl	%esi,PCB_CR3(%eax)
+	movl	$_proc0,_curproc
 
 	movl	physfree, %esi
 	pushl	%esi				/* value of first for init386(first) */
@@ -965,13 +915,10 @@ map_read_write:
 /* Initialize mp lock to allow early traps */
 	movl	$1, R(_mp_lock)
 
-/* Initialize curproc to &proc0 */	
-	movl	R(cpu0pp), %eax
-	movl	$CNAME(proc0), 4(%eax)
-
 /* Initialize my_idlePTD to IdlePTD */		
+	movl	R(cpu0pp), %eax
 	movl	R(_IdlePTD), %ecx
-	movl	%ecx,32(%eax)
+	movl	%ecx,GD_MY_IDLEPTD(%eax)
 		
 #endif	/* SMP */
 
