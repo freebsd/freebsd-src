@@ -40,17 +40,16 @@ PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
 	struct options options;
-	uid_t uid;
 
 	pam_std_option(&options, NULL, argc, argv);
 
 	PAM_LOG("Options processed");
 
-	uid = getuid();
-	if (uid == 0)
+	if (getuid() == 0)
 		PAM_RETURN(PAM_SUCCESS);
 
-	PAM_LOG("User is not root");
+	PAM_VERBOSE_ERROR("Refused; not superuser");
+	PAM_LOG("User is not superuser");
 
 	PAM_RETURN(PAM_AUTH_ERR);
 }
@@ -58,7 +57,13 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 PAM_EXTERN int
 pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
-	return PAM_SUCCESS;
+	struct options options;
+
+	pam_std_option(&options, NULL, argc, argv);
+
+	PAM_LOG("Options processed");
+
+	PAM_RETURN(PAM_SUCCESS);
 }
 
 PAM_MODULE_ENTRY("pam_rootok");
