@@ -80,6 +80,9 @@
 #elif __sparc__
 #define PTRDIFF_IS_LONG		0
 #define SIZEOF_IS_ULONG		0
+#elif __sparc64__
+#define PTRDIFF_IS_LONG		1
+#define SIZEOF_IS_ULONG		1
 #elif __vax__
 #define PTRDIFF_IS_LONG         0
 #define SIZEOF_IS_ULONG         0
