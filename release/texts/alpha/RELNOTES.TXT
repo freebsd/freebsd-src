@@ -46,12 +46,12 @@ Table of contents:
 -------------------
 
 The pcn(4) driver, which supports the AMD PCnet/FAST, PCnet/FAST+,
-PCnet/PRO, PCnet/Home, and HomePNA adapters, has been added.  Although
-these cards are already supported by the lnc(4) driver, the pcn driver
-runs these chips in 32-bit mode and uses the RX alignment feature to
-achieve zero-copy receive.  This driver is also machine-independent,
-so it will work on both the i386 and alpha platforms.  The lnc driver
-is still needed to support non-PCI cards.
+PCnet/FAST III, PCnet/PRO, PCnet/Home, and HomePNA adapters, has been
+added.  Although these cards are already supported by the lnc(4)
+driver, the pcn driver runs these chips in 32-bit mode and uses the RX
+alignment feature to achieve zero-copy receive.  This driver is also
+machine-independent, so it will work on both the i386 and alpha
+platforms.  The lnc driver is still needed to support non-PCI cards.
 
 The pcm(4) driver now supports the ESS Solo 1, Maestro-1, Maestro-2,
 and Maestro-2e; Forte Media fm801, ESS Maestro-2e, and VIA Technologies
@@ -97,6 +97,8 @@ source should delete /usr/bin/miniperl.
 To improve performance and disk utilization, the "ports skeletons" in
 the FreeBSD Ports Collection have been restructured.  Installed ports
 and packages should not be affected.
+
+ncurses has been updated to ncurses-5.1-20001009.
 
 
 2. Supported Configurations
@@ -224,7 +226,8 @@ chipsets, including the following:
   Silicon Graphics Gigabit Ethernet
 
 AMD PCnet/PCI (79c970 & 53c974 or 79c974)
-AMD PCnet/FAST, PCnet/FAST+, PCnet/PRO, PCnet/Home, and HomePNA.
+AMD PCnet/FAST, PCnet/FAST+, PCnet/FAST III, PCnet/PRO, 
+PCnet/Home, and HomePNA.
 
 SMC Elite 16 WD8013 Ethernet interface, and most other WD8003E,
 WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
