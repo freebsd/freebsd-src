@@ -219,7 +219,7 @@ in a linker hash table entry: @code{type}, @code{written} and
 @node Write Other Derived Routines, , Write the Derived Creation Routine, Deriving a New Hash Table Type
 @subsubsection Write other derived routines
 You will want to write other routines for your new hash table,
-as well.  
+as well.
 
 You will want an initialization routine which calls the
 initialization routine of the hash table you are deriving from

@@ -1,6 +1,6 @@
 /* addr2line.c -- convert addresses to line number and function name
    Copyright 1997, 98, 99, 2000 Free Software Foundation, Inc.
-   Contributed by Ulrich Lauther <Ulrich.Lauther@zfe.siemens.de>
+   Contributed by Ulrich Lauther <Ulrich.Lauther@mchp.siemens.de>
 
    This file is part of GNU Binutils.
 
@@ -18,7 +18,7 @@
    along with this program; if not, write to the Free Software
    Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-/* Derived from objdump.c and nm.c by Ulrich.Lauther@zfe.siemens.de
+/* Derived from objdump.c and nm.c by Ulrich.Lauther@mchp.siemens.de
 
    Usage: 
    addr2line [options] addr addr ...
@@ -51,7 +51,7 @@ static asymbol **syms;		/* Symbol table.  */
 static struct option long_options[] =
 {
   {"basenames", no_argument, NULL, 's'},
-  {"demangle", no_argument, NULL, 'C'},
+  {"demangle", optional_argument, NULL, 'C'},
   {"exe", required_argument, NULL, 'e'},
   {"functions", no_argument, NULL, 'f'},
   {"target", required_argument, NULL, 'b'},
@@ -75,7 +75,7 @@ usage (stream, status)
 {
   fprintf (stream, _("\
 Usage: %s [-CfsHV] [-b bfdname] [--target=bfdname]\n\
-       [-e executable] [--exe=executable] [--demangle]\n\
+       [-e executable] [--exe=executable] [--demangle[=style]]\n\
        [--basenames] [--functions] [addr addr ...]\n"),
 	   program_name);
   list_supported_targets (program_name, stream);
@@ -271,7 +271,7 @@ main (argc, argv)
      int argc;
      char **argv;
 {
-  char *filename;
+  const char *filename;
   char *target;
   int c;
 
@@ -301,6 +301,17 @@ main (argc, argv)
 	  break;
 	case 'C':
 	  do_demangle = true;
+	  if (optarg != NULL)
+	    {
+	      enum demangling_styles style;
+	      
+	      style = cplus_demangle_name_to_style (optarg);
+	      if (style == unknown_demangling) 
+		fatal (_("unknown demangling style `%s'"),
+		       optarg);
+	      
+	      cplus_demangle_set_style (style);
+           }
 	  break;
 	case 'e':
 	  filename = optarg;

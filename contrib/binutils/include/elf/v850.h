@@ -1,5 +1,5 @@
 /* V850 ELF support for BFD.
-   Copyright (C) 1997 Free Software Foundation, Inc.
+   Copyright (C) 1997, 98, 2000 Free Software Foundation, Inc.
    Created by Michael Meissner, Cygnus Support <meissner@cygnus.com>
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -67,19 +67,15 @@ START_RELOC_NUMBERS (v850_reloc_type)
      RELOC_NUMBER( R_V850_TDA_7_8_OFFSET, 14)		/* For sst.h, sld.h */
      RELOC_NUMBER( R_V850_TDA_7_7_OFFSET, 15)		/* For sst.b, sld.b */
      RELOC_NUMBER( R_V850_TDA_16_16_OFFSET, 16)		/* For set1, clr1, not1, tst1, movea, movhi */
-/* CYGNUS LOCAL v850e */
      RELOC_NUMBER( R_V850_TDA_4_5_OFFSET, 17)		/* For sld.hu */
      RELOC_NUMBER( R_V850_TDA_4_4_OFFSET, 18)		/* For sld.bu */
      RELOC_NUMBER( R_V850_SDA_16_16_SPLIT_OFFSET, 19)	/* For ld.bu */
      RELOC_NUMBER( R_V850_ZDA_16_16_SPLIT_OFFSET, 20)	/* For ld.bu */
      RELOC_NUMBER( R_V850_CALLT_6_7_OFFSET, 21)		/* For callt */
      RELOC_NUMBER( R_V850_CALLT_16_16_OFFSET, 22)	/* For callt */
-/* END CYGNUS LOCAL */
      RELOC_NUMBER (R_V850_GNU_VTINHERIT, 23)
      RELOC_NUMBER (R_V850_GNU_VTENTRY, 24)
-
-     EMPTY_RELOC (R_V850_max)
-END_RELOC_NUMBERS
+END_RELOC_NUMBERS (R_V850_max)
 
 
 /* Processor specific section indices.  These sections do not actually

@@ -1,8 +1,8 @@
 /* ldctor.c -- constructor support routines
-   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 1998
+   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 2000
    Free Software Foundation, Inc.
    By Steve Chamberlain <sac@cygnus.com>
-   
+
 This file is part of GLD, the Gnu Linker.
 
 GLD is free software; you can redistribute it and/or modify
@@ -86,7 +86,8 @@ ldctor_add_set_entry (h, reloc, name, section, value)
     {
       if (p->reloc != reloc)
 	{
-	  einfo (_("%P%X: Different relocs used in set %s\n"), h->root.string);
+	  einfo (_("%P%X: Different relocs used in set %s\n"),
+		 h->root.string);
 	  return;
 	}
 
@@ -136,7 +137,7 @@ ctor_prio (name)
   while (*name == '_')
     ++name;
 
-  if (strncmp (name, "GLOBAL_",  sizeof "GLOBAL_" - 1) != 0)
+  if (strncmp (name, "GLOBAL_", sizeof "GLOBAL_" - 1) != 0)
     return -1;
 
   name += sizeof "GLOBAL_" - 1;
@@ -365,7 +366,7 @@ ldctor_build_sets ()
 		minfo ("%G\n", e->section->owner, e->section, e->value);
 	    }
 
-          /* Need SEC_KEEP for --gc-sections */
+	  /* Need SEC_KEEP for --gc-sections.  */
 	  if (! bfd_is_abs_section (e->section))
 	    e->section->flags |= SEC_KEEP;
 

@@ -1,5 +1,5 @@
 /* flonum_copy.c - copy a flonum
-   Copyright (C) 1987, 1990, 1991, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1990, 1991, 1992, 2000 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -14,8 +14,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GAS; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   along with GAS; see the file COPYING.  If not, write to the Free
+   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
 
 #include "as.h"
 
@@ -24,8 +25,8 @@ flonum_copy (in, out)
      FLONUM_TYPE *in;
      FLONUM_TYPE *out;
 {
-  unsigned int in_length;		/* 0 origin */
-  unsigned int out_length;		/* 0 origin */
+  unsigned int in_length;	/* 0 origin */
+  unsigned int out_length;	/* 0 origin */
 
   out->sign = in->sign;
   in_length = in->leader - in->low;
@@ -37,37 +38,35 @@ flonum_copy (in, out)
   else
     {
       out_length = out->high - out->low;
-      /*
-       * Assume no GAPS in packing of littlenums.
-       * I.e. sizeof(array) == sizeof(element) * number_of_elements.
-       */
+      /* Assume no GAPS in packing of littlenums.
+	 I.e. sizeof(array) == sizeof(element) * number_of_elements.  */
       if (in_length <= out_length)
 	{
 	  {
-	    /*
-	     * For defensive programming, zero any high-order littlenums we don't need.
-	     * This is destroying evidence and wasting time, so why bother???
-	     */
+	    /* For defensive programming, zero any high-order
+	       littlenums we don't need.  This is destroying evidence
+	       and wasting time, so why bother???  */
 	    if (in_length < out_length)
 	      {
-		memset ((char *) (out->low + in_length + 1), '\0', out_length - in_length);
+		memset ((char *) (out->low + in_length + 1), '\0',
+			out_length - in_length);
 	      }
 	  }
-	  memcpy ((void *) (out->low), (void *) (in->low), ((in_length + 1) * sizeof (LITTLENUM_TYPE)));
+	  memcpy ((void *) (out->low), (void *) (in->low),
+		  ((in_length + 1) * sizeof (LITTLENUM_TYPE)));
 	  out->exponent = in->exponent;
 	  out->leader = in->leader - in->low + out->low;
 	}
       else
 	{
-	  int shorten;		/* 1-origin. Number of littlenums we drop. */
+	  int shorten;		/* 1-origin. Number of littlenums we drop.  */
 
 	  shorten = in_length - out_length;
 	  /* Assume out_length >= 0 ! */
-	  memcpy ((void *) (out->low), (void *) (in->low + shorten), ((out_length + 1) * sizeof (LITTLENUM_TYPE)));
+	  memcpy ((void *) (out->low), (void *) (in->low + shorten),
+		  ((out_length + 1) * sizeof (LITTLENUM_TYPE)));
 	  out->leader = out->high;
 	  out->exponent = in->exponent + shorten;
 	}
     }				/* if any significant bits */
-}				/* flonum_copy() */
-
-/* end of flonum_copy.c */
+}

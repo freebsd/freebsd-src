@@ -88,6 +88,9 @@ extern const int powerpc_num_opcodes;
 /* Opcode is supported as part of the 64-bit bridge.  */
 #define PPC_OPCODE_64_BRIDGE (0400)
 
+/* Opcode is supported by Altivec Vector Unit */
+#define PPC_OPCODE_ALTIVEC   (01000)
+
 /* A macro to extract the major opcode from an instruction.  */
 #define PPC_OP(i) (((i) >> 26) & 0x3f)
 
@@ -221,6 +224,11 @@ extern const struct powerpc_operand powerpc_operands[];
    number is allowed).  This flag will only be set for a signed
    operand.  */
 #define PPC_OPERAND_NEGATIVE (04000)
+
+/* This operand names a vector unit register.  The disassembler
+   prints these with a leading 'v'.  */
+#define PPC_OPERAND_VR (010000)
+
 
 /* The POWER and PowerPC assemblers use a few macros.  We keep them
    with the operands table for simplicity.  The macro table is an

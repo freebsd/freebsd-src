@@ -1,5 +1,5 @@
 /* SPARC ELF support for BFD.
-   Copyright (C) 1996, 1997, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1996, 97, 98, 99, 2000 Free Software Foundation, Inc.
    By Doug Evans, Cygnus Support, <dje@cygnus.com>.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -134,8 +134,7 @@ START_RELOC_NUMBERS (elf_sparc_reloc_type)
   RELOC_NUMBER (R_SPARC_GNU_VTINHERIT, 250)
   RELOC_NUMBER (R_SPARC_GNU_VTENTRY, 251)
 
-  EMPTY_RELOC  (R_SPARC_max)
-END_RELOC_NUMBERS
+END_RELOC_NUMBERS (R_SPARC_max)
 
 /* Relocation macros.  */
 

@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "libbfd.h"
 #include "elf-bfd.h"
 #include "elf/sparc.h"
+#include "opcode/sparc.h"
 
 static reloc_howto_type *elf32_sparc_reloc_type_lookup
   PARAMS ((bfd *, bfd_reloc_code_real_type));
@@ -36,6 +37,8 @@ static boolean elf32_sparc_adjust_dynamic_symbol
   PARAMS ((struct bfd_link_info *, struct elf_link_hash_entry *));
 static boolean elf32_sparc_size_dynamic_sections
   PARAMS ((bfd *, struct bfd_link_info *));
+static boolean elf32_sparc_relax_section
+  PARAMS ((bfd *, asection *, struct bfd_link_info *, boolean *));
 static boolean elf32_sparc_relocate_section
   PARAMS ((bfd *, struct bfd_link_info *, bfd *, asection *, bfd_byte *,
 	   Elf_Internal_Rela *, Elf_Internal_Sym *, asection **));
@@ -126,7 +129,6 @@ static reloc_howto_type elf32_sparc_vtinherit_howto =
 static reloc_howto_type elf32_sparc_vtentry_howto =
   HOWTO (R_SPARC_GNU_VTENTRY, 0,2,0,false,0,complain_overflow_dont, _bfd_elf_rel_vtable_reloc_fn,"R_SPARC_GNU_VTENTRY", false,0,0, false);
 
-
 struct elf_reloc_map {
   bfd_reloc_code_real_type bfd_reloc_val;
   unsigned char elf_reloc_val;
@@ -185,7 +187,7 @@ elf32_sparc_reloc_type_lookup (abfd, code)
      bfd_reloc_code_real_type code;
 {
   unsigned int i;
-  
+
   switch (code)
     {
     case BFD_RELOC_VTABLE_INHERIT:
@@ -1016,7 +1018,12 @@ elf32_sparc_size_dynamic_sections (output_bfd, info)
 	}
 
       /* Allocate memory for the section contents.  */
-      s->contents = (bfd_byte *) bfd_alloc (dynobj, s->_raw_size);
+      /* FIXME: This should be a call to bfd_alloc not bfd_zalloc.
+	 Unused entries should be reclaimed before the section's contents
+	 are written out, but at the moment this does not happen.  Thus in
+	 order to prevent writing out garbage, we initialise the section's
+	 contents to zero.  */
+      s->contents = (bfd_byte *) bfd_zalloc (dynobj, s->_raw_size);
       if (s->contents == NULL && s->_raw_size != 0)
 	return false;
     }
@@ -1053,9 +1060,25 @@ elf32_sparc_size_dynamic_sections (output_bfd, info)
 	{
 	  if (! bfd_elf32_add_dynamic_entry (info, DT_TEXTREL, 0))
 	    return false;
+	  info->flags |= DF_TEXTREL;
 	}
     }
 
+  return true;
+}
+
+#define SET_SEC_DO_RELAX(section) do { elf_section_data(section)->tdata = (void *)1; } while (0)
+#define SEC_DO_RELAX(section) (elf_section_data(section)->tdata == (void *)1)
+
+static boolean
+elf32_sparc_relax_section (abfd, section, link_info, again)
+     bfd *abfd ATTRIBUTE_UNUSED;
+     asection *section ATTRIBUTE_UNUSED;
+     struct bfd_link_info *link_info ATTRIBUTE_UNUSED;
+     boolean *again;
+{
+  *again = false;
+  SET_SEC_DO_RELAX (section);
   return true;
 }
 
@@ -1113,7 +1136,7 @@ elf32_sparc_relocate_section (output_bfd, info, input_bfd, input_section,
 
       r_type = ELF32_R_TYPE (rel->r_info);
 
-      if (r_type == R_SPARC_GNU_VTINHERIT 
+      if (r_type == R_SPARC_GNU_VTINHERIT
           || r_type == R_SPARC_GNU_VTENTRY)
         continue;
 
@@ -1518,6 +1541,7 @@ elf32_sparc_relocate_section (output_bfd, info, input_bfd, input_section,
 	  break;
 	}
 
+      r = bfd_reloc_continue;
       if (r_type == R_SPARC_WDISP16)
 	{
 	  bfd_vma x;
@@ -1549,11 +1573,100 @@ elf32_sparc_relocate_section (output_bfd, info, input_bfd, input_section,
 	  bfd_putl32 (/*input_bfd,*/ x, contents + rel->r_offset);
 	  r = bfd_reloc_ok;
 	}
-      else
+      else if ((r_type == R_SPARC_WDISP30 || r_type == R_SPARC_WPLT30)
+	       && SEC_DO_RELAX (input_section)
+	       && rel->r_offset + 4 < input_section->_raw_size)
+	{
+#define G0		0
+#define O7		15
+#define XCC		(2 << 20)
+#define COND(x)		(((x)&0xf)<<25)
+#define CONDA		COND(0x8)
+#define INSN_BPA	(F2(0,1) | CONDA | BPRED | XCC)
+#define INSN_BA		(F2(0,2) | CONDA)
+#define INSN_OR		F3(2, 0x2, 0)
+#define INSN_NOP	F2(0,4)
+
+	  bfd_vma x, y;
+
+	  /* If the instruction is a call with either:
+	     restore
+	     arithmetic instruction with rd == %o7
+	     where rs1 != %o7 and rs2 if it is register != %o7
+	     then we can optimize if the call destination is near
+	     by changing the call into a branch always.  */
+	  x = bfd_get_32 (input_bfd, contents + rel->r_offset);
+	  y = bfd_get_32 (input_bfd, contents + rel->r_offset + 4);
+	  if ((x & OP(~0)) == OP(1) && (y & OP(~0)) == OP(2))
+	    {
+	      if (((y & OP3(~0)) == OP3(0x3d) /* restore */
+		   || ((y & OP3(0x28)) == 0 /* arithmetic */
+		       && (y & RD(~0)) == RD(O7)))
+		  && (y & RS1(~0)) != RS1(O7)
+		  && ((y & F3I(~0))
+		      || (y & RS2(~0)) != RS2(O7)))
+		{
+		  bfd_vma reloc;
+
+		  reloc = relocation + rel->r_addend - rel->r_offset;
+		  reloc -= (input_section->output_section->vma
+			   + input_section->output_offset);
+
+		  /* Ensure the reloc fits into simm22.  */
+		  if ((reloc & 3) == 0
+		      && ((reloc & ~(bfd_vma)0x7fffff) == 0
+			  || ((reloc | 0x7fffff) == ~(bfd_vma)0)))
+		    {
+		      reloc >>= 2;
+
+		      /* Check whether it fits into simm19 on v9.  */
+		      if (((reloc & 0x3c0000) == 0
+			   || (reloc & 0x3c0000) == 0x3c0000)
+			  && (elf_elfheader (output_bfd)->e_flags & EF_SPARC_32PLUS))
+			x = INSN_BPA | (reloc & 0x7ffff); /* ba,pt %xcc */
+		      else
+			x = INSN_BA | (reloc & 0x3fffff); /* ba */
+		      bfd_put_32 (input_bfd, x, contents + rel->r_offset);
+		      r = bfd_reloc_ok;
+		      if (rel->r_offset >= 4
+			  && (y & (0xffffffff ^ RS1(~0)))
+			      == (INSN_OR | RD(O7) | RS2(G0)))
+			{
+			  bfd_vma z;
+			  unsigned int reg;
+
+			  z = bfd_get_32 (input_bfd,
+					  contents + rel->r_offset - 4);
+			  if ((z & (0xffffffff ^ RD(~0)))
+			      != (INSN_OR | RS1(O7) | RS2(G0)))
+			    break;
+
+			  /* The sequence was
+			     or %o7, %g0, %rN
+			     call foo
+			     or %rN, %g0, %o7
+
+			     If call foo was replaced with ba, replace
+			     or %rN, %g0, %o7 with nop.  */
+
+			  reg = (y & RS1(~0)) >> 14;
+			  if (reg != ((z & RD(~0)) >> 25)
+			      || reg == G0 || reg == O7)
+			    break;
+
+			  bfd_put_32 (input_bfd, INSN_NOP,
+				      contents + rel->r_offset + 4);
+			}
+
+		    }
+		}
+	    }
+	}
+
+      if (r == bfd_reloc_continue)
 	r = _bfd_final_link_relocate (howto, input_bfd, input_section,
 				      contents, rel->r_offset,
 				      relocation, rel->r_addend);
-
 
       if (r != bfd_reloc_ok)
 	{
@@ -1842,33 +1955,6 @@ elf32_sparc_merge_private_bfd_data (ibfd, obfd)
 
   error = false;
 
-#if 0
-  /* ??? The native linker doesn't do this so we can't (otherwise gcc would
-     have to know which linker is being used).  Instead, the native linker
-     bumps up the architecture level when it has to.  However, I still think
-     warnings like these are good, so it would be nice to have them turned on
-     by some option.  */
-
-  /* If the output machine is normal sparc, we can't allow v9 input files.  */
-  if (bfd_get_mach (obfd) == bfd_mach_sparc
-      && (bfd_get_mach (ibfd) == bfd_mach_sparc_v8plus
-	  || bfd_get_mach (ibfd) == bfd_mach_sparc_v8plusa))
-    {
-      error = true;
-      (*_bfd_error_handler)
-	(_("%s: compiled for a v8plus system and target is v8"),
-	 bfd_get_filename (ibfd));
-    }
-  /* If the output machine is v9, we can't allow v9+vis input files.  */
-  if (bfd_get_mach (obfd) == bfd_mach_sparc_v8plus
-      && bfd_get_mach (ibfd) == bfd_mach_sparc_v8plusa)
-    {
-      error = true;
-      (*_bfd_error_handler)
-	(_("%s: compiled for a v8plusa system and target is v8plus"),
-	 bfd_get_filename (ibfd));
-    }
-#else
   if (bfd_get_mach (ibfd) >= bfd_mach_sparc_v9)
     {
       error = true;
@@ -1881,7 +1967,6 @@ elf32_sparc_merge_private_bfd_data (ibfd, obfd)
       if (bfd_get_mach (obfd) < bfd_get_mach (ibfd))
 	bfd_set_arch_mach (obfd, bfd_arch_sparc, bfd_get_mach (ibfd));
     }
-#endif
 
   if (((elf_elfheader (ibfd)->e_flags & EF_SPARC_LEDATA)
        != previous_ibfd_e_flags)
@@ -1911,7 +1996,10 @@ elf32_sparc_object_p (abfd)
 {
   if (elf_elfheader (abfd)->e_machine == EM_SPARC32PLUS)
     {
-      if (elf_elfheader (abfd)->e_flags & EF_SPARC_SUN_US1)
+      if (elf_elfheader (abfd)->e_flags & EF_SPARC_SUN_US3)
+	return bfd_default_set_arch_mach (abfd, bfd_arch_sparc,
+					  bfd_mach_sparc_v8plusb);
+      else if (elf_elfheader (abfd)->e_flags & EF_SPARC_SUN_US1)
 	return bfd_default_set_arch_mach (abfd, bfd_arch_sparc,
 					  bfd_mach_sparc_v8plusa);
       else if (elf_elfheader (abfd)->e_flags & EF_SPARC_32PLUS)
@@ -1949,6 +2037,12 @@ elf32_sparc_final_write_processing (abfd, linker)
       elf_elfheader (abfd)->e_flags &=~ EF_SPARC_32PLUS_MASK;
       elf_elfheader (abfd)->e_flags |= EF_SPARC_32PLUS | EF_SPARC_SUN_US1;
       break;
+    case bfd_mach_sparc_v8plusb :
+      elf_elfheader (abfd)->e_machine = EM_SPARC32PLUS;
+      elf_elfheader (abfd)->e_flags &=~ EF_SPARC_32PLUS_MASK;
+      elf_elfheader (abfd)->e_flags |= EF_SPARC_32PLUS | EF_SPARC_SUN_US1
+				       | EF_SPARC_SUN_US3;
+      break;
     case bfd_mach_sparc_sparclite_le :
       elf_elfheader (abfd)->e_machine = EM_SPARC;
       elf_elfheader (abfd)->e_flags |= EF_SPARC_LEDATA;
@@ -1967,6 +2061,7 @@ elf32_sparc_final_write_processing (abfd, linker)
 #define ELF_MAXPAGESIZE 0x10000
 
 #define bfd_elf32_bfd_reloc_type_lookup	elf32_sparc_reloc_type_lookup
+#define bfd_elf32_bfd_relax_section	elf32_sparc_relax_section
 #define elf_info_to_howto		elf32_sparc_info_to_howto
 #define elf_backend_create_dynamic_sections \
 					_bfd_elf_create_dynamic_sections

@@ -40,7 +40,7 @@ otherwise, it has to perform the complicated lookup function.
 @example
 #define bfd_cache_lookup(x) \
     ((x)==bfd_last_cache? \
-      (FILE*)(bfd_last_cache->iostream): \
+      (FILE*) (bfd_last_cache->iostream): \
        bfd_cache_lookup_worker(x))
 @end example
 

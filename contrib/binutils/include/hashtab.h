@@ -1,5 +1,5 @@
 /* An expandable hash tables datatype.  
-   Copyright (C) 1999 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2000 Free Software Foundation, Inc.
    Contributed by Vladimir Makarov (vmakarov@cygnus.com).
 
 This program is free software; you can redistribute it and/or modify
@@ -38,10 +38,13 @@ extern "C" {
 
 #include <ansidecl.h>
 
+/* The type for a hash code.  */
+typedef unsigned int hashval_t;
+
 /* Callback function pointer types.  */
 
 /* Calculate hash of a table entry.  */
-typedef unsigned int (*htab_hash) PARAMS ((const void *));
+typedef hashval_t (*htab_hash) PARAMS ((const void *));
 
 /* Compare a table entry with a possible entry.  The entry already in
    the table always comes first, so the second element can be of a
@@ -77,7 +80,7 @@ struct htab
   htab_del del_f;
 
   /* Table itself.  */
-  void **entries;
+  PTR *entries;
 
   /* Current size (in entries) of the hash table */
   size_t size;
@@ -95,23 +98,38 @@ struct htab
   /* The following member is used for debugging.  Its value is number
      of collisions fixed for time of work with the hash table. */
   unsigned int collisions;
+
+  /* This is non-zero if we are allowed to return NULL for function calls
+     that allocate memory.  */
+  int return_allocation_failure;
 };
 
 typedef struct htab *htab_t;
+
+/* An enum saying whether we insert into the hash table or not.  */
+enum insert_option {NO_INSERT, INSERT};
 
 /* The prototypes of the package functions. */
 
 extern htab_t	htab_create	PARAMS ((size_t, htab_hash,
 					 htab_eq, htab_del));
+
+/* This function is like htab_create, but may return NULL if memory
+   allocation fails, and also signals that htab_find_slot_with_hash and
+   htab_find_slot are allowed to return NULL when inserting.  */
+extern htab_t	htab_try_create	PARAMS ((size_t, htab_hash,
+					 htab_eq, htab_del));
 extern void	htab_delete	PARAMS ((htab_t));
 extern void	htab_empty	PARAMS ((htab_t));
 
-extern void    *htab_find	PARAMS ((htab_t, const void *));
-extern void   **htab_find_slot	PARAMS ((htab_t, const void *, int));
-extern void    *htab_find_with_hash		PARAMS ((htab_t, const void *,
-							 unsigned int));
-extern void   **htab_find_slot_with_hash	PARAMS ((htab_t, const void *,
-							 unsigned int, int));
+extern PTR	htab_find	PARAMS ((htab_t, const void *));
+extern PTR     *htab_find_slot	PARAMS ((htab_t, const void *,
+					 enum insert_option));
+extern PTR	htab_find_with_hash	  PARAMS ((htab_t, const void *,
+						   hashval_t));
+extern PTR     *htab_find_slot_with_hash  PARAMS ((htab_t, const void *,
+						   hashval_t,
+						   enum insert_option));
 extern void	htab_clear_slot	PARAMS ((htab_t, void **));
 extern void	htab_remove_elt	PARAMS ((htab_t, void *));
 
@@ -120,6 +138,12 @@ extern void	htab_traverse	PARAMS ((htab_t, htab_trav, void *));
 extern size_t	htab_size	PARAMS ((htab_t));
 extern size_t	htab_elements	PARAMS ((htab_t));
 extern double	htab_collisions	PARAMS ((htab_t));
+
+/* A hash function for pointers.  */
+extern htab_hash htab_hash_pointer;
+
+/* An equality function for pointers.  */
+extern htab_eq htab_eq_pointer;
 
 #ifdef __cplusplus
 }

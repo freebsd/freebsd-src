@@ -50,18 +50,27 @@ struct format_ops {
   int flavor;
   unsigned dfl_leading_underscore : 1;
   unsigned emit_section_symbols : 1;
+  void (*begin) PARAMS ((void));
+  void (*app_file) PARAMS ((const char *));
   void (*frob_symbol) PARAMS ((symbolS *, int *));
   void (*frob_file) PARAMS ((void));
+  void (*frob_file_before_adjust) PARAMS ((void));
   void (*frob_file_after_relocs) PARAMS ((void));
   bfd_vma (*s_get_size) PARAMS ((symbolS *));
   void (*s_set_size) PARAMS ((symbolS *, bfd_vma));
   bfd_vma (*s_get_align) PARAMS ((symbolS *));
   void (*s_set_align) PARAMS ((symbolS *, bfd_vma));
   int (*s_get_other) PARAMS ((symbolS *));
+  void (*s_set_other) PARAMS ((symbolS *, int));
   int (*s_get_desc) PARAMS ((symbolS *));
+  void (*s_set_desc) PARAMS ((symbolS *, int));
+  int (*s_get_type) PARAMS ((symbolS *));
+  void (*s_set_type) PARAMS ((symbolS *, int));
   void (*copy_symbol_attributes) PARAMS ((symbolS *, symbolS *));
   void (*generate_asm_lineno) PARAMS ((void));
   void (*process_stab) PARAMS ((segT, int, const char *, int, int, int));
+  int (*separate_stab_sections) PARAMS ((void));
+  void (*init_stab_section) PARAMS ((segT));
   int (*sec_sym_ok_for_reloc) PARAMS ((asection *));
   void (*pop_insert) PARAMS ((void));
   /* For configurations using ECOFF_DEBUGGING, this callback is used.  */

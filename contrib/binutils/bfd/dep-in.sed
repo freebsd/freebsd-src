@@ -6,6 +6,7 @@ t loop
 s!\.o:!.lo:!
 s! @BFD_H@!!g
 s!@INCDIR@!$(INCDIR)!g
+s!@SRCDIR@/../opcodes!$(srcdir)/../opcodes!g
 s!@SRCDIR@/!!g
 s! hosts/[^ ]*\.h! !g
 s/ sysdep.h//g

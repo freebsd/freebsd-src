@@ -237,6 +237,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #ifndef elf_backend_section_from_shdr
 #define elf_backend_section_from_shdr	0
 #endif
+#ifndef elf_backend_section_flags
+#define elf_backend_section_flags	0
+#endif
 #ifndef elf_backend_section_from_phdr
 #define elf_backend_section_from_phdr	0
 #endif
@@ -313,7 +316,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define elf_backend_hide_symbol		_bfd_elf_link_hash_hide_symbol
 #endif
 
-
 /* Previously, backends could only use SHT_REL or SHT_RELA relocation
    sections, but not both.  They defined USE_REL to indicate SHT_REL
    sections, and left it undefined to indicated SHT_RELA sections.
@@ -323,16 +325,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #else
 #undef USE_REL
 #define USE_REL 1
-#endif 
+#endif
 
 /* Use these in new code.  */
-#ifndef elf_backend_may_use_rel_p 
+#ifndef elf_backend_may_use_rel_p
 #define elf_backend_may_use_rel_p USE_REL
-#endif 
+#endif
 #ifndef elf_backend_may_use_rela_p
 #define elf_backend_may_use_rela_p !USE_REL
 #endif
-#ifndef elf_backend_default_use_rela_p 
+#ifndef elf_backend_default_use_rela_p
 #define elf_backend_default_use_rela_p !USE_REL
 #endif
 
@@ -354,6 +356,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 extern const struct elf_size_info _bfd_elfNN_size_info;
 
+#ifndef INCLUDED_TARGET_FILE
 static CONST struct elf_backend_data elfNN_bed =
 {
   ELF_ARCH,			/* arch */
@@ -368,6 +371,7 @@ static CONST struct elf_backend_data elfNN_bed =
   elf_backend_get_symbol_type,
   elf_backend_section_processing,
   elf_backend_section_from_shdr,
+  elf_backend_section_flags,
   elf_backend_section_from_phdr,
   elf_backend_fake_sections,
   elf_backend_section_from_bfd_section,
@@ -413,6 +417,7 @@ static CONST struct elf_backend_data elfNN_bed =
   elf_backend_can_gc_sections,
   elf_backend_want_dynbss
 };
+#endif
 
 /* Forward declaration for use when initialising alternative_target field.  */
 #ifdef TARGET_LITTLE_SYM
@@ -603,7 +608,7 @@ const bfd_target TARGET_LITTLE_SYM =
 #else
   NULL,
 #endif
-  
+
   /* backend_data: */
   (PTR) &elfNN_bed
 };

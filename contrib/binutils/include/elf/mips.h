@@ -1,5 +1,6 @@
 /* MIPS ELF support for BFD.
-   Copyright (C) 1993, 1994, 1995, 1996, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1993, 94, 95, 96, 97, 98, 99, 2000
+   Free Software Foundation, Inc.
 
    By Ian Lance Taylor, Cygnus Support, <ian@cygnus.com>, from
    information in the System V Application Binary Interface, MIPS
@@ -84,7 +85,7 @@ START_RELOC_NUMBERS (elf_mips_reloc_type)
   /* These are GNU extensions to enable C++ vtable garbage collection.  */
   RELOC_NUMBER (R_MIPS_GNU_VTINHERIT, 253)
   RELOC_NUMBER (R_MIPS_GNU_VTENTRY, 254)
-END_RELOC_NUMBERS
+END_RELOC_NUMBERS (R_MIPS_maxext)
 
 /* Processor specific flags for the ELF header e_flags field.  */
 
@@ -120,6 +121,15 @@ END_RELOC_NUMBERS
 /* -mips4 code.  */
 #define E_MIPS_ARCH_4		0x30000000
 
+/* -mips5 code.  */
+#define E_MIPS_ARCH_5           0x40000000
+
+/* -mips32 code.  */
+#define E_MIPS_ARCH_32          0x50000000
+
+/* -mips64 code.  */
+#define E_MIPS_ARCH_64          0x60000000
+
 /* The ABI of the file.  Also see EF_MIPS_ABI2 above. */
 #define EF_MIPS_ABI		0x0000F000
 
@@ -152,7 +162,8 @@ END_RELOC_NUMBERS
 #define E_MIPS_MACH_4100	0x00830000
 #define E_MIPS_MACH_4650	0x00850000
 #define E_MIPS_MACH_4111	0x00880000
-
+#define E_MIPS_MACH_MIPS32_4K	0x00890000
+#define E_MIPS_MACH_SB1         0x008a0000
 
 /* Processor specific section indices.  These sections do not actually
    exist.  Symbols with a st_shndx field corresponding to one of these

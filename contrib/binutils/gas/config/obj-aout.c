@@ -17,7 +17,7 @@ the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with GAS; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA. */
+02111-1307, USA.  */
 
 #define OBJ_HEADER "obj-aout.h"
 
@@ -99,13 +99,12 @@ const pseudo_typeS aout_pseudo_table[] =
   {NULL, NULL, 0}		/* end sentinel */
 };				/* aout_pseudo_table */
 
-
 #ifdef BFD_ASSEMBLER
 
 void
 obj_aout_frob_symbol (sym, punt)
      symbolS *sym;
-     int *punt;
+     int *punt ATTRIBUTE_UNUSED;
 {
   flagword flags;
   asection *sec;
@@ -223,7 +222,7 @@ obj_aout_frob_file ()
 
 #else /* ! BFD_ASSEMBLER */
 
-/* Relocation. */
+/* Relocation.  */
 
 /*
  *		emit_relocations()
@@ -233,7 +232,7 @@ obj_aout_frob_file ()
 void
 obj_emit_relocations (where, fixP, segment_address_in_file)
      char **where;
-     fixS *fixP;		/* Fixup chain for this segment. */
+     fixS *fixP;		/* Fixup chain for this segment.  */
      relax_addressT segment_address_in_file;
 {
   for (; fixP; fixP = fixP->fx_next)
@@ -322,13 +321,13 @@ obj_emit_symbols (where, symbol_rootP)
   for (symbolP = symbol_rootP; symbolP; symbolP = symbol_next (symbolP))
     {
       /* Used to save the offset of the name. It is used to point
-	 to the string in memory but must be a file offset. */
+	 to the string in memory but must be a file offset.  */
       register char *temp;
 
       temp = S_GET_NAME (symbolP);
       S_SET_OFFSET (symbolP, symbolP->sy_name_offset);
 
-      /* Any symbol still undefined and is not a dbg symbol is made N_EXT. */
+      /* Any symbol still undefined and is not a dbg symbol is made N_EXT.  */
       if (!S_IS_DEBUG (symbolP) && !S_IS_DEFINED (symbolP))
 	S_SET_EXTERNAL (symbolP);
 
@@ -355,11 +354,11 @@ obj_emit_symbols (where, symbol_rootP)
 
 static void
 obj_aout_line (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   /* Assume delimiter is part of expression.
      BSD4.2 as fails with delightful bug, so we
-     are not being incompatible here. */
+     are not being incompatible here.  */
   new_logical_line ((char *) NULL, (int) (get_absolute_expression ()));
   demand_empty_rest_of_line ();
 }				/* obj_aout_line() */
@@ -368,7 +367,7 @@ obj_aout_line (ignore)
 
 static void
 obj_aout_weak (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   char *name;
   int c;
@@ -396,12 +395,12 @@ obj_aout_weak (ignore)
 
 /* Handle .type.  On {Net,Open}BSD, this is used to set the n_other field,
    which is then apparently used when doing dynamic linking.  Older
-   versions ogas ignored the .type pseudo-op, so we also ignore it if
+   versions of gas ignored the .type pseudo-op, so we also ignore it if
    we can't parse it.  */
 
 static void
 obj_aout_type (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   char *name;
   int c;
@@ -409,31 +408,28 @@ obj_aout_type (ignore)
 
   name = input_line_pointer;
   c = get_symbol_end ();
-  sym = symbol_find (name);
+  sym = symbol_find_or_make (name);
   *input_line_pointer = c;
-  if (sym != NULL)
+  SKIP_WHITESPACE ();
+  if (*input_line_pointer == ',')
     {
+      ++input_line_pointer;
       SKIP_WHITESPACE ();
-      if (*input_line_pointer == ',')
+      if (*input_line_pointer == '@')
 	{
 	  ++input_line_pointer;
-	  SKIP_WHITESPACE ();
-	  if (*input_line_pointer == '@')
-	    {
-	      ++input_line_pointer;
-	      if (strncmp (input_line_pointer, "object", 6) == 0)
+	  if (strncmp (input_line_pointer, "object", 6) == 0)
 #ifdef BFD_ASSEMBLER
-		aout_symbol (symbol_get_bfdsym (sym))->other = 1;
+	    aout_symbol (symbol_get_bfdsym (sym))->other = 1;
 #else
-		S_SET_OTHER (sym, 1);
+	  S_SET_OTHER (sym, 1);
 #endif
-	      else if (strncmp (input_line_pointer, "function", 8) == 0)
+	  else if (strncmp (input_line_pointer, "function", 8) == 0)
 #ifdef BFD_ASSEMBLER
-		aout_symbol (symbol_get_bfdsym (sym))->other = 2;
+	    aout_symbol (symbol_get_bfdsym (sym))->other = 2;
 #else
-		S_SET_OTHER (sym, 2);
+	  S_SET_OTHER (sym, 2);
 #endif
-	    }
 	}
     }
 
@@ -453,7 +449,7 @@ obj_crawl_symbol_chain (headers)
 
   tc_crawl_symbol_chain (headers);
 
-  symbolPP = &symbol_rootP;	/*->last symbol chain link. */
+  symbolPP = &symbol_rootP;	/*->last symbol chain link.  */
   while ((symbolP = *symbolPP) != NULL)
     {
       if (symbolP->sy_mri_common)
@@ -494,8 +490,7 @@ obj_crawl_symbol_chain (headers)
 	 switch was passed to gas.
 
 	 All other symbols are output.  We complain if a deleted
-	 symbol was marked external. */
-
+	 symbol was marked external.  */
 
       if (!S_IS_REGISTER (symbolP)
 	  && (!S_GET_NAME (symbolP)
@@ -511,11 +506,11 @@ obj_crawl_symbol_chain (headers)
 			   end of each string */
 	  if (!S_IS_STABD (symbolP))
 	    {
-	      /* Ordinary case. */
+	      /* Ordinary case.  */
 	      symbolP->sy_name_offset = string_byte_count;
 	      string_byte_count += strlen (S_GET_NAME (symbolP)) + 1;
 	    }
-	  else			/* .Stabd case. */
+	  else			/* .Stabd case.  */
 	    symbolP->sy_name_offset = 0;
 	  symbolPP = &symbolP->sy_next;
 	}
@@ -527,7 +522,7 @@ obj_crawl_symbol_chain (headers)
 	       register names...  */
 	    {
 	      as_bad (_("Local symbol %s never defined."), decode_local_label_name (S_GET_NAME (symbolP)));
-	    }			/* oops. */
+	    }			/* oops.  */
 
 	  /* Unhook it from the chain */
 	  *symbolPP = symbol_next (symbolP);
@@ -578,7 +573,7 @@ obj_pre_write_hook (headers)
 }
 
 void
-DEFUN_VOID (s_sect)
+s_sect ()
 {
   /* Strip out the section name */
   char *section_name;
@@ -641,7 +636,14 @@ DEFUN_VOID (s_sect)
 
 static void aout_pop_insert PARAMS ((void));
 static int obj_aout_s_get_other PARAMS ((symbolS *));
+static void obj_aout_s_set_other PARAMS ((symbolS *, int));
 static int obj_aout_s_get_desc PARAMS ((symbolS *));
+static void obj_aout_s_set_desc PARAMS ((symbolS *, int));
+static int obj_aout_s_get_type PARAMS ((symbolS *));
+static void obj_aout_s_set_type PARAMS ((symbolS *, int));
+static int obj_aout_separate_stab_sections PARAMS ((void));
+static int obj_aout_sec_sym_ok_for_reloc PARAMS ((asection *));
+static void obj_aout_process_stab PARAMS ((segT, int, const char *, int, int, int));
 
 static void
 aout_pop_insert ()
@@ -656,6 +658,33 @@ obj_aout_s_get_other (sym)
   return aout_symbol (symbol_get_bfdsym (sym))->other;
 }
 
+static void
+obj_aout_s_set_other (sym, o)
+     symbolS *sym;
+     int o;
+{
+  aout_symbol (symbol_get_bfdsym (sym))->other = o;
+}
+
+static int
+obj_aout_sec_sym_ok_for_reloc (sec)
+     asection *sec ATTRIBUTE_UNUSED;
+{
+  return obj_sec_sym_ok_for_reloc (sec);
+}
+
+static void
+obj_aout_process_stab (seg, w, s, t, o, d)
+     segT seg ATTRIBUTE_UNUSED;
+     int w;
+     const char *s;
+     int t;
+     int o;
+     int d;
+{
+  aout_process_stab (w, s, t, o, d);
+}
+
 static int
 obj_aout_s_get_desc (sym)
      symbolS *sym;
@@ -663,30 +692,67 @@ obj_aout_s_get_desc (sym)
   return aout_symbol (symbol_get_bfdsym (sym))->desc;
 }
 
+static void
+obj_aout_s_set_desc (sym, d)
+     symbolS *sym;
+     int d;
+{
+  aout_symbol (symbol_get_bfdsym (sym))->desc = d;
+}
 
+static int
+obj_aout_s_get_type (sym)
+     symbolS *sym;
+{
+  return aout_symbol (symbol_get_bfdsym (sym))->type;
+}
+
+static void
+obj_aout_s_set_type (sym, t)
+     symbolS *sym;
+     int t;
+{
+  aout_symbol (symbol_get_bfdsym (sym))->type = t;
+}
+
+static int
+obj_aout_separate_stab_sections ()
+{
+  return 0;
+}
+
+/* When changed, make sure these table entries match the single-format
+   definitions in obj-aout.h.  */
 const struct format_ops aout_format_ops =
 {
   bfd_target_aout_flavour,
   1,	/* dfl_leading_underscore */
   0,	/* emit_section_symbols */
+  0,	/* begin */
+  0,	/* app_file */
   obj_aout_frob_symbol,
   obj_aout_frob_file,
+  0,	/* frob_file_before_adjust */
   0,	/* frob_file_after_relocs */
   0,	/* s_get_size */
   0,	/* s_set_size */
   0,	/* s_get_align */
   0,	/* s_set_align */
   obj_aout_s_get_other,
+  obj_aout_s_set_other,
   obj_aout_s_get_desc,
+  obj_aout_s_set_desc,
+  obj_aout_s_get_type,
+  obj_aout_s_set_type,
   0,	/* copy_symbol_attributes */
   0,	/* generate_asm_lineno */
-  0,	/* process_stab */
-  0,	/* sec_sym_ok_for_reloc */
+  obj_aout_process_stab,
+  obj_aout_separate_stab_sections,
+  0,	/* init_stab_section */
+  obj_aout_sec_sym_ok_for_reloc,
   aout_pop_insert,
   0,	/* ecoff_set_ext */
   0,	/* read_begin_hook */
   0 	/* symbol_new_hook */
 };
 #endif BFD_ASSEMBLER
-
-/* end of obj-aout.c */

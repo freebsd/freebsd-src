@@ -1,5 +1,5 @@
 /* Generic ECOFF swapping routines, for BFD.
-   Copyright 1992, 1993, 1994, 1995, 1996 Free Software Foundation, Inc.
+   Copyright 1992, 1993, 1994, 1995, 1996, 2000 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -27,10 +27,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    on them in gdb by naming the including source file; e.g.,
    'coff-mips.c':ecoff_swap_hdr_in.
 
-   Before including this header file, one of ECOFF_32 or ECOFF_64 must
-   be defined.  These are checked when swapping information that
-   depends upon the target size.  This code works for 32 bit and 64
-   bit ECOFF, but may need to be generalized in the future.
+   Before including this header file, one of ECOFF_32, ECOFF_64,
+   ECOFF_SIGNED_32 or ECOFF_SIGNED_64 must be defined.  These are
+   checked when swapping information that depends upon the target
+   size.  This code works for 32 bit and 64 bit ECOFF, but may need to
+   be generalized in the future.
 
    Some header file which defines the external forms of these
    structures must also be included before including this header file.
@@ -49,6 +50,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #ifdef ECOFF_64
 #define ecoff_get_off bfd_h_get_64
 #define ecoff_put_off bfd_h_put_64
+#endif
+#ifdef ECOFF_SIGNED_32
+#define ecoff_get_off bfd_h_get_signed_32
+#define ecoff_put_off bfd_h_put_signed_32
+#endif
+#ifdef ECOFF_SIGNED_64
+#define ecoff_get_off bfd_h_get_signed_64
+#define ecoff_put_off bfd_h_put_signed_64
 #endif
 
 /* ECOFF auxiliary information swapping routines.  These are the same
@@ -122,7 +131,7 @@ ecoff_swap_hdr_in (abfd, ext_copy, intern)
 
 #ifdef TEST
   if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
-    abort();
+    abort ();
 #endif
 }
 
@@ -167,7 +176,7 @@ ecoff_swap_hdr_out (abfd, intern_copy, ext_ptr)
 
 #ifdef TEST
   if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
-    abort();
+    abort ();
 #endif
 }
 
@@ -182,10 +191,10 @@ ecoff_swap_fdr_in (abfd, ext_copy, intern)
   struct fdr_ext ext[1];
 
   *ext = *(struct fdr_ext *) ext_copy;
-  
+
   intern->adr           = ecoff_get_off (abfd, (bfd_byte *)ext->f_adr);
   intern->rss           = bfd_h_get_32 (abfd, (bfd_byte *)ext->f_rss);
-#ifdef ECOFF_64
+#if defined (ECOFF_64) || defined (ECOFF_SIGNED_64)
   if (intern->rss == 0xffffffff)
     intern->rss = -1;
 #endif
@@ -197,11 +206,11 @@ ecoff_swap_fdr_in (abfd, ext_copy, intern)
   intern->cline         = bfd_h_get_32 (abfd, (bfd_byte *)ext->f_cline);
   intern->ioptBase      = bfd_h_get_32 (abfd, (bfd_byte *)ext->f_ioptBase);
   intern->copt          = bfd_h_get_32 (abfd, (bfd_byte *)ext->f_copt);
-#ifdef ECOFF_32
+#if defined (ECOFF_32) || defined (ECOFF_SIGNED_32)
   intern->ipdFirst      = bfd_h_get_16 (abfd, (bfd_byte *)ext->f_ipdFirst);
   intern->cpd           = bfd_h_get_16 (abfd, (bfd_byte *)ext->f_cpd);
 #endif
-#ifdef ECOFF_64
+#if defined (ECOFF_64) || defined (ECOFF_SIGNED_64)
   intern->ipdFirst      = bfd_h_get_32 (abfd, (bfd_byte *)ext->f_ipdFirst);
   intern->cpd           = bfd_h_get_32 (abfd, (bfd_byte *)ext->f_cpd);
 #endif
@@ -210,7 +219,7 @@ ecoff_swap_fdr_in (abfd, ext_copy, intern)
   intern->rfdBase       = bfd_h_get_32 (abfd, (bfd_byte *)ext->f_rfdBase);
   intern->crfd          = bfd_h_get_32 (abfd, (bfd_byte *)ext->f_crfd);
 
-  /* now the fun stuff... */
+  /* now the fun stuff...  */
   if (bfd_header_big_endian (abfd)) {
     intern->lang        = (ext->f_bits1[0] & FDR_BITS1_LANG_BIG)
 					>> FDR_BITS1_LANG_SH_BIG;
@@ -235,7 +244,7 @@ ecoff_swap_fdr_in (abfd, ext_copy, intern)
 
 #ifdef TEST
   if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
-    abort();
+    abort ();
 #endif
 }
 
@@ -251,7 +260,7 @@ ecoff_swap_fdr_out (abfd, intern_copy, ext_ptr)
   FDR intern[1];
 
   *intern = *intern_copy;	/* Make it reasonable to do in-place.  */
-  
+
   ecoff_put_off (abfd, intern->adr, (bfd_byte *)ext->f_adr);
   bfd_h_put_32 (abfd, intern->rss, (bfd_byte *)ext->f_rss);
   bfd_h_put_32 (abfd, intern->issBase, (bfd_byte *)ext->f_issBase);
@@ -262,11 +271,11 @@ ecoff_swap_fdr_out (abfd, intern_copy, ext_ptr)
   bfd_h_put_32 (abfd, intern->cline, (bfd_byte *)ext->f_cline);
   bfd_h_put_32 (abfd, intern->ioptBase, (bfd_byte *)ext->f_ioptBase);
   bfd_h_put_32 (abfd, intern->copt, (bfd_byte *)ext->f_copt);
-#ifdef ECOFF_32
+#if defined (ECOFF_32) || defined (ECOFF_SIGNED_32)
   bfd_h_put_16 (abfd, intern->ipdFirst, (bfd_byte *)ext->f_ipdFirst);
   bfd_h_put_16 (abfd, intern->cpd, (bfd_byte *)ext->f_cpd);
 #endif
-#ifdef ECOFF_64
+#if defined (ECOFF_64) || defined (ECOFF_SIGNED_64)
   bfd_h_put_32 (abfd, intern->ipdFirst, (bfd_byte *)ext->f_ipdFirst);
   bfd_h_put_32 (abfd, intern->cpd, (bfd_byte *)ext->f_cpd);
 #endif
@@ -275,7 +284,7 @@ ecoff_swap_fdr_out (abfd, intern_copy, ext_ptr)
   bfd_h_put_32 (abfd, intern->rfdBase, (bfd_byte *)ext->f_rfdBase);
   bfd_h_put_32 (abfd, intern->crfd, (bfd_byte *)ext->f_crfd);
 
-  /* now the fun stuff... */
+  /* now the fun stuff...  */
   if (bfd_header_big_endian (abfd)) {
     ext->f_bits1[0] = (((intern->lang << FDR_BITS1_LANG_SH_BIG)
 			& FDR_BITS1_LANG_BIG)
@@ -303,7 +312,7 @@ ecoff_swap_fdr_out (abfd, intern_copy, ext_ptr)
 
 #ifdef TEST
   if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
-    abort();
+    abort ();
 #endif
 }
 
@@ -341,7 +350,7 @@ ecoff_swap_pdr_in (abfd, ext_copy, intern)
   intern->lnHigh        = bfd_h_get_32 (abfd, (bfd_byte *)ext->p_lnHigh);
   intern->cbLineOffset  = ecoff_get_off (abfd, (bfd_byte *)ext->p_cbLineOffset);
 
-#ifdef ECOFF_64
+#if defined (ECOFF_64) || defined (ECOFF_SIGNED_64)
   intern->gp_prologue = bfd_h_get_8 (abfd, (bfd_byte *) ext->p_gp_prologue);
   if (bfd_header_big_endian (abfd))
     {
@@ -364,11 +373,11 @@ ecoff_swap_pdr_in (abfd, ext_copy, intern)
 			     << PDR_BITS2_RESERVED_SH_LEFT_LITTLE));
     }
   intern->localoff = bfd_h_get_8 (abfd, (bfd_byte *) ext->p_localoff);
-#endif  
+#endif
 
 #ifdef TEST
   if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
-    abort();
+    abort ();
 #endif
 }
 
@@ -384,7 +393,7 @@ ecoff_swap_pdr_out (abfd, intern_copy, ext_ptr)
   PDR intern[1];
 
   *intern = *intern_copy;	/* Make it reasonable to do in-place.  */
-  
+
   ecoff_put_off (abfd, intern->adr, (bfd_byte *)ext->p_adr);
   bfd_h_put_32 (abfd, intern->isym, (bfd_byte *)ext->p_isym);
   bfd_h_put_32 (abfd, intern->iline, (bfd_byte *)ext->p_iline);
@@ -400,7 +409,7 @@ ecoff_swap_pdr_out (abfd, intern_copy, ext_ptr)
   bfd_h_put_32 (abfd, intern->lnHigh, (bfd_byte *)ext->p_lnHigh);
   ecoff_put_off (abfd, intern->cbLineOffset, (bfd_byte *)ext->p_cbLineOffset);
 
-#ifdef ECOFF_64
+#if defined (ECOFF_64) || defined (ECOFF_SIGNED_64)
   bfd_h_put_8 (abfd, intern->gp_prologue, (bfd_byte *) ext->p_gp_prologue);
   if (bfd_header_big_endian (abfd))
     {
@@ -425,17 +434,17 @@ ecoff_swap_pdr_out (abfd, intern_copy, ext_ptr)
 			 & PDR_BITS2_RESERVED_LITTLE);
     }
   bfd_h_put_8 (abfd, intern->localoff, (bfd_byte *) ext->p_localoff);
-#endif  
+#endif
 
 #ifdef TEST
   if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
-    abort();
+    abort ();
 #endif
 }
 
 #else /* MPW_C */
 /* Same routines, but with ECOFF_64 code removed, so ^&%$#&! MPW C doesn't
-   corrupt itself and then freak out. */
+   corrupt itself and then freak out.  */
 /* Swap in the procedure descriptor record.  */
 
 static void
@@ -447,7 +456,7 @@ ecoff_swap_pdr_in (abfd, ext_copy, intern)
   struct pdr_ext ext[1];
 
   *ext = *(struct pdr_ext *) ext_copy;
-  
+
   intern->adr           = ecoff_get_off (abfd, (bfd_byte *)ext->p_adr);
   intern->isym          = bfd_h_get_32 (abfd, (bfd_byte *)ext->p_isym);
   intern->iline         = bfd_h_get_32 (abfd, (bfd_byte *)ext->p_iline);
@@ -468,7 +477,7 @@ ecoff_swap_pdr_in (abfd, ext_copy, intern)
 
 #ifdef TEST
   if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
-    abort();
+    abort ();
 #endif
 }
 
@@ -484,7 +493,7 @@ ecoff_swap_pdr_out (abfd, intern_copy, ext_ptr)
   PDR intern[1];
 
   *intern = *intern_copy;	/* Make it reasonable to do in-place.  */
-  
+
   ecoff_put_off (abfd, intern->adr, (bfd_byte *)ext->p_adr);
   bfd_h_put_32 (abfd, intern->isym, (bfd_byte *)ext->p_isym);
   bfd_h_put_32 (abfd, intern->iline, (bfd_byte *)ext->p_iline);
@@ -502,7 +511,7 @@ ecoff_swap_pdr_out (abfd, intern_copy, ext_ptr)
 
 #ifdef TEST
   if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
-    abort();
+    abort ();
 #endif
 }
 #endif /* MPW_C */
@@ -518,11 +527,11 @@ ecoff_swap_sym_in (abfd, ext_copy, intern)
   struct sym_ext ext[1];
 
   *ext = *(struct sym_ext *) ext_copy;
-  
+
   intern->iss           = bfd_h_get_32 (abfd, (bfd_byte *)ext->s_iss);
   intern->value         = ecoff_get_off (abfd, (bfd_byte *)ext->s_value);
 
-  /* now the fun stuff... */
+  /* now the fun stuff...  */
   if (bfd_header_big_endian (abfd)) {
     intern->st          =  (ext->s_bits1[0] & SYM_BITS1_ST_BIG)
 					   >> SYM_BITS1_ST_SH_BIG;
@@ -552,7 +561,7 @@ ecoff_swap_sym_in (abfd, ext_copy, intern)
 
 #ifdef TEST
   if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
-    abort();
+    abort ();
 #endif
 }
 
@@ -568,11 +577,11 @@ ecoff_swap_sym_out (abfd, intern_copy, ext_ptr)
   SYMR intern[1];
 
   *intern = *intern_copy;	/* Make it reasonable to do in-place.  */
-  
+
   bfd_h_put_32 (abfd, intern->iss, (bfd_byte *)ext->s_iss);
   ecoff_put_off (abfd, intern->value, (bfd_byte *)ext->s_value);
 
-  /* now the fun stuff... */
+  /* now the fun stuff...  */
   if (bfd_header_big_endian (abfd)) {
     ext->s_bits1[0] = (((intern->st << SYM_BITS1_ST_SH_BIG)
 			& SYM_BITS1_ST_BIG)
@@ -601,7 +610,7 @@ ecoff_swap_sym_out (abfd, intern_copy, ext_ptr)
 
 #ifdef TEST
   if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
-    abort();
+    abort ();
 #endif
 }
 
@@ -616,8 +625,8 @@ ecoff_swap_ext_in (abfd, ext_copy, intern)
   struct ext_ext ext[1];
 
   *ext = *(struct ext_ext *) ext_copy;
-  
-  /* now the fun stuff... */
+
+  /* now the fun stuff...  */
   if (bfd_header_big_endian (abfd)) {
     intern->jmptbl      = 0 != (ext->es_bits1[0] & EXT_BITS1_JMPTBL_BIG);
     intern->cobol_main  = 0 != (ext->es_bits1[0] & EXT_BITS1_COBOL_MAIN_BIG);
@@ -629,10 +638,10 @@ ecoff_swap_ext_in (abfd, ext_copy, intern)
   }
   intern->reserved = 0;
 
-#ifdef ECOFF_32
+#if defined (ECOFF_32) || defined (ECOFF_SIGNED_32)
   intern->ifd           = bfd_h_get_signed_16 (abfd, (bfd_byte *)ext->es_ifd);
 #endif
-#ifdef ECOFF_64
+#if defined (ECOFF_64) || defined (ECOFF_SIGNED_64)
   intern->ifd           = bfd_h_get_signed_32 (abfd, (bfd_byte *)ext->es_ifd);
 #endif
 
@@ -640,7 +649,7 @@ ecoff_swap_ext_in (abfd, ext_copy, intern)
 
 #ifdef TEST
   if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
-    abort();
+    abort ();
 #endif
 }
 
@@ -656,14 +665,14 @@ ecoff_swap_ext_out (abfd, intern_copy, ext_ptr)
   EXTR intern[1];
 
   *intern = *intern_copy;	/* Make it reasonable to do in-place.  */
-  
-  /* now the fun stuff... */
+
+  /* now the fun stuff...  */
   if (bfd_header_big_endian (abfd)) {
     ext->es_bits1[0] = ((intern->jmptbl ? EXT_BITS1_JMPTBL_BIG : 0)
 			| (intern->cobol_main ? EXT_BITS1_COBOL_MAIN_BIG : 0)
 			| (intern->weakext ? EXT_BITS1_WEAKEXT_BIG : 0));
     ext->es_bits2[0] = 0;
-#ifdef ECOFF_64
+#if defined (ECOFF_64) || defined (ECOFF_SIGNED_64)
     ext->es_bits2[1] = 0;
     ext->es_bits2[2] = 0;
 #endif
@@ -672,16 +681,16 @@ ecoff_swap_ext_out (abfd, intern_copy, ext_ptr)
 			| (intern->cobol_main ? EXT_BITS1_COBOL_MAIN_LITTLE : 0)
 			| (intern->weakext ? EXT_BITS1_WEAKEXT_LITTLE : 0));
     ext->es_bits2[0] = 0;
-#ifdef ECOFF_64
+#if defined (ECOFF_64) || defined (ECOFF_SIGNED_64)
     ext->es_bits2[1] = 0;
     ext->es_bits2[2] = 0;
 #endif
   }
 
-#ifdef ECOFF_32
+#if defined (ECOFF_32) || defined (ECOFF_SIGNED_32)
   bfd_h_put_signed_16 (abfd, intern->ifd, (bfd_byte *)ext->es_ifd);
 #endif
-#ifdef ECOFF_64
+#if defined (ECOFF_64) || defined (ECOFF_SIGNED_64)
   bfd_h_put_signed_32 (abfd, intern->ifd, (bfd_byte *)ext->es_ifd);
 #endif
 
@@ -689,7 +698,7 @@ ecoff_swap_ext_out (abfd, intern_copy, ext_ptr)
 
 #ifdef TEST
   if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
-    abort();
+    abort ();
 #endif
 }
 
@@ -707,7 +716,7 @@ ecoff_swap_rfd_in (abfd, ext_ptr, intern)
 
 #ifdef TEST
   if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
-    abort();
+    abort ();
 #endif
 }
 
@@ -725,7 +734,7 @@ ecoff_swap_rfd_out (abfd, intern, ext_ptr)
 
 #ifdef TEST
   if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
-    abort();
+    abort ();
 #endif
 }
 
@@ -766,7 +775,7 @@ ecoff_swap_opt_in (abfd, ext_copy, intern)
 
 #ifdef TEST
   if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
-    abort();
+    abort ();
 #endif
 }
 
@@ -805,7 +814,7 @@ ecoff_swap_opt_out (abfd, intern_copy, ext_ptr)
 
 #ifdef TEST
   if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
-    abort();
+    abort ();
 #endif
 }
 
@@ -826,7 +835,7 @@ ecoff_swap_dnr_in (abfd, ext_copy, intern)
 
 #ifdef TEST
   if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
-    abort();
+    abort ();
 #endif
 }
 
@@ -848,6 +857,6 @@ ecoff_swap_dnr_out (abfd, intern_copy, ext_ptr)
 
 #ifdef TEST
   if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
-    abort();
+    abort ();
 #endif
 }

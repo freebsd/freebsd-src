@@ -18,8 +18,7 @@
 This document describes some BFD internal information which may be
 helpful when working on BFD.  It is very incomplete.
 
-This document is not updated regularly, and may be out of date.  It was
-last modified on $Date: 2000/04/30 15:07:52 $.
+This document is not updated regularly, and may be out of date.
 
 The initial version of this document was written by Ian Lance Taylor
 @email{ian@@cygnus.com}.
@@ -1606,6 +1605,10 @@ it should use the @samp{START_RELOC_NUMBERS}, @samp{RELOC_NUMBER},
 @samp{FAKE_RELOC}, @samp{EMPTY_RELOC} and @samp{END_RELOC_NUMBERS}
 macros to create a table mapping the number used to indentify a
 relocation to a name describing that relocation.
+
+While not a BFD component, you probably also want to make the binutils
+program @samp{readelf} parse your ELF objects.  For this, you need to add
+code for @code{EM_@var{cpu}} as appropriate in @file{binutils/readelf.c}.
 
 @node BFD ELF processor linker
 @subsubsection Processor specific linker support

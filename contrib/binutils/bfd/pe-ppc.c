@@ -21,7 +21,6 @@ Boston, MA 02111-1307, USA.  */
 #include "bfd.h"
 #include "sysdep.h"
 
-
 #define E_FILENMLEN     18
 
 #define PPC_PE

@@ -20,7 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "bfd.h"
 
-#define ARCH_SIZE 32		/* Value doesn't matter. */
+#define ARCH_SIZE 32		/* Value doesn't matter.  */
 #include "libaout.h"
 #include "aout/aout64.h"
 
@@ -32,13 +32,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 /* These are not really stab symbols, but it is
    convenient to have them here for the sake of nm.
    For completeness, we could also add N_TEXT etc, but those
-   are never needed, since nm treats those specially. */
+   are never needed, since nm treats those specially.  */
 #define EXTRA_SYMBOLS \
   __define_name (N_SETA, "SETA")/* Absolute set element symbol */ \
   __define_name (N_SETT, "SETT")/* Text set element symbol */ \
   __define_name (N_SETD, "SETD")/* Data set element symbol */ \
   __define_name (N_SETB, "SETB")/* Bss set element symbol */ \
-  __define_name (N_SETV, "SETV")/* Pointer to set vector in data area. */ \
+  __define_name (N_SETV, "SETV")/* Pointer to set vector in data area.  */ \
   __define_name (N_INDR, "INDR") \
   __define_name (N_WARNING, "WARNING")
 

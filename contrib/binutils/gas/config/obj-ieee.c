@@ -1,5 +1,6 @@
 /* obj-format for ieee-695 records.
-   Copyright (C) 1991, 92, 93, 94, 95, 1997, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1991, 92, 93, 94, 95, 97, 98, 2000
+   Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -16,19 +17,12 @@
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
    Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA. */
+   02111-1307, USA.  */
 
+/* Created by Steve Chamberlain <steve@cygnus.com>.  */
 
-/*
-  created by
-
-  steve chamberlain steve@cygnus.com
-  */
-
-/*
-  this will hopefully become the port through which bfd and gas talk,
-  for the moment, only ieee is known to work well.
-  */
+/* This will hopefully become the port through which bfd and gas talk,
+   for the moment, only ieee is known to work well.  */
 
 #include "bfd.h"
 #include "as.h"
@@ -38,11 +32,15 @@
 
 bfd *abfd;
 
-/* How many addresses does the .align take? */
+/* How many addresses does the .align take?  */
+
 static relax_addressT
 relax_align (address, alignment)
-     register relax_addressT address;	/* Address now. */
-     register long alignment;	/* Alignment (binary). */
+     /* Address now.  */
+     register relax_addressT address;
+
+     /* Alignment (binary).  */
+     register long alignment;
 {
   relax_addressT mask;
   relax_addressT new_address;
@@ -50,18 +48,20 @@ relax_align (address, alignment)
   mask = ~((~0) << alignment);
   new_address = (address + mask) & (~mask);
   return (new_address - address);
-}				/* relax_align() */
+}
 
-/* calculate the size of the frag chain and create a bfd section
-   to contain all of it */
+/* Calculate the size of the frag chain
+   and create a bfd section to contain all of it.  */
+
 static void
-DEFUN (size_section, (abfd, idx),
-       bfd * abfd AND
-       unsigned int idx)
+size_section (abfd, idx)
+     bfd *abfd;
+     unsigned int idx;
 {
   asection *sec;
   unsigned int size = 0;
   fragS *frag = segment_info[idx].frag_root;
+
   while (frag)
     {
       if (frag->fr_address != size)
@@ -92,25 +92,28 @@ DEFUN (size_section, (abfd, idx),
   if (size)
     {
       char *name = segment_info[idx].name;
+
       if (name == (char *) NULL)
-	{
-	  name = ".data";
-	}
-      segment_info[idx].user_stuff = (char *) (sec = bfd_make_section (abfd, name));
-      /* Make it output through itself */
+	name = ".data";
+
+      segment_info[idx].user_stuff =
+	(char *) (sec = bfd_make_section (abfd, name));
+      /* Make it output through itself.  */
       sec->output_section = sec;
       sec->flags |= SEC_HAS_CONTENTS;
       bfd_set_section_size (abfd, sec, size);
     }
 }
 
-/* run through a frag chain and write out the data to go with it */
+/* Run through a frag chain and write out the data to go with it.  */
+
 static void
-DEFUN (fill_section, (abfd, idx),
-       bfd * abfd AND
-       unsigned int idx)
+fill_section (abfd, idx)
+     bfd *abfd;
+     unsigned int idx;
 {
   asection *sec = segment_info[idx].user_stuff;
+
   if (sec)
     {
       fragS *frag = segment_info[idx].frag_root;
@@ -156,16 +159,16 @@ DEFUN (fill_section, (abfd, idx),
     }
 }
 
-/* Count the relocations in a chain */
+/* Count the relocations in a chain.  */
 
 static unsigned int
-DEFUN (count_entries_in_chain, (idx),
-       unsigned int idx)
+count_entries_in_chain (idx)
+     unsigned int idx;
 {
   unsigned int nrelocs;
   fixS *fixup_ptr;
 
-  /* Count the relocations */
+  /* Count the relocations.  */
   fixup_ptr = segment_info[idx].fix_root;
   nrelocs = 0;
   while (fixup_ptr != (fixS *) NULL)
@@ -176,10 +179,11 @@ DEFUN (count_entries_in_chain, (idx),
   return nrelocs;
 }
 
-/* output all the relocations for a section */
+/* Output all the relocations for a section.  */
+
 void
-DEFUN (do_relocs_for, (idx),
-       unsigned int idx)
+do_relocs_for (idx)
+     unsigned int idx;
 {
   unsigned int nrelocs;
   arelent **reloc_ptr_vector;
@@ -188,11 +192,13 @@ DEFUN (do_relocs_for, (idx),
   asection *section = (asection *) (segment_info[idx].user_stuff);
   unsigned int i;
   fixS *from;
+
   if (section)
     {
       nrelocs = count_entries_in_chain (idx);
 
-      reloc_ptr_vector = (arelent **) malloc ((nrelocs + 1) * sizeof (arelent *));
+      reloc_ptr_vector =
+	(arelent **) malloc ((nrelocs + 1) * sizeof (arelent *));
       reloc_vector = (arelent *) malloc (nrelocs * sizeof (arelent));
       ptrs = (asymbol **) malloc (nrelocs * sizeof (asymbol *));
       from = segment_info[idx].fix_root;
@@ -203,8 +209,10 @@ DEFUN (do_relocs_for, (idx),
 	  reloc_ptr_vector[i] = to;
 	  to->howto = (reloc_howto_type *) (from->fx_r_type);
 
-#if 0	  /* We can't represent complicated things in a reloc yet */
-	  if (from->fx_addsy == 0 || from->fx_subsy != 0) abort();
+#if 0
+	  /* We can't represent complicated things in a reloc yet.  */
+	  if (from->fx_addsy == 0 || from->fx_subsy != 0)
+	    abort ();
 #endif
 
 	  s = &(from->fx_addsy->sy_symbol.sy);
@@ -218,7 +226,7 @@ DEFUN (do_relocs_for, (idx),
 	     If this relocation is pcrelative, and we know the
 	     destination, we still want to keep the relocation - since
 	     the linker might relax some of the bytes, but it stops
-	     being pc relative and turns into an absolute relocation. */
+	     being pc relative and turns into an absolute relocation.  */
 	  if (s)
 	    {
 	      if ((s->flags & BSF_UNDEFINED) == 0)
@@ -233,10 +241,9 @@ DEFUN (do_relocs_for, (idx),
 
 		  to->sym_ptr_ptr = 0;
 		  if (to->howto->pcrel_offset)
-		    {
-		      /* This is a pcrel relocation, the addend should be adjusted */
-		      to->addend -= to->address + 1;
-		    }
+		    /* This is a pcrel relocation, the addend should
+		       be adjusted.  */
+		    to->addend -= to->address + 1;
 		}
 	      else
 		{
@@ -245,33 +252,30 @@ DEFUN (do_relocs_for, (idx),
 		  to->sym_ptr_ptr = ptrs;
 
 		  if (to->howto->pcrel_offset)
-		    {
-		      /* This is a pcrel relocation, the addend should be adjusted */
-		      to->addend -= to->address - 1;
-		    }
+		    /* This is a pcrel relocation, the addend should
+		       be adjusted.  */
+		    to->addend -= to->address - 1;
 		}
-
 	    }
 	  else
-	    {
-	      to->section = 0;
-	    }
+	    to->section = 0;
 
 	  ptrs++;
 	  from = from->fx_next;
 	}
 
-      /* attatch to the section */
+      /* Attatch to the section.  */
       section->orelocation = reloc_ptr_vector;
       section->reloc_count = nrelocs;
       section->flags |= SEC_LOAD;
     }
 }
 
-/* do the symbols.. */
+/* Do the symbols.  */
+
 static void
-DEFUN (do_symbols, (abfd),
-       bfd * abfd)
+do_symbols (abfd)
+     bfd *abfd;
 {
   extern symbolS *symbol_rootP;
   symbolS *ptr;
@@ -279,7 +283,6 @@ DEFUN (do_symbols, (abfd),
   asymbol *symbol_vec;
   unsigned int count = 0;
   unsigned int index;
-
 
   for (ptr = symbol_rootP;
        ptr != (symbolS *) NULL;
@@ -291,9 +294,7 @@ DEFUN (do_symbols, (abfd),
 	    (asection *) (segment_info[ptr->sy_symbol.seg].user_stuff);
 	  S_SET_VALUE (ptr, S_GET_VALUE (ptr) + ptr->sy_frag->fr_address);
 	  if (ptr->sy_symbol.sy.flags == 0)
-	    {
-	      ptr->sy_symbol.sy.flags = BSF_LOCAL;
-	    }
+	    ptr->sy_symbol.sy.flags = BSF_LOCAL;
 	}
       else
 	{
@@ -330,18 +331,15 @@ DEFUN (do_symbols, (abfd),
 }
 
 /* The generic as->bfd converter. Other backends may have special case
-   code */
+   code.  */
 
 void
-DEFUN_VOID (bfd_as_write_hook)
+bfd_as_write_hook ()
 {
   int i;
 
   for (i = SEG_E0; i < SEG_UNKNOWN; i++)
-    {
-      size_section (abfd, i);
-    }
-
+    size_section (abfd, i);
 
   for (i = SEG_E0; i < SEG_UNKNOWN; i++)
     fill_section (abfd, i);
@@ -350,7 +348,6 @@ DEFUN_VOID (bfd_as_write_hook)
 
   for (i = SEG_E0; i < SEG_UNKNOWN; i++)
     do_relocs_for (i);
-
 }
 
 S_SET_SEGMENT (x, y)
@@ -437,7 +434,8 @@ obj_ieee_section (ignore)
   char *p = input_line_pointer;
   char *s = p;
   int i;
-  /* Look up the name, if it doesn't exist, make it */
+
+  /* Look up the name, if it doesn't exist, make it.  */
   while (*p && *p != ' ' && *p != ',' && !is_end_of_line[*p])
     {
       p++;
@@ -447,10 +445,7 @@ obj_ieee_section (ignore)
       if (segment_info[i].hadone)
 	{
 	  if (strncmp (segment_info[i].name, s, p - s) == 0)
-	    {
-	      goto ok;
-
-	    }
+	    goto ok;
 	}
       else
 	break;
@@ -470,31 +465,25 @@ ok:
   while (!is_end_of_line[*p])
     p++;
   input_line_pointer = p;
-
 }
-
 
 void cons ();
 void s_ignore ();
-
 
 void s_globl ();
 const pseudo_typeS obj_pseudo_table[] =
 {
   {"section", obj_ieee_section, 0},
-  {"data.b", cons, 1},
-  {"data.w", cons, 2},
-  {"data.l", cons, 4},
-  {"export", s_globl, 0},
-  {"option", s_ignore, 0},
-  {"end", s_ignore, 0},
-  {"import", s_ignore, 0},
-  {"sdata", stringer, 0},
+  {"data.b" , cons            , 1},
+  {"data.w" , cons            , 2},
+  {"data.l" , cons            , 4},
+  {"export" , s_globl         , 0},
+  {"option" , s_ignore        , 0},
+  {"end"    , s_ignore        , 0},
+  {"import" , s_ignore        , 0},
+  {"sdata"  , stringer        , 0},
   0,
-
 };
-
-
 
 void
 obj_symbol_new_hook (symbolP)
@@ -503,13 +492,9 @@ obj_symbol_new_hook (symbolP)
   symbolP->sy_symbol.sy.the_bfd = abfd;
 }
 
-
-
-
-
 #if 1
 extern void
-DEFUN_VOID (write_object_file)
+write_object_file ()
 {
   int i;
   struct frchain *frchain_ptr;
@@ -531,10 +516,10 @@ DEFUN_VOID (write_object_file)
        frchain_ptr != (struct frchain *) NULL;
        frchain_ptr = frchain_ptr->frch_next)
     {
-      /* Run through all the sub-segments and align them up. Also close any
-	 open frags. We tack a .fill onto the end of the frag chain so
-	 that any .align's size can be worked by looking at the next
-	 frag.  */
+      /* Run through all the sub-segments and align them up.  Also
+	 close any open frags.  We tack a .fill onto the end of the
+	 frag chain so that any .align's size can be worked by looking
+	 at the next frag.  */
 
       subseg_set (frchain_ptr->frch_seg, frchain_ptr->frch_subseg);
 #ifndef SUB_SEGMENT_ALIGN
@@ -547,18 +532,19 @@ DEFUN_VOID (write_object_file)
     }
 
   /* Now build one big frag chain for each segment, linked through
-	   fr_next. */
+     fr_next.  */
   for (i = SEG_E0; i < SEG_UNKNOWN; i++)
     {
-
       fragS **prev_frag_ptr_ptr;
       struct frchain *next_frchain_ptr;
 
-      /*	struct frag **head_ptr = segment_info[i].frag_root;*/
+#if 0
+      struct frag **head_ptr = segment_info[i].frag_root;
+#endif
 
       segment_info[i].frag_root = segment_info[i].frchainP->frch_root;
 #if 0
-      /* Im not sure what this is for */
+      /* I'm not sure what this is for.  */
       for (frchain_ptr = segment_info[i].frchainP->frch_root;
 	   frchain_ptr != (struct frchain *) NULL;
 	   frchain_ptr = frchain_ptr->frch_next)
@@ -566,17 +552,13 @@ DEFUN_VOID (write_object_file)
 	  *head_ptr = frchain_ptr;
 	  head_ptr = &frchain_ptr->next;
 	}
-
-
 #endif
     }
 
   for (i = SEG_E0; i < SEG_UNKNOWN; i++)
-    {
-      relax_segment (segment_info[i].frag_root, i);
-    }
+    relax_segment (segment_info[i].frag_root, i);
 
-  /* Now the addresses of the frags are correct within the segment */
+  /* Now the addresses of the frags are correct within the segment.  */
 
   bfd_as_write_hook ();
   bfd_close (abfd);
@@ -623,5 +605,3 @@ H_GET_TEXT_RELOCATION_SIZE ()
 {
   abort ();
 }
-
-/* end of obj-ieee.c */

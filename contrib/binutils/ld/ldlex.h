@@ -57,6 +57,6 @@ extern void lex_unput PARAMS ((int));
 #ifndef yywrap
 extern int yywrap PARAMS ((void));
 #endif
-extern void parse_args PARAMS ((int, char **));
+extern void parse_args PARAMS ((unsigned, char **));
 
 #endif

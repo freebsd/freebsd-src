@@ -77,9 +77,9 @@
 #endif
 
 #ifdef isascii
-#define isgraphic(c) (isascii (c) && isprint (c))
+#define isgraphic(c) (isascii (c) && (isprint (c) || (c) == '\t'))
 #else
-#define isgraphic(c) (isprint (c))
+#define isgraphic(c) (isprint (c) || (c) == '\t')
 #endif
 
 #ifndef errno

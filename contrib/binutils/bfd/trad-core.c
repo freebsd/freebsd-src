@@ -25,7 +25,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "libaout.h"           /* BFD a.out internal data structures */
 
 #include <sys/param.h>
-#include <sys/dir.h>
+#ifdef HAVE_DIRENT_H
+# include <dirent.h>
+#else
+# ifdef HAVE_SYS_NDIR_H
+#  include <sys/ndir.h>
+# endif
+# ifdef HAVE_SYS_DIR_H
+#  include <sys/dir.h>
+# endif
+# ifdef HAVE_NDIR_H
+#  include <ndir.h>
+# endif
+#endif
 #include <signal.h>
 
 #include <sys/user.h>		/* After a.out.h  */
@@ -34,7 +46,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include TRAD_HEADER
 #endif
 
-  struct trad_core_struct 
+  struct trad_core_struct
     {
       asection *data_section;
       asection *stack_section;
@@ -73,7 +85,7 @@ trad_unix_core_file_p (abfd)
   if (bfd_seek (abfd, TRAD_CORE_USER_OFFSET, SEEK_SET) != 0)
     return 0;
 #endif
-    
+
   val = bfd_read ((void *)&u, 1, sizeof u, abfd);
   if (val != sizeof u)
     {
@@ -83,7 +95,7 @@ trad_unix_core_file_p (abfd)
     }
 
   /* Sanity check perhaps??? */
-  if (u.u_dsize > 0x1000000)	/* Remember, it's in pages... */
+  if (u.u_dsize > 0x1000000)	/* Remember, it's in pages...  */
     {
       bfd_set_error (bfd_error_wrong_format);
       return 0;
@@ -140,7 +152,7 @@ trad_unix_core_file_p (abfd)
 		bfd_zmalloc (sizeof (struct trad_core_struct));
   if (rawptr == NULL)
     return 0;
-  
+
   abfd->tdata.trad_core_data = rawptr;
 
   rawptr->u = u; /*Copy the uarea into the tdata part of the bfd */
@@ -195,13 +207,13 @@ trad_unix_core_file_p (abfd)
      from *u_ar0.  The other is that u_ar0 is sometimes an absolute address
      in kernel memory, and on other systems it is an offset from the beginning
      of the `struct user'.
-     
+
      As a practical matter, we don't know where the registers actually are,
      so we have to pass the whole area to GDB.  We encode the value of u_ar0
      by setting the .regs section up so that its virtual memory address
      0 is at the place pointed to by u_ar0 (by setting the vma of the start
      of the section to -u_ar0).  GDB uses this info to locate the regs,
-     using minor trickery to get around the offset-or-absolute-addr problem. */
+     using minor trickery to get around the offset-or-absolute-addr problem.  */
   core_regsec (abfd)->vma = - (bfd_vma) u.u_ar0;
 
   core_datasec (abfd)->filepos = NBPG * UPAGES;
@@ -261,9 +273,9 @@ trad_unix_core_file_matches_executable_p  (core_bfd, exec_bfd)
 
 /* If somebody calls any byte-swapping routines, shoot them.  */
 static void
-swap_abort()
+swap_abort ()
 {
-  abort(); /* This way doesn't require any declaration for ANSI to fuck up */
+  abort (); /* This way doesn't require any declaration for ANSI to fuck up */
 }
 #define	NO_GET	((bfd_vma (*) PARAMS ((   const bfd_byte *))) swap_abort )
 #define	NO_PUT	((void    (*) PARAMS ((bfd_vma, bfd_byte *))) swap_abort )
@@ -304,7 +316,7 @@ const bfd_target trad_core_vec =
      bfd_false, bfd_false,
      bfd_false, bfd_false
     },
-    
+
        BFD_JUMP_TABLE_GENERIC (_bfd_generic),
        BFD_JUMP_TABLE_COPY (_bfd_generic),
        BFD_JUMP_TABLE_CORE (trad_unix),
@@ -316,6 +328,6 @@ const bfd_target trad_core_vec =
        BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
     NULL,
-    
+
     (PTR) 0			/* backend_data */
 };

@@ -13,6 +13,12 @@
 
 @cindex i386 support
 @cindex i80306 support
+@cindex x86-64 support
+
+The i386 version @code{@value{AS}} supports both the original Intel 386
+architecture in both 16 and 32-bit mode as well as AMD x86-64 architecture
+extending the Intel architecture to 64-bits.
+
 @menu
 * i386-Options::                Options
 * i386-Syntax::                 AT&T Syntax versus Intel Syntax
@@ -24,6 +30,7 @@
 * i386-Float::                  Floating Point
 * i386-SIMD::                   Intel's MMX and AMD's 3DNow! SIMD Operations
 * i386-16bit::                  Writing 16-bit Code
+* i386-Arch::                   Specifying an x86 CPU architecture
 * i386-Bugs::                   AT&T Syntax bugs
 * i386-Notes::                  Notes
 @end menu
@@ -31,17 +38,52 @@
 @node i386-Options
 @section Options
 
-@cindex options for i386 (none)
-@cindex i386 options (none)
-The 80386 has no machine dependent options.
+@cindex options for i386
+@cindex options for x86-64
+@cindex i386 options
+@cindex x86-64 options 
+
+The i386 version of @code{@value{AS}} has a few machine
+dependent options:
+
+@table @code
+@cindex @samp{--32} option, i386
+@cindex @samp{--32} option, x86-64
+@cindex @samp{--64} option, i386
+@cindex @samp{--64} option, x86-64
+@item --32 | --64
+Select the word size, either 32 bits or 64 bits. Selecting 32-bit
+implies Intel i386 architecture, while 64-bit implies AMD x86-64
+architecture.
+
+These options are only available with the ELF object file format, and
+require that the necessary BFD support has been included (on a 32-bit
+platform you have to add --enable-64-bit-bfd to configure enable 64-bit
+usage and use x86-64 as target platform).
+@end table
 
 @node i386-Syntax
 @section AT&T Syntax versus Intel Syntax
 
+@cindex i386 intel_syntax pseudo op
+@cindex intel_syntax pseudo op, i386
+@cindex i386 att_syntax pseudo op
+@cindex att_syntax pseudo op, i386
 @cindex i386 syntax compatibility
 @cindex syntax compatibility, i386
-In order to maintain compatibility with the output of @code{@value{GCC}},
-@code{@value{AS}} supports AT&T System V/386 assembler syntax.  This is quite
+@cindex x86-64 intel_syntax pseudo op
+@cindex intel_syntax pseudo op, x86-64
+@cindex x86-64 att_syntax pseudo op
+@cindex att_syntax pseudo op, x86-64
+@cindex x86-64 syntax compatibility
+@cindex syntax compatibility, x86-64
+
+@code{@value{AS}} now supports assembly using Intel assembler syntax.
+@code{.intel_syntax} selects Intel mode, and @code{.att_syntax} switches
+back to the usual AT&T mode for compatibility with the output of
+@code{@value{GCC}}.  Either of these directives may have an optional
+argument, @code{prefix}, or @code{noprefix} specifying whether registers
+require a @samp{%} prefix.  AT&T System V/386 assembler syntax is quite
 different from Intel syntax.  We mention these differences because
 almost all 80386 documents use Intel syntax.  Notable differences
 between the two syntaxes are:
@@ -53,6 +95,14 @@ between the two syntaxes are:
 @cindex jump/call operands, i386
 @cindex i386 jump/call operands
 @cindex operand delimiters, i386
+
+@cindex immediate operands, x86-64
+@cindex x86-64 immediate operands
+@cindex register operands, x86-64
+@cindex x86-64 register operands
+@cindex jump/call operands, x86-64
+@cindex x86-64 jump/call operands
+@cindex operand delimiters, x86-64
 @itemize @bullet
 @item
 AT&T immediate operands are preceded by @samp{$}; Intel immediate
@@ -63,6 +113,8 @@ operands are prefixed by @samp{*}; they are undelimited in Intel syntax.
 
 @cindex i386 source, destination operands
 @cindex source, destination operands; i386
+@cindex x86-64 source, destination operands
+@cindex source, destination operands; x86-64
 @item
 AT&T and Intel syntax use the opposite order for source and destination
 operands.  Intel @samp{add eax, 4} is @samp{addl $4, %eax}.  The
@@ -74,17 +126,23 @@ reversed order.  @ref{i386-Bugs}.
 @cindex mnemonic suffixes, i386
 @cindex sizes operands, i386
 @cindex i386 size suffixes
+@cindex mnemonic suffixes, x86-64
+@cindex sizes operands, x86-64
+@cindex x86-64 size suffixes
 @item
 In AT&T syntax the size of memory operands is determined from the last
 character of the instruction mnemonic.  Mnemonic suffixes of @samp{b},
-@samp{w}, and @samp{l} specify byte (8-bit), word (16-bit), and long
-(32-bit) memory references.  Intel syntax accomplishes this by prefixing
-memory operands (@emph{not} the instruction mnemonics) with @samp{byte
-ptr}, @samp{word ptr}, and @samp{dword ptr}.  Thus, Intel @samp{mov al,
-byte ptr @var{foo}} is @samp{movb @var{foo}, %al} in AT&T syntax.
+@samp{w}, @samp{l} and @samp{q} specify byte (8-bit), word (16-bit), long
+(32-bit) and quadruple word (64-bit) memory references.  Intel syntax accomplishes
+this by prefixing memory operands (@emph{not} the instruction mnemonics) with
+@samp{byte ptr}, @samp{word ptr}, @samp{dword ptr} and @samp{qword ptr}.  Thus,
+Intel @samp{mov al, byte ptr @var{foo}} is @samp{movb @var{foo}, %al} in AT&T
+syntax.
 
 @cindex return instructions, i386
 @cindex i386 jump, call, return
+@cindex return instructions, x86-64
+@cindex x86-64 jump, call, return
 @item
 Immediate form long jumps and calls are
 @samp{lcall/ljmp $@var{section}, $@var{offset}} in AT&T syntax; the
@@ -96,6 +154,8 @@ is @samp{lret $@var{stack-adjust}} in AT&T syntax; Intel syntax is
 
 @cindex sections, i386
 @cindex i386 sections
+@cindex sections, x86-64
+@cindex x86-64 sections
 @item
 The AT&T assembler does not provide support for multiple section
 programs.  Unix style systems expect all programs to be single sections.
@@ -106,17 +166,20 @@ programs.  Unix style systems expect all programs to be single sections.
 
 @cindex i386 instruction naming
 @cindex instruction naming, i386
+@cindex x86-64 instruction naming
+@cindex instruction naming, x86-64
+
 Instruction mnemonics are suffixed with one character modifiers which
-specify the size of operands.  The letters @samp{b}, @samp{w}, and
-@samp{l} specify byte, word, and long operands.  If no suffix is
-specified by an instruction then @code{@value{AS}} tries to fill in the
-missing suffix based on the destination register operand (the last one
-by convention).  Thus, @samp{mov %ax, %bx} is equivalent to @samp{movw
-%ax, %bx}; also, @samp{mov $1, %bx} is equivalent to @samp{movw $1,
-%bx}.  Note that this is incompatible with the AT&T Unix assembler which
-assumes that a missing mnemonic suffix implies long operand size.  (This
-incompatibility does not affect compiler output since compilers always
-explicitly specify the mnemonic suffix.)
+specify the size of operands.  The letters @samp{b}, @samp{w}, @samp{l}
+and @samp{q} specify byte, word, long and quadruple word operands.  If
+no suffix is specified by an instruction then @code{@value{AS}} tries to
+fill in the missing suffix based on the destination register operand
+(the last one by convention).  Thus, @samp{mov %ax, %bx} is equivalent
+to @samp{movw %ax, %bx}; also, @samp{mov $1, %bx} is equivalent to
+@samp{movw $1, bx}.  Note that this is incompatible with the AT&T Unix
+assembler which assumes that a missing mnemonic suffix implies long
+operand size.  (This incompatibility does not affect compiler output
+since compilers always explicitly specify the mnemonic suffix.)
 
 Almost all instructions have the same names in AT&T and Intel format.
 There are a few exceptions.  The sign extend and zero extend
@@ -130,10 +193,14 @@ are tacked on to this base name, the @emph{from} suffix before the
 @emph{to} suffix.  Thus, @samp{movsbl %al, %edx} is AT&T syntax for
 ``move sign extend @emph{from} %al @emph{to} %edx.''  Possible suffixes,
 thus, are @samp{bl} (from byte to long), @samp{bw} (from byte to word),
-and @samp{wl} (from word to long).
+@samp{wl} (from word to long), @samp{bq} (from byte to quadruple word),
+@samp{wq} (from word to quadruple word), and @samp{lq} (from long to
+quadruple word).
 
 @cindex conversion instructions, i386
 @cindex i386 conversion instructions
+@cindex conversion instructions, x86-64
+@cindex x86-64 conversion instructions
 The Intel-syntax conversion instructions
 
 @itemize @bullet
@@ -148,14 +215,25 @@ The Intel-syntax conversion instructions
 
 @item
 @samp{cdq} --- sign-extend dword in @samp{%eax} to quad in @samp{%edx:%eax},
+
+@item
+@samp{cdqe} --- sign-extend dword in @samp{%eax} to quad in @samp{%rax}
+(x86-64 only),
+
+@item
+@samp{cdo} --- sign-extend quad in @samp{%rax} to octuple in
+@samp{%rdx:%rax} (x86-64 only),
 @end itemize
 
 @noindent
-are called @samp{cbtw}, @samp{cwtl}, @samp{cwtd}, and @samp{cltd} in
-AT&T naming.  @code{@value{AS}} accepts either naming for these instructions.
+are called @samp{cbtw}, @samp{cwtl}, @samp{cwtd}, @samp{cltd}, @samp{cltq}, and
+@samp{cqto} in AT&T naming.  @code{@value{AS}} accepts either naming for these
+instructions.
 
 @cindex jump instructions, i386
 @cindex call instructions, i386
+@cindex jump instructions, x86-64
+@cindex call instructions, x86-64
 Far call/jump instructions are @samp{lcall} and @samp{ljmp} in
 AT&T syntax, but are @samp{call far} and @samp{jump far} in Intel
 convention.
@@ -165,6 +243,8 @@ convention.
 
 @cindex i386 registers
 @cindex registers, i386
+@cindex x86-64 registers
+@cindex registers, x86-64
 Register operands are always prefixed with @samp{%}.  The 80386 registers
 consist of
 
@@ -204,6 +284,44 @@ the 2 test registers @samp{%tr6} and @samp{%tr7}.
 the 8 floating point register stack @samp{%st} or equivalently
 @samp{%st(0)}, @samp{%st(1)}, @samp{%st(2)}, @samp{%st(3)},
 @samp{%st(4)}, @samp{%st(5)}, @samp{%st(6)}, and @samp{%st(7)}.
+These registers are overloaded by 8 MMX registers @samp{%mm0},
+@samp{%mm1}, @samp{%mm2}, @samp{%mm3}, @samp{%mm4}, @samp{%mm5},
+@samp{%mm6} and @samp{%mm7}.
+
+@item
+the 8 SSE registers registers @samp{%xmm0}, @samp{%xmm1}, @samp{%xmm2},
+@samp{%xmm3}, @samp{%xmm4}, @samp{%xmm5}, @samp{%xmm6} and @samp{%xmm7}.
+@end itemize
+
+The AMD x86-64 architecture extends the register set by:
+
+@itemize @bullet
+@item
+enhancing the 8 32-bit registers to 64-bit: @samp{%rax} (the
+accumulator), @samp{%rbx}, @samp{%rcx}, @samp{%rdx}, @samp{%rdi},
+@samp{%rsi}, @samp{%rbp} (the frame pointer), @samp{%rsp} (the stack
+pointer)
+
+@item
+the 8 extended registers @samp{%r8}--@samp{%r15}.
+
+@item
+the 8 32-bit low ends of the extended registers: @samp{%r8d}--@samp{%r15d}
+
+@item
+the 8 16-bit low ends of the extended registers: @samp{%r8w}--@samp{%r15w}
+
+@item
+the 8 8-bit low ends of the extended registers: @samp{%r8b}--@samp{%r15b}
+
+@item
+the 4 8-bit registers: @samp{%sil}, @samp{%dil}, @samp{%bpl}, @samp{%spl}.
+
+@item
+the 8 debug registers: @samp{%db8}--@samp{%db15}.
+
+@item
+the 8 SSE registers: @samp{%xmm8}--@samp{%xmm15}.
 @end itemize
 
 @node i386-Prefixes
@@ -270,6 +388,20 @@ complete the current instruction.  This should never be needed for the
 The @samp{rep}, @samp{repe}, and @samp{repne} prefixes are added
 to string instructions to make them repeat @samp{%ecx} times (@samp{%cx}
 times if the current address size is 16-bits).
+@cindex REX prefixes, i386
+@item
+The @samp{rex} family of prefixes is used by x86-64 to encode
+extensions to i386 instruction set.  The @samp{rex} prefix has four
+bits --- an operand size overwrite (@code{64}) used to change operand size
+from 32-bit to 64-bit and X, Y and Z extensions bits used to extend the
+register set.
+
+You may write the @samp{rex} prefixes directly. The @samp{rex64xyz}
+instruction emits @samp{rex} prefix with all the bits set.  By omitting
+the @code{64}, @code{x}, @code{y} or @code{z} you may write other
+prefixes as well.  Normally, there is no need to write the prefixes
+explicitly, since gas will automatically generate them based on the
+instruction operands.
 @end itemize
 
 @node i386-Memory
@@ -277,6 +409,8 @@ times if the current address size is 16-bits).
 
 @cindex i386 memory references
 @cindex memory references, i386
+@cindex x86-64 memory references
+@cindex memory references, x86-64
 An Intel syntax indirect memory reference of the form
 
 @smallexample
@@ -333,14 +467,34 @@ prefixed with @samp{*}.  If no @samp{*} is specified, @code{@value{AS}}
 always chooses PC relative addressing for jump/call labels.
 
 Any instruction that has a memory operand, but no register operand,
-@emph{must} specify its size (byte, word, or long) with an instruction
-mnemonic suffix (@samp{b}, @samp{w}, or @samp{l}, respectively).
+@emph{must} specify its size (byte, word, long, or quadruple) with an
+instruction mnemonic suffix (@samp{b}, @samp{w}, @samp{l} or @samp{q},
+respectively).
+
+The x86-64 architecture adds an RIP (instruction pointer relative)
+addressing.  This addressing mode is specified by using @samp{rip} as a
+base register.  Only constant offsets are valid. For example:
+
+@table @asis
+@item AT&T: @samp{1234(%rip)}, Intel: @samp{[rip + 1234]}
+Points to the address 1234 bytes past the end of the current
+instruction.
+
+@item AT&T: @samp{symbol(%rip)}, Intel: @samp{[rip + symbol]}
+Points to the @code{symbol} in RIP relative way, this is shorter than
+the default absolute addressing.
+@end table
+
+Other addressing modes remain unchanged in x86-64 architecture, except
+registers used are 64-bit instead of 32-bit.
 
 @node i386-jumps
 @section Handling of Jump Instructions
 
 @cindex jump optimization, i386
 @cindex i386 jump optimization
+@cindex jump optimization, x86-64
+@cindex x86-64 jump optimization
 Jump instructions are always optimized to use the smallest possible
 displacements.  This is accomplished by using byte (8-bit) displacement
 jumps whenever the target is sufficiently close.  If a byte displacement
@@ -369,6 +523,8 @@ cx_nonzero:
 
 @cindex i386 floating point
 @cindex floating point, i386
+@cindex x86-64 floating point
+@cindex floating point, x86-64
 All 80387 floating point types except packed BCD are supported.
 (BCD support may be added without much difficulty).  These data
 types are 16-, 32-, and 64- bit integers, and single (32-bit),
@@ -381,6 +537,10 @@ data type.  Constructors build these data types into memory.
 @cindex @code{single} directive, i386
 @cindex @code{double} directive, i386
 @cindex @code{tfloat} directive, i386
+@cindex @code{float} directive, x86-64
+@cindex @code{single} directive, x86-64
+@cindex @code{double} directive, x86-64
+@cindex @code{tfloat} directive, x86-64
 @itemize @bullet
 @item
 Floating point constructors are @samp{.float} or @samp{.single},
@@ -394,6 +554,10 @@ top) and @samp{fstpt} (store 80-bit real and pop stack) instructions.
 @cindex @code{long} directive, i386
 @cindex @code{int} directive, i386
 @cindex @code{quad} directive, i386
+@cindex @code{word} directive, x86-64
+@cindex @code{long} directive, x86-64
+@cindex @code{int} directive, x86-64
+@cindex @code{quad} directive, x86-64
 @item
 Integer constructors are @samp{.word}, @samp{.long} or @samp{.int}, and
 @samp{.quad} for the 16-, 32-, and 64-bit integer formats.  The
@@ -417,6 +581,9 @@ then stores the result in the 4 byte location @samp{mem})
 @cindex MMX, i386
 @cindex 3DNow!, i386
 @cindex SIMD, i386
+@cindex MMX, x86-64
+@cindex 3DNow!, x86-64
+@cindex SIMD, x86-64
 
 @code{@value{AS}} supports Intel's MMX instruction set (SIMD
 instructions for integer data), available on Intel's Pentium MMX
@@ -446,7 +613,10 @@ instructions is reversed from the Intel syntax.
 @cindex @code{code16gcc} directive, i386
 @cindex @code{code16} directive, i386
 @cindex @code{code32} directive, i386
-While @code{@value{AS}} normally writes only ``pure'' 32-bit i386 code,
+@cindex @code{code64} directive, i386
+@cindex @code{code64} directive, x86-64
+While @code{@value{AS}} normally writes only ``pure'' 32-bit i386 code
+or 64-bit x86-64 code depending on the default configuration,
 it also supports writing code to run in real mode or in 16-bit protected
 mode code segments.  To do this, put a @samp{.code16} or
 @samp{.code16gcc} directive before the assembly language instructions to
@@ -506,14 +676,44 @@ non-commutative arithmetic floating point operations with two register
 operands where the source register is @samp{%st} and the destination
 register is @samp{%st(i)}.
 
+@node i386-Arch
+@section Specifying CPU Architecture
+
+@cindex arch directive, i386
+@cindex i386 arch directive
+@cindex arch directive, x86-64
+@cindex x86-64 arch directive
+
+@code{@value{AS}} may be told to assemble for a particular CPU
+architecture with the @code{.arch @var{cpu_type}} directive.  This
+directive enables a warning when gas detects an instruction that is not
+supported on the CPU specified.  The choices for @var{cpu_type} are:
+
+@multitable @columnfractions .20 .20 .20 .20
+@item @samp{i8086} @tab @samp{i186} @tab @samp{i286} @tab @samp{i386}
+@item @samp{i486} @tab @samp{i586} @tab @samp{i686} @tab @samp{pentium}
+@item @samp{pentiumpro} @tab @samp{pentium4} @tab @samp{k6} @tab @samp{athlon}
+@item @samp{sledgehammer}
+@end multitable
+
+Apart from the warning, there is only one other effect on
+@code{@value{AS}} operation;  If you specify a CPU other than
+@samp{i486}, then shift by one instructions such as @samp{sarl $1, %eax}
+will automatically use a two byte opcode sequence.  The larger three
+byte opcode sequence is used on the 486 (and when no architecture is
+specified) because it executes faster on the 486.  Note that you can
+explicitly request the two byte opcode by writing @samp{sarl %eax}.
+
 @node i386-Notes
 @section Notes
 
 @cindex i386 @code{mul}, @code{imul} instructions
 @cindex @code{mul} instruction, i386
 @cindex @code{imul} instruction, i386
+@cindex @code{mul} instruction, x86-64
+@cindex @code{imul} instruction, x86-64
 There is some trickery concerning the @samp{mul} and @samp{imul}
-instructions that deserves mention.  The 16-, 32-, and 64-bit expanding
+instructions that deserves mention.  The 16-, 32-, 64- and 128-bit expanding
 multiplies (base opcode @samp{0xf6}; extension 4 for @samp{mul} and 5
 for @samp{imul}) can be output only in the one operand form.  Thus,
 @samp{imul %ebx, %eax} does @emph{not} select the expanding multiply;
