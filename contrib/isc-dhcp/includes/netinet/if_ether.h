@@ -48,28 +48,14 @@ struct ether_addr {
  */
 #define	ETHER_ADDR_LEN	6
 
-struct	ether_header {
+struct	isc_ether_header {
 	u_int8_t  ether_dhost[ETHER_ADDR_LEN];
 	u_int8_t  ether_shost[ETHER_ADDR_LEN];
 	u_int16_t ether_type;
 };
 
-#define	ETHERTYPE_PUP		0x0200	/* PUP protocol */
-#define	ETHERTYPE_IP		0x0800	/* IP protocol */
-#define	ETHERTYPE_ARP		0x0806	/* address resolution protocol */
-#define	ETHERTYPE_REVARP	0x8035	/* reverse addr resolution protocol */
-
-/*
- * The ETHERTYPE_NTRAILER packet types starting at ETHERTYPE_TRAIL have
- * (type-ETHERTYPE_TRAIL)*512 bytes of data followed
- * by an ETHER type (as given above) and then the (variable-length) header.
- */
-#define	ETHERTYPE_TRAIL		0x1000		/* Trailer packet */
-#define	ETHERTYPE_NTRAILER	16
-
-#define	ETHER_IS_MULTICAST(addr) (*(addr) & 0x01) /* is address mcast/bcast? */
-
-#define	ETHERMTU	1500
-#define	ETHERMIN	(60-14)
+#define       ETHERTYPE_PUP           0x0200  /* PUP protocol */
+#define       ETHERTYPE_IP            0x0800  /* IP protocol */
+#define       ETHERTYPE_ARP           0x0806  /* address resolution protocol */
 
 #define ETHER_HEADER_SIZE (ETHER_ADDR_LEN * 2 + sizeof (u_int16_t))

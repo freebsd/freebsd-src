@@ -3,8 +3,8 @@
    Ultrix PacketFilter interface code. */
 
 /*
- * Copyright (c) 1995, 1996, 1997, 1998, 1999
- * The Internet Software Consortium.   All rights reserved.
+ * Copyright (c) 1996-2000 Internet Software Consortium.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,15 +34,16 @@
  * SUCH DAMAGE.
  *
  * This software has been written for the Internet Software Consortium
- * by Ted Lemon <mellon@fugue.com> in cooperation with Vixie
- * Enterprises.  To learn more about the Internet Software Consortium,
- * see ``http://www.vix.com/isc''.  To learn more about Vixie
- * Enterprises, see ``http://www.vix.com''.
+ * by Ted Lemon in cooperation with Vixie Enterprises and Nominum, Inc.
+ * To learn more about the Internet Software Consortium, see
+ * ``http://www.isc.org/''.  To learn more about Vixie Enterprises,
+ * see ``http://www.vix.com''.   To learn more about Nominum, Inc., see
+ * ``http://www.nominum.com''.
  */
 
 #ifndef lint
 static char copyright[] =
-"$Id: upf.c,v 1.3.2.5 1999/03/29 22:07:13 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: upf.c,v 1.21 2000/09/01 23:03:39 mellon Exp $ Copyright (c) 1996-2000 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -97,7 +98,7 @@ int if_register_upf (info)
 			if (errno == EBUSY) {
 				continue;
 			} else {
-				error ("Can't find free upf: %m");
+				log_fatal ("Can't find free upf: %m");
 			}
 		} else {
 			break;
@@ -106,26 +107,26 @@ int if_register_upf (info)
 
 	/* Set the UPF device to point at this interface. */
 	if (ioctl (sock, EIOCSETIF, info -> ifp) < 0)
-		error ("Can't attach interface %s to upf device %s: %m",
+		log_fatal ("Can't attach interface %s to upf device %s: %m",
 		       info -> name, filename);
 
 	/* Get the hardware address. */
 	if (ioctl (sock, EIOCDEVP, &param) < 0)
-		error ("Can't get interface %s hardware address: %m",
+		log_fatal ("Can't get interface %s hardware address: %m",
 		       info -> name);
 
 	/* We only know how to do ethernet. */
 	if (param.end_dev_type != ENDT_10MB)	
-		error ("Invalid device type on network interface %s: %d",
+		log_fatal ("Invalid device type on network interface %s: %d",
 		       info -> name, param.end_dev_type);
 
 	if (param.end_addr_len != 6)
-		error ("Invalid hardware address length on %s: %d",
+		log_fatal ("Invalid hardware address length on %s: %d",
 		       info -> name, param.end_addr_len);
 
-	info -> hw_address.hlen = 6;
-	info -> hw_address.htype = ARPHRD_ETHER;
-	memcpy (&info -> hw_address.haddr [0], param.end_addr, 6);
+	info -> hw_address.hlen = 7;
+	info -> hw_address.hbuf [0] = ARPHRD_ETHER;
+	memcpy (&info -> hw_address.hbuf [1], param.end_addr, 6);
 
 	return sock;
 }
@@ -143,11 +144,29 @@ void if_register_send (info)
 	info -> wfdesc = info -> rfdesc;
 #endif
         if (!quiet_interface_discovery)
-		note ("Sending on   UPF/%s/%s%s%s",
+		log_info ("Sending on   UPF/%s/%s%s%s",
 		      info -> name,
-		      print_hw_addr (info -> hw_address.htype,
-				     info -> hw_address.hlen,
-				     info -> hw_address.haddr),
+		      print_hw_addr (info -> hw_address.hbuf [0],
+				     info -> hw_address.hlen - 1,
+				     &info -> hw_address.hbuf [1]),
+		      (info -> shared_network ? "/" : ""),
+		      (info -> shared_network ?
+		       info -> shared_network -> name : ""));
+}
+
+void if_deregister_send (info)
+	struct interface_info *info;
+{
+#ifndef USE_UPF_RECEIVE
+	close (info -> wfdesc);
+#endif
+	info -> wfdesc = -1;
+        if (!quiet_interface_discovery)
+		log_info ("Disabling output on UPF/%s/%s%s%s",
+		      info -> name,
+		      print_hw_addr (info -> hw_address.hbuf [0],
+				     info -> hw_address.hlen - 1,
+				     &info -> hw_address.hbuf [1]),
 		      (info -> shared_network ? "/" : ""),
 		      (info -> shared_network ?
 		       info -> shared_network -> name : ""));
@@ -173,18 +192,18 @@ void if_register_receive (info)
 
 	/* Allow the copyall flag to be set... */
 	if (ioctl(info -> rfdesc, EIOCALLOWCOPYALL, &flag) < 0)
-		error ("Can't set ALLOWCOPYALL: %m");
+		log_fatal ("Can't set ALLOWCOPYALL: %m");
 
 	/* Clear all the packet filter mode bits first... */
 	flag = (ENHOLDSIG | ENBATCH | ENTSTAMP | ENPROMISC |
 		ENNONEXCL | ENCOPYALL);
 	if (ioctl (info -> rfdesc, EIOCMBIC, &flag) < 0)
-		error ("Can't clear pfilt bits: %m");
+		log_fatal ("Can't clear pfilt bits: %m");
 
 	/* Set the ENBATCH and ENCOPYALL bits... */
 	bits = ENBATCH | ENCOPYALL;
 	if (ioctl (info -> rfdesc, EIOCMBIS, &bits) < 0)
-		error ("Can't set ENBATCH|ENCOPYALL: %m");
+		log_fatal ("Can't set ENBATCH|ENCOPYALL: %m");
 
 	/* Set up the UPF filter program. */
 	/* XXX Unlike the BPF filter program, this one won't work if the
@@ -207,13 +226,29 @@ void if_register_receive (info)
 	pf.enf_Filter [pf.enf_FilterLen++] = local_port;
 
 	if (ioctl (info -> rfdesc, EIOCSETF, &pf) < 0)
-		error ("Can't install packet filter program: %m");
+		log_fatal ("Can't install packet filter program: %m");
         if (!quiet_interface_discovery)
-		note ("Listening on UPF/%s/%s%s%s",
+		log_info ("Listening on UPF/%s/%s%s%s",
 		      info -> name,
-		      print_hw_addr (info -> hw_address.htype,
-				     info -> hw_address.hlen,
-				     info -> hw_address.haddr),
+		      print_hw_addr (info -> hw_address.hbuf [0],
+				     info -> hw_address.hlen - 1,
+				     &info -> hw_address.hbuf [1]),
+		      (info -> shared_network ? "/" : ""),
+		      (info -> shared_network ?
+		       info -> shared_network -> name : ""));
+}
+
+void if_deregister_receive (info)
+	struct interface_info *info;
+{
+	close (info -> rfdesc);
+	info -> rfdesc = -1;
+        if (!quiet_interface_discovery)
+		log_info ("Disabling input on UPF/%s/%s%s%s",
+		      info -> name,
+		      print_hw_addr (info -> hw_address.hbuf [0],
+				     info -> hw_address.hlen - 1,
+				     &info -> hw_address.hbuf [1]),
 		      (info -> shared_network ? "/" : ""),
 		      (info -> shared_network ?
 		       info -> shared_network -> name : ""));
@@ -230,30 +265,35 @@ ssize_t send_packet (interface, packet, raw, len, from, to, hto)
 	struct sockaddr_in *to;
 	struct hardware *hto;
 {
-	int bufp = 0;
-	unsigned char buf [256];
-	struct iovec iov [2];
+	unsigned hbufp = 0, ibufp = 0;
+	double hw [4];
+	double ip [32];
+	struct iovec iov [3];
 	int result;
+	int fudge;
 
 	if (!strcmp (interface -> name, "fallback"))
 		return send_fallback (interface, packet, raw,
 				      len, from, to, hto);
 
 	/* Assemble the headers... */
-	assemble_hw_header (interface, buf, &bufp, hto);
-	assemble_udp_ip_header (interface, buf, &bufp, from.s_addr,
+	assemble_hw_header (interface, (unsigned char *)hw, &hbufp, hto);
+	assemble_udp_ip_header (interface,
+				(unsigned char *)ip, &ibufp, from.s_addr,
 				to -> sin_addr.s_addr, to -> sin_port,
 				(unsigned char *)raw, len);
 
 	/* Fire it off */
-	iov [0].iov_base = (char *)buf;
-	iov [0].iov_len = bufp;
-	iov [1].iov_base = (char *)raw;
-	iov [1].iov_len = len;
+	iov [0].iov_base = ((char *)hw);
+	iov [0].iov_len = hbufp;
+	iov [1].iov_base = ((char *)ip);
+	iov [1].iov_len = ibufp;
+	iov [2].iov_base = (char *)raw;
+	iov [2].iov_len = len;
 
-	result = writev(interface -> wfdesc, iov, 2);
+	result = writev(interface -> wfdesc, iov, 3);
 	if (result < 0)
-		warn ("send_packet: %m");
+		log_error ("send_packet: %m");
 	return result;
 }
 #endif /* USE_UPF_SEND */
@@ -306,7 +346,8 @@ ssize_t receive_packet (interface, buf, len, from, hfrom)
 	return length;
 }
 
-int can_unicast_without_arp ()
+int can_unicast_without_arp (ip)
+	struct interface_info *ip;
 {
 	return 1;
 }
@@ -317,14 +358,25 @@ int can_receive_unicast_unconfigured (ip)
 	return 1;
 }
 
+int supports_multiple_interfaces (ip)
+	struct interface_info *ip;
+{
+	return 1;
+}
+
 void maybe_setup_fallback ()
 {
-	struct interface_info *fbi;
-	fbi = setup_fallback ();
-	if (fbi) {
+	isc_result_t status;
+	struct interface_info *fbi = (struct interface_info *)0;
+	if (setup_fallback (&fbi, MDL)) {
 		if_register_fallback (fbi);
-		add_protocol ("fallback", fallback_interface -> wfdesc,
-			      fallback_discard, fallback_interface);
+		status = omapi_register_io_object ((omapi_object_t *)fbi,
+						   if_readsocket, 0,
+						   fallback_discard, 0, 0);
+		if (status != ISC_R_SUCCESS)
+			log_fatal ("Can't register I/O handle for %s: %s",
+				   fbi -> name, isc_result_totext (status));
+		interface_dereference (&fbi, MDL);
 	}
 }
 #endif

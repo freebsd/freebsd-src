@@ -16,7 +16,7 @@
    Sigh. */
 
 /*
- * Copyright (c) 1995, 1996, 1997, 1999 The Internet Software Consortium.
+ * Copyright (c) 1995-2000 Internet Software Consortium.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,14 +47,16 @@
  * SUCH DAMAGE.
  *
  * This software has been written for the Internet Software Consortium
- * by Ted Lemon <mellon@fugue.com> in cooperation with Vixie
- * Enterprises.  To learn more about the Internet Software Consortium,
- * see ``http://www.vix.com/isc''.  To learn more about Vixie
- * Enterprises, see ``http://www.vix.com''.  */
+ * by Ted Lemon in cooperation with Vixie Enterprises and Nominum, Inc.
+ * To learn more about the Internet Software Consortium, see
+ * ``http://www.isc.org/''.  To learn more about Vixie Enterprises,
+ * see ``http://www.vix.com''.   To learn more about Nominum, Inc., see
+ * ``http://www.nominum.com''.
+ */
 
 #ifndef lint
 static char copyright[] =
-"$Id: raw.c,v 1.11.2.4 1999/07/20 20:03:10 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1999 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: raw.c,v 1.17 2000/03/17 03:59:01 mellon Exp $ Copyright (c) 1995, 1996 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -79,39 +81,46 @@ void if_register_send (info)
 
 	/* List addresses on which we're listening. */
         if (!quiet_interface_discovery)
-		note ("Sending on   Raw Socket/%s/%s%s%s",
-		      info -> name,
-		      print_hw_addr (info -> hw_address.htype,
-				     info -> hw_address.hlen,
-				     info -> hw_address.haddr),
-		      (info -> shared_network ? "/" : ""),
-		      (info -> shared_network ?
-		       info -> shared_network -> name : ""));
-
+		log_info ("Sending on %s, port %d",
+		      piaddr (info -> address), htons (local_port));
 	if ((sock = socket (AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0)
-		error ("Can't create dhcp socket: %m");
+		log_fatal ("Can't create dhcp socket: %m");
 
 	/* Set the BROADCAST option so that we can broadcast DHCP responses. */
 	flag = 1;
 	if (setsockopt (sock, SOL_SOCKET, SO_BROADCAST,
 			&flag, sizeof flag) < 0)
-		error ("Can't set SO_BROADCAST option on dhcp socket: %m");
+		log_fatal ("Can't set SO_BROADCAST option on dhcp socket: %m");
 
 	/* Set the IP_HDRINCL flag so that we can supply our own IP
 	   headers... */
 	if (setsockopt (sock, IPPROTO_IP, IP_HDRINCL, &flag, sizeof flag) < 0)
-		error ("Can't set IP_HDRINCL flag: %m");
+		log_fatal ("Can't set IP_HDRINCL flag: %m");
 
 	info -> wfdesc = sock;
         if (!quiet_interface_discovery)
-		note ("Sending on   Raw/%s%s%s",
+		log_info ("Sending on   Raw/%s%s%s",
 		      info -> name,
 		      (info -> shared_network ? "/" : ""),
 		      (info -> shared_network ?
 		       info -> shared_network -> name : ""));
 }
 
-ssize_t send_packet (interface, packet, raw, len, from, to, hto)
+void if_deregister_send (info)
+	struct interface_info *info;
+{
+	close (info -> wfdesc);
+	info -> wfdesc = -1;
+
+        if (!quiet_interface_discovery)
+		log_info ("Disabling output on Raw/%s%s%s",
+		      info -> name,
+		      (info -> shared_network ? "/" : ""),
+		      (info -> shared_network ?
+		       info -> shared_network -> name : ""));
+}
+
+size_t send_packet (interface, packet, raw, len, from, to, hto)
 	struct interface_info *interface;
 	struct packet *packet;
 	struct dhcp_packet *raw;
@@ -120,7 +129,7 @@ ssize_t send_packet (interface, packet, raw, len, from, to, hto)
 	struct sockaddr_in *to;
 	struct hardware *hto;
 {
-	unsigned char buf [1500];
+	unsigned char buf [256];
 	int bufp = 0;
 	struct iovec iov [2];
 	int result;
@@ -129,37 +138,16 @@ ssize_t send_packet (interface, packet, raw, len, from, to, hto)
 	assemble_udp_ip_header (interface, buf, &bufp, from.s_addr,
 				to -> sin_addr.s_addr, to -> sin_port,
 				(unsigned char *)raw, len);
-	if (len + bufp > sizeof buf) {
-		warn ("send_packet: packet too large (%s)", len + bufp);
-		return;
-	}
-	memcpy (buf + bufp, raw, len);
-	bufp += len;
-	result = sendto (interface -> wfdesc, (char *)buf, bufp, 0,
-			 (struct sockaddr *)to, sizeof *to);
+
+	/* Fire it off */
+	iov [0].iov_base = (char *)buf;
+	iov [0].iov_len = bufp;
+	iov [1].iov_base = (char *)raw;
+	iov [1].iov_len = len;
+
+	result = writev(interface -> wfdesc, iov, 2);
 	if (result < 0)
-		warn ("send_packet: %m");
+		log_error ("send_packet: %m");
 	return result;
 }
-
-int can_unicast_without_arp ()
-{
-	return 1;
-}
-
-int can_receive_unicast_unconfigured (ip)
-	struct interface_info *ip;
-{
-	return 1;
-}
-
-void maybe_setup_fallback ()
-{
-}
-
-void if_reinitialize_send (info)
-	struct interface_info *info;
-{
-}
-
-#endif /* USE_RAW_SEND */
+#endif /* USE_SOCKET_SEND */

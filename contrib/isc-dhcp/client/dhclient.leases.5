@@ -31,10 +31,13 @@
 .\" SUCH DAMAGE.
 .\"
 .\" This software has been written for the Internet Software Consortium
-.\" by Ted Lemon <mellon@fugue.com> in cooperation with Vixie
+.\" by Ted Lemon in cooperation with Vixie
 .\" Enterprises.  To learn more about the Internet Software Consortium,
 .\" see ``http://www.isc.org/isc''.  To learn more about Vixie
 .\" Enterprises, see ``http://www.vix.com''.
+.\"
+.\" $FreeBSD$
+.\"
 .TH dhclient.leases 5
 .SH NAME
 dhclient.leases - DHCP client lease database
@@ -49,14 +52,14 @@ this is not an unusual occurrance.
 The format of the lease declarations is described in
 .B dhclient.conf(5).
 .SH FILES
-.B /var/db/dhclient.leases
+.B DBDIR/dhclient.leases
 .SH SEE ALSO
-dhcp-options(5), dhclient.conf(5), dhclient(8),
-RFC2132, RFC2131
+dhclient(8), dhcp-options(5), dhclient.conf(5),
+RFC2132, RFC2131.
 .SH AUTHOR
 .B dhclient(8)
-was written by Ted Lemon <mellon@vix.com>
+was written by Ted Lemon
 under a contract with Vixie Labs.   Funding
-for this project was provided by the Internet Software Corporation.
+for this project was provided by the Internet Software Consortium.
 Information about the Internet Software Consortium can be found at
-.B http://www.isc.org/isc.
+.B http://www.isc.org.

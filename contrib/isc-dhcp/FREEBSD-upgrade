@@ -1,37 +1,35 @@
 # ex:ts=8
 $FreeBSD$
 
-ISC DHCP client 2.0
+ISC DHCP client 3.0.1rc8
 	originals can be found at: ftp://ftp.isc.org/isc/dhcp/
 
 
 For the import of ISC-dhclient the following files were removed:
-	doc*/*			relay/*			server/*
-
-	client/
-	dhclient-script.cat8	dhclient.cat8
-	dhclient.conf.cat5	dhclient.leases.cat5
+	doc/*			relay/*			server/*
+	dhcpctl/*
 
 	client/scripts/
 	bsdos			linux			netbsd
-	nextstep		solaris
+	nextstep		solaris			openbsd
 
-	common/
-	dhcp-options.cat5	dlpi.c
+	contrib/
+	dhcp.spec		solaris.init
 
 	include/cf/
 	aix.h			alphaosf.h		bsdos.h
 	cygwin32.h		hpux.h			irix.h
 	linux.h			netbsd.h		nextstep.h
-	qnx.h			rhapsody.h		sample.h
-	sco.h			sunos4.h		sunos5-5.h
-	ultrix.h
+	openbsd.h		qnx.h			rhapsody.h
+	sample.h		sco.h			sunos4.h
+	sunos5-5.h		ultrix.h
 
+	`find . -name '.cvsignore'`
 
 Imported by:
 
-	cvs import -m 'Import Patchlevel 3 of the ISC 2.0 dhcp client.' \
-		src/contrib/isc-dhcp ISC isc_dhcp_2_0_pl3
+	cvs import -m 'Import ISC DHCP 3.0.1 RC8 client.' \
+		src/contrib/isc-dhcp ISC isc_dhcp_3_0_1_rc8
 
 
 To make local changes to isc-dhcp, simply patch and commit to the main
@@ -40,5 +38,26 @@ branch (aka HEAD).  Never make local changes on the vendor (ISC) branch.
 All local changes should be submitted to the ISC for inclusion in the 
 next vendor release.
 
+Local Changes:
+
+	client/clparse.c
+	  r1.6 - prefer strlcpy to strcpy.
+	client/dhclient.8 
+	  r1.8 - correct a man reference and a typo.
+	  r1.6 - document -D option.
+          - remove dhcpd from SEE ALSO section.
+	client/dhclient.c
+	  r1.19 - connect std{in,out,err}.
+	  r1.13 - prefer strlcpy to strcpy.
+	  r1.6  - quiet by default.
+	        - document -D option.
+	client/dhclient.conf.5
+	  - Remove dhcpd from SEE ALSO section.
+	common/dhcp-options.5
+	  r1.2 - note that hostname is only set if not already set.
+	  - Remove dhcpd from SEE ALSO section.
+    (see CVS logs for complete details)
+
+murray@FreeBSD.org
 obrien@NUXI.com
-20-July-2000
+01-Apr-2002
