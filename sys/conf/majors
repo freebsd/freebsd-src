@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.56 1998/12/27 13:55:48 sos Exp $
+$Id: majors.i386,v 1.57 1998/12/27 14:00:10 sos Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -154,5 +154,6 @@ chrdev	name		comments
 107	3dfx		3Dfx driver (shocking@prth.pgs.com)
 108	usb		Universal Serial Bus (nick.hibma@jrc.it)
 109	id		Intelligent Disk [Array] (md@doc.ic.ac.uk)
+110	ses		SCSI Environmental Services driver (mjacob@feral.com)
 200	??		entries from 200-255 are reserved for local use
 255	??		entries from 200-255 are reserved for local use
