@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.13.2.16 1996/05/24 06:08:50 jkh Exp $
+ * $Id: main.c,v 1.13.2.17 1996/05/28 18:31:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -83,6 +83,12 @@ main(int argc, char **argv)
     /* Probe for all relevant devices on the system */
     deviceGetAll();
 
+    /* Try to set ourselves up as a CDROM if we can do that first */
+    if (DITEM_STATUS(mediaSetCDROM(NULL)) == DITEM_SUCCESS) {
+	/* If we can't initialize it, it's probably not a FreeBSD CDROM so punt on it */
+	if (!mediaDevice->init(mediaDevice))
+	    mediaDevice = NULL;
+    }
     if (argc > 1 && !RunningAsInit) {
 	int i;
 
