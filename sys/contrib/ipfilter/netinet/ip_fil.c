@@ -169,6 +169,8 @@ static	int	ipfr_fastroute6 __P((struct mbuf *, struct mbuf **,
 # endif
 # ifdef	__sgi
 extern	int		tcp_mtudisc;
+# endif
+# ifdef USE_MUTEX
 extern	kmutex_t        ipf_rw;
 extern	KRWLOCK_T	ipf_mutex;
 # endif

@@ -106,7 +106,7 @@ SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_minttllog, CTLFLAG_RW,
 #define CDEV_MAJOR 79
 static struct cdevsw ipl_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
+	.d_flags =	0,
 	.d_open =	iplopen,
 	.d_close =	iplclose,
 	.d_read =	iplread,
@@ -114,6 +114,11 @@ static struct cdevsw ipl_cdevsw = {
 	.d_name =	"ipl",
 	.d_maj =	CDEV_MAJOR,
 };
+
+#if (__FreeBSD_version >= 500000)
+kmutex_t ipl_mutex, ipf_rw;
+KRWLOCK_T ipf_mutex, ipf_frag, ipf_state, ipf_nat, ipf_natfrag, ipf_auth;
+#endif
 
 static int
 ipfilter_modevent(module_t mod, int type, void *unused)
@@ -127,11 +132,21 @@ ipfilter_modevent(module_t mod, int type, void *unused)
 		error = iplattach();
 		if (error)
 			break;
+#if (__FreeBSD_version >= 500000)
+		MUTEX_INIT(&ipl_mutex, "ipf log mutex", NULL);
+		MUTEX_INIT(&ipf_rw, "ipf rw mutex", NULL);
+		RWLOCK_INIT(&ipf_mutex, "ipf filter rwlock", NULL);
+		RWLOCK_INIT(&ipf_frag, "ipf fragment rwlock", NULL);
+		RWLOCK_INIT(&ipf_state, "ipf IP state rwlock", NULL);
+		RWLOCK_INIT(&ipf_nat, "ipf IP NAT rwlock", NULL);
+		RWLOCK_INIT(&ipf_natfrag, "ipf IP NAT-Frag rwlock", NULL);
+		RWLOCK_INIT(&ipf_auth, "ipf User-Auth rwlock", NULL);
+#endif
 
 		c = NULL;
-		for(i=strlen(IPL_NAME); i>0; i--)
+		for(i = strlen(IPL_NAME); i > 0; i--)
 			if (IPL_NAME[i] == '/') {
-				c = &IPL_NAME[i+1];
+				c = &IPL_NAME[i + 1];
 				break;
 			}
 		if (!c)
@@ -140,9 +155,9 @@ ipfilter_modevent(module_t mod, int type, void *unused)
 		    make_dev(&ipl_cdevsw, IPL_LOGIPF, 0, 0, 0600, c);
 
 		c = NULL;
-		for(i=strlen(IPL_NAT); i>0; i--)
+		for(i = strlen(IPL_NAT); i > 0; i--)
 			if (IPL_NAT[i] == '/') {
-				c = &IPL_NAT[i+1];
+				c = &IPL_NAT[i + 1];
 				break;
 			}
 		if (!c)
@@ -151,9 +166,9 @@ ipfilter_modevent(module_t mod, int type, void *unused)
 		    make_dev(&ipl_cdevsw, IPL_LOGNAT, 0, 0, 0600, c);
 
 		c = NULL;
-		for(i=strlen(IPL_STATE); i>0; i--)
+		for(i = strlen(IPL_STATE); i > 0; i--)
 			if (IPL_STATE[i] == '/') {
-				c = &IPL_STATE[i+1];
+				c = &IPL_STATE[i + 1];
 				break;
 			}
 		if (!c)
@@ -162,9 +177,9 @@ ipfilter_modevent(module_t mod, int type, void *unused)
 		    make_dev(&ipl_cdevsw, IPL_LOGSTATE, 0, 0, 0600, c);
 
 		c = NULL;
-		for(i=strlen(IPL_AUTH); i>0; i--)
+		for(i = strlen(IPL_AUTH); i > 0; i--)
 			if (IPL_AUTH[i] == '/') {
-				c = &IPL_AUTH[i+1];
+				c = &IPL_AUTH[i + 1];
 				break;
 			}
 		if (!c)

@@ -132,7 +132,7 @@ u_long	fr_defnatage = DEF_NAT_AGE,
 	fr_defnaticmpage = 6;		/* 3 seconds */
 natstat_t nat_stats;
 int	fr_nat_lock = 0;
-#if	(SOLARIS || defined(__sgi)) && defined(_KERNEL)
+#ifdef USE_MUTEX
 extern	kmutex_t	ipf_rw;
 extern	KRWLOCK_T	ipf_nat;
 #endif

@@ -109,7 +109,7 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
 
-#if (SOLARIS || defined(__sgi)) && defined(_KERNEL)
+#ifdef USE_MUTEX
 extern KRWLOCK_T ipf_auth, ipf_mutex;
 extern kmutex_t ipf_authmx;
 # if SOLARIS
@@ -283,11 +283,6 @@ ip_t *ip;
 
 		bo = ip->ip_len;
 		ip->ip_len = htons(bo);
-# if !SOLARIS && !defined(__NetBSD__) && !defined(__FreeBSD__)
-		/* 4.4BSD converts this ip_input.c, but I don't in solaris.c */
-		bo = ip->ip_id;
-		ip->ip_id = htons(bo);
-# endif
 		bo = ip->ip_off;
 		ip->ip_off = htons(bo);
 	}

@@ -424,6 +424,15 @@ typedef struct {
 # undef	MUTEX_INIT
 # undef	MUTEX_DESTROY
 #endif
+#if defined(__FreeBSD_version) && (__FreeBSD_version >= 500043)
+#  include <sys/mutex.h>
+#  include <sys/sx.h>
+#  include <machine/atomic.h>
+#  define	USE_MUTEX		1
+#  define	kmutex_t		struct mtx
+#  define	KRWLOCK_T		struct sx
+#  define	NETBSD_PF
+#endif
 #ifdef KERNEL
 # if SOLARIS
 #  if SOLARIS2 >= 6
@@ -449,6 +458,7 @@ typedef struct {
 					  mutex_exit(&ipf_rw); }
 #  endif
 #  define	MUTEX_ENTER(x)		mutex_enter(x)
+#  define	USE_MUTEX		1
 #  if 1
 #   define	KRWLOCK_T		krwlock_t
 #   define	READ_ENTER(x)		rw_enter(x, RW_READER)
@@ -497,6 +507,7 @@ extern	ill_t	*get_unit __P((char *, int));
 #  define	IFNAME(x)	((ill_t *)x)->ill_name
 # else /* SOLARIS */
 #  if defined(__sgi)
+#   define	USE_MUTEX		1
 #   define	ATOMIC_INC(x)		{ MUTEX_ENTER(&ipf_rw); \
 					  (x)++; MUTEX_EXIT(&ipf_rw); }
 #   define	ATOMIC_DEC(x)		{ MUTEX_ENTER(&ipf_rw); \
@@ -512,17 +523,45 @@ extern	ill_t	*get_unit __P((char *, int));
 #   define	MUTEX_INIT(x,y,z)	(x)->l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP)
 #   define	MUTEX_DESTROY(x)	LOCK_DEALLOC((x)->l)
 #  else /* __sgi */
-#   define	ATOMIC_INC(x)		(x)++
-#   define	ATOMIC_DEC(x)		(x)--
-#   define	MUTEX_ENTER(x)		;
-#   define	READ_ENTER(x)		;
-#   define	WRITE_ENTER(x)		;
-#   define	RW_UPGRADE(x)		;
-#   define	MUTEX_DOWNGRADE(x)	;
-#   define	RWLOCK_EXIT(x)		;
-#   define	MUTEX_EXIT(x)		;
-#   define	MUTEX_INIT(x,y,z)	;
-#   define	MUTEX_DESTROY(x)	;
+#   if defined(__FreeBSD_version) && (__FreeBSD_version >= 500043)
+#    include <sys/mutex.h>
+#    include <sys/sx.h>
+#    include <machine/atomic.h>
+#    define	USE_MUTEX		1
+#    define	kmutex_t		struct mtx
+#    define	KRWLOCK_T		struct sx
+#    define	ATOMIC_INC(x)		{ MUTEX_ENTER(&ipf_rw); \
+					  (x)++; MUTEX_EXIT(&ipf_rw); }
+#    define	ATOMIC_DEC(x)		{ MUTEX_ENTER(&ipf_rw); \
+					  (x)--; MUTEX_EXIT(&ipf_rw); }
+#    define	MUTEX_ENTER(x)		mtx_lock(x)
+#    define	READ_ENTER(x)		sx_slock(x)
+#    define	WRITE_ENTER(x)		sx_xlock(x)
+#    define	RW_UPGRADE(x)		;
+#    define	MUTEX_DOWNGRADE(x)	sx_downgrade(x)
+#    define	RWLOCK_INIT(x, y, z)	sx_init((x), (y))
+#    define	RWLOCK_EXIT(x)		do {				\
+						if ((x)->sx_cnt < 0)	\
+							sx_xunlock(x);	\
+						else			\
+							sx_sunlock(x);	\
+					} while (0)
+#    define	MUTEX_EXIT(x)		mtx_unlock(x)
+#    define	MUTEX_INIT(x,y,z)	mtx_init((x), (y), NULL, MTX_DEF)
+#    define	MUTEX_DESTROY(x)	mtx_destroy(x)
+#   else
+#    define	ATOMIC_INC(x)		(x)++
+#    define	ATOMIC_DEC(x)		(x)--
+#    define	MUTEX_ENTER(x)		;
+#    define	READ_ENTER(x)		;
+#    define	WRITE_ENTER(x)		;
+#    define	RW_UPGRADE(x)		;
+#    define	MUTEX_DOWNGRADE(x)	;
+#    define	RWLOCK_EXIT(x)		;
+#    define	MUTEX_EXIT(x)		;
+#    define	MUTEX_INIT(x,y,z)	;
+#    define	MUTEX_DESTROY(x)	;
+#   endif
 #  endif /* __sgi */
 #  ifndef linux
 #   define	FREE_MB_T(m)	m_freem(m)

@@ -108,7 +108,7 @@ static ipstate_t **ips_table = NULL;
 static int	ips_num = 0;
 static int	ips_wild = 0;
 static ips_stat_t ips_stats;
-#if	(SOLARIS || defined(__sgi)) && defined(_KERNEL)
+#ifdef USE_MUTEX
 extern	KRWLOCK_T	ipf_state, ipf_mutex;
 extern	kmutex_t	ipf_rw;
 #endif
