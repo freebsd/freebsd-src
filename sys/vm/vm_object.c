@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.7 1994/10/05 09:48:43 davidg Exp $
+ * $Id: vm_object.c,v 1.8 1994/10/09 01:52:12 phk Exp $
  */
 
 /*
@@ -1030,6 +1030,7 @@ vm_object_t vm_object_lookup(pager)
 	register vm_object_hash_entry_t	entry;
 	vm_object_t			object;
 
+	cnt.v_lookups++;
 	vm_object_cache_lock();
 
 	for (entry = vm_object_hashtable[vm_object_hash(pager)].tqh_first;
@@ -1046,6 +1047,7 @@ vm_object_t vm_object_lookup(pager)
 			object->ref_count++;
 			vm_object_unlock(object);
 			vm_object_cache_unlock();
+			cnt.v_hits++;
 			return(object);
 		}
 	}
