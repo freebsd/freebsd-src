@@ -65,6 +65,7 @@ SUBDIR=	accf_data \
 	mac_biba \
 	mac_bsdextended \
 	mac_ifoff \
+	mac_lomac \
 	mac_mls \
 	mac_none \
 	mac_partition \
