@@ -208,7 +208,7 @@ static void exit_regerror(int, regex_t *);
 static void do_subst(const char *, regex_t *, const char *, regmatch_t *);
 static void do_regexpindex(const char *, regex_t *, regmatch_t *);
 static void do_regexp(const char *, regex_t *, const char *, regmatch_t *);
-static void add_sub(int, const char *, regex_t *, regmatch_t *);
+static void add_sub(size_t, const char *, regex_t *, regmatch_t *);
 static void add_replace(const char *, regex_t *, const char *, regmatch_t *);
 #define addconstantstring(s) addchars((s), sizeof(s)-1)
 
@@ -273,7 +273,7 @@ exit_regerror(er, re)
 
 static void
 add_sub(n, string, re, pm)
-	int n;
+	size_t n;
 	const char *string;
 	regex_t *re;
 	regmatch_t *pm;
@@ -522,17 +522,11 @@ doesyscmd(cmd)
 {
 	int p[2];
 	pid_t pid, cpid;
-	char *argv[4];
 	int cc;
 	int status;
 
 	/* Follow gnu m4 documentation: first flush buffers. */
 	fflush(NULL);
-
-	argv[0] = "sh";
-	argv[1] = "-c";
-	argv[2] = (char *)cmd;
-	argv[3] = NULL;
 
 	/* Just set up standard output, share stderr and stdin with m4 */
 	if (pipe(p) == -1)
@@ -545,7 +539,7 @@ doesyscmd(cmd)
 		(void) close(p[0]);
 		(void) dup2(p[1], 1);
 		(void) close(p[1]);
-		execv(_PATH_BSHELL, argv);
+		execl(_PATH_BSHELL, "sh", "-c", cmd, NULL);
 		exit(1);
 	default:
 		/* Read result in two stages, since m4's buffer is

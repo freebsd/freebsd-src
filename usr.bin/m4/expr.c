@@ -245,21 +245,19 @@ not()
 static int
 eqrel()
 {
-	int vl, vr, eqrel;
+	int vl, vr, eqrelval;
 
 	vl = shift();
-	while ((eqrel = geteqrel()) != -1) {
+	while ((eqrelval = geteqrel()) != -1) {
 		vr = shift();
 
-		switch (eqrel) {
-
+		switch (eqrelval) {
 		case EQL:
 			vl = (vl == vr);
 			break;
 		case NEQ:
 			vl = (vl != vr);
 			break;
-
 		case LEQ:
 			vl = (vl <= vr);
 			break;
@@ -446,7 +444,7 @@ constant()
 		ungetch();
 		return num();
 	}
-	for (i = 0; i < sizeof(int); i++) {
+	for (i = 0; i < (int)sizeof(int); i++) {
 		if ((c = getch()) == '\'') {
 			ungetch();
 			break;

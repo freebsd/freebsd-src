@@ -145,7 +145,7 @@ struct ndblock {		/* hastable structure         */
 #define nil     ((ndptr) 0)
  
 struct keyblk {
-        char    *knam;          /* keyword name */
+        const char    *knam;    /* keyword name */
         int     ktyp;           /* keyword type */
 };
 
@@ -166,13 +166,9 @@ struct input_file {
 /*
  * macros for readibility and/or speed
  *
- *      gpbc()  - get a possibly pushed-back character
  *      pushf() - push a call frame entry onto stack
  *      pushs() - push a string pointer onto stack
  */
-#define gpbc()   (bp > bufbase) ? (*--bp ? (*bp & 0xFF) : EOF) : \
-	((chscratch = obtain_char(infile+ilevel)) == '\n' && \
-	++inlineno[ilevel], chscratch)
 #define pushf(x) 			\
 	do {				\
 		if (++sp == STACKMAX) 	\

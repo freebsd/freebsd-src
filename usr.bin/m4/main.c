@@ -80,14 +80,13 @@ int maxout;
 FILE *active;			/* active output file pointer  */
 int ilevel = 0; 		/* input file stack pointer    */
 int oindex = 0; 		/* diversion index..	       */
-char *null = "";                /* as it says.. just a null..  */
-char *m4wraps = "";             /* m4wrap string default..     */
+const char *null = "";          /* as it says.. just a null..  */
+const char *m4wraps = "";       /* m4wrap string default..     */
 char lquote[MAXCCHARS+1] = {LQUOTE};	/* left quote character  (`)   */
 char rquote[MAXCCHARS+1] = {RQUOTE};	/* right quote character (')   */
 char scommt[MAXCCHARS+1] = {SCOMMT};	/* start character for comment */
 char ecommt[MAXCCHARS+1] = {ECOMMT};	/* end character for comment   */
 int synccpp;			/* Line synchronisation for C preprocessor */
-int chscratch;			/* Scratch space for gpbc() macro */
 
 struct keyblk keywrds[] = {	/* m4 keywords to be installed */
 	{ "include",      INCLTYPE },
@@ -476,14 +475,14 @@ macro()
 
 		default:
 			if (LOOK_AHEAD(t, scommt)) {
-				char *p;
-				for (p = scommt; *p; p++)
-					chrsave(*p);
+				char *pc;
+				for (pc = scommt; *pc; pc++)
+					chrsave(*pc);
 				for(;;) {
 					t = gpbc();
 					if (LOOK_AHEAD(t, ecommt)) {
-						for (p = ecommt; *p; p++)
-							chrsave(*p);
+						for (pc = ecommt; *pc; pc++)
+							chrsave(*pc);
 						break;
 					}
 					if (t == EOF)
@@ -574,7 +573,7 @@ initkwds()
 		p->nxtptr = hashtab[h % HASHSIZE];
 		hashtab[h % HASHSIZE] = p;
 		p->name = xstrdup(keywrds[i].knam);
-		p->defn = null;
+		p->defn = xstrdup(null);
 		p->hv = h;
 		p->type = keywrds[i].ktyp & TYPEMASK;
 		if ((keywrds[i].ktyp & NOARGS) == 0)
@@ -595,7 +594,7 @@ builtin_type(key)
 	return -1;
 }
 
-char *
+const char *
 builtin_realname(n)
 	int n;
 {
