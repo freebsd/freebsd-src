@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.23 1999/02/06 02:54:47 brian Exp $
+ * $Id: mbuf.c,v 1.24 1999/03/29 08:21:28 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -72,8 +72,7 @@ mbuf_Alloc(int cnt, int type)
   totalalloced += cnt;
   bp->size = bp->cnt = cnt;
   bp->type = type;
-  bp->pnext = NULL;
-  return (bp);
+  return bp;
 }
 
 struct mbuf *
@@ -87,9 +86,10 @@ mbuf_FreeSeg(struct mbuf * bp)
     MemMap[bp->type].octets -= bp->size;
     totalalloced -= bp->size;
     free(bp);
-    return (nbp);
+    bp = nbp;
   }
-  return (bp);
+
+  return bp;
 }
 
 void
@@ -192,7 +192,6 @@ mbuf_Dequeue(struct mqueue *q)
   return bp;
 }
 
-
 void
 mbuf_Enqueue(struct mqueue *queue, struct mbuf *bp)
 {
@@ -203,4 +202,31 @@ mbuf_Enqueue(struct mqueue *queue, struct mbuf *bp)
     queue->last = queue->top = bp;
   queue->qlen++;
   log_Printf(LogDEBUG, "mbuf_Enqueue: len = %d\n", queue->qlen);
+}
+
+struct mbuf *
+mbuf_Contiguous(struct mbuf *bp)
+{
+  /* Put it all in one contigous (aligned) mbuf */
+
+  if (bp->next != NULL) {
+    struct mbuf *nbp;
+    u_char *cp;
+
+    nbp = mbuf_Alloc(mbuf_Length(bp), bp->type);
+
+    for (cp = MBUF_CTOP(nbp); bp; bp = mbuf_FreeSeg(bp)) {
+      memcpy(cp, MBUF_CTOP(bp), bp->cnt);
+      cp += bp->cnt;
+    }
+    bp = nbp;
+  }
+#ifndef __i386__	/* Do any other archs not care about alignment ? */
+  else if ((bp->offset & 0x03) != 0) {
+    bcopy(MBUF_CTOP(bp), bp + 1, bp->cnt);
+    bp->offset = 0;
+  }
+#endif
+
+  return bp;
 }
