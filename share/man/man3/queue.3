@@ -39,6 +39,7 @@
 .Nm SLIST_EMPTY ,
 .Nm SLIST_ENTRY ,
 .Nm SLIST_FIRST ,
+.Nm SLIST_FOREACH ,
 .Nm SLIST_HEAD ,
 .Nm SLIST_INIT ,
 .Nm SLIST_INSERT_AFTER ,
@@ -46,24 +47,34 @@
 .Nm SLIST_NEXT ,
 .Nm SLIST_REMOVE_HEAD ,
 .Nm SLIST_REMOVE ,
+.Nm STAILQ_EMPTY ,
 .Nm STAILQ_ENTRY ,
+.Nm STAILQ_FIRST ,
+.Nm STAILQ_FOREACH ,
 .Nm STAILQ_HEAD ,
 .Nm STAILQ_INIT ,
 .Nm STAILQ_INSERT_AFTER ,
 .Nm STAILQ_INSERT_HEAD ,
 .Nm STAILQ_INSERT_TAIL ,
+.Nm STAILQ_LAST ,
+.Nm STAILQ_NEXT ,
 .Nm STAILQ_REMOVE_HEAD ,
 .Nm STAILQ_REMOVE ,
+.Nm LIST_EMPTY ,
 .Nm LIST_ENTRY ,
+.Nm LIST_FIRST ,
+.Nm LIST_FOREACH ,
 .Nm LIST_HEAD ,
 .Nm LIST_INIT ,
 .Nm LIST_INSERT_AFTER ,
 .Nm LIST_INSERT_BEFORE ,
 .Nm LIST_INSERT_HEAD ,
+.Nm LIST_NEXT ,
 .Nm LIST_REMOVE ,
 .Nm TAILQ_EMPTY ,
 .Nm TAILQ_ENTRY ,
 .Nm TAILQ_FIRST ,
+.Nm TAILQ_FOREACH ,
 .Nm TAILQ_HEAD ,
 .Nm TAILQ_INIT ,
 .Nm TAILQ_INSERT_AFTER ,
@@ -72,14 +83,21 @@
 .Nm TAILQ_INSERT_TAIL ,
 .Nm TAILQ_LAST ,
 .Nm TAILQ_NEXT ,
+.Nm TAILQ_PREV ,
 .Nm TAILQ_REMOVE ,
+.Nm CIRCLEQ_EMPTY ,
 .Nm CIRCLEQ_ENTRY ,
+.Nm CIRCLEQ_FIRST ,
+.Nm CIRCLEQ_FOREACH ,
 .Nm CIRCLEQ_HEAD ,
 .Nm CIRCLEQ_INIT ,
 .Nm CIRCLEQ_INSERT_AFTER ,
 .Nm CIRCLEQ_INSERT_BEFORE ,
 .Nm CIRCLEQ_INSERT_HEAD ,
 .Nm CIRCLEQ_INSERT_TAIL ,
+.Nm CIRCLE_LAST ,
+.Nm CIRCLE_NEXT ,
+.Nm CIRCLE_PREV ,
 .Nm CIRCLEQ_REMOVE
 .Nd implementations of singly-linked lists, singly-linked tail queues,
 lists, tail queues, and circular queues
@@ -89,6 +107,7 @@ lists, tail queues, and circular queues
 .Fn SLIST_EMPTY "SLIST_HEAD *head"
 .Fn SLIST_ENTRY "TYPE"
 .Fn SLIST_FIRST "SLIST_HEAD *head"
+.Fn SLIST_FOREACH "TYPE *var" "SLIST_HEAD *head" "SLIST_ENTRY NAME"
 .Fn SLIST_HEAD "HEADNAME" "TYPE"
 .Fn SLIST_INIT "SLIST_HEAD *head"
 .Fn SLIST_INSERT_AFTER "TYPE *listelm" "TYPE *elm" "SLIST_ENTRY NAME"
@@ -97,43 +116,60 @@ lists, tail queues, and circular queues
 .Fn SLIST_REMOVE_HEAD "SLIST_HEAD *head" "SLIST_ENTRY NAME"
 .Fn SLIST_REMOVE "SLIST_HEAD *head" "TYPE *elm" "TYPE" "SLIST_ENTRY NAME"
 .\"
+.Fn STAILQ_EMPTY "STAILQ_HEAD *head"
 .Fn STAILQ_ENTRY "TYPE"
+.Fn STAILQ_FIRST "STAILQ_HEAD *head"
+.Fn STAILQ_FOREACH "TYPE *var" "STAILQ_HEAD *head" "STAILQ_ENTRY NAME"
 .Fn STAILQ_HEAD "HEADNAME" "TYPE"
 .Fn STAILQ_INIT "STAILQ_HEAD *head"
 .Fn STAILQ_INSERT_AFTER "STAILQ_HEAD *head" "TYPE *listelm" "TYPE *elm" "STAILQ_ENTRY NAME"
 .Fn STAILQ_INSERT_HEAD "STAILQ_HEAD *head" "TYPE *elm" "STAILQ_ENTRY NAME"
 .Fn STAILQ_INSERT_TAIL "STAILQ_HEAD *head" "TYPE *elm" "STAILQ_ENTRY NAME"
+.Fn STAILQ_LAST "STAILQ_HEAD *head"
+.Fn STAILQ_NEXT "TYPE *elm" "STAILQ_ENTRY NAME"
 .Fn STAILQ_REMOVE_HEAD "STAILQ_HEAD *head" "STAILQ_ENTRY NAME"
 .Fn STAILQ_REMOVE "STAILQ_HEAD *head" "TYPE *elm" "TYPE" "STAILQ_ENTRY NAME"
 .\"
+.Fn LIST_EMPTY "LIST_HEAD *head"
 .Fn LIST_ENTRY "TYPE"
+.Fn LIST_FIRST "LIST_HEAD *head"
+.Fn LIST_FOREACH "TYPE *var" "LIST_HEAD *head" "LIST_ENTRY NAME"
 .Fn LIST_HEAD "HEADNAME" "TYPE"
 .Fn LIST_INIT "LIST_HEAD *head"
 .Fn LIST_INSERT_AFTER "TYPE *listelm" "TYPE *elm" "LIST_ENTRY NAME"
 .Fn LIST_INSERT_BEFORE "TYPE *listelm" "TYPE *elm" "LIST_ENTRY NAME"
 .Fn LIST_INSERT_HEAD "LIST_HEAD *head" "TYPE *elm" "LIST_ENTRY NAME"
+.Fn LIST_NEXT "TYPE *elm" "LIST_ENTRY NAME"
 .Fn LIST_REMOVE "TYPE *elm" "LIST_ENTRY NAME"
 .\"
 .Fn TAILQ_EMPTY "TAILQ_HEAD *head"
 .Fn TAILQ_ENTRY "TYPE"
 .Fn TAILQ_FIRST "TAILQ_HEAD *head"
+.Fn TAILQ_FOREACH "TYPE *var" "TAILQ_HEAD *head" "TAILQ_ENTRY NAME"
 .Fn TAILQ_HEAD "HEADNAME" "TYPE"
 .Fn TAILQ_INIT "TAILQ_HEAD *head"
 .Fn TAILQ_INSERT_AFTER "TAILQ_HEAD *head" "TYPE *listelm" "TYPE *elm" "TAILQ_ENTRY NAME"
 .Fn TAILQ_INSERT_BEFORE "TYPE *listelm" "TYPE *elm" "TAILQ_ENTRY NAME"
 .Fn TAILQ_INSERT_HEAD "TAILQ_HEAD *head" "TYPE *elm" "TAILQ_ENTRY NAME"
 .Fn TAILQ_INSERT_TAIL "TAILQ_HEAD *head" "TYPE *elm" "TAILQ_ENTRY NAME"
-.Fn TAILQ_LAST "TAILQ_HEAD *head"
+.Fn TAILQ_LAST "TAILQ_HEAD *head" "HEADNAME"
 .Fn TAILQ_NEXT "TYPE *elm" "TAILQ_ENTRY NAME"
+.Fn TAILQ_PREV "TYPE *elm" "HEADNAME" "TAILQ_ENTRY NAME"
 .Fn TAILQ_REMOVE "TAILQ_HEAD *head" "TYPE *elm" "TAILQ_ENTRY NAME"
 .\"
+.Fn CIRCLEQ_EMPTY "CIRCLEQ_HEAD *head"
 .Fn CIRCLEQ_ENTRY "TYPE"
+.Fn CIRCLEQ_FIRST "CIRCLEQ_HEAD *head"
+.Fn CIRCLEQ_FOREACH "TYPE *var" "CIRCLEQ_HEAD *head" "CIRCLEQ_ENTRY NAME"
 .Fn CIRCLEQ_HEAD "HEADNAME" "TYPE"
 .Fn CIRCLEQ_INIT "CIRCLEQ_HEAD *head"
 .Fn CIRCLEQ_INSERT_AFTER "CIRCLEQ_HEAD *head" "TYPE *listelm" "TYPE *elm" "CIRCLEQ_ENTRY NAME"
 .Fn CIRCLEQ_INSERT_BEFORE "CIRCLEQ_HEAD *head" "TYPE *listelm" "TYPE *elm" "CIRCLEQ_ENTRY NAME"
 .Fn CIRCLEQ_INSERT_HEAD "CIRCLEQ_HEAD *head" "TYPE *elm" "CIRCLEQ_ENTRY NAME"
 .Fn CIRCLEQ_INSERT_TAIL "CIRCLEQ_HEAD *head" "TYPE *elm" "CIRCLEQ_ENTRY NAME"
+.Fn CIRCLEQ_LAST "CIRCLEQ_HEAD *head"
+.Fn CIRCLEQ_NEXT "TYPE *elm" "CIRCLEQ_ENTRY NAME"
+.Fn CIRCLE_PREV "TYPE *elm" "CIRCLEQ_ENTRY NAME"
 .Fn CIRCLEQ_REMOVE "CIRCLEQ_HEAD *head" "TYPE *elm" "CIRCLEQ_ENTRY NAME"
 .Sh DESCRIPTION
 These macros define and operate on five types of data structures:
@@ -293,9 +329,25 @@ and
 are user selectable.)
 .Pp
 The macro
+.Nm SLIST_EMPTY
+evaluates to true if there are no elements in the list.
+.Pp
+The macro
 .Nm SLIST_ENTRY
 declares a structure that connects the elements in
 the list.
+.Pp
+The macro
+.Nm SLIST_FIRST
+returns the first element in the list or NULL if the list is empty.
+.Pp
+The macro
+.Nm SLIST_FOREACH
+traverses the list referenced by
+.Fa head
+in the forward direction, assigning each element in
+turn to
+.Fa var .
 .Pp
 The macro
 .Nm SLIST_INIT
@@ -314,6 +366,10 @@ inserts the new element
 .Fa elm
 after the element
 .Fa listelm .
+.Pp
+The macro
+.Nm SLIST_NEXT
+returns the next element in the list.
 .Pp
 The macro
 .Nm SLIST_REMOVE_HEAD
@@ -352,16 +408,16 @@ SLIST_INSERT_AFTER(n1, n2, entries);
 SLIST_REMOVE(&head, n2, entry, entries);/* Deletion. */
 free(n2);
 
-n3 = head.slh_first;
+n3 = SLIST_FIRST(&head);
 SLIST_REMOVE_HEAD(&head, entries);	/* Deletion. */
 free(n3);
 
 					/* Forward traversal. */
-for (np = head.slh_first; np != NULL; np = np->entries.sle_next)
+SLIST_FOREACH(np, &head, entries)
 	np-> ...
 
-while (head.slh_first != NULL) {	/* List Deletion. */
-	n1 = head.slh_first;
+while (!SLIST_EMPTY(&head)) { /* List Deletion. */
+	n1 = SLIST_FIRST(&head);
 	SLIST_REMOVE_HEAD(&head, entries);
 	free(n1);
 }
@@ -402,9 +458,26 @@ and
 are user selectable.)
 .Pp
 The macro
+.Nm STAILQ_EMPTY
+evaluates to true if there are no items on the tail queue.
+.Pp
+The macro
 .Nm STAILQ_ENTRY
 declares a structure that connects the elements in
 the tail queue.
+.Pp
+The macro
+.Nm STAILQ_FIRST
+returns the first item on the tail queue or NULL if the tail queue
+is empty.
+.Pp
+The macro
+.Nm STAILQ_FOREACH
+traverses the tail queue referenced by
+.Fa head
+in the forward direction, assigning each element
+in turn to
+.Fa var .
 .Pp
 The macro
 .Nm STAILQ_INIT
@@ -429,6 +502,15 @@ inserts the new element
 .Fa elm
 after the element
 .Fa listelm .
+.Pp
+The macro
+.Nm STAILQ_LAST
+returns the last item on the tail queue.
+If the tail queue is empty the return value is undefined.
+.Pp
+The macro
+.Nm STAILQ_NEXT
+returns the next item on the tail queue, or NULL this item is the last.
 .Pp
 The macro
 .Nm STAILQ_REMOVE_HEAD
@@ -472,23 +554,23 @@ STAILQ_REMOVE(&head, n2, entry, entries);
 free(n2);
 
 					/* Deletion from the head */
-n3 = head.stqh_first;
+n3 = STAILQ_FIRST(&head);
 STAILQ_REMOVE_HEAD(&head, entries);
 free(n3);
 
 					/* Forward traversal. */
-for (np = head.stqh_first; np != NULL; np = np->entries.stqe_next)
+STAILQ_FOREACH(np, &head, entries)
 	np-> ...
 					/* TailQ Deletion. */
-while (head.stqh_first != NULL) {
-	n1 = head.stqh_first;
+while (!STAILQ_EMPTY(&head)) {
+	n1 = STAILQ_HEAD(&head);
 	TAILQ_REMOVE_HEAD(&head, entries);
 	free(n1);
 }
 					/* Faster TailQ Deletion. */
-n1 = head.stqh_first;
+n1 = STAILQ_FIRST(&head);
 while (n1 != NULL) {
-	n2 = n1->entries.stqe_next;
+	n2 = STAILQ_NEXT(n1, entries);
 	free(n1);
 	n1 = n2;
 }
@@ -528,9 +610,25 @@ and
 are user selectable.)
 .Pp
 The macro
+.Nm LIST_EMPTY
+evaluates to true if their are no elements in the list.
+.Pp
+The macro
 .Nm LIST_ENTRY
 declares a structure that connects the elements in
 the list.
+.Pp
+The macro
+.Nm LIST_FIRST
+returns the first element in the list or NULL if the list
+is empty.
+.Pp
+The macro
+.Nm LIST_FOREACH
+traverses the list referenced by
+.Fa head
+in the forward direction, assigning each element in turn to
+.Fa var .
 .Pp
 The macro
 .Nm LIST_INIT
@@ -556,6 +654,10 @@ inserts the new element
 .Fa elm
 before the element
 .Fa listelm .
+.Pp
+The macro
+.Nm LIST_NEXT
+returns the next element in the list, or NULL if this is the last.
 .Pp
 The macro
 .Nm LIST_REMOVE
@@ -587,18 +689,18 @@ LIST_REMOVE(n2, entries);		/* Deletion. */
 free(n2);
 
 					/* Forward traversal. */
-for (np = head.lh_first; np != NULL; np = np->entries.le_next)
+LIST_FOREACH(np, &head, entries)
 	np-> ...
 
-while (head.lh_first != NULL) {		/* List Deletion. */
-	n1 = head.lh_first;
+while (!LIST_EMPTY(&head)) {          /* List Deletion. */
+	n1 = LIST_FIRST(&head);
 	LIST_REMOVE(n1, entries);
 	free(n1);
 }
 
-n1 = head.lh_first;			/* Faster List Delete. */
+n1 = LIST_FIRST(&head);                       /* Faster List Delete. */
 while (n1 != NULL) {
-	n2 = n1->entries.le_next;
+	n2 = LIST_NEXT(n1, entries);
 	free(n1);
 	n1 = n2;
 }
@@ -655,6 +757,13 @@ returns the first item on the tail queue or NULL if the tail queue
 is empty.
 .Pp
 The macro
+.Nm TAILQ_FOREACH
+traverses the tail queue referenced by
+.Fa head
+in the forward direction, assigning each element in turn to
+.Fa var .
+.Pp
+The macro
 .Nm TAILQ_INIT
 initializes the tail queue referenced by
 .Fa head .
@@ -692,7 +801,12 @@ If the tail queue is empty the return value is undefined.
 .Pp
 The macro
 .Nm TAILQ_NEXT
-returns the next item on the tail queue, or NULL this item is the last.
+returns the next item on the tail queue, or NULL if this item is the last.
+.Pp
+The macro
+.Nm TAILQ_PREV
+returns the previous item on the tail queue, or NULL if this item
+is the first.
 .Pp
 The macro
 .Nm TAILQ_REMOVE
@@ -726,12 +840,12 @@ TAILQ_INSERT_BEFORE(n2, n3, entries);
 TAILQ_REMOVE(&head, n2, entries);	/* Deletion. */
 free(n2);
 					/* Forward traversal. */
-for (np = TAILQ_FIRST(&head); np != NULL; np = TAILQ_NEXT(np, entries))
+TAILQ_FOREACH(np, &head, entries)
 	np-> ...
 					/* TailQ Deletion. */
 while (!TAILQ_EMPTY(head)) {
 	n1 = TAILQ_FIRST(&head);
-	TAILQ_REMOVE(&head, head.tqh_first, entries);
+	TAILQ_REMOVE(&head, n1, entries);
 	free(n1);
 }
 					/* Faster TailQ Deletion. */
@@ -780,9 +894,24 @@ and
 are user selectable.)
 .Pp
 The macro
+.Nm CIRCLEQ_EMPTY
+evaluates to true if there are no items on the circle queue.
+.Pp
+The macro
 .Nm CIRCLEQ_ENTRY
 declares a structure that connects the elements in
 the circular queue.
+.Pp
+The macro
+.Nm CIRCLEQ_FIRST
+returns the first item on the circle queue.
+.Pp
+The macro
+.Nm CICRLEQ_FOREACH
+traverses the circle queue referenced by
+.Fa head
+in the forward direction, assigning each element in turn to
+.Fa var .
 .Pp
 The macro
 .Nm CIRCLEQ_INIT
@@ -816,6 +945,18 @@ before the element
 .Fa listelm .
 .Pp
 The macro
+.Nm CIRCLEQ_LAST
+returns the last item on the circle queue.
+.Pp
+The macro
+.Nm CIRCLEQ_NEXT
+returns the next item on the circle queue.
+.Pp
+The macro
+.Nm CIRCLEQ_PREV
+returns the previous item on the circle queue.
+.Pp
+The macro
 .Nm CIRCLEQ_REMOVE
 removes the element
 .Fa elm
@@ -847,21 +988,21 @@ CIRCLEQ_INSERT_BEFORE(&head, n1, n2, entries);
 CIRCLEQ_REMOVE(&head, n1, entries);	/* Deletion. */
 free(n1);
 					/* Forward traversal. */
-for (np = head.cqh_first; np != (void *)&head; np = np->entries.cqe_next)
+CIRCLEQ_FOREACH(np, &head, entries)
 	np-> ...
 					/* Reverse traversal. */
-for (np = head.cqh_last; np != (void *)&head; np = np->entries.cqe_prev)
+for (np = CIRCLEQ_LAST(&head); np != (void *)&head; np = CIRCLEQ_PREV(np->entries))
 	np-> ...
 					/* CircleQ Deletion. */
-while (head.cqh_first != (void *)&head) {
-	n1 = head.cqh_first;
-	CIRCLEQ_REMOVE(&head, head.cqh_first, entries);
+while (CIRCLEQ_FIRST(&head) != (void *)&head) {
+	n1 = CIRCLEQ_HEAD(&head);
+	CIRCLEQ_REMOVE(&head, n1, entries);
 	free(n1);
 }
 					/* Faster CircleQ Deletion. */
-n1 = head.cqh_first;
+n1 = CIRCLEQ_FIRST(&head);
 while (n1 != (void *)&head) {
-	n2 = n1->entries.cqh_next;
+	n2 = CIRCLEQ_NEXT(n1, entries);
 	free(n1);
 	n1 = n2;
 }
