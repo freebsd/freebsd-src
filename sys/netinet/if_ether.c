@@ -370,6 +370,7 @@ arprequest(ifp, sip, tip, enaddr)
 	ah->ar_pln = sizeof(struct in_addr);	/* protocol address length */
 	ah->ar_op = htons(ARPOP_REQUEST);
 	(void)memcpy(ar_sha(ah), enaddr, ah->ar_hln);
+	memset(ar_tha(ah), 0, ah->ar_hln);
 	(void)memcpy(ar_spa(ah), sip, ah->ar_pln);
 	(void)memcpy(ar_tpa(ah), tip, ah->ar_pln);
 
