@@ -95,8 +95,11 @@ fgetstr(char *buf, int size, int fd)
 	err = read(fd, &c, sizeof(c));
 	if (err < 0)		/* read error */
 	    return(-1);
-	if (err == 0)		/* EOF */
+	if (err == 0) {		/* EOF */
+	    if (len == 0)
+		return(-1);	/* nothing to read */
 	    break;
+	}
 	if ((c == '\r') ||	/* line terminators */
 	    (c == '\n'))
 	    break;
