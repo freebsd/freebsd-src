@@ -51,6 +51,11 @@
 *default host=CHANGE_THIS.FreeBSD.org
 *default base=/usr
 *default prefix=/usr
+#
+# "tag" in the next line should always either be "." to receive the most
+# up-to-date files, or left blank (i.e., "*default release=cvs") to receive
+# the CVS ,v files.  The doc collection is not branched.
+#
 *default release=cvs tag=.
 *default delete use-rel-suffix
 
