@@ -588,7 +588,7 @@ svr4_sys_fcntl(p, uap)
 			long cmd;
 			int flags;
 
-			DPRINTF(("Setting flags 0x%x\n", SCARG(uap, arg)));
+			DPRINTF(("Setting flags %p\n", SCARG(uap, arg)));
 			cmd = SCARG(&fa, cmd); /* save it for a while */
 
 			SCARG(&fa, cmd) = F_GETFL;

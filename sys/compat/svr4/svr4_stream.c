@@ -1549,9 +1549,9 @@ svr4_stream_ioctl(fp, p, retval, fd, cmd, dat)
 		return i_nread(fp, p, retval, fd, cmd, dat);
 
 	case SVR4_I_PUSH:
-		DPRINTF(("I_PUSH %x\n", dat));
+		DPRINTF(("I_PUSH %p\n", dat));
 #if defined(DEBUG_SVR4)
-		show_strbuf(dat);
+		show_strbuf((struct svr4_strbuf *)dat);
 #endif
 		return 0;
 
@@ -2270,7 +2270,7 @@ svr4_sys_sendto(p, uap)
 	SCARG(&sa, buf) = SCARG(uap, buf);
 	SCARG(&sa, len) = SCARG(uap, len);
 	SCARG(&sa, flags) = SCARG(uap, flags);
-	SCARG(&sa, to) = SCARG(uap, to);
+	SCARG(&sa, to) = (caddr_t)SCARG(uap, to);
 	SCARG(&sa, tolen) = SCARG(uap, tolen);
 
 	DPRINTF(("calling sendto()\n"));
