@@ -145,6 +145,8 @@ bus_space_handle_t sparc64_fake_bustag(int, bus_addr_t,
  */
 static void bus_space_barrier(bus_space_tag_t, bus_space_handle_t, bus_size_t,
     bus_size_t, int);
+static int bus_space_subregion(bus_space_tag_t, bus_space_handle_t,
+    bus_size_t, bus_size_t, bus_space_handle_t *);
 
 /* This macro finds the first "upstream" implementation of method `f' */
 #define _BS_CALL(t,f)							\
@@ -157,6 +159,14 @@ bus_space_barrier(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
     bus_size_t s, int f)
 {
 	_BS_CALL(t, bst_bus_barrier)(t, h, o, s, f);
+}
+
+static __inline int
+bus_space_subregion(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
+    bus_size_t s, bus_space_handle_t *hp)
+{
+	*hp = h + o;
+	return (0);
 }
 
 /* flags for bus space map functions */
