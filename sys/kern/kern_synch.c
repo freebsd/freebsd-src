@@ -451,8 +451,20 @@ msleep(ident, mtx, priority, wmesg, timo)
 		p->p_sflag &= ~PS_TIMEOUT;
 		if (sig == 0)
 			rval = EWOULDBLOCK;
-	} else if (timo)
-		callout_stop(&p->p_slpcallout);
+	} else if (timo && callout_stop(&p->p_slpcallout) == 0) {
+		/*
+		 * This isn't supposed to be pretty.  If we are here, then
+		 * the endtsleep() callout is currently executing on another
+		 * CPU and is either spinning on the sched_lock or will be
+		 * soon.  If we don't synchronize here, there is a chance
+		 * that this process may msleep() again before the callout
+		 * has a chance to run and the callout may end up waking up
+		 * the wrong msleep().  Yuck.
+		 */
+		p->p_sflag |= PS_TIMEOUT;
+		p->p_stats->p_ru.ru_nivcsw++;
+		mi_switch();
+	}
 	mtx_unlock_spin(&sched_lock);
 
 	if (rval == 0 && catch) {
@@ -498,7 +510,15 @@ endtsleep(arg)
 	CTR3(KTR_PROC, "endtsleep: proc %p (pid %d, %s)", p, p->p_pid,
 	    p->p_comm);
 	mtx_lock_spin(&sched_lock);
-	if (p->p_wchan != NULL) {
+	/*
+	 * This is the other half of the synchronization with msleep()
+	 * described above.  If the PS_TIMEOUT flag is set, we lost the
+	 * race and just need to put the process back on the runqueue.
+	 */
+	if ((p->p_sflag & PS_TIMEOUT) != 0) {
+		p->p_sflag &= ~PS_TIMEOUT;
+		setrunqueue(p);
+	} else if (p->p_wchan != NULL) {
 		if (p->p_stat == SSLEEP)
 			setrunnable(p);
 		else
