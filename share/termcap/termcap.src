@@ -2338,6 +2338,8 @@ vt100-np|dec-vt100-np|vt100 with no padding (for psl games):\
 	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:sr=\EM:\
 	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:UP=\E[%dA:DO=\E[%dB:RI=\E[%dC:\
 	:LE=\E[%dD:ct=\E[3g:st=\EH:tc=vt100-am:
+vt100-em|dec-vt100-em|vt100 emulation (without semigraphics and padding):\
+	:as@:ae@:ac@:tc=vt100-np:
 gt42|dec gt42:\
 	:do=^J:le=^H:bs:co#72:ns:li#40:os:
 #From ts@pc.ecn.purdue.edu (Thomas Ruschak)
@@ -2433,6 +2435,8 @@ vt102-w-nam|dec-vt102-w-nam|dec vt102 132 cols (w/advanced video), no am:\
 	:is=\E>\E[?1;4;5;7l\E[?3;8h\E[1;24r\E[24;1H:\
 	:rs=\E>\E[?1;4;5;7l\E[?3;8h:\
 	:co#132:vt@:tc=vt102-nam:
+vt102-em|dec-vt102-em|vt102 emulation (without semigraphics):\
+	:as@:ae@:ac@:tc=vt102:
 vt52|dec-vt52|dec vt52:\
 	:do=^J:le=^H:bs:cd=\EJ:ce=\EK:cl=\EH\EJ:cm=\EY%+ %+ :co#80:li#24:\
 	:nd=\EC:pt:sr=\EI:up=\EA:ku=\EA:kd=\EB:kr=\EC:kl=\ED:kb=^H:
@@ -2483,6 +2487,8 @@ vt200-ws|vt220-ws|dec-vt220-ws|dec vt200 series; 132 col.; smooth scroll:\
 	:is=\E>\E[?1;5l\E[?3;4;7;8h\E[1;24r\E[24;1H:\
 	:rs=\E>\E[?1;5l\E[?3;4;7;8h:\
 	:co#132:vt@:tc=vt200:
+vt200-em|vt220-em|dec-vt200-em|dec-vt220-em|vt200 emulation (without semigraphics ):\
+	:as@:ae@:ac@:tc=vt200:
 # @(#)termcap	X10/6.6	11/7/86, minus alternate screen, plus :cs
 xterm|vs100|xterm terminal emulator (X window system):\
 	:li#65:\
