@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.48 1996/06/06 22:53:21 jkh Exp $
+#	$Id: Makefile,v 1.219 1996/06/07 11:46:18 jkh Exp $
 #
 # How to roll a release:
 #
@@ -534,8 +534,9 @@ doMFSKERN:
 		-e '/maxusers/s/10/4/' < GENERIC > BOOTMFS && \
 	  echo "options  MFS" >> BOOTMFS && \
 	  echo "options  NFS_NOSERVER" >> BOOTMFS && \
-	  echo 'options  "MAXCONS=4"' >> BOOTMFS && \
-	  echo "options \"MFS_ROOT=`cat fs-image.${FSIMAGE}.size`\"" >> BOOTMFS
+	  echo 'options  "MAXCONS=4"' >> BOOTMFS
+	echo "options \"MFS_ROOT=`cat fs-image.${FSIMAGE}.size`\"" >> \
+	  ${.CURDIR}/../sys/i386/conf/BOOTMFS
 	cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS
 	rm -rf ${RD}/boot.${FSIMAGE}
 	mkdir  ${RD}/boot.${FSIMAGE}
