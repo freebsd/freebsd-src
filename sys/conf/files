@@ -215,7 +215,7 @@ dev/advansys/adw_pci.c	optional adw pci
 dev/advansys/adwcam.c	optional adw
 dev/advansys/adwlib.c	optional adw
 dev/advansys/adwmcode.c	optional adw
-dev/aha/aha.c		count aha
+dev/aha/aha.c		optional aha
 dev/aha/aha_isa.c	optional aha isa
 dev/aha/aha_mca.c	optional aha mca
 dev/ahb/ahb.c		optional ahb eisa
@@ -236,6 +236,7 @@ dev/amr/amr_pci.c	optional amr
 dev/an/if_an.c		optional an
 dev/an/if_an_isa.c	optional an isa
 dev/an/if_an_pccard.c	optional an card
+#dev/an/if_an_pccard.c	optional an pccard
 dev/an/if_an_pci.c	optional an pci
 dev/ar/if_ar.c		optional ar
 dev/ar/if_ar_pci.c	optional ar pci
@@ -255,6 +256,7 @@ dev/awi/awi.c		optional awi
 dev/awi/awi_wep.c	optional awi
 dev/awi/awi_wicfg.c	optional awi
 dev/awi/if_awi_pccard.c	optional awi card
+dev/awi/if_awi_pccard.c	optional awi pccard
 dev/bktr/bktr_audio.c	optional bktr pci
 dev/bktr/bktr_card.c	optional bktr pci
 dev/bktr/bktr_core.c	count bktr pci
@@ -293,8 +295,10 @@ dev/ep/if_ep_pccard.c	optional ep pccard
 dev/ex/if_ex.c		optional ex
 dev/ex/if_ex_isa.c	optional ex isa
 dev/ex/if_ex_pccard.c	optional ex card
+#dev/ex/if_ex_pccard.c	optional ex pccard
 dev/fe/if_fe.c		optional fe
 dev/fe/if_fe_pccard.c	optional fe card
+#dev/fe/if_fe_pccard.c	optional fe pccard
 dev/hea/eni.c		optional hea
 dev/hea/eni_buffer.c	optional hea
 dev/hea/eni_globals.c	optional hea
@@ -345,8 +349,10 @@ dev/lnc/if_lnc_pc98.c	optional lnc isa
 dev/lnc/if_lnc_pci.c	optional lnc pci
 dev/ncv/ncr53c500.c	optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv card
+#dev/ncv/ncr53c500_pccard.c	optional ncv pccard
 dev/nsp/nsp.c		optional nsp
 dev/nsp/nsp_pccard.c	optional nsp card
+#dev/nsp/nsp_pccard.c	optional nsp pccard
 dev/mca/mca_bus.c	optional mca
 dev/md/md.c		optional md
 dev/mii/amphy.c		optional miibus
@@ -492,6 +498,7 @@ dev/sr/if_sr_pci.c	optional sr pci
 dev/streams/streams.c	optional streams
 dev/stg/tmc18c30.c	optional stg
 dev/stg/tmc18c30_pccard.c	optional stg card
+#dev/stg/tmc18c30_pccard.c	optional stg pccard
 dev/stg/tmc18c30_isa.c	optional stg isa
 dev/sym/sym_hipd.c	optional sym					\
 	dependency	"$S/dev/sym/sym_{conf,defs}.h"
@@ -544,6 +551,7 @@ dev/vn/vn.c			optional vn	\
 dev/vx/if_vx.c			optional vx
 dev/vx/if_vx_eisa.c		optional vx eisa
 dev/vx/if_vx_pci.c		optional vx pci
+#dev/wlp/if_wlp.c		optional wlp card
 dev/wds/wd7000.c		optional wds isa
 dev/wi/if_wi.c			optional wi card
 dev/wi/if_wi.c			optional wi pccard
