@@ -1658,7 +1658,7 @@ setup_allocindir_phase2(bp, ip, aip)
 	struct allocindir *oldaip;
 	struct freefrag *freefrag;
 	struct newblk *newblk;
-	daddr_t blkno;
+	ufs_daddr_t blkno;
 
 	if (bp->b_lblkno >= 0)
 		panic("setup_allocindir_phase2: not indir blk");

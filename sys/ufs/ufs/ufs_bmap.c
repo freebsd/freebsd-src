@@ -71,7 +71,7 @@ ufs_bmap(ap)
 		int *a_runb;
 	} */ *ap;
 {
-	daddr_t blkno;
+	ufs_daddr_t blkno;
 	int error;
 
 	/*
