@@ -470,6 +470,7 @@ setpgid(td, uap)
 		if (!inferior(targp)) {
 			PROC_UNLOCK(targp);
 			sx_sunlock(&proctree_lock);
+			error = ESRCH;
 			goto fail;
 		}
 		sx_sunlock(&proctree_lock);
@@ -529,6 +530,7 @@ fail:
 	PGRPSESS_XUNLOCK();
 
 	KASSERT(newpgrp != NULL, ("setpgid failed and newpgrp is null."));
+	KASSERT(error != 0, ("setpgid successfully failed?"));
 	FREE(newpgrp, M_PGRP);
 
 	mtx_unlock(&Giant);
