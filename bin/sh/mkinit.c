@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mkinit.c,v 1.4 1995/05/30 00:07:19 rgrimes Exp $
+ *	$Id: mkinit.c,v 1.5 1995/10/01 15:13:31 joerg Exp $
  */
 
 #ifndef lint
@@ -43,7 +43,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)mkinit.c	8.1 (Berkeley) 5/31/93";
+static char sccsid[] = "@(#)mkinit.c	8.2 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 /*
@@ -51,16 +51,17 @@ static char sccsid[] = "@(#)mkinit.c	8.1 (Berkeley) 5/31/93";
  * special events and combines this code into one file.  This (allegedly)
  * improves the structure of the program since there is no need for
  * anyone outside of a module to know that that module performs special
- * operations on particular events.  The command is executed iff init.c
- * is actually changed.
+ * operations on particular events.
  *
- * Usage:  mkinit command sourcefile...
+ * Usage:  mkinit sourcefile...
  */
 
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -73,7 +74,6 @@ static char sccsid[] = "@(#)mkinit.c	8.1 (Berkeley) 5/31/93";
 
 #define OUTFILE "init.c"
 #define OUTTEMP "init.c.new"
-#define OUTOBJ "init.o"
 
 
 /*
@@ -150,42 +150,41 @@ struct text decls;			/* declarations */
 int amiddecls;				/* for formatting */
 
 
-void readfile(), doevent(), doinclude(), dodecl(), output();
-void addstr(), addchar(), writetext();
+void readfile __P((char *));
+int match __P((char *, char *));
+int gooddefine __P((char *));
+void doevent __P((struct event *, FILE *, char *));
+void doinclude __P((char *));
+void dodecl __P((char *, FILE *));
+void output __P((void));
+void addstr __P((char *, struct text *));
+void addchar __P((int, struct text *));
+void writetext __P((struct text *, FILE *));
+FILE *ckfopen __P((char *, char *));
+void *ckmalloc __P((int));
+char *savestr __P((char *)); 
+void error __P((char *));  
 
 #define equal(s1, s2)	(strcmp(s1, s2) == 0)
 
-FILE *ckfopen();
-char *savestr();
-void *ckmalloc __P((int));
-void error();
-
+int
 main(argc, argv)
+	int argc;
 	char **argv;
-	{
+{
 	char **ap;
-	int fd;
-	char c;
 
 	if (argc < 2)
-		error("Usage:  mkinit command file...");
+		error("Usage:  mkinit file...");
 	header_files[0] = "\"shell.h\"";
 	header_files[1] = "\"mystring.h\"";
-	for (ap = argv + 2 ; *ap ; ap++)
+	for (ap = argv + 1 ; *ap ; ap++)
 		readfile(*ap);
 	output();
-	if (file_changed()) {
-		unlink(OUTFILE);
-		link(OUTTEMP, OUTFILE);
-		unlink(OUTTEMP);
-	} else {
-		unlink(OUTTEMP);
-		if (touch(OUTOBJ))
-			exit(0);		/* no compilation necessary */
-	}
-	printf("%s\n", argv[1]);
-	execl("/bin/sh", "sh", "-c", argv[1], (char *)0);
-	error("Can't exec shell");
+	unlink(OUTFILE);
+	link(OUTTEMP, OUTFILE);
+	unlink(OUTTEMP);
+	exit(0);
 }
 
 
@@ -240,7 +239,7 @@ int
 match(name, line)
 	char *name;
 	char *line;
-	{
+{
 	register char *p, *q;
 
 	p = name, q = line;
@@ -257,7 +256,7 @@ match(name, line)
 int
 gooddefine(line)
 	char *line;
-	{
+{
 	register char *p;
 
 	if (! match("#define", line))
@@ -364,7 +363,7 @@ dodecl(line1, fp)
 		if (! amiddecls)
 			addchar('\n', &decls);
 		q = NULL;
-		for (p = line1 + 6 ; *p != '=' && *p != '/' && *p != '\n'; p++);
+		for (p = line1 + 6 ; *p != '\0' && *p != '=' && *p != '/' && *p != '\n'; p++);
 		if (*p == '=') {		/* eliminate initialization */
 			for (q = p ; *q && *q != ';' ; q++);
 			if (*q == '\0')
@@ -415,51 +414,6 @@ output() {
 
 
 /*
- * Return true if the new output file is different from the old one.
- */
-
-int
-file_changed() {
-	register FILE *f1, *f2;
-	register int c;
-
-	if ((f1 = fopen(OUTFILE, "r")) == NULL
-	 || (f2 = fopen(OUTTEMP, "r")) == NULL)
-		return 1;
-	while ((c = getc(f1)) == getc(f2)) {
-		if (c == EOF)
-			return 0;
-	}
-	return 1;
-}
-
-
-/*
- * Touch a file.  Returns 0 on failure, 1 on success.
- */
-
-int
-touch(file)
-	char *file;
-	{
-	int fd;
-	char c;
-
-	if ((fd = open(file, O_RDWR)) < 0)
-		return 0;
-	if (read(fd, &c, 1) != 1) {
-		close(fd);
-		return 0;
-	}
-	lseek(fd, (off_t)0, 0);
-	write(fd, &c, 1);
-	close(fd);
-	return 1;
-}
-
-
-
-/*
  * A text structure is simply a block of text that is kept in memory.
  * Addstr appends a string to the text struct, and addchar appends a single
  * character.
@@ -481,8 +435,9 @@ addstr(s, text)
 
 void
 addchar(c, text)
+	int c;
 	register struct text *text;
-	{
+{
 	struct block *bp;
 
 	if (--text->nleft < 0) {
@@ -530,9 +485,10 @@ ckfopen(file, mode)
 }
 
 void *
-ckmalloc(nbytes) {
+ckmalloc(nbytes) 
+	int nbytes;
+{
 	register char *p;
-	char *malloc();
 
 	if ((p = malloc(nbytes)) == NULL)
 		error("Out of space");

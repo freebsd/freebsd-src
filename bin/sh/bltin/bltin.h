@@ -33,8 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)bltin.h	8.1 (Berkeley) 5/31/93
- *	$Id: bltin.h,v 1.3 1995/12/10 15:37:44 joerg Exp $
+ *	@(#)bltin.h	8.2 (Berkeley) 5/4/95
+ *	$Id: bltin.h,v 1.4 1995/12/14 23:19:36 bde Exp $
  */
 
 /*

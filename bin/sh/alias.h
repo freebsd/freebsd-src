@@ -33,8 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)alias.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	@(#)alias.h	8.2 (Berkeley) 5/4/95
+ *	$Id: alias.h,v 1.2 1994/09/24 02:57:20 davidg Exp $
  */
 
 #define ALIASINUSE	1
@@ -46,4 +46,7 @@ struct alias {
 	int flag;
 };
 
-struct alias *lookupalias();
+struct alias *lookupalias __P((char *, int));
+int aliascmd __P((int, char **));
+int unaliascmd __P((int, char **));
+void rmaliases __P((void));

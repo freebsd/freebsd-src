@@ -32,8 +32,8 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	@(#)kill	8.1 (Berkeley) 5/31/93
-#	$Id$
+#	@(#)kill	8.2 (Berkeley) 5/4/95
+#	$Id: kill,v 1.2 1994/09/24 02:58:36 davidg Exp $
 
 # Convert job names to process ids and then run /bin/kill.
 

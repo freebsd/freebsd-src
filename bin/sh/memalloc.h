@@ -33,8 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)memalloc.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	@(#)memalloc.h	8.2 (Berkeley) 5/4/95
+ *	$Id: memalloc.h,v 1.2 1994/09/24 02:57:51 davidg Exp $
  */
 
 struct stackmark {
@@ -49,35 +49,18 @@ extern int stacknleft;
 extern int sstrnleft;
 extern int herefd;
 
-#ifdef __STDC__
-pointer ckmalloc(int);
-pointer ckrealloc(pointer, int);
-void free(pointer);		/* defined in C library */
-char *savestr(char *);
-pointer stalloc(int);
-void stunalloc(pointer);
-void setstackmark(struct stackmark *);
-void popstackmark(struct stackmark *);
-void growstackblock(void);
-void grabstackblock(int);
-char *growstackstr(void);
-char *makestrspace(void);
-void ungrabstackstr(char *, char *);
-#else
-pointer ckmalloc();
-pointer ckrealloc();
-void free();		/* defined in C library */
-char *savestr();
-pointer stalloc();
-void stunalloc();
-void setstackmark();
-void popstackmark();
-void growstackblock();
-void grabstackblock();
-char *growstackstr();
-char *makestrspace();
-void ungrabstackstr();
-#endif
+pointer ckmalloc __P((int));
+pointer ckrealloc __P((pointer, int));
+char *savestr __P((char *));
+pointer stalloc __P((int));
+void stunalloc __P((pointer));
+void setstackmark __P((struct stackmark *));
+void popstackmark __P((struct stackmark *));
+void growstackblock __P((void));
+void grabstackblock __P((int));
+char *growstackstr __P((void));
+char *makestrspace __P((void));
+void ungrabstackstr __P((char *, char *));
 
 
 
@@ -85,7 +68,7 @@ void ungrabstackstr();
 #define stackblocksize() stacknleft
 #define STARTSTACKSTR(p)	p = stackblock(), sstrnleft = stackblocksize()
 #define STPUTC(c, p)	(--sstrnleft >= 0? (*p++ = (c)) : (p = growstackstr(), *p++ = (c)))
-#define CHECKSTRSPACE(n, p)	if (sstrnleft < n) p = makestrspace(); else
+#define CHECKSTRSPACE(n, p)	{ if (sstrnleft < n) p = makestrspace(); }
 #define USTPUTC(c, p)	(--sstrnleft, *p++ = (c))
 #define STACKSTRNUL(p)	(sstrnleft == 0? (p = growstackstr(), *p = '\0') : (*p = '\0'))
 #define STUNPUTC(p)	(++sstrnleft, --p)

@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)show.h	1.1 (Berkeley) 5/4/95
+ *	$Id$
  */
 
 void showtree __P((union node *));
 void trputc __P((int));
-void trace __P((const char *, ...));
+void shtrace __P((const char *, ...));
 void trputs __P((char *));
 void trargs __P((char **));
 void opentrace __P((void));

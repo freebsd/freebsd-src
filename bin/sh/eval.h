@@ -33,8 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)eval.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	@(#)eval.h	8.2 (Berkeley) 5/4/95
+ *	$Id: eval.h,v 1.2 1994/09/24 02:57:31 davidg Exp $
  */
 
 extern char *commandname;	/* currently executing command */
@@ -49,17 +49,17 @@ struct backcmd {		/* result of evalbackcmd */
 	struct job *jp;		/* job structure for command */
 };
 
-
-#ifdef __STDC__
-void evalstring(char *);
+int evalcmd __P((int, char **));
+void evalstring __P((char *));
 union node;	/* BLETCH for ansi C */
-void evaltree(union node *, int);
-void evalbackcmd(union node *, struct backcmd *);
-#else
-void evalstring();
-void evaltree();
-void evalbackcmd();
-#endif
+void evaltree __P((union node *, int));
+void evalbackcmd __P((union node *, struct backcmd *));
+int bltincmd __P((int, char **));
+int breakcmd __P((int, char **));
+int returncmd __P((int, char **));
+int falsecmd __P((int, char **));
+int truecmd __P((int, char **));
+int execcmd __P((int, char **));
 
 /* in_function returns nonzero if we are currently evaluating a function */
 #define in_function()	funcnest

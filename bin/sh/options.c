@@ -33,12 +33,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: options.c,v 1.5 1995/10/01 15:11:42 joerg Exp $
+ *	$Id: options.c,v 1.6 1995/10/09 17:56:32 joerg Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)options.c	8.1 (Berkeley) 5/31/93";
+static char sccsid[] = "@(#)options.c	8.2 (Berkeley) 5/4/95";
 #endif /* not lint */
+
+#include <signal.h>
+#include <unistd.h>
+#include <stdlib.h>
 
 #include "shell.h"
 #define DEFINE_OPTIONS
@@ -54,6 +58,9 @@ static char sccsid[] = "@(#)options.c	8.1 (Berkeley) 5/31/93";
 #include "memalloc.h"
 #include "error.h"
 #include "mystring.h"
+#ifndef NO_HISTORY
+#include "myhistedit.h"
+#endif
 
 char *arg0;			/* value of $0 */
 struct shparam shellparam;	/* current positional parameters */
@@ -64,16 +71,9 @@ char *optptr;			/* used by nextopt */
 char *minusc;			/* argument to -c option */
 
 
-#ifdef __STDC__
-STATIC void options(int);
-STATIC void setoption(int, int);
-STATIC void minus_o(char *, int);
-#else
-STATIC void options();
-STATIC void setoption();
-STATIC void minus_o();
-#endif
-
+STATIC void options __P((int));
+STATIC void minus_o __P((char *, int));
+STATIC void setoption __P((int, int));
 
 
 /*
@@ -82,8 +82,9 @@ STATIC void minus_o();
 
 void
 procargs(argc, argv)
+	int argc;
 	char **argv;
-	{
+{
 	int i;
 
 	argptr = argv;
@@ -119,9 +120,13 @@ procargs(argc, argv)
 }
 
 
-optschanged() {
+void
+optschanged()
+{
 	setinteractive(iflag);
+#ifndef NO_HISTORY
 	histedit();
+#endif
 	setjobctl(mflag);
 }
 
@@ -131,7 +136,9 @@ optschanged() {
  */
 
 STATIC void
-options(cmdline) {
+options(cmdline) 
+	int cmdline;
+{
 	register char *p;
 	int val;
 	int c;
@@ -142,14 +149,14 @@ options(cmdline) {
 		argptr++;
 		if ((c = *p++) == '-') {
 			val = 1;
-                        if (p[0] == '\0' || p[0] == '-' && p[1] == '\0') {
+                        if (p[0] == '\0' || (p[0] == '-' && p[1] == '\0')) {
                                 if (!cmdline) {
                                         /* "-" means turn off -x and -v */
                                         if (p[0] == '\0')
                                                 xflag = vflag = 0;
                                         /* "--" means reset params */
                                         else if (*argptr == NULL)
-                                                setparam(argptr);
+						setparam(argptr);
                                 }
 				break;	  /* "-" or  "--" terminates options */
 			}
@@ -293,7 +300,11 @@ freeparam(param)
  * The shift builtin command.
  */
 
-shiftcmd(argc, argv)  char **argv; {
+int
+shiftcmd(argc, argv)
+	int argc;
+	char **argv; 
+{
 	int n;
 	char **ap1, **ap2;
 
@@ -321,7 +332,11 @@ shiftcmd(argc, argv)  char **argv; {
  * The set command builtin.
  */
 
-setcmd(argc, argv)  char **argv; {
+int
+setcmd(argc, argv)
+	int argc;
+	char **argv; 
+{
 	if (argc == 1)
 		return showvarscmd(argc, argv);
 	INTOFF;
@@ -342,7 +357,11 @@ setcmd(argc, argv)  char **argv; {
  * then it's the first time getopts has been called.
  */
 
-getoptscmd(argc, argv)  char **argv; {
+int
+getoptscmd(argc, argv)
+	int argc;
+	char **argv; 
+{
 	register char *p, *q;
 	char c;
 	char s[10];
