@@ -23,13 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: module.h,v 1.2 1997/10/24 05:29:07 jmg Exp $
+ *	$Id: module.h,v 1.3 1998/06/10 10:57:29 dfr Exp $
  */
 
 #ifndef _SYS_MODULE_H_
 #define _SYS_MODULE_H_
-
-#ifdef KERNEL
 
 typedef enum {
     MOD_LOAD,
@@ -49,14 +47,18 @@ typedef struct moduledata {
     char*		name;	/* module name */
     modeventhand_t	evhand;	/* event handler */
     void*		priv;	/* extra data */
+    void*		_file;	/* private; used by linker */
 } moduledata_t;
+
+#ifdef KERNEL
 
 #define DECLARE_MODULE(name, data, sub, order) \
 SYSINIT(name##module, sub, order, module_register_init, &data) \
 struct __hack
 
 void module_register_init(void *data);
-int module_register(const char *name, modeventhand_t callback, void *arg);
+int module_register(const char *name, modeventhand_t callback, void *arg,
+		    void *file);
 module_t module_lookupbyname(const char *name);
 module_t module_lookupbyid(int modid);
 void module_reference(module_t mod);
