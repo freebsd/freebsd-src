@@ -92,8 +92,8 @@ static driver_t tdkphy_driver = {
 
 DRIVER_MODULE(tdkphy, miibus, tdkphy_driver, tdkphy_devclass, 0, 0);
 
-int	tdkphy_service __P((struct mii_softc *, struct mii_data *, int));
-void	tdkphy_status __P((struct mii_softc *));
+static int tdkphy_service __P((struct mii_softc *, struct mii_data *, int));
+static void tdkphy_status __P((struct mii_softc *));
 
 static int
 tdkphy_probe(device_t dev)
