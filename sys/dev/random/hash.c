@@ -35,7 +35,7 @@
 #include <sys/types.h>
 #include <crypto/blowfish/blowfish.h>
 
-#include <dev/randomdev/hash.h>
+#include <dev/random/hash.h>
 
 /* initialise the hash by copying in some supplied data */
 void
