@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: extract_src.sh,v 1.10 1995/03/24 03:38:48 phk Exp $
+# $Id: extract_src.sh,v 1.11 1995/03/25 05:03:40 phk Exp $
 PATH=/stand:$PATH
 DDIR=/usr/src
 
@@ -13,4 +13,5 @@ for T in src*.aa ; do
 			gzip -c -d | ( cd $DDIR; cpio -H tar -imdu )
 	fi
 done
+rm -f /sys
 ln -fs /usr/src/sys /sys
