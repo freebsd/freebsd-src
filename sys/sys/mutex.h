@@ -354,6 +354,12 @@ do {									\
 	if (mtx_owned(&Giant))						\
 		WITNESS_RESTORE(&Giant.mtx_object, Giant)
 
+#define	UGAR(rval) do {							\
+	int _val = (rval);						\
+	mtx_unlock(&Giant);						\
+	return (_val);							\
+} while (0)
+
 /*
  * The INVARIANTS-enabled mtx_assert() functionality.
  *
