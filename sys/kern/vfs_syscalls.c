@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.112.2.1 1999/01/24 06:36:04 bde Exp $
+ * $Id: vfs_syscalls.c,v 1.112.2.2 1999/02/27 07:10:39 julian Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */

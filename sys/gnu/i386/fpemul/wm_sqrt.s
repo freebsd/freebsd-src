@@ -60,7 +60,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: wm_sqrt.s,v 1.7 1997/04/22 06:54:57 jdp Exp $
+ *     $Id: wm_sqrt.s,v 1.8 1997/06/14 15:11:07 bde Exp $
  *
  */
 

@@ -27,7 +27,7 @@
  *	i4b_isic_isa.c - ISA bus interface
  *	==================================
  *
- *	$Id: i4b_isic_isa.c,v 1.14 1998/12/20 11:07:59 hm Exp $ 
+ *	$Id: i4b_isic_isa.c,v 1.1 1998/12/27 21:46:46 phk Exp $ 
  *
  *      last edit-date: [Fri Dec 18 12:00:26 1998]
  *

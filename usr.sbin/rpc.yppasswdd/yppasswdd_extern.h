@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswdd_extern.h,v 1.2 1997/07/28 18:31:11 wpaul Exp $
+ *	$Id: yppasswdd_extern.h,v 1.8 1997/07/29 15:43:19 wpaul Exp $
  */
 
 #include <sys/types.h>

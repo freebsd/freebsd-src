@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amq_defs.h,v 1.1.1.1 1998/11/05 02:04:44 ezk Exp $
+ * $Id: amq_defs.h,v 1.1.1.2 1999/01/13 19:20:25 obrien Exp $
  *
  */
 

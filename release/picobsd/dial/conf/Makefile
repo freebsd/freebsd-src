@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 1998/10/15 21:39:58 abial Exp $
+# $Id: Makefile,v 1.4 1999/01/14 23:15:39 abial Exp $
 #
 
 SRC?=/usr/src

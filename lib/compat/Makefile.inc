@@ -1,3 +1,3 @@
-# $Id: Makefile.inc,v 1.4 1997/02/22 14:57:33 peter Exp $
+# $Id: Makefile.inc,v 1.5 1998/09/26 11:54:02 jkh Exp $
 
 LIBCOMPATDIR?=	${LIBDIR}/compat/aout

@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.24 1999/03/23 02:00:52 grog Exp grog $
+ * $Id: vinumio.c,v 1.7.2.6 1999/05/05 05:18:16 grog Exp $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */

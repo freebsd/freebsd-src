@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rain_saver.c,v 1.3 1999/04/12 13:34:57 des Exp $
+ *	$Id: rain_saver.c,v 1.2.2.1 1999/04/17 19:31:18 des Exp $
  */
 
 #include <sys/param.h>

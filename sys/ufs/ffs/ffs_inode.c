@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $Id: ffs_inode.c,v 1.51 1999/01/06 18:18:06 bde Exp $
+ * $Id: ffs_inode.c,v 1.52 1999/01/07 16:14:16 bde Exp $
  */
 
 #include "opt_quota.h"

@@ -27,7 +27,7 @@
  *	layer2.c - decode and print layer 2 (Q.921) information
  *	-------------------------------------------------------
  *
- *	$Id: layer2.c,v 1.3 1998/12/18 17:09:38 hm Exp $
+ *	$Id: layer2.c,v 1.1 1998/12/27 21:47:04 phk Exp $
  *
  *      last edit-date: [Fri Dec 18 18:12:09 1998]
  *

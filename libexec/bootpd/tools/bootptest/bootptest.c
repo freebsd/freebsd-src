@@ -31,7 +31,7 @@
  * 09/28/93 Released version 1.0
  * 09/93 Original developed by Gordon W. Ross <gwr@mc.com>
  *
- *	$Id: bootptest.c,v 1.6 1999/04/25 22:23:34 imp Exp $
+ *	$Id: bootptest.c,v 1.5.2.1 1999/05/02 09:35:19 brian Exp $
  */
 
 char *usage = "bootptest [-h] server-name [vendor-data-template-file]";

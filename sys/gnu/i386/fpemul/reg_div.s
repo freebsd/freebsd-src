@@ -60,7 +60,7 @@
  * W. Metzenthen   June 1994.
  *
  * 
- *      $Id: reg_div.s,v 1.7 1997/04/22 06:54:50 jdp Exp $
+ *      $Id: reg_div.s,v 1.8 1997/06/14 15:11:05 bde Exp $
  *
  */
 

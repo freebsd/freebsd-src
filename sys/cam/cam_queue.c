@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_queue.c,v 1.1.2.1 1999/04/07 23:08:55 gibbs Exp $
+ *      $Id: cam_queue.c,v 1.1.2.2 1999/04/19 21:36:28 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>

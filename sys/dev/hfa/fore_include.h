@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_include.h,v 1.8 1998/02/19 20:10:18 mks Exp $
+ *	@(#) $Id: fore_include.h,v 1.1 1998/09/15 08:22:55 phk Exp $
  *
  */
 

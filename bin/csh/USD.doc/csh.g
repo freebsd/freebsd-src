@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)csh.g	8.1 (Berkeley) 6/8/93
-.\"	$Id$
+.\"	$Id: csh.g,v 1.4 1997/02/22 14:02:25 peter Exp $
 .\"
 .SH
 Glossary

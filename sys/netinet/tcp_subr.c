@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.50 1999/02/03 08:59:30 msmith Exp $
+ *	$Id: tcp_subr.c,v 1.49.2.1 1999/02/04 06:40:28 msmith Exp $
  */
 
 #include "opt_compat.h"

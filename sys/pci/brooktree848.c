@@ -1,4 +1,4 @@
-/* $Id: brooktree848.c,v 1.70 1999/04/29 05:48:32 roger Exp $ */
+/* $Id: brooktree848.c,v 1.61.2.4 1999/05/08 06:29:19 roger Exp $ */
 /* BT848 Driver for Brooktree's Bt848, Bt849, Bt878 and Bt 879 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 

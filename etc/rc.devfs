@@ -1,5 +1,5 @@
 #
-# $Id: rc.devfs,v 1.3 1998/10/13 08:25:09 jkh Exp $
+# $Id: rc.devfs,v 1.3.2.1 1999/02/10 18:08:38 jkh Exp $
 #
 # If there is a global system configuration file, suck it in.
 if [ -f /etc/defaults/rc.conf ]; then

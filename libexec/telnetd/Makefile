@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 12/15/93
-#	$Id$
+#	$Id: Makefile,v 1.11 1997/09/28 08:40:54 markm Exp $
 
 PROG=	telnetd
 CFLAGS+=-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS

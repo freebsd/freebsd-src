@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id$
+#	$Id: rc.shutdown,v 1.1 1997/08/02 00:22:45 davidn Exp $
 
 # site-specific closing actions for daemons run by init on shutdown
 # or before going single-user from multi-user.

@@ -27,7 +27,7 @@
  *	i4b_isic_pci.c - PCI bus interface
  *	==================================
  *
- *	$Id: i4b_isic_pci.c,v 1.1 1998/12/27 21:46:46 phk Exp $
+ *	$Id: i4b_isic_pci.c,v 1.2 1999/01/12 11:04:59 eivind Exp $
  *
  *      last edit-date: [Sat Dec  5 18:24:36 1998]
  *

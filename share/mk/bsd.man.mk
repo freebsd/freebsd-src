@@ -1,4 +1,4 @@
-#	$Id: bsd.man.mk,v 1.29 1998/09/07 05:55:02 jb Exp $
+#	$Id: bsd.man.mk,v 1.30 1998/09/09 10:12:07 bde Exp $
 #
 # The include file <bsd.man.mk> handles installing manual pages and 
 # their links.

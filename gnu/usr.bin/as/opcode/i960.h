@@ -18,7 +18,7 @@
  * appropriate.
  */
 
-/* $Id$ */
+/* $Id: i960.h,v 1.4 1997/02/22 15:44:30 peter Exp $ */
 
 #define CTRL	0
 #define COBR	1

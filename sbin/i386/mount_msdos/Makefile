@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.9 1998/02/23 09:10:56 ache Exp $
+#	$Id: Makefile,v 1.10 1998/02/23 16:49:02 ache Exp $
 #
 
 PROG=	mount_msdos

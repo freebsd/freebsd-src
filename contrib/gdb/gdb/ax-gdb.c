@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-/* $Id$ */
+/* $Id: ax-gdb.c,v 1.1.1.1.2.1 1999/05/08 08:51:29 dfr Exp $ */
 
 #include "defs.h"
 #include "symtab.h"

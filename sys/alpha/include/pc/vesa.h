@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: vesa.h,v 1.1 1998/09/17 09:38:36 dfr Exp $
  * from: i386/include/pc vesa.h,v 1.1
  */
 

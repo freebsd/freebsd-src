@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: setdef1.c,v 1.1 1998/06/10 10:53:13 dfr Exp $
+ * $Id: setdef1.c,v 1.1.1.1 1998/08/21 03:17:42 msmith Exp $
  */
 
 #ifdef __ELF__

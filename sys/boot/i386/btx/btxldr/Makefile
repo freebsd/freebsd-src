@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1998/10/13 18:29:18 rnordier Exp $
+#	$Id: Makefile,v 1.6 1998/10/30 00:11:35 msmith Exp $
 
 ORG=0x100000
 AFLAGS+=	--assembler-with-cpp

@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: boot0.m4,v 1.2 1998/10/19 19:13:53 rnordier Exp $
+#	$Id: boot0.m4,v 1.3 1998/11/29 14:09:00 rnordier Exp $
 
 define(_al,0x0)dnl
 define(_cl,0x1)dnl

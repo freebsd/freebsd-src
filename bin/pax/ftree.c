@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)ftree.c	8.2 (Berkeley) 4/18/94";
 #endif
 static const char rcsid[] =
-	"$Id: ftree.c,v 1.11 1998/06/09 03:38:43 imp Exp $";
+	"$Id: ftree.c,v 1.11.2.1 1999/05/08 10:42:17 kris Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_proto.c,v 1.2 1998/09/17 09:35:02 phk Exp $
+ *	@(#) $Id: unisig_proto.c,v 1.3 1998/10/31 20:07:01 phk Exp $
  *
  */
 
@@ -43,7 +43,7 @@
 #include <netatm/uni/unisig_mbuf.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: unisig_proto.c,v 1.2 1998/09/17 09:35:02 phk Exp $");
+__RCSID("@(#) $Id: unisig_proto.c,v 1.3 1998/10/31 20:07:01 phk Exp $");
 #endif
 
 

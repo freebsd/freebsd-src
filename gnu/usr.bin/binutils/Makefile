@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.4 1998/10/03 03:59:47 jdp Exp $
+# $Id: Makefile,v 1.4.2.1 1999/05/08 08:58:16 dfr Exp $
 #
 
 SUBDIR=		libiberty libbfd libopcodes libbinutils \

@@ -1,6 +1,6 @@
 # CP866 (backward compatible with ASCII)
 #
-# $Id$
+# $Id: ru_SU.CP866.src,v 1.7 1997/02/22 19:54:40 peter Exp $
 #
 charmap map.CP866
 order \

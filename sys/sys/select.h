@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)select.h	8.2 (Berkeley) 1/4/94
- * $Id$
+ * $Id: select.h,v 1.4 1997/02/22 09:45:50 peter Exp $
  */
 
 #ifndef _SYS_SELECT_H_

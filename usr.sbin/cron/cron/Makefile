@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.11 1998/03/07 09:47:48 bde Exp $
 
 PROG=	cron
 SRCS=	cron.c database.c do_command.c job.c user.c popen.c

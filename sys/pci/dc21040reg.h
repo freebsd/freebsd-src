@@ -1,5 +1,5 @@
 /*	$NetBSD: dc21040reg.h,v 1.15 1998/05/22 18:50:59 matt Exp $	*/
-/*	$Id: dc21040reg.h,v 1.3 1998/03/08 16:53:50 peter Exp $ */
+/*	$Id: dc21040reg.h,v 1.4 1998/06/13 17:20:03 peter Exp $ */
 
 /*-
  * Copyright (c) 1994, 1995, 1996 Matt Thomas <matt@3am-software.com>

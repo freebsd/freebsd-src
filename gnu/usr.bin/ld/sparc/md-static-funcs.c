@@ -1,6 +1,6 @@
 
 /*
- *	$Id$
+ *	$Id: md-static-funcs.c,v 1.4 1997/02/22 15:46:52 peter Exp $
  *
  * Simple SPARC relocations for the benefit of self-relocation of ld.so
  * avoiding the use of global variables (ie. reloc_bitshift[] et. al.).

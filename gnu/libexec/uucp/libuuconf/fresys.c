@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_fresys_rcsid[] = "$Id$";
+const char _uuconf_fresys_rcsid[] = "$Id: fresys.c,v 1.5 1997/02/22 15:27:32 peter Exp $";
 #endif
 
 /* Free the memory allocated for a system.  */

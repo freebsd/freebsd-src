@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi_pass.h,v 1.1 1998/09/15 06:36:34 gibbs Exp $
+ *	$Id: scsi_pass.h,v 1.1.2.1 1999/05/07 00:43:13 ken Exp $
  */
 
 #ifndef _SCSI_PASS_H

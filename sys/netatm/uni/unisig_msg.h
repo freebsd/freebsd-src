@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_msg.h,v 1.8 1998/08/26 23:29:23 mks Exp $
+ *	@(#) $Id: unisig_msg.h,v 1.1 1998/09/15 08:23:11 phk Exp $
  *
  */
 

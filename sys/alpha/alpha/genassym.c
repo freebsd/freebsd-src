@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.3 1998/07/12 16:08:15 dfr Exp $
+ *	$Id: genassym.c,v 1.4 1998/11/15 18:25:15 dfr Exp $
  */
 
 #include <sys/param.h>

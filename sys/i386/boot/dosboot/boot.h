@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:03  rpd
- *	$Id$
+ *	$Id: boot.h,v 1.4 1997/02/22 09:30:35 peter Exp $
  */
 
 #include "types.h"

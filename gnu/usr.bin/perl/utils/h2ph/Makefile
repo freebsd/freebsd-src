@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.4 1999/05/02 15:29:56 markm Exp $
+# $Id: Makefile,v 1.2.2.2 1999/05/05 13:28:53 markm Exp $
 #
 
 PROG=	h2ph

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_mx.c,v 1.41 1999/05/06 15:07:10 wpaul Exp $
+ *	$Id: if_mx.c,v 1.8.2.5 1999/05/06 15:39:32 wpaul Exp $
  */
 
 /*
@@ -94,7 +94,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_mx.c,v 1.41 1999/05/06 15:07:10 wpaul Exp $";
+	"$Id: if_mx.c,v 1.8.2.5 1999/05/06 15:39:32 wpaul Exp $";
 #endif
 
 /*

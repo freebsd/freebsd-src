@@ -1,5 +1,5 @@
 /*
- *	$Id$
+ *	$Id: md-static-funcs.c,v 1.6 1997/02/22 15:46:32 peter Exp $
  *
  * Called by ld.so when onanating.
  * This *must* be a static function, so it is not called through a jmpslot.

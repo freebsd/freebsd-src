@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 1997/02/22 19:55:04 peter Exp $
+# $Id: Makefile,v 1.4 1997/09/14 20:23:02 wosch Exp $
 
 PROG=	gencat
 SRCS=	gencat.c genlib.c

@@ -27,7 +27,7 @@
  *	q932_fac.c - decode Q.932 facilities
  *	------------------------------------
  *
- *	$Id: q932_fac.c,v 1.4 1998/12/05 18:04:22 hm Exp $ 
+ *	$Id: q932_fac.c,v 1.1 1998/12/27 21:47:10 phk Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:20:58 1998]
  *

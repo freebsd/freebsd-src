@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: adwlib.c,v 1.1 1998/10/07 03:20:46 gibbs Exp $
+ *      $Id: adwlib.c,v 1.2 1999/01/08 19:17:43 bde Exp $
  */
 /*
  * Ported from:

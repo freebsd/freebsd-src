@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.19.2.3 1999/05/07 00:43:10 ken Exp $
+ *      $Id: scsi_da.c,v 1.19.2.4 1999/05/09 01:27:39 ken Exp $
  */
 
 #include "opt_hw_wdog.h"

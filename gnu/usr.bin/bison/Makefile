@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.3 1997/02/22 15:44:42 peter Exp $
 
 .PATH:	${.CURDIR}/../../../contrib/bison
 

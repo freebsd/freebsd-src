@@ -34,7 +34,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id$
+# $Id: Makefile,v 1.5 1997/02/22 13:55:54 peter Exp $
 #
 BINDIR=	/tmp
 SRCS=	misccall.c miscmod.c

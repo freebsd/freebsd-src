@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.3 1997/02/22 16:14:32 peter Exp $
 #
 
 PARSEFLAGS= -DCLOCK_SCHMID -DCLOCK_DCF7000 -DCLOCK_MEINBERG \

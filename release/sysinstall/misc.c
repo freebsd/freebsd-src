@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.37 1998/01/16 15:07:55 jkh Exp $
+ * $Id: misc.c,v 1.38 1998/03/19 15:02:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

@@ -1,4 +1,4 @@
-#	$Id: dot.cshrc,v 1.22 1998/09/13 23:05:47 brian Exp $
+#	$Id: dot.cshrc,v 1.22.2.1 1999/04/27 11:55:24 jkh Exp $
 #
 #csh .cshrc file
 

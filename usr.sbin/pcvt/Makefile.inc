@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.4 1998/05/31 11:41:53 bde Exp $
+#	$Id: Makefile.inc,v 1.6 1999/01/01 08:31:26 peter Exp $
 
 FONTDIR	=	/usr/share/misc/pcvtfonts
 

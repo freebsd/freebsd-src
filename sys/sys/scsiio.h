@@ -1,5 +1,5 @@
 /*
- * $Id: scsiio.h,v 1.9 1998/02/01 04:13:13 wollman Exp $
+ * $Id: scsiio.h,v 1.10 1998/02/01 18:09:50 wollman Exp $
  */
 #ifndef	_SYS_SCSIIO_H_
 #define	_SYS_SCSIIO_H_

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: splash.c,v 1.2 1999/01/11 03:06:28 yokota Exp $
+ * $Id: splash.c,v 1.2.2.1 1999/03/09 14:23:41 yokota Exp $
  */
 
 #include "splash.h"

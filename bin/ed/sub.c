@@ -31,7 +31,7 @@
 static char * const rcsid = "@(#)sub.c,v 1.1 1994/02/01 00:34:44 alm Exp";
 #else
 static char * const rcsid =
-	"$Id: sub.c,v 1.10 1997/08/07 21:33:44 steve Exp $";
+	"$Id: sub.c,v 1.11 1998/08/07 09:39:11 dfr Exp $";
 #endif
 #endif /* not lint */
 

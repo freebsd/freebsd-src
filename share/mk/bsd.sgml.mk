@@ -1,7 +1,7 @@
 #       bsd.sgml.mk - 8 Sep 1995 John Fieber
 #       This file is in the public domain.
 #
-#	$Id: bsd.sgml.mk,v 1.26 1998/08/08 07:02:08 peter Exp $
+#	$Id: bsd.sgml.mk,v 1.27 1998/09/17 11:35:11 jkh Exp $
 #
 # The include file <bsd.sgml.mk> handles installing sgml documents.
 #

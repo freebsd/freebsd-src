@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.4 1997/03/13 04:21:38 davidn Exp $
+# $Id: Makefile,v 1.5 1997/12/17 10:06:51 bde Exp $
 
 PROG=	stlstats
 MAN8=	stlstats.8

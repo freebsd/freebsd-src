@@ -3,7 +3,7 @@
 # Search /etc/skeykeys for the skey string for this user OR user specified
 # in 1st parameter.
 #
-# $Id$
+# $Id: keyinfo.pl,v 1.3 1997/02/22 19:55:21 peter Exp $
 #
 
 die "usage: keyinfo [user]\n" unless $#ARGV < 1;

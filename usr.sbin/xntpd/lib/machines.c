@@ -2,7 +2,7 @@
  *
  * Real bummers unite !
  *
- * $Id$
+ * $Id: machines.c,v 1.3 1997/02/22 16:14:23 peter Exp $
  */
 
 #include "ntp_stdlib.h"

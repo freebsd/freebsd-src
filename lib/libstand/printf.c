@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: printf.c,v 1.1.1.1 1998/08/20 08:19:55 msmith Exp $
+ * $Id: printf.c,v 1.2 1998/11/01 09:31:08 msmith Exp $
  */
 
 /*

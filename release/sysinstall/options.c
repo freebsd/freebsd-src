@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.56.2.3 1999/04/28 06:58:14 jkh Exp $
+ * $Id: options.c,v 1.56.2.4 1999/05/07 11:03:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

@@ -1,7 +1,7 @@
 /*
  * IBM PC display definitions
  *
- *	$Id$
+ *	$Id: display.h,v 1.5 1998/08/06 09:15:54 dfr Exp $
  *	from: i386/include/pc display.h,v 1.4
  */
 

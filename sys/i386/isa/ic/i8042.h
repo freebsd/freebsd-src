@@ -1,5 +1,5 @@
 /*
- *	$Id$
+ *	$Id: i8042.h,v 1.4 1997/02/22 09:38:01 peter Exp $
  */
 
 #define	KBSTATP		0x64	/* kbd controller status port (I) */

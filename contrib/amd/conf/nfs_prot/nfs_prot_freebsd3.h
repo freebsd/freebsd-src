@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: nfs_prot_freebsd3.h,v 1.5 1999/01/13 20:03:57 obrien Exp $
+ * $Id: nfs_prot_freebsd3.h,v 1.6 1999/01/14 17:03:12 obrien Exp $
  *
  */
 

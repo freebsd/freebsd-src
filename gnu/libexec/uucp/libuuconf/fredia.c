@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_fredia_rcsid[] = "$Id$";
+const char _uuconf_fredia_rcsid[] = "$Id: fredia.c,v 1.5 1997/02/22 15:27:31 peter Exp $";
 #endif
 
 /* Free the memory allocated for a dialer.  */

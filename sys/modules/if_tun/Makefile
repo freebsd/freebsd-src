@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.7 1998/10/16 04:30:45 peter Exp $
+#       $Id: Makefile,v 1.8 1999/01/17 20:53:47 peter Exp $
 
 .PATH:  ${.CURDIR}/../../net
 KMOD=   if_tun

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.18 1998/10/06 11:28:29 peter Exp $
+# $Id: Makefile,v 1.19 1999/01/09 21:50:55 jdp Exp $
 #
 
 LIB=	gcc

@@ -3,7 +3,7 @@
  * Built on Thu Apr  1 21:46:46 1999 by wpaul@wormhole.ee.columbia.edu
  * OS: FreeBSD 3.0-19981103-SNAP
  *
- *	$Id: ti_fw2.h,v 1.1 1999/04/06 17:08:30 wpaul Exp $
+ *	$Id: ti_fw2.h,v 1.1.2.1 1999/04/30 19:32:30 wpaul Exp $
  */
 static int tigon2FwReleaseMajor = 0xc;
 static int tigon2FwReleaseMinor = 0x3;

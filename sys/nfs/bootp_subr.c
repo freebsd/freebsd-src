@@ -1,4 +1,4 @@
-/*	$Id: bootp_subr.c,v 1.17 1998/12/04 22:54:54 archie Exp $	*/
+/*	$Id: bootp_subr.c,v 1.18 1998/12/07 21:58:43 archie Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass

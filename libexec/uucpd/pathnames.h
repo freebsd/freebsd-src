@@ -32,7 +32,7 @@
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/4/93
  *
- *	$Id$
+ *	$Id: pathnames.h,v 1.5 1997/02/22 14:22:38 peter Exp $
  */
 
 #include <paths.h>

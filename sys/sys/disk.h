@@ -41,7 +41,7 @@
  *
  *	@(#)disk.h	8.1 (Berkeley) 6/2/93
  *
- * $Id: disk.h,v 1.7 1997/02/22 09:45:04 peter Exp $
+ * $Id: disk.h,v 1.8 1997/09/21 22:09:05 gibbs Exp $
  */
 
 #ifndef _SYS_DISK_H_

@@ -1,7 +1,7 @@
 /*
  * trygetif.c - test program for getif.c
  *
- *	$Id$
+ *	$Id: trygetif.c,v 1.4 1997/02/22 14:21:10 peter Exp $
  */
 
 #include <sys/types.h>

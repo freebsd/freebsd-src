@@ -1,11 +1,14 @@
-/* $RCSfile: a2p.h,v $$Revision: 4.1 $$Date: 92/08/07 18:29:09 $
+/* $RCSfile: a2p.h,v $$Revision: 1.1.1.1 $$Date: 1998/09/09 07:00:04 $
  *
  *    Copyright (c) 1991-1997, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
  *
- * $Log:	a2p.h,v $
+ * $Log: a2p.h,v $
+ * Revision 1.1.1.1  1998/09/09 07:00:04  markm
+ * Initial import of Perl5. The king is dead; long live the king!
+ *
  */
 
 #define VOIDUSED 1

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: getobjformat.c,v 1.1 1998/09/09 01:21:24 jdp Exp $
  */
 
 #include <sys/param.h>

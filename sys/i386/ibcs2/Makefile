@@ -1,6 +1,6 @@
 # Makefile for syscall tables
 #
-# $Id$
+# $Id: Makefile,v 1.1 1997/03/29 11:15:09 peter Exp $
 
 all:
 	@echo "make ibcs2_sysent.c, ibcs2_isc_sysent.c or ibcs2_xenix_sysent.c only"

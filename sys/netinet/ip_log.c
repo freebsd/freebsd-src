@@ -5,7 +5,7 @@
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
- * $Id: ip_log.c,v 1.5 1998/11/26 18:54:52 eivind Exp $
+ * $Id: ip_log.c,v 1.6 1998/12/07 21:58:41 archie Exp $
  */
 #include "opt_ipfilter.h"
 

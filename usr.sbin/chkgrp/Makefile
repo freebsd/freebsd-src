@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.1 1998/05/24 15:09:21 des Exp $
 
 PROG=	chkgrp
 SRCS=	chkgrp.c

@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile.inc,v 1.1 1997/03/02 14:07:29 wosch Exp $
 
 VOLUME=	usd/10.exref
 MACROS=	-ms

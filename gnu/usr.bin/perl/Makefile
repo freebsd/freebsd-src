@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.8 1999/05/02 15:29:35 markm Exp $
+#	$Id: Makefile,v 1.7.2.1 1999/05/05 13:28:33 markm Exp $
 
 .if !defined(NOSUIDPERL)
 _suidperl=	suidperl

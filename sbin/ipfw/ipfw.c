@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.65 1999/01/22 01:46:32 archie Exp $
+ * $Id: ipfw.c,v 1.64.2.1 1999/01/25 19:17:07 archie Exp $
  *
  */
 

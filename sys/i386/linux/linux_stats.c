@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_stats.c,v 1.8 1997/02/22 09:38:25 peter Exp $
+ *  $Id: linux_stats.c,v 1.9 1997/11/06 19:29:04 phk Exp $
  */
 
 #include <sys/param.h>

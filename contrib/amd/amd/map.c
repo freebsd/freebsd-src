@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: map.c,v 1.2 1998/12/27 06:24:47 ezk Exp $
+ * $Id: map.c,v 1.1.1.2 1999/01/13 19:21:01 obrien Exp $
  *
  */
 

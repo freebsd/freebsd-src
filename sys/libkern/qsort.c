@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: qsort.c,v 1.8 1998/04/15 17:46:34 bde Exp $
+ * $Id: qsort.c,v 1.9 1998/06/30 11:05:11 phk Exp $
  */
 
 #include <sys/libkern.h>

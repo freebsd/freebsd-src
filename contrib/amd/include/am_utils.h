@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: am_utils.h,v 1.2 1998/12/27 06:25:23 ezk Exp $
+ * $Id: am_utils.h,v 1.1.1.3 1999/01/13 19:20:23 obrien Exp $
  *
  */
 

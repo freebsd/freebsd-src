@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)reloc.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: reloc.h,v 1.6 1997/02/22 09:35:07 peter Exp $
  */
 
 #ifndef _I386_MACHINE_RELOC_H_

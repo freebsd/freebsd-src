@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.12 1999/02/12 17:20:10 dcs Exp $
+# $Id: Makefile,v 1.11.2.1 1999/02/12 17:28:06 dcs Exp $
 #
 # Originally from	$NetBSD: Makefile,v 1.21 1997/10/26 22:08:38 lukem Exp $
 #

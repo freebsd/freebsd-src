@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: udiv_qrnnd.S,v 1.2 1998/03/08 21:09:04 jb Exp $
  # Alpha 21064 __udiv_qrnnd
 
  # Copyright (C) 1992, 1994, 1995 Free Software Foundation, Inc.

@@ -27,7 +27,7 @@
  *	i4b_debug.h - i4b debug header file
  *	-----------------------------------
  *
- *	$Id: i4b_debug.h,v 1.14 1998/12/05 18:05:57 hm Exp $ 
+ *	$Id: i4b_debug.h,v 1.1 1998/12/27 21:46:56 phk Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:36:47 1998]
  *

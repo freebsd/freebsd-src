@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.31 1998/03/07 20:48:16 tegge Exp $
+ *	$Id: smptests.h,v 1.32 1998/04/06 11:38:18 phk Exp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86bios.s,v 1.7 1998/10/01 20:45:28 jlemon Exp $
+ *	$Id: vm86bios.s,v 1.7.2.1 1999/04/15 21:00:53 jlemon Exp $
  */
 
 #include "opt_vm86.h"

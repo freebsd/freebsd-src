@@ -32,7 +32,7 @@
  *
  *	from tahoe:	in_cksum.c	1.2	86/01/05
  *	from:		@(#)in_cksum.c	1.3 (Berkeley) 1/19/91
- *	$Id: in_cksum.c,v 1.12 1997/09/02 20:05:27 bde Exp $
+ *	$Id: in_cksum.c,v 1.13 1998/04/15 17:26:15 bde Exp $
  */
 
 #include <sys/param.h>

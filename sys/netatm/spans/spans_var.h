@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: spans_var.h,v 1.7 1998/04/09 14:24:18 johnc Exp $
+ *	@(#) $Id: spans_var.h,v 1.1 1998/09/15 08:23:04 phk Exp $
  *
  */
 

@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: BSD.var.dist,v 1.38.2.2 1999/03/31 13:39:46 asami Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755

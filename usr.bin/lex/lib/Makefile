@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1997/02/22 19:55:36 peter Exp $
+# $Id: Makefile,v 1.6 1997/06/29 06:03:34 pst Exp $
 
 LIB=    ln
 SRCS=   libmain.c libyywrap.c

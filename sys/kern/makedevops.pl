@@ -35,7 +35,7 @@
 # From @(#)makedevops.sh 1.1 1998/06/14 13:53:12 dfr Exp $
 # From @(#)makedevops.sh ?.? 1998/10/05
 #
-# $Id: makedevops.pl,v 1.6 1999/05/02 08:55:27 markm Exp $
+# $Id: makedevops.pl,v 1.2.2.1 1999/05/05 13:24:14 markm Exp $
 
 #
 # Script to produce device front-end sugar.

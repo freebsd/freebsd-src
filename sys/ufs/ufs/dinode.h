@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dinode.h	8.3 (Berkeley) 1/21/94
- * $Id$
+ * $Id: dinode.h,v 1.6 1997/02/22 09:47:37 peter Exp $
  */
 
 #ifndef _UFS_UFS_DINODE_H_

@@ -5,7 +5,7 @@
  */
 
 #ifdef RCSID
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: unpack.c,v 1.5 1997/02/22 15:46:07 peter Exp $";
 #endif
 
 #include "tailor.h"

@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char protf_rcsid[] = "$Id$";
+const char protf_rcsid[] = "$Id: protf.c,v 1.6 1997/02/22 15:28:28 peter Exp $";
 #endif
 
 #include <ctype.h>

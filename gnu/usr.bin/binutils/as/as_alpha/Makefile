@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.2 1998/05/05 08:56:24 jb Exp $
+# $Id: Makefile,v 1.3 1998/05/05 10:32:47 jb Exp $
 #
 
 .include "${.CURDIR}/../Makefile.inc0"

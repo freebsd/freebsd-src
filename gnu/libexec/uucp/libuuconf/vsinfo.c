@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_vsinfo_rcsid[] = "$Id$";
+const char _uuconf_vsinfo_rcsid[] = "$Id: vsinfo.c,v 1.6 1997/02/22 15:28:03 peter Exp $";
 #endif
 
 #include <errno.h>

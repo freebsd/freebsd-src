@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: alias_cuseeme.c,v 1.1 1998/06/24 06:58:00 brian Exp $
  */
 
 #include <sys/types.h>

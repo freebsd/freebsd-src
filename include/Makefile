@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.92 1999/01/17 22:35:09 dt Exp $
+#	$Id: Makefile,v 1.92.2.1 1999/03/22 13:09:36 phk Exp $
 #
 # Doing a make install builds /usr/include
 #

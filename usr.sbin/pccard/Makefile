@@ -1,6 +1,6 @@
 #
 # Makefile for pccardc/pccardd.
-# $Id: Makefile,v 1.3 1997/02/22 16:08:32 peter Exp $
+# $Id: Makefile,v 1.4 1998/12/10 22:07:05 kuriyama Exp $
 #
 SUBDIR= pccardc pccardd
 

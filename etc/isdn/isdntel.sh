@@ -4,7 +4,7 @@
 #	isdn telephone answering
 #	-------------------------
 #
-#	$Id: isdntel.sh,v 1.7 1998/12/18 17:17:57 hm Exp $
+#	$Id: isdntel.sh,v 1.1 1999/01/10 14:30:49 hm Exp $
 #
 #	last edit-date: [Fri Dec 18 18:05:26 1998]
 #

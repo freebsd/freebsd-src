@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: crtbegin.c,v 1.1.1.1.2.1 1999/04/14 20:43:26 jdp Exp $
+ *      $Id: crtbegin.c,v 1.1.1.1.2.2 1999/04/14 20:50:24 jdp Exp $
  */
 
 #include <sys/cdefs.h>

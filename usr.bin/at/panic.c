@@ -38,7 +38,7 @@
 /* File scope variables */
 
 static const char rcsid[] =
-	"$Id: panic.c,v 1.7 1997/06/23 06:44:18 charnier Exp $";
+	"$Id: panic.c,v 1.8 1998/12/06 07:42:09 archie Exp $";
 
 /* External variables */
 

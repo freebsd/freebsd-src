@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: crti.S,v 1.2 1997/08/28 00:27:08 jdp Exp $
+ *      $Id: crti.S,v 1.1.1.1 1998/03/07 20:27:11 jdp Exp $
  */
 
 	.section .init,"ax",@progbits

@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: bus_if.m,v 1.4 1998/11/08 18:51:38 nsouch Exp $
+#	$Id: bus_if.m,v 1.5 1998/11/14 21:58:51 wollman Exp $
 #
 
 INTERFACE bus;

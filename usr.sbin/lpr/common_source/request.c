@@ -30,7 +30,7 @@
 static const char copyright[] =
 	"Copyright (C) 1997, Massachusetts Institute of Technology\r\n";
 static const char rcsid[] =
-	"$Id$";
+	"$Id: request.c,v 1.1 1997/12/02 20:45:27 wollman Exp $";
 
 #include <sys/types.h>
 #include <sys/stat.h>

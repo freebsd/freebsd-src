@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: lcavar.h,v 1.1 1998/08/10 07:53:59 dfr Exp $
  */
 
 extern void lca_init(void);

@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$Id: e_atan2.S,v 1.4 1997/02/22 15:08:45 peter Exp $")
+RCSID("$Id: e_atan2.S,v 1.5 1997/03/09 14:00:29 bde Exp $")
 
 ENTRY(__ieee754_atan2)
 	fldl	 4(%esp)

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: $
+ *	$Id: rsa.h,v 1.1 1999/01/03 15:57:02 kato Exp $
  */
 
 /*

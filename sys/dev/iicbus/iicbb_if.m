@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: iicbb_if.m,v 1.1 1998/10/31 11:31:07 nsouch Exp $
+#	$Id: iicbb_if.m,v 1.2 1998/11/08 18:35:52 nsouch Exp $
 #
 
 INTERFACE iicbb;

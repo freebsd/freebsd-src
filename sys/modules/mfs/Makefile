@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1998/10/16 04:30:47 peter Exp $
+#	$Id: Makefile,v 1.5 1998/11/11 03:06:46 bde Exp $
 
 .PATH:	${.CURDIR}/../../ufs/mfs
 KMOD=	mfs

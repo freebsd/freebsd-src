@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swiz.h,v 1.1 1998/07/27 09:40:35 dfr Exp $
+ *	$Id: swiz.h,v 1.2 1998/08/07 08:17:39 dfr Exp $
  */
 
 #ifndef _MACHINE_SWIZ_H_

@@ -3,7 +3,7 @@
  * Garrett A. Wollman, September 1994
  * This file is in the public domain.
  *
- * $Id: lsvfs.c,v 1.10 1998/01/17 16:24:27 bde Exp $
+ * $Id: lsvfs.c,v 1.11 1998/08/29 13:53:22 bde Exp $
  */
 
 #define _NEW_VFSCONF

@@ -34,7 +34,7 @@
  *
  *	@(#)interface.h	8.1 (Berkeley) 6/5/93
  *
- *	$Id$
+ *	$Id: interface.h,v 1.3 1997/02/22 16:00:57 peter Exp $
  */
 
 /*

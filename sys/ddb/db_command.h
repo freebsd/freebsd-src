@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_command.h,v 1.10 1997/02/22 09:28:21 peter Exp $
  */
 
 #ifndef _DDB_DB_COMMAND_H_

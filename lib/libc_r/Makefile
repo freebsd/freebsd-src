@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.13 1998/06/14 11:25:44 peter Exp $
+#	$Id: Makefile,v 1.14 1998/12/10 20:27:52 jb Exp $
 #
 # All library objects contain rcsid strings by default; they may be
 # excluded as a space-saving measure.  To produce a library that does

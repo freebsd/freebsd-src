@@ -28,7 +28,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: brktree_reg.h,v 1.23.2.1 1999/01/23 12:00:20 roger Exp $
+ * $Id: brktree_reg.h,v 1.23.2.2 1999/03/01 10:48:18 roger Exp $
  */
 #ifndef PCI_LATENCY_TIMER
 #define	PCI_LATENCY_TIMER		0x0c	/* pci timer register */

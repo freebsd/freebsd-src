@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_usrreq.c,v 1.2 1998/10/31 20:06:54 phk Exp $
+ *	@(#) $Id: atm_usrreq.c,v 1.3 1999/01/19 23:16:10 mks Exp $
  *
  */
 
@@ -38,7 +38,7 @@
 #include <netatm/kern_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: atm_usrreq.c,v 1.2 1998/10/31 20:06:54 phk Exp $");
+__RCSID("@(#) $Id: atm_usrreq.c,v 1.3 1999/01/19 23:16:10 mks Exp $");
 #endif
 
 

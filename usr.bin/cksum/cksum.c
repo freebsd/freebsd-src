@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)cksum.c	8.2 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: cksum.c,v 1.8 1997/11/09 05:47:55 obrien Exp $";
+	"$Id: cksum.c,v 1.9 1998/03/10 05:03:31 jb Exp $";
 #endif /* not lint */
 
 #include <sys/cdefs.h>

@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: dec_axppci_33.c,v 1.1 1998/08/10 07:53:58 dfr Exp $ */
 /* $NetBSD: dec_axppci_33.c,v 1.38 1998/07/07 08:49:12 ross Exp $ */
 
 /*

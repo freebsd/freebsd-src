@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ext.h	8.2 (Berkeley) 12/15/93
- *	$Id$
+ *	$Id: ext.h,v 1.6 1997/02/22 14:22:28 peter Exp $
  */
 
 /*

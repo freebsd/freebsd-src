@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: icu_ipl.h,v 1.1 1997/05/31 08:50:34 peter Exp $
+ *	$Id: icu_ipl.h,v 1.2 1997/07/20 12:26:34 bde Exp $
  */
 
 #ifndef _I386_ISA_ICU_IPL_H_

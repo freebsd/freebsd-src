@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)defs.h	8.1 (Berkeley) 6/5/93
- *	$Id: defs.h,v 1.9 1997/02/22 14:33:11 peter Exp $
+ *	$Id: defs.h,v 1.10 1998/07/28 06:36:03 charnier Exp $
  */
 
 /* Definitions for RIPv2 routing process.

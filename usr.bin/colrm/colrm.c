@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: colrm.c,v 1.5 1997/12/29 00:08:59 alex Exp $
+ *	$Id: colrm.c,v 1.6 1998/12/06 22:58:18 archie Exp $
  */
 
 #ifndef lint

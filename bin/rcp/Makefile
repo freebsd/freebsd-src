@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
-#	$Id: Makefile,v 1.12 1998/10/09 06:31:45 markm Exp $
+#	$Id: Makefile,v 1.13 1998/12/07 12:50:48 bde Exp $
 
 PROG=	rcp
 SRCS=	rcp.c util.c

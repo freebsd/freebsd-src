@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: scsi_pt.h,v 1.1 1998/09/15 06:36:34 gibbs Exp $
  */
 
 #ifndef	_SCSI_SCSI_PT_H

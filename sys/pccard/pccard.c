@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.68.2.2 1999/03/08 22:07:23 kuriyama Exp $
+ *	$Id: pccard.c,v 1.68.2.3 1999/04/27 18:39:23 jdp Exp $
  */
 
 #include "opt_devfs.h"

@@ -1,4 +1,4 @@
-dnl @(#) $Header: acsite.m4,v 1.41 96/11/29 15:30:40 leres Exp $ (LBL)
+dnl @(#) $Header: /home/ncvs/src/contrib/libpcap/acsite.m4,v 1.1.1.1 1997/05/27 00:01:01 fenner Exp $ (LBL)
 dnl
 dnl Copyright (c) 1995, 1996
 dnl	The Regents of the University of California.  All rights reserved.

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: aio.h,v 1.3 1998/03/23 14:05:25 bde Exp $
+ * $Id: aio.h,v 1.4 1998/03/28 11:50:08 dufault Exp $
  */
 
 /* aio.h: P1003.1B-1993 Asynchronous I/O */

@@ -27,7 +27,7 @@
  *	i4b_ctl.c - i4b system control port driver
  *	------------------------------------------
  *
- *	$Id: i4b_ctl.c,v 1.1 1998/12/27 21:46:42 phk Exp $
+ *	$Id: i4b_ctl.c,v 1.2 1999/01/12 11:04:56 eivind Exp $
  *
  *	last edit-date: [Sat Dec  5 17:59:15 1998]
  *

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.24 1998/12/30 13:29:11 jkh Exp $
+#	$Id: Makefile,v 1.25 1998/12/31 02:35:43 jkh Exp $
 
 LIB=	disk
 SRCS=	blocks.c disklabel.c dkcksum.c chunk.c disk.c change.c \

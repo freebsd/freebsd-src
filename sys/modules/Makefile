@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.47.2.1 1999/04/19 14:29:32 semenu Exp $
+#	$Id: Makefile,v 1.47.2.2 1999/04/24 03:10:59 obrien Exp $
 
 # XXX present but broken: ip_mroute_mod
 # XXX not yet completed porting: acd

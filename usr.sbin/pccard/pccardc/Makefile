@@ -1,7 +1,7 @@
 #
 #	pccardc Makefile
 #
-#	$Id: Makefile,v 1.7.2.1 1999/03/08 22:09:54 kuriyama Exp $
+#	$Id: Makefile,v 1.7.2.2 1999/05/04 01:46:56 kuriyama Exp $
 #
 PROG=	pccardc
 SRCS=	beep.c dumpcis.c enabler.c pccardc.c pccardmem.c printcis.c \

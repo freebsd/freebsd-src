@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.13 1998/10/02 07:14:32 obrien Exp $
+#	$Id: Makefile,v 1.14.2.1 1999/05/10 22:28:15 dt Exp $
 
 GREP_LIBZ= YES
 GREP_FTS=  YES

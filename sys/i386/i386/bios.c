@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bios.c,v 1.11 1998/07/15 03:58:57 bde Exp $
+ *      $Id: bios.c,v 1.11.2.1 1999/03/16 21:12:14 msmith Exp $
  */
 
 /*

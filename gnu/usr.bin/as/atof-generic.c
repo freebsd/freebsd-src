@@ -18,7 +18,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: atof-generic.c,v 1.5 1997/02/22 15:43:27 peter Exp $";
 #endif
 
 #include <ctype.h>

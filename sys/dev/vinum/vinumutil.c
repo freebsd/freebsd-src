@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumutil.c,v 1.11 1999/03/19 06:50:44 grog Exp grog $
+ * $Id: vinumutil.c,v 1.5.2.3 1999/05/05 05:21:12 grog Exp $
  */
 
 /* This file contains utility routines used both in kernel and user context */

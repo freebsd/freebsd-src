@@ -1,5 +1,5 @@
 # Makefile for uuxqt
-# $Id: Makefile,v 1.9 1999/03/13 17:35:18 torstenb Exp $
+# $Id: Makefile,v 1.8.2.1 1999/05/02 20:44:23 torstenb Exp $
 
 BINDIR=         $(libxdir)
 BINOWN=		$(owner)

@@ -1,6 +1,6 @@
 # latin1 (backward compatible with ASCII)
 #
-# $Id$
+# $Id: lt_LN.ISO_8859-1.src,v 1.8 1997/02/22 19:54:39 peter Exp $
 #
 charmap map.ISO_8859-1
 order \

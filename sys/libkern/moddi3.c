@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: moddi3.c,v 1.5 1997/02/22 09:39:56 peter Exp $
+ * $Id: moddi3.c,v 1.6 1998/12/01 05:29:06 nate Exp $
  */
 
 #include <libkern/quad.h>

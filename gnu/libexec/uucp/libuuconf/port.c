@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_port_rcsid[] = "$Id$";
+const char _uuconf_port_rcsid[] = "$Id: port.c,v 1.5 1997/02/22 15:27:42 peter Exp $";
 #endif
 
 /* Find a port by name, baud rate, and special purpose function.  */

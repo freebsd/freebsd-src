@@ -1,5 +1,5 @@
 #       @(#)Makefile    8.1 (Berkeley) 6/5/93
-#	$Id: Makefile,v 1.5 1998/01/03 14:06:26 wosch Exp $
+#	$Id: Makefile,v 1.6 1998/05/09 22:15:19 wosch Exp $
 
 NOOBJ=  noobj
 

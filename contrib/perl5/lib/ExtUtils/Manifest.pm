@@ -10,7 +10,7 @@ use strict;
 use vars qw($VERSION @ISA @EXPORT_OK
 	    $Is_VMS $Debug $Verbose $Quiet $MANIFEST $found);
 
-$VERSION = substr(q$Revision: 1.1.1.2 $, 10);
+$VERSION = substr(q$Revision: 1.1.1.1.2.1 $, 10);
 @ISA=('Exporter');
 @EXPORT_OK = ('mkmanifest', 'manicheck', 'fullcheck', 'filecheck', 
 	      'skipcheck', 'maniread', 'manicopy');

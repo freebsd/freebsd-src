@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.6 1997/02/22 15:45:48 peter Exp $
+# $Id: Makefile,v 1.7 1998/02/20 11:18:53 bde Exp $
 #
 # Generic groff font makefile
 

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_isa.c,v 1.5 1998/11/10 06:44:54 gibbs Exp $
+ *	$Id: bt_isa.c,v 1.5.2.1 1999/03/08 21:37:28 gibbs Exp $
  */
 
 #include <sys/param.h>

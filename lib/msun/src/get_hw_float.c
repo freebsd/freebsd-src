@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: get_hw_float.c,v 1.2 1997/02/22 15:10:42 peter Exp $
  */
 
 #include <sys/types.h>

@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumkw.h,v 1.12 1999/03/02 02:22:56 grog Exp grog $
+ * $Id: vinumkw.h,v 1.6.2.3 1999/05/05 05:18:57 grog Exp $
  */
 
 #ifdef KERNEL

@@ -26,7 +26,7 @@
 #
 # TEST.sh - check if test(1) or builtin test works
 #
-# $Id$
+# $Id: TEST.sh,v 1.5 1997/02/22 14:06:20 peter Exp $
 
 # force a specified test program, e.g. `env test=/bin/test sh TEST.sh'
 : ${test=test}		

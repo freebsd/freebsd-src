@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.1.2.2 1999/03/11 10:26:20 kato Exp $
+ *	$Id: biosdisk.c,v 1.1.2.3 1999/03/11 10:27:15 kato Exp $
  */
 
 /*

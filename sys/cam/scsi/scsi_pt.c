@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_pt.c,v 1.4.2.1 1999/02/18 22:05:56 ken Exp $
+ *      $Id: scsi_pt.c,v 1.4.2.2 1999/05/09 01:27:42 ken Exp $
  */
 
 #include <sys/param.h>

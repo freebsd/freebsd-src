@@ -1,6 +1,6 @@
 # Makefile for libgroff
 #
-# $Id$
+# $Id: Makefile,v 1.6 1997/02/22 15:45:49 peter Exp $
 #
 .include "../Makefile.inc"
 

@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: file.c,v 1.4 1998/09/17 00:15:15 des Exp $
+ *	$Id: file.c,v 1.4.2.1 1999/03/02 04:17:02 alex Exp $
  */
 
 #include <sys/types.h>

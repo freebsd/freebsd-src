@@ -3,7 +3,7 @@
 #	i4b - Deutsche Telekom charging rates config file
 #	-------------------------------------------------
 #
-#	$Id: isdnd.rates.D,v 1.4 1998/12/18 17:17:57 hm Exp $
+#	$Id: isdnd.rates.D,v 1.1 1999/01/10 14:30:46 hm Exp $
 #
 #	last edit-date: [Fri Dec 18 18:05:48 1998]
 #

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tireg.h,v 1.1 1999/04/06 17:08:29 wpaul Exp $
+ *	$Id: if_tireg.h,v 1.1.2.1 1999/04/30 19:32:24 wpaul Exp $
  */
 
 /*

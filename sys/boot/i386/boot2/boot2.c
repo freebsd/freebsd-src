@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id: boot2.c,v 1.18.2.2 1999/02/25 17:49:24 rnordier Exp $
+ *	$Id: boot2.c,v 1.18.2.3 1999/04/20 12:02:00 joerg Exp $
  */
 
 #include <sys/param.h>

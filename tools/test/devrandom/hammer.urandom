@@ -5,7 +5,7 @@
 # Read and display random numbers.
 # This also reads /dev/zero to make sure there is no brokenness there.
 #
-# $Id$
+# $Id: hammer.urandom,v 1.3 1997/02/22 14:08:08 peter Exp $
 #
 
 open(ZERO, "/dev/zero") || die "Cannot open /dev/zero - $!\n";

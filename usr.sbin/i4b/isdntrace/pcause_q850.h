@@ -27,7 +27,7 @@
  *	pcauseq850.h - Q.850 causes definitions
  *	---------------------------------------
  *
- *	$Id: pcause_q850.h,v 1.3 1998/12/05 18:04:18 hm Exp $
+ *	$Id: pcause_q850.h,v 1.1 1998/12/27 21:47:10 phk Exp $
  *
  *	last edit-date: [Sat Dec  5 18:20:05 1998]
  *

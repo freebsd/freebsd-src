@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
-#	$Id$
+#	$Id: Makefile,v 1.5 1998/01/03 14:13:44 wosch Exp $
 
 # XXX MISSING:	connectives words
 FILES=	README propernames web2 web2a

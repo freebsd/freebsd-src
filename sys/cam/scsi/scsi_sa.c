@@ -1,5 +1,5 @@
 /*
- * $Id: scsi_sa.c,v 1.16.2.3 1999/05/09 01:27:46 ken Exp $
+ * $Id: scsi_sa.c,v 1.16.2.4 1999/05/11 05:40:43 mjacob Exp $
  *
  * Implementation of SCSI Sequential Access Peripheral driver for CAM.
  *

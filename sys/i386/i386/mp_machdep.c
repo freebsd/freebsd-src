@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.88 1999/01/20 04:24:22 jkh Exp $
+ *	$Id: mp_machdep.c,v 1.88.2.1 1999/02/28 21:22:16 tegge Exp $
  */
 
 #include "opt_smp.h"

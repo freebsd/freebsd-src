@@ -27,7 +27,7 @@
  *	facility.c - decode Q.932 facilities
  *	------------------------------------
  *
- *	$Id: facility.c,v 1.2 1998/12/18 17:09:38 hm Exp $
+ *	$Id: facility.c,v 1.1 1998/12/27 21:47:04 phk Exp $
  *
  *      last edit-date: [Fri Dec 18 18:10:32 1998]
  *

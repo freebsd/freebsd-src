@@ -5,7 +5,7 @@ package ExtUtils::MakeMaker;
 $VERSION = "5.4302";
 $Version_OK = "5.17";	# Makefiles older than $Version_OK will die
 			# (Will be checked from MakeMaker version 4.13 onwards)
-($Revision = substr(q$Revision: 1.1.1.2 $, 10)) =~ s/\s+$//;
+($Revision = substr(q$Revision: 1.1.1.1.2.1 $, 10)) =~ s/\s+$//;
 
 
 
@@ -1675,7 +1675,7 @@ MakeMaker object. The following lines will be parsed o.k.:
 
     $VERSION = '1.00';
     *VERSION = \'1.01';
-    ( $VERSION ) = '$Revision: 1.1.1.2 $ ' =~ /\$Revision:\s+([^\s]+)/;
+    ( $VERSION ) = '$Revision: 1.1.1.1.2.1 $ ' =~ /\$Revision:\s+([^\s]+)/;
     $FOO::VERSION = '1.10';
     *FOO::VERSION = \'1.11';
 

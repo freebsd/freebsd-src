@@ -27,7 +27,7 @@
  *	i4b daemon - message from kernel handling routines
  *	--------------------------------------------------
  *
- *	$Id: msghdl.c,v 1.54 1998/12/19 09:03:16 hm Exp $ 
+ *	$Id: msghdl.c,v 1.1 1998/12/27 21:47:01 phk Exp $ 
  *
  *      last edit-date: [Sat Dec 19 09:57:16 1998]
  *

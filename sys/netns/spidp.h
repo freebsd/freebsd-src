@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spidp.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: spidp.h,v 1.7 1997/02/22 09:42:24 peter Exp $
  */
 
 #ifndef _NETNS_SPIDP_H_

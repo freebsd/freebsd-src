@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.4 1997/02/22 16:14:48 peter Exp $
 
 PROG=	yp_mkdb
 SRCS=	yp_mkdb.c yp_dblookup.c yp_dbwrite.c

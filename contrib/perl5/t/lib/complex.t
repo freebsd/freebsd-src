@@ -14,7 +14,7 @@ BEGIN {
 
 use Math::Complex;
 
-my $VERSION = sprintf("%s", q$Id: complex.t,v 1.1.1.2 1999/05/02 14:29:56 markm Exp $ =~ /(\d+\.d+)/);
+my $VERSION = sprintf("%s", q$Id: complex.t,v 1.1.1.1.2.1 1999/05/05 13:18:19 markm Exp $ =~ /(\d+\.d+)/);
 
 my ($args, $op, $target, $test, $test_set, $try, $val, $zvalue, @set, @val);
 

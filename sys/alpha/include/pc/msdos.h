@@ -3,7 +3,7 @@
  * [obtained from mtools -wfj]
  * how to decipher DOS disk structures in coexisting with DOS
  *
- *	$Id$
+ *	$Id: msdos.h,v 1.5 1998/08/06 09:15:54 dfr Exp $
  *	from: i386/include/pc msdos.h,v 1.4
  */
 

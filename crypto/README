@@ -1,9 +1,0 @@
-This directory is for the EXACT same use as src/contrib, execpt it
-holds crypto sources. As a consequence of USA law, this makes it export
-controlled, so it has to be kept separate.
-
-Please do not export the contents of this direcory and its
-subdirectories from the USA without the necessary permits.
-
-Mark Murray
-3 May, 1997

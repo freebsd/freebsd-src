@@ -1,6 +1,6 @@
 /*
  * This file is in the public domain.
- * $Id$
+ * $Id: inttypes.h,v 1.1 1998/12/19 00:02:34 dt Exp $
  */
 
 #ifndef _SYS_INTTYPES_H_

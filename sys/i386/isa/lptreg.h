@@ -6,7 +6,7 @@
  * William Jolitz.
  *
  *      form: @(#)lptreg.h	1.1 (Berkeley) 12/19/90
- *	$Id$
+ *	$Id: lptreg.h,v 1.6 1997/02/22 09:36:52 peter Exp $
  */
 
 /*

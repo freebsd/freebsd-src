@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_fsm.h	8.1 (Berkeley) 6/10/93
- * $Id: tcp_fsm.h,v 1.11 1999/04/07 22:22:06 julian Exp $
+ * $Id: tcp_fsm.h,v 1.10.2.1 1999/04/07 22:25:52 julian Exp $
  */
 
 #ifndef _NETINET_TCP_FSM_H_

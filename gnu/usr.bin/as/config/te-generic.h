@@ -6,7 +6,7 @@
  * compile, and copying as an aid for testing and porting.  xoxorich.
  */
 /*
- * $Id$
+ * $Id: te-generic.h,v 1.3 1997/02/22 15:44:25 peter Exp $
  */
 
 

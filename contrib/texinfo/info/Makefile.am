@@ -1,5 +1,5 @@
 ## Makefile.am for texinfo/info.
-## $Id: Makefile.am,v 1.11 1998/02/22 22:55:44 karl Exp $
+## $Id: Makefile.am,v 1.1.1.1 1999/01/14 19:34:58 markm Exp $
 ## Run automake in .. to produce Makefile.in from this.
 
 noinst_PROGRAMS = makedoc

@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amfs_direct.c,v 1.1.1.1 1998/11/05 02:04:46 ezk Exp $
+ * $Id: amfs_direct.c,v 1.1.1.2 1999/01/13 19:20:38 obrien Exp $
  *
  */
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)utsname.h	8.1 (Berkeley) 1/4/94
- * $Id$
+ * $Id: utsname.h,v 1.5 1997/02/22 09:46:24 peter Exp $
  */
 
 #ifndef	_SYS_UTSNAME_H

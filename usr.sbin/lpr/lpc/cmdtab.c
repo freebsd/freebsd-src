@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)cmdtab.c	8.1 (Berkeley) 6/6/93";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: cmdtab.c,v 1.2 1997/12/02 20:45:39 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/cdefs.h>

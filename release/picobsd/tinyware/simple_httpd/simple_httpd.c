@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id:$
+ *	$Id: simple_httpd.c,v 1.2.2.2 1999/05/05 07:31:33 abial Exp $
  */
 
 #include <sys/stat.h>

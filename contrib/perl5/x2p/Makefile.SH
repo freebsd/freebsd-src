@@ -27,9 +27,12 @@ esac
 echo "Extracting x2p/Makefile (with variable substitutions)"
 rm -f Makefile
 cat >Makefile <<!GROK!THIS!
-# $RCSfile: Makefile.SH,v $$Revision: 1.1.1.2 $$Date: 1999/05/02 14:32:57 $
+# $RCSfile: Makefile.SH,v $$Revision: 1.1.1.1.2.1 $$Date: 1999/05/05 13:19:06 $
 #
 # $Log: Makefile.SH,v $
+# Revision 1.1.1.1.2.1  1999/05/05 13:19:06  markm
+# MFC: Upgrade to Perl 5.00503
+#
 # Revision 1.1.1.2  1999/05/02 14:32:57  markm
 # Maintenance releace 3 of perl5.005. Includes support for threads.
 #

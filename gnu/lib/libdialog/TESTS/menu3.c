@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $Id$
+ * $Id: menu3.c,v 1.7 1997/02/22 15:42:45 peter Exp $
  */
 
 #include <stdio.h>

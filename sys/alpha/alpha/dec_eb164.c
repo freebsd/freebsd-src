@@ -1,4 +1,4 @@
-/* $Id: dec_eb164.c,v 1.5 1998/12/05 22:36:31 mjacob Exp $ */
+/* $Id: dec_eb164.c,v 1.6 1998/12/06 00:10:52 mjacob Exp $ */
 /* $NetBSD: dec_eb164.c,v 1.26 1998/04/17 02:45:19 mjacob Exp $ */
 
 /*

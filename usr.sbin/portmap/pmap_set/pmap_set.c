@@ -10,7 +10,7 @@
 static char sccsid[] = "@(#) pmap_set.c 1.1 92/06/11 22:53:16";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: pmap_set.c,v 1.3 1997/10/09 07:17:36 charnier Exp $";
 #endif
 
 #include <err.h>

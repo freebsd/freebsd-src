@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.5 (Berkeley) 3/31/94
-#	$Id: Makefile,v 1.62.2.4 1999/04/19 14:25:47 semenu Exp $
+#	$Id: Makefile,v 1.62.2.5 1999/05/10 19:44:26 obrien Exp $
 
 # XXX MISSING:		icheck ncheck
 

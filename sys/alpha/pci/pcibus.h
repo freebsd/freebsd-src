@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pcibus.h,v 1.1 1998/06/10 10:55:38 dfr Exp $
+ *	$Id: pcibus.h,v 1.2 1998/11/15 18:25:16 dfr Exp $
  */
 
 void pci_init_resources(void);

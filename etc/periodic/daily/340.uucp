@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: 340.uucp,v 1.2 1997/08/17 17:55:32 pst Exp $
+# $Id: 340.uucp,v 1.3 1999/01/01 21:07:39 billf Exp $
 #
 # Local cleanup of UUCP files.  This is for backwards compatibility,
 # /etc/uuclean.daily doesn't exist by default.

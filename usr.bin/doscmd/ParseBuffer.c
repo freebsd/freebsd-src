@@ -29,7 +29,7 @@
  *
  *	BSDI ParseBuffer.c,v 2.2 1996/04/08 19:32:15 bostic Exp
  *
- * $Id: ParseBuffer.c,v 1.2 1996/09/22 05:52:53 miff Exp $
+ * $Id: ParseBuffer.c,v 1.1 1997/08/09 01:42:32 dyson Exp $
  */
 
 #include <stdlib.h>

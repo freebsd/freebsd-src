@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$Id: copyright.h,v 1.5 1998/12/31 14:26:42 wosch Exp $
+ * 	$Id: copyright.h,v 1.5.2.1 1999/02/10 13:10:16 kato Exp $
  */
 
 

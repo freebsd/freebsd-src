@@ -1,6 +1,6 @@
 \ Example of the file which is automatically loaded by /boot/loader
 \ on startup.
-\ $Id$
+\ $Id: boot.4th,v 1.1 1998/12/22 12:15:45 abial Exp $
 
 \ Load the screen manipulation words
 

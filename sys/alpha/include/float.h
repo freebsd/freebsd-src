@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: float.h,v 1.1 1998/01/10 22:09:53 jb Exp $ */
 /* From: NetBSD: float.h,v 1.6 1997/07/17 21:36:03 thorpej Exp */
 
 /*

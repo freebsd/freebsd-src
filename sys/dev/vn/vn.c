@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.71 1998/09/14 19:56:38 sos Exp $
+ *	$Id: vn.c,v 1.71.2.1 1999/03/13 00:32:36 julian Exp $
  */
 
 /*

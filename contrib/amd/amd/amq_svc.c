@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amq_svc.c,v 1.1.1.1 1998/11/05 02:04:47 ezk Exp $
+ * $Id: amq_svc.c,v 1.1.1.2 1999/01/13 19:20:54 obrien Exp $
  *
  */
 

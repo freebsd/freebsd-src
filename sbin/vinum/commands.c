@@ -36,7 +36,7 @@
  *
  */
 
-/* $Id: commands.c,v 1.6 1999/03/23 03:40:07 grog Exp grog $ */
+/* $Id: commands.c,v 1.5.2.3 1999/05/05 05:09:46 grog Exp $ */
 
 #include <ctype.h>
 #include <errno.h>

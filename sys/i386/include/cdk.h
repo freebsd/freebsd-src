@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: cdk.h,v 1.4 1997/02/22 09:33:58 peter Exp $
  */
 
 /*****************************************************************************/

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_socket.c	8.1 (Berkeley) 6/10/93
- * $Id: sys_socket.c,v 1.19 1998/11/11 10:03:56 truckman Exp $
+ * $Id: sys_socket.c,v 1.19.2.1 1999/05/05 22:53:05 dt Exp $
  */
 
 #include <sys/param.h>

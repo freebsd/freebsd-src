@@ -1,5 +1,5 @@
 /*-
- *	$Id: dgm.c,v 1.6 1998/12/07 21:58:18 archie Exp $
+ *	$Id: dgm.c,v 1.6.2.1 1999/05/10 12:29:55 obrien Exp $
  *
  *  This driver and the associated header files support the ISA PC/Xem
  *  Digiboards.  Its evolutionary roots are described below.

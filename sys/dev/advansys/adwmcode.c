@@ -2,7 +2,7 @@
  * Downloadable microcode for Second Generation
  * Advanced Systems Inc. SCSI controllers
  *
- *	$Id$
+ *	$Id: adwmcode.c,v 1.1 1998/10/07 03:20:46 gibbs Exp $
  *
  * Obtained from:
  * advansys.c - Linux Host Driver for AdvanSys SCSI Adapters

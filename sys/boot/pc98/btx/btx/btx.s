@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: btx.s,v 1.1.2.1 1999/02/06 07:37:13 kato Exp $
+#	$Id: btx.s,v 1.1.2.2 1999/03/01 10:03:57 kato Exp $
 
 #
 # Memory layout.

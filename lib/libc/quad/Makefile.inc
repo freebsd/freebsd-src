@@ -1,5 +1,5 @@
 #	from @(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile.inc,v 1.6 1997/12/19 21:56:38 bde Exp $
+#	$Id: Makefile.inc,v 1.7 1998/02/20 08:22:02 jb Exp $
 
 # Quad support, if needed
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/quad ${.CURDIR}/../libc/quad

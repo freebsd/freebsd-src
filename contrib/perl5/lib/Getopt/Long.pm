@@ -2,7 +2,7 @@
 
 package Getopt::Long;
 
-# RCS Status      : $Id: Long.pm,v 1.1.1.2 1999/05/02 14:26:07 markm Exp $
+# RCS Status      : $Id: Long.pm,v 1.1.1.1.2.1 1999/05/05 13:16:53 markm Exp $
 # Author          : Johan Vromans
 # Created On      : Tue Sep 11 15:00:12 1990
 # Last Modified By: Johan Vromans
@@ -108,7 +108,7 @@ __END__
 
 ################ AutoLoading subroutines ################
 
-# RCS Status      : $Id: Long.pm,v 1.1.1.2 1999/05/02 14:26:07 markm Exp $
+# RCS Status      : $Id: Long.pm,v 1.1.1.1.2.1 1999/05/05 13:16:53 markm Exp $
 # Author          : Johan Vromans
 # Created On      : Fri Mar 27 11:50:30 1998
 # Last Modified By: Johan Vromans
@@ -137,7 +137,7 @@ sub GetOptions {
     print STDERR ("GetOpt::Long $Getopt::Long::VERSION ",
 		  "called from package \"$pkg\".",
 		  "\n  ",
-		  'GetOptionsAl $Revision: 1.1.1.2 $ ',
+		  'GetOptionsAl $Revision: 1.1.1.1.2.1 $ ',
 		  "\n  ",
 		  "ARGV: (@ARGV)",
 		  "\n  ",

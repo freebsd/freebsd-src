@@ -26,7 +26,7 @@
 #
 # makewhatis -- update the whatis database in the man directories.
 #
-# $Id: makewhatis.perl,v 1.17 1997/07/04 22:32:59 wosch Exp $
+# $Id: makewhatis.perl,v 1.18 1998/08/05 03:44:14 thepish Exp $
 
 
 sub usage {

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.42 1998/12/22 19:47:48 dillon Exp $
+#	$Id: Makefile,v 1.43 1999/01/09 05:09:21 obrien Exp $
 
 MAN9=	MD5.9 \
 	VFS.9 VFS_FHTOVP.9 VFS_INIT.9 VFS_MOUNT.9 VFS_QUOTACTL.9 \

@@ -36,7 +36,7 @@ DONE
 cat >${UPPER} <<DONE
 # Configuration file for kernel type: ${UPPER}
 ident	${UPPER}
-# \$Id: make_pci_driver.sh,v 1.0 1999/03/15 16:10:29 crb Exp $"
+# \$Id: make_pci_drive.sh,v 1.1.2.1 1999/04/08 18:47:37 julian Exp $"
 DONE
 
 grep -v GENERIC < GENERIC >>${UPPER}
@@ -52,7 +52,7 @@ cat >../../pci/${1}.c <<DONE
  * Copyright ME
  *
  * ${1} driver
- * \$Id: make_pci_driver.sh,v 1.4 1998/03/15 16:10:29 crb Exp $
+ * \$Id: make_pci_drive.sh,v 1.1.2.1 1999/04/08 18:47:37 julian Exp $
  */
 
 
@@ -434,7 +434,7 @@ DONE
 if [ -d /usr/src/sys/modules/${1} ]
 then
 	cat >/usr/src/sys/modules/${1}/Makefile <<DONE
-#       $Id: Makefile,v 1.0 1999/03/15 04:30:46 crb Exp $
+#       $Id: make_pci_drive.sh,v 1.1.2.1 1999/04/08 18:47:37 julian Exp $
 #	${UPPER} KLD Module
 #
 #	This happens not to work, pci devices can't be modules

@@ -29,7 +29,7 @@
  *
  *	BSDI config.c,v 2.2 1996/04/08 19:32:22 bostic Exp
  *
- * $Id: config.c,v 1.1 1997/08/09 01:42:35 dyson Exp $
+ * $Id: config.c,v 1.2 1998/07/01 19:56:12 imp Exp $
  */
 
 #include <stdio.h>

@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: bsd.docb.mk,v 1.3 1998/12/06 17:34:50 bde Exp $
 #
 # The include file <bsd.docb.mk> handles installing SGML/docbook documents.
 #

@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$Id: nsap_addr.c,v 1.5 1998/06/11 09:02:45 peter Exp $";
+static char rcsid[] = "$Id: nsap_addr.c,v 1.6 1998/09/02 00:53:17 jdp Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>

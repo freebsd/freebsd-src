@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile.shprog,v 1.3 1997/02/22 15:46:56 peter Exp $
 
 # This may become bsd.shprog.mk.  The general version would have to handle:
 # - arbitrary sed substitutions.

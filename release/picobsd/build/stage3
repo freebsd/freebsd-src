@@ -1,7 +1,7 @@
 #! /bin/sh -
 
 #
-#	$Id: stage3,v 1.4.2.2 1999/03/09 21:19:11 abial Exp $
+#	$Id: stage3,v 1.4.2.3 1999/05/07 10:02:31 abial Exp $
 #
 set -e
 

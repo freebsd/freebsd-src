@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.39 1998/12/07 21:58:35 archie Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.39.2.1 1999/04/20 22:43:34 dt Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.51 1997/11/17 15:36:58 ws Exp $	*/
 
 /*-

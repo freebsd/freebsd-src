@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: edit.c,v 1.12 1998/12/06 22:58:14 archie Exp $
+ *	$Id: edit.c,v 1.12.2.1 1999/05/02 15:03:17 ghelmer Exp $
  */
 
 #ifndef lint

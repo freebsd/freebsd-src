@@ -15,7 +15,7 @@
 
 #if ! lint
 static const char rcsid[] =
-    "$Id$";
+    "$Id: com_err.c,v 1.4 1997/02/22 15:05:43 peter Exp $";
 #endif	/* ! lint */
 
 static void

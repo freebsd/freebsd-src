@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)errno.h	8.5 (Berkeley) 1/21/94
- * $Id: errno.h,v 1.10 1998/04/30 09:38:03 jb Exp $
+ * $Id: errno.h,v 1.11 1998/12/14 18:54:04 dt Exp $
  */
 
 #ifndef _SYS_ERRNO_H_

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: libi386.h,v 1.7 1998/10/02 16:32:45 msmith Exp $
+ *	$Id: libi386.h,v 1.8 1998/10/02 20:53:17 msmith Exp $
  */
 
 

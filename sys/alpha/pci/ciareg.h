@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: ciareg.h,v 1.1 1998/07/05 12:16:14 dfr Exp $ */
 /* $NetBSD: ciareg.h,v 1.22 1998/06/06 20:40:14 thorpej Exp $ */
 
 /*

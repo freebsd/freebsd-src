@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.37 1998/06/20 16:39:35 peter Exp $ */
+/* $Id: ppp_tty.c,v 1.38 1999/01/17 20:53:47 peter Exp $ */
 
 #include "ppp.h"
 #if NPPP > 0

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sscop_pdu.c,v 1.2 1998/10/31 20:07:00 phk Exp $
+ *	@(#) $Id: sscop_pdu.c,v 1.3 1998/12/04 22:54:53 archie Exp $
  *
  */
 
@@ -44,7 +44,7 @@
 #include <netatm/uni/sscop_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: sscop_pdu.c,v 1.2 1998/10/31 20:07:00 phk Exp $");
+__RCSID("@(#) $Id: sscop_pdu.c,v 1.3 1998/12/04 22:54:53 archie Exp $");
 #endif
 
 /*

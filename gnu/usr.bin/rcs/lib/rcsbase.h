@@ -1,6 +1,6 @@
 /* RCS common definitions and data structures */
 
-#define RCSBASE "$Id: rcsbase.h,v 1.8 1997/02/22 15:47:33 peter Exp $"
+#define RCSBASE "$Id: rcsbase.h,v 1.9 1997/05/11 05:33:04 peter Exp $"
 
 /* Copyright 1982, 1988, 1989 Walter Tichy
    Copyright 1990, 1991, 1992, 1993, 1994, 1995 Paul Eggert

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kget.c,v 1.1.2.7 1999/05/07 10:42:29 jkh Exp $
+ * $Id: kget.c,v 1.1.2.8 1999/05/12 23:08:28 jkh Exp $
  */
 
 #include "sysinstall.h"

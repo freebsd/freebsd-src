@@ -1,6 +1,6 @@
 #!./perl
 
-# $RCSfile$
+# $RCSfile: read.t,v $
 
 print "1..1\n";
 

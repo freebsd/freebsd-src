@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ciavar.h,v 1.1 1998/07/05 12:16:15 dfr Exp $
  */
 
 extern void cia_init(void);

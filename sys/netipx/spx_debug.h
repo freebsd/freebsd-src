@@ -33,7 +33,7 @@
  *
  *	@(#)spx_debug.h
  *
- * $Id: spx_debug.h,v 1.9 1997/05/10 09:58:57 jhay Exp $
+ * $Id: spx_debug.h,v 1.10 1997/06/26 19:36:01 jhay Exp $
  */
 
 #ifndef _NETIPX_SPX_DEBUG_H_

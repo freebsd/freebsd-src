@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp.c,v 1.12.2.3 1999/03/02 16:19:21 dcs Exp $
+ *	$Id: interp.c,v 1.12.2.4 1999/04/20 12:08:48 joerg Exp $
  */
 /*
  * Simple commandline interpreter, toplevel and misc.

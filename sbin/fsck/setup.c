@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)setup.c	8.10 (Berkeley) 5/9/95";
 #endif
 static const char rcsid[] =
-	"$Id: setup.c,v 1.12 1998/06/28 19:23:03 bde Exp $";
+	"$Id: setup.c,v 1.14 1998/12/03 02:41:11 julian Exp $";
 #endif /* not lint */
 
 #define DKTYPENAMES

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ftree.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	$Id: ftree.h,v 1.4 1997/02/22 14:04:30 peter Exp $
  */
 
 /*

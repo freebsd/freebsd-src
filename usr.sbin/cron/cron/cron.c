@@ -17,7 +17,7 @@
 
 #if !defined(lint) && !defined(LINT)
 static const char rcsid[] =
-	"$Id: cron.c,v 1.7 1998/07/06 20:28:04 bde Exp $";
+	"$Id: cron.c,v 1.8 1998/12/13 06:07:38 dillon Exp $";
 #endif
 
 #define	MAIN_PROGRAM

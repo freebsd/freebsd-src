@@ -27,7 +27,7 @@
  *	printing cause values
  *	---------------------
  *
- *	$Id: pcause.c,v 1.9 1998/12/05 18:03:31 hm Exp $
+ *	$Id: pcause.c,v 1.1 1998/12/27 21:47:02 phk Exp $
  *
  *	last edit-date: [Sat Dec  5 18:11:31 1998]
  *

@@ -39,7 +39,7 @@
 
 #ifndef RPC_HDR
 %#ifndef lint
-%static const char rcsid[] = "$Id: nis_callback.x,v 1.3 1996/07/29 14:32:56 wpaul Exp $";
+%static const char rcsid[] = "$Id: nis_callback.x,v 1.2 1997/05/28 04:38:16 wpaul Exp $";
 %#endif /* not lint */
 #endif
 

@@ -18,7 +18,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /*
- * $Id$
+ * $Id: tc-i386.h,v 1.5 1997/02/22 15:44:24 peter Exp $
  */
 
 #ifndef TC_I386

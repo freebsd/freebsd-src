@@ -38,7 +38,7 @@
  *
  *	%W% (Berkeley) %G%
  *
- * $Id: conf_parse.y,v 1.1.1.1 1998/11/05 02:04:51 ezk Exp $
+ * $Id: conf_parse.y,v 1.1.1.2 1999/01/13 19:21:55 obrien Exp $
  *
  */
 

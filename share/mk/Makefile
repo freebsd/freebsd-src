@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.21.2.2 1999/03/31 23:58:41 asami Exp $
+#	$Id: Makefile,v 1.21.2.3 1999/04/15 07:21:42 obrien Exp $
 #	@(#)Makefile	8.1 (Berkeley) 6/8/93
 
 FILES=	bsd.README

@@ -1,6 +1,6 @@
 # ex:ts=8
 #
-# $Id$
+# $Id: Makefile,v 1.1 1998/08/27 08:09:41 obrien Exp $
 #
 # Makefile for amd
 # 	This file is under a "BSD" copyright (c) by David O'Brien 1998.

@@ -27,7 +27,7 @@
  *	i4b_q932fac.h - Q932 facility handling header file
  *	--------------------------------------------------
  *
- *	$Id: i4b_q932fac.h,v 1.5 1998/12/18 17:17:57 hm Exp $ 
+ *	$Id: i4b_q932fac.h,v 1.1 1998/12/27 21:46:52 phk Exp $ 
  *
  *      last edit-date: [Fri Dec 18 18:17:23 1998]
  *

@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: camlib.h,v 1.1 1998/09/15 06:16:46 gibbs Exp $
  */
 /*
  * Buffer encoding/decoding routines taken from the original FreeBSD SCSI

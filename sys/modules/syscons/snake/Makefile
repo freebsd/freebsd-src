@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.7 1998/02/01 17:59:58 bde Exp $
+#	$Id: Makefile,v 1.8 1998/10/16 04:30:50 peter Exp $
 
 KMOD=	snake_saver
 SRCS= 	snake_saver.c

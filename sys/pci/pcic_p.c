@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcic_p.c,v 1.9 1999/04/01 15:28:09 nsayer Exp $
+ * $Id: pcic_p.c,v 1.7.2.1 1999/05/02 05:59:12 nate Exp $
  */
 
 #include "pci.h"

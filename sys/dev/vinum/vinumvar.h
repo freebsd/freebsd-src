@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumvar.h,v 1.19 1999/03/23 02:48:20 grog Exp grog $
+ * $Id: vinumvar.h,v 1.7.2.3 1999/05/05 05:21:39 grog Exp $
  */
 
 #include <sys/time.h>

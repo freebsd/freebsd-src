@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: local_passwd.c,v 1.19 1998/03/07 21:42:07 ache Exp $
+ * $Id: local_passwd.c,v 1.20 1998/05/19 03:48:07 jkoshy Exp $
  */
 
 #ifndef lint

@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$Id: s_scalbn.S,v 1.5 1997/02/22 15:09:02 peter Exp $")
+RCSID("$Id: s_scalbn.S,v 1.6 1997/03/09 14:01:06 bde Exp $")
 
 ENTRY(scalbn)
 	fildl	12(%esp)

@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrequest.c,v 1.23 1999/03/20 21:58:38 grog Exp grog $
+ * $Id: vinumrequest.c,v 1.7.2.4 1999/04/06 09:05:58 grog Exp $
  */
 
 #define REALLYKERNEL

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: mfs.rc.pl,v 1.3 1998/08/07 19:29:57 abial Exp $
+# $Id: mfs.rc.pl,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
 
 ### WARNING !!!! ###
 # We remove this file during execution (see EOF)

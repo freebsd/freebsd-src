@@ -33,7 +33,7 @@
  *
  *	@(#)spx_var.h
  *
- * $Id: spx_var.h,v 1.7 1997/05/10 09:58:58 jhay Exp $
+ * $Id: spx_var.h,v 1.8 1997/06/26 19:36:03 jhay Exp $
  */
 
 #ifndef _NETIPX_SPX_VAR_H_

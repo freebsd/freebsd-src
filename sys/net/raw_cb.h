@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_cb.h	8.1 (Berkeley) 6/10/93
- * $Id: raw_cb.h,v 1.9 1997/04/27 20:00:58 wollman Exp $
+ * $Id: raw_cb.h,v 1.10 1998/02/03 22:15:03 bde Exp $
  */
 
 #ifndef _NET_RAW_CB_H_

@@ -1,5 +1,5 @@
 /*	$NetBSD: ums.c,v 1.22 1999/01/12 22:06:48 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/ums.c,v 1.9.2.1 1999/05/08 23:04:51 n_hibma Exp $	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

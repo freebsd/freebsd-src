@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.52 1999/01/28 15:16:38 brian Exp $
+#	$Id: Makefile,v 1.50.2.3 1999/05/02 08:59:31 brian Exp $
 
 MAINTAINER=brian@FreeBSD.org
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.116.2.2 1999/02/08 18:27:30 dillon Exp $
+ * $Id: nfs_vnops.c,v 1.116.2.3 1999/02/13 08:03:47 dillon Exp $
  */
 
 

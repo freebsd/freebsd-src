@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.h,v 1.15 1999/03/23 03:51:27 grog Exp grog $
+ * $Id: vinumio.h,v 1.6.2.2 1999/04/06 09:05:57 grog Exp $
  */
 
 #ifdef VINUMDEBUG

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/6/93
-#	$Id: Makefile,v 1.4 1997/12/16 17:53:19 bde Exp $
+#	$Id: Makefile,v 1.5 1998/03/07 09:47:57 bde Exp $
 
 PROG=	lpc
 CFLAGS+=-I${.CURDIR}/../common_source ${CWARNFLAGS}

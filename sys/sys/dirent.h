@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dirent.h	8.3 (Berkeley) 8/10/94
- * $Id: dirent.h,v 1.8 1997/04/10 13:54:19 bde Exp $
+ * $Id: dirent.h,v 1.9 1998/12/19 00:30:01 dt Exp $
  */
 
 #ifndef	_SYS_DIRENT_H_

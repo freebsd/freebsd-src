@@ -30,7 +30,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ldconfig.c,v 1.27 1998/09/06 20:43:25 jdp Exp $";
+	"$Id: ldconfig.c,v 1.28 1998/09/09 01:21:24 jdp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

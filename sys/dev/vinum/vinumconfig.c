@@ -45,7 +45,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumconfig.c,v 1.25 1999/03/23 03:28:11 grog Exp grog $
+ * $Id: vinumconfig.c,v 1.8.2.4 1999/05/05 05:16:20 grog Exp $
  */
 
 #define STATIC static

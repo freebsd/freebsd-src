@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.50 1999/02/23 18:51:13 wollman Exp $ */
+/* $Id: main.c,v 1.49.2.1 1999/02/25 18:36:32 wollman Exp $ */
 
 #include <sys/types.h>
 

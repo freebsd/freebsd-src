@@ -27,7 +27,7 @@
  *	isdntel - isdn4bsd telephone answering support
  *      ==============================================
  *
- *	$Id: defs.h,v 1.6 1998/12/05 18:03:53 hm Exp $ 
+ *	$Id: defs.h,v 1.1 1998/12/27 21:47:07 phk Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:15:26 1998]
  *

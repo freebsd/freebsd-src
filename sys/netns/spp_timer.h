@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spp_timer.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: spp_timer.h,v 1.7 1997/02/22 09:42:26 peter Exp $
  */
 
 #ifndef _NETNS_SPP_TIMER_H_

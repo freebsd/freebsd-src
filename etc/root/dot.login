@@ -1,4 +1,4 @@
-#	$Id: dot.login,v 1.17 1998/09/13 23:05:47 brian Exp $
+#	$Id: dot.login,v 1.17.2.1 1999/04/28 06:43:23 jkh Exp $
 #
 # csh .login file
 #

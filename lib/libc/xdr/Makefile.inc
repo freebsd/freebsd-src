@@ -1,5 +1,5 @@
 #	@(#)Makefile	5.11 (Berkeley) 9/6/90
-#	$Id: Makefile.inc,v 1.8 1997/05/28 16:29:12 wpaul Exp $
+#	$Id: Makefile.inc,v 1.9 1997/10/15 16:16:41 bde Exp $
 
 .PATH: ${.CURDIR}/../libc/xdr ${.CURDIR}/.
 SRCS+=	xdr.c xdr_array.c xdr_float.c xdr_mem.c \

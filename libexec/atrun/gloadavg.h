@@ -25,5 +25,5 @@
 
 double gloadavg(void);
 #if 0
-static char atrun_h_rcsid[] = "$Id$";
+static char atrun_h_rcsid[] = "$Id: gloadavg.h,v 1.3 1997/02/22 14:20:56 peter Exp $";
 #endif

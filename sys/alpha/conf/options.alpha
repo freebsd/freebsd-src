@@ -1,4 +1,4 @@
-#	$Id: options.alpha,v 1.8 1999/01/18 20:26:50 gallatin Exp $
+#	$Id: options.alpha,v 1.8.2.1 1999/05/07 09:01:43 dfr Exp $
 
 EV5			opt_global.h
 EV4			opt_global.h

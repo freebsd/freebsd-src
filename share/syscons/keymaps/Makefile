@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.34 1999/01/28 10:48:28 yokota Exp $
+# $Id: Makefile,v 1.33.2.1 1999/01/31 13:06:22 yokota Exp $
 
 KEYMAPS=  INDEX.keymaps
 KEYMAPS+= be.iso.kbd

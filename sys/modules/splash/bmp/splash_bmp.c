@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: splash_bmp.c,v 1.3.2.2 1999/02/07 03:03:28 yokota Exp $
+ * $Id: splash_bmp.c,v 1.3.2.3 1999/03/29 15:15:21 yokota Exp $
  */
 
 #include <sys/param.h>

@@ -1,5 +1,5 @@
 ## Makefile.am for texinfo/util.
-## $Id: Makefile.am,v 1.6 1997/07/15 19:15:05 karl Exp $
+## $Id: Makefile.am,v 1.1.1.1 1999/01/14 19:35:17 markm Exp $
 ## Run automake in .. to produce Makefile.in from this.
 
 bin_PROGRAMS = install-info texindex

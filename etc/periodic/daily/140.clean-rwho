@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: 140.clean-rwho,v 1.2 1997/08/17 17:55:30 pst Exp $
+# $Id: 140.clean-rwho,v 1.2.2.1 1999/03/30 08:58:33 joerg Exp $
 #
 
 if [ -d /var/rwho ] ; then

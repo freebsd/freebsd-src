@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.88.2.1 1999/04/06 08:27:47 jkh Exp $
+ * $Id: devices.c,v 1.88.2.2 1999/04/30 19:32:47 wpaul Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

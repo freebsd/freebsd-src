@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.82 1998/12/03 20:23:20 dillon Exp $
+ *	$Id: tcp_input.c,v 1.82.2.1 1999/04/20 19:09:15 obrien Exp $
  */
 
 #include "opt_ipfw.h"		/* for ipfw_fwd		*/

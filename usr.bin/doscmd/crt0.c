@@ -29,7 +29,7 @@
  *
  *	BSDI crt0.c,v 2.2 1996/04/08 19:32:24 bostic Exp
  *
- * $Id: crt0.c,v 1.2 1996/09/18 16:12:25 miff Exp $
+ * $Id: crt0.c,v 1.1 1997/08/09 01:42:37 dyson Exp $
  */
 
 char **environ;

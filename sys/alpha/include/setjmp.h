@@ -1,4 +1,4 @@
-/* $Id: setjmp.h,v 1.1 1998/01/10 23:00:06 jb Exp $ */
+/* $Id: setjmp.h,v 1.2 1998/01/20 09:09:24 jb Exp $ */
 /* From: NetBSD: setjmp.h,v 1.2 1997/04/06 08:47:41 cgd Exp */
 
 /*

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact.h,v 1.19 1999/04/03 22:20:03 jdp Exp $
+ *	$Id: imgact.h,v 1.18.2.1 1999/04/14 04:55:24 jdp Exp $
  */
 
 #ifndef _SYS_IMGACT_H_

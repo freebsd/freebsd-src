@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)pagesize.sh	8.1 (Berkeley) 4/3/94
-#	$Id$
+#	$Id: pagesize.sh,v 1.4 1997/02/22 19:56:33 peter Exp $
 #
 
 PATH=/bin:/usr/bin:/sbin:/usr/sbin; export PATH

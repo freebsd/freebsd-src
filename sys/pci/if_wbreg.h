@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wbreg.h,v 1.2 1999/01/16 06:25:59 wpaul Exp $
+ *	$Id: if_wbreg.h,v 1.2.2.1 1999/05/06 15:39:40 wpaul Exp $
  */
 
 /*

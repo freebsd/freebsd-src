@@ -32,7 +32,7 @@
  *
  *	@(#)skpc.c	8.1 (Berkeley) 6/10/93
  *
- * $Id$
+ * $Id: skpc.c,v 1.5 1997/02/22 09:40:01 peter Exp $
  */
 
 #include <sys/libkern.h>

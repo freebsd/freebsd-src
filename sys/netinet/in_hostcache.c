@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: in_hostcache.c,v 1.1 1997/06/18 01:24:28 wollman Exp $
+ *	$Id: in_hostcache.c,v 1.2 1997/11/07 08:53:20 phk Exp $
  */
 
 #include <sys/param.h>

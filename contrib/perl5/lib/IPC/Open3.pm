@@ -68,7 +68,7 @@ C<cat -v> and continually read and write a line from it.
 # fixed for 5.001 by Ulrich Kunitz <kunitz@mai-koeln.com>
 # ported to Win32 by Ron Schmidt, Merrill Lynch almost ended my career
 #
-# $Id: Open3.pm,v 1.1.1.2 1999/05/02 14:26:13 markm Exp $
+# $Id: Open3.pm,v 1.1.1.1.2.1 1999/05/05 13:16:55 markm Exp $
 #
 # usage: $pid = open3('wtr', 'rdr', 'err' 'some cmd and args', 'optarg', ...);
 #

@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)nm.1	8.1 (Berkeley) 6/6/93
-.\"	$Id: nm.1,v 1.7 1997/02/22 19:56:28 peter Exp $
+.\"	$Id: nm.1aout,v 1.8 1997/07/31 06:53:36 charnier Exp $
 .\"
 .Dd June 6, 1993
 .Dt NM 1

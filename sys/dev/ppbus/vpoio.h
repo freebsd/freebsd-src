@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vpoio.h,v 1.1.2.2 1998/06/14 14:37:43 son Exp $
+ *	$Id: vpoio.h,v 1.2 1998/09/13 18:26:26 nsouch Exp $
  *
  */
 #ifndef __VP0IO_H

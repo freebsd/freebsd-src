@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)kvm_getvfsbyname.c	8.1 (Berkeley) 4/3/95";
 #endif
 static const char rcsid[] =
-	"$Id: getvfsbyname.c,v 1.3 1998/03/09 04:36:07 jb Exp $";
+	"$Id: getvfsbyname.c,v 1.4 1998/12/07 11:26:28 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

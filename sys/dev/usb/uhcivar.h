@@ -1,5 +1,5 @@
 /*	$NetBSD: uhcivar.h,v 1.5 1998/12/26 12:53:02 augustss Exp $	*/
-/*	FreeBSD $Id: uhcivar.h,v 1.5 1999/01/07 23:31:33 n_hibma Exp $ */
+/*	FreeBSD $Id: uhcivar.h,v 1.5.2.1 1999/05/08 23:04:48 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

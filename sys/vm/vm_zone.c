@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *	John S. Dyson.
  *
- * $Id: vm_zone.c,v 1.25 1999/01/08 17:31:29 eivind Exp $
+ * $Id: vm_zone.c,v 1.26 1999/01/10 01:58:29 eivind Exp $
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1998/12/28 14:22:57 des Exp $
+#	$Id: Makefile,v 1.2 1998/12/29 09:02:44 peter Exp $
 
 KMOD=	logo_saver
 SRCS= 	logo_saver.c

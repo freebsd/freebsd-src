@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: 120.clean-preserve,v 1.2 1997/08/17 17:55:29 pst Exp $
+# $Id: 120.clean-preserve,v 1.2.2.1 1999/03/30 08:58:33 joerg Exp $
 #
 
 if [ -d /var/preserve ]; then

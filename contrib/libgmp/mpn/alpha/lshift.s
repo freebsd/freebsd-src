@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: lshift.s,v 1.2 1998/03/08 21:08:55 jb Exp $
  # Alpha 21064 __mpn_lshift --
 
  # Copyright (C) 1994, 1995 Free Software Foundation, Inc.

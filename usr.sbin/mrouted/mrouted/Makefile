@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.11 1999/01/20 07:55:57 fenner Exp $
+#	$Id: Makefile,v 1.11.2.1 1999/02/08 21:45:44 abial Exp $
 
 PROG=	mrouted
 

@@ -27,7 +27,7 @@
  *	layer1.c - isdndecode, decode and print layer 1 information
  *	-----------------------------------------------------------
  *
- *	$Id: layer1.c,v 1.2 1998/12/18 17:09:38 hm Exp $
+ *	$Id: layer1.c,v 1.1 1998/12/27 21:47:04 phk Exp $
  *
  *      last edit-date: [Fri Dec 18 18:11:55 1998]
  *

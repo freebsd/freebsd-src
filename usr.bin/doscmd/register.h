@@ -23,7 +23,7 @@
 ** OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 ** SUCH DAMAGE.
 **
-** $Id: register.h,v 1.4 1997/03/18 02:36:56 msmith Exp $
+** $Id: register.h,v 1.1 1997/08/09 01:43:11 dyson Exp $
 */
 
 /******************************************************************************

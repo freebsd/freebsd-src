@@ -30,7 +30,7 @@
  *	NOTE:	this has to stay in sync with isdntel/alias.c to be able
  *		to share a common aliasfile!
  *		
- *      $Id: alias.c,v 1.5 1998/12/05 18:03:03 hm Exp $
+ *      $Id: alias.c,v 1.1 1998/12/27 21:47:00 phk Exp $
  *
  *      last edit-date: [Sat Dec  5 18:05:40 1998]
  *

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1997/02/22 12:48:12 peter Exp $
+#	$Id: Makefile,v 1.4 1998/10/16 04:30:46 peter Exp $
 
 .PATH:	${.CURDIR}/../../netinet
 KMOD=	ip_mroute

@@ -27,7 +27,7 @@
  *	i4b_q931.h - Q931 handling header file
  *	--------------------------------------
  *
- *	$Id: i4b_q931.h,v 1.5 1998/12/05 18:05:39 hm Exp $ 
+ *	$Id: i4b_q931.h,v 1.1 1998/12/27 21:46:52 phk Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:33:53 1998]
  *

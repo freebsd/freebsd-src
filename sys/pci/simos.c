@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: simos.c,v 1.3 1998/12/14 06:32:57 dillon Exp $
+ *	$Id: simos.c,v 1.3.2.1 1999/05/07 00:43:47 ken Exp $
  */
 
 #include <sys/param.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smbconf.h,v 1.3 1999/01/27 19:58:53 dillon Exp $
+ *	$Id: smbconf.h,v 1.2.2.1 1999/03/13 00:17:01 julian Exp $
  */
 #ifndef __SMBONF_H
 #define __SMBONF_H

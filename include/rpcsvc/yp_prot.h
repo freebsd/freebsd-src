@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_prot.h,v 1.4 1996/12/30 14:01:08 peter Exp $
+ *	$Id: yp_prot.h,v 1.9 1997/05/28 04:38:22 wpaul Exp $
  */
 
 #ifndef _RPCSVC_YP_PROT_H_

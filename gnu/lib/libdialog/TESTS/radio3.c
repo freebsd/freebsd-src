@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $Id$
+ * $Id: radio3.c,v 1.5 1997/02/22 15:42:48 peter Exp $
  */
 
 #include <stdio.h>

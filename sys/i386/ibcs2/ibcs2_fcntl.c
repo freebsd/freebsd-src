@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_fcntl.c,v 1.10 1997/11/06 19:28:24 phk Exp $
+ * $Id: ibcs2_fcntl.c,v 1.11 1998/02/04 04:12:28 eivind Exp $
  */
 
 #include "opt_spx_hack.h"

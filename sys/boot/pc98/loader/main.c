@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.1.2.2 1999/03/11 10:26:21 kato Exp $
+ *	$Id: main.c,v 1.1.2.3 1999/04/02 09:01:01 kato Exp $
  */
 
 /*

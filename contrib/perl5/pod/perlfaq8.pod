@@ -1,6 +1,6 @@
 =head1 NAME
 
-perlfaq8 - System Interaction ($Revision: 1.1.1.2 $, $Date: 1999/05/02 14:27:54 $)
+perlfaq8 - System Interaction ($Revision: 1.1.1.1.2.1 $, $Date: 1999/05/05 13:17:36 $)
 
 =head1 DESCRIPTION
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: fpu.h,v 1.1 1998/12/04 10:52:48 dfr Exp $
+ *	$Id: fpu.h,v 1.2 1998/12/23 11:50:51 dfr Exp $
  */
 
 #ifndef _MACHINE_FPU_H_

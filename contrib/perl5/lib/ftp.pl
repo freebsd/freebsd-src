@@ -5,8 +5,11 @@
 # based on original version by Alan R. Martello <al@ee.pitt.edu>
 # And by A.Macpherson@bnr.co.uk for multi-homed hosts
 #
-# $Header: /a/swan/home/swan/staff/csg/lmjm/src/perl/mirror/RCS/ftp.pl,v 1.17 1993/04/21 10:06:54 lmjm Exp lmjm $
+# $Header: /home/ncvs/src/contrib/perl5/lib/ftp.pl,v 1.1.1.1 1998/09/09 06:59:53 markm Exp $
 # $Log: ftp.pl,v $
+# Revision 1.1.1.1  1998/09/09 06:59:53  markm
+# Initial import of Perl5. The king is dead; long live the king!
+#
 # Revision 1.17  1993/04/21  10:06:54  lmjm
 # Send all status reports to STDERR not to STDOUT (to allow use by ftpcat).
 # Allow target file to be '-' meaning STDOUT

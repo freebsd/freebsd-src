@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)wait.h	8.2 (Berkeley) 7/10/94
- * $Id$
+ * $Id: wait.h,v 1.8.4.1 1999/03/02 00:42:09 julian Exp $
  */
 
 #ifndef _SYS_WAIT_H_

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-#	$Id:$
+#	$Id: make-localhost,v 1.3 1998/09/13 23:05:46 brian Exp $
 #
 # make-localhost - edit the appropriate local information into
 # /etc/namedb/localhost.rev

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)utmp.h	8.2 (Berkeley) 1/21/94
- *	$Id: utmp.h,v 1.7 1997/05/07 20:00:13 eivind Exp $
+ *	$Id: utmp.h,v 1.8 1998/05/10 21:13:29 jb Exp $
  */
 
 #ifndef	_UTMP_H_

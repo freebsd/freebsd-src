@@ -1,4 +1,4 @@
-/* $Id: ispvar.h,v 1.8 1999/01/10 02:51:48 mjacob Exp $ */
+/* $Id: ispvar.h,v 1.8.2.1 1999/05/11 05:54:06 mjacob Exp $ */
 /* release_5_11_99 */
 /*
  * Soft Definitions for for Qlogic ISP SCSI adapters.

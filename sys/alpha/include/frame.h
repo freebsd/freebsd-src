@@ -1,4 +1,4 @@
-/* $Id: frame.h,v 1.1 1998/01/10 10:13:14 jb Exp $ */
+/* $Id: frame.h,v 1.2 1998/11/18 23:51:40 dfr Exp $ */
 /* From: NetBSD: frame.h,v 1.4 1997/04/06 08:47:27 cgd Exp */
 
 /*

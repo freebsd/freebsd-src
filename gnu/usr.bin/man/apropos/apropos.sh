@@ -15,7 +15,7 @@
 # The University of Texas at Austin
 # Austin, Texas  78712
 #
-# $Id$
+# $Id: apropos.sh,v 1.9 1997/02/22 15:46:58 peter Exp $
 
 
 PATH=/bin:/usr/bin:$PATH

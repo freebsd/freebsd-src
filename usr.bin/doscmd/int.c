@@ -1,7 +1,7 @@
 /*
 ** No copyright?!
 **
-** $Id: int.c,v 1.4 1997/03/18 02:36:56 msmith Exp $
+** $Id: int.c,v 1.1 1997/08/09 01:42:45 dyson Exp $
 */
 #include "doscmd.h"
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.52 1999/04/18 10:58:02 dcs Exp $
+ * $Id: cd9660_vfsops.c,v 1.47.2.1 1999/04/24 17:53:58 dcs Exp $
  */
 
 #include <sys/param.h>

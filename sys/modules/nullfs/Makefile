@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1998/02/06 23:54:26 eivind Exp $
+#	$Id: Makefile,v 1.7 1998/10/16 04:30:48 peter Exp $
 
 .PATH:	${.CURDIR}/../../miscfs/nullfs
 KMOD=	null

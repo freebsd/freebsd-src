@@ -29,7 +29,7 @@
  *
  *	BSDI mem.c,v 2.2 1996/04/08 19:32:57 bostic Exp
  *
- * $Id: mem.c,v 1.4 1996/09/22 15:42:57 miff Exp $
+ * $Id: mem.c,v 1.1 1997/08/09 01:42:52 dyson Exp $
  */
 
 #include <stdio.h>

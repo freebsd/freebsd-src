@@ -153,7 +153,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(synId, "$Id$")
+libId(synId, "$Id: rcssyn.c,v 1.6 1997/02/22 15:47:41 peter Exp $")
 
 static char const *getkeyval P((char const*,enum tokens,int));
 static int getdelta P((void));

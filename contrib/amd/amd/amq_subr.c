@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amq_subr.c,v 1.2 1998/09/04 04:42:28 obrien Exp $
+ * $Id: amq_subr.c,v 1.3 1999/01/13 20:03:54 obrien Exp $
  *
  */
 /*

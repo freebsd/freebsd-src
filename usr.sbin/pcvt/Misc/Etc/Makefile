@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.2 1998/03/16 11:46:09 bde Exp $
+# $Id: Makefile,v 1.4 1999/01/01 08:31:54 peter Exp $
 
 FILES=	Termcap Terminfo pcvt.el rc.local uemacs.tar.Z.uu xmodmap-german
 

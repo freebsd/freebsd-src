@@ -1,8 +1,11 @@
 ;# pwd.pl - keeps track of current working directory in PWD environment var
 ;#
-;# $RCSfile: pwd.pl,v $$Revision: 4.1 $$Date: 92/08/07 18:24:11 $
+;# $RCSfile: pwd.pl,v $$Revision: 1.1.1.1 $$Date: 1998/09/09 06:59:54 $
 ;#
-;# $Log:	pwd.pl,v $
+;# $Log: pwd.pl,v $
+;# Revision 1.1.1.1  1998/09/09 06:59:54  markm
+;# Initial import of Perl5. The king is dead; long live the king!
+;#
 ;#
 ;# Usage:
 ;#	require "pwd.pl";

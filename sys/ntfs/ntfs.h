@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs.h,v 1.2.2.1 1999/03/14 09:47:05 semenu Exp $
+ *	$Id: ntfs.h,v 1.2.2.2 1999/04/13 14:56:35 semenu Exp $
  */
 
 /*#define NTFS_DEBUG 1*/

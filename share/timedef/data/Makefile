@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.30 1999/03/20 11:48:55 foxfair Exp $
+# $Id: Makefile,v 1.28.2.2 1999/04/21 07:45:38 foxfair Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}

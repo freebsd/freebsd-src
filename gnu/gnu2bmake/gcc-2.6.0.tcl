@@ -7,7 +7,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id$
+# $Id: gcc-2.6.0.tcl,v 1.4 1997/02/22 15:42:28 peter Exp $
 #
 
 source gnu2bmake.tcl
@@ -116,7 +116,7 @@ sh "mkdir $ddir/legal"
 sh "cp $sdir/gen-*.c $sdir/md $ddir/legal"
 set f [open $ddir/README w]
 puts $f {
-$Id$
+$Id: gcc-2.6.0.tcl,v 1.4 1997/02/22 15:42:28 peter Exp $
 
 This directory contains gcc in a form that uses "bmake" makefiles.
 This is not the place you want to start, if you want to hack gcc.

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: radius.h,v 1.2 1999/02/06 02:54:47 brian Exp $
+ *	$Id: radius.h,v 1.2.2.3 1999/05/02 08:59:52 brian Exp $
  */
 
 struct radius {

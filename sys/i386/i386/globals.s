@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: globals.s,v 1.8 1998/09/28 12:20:46 peter Exp $
+ * $Id: globals.s,v 1.8.2.1 1999/02/22 15:59:39 bde Exp $
  */
 
 #include "opt_vm86.h"

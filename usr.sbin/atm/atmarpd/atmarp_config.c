@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atmarp_config.c,v 1.5 1998/08/13 20:11:11 johnc Exp $
+ *	@(#) $Id: atmarp_config.c,v 1.1 1998/09/15 08:23:14 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: atmarp_config.c,v 1.5 1998/08/13 20:11:11 johnc Exp $";
+static char *RCSid = "@(#) $Id: atmarp_config.c,v 1.1 1998/09/15 08:23:14 phk Exp $";
 #endif
 
 #include <sys/types.h>

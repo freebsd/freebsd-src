@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: strcoll.c,v 1.9 1997/02/22 15:03:26 peter Exp $
  */
 
 #include <stdlib.h>

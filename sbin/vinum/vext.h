@@ -35,7 +35,7 @@
  *
  */
 
-/* $Id: vext.h,v 1.11 1999/03/02 04:10:00 grog Exp grog $ */
+/* $Id: vext.h,v 1.3.2.2 1999/05/05 05:12:11 grog Exp $ */
 
 #define MAXARGS 64					    /* maximum number of args on a line */
 #define PLEXINITSIZE 61440				    /* this is what the system does somewhere */

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: inst.h,v 1.1 1998/12/04 10:52:48 dfr Exp $
  */
 
 #ifndef _MACHINE_INST_H_

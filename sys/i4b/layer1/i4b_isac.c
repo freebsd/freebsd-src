@@ -27,7 +27,7 @@
  *	i4b_isac.c - i4b siemens isdn chipset driver ISAC handler
  *	---------------------------------------------------------
  *
- *	$Id: i4b_isac.c,v 1.28 1998/12/05 18:04:41 hm Exp $ 
+ *	$Id: i4b_isac.c,v 1.1 1998/12/27 21:46:45 phk Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:23:59 1998]
  *

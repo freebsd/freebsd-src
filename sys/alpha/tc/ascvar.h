@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: ascvar.h,v 1.1 1998/08/20 08:27:10 dfr Exp $ */
 /*	$NetBSD: ascvar.h,v 1.4 1997/11/28 18:23:40 mhitch Exp $	*/
 
 

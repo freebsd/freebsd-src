@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.1 (Berkeley) 7/19/93
-# $Id: Makefile,v 1.28 1999/01/22 12:44:55 jdp Exp $
+# $Id: Makefile,v 1.27.2.1 1999/01/22 18:41:00 jdp Exp $
 
 PROG=	login
 MAN1=	login.1

@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinuminterrupt.c,v 1.5 1999/03/16 03:40:25 grog Exp grog $
+ * $Id: vinuminterrupt.c,v 1.7.2.2 1999/04/06 09:05:57 grog Exp $
  */
 
 #define REALLYKERNEL

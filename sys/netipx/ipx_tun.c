@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_tun.c
  *
- * $Id: ipx_tun.c,v 1.7 1997/03/24 11:33:34 bde Exp $
+ * $Id: ipx_tun.c,v 1.8 1997/06/26 19:35:55 jhay Exp $
  */
 
 /*

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: camcontrol.h,v 1.1 1998/09/15 06:43:02 gibbs Exp $
+ *	$Id: camcontrol.h,v 1.1.2.1 1999/05/10 23:32:51 ken Exp $
  */
 
 #ifndef _CAMCONTROL_H

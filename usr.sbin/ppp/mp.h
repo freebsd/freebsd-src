@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.h,v 1.3 1998/05/23 17:05:28 brian Exp $
+ *	$Id: mp.h,v 1.4 1998/08/25 17:48:43 brian Exp $
  */
 
 struct mbuf;

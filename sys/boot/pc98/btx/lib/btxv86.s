@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id$
+#	$Id: btxv86.s,v 1.1.2.1 1999/02/06 07:37:13 kato Exp $
 
 #
 # BTX V86 interface.

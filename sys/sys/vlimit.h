@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vlimit.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ * $Id: vlimit.h,v 1.6 1997/02/22 09:46:27 peter Exp $
  */
 
 #ifndef _SYS_VLIMIT_H_

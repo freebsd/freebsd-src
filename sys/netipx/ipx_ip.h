@@ -33,7 +33,7 @@
  *
  *	@(#)ipxip.h
  *
- * $Id: ipx_ip.h,v 1.11 1997/06/26 19:35:50 jhay Exp $
+ * $Id: ipx_ip.h,v 1.12 1998/08/23 03:07:15 wollman Exp $
  */
 
 #ifndef _NETIPX_IPXIP_H_

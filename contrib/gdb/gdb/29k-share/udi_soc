@@ -1,0 +1,9 @@
+# @(#)udi_soc	2.1 Daniel Mann
+# NOTE: the Session string must not start whith white-space characters.
+# Format of string is:
+# <session>   <domain> <soc_name|host_name> <tip_exe> <pass to UDIconnect>
+soc2cayman  AF_INET            cayman      /bin/udi_tip   ...
+soc2tip     AF_UNIX   astring              tip.exe        ...
+cuba        AF_UNIX   soc_name    ../bin.68020/udi_tip    stuff to pass
+cayman      AF_INET   cayman      this_entry_not_matter   stuff to pass
+iss         AF_UNIX   *                  sun4/isstip	-r osboot

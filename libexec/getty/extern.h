@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)extern.h	8.1 (Berkeley) 6/4/93
- *	$Id$
+ *	$Id: extern.h,v 1.5 1997/02/22 14:21:37 peter Exp $
  */
 
 struct delayval;

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)func.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: func.c,v 1.11 1998/07/27 21:15:52 nectar Exp $";
+	"$Id: func.c,v 1.11.2.1 1999/05/08 10:41:13 kris Exp $";
 #endif
 #endif /* not lint */
 

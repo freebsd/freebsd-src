@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.1.2.1 1999/02/06 07:37:13 kato Exp $
 
 ORG=0x100000
 #AFLAGS+=	-x assembler-with-cpp

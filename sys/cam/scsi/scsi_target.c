@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_target.c,v 1.7.2.2 1999/03/07 00:40:31 gibbs Exp $
+ *      $Id: scsi_target.c,v 1.7.2.3 1999/05/04 19:25:53 gibbs Exp $
  */
 #include <stddef.h>	/* For offsetof */
 

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: common.h,v 1.1.1.1 1998/08/21 03:17:42 msmith Exp $
  * From: $NetBSD: common.h,v 1.2 1998/01/05 07:02:48 perry Exp $	
  */
 

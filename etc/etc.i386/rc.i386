@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.38 1999/01/29 18:09:38 yokota Exp $
+#	$Id: rc.i386,v 1.37.2.1 1999/01/31 12:59:09 yokota Exp $
 #	Do i386 specific processing
 #
 

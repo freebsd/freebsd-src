@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_seq.h	8.3 (Berkeley) 6/21/95
- *	$Id$
+ *	$Id: tcp_seq.h,v 1.8 1997/02/22 09:41:41 peter Exp $
  */
 
 #ifndef _NETINET_TCP_SEQ_H_

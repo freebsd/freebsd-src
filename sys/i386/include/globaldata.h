@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: globaldata.h,v 1.6 1998/08/18 07:47:12 msmith Exp $
+ * $Id: globaldata.h,v 1.6.2.1 1999/02/22 15:59:40 bde Exp $
  */
 
 /*

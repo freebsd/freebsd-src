@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_types.h	8.2 (Berkeley) 4/20/94
- * $Id$
+ * $Id: if_types.h,v 1.6 1997/02/22 09:41:09 peter Exp $
  */
 
 #ifndef _NET_IF_TYPES_H_

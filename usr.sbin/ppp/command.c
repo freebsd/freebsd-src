@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.191 1999/04/26 08:54:33 brian Exp $
+ * $Id: command.c,v 1.177.2.4 1999/05/02 08:59:38 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -141,7 +141,7 @@
 #define NEG_DNS		52
 
 const char Version[] = "2.11";
-const char VersionDate[] = "$Date: 1999/04/26 08:54:33 $";
+const char VersionDate[] = "$Date: 1999/05/02 08:59:38 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);

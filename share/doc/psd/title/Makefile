@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1997/02/22 13:05:15 peter Exp $
+#	$Id: Makefile,v 1.4 1997/03/02 14:04:08 wosch Exp $
 
 VOLUME=	psd
 SRCS=	Title

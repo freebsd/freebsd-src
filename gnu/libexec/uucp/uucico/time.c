@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char time_rcsid[] = "$Id$";
+const char time_rcsid[] = "$Id: time.c,v 1.5 1997/02/22 15:28:32 peter Exp $";
 #endif
 
 #include <ctype.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: devs.h,v 1.2 1998/12/27 21:44:03 obrien Exp $
  */
 
 int dsinit(int, struct statinfo *, struct statinfo *, struct statinfo *);

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.9 1999/01/14 20:00:43 markm Exp $
+#	$Id: Makefile,v 1.10 1999/01/19 23:36:05 bde Exp $
 
 INFO=	info info-stnd texinfo
 

@@ -1,4 +1,4 @@
-#	$Id: dot.profile,v 1.17.2.1 1999/04/27 11:55:26 jkh Exp $
+#	$Id: dot.profile,v 1.17.2.2 1999/04/28 06:43:25 jkh Exp $
 #
 PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/X11R6/bin
 export PATH

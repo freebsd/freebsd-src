@@ -53,7 +53,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ffs_softdep.c	9.34 (McKusick) 3/1/99
- *	$Id: ffs_softdep.c,v 1.24 1999/03/02 06:38:07 mckusick Exp $
+ *	$Id: ffs_softdep.c,v 1.20.2.2 1999/05/12 02:13:03 dg Exp $
  */
 
 /*

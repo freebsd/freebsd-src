@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.54 1999/02/12 00:52:29 brian Exp $
+ *	$Id: chat.c,v 1.52.2.3 1999/05/02 08:59:37 brian Exp $
  */
 
 #include <sys/param.h>

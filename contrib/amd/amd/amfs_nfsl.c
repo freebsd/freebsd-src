@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amfs_nfsl.c,v 1.2 1998/12/27 06:24:45 ezk Exp $
+ * $Id: amfs_nfsl.c,v 1.1.1.2 1999/01/13 19:20:46 obrien Exp $
  *
  */
 

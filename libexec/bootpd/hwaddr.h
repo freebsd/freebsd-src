@@ -1,7 +1,7 @@
 /* 
  * hwaddr.h
  *
- *	$Id$
+ *	$Id: hwaddr.h,v 1.4 1997/02/22 14:21:07 peter Exp $
  */
 
 #ifndef	HWADDR_H

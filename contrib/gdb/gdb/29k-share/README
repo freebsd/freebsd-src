@@ -1,0 +1,9 @@
+The files in this directory are shared with other debuggers and
+debug interfaces that use Advanced Micro Devices' UDI (universal debug
+interface) protocol.  The protocol provides a common interface among
+debuggers, logic analyzers, emulators, and embedded systems that use
+AMD 29000 family processors.
+
+Do not change these files without coordinating with Advanced Micro
+Devices, Embedded Processor Division, 5204 E. Ben White Blvd, Austin, TX 78741.
+Maybe postmaster@cayman.amd.com can direct you to the current maintainers.

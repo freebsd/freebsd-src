@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)expand.h	8.2 (Berkeley) 5/4/95
- *	$Id: expand.h,v 1.8 1999/04/09 15:23:48 tegge Exp $
+ *	$Id: expand.h,v 1.7.2.1 1999/04/12 15:46:02 cracauer Exp $
  */
 
 struct strlist {

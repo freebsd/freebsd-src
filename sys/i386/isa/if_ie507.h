@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: if_ie507.h,v 1.3 1997/02/22 09:36:30 peter Exp $
  * Definitions for 3C507
  */
 

@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.8 1997/02/22 15:05:41 peter Exp $
 
 LIB=	com_err
 SRCS=	com_err.c error_message.c et_name.c init_et.c

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: bitmap.h,v 1.3 1997/02/22 16:12:19 peter Exp $
  */
 
 #ifndef _BITMAP_H_

@@ -121,7 +121,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.183.2.5 1999/03/07 00:37:59 gibbs Exp $
+#	$Id: MAKEDEV,v 1.183.2.6 1999/05/11 04:46:34 mjacob Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH

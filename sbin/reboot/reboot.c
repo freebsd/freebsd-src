@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)reboot.c	8.1 (Berkeley) 6/5/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: reboot.c,v 1.7 1998/07/15 06:51:38 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/reboot.h>

@@ -19,7 +19,7 @@
  * This driver is derived from the old 386bsd Wangtek streamer tape driver,
  * made by Robert Baron at CMU, based on Intel sources.
  *
- * $Id$
+ * $Id: wtio.h,v 1.3 1997/02/22 09:35:25 peter Exp $
  *
  */
 

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)options.h	8.2 (Berkeley) 4/18/94
- *	$Id$
+ *	$Id: options.h,v 1.4 1997/02/22 14:04:34 peter Exp $
  */
 
 /*

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.36 1998/09/05 08:33:10 jb Exp $
+#	$Id: Makefile,v 1.37 1998/11/10 06:50:35 dima Exp $
 
 # Present but disabled: kpasswdd
 SUBDIR=	atrun bootpd comsat fingerd ftpd getNAME getty \

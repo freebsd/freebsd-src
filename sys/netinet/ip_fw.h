@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.35 1998/09/02 19:14:01 phk Exp $
+ *	$Id: ip_fw.h,v 1.36 1998/12/14 18:09:13 luigi Exp $
  */
 
 #ifndef _IP_FW_H

@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.alpha,v 1.2 1998/08/31 08:57:56 dfr Exp $
+#	$Id: rc.alpha,v 1.2.2.1 1999/04/24 21:56:05 obrien Exp $
 #	Do alpha specific processing
 #
 

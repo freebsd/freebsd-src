@@ -33,7 +33,7 @@
  *	i4b daemon - network monitor server module
  *	------------------------------------------
  *
- *	$Id: monitor.c,v 1.6 1998/08/10 13:55:24 hm Exp $
+ *	$Id: monitor.c,v 1.1 1998/12/27 21:47:01 phk Exp $
  *
  *      last edit-date: [Fri Jul 17 18:07:00 1998]
  *

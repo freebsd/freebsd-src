@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)float.h	7.1 (Berkeley) 5/8/90
- *	$Id$
+ *	$Id: float.h,v 1.7 1997/02/22 09:34:36 peter Exp $
  */
 
 #ifndef _MACHINE_FLOAT_H_

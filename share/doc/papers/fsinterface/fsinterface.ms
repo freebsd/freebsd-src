@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)fsinterface.ms	1.4 (Berkeley) 4/16/91
-.\"	$Id: fsinterface.ms,v 1.5 1997/02/22 13:03:06 peter Exp $
+.\"	$Id: fsinterface.ms,v 1.6 1997/03/21 00:30:58 mpp Exp $
 .\"
 .if \nv .rm CM
 .de UX

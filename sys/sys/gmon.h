@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)gmon.h	8.2 (Berkeley) 1/4/94
- * $Id: gmon.h,v 1.13 1997/07/13 16:38:31 bde Exp $
+ * $Id: gmon.h,v 1.14 1998/07/14 05:09:48 bde Exp $
  */
 
 #ifndef _SYS_GMON_H_

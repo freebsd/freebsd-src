@@ -211,7 +211,7 @@ The usual warnings if it cannot read or write the files involved.
 
 =cut
 
-my( $H2XS_VERSION ) = ' $Revision: 1.1.1.2 $ ' =~ /\$Revision:\s+([^\s]+)/;
+my( $H2XS_VERSION ) = ' $Revision: 1.1.1.1.2.1 $ ' =~ /\$Revision:\s+([^\s]+)/;
 my $TEMPLATE_VERSION = '0.01';
 
 use Getopt::Std;

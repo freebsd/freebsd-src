@@ -34,7 +34,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumdaemon.c,v 1.4 1999/03/16 03:40:59 grog Exp grog $
+ * $Id: vinumdaemon.c,v 1.1.2.4 1999/04/06 09:05:57 grog Exp $
  */
 
 #define REALLYKERNEL

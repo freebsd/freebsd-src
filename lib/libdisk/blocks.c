@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: blocks.c,v 1.6 1997/02/22 15:06:27 peter Exp $
  *
  */
 

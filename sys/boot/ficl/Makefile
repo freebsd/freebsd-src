@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.8 1999/02/04 17:13:30 dcs Exp $
+# $Id: Makefile,v 1.7.2.1 1999/02/06 14:27:45 dcs Exp $
 #
 LIB=			ficl
 NOPROFILE=		yes

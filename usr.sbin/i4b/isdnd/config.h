@@ -27,7 +27,7 @@
  *	i4b daemon - compile time configuration header file
  *	---------------------------------------------------
  *
- *      $Id: config.h,v 1.6 1998/12/05 18:03:05 hm Exp $ 
+ *      $Id: config.h,v 1.1 1998/12/27 21:47:00 phk Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:05:56 1998]
  *

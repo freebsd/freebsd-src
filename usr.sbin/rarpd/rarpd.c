@@ -27,7 +27,7 @@ The Regents of the University of California.  All rights reserved.\n";
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: rarpd.c,v 1.19 1998/04/02 13:20:15 roberto Exp $";
+	"$Id: rarpd.c,v 1.20 1998/12/06 16:31:47 alex Exp $";
 #endif /* not lint */
 
 /*

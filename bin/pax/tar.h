@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tar.h	8.2 (Berkeley) 4/18/94
- *	$Id: tar.h,v 1.4 1997/02/22 14:04:46 peter Exp $
+ *	$Id: tar.h,v 1.4.2.1 1999/05/08 10:42:34 kris Exp $
  */
 
 /*

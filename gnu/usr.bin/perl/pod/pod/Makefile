@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.3 1999/05/02 15:29:48 markm Exp $
+# $Id: Makefile,v 1.2.2.1 1999/05/05 13:28:47 markm Exp $
 #
 
 PODS=	perl.pod perl5004delta.pod perlapio.pod perlbook.pod perlbot.pod \

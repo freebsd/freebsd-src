@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_axreg.h,v 1.2.2.3 1999/04/08 17:45:22 wpaul Exp $
+ *	$Id: if_axreg.h,v 1.2.2.4 1999/05/06 15:39:30 wpaul Exp $
  */
 
 /*

@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_usrreq.c
  *
- * $Id: ipx_usrreq.c,v 1.21 1998/12/07 21:58:42 archie Exp $
+ * $Id: ipx_usrreq.c,v 1.21.2.1 1999/04/24 09:25:44 jhay Exp $
  */
 
 #include "opt_ipx.h"

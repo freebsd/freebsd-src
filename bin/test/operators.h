@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)operators.h	8.3 (Berkeley) 4/2/94
- *	$Id: operators.h,v 1.5 1997/02/22 14:06:22 peter Exp $
+ *	$Id: operators.h,v 1.6 1998/09/07 16:59:05 cracauer Exp $
  */
 
 #define	NOT		0

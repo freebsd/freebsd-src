@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.6 1998/03/20 12:04:59 bde Exp $
 
 PROG=		pic
 SRCS=		lex.cc main.cc object.cc pic.cc pic.tab.h \

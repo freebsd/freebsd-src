@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1998/08/09 18:50:45 abial Exp $
+#	$Id: Makefile,v 1.1.1.1 1998/08/27 17:38:45 abial Exp $
 #
 PROG=oinit
 #CFLAGS+=-DUSE_HISTORY

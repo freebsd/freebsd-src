@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.49 1998/10/22 05:58:39 bde Exp $
+ *	$Id: if_zp.c,v 1.49.2.1 1999/03/08 21:22:35 steve Exp $
  */
 /*-
  * TODO:

@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.1.2.1 1999/02/06 07:37:13 kato Exp $
 
 OBJS=		btxcsu.o btxsys.o btxv86.o
 AFLAGS+=	-elf

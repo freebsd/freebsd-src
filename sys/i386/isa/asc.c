@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.31 1998/08/12 18:16:38 bde Exp $
+ * $Id: asc.c,v 1.32 1998/10/22 05:58:38 bde Exp $
  */
 
 #include "asc.h"

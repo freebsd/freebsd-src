@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: yppasswdd_main.c,v 1.12 1997/10/13 11:18:50 charnier Exp $";
+	"$Id: yppasswdd_main.c,v 1.12.2.1 1999/03/19 00:07:25 brian Exp $";
 #endif /* not lint */
 
 #include "yppasswd.h"

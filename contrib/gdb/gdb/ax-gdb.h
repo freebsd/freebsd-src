@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-/* $Id$ */
+/* $Id: ax-gdb.h,v 1.1.1.1.2.1 1999/05/08 08:51:30 dfr Exp $ */
 
 #ifndef AX_GDB_H
 #define AX_GDB_H

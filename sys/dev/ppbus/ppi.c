@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppi.c,v 1.8 1998/12/07 21:58:16 archie Exp $
+ *	$Id: ppi.c,v 1.9 1999/01/10 12:04:55 nsouch Exp $
  *
  */
 #include "ppi.h"

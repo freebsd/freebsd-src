@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: util.c,v 1.4 1997/02/22 19:55:50 peter Exp $
+ * $Id: util.c,v 1.5 1997/07/21 12:08:14 charnier Exp $
  */
 
 

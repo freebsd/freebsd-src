@@ -37,7 +37,7 @@
  *	@(#)procfs_fpregs.c	8.2 (Berkeley) 6/15/94
  *
  * From:
- *	$Id: procfs_fpregs.c,v 1.7 1997/08/02 14:32:11 bde Exp $
+ *	$Id: procfs_fpregs.c,v 1.8 1997/08/12 05:23:51 sef Exp $
  */
 
 #include <sys/param.h>

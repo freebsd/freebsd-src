@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_input.c,v 1.22 1997/11/20 16:53:23 bde Exp $
+ *	$Id: db_input.c,v 1.23 1997/12/05 05:36:58 dyson Exp $
  */
 
 /*

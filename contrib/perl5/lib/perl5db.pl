@@ -49,6 +49,9 @@ $header = "perl5db.pl version $VERSION";
 # true if $deep is not defined.
 #
 # $Log: perl5db.pl,v $
+# Revision 1.1.1.1.2.1  1999/05/05 13:16:28  markm
+# MFC: Upgrade to Perl 5.00503
+#
 # Revision 1.1.1.2  1999/05/02 14:24:53  markm
 # Maintenance releace 3 of perl5.005. Includes support for threads.
 #

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/objformat/Makefile,v 1.14 1998/11/01 02:37:40 jdp Exp $
 
 PROG=		objformat
 CFLAGS+=	-Wall

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.inc,v 1.2 1998/05/04 21:13:50 jb Exp $
+# $Id: Makefile.inc,v 1.3 1998/08/18 06:51:08 jb Exp $
 #
 
 BINDIR?=	/usr/libexec/elf

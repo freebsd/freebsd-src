@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam.h,v 1.1 1998/09/15 06:33:23 gibbs Exp $
+ *      $Id: cam.h,v 1.1.2.1 1999/04/07 23:08:55 gibbs Exp $
  */
 
 #ifndef _CAM_CAM_H

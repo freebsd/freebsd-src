@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$Id: s_finite.S,v 1.5 1997/03/09 14:00:50 bde Exp $")
+RCSID("$Id: s_finite.S,v 1.6 1997/04/30 20:37:52 bde Exp $")
 
 ENTRY(finite)
 	movl	8(%esp),%eax

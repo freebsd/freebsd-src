@@ -1,6 +1,6 @@
 #
 # hosts.allow access control file for "tcp wrapped" apps.
-# $Id: hosts.allow,v 1.2.2.1 1999/05/05 20:47:42 obrien Exp $
+# $Id: hosts.allow,v 1.2.2.2 1999/05/11 01:35:01 obrien Exp $
 #
 # NOTE: The hosts.deny file is not longer used.  Instead, put both 'allow'
 #       and 'deny' rules in the hosts.allow file.

@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: mount_fs.c,v 1.1.1.2 1999/01/13 19:20:28 obrien Exp $
+ * $Id: mount_fs.c,v 1.1.1.2.2.1 1999/02/04 02:30:53 julian Exp $
  *
  */
 

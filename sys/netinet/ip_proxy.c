@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  */
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 1.2 1998/03/21 11:34:23 peter Exp $";
+static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 1.3 1998/06/20 18:37:50 peter Exp $";
 #endif
 
 #if defined(__FreeBSD__) && defined(KERNEL) && !defined(_KERNEL)

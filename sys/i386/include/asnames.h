@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.26.2.2 1999/02/22 15:59:40 bde Exp $
+ * $Id: asnames.h,v 1.26.2.3 1999/02/25 14:36:28 bde Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_

@@ -53,7 +53,7 @@
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-	"$Id: strptime.c,v 1.4 1998/09/12 21:13:29 dt Exp $";
+	"$Id: strptime.c,v 1.4.2.1 1999/04/30 06:01:45 wes Exp $";
 #endif
 
 #ifndef lint

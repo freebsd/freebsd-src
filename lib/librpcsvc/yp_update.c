@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: yp_update.c,v 1.1 1996/11/16 20:54:57 wpaul Exp $
+ *	$Id: yp_update.c,v 1.1.1.1 1997/05/28 04:51:09 wpaul Exp $
  */
 
 #include <stdlib.h>
@@ -46,7 +46,7 @@
 #include <rpc/key_prot.h>
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_update.c,v 1.1 1996/11/16 20:54:57 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_update.c,v 1.1.1.1 1997/05/28 04:51:09 wpaul Exp $";
 #endif
 
 #ifndef WINDOW

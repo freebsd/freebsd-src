@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.57 1998/11/24 20:25:52 eivind Exp $
+ * 	$Id: pmap.h,v 1.57.2.1 1999/04/25 12:44:06 des Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.37 1999/04/06 14:48:10 brian Exp $
+ *	$Id: datalink.c,v 1.25.2.6 1999/05/02 08:59:39 brian Exp $
  */
 
 #include <sys/param.h>

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: spans_arp.c,v 1.3 1998/12/04 22:54:53 archie Exp $
+ *	@(#) $Id: spans_arp.c,v 1.4 1999/01/19 23:11:40 mks Exp $
  *
  */
 
@@ -44,7 +44,7 @@
 #include <netatm/spans/spans_cls.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: spans_arp.c,v 1.3 1998/12/04 22:54:53 archie Exp $");
+__RCSID("@(#) $Id: spans_arp.c,v 1.4 1999/01/19 23:11:40 mks Exp $");
 #endif
 
 

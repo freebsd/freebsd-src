@@ -8,7 +8,7 @@
  */
 
 #ifdef RCSID
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: unlzw.c,v 1.6 1997/02/22 15:46:06 peter Exp $";
 #endif
 
 #include <sys/types.h>

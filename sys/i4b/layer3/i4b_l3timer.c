@@ -27,7 +27,7 @@
  *	i4b_l3timer.c - timer and timeout handling for layer 3
  *	------------------------------------------------------
  *
- *	$Id: i4b_l3timer.c,v 1.9 1998/12/05 18:05:35 hm Exp $ 
+ *	$Id: i4b_l3timer.c,v 1.1 1998/12/27 21:46:51 phk Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:33:00 1998]
  *

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1999/04/14 16:17:34 des Exp $
+#	$Id: Makefile,v 1.1 1999/04/15 13:40:43 des Exp $
 
 MAINTAINER=	des@freebsd.org
 MAN1=		sockstat.1

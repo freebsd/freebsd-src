@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: startup.c,v 1.6 1997/02/22 16:01:01 peter Exp $
+ *	$Id: startup.c,v 1.6.2.1 1999/04/24 09:23:34 jhay Exp $
  */
 
 #ifndef lint

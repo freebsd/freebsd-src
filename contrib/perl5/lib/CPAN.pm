@@ -8,11 +8,11 @@ use vars qw{$Try_autoload
 
 $VERSION = '1.48';
 
-# $Id: CPAN.pm,v 1.1.1.2 1999/05/02 14:23:55 markm Exp $
+# $Id: CPAN.pm,v 1.1.1.1.2.1 1999/05/05 13:16:18 markm Exp $
 
 # only used during development:
 $Revision = "";
-# $Revision = "[".substr(q$Revision: 1.1.1.2 $, 10)."]";
+# $Revision = "[".substr(q$Revision: 1.1.1.1.2.1 $, 10)."]";
 
 use Carp ();
 use Config ();

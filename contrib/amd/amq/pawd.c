@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: pawd.c,v 1.2 1998/12/27 06:24:50 ezk Exp $
+ * $Id: pawd.c,v 1.1.1.2 1999/01/13 19:22:02 obrien Exp $
  *
  */
 

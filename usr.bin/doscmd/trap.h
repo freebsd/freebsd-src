@@ -29,7 +29,7 @@
  *
  *	BSDI trap.h,v 2.2 1996/04/08 19:33:09 bostic Exp
  *
- * $Id: trap.h,v 1.2 1996/09/22 05:53:11 miff Exp $
+ * $Id: trap.h,v 1.1 1997/08/09 01:43:12 dyson Exp $
  */
 
 #define	CLI	0xfa

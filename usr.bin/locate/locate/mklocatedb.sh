@@ -28,7 +28,7 @@
 # 
 # usage: mklocatedb [-presort] < filelist > database
 #
-# $Id: mklocatedb.sh,v 1.7 1998/03/08 16:09:28 wosch Exp $
+# $Id: mklocatedb.sh,v 1.8 1998/11/29 00:59:20 wosch Exp $
 
 # The directory containing locate subprograms
 : ${LIBEXECDIR:=/usr/libexec}; export LIBEXECDIR

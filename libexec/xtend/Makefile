@@ -1,5 +1,5 @@
 # Makefile for xtend (Stark) 10/30/93
-# $Id$
+# $Id: Makefile,v 1.6 1997/02/22 14:22:41 peter Exp $
 
 BINMODE=	555
 

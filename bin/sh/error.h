@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)error.h	8.2 (Berkeley) 5/4/95
- *	$Id: error.h,v 1.9 1998/08/24 19:15:48 cracauer Exp $
+ *	$Id: error.h,v 1.9.2.1 1999/05/08 10:42:52 kris Exp $
  */
 
 /*

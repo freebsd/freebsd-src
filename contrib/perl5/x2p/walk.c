@@ -1,4 +1,4 @@
-/* $RCSfile: walk.c,v $$Revision: 1.1.1.2 $$Date: 1999/05/02 14:33:17 $
+/* $RCSfile: walk.c,v $$Revision: 1.1.1.1.2.1 $$Date: 1999/05/05 13:19:09 $
  *
  *    Copyright (c) 1991-1997, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: walk.c,v $
+ * Revision 1.1.1.1.2.1  1999/05/05 13:19:09  markm
+ * MFC: Upgrade to Perl 5.00503
+ *
  * Revision 1.1.1.2  1999/05/02 14:33:17  markm
  * Maintenance releace 3 of perl5.005. Includes support for threads.
  *

@@ -1,4 +1,4 @@
-/* $Id: elf_freebsd.c,v 1.5 1998/10/14 09:53:25 peter Exp $ */
+/* $Id: elf_freebsd.c,v 1.6 1998/10/15 21:55:58 dfr Exp $ */
 /* $NetBSD: loadfile.c,v 1.10 1998/06/25 06:45:46 ross Exp $ */
 
 /*-

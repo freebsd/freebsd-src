@@ -25,7 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $Id: usb_if.m,v 1.6 1999/05/03 23:19:55 n_hibma Exp $
+# $Id: usb_if.m,v 1.3.2.1 1999/05/08 23:04:52 n_hibma Exp $
 #
 
 # USB interface description

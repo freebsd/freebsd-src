@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.86.2.2 1999/04/13 18:55:12 jhay Exp $
+ * $Id: kern_clock.c,v 1.86.2.3 1999/04/27 19:30:14 jhay Exp $
  */
 
 #include "opt_ntp.h"

@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char util_rcsid[] = "$Id$";
+const char util_rcsid[] = "$Id: util.c,v 1.5 1997/02/22 15:26:59 peter Exp $";
 #endif
 
 #include <ctype.h>

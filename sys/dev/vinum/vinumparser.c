@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumparser.c,v 1.5.2.3 1999/05/05 05:18:55 grog Exp $
+ * $Id: vinumparser.c,v 1.5.2.4 1999/05/11 03:59:29 grog Exp $
  */
 
 /*

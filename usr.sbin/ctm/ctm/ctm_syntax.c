@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: ctm_syntax.c,v 1.9 1997/02/22 16:05:29 peter Exp $
  *
  */
 

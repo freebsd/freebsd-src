@@ -23,7 +23,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char proty_id[] = "$Id$";
+const char proty_id[] = "$Id: proty.c,v 1.3 1997/02/22 15:28:30 peter Exp $";
 #endif
 
 #include "uudefs.h"

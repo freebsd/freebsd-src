@@ -33,7 +33,7 @@
 #ifndef RPC_HDR
 %#ifndef lint
 %static const char rcsid[] =
-%	"$Id: yppasswd_private.x,v 1.4 1997/07/29 15:43:18 wpaul Exp $";
+%	"$Id: yppasswd_private.x,v 1.5 1997/10/13 11:18:48 charnier Exp $";
 %#endif /* not lint */
 #endif
 

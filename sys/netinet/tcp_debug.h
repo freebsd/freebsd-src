@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_debug.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tcp_debug.h,v 1.7 1997/02/22 09:41:37 peter Exp $
  */
 
 #ifndef _NETINET_TCP_DEBUG_H_

@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: testrsrr.c,v 1.3 1997/02/22 16:07:45 peter Exp $
  */
 #include <stddef.h>
 #include <stdlib.h>

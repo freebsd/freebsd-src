@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)bltin.h	8.2 (Berkeley) 5/4/95
- *	$Id: bltin.h,v 1.8 1997/02/22 13:58:58 peter Exp $
+ *	$Id: bltin.h,v 1.9 1998/12/07 12:14:04 bde Exp $
  */
 
 /*

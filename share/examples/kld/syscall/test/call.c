@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *     $Id: call.c,v 1.1 1999/01/09 14:26:22 dfr Exp $
+ *     $Id: call.c,v 1.2 1999/01/09 15:03:06 dfr Exp $
  */
 
 #include <stdio.h>

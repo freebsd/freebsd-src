@@ -2,7 +2,7 @@
  * Control LCD module hung off parallel port using the
  * ppi 'geek port' interface.
  *
- * $Id$
+ * $Id: ppilcd.c,v 1.1 1998/01/02 12:10:56 msmith Exp $
  */
 
 #include <stdio.h>

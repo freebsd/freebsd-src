@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.12 1998/12/22 11:51:25 abial Exp $
+# $Id: Makefile,v 1.13 1999/01/10 14:48:04 rnordier Exp $
 #
 LIB=			i386
 NOPIC=

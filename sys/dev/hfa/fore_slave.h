@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_slave.h,v 1.5 1997/08/22 19:45:50 jpt Exp $
+ *	@(#) $Id: fore_slave.h,v 1.1 1998/09/15 08:22:55 phk Exp $
  *
  */
 

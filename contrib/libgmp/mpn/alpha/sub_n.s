@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: sub_n.s,v 1.2 1998/03/08 21:09:02 jb Exp $
  # Alpha __mpn_sub_n -- Subtract two limb vectors of the same length > 0 and
  # store difference in a third limb vector.
 

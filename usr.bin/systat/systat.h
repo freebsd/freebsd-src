@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)systat.h	8.1 (Berkeley) 6/6/93
- *	$Id$
+ *	$Id: systat.h,v 1.2 1997/09/24 02:43:45 wollman Exp $
  */
 
 #include <curses.h>

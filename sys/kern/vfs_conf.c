@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_conf.c	8.8 (Berkeley) 3/31/94
- * $Id: vfs_conf.c,v 1.25 1998/06/09 12:52:33 bde Exp $
+ * $Id: vfs_conf.c,v 1.26 1998/09/14 19:56:40 sos Exp $
  */
 
 /*

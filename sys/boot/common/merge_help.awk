@@ -1,6 +1,6 @@
 #!/usr/bin/awk -f
 #
-# $Id: mergehelp.awk,v 1.3 1999/01/13 20:06:52 jabley Exp $
+# $Id: merge_help.awk,v 1.1 1999/01/18 19:05:25 msmith Exp $
 #
 # Merge two boot loader help files for FreeBSD 3.0
 # Joe Abley <jabley@patho.gen.nz>

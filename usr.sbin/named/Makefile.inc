@@ -1,5 +1,5 @@
 # From: Id: Makefile.inc,v 8.4 1996/03/03 17:42:43 vixie Exp
-# $Id: Makefile.inc,v 1.8 1998/06/11 09:16:28 peter Exp $
+# $Id: Makefile.inc,v 1.9 1998/06/11 10:42:58 peter Exp $
 
 .ifndef (Mk.Inc)
 Mk.Inc?=defined

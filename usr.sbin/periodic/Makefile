@@ -1,6 +1,6 @@
 # Makefile for periodic(8)
 #
-# $Id$
+# $Id: Makefile,v 1.1.1.1 1997/08/12 17:48:49 pst Exp $
 
 MAN8=	periodic.8
 

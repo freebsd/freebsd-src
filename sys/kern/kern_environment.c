@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_environment.c,v 1.4 1999/01/15 17:24:56 msmith Exp $
+ *	$Id: kern_environment.c,v 1.4.2.1 1999/01/28 06:16:11 msmith Exp $
  */
 
 /*

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.15 1998/08/30 19:59:49 gpalmer Exp $
+# $Id: Makefile,v 1.1 1998/09/02 21:09:14 brian Exp $
 
 .PATH:		${.CURDIR}/../../../contrib/amd/scripts
 

@@ -2,7 +2,7 @@
  * The code in this file was written by Eivind Eklund <perhaps@yes.no>,
  * who places it in the public domain without restriction.
  *
- *	$Id: alias_cmd.c,v 1.23 1999/04/26 08:54:32 brian Exp $
+ *	$Id: alias_cmd.c,v 1.18.2.3 1999/05/02 08:59:32 brian Exp $
  */
 
 #include <sys/param.h>

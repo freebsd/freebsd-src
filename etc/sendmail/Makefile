@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.19 (Berkeley) 1/14/97
-#	$Id$
+#	$Id: Makefile,v 1.1 1998/08/04 15:53:18 peter Exp $
 
 M4=	m4
 CFDIR=	${.CURDIR}/../../contrib/sendmail/cf

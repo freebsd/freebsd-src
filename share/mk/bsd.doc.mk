@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.45 1998/08/02 13:50:23 bde Exp $
+#	$Id: bsd.doc.mk,v 1.46 1998/08/08 07:02:07 peter Exp $
 #
 # The include file <bsd.doc.mk> handles installing BSD troff documents.
 #

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sscf_uni_var.h,v 1.5 1998/02/19 20:22:05 mks Exp $
+ *	@(#) $Id: sscf_uni_var.h,v 1.1 1998/09/15 08:23:06 phk Exp $
  *
  */
 

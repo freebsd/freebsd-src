@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ns16550.h	7.1 (Berkeley) 5/9/91
- *	$Id$
+ *	$Id: ns16550.h,v 1.5 1997/02/22 09:38:05 peter Exp $
  */
 
 /*

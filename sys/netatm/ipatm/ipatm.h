@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: ipatm.h,v 1.5 1998/03/24 20:49:49 mks Exp $
+ *	@(#) $Id: ipatm.h,v 1.1 1998/09/15 08:23:00 phk Exp $
  *
  */
 

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: strcmp.c,v 1.5 1997/02/22 09:40:02 peter Exp $
+ * $Id: strcmp.c,v 1.6 1997/08/02 14:31:49 bde Exp $
  */
 
 #include <string.h>

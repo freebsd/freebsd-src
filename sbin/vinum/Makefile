@@ -1,4 +1,4 @@
-#	$Id: Makefile.sbin,v 1.3 1999/02/11 05:09:49 grog Exp grog $
+#	$Id: Makefile,v 1.6.2.4 1999/04/06 08:59:35 grog Exp $
 
 MAINTAINER  =  grog@FreeBSD.org
 PROG=	vinum

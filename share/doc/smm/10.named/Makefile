@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.3 1997/02/22 13:05:54 peter Exp $
 
 SRCDIR=	${.CURDIR}/../../../../contrib/bind/doc/bog
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sp.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: sp.h,v 1.7 1997/02/22 09:42:23 peter Exp $
  */
 
 #ifndef _NETNS_SP_H_

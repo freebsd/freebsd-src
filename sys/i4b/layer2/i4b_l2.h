@@ -27,7 +27,7 @@
  *	i4b_l2.h - ISDN layer 2 (Q.921) definitions
  *	---------------------------------------------
  *
- *	$Id: i4b_l2.h,v 1.14 1998/12/05 18:05:09 hm Exp $ 
+ *	$Id: i4b_l2.h,v 1.1 1998/12/27 21:46:49 phk Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:27:13 1998]
  *

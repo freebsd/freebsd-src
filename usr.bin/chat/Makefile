@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1997/08/22 15:42:31 peter Exp $
+#	$Id: Makefile,v 1.6 1998/12/06 22:58:13 archie Exp $
 
 PROG=	chat
 CFLAGS+=-Wall

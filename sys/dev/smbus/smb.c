@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smb.c,v 1.5 1999/01/09 18:08:23 nsouch Exp $
+ *	$Id: smb.c,v 1.6 1999/01/14 22:55:03 nsouch Exp $
  *
  */
 #include <sys/param.h>

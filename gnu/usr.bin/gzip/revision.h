@@ -13,4 +13,4 @@
 #  undef LZW
 #endif
 
-/* $Id$ */
+/* $Id: revision.h,v 1.5 1997/02/22 15:46:00 peter Exp $ */

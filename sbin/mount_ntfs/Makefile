@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.1.1.1 1999/02/03 03:51:19 semenu Exp $
+#	$Id: Makefile,v 1.1.1.1.2.1 1999/03/14 09:40:48 semenu Exp $
 #
 
 PROG=	mount_ntfs

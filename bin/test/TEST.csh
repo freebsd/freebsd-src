@@ -1,5 +1,5 @@
 #	@(#)TEST.csh	5.2 (Berkeley) 4/30/93
-#	$Id$
+#	$Id: TEST.csh,v 1.5 1997/02/22 14:06:19 peter Exp $
 
 #alias t '/usr/src/bin/test/obj/test \!*; echo $status'
 alias t '/bin/test \!*; echo $status'

@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: list.c,v 1.18 1999/03/10 09:26:46 grog Exp grog $
+ * $Id: list.c,v 1.8.2.2 1999/05/05 05:10:38 grog Exp $
  */
 
 #include <ctype.h>

@@ -32,7 +32,7 @@
  */
 
 /*
- * $Id: dpt_eisa.h,v 1.1 1998/03/11 00:30:14 julian Exp $
+ * $Id: dpt_eisa.h,v 1.2 1998/09/15 08:33:35 gibbs Exp $
  */
 
 #define DPT_EISA_SLOT_OFFSET		0xc00

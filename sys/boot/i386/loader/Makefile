@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.28.2.2 1999/03/15 08:57:48 dcs Exp $
+# $Id: Makefile,v 1.28.2.3 1999/04/24 17:44:43 dcs Exp $
 
 BASE=		loader
 PROG=		${BASE}

@@ -1,4 +1,4 @@
-/*	$Id: sysv_msg.c,v 1.18 1998/03/30 09:50:35 phk Exp $ */
+/*	$Id: sysv_msg.c,v 1.18.2.1 1999/04/21 13:26:34 sada Exp $ */
 
 /*
  * Implementation of SVID messages

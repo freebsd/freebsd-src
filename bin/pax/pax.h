@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pax.h	8.2 (Berkeley) 4/18/94
- *	$Id: pax.h,v 1.6 1997/02/22 14:04:40 peter Exp $
+ *	$Id: pax.h,v 1.6.2.1 1999/05/08 10:42:26 kris Exp $
  */
 
 /*

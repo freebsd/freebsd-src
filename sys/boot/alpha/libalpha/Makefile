@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1998/10/14 09:53:25 peter Exp $
+# $Id: Makefile,v 1.6 1998/10/16 19:26:11 msmith Exp $
 
 LIB=		alpha
 NOPIC=		true

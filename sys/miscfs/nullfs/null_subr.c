@@ -35,7 +35,7 @@
  *
  *	@(#)null_subr.c	8.7 (Berkeley) 5/14/95
  *
- * $Id: null_subr.c,v 1.18 1998/07/15 02:32:18 bde Exp $
+ * $Id: null_subr.c,v 1.19 1998/07/30 17:40:45 bde Exp $
  */
 
 #include "opt_debug_nullfs.h"

@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: fdisk.c,v 1.27 1998/11/26 12:24:35 joerg Exp $";
+	"$Id: fdisk.c,v 1.27.2.1 1999/01/31 19:48:00 rnordier Exp $";
 #endif /* not lint */
 
 #include <sys/disklabel.h>

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1 1997/01/14 14:50:52 rnordier Exp $
+# $Id: Makefile,v 1.1.1.1 1997/01/21 12:58:53 jkh Exp $
 
 PROG=	ckdist
 

@@ -5,7 +5,7 @@
 # zgrep - Search possibly compressed files for a regular expression. This
 #         version of zgrep(1) depend on a grep(1) linked with libz.
 #
-# $Id$
+# $Id: zgrep.libz,v 1.1 1997/12/20 19:20:33 wosch Exp $
 
 PATH=/bin:/usr/bin; export PATH
 

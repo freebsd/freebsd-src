@@ -27,7 +27,7 @@
  *	main.c - i4b set debug options
  *	------------------------------
  *
- *	$Id: main.c,v 1.13 1998/12/05 18:03:49 hm Exp $ 
+ *	$Id: main.c,v 1.1 1998/12/27 21:47:03 phk Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:13:55 1998]
  *

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sigpvc_var.h,v 1.5 1998/02/19 20:16:28 mks Exp $
+ *	@(#) $Id: sigpvc_var.h,v 1.1 1998/09/15 08:23:02 phk Exp $
  *
  */
 

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: interrupt.h,v 1.6 1997/07/09 18:08:15 ache Exp $
+ * $Id: interrupt.h,v 1.7 1998/08/11 15:08:13 bde Exp $
  */
 
 /* XXX currently dev_instance must be set to the ISA device_id or -1 for PCI */

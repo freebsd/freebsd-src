@@ -1,6 +1,6 @@
 #!/bin/sh
 # ad hoc debug tool
-# $Id$
+# $Id: dotest,v 1.3 1997/02/22 15:44:35 peter Exp $
 
 x=$1
 y=$2

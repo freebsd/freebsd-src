@@ -4,7 +4,7 @@ use vars qw(@ISA $VERSION);
 require CGI;
 @ISA = qw(CGI);
 
-$VERSION = (qw$Revision: 1.1.1.2 $)[1];
+$VERSION = (qw$Revision: 1.1.1.1.2.1 $)[1];
 $CGI::DefaultClass = 'CGI::Apache';
 $CGI::Apache::AutoloadClass = 'CGI';
 

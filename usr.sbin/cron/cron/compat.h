@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id$
+ * $Id: compat.h,v 1.4 1997/02/22 16:04:38 peter Exp $
  */
 
 #ifndef __P
