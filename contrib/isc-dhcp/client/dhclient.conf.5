@@ -250,6 +250,22 @@ The \fIfqdn.fqdn\fR option \fBMUST\fR be a fully-qualified domain
 name.   You \fBMUST\fR define a zone statement for the zone to be
 updated.   The \fIfqdn.encoded\fR option may need to be set to
 \fIon\fR or \fIoff\fR, depending on the DHCP server you are using.
+.PP
+.I The
+.B no-client-updates
+.I statement
+.PP
+ \fBno-client-updates [ \fIflag\fR ] \fB;\fR
+.PP
+If you want to do DNS updates in the DHCP client
+script (see \fBdhclient-script(8)\fR) rather than having the
+DHCP client do the update directly (for example, if you want to
+use SIG(0) authentication, which is not supported directly by the
+DHCP client, you can instruct the client not to do the update using
+the \fBno-client-updates\fR statement.   \fIFlag\fR should be \fBtrue\fR
+if you don't want the DHCP client to do the update, and \fBfalse\fR if
+you want the DHCP client to do the update.   By default, the DHCP
+client will do the DNS update.
 .SH OPTION MODIFIERS
 In some cases, a client may receive option data from the server which
 is not really appropriate for that client, or may not receive
@@ -591,7 +607,7 @@ interface "ep0" {
     request subnet-mask, broadcast-address, time-offset, routers,
 	    domain-name, domain-name-servers, host-name;
     require subnet-mask, domain-name-servers;
-    script "/sbin/dhclient-script";
+    script "CLIENTBINDIR/dhclient-script";
     media "media 10baseT/UTP", "media 10base2/BNC";
 }
 
