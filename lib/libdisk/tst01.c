@@ -24,7 +24,7 @@ __FBSDID("$FreeBSD$");
 #include <paths.h>
 #include "libdisk.h"
 
-u_char mbr[] = {
+u_char mbrboot[] = {
 250,51,192,142,208,188,0,124,139,244,80,7,80,31,251,252,191,0,6,185,0,1,
 242,165,234,29,6,0,0,190,190,7,179,4,128,60,128,116,14,128,60,0,117,28,
 131,198,16,254,203,117,239,205,24,139,20,139,76,2,139,238,131,198,16,254,
@@ -255,7 +255,7 @@ main(int argc, char **argv)
 			continue;
 		}
 		if (!strcasecmp(*cmds,"mbr")) {
-			Set_Boot_Mgr(d,mbr,sizeof (mbr));
+			Set_Boot_Mgr(d,mbrboot,sizeof (mbrboot));
 			continue;
 		}
 #if 0		/* XXX boot1 undefined, fix me */
@@ -268,7 +268,7 @@ main(int argc, char **argv)
 			printf("Write=%d\n",
 				Write_Disk(d));
 			Free_Disk(d);
-			d = Open_Disk(d->name);
+			d = Open_Disk(argv[1]);
 			continue;
 		}
 		if (strcasecmp(*cmds,"help"))
@@ -299,8 +299,10 @@ main(int argc, char **argv)
 		printf("\tscan\n");
 		printf("\twrite\n");
 		printf("\nENUM:\n\t");
+#if 0
 		for(i=0;chunk_n[i];i++)
 			printf("%d = %s%s",i,chunk_n[i],i == 4 ? "\n\t" : "  ");
+#endif
 		printf("\n");
 
 	}
