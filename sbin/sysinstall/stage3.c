@@ -38,13 +38,20 @@ stage3()
 
 	mountflags = MNT_UPDATE;
 	while((fs = getfsent()) != NULL) {
-		if (strcmp(fs->fs_vfstype,"ufs")) continue;
 		p = fs->fs_spec;
 		if (*p++ != '/') continue;
 		if (*p++ != 'd') continue;
 		if (*p++ != 'e') continue;
 		if (*p++ != 'v') continue;
 		if (*p++ != '/') continue;
+
+		if (!strcmp(fs->fs_type,"sw")) {
+			swapon(fs->fs_file);
+			continue;
+		}
+
+		if (strcmp(fs->fs_vfstype,"ufs")) continue;
+
 		if (!strcmp(fs->fs_type,"ro"))
 			mountflags |= MNT_RDONLY;
 		else if (!strcmp(fs->fs_type,"rw"))

@@ -64,8 +64,11 @@ stage2()
 	CopyFile("/stand/sysinstall","/mnt/stand/sysinstall");
 	link("/mnt/stand/sysinstall","/mnt/stand/cpio");
 	link("/mnt/stand/sysinstall","/mnt/stand/gunzip");
+	link("/mnt/stand/sysinstall","/mnt/stand/gzip");
+	link("/mnt/stand/sysinstall","/mnt/stand/zcat");
 	link("/mnt/stand/sysinstall","/mnt/stand/newfs");
 	link("/mnt/stand/sysinstall","/mnt/stand/fsck");
+	link("/mnt/stand/sysinstall","/mnt/stand/dialog");
 	CopyFile("/kernel","/mnt/kernel");
 	TellEm("make /dev entries");
 	chdir("/mnt/dev");
