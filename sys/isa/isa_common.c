@@ -133,9 +133,20 @@ isa_find_memory(device_t child,
 	result->ic_nmem = config->ic_nmem;
 	for (i = 0; i < config->ic_nmem; i++) {
 		u_int32_t start, end, size, align;
+
+		size = config->ic_mem[i].ir_size;
+
+		/* the PnP device may have a null resource as filler */
+		if (size == 0) {
+			result->ic_mem[i].ir_start = 0;
+			result->ic_mem[i].ir_end = 0;
+			result->ic_mem[i].ir_size = 0;
+			result->ic_mem[i].ir_align = 0;
+			continue;
+		}
+
 		for (start = config->ic_mem[i].ir_start,
 			     end = config->ic_mem[i].ir_end,
-			     size = config->ic_mem[i].ir_size,
 			     align = config->ic_mem[i].ir_align;
 		     start + size - 1 <= end;
 		     start += align) {
@@ -197,9 +208,20 @@ isa_find_port(device_t child,
 	result->ic_nport = config->ic_nport;
 	for (i = 0; i < config->ic_nport; i++) {
 		u_int32_t start, end, size, align;
+
+		size = config->ic_port[i].ir_size;
+
+		/* the PnP device may have a null resource as filler */
+		if (size == 0) {
+			result->ic_port[i].ir_start = 0;
+			result->ic_port[i].ir_end = 0;
+			result->ic_port[i].ir_size = 0;
+			result->ic_port[i].ir_align = 0;
+			continue;
+		}
+
 		for (start = config->ic_port[i].ir_start,
 			     end = config->ic_port[i].ir_end,
-			     size = config->ic_port[i].ir_size,
 			     align = config->ic_port[i].ir_align;
 		     start + size - 1 <= end;
 		     start += align) {
@@ -285,6 +307,13 @@ isa_find_irq(device_t child,
 	for (i = 0; i < config->ic_nirq; i++) {
 		u_int32_t mask = config->ic_irqmask[i];
 		int irq;
+
+		/* the PnP device may have a null resource as filler */
+		if (mask == 0) {
+			result->ic_irqmask[i] = 0;
+			continue;
+		}
+
 		for (irq = find_first_bit(mask);
 		     irq != -1;
 		     irq = find_next_bit(mask, irq)) {
@@ -344,6 +373,13 @@ isa_find_drq(device_t child,
 	for (i = 0; i < config->ic_ndrq; i++) {
 		u_int32_t mask = config->ic_drqmask[i];
 		int drq;
+
+		/* the PnP device may have a null resource as filler */
+		if (mask == 0) {
+			result->ic_drqmask[i] = 0;
+			continue;
+		}
+
 		for (drq = find_first_bit(mask);
 		     drq != -1;
 		     drq = find_next_bit(mask, drq)) {
@@ -427,6 +463,55 @@ isa_assign_resources(device_t child)
 
 	free(cfg, M_TEMP);
 	return 0;
+}
+
+/*
+ * Return non-zero if the device has a single configuration, that is,
+ * a fixed set of resoruces.
+ */
+static int
+isa_has_single_config(device_t dev)
+{
+	struct isa_device *idev = DEVTOISA(dev);
+	struct isa_config_entry *ice;
+	u_int32_t mask;
+	int i;
+
+	ice = TAILQ_FIRST(&idev->id_configs);
+	if (TAILQ_NEXT(ice, ice_link))
+		return 0;
+
+	for (i = 0; i < ice->ice_config.ic_nmem; ++i) {
+		if (ice->ice_config.ic_mem[i].ir_size == 0)
+			continue;
+		if (ice->ice_config.ic_mem[i].ir_end !=
+		    ice->ice_config.ic_mem[i].ir_start + 
+		    ice->ice_config.ic_mem[i].ir_size - 1)
+			return 0;
+	}
+	for (i = 0; i < ice->ice_config.ic_nport; ++i) {
+		if (ice->ice_config.ic_port[i].ir_size == 0)
+			continue;
+		if (ice->ice_config.ic_port[i].ir_end !=
+		    ice->ice_config.ic_port[i].ir_start + 
+		    ice->ice_config.ic_port[i].ir_size - 1)
+			return 0;
+	}
+	for (i = 0; i < ice->ice_config.ic_nirq; ++i) {
+		mask = ice->ice_config.ic_irqmask[i];
+		if (mask == 0)
+			continue;
+		if (find_next_bit(mask, find_first_bit(mask)) != -1)
+			return 0;
+	}
+	for (i = 0; i < ice->ice_config.ic_ndrq; ++i) {
+		mask = ice->ice_config.ic_drqmask[i];
+		if (mask == 0)
+			continue;
+		if (find_next_bit(mask, find_first_bit(mask)) != -1)
+			return 0;
+	}
+	return 1;
 }
 
 /*
@@ -961,6 +1046,11 @@ isa_add_config(device_t dev, device_t child,
 		TAILQ_INSERT_BEFORE(ice, newice, ice_link);
 	else
 		TAILQ_INSERT_TAIL(&idev->id_configs, newice, ice_link);
+
+	if (isa_has_single_config(child))
+		idev->id_config_attr &= ~ISACFGATTR_MULTI;
+	else
+		idev->id_config_attr |= ISACFGATTR_MULTI;
 
 	return 0;
 }

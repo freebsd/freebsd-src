@@ -128,6 +128,13 @@ enum isa_device_ivars {
 };
 
 /*
+ * ISA_IVAR_CONFIGATTR bits
+ */
+#define ISACFGATTR_CANDISABLE	(1 << 0)	/* can be disabled */
+#define ISACFGATTR_DYNAMIC	(1 << 1)	/* dynamic configuration */
+#define ISACFGATTR_MULTI	(1 << 2)	/* multiple configurations */
+
+/*
  * Simplified accessors for isa devices
  */
 #define ISA_ACCESSOR(A, B, T)						\
