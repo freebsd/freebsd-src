@@ -180,6 +180,10 @@ examples:
 #
     set dns 10.0.0.1 10.0.0.2
 #
+# Some people like to prioritize DNS packets:
+#
+   set urgent udp +53
+#
 # If we're using the -nat switch, redirect ftp and http to an internal
 # machine:
 #
