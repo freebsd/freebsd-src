@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.17 1995/09/26 09:45:06 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.18 1995/09/26 10:16:23 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -67,7 +67,7 @@
 
     <p><descrip>
 	<tag/President/ Jordan K. Hubbard &lt;jkh@FreeBSD.org&gt;
-	<tag/Principle Architect/ David Greenman &lt;davidg@FreeBSD.org&gt;
+	<tag/Principal Architect/ David Greenman &lt;davidg@FreeBSD.org&gt;
 	<tag/Documentation/ John Fieber &lt;jfieber@FreeBSD.org&gt;
 	<tag/Internationalization/ Andrey A. Chernov &lt;ache@FreeBSD.org&gt;
 	<tag/Networking/ Garrett A. Wollman &lt;wollman@FreeBSD.org&gt;
