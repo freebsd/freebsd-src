@@ -47,8 +47,9 @@
 .Ar args
 .Oc
 .Sh DESCRIPTION
-.Nm Route
-is a utility used to manually manipulate the network
+The
+.Nm
+utility is used to manually manipulate the network
 routing tables.  It normally is not needed, as a
 system routing table management daemon such as
 .Xr routed 8 ,
@@ -337,8 +338,9 @@ If this lookup fails,
 .Xr getnetbyname 3
 is then used to interpret the name as that of a network.
 .Pp
-.Nm Route
-uses a routing socket and the new message types
+The
+.Nm
+utility uses a routing socket and the new message types
 .Dv RTM_ADD , RTM_DELETE , RTM_GET ,
 and
 .Dv RTM_CHANGE .
@@ -394,7 +396,7 @@ The next-hop gateway should be reachable through a different route.
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Bx 4.2 .
 .Sh BUGS
 The first paragraph may have slightly exaggerated
