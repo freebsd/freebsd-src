@@ -880,13 +880,13 @@ main(int argc, char **argv)
 	}
 
 	outip->ip_src = from->sin_addr;
-#ifndef IP_HDRINCL
+
+	/* Check the source address (-s), if any, is valid */
 	if (bind(sndsock, (struct sockaddr *)from, sizeof(*from)) < 0) {
 		Fprintf(stderr, "%s: bind: %s\n",
 		    prog, strerror(errno));
 		exit (1);
 	}
-#endif
 
 #if	defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
 	if (setpolicy(sndsock, "in bypass") < 0)
