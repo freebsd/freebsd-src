@@ -22,10 +22,10 @@ CFLAGS+=-I${KRB5DIR}/include	\
 	-I${.OBJDIR}
 
 LDADD=	-lkrb5 -lkafs5 -lhdb -lroken ${LIBVERS} \
-	-lasn1 -lcrypto -lcrypt -lcom_err
+	-lasn1 -lcrypto -lcrypt -lcom_err ${LDAPLDADD}
 
 DPADD=	${LIBKRB5} ${LIBKAFS5} ${LIBHDB} ${LIBROKEN} ${LIBVERS} \
-	${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR}
+	${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR} ${LDAPLIBS}
 
 MAN=	hprop.8
 
