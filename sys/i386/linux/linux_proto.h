@@ -322,7 +322,7 @@ struct	linux_ipc_args {
 	caddr_t	ptr;	char ptr_[PAD_(caddr_t)];
 };
 struct	linux_sigreturn_args {
-	struct linux_sigcontext *	scp;	char scp_[PAD_(struct linux_sigcontext *)];
+	struct linux_sigframe *	sfp;	char sfp_[PAD_(struct linux_sigframe *)];
 };
 struct	linux_clone_args {
 	int	flags;	char flags_[PAD_(int)];
@@ -452,7 +452,7 @@ struct	linux_prctl_args {
 	register_t dummy;
 };
 struct	linux_rt_sigreturn_args {
-	register_t dummy;
+	struct linux_ucontext *	ucp;	char ucp_[PAD_(struct linux_ucontext *)];
 };
 struct	linux_rt_sigaction_args {
 	int	sig;	char sig_[PAD_(int)];
