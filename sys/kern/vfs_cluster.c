@@ -910,8 +910,10 @@ cluster_wbuild(vp, size, start_lbn, len)
 				splx(s);
 			} /* end of code for non-first buffers only */
 			/* check for latent dependencies to be handled */
-			if ((LIST_FIRST(&tbp->b_dep)) != NULL)
+			if ((LIST_FIRST(&tbp->b_dep)) != NULL) {
+				tbp->b_iocmd = BIO_WRITE;
 				buf_start(tbp);
+			}
 			/*
 			 * If the IO is via the VM then we do some
 			 * special VM hackery (yuck).  Since the buffer's
