@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.44.2.11 1995/10/19 15:55:36 jkh Exp $
+ * $Id: system.c,v 1.44.2.12 1995/10/20 07:02:50 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -70,6 +70,9 @@ systemInitialize(int argc, char **argv)
     /* If we haven't crashed I guess dialog is running ! */
     DialogActive = TRUE;
 
+    /* Make sure HOME is set for those utilities that need it */
+    if (!getenv("HOME"))
+	setenv("HOME", "/", 1);
     signal(SIGINT, handle_intr);
 }
 
