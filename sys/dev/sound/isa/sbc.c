@@ -265,16 +265,20 @@ sbc_probe(device_t dev)
 		if (ver == 0) goto bad2;
 		switch ((ver & 0x00000f00) >> 8) {
 		case 1:
+			device_set_desc(dev, "SoundBlaster 1.0 (not supported)");
+			s = NULL;
+			break;
+
 		case 2:
-			s = "Soundblaster";
+			s = "SoundBlaster 2.0";
 			break;
 
 		case 3:
-			s = (ver & 0x0000f000)? "ESS 488" : "Soundblaster Pro";
+			s = (ver & 0x0000f000)? "ESS 488" : "SoundBlaster Pro";
 			break;
 
 		case 4:
-			s = "Soundblaster 16";
+			s = "SoundBlaster 16";
 			break;
 
 		case 5:
