@@ -192,6 +192,8 @@ struct archive {
 	 */
 	struct archive_string			 extract_mkdirpath;
 	struct archive_extract_dir_entry	*archive_extract_dir_list;
+	void			(*extract_progress)(void *);
+	void			 *extract_progress_user_data;
 	void			(*cleanup_archive_extract)(struct archive *);
 
 	int		  archive_error_number;

@@ -200,6 +200,8 @@ ssize_t		 archive_read_data_into_fd(struct archive *, int fd);
 
 int		 archive_read_extract(struct archive *, struct archive_entry *,
 		     int flags);
+void		 archive_read_extract_set_progress_callback(struct archive *,
+		     void (*_progress_func)(void *), void *_user_data);
 
 /* Close the file, release any resources, and destroy the object. */
 void		 archive_read_finish(struct archive *);
