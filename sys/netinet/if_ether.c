@@ -307,88 +307,33 @@ arprequest(ifp, sip, tip, enaddr)
 	u_char *enaddr;
 {
 	struct mbuf *m;
-	struct ether_header *eh;
-	struct arc_header *arh;
 	struct arphdr *ah;
 	struct sockaddr sa;
-	static u_char	llcx[] = { 0x82, 0x40, LLC_SNAP_LSAP, LLC_SNAP_LSAP,
-				   LLC_UI, 0x00, 0x00, 0x00, 0x08, 0x06 };
-	u_short ar_hrd;
 
 	if ((m = m_gethdr(M_DONTWAIT, MT_DATA)) == NULL)
 		return;
-	m->m_pkthdr.rcvif = (struct ifnet *)0;
+	m->m_len = sizeof(*ah) + 2*sizeof(struct in_addr) +
+		2*ifp->if_data.ifi_addrlen;
+		m->m_pkthdr.len = m->m_len;
+		MH_ALIGN(m, m->m_len);
+		ah = mtod(m, struct arphdr *);
+	bzero((caddr_t)ah, m->m_len);
 #ifdef MAC
 	mac_create_mbuf_linklayer(ifp, m);
 #endif
-	switch (ifp->if_type) {
-	case IFT_ARCNET:
-		ar_hrd = htons(ARPHRD_ARCNET);
-
-		m->m_len = arphdr_len2(ifp->if_addrlen, sizeof(struct in_addr));
-		m->m_pkthdr.len = m->m_len;
-		MH_ALIGN(m, m->m_len);
-
-		arh = (struct arc_header *)sa.sa_data;
-		arh->arc_dhost = *ifp->if_broadcastaddr;
-		arh->arc_type = ARCTYPE_ARP;
-
-		ah = mtod(m, struct arphdr *);
-		break;
-
-	case IFT_ISO88025:
-		ar_hrd = htons(ARPHRD_IEEE802);
-
-		m->m_len = sizeof(llcx) +
-		    arphdr_len2(ifp->if_addrlen, sizeof(struct in_addr));
-		m->m_pkthdr.len = m->m_len;
-		MH_ALIGN(m, m->m_len);
-
-		(void)memcpy(mtod(m, caddr_t), llcx, sizeof(llcx));
-		(void)memcpy(sa.sa_data, ifp->if_broadcastaddr, 6);
-		(void)memcpy(sa.sa_data + 6, enaddr, 6);
-		sa.sa_data[6] |= TR_RII;
-		sa.sa_data[12] = TR_AC;
-		sa.sa_data[13] = TR_LLC_FRAME;
-
-		ah = (struct arphdr *)(mtod(m, char *) + sizeof(llcx));
-		break;
-	case IFT_FDDI:
-	case IFT_ETHER:
-		/*
-		 * This may not be correct for types not explicitly
-		 * listed, but this is our best guess
-		 */
-	default:
-		ar_hrd = htons(ARPHRD_ETHER);
-
-		m->m_len = arphdr_len2(ifp->if_addrlen, sizeof(struct in_addr));
-		m->m_pkthdr.len = m->m_len;
-		MH_ALIGN(m, m->m_len);
-
-		eh = (struct ether_header *)sa.sa_data;
-		/* if_output will not swap */
-		eh->ether_type = htons(ETHERTYPE_ARP);
-		(void)memcpy(eh->ether_dhost, ifp->if_broadcastaddr,
-		    sizeof(eh->ether_dhost));
-
-		ah = mtod(m, struct arphdr *);
-		break;
-	}
-
-	ah->ar_hrd = ar_hrd;
 	ah->ar_pro = htons(ETHERTYPE_IP);
 	ah->ar_hln = ifp->if_addrlen;		/* hardware address length */
 	ah->ar_pln = sizeof(struct in_addr);	/* protocol address length */
 	ah->ar_op = htons(ARPOP_REQUEST);
-	(void)memcpy(ar_sha(ah), enaddr, ah->ar_hln);
-	memset(ar_tha(ah), 0, ah->ar_hln);
-	(void)memcpy(ar_spa(ah), sip, ah->ar_pln);
-	(void)memcpy(ar_tpa(ah), tip, ah->ar_pln);
-
-	sa.sa_family = AF_UNSPEC;
-	sa.sa_len = sizeof(sa);
+	bcopy((caddr_t)enaddr, (caddr_t)ar_sha(ah), ah->ar_hln);
+	bcopy((caddr_t)sip, (caddr_t)ar_spa(ah), ah->ar_pln);
+	bcopy((caddr_t)tip, (caddr_t)ar_tpa(ah), ah->ar_pln);
+	sa.sa_family = AF_ARP;
+	sa.sa_len = 2;
+	m->m_flags |= M_BCAST;
 	(*ifp->if_output)(ifp, m, &sa, (struct rtentry *)0);
+
+	return;
 }
 
 /*
@@ -581,8 +526,6 @@ in_arpinput(m)
 {
 	struct arphdr *ah;
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
-	struct ether_header *eh;
-	struct arc_header *arh;
 	struct iso88025_header *th = (struct iso88025_header *)0;
 	struct iso88025_sockaddr_dl_data *trld;
 	struct llinfo_arp *la = 0;
@@ -840,46 +783,11 @@ reply:
 	(void)memcpy(ar_spa(ah), &itaddr, ah->ar_pln);
 	ah->ar_op = htons(ARPOP_REPLY);
 	ah->ar_pro = htons(ETHERTYPE_IP); /* let's be sure! */
-	switch (ifp->if_type) {
-	case IFT_ARCNET:
-		arh = (struct arc_header *)sa.sa_data;
-		arh->arc_dhost = *ar_tha(ah);
-		arh->arc_type = ARCTYPE_ARP;
-		break;
-
-	case IFT_ISO88025:
-		/* Re-arrange the source/dest address */
-		memcpy(th->iso88025_dhost, th->iso88025_shost,
-		    sizeof(th->iso88025_dhost));
-		memcpy(th->iso88025_shost, IF_LLADDR(ifp),
-		    sizeof(th->iso88025_shost));
-		/* Set the source routing bit if neccesary */
-		if (th->iso88025_dhost[0] & TR_RII) {
-			th->iso88025_dhost[0] &= ~TR_RII;
-			if (TR_RCF_RIFLEN(th->rcf) > 2)
-				th->iso88025_shost[0] |= TR_RII;
-		}
-		/* Copy the addresses, ac and fc into sa_data */
-		memcpy(sa.sa_data, th->iso88025_dhost,
-		    sizeof(th->iso88025_dhost) * 2);
-		sa.sa_data[(sizeof(th->iso88025_dhost) * 2)] = TR_AC;
-		sa.sa_data[(sizeof(th->iso88025_dhost) * 2) + 1] = TR_LLC_FRAME;
-		break;
-	case IFT_ETHER:
-	case IFT_FDDI:
-	/*
-	 * May not be correct for types not explictly
-	 * listed, but it is our best guess.
-	 */
-	default:
-		eh = (struct ether_header *)sa.sa_data;
-		(void)memcpy(eh->ether_dhost, ar_tha(ah),
-		    sizeof(eh->ether_dhost));
-		eh->ether_type = htons(ETHERTYPE_ARP);
-		break;
-	}
-	sa.sa_family = AF_UNSPEC;
-	sa.sa_len = sizeof(sa);
+	m->m_flags &= ~(M_BCAST|M_MCAST); /* never reply by broadcast */
+	m->m_len = sizeof(*ah) + (2 * ah->ar_pln) + (2 * ah->ar_hln);   
+	m->m_pkthdr.len = m->m_len;   
+	sa.sa_family = AF_ARP;
+	sa.sa_len = 2;
 	(*ifp->if_output)(ifp, m, &sa, (struct rtentry *)0);
 	return;
 }
