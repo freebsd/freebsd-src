@@ -14,7 +14,6 @@ _random=	random
 
 SUBDIR=	accf_data \
 	accf_http \
-	agp \
 	aha \
 	aic7xxx \
 	aio \
@@ -156,6 +155,7 @@ SUBDIR+=syscons
 # XXX some of these can move now, but are untested on other architectures.
 .if ${MACHINE_ARCH} == "i386"
 SUBDIR+=3dfx \
+	agp \
 	aic \
 	aout \
 	apm \
