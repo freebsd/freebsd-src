@@ -141,10 +141,8 @@ static void tulip_mii_writereg(tulip_softc_t * const sc, unsigned devaddr, unsig
 static int tulip_mii_map_abilities(tulip_softc_t * const sc, unsigned abilities);
 static tulip_media_t tulip_mii_phy_readspecific(tulip_softc_t * const sc);
 static int tulip_srom_decode(tulip_softc_t * const sc);
-#if defined(IFM_ETHER)
 static int tulip_ifmedia_change(struct ifnet * const ifp);
 static void tulip_ifmedia_status(struct ifnet * const ifp, struct ifmediareq *req);
-#endif
 /* static void tulip_21140_map_media(tulip_softc_t *sc); */
 
 static void
@@ -2957,7 +2955,6 @@ tulip_read_macaddr(
     return 0;
 }
 
-#if defined(IFM_ETHER)
 static void
 tulip_ifmedia_add(
     tulip_softc_t * const sc)
@@ -3032,7 +3029,6 @@ tulip_ifmedia_status(
 
     req->ifm_active = tulip_media_to_ifmedia[sc->tulip_media];
 }
-#endif
 
 static void
 tulip_addr_filter(
@@ -4681,33 +4677,6 @@ tulip_ifioctl(
 	}
 
 	case SIOCSIFFLAGS: {
-#if !defined(IFM_ETHER)
-	    int flags = 0;
-	    if (ifp->if_flags & IFF_LINK0) flags |= 1;
-	    if (ifp->if_flags & IFF_LINK1) flags |= 2;
-	    if (ifp->if_flags & IFF_LINK2) flags |= 4;
-	    if (flags == 7) {
-		ifp->if_flags &= ~(IFF_LINK0|IFF_LINK1|IFF_LINK2);
-		sc->tulip_media = TULIP_MEDIA_UNKNOWN;
-		sc->tulip_probe_state = TULIP_PROBE_INACTIVE;
-		sc->tulip_flags &= ~(TULIP_WANTRXACT|TULIP_LINKUP|TULIP_NOAUTOSENSE);
-		tulip_reset(sc);
-	    } else if (flags) {
-		tulip_media_t media;
-		for (media = TULIP_MEDIA_UNKNOWN; media < TULIP_MEDIA_MAX; media++) {
-		    if (sc->tulip_mediums[media] != NULL && --flags == 0) {
-			sc->tulip_flags |= TULIP_NOAUTOSENSE;
-			if (sc->tulip_media != media || (sc->tulip_flags & TULIP_DIDNWAY)) {
-			    sc->tulip_flags &= ~TULIP_DIDNWAY;
-			    tulip_linkup(sc, media);
-			}
-			break;
-		    }
-		}
-		if (flags)
-		    printf(TULIP_PRINTF_FMT ": ignored invalid media request\n", TULIP_PRINTF_ARGS);
-	    }
-#endif
 	    tulip_addr_filter(sc); /* reinit multicast filter */
 	    tulip_init(sc);
 	    break;
@@ -4958,33 +4927,11 @@ tulip_attach(
 #endif
 
     (*sc->tulip_boardsw->bd_media_probe)(sc);
-#if defined(IFM_ETHER)
     ifmedia_init(&sc->tulip_ifmedia, 0,
 		 tulip_ifmedia_change,
 		 tulip_ifmedia_status);
-#else
-    {
-	tulip_media_t media;
-	int cnt;
-	printf(TULIP_PRINTF_FMT ": media:", TULIP_PRINTF_ARGS);
-	for (media = TULIP_MEDIA_UNKNOWN, cnt = 1; cnt < 7 && media < TULIP_MEDIA_MAX; media++) {
-	    if (sc->tulip_mediums[media] != NULL) {
-		printf(" %d=\"%s\"", cnt, tulip_mediums[media]);
-		cnt++;
-	    }
-	}
-	if (cnt == 1) {
-	    sc->tulip_features |= TULIP_HAVE_NOMEDIA;
-	    printf(" none\n");
-	} else {
-	    printf("\n");
-	}
-    }
-#endif
     sc->tulip_flags &= ~TULIP_DEVICEPROBE;
-#if defined(IFM_ETHER)
     tulip_ifmedia_add(sc);
-#endif
 
     tulip_reset(sc);
 

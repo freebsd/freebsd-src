@@ -455,7 +455,7 @@ typedef struct {
  *
  */
 struct _tulip_softc_t {
-#if !defined(tulip_ifmedia) && defined(IFM_ETHER)
+#if !defined(tulip_ifmedia)
     struct ifmedia tulip_ifmedia;
 #endif
 #if defined(TULIP_BUS_DMA)
@@ -644,11 +644,7 @@ struct _tulip_softc_t {
     tulip_desc_t *tulip_txdescs;
 };
 
-#if defined(IFM_ETHER)
 #define	TULIP_DO_AUTOSENSE(sc)	(IFM_SUBTYPE((sc)->tulip_ifmedia.ifm_media) == IFM_AUTO)
-#else
-#define	TULIP_DO_AUTOSENSE(sc)	(((sc)->tulip_flags & TULIP_NOAUTOSENSE) == 0)
-#endif
 
 
 #if defined(TULIP_HDR_DATA)
@@ -681,7 +677,6 @@ static const char * const tulip_mediums[] = {
     "Full Duplex 100baseFX",	/* TULIP_MEDIA_100BASEFX_FD */
 };
 
-#if defined(IFM_ETHER)
 static const int tulip_media_to_ifmedia[] = {
     IFM_ETHER | IFM_NONE,		/* TULIP_MEDIA_UNKNOWN */
     IFM_ETHER | IFM_10_T,		/* TULIP_MEDIA_10BASET */
@@ -696,7 +691,6 @@ static const int tulip_media_to_ifmedia[] = {
     IFM_ETHER | IFM_100_FX,		/* TULIP_MEDIA_100BASEFX */
     IFM_ETHER | IFM_100_FX | IFM_FDX,	/* TULIP_MEDIA_100BASEFX_FD */
 };
-#endif /* defined(IFM_ETHER) */
 
 static const char * const tulip_system_errors[] = {
     "parity error",
@@ -878,7 +872,6 @@ typedef u_long ioctl_cmd_t;
 #if defined(TULIP_HDR_DATA)
 static tulip_softc_t *tulips[TULIP_MAX_DEVICES];
 #endif
-#if BSD >= 199506
 #define TULIP_IFP_TO_SOFTC(ifp) ((tulip_softc_t *)((ifp)->if_softc))
 #if NBPF > 0
 #define	TULIP_BPF_MTAP(sc, m)	bpf_mtap(&(sc)->tulip_if, m)
@@ -894,12 +887,6 @@ static tulip_softc_t *tulips[TULIP_MAX_DEVICES];
 #endif
 #define	TULIP_EADDR_FMT		"%6D"
 #define	TULIP_EADDR_ARGS(addr)	addr, ":"
-#else
-extern int bootverbose;
-#define TULIP_IFP_TO_SOFTC(ifp)         (TULIP_UNIT_TO_SOFTC((ifp)->if_unit))
-#include <sys/devconf.h>
-#define	TULIP_DEVCONF
-#endif
 #if defined(TULIP_USE_SOFTINTR)
 NETISR_SET(NETISR_DE, tulip_softintr);
 #endif
@@ -972,10 +959,6 @@ NETISR_SET(NETISR_DE, tulip_softintr);
 #define	TULIP_RESTORESPL(s)		splx(s)
 #endif
 
-/*
- * While I think FreeBSD's 2.2 change to the bpf is a nice simplification,
- * it does add yet more conditional code to this driver.  Sigh.
- */
 #if !defined(TULIP_BPF_MTAP) && NBPF > 0
 #define	TULIP_BPF_MTAP(sc, m)	bpf_mtap((sc)->tulip_bpf, m)
 #define	TULIP_BPF_TAP(sc, p, l)	bpf_tap((sc)->tulip_bpf, p, l)
@@ -1023,9 +1006,6 @@ TULIP_PERFREAD(
 #define	TULIP_PERFMERGE(s,n)	do { } while (0)
 #endif /* TULIP_PERFSTATS */
 
-/*
- * However, this change to FreeBSD I am much less enamored with.
- */
 #if !defined(TULIP_EADDR_FMT)
 #define	TULIP_EADDR_FMT		"%s"
 #define	TULIP_EADDR_ARGS(addr)	ether_sprintf(addr)
