@@ -180,8 +180,12 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/bus.h>
 #include <machine/clock.h>
 #include <machine/md_var.h>
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
@@ -281,27 +285,33 @@
 #define	vtophys(va)	alpha_XXX_dmamap((vm_offset_t)va)
 #endif
 
-#ifdef NCR_IOMAPPED
+#define	INB(r) bus_space_read_1(np->bst, np->bsh, offsetof(struct ncr_reg, r))
+#define	INW(r) bus_space_read_2(np->bst, np->bsh, offsetof(struct ncr_reg, r))
+#define	INL(r) bus_space_read_4(np->bst, np->bsh, offsetof(struct ncr_reg, r))
 
-#define	INB(r) inb (np->port + offsetof(struct ncr_reg, r))
-#define	INW(r) inw (np->port + offsetof(struct ncr_reg, r))
-#define	INL(r) inl (np->port + offsetof(struct ncr_reg, r))
+#define	OUTB(r, val) bus_space_write_1(np->bst, np->bsh, \
+				       offsetof(struct ncr_reg, r), val)
+#define	OUTW(r, val) bus_space_write_2(np->bst, np->bsh, \
+				       offsetof(struct ncr_reg, r), val)
+#define	OUTL(r, val) bus_space_write_4(np->bst, np->bsh, \
+				       offsetof(struct ncr_reg, r), val)
+#define	OUTL_OFF(o, val) bus_space_write_4(np->bst, np->bsh, o, val)
 
-#define	OUTB(r, val) outb (np->port+offsetof(struct ncr_reg,r),(val))
-#define	OUTW(r, val) outw (np->port+offsetof(struct ncr_reg,r),(val))
-#define	OUTL(r, val) outl (np->port+offsetof(struct ncr_reg,r),(val))
-#define	OUTL_OFF(o, val) outl(np->port + (o), (val))
+#define	INB_OFF(o) bus_space_read_1(np->bst, np->bsh, o)
+#define	INW_OFF(o) bus_space_read_2(np->bst, np->bsh, o)
+#define	INL_OFF(o) bus_space_read_4(np->bst, np->bsh, o)
 
-#define	INB_OFF(o) inb (np->port + (o))
-#define	INW_OFF(o) inw (np->port + (o))
-#define	INL_OFF(o) inl (np->port + (o))
+#define	READSCRIPT_OFF(base, off)					\
+    (base ? *((volatile u_int32_t *)((volatile char *)base + (off))) :	\
+    bus_space_read_4(np->bst2, np->bsh2, off))
 
-#define	READSCRIPT_OFF(base, off)			\
-    (*((u_int32_t *)((char *)base + (off))))
-
-#define	WRITESCRIPT_OFF(base, off, val)				\
-    do {							\
-	*((u_int32_t *)((char *)base + (off))) = (val);		\
+#define	WRITESCRIPT_OFF(base, off, val)					\
+    do {								\
+    	if (base)							\
+    		*((volatile u_int32_t *)				\
+			((volatile char *)base + (off))) = (val);	\
+    	else								\
+		bus_space_write_4(np->bst2, np->bsh2, off, val);	\
     } while (0)
 
 #define	READSCRIPT(r) \
@@ -309,65 +319,6 @@
 
 #define	WRITESCRIPT(r, val) \
     WRITESCRIPT_OFF(np->script, offsetof(struct script, r), val)
-
-#else
-
-#ifdef __alpha__
-
-#define	INB(r) readb (np->vaddr + offsetof(struct ncr_reg, r))
-#define	INW(r) readw (np->vaddr + offsetof(struct ncr_reg, r))
-#define	INL(r) readl (np->vaddr + offsetof(struct ncr_reg, r))
-
-#define	OUTB(r, val) writeb (np->vaddr+offsetof(struct ncr_reg,r),(val))
-#define	OUTW(r, val) writew (np->vaddr+offsetof(struct ncr_reg,r),(val))
-#define	OUTL(r, val) writel (np->vaddr+offsetof(struct ncr_reg,r),(val))
-#define	OUTL_OFF(o, val) writel (np->vaddr + (o), (val))
-
-#define	INB_OFF(o) readb (np->vaddr + (o))
-#define	INW_OFF(o) readw (np->vaddr + (o))
-#define	INL_OFF(o) readl (np->vaddr + (o))
-
-#define	READSCRIPT_OFF(base, off)			\
-    (base ? *((u_int32_t *)((char *)base + (off))) :	\
-    readl(np->vaddr2 + off))
-
-#define	WRITESCRIPT_OFF(base, off, val)				\
-    do {							\
-    	if (base)						\
-    		*((u_int32_t *)((char *)base + (off))) = (val);	\
-    	else							\
-    		writel(np->vaddr2 + off, val);			\
-    } while (0)
-
-#define	READSCRIPT(r) \
-    READSCRIPT_OFF(np->script, offsetof(struct script, r))
-
-#define	WRITESCRIPT(r, val) \
-    WRITESCRIPT_OFF(np->script, offsetof(struct script, r), val)
-
-#else
-
-#define INB(r) (np->reg->r)
-#define INW(r) (np->reg->r)
-#define INL(r) (np->reg->r)
-
-#define OUTB(r, val) np->reg->r = (val)
-#define OUTW(r, val) np->reg->r = (val)
-#define OUTL(r, val) np->reg->r = (val)
-#define OUTL_OFF(o, val) *(u_int32_t *) (((u_char *) np->reg) + (o)) = (val) 
-
-#define INB_OFF(o) *( ((u_char *) np->reg) + (o) )
-#define INW_OFF(o) *((u_short *) ( ((u_char *) np->reg) + (o)) )
-#define INL_OFF(o) *((u_int32_t *)  ( ((u_char *) np->reg) + (o)) )
-
-#define	READSCRIPT_OFF(base, off) (*((volatile u_int32_t *)((char *)base + (off))))
-#define	WRITESCRIPT_OFF(base, off, val) (*((volatile u_int32_t *)((char *)base + (off))) = (val))
-#define	READSCRIPT(r) (np->script->r)
-#define	WRITESCRIPT(r, val) np->script->r = (val)
-
-#endif
-
-#endif
 
 /*
 **	Set bit field ON, OFF 
@@ -1057,19 +1008,18 @@ struct ncb {
 	**	virtual and physical addresses
 	**	of the 53c810 chip.
 	*/
-	vm_offset_t     vaddr;
-	vm_offset_t     paddr;
+	int		reg_rid;
+	struct resource *reg_res;
+	bus_space_tag_t	bst;
+	bus_space_handle_t bsh;
 
-	vm_offset_t     vaddr2;
-	vm_offset_t     paddr2;
+	int		sram_rid;
+	struct resource *sram_res;
+	bus_space_tag_t	bst2;
+	bus_space_handle_t bsh2;
 
-	/*
-	**	pointer to the chip's registers.
-	*/
-	volatile
-#ifdef __i386__
-	struct ncr_reg* reg;
-#endif
+	struct resource *irq_res;
+	void		*irq_handle;
 
 	/*
 	**	Scripts instance virtual address.
@@ -1346,8 +1296,8 @@ static	void	ncr_action	(struct cam_sim *sim, union ccb *ccb);
 static	void	ncr_timeout	(void *arg);
 static  void    ncr_wakeup	(ncb_p np, u_long code);
 
-static  const char*	ncr_probe	(pcici_t tag, pcidi_t type);
-static	void	ncr_attach	(pcici_t tag, int unit);
+static  int	ncr_probe	(device_t dev);
+static	int	ncr_attach	(device_t dev);
 
 #endif /* _KERNEL */
 
@@ -1373,8 +1323,6 @@ static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct tcb)	*  2;
 
 #ifdef _KERNEL
-static const int nncr=MAX_UNITS;	/* XXX to be replaced by SYSCTL */
-static ncb_p ncrp [MAX_UNITS];		/* XXX to be replaced by SYSCTL */
 
 static int ncr_debug = SCSI_NCR_DEBUG;
 SYSCTL_INT(_debug, OID_AUTO, ncr_debug, CTLFLAG_RW, &ncr_debug, 0, "");
@@ -1403,18 +1351,6 @@ static int ncr_cache; /* to be aligned _NOT_ static */
 #define	NCR_895A_ID	(0x00121000ul)
 #define	NCR_1510D_ID	(0x000a1000ul)
 
-
-static u_long ncr_count;
-
-static struct	pci_device ncr_device = {
-	"ncr",
-	ncr_probe,
-	ncr_attach,
-	&ncr_count,
-	NULL
-};
-
-COMPAT_PCI_DRIVER (ncr, ncr_device);
 
 static char *ncr_name (ncb_p np)
 {
@@ -3173,7 +3109,7 @@ static void ncr_script_copy_and_bind (ncb_p np, ncrcmd *src, ncrcmd *dst, int le
 
 				switch (old & RELOC_MASK) {
 				case RELOC_REGISTER:
-					new = (old & ~RELOC_MASK) + np->paddr;
+					new = (old & ~RELOC_MASK) + rman_get_start(np->reg_res);
 					break;
 				case RELOC_LABEL:
 					new = (old & ~RELOC_MASK) + np->p_script;
@@ -3355,16 +3291,17 @@ static int ncr_chip_lookup(u_long device_id, u_char revision_id)
 
 
 
-static	const char* ncr_probe (pcici_t tag, pcidi_t type)
+static	int ncr_probe (device_t dev)
 {
-	u_char rev = pci_conf_read (tag, PCI_CLASS_REG) & 0xff;
 	int i;
 
-	i = ncr_chip_lookup(type, rev);
-	if (i >= 0)
-		return ncr_chip_table[i].name;
+	i = ncr_chip_lookup(pci_get_devid(dev), pci_get_revid(dev));
+	if (i >= 0) {
+		device_set_desc(dev, ncr_chip_table[i].name);
+		return (0);
+	}
 
-	return (NULL);
+	return (ENXIO);
 }
 
 
@@ -3433,13 +3370,13 @@ ncr_init_burst(ncb_p np, u_char bc)
 */
 
 
-static void
-ncr_attach (pcici_t config_id, int unit)
+static int
+ncr_attach (device_t dev)
 {
-	ncb_p np = (struct ncb*) 0;
+	ncb_p np = (struct ncb*) device_get_softc(dev);
 	u_char	 rev = 0;
 	u_long	 period;
-	int	 i;
+	int	 i, rid;
 	u_int8_t usrsync;
 	u_int8_t usrwide;
 	struct cam_devq *devq;
@@ -3448,20 +3385,20 @@ ncr_attach (pcici_t config_id, int unit)
 	**	allocate and initialize structures.
 	*/
 
-	np = (ncb_p) malloc (sizeof (struct ncb), M_DEVBUF, M_NOWAIT);
-	if (!np) return;
-	ncrp[unit]=np;
-	bzero (np, sizeof (*np));
-
-	np->unit = unit;
+	np->unit = device_get_unit(dev);
 
 	/*
 	**	Try to map the controller chip to
 	**	virtual and physical memory.
 	*/
 
-	if (!pci_map_mem (config_id, 0x14, &np->vaddr, &np->paddr))
-		return;
+	np->reg_rid = 0x14;
+	np->reg_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &np->reg_rid,
+					 0, ~0, 1, RF_ACTIVE);
+	if (!np->reg_res) {
+		device_printf(dev, "could not map memory\n");
+		return ENXIO;
+	}
 
 	/*
 	**	Make the controller's registers available.
@@ -3469,9 +3406,9 @@ ncr_attach (pcici_t config_id, int unit)
 	**	can be used safely.
 	*/
 
-#ifdef __i386__
-	np->reg = (struct ncr_reg*) np->vaddr;
-#endif
+	np->bst = rman_get_bustag(np->reg_res);
+	np->bsh = rman_get_bushandle(np->reg_res);
+
 
 #ifdef NCR_IOMAPPED
 	/*
@@ -3509,12 +3446,12 @@ ncr_attach (pcici_t config_id, int unit)
 	**	Do chip dependent initialization.
 	*/
 
-	rev = pci_conf_read (config_id, PCI_CLASS_REG) & 0xff;
+	rev = pci_get_revid(dev);
 
 	/*
 	**	Get chip features from chips table.
 	*/
-	i = ncr_chip_lookup(pci_conf_read(config_id, PCI_ID_REG), rev);
+	i = ncr_chip_lookup(pci_get_devid(dev), rev);
 
 	if (i >= 0) {
 		np->maxburst	= ncr_chip_table[i].maxburst;
@@ -3648,24 +3585,24 @@ ncr_attach (pcici_t config_id, int unit)
 			burst_code(np->rv_dmode, np->rv_ctest4, np->rv_ctest5);
 	}
 
-#ifndef NCR_IOMAPPED
 	/*
 	**	Get on-chip SRAM address, if supported
 	*/
-	if ((np->features & FE_RAM) && sizeof(struct script) <= 4096)
-		(void)(!pci_map_mem (config_id,0x18, &np->vaddr2, &np->paddr2));
-#endif	/* !NCR_IOMAPPED */
+	if ((np->features & FE_RAM) && sizeof(struct script) <= 4096) {
+		np->sram_rid = 0x18;
+		np->sram_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
+						  &np->sram_rid,
+						  0, ~0, 1, RF_ACTIVE);
+	}
 
 	/*
 	**	Allocate structure for script relocation.
 	*/
-	if (np->vaddr2 != NULL) {
-#ifdef __alpha__
+	if (np->sram_res != NULL) {
 		np->script = NULL;
-#else
-		np->script = (struct script *) np->vaddr2;
-#endif
-		np->p_script = np->paddr2;
+		np->p_script = rman_get_start(np->sram_res);
+		np->bst2 = rman_get_bustag(np->sram_res);
+		np->bsh2 = rman_get_bushandle(np->sram_res);
 	} else if (sizeof (struct script) > PAGE_SIZE) {
 		np->script  = (struct script*) vm_page_alloc_contig 
 			(round_page(sizeof (struct script)), 
@@ -3693,21 +3630,21 @@ ncr_attach (pcici_t config_id, int unit)
 	*/
 #ifdef PCIR_CACHELNSZ	/* To be sure that new PCI stuff is present */
 	{
-		u_char cachelnsz = pci_cfgread(config_id, PCIR_CACHELNSZ, 1);
-		u_short command  = pci_cfgread(config_id, PCIR_COMMAND, 2);
+		u_char cachelnsz = pci_read_config(dev, PCIR_CACHELNSZ, 1);
+		u_short command  = pci_read_config(dev, PCIR_COMMAND, 2);
 
 		if (!cachelnsz) {
 			cachelnsz = 8;
 			printf("%s: setting PCI cache line size register to %d.\n",
 				ncr_name(np), (int)cachelnsz);
-			pci_cfgwrite(config_id, PCIR_CACHELNSZ, cachelnsz, 1);
+			pci_write_config(dev, PCIR_CACHELNSZ, cachelnsz, 1);
 		}
 
 		if (!(command & (1<<4))) {
 			command |= (1<<4);
 			printf("%s: setting PCI command write and invalidate.\n",
 				ncr_name(np));
-			pci_cfgwrite(config_id, PCIR_COMMAND, command, 2);
+			pci_write_config(dev, PCIR_COMMAND, command, 2);
 		}
 	}
 #endif /* PCIR_CACHELNSZ */
@@ -3756,7 +3693,7 @@ ncr_attach (pcici_t config_id, int unit)
 			ncr_name(np),
 			np->rv_stest2 & 0x20 ? "differential" : "single-ended",
 			np->rv_dcntl & IRQM ? "totem pole" : "open drain",
-			np->vaddr2 ? ", using on-chip SRAM" : "");
+			np->sram_res ? ", using on-chip SRAM" : "");
 			
 	/*
 	**	Patch scripts to physical addresses
@@ -3826,15 +3763,23 @@ ncr_attach (pcici_t config_id, int unit)
 
 	if (ncr_snooptest (np)) {
 		printf ("CACHE INCORRECTLY CONFIGURED.\n");
-		return;
+		return EINVAL;
 	};
 
 	/*
 	**	Install the interrupt handler.
 	*/
 
-	if (!pci_map_int (config_id, ncr_intr, np, &cam_imask))
-		printf ("\tinterruptless mode: reduced performance.\n");
+	rid = 0;
+	np->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+					 RF_SHAREABLE | RF_ACTIVE);
+	if (np->irq_res == NULL) {
+		device_printf(dev,
+			      "interruptless mode: reduced performance.\n");
+	} else {
+		bus_setup_intr(dev, np->irq_res, INTR_TYPE_CAM,
+			       ncr_intr, np, &np->irq_handle);
+	}
 
 	/*
 	** Create the device queue.  We only allow MAX_START-1 concurrent
@@ -3843,7 +3788,7 @@ ncr_attach (pcici_t config_id, int unit)
 	*/
 	devq = cam_simq_alloc(MAX_START - 1);
 	if (devq == NULL)
-		return;
+		return ENOMEM;
 
 	/*
 	**	Now tell the generic SCSI layer
@@ -3853,13 +3798,13 @@ ncr_attach (pcici_t config_id, int unit)
 				1, MAX_TAGS, devq);
 	if (np->sim == NULL) {
 		cam_simq_free(devq);
-		return;
+		return ENOMEM;
 	}
 
 	
 	if (xpt_bus_register(np->sim, 0) != CAM_SUCCESS) {
 		cam_sim_free(np->sim, /*free_devq*/ TRUE);
-		return;
+		return ENOMEM;
 	}
 	
 	if (xpt_create_path(&np->path, /*periph*/NULL,
@@ -3867,7 +3812,7 @@ ncr_attach (pcici_t config_id, int unit)
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		xpt_bus_deregister(cam_sim_path(np->sim));
 		cam_sim_free(np->sim, /*free_devq*/TRUE);
-		return;
+		return ENOMEM;
 	}
 
 	/*
@@ -3876,7 +3821,7 @@ ncr_attach (pcici_t config_id, int unit)
 	ncr_timeout (np);
 	np->lasttime=0;
 
-	return;
+	return 0;
 }
 
 /*==========================================================
@@ -5596,7 +5541,7 @@ void ncr_exception (ncb_p np)
 				printf (" ");
 				break;
 			};
-			val = ((unsigned char*) np->vaddr) [i];
+			val = bus_space_read_1(np->bst, np->bsh, i);
 			printf (" %x%x", val/16, val%16);
 			if (i%16==15) printf (".\n");
 		};
@@ -5799,7 +5744,7 @@ static void ncr_int_ma (ncb_p np, u_char dstat)
 		printf ("\nCP=%p CP2=%p DSP=%x NXT=%x VDSP=%p CMD=%x ",
 			cp, np->header.cp,
 			dsp,
-			nxtdsp, (char*)vdsp_base+vdsp_off, cmd);
+			nxtdsp, (volatile char*)vdsp_base+vdsp_off, cmd);
 	};
 
 	/*
@@ -6566,11 +6511,11 @@ ncr_alloc_nccb (ncb_p np, u_long target, u_long lun)
 		tp->getscr[0] =
 			(np->features & FE_PFEN)? SCR_COPY(1) : SCR_COPY_F(1);
 		tp->getscr[1] = vtophys (&tp->tinfo.sval);
-		tp->getscr[2] = np->paddr + offsetof (struct ncr_reg, nc_sxfer);
+		tp->getscr[2] = rman_get_start(np->reg_res) + offsetof (struct ncr_reg, nc_sxfer);
 		tp->getscr[3] =
 			(np->features & FE_PFEN)? SCR_COPY(1) : SCR_COPY_F(1);
 		tp->getscr[4] = vtophys (&tp->tinfo.wval);
-		tp->getscr[5] = np->paddr + offsetof (struct ncr_reg, nc_scntl3);
+		tp->getscr[5] = rman_get_start(np->reg_res) + offsetof (struct ncr_reg, nc_scntl3);
 
 		assert (((offsetof(struct ncr_reg, nc_sxfer) ^
 			 (offsetof(struct tcb ,tinfo)
@@ -7207,6 +7152,24 @@ printf ("Sum = %04x\n", sum);
 	return sum == 0x1234;
 }
 #endif /* NCR_TEKRAM_EEPROM */
+
+static device_method_t ncr_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ncr_probe),
+	DEVMETHOD(device_attach,	ncr_attach),
+
+	{ 0, 0 }
+};
+
+static driver_t ncr_driver = {
+	"ncr",
+	ncr_methods,
+	sizeof(struct ncb),
+};
+
+static devclass_t ncr_devclass;
+
+DRIVER_MODULE(if_ncr, pci, ncr_driver, ncr_devclass, 0, 0);
 
 /*=========================================================================*/
 #endif /* _KERNEL */
