@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.40 1997/11/21 11:36:56 bde Exp $
+ * $Id: kern_synch.c,v 1.41 1997/11/22 08:35:38 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -98,7 +98,7 @@ SYSCTL_PROC(_kern, OID_AUTO, quantum, CTLTYPE_INT|CTLFLAG_RW,
  * Force switch among equal priority processes every 100ms.
  */
 /* ARGSUSED */
-void
+static void
 roundrobin(arg)
 	void *arg;
 {
@@ -196,7 +196,7 @@ static fixpt_t	ccpu = 0.95122942450071400909 * FSCALE;	/* exp(-1/20) */
  * Recompute process priorities, every hz ticks.
  */
 /* ARGSUSED */
-void
+static void
 schedcpu(arg)
 	void *arg;
 {
@@ -715,3 +715,16 @@ resetpriority(p)
 		need_resched();
 	}
 }
+
+/* ARGSUSED */
+static void sched_setup __P((void *dummy));
+static void
+sched_setup(dummy)
+	void *dummy;
+{
+	/* Kick off timeout driven events by calling first time. */
+	roundrobin(NULL);
+	schedcpu(NULL);
+}
+SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
+

@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_conf.c	8.8 (Berkeley) 3/31/94
- * $Id: vfs_conf.c,v 1.16 1997/10/16 07:32:14 julian Exp $
+ * $Id: vfs_conf.c,v 1.17 1997/11/07 08:53:10 phk Exp $
  */
 
 /*
@@ -52,6 +52,7 @@
  *		on SMP reentrancy
  */
 #include <sys/param.h>		/* dev_t (types.h)*/
+#include <sys/kernel.h>
 #include <sys/systm.h>		/* rootvp*/
 #include <sys/proc.h>		/* curproc*/
 #include <sys/vnode.h>		/* NULLVP*/
@@ -105,7 +106,7 @@ struct vfsconf *vfsconf;
  *		the FFS file system type.  This is a matter of
  *		fixing the other file systems, not this code!
  */
-int
+static int
 vfs_mountrootfs(fsname)
 	char			*fsname;
 {
@@ -151,3 +152,24 @@ error_2:	/* mount error*/
 success:
 	return( err);
 }
+
+/* ARGSUSED*/
+static void xxx_vfs_mountroot __P((void *fsnamep));
+#ifdef BOOTP
+extern void bootpc_init __P((void));
+#endif
+static void
+xxx_vfs_mountroot(fsnamep)
+	void *fsnamep;
+{
+  /* XXX Add a separate SYSINIT entry */
+#ifdef BOOTP
+	bootpc_init();
+#endif
+	/* Mount the root file system. */
+	if (vfs_mountrootfs(*((char **) fsnamep)))
+		panic("cannot mount root");
+}
+SYSINIT(mountroot, SI_SUB_MOUNT_ROOT, SI_ORDER_FIRST, xxx_vfs_mountroot,
+	&mountrootfsname)
+
