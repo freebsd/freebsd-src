@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_trace.c,v 1.12 1995/11/24 13:27:24 bde Exp $
+ *	$Id: db_trace.c,v 1.13 1995/12/21 19:20:55 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -255,7 +255,6 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 		sym = db_search_symbol(callpc, DB_STGY_ANY, &offset);
 		db_symbol_values(sym, &name, NULL);
 
-		argp = &frame->f_arg0;
 		if (lastframe == NULL && sym == NULL) {
 			/* Symbol not found, peek at code */
 			int instr = db_get_value(callpc, 4, FALSE);
@@ -266,9 +265,13 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 			    /* enter+1: movl %esp, %ebp */
 			    (instr & 0x0000ffff) == 0x0000e589) {
 				offset = 0;
-				argp = &((struct i386_frame *)(ddb_regs.tf_esp-4))->f_arg0;
 			}
 	    	}
+		if (lastframe == NULL && offset == 0 && !have_addr)
+			argp = &((struct i386_frame *)(ddb_regs.tf_esp-4))->f_arg0;
+		else
+			argp = &frame->f_arg0;
+
 		narg = MAXNARG;
 		if (sym != NULL && db_sym_numargs(sym, &narg, argnames)) {
 			argnp = argnames;
