@@ -408,8 +408,8 @@ devintr()
  * All our links and the name have already been removed.
  * If we are a persistant device, we might refuse to go away.
  * In the case of a persistant node we signal the framework that we
- * are still in business by clearing the NG_INVALID bit. However
- * If we find the NG_REALLY_DIE bit set, this means that
+ * are still in business by clearing the NGF_INVALID bit. However
+ * If we find the NGF_REALLY_DIE bit set, this means that
  * we REALLY need to die (e.g. hardware removed).
  * This would have been set using the NG_NODE_REALLY_DIE(node)
  * macro in some device dependent function (not shown here) before
@@ -425,7 +425,7 @@ ng_xxx_shutdown(node_p node)
 	NG_NODE_UNREF(privdata->node);
 	FREE(privdata, M_NETGRAPH);
 #else
-	if (node->nd_flags & NG_REALLY_DIE) {
+	if (node->nd_flags & NGF_REALLY_DIE) {
 		/*
 		 * WE came here because the widget card is being unloaded,
 		 * so stop being persistant.
@@ -436,7 +436,7 @@ ng_xxx_shutdown(node_p node)
 		FREE(privdata, M_NETGRAPH);
 		return (0);   
         }
-	node->nd_flags &= ~NG_INVALID;		/* reset invalid flag */
+	NG_NODE_REVIVE(node);		/* tell ng_rmnode() we will persist */
 #endif /* PERSISTANT_NODE */
 	return (0);
 }

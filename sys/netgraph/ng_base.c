@@ -110,7 +110,7 @@ struct ng_type ng_deadtype = {
 struct ng_node ng_deadnode = {
 	"dead",
 	&ng_deadtype,	
-	NG_INVALID,
+	NGF_INVALID,
 	1,	/* refs */
 	0,	/* numhooks */
 	NULL,	/* private */
@@ -675,7 +675,7 @@ ng_rmnode(node_p node, hook_p dummy1, void *dummy2, int dummy3)
 	hook_p hook;
 
 	/* Check if it's already shutting down */
-	if ((node->nd_flags & NG_CLOSING) != 0)
+	if ((node->nd_flags & NGF_CLOSING) != 0)
 		return;
 
 	if (node == &ng_deadnode) {
@@ -689,10 +689,10 @@ ng_rmnode(node_p node, hook_p dummy1, void *dummy2, int dummy3)
 	/*
 	 * Mark it invalid so any newcomers know not to try use it
 	 * Also add our own mark so we can't recurse
-	 * note that NG_INVALID does not do this as it's also set during
+	 * note that NGF_INVALID does not do this as it's also set during
 	 * creation
 	 */
-	node->nd_flags |= NG_INVALID|NG_CLOSING;
+	node->nd_flags |= NGF_INVALID|NGF_CLOSING;
 
 	/* If node has its pre-shutdown method, then call it first*/
 	if (node->nd_type && node->nd_type->close)
@@ -721,9 +721,9 @@ ng_rmnode(node_p node, hook_p dummy1, void *dummy2, int dummy3)
 			 * Presumably it is a persistant node.
 			 * If we REALLY want it to go away,
 			 *  e.g. hardware going away,
-			 * Our caller should set NG_REALLY_DIE in nd_flags.
+			 * Our caller should set NGF_REALLY_DIE in nd_flags.
 			 */ 
-			node->nd_flags &= ~(NG_INVALID|NG_CLOSING);
+			node->nd_flags &= ~(NGF_INVALID|NGF_CLOSING);
 			NG_NODE_UNREF(node); /* Assume they still have theirs */
 			return;
 		}
@@ -1460,8 +1460,8 @@ ng_rmnode_self(node_p node)
 
 	if (node == &ng_deadnode)
 		return (0);
-	node->nd_flags |= NG_INVALID;
-	if (node->nd_flags & NG_CLOSING)
+	node->nd_flags |= NGF_INVALID;
+	if (node->nd_flags & NGF_CLOSING)
 		return (0);
 
 	error = ng_send_fn(node, NULL, &ng_rmnode, NULL, 0);
@@ -2200,7 +2200,7 @@ ng_snd_item(item_p item, int queue)
 	 * Similarly the node may say one hook always produces writers.
 	 * These are over-rides.
 	 */
-	if ((node->nd_flags & NG_FORCE_WRITER)
+	if ((node->nd_flags & NGF_FORCE_WRITER)
 	|| (hook && (hook->hk_flags & HK_FORCE_WRITER))) {
 			rw = NGQRW_W;
 			item->el_flags &= ~NGQF_READER;
@@ -3288,7 +3288,7 @@ ngintr(void)
 			mtx_unlock_spin(&ng_worklist_mtx);
 			break;
 		}
-		node->nd_flags &= ~NG_WORKQ;	
+		node->nd_flags &= ~NGF_WORKQ;	
 		TAILQ_REMOVE(&ng_worklist, node, nd_work);
 		mtx_unlock_spin(&ng_worklist_mtx);
 		/*
@@ -3325,8 +3325,8 @@ static void
 ng_worklist_remove(node_p node)
 {
 	mtx_lock_spin(&ng_worklist_mtx);
-	if (node->nd_flags & NG_WORKQ) {
-		node->nd_flags &= ~NG_WORKQ;
+	if (node->nd_flags & NGF_WORKQ) {
+		node->nd_flags &= ~NGF_WORKQ;
 		TAILQ_REMOVE(&ng_worklist, node, nd_work);
 		mtx_unlock_spin(&ng_worklist_mtx);
 		NG_NODE_UNREF(node);
@@ -3344,12 +3344,12 @@ static void
 ng_setisr(node_p node)
 {
 	mtx_lock_spin(&ng_worklist_mtx);
-	if ((node->nd_flags & NG_WORKQ) == 0) {
+	if ((node->nd_flags & NGF_WORKQ) == 0) {
 		/*
 		 * If we are not already on the work queue,
 		 * then put us on.
 		 */
-		node->nd_flags |= NG_WORKQ;
+		node->nd_flags |= NGF_WORKQ;
 		TAILQ_INSERT_TAIL(&ng_worklist, node, nd_work);
 		NG_NODE_REF(node); /* XXX fafe in mutex? */
 	}

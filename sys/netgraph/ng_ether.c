@@ -565,7 +565,7 @@ ng_ether_shutdown(node_p node)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
-	if (node->nd_flags & NG_REALLY_DIE) {
+	if (node->nd_flags & NGF_REALLY_DIE) {
 		/*
 		 * WE came here because the ethernet card is being unloaded,
 		 * so stop being persistant.
@@ -582,7 +582,8 @@ ng_ether_shutdown(node_p node)
 		priv->promisc = 0;
 	}
 	priv->autoSrcAddr = 1;		/* reset auto-src-addr flag */
-	node->nd_flags &= ~NG_INVALID;	/* Signal ng_rmnode we are persisant */
+	NG_NODE_REVIVE(node);		/* Signal ng_rmnode we are persisant */
+
 	return (0);
 }
 
