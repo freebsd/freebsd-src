@@ -30,7 +30,7 @@
 
 #ifndef lint
 #ifndef NOID
-static char	privatehid[] = "@(#)private.h	7.48";
+static const char	privatehid[] = "@(#)private.h	7.48";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 

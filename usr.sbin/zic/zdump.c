@@ -1,6 +1,6 @@
 #ifndef lint
 #ifndef NOID
-static char	elsieid[] = "@(#)zdump.c	7.28";
+static const char	elsieid[] = "@(#)zdump.c	7.28";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 
@@ -134,7 +134,6 @@ static char *	abbr P((struct tm * tmp));
 static long	delta P((struct tm * newp, struct tm * oldp));
 static time_t	hunt P((char * name, time_t lot, time_t	hit));
 static size_t	longest;
-static char *	progname;
 static void	show P((char * zone, time_t t, int v));
 static void     usage(void);
 
