@@ -502,6 +502,12 @@ sched_clock(struct thread *td)
 	ke = td->td_kse;
 	kg = td->td_ksegrp;
 
+	ke->ke_ticks += 10000;
+	ke->ke_ltick = ticks;
+	/* Go up to one second beyond our max and then trim back down */
+	if (ke->ke_ftick + SCHED_CPU_TICKS + hz < ke->ke_ltick)
+		sched_pctcpu_update(ke);
+
 	if (td->td_kse->ke_flags & KEF_IDLEKSE) {
 #if 0
 		if (nke && nke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE) {
@@ -545,12 +551,6 @@ sched_clock(struct thread *td)
 		ke->ke_flags |= KEF_NEEDRESCHED;
 		ke->ke_runq = NULL;
 	}
-
-	ke->ke_ticks += 10000;
-	ke->ke_ltick = ticks;
-	/* Go up to one second beyond our max and then trim back down */
-	if (ke->ke_ftick + SCHED_CPU_TICKS + hz < ke->ke_ltick)
-		sched_pctcpu_update(ke);
 }
 
 void sched_print_load(void);
