@@ -115,6 +115,9 @@ int	 mbtowc __P((wchar_t *, const char *, size_t));
 size_t	 wcstombs __P((char *, const wchar_t *, size_t));
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+extern char *_malloc_options;
+extern void (*_malloc_message)__P((char *p1, char *p2, char *p3, char *p4));
+
 int	 putenv __P((const char *));
 int	 setenv __P((const char *, const char *, int));
 
