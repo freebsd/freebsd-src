@@ -41,12 +41,10 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #if defined(__NetBSD__) || defined(__OpenBSD__)
-#include <sys/kernel.h>
 #include <sys/device.h>
 #elif defined(__FreeBSD__)
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/conf.h>
 #include "usb_if.h"
 #if defined(DIAGNOSTIC) && defined(__i386__)
 #include <machine/cpu.h>
