@@ -209,11 +209,11 @@ msdosfs_mount(mp, path, data, ndp, td)
 				VOP_UNLOCK(devvp, 0, td);
 			}
 			pmp->pm_flags &= ~MSDOSFSMNT_RONLY;
-			
-			/* [2753891] Now that the volume is modifiable, mark it dirty */
+
+			/* Now that the volume is modifiable, mark it dirty. */
 			error = markvoldirty(pmp, 1);
 			if (error)
-			  return error;
+				return (error);
 		}
 		if (args.fspec == 0) {
 #ifdef	__notyet__	/* doesn't work correctly with current mountd	XXX */
@@ -615,9 +615,9 @@ mountmsdosfs(devvp, mp, td, argp)
 	if (ronly)
 		pmp->pm_flags |= MSDOSFSMNT_RONLY;
 	else {
-                 /* [2753891] Mark the volume dirty while it is mounted read/write */
-                 if ((error = markvoldirty(pmp, 1)) != 0)
-                     goto error_exit;
+		/* Mark the volume dirty while it is mounted read/write. */
+		if ((error = markvoldirty(pmp, 1)) != 0)
+			goto error_exit;
 		pmp->pm_fmod = 1;
 	}
 	mp->mnt_data = (qaddr_t) pmp;
@@ -677,12 +677,12 @@ msdosfs_unmount(mp, mntflags, td)
 	}
 	pmp->pm_devvp->v_rdev->si_mountpoint = NULL;
 
-        /* [2753891] If the volume was mounted read/write, mark it clean now */
-        if ((pmp->pm_flags & MSDOSFSMNT_RONLY) == 0) {
-                error = markvoldirty(pmp, 0);
-                if (error && !(flags & FORCECLOSE))
-                        return (error);
-        }
+	/* If the volume was mounted read/write, mark it clean now. */
+	if ((pmp->pm_flags & MSDOSFSMNT_RONLY) == 0) {
+		error = markvoldirty(pmp, 0);
+		if (error && (flags & FORCECLOSE) == 0)
+			return (error);
+	}
 #ifdef MSDOSFS_DEBUG
 	{
 		struct vnode *vp = pmp->pm_devvp;
