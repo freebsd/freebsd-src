@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.43 1996/12/19 21:39:07 jkh Exp $ -->
+<!-- $Id: install.sgml,v 1.44 1996/12/21 15:01:07 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -66,8 +66,8 @@ C:\> rawrite
 	    will only successfully support rawrite.exe in DOS mode
 	    and that Windows NT prevents it from working at all.  You
 	    will have to make your floppy images on a different machine
-	    if you're running Windows NT and boot first into DOS mode if
-	    you're running Windows95.</p></item>
+	    if you are running Windows NT and boot first into DOS mode if
+	    you are running Windows95.</p></item>
 
 	  <item>If you are using a UNIX system:
 <tscreen>
@@ -729,7 +729,7 @@ ftp://foo.bar.com:1234/pub/FreeBSD
 	    you through a typical installation, give you a high degree of
 	    control over each step of the installation or simply whizz
 	    through it (using reasonable defaults when possible) as fast
-	    as possible.  If you've never used FreeBSD before then the
+	    as possible.  If you have never used FreeBSD before then the
 	    Novice installation method is most recommended.
 
 	  <item>The final configuration menu choice allows you to

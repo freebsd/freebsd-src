@@ -1,4 +1,4 @@
-<!-- $Id: isdn.sgml,v 1.7 1996/12/08 22:24:10 wosch Exp $-->
+<!-- $Id: isdn.sgml,v 1.8 1996/12/16 22:50:31 mpp Exp $-->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>ISDN<label id="isdn"></heading>
@@ -152,7 +152,7 @@ interchangeably.
 <p>As the cost of low end ISDN routers/bridges comes down, it will
 likely become a more and more popular choice.  An ISDN router is a small
 box that plugs directly into your local Ethernet network(or card), and
-manages it's own connection to the other bridge/router.  It has all the
+manages its own connection to the other bridge/router.  It has all the
 software to do PPP and other protocols built in.
 
 A router will allow you much faster throughput that a standard TA, since
@@ -181,7 +181,7 @@ AUI/10BT transceiver, if necessary.
 |
 ---FreeBSD box
 |
----Windows 95 (Don't admit to owning it)
+---Windows 95 (Do not admit to owning it)
 |
 Standalone router
    |
