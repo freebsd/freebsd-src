@@ -38,20 +38,35 @@
  * XXX: Currently just syscall stubs.
  */
 
+#include "opt_cap.h"
+
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/sysent.h>
-#include <sys/capability.h>
 #include <sys/acct.h>
+#include <sys/capability.h>
+#include <sys/extattr.h>
+#include <sys/jail.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/namei.h>
+#include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/file.h>
 #include <sys/sysctl.h>
 
-#include "opt_cap.h"
+#ifdef CAPABILITIES
+
+static int	capabilities_enabled = 0;
+
+SYSCTL_NODE(_kern_security, OID_AUTO, capabilities, CTLFLAG_RW, 0,
+    "POSIX.1e Capabilities");
+SYSCTL_INT(_kern_security_capabilities, OID_AUTO, enabled, CTLFLAG_RW,
+    &capabilities_enabled, 0, "POSIX.1e Capabilities enabled");
+#endif
 
 /*
  * Syscall to allow a process to get it's currently capability set
