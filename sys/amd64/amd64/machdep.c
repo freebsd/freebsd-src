@@ -1578,11 +1578,13 @@ int15e820:
 		if (smap->length == 0)
 			goto next_run;
 
+#ifndef PAE
 		if (smap->base >= 0xffffffff) {
 			printf("%uK of memory above 4GB ignored\n",
 			    (u_int)(smap->length / 1024));
 			goto next_run;
 		}
+#endif
 
 		for (i = 0; i <= physmap_idx; i += 2) {
 			if (smap->base < physmap[i + 1]) {
@@ -2071,7 +2073,11 @@ init386(first)
 	    dblfault_tss.tss_esp2 = (int)&dblfault_stack[sizeof(dblfault_stack)];
 	dblfault_tss.tss_ss = dblfault_tss.tss_ss0 = dblfault_tss.tss_ss1 =
 	    dblfault_tss.tss_ss2 = GSEL(GDATA_SEL, SEL_KPL);
+#ifdef PAE
+	dblfault_tss.tss_cr3 = (int)IdlePDPT;
+#else
 	dblfault_tss.tss_cr3 = (int)IdlePTD;
+#endif
 	dblfault_tss.tss_eip = (int)dblfault_handler;
 	dblfault_tss.tss_eflags = PSL_KERNEL;
 	dblfault_tss.tss_ds = dblfault_tss.tss_es =
@@ -2115,7 +2121,11 @@ init386(first)
 
 	/* setup proc 0's pcb */
 	thread0.td_pcb->pcb_flags = 0; /* XXXKSE */
+#ifdef PAE
+	thread0.td_pcb->pcb_cr3 = (int)IdlePDPT;
+#else
 	thread0.td_pcb->pcb_cr3 = (int)IdlePTD;
+#endif
 	thread0.td_pcb->pcb_ext = 0;
 	thread0.td_frame = &proc0_tf;
 }
