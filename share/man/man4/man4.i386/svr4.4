@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd November 6, 2000
+.Dd October 28, 2003
 .Dt SVR4 4 i386
 .Os
 .Sh NAME
@@ -107,7 +107,7 @@ if it is neither linked into the kernel
 nor already loaded as a module:
 .Bd -literal -offset indent
 if ! kldstat -v | grep -E 'svr4elf' > /dev/null; then
-	/usr/bin/svr4 > /dev/null 2>&1
+	kldload svr4 > /dev/null 2>&1
 fi
 .Ed
 .Pp
