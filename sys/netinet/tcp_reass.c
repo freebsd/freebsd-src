@@ -177,7 +177,7 @@ do { \
 #define	TCP_REASS(tp, th, tlenp, m, so, flags) { \
 	if ((th)->th_seq == (tp)->rcv_nxt && \
 	    LIST_EMPTY(&(tp)->t_segq) && \
-	    (tp)->t_state == TCPS_ESTABLISHED) { \
+	    TCPS_HAVEESTABLISHED((tp)->t_state)) { \
 		if (DELAY_ACK(tp)) \
 			callout_reset(tp->tt_delack, tcp_delacktime, \
 			    tcp_timer_delack, tp); \
