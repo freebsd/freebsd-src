@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.96 1998/03/29 18:23:44 dyson Exp $
+ * $Id: vfs_syscalls.c,v 1.97 1998/04/08 18:31:57 wosch Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -1324,6 +1324,7 @@ lseek(p, uap)
 	register struct filedesc *fdp = p->p_fd;
 	register struct file *fp;
 	struct vattr vattr;
+	off_t ofs;
 	int error;
 
 	if ((u_int)SCARG(uap, fd) >= fdp->fd_nfiles ||
@@ -1333,21 +1334,22 @@ lseek(p, uap)
 		return (ESPIPE);
 	switch (SCARG(uap, whence)) {
 	case L_INCR:
-		fp->f_offset += SCARG(uap, offset);
+		ofs = fp->f_offset + SCARG(uap, offset);
 		break;
 	case L_XTND:
 		error=VOP_GETATTR((struct vnode *)fp->f_data, &vattr, cred, p);
 		if (error)
 			return (error);
-		fp->f_offset = SCARG(uap, offset) + vattr.va_size;
+		ofs = SCARG(uap, offset) + vattr.va_size;
 		break;
 	case L_SET:
-		fp->f_offset = SCARG(uap, offset);
+		ofs = SCARG(uap, offset);
 		break;
 	default:
 		return (EINVAL);
 	}
-	*(off_t *)(p->p_retval) = fp->f_offset;
+	if (ofs < 0) return (EINVAL);
+	*(off_t *)(p->p_retval) = fp->f_offset = ofs;
 	return (0);
 }
 
