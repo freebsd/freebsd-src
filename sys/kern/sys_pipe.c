@@ -696,7 +696,7 @@ pipe_build_write_buffer(wpipe, uio)
 
 			vm_page_lock_queues();
 			for (j = 0; j < i; j++) {
-				vm_page_unwire(wpipe->pipe_map.ms[j], 1);
+				vm_page_unhold(wpipe->pipe_map.ms[j]);
 				atomic_subtract_int(&amountpipekvawired,
 					 	    PAGE_SIZE);
 			}
@@ -706,7 +706,7 @@ pipe_build_write_buffer(wpipe, uio)
 
 		m = PHYS_TO_VM_PAGE(paddr);
 		vm_page_lock_queues();
-		vm_page_wire(m);
+		vm_page_hold(m);
 		atomic_add_int(&amountpipekvawired, PAGE_SIZE);
 		vm_page_unlock_queues();
 		wpipe->pipe_map.ms[i] = m;
@@ -775,7 +775,7 @@ pipe_destroy_write_buffer(wpipe)
 	}
 	vm_page_lock_queues();
 	for (i = 0; i < wpipe->pipe_map.npages; i++) {
-		vm_page_unwire(wpipe->pipe_map.ms[i], 1);
+		vm_page_unhold(wpipe->pipe_map.ms[i]);
 		atomic_subtract_int(&amountpipekvawired, PAGE_SIZE);
 	}
 	vm_page_unlock_queues();
