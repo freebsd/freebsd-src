@@ -104,21 +104,22 @@ static const char **
 arrayize(const char *str, const char *chars, int *size)
 {
     int	    i;
-    const char *ptr;
+    char *ptr;
+    const char *cptr;
     const char **res = NULL;
 
     /* count the sub-strings */
-    for (i = 0, ptr = str; *ptr; i++) {
-	int count = strcspn(ptr, chars);
-	ptr += count;
-	if (*ptr)
-	    ++ptr;
+    for (i = 0, cptr = str; *cptr; i++) {
+	int count = strcspn(cptr, chars);
+	cptr += count;
+	if (*cptr)
+	    ++cptr;
     }
 
     /* alloc the array */
     if ((ptr = allocstr(str)) != NULL) {
 	if ((res = allocarray(++i)) == NULL)
-	    free(str);
+	    free((void *)(uintptr_t)(const void *)str);
 	else {
 	    /* now split the string */
 	    i = 0;
@@ -191,7 +192,7 @@ login_getclassbyname(char const *name, const struct passwd *pwd)
 	const char  *dir;
 	char	    userpath[MAXPATHLEN];
 
-	static const char *login_dbarray[] = { NULL, NULL, NULL };
+	static char *login_dbarray[] = { NULL, NULL, NULL };
 
 	me = (name != NULL && strcmp(name, LOGIN_MECLASS) == 0);
 	dir = (!me || pwd == NULL) ? NULL : pwd->pw_dir;
