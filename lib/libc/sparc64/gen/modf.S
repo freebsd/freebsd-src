@@ -38,19 +38,13 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-#if 0
 	.asciz "@(#)modf.s	8.1 (Berkeley) 6/4/93"
-#else
+#if 0
 	.asciz "$NetBSD: modf.S,v 1.2 2000/07/23 07:12:22 eeh Exp $"
 #endif
 #endif /* LIBC_SCCS and not lint */
-
-#if defined(SYSLIBC_RCS) && !defined(lint)
-	.text
-	.asciz "$FreeBSD$"
-#endif /* SYSLIBC_RCS and not lint */
-
 #include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 #include "assym.s"
 
