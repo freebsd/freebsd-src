@@ -657,6 +657,9 @@ options 	MD_ROOT_SIZE=10
 # images of type mfs_root or md_root.
 options 	MD_ROOT
 
+# Specify double the default maximum size for malloc(9)-backed md devices.
+options 	MD_NSECT=40000
+
 # Allow this many swap-devices.
 options 	NSWAPDEV=20
 
