@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.5 1997/02/22 16:14:15 peter Exp $
 #
 # Most of the programs in this directory are completely useless for the
 # NTP configuration that we provide by default.
@@ -7,15 +7,8 @@
 
 CFLAGS+= -I${.CURDIR}/../include
 
-.if exists(${.OBJDIR}/../lib)
-LDADD+= -L${.OBJDIR}/../lib
-DPADD+= ${.OBJDIR}/../lib/libntp.a
-.else
-LDADD+= -L${.CURDIR}/../lib
-DPADD+= ${.CURDIR}/../lib/libntp.a
-.endif
-
-LDADD+= -lntp
+DPADD=	${LIBNTP}
+LDADD=	${LIBNTP}
 
 PROG= md5
 
