@@ -343,7 +343,6 @@ tcp_input(m, off0)
 	register int thflags;
 	struct socket *so = 0;
 	int todrop, acked, ourfinisacked, needoutput = 0;
-	int iss = 0;
 	u_long tiwin;
 	struct tcpopt to;		/* options in this segment */
 	struct rmxp_tao *taop;		/* pointer to our TAO cache entry */
@@ -1491,7 +1490,6 @@ trimthenstep6:
 			if (thflags & TH_SYN &&
 			    tp->t_state == TCPS_TIME_WAIT &&
 			    SEQ_GT(th->th_seq, tp->rcv_nxt)) {
-				iss = tcp_new_isn(tp);
 				tp = tcp_close(tp);
 				goto findpcb;
 			}
