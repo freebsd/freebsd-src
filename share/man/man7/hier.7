@@ -181,6 +181,8 @@ standard C include files
 .Bl -tag -width "kerberos5/" -compact
 .It Pa arpa/
 C include files for Internet service protocols
+.It Pa bsnmp/
+C include files for the SNMP daemon
 .It Pa cam/
 C include files for the Common Access Methods Layer
 .Bl -tag -width "kerberos5/" -compact
@@ -538,6 +540,15 @@ data files for security policies such as
 configuration files
 .It Pa skel/
 example . (dot) files for new accounts
+.It Pa snmp/
+MIBs, example files and tree definitions for the SNMP daemon.
+.Bl -tag -width Fl -compact
+.It Pa defs/
+Tree definition files for use with
+.Xr gensnmptree 1
+.It Pa mibs/
+MIB files
+.El
 .It Pa syscons/
 files used by syscons;
 see

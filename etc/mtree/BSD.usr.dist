@@ -44,12 +44,6 @@
     sbin
     ..
     share
-        bsnmp
-            defs
-            ..
-            mibs
-            ..
-        ..
         calendar
             de_DE.ISO8859-1
             ..
@@ -1129,6 +1123,12 @@
         sendmail
         ..
         skel
+        ..
+        snmp
+            defs
+            ..
+            mibs
+            ..
         ..
         syscons
             fonts

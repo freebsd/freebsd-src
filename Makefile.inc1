@@ -258,7 +258,7 @@ _worldtmp:
 .for _dir in \
     lib usr/bin usr/include usr/lib/compat/aout usr/libdata/ldscripts \
     usr/libexec usr/sbin usr/share/misc \
-    usr/share/bsnmp/defs usr/share/bsnmp/mibs
+    usr/share/snmp/defs usr/share/snmp/mibs
 	mkdir -p ${WORLDTMP}/${_dir}
 .endfor
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
