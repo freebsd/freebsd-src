@@ -181,6 +181,16 @@ available in the
 .Fx
 Ports Collection, is commonly used to create ISO9660 file system images
 from a given directory tree.
+.Sh ENVIRONMENT
+The following environment variables affect the execution of
+.Nm :
+.Pp
+.Bl -tag -width CD_DRIVE -compact
+.It Ev CDROM  
+The cd device to use if one isn't specified with the
+.Fl f
+flag.
+
 .Sh BUGS
 Probably, please report when found.
 .Sh HISTORY
