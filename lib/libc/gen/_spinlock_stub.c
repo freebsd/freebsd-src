@@ -29,11 +29,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: _spinlock_stub.c,v 1.1 1998/03/09 06:46:21 jb Exp $
  *
  */
 
 #include <stdio.h>
+
+/* Don't build these stubs into libc_r: */
+#ifndef	_THREAD_SAFE
 #include "spinlock.h"
 
 /*
@@ -58,3 +61,4 @@ void
 _atomic_unlock_stub(long *lck)
 {
 }
+#endif
