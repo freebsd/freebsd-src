@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 12/15/93
-#	$Id: Makefile,v 1.9 1995/08/05 19:10:17 ache Exp $
+#	$Id: Makefile,v 1.10 1995/09/14 21:29:05 gibbs Exp $
 
 LIB=	telnet
 SRCS=   auth.c encrypt.c genget.c getent.c misc.c
@@ -11,7 +11,6 @@ CFLAGS+= -DHAS_CGETENT
 
 CFLAGS+= -DENCRYPTION -DAUTHENTICATION
 
-.ifdef  MAKE_EBONES
 .if exists(/usr/lib/libkrb.a)
 CFLAGS+= -DKRB4 -I/usr/include/kerberosIV -DDES_ENCRYPTION
 # KRB4_ENCPWD not yet defined
@@ -20,7 +19,6 @@ SRCS+=  kerberos.c
 # KRB4_ENCPWD not yet defined
 #SRCS+=   krb4encpwd.c
 LDADD+= -ldes -lkrb
-.endif
 .endif
 
 .if exists(/usr/lib/libkrb5.a)
