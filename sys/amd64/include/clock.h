@@ -3,13 +3,13 @@
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
  *
- *	$Id: clock.h,v 1.6 1995/11/29 19:57:16 wollman Exp $
+ *	$Id: clock.h,v 1.7 1995/12/10 13:38:07 phk Exp $
  */
 
 #ifndef _MACHINE_CLOCK_H_
 #define	_MACHINE_CLOCK_H_
 
-#ifdef I586_CPU
+#if defined(I586_CPU) || defined(I686_CPU)
 
 #define I586_CYCLECTR(x) \
 	__asm __volatile(".byte 0x0f, 0x31" : "=A" (x))
@@ -54,7 +54,7 @@
  */
 extern int	adjkerntz;
 extern int	disable_rtc_set;
-#ifdef I586_CPU
+#if defined(I586_CPU) || defined(I686_CPU)
 extern unsigned	i586_ctr_rate;	/* fixed point */
 extern long long i586_last_tick;
 extern long long i586_ctr_bias;
@@ -63,11 +63,11 @@ extern int 	timer0_max_count;
 extern u_int 	timer0_overflow_threshold;
 extern u_int 	timer0_prescaler_count;
 
-#ifdef I586_CPU
+#if defined(I586_CPU) || defined(I686_CPU)
 void	calibrate_cyclecounter __P((void));
 #endif
 
-#ifdef I586_CPU
+#if defined(I586_CPU) || defined(I686_CPU)
 static __inline u_long 
 cpu_thisticklen(u_long dflt)
 {
