@@ -338,9 +338,9 @@ term_init(EditLine *el)
 		return (-1);
 	(void) memset(el->el_term.t_val, 0, T_val * sizeof(int));
 	term_outfile = el->el_outfile;
+	term_init_arrow(el);
 	if (term_set(el, NULL) == -1)
 		return (-1);
-	term_init_arrow(el);
 	return (0);
 }
 /* term_end():
