@@ -32,7 +32,7 @@
 .\"	@(#)make.1	8.8 (Berkeley) 6/13/95
 .\" $FreeBSD$
 .\"
-.Dd January 26, 2005
+.Dd March 30, 2005
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Nd maintain program dependencies
 .Sh SYNOPSIS
 .Nm
-.Op Fl BPSXeiknqrstv
+.Op Fl ABPSXeiknqrstv
 .Op Fl C Ar directory
 .Op Fl D Ar variable
 .Op Fl d Ar flags
@@ -83,6 +83,9 @@ and makefiles, please refer to
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl A
+Make archive errors non-fatal, causing make just to skip the remainder
+or all of the archive and continue after printing a message.
 .It Fl B
 Try to be backwards compatible by executing a single shell per command and
 by executing the commands to make the sources of a dependency line in sequence.
