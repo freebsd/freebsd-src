@@ -1104,9 +1104,11 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 #error "have you forgotten the isa device?";
 #endif
 
+#if 0	/* Not till we test the features bit */
 	/* Turn on PTE NX (no execute) bit */
 	msr = rdmsr(MSR_EFER) | EFER_NXE;
 	wrmsr(MSR_EFER, msr);
+#endif
 
 	proc0.p_uarea = (struct user *)(physfree + KERNBASE);
 	bzero(proc0.p_uarea, UAREA_PAGES * PAGE_SIZE);
