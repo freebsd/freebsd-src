@@ -169,7 +169,7 @@ showuid(uid)
 		name = pwd->pw_name;
 	myuid = getuid();
 	if (uid != myuid && myuid != 0) {
-		printf("quota: %s (uid %d): permission denied\n", name, uid);
+		printf("quota: %s (uid %lu): permission denied\n", name, uid);
 		return;
 	}
 	showquotas(USRQUOTA, uid, name);
@@ -221,7 +221,7 @@ showgid(gid)
 		if (gid == gidset[i])
 			break;
 	if (i >= ngroups && getuid() != 0) {
-		fprintf(stderr, "quota: %s (gid %d): permission denied\n",
+		fprintf(stderr, "quota: %s (gid %lu): permission denied\n",
 		    name, gid);
 		return;
 	}
@@ -315,15 +315,18 @@ showquotas(type, id, name)
 		    qup->dqblk.dqb_curinodes) {
 			if (lines++ == 0)
 				heading(type, id, name, "");
-			printf("%15s%8d%c%7d%8d%8s"
+			printf("%15s%8lu%c%7lu%8lu%8s"
 				, qup->fsname
-				, dbtob(qup->dqblk.dqb_curblocks) / 1024
+				, (u_long)
+				  (dbtob(qup->dqblk.dqb_curblocks) / 1024)
 				, (msgb == (char *)0) ? ' ' : '*'
-				, dbtob(qup->dqblk.dqb_bsoftlimit) / 1024
-				, dbtob(qup->dqblk.dqb_bhardlimit) / 1024
+				, (u_long)
+				  (dbtob(qup->dqblk.dqb_bsoftlimit) / 1024)
+				, (u_long)
+				  (dbtob(qup->dqblk.dqb_bhardlimit) / 1024)
 				, (msgb == (char *)0) ? ""
 				    : timeprt(qup->dqblk.dqb_btime));
-			printf("%8d%c%7d%8d%8s\n"
+			printf("%8lu%c%7lu%8lu%8s\n"
 				, qup->dqblk.dqb_curinodes
 				, (msgi == (char *)0) ? ' ' : '*'
 				, qup->dqblk.dqb_isoftlimit
@@ -344,7 +347,7 @@ heading(type, id, name, tag)
 	char *name, *tag;
 {
 
-	printf("Disk quotas for %s %s (%cid %d): %s\n", qfextension[type],
+	printf("Disk quotas for %s %s (%cid %lu): %s\n", qfextension[type],
 	    name, *qfextension[type], id, tag);
 	if (!qflag && tag[0] == '\0') {
 		printf("%15s%8s %7s%8s%8s%8s %7s%8s%8s\n"
@@ -380,14 +383,14 @@ timeprt(seconds)
 	minutes = (seconds + 30) / 60;
 	hours = (minutes + 30) / 60;
 	if (hours >= 36) {
-		sprintf(buf, "%ddays", (hours + 12) / 24);
+		sprintf(buf, "%lddays", (hours + 12) / 24);
 		return (buf);
 	}
 	if (minutes >= 60) {
-		sprintf(buf, "%2d:%d", minutes / 60, minutes % 60);
+		sprintf(buf, "%2ld:%ld", minutes / 60, minutes % 60);
 		return (buf);
 	}
-	sprintf(buf, "%2d", minutes);
+	sprintf(buf, "%2ld", minutes);
 	return (buf);
 }
 
