@@ -320,8 +320,8 @@ reread_mbr:
 	 */
 	if (((cp[4] != 'I') || (cp[5] != 'P') || (cp[6] != 'L') ||
 		 (cp[7] != '1')) &&
-		((strncmp(devtoname(bp->b_dev), "da", 2) == 0) ||
-	    (strncmp(devtoname(bp->b_dev), "wd", 2) == 0))) {
+		((strncmp(devtoname(bp->b_dev), "rda", 3) == 0) ||
+	    (strncmp(devtoname(bp->b_dev), "rwd", 3) == 0))) {
 		/* IBM-PC HDD */
 		bp->b_flags |= B_INVAL | B_AGE;
 		brelse(bp);
