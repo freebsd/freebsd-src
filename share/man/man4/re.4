@@ -35,7 +35,7 @@
 .Os
 .Sh NAME
 .Nm re
-.Nd "RealTek 8139C+/8169/8169S/8110S PCI ethernet adapter driver"
+.Nd "RealTek 8139C+/8169/8169S/8110S PCI Ethernet adapter driver"
 .Sh SYNOPSIS
 .Cd "device miibus"
 .Cd "device re"
@@ -43,7 +43,7 @@
 The
 .Nm
 driver provides support for various NICs based on the RealTek RTL8139C+,
-RTL8169, RTL8169S and RTL8110S PCI ethernet controllers, including
+RTL8169, RTL8169S and RTL8110S PCI Ethernet controllers, including
 the following:
 .Pp
 .Bl -bullet -compact
@@ -89,7 +89,7 @@ utility configures the adapter to receive and transmit jumbo frames.
 The
 .Nm
 driver supports the following media types:
-.Bl -tag -width 10baseTXUTP
+.Bl -tag -width ".Cm 10baseT/UTP"
 .It Cm autoselect
 Enable autoselection of the media type and options.
 The user can manually override
@@ -99,17 +99,17 @@ the autoselected mode by adding media options to
 Set 10Mbps operation.
 The
 .Xr ifconfig 8
-.Ic mediaopt
+.Cm mediaopt
 option can also be used to select either
 .Cm full-duplex
 or
 .Cm half-duplex
 modes.
 .It Cm 100baseTX
-Set 100Mbps (fast ethernet) operation.
+Set 100Mbps (Fast Ethernet) operation.
 The
 .Xr ifconfig 8
-.Ic mediaopt
+.Cm mediaopt
 option can also be used to select either
 .Cm full-duplex
 or
@@ -121,7 +121,7 @@ The RealTek gigE chips support 1000Mbps in
 .Cm full-duplex
 mode only.
 .\" .It Cm 1000baseSX
-.\" Set 1000Mbps (gigabit ethernet) operation.
+.\" Set 1000Mbps (Gigabit Ethernet) operation.
 .\" Both
 .\" .Cm full-duplex
 .\" and
@@ -132,7 +132,7 @@ mode only.
 The
 .Nm
 driver supports the following media options:
-.Bl -tag -width full-duplex
+.Bl -tag -width ".Cm full-duplex"
 .It Cm full-duplex
 Force full duplex operation.
 .It Cm half-duplex
@@ -172,7 +172,7 @@ the network connection (cable).
 .Xr ifconfig 8
 .Rs
 .%T RealTek Semiconductor RTL8139C+, RTL8169, RTL8169S and RTL8110S datasheets
-.%O http://www.realtek.com.tw
+.%O http://www.realtek.com.tw/
 .Re
 .Sh HISTORY
 The
