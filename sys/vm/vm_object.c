@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.67 1996/03/29 06:28:48 davidg Exp $
+ * $Id: vm_object.c,v 1.68 1996/04/24 04:16:45 dyson Exp $
  */
 
 /*
@@ -278,7 +278,7 @@ vm_object_deallocate(object)
 			    (object->type == OBJT_DEFAULT ||
 			     object->type == OBJT_SWAP)) {
 				vm_object_t robject;
-				robject = object->shadow_head.tqh_first;
+				robject = TAILQ_FIRST(&object->shadow_head);
 				if ((robject != NULL) &&
 				    (robject->handle == NULL) &&
 				    (robject->type == OBJT_DEFAULT ||
@@ -288,7 +288,7 @@ vm_object_deallocate(object)
 					object->ref_count += 2;
 
 					do {
-						s = splhigh();
+						s = splvm();
 						while (robject->paging_in_progress) {
 							robject->flags |= OBJ_PIPWNT;
 							tsleep(robject, PVM, "objde1", 0);
@@ -375,7 +375,7 @@ vm_object_terminate(object)
 	/*
 	 * wait for the pageout daemon to be done with the object
 	 */
-	s = splhigh();
+	s = splvm();
 	while (object->paging_in_progress) {
 		object->flags |= OBJ_PIPWNT;
 		tsleep(object, PVM, "objtrm", 0);
@@ -402,9 +402,10 @@ vm_object_terminate(object)
 	 * Now free the pages. For internal objects, this also removes them
 	 * from paging queues.
 	 */
-	while ((p = object->memq.tqh_first) != NULL) {
+	while ((p = TAILQ_FIRST(&object->memq)) != NULL) {
 		if (p->flags & PG_BUSY)
 			printf("vm_object_terminate: freeing busy page\n");
+		vm_page_protect(p, VM_PROT_NONE);
 		PAGE_WAKEUP(p);
 		vm_page_free(p);
 		cnt.v_pfree++;
@@ -478,12 +479,12 @@ vm_object_page_clean(object, start, end, syncio, lockflag)
 	if ((tstart == 0) && (tend == object->size)) {
 		object->flags &= ~(OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY);
 	}
-	for(p = object->memq.tqh_first; p; p = p->listq.tqe_next)
+	for(p = TAILQ_FIRST(&object->memq); p; p = TAILQ_NEXT(p, listq))
 		p->flags |= PG_CLEANCHK;
 
 rescan:
-	for(p = object->memq.tqh_first; p; p = np) {
-		np = p->listq.tqe_next;
+	for(p = TAILQ_FIRST(&object->memq); p; p = np) {
+		np = TAILQ_NEXT(p, listq);
 
 		pi = p->pindex;
 		if (((p->flags & PG_CLEANCHK) == 0) ||
@@ -499,7 +500,7 @@ rescan:
 			continue;
 		}
 
-		s = splhigh();
+		s = splvm();
 		if ((p->flags & PG_BUSY) || p->busy) {
 			p->flags |= PG_WANTED|PG_REFERENCED;
 			tsleep(p, PVM, "vpcwai", 0);
@@ -597,8 +598,8 @@ vm_object_deactivate_pages(object)
 {
 	register vm_page_t p, next;
 
-	for (p = object->memq.tqh_first; p != NULL; p = next) {
-		next = p->listq.tqe_next;
+	for (p = TAILQ_FIRST(&object->memq); p != NULL; p = next) {
+		next = TAILQ_NEXT(p, listq);
 		vm_page_deactivate(p);
 	}
 }
@@ -613,7 +614,7 @@ vm_object_cache_trim()
 	register vm_object_t object;
 
 	while (vm_object_cached > vm_object_cache_max) {
-		object = vm_object_cached_list.tqh_first;
+		object = TAILQ_FIRST(&vm_object_cached_list);
 
 		vm_object_reference(object);
 		pager_cache(object, FALSE);
@@ -641,7 +642,7 @@ vm_object_pmap_copy(object, start, end)
 	if (object == NULL || (object->flags & OBJ_WRITEABLE) == 0)
 		return;
 
-	for (p = object->memq.tqh_first; p != NULL; p = p->listq.tqe_next) {
+	for (p = TAILQ_FIRST(&object->memq); p != NULL; p = TAILQ_NEXT(p, listq)) {
 		vm_page_protect(p, VM_PROT_READ);
 	}
 
@@ -665,7 +666,7 @@ vm_object_pmap_remove(object, start, end)
 	register vm_page_t p;
 	if (object == NULL)
 		return;
-	for (p = object->memq.tqh_first; p != NULL; p = p->listq.tqe_next) {
+	for (p = TAILQ_FIRST(&object->memq); p != NULL; p = TAILQ_NEXT(p, listq)) {
 		if (p->pindex >= start && p->pindex < end)
 			vm_page_protect(p, VM_PROT_NONE);
 	}
@@ -808,17 +809,16 @@ vm_object_qcollapse(object)
 	backing_object_paging_offset_index = OFF_TO_IDX(backing_object->paging_offset);
 	paging_offset_index = OFF_TO_IDX(object->paging_offset);
 	size = object->size;
-	p = backing_object->memq.tqh_first;
+	p = TAILQ_FIRST(&backing_object->memq);
 	while (p) {
 		vm_page_t next;
 
-		next = p->listq.tqe_next;
+		next = TAILQ_NEXT(p, listq);
 		if ((p->flags & (PG_BUSY | PG_FICTITIOUS)) ||
 		    (p->queue == PQ_CACHE) || !p->valid || p->hold_count || p->wire_count || p->busy) {
 			p = next;
 			continue;
 		}
-		vm_page_protect(p, VM_PROT_NONE);
 		new_pindex = p->pindex - backing_offset_index;
 		if (p->pindex < backing_offset_index ||
 		    new_pindex >= size) {
@@ -826,6 +826,7 @@ vm_object_qcollapse(object)
 				swap_pager_freespace(backing_object,
 				    backing_object_paging_offset_index+p->pindex,
 				    1);
+			vm_page_protect(p, VM_PROT_NONE);
 			vm_page_free(p);
 		} else {
 			pp = vm_page_lookup(object, new_pindex);
@@ -834,6 +835,7 @@ vm_object_qcollapse(object)
 				if (backing_object->type == OBJT_SWAP)
 					swap_pager_freespace(backing_object,
 					    backing_object_paging_offset_index + p->pindex, 1);
+				vm_page_protect(p, VM_PROT_NONE);
 				vm_page_free(p);
 			} else {
 				if (backing_object->type == OBJT_SWAP)
@@ -930,7 +932,7 @@ vm_object_collapse(object)
 			 * shadow them.
 			 */
 
-			while ((p = backing_object->memq.tqh_first) != 0) {
+			while ((p = TAILQ_FIRST(&backing_object->memq)) != 0) {
 
 				new_pindex = p->pindex - backing_offset_index;
 
@@ -1071,7 +1073,7 @@ vm_object_collapse(object)
 			 * here.
 			 */
 
-			for (p = backing_object->memq.tqh_first; p; p = p->listq.tqe_next) {
+			for (p = TAILQ_FIRST(&backing_object->memq); p; p = TAILQ_NEXT(p, listq)) {
 				new_pindex = p->pindex - backing_offset_index;
 
 				/*
@@ -1160,24 +1162,29 @@ vm_object_page_remove(object, start, end, clean_only)
 again:
 	size = end - start;
 	if (size > 4 || size >= object->size / 4) {
-		for (p = object->memq.tqh_first; p != NULL; p = next) {
-			next = p->listq.tqe_next;
+		for (p = TAILQ_FIRST(&object->memq); p != NULL; p = next) {
+			next = TAILQ_NEXT(p, listq);
 			if ((start <= p->pindex) && (p->pindex < end)) {
-
 				if (p->wire_count != 0) {
 					vm_page_protect(p, VM_PROT_NONE);
 					p->valid = 0;
 					continue;
 				}
 
-				s = splhigh();
+				/*
+				 * The busy flags are only cleared at
+				 * interrupt -- minimize the spl transitions
+				 */
 				if ((p->flags & PG_BUSY) || p->busy) {
-					p->flags |= PG_WANTED;
-					tsleep(p, PVM, "vmopar", 0);
+					s = splvm();
+					if ((p->flags & PG_BUSY) || p->busy) {
+						p->flags |= PG_WANTED;
+						tsleep(p, PVM, "vmopar", 0);
+						splx(s);
+						goto again;
+					}
 					splx(s);
-					goto again;
 				}
-				splx(s);
 
 				if (clean_only) {
 					vm_page_test_dirty(p);
@@ -1199,14 +1206,20 @@ again:
 					size -= 1;
 					continue;
 				}
-				s = splhigh();
+				/*
+				 * The busy flags are only cleared at
+				 * interrupt -- minimize the spl transitions
+				 */
 				if ((p->flags & PG_BUSY) || p->busy) {
-					p->flags |= PG_WANTED;
-					tsleep(p, PVM, "vmopar", 0);
+					s = splvm();
+					if ((p->flags & PG_BUSY) || p->busy) {
+						p->flags |= PG_WANTED;
+						tsleep(p, PVM, "vmopar", 0);
+						splx(s);
+						goto again;
+					}
 					splx(s);
-					goto again;
 				}
-				splx(s);
 				if (clean_only) {
 					vm_page_test_dirty(p);
 					if (p->valid & p->dirty) {
@@ -1391,9 +1404,9 @@ DDB_vm_object_check()
 	 * make sure that internal objs are in a map somewhere
 	 * and none have zero ref counts.
 	 */
-	for (object = vm_object_list.tqh_first;
+	for (object = TAILQ_FIRST(&vm_object_list);
 			object != NULL;
-			object = object->object_list.tqe_next) {
+			object = TAILQ_NEXT(object, object_list)) {
 		if (object->handle == NULL &&
 		    (object->type == OBJT_DEFAULT || object->type == OBJT_SWAP)) {
 			if (object->ref_count == 0) {
@@ -1436,14 +1449,14 @@ vm_object_print(iobject, full, dummy3, dummy4)
 	    (int) object->paging_offset,
 	    (int) object->backing_object, (int) object->backing_object_offset);
 	printf("cache: next=%p, prev=%p\n",
-	    object->cached_list.tqe_next, object->cached_list.tqe_prev);
+	    TAILQ_NEXT(object, cached_list), TAILQ_PREV(object, cached_list));
 
 	if (!full)
 		return;
 
 	indent += 2;
 	count = 0;
-	for (p = object->memq.tqh_first; p != NULL; p = p->listq.tqe_next) {
+	for (p = TAILQ_FIRST(&object->memq); p != NULL; p = TAILQ_NEXT(p, listq)) {
 		if (count == 0)
 			iprintf("memory:=");
 		else if (count == 6) {

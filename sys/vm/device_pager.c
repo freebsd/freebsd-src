@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.21 1996/03/09 06:54:41 dyson Exp $
+ * $Id: device_pager.c,v 1.22 1996/05/03 21:01:45 phk Exp $
  */
 
 #include <sys/param.h>
@@ -182,7 +182,7 @@ dev_pager_dealloc(object)
 	/*
 	 * Free up our fake pages.
 	 */
-	while ((m = object->un_pager.devp.devp_pglist.tqh_first) != 0) {
+	while ((m = TAILQ_FIRST(&object->un_pager.devp.devp_pglist)) != 0) {
 		TAILQ_REMOVE(&object->un_pager.devp.devp_pglist, m, pageq);
 		dev_pager_putfake(m);
 	}
@@ -265,14 +265,14 @@ dev_pager_getfake(paddr)
 	vm_page_t m;
 	int i;
 
-	if (dev_pager_fakelist.tqh_first == NULL) {
+	if (TAILQ_FIRST(&dev_pager_fakelist) == NULL) {
 		m = (vm_page_t) malloc(PAGE_SIZE * 2, M_VMPGDATA, M_WAITOK);
 		for (i = (PAGE_SIZE * 2) / sizeof(*m); i > 0; i--) {
 			TAILQ_INSERT_TAIL(&dev_pager_fakelist, m, pageq);
 			m++;
 		}
 	}
-	m = dev_pager_fakelist.tqh_first;
+	m = TAILQ_FIRST(&dev_pager_fakelist);
 	TAILQ_REMOVE(&dev_pager_fakelist, m, pageq);
 
 	m->flags = PG_BUSY | PG_FICTITIOUS;

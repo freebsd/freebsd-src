@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.37 1996/05/02 14:20:04 phk Exp $
+ * 	$Id: pmap.h,v 1.38 1996/05/02 22:25:18 phk Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
@@ -69,6 +69,7 @@
 
 /* Our various interpretations of the above */
 #define PG_W		PG_AVAIL1	/* "Wired" pseudoflag */
+#define	PG_MANAGED	PG_AVAIL2
 #define	PG_FRAME	(~PAGE_MASK)
 #define	PG_PROT		(PG_RW|PG_U)	/* all protection bits . */
 #define PG_N		(PG_NC_PWT|PG_NC_PCD)	/* Non-cacheable */
@@ -87,11 +88,7 @@
 #define VADDR(pdi, pti) ((vm_offset_t)(((pdi)<<PDRSHIFT)|((pti)<<PAGE_SHIFT)))
 
 #ifndef NKPT
-#if 0
-#define	NKPT			26	/* actual number of kernel page tables */
-#else
 #define	NKPT			9	/* actual number of kernel page tables */
-#endif
 #endif
 #ifndef NKPDE
 #define NKPDE			63	/* addressable number of page tables/pde's */
@@ -119,6 +116,7 @@
 typedef unsigned int *pd_entry_t;
 typedef unsigned int *pt_entry_t;
 struct vm_map;
+struct vm_object;
 
 #define PDESIZE		sizeof(pd_entry_t) /* for assembly files */
 #define PTESIZE		sizeof(pt_entry_t) /* for assembly files */
@@ -168,6 +166,7 @@ pmap_kextract(vm_offset_t va)
 
 struct pmap {
 	pd_entry_t		*pm_pdir;	/* KVA of page directory */
+	vm_object_t		pm_pteobj;	/* Container for pte's */
 	short			pm_dref;	/* page directory ref count */
 	short			pm_count;	/* pmap reference count */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
@@ -203,7 +202,7 @@ extern pt_entry_t *CMAP1;
 extern vm_offset_t avail_end;
 extern vm_offset_t avail_start;
 extern vm_offset_t phys_avail[];
-extern pv_entry_t pv_table;	/* array of entries, one per page */
+extern pv_entry_t *pv_table;	/* array of entries, one per page */
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 
@@ -217,8 +216,8 @@ struct pcb;
 void	pmap_bootstrap __P(( vm_offset_t, vm_offset_t));
 pmap_t	pmap_kernel __P((void));
 void	*pmap_mapdev __P((vm_offset_t, vm_size_t));
-pt_entry_t * __pure pmap_pte __P((pmap_t, vm_offset_t)) __pure2;
-void	pmap_unuse_pt __P((pmap_t, vm_offset_t, vm_page_t));
+unsigned * __pure pmap_pte __P((pmap_t, vm_offset_t)) __pure2;
+int	pmap_unuse_pt __P((pmap_t, vm_offset_t, vm_page_t));
 vm_page_t pmap_use_pt __P((pmap_t, vm_offset_t));
 
 #endif /* KERNEL */

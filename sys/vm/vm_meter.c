@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_meter.c	8.4 (Berkeley) 1/4/94
- * $Id: vm_meter.c,v 1.13 1995/12/14 09:55:02 phk Exp $
+ * $Id: vm_meter.c,v 1.14 1996/03/11 06:11:40 hsu Exp $
  */
 
 #include <sys/param.h>
@@ -136,9 +136,9 @@ vmtotal SYSCTL_HANDLER_ARGS
 	/*
 	 * Mark all objects as inactive.
 	 */
-	for (object = vm_object_list.tqh_first;
+	for (object = TAILQ_FIRST(&vm_object_list);
 	    object != NULL;
-	    object = object->object_list.tqe_next)
+	    object = TAILQ_NEXT(object,object_list))
 		object->flags &= ~OBJ_ACTIVE;
 	/*
 	 * Calculate process statistics.
@@ -191,9 +191,9 @@ vmtotal SYSCTL_HANDLER_ARGS
 	/*
 	 * Calculate object memory usage statistics.
 	 */
-	for (object = vm_object_list.tqh_first;
+	for (object = TAILQ_FIRST(&vm_object_list);
 	    object != NULL;
-	    object = object->object_list.tqe_next) {
+	    object = TAILQ_NEXT(object, object_list)) {
 		totalp->t_vm += num_pages(object->size);
 		totalp->t_rm += object->resident_page_count;
 		if (object->flags & OBJ_ACTIVE) {

@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.40 1996/03/16 15:00:05 davidg Exp $
+ * $Id: vm_mmap.c,v 1.41 1996/05/03 21:01:51 phk Exp $
  */
 
 /*
@@ -802,8 +802,7 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	/*
 	 * "Pre-fault" resident pages.
 	 */
-	if ((map != kernel_map) &&
-		(type == OBJT_VNODE) && (map->pmap != NULL)) {
+	if ((type == OBJT_VNODE) && (map->pmap != NULL)) {
 		pmap_object_init_pt(map->pmap, *addr,
 			object, (vm_pindex_t) OFF_TO_IDX(foff), size);
 	}

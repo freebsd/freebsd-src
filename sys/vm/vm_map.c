@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.43 1996/04/29 22:04:57 dyson Exp $
+ * $Id: vm_map.c,v 1.44 1996/05/03 21:01:49 phk Exp $
  */
 
 /*
@@ -157,11 +157,15 @@ static int kentry_count;
 static vm_offset_t mapvm_start, mapvm, mapvmmax;
 static int mapvmpgcnt;
 
+static struct vm_map_entry *mappool;
+static int mappoolcnt;
+#define KENTRY_LOW_WATER 128
+
 static void _vm_map_clip_end __P((vm_map_t, vm_map_entry_t, vm_offset_t));
 static void _vm_map_clip_start __P((vm_map_t, vm_map_entry_t, vm_offset_t));
 static vm_map_entry_t vm_map_entry_create __P((vm_map_t));
 static void vm_map_entry_delete __P((vm_map_t, vm_map_entry_t));
-static void vm_map_entry_dispose __P((vm_map_t, vm_map_entry_t));
+static __inline void vm_map_entry_dispose __P((vm_map_t, vm_map_entry_t));
 static void vm_map_entry_unwire __P((vm_map_t, vm_map_entry_t));
 static void vm_map_copy_entry __P((vm_map_t, vm_map_t, vm_map_entry_t,
 		vm_map_entry_t));
@@ -214,11 +218,10 @@ vmspace_alloc(min, max, pageable)
 	if (mapvmpgcnt == 0 && mapvm == 0) {
 		int s;
 
-		mapvmpgcnt = btoc(cnt.v_page_count * sizeof(struct vm_map_entry));
-		s = splhigh();
-		mapvm_start = mapvm = kmem_alloc_pageable(kernel_map, mapvmpgcnt * PAGE_SIZE);
+		mapvmpgcnt = (cnt.v_page_count * sizeof(struct vm_map_entry) + PAGE_SIZE - 1) / PAGE_SIZE;
+		mapvm_start = mapvm = kmem_alloc_pageable(kernel_map,
+			mapvmpgcnt * PAGE_SIZE);
 		mapvmmax = mapvm_start + mapvmpgcnt * PAGE_SIZE;
-		splx(s);
 		if (!mapvm)
 			mapvmpgcnt = 0;
 	}
@@ -241,7 +244,6 @@ vmspace_free(vm)
 		panic("vmspace_free: attempt to free already freed vmspace");
 
 	if (--vm->vm_refcnt == 0) {
-		int s, i;
 
 		/*
 		 * Lock the map, to wait out all other references to it.
@@ -252,11 +254,17 @@ vmspace_free(vm)
 		(void) vm_map_delete(&vm->vm_map, vm->vm_map.min_offset,
 		    vm->vm_map.max_offset);
 		vm_map_unlock(&vm->vm_map);
+
 		while( vm->vm_map.ref_count != 1)
 			tsleep(&vm->vm_map.ref_count, PVM, "vmsfre", 0);
 		--vm->vm_map.ref_count;
+		vm_object_pmap_remove(vm->vm_upages_obj,
+			0, vm->vm_upages_obj->size);
+		vm_object_deallocate(vm->vm_upages_obj);
 		pmap_release(&vm->vm_pmap);
 		FREE(vm, M_VMMAP);
+	} else {
+		wakeup(&vm->vm_map.ref_count);
 	}
 }
 
@@ -315,44 +323,65 @@ vm_map_init(map, min, max, pageable)
 }
 
 /*
+ *	vm_map_entry_dispose:	[ internal use only ]
+ *
+ *	Inverse of vm_map_entry_create.
+ */
+static __inline void
+vm_map_entry_dispose(map, entry)
+	vm_map_t map;
+	vm_map_entry_t entry;
+{
+	int s;
+
+	if (kentry_count < KENTRY_LOW_WATER) {
+		s = splvm();
+		entry->next = kentry_free;
+		kentry_free = entry;
+		++kentry_count;
+		splx(s);
+	} else {
+		entry->next = mappool;
+		mappool = entry;
+		++mappoolcnt;
+	}
+}
+
+/*
  *	vm_map_entry_create:	[ internal use only ]
  *
  *	Allocates a VM map entry for insertion.
  *	No entry fields are filled in.  This routine is
  */
-static struct vm_map_entry *mappool;
-static int mappoolcnt;
-
 static vm_map_entry_t
 vm_map_entry_create(map)
 	vm_map_t map;
 {
 	vm_map_entry_t entry;
 	int i;
-
-#define KENTRY_LOW_WATER 64
-#define MAPENTRY_LOW_WATER 128
+	int s;
 
 	/*
 	 * This is a *very* nasty (and sort of incomplete) hack!!!!
 	 */
 	if (kentry_count < KENTRY_LOW_WATER) {
+		s = splvm();
 		if (mapvmpgcnt && mapvm) {
 			vm_page_t m;
 
 			m = vm_page_alloc(kernel_object,
-			        OFF_TO_IDX(mapvm - vm_map_min(kernel_map)),
+			        OFF_TO_IDX(mapvm - VM_MIN_KERNEL_ADDRESS),
 				    (map == kmem_map) ? VM_ALLOC_INTERRUPT : VM_ALLOC_NORMAL);
+
 			if (m) {
 				int newentries;
 
 				newentries = (PAGE_SIZE / sizeof(struct vm_map_entry));
 				vm_page_wire(m);
-				m->flags &= ~PG_BUSY;
+				PAGE_WAKEUP(m);
 				m->valid = VM_PAGE_BITS_ALL;
-				pmap_enter(vm_map_pmap(kmem_map), mapvm,
-				    VM_PAGE_TO_PHYS(m), VM_PROT_DEFAULT, 1);
-				m->flags |= PG_WRITEABLE|PG_MAPPED;
+				pmap_kenter(mapvm, VM_PAGE_TO_PHYS(m));
+				m->flags |= PG_WRITEABLE;
 
 				entry = (vm_map_entry_t) mapvm;
 				mapvm += PAGE_SIZE;
@@ -364,63 +393,31 @@ vm_map_entry_create(map)
 				}
 			}
 		}
+		splx(s);
 	}
-	if (map == kernel_map || map == kmem_map || map == pager_map) {
 
+	if (map == kernel_map || map == kmem_map || map == pager_map) {
+		s = splvm();
 		entry = kentry_free;
 		if (entry) {
 			kentry_free = entry->next;
 			--kentry_count;
-			return entry;
+		} else {
+			panic("vm_map_entry_create: out of map entries for kernel");
 		}
-		entry = mappool;
-		if (entry) {
-			mappool = entry->next;
-			--mappoolcnt;
-			return entry;
-		}
+		splx(s);
 	} else {
 		entry = mappool;
 		if (entry) {
 			mappool = entry->next;
 			--mappoolcnt;
-			return entry;
+		} else {
+			MALLOC(entry, vm_map_entry_t, sizeof(struct vm_map_entry),
+			    M_VMMAPENT, M_WAITOK);
 		}
-		MALLOC(entry, vm_map_entry_t, sizeof(struct vm_map_entry),
-		    M_VMMAPENT, M_WAITOK);
 	}
-	if (entry == NULL)
-		panic("vm_map_entry_create: out of map entries");
 
 	return (entry);
-}
-
-/*
- *	vm_map_entry_dispose:	[ internal use only ]
- *
- *	Inverse of vm_map_entry_create.
- */
-static void
-vm_map_entry_dispose(map, entry)
-	vm_map_t map;
-	vm_map_entry_t entry;
-{
-	if ((kentry_count < KENTRY_LOW_WATER) ||
-	    ((vm_offset_t) entry >= kentry_data && (vm_offset_t) entry < (kentry_data + kentry_data_size)) ||
-	    ((vm_offset_t) entry >= mapvm_start && (vm_offset_t) entry < mapvmmax)) {
-		entry->next = kentry_free;
-		kentry_free = entry;
-		++kentry_count;
-		return;
-	} else {
-		if (mappoolcnt < MAPENTRY_LOW_WATER) {
-			entry->next = mappool;
-			mappool = entry;
-			++mappoolcnt;
-			return;
-		}
-		FREE(entry, M_VMMAPENT);
-	}
 }
 
 /*
@@ -637,9 +634,9 @@ vm_map_insert(map, object, offset, start, end, prot, max, cow)
 
 	if ((prev_entry != &map->header) &&
 		(prev_entry->end == start) &&
+		((object == NULL) || (prev_entry->object.vm_object == object)) &&
 		(prev_entry->is_a_map == FALSE) &&
 		(prev_entry->is_sub_map == FALSE) &&
-		((object == NULL) || (prev_entry->object.vm_object == object)) &&
 		(prev_entry->inheritance == VM_INHERIT_DEFAULT) &&
 		(prev_entry->protection == prot) &&
 		(prev_entry->max_protection == max) &&
@@ -664,13 +661,7 @@ vm_map_insert(map, object, offset, start, end, prot, max, cow)
 				prev_entry->end = end;
 				return (KERN_SUCCESS);
 			}
-		} /* else if ((object == prev_entry->object.vm_object) &&
-			(prev_entry->offset + (prev_entry->end - prev_entry->start) == offset)) {
-			map->size += (end - prev_entry->end);
-			prev_entry->end = end;
-			printf("map optim 1\n");
-			return (KERN_SUCCESS);
-		} */
+		}
 	}
 	/*
 	 * Create a new entry
@@ -711,7 +702,6 @@ vm_map_insert(map, object, offset, start, end, prot, max, cow)
 	/*
 	 * Update the free space hint
 	 */
-
 	if ((map->first_free == prev_entry) &&
 		(prev_entry->end >= new_entry->start))
 		map->first_free = new_entry;
@@ -803,7 +793,7 @@ vm_map_find(map, object, offset, addr, length, find_space, prot, max, cow)
 	start = *addr;
 
 	if (map == kmem_map)
-		s = splhigh();
+		s = splvm();
 
 	vm_map_lock(map);
 	if (find_space) {
@@ -866,10 +856,13 @@ vm_map_simplify_entry(map, entry)
 		     (prev->wired_count == 0)) {
 			if (map->first_free == prev)
 				map->first_free = entry;
+			if (map->hint == prev)
+				map->hint = entry;
 			vm_map_entry_unlink(map, prev);
 			entry->start = prev->start;
 			entry->offset = prev->offset;
-			vm_object_deallocate(prev->object.vm_object);
+			if (prev->object.vm_object)
+				vm_object_deallocate(prev->object.vm_object);
 			vm_map_entry_dispose(map, prev);
 		}
 	}
@@ -891,9 +884,12 @@ vm_map_simplify_entry(map, entry)
 		    (next->wired_count == 0)) {
 			if (map->first_free == next)
 				map->first_free = entry;
+			if (map->hint == next)
+				map->hint = entry;
 			vm_map_entry_unlink(map, next);
 			entry->end = next->end;
-			vm_object_deallocate(next->object.vm_object);
+			if (next->object.vm_object)
+				vm_object_deallocate(next->object.vm_object);
 			vm_map_entry_dispose(map, next);
 	        }
 	}
@@ -1131,7 +1127,6 @@ vm_map_protect(map, start, end, new_prot, set_max)
 		 */
 
 		if (current->protection != old_prot) {
-
 #define MASK(entry)	((entry)->copy_on_write ? ~VM_PROT_WRITE : \
 							VM_PROT_ALL)
 #define	max(a,b)	((a) > (b) ? (a) : (b))
@@ -1585,7 +1580,7 @@ vm_map_clean(map, start, end, syncio, invalidate)
  *	The map in question should be locked.
  *	[This is the reason for this routine's existence.]
  */
-static void
+static __inline void 
 vm_map_entry_unwire(map, entry)
 	vm_map_t map;
 	register vm_map_entry_t entry;
@@ -1599,7 +1594,7 @@ vm_map_entry_unwire(map, entry)
  *
  *	Deallocate the given entry from the target map.
  */
-static void
+static __inline void
 vm_map_entry_delete(map, entry)
 	register vm_map_t map;
 	register vm_map_entry_t entry;
@@ -1658,7 +1653,9 @@ vm_map_delete(map, start, end)
 	 * Save the free space hint
 	 */
 
-	if (map->first_free->start >= start)
+	if (entry == &map->header) {
+		map->first_free = &map->header;
+	} else if (map->first_free->start >= start)
 		map->first_free = entry->prev;
 
 	/*
@@ -1667,14 +1664,16 @@ vm_map_delete(map, start, end)
 
 	while ((entry != &map->header) && (entry->start < end)) {
 		vm_map_entry_t next;
-		register vm_offset_t s, e;
-		register vm_object_t object;
+		vm_offset_t s, e;
+		vm_object_t object;
+		vm_ooffset_t offset;
 
 		vm_map_clip_end(map, entry, end);
 
 		next = entry->next;
 		s = entry->start;
 		e = entry->end;
+		offset = entry->offset;
 
 		/*
 		 * Unwire before removing addresses from the pmap; otherwise,
@@ -1691,15 +1690,16 @@ vm_map_delete(map, start, end)
 		 * which are sharing it.
 		 */
 
-		if (object == kernel_object || object == kmem_object)
-			vm_object_page_remove(object, OFF_TO_IDX(entry->offset),
-			    OFF_TO_IDX(entry->offset + (e - s)), FALSE);
-		else if (!map->is_main_map)
+		if (object == kernel_object || object == kmem_object) {
+			vm_object_page_remove(object, OFF_TO_IDX(offset),
+			    OFF_TO_IDX(offset + (e - s)), FALSE);
+		} else if (!map->is_main_map) {
 			vm_object_pmap_remove(object,
-			    OFF_TO_IDX(entry->offset),
-			    OFF_TO_IDX(entry->offset + (e - s)));
-		else
+			    OFF_TO_IDX(offset),
+			    OFF_TO_IDX(offset + (e - s)));
+		} else {
 			pmap_remove(map->pmap, s, e);
+		}
 
 		/*
 		 * Delete the entry (which may delete the object) only after
@@ -1729,7 +1729,7 @@ vm_map_remove(map, start, end)
 	register int result, s = 0;
 
 	if (map == kmem_map)
-		s = splhigh();
+		s = splvm();
 
 	vm_map_lock(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
@@ -1806,16 +1806,6 @@ vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 	if (src_entry->is_sub_map || dst_entry->is_sub_map)
 		return;
 
-	if (dst_entry->object.vm_object != NULL)
-		printf("vm_map_copy_entry: dst_entry object not NULL!\n");
-
-	/*
-	 * If our destination map was wired down, unwire it now.
-	 */
-
-	if (dst_entry->wired_count != 0)
-		vm_map_entry_unwire(dst_map, dst_entry);
-
 	if (src_entry->wired_count == 0) {
 
 		boolean_t src_needs_copy;
@@ -1847,35 +1837,28 @@ vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 					- src_entry->start)));
 			}
 		}
+
 		/*
 		 * Make a copy of the object.
 		 */
-		temp_pindex = OFF_TO_IDX(dst_entry->offset);
-		vm_object_copy(src_entry->object.vm_object,
-		    OFF_TO_IDX(src_entry->offset),
-		    &dst_entry->object.vm_object,
-		    &temp_pindex,
-		    &src_needs_copy);
-		dst_entry->offset = IDX_TO_OFF(temp_pindex);
-		/*
-		 * If we didn't get a copy-object now, mark the source map
-		 * entry so that a shadow will be created to hold its changed
-		 * pages.
-		 */
-		if (src_needs_copy)
+		if (src_entry->object.vm_object) {
+			if ((src_entry->object.vm_object->handle == NULL) &&
+				(src_entry->object.vm_object->type == OBJT_DEFAULT ||
+				 src_entry->object.vm_object->type == OBJT_SWAP))
+				vm_object_collapse(src_entry->object.vm_object);
+			++src_entry->object.vm_object->ref_count;
+			src_entry->copy_on_write = TRUE;
 			src_entry->needs_copy = TRUE;
 
-		/*
-		 * The destination always needs to have a shadow created.
-		 */
-		dst_entry->needs_copy = TRUE;
-
-		/*
-		 * Mark the entries copy-on-write, so that write-enabling the
-		 * entry won't make copy-on-write pages writable.
-		 */
-		src_entry->copy_on_write = TRUE;
-		dst_entry->copy_on_write = TRUE;
+			dst_entry->needs_copy = TRUE;
+			dst_entry->copy_on_write = TRUE;
+			dst_entry->object.vm_object =
+				src_entry->object.vm_object;
+			dst_entry->offset = src_entry->offset;
+		} else {
+			dst_entry->object.vm_object = NULL;
+			dst_entry->offset = 0;
+		}
 
 		pmap_copy(dst_map->pmap, src_map->pmap, dst_entry->start,
 		    dst_entry->end - dst_entry->start, src_entry->start);
@@ -1962,7 +1945,6 @@ vmspace_fork(vm1)
 			/*
 			 * Clone the entry and link into the map.
 			 */
-
 			new_entry = vm_map_entry_create(new_map);
 			*new_entry = *old_entry;
 			new_entry->wired_count = 0;
@@ -2251,11 +2233,13 @@ vm_map_simplify(map, start)
 	vm_map_entry_t prev_entry;
 
 	vm_map_lock(map);
-	if (
-	    (vm_map_lookup_entry(map, start, &this_entry)) &&
+	if ((vm_map_lookup_entry(map, start, &this_entry)) &&
 	    ((prev_entry = this_entry->prev) != &map->header) &&
-
 	    (prev_entry->end == start) &&
+	    (prev_entry->object.vm_object == this_entry->object.vm_object) &&
+	    ((prev_entry->offset + (prev_entry->end - prev_entry->start))
+		== this_entry->offset) &&
+
 	    (map->is_main_map) &&
 
 	    (prev_entry->is_a_map == FALSE) &&
@@ -2270,18 +2254,15 @@ vm_map_simplify(map, start)
 	    (prev_entry->wired_count == this_entry->wired_count) &&
 
 	    (prev_entry->copy_on_write == this_entry->copy_on_write) &&
-	    (prev_entry->needs_copy == this_entry->needs_copy) &&
-
-	    (prev_entry->object.vm_object == this_entry->object.vm_object) &&
-	    ((prev_entry->offset + (prev_entry->end - prev_entry->start))
-		== this_entry->offset)
-	    ) {
+	    (prev_entry->needs_copy == this_entry->needs_copy)) {
 		if (map->first_free == this_entry)
 			map->first_free = prev_entry;
-		SAVE_HINT(map, prev_entry);
+		if (map->hint == this_entry)
+			SAVE_HINT(map, prev_entry);
 		vm_map_entry_unlink(map, this_entry);
 		prev_entry->end = this_entry->end;
-		vm_object_deallocate(this_entry->object.vm_object);
+		if (this_entry->object.vm_object)
+			vm_object_deallocate(this_entry->object.vm_object);
 		vm_map_entry_dispose(map, this_entry);
 	}
 	vm_map_unlock(map);
