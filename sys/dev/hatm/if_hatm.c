@@ -1399,6 +1399,11 @@ hatm_configure(struct hatm_softc *sc)
 	kenv_getuint(sc, "max_mbuf_pages", &sc->mbuf_max_pages,
 	    HE_CONFIG_MAX_MBUF_PAGES, 0);
 
+	/* mpsafe */
+	kenv_getuint(sc, "mpsafe", &sc->mpsafe, 0, 0);
+	if (sc->mpsafe != 0)
+		sc->mpsafe = INTR_MPSAFE;
+
 	return (0);
 }
 
@@ -1936,8 +1941,8 @@ hatm_attach(device_t dev)
 	bpfattach(ifp, DLT_ATM_RFC1483, sizeof(struct atmllc));
 #endif
 
-	error = bus_setup_intr(dev, sc->irqres, INTR_TYPE_NET, hatm_intr,
-	    &sc->irq_0, &sc->ih);
+	error = bus_setup_intr(dev, sc->irqres, sc->mpsafe | INTR_TYPE_NET,
+	    hatm_intr, &sc->irq_0, &sc->ih);
 	if (error != 0) {
 		device_printf(dev, "could not setup interrupt\n");
 		hatm_detach(dev);
