@@ -142,8 +142,10 @@ static void vr_txeof		(struct vr_softc *);
 static void vr_tick		(void *);
 static void vr_intr		(void *);
 static void vr_start		(struct ifnet *);
+static void vr_start_locked	(struct ifnet *);
 static int vr_ioctl		(struct ifnet *, u_long, caddr_t);
 static void vr_init		(void *);
+static void vr_init_locked	(struct vr_softc *);
 static void vr_stop		(struct vr_softc *);
 static void vr_watchdog		(struct ifnet *);
 static void vr_shutdown		(device_t);
@@ -587,7 +589,7 @@ vr_reset(struct vr_softc *sc)
 {
 	register int	i;
 
-	VR_LOCK_ASSERT(sc);
+	/*VR_LOCK_ASSERT(sc);*/ /* XXX: Called during detach w/o lock. */
 
 	VR_SETBIT16(sc, VR_COMMAND, VR_CMD_RESET);
 
@@ -688,9 +690,7 @@ vr_attach(dev)
 	VR_CLRBIT(sc, VR_STICKHW, (VR_STICKHW_DS0|VR_STICKHW_DS1));
 
 	/* Reset the adapter. */
-	VR_LOCK(sc);
 	vr_reset(sc);
-	VR_UNLOCK(sc);
 
 	/*
 	 * Turn on bit2 (MIION) in PCI configuration register 0x53 during
@@ -755,6 +755,8 @@ vr_attach(dev)
 	/* Call MI attach routine. */
 	ether_ifattach(ifp, eaddr);
 
+	sc->suspended = 0;
+
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->vr_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    vr_intr, sc, &sc->vr_intrhand);
@@ -788,6 +790,8 @@ vr_detach(device_t dev)
 	KASSERT(mtx_initialized(&sc->vr_mtx), ("vr mutex not initialized"));
 
 	VR_LOCK(sc);
+
+	sc->suspended = 1;
 
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
@@ -1117,7 +1121,7 @@ vr_tick(void *xsc)
 		printf("vr%d: restarting\n", sc->vr_unit);
 		vr_stop(sc);
 		vr_reset(sc);
-		vr_init(sc);
+		vr_init_locked(sc);
 		sc->vr_flags &= ~VR_F_RESTART;
 	}
 
@@ -1130,6 +1134,7 @@ vr_tick(void *xsc)
 
 #ifdef DEVICE_POLLING
 static poll_handler_t vr_poll;
+static poll_handler_t vr_poll_locked;
 
 static void
 vr_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
@@ -1137,6 +1142,16 @@ vr_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct vr_softc *sc = ifp->if_softc;
 
 	VR_LOCK(sc);
+	vr_poll_locked(ifp, cmd, count);
+	VR_UNLOCK(sc);
+}
+
+static void
+vr_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+	struct vr_softc *sc = ifp->if_softc;
+
+	VR_LOCK_ASSERT(sc);
 
 	if (!(ifp->if_capenable & IFCAP_POLLING)) {
 		ether_poll_deregister(ifp);
@@ -1146,17 +1161,14 @@ vr_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	if (cmd == POLL_DEREGISTER) {
 		/* Final call, enable interrupts. */
 		CSR_WRITE_2(sc, VR_IMR, VR_INTRS);
-		goto done;
+		return;
 	}
 
 	sc->rxcycles = count;
 	vr_rxeof(sc);
 	vr_txeof(sc);
-	if (ifp->if_snd.ifq_head != NULL) {
-		VR_UNLOCK(sc);
-		vr_start(ifp);
-		VR_LOCK(sc);
-	}
+	if (ifp->if_snd.ifq_head != NULL)
+		vr_start_locked(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
 		uint16_t status;
@@ -1167,7 +1179,7 @@ vr_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			CSR_WRITE_2(sc, VR_ISR, status);
 
 		if ((status & VR_INTRS) == 0)
-			goto done;
+			return;
 
 		if (status & VR_ISR_RX_DROPPED) {
 			printf("vr%d: rx packet lost\n", sc->vr_unit);
@@ -1191,8 +1203,7 @@ vr_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		if ((status & VR_ISR_BUSERR) ||
 		    (status & VR_ISR_TX_UNDERRUN)) {
 			vr_reset(sc);
-			VR_UNLOCK(sc);
-			vr_init(sc);
+			vr_init_locked(sc);
 			return;
 		}
 
@@ -1206,8 +1217,6 @@ vr_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			}
 		}
 	}
-done:
-	VR_UNLOCK(sc);
 }
 #endif /* DEVICE_POLLING */
 
@@ -1219,26 +1228,27 @@ vr_intr(void *arg)
 	uint16_t		status;
 
 	VR_LOCK(sc);
+
+	if (sc->suspended)
+		goto done_locked;
+
 #ifdef DEVICE_POLLING
-	if (ifp->if_flags & IFF_POLLING) {
-		VR_UNLOCK(sc);
-		return;
-	}
+	if (ifp->if_flags & IFF_POLLING)
+		goto done_locked;
+
 	if ((ifp->if_capenable & IFCAP_POLLING) &&
 	    ether_poll_register(vr_poll, ifp)) {
 		/* OK, disable interrupts. */
 		CSR_WRITE_2(sc, VR_IMR, 0x0000);
-		VR_UNLOCK(sc);
-		vr_poll(ifp, 0, 1);
-		return;
+		vr_poll_locked(ifp, 0, 1);
+		goto done_locked;
 	}
 #endif /* DEVICE_POLLING */
 
-	/* Supress unwanted interrupts. */
+	/* Suppress unwanted interrupts. */
 	if (!(ifp->if_flags & IFF_UP)) {
 		vr_stop(sc);
-		VR_UNLOCK(sc);
-		return;
+		goto done_locked;
 	}
 
 	/* Disable interrupts. */
@@ -1276,9 +1286,7 @@ vr_intr(void *arg)
 
 		if ((status & VR_ISR_BUSERR) || (status & VR_ISR_TX_UNDERRUN)) {
 			vr_reset(sc);
-			VR_UNLOCK(sc);
-			vr_init(sc);
-			VR_LOCK(sc);
+			vr_init_locked(sc);
 			break;
 		}
 
@@ -1301,10 +1309,12 @@ vr_intr(void *arg)
 
 	/* Re-enable interrupts. */
 	CSR_WRITE_2(sc, VR_IMR, VR_INTRS);
-	VR_UNLOCK(sc);
 
 	if (_IF_QLEN(&ifp->if_snd) != 0)
-		vr_start(ifp);
+		vr_start_locked(ifp);
+
+done_locked:
+	VR_UNLOCK(sc);
 }
 
 /*
@@ -1361,13 +1371,21 @@ static void
 vr_start(struct ifnet *ifp)
 {
 	struct vr_softc		*sc = ifp->if_softc;
+
+	VR_LOCK(sc);
+	vr_start_locked(ifp);
+	VR_UNLOCK(sc);
+}
+
+static void
+vr_start_locked(struct ifnet *ifp)
+{
+	struct vr_softc		*sc = ifp->if_softc;
 	struct mbuf		*m_head;
 	struct vr_chain		*cur_tx;
 
 	if (ifp->if_flags & IFF_OACTIVE)
 		return;
-
-	VR_LOCK(sc);
 
 	cur_tx = sc->vr_cdata.vr_tx_prod;
 	while (cur_tx->vr_mbuf == NULL) {
@@ -1404,19 +1422,26 @@ vr_start(struct ifnet *ifp)
 		if (cur_tx->vr_mbuf != NULL)
 			ifp->if_flags |= IFF_OACTIVE;
 	}
-
-	VR_UNLOCK(sc);
 }
 
 static void
 vr_init(void *xsc)
 {
 	struct vr_softc		*sc = xsc;
+
+	VR_LOCK(sc);
+	vr_init_locked(sc);
+	VR_UNLOCK(sc);
+}
+
+static void
+vr_init_locked(struct vr_softc *sc)
+{
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 	struct mii_data		*mii;
 	int			i;
 
-	VR_LOCK(sc);
+	VR_LOCK_ASSERT(sc);
 
 	mii = device_get_softc(sc->vr_miibus);
 
@@ -1453,7 +1478,6 @@ vr_init(void *xsc)
 		printf(
 "vr%d: initialization failed: no memory for rx buffers\n", sc->vr_unit);
 		vr_stop(sc);
-		VR_UNLOCK(sc);
 		return;
 	}
 
@@ -1509,8 +1533,6 @@ vr_init(void *xsc)
 	ifp->if_flags &= ~IFF_OACTIVE;
 
 	sc->vr_stat_ch = timeout(vr_tick, sc, hz);
-
-	VR_UNLOCK(sc);
 }
 
 /*
@@ -1552,15 +1574,14 @@ vr_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	switch (command) {
 	case SIOCSIFFLAGS:
+		VR_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
-			vr_init(sc);
+			vr_init_locked(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING) {
-				VR_LOCK(sc);
+			if (ifp->if_flags & IFF_RUNNING)
 				vr_stop(sc);
-				VR_UNLOCK(sc);
-			}
 		}
+		VR_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCADDMULTI:
@@ -1592,16 +1613,18 @@ vr_watchdog(struct ifnet *ifp)
 	struct vr_softc		*sc = ifp->if_softc;
 
 	VR_LOCK(sc);
+
 	ifp->if_oerrors++;
 	printf("vr%d: watchdog timeout\n", sc->vr_unit);
 
 	vr_stop(sc);
 	vr_reset(sc);
-	VR_UNLOCK(sc);
+	vr_init_locked(sc);
 
-	vr_init(sc);
 	if (ifp->if_snd.ifq_head != NULL)
-		vr_start(ifp);
+		vr_start_locked(ifp);
+
+	VR_UNLOCK(sc);
 }
 
 /*
