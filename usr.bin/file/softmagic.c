@@ -34,7 +34,7 @@
 
 #ifndef	lint
 static char *moduleid = 
-	"@(#)$Id: softmagic.c,v 1.26 1994/06/06 05:27:29 christos Exp $";
+	"@(#)$Id: softmagic.c,v 1.1.1.1 1994/09/03 19:16:22 csgr Exp $";
 #endif	/* lint */
 
 static int match	__P((unsigned char *, int));
@@ -216,7 +216,7 @@ struct magic *m;
 	}
 
 	v = signextend(m, v) & m->mask;
-	(void) printf(m->desc, (unsigned char) v);
+	(void) printf(m->desc, v);
 }
 
 /*
