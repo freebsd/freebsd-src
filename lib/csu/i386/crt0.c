@@ -55,7 +55,14 @@ int _callmain();
 #define MAP_COPY	MAP_PRIVATE
 #define MAP_FILE	0
 #define MAP_ANON	0
-#endif
+#else
+#ifdef BSD
+#if BSD>=199306
+#define MAP_FILE	0
+#endif /* BSD>=199306 */
+#endif /* BSD */
+#endif /* sun */
+
 #include <link.h>
 
 extern struct _dynamic _DYNAMIC;
