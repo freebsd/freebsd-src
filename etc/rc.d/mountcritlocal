@@ -20,7 +20,7 @@ mountcritlocal_start()
 	FreeBSD)
 		# Set up the list of network filesystem types for which mounting
 		# should be delayed until after network initialization.
-		networkfs_types='nfs:NFS smbfs:SMB portalfs:PORTAL'
+		networkfs_types='nfs:NFS smbfs:SMB portalfs:PORTAL nwfs:NWFS'
 		case ${extra_netfs_types} in
 		[Nn][Oo])
 			;;
