@@ -11,6 +11,7 @@ KMOD=	cam
 SRCS=	opt_cam.h
 SRCS+=	opt_scsi.h
 SRCS+=	opt_cd.h
+SRCS+=	opt_da.h
 SRCS+=	opt_hw_wdog.h
 SRCS+=	opt_pt.h
 SRCS+=	opt_sa.h
