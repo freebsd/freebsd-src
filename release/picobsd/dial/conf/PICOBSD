@@ -1,82 +1,82 @@
 #
-# $Id: PICOBSD,v 1.5 1999/01/14 23:15:39 abial Exp $
+# $Id: PICOBSD,v 1.5.2.1 1999/02/07 22:19:52 abial Exp $
 #
-machine		"i386"
-cpu		"I386_CPU"
-cpu		"I486_CPU"
-cpu		"I586_CPU"
-cpu		"I686_CPU"
+machine		i386
+cpu		I386_CPU
+cpu		I486_CPU
+cpu		I586_CPU
+cpu		I686_CPU
 ident		PICOBSD
 maxusers	3
 
 options		MATH_EMULATE		#Support for x87 emulation
 options		INET			#InterNETworking
 options		FFS			#Berkeley Fast Filesystem
-options		FFS_ROOT
-options		MFS
+options		FFS_ROOT		#FFS usable as root device [keep this!]
+options		MFS			#Memory Filesystem
 options		MSDOSFS			#MSDOS Filesystem
-options		"CD9660"		#ISO 9660 Filesystem
-options		"EXT2FS"
-options		"COMPAT_43"		#Compatible with BSD 4.3 [KEEP THIS!]
+options		CD9660			#ISO 9660 Filesystem
+options		EXT2FS
+options		COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 options		USERCONFIG		#boot -c editor
 options		VISUAL_USERCONFIG	#visual boot -c editor
 options		INTRO_USERCONFIG		#imply -c and parse info area
 #options		DEVFS
 options		PCI_QUIET
 options		NO_SWAPPING
-options		NO_LKM
-
-config		kernel	root on fd0
 
 controller	isa0
 controller	pci0
 
-controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2
+controller	fdc0	at isa? port IO_FD1 irq 6 drq 2
 disk		fd0	at fdc0 drive 0
 disk		fd1	at fdc0 drive 1
 
-options		"CMD640"	# work around CMD640 chip deficiency
-controller	wdc0	at isa? port "IO_WD1" bio irq 14
+controller	wdc0	at isa? port IO_WD1 irq 14
 disk		wd0	at wdc0 drive 0
 disk		wd1	at wdc0 drive 1
 
-controller	wdc1	at isa? port "IO_WD2" bio irq 15
+controller	wdc1	at isa? port IO_WD2 irq 15
 disk		wd2	at wdc1 drive 0
 disk		wd3	at wdc1 drive 1
 
-options		ATAPI		#Enable ATAPI support for IDE bus
-options		ATAPI_STATIC	#Don't do it as an LKM
-device		acd0	#IDE CD-ROM
+device		wcd0	#IDE CD-ROM
+
+# atkbdc0 controlls both the keyboard and the PS/2 mouse
+controller	atkbdc0	at isa? port IO_KBD
+device		atkbd0	at atkbdc? irq 1
+device		psm0	at atkbdc? irq 12
+
+device		vga0	at isa? port ? conflicts
 
 # syscons is the default console driver, resembling an SCO console
+device		sc0	at isa?
 
-controller	atkbdc0	at isa? port IO_KBD tty
-device		atkbd0	at isa? tty irq 1
-device		psm0	at isa? tty irq 12
-device		vga0	at isa? port ? conflicts
-device		sc0	at isa? tty
+device		npx0	at nexus? port IO_NPX irq 13
 
-device		npx0	at isa? port IO_NPX irq 13
+device		sio0	at isa? port IO_COM1 flags 0x10 irq 4
+device		sio1	at isa? port IO_COM2 irq 3
+device		sio2	at isa? disable port IO_COM3 irq 5
+device		sio3	at isa? disable port IO_COM4 irq 9
 
-device		sio0	at isa? port "IO_COM1" flags 0x10 tty irq 4
-device		sio1	at isa? port "IO_COM2" tty irq 3
-device		sio2	at isa? disable port "IO_COM3" tty irq 5
-device		sio3	at isa? disable port "IO_COM4" tty irq 9
 
+#
+# The following Ethernet NICs are all PCI devices.
+#
+device de0		# DEC/Intel DC21x4x (``Tulip'')
+#device de1		# DEC/Intel DC21x4x (``Tulip'')
+device fxp0		# Intel EtherExpress PRO/100B (82557, 82558
 
 # Order is important here due to intrusive probes, do *not* alphabetize
 # this list of network interfaces until the probes have been fixed.
 # Right now it appears that the ie0 must be probed before ep0. See
 # revision 1.20 of this file.
-device de0
-#device de1
-device fxp0
 
-device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000
-device ep0 at isa? port 0x300 net irq 10
-device ie0 at isa? port 0x300 net irq 5 iomem 0xd0000
-device le0 at isa? port 0x300 net irq 5 iomem 0xd0000
-device lnc0 at isa? port 0x300 net irq 10
+device ed0 at isa? port 0x280 irq 5 iomem 0xd8000
+device ep0 at isa? port 0x300 irq 10
+device ie0 at isa? port 0x300 irq 5 iomem 0xd0000
+device le0 at isa? port 0x300 irq 5 iomem 0xd0000
+device lnc0 at isa? port 0x300 irq 10
 
 pseudo-device	loop
 pseudo-device	ether
