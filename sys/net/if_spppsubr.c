@@ -844,7 +844,6 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 			ETHERTYPE_IPX : PPP_IPX);
 		break;
 #endif
-nosupport:
 	default:
 		m_freem (m);
 		++ifp->if_oerrors;
