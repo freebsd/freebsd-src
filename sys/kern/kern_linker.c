@@ -178,7 +178,7 @@ linker_file_sysuninit(linker_file_t lf)
 	KLD_DPF(FILE, ("linker_file_sysuninit: calling SYSUNINITs for %s\n",
 	    lf->filename));
 
-	if (linker_file_lookup_set(lf, "sysuninit_set", &start, &stop, 
+	if (linker_file_lookup_set(lf, "sysuninit_set", &start, &stop,
 	    NULL) != 0)
 		return;
 
@@ -255,7 +255,7 @@ linker_file_register_modules(linker_file_t lf)
 	KLD_DPF(FILE, ("linker_file_register_modules: registering modules"
 	    " in %s\n", lf->filename));
 
-	if (linker_file_lookup_set(lf, "modmetadata_set", &start, 
+	if (linker_file_lookup_set(lf, "modmetadata_set", &start,
 	    &stop, 0) != 0) {
 		/*
 		 * This fallback should be unnecessary, but if we get booted
@@ -281,7 +281,7 @@ linker_file_register_modules(linker_file_t lf)
 		}
 		error = module_register(moddata, lf);
 		if (error)
-			printf("Module %s failed to register: %d\n", 
+			printf("Module %s failed to register: %d\n",
 			    moddata->name, error);
 	}
 	return (0);
@@ -342,9 +342,10 @@ linker_load_file(const char *filename, linker_file_t *result)
 	 * the module was not found.
 	 */
 	if (foundfile)
-		error = ENOEXEC;  /* Format not recognised (or unloadable) */
+		/* Format not recognized (or unloadable). */
+		error = ENOEXEC;
 	else
-		error = ENOENT;	  /* Nothing found */
+		error = ENOENT;		/* Nothing found */
 out:
 	return (error);
 }
@@ -493,7 +494,7 @@ linker_file_unload(linker_file_t file)
 		file->deps = NULL;
 	}
 	for (cp = STAILQ_FIRST(&file->common); cp;
-	     cp = STAILQ_FIRST(&file->common)) {
+	    cp = STAILQ_FIRST(&file->common)) {
 		STAILQ_REMOVE(&file->common, cp, common_symbol, link);
 		free(cp, M_LINKER);
 	}
@@ -766,15 +767,15 @@ kldunload(struct thread *td, struct kldunload_args *uap)
 			error = EBUSY;
 			goto out;
 		}
-       		lf->userrefs--;
+		lf->userrefs--;
 		error = linker_file_unload(lf);
 		if (error)
 			lf->userrefs++;
 	} else
 		error = ENOENT;
 out:
-		mtx_unlock(&Giant);
-		return (error);
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*
@@ -931,12 +932,11 @@ kldsym(struct thread *td, struct kldsym_args *uap)
 
 	if ((error = copyin(SCARG(uap, data), &lookup, sizeof(lookup))) != 0)
 		goto out;
-	if (lookup.version != sizeof(lookup) || 
+	if (lookup.version != sizeof(lookup) ||
 	    SCARG(uap, cmd) != KLDSYM_LOOKUP) {
 		error = EINVAL;
 		goto out;
 	}
-
 	symstr = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 	if ((error = copyinstr(lookup.symname, symstr, MAXPATHLEN, NULL)) != 0)
 		goto out;
@@ -962,7 +962,7 @@ kldsym(struct thread *td, struct kldsym_args *uap)
 				lookup.symsize = symval.size;
 				error = copyout(&lookup, SCARG(uap, data),
 				    sizeof(lookup));
-					break;
+				break;
 			}
 		}
 		if (lf == NULL)
@@ -1011,8 +1011,8 @@ modlist_lookup2(const char *name, struct mod_depend *verinfo)
 		if (ver == verinfo->md_ver_preferred)
 			return (mod);
 		if (ver >= verinfo->md_ver_minimum &&
-    		    ver <= verinfo->md_ver_maximum &&
-    		    ver > bestmod->version)
+		    ver <= verinfo->md_ver_maximum &&
+		    ver > bestmod->version)
 			bestmod = mod;
 	}
 	return (bestmod);
@@ -1200,7 +1200,7 @@ restart:
 				 * ok, the module isn't here yet, we
 				 * are not finished
 				 */
-				if (modlist_lookup2(modname, verinfo) == NULL) 
+				if (modlist_lookup2(modname, verinfo) == NULL)
 					resolves = 0;
 			}
 		}
@@ -1225,7 +1225,7 @@ restart:
 						TAILQ_REMOVE(&loaded_files,
 						    lf, loaded);
 						/* we changed tailq next ptr */
-						goto restart;	
+						goto restart;
 					}
 					modlist_newmodule(modname, nver, lf);
 				}
@@ -1439,7 +1439,7 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 	hints = malloc(vattr.va_size, M_TEMP, M_WAITOK);
 	if (hints == NULL)
 		goto bad;
-	error = vn_rdwr(UIO_READ, nd.ni_vp, (caddr_t) hints, vattr.va_size, 0,
+	error = vn_rdwr(UIO_READ, nd.ni_vp, (caddr_t)hints, vattr.va_size, 0,
 	    UIO_SYSSPACE, IO_NODELOCKED, cred, &reclen, td);
 	if (error)
 		goto bad;
@@ -1535,8 +1535,8 @@ linker_search_module(const char *modname, int modnamelen,
 	for (cp = linker_path; *cp; cp = ep + 1) {
 		/* find the end of this component */
 		for (ep = cp; (*ep != 0) && (*ep != ';'); ep++);
-			result = linker_hints_lookup(cp, ep - cp, modname,
-			    modnamelen, verinfo);
+		result = linker_hints_lookup(cp, ep - cp, modname,
+		    modnamelen, verinfo);
 		if (result != NULL)
 			return (result);
 		if (*ep == 0)
@@ -1610,8 +1610,8 @@ linker_load_module(const char *kldname, const char *modname,
 		/*
  		 * We have to load KLD
  		 */
-		KASSERT(verinfo == NULL,
-		    ("linker_load_module: verinfo is not NULL"));
+		KASSERT(verinfo == NULL, ("linker_load_module: verinfo"
+		    " is not NULL"));
 		pathname = linker_search_kld(kldname);
 	} else {
 		if (modlist_lookup2(modname, verinfo) != NULL)
