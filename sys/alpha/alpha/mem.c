@@ -55,9 +55,10 @@
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/msgbuf.h>
+#include <sys/random.h>
+#include <sys/signalvar.h>
 
 #include <machine/frame.h>
-/* #include <machine/random.h>*/
 #include <machine/psl.h>
 #ifdef PERFMON
 #include <machine/perfmon.h>
@@ -94,7 +95,19 @@ static struct cdevsw mem_cdevsw = {
 	/* bmaj */	-1
 };
 
+/*
+	XXX  the below should be used.  However there is too much "16"
+	hardcodeing in kern_random.c right now. -- obrien
+#if NHWI > 0
+#define	ICU_LEN (NHWI)
+#else
+#define	ICU_LEN (NSWI)
+#endif
+*/
+#define	ICU_LEN 16
 
+static struct random_softc random_softc[ICU_LEN];
+static int random_ioctl __P((dev_t, u_long, caddr_t, int, struct proc *));
 
 static int
 mmclose(dev, flags, fmt, p)
@@ -151,6 +164,10 @@ mmrw(dev, uio, flags)
 	register int c;
 	register struct iovec *iov;
 	int error = 0, rw;
+	u_int poolsize;
+	caddr_t buf;
+
+	buf = NULL;
 
 	while (uio->uio_resid > 0 && !error) {
 		iov = uio->uio_iov;
@@ -213,6 +230,51 @@ kmemphys:
 			if (uio->uio_rw == UIO_WRITE)
 				uio->uio_resid = 0;
 			return (0);
+
+/* minor device 3 (/dev/random) is source of filth on read, rathole on write */
+		case 3:
+			if (uio->uio_rw == UIO_WRITE) {
+				uio->uio_resid = 0;
+				return (0);
+			}
+			if (buf == NULL)
+				buf = (caddr_t)
+				    malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
+			c = min(iov->iov_len, PAGE_SIZE);
+			poolsize = read_random(buf, c);
+			if (poolsize == 0) {
+				if (buf)
+					free(buf, M_TEMP);
+				return (0);
+			}
+			c = min(c, poolsize);
+			error = uiomove(buf, c, uio);
+			continue;
+
+/* minor device 4 (/dev/urandom) is source of muck on read, rathole on write */
+		case 4:
+			if (uio->uio_rw == UIO_WRITE) {
+				c = iov->iov_len;
+				break;
+			}
+			if (CURSIG(curproc) != 0) {
+				/*
+				 * Use tsleep() to get the error code right.
+				 * It should return immediately.
+				 */
+				error = tsleep(&random_softc[0],
+				    PZERO | PCATCH, "urand", 1);
+				if (error != 0 && error != EWOULDBLOCK)
+					continue;
+			}
+			if (buf == NULL)
+				buf = (caddr_t)
+				    malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
+			c = min(iov->iov_len, PAGE_SIZE);
+			poolsize = read_random_unlimited(buf, c);
+			c = min(c, poolsize);
+			error = uiomove(buf, c, uio);
+			continue;
 
 /* minor device 12 (/dev/zero) is source of nulls on read, rathole on write */
 		case 12:
@@ -286,7 +348,7 @@ mmioctl(dev, cmd, cmdarg, flags, p)
 	switch(minor(dev)) {
 	case 3:
 	case 4:
-		break;
+		return random_ioctl(dev, cmd, cmdarg, flags, p);
 
 #ifdef PERFMON
 	case 32:
@@ -392,5 +454,15 @@ mem_drvinit(void *unused)
 #endif /* PERFMON */
 }
 
-SYSINIT(memdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,mem_drvinit,NULL)
+static int 
+random_ioctl(dev, cmd, data, flags, p)
+	dev_t dev;
+	u_long cmd;
+	caddr_t data;
+	int flags;
+	struct proc *p;
+{
+	return (0);
+}
 
+SYSINIT(memdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,mem_drvinit,NULL)
