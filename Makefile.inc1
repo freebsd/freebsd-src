@@ -167,11 +167,7 @@ INSTALLTMP!=	/usr/bin/mktemp -d -u -t install
 CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		MACHINE_ARCH=${TARGET_ARCH} \
 		MACHINE=${TARGET} \
-		COMPILER_PATH=${WORLDTMP}/usr/libexec:${WORLDTMP}/usr/bin \
-		LIBRARY_PATH=${WORLDTMP}${SHLIBDIR}:${WORLDTMP}/usr/lib \
 		OBJFORMAT_PATH=${WORLDTMP}/usr/libexec \
-		CFLAGS="-nostdinc ${CFLAGS}" \
-		CXXINCLUDES="-nostdinc++ ${CXXINCLUDES}" \
 		PERL5LIB=${WORLDTMP}/usr/libdata/perl/5.6.0 \
 		GROFF_BIN_PATH=${WORLDTMP}/usr/bin \
 		GROFF_FONT_PATH=${WORLDTMP}/usr/share/groff_font \
