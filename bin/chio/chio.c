@@ -656,7 +656,7 @@ do_status(char *cname, int argc, char **argv)
 				printf(" avoltag: <%s:%d>", 
 				       ces->ces_avoltag.cv_volid,
 				       ces->ces_avoltag.cv_serial);
-			if (source)
+			if (source) {
 				if (ces->ces_flags & CES_SOURCE_VALID)
 					printf(" source: <%s %d>", 
 					       element_type_name(
@@ -664,6 +664,7 @@ do_status(char *cname, int argc, char **argv)
 					       ces->ces_source_addr);
 				else
 					printf(" source: <>");
+			}
 			if (intaddr)
 				printf(" intaddr: <%d>", ces->ces_int_addr);
 			if (scsi) {
