@@ -1,4 +1,4 @@
-.\" $Id: pppctl.8,v 1.7 1997/11/18 00:20:28 brian Exp $
+.\" $Id: pppctl.8,v 1.8 1997/12/21 01:21:40 brian Exp $
 .Dd 26 June 1997
 .Os FreeBSD
 .Dt PPPCTL 8
@@ -18,7 +18,7 @@ This program provides command line control of the
 .Xr ppp 8
 daemon.  Its primary use is to facilitate simple scripts that
 control a running daemon.
-
+.Pp
 .Nm Pppctl
 is passed at least one argument, specifying the socket on which
 .Nm ppp
@@ -39,7 +39,6 @@ and
 may be specified numerically if you wish to avoid a DNS lookup
 or don't have an entry for the given port in
 .Pa /etc/services .
-
 .Pp
 All remaining arguments are concatenated to form the
 .Ar command(s)
@@ -52,12 +51,13 @@ delimiters, allowing more than one
 in a given
 .Sq session .
 For example:
-
-  pppctl 3000 set timeout 300\\; show timeout
-
+.Bd -literal -offset indent
+pppctl 3000 set timeout 300\\; show timeout
+.Ed
+.Pp
 Don't forget to escape or quote the ';' as it is a special character
 for most shells.
-
+.Pp
 If no
 .Ar command
 arguments are given,
@@ -70,7 +70,7 @@ library is used, allowing command-line editing (with
 defining editing behaviour).  The history size
 defaults to
 .Em 20 lines .
-
+.Pp
 The following command line options are available:
 .Bl -tag -width Ds
 .It Fl v
@@ -93,7 +93,7 @@ daemon.  If this switch is not used,
 will prompt for a password once it has successfully connected to
 .Nm ppp .
 .El
-
+.Pp
 .Sh EXAMPLES
 If you run
 .Nm ppp
@@ -115,11 +115,10 @@ The best way to allow easy, secure
 access is to create a local server socket in
 .Pa /etc/ppp/ppp.conf
 (in the correct section) like this:
-
 .Bd -literal -offset indent
 set server /var/run/internet "" 0177
 .Ed
-
+.Pp
 This will instruct
 .Nm ppp
 to create a local domain socket, with srw------- permissions and no
@@ -128,23 +127,19 @@ password, allowing access only to the user that invoked
 Refer to the
 .Xr ppp 8
 man page for further details.
-
 .Pp
 You can now create some easy-access scripts.  To connect to the internet:
-
 .Bd -literal -offset indent
 #! /bin/sh
 test $# -eq 0 && time=300 || time=$1
 exec pppctl /var/run/internet set timeout $time\\; dial
 .Ed
-
 .Pp
 To disconnect:
 .Bd -literal -offset indent
 #! /bin/sh
 exec pppctl /var/run/internet set timeout 300\\; close
 .Ed
-
 .Pp
 To check if the line is up:
 .Bd -literal -offset indent
@@ -156,14 +151,13 @@ else
   echo Link is down
 fi
 .Ed
-
 .Pp
 You can even make a generic script:
 .Bd -literal -offset indent
 #! /bin/sh
 exec pppctl /var/run/internet "$@"
 .Ed
-
+.Pp
 .Sh ENVIRONMENT VARIABLES
 The following environment variables are understood by
 .Nm
@@ -180,14 +174,13 @@ and
 commands in
 .Pa ~/.editrc .
 .El
-
+.Pp
 .Sh SEE ALSO
 .Xr editline 3 ,
 .Xr editrc 5 ,
 .Xr ppp 8 ,
 .Xr ps 1 ,
 .Xr services 5
-
 .Sh HISTORY
 The
 .Nm
