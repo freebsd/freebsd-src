@@ -131,6 +131,36 @@ debugging information at
 .Dv LOG_DEBUG
 level.
 .El
+.Ss Ux Ss Password Management Module
+The
+.Ux
+password management component
+provides a function to perform account management,
+.Fn pam_sm_chauthtok .
+The function changes
+the user's password.
+.Pp
+The following options may be passed to the password module:
+.Bl -tag -width ".Cm use_first_pass"
+.It Cm debug
+.Xr syslog 3
+debugging information at
+.Dv LOG_DEBUG
+level.
+.It Cm no_warn
+suppress warning messages to the user.
+These messages include
+reasons why the user's
+authentication attempt was declined.
+.It Cm local_pass
+forces the password module
+to change a local password
+in favour of a NIS one.
+.It Cm nis_pass
+forces the password module
+to change a NIS password
+in favour of a local one.
+.El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/master.passwd" -compact
 .It Pa /etc/master.passwd
