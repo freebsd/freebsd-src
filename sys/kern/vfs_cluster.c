@@ -477,8 +477,20 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 			if ((m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL)
 				tbp->b_pages[j] = bogus_page;
 		}
-		bp->b_bcount += tbp->b_bcount;
-		bp->b_bufsize += tbp->b_bufsize;
+		/*
+		 * XXX shouldn't this be += size for both, like in
+		 * cluster_wbuild()?
+		 *
+		 * Don't inherit tbp->b_bufsize as it may be larger due to
+		 * a non-page-aligned size.  Instead just aggregate using
+		 * 'size'.
+		 */
+		if (tbp->b_bcount != size)
+			printf("warning: tbp->b_bcount wrong %ld vs %ld\n", tbp->b_bcount, size);
+		if (tbp->b_bufsize != size)
+			printf("warning: tbp->b_bufsize wrong %ld vs %ld\n", tbp->b_bufsize, size);
+		bp->b_bcount += size;
+		bp->b_bufsize += size;
 	}
 
 	/*
