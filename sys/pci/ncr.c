@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.15 1995/02/02 12:36:16 davidg Exp $
+**  $Id: ncr.c,v 1.16 1995/02/02 13:12:15 davidg Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -44,7 +44,7 @@
 ***************************************************************************
 */
 
-#define	NCR_PATCHLEVEL	"pl4 95/01/27"
+#define	NCR_PATCHLEVEL	"pl6 95/02/02"
 
 #define NCR_VERSION	(2)
 #define	MAX_UNITS	(16)
@@ -1074,6 +1074,11 @@ struct ncb {
 	u_char		maxwide;
 
 	/*
+	**	option for M_IDENTIFY message: enables disconnecting
+	*/
+	u_char		disc;
+
+	/*
 	**	lockout of execption handler call while starting command.
 	*/
 	u_char		lock;
@@ -1226,7 +1231,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.15 1995/02/02 12:36:16 davidg Exp $\n";
+	"\n$Id: ncr.c,v 1.16 1995/02/02 13:12:15 davidg Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -3352,8 +3357,10 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	/*
 	**	process the reset exception,
 	**	if interrupts are not enabled yet.
+	**	than enable disconnects.
 	*/
 	ncr_exception (np);
+	np->disc = 1;
 
 #ifdef ANCIENT
 	printf ("%s: waiting for scsi devices to settle\n",
@@ -3699,21 +3706,19 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	**----------------------------------------------------
 	*/
 
+	idmsg = M_IDENTIFY | xp->LUN;
 #ifndef NCR_NO_DISCONNECT
-	idmsg = (cp==&np->ccb ? M_IDENTIFY : 0xc0) | xp->LUN;
-#else
 	/*---------------------------------------------------------------------
 	** Some users have problems with this driver.
 	** I assume that the current problems relate to a conflict between
 	** a disconnect and an immediately following reconnect operation.
-	** With this option you can prevent the driver from using disconnects.
-	** If this removes the problems, I would know where to search further..
-	** Of course this is no solution.
+	** With this option one can prevent the driver from using disconnects.
 	** Without disconnects the performance will be severely degraded.
 	** But it may help to trace down the core problem.
 	**---------------------------------------------------------------------
 	*/
-	idmsg = M_IDENTIFY | xp->LUN;
+	if ((cp!=&np->ccb) && (np->disc))
+		idmsg |= 0x40;
 #endif
 
 	cp -> scsi_smsg [0] = idmsg;
@@ -4380,6 +4385,12 @@ void ncr_init (ncb_p np, char * msg, u_long code)
 
 	usrwide = (SCSI_NCR_MAX_WIDE);
 	if (usrwide > np->maxwide) usrwide=np->maxwide;
+
+	/*
+	**	Disable disconnects.
+	*/
+
+	np->disc = 0;
 
 	/*
 	**	Fill in target structure.
