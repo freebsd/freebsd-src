@@ -3,7 +3,7 @@
 # The order of some of these are rather important.  Some depend on previous
 # subdirs.
 
-SUBDIR= cc_fbsd cc_tools cc_int cccp cc1 cc
+SUBDIR= cc_tools cc_int cccp cc1 cc
 
 .if !defined(NO_CPP)
 SUBDIR+= cpp
