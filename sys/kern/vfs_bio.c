@@ -584,9 +584,11 @@ bufinit(void)
  */
 
 	bogus_offset = kmem_alloc_pageable(kernel_map, PAGE_SIZE);
+	vm_object_lock(kernel_object);
 	bogus_page = vm_page_alloc(kernel_object,
 			((bogus_offset - VM_MIN_KERNEL_ADDRESS) >> PAGE_SHIFT),
 			VM_ALLOC_NORMAL);
+	vm_object_unlock(kernel_object);
 	cnt.v_wire_count++;
 }
 
@@ -3471,9 +3473,11 @@ tryagain:
 		 * could intefere with paging I/O, no matter which
 		 * process we are.
 		 */
+		vm_object_lock(kernel_object);
 		p = vm_page_alloc(kernel_object,
 			((pg - VM_MIN_KERNEL_ADDRESS) >> PAGE_SHIFT),
 		    VM_ALLOC_SYSTEM | VM_ALLOC_WIRED);
+		vm_object_unlock(kernel_object);
 		if (!p) {
 			vm_pageout_deficit += (to - from) >> PAGE_SHIFT;
 			VM_WAIT;
@@ -3485,7 +3489,9 @@ tryagain:
 		vm_page_unlock_queues();
 		pmap_qenter(pg, &p, 1);
 		bp->b_pages[index] = p;
+		vm_page_lock_queues();
 		vm_page_wakeup(p);
+		vm_page_unlock_queues();
 	}
 	bp->b_npages = index;
 }
