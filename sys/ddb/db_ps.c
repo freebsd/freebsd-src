@@ -55,6 +55,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 
 	np = nprocs;
 
+	/* sx_slock(&allproc_lock); */
 	if (!LIST_EMPTY(&allproc))
 		p = LIST_FIRST(&allproc);
 	else
@@ -90,6 +91,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 			printf("oops, ran out of processes early!\n");
 			break;
 		}
+		/* PROC_LOCK(p); */
 		pp = p->p_pptr;
 		if (pp == NULL)
 			pp = p;
@@ -126,8 +128,11 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 			}
 			db_printf(" %s\n", p->p_comm);
 		}
+		/* PROC_UNLOCK(p); */
+
 		p = LIST_NEXT(p, p_list);
 		if (p == NULL && np > 0)
 			p = LIST_FIRST(&zombproc);
     	}
+	/* sx_sunlock(&allproc_lock); */
 }
