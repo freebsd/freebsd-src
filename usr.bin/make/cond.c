@@ -102,17 +102,19 @@ typedef enum {
     And, Or, Not, True, False, LParen, RParen, EndOfFile, None, Err
 } Token;
 
+typedef Boolean CondProc(int, char *);
+
 /*-
  * Structures to handle elegantly the different forms of #if's. The
  * last two fields are stored in condInvert and condDefProc, respectively.
  */
 static void CondPushBack(Token);
 static int CondGetArg(char **, char **, const char *, Boolean);
-static Boolean CondDoDefined(int, char *);
-static Boolean CondDoMake(int, char *);
-static Boolean CondDoExists(int, char *);
-static Boolean CondDoTarget(int, char *);
-static char * CondCvtArg(char *, double *);
+static CondProc	CondDoDefined;
+static CondProc	CondDoMake;
+static CondProc	CondDoExists;
+static CondProc	CondDoTarget;
+static char *CondCvtArg(char *, double *);
 static Token CondToken(Boolean);
 static Token CondT(Boolean);
 static Token CondF(Boolean);
@@ -122,7 +124,7 @@ static struct If {
     char	*form;	      /* Form of if */
     int		formlen;      /* Length of form */
     Boolean	doNot;	      /* TRUE if default function should be negated */
-    Boolean	(*defProc)(int, char *); /* Default function to apply */
+    CondProc	*defProc;	/* Default function to apply */
 } ifs[] = {
     { "ifdef",	  5,	  FALSE,  CondDoDefined },
     { "ifndef",	  6,	  TRUE,	  CondDoDefined },
@@ -754,7 +756,7 @@ error:
 		break;
 	    }
 	    default: {
-		Boolean (*evalProc)(int, char *);
+		CondProc	*evalProc;
 		Boolean invert = FALSE;
 		char	*arg;
 		int	arglen;
