@@ -224,4 +224,8 @@ SUBDIR+=ar \
 	strip
 .endif
 
+.if ${MACHINE_ARCH} == "alpha"
+SUBDIR+=uac
+.endif
+
 .include <bsd.subdir.mk>
