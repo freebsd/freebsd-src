@@ -1293,7 +1293,7 @@ ndis_disable_intr(arg)
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
 	intrdisfunc = sc->ndis_chars.nmc_disable_interrupts_func;
 	NDIS_UNLOCK(sc);
-	if (adapter == NULL || intrdisfunc)
+	if (adapter == NULL || intrdisfunc == NULL)
 	    return;
 	intrdisfunc(adapter);
 
