@@ -148,6 +148,17 @@ extern void	knote_fdclose(struct proc *p, int fd);
 extern int 	kqueue_register(struct kqueue *kq,
 		    struct kevent *kev, struct proc *p);
 
+#else 	/* !_KERNEL */
+
+#include <sys/cdefs.h>
+
+__BEGIN_DECLS
+int     kqueue __P((void));
+int     kevent __P((int kq, int nchanges, struct kevent **changelist,
+		    int nevents, struct kevent *eventlist,
+		    struct timespec *timeout));
+__END_DECLS
+
 #endif /* !_KERNEL */
 
 #endif /* !_SYS_EVENT_H_ */
