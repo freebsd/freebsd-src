@@ -26,6 +26,7 @@
  * $FreeBSD$
  */
 
+#define __ELF_WORD_SIZE 64
 #include <sys/param.h>
 #include <sys/exec.h>
 #include <sys/linker.h>
@@ -38,9 +39,26 @@
 #include "libi386.h"
 #include "btxv86.h"
 
-static int	elf_exec(struct preloaded_file *amp);
+static int	elf64_exec(struct preloaded_file *amp);
 
-struct file_format i386_elf = { elf_loadfile, elf_exec };
+struct file_format amd64_elf = { elf64_loadfile, elf64_exec };
+
+#define PG_V	0x001
+#define PG_RW	0x002
+#define PG_U	0x004
+#define PG_PS	0x080
+
+typedef u_int64_t p4_entry_t;
+typedef u_int64_t p3_entry_t;
+typedef u_int64_t p2_entry_t;
+extern p4_entry_t PT4[];
+extern p3_entry_t PT3[];
+extern p2_entry_t PT2[];
+
+u_int32_t entry_hi;
+u_int32_t entry_lo;
+
+extern amd64_tramp();
 
 /*
  * There is an a.out kernel and one or more a.out modules loaded.  
@@ -48,41 +66,52 @@ struct file_format i386_elf = { elf_loadfile, elf_exec };
  * preparations as are required, and do so.
  */
 static int
-elf_exec(struct preloaded_file *fp)
+elf64_exec(struct preloaded_file *fp)
 {
     struct file_metadata	*md;
     Elf_Ehdr 			*ehdr;
-    vm_offset_t			entry, bootinfop;
-    int				boothowto, err, bootdev;
-    struct bootinfo		*bi;
-    vm_offset_t			ssym, esym;
+    vm_offset_t			modulep, kernend;
+    int				err;
+    int				i;
 
     if ((md = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL)
 	return(EFTYPE);			/* XXX actually EFUCKUP */
     ehdr = (Elf_Ehdr *)&(md->md_data);
 
-    if ((err = bi_load(fp->f_args, &boothowto, &bootdev, &bootinfop)) != 0)
+    err = bi_load64(fp->f_args, &modulep, &kernend);
+    if (err != 0)
 	return(err);
-    entry = ehdr->e_entry & 0xffffff;
 
-    ssym = esym = 0;
-    if ((md = file_findmetadata(fp, MODINFOMD_SSYM)) != NULL)
-	ssym = *((vm_offset_t *)&(md->md_data));
-    if ((md = file_findmetadata(fp, MODINFOMD_ESYM)) != NULL)
-	esym = *((vm_offset_t *)&(md->md_data));
-    if (ssym == 0 || esym == 0)
-	ssym = esym = 0;		/* sanity */
-    bi = (struct bootinfo *)PTOV(bootinfop);
-    bi->bi_symtab = ssym;	/* XXX this is only the primary kernel symtab */
-    bi->bi_esymtab = esym;
+    bzero(PT4, PAGE_SIZE);
+    bzero(PT3, PAGE_SIZE);
+    bzero(PT2, PAGE_SIZE);
 
+    /* single PML4 entry */
+    PT4[0] = (p4_entry_t)VTOP((uintptr_t)&PT3[0]);
+    PT4[0] |= PG_V | PG_RW | PG_U;
 
+    /* Direct map 1GB at address zero */
+    PT3[0] = (p3_entry_t)VTOP((uintptr_t)&PT2[0]);
+    PT3[0] |= PG_V | PG_RW | PG_U;
+
+    /* Direct map 1GB at KERNBASE (hardcoded for now) */
+    PT3[1] = (p3_entry_t)VTOP((uintptr_t)&PT2[0]);
+    PT3[1] |= PG_V | PG_RW | PG_U;
+
+    /* 512 PG_PS (2MB) page mappings for 1GB of direct mapping */
+    for (i = 0; i < 512; i++) {
+	PT2[i] = i * (2 * 1024 * 1024);
+	PT2[i] |= PG_V | PG_RW | PG_PS | PG_U;
+    }
+
+    entry_lo = ehdr->e_entry & 0xffffffff;
+    entry_hi = (ehdr->e_entry >> 32) & 0xffffffff;
 #ifdef DEBUG
-    printf("Start @ 0x%lx ...\n", entry);
+    printf("Start @ %#llx ...\n", ehdr->e_entry);
 #endif
 
     dev_cleanup();
-    __exec((void *)entry, boothowto, bootdev, 0, 0, 0, bootinfop);
+    __exec((void *)VTOP(amd64_tramp), modulep, kernend);
 
     panic("exec returned");
 }

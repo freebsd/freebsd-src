@@ -42,13 +42,13 @@ extern char		end[];
 extern vm_offset_t	reloc;	/* From <arch>/conf.c */
 
 int
-ofw_elf_loadfile(char *filename, vm_offset_t dest,
+__elfN(ofw_loadfile)(char *filename, vm_offset_t dest,
     struct preloaded_file **result)
 {
 	int	r;
 	void	*addr;
 
-	r = elf_loadfile(filename, dest, result);
+	r = __elfN(loadfile)(filename, dest, result);
 	if (r != 0)
 		return (r);
 
@@ -56,7 +56,7 @@ ofw_elf_loadfile(char *filename, vm_offset_t dest,
 }
 
 int
-ofw_elf_exec(struct preloaded_file *fp)
+__elfN(ofw_exec)(struct preloaded_file *fp)
 {
 	struct file_metadata	*fmp;
 	vm_offset_t		mdp;
@@ -83,6 +83,6 @@ ofw_elf_exec(struct preloaded_file *fp)
 
 struct file_format	ofw_elf =
 {
-	ofw_elf_loadfile,
-	ofw_elf_exec
+	__elfN(ofw_loadfile),
+	__elfN(ofw_exec)
 };
