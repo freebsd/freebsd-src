@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 1999,2000 Michael Smith
  * Copyright (c) 2000 BSDi
+ * Copyright (c) 2005 Scott Long
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
