@@ -54,6 +54,12 @@ specifically marked as [MERGED] features.
 1.1. KERNEL CHANGES
 -------------------
 
+Support for named extended attributes was added to the FreeBSD kernel.
+This allows the kernel, and appropriately privileged userland processes,
+to tag files and directories with attribute data.  Extended attributes
+were added to support the TrustedBSD Project, in particular ACLs, 
+capability data, and mandatory access control labels.  
+
 
 1.2. SECURITY FIXES
 -------------------
