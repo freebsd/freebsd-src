@@ -157,7 +157,7 @@ id_to_sem(id)
 	return (NULL);
 }
 
-struct ksem *
+static struct ksem *
 sem_lookup_byname(name)
 	const char *name;
 {
@@ -169,7 +169,7 @@ sem_lookup_byname(name)
 	return (NULL);
 }
 
-int
+static int
 sem_create(td, name, ksret, mode, value)
 	struct thread *td;
 	const char *name;
@@ -420,7 +420,7 @@ kern_sem_open(td, dir, name, oflag, mode, value, idp)
 	return (error);
 }
 
-int
+static int
 sem_perm(p, ks)
 	struct proc *p;
 	struct ksem *ks;
@@ -438,7 +438,7 @@ sem_perm(p, ks)
 	return (EPERM);
 }
 
-void
+static void
 sem_free(struct ksem *ks)
 {
 
@@ -466,7 +466,7 @@ sem_getuser(p, ks)
 	return (NULL);
 }
 
-int
+static int
 sem_hasopen(p, ks)
 	struct proc *p;
 	struct ksem *ks;
@@ -476,7 +476,7 @@ sem_hasopen(p, ks)
 	    || sem_getuser(p, ks) != NULL);
 }
 
-int
+static int
 sem_leave(p, ks)
 	struct proc *p;
 	struct ksem *ks;
@@ -497,7 +497,7 @@ sem_leave(p, ks)
 	return (-1);
 }
 
-void
+static void
 sem_enter(p, ks)
 	struct proc *p;
 	struct ksem *ks;
@@ -577,7 +577,7 @@ ksem_close(struct thread *td, struct ksem_close_args *uap)
 	return (kern_sem_close(td, uap->id));
 }
 
-int
+static int
 kern_sem_close(td, id)
 	struct thread *td;
 	semid_t id;
@@ -610,7 +610,7 @@ ksem_post(td, uap)
 	return (kern_sem_post(td, uap->id));
 }
 
-int
+static int
 kern_sem_post(td, id)
 	struct thread *td;
 	semid_t id;
@@ -668,7 +668,7 @@ ksem_trywait(td, uap)
 	return (kern_sem_wait(td, uap->id, 1));
 }
 
-int
+static int
 kern_sem_wait(td, id, tryflag)
 	struct thread *td;
 	semid_t id;
@@ -768,7 +768,7 @@ err:
 	return (error);
 }
 
-void
+static void
 sem_exithook(p)
 	struct proc *p;
 {
