@@ -203,6 +203,11 @@ this change. Also note that conversion of float/double to integer
 where the float variable is too big now doesn't trap as well (it can't
 be seperated from other operations we want masked).
 
+Support for Intel's Wired for Management 2.0 (PXE) was added to
+the FreeBSD boot loader.  Due to API differences, the older PXE
+versions are not supported.  This allow network booting using DHCP.
+[MERGED]
+
 
 1.2. SECURITY FIXES
 -------------------
