@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbdc_isa.c,v 1.3 1999/05/08 20:25:38 peter Exp $
+ * $Id: atkbdc_isa.c,v 1.4 1999/05/08 21:59:29 dfr Exp $
  */
 
 #include "atkbdc.h"
@@ -173,22 +173,6 @@ atkbdc_attach(device_t dev)
 		atkbdc_add_device(dev, resource_query_name(i),
 				  resource_query_unit(i));
 	}
-
-#ifdef __i386__
-	/*
-	 * Foot protection...
-	 */
-	for (i = resource_locate(-1, "atkbd");
-	     i != -1;
-	     i = resource_locate(i, "atkbd")) {
-		if (device_find_child(dev, resource_query_name(i),
-				      resource_query_unit(i)) == NULL) {
-			printf("WARNING: Update your atkbdc config!\n");
-			atkbdc_add_device(dev, resource_query_name(i),
-					  resource_query_unit(i));
-		}
-	}
-#endif
 
 	bus_generic_attach(dev);
 
