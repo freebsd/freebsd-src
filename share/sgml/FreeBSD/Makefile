@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 FILES=	linuxdoc.dtd linuxdoc.dcl linuxdoc.sty
 NOOBJ=	noobj

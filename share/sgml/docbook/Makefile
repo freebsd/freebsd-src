@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 FILES=	cals-tbl.dtd dbgenent.mod dbhier.mod dbpool.mod
 FILES+=	docbook.dcl docbook.dtd

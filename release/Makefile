@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 #
 # How to roll a release:
 #

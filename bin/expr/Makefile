@@ -1,5 +1,5 @@
 #	/b/source/CVS/src/bin/expr/Makefile,v 1.5 1993/06/14 19:56:06 jtc Exp
-#	$FreeBSD$
+#	$Id$
 
 PROG=		expr
 SRCS=		expr.c

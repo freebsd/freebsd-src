@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $Id$
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.

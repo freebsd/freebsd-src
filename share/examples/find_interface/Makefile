@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 PROG=	find_interface
 NOMAN=

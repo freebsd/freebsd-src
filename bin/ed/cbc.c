@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)bdes.c	5.5 (Berkeley) 6/27/91
- *	$FreeBSD$
+ *	$Id$
  */
 
 #ifndef lint

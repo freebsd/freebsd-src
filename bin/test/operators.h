@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)operators.h	8.3 (Berkeley) 4/2/94
- *	$FreeBSD$
+ *	$Id$
  */
 
 #define	NOT		0
