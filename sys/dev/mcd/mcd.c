@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.76 1996/04/07 17:32:14 bde Exp $
+ *	$Id: mcd.c,v 1.77 1996/05/03 14:57:24 phk Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -279,6 +279,7 @@ int mcd_attach(struct isa_device *dev)
 	cd->iobase = dev->id_iobase;
 	cd->flags |= MCDINIT;
 	mcd_soft_reset(unit);
+	TAILQ_INIT(&cd->head);
 
 #ifdef NOTYET
 	/* wire controller for interrupts and dma */
