@@ -1,5 +1,5 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$Id: sys.mk,v 1.32 1998/05/15 09:30:13 bde Exp $
+#	$Id: sys.mk,v 1.33 1998/05/15 09:34:48 bde Exp $
 
 unix		?=	We run FreeBSD, not UNIX.
 
@@ -107,6 +107,7 @@ MACHINE_ARCH?=	i386
 # Default executable format
 .if ${MACHINE_ARCH} == "alpha"
 BINFORMAT	?=	elf
+CFLAGS		+=  -D__NETBSD_SYSCALLS
 .else
 BINFORMAT	?=	aout
 .endif
