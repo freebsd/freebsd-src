@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.77 1999/08/17 04:01:55 alc Exp $
+ *	$Id: devfs_vnops.c,v 1.78 1999/08/25 02:04:40 julian Exp $
  */
 
 
@@ -332,13 +332,13 @@ devfs_access(struct vop_access_args *ap)
 	struct vnode *vp = ap->a_vp;
 	int mode = ap->a_mode;
 	struct ucred *cred = ap->a_cred;
-	dn_p	file_node;
+	dn_p	dnp;
 	int	error;
 	gid_t	*gp;
 	int 	i;
 
 DBPRINT(("access\n"));
-	if ((error = devfs_vntodn(vp,&file_node)) != 0)
+	if ((error = devfs_vntodn(vp,&dnp)) != 0)
 	{
 		printf("devfs_vntodn returned %d ",error);
 		return error;
@@ -356,14 +356,14 @@ DBPRINT(("access\n"));
 	 * If not owner, then check group. If not a member of the
 	 * group, then check public access.
 	 */
-	if (cred->cr_uid != file_node->uid)
+	if (cred->cr_uid != dnp->uid)
 	{
 		/* failing that.. try groups */
 		mode >>= 3;
 		gp = cred->cr_groups;
 		for (i = 0; i < cred->cr_ngroups; i++, gp++)
 		{
-			if (file_node->gid == *gp)
+			if (dnp->gid == *gp)
 			{
 				goto found;
 			}
@@ -373,7 +373,7 @@ DBPRINT(("access\n"));
 found:
 		;
 	}
-	if ((file_node->mode & mode) == mode)
+	if ((dnp->mode & mode) == mode)
 		return (0);
 	/*
 	 *  Root gets to do anything.
@@ -396,63 +396,63 @@ devfs_getattr(struct vop_getattr_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
-	dn_p	file_node;
+	dn_p	dnp;
 	int	error;
 
 DBPRINT(("getattr\n"));
-	if ((error = devfs_vntodn(vp,&file_node)) != 0)
+	if ((error = devfs_vntodn(vp,&dnp)) != 0)
 	{
 		printf("devfs_vntodn returned %d ",error);
 		return error;
 	}
 	vap->va_rdev = 0;/* default value only */
-	vap->va_mode = file_node->mode;
-	switch (file_node->type)
+	vap->va_mode = dnp->mode;
+	switch (dnp->type)
 	{
 	case 	DEV_DIR:
-		vap->va_rdev = (udev_t)file_node->dvm;
+		vap->va_rdev = (udev_t)dnp->dvm;
 		vap->va_mode |= (S_IFDIR);
 		break;
 	case	DEV_CDEV:
-		vap->va_rdev = dev2udev(file_node->by.Cdev.dev);
+		vap->va_rdev = dev2udev(vp->v_rdev);
 		vap->va_mode |= (S_IFCHR);
 		break;
 	case	DEV_BDEV:
-		vap->va_rdev = dev2udev(file_node->by.Bdev.dev);
+		vap->va_rdev = dev2budev(vp->v_rdev);
 		vap->va_mode |= (S_IFBLK);
 		break;
 	case	DEV_SLNK:
 		break;
 	}
 	vap->va_type = vp->v_type;
-	vap->va_nlink = file_node->links;
-	vap->va_uid = file_node->uid;
-	vap->va_gid = file_node->gid;
-	vap->va_fsid = (intptr_t)(void *)file_node->dvm;
-	vap->va_fileid = (intptr_t)(void *)file_node;
-	vap->va_size = file_node->len; /* now a u_quad_t */
+	vap->va_nlink = dnp->links;
+	vap->va_uid = dnp->uid;
+	vap->va_gid = dnp->gid;
+	vap->va_fsid = (intptr_t)(void *)dnp->dvm;
+	vap->va_fileid = (intptr_t)(void *)dnp;
+	vap->va_size = dnp->len; /* now a u_quad_t */
 	vap->va_blocksize = 512;
 	/*
 	 * XXX If the node times are in  Jan 1, 1970, then
 	 * update them to the boot time.
 	 * When we made the node, the date/time was not yet known.
 	 */
-	if(file_node->ctime.tv_sec < (24 * 3600))
+	if(dnp->ctime.tv_sec < (24 * 3600))
 	{
-		TIMEVAL_TO_TIMESPEC(&boottime,&(file_node->ctime));
-		TIMEVAL_TO_TIMESPEC(&boottime,&(file_node->mtime));
-		TIMEVAL_TO_TIMESPEC(&boottime,&(file_node->atime));
+		TIMEVAL_TO_TIMESPEC(&boottime,&(dnp->ctime));
+		TIMEVAL_TO_TIMESPEC(&boottime,&(dnp->mtime));
+		TIMEVAL_TO_TIMESPEC(&boottime,&(dnp->atime));
 	}
-	if (file_node->flags & IN_ACCESS) {
-		nanotime(&file_node->atime);
-		file_node->flags &= ~IN_ACCESS;
+	if (dnp->flags & IN_ACCESS) {
+		nanotime(&dnp->atime);
+		dnp->flags &= ~IN_ACCESS;
 	}
-	vap->va_ctime = file_node->ctime;
-	vap->va_mtime = file_node->mtime;
-	vap->va_atime = file_node->atime;
+	vap->va_ctime = dnp->ctime;
+	vap->va_mtime = dnp->mtime;
+	vap->va_atime = dnp->atime;
 	vap->va_gen = 0;
 	vap->va_flags = 0;
-	vap->va_bytes = file_node->len;		/* u_quad_t */
+	vap->va_bytes = dnp->len;		/* u_quad_t */
 	vap->va_filerev = 0; /* XXX */		/* u_quad_t */
 	vap->va_vaflags = 0; /* XXX */
 	return 0;
@@ -474,12 +474,12 @@ devfs_setattr(struct vop_setattr_args *ap)
 	int error = 0;
 	gid_t *gp;
 	int i;
-	dn_p	file_node;
+	dn_p	dnp;
 
 	if (vap->va_flags != VNOVAL)	/* XXX needs to be implemented */
 		return (EOPNOTSUPP);
 
-	if ((error = devfs_vntodn(vp,&file_node)) != 0)
+	if ((error = devfs_vntodn(vp,&dnp)) != 0)
 	{
 		printf("devfs_vntodn returned %d ",error);
 		return error;
@@ -517,14 +517,14 @@ DBPRINT(("setattr\n"));
 			return (EROFS);
 #endif
 		if (((vap->va_vaflags & VA_UTIMES_NULL) == 0) &&
-		    (cred->cr_uid != file_node->uid)  &&
+		    (cred->cr_uid != dnp->uid)  &&
 		    suser_xxx(cred, p, 0))
 			return (EPERM);
 		    if(VOP_ACCESS(vp, VWRITE, cred, p))
 			return (EACCES);
-		file_node->atime = vap->va_atime;
-		file_node->mtime = vap->va_mtime;
-		nanotime(&file_node->ctime);
+		dnp->atime = vap->va_atime;
+		dnp->mtime = vap->va_mtime;
+		nanotime(&dnp->ctime);
 		return (0);
 	}
 
@@ -532,12 +532,12 @@ DBPRINT(("setattr\n"));
 	 * Change the permissions.. must be root or owner to do this.
 	 */
 	if (vap->va_mode != (u_short)VNOVAL) {
-		if ((cred->cr_uid != file_node->uid)
+		if ((cred->cr_uid != dnp->uid)
 		 && suser_xxx(cred, p, 0))
 			return (EPERM);
 		/* set drwxwxrwx stuff */
-		file_node->mode &= ~07777;
-		file_node->mode |= vap->va_mode & 07777;
+		dnp->mode &= ~07777;
+		dnp->mode |= vap->va_mode & 07777;
 	}
 
 	/*
@@ -546,7 +546,7 @@ DBPRINT(("setattr\n"));
 	if (vap->va_uid != (uid_t)VNOVAL) {
 		if (suser_xxx(cred, p, 0))
 			return (EPERM);
-		file_node->uid = vap->va_uid;
+		dnp->uid = vap->va_uid;
 	}
 
 	/*
@@ -556,7 +556,7 @@ DBPRINT(("setattr\n"));
 	 * whether you needed suser_xxx powers or not.
 	 */
 	if (vap->va_gid != (gid_t)VNOVAL) {
-		if (cred->cr_uid == file_node->uid){
+		if (cred->cr_uid == dnp->uid){
 			gp = cred->cr_groups;
 			for (i = 0; i < cred->cr_ngroups; i++, gp++) {
 				if (vap->va_gid == *gp)
@@ -570,7 +570,7 @@ DBPRINT(("setattr\n"));
 	 	if( suser_xxx(cred, p, 0))
 			return (EPERM);
 cando:
-		file_node->gid = vap->va_gid;
+		dnp->gid = vap->va_gid;
 	}
 #if 0
 	/*
@@ -601,21 +601,22 @@ devfs_xread(struct vop_read_args *ap)
         } */
 {
 	int	error = 0;
-	dn_p	file_node;
+	dn_p	dnp;
+	struct vnode *vp = ap->a_vp;
 
 DBPRINT(("read\n"));
-	if ((error = devfs_vntodn(ap->a_vp,&file_node)) != 0)
+	if ((error = devfs_vntodn(vp,&dnp)) != 0)
 	{
 		printf("devfs_vntodn returned %d ",error);
 		return error;
 	}
 
 
-	switch (ap->a_vp->v_type) {
+	switch (vp->v_type) {
 	case VREG:
 		return(EINVAL);
 	case VDIR:
-		return VOP_READDIR(ap->a_vp,ap->a_uio,ap->a_cred,
+		return VOP_READDIR(vp,ap->a_uio,ap->a_cred,
 					NULL,NULL,NULL);
 	case VCHR:
 	case VBLK:
@@ -639,7 +640,9 @@ devfs_xwrite(struct vop_write_args *ap)
                 struct ucred *a_cred;
         } */
 {
-	switch (ap->a_vp->v_type) {
+	struct vnode *vp = ap->a_vp;
+
+	switch (vp->v_type) {
 	case VREG:
 		return(EINVAL);
 	case VDIR:
@@ -1249,20 +1252,21 @@ devfs_reclaim(struct vop_reclaim_args *ap)
 		struct vnode *a_vp;
         } */
 {
-	dn_p	file_node = NULL;
+	dn_p	dnp = NULL;
 	int	error;
+	struct vnode *vp = ap->a_vp;
 
 DBPRINT(("reclaim\n"));
-	if ((error = devfs_vntodn(ap->a_vp,&file_node)) != 0)
+	if ((error = devfs_vntodn(vp,&dnp)) != 0)
 	{
 		printf("devfs_vntodn returned %d ",error);
 		return error;
 	}
 
-	ap->a_vp->v_data = NULL;
-	if (file_node) {
-		file_node->vn = 0;
-		file_node->vn_id = 0;
+	vp->v_data = NULL;
+	if (dnp) {
+		dnp->vn = 0;
+		dnp->vn_id = 0;
 	}
 	return(0);
 }
@@ -1368,8 +1372,8 @@ devfs_open( struct vop_open_args *ap)
 		if ((dsw->d_flags & D_TYPEMASK) == D_TTY)
 			vp->v_flag |= VISTTY;
 		VOP_UNLOCK(vp, 0, p);
-		error = (*dnp->by.Cdev.cdevsw->d_open)(
-					dnp->by.Cdev.dev,
+		error = (*vp->v_rdev->si_devsw->d_open)(
+					vp->v_rdev,
 					ap->a_mode,
 					S_IFCHR,
 					p);
@@ -1396,8 +1400,8 @@ devfs_open( struct vop_open_args *ap)
 		error = vfs_mountedon(vp);
 		if (error)
 			return (error);
-		error = (*dnp->by.Bdev.bdevsw->d_open)(
-					dnp->by.Bdev.dev,
+		error = (*vp->v_rdev->si_devsw->d_open)(
+					vp->v_rdev,
 					ap->a_mode,
 					S_IFBLK,
 					p);
@@ -1421,8 +1425,8 @@ devfs_open( struct vop_open_args *ap)
 static int
 devfs_read( struct vop_read_args *ap)
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct uio *uio = ap->a_uio;
+	struct vnode *vp = ap->a_vp;
+	struct uio *uio = ap->a_uio;
  	struct proc *p = uio->uio_procp;
 	struct buf *bp;
 	daddr_t bn, nextbn;
@@ -1451,8 +1455,8 @@ devfs_read( struct vop_read_args *ap)
 
 	case VCHR:
 		VOP_UNLOCK(vp, 0, p);
-		error = (*dnp->by.Cdev.cdevsw->d_read)
-			(dnp->by.Cdev.dev, uio, ap->a_ioflag);
+		error = (*vp->v_rdev->si_devsw->d_read)
+			(vp->v_rdev, uio, ap->a_ioflag);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		break;
 
@@ -1464,20 +1468,12 @@ devfs_read( struct vop_read_args *ap)
 		 * be larger then the physical minimum.
 		 */
 
-		bsize = vp->v_rdev->si_bsize_best;
-
-	/*	dev = vp->v_rdev;*/ /* your choice..*/
-		dev = dnp->by.Bdev.dev;
-#if 1
-		if (dev != vp->v_rdev) {
-			printf("devfs: bad dev value at read\n");
-			dev = vp->v_rdev;
-		}
-#endif
+		dev = vp->v_rdev;
+		bsize = dev->si_bsize_best;
 		/*
 		 * This is a hack!
 		 */
-		if ( (ioctl = dnp->by.Bdev.bdevsw->d_ioctl) != NULL &&
+		if ( (ioctl = dev->si_devsw->d_ioctl) != NULL &&
 		    (*ioctl)(dev, DIOCGPART, (caddr_t)&dpart, FREAD, p) == 0 &&
 		    dpart.part->p_fstype == FS_BSDFFS &&
 		    dpart.part->p_frag != 0 && dpart.part->p_fsize != 0)
@@ -1532,14 +1528,14 @@ devfs_read( struct vop_read_args *ap)
 static int
 devfs_write( struct vop_write_args *ap)
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct uio *uio = ap->a_uio;
+	struct vnode *vp = ap->a_vp;
+	struct uio *uio = ap->a_uio;
 	struct proc *p = uio->uio_procp;
 	struct buf *bp;
 	daddr_t bn;
 	int bsize, blkmask;
 	struct partinfo dpart;
-	register int n, on;
+	int n, on;
 	int error = 0;
 	dn_p	dnp;
 
@@ -1558,8 +1554,8 @@ devfs_write( struct vop_write_args *ap)
 
 	case VCHR:
 		VOP_UNLOCK(vp, 0, p);
-		error = (*dnp->by.Cdev.cdevsw->d_write)
-			(dnp->by.Cdev.dev, uio, ap->a_ioflag);
+		error = (*vp->v_rdev->si_devsw->d_write)
+			(vp->v_rdev, uio, ap->a_ioflag);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		return (error);
 
@@ -1575,8 +1571,8 @@ devfs_write( struct vop_write_args *ap)
 		 */
 		bsize = vp->v_rdev->si_bsize_best;
 
-		if ((dnp->by.Bdev.bdevsw->d_ioctl != NULL)
-		&& ((*dnp->by.Bdev.bdevsw->d_ioctl)(dnp->by.Bdev.dev, DIOCGPART,
+		if ((vp->v_rdev->si_devsw->d_ioctl != NULL)
+		&& ((*vp->v_rdev->si_devsw->d_ioctl)(vp->v_rdev, DIOCGPART,
 					(caddr_t)&dpart, FREAD, p) == 0)
 		&& (dpart.part->p_fstype == FS_BSDFFS)
 		&& (dpart.part->p_frag != 0)
@@ -1628,21 +1624,22 @@ devfs_ioctl(struct vop_ioctl_args *ap)
 {
 	dn_p	dnp;
 	int	error;
+	struct vnode *vp = ap->a_vp;
 
-	if ((error = devfs_vntodn(ap->a_vp,&dnp)) != 0)
+	if ((error = devfs_vntodn(vp,&dnp)) != 0)
 		return error;
 
 
-	switch (ap->a_vp->v_type) {
+	switch (vp->v_type) {
 
 	case VCHR:
-		return ((*dnp->by.Cdev.cdevsw->d_ioctl)(dnp->by.Cdev.dev,
+		return ((*vp->v_rdev->si_devsw->d_ioctl)(vp->v_rdev,
 					ap->a_command,
 					ap->a_data,
 					ap->a_fflag,
 					ap->a_p));
 	case VBLK:
-		return ((*dnp->by.Bdev.bdevsw->d_ioctl)(dnp->by.Bdev.dev,
+		return ((*vp->v_rdev->si_devsw->d_ioctl)(vp->v_rdev,
 					ap->a_command,
 					ap->a_data,
 					ap->a_fflag,
@@ -1667,15 +1664,16 @@ devfs_poll(struct vop_poll_args *ap)
 {
 	dn_p	dnp;
 	int	error;
+	struct vnode *vp = ap->a_vp;
 
-	if ((error = devfs_vntodn(ap->a_vp,&dnp)) != 0)
+	if ((error = devfs_vntodn(vp,&dnp)) != 0)
 		return error;
 
 
-	switch (ap->a_vp->v_type) {
+	switch (vp->v_type) {
 
 	case VCHR:
-		return (*dnp->by.Cdev.cdevsw->d_poll)(dnp->by.Cdev.dev,
+		return (*vp->v_rdev->si_devsw->d_poll)(vp->v_rdev,
 					ap->a_events,
 					ap->a_p);
 	default:
@@ -1696,8 +1694,8 @@ devfs_poll(struct vop_poll_args *ap)
 static int
 devfs_fsync(struct vop_fsync_args *ap)
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct buf *bp;
+	struct vnode *vp = ap->a_vp;
+	struct buf *bp;
 	struct buf *nbp;
 	int s;
 	dn_p	dnp;
@@ -1776,23 +1774,24 @@ devfs_strategy(struct vop_strategy_args *ap)
 	struct buf *bp = ap->a_bp;
 	dn_p	dnp;
 	int	error;
+	struct vnode *vp = ap->a_vp;
 
-	if ((ap->a_vp->v_type != VCHR)
-	&&  (ap->a_vp->v_type != VBLK))
+	if ((vp->v_type != VCHR)
+	&&  (vp->v_type != VBLK))
 		panic ("devfs_strat:badvnode type");
-	if ((error = devfs_vntodn(ap->a_vp,&dnp)) != 0)
+	if ((error = devfs_vntodn(vp,&dnp)) != 0)
 		return error;
 
 
 	if (((bp->b_flags & B_READ) == 0) &&
 		(LIST_FIRST(&bp->b_dep)) != NULL && bioops.io_start)
 		(*bioops.io_start)(bp);
-	switch (ap->a_vp->v_type) {
+	switch (vp->v_type) {
 	case VCHR:
-		(*dnp->by.Cdev.cdevsw->d_strategy)(bp);
+		(*vp->v_rdev->si_devsw->d_strategy)(bp);
 		break;
 	case VBLK:
-		(*dnp->by.Bdev.bdevsw->d_strategy)(bp);
+		(*vp->v_rdev->si_devsw->d_strategy)(bp);
 		break;
 	default:
 		/* XXX set error code? */
@@ -1815,13 +1814,14 @@ devfs_freeblks(struct vop_freeblks_args *ap)
 {
 	struct cdevsw *bsw;
 	struct buf *bp;
+	struct vnode *vp = ap->a_vp;
 
-	bsw = devsw(ap->a_vp->v_rdev);
+	bsw = devsw(vp->v_rdev);
 	if ((bsw->d_flags & D_CANFREE) == 0)
 		return (0);
 	bp = geteblk(ap->a_length);
 	bp->b_flags |= B_FREEBUF;
-	bp->b_dev = ap->a_vp->v_rdev;
+	bp->b_dev = vp->v_rdev;
 	bp->b_blkno = ap->a_addr;
 	bp->b_offset = dbtob(ap->a_addr);
 	bp->b_bcount = ap->a_length;
@@ -1869,7 +1869,7 @@ devfs_bmap(struct vop_bmap_args *ap)
 static int
 devfs_close(struct vop_close_args *ap)
 {
-	register struct vnode *vp = ap->a_vp;
+	struct vnode *vp = ap->a_vp;
 	dn_p dnp;
 	struct cdevsw *devswp;
 	dev_t dev;
@@ -1882,8 +1882,8 @@ devfs_close(struct vop_close_args *ap)
 	switch (vp->v_type) {
 
 	case VCHR:
-		devswp = dnp->by.Cdev.cdevsw;
-		dev = dnp->by.Cdev.dev;
+		devswp = vp->v_rdev->si_devsw;
+		dev = vp->v_rdev;
 		mode = S_IFCHR;
 		/*
 		 * Hack: a tty device that is a controlling terminal
@@ -1906,8 +1906,8 @@ devfs_close(struct vop_close_args *ap)
 		break;
 
 	case VBLK:
-		devswp = dnp->by.Bdev.bdevsw;
-		dev = dnp->by.Bdev.dev;
+		devswp = vp->v_rdev->si_devsw;
+		dev = vp->v_rdev;
 		mode = S_IFBLK;
 		/*
 		 * On last close of a block device (that isn't mounted)
@@ -2059,7 +2059,7 @@ devfs_getpages(struct vop_getpages_args *ap)
 		crhold(bp->b_wcred);
 	bp->b_blkno = blkno;
 	bp->b_lblkno = blkno;
-	pbgetvp(ap->a_vp, bp);
+	pbgetvp(vp, bp);
 	bp->b_bcount = size;
 	bp->b_bufsize = size;
 	bp->b_resid = 0;

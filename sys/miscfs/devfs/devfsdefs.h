@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $Id: devfsdefs.h,v 1.17 1998/09/30 20:33:46 sos Exp $
+ * $Id: devfsdefs.h,v 1.18 1998/11/09 07:03:04 peter Exp $
  */
 #ifdef DEVFS_DEBUG
 #define DBPRINT(A) printf(A)
@@ -117,13 +117,8 @@ struct	devnode	/* the equivalent of an INODE */
 	dn_p	*prevsiblingp;	/* backpointer for the above */
 	union  typeinfo {
 		struct {
-			struct	cdevsw	*cdevsw;
 			dev_t	dev;
-		}Cdev;
-		struct {
-			struct	cdevsw	*bdevsw;
-			dev_t	dev;
-		}Bdev;
+		}dev;
 		struct {
 			int (***ops)(void *); /* duplicate, used in dev_add_node */
 			int	arg;
