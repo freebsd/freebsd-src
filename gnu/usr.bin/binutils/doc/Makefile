@@ -2,7 +2,7 @@
 
 .include "../Makefile.inc0"
 
-GDBDIR=	${.CURDIR}/../../../../contrib/gdb
+GDBDIR=	${.CURDIR}/../../../../contrib/gdb.291
 CONTRIBDIR= ${.CURDIR}/../../../../contrib
 
 .PATH: ${SRCDIR}/gas/doc ${SRCDIR}/ld ${SRCDIR}/bfd/doc ${GDBDIR}/gdb/doc
@@ -17,9 +17,9 @@ INFOENTRY_binutils= "* Binutils: (binutils).		The GNU Binary Utilities."
 
 MAKEINFOFLAGS+= --no-validate
 MAKEINFOFLAGS+= -I ${SRCDIR}/gas/doc -I ${SRCDIR}/ld -I ${SRCDIR}/bfd/doc
+MAKEINFOFLAGS+= -I ${SRCDIR}/binutils
 MAKEINFOFLAGS+= -I ${GDBDIR}/gdb/doc
 MAKEINFOFLAGS+= -I ${CONTRIBDIR}/libreadline/doc
-MAKEINFOFLAGS+= -I ${CONTRIBDIR}/binutils/binutils
 
 CLEANFILES= gdb-cfg.texi inc-hist.texi inc-hist.texi.orig
 
