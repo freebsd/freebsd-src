@@ -22,6 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * $OpenBSD: auth.h,v 1.15 2001/04/12 19:15:24 markus Exp $
+ * $FreeBSD$
  */
 #ifndef AUTH_H
 #define AUTH_H
@@ -95,6 +96,15 @@ int     auth_rsa_read_key(char **cpp, u_int *bitsp, BIGNUM * e, BIGNUM * n);
  * challenge; returns zero if the client gives a wrong answer.
  */
 int     auth_rsa_challenge_dialog(RSA *pk);
+
+#ifdef KRB5
+#include <krb5.h>
+int auth_krb5();  /* XXX Doplnit prototypy */
+int auth_krb5_tgt();
+int krb5_init();
+void    krb5_cleanup_proc(void *ignore);
+int auth_krb5_password(struct passwd *pw, const char *password);
+#endif /* KRB5 */
 
 #ifdef KRB4
 #include <krb.h>

@@ -13,7 +13,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: mpaux.c,v 1.14 2000/09/07 20:27:52 deraadt Exp $");
+RCSID("$OpenBSD: mpaux.c,v 1.16 2001/02/08 19:30:52 itojun Exp $");
 RCSID("$FreeBSD$");
 
 #include <openssl/bn.h>
@@ -22,16 +22,18 @@ RCSID("$FreeBSD$");
 
 #include <openssl/md5.h>
 
+#include "mpaux.h"
+
 void
-compute_session_id(unsigned char session_id[16],
-    unsigned char cookie[8],
+compute_session_id(u_char session_id[16],
+    u_char cookie[8],
     BIGNUM* host_key_n,
     BIGNUM* session_key_n)
 {
-	unsigned int host_key_bytes = BN_num_bytes(host_key_n);
-	unsigned int session_key_bytes = BN_num_bytes(session_key_n);
-	unsigned int bytes = host_key_bytes + session_key_bytes;
-	unsigned char *buf = xmalloc(bytes);
+	u_int host_key_bytes = BN_num_bytes(host_key_n);
+	u_int session_key_bytes = BN_num_bytes(session_key_n);
+	u_int bytes = host_key_bytes + session_key_bytes;
+	u_char *buf = xmalloc(bytes);
 	MD5_CTX md;
 
 	BN_bn2bin(host_key_n, buf);
