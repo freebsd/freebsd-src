@@ -86,48 +86,47 @@
 #define RCSR_OE         0x01    /* Overrun Error                          */
 #define RCSR_FE         0x02    /* Frame Error                            */
 #define RCSR_PE         0x04    /* Parity Error                           */
-#define RCSR_BREAK      0x08    /* Break detected                         */
-#define RCSR_TOUT       0x80    /* Rx Timeout                             */
-#define RCSR_SCDET      0x70    /* Special Character Detected Mask        */
+#define RCSR_Break      0x08    /* Break detected                         */
+#define RCSR_Timeout    0x80    /* Rx Timeout                             */
+#define RCSR_SCMASK     0x70    /* Special Character Detected Mask        */
 #define RCSR_SC1        0x10    /* Special Char 1 (or 1 & 3 seq matched)  */
 #define RCSR_SC2        0x20    /* Special Char 2 (or 2 & 4 seq matched)  */
 #define RCSR_SC3        0x30    /* Special Char 3                         */
 #define RCSR_SC4        0x40    /* Special Char 4                         */
 
 /* Channel Command Register */
-#define CCR_RESETCHAN   0x80    /* Reset Channel                          */
+#define CCR_ResetChan   0x80    /* Reset Channel                          */
 #define CCR_HWRESET     0x81    /* Hardware Reset (all channels)          */
 #define CCR_CORCHG1     0x42    /* Channel Option Register 1 Changed      */
 #define CCR_CORCHG2     0x44    /* Channel Option Register 2 Changed      */
 #define CCR_CORCHG3     0x48    /* Channel Option Register 3 Changed      */
-#define CCR_SSPC1       0x21    /* Send Special Character 1               */
-#define CCR_SSPC2       0x22    /* Send Special Character 2               */
-#define CCR_SSPC3       0x23    /* Send Special Character 3               */
-#define CCR_SSPC4       0x24    /* Send Special Character 4               */
-#define CCR_CHANCTL     0x10    /* Channel Control Command                */
-#define CCR_RXDIS       0x11    /* Receiver Disable                       */
-#define CCR_RXEN        0x12    /* Receiver Enable                        */
-#define CCR_TXDIS       0x14    /* Transmitter Disable                    */
-#define CCR_TXEN        0x18    /* Transmitter Enable                     */
+#define CCR_SENDSPCH1   0x21    /* Send Special Character 1               */
+#define CCR_SENDSPCH2   0x22    /* Send Special Character 2               */
+#define CCR_SENDSPCH3   0x23    /* Send Special Character 3               */
+#define CCR_SENDSPCH4   0x24    /* Send Special Character 4               */
+#define CCR_RCVRDIS     0x11    /* Receiver Disable                       */
+#define CCR_RCVREN      0x12    /* Receiver Enable                        */
+#define CCR_XMTRDIS     0x14    /* Transmitter Disable                    */
+#define CCR_XMTREN      0x18    /* Transmitter Enable                     */
 
 /* Interrupt Enable Register */
 #define IER_DSR         0x80    /* Enable interrupt on DSR change         */
 #define IER_CD          0x40    /* Enable interrupt on CD change          */
 #define IER_CTS         0x20    /* Enable interrupt on CTS change         */
-#define IER_RXD         0x10    /* Enable interrupt on Receive Data       */
-#define IER_RXSC        0x08    /* Enable interrupt on Receive Spec. Char */
-#define IER_TXRDY       0x04    /* Enable interrupt on TX FIFO empty      */
-#define IER_TXMPTY      0x02    /* Enable interrupt on TX completely empty*/
+#define IER_RxData      0x10    /* Enable interrupt on Receive Data       */
+#define IER_RxSC        0x08    /* Enable interrupt on Receive Spec. Char */
+#define IER_TxRdy       0x04    /* Enable interrupt on TX FIFO empty      */
+#define IER_TxMpty      0x02    /* Enable interrupt on TX completely empty*/
 #define IER_RET         0x01    /* Enable interrupt on RX Except. Timeout */
 
 /* Channel Option Register 1 */
 #define COR1_ODDP       0x80    /* Odd Parity                             */
-#define COR1_PARMASK    0x60    /* Parity Mode mask                       */
+#define COR1_ParMMASK   0x60    /* Parity Mode mask                       */
 #define COR1_NOPAR      0x02    /* No Parity                              */
 #define COR1_FORCEPAR   0x20    /* Force Parity                           */
 #define COR1_NORMPAR    0x40    /* Normal Parity                          */
-#define COR1_IGNORE     0x10    /* Ignore Parity on RX                    */
-#define COR1_STOPMASK   0x0C    /* Stop Bits mode mask                    */
+#define COR1_Ignore     0x10    /* Ignore Parity on RX                    */
+#define COR1_StopMASK   0x0C    /* Stop Bits mode mask                    */
 #define COR1_1SB        0x00    /* 1 Stop Bit                             */
 #define COR1_15SB       0x04    /* 1.5 Stop Bits                          */
 #define COR1_2SB        0x08    /* 2 Stop Bits                            */
@@ -139,44 +138,44 @@
 
 /* Channel Option Register 2 */
 #define COR2_IXM        0x80    /* Implied XON mode                       */
-#define COR2_TXIBE      0x40    /* Enable In-Band XON/XOFF Flow Control   */
+#define COR2_TxIBE      0x40    /* Enable In-Band XON/XOFF Flow Control   */
 #define COR2_ETC        0x20    /* Embedded Tx Commands Enable            */
 #define COR2_LLM        0x10    /* Local Loopback Mode                    */
 #define COR2_RLM        0x08    /* Remote Loopback Mode                   */
-#define COR2_RTSAO      0x04    /* RTS Automatic Output Enable            */
-#define COR2_CTSAE      0x02    /* CTS Automatic Enable                   */
-#define COR2_DSRAE      0x01    /* DSR Automatic Enable                   */
+#define COR2_RtsAO      0x04    /* RTS Automatic Output Enable            */
+#define COR2_CtsAE      0x02    /* CTS Automatic Enable                   */
+#define COR2_DsrAE      0x01    /* DSR Automatic Enable                   */
 
 /* Channel Option Register 3 */
-#define COR3_XONCH      0x80    /* XON is a double seq (1 & 3)            */
-#define COR3_XOFFCH     0x40    /* XOFF is a double seq (1 & 3)           */
+#define COR3_XonCH      0x80    /* XON is a double seq (1 & 3)            */
+#define COR3_XoffCH     0x40    /* XOFF is a double seq (1 & 3)           */
 #define COR3_FCT        0x20    /* Flow-Control Transparency Mode         */
 #define COR3_SCDE       0x10    /* Special Character Detection Enable     */
-#define COR3_RXTHMASK   0x0F    /* RX FIFO Threshold value (1-8)          */
+#define COR3_RxTHMASK   0x0F    /* RX FIFO Threshold value (1-8)          */
 
 /* Channel Control Status Register */
-#define CCSR_RXEN       0x80    /* Revceiver Enabled                      */
-#define CCSR_RXFLOFF    0x40    /* Receive Flow Off (XOFF sent)           */
-#define CCSR_RXFLON     0x20    /* Receive Flow On (XON sent)             */
-#define CCSR_TXEN       0x08    /* Transmitter Enabled                    */
-#define CCSR_TXFLOFF    0x04    /* Transmit Flow Off (got XOFF)           */
-#define CCSR_TXFLON     0x02    /* Transmit Flow On (got XON)             */
+#define CCSR_RxEn       0x80    /* Revceiver Enabled                      */
+#define CCSR_RxFloff    0x40    /* Receive Flow Off (XOFF sent)           */
+#define CCSR_RxFlon     0x20    /* Receive Flow On (XON sent)             */
+#define CCSR_TxEn       0x08    /* Transmitter Enabled                    */
+#define CCSR_TxFloff    0x04    /* Transmit Flow Off (got XOFF)           */
+#define CCSR_TxFlon     0x02    /* Transmit Flow On (got XON)             */
 
 /* Modem Change Option Register 1 */
-#define MCOR1_DSRZD     0x80    /* Detect 0->1 transition of DSR          */
-#define MCOR1_CDZD      0x40    /* Detect 0->1 transition of CD           */
-#define MCOR1_CTSZD     0x20    /* Detect 0->1 transition of CTS          */
-#define MCOR1_DTRTH     0x0F    /* Automatic DTR FC Threshold (1-8)       */
+#define MCOR1_DSRzd     0x80    /* Detect 0->1 transition of DSR          */
+#define MCOR1_CDzd      0x40    /* Detect 0->1 transition of CD           */
+#define MCOR1_CTSzd     0x20    /* Detect 0->1 transition of CTS          */
+#define MCOR1_DTRthMASK 0x0F    /* Automatic DTR FC Threshold (1-8) chars */
 
 /* Modem Change Option Register 2 */
-#define MCOR2_DSROD     0x80    /* Detect 1->0 transition of DSR          */
-#define MCOR2_CDOD      0x40    /* Detect 1->0 transition of CD           */
-#define MCOR2_CTSOD     0x20    /* Detect 1->0 transition of CTS          */
+#define MCOR2_DSRod     0x80    /* Detect 1->0 transition of DSR          */
+#define MCOR2_CDod      0x40    /* Detect 1->0 transition of CD           */
+#define MCOR2_CTSod     0x20    /* Detect 1->0 transition of CTS          */
 
 /* Modem Change Register */
-#define MCR_DSRCHG      0x80    /* DSR Changed                            */
-#define MCR_CDCHG       0x40    /* CD  Changed                            */
-#define MCR_CTSCHG      0x20    /* CTS Changed                            */
+#define MCR_DSRchg      0x80    /* DSR Changed                            */
+#define MCR_CDchg       0x40    /* CD  Changed                            */
+#define MCR_CTSchg      0x20    /* CTS Changed                            */
 
 /* Modem Signal Value Register */
 #define MSVR_DSR        0x80    /* Current state of DSR input             */
