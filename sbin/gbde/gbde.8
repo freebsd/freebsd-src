@@ -1,4 +1,4 @@
-.\" 
+.\"
 .\" Copyright (c) 2002 Poul-Henning Kamp
 .\" Copyright (c) 2002 Networks Associates Technology, Inc.
 .\" All rights reserved.
@@ -30,13 +30,13 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.\" 
+.\"
 .Dd October 19, 2002
+.Dt GBDE 8
 .Os
-.Dt gbde 8
 .Sh NAME
 .Nm gbde
-.Nd Operation and management utility for Geom Based Disk Encryption.
+.Nd operation and management utility for Geom Based Disk Encryption
 .Sh SYNOPSIS
 .Nm
 .Cm attach
@@ -69,7 +69,7 @@
 .Op Fl p Ar pass-phrase
 .Op Fl L Ar lockfile
 .Sh DESCRIPTION
-.Bf -emphasis
+.Bf -symbolic
 NOTICE:
 Please be aware that this code has not yet received much review
 and analysis by qualified cryptographers and therefore should be considered
@@ -85,16 +85,19 @@ based migrations may be called for in the future.
 .Pp
 The
 .Nm
-program is the only official operation and management interface for the
+utility is the only official operation and management interface for the
 .Xr gbde 4
-GEOM based disk encryption kernel facility.
+.Tn GEOM
+based disk encryption kernel facility.
 The interaction between the
 .Nm
-program and the kernel part is not a published interface.
+utility and the kernel part is not a published interface.
 .Pp
 The operational aspect consists of two subcommands:
-one to open and attach 
-a device to the in-kernel cryptographic gbde module,
+one to open and attach
+a device to the in-kernel cryptographic
+.Nm
+module,
 and one to close and detach a device.
 .Pp
 The management part allows initialization of the master key and lock sectors
@@ -112,7 +115,8 @@ The
 .Fl L Ar new-lockfile
 argument
 specifies the lock selector file for the key modified with the
-.Ar setkey subcommand.
+.Cm setkey
+subcommand.
 .Pp
 The
 .Fl n Ar key
@@ -122,7 +126,7 @@ A value of 1 to 4 selects the specified key, a value of 0 (the default)
 means
 .Dq "this key"
 (i.e., the key used to gain access to the device)
-and a value of -1 means
+and a value of \-1 means
 .Dq "all keys" .
 .Pp
 The
@@ -150,7 +154,7 @@ The
 argument
 can be used to specify the new pass-phrase to the
 .Cm init
-and 
+and
 .Cm setkey
 subcommands.
 If not specified, the user is prompted for the new pass-phrase on the
@@ -161,32 +165,42 @@ users who happen to run
 or similar while the command is running.
 .Sh EXAMPLES
 To initialize a device, using default parameters:
-.Dl # gbde init /dev/ad0s1f -L /etc/ad0s1f.lock
+.Pp
+.Dl "gbde init /dev/ad0s1f -L /etc/ad0s1f.lock"
 .Pp
 To attach an encrypted device:
-.Dl # gbde attach ad0s1f -l /etc/ad0s1f.lock
+.Pp
+.Dl "gbde attach ad0s1f -l /etc/ad0s1f.lock"
 .Pp
 To detach an encrypted device:
-.Dl # gbde detach ad0s1f
+.Pp
+.Dl "gbde detach ad0s1f"
 .Pp
 To initialize the second key using a detached lockfile and a trivial
 pass-phrase:
-.Dl # gbde setkey ad0s1f -n 2 -P foo -L key2.lockfile
+.Pp
+.Dl "gbde setkey ad0s1f -n 2 -P foo -L key2.lockfile"
 .Pp
 To destroy all copies of the masterkey:
-.Dl # gbde destroy ad0s1f -n -1
+.Pp
+.Dl "gbde destroy ad0s1f -n -1"
 .Sh SEE ALSO
 .Xr gbde 4 ,
-.Xr geom 4 .
+.Xr geom 4
 .Rs
-.%A Poul-Henning Kamp
+.%A "Poul-Henning Kamp"
 .%T "Making sure data is lost: Spook-strength encryption of on-disk data"
 .%R "Refereed paper, NORDU2003 conference"
 .Re
 .Sh HISTORY
-This software was developed for the FreeBSD Project by Poul-Henning Kamp
-and NAI Labs, the Security Research Division of Network Associates, Inc.
-under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+This software was developed for the
+.Fx
+Project by
+.An "Poul-Henning Kamp"
+and NAI Labs, the Security Research Division of Network Associates, Inc.\&
+under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the
 DARPA CHATS research program.
 .Sh AUTHORS
 .An "Poul-Henning Kamp" Aq phk@FreeBSD.org
