@@ -262,7 +262,6 @@ SYSCTL_INT(_vm, OID_AUTO, dmmax,
 	CTLFLAG_RD, &dmmax, 0, "Maximum size of a swap block");
 
 static void	swp_sizecheck(void);
-static void	swp_pager_sync_iodone(struct buf *bp);
 static void	swp_pager_async_iodone(struct buf *bp);
 static int	swapongeom(struct thread *, struct vnode *);
 static int	swaponvp(struct thread *, struct vnode *, u_long);
@@ -1362,7 +1361,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		 *
 		 * NOTE: b_blkno is destroyed by the call to swapdev_strategy
 		 */
-		bp->b_iodone = swp_pager_sync_iodone;
+		bp->b_iodone = bdone;
 		swp_pager_strategy(bp);
 
 		/*
@@ -1372,9 +1371,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		 * double-free.
 		 */
 		s = splbio();
-		while ((bp->b_flags & B_DONE) == 0) {
-			tsleep(bp, PVM, "swwrt", 0);
-		}
+		bwait(bp, PVM, "swwrt");
 		for (j = 0; j < n; ++j)
 			rtvals[i+j] = VM_PAGER_PEND;
 		/*
@@ -1385,22 +1382,6 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		splx(s);
 	}
 	VM_OBJECT_LOCK(object);
-}
-
-/*
- *	swap_pager_sync_iodone:
- *
- *	Completion routine for synchronous reads and writes from/to swap.
- *	We just mark the bp is complete and wake up anyone waiting on it.
- *
- *	This routine may not block.  This routine is called at splbio() or better.
- */
-static void
-swp_pager_sync_iodone(struct buf *bp)
-{
-	bp->b_flags |= B_DONE;
-	bp->b_flags &= ~B_ASYNC;
-	wakeup(bp);
 }
 
 /*
@@ -1573,8 +1554,8 @@ swp_pager_async_iodone(struct buf *bp)
 			pmap_clear_modify(m);
 			vm_page_undirty(m);
 			vm_page_io_finish(m);
-			if (!vm_page_count_severe() || !vm_page_try_to_cache(m))
-				pmap_page_protect(m, VM_PROT_READ);
+			if (vm_page_count_severe())
+				vm_page_try_to_cache(m);
 		}
 	}
 	vm_page_unlock_queues();
