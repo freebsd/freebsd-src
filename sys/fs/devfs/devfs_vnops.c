@@ -868,12 +868,11 @@ devfs_symlink(ap)
 	MALLOC(de->de_symlink, char *, i, M_DEVFS, M_WAITOK);
 	bcopy(ap->a_target, de->de_symlink, i);
 	lockmgr(&dmp->dm_lock, LK_EXCLUSIVE, 0, curthread);
+#ifdef MAC
+	mac_create_devfs_symlink(ap->a_cnp->cn_cred, dd, de);
+#endif
 	TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
 	devfs_allocv(de, ap->a_dvp->v_mount, ap->a_vpp, 0);
-#ifdef MAC
-	mac_create_vnode(ap->a_cnp->cn_cred, ap->a_dvp, *ap->a_vpp);
-	mac_update_devfsdirent(de, *ap->a_vpp);
-#endif /* MAC */
 	lockmgr(&dmp->dm_lock, LK_RELEASE, 0, curthread);
 	return (0);
 }

@@ -519,6 +519,10 @@ mac_policy_register(struct mac_policy_conf *mpc)
 			mpc->mpc_ops->mpo_create_devfs_directory =
 			    mpe->mpe_function;
 			break;
+		case MAC_CREATE_DEVFS_SYMLINK:
+			mpc->mpc_ops->mpo_create_devfs_symlink =
+			    mpe->mpe_function;
+			break;
 		case MAC_CREATE_DEVFS_VNODE:
 			mpc->mpc_ops->mpo_create_devfs_vnode =
 			    mpe->mpe_function;
@@ -2944,6 +2948,15 @@ mac_create_devfs_device(dev_t dev, struct devfs_dirent *de)
 {
 
 	MAC_PERFORM(create_devfs_device, dev, de, &de->de_label);
+}
+
+void
+mac_create_devfs_symlink(struct ucred *cred, struct devfs_dirent *dd,
+    struct devfs_dirent *de)
+{
+
+	MAC_PERFORM(create_devfs_symlink, cred, dd, &dd->de_label, de,
+	    &de->de_label);
 }
 
 static int
