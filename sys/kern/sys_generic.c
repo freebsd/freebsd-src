@@ -62,6 +62,9 @@
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/condvar.h>
+#ifdef __alpha__
+#include <sys/disklabel.h>
+#endif
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
@@ -647,6 +650,17 @@ ioctl(td, uap)
 	} else if (com&IOC_VOID) {
 		*(caddr_t *)data = uap->data;
 	}
+
+#ifdef __alpha__
+	if (com == DIOCGDINFO_ALPHAHACK)
+		com = DIOCGDINFO;
+	if (com == DIOCSDINFO_ALPHAHACK)
+		com = DIOCSDINFO;
+	if (com == DIOCWDINFO_ALPHAHACK)
+		com = DIOCWDINFO;
+	if (com == DIOCGDVIRGIN_ALPHAHACK)
+		com = DIOCGDVIRGIN;
+#endif
 
 	switch (com) {
 
