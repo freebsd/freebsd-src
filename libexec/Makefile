@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.29 1998/06/01 14:33:06 peter Exp $
+#	$Id: Makefile,v 1.30 1998/06/06 07:09:01 jb Exp $
 
 SUBDIR=	atrun bootpd comsat fingerd ftpd getNAME getty \
 	mail.local makekey mknetid revnetgroup rexecd rlogind \
@@ -8,7 +8,10 @@ SUBDIR=	atrun bootpd comsat fingerd ftpd getNAME getty \
 	xtend ypxfr
 
 .if ${MACHINE} == i386
-SUBDIR+=named-xfer rpc.rstatd rtld-aout
+SUBDIR+=named-xfer rpc.rstatd
+.if ${BINFORMAT} == aout
+rtld-aout
+.endif
 .if ${BINFORMAT} == elf
 SUBDIR+=rtld-elf
 .endif
