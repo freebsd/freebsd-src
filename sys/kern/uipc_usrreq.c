@@ -906,6 +906,7 @@ unp_disconnect(unp)
 	struct unpcb *unp;
 {
 	register struct unpcb *unp2 = unp->unp_conn;
+	struct socket *so;
 
 	UNP_LOCK_ASSERT();
 
@@ -916,7 +917,10 @@ unp_disconnect(unp)
 
 	case SOCK_DGRAM:
 		LIST_REMOVE(unp, unp_reflink);
-		unp->unp_socket->so_state &= ~SS_ISCONNECTED;
+		so = unp->unp_socket;
+		SOCK_LOCK(so);
+		so->so_state &= ~SS_ISCONNECTED;
+		SOCK_UNLOCK(so);
 		break;
 
 	case SOCK_STREAM:
