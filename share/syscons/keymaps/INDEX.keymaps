@@ -1,4 +1,4 @@
-# $Id: INDEX.keymaps,v 1.22 1998/10/16 01:49:13 yokota Exp $
+# $Id: INDEX.keymaps,v 1.23 1999/01/18 03:06:16 yokota Exp $
 #
 # database for kbdmap(8) 
 #
@@ -113,6 +113,12 @@ norwegian.iso.kbd:pt:Norueguês ISO-8859-1
 pl_PL.ISO_8859-2.kbd:en:Polish ISO-8859-2 (programmer's)
 pl_PL.ISO_8859-2.kbd:pl:Polska ISO-8859-2 (programisty)
 pl_PL.ISO_8859-2.kbd:pt:Polonês ISO-8859-2 (para programadores)
+
+pt.iso.kbd:en:Portuguese IS-8859-1
+pt.iso.kbd:pt:Português IS-8859-1
+
+pt.iso.acc.kbd:en:Portuguese IS-8859-1 (accent keys)
+pt.iso.acc.kbd:pt:Português IS-8859-1 (com acentos)
 
 ru.cp866.kbd:en:Russian Codepage 866 (alternative)
 ru.cp866.kbd:de:Russisch Codeseite 866 (alternativ)
