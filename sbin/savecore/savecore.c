@@ -428,6 +428,9 @@ err1:			syslog(LOG_WARNING, "%s: %m", path);
 				syslog(LOG_ERR, "%s: %m", ddname);
 			goto err2;
 		}
+		if (compress) {
+			nw = fwrite(buf, 1, nr, fp);
+		} else {
 		for (nw = 0; nw < nr; nw = he) {
 			/* find a contiguous block of zeroes */
 			for (hs = nw; hs < nr; hs += BLOCKSIZE) {
@@ -463,6 +466,7 @@ err1:			syslog(LOG_WARNING, "%s: %m", path);
 			if (he > hs)
 				if (fseeko(fp, he - hs, SEEK_CUR) == -1)
 					break;
+			}
 		}
 		if (nw != nr) {
 			syslog(LOG_ERR, "%s: %m", path);
