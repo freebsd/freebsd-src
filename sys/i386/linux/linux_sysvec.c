@@ -481,7 +481,7 @@ linux_sigreturn(p, args)
 
 #ifdef DEBUG
 	printf("Linux-emul(%ld): linux_sigreturn(%p)\n",
-	    (long)p->p_pid, (void *)args->scp);
+	    (long)p->p_pid, (void *)args->sfp);
 #endif
 	/*
 	 * The trampoline code hands us the sigframe.
