@@ -123,6 +123,7 @@ MAN=	aac.4 \
 	pcm.4 \
 	pcn.4 \
 	pcvt.4 \
+	polling.4 \
 	ppbus.4 \
 	ppc.4 \
 	ppi.4 \
