@@ -41,6 +41,7 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/file.h>
+#include <sys/lock.h>
 #include <sys/user.h>
 #include <sys/proc.h>
 #include <sys/time.h>
