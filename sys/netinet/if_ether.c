@@ -39,6 +39,7 @@
 #include "opt_inet.h"
 #include "opt_bdg.h"
 #include "opt_mac.h"
+#include "opt_carp.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -66,6 +67,10 @@
 
 #include <net/if_arc.h>
 #include <net/iso88025.h>
+
+#ifdef DEV_CARP
+#include <netinet/ip_carp.h>
+#endif
 
 #define SIN(s) ((struct sockaddr_in *)s)
 #define SDL(s) ((struct sockaddr_dl *)s)
@@ -545,6 +550,7 @@ in_arpinput(m)
 	struct sockaddr_dl *sdl;
 	struct sockaddr sa;
 	struct in_addr isaddr, itaddr, myaddr;
+	u_int8_t *enaddr = NULL;
 	int op, rif_len;
 	int req_len;
 
@@ -563,10 +569,18 @@ in_arpinput(m)
 	 * For a bridge, we want to check the address irrespective
 	 * of the receive interface. (This will change slightly
 	 * when we have clusters of interfaces).
+	 * If the interface does not match, but the recieving interface
+	 * is part of carp, we call carp_iamatch to see if this is a
+	 * request for the virtual host ip.
+	 * XXX: This is really ugly!
 	 */
 	LIST_FOREACH(ia, INADDR_HASH(itaddr.s_addr), ia_hash)
-		if ((do_bridge || (ia->ia_ifp == ifp)) &&
-		    itaddr.s_addr == ia->ia_addr.sin_addr.s_addr)
+		if ((do_bridge || (ia->ia_ifp == ifp)
+#ifdef DEV_CARP
+		    || (ifp->if_carp
+		    && carp_iamatch(ifp->if_carp, ia, &isaddr, &enaddr))
+#endif
+		    ) && itaddr.s_addr == ia->ia_addr.sin_addr.s_addr)
 			goto match;
 	LIST_FOREACH(ia, INADDR_HASH(isaddr.s_addr), ia_hash)
 		if ((do_bridge || (ia->ia_ifp == ifp)) &&
@@ -587,8 +601,10 @@ in_arpinput(m)
 	if (!do_bridge || (ia = TAILQ_FIRST(&in_ifaddrhead)) == NULL)
 		goto drop;
 match:
+	if (!enaddr)
+		enaddr = (u_int8_t *)IF_LLADDR(ifp);
 	myaddr = ia->ia_addr.sin_addr;
-	if (!bcmp(ar_sha(ah), IF_LLADDR(ifp), ifp->if_addrlen))
+	if (!bcmp(ar_sha(ah), enaddr, ifp->if_addrlen))
 		goto drop;	/* it's from me, ignore it. */
 	if (!bcmp(ar_sha(ah), ifp->if_broadcastaddr, ifp->if_addrlen)) {
 		log(LOG_ERR,
@@ -711,7 +727,7 @@ reply:
 	if (itaddr.s_addr == myaddr.s_addr) {
 		/* I am the target */
 		(void)memcpy(ar_tha(ah), ar_sha(ah), ah->ar_hln);
-		(void)memcpy(ar_sha(ah), IF_LLADDR(ifp), ah->ar_hln);
+		(void)memcpy(ar_sha(ah), enaddr, ah->ar_hln);
 	} else {
 		la = arplookup(itaddr.s_addr, 0, SIN_PROXY);
 		if (la == NULL) {
@@ -738,7 +754,7 @@ reply:
 				goto drop;
 			}
 			(void)memcpy(ar_tha(ah), ar_sha(ah), ah->ar_hln);
-			(void)memcpy(ar_sha(ah), IF_LLADDR(ifp), ah->ar_hln);
+			(void)memcpy(ar_sha(ah), enaddr, ah->ar_hln);
 			rtfree(rt);
 
 			/*
@@ -876,6 +892,19 @@ arp_ifinit(ifp, ifa)
 	if (ntohl(IA_SIN(ifa)->sin_addr.s_addr) != INADDR_ANY)
 		arprequest(ifp, &IA_SIN(ifa)->sin_addr,
 				&IA_SIN(ifa)->sin_addr, IF_LLADDR(ifp));
+	ifa->ifa_rtrequest = arp_rtrequest;
+	ifa->ifa_flags |= RTF_CLONING;
+}
+
+void
+arp_ifinit2(ifp, ifa, enaddr)
+	struct ifnet *ifp;
+	struct ifaddr *ifa;
+	u_char *enaddr;
+{
+	if (ntohl(IA_SIN(ifa)->sin_addr.s_addr) != INADDR_ANY)
+		arprequest(ifp, &IA_SIN(ifa)->sin_addr,
+				&IA_SIN(ifa)->sin_addr, enaddr);
 	ifa->ifa_rtrequest = arp_rtrequest;
 	ifa->ifa_flags |= RTF_CLONING;
 }

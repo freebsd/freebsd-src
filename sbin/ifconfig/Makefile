@@ -23,6 +23,9 @@ SRCS+=	ifmedia.c		# SIOC[GS]IFMEDIA support
 SRCS+=	ifvlan.c		# SIOC[GS]ETVLAN support
 SRCS+=	ifieee80211.c		# SIOC[GS]IEEE80211 support
 
+SRCS+=	ifcarp.c		# SIOC[GS]VH support
+SRCS+=	ifpfsync.c		# pfsync(4) support
+
 .if !defined(RELEASE_CRUNCH)
 SRCS+=	af_ipx.c		# IPX support
 DPADD=	${LIBIPX}
