@@ -371,27 +371,6 @@ vm_page_unhold(vm_page_t mem)
 }
 
 /*
- *	vm_page_protect:
- *
- *	Reduce the protection of a page.  This routine never raises the
- *	protection and therefore can be safely called if the page is already
- *	at VM_PROT_NONE (it will be a NOP effectively ).
- */
-void
-vm_page_protect(vm_page_t mem, int prot)
-{
-	if (prot == VM_PROT_NONE) {
-		if (pmap_page_is_mapped(mem) || (mem->flags & PG_WRITEABLE)) {
-			pmap_remove_all(mem);
-			vm_page_flag_clear(mem, PG_WRITEABLE);
-		}
-	} else if ((prot == VM_PROT_READ) && (mem->flags & PG_WRITEABLE)) {
-		pmap_page_protect(mem, VM_PROT_READ);
-		vm_page_flag_clear(mem, PG_WRITEABLE);
-	}
-}
-
-/*
  *	vm_page_copy:
  *
  *	Copy one page to another
@@ -1822,7 +1801,7 @@ vm_page_cowsetup(vm_page_t m)
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	m->cow++;
-	vm_page_protect(m, VM_PROT_READ);
+	pmap_page_protect(m, VM_PROT_READ);
 }
 
 #include "opt_ddb.h"
