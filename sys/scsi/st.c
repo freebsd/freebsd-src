@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.35 1995/05/03 18:09:19 dufault Exp $
+ * $Id: st.c,v 1.36 1995/05/30 08:13:54 rgrimes Exp $
  */
 
 /*
@@ -278,6 +278,7 @@ struct scsi_device st_switch =
 #define	ST_BLANK_READ	0x800	/* BLANK CHECK encountered already */
 #define	ST_2FM_AT_EOD	0x1000	/* write 2 file marks at EOD */
 #define	ST_MOUNTED	0x2000	/* Device is presently mounted */
+#define	ST_SENSE_READ	0x4000	/* mode sense read from drive */
 
 #define	ST_PER_ACTION	(ST_AT_FILEMARK | ST_EIO_PENDING | ST_BLANK_READ)
 #define	ST_PER_MOUNT	(ST_INFO_VALID | ST_BLOCK_SET | ST_WRITTEN | \
@@ -724,7 +725,7 @@ st_mount_tape(dev, flags)
 	scsi_prevent(sc_link, PR_PREVENT, 0);	/* who cares if it fails? */
 	st->flags &= ~ST_NEW_MOUNT;
 	st->flags |= ST_MOUNTED;
-	sc_link->flags |= SDEV_MEDIA_LOADED;	/* move earlier? */
+	sc_link->flags |= SDEV_MEDIA_LOADED;
 
 	return 0;
 }
@@ -1017,7 +1018,7 @@ ststart(unit, flags)
 		st->buf_queue = bp->b_actf;
 
 		/*
-		 * if the device has been unmounted byt the user
+		 * if the device has been unmounted by the user
 		 * then throw away all requests until done
 		 */
 		if ((!(st->flags & ST_MOUNTED))
@@ -1427,6 +1428,7 @@ st_mode_sense(unit, flags, page, pagelen, pagecode)
 	struct scsi_link *sc_link = SCSI_LINK(&st_switch, unit);
 	struct scsi_data *st = sc_link->sd;
 
+	st->flags &= ~ST_SENSE_READ;
 	/*
 	 * Check if we need to use a default page..
 	 */
@@ -1481,7 +1483,7 @@ st_mode_sense(unit, flags, page, pagelen, pagecode)
 	if (page) {
 		bcopy(&dat.page, page, pagelen);
 	}
-	sc_link->flags |= SDEV_MEDIA_LOADED;
+	st->flags |= ST_SENSE_READ;
 	return 0;
 }
 
@@ -1938,7 +1940,7 @@ st_interpret_sense(xs)
 			 	 * information.
 			 	 */
 				if ((st->quirks & ST_Q_SNS_HLP) &&
-			    	!(sc_link->flags & SDEV_MEDIA_LOADED)) {
+				    !(st->flags & ST_SENSE_READ)) {
 					st->blksiz -= 512;
 				}
 			}
@@ -1994,7 +1996,7 @@ st_interpret_sense(xs)
 		 * MODE SENSE information.
 		 */
 		if ((st->quirks & ST_Q_SNS_HLP) &&
-		    !(sc_link->flags & SDEV_MEDIA_LOADED)) {
+		    !(st->flags & ST_SENSE_READ)) {
 			/* still starting */
 			st->blksiz -= 512;
 		} else if (!(st->flags & (ST_2FM_AT_EOD | ST_BLANK_READ))) {
