@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)print.c	8.6 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: print.c,v 1.29 1998/06/28 18:19:13 bde Exp $";
+	"$Id: print.c,v 1.30 1998/06/28 18:26:18 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -429,7 +429,8 @@ rssize(k, ve)
 
 	v = ve->var;
 	/* XXX don't have info about shared */
-	(void)printf("%*d", v->width, pgtok(KI_EPROC(k)->e_vm.vm_rssize));
+	(void)printf("%*lu", v->width,
+	    (u_long)pgtok(KI_EPROC(k)->e_vm.vm_rssize));
 }
 
 void
