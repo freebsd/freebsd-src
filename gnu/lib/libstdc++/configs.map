@@ -1,0 +1,10 @@
+# $FreeBSD$
+io/basic_file_stdio.h				bits/basic_file.h
+io/c_io_stdio.h					bits/c++io.h
+locale/generic/c_locale.h			bits/c++locale.h
+locale/generic/codecvt_specializations.h	bits/codecvt_specializations.h
+locale/generic/messages_members.h		bits/messages_members.h
+os/bsd/freebsd/bits/ctype_base.h		bits/ctype_base.h
+os/bsd/freebsd/bits/ctype_inline.h		bits/ctype_inline.h
+os/bsd/freebsd/bits/ctype_noninline.h		bits/ctype_noninline.h
+os/bsd/freebsd/bits/os_defines.h		bits/os_defines.h
