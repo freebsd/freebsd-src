@@ -125,6 +125,8 @@ dev/ar/if_ar_pci.c		optional	ar pci
 dev/arl/if_arl.c		optional	arl
 dev/arl/if_arl_isa.c		optional	arl isa
 dev/cm/if_cm_isa.c		optional	cm isa
+dev/cp/cpddk.c			optional	cp
+dev/cp/if_cp.c			optional	cp
 dev/ctau/ctau.c			optional	ctau
 dev/ctau/ctddk.c		optional	ctau
 dev/ctau/if_ct.c		optional	ctau
