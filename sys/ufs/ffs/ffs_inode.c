@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $Id: ffs_inode.c,v 1.36 1998/03/08 09:58:55 julian Exp $
+ * $Id: ffs_inode.c,v 1.37 1998/03/16 01:55:43 dyson Exp $
  */
 
 #include "opt_quota.h"
@@ -314,9 +314,8 @@ ffs_truncate(vp, length, flags, cred, p)
 	for (i = NDADDR - 1; i > lastblock; i--)
 		oip->i_db[i] = 0;
 	oip->i_flag |= IN_CHANGE | IN_UPDATE;
-	error = UFS_UPDATE(ovp, &tv, &tv, ((length > 0) ? 0 : 1));
-	if (error)
-		allerror = error;
+	allerror = UFS_UPDATE(ovp, &tv, &tv, ((length > 0) ? 0 : 1));
+	
 	/*
 	 * Having written the new inode to disk, save its new configuration
 	 * and put back the old block pointers long enough to process them.
@@ -326,7 +325,10 @@ ffs_truncate(vp, length, flags, cred, p)
 	bcopy((caddr_t)&oip->i_db[0], (caddr_t)newblks, sizeof newblks);
 	bcopy((caddr_t)oldblks, (caddr_t)&oip->i_db[0], sizeof oldblks);
 	oip->i_size = osize;
-	allerror = vtruncbuf(ovp, cred, p, length, fs->fs_bsize);
+
+	error = vtruncbuf(ovp, cred, p, length, fs->fs_bsize);
+	if (error && (allerror == 0))
+		allerror = error;
 
 	/*
 	 * Indirect blocks first.
@@ -414,6 +416,7 @@ done:
 	 */
 	oip->i_size = length;
 	oip->i_blocks -= blocksreleased;
+
 	if (oip->i_blocks < 0)			/* sanity */
 		oip->i_blocks = 0;
 	oip->i_flag |= IN_CHANGE;

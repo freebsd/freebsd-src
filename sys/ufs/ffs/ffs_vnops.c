@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.43 1998/02/26 06:39:38 msmith Exp $
+ * $Id: ffs_vnops.c,v 1.44 1998/03/08 09:59:10 julian Exp $
  */
 
 #include <sys/param.h>
@@ -166,9 +166,6 @@ loop2:
 		 */
 		if (((bp->b_vp != vp) || (ap->a_waitfor == MNT_WAIT)) ||
 		    ((vp->v_type != VREG) && (vp->v_type != VBLK))) {
-			bremfree(bp);
-			bp->b_flags |= B_BUSY;
-			splx(s);
 
 			/*
 			 * Wait for I/O associated with indirect blocks to
@@ -177,12 +174,18 @@ loop2:
 			 */
 			if ((bp->b_vp == vp) || (ap->a_waitfor != MNT_WAIT)) {
 				if (bp->b_flags & B_CLUSTEROK) {
-					bdwrite(bp);
 					(void) vfs_bio_awrite(bp);
+					splx(s);
 				} else {
+					bremfree(bp);
+					bp->b_flags |= B_BUSY;
+					splx(s);
 					(void) bawrite(bp);
 				}
 			} else {
+				bremfree(bp);
+				bp->b_flags |= B_BUSY;
+				splx(s);
 				(void) bwrite(bp);
 			}
 		} else if ((vp->v_type == VREG) && (bp->b_lblkno >= lbn)) {
@@ -214,7 +217,7 @@ loop2:
 		s = splbio();
 		while (vp->v_numoutput) {
 			vp->v_flag |= VBWAIT;
-			(void) tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, "ffsfsn", 0);
+			(void) tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 4, "ffsfsn", 0);
 		}
 		/* 
 		 * Ensure that any filesystem metatdata associated
