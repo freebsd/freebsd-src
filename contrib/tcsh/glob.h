@@ -1,6 +1,8 @@
+/*	$NetBSD: glob.h,v 1.13 2001/03/16 21:02:42 christos Exp $	*/
+
 /*
- * Copyright (c) 1989 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1989, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * Guido van Rossum.
@@ -33,39 +35,61 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)glob.h	5.6 (Berkeley) 4/3/91
+ *	@(#)glob.h	8.1 (Berkeley) 6/2/93
  */
 
 #ifndef _GLOB_H_
 #define	_GLOB_H_
 
 typedef struct {
-	int gl_pathc;		/* count of total paths so far */
-	int gl_matchc;		/* count of paths matching pattern */
-	int gl_offs;		/* reserved at beginning of gl_pathv */
-	int gl_flags;		/* copy of flags parameter to glob() */
-				/* copy of errfunc parameter to glob() */
+	int gl_pathc;		/* Count of total paths so far. */
+	int gl_matchc;		/* Count of paths matching pattern. */
+	int gl_offs;		/* Reserved at beginning of gl_pathv. */
+	int gl_flags;		/* Copy of flags parameter to glob. */
+	char **gl_pathv;	/* List of paths matching pattern. */
+				/* Copy of errfunc parameter to glob. */
 	int (*gl_errfunc) __P((const char *, int));
-	char **gl_pathv;	/* list of paths matching pattern */
+
+	/*
+	 * Alternate filesystem access methods for glob; replacement
+	 * versions of closedir(3), readdir(3), opendir(3), stat(2)
+	 * and lstat(2).
+	 */
+	void (*gl_closedir) __P((void *));
+	struct dirent *(*gl_readdir) __P((void *));	
+	void *(*gl_opendir) __P((const char *));
+	int (*gl_lstat) __P((const char *, struct stat *));
+	int (*gl_stat) __P((const char *, struct stat *));
 } glob_t;
 
-#define	GLOB_APPEND	0x001	/* append to output from previous call */
-#define	GLOB_DOOFFS	0x002	/* use gl_offs */
-#define	GLOB_ERR	0x004	/* return on error */
-#define	GLOB_MAGCHAR	0x008	/* pattern had globbing characters */
-#define	GLOB_MARK	0x010	/* append / to matching directories */
-#define	GLOB_NOCHECK	0x020	/* return pattern itself if nothing matches */
-#define	GLOB_NOSORT	0x040	/* don't sort */
-#define	GLOB_QUOTE	0x080	/* quote special chars with \ */
-#define GLOB_NOMAGIC	0x100	/* like GLOB_NOCHECK but only if the pattern
-				 * did not have any magic characters */
-#define	GLOB_ALTNOT	0x200	/* use alternate glob character [^ not !] */
+#define	GLOB_APPEND	0x0001	/* Append to output from previous call. */
+#define	GLOB_DOOFFS	0x0002	/* Use gl_offs. */
+#define	GLOB_ERR	0x0004	/* Return on error. */
+#define	GLOB_MARK	0x0008	/* Append / to matching directories. */
+#define	GLOB_NOCHECK	0x0010	/* Return pattern itself if nothing matches. */
+#define	GLOB_NOSORT	0x0020	/* Don't sort. */
+#define	GLOB_NOESCAPE	0x1000	/* Disable backslash escaping. */
 
-#define	GLOB_NOSPACE	(-1)	/* malloc call failed */
-#define	GLOB_ABEND	(-2)	/* unignored error */
+#define	GLOB_NOSPACE	(-1)	/* Malloc call failed. */
+#define	GLOB_ABORTED	(-2)	/* Unignored error. */
+#define	GLOB_NOMATCH	(-3)	/* No match, and GLOB_NOCHECK was not set. */
+#define	GLOB_NOSYS	(-4)	/* Implementation does not support function. */
 
-int glob __P((const char *, int, int (*)(const char *, int), glob_t *));
-void globfree __P((glob_t *));
-int globcharcoll __P((int, int));
+#if !defined(_POSIX_C_SOURCE) && !defined(_XOPEN_SOURCE)
+#define	GLOB_ALTDIRFUNC	0x0040	/* Use alternately specified directory funcs. */
+#define	GLOB_BRACE	0x0080	/* Expand braces ala csh. */
+#define	GLOB_MAGCHAR	0x0100	/* Pattern had globbing characters. */
+#define	GLOB_NOMAGIC	0x0200	/* GLOB_NOCHECK without magic chars (csh). */
+#define	GLOB_LIMIT	0x0400	/* Limit memory used by matches to ARG_MAX */
+#define	GLOB_TILDE	0x0800	/* Expand tilde names from the passwd file. */
+#define	GLOB_ALTNOT     0x1000	/* use alternate glob character [^ not !] */ 
+#define	GLOB_QUOTE	0x2000	/* XXX: source compatibility */
+
+#define	GLOB_ABEND	GLOB_ABORTED	/* source compatibility */
+#endif
+
+int	glob __P((const char *, int, int (*)(const char *, int), glob_t *));
+void	globfree __P((glob_t *));
+int	globcharcoll __P((int, int));
 
 #endif /* !_GLOB_H_ */

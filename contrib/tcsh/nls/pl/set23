@@ -1,0 +1,34 @@
+$ $Id: set23,v 1.3 1996/04/26 20:32:00 christos Exp $
+$ tc.os.c
+$set 23 
+1 Bad cpu/site name
+2 Site path too long
+3 nieznany
+4 site: %s\n
+5 %d: Nie znaleziono komputera\n
+6 setlocal: %s: %s\n
+7 Komputer nie zosta³ znaleziony
+8 You're trapped in a universe you never made
+9 Getwarp failed
+10 Invalid warp
+11 Setwarp failed
+12 Illegal universe
+13 Nieznany b³±d: %d
+14 sysname:  %s\n
+15 nodename: %s\n
+16 release:  %s\n
+17 version:  %s\n
+18 machine:  %s\n
+19 getwd: Nie mogê otworzyæ ".." (%s)
+20 getwd: Nie mogê przej¶æ do ".." (%s)
+21 getwd: B³±d odczytu w ".." (%s)
+22 getwd: Nie mogê przej¶æ do "." (%s)
+23 getwd: Cannot stat "/" (%s)
+24 getwd: Cannot stat "." (%s)
+25 getwd: Cannot stat directory "%s" (%s)
+26 getwd: Cannot open directory "%s" (%s)
+27 getwd: Cannot find "." in ".." (%s)
+28 Nieprawid³owy typ systemu
+29 Typ systemu nie zosta³ ustawiony
+30 Zbyt du¿o argumentów
+31 Nieprawid³owy argument
