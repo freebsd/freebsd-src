@@ -1,5 +1,5 @@
 # Makefile for libdialog
-# $Id: Makefile,v 1.18 1996/08/13 12:46:10 jkh Exp $
+# $Id: Makefile,v 1.19 1996/08/30 02:06:46 peter Exp $
 
 LIB=    dialog
 MAN3=	dialog.3
@@ -8,7 +8,7 @@ SHLIB_MAJOR= 3
 SHLIB_MINOR= 0
 SRCS=   kernel.c rc.c checklist.c inputbox.c menubox.c msgbox.c \
 	lineedit.c radiolist.c textbox.c yesno.c prgbox.c raw_popen.c \
-	fselect.c ui_objects.c dir.c notify.c help.c gauge.c
+	fselect.c ui_objects.c dir.c notify.c help.c gauge.c tree.c
 
 CFLAGS+= -I${.CURDIR} -Wall -Wstrict-prototypes -DLOCALE
 
@@ -32,6 +32,7 @@ MLINKS+=dialog.3 draw_shadow.3 dialog.3 draw_box.3 \
 	dialog.3 init_dialog.3 dialog.3 end_dialog.3 \
 	dialog.3 use_helpfile.3 dialog.3 use_helpline.3 \
 	dialog.3 get_helpline.3 dialog.3 restore_helpline.3 \
-	dialog.3 dialog_msgbox.3
+	dialog.3 dialog_msgbox.3 dialog.3 dialog_ftree.3 \
+	dialog.3 dialog_tree.3
 
 .include <bsd.lib.mk>
