@@ -1,11 +1,9 @@
-#
 # $FreeBSD$
-#
 
-.if	${TARGET_ARCH} == "alpha"
-HOST=		alpha-unknown-freebsd
-CFLAGS+=	-DDEFAULT_EMULATION=\"elf64alpha\"
-CFLAGS+=	-DTARGET=\"alpha-unknown-freebsd\"
+.if ${TARGET_ARCH} == "alpha"
+HOST=	alpha-unknown-freebsd
+CFLAGS+= -DDEFAULT_EMULATION=\"elf64alpha\"
+CFLAGS+= -DTARGET=\"alpha-unknown-freebsd\"
 _alpha_path=	\"/usr/lib\"
 .else
 _alpha_path=	\"/usr/cross/alpha-freebsd/usr/lib\"
@@ -14,7 +12,7 @@ EMS+=		ld_elf64alpha_emulation
 LDSCRIPTS+=	elf64alpha.x elf64alpha.xbn elf64alpha.xn elf64alpha.xr \
 		elf64alpha.xs elf64alpha.xu alpha.x alpha.xbn \
 		alpha.xn alpha.xr alpha.xu
-SRCS+=		eelf64alpha.c ealpha.c
+SRCS+=	eelf64alpha.c ealpha.c
 CLEANFILES+=	eelf64alpha.c ealpha.c
 
 eelf64alpha.c:	emulparams/elf64alpha.sh emultempl/elf32.em \
@@ -23,8 +21,8 @@ eelf64alpha.c:	emulparams/elf64alpha.sh emultempl/elf32.em \
 	    ${HOST} alpha-unknown-freebsd alpha-unknown-freebsd \
 	    elf64alpha ""  elf64alpha alpha-unknown-freebsd
 
-ealpha.c:	emulparams/elf64alpha.sh emultempl/elf32.em \
-		scripttempl/elf.sc genscripts.sh stringify.sed
+ealpha.c: emulparams/elf64alpha.sh emultempl/elf32.em scripttempl/elf.sc \
+    genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_alpha_path} \
 	    ${HOST} alpha-unknown-freebsd alpha-unknown-freebsd \
 	    elf64alpha ""  alpha alpha-unknown-freebsd
