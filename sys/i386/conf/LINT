@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.521 1998/12/27 21:46:55 phk Exp $
+#	$Id: LINT,v 1.522 1998/12/27 23:23:18 msmith Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1547,54 +1547,54 @@ controller pcf0	at isa? port 0x320 net irq 5
 #
 # Teles S0/8 or Niccy 1008
 options "TEL_S0_8"
-#device	isic0 at isa? iomem 0xd0000 net irq 5 flags 1 vector isicintr 
+#device	isic0 at isa? iomem 0xd0000 net irq 5 flags 1
 #
 # Teles S0/16 or Creatix ISDN-S0 or Niccy 1016
 options "TEL_S0_16"
-#device	isic0 at isa? port 0xd80 iomem 0xd0000 net irq 5 flags 2 vector isicintr
+#device	isic0 at isa? port 0xd80 iomem 0xd0000 net irq 5 flags 2
 #
 # Teles S0/16.3 
 options "TEL_S0_16_3"
-#device	isic0 at isa? port 0xd80 net irq 5 flags 3 vector isicintr
+#device	isic0 at isa? port 0xd80 net irq 5 flags 3
 #
 # AVM A1 or AVM Fritz!Card
 options "AVM_A1"
-#device	isic0 at isa? port 0x340 net irq 5 flags 4 vector isicintr
+#device	isic0 at isa? port 0x340 net irq 5 flags 4
 #
 # USRobotics Sportster ISDN TA intern
 options "USR_STI"
-#device isic0 at isa? port 0x268 net irq 5 flags 7 vector isicintr
+#device isic0 at isa? port 0x268 net irq 5 flags 7
 #
 # ITK ix1 Micro
 options "ITKIX1"
-#device isic0 at isa? port 0x398 net irq 10 flags 18 vector isicintr
+#device isic0 at isa? port 0x398 net irq 10 flags 18
 #
 # PnP-Cards:
 # ----------
 #
 # Teles S0/16.3 PnP
 options "TEL_S0_16_3_P"
-#device	isic0 at isa? port ? net irq ? vector isicintr
+#device	isic0 at isa? port ? net irq ?
 #
 # Creatix ISDN-S0 P&P
 options "CRTX_S0_P"
-#device	isic0 at isa? port ? net irq ? vector isicintr
+#device	isic0 at isa? port ? net irq ?
 #
 # Dr. Neuhaus Niccy Go@
 options "DRN_NGO"
-#device	isic0 at isa? port ? net irq ? vector isicintr 
+#device	isic0 at isa? port ? net irq ?
 #
 # Sedlbauer Win Speed
 options "SEDLBAUER"
-#device	isic0 at isa? port ? net irq ? vector isicintr 
+#device	isic0 at isa? port ? net irq ?
 #
 # Dynalink IS64PH
 options "DYNALINK"
-#device	isic0 at isa? port ? net irq ? vector isicintr 
+#device	isic0 at isa? port ? net irq ?
 #
 # ELSA QuickStep 1000pro ISA
 options "ELSA_QS1ISA"
-#device	isic0 at isa? port ? net irq ? vector isicintr 
+#device	isic0 at isa? port ? net irq ?
 #
 # PCI-Cards:
 # ----------
@@ -1608,13 +1608,13 @@ options "ELSA_QS1PCI"
 #
 # AVM PCMCIA Fritz!Card
 options "AVM_A1_PCMCIA"
-device	isic0 at isa? port 0x340 net irq 5 flags 10 vector isicintr
+device	isic0 at isa? port 0x340 net irq 5 flags 10
 #
 # Active Cards:
 # -------------
 #
 # Stollmann Tina-dd control device
-device tina0 at isa? port 0x260 net irq 10 vector tinaintr
+device tina0 at isa? port 0x260 net irq 10
 #
 # ISDN Protocol Stack
 # -------------------
