@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.10 1995/04/11 01:22:24 rgrimes Exp $
+#	$Id: sysconfig,v 1.11 1995/04/24 23:52:16 rgrimes Exp $
 
 ######################### Start Of Syscons Section #######################
 
@@ -63,6 +63,14 @@ hostname=myname.my.domain
 # Set to the NIS domainname of your host, or NO if none
 defaultdomainname=NO
 
+#
+# Some broken implementations can't handle the RFC 1323 and RFC 1644
+# TCP options.  If TCP connections randomly hang, try disabling this,
+# and bug the vendor of the losing equipment.
+#
+tcp_extensions=YES
+
+# XXX This is known to cause an error if /usr is nfs mounted since it
 # Set to the list of network devices on this host.  You must have an
 # ifconfig_${network_interface} line for each interface listed here.
 # for example:
