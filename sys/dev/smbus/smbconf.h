@@ -23,14 +23,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smbconf.h,v 1.1.1.1 1998/09/03 20:52:54 nsouch Exp $
+ *	$Id: smbconf.h,v 1.2 1998/10/31 11:39:54 nsouch Exp $
  */
 #ifndef __SMBONF_H
 #define __SMBONF_H
 
 #include <sys/queue.h>
 
-#define SMBPRI PZERO+8			/* XXX sleep/wakeup queue priority */
+#define SMBPRI (PZERO+8)		/* XXX sleep/wakeup queue priority */
 
 #define n(flags) (~(flags) & (flags))
 
