@@ -114,8 +114,8 @@ __FBSDID("$FreeBSD$");
 struct if_info {
 	struct	if_info *ii_next;
 	int	ii_fd;		/* BPF file descriptor */
-	u_long	ii_ipaddr;	/* IP address of this interface */
-	u_long	ii_netmask;	/* subnet or net mask */
+	in_addr_t	ii_ipaddr;	/* IP address of this interface */
+	in_addr_t	ii_netmask;	/* subnet or net mask */
 	u_char	ii_eaddr[6];	/* Ethernet address of this interface */
 	char ii_ifname[sizeof(((struct ifreq *)0)->ifr_name) + 1];
 };
@@ -136,22 +136,22 @@ int sflag;			/* ignore /tftpboot */
 static	u_char zero[6];
 
 static int	bpf_open(void);
-static u_long	choose_ipaddr(u_long **, u_long, u_long);
+static in_addr_t	choose_ipaddr(in_addr_t **, in_addr_t, in_addr_t);
 static char	*eatoa(u_char *);
 static int	expand_syslog_m(const char *fmt, char **newfmt);
 static void	init(char *);
 static void	init_one(struct ifreq *, char *);
-static char	*intoa(u_long);
-static u_long	ipaddrtonetmask(u_long);
+static char	*intoa(in_addr_t);
+static in_addr_t	ipaddrtonetmask(in_addr_t);
 static void	logmsg(int, const char *, ...) __printflike(2, 3);
-static int	rarp_bootable(u_long);
+static int	rarp_bootable(in_addr_t);
 static int	rarp_check(u_char *, u_int);
 static void	rarp_loop(void);
 static int	rarp_open(char *);
 static void	rarp_process(struct if_info *, u_char *, u_int);
 static void	rarp_reply(struct if_info *, struct ether_header *,
-		u_long, u_int);
-static void	update_arptab(u_char *, u_long);
+		in_addr_t, u_int);
+static void	update_arptab(u_char *, in_addr_t);
 static void	usage(void);
 
 int
@@ -390,9 +390,9 @@ init(char *target)
 	/* Verbose stuff */
 	if (verbose)
 		for (ii = iflist; ii != NULL; ii = ii->ii_next)
-			logmsg(LOG_DEBUG, "%s %s 0x%08lx %s",
+			logmsg(LOG_DEBUG, "%s %s 0x%08x %s",
 			    ii->ii_ifname, intoa(ntohl(ii->ii_ipaddr)),
-			    (u_long)ntohl(ii->ii_netmask), eatoa(ii->ii_eaddr));
+			    (in_addr_t)ntohl(ii->ii_netmask), eatoa(ii->ii_eaddr));
 }
 
 void
@@ -625,7 +625,7 @@ rarp_loop(void)
  * configuration file.
  */
 int
-rarp_bootable(u_long addr)
+rarp_bootable(in_addr_t addr)
 {
 #ifdef HAVE_DIRENT_H
 	struct dirent *dent;
@@ -636,7 +636,7 @@ rarp_bootable(u_long addr)
 	char ipname[9];
 	static DIR *dd = NULL;
 
-	(void)sprintf(ipname, "%08lX", (u_long)ntohl(addr));
+	(void)sprintf(ipname, "%08X", (in_addr_t)ntohl(addr));
 
 	/*
 	 * If directory is already open, rewind it.  Otherwise, open it.
@@ -666,8 +666,8 @@ rarp_bootable(u_long addr)
  * is on network 'net'; 'netmask' is a mask indicating the network portion
  * of the address.
  */
-u_long
-choose_ipaddr(u_long **alist, u_long net, u_long netmask)
+in_addr_t
+choose_ipaddr(in_addr_t **alist, in_addr_t net, in_addr_t netmask)
 {
 	for (; *alist; ++alist)
 		if ((**alist & netmask) == net)
@@ -684,7 +684,7 @@ rarp_process(struct if_info *ii, u_char *pkt, u_int len)
 {
 	struct ether_header *ep;
 	struct hostent *hp;
-	u_long target_ipaddr;
+	in_addr_t target_ipaddr;
 	char ename[256];
 
 	ep = (struct ether_header *)pkt;
@@ -708,7 +708,7 @@ rarp_process(struct if_info *ii, u_char *pkt, u_int len)
 								ename);
 		return;
 	}
-	target_ipaddr = choose_ipaddr((u_long **)hp->h_addr_list,
+	target_ipaddr = choose_ipaddr((in_addr_t **)hp->h_addr_list,
 				      ii->ii_ipaddr & ii->ii_netmask,
 				      ii->ii_netmask);
 	if (target_ipaddr == 0) {
@@ -748,7 +748,7 @@ struct {
 } rtmsg;
 
 void
-update_arptab(u_char *ep, u_long ipaddr)
+update_arptab(u_char *ep, in_addr_t ipaddr)
 {
 	int cc;
 	struct sockaddr_inarp *ar, *ar2;
@@ -802,7 +802,7 @@ update_arptab(u_char *ep, u_long ipaddr)
 		 * directly connected network (the family is AF_INET in
 		 * this case).
 		 */
-		logmsg(LOG_ERR, "bogus link family (%d) wrong net for %08lX?\n",
+		logmsg(LOG_ERR, "bogus link family (%d) wrong net for %08X?\n",
 		    ll2->sdl_family, ipaddr);
 		close(r);
 		return;
@@ -845,7 +845,7 @@ update_arptab(u_char *ep, u_long ipaddr)
 }
 #else
 void
-update_arptab(u_char *ep, u_long ipaddr)
+update_arptab(u_char *ep, in_addr_t ipaddr)
 {
 	struct arpreq request;
 	struct sockaddr_in *sin;
@@ -896,7 +896,7 @@ update_arptab(u_char *ep, u_long ipaddr)
  * ARP request.
  */
 void
-rarp_reply(struct if_info *ii, struct ether_header *ep, u_long ipaddr,
+rarp_reply(struct if_info *ii, struct ether_header *ep, in_addr_t ipaddr,
 		u_int len)
 {
 	u_int n;
@@ -936,8 +936,8 @@ rarp_reply(struct if_info *ii, struct ether_header *ep, u_long ipaddr,
  * Get the netmask of an IP address.  This routine is used if
  * SIOCGIFNETMASK doesn't work.
  */
-u_long
-ipaddrtonetmask(u_long addr)
+in_addr_t
+ipaddrtonetmask(in_addr_t addr)
 {
 	addr = ntohl(addr);
 	if (IN_CLASSA(addr))
@@ -946,7 +946,7 @@ ipaddrtonetmask(u_long addr)
 		return htonl(IN_CLASSB_NET);
 	if (IN_CLASSC(addr))
 		return htonl(IN_CLASSC_NET);
-	logmsg(LOG_DEBUG, "unknown IP address class: %08lX", addr);
+	logmsg(LOG_DEBUG, "unknown IP address class: %08X", addr);
 	return htonl(0xffffffff);
 }
 
@@ -954,7 +954,7 @@ ipaddrtonetmask(u_long addr)
  * A faster replacement for inet_ntoa().
  */
 char *
-intoa(u_long addr)
+intoa(in_addr_t addr)
 {
 	char *cp;
 	u_int byte;
