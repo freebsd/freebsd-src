@@ -1567,11 +1567,13 @@ static void nge_intr(arg)
 
 		if ((status & NGE_ISR_RX_DESC_OK) ||
 		    (status & NGE_ISR_RX_ERR) ||
+		    (status & NGE_ISR_RX_OFLOW) ||
 		    (status & NGE_ISR_RX_OK))
 			nge_rxeof(sc);
-
+#ifdef notdef
 		if ((status & NGE_ISR_RX_OFLOW))
 			nge_rxeoc(sc);
+#endif
 
 		if (status & NGE_ISR_SYSERR) {
 			nge_reset(sc);
