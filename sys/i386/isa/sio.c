@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.190 1997/12/06 13:23:04 bde Exp $
+ *	$Id: sio.c,v 1.191 1997/12/16 17:40:07 eivind Exp $
  */
 
 #include "opt_comconsole.h"
@@ -2199,6 +2199,7 @@ comstart(tp)
 	}
 	enable_intr();
 	if (tp->t_state & (TS_TIMEOUT | TS_TTSTOP)) {
+		ttwwakeup(tp);
 		splx(s);
 		return;
 	}
