@@ -38,11 +38,12 @@
 .Nd pass mouse data to the console driver
 .Sh SYNOPSIS
 .Nm
-.Op Fl DPRcdfs
+.Op Fl DPRacdfs
 .Op Fl I Ar file
 .Op Fl F Ar rate
 .Op Fl r Ar resolution
 .Op Fl S Ar baudrate
+.Op Fl a Ar X Ns Op , Ns Ar Y
 .Op Fl C Ar threshold
 .Op Fl m Ar N=M
 .Op Fl w Ar N
@@ -153,6 +154,12 @@ mode.
 .It Fl S Ar baudrate
 Select the baudrate for the serial port (1200 to 9600).
 Not all serial mice support this option.
+.It Fl a Ar X Ns Op , Ns Ar Y
+Accelerate or decelerate the mouse input.
+This is a linear acceleration only.
+Values less than 1.0 slow down movement, values greater than 1.0 speed it
+up.
+Specifying only one value sets the acceleration for both axes.
 .It Fl c
 Some mice report middle button down events
 as if the left and right buttons are being pressed.
