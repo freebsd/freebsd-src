@@ -309,7 +309,7 @@ next:
 	else
 		isdup = 0;
 	tp = 0;
-	if (first == 3 && (tp = fltail_lookup(this)) != 0)
+	if (first == 3 && fl_lookup(this) == 0 && (tp = fltail_lookup(this)) != 0)
 		printf("%s: Local file %s overrides %s.\n",
 		    fname, this, tp->f_fn);
 	nreqs = 0;
