@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	6.1 (Berkeley) 3/3/91
-#	$Id$
+#	$Id: Makefile,v 1.12 1997/02/22 15:43:22 peter Exp $
 
 .include "config/Makefile.$(MACHINE)"
 
@@ -21,7 +21,7 @@ SRCS+=		app.c as.c atof-generic.c bignum-copy.c \
 		frags.c hash.c hex-value.c input-file.c input-scrub.c \
 		listing.c messages.c obstack.c output-file.c read.c subsegs.c \
 		symbols.c version.c write.c xmalloc.c xrealloc.c \
-		obj-$(gas_objformat).c
+		obj-$(gas_objformat).c ${CONF_HEADERS}
 CFLAGS+=	-I$(.CURDIR) ${ADDINCLUDE} -I$(.CURDIR)/config \
 		-DOLD_GAS -DSIGTY=void -Derror=as_fatal \
 		-DSUB_SEGMENT_ALIGN=4 -DFREEBSD_AOUT
@@ -31,8 +31,6 @@ CONF_HEADERS=	targ-cpu.h obj-format.h host.h targ-env.h
 .PATH: $(.CURDIR)/config
 
 SUBDIR+= doc
-
-beforedepend ${PROG}: ${CONF_HEADERS}
 
 targ-cpu.h: Makefile config/Makefile.$(MACHINE) $(.CURDIR)/config/tc-$(gas_target).h
 	@cmp -s $(.CURDIR)/config/tc-$(gas_target).h targ-cpu.h || \
