@@ -64,6 +64,12 @@ enum reloc_type {
 #endif /* not TC_SPARC */
 	NO_RELOC,
 
+#ifdef TC_I386
+	/* Used internally by gas */
+	RELOC_GOT,
+	RELOC_GOTOFF,
+#endif
+
 #endif /* not TC_I860 */
 #endif /* not TC_M88K */
 };

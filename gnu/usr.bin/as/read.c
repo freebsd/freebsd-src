@@ -19,7 +19,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #ifndef lint
-static char rcsid[] = "$Id: read.c,v 1.3 1993/10/02 20:57:51 pk Exp $";
+static char rcsid[] = "$Id: read.c,v 1.2 1993/11/03 00:52:11 paul Exp $";
 #endif
 
 #define MASK_CHAR (0xFF)	/* If your chars aren't 8 bits, you will
@@ -1133,6 +1133,8 @@ void s_size() {
 	register char *p;
 	register int temp;
 	register symbolS *symbolP;
+	expressionS	*exp;
+	segT		seg;
 	
 	name = input_line_pointer;
 	c = get_symbol_end();
@@ -1146,28 +1148,90 @@ void s_size() {
 		return;
 	}
 	input_line_pointer ++; /* skip ',' */
-	if ((temp = get_absolute_expression()) < 0) {
-		as_warn(".size length (%d.) <0! Ignored.", temp);
+	if ((exp = (expressionS *)malloc(sizeof(expressionS))) == NULL) {
+		as_bad("Virtual memory exhausted");
+		return;
+	}
+	switch (get_known_segmented_expression(exp)) {
+	case SEG_ABSOLUTE:
+		break;
+	case SEG_DIFFERENCE:
+		if (exp->X_add_symbol == NULL || exp->X_subtract_symbol == NULL
+			|| S_GET_SEGMENT(exp->X_add_symbol) !=
+				S_GET_SEGMENT(exp->X_subtract_symbol)) {
+			as_bad("Illegal .size expression");
+			ignore_rest_of_line();
+			return;
+		}
+		break;
+	default:
+		as_bad("Illegal .size expression");
 		ignore_rest_of_line();
 		return;
 	}
 	*p = 0;
 	symbolP = symbol_find_or_make(name);
 	*p = c;
-	if (S_IS_DEFINED(symbolP)) {
-		as_bad("Ignoring attempt to re-define symbol");
-		ignore_rest_of_line();
-		return;
-	}
-	if (symbolP->sy_size && symbolP->sy_size != temp) {
-	    as_bad("Size of .size \"%s\" is already %d. Not changed to %d.",
-		   symbolP->sy_size,
-		   temp);
+	if (symbolP->sy_sizexp) {
+		as_warn("\"%s\" already has a size", S_GET_NAME(symbolP));
 	} else
-		symbolP->sy_size = temp;
+		symbolP->sy_sizexp = (void *)exp;
 
 	demand_empty_rest_of_line();
 } /* s_size() */
+
+void s_type() {
+	register char *name, *type;
+	register char c, c1;
+	register char *p;
+	register symbolS *symbolP;
+	int	aux;
+	
+	name = input_line_pointer;
+	c = get_symbol_end();
+	/* just after name is now '\0' */
+	p = input_line_pointer;
+	*p = c;
+	SKIP_WHITESPACE();
+	if (*input_line_pointer != ',') {
+		as_bad("Expected comma after symbol-name: rest of line ignored.");
+		ignore_rest_of_line();
+		return;
+	}
+	input_line_pointer ++; /* skip ',' */
+	SKIP_WHITESPACE();
+	if (*input_line_pointer != TYPE_OPERAND_FMT) {
+		as_bad("Expected `%c' as start of operand: rest of line ignored.", TYPE_OPERAND_FMT);
+		ignore_rest_of_line();
+		return;
+	}
+	input_line_pointer ++; /* skip '@' */
+	type = input_line_pointer;
+	c1 = get_symbol_end();
+	if (strcmp(type, "function") == 0) {
+		aux = AUX_FUNC;
+	} else if (strcmp(type, "object") == 0) {
+		aux = AUX_OBJECT;
+	} else {
+		as_warn("Unrecognized .type operand: \"%s\": rest of line ignored.",
+				type);
+		ignore_rest_of_line();
+		return;
+	}
+	*input_line_pointer = c1;
+
+	*p = 0;
+	symbolP = symbol_find_or_make(name);
+	*p = c;
+
+	if (symbolP->sy_aux && symbolP->sy_aux != aux) {
+	    as_bad("Type of \"%s\" is already %d. Not changed to %d.",
+		   S_GET_NAME(symbolP), symbolP->sy_aux, aux);
+	} else
+		symbolP->sy_aux = aux;
+
+	demand_empty_rest_of_line();
+} /* s_type() */
 
 void s_space() {
 	long temp_repeat;
