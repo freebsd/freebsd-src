@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.75 1998/01/25 17:02:00 kato Exp $
+ *	$Id: cpufunc.h,v 1.76 1998/01/25 23:45:41 kato Exp $
  */
 
 /*
@@ -219,13 +219,20 @@ invd(void)
 void	invlpg		__P((u_int addr));
 void	invltlb		__P((void));
 
+static __inline void
+cpu_invlpg(void *addr)
+{
+	__asm   __volatile("invlpg %0"::"m"(*(char *)addr):"memory");
+}
+
 #else  /* !SMP */
 
 static __inline void
-invlpg(u_int addr)
+invlpg(void *addr)
 {
-	__asm __volatile("invlpg (%0)" : : "r" (addr) : "memory");
+	__asm   __volatile("invlpg %0"::"m"(*(char *)addr):"memory");
 }
+
 
 static __inline void
 invltlb(void)
@@ -432,5 +439,6 @@ void	ltr		__P((u_short sel));
 u_int	rcr0		__P((void));
 u_long	rcr3		__P((void));
 u_long	rcr4		__P((void));
+void	i686_pagezero	__P((void *addr));
 
 #endif /* !_MACHINE_CPUFUNC_H_ */
