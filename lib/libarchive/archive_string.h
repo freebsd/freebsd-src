@@ -67,6 +67,7 @@ __archive_strappend_char_UTF8(struct archive_string *, int);
 /* Append an integer in the specified base (2 <= base <= 16). */
 struct archive_string *
 __archive_strappend_int(struct archive_string *as, int d, int base);
+#define	archive_strappend_int __archive_strappend_int
 
 /* Basic append operation. */
 struct archive_string *
