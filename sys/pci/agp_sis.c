@@ -109,9 +109,6 @@ agp_sis_match(device_t dev)
 		return NULL;
 	};
 
-	if (pci_get_vendor(dev) == 0x1039)
-		return ("SIS Generic host to PCI bridge");
-
 	return NULL;
 }
 
