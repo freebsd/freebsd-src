@@ -369,13 +369,14 @@ child_process(e, u)
 
 	/*local*/{
 		register FILE	*in = fdopen(stdout_pipe[READ_PIPE], "r");
-		register int	ch = getc(in);
+		register int	ch;
 
 		if (in == NULL) {
 			warn("fdopen failed in child");
 			_exit(ERROR_EXIT);
 		}
 
+		ch = getc(in);
 		if (ch != EOF) {
 			register FILE	*mail;
 			register int	bytes = 1;
