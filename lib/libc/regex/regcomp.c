@@ -1958,7 +1958,7 @@ struct re_guts *g;
 	 * is the first one that would be matched).
 	 */
 	for (mindex = 0; mindex < g->mlen; mindex++)
-		g->charjump[g->must[mindex]] = g->mlen - mindex - 1;
+		g->charjump[(unsigned char)g->must[mindex]] = g->mlen - mindex - 1;
 }
 
 /*
