@@ -5,6 +5,8 @@ require Exporter;
 @ISA = qw(Exporter);
 @EXPORT = qw(&soundex $soundex_nocode);
 
+$VERSION = '1.0';
+
 # $Id: soundex.pl,v 1.2 1994/03/24 00:30:27 mike Exp $
 #
 # Implementation of soundex algorithm as described by Knuth in volume

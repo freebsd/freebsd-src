@@ -1,9 +1,20 @@
 #!./perl
 
+BEGIN {
+    chdir 't' if -d 't';
+    unshift @INC, '../lib';
+}
+
 eval 'opendir(NOSUCH, "no/such/directory");';
 if ($@) { print "1..0\n"; exit; }
 
 print "1..3\n";
+
+for $i (1..2000) {
+    local *OP;
+    opendir(OP, "op") or die "can't opendir: $!";
+    # should auto-closedir() here
+}
 
 if (opendir(OP, "op")) { print "ok 1\n"; } else { print "not ok 1\n"; }
 @D = grep(/^[^\.].*\.t$/i, readdir(OP));

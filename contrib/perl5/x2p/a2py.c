@@ -35,7 +35,7 @@ static void usage(void);
 static void
 usage()
 {
-    printf("\nThis is the AWK to PERL translator, version 5.0, patchlevel %d\n", PATCHLEVEL);
+    printf("\nThis is the AWK to PERL translator, revision %d.0, version %d\n", PERL_REVISION, PERL_VERSION);
     printf("\nUsage: %s [-D<number>] [-F<char>] [-n<fieldlist>] [-<number>] filename\n", myname);
     printf("\n  -D<number>      sets debugging flags."
            "\n  -F<character>   the awk script to translate is always invoked with"
@@ -705,8 +705,15 @@ yylex(void)
 	}
 	if (strEQ(d,"sub"))
 	    XTERM(SUB);
-	if (strEQ(d,"sprintf"))
-	    XTERM(SPRINTF);
+	if (strEQ(d,"sprintf")) {
+            /* In old awk, { print sprintf("str%sg"),"in" } prints
+             * "string"; in new awk, "in" is not considered an argument to
+             * sprintf, so the statement breaks.  To support both, the
+             * grammar treats arguments to SPRINTF_OLD like old awk,
+             * SPRINTF_NEW like new.  Here we return the appropriate one.
+             */
+	    XTERM(old_awk ? SPRINTF_OLD : SPRINTF_NEW);
+        }
 	if (strEQ(d,"sqrt")) {
 	    yylval = OSQRT;
 	    XTERM(FUN1);

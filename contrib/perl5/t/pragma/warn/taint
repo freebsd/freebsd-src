@@ -1,0 +1,49 @@
+  taint.c AOK
+
+  Insecure %s%s while running with -T switch
+
+__END__
+-T
+--FILE-- abc
+def
+--FILE--
+# taint.c
+open(FH, "<abc") ;
+$a = <FH> ;
+close FH ;
+chdir $a ;
+print "xxx\n" ;
+EXPECT
+Insecure dependency in chdir while running with -T switch at - line 5.
+########
+-TU
+--FILE-- abc
+def
+--FILE--
+# taint.c
+open(FH, "<abc") ;
+$a = <FH> ;
+close FH ;
+chdir $a ;
+print "xxx\n" ;
+EXPECT
+xxx
+########
+-TU
+--FILE-- abc
+def
+--FILE--
+# taint.c
+open(FH, "<abc") ;
+$a = <FH> ;
+close FH ;
+use warnings 'taint' ;
+chdir $a ;
+print "xxx\n" ;
+no warnings 'taint' ;
+chdir $a ;
+print "yyy\n" ;
+EXPECT
+Insecure dependency in chdir while running with -T switch at - line 6.
+xxx
+yyy

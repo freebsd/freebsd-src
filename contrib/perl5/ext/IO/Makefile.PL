@@ -1,8 +1,9 @@
 use ExtUtils::MakeMaker;
+use Config qw(%Config);
+
 WriteMakefile(
-    NAME => 'IO',
-    MAN3PODS   => {},			# Pods will be built by installman.
-    XSPROTOARG => '-noprototypes', 	# XXX remove later?
-    VERSION_FROM => 'lib/IO/Handle.pm',
-    XS_VERSION => 1.15
+	VERSION_FROM	=> "IO.pm",
+	NAME      	=> "IO",
+	OBJECT		=> '$(O_FILES)', 
+	MAN3PODS	=> {},		# Pods will be built by installman.
 );

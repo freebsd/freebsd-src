@@ -3,11 +3,11 @@
 ##
 ## Many of these tests are originally from Michael Schroeder
 ## <Michael.Schroeder@informatik.uni-erlangen.de>
-## Adapted and expanded by Gurusamy Sarathy <gsar@umich.edu>
+## Adapted and expanded by Gurusamy Sarathy <gsar@activestate.com>
 ##
 
 chdir 't' if -d 't';
-@INC = "../lib";
+unshift @INC, "../lib";
 $Is_VMS = $^O eq 'VMS';
 $Is_MSWin32 = $^O eq 'MSWin32';
 $ENV{PERL5LIB} = "../lib" unless $Is_VMS;
@@ -32,10 +32,10 @@ for (@prgs){
     print TEST "$prog\n";
     close TEST;
     my $results = $Is_VMS ?
-		  `MCR $^X "-I[-.lib]" $switch $tmpfile` :
+                  `MCR $^X "-I[-.lib]" $switch $tmpfile 2>&1` :
 		      $Is_MSWin32 ?  
 			  `.\\perl -I../lib $switch $tmpfile 2>&1` :
-			      `sh -c './perl $switch $tmpfile' 2>&1`;
+			      `./perl $switch $tmpfile 2>&1`;
     my $status = $?;
     $results =~ s/\n+$//;
     # allow expected output to be written as if $prog is on STDIN
@@ -57,7 +57,7 @@ __END__
   @a = sort { last ; } @a;
 }
 EXPECT
-Can't "last" outside a block at - line 3.
+Can't "last" outside a loop block at - line 3.
 ########
 package TEST;
  
@@ -174,7 +174,7 @@ exit;
 bar:
 print "bar reached\n";
 EXPECT
-Can't "goto" outside a block at - line 2.
+Can't "goto" out of a pseudo block at - line 2.
 ########
 sub sortfn {
   (split(/./, 'x'x10000))[0];
@@ -227,7 +227,7 @@ tie $bar, TEST;
 }
 print "OK\n";
 EXPECT
-Can't "next" outside a block at - line 8.
+Can't "next" outside a loop block at - line 8.
 ########
 package TEST;
  
@@ -285,7 +285,7 @@ package main;
 tie $bar, TEST;
 }
 EXPECT
-Can't "next" outside a block at - line 4.
+Can't "next" outside a loop block at - line 4.
 ########
 @a = (1, 2, 3);
 foo:
@@ -335,3 +335,17 @@ tie my @bar, 'TEST';
 print join('|', @bar[0..3]), "\n"; 
 EXPECT
 foo|fee|fie|foe
+########
+package TH;
+sub TIEHASH { bless {}, TH }
+sub STORE { eval { print "@_[1,2]\n" }; die "bar\n" }
+tie %h, TH;
+eval { $h{A} = 1; print "never\n"; };
+print $@;
+eval { $h{B} = 2; };
+print $@;
+EXPECT
+A 1
+bar
+B 2
+bar

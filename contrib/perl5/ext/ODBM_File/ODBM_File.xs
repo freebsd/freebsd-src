@@ -2,9 +2,6 @@
 #include "perl.h"
 #include "XSUB.h"
 
-#ifdef NULL
-#undef NULL  /* XXX Why? */
-#endif
 #ifdef I_DBM
 #  include <dbm.h>
 #else
@@ -30,7 +27,37 @@
 
 #include <fcntl.h>
 
-typedef void* ODBM_File;
+typedef struct {
+	void * 	dbp ;
+	SV *    filter_fetch_key ;
+	SV *    filter_store_key ;
+	SV *    filter_fetch_value ;
+	SV *    filter_store_value ;
+	int     filtering ;
+	} ODBM_File_type;
+
+typedef ODBM_File_type * ODBM_File ;
+typedef datum datum_key ;
+typedef datum datum_value ;
+
+#define ckFilter(arg,type,name)					\
+	if (db->type) {						\
+	    SV * save_defsv ;					\
+            /* printf("filtering %s\n", name) ;*/		\
+	    if (db->filtering)					\
+	        croak("recursion detected in %s", name) ;	\
+	    db->filtering = TRUE ;				\
+	    save_defsv = newSVsv(DEFSV) ;			\
+	    sv_setsv(DEFSV, arg) ;				\
+	    PUSHMARK(sp) ;					\
+	    (void) perl_call_sv(db->type, G_DISCARD|G_NOARGS); 	\
+	    sv_setsv(arg, DEFSV) ;				\
+	    sv_setsv(DEFSV, save_defsv) ;			\
+	    SvREFCNT_dec(save_defsv) ;				\
+	    db->filtering = FALSE ;				\
+	    /*printf("end of filtering %s\n", name) ;*/		\
+	}
+
 
 #define odbm_FETCH(db,key)			fetch(key)
 #define odbm_STORE(db,key,value,flags)		store(key,value)
@@ -46,10 +73,6 @@ static int dbmrefcnt;
 
 MODULE = ODBM_File	PACKAGE = ODBM_File	PREFIX = odbm_
 
-#ifndef NULL
-#  define NULL 0
-#endif
-
 ODBM_File
 odbm_TIEHASH(dbtype, filename, flags, mode)
 	char *		dbtype
@@ -59,6 +82,7 @@ odbm_TIEHASH(dbtype, filename, flags, mode)
 	CODE:
 	{
 	    char *tmpbuf;
+	    void * dbp ;
 	    if (dbmrefcnt++)
 		croak("Old dbm can only open one database");
 	    New(0, tmpbuf, strlen(filename) + 5, char);
@@ -75,7 +99,10 @@ odbm_TIEHASH(dbtype, filename, flags, mode)
 		else
 		    croak("ODBM_FILE: Can't open %s", filename);
 	    }
-	    RETVAL = (void*)(dbminit(filename) >= 0 ? &dbmrefcnt : 0);
+	    dbp = (void*)(dbminit(filename) >= 0 ? &dbmrefcnt : 0);
+	    RETVAL = (ODBM_File)safemalloc(sizeof(ODBM_File_type)) ;
+    	    Zero(RETVAL, 1, ODBM_File_type) ;
+	    RETVAL->dbp = dbp ;
 	    ST(0) = sv_mortalcopy(&PL_sv_undef);
 	    sv_setptrobj(ST(0), RETVAL, dbtype);
 	}
@@ -86,17 +113,18 @@ DESTROY(db)
 	CODE:
 	dbmrefcnt--;
 	dbmclose();
+	safefree(db);
 
-datum
+datum_value
 odbm_FETCH(db, key)
 	ODBM_File	db
-	datum		key
+	datum_key	key
 
 int
 odbm_STORE(db, key, value, flags = DBM_REPLACE)
 	ODBM_File	db
-	datum		key
-	datum		value
+	datum_key	key
+	datum_value	value
 	int		flags
     CLEANUP:
 	if (RETVAL) {
@@ -109,14 +137,66 @@ odbm_STORE(db, key, value, flags = DBM_REPLACE)
 int
 odbm_DELETE(db, key)
 	ODBM_File	db
-	datum		key
+	datum_key	key
 
-datum
+datum_key
 odbm_FIRSTKEY(db)
 	ODBM_File	db
 
-datum
+datum_key
 odbm_NEXTKEY(db, key)
 	ODBM_File	db
-	datum		key
+	datum_key	key
+
+
+#define setFilter(type)					\
+	{						\
+	    if (db->type)				\
+	        RETVAL = sv_mortalcopy(db->type) ; 	\
+	    ST(0) = RETVAL ;				\
+	    if (db->type && (code == &PL_sv_undef)) {	\
+                SvREFCNT_dec(db->type) ;		\
+	        db->type = Nullsv ;			\
+	    }						\
+	    else if (code) {				\
+	        if (db->type)				\
+	            sv_setsv(db->type, code) ;		\
+	        else					\
+	            db->type = newSVsv(code) ;		\
+	    }	    					\
+	}
+
+
+
+SV *
+filter_fetch_key(db, code)
+	ODBM_File	db
+	SV *		code
+	SV *		RETVAL = &PL_sv_undef ;
+	CODE:
+	    setFilter(filter_fetch_key) ;
+
+SV *
+filter_store_key(db, code)
+	ODBM_File	db
+	SV *		code
+	SV *		RETVAL =  &PL_sv_undef ;
+	CODE:
+	    setFilter(filter_store_key) ;
+
+SV *
+filter_fetch_value(db, code)
+	ODBM_File	db
+	SV *		code
+	SV *		RETVAL =  &PL_sv_undef ;
+	CODE:
+	    setFilter(filter_fetch_value) ;
+
+SV *
+filter_store_value(db, code)
+	ODBM_File	db
+	SV *		code
+	SV *		RETVAL =  &PL_sv_undef ;
+	CODE:
+	    setFilter(filter_store_value) ;
 

@@ -27,8 +27,8 @@ static DBM *cur_db = NODB;
 
 static char no_db[] = "dbm: no open database\n";
 
-dbminit(file)
-    char *file;
+int
+dbminit(char *file)
 {
     if (cur_db != NODB)
         dbm_close(cur_db);
@@ -43,8 +43,7 @@ dbminit(file)
 }
 
 long
-forder(key)
-datum key;
+forder(datum key)
 {
     if (cur_db == NODB) {
         printf(no_db);
@@ -54,8 +53,7 @@ datum key;
 }
 
 datum
-fetch(key)
-datum key;
+fetch(datum key)
 {
     datum item;
 
@@ -67,8 +65,8 @@ datum key;
     return (dbm_fetch(cur_db, key));
 }
 
-delete(key)
-datum key;
+int
+delete(datum key)
 {
     if (cur_db == NODB) {
         printf(no_db);
@@ -79,8 +77,8 @@ datum key;
     return (dbm_delete(cur_db, key));
 }
 
-store(key, dat)
-datum key, dat;
+int
+store(datum key, datum dat)
 {
     if (cur_db == NODB) {
         printf(no_db);
@@ -93,7 +91,7 @@ datum key, dat;
 }
 
 datum
-firstkey()
+firstkey(void)
 {
     datum item;
 
@@ -106,8 +104,7 @@ firstkey()
 }
 
 datum
-nextkey(key)
-datum key;
+nextkey(datum key)
 {
     datum item;
 

@@ -79,6 +79,7 @@ extern int sdbm_delete proto((DBM *, datum));
 extern int sdbm_store proto((DBM *, datum, datum, int));
 extern datum sdbm_firstkey proto((DBM *));
 extern datum sdbm_nextkey proto((DBM *));
+extern int sdbm_exists proto((DBM *, datum));
 
 /*
  * other
@@ -98,8 +99,12 @@ extern long sdbm_hash proto((char *, int));
 #define dbm_clearerr sdbm_clearerr
 #endif
 
-/* Most of the following is stolen from perl.h. */
+/* Most of the following is stolen from perl.h.  We don't include
+   perl.h here because we just want the portability parts of perl.h,
+   not everything else.
+*/
 #ifndef H_PERL  /* Include guard */
+#include "embed.h"  /* Follow all the global renamings. */
 
 /*
  * The following contortions are brought to you on behalf of all the
@@ -168,27 +173,17 @@ extern long sdbm_hash proto((char *, int));
 /* This comes after <stdlib.h> so we don't try to change the standard
  * library prototypes; we'll use our own instead. */
 
-#if defined(MYMALLOC) && (defined(HIDEMYMALLOC) || defined(EMBEDMYMALLOC))
+#if defined(MYMALLOC) && !defined(PERL_POLLUTE_MALLOC)
+#  define malloc  Perl_malloc
+#  define calloc  Perl_calloc
+#  define realloc Perl_realloc
+#  define free    Perl_mfree
 
-#   ifdef HIDEMYMALLOC
-#	define malloc  Mymalloc
-#	define calloc  Mycalloc
-#	define realloc Myremalloc
-#	define free    Myfree
-#   endif
-#   ifdef EMBEDMYMALLOC
-#	define malloc  Perl_malloc
-#	define calloc  Perl_calloc
-#	define realloc Perl_realloc
-#	define free    Perl_free
-#   endif
-
-    Malloc_t malloc proto((MEM_SIZE nbytes));
-    Malloc_t calloc proto((MEM_SIZE elements, MEM_SIZE size));
-    Malloc_t realloc proto((Malloc_t where, MEM_SIZE nbytes));
-    Free_t   free proto((Malloc_t where));
-
-#endif /* MYMALLOC && (HIDEMYMALLOC || EMBEDMYMALLOC) */
+Malloc_t Perl_malloc proto((MEM_SIZE nbytes));
+Malloc_t Perl_calloc proto((MEM_SIZE elements, MEM_SIZE size));
+Malloc_t Perl_realloc proto((Malloc_t where, MEM_SIZE nbytes));
+Free_t   Perl_mfree proto((Malloc_t where));
+#endif /* MYMALLOC */
 
 #ifdef I_STRING
 #include <string.h>

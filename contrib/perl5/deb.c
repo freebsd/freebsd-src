@@ -1,6 +1,6 @@
 /*    deb.c
  *
- *    Copyright (c) 1991-1999, Larry Wall
+ *    Copyright (c) 1991-2000, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -13,70 +13,81 @@
  */
 
 #include "EXTERN.h"
+#define PERL_IN_DEB_C
 #include "perl.h"
 
+#if defined(PERL_IMPLICIT_CONTEXT)
 void
-deb(const char *pat, ...)
+Perl_deb_nocontext(const char *pat, ...)
 {
 #ifdef DEBUGGING
-    dTHR;
+    dTHX;
     va_list args;
-    register I32 i;
-    GV* gv = PL_curcop->cop_filegv;
-
-#ifdef USE_THREADS
-    PerlIO_printf(Perl_debug_log, "0x%lx (%s:%ld)\t",
-		  (unsigned long) thr,
-		  SvTYPE(gv) == SVt_PVGV ? SvPVX(GvSV(gv)) : "<free>",
-		  (long)PL_curcop->cop_line);
-#else
-    PerlIO_printf(Perl_debug_log, "(%s:%ld)\t",
-	SvTYPE(gv) == SVt_PVGV ? SvPVX(GvSV(gv)) : "<free>",
-	(long)PL_curcop->cop_line);
-#endif /* USE_THREADS */
-    for (i=0; i<PL_dlevel; i++)
-	PerlIO_printf(Perl_debug_log, "%c%c ",PL_debname[i],PL_debdelim[i]);
-
     va_start(args, pat);
-    (void) PerlIO_vprintf(Perl_debug_log,pat,args);
-    va_end( args );
+    vdeb(pat, &args);
+    va_end(args);
+#endif /* DEBUGGING */
+}
+#endif
+
+void
+Perl_deb(pTHX_ const char *pat, ...)
+{
+#ifdef DEBUGGING
+    va_list args;
+    va_start(args, pat);
+    vdeb(pat, &args);
+    va_end(args);
 #endif /* DEBUGGING */
 }
 
 void
-deb_growlevel(void)
+Perl_vdeb(pTHX_ const char *pat, va_list *args)
 {
 #ifdef DEBUGGING
-    PL_dlmax += 128;
-    Renew(PL_debname, PL_dlmax, char);
-    Renew(PL_debdelim, PL_dlmax, char);
+    dTHR;
+    char* file = CopFILE(PL_curcop);
+
+#ifdef USE_THREADS
+    PerlIO_printf(Perl_debug_log, "0x%"UVxf" (%s:%ld)\t",
+		  PTR2UV(thr),
+		  (file ? file : "<free>"),
+		  (long)CopLINE(PL_curcop));
+#else
+    PerlIO_printf(Perl_debug_log, "(%s:%ld)\t", (file ? file : "<free>"),
+		  (long)CopLINE(PL_curcop));
+#endif /* USE_THREADS */
+    (void) PerlIO_vprintf(Perl_debug_log, pat, *args);
 #endif /* DEBUGGING */
 }
 
 I32
-debstackptrs(void)
+Perl_debstackptrs(pTHX)
 {
 #ifdef DEBUGGING
     dTHR;
-    PerlIO_printf(Perl_debug_log, "%8lx %8lx %8ld %8ld %8ld\n",
-	(unsigned long)PL_curstack, (unsigned long)PL_stack_base,
-	(long)*PL_markstack_ptr, (long)(PL_stack_sp-PL_stack_base),
-	(long)(PL_stack_max-PL_stack_base));
-    PerlIO_printf(Perl_debug_log, "%8lx %8lx %8ld %8ld %8ld\n",
-	(unsigned long)PL_mainstack, (unsigned long)AvARRAY(PL_curstack),
-	(long)PL_mainstack, (long)AvFILLp(PL_curstack), (long)AvMAX(PL_curstack));
+    PerlIO_printf(Perl_debug_log,
+		  "%8"UVxf" %8"UVxf" %8"IVdf" %8"IVdf" %8"IVdf"\n",
+		  PTR2UV(PL_curstack), PTR2UV(PL_stack_base),
+		  (IV)*PL_markstack_ptr, (IV)(PL_stack_sp-PL_stack_base),
+		  (IV)(PL_stack_max-PL_stack_base));
+    PerlIO_printf(Perl_debug_log,
+		  "%8"UVxf" %8"UVxf" %8"UVuf" %8"UVuf" %8"UVuf"\n",
+		  PTR2UV(PL_mainstack), PTR2UV(AvARRAY(PL_curstack)),
+		  PTR2UV(PL_mainstack), PTR2UV(AvFILLp(PL_curstack)),
+		  PTR2UV(AvMAX(PL_curstack)));
 #endif /* DEBUGGING */
     return 0;
 }
 
 I32
-debstack(void)
+Perl_debstack(pTHX)
 {
 #ifdef DEBUGGING
     dTHR;
     I32 top = PL_stack_sp - PL_stack_base;
     register I32 i = top - 30;
-    I32 *markscan = PL_curstackinfo->si_markbase;
+    I32 *markscan = PL_markstack + PL_curstackinfo->si_markoff;
 
     if (i < 0)
 	i = 0;
@@ -86,8 +97,9 @@ debstack(void)
 	    break;
 
 #ifdef USE_THREADS
-    PerlIO_printf(Perl_debug_log, i ? "0x%lx    =>  ...  " : "0x%lx    =>  ",
-		  (unsigned long) thr);
+    PerlIO_printf(Perl_debug_log,
+		  i ? "0x%"UVxf"    =>  ...  " : "0x%lx    =>  ",
+		  PTR2UV(thr));
 #else
     PerlIO_printf(Perl_debug_log, i ? "    =>  ...  " : "    =>  ");
 #endif /* USE_THREADS */

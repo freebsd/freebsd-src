@@ -7,8 +7,14 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib' if -e '../lib';
+    unshift @INC, '../lib' if -e '../lib';
 }
+
+if ($^O eq 'mpeix') {
+    print "1..0 # Skip: broken on MPE/iX\n";
+    exit 0;
+}
+
 my $perl = -e '../perl' ? '../perl' : -e './perl' ? './perl' : 'perl';
 
 use strict;
@@ -31,7 +37,7 @@ my %tests = (
 	15 => [ 255,   1],
 	16 => [ 255, 256],
 	# see if implicit close preserves $?
-	17 => [  0,  512, '{ local *F; open F, q[TEST]; close F } die;'],
+	17 => [  0,  512, '{ local *F; open F, q[TEST]; close F; $!=0 } die;'],
 );
 
 my $max = keys %tests;

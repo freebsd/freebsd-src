@@ -257,7 +257,7 @@ as shown below:
                h1('testing'),
 	       "This page called $counter times";
     }
-   
+
     sub my_last_page {
 	header(-refresh=>'5; URL=http://somewhere.else/finished.html',
 	       -type=>'text/html'),

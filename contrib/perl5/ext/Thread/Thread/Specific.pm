@@ -15,14 +15,13 @@ C<key_create> returns a unique thread-specific key.
 
 =cut
 
-sub import {
-    use attrs qw(locked method);
+sub import : locked : method {
     require fields;
-    fields->import(@_);
+    fields::->import(@_);
 }	
 
-sub key_create {
-    use attrs qw(locked method);
+sub key_create : locked : method {
+    our %FIELDS;   # suppress "used only once"
     return ++$FIELDS{__MAX__};
 }
 

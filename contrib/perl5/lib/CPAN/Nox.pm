@@ -1,7 +1,12 @@
 package CPAN::Nox;
+use strict;
+use vars qw($VERSION @EXPORT);
 
-BEGIN{$CPAN::Suppress_readline=1 unless defined $CPAN::term;}
+BEGIN{
+  $CPAN::Suppress_readline=1 unless defined $CPAN::term;
+}
 
+use base 'Exporter';
 use CPAN;
 
 $VERSION = "1.00";
@@ -11,6 +16,8 @@ $CPAN::META->has_inst('Compress::Zlib','no');
 @EXPORT = @CPAN::EXPORT;
 
 *AUTOLOAD = \&CPAN::AUTOLOAD;
+
+__END__
 
 =head1 NAME
 

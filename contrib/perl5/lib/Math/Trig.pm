@@ -7,13 +7,12 @@
 require Exporter;
 package Math::Trig;
 
+use 5.005_64;
 use strict;
 
 use Math::Complex qw(:trig);
 
-use vars qw($VERSION $PACKAGE
-	    @ISA
-	    @EXPORT @EXPORT_OK %EXPORT_TAGS);
+our($VERSION, $PACKAGE, @ISA, @EXPORT, @EXPORT_OK, %EXPORT_TAGS);
 
 @ISA = qw(Exporter);
 
@@ -37,8 +36,8 @@ my @rdlcnv = qw(cartesian_to_cylindrical
 
 %EXPORT_TAGS = ('radial' => [ @rdlcnv ]);
 
-use constant pi2  => 2 * pi;
-use constant pip2 => pi / 2;
+sub pi2 () { 2 * pi }		# use constant generates warning
+sub pip2 () { pi / 2 }		# use constant generates warning
 use constant DR   => pi2/360;
 use constant RD   => 360/pi2;
 use constant DG   => 400/360;
@@ -133,11 +132,11 @@ Math::Trig - trigonometric functions
 =head1 SYNOPSIS
 
 	use Math::Trig;
-	
+
 	$x = tan(0.9);
 	$y = acos(3.7);
 	$z = asin(2.4);
-	
+
 	$halfpi = pi/2;
 
 	$rad = deg2rad(120);
@@ -259,7 +258,7 @@ complex numbers as results because the C<Math::Complex> takes care of
 details like for example how to display complex numbers. For example:
 
 	print asin(2), "\n";
-    
+
 should produce something like this (take or leave few last decimals):
 
 	1.5707963267949-1.31695789692482i
@@ -273,10 +272,10 @@ and the imaginary part of approximately C<-1.317>.
 
 	$radians  = deg2rad($degrees);
 	$radians  = grad2rad($gradians);
-	
+
 	$degrees  = rad2deg($radians);
 	$degrees  = grad2deg($gradians);
-	
+
 	$gradians = deg2grad($degrees);
 	$gradians = rad2grad($radians);
 
@@ -409,7 +408,16 @@ To calculate the distance between London (51.3N 0.5W) and Tokyo (35.7N
         $km = great_circle_distance(@L, @T, 6378);
 
 The answer may be off by few percentages because of the irregular
-(slightly aspherical) form of the Earth.
+(slightly aspherical) form of the Earth.  The used formula
+
+	lat0 = 90 degrees - phi0
+	lat1 = 90 degrees - phi1
+	d = R * arccos(cos(lat0) * cos(lat1) * cos(lon1 - lon01) +
+                       sin(lat0) * sin(lat1))
+
+is also somewhat unreliable for small distances (for locations
+separated less than about five degrees) because it uses arc cosine
+which is rather ill-conditioned for values close to zero.
 
 =head1 BUGS
 
@@ -426,7 +434,7 @@ an answer instead of giving a fatal runtime error.
 =head1 AUTHORS
 
 Jarkko Hietaniemi <F<jhi@iki.fi>> and 
-Raphael Manfredi <F<Raphael_Manfredi@grenoble.hp.com>>.
+Raphael Manfredi <F<Raphael_Manfredi@pobox.com>>.
 
 =cut
 

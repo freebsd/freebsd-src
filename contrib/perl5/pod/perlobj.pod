@@ -4,10 +4,10 @@ perlobj - Perl objects
 
 =head1 DESCRIPTION
 
-First of all, you need to understand what references are in Perl.
+First you need to understand what references are in Perl.
 See L<perlref> for that.  Second, if you still find the following
 reference work too complicated, a tutorial on object-oriented programming
-in Perl can be found in L<perltoot>.
+in Perl can be found in L<perltoot> and L<perltootc>.
 
 If you're still with us, then
 here are three very simple definitions that you should find reassuring.
@@ -50,7 +50,7 @@ a construct this way, too:
     package Critter;
     sub spawn { bless {} }
 
-In fact, this might even be preferable, because the C++ programmers won't
+This might even be preferable, because the C++ programmers won't
 be tricked into thinking that C<new> works in Perl as it does in C++.
 It doesn't.  We recommend that you name your constructors whatever
 makes sense in the context of the problem you're solving.  For example,
@@ -73,7 +73,7 @@ have been returned directly, like this:
 	return $self;
     }
 
-In fact, you often see such a thing in more complicated constructors
+You often see such a thing in more complicated constructors
 that wish to call methods in the class as part of the construction:
 
     sub new {
@@ -96,8 +96,8 @@ so that your constructors may be inherited:
 	return $self;
     }
 
-Or if you expect people to call not just C<CLASS-E<gt>new()> but also
-C<$obj-E<gt>new()>, then use something like this.  The initialize()
+Or if you expect people to call not just C<< CLASS->new() >> but also
+C<< $obj->new() >>, then use something like this.  The initialize()
 method used will be of whatever $class we blessed the
 object into:
 
@@ -115,12 +115,13 @@ reference as an ordinary reference.  Outside the class package,
 the reference is generally treated as an opaque value that may
 be accessed only through the class's methods.
 
-A constructor may re-bless a referenced object currently belonging to
-another class, but then the new class is responsible for all cleanup
-later.  The previous blessing is forgotten, as an object may belong
-to only one class at a time.  (Although of course it's free to
-inherit methods from many classes.)  If you find yourself having to 
-do this, the parent class is probably misbehaving, though.
+Although a constructor can in theory re-bless a referenced object
+currently belonging to another class, this is almost certainly going
+to get you into trouble.  The new class is responsible for all
+cleanup later.  The previous blessing is forgotten, as an object
+may belong to only one class at a time.  (Although of course it's
+free to inherit methods from many classes.)  If you find yourself
+having to do this, the parent class is probably misbehaving, though.
 
 A clarification:  Perl objects are blessed.  References are not.  Objects
 know which package they belong to.  References do not.  The bless()
@@ -154,7 +155,7 @@ last base class.  Several commonly used methods are automatically
 supplied in the UNIVERSAL class; see L<"Default UNIVERSAL methods"> for
 more details.
 
-If a missing method is found in one of the base classes, it is cached
+If a missing method is found in a base class, it is cached
 in the current class for efficiency.  Changing @ISA or defining new
 subroutines invalidates the cache and causes Perl to do the lookup again.
 
@@ -186,16 +187,16 @@ is to prepend your fieldname in the hash with the package name.
 Unlike say C++, Perl doesn't provide any special syntax for method
 definition.  (It does provide a little syntax for method invocation
 though.  More on that later.)  A method expects its first argument
-to be the object (reference) or package (string) it is being invoked on.  There are just two
-types of methods, which we'll call class and instance.
-(Sometimes you'll hear these called static and virtual, in honor of
-the two C++ method types they most closely resemble.)
+to be the object (reference) or package (string) it is being invoked
+on.  There are two ways of calling methods, which we'll call class
+methods and instance methods.  
 
 A class method expects a class name as the first argument.  It
-provides functionality for the class as a whole, not for any individual
-object belonging to the class.  Constructors are typically class
-methods.  Many class methods simply ignore their first argument, because
-they already know what package they're in, and don't care what package
+provides functionality for the class as a whole, not for any
+individual object belonging to the class.  Constructors are often
+class methods, but see L<perltoot> and L<perltootc> for alternatives.
+Many class methods simply ignore their first argument, because they
+already know what package they're in and don't care what package
 they were invoked via.  (These aren't necessarily the same, because
 class methods follow the inheritance tree just like ordinary instance
 methods.)  Another typical use for class methods is to look up an
@@ -238,7 +239,7 @@ indirect object slot:
 
     display {find Critter "Fred"} 'Height', 'Weight';
 
-For C++ fans, there's also a syntax using -E<gt> notation that does exactly
+For C++ fans, there's also a syntax using -> notation that does exactly
 the same thing.  The parentheses are required if there are any arguments.
 
     $fred = Critter->find("Fred");
@@ -284,13 +285,13 @@ For more reasons why the indirect object syntax is ambiguous, see
 L<"WARNING"> below.
 
 There are times when you wish to specify which class's method to use.
-In this case, you can call your method as an ordinary subroutine
+Here you can call your method as an ordinary subroutine
 call, being sure to pass the requisite first argument explicitly:
 
     $fred =  MyCritter::find("Critter", "Fred");
     MyCritter::display($fred, 'Height', 'Weight');
 
-Note however, that this does not do any inheritance.  If you wish
+Unlike method calls, function calls don't consider inheritance.  If you wish
 merely to specify that Perl should I<START> looking for a method in a
 particular package, use an ordinary method call, but qualify the method
 name with the package like this:
@@ -310,10 +311,59 @@ class.
 
 Sometimes you want to call a method when you don't know the method name
 ahead of time.  You can use the arrow form, replacing the method name
-with a simple scalar variable containing the method name:
+with a simple scalar variable containing the method name or a
+reference to the function.
 
     $method = $fast ? "findfirst" : "findbest";
-    $fred->$method(@args);
+    $fred->$method(@args);  	    # call by name
+
+    if ($coderef = $fred->can($parent . "::findbest")) {
+	$self->$coderef(@args);	    # call by coderef
+    }
+
+=head2 WARNING
+
+While indirect object syntax may well be appealing to English speakers and
+to C++ programmers, be not seduced!  It suffers from two grave problems.
+
+The first problem is that an indirect object is limited to a name,
+a scalar variable, or a block, because it would have to do too much
+lookahead otherwise, just like any other postfix dereference in the
+language.  (These are the same quirky rules as are used for the filehandle
+slot in functions like C<print> and C<printf>.)  This can lead to horribly
+confusing precedence problems, as in these next two lines:
+
+    move $obj->{FIELD};                 # probably wrong!
+    move $ary[$i];                      # probably wrong!
+
+Those actually parse as the very surprising:
+
+    $obj->move->{FIELD};                # Well, lookee here
+    $ary->move([$i]);                   # Didn't expect this one, eh?
+
+Rather than what you might have expected:
+
+    $obj->{FIELD}->move();              # You should be so lucky.
+    $ary[$i]->move;                     # Yeah, sure.
+
+The left side of ``->'' is not so limited, because it's an infix operator,
+not a postfix operator.  
+
+As if that weren't bad enough, think about this: Perl must guess I<at
+compile time> whether C<name> and C<move> above are functions or methods.
+Usually Perl gets it right, but when it doesn't it, you get a function
+call compiled as a method, or vice versa.  This can introduce subtle
+bugs that are hard to unravel.  For example, calling a method C<new>
+in indirect notation--as C++ programmers are so wont to do--can
+be miscompiled into a subroutine call if there's already a C<new>
+function in scope.  You'd end up calling the current package's C<new>
+as a subroutine, rather than the desired class's method.  The compiler
+tries to cheat by remembering bareword C<require>s, but the grief if it
+messes up just isn't worth the years of debugging it would likely take
+you to track such subtle bugs down.
+
+The infix arrow notation using ``C<< -> >>'' doesn't suffer from either
+of these disturbing ambiguities, so we recommend you use it exclusively.
 
 =head2 Default UNIVERSAL methods
 
@@ -361,7 +411,7 @@ C<isa> uses a very similar method and cache-ing strategy. This may cause
 strange effects if the Perl code dynamically changes @ISA in any package.
 
 You may add other methods to the UNIVERSAL class via Perl or XS code.
-You do not need to C<use UNIVERSAL> in order to make these methods
+You do not need to C<use UNIVERSAL> to make these methods
 available to your program.  This is necessary only if you wish to
 have C<isa> available as a plain subroutine in the current package.
 
@@ -386,54 +436,10 @@ object destruction, or for ensuring that destructors in the base classes
 of your choosing get called.  Explicitly calling DESTROY is also possible,
 but is usually never needed.
 
-Do not confuse the foregoing with how objects I<CONTAINED> in the current
+Do not confuse the previous discussion with how objects I<CONTAINED> in the current
 one are destroyed.  Such objects will be freed and destroyed automatically
 when the current object is freed, provided no other references to them exist
 elsewhere.
-
-=head2 WARNING
-
-While indirect object syntax may well be appealing to English speakers and
-to C++ programmers, be not seduced!  It suffers from two grave problems.
-
-The first problem is that an indirect object is limited to a name,
-a scalar variable, or a block, because it would have to do too much
-lookahead otherwise, just like any other postfix dereference in the
-language.  (These are the same quirky rules as are used for the filehandle
-slot in functions like C<print> and C<printf>.)  This can lead to horribly
-confusing precedence problems, as in these next two lines:
-
-    move $obj->{FIELD};                 # probably wrong!
-    move $ary[$i];                      # probably wrong!
-
-Those actually parse as the very surprising:
-
-    $obj->move->{FIELD};                # Well, lookee here
-    $ary->move->[$i];                   # Didn't expect this one, eh?
-
-Rather than what you might have expected:
-
-    $obj->{FIELD}->move();              # You should be so lucky.
-    $ary[$i]->move;                     # Yeah, sure.
-
-The left side of ``-E<gt>'' is not so limited, because it's an infix operator,
-not a postfix operator.  
-
-As if that weren't bad enough, think about this: Perl must guess I<at
-compile time> whether C<name> and C<move> above are functions or methods.
-Usually Perl gets it right, but when it doesn't it, you get a function
-call compiled as a method, or vice versa.  This can introduce subtle
-bugs that are hard to unravel.  For example, calling a method C<new>
-in indirect notation--as C++ programmers are so wont to do--can
-be miscompiled into a subroutine call if there's already a C<new>
-function in scope.  You'd end up calling the current package's C<new>
-as a subroutine, rather than the desired class's method.  The compiler
-tries to cheat by remembering bareword C<require>s, but the grief if it
-messes up just isn't worth the years of debugging it would likely take
-you to to track such subtle bugs down.
-
-The infix arrow notation using ``C<-E<gt>>'' doesn't suffer from either
-of these disturbing ambiguities, so we recommend you use it exclusively.
 
 =head2 Summary
 
@@ -443,8 +449,8 @@ with it for the next six months or so.
 
 =head2 Two-Phased Garbage Collection
 
-For most purposes, Perl uses a fast and simple reference-based
-garbage collection system.  For this reason, there's an extra
+For most purposes, Perl uses a fast and simple, reference-based
+garbage collection system.  That means there's an extra
 dereference going on at some level, so if you haven't built
 your Perl executable using your C compiler's C<-O> flag, performance
 will suffer.  If you I<have> built Perl with C<cc -O>, then this
@@ -529,8 +535,8 @@ When run as F</tmp/test>, the following output is produced:
 Notice that "global destruction" bit there?  That's the thread
 garbage collector reaching the unreachable.
 
-Objects are always destructed, even when regular refs aren't and in fact
-are destructed in a separate pass before ordinary refs just to try to
+Objects are always destructed, even when regular refs aren't.  Objects
+are destructed in a separate pass before ordinary refs just to 
 prevent object destructors from using refs that have been themselves
 destructed.  Plain refs are only garbage-collected if the destruct level
 is greater than 0.  You can test the higher levels of global destruction
@@ -547,8 +553,8 @@ breaks the circularities in the self-referential structure.
 
 =head1 SEE ALSO
 
-A kinder, gentler tutorial on object-oriented programming in Perl can
-be found in L<perltoot>.
-You should also check out L<perlbot> for other object tricks, traps, and tips,
-as well as L<perlmodlib> for some style guides on constructing both modules
+A kinder, gentler tutorial on object-oriented programming in Perl
+can be found in L<perltoot> and L<perltootc>.  You should also check
+out L<perlbot> for other object tricks, traps, and tips, as well
+as L<perlmodlib> for some style guides on constructing both modules
 and classes.

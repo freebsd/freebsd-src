@@ -1,8 +1,8 @@
 package FileHandle;
 
-use 5.003_11;
+use 5.005_64;
 use strict;
-use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
+our($VERSION, @ISA, @EXPORT, @EXPORT_OK);
 
 $VERSION = "2.00";
 

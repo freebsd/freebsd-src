@@ -1,31 +1,32 @@
 /*    cv.h
  *
- *    Copyright (c) 1991-1999, Larry Wall
+ *    Copyright (c) 1991-2000, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
  *
  */
 
-/* This structure much match the beginning of XPVFM */
+/* This structure much match XPVCV in B/C.pm and the beginning of XPVFM
+ * in sv.h  */
 
 struct xpvcv {
     char *	xpv_pv;		/* pointer to malloced string */
     STRLEN	xpv_cur;	/* length of xp_pv as a C string */
     STRLEN	xpv_len;	/* allocated size */
     IV		xof_off;	/* integer value */
-    double	xnv_nv;		/* numeric value, if any */
+    NV		xnv_nv;		/* numeric value, if any */
     MAGIC*	xmg_magic;	/* magic for scalar array */
     HV*		xmg_stash;	/* class package */
 
     HV *	xcv_stash;
     OP *	xcv_start;
     OP *	xcv_root;
-    void      (*xcv_xsub) _((CV* _CPERLproto));
+    void	(*xcv_xsub) (pTHXo_ CV*);
     ANY		xcv_xsubany;
     GV *	xcv_gv;
-    GV *	xcv_filegv;
-    long	xcv_depth;		/* >= 2 indicates recursive call */
+    char *	xcv_file;
+    long	xcv_depth;	/* >= 2 indicates recursive call */
     AV *	xcv_padlist;
     CV *	xcv_outside;
 #ifdef USE_THREADS
@@ -35,6 +36,16 @@ struct xpvcv {
     cv_flags_t	xcv_flags;
 };
 
+/*
+=for apidoc AmU||Nullcv
+Null CV pointer.
+
+=for apidoc Am|HV*|CvSTASH|CV* cv
+Returns the stash of the CV.
+
+=cut
+*/
+
 #define Nullcv Null(CV*)
 
 #define CvSTASH(sv)	((XPVCV*)SvANY(sv))->xcv_stash
@@ -43,7 +54,8 @@ struct xpvcv {
 #define CvXSUB(sv)	((XPVCV*)SvANY(sv))->xcv_xsub
 #define CvXSUBANY(sv)	((XPVCV*)SvANY(sv))->xcv_xsubany
 #define CvGV(sv)	((XPVCV*)SvANY(sv))->xcv_gv
-#define CvFILEGV(sv)	((XPVCV*)SvANY(sv))->xcv_filegv
+#define CvFILE(sv)	((XPVCV*)SvANY(sv))->xcv_file
+#define CvFILEGV(sv)	(gv_fetchfile(CvFILE(sv))
 #define CvDEPTH(sv)	((XPVCV*)SvANY(sv))->xcv_depth
 #define CvPADLIST(sv)	((XPVCV*)SvANY(sv))->xcv_padlist
 #define CvOUTSIDE(sv)	((XPVCV*)SvANY(sv))->xcv_outside
@@ -62,6 +74,7 @@ struct xpvcv {
 				   (esp. useful for special XSUBs) */
 #define CVf_METHOD	0x0040	/* CV is explicitly marked as a method */
 #define CVf_LOCKED	0x0080	/* CV locks itself or first arg on entry */
+#define CVf_LVALUE	0x0100  /* CV return value can be used as lvalue */
 
 #define CvCLONE(cv)		(CvFLAGS(cv) & CVf_CLONE)
 #define CvCLONE_on(cv)		(CvFLAGS(cv) |= CVf_CLONE)
@@ -75,9 +88,11 @@ struct xpvcv {
 #define CvANON_on(cv)		(CvFLAGS(cv) |= CVf_ANON)
 #define CvANON_off(cv)		(CvFLAGS(cv) &= ~CVf_ANON)
 
+#ifdef PERL_XSUB_OLDSTYLE
 #define CvOLDSTYLE(cv)		(CvFLAGS(cv) & CVf_OLDSTYLE)
 #define CvOLDSTYLE_on(cv)	(CvFLAGS(cv) |= CVf_OLDSTYLE)
 #define CvOLDSTYLE_off(cv)	(CvFLAGS(cv) &= ~CVf_OLDSTYLE)
+#endif
 
 #define CvUNIQUE(cv)		(CvFLAGS(cv) & CVf_UNIQUE)
 #define CvUNIQUE_on(cv)		(CvFLAGS(cv) |= CVf_UNIQUE)
@@ -94,6 +109,10 @@ struct xpvcv {
 #define CvLOCKED(cv)		(CvFLAGS(cv) & CVf_LOCKED)
 #define CvLOCKED_on(cv)		(CvFLAGS(cv) |= CVf_LOCKED)
 #define CvLOCKED_off(cv)	(CvFLAGS(cv) &= ~CVf_LOCKED)
+
+#define CvLVALUE(cv)		(CvFLAGS(cv) & CVf_LVALUE)
+#define CvLVALUE_on(cv)		(CvFLAGS(cv) |= CVf_LVALUE)
+#define CvLVALUE_off(cv)	(CvFLAGS(cv) &= ~CVf_LVALUE)
 
 #define CvEVAL(cv)		(CvUNIQUE(cv) && !SvFAKE(cv))
 #define CvEVAL_on(cv)		(CvUNIQUE_on(cv),SvFAKE_off(cv))

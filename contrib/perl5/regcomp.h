@@ -66,10 +66,10 @@ typedef OP OP_4tree;			/* Will be redefined later. */
  */
 
 struct regnode_string {
-    U8	flags;
+    U8	str_len;
     U8  type;
     U16 next_off;
-    U8 string[1];
+    char string[1];
 };
 
 struct regnode_1 {
@@ -85,6 +85,24 @@ struct regnode_2 {
     U16 next_off;
     U16 arg1;
     U16 arg2;
+};
+
+#define ANYOF_BITMAP_SIZE	32	/* 256 b/(8 b/B) */
+#define ANYOF_CLASSBITMAP_SIZE	 4
+
+struct regnode_charclass {
+    U8	flags;
+    U8  type;
+    U16 next_off;
+    char bitmap[ANYOF_BITMAP_SIZE];
+};
+
+struct regnode_charclass_class {
+    U8	flags;
+    U8  type;
+    U16 next_off;
+    char bitmap[ANYOF_BITMAP_SIZE];
+    char classflags[ANYOF_CLASSBITMAP_SIZE];
 };
 
 /* XXX fix this description.
@@ -133,6 +151,12 @@ struct regnode_2 {
 
 #define	OP(p)		((p)->type)
 #define	OPERAND(p)	(((struct regnode_string *)p)->string)
+#define MASK(p)		((char*)OPERAND(p))
+#define	STR_LEN(p)	(((struct regnode_string *)p)->str_len)
+#define	STRING(p)	(((struct regnode_string *)p)->string)
+#define STR_SZ(l)	((l + sizeof(regnode) - 1) / sizeof(regnode))
+#define NODE_SZ_STR(p)	(STR_SZ(STR_LEN(p))+1)
+
 #define	NODE_ALIGN(node)
 #define	ARG_LOC(p)	(((struct regnode_1 *)p)->arg1)
 #define	ARG1_LOC(p)	(((struct regnode_2 *)p)->arg1)
@@ -150,35 +174,94 @@ struct regnode_2 {
 #define FILL_ADVANCE_NODE_ARG(ptr, op, arg) STMT_START { \
     ARG_SET(ptr, arg);  FILL_ADVANCE_NODE(ptr, op); (ptr) += 1; } STMT_END
 
-#define MAGIC 0234
+#define REG_MAGIC 0234
 
 #define SIZE_ONLY (PL_regcode == &PL_regdummy)
 
-/* Flags for first parameter byte of ANYOF */
-#define ANYOF_INVERT	0x40
-#define ANYOF_FOLD	0x20
-#define ANYOF_LOCALE	0x10
-#define ANYOF_ISA	0x0F
-#define ANYOF_ALNUML	 0x08
-#define ANYOF_NALNUML	 0x04
-#define ANYOF_SPACEL	 0x02
-#define ANYOF_NSPACEL	 0x01
+/* Flags for node->flags of ANYOF */
 
-/* Utility macros for bitmap of ANYOF */
-#define ANYOF_BYTE(p,c)     (p)[1 + (((c) >> 3) & 31)]
-#define ANYOF_BIT(c)        (1 << ((c) & 7))
-#define ANYOF_SET(p,c)      (ANYOF_BYTE(p,c) |=  ANYOF_BIT(c))
-#define ANYOF_CLEAR(p,c)    (ANYOF_BYTE(p,c) &= ~ANYOF_BIT(c))
-#define ANYOF_TEST(p,c)     (ANYOF_BYTE(p,c) &   ANYOF_BIT(c))
+#define ANYOF_CLASS	0x08
+#define ANYOF_INVERT	0x04
+#define ANYOF_FOLD	0x02
+#define ANYOF_LOCALE	0x01
 
-#define ANY_SKIP ((33 - 1)/sizeof(regnode) + 1)
+/* Used for regstclass only */
+#define ANYOF_EOS	0x10		/* Can match an empty string too */
+
+/* Character classes for node->classflags of ANYOF */
+/* Should be synchronized with a table in regprop() */
+/* 2n should pair with 2n+1 */
+
+#define ANYOF_ALNUM	 0	/* \w, utf8::IsWord, isALNUM() */
+#define ANYOF_NALNUM	 1
+#define ANYOF_SPACE	 2
+#define ANYOF_NSPACE	 3
+#define ANYOF_DIGIT	 4
+#define ANYOF_NDIGIT	 5
+#define ANYOF_ALNUMC	 6	/* isalnum(3), utf8::IsAlnum, isALNUMC() */
+#define ANYOF_NALNUMC	 7
+#define ANYOF_ALPHA	 8
+#define ANYOF_NALPHA	 9
+#define ANYOF_ASCII	10
+#define ANYOF_NASCII	11
+#define ANYOF_CNTRL	12
+#define ANYOF_NCNTRL	13
+#define ANYOF_GRAPH	14
+#define ANYOF_NGRAPH	15
+#define ANYOF_LOWER	16
+#define ANYOF_NLOWER	17
+#define ANYOF_PRINT	18
+#define ANYOF_NPRINT	19
+#define ANYOF_PUNCT	20
+#define ANYOF_NPUNCT	21
+#define ANYOF_UPPER	22
+#define ANYOF_NUPPER	23
+#define ANYOF_XDIGIT	24
+#define ANYOF_NXDIGIT	25
+
+#define ANYOF_MAX	31
+
+/* Backward source code compatibility. */
+
+#define ANYOF_ALNUML	 ANYOF_ALNUM
+#define ANYOF_NALNUML	 ANYOF_NALNUM
+#define ANYOF_SPACEL	 ANYOF_SPACE
+#define ANYOF_NSPACEL	 ANYOF_NSPACE
+
+/* Utility macros for the bitmap and classes of ANYOF */
+
+#define ANYOF_SIZE		(sizeof(struct regnode_charclass))
+#define ANYOF_CLASS_SIZE	(sizeof(struct regnode_charclass_class))
+
+#define ANYOF_FLAGS(p)		((p)->flags)
+#define ANYOF_FLAGS_ALL		0xff
+
+#define ANYOF_BIT(c)		(1 << ((c) & 7))
+
+#define ANYOF_CLASS_BYTE(p, c)	(((struct regnode_charclass_class*)(p))->classflags[((c) >> 3) & 3])
+#define ANYOF_CLASS_SET(p, c)	(ANYOF_CLASS_BYTE(p, c) |=  ANYOF_BIT(c))
+#define ANYOF_CLASS_CLEAR(p, c)	(ANYOF_CLASS_BYTE(p, c) &= ~ANYOF_BIT(c))
+#define ANYOF_CLASS_TEST(p, c)	(ANYOF_CLASS_BYTE(p, c) &   ANYOF_BIT(c))
+
+#define ANYOF_CLASS_ZERO(ret)	Zero(((struct regnode_charclass_class*)(ret))->classflags, ANYOF_CLASSBITMAP_SIZE, char)
+#define ANYOF_BITMAP_ZERO(ret)	Zero(((struct regnode_charclass*)(ret))->bitmap, ANYOF_BITMAP_SIZE, char)
+
+#define ANYOF_BITMAP(p)		(((struct regnode_charclass*)(p))->bitmap)
+#define ANYOF_BITMAP_BYTE(p, c)	(ANYOF_BITMAP(p)[((c) >> 3) & 31])
+#define ANYOF_BITMAP_SET(p, c)	(ANYOF_BITMAP_BYTE(p, c) |=  ANYOF_BIT(c))
+#define ANYOF_BITMAP_CLEAR(p,c)	(ANYOF_BITMAP_BYTE(p, c) &= ~ANYOF_BIT(c))
+#define ANYOF_BITMAP_TEST(p, c)	(ANYOF_BITMAP_BYTE(p, c) &   ANYOF_BIT(c))
+
+#define ANYOF_SKIP		((ANYOF_SIZE - 1)/sizeof(regnode))
+#define ANYOF_CLASS_SKIP	((ANYOF_CLASS_SIZE - 1)/sizeof(regnode))
+#define ANYOF_CLASS_ADD_SKIP	(ANYOF_CLASS_SKIP - ANYOF_SKIP)
 
 /*
  * Utility definitions.
  */
 #ifndef lint
 #ifndef CHARMASK
-#define	UCHARAT(p)	((int)*(unsigned char *)(p))
+#define	UCHARAT(p)	((int)*(U8*)(p))
 #else
 #define	UCHARAT(p)	((int)*(p)&CHARMASK)
 #endif
@@ -186,8 +269,19 @@ struct regnode_2 {
 #define UCHARAT(p)	PL_regdummy
 #endif /* lint */
 
-#define	FAIL(m)		croak    ("/%.127s/: %s",  PL_regprecomp,m)
-#define	FAIL2(pat,m)	re_croak2("/%.127s/: ",pat,PL_regprecomp,m)
+#define	FAIL(m) \
+    STMT_START {							\
+	if (!SIZE_ONLY)							\
+	    SAVEDESTRUCTOR_X(clear_re,(void*)PL_regcomp_rx);		\
+	Perl_croak(aTHX_ "/%.127s/: %s",  PL_regprecomp,m);		\
+    } STMT_END
+
+#define	FAIL2(pat,m) \
+    STMT_START {							\
+	if (!SIZE_ONLY)							\
+	    SAVEDESTRUCTOR_X(clear_re,(void*)PL_regcomp_rx);		\
+	S_re_croak2(aTHX_ "/%.127s/: ",pat,PL_regprecomp,m);		\
+    } STMT_END
 
 #define EXTRA_SIZE(guy) ((sizeof(guy)-1)/sizeof(struct regnode))
 
@@ -196,27 +290,64 @@ struct regnode_2 {
 #define REG_SEEN_GPOS		4
 #define REG_SEEN_EVAL		8
 
+START_EXTERN_C
+
 #include "regnodes.h"
 
-/* The following have no fixed length. char* since we do strchr on it. */
+/* The following have no fixed length. U8 so we can do strchr() on it. */
 #ifndef DOINIT
-EXTCONST char varies[];
+EXTCONST U8 PL_varies[];
 #else
-EXTCONST char varies[] = {
+EXTCONST U8 PL_varies[] = {
     BRANCH, BACK, STAR, PLUS, CURLY, CURLYX, REF, REFF, REFFL, 
-    WHILEM, CURLYM, CURLYN, BRANCHJ, IFTHEN, SUSPEND, 0
+    WHILEM, CURLYM, CURLYN, BRANCHJ, IFTHEN, SUSPEND, CLUMP, 0
 };
 #endif
 
-/* The following always have a length of 1. char* since we do strchr on it. */
+/* The following always have a length of 1. U8 we can do strchr() on it. */
+/* (Note that length 1 means "one character" under UTF8, not "one octet".) */
 #ifndef DOINIT
-EXTCONST char simple[];
+EXTCONST U8 PL_simple[];
 #else
-EXTCONST char simple[] = {
-    ANY, SANY, ANYOF,
-    ALNUM, ALNUML, NALNUM, NALNUML,
-    SPACE, SPACEL, NSPACE, NSPACEL,
-    DIGIT, NDIGIT, 0
+EXTCONST U8 PL_simple[] = {
+    REG_ANY, ANYUTF8, SANY, SANYUTF8, ANYOF, ANYOFUTF8,
+    ALNUM, ALNUMUTF8, ALNUML, ALNUMLUTF8,
+    NALNUM, NALNUMUTF8, NALNUML, NALNUMLUTF8,
+    SPACE, SPACEUTF8, SPACEL, SPACELUTF8,
+    NSPACE, NSPACEUTF8, NSPACEL, NSPACELUTF8,
+    DIGIT, DIGITUTF8, NDIGIT, NDIGITUTF8, 0
 };
 #endif
 
+END_EXTERN_C
+
+typedef struct re_scream_pos_data_s
+{
+    char **scream_olds;		/* match pos */
+    I32 *scream_pos;		/* Internal iterator of scream. */
+} re_scream_pos_data;
+
+struct reg_data {
+    U32 count;
+    U8 *what;
+    void* data[1];
+};
+
+struct reg_substr_datum {
+    I32 min_offset;
+    I32 max_offset;
+    SV *substr;
+};
+
+struct reg_substr_data {
+    struct reg_substr_datum data[3];	/* Actual array */
+};
+
+#define anchored_substr substrs->data[0].substr
+#define anchored_offset substrs->data[0].min_offset
+#define float_substr substrs->data[1].substr
+#define float_min_offset substrs->data[1].min_offset
+#define float_max_offset substrs->data[1].max_offset
+#define check_substr substrs->data[2].substr
+#define check_offset_min substrs->data[2].min_offset
+#define check_offset_max substrs->data[2].max_offset

@@ -1,4 +1,13 @@
 # chat.pl: chat with a server
+#
+# This library is no longer being maintained, and is included for backward
+# compatibility with Perl 4 programs which may require it.
+#
+# In particular, this should not be used as an example of modern Perl
+# programming techniques.
+#
+# Suggested alternative: Socket
+#
 # Based on: V2.01.alpha.7 91/06/16
 # Randal L. Schwartz (was <merlyn@stonehenge.com>)
 # multihome additions by A.Macpherson@bnr.co.uk

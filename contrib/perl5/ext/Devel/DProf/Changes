@@ -1,0 +1,176 @@
+1999 Jan 8
+
+ Ilya Zakharevich:
+  Newer perls: Add PERL_POLLUTE and dTHR.
+
+1998 Nov 10 
+This version of DProf should work with older Perls too, but to get
+full benefits some patches to 5.004_55 are needed.  Patches take effect 
+after new version of Perl is installed, and DProf recompiled.
+
+Without these patches the overhead of DProf is too big, thus the statistic
+may be very skewed.
+
+Oct 98:
+ Ilya Zakharevich:
+  DProf.xs
+    - correct defstash to PL_defstash
+    - nonlocal exits work
+  dprofpp
+    - nonlocal exits work
+  DProf.pm
+    - documentation updated
+  t/test6.*
+    - added
+
+Nov-Dec 97:
+ Jason E. Holt and Ilya Zakharevich:
+  DProf.xs
+    - will not wait until completion to write the output, size of buffer
+      regulated by PERL_DPROF_BUFFER, default 2**14 words;
+
+ Ilya Zakharevich:
+  dprofpp
+    - smarter in fixing garbled profiles;
+    - subtracts DProf output overhead, and suggested profiler overhead;
+    - new options -A, -R, -g subroutine, -S;
+    - handles 'goto' too;
+  DProf.xs
+    - 7x denser output (time separated from name, ids for subs);
+    - outputs report-write overhead;
+    - optional higher-resolution (currently OS/2 only, cannot grok VMS code);
+    - outputs suggested profiler overhead;
+    - handles 'goto' too;
+    - handles PERL_DPROF_TICKS (on OS/2, VMS may be easily modified too)
+
+Jun 14, 97 andreas koenig adds the compatibility notes to the README
+and lets the Makefile.PL die on $] < 5.004.
+
+Jun 06, 97 andreas koenig applies a patch by gurusamy sarathy because
+Dean is not available for comments at that time. The patch is available
+from CPAN in the authors/id/GSAR directory for inspection.
+
+Sep 30, 96 dmr
+  DProf.xs
+  - added Ilya's patches to fix "&bar as &bar(@_)" bug.  This also fixes
+    the coredumps people have seen when using this with 5.003+.
+  DProf.pm
+  - updated manpage
+  t/bug.t
+  - moved to test5
+  Makefile.PL
+  - remove special case for bug.t
+
+Jun 26, 96 dmr
+  dprofpp.PL
+  - smarter r.e. to find VERSION in Makefile (for MM5.27).
+  DProf.pm
+  - updated manpage
+  DProf.xs
+  - keep pid of profiled process, if process forks then only the
+    parent is profiled.  Added test4 for this.
+
+Mar 2, 96 dmr
+  README
+  - updated
+  dprofpp
+  - updated manpage, point to DProf for raw profile description.
+  DProf.pm
+  - update manpage, update raw profile description with XS_VERSION.
+  - update manpage for AUTOLOAD changes.
+  DProf.xs
+  - smart handling of &AUTOLOAD--looks in $AUTOLOAD for the sub name.
+      this fixes one problem with corrupt profiles.
+
+Feb 5, 96 dmr 
+  dprofpp
+  - updated manpage
+  - added -E/-I for exclusive/inclusive times
+  - added DPROFPP_OPTS -- lazily
+  - added -p/-Q for profile-then-analyze
+  - added version check
+  dprofpp.PL
+  - pull dprofpp's version id from the makefile
+  DProf.pm
+  - added version to bootstrap
+  - updated doc
+  - updated doc, DProf and -w are now friendly to each other
+  DProf.xs
+  - using savepv
+  - added Tim's patch to check for DBsub, avoids -MDevel::DProf coredump
+  - turn off warnings during newXS("DB::sub")
+  tests
+  - added Tim's patch to ignore Loader::import in results
+  - added Tim's patch to aid readability of test?.v output
+
+
+-- from those days when I kept a unique changelog for each module --
+
+# Devel::DProf - a Perl code profiler
+#  31oct95
+#
+# changes/bugs fixed since 5apr95 version -dmr:
+#  -added VMS patches from CharlesB.
+#  -now open ./tmon.out in BOOT.
+# changes/bugs fixed since 2apr95 version -dmr:
+#  -now mallocing an extra byte for the \0 :)
+# changes/bugs fixed since 01mar95 version -dmr:
+#  -stringified code ref is used for name of anonymous sub.
+#  -include stash name with stringified code ref.
+#  -use perl.c's DBsingle and DBsub.
+#  -now using croak() and warn().
+#  -print "timer is on" before turning timer on.
+#  -use safefree() instead of free().
+#  -rely on PM to provide full path name to tmon.out.
+#  -print errno if unable to write tmon.out.
+# changes/bugs fixed since 03feb95 version -dmr:
+#  -comments
+# changes/bugs fixed since 31dec94 version -dmr:
+#  -added patches from AndyD.
+#
+
+# Devel::DProf - a Perl code profiler
+#  31oct95
+#
+# changes/bugs fixed since 05apr95 version -dmr:
+#  - VMS-related prob; now let tmon.out name be handled in XS.
+# changes/bugs fixed since 01mar95 version -dmr:
+#  - record $pwd and build pathname for tmon.out
+# changes/bugs fixed since 03feb95 version -dmr:
+#  - fixed some doc bugs
+#  - added require 5.000
+#  - added -w note to bugs section of pod
+# changes/bugs fixed since 31dec94 version -dmr:
+#  - podified
+#
+
+
+# dprofpp - display perl profile data
+#  31oct95
+#
+# changes/bugs fixed since 7oct95 version -dmr:
+#  - PL'd
+# changes/bugs fixed since 5apr95 version -dmr:
+#  - touch up handling of exit timestamps.
+#  - suggests -F when exit timestamps are missing.
+#  - added compressed execution tree patches from AchimB, put under -t.
+#      now -z is the default action; user+system time.
+#  - doc changes.
+# changes/bugs fixed since 10feb95 version -dmr:
+#  - summary info is printed by default, opt_c is gone.
+#  - fixed some doc bugs
+#  - changed name to dprofpp
+# changes/bugs fixed since 03feb95 version -dmr:
+#  - fixed division by zero.
+#  - replace many local()s with my().
+#  - now prints user+system times by default
+#     now -u prints user time, -U prints unsorted.
+#  - fixed documentation
+#  - fixed output, to clarify that times are given in seconds.
+#  - can now fake exit timestamps if the profile is garbled.
+# changes/bugs fixed since 17jun94 version -dmr:
+#  - podified.
+#  - correct old documentation flaws.
+#  - added AndyD's patches.
+#
+ 

@@ -1,6 +1,12 @@
 #!./perl
 
-print "1..71\n";
+BEGIN {
+    chdir 't' if -d 't';
+    unshift @INC, '../lib' if -d '../lib';
+    require Config; import Config;
+}
+
+print "1..84\n";
 
 $x = 'foo';
 $_ = "x";
@@ -181,7 +187,8 @@ tr/a-z/A-Z/;
 print $_ eq 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789' ? "ok 52\n" : "not ok 52\n";
 
 # same as tr/A-Z/a-z/;
-if ($^O eq 'os390') {	# An EBCDIC variant.
+if ($Config{ebcdic} eq 'define') {	# EBCDIC.
+    no utf8;
     y[\301-\351][\201-\251];
 } else {		# Ye Olde ASCII.  Or something like it.
     y[\101-\132][\141-\172];
@@ -305,6 +312,70 @@ s{  \d+          \b [,.;]? (?{ 'digits' })
 print ($_ eq $foo ? "ok 70\n" : "not ok 70\n#'$_'\n#'$foo'\n");
 
 $_ = 'x' x 20; 
-s/\d*|x/<$&>/g; 
+s/(\d*|x)/<$1>/g; 
 $foo = '<>' . ('<x><>' x 20) ;
 print ($_ eq $foo ? "ok 71\n" : "not ok 71\n#'$_'\n#'$foo'\n");
+
+$t = 'aaaaaaaaa'; 
+
+$_ = $t;
+pos = 6;
+s/\Ga/xx/g;
+print "not " unless $_ eq 'aaaaaaxxxxxx';
+print "ok 72\n";
+
+$_ = $t;
+pos = 6;
+s/\Ga/x/g;
+print "not " unless $_ eq 'aaaaaaxxx';
+print "ok 73\n";
+
+$_ = $t;
+pos = 6;
+s/\Ga/xx/;
+print "not " unless $_ eq 'aaaaaaxxaa';
+print "ok 74\n";
+
+$_ = $t;
+pos = 6;
+s/\Ga/x/;
+print "not " unless $_ eq 'aaaaaaxaa';
+print "ok 75\n";
+
+$_ = $t;
+s/\Ga/xx/g;
+print "not " unless $_ eq 'xxxxxxxxxxxxxxxxxx';
+print "ok 76\n";
+
+$_ = $t;
+s/\Ga/x/g;
+print "not " unless $_ eq 'xxxxxxxxx';
+print "ok 77\n";
+
+$_ = $t;
+s/\Ga/xx/;
+print "not " unless $_ eq 'xxaaaaaaaa';
+print "ok 78\n";
+
+$_ = $t;
+s/\Ga/x/;
+print "not " unless $_ eq 'xaaaaaaaa';
+print "ok 79\n";
+
+$_ = 'aaaa';
+s/\ba/./g;
+print "#'$_'\nnot " unless $_ eq '.aaa';
+print "ok 80\n";
+
+eval q% s/a/"b"}/e %;
+print ($@ =~ /Bad evalled substitution/ ? "ok 81\n" : "not ok 81\n");
+eval q% ($_ = "x") =~ s/(.)/"$1 "/e %;
+print +($_ eq "x " and !length $@) ? "ok 82\n" : "not ok 82\n# \$_ eq $_, $@\n";
+$x = $x = 'interp';
+eval q% ($_ = "x") =~ s/x(($x)*)/"$1"/e %;
+print +($_ eq '' and !length $@) ? "ok 83\n" : "not ok 83\n# \$_ eq $_, $@\n";
+
+$_ = "C:/";
+s/^([a-z]:)/\u$1/ and print "not ";
+print "ok 84\n";
+

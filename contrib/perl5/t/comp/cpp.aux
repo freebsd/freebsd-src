@@ -1,14 +1,10 @@
 #!./perl -P
 
-# $RCSfile: cpp.t,v $$Revision: 4.1 $$Date: 92/08/07 18:27:18 $
-
 print "1..3\n";
 
-#this is a comment
 #define MESS "ok 1\n"
 print MESS;
 
-#If you capitalize, it's a comment.
 #ifdef MESS
 	print "ok 2\n";
 #else

@@ -58,7 +58,7 @@ You may also choose to assign the strings C<'IGNORE'> or C<'DEFAULT'> as
 the handler, in which case Perl will try to discard the signal or do the
 default thing.
 
-On most UNIX platforms, the C<CHLD> (sometimes also known as C<CLD>) signal
+On most Unix platforms, the C<CHLD> (sometimes also known as C<CLD>) signal
 has special behavior with respect to a value of C<'IGNORE'>.
 Setting C<$SIG{CHLD}> to C<'IGNORE'> on such a platform has the effect of
 not creating zombie processes when the parent process fails to C<wait()>
@@ -126,7 +126,7 @@ or even the more elaborate:
     use POSIX ":sys_wait_h";
     sub REAPER {
 	my $child;
-        while ($child = waitpid(-1,WNOHANG)) {
+        while (($child = waitpid(-1,WNOHANG)) > 0) {
 	    $Kid_Status{$child} = $?;
 	}
 	$SIG{CHLD} = \&REAPER;  # still loathe sysV
@@ -151,6 +151,10 @@ Here's an example:
         alarm 0;
     };
     if ($@ and $@ !~ /alarm clock restart/) { die }
+
+If the operation being timed out is system() or qx(), this technique
+is liable to generate zombies.    If this matters to you, you'll
+need to do your own fork() and exec(), and kill the errant child process.
 
 For more complex signal handling, you might see the standard POSIX
 module.  Lamentably, this is almost entirely undocumented, but
@@ -276,7 +280,7 @@ same effect as opening a pipe for reading:
 
 While this is true on the surface, it's much more efficient to process the
 file one line or record at a time because then you don't have to read the
-whole thing into memory at once. It also gives you finer control of the
+whole thing into memory at once.  It also gives you finer control of the
 whole process, letting you to kill off the child process early if you'd
 like.
 
@@ -307,8 +311,7 @@ To catch it, you could use this:
 
 Both the main process and any child processes it forks share the same
 STDIN, STDOUT, and STDERR filehandles.  If both processes try to access
-them at once, strange things can happen.  You'll certainly want to any
-stdio flush output buffers before forking.  You may also want to close
+them at once, strange things can happen.  You may also want to close
 or reopen the filehandles for the child.  You can get around this by
 opening your pipe with open(), but on some systems this means that the
 child process cannot outlive the parent.
@@ -450,8 +453,8 @@ doesn't actually work:
 
     open(PROG_FOR_READING_AND_WRITING, "| some program |")
 
-and if you forget to use the B<-w> flag, then you'll miss out
-entirely on the diagnostic message:
+and if you forget to use the C<use warnings> pragma or the B<-w> flag,
+then you'll miss out entirely on the diagnostic message:
 
     Can't do bidirectional pipe at -e line 1.
 
@@ -473,7 +476,6 @@ Here's an example of using open2():
     use FileHandle;
     use IPC::Open2;
     $pid = open2(*Reader, *Writer, "cat -u -n" );
-    Writer->autoflush(); # default here, actually
     print Writer "stuff\n";
     $got = <Reader>;
 
@@ -1022,7 +1024,7 @@ something to the server before fetching the server's response.
 The web server handing the "http" service, which is assumed to be at
 its standard port, number 80.  If your the web server you're trying to
 connect to is at a different port (like 1080 or 8080), you should specify
-as the named-parameter pair, C<PeerPort =E<gt> 8080>.  The C<autoflush>
+as the named-parameter pair, C<< PeerPort => 8080 >>.  The C<autoflush>
 method is used on the socket because otherwise the system would buffer
 up the output we sent it.  (If you're on a Mac, you'll also need to
 change every C<"\n"> in your code that sends data over the network to
@@ -1140,7 +1142,7 @@ well.
 As always, setting up a server is little bit more involved than running a client.
 The model is that the server creates a special kind of socket that
 does nothing but listen on a particular port for incoming connections.
-It does this by calling the C<IO::Socket::INET-E<gt>new()> method with
+It does this by calling the C<< IO::Socket::INET->new() >> method with
 slightly different arguments than the client did.
 
 =over
@@ -1159,7 +1161,7 @@ server. (Under Unix, ports under 1024 are restricted to the
 superuser.)  In our sample, we'll use port 9000, but you can use
 any port that's not currently in use on your system.  If you try
 to use one already in used, you'll get an "Address already in use"
-message. Under Unix, the C<netstat -a> command will show
+message.  Under Unix, the C<netstat -a> command will show
 which services current have servers.
 
 =item Listen
@@ -1303,16 +1305,16 @@ you weren't wanting it to.
 
 Here's a small example showing shared memory usage.
 
-    use IPC::SysV qw(IPC_PRIVATE IPC_RMID S_IRWXU S_IRWXG S_IRWXO);
+    use IPC::SysV qw(IPC_PRIVATE IPC_RMID S_IRWXU);
 
     $size = 2000;
-    $key = shmget(IPC_PRIVATE, $size, S_IRWXU|S_IRWXG|S_IRWXO) || die "$!";
-    print "shm key $key\n";
+    $id = shmget(IPC_PRIVATE, $size, S_IRWXU) || die "$!";
+    print "shm key $id\n";
 
     $message = "Message #1";
-    shmwrite($key, $message, 0, 60) || die "$!";
+    shmwrite($id, $message, 0, 60) || die "$!";
     print "wrote: '$message'\n";
-    shmread($key, $buff, 0, 60) || die "$!";
+    shmread($id, $buff, 0, 60) || die "$!";
     print "read : '$buff'\n";
 
     # the buffer of shmread is zero-character end-padded.
@@ -1320,16 +1322,16 @@ Here's a small example showing shared memory usage.
     print "un" unless $buff eq $message;
     print "swell\n";
 
-    print "deleting shm $key\n";
-    shmctl($key, IPC_RMID, 0) || die "$!";
+    print "deleting shm $id\n";
+    shmctl($id, IPC_RMID, 0) || die "$!";
 
 Here's an example of a semaphore:
 
     use IPC::SysV qw(IPC_CREAT);
 
     $IPC_KEY = 1234;
-    $key = semget($IPC_KEY, 10, 0666 | IPC_CREAT ) || die "$!";
-    print "shm key $key\n";
+    $id = semget($IPC_KEY, 10, 0666 | IPC_CREAT ) || die "$!";
+    print "shm key $id\n";
 
 Put this code in a separate file to be run in more than one process.
 Call the file F<take>:
@@ -1337,8 +1339,8 @@ Call the file F<take>:
     # create a semaphore
 
     $IPC_KEY = 1234;
-    $key = semget($IPC_KEY,  0 , 0 );
-    die if !defined($key);
+    $id = semget($IPC_KEY,  0 , 0 );
+    die if !defined($id);
 
     $semnum = 0;
     $semflag = 0;
@@ -1346,14 +1348,14 @@ Call the file F<take>:
     # 'take' semaphore
     # wait for semaphore to be zero
     $semop = 0;
-    $opstring1 = pack("sss", $semnum, $semop, $semflag);
+    $opstring1 = pack("s!s!s!", $semnum, $semop, $semflag);
 
     # Increment the semaphore count
     $semop = 1;
-    $opstring2 = pack("sss", $semnum, $semop,  $semflag);
+    $opstring2 = pack("s!s!s!", $semnum, $semop,  $semflag);
     $opstring = $opstring1 . $opstring2;
 
-    semop($key,$opstring) || die "$!";
+    semop($id,$opstring) || die "$!";
 
 Put this code in a separate file to be run in more than one process.
 Call this file F<give>:
@@ -1363,21 +1365,52 @@ Call this file F<give>:
     # that the second process continues
 
     $IPC_KEY = 1234;
-    $key = semget($IPC_KEY, 0, 0);
-    die if !defined($key);
+    $id = semget($IPC_KEY, 0, 0);
+    die if !defined($id);
 
     $semnum = 0;
     $semflag = 0;
 
     # Decrement the semaphore count
     $semop = -1;
-    $opstring = pack("sss", $semnum, $semop, $semflag);
+    $opstring = pack("s!s!s!", $semnum, $semop, $semflag);
 
-    semop($key,$opstring) || die "$!";
+    semop($id,$opstring) || die "$!";
 
 The SysV IPC code above was written long ago, and it's definitely
 clunky looking.  For a more modern look, see the IPC::SysV module
 which is included with Perl starting from Perl 5.005.
+
+A small example demonstrating SysV message queues:
+
+    use IPC::SysV qw(IPC_PRIVATE IPC_RMID IPC_CREAT S_IRWXU);
+
+    my $id = msgget(IPC_PRIVATE, IPC_CREAT | S_IRWXU);
+
+    my $sent = "message";
+    my $type = 1234;
+    my $rcvd;
+    my $type_rcvd;
+
+    if (defined $id) {
+        if (msgsnd($id, pack("l! a*", $type_sent, $sent), 0)) {
+            if (msgrcv($id, $rcvd, 60, 0, 0)) {
+                ($type_rcvd, $rcvd) = unpack("l! a*", $rcvd);
+                if ($rcvd eq $sent) {
+                    print "okay\n";
+                } else {
+                    print "not okay\n";
+                }
+            } else {
+                die "# msgrcv failed\n";
+            }
+        } else {
+            die "# msgsnd failed\n";
+        }
+        msgctl($id, IPC_RMID, 0) || die "# msgctl failed: $!\n";
+    } else {
+        die "# msgget failed\n";
+    }
 
 =head1 NOTES
 

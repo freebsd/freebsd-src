@@ -4,18 +4,17 @@ package Net::Ping;
 #
 # Authors of the original pingecho():
 #           karrer@bernina.ethz.ch (Andreas Karrer)
-#           pmarquess@bfsec.bt.co.uk (Paul Marquess)
+#           Paul.Marquess@btinternet.com (Paul Marquess)
 #
 # Copyright (c) 1996 Russell Mosemann.  All rights reserved.  This
 # program is free software; you may redistribute it and/or modify it
 # under the same terms as Perl itself.
 
-require 5.002;
+use 5.005_64;
 require Exporter;
 
 use strict;
-use vars qw(@ISA @EXPORT $VERSION
-            $def_timeout $def_proto $max_datasize);
+our(@ISA, @EXPORT, $VERSION, $def_timeout, $def_proto, $max_datasize);
 use FileHandle;
 use Socket qw( SOCK_DGRAM SOCK_STREAM SOCK_RAW PF_INET
                inet_aton sockaddr_in );
@@ -423,7 +422,7 @@ Net::Ping - check a remote host for reachability
         sleep(1);
     }
     $p->close();
-    
+
     $p = Net::Ping->new("tcp", 2);
     while ($stop_time > time())
     {
@@ -432,7 +431,7 @@ Net::Ping - check a remote host for reachability
         sleep(300);
     }
     undef($p);
-    
+
     # For backward compatibility
     print "$host is alive.\n" if pingecho($host);
 

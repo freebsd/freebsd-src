@@ -2,16 +2,19 @@ package Class::Struct;
 
 ## See POD after __END__
 
-require 5.002;
+use 5.005_64;
 
 use strict;
-use vars qw(@ISA @EXPORT);
+use warnings::register;
+our(@ISA, @EXPORT, $VERSION);
 
 use Carp;
 
 require Exporter;
 @ISA = qw(Exporter);
 @EXPORT = qw(struct);
+
+$VERSION = '0.58';
 
 ## Tested on 5.002 and 5.003 without class membership tests:
 my $CHECK_CLASS_MEMBERSHIP = ($] >= 5.003_95);
@@ -98,6 +101,8 @@ sub struct {
     my $out = '';
 
     $out = "{\n  package $class;\n  use Carp;\n  sub new {\n";
+    $out .= "    my (\$class, \%init) = \@_;\n";
+    $out .= "    \$class = __PACKAGE__ unless \@_;\n";
 
     my $cnt = 0;
     my $idx = 0;
@@ -115,7 +120,7 @@ sub struct {
         $type = $decls[$idx+1];
         push( @methods, $name );
         if( $base_type eq 'HASH' ){
-            $elem = "{'$name'}";
+            $elem = "{'${class}::$name'}";
         }
         elsif( $base_type eq 'ARRAY' ){
             $elem = "[$cnt]";
@@ -126,19 +131,27 @@ sub struct {
             $refs{$name}++;
             $type = $1;
         }
+        my $init = "defined(\$init{'$name'}) ? \$init{'$name'} :";
         if( $type eq '@' ){
-            $out .= "    \$r->$elem = [];$cmt\n";
+            $out .= "    croak 'Initializer for $name must be array reference'\n"; 
+            $out .= "        if defined(\$init{'$name'}) && ref(\$init{'$name'}) ne 'ARRAY';\n";
+            $out .= "    \$r->$elem = $init [];$cmt\n"; 
             $arrays{$name}++;
         }
         elsif( $type eq '%' ){
-            $out .= "    \$r->$elem = {};$cmt\n";
+            $out .= "    croak 'Initializer for $name must be hash reference'\n";
+            $out .= "        if defined(\$init{'$name'}) && ref(\$init{'$name'}) ne 'HASH';\n";
+            $out .= "    \$r->$elem = $init {};$cmt\n";
             $hashes{$name}++;
         }
         elsif ( $type eq '$') {
-            $out .= "    \$r->$elem = undef;$cmt\n";
+            $out .= "    \$r->$elem = $init undef;$cmt\n";
         }
         elsif( $type =~ /^\w+(?:::\w+)*$/ ){
-            $out .= "    \$r->$elem = '${type}'->new();$cmt\n";
+            $init = "defined(\$init{'$name'}) ? \%{\$init{'$name'}} : ()";
+            $out .= "    croak 'Initializer for $name must be hash reference'\n";
+            $out .= "        if defined(\$init{'$name'}) && ref(\$init{'$name'}) ne 'HASH';\n";
+            $out .= "    \$r->$elem = '${type}'->new($init);$cmt\n";
             $classes{$name} = $type;
             $got_class = 1;
         }
@@ -147,7 +160,7 @@ sub struct {
         }
         $idx += 2;
     }
-    $out .= "    bless \$r;\n  }\n";
+    $out .= "    bless \$r, \$class;\n  }\n";
 
     # Create accessor methods.
 
@@ -155,8 +168,8 @@ sub struct {
     $cnt = 0;
     foreach $name (@methods){
         if ( do { no strict 'refs'; defined &{$class . "::$name"} } ) {
-            carp "function '$name' already defined, overrides struct accessor method"
-                if $^W;
+            warnings::warn "function '$name' already defined, overrides struct accessor method"
+                if warnings::enabled();
         }
         else {
             $pre = $pst = $cmt = $sel = '';
@@ -171,16 +184,16 @@ sub struct {
                 ++$cnt;
             }
             elsif( $base_type eq 'HASH' ){
-                $elem = "{'$name'}";
+                $elem = "{'${class}::$name'}";
             }
             if( defined $arrays{$name} ){
                 $out .= "    my \$i;\n";
-                $out .= "    \@_ ? (\$i = shift) : return $pre\$r->$elem$pst;\n";
+                $out .= "    \@_ ? (\$i = shift) : return \$r->$elem;\n"; 
                 $sel = "->[\$i]";
             }
             elsif( defined $hashes{$name} ){
                 $out .= "    my \$i;\n";
-                $out .= "    \@_ ? (\$i = shift) : return $pre\$r->$elem$pst;\n";
+                $out .= "    \@_ ? (\$i = shift) : return \$r->$elem;\n"; 
                 $sel = "->{\$i}";
             }
             elsif( defined $classes{$name} ){
@@ -297,6 +310,11 @@ flexible.
 The class created by C<struct> must not be a subclass of another
 class other than C<UNIVERSAL>.
 
+It can, however, be used as a superclass for other classes. To facilitate
+this, the generated constructor method uses a two-argument blessing.
+Furthermore, if the class is hash-based, the key of each element is
+prefixed with the class name (see I<Perl Cookbook>, Recipe 13.12).
+
 A function named C<new> must not be explicitly defined in a class
 created by C<struct>.
 
@@ -323,7 +341,8 @@ on the declared type of the element.
 
 =item Scalar (C<'$'> or C<'*$'>)
 
-The element is a scalar, and is initialized to C<undef>.
+The element is a scalar, and by default is initialized to C<undef>
+(but see L<Initializing with new>).
 
 The accessor's argument, if any, is assigned to the element.
 
@@ -333,10 +352,11 @@ to the element is returned.
 
 =item Array (C<'@'> or C<'*@'>)
 
-The element is an array, initialized to C<()>.
+The element is an array, initialized by default to C<()>.
 
 With no argument, the accessor returns a reference to the
-element's whole array.
+element's whole array (whether or not the element was
+specified as C<'@'> or C<'*@'>).
 
 With one or two arguments, the first argument is an index
 specifying one element of the array; the second argument, if
@@ -347,10 +367,11 @@ returned.
 
 =item Hash (C<'%'> or C<'*%'>)
 
-The element is a hash, initialized to C<()>.
+The element is a hash, initialized by default to C<()>.
 
 With no argument, the accessor returns a reference to the
-element's whole hash.
+element's whole hash (whether or not the element was
+specified as C<'%'> or C<'*%'>).
 
 With one or two arguments, the first argument is a key specifying
 one element of the hash; the second argument, if present, is
@@ -373,6 +394,23 @@ returns the element value (after assignment). If the element type
 starts with a C<'*'>, a reference to the element itself is returned.
 
 =back
+
+=head2 Initializing with C<new>
+
+C<struct> always creates a constructor called C<new>. That constructor
+may take a list of initializers for the various elements of the new
+struct. 
+
+Each initializer is a pair of values: I<element name>C< =E<gt> >I<value>.
+The initializer value for a scalar element is just a scalar value. The 
+initializer for an array element is an array reference. The initializer
+for a hash is a hash reference.
+
+The initializer for a class element is also a hash reference, and the
+contents of that hash are passed to the element's own constructor.
+
+See Example 3 below for an example of initialization.
+
 
 =head1 EXAMPLES
 
@@ -399,8 +437,8 @@ type C<timeval>.
 
         # create an object:
     my $t = new rusage;
-    	# $t->ru_utime and $t->ru_stime are objects of type timeval.
 
+        # $t->ru_utime and $t->ru_stime are objects of type timeval.
         # set $t->ru_utime to 100.0 sec and $t->ru_stime to 5.0 sec.
     $t->ru_utime->tv_secs(100);
     $t->ru_utime->tv_usecs(0);
@@ -418,10 +456,10 @@ accessor accordingly.
     package MyObj;
     use Class::Struct;
 
-    		# declare the struct
+    # declare the struct
     struct ( 'MyObj', { count => '$', stuff => '%' } );
 
-    		# override the default accessor method for 'count'
+    # override the default accessor method for 'count'
     sub count {
         my $self = shift;
         if ( @_ ) {
@@ -443,8 +481,66 @@ accessor accordingly.
     print "\$x->count(-5) = ", $x->count(-5), "\n";
                             # dies due to negative argument!
 
+=item Example 3
+
+The constructor of a generated class can be passed a list
+of I<element>=>I<value> pairs, with which to initialize the struct.
+If no initializer is specified for a particular element, its default
+initialization is performed instead. Initializers for non-existent
+elements are silently ignored.
+
+Note that the initializer for a nested struct is specified
+as an anonymous hash of initializers, which is passed on to the nested
+struct's constructor.
+
+
+    use Class::Struct;
+
+    struct Breed =>
+    {
+        name  => '$',
+        cross => '$',
+    };
+
+    struct Cat =>
+    [
+        name     => '$',
+        kittens  => '@',
+        markings => '%',
+        breed    => 'Breed',
+    ];
+
+
+    my $cat = Cat->new( name     => 'Socks',
+                        kittens  => ['Monica', 'Kenneth'],
+                        markings => { socks=>1, blaze=>"white" },
+                        breed    => { name=>'short-hair', cross=>1 },
+                      );
+
+    print "Once a cat called ", $cat->name, "\n";
+    print "(which was a ", $cat->breed->name, ")\n";
+    print "had two kittens: ", join(' and ', @{$cat->kittens}), "\n";
+
+=back
 
 =head1 Author and Modification History
+
+
+Modified by Damian Conway, 1999-03-05, v0.58.
+
+    Added handling of hash-like arg list to class ctor.
+
+    Changed to two-argument blessing in ctor to support
+    derivation from created classes.
+
+    Added classname prefixes to keys in hash-based classes
+    (refer to "Perl Cookbook", Recipe 13.12 for rationale).
+
+    Corrected behaviour of accessors for '*@' and '*%' struct
+    elements.  Package now implements documented behaviour when
+    returning a reference to an entire hash or array element.
+    Previously these were returned as a reference to a reference
+    to the element.
 
 
 Renamed to C<Class::Struct> and modified by Jim Miner, 1997-04-02.

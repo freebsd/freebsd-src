@@ -52,6 +52,20 @@ sub GET_objindex {
     return unpack("N", $str);
 }
 
+sub GET_opindex { 
+    my $fh = shift;
+    my $str = $fh->readn(4);
+    croak "reached EOF while reading opindex" unless length($str) == 4;
+    return unpack("N", $str);
+}
+
+sub GET_svindex { 
+    my $fh = shift;
+    my $str = $fh->readn(4);
+    croak "reached EOF while reading svindex" unless length($str) == 4;
+    return unpack("N", $str);
+}
+
 sub GET_strconst {
     my $fh = shift;
     my ($str, $c);

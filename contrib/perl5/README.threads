@@ -1,53 +1,89 @@
-NOTE
+NOTE: This documentation describes the style of threading that was
+available in 5.005.  Perl v5.6 also has the early beginnings of
+interpreter-based threads support (which is what will be enabled by
+default when you simply ask for -Dusethreads).  However, be advised
+that interpreter threads cannot as yet be created from the Perl level
+yet.  If you're looking to create threads from within Perl, chances
+are you _don't_ want interpreter threads, but want the older support
+for threads described below, enabled with:
 
-Threading is a highly experimental feature.  There are still a 
-few race conditions that show up under high contention on SMP
+    sh Configure -Dusethreads -Duse5005threads
+
+The rest of this document only applies to the use5005threads style of
+threads.
+---------------------------------------------------------------------------
+
+Support for threading is still in the highly experimental stages.  There
+are known race conditions that show up under high contention on SMP
 machines.  Internal implementation is still subject to changes.
 It is not recommended for production use at this time.
 
+---------------------------------------------------------------------------
+
 Building
 
-If you want to build with multi-threading support and you are
-running one of the following:
+If your system is in the following list you should be able to just:
 
-  * Linux 2.x (with the LinuxThreads library installed: that's
-    the linuxthreads and linuxthreads-devel RPMs for RedHat)
-
-  * Digital UNIX 4.x
-
-  * Digital UNIX 3.x (Formerly DEC OSF/1), see additional note below
-
-  * Solaris 2.x for recentish x (2.5 is OK)
-
-  * IRIX 6.2 or newer. 6.2 will require a few os patches.
-    IMPORTANT: Without patch 2401, a kernel bug in IRIX 6.2 will
-    cause your machine to panic and crash when running threaded perl.
-    IRIX 6.3 and up should be OK. See lower down for patch details.
-
-then you should be able to use
-
-    ./Configure -Dusethreads -des
+    ./Configure -Dusethreads -Duse5005threads -des
     make
 
-and ignore the rest of this "Building" section. If it doesn't
-work or you are using another platform which you believe supports
-POSIX.1c threads then read on.  Additional information may be in
-a platform-specific "hints" file in the hints/ subdirectory.
+and ignore the rest of this "Building" section.  If not, continue
+from the "Problems" section.
 
-On other platforms that use Configure to build perl, omit the -d
-from your ./Configure arguments. For example, use:
+	* Linux 2.* (with the LinuxThreads library installed:
+	  that's the linuxthreads and linuxthreads-devel RPMs
+	  for RedHat)
 
-    ./Configure -Dusethreads
+	* Tru64 UNIX (formerly Digital UNIX formerly DEC OSF/1)
+	  (see additional note below)
+
+	* Solaris 2.* for recentish x (2.5 is OK)
+
+	* IRIX 6.2 or newer. 6.2 will require a few OS patches.
+	  IMPORTANT: Without patch 2401 (or its replacement),
+	  a kernel bug in IRIX 6.2 will cause your machine to
+	  panic and crash when running threaded perl.
+	  IRIX 6.3 and up should be OK. See lower down for patch details.
+
+	* AIX 4.1.5 or newer.
+
+	* FreeBSD 2.2.8 or newer.
+
+	* OpenBSD
+
+	* NeXTstep, OpenStep
+
+	* OS/2
+
+	* DOS DJGPP
+
+	* VM/ESA
+
+---------------------------------------------------------------------------
+
+Problems
+
+If the simple way doesn't work or you are using another platform which
+you believe supports POSIX.1c threads then read on.  Additional
+information may be in a platform-specific "hints" file in the hints/
+subdirectory.
+
+On platforms that use Configure to build perl, omit the -d from your
+./Configure arguments. For example, use:
+
+    ./Configure -Dusethreads -Duse5005threads
 
 When Configure prompts you for ccflags, insert any other arguments in
-there that your compiler needs to use POSIX threads. When Configure
-prompts you for linking flags, include any flags required for
-threading (usually nothing special is required here).  Finally, when
-COnfigure prompts you for libraries, include any necessary libraries
-(e.g. -lpthread).  Pay attention to the order of libraries.  It is
-probably necessary to specify your threading library *before* your
-standard C library, e.g.  it might be necessary to have -lpthread -lc,
-instead of -lc -lpthread.
+there that your compiler needs to use POSIX threads (-D_REENTRANT,
+-pthreads, -threads, -pthread, -thread, are good guesses). When
+Configure prompts you for linking flags, include any flags required
+for threading (usually nothing special is required here).  Finally,
+when Configure prompts you for libraries, include any necessary
+libraries (e.g. -lpthread).  Pay attention to the order of libraries.
+It is probably necessary to specify your threading library *before*
+your standard C library, e.g.  it might be necessary to have -lpthread
+-lc, instead of -lc -lpthread.  You may also need to use -lc_r instead
+of -lc.
 
 Once you have specified all your compiler flags, you can have Configure
 accept all the defaults for the remainder of the session by typing  &-d
@@ -71,7 +107,7 @@ For Digital Unix 4.x:
 
 For Digital Unix 3.x (Formerly DEC OSF/1):
     Add -DOLD_PTHREADS_API to ccflags
-    If compiling with the GNU cc compiler, remove -thread from ccflags
+    If compiling with the GNU cc compiler, remove -threads from ccflags
 
     (The following should be done automatically if you call Configure
       with the -Dusethreads option).
@@ -93,6 +129,7 @@ For IRIX:
     For IRIX 6.3 and 6.4 the pthreads should work out of the box.
     Thanks to Hannu Napari <Hannu.Napari@hut.fi> for the IRIX
     pthreads patches information.
+
 For AIX:
     (This should all be done automatically by the hint file).
     Change cc to xlc_r or cc_r.
@@ -107,6 +144,12 @@ For Win32:
 Now you can do a
     make
 
+When you succeed in compiling and testing ("make test" after your
+build) a threaded Perl in a platform previosuly unknown to support
+threaded perl, please let perlbug@perl.com know about your victory.
+Explain what you did in painful detail.
+
+---------------------------------------------------------------------------
 
 O/S specific bugs
 
@@ -138,8 +181,8 @@ has this fixed but the following patch can be applied to 0.5 for now:
 Building the Thread extension
 
 The Thread extension is now part of the main perl distribution tree.
-If you did Configure -Dusethreads then it will have been added to
-the list of extensions automatically.
+If you did Configure -Dusethreads -Duse5005threads then it will have been
+added to the list of extensions automatically.
 
 You can try some of the tests with
     cd ext/Thread
@@ -155,6 +198,7 @@ Try running the main perl test suite too. There are known
 failures for some of the DBM/DB extensions (if their underlying
 libraries were not compiled to be thread-aware).
 
+---------------------------------------------------------------------------
 
 Bugs
 
@@ -164,8 +208,7 @@ tested at all in recent times.)
 
 * There may still be races where bugs show up under contention.
 
-* Need to document "lock", Thread.pm, Queue.pm, ...
-
+---------------------------------------------------------------------------
 
 Debugging
 
@@ -178,6 +221,7 @@ have to delete the lines in perl.c which say
         DEBUG_S(signal(SIGSEGV, (void(*)(int))catch_sigsegv););
     #endif
 
+---------------------------------------------------------------------------
 
 Background
 
@@ -287,3 +331,6 @@ Andy Dougherty <doughera@lafayette.edu>
 
 Other minor updates 10 Feb 1999 by
 Gurusamy Sarathy
+
+More platforms added 26 Jul 1999 by
+Jarkko Hietaniemi

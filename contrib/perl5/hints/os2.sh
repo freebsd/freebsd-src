@@ -95,6 +95,8 @@ libpth="$libpth $libemx/mt $libemx"
 
 set `emxrev -f emxlibcm`
 emxcrtrev=$5
+# indented to not put it into config.sh
+  _defemxcrtrev=-D_EMX_CRT_REV_=$emxcrtrev
 
 so='dll'
 
@@ -124,8 +126,8 @@ fi
 aout_ldflags="$aout_ldflags"
 
 aout_d_fork='define'
-aout_ccflags='-DPERL_CORE -DDOSISH -DPERL_IS_AOUT -DOS2=2 -DEMBED -I.'
-aout_cppflags='-DPERL_CORE -DDOSISH -DPERL_IS_AOUT -DOS2=2 -DEMBED -I.'
+aout_ccflags="-DDOSISH -DPERL_IS_AOUT -DOS2=2 -DEMBED -I. $_defemxcrtrev"
+aout_cppflags="-DDOSISH -DPERL_IS_AOUT -DOS2=2 -DEMBED -I. $_defemxcrtrev"
 aout_use_clib='c'
 aout_usedl='undef'
 aout_archobjs="os2.o dl_os2.o"
@@ -165,9 +167,9 @@ else
     # Recursive regmatch may eat 2.5M of stack alone.
     ldflags='-Zexe -Zomf -Zmt -Zcrtdll -Zstack 32000'
     if [ $emxcrtrev -ge 50 ]; then 
-	ccflags='-Zomf -Zmt -DDOSISH -DOS2=2 -DEMBED -I.'
+	ccflags="-Zomf -Zmt -DDOSISH -DOS2=2 -DEMBED -I. $_defemxcrtrev"
     else
-	ccflags='-Zomf -Zmt -DDOSISH -DOS2=2 -DEMBED -I. -DEMX_BAD_SBRK'
+	ccflags="-Zomf -Zmt -DDOSISH -DOS2=2 -DEMBED -I. -DEMX_BAD_SBRK $_defemxcrtrev"
     fi
     use_clib='c_import'
     usedl='define'
@@ -257,9 +259,56 @@ d_setprior='define'
 # Commented:
 #startsh='extproc ksh\\n#! sh'
 
+# Find patch:
+gnupatch='patch'
+if (gnupatch -v || gnupatch --version)   2>&1 >/dev/null; then
+    gnupatch=gnupatch
+else
+    if (gpatch -v || gpatch --version)   2>&1 >/dev/null; then
+	gnupatch=gpatch
+    else
+	# They may have a special PATH during configuring
+	if (patch -v || patch --version) 2>&1 >/dev/null; then
+	    gnupatch="`./UU/loc patch.exe undef $pth`"
+	fi
+    fi
+fi
+
+# Apply patches if needed
+case "$0$running_c_cmd" in
+  *[/\\]Configure|*[/\\]Configure.|Configure|Configure.) # Skip Configure.cmd
+    if grep "^libnames" ./Configure > /dev/null; then
+	# Not patched!
+	if test -f ./Configure.cmd ; then
+	    echo "!!!" >&2
+	    echo "!!! ./Configure not patched, but ./Configure.cmd exits" >&2
+	    echo "!!! Do not know what to do!" >&2
+	    echo "!!!" >&2
+	    exit 2
+	fi
+	echo "!!!" >&2
+	echo "!!! You did not patch ./Configure!" >&2
+	echo "!!! I create Configure.cmd and patch it from ./os2/diff.configure." >&2
+	echo "!!!" >&2
+	echo "$gnupatch -b -p1 --output=Configure.cmd <./os2/diff.configure 2>&1 | tee 00_auto_patch" >&2
+	($gnupatch -b -p1 --output=Configure.cmd <./os2/diff.configure 2>&1 | tee 00_auto_patch) >&2
+	echo "!!!" >&2
+	echo "!!! The report of patching is copied to 00_auto_patch." >&2
+	echo "!!! Now you need to restart Configure.cmd with all the options" >&2
+	echo "!!!" >&2
+	echo "extproc sh" > Configure.ctm
+	cat Configure.cmd >> Configure.ctm && mv -f Configure.ctm Configure.cmd
+	exit 0
+    else
+	echo "!!! Apparently we are running a patched Configure." >&2
+    fi 
+    ;;
+  *) echo "!!! Apparently we are running a renamed Configure: '$0'." >&2
+esac
+
 # Copy pod:
 
-cp ./README.os2 ./pod/perlos2.pod
+cp -uf ./README.os2 ./pod/perlos2.pod
 
 # This script UU/usethreads.cbu will get 'called-back' by Configure 
 # after it has prompted the user for whether to use threads.
@@ -304,6 +353,9 @@ for xxx in * ; do
 	fi
 done
 
+case "$ldlibpthname" in
+'') ldlibpthname=none ;;
+esac
 
 # Now go back
 cd ../..

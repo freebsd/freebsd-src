@@ -1,0 +1,354 @@
+  pp_sys.c 	AOK
+
+  untie attempted while %d inner references still exist	[pp_untie]
+    sub TIESCALAR { bless [] } ; tie $a, 'main'; untie $a ;
+
+  Filehandle %s opened only for input		[pp_leavewrite]
+    format STDIN =
+    .
+    write STDIN;
+
+  write() on closed filehandle %s		[pp_leavewrite]
+    format STDIN =
+    .
+    close STDIN;
+    write STDIN ;
+
+  page overflow	 				[pp_leavewrite]
+
+  Filehandle %s never opened			[pp_prtf]
+    $a = "abc"; printf $a "fred"
+
+  Filehandle %s opened only for input		[pp_prtf]
+    $a = "abc"; 
+    printf $a "fred"
+
+  printf() on closed filehandle %s		[pp_prtf]
+    close STDIN ;
+    printf STDIN "fred"
+
+  syswrite() on closed filehandle %s		[pp_send]
+    close STDIN; 
+    syswrite STDIN, "fred", 1;
+
+  send() on closed socket %s			[pp_send]
+    close STDIN; 
+    send STDIN, "fred", 1
+
+  bind() on closed socket %s			[pp_bind]
+    close STDIN; 
+    bind STDIN, "fred" ;
+
+
+  connect() on closed socket %s			[pp_connect]
+    close STDIN; 
+    connect STDIN, "fred" ;
+
+  listen() on closed socket %s			[pp_listen]
+    close STDIN; 
+    listen STDIN, 2;
+
+  accept() on closed socket %s			[pp_accept]
+    close STDIN; 
+    accept "fred", STDIN ;
+
+  shutdown() on closed socket %s		[pp_shutdown]
+    close STDIN; 
+    shutdown STDIN, 0;
+
+  setsockopt() on closed socket %s		[pp_ssockopt]
+  getsockopt() on closed socket	%s		[pp_ssockopt]
+    close STDIN; 
+    setsockopt STDIN, 1,2,3;
+    getsockopt STDIN, 1,2;
+
+  getsockname() on closed socket %s		[pp_getpeername]
+  getpeername() on closed socket %s		[pp_getpeername]
+    close STDIN; 
+    getsockname STDIN;
+    getpeername STDIN;
+
+  flock() on closed socket %s			[pp_flock]
+    close STDIN;
+    flock STDIN, 8;
+
+  warn(warn_nl, "stat");			[pp_stat]
+
+  Test on unopened file <%s>
+	close STDIN ; -T STDIN ;
+
+  warn(warn_nl, "open");			[pp_fttext]
+    -T "abc\ndef" ;
+
+  Filehandle %s opened only for output		[pp_sysread]
+	my $file = "./xcv" ;
+	open(F, ">$file") ; 
+	my $a = sysread(F, $a,10) ;
+  
+  
+
+__END__
+# pp_sys.c [pp_untie]
+use warnings 'untie' ;
+sub TIESCALAR { bless [] } ; 
+$b = tie $a, 'main'; 
+untie $a ;
+no warnings 'untie' ;
+$c = tie $d, 'main'; 
+untie $d ;
+EXPECT
+untie attempted while 1 inner references still exist at - line 5.
+########
+# pp_sys.c [pp_leavewrite]
+use warnings 'io' ;
+format STDIN =
+.
+write STDIN;
+no warnings 'io' ;
+write STDIN;
+EXPECT
+Filehandle main::STDIN opened only for input at - line 5.
+########
+# pp_sys.c [pp_leavewrite]
+use warnings 'closed' ;
+format STDIN =
+.
+close STDIN;
+write STDIN;
+opendir STDIN, ".";
+write STDIN;
+closedir STDIN;
+no warnings 'closed' ;
+write STDIN;
+opendir STDIN, ".";
+write STDIN;
+EXPECT
+write() on closed filehandle main::STDIN at - line 6.
+write() on closed filehandle main::STDIN at - line 8.
+	(Are you trying to call write() on dirhandle main::STDIN?)
+########
+# pp_sys.c [pp_leavewrite]
+use warnings 'io' ;
+format STDOUT_TOP =
+abc
+.
+format STDOUT =
+def
+ghi
+.
+$= = 1 ;
+$- =1 ;
+open STDOUT, ">".($^O eq 'VMS'? 'NL:' : '/dev/null') ;
+write ;
+no warnings 'io' ;
+write ;
+EXPECT
+page overflow at - line 13.
+########
+# pp_sys.c [pp_prtf]
+use warnings 'unopened' ;
+$a = "abc"; 
+printf $a "fred";
+no warnings 'unopened' ;
+printf $a "fred";
+EXPECT
+Filehandle main::abc never opened at - line 4.
+########
+# pp_sys.c [pp_prtf]
+use warnings 'closed' ;
+close STDIN ;
+printf STDIN "fred";
+opendir STDIN, ".";
+printf STDIN "fred";
+closedir STDIN;
+no warnings 'closed' ;
+printf STDIN "fred";
+opendir STDIN, ".";
+printf STDIN "fred";
+EXPECT
+printf() on closed filehandle main::STDIN at - line 4.
+printf() on closed filehandle main::STDIN at - line 6.
+	(Are you trying to call printf() on dirhandle main::STDIN?)
+########
+# pp_sys.c [pp_prtf]
+use warnings 'io' ;
+printf STDIN "fred";
+no warnings 'io' ;
+printf STDIN "fred";
+EXPECT
+Filehandle main::STDIN opened only for input at - line 3.
+########
+# pp_sys.c [pp_send]
+use warnings 'closed' ;
+close STDIN; 
+syswrite STDIN, "fred", 1;
+opendir STDIN, ".";
+syswrite STDIN, "fred", 1;
+closedir STDIN;
+no warnings 'closed' ;
+syswrite STDIN, "fred", 1;
+opendir STDIN, ".";
+syswrite STDIN, "fred", 1;
+EXPECT
+syswrite() on closed filehandle main::STDIN at - line 4.
+syswrite() on closed filehandle main::STDIN at - line 6.
+	(Are you trying to call syswrite() on dirhandle main::STDIN?)
+########
+# pp_sys.c [pp_flock]
+use Config; 
+BEGIN { 
+  if ( $^O eq 'VMS' and ! $Config{d_flock}) {
+    print <<EOM ;
+SKIPPED
+# flock not present
+EOM
+    exit ;
+  } 
+}
+use warnings 'closed' ;
+close STDIN;
+flock STDIN, 8;
+opendir STDIN, ".";
+flock STDIN, 8;
+no warnings 'closed' ;
+flock STDIN, 8;
+opendir STDIN, ".";
+flock STDIN, 8;
+EXPECT
+flock() on closed filehandle main::STDIN at - line 14.
+flock() on closed filehandle main::STDIN at - line 16.
+	(Are you trying to call flock() on dirhandle main::STDIN?)
+########
+# pp_sys.c [pp_prtf pp_send pp_bind pp_connect pp_listen pp_accept pp_shutdown pp_ssockopt ppp_getpeername]
+use warnings 'io' ;
+use Config; 
+BEGIN { 
+  if ( $^O ne 'VMS' and ! $Config{d_socket}) {
+    print <<EOM ;
+SKIPPED
+# send not present
+# bind not present
+# connect not present
+# accept not present
+# shutdown not present
+# setsockopt not present
+# getsockopt not present
+# getsockname not present
+# getpeername not present
+EOM
+    exit ;
+  } 
+}
+close STDIN; 
+send STDIN, "fred", 1;
+bind STDIN, "fred" ;
+connect STDIN, "fred" ;
+listen STDIN, 2;
+accept "fred", STDIN;
+shutdown STDIN, 0;
+setsockopt STDIN, 1,2,3;
+getsockopt STDIN, 1,2;
+getsockname STDIN;
+getpeername STDIN;
+opendir STDIN, ".";
+send STDIN, "fred", 1;
+bind STDIN, "fred" ;
+connect STDIN, "fred" ;
+listen STDIN, 2;
+accept "fred", STDIN;
+shutdown STDIN, 0;
+setsockopt STDIN, 1,2,3;
+getsockopt STDIN, 1,2;
+getsockname STDIN;
+getpeername STDIN;
+closedir STDIN;
+no warnings 'io' ;
+send STDIN, "fred", 1;
+bind STDIN, "fred" ;
+connect STDIN, "fred" ;
+listen STDIN, 2;
+accept STDIN, "fred" ;
+shutdown STDIN, 0;
+setsockopt STDIN, 1,2,3;
+getsockopt STDIN, 1,2;
+getsockname STDIN;
+getpeername STDIN;
+opendir STDIN, ".";
+send STDIN, "fred", 1;
+bind STDIN, "fred" ;
+connect STDIN, "fred" ;
+listen STDIN, 2;
+accept "fred", STDIN;
+shutdown STDIN, 0;
+setsockopt STDIN, 1,2,3;
+getsockopt STDIN, 1,2;
+getsockname STDIN;
+getpeername STDIN;
+EXPECT
+send() on closed socket main::STDIN at - line 22.
+bind() on closed socket main::STDIN at - line 23.
+connect() on closed socket main::STDIN at - line 24.
+listen() on closed socket main::STDIN at - line 25.
+accept() on closed socket main::STDIN at - line 26.
+shutdown() on closed socket main::STDIN at - line 27.
+setsockopt() on closed socket main::STDIN at - line 28.
+getsockopt() on closed socket main::STDIN at - line 29.
+getsockname() on closed socket main::STDIN at - line 30.
+getpeername() on closed socket main::STDIN at - line 31.
+send() on closed socket main::STDIN at - line 33.
+	(Are you trying to call send() on dirhandle main::STDIN?)
+bind() on closed socket main::STDIN at - line 34.
+	(Are you trying to call bind() on dirhandle main::STDIN?)
+connect() on closed socket main::STDIN at - line 35.
+	(Are you trying to call connect() on dirhandle main::STDIN?)
+listen() on closed socket main::STDIN at - line 36.
+	(Are you trying to call listen() on dirhandle main::STDIN?)
+accept() on closed socket main::STDIN at - line 37.
+	(Are you trying to call accept() on dirhandle main::STDIN?)
+shutdown() on closed socket main::STDIN at - line 38.
+	(Are you trying to call shutdown() on dirhandle main::STDIN?)
+setsockopt() on closed socket main::STDIN at - line 39.
+	(Are you trying to call setsockopt() on dirhandle main::STDIN?)
+getsockopt() on closed socket main::STDIN at - line 40.
+	(Are you trying to call getsockopt() on dirhandle main::STDIN?)
+getsockname() on closed socket main::STDIN at - line 41.
+	(Are you trying to call getsockname() on dirhandle main::STDIN?)
+getpeername() on closed socket main::STDIN at - line 42.
+	(Are you trying to call getpeername() on dirhandle main::STDIN?)
+########
+# pp_sys.c [pp_stat]
+use warnings 'newline' ;
+stat "abc\ndef";
+no warnings 'newline' ;
+stat "abc\ndef";
+EXPECT
+Unsuccessful stat on filename containing newline at - line 3.
+########
+# pp_sys.c [pp_fttext]
+use warnings 'unopened' ;
+close STDIN ; 
+-T STDIN ;
+no warnings 'unopened' ;
+-T STDIN ;
+EXPECT
+Test on unopened file <STDIN> at - line 4.
+########
+# pp_sys.c [pp_fttext]
+use warnings 'newline' ;
+-T "abc\ndef" ;
+no warnings 'newline' ;
+-T "abc\ndef" ;
+EXPECT
+Unsuccessful open on filename containing newline at - line 3.
+########
+# pp_sys.c [pp_sysread]
+use warnings 'io' ;
+my $file = "./xcv" ;
+open(F, ">$file") ; 
+my $a = sysread(F, $a,10) ;
+no warnings 'io' ;
+my $a = sysread(F, $a,10) ;
+close F ;
+unlink $file ;
+EXPECT
+Filehandle main::F opened only for output at - line 5.

@@ -5,7 +5,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib' if -d '../lib';
+    unshift @INC, '../lib' if -d '../lib';
 }
 
 use Data::Dumper;
@@ -22,6 +22,16 @@ sub TEST {
   my $string = shift;
   my $t = eval $string;
   ++$TNUM;
+  $t =~ s/([A-Z]+)\(0x[0-9a-f]+\)/$1(0xdeadbeef)/g
+      if ($WANT =~ /deadbeef/);
+  if ($Is_ebcdic) {
+      # these data need massaging with non ascii character sets
+      # because of hashing order differences
+      $WANT = join("\n",sort(split(/\n/,$WANT)));
+      $WANT =~ s/\,$//mg;
+      $t    = join("\n",sort(split(/\n/,$t)));
+      $t    =~ s/\,$//mg;
+  }
   print( ($t eq $WANT and not $@) ? "ok $TNUM\n"
 	: "not ok $TNUM\n--Expected--\n$WANT\n--Got--\n$@$t\n");
 
@@ -31,17 +41,26 @@ sub TEST {
 
   $t = eval $string;
   ++$TNUM;
+  $t =~ s/([A-Z]+)\(0x[0-9a-f]+\)/$1(0xdeadbeef)/g
+      if ($WANT =~ /deadbeef/);
+  if ($Is_ebcdic) {
+      # here too there are hashing order differences
+      $WANT = join("\n",sort(split(/\n/,$WANT)));
+      $WANT =~ s/\,$//mg;
+      $t    = join("\n",sort(split(/\n/,$t)));
+      $t    =~ s/\,$//mg;
+  }
   print( ($t eq $WANT and not $@) ? "ok $TNUM\n"
 	: "not ok $TNUM\n--Expected--\n$WANT\n--Got--\n$@$t\n");
 }
 
 if (defined &Data::Dumper::Dumpxs) {
   print "### XS extension loaded, will run XS tests\n";
-  $TMAX = 162; $XS = 1;
+  $TMAX = 186; $XS = 1;
 }
 else {
   print "### XS extensions not loaded, will NOT run XS tests\n";
-  $TMAX = 81; $XS = 0;
+  $TMAX = 93; $XS = 0;
 }
 
 print "1..$TMAX\n";
@@ -236,20 +255,11 @@ EOT
 
 ############# 43
 ##
-if (!$Is_ebcdic) {
 $WANT = <<'EOT';
 #$VAR1 = {
 #  "abc\0'\efg" => "mno\0"
 #};
 EOT
-}
-else {
-$WANT = <<'EOT';
-#$VAR1 = {
-#  "\201\202\203\340\360'\340\205\206\207" => "\224\225\226\340\360"
-#};
-EOT
-}
 
 $foo = { "abc\000\'\efg" => "mno\000" };
 {
@@ -291,11 +301,11 @@ EOT
 #           #0
 #           10,
 #           #1
-#           '',
+#           do{my $o},
 #           #2
 #           {
 #             'a' => 1,
-#             'b' => '',
+#             'b' => do{my $o},
 #             'c' => [],
 #             'd' => {}
 #           }
@@ -321,10 +331,10 @@ EOT
 #*::foo = \5;
 #*::foo = [
 #  10,
-#  '',
+#  do{my $o},
 #  {
 #    'a' => 1,
-#    'b' => '',
+#    'b' => do{my $o},
 #    'c' => [],
 #    'd' => {}
 #  }
@@ -354,7 +364,7 @@ EOT
 #*::foo = \@bar;
 #*::foo = {
 #  'a' => 1,
-#  'b' => '',
+#  'b' => do{my $o},
 #  'c' => [],
 #  'd' => {}
 #};
@@ -381,7 +391,7 @@ EOT
 #*::foo = $bar;
 #*::foo = {
 #  'a' => 1,
-#  'b' => '',
+#  'b' => do{my $o},
 #  'c' => [],
 #  'd' => {}
 #};
@@ -455,7 +465,6 @@ EOT
   
 ############# 85
 ##
-if (!$Is_ebcdic) {
   $WANT = <<'EOT';
 #%kennels = (
 #  First => \'Fido',
@@ -468,21 +477,6 @@ if (!$Is_ebcdic) {
 #);
 #%mutts = %kennels;
 EOT
-}
-else {
-  $WANT = <<'EOT';
-#%kennels = (
-#  Second => \'Wags',
-#  First => \'Fido'
-#);
-#@dogs = (
-#  ${$kennels{First}},
-#  ${$kennels{Second}},
-#  \%kennels
-#);
-#%mutts = %kennels;
-EOT
-}
 
   TEST q(
 	 $d = Data::Dumper->new([\\%kennel, \\@dogs, $mutts],
@@ -510,7 +504,6 @@ EOT
   
 ############# 97
 ##
-if (!$Is_ebcdic) {
   $WANT = <<'EOT';
 #%kennels = (
 #  First => \'Fido',
@@ -523,21 +516,7 @@ if (!$Is_ebcdic) {
 #);
 #%mutts = %kennels;
 EOT
-}
-else {
-  $WANT = <<'EOT';
-#%kennels = (
-#  Second => \'Wags',
-#  First => \'Fido'
-#);
-#@dogs = (
-#  ${$kennels{First}},
-#  ${$kennels{Second}},
-#  \%kennels
-#);
-#%mutts = %kennels;
-EOT
-}
+
   
   TEST q($d->Reset; $d->Dump);
   if ($XS) {
@@ -546,8 +525,7 @@ EOT
 
 ############# 103
 ##
-if (!$Is_ebcdic) {
- $WANT = <<'EOT';
+  $WANT = <<'EOT';
 #@dogs = (
 #  'Fido',
 #  'Wags',
@@ -559,21 +537,6 @@ if (!$Is_ebcdic) {
 #%kennels = %{$dogs[2]};
 #%mutts = %{$dogs[2]};
 EOT
-}
-else {
-  $WANT = <<'EOT';
-#@dogs = (
-#  'Fido',
-#  'Wags',
-#  {
-#    Second => \$dogs[1],
-#    First => \$dogs[0]
-#  }
-#);
-#%kennels = %{$dogs[2]};
-#%mutts = %{$dogs[2]};
-EOT
-}
 
   TEST q(
 	 $d = Data::Dumper->new([\\@dogs, \\%kennel, $mutts],
@@ -597,7 +560,6 @@ EOT
 
 ############# 115
 ##
-if (!$Is_ebcdic) {
   $WANT = <<'EOT';
 #@dogs = (
 #  'Fido',
@@ -612,23 +574,6 @@ if (!$Is_ebcdic) {
 #  Second => \'Wags'
 #);
 EOT
-}
-else {
-  $WANT = <<'EOT';
-#@dogs = (
-#  'Fido',
-#  'Wags',
-#  {
-#    Second => \'Wags',
-#    First => \'Fido'
-#  }
-#);
-#%kennels = (
-#  Second => \'Wags',
-#  First => \'Fido'
-#);
-EOT
-}
 
   TEST q(
 	 $d = Data::Dumper->new( [\@dogs, \%kennel], [qw(*dogs *kennels)] );
@@ -695,7 +640,7 @@ TEST q(Data::Dumper->new([\&z,$c],['*a','*c'])->Seen({'*b' => \&z})->Dumpxs;)
   $WANT = <<'EOT';
 #@a = (
 #  undef,
-#  ''
+#  do{my $o}
 #);
 #$a[1] = \$a[0];
 EOT
@@ -732,7 +677,7 @@ TEST q(Data::Dumper->new([$a,$b],['a','b'])->Purity(1)->Dumpxs;)
 #  {
 #    a => \[
 #        {
-#          c => ''
+#          c => do{my $o}
 #        },
 #        {
 #          d => \[]
@@ -776,5 +721,81 @@ EOT
 
 TEST q(Data::Dumper->new([$a,$b,$c],['a','b','c'])->Purity(1)->Dump;);
 TEST q(Data::Dumper->new([$a,$b,$c],['a','b','c'])->Purity(1)->Dumpxs;)
+	if $XS;
+}
+
+{
+    $f = "pearl";
+    $e = [        $f ];
+    $d = { 'e' => $e };
+    $c = [        $d ];
+    $b = { 'c' => $c };
+    $a = { 'b' => $b };
+
+############# 163
+##
+  $WANT = <<'EOT';
+#$a = {
+#  b => {
+#    c => [
+#      {
+#        e => 'ARRAY(0xdeadbeef)'
+#      }
+#    ]
+#  }
+#};
+#$b = $a->{b};
+#$c = $a->{b}{c};
+EOT
+
+TEST q(Data::Dumper->new([$a,$b,$c],['a','b','c'])->Maxdepth(4)->Dump;);
+TEST q(Data::Dumper->new([$a,$b,$c],['a','b','c'])->Maxdepth(4)->Dumpxs;)
+	if $XS;
+
+############# 169
+##
+  $WANT = <<'EOT';
+#$a = {
+#  b => 'HASH(0xdeadbeef)'
+#};
+#$b = $a->{b};
+#$c = [
+#  'HASH(0xdeadbeef)'
+#];
+EOT
+
+TEST q(Data::Dumper->new([$a,$b,$c],['a','b','c'])->Maxdepth(1)->Dump;);
+TEST q(Data::Dumper->new([$a,$b,$c],['a','b','c'])->Maxdepth(1)->Dumpxs;)
+	if $XS;
+}
+
+{
+    $a = \$a;
+    $b = [$a];
+
+############# 175
+##
+  $WANT = <<'EOT';
+#$b = [
+#  \$b->[0]
+#];
+EOT
+
+TEST q(Data::Dumper->new([$b],['b'])->Purity(0)->Dump;);
+TEST q(Data::Dumper->new([$b],['b'])->Purity(0)->Dumpxs;)
+	if $XS;
+
+############# 181
+##
+  $WANT = <<'EOT';
+#$b = [
+#  \do{my $o}
+#];
+#${$b->[0]} = $b->[0];
+EOT
+
+
+TEST q(Data::Dumper->new([$b],['b'])->Purity(1)->Dump;);
+TEST q(Data::Dumper->new([$b],['b'])->Purity(1)->Dumpxs;)
 	if $XS;
 }

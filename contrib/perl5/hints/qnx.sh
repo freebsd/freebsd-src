@@ -98,13 +98,9 @@ libc='/usr/lib/clib3r.lib'
 # constructs make a lot of noise, so I turn those warnings off.
 # A few still remain...
 #
-# HIDEMYMALLOC is necessary if using mymalloc since it is very
-# tricky (though not impossible) to totally replace the watcom
-# malloc/free set.
-#
 # unix.h is required as a general rule for unixy applications.
 #----------------------------------------------------------------
-ccflags='-DHIDEMYMALLOC -mf -w4 -Wc,-wcd=202 -Wc,-wcd=203 -Wc,-wcd=302 -Wc,-fi=unix.h'
+ccflags='-mf -w4 -Wc,-wcd=202 -Wc,-wcd=203 -Wc,-wcd=302 -Wc,-fi=unix.h'
 
 #----------------------------------------------------------------
 # ldflags:

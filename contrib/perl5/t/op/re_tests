@@ -45,7 +45,7 @@ a[b-d]e	ace	y	$&	ace
 a[b-d]	aac	y	$&	ac
 a[-b]	a-	y	$&	a-
 a[b-]	a-	y	$&	a-
-a[b-a]	-	c	-	/a[b-a]/: invalid [] range in regexp
+a[b-a]	-	c	-	/a[b-a]/: invalid [] range "b-a" in regexp
 a[]b	-	c	-	/a[]b/: unmatched [] in regexp
 a[	-	c	-	/a[/: unmatched [] in regexp
 a]	a]	y	$&	a]
@@ -218,7 +218,7 @@ a[-]?c	ac	y	$&	ac
 'a[b-d]'i	AAC	y	$&	AC
 'a[-b]'i	A-	y	$&	A-
 'a[b-]'i	A-	y	$&	A-
-'a[b-a]'i	-	c	-	/a[b-a]/: invalid [] range in regexp
+'a[b-a]'i	-	c	-	/a[b-a]/: invalid [] range "b-a" in regexp
 'a[]b'i	-	c	-	/a[]b/: unmatched [] in regexp
 'a['i	-	c	-	/a[/: unmatched [] in regexp
 'a]'i	A]	y	$&	A]
@@ -402,7 +402,7 @@ a(?{{})b	-	c	-	/a(?{{})b/: Sequence (?{...}) not terminated or not {}-balanced
 a(?{}})b	-	c	-	/a(?{}})b/: Sequence (?{...}) not terminated or not {}-balanced
 a(?{"{"})b	-	c	-	/a(?{"{"})b/: Sequence (?{...}) not terminated or not {}-balanced
 a(?{"\{"})b	cabd	y	$&	ab
-a(?{"{"}})b	-	c	-	Unmatched right bracket
+a(?{"{"}})b	-	c	-	Unmatched right curly bracket
 a(?{$bl="\{"}).b	caxbd	y	$bl	{
 x(~~)*(?:(?:F)?)?	x~~	y	-	-
 ^a(?#xxx){3}c	aaac	y	$&	aaac
@@ -474,18 +474,279 @@ $(?<=^(a))	a	y	$1	a
 ([[=]+)	a=[b]=	y	$1	=[
 ([[.]+)	a.[b].	y	$1	.[
 [a[:xyz:	-	c	-	/[a[:xyz:/: unmatched [] in regexp
-[a[:xyz:]	-	c	-	/[a[:xyz:]/: unmatched [] in regexp
-([a[:xyz:]b]+)	pbaq	y	$1	ba
+[a[:xyz:]	-	c	-	Character class [:xyz:] unknown
+[a[:]b[:c]	abc	y	$&	abc
+([a[:xyz:]b]+)	pbaq	c	-	Character class [:xyz:] unknown
+[a[:]b[:c]	abc	y	$&	abc
+([[:alpha:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	ABcd
+([[:alnum:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	ABcd01Xy
+([[:ascii:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	ABcd01Xy__--  ${nulnul}
+([[:cntrl:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	${nulnul}
+([[:digit:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	01
+([[:graph:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	ABcd01Xy__--
+([[:lower:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	cd
+([[:print:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	ABcd01Xy__--  
+([[:punct:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	__--
+([[:space:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	  
+([[:word:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	ABcd01Xy__
+([[:upper:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	AB
+([[:xdigit:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	ABcd01
+([[:^alpha:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	01
+([[:^alnum:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	__--  ${nulnul}${ffff}
+([[:^ascii:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	${ffff}
+([[:^cntrl:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	ABcd01Xy__--  
+([[:^digit:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	ABcd
+([[:^lower:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	AB
+([[:^print:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	${nulnul}${ffff}
+([[:^punct:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	ABcd01Xy
+([[:^space:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	ABcd01Xy__--
+([[:^word:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	--  ${nulnul}${ffff}
+([[:^upper:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	cd01
+([[:^xdigit:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	Xy__--  ${nulnul}${ffff}
+[[:foo:]]	-	c	-	Character class [:foo:] unknown
+[[:^foo:]]	-	c	-	Character class [:^foo:] unknown
 ((?>a+)b)	aaab	y	$1	aaab
 (?>(a+))b	aaab	y	$1	aaa
 ((?>[^()]+)|\([^()]*\))+	((abc(ade)ufh()()x	y	$&	abc(ade)ufh()()x
 (?<=x+)y	-	c	-	/(?<=x+)y/: variable length lookbehind not implemented
 a{37,17}	-	c	-	/a{37,17}/: Can't do {n,m} with n > m
+\Z	a\nb\n	y	$-[0]	3
+\z	a\nb\n	y	$-[0]	4
+$	a\nb\n	y	$-[0]	3
+\Z	b\na\n	y	$-[0]	3
+\z	b\na\n	y	$-[0]	4
+$	b\na\n	y	$-[0]	3
+\Z	b\na	y	$-[0]	3
+\z	b\na	y	$-[0]	3
+$	b\na	y	$-[0]	3
+'\Z'm	a\nb\n	y	$-[0]	3
+'\z'm	a\nb\n	y	$-[0]	4
+'$'m	a\nb\n	y	$-[0]	1
+'\Z'm	b\na\n	y	$-[0]	3
+'\z'm	b\na\n	y	$-[0]	4
+'$'m	b\na\n	y	$-[0]	1
+'\Z'm	b\na	y	$-[0]	3
+'\z'm	b\na	y	$-[0]	3
+'$'m	b\na	y	$-[0]	1
 a\Z	a\nb\n	n	-	-
-b\Z	a\nb\n	y	-	-
-b\z	a\nb\n	n	-	-
-b\Z	a\nb	y	-	-
-b\z	a\nb	y	-	-
+a\z	a\nb\n	n	-	-
+a$	a\nb\n	n	-	-
+a\Z	b\na\n	y	$-[0]	2
+a\z	b\na\n	n	-	-
+a$	b\na\n	y	$-[0]	2
+a\Z	b\na	y	$-[0]	2
+a\z	b\na	y	$-[0]	2
+a$	b\na	y	$-[0]	2
+'a\Z'm	a\nb\n	bn	-	-
+'a\z'm	a\nb\n	n	-	-
+'a$'m	a\nb\n	y	$-[0]	0
+'a\Z'm	b\na\n	y	$-[0]	2
+'a\z'm	b\na\n	n	-	-
+'a$'m	b\na\n	y	$-[0]	2
+'a\Z'm	b\na	y	$-[0]	2
+'a\z'm	b\na	y	$-[0]	2
+'a$'m	b\na	y	$-[0]	2
+aa\Z	aa\nb\n	n	-	-
+aa\z	aa\nb\n	n	-	-
+aa$	aa\nb\n	n	-	-
+aa\Z	b\naa\n	y	$-[0]	2
+aa\z	b\naa\n	n	-	-
+aa$	b\naa\n	y	$-[0]	2
+aa\Z	b\naa	y	$-[0]	2
+aa\z	b\naa	y	$-[0]	2
+aa$	b\naa	y	$-[0]	2
+'aa\Z'm	aa\nb\n	bn	-	-
+'aa\z'm	aa\nb\n	n	-	-
+'aa$'m	aa\nb\n	y	$-[0]	0
+'aa\Z'm	b\naa\n	y	$-[0]	2
+'aa\z'm	b\naa\n	n	-	-
+'aa$'m	b\naa\n	y	$-[0]	2
+'aa\Z'm	b\naa	y	$-[0]	2
+'aa\z'm	b\naa	y	$-[0]	2
+'aa$'m	b\naa	y	$-[0]	2
+aa\Z	ac\nb\n	n	-	-
+aa\z	ac\nb\n	n	-	-
+aa$	ac\nb\n	n	-	-
+aa\Z	b\nac\n	n	-	-
+aa\z	b\nac\n	n	-	-
+aa$	b\nac\n	n	-	-
+aa\Z	b\nac	n	-	-
+aa\z	b\nac	n	-	-
+aa$	b\nac	n	-	-
+'aa\Z'm	ac\nb\n	n	-	-
+'aa\z'm	ac\nb\n	n	-	-
+'aa$'m	ac\nb\n	n	-	-
+'aa\Z'm	b\nac\n	n	-	-
+'aa\z'm	b\nac\n	n	-	-
+'aa$'m	b\nac\n	n	-	-
+'aa\Z'm	b\nac	n	-	-
+'aa\z'm	b\nac	n	-	-
+'aa$'m	b\nac	n	-	-
+aa\Z	ca\nb\n	n	-	-
+aa\z	ca\nb\n	n	-	-
+aa$	ca\nb\n	n	-	-
+aa\Z	b\nca\n	n	-	-
+aa\z	b\nca\n	n	-	-
+aa$	b\nca\n	n	-	-
+aa\Z	b\nca	n	-	-
+aa\z	b\nca	n	-	-
+aa$	b\nca	n	-	-
+'aa\Z'm	ca\nb\n	n	-	-
+'aa\z'm	ca\nb\n	n	-	-
+'aa$'m	ca\nb\n	n	-	-
+'aa\Z'm	b\nca\n	n	-	-
+'aa\z'm	b\nca\n	n	-	-
+'aa$'m	b\nca\n	n	-	-
+'aa\Z'm	b\nca	n	-	-
+'aa\z'm	b\nca	n	-	-
+'aa$'m	b\nca	n	-	-
+ab\Z	ab\nb\n	n	-	-
+ab\z	ab\nb\n	n	-	-
+ab$	ab\nb\n	n	-	-
+ab\Z	b\nab\n	y	$-[0]	2
+ab\z	b\nab\n	n	-	-
+ab$	b\nab\n	y	$-[0]	2
+ab\Z	b\nab	y	$-[0]	2
+ab\z	b\nab	y	$-[0]	2
+ab$	b\nab	y	$-[0]	2
+'ab\Z'm	ab\nb\n	bn	-	-
+'ab\z'm	ab\nb\n	n	-	-
+'ab$'m	ab\nb\n	y	$-[0]	0
+'ab\Z'm	b\nab\n	y	$-[0]	2
+'ab\z'm	b\nab\n	n	-	-
+'ab$'m	b\nab\n	y	$-[0]	2
+'ab\Z'm	b\nab	y	$-[0]	2
+'ab\z'm	b\nab	y	$-[0]	2
+'ab$'m	b\nab	y	$-[0]	2
+ab\Z	ac\nb\n	n	-	-
+ab\z	ac\nb\n	n	-	-
+ab$	ac\nb\n	n	-	-
+ab\Z	b\nac\n	n	-	-
+ab\z	b\nac\n	n	-	-
+ab$	b\nac\n	n	-	-
+ab\Z	b\nac	n	-	-
+ab\z	b\nac	n	-	-
+ab$	b\nac	n	-	-
+'ab\Z'm	ac\nb\n	n	-	-
+'ab\z'm	ac\nb\n	n	-	-
+'ab$'m	ac\nb\n	n	-	-
+'ab\Z'm	b\nac\n	n	-	-
+'ab\z'm	b\nac\n	n	-	-
+'ab$'m	b\nac\n	n	-	-
+'ab\Z'm	b\nac	n	-	-
+'ab\z'm	b\nac	n	-	-
+'ab$'m	b\nac	n	-	-
+ab\Z	ca\nb\n	n	-	-
+ab\z	ca\nb\n	n	-	-
+ab$	ca\nb\n	n	-	-
+ab\Z	b\nca\n	n	-	-
+ab\z	b\nca\n	n	-	-
+ab$	b\nca\n	n	-	-
+ab\Z	b\nca	n	-	-
+ab\z	b\nca	n	-	-
+ab$	b\nca	n	-	-
+'ab\Z'm	ca\nb\n	n	-	-
+'ab\z'm	ca\nb\n	n	-	-
+'ab$'m	ca\nb\n	n	-	-
+'ab\Z'm	b\nca\n	n	-	-
+'ab\z'm	b\nca\n	n	-	-
+'ab$'m	b\nca\n	n	-	-
+'ab\Z'm	b\nca	n	-	-
+'ab\z'm	b\nca	n	-	-
+'ab$'m	b\nca	n	-	-
+abb\Z	abb\nb\n	n	-	-
+abb\z	abb\nb\n	n	-	-
+abb$	abb\nb\n	n	-	-
+abb\Z	b\nabb\n	y	$-[0]	2
+abb\z	b\nabb\n	n	-	-
+abb$	b\nabb\n	y	$-[0]	2
+abb\Z	b\nabb	y	$-[0]	2
+abb\z	b\nabb	y	$-[0]	2
+abb$	b\nabb	y	$-[0]	2
+'abb\Z'm	abb\nb\n	bn	-	-
+'abb\z'm	abb\nb\n	n	-	-
+'abb$'m	abb\nb\n	y	$-[0]	0
+'abb\Z'm	b\nabb\n	y	$-[0]	2
+'abb\z'm	b\nabb\n	n	-	-
+'abb$'m	b\nabb\n	y	$-[0]	2
+'abb\Z'm	b\nabb	y	$-[0]	2
+'abb\z'm	b\nabb	y	$-[0]	2
+'abb$'m	b\nabb	y	$-[0]	2
+abb\Z	ac\nb\n	n	-	-
+abb\z	ac\nb\n	n	-	-
+abb$	ac\nb\n	n	-	-
+abb\Z	b\nac\n	n	-	-
+abb\z	b\nac\n	n	-	-
+abb$	b\nac\n	n	-	-
+abb\Z	b\nac	n	-	-
+abb\z	b\nac	n	-	-
+abb$	b\nac	n	-	-
+'abb\Z'm	ac\nb\n	n	-	-
+'abb\z'm	ac\nb\n	n	-	-
+'abb$'m	ac\nb\n	n	-	-
+'abb\Z'm	b\nac\n	n	-	-
+'abb\z'm	b\nac\n	n	-	-
+'abb$'m	b\nac\n	n	-	-
+'abb\Z'm	b\nac	n	-	-
+'abb\z'm	b\nac	n	-	-
+'abb$'m	b\nac	n	-	-
+abb\Z	ca\nb\n	n	-	-
+abb\z	ca\nb\n	n	-	-
+abb$	ca\nb\n	n	-	-
+abb\Z	b\nca\n	n	-	-
+abb\z	b\nca\n	n	-	-
+abb$	b\nca\n	n	-	-
+abb\Z	b\nca	n	-	-
+abb\z	b\nca	n	-	-
+abb$	b\nca	n	-	-
+'abb\Z'm	ca\nb\n	n	-	-
+'abb\z'm	ca\nb\n	n	-	-
+'abb$'m	ca\nb\n	n	-	-
+'abb\Z'm	b\nca\n	n	-	-
+'abb\z'm	b\nca\n	n	-	-
+'abb$'m	b\nca\n	n	-	-
+'abb\Z'm	b\nca	n	-	-
+'abb\z'm	b\nca	n	-	-
+'abb$'m	b\nca	n	-	-
 (^|x)(c)	ca	y	$2	c
 a*abc?xyz+pqr{3}ab{2,}xy{4,5}pq{0,6}AB{0,}zz	x	n	-	-
+a(?{$a=2;$b=3;($b)=$a})b	yabz	y	$b	2
 round\(((?>[^()]+))\)	_I(round(xs * sz),1)	y	$1	xs * sz
+'((?x:.) )'	x 	y	$1-	x -
+'((?-x:.) )'x	x 	y	$1-	x-
+foo.bart	foo.bart	y	-	-
+'^d[x][x][x]'m	abcd\ndxxx	y	-	-
+.X(.+)+X	bbbbXcXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	y	-	-
+.X(.+)+XX	bbbbXcXXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	y	-	-
+.XX(.+)+X	bbbbXXcXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	y	-	-
+.X(.+)+X	bbbbXXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	n	-	-
+.X(.+)+XX	bbbbXXXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	n	-	-
+.XX(.+)+X	bbbbXXXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	n	-	-
+.X(.+)+[X]	bbbbXcXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	y	-	-
+.X(.+)+[X][X]	bbbbXcXXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	y	-	-
+.XX(.+)+[X]	bbbbXXcXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	y	-	-
+.X(.+)+[X]	bbbbXXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	n	-	-
+.X(.+)+[X][X]	bbbbXXXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	n	-	-
+.XX(.+)+[X]	bbbbXXXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	n	-	-
+.[X](.+)+[X]	bbbbXcXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	y	-	-
+.[X](.+)+[X][X]	bbbbXcXXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	y	-	-
+.[X][X](.+)+[X]	bbbbXXcXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	y	-	-
+.[X](.+)+[X]	bbbbXXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	n	-	-
+.[X](.+)+[X][X]	bbbbXXXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	n	-	-
+.[X][X](.+)+[X]	bbbbXXXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	n	-	-
+tt+$	xxxtt	y	-	-
+([a-\d]+)	za-9z	y	$1	a-9
+([\d-z]+)	a0-za	y	$1	0-z
+([\d-\s]+)	a0- z	y	$1	0- 
+([a-[:digit:]]+)	za-9z	y	$1	a-9
+([[:digit:]-z]+)	=0-z=	y	$1	0-z
+([[:digit:]-[:alpha:]]+)	=0-z=	y	$1	0-z
+\GX.*X	aaaXbX	n	-	-
+(\d+\.\d+)	3.1415926	y	$1	3.1415926
+(\ba.{0,10}br)	have a web browser	y	$1	a web br
+'\.c(pp|xx|c)?$'i	Changes	n	-	-
+'\.c(pp|xx|c)?$'i	IO.c	y	-	-
+'(\.c(pp|xx|c)?$)'i	IO.c	y	$1	.c
+^([a-z]:)	C:/	n	-	-
+'^\S\s+aa$'m	\nx aa	y	-	-
+(^|a)b	ab	y	-	-

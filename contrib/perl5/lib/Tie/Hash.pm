@@ -73,6 +73,8 @@ Return the next key for the hash.
 
 Verify that I<key> exists with the tied hash I<this>.
 
+The B<Tie::Hash> implementation is a stub that simply croaks.
+
 =item DELETE this, key
 
 Delete the key I<key> from the tied hash I<this>.
@@ -100,6 +102,7 @@ good working examples.
 =cut
 
 use Carp;
+use warnings::register;
 
 sub new {
     my $pkg = shift;
@@ -111,8 +114,8 @@ sub new {
 sub TIEHASH {
     my $pkg = shift;
     if (defined &{"${pkg}::new"}) {
-	carp "WARNING: calling ${pkg}->new since ${pkg}->TIEHASH is missing"
-	    if $^W;
+	warnings::warn "WARNING: calling ${pkg}->new since ${pkg}->TIEHASH is missing"
+	    if warnings::enabled();
 	$pkg->new(@_);
     }
     else {

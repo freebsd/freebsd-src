@@ -6,13 +6,15 @@ sub output ($);
 
 @pods = qw(
 	   perl perlfaq perlfaq1 perlfaq2 perlfaq3 perlfaq4 perlfaq5
-	   perlfaq6 perlfaq7 perlfaq8 perlfaq9 perldelta perldata perlopentut
-	   perlsyn perlop perlre perlreftut perlrun perlfunc perlvar perlsub
-	   perlmod perlmodlib perlmodinstall perlform perllocale perlref perldsc
-	   perllol perltoot perlobj perltie perlthrtut perlbot perlipc perldebug
+	   perlfaq6 perlfaq7 perlfaq8 perlfaq9 perldelta perldata
+	   perlsyn perlop perlre perlrun perlfunc perlvar perlsub
+	   perlmod perlmodlib perlmodinstall perlfork perlform perllocale 
+	   perlref perlreftut perldsc
+	   perllol perlboot perltoot perltootc perlobj perltie perlbot perlipc
+	   perldbmfilter perldebug perlnumber perldebguts
 	   perldiag perlsec perltrap perlport perlstyle perlpod perlbook
-	   perlembed perlapio perlxs perlxstut perlguts perlcall
-	   perlhist
+	   perlembed perlapio perlxs perlxstut perlguts perlcall perlcompile
+	   perlapi perlintern perlhist
 	  );
 
 for (@pods) { s/$/.pod/ }
@@ -112,6 +114,8 @@ podset( @modules[ sort { $modname[$a] cmp $modname[$b] } 0 .. $#modules ] );
 	Here should be listed all the extra programs' documentation, but they
 	don't all have manual pages yet:
 
+	=over
+
 	=item a2p
 
 	=item s2p
@@ -130,6 +134,7 @@ podset( @modules[ sort { $modname[$a] cmp $modname[$b] } 0 .. $#modules ] );
 
 	=item wrapsuid
 
+	=back
 
 	=head1 AUTHOR
 
@@ -148,8 +153,7 @@ sub podset {
     while(<>) {
 	if (s/^=head1 (NAME)\s*/=head2 /) {
 	    $pod = path2modname($ARGV);
-	    unitem();
-	    unhead2();
+	    unhead1();
 	    output "\n \n\n=head2 ";
 	    $_ = <>;
 	    if ( /^\s*$pod\b/ ) {
@@ -162,7 +166,9 @@ sub podset {
 	    next;
 	}
 	if (s/^=head1 (.*)/=item $1/) {
-	    unitem(); unhead2();
+	    unhead2();
+	    output "=over\n\n" unless $inhead1;
+	    $inhead1 = 1;
 	    output $_; nl(); next;
 	}
 	if (s/^=head2 (.*)/=item $1/) {
@@ -170,7 +176,6 @@ sub podset {
 	    output "=over\n\n" unless $inhead2;
 	    $inhead2 = 1;
 	    output $_; nl(); next;
-
 	}
 	if (s/^=item ([^=].*)\n/$1/) {
 	    next if $pod eq 'perldiag';
@@ -186,6 +191,10 @@ sub podset {
 	    s/^-X\b/-I<X>/;
 	    output $_; next;
 	}
+	if (s/^=cut\s*\n//) {
+	    unhead1();
+	    next;
+	}
     }
 }
 
@@ -198,12 +207,20 @@ sub path2modname {
     return $_;
 }
 
+sub unhead1 {
+    unhead2();
+    if ($inhead1) {
+	output "\n\n=back\n\n";
+    }
+    $inhead1 = 0;
+}
+
 sub unhead2 {
+    unitem();
     if ($inhead2) {
 	output "\n\n=back\n\n";
     }
     $inhead2 = 0;
-    $initem  = 0;
 }
 
 sub unitem {

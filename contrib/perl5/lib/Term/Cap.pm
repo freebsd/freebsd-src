@@ -107,8 +107,8 @@ sub termcap_path { ## private
     push(@termcap_path, $ENV{TERMCAP})
 	if ((exists $ENV{TERMCAP}) &&
 	    (($^O eq 'os2' || $^O eq 'MSWin32' || $^O eq 'dos')
-	     ? $ENV{TERMCAP} =~ /^[a-z]:[\\\/]/i
-	     : $ENV{TERMCAP} =~ /^\//));
+	     ? $ENV{TERMCAP} =~ /^[a-z]:[\\\/]/is
+	     : $ENV{TERMCAP} =~ /^\//s));
     if ((exists $ENV{TERMPATH}) && ($ENV{TERMPATH})) {
 	# Add the users $TERMPATH
 	push(@termcap_path, split(/(:|\s+)/, $ENV{TERMPATH}))
@@ -157,7 +157,7 @@ sub Tgetent { ## public -- static method
     my $foo = (exists $ENV{TERMCAP} ? $ENV{TERMCAP} : '');
 
     # $entry is the extracted termcap entry
-    if (($foo !~ m:^/:) && ($foo =~ m/(^|\|)${termpat}[:|]/)) {
+    if (($foo !~ m:^/:s) && ($foo =~ m/(^|\|)${termpat}[:|]/s)) {
 	$entry = $foo;
     }
 

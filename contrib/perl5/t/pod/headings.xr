@@ -1,0 +1,26 @@
+NAME
+    rdb2pg - insert an rdb table into a PostgreSQL database
+
+SYNOPSIS
+    rdb2pg [*param*=*value* ...]
+
+PARAMETERS
+    rdb2pg uses an IRAF-compatible parameter interface. A template parameter
+    file is in /proj/axaf/simul/lib/uparm/rdb2pg.par.
+
+    input *file*
+        The RDB file to insert into the database. If the given name is the
+        string `stdin', it reads from the UNIX standard input stream.
+
+DESCRIPTION
+    rdb2pg will enter the data from an RDB database into a PostgreSQL
+    database table, optionally creating the database and the table if they
+    do not exist. It automatically determines the PostgreSQL data type from
+    the column definition in the RDB file, but may be overriden via a series
+    of definition files or directly via one of its parameters.
+
+    The target database and table are specified by the `db' and `table'
+    parameters. If they do not exist, and the `createdb' parameter is set,
+    they will be created. Table field definitions are determined in the
+    following order:
+

@@ -4,7 +4,9 @@ use Exporter ();
 @EXPORT_OK = qw(find_leaders);
 
 use B qw(peekop walkoptree walkoptree_exec
-	 main_root main_start svref_2object);
+	 main_root main_start svref_2object
+         OPf_SPECIAL OPf_STACKED );
+
 use B::Terse;
 use strict;
 
@@ -18,11 +20,18 @@ sub mark_leader {
     }
 }
 
+sub remove_sortblock{
+    foreach (keys %$bblock){
+        my $leader=$$bblock{$_};	
+	delete $$bblock{$_} if( $leader == 0);   
+    }
+}
 sub find_leaders {
     my ($root, $start) = @_;
     $bblock = {};
-    mark_leader($start);
-    walkoptree($root, "mark_if_leader");
+    mark_leader($start) if ( ref $start ne "B::NULL" );
+    walkoptree($root, "mark_if_leader") if ((ref $root) ne "B::NULL") ;
+    remove_sortblock();
     return $bblock;
 }
 
@@ -81,25 +90,32 @@ sub B::LOOP::mark_if_leader {
 
 sub B::LOGOP::mark_if_leader {
     my $op = shift;
-    my $ppaddr = $op->ppaddr;
+    my $opname = $op->name;
     mark_leader($op->next);
-    if ($ppaddr eq "pp_entertry") {
+    if ($opname eq "entertry") {
 	mark_leader($op->other->next);
     } else {
 	mark_leader($op->other);
     }
 }
 
-sub B::CONDOP::mark_if_leader {
+sub B::LISTOP::mark_if_leader {
     my $op = shift;
+    my $first=$op->first;
+    $first=$first->next while ($first->name eq "null");
+    mark_leader($op->first) unless (exists( $bblock->{$$first}));
     mark_leader($op->next);
-    mark_leader($op->true);
-    mark_leader($op->false);
+    if ($op->name eq "sort" and $op->flags & OPf_SPECIAL
+	and $op->flags & OPf_STACKED){
+        my $root=$op->first->sibling->first;
+        my $leader=$root->first;
+        $bblock->{$$leader} = 0;
+    }
 }
 
 sub B::PMOP::mark_if_leader {
     my $op = shift;
-    if ($op->ppaddr ne "pp_pushre") {
+    if ($op->name ne "pushre") {
 	my $replroot = $op->pmreplroot;
 	if ($$replroot) {
 	    mark_leader($replroot);
@@ -113,6 +129,7 @@ sub B::PMOP::mark_if_leader {
 
 sub compile {
     my @options = @_;
+    B::clearsym();
     if (@options) {
 	return sub {
 	    my $objname;
@@ -134,7 +151,6 @@ sub compile {
 #     The ops pointed at by nextop, redoop and lastop->op_next of a LOOP
 #     The ops pointed at by op_next and op_other of a LOGOP, except
 #     for pp_entertry which has op_next and op_other->op_next
-#     The ops pointed at by op_true and op_false of a CONDOP
 #     The op pointed at by op_pmreplstart of a PMOP
 #     The op pointed at by op_other->op_pmreplstart of pp_substcont?
 #     [The op after a pp_return] Omit
@@ -153,7 +169,9 @@ B::Bblock - Walk basic blocks
 
 =head1 DESCRIPTION
 
-See F<ext/B/README>.
+This module is used by the B::CC back end.  It walks "basic blocks".
+A basic block is a series of operations which is known to execute from
+start to finish, with no possiblity of branching or halting.
 
 =head1 AUTHOR
 

@@ -180,8 +180,9 @@ use Exporter ();
 use Config;
 use strict;
 
-\$Config{'myarchname'} eq "$Config{'myarchname'}" or
-	die "Errno architecture ($Config{'myarchname'}) does not match executable architecture (\$Config{'myarchname'})";
+"\$Config{'archname'}-\$Config{'osvers'}" eq
+"$Config{'archname'}-$Config{'osvers'}" or
+	die "Errno architecture ($Config{'archname'}-$Config{'osvers'}) does not match executable architecture (\$Config{'archname'}-\$Config{'osvers'})";
 
 \$VERSION = "$VERSION";
 \@ISA = qw(Exporter);
@@ -230,13 +231,14 @@ sub TIEHASH { bless [] }
 sub FETCH {
     my ($self, $errname) = @_;
     my $proto = prototype("Errno::$errname");
+    my $errno = "";
     if (defined($proto) && $proto eq "") {
 	no strict 'refs';
-        return $! == &$errname;
+	$errno = &$errname;
+        $errno = 0 unless $! == $errno;
     }
-    require Carp;
-    Carp::confess("No errno $errname");
-} 
+    return $errno;
+}
 
 sub STORE {
     require Carp;
@@ -251,13 +253,12 @@ sub NEXTKEY {
     while(($k,$v) = each %Errno::) {
 	my $proto = prototype("Errno::$k");
 	last if (defined($proto) && $proto eq "");
-	
     }
     $k
 }
 
 sub FIRSTKEY {
-    my $s = scalar keys %Errno::;
+    my $s = scalar keys %Errno::;	# initialize iterator
     goto &NEXTKEY;
 }
 
@@ -286,11 +287,11 @@ C<Errno> defines and conditionally exports all the error constants
 defined in your system C<errno.h> include file. It has a single export
 tag, C<:POSIX>, which will export all POSIX defined error numbers.
 
-C<Errno> also makes C<%!> magic such that each element of C<%!> has a non-zero
-value only if C<$!> is set to that value, eg
+C<Errno> also makes C<%!> magic such that each element of C<%!> has a
+non-zero value only if C<$!> is set to that value. For example:
 
     use Errno;
-    
+
     unless (open(FH, "/fangorn/spouse")) {
         if ($!{ENOENT}) {
             warn "Get a wife!\n";
@@ -298,6 +299,20 @@ value only if C<$!> is set to that value, eg
             warn "This path is barred: $!";
         } 
     } 
+
+If a specified constant C<EFOO> does not exist on the system, C<$!{EFOO}>
+returns C<"">.  You may use C<exists $!{EFOO}> to check whether the
+constant is available on the system.
+
+=head1 CAVEATS
+
+Importing a particular constant may not be very portable, because the
+import will fail on platforms that do not have that constant.  A more
+portable way to set C<$!> to a valid value is to use:
+
+    if (exists &Errno::EFOO) {
+        $! = &Errno::EFOO;
+    }
 
 =head1 AUTHOR
 

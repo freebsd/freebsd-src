@@ -1,8 +1,6 @@
 #!./perl
 
-# $RCSfile: chop.t,v $$Revision: 4.1 $$Date: 92/08/07 18:27:40 $
-
-print "1..28\n";
+print "1..30\n";
 
 # optimized
 
@@ -85,3 +83,9 @@ $_ = "axx";
 $/ = "yy";
 print chomp() == 0 ? "ok 27\n" : "not ok 27\n";
 print $_ eq "axx" ? "ok 28\n" : "not ok 28\n";
+
+# This case once mistakenly behaved like paragraph mode.
+$_ = "ab\n";
+$/ = \3;
+print chomp() == 0 ? "ok 29\n" : "not ok 29\n";
+print $_ eq "ab\n" ? "ok 30\n" : "not ok 30\n";

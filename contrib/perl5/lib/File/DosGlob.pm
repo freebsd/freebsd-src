@@ -19,13 +19,18 @@ sub doglob {
 	my $sepchr = '/';
 	next OUTER unless defined $_ and $_ ne '';
 	# if arg is within quotes strip em and do no globbing
-	if (/^"(.*)"$/) {
+	if (/^"(.*)"\z/s) {
 	    $_ = $1;
 	    if ($cond eq 'd') { push(@retval, $_) if -d $_ }
 	    else              { push(@retval, $_) if -e $_ }
 	    next OUTER;
 	}
-	if (m|^(.*)([\\/])([^\\/]*)$|) {
+	# wildcards with a drive prefix such as h:*.pm must be changed
+	# to h:./*.pm to expand correctly
+	if (m|^([A-Za-z]:)[^/\\]|s) {
+	    substr($_,0,2) = $1 . "./";
+	}
+	if (m|^(.*)([\\/])([^\\/]*)\z|s) {
 	    my $tail;
 	    ($head, $sepchr, $tail) = ($1,$2,$3);
 	    #print "div: |$head|$sepchr|$tail|\n";
@@ -35,7 +40,7 @@ sub doglob {
 		push(@retval, doglob($cond, map {"$_$sepchr$tail"} @globdirs)),
 		    next OUTER if @globdirs;
 	    }
-	    $head .= $sepchr if $head eq '' or $head =~ /^[A-Za-z]:$/;
+	    $head .= $sepchr if $head eq '' or $head =~ /^[A-Za-z]:\z/s;
 	    $_ = $tail;
 	}
 	#
@@ -61,7 +66,7 @@ sub doglob {
 	s/\?/.?/g;
 
 	#print "regex: '$_', head: '$head'\n";
-	my $matchsub = eval 'sub { $_[0] =~ m|^' . $_ . '$|io }';
+	my $matchsub = eval 'sub { $_[0] =~ m|^' . $_ . '\\z|ios }';
 	warn($@), next OUTER if $@;
       INNER:
 	for my $e (@leaves) {
@@ -142,7 +147,7 @@ sub import {
     my $pkg = shift;
     return unless @_;
     my $sym = shift;
-    my $callpkg = ($sym =~ s/^GLOBAL_// ? 'CORE::GLOBAL' : caller(0));
+    my $callpkg = ($sym =~ s/^GLOBAL_//s ? 'CORE::GLOBAL' : caller(0));
     *{$callpkg.'::'.$sym} = \&{$pkg.'::'.$sym} if $sym eq 'glob';
 }
 
@@ -157,16 +162,16 @@ File::DosGlob - DOS like globbing and then some
 =head1 SYNOPSIS
 
     require 5.004;
-    
+
     # override CORE::glob in current package
     use File::DosGlob 'glob';
-    
+
     # override CORE::glob in ALL packages (use with extreme caution!)
     use File::DosGlob 'GLOBAL_glob';
 
     @perlfiles = glob  "..\\pe?l/*.p?";
     print <..\\pe?l/*.p?>;
-    
+
     # from the command line (overrides only in main::)
     > perl -MFile::DosGlob=glob -e "print <../pe*/*p?>"
 
@@ -206,7 +211,7 @@ pandering to DOS habits.  Needs a dose of optimizium too.
 
 =head1 AUTHOR
 
-Gurusamy Sarathy <gsar@umich.edu>
+Gurusamy Sarathy <gsar@activestate.com>
 
 =head1 HISTORY
 

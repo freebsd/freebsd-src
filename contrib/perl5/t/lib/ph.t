@@ -6,7 +6,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib';
+    unshift @INC, '../lib';
 }
 
 # All the constants which Socket.pm tries to make available:

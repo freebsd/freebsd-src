@@ -1,8 +1,9 @@
 package Fatal;
 
+use 5.005_64;
 use Carp;
 use strict;
-use vars qw( $AUTOLOAD $Debug $VERSION);
+our($AUTOLOAD, $Debug, $VERSION);
 
 $VERSION = 1.02;
 
@@ -11,9 +12,15 @@ $Debug = 0 unless defined $Debug;
 sub import {
     my $self = shift(@_);
     my($sym, $pkg);
+    my $void = 0;
     $pkg = (caller)[0];
     foreach $sym (@_) {
-	&_make_fatal($sym, $pkg);
+	if ($sym eq ":void") {
+	    $void = 1;
+	}
+	else {
+	    &_make_fatal($sym, $pkg, $void);
+	}
     }
 };
 
@@ -41,11 +48,11 @@ sub fill_protos {
 }
 
 sub write_invocation {
-  my ($core, $call, $name, @argvs) = @_;
+  my ($core, $call, $name, $void, @argvs) = @_;
   if (@argvs == 1) {		# No optional arguments
     my @argv = @{$argvs[0]};
     shift @argv;
-    return "\t" . one_invocation($core, $call, $name, @argv) . ";\n";
+    return "\t" . one_invocation($core, $call, $name, $void, @argv) . ";\n";
   } else {
     my $else = "\t";
     my (@out, @argv, $n);
@@ -55,7 +62,7 @@ sub write_invocation {
       push @out, "$ {else}if (\@_ == $n) {\n";
       $else = "\t} els";
       push @out, 
-          "\t\treturn " . one_invocation($core, $call, $name, @argv) . ";\n";
+          "\t\treturn " . one_invocation($core, $call, $name, $void, @argv) . ";\n";
     }
     push @out, <<EOC;
 	}
@@ -66,21 +73,27 @@ EOC
 }
 
 sub one_invocation {
-  my ($core, $call, $name, @argv) = @_;
+  my ($core, $call, $name, $void, @argv) = @_;
   local $" = ', ';
-  return qq{$call(@argv) || croak "Can't $name(\@_)} . 
-    ($core ? ': $!' : ', \$! is \"$!\"') . '"';
+  if ($void) { 
+    return qq/(defined wantarray)?$call(@argv):
+              $call(@argv) || croak "Can't $name(\@_)/ . 
+           ($core ? ': $!' : ', \$! is \"$!\"') . '"'
+  } else {
+    return qq{$call(@argv) || croak "Can't $name(\@_)} . 
+           ($core ? ': $!' : ', \$! is \"$!\"') . '"';
+  }
 }
 
 sub _make_fatal {
-    my($sub, $pkg) = @_;
+    my($sub, $pkg, $void) = @_;
     my($name, $code, $sref, $real_proto, $proto, $core, $call);
     my $ini = $sub;
 
     $sub = "${pkg}::$sub" unless $sub =~ /::/;
     $name = $sub;
     $name =~ s/.*::// or $name =~ s/^&//;
-    print "# _make_fatal: sub=$sub pkg=$pkg name=$name\n" if $Debug;
+    print "# _make_fatal: sub=$sub pkg=$pkg name=$name void=$void\n" if $Debug;
     croak "Bad subroutine name for Fatal: $name" unless $name =~ /^\w+$/;
     if (defined(&$sub)) {	# user subroutine
 	$sref = \&$sub;
@@ -108,14 +121,14 @@ sub$real_proto {
 	local(\$", \$!) = (', ', 0);
 EOS
     my @protos = fill_protos($proto);
-    $code .= write_invocation($core, $call, $name, @protos);
+    $code .= write_invocation($core, $call, $name, $void, @protos);
     $code .= "}\n";
     print $code if $Debug;
     {
       no strict 'refs'; # to avoid: Can't use string (...) as a symbol ref ...
       $code = eval("package $pkg; use Carp; $code");
       die if $@;
-      local($^W) = 0;   # to avoid: Subroutine foo redefined ...
+      no warnings;   # to avoid: Subroutine foo redefined ...
       *{$sub} = $code;
     }
 }
@@ -138,17 +151,31 @@ Fatal - replace functions with equivalents which succeed or die
 =head1 DESCRIPTION
 
 C<Fatal> provides a way to conveniently replace functions which normally
-return a false value when they fail with equivalents which halt execution
+return a false value when they fail with equivalents which raise exceptions
 if they are not successful.  This lets you use these functions without
-having to test their return values explicitly on each call.   Errors are
-reported via C<die>, so you can trap them using C<$SIG{__DIE__}> if you
-wish to take some action before the program exits.
+having to test their return values explicitly on each call.  Exceptions
+can be caught using C<eval{}>.  See L<perlfunc> and L<perlvar> for details.
 
 The do-or-die equivalents are set up simply by calling Fatal's
 C<import> routine, passing it the names of the functions to be
 replaced.  You may wrap both user-defined functions and overridable
 CORE operators (except C<exec>, C<system> which cannot be expressed
 via prototypes) in this way.
+
+If the symbol C<:void> appears in the import list, then functions
+named later in that import list raise an exception only when
+these are called in void context--that is, when their return
+values are ignored.  For example
+
+	use Fatal qw/:void open close/;
+
+	# properly checked, so no exception raised on error
+	if(open(FH, "< /bogotic") {
+		warn "bogo file, dude: $!";
+	}
+
+	# not checked, so error raises an exception
+	close FH;
 
 =head1 AUTHOR
 

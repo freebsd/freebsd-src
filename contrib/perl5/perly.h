@@ -1,3 +1,4 @@
+#ifdef PERL_CORE
 #define WORD 257
 #define METHOD 258
 #define FUNCMETH 259
@@ -38,28 +39,32 @@
 #define NOAMP 294
 #define LOCAL 295
 #define MY 296
-#define OROP 297
-#define ANDOP 298
-#define NOTOP 299
-#define ASSIGNOP 300
-#define OROR 301
-#define ANDAND 302
-#define BITOROP 303
-#define BITANDOP 304
-#define SHIFTOP 305
-#define MATCHOP 306
-#define UMINUS 307
-#define REFGEN 308
-#define POWOP 309
-#define PREINC 310
-#define PREDEC 311
-#define POSTINC 312
-#define POSTDEC 313
-#define ARROW 314
+#define MYSUB 297
+#define COLONATTR 298
+#define PREC_LOW 299
+#define OROP 300
+#define ANDOP 301
+#define NOTOP 302
+#define ASSIGNOP 303
+#define OROR 304
+#define ANDAND 305
+#define BITOROP 306
+#define BITANDOP 307
+#define SHIFTOP 308
+#define MATCHOP 309
+#define UMINUS 310
+#define REFGEN 311
+#define POWOP 312
+#define PREINC 313
+#define PREDEC 314
+#define POSTINC 315
+#define POSTDEC 316
+#define ARROW 317
+#endif /* PERL_CORE */
+
 typedef union {
     I32	ival;
     char *pval;
     OP *opval;
     GV *gvval;
 } YYSTYPE;
-extern YYSTYPE yylval;

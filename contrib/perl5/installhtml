@@ -9,8 +9,6 @@ use Getopt::Long;	# for command-line parsing
 use Cwd;
 use Pod::Html;
 
-umask 022;
-
 =head1 NAME
 
 installhtml - converts a collection of POD pages to HTML format.
@@ -63,13 +61,13 @@ a URL.  The default is `/'.
 
 =item B<--splithead> POD files to split on =head directive
 
-Colon-separated list of pod files to split by the =head directive.  The
+Comma-separated list of pod files to split by the =head directive.  The
 .pod suffix is optional. These files should have names specified
 relative to podroot.
 
 =item B<--splititem> POD files to split on =item directive
 
-Colon-separated list of all pod files to split by the =item directive.
+Comma-separated list of all pod files to split by the =item directive.
 The .pod suffix is optional.  I<installhtml> does not do the actual
 split, rather it invokes I<splitpod> to do the dirty work.  As with
 --splithead, these files should have names specified relative to podroot.
@@ -80,7 +78,7 @@ The directory containing the splitpod program. The default is `podroot/pod'.
 
 =item B<--libpods> library PODs for LE<lt>E<gt> links
 
-Colon-separated list of "library" pod files.  This is the same list that
+Comma-separated list of "library" pod files.  This is the same list that
 will be passed to pod2html when any pod is converted.
 
 =item B<--verbose> verbose output
@@ -100,7 +98,7 @@ perl documentation:
 			--htmlroot=/perl/nmanual    \
 			--splithead=pod/perlipc     \
 			--splititem=pod/perlfunc    \
-			--libpods=perlfunc:perlguts:perlvar:perlrun:perlop \
+			--libpods=perlfunc,perlguts,perlvar,perlrun,perlop \
 			--recurse \
 			--verbose
 
@@ -160,6 +158,10 @@ $verbose = 0; 	    	# whether or not to print debugging info
 $pod2html = "pod/pod2html";
 
 usage("") unless @ARGV;
+
+# Overcome shell's p1,..,p8 limitation.  
+# See vms/descrip_mms.template -> descrip.mms for invokation.
+if ( $^O eq 'VMS' ) { @ARGV = split(/\s+/,$ARGV[0]); }
 
 # parse the command-line
 $result = GetOptions( qw(
@@ -236,7 +238,12 @@ foreach $dir (@splithead) {
     @data = ();
     while (<H>) {
 	last if /NAME=/;
-	s,HREF="#(.*)">,HREF="$file/$1.html">,g;
+	$_ =~ s{HREF="#(.*)">}{
+	    my $url = "$file/$1.html" ;
+            $url = Pod::Html::relativize_url( $url, "$file.html" )
+                if ( ! defined $opt_htmlroot || $opt_htmlroot eq '' ) ;
+            "HREF=\"$url\">" ;
+        }eg;
 	push @data, $_;
     } 
     close(H);
@@ -291,6 +298,8 @@ sub absolute_path {
 sub create_index {
     my($html, $dir) = @_;
     my(@files, @filedata, @index, $file);
+    my($lcp1,$lcp2);
+
 
     # get the list of .html files in this directory
     opendir(DIR, $dir) ||
@@ -314,17 +323,25 @@ sub create_index {
 
 	# pull out the NAME section
 	($name) = grep(/NAME=/, @filedata);
-	$name =~ m,/H1>\s(\S+)\s[\s-]*(.*?)\s*$,sm;
-	print HTML qq(<A HREF="$dir/$file">);
-	print HTML "<DT>$1</A><DD>$2\n" if defined $1;
-#	print HTML qq(<A HREF="$dir/$file">$1</A><BR>\n") if defined $1;
+	($lcp1,$lcp2) = ($name =~ m,/H1>\s(\S+)\s[\s-]*(.*?)\s*$,sm);
+	if (defined $lcp1 and $lcp1 eq '<P>') { # Uninteresting.  Try again.
+	   ($lcp1,$lcp2) = ($name =~ m,/H1>\s<P>\s(\S+)\s[\s-]*(.*?)\s*$,sm);
+	}
+	my $url= "$dir/$file" ;
+	if ( ! defined $opt_htmlroot || $opt_htmlroot eq '' ) {
+	    $url = Pod::Html::relativize_url( "$dir/$file", $html ) ;
+	}
+
+	print HTML qq(<A HREF="$url">);
+	print HTML "<DT>$lcp1</A><DD>$lcp2\n" if defined $lcp1;
+#	print HTML qq(<A HREF="$url">$lcp1</A><BR>\n") if defined $lcp1;
 
 	next;
 
 	@index = grep(/<!-- INDEX BEGIN -->.*<!-- INDEX END -->/s,
 		    @filedata);
 	for (@index) {
-	    s/<!-- INDEX BEGIN -->(\s*<!--)(.*)(-->\s*)<!-- INDEX END -->/$2/s;
+	    s/<!-- INDEX BEGIN -->(\s*<!--)(.*)(-->\s*)<!-- INDEX END -->/$lcp2/s;
 	    s,#,$dir/$file#,g;
 	    # print HTML "$_\n";
 	    print HTML "$_\n<P><HR><P>\n";
@@ -500,7 +517,7 @@ sub installdir {
 	|| die "$0: error opening directory $podroot/$dir: $!\n";
 
     # find the directories to recurse on
-    @dirlist = map { "$dir/$_" }
+    @dirlist = map { if ($^O eq 'VMS') {/^(.*)\.dir$/i; "$dir/$1";} else {"$dir/$_";}}
 	grep(-d "$podroot/$dir/$_" && !/^\.{1,2}/, readdir(DIR)) if $recurse;
     rewinddir(DIR);
 
@@ -571,6 +588,7 @@ sub runpod2html {
 #system("./pod2html",
         Pod::Html'pod2html(
         #Pod::Html'pod2html($pod2html,
+        "--htmldir=$htmldir",
 	"--htmlroot=$htmlroot",
 	"--podpath=".join(":", @podpath),
 	"--podroot=$podroot", "--netscape",

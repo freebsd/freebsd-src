@@ -52,10 +52,7 @@ char *optarg;			       /* Global argument pointer. */
 #endif
 
 char
-getopt(argc, argv, optstring)
-int argc;
-char **argv;
-char *optstring;
+getopt(int argc, char **argv, char *optstring)
 {
 	register int c;
 	register char *place;
@@ -131,14 +128,13 @@ char *optstring;
 
 
 void
-print_datum(db)
-datum db;
+print_datum(datum db)
 {
 	int i;
 
 	putchar('"');
 	for (i = 0; i < db.dsize; i++) {
-		if (isprint(db.dptr[i]))
+		if (isprint((unsigned char)db.dptr[i]))
 			putchar(db.dptr[i]);
 		else {
 			putchar('\\');
@@ -152,8 +148,7 @@ datum db;
 
 
 datum
-read_datum(s)
-char *s;
+read_datum(char *s)
 {
 	datum db;
 	char *p;
@@ -161,6 +156,9 @@ char *s;
 
 	db.dsize = 0;
 	db.dptr = (char *) malloc(strlen(s) * sizeof(char));
+	if (!db.dptr)
+	    oops("cannot get memory");
+
 	for (p = db.dptr; *s != '\0'; p++, db.dsize++, s++) {
 		if (*s == '\\') {
 			if (*++s == 'n')
@@ -171,7 +169,10 @@ char *s;
 				*p = '\f';
 			else if (*s == 't')
 				*p = '\t';
-			else if (isdigit(*s) && isdigit(*(s + 1)) && isdigit(*(s + 2))) {
+			else if (isdigit((unsigned char)*s)
+				 && isdigit((unsigned char)*(s + 1))
+				 && isdigit((unsigned char)*(s + 2)))
+			{
 				i = (*s++ - '0') << 6;
 				i |= (*s++ - '0') << 3;
 				i |= *s - '0';
@@ -191,22 +192,21 @@ char *s;
 
 
 char *
-key2s(db)
-datum db;
+key2s(datum db)
 {
 	char *buf;
 	char *p1, *p2;
 
 	buf = (char *) malloc((db.dsize + 1) * sizeof(char));
+	if (!buf)
+	    oops("cannot get memory");
 	for (p1 = buf, p2 = db.dptr; *p2 != '\0'; *p1++ = *p2++);
 	*p1 = '\0';
 	return buf;
 }
 
-
-main(argc, argv)
-int argc;
-char **argv;
+int
+main(int argc, char **argv)
 {
 	typedef enum {
 		YOW, FETCH, STORE, DELETE, SCAN, REGEXP
@@ -285,7 +285,7 @@ char **argv;
 		}
 	}
 
-	if (giveusage | what == YOW | argn < 1) {
+	if (giveusage || what == YOW || argn < 1) {
 		fprintf(stderr, "Usage: %s databse [-m r|w|rw] [-crtx] -a|-d|-f|-F|-s [key [content]]\n", argv[0]);
 		exit(-1);
 	}

@@ -16,6 +16,8 @@ $ENV{PERL_DESTRUCT_LEVEL} = 0 unless $ENV{PERL_DESTRUCT_LEVEL} > 3;
 # 	y	expect a match
 # 	n	expect no match
 # 	c	expect an error
+#	B	test exposes a known bug in Perl, should be skipped
+#	b	test exposes a known bug in Perl, should be skipped if noamp
 #
 # Columns 4 and 5 are used only if column 3 contains C<y> or C<c>.
 #
@@ -31,7 +33,7 @@ $ENV{PERL_DESTRUCT_LEVEL} = 0 unless $ENV{PERL_DESTRUCT_LEVEL} > 3;
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib' if -d '../lib';
+    unshift @INC, '../lib' if -d '../lib';
 }
 
 $iters = shift || 1;		# Poor man performance suite, 10000 is OK.
@@ -45,6 +47,8 @@ seek(TESTS,0,0);
 $. = 0;
 
 $bang = sprintf "\\%03o", ord "!"; # \41 would not be portable.
+$ffff  = chr(0xff) x 2;
+$nulnul = "\0" x 2;
 
 $| = 1;
 print "1..$numtests\n# $iters iterations\n";
@@ -57,18 +61,27 @@ while (<TESTS>) {
     infty_subst(\$pat);
     infty_subst(\$expect);
     $pat = "'$pat'" unless $pat =~ /^[:']/;
-    $pat =~ s/\\n/\n/g;
     $pat =~ s/(\$\{\w+\})/$1/eeg;
+    $pat =~ s/\\n/\n/g;
+    $subject =~ s/(\$\{\w+\})/$1/eeg;
     $subject =~ s/\\n/\n/g;
+    $expect =~ s/(\$\{\w+\})/$1/eeg;
     $expect =~ s/\\n/\n/g;
     $expect = $repl = '-' if $skip_amp and $input =~ /\$[&\`\']/;
-    for $study ("", "study \$subject") {
+    $skip = ($skip_amp ? ($result =~ s/B//i) : ($result =~ s/B//));
+    # Certain tests don't work with utf8 (the re_test should be in UTF8)
+    $skip = 1 if ($^H &= ~0x00000008) && $pat =~ /\[:\^(alnum|print|word):\]/;
+    $result =~ s/B//i unless $skip;
+    for $study ('', 'study \$subject') {
  	$c = $iters;
  	eval "$study; \$match = (\$subject =~ m$pat) while \$c--; \$got = \"$repl\";";
 	chomp( $err = $@ );
 	if ($result eq 'c') {
 	    if ($err !~ m!^\Q$expect!) { print "not ok $. (compile) $input => `$err'\n"; next TEST }
 	    last;  # no need to study a syntax error
+	}
+	elsif ( $skip ) {
+	    print "ok $. # skipped\n"; next TEST;
 	}
 	elsif ($@) {
 	    print "not ok $. $input => error `$err'\n"; next TEST;

@@ -42,10 +42,15 @@ print join(':', (9,9) x 4) eq '9:9:9:9:9:9:9:9' ? "ok 18\n" : "not ok 18\n";
 print join('', (split(//,"123")) x 2) eq '123123' ? "ok 19\n" : "not ok 19\n";
 
 #
-# The test #20 is actually testing for Digital C compiler optimizer bug.
+# The test #20 is actually testing for Digital C compiler optimizer bug,
+# present in Dec C versions 5.* and 6.0 (used in Digital UNIX and VMS),
+# found in December 1998.  The bug was reported to Digital^WCompaq as
+#     DECC 2745 (21-Dec-1998)
+# GEM_BUGS 7619 (23-Dec-1998)
+# As of April 1999 the bug has been fixed in Tru64 UNIX 5.0 and is planned
+# to be fixed also in 4.0G.
 #
-# Dec C versions 5.* and 6.0 (used in Digital UNIX and VMS) used
-# to produce (as of December 1998) broken code for util.c:repeatcpy()
+# The bug was as follows: broken code was produced for util.c:repeatcpy()
 # (a utility function for the 'x' operator) in the case *all* these
 # four conditions held:
 #
@@ -68,9 +73,6 @@ print join('', (split(//,"123")) x 2) eq '123123' ? "ok 19\n" : "not ok 19\n";
 # 24 .........???????.???????
 # 25 .........???????.???????.
 #
-# The bug could be (obscurely) avoided by changing "from" to
-# be an unsigned char pointer.
-#
 # The bug was triggered in the "if (len == 1)" branch.  The fix
 # was to introduce a new temporary variable.  In diff -u format:
 #
@@ -84,6 +86,9 @@ print join('', (split(//,"123")) x 2) eq '123123' ? "ok 19\n" : "not ok 19\n";
 #+           *to++ = c;
 #        return;
 #     }
+#
+# The bug could also be (obscurely) avoided by changing "from" to
+# be an unsigned char pointer.
 #
 # This obscure bug was not found by the then test suite but instead
 # by Mark.Martinec@nsc.ijs.si while trying to install Digest-MD5-2.00.
