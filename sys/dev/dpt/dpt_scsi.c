@@ -76,7 +76,7 @@
  */
 
 
-#ident "$Id: dpt_scsi.c,v 1.4.2.2 1998/03/23 07:57:27 jkh Exp $"
+#ident "$Id: dpt_scsi.c,v 1.4.2.3 1998/05/06 18:55:27 gibbs Exp $"
 #define _DPT_C_
 
 #include "opt_dpt.h"
@@ -490,6 +490,302 @@ dpt_send_immediate(dpt_softc_t *dpt, u_int32_t cmd_block, u_int8_t ifc,
     dpt_outb(dpt, HA_WIFC, ifc);
     dpt_outb(dpt, HA_WCOMMAND, EATA_CMD_IMMEDIATE);
     return(0);
+}
+
+/* 
+ * Remove a ccb from the completed queue 
+ */
+static INLINE void
+dpt_Qremove_completed(dpt_softc_t * dpt, dpt_ccb_t * ccb)
+{
+#ifdef DPT_MEASURE_PERFORMANCE
+    u_int32_t		complete_time;
+    struct timeval now;
+
+    microtime(&now);
+    complete_time = dpt_time_delta(ccb->command_ended, now);
+	
+    if (complete_time != 0xffffffff) {
+	if ( dpt->performance.max_complete_time < complete_time )
+	    dpt->performance.max_complete_time = complete_time;
+	if ( (dpt->performance.min_complete_time == 0) ||
+	     (dpt->performance.min_complete_time > complete_time) )
+	    dpt->performance.min_complete_time = complete_time;
+    }
+#endif
+	
+    TAILQ_REMOVE(&dpt->completed_ccbs, ccb, links);
+    --dpt->completed_ccbs_count;  /* One less completed ccb in the queue */
+#ifdef DPT_TRACK_CCB_STATES
+    if ( !(ccb->state & DPT_CCB_STATE_COMPLETED) )
+	printf("dpt%d: In %d, %s is a bad state.\n"
+	       "		Should be COMPLETED\n",
+	       dpt->unit, ccb->transaction_id,
+	       i2bin((unsigned long) ccb->state, sizeof(ccb->state) * 8));
+
+    ccb->state &= ~DPT_CCB_STATE_COMPLETED;
+#endif
+
+    if ( dpt->state & DPT_HA_SHUTDOWN_ACTIVE )
+	wakeup(&dpt);
+}
+
+/*
+ * Pop the most recently used ccb off the (HEAD of the) FREE ccb queue
+ */
+static INLINE dpt_ccb_t *
+dpt_Qpop_free(dpt_softc_t * dpt)
+{
+    dpt_ccb_t *ccb;
+	
+    if ((ccb = TAILQ_FIRST(&dpt->free_ccbs)) != NULL)
+	TAILQ_REMOVE(&dpt->free_ccbs, ccb, links);
+	
+    --dpt->free_ccbs_count;
+#ifdef DPT_TRACK_CCB_STATES
+    if ( !(ccb->state & DPT_CCB_STATE_FREE) )
+	printf("dpt%d: in %d, %s is a bad state.\n"
+	       "		Should be FREE\n",
+	       dpt->unit, ccb->transaction_id,
+	       i2bin((unsigned long) ccb->state, sizeof(ccb->state) * 8));
+
+    ccb->state &= ~(DPT_CCB_STATE_FREE | DPT_CCB_STATE_DONE);
+#endif
+    return (ccb);
+}
+
+/*
+ * Put a (now freed) ccb back into the HEAD of the FREE ccb queue
+ */
+static INLINE void
+dpt_Qpush_free(dpt_softc_t * dpt, dpt_ccb_t * ccb)
+{
+#ifdef DPT_FREELIST_IS_STACK
+    TAILQ_INSERT_HEAD(&dpt->free_ccbs, ccb, links)
+#else
+	TAILQ_INSERT_TAIL(&dpt->free_ccbs, ccb, links);
+#endif
+
+#ifdef DPT_TRACK_CCB_STATES
+    if ( ccb->state & DPT_CCB_STATE_FREE )
+	printf("dpt%d: In %d, %s is a bad state.\n"
+	       "		Should NOT be FREE\n",
+	       dpt->unit, ccb->transaction_id,
+	       i2bin((unsigned long) ccb->state, sizeof(ccb->state) * 8));
+
+    ccb->state |= DPT_CCB_STATE_FREE;
+    ccb->state &= ~DPT_CCB_STATE_MARKED_SALVAGED;
+#endif
+    ++ dpt->free_ccbs_count;
+}
+
+/*
+ *	Add a request to the TAIL of the WAITING ccb queue
+ */
+static INLINE void
+dpt_Qadd_waiting(dpt_softc_t * dpt, dpt_ccb_t * ccb)
+{
+    struct timeval junk;
+
+    TAILQ_INSERT_TAIL(&dpt->waiting_ccbs, ccb, links);
+    ++dpt->waiting_ccbs_count;
+	
+#ifdef DPT_MEASURE_PERFORMANCE
+    microtime(&junk);
+    ccb->command_ended = junk;
+    if (dpt->waiting_ccbs_count > dpt->performance.max_waiting_count)
+	dpt->performance.max_waiting_count = dpt->waiting_ccbs_count;
+#endif
+#ifdef DPT_TRACK_CCB_STATES
+    if ( ccb->state & DPT_CCB_STATE_WAITING )
+	printf("dpt%d: In %d, %s is a bad state.\n"
+	       "      Should NOT be WAITING\n",
+	       dpt->unit, ccb->transaction_id,
+	       i2bin((unsigned long) ccb->state, sizeof(ccb->state) * 8));
+
+    ccb->state |= DPT_CCB_STATE_WAITING;
+#endif
+
+    if ( dpt->state & DPT_HA_SHUTDOWN_ACTIVE )
+	wakeup(&dpt);
+}
+
+/*
+ *	Add a request to the HEAD of the WAITING ccb queue
+ */
+static INLINE void
+dpt_Qpush_waiting(dpt_softc_t * dpt, dpt_ccb_t * ccb)
+{
+    struct timeval junk;
+
+    TAILQ_INSERT_HEAD(&dpt->waiting_ccbs, ccb, links);
+    ++dpt->waiting_ccbs_count;
+	
+#ifdef DPT_MEASURE_PERFORMANCE
+    microtime(&junk);
+    ccb->command_ended = junk;
+
+    if ( dpt->performance.max_waiting_count < dpt->waiting_ccbs_count )
+	dpt->performance.max_waiting_count = dpt->waiting_ccbs_count;
+
+#endif
+#ifdef DPT_TRACK_CCB_STATES
+    if ( ccb->state & DPT_CCB_STATE_WAITING )
+	printf("dpt%d: In %d, %s is not a bad state.\n"
+	       "		Should NOT be WAITING\n",
+	       dpt->unit, ccb->transaction_id,
+	       i2bin((unsigned long) ccb->state, sizeof(ccb->state) * 8));
+
+    ccb->state |= DPT_CCB_STATE_WAITING;
+#endif
+
+    if ( dpt->state & DPT_HA_SHUTDOWN_ACTIVE )
+	wakeup(&dpt);
+}
+
+/*
+ * Remove a ccb from the waiting queue
+ */
+static INLINE void
+dpt_Qremove_waiting(dpt_softc_t * dpt, dpt_ccb_t * ccb)
+{
+#ifdef DPT_MEASURE_PERFORMANCE
+    struct timeval now;
+    u_int32_t		waiting_time;
+
+    microtime(&now);
+    waiting_time = dpt_time_delta(ccb->command_ended, now);
+	
+    if (waiting_time != 0xffffffff) {
+	if ( dpt->performance.max_waiting_time < waiting_time )
+	    dpt->performance.max_waiting_time = waiting_time;
+	if ( (dpt->performance.min_waiting_time == 0) ||
+	     (dpt->performance.min_waiting_time > waiting_time) )
+	    dpt->performance.min_waiting_time = waiting_time;
+    }
+#endif
+	
+    TAILQ_REMOVE(&dpt->waiting_ccbs, ccb, links);
+    --dpt->waiting_ccbs_count;	/* One less waiting ccb in the queue	*/
+
+#ifdef DPT_TRACK_CCB_STATES
+    if ( !(ccb->state & DPT_CCB_STATE_WAITING) )
+	printf("dpt%d: In %d, %s is a bad state.\n"
+	       "		Should be WAITING\n",
+	       dpt->unit, ccb->transaction_id,
+	       i2bin((unsigned long) ccb->state, sizeof(ccb->state) * 8)); 
+
+    ccb->state &= ~DPT_CCB_STATE_WAITING;
+#endif
+
+    if ( dpt->state & DPT_HA_SHUTDOWN_ACTIVE )
+	wakeup(&dpt);
+}
+
+/*
+ * Add a request to the TAIL of the SUBMITTED ccb queue
+ */
+static INLINE void
+dpt_Qadd_submitted(dpt_softc_t * dpt, dpt_ccb_t * ccb)
+{
+    struct timeval junk;
+
+    TAILQ_INSERT_TAIL(&dpt->submitted_ccbs, ccb, links);
+    ++dpt->submitted_ccbs_count;
+	
+#ifdef DPT_MEASURE_PERFORMANCE
+    microtime(&junk);
+    ccb->command_ended = junk;
+    if (dpt->performance.max_submit_count < dpt->submitted_ccbs_count)
+	dpt->performance.max_submit_count = dpt->submitted_ccbs_count;
+#endif
+#ifdef DPT_TRACK_CCB_STATES
+    if ( ccb->state & DPT_CCB_STATE_SUBMITTED )
+	printf("dpt%d: In %d, %s is a bad state.\n"
+	       "		Should NOT be SUBMITTED\n",
+	       dpt->unit, ccb->transaction_id,
+	       i2bin((unsigned long) ccb->state, sizeof(ccb->state) * 8)); 
+
+    ccb->state |= DPT_CCB_STATE_SUBMITTED;
+#endif
+
+    if ( dpt->state & DPT_HA_SHUTDOWN_ACTIVE )
+	wakeup(&dpt);
+}
+
+/*
+ * Add a request to the TAIL of the Completed ccb queue
+ */
+static INLINE void
+dpt_Qadd_completed(dpt_softc_t * dpt, dpt_ccb_t * ccb)
+{
+    struct timeval junk;
+
+    TAILQ_INSERT_TAIL(&dpt->completed_ccbs, ccb, links);
+    ++dpt->completed_ccbs_count;
+	
+#ifdef DPT_MEASURE_PERFORMANCE
+    microtime(&junk);
+    ccb->command_ended = junk;
+    if (dpt->performance.max_complete_count < dpt->completed_ccbs_count)
+	dpt->performance.max_complete_count = dpt->completed_ccbs_count;
+#endif
+
+#ifdef DPT_TRACK_CCB_STATES
+    if ( ccb->state & DPT_CCB_STATE_COMPLETED )
+	printf("dpt%d: In %d, %s is a bad state.\n"
+	       "		Should NOT be COMPLETED\n",
+	       dpt->unit, ccb->transaction_id,
+	       i2bin((unsigned long) ccb->state, sizeof(ccb->state) * 8)); 
+
+    ccb->state |= DPT_CCB_STATE_COMPLETED;
+#endif
+
+    if ( dpt->state & DPT_HA_SHUTDOWN_ACTIVE )
+	wakeup(&dpt);
+}
+
+/*
+ * Remove a ccb from the submitted queue
+ */
+static INLINE void
+dpt_Qremove_submitted(dpt_softc_t * dpt, dpt_ccb_t * ccb)
+{
+#ifdef DPT_MEASURE_PERFORMANCE
+    struct timeval now;
+    u_int32_t	   submit_time;
+
+    microtime(&now);
+    submit_time = dpt_time_delta(ccb->command_ended, now);
+	
+    if (submit_time != 0xffffffff) {
+	ccb->submitted_time = submit_time;
+	if ( dpt->performance.max_submit_time < submit_time )
+	    dpt->performance.max_submit_time = submit_time;
+	if ( (dpt->performance.min_submit_time == 0)
+	     || (dpt->performance.min_submit_time > submit_time) )
+	    dpt->performance.min_submit_time = submit_time;
+    } else {
+	ccb->submitted_time = 0;
+    }
+    
+#endif
+	
+    TAILQ_REMOVE(&dpt->submitted_ccbs, ccb, links);
+    --dpt->submitted_ccbs_count; /* One less submitted ccb in the queue	*/
+#ifdef DPT_TRACK_CCB_STATES
+    if ( !(ccb->state & DPT_CCB_STATE_SUBMITTED) )
+	printf("dpt%d: In %d, %s is a bad state.\n"
+	       "		Should be SUBMITTED\n",
+	       dpt->unit, ccb->transaction_id,
+	       i2bin((unsigned long) ccb->state, sizeof(ccb->state) * 8)); 
+
+    ccb->state &= ~DPT_CCB_STATE_SUBMITTED;	
+#endif
+
+    if ( (dpt->state & DPT_HA_SHUTDOWN_ACTIVE)
+	 || (dpt->state & DPT_HA_QUIET) )
+	wakeup(&dpt);
 }
 
 
@@ -1800,8 +2096,12 @@ dpt_scsi_cmd(struct scsi_xfer * xs)
      * care about the SCSI_NOSLEEP flag as we do not sleep here. We have
      * to observe the SCSI_NOMASK flag, though.
      */
+    flags = xs->flags;
+    channel = DptChannel(dpt->unit, xs->sc_link->adapter_bus);
+    target = xs->sc_link->target;
+    lun = xs->sc_link->lun;
 	
-    if (xs->flags & SCSI_RESET) {
+    if (flags & SCSI_RESET) {
 	printf("dpt%d: Unsupported option...\n"
 	       "      I refuse to Reset b%dt%du%d...!\n",
 	       __FILE__, __LINE__, channel, target, lun);
@@ -1809,11 +2109,6 @@ dpt_scsi_cmd(struct scsi_xfer * xs)
 	return(COMPLETE);
     }
 
-    flags = xs->flags;
-    channel = DptChannel(dpt->unit, xs->sc_link->adapter_bus);
-    target = xs->sc_link->target;
-    lun = xs->sc_link->lun;
-	
     if ( dpt->state & DPT_HA_SHUTDOWN_ACTIVE ) {
 	printf("dpt%d ERROR: Command \"%s\" recieved for b%dt%du%d\n"
 	       "	    but controller is shutdown; Aborting...\n",
@@ -2054,12 +2349,10 @@ dpt_scsi_cmd(struct scsi_xfer * xs)
 	    return (COMPLETE);
 	}	
 	
-	for (ndx = 0;
-	     (ndx < xs->timeout)
-		 && !((aux_status = dpt_inb(dpt, HA_RAUXSTAT)) & HA_AIRQ);
-	     ndx++ ) {
-	    DELAY(1000);
-	}
+	ndx = xs->timeout;
+	while ((aux_status = (dpt_inb(dpt, HA_RAUXSTAT) & HA_AIRQ) != 0)
+	    && ndx-- > 0)
+	    	DELAY(1000);
 	
 	/*
 	 * Get the status and clear the interrupt flag on the
@@ -3344,302 +3637,6 @@ dpt_timeout(void *arg)
 }
 
 #endif /* DPT_HANDLE_TIMEOUTS */
-
-/* 
- * Remove a ccb from the completed queue 
- */
-static INLINE void
-dpt_Qremove_completed(dpt_softc_t * dpt, dpt_ccb_t * ccb)
-{
-#ifdef DPT_MEASURE_PERFORMANCE
-    u_int32_t		complete_time;
-    struct timeval now;
-
-    microtime(&now);
-    complete_time = dpt_time_delta(ccb->command_ended, now);
-	
-    if (complete_time != 0xffffffff) {
-	if ( dpt->performance.max_complete_time < complete_time )
-	    dpt->performance.max_complete_time = complete_time;
-	if ( (dpt->performance.min_complete_time == 0) ||
-	     (dpt->performance.min_complete_time > complete_time) )
-	    dpt->performance.min_complete_time = complete_time;
-    }
-#endif
-	
-    TAILQ_REMOVE(&dpt->completed_ccbs, ccb, links);
-    --dpt->completed_ccbs_count;  /* One less completed ccb in the queue */
-#ifdef DPT_TRACK_CCB_STATES
-    if ( !(ccb->state & DPT_CCB_STATE_COMPLETED) )
-	printf("dpt%d: In %d, %s is a bad state.\n"
-	       "		Should be COMPLETED\n",
-	       dpt->unit, ccb->transaction_id,
-	       i2bin((unsigned long) ccb->state, sizeof(ccb->state) * 8));
-
-    ccb->state &= ~DPT_CCB_STATE_COMPLETED;
-#endif
-
-    if ( dpt->state & DPT_HA_SHUTDOWN_ACTIVE )
-	wakeup(&dpt);
-}
-
-/*
- * Pop the most recently used ccb off the (HEAD of the) FREE ccb queue
- */
-static INLINE dpt_ccb_t *
-dpt_Qpop_free(dpt_softc_t * dpt)
-{
-    dpt_ccb_t *ccb;
-	
-    if ((ccb = TAILQ_FIRST(&dpt->free_ccbs)) != NULL)
-	TAILQ_REMOVE(&dpt->free_ccbs, ccb, links);
-	
-    --dpt->free_ccbs_count;
-#ifdef DPT_TRACK_CCB_STATES
-    if ( !(ccb->state & DPT_CCB_STATE_FREE) )
-	printf("dpt%d: in %d, %s is a bad state.\n"
-	       "		Should be FREE\n",
-	       dpt->unit, ccb->transaction_id,
-	       i2bin((unsigned long) ccb->state, sizeof(ccb->state) * 8));
-
-    ccb->state &= ~(DPT_CCB_STATE_FREE | DPT_CCB_STATE_DONE);
-#endif
-    return (ccb);
-}
-
-/*
- * Put a (now freed) ccb back into the HEAD of the FREE ccb queue
- */
-static INLINE void
-dpt_Qpush_free(dpt_softc_t * dpt, dpt_ccb_t * ccb)
-{
-#ifdef DPT_FREELIST_IS_STACK
-    TAILQ_INSERT_HEAD(&dpt->free_ccbs, ccb, links)
-#else
-	TAILQ_INSERT_TAIL(&dpt->free_ccbs, ccb, links);
-#endif
-
-#ifdef DPT_TRACK_CCB_STATES
-    if ( ccb->state & DPT_CCB_STATE_FREE )
-	printf("dpt%d: In %d, %s is a bad state.\n"
-	       "		Should NOT be FREE\n",
-	       dpt->unit, ccb->transaction_id,
-	       i2bin((unsigned long) ccb->state, sizeof(ccb->state) * 8));
-
-    ccb->state |= DPT_CCB_STATE_FREE;
-    ccb->state &= ~DPT_CCB_STATE_MARKED_SALVAGED;
-#endif
-    ++ dpt->free_ccbs_count;
-}
-
-/*
- *	Add a request to the TAIL of the WAITING ccb queue
- */
-static INLINE void
-dpt_Qadd_waiting(dpt_softc_t * dpt, dpt_ccb_t * ccb)
-{
-    struct timeval junk;
-
-    TAILQ_INSERT_TAIL(&dpt->waiting_ccbs, ccb, links);
-    ++dpt->waiting_ccbs_count;
-	
-#ifdef DPT_MEASURE_PERFORMANCE
-    microtime(&junk);
-    ccb->command_ended = junk;
-    if (dpt->waiting_ccbs_count > dpt->performance.max_waiting_count)
-	dpt->performance.max_waiting_count = dpt->waiting_ccbs_count;
-#endif
-#ifdef DPT_TRACK_CCB_STATES
-    if ( ccb->state & DPT_CCB_STATE_WAITING )
-	printf("dpt%d: In %d, %s is a bad state.\n"
-	       "      Should NOT be WAITING\n",
-	       dpt->unit, ccb->transaction_id,
-	       i2bin((unsigned long) ccb->state, sizeof(ccb->state) * 8));
-
-    ccb->state |= DPT_CCB_STATE_WAITING;
-#endif
-
-    if ( dpt->state & DPT_HA_SHUTDOWN_ACTIVE )
-	wakeup(&dpt);
-}
-
-/*
- *	Add a request to the HEAD of the WAITING ccb queue
- */
-static INLINE void
-dpt_Qpush_waiting(dpt_softc_t * dpt, dpt_ccb_t * ccb)
-{
-    struct timeval junk;
-
-    TAILQ_INSERT_HEAD(&dpt->waiting_ccbs, ccb, links);
-    ++dpt->waiting_ccbs_count;
-	
-#ifdef DPT_MEASURE_PERFORMANCE
-    microtime(&junk);
-    ccb->command_ended = junk;
-
-    if ( dpt->performance.max_waiting_count < dpt->waiting_ccbs_count )
-	dpt->performance.max_waiting_count = dpt->waiting_ccbs_count;
-
-#endif
-#ifdef DPT_TRACK_CCB_STATES
-    if ( ccb->state & DPT_CCB_STATE_WAITING )
-	printf("dpt%d: In %d, %s is not a bad state.\n"
-	       "		Should NOT be WAITING\n",
-	       dpt->unit, ccb->transaction_id,
-	       i2bin((unsigned long) ccb->state, sizeof(ccb->state) * 8));
-
-    ccb->state |= DPT_CCB_STATE_WAITING;
-#endif
-
-    if ( dpt->state & DPT_HA_SHUTDOWN_ACTIVE )
-	wakeup(&dpt);
-}
-
-/*
- * Remove a ccb from the waiting queue
- */
-static INLINE void
-dpt_Qremove_waiting(dpt_softc_t * dpt, dpt_ccb_t * ccb)
-{
-#ifdef DPT_MEASURE_PERFORMANCE
-    struct timeval now;
-    u_int32_t		waiting_time;
-
-    microtime(&now);
-    waiting_time = dpt_time_delta(ccb->command_ended, now);
-	
-    if (waiting_time != 0xffffffff) {
-	if ( dpt->performance.max_waiting_time < waiting_time )
-	    dpt->performance.max_waiting_time = waiting_time;
-	if ( (dpt->performance.min_waiting_time == 0) ||
-	     (dpt->performance.min_waiting_time > waiting_time) )
-	    dpt->performance.min_waiting_time = waiting_time;
-    }
-#endif
-	
-    TAILQ_REMOVE(&dpt->waiting_ccbs, ccb, links);
-    --dpt->waiting_ccbs_count;	/* One less waiting ccb in the queue	*/
-
-#ifdef DPT_TRACK_CCB_STATES
-    if ( !(ccb->state & DPT_CCB_STATE_WAITING) )
-	printf("dpt%d: In %d, %s is a bad state.\n"
-	       "		Should be WAITING\n",
-	       dpt->unit, ccb->transaction_id,
-	       i2bin((unsigned long) ccb->state, sizeof(ccb->state) * 8)); 
-
-    ccb->state &= ~DPT_CCB_STATE_WAITING;
-#endif
-
-    if ( dpt->state & DPT_HA_SHUTDOWN_ACTIVE )
-	wakeup(&dpt);
-}
-
-/*
- * Add a request to the TAIL of the SUBMITTED ccb queue
- */
-static INLINE void
-dpt_Qadd_submitted(dpt_softc_t * dpt, dpt_ccb_t * ccb)
-{
-    struct timeval junk;
-
-    TAILQ_INSERT_TAIL(&dpt->submitted_ccbs, ccb, links);
-    ++dpt->submitted_ccbs_count;
-	
-#ifdef DPT_MEASURE_PERFORMANCE
-    microtime(&junk);
-    ccb->command_ended = junk;
-    if (dpt->performance.max_submit_count < dpt->submitted_ccbs_count)
-	dpt->performance.max_submit_count = dpt->submitted_ccbs_count;
-#endif
-#ifdef DPT_TRACK_CCB_STATES
-    if ( ccb->state & DPT_CCB_STATE_SUBMITTED )
-	printf("dpt%d: In %d, %s is a bad state.\n"
-	       "		Should NOT be SUBMITTED\n",
-	       dpt->unit, ccb->transaction_id,
-	       i2bin((unsigned long) ccb->state, sizeof(ccb->state) * 8)); 
-
-    ccb->state |= DPT_CCB_STATE_SUBMITTED;
-#endif
-
-    if ( dpt->state & DPT_HA_SHUTDOWN_ACTIVE )
-	wakeup(&dpt);
-}
-
-/*
- * Add a request to the TAIL of the Completed ccb queue
- */
-static INLINE void
-dpt_Qadd_completed(dpt_softc_t * dpt, dpt_ccb_t * ccb)
-{
-    struct timeval junk;
-
-    TAILQ_INSERT_TAIL(&dpt->completed_ccbs, ccb, links);
-    ++dpt->completed_ccbs_count;
-	
-#ifdef DPT_MEASURE_PERFORMANCE
-    microtime(&junk);
-    ccb->command_ended = junk;
-    if (dpt->performance.max_complete_count < dpt->completed_ccbs_count)
-	dpt->performance.max_complete_count = dpt->completed_ccbs_count;
-#endif
-
-#ifdef DPT_TRACK_CCB_STATES
-    if ( ccb->state & DPT_CCB_STATE_COMPLETED )
-	printf("dpt%d: In %d, %s is a bad state.\n"
-	       "		Should NOT be COMPLETED\n",
-	       dpt->unit, ccb->transaction_id,
-	       i2bin((unsigned long) ccb->state, sizeof(ccb->state) * 8)); 
-
-    ccb->state |= DPT_CCB_STATE_COMPLETED;
-#endif
-
-    if ( dpt->state & DPT_HA_SHUTDOWN_ACTIVE )
-	wakeup(&dpt);
-}
-
-/*
- * Remove a ccb from the submitted queue
- */
-static INLINE void
-dpt_Qremove_submitted(dpt_softc_t * dpt, dpt_ccb_t * ccb)
-{
-#ifdef DPT_MEASURE_PERFORMANCE
-    struct timeval now;
-    u_int32_t	   submit_time;
-
-    microtime(&now);
-    submit_time = dpt_time_delta(ccb->command_ended, now);
-	
-    if (submit_time != 0xffffffff) {
-	ccb->submitted_time = submit_time;
-	if ( dpt->performance.max_submit_time < submit_time )
-	    dpt->performance.max_submit_time = submit_time;
-	if ( (dpt->performance.min_submit_time == 0)
-	     || (dpt->performance.min_submit_time > submit_time) )
-	    dpt->performance.min_submit_time = submit_time;
-    } else {
-	ccb->submitted_time = 0;
-    }
-    
-#endif
-	
-    TAILQ_REMOVE(&dpt->submitted_ccbs, ccb, links);
-    --dpt->submitted_ccbs_count; /* One less submitted ccb in the queue	*/
-#ifdef DPT_TRACK_CCB_STATES
-    if ( !(ccb->state & DPT_CCB_STATE_SUBMITTED) )
-	printf("dpt%d: In %d, %s is a bad state.\n"
-	       "		Should be SUBMITTED\n",
-	       dpt->unit, ccb->transaction_id,
-	       i2bin((unsigned long) ccb->state, sizeof(ccb->state) * 8)); 
-
-    ccb->state &= ~DPT_CCB_STATE_SUBMITTED;	
-#endif
-
-    if ( (dpt->state & DPT_HA_SHUTDOWN_ACTIVE)
-	 || (dpt->state & DPT_HA_QUIET) )
-	wakeup(&dpt);
-}
 
 /*
  * Handle Shutdowns.
