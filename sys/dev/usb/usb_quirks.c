@@ -50,6 +50,8 @@
 extern int usbdebug;
 #endif
 
+#define ANY 0xffff
+
 Static struct usbd_quirk_entry {
 	u_int16_t idVendor;
 	u_int16_t idProduct;
@@ -75,6 +77,13 @@ Static struct usbd_quirk_entry {
  	0x100, { UQ_ASSUME_CM_OVER_DATA | UQ_NO_STRINGS }},
  { USB_VENDOR_ACERP, USB_PRODUCT_ACERP_ACERSCAN_320U,
  						    0x000, { UQ_NO_STRINGS }},
+ /* XXX These should have a revision number, but I don't know what they are. */
+ { USB_VENDOR_HP, USB_PRODUCT_HP_895C,		    ANY,   { UQ_BROKEN_BIDIR }},
+ { USB_VENDOR_HP, USB_PRODUCT_HP_880C,		    ANY,   { UQ_BROKEN_BIDIR }},
+ { USB_VENDOR_HP, USB_PRODUCT_HP_815C,		    ANY,   { UQ_BROKEN_BIDIR }},
+ { USB_VENDOR_HP, USB_PRODUCT_HP_810C,		    ANY,   { UQ_BROKEN_BIDIR }},
+ { USB_VENDOR_HP, USB_PRODUCT_HP_830C,		    ANY,   { UQ_BROKEN_BIDIR }},
+
  { 0, 0, 0, { 0 } }
 };
 

@@ -50,6 +50,7 @@ struct usbd_quirks {
 #define UQ_SPUR_BUT_UP	0x0080	/* spurious mouse button up events */
 #define UQ_NO_XU	0x0100	/* audio device has broken extension unit */
 #define UQ_ASSUME_CM_OVER_DATA 0x0200 /* modem device breaks on cm over data */
+#define UQ_BROKEN_BIDIR	0x2000	/* printer has broken bidir mode */
 };
 
 extern struct usbd_quirks usbd_no_quirk;

@@ -359,6 +359,7 @@ typedef struct {
 #define  USUBCLASS_PRINTER	1
 #define  UPROTO_PRINTER_UNI	1
 #define  UPROTO_PRINTER_BI	2
+#define  UPROTO_PRINTER_1284	3
 #define UCLASS_MASS		8
 #define  USUBCLASS_RBC		1
 #define  USUBCLASS_SFF8020I	2
