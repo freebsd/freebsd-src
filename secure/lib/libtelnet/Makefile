@@ -1,8 +1,9 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 12/15/93
-#	$Id: Makefile,v 1.3 1995/07/24 20:29:12 ache Exp $
+#	$Id: Makefile,v 1.4 1995/07/24 21:10:47 ache Exp $
 
 # This stuff need original libdes to run (new_rnd_key.c module),
 # current eBones/des lib don't have it
+# Kerberos4 stuff ifdefed by MAKE_KERBEROS (make.conf) because of it
 
 LIB=	telnet
 SRCS=   auth.c encrypt.c genget.c getent.c misc.c
@@ -13,6 +14,7 @@ CFLAGS+= -DHAS_CGETENT
 #ifdef	ENCRYPTION
 CFLAGS+= -DENCRYPTION -DAUTHENTICATION -DDES_ENCRYPTION
 
+.ifdef  MAKE_KERBEROS
 .if exists(/usr/lib/libkrb.a)
 CFLAGS+= -DKRB4 -I/usr/include/kerberosIV
 # KRB4_ENCPWD not yet defined
@@ -21,6 +23,7 @@ SRCS+=  kerberos.c
 # KRB4_ENCPWD not yet defined
 #SRCS+=   krb4encpwd.c
 LDADD+= -lkrb
+.endif
 .endif
 
 .if exists(/usr/lib/libkrb5.a)
