@@ -270,10 +270,10 @@ warn(const struct printer *pp)
 void
 header(void)
 {
-	printf(head0);
+	printf("%s", head0);
 	col = strlen(head0)+1;
 	blankfill(SIZCOL);
-	printf(head1);
+	printf("%s", head1);
 }
 
 void
@@ -454,7 +454,7 @@ dump(const char *nfile, const char *datafile, int copies)
 				remetc = strlen(etctmpl);
 			etc[0] = '\0';
 			strncat(etc, etctmpl, remetc);
-			printf(etc);
+			printf("%s", etc);
 			col += remetc;
 			rem -= remetc;
 			/* room for the last segment of this filename? */

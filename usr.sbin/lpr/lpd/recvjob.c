@@ -58,6 +58,7 @@ static const char rcsid[] =
 #include <signal.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include <errno.h>
 #include <syslog.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -75,7 +76,7 @@ static const char	*sp = "";
 static char	 tfname[NAME_MAX];	/* tmp copy of cf before linking */
 
 static int	 chksize(int _size);
-static void	 frecverr(const char *_msg, ...);
+static void	 frecverr(const char *_msg, ...) __printf0like(1, 2);
 static int	 noresponse(void);
 static void	 rcleanup(int _signo);
 static int	 read_number(const char *_fn);
@@ -115,7 +116,8 @@ recvjob(const char *printer)
 	}
 
 	if (chdir(pp->spool_dir) < 0)
-		frecverr("%s: %s: %m", pp->printer, pp->spool_dir);
+		frecverr("%s: chdir(%s): %s", pp->printer, pp->spool_dir,
+		    strerror(errno));
 	if (stat(pp->lock_file, &stb) == 0) {
 		if (stb.st_mode & 010) {
 			/* queue is disabled */
@@ -123,7 +125,8 @@ recvjob(const char *printer)
 			exit(1);
 		}
 	} else if (stat(pp->spool_dir, &stb) < 0)
-		frecverr("%s: %s: %m", pp->printer, pp->spool_dir);
+		frecverr("%s: stat(%s): %s", pp->printer, pp->spool_dir,
+		    strerror(errno));
 	minfree = 2 * read_number("minfree");	/* scale KB to 512 blocks */
 	signal(SIGTERM, rcleanup);
 	signal(SIGPIPE, rcleanup);
@@ -204,7 +207,8 @@ readjob(struct printer *pp)
 				continue;
 			}
 			if (link(tfname, cp) < 0)
-				frecverr("%s: %m", tfname);
+				frecverr("%s: link(%s): %s", pp->printer,
+				    tfname, strerror(errno));
 			(void) unlink(tfname);
 			tfname[0] = '\0';
 			cfcnt++;
@@ -254,8 +258,8 @@ readfile(struct printer *pp, char *file, int size)
 
 	fd = open(file, O_CREAT|O_EXCL|O_WRONLY, FILMOD);
 	if (fd < 0) {
-		frecverr("%s: readfile: error on open(%s): %m",
-			 pp->printer, file);
+		frecverr("%s: readfile: error on open(%s): %s",
+			 pp->printer, file, strerror(errno));
 		/*NOTREACHED*/
 	}
 	ack();
