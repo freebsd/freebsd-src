@@ -1,0 +1,6 @@
+This directory is for test programs.
+
+A test program is one that will excercise a particular bit of the system
+and try to break it and/or measuring performance on it.
+
+Please make a subdir per program, and add a brief description to this file.
