@@ -14,8 +14,8 @@
 
 3) Remove trash:
 
-	$ tail +2 /usr/src/crypto/openssh/FREEBSD-Xlist |
-		while read glob ; do eval "rm -rvf $glob" ; done
+	$ sh -c 'while read glob ; do rm -rvf $glob ; done' \
+		</usr/src/crypto/openssh/FREEBSD-Xlist
 
    Make sure that took care of everything, and if it didn't, make sure
    to update FREEBSD-Xlist so you won't miss it the next time.  A good
