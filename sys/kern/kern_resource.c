@@ -61,8 +61,6 @@
 #include <vm/vm_map.h>
 
 static int donice __P((struct proc *curp, struct proc *chgp, int n));
-/* dosetrlimit non-static:  Needed by SysVR4 emulator */
-int dosetrlimit __P((struct proc *p, u_int which, struct rlimit *limp));
 
 static MALLOC_DEFINE(M_UIDINFO, "uidinfo", "uidinfo structures");
 #define	UIHASH(uid)	(&uihashtbl[(uid) & uihash])
