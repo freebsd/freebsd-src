@@ -1,3 +1,0 @@
-Define KERBEROS if you want support for Kerberos V4 style
-authentification, then you will be able to start a kerberise pop with
-the `-k' flag.
