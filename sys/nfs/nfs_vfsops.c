@@ -70,6 +70,8 @@
 #include <nfs/nfsdiskless.h>
 #include <nfs/nqnfs.h>
 
+#include <machine/limits.h>
+
 extern int	nfs_mountroot __P((struct mount *mp));
 
 extern int	nfs_ticks;
@@ -260,6 +262,7 @@ nfs_statfs(mp, sbp, p)
 	struct ucred *cred;
 	struct nfsnode *np;
 	u_quad_t tquad;
+	int bsize;
 
 #ifndef nolint
 	sfp = (struct nfs_statfs *)0;
@@ -287,17 +290,29 @@ nfs_statfs(mp, sbp, p)
 	sbp->f_flags = nmp->nm_flag;
 	sbp->f_iosize = nfs_iosize(nmp);
 	if (v3) {
-		sbp->f_bsize = NFS_FABLKSIZE;
-		tquad = fxdr_hyper(&sfp->sf_tbytes);
-		sbp->f_blocks = (long)(tquad / ((u_quad_t)NFS_FABLKSIZE));
-		tquad = fxdr_hyper(&sfp->sf_fbytes);
-		sbp->f_bfree = (long)(tquad / ((u_quad_t)NFS_FABLKSIZE));
-		tquad = fxdr_hyper(&sfp->sf_abytes);
-		sbp->f_bavail = (long)(tquad / ((u_quad_t)NFS_FABLKSIZE));
-		sbp->f_files = (fxdr_unsigned(int32_t,
-		    sfp->sf_tfiles.nfsuquad[1]) & 0x7fffffff);
-		sbp->f_ffree = (fxdr_unsigned(int32_t,
-		    sfp->sf_ffiles.nfsuquad[1]) & 0x7fffffff);
+		for (bsize = NFS_FABLKSIZE; ; bsize *= 2) {
+			sbp->f_bsize = bsize;
+			tquad = fxdr_hyper(&sfp->sf_tbytes);
+			if (((long)(tquad / bsize) > LONG_MAX) ||
+			    ((long)(tquad / bsize) < LONG_MIN))
+				continue;
+			sbp->f_blocks = tquad / bsize;
+			tquad = fxdr_hyper(&sfp->sf_fbytes);
+			if (((long)(tquad / bsize) > LONG_MAX) ||
+			    ((long)(tquad / bsize) < LONG_MIN))
+				continue;
+			sbp->f_bfree = tquad / bsize;
+			tquad = fxdr_hyper(&sfp->sf_abytes);
+			if (((long)(tquad / bsize) > LONG_MAX) ||
+			    ((long)(tquad / bsize) < LONG_MIN))
+				continue;
+			sbp->f_bavail = tquad / bsize;
+			sbp->f_files = (fxdr_unsigned(int32_t,
+			    sfp->sf_tfiles.nfsuquad[1]) & 0x7fffffff);
+			sbp->f_ffree = (fxdr_unsigned(int32_t,
+			    sfp->sf_ffiles.nfsuquad[1]) & 0x7fffffff);
+			break;
+		}
 	} else {
 		sbp->f_bsize = fxdr_unsigned(int32_t, sfp->sf_bsize);
 		sbp->f_blocks = fxdr_unsigned(int32_t, sfp->sf_blocks);
