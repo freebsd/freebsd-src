@@ -87,8 +87,9 @@ int     script_timeout = 90;    /* connect script default timeout */
 char *dials[MAXDIALS];
 int diali, dialc;
 
+int fd = -1;
 FILE *pfd;
-char *devname;
+char *devname, *devicename;
 char pidfile[80];
 
 #ifdef DEBUG
@@ -111,13 +112,12 @@ main(argc, argv)
 	extern int optind;
 	char *cp, **ap;
 	int ch, disc;
-	int fd = -1;
 	void sighup(), sigterm();
 	FILE *wfd = NULL;
 	char *dialerstring = 0, buf[BUFSIZ];
 	int unitnum;
 	char unitname[32];
-	char *devicename, *username, *password;
+	char *username, *password;
 	char *upscript = NULL, *downscript = NULL;
 	int first = 1, tries = 0;
 	int pausefirst = 0;
@@ -307,12 +307,6 @@ restart:
 		}
 	}
 	printd(" %d", fd);
-#ifdef TIOCSCTTY
-	if (ioctl(fd, TIOCSCTTY, 0) < 0) {
-		syslog(LOG_ERR, "ioctl (TIOCSCTTY): %m");
-		down(2);
-	}
-#endif
 	signal(SIGHUP, sighup);
 	signal(SIGTERM, sigterm);
 	if (debug) {
@@ -327,6 +321,12 @@ restart:
 		    devicename);
 		down(2);
 	}
+#ifdef TIOCSCTTY
+	if (ioctl(fd, TIOCSCTTY, 0) < 0) {
+		syslog(LOG_ERR, "ioctl (TIOCSCTTY): %m");
+		down(2);
+	}
+#endif
 	printd(", ioctl");
 #ifdef POSIX
 	if (tcgetattr(fd, &t) < 0) {
@@ -541,6 +541,11 @@ getline(buf, size, fd, timeout)
 
 down(code)
 {
+	int disc = TTYDISC;
+
+	if (fd > -1 && ioctl(fd, TIOCSETD, &disc) < 0)
+		syslog(LOG_ERR, "%s: ioctl (TIOCSETD 0): %m",
+		    devicename);
 	if (pfd)
 		unlink(pidfile);
 	if (locked)
