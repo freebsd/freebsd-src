@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/cfs/coda_vfsops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_vfsops.c,v 1.5 1998/09/13 13:57:59 rvb Exp $
+ *  $Id: coda_vfsops.c,v 1.6 1998/09/25 17:38:32 rvb Exp $
  * 
  */
 
@@ -47,6 +47,11 @@
 /*
  * HISTORY
  * $Log: coda_vfsops.c,v $
+ * Revision 1.6  1998/09/25 17:38:32  rvb
+ * Put "stray" printouts under DIAGNOSTIC.  Make everything build
+ * with DEBUG on.  Add support for lkm.  (The macro's don't work
+ * for me; for a good chuckle look at the end of coda_fbsd.c.)
+ *
  * Revision 1.5  1998/09/13 13:57:59  rvb
  * Finish conversion of cfs -> coda
  *
@@ -185,7 +190,7 @@
  * 
  */ 
 
-#ifdef	ACTUALLY_LKM_NOT_KERNEL
+#ifdef	VFS_LKM
 #define NVCODA 4
 #else
 #include <vcoda.h>
@@ -734,7 +739,7 @@ struct vfsops coda_vfsops = {
     coda_init,
 };
 
-#ifdef	ACTUALLY_LKM_NOT_KERNEL
+#ifdef	VFS_LKM
 /*
  * This case is being handled in coda_fbsd.c
  * What we want is too hairy for VFS_SET to get right!

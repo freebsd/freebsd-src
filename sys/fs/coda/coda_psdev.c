@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_psdev.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_psdev.c,v 1.5 1998/09/25 17:38:31 rvb Exp $
+ *  $Id: coda_psdev.c,v 1.6 1998/09/28 20:52:58 rvb Exp $
  * 
  */
 
@@ -53,6 +53,9 @@
 /*
  * HISTORY
  * $Log: coda_psdev.c,v $
+ * Revision 1.6  1998/09/28 20:52:58  rvb
+ * Cleanup and fix THE bug
+ *
  * Revision 1.5  1998/09/25 17:38:31  rvb
  * Put "stray" printouts under DIAGNOSTIC.  Make everything build
  * with DEBUG on.  Add support for lkm.  (The macro's don't work
@@ -166,7 +169,7 @@
 
 extern int coda_nc_initialized;    /* Set if cache has been initialized */
 
-#ifdef	ACTUALLY_LKM_NOT_KERNEL
+#ifdef	VFS_LKM
 #define NVCODA 4
 #else
 #include <vcoda.h>
