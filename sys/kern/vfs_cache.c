@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.3 (Berkeley) 8/22/94
- * $Id: vfs_cache.c,v 1.11 1995/03/12 02:01:20 phk Exp $
+ * $Id: vfs_cache.c,v 1.12 1995/03/19 09:33:51 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -72,7 +72,7 @@
  */
 LIST_HEAD(nchashhead, namecache) *nchashtbl;	/* Hash Table */
 TAILQ_HEAD(, namecache) nclruhead;	/* LRU chain */
-u_long	nchash;				/* size of hash table - 1 */
+u_long	nchash;				/* size of hash table */
 struct	nchstats nchstats;		/* cache effectiveness statistics */
 struct vnode nchENOENT;		/* our own "novnode" */
 int doingcache = 1;			/* 1 => enable the cache */
@@ -134,7 +134,7 @@ cache_lookup(dvp, vpp, cnp)
 		return (0);
 	}
 
-	ncpp = &nchashtbl[(dvp->v_id + cnp->cn_hash) & nchash];
+	ncpp = &nchashtbl[(dvp->v_id + cnp->cn_hash) % nchash];
 	for (ncp = ncpp->lh_first; ncp != 0; ncp = nnp) {
 		nnp = ncp->nc_hash.le_next;
 		/* If one of the vp's went stale, don't bother anymore. */
@@ -235,7 +235,7 @@ cache_enter(dvp, vp, cnp)
 	ncp->nc_nlen = cnp->cn_namelen;
 	bcopy(cnp->cn_nameptr, ncp->nc_name, (unsigned)ncp->nc_nlen);
 	TAILQ_INSERT_TAIL(&nclruhead, ncp, nc_lru);
-	ncpp = &nchashtbl[(dvp->v_id + cnp->cn_hash) & nchash];
+	ncpp = &nchashtbl[(dvp->v_id + cnp->cn_hash) % nchash];
 	LIST_INSERT_HEAD(ncpp, ncp, nc_hash);
 }
 
@@ -248,7 +248,7 @@ nchinit()
 {
 
 	TAILQ_INIT(&nclruhead);
-	nchashtbl = hashinit(desiredvnodes, M_CACHE, &nchash);
+	nchashtbl = phashinit(desiredvnodes, M_CACHE, &nchash);
 	nchENOENT.v_id = 1;
 }
 
