@@ -176,9 +176,6 @@
 /* Defined if su should not switch to disabled accounts */
 #undef SU_STAR_CHECK
 
-/* Defined if user locking is to be used */
-#undef USER_LOCKING
-
 /* Define if you have the bcopy function.  */
 #undef HAVE_BCOPY
 
