@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.128 1998/01/18 20:49:15 brian Exp $
+ * $Id: command.c,v 1.129 1998/01/20 22:47:35 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -170,6 +170,12 @@ DialCommand(struct cmdargs const *arg)
     if (VarTerm)
       fprintf(VarTerm, "LCP state is [%s]\n", StateNames[LcpFsm.state]);
     return 0;
+  }
+
+  if ((mode & MODE_DAEMON) && !(mode & MODE_AUTO)) {
+    LogPrintf(LogWARN,
+              "Manual dial is only available in auto and interactive mode\n");
+    return 1;
   }
 
   if (arg->argc > 0 && (res = LoadCommand(arg)) != 0)
