@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_user.c,v 1.1.1.1.2.5 1996/12/30 12:06:23 davidn Exp $
+ *	$Id: pw_user.c,v 1.1.1.1.2.6 1997/01/03 06:33:15 davidn Exp $
  */
 
 #include <unistd.h>
@@ -33,9 +33,22 @@
 #include <sys/param.h>
 #include <dirent.h>
 #include <termios.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <utmp.h>
+#if defined(USE_MD5RAND)
+#include <md5.h>
+#endif
 #include "pw.h"
 #include "bitmap.h"
 #include "pwupd.h"
+
+#if (MAXLOGNAME-1) > UT_NAMESIZE
+#define LOGNAMESIZE UT_NAMESIZE
+#else
+#define LOGNAMESIZE (MAXLOGNAME-1)
+#endif
 
 static int      print_user(struct passwd * pwd, int pretty);
 static uid_t    pw_uidpolicy(struct userconf * cnf, struct cargs * args);
@@ -48,6 +61,7 @@ static char    *pw_password(struct userconf * cnf, struct cargs * args, char con
 static char    *pw_checkname(u_char *name, int gecos);
 static char    *shell_path(char const * path, char *shells[], char *sh);
 static void     rmat(uid_t uid);
+static void	rmskey(char const * name);
 
 /*-
  * -C config      configuration file
@@ -302,6 +316,12 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 
 			if (strcmp(pwd->pw_name, "root") == 0)
 				cmderr(EX_DATAERR, "cannot remove user 'root'\n");
+
+			/*
+			 * Remove skey record from /etc/skeykeys
+			 */
+
+			rmskey(pwd->pw_name);
 
 			/*
 			 * Remove crontabs
@@ -793,7 +813,7 @@ pw_pwcrypt(char *password)
 	/*
 	 * Calculate a salt value
 	 */
-	srandom((unsigned) (time(NULL) | getpid()));
+	srandom((unsigned) (time(NULL) ^ getpid()));
 	for (i = 0; i < 8; i++)
 		salt[i] = chars[random() % 63];
 	salt[i] = '\0';
@@ -801,27 +821,97 @@ pw_pwcrypt(char *password)
 	return strcpy(buf, crypt(password, salt));
 }
 
+#if defined(__FreeBSD__)
+
+#if defined(USE_MD5RAND)
+u_char *
+pw_getrand(u_char *buf, int len)	/* cryptographically secure rng */
+{
+	int i;
+	for (i=0;i<len;i+=16) {
+		u_char ubuf[16];
+
+		MD5_CTX md5_ctx;
+		struct timeval tv, tvo;
+		struct rusage ru;
+		int n=0;
+		int t;
+
+		MD5Init (&md5_ctx);
+		t=getpid();
+		MD5Update (&md5_ctx, (u_char*)&t, sizeof t);
+		t=getppid();
+		MD5Update (&md5_ctx, (u_char*)&t, sizeof t);
+		gettimeofday (&tvo, NULL);
+		do {
+			getrusage (RUSAGE_SELF, &ru);
+			MD5Update (&md5_ctx, (u_char*)&ru, sizeof ru);
+			gettimeofday (&tv, NULL);
+			MD5Update (&md5_ctx, (u_char*)&tv, sizeof tv);
+		} while (n++<20 || tv.tv_usec-tvo.tv_usec<100*1000);
+		MD5Final (ubuf, &md5_ctx);
+		memcpy(buf+i, ubuf, MIN(16, len-n));
+	}
+	return buf;
+}
+
+#else	/* Use random device (preferred) */
+
+static u_char *
+pw_getrand(u_char *buf, int len)
+{
+	int		fd;
+	fd = open("/dev/urandom", O_RDONLY);
+	if (fd==-1)
+		cmderr(EX_OSFILE, "can't open /dev/urandom: %s\n", strerror(errno));
+	else if (read(fd, buf, len)!=len)
+		cmderr(EX_IOERR, "read error on /dev/urandom\n");
+	close(fd);
+	return buf;
+}
+
+#endif
+
+#else	/* Portable version */
+
+static u_char *
+pw_getrand(u_char *buf, int len)
+{
+	int i;
+
+	for (i = 0; i < len; i++) {
+		unsigned val = random();
+		/* Use all bits in the random value */
+		buf[i]=(u_char)((val >> 24) ^ (val >> 16) ^ (val >> 8) ^ val);
+	}
+	return buf;
+}
+
+#endif
+
 
 static char    *
 pw_password(struct userconf * cnf, struct cargs * args, char const * user)
 {
 	int             i, l;
 	char            pwbuf[32];
+	u_char		rndbuf[sizeof pwbuf];
 
 	switch (cnf->default_password) {
 	case -1:		/* Random password */
-		srandom((unsigned) (time(NULL) | getpid()));
+		srandom((unsigned) (time(NULL) ^ getpid()));
 		l = (random() % 8 + 8);	/* 8 - 16 chars */
+		pw_getrand(rndbuf, l);
 		for (i = 0; i < l; i++)
-			pwbuf[i] = chars[random() % sizeof(chars)];
+			pwbuf[i] = chars[rndbuf[i] % sizeof(chars)];
 		pwbuf[i] = '\0';
 
 		/*
 		 * We give this information back to the user
 		 */
 		if (getarg(args, 'h') == NULL && getarg(args, 'N') == NULL) {
-			if (isatty(0))
-				printf("Password is: ");
+			if (isatty(1))
+				printf("Password for '%s' is: ", user);
 			printf("%s\n", pwbuf);
 			fflush(stdout);
 		}
@@ -857,6 +947,8 @@ print_user(struct passwd * pwd, int pretty)
 		struct group   *grp = getgrgid(pwd->pw_gid);
 		char            uname[60] = "User &", office[60] = "[None]",
 		                wphone[60] = "[None]", hphone[60] = "[None]";
+		char		acexpire[32] = "[None]", pwexpire[32] = "[None]";
+		struct tm *    tptr;
 
 		if ((p = strtok(pwd->pw_gecos, ",")) != NULL) {
 			strncpy(uname, p, sizeof uname);
@@ -885,26 +977,31 @@ print_user(struct passwd * pwd, int pretty)
 			memmove(p, pwd->pw_name, l);
 			*p = (char) toupper(*p);
 		}
-		printf("Login Name : %-10s   #%-22ld  Group : %-10s   #%ld\n"
-		       " Full Name : %s\n"
-		       "      Home : %-32.32s      Class : %s\n"
-		       "     Shell : %-32.32s     Office : %s\n"
-		       "Work Phone : %-32.32s Home Phone : %s\n",
-		       
+		if (pwd->pw_expire > (time_t)0 && (tptr = localtime(&pwd->pw_expire)) != NULL)
+		  strftime(acexpire, sizeof acexpire, "%c", tptr);
+		if (pwd->pw_change > (time_t)9 && (tptr = localtime(&pwd->pw_change)) != NULL)
+		  strftime(pwexpire, sizeof pwexpire, "%c", tptr);
+		printf("Login Name: %-15s   #%-12ld Group: %-15s   #%ld\n"
+		       " Full Name: %s\n"
+		       "      Home: %-26.26s      Class: %s\n"
+		       "     Shell: %-26.26s     Office: %s\n"
+		       "Work Phone: %-26.26s Home Phone: %s\n"
+		       "Acc Expire: %-26.26s Pwd Expire: %s\n",
 		       pwd->pw_name, (long) pwd->pw_uid,
 		       grp ? grp->gr_name : "(invalid)", (long) pwd->pw_gid,
 		       uname, pwd->pw_dir, pwd->pw_class,
-		       pwd->pw_shell, office, wphone, hphone);
+		       pwd->pw_shell, office, wphone, hphone,
+		       acexpire, pwexpire);
 	        setgrent();
 		j = 0;
 		while ((grp=getgrent()) != NULL)
 		{
 			int     i = 0;
-			while (i < _UC_MAXGROUPS && grp->gr_mem[i] != NULL)
+			while (grp->gr_mem[i] != NULL)
 			{
 				if (strcmp(grp->gr_mem[i], pwd->pw_name)==0)
 				{
-					printf(j++ == 0 ? "    Groups : %s" : ",%s", grp->gr_name);
+					printf(j++ == 0 ? "    Groups: %s" : ",%s", grp->gr_name);
 					break;
 				}
 				++i;
@@ -932,7 +1029,7 @@ pw_checkname(u_char *name, int gecos)
 					    name[l]);
 		++l;
 	}
-	if (!gecos && l > MAXLOGNAME)
+	if (!gecos && l > LOGNAMESIZE)
 		cmderr(EX_DATAERR, "name too long `%s'\n", name);
 	return name;
 }
@@ -960,5 +1057,32 @@ rmat(uid_t uid)
 			}
 		}
 		closedir(d);
+	}
+}
+
+static void
+rmskey(char const * name)
+{
+	static const char etcskey[] = "/etc/skeykeys";
+	FILE   *fp = fopen(etcskey, "r+");
+
+	if (fp != NULL) {
+		char	tmp[1024];
+		off_t	atofs = 0;
+		int	length = strlen(name);
+
+		while (fgets(tmp, sizeof tmp, fp) != NULL) {
+			if (strncmp(name, tmp, length) == 0 && tmp[length]==' ') {
+				if (fseek(fp, atofs, SEEK_SET) == 0) {
+					fwrite("#", 1, 1, fp);	/* Comment username out */
+				}
+				break;
+			}
+			atofs = ftell(fp);
+		}
+		/*
+		 * If we got an error of any sort, don't update!
+		 */
+		fclose(fp);
 	}
 }

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1.1.2 1996/12/09 23:55:12 joerg Exp $
+# $Id: Makefile,v 1.1.1.1.2.1 1996/12/10 00:31:52 joerg Exp $
 
 PROG=	pw
 SRCS=	pw.c pw_conf.c pw_user.c pw_group.c pw_log.c \
@@ -8,6 +8,7 @@ SRCS=	pw.c pw_conf.c pw_user.c pw_group.c pw_log.c \
 MAN5=	pw.conf.5
 MAN8=	pw.8
 	
+#RND=	-DUSE_MD5RAND
 CFLAGS+= -Wall $(CDB)
 LDADD=	-lcrypt
 DPADD=	${LIBCRYPT}
