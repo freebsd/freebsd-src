@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.62 1995/02/14 21:16:43 ugen Exp $
+ *	$Id: conf.c,v 1.63 1995/02/14 22:36:49 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -818,76 +818,76 @@ extern	struct tty cy_tty[];
 #include "ity.h"
 #if NITY > 0
 int	ityopen(),ityclose(),ityread(),itywrite(),ityioctl(),ityselect();
-#define ityreset	enxio
+#define ityreset	nxreset
 extern	struct tty ity_tty[];
 #else
-#define ityopen		enxio
-#define ityclose	enxio
-#define ityread		enxio
-#define itywrite	enxio
-#define ityioctl	enxio
-#define ityreset	enxio
-#define ityselect	enxio
-#define	ity_tty		NULL
+#define ityopen		nxopen
+#define ityclose	nxclose
+#define ityread		nxread
+#define itywrite	nxwrite
+#define ityioctl	nxioctl
+#define ityreset	nxreset
+#define ityselect	nxselect
+#define	ity_tty		(struct tty *)NULL
 #endif
 
 #include "nic.h"
 #if NNIC > 0
 int	nicopen(),nicclose(),nicioctl();
 #else
-#define nicopen		enxio
-#define nicclose	enxio
-#define nicioctl	enxio
+#define nicopen		nxopen
+#define nicclose	nxclose
+#define nicioctl	nxioctl
 #endif
 
 #include "nnic.h"
 #if NNNIC > 0
 int     nnicopen(),nnicclose(),nnicioctl();
 #else
-#define nnicopen                enxio
-#define nnicclose       enxio
-#define nnicioctl       enxio
+#define nnicopen        nxopen
+#define nnicclose       nxclose
+#define nnicioctl       nxioctl
 #endif
 
 #include "snic.h"
 #if NSNIC > 0
 int	snicopen(),snicclose(),snicioctl();
 #else
-#define snicopen		enxio
-#define snicclose	enxio
-#define snicioctl	enxio
+#define snicopen	nxopen
+#define snicclose	nxclose
+#define snicioctl	nxioctl
 #endif
 
 #include "isdn.h"
 #if NISDN > 0
 int	isdnopen(),isdnclose(),isdnread(),isdnioctl();
 #else
-#define isdnopen		enxio
-#define isdnclose	enxio
-#define isdnread		enxio
-#define isdnioctl	enxio
+#define isdnopen	nxopen
+#define isdnclose	nxclose
+#define isdnread	nxread
+#define isdnioctl	nxioctl
 #endif
 
 #include "itel.h"
 #if NITEL > 0
 int	itelopen(),itelclose(),itelread(),itelwrite(),itelioctl();
 #else
-#define itelopen		enxio
-#define itelclose	enxio
-#define itelread		enxio
-#define itelwrite		enxio
-#define itelioctl	enxio
+#define itelopen	nxopen
+#define itelclose	nxclose
+#define itelread	nxread
+#define itelwrite	nxwrite
+#define itelioctl	nxioctl
 #endif
 
 #include "ispy.h"
 #if NISPY > 0
 int     ispyopen(),ispyclose(),ispyread(),ispywrite(),ispyioctl();
 #else
-#define ispyopen                enxio
-#define ispyclose       enxio
-#define ispyread                enxio
-#define ispywrite               enxio
-#define ispyioctl       enxio
+#define ispyopen        nxopen
+#define ispyclose       nxclose
+#define ispyread        nxread
+#define ispywrite       nxwrite
+#define ispyioctl       nxioctl
 #endif
 
 
