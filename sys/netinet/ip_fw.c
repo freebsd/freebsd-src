@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.46 1996/07/14 21:12:52 alex Exp $
+ *	$Id: ip_fw.c,v 1.47 1996/08/05 02:35:04 alex Exp $
  */
 
 /*
@@ -287,21 +287,7 @@ ip_fw_chk(struct ip **pip, int hlen,
 	struct icmp *icmp = (struct icmp *) ((u_long *) ip + ip->ip_hl);
 	struct ifaddr *ia = NULL, *ia_p;
 	struct in_addr src, dst, ia_i;
-	u_short src_port = 0, dst_port = 0;
-	u_short f_prt = 0, prt, len = 0;
-
-	/*
-	 * ... else if non-zero, highly unusual and interesting, but 
-	 * we're not going to pass it...
-	 */
-	if ((ip->ip_off & IP_OFFMASK) == 1) {
-		static int frag_counter = 0;
-
-		++frag_counter;
-		ipfw_report("Refuse", -1, ip, frag_counter);
-		m_freem(*m);
-		return -1;
-	}
+	u_short src_port, dst_port, offset;
 
 	src = ip->ip_src;
 	dst = ip->ip_dst;
@@ -312,33 +298,6 @@ ip_fw_chk(struct ip **pip, int hlen,
 	 */
 	if (rif != NULL)
 		ia = rif->if_addrlist;
-
-	/*
-	 * Determine the protocol and extract some useful stuff
-	 */
-	switch (ip->ip_p) {
-	case IPPROTO_TCP:
-		src_port = ntohs(tcp->th_sport);
-		dst_port = ntohs(tcp->th_dport);
-		prt = IP_FW_F_TCP;
-		len = sizeof (*tcp);
-		break;
-	case IPPROTO_UDP:
-		src_port = ntohs(udp->uh_sport);
-		dst_port = ntohs(udp->uh_dport);
-		prt = IP_FW_F_UDP;
-		len = sizeof (*udp);
-		break;
-	case IPPROTO_ICMP:
-		prt = IP_FW_F_ICMP;
-		len = sizeof (*icmp);
-		break;
-	default:
-		prt = IP_FW_F_ALL;
-		break;
-	}
-
-	/* XXX Check that we have sufficient header for TCP analysis */
 
 	/*
 	 * Go down the chain, looking for enlightment
@@ -410,52 +369,53 @@ ip_fw_chk(struct ip **pip, int hlen,
 			if (!ipopts_match(ip, f))
 				continue;
 			
-		/*
-		 * Check protocol
-		 */
-		f_prt = f->fw_flg & IP_FW_F_KIND;
-		
 		/* If wildcard, match */
-		if (f_prt == IP_FW_F_ALL) {
-			int pnum;
-
-			if (f->fw_nsp == 0)
-				goto got_match;
-			/* Look for a matching IP protocol */
-			for (pnum = 0; pnum < f->fw_nsp; pnum++)
-				if (ip->ip_p == f->fw_pts[pnum])
-					goto got_match;
-
-			continue;
-		}
+		if (f->fw_prot == IPPROTO_IP)
+			goto got_match;
 
 		/* If different, dont match */
-		if (prt != f_prt) 
+		if (ip->ip_p != f->fw_prot) 
 			continue;
 
-		/* ICMP, done */
-		if (prt == IP_FW_F_ICMP) {
+		switch (ip->ip_p) {
+		case IPPROTO_TCP:
+			offset = ip->ip_off & IP_OFFMASK;
+			if (offset == 1) {
+				static int frag_counter = 0;
+				++frag_counter;
+				ipfw_report("Refuse", -1, ip, frag_counter);
+				m_freem(*m);
+				return -1;
+			}
+			if ((offset == 0) &&
+			    (f->fw_tcpf != f->fw_tcpnf) &&
+			    !tcpflg_match(tcp, f))
+				continue;
+
+			src_port = ntohs(tcp->th_sport);
+			dst_port = ntohs(tcp->th_dport);
+			goto check_ports;
+
+		case IPPROTO_UDP:
+			src_port = ntohs(udp->uh_sport);
+			dst_port = ntohs(udp->uh_dport);
+
+check_ports:
+			if (!port_match(&f->fw_pts[0], f->fw_nsp,
+					src_port, f->fw_flg & IP_FW_F_SRNG))
+				continue;
+			if (!port_match(&f->fw_pts[f->fw_nsp], f->fw_ndp,
+					dst_port, f->fw_flg & IP_FW_F_DRNG)) 
+				continue;
+			break;
+
+		case IPPROTO_ICMP:
 			if (!icmptype_match(icmp, f))
 				continue;
-
 			goto got_match;
-		}
 
-		/* Check TCP flags and TCP/UDP ports only if packet is not fragment */
-		if (!(ip->ip_off & IP_OFFMASK)) {
-			/* TCP, a little more checking */
-			if (prt == IP_FW_F_TCP &&
-				(f->fw_tcpf != f->fw_tcpnf) &&
-				(!tcpflg_match(tcp, f)))
-				continue;
-
-			if (!port_match(&f->fw_pts[0], f->fw_nsp,
-							src_port, f->fw_flg & IP_FW_F_SRNG))
-				continue;
-
-			if (!port_match(&f->fw_pts[f->fw_nsp], f->fw_ndp,
-							dst_port, f->fw_flg & IP_FW_F_DRNG)) 
-				continue;
+		default:
+			break;
 		}
 
 got_match:
@@ -512,12 +472,9 @@ got_match:
 	 */
 	if (dirport >= 0
 	    && (f->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_DENY
-	    && (prt != IP_FW_F_ICMP)
+	    && (ip->ip_p != IPPROTO_ICMP)
 	    && (f->fw_flg & IP_FW_F_ICMPRPL)) {
-		if (f_prt == IP_FW_F_ALL)
-			icmp_error(*m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0L, 0);
-		else
-			icmp_error(*m, ICMP_UNREACH, ICMP_UNREACH_PORT, 0L, 0);
+		icmp_error(*m, ICMP_UNREACH, ICMP_UNREACH_PORT, 0L, 0);
 		return -1;
 	}
 	m_freem(*m);
@@ -688,17 +645,13 @@ check_ipfw_struct(struct mbuf *m)
 		    err_prefix, frwl->fw_nsp, frwl->fw_ndp));
 		return (NULL);
 	}
-	if ((frwl->fw_flg & IP_FW_F_ALL) &&
-		(frwl->fw_flg & (IP_FW_F_SRNG | IP_FW_F_DRNG))) {
-		dprintf(("%s proto ranges not allowed", err_prefix));
-	}
-
 	/*
 	 *	ICMP protocol doesn't use port range
 	 */
-	if ((frwl->fw_flg & IP_FW_F_KIND) == IP_FW_F_ICMP &&
-		(frwl->fw_nsp || frwl->fw_ndp)) {
-		dprintf(("%s port(s) specified for ICMP rule\n",
+	if ((frwl->fw_prot != IPPROTO_TCP) &&
+	    (frwl->fw_prot != IPPROTO_UDP) &&
+	    (frwl->fw_nsp || frwl->fw_ndp)) {
+		dprintf(("%s port(s) specified for non TCP/UDP rule\n",
 		    err_prefix));
 		return(NULL);
 	}
@@ -800,7 +753,7 @@ ip_fw_init(void)
 	LIST_INIT(&ip_fw_chain);
 
 	bzero(&deny, sizeof deny);
-	deny.fw_flg = IP_FW_F_ALL;
+	deny.fw_prot = IPPROTO_IP;
 	deny.fw_number = (u_short)-1;
 	add_entry(&ip_fw_chain, &deny);
 
