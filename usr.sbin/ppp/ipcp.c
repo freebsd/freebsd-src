@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.28 1997/09/03 02:08:18 brian Exp $
+ * $Id: ipcp.c,v 1.29 1997/10/07 00:56:56 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -201,7 +201,7 @@ IpcpInit()
     LogPrintf(LogIPCP, "Using trigger address %s\n", inet_ntoa(TriggerAddress));
   }
   if (Enabled(ConfVjcomp))
-    icp->want_compproto = (PROTO_VJCOMP << 16) | ((MAX_STATES - 1) << 8);
+    icp->want_compproto = (PROTO_VJCOMP << 16) | ((MAX_STATES - 1) << 8) | 1;
   else
     icp->want_compproto = 0;
   icp->heis1172 = 0;
