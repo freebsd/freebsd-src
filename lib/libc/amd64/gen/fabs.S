@@ -13,6 +13,6 @@ ENTRY(fabs)
 	movsd	%xmm0, -8(%rsp)
 	fldl	-8(%rsp)
 	fabs
-	fstp	-8(%rsp)
+	fstpl	-8(%rsp)
 	movsd	-8(%rsp),%xmm0
 	ret
