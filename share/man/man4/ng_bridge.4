@@ -103,7 +103,7 @@ Set the node configuration.
 This command takes a
 .Dv "struct ng_bridge_config"
 as an argument:
-.Bd -literal -offset 0
+.Bd -literal -offset 0n
 /* Node configuration structure */
 struct ng_bridge_config {
   u_char      ipfw[NG_BRIDGE_MAX_LINKS]; /* enable ipfw */
@@ -152,7 +152,7 @@ returns a
 .Dv "struct ng_bridge_link_stats"
 containing statistics for the corresponding link, which must be
 currently connected:
-.Bd -literal -offset 0
+.Bd -literal -offset 0n
 /* Statistics structure (one for each link) */
 struct ng_bridge_link_stats {
   u_int64_t   recvOctets;     /* total octets rec'd on link */
