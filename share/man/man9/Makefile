@@ -388,14 +388,13 @@ MLINKS+=byteorder.9 be16dec.9 \
 	byteorder.9 le64enc.9 \
 	byteorder.9 le64toh.9
 MLINKS+=condvar.9 cv_broadcast.9 \
+	condvar.9 cv_broadcastpri.9 \
 	condvar.9 cv_destroy.9 \
 	condvar.9 cv_init.9 \
 	condvar.9 cv_signal.9 \
 	condvar.9 cv_timedwait.9 \
 	condvar.9 cv_timedwait_sig.9 \
 	condvar.9 cv_wait.9 \
-	condvar.9 cv_waitq_empty.9 \
-	condvar.9 cv_waitq_remove.9 \
 	condvar.9 cv_wait_sig.9 \
 	condvar.9 cv_wmesg.9
 MLINKS+=copy.9 copyin.9 \
