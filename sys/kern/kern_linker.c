@@ -955,7 +955,7 @@ static void
 linker_preload(void* arg)
 {
     caddr_t		modptr;
-    char		*modname;
+    char		*modname, *nmodname;
     char		*modtype;
     linker_file_t	lf;
     linker_class_t	lc;
@@ -964,8 +964,8 @@ linker_preload(void* arg)
     linker_file_list_t	loaded_files;
     linker_file_list_t	depended_files;
     struct linker_set	*deps;
-    struct mod_metadata	*mp;
-    int			i;
+    struct mod_metadata	*mp, *nmp;
+    int			i, j;
     int			resolves;
     modlist_t		mod;
 
@@ -1043,6 +1043,16 @@ restart:
 		if (mp->md_type != MDT_DEPEND)
 		    continue;
 		modname = linker_reloc_ptr(lf, mp->md_cval);
+		for (j = 0; j < deps->ls_length; j++) {
+		    nmp = linker_reloc_ptr(lf, deps->ls_items[j]);
+		    if (nmp->md_type != MDT_VERSION)
+			continue;
+		    nmodname = linker_reloc_ptr(lf, nmp->md_cval);
+		    if (strcmp(modname, nmodname) == 0)
+			break;
+		}
+		if (j < deps->ls_length)	/* it's a self reference */
+		    continue;
 		if (modlist_lookup(modname) == NULL) {
 		    /* ok, the module isn't here yet, we are not finished */
 		    resolves = 0;
