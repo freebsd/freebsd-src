@@ -354,10 +354,11 @@ printit(pp, file)
 	char *file;
 {
 	register int i;
-	char	*cp;
-	int	 bombed = OK;
-	int	 didignorehdr = 0;
+	char *cp;
+	int bombed, didignorehdr;
 
+	bombed = OK;
+	didignorehdr = 0;
 	/*
 	 * open control file; ignore if no longer there.
 	 */
@@ -593,7 +594,7 @@ print(pp, format, file)
 	int fi, fo;
 	FILE *fp;
 	char *av[15], buf[BUFSIZ];
-	int pid, p[2], stopped = 0;
+	int pid, p[2], stopped;
 	union wait status;
 	struct stat stb;
 
@@ -612,6 +613,7 @@ print(pp, format, file)
 		return(ACCESS);
 
 	job_dfcnt++;		/* increment datafile counter for this job */
+	stopped = 0;		/* output filter is not stopped */
 
 	/* everything seems OK, start it up */
 	if (!pp->no_formfeed && !pp->tof) { /* start on a fresh page */
