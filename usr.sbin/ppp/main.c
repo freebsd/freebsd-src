@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id$
+ * $Id: main.c,v 1.32 1997/02/22 16:10:32 peter Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -28,6 +28,8 @@
 #include <paths.h>
 #include <sys/time.h>
 #include <termios.h>
+#include <sys/cdefs.h>
+#include <signal.h>
 #include "sig.h"
 #include <sys/wait.h>
 #include <errno.h>
