@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.30 1995/02/22 09:30:13 davidg Exp $
+ * $Id: vfs_bio.c,v 1.31 1995/02/25 01:46:26 davidg Exp $
  */
 
 /*
@@ -459,7 +459,7 @@ brelse(struct buf * bp)
 				if (m->bmapped == 0) {
 					PAGE_WAKEUP(m);
 					if (m->valid == 0) {
-						pmap_page_protect(VM_PAGE_TO_PHYS(m), VM_PROT_NONE);
+						vm_page_protect(m, VM_PROT_NONE);
 						vm_page_free(m);
 					} else if ((m->dirty & m->valid) == 0 &&
 						(m->flags & PG_REFERENCED) == 0 &&
@@ -774,7 +774,7 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo)
 	s = splbio();
 loop:
 	if ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_cache_min)
-		wakeup((caddr_t) &vm_pages_needed);
+		pagedaemon_wakeup();
 
 	if (bp = incore(vp, blkno)) {
 		if (bp->b_flags & B_BUSY) {
@@ -946,7 +946,7 @@ allocbuf(struct buf * bp, int size, int vmio)
 					if (m->bmapped == 0) {
 						PAGE_WAKEUP(m);
 						if (m->valid == 0) {
-							pmap_page_protect(VM_PAGE_TO_PHYS(m), VM_PROT_NONE);
+							vm_page_protect(m, VM_PROT_NONE);
 							vm_page_free(m);
 						}
 					}
@@ -1157,8 +1157,11 @@ biodone(register struct buf * bp)
 	int s;
 
 	s = splbio();
-	if (bp->b_flags & B_DONE)
+	if (bp->b_flags & B_DONE) {
+		splx(s);
 		printf("biodone: buffer already done\n");
+		return;
+	}
 	bp->b_flags |= B_DONE;
 
 	if ((bp->b_flags & B_READ) == 0) {
@@ -1365,7 +1368,7 @@ vfs_busy_pages(struct buf * bp, int clear_modify)
 			m->busy++;
 			if (clear_modify) {
 				vm_page_test_dirty(m);
-				pmap_page_protect(VM_PAGE_TO_PHYS(m), VM_PROT_READ);
+				vm_page_protect(m, VM_PROT_READ);
 			} else if (bp->b_bcount >= PAGE_SIZE) {
 				if (m->valid && (bp->b_flags & B_CACHE) == 0) {
 					bp->b_pages[i] = bogus_page;
