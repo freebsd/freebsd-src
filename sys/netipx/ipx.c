@@ -51,8 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <netipx/ipx_if.h>
 #include <netipx/ipx_var.h>
 
-NET_NEEDS_GIANT("ipx");
-
 /*
  * XXXRW: Requires synchronization.
  */
