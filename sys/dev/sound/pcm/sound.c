@@ -87,9 +87,15 @@ nomenclature:
 #define PCMMKMINOR(u, d, c) ((((c) & 0xff) << 16) | (((u) & 0x0f) << 4) | ((d) & 0x0f))
 
 static devclass_t pcm_devclass;
+
+#ifdef USING_DEVFS
 int snd_unit;
 TUNABLE_INT_DECL("hw.snd.unit", 0, snd_unit);
+#endif
 
+SYSCTL_NODE(_hw, OID_AUTO, snd, CTLFLAG_RD, 0, "Sound driver");
+
+#ifdef USING_DEVFS
 static void
 pcm_makelinks(void *dummy)
 {
@@ -132,8 +138,6 @@ pcm_makelinks(void *dummy)
 	mixer = make_dev_alias(pdev, "mixer");
 }
 
-SYSCTL_NODE(_hw, OID_AUTO, snd, CTLFLAG_RD, 0, "Sound driver");
-
 static int
 sysctl_hw_sndunit(SYSCTL_HANDLER_ARGS)
 {
@@ -149,6 +153,7 @@ sysctl_hw_sndunit(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_hw_snd, OID_AUTO, unit, CTLTYPE_INT | CTLFLAG_RW,
             0, sizeof(int), sysctl_hw_sndunit, "I", "");
+#endif
 
 int
 pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
@@ -183,8 +188,10 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 		 UID_ROOT, GID_WHEEL, 0666, "audio%d.%d", unit, d->chancount);
 	/* XXX SND_DEV_NORESET? */
 	d->chancount++;
+#ifdef USING_DEVFS
     	if (d->chancount == 1)
 		pcm_makelinks(NULL);
+#endif
 	return 0;
 }
 
@@ -302,6 +309,7 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	} else
 		d->rec = NULL;
 
+#ifdef SND_DYNSYSCTL
 	sysctl_ctx_init(&d->sysctl_tree);
 	d->sysctl_tree_top = SYSCTL_ADD_NODE(&d->sysctl_tree,
 				 SYSCTL_STATIC_CHILDREN(_hw_snd), OID_AUTO,
@@ -310,6 +318,7 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 		sysctl_ctx_free(&d->sysctl_tree);
 		goto no;
 	}
+#endif
 
 	if (numplay == 0 || numrec == 0)
 		d->flags |= SD_F_SIMPLEX;
@@ -335,9 +344,11 @@ pcm_unregister(device_t dev)
     	snddev_info *d = device_get_softc(dev);
 	dev_t pdev;
 
+#ifdef SND_DYNSYSCTL
 	sysctl_remove_oid(d->sysctl_tree_top, 1, 1);
 	d->sysctl_tree_top = NULL;
 	sysctl_ctx_free(&d->sysctl_tree);
+#endif
 
 	r = 0;
 	for (i = 0; i < d->chancount; i++)
@@ -368,7 +379,10 @@ pcm_unregister(device_t dev)
 	if (d->ref) free(d->ref, M_DEVBUF);
 
 	fkchan_kill(&d->fakechan);
+
+#ifdef USING_DEVFS
 	pcm_makelinks(NULL);
+#endif
 	return 0;
 }
 
