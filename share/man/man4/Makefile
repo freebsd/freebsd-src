@@ -40,6 +40,7 @@ MAN4=	aac.4 \
 	fxp.4 \
 	gif.4 \
 	gusc.4 \
+	ichsmb.4 \
 	icmp.4 \
 	icmp6.4 \
 	ifmib.4 \
