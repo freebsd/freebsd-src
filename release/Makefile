@@ -79,7 +79,7 @@ OBJFORMAT?=		elf
 # docs are still desired, the DOMINIMALDOCPORTS logic below will only
 # install the ports that are minimally required for the docs.  This is
 # intended as a compromise, less disk space is required than for using
-# the entire ports collection (und much less time due to the huge number
+# the entire ports collection (and much less time due to the huge number
 # of directories it would create), but still quite a bit as well as some
 # CPU cycles (some of the programs are C++, and things like ghostscript
 # belong to the required ports nevertheless).
