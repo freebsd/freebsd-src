@@ -183,7 +183,7 @@ character, you would have to write something like this:
 .IP
 # Now wait for the prompt and send logout string
 .br
-\'# ' logout
+\&'# ' logout
 .LP
 
 .SH ABORT STRINGS
@@ -251,7 +251,7 @@ ECHO OFF
 .br
 SAY "Dialling your ISP...\\n" 
 .br
-\'' ATDT5551212 
+\&'' ATDT5551212 
 .br
 TIMEOUT 120
 .br
@@ -259,14 +259,14 @@ SAY "Waiting up to 2 minutes for connection ... "
 .br
 CONNECT '' 
 .br
-SAY "Connected, now logging in ...\n"
+SAY "Connected, now logging in ...\\n"
 .br
 ogin: account
 .br
 ssword: pass
 .br
 $ \c
-SAY "Logged in OK ...\n"
+SAY "Logged in OK ...\\n"
 \fIetc ...\fR
 .LP
 This sequence will only present the SAY strings to the user and all
@@ -335,7 +335,7 @@ ABORT   'BUSY'
 .br
 ABORT   'NO CARRIER'
 .br
-''      ATZ
+\&''      ATZ
 .br
 OK\\r\\n  ATD1234567
 .br
@@ -365,7 +365,7 @@ signal behavior.  Here is an (simple) example script:
 .IP
 ABORT   'BUSY'
 .br
-''      ATZ
+\&''      ATZ
 .br
 OK\\r\\n  ATD1234567
 .br
@@ -373,13 +373,13 @@ OK\\r\\n  ATD1234567
 .br
 CONNECT \\c
 .br
-\'Callback login:' call_back_ID
+\&'Callback login:' call_back_ID
 .br
 HANGUP OFF
 .br
 ABORT "Bad Login"
 .br
-\'Callback Password:' Call_back_password
+\&'Callback Password:' Call_back_password
 .br
 TIMEOUT 120
 .br
@@ -416,7 +416,7 @@ This is normally the
 End-of-file character sequence.
 A return character is not sent
 following the EOT.
-.PR
+.LP
 The EOT sequence may be embedded into the send string using the
 sequence \fI^D\fR.
 .SH GENERATING BREAK
@@ -427,7 +427,7 @@ The
 normal processing on the receiver is to change the transmission rate.
 It may be used to cycle through the available transmission rates on
 the remote until you are able to receive a valid login prompt.
-.PR
+.LP
 The break sequence may be embedded into the send string using the
 \fI\\K\fR sequence.
 .SH ESCAPE SEQUENCES
