@@ -73,7 +73,7 @@ ktrgetheader(type)
 	kth->ktr_type = type;
 	microtime(&kth->ktr_time);
 	kth->ktr_pid = p->p_pid;
-	bcopy(p->p_comm, kth->ktr_comm, MAXCOMLEN);
+	bcopy(p->p_comm, kth->ktr_comm, MAXCOMLEN + 1);
 	return (kth);
 }
 
@@ -194,9 +194,9 @@ done:
 void
 ktrpsig(vp, sig, action, mask, code)
 	struct vnode *vp;
-	int sig;
+	int sig, code;
 	sig_t action;
-	int mask, code;
+	sigset_t *mask;
 {
 	struct ktr_header *kth;
 	struct ktr_psig	kp;
@@ -206,7 +206,7 @@ ktrpsig(vp, sig, action, mask, code)
 	kth = ktrgetheader(KTR_PSIG);
 	kp.signo = (char)sig;
 	kp.action = action;
-	kp.mask = mask;
+	kp.mask = *mask;
 	kp.code = code;
 	kth->ktr_buf = (caddr_t)&kp;
 	kth->ktr_len = sizeof (struct ktr_psig);
