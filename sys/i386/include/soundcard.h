@@ -87,7 +87,10 @@
 #define SNDCARD_CS4232_MPU     22
 #define SNDCARD_MAUI           23
 #define SNDCARD_PSEUDO_MSS     24
-#define SNDCARD_AWE32           25
+#define SNDCARD_AWE32          25
+#ifdef PC98
+#define SNDCARD_PCM86          26
+#endif
 
 #include <sys/types.h>
 #ifndef _IOWR
