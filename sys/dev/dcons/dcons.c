@@ -54,7 +54,11 @@
 
 #include <machine/bus.h>
 
+#ifdef __DragonFly__
+#include "dcons.h"
+#else
 #include <dev/dcons/dcons.h>
+#endif
 
 #include <ddb/ddb.h>
 #include <sys/reboot.h>
@@ -74,7 +78,7 @@
 #endif
 
 #ifndef DCONS_FORCE_CONSOLE
-#define DCONS_FORCE_CONSOLE	0	/* mostly for FreeBSD-4 */
+#define DCONS_FORCE_CONSOLE	0	/* Mostly for FreeBSD-4/DragonFly */
 #endif
 
 #ifndef DCONS_FORCE_GDB
@@ -88,18 +92,26 @@ static struct consdev gdbconsdev;
 #endif
 #endif
 
-
 static d_open_t		dcons_open;
 static d_close_t	dcons_close;
+#if defined(__DragonFly__) || __FreeBSD_version < 500104
+static d_ioctl_t	dcons_ioctl;
+#endif
 
 static struct cdevsw dcons_cdevsw = {
-#if __FreeBSD_version >= 500104
+#ifdef __DragonFly__
+#define CDEV_MAJOR      184
+	"dcons", CDEV_MAJOR, D_TTY, NULL, 0,
+	dcons_open, dcons_close, ttyread, ttywrite, dcons_ioctl,
+	ttypoll, nommap, nostrategy, nodump, nopsize,
+#elif __FreeBSD_version >= 500104
 	.d_version =	D_VERSION,
 	.d_open =	dcons_open,
 	.d_close =	dcons_close,
 	.d_name =	"dcons",
 	.d_flags =	D_TTY | D_NEEDGIANT,
 #else
+#define CDEV_MAJOR      184
 	/* open */	dcons_open,
 	/* close */	dcons_close,
 	/* read */	ttyread,
@@ -112,7 +124,7 @@ static struct cdevsw dcons_cdevsw = {
 	/* major */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
-	/* flags */	0,
+	/* flags */	D_TTY,
 #endif
 };
 
@@ -133,9 +145,20 @@ static int drv_init = 0;
 static struct callout dcons_callout;
 struct dcons_buf *dcons_buf;		/* for local dconschat */
 
+#ifdef __DragonFly__
+#define DEV	dev_t
+#define THREAD	d_thread_t
+#elif __FreeBSD_version < 500000
+#define DEV	dev_t
+#define THREAD	struct proc
+#else
+#define DEV	struct cdev *
+#define THREAD	struct thread
+#endif
+
 /* per device data */
 static struct dcons_softc {
-	struct cdev *dev;
+	DEV dev;
 	struct dcons_ch	o, i;
 	int brk_state;
 #define DC_GDB	1
@@ -172,14 +195,8 @@ GDB_DBGPORT(dcons, dcons_dbg_probe, dcons_dbg_init, dcons_dbg_term,
 extern struct gdb_dbgport *gdb_cur;
 #endif
 
-#if __FreeBSD_version < 500000
-#define THREAD	proc
-#else
-#define THREAD	thread
-#endif
-
 static int
-dcons_open(struct cdev *dev, int flag, int mode, struct THREAD *td)
+dcons_open(DEV dev, int flag, int mode, THREAD *td)
 {
 	struct tty *tp;
 	int unit, error, s;
@@ -212,13 +229,17 @@ dcons_open(struct cdev *dev, int flag, int mode, struct THREAD *td)
 	}
 	splx(s);
 
+#if __FreeBSD_version < 502113
+	error = (*linesw[tp->t_line].l_open)(dev, tp);
+#else
 	error = ttyld_open(tp, dev);
+#endif
 
 	return (error);
 }
 
 static int
-dcons_close(struct cdev *dev, int flag, int mode, struct THREAD *td)
+dcons_close(DEV dev, int flag, int mode, THREAD *td)
 {
 	int	unit;
 	struct	tty *tp;
@@ -229,12 +250,42 @@ dcons_close(struct cdev *dev, int flag, int mode, struct THREAD *td)
 
 	tp = dev->si_tty;
 	if (tp->t_state & TS_ISOPEN) {
+#if __FreeBSD_version < 502113
+		(*linesw[tp->t_line].l_close)(tp, flag);
+		ttyclose(tp);
+#else
 		ttyld_close(tp, flag);
 		tty_close(tp);
+#endif
 	}
 
 	return (0);
 }
+
+#if defined(__DragonFly__) || __FreeBSD_version < 500104
+static int
+dcons_ioctl(DEV dev, u_long cmd, caddr_t data, int flag, THREAD *td)
+{
+	int	unit;
+	struct	tty *tp;
+	int	error;
+
+	unit = minor(dev);
+	if (unit != 0)
+		return (ENXIO);
+
+	tp = dev->si_tty;
+	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
+	if (error != ENOIOCTL)
+		return (error);
+
+	error = ttioctl(tp, cmd, data, flag);
+	if (error != ENOIOCTL)
+		return (error);
+
+	return (ENOTTY);
+}
+#endif
 
 static int
 dcons_tty_param(struct tty *tp, struct termios *t)
@@ -279,7 +330,11 @@ dcons_timeout(void *v)
 		tp = dc->dev->si_tty;
 		while ((c = dcons_checkc(dc)) != -1)
 			if (tp->t_state & TS_ISOPEN)
+#if __FreeBSD_version < 502113
+				(*linesw[tp->t_line].l_rint)(c, tp);
+#else
 				ttyld_rint(tp, c);
+#endif
 	}
 	polltime = hz / poll_hz;
 	if (polltime < 1)
@@ -290,7 +345,10 @@ dcons_timeout(void *v)
 static void
 dcons_cnprobe(struct consdev *cp)
 {
-#if __FreeBSD_version >= 501109
+#ifdef __DragonFly__
+	cp->cn_dev = make_dev(&dcons_cdevsw, DCONS_CON,
+	    UID_ROOT, GID_WHEEL, 0600, "dcons");
+#elif __FreeBSD_version >= 501109
 	sprintf(cp->cn_name, "dcons");
 #else
 	cp->cn_dev = makedev(CDEV_MAJOR, DCONS_CON);
@@ -332,17 +390,17 @@ dcons_cnputc(struct consdev *cp, int c)
 }
 #else
 static int
-dcons_cngetc(struct cdev *dev)
+dcons_cngetc(DEV dev)
 {
 	return(dcons_getc((struct dcons_softc *)dev->si_drv1));
 }
 static int
-dcons_cncheckc(struct cdev *dev)
+dcons_cncheckc(DEV dev)
 {
 	return(dcons_checkc((struct dcons_softc *)dev->si_drv1));
 }
 static void
-dcons_cnputc(struct cdev *dev, int c)
+dcons_cnputc(DEV dev, int c)
 {
 	dcons_putc((struct dcons_softc *)dev->si_drv1, c);
 }
@@ -529,6 +587,9 @@ dcons_drv_init(int stage)
 	sprintf(gdbconsdev.cn_name, "dgdb");
 #endif
 	gdb_arg = &gdbconsdev;
+#elif defined(__DragonFly__)
+	gdbdev = make_dev(&dcons_cdevsw, DCONS_GDB,
+	    UID_ROOT, GID_WHEEL, 0600, "dgdb");
 #else
 	gdbdev = makedev(CDEV_MAJOR, DCONS_GDB);
 #endif
@@ -570,6 +631,9 @@ dcons_attach(void)
 {
 	int polltime;
 
+#ifdef __DragonFly__
+	cdevsw_add(&dcons_cdevsw, -1, 0);
+#endif
 	dcons_attach_port(DCONS_CON, "dcons", 0);
 	dcons_attach_port(DCONS_GDB, "dgdb", DC_GDB);
 #if __FreeBSD_version < 500000
@@ -596,13 +660,25 @@ dcons_detach(int port)
 
 	if (tp->t_state & TS_ISOPEN) {
 		printf("dcons: still opened\n");
+#if __FreeBSD_version < 502113
+		(*linesw[tp->t_line].l_close)(tp, 0);
+		tp->t_gen++;
+		ttyclose(tp);
+		ttwakeup(tp);
+		ttwwakeup(tp);
+#else
 		ttyld_close(tp, 0);
 		tty_close(tp);
+#endif
 	}
 	/* XXX
 	 * must wait until all device are closed.
 	 */
+#ifdef __DragonFly__
+	tsleep((void *)dc, 0, "dcodtc", hz/4);
+#else
 	tsleep((void *)dc, PWAIT, "dcodtc", hz/4);
+#endif
 	destroy_dev(dc->dev);
 
 	return(0);
