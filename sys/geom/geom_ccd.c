@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.23 1997/05/01 19:18:40 sos Exp $ */
+/* $Id: ccd.c,v 1.24 1997/06/14 13:56:01 bde Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -394,10 +394,6 @@ ccdinit(ccd, cpaths, p)
 		 * Calculate the size, truncating to an interleave
 		 * boundary if necessary.
 		 */
-#ifndef __FreeBSD__
-		if (size < 0)
-			size = 0;
-#endif
 
 		if (cs->sc_ileave > 1)
 			size -= size % cs->sc_ileave;
