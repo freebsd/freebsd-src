@@ -358,7 +358,7 @@ backslash(STR *s, int *is_octal)
 		*is_octal = 0;
 	for (cnt = val = 0;;) {
 		ch = (u_char)*++s->str;
-		if (!isdigit(ch))
+		if (!isdigit(ch) || ch > '7')
 			break;
 		val = val * 8 + ch - '0';
 		if (++cnt == 3) {
