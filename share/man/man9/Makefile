@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-MAN9=	DELAY.9 MD5.9 KASSERT.9 SPLASSERT.9 \
+MAN=	DELAY.9 MD5.9 KASSERT.9 SPLASSERT.9 \
 	VFS.9 VFS_FHTOVP.9 VFS_INIT.9 VFS_MOUNT.9 VFS_QUOTACTL.9 \
 	VFS_ROOT.9 VFS_START.9 VFS_STATFS.9 VFS_SYNC.9 VFS_UNMOUNT.9 \
 	VFS_VGET.9 VFS_VPTOFH.9 VFS_CHECKEXP.9 \
@@ -21,7 +21,7 @@ MAN9=	DELAY.9 MD5.9 KASSERT.9 SPLASSERT.9 \
 	vget.9 vnode.9 vput.9 vref.9 vrele.9 vslock.9 \
 	microtime.9 microuptime.9 tvtohz.9
 
-MAN9+=	device.9 device_add_child.9 device_delete_child.9 device_enable.9 \
+MAN+=	device.9 device_add_child.9 device_delete_child.9 device_enable.9 \
 	device_find_child.9 device_get_children.9 \
 	device_get_devclass.9 device_get_driver.9 \
 	device_get_ivars.9 device_get_softc.9 device_get_state.9 \

@@ -3,10 +3,10 @@
 
 .PATH: ${.CURDIR}/../../../release/sysinstall
 
-MAN8=	adding_user.8 crash.8 diskless.8 intro.8 picobsd.8 rc.8 sticky.8
+MAN=	adding_user.8 crash.8 diskless.8 intro.8 picobsd.8 rc.8 sticky.8
 
 .if exists(${.CURDIR}/../../../release/sysinstall)
-MAN8+=	sysinstall.8
+MAN+=	sysinstall.8
 .endif
 
 MLINKS=	rc.8 rc.serial.8 rc.8 rc.pccard.8 rc.8 rc.network.8 \

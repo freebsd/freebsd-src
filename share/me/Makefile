@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 3/27/94
+# $FreeBSD$
 
 MELIB=	${BINDIR}/me
 TMLIB=	${BINDIR}/tmac
@@ -10,7 +11,7 @@ FILES=	${MESRCS} ${TMSRCS}
 CLEANFILES+=	${FILES:S/$/.tmp/}
 
 # XXX use groff version
-# MAN7=	me.7
+# MAN=	me.7
 
 all: ${FILES:S/$/.tmp/}
 
