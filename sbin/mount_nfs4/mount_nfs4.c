@@ -290,14 +290,8 @@ main(argc, argv)
 	nfsargs = nfsdefargs;
 	nfsargsp = &nfsargs;
 	while ((c = getopt(argc, argv,
-	    "23a:bcdD:g:I:iLl:No:PR:r:sTt:w:x:U")) != -1)
+	    "a:bcdD:I:iNo:PR:sTt:x:U")) != -1)
 		switch (c) {
-		case '2':
-			mountmode = V2;
-			break;
-		case '3':
-			mountmode = V3;
-			break;
 		case 'a':
 			num = strtol(optarg, &p, 10);
 			if (*p || num < 0)
@@ -308,9 +302,6 @@ main(argc, argv)
 		case 'b':
 			opflags |= BGRND;
 			break;
-		case 'c':
-			nfsargsp->flags |= NFSMNT_NOCONN;
-			break;
 		case 'D':
 			num = strtol(optarg, &p, 10);
 			if (*p || num <= 0)
@@ -318,19 +309,6 @@ main(argc, argv)
 			nfsargsp->deadthresh = num;
 			nfsargsp->flags |= NFSMNT_DEADTHRESH;
 			break;
-		case 'd':
-			nfsargsp->flags |= NFSMNT_DUMBTIMR;
-			break;
-#if 0 /* XXXX */
-		case 'g':
-			num = strtol(optarg, &p, 10);
-			if (*p || num <= 0)
-				errx(1, "illegal -g value -- %s", optarg);
-			set_rpc_maxgrouplist(num);
-			nfsargsp->maxgrouplist = num;
-			nfsargsp->flags |= NFSMNT_MAXGRPS;
-			break;
-#endif
 		case 'I':
 			num = strtol(optarg, &p, 10);
 			if (*p || num <= 0)
@@ -340,12 +318,6 @@ main(argc, argv)
 			break;
 		case 'i':
 			nfsargsp->flags |= NFSMNT_INT;
-			break;
-		case 'L':
-			nfsargsp->flags |= NFSMNT_NOLOCKD;
-			break;
-		case 'l':
-			nfsargsp->flags |= NFSMNT_RDIRPLUS;
 			break;
 		case 'N':
 			nfsargsp->flags &= ~NFSMNT_RESVPORT;
@@ -422,13 +394,6 @@ main(argc, argv)
 				errx(1, "illegal -R value -- %s", optarg);
 			retrycnt = num;
 			break;
-		case 'r':
-			num = strtol(optarg, &p, 10);
-			if (*p || num <= 0)
-				errx(1, "illegal -r value -- %s", optarg);
-			nfsargsp->rsize = num;
-			nfsargsp->flags |= NFSMNT_RSIZE;
-			break;
 		case 's':
 			nfsargsp->flags |= NFSMNT_SOFT;
 			break;
@@ -442,13 +407,6 @@ main(argc, argv)
 				errx(1, "illegal -t value -- %s", optarg);
 			nfsargsp->timeo = num;
 			nfsargsp->flags |= NFSMNT_TIMEO;
-			break;
-		case 'w':
-			num = strtol(optarg, &p, 10);
-			if (*p || num <= 0)
-				errx(1, "illegal -w value -- %s", optarg);
-			nfsargsp->wsize = num;
-			nfsargsp->flags |= NFSMNT_WSIZE;
 			break;
 		case 'x':
 			num = strtol(optarg, &p, 10);
@@ -667,47 +625,6 @@ nfs_tryproto(struct nfs_args *nfsargsp, struct addrinfo *ai, char *hostp,
 		}
 	}
 
-#if 0
-	/* Check that the server (nfsd) responds on the port we have chosen. */
-	clp = clnt_tli_create(RPC_ANYFD, nconf, &nfs_nb, RPCPROG_NFS, nfsvers,
-	    0, 0);
-	if (clp == NULL) {
-		snprintf(errbuf, sizeof errbuf, "[%s] %s:%s: %s", netid,
-		    hostp, spec, clnt_spcreateerror("nfsd: RPCPROG_NFS"));
-		return (returncode(rpc_createerr.cf_stat,
-		    &rpc_createerr.cf_error));
-	}
-	if (nfsargsp->sotype == SOCK_DGRAM &&
-	    !(nfsargsp->flags & NFSMNT_NOCONN)) {
-		/*
-		 * Use connect(), to match what the kernel does. This
-		 * catches cases where the server responds from the
-		 * wrong source address.
-		 */
-		doconnect = 1;
-		if (!clnt_control(clp, CLSET_CONNECT, (char *)&doconnect)) {
-			clnt_destroy(clp);
-			snprintf(errbuf, sizeof errbuf,
-			    "[%s] %s:%s: CLSET_CONNECT failed", netid, hostp,
-			    spec);
-			return (TRYRET_LOCALERR);
-		}
-	}
-
-	try.tv_sec = 10;
-	try.tv_usec = 0;
-	stat = clnt_call(clp, NFSPROC_NULL, (xdrproc_t)xdr_void, NULL,
-	    (xdrproc_t)xdr_void, NULL, try);
-	if (stat != RPC_SUCCESS) {
-		clnt_geterr(clp, &rpcerr);
-		snprintf(errbuf, sizeof errbuf, "[%s] %s:%s: %s", netid,
-		    hostp, spec, clnt_sperror(clp, "NFSPROC_NULL"));
-		clnt_destroy(clp);
-		return (returncode(stat, &rpcerr));
-	}
-	clnt_destroy(clp);
-#endif
-
 	/*
 	 * Store the filehandle and server address in nfsargsp, making
 	 * sure to copy any locally allocated structures.
@@ -865,9 +782,9 @@ void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
-"usage: mount_nfs [-23KNPTUbcdilqs] [-D deadthresh] [-I readdirsize]",
+"usage: mount_nfs [-KNPTUbiqs] [-D deadthresh] [-I readdirsize]",
 "                 [-R retrycnt] [-a maxreadahead]",
-"                 [-g maxgroups] [-m realm] [-o options] [-r readsize]",
-"                 [-t timeout] [-w writesize] [-x retrans] rhost:path node");
+"                 [-m realm] [-o options]",
+"                 [-t timeout] [-x retrans] rhost:path node");
 	exit(1);
 }
