@@ -1,3 +1,409 @@
+1999-11-18  Paul Eggert
+
+	* m4/largefile.m4 (AC_SYS_LARGEFILE_FLAGS): Work around a
+	problem with the QNX 4.25 shell, which doesn't propagate exit
+	status of failed commands inside shell assignments.
+
+1999-11-13  Eli Zaretskii
+
+	* doc/grep.texi: Minor markup and spelling corrections.  Use
+	@noindent where appropriate.
+
+	* PATCHES-{AM,AC}: rename to PATCHES.{AM,AC}
+
+1999-11-12  Eli Zaretskii
+
+	doc/grep.texi: Minor fixes and typos corrected.
+	djgpp/README: Updated version.
+
+1999-11-07  Paul Eggert
+
+	* src/grep.c (usage): Fix misspelling.
+
+1999-11-07  Paul Eggert
+
+	Don't assume that the C library has re_set_syntax and friends.
+	* src/Makefile.am (base_sources): Add regex.c, regex.h.
+	(EXTRA_DIST): Remove regex.c, regex.h.
+
+	* src/grep.c (prtext): Use out_quiet, not not_text, to decide
+	whether to set pending to zero at the end.
+	(not_text): Remove static variable, undoing latest change.
+	(grep): Likewise.
+
+	* doc/grep.texi: Tighten up the text, and fix some minor
+	spelling and usage errors.  Use @enumerate rather than @table
+	@samp, since it's better for Q&A format.  Add cross
+	references.
+
+1999-11-01 Alain Magloire
+
+	* src/search.c: Use the more portable [[:alnum:]]
+	to define a word instead of Ascii dependent [0-9A-Za-z]
+	* src/grep.c: make not_text global to not display text when
+	the context switches -A/-B/-C are use on binary files.
+	* make grep-2.3g available for testing.
+	* configure.in: drop support for --without-included-regex.
+	This was generating bogus bug reports, since many GNU/Linux
+	users have different version of glibc.  And glibc maintainers
+	decided to drop k&r support. 
+	
+1999-11-01 Arnold D. Robbins
+
+	* regex.c (init_syntax_once): move below definition of
+	ISALNUM etc., then use ISALNUM to init the table, so that
+	the word ops will work if i18n'ed.
+	(SYNTAX): And subscript with 0xFF for Latin-1 characters.
+
+1999-10-26  Alain Magloire
+
+	* src/regex.c: Merge changes from GNU lib C.
+	* Updated the *.po files
+
+1999-10-26  Paul Eggert
+
+	* src/grep.c (fillbuf): Don't report buffer size overflow if
+	newalloc == save and maxalloc == save.  This can happen
+	e.g. when reading a large page-aligned file that contains
+	no newlines.
+
+1999-10-21  Paul Eggert
+
+	* src/grep.c (usage): Give example.  Clarify -F.
+	Explain exit status more clearly.
+
+1999-10-12  Paul Eggert
+
+	* doc/grep.texi: Shorten the commentary about egrep and {.
+	"BSD grep" -> "traditional grep".
+	* doc/grep.1: Match recent changes to grep.texi.
+
+1999-10-11  Paul Eggert
+
+	* NEWS, doc/grep.1, doc/grep.texi: New option --mmap.
+	* src/grep.c (mmap_option): New variable.
+	(long_options, reset, usage): Add --mmap.
+	Default is now read, not mmap.
+
+	* doc/grep.1: Document -Z or --null.
+
+1999-10-11  Paul Eggert
+
+	* doc/grep.texi: Fix texinfo glitches.  POSIX -> POSIX.2 where
+	appropriate.
+
+1999-10-11  Paul Eggert
+
+	* acconfig.h (ssize_t): New #undef.
+
+	* configure.in (AC_CHECK_TYPE): Add ssize_t.
+
+	* src/grep.c (PREFERRED_SAVE_FACTOR): New macro.
+	(reset): If the buffer has already been allocated, set bufsalloc to
+	be bufalloc / PREFERRED_SAVE_FACTOR.  This avoids problems when
+	bufsalloc == bufalloc (possible after reading a large binary file).
+	(reset): Use PREFERRED_SAVE_FACTOR instead of magic constant.
+	Do not set bufbeg; nobody uses it.
+	Always set buflim.
+	Check for lseek error.
+	Use SEEK_CUR, not a magic constant.
+	(fillbuf): Return an error indication, not a count.
+	All callers changed.
+	Do not assume ssize_t fits in int.
+	Use PREFERRED_SAVE_FACTOR instead of magic constant.
+	Clean up mmap code.
+	Do not attempt to mmap zero bytes.
+	Check for lseek error.
+	Use SEEK_SET, not a magic constant.
+	Work correctly if read is interrupted.
+	(grepfile): Work correctly if open or close is interrupted.
+
+	* src/system.h (SEEK_SET, SEEK_CUR): New macros.
+
+1999-10-02 Alain Magloire
+
+	* src/regex.[ch]: upgrade from GNU lib C source tree.
+
+	* make beta 2.3f available.
+
+1999-10-02  Paul Eggert
+
+	* NEWS: egrep is now equivalent to `grep -E'.
+	The lower bound of an interval is not optional.
+	You can specify a matcher multiple types without error.
+	-u and -U are now allowed on non-DOS hosts, and have no effect.
+	* doc/grep.texi: Likewise.
+	* doc/grep.1: Likewise.
+	Fix some troff bugs that prevented `groff' from rendering the page.
+
+	* src/egrepmat.c, src/fgrepmat.c, src/grepmat.c (default_matcher):
+	Remove.
+	(matcher): Add.
+	* src/grep.h (default_matcher): Remove.
+	(matcher): Now exported from ?grepmat.c, not grep.c.
+
+	* src/dfa.c (lex): If { would start an invalid interval specification,
+        treat it as a normal character.
+        Remove (broken) support for {,M} meaning {0,M}.
+        Diagnose bogus intervals like {1,0}.
+        (closure): maxrep is now -1 to indicate no limit, not zero;
+        zero is a valid value for maxrep, meaning an upper bound of zero.
+
+	* src/grep.c (short_options): New constant.
+	(long_options, main): -u and -U are now supported on Unix,
+	with no effect.
+	(matcher): Removed; now defined by ?grepmat.c.
+	(install_matcher): Renamed from setmatcher.
+	(setmatcher): New function.
+	(usage): Report new, more uniform option scheme.
+	(main): Do not initialize matcher; ?grepmat.c now does this.
+	Rely on setmatcher to catch matcher conflicts.
+	Default matcher is "grep".
+
+	* src/search.c (matchers):
+	Remove "posix-egrep" matcher; no longer needed.
+	(Ecompile): Likewise.
+	The egrep matcher now has POSIX behavior.
+
+	* tests/bre.tests: grep '\{' is no longer an error.
+	Fix test for interval too large, and enable it.
+	* tests/ere.tests: grep -E {1 is no longer an error
+	Likewise for a{1, a{1a, a{1a}, a{1,x}.
+
+1999-09-22  Paul Eggert
+
+	* largefile.m4 (AC_SYS_LARGEFILE_FLAGS): Work around GCC
+	2.95.1 bug with HP-UX 10.20.
+
+1999-09-12  Paul Eggert
+
+	* src/grep.c (fillbuf): Fix typo: we sometimes reported
+	arithmetic overflow even when there wasn't any.
+
+1999-09-12  Paul Eggert
+
+	* configure.in (AC_CHECK_FUNCS): Add memmove.
+
+	* src/system.h (S_ISREG): New macro.
+	(memmove): Define if ! defined HAVE_MEMMOVE && ! defined memmove,
+	not if !defined STDC_HEADERS.  This is needed for SunOS 4.1.4,
+	which defines STDC_HEADERS but lacks memmove.
+
+	* src/grep.c (bufoffset): Needed even if !defined HAVE_MMAP.
+	(reset): Always fstat the file, since we always need its size if it is
+	regular.
+	Similarly, get the buffer offset of every regular file.
+	Set bufmapped to 0 if the file's initial offset is not a multiple
+	of the page size.
+	(fillbuf): Calculate an upper bound on how much memory we should
+	allocate only for regular files, since we don't know the sizes of
+	other files.
+	Don't bother to check whether the file offset is a multiple of the page
+	size, since we now do that just once in `reset'.
+	When an mmapped area would fall past the end of the file, trim it to
+	just before instead of giving up immediately and doing a `read';
+	that avoids a worst-case behavior that could read half an mmapped file.
+	Fix bug when computing offsets on hosts that don't have mmap.
+
+1999-08-27  Paul Eggert
+
+	* src/system.h (memmove): New macro.
+
+	* src/grep.c (page_alloc): Reallocate the old buffer instead
+	of having both old and new buffers active simultaneously.
+	Remove valloc debugging variant, which no longer applies.
+
+	(fillbuf): Rejigger the buffer allocation mechanism.  The old
+	mechanism could allocate more than 10*N bytes for an N-byte
+	file, which was excessive.  Check for arithmetic overflow a
+	bit more carefully.
+
+1999-08-25  Paul Eggert
+
+	* src/grep.c (grepdir):
+	Don't assume that st_ino and st_dev must be integers;
+	POSIX.1 allows them to be floating-point (!).
+
+	* src/vms_fab.h (arr_ptr): `:' -> `;' to fix typo.
+
+1999-08-18  Alain Magloire
+
+	* 2.3e snapshot.
+
+1999-08-18  Alain Magloire
+
+	* src/search.c: On a CRAY J90 system running UNICOS 8.0.
+	Compilation of ./src/search.c failed because the declaration of
+	the variable "regex":
+	  static struct re_pattern_buffer regex;
+	conflicted with a previous declaration search.c #includes "system.h",
+	which #includes <stdlib.h>, which declares :
+        extern char *regex __((char *_Re, char *_Subject, ...));
+	The declaration in search.c is local to that one source file.
+	I just changed its name to something less likely to conflict.
+	(I called it "regexbuf", but you could pick any name you want.)
+	Excerpt email from Dean Kopesky.
+
+1999-08-16  Paul Eggert
+
+	Upgrade large-file support to the version used in tar and
+	textutils.
+
+	* Makefile.am (ACLOCAL_AMFLAGS): Define to be empty.
+	(M4DIR, ACINCLUDE_INPUTS): New macros.
+	($(srcdir)/acinclude.m4): New rule.
+
+	* configure.in (AC_CANONICAL_HOST, AM_C_PROTOTYPES): Add.
+	(AC_SYS_LARGEFILE): Renamed from AC_LFS, for compatibility
+	with what should appear in the next autoconf release.
+
+	* m4/largefile.m4: Renamed from m4/lfs.m4.
+
+	* src/ansi2knr.1, src/ansi2knr.c, config.guess, config.sub:
+	New files.  config.guess and config.sub ar needed by the new
+	AC_SYS_LARGEFILE.  ansi2knr is needed by AM_C_PROTOTYPES,
+	which in turn is needed by the new AC_SYS_LARGEFILE.
+
+1999-08-16  Alain Magloire
+
+	* 2.3d snapshot on ftp server.
+
+1999-07-26  Paul Eggert
+
+Several GNU tools have options to process arbitrary file names, even
+file names that contain newline characters.  These include `find
+-print0', `perl -0', `sort -z', and `xargs -0'.  It'd be handy if GNU
+grep also processed such file names.  Here's a proposed patch to do
+this, relative to grep 2.3c.  This patch introduces two options, one
+for the data, and one for the file names.  (Sometimes one wants
+null-terminated file names in the output, and sometimes one wants to
+process lists of null-terminated strings, and these are orthogonal
+axes.)
+
+        * NEWS, doc/grep.texi: New -z or --null-data and -Z or --null options.
+        * src/grep.c (long_options, usage, main): Likewise.
+
+        * src/dfa.h (dfasyntax): New eol parameter.
+        * src/dfa.c (eolbyte): New var.
+        (dfasyntax): Set it from new parameter.
+        (lex, dfastat, build_state, dfaexec): Use it instead of '\n'.
+
+        * src/grep.h (eolbyte): New decl.
+        * src/grep.c (eolbyte): New var.
+        (nlscan, prpending, prtext, grepbuf, grep): Use it instead of '\n'.
+        (filename_mask): New var.
+        (prline, grepfile): Output NUL separator if filename_mask is zero.
+        (grep): Look for '\200' as the hallmark of a binary file, not '\0',
+        if -z or --null-data is specified, since it implies that '\0' is
+        expected as text.
+
+        * src/search.c (Gcompile, Ecompile): Pass eolbyte to dfasyntax.
+        (EGexecute, Fexecute): Use eolbyte instead of '\n'.
+
+1999-06-15 Alain Magloire
+
+	* src/grep.c, doc/grep{1,texi} : 
+	--revert-match should be --invert-match.
+	Correction proposed by Karl Berry.
+
+1999-06-12 Alain Magloire
+
+	* doc/grep.{1,texi}: add description for --with-filename.
+	Noted missing by UEBAYASHI Masao.
+
+1999-03-17 Paul Eggert
+
+	* NEWS: Add GREP_OPTIONS.
+
+	* doc/grep.texi: Document GREP_OPTIONS, and the other
+	environment variables.  Fix doc for [:blank:], [:cntrl:], [:punct:].
+
+	* src/grep.c (prepend_args, prepend_default_options): New functions.
+	(main): Use them to implement GREP_OPTIONS.
+	* src/system.h (getenv): New decl.
+
+1999-03-16 Volker Borchert
+
+	* configure.in: Use case case ... esac for  checking Visual C++.
+	When ${CC} contains options it was not recognize.
+
+1999-03-07 Paul Eggert
+
+	* src/grep.c (usage): Don't report -E, -F, and -G unless we're grep.
+	(main): Don't match options -E, -F, and -G unless we're grep.
+	Remove after-the-fact check for options -E, -F, and -G, since
+	they're no longer needed.
+
+1999-03-05  Eli Zaretskii
+
+	* src/grep.c (main): Print the name of the default matcher instead
+	of just "grep".                                                        
+
+1999-02-06 Alain Magloire
+
+	* tests/*.awk : Linux users are seeing "Broken Pipe" on make check.
+	The problem is that grep does not drain its stdin, thus the previous
+	process in the pipeline receives a SIGPIPE.  Other shells are silent
+	about this.  There is actually no failure, since the broken pipe is
+	expected.  You can work around it by changing the pipeline, so that
+	the input is drained, like this:
+	status=`echo 'check' | { ${GREP} -E -e pattern >/dev/null 2>&1;
+	echo $?; cat >/dev/null; }`; if test $status -ne $errnu then ... fi
+	Excerpt email from Andreas Schwab.                              
+
+1999-02-23 Alain Magloire
+
+	* src/grep.c : Restrict the use of -E, -F, -G
+	to only grep driver, Posix behaviour. {f,e}grep
+	the matcher is already set. This change may brake
+	scripts, warn in NEWS.
+
+	* doc/grep.{1,texi} : -C takes arguments, upgrade manual.
+
+	* beta 2.3a
+
+1999-02-23 Alain Magloire
+
+	* configure.in : Change the configure VC test from
+	'test x$ac_cv_prog_CC = xcl;' to 'test x"$ac_cv_prog_CC" = xcl;'
+	Email from Joshua R. Poulson.
+
+1999-02-23 Paul Eggert
+
+	Fix porting bug reported by Amakawa Shuhei for SunOS 4.1.4-JL.
+	The btowc.c shipped with grep 2.3 is incorrect for Solaris
+	2.5.1 and earlier, as it assumes UTF8, which these OSes do not
+	support.  Solaris 7 supports btowc, so there's no need to ship
+	a substitute for it.  The only questionable case is Solaris
+	2.6, which lacks btowc but does support UTF8.  However, 2.6
+	supports UTF8 but only as a demonstration (for an English
+	locale!); Japanese Solaris 2.6 users typically use EUC, or
+	sometimes shift-JIS, but they cannot use UTF8 since Japanese
+	UTF8 is not supported.  Hence there's no point to having grep
+	substitute a btowc that uses UTF8, as it is either redundant,
+	or it will almost invariably have incorrect behavior.
+
+	* configure.in (AC_CHECK_HEADERS): Don't set USE_WCHAR.
+	(AC_CHECK_FUNCS): Add btowc, wctype.
+	(AC_REPLACE_FUNCS): Don't replace btowc; our replacement is
+	invariably doing the wrong thing anyway, at least on SunOS/Solaris.
+	Don't bother to check for wctype in -lw, as we don't support
+	wide characters on Solaris 2.5.1 or earlier anyway.
+
+	* bootstrap/Makefile.try (OBJS): Remove btowc.$(OBJEXT).
+
+	* src/btowc.c: Removed; no longer needed.
+
+1999-02-19  Paul Eggert
+
+	* NEWS: Fix typo when talking about the old behavior of
+	silently skipping directories; it was grep 2.1, not grep 2.2.
+
+1999-02-15 Alain Magloire
+
+	* bootstrap/Makefile.try : add DJGPP DEFS.
+	Done by Elie Zaretsckii.
+
 1999-02-14 Alain Magloire
 
 	* m4/gettext.m4 : Guard [] with changequote.
