@@ -59,9 +59,6 @@ int deny_severity = LOG_WARNING;
 
 #ifdef KRB5
 #include <krb5.h>
-krb5_context ssh_context = NULL;
-krb5_principal tkt_client = NULL;    /* Principal from the received ticket. 
-Also is used as an indication of succesful krb5 authentization. */
 #endif /* KRB5 */
 
 /* Server configuration options. */
