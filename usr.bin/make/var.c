@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: var.c,v 1.9 1997/02/22 19:27:25 peter Exp $
+ *	$Id: var.c,v 1.10 1997/09/29 03:53:53 imp Exp $
  */
 
 #ifndef lint
@@ -1114,6 +1114,8 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 				 * expanding it in a non-local context. This
 				 * is done to support dynamic sources. The
 				 * result is just the invocation, unaltered */
+    int		vlen;		/* length of variable name, after embedded variable
+				 * expansion */
 
     *freePtr = FALSE;
     dynamic = FALSE;
@@ -1165,23 +1167,34 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 	    endc = str[1];
 	}
     } else {
+	/* build up expanded variable name in this buffer */
+	Buffer	buf = Buf_Init(MAKE_BSIZE);
+
 	startc = str[1];
 	endc = startc == '(' ? ')' : '}';
 
 	/*
-	 * Skip to the end character or a colon, whichever comes first.
+	 * Skip to the end character or a colon, whichever comes first,
+	 * replacing embedded variables as we go.
 	 */
-	for (tstr = str + 2;
-	     *tstr != '\0' && *tstr != endc && *tstr != ':';
-	     tstr++)
-	{
-	    continue;
-	}
-	if (*tstr == ':') {
-	    haveModifier = TRUE;
-	} else if (*tstr != '\0') {
-	    haveModifier = FALSE;
-	} else {
+	for (tstr = str + 2; *tstr != '\0' && *tstr != endc && *tstr != ':'; tstr++)
+		if (*tstr == '$') {
+			int	rlen;
+			Boolean	rfree;
+			char*	rval = Var_Parse(tstr, ctxt, err, &rlen, &rfree);
+                
+			if (rval == var_Error) {
+				Fatal("Error expanding embedded variable.");
+			} else if (rval != NULL) {
+				Buf_AddBytes(buf, strlen(rval), (Byte *) rval);
+				if (rfree)
+					free(rval);
+			}
+			tstr += rlen - 1;
+		} else
+			Buf_AddByte(buf, (Byte) *tstr);
+	
+	if (*tstr == '\0') {
 	    /*
 	     * If we never did find the end character, return NULL
 	     * right now, setting the length to be the distance to
@@ -1190,17 +1203,23 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 	    *lengthPtr = tstr - str;
 	    return (var_Error);
 	}
+	
+	haveModifier = (*tstr == ':');
 	*tstr = '\0';
 
-	v = VarFind (str + 2, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
+	Buf_AddByte(buf, (Byte) '\0');
+	str = Buf_GetAll(buf, NULL);
+	vlen = strlen(str);
+
+	v = VarFind (str, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
 	if ((v == (Var *)NIL) && (ctxt != VAR_CMD) && (ctxt != VAR_GLOBAL) &&
-	    ((tstr-str) == 4) && (str[3] == 'F' || str[3] == 'D'))
+	    (vlen == 2) && (str[1] == 'F' || str[1] == 'D'))
 	{
 	    /*
 	     * Check for bogus D and F forms of local variables since we're
 	     * in a local context and the name is the right length.
 	     */
-	    switch(str[2]) {
+	    switch(str[0]) {
 		case '@':
 		case '%':
 		case '*':
@@ -1214,7 +1233,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		    /*
 		     * Well, it's local -- go look for it.
 		     */
-		    vname[0] = str[2];
+		    vname[0] = str[0];
 		    vname[1] = '\0';
 		    v = VarFind(vname, ctxt, 0);
 
@@ -1222,11 +1241,11 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 			/*
 			 * No need for nested expansion or anything, as we're
 			 * the only one who sets these things and we sure don't
-			 * but nested invocations in them...
+			 * put nested invocations in them...
 			 */
 			val = (char *)Buf_GetAll(v->val, (int *)NULL);
 
-			if (str[3] == 'D') {
+			if (str[1] == 'D') {
 			    val = VarModify(val, VarHead, (ClientData)0);
 			} else {
 			    val = VarModify(val, VarTail, (ClientData)0);
@@ -1238,6 +1257,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 			*freePtr = TRUE;
 			*lengthPtr = tstr-start+1;
 			*tstr = endc;
+			Buf_Destroy(buf, TRUE);
 			return(val);
 		    }
 		    break;
@@ -1246,9 +1266,9 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 	}
 
 	if (v == (Var *)NIL) {
-	    if ((((tstr-str) == 3) ||
-		 ((((tstr-str) == 4) && (str[3] == 'F' ||
-					 str[3] == 'D')))) &&
+	    if (((vlen == 1) ||
+		 (((vlen == 2) && (str[1] == 'F' ||
+					 str[1] == 'D')))) &&
 		((ctxt == VAR_CMD) || (ctxt == VAR_GLOBAL)))
 	    {
 		/*
@@ -1260,7 +1280,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		 * specially as they are the only four that will be set
 		 * when dynamic sources are expanded.
 		 */
-		switch (str[2]) {
+		switch (str[0]) {
 		    case '@':
 		    case '%':
 		    case '*':
@@ -1268,17 +1288,17 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 			dynamic = TRUE;
 			break;
 		}
-	    } else if (((tstr-str) > 4) && (str[2] == '.') &&
-		       isupper((unsigned char) str[3]) &&
+	    } else if ((vlen > 2) && (str[0] == '.') &&
+		       isupper((unsigned char) str[1]) &&
 		       ((ctxt == VAR_CMD) || (ctxt == VAR_GLOBAL)))
 	    {
 		int	len;
 
-		len = (tstr-str) - 3;
-		if ((strncmp(str+2, ".TARGET", len) == 0) ||
-		    (strncmp(str+2, ".ARCHIVE", len) == 0) ||
-		    (strncmp(str+2, ".PREFIX", len) == 0) ||
-		    (strncmp(str+2, ".MEMBER", len) == 0))
+		len = vlen - 1;
+		if ((strncmp(str, ".TARGET", len) == 0) ||
+		    (strncmp(str, ".ARCHIVE", len) == 0) ||
+		    (strncmp(str, ".PREFIX", len) == 0) ||
+		    (strncmp(str, ".MEMBER", len) == 0))
 		{
 		    dynamic = TRUE;
 		}
@@ -1296,8 +1316,10 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		    strncpy(str, start, *lengthPtr);
 		    str[*lengthPtr] = '\0';
 		    *freePtr = TRUE;
+		    Buf_Destroy(buf, TRUE);
 		    return(str);
 		} else {
+		    Buf_Destroy(buf, TRUE);
 		    return (err ? var_Error : varNoError);
 		}
 	    } else {
@@ -1311,6 +1333,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		v->flags = VAR_JUNK;
 	    }
 	}
+	Buf_Destroy(buf, TRUE);
     }
 
     if (v->flags & VAR_IN_USE) {
