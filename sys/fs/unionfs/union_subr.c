@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.20 (Berkeley) 5/20/95
- * $Id: union_subr.c,v 1.27 1998/02/06 12:13:44 eivind Exp $
+ * $Id: union_subr.c,v 1.28 1998/02/10 03:32:05 kato Exp $
  */
 
 #include <sys/param.h>
@@ -363,27 +363,11 @@ loop:
 			    (un->un_uppervp == uppervp ||
 			     un->un_uppervp == NULLVP) &&
 			    (UNIONTOV(un)->v_mount == mp)) {
-				/*
-				 * Do not assume that vget() does not
-				 * lock the vnode even though flags
-				 * argument is 0.
-				 */
-				if ((un->un_uppervp != NULLVP) &&
-					((un->un_flags & UN_KLOCK) == 0)) {
-					SETGLOCK(un);
-					klocked = 1;
-				} else {
-					klocked = 0;
-				}
 				if (vget(UNIONTOV(un), 0,
 				    cnp ? cnp->cn_proc : NULL)) {
-					if (klocked)
-						CLEARGLOCK(un);
 					union_list_unlock(hash);
 					goto loop;
 				}
-				if (klocked)
-					CLEARGLOCK(un);
 				break;
 			}
 		}
