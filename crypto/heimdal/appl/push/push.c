@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001, 2003 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2004 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 #include "push_locl.h"
-RCSID("$Id: push.c,v 1.47 2003/04/04 02:10:17 assar Exp $");
+RCSID("$Id: push.c,v 1.47.2.1 2004/06/21 10:54:46 lha Exp $");
 
 #ifdef KRB4
 static int use_v4 = -1;
@@ -214,9 +214,10 @@ doit(int s,
     int ret;
     char out_buf[PUSH_BUFSIZ];
     int out_len = 0;
-    char in_buf[PUSH_BUFSIZ + 1];	/* sentinel */
+    char *in_buf;
+    size_t in_buf_size;
     size_t in_len = 0;
-    char *in_ptr = in_buf;
+    char *in_ptr;
     pop_state state = INIT;
     unsigned count, bytes;
     unsigned asked_for = 0, retrieved = 0, asked_deleted = 0, deleted = 0;
@@ -230,6 +231,10 @@ doit(int s,
     char **headers = NULL;
     int i;
     char *tmp = NULL;
+
+    in_buf = emalloc(PUSH_BUFSIZ + 1);
+    in_ptr = in_buf;
+    in_buf_size = PUSH_BUFSIZ;
 
     if (do_from) {
 	char *tmp2;
@@ -310,7 +315,14 @@ doit(int s,
 	    size_t rem;
 	    int blank_line = 0;
 	    
-	    ret = read (s, in_ptr, sizeof(in_buf) - in_len - 1);
+	    if(in_len >= in_buf_size) {
+		char *tmp = erealloc(in_buf, in_buf_size + PUSH_BUFSIZ + 1);
+		in_ptr = tmp + (in_ptr - in_buf);
+		in_buf = tmp;
+		in_buf_size += PUSH_BUFSIZ;
+	    }
+
+	    ret = read (s, in_ptr, in_buf_size - in_len);
 	    if (ret < 0)
 		err (1, "read");
 	    else if (ret == 0)

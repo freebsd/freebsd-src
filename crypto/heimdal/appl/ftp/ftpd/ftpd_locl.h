@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: ftpd_locl.h,v 1.13 2003/03/18 13:37:13 lha Exp $ */
+/* $Id: ftpd_locl.h,v 1.13.2.1 2004/08/20 15:17:07 lha Exp $ */
 
 #ifndef __ftpd_locl_h__
 #define __ftpd_locl_h__
@@ -111,7 +111,6 @@
 #ifdef HAVE_PWD_H
 #include <pwd.h>
 #endif
-#include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2003 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2004 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: connect.c,v 1.90.2.1 2003/08/25 11:46:55 lha Exp $");
+RCSID("$Id: connect.c,v 1.90.2.2 2004/04/02 20:50:53 lha Exp $");
 
 /*
  * a tuple describing on what to listen
@@ -705,8 +705,9 @@ handle_tcp(struct descr *d, int index, int min_free)
 	krb5_warn(context, errno, "recvfrom");
 	return;
     } else if (n == 0) {
-	krb5_warnx(context, "connection closed before end of data after %d "
-		   "bytes from %s", d[index].len, d[index].addr_string);
+	krb5_warnx(context, "connection closed before end of data after %lu "
+		   "bytes from %s",
+		   (unsigned long)d[index].len, d[index].addr_string);
 	clear_descr (d + index);
 	return;
     }
