@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.28 1997/08/05 00:01:23 dyson Exp $
+ * $Id: kern_malloc.c,v 1.29 1997/09/02 20:05:39 bde Exp $
  */
 
 #include <sys/param.h>
@@ -52,11 +52,22 @@
 static void kmeminit __P((void *));
 SYSINIT(kmem, SI_SUB_KMEM, SI_ORDER_FIRST, kmeminit, NULL)
 
-static struct kmembuckets bucket[MINBUCKET + 16];
-struct kmemstats kmemstats[M_LAST];
-struct kmemusage *kmemusage;
-char *kmembase, *kmemlimit;
-char *memname[] = INITKMEMNAMES;
+#if defined(KMEMSTATS) || defined(DIAGNOSTIC)
+#define	MAYBE_STATIC	static
+#else
+#define	MAYBE_STATIC
+#endif
+
+MAYBE_STATIC struct kmembuckets bucket[MINBUCKET + 16];
+#ifdef KMEMSTATS
+static struct kmemstats kmemstats[M_LAST];
+#endif
+MAYBE_STATIC struct kmemusage *kmemusage;
+MAYBE_STATIC char *kmembase;
+static char *kmemlimit;
+#if defined(KMEMSTATS) || defined(DIAGNOSTIC)
+static char *memname[] = INITKMEMNAMES;
+#endif
 
 #ifdef DIAGNOSTIC
 /*
