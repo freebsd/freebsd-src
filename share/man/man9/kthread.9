@@ -44,7 +44,7 @@
 .Ft void
 .Fn kproc_shutdown "void *arg" "int howto"
 .Ft int
-.Fn kthread_create "void (*func)(void *)" "void *arg" "struct proc **newpp" "int flags" "const char *fmt" "..."
+.Fn kthread_create "void (*func)(void *)" "void *arg" "struct proc **newpp" "int flags" "int pages" "const char *fmt" "..."
 .Ft void
 .Fn kthread_exit "int ecode"
 .Ft int
@@ -121,6 +121,10 @@ The
 .Fa flags
 argument specifies a set of flags as described in
 .Xr rfork 2 .
+The
+.Fa pages
+argument specifies the size of the new kernel thread's stack in pages.
+If 0 is used, the default kernel stack size is allocated.
 The rest of the arguments form a
 .Xr printf 9
 argument list that is used to build the name of the new thread and is stored
