@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.181 1996/04/06 01:06:04 davidg Exp $
+ *	$Id: machdep.c,v 1.182 1996/04/19 07:27:57 phk Exp $
  */
 
 #include "npx.h"
@@ -936,8 +936,7 @@ boot(howto)
 	} else {
 		if (howto & RB_DUMP) {
 			if (!cold) {
-				int foo;
-				savectx(&dumppcb, &foo);
+				savectx(&dumppcb);
 				dumppcb.pcb_ptd = rcr3();
 				dumpsys();
 			}
