@@ -141,48 +141,48 @@ struct protosw inetsw[] = {
 },
 #ifdef IPSEC
 { SOCK_RAW,	&inetdomain,	IPPROTO_AH,	PR_ATOMIC|PR_ADDR,
-  ah4_input,	0,	 	0,		0,
-  0,	  
+  ah4_input,	0,		0,		0,
+  0,
   0,		0,		0,		0,
   &nousrreqs
 },
 #ifdef IPSEC_ESP
 { SOCK_RAW,	&inetdomain,	IPPROTO_ESP,	PR_ATOMIC|PR_ADDR,
-  esp4_input,	0,	 	0,		0,
-  0,	  
+  esp4_input,	0,		0,		0,
+  0,
   0,		0,		0,		0,
   &nousrreqs
 },
 #endif
 { SOCK_RAW,	&inetdomain,	IPPROTO_IPCOMP,	PR_ATOMIC|PR_ADDR,
-  ipcomp4_input, 0,	 	0,		0,
-  0,	  
+  ipcomp4_input, 0,		0,		0,
+  0,
   0,		0,		0,		0,
   &nousrreqs
 },
 #endif /* IPSEC */
 #ifdef FAST_IPSEC
 { SOCK_RAW,	&inetdomain,	IPPROTO_AH,	PR_ATOMIC|PR_ADDR,
-  ah4_input,	0,	 	ah4_ctlinput,	0,
-  0,	  
+  ah4_input,	0,		ah4_ctlinput,	0,
+  0,
   0,		0,		0,		0,
   &nousrreqs
 },
 { SOCK_RAW,	&inetdomain,	IPPROTO_ESP,	PR_ATOMIC|PR_ADDR,
-  esp4_input,	0,	 	esp4_ctlinput,	0,
-  0,	  
+  esp4_input,	0,		esp4_ctlinput,	0,
+  0,
   0,		0,		0,		0,
   &nousrreqs
 },
 { SOCK_RAW,	&inetdomain,	IPPROTO_IPCOMP,	PR_ATOMIC|PR_ADDR,
-  ipcomp4_input,	0,	 	0,		0,
-  0,	  
+  ipcomp4_input,	0,		0,		0,
+  0,
   0,		0,		0,		0,
   &nousrreqs
 },
 #endif /* FAST_IPSEC */
 { SOCK_RAW,	&inetdomain,	IPPROTO_IPV4,	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
-  encap4_input,	0,	 	0,		rip_ctloutput,
+  encap4_input,	0,		0,		rip_ctloutput,
   0,
   encap_init,		0,		0,		0,
   &rip_usrreqs
@@ -201,7 +201,7 @@ struct protosw inetsw[] = {
 },
 # ifdef INET6
 { SOCK_RAW,	&inetdomain,	IPPROTO_IPV6,	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
-  encap4_input,	0,	 	0,		rip_ctloutput,
+  encap4_input,	0,		0,		rip_ctloutput,
   0,
   encap_init,	0,		0,		0,
   &rip_usrreqs
@@ -209,7 +209,7 @@ struct protosw inetsw[] = {
 #endif
 #ifdef IPDIVERT
 { SOCK_RAW,	&inetdomain,	IPPROTO_DIVERT,	PR_ATOMIC|PR_ADDR,
-  div_input,	0,	 	div_ctlinput,	ip_ctloutput,
+  div_input,	0,		div_ctlinput,	ip_ctloutput,
   0,
   div_init,	0,		0,		0,
   &div_usrreqs,
@@ -251,7 +251,7 @@ struct protosw inetsw[] = {
 extern int in_inithead(void **, int);
 
 struct domain inetdomain =
-    { AF_INET, "internet", 0, 0, 0, 
+    { AF_INET, "internet", 0, 0, 0,
       inetsw,
       &inetsw[sizeof(inetsw)/sizeof(inetsw[0])], 0,
       in_inithead, 32, sizeof(struct sockaddr_in)

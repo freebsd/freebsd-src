@@ -71,10 +71,10 @@
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgements:
- * 	This product includes software developed by the University of
- * 	California, Berkeley and its contributors.
- * 	This product includes software developed at the Information
- * 	Technology Division, US Naval Research Laboratory.
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ *	This product includes software developed at the Information
+ *	Technology Division, US Naval Research Laboratory.
  * 4. Neither the name of the NRL nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -494,9 +494,9 @@ tcp_sack_partialack(tp, th)
 	 * Set snd_cwnd to one segment beyond acknowledged offset
 	 * (tp->snd_una has not yet been updated when this function is called.)
 	 */
-	/* 
-	 * Should really be 
-	 * min(tp->snd_cwnd, tp->t_maxseg + (th->th_ack - tp->snd_una)) 
+	/*
+	 * Should really be
+	 * min(tp->snd_cwnd, tp->t_maxseg + (th->th_ack - tp->snd_una))
 	 */
 	tp->snd_cwnd = tp->t_maxseg + (th->th_ack - tp->snd_una);
 	tp->t_flags |= TF_ACKNOW;

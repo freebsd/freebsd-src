@@ -45,16 +45,16 @@ struct	icmpstat {
 	u_long	icps_oldicmp;		/* no error 'cuz old was icmp */
 	u_long	icps_outhist[ICMP_MAXTYPE + 1];
 /* statistics related to input messages processed */
- 	u_long	icps_badcode;		/* icmp_code out of range */
+	u_long	icps_badcode;		/* icmp_code out of range */
 	u_long	icps_tooshort;		/* packet < ICMP_MINLEN */
 	u_long	icps_checksum;		/* bad checksum */
 	u_long	icps_badlen;		/* calculated bound mismatch */
 	u_long	icps_reflect;		/* number of responses */
 	u_long	icps_inhist[ICMP_MAXTYPE + 1];
-	u_long	icps_bmcastecho; 	/* b/mcast echo requests dropped */
-	u_long	icps_bmcasttstamp; 	/* b/mcast tstamp requests dropped */
+	u_long	icps_bmcastecho;	/* b/mcast echo requests dropped */
+	u_long	icps_bmcasttstamp;	/* b/mcast tstamp requests dropped */
 	u_long	icps_badaddr;		/* bad return address */
-	u_long	icps_noroute; 		/* no route back */
+	u_long	icps_noroute;		/* no route back */
 };
 
 /*

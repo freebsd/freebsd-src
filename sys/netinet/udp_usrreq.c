@@ -97,7 +97,7 @@ SYSCTL_INT(_net_inet_udp, UDPCTL_CHECKSUM, checksum, CTLFLAG_RW,
 		&udpcksum, 0, "");
 
 int	log_in_vain = 0;
-SYSCTL_INT(_net_inet_udp, OID_AUTO, log_in_vain, CTLFLAG_RW, 
+SYSCTL_INT(_net_inet_udp, OID_AUTO, log_in_vain, CTLFLAG_RW,
     &log_in_vain, 0, "Log all incoming UDP packets");
 
 static int	blackhole = 0;
@@ -240,7 +240,7 @@ udp_input(m, off)
 			if (m->m_pkthdr.csum_flags & CSUM_PSEUDO_HDR)
 				uh->uh_sum = m->m_pkthdr.csum_data;
 			else
-	                	uh->uh_sum = in_pseudo(ip->ip_src.s_addr,
+				uh->uh_sum = in_pseudo(ip->ip_src.s_addr,
 				    ip->ip_dst.s_addr, htonl((u_short)len +
 				    m->m_pkthdr.csum_data + IPPROTO_UDP));
 			uh->uh_sum ^= 0xffff;
@@ -533,13 +533,13 @@ udp_ctlinput(cmd, sa, vip)
 	struct ip *ip = vip;
 	struct udphdr *uh;
 	struct inpcb *(*notify)(struct inpcb *, int) = udp_notify;
-        struct in_addr faddr;
+	struct in_addr faddr;
 	struct inpcb *inp;
 	int s;
 
 	faddr = ((struct sockaddr_in *)sa)->sin_addr;
 	if (sa->sa_family != AF_INET || faddr.s_addr == INADDR_ANY)
-        	return;
+		return;
 
 	/*
 	 * Redirects don't need to be handled up here.
@@ -560,7 +560,7 @@ udp_ctlinput(cmd, sa, vip)
 		uh = (struct udphdr *)((caddr_t)ip + (ip->ip_hl << 2));
 		INP_INFO_RLOCK(&udbinfo);
 		inp = in_pcblookup_hash(&udbinfo, faddr, uh->uh_dport,
-                    ip->ip_src, uh->uh_sport, 0, NULL);
+		    ip->ip_src, uh->uh_sport, 0, NULL);
 		if (inp != NULL) {
 			INP_LOCK(inp);
 			if (inp->inp_socket != NULL) {
@@ -622,7 +622,7 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 	inp_list = malloc(n * sizeof *inp_list, M_TEMP, M_WAITOK);
 	if (inp_list == 0)
 		return ENOMEM;
-	
+
 	s = splnet();
 	INP_INFO_RLOCK(&udbinfo);
 	for (inp = LIST_FIRST(udbinfo.listhead), i = 0; inp && i < n;
@@ -1080,7 +1080,7 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	ret = udp_output(inp, m, addr, control, td);
 	INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&udbinfo);
-	return ret; 
+	return ret;
 }
 
 int
@@ -1102,8 +1102,8 @@ udp_shutdown(struct socket *so)
 }
 
 /*
- * This is the wrapper function for in_setsockaddr.  We just pass down 
- * the pcbinfo for in_setsockaddr to lock.  We don't want to do the locking 
+ * This is the wrapper function for in_setsockaddr.  We just pass down
+ * the pcbinfo for in_setsockaddr to lock.  We don't want to do the locking
  * here because in_setsockaddr will call malloc and might block.
  */
 static int
@@ -1123,9 +1123,9 @@ udp_peeraddr(struct socket *so, struct sockaddr **nam)
 }
 
 struct pr_usrreqs udp_usrreqs = {
-	udp_abort, pru_accept_notsupp, udp_attach, udp_bind, udp_connect, 
-	pru_connect2_notsupp, in_control, udp_detach, udp_disconnect, 
-	pru_listen_notsupp, udp_peeraddr, pru_rcvd_notsupp, 
+	udp_abort, pru_accept_notsupp, udp_attach, udp_bind, udp_connect,
+	pru_connect2_notsupp, in_control, udp_detach, udp_disconnect,
+	pru_listen_notsupp, udp_peeraddr, pru_rcvd_notsupp,
 	pru_rcvoob_notsupp, udp_send, pru_sense_null, udp_shutdown,
 	udp_sockaddr, sosend, soreceive, sopoll, in_pcbsosetlabel
 };

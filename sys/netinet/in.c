@@ -60,7 +60,7 @@ static int	in_ifinit(struct ifnet *,
 	    struct in_ifaddr *, struct sockaddr_in *, int);
 
 static int subnetsarelocal = 0;
-SYSCTL_INT(_net_inet_ip, OID_AUTO, subnets_are_local, CTLFLAG_RW, 
+SYSCTL_INT(_net_inet_ip, OID_AUTO, subnets_are_local, CTLFLAG_RW,
 	&subnetsarelocal, 0, "Treat all subnets as directly connected");
 
 struct in_multihead in_multihead; /* XXX BSS initialization */
@@ -144,7 +144,7 @@ struct sockaddr_in *ap;
 
     ap->sin_len = 0;
     while (--cp >= cplim)
-        if (*cp) {
+	if (*cp) {
 	    (ap)->sin_len = cp - (char *) (ap) + 1;
 	    break;
 	}
@@ -783,7 +783,7 @@ in_ifinit(ifp, ia, sin, scrub)
 int
 in_broadcast(in, ifp)
 	struct in_addr in;
-        struct ifnet *ifp;
+	struct ifnet *ifp;
 {
 	register struct ifaddr *ifa;
 	u_long t;

@@ -94,9 +94,9 @@ typedef u_short vifi_t;		/* type of a vif index */
  * (MRT_DEL_VIF takes a single vifi_t argument.)
  */
 struct vifctl {
-	vifi_t	vifc_vifi;	    	/* the index of the vif to be added */
-	u_char	vifc_flags;     	/* VIFF_ flags defined below */
-	u_char	vifc_threshold; 	/* min ttl required to forward on vif */
+	vifi_t	vifc_vifi;		/* the index of the vif to be added */
+	u_char	vifc_flags;		/* VIFF_ flags defined below */
+	u_char	vifc_threshold;		/* min ttl required to forward on vif */
 	u_int	vifc_rate_limit;	/* max rate */
 	struct	in_addr vifc_lcl_addr;	/* local interface address */
 	struct	in_addr vifc_rmt_addr;	/* remote address (tunnels only) */
@@ -112,9 +112,9 @@ struct vifctl {
  */
 struct mfcctl {
     struct in_addr  mfcc_origin;		/* ip origin of mcasts       */
-    struct in_addr  mfcc_mcastgrp; 		/* multicast group associated*/
-    vifi_t	    mfcc_parent;   		/* incoming vif              */
-    u_char	    mfcc_ttls[MAXVIFS]; 	/* forwarding ttls on vifs   */
+    struct in_addr  mfcc_mcastgrp;		/* multicast group associated*/
+    vifi_t	    mfcc_parent;		/* incoming vif              */
+    u_char	    mfcc_ttls[MAXVIFS];		/* forwarding ttls on vifs   */
 };
 
 /*
@@ -126,7 +126,7 @@ struct mfcctl2 {
 	struct in_addr	mfcc_origin;		/* ip origin of mcasts	     */
 	struct in_addr	mfcc_mcastgrp;		/* multicast group associated*/
 	vifi_t		mfcc_parent;		/* incoming vif		     */
-	u_char		mfcc_ttls[MAXVIFS]; 	/* forwarding ttls on vifs   */
+	u_char		mfcc_ttls[MAXVIFS];	/* forwarding ttls on vifs   */
 
 	/* extension fields */
 	uint8_t		mfcc_flags[MAXVIFS];	/* the MRT_MFC_FLAGS_* flags */
@@ -165,7 +165,7 @@ struct mfcctl2 {
  *
  * Measurement works as follows:
  *
- * For >= measurements: 
+ * For >= measurements:
  * The first packet marks the start of a measurement interval.
  * During an interval we count packets and bytes, and when we
  * pass the threshold we deliver an upcall and we are done.
@@ -217,10 +217,10 @@ struct mrtstat {
     u_long	mrts_cant_tunnel;	/* no room for tunnel options      */
     u_long	mrts_wrong_if;		/* arrived on wrong interface	   */
     u_long	mrts_upq_ovflw;		/* upcall Q overflow		   */
-    u_long	mrts_cache_cleanups;	/* # entries with no upcalls 	   */
-    u_long  	mrts_drop_sel;     	/* pkts dropped selectively        */
-    u_long  	mrts_q_overflow;    	/* pkts dropped - Q overflow       */
-    u_long  	mrts_pkt2large;     	/* pkts dropped - size > BKT SIZE  */
+    u_long	mrts_cache_cleanups;	/* # entries with no upcalls	   */
+    u_long	mrts_drop_sel;		/* pkts dropped selectively        */
+    u_long	mrts_q_overflow;	/* pkts dropped - Q overflow       */
+    u_long	mrts_pkt2large;		/* pkts dropped - size > BKT SIZE  */
     u_long	mrts_upq_sockfull;	/* upcalls dropped - socket full */
 };
 
@@ -245,19 +245,19 @@ struct sioc_vif_req {
     u_long ibytes;		/* Input byte count on vif		*/
     u_long obytes;		/* Output byte count on vif		*/
 };
-    
+
 
 /*
  * The kernel's virtual-interface structure.
  */
 struct vif {
-    u_char   		v_flags;     	/* VIFF_ flags defined above         */
-    u_char   		v_threshold;	/* min ttl required to forward on vif*/
-    u_int      		v_rate_limit; 	/* max rate			     */
-    struct tbf 	       *v_tbf;       	/* token bucket structure at intf.   */
-    struct in_addr 	v_lcl_addr;   	/* local interface address           */
-    struct in_addr 	v_rmt_addr;   	/* remote address (tunnels only)     */
-    struct ifnet       *v_ifp;	     	/* pointer to interface              */
+    u_char		v_flags;	/* VIFF_ flags defined above         */
+    u_char		v_threshold;	/* min ttl required to forward on vif*/
+    u_int		v_rate_limit;	/* max rate			     */
+    struct tbf	       *v_tbf;		/* token bucket structure at intf.   */
+    struct in_addr	v_lcl_addr;	/* local interface address           */
+    struct in_addr	v_rmt_addr;	/* remote address (tunnels only)     */
+    struct ifnet       *v_ifp;		/* pointer to interface              */
     u_long		v_pkt_in;	/* # pkts in on interface            */
     u_long		v_pkt_out;	/* # pkts out on interface           */
     u_long		v_bytes_in;	/* # bytes in on interface	     */
@@ -268,15 +268,15 @@ struct vif {
 };
 
 /*
- * The kernel's multicast forwarding cache entry structure 
- * (A field for the type of service (mfc_tos) is to be added 
+ * The kernel's multicast forwarding cache entry structure
+ * (A field for the type of service (mfc_tos) is to be added
  * at a future point)
  */
 struct mfc {
 	struct in_addr	mfc_origin;		/* IP origin of mcasts	     */
-	struct in_addr  mfc_mcastgrp;  		/* multicast group associated*/
-	vifi_t		mfc_parent; 		/* incoming vif              */
-	u_char		mfc_ttls[MAXVIFS]; 	/* forwarding ttls on vifs   */
+	struct in_addr  mfc_mcastgrp;		/* multicast group associated*/
+	vifi_t		mfc_parent;		/* incoming vif              */
+	u_char		mfc_ttls[MAXVIFS];	/* forwarding ttls on vifs   */
 	u_long		mfc_pkt_cnt;		/* pkt count for src-grp     */
 	u_long		mfc_byte_cnt;		/* byte count for src-grp    */
 	u_long		mfc_wrong_if;		/* wrong if for src-grp	     */
@@ -311,7 +311,7 @@ struct igmpmsg {
  * Argument structure used for pkt info. while upcall is made
  */
 struct rtdetq {
-    struct mbuf 	*m;		/* A copy of the packet		    */
+    struct mbuf		*m;		/* A copy of the packet		    */
     struct ifnet	*ifp;		/* Interface pkt came in on	    */
     vifi_t		xmt_vif;	/* Saved copy of imo_multicast_vif  */
     struct rtdetq	*next;		/* Next in list of packets          */
@@ -327,19 +327,19 @@ struct rtdetq {
 #define MAX_UPQ	4		/* max. no of pkts in upcall Q */
 
 /*
- * Token Bucket filter code 
+ * Token Bucket filter code
  */
-#define MAX_BKT_SIZE    10000             /* 10K bytes size 		*/
-#define MAXQSIZE        10                /* max # of pkts in queue 	*/
+#define MAX_BKT_SIZE    10000             /* 10K bytes size		*/
+#define MAXQSIZE        10                /* max # of pkts in queue	*/
 
 /*
  * the token bucket filter at each vif
  */
 struct tbf
 {
-    struct timeval tbf_last_pkt_t; /* arr. time of last pkt 	*/
-    u_long tbf_n_tok;      	/* no of tokens in bucket 	*/
-    u_long tbf_q_len;    	/* length of queue at this vif	*/
+    struct timeval tbf_last_pkt_t; /* arr. time of last pkt	*/
+    u_long tbf_n_tok;		/* no of tokens in bucket	*/
+    u_long tbf_q_len;		/* length of queue at this vif	*/
     u_long tbf_max_q_len;	/* max. queue length		*/
     struct mbuf *tbf_q;		/* Packet queue			*/
     struct mbuf *tbf_t;		/* tail-insertion pointer	*/
@@ -359,7 +359,7 @@ struct bw_meter {
 #define BW_METER_UNIT_BYTES	(1 << 1)	/* threshold (in bytes)      */
 #define BW_METER_GEQ		(1 << 2)	/* upcall if bw >= threshold */
 #define BW_METER_LEQ		(1 << 3)	/* upcall if bw <= threshold */
-#define BW_METER_USER_FLAGS 	(BW_METER_UNIT_PACKETS |		\
+#define BW_METER_USER_FLAGS	(BW_METER_UNIT_PACKETS |		\
 				 BW_METER_UNIT_BYTES |			\
 				 BW_METER_GEQ |				\
 				 BW_METER_LEQ)
