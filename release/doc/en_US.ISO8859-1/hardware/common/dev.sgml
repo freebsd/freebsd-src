@@ -1269,34 +1269,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha">Texas Instruments ThunderLAN PCI NICs (&man.tl.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>Compaq Netelligent 10, 10/100, 10/100
-	  Dual-Port</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>Compaq Netelligent 10/100 Proliant</para>
-        </listitem>
-        <listitem>
-	  <para>Compaq Netelligent 10/100 TX Embedded UTP, 10 T PCI
-	  UTP/Coax, 10/100 TX UTP</para>
-        </listitem>
-        <listitem>
-	  <para>Compaq NetFlex 3P, 3P Integrated, 3P w/BNC</para>
-        </listitem>
-        <listitem>
-	  <para>Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP</para>
-        </listitem>
-        <listitem>
-	  <para>Racore 8165 10/100baseTX</para>
-        </listitem>
-        <listitem>
-	  <para>Racore 8148 10baseT/100baseTX/100baseFX
-	  multi-personality</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    <para arch="i386,pc98,alpha">Texas Instruments ThunderLAN PCI NICs (&man.tl.4; driver)</para>
 
     <para arch="i386,pc98,alpha,sparc64">ADMtek Inc. AL981-based PCI Fast Ethernet NICs (&man.dc.4;
     driver)</para>
@@ -1310,142 +1283,18 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98">ADMtek Inc. AN986-based USB Ethernet NICs (&man.aue.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>Abocom UFE1000, DSB650TX_NA</para>
-	</listitem>
-        <listitem>
-	  <para>Accton USB320-EC, SpeedStream</para>
-        </listitem>
-        <listitem>
-	  <para>ADMtek AN986, AN8511</para>
-        </listitem>
-        <listitem>
-	  <para>Billionton USB100, USB100LP, USB100EL, USBE100</para>
-        </listitem>
-        <listitem>
-	  <para>Corega Ether FEther USB-T, FEther USB-TX, FEther USB-TXS</para>
-        </listitem>
-        <listitem>
-	  <para>D-Link DSB-650, DSB-650TX, DSB-650TX-PNA</para>
-        </listitem>
-        <listitem>
-	  <para>Elecom LD-USBL/TX</para>
-        </listitem>
-        <listitem>
-	  <para>Elsa Microlink USB2Ethernet</para>
-        </listitem>
-        <listitem>
-	  <para>I-O Data USB ETTX</para>
-        </listitem>
-        <listitem>
-	  <para>Kingston KNU101TX</para>
-        </listitem>
-        <listitem>
-	  <para>LinkSys USB10T, USB10TA, USB10TX, USB100TX, USB100H1</para>
-        </listitem>
-        <listitem>
-	  <para>MELCO LUA-TX, LUA2-TX</para>
-        </listitem>
-        <listitem>
-	  <para>Planex UE-200TX</para>
-        </listitem>
-        <listitem>
-	  <para>Siemens Speedstream</para>
-        </listitem>
-        <listitem>
-	  <para>SmartBridges smartNIC</para>
-        </listitem>
-        <listitem>
-	  <para>SMC 2202USB</para>
-        </listitem>
-        <listitem>
-	  <para>SOHOware NUB100</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    <para arch="i386,pc98">ADMtek Inc. AN986-based USB Ethernet NICs (&man.aue.4; driver)</para>
 
     <para arch="i386,pc98">CATC USB-EL1210A-based USB Ethernet NICs (&man.cue.4; driver)</para>
 
     <para arch="i386,pc98">Kawasaki LSI KU5KUSB101B-based USB Ethernet NICs
-    (&man.kue.4; driver)
-      <itemizedlist>
-	<listitem>
-	  <para>3Com 3c19250</para>
-        </listitem>
-	<listitem>
-	  <para>AOX USB101</para>
-        </listitem>
-	<listitem>
-	  <para>Abocom URE 450</para>
-        </listitem>
-	<listitem>
-	  <para>ADS Technologies USB-10BT</para>
-        </listitem>
-	<listitem>
-	  <para>ATen UC10T</para>
-        </listitem>
-	<listitem>
-	  <para>Corega USB-T</para>
-        </listitem>
-	<listitem>
-	  <para>D-Link DSB-650C</para>
-        </listitem>
-	<listitem>
-	  <para>Entrega NET-USB-E45</para>
-        </listitem>
-        <listitem>
-          <para>I/O Data USB ETT</para>
-        </listitem>
-        <listitem>
-          <para>Kawasaki DU-H3E</para>
-        </listitem>
-        <listitem>
-          <para>LinkSys USB10T</para>
-        </listitem>
-	<listitem>
-	  <para>Netgear EA101</para>
-        </listitem>
-	<listitem>
-	  <para>Peracom USB Ethernet Adapter</para>
-        </listitem>
-	<listitem>
-	  <para>SMC 2102USB, 2104USB</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    (&man.kue.4; driver)</para>
 
     <para arch="i386,pc98">ASIX Electronics AX88172-based USB Ethernet NICs
-      (&man.axe.4; driver)
-
-      <itemizedlist>
-        <listitem>
-	  <para>D-Link DUBE100</para>
-        </listitem>
-        <listitem>
-	  <para>Linksys USB200M</para>
-        </listitem>
-        <listitem>
-	  <para>Netgear FA120</para>
-        </listitem>
-      </itemizedlist>
-
-      </para>
+      (&man.axe.4; driver)</para>
 
     <para arch="i386,pc98">RealTek RTL8150-based USB Ethernet NICs
-      (&man.rue.4; driver)
-
-      <itemizedlist>
-        <listitem>
-	  <para>GREEN HOUSE GH-USB100B</para>
-        </listitem>
-        <listitem>
-	  <para>MELCO LUA-KTX</para>
-        </listitem>
-      </itemizedlist>
-
-      </para>
+      (&man.rue.4; driver)</para>
 
     <para arch="i386,pc98,alpha,sparc64">ASIX Electronics AX88140A PCI NICs (&man.dc.4; driver)
       <itemizedlist>
