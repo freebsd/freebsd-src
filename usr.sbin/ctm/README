@@ -5,7 +5,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id$
+# $Id: README,v 1.6 1997/02/22 16:05:15 peter Exp $
 #
 
 What will I not find in this file ?
@@ -21,7 +21,7 @@ CTM is now meant to be the definitive way to make and apply a delta between
 two versions of a directory tree.
 There are two parts to this, making the delta and applying it.  These are two
 entirely different things.  CTM concentrates the computation-burden on the
-generation og the deltas, as a delta very often is applied more times than
+generation of the deltas, as a delta very often is applied more times than
 it is made.  Second CTM tries to make the minimal size delta.
 
 Why not use diff/patch ?
@@ -55,7 +55,7 @@ You pass it to the 'ctm' command.  You can pass a CTM-delta on stdin, or
 you can give the filename as an argument.  If you do the latter, you make
 life a lot easier for your self, since the program can accept gzip'ed files
 and since it will not have to make a temporary copy of your file.  You can
-specify multiple deltas at one time, they will be proccessed one at a time.
+specify multiple deltas at one time, they will be processed one at a time.
 
 The ctm command runs in a number of passes.  It will process the entire
 input file in each pass, before commencing with the next pass.
