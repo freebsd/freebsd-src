@@ -81,4 +81,7 @@ struct rp_port {
 	unsigned char		RxBuf[RXFIFO_SIZE];
 };
 
+/* Actually not used */
+#if notdef
 extern struct termios deftermios;
+#endif /* notdef */

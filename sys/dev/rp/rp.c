@@ -113,6 +113,8 @@ Byte_t rp_sBitMapSetTbl[8] =
    0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80
 };
 
+/* Actually not used */
+#if notdef
 struct termios deftermios = {
 	TTYDEF_IFLAG,
 	TTYDEF_OFLAG,
@@ -124,6 +126,7 @@ struct termios deftermios = {
 	TTYDEF_SPEED,
 	TTYDEF_SPEED
 };
+#endif
 
 /***************************************************************************
 Function: sReadAiopID
@@ -563,7 +566,6 @@ static timeout_t rpdtrwakeup;
 
 static	d_open_t	rpopen;
 static	d_close_t	rpclose;
-static	d_read_t	rpread;
 static	d_write_t	rpwrite;
 static	d_ioctl_t	rpioctl;
 
@@ -571,7 +573,7 @@ static	d_ioctl_t	rpioctl;
 struct cdevsw rp_cdevsw = {
 	/* open */	rpopen,
 	/* close */	rpclose,
-	/* read */	rpread,
+	/* read */	ttyread,
 	/* write */	rpwrite,
 	/* ioctl */	rpioctl,
 	/* poll */	ttypoll,
@@ -1184,30 +1186,6 @@ rphardclose(struct rp_port *rp)
 	rp->active_out = FALSE;
 	wakeup(&rp->active_out);
 	wakeup(TSA_CARR_ON(tp));
-}
-
-static
-int
-rpread(dev, uio, flag)
-	dev_t	dev;
-	struct	uio	*uio;
-	int	flag;
-{
-	struct	rp_port *rp;
-	struct	tty	*tp;
-	int	unit, mynor, umynor, port, error = 0; /* SG */
-
-   umynor = (((minor(dev) >> 16) -1) * 32);    /* SG */
-	port  = (minor(dev) & 0x1f);                /* SG */
-	mynor = (port + umynor);                    /* SG */
-   unit = minor_to_unit[mynor];                /* SG */
-
-	if(IS_CONTROL(dev))
-		return(ENODEV);
-	rp = rp_addr(unit) + port;
-	tp = rp->rp_tty;
-	error = (*linesw[tp->t_line].l_read)(tp, uio, flag);
-	return(error);
 }
 
 static
