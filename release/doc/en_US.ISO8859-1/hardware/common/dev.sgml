@@ -1817,7 +1817,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha,ia64">Intel 82557-, 82258-, 82559-, 82550-
+    <para arch="i386,pc98,alpha,ia64,sparc64">Intel 82557-, 82258-, 82559-, 82550-
     or 82562-based Fast Ethernet NICs (&man.fxp.4; driver)
       <itemizedlist>
         <listitem>
