@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.25 1998/06/07 17:11:31 dfr Exp $
+ *	$Id: imgact_elf.c,v 1.26 1998/06/08 09:19:35 dfr Exp $
  */
 
 #include "opt_rlimit.h"
@@ -355,14 +355,14 @@ elf_load_file(struct proc *p, char *file, u_long *addr, u_long *entry)
 						       phdr[i].p_vaddr -
 						       trunc_page(phdr[i].p_vaddr));
 				*entry=(unsigned long)hdr->e_entry+(*addr);
-	    			UPRINTF(".text <%08x,%08x> entry=%08x\n",
+	    			UPRINTF(".text <%08lx,%08lx> entry=%08lx\n",
 					text_addr, text_size, *entry);
 			} else {
   				data_addr = trunc_page(phdr[i].p_vaddr+(*addr));
   				data_size = round_page(phdr[i].p_memsz +
 						       phdr[i].p_vaddr -
 						       trunc_page(phdr[i].p_vaddr));
-	    			UPRINTF(".data <%08x,%08x>\n",
+	    			UPRINTF(".data <%08lx,%08lx>\n",
 					data_addr, data_size);
 			}
 		}
@@ -491,14 +491,14 @@ exec_elf_imgact(struct image_params *imgp)
 						       phdr[i].p_vaddr -
 						       text_addr);
 				entry = (u_long)hdr->e_entry;
-	    			UPRINTF(".text <%08x,%08x> entry=%08x\n",
+	    			UPRINTF(".text <%08lx,%08lx> entry=%08lx\n",
 					text_addr, text_size, entry);
 			} else {
   				data_addr = trunc_page(phdr[i].p_vaddr);
   				data_size = round_page(phdr[i].p_memsz +
 						       phdr[i].p_vaddr -
 						       data_addr);
-	    			UPRINTF(".data <%08x,%08x>\n",
+	    			UPRINTF(".data <%08lx,%08lx>\n",
 					data_addr, data_size);
 			}
 		}
