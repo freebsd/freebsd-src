@@ -202,7 +202,7 @@ csamidi_attach(device_t dev)
 	midiinit(devinfo, dev);
 
 	/* Enable interrupt. */
-	if (bus_setup_intr(dev, scp->irq, INTR_TYPE_TTY, csamidi_intr, scp, &scp->ih)) {
+	if (bus_setup_intr(dev, scp->irq, INTR_TYPE_AV, csamidi_intr, scp, &scp->ih)) {
 		csamidi_releaseres(scp, dev);
 		return (ENXIO);
 	}
