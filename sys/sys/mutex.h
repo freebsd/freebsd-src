@@ -345,19 +345,25 @@ do {									\
  * input path and protocols that require Giant must collect it
  * on entry.  When 0 Giant is grabbed in the network interface
  * ISR's and in the netisr path and there is no need to grab
- * the Giant lock.
+ * the Giant lock.  Note that, unlike GIANT_PICKUP() and
+ * GIANT_DROP(), these macros directly wrap mutex operations
+ * without special recursion handling.
  *
  * This mechanism is intended as temporary until everything of
  * importance is properly locked.
  */
 extern	int debug_mpsafenet;		/* defined in net/netisr.c */
-#define	NET_PICKUP_GIANT() do {						\
+#define	NET_LOCK_GIANT() do {						\
 	if (debug_mpsafenet)						\
 		mtx_lock(&Giant);					\
 } while (0)
-#define	NET_DROP_GIANT() do {						\
+#define	NET_UNLOCK_GIANT() do {						\
 	if (debug_mpsafenet)						\
 		mtx_unlock(&Giant);					\
+} while (0)
+#define	NET_ASSERT_GIANT() do {						\
+	if (debug_mpsafenet)						\
+		mtx_assert(&Giant, MA_OWNED);				\
 } while (0)
 
 #define	UGAR(rval) do {							\
