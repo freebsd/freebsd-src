@@ -1968,7 +1968,7 @@ tl1_breakpoint:
  *	  (maybe just to the pcb)
  *	- we are on alternate globals and interrupts are disabled
  *
- * We switch to the kernel stack,  build a trapframe, switch to normal
+ * We switch to the kernel stack, build a trapframe, switch to normal
  * globals, enable interrupts and call trap.
  *
  * NOTE: We must be very careful setting up the per-cpu pointer.  We know that
@@ -2059,7 +2059,6 @@ ENTRY(tl0_trap)
 
 	sub	PCB_REG, SPOFF + CCFSZ + TF_SIZEOF, %sp
 
-	stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
 	stx	%o3, [%sp + SPOFF + CCFSZ + TF_TAR]
 	stx	%o4, [%sp + SPOFF + CCFSZ + TF_SFAR]
 	stw	%o5, [%sp + SPOFF + CCFSZ + TF_SFSR]
@@ -2075,7 +2074,8 @@ ENTRY(tl0_trap)
 	stx	%fsr, [%sp + SPOFF + CCFSZ + TF_FSR]
 	wr	%g0, 0, %fprs
 
-	mov	PCPU_REG, %o0
+	mov	PCB_REG, %l0
+	mov	PCPU_REG, %l1
 	wrpr	%g0, PSTATE_NORMAL, %pstate
 
 	stx	%g1, [%sp + SPOFF + CCFSZ + TF_G1]
@@ -2086,7 +2086,8 @@ ENTRY(tl0_trap)
 	stx	%g6, [%sp + SPOFF + CCFSZ + TF_G6]
 	stx	%g7, [%sp + SPOFF + CCFSZ + TF_G7]
 
-	mov	%o0, PCPU_REG
+	mov	%l0, PCB_REG
+	mov	%l1, PCPU_REG
 	wrpr	%g0, PSTATE_KERNEL, %pstate
 
 	stx	%i0, [%sp + SPOFF + CCFSZ + TF_O0]
@@ -2099,6 +2100,7 @@ ENTRY(tl0_trap)
 	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
 
 .Ltl0_trap_reenter:
+	stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
 	call	trap
 	 add	%sp, CCFSZ + SPOFF, %o0
 	b,a	%xcc, tl0_ret
@@ -2160,7 +2162,8 @@ ENTRY(tl0_syscall)
 	stx	%fsr, [%sp + SPOFF + CCFSZ + TF_FSR]
 	wr	%g0, 0, %fprs
 
-	mov	PCPU_REG, %o0
+	mov	PCB_REG, %l0
+	mov	PCPU_REG, %l1
 	wrpr	%g0, PSTATE_NORMAL, %pstate
 
 	stx	%g1, [%sp + SPOFF + CCFSZ + TF_G1]
@@ -2171,7 +2174,8 @@ ENTRY(tl0_syscall)
 	stx	%g6, [%sp + SPOFF + CCFSZ + TF_G6]
 	stx	%g7, [%sp + SPOFF + CCFSZ + TF_G7]
 
-	mov	%o0, PCPU_REG
+	mov	%l0, PCB_REG
+	mov	%l1, PCPU_REG
 	wrpr	%g0, PSTATE_KERNEL, %pstate
 
 	stx	%i0, [%sp + SPOFF + CCFSZ + TF_O0]
@@ -2238,10 +2242,13 @@ ENTRY(tl0_intr)
 	wr	%g0, 0, %fprs
 
 	mov	T_INTERRUPT, %o0
+	mov	%o2, %l3
+
 	stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
 	stw	%o2, [%sp + SPOFF + CCFSZ + TF_LEVEL]
 
-	mov	PCPU_REG, %o0
+	mov	PCB_REG, %l0
+	mov	PCPU_REG, %l1
 	wrpr	%g0, PSTATE_NORMAL, %pstate
 
 	stx	%g1, [%sp + SPOFF + CCFSZ + TF_G1]
@@ -2252,7 +2259,8 @@ ENTRY(tl0_intr)
 	stx	%g6, [%sp + SPOFF + CCFSZ + TF_G6]
 	stx	%g7, [%sp + SPOFF + CCFSZ + TF_G7]
 
-	mov	%o0, PCPU_REG
+	mov	%l0, PCB_REG
+	mov	%l1, PCPU_REG
 	wrpr	%g0, PSTATE_KERNEL, %pstate
 
 	stx	%i0, [%sp + SPOFF + CCFSZ + TF_O0]
@@ -2264,14 +2272,22 @@ ENTRY(tl0_intr)
 	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
 	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
 
+	call	critical_enter
+	 nop
+
 	SET(cnt+V_INTR, %l1, %l0)
 	ATOMIC_INC_INT(%l0, %l1, %l2)
 
 	SET(intr_handlers, %l1, %l0)
-	sllx	%o2, IH_SHIFT, %l1
+	sllx	%l3, IH_SHIFT, %l1
 	ldx	[%l0 + %l1], %l1
+	KASSERT(%l1, "tl0_intr: ih null")
 	call	%l1
 	 add	%sp, CCFSZ + SPOFF, %o0
+
+	call	critical_exit
+	 nop
+
 	b,a	%xcc, tl0_ret
 	 nop
 END(tl0_intr)
@@ -2302,19 +2318,9 @@ ENTRY(tl0_ret)
 	call	ast
 	 add	%sp, CCFSZ + SPOFF, %o0
 
-1:	ldx	[%l0 + TD_PCB], %l1
-	ldx	[%l1 + PCB_NSAVED], %l2
-	mov	T_SPILL, %o0
-	brnz,a,pn %l2, .Ltl0_trap_reenter
-	 stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
-
-	ldx	[%sp + SPOFF + CCFSZ + TF_G1], %g1
-	ldx	[%sp + SPOFF + CCFSZ + TF_G2], %g2
-	ldx	[%sp + SPOFF + CCFSZ + TF_G3], %g3
-	ldx	[%sp + SPOFF + CCFSZ + TF_G4], %g4
-	ldx	[%sp + SPOFF + CCFSZ + TF_G5], %g5
-	ldx	[%sp + SPOFF + CCFSZ + TF_G6], %g6
-	ldx	[%sp + SPOFF + CCFSZ + TF_G7], %g7
+1:	ldx	[PCB_REG + PCB_NSAVED], %l1
+	brnz,a,pn %l1, .Ltl0_trap_reenter
+	 mov	T_SPILL, %o0
 
 	ldx	[%sp + SPOFF + CCFSZ + TF_O0], %i0
 	ldx	[%sp + SPOFF + CCFSZ + TF_O1], %i1
@@ -2331,6 +2337,16 @@ ENTRY(tl0_ret)
 	lduw	[%sp + SPOFF + CCFSZ + TF_Y], %l3
 	ldub	[%sp + SPOFF + CCFSZ + TF_FPRS], %l4
 	ldub	[%sp + SPOFF + CCFSZ + TF_WSTATE], %l5
+
+	wrpr	%g0, PSTATE_NORMAL, %pstate
+
+	ldx	[%sp + SPOFF + CCFSZ + TF_G1], %g1
+	ldx	[%sp + SPOFF + CCFSZ + TF_G2], %g2
+	ldx	[%sp + SPOFF + CCFSZ + TF_G3], %g3
+	ldx	[%sp + SPOFF + CCFSZ + TF_G4], %g4
+	ldx	[%sp + SPOFF + CCFSZ + TF_G5], %g5
+	ldx	[%sp + SPOFF + CCFSZ + TF_G6], %g6
+	ldx	[%sp + SPOFF + CCFSZ + TF_G7], %g7
 
 	wrpr	%g0, PSTATE_ALT, %pstate
 
@@ -2396,13 +2412,14 @@ tl0_ret_fill_end:
 	 */
 	wrpr	%l5, 0, %wstate
 	wrpr	%g0, PSTATE_ALT, %pstate
-	mov	PCPU_REG, %o0
+	mov	PCB_REG, %o0
+	mov	PCPU_REG, %o1
 	wrpr	%g0, PSTATE_NORMAL, %pstate
-	mov	%o0, PCPU_REG
+	mov	%o0, PCB_REG
+	mov	%o1, PCPU_REG
 	wrpr	%g0, PSTATE_KERNEL, %pstate
-	mov	T_FILL, %o0
 	b	%xcc, .Ltl0_trap_reenter
-	 stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
+	 mov	T_FILL, %o0
 END(tl0_ret)
 
 /*
@@ -2451,18 +2468,11 @@ ENTRY(tl1_trap)
 	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
 	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
 
-	mov	PCPU_REG, %o0
-	wrpr	%g0, PSTATE_NORMAL, %pstate
-
 	stx	%g1, [%sp + SPOFF + CCFSZ + TF_G1]
 	stx	%g2, [%sp + SPOFF + CCFSZ + TF_G2]
 	stx	%g3, [%sp + SPOFF + CCFSZ + TF_G3]
 	stx	%g4, [%sp + SPOFF + CCFSZ + TF_G4]
 	stx	%g5, [%sp + SPOFF + CCFSZ + TF_G5]
-	stx	%g6, [%sp + SPOFF + CCFSZ + TF_G6]
-
-	mov	%o0, PCPU_REG
-	wrpr	%g0, PSTATE_KERNEL, %pstate
 
 	call	trap
 	 add	%sp, CCFSZ + SPOFF, %o0
@@ -2477,7 +2487,6 @@ ENTRY(tl1_trap)
 	ldx	[%sp + SPOFF + CCFSZ + TF_G3], %g3
 	ldx	[%sp + SPOFF + CCFSZ + TF_G4], %g4
 	ldx	[%sp + SPOFF + CCFSZ + TF_G5], %g5
-	ldx	[%sp + SPOFF + CCFSZ + TF_G6], %g6
 
 	wrpr	%g0, PSTATE_ALT, %pstate
 
@@ -2523,15 +2532,17 @@ ENTRY(tl1_intr)
 	mov	%o1, %l3
 
 #if KTR_COMPILE & KTR_INTR
-	CATR(KTR_INTR, "tl1_intr: td=%p type=%#lx pil=%#lx pc=%#lx sp=%#lx"
+	CATR(KTR_INTR,
+	    "tl1_intr: td=%p type=%#lx level=%#lx pil=%#lx pc=%#lx sp=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	ldx	[PCPU(CURTHREAD)], %g2
 	stx	%g2, [%g1 + KTR_PARM1]
 	andn	%o0, T_KERNEL, %g2
 	stx	%g2, [%g1 + KTR_PARM2]
-	stx	%o1, [%g1 + KTR_PARM3]
-	stx	%l1, [%g1 + KTR_PARM4]
-	stx	%i6, [%g1 + KTR_PARM5]
+	stx	%o2, [%g1 + KTR_PARM3]
+	stx	%o1, [%g1 + KTR_PARM4]
+	stx	%l1, [%g1 + KTR_PARM5]
+	stx	%i6, [%g1 + KTR_PARM6]
 9:
 #endif
 
@@ -2542,6 +2553,8 @@ ENTRY(tl1_intr)
 	stx	%l2, [%sp + SPOFF + CCFSZ + TF_TNPC]
 
 	mov	T_INTERRUPT | T_KERNEL, %o0
+	mov	%o2, %l7
+
 	stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
 	stb	%o1, [%sp + SPOFF + CCFSZ + TF_PIL]
 	stw	%o2, [%sp + SPOFF + CCFSZ + TF_LEVEL]
@@ -2549,34 +2562,33 @@ ENTRY(tl1_intr)
 	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
 	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
 
-	mov	PCPU_REG, %o0
-	wrpr	%g0, PSTATE_NORMAL, %pstate
-
 	stx	%g1, [%sp + SPOFF + CCFSZ + TF_G1]
 	stx	%g2, [%sp + SPOFF + CCFSZ + TF_G2]
 	stx	%g3, [%sp + SPOFF + CCFSZ + TF_G3]
 	stx	%g4, [%sp + SPOFF + CCFSZ + TF_G4]
 	stx	%g5, [%sp + SPOFF + CCFSZ + TF_G5]
-	stx	%g6, [%sp + SPOFF + CCFSZ + TF_G6]
 
-	mov	%o0, PCPU_REG
-	wrpr	%g0, PSTATE_KERNEL, %pstate
+	call	critical_enter
+	 nop
 
 	SET(cnt+V_INTR, %l5, %l4)
 	ATOMIC_INC_INT(%l4, %l5, %l6)
 
 	SET(intr_handlers, %l5, %l4)
-	sllx	%o2, IH_SHIFT, %l5
+	sllx	%l7, IH_SHIFT, %l5
 	ldx	[%l4 + %l5], %l5
+	KASSERT(%l5, "tl1_intr: ih null")
 	call	%l5
 	 add	%sp, CCFSZ + SPOFF, %o0
+
+	call	critical_exit
+	 nop
 
 	ldx	[%sp + SPOFF + CCFSZ + TF_G1], %g1
 	ldx	[%sp + SPOFF + CCFSZ + TF_G2], %g2
 	ldx	[%sp + SPOFF + CCFSZ + TF_G3], %g3
 	ldx	[%sp + SPOFF + CCFSZ + TF_G4], %g4
 	ldx	[%sp + SPOFF + CCFSZ + TF_G5], %g5
-	ldx	[%sp + SPOFF + CCFSZ + TF_G6], %g6
 
 	wrpr	%g0, PSTATE_ALT, %pstate
 
