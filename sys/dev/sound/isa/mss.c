@@ -954,7 +954,7 @@ ad1848_mixer_reset(snddev_info *d)
 
     case MD_YM0020:
 	/* set master volume to max */
-	DDB(printf("set yamaha master volume to max"); )
+	DDB(printf("set yamaha master volume to max\n"); )
 	outb(0x370, 7) ;
 	outb(0x371, 0) ;
 	outb(0x370, 8) ;
