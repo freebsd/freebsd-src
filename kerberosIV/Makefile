@@ -15,7 +15,7 @@ CODAD=	${MAKE} ${MFLAGS} MAKE_KERBEROS4=yes cleandir; \
 # These are the programs which depend on kerberos
 kprog:
 	cd ${SDIR}/bin/rcp; ${CODAI}
-	cd ${SDIR}/gnu/usr.bin/cvs/cvs; ${CODAI}
+	cd ${SDIR}/gnu/usr.bin/cvs; ${CODAI}
 	cd ${SDIR}/libexec/rlogind; ${CODAI}
 	cd ${SDIR}/libexec/rshd; ${CODAI}
 	cd ${SDIR}/usr.bin/login; ${CODAI}
