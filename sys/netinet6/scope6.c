@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: scope6.c,v 1.10 2000/07/24 13:29:31 itojun Exp $	*/
 
-/*
+/*-
  * Copyright (C) 2000 WIDE Project.
  * All rights reserved.
  *
