@@ -1333,7 +1333,7 @@ static struct isa_pnp_id pnpmss_ids[] = {
 	{0x1110d315, "ENSONIQ SoundscapeVIVO"},		/* ENS1011 */
 	{0x1093143e, "OPTi931"},			/* OPT9310 */
 	{0x5092143e, "OPTi925"},			/* OPT9250 XXX guess */
-	{0x1022b839, NULL}, 				/* NMX2210 - non-ac97 neomagic 256av */
+	{0x1022b839, "Neomagic 256AV (non-ac97)"},	/* NMX2210 */
 #if 0
 	{0x0000561e, "GusPnP"},				/* GRV0000 */
 #endif
@@ -1392,10 +1392,11 @@ pnpmss_attach(device_t dev)
 	    mss->bd_id = MD_OPTI925;
 	    break;
 
-	case 0x1022b839:
+	case 0x1022b839:			/* NMX2210 */
 	    mss->io_rid = 1;
 	    mss->bd_id = MD_CS42XX;
 	    break;
+
 #if 0
 	case 0x0000561e:			/* GRV0000 */
 	    mss->bd_flags |= BD_F_MSS_OFFSET;
