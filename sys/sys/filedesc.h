@@ -37,10 +37,10 @@
 #ifndef _SYS_FILEDESC_H_
 #define	_SYS_FILEDESC_H_
 
+#include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <sys/limits.h> /* XXX for CHAR_BIT */
-#include <sys/queue.h>
 
 /*
  * This structure is used for the management of descriptors.  It may be
@@ -98,8 +98,6 @@ struct filedesc0 {
 	NDSLOTTYPE	fd_dmap[NDSLOTS(NDFILE)];
 };
 
-
-
 /*
  * Structure to keep track of (process leader, struct fildedesc) tuples.
  * Each process has a pointer to such a structure when detailed tracking
@@ -131,13 +129,12 @@ struct filedesc_to_leader {
 
 #ifdef _KERNEL
 
-#define FILEDESC_LOCK_DESC	"filedesc structure"
-
 /* Lock a file descriptor table. */
 #define FILEDESC_LOCK(fd)	mtx_lock(&(fd)->fd_mtx)
 #define FILEDESC_UNLOCK(fd)	mtx_unlock(&(fd)->fd_mtx)
 #define	FILEDESC_LOCKED(fd)	mtx_owned(&(fd)->fd_mtx)
 #define	FILEDESC_LOCK_ASSERT(fd, type)	mtx_assert(&(fd)->fd_mtx, (type))
+#define FILEDESC_LOCK_DESC	"filedesc structure"
 
 struct thread;
 
@@ -145,26 +142,23 @@ int	closef(struct file *fp, struct thread *p);
 int	dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd,
 	    int mode, int error);
 int	falloc(struct thread *p, struct file **resultfp, int *resultfd);
-void	fdused(struct filedesc *fdp, int fd);
-void	fdunused(struct filedesc *fdp, int fd);
 int	fdalloc(struct thread *p, int minfd, int *result);
 int	fdavail(struct thread *td, int n);
-void	fdcloseexec(struct thread *td);
 int	fdcheckstd(struct thread *td);
+void	fdcloseexec(struct thread *td);
 struct	filedesc *fdcopy(struct filedesc *fdp);
 void	fdfree(struct thread *td);
 struct	filedesc *fdinit(struct filedesc *fdp);
 struct	filedesc *fdshare(struct filedesc *fdp);
+void	fdunused(struct filedesc *fdp, int fd);
+void	fdused(struct filedesc *fdp, int fd);
 void	ffree(struct file *fp);
-static __inline struct file *	fget_locked(struct filedesc *fdp, int fd);
-int	getvnode(struct filedesc *fdp, int fd, struct file **fpp);
-void	setugidsafety(struct thread *td);
-
 struct filedesc_to_leader *
 filedesc_to_leader_alloc(struct filedesc_to_leader *old,
 			 struct filedesc *fdp,
 			 struct proc *leader);
-
+int	getvnode(struct filedesc *fdp, int fd, struct file **fpp);
+void	setugidsafety(struct thread *td);
 
 static __inline struct file *
 fget_locked(struct filedesc *fdp, int fd)
