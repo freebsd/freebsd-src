@@ -38,7 +38,10 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
+#include <sys/malloc.h>
+
 #include <net/if.h>
+
 #include <netatm/port.h>
 #include <netatm/queue.h>
 #include <netatm/atm.h>
@@ -316,7 +319,7 @@ eni_allocate_buffer ( eup, size )
 		Mbd	*etmp;
 		/* larger then we need - split it */
 
-		etmp = (Mbd *)KM_ALLOC(sizeof(Mbd), M_DEVBUF, M_NOWAIT );
+		etmp = (Mbd *)malloc(sizeof(Mbd), M_DEVBUF, M_NOWAIT);
 		if ( etmp == (Mbd *)NULL ) {
 			/*
 			 * Couldn't allocate new descriptor. Indicate
