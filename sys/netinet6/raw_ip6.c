@@ -68,34 +68,37 @@
 #include "opt_inet6.h"
 
 #include <sys/param.h>
-#include <sys/malloc.h>
-#include <sys/proc.h>
-#include <sys/mbuf.h>
-#include <sys/socket.h>
-#include <sys/protosw.h>
-#include <sys/socketvar.h>
 #include <sys/errno.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/proc.h>
+#include <sys/protosw.h>
+#include <sys/signalvar.h>
+#include <sys/socket.h>
+#include <sys/socketvar.h>
+#include <sys/sx.h>
 #include <sys/systm.h>
 
 #include <net/if.h>
-#include <net/route.h>
 #include <net/if_types.h>
+#include <net/route.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/in_systm.h>
-#include <netinet/ip6.h>
-#include <netinet6/ip6_var.h>
-#include <netinet6/ip6_mroute.h>
 #include <netinet/icmp6.h>
 #include <netinet/in_pcb.h>
-#include <netinet6/in6_pcb.h>
-#include <netinet6/nd6.h>
+#include <netinet/ip6.h>
 #include <netinet6/ip6protosw.h>
+#include <netinet6/ip6_mroute.h>
+#include <netinet6/in6_pcb.h>
+#include <netinet6/ip6_var.h>
+#include <netinet6/nd6.h>
+#include <netinet6/raw_ip6.h>
 #ifdef ENABLE_DEFAULT_SCOPE
 #include <netinet6/scope6_var.h>
 #endif
-#include <netinet6/raw_ip6.h>
 
 #ifdef IPSEC
 #include <netinet6/ipsec.h>

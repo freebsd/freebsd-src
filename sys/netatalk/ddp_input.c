@@ -6,15 +6,18 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/kernel.h>
-#include <net/netisr.h>
+#include <sys/lock.h>
 #include <sys/mbuf.h>
+#include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sx.h>
+#include <sys/systm.h>
 #include <net/if.h>
-#include <net/route.h>
 #include <net/intrq.h>
+#include <net/netisr.h>
+#include <net/route.h>
 
 #include <netatalk/at.h>
 #include <netatalk/at_var.h>

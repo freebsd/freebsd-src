@@ -49,18 +49,20 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/domain.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
-#include <sys/filedesc.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/queue.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
+#include <sys/queue.h>
+#include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sx.h>
 #include <sys/sysctl.h>
+#include <sys/systm.h>
 #ifdef NOTYET
 #include <sys/vnode.h>
 #endif

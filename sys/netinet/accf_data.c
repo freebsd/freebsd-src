@@ -29,9 +29,12 @@
 #define ACCEPT_FILTER_MOD
 
 #include <sys/param.h>
-#include <sys/sysctl.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/sysctl.h>
+#include <sys/signalvar.h>
 #include <sys/socketvar.h>
+#include <sys/sx.h>
 
 /* accept filter that holds a socket until data arrives */
 
