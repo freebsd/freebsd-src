@@ -1,0 +1,79 @@
+Tested Hardware List                  last edit-date: [Mon Feb 20 19:36:20 1995]
+
+This is by no means a complete list of hardware pcvt runs on, it is just 
+compiled from reports people sent in and from hardware owned/loaned !
+
+
+TESTED VIDEO BOARDS (80 column operation)
+--------------------------------------------------------------------------------
+
+Manufacturer			Chipset		Monitor			Notes
+------------------------------	--------------  ----------------------	--------
+2theMax	(?)			ET4000		VGA Color
+Video7 Inc.			VEGA VGA	VGA Color/Mono		(2)
+Diamond Stealth VRAM		S3		NEC 3FGx
+Trident				TVGA 8800CS	NEC 3D
+Trident				TVGA 9000B	VGA Color/Mono		(2)
+Data General			C&T P82C604	VGA Color
+NoName Hercules			W86855AF	Mono
+Tandon Monochrome (Hercules)	TD3088A		Tandon Mono
+Kyocera ML III25 (Mainboard)	WD90C00		JVC VGA Color		(1)
+Kyocera ML III25 (Mainboard)	WD90C00		Nokia CED1 VGA Mono	(1)
+Kyocera ML IIII33 (Mainboard)	WD90C11		Nokia CED1 VGA Mono	(1)
+NoName VGA			TVGA9000B	JVC VGA Color		(1,2)
+Tseng Labs			ET3000AX	JVC VGA Color		(2)
+Video7 Inc.			VEGA VGA	VGA Mono		(2)
+Video7 Inc.			1024i		VGA Mono		(2)
+ELSA GmbH			S3 928		VGA Mono/Color
+IBM EGA				6845		Monochrome		(2,3)
+IBM EGA				6845		Tandon EGA Color	(2,3)
+Trident				TVGA 8900CL	VGA Mono                (2)
+
+Notes:
+(1) - slight display distortion when switching between screens
+(2) - remarkable display distortion and/or loss of sync while loading fonts
+(3) - snow while scrolling with HP function key labels turned on
+
+TESTED VIDEO BOARDS (132 column operation)
+--------------------------------------------------------------------------------
+
+Manufacturer			Chipset		Monitor			Notes
+------------------------------	--------------  ----------------------	--------
+2theMax	(?)			ET4000		VGA Color
+2theMax	(?)			ET4000		Tandon VGA Mono
+Kyocera ML III33 (Mainboard)	WD90C11		Tandon VGA Mono		(1,2)
+Kyocera ML IIII33 (Mainboard)	WD90C11		Tandon VGA Mono		(1,2)
+Kyocera ML IIII33 (Mainboard)	WD90C11		VGA Color		(1,2)
+Trident (?)			TVGA9000B	VGA Mono		(1,3)
+Tseng Labs (?)			ET3000		NEC 3D
+ELSA GmbH			S3 928		VGA Mono/Color
+Trident				TVGA 8900CL	VGA Mono
+
+Notes:
+(1) - slight display distortion when switching between screens
+(2) - all fonts must be loaded in ascending order prior to switching to 132 cols
+(3) - remarkable display distortion and/or loss of sync while loading fonts
+
+
+TESTED KEYBOARDS
+--------------------------------------------------------------------------------
+
+Manufacturer			Type			Layout
+------------------------------	----------------------	------------------------
+Cherry				MF II			US
+Cherry/Tandon			MF II			German
+Hewlett-Packard			MF II			US
+Hewlett-Packard			MF II			German
+Tatung				AT			German
+Kyocera				MF II			German
+
+There is absolutely NO support for the ancient PC-keyboards (they had 83 keys).
+
+There is only limited support for AT-keyboards (they have 84 keys, and a 
+separate numeric keypad, they don't have F9-F12 keys) because the emulator
+needs F9-F12 for control functions, and due to the current design of the
+keyboard driver there is no (full) support for national keyboards because
+of the lack of a ALTGR key.
+
+MF-keyboards are fully supported, 101- and 102-key versions.
+
