@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.2 1996/04/02 05:26:56 kashmir Exp $
+ * $Id: kern_fork.c,v 1.20 1996/04/17 17:04:55 smpatel Exp $
  */
 
 #include "opt_ktrace.h"
@@ -218,6 +218,11 @@ again:
 	    (unsigned) ((caddr_t)&p2->p_endzero - (caddr_t)&p2->p_startzero));
 	bcopy(&p1->p_startcopy, &p2->p_startcopy,
 	    (unsigned) ((caddr_t)&p2->p_endcopy - (caddr_t)&p2->p_startcopy));
+
+	/*
+	 * XXX: this should be done as part of the startzero above
+	 */
+	p2->p_vmspace = 0;		/* XXX */
 
 	/*
 	 * Duplicate sub-structures as needed.
