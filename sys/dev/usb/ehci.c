@@ -1,12 +1,4 @@
-/*	$NetBSD: ehci.c,v 1.87 2004/10/25 10:29:49 augustss Exp $	*/
-
-/*
- * TODO
- *  hold off explorations by companion controllers until ehci has started.
- */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+/*	$NetBSD: ehci.c,v 1.89 2004/12/03 08:51:31 augustss Exp $ */
 
 /*
  * Copyright (c) 2004 The NetBSD Foundation, Inc.
@@ -71,6 +63,9 @@ __FBSDID("$FreeBSD$");
  *
  * 4) command failures are not recovered correctly
 */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -821,12 +816,12 @@ ehci_idone(struct ehci_xfer *ex)
 			actlen += sqtd->len - EHCI_QTD_GET_BYTES(status);
 	}
 
-	/*
+	/* 
 	 * If there are left over TDs we need to update the toggle.
 	 * The default pipe doesn't need it since control transfers
 	 * start the toggle at 0 every time.
 	 */
-	if (sqtd != lsqtd->nextqtd &&
+	if (sqtd != lsqtd->nextqtd && 
 	    xfer->pipe->device->default_pipe != xfer->pipe) {
 		DPRINTF(("ehci_idone: need toggle update status=%08x nstatus=%08x\n", status, nstatus));
 #if 0
@@ -836,7 +831,7 @@ ehci_idone(struct ehci_xfer *ex)
 		epipe->nexttoggle = EHCI_QTD_GET_TOGGLE(nstatus);
 	}
 
-	/*
+	/* 
 	 * For a short transfer we need to update the toggle for the missing
 	 * packets within the qTD.
 	 */
@@ -1120,6 +1115,12 @@ ehci_power(int why, void *v)
 #endif
 	}
 	splx(s);
+
+#ifdef EHCI_DEBUG
+	DPRINTF(("ehci_power: sc=%p\n", sc));
+	if (ehcidebug > 0)
+		ehci_dump_regs(sc);
+#endif
 }
 
 /*
@@ -1408,10 +1409,10 @@ ehci_open(usbd_pipe_handle pipe)
 	}
 	if (speed != EHCI_QH_SPEED_HIGH) {
 		printf("%s: *** WARNING: opening low/full speed device, this "
-		    "does not work yet.\n",
-		    USBDEVNAME(sc->sc_bus.bdev));
+		       "does not work yet.\n",
+		       USBDEVNAME(sc->sc_bus.bdev));
 		DPRINTFN(1,("ehci_open: hshubaddr=%d hshubport=%d\n",
-		    hshubaddr, hshubport));
+			    hshubaddr, hshubport));
 		if (xfertype != UE_CONTROL)
 			return USBD_INVAL;
 	}
@@ -1537,7 +1538,7 @@ ehci_set_qh_qtd(ehci_soft_qh_t *sqh, ehci_soft_qtd_t *sqtd)
 	/* Save toggle bit and ping status. */
 	status = sqh->qh.qh_qtd.qtd_status &
 	    htole32(EHCI_QTD_TOGGLE_MASK |
-	    EHCI_QTD_SET_STATUS(EHCI_QTD_PINGSTATE));
+		    EHCI_QTD_SET_STATUS(EHCI_QTD_PINGSTATE));
 	/* Set HALTED to make hw leave it alone. */
 	sqh->qh.qh_qtd.qtd_status =
 	    htole32(EHCI_QTD_SET_STATUS(EHCI_QTD_HALTED));
@@ -2190,6 +2191,7 @@ ehci_root_intr_close(usbd_pipe_handle pipe)
 void
 ehci_root_ctrl_done(usbd_xfer_handle xfer)
 {
+	xfer->hcpriv = NULL;
 }
 
 /************************/
@@ -3199,7 +3201,7 @@ ehci_device_intr_done(usbd_xfer_handle xfer)
 
 		xfer->status = USBD_IN_PROGRESS;
 	} else if (xfer->status != USBD_NOMEM && ehci_active_intr_list(ex)) {
-		ehci_del_intr_list(ex);	/* remove from active list */
+		ehci_del_intr_list(ex); /* remove from active list */
 		ehci_free_sqtd_chain(sc, ex->sqtdstart, NULL);
 	}
 #undef exfer
