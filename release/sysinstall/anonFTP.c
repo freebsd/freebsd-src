@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: anonFTP.c,v 1.3 1995/11/11 10:59:23 jkh Exp $
+ * $Id: anonFTP.c,v 1.4 1995/11/11 11:49:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -161,18 +161,13 @@ int createFtpUser()
  int gid;
  FILE *fptr;
 
-   if ((gid = atoi(tconf.group)) <= 0)
-    {
-     if (!(tgrp = getgrnam(tconf.group)))
-      {
+   if ((gid = atoi(tconf.group)) <= 0) {
+     if (!(tgrp = getgrnam(tconf.group))) {
 	/* group does not exist, create it by name */
 
-	tptr = msgGetInput("14","What group ID to use for group %s ?",
-			tconf.group);
-	if (tptr && *tptr && ((gid = atoi(tptr)) > 0))
-	 {
-	  if ((fptr = fopen(_PATH_GROUP,"a")))
-	   {
+	tptr = msgGetInput("14", "What group ID to use for group %s ?", tconf.group);
+	if (tptr && *tptr && ((gid = atoi(tptr)) > 0)) {
+	  if ((fptr = fopen(_PATH_GROUP,"a"))) {
 	    fprintf(fptr,"%s:*:%d:%s\n",tconf.group,gid,FTP_NAME);
 	    fclose(fptr);
 	   }
@@ -183,49 +178,42 @@ int createFtpUser()
      else
 	gid = tgrp->gr_gid;
     }
-   else if (! getgrgid(gid))
-    {
+   else if (!getgrgid(gid)) {
 	/* group does not exist, create it by number */
 
-	tptr = msgGetInput("14","What group name to use for gid %d ?", gid);
-	if (tptr && *tptr)
-	 {
-	  strcpy(tconf.group,tptr);
-	  if ((tgrp = getgrnam(tconf.group)))
-	   {
+	tptr = msgGetInput("14", "What group name to use for gid %d ?", gid);
+	if (tptr && *tptr) {
+	  strcpy(tconf.group, tptr);
+	  if ((tgrp = getgrnam(tconf.group))) {
 	    gid = tgrp->gr_gid;
-	   }
-	  else if ((fptr = fopen(_PATH_GROUP,"a")))
-	   {
+	  }
+	  else if ((fptr = fopen(_PATH_GROUP,"a"))) {
 	    fprintf(fptr,"%s:*:%d:%s\n",tconf.group,gid,FTP_NAME);
 	    fclose(fptr);
-	   }
-	 }
+	  }
+	}
     }
 
-  if ((tpw = getpwnam(FTP_NAME)))
-   {
+  if ((tpw = getpwnam(FTP_NAME))) {
     if (tpw->pw_uid != FTP_UID)
 	msgConfirm("FTP user already exists with a different uid.");
 
     return (RET_SUCCESS); 	/* succeeds if already exists */
    }
 
-   sprintf(pwline, "%s::%s:%d::0:0:%s:%s:/bin/date\n", FTP_NAME, tconf.uid,
-		gid, tconf.comment, tconf.homedir);
+   sprintf(pwline, "%s::%s:%d::0:0:%s:%s:/bin/date\n", FTP_NAME, tconf.uid, gid, tconf.comment, tconf.homedir);
 
    fptr = fopen(_PATH_MASTERPASSWD,"a");
-   if (! fptr)
-    {
+   if (! fptr) {
      msgConfirm("Could not open master password file.");
      return (RET_FAIL);
     }
-   fprintf(fptr,pwline);
+   fprintf(fptr, pwline);
    fclose(fptr);
+   msgNotify("Remaking password file: %s", _PATH_MASTERPASSWD);
    vsystem("pwd_mkdb -p %s", _PATH_MASTERPASSWD);
 
    return (RET_SUCCESS);
-
 }
 
 /* This is it - how to get the setup values */
@@ -426,18 +414,18 @@ configAnonFTP(char *unused)
     i = anonftpOpenDialog();
     if (i != RET_SUCCESS) {
 	dialog_clear();
-	msgConfirm("Configuration of Anonymous FTP was cancelled per\n"
-		   "user request.");
+	msgConfirm("Configuration of Anonymous FTP cancelled per user request.");
 	return i;
     }
-    /*** Fix defaults for invalid value ***/
+
+    /*** Use defaults for any invalid values ***/
     if (atoi(tconf.uid) <= 0)
 	sprintf(tconf.uid, "%d", FTP_UID);
     
-    if (! tconf.group[0])
+    if (!tconf.group[0])
 	strcpy(tconf.group, FTP_GROUP);
     
-    if (! tconf.upload[0])
+    if (!tconf.upload[0])
 	strcpy(tconf.upload, FTP_UPLOAD);
     
     /*** If the user did not specify a directory, use default ***/
@@ -446,52 +434,48 @@ configAnonFTP(char *unused)
 	tconf.homedir[strlen(tconf.homedir)-1] = '\0';
     
     if (!tconf.homedir[0])
-	strcpy(tconf.homedir,FTP_HOMEDIR);
+	strcpy(tconf.homedir, FTP_HOMEDIR);
     
     /*** If HomeDir does not exist, create it ***/
     
-  if (! directoryExists(tconf.homedir))
-   {
+  if (!directoryExists(tconf.homedir)) {
     vsystem("mkdir -p %s" ,tconf.homedir);
-   }
+  }
 
-  if (directoryExists(tconf.homedir))
-   {
-    vsystem("chmod 555 %s && chown root.%s %s", tconf.homedir, tconf.group,
-	tconf.homedir);
+  if (directoryExists(tconf.homedir)) {
+    msgNotify("Configuring %s for use by anon FTP.", tconf.homedir);
+    vsystem("chmod 555 %s && chown root.%s %s", tconf.homedir, tconf.group, tconf.homedir);
     vsystem("mkdir %s/bin && chmod 555 %s/bin", tconf.homedir, tconf.homedir);
-    vsystem("cp /bin/ls %s/bin && chmod 111 %s/bin/ls", tconf.homedir,
-	tconf.homedir);
-    vsystem("cp /bin/date %s/bin && chmod 111 %s/bin/date", tconf.homedir,
-	tconf.homedir);
+    vsystem("cp /bin/ls %s/bin && chmod 111 %s/bin/ls", tconf.homedir, tconf.homedir);
+    vsystem("cp /bin/date %s/bin && chmod 111 %s/bin/date", tconf.homedir, tconf.homedir);
     vsystem("mkdir %s/etc && chmod 555 %s/etc", tconf.homedir, tconf.homedir);
     vsystem("mkdir -p %s/pub", tconf.homedir);
     vsystem("mkdir -p %s/%s", tconf.homedir, tconf.upload);
     vsystem("chmod 1777 %s/%s", tconf.homedir, tconf.upload);
 
-    if (createFtpUser() == RET_SUCCESS)
-     {
+    if (createFtpUser() == RET_SUCCESS) {
+      msgNotify("Copying password information for anon FTP.");
       vsystem("cp /etc/pwd.db %s/etc && chmod 444 %s/etc/pwd.db", tconf.homedir, tconf.homedir);
       vsystem("cp /etc/passwd %s/etc && chmod 444 %s/etc/passwd",tconf.homedir, tconf.homedir);
       vsystem("cp /etc/group %s/etc && chmod 444 %s/etc/group", tconf.homedir, tconf.homedir);
       vsystem("chown -R %s.%s %s/pub", FTP_NAME, tconf.group, tconf.homedir);
-     }
-    else
-     {
+    }
+    else {
       dialog_clear();
       msgConfirm("Unable to create FTP user!  Anonymous FTP setup failed.");
       i = RET_FAIL;
-     }
+    }
 
-    if (!msgYesNo("Create a welcome message file for anonymous FTP users?"))
-     {
+    dialog_clear();
+    if (!msgYesNo("Create a welcome message file for anonymous FTP users?")) {
       vsystem("echo Your welcome message here. > %s/etc/%s", tconf.homedir, MOTD_FILE);
       vsystem("/stand/ee %s/etc/%s", tconf.homedir, MOTD_FILE);
      }
-   }
+  }
   else {
 	dialog_clear();
-	msgConfirm("Invalid Directory. Anonymous FTP will not be set up.");
+	msgConfirm("Invalid Directory: %s\n"
+		   "Anonymous FTP will not be set up.", tconf.homedir);
 	i = RET_FAIL;
   }
   return i;
