@@ -435,7 +435,7 @@ nfs_uninit(struct vfsconf *vfsp)
 	sysent[SYS_nfsclnt].sy_narg = nfs_prev_nfsclnt_sy_narg;
 	sysent[SYS_nfsclnt].sy_call = nfs_prev_nfsclnt_sy_call;
 
-	KASSERT(TAILQ_ISEMPTY(&nfs_reqq),
+	KASSERT(TAILQ_EMPTY(&nfs_reqq),
 	    ("nfs_uninit: request queue not empty"));
 
 	/*
