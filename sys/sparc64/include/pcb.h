@@ -32,19 +32,11 @@
 #include <machine/fp.h>
 #include <machine/frame.h>
 
-/*
- * XXX: MAXWIN should probably be done dynamically, pcb_wscratch is therefore
- * at the end of the pcb.
- */
-#define	MAXWIN		8
-
-/* Used in pcb_fcwp to mark the wscratch stack as empty. */
-#define	PCB_CWP_EMPTY	0xff
+#define	MAXWIN	8
 
 /* NOTE: pcb_fpstate must be aligned on a 64 byte boundary. */
 struct pcb {
 	struct	fpstate	pcb_fpstate;
-	u_long	pcb_cwp;
 	u_long	pcb_fp;
 	u_long	pcb_pc;
 	u_long	pcb_y;
