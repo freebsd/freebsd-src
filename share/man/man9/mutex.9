@@ -127,7 +127,7 @@ In order to protect an interrupt service routine from blocking
 against itself all interrupts are blocked on a processor while
 holding a spin lock.
 It is permissible to hold multiple spin mutexes.
-In this case it is a required that they be released in the opposite
+In this case it is a requirement that they be released in the opposite
 order to that which they were acquired.
 .Pp
 Once a spin mutex has been acquired it is not permissible to acquire a
