@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.25 1996/01/22 22:43:48 wollman Exp $
+**  $Id: pcisupport.c,v 1.26 1996/01/23 20:21:24 wollman Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -403,7 +403,7 @@ static const struct condmsg conf82437fx[] =
     { 0x52, 0x30, 0x20, M_EQ, " asynchronous" },
     { 0x52, 0x30, 0x30, M_EQ, " dual-bank pipelined-burst" },
     { 0x00, 0x00, 0x00, M_TR, " secondary; L1 " },
-    { 0x52, 0x01, 0x00, M_NN, 0 },
+    { 0x52, 0x01, 0x00, M_EN, 0 },
     { 0x00, 0x00, 0x00, M_TR, "\n" },
 
     /* DRAMC -- DRAM Control Register */
