@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1990, 1991, 1992, 1993, 1994, 1995, 1996
+ * Copyright (c) 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: nametoaddr.c,v 1.45 96/10/17 23:26:53 leres Exp $ (LBL)";
+    "@(#) $Header: nametoaddr.c,v 1.48 98/07/12 13:15:36 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -345,7 +345,7 @@ pcap_ether_hostton(const char *name)
 	if (ether_hostton((char *)name, (struct ether_addr *)a) == 0) {
 		ap = (u_char *)malloc(6);
 		if (ap != NULL)
-			memcpy(ap, a, 6);
+			memcpy((char *)ap, (char *)a, 6);
 	}
 	return (ap);
 }
