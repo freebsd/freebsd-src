@@ -64,7 +64,7 @@ Write_Disk(const struct disk *d1)
 	/*
 	 * Tell SRM where the bootstrap is.
 	 */
-	lp = (u_long *)buf;
+	lp = (uint64_t *)buf;
 	lp[60] = (BBSIZE - 512) / 512;	/* Length */
 	lp[61] = 1;			/* Start */
 	lp[62] = 0;			/* Flags */
