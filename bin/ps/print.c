@@ -106,11 +106,9 @@ arguments(KINFO *k, VARENT *ve)
 	char *cp, *vis_args;
 
 	v = ve->var;
-
 	if ((vis_args = malloc(strlen(k->ki_args) * 4 + 1)) == NULL)
 		errx(1, "malloc failed");
 	strvis(vis_args, k->ki_args, VIS_TAB | VIS_NL | VIS_NOSLASH);
-
 	if (ve->next == NULL) {
 		/* last field */
 		if (termwidth == UNLIMITED) {
@@ -136,7 +134,6 @@ command(KINFO *k, VARENT *ve)
 	char *cp, *vis_env, *vis_args;
 
 	v = ve->var;
-
 	if (cflag) {
 		if (ve->next == NULL)	/* last field, don't pad */
 			(void)printf("%s", k->ki_p->ki_comm);
@@ -144,7 +141,6 @@ command(KINFO *k, VARENT *ve)
 			(void)printf("%-*s", v->width, k->ki_p->ki_comm);
 		return;
 	}
-
 	if ((vis_args = malloc(strlen(k->ki_args) * 4 + 1)) == NULL)
 		errx(1, "malloc failed");
 	strvis(vis_args, k->ki_args, VIS_TAB | VIS_NL | VIS_NOSLASH);
@@ -294,7 +290,7 @@ uname(KINFO *k, VARENT *ve)
 int
 s_uname(KINFO *k)
 {
-	    return (strlen(user_from_uid(k->ki_p->ki_uid, 0)));
+	return (strlen(user_from_uid(k->ki_p->ki_uid, 0)));
 }
 
 void
@@ -324,7 +320,7 @@ runame(KINFO *k, VARENT *ve)
 int
 s_runame(KINFO *k)
 {
-	    return (strlen(user_from_uid(k->ki_p->ki_ruid, 0)));
+	return (strlen(user_from_uid(k->ki_p->ki_ruid, 0)));
 }
 
 
@@ -356,13 +352,13 @@ tname(KINFO *k, VARENT *ve)
 	v = ve->var;
 	dev = k->ki_p->ki_tdev;
 	if (dev == NODEV || (ttname = devname(dev, S_IFCHR)) == NULL)
-		(void)printf("%*s ", v->width-1, "??");
+		(void)printf("%*s ", v->width - 1, "??");
 	else {
 		if (strncmp(ttname, "tty", 3) == 0 ||
 		    strncmp(ttname, "cua", 3) == 0)
 			ttname += 3;
-		(void)printf("%*.*s%c", v->width-1, v->width-1, ttname,
-			k->ki_p->ki_kiflag & KI_CTTY ? ' ' : '-');
+		(void)printf("%*.*s%c", v->width - 1, v->width - 1, ttname,
+		    k->ki_p->ki_kiflag & KI_CTTY ? ' ' : '-');
 	}
 }
 
@@ -387,28 +383,26 @@ started(KINFO *k, VARENT *ve)
 	VAR *v;
 	time_t then;
 	struct tm *tp;
+	static int use_ampm = -1;
 	char buf[100];
-	static int  use_ampm = -1;
 
 	v = ve->var;
 	if (!k->ki_valid) {
 		(void)printf("%-*s", v->width, "-");
 		return;
 	}
-
 	if (use_ampm < 0)
 		use_ampm = (*nl_langinfo(T_FMT_AMPM) != '\0');
-
 	then = k->ki_p->ki_start.tv_sec;
 	tp = localtime(&then);
 	if (now - k->ki_p->ki_start.tv_sec < 24 * 3600) {
-		(void)strftime(buf, sizeof(buf) - 1,
-		use_ampm ? "%l:%M%p" : "%k:%M  ", tp);
+		(void)strftime(buf, sizeof(buf),
+		    use_ampm ? "%l:%M%p" : "%k:%M  ", tp);
 	} else if (now - k->ki_p->ki_start.tv_sec < 7 * 86400) {
-		(void)strftime(buf, sizeof(buf) - 1,
-		use_ampm ? "%a%I%p" : "%a%H  ", tp);
+		(void)strftime(buf, sizeof(buf),
+		    use_ampm ? "%a%I%p" : "%a%H  ", tp);
 	} else
-		(void)strftime(buf, sizeof(buf) - 1, "%e%b%y", tp);
+		(void)strftime(buf, sizeof(buf), "%e%b%y", tp);
 	(void)printf("%-*s", v->width, buf);
 }
 
@@ -425,7 +419,7 @@ lstarted(KINFO *k, VARENT *ve)
 		return;
 	}
 	then = k->ki_p->ki_start.tv_sec;
-	(void)strftime(buf, sizeof(buf) -1, "%c", localtime(&then));
+	(void)strftime(buf, sizeof(buf), "%c", localtime(&then));
 	(void)printf("%-*s", v->width, buf);
 }
 
@@ -438,7 +432,7 @@ lockname(KINFO *k, VARENT *ve)
 	if (k->ki_p->ki_kiflag & KI_LOCKBLOCK) {
 		if (k->ki_p->ki_lockname[0] != 0)
 			(void)printf("%-*.*s", v->width, v->width,
-				      k->ki_p->ki_lockname);
+			    k->ki_p->ki_lockname);
 		else
 			(void)printf("%-*s", v->width, "???");
 	} else
@@ -454,13 +448,12 @@ wchan(KINFO *k, VARENT *ve)
 	if (k->ki_p->ki_wchan) {
 		if (k->ki_p->ki_wmesg[0] != 0)
 			(void)printf("%-*.*s", v->width, v->width,
-				      k->ki_p->ki_wmesg);
+			    k->ki_p->ki_wmesg);
 		else
 			(void)printf("%-*lx", v->width,
 			    (long)k->ki_p->ki_wchan);
-	} else {
+	} else
 		(void)printf("%-*s", v->width, "-");
-	}
 }
 
 void
@@ -472,7 +465,7 @@ mwchan(KINFO *k, VARENT *ve)
 	if (k->ki_p->ki_wchan) {
 		if (k->ki_p->ki_wmesg[0] != 0)
 			(void)printf("%-*.*s", v->width, v->width,
-				      k->ki_p->ki_wmesg);
+			    k->ki_p->ki_wmesg);
 		else
 			(void)printf("%-*lx", v->width,
 			    (long)k->ki_p->ki_wchan);
@@ -480,12 +473,10 @@ mwchan(KINFO *k, VARENT *ve)
 		if (k->ki_p->ki_lockname[0]) {
 			(void)printf("%-*.*s", v->width, v->width,
 			    k->ki_p->ki_lockname);
-		} else {
+		} else
 			(void)printf("%-*s", v->width, "???");
-		}
-	} else {
+	} else
 		(void)printf("%-*s", v->width, "-");
-	}
 }
 
 void
@@ -504,12 +495,12 @@ cputime(KINFO *k, VARENT *ve)
 	long secs;
 	long psecs;	/* "parts" of a second. first micro, then centi */
 	char obuff[128];
-	static char decimal_point = 0;
+	static char decimal_point;
 
-	if (!decimal_point)
+	if (decimal_point == '\0')
 		decimal_point = localeconv()->decimal_point[0];
 	v = ve->var;
-	if (k->ki_p->ki_stat == SZOMB || !k->ki_valid) {
+	if (!k->ki_valid) {
 		secs = 0;
 		psecs = 0;
 	} else {
@@ -531,8 +522,8 @@ cputime(KINFO *k, VARENT *ve)
 		secs += psecs / 100;
 		psecs = psecs % 100;
 	}
-	(void)snprintf(obuff, sizeof(obuff),
-	    "%3ld:%02ld%c%02ld", secs/60, secs%60, decimal_point, psecs);
+	(void)snprintf(obuff, sizeof(obuff), "%3ld:%02ld%c%02ld",
+	    secs / 60, secs % 60, decimal_point, psecs);
 	(void)printf("%*s", v->width, obuff);
 }
 
@@ -540,30 +531,26 @@ void
 elapsed(KINFO *k, VARENT *ve)
 {
 	VAR *v;
-	time_t days, hours, mins, secs;
+	time_t val;
+	int days, hours, mins, secs;
 	char obuff[128];
 
 	v = ve->var;
-
-	secs = now - k->ki_p->ki_start.tv_sec;
-	days = secs/(24*60*60);
-	secs %= (24*60*60);
-	hours = secs/(60*60);
-	secs %= (60*60);
-	mins = secs/60;
-	secs %= 60;
-	if (days != 0) {
-		(void)snprintf(obuff, sizeof(obuff), "%3ld-%02ld:%02ld:%02ld",
-			(long)days, (long)hours, (long)mins, (long)secs);
-	}
-	else if (hours != 0) {
-		(void)snprintf(obuff, sizeof(obuff), "%02ld:%02ld:%02ld",
-			            (long)hours, (long)mins, (long)secs);
-	}
-	else {
-		(void)snprintf(obuff, sizeof(obuff), "%02ld:%02ld",
-			                         (long)mins, (long)secs);
-	}
+	val = now - k->ki_p->ki_start.tv_sec;
+	days = val / (24 * 60 * 60);
+	val %= 24 * 60 * 60;
+	hours = val / (60 * 60);
+	val %= 60 * 60;
+	mins = val / 60;
+	secs = val % 60;
+	if (days != 0)
+		(void)snprintf(obuff, sizeof(obuff), "%3d-%02d:%02d:%02d",
+		    days, hours, mins, secs);
+	else if (hours != 0)
+		(void)snprintf(obuff, sizeof(obuff), "%02d:%02d:%02d",
+		    hours, mins, secs);
+	else
+		(void)snprintf(obuff, sizeof(obuff), "%02d:%02d", mins, secs);
 	(void)printf("%*s", v->width, obuff);
 }
 
@@ -612,7 +599,7 @@ getpmem(KINFO *k)
 		return (0.0);
 	/* XXX want pmap ptpages, segtab, etc. (per architecture) */
 	/* XXX don't have info about shared */
-	fracmem = ((float)k->ki_p->ki_rssize)/mempages;
+	fracmem = ((float)k->ki_p->ki_rssize) / mempages;
 	return (100.0 * fracmem);
 }
 
@@ -757,25 +744,22 @@ void
 label(KINFO *k, VARENT *ve)
 {
 	char *string;
+	VAR *v;
 	mac_t proclabel;
 	int error;
-	VAR *v;
 
 	v = ve->var;
 	string = NULL;
-
 	if (mac_prepare_process_label(&proclabel) == -1) {
 		perror("mac_prepare_process_label");
 		goto out;
 	}
-
 	error = mac_get_pid(k->ki_p->ki_pid, proclabel);
 	if (error == 0) {
 		if (mac_to_text(proclabel, &string) == -1)
 			string = NULL;
 	}
 	mac_free(proclabel);
-
 out:
 	if (string != NULL) {
 		(void)printf("%-*s", v->width, string);
