@@ -388,6 +388,7 @@ pcic_attach(device_t dev)
 
 		/* Check for changes */
 		sp->slt->laststate = sp->slt->state = empty;
+		sp->putb(sp, PCIC_POWER, 0);
 		if (pcic_boot_deactivated) {
 			if ((sp->getb(sp, PCIC_STATUS) & PCIC_CD) == PCIC_CD) {
 				sp->slt->state = inactive;
@@ -1282,7 +1283,6 @@ int
 pcic_isa_mapirq(struct pcic_slot *sp, int irq)
 {
 	irq = host_irq_to_pcic(irq);
-	sp->sc->chip->func_intr_way(sp, pcic_iw_isa);
 	if (irq == 0)
 		pcic_clrb(sp, PCIC_INT_GEN, 0xF);
 	else
