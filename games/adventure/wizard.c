@@ -57,8 +57,6 @@ int *d,*t;
 	time(&tvec);
 	tptr=localtime(&tvec);
 	*d=tptr->tm_yday+365*(tptr->tm_year-77); /* day since 1977  (mod leap)   */
-	/* bug: this will overflow in the year 2066 AD                  */
-	/* it will be attributed to Wm the C's millenial celebration    */
 	*t=tptr->tm_hour*60+tptr->tm_min; /* and minutes since midnite    */
 }                                         /* pretty painless              */
 
