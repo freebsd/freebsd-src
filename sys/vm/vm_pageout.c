@@ -207,9 +207,8 @@ int vm_pageout_page_count = VM_PAGEOUT_PAGE_COUNT;
 int vm_page_max_wired;		/* XXX max # of wired pages system-wide */
 
 #if !defined(NO_SWAPPING)
-typedef void freeer_fcn_t(vm_map_t, vm_object_t, vm_pindex_t);
-static void vm_pageout_map_deactivate_pages(vm_map_t, vm_pindex_t);
-static freeer_fcn_t vm_pageout_object_deactivate_pages;
+static void vm_pageout_map_deactivate_pages(vm_map_t, long);
+static void vm_pageout_object_deactivate_pages(pmap_t, vm_object_t, long);
 static void vm_req_vmdaemon(void);
 #endif
 static void vm_pageout_page_stats(void);
@@ -464,23 +463,23 @@ vm_pageout_flush(mc, count, flags, is_object_locked)
  *	The object and map must be locked.
  */
 static void
-vm_pageout_object_deactivate_pages(map, object, desired)
-	vm_map_t map;
-	vm_object_t object;
-	vm_pindex_t desired;
+vm_pageout_object_deactivate_pages(pmap, first_object, desired)
+	pmap_t pmap;
+	vm_object_t first_object;
+	long desired;
 {
+	vm_object_t backing_object, object;
 	vm_page_t p, next;
 	int actcount, rcount, remove_mode;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	if (object->type == OBJT_DEVICE || object->type == OBJT_PHYS)
+	VM_OBJECT_LOCK_ASSERT(first_object, MA_OWNED);
+	if (first_object->type == OBJT_DEVICE || first_object->type == OBJT_PHYS)
 		return;
-
-	while (object) {
-		if (pmap_resident_count(vm_map_pmap(map)) <= desired)
-			return;
+	for (object = first_object;; object = backing_object) {
+		if (pmap_resident_count(pmap) <= desired)
+			goto unlock_return;
 		if (object->paging_in_progress)
-			return;
+			goto unlock_return;
 
 		remove_mode = 0;
 		if (object->shadow_count > 1)
@@ -492,9 +491,9 @@ vm_pageout_object_deactivate_pages(map, object, desired)
 		p = TAILQ_FIRST(&object->memq);
 		vm_page_lock_queues();
 		while (p && (rcount-- > 0)) {
-			if (pmap_resident_count(map->pmap) <= desired) {
+			if (pmap_resident_count(pmap) <= desired) {
 				vm_page_unlock_queues();
-				return;
+				goto unlock_return;
 			}
 			next = TAILQ_NEXT(p, listq);
 			cnt.v_pdpages++;
@@ -502,7 +501,7 @@ vm_pageout_object_deactivate_pages(map, object, desired)
 			    p->hold_count != 0 ||
 			    p->busy != 0 ||
 			    (p->flags & (PG_BUSY|PG_UNMANAGED)) ||
-			    !pmap_page_exists_quick(vm_map_pmap(map), p)) {
+			    !pmap_page_exists_quick(pmap, p)) {
 				p = next;
 				continue;
 			}
@@ -539,8 +538,15 @@ vm_pageout_object_deactivate_pages(map, object, desired)
 			p = next;
 		}
 		vm_page_unlock_queues();
-		object = object->backing_object;
+		if ((backing_object = object->backing_object) == NULL)
+			goto unlock_return;
+		VM_OBJECT_LOCK(backing_object);
+		if (object != first_object)
+			VM_OBJECT_UNLOCK(object);
 	}
+unlock_return:
+	if (object != first_object)
+		VM_OBJECT_UNLOCK(object);
 }
 
 /*
@@ -550,7 +556,7 @@ vm_pageout_object_deactivate_pages(map, object, desired)
 static void
 vm_pageout_map_deactivate_pages(map, desired)
 	vm_map_t map;
-	vm_pindex_t desired;
+	long desired;
 {
 	vm_map_entry_t tmpe;
 	vm_object_t obj, bigobj;
@@ -587,7 +593,7 @@ vm_pageout_map_deactivate_pages(map, desired)
 	}
 
 	if (bigobj != NULL) {
-		vm_pageout_object_deactivate_pages(map, bigobj, desired);
+		vm_pageout_object_deactivate_pages(map->pmap, bigobj, desired);
 		VM_OBJECT_UNLOCK(bigobj);
 	}
 	/*
@@ -602,7 +608,7 @@ vm_pageout_map_deactivate_pages(map, desired)
 			obj = tmpe->object.vm_object;
 			if (obj != NULL) {
 				VM_OBJECT_LOCK(obj);
-				vm_pageout_object_deactivate_pages(map, obj, desired);
+				vm_pageout_object_deactivate_pages(map->pmap, obj, desired);
 				VM_OBJECT_UNLOCK(obj);
 			}
 		}
