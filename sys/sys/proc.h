@@ -347,7 +347,6 @@ struct thread {
  */
 #define	TDF_UNUSED0	0x00000001 /* --available -- */
 #define	TDF_INPANIC	0x00000002 /* Caused a panic, let it drive crashdump. */
-#define	TDF_CAN_UNBIND	0x00000004 /* Only temporarily bound. */
 #define	TDF_SINTR	0x00000008 /* Sleep is interruptible. */
 #define	TDF_TIMEOUT	0x00000010 /* Timing out during sleep. */
 #define	TDF_IDLETD	0x00000020 /* This is a per-CPU idle thread. */
@@ -389,7 +388,7 @@ struct thread {
 #define	TDP_OWEPREEMPT	0x00000100 /* Thread has a pending preemption. */
 #define	TDP_OWEUPC	0x00000200 /* Call addupc() at next AST. */
 #define	TDP_USTATCLOCK	0x00000400 /* Finish user statclock hit at next AST. */
-#define	TDP_UNUSED11	0x00000800 /* -- available-- */
+#define	TDP_CAN_UNBIND	0x00000800 /* Only temporarily bound. */
 #define	TDP_SCHED1	0x00001000 /* Reserved for scheduler private use */
 #define	TDP_SCHED2	0x00002000 /* Reserved for scheduler private use */
 #define	TDP_SCHED3	0x00004000 /* Reserved for scheduler private use */
@@ -412,8 +411,8 @@ struct thread {
 #define	TDK_KSERELSIG	0x0002	/* Blocked in msleep on p->p_siglist. */
 #define	TDK_WAKEUP	0x0004	/* Thread has been woken by kse_wakeup. */
 
-#define	TD_CAN_UNBIND(td)					\
-    (((td)->td_flags & TDF_CAN_UNBIND) == TDF_CAN_UNBIND &&	\
+#define	TD_CAN_UNBIND(td)			\
+    (((td)->td_pflags & TDP_CAN_UNBIND) &&	\
      ((td)->td_upcall != NULL))
 
 #define	TD_IS_SLEEPING(td)	((td)->td_inhibitors & TDI_SLEEPING)
