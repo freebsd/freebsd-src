@@ -319,6 +319,7 @@ hme_config(struct hme_softc *sc)
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+	ifp->if_capenable |= IFCAP_VLAN_MTU;
 
 	callout_init(&sc->sc_tick_ch, 0);
 	return (0);
