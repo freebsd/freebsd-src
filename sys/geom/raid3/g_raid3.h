@@ -190,6 +190,7 @@ struct g_raid3_softc {
 	u_int		sc_syncid;	/* Synchronization ID. */
 	int		sc_bump_syncid;
 	struct g_raid3_device_sync sc_sync;
+	int		sc_idle;	/* DIRTY flags removed. */
 
 	TAILQ_HEAD(, g_raid3_event) sc_events;
 	struct mtx	sc_events_mtx;

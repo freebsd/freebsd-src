@@ -55,8 +55,13 @@ TUNABLE_INT("kern.geom.raid3.debug", &g_raid3_debug);
 SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, debug, CTLFLAG_RW, &g_raid3_debug, 0,
     "Debug level");
 static u_int g_raid3_timeout = 4;
+TUNABLE_INT("kern.geom.raid3.timeout", &g_raid3_timeout);
 SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, timeout, CTLFLAG_RW, &g_raid3_timeout,
     0, "Time to wait on all raid3 components");
+static u_int g_raid3_idletime = 5;
+TUNABLE_INT("kern.geom.raid3.idletime", &g_raid3_idletime);
+SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, idletime, CTLFLAG_RW,
+    &g_raid3_idletime, 0, "Mark components as clean when idling");
 static u_int g_raid3_reqs_per_sync = 5;
 SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, reqs_per_sync, CTLFLAG_RW,
     &g_raid3_reqs_per_sync, 0,
@@ -734,6 +739,48 @@ g_raid3_bump_syncid(struct g_raid3_softc *sc)
 			g_raid3_update_metadata(disk);
 		}
 	}
+}
+
+static void
+g_raid3_idle(struct g_raid3_softc *sc)
+{
+	struct g_raid3_disk *disk;
+	u_int i;
+
+	if (sc->sc_provider == NULL || sc->sc_provider->acw == 0)
+		return;
+	sc->sc_idle = 1;
+	g_topology_lock();
+	for (i = 0; i < sc->sc_ndisks; i++) {
+		disk = &sc->sc_disks[i];
+		if (disk->d_state != G_RAID3_DISK_STATE_ACTIVE)
+			continue;
+		G_RAID3_DEBUG(1, "Disk %s (device %s) marked as clean.",
+		    g_raid3_get_diskname(disk), sc->sc_name);
+		disk->d_flags &= ~G_RAID3_DISK_FLAG_DIRTY;
+		g_raid3_update_metadata(disk);
+	}
+	g_topology_unlock();
+}
+
+static void
+g_raid3_unidle(struct g_raid3_softc *sc)
+{
+	struct g_raid3_disk *disk;
+	u_int i;
+
+	sc->sc_idle = 0;
+	g_topology_lock();
+	for (i = 0; i < sc->sc_ndisks; i++) {
+		disk = &sc->sc_disks[i];
+		if (disk->d_state != G_RAID3_DISK_STATE_ACTIVE)
+			continue;
+		G_RAID3_DEBUG(1, "Disk %s (device %s) marked as dirty.",
+		    g_raid3_get_diskname(disk), sc->sc_name);
+		disk->d_flags |= G_RAID3_DISK_FLAG_DIRTY;
+		g_raid3_update_metadata(disk);
+	}
+	g_topology_unlock();
 }
 
 /*
@@ -1429,6 +1476,9 @@ g_raid3_register_request(struct bio *pbp)
 	    {
 		struct g_raid3_disk_sync *sync;
 
+		if (sc->sc_idle)
+			g_raid3_unidle(sc);
+
 		ndisks = sc->sc_ndisks;
 
 		if (sc->sc_syncdisk == NULL)
@@ -1704,8 +1754,36 @@ g_raid3_worker(void *arg)
 			goto sleep;
 		}
 		if (bp == NULL) {
-			MSLEEP(sc, &sc->sc_queue_mtx, PRIBIO | PDROP, "r3:w1", 0);
-			G_RAID3_DEBUG(5, "%s: I'm here 3.", __func__);
+#define	G_RAID3_IS_IDLE(sc)	((sc)->sc_idle ||			\
+				 ((sc)->sc_provider != NULL &&		\
+				  (sc)->sc_provider->acw == 0))
+			if (G_RAID3_IS_IDLE(sc)) {
+				/*
+				 * If we're already in idle state, sleep without
+				 * a timeout.
+				 */
+				MSLEEP(sc, &sc->sc_queue_mtx, PRIBIO | PDROP,
+				    "r3:w1", 0);
+				G_RAID3_DEBUG(5, "%s: I'm here 3.", __func__);
+			} else {
+				u_int idletime;
+
+				idletime = g_raid3_idletime;
+				if (idletime == 0)
+					idletime = 1;
+				idletime *= hz;
+				if (msleep(sc, &sc->sc_queue_mtx, PRIBIO | PDROP,
+				    "r3:w2", idletime) == EWOULDBLOCK) {
+					G_RAID3_DEBUG(5, "%s: I'm here 4.",
+					    __func__);
+					/*
+					 * No I/O requests in 'idletime'
+					 * seconds, so mark components as clean.
+					 */
+					g_raid3_idle(sc);
+				}
+				G_RAID3_DEBUG(5, "%s: I'm here 5.", __func__);
+			}
 			continue;
 		}
 		nreqs++;
@@ -2635,6 +2713,7 @@ g_raid3_create(struct g_class *mp, const struct g_raid3_metadata *md)
 	sc->sc_round_robin = 0;
 	sc->sc_flags = md->md_mflags;
 	sc->sc_bump_syncid = 0;
+	sc->sc_idle = 0;
 	for (n = 0; n < sc->sc_ndisks; n++)
 		sc->sc_disks[n].d_state = G_RAID3_DISK_STATE_NODISK;
 	bioq_init(&sc->sc_queue);
