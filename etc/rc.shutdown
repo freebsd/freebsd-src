@@ -52,7 +52,7 @@ reboot)
 	;;
 esac
 
-echo -n "Shutting down daemon processes: "
+echo -n "Shutting down daemon processes:"
 
 # for each valid dir in $local_startup, search for init scripts matching *.sh
 case ${local_startup} in
