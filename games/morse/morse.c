@@ -50,6 +50,7 @@ static char sccsid[] = "@(#)morse.c	8.1 (Berkeley) 5/31/93";
 #include <ctype.h>
 #include <locale.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef SPEAKER
 #include <machine/speaker.h>
