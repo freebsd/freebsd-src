@@ -57,6 +57,8 @@
 #include <machine/clock.h>	/* for DELAY */
 #include <sys/soundcard.h>
 
+#include <dev/sound/midi/timer.h>
+
 #define SEQ_CDEV_MAJOR MIDI_CDEV_MAJOR
 
 /*
@@ -65,6 +67,13 @@
  */
 #include <sys/poll.h>
 #define d_select_t d_poll_t
+
+/* Return value from seq_playevent and timer event handers. */
+enum {
+	MORE,
+	TIMERARMED,
+	QUEUEFULL
+};
 
 typedef struct _seqdev_info seqdev_info;
 
@@ -214,7 +223,7 @@ struct _seqdev_info {
 
 	/* The tailq entry of the next sequencer device. */
 	TAILQ_ENTRY(_seqdev_info) sd_link;
-} ;
+};
 
 
 /*
@@ -234,19 +243,30 @@ struct _seqdev_info {
  */
 #define SEQ_BUFFSIZE (1024) /* XXX */
 
-/*
- * some macros for debugging purposes
- * DDB/DEB to enable/disable debugging stuff
- * BVDDB   to enable debugging when bootverbose
- */
-#define DDB(x)	x	/* XXX */
-#define BVDDB(x) if (bootverbose) x
-
-#ifndef DEB
-#define DEB(x)
-#endif
-
 #define MIDI_DEV_SEQ	1	/* Sequencer output /dev/sequencer (FM
 				   synthesizer and MIDI output) */
+#define MIDI_DEV_MUSIC	8	/* Sequencer output /dev/music (FM
+				   synthesizer and MIDI output) */
+
+#ifdef _KERNEL
+
+extern midi_cmdtab	cmdtab_seqioctl[];
+extern midi_cmdtab	cmdtab_timer[];
+
+void	seq_timer(void *arg);
+int	seq_copytoinput(void *arg, u_char *event, int len);
+
+SYSCTL_DECL(_hw_midi_seq);
+
+extern int	seq_debug;
+#define SEQ_DEBUG(x)			\
+	do {				\
+		if (seq_debug) {	\
+			(x);		\
+		}			\
+	} while(0)
+
+#endif /* _KERNEL */
+
 
 #endif /* _SEQUENCER_H_ */

@@ -503,6 +503,7 @@ dev/sound/midi/midi.c	optional midi
 dev/sound/midi/midibuf.c	optional midi
 dev/sound/midi/midisynth.c	optional midi
 dev/sound/midi/sequencer.c	optional seq midi
+dev/sound/midi/timer.c	optional seq midi
 dev/sound/pci/als4000.c	optional pcm pci
 dev/sound/pci/cmi.c	optional pcm pci
 dev/sound/pci/cs4281.c	optional pcm pci

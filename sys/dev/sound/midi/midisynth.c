@@ -437,7 +437,7 @@ synth_readraw(mididev_info *md, u_char *buf, int len, int *lenr, int nonblock)
 	unit = md->unit;
 
 	if ((md->fflags & FREAD) == 0) {
-		DEB(printf("synth_readraw: unit %d is not for reading.\n", unit));
+		MIDI_DEBUG(printf("synth_readraw: unit %d is not for reading.\n", unit));
 		return (EIO);
 	}
 
@@ -478,7 +478,7 @@ synth_writeraw(mididev_info *md, u_char *buf, int len, int *lenw, int nonblock)
 	unit = md->unit;
 
 	if ((md->fflags & FWRITE) == 0) {
-		DEB(printf("synth_writeraw: unit %d is not for writing.\n", unit));
+		MIDI_DEBUG(printf("synth_writeraw: unit %d is not for writing.\n", unit));
 		return (EIO);
 	}
 
