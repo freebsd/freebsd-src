@@ -953,6 +953,11 @@ do {									\
 	((thrd)->kse != NULL) && ((thrd)->kse->k_curthread == (thrd))
 
 #define	THR_IN_SYNCQ(thrd)	(((thrd)->sflags & THR_FLAGS_IN_SYNCQ) != 0)
+
+#define	THR_IS_SUSPENDED(thrd) \
+	(((thrd)->state == PS_SUSPENDED) || \
+	(((thrd)->flags & THR_FLAGS_SUSPENDED) != 0))
+#define	THR_IS_EXITING(thrd)	(((thrd)->flags & THR_FLAGS_EXITING) != 0)
 	
 /*
  * Global variables for the pthread kernel.
