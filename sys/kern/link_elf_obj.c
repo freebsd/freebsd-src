@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_elf.c,v 1.6 1998/10/15 17:16:24 peter Exp $
+ *	$Id: link_elf.c,v 1.7 1998/10/16 03:55:00 peter Exp $
  */
 
 #include <sys/param.h>
@@ -416,17 +416,6 @@ link_elf_load_file(const char* filename, linker_file_t* result)
     Elf_Off base_offset;
     Elf_Addr base_vaddr;
     Elf_Addr base_vlimit;
-    caddr_t base_addr;
-    Elf_Off data_offset;
-    Elf_Addr data_vaddr;
-    Elf_Addr data_vlimit;
-    caddr_t data_addr;
-    Elf_Addr clear_vaddr;
-    caddr_t clear_addr;
-    size_t nclear;
-    Elf_Addr bss_vaddr;
-    Elf_Addr bss_vlimit;
-    caddr_t bss_addr;
     int error = 0;
     int resid;
     elf_file_t ef;

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.136 1998/10/01 20:46:41 jdp Exp $
+ * $Id: vm_map.c,v 1.137 1998/10/13 08:24:43 dg Exp $
  */
 
 /*
@@ -91,8 +91,6 @@
 #include <vm/default_pager.h>
 #include <vm/swap_pager.h>
 #include <vm/vm_zone.h>
-
-static MALLOC_DEFINE(M_VMMAP, "VM map", "VM map structures");
 
 /*
  *	Virtual memory maps provide for the mapping, protection,
@@ -2754,9 +2752,9 @@ vm_freeze_copyopts(object, froma, toa)
 	vm_object_t object;
 	vm_pindex_t froma, toa;
 {
-	int s, rv;
-	vm_object_t robject, robjectn;
-	vm_pindex_t idx, from, to;
+	int rv;
+	vm_object_t robject;
+	vm_pindex_t idx;
 
 	if ((object == NULL) ||
 		((object->flags & OBJ_OPT) == 0))
@@ -2784,12 +2782,10 @@ vm_freeze_copyopts(object, froma, toa)
 
 		for (idx = 0; idx < robject->size; idx++) {
 
-m_outretry:
 			m_out = vm_page_grab(robject, idx,
 						VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 
 			if (m_out->valid == 0) {
-m_inretry:
 				m_in = vm_page_grab(object, bo_pindex + idx,
 						VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 				if (m_in->valid == 0) {

@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.126 1998/09/04 08:06:57 dfr Exp $
+ * $Id: vm_pageout.c,v 1.127 1998/09/29 17:33:59 abial Exp $
  */
 
 /*
@@ -1221,7 +1221,6 @@ vm_pageout()
 	 * The pageout daemon is never done, so loop forever.
 	 */
 	while (TRUE) {
-		int inactive_target;
 		int error;
 		int s = splvm();
 		if (!vm_pages_needed ||
@@ -1275,7 +1274,6 @@ vm_req_vmdaemon()
 static void
 vm_daemon()
 {
-	vm_object_t object;
 	struct proc *p;
 
 	while (TRUE) {

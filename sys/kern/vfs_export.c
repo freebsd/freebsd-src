@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.166 1998/10/14 15:05:52 dt Exp $
+ * $Id: vfs_subr.c,v 1.167 1998/10/25 16:11:49 bde Exp $
  */
 
 /*
@@ -76,9 +76,6 @@
 static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
 
 static void	insmntque __P((struct vnode *vp, struct mount *mp));
-#ifdef DDB
-static void	printlockedvnodes __P((void));
-#endif
 static void	vclean __P((struct vnode *vp, int flags, struct proc *p));
 static void	vfree __P((struct vnode *));
 static void	vgonel __P((struct vnode *vp, struct proc *p));
@@ -708,9 +705,8 @@ vtruncbuf(vp, cred, p, length, blksize)
 	int blksize;
 {
 	register struct buf *bp;
-	struct buf *nbp, *blist;
-	int s, error, anyfreed;
-	vm_object_t object;
+	struct buf *nbp;
+	int s, anyfreed;
 	int trunclbn;
 
 	/*
@@ -1950,12 +1946,12 @@ vprint(label, vp)
 }
 
 #ifdef DDB
+#include <ddb/ddb.h>
 /*
  * List all of the locked vnodes in the system.
  * Called when debugging the kernel.
  */
-static void
-printlockedvnodes()
+DB_SHOW_COMMAND(lockedvnodes, lockedvnodes)
 {
 	struct proc *p = curproc;	/* XXX */
 	struct mount *mp, *nmp;
@@ -2059,8 +2055,6 @@ sysctl_ovfs_conf SYSCTL_HANDLER_ARGS
 
 #endif /* 1 || COMPAT_PRELITE2 */
 
-static volatile int kinfo_vdebug = 1;
-
 #if 0
 #define KINFO_VNODESLOP	10
 /*
@@ -2102,8 +2096,6 @@ again:
 			 */
 			if (vp->v_mount != mp) {
 				simple_unlock(&mntvnode_slock);
-				if (kinfo_vdebug)
-					printf("kinfo: vp changed\n");
 				goto again;
 			}
 			nvp = vp->v_mntvnodes.le_next;

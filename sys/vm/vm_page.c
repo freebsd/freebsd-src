@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.108 1998/10/21 11:43:04 dg Exp $
+ *	$Id: vm_page.c,v 1.109 1998/10/21 14:46:41 dg Exp $
  */
 
 /*
@@ -500,7 +500,6 @@ vm_page_lookup(object, pindex)
 	register vm_page_t m;
 	register struct pglist *bucket;
 	int generation;
-	int s;
 
 	/*
 	 * Search the hash table for this object/offset pair
@@ -1001,7 +1000,6 @@ vm_wait()
 
 int
 vm_page_sleep(vm_page_t m, char *msg, char *busy) {
-	vm_object_t object = m->object;
 	int slept = 0;
 	if ((busy && *busy) || (m->flags & PG_BUSY)) {
 		int s;
@@ -1028,8 +1026,6 @@ vm_page_activate(m)
 	register vm_page_t m;
 {
 	int s;
-	vm_page_t np;
-	vm_object_t object;
 
 	s = splvm();
 	if (m->queue != PQ_ACTIVE) {

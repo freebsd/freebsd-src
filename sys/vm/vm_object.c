@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.131 1998/10/23 05:25:49 dg Exp $
+ * $Id: vm_object.c,v 1.132 1998/10/23 05:43:13 dg Exp $
  */
 
 /*
@@ -294,7 +294,6 @@ void
 vm_object_deallocate(object)
 	vm_object_t object;
 {
-	int s;
 	vm_object_t temp;
 
 	while (object != NULL) {
@@ -520,7 +519,6 @@ vm_object_page_clean(object, start, end, flags)
 	vm_page_t mab[vm_pageout_page_count];
 	vm_page_t ma[vm_pageout_page_count];
 	int curgeneration;
-	struct proc *pproc = curproc;	/* XXX */
 
 	if (object->type != OBJT_VNODE ||
 		(object->flags & OBJ_MIGHTBEDIRTY) == 0)
@@ -776,7 +774,6 @@ vm_object_madvise(object, pindex, count, advise)
 	int count;
 	int advise;
 {
-	int s;
 	vm_pindex_t end, tpindex;
 	vm_object_t tobject;
 	vm_page_t m;
@@ -1298,7 +1295,7 @@ vm_object_page_remove(object, start, end, clean_only)
 {
 	register vm_page_t p, next;
 	unsigned int size;
-	int s, all;
+	int all;
 
 	if (object == NULL)
 		return;

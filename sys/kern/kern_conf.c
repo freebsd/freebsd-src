@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.26 1998/06/26 18:14:25 phk Exp $
+ * $Id: kern_conf.c,v 1.27 1998/07/04 22:30:21 julian Exp $
  */
 
 #include <sys/param.h>
@@ -57,7 +57,6 @@ int	nchrdev = NUMCDEV;
 dev_t
 chrtoblk(dev_t dev)
 {
-	struct bdevsw *bd;
 	struct cdevsw *cd;
 
 	if(cd = cdevsw[major(dev)]) {

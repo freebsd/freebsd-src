@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.87 1998/08/24 08:39:37 dfr Exp $
+ * $Id: vm_fault.c,v 1.88 1998/09/04 08:06:57 dfr Exp $
  */
 
 /*
@@ -183,7 +183,6 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type, int fault_flags)
 	vm_page_t marray[VM_FAULT_READ];
 	int hardfault;
 	int faultcount;
-	struct proc *p = curproc;	/* XXX */
 	struct faultstate fs;
 
 	cnt.v_vm_faults++;	/* needs lock XXX */
