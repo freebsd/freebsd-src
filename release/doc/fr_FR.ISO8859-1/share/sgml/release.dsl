@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.1.2.5
+     Original revision: 1.4
 -->
 
 <!DOCTYPE style-sheet PUBLIC "-//James Clark//DTD DSSSL Style Sheet//EN" [
@@ -44,7 +44,7 @@
               (make element gi: "small"  
                 (literal "Tout utilisateur de FreeBSD ")
 		(literal (entity-text "release.branch"))
-		(literal " doit souscrire a la liste électronique")
+		(literal " doit souscrire à la liste électronique")
                 (literal "<")
 		(create-link (list (list "HREF" "mailto:stable@FreeBSD.org"))
                   (literal "stable@FreeBSD.org"))
@@ -71,7 +71,7 @@
         (define ($create-refentry-xref-link$ refentrytitle manvolnum)
 	  (string-append "http://www.FreeBSD.org/cgi/man.cgi?query="
 			 refentrytitle "&" "sektion=" manvolnum
-			 "&" "manpath=FreeBSD+4.5-stable"))
+			 "&" "manpath=FreeBSD+5.0-current"))
       ]]>
 
       (define (toc-depth nd)
