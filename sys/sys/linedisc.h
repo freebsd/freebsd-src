@@ -258,8 +258,6 @@ void ldisc_deregister(int);
 #endif /* _KERNEL */
 
 #ifdef _KERNEL
-d_open_t	noopen;
-d_close_t	noclose;
 d_read_t	noread;
 d_write_t	nowrite;
 d_ioctl_t	noioctl;
