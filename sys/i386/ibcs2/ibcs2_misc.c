@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1995 Steven Wallace
  * Copyright (c) 1994, 1995 Scott Bartram
  * Copyright (c) 1992, 1993
