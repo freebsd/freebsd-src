@@ -227,8 +227,6 @@ i386/isa/if_wl.c		count		wl
 i386/isa/if_wlp.c		optional	wlp
 i386/isa/intr_machdep.c		standard
 i386/isa/ithread.c		standard
-i386/isa/ipl_funcs.c		standard				\
-	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} ${.IMPSRC}"
 i386/isa/isa.c			optional	isa
 i386/isa/isa_compat.c		optional	isa compat_oldisa	\
 	warning "Old ISA driver compatability shims present."
