@@ -1325,10 +1325,10 @@ zalloc_start:
 			KASSERT(item != NULL,
 			    ("uma_zalloc: Bucket pointer mangled."));
 			cache->uc_allocs++;
-			CPU_UNLOCK(zone, cpu);
 #ifdef INVARIANTS
 			uma_dbg_alloc(zone, NULL, item);
 #endif
+			CPU_UNLOCK(zone, cpu);
 			if (zone->uz_ctor)
 				zone->uz_ctor(item, zone->uz_size, udata);
 			if (flags & M_ZERO)
@@ -1625,13 +1625,6 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 	if (zone->uz_flags & UMA_ZFLAG_FULL)
 		goto zfree_internal;
 
-#ifdef INVARIANTS
-	if (zone->uz_flags & UMA_ZFLAG_MALLOC)
-		uma_dbg_free(zone, udata, item);
-	else
-		uma_dbg_free(zone, NULL, item);
-#endif
-
 zfree_restart:
 	cpu = PCPU_GET(cpuid);
 	CPU_LOCK(zone, cpu);
@@ -1653,6 +1646,12 @@ zfree_start:
 			bucket->ub_bucket[bucket->ub_ptr] = item;
 			if (zone->uz_dtor)
 				zone->uz_dtor(item, zone->uz_size, udata);
+#ifdef INVARIANTS
+			if (zone->uz_flags & UMA_ZFLAG_MALLOC)
+				uma_dbg_free(zone, udata, item);
+			else
+				uma_dbg_free(zone, NULL, item);
+#endif
 			CPU_UNLOCK(zone, cpu);
 			return;
 		} else if (cache->uc_allocbucket) {
