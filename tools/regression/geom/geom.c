@@ -66,42 +66,70 @@ conff(char *file)
 	free(s);
 }
 
-
-
-
-static int
+static void *
 thread_up(void *ptr)
 {
 	struct thread *tp = ptr;
+	int error;
 
 	printf("Running %s\n", tp->name);
+	error = pthread_cond_init(&ptc_up, NULL);
+	if (error)
+		err(1, "pthread_cond_init(ptc_up)");
+	error = pthread_mutex_init(&ptm_up, NULL);
+	if (error)
+		err(1, "pthread_mutex_init(ptm_up)");
+	
+	error = pthread_mutex_lock(&ptm_up);
+	if (error)
+		err(1, "pthread_mutex_init(ptm_up)");
 	for (;;) {
 		g_io_schedule_up(tp);
-		tsleep(&g_wait_up, 0, "up", 0);
+		error = pthread_cond_wait(&ptc_up, &ptm_up);
 	}
 }
 
-static int
+static void *
 thread_down(void *ptr)
 {
 	struct thread *tp = ptr;
+	int error;
+
 	printf("Running %s\n", tp->name);
+	error = pthread_cond_init(&ptc_down, NULL);
+	if (error)
+		err(1, "pthread_cond_init(ptc_down)");
+	error = pthread_mutex_init(&ptm_down, NULL);
+	if (error)
+		err(1, "pthread_mutex_init(ptm_down)");
+	error = pthread_mutex_lock(&ptm_down);
+	if (error)
+		err(1, "pthread_mutex_init(ptm_down)");
 	for (;;) {
 		g_io_schedule_down(tp);
-		tsleep(&g_wait_down, 0, "down", 0);
+		error = pthread_cond_wait(&ptc_down, &ptm_down);
 	}
 }
 
-static int
+static void *
 thread_event(void *ptr)
 {
 	struct thread *tp = ptr;
-	/* nice(5); */
+	int error;
+
 	printf("Running %s\n", tp->name);
+	error = pthread_cond_init(&ptc_event, NULL);
+	if (error)
+		err(1, "pthread_cond_init(ptc_event)");
+	error = pthread_mutex_init(&ptm_event, NULL);
+	if (error)
+		err(1, "pthread_mutex_init(ptm_event)");
+	error = pthread_mutex_lock(&ptm_event);
+	if (error)
+		err(1, "pthread_mutex_init(ptm_event)");
 	for (;;) {
-		usleep(100000);
 		g_run_events();
-		tsleep(&g_wait_event, 0, "events", 0);
+		error = pthread_cond_wait(&ptc_event, &ptm_event);
 	}
 }
 

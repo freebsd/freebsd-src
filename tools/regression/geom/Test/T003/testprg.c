@@ -47,7 +47,7 @@
 #include <sys/sbuf.h>
 #include <geom/geom.h>
 
-int
+void *
 thread_sim(void *ptr __unused)
 {
 
