@@ -334,6 +334,7 @@ rpcbproc_getaddrlist_4_local(void *arg, struct svc_req *rqstp, SVCXPRT *transp,
 	char *saddr, *maddr = NULL;
 
 	free_rpcb_entry_list(&rlist);
+	tail = NULL;
 	prog = regp->r_prog;
 	vers = regp->r_vers;
 	reg_nconf = rpcbind_get_conf(transp->xp_netid);
@@ -362,7 +363,8 @@ rpcbproc_getaddrlist_4_local(void *arg, struct svc_req *rqstp, SVCXPRT *transp,
 		}
 #ifdef RPCBIND_DEBUG
 		if (debugging)
-			fprintf(stderr, "\tmerge with: %s", rbl->rpcb_map.r_addr);
+			fprintf(stderr, "\tmerge with: %s\n",
+			    rbl->rpcb_map.r_addr);
 #endif
 		if ((maddr = mergeaddr(transp, rbl->rpcb_map.r_netid,
 				rbl->rpcb_map.r_addr, saddr)) == NULL) {
