@@ -1,6 +1,8 @@
 # $FreeBSD$
 
-CFLAGS+=-I${.CURDIR}/../../contrib/gdtoa
+# netlib gdtoa sources
+.PATH: ${.CURDIR}/gdtoa
+
 MISRCS+=glue.c
 GDTOASRCS=dmisc.c dtoa.c gdtoa.c gethex.c gmisc.c \
 	hd_init.c hexnan.c misc.c smisc.c \
@@ -8,6 +10,9 @@ GDTOASRCS=dmisc.c dtoa.c gdtoa.c gethex.c gmisc.c \
 .if exists(${.CURDIR}/${MACHINE_ARCH}/stdlib/gdtoa.mk)
 .include "${.CURDIR}/${MACHINE_ARCH}/stdlib/gdtoa.mk"
 .endif
+
+CFLAGS+=-I${.CURDIR}/../../contrib/gdtoa
+
 .for src in ${GDTOASRCS}
 MISRCS+=gdtoa_${src}
 CLEANFILES+=gdtoa_${src}
