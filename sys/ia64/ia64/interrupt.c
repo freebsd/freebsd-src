@@ -123,19 +123,19 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 		intrcnt[INTRCNT_CLOCK]++;
 #endif
 		critical_enter();
+		/* Rearm so we get the next clock interrupt */
+		ia64_set_itm(ia64_get_itc() + itm_reload);
 #ifdef SMP
 		clks[PCPU_GET(cpuid)]++;
 		/* Only the BSP runs the real clock */
 		if (PCPU_GET(cpuid) == 0) {
 #endif
-			ia64_set_itm(ia64_get_itc() + itm_reload);
 			hardclock((struct clockframe *)framep);
 			/* divide hz (1024) by 8 to get stathz (128) */
 			if ((++schedclk2 & 0x7) == 0)
 				statclock((struct clockframe *)framep);
 #ifdef SMP
 		} else {
-			ia64_set_itm(ia64_get_itc() + itm_reload);
 			mtx_lock_spin(&sched_lock);
 			hardclock_process(curthread, TRAPF_USERMODE(framep));
 			if ((schedclk2 & 0x7) == 0)
