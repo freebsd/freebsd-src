@@ -30,7 +30,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"
-.Dd "January 2, 1997"
+.\" Note: The date here should be updated whenever a non-trivial
+.\" change is made to the manual page.
+.Dd January 8, 1997
 .Dt EXAMPLE 4 i386
 .\" Note: Only specify the operating system when the command
 .\" is FreeBSD specific, otherwise use the .Os macro with no
@@ -71,12 +73,31 @@ section.
 .Xr mdoc 7 ,
 .Xr mdoc.samples 7
 .Sh DIAGNOSTICS
-None.
+.Bl -diag
+.It example%d: example diagnostic message.
+An example of a diagnostic message.
+.It example%d: another example diagnostic message.
+Self explanatory.
+.El
 .Sh HISTORY
 The
 .Nm
 manual page example first appeared in
 .Fx 3.0 .
+.Pp
+Some other common
+.Sx HISTORY
+section examples are:
+.Pp
+The
+.Nm
+manual page example first appeared in
+.Bx 4.4 .
+.Pp
+The
+.Nm
+manual page example first appeared in
+.At v6 .
 .Sh AUTHOR
 This
 manual page was written by Mike Pritchard 
