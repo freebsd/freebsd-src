@@ -350,27 +350,22 @@ devclass_alloc_unit(devclass_t dc, int *unitp)
 
     PDEBUG(("unit %d in devclass %s", unit, DEVCLANAME(dc)));
 
-    /*
-     * If we have been given a wired unit number, check for existing
-     * device.
-     */
+    /* If we have been given a wired unit number, check for existing device */
     if (unit != -1) {
 	if (unit >= 0 && unit < dc->maxunit && dc->devices[unit] != NULL) {
 	    if (bootverbose)
 		printf("%s-: %s%d exists, using next available unit number\n",
 		       dc->name, dc->name, unit);
-	    unit = -1;
+	    /* find the next available slot */
+	    while (++unit < dc->maxunit && dc->devices[unit] != NULL)
+		;
 	}
     }
-
-    /*
-     * We ended up with an unwired device, so let's find the next available
-     * slot for it.
-     */
-    if (unit == -1) {
+    else {
+	/* Unwired device, find the next available slot for it */
     	unit = 0;
 	while (unit < dc->maxunit && dc->devices[unit] != NULL)
-		unit++;
+	    unit++;
     }
 
     /*
