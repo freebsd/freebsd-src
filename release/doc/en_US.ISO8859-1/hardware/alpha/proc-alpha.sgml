@@ -2640,10 +2640,6 @@ cpu	EV5</programlisting>
 
         <programlisting>zs0     "/usr/libexec/getty std.9600"   unknown   on secure</programlisting>
 
-      <para>and make the zs node:</para>
-
-      <screen><prompt>#</prompt> <userinput>cd /dev ; sh MAKEDEV zs0</userinput></screen>
-
       <para>For the AlphaServer 8x00 machines the kernel config file 
       must contain:</para>
         <programlisting>options	DEC_KN8AE	# Alpha 8200/8400 (Turbolaser)
