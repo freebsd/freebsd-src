@@ -141,6 +141,8 @@ int	 getopt(int, char * const [], const char *);
 
 extern char *optarg;			/* getopt(3) external variables */
 extern int optind, opterr, optopt;
+
+#define	_CS_PATH		1	/* default value of PATH */
 #endif
 
 /* ISO/IEC 9945-1: 1996 */
