@@ -350,7 +350,6 @@ device		pci
 #
 # AGP GART support
 device		agp
-options 	AGP_AMD64_GART	# Included GART code for AMD64 machines.
 
 
 #####################################################################
