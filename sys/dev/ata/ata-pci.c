@@ -241,13 +241,8 @@ ata_pci_print_child(device_t dev, device_t child)
     int retval = 0;
 
     retval += bus_print_child_header(dev, child);
-    retval += printf(": at 0x%lx", rman_get_start(ch->r_io[ATA_IDX_ADDR].res));
-
-    if (ata_legacy(dev))
-	retval += printf(" irq %d", 14 + ch->unit);
-    
+    retval += printf(": channel #%d", ch->unit);
     retval += bus_print_child_footer(dev, child);
-
     return retval;
 }
 
@@ -428,15 +423,6 @@ ata_pci_allocate(device_t dev, struct ata_channel *ch)
 	    ch->r_io[i].res = ctlr->r_res1;
 	    ch->r_io[i].offset = (i - ATA_BMCMD_PORT)+(ch->unit * ATA_BMIOSIZE);
 	}
-
-	/* if simplex controller, only allow DMA on primary channel */
-	ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, ATA_IDX_INB(ch, ATA_BMSTAT_PORT) &
-		     (ATA_BMSTAT_DMA_MASTER | ATA_BMSTAT_DMA_SLAVE));
-	if (ch->unit > 0 &&
-	    (ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_DMA_SIMPLEX))
-	    device_printf(dev, "simplex device, DMA on primary only\n");
-	else 
-	    ctlr->dmainit(ch);
     }
 
     ata_generic_hw(ch);
@@ -517,12 +503,11 @@ static devclass_t ata_pci_devclass;
 DRIVER_MODULE(atapci, pci, ata_pci_driver, ata_pci_devclass, 0, 0);
 
 static int
-ata_pcisub_probe(device_t dev)
+ata_channel_probe(device_t dev)
 {
-    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
     device_t *children;
-    int count, error, i;
+    int count, i;
 
     /* take care of green memory */
     bzero(ch, sizeof(struct ata_channel));
@@ -535,31 +520,60 @@ ata_pcisub_probe(device_t dev)
     }
     free(children, M_TEMP);
 
+    return ata_probe(dev);
+}
+
+static int
+ata_channel_attach(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
+    int error;
+
     ch->device[MASTER].setmode = ctlr->setmode;
     ch->device[SLAVE].setmode = ctlr->setmode;
     ch->locking = ctlr->locking;
     ch->reset = ctlr->reset;
 
+    ctlr->dmainit(ch);
+    if (ch->dma)
+	ch->dma->alloc(ch);
+
     if ((error = ctlr->allocate(dev, ch)))
 	return error;
 
-    return ata_probe(dev);
+    return ata_attach(dev);
 }
 
-static device_method_t ata_pcisub_methods[] = {
+static int
+ata_channel_detach(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+    int error;
+
+    if ((error = ata_detach(dev)))
+	return error;
+
+    if (ch->dma)
+	ch->dma->free(ch);
+
+    return 0;
+}
+
+static device_method_t ata_channel_methods[] = {
     /* device interface */
-    DEVMETHOD(device_probe,	ata_pcisub_probe),
-    DEVMETHOD(device_attach,	ata_attach),
-    DEVMETHOD(device_detach,	ata_detach),
+    DEVMETHOD(device_probe,	ata_channel_probe),
+    DEVMETHOD(device_attach,	ata_channel_attach),
+    DEVMETHOD(device_detach,	ata_channel_detach),
     DEVMETHOD(device_suspend,	ata_suspend),
     DEVMETHOD(device_resume,	ata_resume),
     { 0, 0 }
 };
 
-static driver_t ata_pcisub_driver = {
+static driver_t ata_channel_driver = {
     "ata",
-    ata_pcisub_methods,
+    ata_channel_methods,
     sizeof(struct ata_channel),
 };
 
-DRIVER_MODULE(ata, atapci, ata_pcisub_driver, ata_devclass, 0, 0);
+DRIVER_MODULE(ata, atapci, ata_channel_driver, ata_devclass, 0, 0);
