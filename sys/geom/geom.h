@@ -176,26 +176,6 @@ struct g_provider {
 #define G_PF_CANDELETE		0x1
 };
 
-/*
- * This gadget is used by userland to pinpoint a particular instance of
- * something in the kernel.  The name is unreadable on purpose, people
- * should not encounter it directly but use library functions to deal
- * with it.
- * If len is zero, "id" contains a cast of the kernel pointer where the
- * entity is located, (likely derived from the "id=" attribute in the
- * XML config) and the g_id*() functions will validate this before allowing
- * it to be used.
- * If len is non-zero, it is the strlen() of the name which is pointed to
- * by "name".
- */
-struct geomidorname {
-	u_int len;
-	union {
-		const char	*name;
-		uintptr_t	id;
-	} u;
-};
-
 /* geom_dev.c */
 int g_dev_print(void);
 
@@ -239,10 +219,6 @@ void g_spoil(struct g_provider *pp, struct g_consumer *cp);
 int g_std_access(struct g_provider *pp, int dr, int dw, int de);
 void g_std_done(struct bio *bp);
 void g_std_spoiled(struct g_consumer *cp);
-struct g_class *g_idclass(struct geomidorname *);
-struct g_geom *g_idgeom(struct geomidorname *);
-struct g_provider *g_idprovider(struct geomidorname *);
-
 
 /* geom_io.c */
 struct bio * g_clone_bio(struct bio *);
