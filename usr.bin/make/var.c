@@ -1617,7 +1617,8 @@ ParseRestModifier(const char input[], const char ptr[], char startc, char endc, 
 }
 
 static char *
-ParseRestEnd(const char input[], Buffer *buf, GNode *ctxt, Boolean err, size_t *lengthPtr, Boolean *freePtr)
+ParseRestEnd(const char input[], Buffer *buf,
+	GNode *ctxt, Boolean err, size_t *consumed, Boolean *freePtr)
 {
 	const char	*vname;
 	size_t		vlen;
@@ -1652,9 +1653,9 @@ ParseRestEnd(const char input[], Buffer *buf, GNode *ctxt, Boolean err, size_t *
 		if (((vlen == 1)) ||
 		    ((vlen == 2) && (vname[1] == 'F' || vname[1] == 'D'))) {
 			if (strchr("!%*@", vname[0]) != NULL) {
-				result = emalloc(*lengthPtr + 1);
-				strncpy(result, input, *lengthPtr);
-				result[*lengthPtr] = '\0';
+				result = emalloc(*consumed + 1);
+				strncpy(result, input, *consumed);
+				result[*consumed] = '\0';
 
 				*freePtr = TRUE;
 				return (result);
@@ -1667,9 +1668,9 @@ ParseRestEnd(const char input[], Buffer *buf, GNode *ctxt, Boolean err, size_t *
 			    (strncmp(vname, ".ARCHIVE", vlen - 1) == 0) ||
 			    (strncmp(vname, ".PREFIX", vlen - 1) == 0) ||
 			    (strncmp(vname, ".MEMBER", vlen - 1) == 0)) {
-				result = emalloc(*lengthPtr + 1);
-				strncpy(result, input, *lengthPtr);
-				result[*lengthPtr] = '\0';
+				result = emalloc(*consumed + 1);
+				strncpy(result, input, *consumed);
+				result[*consumed] = '\0';
 
 				*freePtr = TRUE;
 				return (result);
@@ -1727,10 +1728,8 @@ VarParseLong(const char input[], GNode *ctxt, Boolean err,
 	size_t *consumed, Boolean *freePtr)
 {
 	Buffer		*buf;
-	char		endc;	/* Ending character when variable in parens
-				 * or braces */
-	char		startc;	/* Starting character when variable in parens
-				 * or braces */
+	char		startc;
+	char		endc;
 	const char	*ptr;
 	char		*result;
 
@@ -1743,11 +1742,11 @@ VarParseLong(const char input[], GNode *ctxt, Boolean err,
 	startc = input[0];
 	endc = (startc == OPEN_PAREN) ? CLOSE_PAREN : CLOSE_BRACE;
 
-	*consumed += 1;
+	*consumed += 1;	/* consume opening paren or brace */
 	input++;
 
 	ptr = input;
-	while (*ptr != endc && *ptr != ':') {
+	while (*ptr != endc) {
 		if (*ptr == '\0') {
 			/*
 			 * If we did not find the end character,
@@ -1758,6 +1757,13 @@ VarParseLong(const char input[], GNode *ctxt, Boolean err,
 			Buf_Destroy(buf, TRUE);
 			*freePtr = FALSE;
 			return (var_Error);
+
+		} else if (*ptr == ':') {
+			result = ParseRestModifier(input - 2, ptr,
+					 startc, endc, buf,
+					 ctxt, err, consumed, freePtr);
+			Buf_Destroy(buf, TRUE);
+			return (result);
 
 		} else if (*ptr == '$') {
 			size_t	rlen;
@@ -1774,6 +1780,7 @@ VarParseLong(const char input[], GNode *ctxt, Boolean err,
 				free(rval);
 			*consumed += rlen;
 			ptr += rlen;
+
 		} else {
 			Buf_AddByte(buf, (Byte)*ptr);
 			*consumed += 1;
@@ -1781,12 +1788,9 @@ VarParseLong(const char input[], GNode *ctxt, Boolean err,
 		}
 	}
 
-	if (*ptr == ':') {
-		result = ParseRestModifier(input - 2, ptr, startc, endc, buf, ctxt, err, consumed, freePtr);
-	} else {
-		*consumed = ptr - (input - 2) + 1;
-		result = ParseRestEnd(input - 2, buf, ctxt, err, consumed, freePtr);
-	}
+	*consumed += 1;	/* consume closing paren or brace */
+
+	result = ParseRestEnd(input - 2, buf, ctxt, err, consumed, freePtr);
 
 	Buf_Destroy(buf, TRUE);
 	return (result);
