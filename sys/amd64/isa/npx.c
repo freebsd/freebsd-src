@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.73 1999/05/15 17:58:58 peter Exp $
+ *	$Id: npx.c,v 1.74 1999/07/25 13:16:09 cracauer Exp $
  */
 
 #include "npx.h"
@@ -511,23 +511,23 @@ npxexit(p)
  * process does not have more than one bit set.
  * 
  * Multiple bits may be set if the user process modifies the control
- * word while a status word bit is already set. While this is a sign
+ * word while a status word bit is already set.  While this is a sign
  * of bad coding, we have no choise than to narrow them down to one
  * bit, since we must not send a trapcode that is not exactly one of
  * the FPE_ macros.
  *
- * The mechanism has a static table with 127 entries. Each combination
+ * The mechanism has a static table with 127 entries.  Each combination
  * of the 7 FPU status word exception bits directly translates to a
  * position in this table, where a single FPE_... value is stored.
  * This FPE_... value stored there is considered the "most important"
- * of the exception bits and will be sent as the signal code. The
+ * of the exception bits and will be sent as the signal code.  The
  * precedence of the bits is based upon Intel Document "Numerical
  * Applications", Chapter "Special Computational Situations".
  *
  * The macro to choose one of these values does these steps: 1) Throw
- * away status word bits that cannot be masked. 2) Throw away the bits
+ * away status word bits that cannot be masked.  2) Throw away the bits
  * currently masked in the control word, assuming the user isn't
- * interested in them anymore. 3) Reinsert status word bit 7 (stack
+ * interested in them anymore.  3) Reinsert status word bit 7 (stack
  * fault) if it is set, which cannot be masked but must be presered.
  * 4) Use the remaining bits to point into the trapcode table.
  *
@@ -543,140 +543,138 @@ npxexit(p)
  *      (FP_X_INV, FP_X_DZ)
  * 4  Denormal operand (FP_X_DNML)
  * 5  Numeric over/underflow (FP_X_OFL, FP_X_UFL)
- * 6  Inexact result (FP_X_IMP) */
-
+ * 6  Inexact result (FP_X_IMP) 
+ */
 static char fpetable[128] = {
 	0,
-	FPE_FLTINV, /*  1 - INV */
-	FPE_FLTUND, /*  2 - DNML */
-	FPE_FLTINV, /*  3 - INV | DNML */
-	FPE_FLTDIV, /*  4 - DZ */
-	FPE_FLTINV, /*  5 - INV | DZ */
-	FPE_FLTDIV, /*  6 - DNML | DZ */
-	FPE_FLTINV, /*  7 - INV | DNML | DZ */
-	FPE_FLTOVF, /*  8 - OFL */
-	FPE_FLTINV, /*  9 - INV | OFL */
-	FPE_FLTUND, /*  A - DNML | OFL */
-	FPE_FLTINV, /*  B - INV | DNML | OFL */
-	FPE_FLTDIV, /*  C - DZ | OFL */
-	FPE_FLTINV, /*  D - INV | DZ | OFL */
-	FPE_FLTDIV, /*  E - DNML | DZ | OFL */
-	FPE_FLTINV, /*  F - INV | DNML | DZ | OFL */
-	FPE_FLTUND, /* 10 - UFL */
-	FPE_FLTINV, /* 11 - INV | UFL */
-	FPE_FLTUND, /* 12 - DNML | UFL */
-	FPE_FLTINV, /* 13 - INV | DNML | UFL */
-	FPE_FLTDIV, /* 14 - DZ | UFL */
-	FPE_FLTINV, /* 15 - INV | DZ | UFL */
-	FPE_FLTDIV, /* 16 - DNML | DZ | UFL */
-	FPE_FLTINV, /* 17 - INV | DNML | DZ | UFL */
-	FPE_FLTOVF, /* 18 - OFL | UFL */
-	FPE_FLTINV, /* 19 - INV | OFL | UFL */
-	FPE_FLTUND, /* 1A - DNML | OFL | UFL */
-	FPE_FLTINV, /* 1B - INV | DNML | OFL | UFL */
-	FPE_FLTDIV, /* 1C - DZ | OFL | UFL */
-	FPE_FLTINV, /* 1D - INV | DZ | OFL | UFL */
-	FPE_FLTDIV, /* 1E - DNML | DZ | OFL | UFL */
-	FPE_FLTINV, /* 1F - INV | DNML | DZ | OFL | UFL */
-	FPE_FLTRES, /* 20 - IMP */
-	FPE_FLTINV, /* 21 - INV | IMP */
-	FPE_FLTUND, /* 22 - DNML | IMP */
-	FPE_FLTINV, /* 23 - INV | DNML | IMP */
-	FPE_FLTDIV, /* 24 - DZ | IMP */
-	FPE_FLTINV, /* 25 - INV | DZ | IMP */
-	FPE_FLTDIV, /* 26 - DNML | DZ | IMP */
-	FPE_FLTINV, /* 27 - INV | DNML | DZ | IMP */
-	FPE_FLTOVF, /* 28 - OFL | IMP */
-	FPE_FLTINV, /* 29 - INV | OFL | IMP */
-	FPE_FLTUND, /* 2A - DNML | OFL | IMP */
-	FPE_FLTINV, /* 2B - INV | DNML | OFL | IMP */
-	FPE_FLTDIV, /* 2C - DZ | OFL | IMP */
-	FPE_FLTINV, /* 2D - INV | DZ | OFL | IMP */
-	FPE_FLTDIV, /* 2E - DNML | DZ | OFL | IMP */
-	FPE_FLTINV, /* 2F - INV | DNML | DZ | OFL | IMP */
-	FPE_FLTUND, /* 30 - UFL | IMP */
-	FPE_FLTINV, /* 31 - INV | UFL | IMP */
-	FPE_FLTUND, /* 32 - DNML | UFL | IMP */
-	FPE_FLTINV, /* 33 - INV | DNML | UFL | IMP */
-	FPE_FLTDIV, /* 34 - DZ | UFL | IMP */
-	FPE_FLTINV, /* 35 - INV | DZ | UFL | IMP */
-	FPE_FLTDIV, /* 36 - DNML | DZ | UFL | IMP */
-	FPE_FLTINV, /* 37 - INV | DNML | DZ | UFL | IMP */
-	FPE_FLTOVF, /* 38 - OFL | UFL | IMP */
-	FPE_FLTINV, /* 39 - INV | OFL | UFL | IMP */
-	FPE_FLTUND, /* 3A - DNML | OFL | UFL | IMP */
-	FPE_FLTINV, /* 3B - INV | DNML | OFL | UFL | IMP */
-	FPE_FLTDIV, /* 3C - DZ | OFL | UFL | IMP */
-	FPE_FLTINV, /* 3D - INV | DZ | OFL | UFL | IMP */
-	FPE_FLTDIV, /* 3E - DNML | DZ | OFL | UFL | IMP */
-	FPE_FLTINV, /* 3F - INV | DNML | DZ | OFL | UFL | IMP */
-	FPE_FLTSUB, /* 40 - STK */
-	FPE_FLTSUB, /* 41 - INV | STK */
-	FPE_FLTUND, /* 42 - DNML | STK */
-	FPE_FLTSUB, /* 43 - INV | DNML | STK */
-	FPE_FLTDIV, /* 44 - DZ | STK */
-	FPE_FLTSUB, /* 45 - INV | DZ | STK */
-	FPE_FLTDIV, /* 46 - DNML | DZ | STK */
-	FPE_FLTSUB, /* 47 - INV | DNML | DZ | STK */
-	FPE_FLTOVF, /* 48 - OFL | STK */
-	FPE_FLTSUB, /* 49 - INV | OFL | STK */
-	FPE_FLTUND, /* 4A - DNML | OFL | STK */
-	FPE_FLTSUB, /* 4B - INV | DNML | OFL | STK */
-	FPE_FLTDIV, /* 4C - DZ | OFL | STK */
-	FPE_FLTSUB, /* 4D - INV | DZ | OFL | STK */
-	FPE_FLTDIV, /* 4E - DNML | DZ | OFL | STK */
-	FPE_FLTSUB, /* 4F - INV | DNML | DZ | OFL | STK */
-	FPE_FLTUND, /* 50 - UFL | STK */
-	FPE_FLTSUB, /* 51 - INV | UFL | STK */
-	FPE_FLTUND, /* 52 - DNML | UFL | STK */
-	FPE_FLTSUB, /* 53 - INV | DNML | UFL | STK */
-	FPE_FLTDIV, /* 54 - DZ | UFL | STK */
-	FPE_FLTSUB, /* 55 - INV | DZ | UFL | STK */
-	FPE_FLTDIV, /* 56 - DNML | DZ | UFL | STK */
-	FPE_FLTSUB, /* 57 - INV | DNML | DZ | UFL | STK */
-	FPE_FLTOVF, /* 58 - OFL | UFL | STK */
-	FPE_FLTSUB, /* 59 - INV | OFL | UFL | STK */
-	FPE_FLTUND, /* 5A - DNML | OFL | UFL | STK */
-	FPE_FLTSUB, /* 5B - INV | DNML | OFL | UFL | STK */
-	FPE_FLTDIV, /* 5C - DZ | OFL | UFL | STK */
-	FPE_FLTSUB, /* 5D - INV | DZ | OFL | UFL | STK */
-	FPE_FLTDIV, /* 5E - DNML | DZ | OFL | UFL | STK */
-	FPE_FLTSUB, /* 5F - INV | DNML | DZ | OFL | UFL | STK */
-	FPE_FLTRES, /* 60 - IMP | STK */
-	FPE_FLTSUB, /* 61 - INV | IMP | STK */
-	FPE_FLTUND, /* 62 - DNML | IMP | STK */
-	FPE_FLTSUB, /* 63 - INV | DNML | IMP | STK */
-	FPE_FLTDIV, /* 64 - DZ | IMP | STK */
-	FPE_FLTSUB, /* 65 - INV | DZ | IMP | STK */
-	FPE_FLTDIV, /* 66 - DNML | DZ | IMP | STK */
-	FPE_FLTSUB, /* 67 - INV | DNML | DZ | IMP | STK */
-	FPE_FLTOVF, /* 68 - OFL | IMP | STK */
-	FPE_FLTSUB, /* 69 - INV | OFL | IMP | STK */
-	FPE_FLTUND, /* 6A - DNML | OFL | IMP | STK */
-	FPE_FLTSUB, /* 6B - INV | DNML | OFL | IMP | STK */
-	FPE_FLTDIV, /* 6C - DZ | OFL | IMP | STK */
-	FPE_FLTSUB, /* 6D - INV | DZ | OFL | IMP | STK */
-	FPE_FLTDIV, /* 6E - DNML | DZ | OFL | IMP | STK */
-	FPE_FLTSUB, /* 6F - INV | DNML | DZ | OFL | IMP | STK */
-	FPE_FLTUND, /* 70 - UFL | IMP | STK */
-	FPE_FLTSUB, /* 71 - INV | UFL | IMP | STK */
-	FPE_FLTUND, /* 72 - DNML | UFL | IMP | STK */
-	FPE_FLTSUB, /* 73 - INV | DNML | UFL | IMP | STK */
-	FPE_FLTDIV, /* 74 - DZ | UFL | IMP | STK */
-	FPE_FLTSUB, /* 75 - INV | DZ | UFL | IMP | STK */
-	FPE_FLTDIV, /* 76 - DNML | DZ | UFL | IMP | STK */
-	FPE_FLTSUB, /* 77 - INV | DNML | DZ | UFL | IMP | STK */
-	FPE_FLTOVF, /* 78 - OFL | UFL | IMP | STK */
-	FPE_FLTSUB, /* 79 - INV | OFL | UFL | IMP | STK */
-	FPE_FLTUND, /* 7A - DNML | OFL | UFL | IMP | STK */
-	FPE_FLTSUB, /* 7B - INV | DNML | OFL | UFL | IMP | STK */
-	FPE_FLTDIV, /* 7C - DZ | OFL | UFL | IMP | STK */
-	FPE_FLTSUB, /* 7D - INV | DZ | OFL | UFL | IMP | STK */
-	FPE_FLTDIV, /* 7E - DNML | DZ | OFL | UFL | IMP | STK */
-	FPE_FLTSUB, /* 7F - INV | DNML | DZ | OFL | UFL | IMP | STK */
+	FPE_FLTINV,	/*  1 - INV */
+	FPE_FLTUND,	/*  2 - DNML */
+	FPE_FLTINV,	/*  3 - INV | DNML */
+	FPE_FLTDIV,	/*  4 - DZ */
+	FPE_FLTINV,	/*  5 - INV | DZ */
+	FPE_FLTDIV,	/*  6 - DNML | DZ */
+	FPE_FLTINV,	/*  7 - INV | DNML | DZ */
+	FPE_FLTOVF,	/*  8 - OFL */
+	FPE_FLTINV,	/*  9 - INV | OFL */
+	FPE_FLTUND,	/*  A - DNML | OFL */
+	FPE_FLTINV,	/*  B - INV | DNML | OFL */
+	FPE_FLTDIV,	/*  C - DZ | OFL */
+	FPE_FLTINV,	/*  D - INV | DZ | OFL */
+	FPE_FLTDIV,	/*  E - DNML | DZ | OFL */
+	FPE_FLTINV,	/*  F - INV | DNML | DZ | OFL */
+	FPE_FLTUND,	/* 10 - UFL */
+	FPE_FLTINV,	/* 11 - INV | UFL */
+	FPE_FLTUND,	/* 12 - DNML | UFL */
+	FPE_FLTINV,	/* 13 - INV | DNML | UFL */
+	FPE_FLTDIV,	/* 14 - DZ | UFL */
+	FPE_FLTINV,	/* 15 - INV | DZ | UFL */
+	FPE_FLTDIV,	/* 16 - DNML | DZ | UFL */
+	FPE_FLTINV,	/* 17 - INV | DNML | DZ | UFL */
+	FPE_FLTOVF,	/* 18 - OFL | UFL */
+	FPE_FLTINV,	/* 19 - INV | OFL | UFL */
+	FPE_FLTUND,	/* 1A - DNML | OFL | UFL */
+	FPE_FLTINV,	/* 1B - INV | DNML | OFL | UFL */
+	FPE_FLTDIV,	/* 1C - DZ | OFL | UFL */
+	FPE_FLTINV,	/* 1D - INV | DZ | OFL | UFL */
+	FPE_FLTDIV,	/* 1E - DNML | DZ | OFL | UFL */
+	FPE_FLTINV,	/* 1F - INV | DNML | DZ | OFL | UFL */
+	FPE_FLTRES,	/* 20 - IMP */
+	FPE_FLTINV,	/* 21 - INV | IMP */
+	FPE_FLTUND,	/* 22 - DNML | IMP */
+	FPE_FLTINV,	/* 23 - INV | DNML | IMP */
+	FPE_FLTDIV,	/* 24 - DZ | IMP */
+	FPE_FLTINV,	/* 25 - INV | DZ | IMP */
+	FPE_FLTDIV,	/* 26 - DNML | DZ | IMP */
+	FPE_FLTINV,	/* 27 - INV | DNML | DZ | IMP */
+	FPE_FLTOVF,	/* 28 - OFL | IMP */
+	FPE_FLTINV,	/* 29 - INV | OFL | IMP */
+	FPE_FLTUND,	/* 2A - DNML | OFL | IMP */
+	FPE_FLTINV,	/* 2B - INV | DNML | OFL | IMP */
+	FPE_FLTDIV,	/* 2C - DZ | OFL | IMP */
+	FPE_FLTINV,	/* 2D - INV | DZ | OFL | IMP */
+	FPE_FLTDIV,	/* 2E - DNML | DZ | OFL | IMP */
+	FPE_FLTINV,	/* 2F - INV | DNML | DZ | OFL | IMP */
+	FPE_FLTUND,	/* 30 - UFL | IMP */
+	FPE_FLTINV,	/* 31 - INV | UFL | IMP */
+	FPE_FLTUND,	/* 32 - DNML | UFL | IMP */
+	FPE_FLTINV,	/* 33 - INV | DNML | UFL | IMP */
+	FPE_FLTDIV,	/* 34 - DZ | UFL | IMP */
+	FPE_FLTINV,	/* 35 - INV | DZ | UFL | IMP */
+	FPE_FLTDIV,	/* 36 - DNML | DZ | UFL | IMP */
+	FPE_FLTINV,	/* 37 - INV | DNML | DZ | UFL | IMP */
+	FPE_FLTOVF,	/* 38 - OFL | UFL | IMP */
+	FPE_FLTINV,	/* 39 - INV | OFL | UFL | IMP */
+	FPE_FLTUND,	/* 3A - DNML | OFL | UFL | IMP */
+	FPE_FLTINV,	/* 3B - INV | DNML | OFL | UFL | IMP */
+	FPE_FLTDIV,	/* 3C - DZ | OFL | UFL | IMP */
+	FPE_FLTINV,	/* 3D - INV | DZ | OFL | UFL | IMP */
+	FPE_FLTDIV,	/* 3E - DNML | DZ | OFL | UFL | IMP */
+	FPE_FLTINV,	/* 3F - INV | DNML | DZ | OFL | UFL | IMP */
+	FPE_FLTSUB,	/* 40 - STK */
+	FPE_FLTSUB,	/* 41 - INV | STK */
+	FPE_FLTUND,	/* 42 - DNML | STK */
+	FPE_FLTSUB,	/* 43 - INV | DNML | STK */
+	FPE_FLTDIV,	/* 44 - DZ | STK */
+	FPE_FLTSUB,	/* 45 - INV | DZ | STK */
+	FPE_FLTDIV,	/* 46 - DNML | DZ | STK */
+	FPE_FLTSUB,	/* 47 - INV | DNML | DZ | STK */
+	FPE_FLTOVF,	/* 48 - OFL | STK */
+	FPE_FLTSUB,	/* 49 - INV | OFL | STK */
+	FPE_FLTUND,	/* 4A - DNML | OFL | STK */
+	FPE_FLTSUB,	/* 4B - INV | DNML | OFL | STK */
+	FPE_FLTDIV,	/* 4C - DZ | OFL | STK */
+	FPE_FLTSUB,	/* 4D - INV | DZ | OFL | STK */
+	FPE_FLTDIV,	/* 4E - DNML | DZ | OFL | STK */
+	FPE_FLTSUB,	/* 4F - INV | DNML | DZ | OFL | STK */
+	FPE_FLTUND,	/* 50 - UFL | STK */
+	FPE_FLTSUB,	/* 51 - INV | UFL | STK */
+	FPE_FLTUND,	/* 52 - DNML | UFL | STK */
+	FPE_FLTSUB,	/* 53 - INV | DNML | UFL | STK */
+	FPE_FLTDIV,	/* 54 - DZ | UFL | STK */
+	FPE_FLTSUB,	/* 55 - INV | DZ | UFL | STK */
+	FPE_FLTDIV,	/* 56 - DNML | DZ | UFL | STK */
+	FPE_FLTSUB,	/* 57 - INV | DNML | DZ | UFL | STK */
+	FPE_FLTOVF,	/* 58 - OFL | UFL | STK */
+	FPE_FLTSUB,	/* 59 - INV | OFL | UFL | STK */
+	FPE_FLTUND,	/* 5A - DNML | OFL | UFL | STK */
+	FPE_FLTSUB,	/* 5B - INV | DNML | OFL | UFL | STK */
+	FPE_FLTDIV,	/* 5C - DZ | OFL | UFL | STK */
+	FPE_FLTSUB,	/* 5D - INV | DZ | OFL | UFL | STK */
+	FPE_FLTDIV,	/* 5E - DNML | DZ | OFL | UFL | STK */
+	FPE_FLTSUB,	/* 5F - INV | DNML | DZ | OFL | UFL | STK */
+	FPE_FLTRES,	/* 60 - IMP | STK */
+	FPE_FLTSUB,	/* 61 - INV | IMP | STK */
+	FPE_FLTUND,	/* 62 - DNML | IMP | STK */
+	FPE_FLTSUB,	/* 63 - INV | DNML | IMP | STK */
+	FPE_FLTDIV,	/* 64 - DZ | IMP | STK */
+	FPE_FLTSUB,	/* 65 - INV | DZ | IMP | STK */
+	FPE_FLTDIV,	/* 66 - DNML | DZ | IMP | STK */
+	FPE_FLTSUB,	/* 67 - INV | DNML | DZ | IMP | STK */
+	FPE_FLTOVF,	/* 68 - OFL | IMP | STK */
+	FPE_FLTSUB,	/* 69 - INV | OFL | IMP | STK */
+	FPE_FLTUND,	/* 6A - DNML | OFL | IMP | STK */
+	FPE_FLTSUB,	/* 6B - INV | DNML | OFL | IMP | STK */
+	FPE_FLTDIV,	/* 6C - DZ | OFL | IMP | STK */
+	FPE_FLTSUB,	/* 6D - INV | DZ | OFL | IMP | STK */
+	FPE_FLTDIV,	/* 6E - DNML | DZ | OFL | IMP | STK */
+	FPE_FLTSUB,	/* 6F - INV | DNML | DZ | OFL | IMP | STK */
+	FPE_FLTUND,	/* 70 - UFL | IMP | STK */
+	FPE_FLTSUB,	/* 71 - INV | UFL | IMP | STK */
+	FPE_FLTUND,	/* 72 - DNML | UFL | IMP | STK */
+	FPE_FLTSUB,	/* 73 - INV | DNML | UFL | IMP | STK */
+	FPE_FLTDIV,	/* 74 - DZ | UFL | IMP | STK */
+	FPE_FLTSUB,	/* 75 - INV | DZ | UFL | IMP | STK */
+	FPE_FLTDIV,	/* 76 - DNML | DZ | UFL | IMP | STK */
+	FPE_FLTSUB,	/* 77 - INV | DNML | DZ | UFL | IMP | STK */
+	FPE_FLTOVF,	/* 78 - OFL | UFL | IMP | STK */
+	FPE_FLTSUB,	/* 79 - INV | OFL | UFL | IMP | STK */
+	FPE_FLTUND,	/* 7A - DNML | OFL | UFL | IMP | STK */
+	FPE_FLTSUB,	/* 7B - INV | DNML | OFL | UFL | IMP | STK */
+	FPE_FLTDIV,	/* 7C - DZ | OFL | UFL | IMP | STK */
+	FPE_FLTSUB,	/* 7D - INV | DZ | OFL | UFL | IMP | STK */
+	FPE_FLTDIV,	/* 7E - DNML | DZ | OFL | UFL | IMP | STK */
+	FPE_FLTSUB,	/* 7F - INV | DNML | DZ | OFL | UFL | IMP | STK */
 };
-
-#define ENCODE(_sw, _cw) (fpetable[(_sw & ~_cw & 0x3f) | (_sw & 0x40)])
 
 /*
  * Preserve the FP status word, clear FP exceptions, then generate a SIGFPE.
@@ -700,7 +698,7 @@ npx_intr(dummy)
 	void *dummy;
 {
 	int code;
-	u_long cw;
+	u_short control;
 	struct intrframe *frame;
 
 	if (npxproc == NULL || !npx_exists) {
@@ -716,7 +714,7 @@ npx_intr(dummy)
 
 	outb(0xf0, 0);
 	fnstsw(&curpcb->pcb_savefpu.sv_ex_sw);
-	fnstcw(&cw);
+	fnstcw(&control);
 	fnclex();
 
 	/*
@@ -740,7 +738,9 @@ npx_intr(dummy)
 		 * Encode the appropriate code for detailed information on
 		 * this exception.
 		 */
-		code = ENCODE(curpcb->pcb_savefpu.sv_ex_sw, cw);
+		code = 
+		    fpetable[(curpcb->pcb_savefpu.sv_ex_sw & ~control & 0x3f) |
+			(curpcb->pcb_savefpu.sv_ex_sw & 0x40)];
 		trapsignal(curproc, SIGFPE, code);
 	} else {
 		/*
