@@ -257,10 +257,8 @@ fork1(td, flags, pages, procp)
 		if (flags & RFCFDG) {
 			struct filedesc *fdtmp;
 			fdtmp = fdinit(td);	/* XXXKSE */
-			PROC_LOCK(p1);
 			fdfree(td);		/* XXXKSE */
 			p1->p_fd = fdtmp;
-			PROC_UNLOCK(p1);
 		}
 
 		/*
@@ -273,10 +271,8 @@ fork1(td, flags, pages, procp)
 
 				newfd = fdcopy(td);
 				FILEDESC_UNLOCK(p1->p_fd);
-				PROC_LOCK(p1);
 				fdfree(td);
 				p1->p_fd = newfd;
-				PROC_UNLOCK(p1);
 			} else
 				FILEDESC_UNLOCK(p1->p_fd);
 		}
