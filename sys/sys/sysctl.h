@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.72 1999/02/28 17:38:28 dt Exp $
+ * $Id: sysctl.h,v 1.73 1999/04/28 11:38:10 phk Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -481,6 +481,7 @@ SYSCTL_DECL(_debug);
 SYSCTL_DECL(_hw);
 SYSCTL_DECL(_machdep);
 SYSCTL_DECL(_user);
+SYSCTL_DECL(_compat);
 
 extern char	machine[];
 extern char	osrelease[];

@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_mib.c,v 1.22 1999/07/20 07:19:32 phk Exp $
+ * $Id: kern_mib.c,v 1.23 1999/08/08 18:42:48 phk Exp $
  */
 
 #include <sys/param.h>
@@ -72,9 +72,11 @@ SYSCTL_NODE(, CTL_MACHDEP, machdep, CTLFLAG_RW, 0,
 	"machine dependent");
 SYSCTL_NODE(, CTL_USER,	  user,   CTLFLAG_RW, 0,
 	"user-level");
-
 SYSCTL_NODE(, CTL_P1003_1B,  p1003_1b,   CTLFLAG_RW, 0,
 	"p1003_1b, (see p1003_1b.h)");
+
+SYSCTL_NODE(, OID_AUTO,  compat, CTLFLAG_RW, 0,
+	"Compatibility code");
 
 SYSCTL_NODE(_kern, OID_AUTO,  prison,   CTLFLAG_RW, 0,
 	"Prison rules");

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.66 1999/08/25 11:19:02 marcel Exp $
+ *  $Id: linux_misc.c,v 1.67 1999/08/25 14:11:01 marcel Exp $
  */
 
 #include "opt_compat.h"
@@ -61,6 +61,7 @@
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
 #include <i386/linux/linux_util.h>
+#include <i386/linux/linux_mib.h>
 
 #include <posix4/sched.h>
 
@@ -880,15 +881,19 @@ int
 linux_newuname(struct proc *p, struct linux_newuname_args *args)
 {
 	struct linux_new_utsname utsname;
+	char *osrelease, *osname;
 
 #ifdef DEBUG
 	printf("Linux-emul(%ld): newuname(*)\n", (long)p->p_pid);
 #endif
 
+	osname = linux_get_osname(p);
+	osrelease = linux_get_osrelease(p);
+
 	bzero(&utsname, sizeof(struct linux_new_utsname));
-	strncpy(utsname.sysname, "Linux", LINUX_MAX_UTSNAME-1);
+	strncpy(utsname.sysname, osname, LINUX_MAX_UTSNAME-1);
 	strncpy(utsname.nodename, hostname, LINUX_MAX_UTSNAME-1);
-	strncpy(utsname.release, "2.0.36", LINUX_MAX_UTSNAME-1);
+	strncpy(utsname.release, osrelease, LINUX_MAX_UTSNAME-1);
 	strncpy(utsname.version, version, LINUX_MAX_UTSNAME-1);
 	strncpy(utsname.machine, machine, LINUX_MAX_UTSNAME-1);
 	strncpy(utsname.domainname, domainname, LINUX_MAX_UTSNAME-1);
