@@ -171,9 +171,7 @@ It may contain either
 or
 .Dv MTX_SPIN
 but not both.
-Optionally, it may also contain the
-.Dv MTX_RECURSE
-bit, which signifies that the mutex will be allowed to recurse.
+See below for additional initialization options.
 It is not permissible to pass the same
 .Fa mutex
 to
@@ -445,6 +443,8 @@ Do not log any mutex operations for this lock.
 Instruct
 .Xr witness 4
 to ignore this lock.
+.It Dv MTX_DUPOK
+Witness should not log messages about duplicate locks being acquired.
 .El
 .Ss Lock and Unlock Flags
 The flags passed to the
