@@ -36,13 +36,7 @@
 #include <pci/pcireg.h>
 #include <i386/isa/pcibus.h>
 
-#ifdef PCI_COMPAT
-/* XXX this is a terrible hack, which keeps the Tekram AMD SCSI driver happy */
-#define cfgmech pci_mechanism
-int cfgmech;
-#else
 static int cfgmech;
-#endif /* PCI_COMPAT */
 static int devmax;
 
 /* enable configuration space accesses and return data port address */

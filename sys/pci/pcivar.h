@@ -284,8 +284,6 @@ typedef void pci_inthand_t(void *arg);
 
 /* just copied from old PCI code for now ... */
 
-extern int pci_mechanism;
-
 struct pci_device {
     char*    pd_name;
     const char*  (*pd_probe ) (pcici_t tag, pcidi_t type);
