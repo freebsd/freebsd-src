@@ -325,7 +325,9 @@ ip_output(m0, opt, ro, flags, imo, inp)
 			ip->ip_ttl = imo->imo_multicast_ttl;
 			if (imo->imo_multicast_vif != -1)
 				ip->ip_src.s_addr =
-				    ip_mcast_src(imo->imo_multicast_vif);
+				    ip_mcast_src ?
+				    ip_mcast_src(imo->imo_multicast_vif) :
+				    INADDR_ANY;
 		} else
 			ip->ip_ttl = IP_DEFAULT_MULTICAST_TTL;
 		/*
@@ -385,14 +387,15 @@ ip_output(m0, opt, ro, flags, imo, inp)
 			 */
 			if (ip_mrouter && (flags & IP_FORWARDING) == 0) {
 				/*
-				 * Check if rsvp daemon is running. If not, don't
+				 * If rsvp daemon is not running, do not
 				 * set ip_moptions. This ensures that the packet
 				 * is multicast and not just sent down one link
 				 * as prescribed by rsvpd.
 				 */
 				if (!rsvp_on)
-				  imo = NULL;
-				if (ip_mforward(ip, ifp, m, imo) != 0) {
+					imo = NULL;
+				if (ip_mforward &&
+				    ip_mforward(ip, ifp, m, imo) != 0) {
 					m_freem(m);
 					goto done;
 				}
