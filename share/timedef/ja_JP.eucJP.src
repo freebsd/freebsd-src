@@ -4,19 +4,18 @@
 # WARNING: empty lines are essential too
 #
 # Short month names
-# it must be 3 char
-  1
-  2
-  3
-  4
-  5
-  6
-  7
-  8
-  9
- 10
- 11
- 12
+ 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
 #
 # Long month names
 #
@@ -35,15 +34,13 @@
 #
 # Short weekday names
 #
-# it must be 3 char also
-# two char is our weekday name, and be careful one space is in the last
-日 
-月 
-火 
-水 
-木 
-金 
-土 
+日
+月
+火
+水
+木
+金
+土
 #
 # Long weekday names
 #
@@ -61,7 +58,7 @@
 #
 # x_fmt
 #
-%y/%m/%d
+%Y/%m/%d
 #
 # c_fmt
 #
@@ -71,13 +68,11 @@
 #
 # am
 #
-# it must be 2 char  
 #午前
 AM
 #
 # pm
 #
-# it must be 2 char  
 #午後
 PM
 #
@@ -100,10 +95,11 @@ PM
 11月
 12月
 #
-# Ef_fmt
+# md_order
 #
-%b/%e
+md
 #
-# EF_fmt
+# ampm_fmt
 #
-%B%e日
+%I:%M:%S %p
+# EOF
