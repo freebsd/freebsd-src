@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  */
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_auth.c,v 1.2 1998/03/21 11:33:59 peter Exp $";
+static const char rcsid[] = "@(#)$Id: ip_auth.c,v 1.3 1998/03/21 13:37:42 peter Exp $";
 #endif
 
 #if defined(KERNEL) && !defined(_KERNEL)
@@ -97,6 +97,9 @@ extern struct ifqueue   ipintrq;                /* ip packet input queue */
 #include "netinet/ip_auth.h"
 #if !SOLARIS && !defined(linux)
 # include <net/netisr.h>
+# ifdef __FreeBSD__
+#  include <machine/cpufunc.h>
+# endif
 #endif
 
 

@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_fil.h	1.35 6/5/96
- * $Id: ip_fil.h,v 1.4 1998/06/08 06:04:11 bde Exp $
+ * $Id: ip_fil.h,v 1.5 1998/06/08 09:47:41 bde Exp $
  */
 
 #ifndef	__IP_FIL_H__
@@ -521,4 +521,5 @@ extern	int	iplused[IPL_LOGMAX + 1];
 extern	struct frentry *ipfilter[2][2], *ipacct[2][2];
 extern	struct frgroup *ipfgroups[3][2];
 extern	struct filterstats frstats[];
+
 #endif	/* __IP_FIL_H__ */
