@@ -2,6 +2,10 @@
 	$FreeBSD$
 -->
 <sect1>
+  <sect1info>
+    <pubdate>$FreeBSD$</pubdate>
+  </sect1info>
+
   <title>Supported processors and motherboards</title>
 
   <para>This section is maintained by &a.wilko;.</para>
