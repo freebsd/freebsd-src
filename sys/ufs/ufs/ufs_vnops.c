@@ -1604,7 +1604,7 @@ ufs_mkdir(ap)
 	
 bad:
 	if (error == 0) {
-		VN_KNOTE(dvp, NOTE_WRITE);
+		VN_KNOTE(dvp, NOTE_WRITE | NOTE_LINK);
 		*ap->a_vpp = tvp;
 	} else {
 		dp->i_effnlink--;
