@@ -30,10 +30,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: qsort.c,v 1.7 1997/02/22 09:39:58 peter Exp $
+ * $Id: qsort.c,v 1.8 1998/04/15 17:46:34 bde Exp $
  */
 
-#include <stdlib.h>
+#include <sys/libkern.h>
 
 typedef int		 cmp_t __P((const void *, const void *));
 static __inline char	*med3 __P((char *, char *, char *, cmp_t *));
