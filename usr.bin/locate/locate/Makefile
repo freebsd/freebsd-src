@@ -1,9 +1,9 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $Id: Makefile,v 1.1 1996/08/29 22:39:41 wosch Exp wosch $
+# $Id: Makefile,v 1.6 1996/08/31 23:14:51 wosch Exp $
 
 PROG=	locate
 SRCS=	util.c locate.c
-CFLAGS+= -I. -DMMAP -O2	# -DDEBUG
+CFLAGS+= -I${.CURDIR} -DMMAP # -DDEBUG (print time) -O2 (10% faster)
 MAN1=	locate.1
 MAN8=	locate.updatedb.8
 SCRIPTS= updatedb mklocatedb concatdb
