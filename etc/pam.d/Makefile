@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 NOOBJ=	noobj
-FILES=	README csshd ftp ftpd gdm imap kde login other passwd pop3 \
+FILES=	README ftp ftpd gdm imap kde login other passwd pop3 \
 	rexecd rsh sshd su telnetd xdm xserver
 FILESDIR=	/etc/pam.d
 FILESMODE=	644
