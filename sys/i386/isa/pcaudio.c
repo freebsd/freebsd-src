@@ -326,10 +326,8 @@ static struct isa_pnp_id pca_ids[] = {
 static int
 pcaprobe(device_t dev)
 {
-	int error;
-
 	/* Check isapnp ids */
-	return(ISA_PNP_PROBE(device_get_parent(dev), dev, pca_ids));
+	return ISA_PNP_PROBE(device_get_parent(dev), dev, pca_ids);
 }
 
 
