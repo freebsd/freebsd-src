@@ -25,8 +25,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.60 1999/08/08 11:26:46 marcel Exp $
+ *  $Id: linux_misc.c,v 1.61 1999/08/11 13:34:30 marcel Exp $
  */
+
+#include "opt_compat.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -59,9 +61,6 @@
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
 #include <i386/linux/linux_util.h>
-
-int osetrlimit __P((struct proc*, struct linux_setrlimit_args*));
-int ogetrlimit __P((struct proc*, struct linux_getrlimit_args*));
 
 static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] =
 { RLIMIT_CPU, RLIMIT_FSIZE, RLIMIT_DATA, RLIMIT_STACK,
@@ -1213,6 +1212,8 @@ linux_setrlimit(p, uap)
      struct proc *p;
      struct linux_setrlimit_args *uap;
 {
+    struct osetrlimit_args bsd;
+
 #ifdef DEBUG
     printf("Linux-emul(%ld): setrlimit(%d, %p)\n",
 	   (long)p->p_pid, uap->resource, (void *)uap->rlim);
@@ -1221,12 +1222,13 @@ linux_setrlimit(p, uap)
     if (uap->resource >= LINUX_RLIM_NLIMITS)
 	return EINVAL;
 
-    uap->resource = linux_to_bsd_resource[uap->resource];
+    bsd.which = linux_to_bsd_resource[uap->resource];
 
-    if (uap->resource == -1)
+    if (bsd.which == -1)
 	return EINVAL;
 
-    return osetrlimit(p, uap);
+    bsd.rlp = uap->rlim;
+    return osetrlimit(p, &bsd);
 }
 
 int
@@ -1234,6 +1236,8 @@ linux_getrlimit(p, uap)
      struct proc *p;
      struct linux_getrlimit_args *uap;
 {
+    struct ogetrlimit_args bsd;
+
 #ifdef DEBUG
     printf("Linux-emul(%ld): getrlimit(%d, %p)\n",
 	   (long)p->p_pid, uap->resource, (void *)uap->rlim);
@@ -1242,10 +1246,11 @@ linux_getrlimit(p, uap)
     if (uap->resource >= LINUX_RLIM_NLIMITS)
 	return EINVAL;
 
-    uap->resource = linux_to_bsd_resource[uap->resource];
+    bsd.which = linux_to_bsd_resource[uap->resource];
 
-    if (uap->resource == -1)
+    if (bsd.which == -1)
 	return EINVAL;
 
-    return ogetrlimit(p, uap);
+    bsd.rlp = uap->rlim;
+    return ogetrlimit(p, &bsd);
 }
