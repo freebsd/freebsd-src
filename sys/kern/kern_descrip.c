@@ -1037,7 +1037,7 @@ falloc(td, resultfp, resultfd)
 		FREE(fp, M_FILE);
 		return (error);
 	}
-	mtx_init(&fp->f_mtx, "file structure", MTX_DEF);
+	fp->f_mtxp = mtx_pool_alloc();
 	fp->f_gcflag = 0;
 	fp->f_count = 1;
 	fp->f_cred = crhold(p->p_ucred);
@@ -1075,7 +1075,6 @@ ffree(fp)
 	nfiles--;
 	sx_xunlock(&filelist_lock);
 	crfree(fp->f_cred);
-	mtx_destroy(&fp->f_mtx);
 	FREE(fp, M_FILE);
 }
 

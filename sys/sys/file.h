@@ -105,7 +105,7 @@ struct file {
 	off_t	f_offset;
 	caddr_t	f_data;		/* vnode or socket */
 	u_int	f_flag;		/* see fcntl.h */
-	struct mtx	f_mtx;	/* mutex to protect data */
+	struct mtx	*f_mtxp;	/* mutex to protect data */
 };
 
 #ifdef MALLOC_DECLARE
@@ -128,10 +128,10 @@ int fdrop __P((struct file *fp, struct thread *td));
 int fdrop_locked __P((struct file *fp, struct thread *td));
 
 /* Lock a file. */
-#define FILE_LOCK(f)	mtx_lock(&(f)->f_mtx)
-#define FILE_UNLOCK(f)	mtx_unlock(&(f)->f_mtx)
-#define	FILE_LOCKED(f)	mtx_owned(&(f)->f_mtx)
-#define	FILE_LOCK_ASSERT(f, type)	mtx_assert(&(f)->f_mtx, (type))
+#define	FILE_LOCK(f)	mtx_lock((f)->f_mtxp)
+#define	FILE_UNLOCK(f)	mtx_unlock((f)->f_mtxp)
+#define	FILE_LOCKED(f)	mtx_owned((f)->f_mtxp)
+#define	FILE_LOCK_ASSERT(f, type) mtx_assert((f)->f_mtxp, (type))
 
 int fgetvp __P((struct thread *td, int fd, struct vnode **vpp));
 int fgetvp_read __P((struct thread *td, int fd, struct vnode **vpp));
