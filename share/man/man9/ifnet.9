@@ -413,6 +413,16 @@ Flags of the former kind are marked
 in this table; the latter are marked
 .Aq D .
 .Pp
+The macro
+.Dv IFF_CANTCHANGE
+defines the bits which cannot be set by a user program using the
+.Dv SIOCSIFFLAGS
+command to
+.Xr ioctl 2 ;
+these are indicated by an asterisk
+.Pq Ql *
+in the following listing.
+.Pp
 .Bl -tag -width ".Dv IFF_POINTOPOINT" -offset indent -compact
 .It Dv IFF_UP
 .Aq D
@@ -476,14 +486,6 @@ See
 .Sx Interface Capabilities Flags
 for details.
 .El
-.Pp
-The macro
-.Dv IFF_CANTCHANGE
-defines the bits which cannot be set by a user program using the
-.Dv SIOCSIFFLAGS
-command to
-.Xr ioctl 2 ;
-these are indicated by an asterisk in the listing above.
 .Ss "Interface Capabilities Flags"
 Interface capabilities are specialized features an interface may
 or may not support.
