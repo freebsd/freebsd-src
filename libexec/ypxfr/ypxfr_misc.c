@@ -29,8 +29,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfr_misc.c,v 1.6 1995/12/24 04:39:55 wpaul Exp $
+ *	$Id: ypxfr_misc.c,v 1.7 1996/02/04 04:05:30 wpaul Exp $
  */
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/param.h>
 #include <rpc/rpc.h>
 #include <rpcsvc/yp.h>
 struct dom_binding {};
@@ -38,7 +41,7 @@ struct dom_binding {};
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: ypxfr_misc.c,v 1.6 1995/12/24 04:39:55 wpaul Exp $";
+static const char rcsid[] = "$Id: ypxfr_misc.c,v 1.7 1996/02/04 04:05:30 wpaul Exp $";
 #endif
 
 char *ypxfrerr_string(code)
@@ -108,12 +111,23 @@ char *ypxfrerr_string(code)
  * an NIS client in order to be an NIS server).
  */
 
+/*
+ * Careful: yp_master() returns a pointer to a dynamically allocated
+ * buffer. Calling ypproc_master_2() ourselves also returns a pointer
+ * to dynamically allocated memory, though this time it's memory
+ * allocated by the XDR routines. We have to rememver to free() or
+ * xdr_free() the memory as required to avoid leaking memory.
+ */
 char *ypxfr_get_master(domain,map,source,yplib)
 	char *domain;
 	char *map;
 	char *source;
 	const int yplib;
 {
+	static char mastername[MAXPATHLEN + 2];
+
+	bzero((char *)&mastername, sizeof(mastername));
+
 	if (yplib) {
 		int res;
 		char *master;
@@ -131,8 +145,11 @@ char *ypxfr_get_master(domain,map,source,yplib)
 				break;
 			}
 			return(NULL);
-		} else
-			return(master);
+		} else {
+			snprintf(mastername, sizeof(mastername), "%s", master);
+			free(master);
+			return((char *)&mastername);
+		}
 	} else {
 		CLIENT *clnt;
 		ypresp_master *resp;
@@ -170,7 +187,9 @@ failed"));
 			}
 			return(NULL);
 		}
-		return(resp->peer);
+		snprintf(mastername, sizeof(mastername), "%s", resp->peer);
+		xdr_free(xdr_ypresp_master, (char *)&resp);
+		return((char *)&mastername);
 	}
 }
 		
@@ -185,13 +204,13 @@ unsigned long ypxfr_get_order(domain, map, source, yplib)
 		int res;
 		if ((res = yp_order(domain, map, (int *)&order))) {
 			switch (res) {
-			case (YPERR_DOMAIN):
+			case YPERR_DOMAIN:
 				yp_errno = YPXFR_NODOM;
 				break;
-			case (YPERR_MAP):
+			case YPERR_MAP:
 				yp_errno = YPXFR_NOMAP;
 				break;
-			case (YPERR_YPERR):
+			case YPERR_YPERR:
 			default:
 				yp_errno = YPXFR_YPERR;
 				break;
@@ -222,13 +241,13 @@ failed"));
 		clnt_destroy(clnt);
 		if (resp->stat != YP_TRUE) {
 			switch (resp->stat) {
-			case (YP_NODOM):
+			case YP_NODOM:
 				yp_errno = YPXFR_NODOM;
 				break;
-			case (YP_NOMAP):
+			case YP_NOMAP:
 				yp_errno = YPXFR_NOMAP;
 				break;
-			case (YP_YPERR):
+			case YP_YPERR:
 			default:
 				yp_errno = YPXFR_YPERR;
 				break;
