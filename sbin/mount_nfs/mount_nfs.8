@@ -30,15 +30,14 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
-.\"
 .\" $FreeBSD$
-.\""
-.Dd March 29, 1995
+.\"
+.Dd May 11, 2003
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
 .Nm mount_nfs
-.Nd mount nfs file systems
+.Nd mount NFS file systems
 .Sh SYNOPSIS
 .Nm
 .Op Fl 23NPTUbcdiLls
@@ -58,7 +57,7 @@ The
 .Nm
 utility calls the
 .Xr mount 2
-system call to prepare and graft a remote nfs file system
+system call to prepare and graft a remote NFS file system
 .Pq Ar rhost : Ns Ar path
 on to the file system tree at the point
 .Ar node .
@@ -94,8 +93,8 @@ The options are:
 .Bl -tag -width indent
 .It Fl 2
 Use the NFS Version 2 protocol (the default is to try version 3 first
-then version 2).  Note that NFS version 2 has a file size limit of 2
-gigabytes.
+then version 2).
+Note that NFS version 2 has a file size limit of 2 gigabytes.
 .It Fl 3
 Use the NFS Version 3 protocol.
 .It Fl D
@@ -107,7 +106,9 @@ message is displayed.
 .It Fl I
 Set the readdir read size to the specified value.
 The value should normally
-be a multiple of DIRBLKSIZ that is <= the read size for the mount.
+be a multiple of
+.Dv DIRBLKSIZ
+that is <= the read size for the mount.
 .It Fl L
 Do
 .Em not
@@ -115,10 +116,10 @@ forward
 .Xr fcntl 2
 locks over the wire.
 All locks will be local and not seen by the server
-and likewise not seen by other NFS clients.  This removes
-the need to run the
+and likewise not seen by other NFS clients.
+This removes the need to run the
 .Xr rpcbind 8
-service and the 
+service and the
 .Xr rpc.statd 8
 and
 .Xr rpc.lockd 8
@@ -208,68 +209,75 @@ flag followed by a comma separated string of options.
 See the
 .Xr mount 8
 man page for possible options and their meanings.
-The following NFS specific option is also available:
+The following NFS specific options are also available:
 .Bl -tag -width indent
-.It port=<port_number>
+.It Cm port Ns = Ns Aq Ar port_number
 Use specified port number for NFS requests.
 The default is to query the portmapper for the NFS port.
-.It acregmin=<seconds>
-.It acregmax=<seconds>
-.It acdirmin=<seconds>
-.It acdirmax=<seconds>
+.It Cm acregmin Ns = Ns Aq Ar seconds
+.It Cm acregmax Ns = Ns Aq Ar seconds
+.It Cm acdirmin Ns = Ns Aq Ar seconds
+.It Cm acdirmax Ns = Ns Aq Ar seconds
 When attributes of files are cached, a timeout calculated to determine
-whether a given cache entry has expired.  These four values determine the
-upper and lower bounds of the timeouts for ``directory'' attributes and
-``regular'' (ie: everything else).  The default values are 3 -> 60 seconds
-for regular files, and 30 -> 60 seconds for directories.  The algorithm to
-calculate the timeout is based on the age of the file.  The older the file,
+whether a given cache entry has expired.
+These four values determine the upper and lower bounds of the timeouts for
+.Dq directory
+attributes and
+.Dq regular
+(ie: everything else).
+The default values are 3 -> 60 seconds
+for regular files, and 30 -> 60 seconds for directories.
+The algorithm to calculate the timeout is based on the age of the file.
+The older the file,
 the longer the cache is considered valid, subject to the limits above.
-.It noinet4
-.It noinet6
-Disables AF_INET or AF_INET6 connections.  Useful for hosts that have
+.It Cm noinet4 , noinet6
+Disables
+.Dv AF_INET
+or
+.Dv AF_INET6
+connections.
+Useful for hosts that have
 both an A record and an AAAA record for the same name.
 .El
-.Pp
-.Bl -tag -width "dumbtimerXX"
-\fBHistoric \&-o options\fR
-.Pp
+.Bl -tag -width ".Cm dumbtimer"
+.Ss Historic Fl o Ss Options
 Use of these options is deprecated, they are only mentioned here for
 compatibility with historic versions of
 .Nm .
-.It bg
+.It Cm bg
 Same as
 .Fl b .
-.It conn
+.It Cm conn
 Same as not specifying
 .Fl c .
-.It dumbtimer
+.It Cm dumbtimer
 Same as
 .Fl d .
-.It intr
+.It Cm intr
 Same as
 .Fl i .
-.It lockd
+.It Cm lockd
 Same as not specifying
 .Fl L .
-.It nfsv2
+.It Cm nfsv2
 Same as
 .Fl 2 .
-.It nfsv3
+.It Cm nfsv3
 Same as
 .Fl 3 .
-.It rdirplus
+.It Cm rdirplus
 Same as
 .Fl l .
-.It mntudp
+.It Cm mntudp
 Same as
 .Fl U .
-.It resvport
+.It Cm resvport
 Same as
 .Fl P .
-.It soft
+.It Cm soft
 Same as
 .Fl s .
-.It tcp
+.It Cm tcp
 Same as
 .Fl T .
 .El
@@ -291,7 +299,9 @@ See the
 option as well.
 .It Fl s
 A soft mount, which implies that file system calls will fail
-after \fBRetry\fR round trip timeout intervals.
+after
+.Ar retrycnt
+round trip timeout intervals.
 .It Fl t
 Set the initial retransmit timeout to the specified value.
 May be useful for fine tuning UDP mounts over internetworks
@@ -300,7 +310,9 @@ Try increasing the interval if
 .Xr nfsstat 1
 shows high retransmit rates while the file system is active or reducing the
 value if there is a low retransmit rate but long response delay observed.
-(Normally, the -d option should be specified when using this option to manually
+(Normally, the
+.Fl d
+option should be specified when using this option to manually
 tune the timeout
 interval.)
 .It Fl w
