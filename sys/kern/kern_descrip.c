@@ -245,9 +245,7 @@ struct getdtablesize_args {
  */
 /* ARGSUSED */
 int
-getdtablesize(td, uap)
-	struct thread *td;
-	struct getdtablesize_args *uap;
+getdtablesize(struct thread *td, struct getdtablesize_args *uap)
 {
 	struct proc *p = td->td_proc;
 
@@ -275,9 +273,7 @@ struct dup2_args {
  */
 /* ARGSUSED */
 int
-dup2(td, uap)
-	struct thread *td;
-	struct dup2_args *uap;
+dup2(struct thread *td, struct dup2_args *uap)
 {
 
 	return (do_dup(td, DUP_FIXED, (int)uap->from, (int)uap->to,
@@ -297,9 +293,7 @@ struct dup_args {
  */
 /* ARGSUSED */
 int
-dup(td, uap)
-	struct thread *td;
-	struct dup_args *uap;
+dup(struct thread *td, struct dup_args *uap)
 {
 
 	return (do_dup(td, DUP_VARIABLE, (int)uap->fd, 0, td->td_retval));
@@ -320,9 +314,7 @@ struct fcntl_args {
  */
 /* ARGSUSED */
 int
-fcntl(td, uap)
-	struct thread *td;
-	struct fcntl_args *uap;
+fcntl(struct thread *td, struct fcntl_args *uap)
 {
 	struct flock fl;
 	intptr_t arg;
@@ -606,11 +598,7 @@ done2:
  * Common code for dup, dup2, and fcntl(F_DUPFD).
  */
 static int
-do_dup(td, type, old, new, retval)
-	enum dup_type type;
-	int old, new;
-	register_t *retval;
-	struct thread *td;
+do_dup(struct thread *td, enum dup_type type, int old, int new, register_t *retval)
 {
 	struct filedesc *fdp;
 	struct proc *p;
@@ -747,8 +735,7 @@ do_dup(td, type, old, new, retval)
  * free sigio.
  */
 void
-funsetown(sigiop)
-	struct sigio **sigiop;
+funsetown(struct sigio **sigiop)
 {
 	struct sigio *sigio;
 
@@ -784,8 +771,7 @@ funsetown(sigiop)
  * the proc or pgrp struct for the list manipulation.
  */
 void
-funsetownlst(sigiolst)
-	struct sigiolst *sigiolst;
+funsetownlst(struct sigiolst *sigiolst)
 {
 	struct proc *p;
 	struct pgrp *pg;
@@ -846,9 +832,7 @@ funsetownlst(sigiolst)
  * the process or process group.
  */
 int
-fsetown(pgid, sigiop)
-	pid_t pgid;
-	struct sigio **sigiop;
+fsetown(pid_t pgid, struct sigio **sigiop)
 {
 	struct proc *proc;
 	struct pgrp *pgrp;
@@ -1047,9 +1031,7 @@ struct ofstat_args {
  */
 /* ARGSUSED */
 int
-ofstat(td, uap)
-	struct thread *td;
-	struct ofstat_args *uap;
+ofstat(struct thread *td, struct ofstat_args *uap)
 {
 	struct file *fp;
 	struct stat ub;
@@ -1083,9 +1065,7 @@ struct fstat_args {
  */
 /* ARGSUSED */
 int
-fstat(td, uap)
-	struct thread *td;
-	struct fstat_args *uap;
+fstat(struct thread *td, struct fstat_args *uap)
 {
 	struct file *fp;
 	struct stat ub;
@@ -1115,9 +1095,7 @@ struct nfstat_args {
  */
 /* ARGSUSED */
 int
-nfstat(td, uap)
-	struct thread *td;
-	struct nfstat_args *uap;
+nfstat(struct thread *td, struct nfstat_args *uap)
 {
 	struct file *fp;
 	struct stat ub;
@@ -1150,9 +1128,7 @@ struct fpathconf_args {
  */
 /* ARGSUSED */
 int
-fpathconf(td, uap)
-	struct thread *td;
-	struct fpathconf_args *uap;
+fpathconf(struct thread *td, struct fpathconf_args *uap)
 {
 	struct file *fp;
 	struct vnode *vp;
@@ -1303,9 +1279,7 @@ fdalloc(struct thread *td, int minfd, int *result)
  * are available to the process p.
  */
 int
-fdavail(td, n)
-	struct thread *td;
-	int n;
+fdavail(struct thread *td, int n)
 {
 	struct proc *p = td->td_proc;
 	struct filedesc *fdp = td->td_proc->p_fd;
@@ -1337,10 +1311,7 @@ fdavail(td, n)
  * we release the FILEDESC lock.
  */
 int
-falloc(td, resultfp, resultfd)
-	struct thread *td;
-	struct file **resultfp;
-	int *resultfd;
+falloc(struct thread *td, struct file **resultfp, int *resultfd)
 {
 	struct proc *p = td->td_proc;
 	struct file *fp, *fq;
@@ -1454,8 +1425,7 @@ fdinit(struct filedesc *fdp)
  * Share a filedesc structure.
  */
 struct filedesc *
-fdshare(fdp)
-	struct filedesc *fdp;
+fdshare(struct filedesc *fdp)
 {
 	FILEDESC_LOCK_FAST(fdp);
 	fdp->fd_refcnt++;
@@ -1469,8 +1439,7 @@ fdshare(fdp)
  * not catch errors.
  */
 struct filedesc *
-fdcopy(fdp)
-	struct filedesc *fdp;
+fdcopy(struct filedesc *fdp)
 {
 	struct filedesc *newfdp;
 	int i;
@@ -1520,8 +1489,7 @@ fdcopy(fdp)
  * Release a filedesc structure.
  */
 void
-fdfree(td)
-	struct thread *td;
+fdfree(struct thread *td)
 {
 	struct filedesc *fdp;
 	struct file **fpp;
@@ -1671,8 +1639,7 @@ is_unsafe(struct file *fp)
  * Make this setguid thing safe, if at all possible.
  */
 void
-setugidsafety(td)
-	struct thread *td;
+setugidsafety(struct thread *td)
 {
 	struct filedesc *fdp;
 	int i;
@@ -1729,8 +1696,7 @@ fdclose(struct filedesc *fdp, struct file *fp, int idx, struct thread *td)
  * Close any files on exec?
  */
 void
-fdcloseexec(td)
-	struct thread *td;
+fdcloseexec(struct thread *td)
 {
 	struct filedesc *fdp;
 	int i;
@@ -1776,8 +1742,7 @@ fdcloseexec(td)
  * stderr that is not already open.
  */
 int
-fdcheckstd(td)
-	struct thread *td;
+fdcheckstd(struct thread *td)
 {
 	struct nameidata nd;
 	struct filedesc *fdp;
@@ -1852,9 +1817,7 @@ fdcheckstd(td)
  * makes it moderately likely the Giant will be recursed in the VFS case.
  */
 int
-closef(fp, td)
-	struct file *fp;
-	struct thread *td;
+closef(struct file *fp, struct thread *td)
 {
 	struct vnode *vp;
 	struct flock lf;
@@ -1917,20 +1880,6 @@ closef(fp, td)
 		mtx_unlock(&Giant);
 	}
 	return (fdrop(fp, td));
-}
-
-/*
- * Drop reference on struct file passed in, may call closef if the
- * reference hits zero.
- */
-int
-fdrop(fp, td)
-	struct file *fp;
-	struct thread *td;
-{
-
-	FILE_LOCK(fp);
-	return (fdrop_locked(fp, td));
 }
 
 /*
@@ -2013,6 +1962,8 @@ fget_write(struct thread *td, int fd, struct file **fpp)
  * the descriptor does not represent a vnode.  Note that pipes use vnodes
  * but never have VM objects (so VOP_GETVOBJECT() calls will return an
  * error).  The returned vnode will be vref()d.
+ *
+ * XXX: what about the unused flags ?
  */
 static __inline int
 _fgetvp(struct thread *td, int fd, struct vnode **vpp, int flags)
@@ -2049,12 +2000,14 @@ fgetvp_read(struct thread *td, int fd, struct vnode **vpp)
 	return (_fgetvp(td, fd, vpp, FREAD));
 }
 
+#ifdef notyet
 int
 fgetvp_write(struct thread *td, int fd, struct vnode **vpp)
 {
 
 	return (_fgetvp(td, fd, vpp, FWRITE));
 }
+#endif
 
 /*
  * Like fget() but loads the underlying socket, or returns an error if
@@ -2104,15 +2057,21 @@ fputsock(struct socket *so)
 	sorele(so);
 }
 
+int
+fdrop(struct file *fp, struct thread *td)
+{
+
+	FILE_LOCK(fp);
+	return (fdrop_locked(fp, td));
+}
+
 /*
  * Drop reference on struct file passed in, may call closef if the
  * reference hits zero.
  * Expects struct file locked, and will unlock it.
  */
 int
-fdrop_locked(fp, td)
-	struct file *fp;
-	struct thread *td;
+fdrop_locked(struct file *fp, struct thread *td)
 {
 	int error;
 
@@ -2151,9 +2110,7 @@ struct flock_args {
  */
 /* ARGSUSED */
 int
-flock(td, uap)
-	struct thread *td;
-	struct flock_args *uap;
+flock(struct thread *td, struct flock_args *uap)
 {
 	struct file *fp;
 	struct vnode *vp;
@@ -2202,12 +2159,7 @@ done2:
  * Duplicate the specified descriptor to a free descriptor.
  */
 int
-dupfdopen(td, fdp, indx, dfd, mode, error)
-	struct thread *td;
-	struct filedesc *fdp;
-	int indx, dfd;
-	int mode;
-	int error;
+dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode, int error)
 {
 	struct file *wfp;
 	struct file *fp;
@@ -2298,9 +2250,7 @@ dupfdopen(td, fdp, indx, dfd, mode, error)
 }
 
 struct filedesc_to_leader *
-filedesc_to_leader_alloc(struct filedesc_to_leader *old,
-			 struct filedesc *fdp,
-			 struct proc *leader)
+filedesc_to_leader_alloc(struct filedesc_to_leader *old, struct filedesc *fdp, struct proc *leader)
 {
 	struct filedesc_to_leader *fdtol;
 
@@ -2420,7 +2370,6 @@ SYSCTL_INT(_kern, KERN_MAXFILES, maxfiles, CTLFLAG_RW,
 
 SYSCTL_INT(_kern, OID_AUTO, openfiles, CTLFLAG_RD,
     &openfiles, 0, "System-wide number of open files");
-
 
 /* ARGSUSED*/
 static void
