@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_sysvec.c,v 1.13 1999/01/17 20:39:08 peter Exp $
+ * $Id: ibcs2_sysvec.c,v 1.14 1999/02/04 21:21:38 newton Exp $
  */
 
 #include <sys/param.h>
@@ -83,7 +83,7 @@ ibcs2_modevent(module_t mod, int type, void *unused)
 	}
 	return 0;
 }
-moduledata_t ibcs2_mod = {
+static moduledata_t ibcs2_mod = {
 	"ibcs2",
 	ibcs2_modevent,
 	0

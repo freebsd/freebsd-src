@@ -30,7 +30,7 @@
 
 /* SI3_T225.C Version, Bootstrap and Download Code Arrays... */
 
-char *si3_t225_ident = "%W%";
+static char *si3_t225_ident = "%W%";
 
 /* SI3_T225 embedded version... 
 

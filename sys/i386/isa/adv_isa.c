@@ -44,7 +44,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: adv_isa.c,v 1.7 1998/11/10 06:44:54 gibbs Exp $
+ *      $Id: adv_isa.c,v 1.8 1998/12/22 18:14:12 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -76,7 +76,7 @@ static	bus_dmamap_t	overrun_dmamap;
 static	bus_addr_t	overrun_physbase;
 
 /* Possible port addresses an ISA or VL adapter can live at */
-u_int16_t adv_isa_ioports[] =
+static u_int16_t adv_isa_ioports[] =
 {
 	0x100,
 	0x110,	/* First selection in BIOS setup */
@@ -375,7 +375,7 @@ adv_set_isapnp_wait_for_key(void)
  * XXX should go away as soon as ISA interrupt handlers
  * take a (void *) arg.
  */
-void
+static void
 adv_isa_intr(void *unit)
 {
 	struct adv_softc *arg = advsoftcs[(int)unit];
