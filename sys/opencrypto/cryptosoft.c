@@ -88,13 +88,6 @@ static	int swcr_newsession(void *, u_int32_t *, struct cryptoini *);
 static	int swcr_freesession(void *, u_int64_t);
 
 /*
- * NB: These came over from openbsd and are kept private
- *     to the crypto code for now.
- */
-extern	int m_apply(struct mbuf *m, int off, int len,
-		    int (*f)(caddr_t, caddr_t, unsigned int), caddr_t fstate);
-
-/*
  * Apply a symmetric encryption/decryption algorithm.
  */
 static int
@@ -460,7 +453,7 @@ swcr_authcompute(struct cryptop *crp, struct cryptodesc *crd,
 		break;
 	case CRYPTO_BUF_MBUF:
 		err = m_apply((struct mbuf *) buf, crd->crd_skip, crd->crd_len,
-		    (int (*)(caddr_t, caddr_t, unsigned int)) axf->Update,
+		    (int (*)(void *, caddr_t, unsigned int)) axf->Update,
 		    (caddr_t) &ctx);
 		if (err)
 			return err;
