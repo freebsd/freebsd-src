@@ -128,7 +128,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.8 1999/07/09 12:52:04 sheldonh Exp $
+#	$Id: MAKEDEV,v 1.9 1999/07/09 13:37:59 sheldonh Exp $
 #	from etc.i386 MAKEDEV,v 1.199 1999/05/29 19:36:55 phk Exp
 #
 
@@ -179,7 +179,7 @@ saminor()
 mknod() {
 	rm -f "$1" || exit 1
 	/sbin/mknod "$@" || die 2 "/sbin/mknod $@ failed"
-	chown root.wheel "$1" || exit 1
+	chown root:wheel "$1" || exit 1
 }
 
 # Convert the last character of a tty name to a minor number.
@@ -262,7 +262,7 @@ std)
 	(cd fd && eval `echo "" | awk ' BEGIN { \
 		for (i = 0; i < 64; i++) \
 			printf("mknod %d c 22 %d;", i, i)}'`)
-	chown -R bin.bin fd
+	chown -R bin:bin fd
 	chmod 555 fd
 	chmod 666 fd/*
 	;;
@@ -880,7 +880,7 @@ cuaa?|cua?)
 	mknod cuaa$unit c 28 `expr $m + 128`
 	mknod cuaia$unit c 28 `expr $m + 32 + 128`
 	mknod cuala$unit c 28 `expr $m + 64 + 128`
-	chown uucp.dialer cua*a$unit
+	chown uucp:dialer cua*a$unit
 	umask 77
 	;;
 
@@ -906,7 +906,7 @@ cuac?)
 		mknod cuac$name c $major `expr $minor + 128`
 		mknod cuaic$name c $major `expr $minor + 32 + 128`
 		mknod cualc$name c $major `expr $minor + 64 + 128`
-		chown uucp.dialer cuac$name cuaic$name cualc$name
+		chown uucp:dialer cuac$name cuaic$name cualc$name
 	done
 	umask 77
 	;;
@@ -934,7 +934,7 @@ cuam?)
 	unit=`expr $i : 'cua.*\(.\)$'`
 	m=`ttyminor $unit`
 	mknod cuam$unit c 63 `expr $m + 128`
-	chown uucp.dialer cuam$unit
+	chown uucp:dialer cuam$unit
 	umask 77
 	;;
 
@@ -974,7 +974,7 @@ cuaA*)
 		mknod cuaA$name c $major `expr $minor + 128`
 		mknod cuaiA$name c $major `expr $minor + 128 + 65536`
 		mknod cualA$name c $major `expr $minor + 128 + 131072`
-		chown uucp.dialer cuaA$name cuaiA$name cualA$name
+		chown uucp:dialer cuaA$name cuaiA$name cualA$name
 		port=`expr $port + 1`
 	done
 	umask 77
@@ -1017,7 +1017,7 @@ cuaD?)
 		mknod cuaD$name c $major `expr $minor + 128`
 		mknod cuaiD$name c $major `expr $minor + 32 + 128`
 		mknod cualD$name c $major `expr $minor + 64 + 128`
-		chown uucp.dialer cua*D$name
+		chown uucp:dialer cua*D$name
 	done
 	umask 77
 	;;
@@ -1042,7 +1042,7 @@ ttyM*)
 			mknod ttyM$name c $major $minor
 			mknod ttyiM$name c $major `expr $minor + 64`
 			mknod ttylM$name c $major `expr $minor + 128`
-			chown root.wheel tty*M$name
+			chown root:wheel tty*M$name
 		done
 	done
 	;;
@@ -1068,7 +1068,7 @@ cuaM?)
 			mknod cuaM$name c $major `expr $minor + 262144`
 			mknod cuaiM$name c $major `expr $minor + 64 + 262144`
 			mknod cualM$name c $major `expr $minor + 128 + 262144`
-			chown uucp.dialer cua*M$name
+			chown uucp:dialer cua*M$name
 		done
 	done
 	umask 77
@@ -1118,7 +1118,7 @@ cuaR?)
 		MINOR=`expr $BOARD \* 65536`
 	   echo " "
 	done
-	chown uucp.dialer /dev/cuaR*
+	chown uucp:dialer /dev/cuaR*
 	;;
 
 mse*)
@@ -1231,7 +1231,7 @@ ttyx?|ttyy?|ttyz?)
 	ttyz?)  unit=`expr $unit \+ 32`;;
 	esac
 	mknod $i c 42 $unit
-	chown uucp.wheel $i
+	chown uucp:wheel $i
 	;;
 
 cronyx)
@@ -1275,7 +1275,7 @@ tun*)
 	unit=0
 	while [ $unit -le $ntun ]; do
 		mknod tun$unit c 52 $unit
-		chown uucp.dialer tun$unit
+		chown uucp:dialer tun$unit
 		unit=`expr $unit + 1`
 	done
 	;;
