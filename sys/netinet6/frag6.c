@@ -252,7 +252,7 @@ frag6_input(mp, offp, proto)
 			goto dropfrag;
 		frag6_nfragpackets++;
 		q6 = (struct ip6q *)malloc(sizeof(struct ip6q), M_FTABLE,
-		    M_DONTWAIT);
+		    M_NOWAIT);
 		if (q6 == NULL)
 			goto dropfrag;
 		bzero(q6, sizeof(*q6));
@@ -345,7 +345,7 @@ frag6_input(mp, offp, proto)
 	}
 
 	ip6af = (struct ip6asfrag *)malloc(sizeof(struct ip6asfrag), M_FTABLE,
-	    M_DONTWAIT);
+	    M_NOWAIT);
 	if (ip6af == NULL)
 		goto dropfrag;
 	bzero(ip6af, sizeof(*ip6af));
