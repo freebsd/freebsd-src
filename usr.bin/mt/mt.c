@@ -70,6 +70,7 @@ struct commands {
 	{ "rewoffl",	MTOFFL,	1 },
 	{ "status",	MTNOP,	1 },
 	{ "weof",	MTWEOF,	0 },
+	{ "erase",	MTERASE, 0 }, /* Andreas Klemm <andreas@knobel.gun.de */
 	{ NULL }
 };
 
