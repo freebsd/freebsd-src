@@ -66,12 +66,14 @@ static const char rcsid[] =
 extern char *tempname;
 static pid_t editpid = -1;
 static int lockfd;
-char *mppath = _PATH_PWD;
-char *masterpasswd = _PATH_MASTERPASSWD;
+static char _default_editor[] = _PATH_VI;
+char mppath[] = _PATH_PWD;
+char masterpasswd[] = _PATH_MASTERPASSWD;
+
+void		 pw_cont(int);
 
 void
-pw_cont(sig)
-	int sig;
+pw_cont(int sig)
 {
 
 	if (editpid != -1)
@@ -79,7 +81,7 @@ pw_cont(sig)
 }
 
 void
-pw_init()
+pw_init(void)
 {
 	struct rlimit rlim;
 
@@ -109,7 +111,7 @@ pw_init()
 }
 
 int
-pw_lock()
+pw_lock(void)
 {
 	/*
 	 * If the master password file doesn't exist, the system is hosed.
@@ -142,7 +144,7 @@ pw_lock()
 }
 
 int
-pw_tmp()
+pw_tmp(void)
 {
 	static char path[MAXPATHLEN];
 	int fd;
@@ -163,8 +165,7 @@ pw_tmp()
 }
 
 int
-pw_mkdb(username)
-char *username;
+pw_mkdb(const char *username)
 {
 	int pstat;
 	pid_t pid;
@@ -190,14 +191,13 @@ char *username;
 }
 
 void
-pw_edit(notsetuid)
-	int notsetuid;
+pw_edit(int notsetuid)
 {
 	int pstat;
 	char *p, *editor;
 
 	if (!(editor = getenv("EDITOR")))
-		editor = _PATH_VI;
+		editor = _default_editor;
 	if ((p = strrchr(editor, '/')))
 		++p;
 	else
@@ -228,7 +228,7 @@ pw_edit(notsetuid)
 }
 
 void
-pw_prompt()
+pw_prompt(void)
 {
 	int c, first;
 
@@ -242,14 +242,12 @@ pw_prompt()
 }
 
 void
-pw_error(name, err, eval)
-	char *name;
-	int err, eval;
+pw_error(const char *name, int error, int eval)
 {
 #ifdef YP
 	extern int _use_yp;
 #endif /* YP */
-	if (err) {
+	if (error) {
 		if (name != NULL)
 			warn("%s", name);
 		else

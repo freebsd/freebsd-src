@@ -61,13 +61,11 @@ extern char *mppath;
 extern char *masterpasswd;
 char *tempname;
 
-void	copyfile __P((int, int));
-static void	usage __P((void));
+static void	copyfile(int, int);
+static void	usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int pfd, tfd;
 	struct stat begin, end;
@@ -125,9 +123,8 @@ main(argc, argv)
 	exit(0);
 }
 
-void
-copyfile(from, to)
-	int from, to;
+static void
+copyfile(int from, int to)
 {
 	int nr, nw, off;
 	char buf[8*1024];
@@ -141,7 +138,7 @@ copyfile(from, to)
 }
 
 static void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr, "usage: vipw [ -d directory ]\n");
