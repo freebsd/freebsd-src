@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.51 1998/04/03 19:26:19 brian Exp $
+ * $Id: command.c,v 1.131.2.52 1998/04/04 10:34:27 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -95,8 +95,6 @@ static int SetCommand(struct cmdargs const *);
 static int LinkCommand(struct cmdargs const *);
 static int AddCommand(struct cmdargs const *);
 static int DeleteCommand(struct cmdargs const *);
-static int BgShellCommand(struct cmdargs const *);
-static int FgShellCommand(struct cmdargs const *);
 #ifndef NOALIAS
 static int AliasCommand(struct cmdargs const *);
 static int AliasEnable(struct cmdargs const *);
@@ -169,6 +167,44 @@ IsInteractive(struct prompt *prompt)
     prompt_Printf(prompt, "Working in %s mode\n", m);
 
   return mode & MODE_INTER;
+}
+
+static int
+CloneCommand(struct cmdargs const *arg)
+{
+  int f;
+
+  if (arg->argc == 0)
+    return -1;
+
+  if (!arg->bundle->ncp.mp.active) {
+    LogPrintf(LogWARN, "clone: Only available in multilink mode\n");
+    return 1;
+  }
+
+  for (f = 0; f < arg->argc; f++)
+    bundle_DatalinkClone(arg->bundle, arg->cx, arg->argv[f]);
+  return 0;
+}
+
+static int
+RemoveCommand(struct cmdargs const *arg)
+{
+  if (arg->argc != 0)
+    return -1;
+
+  if (!arg->bundle->ncp.mp.active) {
+    LogPrintf(LogWARN, "remove: Only available in multilink mode\n");
+    return 1;
+  }
+
+  if (arg->cx->state != DATALINK_CLOSED) {
+    LogPrintf(LogWARN, "remove: Cannot delete links that aren't closed\n");
+    return 2;
+  }
+
+  bundle_DatalinkRemove(arg->bundle, arg->cx);
+  return 0;
 }
 
 static int
@@ -336,6 +372,8 @@ static struct cmdtab const Commands[] = {
   "Allow ppp access", "allow users|modes ...."},
   {"bg", "!bg", BgShellCommand, LOCAL_AUTH,
   "Run a background command", "[!]bg command"},
+  {"clone", NULL, CloneCommand, LOCAL_AUTH | LOCAL_CX,
+  "Clone a link", "clone newname..."},
   {"close", NULL, CloseCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Close connection", "close"},
   {"delete", NULL, DeleteCommand, LOCAL_AUTH,
@@ -362,6 +400,8 @@ static struct cmdtab const Commands[] = {
   "Password for manipulation", "passwd LocalPassword"},
   {"quit", "bye", QuitCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
   "Quit PPP program", "quit|bye [all]"},
+  {"remove", NULL, RemoveCommand, LOCAL_AUTH | LOCAL_CX,
+  "Remove a link", "remove"},
   {"save", NULL, SaveCommand, LOCAL_AUTH,
   "Save settings", "save"},
   {"set", "setup", SetCommand, LOCAL_AUTH | LOCAL_CX_OPT,

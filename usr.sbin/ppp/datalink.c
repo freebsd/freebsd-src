@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.31 1998/04/03 19:25:27 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.32 1998/04/03 19:26:20 brian Exp $
  */
 
 #include <sys/param.h>
@@ -532,6 +532,61 @@ datalink_Create(const char *name, struct bundle *bundle,
     free(dl);
     return NULL;
   }
+  chat_Init(&dl->chat, dl->physical, NULL, 1, NULL);
+
+  LogPrintf(LogPHASE, "%s: Created in CLOSED state\n", dl->name);
+
+  return dl;
+}
+
+struct datalink *
+datalink_Clone(struct datalink *odl, const char *name)
+{
+  struct datalink *dl;
+
+  dl = (struct datalink *)malloc(sizeof(struct datalink));
+  if (dl == NULL)
+    return dl;
+
+  dl->desc.type = DATALINK_DESCRIPTOR;
+  dl->desc.next = NULL;
+  dl->desc.UpdateSet = datalink_UpdateSet;
+  dl->desc.IsSet = datalink_IsSet;
+  dl->desc.Read = datalink_Read;
+  dl->desc.Write = datalink_Write;
+
+  dl->state = DATALINK_CLOSED;
+
+  memcpy(&dl->cfg, &odl->cfg, sizeof dl->cfg);
+  mp_linkInit(&dl->mp);
+  *dl->phone.list = '\0';
+  dl->bundle = odl->bundle;
+  dl->next = NULL;
+  memset(&dl->dial_timer, '\0', sizeof dl->dial_timer);
+  dl->dial_tries = 0;
+  dl->reconnect_tries = 0;
+  dl->name = strdup(name);
+  dl->parent = odl->parent;
+  memcpy(&dl->fsmp, &odl->fsmp, sizeof dl->fsmp);
+  authinfo_Init(&dl->pap);
+  dl->pap.cfg.fsmretry = odl->pap.cfg.fsmretry;
+
+  authinfo_Init(&dl->chap.auth);
+  dl->chap.auth.cfg.fsmretry = odl->chap.auth.cfg.fsmretry;
+
+  if ((dl->physical = modem_Create(dl)) == NULL) {
+    free(dl->name);
+    free(dl);
+    return NULL;
+  }
+  memcpy(&dl->physical->cfg, &odl->physical->cfg, sizeof dl->physical->cfg);
+  memcpy(&dl->physical->link.lcp.cfg, &odl->physical->link.lcp.cfg,
+         sizeof dl->physical->link.lcp.cfg);
+  memcpy(&dl->physical->link.ccp.cfg, &odl->physical->link.ccp.cfg,
+         sizeof dl->physical->link.ccp.cfg);
+  memcpy(&dl->physical->async.cfg, &odl->physical->async.cfg,
+         sizeof dl->physical->async.cfg);
+
   chat_Init(&dl->chat, dl->physical, NULL, 1, NULL);
 
   LogPrintf(LogPHASE, "%s: Created in CLOSED state\n", dl->name);

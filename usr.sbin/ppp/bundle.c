@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.37 1998/04/03 19:26:16 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.38 1998/04/04 13:01:19 brian Exp $
  */
 
 #include <sys/param.h>
@@ -992,4 +992,26 @@ bundle_SetTtyCommandMode(struct bundle *bundle, struct datalink *dl)
       if (prompt_IsTermMode(p, dl))
         prompt_TtyCommandMode(p);
     }
+}
+void
+bundle_DatalinkClone(struct bundle *bundle, struct datalink *dl,
+                     const char *name)
+{
+  struct datalink *ndl = datalink_Clone(dl, name);
+
+  ndl->next = dl->next;
+  dl->next = ndl;
+}
+
+void
+bundle_DatalinkRemove(struct bundle *bundle, struct datalink *dl)
+{
+  struct datalink **dlp;
+
+  if (dl->state == DATALINK_CLOSED)
+    for (dlp = &bundle->links; *dlp; dlp = &(*dlp)->next)
+      if (*dlp == dl) {
+        *dlp = datalink_Destroy(dl);
+        break;
+      }
 }

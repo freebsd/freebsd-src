@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.11 1998/04/03 19:25:48 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.12 1998/04/03 19:26:26 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1922,6 +1922,15 @@ will be replaced with the appropriate values.  If you wish to pause
 while the command executes, use the
 .Dv shell
 command instead.
+.It clone Ar name...
+Clone the specified link, creating one or more new links according to the
+.Ar name
+argument(s).  This command must be used from the
+.Dq link
+command below.  It is only available in multilink mode.  Links may
+be removed using the
+.Dq remove
+command below.
 .It close
 Close the current connection (but don't quit).
 .It delete[!] Ar dest
@@ -2021,6 +2030,13 @@ all argument is given,
 .Nm
 will exit despite the source of the command after closing all existing
 connections.
+.It remove
+This command removes the given link (specified via the
+.Dq link
+command).  It is only available in multilink mode.  A link must be
+in the
+.Dv CLOSED
+state before it is removed.
 .It save
 This option is not (yet) implemented.
 .It set[up] Ar var value
