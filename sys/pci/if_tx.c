@@ -524,12 +524,9 @@ epic_freebsd_attach(dev)
 	/* Workaround for Application Note 7-15 */
 	for (i=0; i<16; i++) CSR_WRITE_4(sc, TEST1, TEST1_CLOCK_TEST);
 
-	/*
-	 * Do ifmedia setup.
-	 */
-	if (mii_phy_probe(dev, &sc->miibus,
-	    epic_ifmedia_upd, epic_ifmedia_sts)) {
-		device_printf(dev, "MII without any PHY!?\n");
+	/* Do OS independent part, including chip wakeup and reset */
+	if (epic_common_attach(sc)) {
+		device_printf(dev, "memory distribution error\n");
 		bus_teardown_intr(dev, sc->irq, sc->sc_ih);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
 		bus_release_resource(dev, EPIC_RES, EPIC_RID, sc->res);
@@ -537,9 +534,10 @@ epic_freebsd_attach(dev)
 		goto fail;
 	}
 
-	/* Do OS independent part, including chip wakeup and reset */
-	if (epic_common_attach(sc)) {
-		device_printf(dev, "memory distribution error\n");
+	/* Do ifmedia setup */
+	if (mii_phy_probe(dev, &sc->miibus,
+	    epic_ifmedia_upd, epic_ifmedia_sts)) {
+		device_printf(dev, "MII without any PHY!?\n");
 		bus_teardown_intr(dev, sc->irq, sc->sc_ih);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
 		bus_release_resource(dev, EPIC_RES, EPIC_RID, sc->res);
