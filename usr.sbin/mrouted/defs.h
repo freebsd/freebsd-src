@@ -24,12 +24,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
-#ifdef SYSV
-#include <sys/sockio.h>
-#endif
-#ifdef _AIX
-#include <time.h>
-#endif
 #include <sys/time.h>
 #include <sys/uio.h>
 #include <net/if.h>
@@ -41,14 +35,9 @@
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/igmp.h>
-#ifdef __FreeBSD__	/* sigh */
-#include <osreldate.h>
-#if __FreeBSD_version >= 220000
 #define rtentry kernel_rtentry
 #include <net/route.h>
 #undef rtentry
-#endif
-#endif
 #include <netinet/ip_mroute.h>
 #ifdef RSRR
 #include <sys/un.h>
@@ -57,16 +46,8 @@
 /*XXX*/
 typedef u_int u_int32;
 
-#ifndef __P
-#ifdef __STDC__
-#define __P(x)	x
-#else
-#define __P(x)	()
-#endif
-#endif
-
-typedef void (*cfunc_t) __P((void *));
-typedef void (*ihfunc_t) __P((int, fd_set *));
+typedef void (*cfunc_t)(void *);
+typedef void (*ihfunc_t)(int, fd_set *);
 
 #include "dvmrp.h"
 #include "igmpv2.h"
@@ -104,13 +85,7 @@ typedef void (*ihfunc_t) __P((int, fd_set *));
 #define	DEL_ALL_ROUTES		1
 			    /* for Deleting kernel table entries */
 
-/* obnoxious gcc gives an extraneous warning about this constant... */
-#if defined(__STDC__) || defined(__GNUC__)
 #define JAN_1970	2208988800UL	/* 1970 - 1900 in seconds */
-#else
-#define JAN_1970	2208988800L	/* 1970 - 1900 in seconds */
-#define const		/**/
-#endif
 
 #ifdef RSRR
 #define BIT_ZERO(X)      ((X) = 0)
@@ -119,15 +94,7 @@ typedef void (*ihfunc_t) __P((int, fd_set *));
 #define BIT_TST(X,n)     ((X) & 1 << (n))
 #endif /* RSRR */
 
-#ifdef SYSV
-#define bcopy(a, b, c)	memcpy(b, a, c)
-#define bzero(s, n) 	memset((s), 0, (n))
-#define setlinebuf(s)	setvbuf(s, NULL, _IOLBF, 0)
-#endif
-
-#if defined(_AIX) || (defined(BSD) && (BSD >= 199103))
 #define	HAVE_SA_LEN
-#endif
 
 /*
  * External declarations for global variables and functions.
@@ -180,21 +147,6 @@ extern char		s1[];
 extern char		s2[];
 extern char		s3[];
 extern char		s4[];
-
-#if !(defined(BSD) && (BSD >= 199103))
-extern int		errno;
-extern int		sys_nerr;
-extern char *		sys_errlist[];
-#endif
-
-#ifdef OLD_KERNEL
-#define	MRT_INIT	DVMRP_INIT
-#define	MRT_DONE	DVMRP_DONE
-#define	MRT_ADD_VIF	DVMRP_ADD_VIF
-#define	MRT_DEL_VIF	DVMRP_DEL_VIF
-#define	MRT_ADD_MFC	DVMRP_ADD_MFC
-#define	MRT_DEL_MFC	DVMRP_DEL_MFC
-#endif
 
 #ifndef IGMP_PIM
 #define	IGMP_PIM	0x14
