@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.105 1996/11/03 14:41:58 joerg Exp $
+#	$Id: rc,v 1.106 1996/11/13 19:04:31 adam Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -19,7 +19,7 @@ trap : 2
 trap : 3	# shouldn't be needed
 
 HOME=/; export HOME
-PATH=/sbin:/bin:/usr/sbin:/usr/bin
+PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin
 export PATH
 
 # Configure ccd devices.
