@@ -85,23 +85,17 @@ You must not depend on the value you gave it earlier.
 and
 .Fa end
 are the start/end addresses of the resource.
-If you specify values of
-.Dv 0
-for
+If you specify values of 0 for
 .Fa start
-and
-.Dv ~0
-for
+and ~0 for
 .Fa end
-and
-.Dv 1
-for
+and 1 for
 .Fa count ,
 the default values for the bus are calculated.
 .It
 .Fa count
 is the size of the resource, e.g. the size of an I/O port (often
-.Dv 1, but some devices override this).
+1, but some devices override this).
 If you specified the default values for
 .Fa start
 and

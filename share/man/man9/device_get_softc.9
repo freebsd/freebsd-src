@@ -44,9 +44,9 @@ Return the driver-specific state of
 .Fa dev .
 The softc is automatically allocated the first time it is requested.
 The size of the allocation is determined by the device's
-.Ft driver_t
+.Vt driver_t
 information used to define the driver.
-The softc typically encaposlates the state of this instance of the
+The softc typically encapsulates the state of this instance of the
 device.
 .Pp
 Driver writers are discouraged from using their own softc management
@@ -56,9 +56,9 @@ tree that predates this function.
 .Sh RETURN VALUES
 The pointer to the driver-specific instance variable is returned.
 .Sh SEE ALSO
-.Xr driver 9 ,
 .Xr device 9 ,
-.Xr device_set_softc 9
+.Xr device_set_softc 9 ,
+.Xr driver 9
 .Sh AUTHORS
 This man page was written by
 .An Doug Rabson .
