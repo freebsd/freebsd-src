@@ -41,6 +41,7 @@ int quiet = 0;
 int trace = 0;
 int noexec = 0;
 int readonlyfs = 0;
+int require_real_user = 0;
 int logoff = 0;
 mode_t cvsumask = UMASK_DFLT;
 
@@ -479,7 +480,7 @@ main (argc, argv)
     opterr = 1;
 
     while ((c = getopt_long
-            (argc, argv, "+QqrwtnRlvb:T:e:d:Hfz:s:xa", long_options, &option_index))
+            (argc, argv, "+QqrwtnRlvb:T:e:d:Hfz:s:xaU", long_options, &option_index))
            != EOF)
     {
 	switch (c)
@@ -601,6 +602,11 @@ Copyright (c) 1989-1998 Brian Berliner, david d `zoo' zuhn, \n\
                    have it in their .cvsrc and not cause any trouble.
                    We will issue an error later if stream
                    authentication is not supported.  */
+		break;
+	    case 'U':
+#ifdef SERVER_SUPPORT
+		require_real_user = 1;
+#endif
 		break;
 	    case '?':
 	    default:
