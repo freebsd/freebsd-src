@@ -29,11 +29,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: modload.c,v 1.16 1997/02/22 14:32:40 peter Exp $
  */
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <limits.h>
 #include <errno.h>
@@ -57,8 +58,6 @@ int debug = 0;
 int verbose = 0;
 int quiet = 0;
 int dounlink = 0;
-
-extern char *sys_siglist[];
 
 /*
  * Expected linker options:
