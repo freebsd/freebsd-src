@@ -89,6 +89,12 @@ card "Midori Elec." "FAST FLASH"
 	insert	logger -t pccard:$device -s Midori Elec Fast FLASH inserted
 	remove	logger -t pccard:$device -s Midori Elec Fast FLASH removed
 
+# pc-card from PSCD-740 cdrom
+card "PCMCIA" "CD-ROM"
+	config	0x1 "ata2" ?
+	insert	logger -t pccard:$device -s PCMCIA CD-ROM inserted
+	remove	logger -t pccard:$device -s PCMCIA CD-ROM removed
+
 # SiliconTech, Inc flash card
 card "SiliconTech,Inc" "16MB Compact PC Card"
 	config	0x1 "ata2" ?
@@ -422,6 +428,15 @@ card "PCMCIAs" "ComboCard"
 	remove	logger -t pccard:$device -s LinkMates LM 336 removed
 	remove	/sbin/ifconfig $device delete
 
+
+# RPTI EP401 Ethernet card
+card "RPTI" "EP401 Ethernet NE2000 Compatible"
+	config	0x22 "ed0" 9 
+	insert	logger -t pccard:$device -s RPTI EP401 inserted
+	insert	/etc/pccard_ether $device
+	remove	logger -t pccard:$device -s RPTI EP401 removed
+	remove	/sbin/ifconfig $device delete
+
 # Surecom EtherPerfect EP-427
 card "TAMARACK" "Ethernet"
 	config	0x21 "ed0" ?
@@ -463,6 +478,15 @@ card "3Com" "OfficeConnect 572B"
 	insert	/etc/pccard_ether $device
 	remove	logger -t pccard:$device -s 3Com 3CXSH572BT removed
 	remove	/sbin/ifconfig $device delete
+
+# 3Com Etherlink III 3C562 (as Network)
+# Don't think this will work.
+#card "3Com Corporation" "3C562"
+#	config	0x9 "ep0" ?
+#	insert	logger -t pccard:$device -s 3Com EtherlinkIII+Modem inserted
+#	insert	/etc/pccard_ether $device -link0 link1
+#	remove	logger -t pccard:$device -s 3Com EtherlinkIII+Modem removed
+#	remove	/sbin/ifconfig $device delete
 
 # 3Com Etherlink III 3C589B, 3C589C
 card "3Com Corporation" "3C589"
@@ -558,6 +582,12 @@ card "3Com" "3CXM/3CCM556"
 	insert	logger -t pccard:$device -s 3Com PCMCIA 56K Modem inserted
 	remove	logger -t pccard:$device -s 3Com PCMCIA 56K Modem removed
 
+# 3Com Etherlink III 3C562 (as Modem)
+card "3Com Corporation" "3C562"
+	config	0x09 "sio1" ?
+	insert	logger -t pccard:$device -s 3Com EtherlinkIII+Modem inserted
+	remove	logger -t pccard:$device -s 3Com EtherlinkIII+Modem removed
+
 # AIWA PV-JF288
 card "AIWA CO.,LTD." "PV-JF288  "
 	config	0x23 "sio2" ?
@@ -602,6 +632,12 @@ card "COM1 SA" "MC220 CARD"
 	insert	logger -t pccard:$device -s COM1 SA MC220 CARD Modem inserted
 	remove	logger -t pccard:$device -s COM1 SA MC220 CARD Modem removed
 
+# Digiteam Expresso 14.4 Modem
+card "Digiteam GmbH" "Expresso Modem"
+	config	0x24 "sio2" ?
+	insert	logger -t pccard:$device -s Expresso Modem inserted
+	remove	logger -t pccard:$device -s Expresso Modem removed
+
 # GATEWAY 2000 FAX/Data Modem (14.4K)
 card "GATEWAY2000" "CC3144"
 	config	0x22 "sio3" ?
@@ -627,6 +663,25 @@ card "IBM" "Push/Pop Modem(14.4K)"
 	config	0x22 "sio2" ?
 	insert	logger -t pccard:$device -s IBM Push/Pop Modem inserted
 	remove	logger -t pccard:$device -s IBM Push/Pop Modem removed
+
+# US Robotics Worldport 14400
+card "Intel" "MODEM 2400+"
+	config	0x2 "sio1" ?
+	insert	logger -t pccard:$device -s USRobotics PCMCIA Modem inserted
+	remove	logger -t pccard:$device -s USRobotics PCMCIA Modem removed
+
+# Intelligent SurfCard
+card "Intelligent" "PCMCIA FAX+MODEM"
+	config	0x1f "sio1" ?
+	reset	1000
+	insert	logger -t pccard:$device -s PCMCIA Modem inserted
+	remove	logger -t pccard:$device -s PCMCIA Modem removed
+
+# Megahertz XJEM3288 (as modem)
+card "MEGAHERTZ" "CC/XJEM3288"
+	config	auto "sio2" ?
+	insert	logger -t pccard:$device -s Megahertz CC/XJEM3288 inserted
+	remove	logger -t pccard:$device -s Megahertz CC/XJEM3288 removed
 
 # Megahertz XJEM1336 (as modem)
 card "MEGAHERTZ" "CC/XJEM3336"
@@ -681,8 +736,8 @@ card "Megahertz" "XJ4336-CC4336"
 # Motorola Montana 
 card "Motorola" "MONTANA 33.6 FAX/MODEM"
 	config	0x21 "sio1" ?
-	insert	echo Motorola Montana 33.6K FAX/modem inserted
-	remove	echo Motorola Montana 33.6K FAX/modem removed
+	insert	logger -t pccard:$device -s Motorola Montana 33.6K FAX/modem inserted
+	remove	logger -t pccard:$device -s Motorola Montana 33.6K FAX/modem removed
 
 # NTT ThunderCard Modem
 card "NTT-IT CO., LTD" "ThunderCard AVF288, V.34"
@@ -743,6 +798,12 @@ card "NovaLink Tech." "NovaModem 144   "
 	config	0x23 "sio2" ?
 	insert	logger -t pccard:$device -s NovaModem 144 Modem inserted
 	remove	logger -t pccard:$device -s NovaModem 144 Modem removed
+
+# Novatel Merlin CDPD card (wireless modem)
+card "Novatel Wireless" "Merlin Type II Wireless IP Modem"
+	config	auto "sio2" ?
+	insert	logger -t pccard:$device -s Novatel Merlin inserted
+	remove	logger -t pccard:$device -s Merlin removed
 
 # Omron ME2814 FAX/DATA MODEM
 card "OMRON" "ME2814 FAX/DATA MOD"
@@ -816,8 +877,14 @@ card "Panasonic" "TO-CAF288"
 # Random modem bundled with Dell systems
 card "Psion Dacom" "Gold Card Global 56K+Fax"
 	config	0x23 "sio2" ?
-	insert	logger -t pccard:$device -s "Psion Dacom modem card inserted"
-	remove	logger -t pccard:$device -s "Psion Dacom modem card removed"
+	insert	logger -t pccard:$device -s Psion Dacom modem card inserted
+	remove	logger -t pccard:$device -s Psion Dacom modem card removed
+
+# RFI HotLine serial card
+card "RFI" "RS-232 ComCard Rev.II"
+	config	0x23 "sio2" ?
+	insert	logger -t pccard:$device -s RFI Hotline inserted
+	insert	remove -t pccard:$device -s RFI Hotline removed
 
 # TDK 14.4 FAX/Data Modem
 card "TDK" "DF1414 DATA/FAX MOD"
@@ -830,6 +897,12 @@ card "TDK" "DF1414EX DATA/FAX M"
 	config	0x23 "sio2" ?
 	insert	logger -t pccard:$device -s TDK DF1414 inserted
 	remove	logger -t pccard:$device -s TDK DF1414 removed
+
+# 3Com/USR/Toshiba SLIMV90
+card "TOSHIBA" "SLIMV90"
+        config 0x4 "sio1" ?
+        insert echo Toshiba PCMCIA V90 modem inserted
+        remove echo Toshiba PCMCIA V90 modem removed
 
 # 3Com/NoteWorthy 56K modem (bundled with Toshiba notebooks)
 card "Toshiba America" "3CXM056-BNW"
@@ -875,7 +948,7 @@ card "Xircom" "CreditCard Ethernet+Modem 33.6"
 	remove	logger -t pccard:$device -s Xircom CreditCard Modem removed
 
 # Xircom GlobalACCESS modem
-card "Xircom" "CreditCard Modem 56 - GlobalA"
+card "Xircom" "CreditCard Modem 56 - GlobalACCESS"
 	config	0x1f "sio2" ?
 	insert	logger -t pccard:$device -s Xircom CreditCard Modem 56 - GlobalACCESS inserted
 	remove	logger -t pccard:$device -s Xircom CreditCard Modem 56 - GlobalACCESS removed
