@@ -201,6 +201,9 @@ The bktr(4) driver has been updated to 2.17.  This fixes bugs in devfs
 when unloading and reloading, and syncs with some NetBSD
 changes. [MERGED]
 
+The bktr(4) driver has been updated to 2.18.  This adds support for
+new Hauppauge Model 44xxx WinTV Cards (the ones with no audio mux).
+
 Extremely large swap areas (>67 GB) no longer panic the system.
 
 The snc(4) driver for the National Semiconductor DP8393X (SONIC)
@@ -409,7 +412,7 @@ FreeBSD-specific updates, which aren't reflected in the original,
 third-party software distributions.  pkg_version(1) can now compare
 these new-style version numbers.  [MERGED]
 
-cvs(1) has been updated to 1.11.
+cvs(1) has been updated to 1.11. [MERGED]
 
 tcpdump(1) has received some updates and bugfixes. [MERGED]
 
@@ -442,6 +445,13 @@ reflects the percentage of network mbufs used. [MERGED]
 
 mergemaster(8) has gained some new features, has been cleaned up
 somewhat, and is now more cross-platform friendly.
+
+The compiler chain now uses the FSF-supplied C/C++ runtime
+initialization code.  This change brings about better compatability
+with code generated from the various egcs and gcc ports, as well as
+the stock public FSF source. [MERGED]
+
+BIND has been updated to v8.2.3-T6B.
 
 
 2. Supported Configurations
