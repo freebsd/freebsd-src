@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.101 1994/10/26 21:10:13 wollman Exp $
+#	$Id: LINT,v 1.102 1994/10/28 15:09:37 jkh Exp $
 #
 
 #
@@ -368,6 +368,21 @@ controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
 disk		fd0	at fdc0 drive 0
 disk		fd1	at fdc0 drive 1
 tape		ft0	at fdc0 drive 2
+
+#
+# options for the fd driver
+#
+# options	"FDSEEKWAIT=16"
+#
+# makes you override the default head-settle time after a seek has been
+# performed. This value has been 32 in FreeBSD-1.1.5.1, but various
+# people have reported about problems (unexpected CRC errors).
+# The value is actually the divisor, the time to wait is
+# 1 s / FDSEEKWAIT.
+# For performance reasons (elimination of the division), the values
+# should be a power of two.
+
+
 
 #
 # Other standard PC hardware: `lpt', `mse', `psm', `sio'
