@@ -176,6 +176,9 @@
 	<filename>geom_vol_ffs</filename>.
 	</para>
 
+      <para arch="i386">The &man.matcd.4; driver, which supports the
+        Matsushita CR-562 and CR-563 CD drives, has returned.</para>
+
     </sect3>
 
     <sect3 id="fs">
@@ -219,7 +222,14 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
-    <para><application>OpenPAM</application> has been updated to the
+    <para><application>BIND</application> has been updated from 8.3.4
+      to 8.3.6.</para>
+
+    <para><application>lukemftp</application> has been updated from
+      1.6beta2 to a 15 June 2003 snapshot from NetBSD.</para>
+
+    <para><application>OpenPAM</application> has been updated from the
+      <quote>Dianthus</quote> release to the
       <quote>Digitalis</quote> release.</para>
 
   </sect2>
