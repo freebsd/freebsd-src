@@ -12,6 +12,7 @@ sed '1,/^$/d' < /etc/motd >> $T
 cp $T /etc/motd
 chmod 644 /etc/motd
 rm -f $T
+_HOST=`hostname`
 
 echo -n 'starting local daemons:'
 
@@ -36,6 +37,12 @@ fi
 # Start ypbind if we're an NIS client
 if [ X"${nis_clientflags}" != X"NO" ]; then
         echo -n ' ypbind'; ypbind $nis_clientflags
+fi
+
+# If we've a local rc file, execute it
+if [ -x /usr/share/misc/rc.${_HOST} ]; then
+	echo " local rc for ${_HOST}:"
+	. /usr/share/misc/rc.${_HOST}
 fi
 
 # For loading fonts/keyboard example look in /usr/share/examples/syscons
