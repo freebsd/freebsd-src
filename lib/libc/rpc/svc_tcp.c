@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)svc_tcp.c 1.21 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)svc_tcp.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: svc_tcp.c,v 1.11 1997/05/28 05:05:30 wpaul Exp $";
+static char *rcsid = "$Id: svc_tcp.c,v 1.12 1998/05/15 22:53:45 wpaul Exp $";
 #endif
 
 /*
@@ -296,6 +296,13 @@ static struct timeval wait_per_try = { 35, 0 };
  * reads data from the tcp conection.
  * any error is fatal and the connection is closed.
  * (And a read of zero bytes is a half closed stream => error.)
+ *
+ * Note: we have to be careful here not to allow ourselves to become
+ * blocked too long in this routine. While we're waiting for data from one
+ * client, another client may be trying to connect. To avoid this situation,
+ * some code from svc_run() is transplanted here: the select() loop checks
+ * all RPC descriptors including the one we want and calls svc_getreqset2()
+ * to handle new requests if any are detected.
  */
 static int
 readtcp(xprt, buf, len)
@@ -306,49 +313,60 @@ readtcp(xprt, buf, len)
 	register int sock = xprt->xp_sock;
 	struct timeval start, delta, tv;
 	struct timeval tmp1, tmp2;
-	fd_set *fds, readfds;
-
-	if (sock + 1 > FD_SETSIZE) {
-		int bytes = howmany(sock+1, NFDBITS) * sizeof(fd_mask);
-		fds = (fd_set *)malloc(bytes);
-
-		if (fds == NULL)
-			goto fatal_err;
-		memset(fds, 0, bytes);
-	} else {
-		fds = &readfds;
-		FD_ZERO(fds);
-	}
+	fd_set *fds;
+	extern fd_set		*__svc_fdset;
+	extern int		__svc_fdsetsize;
 
 	delta = wait_per_try;
+	fds = NULL;
 	gettimeofday(&start, NULL);
 	do {
+		int bytes = howmany(__svc_fdsetsize, NFDBITS) *
+				sizeof(fd_mask);
+		if (fds != NULL)
+			free(fds);
+		fds = (fd_set *)malloc(bytes);
+		if (fds == NULL)
+			goto fatal_err;
+		memcpy(fds, __svc_fdset, bytes);
+
 		/* XXX we know the other bits are still clear */
 		FD_SET(sock, fds);
 		tv = delta;	/* in case select() implements writeback */
-		switch (select(sock + 1, fds, NULL, NULL, &tv)) {
+		switch (select(svc_maxfd + 1, fds, NULL, NULL, &tv)) {
 		case -1:
 			if (errno != EINTR)
 				goto fatal_err;
 			gettimeofday(&tmp1, NULL);
 			timersub(&tmp1, &start, &tmp2);
-			timersub(&delta, &tmp2, &tmp1);
+			timersub(&wait_per_try, &tmp2, &tmp1);
 			if (tmp1.tv_sec < 0 || !timerisset(&tmp1))
 				goto fatal_err;
 			delta = tmp1;
 			continue;
 		case 0:
 			goto fatal_err;
+		default:
+			if (!FD_ISSET(sock, fds)) {
+				svc_getreqset2(fds, svc_maxfd + 1);
+				gettimeofday(&tmp1, NULL);
+				timersub(&tmp1, &start, &tmp2);
+				timersub(&wait_per_try, &tmp2, &tmp1);
+				if (tmp1.tv_sec < 0 || !timerisset(&tmp1))
+					goto fatal_err;
+				delta = tmp1;
+				continue;
+			}
 		}
 	} while (!FD_ISSET(sock, fds));
 	if ((len = read(sock, buf, len)) > 0) {
-		if (fds != &readfds)
+		if (fds != NULL)
 			free(fds);
 		return (len);
 	}
 fatal_err:
 	((struct tcp_conn *)(xprt->xp_p1))->strm_stat = XPRT_DIED;
-	if (fds != &readfds)
+	if (fds != NULL)
 		free(fds);
 	return (-1);
 }
