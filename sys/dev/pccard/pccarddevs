@@ -1,5 +1,5 @@
 $FreeBSD$
-/* $NetBSD: pcmciadevs,v 1.107 2000/12/20 06:05:13; haya Exp $ */
+/* $NetBSD: pcmciadevs,v 1.111 2001/01/20 01:56:16 imp Exp $ */
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -79,10 +79,12 @@ vendor COMPEX			0x8a01	Compex Corporation
 vendor MELCO			0x8a01	Melco Corporation
 vendor CONTEC			0xc001	Contec
 vendor MACNICA			0xc00b	MACNICA
+vendor ROLAND			0xc00c	Roland
 vendor COREGA			0xc00f	Corega K.K.
 vendor ALLIEDTELESIS		0xc00f	Allied Telesis K.K.
 vendor HAGIWARASYSCOM		0xc012	Hagiwara SYS-COM
 vendor RATOC			0xc015  RATOC System Inc.
+vendor EMTAC			0xc250	EMTAC Technology Corporation
 vendor ELSA			0xd601  Elsa 
 
 /*
@@ -232,6 +234,9 @@ product SMC EZCARD		0x8022 SMC EZCard 10 PCMCIA
 /* Contec C-NET(PC) */
 product CONTEC CNETPC		0x0000 Contec C-NET(PC)C
 
+/* Roland */
+product ROLAND SCP55		0x0001 Roland SCP-55
+
 /* Allied Telesis K.K. */
 product ALLIEDTELESIS LA_PCM	0x0002 Allied Telesis LA-PCM
 
@@ -264,6 +269,9 @@ product TELECOMDEVICE TCD_HPC100	0x0202 Telecom Device TCD-HPC100
 
 /* MACNICA */
 product MACNICA ME1_JEIDA	0x3300	MACNICA ME1 for JEIDA
+
+/* EMTAC */
+product EMTAC WLAN		0x0002	EMTAC A2424i 11Mbps WLAN Card
 
 /* Cards we know only by their cis */
 vendor PREMAX			-1 	Premax
@@ -328,3 +336,4 @@ product NDC ND5100_E		{ "NDC", "Ethernet", "A", NULL } Sohoware ND5100E NE2000 C
 product INTERSIL PRISM2		{ "INTERSIL", "HFA384x/IEEE", "Version&sp01.02", NULL } Intersil Prism II
 product MELCO LPC2_TX		{ "MELCO", "LPC2-TX", NULL, NULL } Melco LPC2-TX
 product SMC 2632W		{ "SMC", "SMC2632W", "Version&sp01.02", NULL } SMC 2632 EZ Connect Wireless PC Card
+product NANOSPEED PRISM2	{ "NANOSPEED", "HFA384x/IEEE", "Version&sp01.02", NULL } NANOSPEED ROOT-RZ2000 WLAN Card
