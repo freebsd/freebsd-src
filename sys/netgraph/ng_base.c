@@ -156,10 +156,22 @@ static LIST_HEAD(, ng_type) ng_typelist;
 static struct mtx	ng_typelist_mtx;
 
 /* Hash related definitions */
-/* Don't nead to initialise them because it's a LIST */
-#define ID_HASH_SIZE 32 /* most systems wont need even this many */
-static LIST_HEAD(, ng_node) ng_ID_hash[ID_HASH_SIZE];
+/* XXX Don't need to initialise them because it's a LIST */
+#define NG_ID_HASH_SIZE 32 /* most systems wont need even this many */
+static LIST_HEAD(, ng_node) ng_ID_hash[NG_ID_HASH_SIZE];
 static struct mtx	ng_idhash_mtx;
+/* Method to find a node.. used twice so do it here */
+#define NG_IDHASH_FN(ID) ((ID) % (NG_ID_HASH_SIZE))
+#define NG_IDHASH_FIND(ID, node)					\
+	do { 								\
+		LIST_FOREACH(node, &ng_ID_hash[NG_IDHASH_FN(ID)],	\
+						nd_idnodes) {		\
+			if (NG_NODE_IS_VALID(node)			\
+			&& (NG_NODE_ID(node) == ID)) {			\
+				break;					\
+			}						\
+		}							\
+	} while (0)
 
 /* Mutex that protects the free queue item list */
 static volatile item_p		ngqfree;	/* free ones */
@@ -621,18 +633,14 @@ ng_make_node_common(struct ng_type *type, node_p *nodepp)
 	for (;;) { /* wrap protection, even if silly */
 		node_p node2 = NULL;
 		node->nd_ID = nextID++; /* 137/second for 1 year before wrap */
+
 		/* Is there a problem with the new number? */
-		if ((node->nd_ID == 0)
-		|| (node2 = ng_ID2noderef(node->nd_ID))) {
-			if (node2) {
-				NG_NODE_UNREF(node2);
-				node2 = NULL;
-			}
-		} else {
+		NG_IDHASH_FIND(node->nd_ID, node2); /* already taken? */
+		if ((node->nd_ID != 0) && (node2 == NULL)) {
 			break;
 		}
 	}
-	LIST_INSERT_HEAD(&ng_ID_hash[node->nd_ID % ID_HASH_SIZE],
+	LIST_INSERT_HEAD(&ng_ID_hash[NG_IDHASH_FN(node->nd_ID)],
 							node, nd_idnodes);
 	mtx_exit(&ng_idhash_mtx, MTX_DEF);
 
@@ -767,11 +775,7 @@ ng_ID2noderef(ng_ID_t ID)
 {
 	node_p node;
 	mtx_enter(&ng_idhash_mtx, MTX_DEF);
-	LIST_FOREACH(node, &ng_ID_hash[ID % ID_HASH_SIZE], nd_idnodes) {
-		if (NG_NODE_IS_VALID(node) && (NG_NODE_ID(node) == ID)) {
-			break;
-		}
-	}
+	NG_IDHASH_FIND(ID, node);
 	if(node)
 		NG_NODE_REF(node);
 	mtx_exit(&ng_idhash_mtx, MTX_DEF);
