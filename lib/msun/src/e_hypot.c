@@ -1,11 +1,12 @@
-/* @(#)e_hypot.c 5.1 93/09/24 */
+
+/* @(#)e_hypot.c 1.3 95/01/18 */
 /*
  * ====================================================
  * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
  *
- * Developed at SunPro, a Sun Microsystems, Inc. business.
+ * Developed at SunSoft, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice
+ * software is freely granted, provided that this notice 
  * is preserved.
  * ====================================================
  */
@@ -16,12 +17,12 @@ static char rcsid[] = "$FreeBSD$";
 
 /* __ieee754_hypot(x,y)
  *
- * Method :
- *	If (assume round-to-nearest) z=x*x+y*y
- *	has error less than sqrt(2)/2 ulp, than
+ * Method :                  
+ *	If (assume round-to-nearest) z=x*x+y*y 
+ *	has error less than sqrt(2)/2 ulp, than 
  *	sqrt(z) has error less than 1 ulp (exercise).
  *
- *	So, compute sqrt(x*x+y*y) with some care as
+ *	So, compute sqrt(x*x+y*y) with some care as 
  *	follows to get the error below 1 ulp:
  *
  *	Assume x>y>0;
@@ -31,10 +32,10 @@ static char rcsid[] = "$FreeBSD$";
  *	where x1 = x with lower 32 bits cleared, x2 = x-x1; else
  *	2. if x <= 2y use
  *		t1*y1+((x-y)*(x-y)+(t1*y2+t2*y))
- *	where t1 = 2x with lower 32 bits cleared, t2 = 2x-t1,
+ *	where t1 = 2x with lower 32 bits cleared, t2 = 2x-t1, 
  *	y1= y with lower 32 bits chopped, y2 = y-y1.
- *
- *	NOTE: scaling may be necessary if some argument is too
+ *		
+ *	NOTE: scaling may be necessary if some argument is too 
  *	      large or too tiny
  *
  * Special cases:
@@ -42,8 +43,8 @@ static char rcsid[] = "$FreeBSD$";
  *	hypot(x,y) is NAN if x or y is NAN.
  *
  * Accuracy:
- * 	hypot(x,y) returns sqrt(x^2+y^2) with error less
- * 	than 1 ulps (units in the last place)
+ * 	hypot(x,y) returns sqrt(x^2+y^2) with error less 
+ * 	than 1 ulps (units in the last place) 
  */
 
 #include "math.h"
@@ -103,7 +104,7 @@ __ieee754_hypot(double x, double y)
 	    t1 = 0;
 	    SET_HIGH_WORD(t1,ha);
 	    t2 = a-t1;
-	    w  = __ieee754_sqrt(t1*t1-(b*(-b)-t2*(a+t1)));
+	    w  = sqrt(t1*t1-(b*(-b)-t2*(a+t1)));
 	} else {
 	    a  = a+a;
 	    y1 = 0;
@@ -112,7 +113,7 @@ __ieee754_hypot(double x, double y)
 	    t1 = 0;
 	    SET_HIGH_WORD(t1,ha+0x00100000);
 	    t2 = a - t1;
-	    w  = __ieee754_sqrt(t1*y1-(w*(-w)-(t1*y2+t2*b)));
+	    w  = sqrt(t1*y1-(w*(-w)-(t1*y2+t2*b)));
 	}
 	if(k!=0) {
 	    u_int32_t high;

@@ -1,11 +1,12 @@
-/* @(#)e_remainder.c 5.1 93/09/24 */
+
+/* @(#)e_remainder.c 1.3 95/01/18 */
 /*
  * ====================================================
  * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
  *
- * Developed at SunPro, a Sun Microsystems, Inc. business.
+ * Developed at SunSoft, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice
+ * software is freely granted, provided that this notice 
  * is preserved.
  * ====================================================
  */
@@ -15,11 +16,11 @@ static char rcsid[] = "$FreeBSD$";
 #endif
 
 /* __ieee754_remainder(x,p)
- * Return :
- * 	returns  x REM p  =  x - [x/p]*p as if in infinite
- * 	precise arithmetic, where [x/p] is the (infinite bit)
+ * Return :                  
+ * 	returns  x REM p  =  x - [x/p]*p as if in infinite 
+ * 	precise arithmetic, where [x/p] is the (infinite bit) 
  *	integer nearest x/p (in half way case choose the even one).
- * Method :
+ * Method : 
  *	Based on fmod() return x-[x/p]chopped*p exactlp.
  */
 
