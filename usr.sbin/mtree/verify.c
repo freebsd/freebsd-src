@@ -59,11 +59,11 @@ static void	miss(NODE *, char *);
 static int	vwalk(void);
 
 int
-verify(void)
+mtree_verifyspec(FILE *fi)
 {
 	int rval;
 
-	root = spec();
+	root = mtree_readspec(fi);
 	rval = vwalk();
 	miss(root, path);
 	return (rval);
