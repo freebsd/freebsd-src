@@ -293,6 +293,18 @@ loop:
 				goto loop;
 			}
 			rp->rc_flag |= RC_LOCKED;
+			if (rp->rc_state == RC_DONE) {
+				/*
+				 * This can occur if the cache is too small.
+				 * Retransmits of the same request aren't 
+				 * dropped so we may see the operation 
+				 * complete more then once.
+				 */
+				if (rp->rc_flag & RC_REPMBUF) {
+					m_freem(rp->rc_reply);
+					rp->rc_flag &= ~RC_REPMBUF;
+				}
+			}
 			rp->rc_state = RC_DONE;
 			/*
 			 * If we have a valid reply update status and save
@@ -332,6 +344,10 @@ nfsrv_cleancache()
 		nextrp = rp->rc_lru.tqe_next;
 		LIST_REMOVE(rp, rc_hash);
 		TAILQ_REMOVE(&nfsrvlruhead, rp, rc_lru);
+		if (rp->rc_flag & RC_REPMBUF)
+			m_freem(rp->rc_reply);
+		if (rp->rc_flag & RC_NAM)
+			free(rp->rc_nam, M_SONAME);
 		free(rp, M_NFSD);
 	}
 	numnfsrvcache = 0;
