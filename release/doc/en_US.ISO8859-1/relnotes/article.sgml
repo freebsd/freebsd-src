@@ -413,9 +413,20 @@
       processes) no longer lock up the machine for long periods of
       time. &merged;</para>
 
-    <para>The Kernel-Scheduled Entity project has made changes to the
-      kernel scheduler to more efficiently handle multi-threaded
-      programs.</para>
+    <para>The &os; kernel scheduler now supports Kernel-Scheduled
+      Entities (KSEs), which provides support for multiple threads of
+      execution per process similar to Schedular Activations.  At this
+      point, the kernel has most of the changes needed to support
+      threading.  The kernel scheduler can schedule multiple threads per
+      process, but only on a single CPU at a time.  Support for
+      userland programs to create and utilize multiple threads is not
+      yet completed.
+
+        <note>
+	  <para>KSE is a work in progress.</para>
+	</note>
+
+      </para>
 
     <para>The kernel now has support for multiple low-level console
       devices.  The new &man.conscontrol.8; utility helps to manage
@@ -2325,6 +2336,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <filename>/etc/make.conf</filename> before a source
       upgrade. &merged;</para>
 
+    <para>&man.kbdmap.1; and &man.vidfont.1; have been converted from
+      Perl to C.</para>
+
     <para role="historic">&man.kenv.1;, a command to dump the kernel environment, has
       been added. &merged;</para>
 
@@ -3238,7 +3252,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	8.3.3.</para>
 
       <para><application>Binutils</application> has been updated to
-	2.12.0.</para>
+	2.12.1 (specifically, a post-release snapshot from 22 June 2002).</para>
 
       <para role="historic"><application>bzip2</application> 1.0.2 has been imported;
 	this brings the &man.bzip2.1; program and the
@@ -3304,7 +3318,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <application>less</application> has been imported.</para>
 
       <para><application>libpcap</application> has been updated to
-	0.7.1.</para>
+	0.7.1. &merged;</para>
 
       <para><application>libreadline</application> has been updated to
 	4.2.</para>
@@ -3404,7 +3418,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	1.13.25.</para>
 
       <para><application>tcpdump</application> has been updated to
-	3.7.1.</para>
+	3.7.1. &merged;</para>
 
       <para role="historic">The &man.csh.1; shell has been replaced by &man.tcsh.1;,
 	although it can still be run as <command>csh</command>.
@@ -3535,7 +3549,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  &man.ssh.1;. &merged;</para>
 
 	<para><application>OpenSSH</application> has been updated to
-	  version 3.1.  Among the changes:
+	  version 3.1. &merged; Among the changes:
 	    <itemizedlist>
 	      <listitem>
 	        <para>The <filename>*2</filename> files are obsolete
@@ -3561,7 +3575,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  </para>
 
 	<para><application>OpenSSH</application> has been updated to
-	  3.4p1.  The main changes are:
+	  3.4p1. &merged; The main changes are:
 	    <itemizedlist>
 	      <listitem>
 	        <para>A <quote>privilege separation</quote> feature,
@@ -3578,16 +3592,16 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	    </itemizedlist>
 	  </para>
 
-	<para><application>OpenSSH</application> can now authenticate
-	  using <application>OPIE</application> passwords.</para>
+	<para role="historic"><application>OpenSSH</application> can now authenticate
+	  using <application>OPIE</application> passwords. &merged;</para>
 
-	<para><application>PAM</application> support for
-	  <application>OpenSSH</application> has been added.</para>
+	<para role="historic"><application>PAM</application> support for
+	  <application>OpenSSH</application> has been added. &merged;</para>
 
-	<para>A long-standing bug in
+	<para role="historic">A long-standing bug in
 	  <application>OpenSSH</application>, which sometimes resulted
 	  in a dropped session when an X11-forwarded client was
-	  closed, was fixed.</para>
+	  closed, was fixed. &merged;</para>
 
 	<para role="historic"><application>Kerberos</application> compatibility has
 	  been added to
