@@ -44,7 +44,7 @@
               (make element gi: "small"  
                 (literal "Tout utilisateur de FreeBSD ")
 		(literal (entity-text "release.branch"))
-		(literal " doit souscrire a la liste électronique")
+		(literal " doit souscrire à la liste électronique")
                 (literal "<")
 		(create-link (list (list "HREF" "mailto:stable@FreeBSD.org"))
                   (literal "stable@FreeBSD.org"))
@@ -68,10 +68,12 @@
         (define %refentry-xref-link% #t)
 
         <!-- Specify how to generate the man page link HREF -->
-        (define ($create-refentry-xref-link$ refentrytitle manvolnum)
-	  (string-append "http://www.FreeBSD.org/cgi/man.cgi?query="
-			 refentrytitle "&" "sektion=" manvolnum
-			 "&" "manpath=FreeBSD+4.5-stable"))
+	(define ($create-refentry-xref-link$ #!optional (n (current-node)))
+          (let* ((r (select-elements (children n) (normalize "refentrytitle")))
+                 (m (select-elements (children n) (normalize "manvolnum"))))
+          (string-append "http://www.FreeBSD.org/cgi/man.cgi?query="
+                         (data r) "&" "sektion=" (data m)
+                         "&" "manpath=FreeBSD+4.5-stable")))
       ]]>
 
       (define (toc-depth nd)
