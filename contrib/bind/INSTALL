@@ -1,99 +1,271 @@
-$Id: INSTALL,v 8.9 1997/06/24 06:43:50 vixie Exp $
+Supported Systems
 
-THE FILES:
-----------
-INSTALL		-- This file
-README		-- Release announcements, tips and traps (some out of date)
-OPTIONS		-- The options that can be turned on and off
-RUNSON		-- What machines/compilers is BIND known to build on
-TODO		-- Have spare time?  Consider contributing to the project!
-BSD/*           -- How to integrate BIND into a 4.4BSD or 4.4BSD-Lite
-contrib/*       -- Useful BIND-related contributions
-doc/info/*	-- Platform-dependent build hints
-doc/*           -- other RFCs, drafts, papers and
+	AIX 4.x
+	A/UX 3.1.1
+	BSD/OS 2.1, 3.x
+	Digital ULTRIX 4.5
+	Digital UNIX 3.2C, 4.0
+	FreeBSD 2.x, 3.0
+	HP MPE
+	HP-UX 9.x, 10.20
+	IRIX 5.3, 6.2, 6.4
+	LynxOS
+	NetBSD 1.2, 1.3
+	OpenBSD 2.1
+	QNX
+	Red Hat Linux 4.x, 5.0
+	SCO UNIX 3.2v4.2, SCO OSE 5.0.4, UnixWare 2.0.x, 2.1.2
+	SunOS 4.1.4
+	SunOS 5.5 (Solaris 2.5), 5.6 (Solaris 2.6)
 
-INTRODUCTION:
--------------
-BIND used to be extremely difficult to build.  That changed around
-version 4.9.3.  These are the instructions on how to compile the
-software.  For information on how to create your configuration files
-(resolv.conf, named.boot, and zone files) see the doc/bog directory for
-the complete "BIND Operations Guide".  You might also consider getting
-"DNS and BIND" by C.  Liu and P.  Albitz from O'Reilly & Associates,
-Sebastopol, CA, ISBN 0-937175-82-X 1992
-
-Note:	If you maintain a BSD or are otherwise running a 4.4BSD-based system
-	and want to integrate BIND into it, check out BSD/README.
-
-BUILDING & INSTALLING:
-----------------------
-1.  (optional) If you are going to compile for multiple platforms, you
-can make a symbolic link tree for each platform to save disk space.  To
-create a directory called "sun4.dir", do:
-	make DST=sun4.dir links
-Now "cd sun4.dir" and you can do everything as if you had a complete
-copy of the source.  Just be careful if you are modifying a file, make
-sure you turn any links into files:
-	mv file file.tmp ; cp file.tmp file ; rm file.tmp
-
-2. (optional) If you have a typical site, you should find yourself only
-editing Makefile and conf/options.h.  Make backups of them now:
-
-	mv conf/options.h conf/options.h.dist
-	cp conf/options.h.dist conf/options.h
-	chmod u+w conf/options.h
-
-	mv Makefile Makefile.dist
-	cp Makefile.dist Makefile
-	chmod u+w Makefile
-
-3.  Edit "conf/options.h" and turn on any options that you want.  The
-defaults are pretty reasonable for most installations.
-
-4.  Edit "Makefile".  The default build parameters are given for 4.4 BSD. 
-They should be overridden (not edited!).  Do this by going to the
-section that describes your operating system and uncoment the
-appropriate lines.  Add any other variables (for example, some people
-add "DISTHELP=/usr/local/lib".)  If in doubt, use the default!  Read
-the comments carefully!
-
-5.  "make" should build everything.  Consider putting "./bin" in your
-path if "make depend" fails and you think bin/mkdep will help you out.
-
-	*** NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE ***
-
-	The next step (#6) will burn down files which were supplied with
-	your operating system.  You should run the suggested "-n" first
-	and make sure you have saved any files you want to save.
-
-	*** NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE ***
-
-6.  "make install" will install everything.  You might first do
-"make -n install" to see what commands would be executed by "make install"
-to make sure you understand where everything is about to be installed.
-
-7.  (optional, SunOS 4, SunOS 5, NetBSD-1.x, IRIX, Linix only): You can
-integrate the new resolver (client-side) code into the shared libraries
-of your operating system so that all dynamicly linked programs take
-advantage of the new resolver.  Read shres/<osname>/INSTALL to find out
-how to do it.
+	See port/README for information on porting BIND 8 to other systems.
 
 
+Building
 
-HOW TO GET HELP:
-----------------
-The "bind-users@vix.com" mailing list was created especially for people to
-talk about and ask questions about installation, maintenance, etc.  It is
-highly recommended that you first help yourself by reading the BOG (doc/bog)
-or a book on DNS and BIND.
+	If you do not have an ANSI/ISO C compiler, give up or get GCC.  The
+	one exception is the ULTRIX compiler, which isn't full ANSI C but it
+	has function prototypes and BIND works around the rest.  BIND 8 also
+	wants a C library that's ANSI/ISO standard, although it can work
+	around some common failings.
 
-To be added to this mailing list, send mail to <bind-users-request@vix.com>
+	If you do not have yacc, get byacc or GNU bison.  If you do not have
+	lex, get GNU flex.  For information on where to get GNU software, see
+	http://www.fsf.org/order/ftp.html.
 
-Note that the bind-users mailing list is also available on Usenet as
-	comp.protocols.dns.bind
-and that we would all prefer that you read it that way if you possibly can.
+	If you want to build outside the source pool, then
 
-This INSTALL was...
-	originally written on 15Jul94 by Tom Limoncelli <tal@bell-labs.com>
-	changed in minor ways 23Dec95 by Christopher Davis <ckd@kei.com>
-	and then changed by Tom Limoncelli again 16Oct96.
+		make DST=/your/destination/here SRC=`pwd` links
+		cd /your/destination/here
+
+	If you want to use DST=/var/obj/bind, you can simply type
+
+		make stdlinks
+
+	Next, make sure you have no stale trash laying about
+
+		make clean
+
+	Then, update the Makefile dependencies:
+
+		make depend
+
+	Finally,
+
+		make
+
+	
+Installation
+
+	To install, type
+
+		make install
+
+	This will copy binaries to the appropriate locations for your system,
+	and install the BIND 8 library and header files under /usr/local/bind.
+
+	The following variables can be used to change where things get
+	installed:
+
+		DESTDIR			prefix used in front of all other
+					DEST variables.  The default is the
+					empty prefix.
+		DESTLIB			libraries
+		DESTINC			include files
+		DESTBIN			ordinary binaries (e.g. dig, nslookup)
+		DESTSBIN		system binaries (e.g. named)
+		DESTEXEC		helper binaries (e.g. named-xfer)
+		DESTHELP		place to put nslookup's help file
+		DESTETC			configuration file
+		DESTRUN			PID file location
+
+	These variables may be specified on the command line of the 'make'
+	or in the Makefile.set for your port (e.g. if you use Solaris, in
+	src/port/solaris/Makefile.set).
+
+	Before doing 'make install' using either method, you must
+
+		rm .settings
+
+	in the top level source directory because the build system caches
+	these variables.
+
+
+Using BIND 8 Library Routines
+
+	Until a method to update the system's libraries is available,
+	applications wishing to use BIND 8 library routines must include
+	BIND 8 .h files, and must link with libbind.a.  E.g.
+
+		cc -I/usr/local/bind/include -c sample.c 
+		cc -o sample -L/usr/local/bind/lib sample.o -lbind
+
+	The default locations for libbind.a and .h files in BIND 8.1.1
+	and BIND 8.1.2 are different from those used in BIND 8.1-REL.  If
+	you did a 'make install' for BIND 8.1-REL, then you should delete
+	the files it installed.  They are:
+
+		/usr/local/lib/libbind.a
+		/usr/local/include/arpa/inet.h
+		/usr/local/include/arpa/nameser.h
+		/usr/local/include/arpa/nameser_compat.h
+		/usr/local/include/netdb.h
+		/usr/local/include/resolv.h
+		/usr/local/include/sys/bitypes.h	(if it exists)
+		/usr/local/include/sys/cdefs.h		(if it exists)
+
+
+Operating System Notes
+
+	SunOS 4.1.4
+
+		An ANSI/ISO C compiler is required; we used gcc 2.7.2.1.
+
+	Solaris
+
+		We've tested with Sun's compilers, yacc, and lex, and also
+		with gcc, byacc, and flex.  By default, the build will try
+		to use gcc.  If you want to use the Sun compilers, simply
+		copy "port/solaris/Makefile.set.sun" to
+		"port/solaris/Makefile.set".  To go back to using gcc, copy
+		"port/solaris/Makefile.set.gcc" to "port/solaris/Makefile.set".
+
+		If you're using a Solaris release earlier than 2.5 and you have
+		a large number of interfaces on your system, you many need
+		use a script to "limit descriptors N" (where 'N' is a
+		suitably large number) before execing "named".  On Solaris
+		2.5 and later, the server will do this itself.
+
+	Certain older versions of FreeBSD, NetBSD and BSD/OS
+
+		These systems have a /bin/sh based on "ash", which doesn't
+		handle POSIX-style quoting correctly.  Using "bash" will fix
+		the problem.  Either run make with "SH=bash" on the command
+		line, or edit src/Makefile and change "SH=sh" to "SH=bash".
+
+	QNX
+
+		Read src/port/qnx/README before trying to build.
+
+
+FD_SETSIZE
+
+	The highest numbered file descriptor that the server and the resolver
+	can utilize is determined by the FD_SETSIZE value of the system.  Some
+	systems set FD_SETSIZE much smaller than the actual number of files
+	that can be opened.  On such systems, create an "fd_setsize.h" file
+	that sets FD_SETSIZE appropriately in the port's include directory.
+
+
+User and Group ID
+
+	Specifying "-u" followed by a username or numeric user id on the
+	"named" command line will cause the server to give up all
+	privileges and become that user after the initial load of the
+	configuation file is complete.  "-g" may be used similarly to set
+	the group id.  If "-u" is specified but "-g" is not, the group
+	used will be the given user's primary group.
+
+	Here are some hints:
+
+		Because the server will have no privileges after changing
+		its user id, you must restart the server if you change the
+		interfaces and ports that the server is listening on, or if
+		you add an interface.
+
+		If you log to files, you should create all of the log files
+		in advance (e.g. with "touch"), and make sure they are owned
+		by the user and group "named" will be running as.
+
+		You'll have to edit "ndc" to get it to start the server
+		with the appropriate flags.
+
+	Note: this feature is still experimental.
+
+
+Chroot
+
+	"-t" followed by a directory path on the "named" command line will
+	cause the server to chroot() to that directory before it starts
+	loading the configuration file.
+
+	Setting up a chrooted area varies somewhat by operating system.  Some
+	experimentation may be necessary.  Here are some hints:
+
+		Don't forget to install named-xfer.
+
+		Either don't use shared libraries when you build, or do
+		whatever is required on your OS to allow shared libraries
+		to be used after a chroot().
+
+		syslog() is often troublesome after chrooting.  Use the
+		"logging" statement and log to a file instead.
+
+		/dev/null should be in the chroot directory hierarchy.  You
+		can usually find out the mknod parameters for a null device by
+		looking in /dev/MAKEDEV.
+
+		You'll have to edit "ndc" to get it to start the server
+		with the appropriate flags, and to use the right pid file.
+
+	Note: this feature is still experimental.
+
+
+Using the Server
+
+	Note that /etc/named.boot is long gone.  You need to make yourself an
+	/etc/named.conf (note, that ends in "conf" rather than "boot") file.
+	This file looks a lot like a C program or a modern gated.conf file;
+	there are lots of {curly braces} and it takes some getting used to.
+	You may get a lot more help from the example file (which is
+	bin/named/named.conf) than from the documentation (see ../doc/html).
+	You can convert your named.boot file to a named.conf file if you have
+	Perl; see bin/named/named-bootconf.pl.
+
+	All the files that used to be created in /var/tmp, e.g. named.run,
+	will now be created in the directory specified in the options
+	statement.  If debugging is turned on using the "-d" flag on server
+	startup, then named.run will be created in the current directory.
+
+
+Known Dynamic DNS Bugs
+
+	If the server is master for a zone and authoritative for a child of
+	that zone, then a dynamic update to the parent will destroy the
+	delegation to the child when the parent zone is written to disk.
+	This problem will be fixed in a future release.  The only workaround
+	is to not be authoritative for child zones of a dynamic zone.
+
+	Slave servers do not forward update requests to the primary master
+	correctly.  This will be fixed in a future release.  In the meantime,
+	slaves will refuse dynamic updates.
+
+
+Shared Libraries
+
+	Absolutely no support exists for editing the system's shared
+	libraries to update the resolver.  If you want to do that you
+	probably want to look at BIND Version 4 (see http://www.isc.org/isc/)
+	or wait a while or help out a lot.  This means you probably do not
+	want to install the library or include files into /usr/lib or
+	/usr/include, and this kit helpfully puts everything into
+	/usr/local/lib and /usr/local/include for that reason among others.
+
+
+Notes about contrib and doc
+
+	The BIND 8 "doc" package includes HTML documentation as	well as all
+	the RFC's, Internet Drafts, and "man" pages we can think of.  You may
+	need to install the doc/tmac files in your nroff/troff support
+	directory since we use the newer BSD "mandoc" system for our "man"
+	pages.
+
+	The BIND 8 "contrib" package is full of junk that you may want to
+	take a look at.  Feel free to send us more junk for future releases.
+
+
+Bugs
+
+	Please report bugs to
+
+		bind-bugs@isc.org

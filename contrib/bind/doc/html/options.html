@@ -1,0 +1,462 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+  <TITLE>BIND options Statement</TITLE>
+</HEAD>
+
+<BODY>
+<H2>BIND Configuration File Guide -- <CODE>options</CODE> Statement</H2>
+
+<HR>
+
+<A NAME="Syntax"><H3>Syntax</H3></A>
+
+<PRE>
+options {
+  [ directory <VAR>path_name</VAR>; ]
+  [ named-xfer <VAR>path_name</VAR>; ]
+  [ dump-file <VAR>path_name</VAR>; ]
+  [ memstatistics-file <VAR>path_name</VAR>; ]
+  [ pid-file <VAR>path_name</VAR>; ]
+  [ statistics-file <VAR>path_name</VAR>; ]
+  [ auth-nxdomain <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
+  [ deallocate-on-exit <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
+  [ fake-iquery <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
+  [ fetch-glue <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
+  [ multiple-cnames <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
+  [ notify <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
+  [ recursion <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
+  [ forward ( only | first ); ]
+  [ forwarders { [ <VAR><A HREF="docdef.html">in_addr</A></VAR> ; [ <VAR><A HREF="docdef.html">in_addr</A></VAR> ; ... ] ] }; ]
+  [ check-names ( master | slave | response ) ( warn | fail | ignore); ]
+  [ allow-query { <VAR>address_match_list</VAR> }; ]
+  [ allow-transfer { <VAR>address_match_list</VAR> }; ]
+  [ listen-on [ port <VAR><A HREF="docdef.html">ip_port</A></VAR> ] { <VAR>address_match_list</VAR> }; ]
+  [ query-source [ address ( <VAR><A HREF="docdef.html">ip_addr</A></VAR> | * ) ] [ port ( <VAR><A HREF="docdef.html">ip_port</A></VAR> | * ) ] ; ]
+  [ max-transfer-time-in <VAR>number</VAR>; ]
+  [ transfer-format ( one-answer | many-answers ); ]
+  [ transfers-in  <VAR>number</VAR>; ]
+  [ transfers-out <VAR>number</VAR>; ]
+  [ transfers-per-ns <VAR>number</VAR>; ]
+  [ coresize <VAR><A HREF="docdef.html">size_spec</A></VAR> ; ]
+  [ datasize <VAR><A HREF="docdef.html">size_spec</A></VAR> ; ]
+  [ files <VAR><A HREF="docdef.html">size_spec</A></VAR> ; ]
+  [ stacksize <VAR><A HREF="docdef.html">size_spec</A></VAR> ; ]
+  [ cleaning-interval <VAR>number</VAR>; ]
+  [ interface-interval <VAR>number</VAR>; ]
+  [ statistics-interval <VAR>number</VAR>; ]
+  [ topology { <VAR>address_match_list</VAR> }; ]
+};
+</PRE>
+<HR>
+
+<A NAME="Usage"><H3>Definition and Use</H3></A>
+
+<P>The options statement sets up global options to be used by
+BIND. This statement may appear at only once in a
+configuration file; if more than one occurrence is found, the
+first occurrence determines the actual options used,
+and a warning will be generated.  If there is no options statement,
+an options block with each option set to its default will be used.</P>
+
+<H4>Pathnames</H4>
+
+<DL>
+<DT><CODE>directory</CODE>
+<DD>
+The working directory of the server.  Any non-absolute
+pathnames in the configuration file will be taken as relative to this
+directory.  The default location for most server output files
+(e.g. "named.run") is this directory.  If a directory is not
+specified, the working directory defaults to ".", the directory from which the
+server was started.  The directory specified should be an absolute path.
+
+<DT><CODE>named-xfer</CODE>
+<DD>
+The pathname to the named-xfer program that the server uses for
+inbound zone transfers.  If not specified, the default is
+system dependent (e.g.  "/usr/sbin/named-xfer").
+
+<DT><CODE>dump-file</CODE>
+<DD>
+The pathname of the file the server dumps the database to when it
+receives <CODE>SIGINT</CODE> signal (<CODE>ndc dumpdb</CODE>).  If not
+specified, the default is "named_dump.db".
+
+<DT><CODE>memstatistics-file</CODE>
+<DD>
+The pathname of the file the server writes memory usage statistics to on exit,
+if <CODE>deallocate-on-exit</CODE> is <CODE>yes</CODE>.  If not
+specified, the default is "named.memstats".
+
+<DT><CODE>pid-file</CODE>
+<DD>
+The pathname of the file the server writes its process ID in.  If not
+specified, the default is operating system dependent, but is usually
+"/var/run/named.pid" or "/etc/named.pid".  The pid-file is used by
+programs like "ndc" that want to send signals to the running
+nameserver.
+
+<DT><CODE>statistics-file</CODE>
+<DD>
+The pathname of the file the server appends statistics to when it
+receives <CODE>SIGILL</CODE> signal (<CODE>ndc stats</CODE>).  If not
+specified, the default is "named.stats".
+</DL>
+
+<A name="BooleanOptions"><H4>Boolean Options</H4></A>
+
+<DL>
+<DT><CODE>auth-nxdomain</CODE>
+<DD>
+If <CODE>yes</CODE>, then the <CODE>AA</CODE> bit is always set on
+NXDOMAIN responses, even if the server is not actually authoritative.
+The default is <CODE>yes</CODE>.  Do not turn off
+<CODE>auth-nxdomain</CODE> unless you are sure you know what you are
+doing, as some older software won't like it.
+
+<DT><CODE>deallocate-on-exit</CODE>
+<DD>
+If <CODE>yes</CODE>, then when the server exits it will painstakingly
+deallocate every object it allocated, and then write a memory usage report to
+the <CODE>memstatistics-file</CODE>.  The default is <CODE>no</CODE>, because
+it is faster to let the operating system clean up.
+<CODE>deallocate-on-exit</CODE> is handy for detecting memory leaks.
+
+<DT><CODE>fake-iquery</CODE>
+<DD>
+If <CODE>yes</CODE>, the server will simulate the obsolete DNS query type
+IQUERY.  The default is <CODE>no</CODE>.
+
+<DT><CODE>fetch-glue</CODE>
+<DD>
+If <CODE>yes</CODE> (the default), the server will fetch "glue" resource
+records it doesn't have when constructing the additional data section of
+a response.  <CODE>fetch-glue no</CODE> can be used in conjunction with
+<CODE>recursion no</CODE> to prevent the server's cache from growing or
+becoming corrupted (at the cost of requiring more work from the client).
+
+<DT><CODE>multiple-cnames</CODE>
+<DD>
+If <CODE>yes</CODE>, then multiple CNAME resource records will be
+allowed for a domain name.  The default is <CODE>no</CODE>.  Allowing
+multiple CNAME records is against standards and is not recommended.
+Multiple CNAME support is available because previous versions of BIND
+allowed multiple CNAME records, and these records have been used for load
+balancing by a number of sites.
+
+<DT><CODE>notify</CODE>
+<DD>
+If <CODE>yes</CODE> (the default), DNS NOTIFY messages are sent when a
+zone the server is authoritative for changes.  The use of NOTIFY
+speeds convergence between the master and its slaves.  Slave servers
+that receive a NOTIFY message and understand it will contact the
+master server for the zone and see if they need to do a zone transfer, and
+if they do, they will initiate it immediately.  The <CODE>notify</CODE>
+option may also be specified in the <CODE>zone</CODE> statement, in which
+case it overrides the <CODE>options notify</CODE> statement.
+
+<DT><CODE>recursion</CODE>
+<DD>
+If <CODE>yes</CODE>, and a DNS query requests recursion, then the
+server will attempt to do all the work required to answer the query.
+If recursion is not on, the server will return a referral to the
+client if it doesn't know the answer.  The default is <CODE>yes</CODE>.
+See also <CODE>fetch-glue</CODE> above.
+</DL>
+
+<H4>Forwarding</H4>
+
+<P>The forwarding facility can be used to create a large sitewide
+cache on a few servers, reducing traffic over links to external
+nameservers.  It can also be used to allow queries by servers that do
+not have direct access to the Internet, but wish to look up exterior
+names anyway.  Forwarding occurs only on those queries for which the
+server is not authoritative and does not have the answer in its cache.
+
+<DL>
+<DT><CODE>forward</CODE>
+<DD>
+This option is only meaningful if the <CODE>forwarders</CODE> list is
+not empty.  A value of <CODE>first</CODE>, the default, causes the
+server to query the forwarders first, and if that doesn't answer the
+question the server will then look for the answer itself.  If
+<CODE>only</CODE> is specified, the server will only query the
+forwarders. 
+
+<DT><CODE>forwarders</CODE>
+<DD>
+Specifies the IP addresses to be used for forwarding.  The default is the
+empty list (no forwarding).
+</DL>
+
+<P>Future versions of BIND 8 will provide a more powerful forwarding
+system.  The syntax described above will continue to be supported.
+
+<a name="NameChecking"><H4>Name Checking</H4></a>
+
+<P>The server can check domain names based upon their expected client contexts.
+For example, a domain name used as a hostname can be checked for compliance
+with the RFCs defining valid hostnames.
+
+<P>Three checking methods are available:
+
+<DL>
+<DT><CODE>ignore</CODE>
+<DD>
+No checking is done.
+
+<DT><CODE>warn</CODE>
+<DD>
+Names are checked against their expected client contexts.  Invalid names are
+logged, but processing continues normally.
+
+<DT><CODE>fail</CODE>
+<DD>
+Names are checked against their expected client contexts.  Invalid names are
+logged, and the offending data is rejected.
+</DL>
+
+<P>The server can check names three areas: master zone files, slave
+zone files, and in responses to queries the server has initiated.  If
+<CODE>check-names response fail</CODE> has been specified, and
+answering the client's question would require sending an invalid name
+to the client, the server will send a REFUSED response code to the
+client.
+
+<P>The defaults are:
+
+<PRE>
+    check-names master fail;
+    check-names slave warn;
+    check-names response ignore;
+</PRE>
+
+<P><CODE>check-names</CODE> may also be specified in the <CODE>zone</CODE>
+statement, in which case it overrides the <CODE>options check-names</CODE>
+statement.  When used in a <CODE>zone</CODE> statement, the area is not
+specified (because it can be deduced from the zone type).
+
+<A name="AccessControl"><H4>Access Control</H4></A>
+
+<P>Access to the server can be restricted based on the IP address of the
+requesting system.  See
+<VAR><A HREF="address_list.html">address_match_list</A></VAR> for details
+on how to specify IP address lists.
+
+<DL>
+<DT><CODE>allow-query</CODE>
+<DD>
+Specifies which hosts are allowed to ask ordinary questions.
+<CODE>allow-query</CODE> may also be specified in the
+<CODE>zone</CODE> statement, in which case it overrides the
+<CODE>options allow-query</CODE> statement.  If not specified, the default is
+to allow queries from all hosts.
+
+<DT><CODE>allow-transfer</CODE>
+<DD>
+Specifies which hosts are allowed to receive zone transfers from the
+server.  <CODE>allow-transfer</CODE> may also be specified in the
+<CODE>zone</CODE> statement, in which case it overrides the
+<CODE>options allow-transfer</CODE> statement.  If not specified, the default
+is to allow transfers from all hosts.
+</DL>
+
+<H4>Interfaces</H4>
+
+<P>The interfaces and ports that the server will answer queries from may
+be specified using the <CODE>listen-on</CODE> option.  <CODE>listen-on</CODE>
+takes an optional port, and an 
+<VAR><A HREF="address_list.html">address_match_list</A></VAR>.  The server will
+listen on all interfaces allowed by the address match list.  If a port is
+not specified, port 53 will be used.
+
+<P>Multiple <CODE>listen-on</CODE> statements are allowed.  For example,
+
+<PRE>
+    listen-on { 5.6.7.8; };
+    listen-on port 1234 { !1.2.3.4; 1.2/16; };
+</PRE>
+
+<P>If no <CODE>listen-on</CODE> is specified, the server will listen on port
+53 on all interfaces.
+
+<H4>Query Address</H4>
+
+<P>If the server doesn't know the answer to a question, it will query
+other nameservers.  <CODE>query-source</CODE> specifies the address
+and port used for such queries.  If <CODE>address</CODE> is
+<CODE>*</CODE> or is omitted, a wildcard IP address
+(<CODE>INADDR_ANY</CODE>) will be used.  If <CODE>port</CODE> is
+<CODE>*</CODE> or is omitted, a random unprivileged port will be used.
+The default is
+
+<PRE>
+    query-source address * port *;
+</PRE>
+
+<P>Note: <CODE>query-source</CODE> currently applies only to UDP queries;
+TCP queries always use a wildcard IP address and a random unprivileged
+port.
+
+<A name="ZoneTransfers"><H4>Zone Transfers</H4></A>
+
+<DL>
+<DT><CODE>max-transfer-time-in</CODE>
+<DD>
+Inbound zone transfers (<CODE>named-xfer</CODE> processes) running
+longer than this many minutes will be terminated.  The default is 120
+minutes (2 hours).
+
+<DT><CODE>transfer-format</CODE>
+<DD>
+The server supports two zone transfer methods.
+<CODE>one-answer</CODE> uses one DNS message per resource record
+transferred.  <CODE>many-answers</CODE> packs as many resource records
+as possible into a message.  <CODE>many-answers</CODE> is more
+efficient, but is only known to be understood by BIND 8.1 and patched
+versions of BIND 4.9.5.  The default is <CODE>one-answer</CODE>.
+<CODE>transfer-format</CODE> may be
+overridden on a per-server basis by using the <CODE>server</CODE> statement.
+
+<DT><CODE>transfers-in</CODE>
+<DD>
+The maximum number of inbound zone transfers that can be running
+concurrently.  The default value is 10.  Increasing
+<CODE>transfers-in</CODE> may speed up the convergence of slave zones,
+but it also may increase the load on the local system.
+
+<DT><CODE>transfers-out</CODE>
+<DD>
+This option will be used in the future to limit the number of
+concurrent outbound zone transfers.  It is checked for syntax, but is
+otherwise ignored.
+
+<DT><CODE>transfers-per-ns</CODE>
+<DD>
+The maximum number of inbound zone transfers (<CODE>named-xfer</CODE>
+processes) that can be concurrently transferring from a given remote
+nameserver.  The default value is 2.  Increasing
+<CODE>transfers-per-ns</CODE> may speed up the convergence of slave
+zones, but it also may increase the load on the remote nameserver.
+<CODE>transfers-per-ns</CODE> may be overridden on a per-server basis
+by using the <CODE>transfers</CODE> phrase of the <CODE>server</CODE>
+statement.
+</DL>
+
+<H4>Resource Limits</H4>
+
+<P>The server's usage of many system resources can be limited.  Some
+operating systems don't support some of the limits.  On such systems,
+a warning will be issued if the unsupported limit is used.  Some
+operating systems don't support limiting resources, and on these systems
+a <CODE>cannot set resource limits on this system</CODE> message will
+be logged.
+
+<P>Scaled values are allowed when specifying resource limits.  For
+example, <CODE>1G</CODE> can be used instead of
+<CODE>1073741824</CODE> to specify a limit of one gigabyte.
+<CODE>unlimited</CODE> requests unlimited use, or the maximum
+available amount.  <CODE>default</CODE> uses the limit that was in
+force when the server was started.  See
+<VAR><AHREF="docdef.html">size_spec</A></VAR> for more details.
+
+<DL>
+<DT><CODE>coresize</CODE>
+<DD>
+The maximum size of a core dump.  The default is <CODE>default</CODE>.
+
+<DT><CODE>datasize</CODE>
+<DD>
+The maximum amount of data memory the server may use.  The default is
+<CODE>default</CODE>.
+
+<DT><CODE>files</CODE>
+<DD>
+The maximum number of files ther server may have open concurrently.
+The default is <CODE>unlimited</CODE>.  <I>Note:</I> on some operating
+systems the server cannot set an unlimited value and cannot determine
+the maximum number of open files the kernel can support.  On such
+systems, choosing <CODE>unlimited</CODE> will cause the server to use
+the larger of the <CODE>rlim_max</CODE> for <CODE>RLIMIT_NOFILE</CODE>
+and the value returned by <CODE>sysconf(_SC_OPEN_MAX)</CODE>.  If the
+actual kernel limit is larger than this value, use <CODE>limit
+files</CODE> to specify the limit explicitly.
+
+<DT><CODE>stacksize</CODE>
+<DD>
+The maximum amount of stack memory the server may use.  The default is
+<CODE>default</CODE>.
+</DL>
+
+<H4>Periodic Task Intervals</H4>
+
+<DL>
+<DT><CODE>cleaning-interval</CODE>
+<DD>
+The server will remove expired resource records from the cache every
+<CODE>cleaning-interval</CODE> minutes.  The default is 60 minutes.  If set
+to 0, no periodic cleaning will occur.
+
+<DT><CODE>interface-interval</CODE>
+<DD>
+The server will scan the network interface list every
+<CODE>interface-interval</CODE> minutes.  The default is 60 minutes.
+If set to 0, interface scanning will only occur when the configuration
+file is loaded.  After the scan, listeners will be started on any new
+interfaces (provided they are allowed by the <CODE>listen-on</CODE>
+configuration).  Listeners on interfaces that have gone away will be
+cleaned up.
+
+<DT><CODE>statistics-interval</CODE>
+<DD>
+Nameserver statisitics will be logged every <CODE>statistics-interval</CODE>
+minutes.  The default is 60.  If set to 0, no statistics will be logged.
+</DL>
+
+<H4>Topology</H4>
+
+<P>All other things being equal, when the server chooses a nameserver
+to query from a list of nameservers, it prefers the one that is
+topologically closest to itself.  The <CODE>topology</CODE> statement
+takes an <VAR><A HREF="address_list.html">address_match_list</A></VAR>
+and interprets it in a special way.  Each top-level list element is
+assigned a distance.  Non-negated elements get a distance based on
+their position in the list, where the closer the match is to the start
+of the list, the shorter the distance is between it and the server.  A
+negated match will be assigned the maximum distance from the server.
+If there is no match, the address will get a distance which is further
+than any non-negated list element, and closer than any negated
+element.  For example,
+
+<PRE>
+    topology {
+        10/8;
+        !1.2.3/24;
+        { 1.2/16; 3/8; };
+    };
+</PRE>
+
+<P>will prefer servers on network 10 the most, followed by hosts on
+network 1.2.0.0 (netmask 255.255.0.0) and network 3, with the exception
+of hosts on network 1.2.3 (netmask 255.255.255.0), which is preferred least
+of all.
+
+<P>The default topology is
+
+<PRE>
+    topology { localhost; localnets; };
+</PRE>
+
+<HR>
+
+<CENTER><P>[ <A HREF="config.html">BIND Config. File</A>
+| <A HREF="http://www.vix.com/isc/bind.html">BIND Home</A>
+| <A HREF="http://www.isc.org">ISC</A> ]</P></CENTER>
+
+<HR>
+<ADDRESS>
+Last Updated: $Id: options.html,v 1.9 1998/03/21 01:02:59 halley Exp $
+</ADDRESS>
+</BODY>
+</HTML>
