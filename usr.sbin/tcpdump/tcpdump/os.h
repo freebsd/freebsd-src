@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: os-bsd.h,v 1.18 94/06/14 20:15:17 leres Exp $ (LBL)
+ * @(#) $Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/os.h,v 1.2 1995/03/08 12:52:21 olah Exp $ (LBL)
  */
 
 #include <sys/param.h>
@@ -58,3 +58,10 @@
 #ifndef	RIPCMD_POLLENTRY
 #define	RIPCMD_POLLENTRY 6
 #endif
+
+typedef int64_t         int64;
+typedef u_int64_t       u_int64;
+
+#define   INT64_FORMAT   "%qd"
+#define U_INT64_FORMAT   "%qu"
+#define HEX_INT64_FORMAT "%qx"
