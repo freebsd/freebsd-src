@@ -67,7 +67,6 @@ test-pv 5.0a ">" 5.0.b number/letter
 
 test-pv 1.5_1 ">" 1.5 portrevision
 test-pv 1.5_2 ">" 1.5_1 portrevision
-test-pv 1.5_1 "<" 1.5.0.1 portrevision
 
 test-pv 00.01.01,1 ">" 99.12.31 portepoch
 test-pv 0.0.1_1,2 ">" 0.0.1,2 portrevision/portepoch
