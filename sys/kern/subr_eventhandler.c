@@ -37,6 +37,7 @@ MALLOC_DEFINE(M_EVENTHANDLER, "eventhandler", "Event handler records");
 /* List of 'slow' lists */
 static TAILQ_HEAD(, eventhandler_list)	eventhandler_lists;
 static int				eventhandler_lists_initted = 0;
+static struct mtx			eventhandler_mutex;
 
 struct eventhandler_entry_generic 
 {
