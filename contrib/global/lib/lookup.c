@@ -57,7 +57,7 @@ char	*name;
 	return (p) ? 1 : 0;
 }
 void
-lookupclose()
+lookupclose(void)
 {
 	db_close(dbio);
 	opened = 0;

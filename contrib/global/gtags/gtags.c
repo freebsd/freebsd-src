@@ -31,9 +31,15 @@
  *	gtags.c					12-Dec-97
  *
  */
+
+#include <sys/stat.h>
+
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/stat.h>
+#include <time.h>
+#include <unistd.h>
+
 #include "global.h"
 
 char	*progname  = "gtags";		/* command name */
@@ -43,13 +49,12 @@ void	main __P((int, char **));
 int	incremental __P((char *));
 void	tagadd __P((int, char *));
 void	createtags __P((char *, int));
-char	*current __P(());
+char	*current __P((void));
 
 static int	iflag;
 static int	oflag;
 static int	vflag;
-static int	Dflag;
-static int	Rflag;
+
 
 static void
 usage()
@@ -65,8 +70,7 @@ char	*argv[];
 {
 	char	dbpath[MAXPATHLEN+1];
 	char	env[MAXENVLEN+1];
-	char	*path, *p;
-	FILE    *ip;
+	char	*p;
 	int	db;
 
 	while (--argc > 0 && (++argv)[0][0] == '-') {
@@ -161,7 +165,7 @@ char	*dbpath;
 		die1("stat failed '%s'.", path);
 	gtags_mtime = sb.st_mtime;
 
-	for (findopen(); path = findread(NULL); ) {
+	for (findopen(); (path = findread(NULL)) != NULL; ) {
 		if (stat(path, &sb) < 0)
 			die1("stat failed '%s'.", path);
 		/*
@@ -235,7 +239,7 @@ char	*path;
 	p = strclose();
 	if (!(ip = popen(p, "r")))
 		die1("cannot execute '%s'.", p);
-	while (tagline = mgets(ip, 0, NULL)) {
+	while ((tagline = mgets(ip, 0, NULL)) != NULL) {
 		p = tagline;
 		q = key;
 		while (*p && !isspace(*p))
@@ -264,7 +268,7 @@ int	db;
 	if (db == GRTAGS)
 		lookupopen(dbpath);
 	tagopen(dbpath, db, 1);
-	for (findopen(); path = findread(NULL); ) {
+	for (findopen(); (path = findread(NULL)) != NULL; ) {
 		/*
 		 * GRTAGS and GSYMS doesn't treat asembler.
 		 */
@@ -287,9 +291,8 @@ int	db;
  *
  *	r)		date and time
  */
-#include <time.h>
 char	*
-current()
+current(void)
 {
 	static	char	buf[80];
 	time_t	tval;

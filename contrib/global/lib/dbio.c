@@ -31,10 +31,16 @@
  *	dbio.c					14-Dec-97
  *
  */
-#include <stdlib.h>
+#include <sys/stat.h>
+
 #include <fcntl.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
 #include "dbio.h"
 #include "die.h"
+#include "test.h"
 
 DBT	key;					/* key of record	*/
 DBT	dat;					/* data of record	*/

@@ -46,6 +46,6 @@
 void	tagopen __P((char *, int, int));
 void	tagput __P((char *, char *));
 void	tagdelete __P((char *));
-void	tagclose __P(());
+void	tagclose __P((void));
 
 #endif /* ! _TAG_H_ */
