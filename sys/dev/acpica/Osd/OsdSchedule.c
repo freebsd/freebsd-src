@@ -143,11 +143,7 @@ AcpiOsStall (UINT32 Microseconds)
 {
     FUNCTION_TRACE(__func__);
 
-    if (Microseconds > 1000) {	/* long enough to be worth the overhead of sleeping */
-	AcpiOsSleep(0, Microseconds / 1000);
-    } else {
-	DELAY(Microseconds);
-    }
+    DELAY(Microseconds);
     return_VOID;
 }
 
