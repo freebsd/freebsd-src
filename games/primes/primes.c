@@ -101,8 +101,8 @@ extern ubig *pr_limit;		/* largest prime in the prime array */
 extern char pattern[];
 extern int pattern_size;	/* length of pattern array */
 
-void	primes __P((ubig, ubig));
-ubig	read_num_buf __P((void));
+void	primes __P((ubig, ubig, int));
+ubig	read_num_buf __P((int));
 void	usage __P((void));
 
 int
@@ -114,9 +114,13 @@ main(argc, argv)
 	ubig stop;		/* don't generate at or above this value */
 	int ch;
 	char *p;
+	int hexa = 0;
 
-	while ((ch = getopt(argc, argv, "")) != -1)
+	while ((ch = getopt(argc, argv, "h")) != EOF)
 		switch (ch) {
+		case 'h':
+			hexa = 1;
+			break;
 		case '?':
 		default:
 			usage();
@@ -140,14 +144,14 @@ main(argc, argv)
 			errx(1, "negative numbers aren't permitted.");
 
 		errno = 0;
-		start = strtoul(argv[0], &p, 10);
+		start = strtoul(argv[0], &p, 0);
 		if (errno)
 			err(1, "%s", argv[0]);
 		if (*p != '\0')
 			errx(1, "%s: illegal numeric format.", argv[0]);
 
 		errno = 0;
-		stop = strtoul(argv[1], &p, 10);
+		stop = strtoul(argv[1], &p, 0);
 		if (errno)
 			err(1, "%s", argv[1]);
 		if (*p != '\0')
@@ -159,14 +163,14 @@ main(argc, argv)
 			errx(1, "negative numbers aren't permitted.");
 
 		errno = 0;
-		start = strtoul(argv[0], &p, 10);
+		start = strtoul(argv[0], &p, 0);
 		if (errno)
 			err(1, "%s", argv[0]);
 		if (*p != '\0')
 			errx(1, "%s: illegal numeric format.", argv[0]);
 		break;
 	case 0:
-		start = read_num_buf();
+		start = read_num_buf(hexa);
 		break;
 	default:
 		usage();
@@ -174,7 +178,7 @@ main(argc, argv)
 
 	if (start > stop)
 		errx(1, "start value must be less than stop value.");
-	primes(start, stop);
+	primes(start, stop, hexa);
 	exit(0);
 }
 
@@ -183,7 +187,7 @@ main(argc, argv)
  *	This routine returns a number n, where 0 <= n && n <= BIG.
  */
 ubig
-read_num_buf()
+read_num_buf(int hexa)
 {
 	ubig val;
 	char *p, buf[100];		/* > max number of digits. */
@@ -200,7 +204,7 @@ read_num_buf()
 		if (*p == '-')
 			errx(1, "negative numbers aren't permitted.");
 		errno = 0;
-		val = strtoul(buf, &p, 10);
+		val = strtoul(buf, &p, 0);
 		if (errno)
 			err(1, "%s", buf);
 		if (*p != '\n')
@@ -213,9 +217,10 @@ read_num_buf()
  * primes - sieve and print primes from start up to and but not including stop
  */
 void
-primes(start, stop)
+primes(start, stop, hexa)
 	ubig start;	/* where to start generating */
 	ubig stop;	/* don't generate at or above this value */
+	int hexa;
 {
 	register char *q;		/* sieve spot */
 	register ubig factor;		/* index and factor */
@@ -256,7 +261,7 @@ primes(start, stop)
 		for (p = &prime[0], factor = prime[0];
 		    factor < stop && p <= pr_limit; factor = *(++p)) {
 			if (factor >= start) {
-				printf("%lu\n", factor);
+				printf(hexa ? "0x%x\n" : "%u\n", factor);
 			}
 		}
 		/* return early if we are done */
@@ -319,7 +324,7 @@ primes(start, stop)
 		 */
 		for (q = table; q < tab_lim; ++q, start+=2) {
 			if (*q) {
-				printf("%lu\n", start);
+				printf(hexa ? "0x%x\n" : "%u\n", start);
 			}
 		}
 	}
