@@ -256,9 +256,8 @@ modnext(struct thread *td, struct modnext_args *uap)
 	module_t mod;
 	int error = 0;
 
-	mtx_lock(&Giant);
-
 	td->td_retval[0] = -1;
+
 	MOD_SLOCK;
 	if (SCARG(uap, modid) == 0) {
 		mod = TAILQ_FIRST(&modules);
@@ -279,7 +278,6 @@ modnext(struct thread *td, struct modnext_args *uap)
 		td->td_retval[0] = 0;
 done2:
 	MOD_SUNLOCK;
-	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -294,8 +292,6 @@ modfnext(struct thread *td, struct modfnext_args *uap)
 
 	td->td_retval[0] = -1;
 
-	mtx_lock(&Giant);
-
 	MOD_SLOCK;
 	mod = module_lookupbyid(SCARG(uap, modid));
 	if (mod == NULL) {
@@ -308,7 +304,6 @@ modfnext(struct thread *td, struct modfnext_args *uap)
 			td->td_retval[0] = 0;
 	}
 	MOD_SUNLOCK;
-	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -332,14 +327,11 @@ modstat(struct thread *td, struct modstat_args *uap)
 	struct module_stat *stat;
 	char *name;
 
-	mtx_lock(&Giant);
-
 	MOD_SLOCK;
 	mod = module_lookupbyid(SCARG(uap, modid));
 	if (mod == NULL) {
 		MOD_SUNLOCK;
-		error = ENOENT;
-		goto out;
+		return (ENOENT);
 	}
 	id = mod->id;
 	refs = mod->refs;
@@ -352,34 +344,29 @@ modstat(struct thread *td, struct modstat_args *uap)
 	 * Check the version of the user's structure.
 	 */
 	if ((error = copyin(&stat->version, &version, sizeof(version))) != 0)
-		goto out;
+		return (error);
 	if (version != sizeof(struct module_stat_v1)
-	    && version != sizeof(struct module_stat)) {
-		error = EINVAL;
-		goto out;
-	}
+	    && version != sizeof(struct module_stat))
+		return (EINVAL);
 	namelen = strlen(mod->name) + 1;
 	if (namelen > MAXMODNAME)
 		namelen = MAXMODNAME;
 	if ((error = copyout(name, &stat->name[0], namelen)) != 0)
-		goto out;
+		return (error);
 
 	if ((error = copyout(&refs, &stat->refs, sizeof(int))) != 0)
-		goto out;
+		return (error);
 	if ((error = copyout(&id, &stat->id, sizeof(int))) != 0)
-		goto out;
+		return (error);
 
 	/*
 	 * >v1 stat includes module data.
 	 */
-	if (version == sizeof(struct module_stat)) {
+	if (version == sizeof(struct module_stat))
 		if ((error = copyout(&data, &stat->data, 
 		    sizeof(data))) != 0)
-			goto out;
-	}
+			return (error);
 	td->td_retval[0] = 0;
-out:
-	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -394,9 +381,8 @@ modfind(struct thread *td, struct modfind_args *uap)
 	module_t mod;
 
 	if ((error = copyinstr(SCARG(uap, name), name, sizeof name, 0)) != 0)
-		goto out;
+		return (error);
 
-	mtx_lock(&Giant);
 	MOD_SLOCK;
 	mod = module_lookupbyname(name);
 	if (mod == NULL)
@@ -404,7 +390,5 @@ modfind(struct thread *td, struct modfind_args *uap)
 	else
 		td->td_retval[0] = module_getid(mod);
 	MOD_SUNLOCK;
-	mtx_unlock(&Giant);
-out:
 	return (error);
 }
