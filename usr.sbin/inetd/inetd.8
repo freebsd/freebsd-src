@@ -50,6 +50,7 @@
 .Op Fl a Ar address | hostname
 .Op Fl p Ar filename
 .Op Fl R Ar rate
+.Op Fl s Ar maximum
 .Op Ar configuration file
 .Sh DESCRIPTION
 The
@@ -102,6 +103,12 @@ May be overridden on a per-service basis with the
 Specify the maximum number of times a service can be invoked
 in one minute; the default is 256.
 A rate of 0 allows an unlimited number of invocations.
+.It Fl s Ar maximum
+Specify the default maximum number of
+simultaneous invocations of each service from a single IP address;
+the default is unlimited.
+May be overridden on a per-service basis with the "max-child-per-ip"
+parameter.
 .It Fl a
 Specify one specific IP address to bind to.
 Alternatively, a hostname can be specified,
@@ -155,7 +162,7 @@ fields of the configuration file are as follows:
 service name
 socket type
 protocol
-{wait|nowait}[/max-child[/max-connections-per-ip-per-minute]]
+{wait|nowait}[/max-child[/max-connections-per-ip-per-minute[/max-child-per-ip]]]
 user[:group][/login-class]
 server program
 server program arguments
@@ -396,6 +403,12 @@ outstanding child processes.
 Once the maximum is reached, further
 connections from this IP address will be dropped until the end of the
 minute.
+In addition, you can specify the maximum number of simultaneous
+invocations of each service from a single IP address by appending a
+.Dq /
+followed by the number to the maximum number of outstanding child
+processes.  Once the maximum is reached, further connections from this
+IP address will be dropped.
 .Pp
 The
 .Em user

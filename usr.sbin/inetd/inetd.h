@@ -36,6 +36,7 @@
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/queue.h>
 
 #include <netinet/in.h>
 
@@ -53,6 +54,21 @@
 			 ((sep)->se_type == MUXPLUS_TYPE))
 #define ISMUXPLUS(sep)	((sep)->se_type == MUXPLUS_TYPE)
 #define ISTTCP(sep)	((sep)->se_type == TTCP_TYPE)
+
+struct procinfo {
+	LIST_ENTRY(procinfo) pr_link;
+	pid_t		pr_pid;		/* child pid */
+	struct conninfo	*pr_conn;
+};
+
+struct conninfo {
+	LIST_ENTRY(conninfo) co_link;
+	struct sockaddr_storage	co_addr;	/* source address */
+	int		co_numchild;	/* current number of children */
+	struct procinfo	**co_proc;	/* array of child proc entry */
+};
+
+#define PERIPSIZE	256
 
 struct	servtab {
 	char	*se_service;		/* name of service */
@@ -105,6 +121,8 @@ struct	servtab {
 		u_int se_nomapped : 1;
 		u_int se_reset : 1;
 	} se_flags;
+	int	se_maxperip;		/* max number of children per src */
+	LIST_HEAD(, conninfo) se_conn[PERIPSIZE];
 };
 
 #define	se_nomapped		se_flags.se_nomapped
