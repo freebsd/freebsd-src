@@ -60,6 +60,7 @@ int		 sbuf_cat(struct sbuf *s, const char *str);
 int		 sbuf_cpy(struct sbuf *s, const char *str);
 int		 sbuf_printf(struct sbuf *s, const char *fmt, ...) __printflike(2, 3);
 int		 sbuf_putc(struct sbuf *s, int c);
+int		 sbuf_trim(struct sbuf *s);
 int		 sbuf_overflowed(struct sbuf *s);
 void		 sbuf_finish(struct sbuf *s);
 char		*sbuf_data(struct sbuf *s);
@@ -67,6 +68,8 @@ int		 sbuf_len(struct sbuf *s);
 void		 sbuf_delete(struct sbuf *s);
 
 #ifdef _KERNEL
+struct uio;
+struct sbuf	*sbuf_uionew(struct sbuf *s, struct uio *uio, int *error);
 int		 sbuf_bcopyin(struct sbuf *s, const void *uaddr, size_t len);
 int		 sbuf_copyin(struct sbuf *s, const void *uaddr, size_t len);
 #endif
