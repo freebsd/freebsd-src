@@ -1,4 +1,4 @@
-@(#)Theory	7.2
+@(#)Theory	7.4
 
 These time and date functions are much like the System V Release 2.0 (SVR2)
 time and date functions; there are a few additions and changes to extend
@@ -47,7 +47,7 @@ These are the changes that have been made to the SVR2 functions:
 	abbreviations are used.
 
 	It was recognized that allowing the "TZ" environment variable to
-	take on values such as "US/Eastern" might cause "old" programs
+	take on values such as "America/New_York" might cause "old" programs
 	(that expect "TZ" to have a certain form) to operate incorrectly;
 	consideration was given to using some other environment variable
 	(for example, "TIMEZONE") to hold the string used to generate the
@@ -79,8 +79,8 @@ These are the changes that have been made to the SVR2 functions:
 	best approximation to local wall clock time to be delivered by
 	subsequent calls to "localtime."  Source code for portable
 	applications that "must" run on local wall clock time should call
-	"tzsetwall();" if such code is moved to "old" systems that don't provide
-	tzsetwall, you won't be able to generate an executable program.
+	"tzsetwall();" if such code is moved to "old" systems that don't
+	provide tzsetwall, you won't be able to generate an executable program.
 	(These time zone functions also arrange for local wall clock time to be
 	used if tzset is called--directly or indirectly--and there's no "TZ"
 	environment variable; portable applications should not, however, rely
@@ -94,8 +94,8 @@ Points of interest to folks with Version 7 or BSD systems:
 	time zone abbreviation, and we refuse to guess.
 	Programs that in the past used the timezone function may now examine
 	tzname[localtime(&clock)->tm_isdst] to learn the correct time
-	zone abbreviation to use.  Alternatively, use localtime(&clock)->tm_zone
-	if this has been enabled.
+	zone abbreviation to use.  Alternatively, use
+	localtime(&clock)->tm_zone if this has been enabled.
 
 *	The BSD gettimeofday function is not used in this package;
 	this lets users control the time zone used in doing time conversions.
@@ -104,10 +104,10 @@ Points of interest to folks with Version 7 or BSD systems:
 	file "/etc/zoneinfo/localtime"; see the time zone compiler writeup for
 	information on how to initialize this file.
 
-The functions that are conditionally compiled if STD_INSPIRED is defined should,
-at this point, be looked on primarily as food for thought.  They are not in
-any sense "standard compatible"--some are not, in fact, specified in *any*
-standard.  They do, however, represent responses of various authors to
+The functions that are conditionally compiled if STD_INSPIRED is defined
+should, at this point, be looked on primarily as food for thought.  They are
+not in any sense "standard compatible"--some are not, in fact, specified in
+*any* standard.  They do, however, represent responses of various authors to
 standardization proposals.
 
 Other time conversion proposals, in particular the one developed by folks at
