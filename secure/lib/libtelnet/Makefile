@@ -3,14 +3,14 @@
 LIB=		telnet
 
 SRCS=		genget.c getent.c misc.c encrypt.c auth.c \
-		enc_des.c pk.c
+		enc_des.c sra.c pk.c
 
 CFLAGS+=        -DHAS_CGETENT -DENCRYPTION -DDES_ENCRYPTION -DAUTHENTICATION \
                 -I${TELNETDIR} \
 
 NOPIC=          yes
 
-INCLUDES=       ${TELNETDIR}/arpa/telnet.h 
+INCLUDES=       -DSRA ${TELNETDIR}/arpa/telnet.h 
 
 #
 # Before complaining about this, please *double-check* that you have
