@@ -96,11 +96,7 @@ usage()
 #else
 	    "[-r] ",
 #endif
-#ifdef	ENCRYPTION
-	    "[-x] [host-name [port]]"
-#else	/* ENCRYPTION */
 	    "[host-name [port]]"
-#endif	/* ENCRYPTION */
 	);
 	exit(1);
 }
@@ -267,14 +263,9 @@ main(argc, argv)
 #endif
 			break;
 		case 'x':
-#ifdef	ENCRYPTION
-			encrypt_auto(1);
-			decrypt_auto(1);
-#else	/* ENCRYPTION */
 			fprintf(stderr,
 			    "%s: Warning: -x ignored, no ENCRYPT support.\n",
 								prompt);
-#endif	/* ENCRYPTION */
 			break;
 		case '?':
 		default:

@@ -177,9 +177,9 @@ init_telnet()
     ClearArray(options);
 
     connected = In3270 = ISend = localflow = donebinarytoggle = 0;
-#if	defined(AUTHENTICATION) || defined(ENCRYPTION) 
+#if	defined(AUTHENTICATION) 
     auth_encrypt_connect(connected);
-#endif	/* defined(AUTHENTICATION) || defined(ENCRYPTION)  */
+#endif	/* defined(AUTHENTICATION)  */
     restartany = -1;
 
     SYNCHing = 0;
@@ -369,9 +369,6 @@ willoption(option)
 #if	defined(AUTHENTICATION)
 	    case TELOPT_AUTHENTICATION:
 #endif
-#ifdef	ENCRYPTION
-	    case TELOPT_ENCRYPT:
-#endif /* ENCRYPTION */
 		new_state_ok = 1;
 		break;
 
@@ -401,10 +398,6 @@ willoption(option)
 	    }
 	}
 	set_my_state_do(option);
-#ifdef	ENCRYPTION
-	if (option == TELOPT_ENCRYPT)
-		encrypt_send_support();
-#endif	/* ENCRYPTION */
 }
 
 	void
@@ -492,9 +485,6 @@ dooption(option)
 	    case TELOPT_LFLOW:		/* local flow control */
 	    case TELOPT_TTYPE:		/* terminal type option */
 	    case TELOPT_SGA:		/* no big deal */
-#ifdef	ENCRYPTION
-	    case TELOPT_ENCRYPT:	/* encryption variable option */
-#endif	/* ENCRYPTION */
 		new_state_ok = 1;
 		break;
 
@@ -1004,67 +994,6 @@ suboption()
 	}
 	break;
 #endif
-#ifdef	ENCRYPTION
-	case TELOPT_ENCRYPT:
-		if (SB_EOF())
-			return;
-		switch(SB_GET()) {
-		case ENCRYPT_START:
-			if (my_want_state_is_dont(TELOPT_ENCRYPT))
-				return;
-			encrypt_start(subpointer, SB_LEN());
-			break;
-		case ENCRYPT_END:
-			if (my_want_state_is_dont(TELOPT_ENCRYPT))
-				return;
-			encrypt_end();
-			break;
-		case ENCRYPT_SUPPORT:
-			if (my_want_state_is_wont(TELOPT_ENCRYPT))
-				return;
-			encrypt_support(subpointer, SB_LEN());
-			break;
-		case ENCRYPT_REQSTART:
-			if (my_want_state_is_wont(TELOPT_ENCRYPT))
-				return;
-			encrypt_request_start(subpointer, SB_LEN());
-			break;
-		case ENCRYPT_REQEND:
-			if (my_want_state_is_wont(TELOPT_ENCRYPT))
-				return;
-			/*
-			 * We can always send an REQEND so that we cannot
-			 * get stuck encrypting.  We should only get this
-			 * if we have been able to get in the correct mode
-			 * anyhow.
-			 */
-			encrypt_request_end();
-			break;
-		case ENCRYPT_IS:
-			if (my_want_state_is_dont(TELOPT_ENCRYPT))
-				return;
-			encrypt_is(subpointer, SB_LEN());
-			break;
-		case ENCRYPT_REPLY:
-			if (my_want_state_is_wont(TELOPT_ENCRYPT))
-				return;
-			encrypt_reply(subpointer, SB_LEN());
-			break;
-		case ENCRYPT_ENC_KEYID:
-			if (my_want_state_is_dont(TELOPT_ENCRYPT))
-				return;
-			encrypt_enc_keyid(subpointer, SB_LEN());
-			break;
-		case ENCRYPT_DEC_KEYID:
-			if (my_want_state_is_wont(TELOPT_ENCRYPT))
-				return;
-			encrypt_dec_keyid(subpointer, SB_LEN());
-			break;
-		default:
-			break;
-		}
-		break;
-#endif	/* ENCRYPTION */
     default:
 	break;
     }
@@ -1746,10 +1675,6 @@ telrcv()
 	}
 
 	c = *sbp++ & 0xff, scc--; count++;
-#ifdef	ENCRYPTION
-	if (decrypt_input)
-		c = (*decrypt_input)(c);
-#endif	/* ENCRYPTION */
 
 	switch (telrcv_state) {
 
@@ -1774,10 +1699,6 @@ telrcv()
 		*Ifrontp++ = c;
 		while (scc > 0) {
 		    c = *sbp++ & 0377, scc--; count++;
-#ifdef	ENCRYPTION
-		    if (decrypt_input)
-			c = (*decrypt_input)(c);
-#endif	/* ENCRYPTION */
 		    if (c == IAC) {
 			telrcv_state = TS_IAC;
 			break;
@@ -1796,10 +1717,6 @@ telrcv()
 	    if ((c == '\r') && my_want_state_is_dont(TELOPT_BINARY)) {
 		if (scc > 0) {
 		    c = *sbp&0xff;
-#ifdef	ENCRYPTION
-		    if (decrypt_input)
-			c = (*decrypt_input)(c);
-#endif	/* ENCRYPTION */
 		    if (c == 0) {
 			sbp++, scc--; count++;
 			/* a "true" CR */
@@ -1809,10 +1726,6 @@ telrcv()
 			sbp++, scc--; count++;
 			TTYADD('\n');
 		    } else {
-#ifdef	ENCRYPTION
-		        if (decrypt_input)
-			    (*decrypt_input)(-1);
-#endif	/* ENCRYPTION */
 
 			TTYADD('\r');
 			if (crmod) {
@@ -2249,7 +2162,7 @@ telnet(user)
 {
     sys_telnet_init();
 
-#if	defined(AUTHENTICATION) || defined(ENCRYPTION) 
+#if	defined(AUTHENTICATION) 
     {
 	static char local_host[256] = { 0 };
 
@@ -2260,17 +2173,13 @@ telnet(user)
 	auth_encrypt_init(local_host, hostname, "TELNET", 0);
 	auth_encrypt_user(user);
     }
-#endif	/* defined(AUTHENTICATION) || defined(ENCRYPTION)  */
+#endif	/* defined(AUTHENTICATION)  */
 #   if !defined(TN3270)
     if (telnetport) {
 #if	defined(AUTHENTICATION)
 	if (autologin)
 		send_will(TELOPT_AUTHENTICATION, 1);
 #endif
-#ifdef	ENCRYPTION
-	send_do(TELOPT_ENCRYPT, 1);
-	send_will(TELOPT_ENCRYPT, 1);
-#endif	/* ENCRYPTION */
 	send_do(TELOPT_SGA, 1);
 	send_will(TELOPT_TTYPE, 1);
 	send_will(TELOPT_NAWS, 1);
