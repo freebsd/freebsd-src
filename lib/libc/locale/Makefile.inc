@@ -25,4 +25,6 @@ MLINKS+=rune.3 fgetrune.3 rune.3 fputrune.3 rune.3 fungetrune.3 \
 	rune.3 setinvalidrune.3 rune.3 setrunelocale.3 rune.3 sgetrune.3 \
 	rune.3 sputrune.3
 MLINKS+=setlocale.3 localeconv.3
+MLINKS+=isxdigit.3 ishexnumber.3
+MLINKS+=isdigit.3 isnumber.3
 .endif

@@ -40,7 +40,7 @@
 .Dt ISXDIGIT 3
 .Os
 .Sh NAME
-.Nm isxdigit
+.Nm isxdigit, ishexnumber
 .Nd hexadecimal-digit character test
 .Sh LIBRARY
 .Lb libc
@@ -48,6 +48,8 @@
 .In ctype.h
 .Ft int
 .Fn isxdigit "int c"
+.Ft int
+.Fn ishexnumber "int c"
 .Sh DESCRIPTION
 The
 .Fn isxdigit
