@@ -39,14 +39,17 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)rmpproto.c	8.1 (Berkeley) 6/4/93
- *	$Id: rmpproto.c,v 1.2 1997/06/29 19:00:24 steve Exp $
  *
  * From: Utah Hdr: rmpproto.c 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
  */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)rmpproto.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
