@@ -29,10 +29,6 @@
 #ifndef _SYS__TASK_H_
 #define _SYS__TASK_H_
 
-#ifndef _KERNEL
-#error "no user-servicable parts inside"
-#endif
-
 #include <sys/queue.h>
 
 /*
