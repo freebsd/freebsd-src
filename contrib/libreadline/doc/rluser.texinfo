@@ -605,31 +605,31 @@ Meta-Control-h:	backward-kill-word	Text after the function name is ignored
 #
 # Arrow keys in keypad mode
 #
-#"\M-OD"        backward-char
-#"\M-OC"        forward-char
-#"\M-OA"        previous-history
-#"\M-OB"        next-history
+#"\M-OD":        backward-char
+#"\M-OC":        forward-char
+#"\M-OA":        previous-history
+#"\M-OB":        next-history
 #
 # Arrow keys in ANSI mode
 #
-"\M-[D"        backward-char
-"\M-[C"        forward-char
-"\M-[A"        previous-history
-"\M-[B"        next-history
+"\M-[D":        backward-char
+"\M-[C":        forward-char
+"\M-[A":        previous-history
+"\M-[B":        next-history
 #
 # Arrow keys in 8 bit keypad mode
 #
-#"\M-\C-OD"       backward-char
-#"\M-\C-OC"       forward-char
-#"\M-\C-OA"       previous-history
-#"\M-\C-OB"       next-history
+#"\M-\C-OD":       backward-char
+#"\M-\C-OC":       forward-char
+#"\M-\C-OA":       previous-history
+#"\M-\C-OB":       next-history
 #
 # Arrow keys in 8 bit ANSI mode
 #
-#"\M-\C-[D"       backward-char
-#"\M-\C-[C"       forward-char
-#"\M-\C-[A"       previous-history
-#"\M-\C-[B"       next-history
+#"\M-\C-[D":       backward-char
+#"\M-\C-[C":       forward-char
+#"\M-\C-[A":       previous-history
+#"\M-\C-[B":       next-history
 
 C-q: quoted-insert
 
@@ -921,10 +921,18 @@ Add this digit to the argument already accumulating, or start a new
 argument.  @key{M--} starts a negative argument.
 
 @item universal-argument ()
-Each time this is executed, the argument count is multiplied by four.
+This is another way to specify an argument.
+If this command is followed by one or more digits, optionally with a
+leading minus sign, those digits define the argument.
+If the command is followed by digits, executing @code{universal-argument}
+again ends the numeric argument, but is otherwise ignored.
+As a special case, if this command is immediately followed by a
+character that is neither a digit or minus sign, the argument count
+for the next command is multiplied by four.
 The argument count is initially one, so executing this function the
-first time makes the argument count four.  By default, this is not
-bound to a key.
+first time makes the argument count four, a second time makes the
+argument count sixteen, and so on.
+By default, this is not bound to a key.
 @end ftable
 
 @node Commands For Completion
@@ -1121,6 +1129,12 @@ word expansions.
 
 @item history-expand-line (M-^)
 Perform history expansion on the current line.
+
+@item alias-expand-line
+Perform alias expansion on the current line (@pxref{Aliases}).
+
+@item history-and-alias-expand-line
+Perform history and alias expansion on the current line.
 
 @item insert-last-argument (M-., M-_)
 A synonym for @code{yank-last-arg}.

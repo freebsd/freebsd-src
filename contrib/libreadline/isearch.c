@@ -30,13 +30,19 @@
 #  include <config.h>
 #endif
 
+#include <sys/types.h>
+
 #include <stdio.h>
 
 #if defined (HAVE_UNISTD_H)
 #  include <unistd.h>
 #endif
 
-#include <sys/types.h>
+#if defined (HAVE_STDLIB_H)
+#  include <stdlib.h>
+#else
+#  include "ansi_stdlib.h"
+#endif
 
 #include "rldefs.h"
 #include "readline.h"
@@ -287,7 +293,8 @@ rl_search_history (direction, invoking_key)
 	  rl_end = strlen (rl_line_buffer);
 	  _rl_restore_prompt();
 	  rl_clear_message ();
-	  free (allocated_line);
+	  if (allocated_line)
+	    free (allocated_line);
 	  free (lines);
 	  return 0;
 
@@ -403,7 +410,8 @@ rl_search_history (direction, invoking_key)
   rl_point = line_index;
   rl_clear_message ();
 
-  free (allocated_line);
+  if (allocated_line)
+    free (allocated_line);
   free (lines);
 
   return 0;

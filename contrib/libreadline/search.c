@@ -33,11 +33,20 @@
 #  include <unistd.h>
 #endif
 
+#if defined (HAVE_STDLIB_H)
+#  include <stdlib.h>
+#else
+#  include "ansi_stdlib.h"
+#endif
+
 #include "rldefs.h"
 #include "readline.h"
 #include "history.h"
 
-#define abs(x)		(((x) > 0) ? (x) : -(x))
+#ifdef abs
+#  undef abs
+#endif
+#define abs(x)		(((x) >= 0) ? (x) : -(x))
 
 extern char *xmalloc (), *xrealloc ();
 

@@ -25,7 +25,6 @@
 #  include <config.h>
 #endif
 
-#include <stdio.h>
 #include <sys/types.h>
 #include <fcntl.h>
 #if defined (HAVE_SYS_FILE_H)
@@ -41,6 +40,8 @@
 #else
 #  include "ansi_stdlib.h"
 #endif /* HAVE_STDLIB_H */
+
+#include <stdio.h>
 
 #include <errno.h>
 #if !defined (errno)
@@ -137,7 +138,7 @@ int rl_visible_stats = 0;
 static int completion_changed_buffer;
 
 /* Pointer to the generator function for completion_matches ().
-   NULL means to use filename_entry_function (), the default filename
+   NULL means to use filename_completion_function (), the default filename
    completer. */
 Function *rl_completion_entry_function = (Function *)NULL;
 
@@ -761,12 +762,13 @@ insert_text (text, start, end)
 }
 
 static char *
-make_quoted_replacement (match, mtype, quote_char)
+make_quoted_replacement (match, mtype, qc)
      char *match;
-     int mtype, quote_char;
+     int mtype;
+     char *qc;	/* Pointer to quoting character, if any */
 {
   int should_quote, do_replace;
-  char *replacement, qc;
+  char *replacement;
 
   /* If we are doing completion on quoted substrings, and any matches
      contain any of the completer_word_break_characters, then auto-
@@ -784,10 +786,10 @@ make_quoted_replacement (match, mtype, quote_char)
 
   if (should_quote)
 #if defined (SHELL)
-    should_quote = should_quote && (!quote_char || quote_char == '"' || quote_char == '\'');
-#else
-    should_quote = should_quote && !quote_char;
-#endif
+    should_quote = should_quote && (!qc || !*qc || *qc == '"' || *qc == '\'');
+#else /* !SHELL */
+    should_quote = should_quote && (!qc || !*qc);
+#endif /* !SHELL */
 
   if (should_quote)
     {
@@ -797,37 +799,37 @@ make_quoted_replacement (match, mtype, quote_char)
       should_quote = rl_strpbrk (match, rl_filename_quote_characters) != 0;
 
       do_replace = should_quote ? mtype : NO_MATCH;
-      if (do_replace != NO_MATCH)
-	{
-	  /* Quote the replacement, since we found an embedded
-	     word break character in a potential match. */
-	  if (rl_filename_quoting_function)
-	    {
-	      qc = quote_char;	/* must pass a (char *) to quoting function */
-	      replacement = (*rl_filename_quoting_function)
-				(match, do_replace, &qc);
-	      quote_char = qc;
-	    }
-	}
+      /* Quote the replacement, since we found an embedded
+	 word break character in a potential match. */
+      if (do_replace != NO_MATCH && rl_filename_quoting_function)
+	replacement = (*rl_filename_quoting_function) (match, do_replace, qc);
     }
   return (replacement);
 }
 
 static void
-insert_match (match, start, mtype, quote_char)
+insert_match (match, start, mtype, qc)
      char *match;
-     int start, mtype, quote_char;
+     int start, mtype;
+     char *qc;
 {
   char *replacement;
+  char oqc;
 
-  replacement = make_quoted_replacement (match, mtype, quote_char);
+  oqc = qc ? *qc : '\0';
+  replacement = make_quoted_replacement (match, mtype, qc);
 
   /* Now insert the match. */
   if (replacement)
     {
       /* Don't double an opening quote character. */
-      if (quote_char && start && rl_line_buffer[start - 1] == quote_char &&
-	    replacement[0] == quote_char)
+      if (qc && *qc && start && rl_line_buffer[start - 1] == *qc &&
+	    replacement[0] == *qc)
+	start--;
+      /* If make_quoted_replacement changed the quoting character, remove
+	 the opening quote and insert the (fully-quoted) replacement. */
+      else if (qc && (*qc != oqc) && start && rl_line_buffer[start - 1] == oqc &&
+	    replacement[0] != oqc)
 	start--;
       insert_text (replacement, start, rl_point - 1);
       if (replacement != match)
@@ -882,9 +884,10 @@ append_to_match (text, delimiter, quote_char)
 }
 
 static void
-insert_all_matches (matches, point, quote_char)
+insert_all_matches (matches, point, qc)
      char **matches;
-     int point, quote_char;
+     int point;
+     char *qc;
 {
   int i;
   char *rp;
@@ -892,7 +895,7 @@ insert_all_matches (matches, point, quote_char)
   rl_begin_undo_group ();
   /* remove any opening quote character; make_quoted_replacement will add
      it back. */
-  if (quote_char && point && rl_line_buffer[point - 1] == quote_char)
+  if (qc && *qc && point && rl_line_buffer[point - 1] == *qc)
     point--;
   rl_delete_text (point, rl_point);
   rl_point = point;
@@ -901,7 +904,7 @@ insert_all_matches (matches, point, quote_char)
     {
       for (i = 1; matches[i]; i++)
 	{
-	  rp = make_quoted_replacement (matches[i], SINGLE_MATCH, quote_char);
+	  rp = make_quoted_replacement (matches[i], SINGLE_MATCH, qc);
 	  rl_insert_text (rp);
 	  rl_insert_text (" ");
 	  if (rp != matches[i])
@@ -910,7 +913,7 @@ insert_all_matches (matches, point, quote_char)
     }
   else
     {
-      rp = make_quoted_replacement (matches[0], SINGLE_MATCH, quote_char);
+      rp = make_quoted_replacement (matches[0], SINGLE_MATCH, qc);
       rl_insert_text (rp);
       rl_insert_text (" ");
       if (rp != matches[0])
@@ -964,12 +967,12 @@ rl_complete_internal (what_to_do)
 
   text = rl_copy_text (start, end);
   matches = gen_completion_matches (text, start, end, our_func, found_quote, quote_char);
-  free (text);
 
   if (matches == 0)
     {
       ding ();
       FREE (saved_line_buffer);
+      free (text);
       return 0;
     }
     
@@ -998,6 +1001,7 @@ rl_complete_internal (what_to_do)
 	  FREE (matches);
 	  ding ();
 	  FREE (saved_line_buffer);
+	  FREE (text);
 	  return 0;
         }
       else
@@ -1013,6 +1017,7 @@ rl_complete_internal (what_to_do)
 	    }
 	}
     }
+  free (text);
 
   switch (what_to_do)
     {
@@ -1020,7 +1025,7 @@ rl_complete_internal (what_to_do)
     case '!':
       /* Insert the first match with proper quoting. */
       if (*matches[0])
-	insert_match (matches[0], start, matches[1] ? MULT_MATCH : SINGLE_MATCH, quote_char);
+	insert_match (matches[0], start, matches[1] ? MULT_MATCH : SINGLE_MATCH, &quote_char);
 
       /* If there are more matches, ring the bell to indicate.
 	 If we are in vi mode, Posix.2 says to not ring the bell.
@@ -1046,7 +1051,7 @@ rl_complete_internal (what_to_do)
       break;
 
     case '*':
-      insert_all_matches (matches, start, quote_char);
+      insert_all_matches (matches, start, &quote_char);
       break;
 
     case '?':
@@ -1102,10 +1107,14 @@ stat_char (filename)
   character = 0;
   if (S_ISDIR (finfo.st_mode))
     character = '/';
+#if defined (S_ISCHR)
   else if (S_ISCHR (finfo.st_mode))
     character = '%';
+#endif /* S_ISCHR */
+#if defined (S_ISBLK)
   else if (S_ISBLK (finfo.st_mode))
     character = '#';
+#endif /* S_ISBLK */
 #if defined (S_ISLNK)
   else if (S_ISLNK (finfo.st_mode))
     character = '@';
@@ -1321,7 +1330,7 @@ filename_completion_function (text, state)
      int state;
      char *text;
 {
-  static DIR *directory;
+  static DIR *directory = (DIR *)NULL;
   static char *filename = (char *)NULL;
   static char *dirname = (char *)NULL;
   static char *users_dirname = (char *)NULL;
@@ -1333,6 +1342,13 @@ filename_completion_function (text, state)
   /* If we don't have any state, then do some initialization. */
   if (state == 0)
     {
+      /* If we were interrupted before closing the directory or reading
+	 all of its contents, close it. */
+      if (directory)
+	{
+	  closedir (directory);
+	  directory = (DIR *)NULL;
+	}
       FREE (dirname);
       FREE (filename);
       FREE (users_dirname);
