@@ -2,7 +2,7 @@
 #
 # Doing a make install builds /usr/share/examples
 
-DIRS!=	cd ${.CURDIR}; for i in *; do \
+DIRS!=	for i in *; do \
 	    if test -d $$i -a $$i != CVS -a $$i != ipfilter; then \
 		echo $$i; \
 	    fi; \
@@ -22,11 +22,10 @@ all clean cleandir depend lint tags:
 beforeinstall: etc-examples ${SHARED}
 
 .for dir in ${DIRS}
-FILES!=	cd ${.CURDIR}; find -L ${dir} \( -name CVS -prune \) -o -type f -print
+FILES!=	find -L ${dir} \( -name CVS -prune \) -o -type f -print
 .for file in ${FILES}
 copies::
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${.CURDIR}/${file} \
-	    ${DDIR}/${file}
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${file} ${DDIR}/${file}
 .endfor
 .endfor
 
