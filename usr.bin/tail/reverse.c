@@ -35,7 +35,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)reverse.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -224,7 +228,7 @@ r_buf(fp)
 	}
 
 	if (enomem) {
-		warnx("warning: %ld bytes discarded\n", enomem);
+		warnx("warning: %ld bytes discarded", enomem);
 		rval = 1;
 	}
 
