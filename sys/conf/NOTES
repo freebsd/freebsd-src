@@ -542,7 +542,7 @@ options 	ATM_SPANS		#SPANS signalling manager
 options 	ATM_UNI			#UNI signalling manager
 # Broken:
 ##device	hea			#Efficient ENI-155p ATM PCI
-##device	hfa			#FORE PCA-200E ATM PCI
+device		hfa			#FORE PCA-200E ATM PCI
 
 
 #####################################################################
