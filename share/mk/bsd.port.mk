@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.227.2.25 1997/07/17 17:53:43 markm Exp $
+# $Id: bsd.port.mk,v 1.227.2.26 1997/08/20 03:44:30 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -1697,6 +1697,9 @@ fake-pkg:
 		fi; \
 		if [ -f ${PKGDIR}/REQ ]; then \
 			${CP} ${PKGDIR}/REQ ${PKG_DBDIR}/${PKGNAME}/+REQ; \
+		fi; \
+		if [ -f ${PKGDIR}/MESSAGE ]; then \
+			${CP} ${PKGDIR}/MESSAGE ${PKG_DBDIR}/${PKGNAME}/+DISPLAY; \
 		fi; \
 		for dep in `make package-depends ECHO_MSG=/usr/bin/true | sort -u`; do \
 			if [ -d ${PKG_DBDIR}/$$dep ]; then \
