@@ -137,3 +137,9 @@ The
 .Fn chroot
 system call appeared in
 .Bx 4.2 .
+.Sh BUGS
+If the process is able to change its working directory to the target
+directory, but another access control check fails (such as a check for
+open directories, or a MAC check), it is possible that this system
+call may return an error, with the working directory of the process
+left changed.
