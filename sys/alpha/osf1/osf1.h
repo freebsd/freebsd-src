@@ -45,10 +45,30 @@ extern int bsd_to_osf1_errno[];
 #define	OSF1_IOCCMD(x)		((x) & 0xff)
 
 /* for get sysinfo */
-#define OSF_GET_MAX_UPROCS	  2
-#define	OSF_GET_IEEE_FP_CONTROL  45
-#define	OSF_GET_PROC_TYPE	 60
+#define	OSF_GET_MAX_UPROCS	2
+#define	OSF_GET_PHYSMEM		19
+#define	OSF_GET_MAX_CPU		30
+#define	OSF_GET_IEEE_FP_CONTROL 45
+#define	OSF_GET_CPUS_IN_BOX	55
+#define	OSF_GET_CPU_INFO	59
+#define	OSF_GET_PROC_TYPE	60
 #define	OSF_GET_HWRPB		101
+#define	OSF_GET_PLATFORM_NAME	103
+
+struct	osf1_cpu_info {
+	int		current_cpu;
+	int     	cpus_in_box;
+	int		cpu_type;
+	int		ncpus;
+	u_int64_t	cpus_present;
+	u_int64_t 	cpus_running;
+	u_int64_t	cpu_binding;
+	u_int64_t	cpu_ex_binding;
+	int  		mhz;
+	int  		unused[3];
+};
+
+
 
 /* for set sysinfo */
 #define	OSF_SET_IEEE_FP_CONTROL  14
