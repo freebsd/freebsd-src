@@ -357,6 +357,7 @@ chn_wrintr(pcm_channel *c)
 	 * goes to sleep by itself.
 	 */
 	while (chn_wrfeed(c) > 0);
+ 	chn_clearbuf(c, b, b->fl);
 	chn_dmawakeup(c);
     	if (c->flags & CHN_F_MAPPED)
 		start = c->flags & CHN_F_TRIGGERED;
@@ -963,17 +964,20 @@ chn_abort(pcm_channel *c)
 int
 chn_flush(pcm_channel *c)
 {
-    	int ret, count = 50;
+    	int ret, count = 50, s;
     	snd_dbuf *b = &c->buffer;
 
     	DEB(printf("chn_flush c->flags 0x%08x\n", c->flags));
     	c->flags |= CHN_F_CLOSING;
-    	if (c->direction == PCMDIR_REC) chn_abort(c);
+    	if (c->direction == PCMDIR_REC)
+		chn_abort(c);
     	else if (b->dl) {
-		while (!b->underflow && (count-- > 0)) {
+		while ((b->rl > 0) && !b->underflow && (count-- > 0)) {
 			/* still pending output data. */
-			ret = tsleep((caddr_t)b, PRIBIO | PCATCH, "pcmflu", hz/10);
-			DEB(chn_dmaupdate(c));
+			ret = tsleep((caddr_t)b, PRIBIO | PCATCH, "pcmflu", hz / 10);
+			s = spltty();
+			chn_dmaupdate(c);
+			splx(s);
 			DEB(printf("chn_flush: now rl = %d, fl = %d\n", b->rl, b->fl));
 			if (ret == EINTR || ret == ERESTART) {
 	    			DEB(printf("chn_flush: tsleep returns %d\n", ret));
