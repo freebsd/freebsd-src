@@ -940,7 +940,7 @@ struct tm * const	tmp;
 	tmp->tm_isdst = ttisp->tt_isdst;
 	tzname[tmp->tm_isdst] = (char *) &sp->chars[ttisp->tt_abbrind];
 #ifdef TM_ZONE
-	tmp->TM_ZONE = &sp->chars[ttisp->tt_abbrind];
+	tmp->TM_ZONE = (char *)&sp->chars[ttisp->tt_abbrind];
 #endif /* defined TM_ZONE */
 }
 
