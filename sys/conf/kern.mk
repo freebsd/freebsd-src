@@ -40,7 +40,7 @@ CFLAGS+=	-mno-fp-regs -ffixed-8 -Wa,-mev6
 # a very small subset of float registers for integer divides.
 #
 .if ${MACHINE_ARCH} == "ia64"
-CFLAGS+=	-ffixed-r13 -mfixed-range=f32-f127
+CFLAGS+=	-ffixed-r13 -mfixed-range=f32-f127 -mno-sdata
 .endif
 
 #
