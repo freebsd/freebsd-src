@@ -1,5 +1,5 @@
                              TOP
-                         Version 3.4
+                         Version 3.5
 
                        William LeFebvre
 		     and a cast of dozens
@@ -69,6 +69,7 @@ Be sure to read the FAQ enclosed with the distrubution.  It contains
 answers to the most commonly asked questions about the configuration,
 installation, and operation of top.
 
+
 AVAILABILITY
 
 The latest version of "top" is now being made available via anonymous
@@ -77,14 +78,25 @@ Additional modules will be made available in the directory
 "/pub/top/m".  The site "eecs.nwu.edu" will continue to house copies
 of the distribution as well.
 
-Here are HTML links for the two best "top" archive sites:
+Here are HTML links for the four best "top" archive sites:
 
-<A HREF="ftp://ftp.groupsys.com/pub/top>Top archive (groupsys.com)</A>
-<A HREF="ftp://eecs.nwu.edu/pub/top>Top archive (eecs.nwu.edu)</A>
+<A HREF="ftp://ftp.groupsys.com/pub/top">Top archive (groupsys.com)</A>
+<A HREF="ftp://eecs.nwu.edu/pub/top">Top archive (eecs.nwu.edu)</A>
+<A HREF="ftp://pharos.dgim.doc.ca/packages/top"> Top mirror (dgim.doc.ca)</A>
+<A HREF="ftp://uiarchive.uiuc.edu/pub/packages/top/">Top mirror (uiuc.edu)</A>
 
 New releases will be posted to comp.sources.unix as they become
 available.  Sites which arhive that newsgroup will also contain copies
 of the distribution.
+
+Announcements about availability will be made to the mailing list
+"top-announce@groupsys.com".  This is an open list maintained by
+majordomo.  To join the list, send a message containing the word
+"subscribe" to "top-announce-request@groupsys.com".  Addresses of
+subscribers to this list are kept confidential and will never be used
+for any purpose other than as recipients of announements concerning
+this software.
+
 
 KNOWN PROBLEMS:
 
@@ -150,7 +162,7 @@ is.  Here is a partial list of contributors and other individuals.
 	Robert Boucher		<boucher@sofkin.ca>
 	Marc Cohen 		<marc@aai.com>
 	David Cutter		<dpc@grail.com>
-	Casper Dik		<casper@fwi.uva.nl>
+	Casper Dik		<Casper.Dik@Sun.COM>
 	Charles Hedrick 	<hedrick@geneva.rutgers.edu>
 	Andrew Herbert		<andrew@werple.apana.org.au>
 	Jeff Janvrin		<jeff.janvrin@columbiasc.ncr.com>
@@ -173,6 +185,8 @@ AUTHOR
 
 		U.S. Mail address:
 		    William LeFebvre
-		    170 Colton Crest Drive
-		    Alpharetta, GA  30202
+		    Group sys Consulting
+		    11585 Jones Bridge Road
+		    Suite 420-139
+		    Alpharetta, GA  30022
 		    (770) 813-3224
