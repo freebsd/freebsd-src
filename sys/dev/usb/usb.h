@@ -1,5 +1,5 @@
 /*	$NetBSD: usb.h,v 1.3 1998/07/25 15:22:11 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	FreeBSD $Id: usb.h,v 1.3 1998/12/14 09:32:24 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -301,6 +301,8 @@ typedef struct {
 #define UCLASS_AUDIO		1
 #define  USUBCLASS_AUDIOCONTROL	1
 #define  USUBCLASS_AUDIOSTREAM	2
+#define UCLASS_CDC		2
+#define  USUBCLASS_MODEM	2
 #define UCLASS_HID		3
 #define  USUBCLASS_BOOT	 	1
 #define UCLASS_PRINTER		7

@@ -1,5 +1,5 @@
 /*	$NetBSD: hid.c,v 1.2 1998/07/24 20:57:46 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	FreeBSD $Id: hid.c,v 1.2 1998/12/14 09:32:23 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -97,12 +97,11 @@ hid_start_parse(d, len, kindset)
 	int kindset;
 {
 	struct hid_data *s;
-	u_char *p = d;
 
 	s = malloc(sizeof *s, M_TEMP, M_WAITOK);
 	memset(s, 0, sizeof *s);
-	s->start = s->p = p;
-	s->end = p + len;
+	s->start = s->p = d;
+	s->end = d + len;
 	s->kindset = kindset;
 	return (s);
 }
