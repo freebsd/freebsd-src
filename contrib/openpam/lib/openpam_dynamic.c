@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_dynamic.c#6 $
+ * $P4: //depot/projects/openpam/lib/openpam_dynamic.c#7 $
  */
 
 #include <dlfcn.h>
@@ -57,6 +57,7 @@ openpam_dynamic(const char *path)
 	void *dlh;
 	int i;
 
+	dlh = NULL;
 	if ((module = calloc(1, sizeof *module)) == NULL)
 		goto buf_err;
 
@@ -77,7 +78,7 @@ openpam_dynamic(const char *path)
 		goto buf_err;
 	module->dlh = dlh;
 	for (i = 0; i < PAM_NUM_PRIMITIVES; ++i) {
-		module->func[i] = dlsym(dlh, _pam_sm_func_name[i]);
+		module->func[i] = (pam_func_t)dlsym(dlh, _pam_sm_func_name[i]);
 		if (module->func[i] == NULL)
 			openpam_log(PAM_LOG_DEBUG, "%s: %s(): %s",
 			    path, _pam_sm_func_name[i], dlerror());
@@ -85,7 +86,8 @@ openpam_dynamic(const char *path)
 	return (module);
  buf_err:
 	openpam_log(PAM_LOG_ERROR, "%m");
-	dlclose(dlh);
+	if (dlh != NULL)
+		dlclose(dlh);
 	free(module);
 	return (NULL);
 }
