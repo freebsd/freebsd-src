@@ -86,6 +86,8 @@
  * This avoids reuse issues caused by reseeding.
  */
 
+#include "opt_random_ip_id.h"
+
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
