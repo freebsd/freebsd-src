@@ -140,7 +140,7 @@ A filesystem snapshot capability has been added to FFS.  Details can
 be found in /usr/src/sys/ufs/ffs/README.snapshot.
 
 Support for the Adaptec FSA family of PCI-SCSI RAID controllers has
-been added, in the form of the aac(4) driver.
+been added, in the form of the aac(4) driver. [MERGED]
 
 The ng_mppc(4) and ng_bridge(4) node types have been added to the
 netgraph subsystem.  The ng_ether(4) node is now dynamically loadable.
@@ -177,6 +177,12 @@ The ahc(4) driver has been updated.  [MERGED]
 ACPI support has been merged in from the FreeBSD-ACPI project.
 
 isdn4bsd has been updated to version 0.96.00
+
+The ihfc(4) driver for supporting Cologne Chip Designs HFC devices
+under isdn4bsd has been added.
+
+The itjc(4) driver for supporting NETjet-S / Teles PCI-TJ under
+isdn4bsd has been added.
 
 Support for Fujitsu MB86960A/MB86965A based Ethernet PC-Cards is back.
 [MERGED]
@@ -285,6 +291,24 @@ The ray(4) driver, which supports the Webgear Aviator wireless network
 cards, has been committed.  The operation of ray(4) interfaces can be
 modified by raycontrol(8).  [MERGED]
 
+Linksys Fast Ethernet PCCARD cards supported by the ed driver now
+require the addition of flag 0x80000 to their config line in
+pccard.conf(5).  This flag is not optional.  These Linksys cards will
+not be recognized without it.
+
+A new API has been added for sound cards with hardware volume
+control.
+
+The VESA S3 linear framebuffer driver has been added.
+
+A new sysctl 'net.link.ether.inet.log_arp_wrong_iface' to controls the
+supression of logging when ARP replies arrive on the wrong
+interface. [MERGED]
+
+A bug in the NFS client that caused bogus access times with
+O_EXCL|O_CREAT opens was fixed.  [MERGED]
+
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -375,9 +399,12 @@ new feature to limit the number of outstanding unauthenticated ssh
 connections in sshd has been added. [MERGED]
 
 OpenSSH has been upgraded to 2.3.0.  This version adds support for the
-Rijndael encryption algorithm.
+Rijndael encryption algorithm. [MERGED]
 
 PAM support for OpenSSH has been added.
+
+A long-standing bug in SSH, which sometimes resulted in a dropped
+session when an X11-forwarded client was closed, was fixed.
 
 Support for USB devices was added to the GENERIC kernel and to the
 installation programs to support USB devices out of the box.  Note that
@@ -469,7 +496,7 @@ they started.
 finger(1) now has the ability to support fingering aliases, via the
 finger.conf(5) file. [MERGED]
 
-finger(1) now has support for a .publickey file.
+finger(1) now has support for a .pubkey file.
 
 nsswitch support has been merged from NetBSD.  By creating an
 nsswitch.conf(5) file, FreeBSD can be configured so that various 
@@ -643,6 +670,32 @@ are provided unless the des hash is specifically compiled out.
 
 passwd(1) and pw(8) now select the passwd hash algorithm at run time.  See
 the "passwd_format" attribute in /etc/login.conf.
+
+In preparation for meeting SUSv2/POSIX <sys/select.h> requirements,
+'struct selinfo' and related functions have been moved to
+<sys/selinfo.h>.
+
+Changes were made to force strong references to several pthread_*
+functions which are weakly referenced to by libgcc.a. [MERGED]
+
+gcc now uses a unified libgcc rather than a separate one fro threaded
+and non-threaded programs.  This provides threaded programs with the
+needed exception frame symbols. [MERGED]
+
+syslogd(8) now supports a "LOG_CONSOLE" facility. [MERGED]
+
+rpcgen now uses /usr/bin/cpp (as on NetBSD), not /usr/libexec/cpp.
+
+Boot-time syscons configuration was moved to a machine-independent
+rc.syscons.
+
+burncd(8) now supports a -m option for multisession mode (the default
+behavior now is to close disks as single-session).  A -l option to
+take a list of image files from a filename was also added; '-' can be
+used as a filename for stdin.
+
+dmesg(8) now has a -a option to show the entire message buffer,
+including syslog records and /dev/console output. [MERGED]
 
 
 2. Supported Configurations
