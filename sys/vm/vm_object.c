@@ -1435,8 +1435,10 @@ vm_object_backing_scan(vm_object_t object, int op)
 				 * Page is out of the parent object's range, we 
 				 * can simply destroy it. 
 				 */
+				vm_page_lock_queues();
 				vm_page_protect(p, VM_PROT_NONE);
 				vm_page_free(p);
+				vm_page_unlock_queues();
 				p = next;
 				continue;
 			}
@@ -1453,8 +1455,10 @@ vm_object_backing_scan(vm_object_t object, int op)
 				 *
 				 * Leave the parent's page alone
 				 */
+				vm_page_lock_queues();
 				vm_page_protect(p, VM_PROT_NONE);
 				vm_page_free(p);
+				vm_page_unlock_queues();
 				p = next;
 				continue;
 			}
@@ -1756,10 +1760,11 @@ again:
 					if (p->valid & p->dirty)
 						continue;
 				}
-
+				vm_page_lock_queues();
 				vm_page_busy(p);
 				vm_page_protect(p, VM_PROT_NONE);
 				vm_page_free(p);
+				vm_page_unlock_queues();
 			}
 		}
 	} else {
@@ -1790,10 +1795,11 @@ again:
 						continue;
 					}
 				}
-
+				vm_page_lock_queues();
 				vm_page_busy(p);
 				vm_page_protect(p, VM_PROT_NONE);
 				vm_page_free(p);
+				vm_page_unlock_queues();
 			}
 			start += 1;
 			size -= 1;
