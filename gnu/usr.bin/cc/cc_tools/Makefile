@@ -224,8 +224,8 @@ ${OBJS}: ${COMMONHDRS}
 # Filter out the headers that would cause problems (and a few more when it
 # is inconvenient to filter precisely).
 #
-bitmap.o genattr.o gencodes.o genconfig.o genflags.o obstack.o print-rtl.o \
-    rtl.o: ${SRCS:M*.h:Ninsn-*.h}
+bitmap.o genattr.o gencodes.o genconfig.o genflags.o gensupport.o obstack.o print-rtl.o \
+    read-rtl.o rtl.o: ${SRCS:M*.h:Ninsn-*.h}
 gencheck.o: gencheck.h ${SRCS:M*.h:Ngenrtl.h:Ntree-check.h:Ninsn-*.h}
 gengenrtl.o: ${SRCS:M*.h:Ngenrtl.h:Ninsn-*.h}
 genpreds.o: ${COMMONHDRS}
