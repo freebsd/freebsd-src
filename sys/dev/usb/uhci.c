@@ -112,7 +112,7 @@ int uhcinoloop = 0;
  * The UHCI controller is little endian, so on big endian machines
  * the data strored in memory needs to be swapped.
  */
-#if defined(__FreeBSD__) || defined(__OpenBSD__)
+#if defined(__OpenBSD__)
 #if BYTE_ORDER == BIG_ENDIAN
 #define htole32(x) (bswap32(x))
 #define le32toh(x) (bswap32(x))

@@ -99,10 +99,8 @@ isa/psm.c			optional	psm
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
 kern/subr_diskmbr.c		standard
-libkern/ia64/htonl.S		standard
-libkern/ia64/htons.S		standard
-libkern/ia64/ntohl.S		standard
-libkern/ia64/ntohs.S		standard
+libkern/ia64/bswap16.S		standard
+libkern/ia64/bswap32.S		standard
 libkern/ia64/__divsi3.S		standard
 libkern/ia64/__modsi3.S		standard
 libkern/ia64/__udivsi3.S	standard

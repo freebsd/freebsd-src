@@ -366,6 +366,70 @@ void busspace_generic_barrier(struct alpha_busspace *space,
 	(t)->ab_ops->abo_barrier(t, (h)+(o), l, f)
 
 /*
+ * Stream accesses are the same as normal accesses on alpha; there are no
+ * supported bus systems with an endianess different from the host one.
+ */
+#define	bus_space_read_stream_1(t, h, o)	bus_space_read_1((t), (h), (o))
+#define	bus_space_read_stream_2(t, h, o)	bus_space_read_2((t), (h), (o))
+#define	bus_space_read_stream_4(t, h, o)	bus_space_read_4((t), (h), (o))
+
+#define	bus_space_read_multi_stream_1(t, h, o, a, c) \
+	bus_space_read_multi_1((t), (h), (o), (a), (c))
+#define	bus_space_read_multi_stream_2(t, h, o, a, c) \
+	bus_space_read_multi_2((t), (h), (o), (a), (c))
+#define	bus_space_read_multi_stream_4(t, h, o, a, c) \
+	bus_space_read_multi_4((t), (h), (o), (a), (c))
+
+#define	bus_space_write_stream_1(t, h, o, v) \
+	bus_space_write_1((t), (h), (o), (v))
+#define	bus_space_write_stream_2(t, h, o, v) \
+	bus_space_write_2((t), (h), (o), (v))
+#define	bus_space_write_stream_4(t, h, o, v) \
+	bus_space_write_4((t), (h), (o), (v))
+
+#define	bus_space_write_multi_stream_1(t, h, o, a, c) \
+	bus_space_write_multi_1((t), (h), (o), (a), (c))
+#define	bus_space_write_multi_stream_2(t, h, o, a, c) \
+	bus_space_write_multi_2((t), (h), (o), (a), (c))
+#define	bus_space_write_multi_stream_4(t, h, o, a, c) \
+	bus_space_write_multi_4((t), (h), (o), (a), (c))
+
+#define	bus_space_set_multi_stream_1(t, h, o, v, c) \
+	bus_space_set_multi_1((t), (h), (o), (v), (c))
+#define	bus_space_set_multi_stream_2(t, h, o, v, c) \
+	bus_space_set_multi_2((t), (h), (o), (v), (c))
+#define	bus_space_set_multi_stream_4(t, h, o, v, c) \
+	bus_space_set_multi_4((t), (h), (o), (v), (c))
+
+#define	bus_space_read_region_stream_1(t, h, o, a, c) \
+	bus_space_read_region_1((t), (h), (o), (a), (c))
+#define	bus_space_read_region_stream_2(t, h, o, a, c) \
+	bus_space_read_region_2((t), (h), (o), (a), (c))
+#define	bus_space_read_region_stream_4(t, h, o, a, c) \
+	bus_space_read_region_4((t), (h), (o), (a), (c))
+
+#define	bus_space_write_region_stream_1(t, h, o, a, c) \
+	bus_space_write_region_1((t), (h), (o), (a), (c))
+#define	bus_space_write_region_stream_2(t, h, o, a, c) \
+	bus_space_write_region_2((t), (h), (o), (a), (c))
+#define	bus_space_write_region_stream_4(t, h, o, a, c) \
+	bus_space_write_region_4((t), (h), (o), (a), (c))
+
+#define	bus_space_set_region_stream_1(t, h, o, v, c) \
+	bus_space_set_region_1((t), (h), (o), (v), (c))
+#define	bus_space_set_region_stream_2(t, h, o, v, c) \
+	bus_space_set_region_2((t), (h), (o), (v), (c))
+#define	bus_space_set_region_stream_4(t, h, o, v, c) \
+	bus_space_set_region_4((t), (h), (o), (v), (c))
+
+#define	bus_space_copy_region_stream_1(t, h1, o1, h2, o2, c) \
+	bus_space_copy_region_1((t), (h1), (o1), (h2), (o2), (c))
+#define	bus_space_copy_region_stream_2(t, h1, o1, h2, o2, c) \
+	bus_space_copy_region_2((t), (h1), (o1), (h2), (o2), (c))
+#define	bus_space_copy_region_stream_4(t, h1, o1, h2, o2, c) \
+	bus_space_copy_region_4((t), (h1), (o1), (h2), (o2), (c))
+
+/*
  * Flags used in various bus DMA methods.
  */
 #define	BUS_DMA_WAITOK		0x00	/* safe to sleep (pseudo-flag) */

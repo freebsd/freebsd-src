@@ -56,6 +56,14 @@
 #define	PDP_ENDIAN	3412	/* LSB first in word, MSW first in long */
 
 #define	BYTE_ORDER	LITTLE_ENDIAN
+
+#ifdef _KERNEL
+#define	_BSWAP16_DEFINED
+__uint16_t __bswap16(__uint16_t);
+#define	_BSWAP32_DEFINED
+__uint32_t __bswap32(__uint32_t);
+#endif /* _KERNEL */
+
 #endif /* !_POSIX_SOURCE */
 
 #endif /* !_MACHINE_ENDIAN_H_ */

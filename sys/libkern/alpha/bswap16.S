@@ -1,6 +1,3 @@
-/* $FreeBSD$ */
-/*	$NetBSD: htons.S,v 1.1 1996/04/17 22:36:54 cgd Exp $	*/
-
 /*
  * Copyright (c) 1996 Carnegie-Mellon University.
  * All rights reserved.
@@ -26,9 +23,13 @@
  *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
+ *
+ *	from: NetBSD: htons.S,v 1.1 1996/04/17 22:36:54 cgd
+ *	from: src/sys/libkern/alpha/htons.S,v 1.3 2002/02/18 20:35:21
+ *
+ * $FreeBSD$
  */
 
-#define	ALIAS	htons
-#define	NAME	__htons
+#define	NAME	__bswap16
 
-#include <libkern/ia64/byte_swap_2.S>
+#include <libkern/alpha/byte_swap_2.S>

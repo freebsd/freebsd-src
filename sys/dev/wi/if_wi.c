@@ -125,11 +125,9 @@ static u_int8_t	wi_mcast_addr[6] = { 0x01, 0x60, 0x1D, 0x00, 0x01, 0x00 };
 #endif
 
 /*
- * The following is for compatibility with NetBSD, but should really be
- * brought in from NetBSD en toto.
+ * The following is for compatibility with NetBSD.
  */
-#define le16toh(a)	(a)
-#define LE16TOH(a)
+#define LE16TOH(a)	((a) = le16toh((a)))
 
 static void wi_intr		__P((void *));
 static void wi_reset		__P((struct wi_softc *));

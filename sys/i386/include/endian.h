@@ -58,12 +58,12 @@
 #define	BYTE_ORDER	LITTLE_ENDIAN
 #endif /* ! _POSIX_SOURCE */
 
+#ifdef _KERNEL
 #ifdef __GNUC__
 
-__BEGIN_DECLS
-
+#define	_BSWAP32_DEFINED
 static __inline __uint32_t
-__htonl(__uint32_t __x)
+__bswap32(__uint32_t __x)
 {
 #if defined(_KERNEL) && (defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)) && !defined(I386_CPU)
 	__asm ("bswap %0" : "+r" (__x));
@@ -76,29 +76,16 @@ __htonl(__uint32_t __x)
 	return __x;
 }
 
+#define	_BSWAP16_DEFINED
 static __inline __uint16_t
-__htons(__uint16_t __x)
+__bswap16(__uint16_t __x)
 {
 	__asm ("xchgb %h0, %b0" : "+q" (__x));
 
 	return __x;
 }
 
-static __inline __uint32_t
-__ntohl(__uint32_t __x)
-{
-
-	return (__htonl(__x));
-}
-
-static __inline __uint16_t
-__ntohs(__uint16_t __x)
-{
-
-	return (__htons(__x));
-}
-
-__END_DECLS
+#endif /* _KERNEL */
 
 #endif /* __GNUC__ */
 
