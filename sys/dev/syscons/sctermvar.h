@@ -221,7 +221,7 @@ sc_term_clr_eos(scr_stat *scp, int n, int ch, int attr)
 		sc_remove_cutmarking(scp);
 		break;
 	case 1: /* clear from beginning of display to cursor */
-		sc_vtb_erase(&scp->vtb, 0, scp->cursor_pos, ch, attr);
+		sc_vtb_erase(&scp->vtb, 0, scp->cursor_pos + 1, ch, attr);
 		mark_for_update(scp, 0);
 		mark_for_update(scp, scp->cursor_pos);
 		sc_remove_cutmarking(scp);
