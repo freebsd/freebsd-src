@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.46 1999/07/03 08:22:30 phk Exp $
+ * $Id: kern_conf.c,v 1.47 1999/07/04 14:58:38 phk Exp $
  */
 
 #include <sys/param.h>
@@ -225,7 +225,7 @@ makedev(int x, int y)
 udev_t
 dev2udev(dev_t x)
 {
-	return umakedev(major(x), minor(x));
+	return makeudev(major(x), minor(x));
 }
 
 dev_t
@@ -247,7 +247,7 @@ umajor(udev_t dev)
 }
 
 udev_t
-umakedev(int x, int y)
+makeudev(int x, int y)
 {
         return ((x << 8) | y);
 }
