@@ -89,6 +89,7 @@ static const char rcsid[] =
 DB *db;
 time_t now;
 int entries, lflag, mflag, pplan, sflag, oflag, Tflag;
+int d_first = -1;
 char tbuf[1024];
 
 static void loginlist __P((void));
