@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.52 1996/02/03 13:31:11 joerg Exp $
+ *      $Id: scsiconf.c,v 1.53 1996/02/12 23:22:33 ache Exp $
  */
 
 #include <sys/types.h>
@@ -299,6 +299,13 @@ static struct scsidevs knowndevs[] =
 #endif	/* NCH */
 #if NCD > 0
 #ifndef UKTEST	/* make cdroms unrecognised to test the uk driver */
+	/*
+	* CDU-8003A aka Apple CDROM-300.
+	*/
+	{
+		T_READONLY, T_READONLY, T_REMOV, "SONY",    "CD-ROM CDU-8003A", "1.9a",
+		"cd", SC_ONE_LU
+	},
 	{
 		T_READONLY, T_READONLY, T_REMOV, "SONY",    "CD-ROM CDU-8012", "3.1a",
 		"cd", SC_ONE_LU
