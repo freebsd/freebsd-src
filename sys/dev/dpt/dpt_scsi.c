@@ -1561,7 +1561,7 @@ dpt_intr(void *arg)
 
 		/* Ignore status packets with EOC not set */
 		if (dpt->sp->EOC == 0) {
-			printf("dpt%d ERROR: Request %d recieved with "
+			printf("dpt%d ERROR: Request %d received with "
 			       "clear EOC.\n     Marking as LOST.\n",
 			       dpt->unit, dccb->transaction_id);
 
