@@ -169,7 +169,7 @@ epic_probe(dev)
 
 	if (t != NULL) {
 		device_set_desc(dev, t->name);
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	}
 
 	return (ENXIO);
