@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socket.h	8.4 (Berkeley) 2/21/94
- * $Id: socket.h,v 1.8 1996/01/05 17:49:30 davidg Exp $
+ * $Id: socket.h,v 1.9 1996/01/30 23:01:22 mpp Exp $
  */
 
 #ifndef _SYS_SOCKET_H_
@@ -75,6 +75,7 @@
 #define SO_RCVTIMEO	0x1006		/* receive timeout */
 #define	SO_ERROR	0x1007		/* get error status and clear */
 #define	SO_TYPE		0x1008		/* get socket type */
+#define	SO_PRIVSTATE	0x1009		/* get/deny privileged state */
 
 /*
  * Structure used for manipulating linger option.
