@@ -55,7 +55,7 @@
 
 /*
  *      @(#)netdb.h	8.1 (Berkeley) 6/2/93
- *	$Id: netdb.h,v 8.7 1996/05/09 05:59:09 vixie Exp $
+ *	$Id: netdb.h,v 8.8 1997/06/01 20:34:32 vixie Exp $
  */
 
 #ifndef _NETDB_H_
@@ -166,5 +166,13 @@ struct rpcent {
 struct rpcent	*getrpcbyname(), *getrpcbynumber(), *getrpcent();
 #endif /* __GNU_LIBRARY__ */
 #endif /* sun */
+
+/*
+ * The Motorola kernel will only support 64 characters for hostname
+ * also defined in /usr/ucbinclude/netdb.h
+ */
+#ifdef __m88k__
+#define MAXHOSTNAMELEN 64
+#endif
 
 #endif /* !_NETDB_H_ */

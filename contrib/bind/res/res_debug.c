@@ -77,7 +77,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_debug.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_debug.c,v 8.19 1996/11/26 10:11:23 vixie Exp $";
+static char rcsid[] = "$Id: res_debug.c,v 8.20 1997/06/01 20:34:37 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -1130,40 +1130,47 @@ static u_int8_t
 precsize_aton(strptr)
 	char **strptr;
 {
-	unsigned int mval = 0, cmval = 0;
 	u_int8_t retval = 0;
-	register char *cp;
-	register int exponent;
-	register int mantissa;
+	char *cp;
+	int exponent = 0;
+	int mantissa = 0;
 
 	cp = *strptr;
+	while (isdigit(*cp)) {
+		if (mantissa == 0)
+			mantissa = *cp - '0';
+		else
+			exponent++;
+		cp++;
+	}
 
-	while (isdigit(*cp))
-		mval = mval * 10 + (*cp++ - '0');
-
-	if (*cp == '.') {		/* centimeters */
+	if (*cp == '.') {
 		cp++;
 		if (isdigit(*cp)) {
-			cmval = (*cp++ - '0') * 10;
+			if (mantissa == 0)
+				mantissa = *cp - '0';
+			else
+				exponent++;
+			cp++;
+
 			if (isdigit(*cp)) {
-				cmval += (*cp++ - '0');
+				if (mantissa == 0)
+					mantissa = *cp - '0';
+				else
+					exponent++;
+				cp++;
 			}
+			else
+				exponent++;
 		}
 	}
-	cmval = (mval * 100) + cmval;
+	else
+		exponent += 2;
 
-	for (exponent = 0; exponent < 9; exponent++)
-		if (cmval < poweroften[exponent+1])
-			break;
-
-	mantissa = cmval / poweroften[exponent];
-	if (mantissa > 9)
-		mantissa = 9;
-
+	if (mantissa == 0)
+		exponent = 0;
 	retval = (mantissa << 4) | exponent;
-
 	*strptr = cp;
-
 	return (retval);
 }
 

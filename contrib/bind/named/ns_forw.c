@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_forw.c	4.32 (Berkeley) 3/3/91";
-static char rcsid[] = "$Id: ns_forw.c,v 8.19 1996/12/02 09:27:36 vixie Exp $";
+static char rcsid[] = "$Id: ns_forw.c,v 8.20 1997/06/01 20:34:34 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -558,6 +558,13 @@ nslookup(nsp, qp, syslogdname, sysloginfo)
 			qs->ns = nsdp;
 			qs->nsdata = dp;
 			qs->nretry = 0;
+			/*
+			 * If this A RR has no RTT, initialize its RTT to a
+			 * small random value.
+			 */
+			if (dp->d_nstime == 0)
+				dp->d_nstime = 1 +
+					(int)(25.0*rand()/(RAND_MAX + 1.0));
 			/*
 			 * if we are being asked to fwd a query whose
 			 * nameserver list includes our own name/address(es),

@@ -55,7 +55,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)send.c	5.18 (Berkeley) 3/2/91";
-static char rcsid[] = "$Id: send.c,v 8.1 1994/12/15 06:24:31 vixie Exp $";
+static char rcsid[] = "$Id: send.c,v 8.2 1997/06/01 20:34:40 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -332,8 +332,7 @@ wait:
 				 * timeout
 				 */
 				if (_res.options & RES_DEBUG)
-					printf("timeout (%d secs)\n", 
-						timeout.tv_sec);
+					printf("timeout\n");
 #if BSD >= 43
 				gotsomewhere = 1;
 #endif
