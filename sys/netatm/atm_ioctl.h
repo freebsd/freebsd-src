@@ -123,6 +123,8 @@ struct atmaddreq {
 			Aal_t	aaru_pvc_aal;		/* AAL */
 			Encaps_t aaru_pvc_encaps;	/* Encapsulation */
 			u_char	aaru_pvc_flags;		/* Flags (see below) */
+			uint8_t	aaru_pvc_traffic_type;	/* traffic type */
+			struct t_atm_traffic aaru_pvc_traffic; /* traffic parameters */
 		} aaru_add_pvc;
 
 		/* Add ARP table entry */
@@ -142,6 +144,8 @@ struct atmaddreq {
 #define	aar_pvc_aal	aar_u.aaru_add_pvc.aaru_pvc_aal
 #define	aar_pvc_encaps	aar_u.aaru_add_pvc.aaru_pvc_encaps
 #define	aar_pvc_flags	aar_u.aaru_add_pvc.aaru_pvc_flags
+#define	aar_pvc_traffic_type	aar_u.aaru_add_pvc.aaru_pvc_traffic_type
+#define	aar_pvc_traffic	aar_u.aaru_add_pvc.aaru_pvc_traffic
 #define	aar_arp_intf	aar_u.aaru_add_arp.aaru_arp_intf
 #define	aar_arp_dst	aar_u.aaru_add_arp.aaru_arp_dst
 #define	aar_arp_addr	aar_u.aaru_add_arp.aaru_arp_addr
@@ -321,6 +325,8 @@ struct air_netif_rsp {
 
 /*
  * VCC information
+ * Todo: add avp_traffic_type and avp_traffic. Update unisig_if.c,
+ *	spans_if.c and sigpvc_if.c
  */
 #define	O_CNT		8
 struct air_vcc_rsp {
