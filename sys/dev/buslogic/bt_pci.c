@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_pci.c,v 1.1 1998/09/15 07:32:57 gibbs Exp $
+ *	$Id: bt_pci.c,v 1.2 1998/10/30 02:06:42 gibbs Exp $
  */
 
 #include "pci.h"
@@ -131,7 +131,7 @@ bt_pci_probe (pcici_t config_id, pcidi_t type)
 			if (error == 0
 			 && pci_info.io_port < BIO_DISABLED) {
 				bt_mark_probed_bio(pci_info.io_port);
-				if (bsh != bt_fetch_isa_iop(pci_info.io_port)) {
+				if (bsh != bt_iop_from_bio(pci_info.io_port)) {
 					u_int8_t new_addr;
 
 					new_addr = BIO_DISABLED;
@@ -143,7 +143,7 @@ bt_pci_probe (pcici_t config_id, pcidi_t type)
 				}
 			}
 			bt_free(bt);
-			return ("Buslogic Multimaster SCSI host adapter");
+			return ("Buslogic Multi-Master SCSI Host Adapter");
 			break;
 		}
 		default:
