@@ -1,6 +1,6 @@
 <!--
     $FreeBSD$
-    Original revision: 1.11
+    Original revision: 1.12
 -->
 <sect1 id="proc">
   <title>対応プロセッサおよびマザーボード</title>
@@ -14,12 +14,13 @@
     80386, 80486, Pentium, Pentium Pro, Pentium II, Pentium III, Pentium 4,
     および、Xeon, Celeron プロセッサといった変種を含む、
     80386 以降の Intel プロセッサすべてに対応しています
-    (技術的には 80386SX にも対応しているのですが、
-    このプロセッサでの利用は推奨されていません)。
+    (ただし &os; 5.2-RELEASE 以降では、もはや 80386SX プロセッサには対
+    応しません)。
     Am486, Am5x86, K5, K6 (およびその仲間),
     Athlon (Athlon-MP, Athlon-XP, Athlon-4, Athlon Thunderbird を含む),
     Duron プロセッサを含む、
     i386 互換の AMD プロセッサにも対応しています。
+    AMD &Eacute;lan SC520 組み込みプロセッサにも対応しています。
     その他、Transmeta Crusoe, Cyrix 製, NexGen 製の i386
     互換プロセッサも正しく認識し、利用可能です。</para>
 
