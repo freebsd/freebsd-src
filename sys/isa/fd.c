@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.7 1993/11/25 01:31:32 wollman Exp $
+ *	$Id: fd.c,v 1.8 1993/12/03 05:01:40 alm Exp $
  *
  */
 
@@ -513,7 +513,8 @@ Fdopen(dev, flags)
 	int s;
 
 	/* check bounds */
-	if (fdu >= NFD || fd_data[fdu].type == NO_TYPE) return(ENXIO);
+	if (fdu >= NFD || fd_data[fdu].fdc == NULL
+		|| fd_data[fdu].type == NO_TYPE) return(ENXIO);
 	/*if (type >= NUMTYPES) return(ENXIO);*/
 	fd_data[fdu].flags |= FD_OPEN;
 
