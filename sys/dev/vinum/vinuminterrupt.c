@@ -89,7 +89,7 @@ complete_rqe(struct buf *bp)
 	else if (rq->error == 0)			    /* no: do we have one already? */
 	    rq->error = EIO;				    /* no: catchall "I/O error" */
 	SD[rqe->sdno].lasterror = rq->error;
-	if (bp->b_flags & B_READ) {
+	if (bp->b_iocmd == BIO_READ) {
 	    log(LOG_ERR, "%s: fatal read I/O error\n", SD[rqe->sdno].name);
 	    set_sd_state(rqe->sdno, sd_crashed, setstate_force); /* subdisk is crashed */
 	} else {					    /* write operation */
@@ -105,7 +105,7 @@ complete_rqe(struct buf *bp)
 	}
     }
     /* Now update the statistics */
-    if (bp->b_flags & B_READ) {				    /* read operation */
+    if (bp->b_iocmd == BIO_READ) {				    /* read operation */
 	DRIVE[rqe->driveno].reads++;
 	DRIVE[rqe->driveno].bytes_read += bp->b_bcount;
 	SD[rqe->sdno].reads++;
@@ -226,7 +226,7 @@ sdio_done(struct buf *bp)
 #endif
     sbp->bp->b_resid = sbp->b.b_resid;			    /* copy the resid field */
     /* Now update the statistics */
-    if (bp->b_flags & B_READ) {				    /* read operation */
+    if (bp->b_iocmd == BIO_READ) {				    /* read operation */
 	DRIVE[sbp->driveno].reads++;
 	DRIVE[sbp->driveno].bytes_read += sbp->b.b_bcount;
 	SD[sbp->sdno].reads++;
@@ -340,11 +340,10 @@ complete_raid5_write(struct rqelement *rqe)
 		} else
 		    panic("complete_raid5_write: malloc conflict");
 
-		if ((rqe->b.b_flags & B_READ)		    /* this was a read */
+		if ((rqe->b.b_iocmd == BIO_READ)		    /* this was a read */
 		&&((rqe->flags & XFR_BAD_SUBDISK) == 0)) {  /* and we can write this block */
-		    rqe->b.b_flags &= ~(B_READ | B_DONE);   /* we're writing now */
-		    rqe->b.b_flags |= B_CALL;		    /* call us when you're done */
-		    rqe->b.b_iodone = complete_rqe;	    /* by calling us here */
+		    rqe->b.b_flags &= ~B_DONE;		   /* we're writing now */
+		    rqe->b.b_iodone = complete_rqe;	    /* call us here when done */
 		    rqe->flags &= ~XFR_PARITYOP;	    /* reset flags that brought us here */
 		    rqe->b.b_data = &bp->b_data[rqe->useroffset << DEV_BSHIFT];	/* point to the user data */
 		    rqe->b.b_bcount = rqe->datalen << DEV_BSHIFT; /* length to write */
@@ -365,7 +364,7 @@ complete_raid5_write(struct rqelement *rqe)
 		    if (debug & DEBUG_ADDRESSES)
 			log(LOG_DEBUG,
 			    "  %s dev %d.%d, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
-			    rqe->b.b_flags & B_READ ? "Read" : "Write",
+			    rqe->b.b_iocmd == BIO_READ ? "Read" : "Write",
 			    major(rqe->b.b_dev),
 			    minor(rqe->b.b_dev),
 			    rqe->sdno,
@@ -382,9 +381,8 @@ complete_raid5_write(struct rqelement *rqe)
     }
     /* Finally, write the parity block */
     rqe = &rqg->rqe[0];
-    rqe->b.b_flags &= ~(B_READ | B_DONE);		    /* we're writing now */
-    rqe->b.b_flags |= B_CALL;				    /* call us when you're done */
-    rqe->b.b_iodone = complete_rqe;			    /* by calling us here */
+    rqe->b.b_flags &= ~B_DONE;				    /* we're writing now */
+    rqe->b.b_iodone = complete_rqe;			    /* call us here when done */
     rqg->flags &= ~XFR_PARITYOP;			    /* reset flags that brought us here */
     rqe->b.b_bcount = rqe->buflen << DEV_BSHIFT;	    /* length to write */
     rqe->b.b_bufsize = rqe->b.b_bcount;			    /* don't claim we have more */
@@ -404,7 +402,7 @@ complete_raid5_write(struct rqelement *rqe)
     if (debug & DEBUG_ADDRESSES)
 	log(LOG_DEBUG,
 	    "  %s dev %d.%d, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
-	    rqe->b.b_flags & B_READ ? "Read" : "Write",
+	    rqe->b.b_iocmd == BIO_READ ? "Read" : "Write",
 	    major(rqe->b.b_dev),
 	    minor(rqe->b.b_dev),
 	    rqe->sdno,

@@ -961,7 +961,7 @@ nfssvc_iod(p)
 		    nmp->nm_bufqwant = FALSE;
 		    wakeup(&nmp->nm_bufq);
 		}
-		if (bp->b_flags & B_READ)
+		if (bp->b_iocmd == BIO_READ)
 		    (void) nfs_doio(bp, bp->b_rcred, (struct proc *)0);
 		else
 		    (void) nfs_doio(bp, bp->b_wcred, (struct proc *)0);

@@ -345,7 +345,7 @@ ntfs_strategy(ap)
 	dprintf(("strategy: bcount: %d flags: 0x%lx\n", 
 		(u_int32_t)bp->b_bcount,bp->b_flags));
 
-	if (bp->b_flags & B_READ) {
+	if (bp->b_iocmd == BIO_READ) {
 		u_int32_t toread;
 
 		if (ntfs_cntob(bp->b_blkno) >= fp->f_size) {

@@ -876,7 +876,7 @@ void matcdstrategy(struct buf *bp)
 		goto bad;
 	}
 
-	if (!(bp->b_flags & B_READ)) {
+	if (!(bp->b_iocmd == BIO_READ)) {
 		bp->b_error = EROFS;
 		goto bad;
 	}

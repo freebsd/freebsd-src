@@ -710,7 +710,7 @@ sastrategy(struct buf *bp)
 	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("sastrategy: enqueuing a %d "
 	    "%s byte %s queue count now %d\n", (int) bp->b_bcount,
 	     (softc->flags & SA_FLAG_FIXED)?  "fixed" : "variable",
-	     (bp->b_flags & B_READ)? "read" : "write", softc->queue_count));
+	     (bp->b_iocmd == BIO_READ)? "read" : "write", softc->queue_count));
 
 	splx(s);
 	
@@ -1491,7 +1491,7 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 			bp->b_resid = bp->b_bcount;
 			bp->b_flags |= B_ERROR;
 			if ((softc->flags & SA_FLAG_EOM_PENDING) != 0) {
-				if ((bp->b_flags & B_READ) == 0)
+				if (bp->b_iocmd == BIO_WRITE)
 					bp->b_error = ENOSPC;
 				else
 					bp->b_error = EIO;
@@ -1568,10 +1568,10 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 			 * have to do deal with 512 byte or 1KB intermediate
 			 * records.
 			 */
-			softc->dsreg = (bp->b_flags & B_READ)?
+			softc->dsreg = (bp->b_iocmd == BIO_READ)?
 			    MTIO_DSREG_RD : MTIO_DSREG_WR;
 			scsi_sa_read_write(&start_ccb->csio, 0, sadone,
-			    MSG_SIMPLE_Q_TAG, (bp->b_flags & B_READ) != 0,
+			    MSG_SIMPLE_Q_TAG, (bp->b_iocmd == BIO_READ),
 			    FALSE, (softc->flags & SA_FLAG_FIXED) != 0,
 			    length, bp->b_data, bp->b_bcount, SSD_FULL_SIZE,
 			    120 * 60 * 1000);
@@ -1661,7 +1661,7 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 			if (csio->resid != 0) {
 				bp->b_flags |= B_ERROR;
 			}
-			if ((bp->b_flags & B_READ) == 0) {
+			if (bp->b_iocmd == BIO_WRITE) {
 				softc->flags |= SA_FLAG_TAPE_WRITTEN;
 				softc->filemarks = 0;
 			}

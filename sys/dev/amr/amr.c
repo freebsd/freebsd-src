@@ -853,7 +853,7 @@ amr_startio(struct amr_softc *sc)
 	ac->ac_private = bp;
 	ac->ac_data = bp->b_data;
 	ac->ac_length = bp->b_bcount;
-	if (bp->b_flags & B_READ) {
+	if (bp->b_iocmd == BIO_READ) {
 	    ac->ac_flags |= AMR_CMD_DATAIN;
 	    cmd = AMR_CMD_LREAD;
 	} else {

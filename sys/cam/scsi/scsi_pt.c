@@ -539,7 +539,7 @@ ptstart(struct cam_periph *periph, union ccb *start_ccb)
 				  /*retries*/4,
 				  ptdone,
 				  MSG_SIMPLE_Q_TAG,
-				  bp->b_flags & B_READ,
+				  bp->b_iocmd == BIO_READ,
 				  /*byte2*/0,
 				  bp->b_bcount,
 				  bp->b_data,

@@ -101,7 +101,7 @@ static	d_strategy_t	vnstrategy;
 /*
  * cdevsw
  *	D_DISK		we want to look like a disk
- *	D_CANFREE	We support B_FREEBUF
+ *	D_CANFREE	We support BIO_DELETE
  */
 
 static struct cdevsw vn_cdevsw = {
@@ -286,7 +286,7 @@ vnstrategy(struct buf *bp)
 
 	unit = dkunit(bp->b_dev);
 	vn = bp->b_dev->si_drv1;
-	if (!vn)
+	if (vn == NULL)
 		vn = vnfindvn(bp->b_dev);
 
 	IFOPT(vn, VN_DEBUG)
@@ -349,7 +349,7 @@ vnstrategy(struct buf *bp)
 		bp->b_pblkno = pbn;
 	}
 
-	if (vn->sc_vp && (bp->b_flags & B_FREEBUF)) {
+	if (vn->sc_vp && (bp->b_iocmd == BIO_DELETE)) {
 		/*
 		 * Not handled for vnode-backed element yet.
 		 */
@@ -368,7 +368,7 @@ vnstrategy(struct buf *bp)
 		auio.uio_iovcnt = 1;
 		auio.uio_offset = (vm_ooffset_t)bp->b_pblkno * vn->sc_secsize;
 		auio.uio_segflg = UIO_SYSSPACE;
-		if( bp->b_flags & B_READ)
+		if(bp->b_iocmd == BIO_READ)
 			auio.uio_rw = UIO_READ;
 		else
 			auio.uio_rw = UIO_WRITE;
@@ -378,7 +378,7 @@ vnstrategy(struct buf *bp)
 			isvplocked = 1;
 			vn_lock(vn->sc_vp, LK_EXCLUSIVE | LK_RETRY, curproc);
 		}
-		if( bp->b_flags & B_READ)
+		if(bp->b_iocmd == BIO_READ)
 			error = VOP_READ(vn->sc_vp, &auio, 0, vn->sc_cred);
 		else
 			error = VOP_WRITE(vn->sc_vp, &auio, 0, vn->sc_cred);
@@ -399,12 +399,12 @@ vnstrategy(struct buf *bp)
 		 *
 		 * ( handles read, write, freebuf )
 		 *
-		 * Note: if we pre-reserved swap, B_FREEBUF is disabled
+		 * Note: if we pre-reserved swap, BIO_DELETE is disabled
 		 */
 		KASSERT((bp->b_bufsize & (vn->sc_secsize - 1)) == 0,
 		    ("vnstrategy: buffer %p too small for physio", bp));
 
-		if ((bp->b_flags & B_FREEBUF) && TESTOPT(vn, VN_RESERVE)) {
+		if ((bp->b_iocmd == BIO_DELETE) && TESTOPT(vn, VN_RESERVE)) {
 			biodone(bp);
 		} else {
 			vm_pager_strategy(vn->sc_object, bp);

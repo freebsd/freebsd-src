@@ -137,7 +137,7 @@ swapdev_strategy(ap)
 
 	vhold(sp->sw_vp);
 	s = splvm();
-	if ((bp->b_flags & B_READ) == 0) {
+	if (bp->b_iocmd == BIO_WRITE) {
 		vp = bp->b_vp;
 		if (vp) {
 			vp->v_numoutput--;

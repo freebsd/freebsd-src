@@ -1658,7 +1658,7 @@ mlx_startio(struct mlx_softc *sc)
 	mc->mc_private = bp;
 	mc->mc_data = bp->b_data;
 	mc->mc_length = bp->b_bcount;
-	if (bp->b_flags & B_READ) {
+	if (bp->b_iocmd == BIO_READ) {
 	    mc->mc_flags |= MLX_CMD_DATAIN;
 	    cmd = MLX_CMD_READSG;
 	} else {

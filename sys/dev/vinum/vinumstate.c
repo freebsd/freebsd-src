@@ -617,7 +617,7 @@ enum requeststatus
 checksdstate(struct sd *sd, struct request *rq, daddr_t diskaddr, daddr_t diskend)
 {
     struct plex *plex = &PLEX[sd->plexno];
-    int writeop = (rq->bp->b_flags & B_READ) == 0;	    /* note if we're writing */
+    int writeop = (rq->bp->b_iocmd == BIO_WRITE);	    /* note if we're writing */
 
     switch (sd->state) {
 	/* We shouldn't get called if the subdisk is up */

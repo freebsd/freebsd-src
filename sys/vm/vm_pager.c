@@ -348,6 +348,7 @@ initpbuf(struct buf *bp)
 	bp->b_kvasize = MAXPHYS;
 	bp->b_xflags = 0;
 	bp->b_flags = 0;
+	bp->b_iodone = NULL;
 	bp->b_error = 0;
 	BUF_LOCK(bp, LK_EXCLUSIVE);
 }
@@ -546,7 +547,7 @@ getchainbuf(struct buf *bp, struct vnode *vp, int flags)
 	if (bp->b_chain.count > 4)
 		waitchainbuf(bp, 4, 0);
 
-	nbp->b_flags = B_CALL | (bp->b_flags & B_ORDERED) | flags;
+	nbp->b_flags = (bp->b_flags & B_ORDERED) | flags;
 	nbp->b_rcred = nbp->b_wcred = proc0.p_ucred;
 	nbp->b_iodone = vm_pager_chain_iodone;
 
@@ -563,7 +564,7 @@ flushchainbuf(struct buf *nbp)
 {
 	if (nbp->b_bcount) {
 		nbp->b_bufsize = nbp->b_bcount;
-		if ((nbp->b_flags & B_READ) == 0)
+		if (nbp->b_iocmd == BIO_WRITE)
 			nbp->b_dirtyend = nbp->b_bcount;
 		BUF_KERNPROC(nbp);
 		VOP_STRATEGY(nbp->b_vp, nbp);

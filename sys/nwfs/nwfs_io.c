@@ -275,7 +275,7 @@ nwfs_doio(bp, cr, p)
 	uiop->uio_iovcnt = 1;
 	uiop->uio_segflg = UIO_SYSSPACE;
 	uiop->uio_procp = p;
-	if (bp->b_flags & B_READ) {
+	if (bp->b_iocmd == BIO_READ) {
 	    io.iov_len = uiop->uio_resid = bp->b_bcount;
 	    io.iov_base = bp->b_data;
 	    uiop->uio_rw = UIO_READ;

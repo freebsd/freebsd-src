@@ -337,7 +337,7 @@ ad_start(struct ad_softc *adp)
     request->blockaddr = bp->b_pblkno;
     request->bytecount = bp->b_bcount;
     request->data = bp->b_data;
-    request->flags = (bp->b_flags & B_READ) ? ADR_F_READ : 0;
+    request->flags = (bp->b_iocmd == BIO_READ) ? ADR_F_READ : 0;
 
     /* remove from drive queue */
     bufq_remove(&adp->queue, bp); 
