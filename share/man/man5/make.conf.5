@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 29, 2004
+.Dd August 19, 2004
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -445,6 +445,9 @@ Set to build modules with the system instead of the kernel.
 .It Va NO_BLUETOOTH
 .Pq Vt bool
 Set to not build Bluetooth related kernel modules, programs and libraries.
+.It Va NO_BOOT
+.Pq Vt bool
+Set to not build the boot blocks and loader.
 .It Va NO_CVS
 .Pq Vt bool
 Set to not build CVS.
@@ -471,6 +474,13 @@ Set to not build isdn4bsd package.
 .It Va NO_IPFILTER
 .Pq Vt bool
 Set to not build IP Filter package.
+.It Va NO_PF
+.Pq Vt bool
+Set to not build PF firewall package.
+.It Va NO_AUTHPF
+.Pq Vt bool
+Set to not build
+.Xr authpf 8 .
 .It Va NO_TOOLCHAIN
 .Pq Vt bool
 Set to not build
