@@ -1,7 +1,7 @@
-#	$Id: Makefile,v 1.1 1994/09/13 23:01:57 wollman Exp $
+#	$Id: Makefile,v 1.2 1996/01/23 21:06:25 wosch Exp $
 
 PROG=	tzsetup
-NOMAN=
+MAN8=	tzsetup.8
 SRCS=	main.c tzmenu.c menus.c
 CFLAGS+=	-I. -I${.CURDIR}
 CLEANFILES+=	menus.c
