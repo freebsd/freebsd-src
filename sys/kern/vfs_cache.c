@@ -50,22 +50,6 @@
 #include <sys/filedesc.h>
 
 /*
- * This structure describes the elements in the cache of recent
- * names looked up by namei.
- */
-
-struct	namecache {
-	LIST_ENTRY(namecache) nc_hash;	/* hash chain */
-	LIST_ENTRY(namecache) nc_src;	/* source vnode list */
-	TAILQ_ENTRY(namecache) nc_dst;	/* destination vnode list */
-	struct	vnode *nc_dvp;		/* vnode of parent of name */
-	struct	vnode *nc_vp;		/* vnode the name refers to */
-	u_char	nc_flag;		/* flag bits */
-	u_char	nc_nlen;		/* length of name */
-	char	nc_name[0];		/* segment name */
-};
-
-/*
  * Name caching works as follows:
  *
  * Names found by directory scans are retained in a cache

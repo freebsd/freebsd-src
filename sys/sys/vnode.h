@@ -74,7 +74,24 @@ enum vtagtype	{
 TAILQ_HEAD(buflists, buf);
 
 typedef	int 	vop_t __P((void *));
-struct namecache;
+
+/*
+ * This structure describes the elements in the cache of recent
+ * names looked up by namei.
+ */
+
+struct vnode;
+
+struct	namecache {
+	LIST_ENTRY(namecache) nc_hash;	/* hash chain */
+	LIST_ENTRY(namecache) nc_src;	/* source vnode list */
+	TAILQ_ENTRY(namecache) nc_dst;	/* destination vnode list */
+	struct	vnode *nc_dvp;		/* vnode of parent of name */
+	struct	vnode *nc_vp;		/* vnode the name refers to */
+	u_char	nc_flag;		/* flag bits */
+	u_char	nc_nlen;		/* length of name */
+	char	nc_name[0];		/* segment name */
+};
 
 /*
  * Reading or writing any of these items requires holding the appropriate lock.
