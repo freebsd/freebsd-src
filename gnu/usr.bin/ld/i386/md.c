@@ -27,10 +27,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: md.c,v 1.12 1995/03/04 17:46:20 nate Exp $
+ *	$Id: md.c,v 1.13 1996/10/01 01:27:56 peter Exp $
  */
 
 #include <sys/param.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -169,6 +170,23 @@ u_long		addr;
 	sp->addr[1] = fudge >> 16;
 #endif
 	sp->reloc_index = 0;
+}
+
+/*
+ * Bind a jmpslot to its target address.  TARGET is where the jmpslot
+ * should jump to, and WHERE is a pointer to the jmpslot's address field.
+ * This is called by the dynamic linker when LD_BIND_NOW is set in the
+ * environment.
+ */
+void
+md_bind_jmpslot(target, where)
+u_long target;
+caddr_t where;
+{
+	jmpslot_t	*sp =
+		(jmpslot_t *) (where - offsetof(jmpslot_t, addr[0]));
+
+	md_fix_jmpslot(sp, (long) sp, target);
 }
 
 /*
