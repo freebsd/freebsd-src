@@ -17,8 +17,8 @@ HAVE_PNP=	yes
 HAVE_ISABUS=	yes
 
 # Enable BootForth
-BOOT_FORTH=	yes
-CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/i386
+#BOOT_FORTH=	yes
+#CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/i386
 .if exists(${.OBJDIR}/../../ficl/libficl.a)
 LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
 .else
@@ -45,6 +45,13 @@ LIBSTAND=	-lstand
 #LIBSTAND=	${.CURDIR}/../../../lib/libstand/libstand.a
 #CFLAGS+=	-I${.CURDIR}/../../../lib/libstand/
 
+# where to get cdldr from
+.if exists(${.OBJDIR}/../cdldr)
+CDLDR=		${.OBJDIR}/../cdldr/cdldr
+.else
+CDLDR=		${.CURDIR}/../cdldr/cdldr
+.endif
+
 # BTX components
 .if exists(${.OBJDIR}/../btx)
 BTXDIR=		${.OBJDIR}/../btx
@@ -52,7 +59,6 @@ BTXDIR=		${.OBJDIR}/../btx
 BTXDIR=		${.CURDIR}/../btx
 .endif
 BTXLDR=		${BTXDIR}/btxldr/btxldr
-CDLDR=		${.CURDIR}/../cdldr/cdldr
 BTXKERN=	${BTXDIR}/btx/btx
 BTXCRT=		${BTXDIR}/lib/crt0.o
 CFLAGS+=	-I${.CURDIR}/../btx/lib
