@@ -852,6 +852,8 @@
                 ..
             ..
         ..
+        sendmail
+        ..
         skel
         ..
         syscons
