@@ -1,4 +1,4 @@
-#	$OpenBSD: ssh_config,v 1.15 2002/06/20 20:03:34 stevesk Exp $
+#	$OpenBSD: ssh_config,v 1.16 2002/07/03 14:21:05 markus Exp $
 #	$FreeBSD$
 
 # This is the ssh client system-wide configuration file.  See
@@ -23,6 +23,7 @@
 #   RhostsRSAAuthentication no
 #   RSAAuthentication yes
 #   PasswordAuthentication yes
+#   HostbasedAuthentication no
 #   BatchMode no
 #   CheckHostIP no
 #   StrictHostKeyChecking ask
@@ -34,4 +35,4 @@
 #   Cipher 3des
 #   Ciphers aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,arcfour,aes192-cbc,aes256-cbc
 #   EscapeChar ~
-#   VersionAddendum FreeBSD-20020629
+#   VersionAddendum FreeBSD-20021029

@@ -1,4 +1,4 @@
-/*	$OpenBSD: base64.c,v 1.3 1997/11/08 20:46:55 deraadt Exp $	*/
+/*	$OpenBSD: base64.c,v 1.4 2002/01/02 23:00:10 deraadt Exp $	*/
 
 /*
  * Copyright (c) 1996 by Internet Software Consortium.
@@ -42,7 +42,7 @@
  * IF IBM IS APPRISED OF THE POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include "config.h"
+#include "includes.h"
 
 #if !defined(HAVE_B64_NTOP) && !defined(HAVE___B64_NTOP)
 
@@ -60,6 +60,7 @@
 
 #include "base64.h"
 
+/* XXX abort illegal in library */
 #define Assert(Cond) if (!(Cond)) abort()
 
 static const char Base64[] =

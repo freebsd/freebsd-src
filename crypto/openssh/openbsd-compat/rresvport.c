@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  */
 
-#include "config.h"
+#include "includes.h"
 
 #ifndef HAVE_RRESVPORT_AF
 

@@ -9,7 +9,7 @@ SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
 	auth-skey.c auth-bsdauth.c monitor_mm.c monitor.c \
 	auth2-none.c auth2-passwd.c auth2-pubkey.c \
 	auth2-hostbased.c auth2-kbdint.c \
-	auth-pam.c auth2-pam.c auth2-pam-freebsd.c
+	auth2-pam-freebsd.c monitor_wrap.c monitor_fdpass.c
 # Portability layer
 SRCS+=	loginrec.c
 MAN=	sshd.8 sshd_config.5
@@ -40,6 +40,12 @@ CFLAGS+= -DXAUTH_PATH=\"${X11BASE}/bin/xauth\"
 
 LDADD+=	-lssh -lcrypt -lcrypto -lutil -lz -lwrap ${MINUSLPAM}
 DPADD+=	${LIBSSH} ${LIBCRYPT} ${LIBCRYPTO} ${LIBUTIL} ${LIBZ} ${LIBWRAP} ${LIBPAM}
+
+.if defined(OPENSSH_USE_POSIX_THREADS) && !defined(NOLIBC_R)
+CFLAGS+=-DUSE_POSIX_THREADS
+LDADD+= -lc_r
+DPADD+= ${LIBC_R}
+.endif
 
 .include <bsd.prog.mk>
 

@@ -61,10 +61,6 @@
  */
 #define SSH_SERVICE_NAME	"ssh"
 
-#if defined(USE_PAM) && !defined(SSHD_PAM_SERVICE)
-# define SSHD_PAM_SERVICE       __progname
-#endif
-
 /*
  * Name of the environment variable containing the process ID of the
  * authentication agent.

@@ -22,11 +22,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* XXX: globbed ls */
 /* XXX: recursive operations */
 
 #include "includes.h"
-RCSID("$OpenBSD: sftp-int.c,v 1.47 2002/06/23 09:30:14 deraadt Exp $");
+RCSID("$OpenBSD: sftp-int.c,v 1.49 2002/09/12 00:13:06 djm Exp $");
 
 #include "buffer.h"
 #include "xmalloc.h"
@@ -201,6 +200,25 @@ local_do_ls(const char *args)
 	}
 }
 
+/* Strip one path (usually the pwd) from the start of another */
+static char *
+path_strip(char *path, char *strip)
+{
+	size_t len;
+
+	if (strip == NULL)
+		return (xstrdup(path));
+
+	len = strlen(strip);
+	if (strip != NULL && strncmp(path, strip, len) == 0) {
+		if (strip[len - 1] != '/' && path[len] == '/')
+			len++;
+		return (xstrdup(path + len));
+	}
+
+	return (xstrdup(path));
+}
+
 static char *
 path_append(char *p1, char *p2)
 {
@@ -209,7 +227,7 @@ path_append(char *p1, char *p2)
 
 	ret = xmalloc(len);
 	strlcpy(ret, p1, len);
-	if (strcmp(p1, "/") != 0)
+	if (p1[strlen(p1) - 1] != '/')
 		strlcat(ret, "/", len);
 	strlcat(ret, p2, len);
 
@@ -267,6 +285,29 @@ parse_getput_flags(const char **cpp, int *pflag)
 			return(-1);
 		}
 		cp += 2;
+		*cpp = cp + strspn(cp, WHITESPACE);
+	}
+
+	return(0);
+}
+
+static int
+parse_ls_flags(const char **cpp, int *lflag)
+{
+	const char *cp = *cpp;
+
+	/* Check for flags */
+	if (cp++[0] == '-') {
+		for(; strchr(WHITESPACE, *cp) == NULL; cp++) {
+			switch (*cp) {
+			case 'l':
+				*lflag = 1;
+				break;
+			default:
+				error("Invalid flag -%c", *cp);
+				return(-1);
+			}
+		}
 		*cpp = cp + strspn(cp, WHITESPACE);
 	}
 
@@ -504,8 +545,129 @@ out:
 }
 
 static int
-parse_args(const char **cpp, int *pflag, unsigned long *n_arg,
-    char **path1, char **path2)
+sdirent_comp(const void *aa, const void *bb)
+{
+	SFTP_DIRENT *a = *(SFTP_DIRENT **)aa;
+	SFTP_DIRENT *b = *(SFTP_DIRENT **)bb;
+
+	return (strcmp(a->filename, b->filename));	
+}
+
+/* sftp ls.1 replacement for directories */
+static int
+do_ls_dir(struct sftp_conn *conn, char *path, char *strip_path, int lflag)
+{
+	int n;
+	SFTP_DIRENT **d;
+
+	if ((n = do_readdir(conn, path, &d)) != 0)
+		return (n);
+
+	/* Count entries for sort */	
+	for (n = 0; d[n] != NULL; n++)
+		;
+
+	qsort(d, n, sizeof(*d), sdirent_comp);
+
+	for (n = 0; d[n] != NULL; n++) {
+		char *tmp, *fname;
+		
+		tmp = path_append(path, d[n]->filename);
+		fname = path_strip(tmp, strip_path);
+		xfree(tmp);
+
+		if (lflag) {
+			char *lname;
+			struct stat sb;
+
+			memset(&sb, 0, sizeof(sb));
+			attrib_to_stat(&d[n]->a, &sb);
+			lname = ls_file(fname, &sb, 1);
+			printf("%s\n", lname);
+			xfree(lname);
+		} else {
+			/* XXX - multicolumn display would be nice here */
+			printf("%s\n", fname);
+		}
+		
+		xfree(fname);
+	}
+
+	free_sftp_dirents(d);
+	return (0);
+}
+
+/* sftp ls.1 replacement which handles path globs */
+static int
+do_globbed_ls(struct sftp_conn *conn, char *path, char *strip_path, 
+    int lflag)
+{
+	glob_t g;
+	int i;
+	Attrib *a;
+	struct stat sb;
+
+	memset(&g, 0, sizeof(g));
+
+	if (remote_glob(conn, path, GLOB_MARK|GLOB_NOCHECK|GLOB_BRACE, 
+	    NULL, &g)) {
+		error("Can't ls: \"%s\" not found", path);
+		return (-1);
+	}
+
+	/*
+	 * If the glob returns a single match, which is the same as the 
+	 * input glob, and it is a directory, then just list its contents
+	 */
+	if (g.gl_pathc == 1 && 
+	    strncmp(path, g.gl_pathv[0], strlen(g.gl_pathv[0]) - 1) == 0) {
+		if ((a = do_lstat(conn, path, 1)) == NULL) {
+			globfree(&g);
+	    		return (-1);
+		}
+		if ((a->flags & SSH2_FILEXFER_ATTR_PERMISSIONS) && 
+		    S_ISDIR(a->perm)) {
+			globfree(&g);
+			return (do_ls_dir(conn, path, strip_path, lflag));
+		}
+	}
+
+	for (i = 0; g.gl_pathv[i]; i++) {
+		char *fname, *lname;
+
+		fname = path_strip(g.gl_pathv[i], strip_path);
+
+		if (lflag) {
+			/*
+			 * XXX: this is slow - 1 roundtrip per path
+			 * A solution to this is to fork glob() and 
+			 * build a sftp specific version which keeps the 
+			 * attribs (which currently get thrown away)
+			 * that the server returns as well as the filenames.
+			 */
+			memset(&sb, 0, sizeof(sb));
+			a = do_lstat(conn, g.gl_pathv[i], 1);
+			if (a != NULL)
+				attrib_to_stat(a, &sb);
+			lname = ls_file(fname, &sb, 1);
+			printf("%s\n", lname);
+			xfree(lname);
+		} else {
+			/* XXX - multicolumn display would be nice here */
+			printf("%s\n", fname);
+		}
+		xfree(fname);
+	}
+
+	if (g.gl_pathc)
+		globfree(&g);
+
+	return (0);
+}
+
+static int
+parse_args(const char **cpp, int *pflag, int *lflag, 
+    unsigned long *n_arg, char **path1, char **path2)
 {
 	const char *cmd, *cp = *cpp;
 	char *cp2;
@@ -545,7 +707,7 @@ parse_args(const char **cpp, int *pflag, unsigned long *n_arg,
 	}
 
 	/* Get arguments and parse flags */
-	*pflag = *n_arg = 0;
+	*lflag = *pflag = *n_arg = 0;
 	*path1 = *path2 = NULL;
 	switch (cmdnum) {
 	case I_GET:
@@ -592,6 +754,8 @@ parse_args(const char **cpp, int *pflag, unsigned long *n_arg,
 		}
 		break;
 	case I_LS:
+		if (parse_ls_flags(&cp, lflag))
+			return(-1);
 		/* Path is optional */
 		if (get_pathname(&cp, path1))
 			return(-1);
@@ -652,7 +816,7 @@ static int
 parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd)
 {
 	char *path1, *path2, *tmp;
-	int pflag, cmdnum, i;
+	int pflag, lflag, cmdnum, i;
 	unsigned long n_arg;
 	Attrib a, *aa;
 	char path_buf[MAXPATHLEN];
@@ -660,7 +824,8 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd)
 	glob_t g;
 
 	path1 = path2 = NULL;
-	cmdnum = parse_args(&cmd, &pflag, &n_arg, &path1, &path2);
+	cmdnum = parse_args(&cmd, &pflag, &lflag, &n_arg,
+	    &path1, &path2);
 
 	memset(&g, 0, sizeof(g));
 
@@ -732,22 +897,18 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd)
 		break;
 	case I_LS:
 		if (!path1) {
-			do_ls(conn, *pwd);
+			do_globbed_ls(conn, *pwd, *pwd, lflag);
 			break;
 		}
+		
+		/* Strip pwd off beginning of non-absolute paths */
+		tmp = NULL;
+		if (*path1 != '/')
+			tmp = *pwd;
+
 		path1 = make_absolute(path1, *pwd);
-		if ((tmp = do_realpath(conn, path1)) == NULL)
-			break;
-		xfree(path1);
-		path1 = tmp;
-		if ((aa = do_stat(conn, path1, 0)) == NULL)
-			break;
-		if ((aa->flags & SSH2_FILEXFER_ATTR_PERMISSIONS) &&
-		    !S_ISDIR(aa->perm)) {
-			error("Can't ls: \"%s\" is not a directory", path1);
-			break;
-		}
-		do_ls(conn, path1);
+
+		do_globbed_ls(conn, path1, tmp, lflag);
 		break;
 	case I_LCHDIR:
 		if (chdir(path1) == -1) {

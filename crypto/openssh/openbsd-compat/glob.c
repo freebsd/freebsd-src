@@ -56,7 +56,7 @@ get_arg_max(void)
 #if 0
 static char sccsid[] = "@(#)glob.c	8.3 (Berkeley) 10/13/93";
 #else
-static char rcsid[] = "$OpenBSD: glob.c,v 1.16 2001/04/05 18:36:12 deraadt Exp $";
+static char rcsid[] = "$OpenBSD: glob.c,v 1.20 2002/06/14 21:34:58 todd Exp $";
 #endif
 #endif /* LIBC_SCCS and not lint */
 
@@ -97,6 +97,7 @@ static char rcsid[] = "$OpenBSD: glob.c,v 1.16 2001/04/05 18:36:12 deraadt Exp $
 #define	RBRACKET	']'
 #define	SEP		'/'
 #define	STAR		'*'
+#undef TILDE			/* Some platforms may already define it */
 #define	TILDE		'~'
 #define	UNDERSCORE	'_'
 #define	LBRACE		'{'
@@ -136,32 +137,32 @@ typedef char Char;
 #define	ismeta(c)	(((c)&M_QUOTE) != 0)
 
 
-static int	 compare __P((const void *, const void *));
-static int	 g_Ctoc __P((const Char *, char *, u_int));
-static int	 g_lstat __P((Char *, struct stat *, glob_t *));
-static DIR	*g_opendir __P((Char *, glob_t *));
-static Char	*g_strchr __P((Char *, int));
-static int	 g_stat __P((Char *, struct stat *, glob_t *));
-static int	 glob0 __P((const Char *, glob_t *));
-static int	 glob1 __P((Char *, Char *, glob_t *, size_t *));
-static int	 glob2 __P((Char *, Char *, Char *, Char *, Char *, Char *,
-		    glob_t *, size_t *));
-static int	 glob3 __P((Char *, Char *, Char *, Char *, Char *, Char *,
-		    Char *, Char *, glob_t *, size_t *));
-static int	 globextend __P((const Char *, glob_t *, size_t *));
+static int	 compare(const void *, const void *);
+static int	 g_Ctoc(const Char *, char *, u_int);
+static int	 g_lstat(Char *, struct stat *, glob_t *);
+static DIR	*g_opendir(Char *, glob_t *);
+static Char	*g_strchr(Char *, int);
+static int	 g_stat(Char *, struct stat *, glob_t *);
+static int	 glob0(const Char *, glob_t *);
+static int	 glob1(Char *, Char *, glob_t *, size_t *);
+static int	 glob2(Char *, Char *, Char *, Char *, Char *, Char *,
+		    glob_t *, size_t *);
+static int	 glob3(Char *, Char *, Char *, Char *, Char *, Char *,
+		    Char *, Char *, glob_t *, size_t *);
+static int	 globextend(const Char *, glob_t *, size_t *);
 static const Char *
-		 globtilde __P((const Char *, Char *, size_t, glob_t *));
-static int	 globexp1 __P((const Char *, glob_t *));
-static int	 globexp2 __P((const Char *, const Char *, glob_t *, int *));
-static int	 match __P((Char *, Char *, Char *));
+		 globtilde(const Char *, Char *, size_t, glob_t *);
+static int	 globexp1(const Char *, glob_t *);
+static int	 globexp2(const Char *, const Char *, glob_t *, int *);
+static int	 match(Char *, Char *, Char *);
 #ifdef DEBUG
-static void	 qprintf __P((const char *, Char *));
+static void	 qprintf(const char *, Char *);
 #endif
 
 int
 glob(pattern, flags, errfunc, pglob)
 	const char *pattern;
-	int flags, (*errfunc) __P((const char *, int));
+	int flags, (*errfunc)(const char *, int);
 	glob_t *pglob;
 {
 	const u_char *patnext;
@@ -676,7 +677,7 @@ glob3(pathbuf, pathbuf_last, pathend, pathend_last, pattern, pattern_last,
 
 
 /*
- * Extend the gl_pathv member of a glob_t structure to accomodate a new item,
+ * Extend the gl_pathv member of a glob_t structure to accommodate a new item,
  * add the new item, and update gl_pathc.
  *
  * This assumes the BSD realloc, which only copies the block when its size
@@ -821,7 +822,7 @@ g_opendir(str, pglob)
 	char buf[MAXPATHLEN];
 
 	if (!*str)
-		strcpy(buf, ".");
+		strlcpy(buf, ".", sizeof buf);
 	else {
 		if (g_Ctoc(str, buf, sizeof(buf)))
 			return(NULL);

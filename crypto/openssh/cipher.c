@@ -35,7 +35,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: cipher.c,v 1.60 2002/06/23 03:26:52 deraadt Exp $");
+RCSID("$OpenBSD: cipher.c,v 1.61 2002/07/12 15:50:17 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include "xmalloc.h"
@@ -438,6 +438,18 @@ swap_bytes(const u_char *src, u_char *dst, int n)
 	}
 }
 
+#ifdef SSH_OLD_EVP
+static void bf_ssh1_init (EVP_CIPHER_CTX * ctx, const unsigned char *key,
+			  const unsigned char *iv, int enc)
+{
+	if (iv != NULL)
+		memcpy (&(ctx->oiv[0]), iv, 8);
+	memcpy (&(ctx->iv[0]), &(ctx->oiv[0]), 8);
+	if (key != NULL)
+		BF_set_key (&(ctx->c.bf_ks), EVP_CIPHER_CTX_key_length (ctx),
+			    key);
+}
+#endif
 static int (*orig_bf)(EVP_CIPHER_CTX *, u_char *, const u_char *, u_int) = NULL;
 
 static int
@@ -459,6 +471,9 @@ evp_ssh1_bf(void)
 	memcpy(&ssh1_bf, EVP_bf_cbc(), sizeof(EVP_CIPHER));
 	orig_bf = ssh1_bf.do_cipher;
 	ssh1_bf.nid = NID_undef;
+#ifdef SSH_OLD_EVP
+	ssh1_bf.init = bf_ssh1_init;
+#endif
 	ssh1_bf.do_cipher = bf_ssh1_cipher;
 	ssh1_bf.key_len = 32;
 	return (&ssh1_bf);
@@ -568,7 +583,7 @@ evp_rijndael(void)
 	rijndal_cbc.do_cipher = ssh_rijndael_cbc;
 #ifndef SSH_OLD_EVP
 	rijndal_cbc.flags = EVP_CIPH_CBC_MODE | EVP_CIPH_VARIABLE_LENGTH |
-	    EVP_CIPH_ALWAYS_CALL_INIT;
+	    EVP_CIPH_ALWAYS_CALL_INIT | EVP_CIPH_CUSTOM_IV;
 #endif
 	return (&rijndal_cbc);
 }

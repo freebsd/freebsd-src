@@ -1,7 +1,7 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-/* $Id: defines.h,v 1.92 2002/06/24 16:26:49 stevesk Exp $ */
+/* $Id: defines.h,v 1.96 2002/09/26 00:38:48 tim Exp $ */
 
 
 /* Constants */
@@ -102,7 +102,7 @@ SCO Open Server 3 has INADDR_LOOPBACK defined in rpc/rpc.h but
 including rpc/rpc.h breaks Solaris 6
 */
 #ifndef INADDR_LOOPBACK
-#define INADDR_LOOPBACK ((ulong)0x7f000001)
+#define INADDR_LOOPBACK ((u_long)0x7f000001)
 #endif
 
 /* Types */
@@ -124,7 +124,7 @@ typedef char int8_t;
 # if (SIZEOF_SHORT_INT == 2)
 typedef short int int16_t;
 # else
-#  ifdef _CRAY
+#  ifdef _UNICOS
 #   if (SIZEOF_SHORT_INT == 4)
 typedef short int16_t;
 #   else
@@ -132,16 +132,16 @@ typedef long  int16_t;
 #   endif
 #  else
 #   error "16 bit int type not found."
-#  endif /* _CRAY */
+#  endif /* _UNICOS */
 # endif
 # if (SIZEOF_INT == 4)
 typedef int int32_t;
 # else
-#  ifdef _CRAY
+#  ifdef _UNICOS
 typedef long  int32_t;
 #  else
 #   error "32 bit int type not found."
-#  endif /* _CRAY */
+#  endif /* _UNICOS */
 # endif
 #endif
 
@@ -161,7 +161,7 @@ typedef unsigned char u_int8_t;
 #  if (SIZEOF_SHORT_INT == 2)
 typedef unsigned short int u_int16_t;
 #  else
-#   ifdef _CRAY
+#   ifdef _UNICOS
 #    if (SIZEOF_SHORT_INT == 4)
 typedef unsigned short u_int16_t;
 #    else
@@ -174,7 +174,7 @@ typedef unsigned long  u_int16_t;
 #  if (SIZEOF_INT == 4)
 typedef unsigned int u_int32_t;
 #  else
-#   ifdef _CRAY
+#   ifdef _UNICOS
 typedef unsigned long  u_int32_t;
 #   else
 #    error "32 bit int type not found."
@@ -215,6 +215,10 @@ typedef unsigned long long int u_int64_t;
 typedef unsigned char u_char;
 # define HAVE_U_CHAR
 #endif /* HAVE_U_CHAR */
+
+#ifndef SIZE_T_MAX
+#define SIZE_T_MAX ULONG_MAX
+#endif /* SIZE_T_MAX */
 
 #ifndef HAVE_SIZE_T
 typedef unsigned int size_t;

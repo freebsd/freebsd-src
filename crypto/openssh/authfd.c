@@ -35,7 +35,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: authfd.c,v 1.56 2002/06/25 16:22:42 markus Exp $");
+RCSID("$OpenBSD: authfd.c,v 1.57 2002/09/11 18:27:26 stevesk Exp $");
 RCSID("$FreeBSD$");
 
 #include <openssl/evp.h>
@@ -54,6 +54,8 @@ RCSID("$FreeBSD$");
 #include "log.h"
 #include "atomicio.h"
 
+static int agent_present = 0;
+
 /* helper */
 int	decode_reply(int type);
 
@@ -61,6 +63,21 @@ int	decode_reply(int type);
 #define agent_failed(x) \
     ((x == SSH_AGENT_FAILURE) || (x == SSH_COM_AGENT2_FAILURE) || \
     (x == SSH2_AGENT_FAILURE))
+
+int
+ssh_agent_present(void)
+{
+	int authfd;
+
+	if (agent_present)
+		return 1;
+	if ((authfd = ssh_get_authentication_socket()) == -1)
+		return 0;
+	else {
+		ssh_close_authentication_socket(authfd);
+		return 1;
+	}
+}
 
 /* Returns the number of the authentication fd, or -1 if there is none. */
 
@@ -91,6 +108,7 @@ ssh_get_authentication_socket(void)
 		close(sock);
 		return -1;
 	}
+	agent_present = 1;
 	return sock;
 }
 

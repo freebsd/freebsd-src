@@ -18,7 +18,7 @@ Programming:
 - Handle changing passwords for the non-PAM expired password case
 
 - Improve PAM support (a pam_lastlog module will cause sshd to exit)
-  and maybe support alternate forms of authenications like OPIE via
+  and maybe support alternate forms of authentications like OPIE via
   pam?
 
 - Rework PAM ChallengeResponseAuthentication
@@ -42,8 +42,38 @@ Programming:
   solutions break scp or leaves processes hanging around after the ssh
   connection has ended.  It seems to be linked to two things.  One
   select() under Linux is not as nice as others, and two the children
-  of the shell are not killed on exiting the shell. Redhat have an excellent
-  description of this in their RPM package.
+  of the shell are not killed on exiting the shell.
+  A short run-down of what happens:
+  - The shell starts up, and starts its own session.  As a side-effect, it
+    gets its own process group.
+  - The child forks off sleep, and because it's in the background, puts it
+    into its own process group.  The sleep command inherits a copy of the
+    shell's descriptor for the tty as its stdout.
+  - The shell exits, but doesn't SIGHUP all of its child PIDs like it probably
+    should(?)
+  - The sshd server attempts to read from the master side of the pty, and
+    while there are still process with the pty open, no EOF is produced.
+  - The sleep command exits, closes its descriptor, sshd detects the EOF, and
+    the connection gets closed.
+  Ways we've tried fixing this in sshd, and why they didn't work out:
+  - SIGHUP the sshd's process group.
+    - The shell is in its own process group.
+  - Track process group IDs of all children before we reap them (via an extra
+    field in Session structures which holds the pgid for each child pid), and
+    SIGHUP the pgid when we reap.
+    - Background commands are in yet another process group.
+  - Close the connection when the child dies.
+    - Background commands may need to write data to the connection.  Also
+      prematurely truncates output from some commands (scp server, the
+      famous "dd if=/dev/zero bs=1000 count=100" case).
+  Known workarounds:
+  - bash: shopt huponexit on
+  - tcsh: none
+  - zsh: setopt HUP (usually the default setting)
+    (taken from email from Jason Stone to openssh-unix-dev, 5 May 2001)
+  - pdksh: ?
+  This appears to affect NetKit rsh under Linux as well: it behaves the same
+  with 'sleep 20 & exit'.
 
 - Build an automated test suite
 
@@ -103,4 +133,4 @@ PrivSep Issues:
 - Cygwin
   + Privsep for Pre-auth only (no fd passing)
 
-$Id: TODO,v 1.50 2002/06/25 17:12:27 mouring Exp $
+$Id: TODO,v 1.51 2002/09/05 06:32:03 djm Exp $

@@ -37,11 +37,19 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: auth-passwd.c,v 1.27 2002/05/24 16:45:16 stevesk Exp $");
+RCSID("$FreeBSD$");
 
 #include "packet.h"
 #include "log.h"
 #include "servconf.h"
 #include "auth.h"
+
+/*
+ * Do not try to use PAM for password authentication, as it is
+ * already (and far better) supported by the challenge/response
+ * authentication mechanism.
+ */
+#undef USE_PAM
 
 #if !defined(USE_PAM) && !defined(HAVE_OSF_SIA)
 /* Don't need any of these headers for the PAM or SIA cases */
@@ -81,6 +89,9 @@ RCSID("$OpenBSD: auth-passwd.c,v 1.27 2002/05/24 16:45:16 stevesk Exp $");
 #endif /* !USE_PAM && !HAVE_OSF_SIA */
 
 extern ServerOptions options;
+#ifdef WITH_AIXAUTHENTICATE
+extern char *aixloginmsg;
+#endif
 
 /*
  * Tries to authenticate the user using password.  Returns true if
@@ -113,7 +124,7 @@ auth_password(Authctxt *authctxt, const char *password)
 #endif
 #ifdef WITH_AIXAUTHENTICATE
 	char *authmsg;
-	char *loginmsg;
+	int authsuccess;
 	int reenter = 1;
 #endif
 
@@ -145,7 +156,16 @@ auth_password(Authctxt *authctxt, const char *password)
 	}
 #endif
 #ifdef WITH_AIXAUTHENTICATE
-	return (authenticate(pw->pw_name,password,&reenter,&authmsg) == 0);
+	authsuccess = (authenticate(pw->pw_name,password,&reenter,&authmsg) == 0);
+
+	if (authsuccess)
+	        /* We don't have a pty yet, so just label the line as "ssh" */
+	        if (loginsuccess(authctxt->user,
+			get_canonical_hostname(options.verify_reverse_mapping),
+			"ssh", &aixloginmsg) < 0)
+				aixloginmsg = NULL;
+
+	return(authsuccess);
 #endif
 #ifdef KRB4
 	if (options.kerberos_authentication == 1) {

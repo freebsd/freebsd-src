@@ -1,4 +1,4 @@
-/*	$OpenBSD: scard.h,v 1.10 2002/03/25 17:34:27 markus Exp $	*/
+/*	$OpenBSD: scard.h,v 1.11 2002/06/30 21:59:45 deraadt Exp $	*/
 
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
@@ -33,8 +33,8 @@
 #define SCARD_ERROR_NOCARD	-2
 #define SCARD_ERROR_APPLET	-3
 
-Key	**sc_get_keys(const char*, const char*);
+Key	**sc_get_keys(const char *, const char *);
 void	 sc_close(void);
-int	 sc_put_key(Key *, const char*);
+int	 sc_put_key(Key *, const char *);
 
 #endif

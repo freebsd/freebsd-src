@@ -76,6 +76,7 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: scp.c,v 1.91 2002/06/19 00:27:55 deraadt Exp $");
+RCSID("$FreeBSD$");
 
 #include "xmalloc.h"
 #include "atomicio.h"
@@ -1039,8 +1040,7 @@ allocbuf(bp, fd, blksize)
 	if (stb.st_blksize == 0)
 		size = blksize;
 	else
-		size = blksize + (stb.st_blksize - blksize % stb.st_blksize) %
-		    stb.st_blksize;
+		size = roundup(stb.st_blksize, blksize);
 #else /* HAVE_STRUCT_STAT_ST_BLKSIZE */
 	size = blksize;
 #endif /* HAVE_STRUCT_STAT_ST_BLKSIZE */

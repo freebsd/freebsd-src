@@ -1,4 +1,4 @@
-/* $Id: acconfig.h,v 1.141 2002/06/25 22:35:16 tim Exp $ */
+/* $Id: acconfig.h,v 1.145 2002/09/26 00:38:48 tim Exp $ */
 /* $FreeBSD$ */
 
 #ifndef _CONFIG_H
@@ -150,6 +150,9 @@
 
 /* Define if you don't want to use lastlog */
 #undef DISABLE_LASTLOG
+
+/* Define if you don't want to use lastlog in session.c */
+#undef NO_SSH_LASTLOG
 
 /* Define if you don't want to use utmp */
 #undef DISABLE_UTMP
@@ -314,6 +317,9 @@
 /* Define if X11 doesn't support AF_UNIX sockets on that system */
 #undef NO_X11_UNIX_SOCKETS
 
+/* Define if the concept of ports only accessible to superusers isn't known */
+#undef NO_IPPORT_RESERVED_CONCEPT
+
 /* Needed for SCO and NeXT */
 #undef BROKEN_SAVED_UIDS
 
@@ -359,11 +365,8 @@
 /* Path that unprivileged child will chroot() to in privep mode */
 #undef PRIVSEP_PATH
 
-/* Define if you have the `mmap' function that supports MAP_ANON|SHARED */
-#undef HAVE_MMAP_ANON_SHARED
-
-/* Define if sendmsg()/recvmsg() has problems passing file descriptors */
-#undef BROKEN_FD_PASSING
+/* Define if your platform needs to skip post auth file descriptor passing */
+#undef DISABLE_FD_PASSING
 
 @BOTTOM@
 

@@ -76,6 +76,7 @@ Phill Camp <P.S.S.Camp@ukc.ac.uk> - login code fix
 Rip Loomis <loomisg@cist.saic.com> - Solaris package support, fixes
 SAKAI Kiyotaka <ksakai@kso.netwk.ntt-at.co.jp> - Multiple bugfixes
 Simon Wilkinson <sxw@dcs.ed.ac.uk> - PAM fixes, Compat with MIT KrbV
+Solar Designer <solar@openwall.com> - many patches and technical assistance
 Svante Signell <svante.signell@telia.com> - Bugfixes
 Thomas Neumann <tom@smart.ruhr.de> - Shadow passwords
 Tim Rice <tim@multitalents.net> - Portability & SCO fixes
@@ -90,5 +91,5 @@ Apologies to anyone I have missed.
 
 Damien Miller <djm@mindrot.org>
 
-$Id: CREDITS,v 1.66 2002/04/13 01:04:40 djm Exp $
+$Id: CREDITS,v 1.67 2002/07/28 20:31:19 stevesk Exp $
 

@@ -24,7 +24,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: monitor_fdpass.c,v 1.3 2002/06/04 23:05:49 markus Exp $");
+RCSID("$OpenBSD: monitor_fdpass.c,v 1.4 2002/06/26 14:50:04 deraadt Exp $");
 
 #include <sys/uio.h>
 
@@ -38,7 +38,7 @@ mm_send_fd(int socket, int fd)
 	struct msghdr msg;
 	struct iovec vec;
 	char ch = '\0';
-	int n;
+	ssize_t n;
 #ifndef HAVE_ACCRIGHTS_IN_MSGHDR
 	char tmp[CMSG_SPACE(sizeof(int))];
 	struct cmsghdr *cmsg;
@@ -67,8 +67,8 @@ mm_send_fd(int socket, int fd)
 		fatal("%s: sendmsg(%d): %s", __func__, fd,
 		    strerror(errno));
 	if (n != 1)
-		fatal("%s: sendmsg: expected sent 1 got %d",
-		    __func__, n);
+		fatal("%s: sendmsg: expected sent 1 got %ld",
+		    __func__, (long)n);
 #else
 	fatal("%s: UsePrivilegeSeparation=yes not supported",
 	    __func__);
@@ -81,8 +81,9 @@ mm_receive_fd(int socket)
 #if defined(HAVE_RECVMSG) && (defined(HAVE_ACCRIGHTS_IN_MSGHDR) || defined(HAVE_CONTROL_IN_MSGHDR))
 	struct msghdr msg;
 	struct iovec vec;
+	ssize_t n;
 	char ch;
-	int fd, n;
+	int fd;
 #ifndef HAVE_ACCRIGHTS_IN_MSGHDR
 	char tmp[CMSG_SPACE(sizeof(int))];
 	struct cmsghdr *cmsg;
@@ -104,8 +105,8 @@ mm_receive_fd(int socket)
 	if ((n = recvmsg(socket, &msg, 0)) == -1)
 		fatal("%s: recvmsg: %s", __func__, strerror(errno));
 	if (n != 1)
-		fatal("%s: recvmsg: expected received 1 got %d",
-		    __func__, n);
+		fatal("%s: recvmsg: expected received 1 got %ld",
+		    __func__, (long)n);
 
 #ifdef HAVE_ACCRIGHTS_IN_MSGHDR
 	if (msg.msg_accrightslen != sizeof(fd))
