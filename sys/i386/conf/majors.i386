@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.63 1999/01/13 08:05:16 msmith Exp $
+$Id: majors.i386,v 1.64 1999/01/14 03:47:55 msmith Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -130,7 +130,7 @@ chrdev	name		comments
 83	can		CAN16-2 CAN-PC Interface
 84	dtfp		Datum Time and Frequency processor (louie@UU.NET)
 85	vesa		VESA support device (j_mini@efn.org)
-86      alog            Industrial Computer Source AIO8-P driver
+86      alog            Industrial Computer Source AIO8-P driver (deprecated)
 87	wfd		ATAPI floppy client of "ata"
 88	dpt		DPT RAID Controller <shimon@i-connect.net>
 89	pps		Pulse-Per-Second timing interface
