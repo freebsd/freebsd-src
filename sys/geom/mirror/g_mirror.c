@@ -96,8 +96,10 @@ struct g_class g_mirror_class = {
 
 
 static void g_mirror_destroy_provider(struct g_mirror_softc *sc);
-static int g_mirror_update_disk(struct g_mirror_disk *disk, u_int state);
-static void g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force);
+static int g_mirror_update_disk(struct g_mirror_disk *disk, u_int state,
+    int waitidle);
+static void g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force,
+    int waitidle);
 static void g_mirror_dumpconf(struct sbuf *sb, const char *indent,
     struct g_geom *gp, struct g_consumer *cp, struct g_provider *pp);
 static void g_mirror_sync_stop(struct g_mirror_disk *disk, int type);
@@ -695,7 +697,7 @@ g_mirror_update_metadata(struct g_mirror_disk *disk)
 }
 
 static void
-g_mirror_bump_syncid(struct g_mirror_softc *sc)
+g_mirror_bump_syncid(struct g_mirror_softc *sc, int waitidle)
 {
 	struct g_mirror_disk *disk;
 
@@ -711,6 +713,8 @@ g_mirror_bump_syncid(struct g_mirror_softc *sc)
 		if (disk->d_state == G_MIRROR_DISK_STATE_ACTIVE ||
 		    disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING) {
 			disk->d_sync.ds_syncid = sc->sc_syncid;
+			if (waitidle)
+				g_waitidlelock();
 			g_mirror_update_metadata(disk);
 		}
 	}
@@ -1063,6 +1067,7 @@ g_mirror_sync_request(struct bio *bp)
 			 * XXX: This should be configurable.
 			 */
 			g_topology_lock();
+			g_waitidlelock();
 			g_mirror_update_metadata(disk);
 			g_topology_unlock();
 		}
@@ -1360,7 +1365,7 @@ g_mirror_register_request(struct bio *bp)
 		if (sc->sc_bump_syncid == G_MIRROR_BUMP_ON_FIRST_WRITE) {
 			sc->sc_bump_syncid = 0;
 			g_topology_lock();
-			g_mirror_bump_syncid(sc);
+			g_mirror_bump_syncid(sc, 1);
 			g_topology_unlock();
 		}
 		return;
@@ -1447,22 +1452,26 @@ g_mirror_worker(void *arg)
 		 */
 		ep = g_mirror_event_get(sc);
 		if (ep != NULL) {
+			int waitidle = 0;
+
 			g_topology_lock();
+			if ((ep->e_flags & G_MIRROR_EVENT_DONTWAIT) != 0)
+				waitidle = 1;
 			if ((ep->e_flags & G_MIRROR_EVENT_DEVICE) != 0) {
 				/* Update only device status. */
 				G_MIRROR_DEBUG(3,
 				    "Running event for device %s.",
 				    sc->sc_name);
 				ep->e_error = 0;
-				g_mirror_update_device(sc, 1);
+				g_mirror_update_device(sc, 1, waitidle);
 			} else {
 				/* Update disk status. */
 				G_MIRROR_DEBUG(3, "Running event for disk %s.",
 				     g_mirror_get_diskname(ep->e_disk));
 				ep->e_error = g_mirror_update_disk(ep->e_disk,
-				    ep->e_state);
+				    ep->e_state, waitidle);
 				if (ep->e_error == 0)
-					g_mirror_update_device(sc, 0);
+					g_mirror_update_device(sc, 0, waitidle);
 			}
 			g_topology_unlock();
 			if ((ep->e_flags & G_MIRROR_EVENT_DONTWAIT) != 0) {
@@ -1850,7 +1859,7 @@ g_mirror_determine_state(struct g_mirror_disk *disk)
  * Update device state.
  */
 static void
-g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force)
+g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force, int waitidle)
 {
 	struct g_mirror_disk *disk;
 	u_int state;
@@ -2043,7 +2052,7 @@ g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force)
 		 */
 		if (sc->sc_bump_syncid == G_MIRROR_BUMP_IMMEDIATELY) {
 			sc->sc_bump_syncid = 0;
-			g_mirror_bump_syncid(sc);
+			g_mirror_bump_syncid(sc, waitidle);
 		}
 		break;
 	default:
@@ -2062,7 +2071,7 @@ g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force)
 	g_mirror_disk_state2str(disk->d_state),				\
 	g_mirror_disk_state2str(state), sc->sc_name)
 static int
-g_mirror_update_disk(struct g_mirror_disk *disk, u_int state)
+g_mirror_update_disk(struct g_mirror_disk *disk, u_int state, int waitidle)
 {
 	struct g_mirror_softc *sc;
 
@@ -2144,6 +2153,8 @@ again:
 		disk->d_state = state;
 		disk->d_sync.ds_offset = 0;
 		disk->d_sync.ds_offset_done = 0;
+		if (waitidle)
+			g_waitidlelock();
 		g_mirror_update_access(disk);
 		g_mirror_update_metadata(disk);
 		G_MIRROR_DEBUG(0, "Device %s: provider %s activated.",
@@ -2176,6 +2187,8 @@ again:
 
 		disk->d_flags &= ~G_MIRROR_DISK_FLAG_DIRTY;
 		disk->d_state = state;
+		if (waitidle)
+			g_waitidlelock();
 		g_mirror_update_metadata(disk);
 		G_MIRROR_DEBUG(0, "Device %s: provider %s is stale.",
 		    sc->sc_name, g_mirror_get_diskname(disk));
@@ -2200,6 +2213,8 @@ again:
 			disk->d_flags &= ~G_MIRROR_DISK_FLAG_DIRTY;
 		disk->d_state = state;
 		if (sc->sc_provider != NULL) {
+			if (waitidle)
+				g_waitidlelock();
 			g_mirror_sync_start(disk);
 			g_mirror_update_metadata(disk);
 		}
@@ -2263,6 +2278,8 @@ again:
 		g_mirror_destroy_disk(disk);
 		sc->sc_ndisks--;
 		LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+			if (waitidle)
+				g_waitidlelock();
 			g_mirror_update_metadata(disk);
 		}
 		break;

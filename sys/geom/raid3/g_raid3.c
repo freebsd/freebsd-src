@@ -134,8 +134,10 @@ struct g_class g_raid3_class = {
 
 
 static void g_raid3_destroy_provider(struct g_raid3_softc *sc);
-static int g_raid3_update_disk(struct g_raid3_disk *disk, u_int state);
-static void g_raid3_update_device(struct g_raid3_softc *sc, boolean_t force);
+static int g_raid3_update_disk(struct g_raid3_disk *disk, u_int state,
+    int waitidle);
+static void g_raid3_update_device(struct g_raid3_softc *sc, boolean_t force,
+    int waitidle);
 static void g_raid3_dumpconf(struct sbuf *sb, const char *indent,
     struct g_geom *gp, struct g_consumer *cp, struct g_provider *pp);
 static void g_raid3_sync_stop(struct g_raid3_softc *sc, int type);
@@ -720,7 +722,7 @@ g_raid3_update_metadata(struct g_raid3_disk *disk)
 }
 
 static void
-g_raid3_bump_syncid(struct g_raid3_softc *sc)
+g_raid3_bump_syncid(struct g_raid3_softc *sc, int waitidle)
 {
 	struct g_raid3_disk *disk;
 	u_int n;
@@ -736,6 +738,8 @@ g_raid3_bump_syncid(struct g_raid3_softc *sc)
 		if (disk->d_state == G_RAID3_DISK_STATE_ACTIVE ||
 		    disk->d_state == G_RAID3_DISK_STATE_SYNCHRONIZING) {
 			disk->d_sync.ds_syncid = sc->sc_syncid;
+			if (waitidle)
+				g_waitidlelock();
 			g_raid3_update_metadata(disk);
 		}
 	}
@@ -1450,6 +1454,7 @@ g_raid3_sync_request(struct bio *bp)
 			 * XXX: This should be configurable.
 			 */
 			g_topology_lock();
+			g_waitidlelock();
 			g_raid3_update_metadata(disk);
 			g_topology_unlock();
 		}
@@ -1627,7 +1632,7 @@ g_raid3_register_request(struct bio *pbp)
 		if (sc->sc_bump_syncid == G_RAID3_BUMP_ON_FIRST_WRITE) {
 			sc->sc_bump_syncid = 0;
 			g_topology_lock();
-			g_raid3_bump_syncid(sc);
+			g_raid3_bump_syncid(sc, 1);
 			g_topology_unlock();
 		}
 		g_raid3_scatter(pbp);
@@ -1712,22 +1717,26 @@ g_raid3_worker(void *arg)
 		 */
 		ep = g_raid3_event_get(sc);
 		if (ep != NULL) {
+			int waitidle = 0;
+
 			g_topology_lock();
+			if ((ep->e_flags & G_RAID3_EVENT_DONTWAIT) != 0)
+				waitidle = 1;
 			if ((ep->e_flags & G_RAID3_EVENT_DEVICE) != 0) {
 				/* Update only device status. */
 				G_RAID3_DEBUG(3,
 				    "Running event for device %s.",
 				    sc->sc_name);
 				ep->e_error = 0;
-				g_raid3_update_device(sc, 1);
+				g_raid3_update_device(sc, 1, waitidle);
 			} else {
 				/* Update disk status. */
 				G_RAID3_DEBUG(3, "Running event for disk %s.",
 				     g_raid3_get_diskname(ep->e_disk));
 				ep->e_error = g_raid3_update_disk(ep->e_disk,
-				    ep->e_state);
+				    ep->e_state, waitidle);
 				if (ep->e_error == 0)
-					g_raid3_update_device(sc, 0);
+					g_raid3_update_device(sc, 0, waitidle);
 			}
 			g_topology_unlock();
 			if ((ep->e_flags & G_RAID3_EVENT_DONTWAIT) != 0) {
@@ -2124,7 +2133,7 @@ g_raid3_determine_state(struct g_raid3_disk *disk)
  * Update device state.
  */
 static void
-g_raid3_update_device(struct g_raid3_softc *sc, boolean_t force)
+g_raid3_update_device(struct g_raid3_softc *sc, boolean_t force, int waitidle)
 {
 	struct g_raid3_disk *disk;
 	u_int state;
@@ -2245,7 +2254,7 @@ g_raid3_update_device(struct g_raid3_softc *sc, boolean_t force)
 		 */
 		if (sc->sc_bump_syncid == G_RAID3_BUMP_IMMEDIATELY) {
 			sc->sc_bump_syncid = 0;
-			g_raid3_bump_syncid(sc);
+			g_raid3_bump_syncid(sc, waitidle);
 		}
 		if (g_raid3_ndisks(sc, G_RAID3_DISK_STATE_NEW) > 0)
 			return;
@@ -2274,7 +2283,7 @@ g_raid3_update_device(struct g_raid3_softc *sc, boolean_t force)
 		 */
 		if (sc->sc_bump_syncid == G_RAID3_BUMP_IMMEDIATELY) {
 			sc->sc_bump_syncid = 0;
-			g_raid3_bump_syncid(sc);
+			g_raid3_bump_syncid(sc, waitidle);
 		}
 		if (g_raid3_ndisks(sc, G_RAID3_DISK_STATE_NEW) > 0)
 			return;
@@ -2310,7 +2319,7 @@ g_raid3_update_device(struct g_raid3_softc *sc, boolean_t force)
 	g_raid3_disk_state2str(disk->d_state),				\
 	g_raid3_disk_state2str(state), sc->sc_name)
 static int
-g_raid3_update_disk(struct g_raid3_disk *disk, u_int state)
+g_raid3_update_disk(struct g_raid3_disk *disk, u_int state, int waitidle)
 {
 	struct g_raid3_softc *sc;
 
@@ -2377,6 +2386,8 @@ again:
 		disk->d_state = state;
 		disk->d_sync.ds_offset = 0;
 		disk->d_sync.ds_offset_done = 0;
+		if (waitidle)
+			g_waitidlelock();
 		g_raid3_update_access(disk);
 		g_raid3_update_metadata(disk);
 		G_RAID3_DEBUG(0, "Device %s: provider %s activated.",
@@ -2410,6 +2421,8 @@ again:
 
 		disk->d_flags &= ~G_RAID3_DISK_FLAG_DIRTY;
 		disk->d_state = state;
+		if (waitidle)
+			g_waitidlelock();
 		g_raid3_update_metadata(disk);
 		G_RAID3_DEBUG(0, "Device %s: provider %s is stale.",
 		    sc->sc_name, g_raid3_get_diskname(disk));
@@ -2435,6 +2448,8 @@ again:
 			disk->d_flags &= ~G_RAID3_DISK_FLAG_DIRTY;
 		disk->d_state = state;
 		if (sc->sc_provider != NULL) {
+			if (waitidle)
+				g_waitidlelock();
 			g_raid3_sync_start(sc);
 			g_raid3_update_metadata(disk);
 		}
