@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)dir.c	8.8 (Berkeley) 4/28/95";
+#endif
+static const char rcsid[] =
+	"$Id: dir.c,v 1.12 1998/09/23 05:37:35 nate Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -519,6 +523,13 @@ linkup(orphan, parentdir, name)
 		pwarn("DIR I=%lu CONNECTED. ", orphan);
 		if (parentdir != (ino_t)-1) {
 			printf("PARENT WAS I=%lu\n", (u_long)parentdir);
+			/*
+			 * The parent directory, because of the ordering
+			 * guarantees, has had the link count incremented
+			 * for the child, but no entry was made.  This
+			 * fixes the parent link count so that fsck does
+			 * not need to be rerun.
+			 */
 			inoinfo(parentdir)->ino_linkcnt++;
 		}
 		if (preen == 0)
