@@ -2398,7 +2398,11 @@ key_usrreq(so, req, m, nam, control)
     keyso_cb.any_count--;
   }
   s = splnet();
+#if 0
   error = raw_usrreq(so, req, m, nam, control);
+#else
+	panic("FIXME!");
+#endif
   if (!so) return error;
   rp = sotorawcb(so);
 
