@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.119 1999/01/24 01:04:04 dillon Exp $
+ *	$Id: vm_page.c,v 1.120 1999/01/24 02:29:26 dillon Exp $
  */
 
 /*
@@ -590,7 +590,9 @@ retry:
  *
  *	Note: we *always* dirty the page.  It is necessary both for the
  *	      fact that we moved it, and because we may be invalidating
- *	      swap.
+ *	      swap.  If the page is on the cache, we have to deactivate it
+ *	      or vm_page_dirty() will panic.  Dirty pages are not allowed
+ *	      on the cache.
  */
 
 void
@@ -604,7 +606,9 @@ vm_page_rename(m, new_object, new_pindex)
 	s = splvm();
 	vm_page_remove(m);
 	vm_page_insert(m, new_object, new_pindex);
-	m->dirty = VM_PAGE_BITS_ALL;
+	if (m->queue - m->pc == PQ_CACHE)
+		vm_page_deactivate(m);
+	vm_page_dirty(m);
 	splx(s);
 }
 
@@ -1448,6 +1452,11 @@ vm_page_wire(m)
  *	processes.  This optimization causes one-time-use metadata to be
  *	reused more quickly.
  *
+ *	A number of routines use vm_page_unwire() to guarentee that the page
+ *	will go into either the inactive or active queues, and will NEVER
+ *	be placed in the cache - for example, just after dirtying a page.
+ *	dirty pages in the cache are not allowed.
+ *
  *	The page queues must be locked.
  *	This routine may not block.
  */
@@ -1697,7 +1706,7 @@ vm_page_test_dirty(m)
 {
 	if ((m->dirty != VM_PAGE_BITS_ALL) &&
 	    pmap_is_modified(VM_PAGE_TO_PHYS(m))) {
-		m->dirty = VM_PAGE_BITS_ALL;
+		vm_page_dirty(m);
 	}
 }
 
