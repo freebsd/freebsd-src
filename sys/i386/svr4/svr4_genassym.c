@@ -1,12 +1,11 @@
 /* $FreeBSD$ */
 /* Derived from:  Id: linux_genassym.c,v 1.8 1998/07/29 15:50:41 bde Exp */
 
-#include <sys/assym.h>
+#include <stddef.h>
+
 #include <sys/param.h>
+#include <sys/assym.h>
 
-struct proc;
-
-#include <svr4/svr4.h>
 #include <svr4/svr4_signal.h>
 #include <svr4/svr4_ucontext.h>
 
