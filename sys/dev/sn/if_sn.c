@@ -133,7 +133,7 @@ void snwatchdog(struct ifnet *);
 
 static void sn_setmcast(struct sn_softc *);
 static int sn_getmcf(struct arpcom *ac, u_char *mcf);
-static u_int smc_crc(u_char *);
+static u_int sn_crc(u_char *);
 
 /* I (GB) have been unlucky getting the hardware padding
  * to work properly.
@@ -258,8 +258,8 @@ sn_detach(device_t dev)
 void
 sninit(void *xsc)
 {
-	register struct sn_softc *sc = xsc;
-	register struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct sn_softc *sc = xsc;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 	int             s;
 	int             flags;
 	int             mask;
@@ -357,9 +357,9 @@ sninit(void *xsc)
 void
 snstart(struct ifnet *ifp)
 {
-	register struct sn_softc *sc = ifp->if_softc;
-	register u_int  len;
-	register struct mbuf *m;
+	struct sn_softc *sc = ifp->if_softc;
+	u_int  len;
+	struct mbuf *m;
 	struct mbuf    *top;
 	int             s, pad;
 	int             mask;
@@ -585,9 +585,9 @@ readcheck:
 static void
 snresume(struct ifnet *ifp)
 {
-	register struct sn_softc *sc = ifp->if_softc;
-	register u_int  len;
-	register struct mbuf *m;
+	struct sn_softc *sc = ifp->if_softc;
+	u_int  len;
+	struct mbuf *m;
 	struct mbuf    *top;
 	int             pad;
 	int             mask;
@@ -776,7 +776,7 @@ void
 sn_intr(void *arg)
 {
 	int             status, interrupts;
-	register struct sn_softc *sc = (struct sn_softc *) arg;
+	struct sn_softc *sc = (struct sn_softc *) arg;
 	struct ifnet   *ifp = &sc->arpcom.ac_if;
 	int             x;
 
@@ -994,7 +994,7 @@ out:
 }
 
 void
-snread(register struct ifnet *ifp)
+snread(struct ifnet *ifp)
 {
         struct sn_softc *sc = ifp->if_softc;
 	struct ether_header *eh;
@@ -1127,7 +1127,7 @@ out:
  * changes.
  */
 static int
-snioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
+snioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct sn_softc *sc = ifp->if_softc;
 	int             s, error = 0;
@@ -1433,8 +1433,8 @@ static int
 sn_getmcf(struct arpcom *ac, u_char *mcf)
 {
 	int i;
-	register u_int index, index2;
-	register u_char *af = (u_char *) mcf;
+	u_int index, index2;
+	u_char *af = (u_char *) mcf;
 	struct ifmultiaddr *ifma;
 
 	bzero(mcf, MCFSZ);
@@ -1442,7 +1442,7 @@ sn_getmcf(struct arpcom *ac, u_char *mcf)
 	TAILQ_FOREACH(ifma, &ac->ac_if.if_multiaddrs, ifma_link) {
 	    if (ifma->ifma_addr->sa_family != AF_LINK)
 		return 0;
-	    index = smc_crc(LLADDR((struct sockaddr_dl *)ifma->ifma_addr)) & 0x3f;
+	    index = sn_crc(LLADDR((struct sockaddr_dl *)ifma->ifma_addr)) & 0x3f;
 	    index2 = 0;
 	    for (i = 0; i < 6; i++) {
 		index2 <<= 1;
@@ -1455,7 +1455,7 @@ sn_getmcf(struct arpcom *ac, u_char *mcf)
 }
 
 static u_int
-smc_crc(u_char *s)
+sn_crc(u_char *s)
 {
 	int perByte;
 	int perBit;
