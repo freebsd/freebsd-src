@@ -37,6 +37,7 @@
 #include <sys/pcpu.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
+#include <sys/uuid.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
