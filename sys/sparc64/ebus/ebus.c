@@ -63,8 +63,8 @@
 #include <machine/ofw_bus.h>
 #include <machine/resource.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include <sparc64/pci/ofw_pci.h>
 

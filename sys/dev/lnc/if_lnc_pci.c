@@ -45,8 +45,8 @@
 #include <net/if.h>
 #include <net/if_arp.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include <dev/lnc/if_lncreg.h>
 #include <dev/lnc/if_lncvar.h>

@@ -46,8 +46,8 @@
 #include <isa/isavar.h>
 #include <isa/isa_common.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include <ofw/ofw_pci.h>
 #include <ofw/openfirm.h>
