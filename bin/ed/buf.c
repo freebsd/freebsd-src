@@ -31,7 +31,7 @@
 static char * const rcsid = "@(#)buf.c,v 1.4 1994/02/01 00:34:35 alm Exp";
 #else
 static char * const rcsid =
-	"$Id: buf.c,v 1.13 1997/10/08 13:46:39 eivind Exp $";
+	"$Id: buf.c,v 1.14 1997/10/09 11:05:16 eivind Exp $";
 #endif
 #endif /* not lint */
 
@@ -268,6 +268,10 @@ init_buffers()
 	   hello, world
 	   EOF */
 	setbuffer(stdin, stdinbuf, 1);
+
+	/* Ensure stdout is line buffered. This avoids bogus delays
+	   of output if stdout is piped through utilities to a terminal. */
+	setvbuf(stdout, NULL, _IOLBF, 0);
 	if (open_sbuf() < 0)
 		quit(2);
 	REQUE(&buffer_head, &buffer_head);
