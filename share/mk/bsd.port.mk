@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.298 1998/11/20 04:00:38 asami Exp $
+#	$Id: bsd.port.mk,v 1.299 1998/11/25 00:12:27 asami Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -189,8 +189,6 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 #				  unpacks to.  (Default: ${WRKDIR}/${DISTNAME} unless
 #				  NO_WRKSUBDIR is set, in which case simply ${WRKDIR}).
 # NO_WRKSUBDIR	- Assume port unpacks directly into ${WRKDIR}.
-# NO_WRKDIR		- There's no work directory at all; port does this someplace
-#				  else.
 # PATCHDIR 		- A directory containing any additional patches you made
 #				  to port this software to FreeBSD (default:
 #				  ${MASTERDIR}/patches)
@@ -285,10 +283,10 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 #
 # Set these variables if your port doesn't need some of the steps.
 # Note that there are no NO_PATCH or NO_CONFIGURE variables becuase
-# those steps are empty by default.  Also, NO_CHECKSUM is a user variable
-# and is not to be set in a port's Makefile.  See above for NO_PACKAGE.
+# those steps are empty by default.  NO_EXTRACT is not allowed anymore
+# since we need to at least create ${WRKDIR}.  Also, NO_CHECKSUM is a user
+# variable and is not to be set in a port's Makefile.  See above for NO_PACKAGE.
 #
-# NO_EXTRACT	- Use a dummy (do-nothing) extract target.
 # NO_BUILD		- Use a dummy (do-nothing) build target.
 # NO_INSTALL	- Use a dummy (do-nothing) install target.
 #
@@ -389,19 +387,33 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 .if !defined(AFTERPORTMK)
 
 # Get the architecture
+.if !defined(ARCH)
 ARCH!=	/usr/bin/uname -m
+.endif
 
 # Get the operating system type
+.if !defined(OPSYS)
 OPSYS!=	/usr/bin/uname -s
+.endif
 
 # Get the operating system revision
+.if !defined(OSREL)
 OSREL!=	/usr/bin/uname -r | sed -e 's/[-(].*//'
+.endif
 
 # Get __FreeBSD_version
-OSVERSION!=	sysctl -n kern.osreldate
+.if !defined(OSVERSION)
+.if exists(/sbin/sysctl)
+OSVERSION!=	/sbin/sysctl -n kern.osreldate
+.else
+OSVERSION!=	/usr/sbin/sysctl -n kern.osreldate
+.endif
+.endif
 
 # Get the object format.
+.if !defined(PORTOBJFORMAT)
 PORTOBJFORMAT!=	test -x /usr/bin/objformat && /usr/bin/objformat || echo aout
+.endif
 
 MASTERDIR?=	${.CURDIR}
 
@@ -497,11 +509,7 @@ PREFIX?=		${LOCALBASE}
 # Start of post-makefile section.
 .if !defined(BEFOREPORTMK)
 
-.if !defined(NO_WRKDIR)
 WRKDIR?=		${WRKDIRPREFIX}${.CURDIR}/work
-.else
-WRKDIR?=		${WRKDIRPREFIX}${.CURDIR}
-.endif
 .if defined(NO_WRKSUBDIR)
 WRKSRC?=		${WRKDIR}
 .else
@@ -537,6 +545,10 @@ BUILD_DEPENDS+=		gmake:${PORTSDIR}/devel/gmake
 GNU_CONFIGURE=	yes
 BUILD_DEPENDS+=		autoconf:${PORTSDIR}/devel/autoconf
 .endif
+
+#.if defined(REQUIRES_MOTIF)
+#BUILD_DEPENDS+=		${X11BASE}/lib/libXm.a:${PORTSDIR}/tmp/motif
+#.endif
 
 PERL_VERSION=	5.00502
 PERL_VER=		5.005
@@ -687,28 +699,36 @@ COMMENT?=	${PKGDIR}/COMMENT
 DESCR?=		${PKGDIR}/DESCR
 PLIST?=		${PKGDIR}/PLIST
 TMPPLIST?=	${WRKDIR}/.PLIST.mktmp
+PKGINSTALL?=		${PKGDIR}/INSTALL
+PKGDEINSTALL?=		${PKGDIR}/DEINSTALL
+PKGREQ?=			${PKGDIR}/REQ
+PKGMESSAGE?=		${PKGDIR}/MESSAGE
 
 PKG_CMD?=		/usr/sbin/pkg_create
 PKG_DELETE?=	/usr/sbin/pkg_delete
 .if !defined(PKG_ARGS)
 PKG_ARGS=		-v -c ${COMMENT} -d ${DESCR} -f ${TMPPLIST} -p ${PREFIX} -P "`${MAKE} package-depends|sort -u`" ${EXTRA_PKG_ARGS}
-.if exists(${PKGDIR}/INSTALL)
-PKG_ARGS+=		-i ${PKGDIR}/INSTALL
+.if exists(${PKGINSTALL})
+PKG_ARGS+=		-i ${PKGINSTALL}
 .endif
-.if exists(${PKGDIR}/DEINSTALL)
-PKG_ARGS+=		-k ${PKGDIR}/DEINSTALL
+.if exists(${PKGDEINSTALL})
+PKG_ARGS+=		-k ${PKGDEINSTALL}
 .endif
-.if exists(${PKGDIR}/REQ)
-PKG_ARGS+=		-r ${PKGDIR}/REQ
+.if exists(${PKGREQ})
+PKG_ARGS+=		-r ${PKGREQ}
 .endif
-.if exists(${PKGDIR}/MESSAGE)
-PKG_ARGS+=		-D ${PKGDIR}/MESSAGE
+.if exists(${PKGMESSAGE})
+PKG_ARGS+=		-D ${PKGMESSAGE}
 .endif
 .if !defined(NO_MTREE)
 PKG_ARGS+=		-m ${MTREE_FILE}
 .endif
 .endif
+.if defined(PKG_NOCOMPRESS)
+PKG_SUFX?=		.tar
+.else
 PKG_SUFX?=		.tgz
+.endif
 # where pkg_add records its dirty deeds.
 PKG_DBDIR?=		/var/db/pkg
 
@@ -764,7 +784,14 @@ MASTER_SITE_XCONTRIB+=	\
 
 MASTER_SITE_GNU+=	\
 	ftp://prep.ai.mit.edu/pub/gnu/%SUBDIR%/ \
-	ftp://wuarchive.wustl.edu/systems/gnu/%SUBDIR%/
+	ftp://wuarchive.wustl.edu/systems/gnu/%SUBDIR%/ \
+	ftp://ftp.kddlabs.co.jp/pub/gnu/%SUBDIR%/ \
+	ftp://ftp.digex.net/pub/gnu/%SUBDIR%/ \
+	ftp://ftp.univ-evry.fr/pub/gnu/%SUBDIR%/ \
+	ftp://ftp.cdrom.com/pub/gnu/%SUBDIR%/ \
+	ftp://ftp.duke.edu/pub/gnu/%SUBDIR%/ \
+	ftp://ftp.gamma.ru/pub/gnu/%SUBDIR%/ \
+	ftp://ftp.nihon-u.ac.jp/pub/gnu/%SUBDIR%/
 
 MASTER_SITE_PERL_CPAN+=	\
 	ftp://ftp.digital.com/pub/plan/perl/CPAN/modules/by-module/%SUBDIR%/ \
@@ -1046,6 +1073,10 @@ IGNORE=	"does not require Motif"
 IGNORE=	"may not be placed on a CDROM: ${NO_CDROM}"
 .elif (defined(RESTRICTED) && defined(NO_RESTRICTED))
 IGNORE=	"is restricted: ${RESTRICTED}"
+.elif defined(NO_WRKDIR)
+IGNORE=	"defines NO_WRKDIR, which is obsoleted.  If you are defining NO_WRKDIR and NO_EXTRACT, try changing it to NO_WRKSUBDIR=yes and EXTRACT_ONLY= \(the right side intentionally left empty\)"
+.elif defined(NO_EXTRACT)
+IGNORE=	"defines NO_EXTRACT, which is obsoleted.  Try changing it to EXTRACT_ONLY= \(the right side intentionally left empty\)"
 .elif defined(NO_CONFIGURE)
 IGNORE=	"defines NO_CONFIGURE, which is obsoleted"
 .elif defined(NO_PATCH)
@@ -1056,7 +1087,7 @@ IGNORE=	"is broken for ELF: ${BROKEN_ELF}"
 IGNORE=	"is marked as broken: ${BROKEN}"
 .endif
 
-.if (defined(MANUAL_PACKAGE_BUILD) && defined(PACKAGE_BUILDING))
+.if (defined(MANUAL_PACKAGE_BUILD) && defined(PACKAGE_BUILDING) && !defined(PARALLEL_PACKAGE_BUILD))
 IGNORE=	"has to be built manually: ${MANUAL_PACKAGE_BUILD}"
 clean:
 	@${IGNORECMD}
@@ -1088,7 +1119,12 @@ reinstall:
 	@${IGNORECMD}
 package:
 	@${IGNORECMD}
+ignorelist: package-name
+.else
+ignorelist:
+	@${DO_NADA}
 .endif
+
 .endif
 
 ################################################################
@@ -1143,13 +1179,6 @@ DEPENDS_TARGET=	install
 .if defined(NO_CHECKSUM) && !target(checksum)
 checksum: fetch
 	@${DO_NADA}
-.endif
-
-# Disable extract
-.if defined(NO_EXTRACT) && !target(extract)
-extract: fetch
-	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} checksum REAL_EXTRACT=yes
-	@${TOUCH} ${TOUCH_FLAGS} ${EXTRACT_COOKIE}
 .endif
 
 # Disable build
@@ -1247,10 +1276,8 @@ do-fetch:
 
 .if !target(do-extract)
 do-extract:
-.if !defined(NO_WRKDIR)
 	@${RM} -rf ${WRKDIR}
 	@${MKDIR} ${WRKDIR}
-.endif
 	@for file in ${EXTRACT_ONLY}; do \
 		if ! (cd ${WRKDIR} && ${EXTRACT_CMD} ${EXTRACT_BEFORE_ARGS} ${_DISTDIR}/$$file ${EXTRACT_AFTER_ARGS});\
 		then \
@@ -1461,7 +1488,7 @@ _PORT_USE: .USE
 			${ECHO_MSG} "Copy it from a suitable location (e.g., /usr/src/etc/mtree) and try again."; \
 			exit 1; \
 		else \
-			${MTREE_CMD} ${MTREE_ARGS} ${PREFIX}/; \
+			${MTREE_CMD} ${MTREE_ARGS} ${PREFIX}/ >/dev/null; \
 		fi; \
 	else \
 		${ECHO_MSG} "Warning: not superuser, can't run mtree."; \
@@ -1632,7 +1659,6 @@ clean: pre-clean
 	@${MAKE} clean-depends
 .endif
 	@${ECHO_MSG} "===>  Cleaning for ${PKGNAME}"
-.if !defined(NO_WRKDIR)
 	@if [ -d ${WRKDIR} ]; then \
 		if [ -w ${WRKDIR} ]; then \
 			${RM} -rf ${WRKDIR}; \
@@ -1640,9 +1666,6 @@ clean: pre-clean
 			${ECHO_MSG} "===>   ${WRKDIR} not writable, skipping"; \
 		fi; \
 	fi
-.else
-	@${RM} -f ${WRKDIR}/.*_done ${TMPPLIST}
-.endif
 .endif
 
 .if !target(pre-distclean)
@@ -1775,19 +1798,6 @@ package-name:
 	@${ECHO} ${PKGNAME}
 .endif
 
-# Show (recursively) all the packages this package depends on.
-
-.if !target(package-depends)
-package-depends:
-	@for dir in `${ECHO} "${LIB_DEPENDS} ${RUN_DEPENDS}" | ${TR} '\040' '\012' | ${SED} -e 's/^[^:]*://' -e 's/:.*//' | sort -u` `${ECHO} ${DEPENDS} | ${TR} '\040' '\012' | ${SED} -e 's/:.*//' | sort -u`; do \
-		if [ -d $$dir ]; then \
-			(cd $$dir ; ${MAKE} package-name package-depends); \
-		else \
-			${ECHO_MSG} "${PKGNAME}: \"$$dir\" non-existent -- dependency list incomplete" >&2; \
-		fi; \
-	done
-.endif
-
 # Build a package but don't check the package cookie
 
 .if !target(repackage)
@@ -1802,9 +1812,7 @@ pre-repackage:
 
 .if !target(package-noinstall)
 package-noinstall:
-.if !defined(NO_WRKDIR)
 	@${MKDIR} ${WRKDIR}
-.endif
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} PACKAGE_NOINSTALL=yes real-package
 	@${RM} ${TMPPLIST}
 	-@${RMDIR} ${WRKDIR}
@@ -1961,16 +1969,35 @@ clean-depends:
 .endif
 .endif
 
-.if !target(depends-list)
-depends-list:
+# Dependency lists: build and runtime.  Print out directory names.
+
+build-depends-list:
 	@for dir in `${ECHO} "${FETCH_DEPENDS} ${BUILD_DEPENDS} ${LIB_DEPENDS}" | ${TR} '\040' '\012' | ${SED} -e 's/^[^:]*://' -e 's/:.*//' | sort -u` `${ECHO} ${DEPENDS} | ${TR} '\040' '\012' | ${SED} -e 's/:.*//' | sort -u`; do \
 		if [ -d $$dir ]; then \
-			(cd $$dir ; ${MAKE} package-name depends-list); \
+			${ECHO} $$dir; \
+		else \
+			${ECHO_MSG} "${PKGNAME}: \"$$dir\" non-existent -- dependency list incomplete" >&2; \
+		fi; \
+	done | sort -u
+
+run-depends-list:
+	@for dir in `${ECHO} "${LIB_DEPENDS} ${RUN_DEPENDS}" | ${TR} '\040' '\012' | ${SED} -e 's/^[^:]*://' -e 's/:.*//' | sort -u` `${ECHO} ${DEPENDS} | ${TR} '\040' '\012' | ${SED} -e 's/:.*//' | sort -u`; do \
+		if [ -d $$dir ]; then \
+			${ECHO} $$dir; \
+		else \
+			${ECHO_MSG} "${PKGNAME}: \"$$dir\" non-existent -- dependency list incomplete" >&2; \
+		fi; \
+	done | sort -u
+
+# This one does not print out directory names -- it could take a long time.
+package-depends:
+	@for dir in `${ECHO} "${LIB_DEPENDS} ${RUN_DEPENDS}" | ${TR} '\040' '\012' | ${SED} -e 's/^[^:]*://' -e 's/:.*//' | sort -u` `${ECHO} ${DEPENDS} | ${TR} '\040' '\012' | ${SED} -e 's/:.*//' | sort -u`; do \
+		if [ -d $$dir ]; then \
+			(cd $$dir ; ${MAKE} package-name package-depends); \
 		else \
 			${ECHO_MSG} "${PKGNAME}: \"$$dir\" non-existent -- dependency list incomplete" >&2; \
 		fi; \
 	done
-.endif
 
 ################################################################
 # Everything after here are internal targets and really
@@ -2000,12 +2027,12 @@ describe:
 	${ECHO} -n "|${MAINTAINER}|${CATEGORIES}|"; \
 	case "A${FETCH_DEPENDS}B${BUILD_DEPENDS}C${LIB_DEPENDS}D${DEPENDS}E" in \
 		ABCDE) ;; \
-		*) cd ${.CURDIR} && ${ECHO} -n `${MAKE} depends-list|sort -u`;; \
+		*) cd ${.CURDIR} && ${ECHO} -n `${MAKE} build-depends-list|sort -u`;; \
 	esac; \
 	${ECHO} -n "|"; \
 	case "A${RUN_DEPENDS}B${LIB_DEPENDS}C${DEPENDS}D" in \
 		ABCD) ;; \
-		*) cd ${.CURDIR} && ${ECHO} -n `${MAKE} package-depends|sort -u`;; \
+		*) cd ${.CURDIR} && ${ECHO} -n `${MAKE} run-depends-list|sort -u`;; \
 	esac; \
 	${ECHO} ""
 .endif
@@ -2027,25 +2054,27 @@ README.html:
 			-e 's%%PKG%%${PKGNAME}g' \
 			-e '/%%COMMENT%%/r${PKGDIR}/COMMENT' \
 			-e '/%%COMMENT%%/d' \
-			-e 's%%BUILD_DEPENDS%%'"`${MAKE} print-depends-list`"'' \
-			-e 's%%RUN_DEPENDS%%'"`${MAKE} print-package-depends`"'' \
+			-e 's%%BUILD_DEPENDS%%'"`${MAKE} pretty-print-build-depends-list`"'' \
+			-e 's%%RUN_DEPENDS%%'"`${MAKE} pretty-print-run-depends-list`"'' \
 		>> $@
 
-.if !target(print-depends-list)
-print-depends-list:
+# The following two targets require an up-to-date INDEX in ${PORTSDIR}
+
+.if !target(pretty-print-build-depends-list)
+pretty-print-build-depends-list:
 .if defined(FETCH_DEPENDS) || defined(BUILD_DEPENDS) || \
 	defined(LIB_DEPENDS) || defined(DEPENDS)
 	@${ECHO} -n 'This port requires package(s) "'
-	@${ECHO} -n `${MAKE} depends-list | sort -u`
+	@${ECHO} -n `grep '^${PKGNAME}|' ${PORTSDIR}/INDEX | awk -F\| '{print $$8;}'`
 	@${ECHO} '" to build.'
 .endif
 .endif
 
-.if !target(print-package-depends)
-print-package-depends:
+.if !target(pretty-print-run-depends-list)
+pretty-print-run-depends-list:
 .if defined(RUN_DEPENDS) || defined(LIB_DEPENDS) || defined(DEPENDS)
 	@${ECHO} -n 'This port requires package(s) "'
-	@${ECHO} -n `${MAKE} package-depends | sort -u`
+	@${ECHO} -n `grep '^${PKGNAME}|' ${PORTSDIR}/INDEX | awk -F\| '{print $$9;}'`
 	@${ECHO} '" to run.'
 .endif
 .endif
@@ -2134,17 +2163,17 @@ fake-pkg:
 		${PKG_CMD} ${PKG_ARGS} -O ${PKGFILE} > ${PKG_DBDIR}/${PKGNAME}/+CONTENTS; \
 		${CP} ${DESCR} ${PKG_DBDIR}/${PKGNAME}/+DESC; \
 		${CP} ${COMMENT} ${PKG_DBDIR}/${PKGNAME}/+COMMENT; \
-		if [ -f ${PKGDIR}/INSTALL ]; then \
-			${CP} ${PKGDIR}/INSTALL ${PKG_DBDIR}/${PKGNAME}/+INSTALL; \
+		if [ -f ${PKGINSTALL} ]; then \
+			${CP} ${PKGINSTALL} ${PKG_DBDIR}/${PKGNAME}/+INSTALL; \
 		fi; \
-		if [ -f ${PKGDIR}/DEINSTALL ]; then \
-			${CP} ${PKGDIR}/DEINSTALL ${PKG_DBDIR}/${PKGNAME}/+DEINSTALL; \
+		if [ -f ${PKGDEINSTALL} ]; then \
+			${CP} ${PKGDEINSTALL} ${PKG_DBDIR}/${PKGNAME}/+DEINSTALL; \
 		fi; \
-		if [ -f ${PKGDIR}/REQ ]; then \
-			${CP} ${PKGDIR}/REQ ${PKG_DBDIR}/${PKGNAME}/+REQUIRE; \
+		if [ -f ${PKGREQ} ]; then \
+			${CP} ${PKGREQ} ${PKG_DBDIR}/${PKGNAME}/+REQUIRE; \
 		fi; \
-		if [ -f ${PKGDIR}/MESSAGE ]; then \
-			${CP} ${PKGDIR}/MESSAGE ${PKG_DBDIR}/${PKGNAME}/+DISPLAY; \
+		if [ -f ${PKGMESSAGE} ]; then \
+			${CP} ${PKGMESSAGE} ${PKG_DBDIR}/${PKGNAME}/+DISPLAY; \
 		fi; \
 		for dep in `${MAKE} package-depends ECHO_MSG=/usr/bin/true | sort -u`; do \
 			if [ -d ${PKG_DBDIR}/$$dep ]; then \
