@@ -57,7 +57,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: load_store.c,v 1.8 1997/02/22 09:29:10 peter Exp $
+ *    $Id: load_store.c,v 1.9 1997/06/14 15:11:04 bde Exp $
  *
  */
 
@@ -128,7 +128,8 @@ load_store_instr(char type)
 		}
 		break;
 	case _null_:
-		return Un_impl();
+		Un_impl();
+		return;
 #ifdef PARANOID
 	default:
 		return EXCEPTION(EX_INTERNAL);
