@@ -39,6 +39,7 @@
  */
 
 #include <sys/types.h>	/* for off_t */
+#include <pthread.h>
 
 /*
  * Information local to this implementation of stdio,
@@ -66,6 +67,15 @@ extern int	__ungetc __P((int, FILE *));
 extern int	__vfprintf __P((FILE *, const char *, _BSD_VA_LIST_));
 
 extern int	__sdidinit;
+
+
+/* hold a buncha junk that would grow the ABI */
+struct __sFILEX {
+	unsigned char	*_up;	/* saved _p when _p is doing ungetc data */
+	pthread_mutex_t	fl_mutex;	/* used for MT-safety */
+	pthread_t	fl_owner;	/* current owner */
+	int		fl_count;	/* recursive lock count */
+};
 
 /*
  * Return true iff the given FILE cannot be written now.
