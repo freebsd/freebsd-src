@@ -5,6 +5,7 @@
  * SOL - Solaris style elf
  */
 
+#ifndef PIC
 #define TYPE(a,b)       .type   a,b
 #define SIZE(a,b)       .size   a,b
 
@@ -2014,3 +2015,4 @@ ripemd160_block_x86:
 .ripemd160_block_x86_end:
 	SIZE(ripemd160_block_x86,.ripemd160_block_x86_end-ripemd160_block_x86)
 .ident	"desasm.pl"
+#endif /* not PIC */
