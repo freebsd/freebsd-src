@@ -127,7 +127,7 @@ main(int argc, char *argv[])
 	}		np;
 	uid_t		ruid;
 	int		asme, ch, asthem, fastlogin, prio, i, setwhat, retcode,
-			statusp, child_pid, child_pgrp, ret_pid;
+			statusp, child_pid, child_pgrp, ret_pid, setmaclabel;
 	char		*username, *cleanenv, *class, shellbuf[MAXPATHLEN];
 	const char	*p, *user, *shell, *mytty, **nargv;
 
@@ -137,8 +137,9 @@ main(int argc, char *argv[])
 	asme = asthem = fastlogin = statusp = 0;
 	user = "root";
 	iscsh = UNSET;
+	setmaclabel = 0;
 
-	while ((ch = getopt(argc, argv, "-flmc:")) != -1)
+	while ((ch = getopt(argc, argv, "-flmsc:")) != -1)
 		switch ((char)ch) {
 		case 'f':
 			fastlogin = 1;
@@ -151,6 +152,9 @@ main(int argc, char *argv[])
 		case 'm':
 			asme = 1;
 			asthem = 0;
+			break;
+		case 's':
+			setmaclabel = 1;
 			break;
 		case 'c':
 			class = optarg;
@@ -359,7 +363,13 @@ main(int argc, char *argv[])
 		 * Umask Login records (wtmp, etc) Path
 		 */
 		setwhat = LOGIN_SETALL & ~(LOGIN_SETENV | LOGIN_SETUMASK |
-			   LOGIN_SETLOGIN | LOGIN_SETPATH | LOGIN_SETGROUP);
+			   LOGIN_SETLOGIN | LOGIN_SETPATH | LOGIN_SETGROUP |
+			   LOGIN_SETMAC);
+		/*
+		 * If -s is present, also set the MAC label.
+		 */
+		if (setmaclabel)
+			setwhat |= LOGIN_SETMAC;
 		/*
 		 * Don't touch resource/priority settings if -m has been used
 		 * or -l and -c hasn't, and we're not su'ing to root.
@@ -462,7 +472,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: su [-] [-flm] [-c class] [login [args]]\n");
+	fprintf(stderr, "usage: su [-] [-flms] [-c class] [login [args]]\n");
 	exit(1);
 }
 

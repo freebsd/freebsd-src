@@ -41,7 +41,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl
-.Op Fl flm
+.Op Fl flms
 .Op Fl c Ar class
 .Op Ar login Op Ar args
 .Sh DESCRIPTION
@@ -120,6 +120,14 @@ shell (as defined by
 .Xr getusershell 3 )
 and the caller's real uid is
 non-zero,
+.Nm
+will fail.
+.It Fl s
+Set the MAC label to the user's default label as part of the user
+credential setup.
+Setting the MAC label may fail if the MAC label of the invoking process
+isn't sufficient to transition to the user's default MAC label.
+If the label cannot be set,
 .Nm
 will fail.
 .It Fl c Ar class
