@@ -109,6 +109,7 @@ int	kse_exit(void);
 int	kse_release(struct timespec *);
 int	kse_thr_interrupt(struct kse_thr_mailbox *, int, long);
 int	kse_wakeup(struct kse_mailbox *);
+int	kse_switchin(mcontext_t *, long, long *);
 #endif	/* !_KERNEL */
 
 #endif	/* !_SYS_KSE_H_ */
