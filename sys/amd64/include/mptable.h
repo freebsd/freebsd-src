@@ -26,6 +26,7 @@
  */
 
 #include "opt_cpu.h"
+#include "opt_htt.h"
 #include "opt_kstack_pages.h"
 
 #ifdef SMP
@@ -237,8 +238,10 @@ typedef struct BASETABLE_ENTRY {
 
 #define MP_ANNOUNCE_POST	0x19
 
+#ifdef HTT
 static int need_hyperthreading_fixup;
 static u_int logical_cpus;
+#endif
 
 /* used to hold the AP's until we are ready to release them */
 static struct mtx ap_boot_mtx;
@@ -315,7 +318,9 @@ static mpfps_t	mpfps;
 static int	search_for_sig(u_int32_t target, int count);
 static void	mp_enable(u_int boot_addr);
 
+#ifdef HTT
 static void	mptable_hyperthread_fixup(u_int id_mask);
+#endif
 static void	mptable_pass1(void);
 static int	mptable_pass2(void);
 static void	default_mp_table(int type);
@@ -786,7 +791,9 @@ mptable_pass1(void)
 	void*	position;
 	int	count;
 	int	type;
+#ifdef HTT
 	u_int	id_mask;
+#endif
 
 	POSTCODE(MPTABLE_PASS1_POST);
 
@@ -800,7 +807,9 @@ mptable_pass1(void)
 	mp_nbusses = 0;
 	mp_napics = 0;
 	nintrs = 0;
+#ifdef HTT
 	id_mask = 0;
+#endif
 
 	/* check for use of 'default' configuration */
 	if (MPFPS_MPFB1 != 0) {
@@ -835,8 +844,10 @@ mptable_pass1(void)
 				    & PROCENTRY_FLAG_EN) {
 					++mp_naps;
 					mp_maxid++;
+#ifdef HTT
 					id_mask |= 1 <<
 					    ((proc_entry_ptr)position)->apic_id;
+#endif
 				}
 				break;
 			case 1: /* bus_entry */
@@ -871,8 +882,10 @@ mptable_pass1(void)
 		mp_naps = MAXCPU;
 	}
 
+#ifdef HTT
 	/* See if we need to fixup HT logical CPUs. */
 	mptable_hyperthread_fixup(id_mask);
+#endif
 	
 	/*
 	 * Count the BSP.
@@ -898,7 +911,9 @@ mptable_pass1(void)
 static int
 mptable_pass2(void)
 {
+#ifdef HTT
 	struct PROCENTRY proc;
+#endif
 	int     x;
 	mpcth_t cth;
 	int     totalSize;
@@ -911,10 +926,12 @@ mptable_pass2(void)
 
 	POSTCODE(MPTABLE_PASS2_POST);
 
+#ifdef HTT
 	/* Initialize fake proc entry for use with HT fixup. */
 	bzero(&proc, sizeof(proc));
 	proc.type = 0;
 	proc.cpu_flags = PROCENTRY_FLAG_EN;
+#endif
 
 	pgeflag = 0;		/* XXX - Not used under SMP yet.  */
 
@@ -994,6 +1011,7 @@ mptable_pass2(void)
 			if (processor_entry(position, cpu))
 				++cpu;
 
+#ifdef HTT
 			if (need_hyperthreading_fixup) {
 				/*
 				 * Create fake mptable processor entries
@@ -1007,6 +1025,7 @@ mptable_pass2(void)
 					cpu++;
 				}
 			}
+#endif
 			break;
 		case 1:
 			if (bus_entry(position, bus))
@@ -1039,6 +1058,7 @@ mptable_pass2(void)
 	return 0;
 }
 
+#ifdef HTT
 /*
  * Check if we should perform a hyperthreading "fix-up" to
  * enumerate any logical CPU's that aren't already listed
@@ -1088,6 +1108,7 @@ mptable_hyperthread_fixup(u_int id_mask)
 	mp_maxid *= logical_cpus;
 	mp_naps *= logical_cpus;
 }
+#endif
 
 void
 assign_apic_irq(int apic, int intpin, int irq)
