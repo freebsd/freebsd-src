@@ -420,6 +420,8 @@ sub short_locale_name {
 
   $lname =~ s|_[A-Z][A-Z]||;
   warn "short locale name is $lname\n" if $verbose && $locale;
+
+  return $lname;
 }
 
 #############
