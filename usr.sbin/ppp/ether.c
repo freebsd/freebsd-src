@@ -443,7 +443,7 @@ ether_Create(struct physical *p)
   struct ng_mesg *resp;
   const struct hooklist *hlist;
   const struct nodeinfo *ninfo;
-  char *path, *sessionid;
+  char *path, *sessionid, *mode;
   int ifacelen, f;
 
   dev = NULL;
@@ -621,6 +621,19 @@ ether_Create(struct physical *p)
       log_Printf(LogWARN, "%s: Failed to set the IFF_UP flag on %s\n",
                  p->link.name, path);
 
+    snprintf(connectpath, sizeof connectpath, ".:%s", dev->hook);
+
+    /* Configure node to 3Com mode if needed */
+    if (p->cfg.pppoe_configured) {
+      mode = p->cfg.nonstandard_pppoe ? NG_PPPOE_NONSTANDARD : NG_PPPOE_STANDARD;
+      if (NgSendMsg(dev->cs, connectpath, NGM_PPPOE_COOKIE,
+		NGM_PPPOE_SETMODE, mode, strlen(mode) + 1) == -1) {
+        log_Printf(LogWARN, "``%s'': Cannot configure netgraph node: %s\n",
+                 connectpath, strerror(errno));
+        return ether_Abandon(dev, p);
+      }
+    }
+
     /* And finally, request a connection to the given provider */
 
     data = (struct ngpppoe_init_data *)alloca(sizeof *data + providerlen);
@@ -628,7 +641,6 @@ ether_Create(struct physical *p)
     memcpy(data->data, provider, providerlen);
     data->data_len = providerlen;
 
-    snprintf(connectpath, sizeof connectpath, ".:%s", dev->hook);
     log_Printf(LogDEBUG, "Sending PPPOE_CONNECT to %s\n", connectpath);
     if (NgSendMsg(dev->cs, connectpath, NGM_PPPOE_COOKIE,
                   NGM_PPPOE_CONNECT, data, sizeof *data + providerlen) == -1) {

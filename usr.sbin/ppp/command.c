@@ -143,6 +143,7 @@
 #define	VAR_MPPE	36
 #define	VAR_IPV6CPRETRY	37
 #define	VAR_RAD_ALIVE	38
+#define	VAR_PPPOE	39
 
 /* ``accept|deny|disable|enable'' masks */
 #define NEG_HISMASK (1)
@@ -2294,6 +2295,18 @@ SetVariable(struct cmdargs const *arg)
         }
     }
     break;
+
+  case VAR_PPPOE:
+    if (strcasecmp(argp, "3Com") == 0)
+      physical_SetPPPoEnonstandard(arg->cx->physical, 1);
+    else if (strcasecmp(argp, "standard") == 0)
+      physical_SetPPPoEnonstandard(arg->cx->physical, 0);
+    else {
+      log_Printf(LogWARN, "PPPoE standard value must be \"standard\" or \"3Com\"\n");
+      res = 1;
+    }
+    break;
+
   }
 
   return res;
@@ -2422,6 +2435,9 @@ static struct cmdtab const SetCommands[] = {
   "vj values", "set vj slots|slotcomp [value]"},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
   "Display this message", "set help|? [command]", SetCommands},
+  {"pppoe", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
+   "Connect using standard/3Com mode", "set pppoe [standard|3Com]",
+   (const char *)VAR_PPPOE},
   {NULL, NULL, NULL},
 };
 

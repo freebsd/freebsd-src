@@ -27,7 +27,7 @@ changecom(,)dnl
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 20, 1995
+.Dd July 20, 2004
 .Dt PPP 8
 .Os
 .Sh NAME
@@ -5256,6 +5256,11 @@ below.
 In
 .Fl background
 mode, each number is attempted at most once.
+.It set pppoe Op standard|3Com
+This option configures the underlying
+.Xr ng_pppoe 4
+node to either standard RFC2516 PPPoE or proprietary 3Com mode.
+If not set the system default will be used.
 .It set Op proc Ns Xo
 .No title Op Ar value
 .Xc
