@@ -840,7 +840,8 @@ ata_intel_new_setmode(struct ata_device *atadev, int mode)
 
     mode = ata_limit_mode(atadev, mode, ctlr->chip->max_dma);
 
-    if (ctlr->chip->max_dma && mode > ATA_UDMA2 && !(reg54 & (0x10 << devno))) {
+    if (ctlr->chip->max_dma < ATA_SA150 && mode > ATA_UDMA2 &&
+	!(reg54 & (0x10 << devno))) {
 	ata_prtdev(atadev,"DMA limited to UDMA33, non-ATA66 cable or device\n");
 	mode = ATA_UDMA2;
     }
