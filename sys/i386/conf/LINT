@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.32 1997/11/09 07:12:14 yokota Exp $
+#	$Id: LINT,v 1.286.2.33 1997/11/10 12:25:10 yokota Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -333,6 +333,21 @@ pseudo-device	tun	1		#Tunnel driver(user process ppp)
 # logged packets to the system logger.  IPFIREWALL_VERBOSE_LIMIT
 # limits the number of times a matching entry can be logged.
 #
+# WARNING:  IPFIREWALL defaults to a policy of "deny ip from any to any"
+# and if you do not add other rules during startup to allow access,
+# YOU WILL LOCK YOURSELF OUT.  It is suggested that you set firewall=open
+# in /etc/rc.conf when first enabling this feature, then refining the
+# firewall rules in /etc/rc.firewall after you've tested that the new kernel
+# feature works properly.
+#
+# IPFIREWALL_DEFAULT_TO_ACCEPT causes the default rule (at boot) to
+# allow everything.  Use with care, if a cracker can crash your
+# firewall machine, they can get to your protected machines.  However,
+# if you are using it as an as-needed filter for specific problems as
+# they arise, then this may be for you.  Changing the default to 'allow'
+# means that you won't get stuck if the kernel and /sbin/ipfw binary get
+# out of sync.
+#
 # IPDIVERT enables the divert IP sockets, used by ``ipfw divert''
 #
 # TCPDEBUG is undocumented.
@@ -343,6 +358,7 @@ options         IPFIREWALL              #firewall
 options         IPFIREWALL_VERBOSE      #print information about
 					# dropped packets
 options		"IPFIREWALL_VERBOSE_LIMIT=100" #limit verbosity
+options		IPFIREWALL_DEFAULT_TO_ACCEPT #allow everything by default
 options		IPDIVERT		#divert sockets
 options		TCPDEBUG
 
