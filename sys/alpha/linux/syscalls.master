@@ -270,19 +270,27 @@
 197	UNIMPL	LINUX
 198	UNIMPL	LINUX
 199	UNIMPL	LINUX
-200	UNIMPL	LINUX	msgctl
-201	UNIMPL	LINUX	msgget
-202	UNIMPL	LINUX	msgrcv
-203	UNIMPL	LINUX	msgsnd
-204	UNIMPL	LINUX	semctl
-205	UNIMPL	LINUX	semget
-206	UNIMPL	LINUX	semop
+200	STD	LINUX	{ int linux_msgctl(int arg1, int arg2, \
+			    caddr_t ptr); }
+201	STD	LINUX	{ int linux_msgget(int arg1, int arg2); }
+202	STD	LINUX	{ int linux_msgrcv(int arg1, caddr_t ptr, \
+			    size_t arg2, long arg3, int arg4); }
+203	STD	LINUX	{ int linux_msgsnd(int arg1, caddr_t ptr, \
+			    size_t arg2, long arg3, int arg4); }
+204	STD	LINUX	{ int linux_semctl(int arg1, int arg2,	\
+			    int arg3, caddr_t ptr); }
+205	STD	LINUX	{ int linux_semget(int arg1, int arg2, int arg3); }
+206	STD	LINUX	{ int linux_semop(int arg1, caddr_t ptr, \
+			    int arg2); }
 207	UNIMPL	LINUX	
 208	STD	LINUX	{ int linux_lchown(char *path, int uid, int gid); }
-209	UNIMPL	LINUX	shmat
-210	UNIMPL	LINUX	shmctl
-211	UNIMPL	LINUX	shmdt
-212	UNIMPL	LINUX	shmget
+209	STD	LINUX	{ int linux_shmat(int arg1, caddr_t ptr, \
+			    int arg2, caddr_t arg3); }
+210	STD	LINUX	{ int linux_shmctl(int arg1, int arg2, \
+			    caddr_t ptr); }
+211	STD	LINUX	{ int linux_shmdt(caddr_t ptr); }
+212	STD	LINUX	{ int linux_shmget(int arg1, size_t arg2, \
+			    int arg3); }
 213	UNIMPL	LINUX
 214	UNIMPL	LINUX
 215	UNIMPL	LINUX

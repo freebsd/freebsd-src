@@ -5,7 +5,7 @@
 MAINTAINER=	marcel@FreeBSD.org
 
 KMOD=	linux
-SRCS=	linux_file.c linux_ioctl.c linux_machdep.c linux_misc.c \
+SRCS=	linux_file.c linux_ioctl.c linux_ipc.c linux_machdep.c linux_misc.c \
 	linux_signal.c linux_socket.c linux_stats.c linux_mib.c \
 	linux_dummy.c linux_sysvec.c linux_util.c \
 	opt_compat.h opt_linux.h opt_vmpage.h vnode_if.h
@@ -13,7 +13,7 @@ OBJS=	linux_locore.o
 MAN8=	linux.8
 
 .if ${MACHINE_ARCH} != "alpha"
-SRCS+=  imgact_linux.c linux_ipc.c
+SRCS+=  imgact_linux.c
 .endif
 
 # CFLAGS+=	-DDEBUG
