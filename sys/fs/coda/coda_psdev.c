@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/cfs/cfs_psdev.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: $
+ *  $Id: cfs_psdev.c,v 1.2 1998/09/02 19:09:53 rvb Exp $
  * 
  */
 
@@ -53,6 +53,9 @@
 /*
  * HISTORY
  * $Log: cfs_psdev.c,v $
+ * Revision 1.2  1998/09/02 19:09:53  rvb
+ * Pass2 complete
+ *
  * Revision 1.1.1.1  1998/08/29 21:14:52  rvb
  * Very Preliminary Coda
  *
@@ -78,7 +81,7 @@
  * sync 1.2 and 1.3
  * 
  * Revision 1.5.2.6  98/01/22  13:11:24  rvb
- * Move makecfsnode ctlfid later so vfsp is known; work on ^c and ^z
+ * Move make_coda_node ctlfid later so vfsp is known; work on ^c and ^z
  * 
  * Revision 1.5.2.5  97/12/16  22:01:27  rvb
  * Oops add cfs_subr.h cfs_venus.h; sync with peter
@@ -87,7 +90,7 @@
  * Sync with 1.3
  * 
  * Revision 1.5.2.3  97/12/10  14:08:24  rvb
- * Fix O_ flags; check result in cfscall
+ * Fix O_ flags; check result in coda_call
  * 
  * Revision 1.5.2.2  97/12/10  11:40:24  rvb
  * No more ody
@@ -140,7 +143,7 @@
  * Added support for Coda MiniCache and raw inode calls (final commit)
  *
  * Revision 1.1.2.1  1995/12/20 01:57:24  bnoble
- * Added CFS-specific files
+ * Added CODA-specific files
  *
  * Revision 1.1  1995/03/14  20:52:15  bnoble
  * Initial revision
@@ -149,9 +152,9 @@
 
 /* These routines are the device entry points for Venus. */
 
-extern int cfsnc_initialized;    /* Set if cache has been initialized */
+extern int coda_nc_initialized;    /* Set if cache has been initialized */
 
-#include <vcfs.h>
+#include <vcoda.h>
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -171,11 +174,11 @@ extern int cfsnc_initialized;    /* Set if cache has been initialized */
 
 #define CTL_C
 
-int cfs_psdev_print_entry = 0;
+int coda_psdev_print_entry = 0;
 
-#define ENTRY if(cfs_psdev_print_entry) myprintf(("Entered %s\n",__FUNCTION__))
+#define ENTRY if(coda_psdev_print_entry) myprintf(("Entered %s\n",__FUNCTION__))
 
-void vcfsattach(int n);
+void vcodaattach(int n);
 int vc_nb_open(dev_t dev, int flag, int mode, struct proc *p);
 int vc_nb_close (dev_t dev, int flag, int mode, struct proc *p);
 int vc_nb_read(dev_t dev, struct uio *uiop, int flag);
@@ -198,9 +201,9 @@ struct vmsg {
 #define	VM_WRITE    2
 #define	VM_INTR	    4
 
-/* vcfsattach: do nothing */
+/* vcodaattach: do nothing */
 void
-vcfsattach(n)
+vcodaattach(n)
     int n;
 {
 }
@@ -216,13 +219,13 @@ vc_nb_open(dev, flag, mode, p)
     
     ENTRY;
 
-    if (minor(dev) >= NVCFS || minor(dev) < 0)
+    if (minor(dev) >= NVCODA || minor(dev) < 0)
 	return(ENXIO);
     
-    if (!cfsnc_initialized)
-	cfsnc_init();
+    if (!coda_nc_initialized)
+	coda_nc_init();
     
-    vcp = &cfs_mnttbl[minor(dev)].mi_vcomm;
+    vcp = &coda_mnttbl[minor(dev)].mi_vcomm;
     if (VC_OPEN(vcp))
 	return(EBUSY);
     
@@ -231,8 +234,8 @@ vc_nb_open(dev, flag, mode, p)
     INIT_QUEUE(vcp->vc_replys);
     MARK_VC_OPEN(vcp);
     
-    cfs_mnttbl[minor(dev)].mi_vfsp = NULL;
-    cfs_mnttbl[minor(dev)].mi_rootvp = NULL;
+    coda_mnttbl[minor(dev)].mi_vfsp = NULL;
+    coda_mnttbl[minor(dev)].mi_rootvp = NULL;
 
     return(0);
 }
@@ -246,15 +249,15 @@ vc_nb_close (dev, flag, mode, p)
 {
     register struct vcomm *vcp;
     register struct vmsg *vmp;
-    struct cfs_mntinfo *mi;
+    struct coda_mntinfo *mi;
     int                 err;
 	
     ENTRY;
 
-    if (minor(dev) >= NVCFS || minor(dev) < 0)
+    if (minor(dev) >= NVCODA || minor(dev) < 0)
 	return(ENXIO);
 
-    mi = &cfs_mnttbl[minor(dev)];
+    mi = &coda_mnttbl[minor(dev)];
     vcp = &(mi->mi_vcomm);
     
     if (!VC_OPEN(vcp))
@@ -269,7 +272,7 @@ vc_nb_close (dev, flag, mode, p)
     if (mi->mi_rootvp) {
 	/* Let unmount know this is for real */
 	VTOC(mi->mi_rootvp)->c_flags |= C_UNMOUNTING;
-	cfs_unmounting(mi->mi_vfsp);
+	coda_unmounting(mi->mi_vfsp);
 	err = dounmount(mi->mi_vfsp, flag, p);
 	if (err)
 	    myprintf(("Error %d unmounting vfs in vcclose(%d)\n", 
@@ -283,9 +286,9 @@ vc_nb_close (dev, flag, mode, p)
     {	    
 	/* Free signal request messages and don't wakeup cause
 	   no one is waiting. */
-	if (vmp->vm_opcode == CFS_SIGNAL) {
-	    CFS_FREE((caddr_t)vmp->vm_data, (u_int)VC_IN_NO_DATA);
-	    CFS_FREE((caddr_t)vmp, (u_int)sizeof(struct vmsg));
+	if (vmp->vm_opcode == CODA_SIGNAL) {
+	    CODA_FREE((caddr_t)vmp->vm_data, (u_int)VC_IN_NO_DATA);
+	    CODA_FREE((caddr_t)vmp, (u_int)sizeof(struct vmsg));
 	    continue;
 	}
 	
@@ -315,10 +318,10 @@ vc_nb_read(dev, uiop, flag)
     
     ENTRY;
 
-    if (minor(dev) >= NVCFS || minor(dev) < 0)
+    if (minor(dev) >= NVCODA || minor(dev) < 0)
 	return(ENXIO);
     
-    vcp = &cfs_mnttbl[minor(dev)].mi_vcomm;
+    vcp = &coda_mnttbl[minor(dev)].mi_vcomm;
     /* Get message at head of request queue. */
     if (EMPTY(vcp->vc_requests))
 	return(0);	/* Nothing to read */
@@ -342,12 +345,12 @@ vc_nb_read(dev, uiop, flag)
     
     /* If request was a signal, free up the message and don't
        enqueue it in the reply queue. */
-    if (vmp->vm_opcode == CFS_SIGNAL) {
-	if (cfsdebug)
+    if (vmp->vm_opcode == CODA_SIGNAL) {
+	if (codadebug)
 	    myprintf(("vcread: signal msg (%d, %d)\n", 
 		      vmp->vm_opcode, vmp->vm_unique));
-	CFS_FREE((caddr_t)vmp->vm_data, (u_int)VC_IN_NO_DATA);
-	CFS_FREE((caddr_t)vmp, (u_int)sizeof(struct vmsg));
+	CODA_FREE((caddr_t)vmp->vm_data, (u_int)VC_IN_NO_DATA);
+	CODA_FREE((caddr_t)vmp, (u_int)sizeof(struct vmsg));
 	return(error);
     }
     
@@ -365,7 +368,7 @@ vc_nb_write(dev, uiop, flag)
 {
     register struct vcomm *	vcp;
     register struct vmsg *vmp;
-    struct cfs_out_hdr *out;
+    struct coda_out_hdr *out;
     u_long seq;
     u_long opcode;
     int buf[2];
@@ -373,10 +376,10 @@ vc_nb_write(dev, uiop, flag)
 
     ENTRY;
 
-    if (minor(dev) >= NVCFS || minor(dev) < 0)
+    if (minor(dev) >= NVCODA || minor(dev) < 0)
 	return(ENXIO);
     
-    vcp = &cfs_mnttbl[minor(dev)].mi_vcomm;
+    vcp = &coda_mnttbl[minor(dev)].mi_vcomm;
     
     /* Peek at the opcode, unique without transfering the data. */
     uiop->uio_rw = UIO_WRITE;
@@ -389,7 +392,7 @@ vc_nb_write(dev, uiop, flag)
     opcode = buf[0];
     seq = buf[1];
 	
-    if (cfsdebug)
+    if (codadebug)
 	myprintf(("vcwrite got a call for %ld.%ld\n", opcode, seq));
     
     if (DOWNCALL(opcode)) {
@@ -397,7 +400,7 @@ vc_nb_write(dev, uiop, flag)
 	
 	/* get the rest of the data. */
 	uiop->uio_rw = UIO_WRITE;
-	error = uiomove((caddr_t)&pbuf.cfs_purgeuser.oh.result, sizeof(pbuf) - (sizeof(int)*2), uiop);
+	error = uiomove((caddr_t)&pbuf.coda_purgeuser.oh.result, sizeof(pbuf) - (sizeof(int)*2), uiop);
 	if (error) {
 	    myprintf(("vcwrite: error (%d) on uiomove (Op %ld seq %ld)\n", 
 		      error, opcode, seq));
@@ -416,7 +419,7 @@ vc_nb_write(dev, uiop, flag)
     }
     
     if (EOQ(vmp, vcp->vc_replys)) {
-	if (cfsdebug)
+	if (codadebug)
 	    myprintf(("vcwrite: msg (%ld, %ld) not found\n", opcode, seq));
 	
 	return(ESRCH);
@@ -426,7 +429,7 @@ vc_nb_write(dev, uiop, flag)
     REMQUE(vmp->vm_chain);
     
     /* move data into response buffer. */
-    out = (struct cfs_out_hdr *)vmp->vm_data;
+    out = (struct coda_out_hdr *)vmp->vm_data;
     /* Don't need to copy opcode and uniquifier. */
     
     /* get the rest of the data. */
@@ -468,22 +471,22 @@ vc_nb_ioctl(dev, cmd, addr, flag, p)
     ENTRY;
 
     switch(cmd) {
-    case CFSRESIZE: {
-	struct cfs_resize *data = (struct cfs_resize *)addr;
-	return(cfsnc_resize(data->hashsize, data->heapsize, IS_DOWNCALL));
+    case CODARESIZE: {
+	struct coda_resize *data = (struct coda_resize *)addr;
+	return(coda_nc_resize(data->hashsize, data->heapsize, IS_DOWNCALL));
 	break;
     }
-    case CFSSTATS:
-	if (cfsnc_use) {
-	    cfsnc_gather_stats();
+    case CODASTATS:
+	if (coda_nc_use) {
+	    coda_nc_gather_stats();
 	    return(0);
 	} else {
 	    return(ENODEV);
 	}
 	break;
-    case CFSPRINT:
-	if (cfsnc_use) {
-	    print_cfsnc();
+    case CODAPRINT:
+	if (coda_nc_use) {
+	    print_coda_nc();
 	    return(0);
 	} else {
 	    return(ENODEV);
@@ -506,10 +509,10 @@ vc_nb_poll(dev, events, p)
 
     ENTRY;
     
-    if (minor(dev) >= NVCFS || minor(dev) < 0)
+    if (minor(dev) >= NVCODA || minor(dev) < 0)
 	return(ENXIO);
     
-    vcp = &cfs_mnttbl[minor(dev)].mi_vcomm;
+    vcp = &coda_mnttbl[minor(dev)].mi_vcomm;
     
     event_msk = events & (POLLIN|POLLRDNORM);
     if (!event_msk)
@@ -526,7 +529,7 @@ vc_nb_poll(dev, events, p)
 /*
  * Statistics
  */
-struct cfs_clstat cfs_clstat;
+struct coda_clstat coda_clstat;
 
 /* 
  * Key question: whether to sleep interuptably or uninteruptably when
@@ -537,15 +540,15 @@ struct cfs_clstat cfs_clstat;
  * (e.g. kill -9).  
  */
 
-int cfscall_sleep = PZERO - 1;
+int coda_call_sleep = PZERO - 1;
 #ifdef	CTL_C
-int cfs_pcatch = PCATCH;
+int coda_pcatch = PCATCH;
 #else
 #endif
 
 int
-cfscall(mntinfo, inSize, outSize, buffer) 
-     struct cfs_mntinfo *mntinfo; int inSize; int *outSize; caddr_t buffer;
+coda_call(mntinfo, inSize, outSize, buffer) 
+     struct coda_mntinfo *mntinfo; int inSize; int *outSize; caddr_t buffer;
 {
 	struct vcomm *vcp;
 	struct vmsg *vmp;
@@ -562,27 +565,27 @@ cfscall(mntinfo, inSize, outSize, buffer)
 
 	vcp = &(mntinfo->mi_vcomm);
 	
-	cfs_clstat.ncalls++;
-	cfs_clstat.reqs[((struct cfs_in_hdr *)buffer)->opcode]++;
+	coda_clstat.ncalls++;
+	coda_clstat.reqs[((struct coda_in_hdr *)buffer)->opcode]++;
 
 	if (!VC_OPEN(vcp))
 	    return(ENODEV);
 
-	CFS_ALLOC(vmp,struct vmsg *,sizeof(struct vmsg));
+	CODA_ALLOC(vmp,struct vmsg *,sizeof(struct vmsg));
 	/* Format the request message. */
 	vmp->vm_data = buffer;
 	vmp->vm_flags = 0;
 	vmp->vm_inSize = inSize;
 	vmp->vm_outSize 
 	    = *outSize ? *outSize : inSize; /* |buffer| >= inSize */
-	vmp->vm_opcode = ((struct cfs_in_hdr *)buffer)->opcode;
+	vmp->vm_opcode = ((struct coda_in_hdr *)buffer)->opcode;
 	vmp->vm_unique = ++vcp->vc_seq;
-	if (cfsdebug)
+	if (codadebug)
 	    myprintf(("Doing a call for %d.%d\n", 
 		      vmp->vm_opcode, vmp->vm_unique));
 	
 	/* Fill in the common input args. */
-	((struct cfs_in_hdr *)buffer)->unique = vmp->vm_unique;
+	((struct coda_in_hdr *)buffer)->unique = vmp->vm_unique;
 
 	/* Append msg to request queue and poke Venus. */
 	INSQUE(vmp->vm_chain, vcp->vc_requests);
@@ -599,7 +602,7 @@ cfscall(mntinfo, inSize, outSize, buffer)
 
 	/* Ignore return, We have to check anyway */
 #ifdef	CTL_C
-	/* This is work in progress.  Setting cfs_pcatch lets tsleep reawaken
+	/* This is work in progress.  Setting coda_pcatch lets tsleep reawaken
 	   on a ^c or ^z.  The problem is that emacs sets certain interrupts
 	   as SA_RESTART.  This means that we should exit sleep handle the
 	   "signal" and then go to sleep again.  Mostly this is done by letting
@@ -608,29 +611,29 @@ cfscall(mntinfo, inSize, outSize, buffer)
 	 */
 	i = 0;
 	do {
-	    error = tsleep(&vmp->vm_sleep, (cfscall_sleep|cfs_pcatch), "cfscall", hz*2);
+	    error = tsleep(&vmp->vm_sleep, (coda_call_sleep|coda_pcatch), "coda_call", hz*2);
 	    if (error == 0)
 	    	break;
 	    else if (error == EWOULDBLOCK) {
-		    printf("cfscall: tsleep TIMEOUT %d sec\n", 2+2*i);
+		    printf("coda_call: tsleep TIMEOUT %d sec\n", 2+2*i);
     	    } else if (p->p_siglist == sigmask(SIGIO)) {
 		    p->p_sigmask |= p->p_siglist;
-		    printf("cfscall: tsleep returns %d SIGIO, cnt %d\n", error, i);
+		    printf("coda_call: tsleep returns %d SIGIO, cnt %d\n", error, i);
 	    } else {
-		    printf("cfscall: tsleep returns %d, cnt %d\n", error, i);
-		    printf("cfscall: siglist = %x, sigmask = %x, mask %x\n",
+		    printf("coda_call: tsleep returns %d, cnt %d\n", error, i);
+		    printf("coda_call: siglist = %x, sigmask = %x, mask %x\n",
 			    p->p_siglist, p->p_sigmask,
 			    p->p_siglist & ~p->p_sigmask);
 		    break;
 		    p->p_sigmask |= p->p_siglist;
-		    printf("cfscall: new mask, siglist = %x, sigmask = %x, mask %x\n",
+		    printf("coda_call: new mask, siglist = %x, sigmask = %x, mask %x\n",
 			    p->p_siglist, p->p_sigmask,
 			    p->p_siglist & ~p->p_sigmask);
 	    }
 	} while (error && i++ < 128);
 	p->p_sigmask = psig_omask;
 #else
-	(void) tsleep(&vmp->vm_sleep, cfscall_sleep, "cfscall", 0);
+	(void) tsleep(&vmp->vm_sleep, coda_call_sleep, "coda_call", 0);
 #endif
 	if (VC_OPEN(vcp)) {	/* Venus is still alive */
  	/* Op went through, interrupt or not... */
@@ -641,7 +644,7 @@ cfscall(mntinfo, inSize, outSize, buffer)
 
 	    else if (!(vmp->vm_flags & VM_READ)) { 
 		/* Interrupted before venus read it. */
-		if (cfsdebug||1)
+		if (codadebug||1)
 		    myprintf(("interrupted before read: op = %d.%d, flags = %x\n",
 			   vmp->vm_opcode, vmp->vm_unique, vmp->vm_flags));
 		REMQUE(vmp->vm_chain);
@@ -652,29 +655,29 @@ cfscall(mntinfo, inSize, outSize, buffer)
 		/* (!(vmp->vm_flags & VM_WRITE)) means interrupted after
                    upcall started */
 		/* Interrupted after start of upcall, send venus a signal */
-		struct cfs_in_hdr *dog;
+		struct coda_in_hdr *dog;
 		struct vmsg *svmp;
 		
-		if (cfsdebug||1)
+		if (codadebug||1)
 		    myprintf(("Sending Venus a signal: op = %d.%d, flags = %x\n",
 			   vmp->vm_opcode, vmp->vm_unique, vmp->vm_flags));
 		
 		REMQUE(vmp->vm_chain);
 		error = EINTR;
 		
-		CFS_ALLOC(svmp, struct vmsg *, sizeof (struct vmsg));
+		CODA_ALLOC(svmp, struct vmsg *, sizeof (struct vmsg));
 
-		CFS_ALLOC((svmp->vm_data), char *, sizeof (struct cfs_in_hdr));
-		dog = (struct cfs_in_hdr *)svmp->vm_data;
+		CODA_ALLOC((svmp->vm_data), char *, sizeof (struct coda_in_hdr));
+		dog = (struct coda_in_hdr *)svmp->vm_data;
 		
 		svmp->vm_flags = 0;
-		dog->opcode = svmp->vm_opcode = CFS_SIGNAL;
+		dog->opcode = svmp->vm_opcode = CODA_SIGNAL;
 		dog->unique = svmp->vm_unique = vmp->vm_unique;
-		svmp->vm_inSize = sizeof (struct cfs_in_hdr);
-/*??? rvb */	svmp->vm_outSize = sizeof (struct cfs_in_hdr);
+		svmp->vm_inSize = sizeof (struct coda_in_hdr);
+/*??? rvb */	svmp->vm_outSize = sizeof (struct coda_in_hdr);
 		
-		if (cfsdebug)
-		    myprintf(("cfscall: enqueing signal msg (%d, %d)\n",
+		if (codadebug)
+		    myprintf(("coda_call: enqueing signal msg (%d, %d)\n",
 			   svmp->vm_opcode, svmp->vm_unique));
 		
 		/* insert at head of queue! */
@@ -684,16 +687,16 @@ cfscall(mntinfo, inSize, outSize, buffer)
 	}
 
 	else {	/* If venus died (!VC_OPEN(vcp)) */
-	    if (cfsdebug)
+	    if (codadebug)
 		myprintf(("vcclose woke op %d.%d flags %d\n",
 		       vmp->vm_opcode, vmp->vm_unique, vmp->vm_flags));
 	    
 		error = ENODEV;
 	}
 
-	CFS_FREE(vmp, sizeof(struct vmsg));
+	CODA_FREE(vmp, sizeof(struct vmsg));
 
 	if (!error)
-		error = ((struct cfs_out_hdr *)buffer)->result;
+		error = ((struct coda_out_hdr *)buffer)->result;
 	return(error);
 }

@@ -1,4 +1,4 @@
-#	$Id: options,v 1.91 1998/08/26 12:13:39 sos Exp $
+#	$Id: options,v 1.94 1998/08/31 18:37:19 sos Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -87,7 +87,7 @@ UMAPFS		opt_dontuse.h
 # statically compiled into the kernel, code for mounting them as root
 # filesystems will be enabled - but look below.  Boot-code is purposely
 # unavailable for the LKM-based versions.
-CFS
+CODA
 CD9660
 FFS
 NFS

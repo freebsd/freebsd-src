@@ -26,8 +26,8 @@
  * improvements or extensions that  they  make,  and  to  grant  Carnegie
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
- * 	@(#) src/sys/cfs/cfs_vfsops.h,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $ 
- *  $Id: $
+ * 	@(#) src/sys/cfs/coda_vfsops.h,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $ 
+ *  $Id: coda_vfsops.h,v 1.2 1998/09/02 19:09:53 rvb Exp $
  * 
  */
 
@@ -45,19 +45,19 @@ struct cfid {
 
 struct mount;
 
-int cfs_vfsopstats_init(void);
-int cfs_mount(struct mount *, char *, caddr_t, struct nameidata *, 
+int coda_vfsopstats_init(void);
+int coda_mount(struct mount *, char *, caddr_t, struct nameidata *, 
 		       struct proc *);
-int cfs_start(struct mount *, int, struct proc *);
-int cfs_unmount(struct mount *, int, struct proc *);
-int cfs_root(struct mount *, struct vnode **);
-int cfs_quotactl(struct mount *, int, uid_t, caddr_t, struct proc *);
-int cfs_nb_statfs(struct mount *, struct statfs *, struct proc *);
-int cfs_sync(struct mount *, int, struct ucred *, struct proc *);
-int cfs_vget(struct mount *, ino_t, struct vnode **);
-int cfs_fhtovp(struct mount *, struct fid *, struct mbuf *, struct vnode **,
+int coda_start(struct mount *, int, struct proc *);
+int coda_unmount(struct mount *, int, struct proc *);
+int coda_root(struct mount *, struct vnode **);
+int coda_quotactl(struct mount *, int, uid_t, caddr_t, struct proc *);
+int coda_nb_statfs(struct mount *, struct statfs *, struct proc *);
+int coda_sync(struct mount *, int, struct ucred *, struct proc *);
+int coda_vget(struct mount *, ino_t, struct vnode **);
+int coda_fhtovp(struct mount *, struct fid *, struct mbuf *, struct vnode **,
 		       int *, struct ucred **);
-int cfs_vptofh(struct vnode *, struct fid *);
-int cfs_init(struct vfsconf *vfsp);
+int coda_vptofh(struct vnode *, struct fid *);
+int coda_init(struct vfsconf *vfsp);
 
 int getNewVnode(struct vnode **vpp);
