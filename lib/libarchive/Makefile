@@ -7,7 +7,7 @@
 
 
 LIB=	archive
-VERSION=	1.01.013
+VERSION=	1.01.015
 ARCHIVE_API_FEATURE=	2
 ARCHIVE_API_VERSION=	1
 SHLIB_MAJOR=	${ARCHIVE_API_VERSION}
@@ -146,6 +146,7 @@ MLINKS+=	archive_util.3 archive_errno.3
 MLINKS+=	archive_util.3 archive_error_string.3
 MLINKS+=	archive_util.3 archive_format.3
 MLINKS+=	archive_util.3 archive_format_name.3
+MLINKS+=	archive_util.3 archive_set_error.3
 MLINKS+=	archive_write.3 archive_write_data.3
 MLINKS+=	archive_write.3 archive_write_finish.3
 MLINKS+=	archive_write.3 archive_write_header.3
@@ -194,7 +195,7 @@ distfile:
 	mkdir ${DIST_WORK_DIR}
 	for f in ${DIST_FILES};					\
 	do							\
-		cat ${.CURDIR}/$$f >${DIST_WORK_DIR}/$$f;	\
+		cat ${.CURDIR}/$$f >${DIST_WORK_DIR}/$$f || true;	\
 	done
 	cat ${.CURDIR}/configure.ac.in |			\
 		sed 's/@VERSION@/${VERSION}/' |			\
