@@ -73,6 +73,7 @@ struct g_event {
 void g_confxml(void *);
 void g_conf_specific(struct sbuf *sb, struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp);
 void g_confdot(void *);
+void g_conftxt(void *);
 
 
 /* geom_event.c */
