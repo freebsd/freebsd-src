@@ -51,7 +51,7 @@ The arguments are:
 .Bl -tag -width cred
 .It Ar vp
 the vnode of the file
-.It Ar vpp
+.It Ar vap
 the attributes of the file
 .It Ar cred
 the user credentials of the calling process
@@ -64,7 +64,13 @@ Attributes which are not being modified by
 should be set to the value
 .Dv VNOVAL .
 .Sh LOCKS
-The file should not be locked on entry.
+.Xr VOP_GETATTR 9
+expects the vnode to be locked on entry and will leave the vnode locked on
+return.
+.Pp
+.Xr VOP_SETATTR 9
+expects the vnode to be locked on entry and will leave the vnode locked on
+return.
 .Sh RETURN VALUES
 .Xr VOP_GETATTR 9
 returns information about the file in
@@ -75,11 +81,11 @@ appropriate error is returned.
 .Sh PSEUDOCODE
 .Bd -literal
 int
-vop_getattr(struct vnode *vp, struct vattr *vpp,
+vop_getattr(struct vnode *vp, struct vattr *vap,
 	    struct ucred *cred, struct proc *p)
 {
     /*
-     * Fill in the contents of *vpp with information from
+     * Fill in the contents of *vap with information from
      * the filesystem.
      */
     ...;
@@ -88,7 +94,7 @@ vop_getattr(struct vnode *vp, struct vattr *vpp,
 }
 
 int
-vop_setattr(struct vnode *vp, struct vattr *vpp,
+vop_setattr(struct vnode *vp, struct vattr *vap,
 	    struct ucred *cred, struct proc *p)
 {
     /*
