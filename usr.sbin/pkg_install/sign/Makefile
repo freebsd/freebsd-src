@@ -9,8 +9,6 @@ SRCS=	main.c check.c common.c gzip.c pgp_check.c pgp_sign.c \
 
 CFLAGS+= ${DEBUG} -I${.CURDIR}/../lib
 
-WARNS?=	0
-
 DISTRIBUTION= crypto
 DPADD=	${LIBINSTALL} ${LIBMD} ${LIBCRYPTO}
 LDADD=	${LIBINSTALL} -lmd -lcrypto

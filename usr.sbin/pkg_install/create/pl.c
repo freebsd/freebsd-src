@@ -103,18 +103,18 @@ trylink(const char *from, const char *to)
 	/* try making the container directory */
 	char *cp = strrchr(to, '/');
 	if (cp)
-	    vsystem("mkdir -p %.*s", cp - to,
+	    vsystem("/bin/mkdir -p %.*s", cp - to,
 		    to);
 	return link(from, to);
     }
     return -1;
 }
 
-#define STARTSTRING "tar cf -"
+#define STARTSTRING "/usr/bin/tar cf -"
 #define TOOBIG(str) (int)strlen(str) + 6 + (int)strlen(home) + where_count > maxargs
 #define PUSHOUT() /* push out string */ \
 	if (where_count > (int)sizeof(STARTSTRING)-1) { \
-		    strcat(where_args, "|tar xpf -"); \
+		    strcat(where_args, "|/usr/bin/tar xpf -"); \
 		    if (system(where_args)) { \
 			cleanup(0); \
 			errx(2, "%s: can't invoke tar pipeline", __func__); \

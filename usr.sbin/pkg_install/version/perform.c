@@ -52,10 +52,9 @@ pkg_perform(char **indexarg)
     /*
      * Try to find and open the INDEX. We only check IndexFile != NULL
      * later, if we actually need the INDEX.
-     * XXX This should not be hard-coded to INDEX-5.
      */
     if (*indexarg == NULL)
-	snprintf(tmp, PATH_MAX, "%s/INDEX-5", PORTS_DIR);
+	snprintf(tmp, PATH_MAX, "%s/%s", PORTS_DIR, INDEX_FNAME);
     else
 	strlcpy(tmp, *indexarg, PATH_MAX);
     if (isURL(tmp))
@@ -151,7 +150,7 @@ pkg_do(char *pkg)
     if (plist.origin != NULL) {
 	snprintf(tmp, PATH_MAX, "%s/%s", PORTS_DIR, plist.origin);
 	if (isdir(tmp) && chdir(tmp) != FAIL && isfile("Makefile")) {
-	    if ((latest = vpipe("make -V PKGNAME", tmp)) == NULL)
+	    if ((latest = vpipe("/usr/bin/make -V PKGNAME", tmp)) == NULL)
 		warnx("Failed to get PKGNAME from %s/Makefile!", tmp);
 	    else
 		show_version(plist.name, latest, "port");
