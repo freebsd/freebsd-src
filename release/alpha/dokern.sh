@@ -6,6 +6,7 @@
 sed	\
 	-e '/DEC_3000_300/d' \
 	-e '/DEC_3000_500/d' \
+	-e '/DEC_KN8AE/d' \
 	-e '/SOFTUPDATES/d' \
 	-e '/UFS_DIRHASH/d' \
 	-e '/MFS/d' \
@@ -19,6 +20,7 @@ sed	\
 	-e '/ICMP_BANDLIM/d' \
 	-e '/AHC_REG_PRETTY_PRINT/d' \
 	-e '/AHD_REG_PRETTY_PRINT/d' \
+	-e '/atapifd/d' \
 	-e '/atapist/d' \
 	-e '/	ncr/d' \
 	-e '/	sa/d' \
