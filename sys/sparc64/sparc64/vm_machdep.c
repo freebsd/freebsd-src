@@ -124,7 +124,7 @@ cpu_fork(struct thread *td1, struct proc *p2, int flags)
 	fp->f_local[0] = (u_long)fork_return;
 	fp->f_local[1] = (u_long)td2;
 	fp->f_local[2] = (u_long)tf;
-	pcb->pcb_cwp = 2;
+	pcb->pcb_cwp = 0;
 	pcb->pcb_fp = (u_long)fp - SPOFF;
 	pcb->pcb_pc = (u_long)fork_trampoline - 8;
 
