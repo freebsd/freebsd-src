@@ -1,12 +1,10 @@
 # $FreeBSD$
 
-PROG=	${BOOT}
-INTERNALPROG=
-FILES=	${BOOT}
+PROG?=	boot0
+STRIP=
+BINMODE=${NOBINMODE}
 NOMAN=
-SRCS=	${BOOT}.S
-
-BOOT?=	boot0
+SRCS=	${PROG}.S
 
 # The default set of flags compiled into boot0.  This enables update (writing
 # the modified boot0 back to disk after running so that the selection made is

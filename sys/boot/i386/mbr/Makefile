@@ -1,12 +1,11 @@
 # $FreeBSD$
 
-PROG=	${BOOT}
-INTERNALPROG=
-FILES=	${BOOT}
+PROG=	mbr
+STRIP=
+BINMODE=${NOBINMODE}
 NOMAN=
-SRCS=	${BOOT}.s
+SRCS=	${PROG}.s
 
-BOOT=	mbr
 ORG=	0x600
 
 LDFLAGS=-N -e start -Ttext ${ORG} -Wl,-S,--oformat,binary
