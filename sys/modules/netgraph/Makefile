@@ -7,6 +7,7 @@ SUBDIR=	async \
 	cisco \
 	echo \
 	ether \
+	etf \
 	frame_relay \
 	hole \
 	iface \
