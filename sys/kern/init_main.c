@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.48 1996/09/03 10:22:58 asami Exp $
+ * $Id: init_main.c,v 1.49 1996/09/23 04:37:54 peter Exp $
  */
 
 #include "opt_rlimit.h"
@@ -308,7 +308,7 @@ proc0_init(dummy)
 {
 	register struct proc		*p;
 	register struct filedesc0	*fdp;
-	register int i;
+	register unsigned i;
 
 	/*
 	 * Initialize the current process pointer (curproc) before

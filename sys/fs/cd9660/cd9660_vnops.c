@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_vnops.c,v 1.25 1996/05/02 10:43:14 phk Exp $
+ * $Id: cd9660_vnops.c,v 1.26 1996/09/20 05:51:12 nate Exp $
  */
 
 #include <sys/param.h>
@@ -157,11 +157,11 @@ cd9660_setattr(ap)
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
 
-  	if (vap->va_flags != VNOVAL || vap->va_uid != (uid_t)VNOVAL ||
+  	if (vap->va_flags != (u_long)VNOVAL || vap->va_uid != (uid_t)VNOVAL ||
 	    vap->va_gid != (gid_t)VNOVAL || vap->va_atime.tv_sec != VNOVAL ||
 	    vap->va_mtime.tv_sec != VNOVAL || vap->va_mode != (mode_t)VNOVAL)
 		return (EROFS);
-	if (vap->va_size != VNOVAL) {
+	if (vap->va_size != (u_quad_t)VNOVAL) {
  		switch (vp->v_type) {
  		case VDIR:
  			return (EISDIR);
@@ -797,7 +797,7 @@ cd9660_readlink(ap)
 	 *   1: Check not cross boundary on block
 	 */
 	if ((ip->i_number & imp->im_bmask) + isonum_711(dirp->length)
-	    > imp->logical_block_size) {
+	    > (unsigned)imp->logical_block_size) {
 		brelse(bp);
 		return EINVAL;
 	}
