@@ -27,14 +27,14 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: VOP_ACCESS.9,v 1.1 1997/03/03 18:00:01 dfr Exp $
 .\"
 .Dd July 24, 1996
 .Os
 .Dt VOP_ACCESS 9
 .Sh NAME
 .Nm VOP_ACCESS
-.Nd check access permissions of a file or unix domain socket
+.Nd check access permissions of a file or Unix domain socket
 .Sh SYNOPSIS
 .Fd #include <sys/vnode.h>
 .Ft int
@@ -64,7 +64,7 @@ is a mask which can contain
 .Sh LOCKS
 The vnode should be locked on entry.
 .Sh RETURN VALUES
-If the file is accessable in the specified way, then zero is returned,
+If the file is accessible in the specified way, then zero is returned,
 otherwise an appropriate error code is returned.
 .Sh PSEUDOCODE
 .Bd -literal
