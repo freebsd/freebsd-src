@@ -29,10 +29,6 @@
  * $FreeBSD$
  */
 
-#ifndef COMPAT_OLDPCI
-#error "The ar device requires the old pci compatibility shims"
-#endif
-
 #include "ar.h"
 
 #include <sys/param.h>
@@ -41,6 +37,10 @@
 #include <sys/malloc.h>
 
 #include <pci/pcivar.h>
+
+#ifndef COMPAT_OLDPCI
+#error "The ar device requires the old pci compatibility shims"
+#endif
 
 /*
  * The must match with the real functions in if_ar.c

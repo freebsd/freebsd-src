@@ -30,10 +30,6 @@
  * $FreeBSD$
  */
 
-#ifndef COMPAT_OLDPCI
-#error "The sr device requires the old pci compatibility shims"
-#endif
-
 #include "sr.h"
 
 #include <sys/param.h>
@@ -42,6 +38,10 @@
 #include <sys/malloc.h>
 
 #include <pci/pcivar.h>
+
+#ifndef COMPAT_OLDPCI
+#error "The sr device requires the old pci compatibility shims"
+#endif
 
 #ifndef BUGGY
 #define BUGGY		0

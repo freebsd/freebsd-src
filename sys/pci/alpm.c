@@ -27,10 +27,6 @@
  *
  */
 
-#ifndef COMPAT_OLDPCI
-#error "The alpm device requires the old pci compatibility shims"
-#endif
-
 /*
  * Power Management support for the Acer M15x3 chipsets
  */
@@ -58,6 +54,10 @@
 #include "smbus_if.h"
 
 #include "alpm.h"
+
+#ifndef COMPAT_OLDPCI
+#error "The alpm device requires the old pci compatibility shims"
+#endif
 
 #define ALPM_DEBUG(x)	if (alpm_debug) (x)
 

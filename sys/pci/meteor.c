@@ -145,10 +145,6 @@
 			future version of this driver.
 */
 
-#ifndef COMPAT_OLDPCI
-#error "The meteor device requires the old pci compatibility shims"
-#endif
-
 #include "meteor.h"
 
 #include "opt_meteor.h"
@@ -175,6 +171,9 @@
 #include <machine/ioctl_meteor.h>
 #include <pci/meteor_reg.h>
 
+#ifndef COMPAT_OLDPCI
+#error "The meteor device requires the old pci compatibility shims"
+#endif
 
 static void meteor_intr __P((void *arg));
 
