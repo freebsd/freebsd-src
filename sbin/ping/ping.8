@@ -30,9 +30,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ping.8	8.2 (Berkeley) 12/11/93
-.\"	$Id$
+.\"	$Id: ping.8,v 1.7 1997/02/22 14:33:06 peter Exp $
 .\"
-.Dd December 11, 1993
+.Dd March 1, 1997
 .Dt PING 8
 .Os BSD 4.3
 .Sh NAME
@@ -154,8 +154,14 @@ option in the
 .Tn ECHO_REQUEST
 packet and displays
 the route buffer on returned packets.
-Note that the IP header is only large enough for nine such routes.
-Many hosts ignore or discard this option.
+Note that the IP header is only large enough for nine such routes;
+the
+.Xr traceroute 8
+command is usually better at determining the route packets take to a
+particular destination.
+Many hosts ignore or discard the
+.Tn RECORD_ROUTE
+option.
 .It Fl r
 Bypass the normal routing tables and send directly to a host on an attached
 network.
@@ -337,6 +343,31 @@ packets that they use for
 packets, for example either 30 or 60.
 Others may use completely wild values.
 .El
+.Sh RETURN VALUES
+The
+.Nm ping
+command returns an exit status of zero if at least one response was
+heard from the specified
+.Ar host ;
+a status of two if the transmission was successful but no responses
+were received; or another value
+.Pq from Aq Pa sysexits.h
+if an error occurred.
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr ifconfig 8 ,
+.Xr routed 8 ,
+.Xr traceroute 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.3 .
+.Sh AUTHORS
+The original
+.Nm
+command was written by Mike Muuss while at the US Army Ballistics
+Research Laboratory.
 .Sh BUGS
 Many Hosts and Gateways ignore the
 .Tn RECORD_ROUTE
@@ -354,12 +385,3 @@ broadcast address should only be done under very controlled conditions.
 The
 .Fl v
 option is not worth much on busy hosts.
-.Sh SEE ALSO
-.Xr netstat 1 ,
-.Xr ifconfig 8 ,
-.Xr routed 8
-.Sh HISTORY
-The
-.Nm
-command appeared in
-.Bx 4.3 .
