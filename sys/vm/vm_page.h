@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: vm_page.h,v 1.35 1997/02/22 09:48:32 peter Exp $
  */
 
 /*
@@ -284,13 +284,15 @@ extern vm_offset_t last_phys_addr;	/* physical address for last_page */
 #define VM_PAGE_BITS_ALL 0xffff
 #endif
 
-#define VM_ALLOC_NORMAL 0
-#define VM_ALLOC_INTERRUPT 1
-#define VM_ALLOC_SYSTEM 2
-#define	VM_ALLOC_ZERO	3
+#define VM_ALLOC_NORMAL		0
+#define VM_ALLOC_INTERRUPT	1
+#define VM_ALLOC_SYSTEM		2
+#define	VM_ALLOC_ZERO		3
+#define	VM_ALLOC_RETRY		0x80
 
 void vm_page_activate __P((vm_page_t));
 vm_page_t vm_page_alloc __P((vm_object_t, vm_pindex_t, int));
+vm_page_t vm_page_grab __P((vm_object_t, vm_pindex_t, int));
 void vm_page_cache __P((register vm_page_t));
 static __inline void vm_page_copy __P((vm_page_t, vm_page_t));
 void vm_page_deactivate __P((vm_page_t));

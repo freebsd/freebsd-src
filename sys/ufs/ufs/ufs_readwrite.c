@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.40 1998/01/22 17:30:22 dyson Exp $
+ * $Id: ufs_readwrite.c,v 1.41 1998/01/30 11:34:05 phk Exp $
  */
 
 #define	BLKSIZE(a, b, c)	blksize(a, b, c)
@@ -74,6 +74,7 @@ READ(ap)
 	int error;
 	u_short mode;
 	int seqcount;
+	vm_object_t object;
 
 	vp = ap->a_vp;
 	seqcount = ap->a_ioflag >> 16;
@@ -95,32 +96,56 @@ READ(ap)
 	if ((u_int64_t)uio->uio_offset > fs->fs_maxfilesize)
 		return (EFBIG);
 
-	for (error = 0, bp = NULL; uio->uio_resid > 0; bp = NULL) {
+	object = vp->v_object;
 
+	bytesinfile = ip->i_size - uio->uio_offset;
+	if (bytesinfile <= 0) {
+		return 0;
+	}
+
+	if (object)
+		vm_object_reference(object);
+#if 1
+	if ((vfs_ioopt > 1) && object) {
+		int nread, toread;
+		toread = uio->uio_resid;
+		if (toread > bytesinfile)
+			toread = bytesinfile;
+		if (toread >= PAGE_SIZE) {
+			error = uioread(toread, uio, object, &nread);
+			if ((uio->uio_resid == 0) || (error != 0)) {
+				if (!(vp->v_mount->mnt_flag & MNT_NOATIME))
+					ip->i_flag |= IN_ACCESS;
+				if (object)
+					vm_object_vndeallocate(object);
+				return error;
+			}
+		}
+	}
+#endif
+
+	for (error = 0, bp = NULL; uio->uio_resid > 0; bp = NULL) {
 		if ((bytesinfile = ip->i_size - uio->uio_offset) <= 0)
 			break;
-
-#if 0
-		if ((vfs_ioopt > 1) && vp->v_object) {
+#if 1
+		if ((vfs_ioopt > 1) && object) {
 			int nread, toread;
-			vm_object_reference(vp->v_object);
 			toread = uio->uio_resid;
 			if (toread > bytesinfile)
 				toread = bytesinfile;
 			if (toread >= PAGE_SIZE) {
-				error = uioread(toread, uio, vp->v_object, &nread);
+				error = uioread(toread, uio, object, &nread);
 				if ((uio->uio_resid == 0) || (error != 0)) {
 					if (!(vp->v_mount->mnt_flag & MNT_NOATIME))
 						ip->i_flag |= IN_ACCESS;
-					vm_object_vndeallocate(vp->v_object);
+					if (object)
+						vm_object_vndeallocate(object);
 					return error;
 				}
 				if (nread > 0) {
-					vm_object_vndeallocate(vp->v_object);
 					continue;
 				}
 			}
-			vm_object_vndeallocate(vp->v_object);
 		}
 #endif
 
@@ -167,13 +192,13 @@ READ(ap)
 			xfersize = size;
 		}
 
-		if (vfs_ioopt &&
+		if (vfs_ioopt && object &&
 				(bp->b_flags & B_VMIO) &&
 				((blkoffset & PAGE_MASK) == 0) &&
 				((xfersize & PAGE_MASK) == 0)) {
 			error =
 				uiomoveco((char *)bp->b_data + blkoffset,
-					(int)xfersize, uio, vp->v_object);
+					(int)xfersize, uio, object);
 		} else {
 			error =
 				uiomove((char *)bp->b_data + blkoffset,
@@ -187,6 +212,8 @@ READ(ap)
 	}
 	if (bp != NULL)
 		bqrelse(bp);
+	if (object)
+		vm_object_vndeallocate(object);
 	if (!(vp->v_mount->mnt_flag & MNT_NOATIME))
 		ip->i_flag |= IN_ACCESS;
 	return (error);
@@ -214,12 +241,17 @@ WRITE(ap)
 	off_t osize;
 	int blkoffset, error, extended, flags, ioflag, resid, size, xfersize;
 	struct timeval tv;
+	vm_object_t object;
 
 	extended = 0;
 	ioflag = ap->a_ioflag;
 	uio = ap->a_uio;
 	vp = ap->a_vp;
 	ip = VTOI(vp);
+
+	object = vp->v_object;
+	if (object)
+		vm_object_reference(object);
 
 #ifdef DIAGNOSTIC
 	if (uio->uio_rw != UIO_WRITE)
@@ -230,8 +262,11 @@ WRITE(ap)
 	case VREG:
 		if (ioflag & IO_APPEND)
 			uio->uio_offset = ip->i_size;
-		if ((ip->i_flags & APPEND) && uio->uio_offset != ip->i_size)
+		if ((ip->i_flags & APPEND) && uio->uio_offset != ip->i_size) {
+			if (object)
+				vm_object_vndeallocate(object);
 			return (EPERM);
+		}
 		/* FALLTHROUGH */
 	case VLNK:
 		break;
@@ -245,8 +280,11 @@ WRITE(ap)
 
 	fs = ip->I_FS;
 	if (uio->uio_offset < 0 ||
-	    (u_int64_t)uio->uio_offset + uio->uio_resid > fs->fs_maxfilesize)
+	    (u_int64_t)uio->uio_offset + uio->uio_resid > fs->fs_maxfilesize) {
+		if (object)
+			vm_object_vndeallocate(object);
 		return (EFBIG);
+	}
 	/*
 	 * Maybe this should be above the vnode op call, but so long as
 	 * file servers have no limits, I don't think it matters.
@@ -256,12 +294,20 @@ WRITE(ap)
 	    uio->uio_offset + uio->uio_resid >
 	    p->p_rlimit[RLIMIT_FSIZE].rlim_cur) {
 		psignal(p, SIGXFSZ);
+		if (object)
+			vm_object_vndeallocate(object);
 		return (EFBIG);
 	}
 
 	resid = uio->uio_resid;
 	osize = ip->i_size;
 	flags = ioflag & IO_SYNC ? B_SYNC : 0;
+
+	if (object && (object->flags & OBJ_OPT)) {
+		vm_freeze_copyopts(object,
+			OFF_TO_IDX(uio->uio_offset),
+			OFF_TO_IDX(uio->uio_offset + uio->uio_resid + PAGE_MASK));
+	}
 
 	for (error = 0; uio->uio_resid > 0;) {
 		lbn = lblkno(fs, uio->uio_offset);
@@ -291,14 +337,6 @@ WRITE(ap)
 		size = BLKSIZE(fs, ip, lbn) - bp->b_resid;
 		if (size < xfersize)
 			xfersize = size;
-
-		if (vfs_ioopt &&
-			vp->v_object && (vp->v_object->flags & OBJ_OPT) &&
-			vp->v_object->shadow_count) {
-			vm_freeze_copyopts(vp->v_object,
-				OFF_TO_IDX(uio->uio_offset),
-				OFF_TO_IDX(uio->uio_offset + size));
-		}
 
 		error =
 		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
@@ -342,6 +380,9 @@ WRITE(ap)
 	}
 	if (!error)
 		VN_POLLEVENT(vp, POLLWRITE | (extended ? POLLEXTEND : 0));
+
+	if (object)
+		vm_object_vndeallocate(object);
 
 	return (error);
 }

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.53 1998/01/06 05:21:23 dyson Exp $
+ * $Id: spec_vnops.c,v 1.54 1998/02/04 22:32:51 eivind Exp $
  */
 
 #include "opt_diagnostic.h"
@@ -837,7 +837,10 @@ spec_getpages(ap)
 			 * now tell them that it is ok to use.
 			 */
 			if (!error) {
-				vm_page_deactivate(ap->a_m[i]);
+				if (ap->a_m[i]->flags & PG_WANTED)
+					vm_page_activate(ap->a_m[i]);
+				else
+					vm_page_deactivate(ap->a_m[i]);
 				PAGE_WAKEUP(ap->a_m[i]);
 			} else
 				vnode_pager_freepage(ap->a_m[i]);

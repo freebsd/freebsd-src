@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.41 1998/01/31 11:56:35 dyson Exp $
+ * $Id: vm_kern.c,v 1.42 1998/02/04 22:33:45 eivind Exp $
  */
 
 /*
@@ -180,10 +180,8 @@ kmem_alloc(map, size)
 	for (i = 0; i < size; i += PAGE_SIZE) {
 		vm_page_t mem;
 
-		while ((mem = vm_page_alloc(kernel_object,
-			OFF_TO_IDX(offset + i), VM_ALLOC_ZERO)) == NULL) {
-			VM_WAIT;
-		}
+		mem = vm_page_grab(kernel_object, OFF_TO_IDX(offset + i),
+				VM_ALLOC_ZERO | VM_ALLOC_RETRY);
 		if ((mem->flags & PG_ZERO) == 0)
 			vm_page_zero_fill(mem);
 		mem->flags &= ~(PG_BUSY|PG_ZERO);
@@ -365,7 +363,7 @@ retry:
 		PAGE_WAKEUP(m);
 		pmap_enter(kernel_pmap, addr + i, VM_PAGE_TO_PHYS(m),
 			VM_PROT_ALL, 1);
-		m->flags |= PG_MAPPED|PG_WRITEABLE;
+		m->flags |= PG_MAPPED | PG_WRITEABLE | PG_REFERENCED;
 	}
 	vm_map_unlock(map);
 

@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.110 1998/01/31 11:56:49 dyson Exp $
+ * $Id: vm_pageout.c,v 1.111 1998/02/04 22:33:56 eivind Exp $
  */
 
 /*
@@ -369,7 +369,7 @@ vm_pageout_flush(mc, count, sync)
 {
 	register vm_object_t object;
 	int pageout_status[count];
-	int anyok = 0;
+	int numpagedout = 0;
 	int i;
 
 	object = mc[0]->object;
@@ -384,10 +384,10 @@ vm_pageout_flush(mc, count, sync)
 
 		switch (pageout_status[i]) {
 		case VM_PAGER_OK:
-			anyok++;
+			numpagedout++;
 			break;
 		case VM_PAGER_PEND:
-			anyok++;
+			numpagedout++;
 			break;
 		case VM_PAGER_BAD:
 			/*
@@ -423,7 +423,7 @@ vm_pageout_flush(mc, count, sync)
 			PAGE_WAKEUP(mt);
 		}
 	}
-	return anyok;
+	return numpagedout;
 }
 
 #if !defined(NO_SWAPPING)
@@ -644,6 +644,7 @@ vm_pageout_scan()
 
 	pages_freed = 0;
 	addl_page_shortage = vm_pageout_deficit;
+	vm_pageout_deficit = 0;
 
 	if (max_page_launder == 0)
 		max_page_launder = 1;

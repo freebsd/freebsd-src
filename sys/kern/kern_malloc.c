@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.39 1998/01/22 17:29:47 dyson Exp $
+ * $Id: kern_malloc.c,v 1.40 1998/02/04 22:32:32 eivind Exp $
  */
 
 #include "opt_diagnostic.h"
@@ -197,7 +197,7 @@ malloc(size, type, flags)
 	kbp->kb_next = ((struct freelist *)va)->next;
 #ifdef DIAGNOSTIC
 	freep = (struct freelist *)va;
-	savedtype = type->ks_shortdesc;
+	savedtype = (char *) type->ks_shortdesc;
 #if BYTE_ORDER == BIG_ENDIAN
 	freep->type = (struct malloc_type *)WEIRD_ADDR >> 16;
 #endif
