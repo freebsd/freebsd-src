@@ -161,6 +161,8 @@ main(argc, argv)
 		if (editit(tmpfil) && readtimes(protoprivs, tmpfil))
 			putprivs(0, quotatype, protoprivs);
 		freeprivs(protoprivs);
+		close(tmpfd);
+		unlink(tmpfil);
 		exit(0);
 	}
 	for ( ; argc > 0; argc--, argv++) {
