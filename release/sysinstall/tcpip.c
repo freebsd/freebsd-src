@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.30.2.2 1995/09/20 10:43:12 jkh Exp $
+ * $Id: tcpip.c,v 1.30.2.3 1995/10/04 07:55:03 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -215,22 +215,22 @@ tcpOpenDialog(Device *devp)
 	ipaddr[0] = netmask[0] = extras[0] = '\0';
 
     /* Look up values already recorded with the system, or blank the string variables ready to accept some new data */
-    tmp = getenv(VAR_HOSTNAME);
+    tmp = variable_get(VAR_HOSTNAME);
     if (tmp)
 	strcpy(hostname, tmp);
     else
 	bzero(hostname, sizeof(hostname));
-    tmp = getenv(VAR_DOMAINNAME);
+    tmp = variable_get(VAR_DOMAINNAME);
     if (tmp)
 	strcpy(domainname, tmp);
     else
 	bzero(domainname, sizeof(domainname));
-    tmp = getenv(VAR_GATEWAY);
+    tmp = variable_get(VAR_GATEWAY);
     if (tmp)
 	strcpy(gateway, tmp);
     else
 	bzero(gateway, sizeof(gateway));
-    tmp = getenv(VAR_NAMESERVER);
+    tmp = variable_get(VAR_NAMESERVER);
     if (tmp)
 	strcpy(nameserver, tmp);
     else
@@ -420,7 +420,7 @@ tcpOpenDialog(Device *devp)
 	sprintf(temp, "inet %s %s netmask %s", ipaddr, extras, netmask);
 	sprintf(ifn, "%s%s", VAR_IFCONFIG, devp->name);
 	variable_set2(ifn, temp);
-	ifaces = getenv(VAR_INTERFACES);
+	ifaces = variable_get(VAR_INTERFACES);
 	if (!ifaces)
 	    variable_set2(VAR_INTERFACES, ifaces = "lo0");
 	/* Only add it if it's not there already */

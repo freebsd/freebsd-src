@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.5 1995/10/03 23:36:36 jkh Exp $
+ * $Id: config.c,v 1.16.2.6 1995/10/04 07:54:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -277,8 +277,8 @@ configSysconfig(void)
 		    char iname[64];
 
 		    snprintf(iname, 64, "%s%s", VAR_IFCONFIG, devp[j]->name);
-		    if (getenv(iname))
-			fprintf(fp, "%s=\"%s\"\n", iname, getenv(iname));
+		    if (variable_get(iname))
+			fprintf(fp, "%s=\"%s\"\n", iname, variable_get(iname));
 		}
 	    }
 	}
@@ -286,7 +286,7 @@ configSysconfig(void)
     fclose(fp);
 
     /* If we're an NFS server, we need an exports file */
-    if (getenv("nfs_server") && !file_readable("/etc/exports")) {
+    if (variable_get("nfs_server") && !file_readable("/etc/exports")) {
 	msgConfirm("You have chosen to be an NFS server but have not yet configured\nthe /etc/exports file.  The format for an exports entry is:\n     <mountpoint> <opts> <host [..host]>\nWhere <mounpoint> is the name of a filesystem as specified\nin the Label editor, <opts> is a list of special options we\nwon't concern ourselves with here (``man exports'' when the\nsystem is fully installed) and <host> is one or more host\nnames who are allowed to mount this file system.  Press\n[ENTER] now to invoke the editor on /etc/exports");
 	systemExecute("ee /etc/exports");
     }
@@ -323,7 +323,7 @@ configResolv(void)
     if (!RunningAsInit && file_readable("/etc/resolv.conf"))
 	return;
 
-    if (!getenv(VAR_NAMESERVER)) {
+    if (!variable_get(VAR_NAMESERVER)) {
 	if (mediaDevice && (mediaDevice->type == DEVICE_TYPE_NFS || mediaDevice->type == DEVICE_TYPE_FTP))
 	    msgConfirm("Warning:  Missing name server value - network operations\nmay fail as a result!");
 	goto skip;
@@ -334,19 +334,19 @@ configResolv(void)
 	msgConfirm("Unable to open /etc/resolv.conf!  You will need to do this manually.");
 	return;
     }
-    if (getenv(VAR_DOMAINNAME))
-	fprintf(fp, "domain\t%s\n", getenv(VAR_DOMAINNAME));
-    fprintf(fp, "nameserver\t%s\n", getenv(VAR_NAMESERVER));
+    if (variable_get(VAR_DOMAINNAME))
+	fprintf(fp, "domain\t%s\n", variable_get(VAR_DOMAINNAME));
+    fprintf(fp, "nameserver\t%s\n", variable_get(VAR_NAMESERVER));
     fclose(fp);
     if (isDebug())
 	msgDebug("Wrote out /etc/resolv.conf\n");
 
 skip:
     /* Tack ourselves at the end of /etc/hosts */
-    cp = getenv(VAR_IPADDR);
-    if (cp && *cp != '0' && getenv(VAR_HOSTNAME)) {
+    cp = variable_get(VAR_IPADDR);
+    if (cp && *cp != '0' && variable_get(VAR_HOSTNAME)) {
 	fp = fopen("/etc/hosts", "a");
-	fprintf(fp, "%s\t\t%s\n", cp, getenv(VAR_HOSTNAME));
+	fprintf(fp, "%s\t\t%s\n", cp, variable_get(VAR_HOSTNAME));
 	fclose(fp);
 	if (isDebug())
 	    msgDebug("Appended entry for %s to /etc/hosts\n", cp);

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.6 1995/10/04 07:54:59 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.7 1995/10/04 10:34:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -93,6 +93,7 @@
 #define FTP_USER		"_ftpUser"
 #define FTP_PASS		"_ftpPass"
 #define RELNAME			"_releaseName"
+#define CPIO_VERBOSITY_LEVEL	"_cpioVerboseLevel"
 
 #define DEFAULT_TAPE_BLOCKSIZE	"10"
 
@@ -105,10 +106,8 @@
 #define OPT_FTP_ABORT		0x0040
 #define OPT_SLOW_ETHER		0x0080
 #define OPT_EXPLORATORY_GET	0x0100
-#define OPT_LEAVE_NETWORK_UP	0x0200
-#define OPT_CPIO_HIGH		0x0400
 
-#define OPT_DEFAULT_FLAGS	(OPT_FTP_PASSIVE | OPT_FTP_ABORT| OPT_CPIO_HIGH)
+#define OPT_DEFAULT_FLAGS	(OPT_FTP_PASSIVE | OPT_FTP_ABORT)
 
 #define VAR_HOSTNAME		"hostname"
 #define VAR_DOMAINNAME		"domainname"
@@ -238,8 +237,9 @@ typedef int (*commandFunc)(char *key, void *data);
 #define IPADDR_FIELD_LEN	16
 #define EXTRAS_FIELD_LEN	256
 
-/* Verbosity levels for CPIO - yuck */
-#define CPIO_VERBOSITY		(optionIsSet(OPT_CPIO_HIGH) ? "-v" : "-V")
+/* Verbosity levels for CPIO as expressed by cpio arguments - yuck */
+#define CPIO_VERBOSITY		(!strcmp(variable_get(CPIO_VERBOSITY_LEVEL), "low") ? "" : \
+				 !strcmp(variable_get(CPIO_VERBOSITY_LEVEL), "medium") ? "-V" : "-v")
 
 /* This is the structure that Network devices carry around in their private, erm, structures */
 typedef struct _devPriv {
@@ -450,6 +450,7 @@ extern int	mediaSetUFS(char *str);
 extern int	mediaSetNFS(char *str);
 extern int	mediaSetFtpUserPass(char *str);
 extern int	mediaSetTapeBlocksize(char *str);
+extern int	mediaSetCPIOVerbosity(char *str);
 extern Boolean	mediaGetType(void);
 extern Boolean	mediaExtractDist(char *dir, int fd);
 extern Boolean	mediaExtractDistBegin(char *dir, int *fd, int *zpid, int *cpic);
@@ -514,7 +515,7 @@ extern void	systemChangeScreenmap(const u_char newmap[]);
 extern int	vsystem(char *fmt, ...);
 
 /* tape.c */
-extern char *	mediaTapeBlocksize(void);
+extern char	*mediaTapeBlocksize(void);
 extern Boolean	mediaInitTape(Device *dev);
 extern int	mediaGetTape(Device *dev, char *file, Attribs *dist_attrs);
 extern void	mediaShutdownTape(Device *dev);
@@ -535,6 +536,7 @@ extern int	mediaGetUFS(Device *dev, char *file, Attribs *dist_attrs);
 /* variables.c */
 extern void	variable_set(char *var);
 extern void	variable_set2(char *name, char *value);
+extern char 	*variable_get(char *var);
 
 /* wizard.c */
 extern void	slice_wizard(Disk *d);
