@@ -35,6 +35,8 @@
 #include <sys/conf.h>
 #include <sys/tty.h>
 #include <sys/poll.h>
+#include <sys/proc.h>
+#include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/uio.h>
 
@@ -69,6 +71,11 @@ static keyboard_t	*kbd_ini;
 static keyboard_t	**keyboard = &kbd_ini;
 static keyboard_switch_t *kbdsw_ini;
        keyboard_switch_t **kbdsw = &kbdsw_ini;
+
+static int keymap_restrict_change;
+SYSCTL_NODE(_hw, OID_AUTO, kbd, CTLFLAG_RD, 0, "kbd");
+SYSCTL_INT(_hw_kbd, OID_AUTO, keymap_restrict_change, CTLFLAG_RW,
+    &keymap_restrict_change, 0, "restrict ability to change keymap");
 
 #define ARRAY_DELTA	4
 
@@ -759,6 +766,13 @@ genkbd_event(keyboard_t *kbd, int event, void *arg)
  * functions.
  */
 
+#ifndef KBD_DISABLE_KEYMAP_LOAD
+static int key_change_ok(struct keyent_t *, struct keyent_t *, struct thread *);
+static int keymap_change_ok(keymap_t *, keymap_t *, struct thread *);
+static int accent_change_ok(accentmap_t *, accentmap_t *, struct thread *);
+static int fkey_change_ok(fkeytab_t *, fkeyarg_t *, struct thread *);
+#endif
+
 int
 genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 {
@@ -766,6 +780,9 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 	fkeyarg_t *fkeyp;
 	int s;
 	int i;
+#ifndef KBD_DISABLE_KEYMAP_LOAD
+	int error;
+#endif
 
 	s = spltty();
 	switch (cmd) {
@@ -795,6 +812,12 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		break;
 	case PIO_KEYMAP:	/* set keyboard translation table */
 #ifndef KBD_DISABLE_KEYMAP_LOAD
+		error = keymap_change_ok(kbd->kb_keymap, (keymap_t *)arg,
+		    curthread);
+		if (error != 0) {
+			splx(s);
+			return error;
+		}
 		bzero(kbd->kb_accentmap, sizeof(*kbd->kb_accentmap));
 		bcopy(arg, kbd->kb_keymap, sizeof(*kbd->kb_keymap));
 		break;
@@ -821,6 +844,12 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 			splx(s);
 			return EINVAL;
 		}
+		error = key_change_ok(&kbd->kb_keymap->key[keyp->keynum],
+		    &keyp->key, curthread);
+		if (error != 0) {
+			splx(s);
+			return error;
+		}
 		bcopy(&keyp->key, &kbd->kb_keymap->key[keyp->keynum],
 		      sizeof(keyp->key));
 		break;
@@ -834,6 +863,12 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		break;
 	case PIO_DEADKEYMAP:	/* set accent key translation table */
 #ifndef KBD_DISABLE_KEYMAP_LOAD
+		error = accent_change_ok(kbd->kb_accentmap,
+		    (accentmap_t *)arg, curthread);
+		if (error != 0) {
+			splx(s);
+			return error;
+		}
 		bcopy(arg, kbd->kb_accentmap, sizeof(*kbd->kb_accentmap));
 		break;
 #else
@@ -858,6 +893,12 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 			splx(s);
 			return EINVAL;
 		}
+		error = fkey_change_ok(&kbd->kb_fkeytab[fkeyp->keynum],
+		    fkeyp, curthread);
+		if (error != 0) {
+			splx(s);
+			return error;
+		}
 		kbd->kb_fkeytab[fkeyp->keynum].len = imin(fkeyp->flen, MAXFK);
 		bcopy(fkeyp->keydef, kbd->kb_fkeytab[fkeyp->keynum].str,
 		      kbd->kb_fkeytab[fkeyp->keynum].len);
@@ -875,6 +916,109 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 	splx(s);
 	return 0;
 }
+
+#ifndef KBD_DISABLE_KEYMAP_LOAD
+#define RESTRICTED_KEY(key, i) \
+	((key->spcl & (0x80 >> i)) && \
+		(key->map[i] == RBT || key->map[i] == SUSP || \
+		 key->map[i] == STBY || key->map[i] == DBG || \
+		 key->map[i] == PNC || key->map[i] == HALT || \
+		 key->map[i] == PDWN))
+
+static int
+key_change_ok(struct keyent_t *oldkey, struct keyent_t *newkey, struct thread *td)
+{
+	int i;
+
+	/* Low keymap_restrict_change means any changes are OK. */
+	if (keymap_restrict_change <= 0)
+		return 0;
+
+	/* High keymap_restrict_change means only root can change the keymap. */
+	if (keymap_restrict_change >= 2) {
+		for (i = 0; i < NUM_STATES; i++)
+			if (oldkey->map[i] != newkey->map[i])
+				return suser(td);
+		if (oldkey->spcl != newkey->spcl)
+			return suser(td);
+		if (oldkey->flgs != newkey->flgs)
+			return suser(td);
+		return 0;
+	}
+
+	/* Otherwise we have to see if any special keys are being changed. */
+	for (i = 0; i < NUM_STATES; i++) {
+		/*
+		 * If either the oldkey or the newkey action is restricted
+		 * then we must make sure that the action doesn't change.
+		 */
+		if (!RESTRICTED_KEY(oldkey, i) && !RESTRICTED_KEY(newkey, i))
+			continue;
+		if ((oldkey->spcl & (0x80 >> i)) == (newkey->spcl & (0x80 >> i))
+		    && oldkey->map[i] == newkey->map[i])
+			continue;
+		return suser(td);
+	}
+
+	return 0;
+}
+
+static int
+keymap_change_ok(keymap_t *oldmap, keymap_t *newmap, struct thread *td)
+{
+	int keycode, error;
+
+	for (keycode = 0; keycode < NUM_KEYS; keycode++) {
+		if ((error = key_change_ok(&oldmap->key[keycode],
+		    &newmap->key[keycode], td)) != 0)
+			return error;
+	}
+	return 0;
+}
+
+static int
+accent_change_ok(accentmap_t *oldmap, accentmap_t *newmap, struct thread *td)
+{
+	struct acc_t *oldacc, *newacc;
+	int accent, i;
+
+	if (keymap_restrict_change <= 2)
+		return 0;
+
+	if (oldmap->n_accs != newmap->n_accs)
+		return suser(td);
+
+	for (accent = 0; accent < oldmap->n_accs; accent++) {
+		oldacc = &oldmap->acc[accent];
+		newacc = &newmap->acc[accent];
+		if (oldacc->accchar != newacc->accchar)
+			return suser(td);
+		for (i = 0; i < NUM_ACCENTCHARS; ++i) {
+			if (oldacc->map[i][0] != newacc->map[i][0])
+				return suser(td);
+			if (oldacc->map[i][0] == 0)	/* end of table */
+				break;
+			if (oldacc->map[i][1] != newacc->map[i][1])
+				return suser(td);
+		}
+	}
+
+	return 0;
+}
+
+static int
+fkey_change_ok(fkeytab_t *oldkey, fkeyarg_t *newkey, struct thread *td)
+{
+	if (keymap_restrict_change <= 3)
+		return 0;
+
+	if (oldkey->len != newkey->flen ||
+	    bcmp(oldkey->str, newkey->keydef, oldkey->len) != 0)
+		return suser(td);
+
+	return 0;
+}
+#endif
 
 /* get a pointer to the string associated with the given function key */
 u_char
