@@ -30,3 +30,4 @@ ttyp6	none			network secure
 ttyp7	none			network secure
 ttyp8	none			network secure
 ttyp9	none			network secure
+#ttyd0   "/usr/libexec/getty std.9600"   dialup  on secure
