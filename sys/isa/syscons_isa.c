@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: syscons_isa.c,v 1.2 1999/04/16 21:22:35 peter Exp $
+ * $Id: syscons_isa.c,v 1.3 1999/05/08 21:59:31 dfr Exp $
  */
 
 #include "sc.h"
@@ -67,6 +67,10 @@ static driver_t sc_driver = {
 static int
 scprobe(device_t dev)
 {
+	/* No pnp support */
+	if (isa_get_vendorid(dev))
+		return (ENXIO);
+
 	device_set_desc(dev, "System console");
 	return sc_probe_unit(device_get_unit(dev), isa_get_flags(dev));
 }

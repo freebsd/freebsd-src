@@ -47,7 +47,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.142 1999/05/08 21:59:24 dfr Exp $
+ *	$Id: fd.c,v 1.143 1999/05/11 04:58:30 bde Exp $
  *
  */
 
@@ -86,7 +86,6 @@
 
 #include <isa/isavar.h>
 #include <i386/isa/isa.h>
-#include <i386/isa/isa_dma.h>
 #include <i386/isa/fdreg.h>
 #include <i386/isa/fdc.h>
 #include <i386/isa/rtc.h>
@@ -756,6 +755,10 @@ fd_probe(device_t dev)
 #ifndef FIFO_BEFORE_MOTORON
 	static int fd_fifo = 0;
 #endif
+
+	/* No pnp support */
+	if (isa_get_vendorid(dev))
+		return (ENXIO);
 
 	fdsu = *(int *)device_get_ivars(dev); /* xxx cheat a bit... */
 	fd = device_get_softc(dev);
