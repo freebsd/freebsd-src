@@ -416,8 +416,8 @@ msleep(ident, mtx, priority, wmesg, timo)
 	int priority, timo;
 	const char *wmesg;
 {
-	struct proc *p = curproc;
 	struct thread *td = curthread;
+	struct proc *p = td->td_proc;
 	int sig, catch = priority & PCATCH;
 	int rval = 0;
 	WITNESS_SAVE_DECL(mtx);
