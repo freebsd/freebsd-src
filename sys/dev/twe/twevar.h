@@ -31,7 +31,7 @@
  * The scheme for the driver version is:
  * <major change>.<external release>.<3ware internal release>.<development release>
  */
-#define TWE_DRIVER_VERSION_STRING	"1.50.00.000"
+#define TWE_DRIVER_VERSION_STRING	"1.50.01.000"
 
 #ifdef TWE_DEBUG
 #define debug(level, fmt, args...)							\
@@ -89,6 +89,7 @@ struct twe_request
 #define TWE_CMD_SETUP		0	/* being assembled */
 #define TWE_CMD_BUSY		1	/* submitted to controller */
 #define TWE_CMD_COMPLETE	2	/* completed by controller (maybe with error) */
+#define TWE_CMD_ERROR		3	/* encountered error, even before submission to controller */
     int				tr_flags;
 #define TWE_CMD_DATAIN		(1<<0)
 #define TWE_CMD_DATAOUT		(1<<1)
@@ -96,6 +97,7 @@ struct twe_request
 #define TWE_CMD_SLEEPER		(1<<3)	/* owner is sleeping on this command */
 #define TWE_CMD_IMMEDIATE	(1<<4)	/* immediate request */
 #define TWE_CMD_MAPPED		(1<<5)
+#define TWE_CMD_IN_PROGRESS	(1<<6)	/* bus_dmamap_load returned EINPROGRESS */
     void			(* tr_complete)(struct twe_request *tr);	/* completion handler */
     void			*tr_private;	/* submitter-private data or wait channel */
 
