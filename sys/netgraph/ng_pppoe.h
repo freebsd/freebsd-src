@@ -91,11 +91,9 @@ struct ngpppoestat {
 
 /* Keep this in sync with the above structure definition */
 #define NG_PPPOESTAT_TYPE_INFO	{				\
-	{							\
 	  { "packets_in",	&ng_parse_uint_type	},	\
 	  { "packets_out",	&ng_parse_uint_type	},	\
 	  { NULL }						\
-	}							\
 }
 
 /*
@@ -124,11 +122,9 @@ struct ngpppoe_init_data {
 
 /* Keep this in sync with the above structure definition */
 #define NG_PPPOE_INIT_DATA_TYPE_INFO	{		\
-	{						\
 	  { "hook",	&ng_parse_hookbuf_type	},	\
 	  { "data",	&ng_parse_sizedstring_type },	\
 	  { NULL }					\
-	}						\
 }
 
 /*
@@ -142,10 +138,8 @@ struct ngpppoe_sts {
 
 /* Keep this in sync with the above structure definition */
 #define NG_PPPOE_STS_TYPE_INFO		{		\
-	{						\
 	  { "hook",	&ng_parse_hookbuf_type	},	\
 	  { NULL }					\
-	}						\
 }
 
 

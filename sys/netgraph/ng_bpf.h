@@ -61,14 +61,12 @@ struct ng_bpf_hookprog {
 
 /* Keep this in sync with the above structure definition */
 #define NG_BPF_HOOKPROG_TYPE_INFO(bptype)	{		\
-	{							\
 	  { "thisHook",		&ng_parse_hookbuf_type	},	\
 	  { "ifMatch",		&ng_parse_hookbuf_type	},	\
 	  { "ifNotMatch",	&ng_parse_hookbuf_type	},	\
 	  { "bpf_prog_len",	&ng_parse_int32_type	},	\
 	  { "bpf_prog",		(bptype)		},	\
-	  { NULL },						\
-	}							\
+	  { NULL }						\
 }
 
 /* Statistics structure for one hook */
@@ -83,15 +81,13 @@ struct ng_bpf_hookstat {
 
 /* Keep this in sync with the above structure definition */
 #define NG_BPF_HOOKSTAT_TYPE_INFO	{			\
-	{							\
 	  { "recvFrames",	&ng_parse_uint64_type	},	\
 	  { "recvOctets",	&ng_parse_uint64_type	},	\
 	  { "recvMatchFrames",	&ng_parse_uint64_type	},	\
 	  { "recvMatchOctets",	&ng_parse_uint64_type	},	\
 	  { "xmitFrames",	&ng_parse_uint64_type	},	\
 	  { "xmitOctets",	&ng_parse_uint64_type	},	\
-	  { NULL },						\
-	}							\
+	  { NULL }						\
 }
 
 /* Netgraph commands */

@@ -68,17 +68,15 @@ struct ng_eiface_par {
     u_char oct5;
 };
 
-static const struct ng_parse_struct_info ng_eiface_par_fields = {
-  {
-    { "oct0",		&ng_parse_int8_type	},
-    { "oct1",		&ng_parse_int8_type	},
-    { "oct2",		&ng_parse_int8_type	},
-    { "oct3",		&ng_parse_int8_type	},
-    { "oct4",		&ng_parse_int8_type	},
-    { "oct5",		&ng_parse_int8_type	},
-    { NULL },
-  }
-};
-
+/* Keep this in sync with the above structure definition */
+#define NG_EIFACE_PAR_FIELDS	{				\
+    { "oct0",		&ng_parse_int8_type	},		\
+    { "oct1",		&ng_parse_int8_type	},		\
+    { "oct2",		&ng_parse_int8_type	},		\
+    { "oct3",		&ng_parse_int8_type	},		\
+    { "oct4",		&ng_parse_int8_type	},		\
+    { "oct5",		&ng_parse_int8_type	},		\
+    { NULL }							\
+}
 
 #endif /* _NETGRAPH_EIFACE_H_ */

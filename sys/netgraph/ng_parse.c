@@ -212,11 +212,10 @@ ng_struct_getDefault(const struct ng_parse_type *type,
 static int
 ng_struct_getAlign(const struct ng_parse_type *type)
 {
-	const struct ng_parse_struct_info *si = type->info;
 	const struct ng_parse_struct_field *field;
 	int align = 0;
 
-	for (field = si->fields; field->name != NULL; field++) {
+	for (field = type->info; field->name != NULL; field++) {
 		int falign = ALIGNMENT(field->type);
 
 		if (falign > align)
@@ -1116,11 +1115,11 @@ static const struct ng_parse_type ng_msg_data_type = {
 };
 
 /* Type for the entire struct ng_mesg header with data section */
-static const struct ng_parse_struct_info
-	ng_parse_ng_mesg_type_info = NG_GENERIC_NG_MESG_INFO(&ng_msg_data_type);
+static const struct ng_parse_struct_field ng_parse_ng_mesg_type_fields[]
+	= NG_GENERIC_NG_MESG_INFO(&ng_msg_data_type);
 const struct ng_parse_type ng_parse_ng_mesg_type = {
 	&ng_parse_struct_type,
-	&ng_parse_ng_mesg_type_info,
+	&ng_parse_ng_mesg_type_fields,
 };
 
 /************************************************************************
@@ -1202,8 +1201,8 @@ ng_parse_composite(const struct ng_parse_type *type, const char *s,
 			nextIndex = index + 1;
 			*off += len + len2;
 		} else {			/* a structure field */
-			const struct ng_parse_struct_field *field = NULL;
-			const struct ng_parse_struct_info *si = type->info;
+			const struct ng_parse_struct_field *const
+			    fields = type->info;
 
 			/* Find the field by name (required) in field list */
 			if (tok != T_WORD) {
@@ -1211,7 +1210,9 @@ ng_parse_composite(const struct ng_parse_type *type, const char *s,
 				goto done;
 			}
 			for (index = 0; index < num; index++) {
-				field = &si->fields[index];
+				const struct ng_parse_struct_field *const
+				    field = &fields[index];
+
 				if (strncmp(&s[*off], field->name, len) == 0
 				    && field->name[len] == '\0')
 					break;
@@ -1358,9 +1359,10 @@ ng_unparse_composite(const struct ng_parse_type *type, const u_char *data,
 			}
 			nextIndex++;
 		} else {
-			const struct ng_parse_struct_info *si = type->info;
+			const struct ng_parse_struct_field *const
+			    fields = type->info;
 
-			NG_PARSE_APPEND("%s=", si->fields[index].name);
+			NG_PARSE_APPEND("%s=", fields[index].name);
 		}
 
 		/* Print value */
@@ -1439,12 +1441,12 @@ ng_get_composite_len(const struct ng_parse_type *type,
 	switch (ctype) {
 	case CT_STRUCT:
 	    {
-		const struct ng_parse_struct_info *const si = type->info;
+		const struct ng_parse_struct_field *const fields = type->info;
 		int numFields = 0;
 
 		for (numFields = 0; ; numFields++) {
 			const struct ng_parse_struct_field *const
-				fi = &si->fields[numFields];
+				fi = &fields[numFields];
 
 			if (fi->name == NULL)
 				break;
@@ -1481,9 +1483,9 @@ ng_get_composite_etype(const struct ng_parse_type *type,
 	switch (ctype) {
 	case CT_STRUCT:
 	    {
-		const struct ng_parse_struct_info *const si = type->info;
+		const struct ng_parse_struct_field *const fields = type->info;
 
-		etype = si->fields[index].type;
+		etype = fields[index].type;
 		break;
 	    }
 	case CT_ARRAY:
@@ -1521,10 +1523,10 @@ ng_parse_get_elem_pad(const struct ng_parse_type *type,
 	/* Get element's alignment, and possibly override */
 	align = ALIGNMENT(etype);
 	if (ctype == CT_STRUCT) {
-		const struct ng_parse_struct_info *si = type->info;
+		const struct ng_parse_struct_field *const fields = type->info;
 
-		if (si->fields[index].alignment != 0)
-			align = si->fields[index].alignment;
+		if (fields[index].alignment != 0)
+			align = fields[index].alignment;
 	}
 
 	/* Return number of bytes to skip to align */

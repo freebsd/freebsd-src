@@ -105,19 +105,19 @@ static int	nga_rcv_sync(const sc_p sc, item_p item);
 static int	nga_rcv_async(const sc_p sc, item_p item);
 
 /* Parse type for struct ng_async_cfg */
-static const struct ng_parse_struct_info
-	nga_config_type_info = NG_ASYNC_CONFIG_TYPE_INFO;
+static const struct ng_parse_struct_field nga_config_type_fields[]
+	= NG_ASYNC_CONFIG_TYPE_INFO;
 static const struct ng_parse_type nga_config_type = {
 	&ng_parse_struct_type,
-	&nga_config_type_info
+	&nga_config_type_fields
 };
 
 /* Parse type for struct ng_async_stat */
-static const struct ng_parse_struct_info
-	nga_stats_type_info = NG_ASYNC_STATS_TYPE_INFO;
+static const struct ng_parse_struct_field nga_stats_type_fields[]
+	= NG_ASYNC_STATS_TYPE_INFO;
 static const struct ng_parse_type nga_stats_type = {
 	&ng_parse_struct_type,
-	&nga_stats_type_info,
+	&nga_stats_type_fields
 };
 
 /* List of commands and how to convert arguments to/from ASCII */

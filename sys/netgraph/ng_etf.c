@@ -70,18 +70,18 @@ static ng_rcvdata_t	ng_etf_rcvdata;	 /* note these are both ng_rcvdata_t */
 static ng_disconnect_t	ng_etf_disconnect;
 
 /* Parse type for struct ng_etfstat */
-static const struct ng_parse_struct_info
-	ng_etf_stat_type_info = NG_ETF_STATS_TYPE_INFO;
+static const struct ng_parse_struct_field ng_etf_stat_type_fields[]
+	= NG_ETF_STATS_TYPE_INFO;
 static const struct ng_parse_type ng_etf_stat_type = {
 	&ng_parse_struct_type,
-	&ng_etf_stat_type_info
+	&ng_etf_stat_type_fields
 };
 /* Parse type for struct ng_setfilter */
-static const struct ng_parse_struct_info
-	ng_etf_filter_type_info = NG_ETF_FILTER_TYPE_INFO;
+static const struct ng_parse_struct_field ng_etf_filter_type_fields[]
+	= NG_ETF_FILTER_TYPE_INFO;
 static const struct ng_parse_type ng_etf_filter_type = {
 	&ng_parse_struct_type,
-	&ng_etf_filter_type_info
+	&ng_etf_filter_type_fields
 };
 
 /* List of commands and how to convert arguments to/from ASCII */
