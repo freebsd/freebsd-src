@@ -479,21 +479,22 @@ void
 pmap_context_rollover(void)
 {
 	u_long data;
+	u_long tag;
 	int i;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	CTR0(KTR_PMAP, "pmap_context_rollover");
 	for (i = 0; i < 64; i++) {
 		data = ldxa(TLB_DAR_SLOT(i), ASI_DTLB_DATA_ACCESS_REG);
-		if ((data & TD_V) != 0 && (data & TD_P) == 0) {
-			stxa(TLB_DAR_SLOT(i), ASI_DTLB_DATA_ACCESS_REG, 0);
-			membar(Sync);
-		}
+		tag = ldxa(TLB_DAR_SLOT(i), ASI_DTLB_TAG_READ_REG);
+		if ((data & TD_V) != 0 && (data & TD_L) == 0 &&
+		    TLB_TAR_CTX(tag) != TLB_CTX_KERNEL)
+			stxa_sync(TLB_DAR_SLOT(i), ASI_DTLB_DATA_ACCESS_REG, 0);
 		data = ldxa(TLB_DAR_SLOT(i), ASI_ITLB_DATA_ACCESS_REG);
-		if ((data & TD_V) != 0 && (data & TD_P) == 0) {
-			stxa(TLB_DAR_SLOT(i), ASI_ITLB_DATA_ACCESS_REG, 0);
-			membar(Sync);
-		}
+		tag = ldxa(TLB_DAR_SLOT(i), ASI_ITLB_TAG_READ_REG);
+		if ((data & TD_V) != 0 && (data & TD_L) == 0 &&
+		    TLB_TAR_CTX(tag) != TLB_CTX_KERNEL)
+			stxa_sync(TLB_DAR_SLOT(i), ASI_ITLB_DATA_ACCESS_REG, 0);
 	}
 	PCPU_SET(tlb_ctx, PCPU_GET(tlb_ctx_min));
 }
