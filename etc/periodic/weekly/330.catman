@@ -16,19 +16,13 @@ if [    -x /usr/libexec/catman.local \
        if [ "x${MANPATH}" = "x" ]; then
           echo "manpath failed to find any manpath directories" 
        else
-          # If possible, check global system configuration file
-          # for additional man(1) locales installed
-          if [ -r /etc/defaults/rc.conf ]; then
-              . /etc/defaults/rc.conf
-          elif [ -r /etc/rc.conf ]; then
-              . /etc/rc.conf
-          fi
+	  man_locales=`/usr/bin/manpath -qL`
          
           # Preformat original, non-localized manpages  
           echo /usr/libexec/catman.local "${MANPATH}" | su -fm man
 
           # Preformat localized manpages.
-	  if [ "x${man_locales}" != "x" -a "${man_locales}" != "NO" ]; then
+	  if [ X"${man_locales}" != X ]; then
              for i in ${man_locales}
              do
                  LC_CTYPE=$i echo /usr/libexec/catman.local -L "${MANPATH}" | \
