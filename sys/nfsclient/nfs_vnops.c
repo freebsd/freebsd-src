@@ -2984,6 +2984,13 @@ nfsspec_access(struct vop_access_args *ap)
 	int error;
 
 	/*
+	 * Map VAPPEND to VWRITE; NFSv2 does not understand the concept
+	 * of append-only files. XXX What about VADMIN and VSTAT?
+	 */
+	if (mode & VAPPEND)
+		mode = (mode & ~VAPPEND) | VWRITE;
+
+	/*
 	 * Disallow write attempts on filesystems mounted read-only;
 	 * unless the file is a socket, fifo, or a block or character
 	 * device resident on the filesystem.
