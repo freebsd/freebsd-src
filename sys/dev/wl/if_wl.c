@@ -188,7 +188,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *	transmit buffer available in sram space.
  */
 
-#include "wl.h"
+#define NWL 4
 #include "opt_wavelan.h"
 #include "opt_inet.h"
 
@@ -223,7 +223,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 /* was 1000 in original, fed to DELAY(x) */
 #define DELAYCONST	1000
-#include <i386/isa/if_wl.h>
+#include <dev/wl/if_wl.h>
 #include <machine/if_wl_wavelan.h>
 
 #ifndef COMPAT_OLDISA
