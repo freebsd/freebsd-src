@@ -124,23 +124,22 @@ struct p_sched *proc0_sched = NULL;
 struct td_sched *thread0_sched = &td_sched;
 
 /*
- * This priority range has 20 priorities on either end that are reachable
- * only through nice values.
+ * The priority is primarily determined by the interactivity score.  Thus, we
+ * give lower(better) priorities to kse groups that use less CPU.  The nice
+ * value is then directly added to this to allow nice to have some effect
+ * on latency.
  *
  * PRI_RANGE:	Total priority range for timeshare threads.
- * PRI_NRESV:	Reserved priorities for nice.
+ * PRI_NRESV:	Number of nice values.
  * PRI_BASE:	The start of the dynamic range.
- * DYN_RANGE:	Number of priorities that are available int the dynamic
- *		priority range.
  */
 #define	SCHED_PRI_RANGE		(PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE + 1)
 #define	SCHED_PRI_NRESV		PRIO_TOTAL
 #define	SCHED_PRI_NHALF		(PRIO_TOTAL / 2)
 #define	SCHED_PRI_NTHRESH	(SCHED_PRI_NHALF - 1)
-#define	SCHED_PRI_BASE		((SCHED_PRI_NRESV / 2) + PRI_MIN_TIMESHARE)
-#define	SCHED_DYN_RANGE		(SCHED_PRI_RANGE - SCHED_PRI_NRESV)
+#define	SCHED_PRI_BASE		(PRI_MIN_TIMESHARE)
 #define	SCHED_PRI_INTERACT(score)					\
-    ((score) * SCHED_DYN_RANGE / SCHED_INTERACT_MAX)
+    ((score) * SCHED_PRI_RANGE / SCHED_INTERACT_MAX)
 
 /*
  * These determine the interactivity of a process.
