@@ -14,9 +14,8 @@
 #include <err.h>
 #include <sysexits.h>
 
-/* XXX should be in <machine/> */
-#include "ppbconf.h"
-#include "ppi.h"
+#include <dev/ppbus/ppbconf.h>
+#include <dev/ppbus/ppi.h>
 
 #define debug(lev, fmt, args...)	if (debuglevel >= lev) fprintf(stderr, fmt "\n" , ## args);
 
