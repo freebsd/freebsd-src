@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_linux.c,v 1.6 1995/12/14 22:35:42 bde Exp $
+ *	$Id: imgact_linux.c,v 1.7 1996/01/19 22:59:23 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -122,65 +122,37 @@ exec_linux_imgact(imgp)
 	printf("imgact: Non page aligned binary %d\n", file_offset);
 #endif
 	/*
-	 * Map text read/execute
+	 * Map text+data+bss read/write/execute
 	 */
 	vmaddr = virtual_offset;
 	error = vm_map_find(&vmspace->vm_map, NULL, 0, &vmaddr,
-		    	    round_page(a_out->a_text), FALSE,
-				VM_PROT_ALL, VM_PROT_ALL, 0);
+		    	    a_out->a_text + a_out->a_data + bss_size, FALSE,
+			    VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (error)
 	    return error;
 
 	error = vm_mmap(kernel_map, &buffer,
-			round_page(a_out->a_text + file_offset),
+			round_page(a_out->a_text + a_out->a_data + file_offset),
 			VM_PROT_READ, VM_PROT_READ, MAP_FILE,
 			(caddr_t) imgp->vp, trunc_page(file_offset));
 	if (error)
 	    return error;
 
 	error = copyout((caddr_t)(buffer + file_offset), (caddr_t)vmaddr, 
-			a_out->a_text);
+			a_out->a_text + a_out->a_data);
+
+	vm_map_remove(kernel_map, buffer,
+		      round_page(a_out->a_text + a_out->a_data + file_offset));
+
 	if (error)
 	    return error;
 
-	vm_map_remove(kernel_map, trunc_page(vmaddr),
-		      round_page(a_out->a_text + file_offset));
-
-	error = vm_map_protect(&vmspace->vm_map, vmaddr,
-		   	       round_page(a_out->a_text),
-		   	       VM_PROT_EXECUTE|VM_PROT_READ, TRUE);
-	if (error)
-	    return error;
 	/*
-	 * Map data read/write 
+	 * remove write enable on the 'text' part
 	 */
-	vmaddr = virtual_offset + a_out->a_text;
-	error = vm_map_find(&vmspace->vm_map, NULL, 0, &vmaddr,
-		      	    round_page(a_out->a_data + bss_size), FALSE,
-				VM_PROT_ALL, VM_PROT_ALL, 0);
-	if (error)
-	    return error;
-
-	error = vm_mmap(kernel_map, &buffer,
-			round_page(a_out->a_data + file_offset),
-			VM_PROT_READ, VM_PROT_READ, MAP_FILE,
-			(caddr_t) imgp->vp,
-			trunc_page(a_out->a_text + file_offset));
-	if (error)
-	    return error;
-
-	error = copyout((caddr_t)(buffer + file_offset), 
-			(caddr_t)vmaddr, 
-			a_out->a_data);
-	if (error)
-	    return error;
-
-	vm_map_remove(kernel_map, trunc_page(vmaddr),
-		      round_page(a_out->a_data + file_offset));
-
 	error = vm_map_protect(&vmspace->vm_map, vmaddr,
-		   	       round_page(a_out->a_data + bss_size),
-		   	       VM_PROT_WRITE|VM_PROT_READ, TRUE);
+		   	       a_out->a_text,
+		   	       VM_PROT_EXECUTE|VM_PROT_READ, TRUE);
 	if (error)
 	    return error;
     }
@@ -189,30 +161,31 @@ exec_linux_imgact(imgp)
 	printf("imgact: Page aligned binary %d\n", file_offset);
 #endif
 	/*
-	 * Map text read/execute
+	 * Map text+data read/execute
 	 */
 	vmaddr = virtual_offset;
-	error = vm_mmap(&vmspace->vm_map, &vmaddr, a_out->a_text,
+	error = vm_mmap(&vmspace->vm_map, &vmaddr,
+			a_out->a_text + a_out->a_data,
 	    		VM_PROT_READ | VM_PROT_EXECUTE,
-	    		VM_PROT_READ | VM_PROT_EXECUTE | VM_PROT_WRITE,
+	    		VM_PROT_ALL,
 	    		MAP_PRIVATE | MAP_FIXED,
 	    		(caddr_t)imgp->vp, file_offset);
 	if (error)
 	    return (error);
     
 	/*
-	 * Map data read/write 
+	 * allow read/write of data
 	 */
-	vmaddr = virtual_offset + a_out->a_text;
-	error = vm_mmap(&vmspace->vm_map, &vmaddr, a_out->a_data,
-			VM_PROT_READ | VM_PROT_WRITE,
-			VM_PROT_ALL, MAP_PRIVATE | MAP_FIXED,
-			(caddr_t)imgp->vp, file_offset + a_out->a_text);
+	error = vm_map_protect(&vmspace->vm_map,
+			       vmaddr + a_out->a_text,
+			       vmaddr + a_out->a_text + a_out->a_data,
+			       VM_PROT_ALL,
+			       FALSE);
 	if (error)
 	    return (error);
     
 	/*
-	 * Allocate demand-zeroed area for uninitialized data
+	 * Allocate anon demand-zeroed area for uninitialized data
 	 */
 	if (bss_size != 0) {
 	    vmaddr = virtual_offset + a_out->a_text + a_out->a_data;
