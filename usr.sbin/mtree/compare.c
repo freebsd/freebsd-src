@@ -52,6 +52,9 @@ __FBSDID("$FreeBSD$");
 #ifdef SHA1
 #include <sha.h>
 #endif
+#ifdef SHA256
+#include <sha256.h>
+#endif
 #include <stdint.h>
 #include <stdio.h>
 #include <time.h>
@@ -294,6 +297,24 @@ typeerr:		LABEL;
 		}
 	}
 #endif /* RMD160 */
+#ifdef SHA256
+	if (s->flags & F_SHA256) {
+		char *new_digest, buf[65];
+
+		new_digest = SHA256_File(p->fts_accpath, buf);
+		if (!new_digest) {
+			LABEL;
+			printf("%sSHA-256: %s: %s\n", tab, p->fts_accpath,
+			       strerror(errno));
+			tab = "\t";
+		} else if (strcmp(new_digest, s->sha256digest)) {
+			LABEL;
+			printf("%sSHA-256 expected %s found %s\n",
+			       tab, s->sha256digest, new_digest);
+			tab = "\t";
+		}
+	}
+#endif /* SHA256 */
 
 	if (s->flags & F_SLINK &&
 	    strcmp(cp = rlink(p->fts_accpath), s->slink)) {
