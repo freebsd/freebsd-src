@@ -171,8 +171,8 @@ socreate(dom, aso, type, proto, cred, td)
 
 	if (prp->pr_type != type)
 		return (EPROTOTYPE);
-	so = soalloc(td != 0);
-	if (so == 0)
+	so = soalloc(M_NOWAIT);
+	if (so == NULL)
 		return (ENOBUFS);
 
 	SOCK_LOCK(so);
