@@ -36,12 +36,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/conf.h>
-#include <sys/proc.h>
 #include <sys/module.h>
-#include <sys/tty.h>
-#include <sys/fcntl.h>
-#include <sys/malloc.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
@@ -51,14 +46,9 @@
 #include <dev/kbd/kbdreg.h>
 
 #include <pc98/pc98/pc98.h>
-#include <pc98/pc98/pc98_machdep.h>
 
 #include <isa/isavar.h>
 #include <machine/lock.h>
-
-#ifdef __i386__
-#include <i386/isa/isa_device.h>
-#endif
 
 #define DRIVER_NAME		"pckbd"
 
