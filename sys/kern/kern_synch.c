@@ -459,7 +459,7 @@ mi_switch(void)
 {
 	struct bintime new_switchtime;
 	struct thread *td;
-#if !defined(__alpha__) && !defined(__powerpc__)
+#if !defined(__powerpc__)
 	struct thread *newtd;
 #endif
 	struct proc *p;
@@ -517,7 +517,7 @@ mi_switch(void)
 		thread_switchout(td);
 	sched_switchout(td);
 
-#if !defined(__alpha__) && !defined(__powerpc__) 
+#if !defined(__powerpc__) 
 	newtd = choosethread();
 	if (td != newtd)
 		cpu_switch(td, newtd);	/* SHAZAM!! */
