@@ -89,6 +89,7 @@ static default_attr kernel_default = {
 };
 
 static	int		sc_console_unit = -1;
+static	int		sc_saver_keyb_only;
 static  scr_stat    	*sc_console;
 static	struct tty	*sc_console_tty;
 static	void		*kernel_console_ts;
@@ -108,6 +109,10 @@ static	void		none_saver(sc_softc_t *sc, int blank) { }
 static	void		(*current_saver)(sc_softc_t *, int) = none_saver;
 #endif
 
+SYSCTL_NODE(_hw, OID_AUTO, syscons, CTLFLAG_RD, 0, "syscons");
+SYSCTL_NODE(_hw_syscons, OID_AUTO, saver, CTLFLAG_RD, 0, "saver");
+SYSCTL_INT(_hw_syscons_saver, OID_AUTO, keybonly, CTLFLAG_RW,
+    &sc_saver_keyb_only, 0, "screen saver interrupted by input only");
 #if !defined(SC_NO_FONT_LOADING) && defined(SC_DFLT_FONT)
 #include "font.h"
 #endif
@@ -2426,7 +2431,7 @@ sc_puts(scr_stat *scp, u_char *buf, int len)
 {
 #ifdef DEV_SPLASH
     /* make screensaver happy */
-    if (!sticky_splash && scp == scp->sc->cur_scp)
+    if (!sticky_splash && scp == scp->sc->cur_scp && !sc_saver_keyb_only)
 	run_scrn_saver = FALSE;
 #endif
 
