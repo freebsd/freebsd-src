@@ -191,8 +191,8 @@ sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
      * This is a kludge to fend off scrn_update() while we
      * muck around with scp. XXX
      */
-    scp->status |= UNKNOWN_MODE;
-    scp->status &= ~(GRAPHICS_MODE | PIXEL_MODE);
+    scp->status |= UNKNOWN_MODE | MOUSE_HIDDEN;
+    scp->status &= ~(GRAPHICS_MODE | PIXEL_MODE | MOUSE_VISIBLE);
     scp->mode = mode;
     scp->xsize = xsize;
     scp->ysize = ysize;
@@ -258,8 +258,8 @@ sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode)
     }
 
     /* set up scp */
-    scp->status |= (UNKNOWN_MODE | GRAPHICS_MODE);
-    scp->status &= ~PIXEL_MODE;
+    scp->status |= (UNKNOWN_MODE | GRAPHICS_MODE | MOUSE_HIDDEN);
+    scp->status &= ~(PIXEL_MODE | MOUSE_VISIBLE);
     scp->mode = mode;
     /*
      * Don't change xsize and ysize; preserve the previous vty
@@ -388,8 +388,8 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
 	sc_hist_save(scp);
 #endif
     prev_ysize = scp->ysize;
-    scp->status |= (UNKNOWN_MODE | PIXEL_MODE);
-    scp->status &= ~GRAPHICS_MODE;
+    scp->status |= (UNKNOWN_MODE | PIXEL_MODE | MOUSE_HIDDEN);
+    scp->status &= ~(GRAPHICS_MODE | MOUSE_VISIBLE);
     scp->xsize = xsize;
     scp->ysize = ysize;
     scp->xoff = (scp->xpixel/8 - xsize)/2;
@@ -676,7 +676,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
 		return error;
 	    }
 #ifndef PC98
-	    scp->status |= UNKNOWN_MODE;
+	    scp->status |= UNKNOWN_MODE | MOUSE_HIDDEN;
 	    splx(s);
 	    /* no restore fonts & palette */
 	    if (scp == scp->sc->cur_scp)
@@ -705,7 +705,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
 		splx(s);
 		return error;
 	    }
-	    scp->status |= (UNKNOWN_MODE | PIXEL_MODE);
+	    scp->status |= (UNKNOWN_MODE | PIXEL_MODE | MOUSE_HIDDEN);
 	    splx(s);
 	    if (scp == scp->sc->cur_scp) {
 		set_mode(scp);
@@ -724,7 +724,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
 		splx(s);
 		return error;
 	    }
-	    scp->status |= UNKNOWN_MODE;
+	    scp->status |= UNKNOWN_MODE | MOUSE_HIDDEN;
 	    splx(s);
 #ifdef PC98
 	    if (scp == scp->sc->cur_scp)
