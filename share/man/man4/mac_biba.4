@@ -1,4 +1,4 @@
-.\" Copyright (c) 2002 Networks Associates Technology, Inc.
+.\" Copyright (c) 2002-2004 Networks Associates Technology, Inc.
 .\" All rights reserved.
 .\"
 .\" This software was developed for the FreeBSD Project by Chris Costello
@@ -141,7 +141,7 @@ information.
 Multi-Level Security (MLS) protects the confidentiality, rather than the
 integrity, of subjects and objects.
 .Ss Label Format
-Almost all system objects are tagged with a single, active label element,
+Almost all system objects are tagged with a effective, active label element,
 reflecting the integrity of the object, or integrity of the data contained
 in the object.
 In general, objects labels are represented in the following form:
@@ -157,7 +157,7 @@ biba/10:2+3+6
 biba/low
 .Ed
 .Pp
-Subject labels consist of three label elements: a single (active) label,
+Subject labels consist of three label elements: a effective (active) label,
 as well as a range of available labels.
 This range is represented using two ordered Biba label elements, and when set
 on a process, permits the process to change its active label to any label of
@@ -166,7 +166,7 @@ integrity to the high end of the range.
 In general, subject labels are represented in the following form:
 .Pp
 .Sm off
-.D1 Li biba / Ar singlegrade : singlecompartments ( lograde : locompartments -
+.D1 Li biba / Ar effectivegrade : effectivecompartments ( lograde : locompartments -
 .D1 Ar higrade : hicompartments )
 .Sm on
 .Pp
@@ -179,10 +179,10 @@ biba/high(low-high)
 Valid ranged labels must meet the following requirement regarding their
 elements:
 .Pp
-.D1 Ar rangehigh No \[>=] Ar single No \[>=] Ar rangelow
+.D1 Ar rangehigh No \[>=] Ar effective No \[>=] Ar rangelow
 .Pp
 One class of objects with ranges currently exists, the network interface.
-In the case of the network interface, the single label element references the
+In the case of the network interface, the effective label element references the
 default label for packets received over the interface, and the range
 represents the range of acceptable labels of packets to be transmitted over
 the interface.
