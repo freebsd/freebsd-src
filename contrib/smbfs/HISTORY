@@ -1,3 +1,8 @@
+20.12.2001	1.4.2 (interim)
+    - Various merges (but not all) from Darwin project.
+    - Minor man pages corrections.
+    - Support builds in the FreeBSD main tree.
+
 16.04.2001	1.4.1
     - Kernel side of smbfs committed in the FreeBSD-current. It controlled
       by following options: LIBMCHAIN, LIBICONV, NETSMB, NETSMBCRYPTO and SMBFS.
