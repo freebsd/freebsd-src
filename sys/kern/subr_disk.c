@@ -115,12 +115,16 @@ diskopen(dev_t dev, int oflags, int devtype, struct proc *p)
 	if (!dp)
 		return (ENXIO);
 
-	dev->si_disk = dp;
+	if (!dsisopen(dp->d_slice))
+		error = dp->d_devsw->d_open(pdev, oflags, devtype, p);
+
+	/* Inherit properties from the whole/raw dev_t */
+	dev->si_disk = pdev->si_disk;
 	dev->si_drv1 = pdev->si_drv1;
 	dev->si_drv2 = pdev->si_drv2;
-
-	if (!dsisopen(dp->d_slice))
-		error = dp->d_devsw->d_open(dev, oflags, devtype, p);
+	dev->si_iosize_max = pdev->si_iosize_max;
+	dev->si_bsize_phys = pdev->si_bsize_phys;
+	dev->si_bsize_best = pdev->si_bsize_best;
 
 	if (error)
 		return(error);
@@ -138,12 +142,15 @@ diskclose(dev_t dev, int fflag, int devtype, struct proc *p)
 {
 	struct disk *dp;
 	int error;
+	dev_t pdev;
 
 	error = 0;
 	dp = dev->si_disk;
 	dsclose(dev, devtype, dp->d_slice);
-	if (!dsisopen(dp->d_slice))
-		error = dp->d_devsw->d_close(dev, fflag, devtype, p);
+	if (!dsisopen(dp->d_slice)) {
+		pdev = dkmodpart(dkmodslice(dev, WHOLE_DISK_SLICE), RAW_PART);
+		error = dp->d_devsw->d_close(pdev, fflag, devtype, p);
+	}
 	return (error);
 }
 
