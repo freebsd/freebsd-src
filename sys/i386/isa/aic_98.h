@@ -62,8 +62,8 @@ static int aicport_100[32] = {
 #define SCSIDAT		(iobase + aic->aicport[0x06]) /* SCSI Latched Data */
 #define SCSIBUS		(iobase + aic->aicport[0x07]) /* SCSI Data Bus*/
 #define STCNT0		(iobase + aic->aicport[0x08]) /* SCSI transfer count */
-#define STCNT1		(iobase + aic->aicport[0x09)
-#define STCNT2		(iobase + aic->aicport[0x0a)
+#define STCNT1		(iobase + aic->aicport[0x09])
+#define STCNT2		(iobase + aic->aicport[0x0a])
 #define CLRSINT0	(iobase + aic->aicport[0x0b]) /* Clear SCSI interrupts 0 */
 #define SSTAT0		(iobase + aic->aicport[0x0b]) /* SCSI interrupt status 0 */
 #define CLRSINT1	(iobase + aic->aicport[0x0c]) /* Clear SCSI interrupts 1 */
@@ -83,7 +83,7 @@ static int aicport_100[32] = {
 #define DMADATAL	(iobase + aic->aicport[0x16]) /* DMA data low byte */
 #define DMADATAH	(iobase + aic->aicport[0x17]) /* DMA data high byte */
 #define BRSTCNTRL	(iobase + aic->aicport[0x18]) /* Burst Control */
-#define DMADATALONG	(iobase + aic->aicport[0x18)
+#define DMADATALONG	(iobase + aic->aicport[0x18])
 #define PORTA		(iobase + aic->aicport[0x1a]) /* Port A */
 #define PORTB		(iobase + aic->aicport[0x1b]) /* Port B */
 #define REV		(iobase + aic->aicport[0x1c]) /* Revision (001 for 6360) */
