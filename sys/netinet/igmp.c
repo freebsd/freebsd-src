@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
- * $Id: igmp.c,v 1.4 1994/09/06 22:42:16 wollman Exp $
+ * $Id: igmp.c,v 1.5 1994/09/14 03:10:07 wollman Exp $
  */
 
 /*
@@ -215,6 +215,13 @@ igmp_input(m, iphlen)
 			break;
 
 		if (igmp->igmp_code == 0) {
+
+			rti->type = IGMP_OLD_ROUTER; rti->time = 0;
+
+			/*
+			** Do exactly as RFC 1112 says
+			*/
+
 			if (ip->ip_dst.s_addr != igmp_all_hosts_group) {
 				++igmpstat.igps_rcv_badqueries;
 				m_freem(m);
