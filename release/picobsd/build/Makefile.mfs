@@ -4,16 +4,20 @@
 
 DESTDIR?=${MFS_MOUNTPOINT}
 
-STAND_LINKS= bin sbin
-USR_LINKS= bin sbin libexec
-PL_LOCALE_LINKS= pl polish
-MY_DEVS= std tun2 cuaa0 cuaa1 cuaa2 vty10 fd0 wd0s1h pty0 ttyd0 cuaa0 wd1 wd2 wd3 bpf0 bpf1 sa0 sa1
+STAND_LINKS?= bin sbin usr/local/bin
+USR_LINKS?= bin sbin libexec
+#PL_LOCALE_LINKS?= pl polish
+MY_DEVS?= std tun2 cuaa0 cuaa1 cuaa2 vty10 fd0 wd0s1h pty0 ttyd0 cuaa0 wd1 wd2 wd3 bpf0 bpf1 sa0 sa1
 
 all: tree links
 
 tree:
 	@echo "--- making tree"
-	mtree -deU -f mfs.mtree -p ${DESTDIR}
+	@( if [ -f mfs.mtree ] ; then \
+		mtree -deU -f mfs.mtree -p ${DESTDIR}; \
+	else \
+		mtree -deU -f ../build/mfs.mtree -p ${DESTDIR} ;  \
+	fi )
 
 links: tree
 	@echo "--- making links"
