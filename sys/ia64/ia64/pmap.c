@@ -1743,7 +1743,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 	psize = ia64_btop(size);
 
 	if ((object->type != OBJT_VNODE) ||
-		(limit && (psize > MAX_INIT_PT) &&
+		((limit & MAP_PREFAULT_PARTIAL) && (psize > MAX_INIT_PT) &&
 			(object->resident_page_count > MAX_INIT_PT))) {
 		pmap_install(oldpmap);
 		return;
@@ -1771,6 +1771,14 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 			if (tmpidx >= psize) {
 				continue;
 			}
+			/*
+			 * don't allow an madvise to blow away our really
+			 * free pages allocating pv entries.
+			 */
+			if ((limit & MAP_PREFAULT_MADVISE) &&
+			    cnt.v_free_count < cnt.v_free_reserved) {
+				break;
+			}
 			if (((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
 				if ((p->queue - p->pc) == PQ_CACHE)
@@ -1788,6 +1796,14 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 		 * else lookup the pages one-by-one.
 		 */
 		for (tmpidx = 0; tmpidx < psize; tmpidx += 1) {
+			/*
+			 * don't allow an madvise to blow away our really
+			 * free pages allocating pv entries.
+			 */
+			if ((limit & MAP_PREFAULT_MADVISE) &&
+			    cnt.v_free_count < cnt.v_free_reserved) {
+				break;
+			}
 			p = vm_page_lookup(object, tmpidx + pindex);
 			if (p &&
 			    ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
