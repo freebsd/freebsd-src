@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.130 1998/11/03 22:01:21 des Exp $
+#	$Id: GENERIC,v 1.131 1998/11/12 11:29:28 obrien Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -179,3 +179,22 @@ options		SYSVSHM
 #  option.  The number of devices determines the maximum number of
 #  simultaneous BPF clients programs runnable.
 #pseudo-device	bpfilter 4	#Berkeley packet filter
+
+
+# USB support
+#controller    uhci0
+#controller    usb0
+#
+# for the moment we have to specify the priorities of the device
+# drivers explicitly by the ordering in the list below. This will
+# be changed in the future.
+#
+#device        ums0
+#device        ukbd0
+#device        ulpt0
+#device        uhub0
+#device        hid0
+#device        ugen0
+#
+#options       USB_DEBUG
+#options       USBVERBOSE
