@@ -40,7 +40,6 @@
 .Cd "stli0 at isa? port <io-addr> tty iomem <mem-addr> iosiz <size> flags <type> "
 .Cd "stli0 at eisa? port <io-addr> tty iomem <mem-addr> iosiz <size> flags <type> "
 .Sh DESCRIPTION
-.Pp
 This is a kernel driver for Stallion Technologies multiport serial boards.
 There are two drivers, each supporting a different class of boards.
 The
@@ -51,7 +50,6 @@ boards, while the
 driver supports all other types, including
 ONboard, Brumby and EasyConnection 8/64.
 .Sh CONFIGURATION
-.Pp
 Each board installed in the system needs a configuration entry in the
 kernel configuration file.
 Slightly different options and parameters are required for each of the
@@ -82,18 +80,18 @@ driver take the general form of:
 .Pp
 .Cd "stlX at isa? port <io-addr> tty irq <irq> vector stlintr"
 .Pp
-.Nm X
+.Ar X
 is the unit number assigned to the board.
 Any unique value between 0 and 7 is valid.
 .Pp
 The I/O address used by the board is specified by
-.Nm <io-addr>.
+.Ar <io-addr> .
 Each of the EasyIO and EasyConnection 8/32-AT boards can use
 an I/O address in the range from 0 to 0x400.
 .Pp
 All EasyIO and EasyConnection 8/32 boards require an interrupt,
 and this interrupt is specified by
-.Nm <irq>.
+.Ar <irq> .
 Legal IRQ values for the ISA boards are 3, 4, 5, 7, 10, 11, 12 and 15.
 Interrupts are software programmed on all boards except the EasyIO-8M.
 .Pp
@@ -152,12 +150,12 @@ driver take the general form of:
 .Pp
 .Cd "stliX at isa? port <io-addr> tty iomem <mem-addr> iosiz <size> flags <type>"
 .Pp
-.Nm X
+.Ar X
 is the unit number assigned to the board.
 Any unique value between 0 and 7 is valid.
 .Pp
 The I/O address used by the board is specified by
-.Nm <io-addr>.
+.Ar <io-addr> .
 Each of the different supported board types has restrictions on valid
 I/O addresses and also the amount of I/O space required varies between
 the boards.
@@ -168,9 +166,9 @@ driver require a shared memory region to operate.
 Depending on the board type the region required varies in size
 from 4 kbytes to 64 kbytes.  The size of the board region is specified
 by field
-.Nm <size>
+.Ar <size>
 of the configuration entry, and the address of the region is specified by
-.Nm <mem-addr>.
+.Ar <mem-addr> .
 .Pp
 The flags field specifies the particular board type that this entry
 applies to.
@@ -203,7 +201,7 @@ The flags field of this entry specifies that this is an
 EasyConnection 8/64-AT board.
 It is set to I/O address 0x2a0 and memory address 0xcc000.
 The
-.Nm iosiz
+.Ar iosiz
 parameter specifies a memory region size
 of 4 kbytes.
 .Pp
@@ -223,7 +221,7 @@ hardware of the system.
 That address being 0xX000 where X is the slot number.
 The example board is at memory address 0x80000000 which is 2 Gbyte.
 The
-.Nm iosiz
+.Ar iosiz
 parameter specifies the size of the memory region,
 in this case 64 kbytes.
 .Pp
@@ -267,7 +265,9 @@ or
 Each driver has a separate major number allocated,
 so even though the port device names are the same for each driver,
 the major number of the device node is different.
-Use the MAKEDEV(8) script to create the devices.
+Use the
+.Xr MAKEDEV 8
+script to create the devices.
 Use the ttyE and cue tag for the
 .Nm stl
 driver, and
@@ -302,7 +302,9 @@ board control device
 Note that the port numbers start at 0 for port 0 of board 0.
 Each board has 64 port slots allocated for it.
 So the second boards ports start at 64 and go through 127.
-Use the MAKEDEV(8) script to create the devices.
+Use the
+.Xr MAKEDEV 8
+script to create the devices.
 Use the ttyE and cue tag for the
 .Nm stl
 driver, and
@@ -316,6 +318,7 @@ driver.
 .Xr comcontrol 8 ,
 .Xr MAKEDEV 8 ,
 .Xr stlload 8 ,
-.Xr stlstats 8 
+.Xr stlstats 8
 .Sh HISTORY
-This driver was originally developed by Greg Ungerer (gerg@stallion.com).
+This driver was originally developed by
+.An Greg Ungerer Aq gerg@stallion.com .
