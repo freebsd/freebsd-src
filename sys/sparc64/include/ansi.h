@@ -76,7 +76,8 @@
 #else
 #define	_BSD_VA_LIST_	char *			/* va_list */
 #endif /* post GCC 2.95 */
-#ifdef __GNUC__
+#if defined __GNUC__ && !defined(__GNUC_VA_LIST) && !defined(__NO_GNUC_VA_LIST)
+#define __GNUC_VA_LIST
 typedef _BSD_VA_LIST_ __gnuc_va_list;		/* compatibility w/GNU headers*/
 #endif
 
