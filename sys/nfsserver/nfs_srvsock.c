@@ -1504,15 +1504,19 @@ nfs_sigintr(nmp, rep, p)
 {
 	sigset_t tmpset;
 
-	tmpset = p->p_siglist;
-	SIGSETNAND(tmpset, p->p_sigmask);
-	SIGSETNAND(tmpset, p->p_sigignore);
 	if (rep && (rep->r_flags & R_SOFTTERM))
 		return (EINTR);
 	if (!(nmp->nm_flag & NFSMNT_INT))
 		return (0);
-	if (p && SIGNOTEMPTY(p->p_siglist) && NFSINT_SIGMASK(tmpset))
+	if (p == NULL)
+		return (0);
+
+	tmpset = p->p_siglist;
+	SIGSETNAND(tmpset, p->p_sigmask);
+	SIGSETNAND(tmpset, p->p_sigignore);
+	if (SIGNOTEMPTY(p->p_siglist) && NFSINT_SIGMASK(tmpset))
 		return (EINTR);
+
 	return (0);
 }
 
