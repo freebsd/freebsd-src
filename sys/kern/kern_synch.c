@@ -75,6 +75,7 @@ int	hogticks;
 int	lbolt;
 
 static struct callout loadav_callout;
+static struct callout lbolt_callout;
 
 struct loadavg averunnable =
 	{ {0, 0, 0}, FSCALE };	/* load average, of runnable procs */
@@ -88,8 +89,13 @@ static fixpt_t cexp[3] = {
 	0.9944598480048967 * FSCALE,	/* exp(-1/180) */
 };
 
+/* kernel uses `FSCALE', userland (SHOULD) use kern.fscale */
+static int      fscale __unused = FSCALE;
+SYSCTL_INT(_kern, OID_AUTO, fscale, CTLFLAG_RD, 0, FSCALE, "");
+
 static void	endtsleep(void *);
 static void	loadav(void *arg);
+static void	lboltcb(void *arg);
 
 /*
  * We're only looking at 7 bits of the address; everything is
@@ -625,15 +631,24 @@ nextproc:
 	    loadav, NULL);
 }
 
+static void
+lboltcb(void *arg)
+{
+	wakeup(&lbolt);
+	callout_reset(&lbolt_callout, hz, lboltcb, NULL);
+}
+
 /* ARGSUSED */
 static void
 sched_setup(dummy)
 	void *dummy;
 {
 	callout_init(&loadav_callout, 0);
+	callout_init(&lbolt_callout, 1);
 
 	/* Kick off timeout driven events by calling first time. */
 	loadav(NULL);
+	lboltcb(NULL);
 }
 
 /*
