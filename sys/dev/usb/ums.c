@@ -71,7 +71,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_quirks.h>
 #include <dev/usb/hid.h>
 
+#if __FreeBSD_version >= 500000
 #include <sys/mouse.h>
+#else
+#include <machine/mouse.h>
+#endif
 
 #ifdef USB_DEBUG
 #define DPRINTF(x)	if (umsdebug) logprintf x
