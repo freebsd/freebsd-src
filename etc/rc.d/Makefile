@@ -41,6 +41,4 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 FILESDIR=	/etc/rc.d
 FILESMODE=	${BINMODE}
 
-NOPROG= noprog
-
 .include <bsd.prog.mk>
