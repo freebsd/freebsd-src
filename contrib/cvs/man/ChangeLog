@@ -1,3 +1,50 @@
+2002-04-17  Derek Price  <oberon@umich.edu>
+
+	* cvs.1(cvs tag): Mention -c option.
+	(Correction from Michael Richardson <mcr@sandelman.ottawa.on.ca>.)
+
+2002-04-17  Derek Price  <oberon@umich.edu>
+
+	* cvs.1(cvs commit): It's '-F' now, not '-f'.
+	(Correction from Norikatsu Shigemura <nork@cityfujisawa.ne.jp>.)
+
+2002-04-17  Derek Price  <oberon@umich.edu>
+
+	* cvs.1: Claim to be out of date and direct users to the Cederqvist.
+	Replace www.cyclic.com with cvshome.org.
+	* cvs.5: Ditto.
+
+2001-11-27  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvsbug.8: Fixed typo.
+	(Correction from Mark D. Baushke <mdb@cvshome.org>.)
+
+2001-09-04  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated with automake 1.5.
+
+2001-08-06  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated.
+
+2001-07-04  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated with new Automake release candidate 1.4h.
+
+2001-06-28  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated with new version of Automake.
+
+2001-05-21  Derek Price  <dprice@collab.net>
+
+	* cvs.1: Correct a quoting error.
+	(Patch from Alexey Mahotkin <alexm@hsys.msk.ru>).
+
+2001-05-18  Derek Price  <dprice@collab.net>
+
+	* cvs.1: Add note about 'P' file status from update.
+	(Reported by Jani Averbach <jaa@cc.jyu.fi>).
+
 2001-04-25  Derek Price  <dprice@collab.net>
 
 	* Makefile.in: Regenerated using AM 1.4e as of today at 18:10 -0400.
