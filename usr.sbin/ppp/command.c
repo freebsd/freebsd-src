@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.36 1997/03/24 16:01:46 ache Exp $
+ * $Id: command.c,v 1.37 1997/04/09 17:35:52 ache Exp $
  *
  */
 #include <sys/types.h>
@@ -376,6 +376,15 @@ static int ShowRedial()
     printf(" Random 0 - %d seconds, ", REDIAL_PERIOD);
   }
 
+  printf(" Redial Next Timer: ");
+
+  if (VarRedialNextTimeout >= 0) {
+    printf(" %d seconds, ", VarRedialNextTimeout);
+  }
+  else {
+    printf(" Random 0 - %d seconds, ", REDIAL_PERIOD);
+  }
+
   if (VarDialTries)
       printf("%d dial tries", VarDialTries);
 
@@ -650,9 +659,11 @@ char **argv;
 {
   int timeout;
   int tries;
+  char *dot;
 
   if (argc == 1 || argc == 2 ) {
-    if (strcasecmp(argv[0], "random") == 0) {
+    if (strncasecmp(argv[0], "random", 6) == 0 &&
+	(argv[0][6] == '\0' || argv[0][6] == '.')) {
       VarRedialTimeout = -1;
       printf("Using random redial timeout.\n");
       if (!randinit) {
@@ -672,6 +683,32 @@ char **argv;
 	printf("Usage: %s %s\n", list->name, list->syntax);
       }
     }
+
+    dot = index(argv[0],'.');
+    if (dot) {
+      if (strcasecmp(++dot, "random") == 0) {
+        VarRedialNextTimeout = -1;
+        printf("Using random next redial timeout.\n");
+        if (!randinit) {
+          randinit = 1;
+          if (srandomdev() < 0)
+            srandom((unsigned long)(time(NULL) ^ getpid()));
+        }
+      }
+      else {
+        timeout = atoi(dot);
+        if (timeout >= 0) {
+          VarRedialNextTimeout = timeout;
+        }
+        else {
+          printf("invalid next redial timeout\n");
+          printf("Usage: %s %s\n", list->name, list->syntax);
+        }
+      }
+    }
+    else
+      VarRedialNextTimeout = NEXT_REDIAL_PERIOD;   /* Default next timeout */
+
     if (argc == 2) {
       tries = atoi(argv[1]);
 
@@ -1043,7 +1080,7 @@ struct cmdtab const SetCommands[] = {
   { "timeout",  NULL,     SetIdleTimeout,	LOCAL_AUTH,
 	"Set Idle timeout", StrValue},
   { "redial",   NULL,     SetRedialTimeout,	LOCAL_AUTH,
-	"Set Redial timeout", "value|random [dial_attempts]"},
+	"Set Redial timeout", "value|random[.value|random] [dial_attempts]"},
 #ifdef MSEXT
   { "ns",	NULL,	  SetNS,		LOCAL_AUTH,
 	"Set NameServer", "pri-addr [sec-addr]"},

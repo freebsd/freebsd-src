@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.42 1997/04/12 22:58:39 brian Exp $
+ * $Id: main.c,v 1.43 1997/04/13 00:54:43 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -682,18 +682,21 @@ RedialTimeout()
 }
 
 static void
-StartRedialTimer()
+StartRedialTimer(Timeout)
+	int Timeout;
 {
   StopTimer(&RedialTimer);
 
-  if (VarRedialTimeout) {
-    LogPrintf(LOG_PHASE_BIT, "Enter pause for redialing.\n");
+  if (Timeout) {
     RedialTimer.state = TIMER_STOPPED;
 
-    if (VarRedialTimeout > 0)
-	RedialTimer.load = VarRedialTimeout * SECTICKS;
+    if (Timeout > 0)
+	RedialTimer.load = Timeout * SECTICKS;
     else
 	RedialTimer.load = (random() % REDIAL_PERIOD) * SECTICKS;
+
+    LogPrintf(LOG_PHASE_BIT, "Enter pause (%d) for redialing.\n",
+	      RedialTimer.load / SECTICKS);
 
     RedialTimer.func = RedialTimeout;
     StartTimer(&RedialTimer);
@@ -759,7 +762,7 @@ DoLoop()
 #endif
       modem = OpenModem(mode);
       if (modem < 0) {
-	StartRedialTimer();
+	StartRedialTimer(VarRedialTimeout);
       } else {
 	tries++;    /* Tries are per number, not per list of numbers. */
         if (VarDialTries)
@@ -779,21 +782,18 @@ DoLoop()
 	    if (VarNextPhone == NULL)
 	      Cleanup(EX_DIAL);  /* Tried all numbers - no luck */
 	    else
-	      sleep(1);          /* Try all numbers in background mode */
+	      /* Try all numbers in background mode */
+	      StartRedialTimer(VarRedialNextTimeout);
 	  } else if (VarDialTries && tries >= VarDialTries) {
 	    /* I give up !  Can't get through :( */
-	    StartRedialTimer();
+	    StartRedialTimer(VarRedialTimeout);
 	    dial_up = FALSE;
 	    tries = 0;
 	  } else if (VarNextPhone == NULL)
 	    /* Dial failed. Keep quite during redial wait period. */
-	    StartRedialTimer();
+	    StartRedialTimer(VarRedialTimeout);
 	  else
-	    /*
-	     * Give the modem a chance to recover, then dial the next
-	     * number in our list
-	     */
-	    sleep(1);
+	    StartRedialTimer(VarRedialNextTimeout);
 	}
       }
     }
