@@ -539,8 +539,7 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 						/* The wait timedout. */
 						rval = ETIMEDOUT;
 						(void)_mutex_cv_lock(mutex);
-					} else if ((interrupted == 0) ||
-					    (done != 0))
+					} else if (interrupted || done)
 						rval = _mutex_cv_lock(mutex);
 				}
 			}
