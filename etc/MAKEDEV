@@ -1576,6 +1576,7 @@ i4btrc*)
 aac*)
 	unit=`expr $i : 'aac\(.*\)'`
 	mknod aac$unit c 150 $unit
+	;;
 
 mlx*)
 	unit=`expr $i : 'mlx\(.*\)'`
