@@ -611,7 +611,7 @@ tr_pci_attach(device_t dev)
 {
 	u_int32_t	data;
 	struct tr_info *tr;
-	struct ac97_info *codec;
+	struct ac97_info *codec = 0;
 	int		i;
 	int		mapped;
 	char 		status[SND_STATUSLEN];

@@ -44,7 +44,6 @@
 
 /* channel interface for ESS */
 static void *esschan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int esschan_setdir(void *data, int dir);
 static int esschan_setformat(void *data, u_int32_t format);
 static int esschan_setspeed(void *data, u_int32_t speed);
 static int esschan_setblocksize(void *data, u_int32_t blocksize);
@@ -995,7 +994,7 @@ static int
 ess_detach(device_t dev)
 {
 	int r;
-	struct sc_info *sc;
+	struct ess_info *sc;
 
 	r = pcm_unregister(dev);
 	if (r)
