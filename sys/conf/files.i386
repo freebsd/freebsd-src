@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.222 1999/02/11 07:11:00 gibbs Exp $
+#	$Id: files.i386,v 1.223 1999/02/20 11:17:59 julian Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -24,6 +24,11 @@ font8x16.o			optional	std8x16font		\
 	no-implicit-rule before-depend \
 	clean		"${STD8X16FONT}-8x16 font8x16.c" 
 #
+dev/ata/ata-all.c		optional	ata	device-driver
+dev/ata/atapi-all.c		optional	ata	device-driver
+dev/ata/ata-disk.c		optional	atadisk	device-driver
+dev/ata/atapi-cd.c		optional	atapicd	device-driver
+dev/ata/atapi-tape.c		optional	atapist	device-driver
 dev/fb/fb.c			optional	fb	device-driver
 dev/fb/fb.c			optional	vga	device-driver
 dev/fb/splash.c			optional	splash

@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.559 1999/02/21 16:23:23 n_hibma Exp $
+#	$Id: LINT,v 1.560 1999/02/22 18:19:57 des Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1006,6 +1006,24 @@ controller      aha0    at isa? port ? cam irq ?
 
 #!CAM# controller      aic0    at isa? port 0x340 bio irq 11
 
+#
+# ATA and ATAPI devices
+# This is work in progress, use at your own risk.
+# It currently reuses the majors of wd.c and freinds.
+# It cannot co-exist with the old system in one kernel.
+# You only need one "controller ata0" for it to find all
+# PCI devices on modern machines.
+#controller	ata0
+#device		atadisk0	# ATA disk drives
+#device		atapicd0	# ATAPI CDROM drives
+#device		atapist0	# ATAPI tape drives
+#
+# If you need ISA only devices, this is the lines to add:
+#controller	ata1	at isa? port "IO_WD1" bio irq 14
+#controller	ata2	at isa? port "IO_WD2" bio irq 15
+# 
+# All the controller lines can coexist, the driver will
+# find out which ones are there.
 
 #
 # ST-506, ESDI, and IDE hard disks: `wdc' and `wd'
