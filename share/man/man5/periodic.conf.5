@@ -299,6 +299,9 @@ mounts when comparing against yesterdays filesystem mounts.
 if you want to summarise mail rejections logged to
 .Pa /var/log/maillog
 for the previous day.
+.It Ar daily_status_mail_rejects_logs
+(num) Set to the number of maillog files that should be checked for yesterdays
+mail rejects.
 .It Ar daily_local
 (str) Set to a list of extra scripts that should be run after all other
 daily scripts.
@@ -364,12 +367,20 @@ An orphaned file is one with an invalid owner or group.
 (str) A list of directories under which orphaned files are searched for.
 This would usually be set to
 .Pa / .
+<<<<<<< periodic.conf.5
+.It Ar weekly_status_pkg_dirs
+(bool) Set to
+.Dq YES
+if you want to report out-of-date packages installed using
+.Xr pkg_version 1 .
+=======
 .It Ar weekly_status_pkg_dirs
 (bool) Set to
 .Dq YES
 if you want to use
 .Xr pkg_version 1
 to list installed packages which are out of date.
+>>>>>>> 1.4
 .It Ar weekly_local
 (str) Set to a list of extra scripts that should be run after all other
 weekly scripts.
