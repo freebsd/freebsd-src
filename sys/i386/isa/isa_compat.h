@@ -28,7 +28,6 @@
 
 #include "vt.h"
 #include "adv.h"
-#include "wdc.h"
 #include "mse.h"
 #include "ar.h"
 #include "cs.h"
