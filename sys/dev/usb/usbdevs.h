@@ -615,7 +615,8 @@
 #define	USB_PRODUCT_FREECOM_DVD	0xfc01		/* Connector for DVD drive */
 
 /* Future Technology Devices products */
-#define	USB_PRODUCT_FTDI_SERIAL	0x8372		/* Serial converter */
+#define	USB_PRODUCT_FTDI_SERIAL_8U100AX	0x8372		/* 8U100AX Serial converter */
+#define	USB_PRODUCT_FTDI_SERIAL_8U232AM	0x6001		/* 8U232AM Serial converter */
 
 /* Fuji photo products */
 #define	USB_PRODUCT_FUJIPHOTO_MASS0100	0x0100		/* Mass Storage */
