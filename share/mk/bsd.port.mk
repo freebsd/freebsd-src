@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.65 1994/11/11 09:45:33 jkh Exp $
+# $Id: bsd.port.mk,v 1.66 1994/11/15 10:16:56 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -368,7 +368,11 @@ ${CONFIGURE_COOKIE}:
 	@(cd ${WRKSRC}; ./configure ${CONFIGURE_ARGS})
 .endif
 .if defined(USE_IMAKE)
+.if defined(USE_GMAKE)
+	@(cd ${WRKSRC}; ${XMKMF} && ${GMAKE} Makefiles)
+.else
 	@(cd ${WRKSRC}; ${XMKMF} && ${MAKE} Makefiles)
+.endif
 .endif
 	@if [ -f ${SCRIPTDIR}/post-configure ]; then \
 		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
