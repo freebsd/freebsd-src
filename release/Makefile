@@ -76,7 +76,7 @@ OBJFORMAT?=		elf
 
 # Uncomment and modify this definition if you want the release notes 
 # and other release documentation in a language other than English.
-#RELNOTES_LANG=	en_US.ISO_8859-1
+#RELNOTES_LANG=	en_US.ISO8859-1
 
 # As an alternative to installing the entire ports collection (which
 # can take a huge amount of time, in particular on slower disks),
@@ -337,7 +337,7 @@ rerelease release:
 .if defined(ALLLANG) && ${ALLLANG} != "NO" && ${ALLLANG} != "no"
 	echo "export ALLLANG=${ALLLANG}"	>> ${CHROOTDIR}/mk
 .else
-	echo "export DOC_LANG=en_US.ISO_8859-1"	>> ${CHROOTDIR}/mk
+	echo "export DOC_LANG=en_US.ISO8859-1"	>> ${CHROOTDIR}/mk
 .endif
 .if defined(NOSRC)
 	echo "export NOSRC=${NOSRC}"		>> ${CHROOTDIR}/mk
@@ -345,7 +345,7 @@ rerelease release:
 .if defined(RELNOTES_LANG)
 	echo "export RELNOTES_LANG=${RELNOTES_LANG}"	>> ${CHROOTDIR}/mk
 .else
-	echo "export RELNOTES_LANG=en_US.ISO_8859-1"	>> ${CHROOTDIR}/mk
+	echo "export RELNOTES_LANG=en_US.ISO8859-1"	>> ${CHROOTDIR}/mk
 .endif
 .if defined(NOSHARED)
 	echo "export NOSHARED=${NOSHARED}"	>> ${CHROOTDIR}/mk
