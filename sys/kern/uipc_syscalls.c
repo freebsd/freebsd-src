@@ -1890,10 +1890,11 @@ retry_lookup:
 			    IO_VMIO | ((MAXBSIZE / bsize) << IO_SEQSHIFT),
 			    td->td_ucred, NOCRED, &resid, td);
 			VOP_UNLOCK(vp, 0, td);
-			if (error)
-				VM_OBJECT_LOCK(obj);
+			VM_OBJECT_LOCK(obj);
 			vm_page_lock_queues();
 			vm_page_io_finish(pg);
+			if (!error)
+				VM_OBJECT_UNLOCK(obj);
 			mbstat.sf_iocnt++;
 		}
 	
