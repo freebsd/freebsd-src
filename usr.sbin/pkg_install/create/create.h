@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: create.h,v 1.11 1997/02/22 16:09:24 peter Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance
@@ -31,10 +31,11 @@ extern char	*Install;
 extern char	*DeInstall;
 extern char	*Contents;
 extern char	*Require;
-extern char	PlayPen[];
+extern char	*SrcDir;
 extern char	*ExcludeFrom;
 extern char	*Mtree;
 extern char	*Pkgdeps;
+extern char	PlayPen[];
 extern int	Dereference;
 extern int	PlistOnly;
 
