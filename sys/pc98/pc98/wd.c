@@ -1210,8 +1210,7 @@ done: ;
 		bp->bio_resid = bp->bio_bcount - du->dk_skip * DEV_BSIZE;
 		wdutab[du->dk_lunit].b_active = 0;
 		du->dk_skip = 0;
-		devstat_end_transaction_bio(&du->dk_stats, bp);
-		biodone(bp);
+		biofinish(bp, &du->dk_stats, 0);
 	}
 
 	/* controller idle */

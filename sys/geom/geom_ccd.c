@@ -1116,8 +1116,7 @@ ccdintr(cs, bp)
 	 */
 	if (bp->bio_flags & BIO_ERROR)
 		bp->bio_resid = bp->bio_bcount;
-	devstat_end_transaction_bio(&cs->device_stats, bp);
-	biodone(bp);
+	biofinish(bp, &cs->device_stats, 0);
 }
 
 /*

@@ -159,9 +159,7 @@ atapi_detach(struct atapi_softc *atp)
 	TAILQ_REMOVE(&atp->controller->atapi_queue, request, chain);
 	if (request->driver) {
 	    struct bio *bp = (struct bio *) request->driver;
-	    bp->bio_error = ENXIO;
-	    bp->bio_flags |= BIO_ERROR;
-	    biodone(bp);
+	    biofinish(bp, NULL, ENXIO);
 	}
 	if (request->dmatab)
 	    free(request->dmatab, M_DEVBUF);

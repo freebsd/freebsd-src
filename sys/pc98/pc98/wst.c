@@ -395,9 +395,7 @@ wststrategy(struct bio *bp)
     /* Check for != blocksize requests */
     if (bp->bio_bcount % t->blksize) {
         printf("wst%d: bad request, must be multiple of %d\n", lun, t->blksize);
-        bp->bio_error = EIO;
-	bp->bio_flags |= BIO_ERROR;
-        biodone(bp);
+        biofinish(bp, NULL, EIO);
         return;
     }
 

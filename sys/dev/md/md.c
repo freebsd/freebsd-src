@@ -304,8 +304,7 @@ mdstart_malloc(struct md_s *sc)
 			dst += sc->secsize;
 		}
 		bp->bio_resid = 0;
-		devstat_end_transaction_bio(&sc->stats, bp);
-		biodone(bp);
+		biofinish(bp, &sc->stats, 0);
 	}
 	return;
 }
@@ -338,8 +337,7 @@ mdstart_preload(struct md_s *sc)
 			bcopy(bp->bio_data, sc->pl_ptr + (bp->bio_pblkno << DEV_BSHIFT), bp->bio_bcount);
 		}
 		bp->bio_resid = 0;
-		devstat_end_transaction_bio(&sc->stats, bp);
-		biodone(bp);
+		biofinish(bp, &sc->stats, 0);
 	}
 	return;
 }
@@ -404,8 +402,7 @@ mdstart_vnode(struct md_s *sc)
 			bp->bio_error = error;
 			bp->bio_flags |= BIO_ERROR;
 		}
-		devstat_end_transaction_bio(&sc->stats, bp);
-		biodone(bp);
+		biofinish(bp, &sc->stats, 0);
 	}
 	return;
 }

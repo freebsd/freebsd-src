@@ -542,8 +542,7 @@ static void wfd_done (struct wfd *t, struct bio *bp, int resid,
 	 */
 	if (((int)bp->bio_driver1)-- <= 0) {
 		bp->bio_resid = (int)bp->bio_driver2;
-		devstat_end_transaction_bio(&t->device_stats, bp);
-		biodone (bp);
+		biofinish(bp, &t->device_stats, 0);
 	}
 	
 	wfd_start (t);

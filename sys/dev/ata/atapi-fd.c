@@ -127,9 +127,7 @@ afddetach(struct atapi_softc *atp)
     struct bio *bp;
     
     while ((bp = bioq_first(&fdp->queue))) {
-	bp->bio_error = ENXIO;
-	bp->bio_flags |= BIO_ERROR;
-	biodone(bp);
+	biofinish(bp, NULL, ENXIO);
     }
     disk_invalidate(&fdp->disk);
     disk_destroy(fdp->dev);
@@ -305,9 +303,7 @@ afdstrategy(struct bio *bp)
     int s;
 
     if (fdp->atp->flags & ATAPI_F_DETACHING) {
-	bp->bio_error = ENXIO;
-	bp->bio_flags |= BIO_ERROR;
-	biodone(bp);
+	biofinish(bp, NULL, ENXIO);
 	return;
     }
 
@@ -341,9 +337,7 @@ afd_start(struct atapi_softc *atp)
 
     /* should reject all queued entries if media have changed. */
     if (fdp->atp->flags & ATAPI_F_MEDIA_CHANGED) {
-	bp->bio_error = EIO;
-	bp->bio_flags |= BIO_ERROR;
-	biodone(bp);
+	biofinish(bp, NULL, EIO);
 	return;
     }
 
@@ -416,8 +410,7 @@ afd_done(struct atapi_request *request)
     }
     else
 	bp->bio_resid += (bp->bio_bcount - request->donecount);
-    devstat_end_transaction_bio(&fdp->stats, bp);
-    biodone(bp);
+    biofinish(bp, &fdp->stats, 0);
     return 0;
 }
 
