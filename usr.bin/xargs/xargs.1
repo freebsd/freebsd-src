@@ -36,7 +36,7 @@
 .\"	@(#)xargs.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd May 7, 2001
 .Dt XARGS 1
 .Os
 .Sh NAME
@@ -45,6 +45,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl 0
+.Op Fl J Ar replstr
 .Oo
 .Fl n Ar number
 .Op Fl x
@@ -91,6 +92,38 @@ This is expected to be used in concert with the
 .Fl print0
 function in
 .Xr find 1 .
+.It Fl J Ar replstr
+If this option is specified,
+.Nm
+will use the data read from standard input to replace the first occurrence of
+.Ar replstr
+instead of appending that data after all other arguments.
+This option will not effect how many arguments will be read from input
+.Pq Fl n ,
+or the size of the command(s)
+.Nm
+will generate
+.Pq Fl s .
+The option just moves where those arguments will be placed in the command(s)
+that are executed.
+The
+.Ar replstr
+must show up as a distinct
+.Ar argument
+to
+.Nm .
+It will not be recognized if, for instance, it is in the middle of a
+quoted string.
+Furthermore, only the first occurrence of the
+.Ar replstr
+will be replaced.
+For example, the following command will copy the list of files and
+directories which start with an uppercase letter in the current
+directory to
+.Pa destdir :
+.Pp
+.Dl /bin/ls -1d [A-Z]* | xargs -J [] cp -rp [] destdir
+.Pp
 .It Fl n Ar number
 Set the maximum number of arguments taken from standard input for each
 invocation of the utility.
@@ -173,6 +206,11 @@ The
 utility is expected to be
 .St -p1003.2
 compliant.
+The
+.Fl J
+option is a non-standard
+.Fx
+extention which may not be available on other operating systems.
 .Sh BUGS
 If
 .Ar utility
