@@ -113,7 +113,7 @@ do_swap(fl)
 	fprintf(fp, "\t{ NODEV, 0, 0 }\n");
 	fprintf(fp, "};\n\n");
 	fprintf(fp, "/* Stub for when generic swap config is not used. */\n");
-	fprintf(fp, "void setconf(void) {};\n");
+	fprintf(fp, "void\nsetconf()\n{\n}\n");
 	fclose(fp);
 	return (swap);
 }
