@@ -24,18 +24,17 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-#include <unistd.h>
-#include <ttyent.h>
-#include <fnmatch.h>
-
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/param.h>
+#include <errno.h>
+#include <fnmatch.h>
 #include <login_cap.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ttyent.h>
+#include <unistd.h>
 
 
 /* -- support functions -- */
