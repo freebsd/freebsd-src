@@ -68,7 +68,8 @@ follow the one below.
 All VCS (version control system) revision identification in files obtained
 from elsewhere should be maintained, including, where applicable, multiple IDs
 showing a file's history.
-In general, do not edit foreign IDs or their infrastructure;
+In general, do not edit foreign IDs or their infrastructure.
+Unless otherwise wrapped (such as #if defined(LIBC_SCCS)),
 enclose both in
 .Dq Li "#if 0 ... #endif"
 to hide any uncompilable bits
