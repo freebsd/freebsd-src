@@ -67,10 +67,12 @@ static const char sccsid[] = "@(#)pom.c       8.1 (Berkeley) 5/31/93";
 #define	Nzero	  55.204723	/* lunar mean long of node at EPOCH */
 #define isleap(y) ((((y) % 4) == 0 && ((y) % 100) != 0) || ((y) % 400) == 0)
 
-double dtor(), potm();
-void adj360();
+static void	adj360 __P((double *));
+static double	dtor __P((double));
+static double	potm __P((double));
 
-void main()
+int
+main()
 {
 	time_t tt;
 	struct tm *GMT;
@@ -105,13 +107,15 @@ void main()
 				    today);
 		}
 	}
+
+	return 0;
 }
 
 /*
  * potm --
  *	return phase of the moon
  */
-double
+static double
 potm(days)
 	double days;
 {
@@ -148,7 +152,7 @@ potm(days)
  * dtor --
  *	convert degrees to radians
  */
-double
+static double
 dtor(deg)
 	double deg;
 {
@@ -159,7 +163,7 @@ dtor(deg)
  * adj360 --
  *	adjust value so 0 <= deg <= 360
  */
-void
+static void
 adj360(deg)
 	double *deg;
 {
