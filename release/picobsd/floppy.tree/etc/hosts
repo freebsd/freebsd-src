@@ -12,6 +12,6 @@
 #ethertable	This line starts the ethernet->hostname mapping
 # main_ether		hostname
 # 00:12:34:56:78:9a	myaddress
-# 00:bd:8a:*		vm
+# 00:bd:*		vm
 # default		default
 
