@@ -1954,7 +1954,7 @@ sis_start(ifp)
 {
 	struct sis_softc	*sc;
 	struct mbuf		*m_head = NULL;
-	u_int32_t		idx;
+	u_int32_t		idx, queued = 0;
 
 	sc = ifp->if_softc;
 	SIS_LOCK(sc);
@@ -1982,6 +1982,8 @@ sis_start(ifp)
 			break;
 		}
 
+		queued++;
+
 		/*
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
@@ -1990,14 +1992,16 @@ sis_start(ifp)
 
 	}
 
-	/* Transmit */
-	sc->sis_cdata.sis_tx_prod = idx;
-	SIS_SETBIT(sc, SIS_CSR, SIS_CSR_TX_ENABLE);
+	if (queued) {
+		/* Transmit */
+		sc->sis_cdata.sis_tx_prod = idx;
+		SIS_SETBIT(sc, SIS_CSR, SIS_CSR_TX_ENABLE);
 
-	/*
-	 * Set a timeout in case the chip goes out to lunch.
-	 */
-	ifp->if_timer = 5;
+		/*
+		 * Set a timeout in case the chip goes out to lunch.
+		 */
+		ifp->if_timer = 5;
+	}
 
 	SIS_UNLOCK(sc);
 
