@@ -11,6 +11,7 @@
  * 
  * Functions for reading the configuration file.
  * 
+ * $FreeBSD$
  */
 
 /* RCSID("$Id: readconf.h,v 1.13 1999/12/01 13:59:15 markus Exp $"); */
@@ -38,11 +39,17 @@ typedef struct {
 	int     rsa_authentication;	/* Try RSA authentication. */
 	int     skey_authentication;	/* Try S/Key or TIS authentication. */
 #ifdef KRB4
-	int     kerberos_authentication;	/* Try Kerberos
+	int     krb4_authentication;		/* Try Kerberos v4
 						 * authentication. */
 #endif
+
+#ifdef KRB5
+	int	krb5_authentication;
+	int	krb5_tgt_passing;
+#endif /* KRB5 */
+
 #ifdef AFS
-	int     kerberos_tgt_passing;	/* Try Kerberos tgt passing. */
+	int     krb4_tgt_passing;	/* Try Kerberos v4 tgt passing. */
 	int     afs_token_passing;	/* Try AFS token passing. */
 #endif
 	int     password_authentication;	/* Try password

@@ -13,7 +13,7 @@
  */
 
 #include "includes.h"
-RCSID("$Id: servconf.c,v 1.29 2000/01/04 00:07:59 markus Exp $");
+RCSID("$Id: servconf.c,v 1.30 2000/02/24 18:22:16 markus Exp $");
 
 #include "ssh.h"
 #include "servconf.h"
@@ -50,12 +50,16 @@ initialize_server_options(ServerOptions *options)
 	options->rhosts_rsa_authentication = -1;
 	options->rsa_authentication = -1;
 #ifdef KRB4
-	options->kerberos_authentication = -1;
-	options->kerberos_or_local_passwd = -1;
-	options->kerberos_ticket_cleanup = -1;
+	options->krb4_authentication = -1;
+	options->krb4_or_local_passwd = -1;
+	options->krb4_ticket_cleanup = -1;
 #endif
+#ifdef KRB5
+	options->krb5_authentication = -1;
+	options->krb5_tgt_passing = -1;
+#endif /* KRB5 */
 #ifdef AFS
-	options->kerberos_tgt_passing = -1;
+	options->krb4_tgt_passing = -1;
 	options->afs_token_passing = -1;
 #endif
 	options->password_authentication = -1;
@@ -90,7 +94,7 @@ fill_default_server_options(ServerOptions *options)
 	if (options->permit_root_login == -1)
 		options->permit_root_login = 1;			/* yes */
 	if (options->ignore_rhosts == -1)
-		options->ignore_rhosts = 0;
+		options->ignore_rhosts = 1;
 	if (options->ignore_user_known_hosts == -1)
 		options->ignore_user_known_hosts = 0;
 	if (options->check_mail == -1)
@@ -100,7 +104,7 @@ fill_default_server_options(ServerOptions *options)
 	if (options->x11_forwarding == -1)
 		options->x11_forwarding = 1;
 	if (options->x11_display_offset == -1)
-		options->x11_display_offset = 1;
+		options->x11_display_offset = 10;
 	if (options->strict_modes == -1)
 		options->strict_modes = 1;
 	if (options->keepalives == -1)
@@ -112,20 +116,26 @@ fill_default_server_options(ServerOptions *options)
 	if (options->rhosts_authentication == -1)
 		options->rhosts_authentication = 0;
 	if (options->rhosts_rsa_authentication == -1)
-		options->rhosts_rsa_authentication = 1;
+		options->rhosts_rsa_authentication = 0;
 	if (options->rsa_authentication == -1)
 		options->rsa_authentication = 1;
 #ifdef KRB4
-	if (options->kerberos_authentication == -1)
-		options->kerberos_authentication = (access(KEYFILE, R_OK) == 0);
-	if (options->kerberos_or_local_passwd == -1)
-		options->kerberos_or_local_passwd = 1;
-	if (options->kerberos_ticket_cleanup == -1)
-		options->kerberos_ticket_cleanup = 1;
+	if (options->krb4_authentication == -1)
+		options->krb4_authentication = (access(KEYFILE, R_OK) == 0);
+	if (options->krb4_or_local_passwd == -1)
+		options->krb4_or_local_passwd = 1;
+	if (options->krb4_ticket_cleanup == -1)
+		options->krb4_ticket_cleanup = 1;
 #endif /* KRB4 */
+#ifdef KRB5
+	if (options->krb5_authentication == -1)
+	  	options->krb5_authentication = 1;
+	if (options->krb5_tgt_passing == -1)
+	  	options->krb5_tgt_passing = 1;
+#endif /* KRB5 */
 #ifdef AFS
-	if (options->kerberos_tgt_passing == -1)
-		options->kerberos_tgt_passing = 0;
+	if (options->krb4_tgt_passing == -1)
+		options->krb4_tgt_passing = 0;
 	if (options->afs_token_passing == -1)
 		options->afs_token_passing = k_hasafs();
 #endif /* AFS */
@@ -136,7 +146,7 @@ fill_default_server_options(ServerOptions *options)
 		options->skey_authentication = 1;
 #endif
 	if (options->permit_empty_passwd == -1)
-		options->permit_empty_passwd = 1;
+		options->permit_empty_passwd = 0;
 	if (options->use_login == -1)
 		options->use_login = 0;
 }
@@ -150,10 +160,13 @@ typedef enum {
 	sPermitRootLogin, sLogFacility, sLogLevel,
 	sRhostsAuthentication, sRhostsRSAAuthentication, sRSAAuthentication,
 #ifdef KRB4
-	sKerberosAuthentication, sKerberosOrLocalPasswd, sKerberosTicketCleanup,
+	sKrb4Authentication, sKrb4OrLocalPasswd, sKrb4TicketCleanup,
 #endif
+#ifdef KRB5
+	sKrb5Authentication, sKrb5TgtPassing,
+#endif /* KRB5 */
 #ifdef AFS
-	sKerberosTgtPassing, sAFSTokenPassing,
+	sKrb4TgtPassing, sAFSTokenPassing,
 #endif
 #ifdef SKEY
 	sSkeyAuthentication,
@@ -182,12 +195,16 @@ static struct {
 	{ "rhostsrsaauthentication", sRhostsRSAAuthentication },
 	{ "rsaauthentication", sRSAAuthentication },
 #ifdef KRB4
-	{ "kerberosauthentication", sKerberosAuthentication },
-	{ "kerberosorlocalpasswd", sKerberosOrLocalPasswd },
-	{ "kerberosticketcleanup", sKerberosTicketCleanup },
+	{ "kerberos4authentication", sKrb4Authentication },
+	{ "kerberos4orlocalpasswd", sKrb4OrLocalPasswd },
+	{ "kerberos4ticketcleanup", sKrb4TicketCleanup },
 #endif
+#ifdef KRB5
+	{ "kerberos5authentication", sKrb5Authentication },
+	{ "kerberos5tgtpassing", sKrb5TgtPassing },
+#endif /* KRB5 */
 #ifdef AFS
-	{ "kerberostgtpassing", sKerberosTgtPassing },
+	{ "kerberos4tgtpassing", sKrb4TgtPassing },
 	{ "afstokenpassing", sAFSTokenPassing },
 #endif
 	{ "passwordauthentication", sPasswordAuthentication },
@@ -425,22 +442,32 @@ parse_flag:
 			goto parse_flag;
 
 #ifdef KRB4
-		case sKerberosAuthentication:
-			intptr = &options->kerberos_authentication;
+		case sKrb4Authentication:
+			intptr = &options->krb4_authentication;
 			goto parse_flag;
 
-		case sKerberosOrLocalPasswd:
-			intptr = &options->kerberos_or_local_passwd;
+		case sKrb4OrLocalPasswd:
+			intptr = &options->krb4_or_local_passwd;
 			goto parse_flag;
 
-		case sKerberosTicketCleanup:
-			intptr = &options->kerberos_ticket_cleanup;
+		case sKrb4TicketCleanup:
+			intptr = &options->krb4_ticket_cleanup;
 			goto parse_flag;
 #endif
 
+#ifdef KRB5
+		case sKrb5Authentication:
+			intptr = &options->krb5_authentication;
+			goto parse_flag;
+			
+		case sKrb5TgtPassing:
+			intptr = &options->krb5_tgt_passing;
+			goto parse_flag;
+#endif /* KRB5 */
+
 #ifdef AFS
-		case sKerberosTgtPassing:
-			intptr = &options->kerberos_tgt_passing;
+		case sKrb4TgtPassing:
+			intptr = &options->krb4_tgt_passing;
 			goto parse_flag;
 
 		case sAFSTokenPassing:

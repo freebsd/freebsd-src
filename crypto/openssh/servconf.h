@@ -56,18 +56,23 @@ typedef struct {
 						 * authentication. */
 	int     rsa_authentication;	/* If true, permit RSA authentication. */
 #ifdef KRB4
-	int     kerberos_authentication;	/* If true, permit Kerberos
+	int     krb4_authentication;		/* If true, permit Kerberos v4
 						 * authentication. */
-	int     kerberos_or_local_passwd;	/* If true, permit kerberos
+	int     krb4_or_local_passwd;		/* If true, permit kerberos v4
 						 * and any other password
 						 * authentication mechanism,
 						 * such as SecurID or
 						 * /etc/passwd */
-	int     kerberos_ticket_cleanup;	/* If true, destroy ticket
+	int     krb4_ticket_cleanup;		/* If true, destroy ticket
 						 * file on logout. */
 #endif
+#ifdef KRB5
+	int     krb5_authentication;
+	int     krb5_tgt_passing;
+
+#endif /* KRB5 */
 #ifdef AFS
-	int     kerberos_tgt_passing;	/* If true, permit Kerberos tgt
+	int     krb4_tgt_passing;	/* If true, permit Kerberos v4 tgt
 					 * passing. */
 	int     afs_token_passing;	/* If true, permit AFS token passing. */
 #endif
