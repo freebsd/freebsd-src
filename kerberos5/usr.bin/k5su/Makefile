@@ -23,6 +23,8 @@ LDADD=		-L${KRB5OBJDIR} -lkrb5 \
 		-L${ASN1OBJDIR} -lasn1 -lcrypto -lmd -lcrypt -lcom_err
 DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBROKEN} ${_krb4deps} \
 		${LIBASN1} ${LIBCRYPTO} ${LIBMD} ${LIBCRYPT} ${LIBCOM_ERR}
+BINMODE=4555
+INSTALLFLAGS=-fschg
 
 .include <bsd.prog.mk>
 
