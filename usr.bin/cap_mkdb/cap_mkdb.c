@@ -84,11 +84,18 @@ HASHINFO openinfo = {
 int
 main(int argc, char *argv[])
 {
-	int c;
+	int byteorder, c;
 
 	capname = NULL;
-	while ((c = getopt(argc, argv, "f:v")) != -1) {
+	byteorder = 0;
+	while ((c = getopt(argc, argv, "bf:lv")) != -1) {
 		switch(c) {
+		case 'b':
+		case 'l':
+			if (byteorder != 0)
+				usage();
+			byteorder = c == 'b' ? 4321 : 1234;
+			break;
 		case 'f':
 			capname = optarg;
 			break;
@@ -105,6 +112,9 @@ main(int argc, char *argv[])
 
 	if (*argv == NULL)
 		usage();
+
+	/* Set byte order. */
+	openinfo.lorder = byteorder;
 
 	/*
 	 * The database file is the first argument if no name is specified.
@@ -257,6 +267,6 @@ void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: cap_mkdb [-v] [-f outfile] file [file ...]\n");
+	    "usage: cap_mkdb [-b | -l] [-v] [-f outfile] file ...\n");
 	exit(1);
 }
