@@ -128,7 +128,7 @@ else
 # might cause directories to be created, which would be especially bad 
 # if $src (and thus $dsttmp) contains '*'.
 
-	if [ -f "$src" ] || [ -d "$src" ]
+	if [ -f $src -o -d $src ]
 	then
 		:
 	else

@@ -1,19 +1,19 @@
-KADMIN(8)               FreeBSD System Manager's Manual              KADMIN(8)
+KADMIN(8)               NetBSD System Manager's Manual               KADMIN(8)
 
 NNAAMMEE
      kkaaddmmiinn - Kerberos administration utility
 
 SSYYNNOOPPSSIISS
      kkaaddmmiinn [--pp _s_t_r_i_n_g | ----pprriinncciippaall==_s_t_r_i_n_g] [--KK _s_t_r_i_n_g | ----kkeeyyttaabb==_s_t_r_i_n_g] [--cc
-            _f_i_l_e | ----ccoonnffiigg--ffiillee==_f_i_l_e] [--kk _f_i_l_e | ----kkeeyy--ffiillee==_f_i_l_e] [--rr _r_e_a_l_m |
-            ----rreeaallmm==_r_e_a_l_m] [--aa _h_o_s_t | ----aaddmmiinn--sseerrvveerr==_h_o_s_t] [--ss _p_o_r_t _n_u_m_b_e_r |
-            ----sseerrvveerr--ppoorrtt==_p_o_r_t _n_u_m_b_e_r] [--ll | ----llooccaall] [--hh | ----hheellpp]
-            [--vv | ----vveerrssiioonn] [_c_o_m_m_a_n_d]
+     _f_i_l_e | ----ccoonnffiigg--ffiillee==_f_i_l_e] [--kk _f_i_l_e | ----kkeeyy--ffiillee==_f_i_l_e] [--rr _r_e_a_l_m |
+     ----rreeaallmm==_r_e_a_l_m] [--aa _h_o_s_t | ----aaddmmiinn--sseerrvveerr==_h_o_s_t] [--ss _p_o_r_t _n_u_m_b_e_r |
+     ----sseerrvveerr--ppoorrtt==_p_o_r_t _n_u_m_b_e_r] [--ll | ----llooccaall] [--hh | ----hheellpp] [--vv | ----vveerrssiioonn]
+     [_c_o_m_m_a_n_d]
 
 DDEESSCCRRIIPPTTIIOONN
      The kkaaddmmiinn program is used to make modification to the Kerberos database,
-     either remotely via the kadmind(8) daemon, or locally (with the --ll
-     option).
+     either remotely via the kadmind(8) daemon, or locally (with the --ll op-
+     tion).
 
      Supported options:
 
@@ -112,10 +112,10 @@ DDEESSCCRRIIPPTTIIOONN
 
            mmeerrggee _f_i_l_e
 
-                 similar to lliisstt but just modifies the database with the
-                 entries in the dump file
+                 similar to lliisstt but just modifies the database with the en-
+                 tries in the dump file
 
 SSEEEE AALLSSOO
      kadmind(8), kdc(8)
 
-HEIMDAL                       September 10, 2000                       HEIMDAL
+ HEIMDAL                      September 10, 2000                             2

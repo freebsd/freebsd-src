@@ -1,4 +1,4 @@
-TELNET(1)               FreeBSD General Commands Manual              TELNET(1)
+TELNET(1)                   NetBSD Reference Manual                  TELNET(1)
 
 NNAAMMEE
      tteellnneett - user interface to the TELNET protocol
@@ -9,8 +9,8 @@ SSYYNNOOPPSSIISS
 
 DDEESSCCRRIIPPTTIIOONN
      The tteellnneett command is used to communicate with another host using the
-     TELNET protocol.  If tteellnneett is invoked without the _h_o_s_t argument, it
-     enters command mode, indicated by its prompt (tteellnneett>>).  In this mode, it
+     TELNET protocol.  If tteellnneett is invoked without the _h_o_s_t argument, it en-
+     ters command mode, indicated by its prompt (tteellnneett>>).  In this mode, it
      accepts and executes the commands listed below.  If it is invoked with
      arguments, it performs an ooppeenn command with those arguments.
 
@@ -24,9 +24,9 @@ DDEESSCCRRIIPPTTIIOONN
      --EE      Stops any character from being recognized as an escape character.
 
      --FF      If Kerberos V5 authentication is being used, the --FF option allows
-             the local credentials to be forwarded to the remote system,
-             including any credentials that have already been forwarded into
-             the local environment.
+             the local credentials to be forwarded to the remote system, in-
+             cluding any credentials that have already been forwarded into the
+             local environment.
 
      --KK      Specifies no automatic login to the remote system.
 
@@ -42,10 +42,10 @@ DDEESSCCRRIIPPTTIIOONN
              Disables the _a_t_y_p_e type of authentication.
 
      --aa      Attempt automatic login.  Currently, this sends the user name via
-             the USER variable of the ENVIRON option if supported by the
-             remote system.  The name used is that of the current user as
-             returned by getlogin(2) if it agrees with the current user ID,
-             otherwise it is the name associated with the user ID.
+             the USER variable of the ENVIRON option if supported by the re-
+             mote system.  The name used is that of the current user as re-
+             turned by getlogin(2) if it agrees with the current user ID, oth-
+             erwise it is the name associated with the user ID.
 
      --cc      Disables the reading of the user's _._t_e_l_n_e_t_r_c file.  (See the
              ttooggggllee sskkiipprrcc command on this man page.)
@@ -62,8 +62,8 @@ DDEESSCCRRIIPPTTIIOONN
 
      --kk _r_e_a_l_m
              If Kerberos authentication is being used, the --kk option requests
-             that telnet obtain tickets for the remote host in realm realm
-             instead of the remote host's realm, as determined by
+             that telnet obtain tickets for the remote host in realm realm in-
+             stead of the remote host's realm, as determined by
              krb_realmofhost(3).
 
      --ll _u_s_e_r
@@ -119,14 +119,14 @@ DDEESSCCRRIIPPTTIIOONN
 
      If the LINEMODE option is enabled, or if the llooccaallcchhaarrss toggle is TRUE
      (the default for ``old line by line``; see below), the user's qquuiitt, iinnttrr,
-     and fflluusshh characters are trapped locally, and sent as TELNET protocol
-     sequences to the remote side.  If LINEMODE has ever been enabled, then
-     the user's ssuusspp and eeooff are also sent as TELNET protocol sequences, and
-     qquuiitt is sent as a TELNET ABORT instead of BREAK There are options (see
-     ttooggggllee aauuttoofflluusshh and ttooggggllee aauuttoossyynncchh below) which cause this action to
-     flush subsequent output to the terminal (until the remote host acknowl-
-     edges the TELNET sequence) and flush previous terminal input (in the case
-     of qquuiitt and iinnttrr).
+     and fflluusshh characters are trapped locally, and sent as TELNET protocol se-
+     quences to the remote side.  If LINEMODE has ever been enabled, then the
+     user's ssuusspp and eeooff are also sent as TELNET protocol sequences, and qquuiitt
+     is sent as a TELNET ABORT instead of BREAK There are options (see ttooggggllee
+     aauuttoofflluusshh and ttooggggllee aauuttoossyynncchh below) which cause this action to flush
+     subsequent output to the terminal (until the remote host acknowledges the
+     TELNET sequence) and flush previous terminal input (in the case of qquuiitt
+     and iinnttrr).
 
      While connected to a remote host, tteellnneett command mode may be entered by
      typing the tteellnneett ``escape character'' (initially ``^]'').  When in com-
@@ -155,8 +155,8 @@ DDEESSCCRRIIPPTTIIOONN
      cclloossee      Close a TELNET session and return to command mode.
 
      ddiissppllaayy _a_r_g_u_m_e_n_t _._._.
-                Displays all, or some, of the sseett and ttooggggllee values (see
-                below).
+                Displays all, or some, of the sseett and ttooggggllee values (see be-
+                low).
 
      eennccrryypptt _a_r_g_u_m_e_n_t _._._.
                 The encrypt command manipulates the information sent through
@@ -233,8 +233,8 @@ DDEESSCCRRIIPPTTIIOONN
                             remote side.
 
                 uunneexxppoorrtt _v_a_r_i_a_b_l_e
-                            Mark the variable _v_a_r_i_a_b_l_e to not be exported
-                            unless explicitly asked for by the remote side.
+                            Mark the variable _v_a_r_i_a_b_l_e to not be exported un-
+                            less explicitly asked for by the remote side.
 
                 lliisstt        List the current set of environment variables.
                             Those marked with a ** will be sent automatically,
@@ -256,17 +256,17 @@ DDEESSCCRRIIPPTTIIOONN
 
      mmooddee _t_y_p_e  _T_y_p_e is one of several options, depending on the state of the
                 TELNET session.  The remote host is asked for permission to go
-                into the requested mode.  If the remote host is capable of
-                entering that mode, the requested mode will be entered.
+                into the requested mode.  If the remote host is capable of en-
+                tering that mode, the requested mode will be entered.
 
                 cchhaarraacctteerr     Disable the TELNET LINEMODE option, or, if the
-                              remote side does not understand the LINEMODE
-                              option, then enter ``character at a time`` mode.
+                              remote side does not understand the LINEMODE op-
+                              tion, then enter ``character at a time`` mode.
 
                 lliinnee          Enable the TELNET LINEMODE option, or, if the
-                              remote side does not understand the LINEMODE
-                              option, then attempt to enter ``old-line-by-
-                              line`` mode.
+                              remote side does not understand the LINEMODE op-
+                              tion, then attempt to enter ``old-line-by-line``
+                              mode.
 
                 iissiigg (--iissiigg)  Attempt to enable (disable) the TRAPSIG mode of
                               the LINEMODE option.  This requires that the
@@ -298,15 +298,15 @@ DDEESSCCRRIIPPTTIIOONN
                 to specify the user name to be passed to the remote system via
                 the ENVIRON option.  When connecting to a non-standard port,
                 tteellnneett omits any automatic initiation of TELNET options.  When
-                the port number is preceded by a minus sign, the initial
-                option negotiation is done.  After establishing a connection,
+                the port number is preceded by a minus sign, the initial op-
+                tion negotiation is done.  After establishing a connection,
                 the file _._t_e_l_n_e_t_r_c in the users home directory is opened.
                 Lines beginning with a # are comment lines.  Blank lines are
                 ignored.  Lines that begin without white space are the start
                 of a machine entry.  The first thing on the line is the name
                 of the machine that is being connected to.  The rest of the
-                line, and successive lines that begin with white space are
-                assumed to be tteellnneett commands and are processed as if they had
+                line, and successive lines that begin with white space are as-
+                sumed to be tteellnneett commands and are processed as if they had
                 been typed in manually to the tteellnneett command prompt.
 
      qquuiitt       Close any open TELNET session and exit tteellnneett.  An end of file
@@ -324,8 +324,8 @@ DDEESSCCRRIIPPTTIIOONN
                         _f_r_o_m the remote system _t_o the user's terminal.
 
                 aayytt     Sends the TELNET AYT (Are You There) sequence, to
-                        which the remote system may or may not choose to
-                        respond.
+                        which the remote system may or may not choose to re-
+                        spond.
 
                 bbrrkk     Sends the TELNET BRK (Break) sequence, which may have
                         significance to the remote system.
@@ -363,9 +363,9 @@ DDEESSCCRRIIPPTTIIOONN
 
                 ssyynncchh   Sends the TELNET SYNCH sequence.  This sequence causes
                         the remote system to discard all previously typed (but
-                        not yet read) input.  This sequence is sent as TCP
-                        urgent data (and may not work if the remote system is
-                        a 4.2BSD system -- if it doesn't work, a lower case
+                        not yet read) input.  This sequence is sent as TCP ur-
+                        gent data (and may not work if the remote system is a
+                        4.2BSD system -- if it doesn't work, a lower case
                         ``r'' may be echoed on the terminal).
 
                 ddoo _c_m_d
@@ -397,17 +397,17 @@ DDEESSCCRRIIPPTTIIOONN
                 the ttooggggllee command may be explicitly set or unset using the
                 sseett and uunnsseett commands.
 
-                aayytt     If TELNET is in localchars mode, or LINEMODE is
-                        enabled, and the status character is typed, a TELNET
-                        AYT sequence (see sseenndd aayytt preceding) is sent to the
-                        remote host.  The initial value for the "Are You
-                        There" character is the terminal's status character.
+                aayytt     If TELNET is in localchars mode, or LINEMODE is en-
+                        abled, and the status character is typed, a TELNET AYT
+                        sequence (see sseenndd aayytt preceding) is sent to the re-
+                        mote host.  The initial value for the "Are You There"
+                        character is the terminal's status character.
 
                 eecchhoo    This is the value (initially ``^E'') which, when in
                         ``line by line'' mode, toggles between doing local
                         echoing of entered characters (for normal processing),
-                        and suppressing echoing of entered characters (for
-                        entering, say, a password).
+                        and suppressing echoing of entered characters (for en-
+                        tering, say, a password).
 
                 eeooff     If tteellnneett is operating in LINEMODE or ``old line by
                         line'' mode, entering this character as the first
@@ -483,23 +483,23 @@ DDEESSCCRRIIPPTTIIOONN
                         suspends the telnet command.  The initial state is to
                         disable the rlogin escape character.
 
-                ssttaarrtt   If the TELNET TOGGLE-FLOW-CONTROL option has been
-                        enabled, then this character is taken to be the termi-
+                ssttaarrtt   If the TELNET TOGGLE-FLOW-CONTROL option has been en-
+                        abled, then this character is taken to be the termi-
                         nal's ssttaarrtt character.  The initial value for the kill
                         character is taken to be the terminal's ssttaarrtt charac-
                         ter.
 
-                ssttoopp    If the TELNET TOGGLE-FLOW-CONTROL option has been
-                        enabled, then this character is taken to be the termi-
+                ssttoopp    If the TELNET TOGGLE-FLOW-CONTROL option has been en-
+                        abled, then this character is taken to be the termi-
                         nal's ssttoopp character.  The initial value for the kill
                         character is taken to be the terminal's ssttoopp charac-
                         ter.
 
-                ssuusspp    If tteellnneett is in llooccaallcchhaarrss mode, or LINEMODE is
-                        enabled, and the ssuussppeenndd character is typed, a TELNET
-                        SUSP sequence (see sseenndd ssuusspp above) is sent to the
-                        remote host.  The initial value for the suspend char-
-                        acter is taken to be the terminal's ssuussppeenndd character.
+                ssuusspp    If tteellnneett is in llooccaallcchhaarrss mode, or LINEMODE is en-
+                        abled, and the ssuussppeenndd character is typed, a TELNET
+                        SUSP sequence (see sseenndd ssuusspp above) is sent to the re-
+                        mote host.  The initial value for the suspend charac-
+                        ter is taken to be the terminal's ssuussppeenndd character.
 
                 ttrraacceeffiillee
                         This is the file to which the output, caused by
@@ -562,8 +562,8 @@ DDEESSCCRRIIPPTTIIOONN
                               above for details), tteellnneett refuses to display
                               any data on the user's terminal until the remote
                               system acknowledges (via a TELNET TIMING MARK
-                              option) that it has processed those TELNET
-                              sequences.  The initial value for this toggle is
+                              option) that it has processed those TELNET se-
+                              quences.  The initial value for this toggle is
                               TRUE if the terminal user had not done an "stty
                               noflsh", otherwise FALSE (see stty(1)).
 
@@ -581,8 +581,8 @@ DDEESSCCRRIIPPTTIIOONN
                 aauuttoollooggiinn     If the remote side supports the TELNET
                               AUTHENTICATION option TELNET attempts to use it
                               to perform automatic authentication.  If the
-                              AUTHENTICATION option is not supported, the
-                              user's login name are propagated through the
+                              AUTHENTICATION option is not supported, the us-
+                              er's login name are propagated through the
                               TELNET ENVIRON option.  This command is the same
                               as specifying _a option on the ooppeenn command.
 
@@ -612,15 +612,15 @@ DDEESSCCRRIIPPTTIIOONN
                               initial value for this toggle is FALSE.
 
                 ccrrmmoodd         Toggle carriage return mode.  When this mode is
-                              enabled, most carriage return characters
-                              received from the remote host will be mapped
-                              into a carriage return followed by a line feed.
-                              This mode does not affect those characters typed
-                              by the user, only those received from the remote
+                              enabled, most carriage return characters re-
+                              ceived from the remote host will be mapped into
+                              a carriage return followed by a line feed.  This
+                              mode does not affect those characters typed by
+                              the user, only those received from the remote
                               host.  This mode is not very useful unless the
-                              remote host only sends carriage return, but
-                              never line feed.  The initial value for this
-                              toggle is FALSE.
+                              remote host only sends carriage return, but nev-
+                              er line feed.  The initial value for this toggle
+                              is FALSE.
 
                 ddeebbuugg         Toggles socket level debugging (useful only to
                               the ssuuppeerr uusseerr).  The initial value for this
@@ -648,8 +648,8 @@ DDEESSCCRRIIPPTTIIOONN
                               toggle is FALSE.
 
                 ooppttiioonnss       Toggles the display of some internal tteellnneett pro-
-                              tocol processing (having to do with TELNET
-                              options).  The initial value for this toggle is
+                              tocol processing (having to do with TELNET op-
+                              tions).  The initial value for this toggle is
                               FALSE.
 
                 pprreettttyydduummpp    When the nneettddaattaa toggle is enabled, if
@@ -671,21 +671,21 @@ DDEESSCCRRIIPPTTIIOONN
 
                 vveerrbboossee__eennccrryypptt
                               When the vveerrbboossee__eennccrryypptt toggle is TRUE, TELNET
-                              prints out a message each time encryption is
-                              enabled or disabled.  The initial value for this
+                              prints out a message each time encryption is en-
+                              abled or disabled.  The initial value for this
                               toggle is FALSE.  Note:  Because of export con-
                               trols, data encryption is not supported outside
                               of the United States and Canada.
 
                 ??             Displays the legal ttooggggllee commands.
 
-     zz          Suspend tteellnneett.  This command only works when the user is
-                using the csh(1).
+     zz          Suspend tteellnneett.  This command only works when the user is us-
+                ing the csh(1).
 
      !! [_c_o_m_m_a_n_d]
                 Execute a single command in a subshell on the local system.
-                If ccoommmmaanndd is omitted, then an interactive subshell is
-                invoked.
+                If ccoommmmaanndd is omitted, then an interactive subshell is in-
+                voked.
 
      ?? [_c_o_m_m_a_n_d]
                 Get help.  With no arguments, tteellnneett prints a help summary.
@@ -711,4 +711,4 @@ NNOOTTEESS
      only recognized (and sent to the remote system) when it is the first
      character on a line.
 
-4.2 Berkeley Distribution        June 1, 1994        4.2 Berkeley Distribution
+4.2 Berkeley Distribution        June 1, 1994                               11
