@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $Id$
 #
 
 SRCS=	vasprintf.c strerror.c strsignal.c
