@@ -1593,7 +1593,7 @@ bgetvp(vp, bp)
 	KASSERT((bp->b_xflags & (BX_VNDIRTY|BX_VNCLEAN)) == 0,
 	    ("bgetvp: bp already attached! %p", bp));
 
-	VI_LOCK(vp);
+	ASSERT_VI_LOCKED(vp, "bgetvp");
 	vholdl(vp);
 	bp->b_vp = vp;
 	bp->b_dev = vn_todev(vp);
@@ -1603,7 +1603,6 @@ bgetvp(vp, bp)
 	s = splbio();
 	buf_vlist_add(bp, vp, BX_VNCLEAN);
 	splx(s);
-	VI_UNLOCK(vp);
 }
 
 /*
