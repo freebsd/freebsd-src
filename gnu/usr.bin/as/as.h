@@ -187,11 +187,11 @@ typedef enum _segT {
 
 typedef int subsegT;
 
-COMMON subsegT			now_subseg;
+COMMON subsegT			now_subseg, prev_subseg;
 /* What subseg we are accreting now? */
 
 
-COMMON segT			now_seg;
+COMMON segT			now_seg, prev_seg;
 /* Segment our instructions emit to. */
 /* Only OK values are SEG_TEXT or SEG_DATA. */
 
