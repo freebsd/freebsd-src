@@ -36,7 +36,7 @@
 .Op Fl Fd\&
 .Op Fl P Ar pidfile
 .Op Fl a Ar name
-.Op Fl e Ar exec No \&| Fl l Ar label
+.Op Fl e Ar exec | Fl l Ar label
 .Op Fl n Ar ngdebug
 .Op Fl p Ar provider
 .Ar interface
@@ -76,7 +76,8 @@ After receiving a request (PADI) from the PPPoE netgraph node,
 .Xr fork 2 Ns No s
 a child process and returns to service further requests.
 The child process offers service
-.Pq using Ar name
+(using
+.Ar name )
 and waits for a
 .Dv SUCCESS
 indication from the PPPoE node.
@@ -103,7 +104,8 @@ The child process will have standard input and standard output
 attached to the same
 .Xr netgraph 4
 data socket
-.Pq see Xr ng_socket 4
+(see
+.Xr ng_socket 4 )
 when started.
 .Pp
 Upon invocation,

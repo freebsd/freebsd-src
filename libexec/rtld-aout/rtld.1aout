@@ -30,7 +30,7 @@
 .\"
 .Dd June 27, 1995
 .Dt RTLD 1
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm ld.so ,
 .Nm rtld
@@ -215,4 +215,4 @@ are recognized and have their usual meaning.
 .Xr link 5 ,
 .Xr ldconfig 8
 .Sh HISTORY
-The shared library model employed first appeared in SunOS 4.0
+The shared library model employed first appeared in SunOS 4.0.
