@@ -30,6 +30,7 @@
 .Op Fl l Ar prefix
 .Op Fl t Ar template
 .Op Fl W Ar filename
+.Op Fl O Ar origin
 .Op Ar pkg-name ...
 .Nm
 .Fl a
@@ -114,6 +115,10 @@ current directory, and does not have an absolute path, then the
 .Ev PATH
 is searched using
 .Xr which 1 .
+.It Fl O
+For the specified
+.Ar origin
+argument list all packages having this origin.
 .It Fl x
 Treat the
 .Ar pkg-name
