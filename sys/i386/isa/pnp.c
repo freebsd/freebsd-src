@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnp.c,v 1.4 1997/11/18 11:45:26 bde Exp $
+ *      $Id: pnp.c,v 1.5 1998/02/09 06:08:38 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -38,6 +38,13 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/pnp.h>
 
+typedef struct _pnp_id {
+	u_long vendor_id;
+	u_long serial;
+	u_char checksum;
+	u_long comp_id;
+} pnp_id;
+
 static int num_pnp_cards = 0;
 pnp_id pnp_devices[MAX_PNP_CARDS];
 struct pnp_dlist_node *pnp_device_list;
@@ -51,10 +58,10 @@ static struct pnp_dlist_node **pnp_device_list_last_ptr;
  */
 
 struct pnp_cinfo pnp_ldn_overrides[MAX_PNP_LDN] = { { 0 } };
+
 /*
  * the following is a flag which tells if the data is valid.
  */
-
 static int doing_pnp_probe = 0 ;
 static int current_csn ;
 static int current_pnp_id ;
@@ -100,12 +107,10 @@ nullpnp_attach(u_long csn, u_long vend_id, char *name,
 /* The READ_DATA port that we are using currently */
 static int pnp_rd_port;
 
-static void pnp_send_Initiation_LFSR (void);
-static int pnp_get_serial (pnp_id *p);
-static void config_pnp_device (pnp_id *p, int csn);
-static int pnp_isolation_protocol (void);
-void pnp_write(int d, u_char r);
-u_char pnp_read(int d);
+static void   pnp_send_Initiation_LFSR (void);
+static int    pnp_get_serial (pnp_id *p);
+static void   config_pnp_device (pnp_id *p, int csn);
+static int    pnp_isolation_protocol (void);
 
 void
 pnp_write(int d, u_char r)
@@ -175,6 +180,35 @@ pnp_get_serial(pnp_id *p)
     valid = valid && (data[8] == sum);
 
     return valid;
+}
+
+/*
+ * Fill's the buffer with resource info from the device.
+ * Returns 0 if the device fails to report
+ */
+static int
+pnp_get_resource_info(u_char *buffer, int len)
+{
+    int i, j;
+    u_char temp;
+
+    for (i = 0; i < len; i++) {
+	outb(_PNP_ADDRESS, STATUS);
+	for (j = 0; j < 100; j++) {
+	    if ((inb((pnp_rd_port << 2) | 0x3)) & 0x1)
+		break;
+	    DELAY(1);
+	}
+	if (j == 100) {
+	    printf("PnP device failed to report resource data\n");
+	    return 0;
+	}
+	outb(_PNP_ADDRESS, RESOURCE_DATA);
+	temp = inb((pnp_rd_port << 2) | 0x3);
+	if (buffer != NULL)
+	    buffer[i] = temp;
+    }
+    return 1;
 }
 
 /*
@@ -335,15 +369,22 @@ config_pnp_device(pnp_id *p, int csn)
     static struct pnp_dlist_node *nod = NULL;
     int i;
     u_char *data = (u_char *)p;
+    u_char *comp = (u_char *)&p->comp_id;
 
     /* these are for autoconfigure a-la pci */
     struct pnp_device *dvp, **dvpp;
     char *name ;
 
-    printf("CSN %d Vendor ID: %c%c%c%02x%02x [0x%08lx] Serial 0x%08lx\n", csn,
+    printf("CSN %d Vendor ID: %c%c%c%02x%02x [0x%08x] Serial 0x%08x Comp ID: %c%c%c%02x%02x [0x%08x]\n",
+	csn,
 	((data[0] & 0x7c) >> 2) + '@',
 	(((data[0] & 0x03) << 3) | ((data[1] & 0xe0) >> 5)) + '@',
-	(data[1] & 0x1f) + '@', data[2], data[3], p->vendor_id, p->serial);
+	(data[1] & 0x1f) + '@', data[2], data[3],
+	p->vendor_id, p->serial,
+	((comp[0] & 0x7c) >> 2) + '@',
+	(((comp[0] & 0x03) << 3) | ((comp[1] & 0xe0) >> 5)) + '@',
+	(comp[1] & 0x1f) + '@', comp[2], comp[3],
+	p->comp_id);
 
     doing_pnp_probe = 1 ;
     current_csn = csn ;
@@ -382,11 +423,13 @@ config_pnp_device(pnp_id *p, int csn)
     dvpp = (struct pnp_device **)pnpdevice_set.ls_items;
     while ((dvp = *dvpp++)) {
 	if (dvp->pd_probe) {
-	    if ((name = (*dvp->pd_probe)(csn, p->vendor_id)))
+	    if ( ((name = (*dvp->pd_probe)(csn, p->vendor_id)) && *name) ||
+		(p->comp_id &&
+		    (name = (*dvp->pd_probe)(csn, p->comp_id))))
 		break;
 	}
     }
-    if (dvp && name && dvp->pd_count) {	/* found a matching device */
+    if (dvp && name && *name && dvp->pd_count) { /* found a matching device */
 	int unit ;
 
 	/* pnpcb->pnpcb_seen |= ( 1ul << csn ) ; */
@@ -467,6 +510,52 @@ config_pnp_device(pnp_id *p, int csn)
     doing_pnp_probe = 0 ;
 }
 
+/*
+ * Scan Resource Data for Compatible Device ID.
+ *
+ * This function exits as soon as it gets a Compatible Device ID, an error
+ * reading *ANY* Resource Data or ir reaches the end of Resource Data.
+ * In the first case the return value will be TRUE, FALSE otherwise.
+ */
+static int
+pnp_scan_resdata(pnp_id *p, int csn)
+{
+    u_char tag, resinfo[8];
+    int large_len, scanning = 1024, retval = FALSE;
+
+    while (scanning-- > 0 && pnp_get_resource_info(&tag, 1)) {
+	if (PNP_RES_TYPE(tag) == 0) {
+	    /* Small resource */
+	    switch (PNP_SRES_NUM(tag)) {
+		case COMP_DEVICE_ID:
+		    /* Got a compatible device id resource */
+		    if (pnp_get_resource_info(resinfo, PNP_SRES_LEN(tag))) {
+		        bcopy(resinfo, &p->comp_id, 4);
+			retval = TRUE;
+			if (bootverbose)
+			    printf("PnP: CSN %d COMP_DEVICE_ID = 0x%08x\n", csn, p->comp_id);
+		    }
+		    /*
+		     * We found what we were looking for, or got an error from
+		     * pnp_get_resource, => stop scanning (FALLTHROUGH)
+		     */
+		case END_TAG:
+		    scanning = 0;
+		    break;
+		default:
+		    /* Skip this resource */
+		    if (pnp_get_resource_info(NULL, PNP_SRES_LEN(tag)) == 0)
+			scanning = 0;
+		    break;
+	    }
+	} else
+	    /* Large resource, skip it */
+	    if (!(pnp_get_resource_info((u_char *)&large_len, 2) && pnp_get_resource_info(NULL, large_len)))
+		scanning = 0;
+    }
+
+    return retval;
+}
 
 /*
  * Run the isolation protocol. Use pnp_rd_port as the READ_DATA port
@@ -497,6 +586,8 @@ pnp_isolation_protocol()
 	if (pnp_get_serial( &(pnp_devices[csn-1]) ) ) {
 	    pnp_write(SET_CSN, csn);
 	    /* pnp_write(CONFIG_CONTROL, 2); */
+	    if (!pnp_scan_resdata(&(pnp_devices[csn-1]), csn))
+		pnp_devices[csn-1].comp_id = NULL;
 	} else
 	    break;
     }

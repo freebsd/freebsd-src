@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnpinfo.c,v 1.1.1.1 1997/09/19 15:36:00 jmg Exp $
+ *      $Id: pnpinfo.c,v 1.2 1997/11/12 08:48:13 jmg Exp $
  */
 
 #include <sys/time.h>
@@ -51,6 +51,7 @@ pnp_write(int d, u_char r)
     outb (_PNP_ADDRESS, d);
     outb (_PNP_WRITE_DATA, r);
 }
+
 /* The READ_DATA port that we are using currently */
 static int rd_port;
 
@@ -488,19 +489,14 @@ dump_resdata(u_char *data, int csn)
 	if (!get_resource_info(&tag, 1))
 	    break;
 
-#define TYPE	(tag >> 7)
-#define	S_ITEM	(tag >> 3)
-#define S_LEN	(tag & 0x7)
-#define	L_ITEM	(tag & 0x7f)
-
-	if (TYPE == 0) {
+	if (PNP_RES_TYPE(tag) == 0) {
 	    /* Handle small resouce data types */
 
-	    resinfo = malloc(S_LEN);
-	    if (!get_resource_info(resinfo, S_LEN))
+	    resinfo = malloc(PNP_SRES_LEN(tag));
+	    if (!get_resource_info(resinfo, PNP_SRES_LEN(tag)))
 		break;
 
-	    if (handle_small_res(resinfo, S_ITEM, S_LEN) == 1)
+	    if (handle_small_res(resinfo, PNP_SRES_NUM(tag), PNP_SRES_LEN(tag)) == 1)
 		break;
 	    free(resinfo);
 	} else {
@@ -513,7 +509,7 @@ dump_resdata(u_char *data, int csn)
 	    if (!get_resource_info(resinfo, large_len))
 		break;
 
-	    handle_large_res(resinfo, L_ITEM, large_len);
+	    handle_large_res(resinfo, PNP_LRES_NUM(tag), large_len);
 	    free(resinfo);
 	}
     }

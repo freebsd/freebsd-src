@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnp.h,v 1.5 1997/11/18 11:47:04 bde Exp $
+ *      $Id: pnp.h,v 1.6 1998/01/10 07:41:43 kato Exp $
  */
 
 #ifndef _I386_ISA_PNP_H_
@@ -210,6 +210,12 @@
 
 /*** 32-bit memory accesses are at 0x76 ***/
 
+/* Macros to parse Resource IDs */
+#define PNP_RES_TYPE(a)		(a >> 7)
+#define PNP_SRES_NUM(a)		(a >> 3)
+#define PNP_SRES_LEN(a)		(a & 0x07)
+#define PNP_LRES_NUM(a)		(a & 0x7f)
+
 /* Small Resource Item names */
 #define PNP_VERSION		0x1
 #define LOG_DEVICE_ID		0x2
@@ -270,36 +276,37 @@ struct pnp_device {
     u_int *imask ;
 };
 
-struct _pnp_id {
-    u_long vendor_id;
-    u_long serial;
-    u_char checksum;
-} ;
-
 struct pnp_dlist_node {
     struct pnp_device *pnp;
     struct isa_device dev;
     struct pnp_dlist_node *next;
 };
 
-typedef struct _pnp_id pnp_id;
-extern struct pnp_dlist_node *pnp_device_list;
-extern pnp_id pnp_devices[MAX_PNP_CARDS];
+/*
+ * Used by userconfig
+ */
 extern struct pnp_cinfo pnp_ldn_overrides[MAX_PNP_LDN];
-extern int pnp_overrides_valid;
-
-extern struct linker_set pnpdevice_set;
 
 /*
- * these two functions are for use in drivers
+ * The following definitions are for use in drivers
  */
-int read_pnp_parms(struct pnp_cinfo *d, int ldn);
-int write_pnp_parms(struct pnp_cinfo *d, int ldn);
-int enable_pnp_card(void);
+extern struct linker_set pnpdevice_set;
+
+typedef struct _pnpid_t {
+	u_long vend_id; /* Not anly a Vendor ID, also a Compatible Device ID */
+	char *id_str;
+} pnpid_t;
+
+void    pnp_write(int d, u_char r); /* used by Luigi's sound driver */
+u_char  pnp_read(int d); /* currently unused, but who knows... */
+int     read_pnp_parms(struct pnp_cinfo *d, int ldn);
+int     write_pnp_parms(struct pnp_cinfo *d, int ldn);
+int     enable_pnp_card(void);
 
 /*
  * used by autoconfigure to actually probe and attach drivers
  */
+extern struct pnp_dlist_node *pnp_device_list;
 void pnp_configure __P((void));
 
 #endif /* KERNEL */
