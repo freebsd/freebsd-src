@@ -778,12 +778,12 @@ send:
 		 */
 		if (!callout_active(tp->tt_rexmt) &&
 		    tp->snd_nxt != tp->snd_una) {
-			callout_reset(tp->tt_rexmt, tp->t_rxtcur,
-				      tcp_timer_rexmt, tp);
 			if (callout_active(tp->tt_persist)) {
 				callout_stop(tp->tt_persist);
 				tp->t_rxtshift = 0;
 			}
+			callout_reset(tp->tt_rexmt, tp->t_rxtcur,
+				      tcp_timer_rexmt, tp);
 		}
 	} else
 		if (SEQ_GT(tp->snd_nxt + len, tp->snd_max))
