@@ -14,7 +14,6 @@ MLINKS+=	groff_me.7 me.7
 MLINKS+=	groff_mdoc.7 mdoc.7 groff_mdoc.7 mdoc.samples.7
 
 CLEANFILES=	${MAN} ${MDOCFILES:S/$/-s/} ${STRIPFILES:S/$/-s/} ${SPECIALFILES:S/$/-s/}
-CLEANFILES+=	troffrc-end.patched
 
 NORMALFILES=	mandoc.tmac andoc.tmac an-old.tmac \
 		me.tmac \
@@ -33,7 +32,7 @@ NORMALFILES=	mandoc.tmac andoc.tmac an-old.tmac \
 		lbp.tmac \
 		html.tmac www.tmac \
 		eqnrc \
-		troffrc \
+		troffrc troffrc-end \
 		hyphen.us
 SPECIALFILES=	an.tmac man.tmac s.tmac ms.tmac
 STRIPFILES=	e.tmac doc.tmac mdoc.local
@@ -41,7 +40,6 @@ MDOCFILES=	doc-common doc-ditroff doc-nroff doc-syms \
 		fr.ISO8859-1 ru.KOI8-R
 
 all: ${MDOCFILES:S/$/-s/} ${STRIPFILES:S/$/-s/} ${SPECIALFILES:S/$/-s/}
-all: troffrc-end.patched
 
 .for f in ${MDOCFILES} ${STRIPFILES}
 $f-s: $f
@@ -55,9 +53,6 @@ $f-s: $f
 		${.ALLSRC} > ${.TARGET}
 .endfor
 
-troffrc-end.patched: troffrc-end
-	(cat ${.ALLSRC}; echo ".if n .do nop \X'tty: sgr 0'\c") > ${.TARGET}
-
 beforeinstall:
 	cd ${DIST_DIR}; \
 	    ${INSTALL} -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
@@ -66,8 +61,6 @@ beforeinstall:
 	    ${INSTALL} -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
 	    hyphen.ru ${DESTDIR}${TMACDIR}
 	cd ${.OBJDIR}
-	${INSTALL} -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
-	    troffrc-end.patched ${DESTDIR}${TMACDIR}/troffrc-end
 .for f in ${STRIPFILES} ${SPECIALFILES}
 	${INSTALL} -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
 	    $f-s ${DESTDIR}${TMACDIR}/$f
