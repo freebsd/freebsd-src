@@ -1,4 +1,4 @@
-#	$Id: bsd.obj.mk,v 1.5 1996/06/24 04:24:06 jkh Exp $
+#	$Id: bsd.obj.mk,v 1.6 1996/07/12 06:01:55 pst Exp $
 #
 # The include file <bsd.obj.mk> handles creating 'obj' directory
 # and cleaning up object files, log files etc.
@@ -80,9 +80,9 @@ whereobj:
 	@echo ${.CURDIR}
 .else
 	@if ! test -d ${.TARGETOBJDIR}; then \
-	    @echo ${.CURDIR}; \
-	else
-	    @echo ${.TARGETOBJDIR}; \
+	    echo ${.CURDIR}; \
+	else \
+	    echo ${.TARGETOBJDIR}; \
 	fi
 .endif
 .endif
