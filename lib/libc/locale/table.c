@@ -255,5 +255,9 @@ int __mb_cur_max = 1;
 size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict, size_t,
     mbstate_t * __restrict) = _none_mbrtowc;
 int (*__mbsinit)(const mbstate_t *) = _none_mbsinit;
+size_t (*__mbsrtowcs)(wchar_t * __restrict, const char ** __restrict,
+    size_t, mbstate_t * __restrict) = _none_mbsrtowcs;
 size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict) =
     _none_wcrtomb;
+size_t (*__wcsrtombs)(char * __restrict, const wchar_t ** __restrict,
+    size_t, mbstate_t * __restrict) = _none_wcsrtombs;
