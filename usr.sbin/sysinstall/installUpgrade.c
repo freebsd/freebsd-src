@@ -221,14 +221,17 @@ installUpgrade(dialogMenuItem *self)
 
     if (!mediaVerify()) {
 	msgConfirm("Now you must specify an installation medium for the upgrade.");
+media:
 	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
 	    return DITEM_FAILURE | DITEM_RECREATE;
     }
 
     if (!mediaDevice->init(mediaDevice)) {
-	msgConfirm("Couldn't initialize the media; upgrade aborted.  Please\n"
-		   "fix whatever the problem is and try again.");
-	return DITEM_FAILURE | DITEM_REDRAW;
+	if (!msgYesNo("Couldn't initialize the media.  Would you like\n"
+		   "to adjust your media selection and try again?"))
+	    goto media;
+	else
+	    return DITEM_FAILURE | DITEM_REDRAW;
     }
 
     if (RunningAsInit) {
@@ -274,17 +277,16 @@ installUpgrade(dialogMenuItem *self)
 	    variable_unset(DISK_PARTITIONED);
 	    return DITEM_FAILURE | DITEM_RECREATE;
 	}
-    }
 
-    if (DITEM_STATUS(chroot("/mnt")) == DITEM_FAILURE) {
-	msgConfirm("Unable to chroot to /mnt - something is wrong with the\n"
-		   "root partition or the way it's mounted if this doesn't work.");
-	variable_unset(DISK_PARTITIONED);
-	return DITEM_FAILURE | DITEM_RECREATE;
+	if (DITEM_STATUS(chroot("/mnt")) == DITEM_FAILURE) {
+	    msgConfirm("Unable to chroot to /mnt - something is wrong with the\n"
+		       "root partition or the way it's mounted if this doesn't work.");
+	    variable_unset(DISK_PARTITIONED);
+	    return DITEM_FAILURE | DITEM_RECREATE;
+	}
+	chdir("/");
+	systemCreateHoloshell();
     }
-
-    chdir("/");
-    systemCreateHoloshell();
 
     saved_etc = NULL;
     if (extractingBin) {
