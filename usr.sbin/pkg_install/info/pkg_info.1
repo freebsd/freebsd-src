@@ -27,7 +27,7 @@
 .Op Fl cdDikrRpLqImv
 .Op Fl e Ar package
 .Op Fl l Ar prefix
-.Ar pkg-name ...
+.Ar pkg-name [pkg-name ...]
 .Nm pkg_info
 .Fl a
 .Op Ar flags
@@ -43,8 +43,9 @@ command.
 The following command line options are supported.
 .Bl -tag -width indent
 .It Ar pkg-name ...
-The named packages are described.  Names may either be installed package
-names or pathnames to package distribution files.
+The named packages are described.  A package name may either be the name of
+an installed package, the pathname to a package distribution file or a
+URL to an ftp available package.
 .It Fl a
 Show all currently installed packages.
 .It Fl v
