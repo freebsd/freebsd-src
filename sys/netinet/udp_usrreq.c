@@ -641,7 +641,7 @@ udp_getcred(SYSCTL_HANDLER_ARGS)
 		error = ENOENT;
 		goto out;
 	}
-	error = u_cansee(req->p->p_ucred, inp->inp_socket->so_cred);
+	error = cr_cansee(req->p->p_ucred, inp->inp_socket->so_cred);
 	if (error)
 		goto out;
 	bzero(&xuc, sizeof(xuc));
