@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)lfs_extern.h	8.2 (Berkeley) 4/16/94
- * $Id$
+ *	@(#)lfs_extern.h	8.6 (Berkeley) 5/8/95
+ * $Id: lfs_extern.h,v 1.14 1997/02/22 09:47:20 peter Exp $
  */
 
 #ifndef _UFS_LFS_LFS_EXTERN_H_
@@ -43,23 +43,26 @@ struct inode;
 struct mount;
 struct nameidata;
 
-int	 lfs_balloc __P((struct vnode *, u_long, daddr_t, struct buf **));
+int	 lfs_balloc __P((struct vnode *, int, u_long, ufs_daddr_t, struct buf **));
 int	 lfs_blkatoff __P((struct vop_blkatoff_args *));
 int	 lfs_bwrite __P((struct vop_bwrite_args *));
-int	 lfs_check __P((struct vnode *, daddr_t));
+int	 lfs_check __P((struct vnode *, ufs_daddr_t));
 void	 lfs_free_buffer __P((caddr_t, int));
 int	 lfs_gatherblock __P((struct segment *, struct buf *, int *));
 struct dinode *
 	 lfs_ifind __P((struct lfs *, ino_t, struct dinode *));
-int	 lfs_init __P((void));
+int	 lfs_init __P((struct vfsconf *));
 int	 lfs_initseg __P((struct lfs *));
 int	 lfs_makeinode __P((int, struct nameidata *, struct inode **));
 int	 lfs_mountroot __P((void));
 struct buf *
-	 lfs_newbuf __P((struct vnode *, daddr_t, size_t));
+	 lfs_newbuf __P((struct vnode *, ufs_daddr_t, size_t));
+int	 lfs_reclaim __P((struct vop_reclaim_args *));
 void	 lfs_seglock __P((struct lfs *, unsigned long flags));
 void	 lfs_segunlock __P((struct lfs *));
 int	 lfs_segwrite __P((struct mount *, int));
+#define	 lfs_sysctl ((int (*) __P((int *, u_int, void *, size_t *, void *, \
+                                    size_t, struct proc *)))eopnotsupp)
 int	 lfs_truncate __P((struct vop_truncate_args *));
 int	 lfs_update __P((struct vop_update_args *));
 void	 lfs_updatemeta __P((struct segment *));
@@ -74,6 +77,7 @@ int	 lfs_writeseg __P((struct lfs *, struct segment *));
 void	 lfs_writesuper __P((struct lfs *));
 
 extern int lfs_allclean_wakeup;
+extern int lfs_mount_type;
 extern int locked_queue_count;
 extern vop_t **lfs_vnodeop_p;
 extern vop_t **lfs_specop_p;
