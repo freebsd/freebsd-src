@@ -637,8 +637,6 @@ options		SAFE_RNDTEST	# enable rndtest support
 # digi: Digiboard driver
 # gsc: Genius GS-4500 hand scanner.
 # spic: Sony Programmable I/O controller (VAIO notebooks)
-# stl: Stallion EasyIO and EasyConnection 8/32 (cd1400 based)
-# stli: Stallion EasyConnection 8/64, ONboard, Brumby (intelligent)
 
 # Notes on APM
 #  The flags takes the following meaning for apm0:
@@ -673,21 +671,6 @@ options		SAFE_RNDTEST	# enable rndtest support
 #  is the only thing truly supported, but apparently a fair percentage
 #  of the Vaio extra features are controlled by this device.
 
-# Notes on the Stallion stl and stli drivers:
-#  See src/i386/isa/README.stl for complete instructions.
-#  This is version 0.0.5alpha, unsupported by Stallion.
-#  The stl driver has a secondary IO port hard coded at 0x280.  You need
-#     to change src/i386/isa/stallion.c if you reconfigure this on the boards.
-#  The "flags" and "msize" settings on the stli driver depend on the board:
-#	EasyConnection 8/64 ISA:     flags 23         msize 0x1000
-#	EasyConnection 8/64 EISA:    flags 24         msize 0x10000
-#	EasyConnection 8/64 MCA:     flags 25         msize 0x1000
-#	ONboard ISA:                 flags 4          msize 0x10000
-#	ONboard EISA:                flags 7          msize 0x10000
-#	ONboard MCA:                 flags 3          msize 0x10000
-#	Brumby:                      flags 2          msize 0x4000
-#	Stallion:                    flags 1          msize 0x10000
-
 device		spigot	1
 hint.spigot.0.at="isa"
 hint.spigot.0.port="0xad6"
@@ -721,16 +704,6 @@ hint.gsc.0.drq="3"
 device		spic
 hint.spic.0.at="isa"
 hint.spic.0.port="0x10a0"
-device		stl
-hint.stl.0.at="isa"
-hint.stl.0.port="0x2a0"
-hint.stl.0.irq="10"
-device		stli
-hint.stli.0.at="isa"
-hint.stli.0.port="0x2a0"
-hint.stli.0.maddr="0xcc000"
-hint.stli.0.flags="23"
-hint.stli.0.msize="0x1000"
 # HOT1 Xilinx 6200 card (http://www.vcc.com/)
 device		xrpu
 
