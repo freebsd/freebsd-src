@@ -40,14 +40,15 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/resourcevar.h>
-#include <sys/signalvar.h>
-#include <sys/proc.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
-#include <sys/vnode.h>
-#include <sys/mount.h>
 #include <sys/kernel.h>
+#include <sys/mount.h>
+#include <sys/proc.h>
+#include <sys/resourcevar.h>
+#include <sys/signalvar.h>
+#include <sys/vmmeter.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -160,6 +161,8 @@ nfs_getpages(ap)
 
 	kva = (vm_offset_t) bp->b_data;
 	pmap_qenter(kva, pages, npages);
+	cnt.v_vnodein++;
+	cnt.v_vnodepgsin += npages;
 
 	iov.iov_base = (caddr_t) kva;
 	iov.iov_len = count;
@@ -313,6 +316,8 @@ nfs_putpages(ap)
 
 	kva = (vm_offset_t) bp->b_data;
 	pmap_qenter(kva, pages, npages);
+	cnt.v_vnodeout++;
+	cnt.v_vnodepgsout += count;
 
 	iov.iov_base = (caddr_t) kva;
 	iov.iov_len = count;
