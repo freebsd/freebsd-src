@@ -617,6 +617,12 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 
 	PAM_LOG("Got user: %s", user);
 
+	retval = pam_get_data(pamh, "ccache", (const void **)&ccache_name);
+	if (retval != PAM_SUCCESS)
+		return (PAM_SUCCESS);
+
+	PAM_LOG("Got credentials");
+
 	krbret = krb5_init_context(&pam_context);
 	if (krbret != 0) {
 		PAM_LOG("Error krb5_init_context() failed");
@@ -625,9 +631,6 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 
 	PAM_LOG("Context initialised");
 
-	retval = pam_get_data(pamh, "ccache", (const void **)&ccache_name);
-	if (retval != PAM_SUCCESS)
-		return (PAM_SUCCESS);
 	krbret = krb5_cc_resolve(pam_context, ccache_name, &ccache);
 	if (krbret != 0) {
 		PAM_LOG("Error krb5_cc_resolve(\"%s\"): %s", ccache_name,
