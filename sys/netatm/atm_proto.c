@@ -108,9 +108,7 @@ struct domain atmdomain = {
 	&atmsw[sizeof(atmsw) / sizeof(atmsw[0])]
 };
 
-#ifdef __FreeBSD__
 DOMAIN_SET(atm);
-#endif
 
 
 #if (defined(__FreeBSD__) && (BSD >= 199506))
