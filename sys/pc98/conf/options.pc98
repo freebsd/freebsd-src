@@ -131,6 +131,7 @@ GUS_IRQ			opt_sound.h
 
 # Video spigot
 SPIGOT_UNSECURE		opt_spigot.h
+
 # -------------------------------
 # isdn4bsd: passive ISA cards
 # -------------------------------
@@ -140,6 +141,7 @@ TEL_S0_16_3		opt_i4b.h
 AVM_A1			opt_i4b.h
 USR_STI			opt_i4b.h
 ITKIX1			opt_i4b.h
+ELSA_PCC16		opt_i4b.h
 # -------------------------------
 # isdn4bsd: passive ISA PnP cards
 # -------------------------------
@@ -148,11 +150,15 @@ DRN_NGO                 opt_i4b.h
 TEL_S0_16_3_P		opt_i4b.h
 SEDLBAUER		opt_i4b.h
 DYNALINK		opt_i4b.h
+ASUSCOM_IPAC		opt_i4b.h
 ELSA_QS1ISA		opt_i4b.h
+AVM_PNP			opt_i4b.h
+SIEMENS_ISURF2		opt_i4b.h
 # -------------------------------
 # isdn4bsd: passive PCI cards
 # -------------------------------
 ELSA_QS1PCI		opt_i4b.h
+AVM_A1_PCI		opt_i4b.h
 # -------------------------------
 # isdn4bsd: passive PCMCIA cards
 # -------------------------------
@@ -164,6 +170,7 @@ AVM_A1_PCMCIA		opt_i4b.h
 I4B_SMP_WORKAROUND      opt_i4b.h
 # enable VJ compression code for ipr i/f
 IPR_VJ			opt_i4b.h
+
 # -------------------------------
 # oltr: build options
 # -------------------------------
@@ -175,10 +182,6 @@ OLTR_NO_BULLSEYE_MAC    opt_oltr.h
 # Total number of ports controlled by the dgb(4) driver.
 # Defaults to NDGB*16.
 NDGBPORTS		opt_dgb.h
-
-# -------------------------------
-# EOF
-# -------------------------------
 
 # bs driver options
 SCSI_BOUNCE_SIZE	opt_bs.h
@@ -193,3 +196,7 @@ EPSON_BOUNCEDMA		opt_pc98.h
 EPSON_MEMWIN		opt_pc98.h
 COMPAT_ATDISK		opt_pc98.h
 LINE30			opt_syscons.h
+
+# -------------------------------
+# EOF
+# -------------------------------
