@@ -29,12 +29,14 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ypwhich.c,v 1.7.2.1 1997/09/01 06:08:30 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <ctype.h>
 #include <err.h>
 #include <netdb.h>
@@ -60,6 +62,7 @@ struct ypalias {
 	char *alias, *name;
 } ypaliases[] = {
 	{ "passwd", "passwd.byname" },
+	{ "master.passwd", "master.passwd.byname" },
 	{ "group", "group.byname" },
 	{ "networks", "networks.byaddr" },
 	{ "hosts", "hosts.byaddr" },
@@ -92,7 +95,7 @@ struct sockaddr_in *sin;
 	struct timeval tv;
 	CLIENT *client;
 	int sock, r;
-	u_long ss_addr;
+	struct in_addr ss_addr;
 
 	sock = RPC_ANYSOCK;
 	tv.tv_sec = 15;
@@ -121,7 +124,7 @@ struct sockaddr_in *sin;
 	}
 	clnt_destroy(client);
 
-	ss_addr = *(u_long *)ypbr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_addr;
+	ss_addr = *(struct in_addr *)ypbr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_addr;
 	/*printf("%08x\n", ss_addr);*/
 	hent = gethostbyaddr((char *)&ss_addr, sizeof(ss_addr), AF_INET);
 	if (hent)
