@@ -28,7 +28,7 @@ struct nlist    nl[] = {
 int
 main(int ac, char **av)
 {
-    int i;
+    int i, len;
 
     i = nlist(av[1], nl);
     if (i == -1) {
@@ -36,8 +36,9 @@ main(int ac, char **av)
 	perror("nlist");
 	return 1;
     }
-    printf("%d\n", sizeof(nl) / sizeof(struct nlist));
-    for (i = 0; nl[i].n_name && nl[i].n_name[0]; i++) {
+    len = (sizeof(nl) / sizeof(struct nlist)) - 1;
+    printf("%d\n", len);
+    for (i = 0; i < len; i++) {
 	printf("%s\n", nl[i].n_name);
 	printf("%d %d %d %ld\n",
 	       nl[i].n_type, nl[i].n_other, nl[i].n_desc, nl[i].n_value);
