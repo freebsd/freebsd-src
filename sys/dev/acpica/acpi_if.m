@@ -1,4 +1,4 @@
-#
+#-
 # Copyright (c) 2004 Nate Lawson
 # All rights reserved.
 #
@@ -106,6 +106,26 @@ METHOD ACPI_STATUS evaluate_object {
 	ACPI_STRING 	pathname;
 	ACPI_OBJECT_LIST *parameters;
 	ACPI_BUFFER	*ret;
+};
+
+#
+# Get the highest power state (D0-D3) that is usable for a device when
+# suspending/resuming.  If a bus calls this when suspending a device, it
+# must also call it when resuming.
+#
+# device_t bus:  parent bus for the device
+#
+# device_t dev:  check this device's appropriate power state
+#
+# int *dstate:  if successful, contains the highest valid sleep state
+#
+# Returns:  0 on success, ESRCH if device has no special state, or
+#   some other error value.
+#
+METHOD int pwr_for_sleep {
+	device_t	bus;
+	device_t	dev;
+	int		*dstate;
 };
 
 #
