@@ -82,10 +82,16 @@ static struct mtx pcicfg_mtx;
 /* sysctl vars */
 SYSCTL_DECL(_hw_pci);
 
-static uint32_t pci_irq_override_mask = 0xdef4;
+#ifdef PC98
+#define PCI_IRQ_OVERRIDE_MASK 0x3e68
+#else
+#define PCI_IRQ_OVERRIDE_MASK 0xdef4
+#endif
+
+static uint32_t pci_irq_override_mask = PCI_IRQ_OVERRIDE_MASK;
 TUNABLE_INT("hw.pci.irq_override_mask", &pci_irq_override_mask);
 SYSCTL_INT(_hw_pci, OID_AUTO, irq_override_mask, CTLFLAG_RD,
-    &pci_irq_override_mask, 0xdef4,
+    &pci_irq_override_mask, PCI_IRQ_OVERRIDE_MASK,
     "Mask of allowed irqs to try to route when it has no good clue about\n"
     "which irqs it should use.");
 
