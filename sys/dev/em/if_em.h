@@ -340,10 +340,11 @@ struct adapter {
 	struct resource *res_interrupt;
 	void            *int_handler_tag;
 	struct ifmedia  media;
-	struct callout_handle timer_handle;
-	struct callout_handle tx_fifo_timer_handle;
+	struct callout	timer;
+	struct callout	tx_fifo_timer;
 	int             io_rid;
 	u_int8_t        unit;
+	struct mtx	mtx;
 
 	/* Info about the board itself */
 	u_int32_t       part_num;
@@ -423,5 +424,8 @@ struct adapter {
 #endif
 	struct em_hw_stats stats;
 };
+
+#define	EM_LOCK(_sc)	mtx_lock(&(_sc)->mtx)
+#define	EM_UNLOCK(_sc)	mtx_unlock(&(_sc)->mtx)
 
 #endif                                                  /* _EM_H_DEFINED_ */

@@ -123,6 +123,7 @@ static void em_start(struct ifnet *);
 static int  em_ioctl(struct ifnet *, u_long, caddr_t);
 static void em_watchdog(struct ifnet *);
 static void em_init(void *);
+static void em_init_locked(struct adapter *);
 static void em_stop(void *);
 static void em_media_status(struct ifnet *, struct ifmediareq *);
 static int  em_media_change(struct ifnet *);
@@ -286,23 +287,22 @@ static int
 em_attach(device_t dev)
 {
 	struct adapter * adapter;
-	int             s;
 	int             tsize, rsize;
 	int		error = 0;
 
 	INIT_DEBUGOUT("em_attach: begin");
-	s = splimp();
 
 	/* Allocate, clear, and link in our adapter structure */
 	if (!(adapter = device_get_softc(dev))) {
 		printf("em: adapter structure allocation failed\n");
-		splx(s);
 		return(ENOMEM);
 	}
 	bzero(adapter, sizeof(struct adapter ));
 	adapter->dev = dev;
 	adapter->osdep.dev = dev;
 	adapter->unit = device_get_unit(dev);
+	mtx_init(&adapter->mtx, device_get_nameunit(dev),
+		MTX_NETWORK_LOCK, MTX_DEF);
 
 	if (em_adapter_list != NULL)
 		em_adapter_list->prev = adapter;
@@ -334,8 +334,8 @@ em_attach(device_t dev)
                         (void *)adapter, 0,
                         em_sysctl_stats, "I", "Statistics");
 
-	callout_handle_init(&adapter->timer_handle);
-	callout_handle_init(&adapter->tx_fifo_timer_handle);
+	callout_init(&adapter->timer, CALLOUT_MPSAFE);
+	callout_init(&adapter->tx_fifo_timer, CALLOUT_MPSAFE);
 
 	/* Determine hardware revision */
 	em_identify_hardware(adapter);
@@ -494,7 +494,6 @@ em_attach(device_t dev)
                 adapter->pcix_82544 = FALSE;
         }
 	INIT_DEBUGOUT("em_attach: end");
-	splx(s);
 	return(0);
 
 err_mac_addr:
@@ -507,7 +506,6 @@ err_pci:
         em_free_pci_resources(adapter);
         sysctl_ctx_free(&adapter->sysctl_ctx);
 err_sysctl:
-        splx(s);
         return(error);
 
 }
@@ -527,13 +525,13 @@ em_detach(device_t dev)
 {
 	struct adapter * adapter = device_get_softc(dev);
 	struct ifnet   *ifp = &adapter->interface_data.ac_if;
-	int             s;
 
 	INIT_DEBUGOUT("em_detach: begin");
-	s = splimp();
 
+	EM_LOCK(adapter);
 	em_stop(adapter);
 	em_phy_hw_reset(&adapter->hw);
+	EM_UNLOCK(adapter);
 #if __FreeBSD_version < 500000
         ether_ifdetach(&adapter->interface_data.ac_if, ETHER_BPF_SUPPORTED);
 #else
@@ -567,7 +565,6 @@ em_detach(device_t dev)
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 	ifp->if_timer = 0;
 
-	splx(s);
 	return(0);
 }
 
@@ -581,7 +578,9 @@ static int
 em_shutdown(device_t dev)
 {
 	struct adapter *adapter = device_get_softc(dev);
+	EM_LOCK(adapter);
 	em_stop(adapter);
+	EM_UNLOCK(adapter);
 	return(0);
 }
 
@@ -597,16 +596,16 @@ em_shutdown(device_t dev)
  **********************************************************************/
 
 static void
-em_start(struct ifnet *ifp)
+em_start_locked(struct ifnet *ifp)
 {
-        int             s;
         struct mbuf    *m_head;
         struct adapter *adapter = ifp->if_softc;
+
+	mtx_assert(&adapter->mtx, MA_OWNED);
 
         if (!adapter->link_active)
                 return;
 
-        s = splimp();
         while (ifp->if_snd.ifq_head != NULL) {
 
                 IF_DEQUEUE(&ifp->if_snd, m_head);
@@ -631,8 +630,18 @@ em_start(struct ifnet *ifp)
                 ifp->if_timer = EM_TX_TIMEOUT;
         
         }
-        splx(s);
         return;
+}
+
+static void
+em_start(struct ifnet *ifp)
+{
+	struct adapter *adapter = ifp->if_softc;
+
+	EM_LOCK(adapter);
+	em_start_locked(ifp);
+	EM_UNLOCK(adapter);
+	return;
 }
 
 /*********************************************************************
@@ -647,11 +656,10 @@ em_start(struct ifnet *ifp)
 static int
 em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
-	int             s, mask, error = 0;
+	int             mask, error = 0;
 	struct ifreq   *ifr = (struct ifreq *) data;
 	struct adapter * adapter = ifp->if_softc;
 
-	s = splimp();
 	switch (command) {
 	case SIOCSIFADDR:
 	case SIOCGIFADDR:
@@ -663,19 +671,22 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (ifr->ifr_mtu > MAX_JUMBO_FRAME_SIZE - ETHER_HDR_LEN) {
 			error = EINVAL;
 		} else {
+			EM_LOCK(adapter);
 			ifp->if_mtu = ifr->ifr_mtu;
 			adapter->hw.max_frame_size = 
 			ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
-			em_init(adapter);
+			em_init_locked(adapter);
+			EM_UNLOCK(adapter);
 		}
 		break;
 	case SIOCSIFFLAGS:
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFFLAGS (Set Interface Flags)");
+		EM_LOCK(adapter);
 		if (ifp->if_flags & IFF_UP) {
 			if (!(ifp->if_flags & IFF_RUNNING)) {
 				bcopy(IF_LLADDR(ifp), adapter->hw.mac_addr, 
 				      ETHER_ADDR_LEN);
-				em_init(adapter);
+				em_init_locked(adapter);
 			}
 
 			em_disable_promisc(adapter);
@@ -685,11 +696,13 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				em_stop(adapter);
 			}
 		}
+		EM_UNLOCK(adapter);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOC(ADD|DEL)MULTI");
 		if (ifp->if_flags & IFF_RUNNING) {
+			EM_LOCK(adapter);
 			em_disable_intr(adapter);
 			em_set_multi(adapter);
 			if (adapter->hw.mac_type == em_82542_rev2_0) {
@@ -699,6 +712,7 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
                         if (!(ifp->if_ipending & IFF_POLLING))
 #endif
 				em_enable_intr(adapter);
+			EM_UNLOCK(adapter);
 		}
 		break;
 	case SIOCSIFMEDIA:
@@ -723,7 +737,6 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = EINVAL;
 	}
 
-	splx(s);
 	return(error);
 }
 
@@ -771,15 +784,13 @@ em_watchdog(struct ifnet *ifp)
  **********************************************************************/
 
 static void
-em_init(void *arg)
+em_init_locked(struct adapter * adapter)
 {
-	int             s;
 	struct ifnet   *ifp;
-	struct adapter * adapter = arg;
 
 	INIT_DEBUGOUT("em_init: begin");
 
-	s = splimp();
+	mtx_assert(&adapter->mtx, MA_OWNED);
 
 	em_stop(adapter);
 
@@ -787,7 +798,6 @@ em_init(void *arg)
 	if (em_hardware_init(adapter)) {
 		printf("em%d: Unable to initialize the hardware\n", 
 		       adapter->unit);
-		splx(s);
 		return;
 	}
 
@@ -798,7 +808,6 @@ em_init(void *arg)
 		printf("em%d: Could not setup transmit structures\n", 
 		       adapter->unit);
 		em_stop(adapter); 
-		splx(s);
 		return;
 	}
 	em_initialize_transmit_unit(adapter);
@@ -811,7 +820,6 @@ em_init(void *arg)
 		printf("em%d: Could not setup receive structures\n", 
 		       adapter->unit);
 		em_stop(adapter);
-		splx(s);
 		return;
 	}
 	em_initialize_receive_unit(adapter);
@@ -827,7 +835,7 @@ em_init(void *arg)
 			ifp->if_hwassist = 0;
 	}
 
-	adapter->timer_handle = timeout(em_local_timer, adapter, 2*hz);
+	callout_reset(&adapter->timer, 2*hz, em_local_timer, adapter);
 	em_clear_hw_cntrs(&adapter->hw);
 #ifdef DEVICE_POLLING
         /*
@@ -840,7 +848,17 @@ em_init(void *arg)
 #endif /* DEVICE_POLLING */
 		em_enable_intr(adapter);
 
-	splx(s);
+	return;
+}
+
+static void
+em_init(void *arg)
+{
+	struct adapter * adapter = arg;
+
+	EM_LOCK(adapter);
+	em_init_locked(adapter);
+	EM_UNLOCK(adapter);
 	return;
 }
 
@@ -849,10 +867,12 @@ em_init(void *arg)
 static poll_handler_t em_poll;
         
 static void     
-em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+em_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
         struct adapter *adapter = ifp->if_softc;
         u_int32_t reg_icr;
+
+	mtx_assert(&adapter->mtx, MA_OWNED);
 
         if (cmd == POLL_DEREGISTER) {       /* final call, enable interrupts */
                 em_enable_intr(adapter);
@@ -861,11 +881,11 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
         if (cmd == POLL_AND_CHECK_STATUS) {
                 reg_icr = E1000_READ_REG(&adapter->hw, ICR);
                 if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
-                        untimeout(em_local_timer, adapter, adapter->timer_handle);
+			callout_stop(&adapter->timer);
                         adapter->hw.get_link_status = 1;
                         em_check_for_link(&adapter->hw);
                         em_print_link_status(adapter);
-                        adapter->timer_handle = timeout(em_local_timer, adapter, 2*hz);
+			callout_reset(&adapter->timer, 2*hz, em_local_timer, adapter);
                 }
         }
         if (ifp->if_flags & IFF_RUNNING) {
@@ -874,7 +894,17 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
         }
 	
         if (ifp->if_flags & IFF_RUNNING && ifp->if_snd.ifq_head != NULL)
-                em_start(ifp);
+                em_start_locked(ifp);
+}
+        
+static void     
+em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+        struct adapter *adapter = ifp->if_softc;
+
+	EM_LOCK(adapter);
+	em_poll_locked(ifp, cmd, count);
+	EM_UNLOCK(adapter);
 }
 #endif /* DEVICE_POLLING */
 
@@ -891,33 +921,37 @@ em_intr(void *arg)
         struct ifnet    *ifp;
         struct adapter  *adapter = arg;
 
+	EM_LOCK(adapter);
+
         ifp = &adapter->interface_data.ac_if;  
 
 #ifdef DEVICE_POLLING
-        if (ifp->if_ipending & IFF_POLLING)
+        if (ifp->if_ipending & IFF_POLLING) {
+		EM_UNLOCK(adapter);
                 return;
+	}
 
         if (ether_poll_register(em_poll, ifp)) {
                 em_disable_intr(adapter);
                 em_poll(ifp, 0, 1);
+		EM_UNLOCK(adapter);
                 return;
         }
 #endif /* DEVICE_POLLING */
 
 	reg_icr = E1000_READ_REG(&adapter->hw, ICR);
         if (!reg_icr) {  
+		EM_UNLOCK(adapter);
                 return;
         }
 
         /* Link status change */
         if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
-                untimeout(em_local_timer, adapter,
-                          adapter->timer_handle);
+		callout_stop(&adapter->timer);
                 adapter->hw.get_link_status = 1;
                 em_check_for_link(&adapter->hw);
                 em_print_link_status(adapter);
-                adapter->timer_handle =
-                timeout(em_local_timer, adapter, 2*hz);
+		callout_reset(&adapter->timer, 2*hz, em_local_timer, adapter);
         }
 
         while (loop_cnt > 0) { 
@@ -929,8 +963,9 @@ em_intr(void *arg)
         }
                  
         if (ifp->if_flags & IFF_RUNNING && ifp->if_snd.ifq_head != NULL)
-                em_start(ifp);
+                em_start_locked(ifp);
 
+	EM_UNLOCK(adapter);
         return;
 }
 
@@ -1270,7 +1305,6 @@ em_encap(struct adapter *adapter, struct mbuf *m_head)
 static void
 em_82547_move_tail(void *arg)
 {
-	int s;
 	struct adapter *adapter = arg;
 	uint16_t hw_tdt;
 	uint16_t sw_tdt;
@@ -1278,7 +1312,7 @@ em_82547_move_tail(void *arg)
 	uint16_t length = 0;
 	boolean_t eop = 0;
 
-	s = splimp();
+	EM_LOCK(adapter);
 	hw_tdt = E1000_READ_REG(&adapter->hw, TDT);
 	sw_tdt = adapter->next_avail_tx_desc;
 	
@@ -1292,20 +1326,16 @@ em_82547_move_tail(void *arg)
 		if(eop) {
 			if (em_82547_fifo_workaround(adapter, length)) {
 				adapter->tx_fifo_wrk++;
-				adapter->tx_fifo_timer_handle = 
-					timeout(em_82547_move_tail,
-						adapter, 1);
-				splx(s);
-				return;
+				callout_reset(&adapter->tx_fifo_timer, 1,
+					em_82547_move_tail, adapter);
+				break;
 			}
-			else {
-				E1000_WRITE_REG(&adapter->hw, TDT, hw_tdt);
-				em_82547_update_fifo_head(adapter, length);
-				length = 0;
-			}
+			E1000_WRITE_REG(&adapter->hw, TDT, hw_tdt);
+			em_82547_update_fifo_head(adapter, length);
+			length = 0;
 		}
 	}	
-	splx(s);
+	EM_UNLOCK(adapter);
 	return;
 }
 
@@ -1494,12 +1524,11 @@ em_set_multi(struct adapter * adapter)
 static void
 em_local_timer(void *arg)
 {
-	int s;
 	struct ifnet   *ifp;
 	struct adapter * adapter = arg;
 	ifp = &adapter->interface_data.ac_if;
 
-	s = splimp();
+	EM_LOCK(adapter);
 
 	em_check_for_link(&adapter->hw);
 	em_print_link_status(adapter);
@@ -1509,9 +1538,9 @@ em_local_timer(void *arg)
 	}
 	em_smartspeed(adapter);
 
-	adapter->timer_handle = timeout(em_local_timer, adapter, 2*hz);
+	callout_reset(&adapter->timer, 2*hz, em_local_timer, adapter);
 
-	splx(s);
+	EM_UNLOCK(adapter);
 	return;
 }
 
@@ -1557,12 +1586,13 @@ em_stop(void *arg)
 	struct adapter * adapter = arg;
 	ifp = &adapter->interface_data.ac_if;
 
+	mtx_assert(&adapter->mtx, MA_OWNED);
+
 	INIT_DEBUGOUT("em_stop: begin");
 	em_disable_intr(adapter);
 	em_reset_hw(&adapter->hw);
-	untimeout(em_local_timer, adapter, adapter->timer_handle);	
-	untimeout(em_82547_move_tail, adapter, 
-		  adapter->tx_fifo_timer_handle);
+	callout_stop(&adapter->timer);
+	callout_stop(&adapter->tx_fifo_timer);
 	em_free_transmit_structures(adapter);
 	em_free_receive_structures(adapter);
 
@@ -1671,7 +1701,8 @@ em_allocate_pci_resources(struct adapter * adapter)
 		       adapter->unit);
 		return(ENXIO);
 	}
-	if (bus_setup_intr(dev, adapter->res_interrupt, INTR_TYPE_NET,
+	if (bus_setup_intr(dev, adapter->res_interrupt,
+			   INTR_TYPE_NET /*| INTR_MPSAFE*/,
 			   (void (*)(void *)) em_intr, adapter,
 			   &adapter->int_handler_tag)) {
 		printf("em%d: Error registering interrupt handler!\n", 
@@ -2265,16 +2296,16 @@ em_transmit_checksum_setup(struct adapter * adapter,
 static void
 em_clean_transmit_interrupts(struct adapter * adapter)
 {
-        int s;
         int i, num_avail;
         struct em_buffer *tx_buffer;
         struct em_tx_desc   *tx_desc;
 	struct ifnet   *ifp = &adapter->interface_data.ac_if;
 
+	mtx_assert(&adapter->mtx, MA_OWNED);
+
         if (adapter->num_tx_desc_avail == adapter->num_tx_desc)
                 return;
 
-        s = splimp();
 #ifdef DBG_STATS
         adapter->clean_tx_interrupts++;
 #endif
@@ -2323,7 +2354,6 @@ em_clean_transmit_interrupts(struct adapter * adapter)
                         ifp->if_timer = EM_TX_TIMEOUT;
         }
         adapter->num_tx_desc_avail = num_avail;
-        splx(s);
         return;
 }
 
@@ -2627,6 +2657,8 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 	/* Pointer to the receive descriptor being examined. */
 	struct em_rx_desc   *current_desc;
 
+	mtx_assert(&adapter->mtx, MA_OWNED);
+
 	ifp = &adapter->interface_data.ac_if;
 	i = adapter->next_rx_desc_to_check;
         current_desc = &adapter->rx_desc_base[i];
@@ -2731,8 +2763,11 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 							E1000_RXD_SPC_VLAN_MASK),
 						       adapter->fmp = NULL);
  
-                                if (adapter->fmp != NULL)
+                                if (adapter->fmp != NULL) {
+					EM_UNLOCK(adapter);
                                         (*ifp->if_input)(ifp, adapter->fmp);
+					EM_LOCK(adapter);
+				}
 #endif
                                 adapter->fmp = NULL;
                                 adapter->lmp = NULL;
