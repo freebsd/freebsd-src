@@ -796,6 +796,10 @@ _mklocale=	usr.bin/mklocale
 _crunchgen=	usr.sbin/crunch/crunchgen
 .endif
 
+.if ${BOOTSTRAPPING} < 600020
+_pwd_mkdb=	usr.sbin/pwd_mkdb
+.endif
+
 bootstrap-tools:
 .for _tool in \
     ${_strfile} \
@@ -811,7 +815,8 @@ bootstrap-tools:
     usr.bin/rpcgen \
     usr.bin/xinstall \
     usr.sbin/config \
-    ${_crunchgen}
+    ${_crunchgen} \
+    ${_pwd_mkdb}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
