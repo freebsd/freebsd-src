@@ -120,7 +120,7 @@ static struct swblock **swhash;
 static int swhash_mask;
 static int swap_async_max = 4;	/* maximum in-progress async I/O's	*/
 
-static struct vnode *swapdev_vp; /* XXX: This is not quite a real vnode */
+extern struct vnode *swapdev_vp;	/* from vm_swap.c */
 
 SYSCTL_INT(_vm, OID_AUTO, swap_async_max,
         CTLFLAG_RW, &swap_async_max, 0, "Maximum running async swap ops");
@@ -328,11 +328,6 @@ swap_pager_swap_init()
 	bzero(swhash, sizeof(struct swblock *) * n);
 
 	swhash_mask = n - 1;
-
-	n = getnewvnode(VT_NON, NULL, spec_vnodeop_p, &swapdev_vp);
-	if (n)
-		panic("Cannot get vnode for swapdev");
-	swapdev_vp->v_type = VBLK;
 }
 
 /*
@@ -1136,11 +1131,11 @@ swap_pager_getpages(object, m, count, reqpage)
 	 * The other pages in our m[] array are also released on completion,
 	 * so we cannot assume they are valid anymore either.
 	 *
-	 * NOTE: b_blkno is destroyed by the call to swstrategy()
+	 * NOTE: b_blkno is destroyed by the call to VOP_STRATEGY
 	 */
 
 	BUF_KERNPROC(bp);
-	swstrategy(bp);
+	VOP_STRATEGY(bp->b_vp, bp);
 
 	/*
 	 * wait for the page we want to complete.  PG_SWAPINPROG is always
@@ -1193,7 +1188,7 @@ swap_pager_getpages(object, m, count, reqpage)
  *	We support both OBJT_DEFAULT and OBJT_SWAP objects.  DEFAULT objects
  *	are automatically converted to SWAP objects.
  *
- *	In a low memory situation we may block in swstrategy(), but the new 
+ *	In a low memory situation we may block in VOP_STRATEGY(), but the new 
  *	vm_page reservation system coupled with properly written VFS devices 
  *	should ensure that no low-memory deadlock occurs.  This is an area
  *	which needs work.
@@ -1387,13 +1382,13 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		/*
 		 * asynchronous
 		 *
-		 * NOTE: b_blkno is destroyed by the call to swstrategy()
+		 * NOTE: b_blkno is destroyed by the call to VOP_STRATEGY
 		 */
 
 		if (sync == FALSE) {
 			bp->b_iodone = swp_pager_async_iodone;
 			BUF_KERNPROC(bp);
-			swstrategy(bp);
+			VOP_STRATEGY(bp->b_vp, bp);
 
 			for (j = 0; j < n; ++j)
 				rtvals[i+j] = VM_PAGER_PEND;
@@ -1403,11 +1398,11 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		/*
 		 * synchronous
 		 *
-		 * NOTE: b_blkno is destroyed by the call to swstrategy()
+		 * NOTE: b_blkno is destroyed by the call to VOP_STRATEGY
 		 */
 
 		bp->b_iodone = swp_pager_sync_iodone;
-		swstrategy(bp);
+		VOP_STRATEGY(bp->b_vp, bp);
 
 		/*
 		 * Wait for the sync I/O to complete, then update rtvals.
