@@ -29,18 +29,20 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: comsat.c,v 1.9 1997/09/15 00:27:49 ache Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)comsat.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -52,6 +54,7 @@ static char sccsid[] = "@(#)comsat.c	8.1 (Berkeley) 6/4/93";
 #include <netinet/in.h>
 
 #include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <netdb.h>
 #include <paths.h>
@@ -93,11 +96,8 @@ main(argc, argv)
 
 	/* verify proper invocation */
 	fromlen = sizeof(from);
-	if (getsockname(0, (struct sockaddr *)&from, &fromlen) < 0) {
-		(void)fprintf(stderr,
-		    "comsat: getsockname: %s.\n", strerror(errno));
-		exit(1);
-	}
+	if (getsockname(0, (struct sockaddr *)&from, &fromlen) < 0)
+		err(1, "getsockname");
 	openlog("comsat", LOG_PID, LOG_DAEMON);
 	if (chdir(_PATH_MAILDIR)) {
 		syslog(LOG_ERR, "chdir: %s: %m", _PATH_MAILDIR);
@@ -229,7 +229,7 @@ notify(utp, file, offset, folder)
 	(void)alarm((u_int)30);
 	if ((tp = fopen(tty, "w")) == NULL) {
 		dsyslog(LOG_ERR, "%s: %s", tty, strerror(errno));
-		_exit(-1);
+		_exit(1);
 	}
 	(void)tcgetattr(fileno(tp), &tio);
 	cr = ((tio.c_oflag & (OPOST|ONLCR)) == (OPOST|ONLCR)) ?  "\n" : "\n\r";
@@ -280,8 +280,8 @@ jkfprintf(tp, user, file, offset)
 				continue;
 			}
 			if (line[0] == ' ' || line[0] == '\t' ||
-			    strncmp(line, "From:", 5) &&
-			    strncmp(line, "Subject:", 8))
+			    (strncmp(line, "From:", 5) &&
+			    strncmp(line, "Subject:", 8)))
 				continue;
 		}
 		if (linecnt <= 0 || charcnt <= 0) {
