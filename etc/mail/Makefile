@@ -139,7 +139,7 @@ install:	${INSTALL_CF}
 	${INSTALL} -c -m ${SHAREMODE} ${INSTALL_CF} /etc/mail/sendmail.cf
 
 start:
-	(. /etc/defaults/rc.conf; \
+	(. /etc/defaults/rc.conf; source_rc_confs; \
 	   if [ "$${sendmail_enable}" = "YES" -a -r /etc/mail/sendmail.cf ];\
 	   then \
 	     ${SENDMAIL} $${sendmail_flags}; \
