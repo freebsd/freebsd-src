@@ -41,7 +41,7 @@
  */
 
 /*
- * The Aironet 4500/4800 series cards some in PCMCIA, ISA and PCI form.
+ * The Aironet 4500/4800 series cards come in PCMCIA, ISA and PCI form.
  * This driver supports all three device types (PCI devices are supported
  * through an extra PCI shim: /sys/pci/if_an_p.c). ISA devices can be
  * supported either using hard-coded IO port/IRQ settings or via Plug
