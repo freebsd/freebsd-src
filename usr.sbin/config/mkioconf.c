@@ -1114,3 +1114,4 @@ comp_config(fp)
 	}
 	fprintf(fp, "\t-1,\t0,\t0,\t0,\t{ 0 },\n};\n");
 }
+
