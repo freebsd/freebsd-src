@@ -1,9 +1,9 @@
-/*	$Id$ */
-/*	$NetBSD: fat.h,v 1.4 1994/08/21 18:43:57 ws Exp $	*/
+/*	$Id: fat.h,v 1.6 1997/02/22 09:40:45 peter Exp $ */
+/*	$NetBSD: fat.h,v 1.12 1997/11/17 15:36:36 ws Exp $	*/
 
 /*-
- * Copyright (C) 1994 Wolfgang Solfrank.
- * Copyright (C) 1994 TooLs GmbH.
+ * Copyright (C) 1994, 1997 Wolfgang Solfrank.
+ * Copyright (C) 1994, 1997 TooLs GmbH.
  * All rights reserved.
  * Original code by Paul Popelka (paulp@uts.amdahl.com) (see below).
  *
@@ -51,28 +51,37 @@
 /*
  * Some useful cluster numbers.
  */
-#define	MSDOSFSROOT	0	/* cluster 0 means the root dir */
-#define	CLUST_FREE	0	/* cluster 0 also means a free cluster */
+#define	MSDOSFSROOT	0		/* cluster 0 means the root dir */
+#define	CLUST_FREE	0		/* cluster 0 also means a free cluster */
 #define	MSDOSFSFREE	CLUST_FREE
-#define	CLUST_FIRST	2	/* first legal cluster number */
-#define	CLUST_RSRVS	0xfff0	/* start of reserved cluster range */
-#define	CLUST_RSRVE	0xfff6	/* end of reserved cluster range */
-#define	CLUST_BAD	0xfff7	/* a cluster with a defect */
-#define	CLUST_EOFS	0xfff8	/* start of eof cluster range */
-#define	CLUST_EOFE	0xffff	/* end of eof cluster range */
+#define	CLUST_FIRST	2		/* first legal cluster number */
+#define	CLUST_RSRVD	0xfffffff6	/* reserved cluster range */
+#define	CLUST_BAD	0xfffffff7	/* a cluster with a defect */
+#define	CLUST_EOFS	0xfffffff8	/* start of eof cluster range */
+#define	CLUST_EOFE	0xffffffff	/* end of eof cluster range */
 
-#define	FAT12_MASK	0x0fff	/* mask for 12 bit cluster numbers */
-#define	FAT16_MASK	0xffff	/* mask for 16 bit cluster numbers */
+#define	FAT12_MASK	0x00000fff	/* mask for 12 bit cluster numbers */
+#define	FAT16_MASK	0x0000ffff	/* mask for 16 bit cluster numbers */
+#define	FAT32_MASK	0x0fffffff	/* mask for FAT32 cluster numbers */
 
 /*
+ * MSDOSFS:
  * Return true if filesystem uses 12 bit fats. Microsoft Programmer's
  * Reference says if the maximum cluster number in a filesystem is greater
- * than 4086 then we've got a 16 bit fat filesystem.
+ * than 4078 ((CLUST_RSRVS - CLUST_FIRST) & FAT12_MASK) then we've got a
+ * 16 bit fat filesystem. While mounting, the result of this test is stored
+ * in pm_fatentrysize.
+ * GEMDOS-flavour (atari):
+ * If the filesystem is on floppy we've got a 12 bit fat filesystem, otherwise
+ * 16 bit. We check the d_type field in the disklabel struct while mounting
+ * and store the result in the pm_fatentrysize. Note that this kind of
+ * detection gets flakey when mounting a vnd-device.
  */
-#define	FAT12(pmp)	(pmp->pm_maxcluster <= 4086)
-#define	FAT16(pmp)	(pmp->pm_maxcluster >  4086)
+#define	FAT12(pmp)	(pmp->pm_fatmask == FAT12_MASK)
+#define	FAT16(pmp)	(pmp->pm_fatmask == FAT16_MASK)
+#define	FAT32(pmp)	(pmp->pm_fatmask == FAT32_MASK)
 
-#define	MSDOSFSEOF(cn)	(((cn) & 0xfff8) == 0xfff8)
+#define	MSDOSFSEOF(pmp, cn)	((((cn) | ~(pmp)->pm_fatmask) & CLUST_EOFS) == CLUST_EOFS)
 
 #ifdef KERNEL
 /*
@@ -88,7 +97,7 @@
  */
 #define	DE_CLEAR	1	/* Zero out the blocks allocated */
 
-int pcbmap __P((struct denode *dep, u_long findcn, daddr_t *bnp, u_long *cnp));
+int pcbmap __P((struct denode *dep, u_long findcn, daddr_t *bnp, u_long *cnp, int* sp));
 int clusterfree __P((struct msdosfsmount *pmp, u_long cn, u_long *oldcnp));
 int clusteralloc __P((struct msdosfsmount *pmp, u_long start, u_long count, u_long fillwith, u_long *retcluster, u_long *got));
 int fatentry __P((int function, struct msdosfsmount *pmp, u_long cluster, u_long *oldcontents, u_long newcontents));
@@ -96,15 +105,4 @@ int freeclusterchain __P((struct msdosfsmount *pmp, u_long startchain));
 int extendfile __P((struct denode *dep, u_long count, struct buf **bpp, u_long *ncp, int flags));
 void fc_purge __P((struct denode *dep, u_int frcn));
 
-int readep __P((struct msdosfsmount *pmp, u_long dirclu, u_long dirofs,  struct buf **bpp, struct direntry **epp));
-int readde __P((struct denode *dep, struct buf **bpp, struct direntry **epp));
-int deextend __P((struct denode *dep, off_t length, struct ucred *cred));
-int fillinusemap __P((struct msdosfsmount *pmp));
-int reinsert __P((struct denode *dep));
-int dosdirempty __P((struct denode *dep));
-int createde __P((struct denode *dep, struct denode *ddep, struct denode **depp));
-int deupdat __P((struct denode *dep, struct timespec *tp, int waitfor));
-int removede __P((struct denode *pdep, struct denode *dep));
-int detrunc __P((struct denode *dep, u_long length, int flags, struct ucred *cred, struct proc *p));
-int doscheckpath __P(( struct denode *source, struct denode *target));
 #endif	/* KERNEL */
