@@ -1,0 +1,456 @@
+#    Makefile template for Configure for the opcodes library.
+#    Copyright (C) 1990, 91, 92, 93, 94, 95, 96, 1997
+#    Free Software Foundation, Inc.
+#    Written by Cygnus Support.
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+VPATH = @srcdir@
+srcdir = @srcdir@
+
+prefix = @prefix@
+
+program_transform_name = @program_transform_name@
+exec_prefix = @exec_prefix@
+bindir = @bindir@
+libdir = @libdir@
+
+datadir = @datadir@
+mandir = @mandir@
+man1dir = $(mandir)/man1
+man2dir = $(mandir)/man2
+man3dir = $(mandir)/man3
+man4dir = $(mandir)/man4
+man5dir = $(mandir)/man5
+man6dir = $(mandir)/man6
+man7dir = $(mandir)/man7
+man8dir = $(mandir)/man8
+man9dir = $(mandir)/man9
+infodir = @infodir@
+includedir = @includedir@
+
+SHELL = /bin/sh
+
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA = @INSTALL_DATA@
+
+AR = @AR@
+AR_FLAGS = rc
+CC = @CC@
+CFLAGS = @CFLAGS@
+MAKEINFO = makeinfo
+RANLIB = @RANLIB@
+
+ALLLIBS = @ALLLIBS@
+
+PICFLAG = @PICFLAG@
+SHLIB = @SHLIB@
+SHLIB_CC = @SHLIB_CC@
+SHLIB_CFLAGS = @SHLIB_CFLAGS@
+SHLIB_LIBS = @SHLIB_LIBS@
+COMMON_SHLIB = @COMMON_SHLIB@
+SHLIB_DEP = @SHLIB_DEP@
+SHLINK = @SHLINK@
+
+SONAME = lib`echo $(SHLIB) | sed -e 's,^\.\./bfd/,,' -e 's/^lib//' | sed '$(program_transform_name)'`
+
+INCDIR = $(srcdir)/../include
+BFDDIR = $(srcdir)/../bfd
+CSEARCH = -I. -I$(srcdir) -I../bfd -I$(INCDIR) -I$(BFDDIR)
+DEP = mkdep
+
+TARGETLIB = libopcodes.a
+
+# This is where bfd.h lives.
+BFD_H = ../bfd/bfd.h
+
+# Header files.
+HFILES = \
+	arm-opc.h \
+	h8500-opc.h \
+	sh-opc.h \
+	sysdep.h \
+	w65-opc.h \
+	z8k-opc.h
+
+# C source files that correspond to .o's.
+CFILES = \
+	a29k-dis.c \
+	alpha-dis.c \
+	alpha-opc.c \
+	arm-dis.c \
+	cgen-asm.c \
+	cgen-dis.c \
+	cgen-opc.c \
+	d10v-dis.c \
+	d10v-opc.c \
+	dis-buf.c \
+	disassemble.c \
+	h8300-dis.c \
+	h8500-dis.c \
+	hppa-dis.c \
+	i386-dis.c \
+	i960-dis.c \
+	m32r-asm.c \
+	m32r-dis.c \
+	m32r-opc.c \
+	m68k-dis.c \
+	m68k-opc.c \
+	m88k-dis.c \
+	mips-dis.c \
+	mips-opc.c \
+	mips16-opc.c \
+	m10200-dis.c \
+	m10200-opc.c \
+	m10300-dis.c \
+	m10300-opc.c \
+	ns32k-dis.c \
+	ppc-dis.c \
+	ppc-opc.c \
+	sh-dis.c \
+	sparc-dis.c \
+	sparc-opc.c \
+	w65-dis.c \
+	z8k-dis.c \
+	z8kgen.c
+
+ALL_MACHINES = \
+	a29k-dis.o \
+	alpha-dis.o \
+	alpha-opc.o \
+	arm-dis.o \
+	cgen-asm.o \
+	cgen-dis.o \
+	cgen-opc.o \
+	d10v-dis.o \
+	d10v-opc.o \
+	h8300-dis.o \
+	h8500-dis.o \
+	hppa-dis.o \
+	i386-dis.o \
+	i960-dis.o \
+	m32r-asm.o \
+	m32r-dis.o \
+	m32r-opc.o \
+	m68k-dis.o \
+	m68k-opc.o \
+	m88k-dis.o \
+	m10200-dis.o \
+	m10200-opc.o \
+	m10300-dis.o \
+	m10300-opc.o \
+	mips-dis.o \
+	mips-opc.o \
+	mips16-opc.o \
+	ppc-dis.o \
+	ppc-opc.o \
+	ns32k-dis.o \
+	sh-dis.o \
+	sparc-dis.o \
+	sparc-opc.o \
+	w65-dis.o \
+	z8k-dis.o
+
+OFILES = @BFD_MACHINES@ dis-buf.o disassemble.o
+
+FLAGS_TO_PASS = \
+	"against=$(against)" \
+	"AR=$(AR)" \
+	"AR_FLAGS=$(AR_FLAGS)" \
+	"CC=$(CC)" \
+	"CFLAGS=$(CFLAGS)" \
+	"RANLIB=$(RANLIB)" \
+	"MAKEINFO=$(MAKEINFO)" \
+	"INSTALL=$(INSTALL)" \
+	"INSTALL_DATA=$(INSTALL_DATA)" \
+	"INSTALL_PROGRAM=$(INSTALL_PROGRAM)"
+
+ALL_CFLAGS = -D_GNU_SOURCE $(CSEARCH) @HDEFINES@ $(CFLAGS)
+
+.c.o:
+	if [ -n "$(PICFLAG)" ]; then \
+	  $(CC) -c $(PICFLAG) $(ALL_CFLAGS) $< -o pic/$@; \
+	else true; fi
+	$(CC) -c $(ALL_CFLAGS) $<
+
+all: $(ALLLIBS)
+
+.NOEXPORT:
+
+installcheck check:
+
+info:
+clean-info:
+install-info:
+dvi:
+
+# HDEPFILES comes from the host config; TDEPFILES from the target config.
+
+$(TARGETLIB): $(OFILES)
+	 rm -f $(TARGETLIB)
+	 $(AR) $(AR_FLAGS) $(TARGETLIB) $(OFILES)
+	 $(RANLIB) $(TARGETLIB)
+
+LIBIBERTY_LISTS = ../libiberty/required-list ../libiberty/needed-list
+BFD_PICLIST = @BFD_PICLIST@
+
+stamp-piclist: Makefile $(LIBIBERTY_LISTS) $(BFD_PICLIST)
+	rm -f tpiclist
+	if [ -n "$(PICFLAG)" ]; then \
+	  echo $(OFILES) | sed -e 's,\([^ ][^ ]*\),pic/\1,g' > tpiclist; \
+	else \
+	  echo $(OFILES) > tpiclist; \
+	fi
+	if [ "$(COMMON_SHLIB)" = "yes" ]; then \
+	  lobjs=`cat $(LIBIBERTY_LISTS)`; \
+	  if [ -n "$(PICFLAG)" ]; then \
+	    lobjs=`echo $$lobjs | sed -e 's,\([^ ][^ ]*\),pic/\1,g'`; \
+	  fi; \
+	  lobjs=`echo $$lobjs | sed -e 's,\([^ ][^ ]*\),../libiberty/\1,g'`; \
+	  echo $$lobjs >> tpiclist; \
+	  sed -e 's,\([^ ][^ ]*\),../bfd/\1,g' $(BFD_PICLIST) >> tpiclist; \
+	else true; fi
+	$(srcdir)/../move-if-change tpiclist piclist
+	touch stamp-piclist
+
+piclist: stamp-piclist ; @true
+
+$(SHLIB): stamp-picdir $(OFILES) piclist $(SHLIB_DEP)
+	rm -f $(SHLIB)
+	$(SHLIB_CC) $(SHLIB_CFLAGS) -o $(SHLIB) `cat piclist` $(SHLIB_LIBS)
+
+$(SHLINK): $(SHLIB)
+	ts=lib`echo $(SHLIB) | sed -e 's,^\.\./bfd/,,' -e 's/^lib//' | sed -e '$(program_transform_name)'`; \
+	if [ "$(COMMON_SHLIB)" = "yes" ]; then \
+	  ts=../bfd/$$ts; \
+	fi; \
+	if [ "$$ts" != "$(SHLIB)" ]; then \
+	  rm -f $$ts; \
+	  ln -s `echo $(SHLIB) | sed -e 's,^\.\./bfd/,,'` $$ts; \
+	else true; fi
+	rm -f $(SHLINK)
+	ln -s `echo $(SHLIB) | sed -e 's,^\.\./bfd/,,'` $(SHLINK)
+
+# This target creates libTARGET-opcodes.so.VERSION as a symlink to
+# libopcodes.so.VERSION.  It is used on SunOS, which does not have SONAME.
+stamp-tshlink: $(SHLIB)
+	tf=lib`echo $(SHLIB) | sed -e 's,\.\./bfd/,,' -e 's/^lib//' | sed '$(program_transform_name)'`; \
+	if [ "$(COMMON_SHLIB)" = "yes" ]; then \
+	  tf=../bfd/$$tf; \
+	fi; \
+	if [ "$$tf" != "$(SHLIB)" ]; then \
+	  rm -f $$tf; \
+	  ln -s $(SHLIB) $$tf; \
+	else true; fi
+	if [ "$(COMMON_SHLIB)" = "yes" ]; then \
+	  tf=lib`echo $(TARGETLIB) | sed -e 's/^lib//' | sed '$(program_transform_name)'`; \
+	  if [ "$$tf" != "$(TARGETLIB)" ]; then \
+	    rm -f $$tf; \
+	    ln -s $(TARGETLIB) $$tf; \
+	  else true; fi; \
+	else true; fi
+	touch stamp-tshlink
+
+$(OFILES): stamp-picdir
+
+disassemble.o: disassemble.c $(INCDIR)/dis-asm.h
+	if [ -n "$(PICFLAG)" ]; then \
+	  $(CC) -c @archdefs@ $(PICFLAG) $(ALL_CFLAGS) $(srcdir)/disassemble.c -o pic/disassemble.o; \
+	else true; fi
+	$(CC) -c @archdefs@ $(ALL_CFLAGS) $(srcdir)/disassemble.c
+
+
+tags etags: TAGS
+
+TAGS: force
+	etags $(INCDIR)/*.h $(srcdir)/*.h $(srcdir)/*.c
+
+MOSTLYCLEAN = *.o core *.E *.p *.ip pic/*.o
+mostlyclean:
+	rm -rf $(MOSTLYCLEAN)
+clean:
+	rm -f *.a $(MOSTLYCLEAN) $(SHLIB) $(SHLINK) piclist stamp-piclist
+distclean: clean
+	rm -rf Makefile config.status TAGS config.cache config.h stamp-h \
+	       pic stamp-picdir config.log
+clobber realclean maintainer-clean: distclean
+
+# Mark everything as depending on config.status, since the timestamp on
+# sysdep.h might actually move backwards if we reconfig and relink it
+# to a different hosts/h-xxx.h file.  This will force a recompile anyway.
+RECONFIG = config.status
+
+# This target should be invoked before building a new release.
+# 'VERSION' file must be present and contain a string of the form "x.y"
+#
+roll:
+	@V=`cat VERSION`		; \
+	MAJ=`sed 's/\..*//' VERSION`	; \
+	MIN=`sed 's/.*\.//' VERSION`	; \
+	V=$$MAJ.`expr $$MIN + 1`	; \
+	rm -f VERSION			; \
+	echo $$V >VERSION		; \
+	echo Version $$V
+
+# Dummy target to force execution of dependent targets.
+#
+force:
+
+install: $(ALLLIBS)
+	for f in $(ALLLIBS); do \
+	  if [ "$$f" = "stamp-tshlink" ]; then \
+	    continue; \
+	  fi; \
+	  tf=lib`echo $$f | sed -e 's,^\.\./bfd/,,' -e 's/^lib//' | sed '$(program_transform_name)'`; \
+	  rm -f $(libdir)/$$tf; \
+	  if [ "$$f" = "$(SHLINK)" ]; then \
+	    ts=lib`echo $(SHLIB) | sed -e 's,^\.\./bfd/,,' -e 's/^lib//' | sed '$(program_transform_name)'`; \
+	    ln -s $$ts $(libdir)/$$tf; \
+	  elif [ "$$f" = "$(SHLIB)" ]; then \
+	    @INSTALL_SHLIB@ \
+	  else \
+	    $(INSTALL_DATA) $$f $(libdir)/$$tf; \
+	    $(RANLIB) $(libdir)/$$tf; \
+	    chmod a-x $(libdir)/$$tf; \
+	  fi; \
+	done
+
+Makefile: Makefile.in config.status
+	CONFIG_FILES=Makefile CONFIG_HEADERS= $(SHELL) ./config.status
+
+config.h: stamp-h ; @true
+stamp-h: config.in config.status
+	CONFIG_FILES= CONFIG_HEADERS=config.h:config.in $(SHELL) ./config.status
+
+config.status: configure $(srcdir)/../bfd/configure.host $(srcdir)/../bfd/config.bfd $(srcdir)/../bfd/VERSION
+	$(SHELL) config.status --recheck
+
+stamp-picdir:
+	if [ -n "$(PICFLAG)" ] && [ ! -d pic ]; then \
+	  mkdir pic; \
+	else true; fi
+	touch stamp-picdir
+
+# This dependency stuff is copied from BFD.
+
+.dep: dep.sed $(CFILES) $(HFILES) config.h
+	rm -f .dep1
+	$(MAKE) DEP=$(DEP) .dep1
+	sed -f dep.sed < .dep1 > .dep
+
+.dep1: $(CFILES)
+	rm -f .dep2 .dep2a
+	echo '# DO NOT DELETE THIS LINE -- mkdep uses it.' > .dep2
+	echo > .dep2a
+	$(DEP) -f .dep2a $(ALL_CFLAGS) $?
+	sed -e '/DO NOT DELETE/d' -e '/^$$/d' < .dep2a >> .dep2
+	rm -f .dep2a
+	$(srcdir)/../move-if-change .dep2 .dep1
+
+dep.sed: dep-in.sed config.status
+	sed <$(srcdir)/dep-in.sed >dep.sed	\
+		-e 's!@BFD_H@!$(BFD_H)!'	\
+		-e 's!@INCDIR@!$(INCDIR)!'	\
+		-e 's!@BFDDIR@!$(BFDDIR)!'	\
+		-e 's!@SRCDIR@!$(srcdir)!'
+
+dep: .dep
+	sed -e '/^..DO NOT DELETE THIS LINE/,$$d' < Makefile > tmp-Makefile
+	cat .dep >> tmp-Makefile
+	$(srcdir)/../move-if-change tmp-Makefile Makefile
+
+dep-in: .dep
+	sed -e '/^..DO NOT DELETE THIS LINE/,$$d' < $(srcdir)/Makefile.in > tmp-Makefile.in
+	cat .dep >> tmp-Makefile.in
+	$(srcdir)/../move-if-change tmp-Makefile.in $(srcdir)/Makefile.in
+
+.PHONY: dep dep-in
+
+# What appears below is generated by a hacked mkdep using gcc -MM.
+
+# DO NOT DELETE THIS LINE -- mkdep uses it.
+# DO NOT PUT ANYTHING AFTER THIS LINE, IT WILL GO AWAY.
+a29k-dis.o: a29k-dis.c $(INCDIR)/dis-asm.h $(BFD_H) \
+  $(INCDIR)/ansidecl.h $(INCDIR)/opcode/a29k.h
+alpha-dis.o: alpha-dis.c $(INCDIR)/ansidecl.h sysdep.h \
+  config.h $(INCDIR)/dis-asm.h $(BFD_H) $(INCDIR)/opcode/alpha.h
+alpha-opc.o: alpha-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/alpha.h \
+  $(BFD_H)
+arm-dis.o: arm-dis.c $(INCDIR)/dis-asm.h $(BFD_H) $(INCDIR)/ansidecl.h \
+  arm-opc.h
+cgen-asm.o: cgen-asm.c config.h $(INCDIR)/ansidecl.h \
+  $(INCDIR)/libiberty.h $(BFD_H) $(INCDIR)/opcode/cgen.h
+cgen-dis.o: cgen-dis.c config.h $(INCDIR)/ansidecl.h \
+  $(INCDIR)/libiberty.h $(BFD_H) $(INCDIR)/opcode/cgen.h
+cgen-opc.o: cgen-opc.c config.h $(INCDIR)/ansidecl.h \
+  $(INCDIR)/libiberty.h $(BFD_H) $(INCDIR)/opcode/cgen.h
+d10v-dis.o: d10v-dis.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/d10v.h \
+  $(INCDIR)/dis-asm.h $(BFD_H)
+d10v-opc.o: d10v-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/d10v.h
+dis-buf.o: dis-buf.c sysdep.h config.h $(INCDIR)/dis-asm.h \
+  $(BFD_H)
+disassemble.o: disassemble.c $(INCDIR)/ansidecl.h $(INCDIR)/dis-asm.h \
+  $(BFD_H)
+h8300-dis.o: h8300-dis.c $(INCDIR)/opcode/h8300.h $(INCDIR)/dis-asm.h \
+  $(BFD_H) $(INCDIR)/ansidecl.h
+h8500-dis.o: h8500-dis.c h8500-opc.h $(INCDIR)/dis-asm.h \
+  $(BFD_H) $(INCDIR)/ansidecl.h
+hppa-dis.o: hppa-dis.c sysdep.h config.h $(INCDIR)/dis-asm.h \
+  $(BFD_H) $(BFDDIR)/libhppa.h $(INCDIR)/opcode/hppa.h
+i386-dis.o: i386-dis.c $(INCDIR)/dis-asm.h $(BFD_H) \
+  $(INCDIR)/ansidecl.h sysdep.h config.h
+i960-dis.o: i960-dis.c $(INCDIR)/dis-asm.h $(BFD_H) \
+  $(INCDIR)/ansidecl.h
+m32r-asm.o: m32r-asm.c $(INCDIR)/ansidecl.h $(BFD_H) \
+  m32r-opc.h $(INCDIR)/opcode/cgen.h
+m32r-dis.o: m32r-dis.c $(INCDIR)/ansidecl.h $(INCDIR)/dis-asm.h \
+  $(BFD_H) m32r-opc.h $(INCDIR)/opcode/cgen.h
+m32r-opc.o: m32r-opc.c config.h $(INCDIR)/ansidecl.h \
+  $(INCDIR)/libiberty.h $(BFD_H) m32r-opc.h $(INCDIR)/opcode/cgen.h
+m68k-dis.o: m68k-dis.c $(INCDIR)/dis-asm.h $(BFD_H) \
+  $(INCDIR)/ansidecl.h $(INCDIR)/floatformat.h $(INCDIR)/opcode/m68k.h
+m68k-opc.o: m68k-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/m68k.h
+m88k-dis.o: m88k-dis.c $(INCDIR)/dis-asm.h $(BFD_H) \
+  $(INCDIR)/ansidecl.h $(INCDIR)/opcode/m88k.h
+mips-dis.o: mips-dis.c sysdep.h config.h $(INCDIR)/dis-asm.h \
+  $(BFD_H) $(INCDIR)/opcode/mips.h $(BFDDIR)/elf-bfd.h \
+  $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+  $(INCDIR)/bfdlink.h $(INCDIR)/elf/mips.h
+mips-opc.o: mips-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/mips.h
+mips16-opc.o: mips16-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/mips.h
+m10200-dis.o: m10200-dis.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/mn10200.h \
+  $(INCDIR)/dis-asm.h $(BFD_H)
+m10200-opc.o: m10200-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/mn10200.h
+m10300-dis.o: m10300-dis.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/mn10300.h \
+  $(INCDIR)/dis-asm.h $(BFD_H)
+m10300-opc.o: m10300-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/mn10300.h
+ns32k-dis.o: ns32k-dis.c $(BFD_H) $(INCDIR)/ansidecl.h \
+  sysdep.h config.h $(INCDIR)/dis-asm.h $(INCDIR)/opcode/ns32k.h
+ppc-dis.o: ppc-dis.c $(INCDIR)/ansidecl.h sysdep.h \
+  config.h $(INCDIR)/dis-asm.h $(BFD_H) $(INCDIR)/opcode/ppc.h
+ppc-opc.o: ppc-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/ppc.h
+sh-dis.o: sh-dis.c sh-opc.h $(INCDIR)/dis-asm.h $(BFD_H) \
+  $(INCDIR)/ansidecl.h
+sparc-dis.o: sparc-dis.c $(INCDIR)/ansidecl.h sysdep.h \
+  config.h $(INCDIR)/opcode/sparc.h $(INCDIR)/dis-asm.h \
+  $(BFD_H) $(INCDIR)/libiberty.h
+sparc-opc.o: sparc-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/sparc.h
+w65-dis.o: w65-dis.c w65-opc.h $(INCDIR)/dis-asm.h \
+  $(BFD_H) $(INCDIR)/ansidecl.h
+z8k-dis.o: z8k-dis.c sysdep.h config.h $(INCDIR)/dis-asm.h \
+  $(BFD_H) z8k-opc.h
+z8kgen.o: z8kgen.c sysdep.h config.h
+# IF YOU PUT ANYTHING HERE IT WILL GO AWAY
