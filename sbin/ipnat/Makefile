@@ -11,6 +11,9 @@ CFLAGS+=-I${.CURDIR}/../../sys/contrib/ipfilter/netinet
 CFLAGS+=-I${.CURDIR}/../../contrib/ipfilter
 WARNS=	0
 
+DPADD=	${LIBKVM}
+LDADD=	-lkvm
+
 MAINTAINER=	guido@freebsd.org
 
 .include <bsd.prog.mk>
