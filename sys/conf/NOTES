@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.111 1994/12/03 00:17:54 wollman Exp $
+#	$Id: LINT,v 1.112 1994/12/03 17:36:29 smace Exp $
 #
 
 #
@@ -301,9 +301,18 @@ controller	isa0
 # BOUNCE_BUFFERS provides support for ISA DMA on machines with more
 # than 16 megabytes of memory.  It doesn't hurt on other machines.
 # Some broken EISA and VLB hardware may need this, too.
+#
+# DUMMY_NOPS disables the use of the inb's for very short spin periods.
+# Should work ok on most EISA bus machines.
+#
+# TUNE_1542 enables the automatic ISA bus speed selection for the
+# Adaptec 1542 boards. Does not work for all boards, use it with caution.
+#
 #options	ALLOW_CONFLICT_IOADDR
 #options	ALLOW_CONFLICT_IRQ
 options		BOUNCE_BUFFERS
+#options	DUMMY_NOPS
+#options	TUNE_1542
 
 device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 
