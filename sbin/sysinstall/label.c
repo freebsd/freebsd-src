@@ -27,6 +27,8 @@ char *partname[MAXPARTITIONS] = {"a", "b", "c", "d", "e", "f", "g", "h"};
 extern char boot1[];
 extern char boot2[];
 
+char *yesno[] = {"yes", "no", 0};
+
 int
 disk_size(struct disklabel *lbl)
 {
@@ -77,6 +79,18 @@ diskname(int disk)
 }
 
 int
+get_fs_type(char *fstype)
+{
+	int i;
+
+	for (i=0; fstypenames[i]; i++)
+		if (strcmp(fstype, fstypenames[i]))
+			return (i);
+
+	return (FS_OTHER);
+}
+
+int
 read_disklabel(int disk)
 {
 	int fd;
@@ -106,6 +120,7 @@ edit_disklabel(int disk)
 {
 	WINDOW *window;
 	int key = 0;
+	int done;
 	int next;
 	int cur_field;
 	int cur_part;
@@ -128,37 +143,74 @@ edit_disklabel(int disk)
 	lbl->d_npartitions = 8;
 
 	/* Initialise the entries */
+
 	for (i=0; i < MAXPARTITIONS; i++) {
+
 		disk_list[disk].mounts[i].fs_spec = 
-			(char *)malloc(label_field[i*5].maxlen+1);
+			(char *)malloc(80);
 		if (!disk_list[disk].mounts[i].fs_spec) {
 			sprintf(errmsg, "Couldn't allocate memory for device mounts\n");
 			return (-1);
 		}
 		sprintf(disk_list[disk].mounts[i].fs_spec,
-			     "%s%d%s", disk_list[disk].devconf->dc_name,
+			     "/dev/%s%d%s", disk_list[disk].devconf->dc_name,
 								disk_list[disk].devconf->dc_unit,
 								partname[i]);
-		disk_list[disk].mounts[i].fs_mntops =
-			(char *)malloc(label_field[(i*5)+1].maxlen+1);
-		if (!disk_list[disk].mounts[i].fs_mntops) {
-			sprintf(errmsg, "Couldn't allocate memory for mount options\n");
-			return (-1);
-		}
-		sprintf(disk_list[disk].mounts[i].fs_mntops, "%s", "YES");
+
 		disk_list[disk].mounts[i].fs_file =
-			(char *)malloc(label_field[(i*5)+4].maxlen+1);
+			(char *)malloc(80);
 		if (!disk_list[disk].mounts[i].fs_file) {
 			sprintf(errmsg, "Couldn't allocate memory for mount points\n");
 			return (-1);
 		}
 		sprintf(disk_list[disk].mounts[i].fs_file, "%s", "Not Mounted");
 
+		disk_list[disk].mounts[i].fs_vfstype =
+			(char *)malloc(80);
+		if (!disk_list[disk].mounts[i].fs_vfstype) {
+			sprintf(errmsg, "Couldn't allocate memory for filesystem type\n");
+			return (-1);
+		}
+		switch (lbl->d_partitions[i].p_fstype) {
+			case FS_BSDFFS:
+				sprintf(disk_list[disk].mounts[i].fs_vfstype, "%s", "ufs");
+				break;
+			case FS_MSDOS:
+				sprintf(disk_list[disk].mounts[i].fs_vfstype, "%s", "msdos");
+				break;
+			case FS_SWAP:
+				sprintf(disk_list[disk].mounts[i].fs_vfstype, "%s", "swap");
+				break;
+			default:
+				sprintf(disk_list[disk].mounts[i].fs_vfstype, "%s", "unused");
+		}
+
+		disk_list[disk].mounts[i].fs_mntops =
+			(char *)malloc(80);
+		if (!disk_list[disk].mounts[i].fs_mntops) {
+			sprintf(errmsg, "Couldn't allocate memory for mount options\n");
+			return (-1);
+		}
+		sprintf(disk_list[disk].mounts[i].fs_mntops, "%s", "YES");
+
 		sprintf(label_field[(i*5)+3].field, "%d",
 			     sectstoMb(lbl->d_partitions[i].p_size, lbl->d_secsize));
 	}
 
-	if (!(window = newwin(24, 79, 0, 0))) {
+	/*
+	 * Setup the RAWPART and OURPART partition ourselves from the MBR
+	 * in case either one doesn't exist or the new MBR invalidates them.
+	 */
+
+	cur_part = disk_list[disk].inst_part;
+	lbl->d_partitions[OURPART].p_size = 
+				disk_list[disk].mbr.dospart[cur_part].dp_size;
+	lbl->d_partitions[OURPART].p_offset =
+				disk_list[disk].mbr.dospart[cur_part].dp_start;
+	lbl->d_partitions[RAWPART].p_size = lbl->d_secperunit;
+	lbl->d_partitions[RAWPART].p_offset = 0;
+
+	if (!(window = newwin(LINES, COLS, 0, 0))) {
 		sprintf(errmsg, "Failed to open window for disklabel editor\n");
 		return (-1);
 	}
@@ -167,8 +219,13 @@ edit_disklabel(int disk)
     
 	draw_box(window, 0, 0, 24, 79, dialog_attr, border_attr);
 
+	/* Only one toggle to set up */
+	for (i=0; i < MAXPARTITIONS; i++)
+		label_field[(i*5)+1].misc = yesno;
+
 	cur_field = 1;
-	while (key != ESC) {
+	done = 0;
+	while (!done && (key != ESC)) {
 
 		/* Update disklabel */
 
@@ -205,7 +262,7 @@ edit_disklabel(int disk)
 			sprintf(label_field[(i*5)+1].field, "%s",
 					  disk_list[disk].mounts[i].fs_mntops);
 			sprintf(label_field[(i*5)+2].field, "%s",
-					  fstypenames[lbl->d_partitions[i].p_fstype]);
+					  disk_list[disk].mounts[i].fs_vfstype);
 			sprintf(label_field[(i*5)+3].field, "%d",
 			        sectstoMb(lbl->d_partitions[i].p_size,lbl->d_secsize));
 			sprintf(label_field[(i*5)+4].field, "%s",
@@ -218,49 +275,52 @@ edit_disklabel(int disk)
 		disp_fields(window, label_field,
 						sizeof(label_field)/sizeof(struct field));
 
-		do {
-			next = change_field(label_field[cur_field], key);
-			if (next == -1) {
-				beep();
+		switch (label_field[cur_field].type) {
+			case F_EDIT:
+				key = line_edit(window, label_field[cur_field].y,
+										label_field[cur_field].x,
+										label_field[cur_field].width,
+										label_field[cur_field].maxlen,
+										item_selected_attr, 1,
+										label_field[cur_field].field);
+
+				/* Update mount info */
+
+				for (i=0; i<MAXPARTITIONS; i++) {
+					sprintf(disk_list[disk].mounts[i].fs_spec, "%s",
+							 label_field[(i*5)].field);
+					sprintf(disk_list[disk].mounts[i].fs_file, "%s",
+							 label_field[(i*5)+4].field);
+					sprintf(disk_list[disk].mounts[i].fs_vfstype, "%s", 
+							  label_field[(i*5)+2].field);
+					sprintf(disk_list[disk].mounts[i].fs_mntops, "%s",
+							 label_field[(i*5)+1].field);
+				}
 				break;
-			} else
-				cur_field = next;
-			cur_part = cur_field/5;
-		} while ((cur_part == OURPART) || (cur_part == RAWPART));
-
-		if (label_field[cur_field].type == F_EDIT)
-			key = edit_line(window, label_field[cur_field].y,
-										label_field[cur_field].x,
-										label_field[cur_field].field,
-										label_field[cur_field].width,
-										label_field[cur_field].maxlen);
-		if (label_field[cur_field].type == F_TOGGLE) {
-			/* There's ony one fortunately */
-			key = edit_line(window, label_field[cur_field].y,
-										label_field[cur_field].x,
-										label_field[cur_field].field,
-										label_field[cur_field].width,
-										label_field[cur_field].maxlen);
-			if (key == ' ') {
-				if (strcmp(label_field[cur_field].field, "YES"))
-					strcpy(label_field[cur_field].field, "NO");
-			} else
-					strcpy(label_field[cur_field].field, "YES");
+			case F_BUTTON:
+				key = button_press(window, label_field[cur_field]);
+				if (!key && !strcmp(label_field[cur_field].field, "OK")) {
+					done = 1;
+					continue;
+				}
+				if (!key && !strcmp(label_field[cur_field].field, "Cancel")) {
+					sprintf(errmsg, "\nUser aborted.\n");
+					dialog_clear_norefresh();
+					return (-1);
+				}
+				break;
+			case F_TOGGLE:
+				key = toggle_press(window, label_field[cur_field]);
+				break;
+			case F_TITLE:
+			default:
+				break;
 		}
-		/*
-		 * Skip certain partitions.
-		 * XXX - This isn't very elegant.
-		 */
-		/* Update mount info */
-
-		for (i=0; i<MAXPARTITIONS; i++) {
-			sprintf(disk_list[disk].mounts[i].fs_spec, "%s",
-					 label_field[(i*5)].field);
-			sprintf(disk_list[disk].mounts[i].fs_mntops, "%s",
-					 label_field[(i*5)+1].field);
-			sprintf(disk_list[disk].mounts[i].fs_file, "%s",
-					 label_field[(i*5)+4].field);
-		}
+		next = change_field(label_field[cur_field], key);
+		if (next == -1) {
+			beep();
+		} else
+			cur_field = next;
 	}
 
 	if (write_bootblocks(disk) == -1)
@@ -270,7 +330,6 @@ edit_disklabel(int disk)
 	dialog_clear();
 	return(0);
 }
-
 
 void
 display_disklabel(int disk)
