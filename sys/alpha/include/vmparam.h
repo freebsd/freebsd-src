@@ -1,4 +1,4 @@
-/* $Id: vmparam.h,v 1.2 1998/06/10 10:55:30 dfr Exp $ */
+/* $Id: vmparam.h,v 1.3 1998/06/14 13:45:15 dfr Exp $ */
 /* From: NetBSD: vmparam.h,v 1.6 1997/09/23 23:23:23 mjacob Exp */
 #ifndef	_ALPHA_VMPARAM_H
 #define	_ALPHA_VMPARAM_H
@@ -54,7 +54,15 @@
  * kernel stack.
  */
 #define	USRTEXT		CLBYTES
-#define	USRSTACK	VM_MAXUSER_ADDRESS
+/* #define	USRSTACK	VM_MAXUSER_ADDRESS */
+
+/*
+ * This stack location is suitable for OSF1 emulation.  Some OSF
+ * programs are built as 32bit and assume that the stack is reachable
+ * with a 32bit value.  OSF1 manages to have a variable location for
+ * the user stack which we should probably also support.
+ */
+#define USRSTACK	(0x12000000LL - (UPAGES*PAGE_SIZE))
 
 /*
  * Virtual memory related constants, all in bytes
