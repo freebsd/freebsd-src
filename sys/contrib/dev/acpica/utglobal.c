@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utglobal - Global variables for the ACPI subsystem
- *              $Revision: 185 $
+ *              $Revision: 191 $
  *
  *****************************************************************************/
 
@@ -388,9 +388,9 @@ ACPI_TABLE_SUPPORT          AcpiGbl_TableData[NUM_ACPI_TABLE_TYPES] =
     /***********    Name,   Signature, Global typed pointer     Signature size,      Type                  How many allowed?,    Contains valid AML? */
 
     /* RSDP 0 */ {RSDP_NAME, RSDP_SIG, NULL,                    sizeof (RSDP_SIG)-1, ACPI_TABLE_ROOT     | ACPI_TABLE_SINGLE},
-    /* DSDT 1 */ {DSDT_SIG,  DSDT_SIG, (void **) &AcpiGbl_DSDT, sizeof (DSDT_SIG)-1, ACPI_TABLE_SECONDARY| ACPI_TABLE_SINGLE   | ACPI_TABLE_EXECUTABLE},
-    /* FADT 2 */ {FADT_SIG,  FADT_SIG, (void **) &AcpiGbl_FADT, sizeof (FADT_SIG)-1, ACPI_TABLE_PRIMARY  | ACPI_TABLE_SINGLE},
-    /* FACS 3 */ {FACS_SIG,  FACS_SIG, (void **) &AcpiGbl_FACS, sizeof (FACS_SIG)-1, ACPI_TABLE_SECONDARY| ACPI_TABLE_SINGLE},
+    /* DSDT 1 */ {DSDT_SIG,  DSDT_SIG, (void *) &AcpiGbl_DSDT,  sizeof (DSDT_SIG)-1, ACPI_TABLE_SECONDARY| ACPI_TABLE_SINGLE   | ACPI_TABLE_EXECUTABLE},
+    /* FADT 2 */ {FADT_SIG,  FADT_SIG, (void *) &AcpiGbl_FADT,  sizeof (FADT_SIG)-1, ACPI_TABLE_PRIMARY  | ACPI_TABLE_SINGLE},
+    /* FACS 3 */ {FACS_SIG,  FACS_SIG, (void *) &AcpiGbl_FACS,  sizeof (FACS_SIG)-1, ACPI_TABLE_SECONDARY| ACPI_TABLE_SINGLE},
     /* PSDT 4 */ {PSDT_SIG,  PSDT_SIG, NULL,                    sizeof (PSDT_SIG)-1, ACPI_TABLE_PRIMARY  | ACPI_TABLE_MULTIPLE | ACPI_TABLE_EXECUTABLE},
     /* SSDT 5 */ {SSDT_SIG,  SSDT_SIG, NULL,                    sizeof (SSDT_SIG)-1, ACPI_TABLE_PRIMARY  | ACPI_TABLE_MULTIPLE | ACPI_TABLE_EXECUTABLE},
     /* XSDT 6 */ {XSDT_SIG,  XSDT_SIG, NULL,                    sizeof (RSDT_SIG)-1, ACPI_TABLE_ROOT     | ACPI_TABLE_SINGLE},
@@ -439,7 +439,7 @@ ACPI_FIXED_EVENT_INFO       AcpiGbl_FixedEventInfo[ACPI_NUM_FIXED_EVENTS] =
     /* ACPI_EVENT_GLOBAL        */  {ACPI_BITREG_GLOBAL_LOCK_STATUS,    ACPI_BITREG_GLOBAL_LOCK_ENABLE,  ACPI_BITMASK_GLOBAL_LOCK_STATUS,    ACPI_BITMASK_GLOBAL_LOCK_ENABLE},
     /* ACPI_EVENT_POWER_BUTTON  */  {ACPI_BITREG_POWER_BUTTON_STATUS,   ACPI_BITREG_POWER_BUTTON_ENABLE, ACPI_BITMASK_POWER_BUTTON_STATUS,   ACPI_BITMASK_POWER_BUTTON_ENABLE},
     /* ACPI_EVENT_SLEEP_BUTTON  */  {ACPI_BITREG_SLEEP_BUTTON_STATUS,   ACPI_BITREG_SLEEP_BUTTON_ENABLE, ACPI_BITMASK_SLEEP_BUTTON_STATUS,   ACPI_BITMASK_SLEEP_BUTTON_ENABLE},
-    /* ACPI_EVENT_RTC           */  {ACPI_BITREG_RT_CLOCK_STATUS,       ACPI_BITREG_RT_CLOCK_ENABLE,     0,                                  0},
+    /* ACPI_EVENT_RTC           */  {ACPI_BITREG_RT_CLOCK_STATUS,       ACPI_BITREG_RT_CLOCK_ENABLE,     ACPI_BITMASK_RT_CLOCK_STATUS,       ACPI_BITMASK_RT_CLOCK_ENABLE},
 };
 
 /*****************************************************************************
@@ -612,6 +612,99 @@ AcpiUtGetObjectTypeName (
     }
 
     return (AcpiUtGetTypeName (ACPI_GET_OBJECT_TYPE (ObjDesc)));
+}
+
+
+/*****************************************************************************
+ *
+ * FUNCTION:    AcpiUtGetNodeName
+ *
+ * PARAMETERS:  Object               - A namespace node
+ *
+ * RETURN:      Pointer to a string
+ *
+ * DESCRIPTION: Validate the node and return the node's ACPI name.
+ *
+ ****************************************************************************/
+
+char *
+AcpiUtGetNodeName (
+    void                    *Object)
+{
+    ACPI_NAMESPACE_NODE     *Node;
+
+
+    if (!Object)
+    {
+        return ("NULL NODE");
+    }
+
+    Node = (ACPI_NAMESPACE_NODE *) Object;
+
+    if (Node->Descriptor != ACPI_DESC_TYPE_NAMED)
+    {
+        return ("****");
+    }
+
+    if (!AcpiUtValidAcpiName (* (UINT32 *) Node->Name.Ascii))
+    {
+        return ("----");
+    }
+
+    return (Node->Name.Ascii);
+}
+
+
+/*****************************************************************************
+ *
+ * FUNCTION:    AcpiUtGetDescriptorName
+ *
+ * PARAMETERS:  Object               - An ACPI object
+ *
+ * RETURN:      Pointer to a string
+ *
+ * DESCRIPTION: Validate object and return the descriptor type
+ *
+ ****************************************************************************/
+
+static const char           *AcpiGbl_DescTypeNames[] =    /* printable names of descriptor types */
+{
+    /* 00 */ "Invalid",
+    /* 01 */ "Cached",
+    /* 02 */ "State-Generic",
+    /* 03 */ "State-Update",
+    /* 04 */ "State-Package",
+    /* 05 */ "State-Control",
+    /* 06 */ "State-RootParseScope",
+    /* 07 */ "State-ParseScope",
+    /* 08 */ "State-WalkScope",
+    /* 09 */ "State-Result",
+    /* 10 */ "State-Notify",
+    /* 11 */ "State-Thread",
+    /* 12 */ "Walk",
+    /* 13 */ "Parser",
+    /* 14 */ "Operand",
+    /* 15 */ "Node"
+};
+
+
+char *
+AcpiUtGetDescriptorName (
+    void                    *Object)
+{
+
+    if (!Object)
+    {
+        return ("NULL OBJECT");
+    }
+
+    if (ACPI_GET_DESCRIPTOR_TYPE (Object) > ACPI_DESC_TYPE_MAX)
+    {
+        return ((char *) AcpiGbl_BadType);
+    }
+
+    return ((char *) AcpiGbl_DescTypeNames[ACPI_GET_DESCRIPTOR_TYPE (Object)]);
+
 }
 
 
