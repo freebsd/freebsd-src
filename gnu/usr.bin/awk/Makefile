@@ -7,7 +7,7 @@ LDADD=		-lm
 DPADD=		${LIBM}
 CLEANFILES+=	awk.c y.tab.h
 
-MAN1=		awk.0
+MAN1=		awk.1
 
 .include <bsd.prog.mk>
 .include "../../usr.bin/Makefile.inc"
