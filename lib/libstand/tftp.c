@@ -58,7 +58,7 @@
 
 #include "tftp.h"
 
-static int	tftp_open(char *path, struct open_file *f);
+static int	tftp_open(const char *path, struct open_file *f);
 static int	tftp_close(struct open_file *f);
 static int	tftp_read(struct open_file *f, void *buf, size_t size, size_t *resid);
 static int	tftp_write(struct open_file *f, void *buf, size_t size, size_t *resid);
@@ -236,7 +236,7 @@ tftp_getnextblock(h)
 
 static int 
 tftp_open(path, f)
-	char           *path;
+	const char *path;
 	struct open_file *f;
 {
 	struct tftp_handle *tftpfile;
@@ -250,11 +250,16 @@ tftp_open(path, f)
 	tftpfile->iodesc = io = socktodesc(*(int *) (f->f_devdata));
 	io->destip = servip;
 	tftpfile->off = 0;
-	tftpfile->path = path;	/* XXXXXXX we hope it's static */
+	tftpfile->path = strdup(path);
+	if (tftpfile->path == NULL) {
+	    free(tftpfile);
+	    return(ENOMEM);
+	}
 
 	res = tftp_makereq(tftpfile, path);
 
 	if (res) {
+		free(tftpfile->path);
 		free(tftpfile);
 		return (res);
 	}
@@ -345,8 +350,10 @@ tftp_close(f)
 
 	/* let it time out ... */
 
-	if (tftpfile)
+	if (tftpfile) {
+		free(tftpfile->path);
 		free(tftpfile);
+	}
 	return (0);
 }
 
