@@ -82,32 +82,17 @@ static struct cdevsw acpi_cdevsw = {
 struct mtx	acpi_mutex;
 #endif
 
+/* Bitmap of device quirks. */
+int acpi_quirks;
+
 /* Local pools for managing system resources for ACPI child devices. */
 struct rman acpi_rman_io, acpi_rman_mem;
-
-struct acpi_quirks {
-    char	*OemId;
-    uint32_t	OemRevision;
-    char	*value;
-};
-
-#define ACPI_OEM_REV_ANY	0
-
-static struct acpi_quirks acpi_quirks_table[] = {
-#ifdef notyet
-    /* Bad PCI routing table.  Used on some SuperMicro boards. */
-    { "PTLTD ", 0x06040000, "pci_link" },
-#endif
-
-    { NULL, 0, NULL }
-};
 
 static int	acpi_modevent(struct module *mod, int event, void *junk);
 static void	acpi_identify(driver_t *driver, device_t parent);
 static int	acpi_probe(device_t dev);
 static int	acpi_attach(device_t dev);
 static int	acpi_shutdown(device_t dev);
-static void	acpi_quirks_set(void);
 static device_t	acpi_add_child(device_t bus, int order, const char *name,
 			int unit);
 static int	acpi_print_child(device_t bus, device_t child);
@@ -257,12 +242,13 @@ acpi_Startup(void)
 #ifdef ACPI_DEBUGGER
     char *debugpoint;
 #endif
-    static int error, started = 0;
+    static int started = 0;
+    int error, val;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     if (started)
-	return_VALUE (error);
+	return_VALUE (0);
     started = 1;
 
 #if __FreeBSD_version >= 500000
@@ -300,13 +286,21 @@ acpi_Startup(void)
 
     if (ACPI_FAILURE(error = AcpiLoadTables())) {
 	printf("ACPI: table load failed: %s\n", AcpiFormatException(error));
-	return_VALUE(error);
+	AcpiTerminate();
+	return_VALUE (error);
     }
 
-    /* Set up any quirks we have for this XSDT. */
-    acpi_quirks_set();
-    if (acpi_disabled("acpi"))
+    /* Set up any quirks we have for this system. */
+    acpi_table_quirks(&acpi_quirks);
+
+    /* If the user manually set the disabled hint to 0, override any quirk. */
+    if (resource_int_value("acpi", 0, "disabled", &val) == 0 && val == 0)
+	acpi_quirks &= ~ACPI_Q_BROKEN;
+    if (acpi_quirks & ACPI_Q_BROKEN) {
+	printf("ACPI disabled by blacklist.  Contact your BIOS vendor.\n");
+	AcpiTerminate();
 	return_VALUE (AE_ERROR);
+    }
 
     return_VALUE (AE_OK);
 }
@@ -549,7 +543,7 @@ acpi_attach(device_t dev)
 
     /* Only enable S4BIOS by default if the FACS says it is available. */
     if (AcpiGbl_FACS->S4Bios_f != 0)
-	    sc->acpi_s4bios = 1;
+	sc->acpi_s4bios = 1;
 
     /*
      * Dispatch the default sleep state to devices.  The lid switch is set
@@ -645,55 +639,6 @@ acpi_shutdown(device_t dev)
     /* Disable all wake GPEs not appropriate for reboot/poweroff. */
     acpi_wake_limit_walk(ACPI_STATE_S5);
     return (0);
-}
-
-static void
-acpi_quirks_set()
-{
-    XSDT_DESCRIPTOR *xsdt;
-    struct acpi_quirks *quirk;
-    char *env, *tmp;
-    int len;
-
-    /*
-     * If the user loaded a custom table or disabled "quirks", leave
-     * the settings alone.
-     */
-    len = 0;
-    if ((env = getenv("acpi_dsdt_load")) != NULL) {
-	/* XXX No strcasecmp but this is good enough. */
-	if (*env == 'Y' || *env == 'y')
-	    goto out;
-	freeenv(env);
-    }
-    if ((env = getenv("debug.acpi.disabled")) != NULL) {
-	if (strstr("quirks", env) != NULL)
-	    goto out;
-	len = strlen(env);
-    }
-
-    /*
-     * Search through our quirk table and concatenate the disabled
-     * values with whatever we find.
-     */
-    xsdt = AcpiGbl_XSDT;
-    for (quirk = acpi_quirks_table; quirk->OemId; quirk++) {
-	if (!strncmp(xsdt->OemId, quirk->OemId, strlen(quirk->OemId)) &&
-	    (xsdt->OemRevision == quirk->OemRevision ||
-	    quirk->OemRevision == ACPI_OEM_REV_ANY)) {
-		len += strlen(quirk->value) + 2;
-		if ((tmp = malloc(len, M_TEMP, M_NOWAIT)) == NULL)
-		    goto out;
-		sprintf(tmp, "%s %s", env ? env : "", quirk->value);
-		setenv("debug.acpi.disabled", tmp);
-		free(tmp, M_TEMP);
-		break;
-	}
-    }
-
-out:
-    if (env)
-	freeenv(env);
 }
 
 /*
