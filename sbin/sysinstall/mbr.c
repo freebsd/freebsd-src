@@ -13,17 +13,20 @@
  */
 
 #include <stdio.h>
+#include <unistd.h>
+#include <dialog.h>
+#include <fcntl.h>
+
 #include <sys/types.h>
 #include <sys/disklabel.h>
 #include <sys/uio.h>
-#include <unistd.h>
-#include <dialog.h>
 
 #include "mbr.h"
+#include "sysinstall.h"
 
 extern struct mbr *mbr;
-extern char *errmsg;
 extern int inst_part;
+extern int whole_disk;
 
 struct part_type part_types[] = PARTITION_TYPES
 
@@ -50,7 +53,7 @@ read_mbr(int fd, struct mbr *mbr)
 		sprintf(errmsg, "Couldn't seek for master boot record read\n");
 		return(-1);
 	}
-	if (read(fd, &(mbr->bootcode), 512) == -1) {
+	if (read(fd, &(mbr->bootcode), MBRSIZE) == -1) {
 		sprintf(errmsg, "Failed to read master boot record\n");
 		return(-1);
 	}
@@ -70,10 +73,16 @@ write_mbr(int fd, struct mbr *mbr)
 		return(-1);
 	}
 
+	if (enable_label(fd) == -1)
+		return(-1);
+
 	if (write(fd, mbr->bootcode, MBRSIZE) == -1) {
 		sprintf(errmsg, "Failed to write master boot record\n");
 		return(-1);
 	}
+
+	if(disable_label(fd) == -1)
+		return(-1);
 
 	return(0);
 }
@@ -97,20 +106,20 @@ show_mbr(struct mbr *mbr)
 			y = (i * 11) + 2;
 			mvwprintw(window, y, x, "Partition %d: flags = %x",
 					  (i*2)+j, mbr->dospart[(i*2)+j].dp_flag);
-			mvwprintw(window, y+1, x, "Starting at (H%d, S%d, C%d)",
+			mvwprintw(window, y+1, x, "Starting at (C%d, H%d, S%d)",
+					  mbr->dospart[(i*2)+j].dp_scyl,
 					  mbr->dospart[(i*2)+j].dp_shd,
-					  mbr->dospart[(i*2)+j].dp_ssect,
-					  mbr->dospart[(i*2)+j].dp_scyl);
+					  mbr->dospart[(i*2)+j].dp_ssect);
 			mvwprintw(window, y+2, x, "Type: %s (%x)",
 					  part_type(mbr->dospart[(i*2)+j].dp_typ),
 		           mbr->dospart[(i*2)+j].dp_typ);
-			mvwprintw(window, y+3, x, "Ending at (H%d, S%d, C%d)",
-					  mbr->dospart[(i*2)+j].dp_shd,
-					  mbr->dospart[(i*2)+j].dp_esect,
-					  mbr->dospart[(i*2)+j].dp_ecyl);
+			mvwprintw(window, y+3, x, "Ending at (C%d, H%d, S%d)",
+					  mbr->dospart[(i*2)+j].dp_ecyl,
+					  mbr->dospart[(i*2)+j].dp_ehd,
+					  mbr->dospart[(i*2)+j].dp_esect);
 			mvwprintw(window, y+4, x, "Absolute start sector %ld",
 					  mbr->dospart[(i*2)+j].dp_start);
-			mvwprintw(window, y+5, x, "Size %ld", mbr->dospart[(i*2)+j].dp_size);
+			mvwprintw(window, y+5, x, "Size (in sectors) %ld", mbr->dospart[(i*2)+j].dp_size);
 		}
 	}
 	refresh();
@@ -119,14 +128,40 @@ show_mbr(struct mbr *mbr)
 		key = wgetch(window);
 
 	delwin(window);
+	dialog_clear();
 }
 
-void
-clear_mbr(struct mbr *mbr)
+int
+clear_mbr(struct mbr *mbr, char *bootcode)
 {
 	int i;
+   int fd;
+
+	/*
+	 * If installing to the whole disk
+	 * then clobber any existing bootcode.
+	 */
+
+	sprintf(scratch, "\nLoading MBR code from %s\n", bootcode);
+	dialog_msgbox(TITLE, scratch, 5, 60, 0);
+	fd = open(bootcode, O_RDONLY);
+	if (fd < 0) {
+		sprintf(errmsg, "Couldn't open boot file %s\n", bootcode);
+		return(-1);
+	}  
+
+	if (read(fd, mbr->bootcode, MBRSIZE) < 0) {
+		sprintf(errmsg, "Couldn't read from boot file %s\n", bootcode);
+		return(-1);
+	}
+			
+	if (close(fd) == -1) {
+		sprintf(errmsg, "Couldn't close boot file %s\n", bootcode);
+		return(-1);
+	}  
 
 	/* Create an empty partition table */
+
 	for (i=0; i < NDOSPART; i++) {
 		mbr->dospart[i].dp_flag = 0;
 		mbr->dospart[i].dp_shd = 0;
@@ -139,47 +174,49 @@ clear_mbr(struct mbr *mbr)
 		mbr->dospart[i].dp_start = 0;
 		mbr->dospart[i].dp_size = 0;
 	}
+
+	mbr->magic = MBR_MAGIC;
+
+	dialog_clear();
+	return(0);
 }
 
 int
-build_mbr(struct mbr *mbr, struct disklabel *label)
+build_mbr(struct mbr *mbr, char *bootcode, struct disklabel *lb)
 {
 	int i;
+	struct dos_partition *dp = &mbr->dospart[inst_part];
 
-	/*
-	 * This is the biggie, need to spend some time getting all
-	 * the different possibilities sorted out.
-	 */
-
-	if (inst_part == -1) {
+	if (whole_disk) {
 		/* Install to entire disk */
-		clear_mbr(mbr);
-		mbr->dospart[0].dp_flag = ACTIVE;
-		mbr->dospart[0].dp_shd = 1;
-		mbr->dospart[0].dp_ssect = 0;
-		mbr->dospart[0].dp_scyl = 0;
-		mbr->dospart[0].dp_typ = DOSPTYP_386BSD ;
-		mbr->dospart[0].dp_ehd = label->d_ntracks;
-		mbr->dospart[0].dp_esect = label->d_nsectors;
-		mbr->dospart[0].dp_ecyl = label->d_ncylinders;
-		mbr->dospart[0].dp_start = 0;
-		mbr->dospart[0].dp_size = 
-			  label->d_ntracks * label->d_nsectors * label->d_ncylinders;
-		return(1);
-	} else {
-		/* Validate partition - XXX need to spend some time making this robust */
-		if ((inst_part) && (!mbr->dospart[inst_part].dp_start)) {
-			strcpy(errmsg, "The start address of the selected partition is 0\n");
-			return(0);
-		}
+		if (clear_mbr(mbr, bootcode) == -1)
+			return(-1);
+		dp->dp_scyl = 0;
+		dp->dp_shd = 1;
+		dp->dp_ssect = 1;
+		dp->dp_ecyl = lb->d_ncylinders - 1;
+		dp->dp_ehd = lb->d_ntracks - 1;
+		dp->dp_esect = lb->d_nsectors;
+		dp->dp_start = (dp->dp_scyl * lb->d_ntracks * lb->d_nsectors) + 
+						  (dp->dp_shd * lb->d_nsectors) +
+						  dp->dp_ssect - 1;
+		dp->dp_size = (lb->d_nsectors * lb->d_ntracks * lb->d_ncylinders) - dp->dp_start;
+	}
+
+	/* Validate partition - XXX need to spend some time making this robust */
+	if (!dp->dp_start) {
+		strcpy(errmsg, "The start address of the selected partition is 0\n");
+		return(-1);
 	}
 
 	/* Set partition type to FreeBSD and make it the only active partition */
+
 	for (i=0; i < NDOSPART; i++)
 		mbr->dospart[i].dp_flag &= ~ACTIVE;
-	mbr->dospart[inst_part].dp_typ = DOSPTYP_386BSD;
-	mbr->dospart[inst_part].dp_flag = ACTIVE;
-	return(1);
+	dp->dp_typ = DOSPTYP_386BSD;
+	dp->dp_flag = ACTIVE;
+
+	return(0);
 }
 
 void

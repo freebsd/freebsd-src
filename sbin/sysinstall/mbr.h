@@ -78,6 +78,6 @@ extern int disable_label(int);
 extern int write_mbr(int, struct mbr *);
 extern int read_mbr(int, struct mbr *);
 extern void show_mbr(struct mbr *);
-extern void clear_mbr(struct mbr *);
+extern int clear_mbr(struct mbr *, char *);
 extern void edit_mbr(struct mbr *, struct disklabel *);
-extern int build_mbr(struct mbr *, struct disklabel *);
+extern int build_mbr(struct mbr *, char *, struct disklabel *);

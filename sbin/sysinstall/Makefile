@@ -8,7 +8,7 @@ SRCS =	stage1.c dkcksum.c bootarea.c mbr.c \
 	utils.c termcap.c exec.c \
 	stage0.c stage2.c stage3.c main.c
 
-CFLAGS += -Wall
+CFLAGS += -Wall -g
 LDADD =  -ldialog -lncurses -lmytinfo
 DPADD = ${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO}
 
