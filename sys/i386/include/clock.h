@@ -3,7 +3,7 @@
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
  *
- *	$Id: clock.h,v 1.19 1996/10/17 17:31:25 bde Exp $
+ *	$Id: clock.h,v 1.20 1996/10/25 13:01:08 bde Exp $
  */
 
 #ifndef _MACHINE_CLOCK_H_
@@ -65,7 +65,11 @@ int	sysbeep __P((int pitch, int period));
 
 #ifdef CLOCK_HAIR
 
+#ifdef PC98
+#include <pc98/pc98/pc98.h>		/* XXX */
+#else
 #include <i386/isa/isa.h>		/* XXX */
+#endif
 #include <i386/isa/timerreg.h>		/* XXX */
 
 static __inline u_int

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prof_machdep.c,v 1.2 1996/04/08 16:41:06 wollman Exp $
+ *	$Id: prof_machdep.c,v 1.3 1996/10/17 19:32:10 bde Exp $
  */
 
 #ifdef GUPROF
@@ -40,7 +40,11 @@
 #include <machine/profile.h>
 #endif
 
+#ifdef PC98
+#include <pc98/pc98/pc98.h>
+#else
 #include <i386/isa/isa.h>
+#endif
 #include <i386/isa/timerreg.h>
 
 #ifdef GUPROF

@@ -36,8 +36,7 @@
 #error Why you include if_ed98.h?
 #endif
 
-static void pc98_set_register __P((struct isa_device *dev,
-								   int unit, int type));
+static void pc98_set_register __P((struct isa_device *dev, int type));
 
 /*
  * Vendor types
@@ -50,11 +49,11 @@ static void pc98_set_register __P((struct isa_device *dev,
 #ifdef ED_NOVELL_NIC_OFFSET
 #undef ED_NOVELL_NIC_OFFSET
 #endif
-#define ED_NOVELL_NIC_OFFSET	ed_novell_nic_offset[unit]
+#define ED_NOVELL_NIC_OFFSET	sc->edreg.nic_offset
 #ifdef ED_NOVELL_ASIC_OFFSET
 #undef ED_NOVELL_ASIC_OFFSET
 #endif
-#define ED_NOVELL_ASIC_OFFSET	ed_novell_asic_offset[unit]
+#define ED_NOVELL_ASIC_OFFSET	sc->edreg.asic_offset
 
 /*
  * Remote DMA data register; for reading or writing to the NIC mem
@@ -63,7 +62,7 @@ static void pc98_set_register __P((struct isa_device *dev,
 #ifdef ED_NOVELL_DATA
 #undef ED_NOVELL_DATA
 #endif
-#define ED_NOVELL_DATA		ed_novell_data[unit]
+#define ED_NOVELL_DATA		sc->edreg.data
 
 /*
  * Reset register; reading from this register causes a board reset
@@ -71,7 +70,7 @@ static void pc98_set_register __P((struct isa_device *dev,
 #ifdef ED_NOVELL_RESET
 #undef ED_NOVELL_RESET
 #endif
-#define ED_NOVELL_RESET		ed_novell_reset[unit]
+#define ED_NOVELL_RESET		sc->edreg.reset
 
 /*
  * Card type
@@ -113,152 +112,152 @@ static void pc98_set_register __P((struct isa_device *dev,
  * Page 0 register offsets
  */
 #undef	ED_P0_CR
-#define	ED_P0_CR	edp[unit][0x00]
+#define	ED_P0_CR	sc->edreg.port[0x00]
 
 #undef	ED_P0_CLDA0
-#define	ED_P0_CLDA0	edp[unit][0x01]
+#define	ED_P0_CLDA0	sc->edreg.port[0x01]
 #undef	ED_P0_PSTART
-#define	ED_P0_PSTART	edp[unit][0x01]
+#define	ED_P0_PSTART	sc->edreg.port[0x01]
 
 #undef	ED_P0_CLDA1
-#define	ED_P0_CLDA1	edp[unit][0x02]
+#define	ED_P0_CLDA1	sc->edreg.port[0x02]
 #undef	ED_P0_PSTOP
-#define	ED_P0_PSTOP	edp[unit][0x02]
+#define	ED_P0_PSTOP	sc->edreg.port[0x02]
 
 #undef	ED_P0_BNRY
-#define	ED_P0_BNRY	edp[unit][0x03]
+#define	ED_P0_BNRY	sc->edreg.port[0x03]
 
 #undef	ED_P0_TSR
-#define	ED_P0_TSR	edp[unit][0x04]
+#define	ED_P0_TSR	sc->edreg.port[0x04]
 #undef	ED_P0_TPSR
-#define	ED_P0_TPSR	edp[unit][0x04]
+#define	ED_P0_TPSR	sc->edreg.port[0x04]
 
 #undef	ED_P0_NCR
-#define	ED_P0_NCR	edp[unit][0x05]
+#define	ED_P0_NCR	sc->edreg.port[0x05]
 #undef	ED_P0_TBCR0
-#define	ED_P0_TBCR0	edp[unit][0x05]
+#define	ED_P0_TBCR0	sc->edreg.port[0x05]
 
 #undef	ED_P0_FIFO
-#define	ED_P0_FIFO	edp[unit][0x06]
+#define	ED_P0_FIFO	sc->edreg.port[0x06]
 #undef	ED_P0_TBCR1
-#define	ED_P0_TBCR1	edp[unit][0x06]
+#define	ED_P0_TBCR1	sc->edreg.port[0x06]
 
 #undef	ED_P0_ISR
-#define	ED_P0_ISR	edp[unit][0x07]
+#define	ED_P0_ISR	sc->edreg.port[0x07]
 
 #undef	ED_P0_CRDA0
-#define	ED_P0_CRDA0	edp[unit][0x08]
+#define	ED_P0_CRDA0	sc->edreg.port[0x08]
 #undef	ED_P0_RSAR0
-#define	ED_P0_RSAR0	edp[unit][0x08]
+#define	ED_P0_RSAR0	sc->edreg.port[0x08]
 
 #undef	ED_P0_CRDA1
-#define	ED_P0_CRDA1	edp[unit][0x09]
+#define	ED_P0_CRDA1	sc->edreg.port[0x09]
 #undef	ED_P0_RSAR1
-#define	ED_P0_RSAR1	edp[unit][0x09]
+#define	ED_P0_RSAR1	sc->edreg.port[0x09]
 
 #undef	ED_P0_RBCR0
-#define	ED_P0_RBCR0	edp[unit][0x0a]
+#define	ED_P0_RBCR0	sc->edreg.port[0x0a]
 
 #undef	ED_P0_RBCR1
-#define	ED_P0_RBCR1	edp[unit][0x0b]
+#define	ED_P0_RBCR1	sc->edreg.port[0x0b]
 
 #undef	ED_P0_RSR
-#define	ED_P0_RSR	edp[unit][0x0c]
+#define	ED_P0_RSR	sc->edreg.port[0x0c]
 #undef	ED_P0_RCR
-#define	ED_P0_RCR	edp[unit][0x0c]
+#define	ED_P0_RCR	sc->edreg.port[0x0c]
 
 #undef	ED_P0_CNTR0
-#define	ED_P0_CNTR0	edp[unit][0x0d]
+#define	ED_P0_CNTR0	sc->edreg.port[0x0d]
 #undef	ED_P0_TCR
-#define	ED_P0_TCR	edp[unit][0x0d]
+#define	ED_P0_TCR	sc->edreg.port[0x0d]
 
 #undef	ED_P0_CNTR1
-#define	ED_P0_CNTR1	edp[unit][0x0e]
+#define	ED_P0_CNTR1	sc->edreg.port[0x0e]
 #undef	ED_P0_DCR
-#define	ED_P0_DCR	edp[unit][0x0e]
+#define	ED_P0_DCR	sc->edreg.port[0x0e]
 
 #undef	ED_P0_CNTR2
-#define	ED_P0_CNTR2	edp[unit][0x0f]
+#define	ED_P0_CNTR2	sc->edreg.port[0x0f]
 #undef	ED_P0_IMR
-#define	ED_P0_IMR	edp[unit][0x0f]
+#define	ED_P0_IMR	sc->edreg.port[0x0f]
 
 /*
  * Page 1 register offsets
  */
 #undef	ED_P1_CR
-#define	ED_P1_CR	edp[unit][0x00]
+#define	ED_P1_CR	sc->edreg.port[0x00]
 #undef	ED_P1_PAR0
-#define	ED_P1_PAR0	edp[unit][0x01]
+#define	ED_P1_PAR0	sc->edreg.port[0x01]
 #undef	ED_P1_PAR1
-#define	ED_P1_PAR1	edp[unit][0x02]
+#define	ED_P1_PAR1	sc->edreg.port[0x02]
 #undef	ED_P1_PAR2
-#define	ED_P1_PAR2	edp[unit][0x03]
+#define	ED_P1_PAR2	sc->edreg.port[0x03]
 #undef	ED_P1_PAR3
-#define	ED_P1_PAR3	edp[unit][0x04]
+#define	ED_P1_PAR3	sc->edreg.port[0x04]
 #undef	ED_P1_PAR4
-#define	ED_P1_PAR4	edp[unit][0x05]
+#define	ED_P1_PAR4	sc->edreg.port[0x05]
 #undef	ED_P1_PAR5
-#define	ED_P1_PAR5	edp[unit][0x06]
+#define	ED_P1_PAR5	sc->edreg.port[0x06]
 #undef	ED_P1_CURR
-#define	ED_P1_CURR	edp[unit][0x07]
+#define	ED_P1_CURR	sc->edreg.port[0x07]
 #undef	ED_P1_MAR0
-#define	ED_P1_MAR0	edp[unit][0x08]
+#define	ED_P1_MAR0	sc->edreg.port[0x08]
 #undef	ED_P1_MAR1
-#define	ED_P1_MAR1	edp[unit][0x09]
+#define	ED_P1_MAR1	sc->edreg.port[0x09]
 #undef	ED_P1_MAR2
-#define	ED_P1_MAR2	edp[unit][0x0a]
+#define	ED_P1_MAR2	sc->edreg.port[0x0a]
 #undef	ED_P1_MAR3
-#define	ED_P1_MAR3	edp[unit][0x0b]
+#define	ED_P1_MAR3	sc->edreg.port[0x0b]
 #undef	ED_P1_MAR4
-#define	ED_P1_MAR4	edp[unit][0x0c]
+#define	ED_P1_MAR4	sc->edreg.port[0x0c]
 #undef	ED_P1_MAR5
-#define	ED_P1_MAR5	edp[unit][0x0d]
+#define	ED_P1_MAR5	sc->edreg.port[0x0d]
 #undef	ED_P1_MAR6
-#define	ED_P1_MAR6	edp[unit][0x0e]
+#define	ED_P1_MAR6	sc->edreg.port[0x0e]
 #undef	ED_P1_MAR7
-#define	ED_P1_MAR7	edp[unit][0x0f]
+#define	ED_P1_MAR7	sc->edreg.port[0x0f]
 
 /*
  * Page 2 register offsets
  */
 #undef	ED_P2_CR
-#define	ED_P2_CR	edp[unit][0x00]
+#define	ED_P2_CR	sc->edreg.port[0x00]
 #undef	ED_P2_PSTART
-#define	ED_P2_PSTART	edp[unit][0x01]
+#define	ED_P2_PSTART	sc->edreg.port[0x01]
 #undef	ED_P2_CLDA0
-#define	ED_P2_CLDA0	edp[unit][0x01]
+#define	ED_P2_CLDA0	sc->edreg.port[0x01]
 #undef	ED_P2_PSTOP
-#define	ED_P2_PSTOP	edp[unit][0x02]
+#define	ED_P2_PSTOP	sc->edreg.port[0x02]
 #undef	ED_P2_CLDA1
-#define	ED_P2_CLDA1	edp[unit][0x02]
+#define	ED_P2_CLDA1	sc->edreg.port[0x02]
 #undef	ED_P2_RNPP
-#define	ED_P2_RNPP	edp[unit][0x03]
+#define	ED_P2_RNPP	sc->edreg.port[0x03]
 #undef	ED_P2_TPSR
-#define	ED_P2_TPSR	edp[unit][0x04]
+#define	ED_P2_TPSR	sc->edreg.port[0x04]
 #undef	ED_P2_LNPP
-#define	ED_P2_LNPP	edp[unit][0x05]
+#define	ED_P2_LNPP	sc->edreg.port[0x05]
 #undef	ED_P2_ACU
-#define	ED_P2_ACU	edp[unit][0x06]
+#define	ED_P2_ACU	sc->edreg.port[0x06]
 #undef	ED_P2_ACL
-#define	ED_P2_ACL	edp[unit][0x07]
+#define	ED_P2_ACL	sc->edreg.port[0x07]
 #undef	ED_P2_RCR
-#define	ED_P2_RCR	edp[unit][0x0c]
+#define	ED_P2_RCR	sc->edreg.port[0x0c]
 #undef	ED_P2_TCR
-#define	ED_P2_TCR	edp[unit][0x0d]
+#define	ED_P2_TCR	sc->edreg.port[0x0d]
 #undef	ED_P2_DCR
-#define	ED_P2_DCR	edp[unit][0x0e]
+#define	ED_P2_DCR	sc->edreg.port[0x0e]
 #undef	ED_P2_IMR
-#define	ED_P2_IMR	edp[unit][0x0f]
+#define	ED_P2_IMR	sc->edreg.port[0x0f]
 
 /* PCCARD */
 #ifdef ED_PC_MISC
 #undef ED_PC_MISC
 #endif
-#define ED_PC_MISC	ed_pc_misc[unit]
+#define ED_PC_MISC	sc->edreg.pc_misc
 #ifdef ED_PC_RESET
 #undef ED_PC_RESET
 #endif
-#define ED_PC_RESET ed_pc_reset[unit]
+#define ED_PC_RESET sc->edreg.pc_reset
 
 /* LPC-T support */
 #define LPCT_1d0_ON() \
@@ -336,19 +335,6 @@ static void pc98_set_register __P((struct isa_device *dev,
  */
 #define ED_CNET98EL_ISR         0x05
 
-
-
-/* register offsets */
-static unsigned int *edp[NED];
-static unsigned int pc98_io_skip[NED];
-static int ed_novell_nic_offset[NED];
-static int ed_novell_asic_offset[NED];
-static int ed_novell_data[NED];
-static int ed_novell_reset[NED];
-static int ed_pc_misc[NED];
-static int ed_pc_reset[NED];
-
-
 /* NE2000, LGY-98, ICM, LPC-T, C-NET(98)E/L */
 static unsigned int edp_generic[16] = {
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
@@ -391,14 +377,15 @@ static unsigned int edp_cnet98[16] = {
 };
 
 
-static void pc98_set_register(struct isa_device *dev, int unit, int type)
+static void pc98_set_register(struct isa_device *dev, int type)
 {
+	struct ed_softc *sc = &ed_softc[dev->id_unit];
 	int adj;
 
 	switch (type) {
 	case ED_TYPE98_GENERIC:
-		edp[unit] = edp_generic;
-		pc98_io_skip[unit] = 1;
+		sc->edreg.port = edp_generic;
+		sc->edreg.ioskip = 1;
 		ED_NOVELL_NIC_OFFSET = 0x0000;
 		ED_NOVELL_ASIC_OFFSET = 0x0010;
 		ED_NOVELL_DATA = 0x0000;
@@ -408,8 +395,8 @@ static void pc98_set_register(struct isa_device *dev, int unit, int type)
 		break;
 
 	case ED_TYPE98_LGY:
-		edp[unit] = edp_generic;
-		pc98_io_skip[unit] = 1;
+		sc->edreg.port = edp_generic;
+		sc->edreg.ioskip = 1;
 		ED_NOVELL_NIC_OFFSET = 0x0000;
 		ED_NOVELL_ASIC_OFFSET = 0x0200;
 		ED_NOVELL_DATA = 0x0000;
@@ -419,8 +406,8 @@ static void pc98_set_register(struct isa_device *dev, int unit, int type)
 		break;
 
 	case ED_TYPE98_EGY:
-		edp[unit] = edp_egy98;
-		pc98_io_skip[unit] = 2;
+		sc->edreg.port = edp_egy98;
+		sc->edreg.ioskip = 2;
 		ED_NOVELL_NIC_OFFSET = 0;
 		ED_NOVELL_ASIC_OFFSET = 0x0200;
 		ED_NOVELL_DATA = 0x0000;
@@ -430,8 +417,8 @@ static void pc98_set_register(struct isa_device *dev, int unit, int type)
 		break;		
 
 	case ED_TYPE98_ICM:
-		edp[unit] = edp_generic;
-		pc98_io_skip[unit] = 1;
+		sc->edreg.port = edp_generic;
+		sc->edreg.ioskip = 1;
 		ED_NOVELL_NIC_OFFSET = 0;
 		ED_NOVELL_ASIC_OFFSET = 0x0100;
 		ED_NOVELL_DATA = 0x0000;
@@ -441,8 +428,8 @@ static void pc98_set_register(struct isa_device *dev, int unit, int type)
 		break;
 
 	case ED_TYPE98_BDN:
-		edp[unit] = edp_bdn98;
-		pc98_io_skip[unit] = 0x1000;
+		sc->edreg.port = edp_bdn98;
+		sc->edreg.ioskip = 0x1000;
 		ED_NOVELL_NIC_OFFSET = 0x0000;
 		ED_NOVELL_ASIC_OFFSET = 0x0100;
 		ED_NOVELL_DATA = 0;
@@ -452,8 +439,8 @@ static void pc98_set_register(struct isa_device *dev, int unit, int type)
 		break;
 
 	case ED_TYPE98_SIC:
-		edp[unit] = edp_sic98;
-		pc98_io_skip[unit] = 0x200;
+		sc->edreg.port = edp_sic98;
+		sc->edreg.ioskip = 0x200;
 		ED_NOVELL_NIC_OFFSET = 0x0000;
 		ED_NOVELL_ASIC_OFFSET = 0x2000;
 		ED_NOVELL_DATA = 0x00;			/* dummy */
@@ -463,8 +450,8 @@ static void pc98_set_register(struct isa_device *dev, int unit, int type)
 		break;
 
 	case ED_TYPE98_LPC:
-		edp[unit] = edp_generic;
-		pc98_io_skip[unit] = 0x1;
+		sc->edreg.port = edp_generic;
+		sc->edreg.ioskip = 0x1;
 		ED_NOVELL_NIC_OFFSET = 0x0000;
 		ED_NOVELL_ASIC_OFFSET = 0x0100;
 		ED_NOVELL_DATA = 0x0000;
@@ -474,8 +461,8 @@ static void pc98_set_register(struct isa_device *dev, int unit, int type)
 		break;
 
 	case ED_TYPE98_108:
-		edp[unit] = edp_nec108;
-		pc98_io_skip[unit] = 2;
+		sc->edreg.port = edp_nec108;
+		sc->edreg.ioskip = 2;
 		adj = (dev->id_iobase & 0xf000) / 2;
 		ED_NOVELL_NIC_OFFSET = 0;
 		ED_NOVELL_ASIC_OFFSET = (0x888 | adj) - dev->id_iobase;
@@ -486,8 +473,8 @@ static void pc98_set_register(struct isa_device *dev, int unit, int type)
 		break;
 
 	case ED_TYPE98_LA98:
-		edp[unit] = edp_la98;
-		pc98_io_skip[unit] = 0x1000;
+		sc->edreg.port = edp_la98;
+		sc->edreg.ioskip = 0x1000;
 		ED_NOVELL_NIC_OFFSET = 0;
 		ED_NOVELL_ASIC_OFFSET = 0x100;
 		ED_NOVELL_DATA = 0x0000;
@@ -497,8 +484,8 @@ static void pc98_set_register(struct isa_device *dev, int unit, int type)
 		break;
 
 	case ED_TYPE98_CNET98EL:
-		edp[unit] = edp_generic;
-		pc98_io_skip[unit] = 1;
+		sc->edreg.port = edp_generic;
+		sc->edreg.ioskip = 1;
 		ED_NOVELL_NIC_OFFSET = 0;
 		ED_NOVELL_ASIC_OFFSET = 0x0400;
 		ED_NOVELL_DATA = 0x000e;
@@ -507,8 +494,8 @@ static void pc98_set_register(struct isa_device *dev, int unit, int type)
 		break;
 
 	case ED_TYPE98_CNET98:
-		edp[unit] = edp_cnet98;
-		pc98_io_skip[unit] = 2;
+		sc->edreg.port = edp_cnet98;
+		sc->edreg.ioskip = 2;
 		ED_NOVELL_NIC_OFFSET = 0;
 		ED_NOVELL_ASIC_OFFSET = 0x0400;
 		ED_NOVELL_DATA = 0x000e;

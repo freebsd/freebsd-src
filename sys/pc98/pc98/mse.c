@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.4 1996/09/07 02:13:57 asami Exp $
+ * $Id: mse.c,v 1.5 1996/09/10 09:38:15 asami Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -662,17 +662,7 @@ mse_probe98m(idp)
 	/* initialize */
 	outb(msport + INT, INT_DISABLE);	/* INT disable */
 	outb(msport + HC, HC_NO_CLEAR);		/* HC = 0 */
-#if 0
-	if (inb(msport + PORT_C) & 0x80 != 0) {
-		return (0);
-	}
-#endif
 	outb(msport + HC, HC_CLEAR);		/* HC = 1 */
-#if 0
-	if (inb(msport + PORT_C) & 0x80 == 0) {
-		return (0);
-	}
-#endif
 	return (1);
 }
 

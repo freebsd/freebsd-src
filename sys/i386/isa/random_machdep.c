@@ -1,7 +1,7 @@
 /*
  * random_machdep.c -- A strong random number generator
  *
- * $Id: random_machdep.c,v 1.11 1996/09/27 13:25:13 peter Exp $
+ * $Id: random_machdep.c,v 1.12 1996/10/09 19:47:32 bde Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -51,7 +51,11 @@
 #include <machine/random.h>
 
 #include <i386/isa/icu.h>
+#ifdef PC98
+#include <pc98/pc98/pc98.h>
+#else
 #include <i386/isa/isa.h>
+#endif
 #include <i386/isa/timerreg.h>
 
 #define MAX_BLKDEV 4
