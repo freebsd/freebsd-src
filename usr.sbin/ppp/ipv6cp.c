@@ -187,11 +187,15 @@ ipv6cp_Init(struct ipv6cp *ipv6cp, struct bundle *bundle, struct link *l,
   while ((ipv6cp->peer_token = GenerateToken()) == ipv6cp->my_token)
     ;
 
-  n = 100;
-  while (n &&
-         !ipcp_SetIPv6address(ipv6cp, ipv6cp->my_token, ipv6cp->peer_token))
-    while (n && (ipv6cp->my_token = GenerateToken()) == ipv6cp->peer_token)
+  if (probe.ipv6_available) {
+    n = 100;
+    while (n &&
+           !ipcp_SetIPv6address(ipv6cp, ipv6cp->my_token, ipv6cp->peer_token)) {
       n--;
+      while (n && (ipv6cp->my_token = GenerateToken()) == ipv6cp->peer_token)
+        n--;
+    }
+  }
 
   throughput_init(&ipv6cp->throughput, SAMPLE_PERIOD);
   memset(ipv6cp->Queue, '\0', sizeof ipv6cp->Queue);
@@ -225,11 +229,6 @@ ipv6cp_Show(struct cmdargs const *arg)
 {
   struct ipv6cp *ipv6cp = &arg->bundle->ncp.ipv6cp;
 
-  if (!probe.ipv6_available) {
-    prompt_Printf(arg->prompt, "ipv6 not available\n");
-    return 0;
-  }
-
   prompt_Printf(arg->prompt, "%s [%s]\n", ipv6cp->fsm.name,
                 State2Nam(ipv6cp->fsm.state));
   if (ipv6cp->fsm.state == ST_OPENED) {
@@ -257,7 +256,7 @@ ipv6cp_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 {
   /* Got PROTO_IPV6CP from link */
   m_settype(bp, MB_IPV6CPIN);
-  if (bundle_Phase(bundle) == PHASE_NETWORK && probe.ipv6_available)
+  if (bundle_Phase(bundle) == PHASE_NETWORK)
     fsm_Input(&bundle->ncp.ipv6cp.fsm, bp);
   else {
     if (bundle_Phase(bundle) < PHASE_NETWORK)
@@ -555,9 +554,11 @@ ipv6cp_DecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
                     "0x08lx: Unacceptable token!\n", (unsigned long)token);
         else if (token != ipv6cp->my_token) {
           n = 100;
-          while (n && !ipcp_SetIPv6address(ipv6cp, token, ipv6cp->peer_token))
+          while (n && !ipcp_SetIPv6address(ipv6cp, token, ipv6cp->peer_token)) {
+            n--;
             while (n && (token = GenerateToken()) == ipv6cp->peer_token)
               n--;
+          }
 
           if (n == 0) {
 	    log_Printf(log_IsKept(LogIPV6CP) ? LogIPV6CP : LogPHASE,
