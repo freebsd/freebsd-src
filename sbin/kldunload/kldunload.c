@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: kldunload.c,v 1.5 1998/01/05 07:10:42 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -83,7 +83,7 @@ main(int argc, char** argv)
 	struct kld_file_stat stat;
 	stat.version = sizeof stat;
 	if (kldstat(fileid, &stat) < 0)
-	    err(1, "Can't stat file");
+	    err(1, "can't stat file");
 	printf("Unloading %s, id=%d\n", stat.name, fileid);
     }
 
