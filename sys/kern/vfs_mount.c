@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_conf.c	8.8 (Berkeley) 3/31/94
- * $Id: vfs_conf.c,v 1.24 1998/04/20 03:57:30 julian Exp $
+ * $Id: vfs_conf.c,v 1.25 1998/06/09 12:52:33 bde Exp $
  */
 
 /*
@@ -51,7 +51,6 @@
  *		as an aid to conversion for kernel multithreading
  *		on SMP reentrancy
  */
-#include "opt_devfs.h" /* for SLICE */
 #include "opt_bootp.h"
 
 #include <sys/param.h>		/* dev_t (types.h)*/
@@ -75,9 +74,6 @@ dev_t rootdevs[] = { NODEV, NODEV };
 char *rootdevnames[2];
 struct vnode *rootvnode;
 char *mountrootfsname;
-#ifdef SLICE
-char	rootdevice[32];
-#endif
 #ifdef BOOTP
 extern void bootpc_init __P((void));
 #endif

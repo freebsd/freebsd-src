@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.138 1998/07/30 15:16:05 bde Exp $
+ *      $Id: sd.c,v 1.139 1998/08/23 20:16:35 phk Exp $
  */
 
 #include "opt_bounce.h"
@@ -34,11 +34,6 @@
 #include <sys/conf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
-#ifdef SLICE
-#include <sys/device.h>
-#include <sys/fcntl.h>
-#include <dev/slice/slice.h>
-#endif	/* SLICE */
 #endif	/* DEVFS */
 
 #include <scsi/scsi_disk.h>
@@ -99,23 +94,13 @@ struct scsi_data {
 	struct buf_queue_head	buf_queue;
 	int			dkunit;		/* disk stats unit number */
 #ifdef	DEVFS
-#ifdef SLICE
-	struct slice		*slice;
-	int			mynor;
-	struct slicelimits	limit;
-	struct scsi_link	*sc_link;
-	int			unit;
-	struct intr_config_hook	ich;
-#else	/* SLICE */
 	void			*b_devfs_token;
 	void			*c_devfs_token;
-#endif	/* SLICE */
 	void			*ctl_devfs_token;
 #endif
 };
 
 
-#ifndef	SLICE
 static int sdunit(dev_t dev) { return SDUNIT(dev); }
 static dev_t sdsetunit(dev_t dev, int unit) { return SDSETUNIT(dev, unit); }
 static errval sd_open __P((dev_t dev, int mode, int fmt, struct proc *p,
@@ -145,36 +130,8 @@ static struct cdevsw sd_cdevsw = {
 	  NULL,		-1,		sddump,		sdsize,
 	  D_DISK,	0,		-1 };
 
-#else	/* ! SLICE */
-
-static errval sdattach(struct scsi_link *sc_link);
-static sl_h_IO_req_t	sdsIOreq;	/* IO req downward (to device) */
-static sl_h_ioctl_t	sdsioctl;	/* ioctl req downward (to device) */
-static sl_h_open_t	sdsopen;	/* downwards travelling open */
-static sl_h_close_t	sdsclose;	/* downwards travelling close */
-static	void	sds_init (void *arg);
-static sl_h_dump_t	sdsdump;	/* core dump req downward */
-
-static struct slice_handler slicetype = {
-	"scsidisk",
-	0,
-	NULL,
-	0,
-	NULL,	/* constructor */
-	&sdsIOreq,
-	&sdsioctl,
-	&sdsopen,
-	NULL,	/* was close, now free */
-	NULL,	/* revoke */
-	NULL,	/* claim */
-	NULL,	/* verify */
-	NULL,	/* upconfig */
-	&sdsdump
-};
-#endif
 
 
-#ifndef SLICE
 
 SCSI_DEVICE_ENTRIES(sd)
 
@@ -200,39 +157,6 @@ static struct scsi_device sd_switch =
 	sd_close,
 	sd_strategy,
 };
-#else	/* SLICE */
-static struct scsi_device sd_switch =
-{
-	sd_sense_handler,
-	sdstart,			/* have a queue, served by this */
-	NULL,			/* have no async handler */
-	NULL,			/* Use default 'done' routine */
-	"sd",
-	0,
-	{0, 0},
-	0,				/* Link flags */
-	sdattach,
-	"Direct-Access",
-	NULL,
-	sizeof(struct scsi_data),
-	T_DIRECT,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-};
-
-
-/* this should be called by the SYSINIT (?!) */
-void
-sdinit(void) 
-{
-	scsi_device_register(&sd_switch);
-}
-
-#endif	/* SLICE */
 static struct scsi_xfer sx;
 
 
@@ -308,30 +232,6 @@ sdattach(struct scsi_link *sc_link)
 	sd_registerdev(unit);
 
 #ifdef DEVFS
-#ifdef SLICE
-	{
-		char namebuf[64];
-		sd->unit = unit;
-		sd->sc_link = sc_link;
-		sprintf(namebuf,"sd%d",sd->unit);
-		sd->mynor = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
-		sd->limit.blksize = sd->params.secsiz;
-		/* need to cast to avoid overflow! */
-		sd->limit.slicesize =
-		  (u_int64_t)sd->params.secsiz * sd->params.disksize;
-		sl_make_slice(&slicetype,
-				sd,
-				&sd->limit,
-	 			&sd->slice,
-				namebuf);
-		/* Allow full probing */
-		sd->slice->probeinfo.typespecific = NULL;
-		sd->slice->probeinfo.type = NULL;
-	}
-	sd->ich.ich_func = sds_init;
-	sd->ich.ich_arg = sd;
-	config_intrhook_establish(&sd->ich);
-#else	/* SLICE */
 	mynor = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
 	sd->b_devfs_token = devfs_add_devswf(&sd_cdevsw, mynor, DV_BLK,
 					     UID_ROOT, GID_OPERATOR, 0640,
@@ -345,54 +245,17 @@ sdattach(struct scsi_link *sc_link)
 					       DV_CHR,
 					       UID_ROOT, GID_WHEEL, 0600,
 					       "rsd%d.ctl", unit);
-#endif	/* SLICE */
 #endif
 	return 0;
 }
 
-#ifdef SLICE
-/* run a LOT later */
-static void
-sds_init(void *arg)
-{
-	struct scsi_data *sd = arg;
-	sh_p	tp;
-
-	slice_start_probe(sd->slice);
-	config_intrhook_disestablish(&sd->ich);
-	DELAY(2000000); /* XXX */
-}
-#endif	/* SLICE */
 
 /*
  * open the device. Make sure the partition info is a up-to-date as can be.
  */
-#ifdef	SLICE
-static int
-sdsopen(void *private, int flags, int mode, struct proc *p)
-#else /* !SLICE */
 static errval
 sd_open(dev_t dev, int mode, int fmt, struct proc *p, struct scsi_link *sc_link)
-#endif
 {
-#ifdef	SLICE
-	errval  errcode = 0;
-	struct scsi_data *sd = private;
-	struct scsi_link *sc_link = sd->sc_link;
-	u_int32_t unit = sd->unit;
-
-	if ((flags & (FREAD|FWRITE)) == 0) {
-		/* Mode chenge to mode 0 (closed) */
-		errcode = scsi_device_lock(sc_link);
-		if (errcode) {
-			return errcode;	/* how can close fail? */
-		}
-		scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT | SCSI_ERR_OK);
-		sc_link->flags &= ~SDEV_OPEN;
-		scsi_device_unlock(sc_link);
-		return (0);
-	}
-#else	/* !SLICE */
 	errval  errcode = 0;
 	u_int32_t unit;
 	struct disklabel label;
@@ -400,7 +263,6 @@ sd_open(dev_t dev, int mode, int fmt, struct proc *p, struct scsi_link *sc_link)
 
 	unit = SDUNIT(dev);
 	sd = sc_link->sd;
-#endif	/* !SLICE */
 
 	/*
 	 * Make sure the disk has been initialised
@@ -411,13 +273,9 @@ sd_open(dev_t dev, int mode, int fmt, struct proc *p, struct scsi_link *sc_link)
 		return (ENXIO);
 	}
 
-#ifdef	SLICE
-	SC_DEBUG(sc_link, SDEV_DB1, ("sdsopen: (unit %ld)\n", unit));
-#else	/* !SLICE */
 	SC_DEBUG(sc_link, SDEV_DB1,
 	    ("sd_open: dev=0x%lx (unit %lu, partition %d)\n",
 		(u_long)dev, (u_long)unit, PARTITION(dev)));
-#endif	/* !SLICE */
 
 	/*
 	 * "unit attention" errors should occur here if the
@@ -437,7 +295,6 @@ sd_open(dev_t dev, int mode, int fmt, struct proc *p, struct scsi_link *sc_link)
 	 */
 	sc_link->flags |= SDEV_OPEN;	/* unit attn becomes an err now */
 	if (!(sc_link->flags & SDEV_MEDIA_LOADED) && sd->dk_slices != NULL) {
-#ifndef	SLICE
 		/*
 		 * If somebody still has it open, then forbid re-entry.
 		 */
@@ -447,7 +304,6 @@ sd_open(dev_t dev, int mode, int fmt, struct proc *p, struct scsi_link *sc_link)
 		}
 
 		dsgone(&sd->dk_slices);
-#endif /* !SLICE */
 	}
 
 	/*
@@ -471,7 +327,6 @@ sd_open(dev_t dev, int mode, int fmt, struct proc *p, struct scsi_link *sc_link)
 	/* Lock the pack in. */
 	scsi_prevent(sc_link, PR_PREVENT, SCSI_ERR_OK | SCSI_SILENT);
 
-#ifndef	SLICE
 	/* Build label for whole disk. */
 	bzero(&label, sizeof label);
 	label.d_type = DTYPE_SCSI;
@@ -490,7 +345,6 @@ sd_open(dev_t dev, int mode, int fmt, struct proc *p, struct scsi_link *sc_link)
 			 (ds_setgeom_t *)NULL, &sd_cdevsw);
 	if (errcode != 0)
 		goto close;
-#endif	/* !SLICE */
 	SC_DEBUG(sc_link, SDEV_DB3, ("Slice tables initialized "));
 
 	SC_DEBUG(sc_link, SDEV_DB3, ("open %lu %lu\n",
@@ -500,11 +354,7 @@ sd_open(dev_t dev, int mode, int fmt, struct proc *p, struct scsi_link *sc_link)
 	return 0;
 
 close:
-#ifndef	SLICE
 	if (!dsisopen(sd->dk_slices))
-#else
-	if((sd->slice->flags & SLF_OPEN_STATE) == SLF_CLOSED)
-#endif
 	{
 		scsi_prevent(sc_link, PR_ALLOW, SCSI_ERR_OK | SCSI_SILENT);
 		sc_link->flags &= ~SDEV_OPEN;
@@ -513,7 +363,6 @@ close:
 	return errcode;
 }
 
-#ifndef	SLICE
 /*
  * close the device.. only called if we are the LAST occurence of an open
  * device.  Convenient now but usually a pain.
@@ -631,7 +480,6 @@ sdstrategy1(struct buf *bp)
 	sdstrategy(bp);
 }
 
-#endif	/* ! SLICE */
 /*
  * sdstart looks to see if there is a buf waiting for the device
  * and that the device is not already busy. If both are true,
@@ -747,24 +595,12 @@ bad:
  * Perform special action on behalf of the user
  * Knows about the internals of this device
  */
-#ifdef	SLICE
-static int
-sdsioctl( void *private, u_long cmd, caddr_t addr, int flag, struct proc *p)
-#else	/* SLICE */
 static errval
 sd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p,
 	 struct scsi_link *sc_link)
-#endif	/* !SLICE */
 {
-#ifdef	SLICE
-	struct scsi_data *sd = private;
-	struct scsi_link *sc_link = sd->sc_link;
-	dev_t dev = makedev(0,sd->mynor);
-
-#else	/* SLICE */
 	errval  error;
 	struct scsi_data *sd = sc_link->sd;
-#endif	/* !SLICE */
 	SC_DEBUG(sc_link, SDEV_DB1, ("sdioctl (0x%lx)", cmd));
 
 #if 0
@@ -782,7 +618,6 @@ sd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p,
 	if (cmd == DIOCSBAD)
 		return (EINVAL);	/* XXX */
 	
-#ifndef	SLICE
 	error = scsi_device_lock(sc_link);
 	if (error)
 		return error;
@@ -793,7 +628,6 @@ sd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p,
 		return (error);
 	if (PARTITION(dev) != RAW_PART)
 		return (ENOTTY);
-#endif	/* ! SLICE */ /* really only take this from the ctl device XXX */
 	return (scsi_do_ioctl(dev, cmd, addr, flag, p, sc_link));
 }
 
@@ -1009,7 +843,6 @@ sd_get_parms(int unit, int flags)
 	return (error);
 }
 
-#ifndef	SLICE
 static int
 sdsize(dev_t dev)
 {
@@ -1021,7 +854,6 @@ sdsize(dev_t dev)
 	return (dssize(dev, &sd->dk_slices, sdopen, sdclose));
 }
 
-#endif	/* ! SLICE */
 /*
  * sense handler: Called to determine what to do when the
  * device returns a CHECK CONDITION.
@@ -1080,22 +912,15 @@ sd_sense_handler(struct scsi_xfer *xs)
  * at offset 'dumplo' into the partition.
  * XXX for SLICE starts at argument 'start'.
  */
-#ifndef SLICE
 static errval
 sddump(dev_t dev)
-#else
-static int
-sdsdump(void *private, int32_t start, int32_t num)
-#endif /* SLICE */
 {				/* dump core after a system crash */
-#ifndef SLICE
 	struct disklabel *lp;
 	int32_t	num;		/* number of sectors to write */
 	u_int32_t	unit, part;
 	int32_t	nblocks;
 	int32_t	blkoff;
 	static	int sddoingadump = 0;
-#endif /* SLICE */
 	register struct scsi_data *sd;	/* disk unit to do the IO */
 	struct scsi_link *sc_link;
 	int32_t	blknum, blkcnt = MAXTRANSFER;
@@ -1106,7 +931,6 @@ sdsdump(void *private, int32_t start, int32_t num)
 
 	addr = (char *) 0;	/* starting address */
 
-#ifndef SLICE
 	/* toss any characters present prior to dump */
 	while (cncheckc() != -1) ;
 
@@ -1121,17 +945,12 @@ sdsdump(void *private, int32_t start, int32_t num)
 		return ENXIO;
 
 	sd = sc_link->sd;
-#else
-	sd = private;
-	sc_link = sd->sc_link;
-#endif /* SLICE */
 
 	/* was it ever initialized etc. ? */
 	if (!(sd->flags & SDINIT))
 		return (ENXIO);
 	if ((sc_link->flags & SDEV_MEDIA_LOADED) != SDEV_MEDIA_LOADED)
 		return (ENXIO);
-#ifndef SLICE
 	if (sd->dk_slices == NULL)
 		Debugger("sddump: no slices");
 	if ((lp = dsgetlabel(dev, sd->dk_slices)) == NULL)
@@ -1157,9 +976,6 @@ sdsdump(void *private, int32_t start, int32_t num)
 	sddoingadump = 1;
 
 	blknum = dumplo + blkoff;
-#else
-	blknum = start;
-#endif /* SLICE */
 	while (num > 0) {
 		if (is_physical_memory((vm_offset_t)addr))
 		    pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
@@ -1234,7 +1050,6 @@ sdsdump(void *private, int32_t start, int32_t num)
 	return (0);
 }
 
-#ifndef SLICE
 static sd_devsw_installed = 0;
 
 static void 	sd_drvinit(void *unused)
@@ -1248,76 +1063,3 @@ static void 	sd_drvinit(void *unused)
 
 SYSINIT(sddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,sd_drvinit,NULL)
 
-#endif /* !SLICE */
-#ifdef SLICE
-
-/*
- * arguments, and schedules the transfer.  Does not wait for the transfer
- * to complete.  Multi-page transfers are supported.  All I/O requests must
- * be a multiple of a sector in length.
-scsi_strategy(bp, &sd_switch);
- */
-static void 
-sdsIOreq(void *private ,struct buf *bp)
-{
-	struct scsi_data *sd = private;
-	u_int32_t opri;
-	u_int32_t unit = sd->unit;
-	struct scsi_link *sc_link = sd->sc_link;
-
-	SC_DEBUG(sc_link, SDEV_DB2, ("sdIOreq\n"));
-	SC_DEBUG(sc_link, SDEV_DB1, ("%ld bytes @ blk%ld\n",
-		bp->b_bcount, bp->b_pblkno));
-
-	bp->b_resid = 0;
-	bp->b_error = 0;
-
-	(*sc_link->adapter->scsi_minphys)(bp);
-
-	sdstrats++;
-	/*
-	 * If the device has been made invalid, error out
-	 */
-	if (!(sc_link->flags & SDEV_MEDIA_LOADED)) {
-		bp->b_error = EIO;
-		goto bad;
-	}
-
-	/*
-	 * check it's not too big a transfer for our adapter
-	 */
-        /*scsi_minphys(bp,&sd_switch);*/
-
-	opri = SPLSD();
-	/*
-	 * Use a bounce buffer if necessary
-	 */
-#ifdef BOUNCE_BUFFERS
-	if (sc_link->flags & SDEV_BOUNCE)
-		vm_bounce_alloc(bp);
-#endif
-
-	/*
-	 * Place it in the queue of disk activities for this disk
-	 */
-#ifdef SDDISKSORT
-	bufq_disksort(&sd->buf_queue, bp);
-#else
-	bufq_insert_tail(&sd->buf_queue, bp);
-#endif
-
-	/*
-	 * Tell the device to get going on the transfer if it's
-	 * not doing anything, otherwise just wait for completion
-	 */
-	sdstart(unit, 0);
-
-	splx(opri);
-	return;
-bad:
-	bp->b_flags |= B_ERROR;
-	bp->b_resid = bp->b_bcount;
-	biodone(bp);
-	return;
-}
-#endif

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.103 1998/08/23 14:17:52 des Exp $
+ *	$Id: autoconf.c,v 1.104 1998/09/03 20:59:28 nsouch Exp $
  */
 
 /*
@@ -45,7 +45,6 @@
  * devices are determined (from possibilities mentioned in ioconf.c),
  * and the drivers are initialized.
  */
-#include "opt_devfs.h" /* for SLICE */
 #include "opt_bootp.h"
 #include "opt_ffs.h"
 #include "opt_cd9660.h"
@@ -111,7 +110,6 @@ SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure, NULL)
 static void	configure_finish __P((void));
 static void	configure_start __P((void));
 static int	setdumpdev __P((dev_t dev));
-#ifndef	SLICE
 static void	setroot __P((void));
 
 #ifdef CD9660
@@ -175,7 +173,6 @@ find_cdrom_root()
 	return EINVAL;
 }
 #endif /* CD9660 */
-#endif /* !SLICE */
 
 static void
 configure_start()
@@ -309,7 +306,6 @@ configure(dummy)
 	cold = 0;
 }
 
-#ifndef SLICE
 
 void
 cpu_rootconf()
@@ -388,7 +384,6 @@ cpu_rootconf()
 	setconf();
 }
 
-#endif /* !SLICE */
 
 void
 cpu_dumpconf()
@@ -431,7 +426,6 @@ setdumpdev(dev)
 	return (0);
 }
 
-#ifndef SLICE
 
 u_long	bootdev = 0;		/* not a dev_t - encoding is different */
 
@@ -501,7 +495,6 @@ setroot()
 	sprintf(rootdevnames[1], "%s%s", sname, partname);
 }
 
-#endif /* !SLICE */
 
 static int
 sysctl_kern_dumpdev SYSCTL_HANDLER_ARGS

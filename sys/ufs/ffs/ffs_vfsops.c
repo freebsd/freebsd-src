@@ -31,10 +31,9 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.85 1998/08/17 19:09:36 bde Exp $
+ * $Id: ffs_vfsops.c,v 1.86 1998/09/07 13:17:06 bde Exp $
  */
 
-#include "opt_devfs.h" /* for SLICE */
 #include "opt_quota.h"
 
 #include <sys/param.h>
@@ -126,9 +125,6 @@ VFS_SET(ufs_vfsops, ufs, 0);
  *		system call will fail with EFAULT in copyinstr in
  *		namei() if it is a genuine NULL from the user.
  */
-#ifdef SLICE
-extern struct vnode *root_device_vnode;
-#endif
 static int
 ffs_mount( mp, path, data, ndp, p)
         struct mount		*mp;	/* mount struct pointer*/
@@ -158,13 +154,6 @@ ffs_mount( mp, path, data, ndp, p)
 		 ***
 		 */
 	
-#ifdef SLICE
-		rootvp = root_device_vnode;
-		if (rootvp == NULL) {
-			printf("ffs_mountroot: rootvp not set");
-			return (EINVAL);
-		}
-#else  /* !SLICE */
 		if ((err = bdevvp(rootdev, &rootvp))) {
 			printf("ffs_mountroot: can't find rootvp");
 			return (err);
@@ -174,7 +163,6 @@ ffs_mount( mp, path, data, ndp, p)
 			mp->mnt_flag |= MNT_NOCLUSTERR;
 		if (bdevsw[major(rootdev)]->d_flags & D_NOCLUSTERW)
 			mp->mnt_flag |= MNT_NOCLUSTERW;
-#endif /* !SLICE */
 		if( ( err = ffs_mountfs(rootvp, mp, p, M_FFSNODE)) != 0) {
 			/* fs specific cleanup (if any)*/
 			goto error_1;
