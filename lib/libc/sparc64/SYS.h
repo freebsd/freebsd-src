@@ -51,9 +51,16 @@
 #define	_SYSENTRY(x) \
 ENTRY(__CONCAT(__sys_,x)) ; \
 	.weak	CNAME(x) ; \
+	.type	CNAME(x),@function ; \
 	.set	CNAME(x),CNAME(__CONCAT(__sys_,x)) ; \
 	.weak	CNAME(__CONCAT(_,x)) ; \
+	.type	CNAME(__CONCAT(_,x)), @function ; \
 	.set	CNAME(__CONCAT(_,x)),CNAME(__CONCAT(__sys_,x))
+
+#define	_SYSEND(x) \
+	.size	CNAME(__CONCAT(__sys_,x)), . - CNAME(__CONCAT(__sys_,x)) ; \
+	.size	CNAME(__CONCAT(_,x)), . - CNAME(__CONCAT(__sys_,x)) ; \
+	.size	CNAME(__CONCAT(,x)), . - CNAME(__CONCAT(__sys_,x))
 
 #define	_SYSCALL(x) \
 	mov	__CONCAT(SYS_,x), %g1 ; \
@@ -63,20 +70,21 @@ ENTRY(__CONCAT(__sys_,x)) ; \
 	ERROR() ; \
 1:
 
-#define	SYSCALL(x) \
-_SYSENTRY(x) ; \
-	_SYSCALL(x)
-
 #define	RSYSCALL(x) \
-	SYSCALL(x) ; \
+_SYSENTRY(x) ; \
+	_SYSCALL(x) ; \
 	retl ; \
-	 nop
+	 nop ; \
+	_SYSEND(x)
 
 #define	PSEUDO(x) \
 ENTRY(__CONCAT(__sys_,x)) ; \
 	.weak	CNAME(__CONCAT(_,x)) ; \
+	.type	CNAME(__CONCAT(_,x)),@function ; \
 	.set	CNAME(__CONCAT(_,x)),CNAME(__CONCAT(__sys_,x)) ; \
 	mov	__CONCAT(SYS_,x), %g1 ; \
 	ta	%xcc, ST_SYSCALL ; \
 	retl ; \
-	 nop
+	 nop ; \
+	.size	CNAME(__CONCAT(__sys_,x)), . - CNAME(__CONCAT(__sys_,x)) ; \
+	.size	CNAME(__CONCAT(_,x)), . - CNAME(__CONCAT(__sys_,x))
