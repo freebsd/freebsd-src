@@ -27,9 +27,10 @@ __FBSDID("$FreeBSD$");
 #include "lib.h"
 #include "add.h"
 
-static char Options[] = "hvIRfnrp:SMt:";
+static char Options[] = "hvIRfnrp:SMt:C:";
 
 char	*Prefix		= NULL;
+char	*Chroot		= NULL;
 Boolean	NoInstall	= FALSE;
 Boolean	NoRecord	= FALSE;
 Boolean Remote		= FALSE;
@@ -129,6 +130,10 @@ main(int argc, char **argv)
 	    AddMode = MASTER;
 	    break;
 
+	case 'C':
+	    Chroot = optarg;
+	    break;
+
 	case 'h':
 	case '?':
 	default:
@@ -210,6 +215,11 @@ main(int argc, char **argv)
 	warnx("only one package name may be specified with master mode");
 	usage();
     }
+    /* Perform chroot if requested */
+    if (Chroot != NULL) {
+	if (chroot(Chroot))
+	    errx(1, "chroot to %s failed", Chroot);
+    }
     /* Make sure the sub-execs we invoke get found */
     setenv("PATH", 
 	   "/sbin:/usr/sbin:/bin:/usr/bin:/usr/X11R6/bin",
@@ -280,7 +290,7 @@ static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n",
-		"usage: pkg_add [-vInrfRMS] [-t template] [-p prefix]",
-		"               pkg-name [pkg-name ...]");
+	"usage: pkg_add [-vInrfRMS] [-t template] [-p prefix] [-C chrootdir]",
+	"               pkg-name [pkg-name ...]");
     exit(1);
 }

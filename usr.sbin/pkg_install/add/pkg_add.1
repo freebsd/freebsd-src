@@ -28,6 +28,7 @@
 .Op Fl vInfrRMS
 .Op Fl t Ar template
 .Op Fl p Ar prefix
+.Op Fl C Ar chrootdir
 .Ar pkg-name Op Ar pkg-name ...
 .Sh DESCRIPTION
 The
@@ -188,6 +189,31 @@ in the staging area, the location of which is read as a string
 from stdin.
 The complete packing list is also read from stdin,
 and the contents then acted on as normal.
+.It Fl C Ar chrootdir
+Before doing any operations
+.Xr chroot 2
+to the
+.Ar chrootdir
+directory so that all package files, and the package database, are
+installed to
+.Ar chrootdir .
+Note that
+.Ar chrootdir
+needs to be a fairly complete file system, including everything normally
+needed by
+.Xr pkg_add 8
+to run.
+This flag was added to help support operations done by
+.Xr sysinstall 8
+and is not expected to be useful for much else.
+Be careful that
+.Ar chrootdir
+is properly configured and can not be modified by normal users,
+versions of commands like
+.Xr fetch 1
+may be run inside
+.Ar chrootdir
+as a side-effect.
 .El
 .Pp
 One or more
