@@ -307,6 +307,9 @@ struct thread {
 	sigset_t	td_oldsigmask;	/* (c) Saved mask from pre sigpause. */
 	sigset_t	td_sigmask;	/* (c) Current signal mask. */
 	sigset_t	td_siglist;	/* (c) Sigs arrived, not delivered. */
+	STAILQ_HEAD(, thread) td_umtxq;	/* (p) List of threads blocked by us. */
+	STAILQ_ENTRY(thread) td_umtx;	/* (p) Link for when we're blocked. */
+
 #define	td_endzero td_base_pri
 
 /* Copied during fork1() or thread_sched_upcall() */
@@ -948,6 +951,7 @@ void	upcall_stash(struct kse_upcall *ke);
 void	thread_sanity_check(struct thread *td, char *);
 void	thread_stopped(struct proc *p);
 void	thread_switchout(struct thread *td);
+void	thr_exit1(void);
 #endif	/* _KERNEL */
 
 #endif	/* !_SYS_PROC_H_ */
