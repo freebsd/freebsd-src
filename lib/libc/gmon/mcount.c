@@ -37,6 +37,9 @@ static char sccsid[] = "@(#)mcount.c	8.1 (Berkeley) 6/4/93";
 
 #include <sys/param.h>
 #include <sys/gmon.h>
+#ifdef KERNEL
+#include <i386/include/cpufunc.h>
+#endif
 
 /*
  * mcount is called on entry to each function compiled with the profiling
@@ -62,6 +65,7 @@ _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
 	register long toindex;
 #ifdef KERNEL
 	register int s;
+	u_long save_eflags;
 #endif
 
 	p = &_gmonparam;
