@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.31 1995/04/12 20:47:34 wollman Exp $
+ *      $Id: aha1742.c,v 1.32 1995/05/09 12:25:50 rgrimes Exp $
  */
 
 #include <sys/types.h>
@@ -996,7 +996,7 @@ ahb_scsi_cmd(xs)
 		return (TRY_AGAIN_LATER);
 	}
 	cheat = ecb;
-	SC_DEBUG(xs->sc_link, SDEV_DB3, ("start ecb(%x)\n", ecb));
+	SC_DEBUG(xs->sc_link, SDEV_DB3, ("start ecb(%p)\n", ecb));
 	ecb->xs = xs;
 	/*
 	 * If it's a reset, we need to do an 'immediate'
@@ -1073,7 +1073,7 @@ ahb_scsi_cmd(xs)
 			 */
 
 			SC_DEBUG(xs->sc_link, SDEV_DB4,
-			    ("%d @0x%x:- ", xs->datalen, xs->data));
+			    ("%ld @%p:- ", xs->datalen, xs->data));
 			datalen = xs->datalen;
 			thiskv = (int) xs->data;
 			thisphys = KVTOPHYS(thiskv);
@@ -1084,7 +1084,8 @@ ahb_scsi_cmd(xs)
 				/* put in the base address */
 				sg->addr = thisphys;
 
-				SC_DEBUGN(xs->sc_link, SDEV_DB4, ("0x%x", thisphys));
+				SC_DEBUGN(xs->sc_link, SDEV_DB4, ("0x%lx",
+					thisphys));
 
 				/* do it at least once */
 				nextphys = thisphys;

@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.30 1995/04/12 20:48:09 wollman Exp $
+ *      $Id: ultra14f.c,v 1.31 1995/05/07 06:54:01 bde Exp $
  */
 
 #include <sys/types.h>
@@ -1103,7 +1103,7 @@ uha_scsi_cmd(xs)
 		return (TRY_AGAIN_LATER);
 	}
 	cheat = mscp;
-	SC_DEBUG(xs->sc_link, SDEV_DB3, ("start mscp(%x)\n", mscp));
+	SC_DEBUG(xs->sc_link, SDEV_DB3, ("start mscp(%p)\n", mscp));
 	mscp->xs = xs;
 
 	/*
@@ -1186,7 +1186,7 @@ uha_scsi_cmd(xs)
 			 */
 
 			SC_DEBUG(xs->sc_link, SDEV_DB4,
-			    ("%d @0x%x:- ", xs->datalen, xs->data));
+			    ("%ld @%p:- ", xs->datalen, xs->data));
 			datalen = xs->datalen;
 			thiskv = (int) xs->data;
 			thisphys = KVTOPHYS(thiskv);
@@ -1201,7 +1201,8 @@ uha_scsi_cmd(xs)
 				sg->addr.addr[2] = ((thisphys >> 16) & 0xff);
 				sg->addr.addr[3] = ((thisphys >> 24) & 0xff);
 
-				SC_DEBUGN(xs->sc_link, SDEV_DB4, ("0x%x", thisphys));
+				SC_DEBUGN(xs->sc_link, SDEV_DB4, ("0x%lx",
+					thisphys));
 
 				/* do it at least once */
 				nextphys = thisphys;

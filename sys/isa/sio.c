@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.96 1995/04/23 12:41:57 bde Exp $
+ *	$Id: sio.c,v 1.97 1995/05/07 23:00:02 ache Exp $
  */
 
 #include "sio.h"
@@ -2329,7 +2329,7 @@ LoadSoftModem(int unit, int base_io, u_long size, u_char *ptr)
 
     return 0;
 error:
-    printf("sio%d: DSI SoftModem microcode load failed: <%s>\n",ptr);
+    printf("sio%d: DSI SoftModem microcode load failed: <%s>\n",unit,ptr);
     outb(base_io+7,0x00); \
     outb(base_io+3,data_0187); \
     outb(base_io+4,data_0188);  \

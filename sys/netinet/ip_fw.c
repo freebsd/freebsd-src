@@ -55,10 +55,10 @@
 #endif
 
 
-#define print_ip(a)	 printf("%d.%d.%d.%d",(ntohl(a.s_addr)>>24)&0xFF,\
-					      (ntohl(a.s_addr)>>16)&0xFF,\
-					      (ntohl(a.s_addr)>>8)&0xFF,\
-					      (ntohl(a.s_addr))&0xFF);
+#define print_ip(a)	 printf("%ld.%ld.%ld.%ld",(ntohl(a.s_addr)>>24)&0xFF,\
+				 		  (ntohl(a.s_addr)>>16)&0xFF,\
+						  (ntohl(a.s_addr)>>8)&0xFF,\
+						  (ntohl(a.s_addr))&0xFF);
 
 #ifdef IPFIREWALL_DEBUG
 #define dprint_ip(a)	print_ip(a)

@@ -1,6 +1,6 @@
-static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.4 1995/02/16 08:06:21 jkh Exp $";
+static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.5 1995/03/28 07:54:33 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.4 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.5 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,11 @@ static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.4 1995/02/16 08:06:21 jkh E
  *
  *******************************************************************************
  * $Log: nic3009.c,v $
+ * Revision 1.5  1995/03/28  07:54:33  bde
+ * Add and move declarations to fix all of the warnings from `gcc -Wimplicit'
+ * (except in netccitt, netiso and netns) that I didn't notice when I fixed
+ * "all" such warnings before.
+ *
  * Revision 1.4  1995/02/16  08:06:21  jkh
  * Fix a few bogons introduced when config lost the 3 char limitation.
  *
@@ -144,7 +149,8 @@ nnicprobe(struct isa_device * is)
 	for (i=0;i<DPR_LEN;i++)
 		if (w[i] != ((i+0xaf) & 0xff))
 		{
-			printf("Niccy card not found or bad memory %x\n",is->id_maddr);
+			printf("Niccy card not found or bad memory %p\n",
+				is->id_maddr);
 			outb(sc->sc_port, 0);
 			return(0);
 		}

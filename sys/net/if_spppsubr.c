@@ -741,14 +741,15 @@ void sppp_cisco_input (struct sppp *sp, struct mbuf *m)
 	}
 	h = mtod (m, struct cisco_packet*);
 	if (ifp->if_flags & IFF_DEBUG)
-		printf ("%s%d: cisco input: %d bytes <%xh %xh %xh %xh %xh-%xh>\n",
+		printf ("%s%d: cisco input: %d bytes "
+			"<%lxh %lxh %lxh %xh %xh-%xh>\n",
 			ifp->if_name, ifp->if_unit, m->m_pkthdr.len,
 			ntohl (h->type), h->par1, h->par2, h->rel,
 			h->time0, h->time1);
 	switch (ntohl (h->type)) {
 	default:
 		if (ifp->if_flags & IFF_DEBUG)
-			printf ("%s%d: unknown cisco packet type: 0x%x\n",
+			printf ("%s%d: unknown cisco packet type: 0x%lx\n",
 				ifp->if_name, ifp->if_unit, ntohl (h->type));
 		break;
 	case CISCO_ADDR_REPLY:
@@ -872,7 +873,7 @@ void sppp_cisco_send (struct sppp *sp, int type, long par1, long par2)
 	ch->time1 = htons ((unsigned short) t);
 
 	if (ifp->if_flags & IFF_DEBUG)
-		printf ("%s%d: cisco output: <%xh %xh %xh %xh %xh-%xh>\n",
+		printf ("%s%d: cisco output: <%lxh %lxh %lxh %xh %xh-%xh>\n",
 			ifp->if_name, ifp->if_unit, ntohl (ch->type), ch->par1,
 			ch->par2, ch->rel, ch->time0, ch->time1);
 

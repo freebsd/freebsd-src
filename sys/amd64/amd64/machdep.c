@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.123 1995/05/11 00:12:54 wollman Exp $
+ *	$Id: machdep.c,v 1.124 1995/05/11 00:16:36 wollman Exp $
  */
 
 #include "npx.h"
@@ -532,7 +532,7 @@ identifycpu()
 		printf("  Id = 0x%lx",cpu_id);
 
 	if (!strcmp(cpu_vendor, "GenuineIntel")) {
-		printf("  Stepping=%d", cpu_id & 0xf);
+		printf("  Stepping=%ld", cpu_id & 0xf);
 		if (cpu_high > 0) {
 #define FEATUREFMT "\020\001FPU\002VME\003PSE\004MCE\005CX8\006APIC"
 			printf("\n  Features=0x%b", cpu_feature, FEATUREFMT);
@@ -1361,10 +1361,10 @@ init386(first)
 	 */
 	if (bootinfo.bi_memsizes_valid) {
 		if (bootinfo.bi_basemem != biosbasemem)
-			printf("BIOS basemem (%dK) != RTC basemem (%dK)\n",
+			printf("BIOS basemem (%ldK) != RTC basemem (%dK)\n",
 			       bootinfo.bi_basemem, biosbasemem);
 		if (bootinfo.bi_extmem != biosextmem)
-			printf("BIOS extmem (%dK) != RTC extmem (%dK)\n",
+			printf("BIOS extmem (%ldK) != RTC extmem (%dK)\n",
 			       bootinfo.bi_extmem, biosextmem);
 	}
 
