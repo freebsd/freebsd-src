@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*
  * Copyright (C) 1984-2000  Mark Nudelman
  *
@@ -22,7 +23,7 @@
 #if HAVE_POSIX_REGCOMP
 #include <regex.h>
 #ifdef REG_EXTENDED
-#define	REGCOMP_FLAG	REG_EXTENDED
+#define	REGCOMP_FLAG	(more_mode ? 0 : REG_EXTENDED)
 #else
 #define	REGCOMP_FLAG	0
 #endif
@@ -52,6 +53,7 @@ extern int linenums;
 extern int sc_height;
 extern int jump_sline;
 extern int bs_mode;
+extern int more_mode;
 extern POSITION start_attnpos;
 extern POSITION end_attnpos;
 #if HILITE_SEARCH
