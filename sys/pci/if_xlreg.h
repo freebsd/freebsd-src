@@ -458,6 +458,7 @@ struct xl_list_data {
 	u_int32_t		xl_rx_dmaaddr;
 	bus_dma_tag_t		xl_rx_tag;
 	bus_dmamap_t		xl_rx_dmamap;
+	u_int32_t		xl_tx_dmaaddr;
 	bus_dma_tag_t		xl_tx_tag;
 	bus_dmamap_t		xl_tx_dmamap;
 };
