@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.51.2.8 1997/12/28 16:49:37 alex Exp $
+ *	$Id: ip_fw.c,v 1.51.2.9 1998/01/05 00:11:16 alex Exp $
  */
 
 /*
@@ -155,8 +155,8 @@ icmptype_match(struct icmp *icmp, struct ip_fw *f)
 
 	/* check for matching type in the bitmap */
 	if (type < IP_FW_ICMPTYPES_DIM * sizeof(unsigned) * 8 &&
-		f->fw_icmptypes[type / (sizeof(unsigned) * 8)] & 
-		(1U << (type % (8 * sizeof(unsigned)))))
+		(f->fw_icmptypes[type / (sizeof(unsigned) * 8)] & 
+		(1U << (type % (8 * sizeof(unsigned))))))
 		return(1);
 
 	return(0); /* no match */
