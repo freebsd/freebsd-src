@@ -572,6 +572,10 @@ nodisks:
 	variable_set2("gateway_enable", "YES", 1);
 
     dialog_clear_norefresh();
+    if (!msgNoYes("Do you want to configure inetd and simple internet services?"))
+        configInetd(self);
+
+    dialog_clear_norefresh();
     if (!msgNoYes("Do you want to have anonymous FTP access to this machine?"))
 	configAnonFTP(self);
 
