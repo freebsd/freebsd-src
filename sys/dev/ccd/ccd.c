@@ -372,8 +372,11 @@ ccd_modevent(module_t mod, int type, void *data)
 		error = EOPNOTSUPP;
 		break;
 
-	default:	/* MOD_SHUTDOWN etc */
+	case MOD_SHUTDOWN:
 		break;
+
+	default:
+		error = EOPNOTSUPP;
 	}
 	return (error);
 }
