@@ -505,6 +505,11 @@ To prevent some forms of DOS attacks, glob(3) allows specification of
 a limit on the number of pathname matches it will return.  ftpd(8) now
 uses this feature.  [MERGED]
 
+A security hole in FreeBSD's FFS and EXT2FS implementations, which
+allowed a race condition that could cause users to have unauthorized
+access to data, has been fixed (see security advisory
+FreeBSD-SA-01:30). [MERGED]
+
 
 1.3. USERLAND CHANGES
 ---------------------
@@ -738,6 +743,15 @@ libisc. [MERGED]
 
 The "in use" percentage metric displayed by netstat(1) now really
 reflects the percentage of network mbufs used. [MERGED]
+
+netstat(1) now has a -W flag that tells it not to truncate addresses,
+even if they're too long for the column they're printed in. [MERGED]
+
+netstat(1) now keeps track of input and output packets on a
+per-address basis for each interface. [MERGED]
+
+sockstat(1) now has -c and -l flags for listing connected and
+listening sockets, respectively. [MERGED]
 
 mergemaster(8) has gained some new features, has been cleaned up
 somewhat, and is now more cross-platform friendly.
@@ -996,9 +1010,6 @@ The ISC DHCP client has been updated to 2.0pl5. [MERGED]
 split(1) now has the ability to split a file longer than 2GB. [MERGED]
 
 units(1) has received some updates and bugfixes. [MERGED]
-
-netstat(1) now keeps track of input and output packets on a
-per-address basis for each interface. [MERGED]
 
 As part of an ongoing process, many manual pages were improved, both
 in terms of their formatting markup and in their content. [MERGED]
