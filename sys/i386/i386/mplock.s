@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: mplock.s,v 1.1 1997/05/03 19:00:42 smp Exp smp $
+ * $Id: mplock.s,v 1.2 1997/05/03 19:24:16 fsmp Exp $
  *
  * Functions for locking between CPUs in a SMP system.
  *
@@ -22,7 +22,6 @@
  */
 
 #include "opt_ddb.h"
-#include "opt_smp.h"
 #include "assym.s"			/* system definitions */
 #include <machine/specialreg.h>		/* x86 special registers */
 #include <machine/asmacros.h>		/* miscellaneous asm macros */

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.142 1997/04/26 11:45:19 peter Exp $
+ *	$Id: pmap.c,v 1.143 1997/04/27 12:11:43 peter Exp $
  */
 
 /*
@@ -68,7 +68,6 @@
  *	and to when physical maps must be made correct.
  */
 
-#include "opt_smp.h"
 #include "opt_cpu.h"
 
 #define PMAP_LOCK 1
