@@ -286,7 +286,7 @@ ntfs_mountfs(devvp, mp, argsp, td)
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	DROP_GIANT();
 	g_topology_lock();
-	error = g_vfs_open(devvp, &cp, "ffs", ronly ? 0 : 1);
+	error = g_vfs_open(devvp, &cp, "ntfs", ronly ? 0 : 1);
 	g_topology_unlock();
 	PICKUP_GIANT();
 	VOP_UNLOCK(devvp, 0, td);
@@ -453,7 +453,11 @@ out:
 	if (bp)
 		brelse(bp);
 
-	(void)VOP_CLOSE(devvp, ronly ? FREAD : FREAD|FWRITE, NOCRED, td);
+	DROP_GIANT();
+	g_topology_lock();
+	g_wither_geom_close(cp->geom, ENXIO);
+	g_topology_unlock();
+	PICKUP_GIANT();
 	
 	return (error);
 }
