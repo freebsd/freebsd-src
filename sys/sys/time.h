@@ -190,8 +190,8 @@ extern time_t	time_second;
 
 void	getmicrouptime __P((struct timeval *tv));
 void	getmicrotime __P((struct timeval *tv));
-void	getnanouptime __P((struct timespec *tv));
-void	getnanotime __P((struct timespec *tv));
+void	getnanouptime __P((struct timespec *tsp));
+void	getnanotime __P((struct timespec *tsp));
 int	itimerdecr __P((struct itimerval *itp, int usec));
 int	itimerfix __P((struct timeval *tv));
 void	microuptime __P((struct timeval *tv));
