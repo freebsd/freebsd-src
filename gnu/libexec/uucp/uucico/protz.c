@@ -8,7 +8,7 @@
  * Ian Taylor's UUCP package.
  *
  * It was originally developed to establish a uucp link between myself and my
- * employer: Ivation Datasystems, Inc. of Ottawa.
+ * employer: Ivation Datasystems, Inc. of Ottawa. 
  *
  * My thanks to Ivation for letting me release this to the public. Given that
  * Zmodem is in the public domain, no additional copyrights have been added.
@@ -139,7 +139,7 @@
  *	ZDATA (ZCRCG, xx bytes) - received ok
  *	ZDATA (ZCRCF, 0 bytes)  - corrupted
  *
- *    At this point the receiver would like to send back a ZRPOS with a value
+ *    At this point the receiver would like to send back a ZRPOS with a value 
  *    of the size of the file. However, it can't because the value is divided
  *    by 32, and it would have to round up to the next multiple of 32. This
  *    seemed a little ugly, so I went with using the entire header to store
@@ -148,7 +148,7 @@
  *****************************************************************************
  *
  * Source version:
- *
+ * 
  * 1.1,2,3
  *	Protocol version 0
  *	Early attempts, completely rewritten later.
@@ -181,7 +181,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char protz_rcsid[] = "$Id: protz.c,v 1.2 1994/05/07 18:13:52 ache Exp $";
+const char protz_rcsid[] = "$Id: protz.c,v 1.8 1993/12/20 00:44:49 ian Rel $";
 #endif
 
 #include <errno.h>
@@ -1397,14 +1397,14 @@ static unsigned long crc_32_tab[] = { /* CRC polynomial 0xedb88320 */
 };
 
 /*
- * updcrc macro derived from article Copyright (C) 1986 Stephen Satchell.
+ * updcrc macro derived from article Copyright (C) 1986 Stephen Satchell. 
  *  NOTE: First argument must be in range 0 to 255.
  *        Second argument is referenced twice.
- *
- * Programmers may incorporate any or all code into their programs,
- * giving proper credit within the source. Publication of the
- * source routines is permitted so long as proper credit is given
- * to Stephen Satchell, Satchell Evaluations and Chuck Forsberg,
+ * 
+ * Programmers may incorporate any or all code into their programs, 
+ * giving proper credit within the source. Publication of the 
+ * source routines is permitted so long as proper credit is given 
+ * to Stephen Satchell, Satchell Evaluations and Chuck Forsberg, 
  * Omen Technology.
  */
 

@@ -1,7 +1,7 @@
 /* uucp.h
    Header file for the UUCP package.
 
-   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -17,10 +17,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 /* Get the system configuration parameters.  */
@@ -78,10 +78,7 @@
 typedef SIG_ATOMIC_T sig_atomic_t;
 #endif /* ! HAVE_SIG_ATOMIC_T_IN_SIGNAL_H && ! HAVE_SIG_ATOMIC_T_IN_TYPES_H */
 
-/* Make sure we have size_t.  We use int as the default because the
-   main use of this type is to provide an argument to malloc and
-   realloc.  On a system which does not define size_t, int is
-   certainly the correct type to use.  */
+/* Make sure we have size_t.  */
 #if ! HAVE_SIZE_T_IN_STDDEF_H && ! HAVE_SIZE_T_IN_TYPES_H
 #ifndef SIZE_T
 #define SIZE_T unsigned
@@ -220,8 +217,8 @@ typedef FILE *openfile_t;
 #define ffileisopen(e) ((e) != NULL)
 #define ffileeof(e) feof (e)
 #define cfileread(e, z, c) fread ((z), 1, (c), (e))
-#define ffilereaderror(e, c) ferror (e)
 #define cfilewrite(e, z, c) fwrite ((z), 1, (c), (e))
+#define ffileioerror(e, c) ferror (e)
 #ifdef SEEK_SET
 #define ffileseek(e, i) (fseek ((e), (long) (i), SEEK_SET) == 0)
 #define ffilerewind(e) (fseek ((e), (long) 0, SEEK_SET) == 0)
@@ -236,10 +233,23 @@ typedef FILE *openfile_t;
 #endif
 #define ffileclose(e) (fclose (e) == 0)
 
+#define fstdiosync(e, z) (fsysdep_sync (e, z))
+
 #else /* ! USE_STDIO */
+
+#if ! USE_TYPES_H
+#undef USE_TYPES_H
+#define USE_TYPES_H 1
+#include <sys/types.h>
+#endif
 
 #if HAVE_UNISTD_H
 #include <unistd.h>
+#endif
+
+#ifdef OFF_T
+typedef OFF_T off_t;
+#undef OFF_T
 #endif
 
 typedef int openfile_t;
@@ -247,21 +257,23 @@ typedef int openfile_t;
 #define ffileisopen(e) ((e) >= 0)
 #define ffileeof(e) (FALSE)
 #define cfileread(e, z, c) read ((e), (z), (c))
-#define ffilereaderror(e, c) ((c) < 0)
 #define cfilewrite(e, z, c) write ((e), (z), (c))
+#define ffileioerror(e, c) ((c) < 0)
 #ifdef SEEK_SET
-#define ffileseek(e, i) (lseek ((e), (long) i, SEEK_SET) >= 0)
-#define ffilerewind(e) (lseek ((e), (long) 0, SEEK_SET) >= 0)
+#define ffileseek(e, i) (lseek ((e), (off_t) i, SEEK_SET) >= 0)
+#define ffilerewind(e) (lseek ((e), (off_t) 0, SEEK_SET) >= 0)
 #else
-#define ffileseek(e, i) (lseek ((e), (long) i, 0) >= 0)
-#define ffilerewind(e) (lseek ((e), (long) 0, 0) >= 0)
+#define ffileseek(e, i) (lseek ((e), (off_t) i, 0) >= 0)
+#define ffilerewind(e) (lseek ((e), (off_t) 0, 0) >= 0)
 #endif
 #ifdef SEEK_END
-#define ffileseekend(e) (lseek ((e), (long) 0, SEEK_END) >= 0)
+#define ffileseekend(e) (lseek ((e), (off_t) 0, SEEK_END) >= 0)
 #else
-#define ffileseekend(e) (lseek ((e), (long) 0, 2) >= 0)
+#define ffileseekend(e) (lseek ((e), (off_t) 0, 2) >= 0)
 #endif
 #define ffileclose(e) (close (e) >= 0)
+
+#define fstdiosync(e, z) (fsysdep_sync (fileno (e), z))
 
 #endif /* ! USE_STDIO */
 

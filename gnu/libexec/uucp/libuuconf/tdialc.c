@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU Library General Public
    License along with this library; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_tdialc_rcsid[] = "$Id: tdialc.c,v 1.2 1994/05/07 18:13:02 ache Exp $";
+const char _uuconf_tdialc_rcsid[] = "$Id: tdialc.c,v 1.6 1995/06/21 19:24:29 ian Rel $";
 #endif
 
 static int idchat P((pointer pglobal, int argc, char **argv, pointer pvar,
@@ -157,7 +157,7 @@ iddtr_toggle (pglobal, argc, argv, pvar, pinfo)
    string into a trivial chat script.  */
 
 /*ARGSUSED*/
-static int
+static int 
 idcomplete (pglobal, argc, argv, pvar, pinfo)
      pointer pglobal;
      int argc;
@@ -192,7 +192,7 @@ idproto_param (pglobal, argc, argv, pvar, pinfo)
   struct uuconf_proto_param **pqparam = (struct uuconf_proto_param **) pvar;
   struct uuconf_dialer *qdialer = (struct uuconf_dialer *) pinfo;
 
-  return _uuconf_iadd_proto_param (qglobal, argc - 1, argv + 1, pqparam,
+  return _uuconf_iadd_proto_param (qglobal, argc - 1, argv + 1, pqparam, 
 				   qdialer->uuconf_palloc);
 }
 

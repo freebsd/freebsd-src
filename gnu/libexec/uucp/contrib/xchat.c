@@ -21,7 +21,7 @@
  *            for timed reads. Use Taylor UUCP "conf.h" file to set
  *            configuration for this program. Add defaulting of script
  *            and log file paths.
- *
+ *   
  *   Daniel Hagerty - Mon Nov 22 18:17:38 1993
  *     V1.2 - Added a new opcode to xchat. "expectstr" is a cross between
  *            sendstr and expect, looking for a parameter supplied string.
@@ -43,7 +43,7 @@
 
 #include "xc-conf.h"
 
-/*
+/* 
  * Pick a timing routine to use, as done in Taylor UUCP.
  */
 #if HAVE_USLEEP || HAVE_NAP || HAVE_NAPMS || HAVE_POLL
@@ -279,7 +279,7 @@ extern void *malloc();
  * arguments in argc/argv, and stdin/stdout mapped to the
  * tty device, and stderr mapped to the Taylor logfile, where
  * anything written to stdout will be logged as an error.
- *
+ * 
  */
 int main(argc, argv)
 int argc;
@@ -312,7 +312,7 @@ char *argv[];
 
   /*
    * If the script file argument begins with '/', then we assume
-   * it is an absolute pathname, otherwise, we prepend the
+   * it is an absolute pathname, otherwise, we prepend the 
    * SCRIPT_DIR path.
    */
   *sfname = '\0';		/* Empty name string */
@@ -375,7 +375,7 @@ char *argv[];
   exit(stat);
 }
 
-/*
+/* 
  * deal_script - deallocate a script and all strings it points to
  */
 int deal_script(loc)
@@ -386,34 +386,34 @@ struct script *loc;
    */
   if (loc == (struct script *)NULL)
     return SUCCESS;
-
+  
   /*
    * Deallocate the rest of the script
    */
   deal_script(loc->next);
-
+  
   /*
    * Deallocate the string parameter, if any
    */
   if (loc->strprm != (char *)NULL)
     free(loc->strprm);
-
+  
   /*
    * Deallocate the new state name parameter, if any
    */
   if (loc->newstate != (char *)NULL)
     free(loc->newstate);
-
+  
   /*
    * Deallocate this entry
    */
   free(loc);
-
+  
   return SUCCESS;
 }
 
 
-/*
+/* 
  * read_script
  *
  * Read & compile a script, return pointer to first entry, or null if bad
@@ -428,10 +428,10 @@ struct script *read_script(fd)
   char inpline[MAX_SCLINE];
   char inpcopy[MAX_SCLINE];
   char *c, *cln, *opc, *cp;
-
+  
   /*
    * MAIN COMPILATION LOOP
-   */
+   */  
   while ((c = fgets(inpline, (sizeof inpline - 1), fd)) != (char *)NULL)
     {
       /*
@@ -439,13 +439,13 @@ struct script *read_script(fd)
        */
       if (*c == '#' || *c == '\n')
 	continue;
-
-      /*
+      
+      /* 
        * Get rid of the trailing newline, and copy the string
        */
       inpline[strlen(inpline)-1] = '\0';
       strcpy(inpcopy, inpline);
-
+      
       /*
        * Look for text starting in the first col (a label)
        */
@@ -467,7 +467,7 @@ struct script *read_script(fd)
 	this->newstate = (char *)NULL;
 	c = cln + 1;
       }
-
+      
       /*
        * Now handle the opcode. Fold it to lower case.
        */
@@ -477,14 +477,14 @@ struct script *read_script(fd)
       cp = opc;
       while(*cp)
 	tolower(*cp++);
-
-      /*
+      
+      /* 
        * If we have an opcode but we haven't seen anything
        * else (like a label) yet, i.e., this is the first
-       * entry, and there was no label.  We need to
+       * entry, and there was no label.  We need to 
        * cobble up a label so that read_script is happy
        */
-      if (first == (struct script *)NULL)
+      if (first == (struct script *)NULL) 
 	{
 	  this = (struct script *)malloc (sizeof (struct script));
 	  prev = this;
@@ -496,12 +496,12 @@ struct script *read_script(fd)
 	  this->intprm = 0;
 	  this->newstate = (char *)NULL;
 	}
-
-      /*
+      
+      /* 
        * Find opcode - ndex through the opcode definition table
        */
       for (i=1; sc_opdef[i].opcode != SC_END; i++)
-	if (strcmp(opc, sc_opdef[i].opname) == SAME)
+	if (strcmp(opc, sc_opdef[i].opname) == SAME) 
 	  break;
       if ((sc_opdef[i].opcode) == SC_END)
 	{
@@ -509,7 +509,7 @@ struct script *read_script(fd)
 	  deal_script(first);
 	  return (struct script *)NULL;
         }
-
+      
       /*
        * Found opcode. Allocate a new command node and initialize
        */
@@ -521,8 +521,8 @@ struct script *read_script(fd)
       this->strprm = (char *)NULL;
       this->intprm = 0;
       this->newstate = (char *)NULL;
-
-      /*
+      
+      /* 
        * Pick up new state parameter, if any
        */
       if (sc_opdef[i].newstate == SC_NWST)
@@ -540,7 +540,7 @@ struct script *read_script(fd)
 	      strcpy(this->newstate, c);
 	    }
 	}
-
+      
       /*
        * Pick up the string or integer parameter. Handle missing
        * parameter gracefully.
@@ -572,8 +572,8 @@ struct script *read_script(fd)
 	/*
 	 * STR/XSTR strings.
 	 */
-	case SC_STR:
-	case SC_XSTR:
+	case SC_STR:		
+	case SC_XSTR:		
 	  c = strtok((char *)NULL, CTL_DELIM);
 	  if (c == (char *)NULL)
 	    {
@@ -597,9 +597,9 @@ struct script *read_script(fd)
 
 	  /*
 	   * For XSTR, Translate the string and store its
-	   * length. Note that, after escape sequences are
-	   * compressed, the resulting string may well be a
-	   * few bytes shorter than the input string (whose
+	   * length. Note that, after escape sequences are 
+	   * compressed, the resulting string may well be a 
+	   * few bytes shorter than the input string (whose 
 	   * length was the basis for the malloc above),
 	   * but it will never be longer.
 	   */
@@ -611,10 +611,10 @@ struct script *read_script(fd)
 	  else
 	    strcpy(this->strprm, c);
 	  break;
-
+	  
 	}
     }
-
+  
   /*
    * EOF
    */
@@ -630,23 +630,23 @@ struct script *read_script(fd)
  * Called by read_script(), above.
  *
  * Returns the actual length of the resulting string.  Note that imbedded
- * nulls (specified by \000 in the input) ARE allowed in the result.
+ * nulls (specified by \000 in the input) ARE allowed in the result.  
  */
 xlat_str(out, in)
      char *out, *in;
 {
   register int i = 0, j = 0;
   int byte, k;
-
-  while (in[i])
+  
+  while (in[i]) 
     {
-      if (in[i] != '\\')
+      if (in[i] != '\\') 
 	{
 	  out[j++] = in[i++];
 	}
-      else
+      else 
 	{
-	  switch (in[++i])
+	  switch (in[++i]) 
 	    {
 	    case 'd':		/* EOT */
 	      out[j++] = 0x04;
@@ -682,11 +682,11 @@ xlat_str(out, in)
 	    case '7':
 	      byte = in[i] - '0';
 	      k = 0;
-
-	      while (3 > ++k)
+	      
+	      while (3 > ++k)	
 		if ((in[i+1] < '0') || (in[i+1] > '7'))
 		  break;
-		else
+		else 
 		  {
 		    byte = (byte<<3) + in[i+1] - '0';
 		    ++i;
@@ -698,7 +698,7 @@ xlat_str(out, in)
 	    }
 	  ++i;
 	}
-    }
+    } 
   return j;
 }
 
@@ -711,9 +711,9 @@ struct script *begin;
 char *newstate;
 {
   struct script *here;
-
+  
   for (here=begin; here != (struct script *)NULL; here=here->next) {
-    if (here->opcode == SC_LABEL &&
+    if (here->opcode == SC_LABEL && 
 	strcmp(here->strprm, newstate) == SAME)
       return here;
   }
@@ -721,8 +721,8 @@ char *newstate;
 }
 
 
-/*
- * do_script() - execute a script
+/* 
+ * do_script() - execute a script 
  */
 int do_script(begin)
      struct script *begin;
@@ -734,7 +734,7 @@ int do_script(begin)
   char	*c, chr;
   int	 prmlen;
   int    dbfd;
-
+  
   time_t sc_carrtime = 45000;	/* time to wf carr after dial */
   time_t sc_chrdly   = 100;	/* delay time for ttoslow */
   time_t sc_ptime    = 2000;	/* time to allow for pause char */
@@ -746,118 +746,118 @@ int do_script(begin)
   char   sc_wchar    = 'W';	/* modem wait-for-dialtone character */
   time_t sc_begwait;		/* time at beg of wait */
   time_t sc_secs;		/* timeout period */
-
+  
   int    expcnt;
   int    expin;
   static char expbuf[MAX_EXPCT];
-
+  
   dbgsave = Debug;
   curstate = begin;
-
-  if (curstate == (struct script *)NULL)
+  
+  if (curstate == (struct script *)NULL) 
     return SUCCESS;
-
+  
   _newstate:
-  /*
+  /* 
    * do all of curstate's actions.  Enter with curstate pointing
    * to a label entry
    */
   expin = 0;
-
+  
   for (curscr = curstate->next; /* point to 1st scr after label */
        (curscr != (struct script *)NULL) &&  /* do until end of scr */
        (curscr->opcode != SC_LABEL);		/* or next label */
-       curscr = curscr->next)
+       curscr = curscr->next) 
     {
       expcnt = 0;
-      switch (curscr->opcode)
+      switch (curscr->opcode) 
 	{
 	case SC_LABEL:
 	  logit("Script proc err", curstate->strprm);
 	  return FAIL;
-
+	  
 	case SC_FLSH:
 	  DEBUG(DB_LGII, "Flushing typeahead buffer\n", 0);
 	  ttflui();
 	  break;
-
+	  
 	case SC_CDLY:
 	  sc_chrdly = curscr->intprm;
 	  DEBUG(DB_LGII, "Set chrdly to %d\n", sc_chrdly);
 	  break;
-
+	  
 	case SC_PCHR:
 	  sc_pchar = *(curscr->strprm);
 	  DEBUG(DB_LGII, "Set pause char to %c\n", sc_pchar);
 	  break;
-
+	  
 	case SC_PTIM:
 	  sc_ptime = curscr->intprm;
 	  DEBUG(DB_LGII, "Set pause time to %d\n", sc_ptime);
 	  break;
-
+	  
 	case SC_WCHR:
 	  sc_wchar = *(curscr->strprm);
 	  DEBUG(DB_LGII, "Set wait char to %c\n", sc_wchar);
 	  break;
-
+	  
 	case SC_WTIM:
 	  sc_wtime = curscr->intprm;
 	  DEBUG(DB_LGII, "Set wait time to %d\n", sc_wtime);
 	  break;
-
+	  
 	case SC_ZERO:
 	  sc_counter = 0;
 	  DEBUG(DB_LGII, "Set counter to %d\n", sc_counter);
 	  break;
-
+	  
 	case SC_INCR:
 	  sc_counter++;
 	  DEBUG(DB_LGII, "Incr counter to %d\n", sc_counter);
 	  break;
-
+	  
 	case SC_WAIT:
 	  DEBUG(DB_LGII, "Sleeping %d tenth-secs\n", curscr->intprm);
 	  msleep(curscr->intprm);
 	  break;
-
+	  
 	case SC_DTIM:
 	  sc_dtime = curscr->intprm;
 	  DEBUG(DB_LGII, "Digit time is %d\n", sc_dtime);
 	  break;
-
+	  
 	case SC_CTIM:
 	  sc_carrtime = curscr->intprm;
 	  DEBUG(DB_LGII, "Carrier time is %d\n", sc_carrtime);
 	  break;
-
+	  
 	case SC_EXIT:
 	  Debug = dbgsave;
 	  DEBUG(DB_LGI, "Script ended successfully\n", 0);
 	  return SUCCESS;
-
+	  
 	case SC_FAIL:
 	  Debug = dbgsave;
 	  if (DEBUG_LEVEL(DB_LGI) && dbf != NULL)
 	    fprintf(dbf, "Script failed\n");
 	  else if (expin)
-	    charlog(expbuf, expin, DB_LOG,
+	    charlog(expbuf, expin, DB_LOG, 
 		    "Script failed.  Last received data");
 	  return FAIL;
-
+	  
 	case SC_LOG:
 	  logit(curscr->strprm, "");
 	  break;
-
+	  
 	case SC_LOGE:
 	  logit("ERROR: ", curscr->strprm);
 	  break;
-
+	  
 	case SC_DBOF:
 	  /*
 	   * If the debug file name does not begin with "/", then
 	   * we prepend the LOG_DIR to the string. Then CREATE the
-	   * file. This WIPES OUT previous logs.
+	   * file. This WIPES OUT previous logs. 
 	   */
 	  *dfname = '\0';	/* Zero name string */
 	  if(curscr->strprm[0] != '/')
@@ -877,102 +877,102 @@ int do_script(begin)
 	      return FAIL;
 	    }
 	  break;
-
+	  
 	case SC_DBG:
 	  DEBUG(DB_LGI, "<%s>\n", curscr->strprm);
 	  break;
-
+	  
 	case SC_DBGE:
 	  DEBUG(DB_LGIE, "ERROR: <%s>\n", curscr->strprm);
 	  break;
-
+	  
 	case SC_DBST:
 	  Debug |= curscr->intprm;
 	  DEBUG(DB_LGII, "Debug mask set to %04o (octal)\n", Debug);
 	  break;
-
+	  
 	case SC_DBCL:
 	  Debug &= ~(curscr->intprm);
 	  DEBUG(DB_LGII, "Debug mask set to %04o (octal)\n", Debug);
 	  break;
-
+	  
 	case SC_BRK:
 	  DEBUG(DB_LGI, "Sending break\n", 0);
 	  ttbreak();
 	  break;
-
+	  
 	case SC_HANG:
 	  DEBUG(DB_LGI, "Dropping DTR\n", 0);
 	  tthang();
 	  break;
-
+	  
 	case SC_7BIT:
 	  DEBUG(DB_LGI, "Enabling 7-bit stripping\n", 0);
 	  tt7bit(TRUE);
 	  break;
-
+	  
 	case SC_8BIT:
 	  DEBUG(DB_LGI, "Disabling 7-bit stripping\n", 0);
 	  tt7bit(FALSE);
 	  break;
-
+	  
 	case SC_PNON:
 	  DEBUG(DB_LGI, "Setting 8-bit, no parity\n", 0);
 	  ttpar(NONE);
 	  break;
-
+	  
 	case SC_PEVN:
 	  DEBUG(DB_LGI, "Setting 7-bit, even parity\n", 0);
 	  ttpar(EVEN);
 	  break;
-
+	  
 	case SC_PODD:
 	  DEBUG(DB_LGI, "Setting 7-bit, odd parity\n", 0);
 	  ttpar(ODD);
 	  break;
-
+	  
 	case SC_IFBL:
-	  if (ttblind())
+	  if (ttblind()) 
 	    {
 	      DEBUG(DB_LGI, "Blind mux,\n", 0);
 	      goto _chgstate;
 	    }
 	  break;
-
+	  
 	case SC_IFBG:
-	  if (ttblind() && sc_counter > curscr->intprm)
+	  if (ttblind() && sc_counter > curscr->intprm) 
 	    {
-	      DEBUG(DB_LGI, "Blind mux & ctr > %d\n",
+	      DEBUG(DB_LGI, "Blind mux & ctr > %d\n", 
 		    curscr->intprm);
 	      goto _chgstate;
 	    }
 	  break;
-
+	  
 	case SC_IFGT:
-	  if (sc_counter > curscr->intprm)
+	  if (sc_counter > curscr->intprm) 
 	    {
 	      DEBUG(DB_LGI, "Counter > %d\n", curscr->intprm);
 	      goto _chgstate;
 	    }
 	  break;
-
+	  
 	case SC_GOTO:
 	  _chgstate:
 	  DEBUG(DB_LGI, "Changing to state %s\n",
 		curscr->newstate);
 	  curstate = find_state(begin, curscr->newstate);
-	  if (curstate == NULL)
+	  if (curstate == NULL) 
 	    {
 	      logit("New state not found",
 		    curscr->newstate);
 	      return FAIL;
 	    }
 	  goto _newstate;
-
+	  
 	case SC_SEND:
 	  ttoslow(curscr->strprm, curscr->intprm, sc_chrdly);
 	  break;
-
+	  
 	case SC_TELN:
 	  if (curscr->intprm > paramc - 1)
 	    {
@@ -983,7 +983,7 @@ int do_script(begin)
 	  strcpy(telno, paramv[curscr->intprm]);
 	  DEBUG(DB_LGII, "telno set to %s\n", telno);
 	  break;
-
+	  
 	case SC_SNDP:
 	  if (curscr->intprm > paramc - 1)
 	    {
@@ -994,17 +994,17 @@ int do_script(begin)
 	  prmlen = xlat_str(tempstr, paramv[curscr->intprm]);
 	  ttoslow(tempstr, prmlen, sc_chrdly);
 	  break;
-
+	  
 	case SC_IF1P:
 	  if (curscr->intprm < paramc)
 	    goto _chgstate;
 	  break;
-
+	  
 	case SC_IF0P:
 	  if (curscr->intprm >= paramc)
 	    goto _chgstate;
 	  break;
-
+	  
 	case SC_DIAL:
 	  if(telno[0] == '\0')
 	    {
@@ -1017,17 +1017,17 @@ int do_script(begin)
 	   * changed by the script. See the man page xchat(8) for
 	   * details.
 	   */
-	  sc_dtmo = (sc_dtime+sc_chrdly)*strlen(telno)
+	  sc_dtmo = (sc_dtime+sc_chrdly)*strlen(telno) 
 	    + sc_carrtime;
 	  c=strcpy(tempstr, telno);
-	  for (; *c!='\0'; c++)
+	  for (; *c!='\0'; c++) 
 	    {
-	      if (*c == 'W')
+	      if (*c == 'W') 
 		{
 		  *c = sc_wchar;
 		  sc_dtmo += sc_wtime;
 		}
-	      else if (*c == 'P')
+	      else if (*c == 'P') 
 		{
 		  *c = sc_pchar;
 		  sc_dtmo += sc_ptime;
@@ -1036,7 +1036,7 @@ int do_script(begin)
 	  DEBUG(DB_LGI, "Dialing, default timeout is %d millisecs\n", sc_dtmo);
 	  ttoslow(tempstr, 0, sc_chrdly);
 	  break;
-
+	  
 	case SC_TIMO:	/* these are "expects", don't bother */
 	case SC_XPCT:	/* with them yet, other than noting that */
 	case SC_CARR:	/* they exist */
@@ -1044,107 +1044,107 @@ int do_script(begin)
 	  expcnt++;
 	  break;
 	}
-
+      
     }
-
+  
   /* we've done the current state's actions, now do its expects, if any */
-
-  if (expcnt == 0)
+  
+  if (expcnt == 0) 
     {
-      if (curscr != (struct script *)NULL &&
-	  (curscr->opcode == SC_LABEL))
+      if (curscr != (struct script *)NULL &&  
+	  (curscr->opcode == SC_LABEL)) 
 	{
 	  curstate = curscr;
 	  DEBUG(DB_LGI, "Fell through to state %s\n",
 		curstate->strprm);
 	  goto _newstate;
 	}
-      else
+      else 
 	{
 	  logit("No way out of state", curstate->strprm);
 	  return FAIL;
 	}
     }
-
+  
   time(&sc_begwait);	/* log time at beg of expect */
   DEBUG(DB_LGI, "Doing expects for state %s\n", curstate->strprm);
   charlog((char *)NULL, 0, DB_LGI, "Received");
-
-  while (1)
+  
+  while (1) 
     {
       chr = xgetc(1);		/* Returns upon char input or 1 sec. tmo */
-
+      
       charlog(&chr, 1, DB_LGI, (char *)NULL);
-
-      if (chr != EOF)
+      
+      if (chr != EOF) 
 	{
-	  if (expin < MAX_EXPCT)
+	  if (expin < MAX_EXPCT) 
 	    {
 	      expbuf[expin++] = chr & 0x7f;
 	    }
-	  else
+	  else 
 	    {
 	      strncpy(expbuf, &expbuf[1], MAX_EXPCT-1);
 	      expbuf[MAX_EXPCT-1] = chr & 0x7f;
 	    }
 	}
-
+      
       /* for each entry in the current state... */
-
-      for (curscr = curstate->next;
+      
+      for (curscr = curstate->next; 
 	   (curscr != (struct script *)NULL) &&
 	   (curscr->opcode != SC_LABEL);
-	   curscr = curscr->next)
+	   curscr = curscr->next) 
 	{
-
-	  switch (curscr->opcode)
+	  
+	  switch (curscr->opcode) 
 	    {
 	    case SC_TIMO:
 	      sc_secs = curscr->intprm;
 	      if (sc_secs == 0)
 		sc_secs = sc_dtmo;
 	      sc_secs /= 1000;
-	      if (time(NULL)-sc_begwait > sc_secs)
+	      if (time(NULL)-sc_begwait > sc_secs) 
 		{
 		  DEBUG(DB_LGI,
 			"\nTimed out (%d secs)\n", sc_secs);
 		  goto _chgstate;
 		}
 	      break;
-
+	      
 	    case SC_CARR:
-	      if (ttcd())
+	      if (ttcd()) 
 		{
 		  DEBUG(DB_LGI, "\nGot carrier\n", 0);
 		  goto _chgstate;
 		}
 	      break;
-
+	      
 	    case SC_HUPS:
-	      if (fShangup)
+	      if (fShangup) 
 		{
 		  DEBUG(DB_LGI, "\nGot data set hangup\n", 0);
 		  goto _chgstate;
 		}
 	      break;
-
+	      
 	    case SC_XPCT:
 	      if ((expin >= curscr->intprm) &&
-		  (strncmp(curscr->strprm,
+		  (strncmp(curscr->strprm, 
 			   &expbuf[expin - curscr->intprm],
-			   curscr->intprm) == SAME))
+			   curscr->intprm) == SAME)) 
 		{
 		  charlog(curscr->strprm, curscr->intprm,
 			  DB_LGI, "Matched");
 		  goto _chgstate;
 		}
 	      break;
-
+	      
 	    }
 	}
     }
 }
-	      /* New opcode added by hag@eddie.mit.edu for expecting a
+	      /* New opcode added by hag@eddie.mit.edu for expecting a 
 		 parameter supplied string */
 	     case SC_XPST:
 	      if(curscr->intprm >paramc-1)
@@ -1194,8 +1194,8 @@ static int uhup(isig)
 /*
  * xgetc - get a character with timeout
  *
- * Assumes that stdin is opened on a terminal or TCP socket
- * with O_NONBLOCK.
+ * Assumes that stdin is opened on a terminal or TCP socket 
+ * with O_NONBLOCK. 
  */
 static char xgetc(tmo)
 int tmo;			/* Timeout, seconds */
@@ -1218,7 +1218,7 @@ int tmo;			/* Timeout, seconds */
   return(c);
 }
 
-/*
+/* 
  * Pause for an interval in milliseconds
  */
 void msleep(msec)
@@ -1248,7 +1248,7 @@ long msec;
 
   if(msec == 0)
     return;
-  /*
+  /* 
    * We need to pass an unused pollfd structure because poll checks
    * the address before checking the number of elements.
    */
@@ -1289,7 +1289,7 @@ char *msg1, *msg2;
  *
  * SPECIAL CASE: msg=NULL, len=1 and msg[0]='\377' gets logged
  *               when read does its 1 sec. timeout. Log "<1 sec.>"
- *               so user can see elapsed time
+ *               so user can see elapsed time 
  */
 static void charlog(buf, len, mask, msg)
 char *buf;
@@ -1344,21 +1344,21 @@ int sig;
   return;
 }
 
-/*
+/* 
  * ttoslow() - Send characters with pacing delays
  */
 static void ttoslow(s, len, delay)
-     char *s;
+     char *s; 
      int len;
-     time_t delay;
+     time_t delay; 
 {
   int i;
-
+  
   if (len == 0)
     len = strlen(s);
-
+  
   charlog (s, len, DB_LGI, "Sending slowly");
-
+  
   for (i = 0; i < len; i++, s++)
     {
       write(1, s, 1);

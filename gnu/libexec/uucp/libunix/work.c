@@ -1,7 +1,7 @@
 /* work.c
    Routines to read command files.
 
-   Copyright (C) 1991, 1992, 1993 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char work_rcsid[] = "$Id: work.c,v 1.2 1994/05/07 18:11:41 ache Exp $";
+const char work_rcsid[] = "$Id: work.c,v 1.20 1995/06/30 21:35:14 ian Rel $";
 #endif
 
 #include "uudefs.h"
@@ -189,7 +189,7 @@ fswork_file (zsystem, zfile, pbgrade)
   *pbgrade = zfile[2];
   return (zfile[0] == 'C'
 	  && zfile[1] == '.'
-	  && strlen (zfile) == 7);
+	  && zfile[2] != '\0');
 #endif /* SPOOLDIR_TAYLOR */
 }
 
@@ -426,13 +426,12 @@ fsysdep_get_work_init (qsys, bgrade)
 
 /* Get the next work entry for a system.  This must parse the next
    line in the next work file.  The type of command is set into
-   qcmd->bcmd; if there are no more commands we call
-   fsysdep_get_work_init to rescan, in case any came in since the last
-   call.  If there are still no commands, qcmd->bcmd is set to 'H'.
+   qcmd->bcmd If there are no more commands, qcmd->bcmd is set to 'H'.
    Each field in the structure is set to point to a spot in an
-   malloced string.  The only time we use the grade here is when
-   calling fsysdep_get_work_init to rescan.  */
+   malloced string.  The grade argument is never used; it has been
+   used by fsysdep_get_work_init.  */
 
+/*ARGSUSED*/
 boolean
 fsysdep_get_work (qsys, bgrade, qcmd)
      const struct uuconf_system *qsys;
@@ -471,18 +470,9 @@ fsysdep_get_work (qsys, bgrade, qcmd)
 	    {
 	      if (iSwork_file >= cSwork_files)
 		{
-		  /* Rescan the work directory.  */
-		  if (! fsysdep_get_work_init (qsys, bgrade))
-		    {
-		      ubuffree (zdir);
-		      return FALSE;
-		    }
-		  if (iSwork_file >= cSwork_files)
-		    {
-		      qcmd->bcmd = 'H';
-		      ubuffree (zdir);
-		      return TRUE;
-		    }
+		  qcmd->bcmd = 'H';
+		  ubuffree (zdir);
+		  return TRUE;
 		}
 
 	      if (zdir == NULL)
@@ -506,7 +496,7 @@ fsysdep_get_work (qsys, bgrade, qcmd)
 		}
 	    }
 	  while (e == NULL);
-
+	  
 	  qfile = (struct ssfile *) xmalloc (sizeof (struct ssfile));
 	  callocated = CFILELINES;
 	  iline = 0;
@@ -561,7 +551,7 @@ fsysdep_get_work (qsys, bgrade, qcmd)
       while (TRUE)
 	{
 	  int iline;
-
+	  
 	  if (qSwork_file->cdid >= qSwork_file->clines)
 	    {
 	      /* We don't want to free qSwork_file here, since it must
@@ -628,7 +618,7 @@ fsysdep_did_work (pseq)
   struct ssfile *qfile;
   struct ssline *qline;
   int i;
-
+  
   qline = (struct ssline *) pseq;
 
   ubuffree (qline->zline);
@@ -745,7 +735,7 @@ zsysdep_save_temp_file (pseq)
       ubuffree (zto);
       return "Could not move file to preservation directory";
     }
-
+    
   cwant = sizeof "File saved as\n\t/" + strlen (zSspooldir) + strlen (zto);
   if (cwant > cbuf)
     {
@@ -787,10 +777,14 @@ bsgrade (pseq)
 
   zfile = ((struct ssline *) pseq)->qfile->zfile;
 
+#if SPOOLDIR_TAYLOR
+  bgrade = *(strrchr (zfile, '/') + 3);
+#else
 #if ! SPOOLDIR_SVR4
   bgrade = zfile[strlen (zfile) - CSEQLEN - 1];
 #else
   bgrade = *(strchr (zfile, '/') + 1);
+#endif
 #endif
 
   return bgrade;

@@ -3,7 +3,7 @@
    lightly edited by Ian Lance Taylor.  */
 
 /* The bottom part of this file is lock.c.
- * This is a hacked lock.c. A full lock.c can be found in the libmisc sources
+ * This is a hacked lock.c. A full lock.c can be found in the libmisc sources 
  * under /usr/src/misc.tar.Z.
  *
  * These are for checking for the existence of locks:
@@ -146,7 +146,7 @@ char enable_device[16];			/* this will hold our device name
 				return TRUE;
 			}else{
 				/* device not enabled */
-				return TRUE;
+				return TRUE;	
 			}
 		}
 	}
@@ -192,7 +192,7 @@ char *buff;
 {
 	struct stat sbuf;
 	int status;
-
+	
 	if (0 != (status = stat(path, &sbuf))) {
 		/* Can't stat the file.  */
 		return (NULL);

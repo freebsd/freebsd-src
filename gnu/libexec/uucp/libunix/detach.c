@@ -1,7 +1,7 @@
 /* detach.c
    Detach from the controlling terminal.
 
-   Copyright (C) 1992, 1993 Ian Lance Taylor
+   Copyright (C) 1992, 1993, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -17,10 +17,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucp.h"
@@ -38,7 +38,7 @@
 #ifdef TIOCNOTTY
 #define HAVE_TIOCNOTTY 1
 #else
-#define HAVE_TIOCNOTTY 0
+#define HAVE_TIOCNOTTY 0 
 #endif
 
 #if HAVE_FCNTL_H
@@ -70,6 +70,11 @@ void
 usysdep_detach ()
 {
   pid_t igrp;
+
+  /* Make sure that we can open the log file.  We do this now so that,
+     if we can't, a message will be written to stderr.  After we leave
+     this routine, stderr will be closed.  */
+  ulog (LOG_NORMAL, (const char *) NULL);
 
   /* Make sure we are not a process group leader.  */
 #if HAVE_BSD_PGRP
@@ -107,17 +112,24 @@ usysdep_detach ()
       if (! fignored)
 	usset_signal (SIGHUP, ussignal, TRUE, (boolean *) NULL);
 
-      DEBUG_MESSAGE2 (DEBUG_PORT, "Forked; old PID %ld, new pid %ld",
+      DEBUG_MESSAGE2 (DEBUG_PORT,
+		      "usysdep_detach: Forked; old PID %ld, new pid %ld",
 		      (long) igrp, (long) ipid);
     }
 
 #if ! HAVE_SETSID && HAVE_TIOCNOTTY
   /* Lose the original controlling terminal as well as our process
-     group.  If standard input has been reopened to /dev/null, this
-     will do no harm.  If another port has been opened to become the
-     controlling terminal, it should have been detached when it was
-     closed.  */
-  (void) ioctl (0, TIOCNOTTY, (char *) NULL);
+     group.  */
+  {
+    int o;
+
+    o = open ((char *) "/dev/tty", O_RDONLY);
+    if (o >= 0)
+      {
+	(void) ioctl (o, TIOCNOTTY, (char *) NULL);
+	(void) close (o);
+      }
+  }
 #endif /* ! HAVE_SETSID && HAVE_TIOCNOTTY */
 
   /* Close stdin, stdout and stderr and reopen them on /dev/null, to

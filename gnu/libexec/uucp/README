@@ -1,24 +1,26 @@
-This is the README file for version 1.05 of the Taylor UUCP package.
+This is the README file for version 1.06 of the Taylor UUCP package.
 
 It was written by Ian Lance Taylor.  I can be reached at ian@airs.com,
 or, equivalently, uunet!cygint!airs!ian, or c/o Cygnus Support,
-Building 200, 1 Kendall Square, Cambridge MA, 02139, USA.
+48 Grove Street, Somerville, MA 02144, USA.
 
-There is a mailing list for discussion of the package.  To join (or
-get off) the list, send mail to taylor-uucp-request@gnu.ai.mit.edu.
-Mail to this address is answered by a person, not a program.  When
-joining the list, make sure you include the address at which you want
-to receive mail in the body of your message.  To send a message to the
-list, send it to taylor-uucp@gnu.ai.mit.edu.
-
-Jeff Ross has volunteered to maintain patches for UUCP releases.  They
-may be obtained via anonymous FTP from ftp.fdu.edu, in the directory
-pub/taylor-uucp.
+There is a mailing list for discussion of the package.  The list is
+hosted by Eric Schnoebelen at cirr.com.  To join (or get off) the
+list, send mail to taylor-uucp-request@cirr.com.  Mail to this address
+is answered by the majordomo program.  To join the list, send the
+message ``subscribe ADDRESS'' where ADDRESS is your e-mail address.
+To send a message to the list, send it to taylor-uucp@cirr.com.  The
+old list address, taylor-uucp@gnu.ai.mit.edu, will also work.  There
+is an archive of all messages sent to the mailing list at ftp.cirr.com.
 
 This package is covered by the Gnu Public License.  See the file
 COPYING for details.  If you would like to do something with this
 package that you feel is reasonable but you feel is prohibited by the
 license, contact me to see if we can work it out.
+
+The most recent version may be obtained from any Gnu archive site.
+The canonical site is prep.ai.mit.edu.  There are many mirror sites,
+including ftp.uu.net and wuarchive.wustl.edu.
 
 WHAT IT IS
 
@@ -32,11 +34,11 @@ file to another) and tstuu (a test harness for the package).
 This is the standard UUCP package of the Free Software Foundation.
 
 The package currently supports the 'f', 'g' (in all window and packet
-sizes), 'G', 't' and 'e' protocols, as well a Zmodem protocol and two
-new bidirectional protocols.  If you have a Berkeley sockets library,
-it can make TCP connections.  If you have TLI libraries, it can make
-TLI connections.  It supports a new configuration file mechanism which
-I like (but other people dislike).
+sizes), 'G', 't' and 'e' protocols, as well a Zmodem protocol, the FX
+UUCICO 'y' protocol, and two new bidirectional protocols.  If you have
+a Berkeley sockets library, it can make TCP connections.  If you have
+TLI libraries, it can make TLI connections.  It supports a new
+configuration file mechanism which I like (but other people dislike).
 
 The package has a few advantages over regular UUCP:
 
@@ -86,7 +88,7 @@ The documentation is in the file uucp.texi, which is a Texinfo file.
 Texinfo is a format used by the Free Software Foundation.  You can
 print the documentation using TeX in combination with the file
 texinfo.tex.  DVI, PostScript and info versions of the documentation
-are available in a separate package, uucp-doc-1.05.tar.gz.
+are available in a separate package, uucp-doc-1.06.tar.gz.
 
 See the TODO file for things which should be done.  Please feel free
 to do them, although you may want to check with me first.  Send me
@@ -105,7 +107,6 @@ The compilation instructions are in uucp.texi.  Here is a summary.
         LDFLAGS: Flags to pass to $CC when only linking; default none
         LIBS: Library arguments to pass to $CC; default none
         INSTALL: Install program; default install -c or cp
-        INSTALLDATA: Install data; default install -c -m 0644 or cp
     The configure script will compile a number of test programs to see
     what is available on your system, so if your system is at all
     unusual you will need to pass in $CC and $LIBS correctly.
@@ -135,7 +136,8 @@ The compilation instructions are in uucp.texi.  Here is a summary.
     the default value for CFLAGS to be set incorrectly.  If ``echo
     ${CFLAGS--g}'' echoes ``g'' rather than ``-g'', then you must set
     CFLAGS in the environment before running configure.  There is a
-    patch available from BSDI for this bug.  (From David Vrona).
+    patch available from BSDI for this bug.  (Reported by David
+    Vrona).
 
     On AIX 3.2.5, and possibly other versions, cc -E does not work,
     reporting ``Option NOROCONST is not valid.''  Test this before
@@ -145,7 +147,7 @@ The compilation instructions are in uucp.texi.  Here is a summary.
     This may give a warning about the file being empty, but it should
     not give the ``Option NOROCONST'' warning.  The workaround is to
     remove the ",noroconst" entry from the "options" clause in the
-    "cc" stanza in /etc/xlc.cfg.  (From Chris Lewis).
+    "cc" stanza in /etc/xlc.cfg.  (Reported by Chris Lewis).
 
     Examine config.h and Makefile to make sure they're right.
 
@@ -160,3 +162,12 @@ The compilation instructions are in uucp.texi.  Here is a summary.
     programs are compiled with debugging information, and they are not
     stripped when they are installed.  Read the man page for strip for
     more information.
+
+    On older System V based systems which do not have the setreuid
+    system call, problems may arise if ordinary users can start an
+    execution of uuxqt, perhaps indirectly via uucp or uux.  UUCP jobs
+    may wind up executing with a real user ID of the user who invoked
+    uuxqt, which can cause problems if the UUCP job checks the real
+    user ID for security purposes.  On such systems, it is safest to
+    put ``run-uuxqt never'' in the `config' file, so that uucico never
+    starts uuxqt, and invoke uuxqt directly from cron.

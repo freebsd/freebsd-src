@@ -1,5 +1,5 @@
 /* fsusage.c -- return space usage of mounted filesystems
-   Copyright (C) 1991, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1992 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,74 +13,70 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    This file was modified slightly by Ian Lance Taylor, December 1992,
-   for use with Taylor UUCP.  */
+   and again July 1995, for use with Taylor UUCP.  */
 
 #include "uucp.h"
 #include "uudefs.h"
 #include "sysdep.h"
 #include "fsusg.h"
 
-#if STAT_STATFS2_BSIZE
-#ifdef __FreeBSD__
+int statfs ();
+
+#if HAVE_SYS_PARAM_H
 #include <sys/param.h>
+#endif
+
+#if HAVE_SYS_MOUNT_H
 #include <sys/mount.h>
-#else
-#ifndef _IBMR2			/* 4.3BSD, SunOS 4, HP-UX, AIX PS/2.  */
+#endif
+
+#if HAVE_SYS_VFS_H
 #include <sys/vfs.h>
 #endif
-#endif
+
+#if HAVE_SYS_FILSYS_H
+#include <sys/filsys.h>		/* SVR2.  */
 #endif
 
-#if STAT_STATFS2_FSIZE		/* 4.4BSD.  */
-#include <sys/mount.h>
+#if HAVE_FCNTL_H
+#include <fcntl.h>
 #endif
 
-#if STAT_STATFS2_FS_DATA	/* Ultrix.  */
-#include <sys/param.h>
-#include <sys/mount.h>
-#endif
-
-#if STAT_USTAT			/* SVR2 and others.  */
-#include <ustat.h>
-#endif
-
-#if STAT_STATFS4		/* SVR3, Dynix, Irix.  */
+#if HAVE_SYS_STATFS_H
 #include <sys/statfs.h>
 #endif
-#ifdef _AIX
-#ifdef _IBMR2			/* AIX RS6000.  */
-#include <sys/statfs.h>
-#endif
-#endif
 
-#if STAT_DUSTAT			/* AIX PS/2.  */
-#include <sys/stat.h>
+#if HAVE_SYS_DUSTAT_H		/* AIX PS/2.  */
 #include <sys/dustat.h>
 #endif
 
-#if STAT_STATVFS		/* SVR4.  */
+#if HAVE_SYS_STATVFS_H		/* SVR4.  */
 #include <sys/statvfs.h>
+int statvfs ();
+#endif
+
+#if HAVE_USTAT_H		/* SVR2 and others.  */
+#include <ustat.h>
 #endif
 
 #if STAT_DISK_SPACE		/* QNX.  */
 #include <sys/disk.h>
-#include <fcntl.h>
 #include <errno.h>
 #endif
 
 #define STAT_NONE 0
 
-#if ! STAT_STATVFS
+#if ! STAT_STATFS3_OSF1
+#if ! STAT_STATFS2_FS_DATA
 #if ! STAT_STATFS2_BSIZE
 #if ! STAT_STATFS2_FSIZE
-#if ! STAT_STATFS2_FS_DATA
 #if ! STAT_STATFS4
-#if ! STAT_DUSTAT
-#if ! STAT_USTAT
+#if ! STAT_STATVFS
 #if ! STAT_DISK_SPACE
+#if ! STAT_USTAT
 #undef STAT_NONE
 #define STAT_NONE 1
 #endif
@@ -97,19 +93,25 @@
 static long adjust_blocks P((long blocks, int fromsize, int tosize));
 
 /* Return the number of TOSIZE-byte blocks used by
-   BLOCKS FROMSIZE-byte blocks, rounding up.  */
+   BLOCKS FROMSIZE-byte blocks, rounding away from zero.
+   TOSIZE must be positive.  Return -1 if FROMSIZE is not positive.  */
 
 static long
 adjust_blocks (blocks, fromsize, tosize)
      long blocks;
      int fromsize, tosize;
 {
+  if (tosize <= 0)
+    abort ();
+  if (fromsize <= 0)
+    return -1;
+								    
   if (fromsize == tosize)	/* E.g., from 512 to 512.  */
     return blocks;
   else if (fromsize > tosize)	/* E.g., from 2048 to 512.  */
     return blocks * (fromsize / tosize);
   else				/* E.g., from 256 to 512.  */
-    return (blocks + 1) / (tosize / fromsize);
+    return (blocks + (blocks < 0 ? -1 : 1)) / (tosize / fromsize);
 }
 
 #endif
@@ -129,25 +131,33 @@ get_fs_usage (path, disk, fsp)
   return -1;
 #endif
 
+#if STAT_STATFS3_OSF1
+  struct statfs fsd;
+
+  if (statfs (path, &fsd, sizeof (struct statfs)) != 0)
+    return -1;
+#define CONVERT_BLOCKS(b) adjust_blocks ((b), fsd.f_fsize, 512)
+#endif /* STAT_STATFS3_OSF1 */
+
 #if STAT_STATFS2_FS_DATA	/* Ultrix.  */
   struct fs_data fsd;
 
   if (statfs (path, &fsd) != 1)
     return -1;
-#define convert_blocks(b) adjust_blocks ((long) (b), 1024, 512)
-  fsp->fsu_blocks = convert_blocks (fsd.fd_req.btot);
-  fsp->fsu_bfree = convert_blocks (fsd.fd_req.bfree);
-  fsp->fsu_bavail = convert_blocks (fsd.fd_req.bfreen);
+#define CONVERT_BLOCKS(b) adjust_blocks ((long) (b), 1024, 512)
+  fsp->fsu_blocks = CONVERT_BLOCKS (fsd.fd_req.btot);
+  fsp->fsu_bfree = CONVERT_BLOCKS (fsd.fd_req.bfree);
+  fsp->fsu_bavail = CONVERT_BLOCKS (fsd.fd_req.bfreen);
   fsp->fsu_files = fsd.fd_req.gtot;
   fsp->fsu_ffree = fsd.fd_req.gfree;
 #endif
 
-#if STAT_STATFS2_BSIZE || STAT_DUSTAT	/* 4.3BSD, SunOS 4, HP-UX, AIX.  */
+#if STAT_STATFS2_BSIZE		/* 4.3BSD, SunOS 4, HP-UX, AIX.  */
   struct statfs fsd;
 
   if (statfs (path, &fsd) < 0)
     return -1;
-#define convert_blocks(b) adjust_blocks ((b), fsd.f_bsize, 512)
+#define CONVERT_BLOCKS(b) adjust_blocks ((b), fsd.f_bsize, 512)
 #endif
 
 #if STAT_STATFS2_FSIZE		/* 4.4BSD.  */
@@ -155,7 +165,7 @@ get_fs_usage (path, disk, fsp)
 
   if (statfs (path, &fsd) < 0)
     return -1;
-#define convert_blocks(b) adjust_blocks ((b), fsd.f_fsize, 512)
+#define CONVERT_BLOCKS(b) adjust_blocks ((b), fsd.f_fsize, 512)
 #endif
 
 #if STAT_STATFS4		/* SVR3, Dynix, Irix.  */
@@ -166,10 +176,16 @@ get_fs_usage (path, disk, fsp)
   /* Empirically, the block counts on most SVR3 and SVR3-derived
      systems seem to always be in terms of 512-byte blocks,
      no matter what value f_bsize has.  */
-#define convert_blocks(b) (b)
-#ifndef _SEQUENT_		/* _SEQUENT_ is DYNIX/ptx.  */
-#define f_bavail f_bfree
-#endif
+# if _AIX
+#  define CONVERT_BLOCKS(b) adjust_blocks ((b), fsd.f_bsize, 512)
+# else
+#  define CONVERT_BLOCKS(b) (b)
+#  ifndef _SEQUENT_		/* _SEQUENT_ is DYNIX/ptx.  */
+#   ifndef DOLPHIN		/* DOLPHIN 3.8.alfa/7.18 has f_bavail */
+#    define f_bavail f_bfree
+#   endif
+#  endif
+# endif
 #endif
 
 #if STAT_STATVFS		/* SVR4.  */
@@ -178,7 +194,7 @@ get_fs_usage (path, disk, fsp)
   if (statvfs (path, &fsd) < 0)
     return -1;
   /* f_frsize isn't guaranteed to be supported.  */
-#define convert_blocks(b) \
+#define CONVERT_BLOCKS(b) \
   adjust_blocks ((b), fsd.f_frsize ? fsd.f_frsize : fsd.f_bsize, 512)
 #endif
 
@@ -188,7 +204,7 @@ get_fs_usage (path, disk, fsp)
   long cfree_blocks, ctotal_blocks;
   char *zpath;
   char *zslash;
-
+    
   zpath = zbufcpy (path);
   while ((o = open (zpath, O_RDONLY, 0)) == -1
 	 && errno == ENOENT)
@@ -247,7 +263,7 @@ get_fs_usage (path, disk, fsp)
   fsp->fsu_blocks = ctotal_blocks;
   fsp->fsu_bfree = cfree_blocks;
   fsp->fsu_bavail = cfree_blocks;
-
+    
   /* QNX has no limit on the number of inodes.  Most inodes are stored
      directly in the directory entry. */
   fsp->fsu_files = -1;
@@ -272,9 +288,9 @@ get_fs_usage (path, disk, fsp)
 #if ! STAT_DISK_SPACE
 #if ! STAT_USTAT
 #if ! STAT_NONE
-  fsp->fsu_blocks = convert_blocks (fsd.f_blocks);
-  fsp->fsu_bfree = convert_blocks (fsd.f_bfree);
-  fsp->fsu_bavail = convert_blocks (fsd.f_bavail);
+  fsp->fsu_blocks = CONVERT_BLOCKS (fsd.f_blocks);
+  fsp->fsu_bfree = CONVERT_BLOCKS (fsd.f_bfree);
+  fsp->fsu_bavail = CONVERT_BLOCKS (fsd.f_bavail);
   fsp->fsu_files = fsd.f_files;
   fsp->fsu_ffree = fsd.f_ffree;
 #endif
@@ -285,7 +301,8 @@ get_fs_usage (path, disk, fsp)
   return 0;
 }
 
-#if STAT_DUSTAT
+#ifdef _AIX
+#ifdef _I386
 /* AIX PS/2 does not supply statfs.  */
 
 int
@@ -311,4 +328,5 @@ statfs (path, fsb)
   fsb->f_fsid.val[1] = fsd.du_pckno;
   return 0;
 }
-#endif /* STAT_DUSTAT */
+#endif /* _I386 */
+#endif /* _AIX */

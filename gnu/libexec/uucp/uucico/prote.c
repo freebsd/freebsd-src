@@ -1,7 +1,7 @@
 /* prote.c
    The 'e' protocol.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char prote_rcsid[] = "$Id: prote.c,v 1.2 1994/05/07 18:13:43 ache Exp $";
+const char prote_rcsid[] = "$Id: prote.c,v 1.20 1995/08/02 00:24:28 ian Rel $";
 #endif
 
 #include "uudefs.h"
@@ -97,7 +97,7 @@ festart (qdaemon, pzlog)
 /* Stop the protocol.  */
 
 /*ARGSUSED*/
-boolean
+boolean 
 feshutdown (qdaemon)
      struct sdaemon *qdaemon;
 {
@@ -254,6 +254,16 @@ feprocess_data (qdaemon, pfexit, pcneed)
       cinbuf = iPrecend - iPrecstart;
       if (cinbuf < 0)
 	cinbuf += CRECBUFLEN;
+
+      if (cEbytes == 0)
+	{
+	  if (! fgot_data (qdaemon, abPrecbuf, (size_t) 0,
+			   (const char *) NULL, (size_t) 0,
+			   -1, -1, (long) -1, TRUE, pfexit))
+	    return FALSE;
+	  if (*pfexit)
+	    return TRUE;
+	}
     }
 
   /* Here we can read real data for the file.  */

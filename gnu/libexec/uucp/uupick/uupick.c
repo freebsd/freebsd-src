@@ -1,7 +1,7 @@
 /* uupick.c
    Get files stored in the public directory by uucp -t.
 
-   Copyright (C) 1992, 1993, 1994 Ian Lance Taylor
+   Copyright (C) 1992, 1993, 1994, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uupick_rcsid[] = "$Id: uupick.c,v 1.10 1994/01/30 20:59:40 ian Rel $";
+const char uupick_rcsid[] = "$Id: uupick.c,v 1.16 1995/06/29 19:38:55 ian Rel $";
 #endif
 
 #include <errno.h>
@@ -71,7 +71,6 @@ main (argc, argv)
   int iopt;
   pointer puuconf;
   int iuuconf;
-  struct uuconf_system ssys;
   const char *zpubdir;
   char *zfile, *zfrom, *zfull;
   char *zallsys;
@@ -107,7 +106,7 @@ main (argc, argv)
 	  /* Print version and exit.  */
 	  fprintf
 	    (stderr,
-	     "%s: Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+	     "%s: Taylor UUCP %s, copyright (C) 1991, 92, 93, 94, 1995 Ian Lance Taylor\n",
 	     zProgram, VERSION);
 	  exit (EXIT_SUCCESS);
 	  /*NOTREACHED*/
@@ -140,14 +139,17 @@ main (argc, argv)
   zpubdir = NULL;
   if (zsystem != NULL)
     {
+      struct uuconf_system ssys;
+
+      /* Get the public directory for the system.  If we can't find
+         the system information, just use the standard public
+         directory, since uupick is not setuid.  */
       iuuconf = uuconf_system_info (puuconf, zsystem, &ssys);
       if (iuuconf == UUCONF_SUCCESS)
 	{
 	  zpubdir = zbufcpy (ssys.uuconf_zpubdir);
 	  (void) uuconf_system_free (puuconf, &ssys);
 	}
-      else if (iuuconf != UUCONF_NOT_FOUND)
-	(void) ulog_uuconf (LOG_FATAL, puuconf, iuuconf);
     }
   if (zpubdir == NULL)
     {
@@ -282,6 +284,7 @@ main (argc, argv)
 	      printf ("m [dir]: move file to directory\n");
 	      printf ("a [dir]: move all files from this system to directory\n");
 	      printf ("p: list file to stdout\n");
+	      printf ("d: delete file\n");
 	      printf ("! command: shell escape\n");
 	      fcontinue = TRUE;
 	      break;
@@ -319,7 +322,7 @@ static void
 uphelp ()
 {
   fprintf (stderr,
-	   "Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+	   "Taylor UUCP %s, copyright (C) 1991, 92, 93, 94, 1995 Ian Lance Taylor\n",
 	   VERSION);
   fprintf (stderr,
 	   " -s,--system system: Only consider files from named system\n");

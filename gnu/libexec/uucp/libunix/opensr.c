@@ -17,10 +17,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucp.h"
@@ -75,7 +75,7 @@ esysdep_open_send (qsys, zfile, fcheck, zuser)
   struct stat s;
   openfile_t e;
   int o;
-
+  
   if (fsysdep_directory (zfile))
     {
       ulog (LOG_ERROR, "%s: is a directory", zfile);
@@ -148,7 +148,7 @@ zsysdep_receive_temp (qsys, zto, ztemp, frestart)
     return zsappend3 (".Temp", qsys->uuconf_zname, ztemp);
   else
     return zstemp_file (qsys);
-}
+}  
 
 /* The number of seconds in one week.  We must cast to long for this
    to be calculated correctly on a machine with 16 bit ints.  */
