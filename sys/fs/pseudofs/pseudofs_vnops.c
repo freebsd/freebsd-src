@@ -437,7 +437,9 @@ pfs_setattr(struct vop_setattr_args *va)
  * Dummy operations
  */
 static int pfs_erofs(void *va)		{ return (EROFS); }
+#if 0
 static int pfs_null(void *va)		{ return (0); }
+#endif
 
 /*
  * Vnode operations
