@@ -502,6 +502,21 @@ g_mirror_orphan(struct g_consumer *cp)
 	    G_MIRROR_EVENT_DONTWAIT);
 }
 
+static void
+g_mirror_spoiled(struct g_consumer *cp)
+{
+	struct g_mirror_disk *disk;
+
+	g_topology_assert();
+
+	disk = cp->private;
+	if (disk == NULL)
+		return;
+	disk->d_softc->sc_bump_syncid = G_MIRROR_BUMP_IMMEDIATELY;
+	g_mirror_event_send(disk, G_MIRROR_DISK_STATE_DISCONNECTED,
+	    G_MIRROR_EVENT_DONTWAIT);
+}
+
 /*
  * Function should return the next active disk on the list.
  * It is possible that it will be the same disk as given.
@@ -2298,7 +2313,7 @@ g_mirror_create(struct g_class *mp, const struct g_mirror_metadata *md)
 	gp = g_new_geomf(mp, "%s", md->md_name);
 	sc = malloc(sizeof(*sc), M_MIRROR, M_WAITOK | M_ZERO);
 	gp->start = g_mirror_start;
-	gp->spoiled = g_mirror_orphan;
+	gp->spoiled = g_mirror_spoiled;
 	gp->orphan = g_mirror_orphan;
 	gp->access = g_mirror_access;
 	gp->dumpconf = g_mirror_dumpconf;
@@ -2326,7 +2341,7 @@ g_mirror_create(struct g_class *mp, const struct g_mirror_metadata *md)
 	 */
 	gp = g_new_geomf(mp, "%s.sync", md->md_name);
 	gp->softc = sc;
-	gp->spoiled = g_mirror_orphan;
+	gp->spoiled = g_mirror_spoiled;
 	gp->orphan = g_mirror_orphan;
 	sc->sc_sync.ds_geom = gp;
 	sc->sc_sync.ds_block = atomic_load_acq_int(&g_mirror_sync_block_size);
