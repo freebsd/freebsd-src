@@ -269,13 +269,13 @@
         booting from SCSI MO media. &merged;</para>
 
       <para>The <filename>/modules</filename> directory (once the
-        default location for modules on &os; 4.X) is no longer a
+        default location for modules on &os; 4.<replaceable>X</replaceable>) is no longer a
         part of the default <varname>kern.module_path</varname>.
         Third-party modules should be placed in
         <filename>/boot/modules</filename>.
 
 	<note>
-	  <para>Modules designed for use with &os; 4.X are likely to
+	  <para>Modules designed for use with &os; 4.<replaceable>X</replaceable> are likely to
 	    panic and should be used with extreme caution.</para>
 	</note>
       </para>
@@ -385,6 +385,25 @@
 	chipsets.  (More details can be found in the Hardware
 	Notes.)</para>
 
+      <para>The &man.ata.4; driver now supports the Promise SATA150
+	TX2 and TX4 Serial ATA/150 controllers.</para>
+
+      <para>The CAM layer now has support for devices with more than
+	2<superscript>32</superscript> blocks.  (Assuming 512-byte
+	blocks, this means support for devices larger than 2TB.)
+
+	<note>
+	  <para>For users upgrading across this change, note that all
+	    userland applications that talk to &man.pass.4; or
+	    &man.xpt.4; devices must be recompiled.  Examples of such
+	    programs are &man.camcontrol.8; in the base system, 
+	    the <filename role="port">sysutils/cdrtools</filename>
+	    port, and the
+	    <filename role="port">multimedia/xmms</filename>port.</para>
+	</note>
+	
+	</para>
+
       <para>A number of changes have been made to the &man.cd.4;
         driver.  The primary user-visible change is improved
         compatibility with ATAPI/USB/Firewire CDROM drives.</para>
@@ -392,6 +411,10 @@
       <para>&man.geom.4; is now mandatory; the
         <literal>NO_GEOM</literal> has been removed from the set of
         kernel configuration options.</para>
+
+      <para>The &man.iir.4; driver has been updated; this update is
+        believed to fix problems detecting attached disks during
+        installation.</para>
 
       <para>A bug in the &man.mly.4; driver that caused hangs has been
 	corrected.</para>
@@ -865,7 +888,7 @@
       has been updated to 4.3.0. &merged;</para>
 
     <para>Several upgrade mechanisms designed to permit major version
-      upgrades from &os; 2.X to 3.X and from &os; 3.X to 4.X have been
+      upgrades from &os; 2.<replaceable>X</replaceable> to 3.<replaceable>X</replaceable> and from &os; 3.<replaceable>X</replaceable> to 4.<replaceable>X</replaceable> have been
       removed.</para>
 
   </sect2>
