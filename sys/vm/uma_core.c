@@ -2304,7 +2304,7 @@ uma_zone_set_obj(uma_zone_t zone, struct vm_object *obj, int count)
 	if (pages * keg->uk_ipers < count)
 		pages++;
 
-	kva = kmem_alloc_pageable(kernel_map, pages * UMA_SLAB_SIZE);
+	kva = kmem_alloc_nofault(kernel_map, pages * UMA_SLAB_SIZE);
 
 	if (kva == 0)
 		return (0);
@@ -2312,7 +2312,7 @@ uma_zone_set_obj(uma_zone_t zone, struct vm_object *obj, int count)
 		obj = vm_object_allocate(OBJT_DEFAULT,
 		    pages);
 	} else {
-		VM_OBJECT_LOCK_INIT(obj);
+		VM_OBJECT_LOCK_INIT(obj, "uma object");
 		_vm_object_allocate(OBJT_DEFAULT,
 		    pages, obj);
 	}
