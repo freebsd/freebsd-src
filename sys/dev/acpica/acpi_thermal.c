@@ -49,15 +49,19 @@ ACPI_MODULE_NAME("THERMAL")
 #define TZ_ZEROC	2732
 #define TZ_KELVTOC(x)	(((x) - TZ_ZEROC) / 10), (((x) - TZ_ZEROC) % 10)
 
-#define TZ_NOTIFY_TEMPERATURE	0x80
-#define TZ_NOTIFY_LEVELS	0x81
-#define TZ_NOTIFY_DEVICES	0x82
+#define TZ_NOTIFY_TEMPERATURE	0x80 /* Temperature changed. */
+#define TZ_NOTIFY_LEVELS	0x81 /* Cooling levels changed. */
+#define TZ_NOTIFY_DEVICES	0x82 /* Device lists changed. */
+#define TZ_NOTIFY_CRITICAL	0xcc /* Fake notify that _CRT/_HOT reached. */
 
 /* Check for temperature changes every 10 seconds by default */
 #define TZ_POLLRATE	10
 
 /* Make sure the reported temperature is valid for this number of polls. */
 #define TZ_VALIDCHECKS	3
+
+/* Notify the user we will be shutting down in one more poll cycle. */
+#define TZ_NOTIFYCOUNT	(TZ_VALIDCHECKS - 1)
 
 /* ACPI spec defines this */
 #define TZ_NUMLEVELS	10
@@ -481,14 +485,18 @@ acpi_tz_monitor(void *Context)
      * for one poll cycle.  It is suspected this is due to the embedded
      * controller timing out.  A typical value is 138C for one cycle on
      * a system that is otherwise 65C.
+     *
+     * If we're almost at that threshold, notify the user through devd(8).
      */
     if ((newflags & (TZ_THFLAG_HOT | TZ_THFLAG_CRT)) != 0) {
-	if (++sc->tz_validchecks == TZ_VALIDCHECKS) {
+	sc->tz_validchecks++;
+	if (sc->tz_validchecks == TZ_VALIDCHECKS) {
 	    device_printf(sc->tz_dev,
 		"WARNING - current temperature (%d.%dC) exceeds safe limits\n",
 		TZ_KELVTOC(sc->tz_temperature));
 	    shutdown_nice(RB_POWEROFF);
-	}
+	} else if (sc->tz_validchecks == TZ_NOTIFYCOUNT)
+	    acpi_UserNotify("Thermal", sc->tz_handle, TZ_NOTIFY_CRITICAL);
     } else {
 	sc->tz_validchecks = 0;
     }

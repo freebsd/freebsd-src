@@ -115,6 +115,9 @@ Current temperature has changed.
 One or more trip points (_ACx, _PSV) have changed.
 .It Li 0x82
 One or more device lists (_ALx, _PSL, _TZD) have changed.
+.It Li 0xcc
+Non-standard notify that the system will shutdown if the temperature
+stays above _CRT or _HOT for one more poll cycle.
 .El
 .El
 .Sh SEE ALSO
