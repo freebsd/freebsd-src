@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.13 1995/05/21 01:56:02 phk Exp $
+ * $Id: label.c,v 1.16 1995/05/21 06:12:43 phk Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -69,6 +69,8 @@
 /* The smallest filesystem we're willing to create */
 #define FS_MIN_SIZE			2048
 
+/* The smallest root filesystem we're willing to create */
+#define ROOT_MIN_SIZE			40960	/* 20MB */
 
 /* All the chunks currently displayed on the screen */
 static struct {
@@ -210,6 +212,7 @@ get_mountpoint(struct chunk *old)
 
     val = msgGetInput(old && old->private ? ((PartInfo *)old->private)->mountpoint : NULL,
 		      "Please specify a mount point for the partition");
+    clear();
     if (!val)
 	return NULL;
 
@@ -261,6 +264,7 @@ get_partition_type(void)
 	else if (!strcmp(selection, "Swap"))
 	    return PART_SWAP;
     }
+    clear();
     return PART_NONE;
 }
 
@@ -502,9 +506,15 @@ diskLabelEditor(char *str)
 	    } else
 		p = NULL;
 
-	    if ((flags & CHUNK_IS_ROOT) && !(label_chunk_info[here].c->flags & CHUNK_BSD_COMPAT)) {
-		msgConfirm("This region cannot be used for your root partition as\nthe FreeBSD boot code cannot deal with a root partition created in\nsuch a location.  Please choose another location for your root\npartition and try again!");
-		break;
+	    if ((flags & CHUNK_IS_ROOT)) {
+		if (!(label_chunk_info[here].c->flags & CHUNK_BSD_COMPAT)) {
+		    msgConfirm("This region cannot be used for your root partition as\nthe FreeBSD boot code cannot deal with a root partition created in\nsuch a location.  Please choose another location for your root\npartition and try again!");
+		    break;
+		}
+		if (size < ROOT_MIN_SIZE) {
+		    msgConfirm("This is too small a size for a root partition.  For a variety of\nreasons, root partitions should be at least %dMB in size", ROOT_MIN_SIZE / 2048);
+		    break;
+		}
 	    }
 	    tmp = Create_Chunk_DWIM(label_chunk_info[here].d,
 				    label_chunk_info[here].c,
