@@ -8,8 +8,10 @@ LIBS=	\
 	libcrypto.so.1 \
 	libedit.so.3 \
 	libfetch.so.2 \
+	libpam.so.1 \
 	libperl.so.3 \
 	libssl.so.1 \
+	libstdc++.so.3 \
 	libusb.so.0 \
 	pam_cleartext_pass_ok.so \
 	pam_deny.so \
