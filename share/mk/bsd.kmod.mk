@@ -11,3 +11,5 @@ SYSDIR=	${_dir}
 .endif
 
 .include "${SYSDIR}/conf/kmod.mk"
+
+.include <bsd.sys.mk>
