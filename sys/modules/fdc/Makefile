@@ -2,7 +2,6 @@
 
 .if ${MACHINE} == "pc98"
 .PATH:  ${.CURDIR}/../../pc98/pc98
-CFLAGS+= -DPC98
 .else
 .PATH:  ${.CURDIR}/../../isa
 .endif

@@ -9,7 +9,6 @@ SRCS+=	opt_cam.h opt_scsi.h
 
 .if ${MACHINE} == "pc98"
 SRCS+=	aic_cbus.c
-CFLAGS+= -DPC98
 .else
 SRCS+=	aic_isa.c
 .endif

@@ -10,7 +10,6 @@ SRCS=	pccard.c pcic.c pccard_beep.c pccard_nbk.c pcic_pci.c pcic_isa.c \
 EXPORT_SYMS=	YES	# XXX evaluate
 
 .if ${MACHINE} == "pc98"
-CFLAGS += -DPC98
 SRCS += mecia.c
 .endif
 

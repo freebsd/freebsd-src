@@ -7,10 +7,6 @@ S=	${.CURDIR}/../..
 
 KMOD=	cam
 
-.if ${MACHINE} == "pc98"
-CFLAGS+= -DPC98
-.endif
-
 # See sys/conf/options for the flags that go into the different opt_*.h files.
 SRCS=	opt_cam.h
 SRCS+=	opt_scsi.h
