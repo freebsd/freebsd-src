@@ -19,7 +19,7 @@ fixit.flp image floppy, generated in the same fashion as the boot
 floppy, or the 2nd CDROM from Walnut Creek CDROM's FreeBSD
 distribution.
 
-To invoke fixit, simply boot the boot floppy, chose the "Fixit" item
+To invoke fixit, simply boot the boot floppy, choose the "Fixit" item
 and insert the fixit floppy or CDROM when asked.  You will then be
 placed into a shell with a wide variety of commands available (in the
 /stand and /mnt2/stand directories) for checking, repairing and
@@ -360,7 +360,7 @@ Q: When I configure the network during installation on an IBM Netfinity
 A: There is a problem with the onboard Ethernet in the Netfinity 3500
    which we have not been able to identify at this time.  It may be
    related to the SMP features of the system being misconfigured.  You
-   will have to install another Ethernet adapter, and avoid attempting
+   will have to install another Ethernet adapter and avoid attempting
    to configure the onboard adapter at any time.
 
 
