@@ -33,7 +33,7 @@
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)lex.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)lex.c	8.2 (Berkeley) 4/20/95";
 #endif
 static const char rcsid[] =
   "$FreeBSD$";
@@ -68,7 +68,7 @@ setfile(name)
 	FILE *ibuf;
 	int i, fd;
 	struct stat stb;
-	char isedit = *name != '%';
+	char isedit = *name != '%' || getuserid(myname) != getuid();
 	char *who = name[1] ? name + 1 : myname;
 	char tempname[PATHSIZE];
 	static int shudclob;
@@ -136,8 +136,14 @@ setfile(name)
 		err(1, "%s", tempname);
 	(void)fcntl(fileno(itf), F_SETFD, 1);
 	(void)rm(tempname);
-	setptr(ibuf);
+	setptr(ibuf, 0);
 	setmsize(msgCount);
+	/*
+	 * New mail may have arrived while we were reading
+	 * the mail file, so reset mailsize to be where
+	 * we really are in the file...
+	 */
+	mailsize = ftell(ibuf);
 	(void)Fclose(ibuf);
 	relsesigs();
 	sawcom = 0;
@@ -147,6 +153,36 @@ nomail:
 		return (-1);
 	}
 	return (0);
+}
+
+/*
+ * Incorporate any new mail that has arrived since we first
+ * started reading mail.
+ */
+int
+incfile()
+{
+	int newsize;
+	int omsgCount = msgCount;
+	FILE *ibuf;
+
+	ibuf = Fopen(mailname, "r");
+	if (ibuf == NULL)
+		return (-1);
+	holdsigs();
+	newsize = fsize(ibuf);
+	if (newsize == 0)
+		return (-1);		/* mail box is now empty??? */
+	if (newsize < mailsize)
+		return (-1);		/* mail box has shrunk??? */
+	if (newsize == mailsize)
+		return (0);		/* no new mail */
+	setptr(ibuf, mailsize);
+	setmsize(msgCount);
+	mailsize = ftell(ibuf);
+	(void)Fclose(ibuf);
+	relsesigs();
+	return (msgCount - omsgCount);
 }
 
 int	*msgvec;
@@ -178,6 +214,8 @@ commands()
 		 * string space, and flush the output.
 		 */
 		if (!sourcing && value("interactive") != NULL) {
+			if ((value("autoinc") != NULL) && (incfile() > 0))
+				printf("New mail has arrived.\n");
 			reset_on_stop = 1;
 			printf("%s", prompt);
 		}
@@ -411,6 +449,8 @@ out:
 			unstack();
 		return (0);
 	}
+	if (com == NULL)
+		return (0);
 	if (value("autoprint") != NULL && com->c_argtype & P)
 		if ((dot->m_flag & MDELETED) == 0) {
 			muvec[0] = dot - &message[0] + 1;
@@ -431,7 +471,7 @@ setmsize(sz)
 	int sz;
 {
 
-	if (msgvec != 0)
+	if (msgvec != NULL)
 		(void)free(msgvec);
 	msgvec = calloc((unsigned)(sz + 1), sizeof(*msgvec));
 }
@@ -523,10 +563,13 @@ stop(s)
 	int s;
 {
 	sig_t old_action = signal(s, SIG_DFL);
+	sigset_t nset;
 
-	(void)sigsetmask(sigblock(0) & ~sigmask(s));
+	(void)sigemptyset(&nset);
+	(void)sigaddset(&nset, s);
+	(void)sigprocmask(SIG_UNBLOCK, &nset, NULL);
 	(void)kill(0, s);
-	(void)sigblock(sigmask(s));
+	(void)sigprocmask(SIG_BLOCK, &nset, NULL);
 	(void)signal(s, old_action);
 	if (reset_on_stop) {
 		reset_on_stop = 0;
@@ -556,7 +599,7 @@ announce()
 {
 	int vec[2], mdot;
 
-	mdot = newfileinfo();
+	mdot = newfileinfo(0);
 	vec[0] = mdot;
 	vec[1] = 0;
 	dot = &message[mdot - 1];
@@ -572,23 +615,24 @@ announce()
  * Return a likely place to set dot.
  */
 int
-newfileinfo()
+newfileinfo(omsgCount)
+	int omsgCount;
 {
 	struct message *mp;
 	int u, n, mdot, d, s;
 	char fname[PATHSIZE+1], zname[PATHSIZE+1], *ename;
 
-	for (mp = &message[0]; mp < &message[msgCount]; mp++)
+	for (mp = &message[omsgCount]; mp < &message[msgCount]; mp++)
 		if (mp->m_flag & MNEW)
 			break;
 	if (mp >= &message[msgCount])
-		for (mp = &message[0]; mp < &message[msgCount]; mp++)
+		for (mp = &message[omsgCount]; mp < &message[msgCount]; mp++)
 			if ((mp->m_flag & MREAD) == 0)
 				break;
 	if (mp < &message[msgCount])
 		mdot = mp - &message[0] + 1;
 	else
-		mdot = 1;
+		mdot = omsgCount + 1;
 	s = d = 0;
 	for (mp = &message[0], n = 0, u = 0; mp < &message[msgCount]; mp++) {
 		if (mp->m_flag & MNEW)

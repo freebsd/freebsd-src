@@ -315,9 +315,12 @@ mail1(hp, printheaders)
 	if ((mtf = collect(hp, printheaders)) == NULL)
 		return;
 	if (value("interactive") != NULL) {
-		if (value("askcc") != NULL)
-			grabh(hp, GCC);
-		else {
+		if (value("askcc") != NULL || value("askbcc") != NULL) {
+			if (value("askcc") != NULL)
+				grabh(hp, GCC);
+			if (value("askbcc") != NULL)
+				grabh(hp, GBCC);
+		} else {
 			printf("EOT\n");
 			(void)fflush(stdout);
 		}
@@ -380,9 +383,15 @@ mail1(hp, printheaders)
 		goto out;
 	}
 	if (pid == 0) {
-		prepare_child(sigmask(SIGHUP)|sigmask(SIGINT)|sigmask(SIGQUIT)|
-			sigmask(SIGTSTP)|sigmask(SIGTTIN)|sigmask(SIGTTOU),
-			fileno(mtf), -1);
+		sigset_t nset;
+		(void)sigemptyset(&nset);
+		(void)sigaddset(&nset, SIGHUP);
+		(void)sigaddset(&nset, SIGINT);
+		(void)sigaddset(&nset, SIGQUIT);
+		(void)sigaddset(&nset, SIGTSTP);
+		(void)sigaddset(&nset, SIGTTIN);
+		(void)sigaddset(&nset, SIGTTOU);
+		prepare_child(&nset, fileno(mtf), -1);
 		if ((cp = value("sendmail")) != NULL)
 			cp = expand(cp);
 		else
@@ -414,6 +423,9 @@ fixhead(hp, tolist)
 	hp->h_cc = NULL;
 	hp->h_bcc = NULL;
 	for (np = tolist; np != NULL; np = np->n_flink)
+		/* Don't copy deleted addresses to the header */
+		if (np->n_type & GDEL)
+			continue;
 		if ((np->n_type & GMASK) == GTO)
 			hp->h_to =
 			    cat(hp->h_to, nalloc(np->n_name, np->n_type));
