@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.32 1995/12/17 21:09:35 phk Exp $
+ * $Id: ffs_vfsops.c,v 1.33 1996/01/05 18:31:49 wollman Exp $
  */
 
 #include "opt_quota.h"
@@ -728,8 +728,7 @@ ffs_statfs(mp, sbp, p)
 	sbp->f_blocks = fs->fs_dsize;
 	sbp->f_bfree = fs->fs_cstotal.cs_nbfree * fs->fs_frag +
 		fs->fs_cstotal.cs_nffree;
-	sbp->f_bavail = (fs->fs_dsize * (100 - fs->fs_minfree) / 100) -
-		(fs->fs_dsize - sbp->f_bfree);
+	sbp->f_bavail = freespace(fs, fs->fs_minfree);
 	sbp->f_files =  fs->fs_ncg * fs->fs_ipg - ROOTINO;
 	sbp->f_ffree = fs->fs_cstotal.cs_nifree;
 	if (sbp != &mp->mnt_stat) {
