@@ -145,7 +145,8 @@ acdattach(struct atapi_softc *atp)
 	chp = malloc(sizeof(struct changer), M_ACD, M_NOWAIT);
 	if (chp == NULL) {
 	    printf("acd: out of memory\n");
-	    return 0;
+	    free(cdp, M_ACD);
+	    return -1;
 	}
 	bzero(chp, sizeof(struct changer));
 	error = atapi_queue_cmd(cdp->atp, ccb, chp, sizeof(struct changer),
@@ -161,6 +162,8 @@ acdattach(struct atapi_softc *atp)
 	    if (!(cdparr = malloc(sizeof(struct acd_softc) * chp->slots,
 				 M_ACD, M_NOWAIT))) {
 		printf("acd: out of memory\n");
+		free(chp, M_ACD);
+		free(cdp, M_ACD);
 		return -1;
 	    }
 	    for (count = 0; count < chp->slots; count++) {
@@ -168,7 +171,7 @@ acdattach(struct atapi_softc *atp)
 		    tmpcdp = acd_init_lun(atp, cdp->stats);
 		    if (!tmpcdp) {
 			printf("acd: out of memory\n");
-			return -1;
+			break;
 		    }
 		}
 		cdparr[count] = tmpcdp;
@@ -234,7 +237,6 @@ acd_init_lun(struct atapi_softc *atp, struct devstat *stats)
     bufq_init(&cdp->buf_queue);
     cdp->atp = atp;
     cdp->lun = ata_get_lun(&acd_lun_map);
-    cdp->flags &= ~(F_WRITTEN|F_DISK_OPEN|F_TRACK_OPEN);
     cdp->block_size = 2048;
     cdp->slot = -1;
     cdp->changer_info = NULL;
@@ -484,9 +486,17 @@ msf2lba(u_int8_t m, u_int8_t s, u_int8_t f)
 static int
 acdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
-    struct acd_softc *cdp = dev->si_drv1;
+    struct acd_softc *cdp;
+    int track = (dev->si_udev & 0x00ff0000) >> 16;
 
-    if (!cdp)
+    if (track) {
+	dev_t dev1 = makedev(major(dev), (dev->si_udev & 0xff0000ff));
+
+	if (track <= ((struct acd_softc*)(dev1->si_drv1))->toc.hdr.ending_track)
+	    dev->si_drv1 = dev1->si_drv1;
+    }
+
+    if (!(cdp = dev->si_drv1))
 	return ENXIO;
 
     if (flags & FWRITE) {
@@ -514,6 +524,9 @@ acdclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
     struct acd_softc *cdp = dev->si_drv1;
     
+    if (!cdp)
+	return ENXIO;
+
     if (count_dev(dev) == 1) {
 	if (cdp->changer_info && cdp->slot != cdp->changer_info->current_slot) {
 	    acd_select_slot(cdp);
@@ -530,6 +543,9 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flags, struct proc *p)
 {
     struct acd_softc *cdp = dev->si_drv1;
     int32_t error = 0;
+
+    if (!cdp)
+	return ENXIO;
 
     if (cdp->changer_info && cdp->slot != cdp->changer_info->current_slot) {
 	acd_select_slot(cdp);
@@ -977,51 +993,18 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flags, struct proc *p)
 	break;
  
     case CDRIOCOPENDISK:
-	if ((cdp->flags & F_WRITTEN) || (cdp->flags & F_DISK_OPEN)) {
-	    error = EINVAL;
-	    printf("acd%d: sequence error (disk already open)\n", cdp->lun);
-	}
-	cdp->flags &= ~(F_WRITTEN | F_TRACK_OPEN);
-	cdp->flags |= F_DISK_OPEN;
 	break;
 
     case CDRIOCOPENTRACK:
-	if (!(cdp->flags & F_DISK_OPEN)) {
-	    error = EINVAL;
-	    printf("acd%d: sequence error (disk not open)\n", cdp->lun);
-	} 
-	else {
-	    if ((error = acd_open_track(cdp, (struct cdr_track *)addr)))
-		break;
-	    cdp->flags |= F_TRACK_OPEN;
-	}
+	error = acd_open_track(cdp, (struct cdr_track *)addr);
 	break;
 
     case CDRIOCCLOSETRACK:
-	if (!(cdp->flags & F_TRACK_OPEN)) {
-	    error = EINVAL;
-	    printf("acd%d: sequence error (no track open)\n", cdp->lun);
-	}
-	else {
-	    if (cdp->flags & F_WRITTEN) {
-		acd_close_track(cdp);
-		cdp->flags &= ~F_TRACK_OPEN;
-	    }
-	}
+	error = acd_close_track(cdp);
 	break;
 
     case CDRIOCCLOSEDISK:
-	if (!(cdp->flags & F_DISK_OPEN)) {
-	    error = EINVAL;
-	    printf("acd%d: sequence error (nothing to close)\n", cdp->lun);
-	}
-	else if (!(cdp->flags & F_WRITTEN)) {
-	    cdp->flags &= ~(F_DISK_OPEN | F_TRACK_OPEN);
-	}
-	else {
-	    error = acd_close_disk(cdp);
-	    cdp->flags &= ~(F_WRITTEN | F_DISK_OPEN | F_TRACK_OPEN);
-	}
+	error = acd_close_disk(cdp);
 	break;
 
     case CDRIOCWRITESPEED:
@@ -1113,6 +1096,7 @@ acd_start(struct atapi_softc *atp)
     struct buf *bp = bufq_first(&cdp->buf_queue);
     u_int32_t lba, count;
     int8_t ccb[16];
+    int track, blocksize;
 
     if (cdp->changer_info) {
 	int i;
@@ -1145,11 +1129,18 @@ acd_start(struct atapi_softc *atp)
     }
 
     bzero(ccb, sizeof(ccb));
-    count = (bp->b_bcount + (cdp->block_size - 1)) / cdp->block_size;
-    if (bp->b_flags & B_PHYS)
-	lba = bp->b_offset / cdp->block_size;
+
+    lba = bp->b_offset / cdp->block_size;
+    track = (bp->b_dev->si_udev & 0x00ff0000) >> 16;
+
+    if (track) {
+	lba += ntohl(cdp->toc.tab[track - 1].addr.lba);
+	blocksize = (cdp->toc.tab[track - 1].control & 4) ? 2048 : 2352;
+    }
     else
-	lba = bp->b_blkno / (cdp->block_size / DEV_BSIZE);
+	blocksize = cdp->block_size;
+
+    count = (bp->b_bcount + (blocksize - 1)) / blocksize;
 
     if (bp->b_flags & B_READ) {
 	/* if transfer goes beyond EOM adjust it to be within limits */
@@ -1161,7 +1152,7 @@ acd_start(struct atapi_softc *atp)
 		return;
 	    }
 	}
-	if (cdp->block_size == 2048)
+	if (blocksize == 2048)
 	    ccb[0] = ATAPI_READ_BIG;
 	else {
 	    ccb[0] = ATAPI_READ_CD;
@@ -1181,8 +1172,8 @@ acd_start(struct atapi_softc *atp)
 
     devstat_start_transaction(cdp->stats);
 
-    atapi_queue_cmd(cdp->atp, ccb, bp->b_data, count * cdp->block_size,
-		    bp->b_flags & B_READ ? ATPR_F_READ : 0, 30, acd_done, bp);
+    atapi_queue_cmd(cdp->atp, ccb, bp->b_data, count * blocksize,
+		    bp->b_flags & B_READ ? ATPR_F_READ : 0, 30, acd_done,bp);
 }
 
 static int32_t 
@@ -1195,11 +1186,8 @@ acd_done(struct atapi_request *request)
 	bp->b_error = request->error;
 	bp->b_flags |= B_ERROR;
     }	
-    else {
+    else
 	bp->b_resid = bp->b_bcount - request->donecount;
-	if (!(bp->b_flags & B_READ))
-	    cdp->flags |= F_WRITTEN;
-    }
     devstat_end_transaction_buf(cdp->stats, bp);
     biodone(bp);
     return 0;
@@ -1216,9 +1204,6 @@ acd_read_toc(struct acd_softc *cdp)
     bzero(ccb, sizeof(ccb));
 
     atapi_test_ready(cdp->atp);
-
-    if (cdp->atp->flags & ATAPI_F_MEDIA_CHANGED)
-	cdp->flags &= ~(F_WRITTEN | F_DISK_OPEN | F_TRACK_OPEN);
 
     cdp->atp->flags &= ~ATAPI_F_MEDIA_CHANGED;
 
@@ -1258,6 +1243,7 @@ acd_read_toc(struct acd_softc *cdp)
 
     cdp->info.volsize = ntohl(cdp->info.volsize);
     cdp->info.blksize = ntohl(cdp->info.blksize);
+    cdp->block_size = (cdp->toc.tab[0].control & 4) ? 2048 : 2352;
 
 #ifdef ACD_DEBUG
     if (cdp->info.volsize && cdp->toc.hdr.ending_track) {
@@ -1739,7 +1725,6 @@ acd_eject(struct acd_softc *cdp, int32_t close)
 	return 0;
     acd_prevent_allow(cdp, 0);
     cdp->flags &= ~F_LOCKED;
-    cdp->flags &= ~(F_WRITTEN | F_DISK_OPEN | F_TRACK_OPEN);
     cdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
     return acd_start_stop(cdp, 2);
 }
@@ -1752,7 +1737,6 @@ acd_blank(struct acd_softc *cdp)
     int32_t error;
 
     error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 60*60, NULL, NULL);
-    cdp->flags &= ~(F_WRITTEN | F_DISK_OPEN | F_TRACK_OPEN);
     cdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
     return error;
 }

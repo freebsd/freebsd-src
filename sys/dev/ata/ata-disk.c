@@ -134,11 +134,13 @@ ad_attach(struct ata_softc *scp, int32_t device)
 
     /* use multiple sectors/interrupt if device supports it */
     adp->transfersize = DEV_BSIZE;
-    secsperint = max(1, min(AD_PARAM->nsecperint, 16));
-    if (!ata_command(adp->controller, adp->unit, ATA_C_SET_MULTI,
-		     0, 0, 0, secsperint, 0, ATA_WAIT_INTR) &&
-        ata_wait(adp->controller, adp->unit, ATA_S_READY) >= 0)
+    if (ad_version(AD_PARAM->versmajor)) {
+	secsperint = max(1, min(AD_PARAM->nsecperint, 16));
+	if (!ata_command(adp->controller, adp->unit, ATA_C_SET_MULTI,
+			 0, 0, 0, secsperint, 0, ATA_WAIT_INTR) &&
+            ata_wait(adp->controller, adp->unit, ATA_S_READY) >= 0)
         adp->transfersize *= secsperint;
+    }
 
     /* enable read/write cacheing if not default on device */
     if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
@@ -413,7 +415,7 @@ ad_transfer(struct ad_request *request)
 
 	if (ata_command(adp->controller, adp->unit, cmd, 
 			cylinder, head, sector, count, 0, ATA_IMMEDIATE)) {
-	    printf("ad%d: error executing command\n", adp->lun);
+	    printf("ad%d: error executing command", adp->lun);
 	    goto transfer_failed;
 	}
 
@@ -451,12 +453,21 @@ ad_transfer(struct ad_request *request)
 
 transfer_failed:
     untimeout((timeout_t *)ad_timeout, request, request->timeout_handle);
-    request->bp->b_error = EIO;
-    request->bp->b_flags |= B_ERROR;
-    request->bp->b_resid = request->bytecount;
-    devstat_end_transaction_buf(&adp->stats, request->bp);
-    biodone(request->bp);
-    free(request, M_AD);
+    printf(" - resetting\n");
+
+    /* if retries still permit, reinject this request */
+    if (request->retries++ < AD_MAX_RETRIES)
+	TAILQ_INSERT_HEAD(&adp->controller->ata_queue, request, chain);
+    else {
+	/* retries all used up, return error */
+	request->bp->b_error = EIO;
+	request->bp->b_flags |= B_ERROR;
+	request->bp->b_resid = request->bytecount;
+	devstat_end_transaction_buf(&adp->stats, request->bp);
+	biodone(request->bp);
+	free(request, M_AD);
+    }
+    ata_reinit(adp->controller);
 }
 
 int32_t
