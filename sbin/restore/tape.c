@@ -1022,8 +1022,11 @@ gethead(buf)
 		}
 		if (checksum((int *)buf) == FAIL)
 			return (FAIL);
-		if (Bcvt)
+		if (Bcvt) {
 			swabst((u_char *)"8l4s31l", (u_char *)buf);
+			swabst((u_char *)"l",(u_char *) &buf->c_level);
+			swabst((u_char *)"2l",(u_char *) &buf->c_flags);
+		}
 		goto good;
 	}
 	readtape((char *)(&u_ospcl.s_ospcl));
