@@ -46,7 +46,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)join.c	8.6 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: join.c,v 1.7 1997/07/15 09:57:28 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -515,6 +515,9 @@ obsolete(argv)
 		/* Return if "--". */
 		if (ap[0] == '-' && ap[1] == '-')
 			return;
+		/* skip if not an option */
+		if (ap[0] != '-')
+			continue;
 		switch (ap[1]) {
 		case 'a':
 			/*
