@@ -89,6 +89,7 @@ static long	currentout,			/* current logout value */
 static const	char *file = _PATH_WTMP;		/* wtmp file */
 static int	sflag = 0;			/* show delta in seconds */
 static int	width = 5;			/* show seconds in delta */
+static int	yflag;				/* show year */
 static int	snapfound = 0;			/* found snapshot entry? */
 static time_t	snaptime;			/* if != 0, we will only
 						 * report users logged in
@@ -112,7 +113,7 @@ void
 usage(void)
 {
 	(void)fprintf(stderr,
-"usage: last [-#] [-d [[CC]YY][MMDD]hhmm[.SS]] [-f file] [-h hostname]\n"
+"usage: last [-#] [-y] [-d [[CC]YY][MMDD]hhmm[.SS]] [-f file] [-h host]\n"
 "\t[-t tty] [-s|w] [user ...]\n");
 	exit(1);
 }
@@ -129,7 +130,7 @@ main(argc, argv)
 
 	maxrec = -1;
 	snaptime = 0;
-	while ((ch = getopt(argc, argv, "0123456789d:f:h:st:w")) != -1)
+	while ((ch = getopt(argc, argv, "0123456789d:f:h:st:wy")) != -1)
 		switch (ch) {
 		case '0': case '1': case '2': case '3': case '4':
 		case '5': case '6': case '7': case '8': case '9':
@@ -165,6 +166,9 @@ main(argc, argv)
 			break;
 		case 'w':
 			width = 8;
+			break;
+		case 'y':
+			yflag++;
 			break;
 		case '?':
 		default:
@@ -328,7 +332,8 @@ printentry(bp, tt)
 	if (maxrec != -1 && !maxrec--)
 		exit(0);
 	tm = localtime(&bp->ut_time);
-	(void) strftime(ct, sizeof(ct), "%a %Ef %R", tm);
+	(void) strftime(ct, sizeof(ct), yflag ? "%a %Ef %Y %R" :
+	     "%a %Ef %R", tm);
 	printf("%-*.*s %-*.*s %-*.*s %s%c",
 	    UT_NAMESIZE, UT_NAMESIZE, bp->ut_name,
 	    UT_LINESIZE, UT_LINESIZE, bp->ut_line,
