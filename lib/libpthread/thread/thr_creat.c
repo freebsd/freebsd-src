@@ -43,9 +43,13 @@ ___creat(const char *path, mode_t mode)
 	struct pthread *curthread = _get_curthread();
 	int ret;
 
-	_thr_enter_cancellation_point(curthread);
+	_thr_cancel_enter(curthread);
 	ret = __creat(path, mode);
-	_thr_leave_cancellation_point(curthread);
+	/*
+	 * To avoid possible file handle leak, 
+	 * only check cancellation point if it is failure
+	 */
+	_thr_cancel_leave(curthread, (ret == -1));
 	
 	return ret;
 }

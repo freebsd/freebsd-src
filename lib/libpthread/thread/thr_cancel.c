@@ -11,8 +11,35 @@ __weak_reference(_pthread_setcancelstate, pthread_setcancelstate);
 __weak_reference(_pthread_setcanceltype, pthread_setcanceltype);
 __weak_reference(_pthread_testcancel, pthread_testcancel);
 
-static int	checkcancel(struct pthread *curthread);
-static void	testcancel(struct pthread *curthread);
+static inline int
+checkcancel(struct pthread *curthread)
+{
+	if (((curthread->cancelflags & PTHREAD_CANCEL_DISABLE) == 0) &&
+	    ((curthread->cancelflags & THR_CANCELLING) != 0)) {
+		/*
+		 * It is possible for this thread to be swapped out
+		 * while performing cancellation; do not allow it
+		 * to be cancelled again.
+		 */
+		curthread->cancelflags &= ~THR_CANCELLING;
+		return (1);
+	}
+	else
+		return (0);
+}
+
+static inline void
+testcancel(struct pthread *curthread)
+{
+	if (checkcancel(curthread) != 0) {
+		/* Unlock before exiting: */
+		THR_THREAD_UNLOCK(curthread, curthread);
+
+		_thr_exit_cleanup();
+		pthread_exit(PTHREAD_CANCELED);
+		PANIC("cancel");
+	}
+}
 
 int
 _pthread_cancel(pthread_t pthread)
@@ -217,37 +244,6 @@ _pthread_setcanceltype(int type, int *oldtype)
 	return (ret);
 }
 
-static int
-checkcancel(struct pthread *curthread)
-{
-	if (((curthread->cancelflags & PTHREAD_CANCEL_DISABLE) == 0) &&
-	    ((curthread->cancelflags & THR_CANCELLING) != 0)) {
-		/*
-		 * It is possible for this thread to be swapped out
-		 * while performing cancellation; do not allow it
-		 * to be cancelled again.
-		 */
-		curthread->cancelflags &= ~THR_CANCELLING;
-		return (1);
-	}
-	else
-		return (0);
-}
-
-static void
-testcancel(struct pthread *curthread)
-{
-
-	if (checkcancel(curthread) != 0) {
-		/* Unlock before exiting: */
-		THR_THREAD_UNLOCK(curthread, curthread);
-
-		_thr_exit_cleanup();
-		pthread_exit(PTHREAD_CANCELED);
-		PANIC("cancel");
-	}
-}
-
 void
 _pthread_testcancel(void)
 {
@@ -259,10 +255,8 @@ _pthread_testcancel(void)
 }
 
 void
-_thr_enter_cancellation_point(struct pthread *thread)
+_thr_cancel_enter(struct pthread *thread)
 {
-	if (!_kse_isthreaded())
-		return;
 	/* Look for a cancellation before we block: */
 	THR_THREAD_LOCK(thread, thread);
 	testcancel(thread);
@@ -271,14 +265,13 @@ _thr_enter_cancellation_point(struct pthread *thread)
 }
 
 void
-_thr_leave_cancellation_point(struct pthread *thread)
+_thr_cancel_leave(struct pthread *thread, int check)
 {
-	if (!_kse_isthreaded())
-		return;
 	THR_THREAD_LOCK(thread, thread);
 	thread->cancelflags &= ~THR_AT_CANCEL_POINT;
 	/* Look for a cancellation after we unblock: */
-	testcancel(thread);
+	if (check)
+		testcancel(thread);
 	THR_THREAD_UNLOCK(thread, thread);
 }
 

@@ -45,19 +45,19 @@ _pthread_join(pthread_t pthread, void **thread_return)
 	kse_critical_t crit;
 	int ret = 0;
  
-	_thr_enter_cancellation_point(curthread);
+	_thr_cancel_enter(curthread);
 
 	/* Check if the caller has specified an invalid thread: */
 	if (pthread == NULL || pthread->magic != THR_MAGIC) {
 		/* Invalid thread: */
-		_thr_leave_cancellation_point(curthread);
+		_thr_cancel_leave(curthread, 1);
 		return (EINVAL);
 	}
 
 	/* Check if the caller has specified itself: */
 	if (pthread == curthread) {
 		/* Avoid a deadlock condition: */
-		_thr_leave_cancellation_point(curthread);
+		_thr_cancel_leave(curthread, 1);
 		return (EDEADLK);
 	}
 
@@ -67,7 +67,7 @@ _pthread_join(pthread_t pthread, void **thread_return)
 	 */
 	if ((ret = _thr_ref_add(curthread, pthread, /*include dead*/1)) != 0) {
 		/* Return an error: */
-		_thr_leave_cancellation_point(curthread);
+		_thr_cancel_leave(curthread, 1);
 		return (ESRCH);
 	}
 
@@ -155,7 +155,7 @@ _pthread_join(pthread_t pthread, void **thread_return)
 				*thread_return = curthread->join_status.ret;
 		}
 	}
-	_thr_leave_cancellation_point(curthread);
+	_thr_cancel_leave(curthread, 1);
 
 	/* Return the completion status: */
 	return (ret);

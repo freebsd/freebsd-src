@@ -44,14 +44,21 @@ int
 __fcntl(int fd, int cmd,...)
 {
 	struct pthread *curthread = _get_curthread();
-	int	ret;
+	int	ret, check = 1;
 	va_list	ap;
 	
-	_thr_enter_cancellation_point(curthread);
+	_thr_cancel_enter(curthread);
 
 	va_start(ap, cmd);
 	switch (cmd) {
 	case F_DUPFD:
+		ret = __sys_fcntl(fd, cmd, va_arg(ap, int));
+		/*
+		 * To avoid possible file handle leak, 
+		 * only check cancellation point if it is failure
+		 */
+		check = (ret == -1);
+		break;
 	case F_SETFD:
 	case F_SETFL:
 		ret = __sys_fcntl(fd, cmd, va_arg(ap, int));
@@ -65,7 +72,7 @@ __fcntl(int fd, int cmd,...)
 	}
 	va_end(ap);
 
-	_thr_leave_cancellation_point(curthread);
+	_thr_cancel_leave(curthread, check);
 
 	return (ret);
 }

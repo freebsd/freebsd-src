@@ -49,9 +49,9 @@ __poll(struct pollfd *fds, unsigned int nfds, int timeout)
 	struct pthread *curthread = _get_curthread();
 	int ret;
 
-	_thr_enter_cancellation_point(curthread);
+	_thr_cancel_enter(curthread);
 	ret = __sys_poll(fds, nfds, timeout);
-	_thr_leave_cancellation_point(curthread);
+	_thr_cancel_leave(curthread, 1);
 
 	return ret;
 }

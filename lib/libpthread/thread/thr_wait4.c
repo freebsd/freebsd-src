@@ -49,9 +49,9 @@ __wait4(pid_t pid, int *istat, int options, struct rusage *rusage)
 	struct pthread *curthread = _get_curthread();
 	pid_t ret;
 
-	_thr_enter_cancellation_point(curthread);
+	_thr_cancel_enter(curthread);
 	ret = _wait4(pid, istat, options, rusage);
-	_thr_leave_cancellation_point(curthread);
+	_thr_cancel_leave(curthread, 1);
 
 	return ret;
 }
