@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.112 1998/10/28 13:41:43 dg Exp $
+ *	$Id: vm_page.c,v 1.113 1998/11/11 15:07:57 dg Exp $
  */
 
 /*
@@ -352,6 +352,7 @@ vm_page_startup(starta, enda, vaddr)
  *	Distributes the object/offset key pair among hash buckets.
  *
  *	NOTE:  This macro depends on vm_page_bucket_count being a power of 2.
+ *	This routine may not block.
  */
 static __inline int
 vm_page_hash(object, pindex)
@@ -364,10 +365,15 @@ vm_page_hash(object, pindex)
 /*
  *	vm_page_insert:		[ internal use only ]
  *
- *	Inserts the given mem entry into the object/object-page
- *	table and object list.
+ *	Inserts the given mem entry into the object and object list.
+ *
+ *	The pagetables are not updated but will presumably fault the page
+ *	in if necessary, or if a kernel page the caller will at some point
+ *	enter the page into the kernel's pmap.  We are not allowed to block
+ *	here so we *can't* do this anyway.
  *
  *	The object and page must be locked, and must be splhigh.
+ *	This routine may not block.
  */
 
 void
@@ -425,6 +431,9 @@ vm_page_insert(m, object, pindex)
  *	table and the object page list.
  *
  *	The object and page must be locked, and at splhigh.
+ *	This routine may not block.
+ *
+ *	I do not think the underlying pmap entry (if any) is removed here.
  */
 
 void
@@ -490,6 +499,7 @@ vm_page_remove(m)
  *	pair specified; if none is found, NULL is returned.
  *
  *	The object must be locked.  No side effects.
+ *	This routine may not block.
  */
 
 vm_page_t
@@ -532,7 +542,11 @@ retry:
  *	current object to the specified target object/offset.
  *
  *	The object must be locked.
+ *	This routine may not block.
+ *
+ *	Note: this routine will raise itself to splvm(), the caller need not. 
  */
+
 void
 vm_page_rename(m, new_object, new_pindex)
 	register vm_page_t m;
@@ -548,8 +562,14 @@ vm_page_rename(m, new_object, new_pindex)
 }
 
 /*
- * vm_page_unqueue without any wakeup
+ * vm_page_unqueue_nowakeup:
+ *
+ * 	vm_page_unqueue() without any wakeup
+ *
+ *	This routine must be called at splhigh().
+ *	This routine may not block.
  */
+
 void
 vm_page_unqueue_nowakeup(m)
 	vm_page_t m;
@@ -570,8 +590,14 @@ vm_page_unqueue_nowakeup(m)
 }
 
 /*
- * vm_page_unqueue must be called at splhigh();
+ * vm_page_unqueue:
+ *
+ *	Remove a page from its queue.
+ *
+ *	This routine must be called at splhigh().
+ *	This routine may not block.
  */
+
 void
 vm_page_unqueue(m)
 	vm_page_t m;
@@ -595,7 +621,12 @@ vm_page_unqueue(m)
 }
 
 /*
- * Find a page on the specified queue with color optimization.
+ *	vm_page_list_find:
+ *
+ *	Find a page on the specified queue with color optimization.
+ *
+ *	This routine must be called at splvm().
+ *	This routine may not block.
  */
 vm_page_t
 vm_page_list_find(basequeue, index)
@@ -649,7 +680,12 @@ vm_page_list_find(basequeue, index)
 }
 
 /*
- * Find a page on the specified queue with color optimization.
+ *	vm_page_select:
+ *
+ *	Find a page on the specified queue with color optimization.
+ *
+ *	This routine must be called at splvm().
+ *	This routine may not block.
  */
 vm_page_t
 vm_page_select(object, pindex, basequeue)
@@ -670,9 +706,14 @@ vm_page_select(object, pindex, basequeue)
 }
 
 /*
- * Find a page on the cache queue with color optimization.  As pages
- * might be found, but not applicable, they are deactivated.  This
- * keeps us from using potentially busy cached pages.
+ *	vm_page_select_cache:
+ *
+ *	Find a page on the cache queue with color optimization.  As pages
+ *	might be found, but not applicable, they are deactivated.  This
+ *	keeps us from using potentially busy cached pages.
+ *
+ *	This routine must be called at splvm().
+ *	This routine may not block.
  */
 vm_page_t
 vm_page_select_cache(object, pindex)
@@ -700,8 +741,14 @@ vm_page_select_cache(object, pindex)
 }
 
 /*
- * Find a free or zero page, with specified preference.
+ *	vm_page_select_free:
+ *
+ *	Find a free or zero page, with specified preference.
+ *
+ *	This routine must be called at splvm().
+ *	This routine may not block.
  */
+
 static vm_page_t
 vm_page_select_free(object, pindex, prefqueue)
 	vm_object_t object;
@@ -805,6 +852,11 @@ vm_page_select_free(object, pindex, prefqueue)
  *	VM_ALLOC_ZERO		zero page
  *
  *	Object must be locked.
+ *	This routine may not block.
+ *
+ *	Additional special handling is required when called from an
+ *	interrupt (VM_ALLOC_INTERRUPT).  We are not allowed to mess with
+ *	the page cache in this case.
  */
 vm_page_t
 vm_page_alloc(object, pindex, page_req)
@@ -949,7 +1001,13 @@ vm_page_alloc(object, pindex, page_req)
 	m->dirty = 0;
 	m->queue = PQ_NONE;
 
-	/* XXX before splx until vm_page_insert is safe */
+	/*
+	 * vm_page_insert() is safe prior to the splx().  Note also that
+	 * inserting a page here does not insert it into the pmap (which
+	 * could cause us to block allocating memory).  We cannot block 
+	 * anywhere.
+	 */
+
 	vm_page_insert(m, object, pindex);
 
 	/*
@@ -979,6 +1037,12 @@ vm_page_alloc(object, pindex, page_req)
 	return (m);
 }
 
+/*
+ *	vm_wait:	(also see VM_WAIT macro)
+ *
+ *	Block until free pages are available for allocation
+ */
+
 void
 vm_wait()
 {
@@ -997,6 +1061,12 @@ vm_wait()
 	}
 	splx(s);
 }
+
+/*
+ *	vm_page_sleep:
+ *
+ *	Block until page is no longer busy.
+ */
 
 int
 vm_page_sleep(vm_page_t m, char *msg, char *busy) {
@@ -1020,6 +1090,7 @@ vm_page_sleep(vm_page_t m, char *msg, char *busy) {
  *	Put the specified page on the active list (if appropriate).
  *
  *	The page queues must be locked.
+ *	This routine may not block.
  */
 void
 vm_page_activate(m)
@@ -1051,7 +1122,9 @@ vm_page_activate(m)
 }
 
 /*
- * helper routine for vm_page_free and vm_page_free_zero
+ * helper routine for vm_page_free and vm_page_free_zero.
+ *
+ * This routine may not block.
  */
 static int
 vm_page_freechk_and_unqueue(m)
@@ -1118,7 +1191,9 @@ vm_page_freechk_and_unqueue(m)
 }
 
 /*
- * helper routine for vm_page_free and vm_page_free_zero
+ * helper routine for vm_page_free and vm_page_free_zero.
+ *
+ * This routine may not block.
  */
 static __inline void
 vm_page_free_wakeup()
@@ -1151,6 +1226,7 @@ vm_page_free_wakeup()
  *	disassociating it with any VM object.
  *
  *	Object and page must be locked prior to entry.
+ *	This routine may not block.
  */
 void
 vm_page_free(m)
@@ -1223,6 +1299,7 @@ vm_page_free_zero(m)
  *	as necessary.
  *
  *	The page queues must be locked.
+ *	This routine may not block.
  */
 void
 vm_page_wire(m)
@@ -1250,6 +1327,7 @@ vm_page_wire(m)
  *	enabling it to be paged again.
  *
  *	The page queues must be locked.
+ *	This routine may not block.
  */
 void
 vm_page_unwire(m, activate)
@@ -1289,6 +1367,8 @@ vm_page_unwire(m, activate)
 
 /*
  * Move the specified page to the inactive queue.
+ *
+ * This routine may not block.
  */
 void
 vm_page_deactivate(m)
@@ -1318,7 +1398,8 @@ vm_page_deactivate(m)
 /*
  * vm_page_cache
  *
- * Put the specified page onto the page cache queue (if appropriate).
+ * Put the specified page onto the page cache queue (if appropriate). 
+ * This routine may not block.
  */
 void
 vm_page_cache(m)
@@ -1356,6 +1437,8 @@ vm_page_cache(m)
  * Grab a page, waiting until we are waken up due to the page
  * changing state.  We keep on waiting, if the page continues
  * to be in the object.  If the page doesn't exist, allocate it.
+ *
+ * This routine may block.
  */
 vm_page_t
 vm_page_grab(object, pindex, allocflags)
@@ -1403,7 +1486,7 @@ retrylookup:
 
 /*
  * mapping function for valid bits or for dirty bits in
- * a page
+ * a page.  May not block.
  */
 __inline int
 vm_page_bits(int base, int size)
@@ -1425,7 +1508,7 @@ vm_page_bits(int base, int size)
 }
 
 /*
- * set a page valid and clean
+ * set a page valid and clean.  May not block.
  */
 void
 vm_page_set_validclean(m, base, size)
@@ -1441,7 +1524,7 @@ vm_page_set_validclean(m, base, size)
 }
 
 /*
- * set a page (partially) invalid
+ * set a page (partially) invalid.  May not block.
  */
 void
 vm_page_set_invalid(m, base, size)
@@ -1458,7 +1541,7 @@ vm_page_set_invalid(m, base, size)
 }
 
 /*
- * is (partial) page valid?
+ * is (partial) page valid?  May not block.
  */
 int
 vm_page_is_valid(m, base, size)
@@ -1473,6 +1556,10 @@ vm_page_is_valid(m, base, size)
 	else
 		return 0;
 }
+
+/*
+ * update dirty bits from pmap/mmu.  May not block.
+ */
 
 void
 vm_page_test_dirty(m)
