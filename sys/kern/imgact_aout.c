@@ -69,7 +69,9 @@ struct sysentvec aout_sysvec = {
 	&szsigcode,
 	0,
 	"FreeBSD a.out",
-	aout_coredump
+	aout_coredump,
+	NULL,
+	MINSIGSTKSZ
 };
 
 static int

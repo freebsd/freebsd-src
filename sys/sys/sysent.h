@@ -80,6 +80,7 @@ struct sysentvec {
 					    off_t));
 					/* function to dump core, or NULL */
 	int		(*sv_imgact_try) __P((struct image_params *));
+	int		sv_minsigstksz;	/* minimum signal stack size */
 };
 
 #ifdef _KERNEL

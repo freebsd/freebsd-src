@@ -36,6 +36,12 @@ typedef long	sig_atomic_t;
 #ifndef _ANSI_SOURCE
 
 /*
+ * Minimum signal stack size. The current signal frame
+ * for Alpha is 808 bytes large.
+ */
+#define	MINSIGSTKSZ	(1024 * 4)
+
+/*
  * Information pushed on stack when a signal is delivered.
  * This is used by the kernel to restore state following
  * execution of the signal handler.  It is also made available

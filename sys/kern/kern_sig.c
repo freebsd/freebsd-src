@@ -830,7 +830,7 @@ sigaltstack(p, uap)
 		p->p_sigstk.ss_flags = ss.ss_flags;
 		return (0);
 	}
-	if (ss.ss_size < MINSIGSTKSZ)
+	if (ss.ss_size < p->p_sysent->sv_minsigstksz)
 		return (ENOMEM);
 	p->p_flag |= P_ALTSTACK;
 	p->p_sigstk = ss;
