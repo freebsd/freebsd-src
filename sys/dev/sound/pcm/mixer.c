@@ -174,6 +174,7 @@ mixer_busy(snddev_info *d, int busy)
 {
 	if (d == NULL) return -1;
 	d->mixer.busy = busy;
+	return 0;
 }
 
 int
