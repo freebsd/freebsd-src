@@ -2,7 +2,7 @@
  *
  * Module Name: nsxfname - Public interfaces to the ACPI subsystem
  *                         ACPI Namespace oriented interfaces
- *              $Revision: 94 $
+ *              $Revision: 97 $
  *
  *****************************************************************************/
 
@@ -125,7 +125,7 @@
         ACPI_MODULE_NAME    ("nsxfname")
 
 
-/****************************************************************************
+/******************************************************************************
  *
  * FUNCTION:    AcpiGetHandle
  *
@@ -199,7 +199,8 @@ AcpiGetHandle (
     /*
      *  Find the Node and convert to a handle
      */
-    Status = AcpiNsGetNodeByPath (Pathname, PrefixNode, ACPI_NS_NO_UPSEARCH, &Node);
+    Status = AcpiNsGetNodeByPath (Pathname, PrefixNode, ACPI_NS_NO_UPSEARCH,
+                    &Node);
 
     *RetHandle = NULL;
     if (ACPI_SUCCESS (Status))
@@ -211,7 +212,7 @@ AcpiGetHandle (
 }
 
 
-/****************************************************************************
+/******************************************************************************
  *
  * FUNCTION:    AcpiGetName
  *
@@ -298,7 +299,7 @@ UnlockAndExit:
 }
 
 
-/****************************************************************************
+/******************************************************************************
  *
  * FUNCTION:    AcpiGetObjectInfo
  *
@@ -316,21 +317,27 @@ UnlockAndExit:
 ACPI_STATUS
 AcpiGetObjectInfo (
     ACPI_HANDLE             Handle,
-    ACPI_DEVICE_INFO        *Info)
+    ACPI_BUFFER             *Buffer)
 {
-    ACPI_DEVICE_ID          Hid;
-    ACPI_DEVICE_ID          Uid;
     ACPI_STATUS             Status;
-    UINT32                  DeviceStatus = 0;
-    ACPI_INTEGER            Address = 0;
     ACPI_NAMESPACE_NODE     *Node;
+    ACPI_DEVICE_INFO        Info;
+    ACPI_DEVICE_INFO        *ReturnInfo;
+    ACPI_COMPATIBLE_ID_LIST *CidList = NULL;
+    ACPI_SIZE               Size;
 
 
     /* Parameter validation */
 
-    if (!Handle || !Info)
+    if (!Handle || !Buffer)
     {
         return (AE_BAD_PARAMETER);
+    }
+
+    Status = AcpiUtValidateBuffer (Buffer);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
     }
 
     Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
@@ -346,8 +353,14 @@ AcpiGetObjectInfo (
         return (AE_BAD_PARAMETER);
     }
 
-    Info->Type = Node->Type;
-    Info->Name = Node->Name.Integer;
+    /* Init return structure */
+
+    Size = sizeof (ACPI_DEVICE_INFO);
+    ACPI_MEMSET (&Info, 0, Size);
+
+    Info.Type  = Node->Type;
+    Info.Name  = Node->Name.Integer;
+    Info.Valid = 0;
 
     Status = AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
     if (ACPI_FAILURE (Status))
@@ -355,66 +368,89 @@ AcpiGetObjectInfo (
         return (Status);
     }
 
-    /*
-     * If not a device, we are all done.
-     */
-    if (Info->Type != ACPI_TYPE_DEVICE)
+    /* If not a device, we are all done */
+
+    if (Info.Type == ACPI_TYPE_DEVICE)
     {
-        return (AE_OK);
+        /*
+         * Get extra info for ACPI Devices objects only:
+         * Run the Device _HID, _UID, _CID, _STA, and _ADR methods. 
+         * 
+         * Note: none of these methods are required, so they may or may
+         * not be present for this device.  The Info.Valid bitfield is used
+         * to indicate which methods were found and ran successfully.
+         */
+
+        /* Execute the Device._HID method */
+
+        Status = AcpiUtExecute_HID (Node, &Info.HardwareId);
+        if (ACPI_SUCCESS (Status))
+        {
+            Info.Valid |= ACPI_VALID_HID;
+        }
+
+        /* Execute the Device._UID method */
+
+        Status = AcpiUtExecute_UID (Node, &Info.UniqueId);
+        if (ACPI_SUCCESS (Status))
+        {
+            Info.Valid |= ACPI_VALID_UID;
+        }
+
+        /* Execute the Device._CID method */
+
+        Status = AcpiUtExecute_CID (Node, &CidList);
+        if (ACPI_SUCCESS (Status))
+        {
+            Size += ((ACPI_SIZE) CidList->Count - 1) * 
+                                 sizeof (ACPI_COMPATIBLE_ID);
+            Info.Valid |= ACPI_VALID_CID;
+        }
+
+        /* Execute the Device._STA method */
+
+        Status = AcpiUtExecute_STA (Node, &Info.CurrentStatus);
+        if (ACPI_SUCCESS (Status))
+        {
+            Info.Valid |= ACPI_VALID_STA;
+        }
+
+        /* Execute the Device._ADR method */
+
+        Status = AcpiUtEvaluateNumericObject (METHOD_NAME__ADR, Node, 
+                        &Info.Address);
+        if (ACPI_SUCCESS (Status))
+        {
+            Info.Valid |= ACPI_VALID_ADR;
+        }
+
+        Status = AE_OK;
+    }
+
+    /* Validate/Allocate/Clear caller buffer */
+
+    Status = AcpiUtInitializeBuffer (Buffer, Size);
+    if (ACPI_FAILURE (Status))
+    {
+        goto Cleanup;
+    }
+
+    /* Populate the return buffer */
+
+    ReturnInfo = Buffer->Pointer;
+    ACPI_MEMCPY (ReturnInfo, &Info, sizeof (ACPI_DEVICE_INFO));
+
+    if (CidList)
+    {
+        ACPI_MEMCPY (&ReturnInfo->CompatibilityId, CidList, CidList->Size);
     }
 
 
-    /*
-     * Get extra info for ACPI devices only.  Run the
-     * _HID, _UID, _STA, and _ADR methods.  Note: none
-     * of these methods are required, so they may or may
-     * not be present.  The Info->Valid bits are used
-     * to indicate which methods ran successfully.
-     */
-    Info->Valid = 0;
-
-    /* Execute the _HID method and save the result */
-
-    Status = AcpiUtExecute_HID (Node, &Hid);
-    if (ACPI_SUCCESS (Status))
+Cleanup:
+    if (CidList)
     {
-        ACPI_STRNCPY (Info->HardwareId, Hid.Buffer, sizeof(Info->HardwareId));
-        Info->Valid |= ACPI_VALID_HID;
+        ACPI_MEM_FREE (CidList);
     }
-
-    /* Execute the _UID method and save the result */
-
-    Status = AcpiUtExecute_UID (Node, &Uid);
-    if (ACPI_SUCCESS (Status))
-    {
-        ACPI_STRCPY (Info->UniqueId, Uid.Buffer);
-        Info->Valid |= ACPI_VALID_UID;
-    }
-
-    /*
-     * Execute the _STA method and save the result
-     * _STA is not always present
-     */
-    Status = AcpiUtExecute_STA (Node, &DeviceStatus);
-    if (ACPI_SUCCESS (Status))
-    {
-        Info->CurrentStatus = DeviceStatus;
-        Info->Valid |= ACPI_VALID_STA;
-    }
-
-    /*
-     * Execute the _ADR method and save result if successful
-     * _ADR is not always present
-     */
-    Status = AcpiUtEvaluateNumericObject (METHOD_NAME__ADR,
-                                            Node, &Address);
-
-    if (ACPI_SUCCESS (Status))
-    {
-        Info->Address = Address;
-        Info->Valid |= ACPI_VALID_ADR;
-    }
-
-    return (AE_OK);
+    return (Status);
 }
 

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsio - IO and DMA resource descriptors
- *              $Revision: 23 $
+ *              $Revision: 24 $
  *
  ******************************************************************************/
 
@@ -180,7 +180,7 @@ AcpiRsIoResource (
      * Check MinBase Address
      */
     Buffer += 1;
-    ACPI_MOVE_UNALIGNED16_TO_16 (&Temp16, Buffer);
+    ACPI_MOVE_16_TO_16 (&Temp16, Buffer);
 
     OutputStruct->Data.Io.MinBaseAddress = Temp16;
 
@@ -188,7 +188,7 @@ AcpiRsIoResource (
      * Check MaxBase Address
      */
     Buffer += 2;
-    ACPI_MOVE_UNALIGNED16_TO_16 (&Temp16, Buffer);
+    ACPI_MOVE_16_TO_16 (&Temp16, Buffer);
 
     OutputStruct->Data.Io.MaxBaseAddress = Temp16;
 
@@ -270,7 +270,7 @@ AcpiRsFixedIoResource (
      * Check Range Base Address
      */
     Buffer += 1;
-    ACPI_MOVE_UNALIGNED16_TO_16 (&Temp16, Buffer);
+    ACPI_MOVE_16_TO_16 (&Temp16, Buffer);
 
     OutputStruct->Data.FixedIo.BaseAddress = Temp16;
 
@@ -344,7 +344,7 @@ AcpiRsIoStream (
      */
     Temp16 = (UINT16) LinkedList->Data.Io.MinBaseAddress;
 
-    ACPI_MOVE_UNALIGNED16_TO_16 (Buffer, &Temp16);
+    ACPI_MOVE_16_TO_16 (Buffer, &Temp16);
     Buffer += 2;
 
     /*
@@ -352,7 +352,7 @@ AcpiRsIoStream (
      */
     Temp16 = (UINT16) LinkedList->Data.Io.MaxBaseAddress;
 
-    ACPI_MOVE_UNALIGNED16_TO_16 (Buffer, &Temp16);
+    ACPI_MOVE_16_TO_16 (Buffer, &Temp16);
     Buffer += 2;
 
     /*
@@ -421,7 +421,7 @@ AcpiRsFixedIoStream (
      */
     Temp16 = (UINT16) LinkedList->Data.FixedIo.BaseAddress;
 
-    ACPI_MOVE_UNALIGNED16_TO_16 (Buffer, &Temp16);
+    ACPI_MOVE_16_TO_16 (Buffer, &Temp16);
     Buffer += 2;
 
     /*

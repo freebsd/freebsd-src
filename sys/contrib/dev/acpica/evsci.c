@@ -2,7 +2,7 @@
  *
  * Module Name: evsci - System Control Interrupt configuration and
  *                      legacy to ACPI mode state transition functions
- *              $Revision: 88 $
+ *              $Revision: 93 $
  *
  ******************************************************************************/
 
@@ -126,26 +126,26 @@
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiEvSciHandler
+ * FUNCTION:    AcpiEvSciXruptHandler
  *
  * PARAMETERS:  Context   - Calling Context
  *
  * RETURN:      Status code indicates whether interrupt was handled.
  *
  * DESCRIPTION: Interrupt handler that will figure out what function or
- *              control method to call to deal with a SCI.  Installed
- *              using BU interrupt support.
+ *              control method to call to deal with a SCI.
  *
  ******************************************************************************/
 
 static UINT32 ACPI_SYSTEM_XFACE
-AcpiEvSciHandler (
+AcpiEvSciXruptHandler (
     void                    *Context)
 {
+    ACPI_GPE_XRUPT_INFO     *GpeXruptList = Context;
     UINT32                  InterruptHandled = ACPI_INTERRUPT_NOT_HANDLED;
 
 
-    ACPI_FUNCTION_TRACE("EvSciHandler");
+    ACPI_FUNCTION_TRACE("EvSciXruptHandler");
 
 
     /*
@@ -154,16 +154,54 @@ AcpiEvSciHandler (
      */
 
     /*
-     * Fixed AcpiEvents:
-     * Check for and dispatch any Fixed AcpiEvents that have occurred
+     * Fixed Events:
+     * Check for and dispatch any Fixed Events that have occurred
      */
     InterruptHandled |= AcpiEvFixedEventDetect ();
+
+    /*
+     * General Purpose Events:
+     * Check for and dispatch any GPEs that have occurred
+     */
+    InterruptHandled |= AcpiEvGpeDetect (GpeXruptList);
+
+    return_VALUE (InterruptHandled);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiEvGpeXruptHandler
+ *
+ * PARAMETERS:  Context   - Calling Context
+ *
+ * RETURN:      Status code indicates whether interrupt was handled.
+ *
+ * DESCRIPTION: Handler for GPE Block Device interrupts
+ *
+ ******************************************************************************/
+
+UINT32 ACPI_SYSTEM_XFACE
+AcpiEvGpeXruptHandler (
+    void                    *Context)
+{
+    ACPI_GPE_XRUPT_INFO     *GpeXruptList = Context;
+    UINT32                  InterruptHandled = ACPI_INTERRUPT_NOT_HANDLED;
+
+
+    ACPI_FUNCTION_TRACE("EvGpeXruptHandler");
+
+
+    /*
+     * We are guaranteed by the ACPI CA initialization/shutdown code that
+     * if this interrupt handler is installed, ACPI is enabled.
+     */
 
     /*
      * GPEs:
      * Check for and dispatch any GPEs that have occurred
      */
-    InterruptHandled |= AcpiEvGpeDetect ();
+    InterruptHandled |= AcpiEvGpeDetect (GpeXruptList);
 
     return_VALUE (InterruptHandled);
 }
@@ -191,7 +229,7 @@ AcpiEvInstallSciHandler (void)
 
 
     Status = AcpiOsInstallInterruptHandler ((UINT32) AcpiGbl_FADT->SciInt,
-                        AcpiEvSciHandler, NULL);
+                        AcpiEvSciXruptHandler, AcpiGbl_GpeXruptListHead);
     return_ACPI_STATUS (Status);
 }
 
@@ -227,7 +265,7 @@ AcpiEvRemoveSciHandler (void)
     /* Just let the OS remove the handler and disable the level */
 
     Status = AcpiOsRemoveInterruptHandler ((UINT32) AcpiGbl_FADT->SciInt,
-                                    AcpiEvSciHandler);
+                                    AcpiEvSciXruptHandler);
 
     return_ACPI_STATUS (Status);
 }

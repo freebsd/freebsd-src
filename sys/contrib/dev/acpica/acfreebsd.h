@@ -129,14 +129,6 @@
 #include <machine/acpica_machdep.h>
 
 #ifdef _KERNEL
-#include "opt_acpi.h"
-#endif
-
-#ifdef ACPI_DEBUG
-#define ACPI_DEBUG_OUTPUT	/* for backward compatibility */
-#endif
-
-#ifdef _KERNEL
 #include <sys/ctype.h>
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -165,7 +157,6 @@
 
 #define __cli()
 #define __sti()
-#define ACPI_FLUSH_CPU_CACHE()
 
 #endif /* _KERNEL */
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsobject - Dispatcher object management routines
- *              $Revision: 114 $
+ *              $Revision: 117 $
  *
  *****************************************************************************/
 
@@ -271,7 +271,7 @@ AcpiDsBuildInternalBufferObj (
             return (AE_TYPE);
         }
 
-        ByteListLength = ByteList->Common.Value.Integer32;
+        ByteListLength = (UINT32) ByteList->Common.Value.Integer;
     }
 
     /*
@@ -290,7 +290,8 @@ AcpiDsBuildInternalBufferObj (
     if (ObjDesc->Buffer.Length == 0)
     {
         ObjDesc->Buffer.Pointer = NULL;
-        ACPI_REPORT_WARNING (("Buffer created with zero length in AML\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+            "Buffer defined with zero length in AML, creating\n"));
     }
     else
     {
