@@ -1421,7 +1421,8 @@ vm_page_dontneed(vm_page_t m)
 /*
  * Grab a page, waiting until we are waken up due to the page
  * changing state.  We keep on waiting, if the page continues
- * to be in the object.  If the page doesn't exist, allocate it.
+ * to be in the object.  If the page doesn't exist, first allocate it
+ * and then conditionally zero it.
  *
  * This routine may block.
  */
@@ -1447,23 +1448,21 @@ retrylookup:
 				vm_page_wire(m);
 			vm_page_busy(m);
 			vm_page_unlock_queues();
-			return m;
+			return (m);
 		}
 	}
-
 	m = vm_page_alloc(object, pindex, allocflags & ~VM_ALLOC_RETRY);
 	if (m == NULL) {
 		VM_OBJECT_UNLOCK(object);
 		VM_WAIT;
 		VM_OBJECT_LOCK(object);
 		if ((allocflags & VM_ALLOC_RETRY) == 0)
-			return NULL;
+			return (NULL);
 		goto retrylookup;
 	}
 	if (allocflags & VM_ALLOC_ZERO && (m->flags & PG_ZERO) == 0)
 		pmap_zero_page(m);
-
-	return m;
+	return (m);
 }
 
 /*
