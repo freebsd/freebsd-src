@@ -21,6 +21,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040819:
+	Netgraph changed its message format slightly to align the data
+	portion well on 64 bit machines.
+	Netgraph using utilities (e.g. ngctl, nghook, ppp, mpd,
+	pppoed, bluetooth, ATM) should be recompiled when a new kernel
+	is installed.
+	
 20040817:
 	IPFW has been converted to use PFIL_HOOKS.  This change is
 	transparent to userland and preserves the ipfw ABI.  The ipfw
