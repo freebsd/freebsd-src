@@ -26,6 +26,8 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
+
 #include <stddef.h>
 #include "elfh.h"
 
