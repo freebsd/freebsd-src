@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: milter.c,v 8.197.2.2 2002/08/06 22:58:38 gshapiro Exp $")
+SM_RCSID("@(#)$Id: milter.c,v 8.197.2.5 2002/11/11 23:22:28 ca Exp $")
 
 #if MILTER
 # include <libmilter/mfapi.h>
@@ -580,7 +580,7 @@ milter_open(m, parseonly, e)
 		if (parseonly)
 			syserr("X%s: empty or missing socket information",
 			       m->mf_name);
-		else if (MilterLogLevel > 10)
+		else if (MilterLogLevel > 0)
 			sm_syslog(LOG_ERR, e->e_id,
 				  "Milter (%s): empty or missing socket information",
 				  m->mf_name);
@@ -611,9 +611,10 @@ milter_open(m, parseonly, e)
 			addr.sa.sa_family = AF_INET6;
 #   else /* NETINET6 */
 			/* no protocols available */
-			sm_syslog(LOG_ERR, e->e_id,
-				  "Milter (%s): no valid socket protocols available",
-				  m->mf_name);
+			if (MilterLogLevel > 0)
+				sm_syslog(LOG_ERR, e->e_id,
+					  "Milter (%s): no valid socket protocols available",
+					  m->mf_name);
 			milter_error(m, e);
 			return -1;
 #   endif /* NETINET6 */
@@ -646,7 +647,7 @@ milter_open(m, parseonly, e)
 			if (parseonly)
 				syserr("X%s: unknown socket type %s",
 				       m->mf_name, p);
-			else if (MilterLogLevel > 10)
+			else if (MilterLogLevel > 0)
 				sm_syslog(LOG_ERR, e->e_id,
 					  "Milter (%s): unknown socket type %s",
 					  m->mf_name, p);
@@ -677,7 +678,7 @@ milter_open(m, parseonly, e)
 			if (parseonly)
 				syserr("X%s: local socket name %s too long",
 				       m->mf_name, colon);
-			else if (MilterLogLevel > 10)
+			else if (MilterLogLevel > 0)
 				sm_syslog(LOG_ERR, e->e_id,
 					  "Milter (%s): local socket name %s too long",
 					  m->mf_name, colon);
@@ -712,7 +713,7 @@ milter_open(m, parseonly, e)
 					syserr("X%s: local socket name %s unsafe",
 					       m->mf_name, colon);
 			}
-			else if (MilterLogLevel > 10)
+			else if (MilterLogLevel > 0)
 				sm_syslog(LOG_ERR, e->e_id,
 					  "Milter (%s): local socket name %s unsafe",
 					  m->mf_name, colon);
@@ -748,7 +749,7 @@ milter_open(m, parseonly, e)
 			if (parseonly)
 				syserr("X%s: bad address %s (expected port@host)",
 				       m->mf_name, colon);
-			else if (MilterLogLevel > 10)
+			else if (MilterLogLevel > 0)
 				sm_syslog(LOG_ERR, e->e_id,
 					  "Milter (%s): bad address %s (expected port@host)",
 					  m->mf_name, colon);
@@ -767,7 +768,7 @@ milter_open(m, parseonly, e)
 			if (parseonly)
 				syserr("X%s: invalid port number %s",
 				       m->mf_name, colon);
-			else if (MilterLogLevel > 10)
+			else if (MilterLogLevel > 0)
 				sm_syslog(LOG_ERR, e->e_id,
 					  "Milter (%s): invalid port number %s",
 					  m->mf_name, colon);
@@ -787,7 +788,7 @@ milter_open(m, parseonly, e)
 				if (parseonly)
 					syserr("X%s: unknown port name %s",
 					       m->mf_name, colon);
-				else if (MilterLogLevel > 10)
+				else if (MilterLogLevel > 0)
 					sm_syslog(LOG_ERR, e->e_id,
 						  "Milter (%s): unknown port name %s",
 						  m->mf_name, colon);
@@ -843,7 +844,7 @@ milter_open(m, parseonly, e)
 					if (parseonly)
 						syserr("X%s: Invalid numeric domain spec \"%s\"",
 						       m->mf_name, at);
-					else if (MilterLogLevel > 10)
+					else if (MilterLogLevel > 0)
 						sm_syslog(LOG_ERR, e->e_id,
 							  "Milter (%s): Invalid numeric domain spec \"%s\"",
 							  m->mf_name, at);
@@ -859,7 +860,7 @@ milter_open(m, parseonly, e)
 				if (parseonly)
 					syserr("X%s: Invalid numeric domain spec \"%s\"",
 					       m->mf_name, at);
-				else if (MilterLogLevel > 10)
+				else if (MilterLogLevel > 0)
 					sm_syslog(LOG_ERR, e->e_id,
 						  "Milter (%s): Invalid numeric domain spec \"%s\"",
 						  m->mf_name, at);
@@ -880,7 +881,7 @@ milter_open(m, parseonly, e)
 				if (parseonly)
 					syserr("X%s: Unknown host name %s",
 					       m->mf_name, at);
-				else if (MilterLogLevel > 10)
+				else if (MilterLogLevel > 0)
 					sm_syslog(LOG_ERR, e->e_id,
 						  "Milter (%s): Unknown host name %s",
 						  m->mf_name, at);
@@ -918,7 +919,7 @@ milter_open(m, parseonly, e)
 				if (parseonly)
 					syserr("X%s: Unknown protocol for %s (%d)",
 					       m->mf_name, at, hp->h_addrtype);
-				else if (MilterLogLevel > 10)
+				else if (MilterLogLevel > 0)
 					sm_syslog(LOG_ERR, e->e_id,
 						  "Milter (%s): Unknown protocol for %s (%d)",
 						  m->mf_name, at,
@@ -939,7 +940,7 @@ milter_open(m, parseonly, e)
 				   m->mf_name);
 		if (parseonly)
 			syserr("X%s: unknown socket protocol", m->mf_name);
-		else if (MilterLogLevel > 10)
+		else if (MilterLogLevel > 0)
 			sm_syslog(LOG_ERR, e->e_id,
 				  "Milter (%s): unknown socket protocol",
 				  m->mf_name);
@@ -3226,7 +3227,14 @@ milter_connect(hostname, addr, e, state)
 	{
 		if (response != NULL &&
 		    *response == '4')
-			*state = SMFIR_TEMPFAIL;
+		{
+#if _FFR_MILTER_421
+			if (strncmp(response, "421 ", 4) == 0)
+				*state = SMFIR_SHUTDOWN;
+			else
+#endif /* _FFR_MILTER_421 */
+				*state = SMFIR_TEMPFAIL;
+		}
 		else
 			*state = SMFIR_REJECT;
 		if (response != NULL)
@@ -3724,7 +3732,7 @@ milter_data(e, state)
 			  case SMFIR_REPLBODY:
 				if (!bitset(SMFIF_MODBODY, m->mf_fflags))
 				{
-					if (MilterLogLevel > 0)
+					if (MilterLogLevel > 9)
 						sm_syslog(LOG_ERR, e->e_id,
 							  "milter_data(%s): lied about replacing body, rejecting request and tempfailing message",
 							  m->mf_name);

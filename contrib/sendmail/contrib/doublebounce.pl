@@ -1,232 +1,225 @@
 #!/usr/bin/perl
 # doublebounce.pl
-#	attempt to return a doubly-bounced email to a postmaster
-#	jr@terra.net, 12/4/97
 #
-#	invoke by creating an mail alias such as:
-#		doublebounce:	"|/usr/local/sbin/doublebounce"
-#	then adding this line to your sendmail.cf:
-#		O DoubleBounceAddress=doublebounce
+# Return a doubly-bounced e-mail to postmaster.  Specific to sendmail,
+# updated to work on sendmail 8.12.6.
 #
-#	optionally, add a "-d" flag in the aliases file, to send a
-#	debug trace to your own postmaster showing what is going on
+# Based on the original doublebounce.pl code by jr@terra.net, 12/4/97.
+# Updated by bicknell@ufp.org, 12/4/2002 to understand new sendmail DSN
+# bounces.  Code cleanup also performed, mainly making things more
+# robust.
 #
-#	this allows the "postmaster" address to still go to a human being,
-#	while bounce messages can go to this script, which will bounce them
-#	back to the postmaster at the sending site.
-#
-#	the algorithm is to scan the double-bounce error report generated
-#	by sendmail on stdin, for the original message (it starts after the
-#	second "Orignal message follows" marker), look for From, Sender, and
-#	Received headers from the point closest to the sender back to the point
-#	closest to us, and try to deliver a double-bounce report back to a
-#	postmaster at one of these sites in the hope that they can
-#	return the message to the original sender, or do something about
-#	the fact that that sender's return address is not valid.
-
+# Original intro included below, lines with ##
+##	attempt to return a doubly-bounced email to a postmaster
+##	jr@terra.net, 12/4/97
+##
+##	invoke by creating an mail alias such as:
+##		doublebounce:	"|/usr/local/sbin/doublebounce"
+##	then adding this line to your sendmail.cf:
+##		O DoubleBounceAddress=doublebounce
+##
+##	optionally, add a "-d" flag in the aliases file, to send a
+##	debug trace to your own postmaster showing what is going on
+##
+##	this allows the "postmaster" address to still go to a human being,
+##	while bounce messages can go to this script, which will bounce them
+##	back to the postmaster at the sending site.
+##
+##	the algorithm is to scan the double-bounce error report generated
+##	by sendmail on stdin, for the original message (it starts after the
+##	second "Orignal message follows" marker), look for From, Sender, and
+##	Received headers from the point closest to the sender back to the point
+##	closest to us, and try to deliver a double-bounce report back to a
+##	postmaster at one of these sites in the hope that they can
+##	return the message to the original sender, or do something about
+##	the fact that that sender's return address is not valid.
 
 use Socket;
-
-# look for debug flag
-#
-$dflag = 0;
-$dflag = 1 if ($ARGV[0] eq "-d");
-
-# get local host name
-#	you may need to edit these two lines for however your system does this
-#
-$host = `hostname`; chop($host);
-$domain = `dnsdomainname`; chop($domain);
-
-# get temp file name
-$tmp = "/tmp/doubb$$";
-
-# save message from STDIN to a file
-#	I thought about reading it into a buffer here, but some messages
-#	are 10+Mb so a buffer may not be a good idea
-#
-if (! open(MSG, "+> $tmp")) {
-	# can't open temp file -- send message to local postmaster
-	# open(MAIL, "| /usr/sbin/sendmail -oeq postmaster");
-	print MAIL <STDIN>;
-	close(MAIL);
-	exit(1);
-}
-print MSG <STDIN>;
-
-# scan message for list of possible sender sites
-#	note that original message appears after the second
-#	"Original message follows" marker
-#	look for From, Sender, and Reply-To and try them, too
-#
-$inhdr = 0;
-$hdrs = 0;
-$skip = 0;
-seek(MSG, 0, 0);
-while (<MSG>) {
-	chop;
-	if (/^   ----- Original message follows -----$/
-	     || /^   ----Unsent message follows----$/) {
-		$i = 0;
-		$inhdr = 1;
-		$hdrs++;
-		$skip = 1;
-		next;
-	}
-	if ($skip) {
-		$skip--;
-		next;
-	}
-	if (/^$/) {
-		last if ($hdrs >= 2);
-		$inhdr = 0;
-		next;
-	}
-	if (! $inhdr) {
-		next;
-	}
-	if (! /^[ \t]/) { $hdr[$i++] = $_ }
-	else {
-		$i--;
-		$hdr[$i++] .= $_;
-	}
-}
-$rcvd = 0;
-for ($j = 0; $j < $i; $j++) {
-	print STDERR "DEBUG hdr[$j] = $hdr[$j]\n";
-	if ($hdr[$j] =~ /^received:/i) {
-		($addr[$rcvd++]) = $hdr[$j] =~ m/.*\sby\s([^\s]+)\s.*/;
-	}
-	if ($hdr[$j] =~ /^reply-to:/i) {
-		($addr1{"reply-to"} = $hdr[$j]) =~ s/^reply-to: *//i;
-	}
-	if ($hdr[$j] =~ /^sender:/i) {
-		($addr1{"sender"} = $hdr[$j]) =~ s/^sender: *//i;
-		}
-	if ($hdr[$j] =~ /^from:/i) {
-		($addr1{"from"} = $hdr[$j]) =~ s/^from: *//i;
-	}
-}
-
-# %addr and %addr1 arrays now contain lists of possible sites (or From headers).
-# Go through them parsing for the site name, and attempting to send
-# to the named person or postmaster@ each site in turn until successful
-#
-if ($dflag) {
-	open(DEBUG, "|/usr/sbin/sendmail postmaster");
-	print DEBUG "Subject: double bounce dialog\n";
-}
-$sent = 0;
-# foreach $x ("from", "sender", "reply-to") {
-foreach $x ("from", "sender") {
-	$y = &parseaddr($addr1{$x});
-	if ($y) {
-		print DEBUG "Trying $y\n" if ($dflag);
-		if (&sendbounce("$y")) {
-			$sent++;
-			last;
-		}
-		$y =~ s/.*@//;
-		print DEBUG "Trying postmaster\@$y\n" if ($dflag);
-		if (&sendbounce("postmaster\@$y")) {
-			$sent++;
-			last;
-		}
-	}
-}
-if (! $sent) {
-	$rcvd--;
-	for ($i = $rcvd; $i >= 0; $i--) {
-		$y = &parseaddr($addr[$i]);
-		$y =~ s/.*@//;
-		if ($y) {
-			print DEBUG "Trying postmaster\@$y\n" if ($dflag);
-			if (&sendbounce("postmaster\@$y")) {
-				$sent++;
-				last;
-			}
-		}
-	}
-}
-if (! $sent) {
-	# queer things are happening to me
-	# $addr[0] should be own domain, so we should have just
-	# tried postmaster@our.domain.  theoretically, we should
-	# not get here...
-	if ($dflag) {
-		print DEBUG "queer things are happening to me\n";
-		print DEBUG "Trying postmaster\n";
-	}
-	&sendbounce("postmaster");
-}
-
-# clean up and get out
-#
-if ($dflag) {
-	seek(MSG, 0, 0);
-	print DEBUG "\n---\n"; print DEBUG <MSG>;
-	close(DEBUG);
-}
-close(MSG);
-unlink("$tmp");
-exit(0);
-
-
-
-
+use Getopt::Std;
+use POSIX;
+use Sys::Syslog qw(:DEFAULT setlogsock);
+use strict;
+use vars qw( $opt_d $tmpfile);
 
 # parseaddr()
 #	parse hostname from From: header
 #
 sub parseaddr {
-	local($hdr) = @_;
-	local($addr);
+  my($hdr) = @_;
+  my($addr);
 
-	if ($hdr =~ /<.*>/) {
-		($addr) = $hdr =~ m/<(.*)>/;
-		return $addr;
-	}
-	if ($addr =~ /\s*\(/) {
-		($addr) = $hdr =~ m/\s*(.*)\s*\(/;
-		return $addr;
-	}
-	($addr) = $hdr =~ m/\s*(.*)\s*/;
-	return $addr;
+  if ($hdr =~ /<.*>/) {
+    ($addr) = $hdr =~ m/<(.*)>/;
+    $addr =~ s/.*\@//;
+    return $addr;
+  }
+  if ($addr =~ /\s*\(/) {
+    ($addr) = $hdr =~ m/\s*(.*)\s*\(/;
+    $addr =~ s/.*\@//;
+    return $addr;
+  }
+  ($addr) = $hdr =~ m/\s*(.*)\s*/;
+  $addr =~ s/.*\@//;
+  return $addr;
 }
-
 
 # sendbounce()
 #	send bounce to postmaster
 #
 #	this re-invokes sendmail in immediate and quiet mode to try
 #	to deliver to a postmaster.  sendmail's exit status tells us
-#	wether the delivery attempt really was successful.
+#	whether the delivery attempt really was successful.
 #
-sub sendbounce {
-	local($dest) = @_;
-	local($st);
+sub send_bounce {
+  my($addr, $from) = @_;
+  my($st);
+  my($result);
 
-	open(MAIL, "| /usr/sbin/sendmail -ocn -odi -oeq $dest");
-	print MAIL <<EOT;
-From: Mail Delivery Subsystem <mail-router\@$domain>
+  my($dest) = "postmaster\@" . parseaddr($addr);
+
+  if ($opt_d) {
+    syslog ('info', "Attempting to send to user $dest");
+  }
+  open(MAIL, "| /usr/sbin/sendmail -oeq $dest");
+  print MAIL <<EOT;
+From: Mail Delivery Subsystem <mail-router>
 Subject: Postmaster notify: double bounce
-Reply-To: nobody\@$domain
-Errors-To: nobody\@$domain
+Reply-To: nobody
+Errors-To: nobody
 Precedence: junk
 Auto-Submitted: auto-generated (postmaster notification)
 
-The following message was received at $host.$domain for an invalid
-recipient.  The sender's address was also invalid.  Since the message
-originated at or transited through your mailer, this notification is being
-sent to you in the hope that you will determine the real originator and
-have them correct their From or Sender address.
+The following message was received for an invalid recipient.  The
+sender's address was also invalid.  Since the message originated
+at or transited through your mailer, this notification is being
+sent to you in the hope that you will determine the real originator
+and have them correct their From or Sender address.
 
-The invalid sender address was: $addr1{"from"}.
+The from header on the original e-mail was: $from.
 
-   ----- The following is a double bounce at $host.$domain -----
+   ----- The following is a double bounce -----
 
 EOT
-	seek(MSG, 0, 0);
-	print MAIL <MSG>;
-	return close(MAIL);
+
+  open(MSG, "<$tmpfile");
+  print MAIL <MSG>;
+  close(MSG);
+  $result = close(MAIL);
+  if ($result) {
+    syslog('info', 'doublebounce successfully sent to %s', $dest);
+  }
+  return $result;
 }
+
+sub main {
+  # Get our command line options
+  getopts('d');
+
+  # Set up syslog
+  setlogsock('unix');
+  openlog('doublebounce', 'pid', 'mail');
+ 
+  if ($opt_d) {
+    syslog('info', 'Processing a doublebounce.');
+  }
+
+  # The bounced e-mail may be large, so we'd better not try to buffer
+  # it in memory, get a temporary file.
+  $tmpfile = POSIX::tmpnam();
+
+  if (!open(MSG, ">$tmpfile")) {
+    syslog('err', "Unable to open temporary file $tmpfile");
+    exit(75); # 75 is a temporary failure, sendmail should retry
+  }
+  print(MSG <STDIN>);
+  close(MSG);
+  if (!open(MSG, "<$tmpfile")) {
+    syslog('err', "Unable to reopen temporary file $tmpfile");
+    exit(74); # 74 is an IO error
+  }
+
+  # Ok, now we can get down to business, find the original message
+  my($skip_lines, $in_header, $headers_found, @addresses);
+  $skip_lines = 0;
+  $in_header = 0;
+  $headers_found = 0;
+  while (<MSG>) {
+    if ($skip_lines > 0) {
+      $skip_lines--;
+      next;
+    }
+    chomp;
+    # Starting message depends on your version of sendmail
+    if (/^   ----- Original message follows -----$/ ||
+        /^   ----Unsent message follows----$/ ||
+        /^Content-Type: message\/rfc822$/) {
+      # Found the original message
+      $skip_lines++;
+      $in_header = 1;
+      $headers_found++;
+      next;
+    }
+    if (/^$/) {
+      if ($headers_found >= 2) {
+         # We only process two deep, even if there are more
+         last;
+      }
+      if ($in_header) {
+         # We've found the end of a header, scan for the next one
+         $in_header = 0;
+      }
+      next;
+    }
+    if ($in_header) {
+      if (! /^[ \t]/) {
+        # New Header
+        if (/^(received): (.*)/i ||
+            /^(reply-to): (.*)/i ||    
+            /^(sender): (.*)/i ||    
+            /^(from): (.*)/i ) {
+          $addresses[$headers_found]{$1} = $2;
+        }
+        next;
+      } else {
+        # continuation header
+        # we should really process these, but we don't yet
+        next;
+      }
+    } else {
+      # Nothing to do if we're not in a header
+      next;
+    }
+  }
+  close(MSG);
+
+  # Start with the original (inner) sender
+  my($addr, $sent);
+  foreach $addr (keys %{$addresses[2]}) {
+    if ($opt_d) {
+      syslog('info', "Trying to send to $addresses[2]{$addr} - $addresses[2]{\"From\"}");
+    }
+    $sent = send_bounce($addresses[2]{$addr}, $addresses[2]{"From"});
+    last if $sent;
+  }
+  if (!$sent && $opt_d) {
+    if ($opt_d) {
+      syslog('info', 'Unable to find original sender, falling back.');
+    }
+    foreach $addr (keys %{$addresses[1]}) {
+      if ($opt_d) {
+        syslog('info', "Trying to send to $addresses[2]{$addr} - $addresses[2]{\"From\"}");
+      }
+      $sent = send_bounce($addresses[1]{$addr}, $addresses[2]{"From"});
+      last if $sent;
+    }
+    if (!$sent) {
+      syslog('info', 'Unable to find anyone to send a doublebounce notification');
+    }
+  }
+
+  unlink($tmpfile);
+}
+
+main();
+exit(0);
+

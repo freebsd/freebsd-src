@@ -235,4 +235,10 @@ Kresolve sequence dnsmx canon
   the file.  This is unavoidable as sendmail must verify the file is safe
   to open before opening it.  A file can not be locked until it is open.
 
-$Revision: 8.55 $, Last updated $Date: 2002/03/05 00:45:54 $
+* MAIL_HUB always takes precedence over LOCAL_RELAY
+
+  Despite the information in the documentation, MAIL_HUB ($H) will always
+  be used if set instead of LOCAL_RELAY ($R).  This will be fixed in a
+  future version.
+
+$Revision: 8.55.2.1 $, Last updated $Date: 2002/12/18 22:38:48 $

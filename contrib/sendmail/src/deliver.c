@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sys/time.h>
 
-SM_RCSID("@(#)$Id: deliver.c,v 8.940.2.3 2002/08/16 14:56:01 ca Exp $")
+SM_RCSID("@(#)$Id: deliver.c,v 8.940.2.10 2002/12/12 22:46:34 ca Exp $")
 
 #if HASSETUSERCONTEXT
 # include <login_cap.h>
@@ -623,7 +623,6 @@ sendall(e, mode)
 			/* and save qid for reacquisition */
 			ee->e_id = qid;
 		}
-
 #endif /* !HASFLOCK */
 
 		/*
@@ -953,6 +952,11 @@ sync_dir(filename, panic)
 	int dirfd;
 	char *dirp;
 	char dir[MAXPATHLEN];
+
+#if _FFR_REQ_DIR_FSYNC_OPT
+	if (!RequiresDirfsync)
+		return;
+#endif /* _FFR_REQ_DIR_FSYNC_OPT */
 
 	/* filesystems which require the directory be synced */
 	dirp = strrchr(filename, '/');
@@ -1620,6 +1624,16 @@ deliver(e, firstto)
 			stripquotes(user);
 			stripquotes(host);
 		}
+#if _FFR_STRIPBACKSL
+		/*
+		**  Strip one leading backslash if requesting and the
+		**  next character is alphanumerical (the latter can
+		**  probably relaxed a bit, see RFC2821).
+		*/
+
+		if (bitnset(M_STRIPBACKSL, m->m_flags) && user[0] == '\\')
+			stripbackslash(user);
+#endif /* _FFR_STRIPBACKSL */
 
 		/* hack attack -- delivermail compatibility */
 		if (m == ProgMailer && *user == '|')
@@ -2352,15 +2366,20 @@ tryhost:
 
 			if (contextaddr != NULL)
 			{
+				int sucflags;
 				struct passwd *pwd;
 
 				if (contextaddr->q_ruser != NULL)
 					pwd = sm_getpwnam(contextaddr->q_ruser);
 				else
 					pwd = sm_getpwnam(contextaddr->q_user);
+				sucflags = LOGIN_SETRESOURCES|LOGIN_SETPRIORITY;
+#ifdef LOGIN_SETMAC
+				sucflags |= LOGIN_SETMAC;
+#endif /* LOGIN_SETMAC */
 				if (pwd != NULL &&
 				    setusercontext(NULL, pwd, pwd->pw_uid,
-						   LOGIN_SETRESOURCES|LOGIN_SETPRIORITY) == -1 &&
+						   sucflags) == -1 &&
 				    suidwarn)
 				{
 					syserr("openmailer: setusercontext() failed");
@@ -5943,8 +5962,8 @@ initclttls(tls_ok)
 		return false;
 	if (clt_ctx != NULL)
 		return true;	/* already done */
-	tls_ok_clt = inittls(&clt_ctx, TLS_I_CLT, false, CltCERTfile,
-			     Cltkeyfile, CACERTpath, CACERTfile, DHParams);
+	tls_ok_clt = inittls(&clt_ctx, TLS_I_CLT, false, CltCertFile,
+			     CltKeyFile, CACertPath, CACertFile, DHParams);
 	return tls_ok_clt;
 }
 
@@ -6063,6 +6082,21 @@ ssl_retry:
 			tv.tv_usec = 0;
 		}
 
+		if (!timedout && FD_SETSIZE > 0 &&
+		    (rfd >= FD_SETSIZE ||
+		     (i == SSL_ERROR_WANT_WRITE && wfd >= FD_SETSIZE)))
+		{
+			if (LogLevel > 5)
+			{
+				sm_syslog(LOG_ERR, e->e_id,
+					  "STARTTLS=client, error: fd %d/%d too large",
+					  rfd, wfd);
+			if (LogLevel > 8)
+				tlslogerr("client");
+			}
+			errno = EINVAL;
+			goto tlsfail;
+		}
 		if (!timedout && i == SSL_ERROR_WANT_READ)
 		{
 			fd_set ssl_maskr, ssl_maskx;
@@ -6095,6 +6129,7 @@ ssl_retry:
 			if (LogLevel > 8)
 				tlslogerr("client");
 		}
+tlsfail:
 		SSL_free(clt_ssl);
 		clt_ssl = NULL;
 		return EX_SOFTWARE;
