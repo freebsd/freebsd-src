@@ -3,7 +3,6 @@
 
 PROG=	fstat
 SRCS=	cd9660.c fstat.c msdosfs.c
-CFLAGS+=-Wall
 DPADD=	${LIBKVM}
 LDADD=	-lkvm
 BINGRP=	kmem
