@@ -432,7 +432,7 @@ buildkernel:
 .endif
 .if !defined(NOCLEAN) && !defined(NO_KERNELCLEAN)
 	cd ${KRNLOBJDIR}/${_kernel}; \
-	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} clean
+	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} clean cleandir
 .endif
 	cd ${KRNLOBJDIR}/${_kernel}; \
 		MAKESRCPATH=${KRNLSRCDIR}/dev/aic7xxx/aicasm \
