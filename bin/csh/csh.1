@@ -55,8 +55,9 @@ job control facilities (see
 interactive file name
 and user name completion (see
 .Sx File Name Completion ) ,
-and a C-like syntax. It is used both as an interactive
-login shell and a shell script command processor.
+and a C-like syntax.
+It is used both as an interactive login shell and
+a shell script command processor.
 .Ss Argument list processing
 If the first argument (argument 0) to the shell is
 .Ql Fl \& ,
@@ -236,8 +237,9 @@ may be a component of a pipeline, etc.).
 It is also possible to separate pipelines with `\&|\&|' or `&&' showing,
 as in the C language,
 that the second is to be executed only if the first fails or succeeds
-respectively. (See
-.Em Expressions . )
+respectively.
+See
+.Sx Expressions .
 .Ss Jobs
 The shell associates a
 .Ar job
@@ -317,7 +319,8 @@ The job control mechanism requires that the
 .Xr stty 1
 option
 .Ic new
-be set. It is an artifact from a
+be set.
+It is an artifact from a
 .Em new
 implementation
 of the
@@ -568,8 +571,8 @@ Repeat the previous substitution.
 Apply the change once on each word, prefixing the above, e.g., `g&'.
 .It a
 Apply the change as many times as possible on a single word, prefixing
-the above. It can be used together with `g' to apply a substitution 
-globally.
+the above.
+It can be used together with `g' to apply a substitution globally.
 .It p
 Print the new command line but do not execute it.
 .It q
