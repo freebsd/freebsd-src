@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: vary.c,v 1.5 1999/03/09 09:38:54 brian Exp $";
 #endif /* not lint */
 
 #include <time.h>
@@ -332,6 +332,43 @@ adjmin(struct tm *t, char type, int val)
   return mktime(t) != -1;
 }
 
+static int
+adjsec(struct tm *t, char type, int val)
+{
+  if (val < 0)
+    return 0;
+
+  switch (type) {
+    case '+':
+      if (!adjmin(t, '+', (t->tm_sec + val) / 60))
+        return 0;
+      val %= 60;
+      t->tm_sec += val;
+      if (t->tm_sec > 59)
+        t->tm_sec -= 60;
+      break;
+
+    case '-':
+      if (!adjmin(t, '-', val / 60))
+        return 0;
+      val %= 60;
+      if (val > t->tm_sec) {
+        if (!adjmin(t, '-', 1))
+          return 0;
+        val -= 60;
+      }
+      t->tm_sec -= val;
+      break;
+
+    default:
+      if (val > 59)
+        return 0;
+      t->tm_sec = val;
+  }
+
+  return mktime(t) != -1;
+}
+
 const struct vary *
 vary_apply(const struct vary *v, struct tm *t)
 {
@@ -370,6 +407,10 @@ vary_apply(const struct vary *v, struct tm *t)
       which = arg[len-1];
       
       switch (which) {
+        case 'S':
+          if (!adjsec(t, type, val))
+            return v;
+          break;
         case 'M':
           if (!adjmin(t, type, val))
             return v;

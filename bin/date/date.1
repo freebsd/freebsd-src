@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
-.\"	$Id: date.1,v 1.25 1998/05/13 07:56:44 phk Exp $
+.\"	$Id: date.1,v 1.27 1999/03/09 09:38:53 brian Exp $
 .\"
 .Dd November 17, 1993
 .Dt DATE 1
@@ -47,7 +47,7 @@
 .Op Fl d Ar dst
 .Op Fl r Ar seconds
 .Op Fl t Ar minutes_west
-.Op Fl v Ns Ar [+|-]val Ns Op ymwdHM
+.Op Fl v Ns Ar [+|-]val Ns Op ymwdHMS
 .Ar ...
 .Op Fl f Ar fmt Ar date | [[[[yy]mm]dd]HH]MM[\&.ss]
 .Op Cm + Ns Ar format
@@ -108,8 +108,8 @@ Display or set the date in
 .Tn UCT
 (universal) time.
 .It Fl v
-Adjust the minute, hour, month day, week day, month or year according to
-.Ar val .
+Adjust the second, minute, hour, month day, week day, month or year according to
+.Ar val .  
 If
 .Ar val
 is preceded with a plus or minus sign, the date is adjusted forwards
@@ -117,10 +117,10 @@ or backwards according to the remaining string, otherwise the relevant
 part of the date is set.  The date can be adjusted as many times as
 required using these flags.  Flags are processed in the order given.
 .Pp
-Minutes are in the range 0-59, hours are in the range 1-12, month days
-are in the range 1-31, week days are in the range 0-6 (Sun-Sat), months
-are in the range 1-12 (Jan-Dec) and years are in the range 80-38 or
-1980-2038.
+Seconds are in the range 0-59, minutes are in the range 0-59, hours are
+in the range 1-12, month days are in the range 1-31, week days are in the
+range 0-6 (Sun-Sat), months are in the range 1-12 (Jan-Dec) and years are
+in the range 80-38 or 1980-2038.
 .Pp
 If
 .Ar val
@@ -129,9 +129,10 @@ is numeric, one of either
 .Ar m ,
 .Ar w ,
 .Ar d ,
-.Ar H
-or
+.Ar H ,
 .Ar M
+or
+.Ar S
 must be used to specify which part of the date is to be adjusted.
 .Pp
 The week day or month may be specified using a name rather than a
