@@ -38,6 +38,7 @@ static char sccsid[] = "@(#)getusershell.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "namespace.h"
 #include <sys/param.h>
 #include <sys/file.h>
 
@@ -59,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <rpcsvc/ypclnt.h>
 #include <rpcsvc/yp_prot.h>
 #endif
+#include "un-namespace.h"
 
 /*
  * Local shells should NOT be added here.  They should be added in
@@ -259,7 +261,7 @@ initshells()
 		sl_free(sl, 1);
 	sl = sl_init();
 
-	if (nsdispatch(NULL, dtab, NSDB_SHELLS, "initshells", __nsdefaultsrc)
+	if (_nsdispatch(NULL, dtab, NSDB_SHELLS, "initshells", __nsdefaultsrc)
 	    != NS_SUCCESS) {
 		if (sl)
 			sl_free(sl, 1);
