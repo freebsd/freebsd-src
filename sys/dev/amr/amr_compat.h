@@ -32,6 +32,7 @@
 
 #if __FreeBSD_version < 500003		/* old buf style */
 # include <sys/buf.h>
+# include <machine/clock.h>
 
 # define FREEBSD_4
 # define bio					buf
