@@ -1,8 +1,9 @@
 /*
- * Instruction formats for the sequencer program downloaded to
- * Aic7xxx SCSI host adapters
+ * Interface to the 93C46 serial EEPROM that is used to store BIOS
+ * settings for the aic7xxx based adaptec SCSI controllers.  It can
+ * also be used for 93C26 and 93C06 serial EEPROMS.
  *
- * Copyright (c) 1997, 1998 Justin T. Gibbs.
+ * Copyright (c) 1994, 1995 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,67 +34,62 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: sequencer.h,v 1.3 1997/09/27 19:37:31 gibbs Exp $
+ *      $Id$
  */
 
-struct ins_format1 {
-	u_int32_t	immediate	: 8,
-			source		: 9,
-			destination	: 9,
-			ret		: 1,
-			opcode		: 4,
-			parity		: 1;
+#include <sys/param.h>
+#if !defined(__NetBSD__)
+#include <sys/systm.h>
+#endif
+
+#ifdef KERNEL
+
+typedef enum {
+	C46 = 6,
+	C56_66 = 8
+} seeprom_chip_t;
+
+struct seeprom_descriptor {
+	bus_space_tag_t sd_tag;             
+	bus_space_handle_t sd_bsh;
+	bus_size_t sd_control_offset;
+	bus_size_t sd_status_offset;
+	bus_size_t sd_dataout_offset;
+	seeprom_chip_t sd_chip;
+	u_int16_t sd_MS;
+	u_int16_t sd_RDY;
+	u_int16_t sd_CS;
+	u_int16_t sd_CK;
+	u_int16_t sd_DO;
+	u_int16_t sd_DI;
 };
 
-struct ins_format2 {
-	u_int32_t	shift_control	: 8,
-			source		: 9,
-			destination	: 9,
-			ret		: 1,
-			opcode		: 4,
-			parity		: 1;
-};
+/*
+ * This function will read count 16-bit words from the serial EEPROM and
+ * return their value in buf.  The port address of the aic7xxx serial EEPROM
+ * control register is passed in as offset.  The following parameters are
+ * also passed in:
+ *
+ *   CS  - Chip select
+ *   CK  - Clock
+ *   DO  - Data out
+ *   DI  - Data in
+ *   RDY - SEEPROM ready
+ *   MS  - Memory port mode select
+ *
+ *  A failed read attempt returns 0, and a successful read returns 1.
+ */
 
-struct ins_format3 {
-	u_int32_t	immediate	: 8,
-			source		: 9,
-			address		: 10,
-			opcode		: 4,
-			parity		: 1;
-};
+#define	SEEPROM_INB(sd) \
+	bus_space_read_1(sd->sd_tag, sd->sd_bsh, sd->sd_control_offset)
+#define	SEEPROM_OUTB(sd, value) \
+	bus_space_write_1(sd->sd_tag, sd->sd_bsh, sd->sd_control_offset, value)
+#define	SEEPROM_STATUS_INB(sd) \
+	bus_space_read_1(sd->sd_tag, sd->sd_bsh, sd->sd_status_offset)
+#define	SEEPROM_DATA_INB(sd) \
+	bus_space_read_1(sd->sd_tag, sd->sd_bsh, sd->sd_dataout_offset)
 
-union ins_formats {
-		struct ins_format1 format1;
-		struct ins_format2 format2;
-		struct ins_format3 format3;
-		u_int8_t	   bytes[4];
-		u_int32_t	   integer;
-};
-struct instruction {
-	union	ins_formats format;
-	u_int	srcline;
-	struct symbol *patch_label;
-	STAILQ_ENTRY(instruction) links;
-};
+int read_seeprom(struct seeprom_descriptor *sd, u_int16_t *buf,
+		 bus_size_t start_addr, bus_size_t count);
 
-#define	AIC_OP_OR	0x0
-#define	AIC_OP_AND	0x1
-#define AIC_OP_XOR	0x2
-#define	AIC_OP_ADD	0x3
-#define	AIC_OP_ADC	0x4
-#define	AIC_OP_ROL	0x5
-#define	AIC_OP_BMOV	0x6
-
-#define	AIC_OP_JMP	0x8
-#define AIC_OP_JC	0x9
-#define AIC_OP_JNC	0xa
-#define AIC_OP_CALL	0xb
-#define	AIC_OP_JNE	0xc
-#define	AIC_OP_JNZ	0xd
-#define	AIC_OP_JE	0xe
-#define	AIC_OP_JZ	0xf
-
-/* Pseudo Ops */
-#define	AIC_OP_SHL	0x10
-#define	AIC_OP_SHR	0x20
-#define	AIC_OP_ROR	0x30
+#endif /* KERNEL */
