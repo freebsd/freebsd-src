@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.13 1995/07/29 08:33:06 bde Exp $
+ *	$Id: cy.c,v 1.14 1995/07/31 18:29:48 bde Exp $
  */
 
 #include "cy.h"
@@ -453,6 +453,7 @@ sioprobe(dev)
 	cy_addr	iobase;
 	int	unit;
 
+	iobase = (cy_addr)dev->id_maddr;
 	unit = dev->id_unit;
 	if ((u_int)unit >= NCY)
 		return (0);
@@ -460,16 +461,19 @@ sioprobe(dev)
 	sioregisterdev(dev);
 
 	/* Cyclom-16Y hardware reset (Cyclom-8Ys don't care) */
-	cy_inb((cy_addr)dev->id_maddr, CY16_RESET);	/* XXX? */
-
+	cy_inb(iobase, CY16_RESET);	/* XXX? */
 	DELAY(500);	/* wait for the board to get its act together */
 
-	for (cyu = 0, iobase = (cy_addr)dev->id_maddr; cyu < CY_MAX_CD1400s;
-	     ++cyu, iobase += CY_CD1400_MEMSIZE) {
+	/* this is needed to get the board out of reset */
+	cy_outb(iobase, CY_CLEAR_INTR, 0);
+	DELAY(500);
+
+	for (cyu = 0; cyu < CY_MAX_CD1400s;
+	    ++cyu, iobase += CY_CD1400_MEMSIZE) {
 		int	i;
 
 		/* wait for chip to become ready for new command */
-		for (i = 0; i < 100; i += 50) {
+		for (i = 0; i < 10; i++) {
 			DELAY(50);
 			if (!cd_inb(iobase, CD1400_CCR))
 				break;
@@ -483,12 +487,12 @@ sioprobe(dev)
 			CD1400_CCR_CMDRESET | CD1400_CCR_FULLRESET);
 
 		/* wait for the CD1400 to initialize itself */
-		for (i = 0; i < 1000; i += 50) {
+		for (i = 0; i < 200; i++) {
 			DELAY(50);
 
 			/* retrieve firmware version */
 			firmware_version = cd_inb(iobase, CD1400_GFRCR);
-			if (firmware_version != 0)
+			if ((firmware_version & 0xf0) == 0x40)
 				break;
 		}
 
@@ -497,7 +501,7 @@ sioprobe(dev)
 		 * If one CD1400 is bad then we don't support higher
 		 * numbered good ones on this board.
 		 */
-		if ((firmware_version & 0xF0) != 0x40)
+		if ((firmware_version & 0xf0) != 0x40)
 			break;
 		++cy_nr_cd1400s[unit];
 	}
