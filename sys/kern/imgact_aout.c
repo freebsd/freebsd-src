@@ -247,7 +247,7 @@ aout_coredump(p, vp, limit)
 	register struct vnode *vp;
 	off_t limit;
 {
-	register struct ucred *cred = p->p_cred->pc_ucred;
+	register struct ucred *cred = p->p_ucred;
 	register struct vmspace *vm = p->p_vmspace;
 	int error;
 
