@@ -40,7 +40,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.41 1994/11/08 05:42:10 jkh Exp $
+ *	$Id: fd.c,v 1.42 1994/11/08 06:34:04 ache Exp $
  *
  */
 
@@ -1101,7 +1101,7 @@ fdstate(fdcu, fdc)
 		return(0);	/* will return later */
 	case SEEKWAIT:
 		/* allow heads to settle */
-		timeout(fd_pseudointr, (caddr_t)fdcu, hz / 32);
+		timeout(fd_pseudointr, (caddr_t)fdcu, hz / 16);
 		fdc->state = SEEKCOMPLETE;
 		return(0);	/* will return later */
 	case SEEKCOMPLETE : /* SEEK DONE, START DMA */
@@ -1303,7 +1303,7 @@ fdstate(fdcu, fdc)
 		return(0);	/* will return later */
 	case RECALWAIT:
 		/* allow heads to settle */
-		timeout(fd_pseudointr, (caddr_t)fdcu, hz / 32);
+		timeout(fd_pseudointr, (caddr_t)fdcu, hz / 8);
 		fdc->state = RECALCOMPLETE;
 		return(0);	/* will return later */
 	case RECALCOMPLETE:
