@@ -43,7 +43,18 @@
 
   <para>Where possible, the drivers applicable to each device or class
   of devices is listed.  If the driver in question has a manual page
-  in the &os; base distribution (most should), it is referenced here.</para>
+  in the &os; base distribution (most should), it is referenced here.
+  Information on specific models of supported devices, controllers,
+  etc. can be found in the manual pages.</para>
+
+  <note>
+    <para>Lists of specific, supported devices are gradually being
+      removed from this document in order to reduce the amount of
+      duplicated (and potentially out-of-date) information contained
+      within.  When this process is complete, the manual page for each
+      driver should be consulted for the authoritative list of devices
+      supported that particular driver.</para>
+  </note>
 
   <sect2>
     <title>Disk Controllers</title>
