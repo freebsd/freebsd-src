@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lookup.c	8.6 (Berkeley) 4/1/94
- * $Id: ufs_lookup.c,v 1.6 1995/10/06 09:56:51 phk Exp $
+ * $Id: ufs_lookup.c,v 1.7 1995/10/22 09:32:45 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -773,7 +773,13 @@ ufs_direnter(ip, dvp, cnp)
 		ep = (struct direct *)((char *)ep + dsize);
 	}
 	bcopy((caddr_t)&newdir, (caddr_t)ep, (u_int)newentrysize);
-	error = VOP_BWRITE(bp);
+
+	if (dvp->v_mount->mnt_flag & MNT_ASYNC) {
+		bdwrite(bp);
+		error = 0;
+	} else {
+		error = VOP_BWRITE(bp);
+	}
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	if (!error && dp->i_endoff && dp->i_endoff < dp->i_size)
 		error = VOP_TRUNCATE(dvp, (off_t)dp->i_endoff, IO_SYNC,
@@ -825,7 +831,12 @@ ufs_dirremove(dvp, cnp)
 	if (error)
 		return (error);
 	ep->d_reclen += dp->i_reclen;
-	error = VOP_BWRITE(bp);
+	if (dvp->v_mount->mnt_flag & MNT_ASYNC) {
+		bdwrite(bp);
+		error = 0;
+	} else {
+		error = VOP_BWRITE(bp);
+	}
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	return (error);
 }
@@ -851,7 +862,12 @@ ufs_dirrewrite(dp, ip, cnp)
 	ep->d_ino = ip->i_number;
 	if (!OFSFMT(vdp))
 		ep->d_type = IFTODT(ip->i_mode);
-	error = VOP_BWRITE(bp);
+	if (vdp->v_mount->mnt_flag & MNT_ASYNC) {
+		bdwrite(bp);
+		error = 0;
+	} else {
+		error = VOP_BWRITE(bp);
+	}
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	return (error);
 }
