@@ -37,7 +37,7 @@
  *	i4b_isic_pnp.c - i4b pnp support
  *	--------------------------------
  *
- *	$Id: i4b_isic_pnp.c,v 1.16 1999/02/14 09:44:59 hm Exp $
+ *	$Id: i4b_isic_pnp.c,v 1.2 1999/03/07 16:08:16 hm Exp $
  *
  *      last edit-date: [Sun Feb 14 10:27:52 1999]
  *
@@ -219,13 +219,7 @@ i4b_pnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev)
 	if(dev->id_driver == NULL)
 	{
 		dev->id_driver = &isicdriver;
-
-		isa_devp = find_isadev(isa_devtab_net, &isicdriver, 0);
-
-		if(isa_devp != NULL)
-		{
-			dev->id_id = isa_devp->id_id;
-		}
+		dev->id_id = isa_compat_nextid();
 	}
 
 	if((dev->id_alive = isic_pnpprobe(dev, spci.port[1])) != 0)
