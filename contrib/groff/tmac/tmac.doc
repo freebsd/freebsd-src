@@ -1957,7 +1957,7 @@
 .	tm .It \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8
 .\}
 .\" .tm Here is L[\\n(lC]==\\*(L\\n(lC
-.ne 3v
+.if !\\n(cR .ne 3v
 .ie \\n(.$>0 \{\
 .	ds mN It
 .	ds b1
