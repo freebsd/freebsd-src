@@ -159,10 +159,12 @@ linux_clone(struct proc *p, struct linux_clone_args *args)
 		return (error);
 
 	p2 = pfind(p->p_retval[0]);
-	if (p2 == 0)
+	if (p2 == NULL)
 		return (ESRCH);
 
+	PROC_LOCK(p);
 	p2->p_sigparent = exit_signal;
+	PROC_UNLOCK(p);
 	p2->p_addr->u_pcb.pcb_hw.apcb_usp = (unsigned long)args->stack;
 
 #ifdef DEBUG
