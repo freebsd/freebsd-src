@@ -42,7 +42,7 @@ static char const copyright[] =
 
 #ifndef lint
 static char const sccsid[] = "@(#)from: arp.c	8.2 (Berkeley) 1/2/94";
-static char const freebsdid[] = "$Id: arp.c,v 1.9 1997/02/22 16:04:19 peter Exp $";
+static char const freebsdid[] = "$Id: arp.c,v 1.10 1997/03/31 05:09:46 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -380,7 +380,7 @@ dump(u_long addr)
 {
 	int mib[6];
 	size_t needed;
-	char *host, *malloc(), *lim, *buf, *next;
+	char *host, *lim, *buf, *next;
 	struct rt_msghdr *rtm;
 	struct sockaddr_inarp *sin;
 	struct sockaddr_dl *sdl;

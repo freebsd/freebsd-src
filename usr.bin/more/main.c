@@ -342,7 +342,7 @@ char *
 save(s)
 	char *s;
 {
-	char *p, *strcpy(), *malloc();
+	char *p, *strcpy();
 
 	p = malloc((u_int)strlen(s)+1);
 	if (p == NULL)
