@@ -5,7 +5,7 @@ SRCS=	mount_smbfs.c getmntopts.c
 WARNS?=	0
 MAN=	mount_smbfs.8
 
-MOUNTDIR=	${.CURDIR}/../mount
+MOUNTDIR=	${.CURDIR}/../../sbin/mount
 CONTRIBDIR=	${.CURDIR}/../../contrib/smbfs
 CFLAGS+=	-DSMBFS -I${MOUNTDIR} -I${CONTRIBDIR}/include
 
