@@ -157,6 +157,7 @@ adp_busreset(void *v)
 static int
 en_pci_probe(device_t dev)
 {
+
 	switch (pci_get_vendor(dev)) {
 
 	  case PCI_VENDOR_EFFICIENTNETS:
@@ -482,4 +483,4 @@ static driver_t en_driver = {
 
 static devclass_t en_devclass;
 
-DRIVER_MODULE(en, pci, en_driver, en_devclass, 0, 0);
+DRIVER_MODULE(en, pci, en_driver, en_devclass, en_modevent, 0);
