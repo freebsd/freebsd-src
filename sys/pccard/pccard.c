@@ -234,6 +234,9 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	devi->running = 1;
 	devi->slt = slt;
 	bcopy(desc->misc, devi->misc, sizeof(desc->misc));
+	devi->manufacturer = desc->manufacturer;
+	devi->product = desc->product;
+	devi->prodext = desc->prodext;
 	resource_list_init(&devi->resources);
 	child = device_add_child(pccarddev, devi->name, desc->unit);
 	if (child == NULL) {
