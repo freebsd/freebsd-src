@@ -1,13 +1,13 @@
-KDC(8)                  FreeBSD System Manager's Manual                 KDC(8)
+KDC(8)                  NetBSD System Manager's Manual                  KDC(8)
 
 NNAAMMEE
      kkddcc - Kerberos 5 server
 
 SSYYNNOOPPSSIISS
      kkddcc [--cc _f_i_l_e | ----ccoonnffiigg--ffiillee==_f_i_l_e] [--pp | ----nnoo--rreeqquuiirree--pprreeaauutthh]
-         [----mmaaxx--rreeqquueesstt==_s_i_z_e] [--HH | ----eennaabbllee--hhttttpp] [--rr _s_t_r_i_n_g |
-         ----vv44--rreeaallmm==_s_t_r_i_n_g] [--KK | ----nnoo--kkaasseerrvveerr] [--rr _r_e_a_l_m] [----vv44--rreeaallmm==_r_e_a_l_m]
-         [--PP _s_t_r_i_n_g | ----ppoorrttss==_s_t_r_i_n_g] [----aaddddrreesssseess==_l_i_s_t _o_f _a_d_d_r_e_s_s_e_s]
+     [----mmaaxx--rreeqquueesstt==_s_i_z_e] [--HH | ----eennaabbllee--hhttttpp] [--rr _s_t_r_i_n_g | ----vv44--rreeaallmm==_s_t_r_i_n_g]
+     [--KK | ----nnoo--kkaasseerrvveerr] [--rr _r_e_a_l_m] [----vv44--rreeaallmm==_r_e_a_l_m] [--PP _s_t_r_i_n_g |
+     ----ppoorrttss==_s_t_r_i_n_g] [----aaddddrreesssseess==_l_i_s_t _o_f _a_d_d_r_e_s_s_e_s]
 
 DDEESSCCRRIIPPTTIIOONN
      kkddcc serves requests for tickets. When it starts, it first checks the
@@ -26,11 +26,11 @@ DDEESSCCRRIIPPTTIIOONN
              REQ for all principals. The use of pre-authentication makes it
              more difficult to do offline password attacks. You might want to
              turn it off if you have clients that doesn't do pre-authentica-
-             tion. Since the version 4 protocol doesn't support any pre-
-             authentication, so serving version 4 clients is just about the
-             same as not requiring pre-athentication. The default is to
-             require pre-authentication. Adding the require-preauth per prin-
-             cipal is a more flexible way of handling this.
+             tion. Since the version 4 protocol doesn't support any pre-au-
+             thentication, so serving version 4 clients is just about the same
+             as not requiring pre-athentication. The default is to require
+             pre-authentication. Adding the require-preauth per principal is a
+             more flexible way of handling this.
 
      ----mmaaxx--rreeqquueesstt==_s_i_z_e
              Gives an upper limit on the size of the requests that the kdc is
@@ -58,16 +58,16 @@ DDEESSCCRRIIPPTTIIOONN
      ----aaddddrreesssseess==_l_i_s_t _o_f _a_d_d_r_e_s_s_e_s
              The list of addresses to listen for requests on.  By default, the
              kdc will listen on all the locally configured addresses.  If only
-             a subset is desired, or the automatic detection fails, this
-             option might be used.
+             a subset is desired, or the automatic detection fails, this op-
+             tion might be used.
 
      All activities , are logged to one or more destinations, see
      krb5.conf(5), and krb5_openlog(3).  The entity used for logging is kkddcc.
 
 CCOONNFFIIGGUURRAATTIIOONN FFIILLEE
      The configuration file has the same syntax as krb5.conf(5), but will be
-     read before _/_e_t_c_/_k_r_b_5_._c_o_n_f, so it may override settings found there.
-     Options specific to the KDC only are found in the ``[kdc]'' section.  All
+     read before _/_e_t_c_/_k_r_b_5_._c_o_n_f, so it may override settings found there. Op-
+     tions specific to the KDC only are found in the ``[kdc]'' section.  All
      the command-line options can preferably be added in the configuration
      file.  The only difference is the pre-authentication flag, that has to be
      specified as:
@@ -80,8 +80,8 @@ CCOONNFFIIGGUURRAATTIIOONN FFIILLEE
      equivalents:
 
            check-ticket-addresses = _b_o_o_l_e_a_n
-                Check the addresses in the ticket when processing TGS
-                requests.  The default is FALSE.
+                Check the addresses in the ticket when processing TGS re-
+                quests.  The default is FALSE.
 
            allow-null-ticket-addresses = _b_o_o_l_e_a_n
                 Permit tickets with no addresses.  This option is only rele-
@@ -123,4 +123,4 @@ BBUUGGSS
 SSEEEE AALLSSOO
      kinit(1), krb5.conf(5)
 
-HEIMDAL                         August 22, 2002                        HEIMDAL
+ HEIMDAL                        August 22, 2002                              2

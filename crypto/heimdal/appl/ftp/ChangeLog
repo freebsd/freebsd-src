@@ -1,3 +1,7 @@
+2002-10-21  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftp/ftp.c: pull up 1.75; fix parsing of epsv ports
+
 2002-09-05  Johan Danielsson  <joda@pdc.kth.se>
 
 	* ftp/security.c (sec_vfprintf): free encoded data

@@ -1,11 +1,11 @@
-KDESTROY(1)             FreeBSD General Commands Manual            KDESTROY(1)
+KDESTROY(1)                 NetBSD Reference Manual                KDESTROY(1)
 
 NNAAMMEE
      kkddeessttrrooyy - destroy the current ticket file
 
 SSYYNNOOPPSSIISS
      kkddeessttrrooyy [--cc _c_a_c_h_e_f_i_l_e] [----ccaacchhee==_c_a_c_h_e_f_i_l_e] [----nnoo--uunnlloogg] [----nnoo--ddeelleettee--vv44]
-              [----vveerrssiioonn] [----hheellpp]
+     [----vveerrssiioonn] [----hheellpp]
 
 DDEESSCCRRIIPPTTIIOONN
      kkddeessttrrooyy remove the current set of tickets.
@@ -26,4 +26,4 @@ DDEESSCCRRIIPPTTIIOONN
 SSEEEE AALLSSOO
      kinit(1), klist(1)
 
-HEIMDAL                         August 27, 1997                        HEIMDAL
+ HEIMDAL                        August 27, 1997                              1

@@ -1,4 +1,4 @@
-KGETCRED(1)             FreeBSD General Commands Manual            KGETCRED(1)
+KGETCRED(1)                 NetBSD Reference Manual                KGETCRED(1)
 
 NNAAMMEE
      kkggeettccrreedd - get a ticket for a particular service
@@ -23,4 +23,4 @@ DDEESSCCRRIIPPTTIIOONN
 SSEEEE AALLSSOO
      kinit(1), klist(1)
 
-HEIMDAL                          May 14, 1999                          HEIMDAL
+ HEIMDAL                         May 14, 1999                                1

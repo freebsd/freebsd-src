@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id");
+RCSID("$Id: make_crypto.c,v 1.2.2.1 2002/10/21 14:30:04 joda Exp $");
 #endif
 #include <stdio.h>
 #include <string.h>

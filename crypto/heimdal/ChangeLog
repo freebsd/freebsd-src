@@ -1,17 +1,42 @@
-2002-09-16  Jacques Vidrine  <nectar@kth.se>
+2002-10-21  Johan Danielsson  <joda@pdc.kth.se>
 
-	* lib/krb5/kuserok.c, lib/krb5/prompter_posix.c: use strcspn
-	to convert the newline to NUL in fgets results.
+	* lib/krb5/store_emem.c: pull up 1.13; limit how much we allocate
 
-2002-09-13  Johan Danielsson  <joda@pdc.kth.se>
+	* lib/krb5/principal.c: pull up 1.82; don't allow trailing
+	backslashes in components
 
-	* kuser/kinit.1: remove unneeded Ns
+	* lib/krb5/keytab_keyfile.c: pull up 1.15; more strcspn
 
-	* lib/krb5/krb5_appdefault.3: remove extra "application"
+	* lib/krb5/keytab_any.c: pull up 1.7; properly close the open
+	keytabs
 
-	* fix-export: remove autom4ate.cache
+	* kdc/connect.c: pull up 1.87; check that %-quotes are followed by
+	two hex digits
+
+	* lib/krb5/prompter_posix.c: pull up 1.7; use strcspn to convert
+	the newline to NUL in fgets results.
+
+	* lib/krb5/kuserok.c: pull up 1.6; use strcspn to convert the
+	newline to NUL in fgets results.
+
+	* lib/krb5/keytab_file.c: pull up 1.12; check return value from
+	start_seq_get
+
+	* lib/krb5/context.c: pull up 1.82; return ENXIO instead of ENOENT
+	when "unconfigured"
+
+	* lib/krb5/changepw.c: pull up 1.38; fix reply length check
+	calculation
+
+	* kuser/klist.c: pull up 1.68; allow tokens up to size of buffer
+
+	* kdc/kaserver.c: pull up 1.21; make sure life is positive
+
+	* fix-export: pull up 1.28; remove autom4ate.cache
 
 2002-09-10  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Release 0.5
 
 	* include/make_crypto.c: don't use function macros if possible
 
