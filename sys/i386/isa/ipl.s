@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.1 1997/05/26 17:58:27 fsmp Exp $
+ *	$Id: ipl.s,v 1.2 1997/05/31 09:03:52 peter Exp $
  */
 
 
@@ -62,6 +62,8 @@ _tty_imask:	.long	0
 _bio_imask:	.long	0
 	.globl	_net_imask
 _net_imask:	.long	0
+	.globl	_soft_imask
+_soft_imask:	.long	SWI_MASK
 	.globl	_softnet_imask
 _softnet_imask:	.long	SWI_NET_MASK
 	.globl	_softtty_imask
