@@ -47,7 +47,7 @@
 .Op Ar template ...
 .Sh DESCRIPTION
 The
-.Nm mktemp
+.Nm
 utility takes each of the given file name templates and overwrites a
 portion of it to create a file name.  This file name is unique
 and suitable for use by the application.  The template may be
@@ -113,8 +113,8 @@ reasons it is suggested that
 .Nm
 be used instead.
 .Sh OPTIONS
-.Bl -tag -width indent
 The available options are as follows:
+.Bl -tag -width indent
 .It Fl d
 Make a directory instead of a file.
 .It Fl q
@@ -132,7 +132,7 @@ Operate in
 mode.  The temp file will be unlinked before
 .Nm
 exits.  This is slightly better than
-.Fn mktemp 3
+.Xr mktemp 3
 but still introduces a race condition.  Use of this
 option is not encouraged.
 .El
@@ -178,5 +178,6 @@ A
 utility appeared in
 .Ox 2.1 .
 This implementation has been written independently based on the man page.
-This man page is taken from OpenBSD.
+This man page is taken from
+.Bx Open .
 .\" Our stupid .Ox macro won't allow me to use .Ox alone.
