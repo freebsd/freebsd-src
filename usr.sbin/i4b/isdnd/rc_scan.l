@@ -32,7 +32,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon May 21 11:22:38 2001]
+ *      last edit-date: [Fri Jul 20 19:14:55 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -131,6 +131,7 @@ local-phone-dialout		{ return LOCAL_PHONE_DIALOUT; }
 local-phone-incoming		{ return LOCAL_PHONE_INCOMING; }
 mailer				{ return MAILER; }
 mailto				{ return MAILTO; }
+maxconnecttime			{ return MAXCONNECTTIME; }
 monitor-allowed			{ return MONITORSW; }
 monitor-port			{ return MONITORPORT; }
 monitor				{ return MONITOR; }
