@@ -1,0 +1,208 @@
+#!/bin/csh
+#
+# rcs-to-cvs,v 1.3 1992/04/10 03:04:25 berliner Exp
+# Contributed by Per Cederqvist <ceder@lysator.liu.se>.
+#
+#   Copyright (c) 1989, Brian Berliner
+#
+#   You may distribute under the terms of the GNU General Public License
+#   as specified in the README file that comes with the CVS 1.0 kit.
+#
+#############################################################################
+#									    #
+# This script is used to check in sources that previously was under RCS or  #
+# no source control system.				  		    #
+#									    #
+#	Usage: rcs-to-cvs repository 					    #
+#									    #
+# The repository is the directory where the sources should		    #
+# be deposited. 
+#									    #
+# checkin traverses the current directory, ensuring that an 		    #
+# identical directory structure exists in the repository directory.  It	    #
+# then checks the files in in the following manner:			    #
+#									    #
+#		1) If the file doesn't yet exist, check it in 		    #
+#			as revision 0.1					    #
+#									    #
+# The script also is somewhat verbose in letting the user know what is	    #
+# going on.  It prints a diagnostic when it creates a new file, or updates  #
+# a file that has been modified on the trunk.		   		    #
+#									    #
+#############################################################################
+
+set vbose = 0
+set message = ""
+set cvsbin = /usr/gnu/bin
+set rcsbin = /usr/gnu/bin
+set grep = /bin/grep
+set message_file = /usr/tmp/checkin.$$
+set got_one = 0
+
+if ( $#argv < 1 ) then
+    echo "Usage: rcs-to-cvs [-v] [-m message] [-f message_file] repository"
+    exit 1
+endif
+while ( $#argv )
+    switch ( $argv[1] )
+        case -v:
+            set vbose = 1
+	    breaksw
+	case -m:
+	    shift
+	    echo $argv[1] > $message_file
+	    set got_one = 1
+	    breaksw
+	case -f:
+	    shift
+	    set message_file = $argv[1]
+	    set got_one = 2
+	    breaksw
+	default:
+	    break
+    endsw
+    shift
+end
+if ( $#argv < 1 ) then
+    echo "Usage: rcs-to-cvs [-v] [-m message] [-f message_file] repository"
+    exit 1
+endif
+set repository = $argv[1]
+shift
+
+if ( ! $?CVSROOT ) then
+    echo "Please set the environmental variable CVSROOT to the root"
+    echo "	of the tree you wish to update"
+    exit 1
+endif
+
+if ( $got_one == 0 ) then
+    echo "Please Edit this file to contain the RCS log information" >$message_file
+    echo "to be associated with this file (please remove these lines)">>$message_file
+    if ( $?EDITOR ) then
+	$EDITOR $message_file > /dev/tty
+    else
+	/usr/ucb/vi $message_file > /dev/tty
+    endif
+    set got_one = 1
+endif
+
+umask 22
+
+set update_dir = ${CVSROOT}/${repository}
+if ( -d SCCS ) then
+    echo SCCS files detected!
+    exit 1
+endif
+if ( -d RCS ) then
+    $rcsbin/co RCS/* >& /dev/null
+endif
+foreach name ( * .[a-zA-Z0-9]* )
+    echo $name
+    if ( "$name" == SCCS ) then 
+	continue
+    endif
+    if ( "$name" == RCS ) then 
+	continue
+    endif
+    if ( $vbose ) then 
+	echo "Updating ${repository}/${name}"
+    endif
+    if ( -d "$name" ) then
+	if ( ! -d "${update_dir}/${name}" ) then
+	    echo "WARNING: Creating new directory ${repository}/${name}"
+	    mkdir "${update_dir}/${name}"
+	    if ( $status ) then
+		echo "ERROR: mkdir failed - aborting"
+		exit 1
+	    endif
+	endif
+	chdir "$name"
+	if ( $status ) then
+	    echo "ERROR: Couldn\'t chdir to "$name" - aborting" 
+	    exit 1
+	endif
+	if ( $vbose ) then
+	    rcs-to-cvs -v -f $message_file "${repository}/${name}"
+	else
+	    rcs-to-cvs -f $message_file "${repository}/${name}"
+	endif
+	if ( $status ) then 
+	    exit 1
+	endif
+	chdir ..
+    else	# if not directory 
+	if ( ! -f "$name" ) then
+	    echo "WARNING: "$name" is neither a regular file" 
+	    echo "	   nor a directory - ignored"
+	    continue
+	endif
+	set file = "${update_dir}/${name},v"
+	set new = 0
+	set comment = ""
+	grep -s '\$Log.*\$' "${name}"
+	if ( $status == 0 ) then	# If $Log keyword
+	    set myext = ${name:e}
+	    set knownext = 0
+	    foreach xx ( "c" "csh" "e" "f" "h" "l" "mac" "me" "mm" "ms" "p" "r" "red" "s" "sh" "sl" "cl" "ml" "el" "tex" "y" "ye" "yr" "" )
+		if ( "${myext}" == "${xx}" ) then
+		    set knownext = 1
+		    break
+		endif
+	    end
+	    if ( $knownext == 0 ) then
+		echo For file ${file}:
+		grep '\$Log.*\$' "${name}"
+		echo -n "Please insert a comment leader for file ${name} > "
+		set comment = $<
+	    endif
+	endif
+	if ( ! -f "$file" ) then	# If not exists in repository
+	    if ( ! -f "${update_dir}/Attic/${name},v" ) then
+	        echo "WARNING: Creating new file ${repository}/${name}"
+		if ( -f RCS/"${name}",v ) then
+			echo "MSG: Copying old rcs file."
+			cp RCS/"${name}",v "$file"
+		else
+   		    if ( "${comment}" != "" ) then
+		        $rcsbin/rcs -q -i -c"${comment}" -t${message_file} -m'.' "$file"
+		    endif
+	            $rcsbin/ci -q -u0.1 -t${message_file} -m'.' "$file" 
+	            if ( $status ) then
+		        echo "ERROR: Initial check-in of $file failed - aborting"
+		        exit 1
+	            endif
+	            set new = 1
+		endif
+	    else 
+		set file = "${update_dir}/Attic/${name},v"
+		echo "WARNING: IGNORED: ${repository}/Attic/${name}"
+		continue
+	    endif
+	else	# File existed 
+	    echo ERROR: File exists: Ignored: "$file"
+	    continue
+#	    set headbranch = `sed -n '/^head/p; /^branch/p; 2q' $file`
+#	    if ( $#headbranch != 2 && $#headbranch != 4 ) then
+#		echo "ERROR: corrupted RCS file $file - aborting"
+#	    endif
+#	    set head = "$headbranch[2]"
+#	    set branch = ""
+#	    if ( $#headbranch == 4 ) then
+#		set branch = "$headbranch[4]"
+#	    endif
+#	    if ( "$head" == "1.1;" && "$branch" != "1.1.1;" ) then
+#		${rcsbin}/rcsdiff -q -r1.1 $file > /dev/null
+#		if ( ! $status ) then
+#		    set new = 1
+#		endif
+#	    else
+#	        if ( "$branch" != "1.1.1;" ) then
+#		    echo -n "WARNING: Updating locally modified file "
+#		    echo    "${repository}/${name}"
+#	        endif
+#	    endif
+	endif
+    endif
+end
+if ( $got_one == 1 ) rm $message_file
