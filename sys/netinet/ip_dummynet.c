@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.c 1.2 1998/08/21 15:01:13 luigi Exp $
+ *	$Id: ip_dummynet.c,v 1.1 1998/09/12 22:03:20 luigi Exp $
  */
 
 /*
@@ -130,19 +130,19 @@ dn_move(struct dn_pipe *pipe, int immediate)
 	 * is reset after the first insertion;
 	 */
 	while ( pkt ) {
-	    struct ip *ip=mtod(pkt->dn_m, struct ip *);
+	    int len = pkt->dn_m->m_pkthdr.len ;
 
 	    /*
 	     * queue limitation: pass packets down if the len is
 	     * such that the pkt would go out before the next tick.
 	     */
 	    if (pipe->bandwidth) {
-		if (pipe->numbytes < ip->ip_len)
+		if (pipe->numbytes < len)
 		    break;
-		pipe->numbytes -= ip->ip_len;
+		pipe->numbytes -= len;
 	    }
 	    pipe->r_len--; /* elements in queue */
-	    pipe->r_len_bytes -= ip->ip_len ;
+	    pipe->r_len_bytes -= len ;
 
 	    /*
 	     * to add delay jitter, must act here. A lower value
@@ -222,6 +222,7 @@ dn_move(struct dn_pipe *pipe, int immediate)
 	}
     }
 }
+
 /*
  * this is the periodic task that moves packets between the R-
  * and the P- queue
@@ -267,7 +268,7 @@ dummynet_io(int pipe_nr, int dir,
 {
     struct dn_pkt *pkt;
     struct dn_pipe *pipe;
-    struct ip *ip=mtod(m, struct ip *);
+    int len = m->m_pkthdr.len ;
 
     int s=splimp();
 
@@ -296,7 +297,7 @@ dummynet_io(int pipe_nr, int dir,
     if ( (pipe->plr && random() < pipe->plr) ||
          (pipe->queue_size && pipe->r_len >= pipe->queue_size) ||
          (pipe->queue_size_bytes &&
-	    ip->ip_len + pipe->r_len_bytes > pipe->queue_size_bytes) ||
+	    len + pipe->r_len_bytes > pipe->queue_size_bytes) ||
 		(pkt = (struct dn_pkt *)malloc(sizeof (*pkt),
 			M_IPFW, M_NOWAIT) ) == NULL ) {
 	splx(s);
@@ -328,7 +329,7 @@ dummynet_io(int pipe_nr, int dir,
 	(struct dn_pkt *)pipe->r.tail->dn_next = pkt;
     pipe->r.tail = pkt;
     pipe->r_len++;
-    pipe->r_len_bytes += ip->ip_len ;
+    pipe->r_len_bytes += len ;
 
     /* 
      * here we could implement RED if we like to
