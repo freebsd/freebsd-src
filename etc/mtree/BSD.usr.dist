@@ -354,6 +354,10 @@
             ibcs2
             ..
             isdn
+		contrib
+		..
+		v21
+		..
             ..
             kld
                 cdev
