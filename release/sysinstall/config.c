@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.10 1995/10/14 09:30:42 jkh Exp $
+ * $Id: config.c,v 1.16.2.11 1995/10/14 19:13:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -200,8 +200,10 @@ configFstab(void)
 
     /* Write the first one out as /cdrom */
     if (cnt) {
-	Mkdir("/cdrom", NULL);
-	fprintf(fstab, "/dev/%s\t\t\t/cdrom\t\tcd9660\tro 0 0\n", devs[0]->name);
+	if (Mkdir("/cdrom", NULL))
+	    msgConfirm("Unable to make mount point for: /cdrom\n");
+	else
+	    fprintf(fstab, "/dev/%s\t\t\t/cdrom\t\tcd9660\tro 0 0\n", devs[0]->name);
     }
 
     /* Write the others out as /cdrom<n> */
@@ -209,8 +211,10 @@ configFstab(void)
 	char cdname[10];
 
 	sprintf(cdname, "/cdrom%d", i);
-	Mkdir(cdname, NULL);
-	fprintf(fstab, "/dev/%s\t\t\t%s\t\tcd9660\tro 0 0\n", devs[i]->name, cdname);
+	if (Mkdir(cdname, NULL))
+	    msgConfirm("Unable to make mount point for: %s\n", cdname);
+	else
+	    fprintf(fstab, "/dev/%s\t\t\t%s\t\tcd9660\tro 0 0\n", devs[i]->name, cdname);
     }
     fclose(fstab);
     if (isDebug())
@@ -292,20 +296,6 @@ configSysconfig(void)
 	}
     }
     fclose(fp);
-
-    /* If we're an NFS server, we need an exports file */
-    if (variable_get("nfs_server") && !file_readable("/etc/exports")) {
-	msgConfirm("You have chosen to be an NFS server but have not yet configured\n"
-		   "the /etc/exports file.  The format for an exports entry is:\n"
-		   "<mountpoint> <opts> <host [..host]>\n"
-		   "Where <mounpoint> is the name of a filesystem as specified\n"
-		   "in the Label editor, <opts> is a list of special options we\n"
-		   "won't concern ourselves with here (``man exports'' when the\n"
-		   "system is fully installed) and <host> is one or more host\n"
-		   "names who are allowed to mount this file system.  Press\n"
-		   "[ENTER] now to invoke the editor on /etc/exports");
-	systemExecute("ee /etc/exports");
-    }
 }
 
 int
@@ -345,7 +335,11 @@ configResolv(void)
 		       "may fail as a result!");
 	goto skip;
     }
-    Mkdir("/etc", NULL);
+    if (Mkdir("/etc", NULL)) {
+	msgConfirm("Unable to create /etc directory.  Network configuration\n"
+		   "files will therefore not be written!");
+	return;
+    }
     fp = fopen("/etc/resolv.conf", "w");
     if (!fp) {
 	msgConfirm("Unable to open /etc/resolv.conf!  You will need to do this manually.");
@@ -442,5 +436,41 @@ configPackages(char *str)
 int
 configPorts(char *str)
 {
+    char *cp, *dist;
+
+    if (file_executable("/usr/X11R6/bin/lndir")) {
+	dist = "/cdrom/ports";
+	while (!file_readable(dist)) {
+	    dist = msgGetInput("/cdrom/ports",
+			       "Unable to locate a ports tree on CDROM.  Please specify the\n"
+			       "location of the master ports directory you wish to create the\n"
+			       "link tree to.");
+	    if (!dist)
+		break;
+	}
+	if (dist) {
+	    cp = msgGetInput("/usr/ports",
+			     "Where would you like to create the link tree?"
+			     "(press [ENTER] for default location).");
+	    if (!cp)
+		return RET_FAIL;
+	    if (Mkdir(cp, NULL))
+		msgConfirm("Unable to make %s directory!", cp);
+	    else {
+		msgNotify("Making link tree from %s to %s area.", dist, cp);
+		if (vsystem("lndir %s %s", dist, cp))
+		    msgConfirm("The lndir command returned an error status and may not have.\n"
+			       "successfully generated the link tree.  You may wish to inspect\n"
+			       "%s carefully for any signs of corruption.", cp);
+	    }
+	}
+	else
+	    return RET_FAIL;
+    }
+    else
+	msgConfirm("You are missing the lndir command from /usr/X11R6/bin and\n"
+		   "cannot run this utility.  You may wish to do this manually\n"
+		   "later by extracting just lndir from the X distribution and\n"
+		   "using it to create the link tree.");
     return RET_SUCCESS;
 }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.17 1995/10/13 08:19:31 jkh Exp $
+ * $Id: menus.c,v 1.42.2.18 1995/10/14 19:13:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -430,6 +430,8 @@ NULL,
 	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_UBIN, 0, dmenuFlagCheck	},
   { "usbin",	"/usr/src/usr.sbin (aux system binaries) [14MB]",
 	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_USBIN, 0, dmenuFlagCheck	},
+  { "smailcf",	"/usr/src/usr.sbin (sendmail config macros) [341K]",
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_SMAILCF, 0, dmenuFlagCheck	},
   { NULL } },
 };
 
@@ -640,6 +642,8 @@ software not provided in the base distributions.",
 	DMENU_SYSTEM_COMMAND,	"adduser -silent", 0, 0			},
       { "Console",		"Customize system console behavior",
 	DMENU_SUBMENU,		&MenuSyscons, 0, 0			},
+      {	"Handbook",		"Read the FreeBSD handbook.",
+	DMENU_CALL,		docBrowser, 0, 0			},
       { "Time Zone",		"Set which time zone you're in",
 	DMENU_SYSTEM_COMMAND,	"rm -f /etc/wall_cmos_clock /etc/localtime; tzsetup", 0, 0 },
       { "Media",		"Change the installation media type",
@@ -650,7 +654,7 @@ software not provided in the base distributions.",
 	DMENU_CALL,		optionsEditor, 0, 0			},
       { "Packages",		"Install extra FreeBSD packaged software",
 	DMENU_CALL,		configPackages, 0, 0			},
-      { "Ports",		"Enable the FreeBSD Ports Collection from CD",
+      { "Ports",		"Link to FreeBSD Ports Collection on CD/NFS",
 	DMENU_CALL,		configPorts, 0, 1			},
       { "Root Password",	"Set the system manager's password",
 	DMENU_SYSTEM_COMMAND,	"passwd root", 0, 0			},
@@ -661,18 +665,6 @@ software not provided in the base distributions.",
       { NULL } },
 };
 
-static char *
-menuCheckNTP(DMenuItem *item)
-{
-    return variable_get("ntpdate") ? "ON" : "OFF";
-}
-
-static char *
-menuCheckRouted(DMenuItem *item)
-{
-    return variable_get("routedflags") ? "ON" : "OFF";
-}
-
 DMenu MenuNetworking = {
     DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "Network Services Menu",
@@ -682,20 +674,30 @@ of installing FreeBSD.  This menu allows you to configure other\n\
 aspects of your system's network configuration.",
     NULL,
     NULL,
-{ { "NFS client",		"This machine will be an NFS client",
-	DMENU_SET_VARIABLE,	"nfs_client=YES", 0, 0, dmenuVarCheck		},
+{ { "Interfaces",		"Configure network interfaces",
+	DMENU_CALL,		tcpMenuSelect, 0, 0					},
+  { "NFS client",		"This machine will be an NFS client",
+	DMENU_SET_VARIABLE,	"nfs_client=YES", 0, 0, dmenuVarCheck			},
   { "NFS server",		"This machine will be an NFS server",
-	DMENU_SET_VARIABLE,	"nfs_server=YES", 0, 0, dmenuVarCheck		},
-  { "Interfaces",		"Configure network interfaces",
-	DMENU_CALL,		tcpMenuSelect, 0, 0				},
-  { "ntpdate",		"Select a clock-syncronization server",
-	DMENU_SUBMENU,		&MenuNTP, 0, 0, menuCheckNTP			},
-  { "routed",		"Set flags for routed (default: -q)",
-	DMENU_CALL,		configRoutedFlags, 0, 0, menuCheckRouted	},
-  { "rwhod",		"This machine wants to run the rwho daemon",
-	DMENU_SET_VARIABLE,	"rwhod=YES", 0, 0, dmenuVarCheck		},
+	DMENU_SET_VARIABLE,	"nfs_server=YES", 0, 0, dmenuVarCheck			},
+  { "gated",			"This machine wants to run gated",
+	DMENU_SET_VARIABLE,	"gated=YES", 0, 0, dmenuVarCheck			},
+  { "ntpdate",			"Select a clock-syncronization server",
+	DMENU_SUBMENU,		&MenuNTP, (int)"ntpdate", 0, dmenuVarCheck		},
+  { "routed",			"Set flags for routed (default: -q)",
+	DMENU_CALL,		configRoutedFlags, (int)"routed", 0, dmenuVarCheck	},
+  { "rwhod",			"This machine wants to run the rwho daemon",
+	DMENU_SET_VARIABLE,	"rwhod=YES", 0, 0, dmenuVarCheck			},
+  { "Anon FTP",			"This machine wishes to allow anonymous FTP.",
+	DMENU_SET_VARIABLE,	"anon_ftp=YES", 0, 0, dmenuVarCheck			},
+  { "WEB Server",		"This machine wishes to be a WWW server.",
+	DMENU_SET_VARIABLE,	"apache_httpd=YES", 0, 0, dmenuVarCheck			},
+  { "Samba",			"Install Samba for NETBUI client filesharing.",
+	DMENU_SET_VARIABLE,	"samba=YES", 0, 0, dmenuVarCheck			},
+  { "PCNFSD",			"Run authentication server for clients with PC-NFS.",
+	DMENU_SET_VARIABLE,	"pcnfsd=YES", 0, 0, dmenuVarCheck			},
   { "Exit",			"Exit this menu (returning to previous)",
-	DMENU_CANCEL, NULL, 0, 0						},
+	DMENU_CANCEL, NULL, 0, 0							},
   { NULL } },
 };
 

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.13 1995/10/14 19:13:35 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.14 1995/10/15 04:37:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -148,7 +148,7 @@ typedef struct _dmenuItem {
     char *prompt;			/* Our prompt			*/
     DMenuItemType type;			/* What type of item we are	*/
     void *ptr;				/* Generic data ptr		*/
-    u_long parm;			/* Parameter for above		*/
+    int parm;				/* Parameter for above		*/
     Boolean disabled;			/* Are we temporarily disabled?	*/
     char * (*check)(struct _dmenuItem *); /* Our state                  */
 } DMenuItem;
@@ -443,6 +443,7 @@ extern int	installFixit(char *str);
 extern int	installUpgrade(char *str);
 extern int	installSelectRelease(char *str);
 extern int	installFixup(void);
+extern int	installFinal(void);
 extern int	installFilesystems(void);
 
 /* lang.c */
@@ -538,6 +539,9 @@ extern void	mediaShutdownNFS(Device *dev);
 extern int	optionsEditor(char *str);
 extern Boolean	optionIsSet(int opt);
 
+/* package.c */
+extern int	package_extract(Device *dev, char *name);
+
 /* system.c */
 extern void	systemInitialize(int argc, char **argv);
 extern void	systemShutdown(void);
@@ -551,6 +555,7 @@ extern void	systemChangeTerminal(char *color, const u_char c_termcap[],
 				     char *mono, const u_char m_termcap[]);
 extern void	systemChangeScreenmap(const u_char newmap[]);
 extern int	vsystem(char *fmt, ...);
+extern int	docBrowser(char *junk);
 
 /* tape.c */
 extern char	*mediaTapeBlocksize(void);

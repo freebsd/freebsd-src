@@ -47,7 +47,8 @@
 #define DIST_SRC_UBIN		0x1000
 #define DIST_SRC_USBIN		0x2000
 #define DIST_SRC_BIN		0x4000
-#define DIST_SRC_ALL		0xFFFF
+#define DIST_SRC_SMAILCF	0x8000
+#define DIST_SRC_ALL		0x7FFF	/* no SMAILCF, it's part of USBIN */
 
 /* Subtypes for XFree86 distribution */
 #define DIST_XF86_BIN		0x0001

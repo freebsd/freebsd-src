@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.44.2.3 1995/09/25 00:52:15 jkh Exp $
+ * $Id: system.c,v 1.44.2.4 1995/10/04 07:55:01 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -261,4 +261,19 @@ vsystem(char *fmt, ...)
 	msgDebug("Command `%s' returns status of %d\n", cmd, i);
     free(cmd);
     return i;
+}
+
+/*
+ * This is called from the main menu.  Try to find a copy of Lynx from somewhere
+ * and fire it up on the first copy of the handbook we can find.
+ */
+int
+docBrowser(char *junk)
+{
+    /* Make sure we were started at a reasonable time */
+    /* First, make sure we have Lynx */
+    /* We don't have lynx, try to add it */
+    /* Now try to figure out if there is doc here - if so, offer choice between local and net else just net */
+    /* Run lynx on the appropriate doc */
+    return RET_SUCCESS;
 }
