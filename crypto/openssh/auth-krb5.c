@@ -28,7 +28,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth-krb5.c,v 1.12 2003/08/28 12:54:34 markus Exp $");
+RCSID("$OpenBSD: auth-krb5.c,v 1.15 2003/11/21 11:57:02 djm Exp $");
 RCSID("$FreeBSD$");
 
 #include "ssh.h"
@@ -41,7 +41,6 @@ RCSID("$FreeBSD$");
 #include "auth.h"
 
 #ifdef KRB5
-
 #include <krb5.h>
 
 extern ServerOptions	 options;
@@ -51,17 +50,12 @@ krb5_init(void *context)
 {
 	Authctxt *authctxt = (Authctxt *)context;
 	krb5_error_code problem;
-	static int cleanup_registered = 0;
 
 	if (authctxt->krb5_ctx == NULL) {
 		problem = krb5_init_context(&authctxt->krb5_ctx);
 		if (problem)
 			return (problem);
 		krb5_init_ets(authctxt->krb5_ctx);
-	}
-	if (!cleanup_registered) {
-		fatal_add_cleanup(krb5_cleanup_proc, authctxt);
-		cleanup_registered = 1;
 	}
 	return (0);
 }
@@ -74,11 +68,11 @@ auth_krb5_password(Authctxt *authctxt, const char *password)
 	krb5_principal server;
 	char ccname[40];
 	int tmpfd;
-#endif	
+#endif
 	krb5_error_code problem;
 	krb5_ccache ccache = NULL;
 
-	if (authctxt->pw == NULL)
+	if (!authctxt->valid)
 		return (0);
 
 	temporarily_use_uid(authctxt->pw);
@@ -103,14 +97,15 @@ auth_krb5_password(Authctxt *authctxt, const char *password)
 		goto out;
 
 	restore_uid();
-	
+
 	problem = krb5_verify_user(authctxt->krb5_ctx, authctxt->krb5_user,
 	    ccache, password, 1, NULL);
-	
+
 	temporarily_use_uid(authctxt->pw);
 
 	if (problem)
 		goto out;
+
 	problem = krb5_cc_gen_new(authctxt->krb5_ctx, &krb5_fcc_ops,
 	    &authctxt->krb5_fwd_ccache);
 	if (problem)
@@ -141,21 +136,21 @@ auth_krb5_password(Authctxt *authctxt, const char *password)
 	temporarily_use_uid(authctxt->pw);
 	if (problem)
 		goto out;
-	
-	if (!krb5_kuserok(authctxt->krb5_ctx, authctxt->krb5_user, 
+
+	if (!krb5_kuserok(authctxt->krb5_ctx, authctxt->krb5_user,
 			  authctxt->pw->pw_name)) {
 		problem = -1;
 		goto out;
-	} 
+	}
 
 	snprintf(ccname,sizeof(ccname),"FILE:/tmp/krb5cc_%d_XXXXXX",geteuid());
-	
+
 	if ((tmpfd = mkstemp(ccname+strlen("FILE:")))==-1) {
 		logit("mkstemp(): %.100s", strerror(errno));
 		problem = errno;
 		goto out;
 	}
-	
+
 	if (fchmod(tmpfd,S_IRUSR | S_IWUSR) == -1) {
 		logit("fchmod(): %.100s", strerror(errno));
 		close(tmpfd);
@@ -172,12 +167,12 @@ auth_krb5_password(Authctxt *authctxt, const char *password)
 				     authctxt->krb5_user);
 	if (problem)
 		goto out;
-				
+
 	problem= krb5_cc_store_cred(authctxt->krb5_ctx, authctxt->krb5_fwd_ccache,
 				 &creds);
 	if (problem)
 		goto out;
-#endif		
+#endif
 
 	authctxt->krb5_ticket_file = (char *)krb5_cc_get_name(authctxt->krb5_ctx, authctxt->krb5_fwd_ccache);
 
@@ -206,10 +201,8 @@ auth_krb5_password(Authctxt *authctxt, const char *password)
 }
 
 void
-krb5_cleanup_proc(void *context)
+krb5_cleanup_proc(Authctxt *authctxt)
 {
-	Authctxt *authctxt = (Authctxt *)context;
-
 	debug("krb5_cleanup_proc called");
 	if (authctxt->krb5_fwd_ccache) {
 		krb5_cc_destroy(authctxt->krb5_ctx, authctxt->krb5_fwd_ccache);

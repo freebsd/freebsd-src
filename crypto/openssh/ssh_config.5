@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.20 2003/09/02 18:50:06 jmc Exp $
+.\" $OpenBSD: ssh_config.5,v 1.28 2003/12/16 15:49:51 markus Exp $
 .\" $FreeBSD$
 .Dd September 25, 1999
 .Dt SSH_CONFIG 5
@@ -187,7 +187,6 @@ Specifies the ciphers allowed for protocol version 2
 in order of preference.
 Multiple ciphers must be comma-separated.
 The default is
-.Pp
 .Bd -literal
   ``aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,arcfour,
     aes192-cbc,aes256-cbc''
@@ -261,6 +260,7 @@ or
 .Dq no .
 The default is
 .Dq no .
+This option should be placed in the non-hostspecific section.
 See
 .Xr ssh-keysign 8
 for more information.
@@ -307,9 +307,27 @@ The default is
 .Pp
 X11 forwarding should be enabled with caution.
 Users with the ability to bypass file permissions on the remote host
-(for the user's X authorization database)
+(for the user's X11 authorization database)
 can access the local X11 display through the forwarded connection.
-An attacker may then be able to perform activities such as keystroke monitoring.
+An attacker may then be able to perform activities such as keystroke monitoring
+if the
+.Cm ForwardX11Trusted
+option is also enabled.
+.It Cm ForwardX11Trusted
+If the this option is set to
+.Dq yes
+then remote X11 clients will have full access to the original X11 display.
+If this option is set to
+.Dq no
+then remote X11 clients will be considered untrusted and prevented
+from stealing or tampering with data belonging to trusted X11
+clients.
+.Pp
+The default is
+.Dq no .
+.Pp
+See the X11 SECURITY extension specification for full details on
+the restrictions imposed on untrusted clients.
 .It Cm GatewayPorts
 Specifies whether remote hosts are allowed to connect to local
 forwarded ports.
@@ -333,11 +351,9 @@ Specifies a file to use for the global
 host key database instead of
 .Pa /etc/ssh/ssh_known_hosts .
 .It Cm GSSAPIAuthentication
-Specifies whether authentication based on GSSAPI may be used, either using
-the result of a successful key exchange, or using GSSAPI user
-authentication.
+Specifies whether user authentication based on GSSAPI is allowed.
 The default is
-.Dq yes .
+.Dq no .
 Note that this option applies to protocol version 2 only.
 .It Cm GSSAPIDelegateCredentials
 Forward (delegate) credentials to the server.
@@ -391,23 +407,6 @@ syntax to refer to a user's home directory.
 It is possible to have
 multiple identity files specified in configuration files; all these
 identities will be tried in sequence.
-.It Cm KeepAlive
-Specifies whether the system should send TCP keepalive messages to the
-other side.
-If they are sent, death of the connection or crash of one
-of the machines will be properly noticed.
-However, this means that
-connections will die if the route is down temporarily, and some people
-find it annoying.
-.Pp
-The default is
-.Dq yes
-(to send keepalives), and the client will notice
-if the network goes down or the remote host dies.
-This is important in scripts, and many users want it too.
-.Pp
-To disable keepalives, the value should be set to
-.Dq no .
 .It Cm LocalForward
 Specifies that a TCP/IP port on the local machine be forwarded over
 the secure channel to the specified host and port from the remote machine.
@@ -554,6 +553,42 @@ running.
 The default is
 .Dq yes .
 Note that this option applies to protocol version 1 only.
+.It Cm ServerAliveInterval
+Sets a timeout interval in seconds after which if no data has been received
+from the server,
+.Nm ssh
+will send a message through the encrypted
+channel to request a response from the server.
+The default
+is 0, indicating that these messages will not be sent to the server.
+This option applies to protocol version 2 only.
+.It Cm ServerAliveCountMax
+Sets the number of server alive messages (see above) which may be
+sent without
+.Nm ssh
+receiving any messages back from the server.
+If this threshold is reached while server alive messages are being sent,
+.Nm ssh
+will disconnect from the server, terminating the session.
+It is important to note that the use of server alive messages is very
+different from
+.Cm TCPKeepAlive
+(below).
+The server alive messages are sent through the encrypted channel
+and therefore will not be spoofable.
+The TCP keepalive option enabled by
+.Cm TCPKeepAlive
+is spoofable.
+The server alive mechanism is valuable when the client or
+server depend on knowing when a connection has become inactive.
+.Pp
+The default value is 3.
+If, for example,
+.Cm ServerAliveInterval
+(above) is set to 15, and
+.Cm ServerAliveCountMax
+is left at the default, if the server becomes unresponsive ssh
+will disconnect after approximately 45 seconds.
 .It Cm SmartcardDevice
 Specifies which smartcard device to use.
 The argument to this keyword is the device
@@ -596,6 +631,23 @@ or
 .Dq ask .
 The default is
 .Dq ask .
+.It Cm TCPKeepAlive
+Specifies whether the system should send TCP keepalive messages to the
+other side.
+If they are sent, death of the connection or crash of one
+of the machines will be properly noticed.
+However, this means that
+connections will die if the route is down temporarily, and some people
+find it annoying.
+.Pp
+The default is
+.Dq yes
+(to send TCP keepalive messages), and the client will notice
+if the network goes down or the remote host dies.
+This is important in scripts, and many users want it too.
+.Pp
+To disable TCP keepalive messages, the value should be set to
+.Dq no .
 .It Cm UsePrivilegedPort
 Specifies whether to use a privileged port for outgoing connections.
 The argument must be
@@ -625,6 +677,23 @@ host key database instead of
 .It Cm VerifyHostKeyDNS
 Specifies whether to verify the remote key using DNS and SSHFP resource
 records.
+If this option is set to
+.Dq yes ,
+the client will implicitly trust keys that match a secure fingerprint
+from DNS.
+Insecure fingerprints will be handled as if this option was set to
+.Dq ask .
+If this option is set to
+.Dq ask ,
+information on fingerprint match will be displayed, but the user will still
+need to confirm new host keys according to the
+.Cm StrictHostKeyChecking
+option.
+The argument must be
+.Dq yes ,
+.Dq no
+or
+.Dq ask .
 The default is
 .Dq no .
 Note that this option applies to protocol version 2 only.

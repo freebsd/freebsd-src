@@ -36,7 +36,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: authfile.c,v 1.54 2003/05/24 09:30:39 djm Exp $");
+RCSID("$OpenBSD: authfile.c,v 1.55 2003/09/18 07:56:05 markus Exp $");
 
 #include <openssl/err.h>
 #include <openssl/evp.h>
@@ -143,6 +143,7 @@ key_save_private_rsa1(Key *key, const char *filename, const char *passphrase,
 	fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 	if (fd < 0) {
 		error("open %s failed: %s.", filename, strerror(errno));
+		buffer_free(&encrypted);
 		return 0;
 	}
 	if (write(fd, buffer_ptr(&encrypted), buffer_len(&encrypted)) !=

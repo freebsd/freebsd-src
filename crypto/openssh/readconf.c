@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: readconf.c,v 1.121 2003/09/01 18:15:50 markus Exp $");
+RCSID("$OpenBSD: readconf.c,v 1.127 2003/12/16 15:49:51 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include "ssh.h"
@@ -79,7 +79,7 @@ RCSID("$FreeBSD$");
      RSAAuthentication yes
      RhostsRSAAuthentication yes
      StrictHostKeyChecking yes
-     KeepAlives no
+     TcpKeepAlive no
      IdentityFile ~/.ssh/identity
      Port 22
      EscapeChar ~
@@ -90,14 +90,14 @@ RCSID("$FreeBSD$");
 
 typedef enum {
 	oBadOption,
-	oForwardAgent, oForwardX11, oGatewayPorts,
+	oForwardAgent, oForwardX11, oForwardX11Trusted, oGatewayPorts,
 	oPasswordAuthentication, oRSAAuthentication,
 	oChallengeResponseAuthentication, oXAuthLocation,
 	oIdentityFile, oHostName, oPort, oCipher, oRemoteForward, oLocalForward,
 	oUser, oHost, oEscapeChar, oRhostsRSAAuthentication, oProxyCommand,
 	oGlobalKnownHostsFile, oUserKnownHostsFile, oConnectionAttempts,
 	oBatchMode, oCheckHostIP, oStrictHostKeyChecking, oCompression,
-	oCompressionLevel, oKeepAlives, oNumberOfPasswordPrompts,
+	oCompressionLevel, oTCPKeepAlive, oNumberOfPasswordPrompts,
 	oUsePrivilegedPort, oLogLevel, oCiphers, oProtocol, oMacs,
 	oGlobalKnownHostsFile2, oUserKnownHostsFile2, oPubkeyAuthentication,
 	oKbdInteractiveAuthentication, oKbdInteractiveDevices, oHostKeyAlias,
@@ -106,6 +106,7 @@ typedef enum {
 	oClearAllForwardings, oNoHostAuthenticationForLocalhost,
 	oEnableSSHKeysign, oRekeyLimit, oVerifyHostKeyDNS, oConnectTimeout,
 	oAddressFamily, oGssAuthentication, oGssDelegateCreds,
+	oServerAliveInterval, oServerAliveCountMax,
 	oVersionAddendum,
 	oDeprecated, oUnsupported
 } OpCodes;
@@ -118,6 +119,7 @@ static struct {
 } keywords[] = {
 	{ "forwardagent", oForwardAgent },
 	{ "forwardx11", oForwardX11 },
+	{ "forwardx11trusted", oForwardX11Trusted },
 	{ "xauthlocation", oXAuthLocation },
 	{ "gatewayports", oGatewayPorts },
 	{ "useprivilegedport", oUsePrivilegedPort },
@@ -170,7 +172,8 @@ static struct {
 	{ "stricthostkeychecking", oStrictHostKeyChecking },
 	{ "compression", oCompression },
 	{ "compressionlevel", oCompressionLevel },
-	{ "keepalive", oKeepAlives },
+	{ "tcpkeepalive", oTCPKeepAlive },
+	{ "keepalive", oTCPKeepAlive },				/* obsolete */
 	{ "numberofpasswordprompts", oNumberOfPasswordPrompts },
 	{ "loglevel", oLogLevel },
 	{ "dynamicforward", oDynamicForward },
@@ -184,15 +187,13 @@ static struct {
 #endif
 	{ "clearallforwardings", oClearAllForwardings },
 	{ "enablesshkeysign", oEnableSSHKeysign },
-#ifdef DNS
 	{ "verifyhostkeydns", oVerifyHostKeyDNS },
-#else
-	{ "verifyhostkeydns", oUnsupported },
-#endif
 	{ "nohostauthenticationforlocalhost", oNoHostAuthenticationForLocalhost },
 	{ "rekeylimit", oRekeyLimit },
 	{ "connecttimeout", oConnectTimeout },
 	{ "addressfamily", oAddressFamily },
+	{ "serveraliveinterval", oServerAliveInterval },
+	{ "serveralivecountmax", oServerAliveCountMax },
 	{ "versionaddendum", oVersionAddendum },
 	{ NULL, oBadOption }
 };
@@ -312,7 +313,7 @@ process_config_line(Options *options, const char *host,
 		/* NOTREACHED */
 	case oConnectTimeout:
 		intptr = &options->connection_timeout;
-/* parse_time: */
+parse_time:
 		arg = strdelim(&s);
 		if (!arg || *arg == '\0')
 			fatal("%s line %d: missing time value.",
@@ -343,6 +344,10 @@ parse_flag:
 
 	case oForwardX11:
 		intptr = &options->forward_x11;
+		goto parse_flag;
+
+	case oForwardX11Trusted:
+		intptr = &options->forward_x11_trusted;
 		goto parse_flag;
 
 	case oGatewayPorts:
@@ -403,10 +408,11 @@ parse_flag:
 
 	case oVerifyHostKeyDNS:
 		intptr = &options->verify_host_key_dns;
-		goto parse_flag;
+		goto parse_yesnoask;
 
 	case oStrictHostKeyChecking:
 		intptr = &options->strict_host_key_checking;
+parse_yesnoask:
 		arg = strdelim(&s);
 		if (!arg || *arg == '\0')
 			fatal("%.200s line %d: Missing yes/no/ask argument.",
@@ -428,8 +434,8 @@ parse_flag:
 		intptr = &options->compression;
 		goto parse_flag;
 
-	case oKeepAlives:
-		intptr = &options->keepalives;
+	case oTCPKeepAlive:
+		intptr = &options->tcp_keep_alive;
 		goto parse_flag;
 
 	case oNoHostAuthenticationForLocalhost:
@@ -733,6 +739,14 @@ parse_int:
 		intptr = &options->enable_ssh_keysign;
 		goto parse_flag;
 
+	case oServerAliveInterval:
+		intptr = &options->server_alive_interval;
+		goto parse_time;
+
+	case oServerAliveCountMax:
+		intptr = &options->server_alive_count_max;
+		goto parse_int;
+
 	case oVersionAddendum:
 		ssh_version_set_addendum(strtok(s, "\n"));
 		do {
@@ -816,6 +830,7 @@ initialize_options(Options * options)
 	memset(options, 'X', sizeof(*options));
 	options->forward_agent = -1;
 	options->forward_x11 = -1;
+	options->forward_x11_trusted = -1;
 	options->xauth_location = NULL;
 	options->gateway_ports = -1;
 	options->use_privileged_port = -1;
@@ -833,7 +848,7 @@ initialize_options(Options * options)
 	options->check_host_ip = -1;
 	options->strict_host_key_checking = -1;
 	options->compression = -1;
-	options->keepalives = -1;
+	options->tcp_keep_alive = -1;
 	options->compression_level = -1;
 	options->port = -1;
 	options->address_family = -1;
@@ -866,6 +881,8 @@ initialize_options(Options * options)
 	options->no_host_authentication_for_localhost = - 1;
 	options->rekey_limit = - 1;
 	options->verify_host_key_dns = -1;
+	options->server_alive_interval = -1;
+	options->server_alive_count_max = -1;
 }
 
 /*
@@ -882,6 +899,8 @@ fill_default_options(Options * options)
 		options->forward_agent = 0;
 	if (options->forward_x11 == -1)
 		options->forward_x11 = 0;
+	if (options->forward_x11_trusted == -1)
+		options->forward_x11_trusted = 0;
 	if (options->xauth_location == NULL)
 		options->xauth_location = _PATH_XAUTH;
 	if (options->gateway_ports == -1)
@@ -895,7 +914,7 @@ fill_default_options(Options * options)
 	if (options->challenge_response_authentication == -1)
 		options->challenge_response_authentication = 1;
 	if (options->gss_authentication == -1)
-		options->gss_authentication = 1;
+		options->gss_authentication = 0;
 	if (options->gss_deleg_creds == -1)
 		options->gss_deleg_creds = 0;
 	if (options->password_authentication == -1)
@@ -914,8 +933,8 @@ fill_default_options(Options * options)
 		options->strict_host_key_checking = 2;	/* 2 is default */
 	if (options->compression == -1)
 		options->compression = 0;
-	if (options->keepalives == -1)
-		options->keepalives = 1;
+	if (options->tcp_keep_alive == -1)
+		options->tcp_keep_alive = 1;
 	if (options->compression_level == -1)
 		options->compression_level = 6;
 	if (options->port == -1)
@@ -978,6 +997,10 @@ fill_default_options(Options * options)
 		options->rekey_limit = 0;
 	if (options->verify_host_key_dns == -1)
 		options->verify_host_key_dns = 0;
+	if (options->server_alive_interval == -1)
+		options->server_alive_interval = 0;
+	if (options->server_alive_count_max == -1)
+		options->server_alive_count_max = 3;
 	/* options->proxy_command should not be set by default */
 	/* options->user will be set in the main program if appropriate */
 	/* options->hostname will be set in the main program if appropriate */

@@ -10,7 +10,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth1.c,v 1.52 2003/08/28 12:54:34 markus Exp $");
+RCSID("$OpenBSD: auth1.c,v 1.55 2003/11/08 16:02:40 jakob Exp $");
 RCSID("$FreeBSD$");
 
 #include "xmalloc.h"
@@ -140,7 +140,7 @@ do_authloop(Authctxt *authctxt)
 				    BN_num_bits(client_host_key->rsa->n), bits);
 			packet_check_eom();
 
-			authenticated = auth_rhosts_rsa(pw, client_user,
+			authenticated = auth_rhosts_rsa(authctxt, client_user,
 			    client_host_key);
 			key_free(client_host_key);
 
@@ -157,7 +157,7 @@ do_authloop(Authctxt *authctxt)
 				fatal("do_authloop: BN_new failed");
 			packet_get_bignum(n);
 			packet_check_eom();
-			authenticated = auth_rsa(pw, n);
+			authenticated = auth_rsa(authctxt, n);
 			BN_clear_free(n);
 			break;
 
@@ -236,7 +236,7 @@ do_authloop(Authctxt *authctxt)
 		if (authenticated &&
 		    !check_nt_auth(type == SSH_CMSG_AUTH_PASSWORD, pw)) {
 			packet_disconnect("Authentication rejected for uid %d.",
-			pw == NULL ? -1 : pw->pw_uid);
+			    pw == NULL ? -1 : pw->pw_uid);
 			authenticated = 0;
 		}
 #else
@@ -247,7 +247,7 @@ do_authloop(Authctxt *authctxt)
 #endif
 
 #ifdef USE_PAM
-		if (options.use_pam && authenticated && 
+		if (options.use_pam && authenticated &&
 		    !PRIVSEP(do_pam_account()))
 			authenticated = 0;
 #endif
@@ -276,10 +276,9 @@ do_authloop(Authctxt *authctxt)
  * Performs authentication of an incoming connection.  Session key has already
  * been exchanged and encryption is enabled.
  */
-Authctxt *
-do_authentication(void)
+void
+do_authentication(Authctxt *authctxt)
 {
-	Authctxt *authctxt;
 	u_int ulen;
 	char *user, *style = NULL;
 
@@ -293,7 +292,6 @@ do_authentication(void)
 	if ((style = strchr(user, ':')) != NULL)
 		*style++ = '\0';
 
-	authctxt = authctxt_new();
 	authctxt->user = user;
 	authctxt->style = style;
 
@@ -333,6 +331,4 @@ do_authentication(void)
 	packet_start(SSH_SMSG_SUCCESS);
 	packet_send();
 	packet_write_wait();
-
-	return (authctxt);
 }

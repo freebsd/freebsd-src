@@ -35,7 +35,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: cipher.c,v 1.65 2003/05/17 04:27:52 markus Exp $");
+RCSID("$OpenBSD: cipher.c,v 1.68 2004/01/23 19:26:33 hshoexer Exp $");
 
 #include "xmalloc.h"
 #include "log.h"
@@ -52,6 +52,17 @@ RCSID("$OpenBSD: cipher.c,v 1.65 2003/05/17 04:27:52 markus Exp $");
 extern const EVP_CIPHER *evp_rijndael(void);
 extern void ssh_rijndael_iv(EVP_CIPHER_CTX *, int, u_char *, u_int);
 #endif
+
+#if !defined(EVP_CTRL_SET_ACSS_MODE)
+# if (OPENSSL_VERSION_NUMBER >= 0x00907000L)
+extern const EVP_CIPHER *evp_acss(void);
+#  define EVP_acss evp_acss
+#  define EVP_CTRL_SET_ACSS_MODE xxx	/* used below */
+# else
+#  define EVP_acss NULL /* Don't try to support ACSS on older OpenSSL */
+# endif /* (OPENSSL_VERSION_NUMBER >= 0x00906000L) */
+#endif /* !defined(EVP_CTRL_SET_ACSS_MODE) */
+
 extern const EVP_CIPHER *evp_ssh1_bf(void);
 extern const EVP_CIPHER *evp_ssh1_3des(void);
 extern void ssh1_3des_iv(EVP_CIPHER_CTX *, int, u_char *, int);
@@ -87,31 +98,33 @@ struct Cipher {
 	{ "rijndael-cbc@lysator.liu.se",
 				SSH_CIPHER_SSH2, 16, 32, EVP_aes_256_cbc },
 #endif
-#if OPENSSL_VERSION_NUMBER >= 0x00906000L
+#if OPENSSL_VERSION_NUMBER >= 0x00905000L
 	{ "aes128-ctr", 	SSH_CIPHER_SSH2, 16, 16, evp_aes_128_ctr },
 	{ "aes192-ctr", 	SSH_CIPHER_SSH2, 16, 24, evp_aes_128_ctr },
 	{ "aes256-ctr", 	SSH_CIPHER_SSH2, 16, 32, evp_aes_128_ctr },
 #endif
-
+#if defined(EVP_CTRL_SET_ACSS_MODE)
+	{ "acss@openssh.org",	SSH_CIPHER_SSH2, 16, 5, EVP_acss },
+#endif
 	{ NULL,			SSH_CIPHER_ILLEGAL, 0, 0, NULL }
 };
 
 /*--*/
 
 u_int
-cipher_blocksize(Cipher *c)
+cipher_blocksize(const Cipher *c)
 {
 	return (c->block_size);
 }
 
 u_int
-cipher_keylen(Cipher *c)
+cipher_keylen(const Cipher *c)
 {
 	return (c->key_len);
 }
 
 u_int
-cipher_get_number(Cipher *c)
+cipher_get_number(const Cipher *c)
 {
 	return (c->number);
 }
@@ -311,7 +324,7 @@ cipher_set_key_string(CipherContext *cc, Cipher *cipher,
  */
 
 int
-cipher_get_keyiv_len(CipherContext *cc)
+cipher_get_keyiv_len(const CipherContext *cc)
 {
 	Cipher *c = cc->cipher;
 	int ivlen;
@@ -397,12 +410,12 @@ cipher_set_keyiv(CipherContext *cc, u_char *iv)
 #endif
 
 int
-cipher_get_keycontext(CipherContext *cc, u_char *dat)
+cipher_get_keycontext(const CipherContext *cc, u_char *dat)
 {
 	Cipher *c = cc->cipher;
 	int plen = 0;
 
-	if (c->evptype == EVP_rc4) {
+	if (c->evptype == EVP_rc4 || c->evptype == EVP_acss) {
 		plen = EVP_X_STATE_LEN(cc->evp);
 		if (dat == NULL)
 			return (plen);
@@ -417,7 +430,7 @@ cipher_set_keycontext(CipherContext *cc, u_char *dat)
 	Cipher *c = cc->cipher;
 	int plen;
 
-	if (c->evptype == EVP_rc4) {
+	if (c->evptype == EVP_rc4 || c->evptype == EVP_acss) {
 		plen = EVP_X_STATE_LEN(cc->evp);
 		memcpy(EVP_X_STATE(cc->evp), dat, plen);
 	}
