@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.17 1994/02/21 02:47:47 rgrimes Exp $
+#	$Id: rc,v 1.18 1994/02/21 03:16:43 rgrimes Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -118,7 +118,7 @@ fi
 
 # Recover elvis editor files.
 echo preserving editor files
-(cd /var/tmp && /usr/libexec/elvispreserve "-the system rebooted" elvis* &&
+(cd /var/tmp && /usr/libexec/elvispreserve "-the system rebooted" elv* &&
 	rm -f elvis[0-9a-f][0-9a-f][0-9a-f][0-9a-f]* \
 	elvis_[0-9a-f][0-9a-f][0-9a-f][0-9a-f]*)
 
