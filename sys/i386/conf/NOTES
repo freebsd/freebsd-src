@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.151 1995/03/05 22:23:35 joerg Exp $
+#	$Id: LINT,v 1.152 1995/03/06 10:33:34 ugen Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -543,19 +543,19 @@ pseudo-device   ispy    1
 # pca: PCM audio through your PC speaker
 #
 
-options AUDIO_PAS
-options AUDIO_SB
-options AUDIO_ADLIB
-options AUDIO_GUS
-options AUDIO_MPU401
-options AUDIO_UART6850
-options AUDIO_PSS
-options AUDIO_GUS16
-options AUDIO_GUSMAX
-options AUDIO_MSS
-options AUDIO_SBPRO
-options AUDIO_SB16
-options AUDIO_YM3812
+options		AUDIO_PAS
+options		AUDIO_SB
+options		AUDIO_ADLIB
+options		AUDIO_GUS
+options		"AUDIO_MPU401"
+options		"AUDIO_UART6850"
+options		AUDIO_PSS
+options		"AUDIO_GUS16"
+options		AUDIO_GUSMAX
+options		AUDIO_MSS
+options		AUDIO_SBPRO
+options		"AUDIO_SB16"
+options		"AUDIO_YM3812"
 
 device snd10 at isa? port 0x530 irq 10 drq 1 vector adintr
 device snd5 at isa? port 0x330 irq 6 vector mpuintr
