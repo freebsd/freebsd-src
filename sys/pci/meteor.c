@@ -29,6 +29,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+/* $Id: brooktree848.c,v 1.83 1999/05/31 11:28:53 phk Exp $ */
+
 /*		Change History:
 	8/21/95		Release
 	8/23/95		On advice from Stefan Esser, added volatile to PCI
@@ -1004,6 +1006,37 @@ met_attach(pcici_t tag, int unit)
 				unit, NMETEOR);
 		printf("meteor%d: attach: invalid unit number.\n", unit);
         	return ;
+	}
+
+	/*
+	 * Check for Meteor/PPB (PCI-PCI Bridge)
+	 * Reprogram IBM Bridge if detected.
+	 * New Meteor cards have an IBM PCI-PCI bridge, creating a secondary
+	 * PCI bus. The SAA chip is connected to this secondary bus.
+	 */
+
+	/* If we are not on PCI Bus 0, check for the Bridge */
+	if ( pci_get_bus_from_tag( tag ) != 0) {
+		pcici_t bridge_tag;
+
+		/* get tag of parent bridge */
+		bridge_tag = pci_get_parent_from_tag( tag );
+
+		/* Look for IBM 82351, 82352 or 82353 */
+		if (pci_conf_read(bridge_tag, PCI_ID_REG) == 0x00221014) {
+
+			if ( bootverbose)
+				printf("meteor%d: PPB device detected, reprogramming IBM bridge.\n", unit);
+
+			/* disable SERR */
+			pci_cfgwrite(bridge_tag, 0x05, 0x00, 1);
+			/* set LATENCY */
+			pci_cfgwrite(bridge_tag, 0x0d, 0x20, 1);
+			/* write posting enable, prefetch enabled --> GRAB direction */
+			pci_cfgwrite(bridge_tag, 0x42, 0x14, 1);
+			/* set PRTR Primary retry timer register */
+			pci_cfgwrite(bridge_tag, 0x4c, 0x10, 1);
+		}
 	}
 
 	mtr = &meteor[unit];
