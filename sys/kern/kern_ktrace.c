@@ -95,8 +95,15 @@ static int data_lengths[] = {
 static STAILQ_HEAD(, ktr_request) ktr_todo;
 static STAILQ_HEAD(, ktr_request) ktr_free;
 
+SYSCTL_NODE(_kern, OID_AUTO, ktrace, CTLFLAG_RD, 0, "KTRACE options");
+
 static uint ktr_requestpool = KTRACE_REQUEST_POOL;
-TUNABLE_INT("kern.ktrace_request_pool", &ktr_requestpool);
+TUNABLE_INT("kern.ktrace.request_pool", &ktr_requestpool);
+
+static uint ktr_geniosize = PAGE_SIZE;
+TUNABLE_INT("kern.ktrace.genio_size", &ktr_geniosize);
+SYSCTL_UINT(_kern_ktrace, OID_AUTO, genio_size, CTLFLAG_RW, &ktr_geniosize,
+    0, "Maximum size of genio event payload");
 
 static int print_message = 1;
 struct mtx ktrace_mtx;
@@ -164,7 +171,7 @@ sysctl_kern_ktrace_request_pool(SYSCTL_HANDLER_ARGS)
 		return (ENOSPC);
 	return (0);
 }
-SYSCTL_PROC(_kern, OID_AUTO, ktrace_request_pool, CTLTYPE_UINT|CTLFLAG_RW,
+SYSCTL_PROC(_kern_ktrace, OID_AUTO, request_pool, CTLTYPE_UINT|CTLFLAG_RW,
     &ktr_requestpool, 0, sysctl_kern_ktrace_request_pool, "IU", "");
 
 static uint
