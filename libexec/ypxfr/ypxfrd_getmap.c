@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfrd_getmap.c,v 1.7 1996/06/02 19:51:33 wpaul Exp $
+ *	$Id: ypxfrd_getmap.c,v 1.7 1996/06/02 19:51:33 wpaul Exp wpaul $
  */
 
 #include <sys/types.h>
@@ -44,7 +44,7 @@
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: ypxfrd_getmap.c,v 1.7 1996/06/02 19:51:33 wpaul Exp $";
+static const char rcsid[] = "$Id: ypxfrd_getmap.c,v 1.7 1996/06/02 19:51:33 wpaul Exp wpaul $";
 #endif
 
 int fp = 0;
@@ -79,6 +79,14 @@ static bool_t xdr_my_xfr(register XDR *xdrs, xfr *objp)
 				yp_error("access to map denied by rpc.ypxfrd");
 				return(FALSE);
 				break;
+			case(XFR_DB_TYPE_MISMATCH):
+				yp_error("client/server DB type mismatch");
+				return(FALSE);
+				break;
+			case(XFR_DB_ENDIAN_MISMATCH):
+				yp_error("client/server byte order mismatch");
+				return(FALSE);
+				break;
 			default:
 				yp_error("got unknown status from rpc.ypxfrd");
 				return(FALSE);
@@ -104,6 +112,12 @@ int ypxfrd_get_map(host, map, domain, tmpname)
 
 	req.xfrmap = map;
 	req.xfrdomain = domain;
+	req.xfrmap_filename = "";
+	req.xfr_db_type = XFR_DB_BSD_HASH;	/*
+	req.xfr_byte_order = XFR_ENDIAN_ANY;	 * Berkeley DB isn't
+						 * byte-order sensitive.
+						 */
+
 	bzero((char *)&resp, sizeof(resp));
 
 	if ((clnt = clnt_create(host, YPXFRD_FREEBSD_PROG,
