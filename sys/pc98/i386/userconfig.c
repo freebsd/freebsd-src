@@ -406,6 +406,7 @@ static DEV_INFO device_info[] = {
 {"sf",          "Adaptec AIC-6915 PCI Ethernet adapters",		0,CLS_NETWORK},
 {"sis",         "Sis 900/SiS 7016 Ethernet adapters",			0,CLS_NETWORK},
 {"sk",          "SysKonnect SK-984x gigabit Ethernet adapters",		0,CLS_NETWORK},
+{"sn",          "SMC/Megahertz Ethernet adapters",			0,CLS_NETWORK},
 {"ste",         "Sundance ST201 PCI Ethernet adapters",			0,CLS_NETWORK},
 {"ti",          "Alteon Networks Tigon gigabit Ethernet adapters",	0,CLS_NETWORK},
 {"tl",          "Texas Instruments ThunderLAN Ethernet adapters",	0,CLS_NETWORK},
@@ -481,6 +482,7 @@ static DEV_INFO device_info[] = {
 
 {"apm",         "Advanced Power Management",		FLG_FIXED,	CLS_MISC},
 {"labpc",       "National Instruments Lab-PC/Lab-PC+",	0,		CLS_MISC},
+{"pcic",        "PC-card controller",			0,		CLS_MISC},
 {"npx",	        "Math coprocessor",			FLG_IMMUTABLE,	CLS_MISC},
 {"lkm",		"Loadable PCI driver support",		FLG_INVISIBLE,	CLS_MISC},
 #ifdef PC98
