@@ -43,7 +43,7 @@ static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 
 #include <stdio.h>
 #include <ctype.h>
-#include "y.tab.h"
+#include "config.tab.h"
 #include "config.h"
 
 #define next_word(fp, wd) \
