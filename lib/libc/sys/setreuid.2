@@ -47,6 +47,9 @@
 .Sh DESCRIPTION
 The real and effective user IDs of the
 current process are set according to the arguments.
+If the real user ID is changed, the saved user ID is changed to the
+new value of the effective user ID.
+.Pp
 If
 .Fa ruid
 or 
