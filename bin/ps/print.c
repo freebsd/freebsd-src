@@ -738,24 +738,24 @@ void
 label(KINFO *k, VARENT *ve)
 {
 	char *string;
-	mac_t label;
+	mac_t proclabel;
 	int error;
 	VAR *v;
 
 	v = ve->var;
 	string = NULL;
 
-	if (mac_prepare_process_label(&label) == -1) {
+	if (mac_prepare_process_label(&proclabel) == -1) {
 		perror("mac_prepare_process_label");
 		goto out;
 	}
 
-	error = mac_get_pid(k->ki_p->ki_pid, label);
+	error = mac_get_pid(k->ki_p->ki_pid, proclabel);
 	if (error == 0) {
-		if (mac_to_text(label, &string) == -1)
+		if (mac_to_text(proclabel, &string) == -1)
 			string = NULL;
 	}
-	mac_free(label);
+	mac_free(proclabel);
 
 out:
 	if (string != NULL) {
@@ -770,18 +770,18 @@ int
 s_label(KINFO *k)
 {
 	char *string = NULL;
-	mac_t label;
+	mac_t proclabel;
 	int error, size = 0;
 
-	if (mac_prepare_process_label(&label) == -1) {
+	if (mac_prepare_process_label(&proclabel) == -1) {
 		perror("mac_prepare_process_label");
 		return (0);
 	}
-	error = mac_get_pid(k->ki_p->ki_pid, label);
-	if (error == 0 && mac_to_text(label, &string) == 0) {
+	error = mac_get_pid(k->ki_p->ki_pid, proclabel);
+	if (error == 0 && mac_to_text(proclabel, &string) == 0) {
 		size = strlen(string);
 		free(string);
 	}
-	mac_free(label);
+	mac_free(proclabel);
 	return (size);
 }
