@@ -121,7 +121,8 @@ struct kse {
 #define	KEF_SCHED1	0x00002	/* For scheduler-specific use. */
 #define	KEF_SCHED2	0x00004	/* For scheduler-specific use. */
 #define	KEF_SCHED3	0x00008	/* For scheduler-specific use. */
-#define	KEF_SCHED4	0x00010
+#define	KEF_SCHED4	0x00010 
+#define	KEF_SCHED5	0x00020 
 #define	KEF_DIDRUN	0x02000	/* Thread actually ran. */
 #define	KEF_EXIT	0x04000	/* Thread is being killed. */
 
@@ -136,7 +137,8 @@ struct kse {
 #define	KEF_BOUND	KEF_SCHED1	/* Thread can not migrate. */
 #define	KEF_XFERABLE	KEF_SCHED2	/* Thread was added as transferable. */
 #define	KEF_HOLD	KEF_SCHED3	/* Thread is temporarily bound. */
-#define	KEF_REMOVED	KEF_SCHED4
+#define	KEF_REMOVED	KEF_SCHED4	/* Thread was removed while ASSIGNED */
+#define	KEF_PRIOELEV	KEF_SCHED5	/* Thread has had its prio elevated. */
 
 struct kg_sched {
 	struct thread	*skg_last_assigned; /* (j) Last thread assigned to */
@@ -238,8 +240,7 @@ static struct kg_sched kg_sched0;
 #define	SCHED_INTERACTIVE(kg)						\
     (sched_interact_score(kg) < SCHED_INTERACT_THRESH)
 #define	SCHED_CURR(kg, ke)						\
-    (ke->ke_thread->td_priority < kg->kg_user_pri ||			\
-    SCHED_INTERACTIVE(kg))
+    ((ke->ke_flags & KEF_PRIOELEV) || SCHED_INTERACTIVE(kg))
 
 /*
  * Cpu percentage computation macros and defines.
@@ -885,11 +886,8 @@ kseq_choose(struct kseq *kseq)
 		 * of the range that receives slices. 
 		 */
 		nice = ke->ke_proc->p_nice + (0 - kseq->ksq_nicemin);
-#ifdef notyet
-		if (ke->ke_slice == 0 || nice > SCHED_SLICE_NTHRESH) {
-#else
-		if (ke->ke_slice == 0) {
-#endif
+		if (ke->ke_slice == 0 || (nice > SCHED_SLICE_NTHRESH &&
+		    ke->ke_proc->p_nice != 0)) {
 			runq_remove(ke->ke_runq, ke);
 			sched_slice(ke);
 			ke->ke_runq = kseq->ksq_next;
@@ -1045,6 +1043,11 @@ sched_slice(struct kse *ke)
 
 	kg = ke->ke_ksegrp;
 	kseq = KSEQ_CPU(ke->ke_cpu);
+
+	if (ke->ke_flags & KEF_PRIOELEV) {
+		ke->ke_slice = SCHED_SLICE_MIN;
+		return;
+	}
 
 	/*
 	 * Rationale:
@@ -1224,13 +1227,15 @@ sched_prio(struct thread *td, u_char prio)
 		 * queue.  We still call adjustrunqueue below in case kse
 		 * needs to fix things up.
 		 */
-		if (prio < td->td_priority && ke && ke->ke_runq != NULL &&
+		if (prio < td->td_priority && ke->ke_runq != NULL &&
 		    (ke->ke_flags & KEF_ASSIGNED) == 0 &&
 		    ke->ke_runq != KSEQ_CPU(ke->ke_cpu)->ksq_curr) {
 			runq_remove(ke->ke_runq, ke);
 			ke->ke_runq = KSEQ_CPU(ke->ke_cpu)->ksq_curr;
 			runq_add(ke->ke_runq, ke, 0);
 		}
+		if (prio < td->td_priority)
+			ke->ke_flags |= KEF_PRIOELEV;
 		/*
 		 * Hold this kse on this cpu so that sched_prio() doesn't
 		 * cause excessive migration.  We only want migration to
@@ -1631,12 +1636,21 @@ void
 sched_userret(struct thread *td)
 {
 	struct ksegrp *kg;
+	struct kse *ke;
 
 	kg = td->td_ksegrp;
+	ke = td->td_kse;
 	
-	if (td->td_priority != kg->kg_user_pri) {
+	if (td->td_priority != kg->kg_user_pri ||
+	    ke->ke_flags & KEF_PRIOELEV) {
 		mtx_lock_spin(&sched_lock);
 		td->td_priority = kg->kg_user_pri;
+		if (ke->ke_flags & KEF_PRIOELEV) {
+			ke->ke_flags &= ~KEF_PRIOELEV;
+			sched_slice(ke);
+			if (ke->ke_slice == 0)
+				mi_switch(SW_INVOL, NULL);
+		}
 		mtx_unlock_spin(&sched_lock);
 	}
 }
