@@ -1050,7 +1050,7 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent *ulistp,
 {
 	struct kevent *kevp;
 	struct timeval atv, rtv, ttv;
-	struct knote *kn, marker;
+	struct knote *kn, *marker;
 	int count, timeout, nkev, error;
 	int haskqglobal;
 
@@ -1058,7 +1058,6 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent *ulistp,
 	nkev = 0;
 	error = 0;
 	haskqglobal = 0;
-	marker.kn_status = KN_MARKER;
 
 	if (maxevents == 0)
 		goto done_nl;
@@ -1081,6 +1080,12 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent *ulistp,
 		atv.tv_usec = 0;
 		timeout = 0;
 	}
+	marker = knote_alloc(1);
+	if (marker == NULL) {
+		error = ENOMEM;
+		goto done_nl;
+	}
+	marker->kn_status = KN_MARKER;
 	KQ_LOCK(kq);
 	goto start;
 
@@ -1115,12 +1120,12 @@ start:
 		goto done;
 	}
 
-	TAILQ_INSERT_TAIL(&kq->kq_head, &marker, kn_tqe);
+	TAILQ_INSERT_TAIL(&kq->kq_head, marker, kn_tqe);
 	while (count) {
 		KQ_OWNED(kq);
 		kn = TAILQ_FIRST(&kq->kq_head);
 
-		if ((kn->kn_status == KN_MARKER && kn != &marker) ||
+		if ((kn->kn_status == KN_MARKER && kn != marker) ||
 		    (kn->kn_status & KN_INFLUX) == KN_INFLUX) {
 			kq->kq_state |= KQ_FLUXWAIT;
 			error = msleep(kq, &kq->kq_lock, PSOCK,
@@ -1134,7 +1139,7 @@ start:
 			kq->kq_count--;
 			continue;
 		}
-		if (kn == &marker) {
+		if (kn == marker) {
 			KQ_FLUX_WAKEUP(kq);
 			if (count == maxevents)
 				goto retry;
@@ -1200,11 +1205,12 @@ start:
 				break;
 		}
 	}
-	TAILQ_REMOVE(&kq->kq_head, &marker, kn_tqe);
+	TAILQ_REMOVE(&kq->kq_head, marker, kn_tqe);
 done:
 	KQ_OWNED(kq);
 	KQ_UNLOCK_FLUX(kq);
 	KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
+	knote_free(marker);
 done_nl:
 	KQ_NOTOWNED(kq);
 	if (nkev != 0)
