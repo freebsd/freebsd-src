@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.39.2.7 1999/07/15 18:45:07 obrien Exp $
+#	$Id: rc.network,v 1.39.2.8 1999/07/30 17:30:26 brian Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -91,6 +91,23 @@ network_pass1() {
 	    fi
     done
 
+    # Warm up user ppp if required, must happen before natd.
+    if [ "X$ppp_enable" = X"YES" ]; then
+	    # Establish ppp mode.
+	    if [ "X$ppp_mode" != X"ddial" -a "X$ppp_mode" != X"direct" \
+		-a "X$ppp_mode" != X"dedicated" ]; then \
+	        ppp_mode="auto";
+	    fi
+	    ppp_command="-${ppp_mode} ";
+
+	    # Switch on alias mode?
+	    if [ "X$ppp_nat" = X"YES" ]; then
+		ppp_command="${ppp_command} -nat";
+	    fi
+
+	    echo -n 'Starting ppp: '; ppp ${ppp_command} -quiet ${ppp_profile}
+    fi
+
     # Initialize IP filtering using ipfw
     echo ""
     /sbin/ipfw -q flush > /dev/null 2>&1
@@ -137,23 +154,6 @@ network_pass1() {
 		echo "         All ip services are disabled."
 	    fi
 	fi
-    fi
-
-    # Warm up user ppp if required.
-    if [ "X$ppp_enable" = X"YES" ]; then
-	    # Establish ppp mode.
-	    if [ "X$ppp_mode" != X"ddial" -a "X$ppp_mode" != X"direct" \
-		-a "X$ppp_mode" != X"dedicated" ]; then \
-	        ppp_mode="auto";
-	    fi
-	    ppp_command="-${ppp_mode} ";
-
-	    # Switch on alias mode?
-	    if [ "X$ppp_alias" = X"YES" ]; then
-		ppp_command="${ppp_command} -alias";
-	    fi
-
-	    echo -n 'Starting ppp: '; ppp ${ppp_command} ${ppp_profile}
     fi
 
     # Additional ATM interface configuration
