@@ -1947,7 +1947,6 @@ fd_attach(device_t dev)
 	g_post_event(fd_attach2, fd, M_WAITOK, NULL);
 	fd->flags |= FD_EMPTY;
 	bioq_init(&fd->fd_bq);
-	return (0);
 
 	return (0);
 }
