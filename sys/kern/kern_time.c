@@ -437,14 +437,25 @@ struct getitimer_args {
 int
 getitimer(struct thread *td, struct getitimer_args *uap)
 {
-	struct proc *p = td->td_proc;
-	struct timeval ctv;
+	int error;
 	struct itimerval aitv;
 
-	if (uap->which > ITIMER_PROF)
+	error = kern_getitimer(td, uap->which, &aitv);
+	if (error != 0)
+		return (error);
+	return (copyout(&aitv, uap->itv, sizeof (struct itimerval)));
+}
+
+int
+kern_getitimer(struct thread *td, u_int which, struct itimerval *aitv)
+{
+	struct proc *p = td->td_proc;
+	struct timeval ctv;
+
+	if (which > ITIMER_PROF)
 		return (EINVAL);
 
-	if (uap->which == ITIMER_REAL) {
+	if (which == ITIMER_REAL) {
 		/*
 		 * Convert from absolute to relative time in .it_value
 		 * part of real time timer.  If time for real time timer
@@ -452,21 +463,21 @@ getitimer(struct thread *td, struct getitimer_args *uap)
 		 * current time and time for the timer to go off.
 		 */
 		PROC_LOCK(p);
-		aitv = p->p_realtimer;
+		*aitv = p->p_realtimer;
 		PROC_UNLOCK(p);
-		if (timevalisset(&aitv.it_value)) {
+		if (timevalisset(&aitv->it_value)) {
 			getmicrouptime(&ctv);
-			if (timevalcmp(&aitv.it_value, &ctv, <))
-				timevalclear(&aitv.it_value);
+			if (timevalcmp(&aitv->it_value, &ctv, <))
+				timevalclear(&aitv->it_value);
 			else
-				timevalsub(&aitv.it_value, &ctv);
+				timevalsub(&aitv->it_value, &ctv);
 		}
 	} else {
 		mtx_lock_spin(&sched_lock);
-		aitv = p->p_stats->p_timer[uap->which];
+		*aitv = p->p_stats->p_timer[which];
 		mtx_unlock_spin(&sched_lock);
 	}
-	return (copyout(&aitv, uap->itv, sizeof (struct itimerval)));
+	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -475,61 +486,71 @@ struct setitimer_args {
 	struct	itimerval *itv, *oitv;
 };
 #endif
+
 /*
  * MPSAFE
  */
 int
 setitimer(struct thread *td, struct setitimer_args *uap)
 {
-	struct proc *p = td->td_proc;
-	struct itimerval aitv, oitv;
-	struct timeval ctv;
 	int error;
+	struct itimerval aitv, oitv;
 
 	if (uap->itv == NULL) {
 		uap->itv = uap->oitv;
 		return (getitimer(td, (struct getitimer_args *)uap));
 	}
 
-	if (uap->which > ITIMER_PROF)
-		return (EINVAL);
 	if ((error = copyin(uap->itv, &aitv, sizeof(struct itimerval))))
 		return (error);
-	if (itimerfix(&aitv.it_value))
+	error = kern_setitimer(td, uap->which, &aitv, &oitv);
+	if (error != 0 || uap->oitv == NULL)
+		return (error);
+
+	return (copyout(&oitv, uap->oitv, sizeof(struct itimerval)));
+}
+
+int
+kern_setitimer(struct thread *td, u_int which, struct itimerval *aitv, struct itimerval *oitv)
+{
+	struct proc *p = td->td_proc;
+	struct timeval ctv;
+
+	if (which > ITIMER_PROF)
 		return (EINVAL);
-	if (!timevalisset(&aitv.it_value))
-		timevalclear(&aitv.it_interval);
-	else if (itimerfix(&aitv.it_interval))
+	if (itimerfix(&aitv->it_value))
+		return (EINVAL);
+	if (!timevalisset(&aitv->it_value))
+		timevalclear(&aitv->it_interval);
+	else if (itimerfix(&aitv->it_interval))
 		return (EINVAL);
 
-	if (uap->which == ITIMER_REAL) {
+	if (which == ITIMER_REAL) {
 		PROC_LOCK(p);
 		if (timevalisset(&p->p_realtimer.it_value))
 			callout_stop(&p->p_itcallout);
 		getmicrouptime(&ctv);
-		if (timevalisset(&aitv.it_value)) {
-			callout_reset(&p->p_itcallout, tvtohz(&aitv.it_value),
+		if (timevalisset(&aitv->it_value)) {
+			callout_reset(&p->p_itcallout, tvtohz(&aitv->it_value),
 			    realitexpire, p);
-			timevaladd(&aitv.it_value, &ctv);
+			timevaladd(&aitv->it_value, &ctv);
 		}
-		oitv = p->p_realtimer;
-		p->p_realtimer = aitv;
+		*oitv = p->p_realtimer;
+		p->p_realtimer = *aitv;
 		PROC_UNLOCK(p);
-		if (timevalisset(&oitv.it_value)) {
-			if (timevalcmp(&oitv.it_value, &ctv, <))
-				timevalclear(&oitv.it_value);
+		if (timevalisset(&oitv->it_value)) {
+			if (timevalcmp(&oitv->it_value, &ctv, <))
+				timevalclear(&oitv->it_value);
 			else
-				timevalsub(&oitv.it_value, &ctv);
+				timevalsub(&oitv->it_value, &ctv);
 		}
 	} else {
 		mtx_lock_spin(&sched_lock);
-		oitv = p->p_stats->p_timer[uap->which];
-		p->p_stats->p_timer[uap->which] = aitv;
+		*oitv = p->p_stats->p_timer[which];
+		p->p_stats->p_timer[which] = *aitv;
 		mtx_unlock_spin(&sched_lock);
 	}
-	if (uap->oitv == NULL)
-		return (0);
-	return (copyout(&oitv, uap->oitv, sizeof(struct itimerval)));
+	return (0);
 }
 
 /*
