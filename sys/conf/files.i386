@@ -93,6 +93,9 @@ dev/aic/aic_isa.c		optional	aic isa
 dev/ar/if_ar_isa.c		optional	ar isa
 dev/dgb/dgm.c			optional	dgm
 dev/cm/if_cm_isa.c		optional	cm isa
+dev/ctau/ctau.c			optional	ctau
+dev/ctau/ctddk.c		optional	ctau
+dev/ctau/if_ct.c		optional	ctau
 dev/cx/csigma.c			optional	cx
 dev/cx/cxddk.c			optional	cx
 dev/cx/if_cx.c			optional	cx
