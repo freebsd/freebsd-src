@@ -313,9 +313,13 @@ hal_raise_irql(/*irql*/ void)
 	if (irql < hal_irql())
 		panic("IRQL_NOT_LESS_THAN");
 
+	if (hal_irql() == DISPATCH_LEVEL)
+		return(DISPATCH_LEVEL);
+
 	mtx_lock_spin(&sched_lock);
-	oldirql = curthread->td_priority;
+	oldirql = curthread->td_base_pri;
 	sched_prio(curthread, PI_REALTIME);
+	curthread->td_base_pri = PI_REALTIME;
 	mtx_unlock_spin(&sched_lock);
 
 	return(oldirql);
@@ -328,10 +332,14 @@ hal_lower_irql(/*oldirql*/ void)
 
 	__asm__ __volatile__ ("" : "=c" (oldirql));
 
+	if (oldirql == DISPATCH_LEVEL)
+		return;
+
 	if (hal_irql() != DISPATCH_LEVEL)
 		panic("IRQL_NOT_GREATER_THAN");
 
 	mtx_lock_spin(&sched_lock);
+	curthread->td_base_pri = oldirql;
 	sched_prio(curthread, oldirql);
 	mtx_unlock_spin(&sched_lock);
 
