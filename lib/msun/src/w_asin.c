@@ -23,12 +23,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "math_private.h"
 
 
-#ifdef __STDC__
 	double asin(double x)		/* wrapper asin */
-#else
-	double asin(x)			/* wrapper asin */
-	double x;
-#endif
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_asin(x);

@@ -24,12 +24,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 	double nextafter(double x, double y)
-#else
-	double nextafter(x,y)
-	double x,y;
-#endif
 {
 	int32_t hx,hy,ix,iy;
 	u_int32_t lx,ly;

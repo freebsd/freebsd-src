@@ -87,18 +87,9 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 static	const double	one	= 1.0, tiny=1.0e-300;
-#else
-static	double	one	= 1.0, tiny=1.0e-300;
-#endif
 
-#ifdef __STDC__
 	double __generic___ieee754_sqrt(double x)
-#else
-	double __generic___ieee754_sqrt(x)
-	double x;
-#endif
 {
 	double z;
 	int32_t sign = (int)0x80000000;

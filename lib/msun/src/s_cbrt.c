@@ -20,31 +20,18 @@ static char rcsid[] = "$FreeBSD$";
 /* cbrt(x)
  * Return cube root of x
  */
-#ifdef __STDC__
 static const u_int32_t
-#else
-static u_int32_t
-#endif
 	B1 = 715094163, /* B1 = (682-0.03306235651)*2**20 */
 	B2 = 696219795; /* B2 = (664-0.03306235651)*2**20 */
 
-#ifdef __STDC__
 static const double
-#else
-static double
-#endif
 C =  5.42857142857142815906e-01, /* 19/35     = 0x3FE15F15, 0xF15F15F1 */
 D = -7.05306122448979611050e-01, /* -864/1225 = 0xBFE691DE, 0x2532C834 */
 E =  1.41428571428571436819e+00, /* 99/70     = 0x3FF6A0EA, 0x0EA0EA0F */
 F =  1.60714285714285720630e+00, /* 45/28     = 0x3FF9B6DB, 0x6DB6DB6E */
 G =  3.57142857142857150787e-01; /* 5/14      = 0x3FD6DB6D, 0xB6DB6DB7 */
 
-#ifdef __STDC__
 	double cbrt(double x)
-#else
-	double cbrt(x)
-	double x;
-#endif
 {
 	int32_t	hx;
 	double r,s,t=0.0,w;
