@@ -522,6 +522,8 @@ fixit_common(void)
 		"When you are done, type ``exit'' to exit\n"
 		"the fixit shell and be returned here.\n\n");
 	    fflush(stdout);
+	} else {
+	    ioctl(fd, VT_ACTIVATE, 0);
 	}
 
 	/* use the .profile from the fixit medium */
