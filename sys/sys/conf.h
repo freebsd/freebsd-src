@@ -44,6 +44,7 @@
 #ifndef _SYS_CONF_H_
 #define	_SYS_CONF_H_
 
+#ifdef _KERNEL
 #include <sys/eventhandler.h>
 
 struct tty;
@@ -161,6 +162,8 @@ typedef int l_modem_t __P((struct tty *tp, int flag));
 	BIO_STRATEGY(&(bp)->b_io, dummy);				\
 	} while (0)
 
+#endif /* _KERNEL */
+
 /*
  * Types for d_flags.
  */
@@ -168,6 +171,8 @@ typedef int l_modem_t __P((struct tty *tp, int flag));
 #define	D_DISK	0x0002
 #define	D_TTY	0x0004
 #define	D_MEM	0x0008
+
+#ifdef _KERNEL 
 
 #define	D_TYPEMASK	0xffff
 
@@ -217,14 +222,13 @@ struct linesw {
 	u_char		l_hotchar;
 };
 
-#ifdef _KERNEL
 extern struct linesw linesw[];
 extern int nlinesw;
 
 int ldisc_register __P((int , struct linesw *));
 void ldisc_deregister __P((int));
 #define LDISC_LOAD 	-1		/* Loadable line discipline */
-#endif
+#endif /* _KERNEL */
 
 /*
  * Swap device table
