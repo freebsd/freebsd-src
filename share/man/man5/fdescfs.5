@@ -45,28 +45,16 @@
 .Nm fdesc
 .Nd file-descriptor file system
 .Sh SYNOPSIS
-fdesc	/dev	fdesc rw 0 0
+fdesc	/dev/fd	fdesc rw 0 0
 .Sh DESCRIPTION
 The file-descriptor file system, or
 .Nm fdesc ,
 provides access to the per-process file descriptor
 namespace in the global filesystem namespace.
 The conventional mount point is
-.Pa /dev
-and the filesystem should be union mounted in order to augment,
-rather than replace, the existing entries in
-.Pa /dev .
+.Pa /dev/fd .
 .Pp
-The contents of the mount point are
-.Pa fd ,
-.Pa stderr ,
-.Pa stdin ,
-.Pa stdout 
-and
-.Pa tty .
-.Pp
-.Pa fd
-is a directory whose contents
+The file system's contents
 appear as a list of numbered files
 which correspond to the open files of the process reading the
 directory.
@@ -89,21 +77,6 @@ fd = fcntl(0, F_DUPFD, 0);
 .Pp
 are equivalent.
 .Pp
-The files
-.Pa /dev/stdin ,
-.Pa /dev/stdout
-and
-.Pa /dev/stderr
-appear as symlinks to the relevant entry in the
-.Pa /dev/fd
-sub-directory.
-Opening them is equivalent to the following calls:
-.Bd -literal -offset indent
-fd = fcntl(STDIN_FILENO,  F_DUPFD, 0);
-fd = fcntl(STDOUT_FILENO, F_DUPFD, 0);
-fd = fcntl(STDERR_FILENO, F_DUPFD, 0);
-.Ed
-.Pp
 Flags to the
 .Xr open 2
 call other than
@@ -112,22 +85,11 @@ call other than
 and
 .Dv O_RDWR
 are ignored.
-.Pp
-The
-.Pa /dev/tty
-entry is an indirect reference to the current process's controlling terminal.
-It appears as a named pipe (FIFO) but behaves in exactly the same way as
-the real controlling terminal device.
 .Sh FILES
 .Bl -tag -width /dev/stderr -compact
 .It Pa /dev/fd/#
-.It Pa /dev/stdin
-.It Pa /dev/stdout
-.It Pa /dev/stderr
-.It Pa /dev/tty
 .El
 .Sh SEE ALSO
-.Xr tty 4 ,
 .Xr mount_devfs 8 ,
 .Xr mount_fdesc 8
 .Sh HISTORY
