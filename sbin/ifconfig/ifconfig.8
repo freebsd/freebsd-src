@@ -259,15 +259,12 @@ This action does not automatically disable routes using the interface.
 Fill interface index
 (lowermost 64bit of an IPv6 address)
 automatically.
-.\" .It Cm ipdst
-.\" This is used to specify an Internet host who is willing to receive
-.\" ip packets encapsulating NS packets bound for a remote network.
-.\" An apparent point to point link is constructed, and
-.\" the address specified will be taken as the NS address and network
-.\" of the destination.
-.\" IP encapsulation of
-.\" .Tn CLNP
-.\" packets is done differently.
+.It Cm ipdst
+This is used to specify an Internet host who is willing to receive
+IP packets encapsulating IPX packets bound for a remote network.
+An apparent point to point link is constructed, and
+the address specified will be taken as the IPX address and network
+of the destination.
 .It Cm maclabel Ar label
 If Mandatory Access Control support is enabled in the kernel,
 set the MAC label to
