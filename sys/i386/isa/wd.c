@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.148 1998/01/24 02:01:13 dyson Exp $
+ *	$Id: wd.c,v 1.149 1998/01/24 02:54:27 eivind Exp $
  */
 
 /* TODO:
@@ -547,8 +547,9 @@ wdattach(struct isa_device *dvp)
 	 * Probe all free IDE units, searching for ATAPI drives.
 	 */
 	for (unit=0; unit<2; ++unit) {
-		for (lunit=0; lunit<NWD && wddrives[lunit]; ++lunit)
-			if (wddrives[lunit]->dk_ctrlr == dvp->id_unit &&
+		for (lunit=0; lunit<NWD; ++lunit)
+			if (wddrives[lunit] &&
+			    wddrives[lunit]->dk_ctrlr == dvp->id_unit &&
 			    wddrives[lunit]->dk_unit == unit)
 				goto next;
 #ifdef CMD640
