@@ -41,6 +41,11 @@ struct mtx {
 	volatile u_int mtx_recurse;	/* number of recursive holds */
 	TAILQ_HEAD(, thread) mtx_blocked;	/* threads blocked on this lock */
 	LIST_ENTRY(mtx)	mtx_contested;	/* list of all contested locks */
+/* #ifdef MUTEX_PROFILING */
+	u_int64_t cycles;
+	const char *file;
+	int line;
+/* #endif */
 };
 
 #endif /* !_SYS_MUTEX_TYPES_H_ */
