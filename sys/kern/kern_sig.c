@@ -1959,6 +1959,8 @@ tdsigwakeup(struct thread *td, int sig, sig_t action)
 	 * killed in this lifetime.
 	 */
 	if (action == SIG_DFL && (prop & SA_KILL)) {
+		if (p->p_nice > 0)
+			sched_nice(td->td_proc, 0);
 		if (td->td_priority > PUSER)
 			sched_prio(td, PUSER);
 	}
