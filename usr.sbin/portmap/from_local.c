@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#) from_local.c 1.2 93/11/16 21:50:02";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: from_local.c,v 1.5 1997/10/09 07:17:09 charnier Exp $";
 #endif
 
 #ifdef TEST
@@ -50,6 +50,7 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 
 #include <netdb.h>
@@ -57,6 +58,7 @@ static const char rcsid[] =
 #include <unistd.h>
 
 #include <net/if.h>
+#include <net/if_dl.h>
 #include <netinet/in.h>
 
 #ifndef TRUE
@@ -66,61 +68,92 @@ static const char rcsid[] =
 
 /* How many interfaces could there be on a computer? */
 
-#define	MAX_LOCAL 256	/* overkill */
+#define	ESTIMATED_LOCAL 20
 static int num_local = -1;
-static struct in_addr addrs[MAX_LOCAL];
+static struct in_addr *addrs;
 
 /* find_local - find all IP addresses for this host */
 
 int
 find_local()
 {
-    struct ifconf ifc;
-    struct ifreq ifreq;
-    struct ifreq *ifr;
-    struct ifreq *the_end;
-    int     sock;
-    char    buf[MAX_LOCAL * sizeof(struct ifreq)];
+  int mib[6], n, s, alloced;
+  size_t needed;
+  char *buf, *end, *ptr;
+  struct if_msghdr *ifm;
+  struct ifreq ifr;
+  struct sockaddr_dl *dl;
 
-    /* Get list of network interfaces. */
+  mib[0] = CTL_NET;
+  mib[1] = PF_ROUTE;
+  mib[4] = NET_RT_IFLIST;
+  mib[2] = mib[3] = mib[5] = 0;
 
-    if ((sock = socket(PF_INET, SOCK_DGRAM, 0)) < 0) {
-	perror("socket");
-	return (0);
-    }
-    ifc.ifc_len = sizeof(buf);
-    ifc.ifc_buf = buf;
-    if (ioctl(sock, SIOCGIFCONF, (char *) &ifc) < 0) {
-	perror("SIOCGIFCONF");
-	(void) close(sock);
-	return (0);
-    }
-    /* Get IP address of each active IP network interface. */
+  if ((s = socket(PF_INET, SOCK_DGRAM, 0)) < 0) {
+    perror("socket");
+    return (0);
+  }
+  if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
+    close(s);
+    perror("sysctl(NET_RT_IFLIST)");
+    return 0;
+  }
+  if ((buf = (char *)malloc(needed)) == NULL) {
+    close(s);
+    perror("malloc");
+    return 0;
+  }
+  if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
+    close(s);
+    free(buf);
+    perror("sysctl(NET_RT_IFLIST)(after malloc)");
+    return 0;
+  }
 
-    the_end = (struct ifreq *) (ifc.ifc_buf + ifc.ifc_len);
-    num_local = 0;
-    for (ifr = ifc.ifc_req; ifr < the_end; ifr++) {
-	if (ifr->ifr_addr.sa_family == AF_INET) {	/* IP net interface */
-	    ifreq = *ifr;
-	    if (ioctl(sock, SIOCGIFFLAGS, (char *) &ifreq) < 0) {
-		perror("SIOCGIFFLAGS");
-	    } else if (ifreq.ifr_flags & IFF_UP) {	/* active interface */
-		if (ioctl(sock, SIOCGIFADDR, (char *) &ifreq) < 0) {
-		    perror("SIOCGIFADDR");
-		} else {
-		    addrs[num_local++] = ((struct sockaddr_in *)
-					  & ifreq.ifr_addr)->sin_addr;
-		}
-	    }
-	}
-	if (num_local >= MAX_LOCAL)
-	    break;
-	/* Support for variable-length addresses. */
-	ifr = (struct ifreq *) ((caddr_t) ifr
-		      + ifr->ifr_addr.sa_len - sizeof(struct sockaddr));
-    }
-    (void) close(sock);
-    return (num_local);
+  if (addrs) {
+    free(addrs);
+    addrs = NULL;
+  }
+  num_local = 0;
+  alloced = 0;
+  end = buf + needed;
+
+  for (ptr = buf; ptr < end; ptr += ifm->ifm_msglen) {
+    ifm = (struct if_msghdr *)ptr;
+    dl = (struct sockaddr_dl *)(ifm + 1);
+    n = dl->sdl_nlen > sizeof ifr.ifr_name ?
+        sizeof ifr.ifr_name : dl->sdl_nlen;
+    if (n == 0)
+      continue;
+    strncpy(ifr.ifr_name, dl->sdl_data, n);
+    if (n < sizeof ifr.ifr_name)
+      ifr.ifr_name[n] = '\0';
+    /* we only want the first address from each interface */
+    if (ioctl(s, SIOCGIFFLAGS, &ifr) < 0)
+      perror("SIOCGIFFLAGS");
+    else if (ifr.ifr_flags & IFF_UP)    /* active interface */
+      if (ioctl(s, SIOCGIFADDR, &ifr) < 0)
+        perror("SIOCGIFADDR");
+      else {
+        if (alloced < num_local + 1) {
+          alloced += ESTIMATED_LOCAL;
+          if (addrs)
+            addrs = (struct in_addr *)realloc(addrs, alloced * sizeof addrs[0]);
+          else
+            addrs = (struct in_addr *)malloc(alloced * sizeof addrs[0]);
+          if (addrs == NULL) {
+            perror("malloc/realloc");
+            num_local = 0;
+            break;
+          }
+        }
+        addrs[num_local++] = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
+      }
+  }
+  free(buf);
+  close(s);
+
+  return num_local;
 }
 
 /* from_local - determine whether request comes from the local system */
