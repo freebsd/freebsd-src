@@ -92,7 +92,7 @@ int MAIN(int argc, char **argv)
 	{
 	int ret=1;
 	RSA *rsa=NULL;
-	int i,badops=0;
+	int i,badops=0, sgckey=0;
 	const EVP_CIPHER *enc=NULL;
 	BIO *in=NULL,*out=NULL;
 	int informat,outformat,text=0,check=0,noout=0;
@@ -148,6 +148,8 @@ int MAIN(int argc, char **argv)
 			if (--argc < 1) goto bad;
 			passargout= *(++argv);
 			}
+		else if (strcmp(*argv,"-sgckey") == 0)
+			sgckey=1;
 		else if (strcmp(*argv,"-pubin") == 0)
 			pubin=1;
 		else if (strcmp(*argv,"-pubout") == 0)
@@ -178,6 +180,7 @@ bad:
 		BIO_printf(bio_err," -inform arg     input format - one of DER NET PEM\n");
 		BIO_printf(bio_err," -outform arg    output format - one of DER NET PEM\n");
 		BIO_printf(bio_err," -in arg         input file\n");
+		BIO_printf(bio_err," -sgckey         Use IIS SGC key format\n");
 		BIO_printf(bio_err," -passin arg     input file pass phrase source\n");
 		BIO_printf(bio_err," -out arg        output file\n");
 		BIO_printf(bio_err," -passout arg    output file pass phrase source\n");
@@ -254,7 +257,7 @@ bad:
 				}
 			}
 		p=(unsigned char *)buf->data;
-		rsa=d2i_Netscape_RSA(NULL,&p,(long)size,NULL);
+		rsa=d2i_RSA_NET(NULL,&p,(long)size,NULL, sgckey);
 		BUF_MEM_free(buf);
 		}
 #endif
@@ -275,7 +278,15 @@ bad:
 		}
 
 	if (outfile == NULL)
+		{
 		BIO_set_fp(out,stdout,BIO_NOCLOSE);
+#ifdef VMS
+		{
+		BIO *tmpbio = BIO_new(BIO_f_linebuffer());
+		out = BIO_push(tmpbio, out);
+		}
+#endif
+		}
 	else
 		{
 		if (BIO_write_filename(out,outfile) <= 0)
@@ -344,16 +355,16 @@ bad:
 		int size;
 
 		i=1;
-		size=i2d_Netscape_RSA(rsa,NULL,NULL);
-		if ((p=(unsigned char *)Malloc(size)) == NULL)
+		size=i2d_RSA_NET(rsa,NULL,NULL, sgckey);
+		if ((p=(unsigned char *)OPENSSL_malloc(size)) == NULL)
 			{
-			BIO_printf(bio_err,"Malloc failure\n");
+			BIO_printf(bio_err,"Memory allocation failure\n");
 			goto end;
 			}
 		pp=p;
-		i2d_Netscape_RSA(rsa,&p,NULL);
+		i2d_RSA_NET(rsa,&p,NULL, sgckey);
 		BIO_write(out,(char *)pp,size);
-		Free(pp);
+		OPENSSL_free(pp);
 		}
 #endif
 	else if (outformat == FORMAT_PEM) {
@@ -374,10 +385,10 @@ bad:
 		ret=0;
 end:
 	if(in != NULL) BIO_free(in);
-	if(out != NULL) BIO_free(out);
+	if(out != NULL) BIO_free_all(out);
 	if(rsa != NULL) RSA_free(rsa);
-	if(passin) Free(passin);
-	if(passout) Free(passout);
+	if(passin) OPENSSL_free(passin);
+	if(passout) OPENSSL_free(passout);
 	EXIT(ret);
 	}
 #else /* !NO_RSA */

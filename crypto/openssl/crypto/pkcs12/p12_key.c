@@ -74,25 +74,30 @@ void h__dump (unsigned char *p, int len);
 #define min(a,b) ((a) < (b) ? (a) : (b))
 #endif
 
-int PKCS12_key_gen_asc (const char *pass, int passlen, unsigned char *salt,
+int PKCS12_key_gen_asc(const char *pass, int passlen, unsigned char *salt,
 	     int saltlen, int id, int iter, int n, unsigned char *out,
 	     const EVP_MD *md_type)
 {
 	int ret;
 	unsigned char *unipass;
 	int uniplen;
-	if (!asc2uni (pass, &unipass, &uniplen)) {
+	if(!pass) {
+		unipass = NULL;
+		uniplen = 0;
+	} else if (!asc2uni(pass, &unipass, &uniplen)) {
 		PKCS12err(PKCS12_F_PKCS12_KEY_GEN_ASC,ERR_R_MALLOC_FAILURE);
 		return 0;
 	}
-	ret = PKCS12_key_gen_uni (unipass, uniplen, salt, saltlen,
+	ret = PKCS12_key_gen_uni(unipass, uniplen, salt, saltlen,
 						 id, iter, n, out, md_type);
-	memset(unipass, 0, uniplen);	/* Clear password from memory */
-	Free(unipass);
+	if(unipass) {
+		memset(unipass, 0, uniplen);	/* Clear password from memory */
+		OPENSSL_free(unipass);
+	}
 	return ret;
 }
 
-int PKCS12_key_gen_uni (unsigned char *pass, int passlen, unsigned char *salt,
+int PKCS12_key_gen_uni(unsigned char *pass, int passlen, unsigned char *salt,
 	     int saltlen, int id, int iter, int n, unsigned char *out,
 	     const EVP_MD *md_type)
 {
@@ -106,10 +111,12 @@ int PKCS12_key_gen_uni (unsigned char *pass, int passlen, unsigned char *salt,
 	int tmpn = n;
 #endif
 
+#if 0
 	if (!pass) {
 		PKCS12err(PKCS12_F_PKCS12_KEY_GEN_UNI,ERR_R_PASSED_NULL_PARAMETER);
 		return 0;
 	}
+#endif
 
 #ifdef  DEBUG_KEYGEN
 	fprintf(stderr, "KEYGEN DEBUG\n");
@@ -121,13 +128,14 @@ int PKCS12_key_gen_uni (unsigned char *pass, int passlen, unsigned char *salt,
 #endif
 	v = EVP_MD_block_size (md_type);
 	u = EVP_MD_size (md_type);
-	D = Malloc (v);
-	Ai = Malloc (u);
-	B = Malloc (v + 1);
+	D = OPENSSL_malloc (v);
+	Ai = OPENSSL_malloc (u);
+	B = OPENSSL_malloc (v + 1);
 	Slen = v * ((saltlen+v-1)/v);
-	Plen = v * ((passlen+v-1)/v);
+	if(passlen) Plen = v * ((passlen+v-1)/v);
+	else Plen = 0;
 	Ilen = Slen + Plen;
-	I = Malloc (Ilen);
+	I = OPENSSL_malloc (Ilen);
 	Ij = BN_new();
 	Bpl1 = BN_new();
 	if (!D || !Ai || !B || !I || !Ij || !Bpl1) {
@@ -150,10 +158,10 @@ int PKCS12_key_gen_uni (unsigned char *pass, int passlen, unsigned char *salt,
 		}
 		memcpy (out, Ai, min (n, u));
 		if (u >= n) {
-			Free (Ai);
-			Free (B);
-			Free (D);
-			Free (I);
+			OPENSSL_free (Ai);
+			OPENSSL_free (B);
+			OPENSSL_free (D);
+			OPENSSL_free (I);
 			BN_free (Ij);
 			BN_free (Bpl1);
 #ifdef DEBUG_KEYGEN

@@ -65,13 +65,13 @@
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
-static int ssl_write(BIO *h,char *buf,int num);
-static int ssl_read(BIO *h,char *buf,int size);
-static int ssl_puts(BIO *h,char *str);
-static long ssl_ctrl(BIO *h,int cmd,long arg1,char *arg2);
+static int ssl_write(BIO *h, const char *buf, int num);
+static int ssl_read(BIO *h, char *buf, int size);
+static int ssl_puts(BIO *h, const char *str);
+static long ssl_ctrl(BIO *h, int cmd, long arg1, void *arg2);
 static int ssl_new(BIO *h);
 static int ssl_free(BIO *data);
-static long ssl_callback_ctrl(BIO *h,int cmd,void (*fp)());
+static long ssl_callback_ctrl(BIO *h, int cmd, bio_info_cb *fp);
 typedef struct bio_ssl_st
 	{
 	SSL *ssl; /* The ssl handle :-) */
@@ -105,7 +105,7 @@ static int ssl_new(BIO *bi)
 	{
 	BIO_SSL *bs;
 
-	bs=(BIO_SSL *)Malloc(sizeof(BIO_SSL));
+	bs=(BIO_SSL *)OPENSSL_malloc(sizeof(BIO_SSL));
 	if (bs == NULL)
 		{
 		BIOerr(BIO_F_SSL_NEW,ERR_R_MALLOC_FAILURE);
@@ -133,7 +133,7 @@ static int ssl_free(BIO *a)
 		a->flags=0;
 		}
 	if (a->ptr != NULL)
-		Free(a->ptr);
+		OPENSSL_free(a->ptr);
 	return(1);
 	}
 	
@@ -221,7 +221,7 @@ static int ssl_read(BIO *b, char *out, int outl)
 	return(ret);
 	}
 
-static int ssl_write(BIO *b, char *out, int outl)
+static int ssl_write(BIO *b, const char *out, int outl)
 	{
 	int ret,r=0;
 	int retry_reason=0;
@@ -289,7 +289,7 @@ static int ssl_write(BIO *b, char *out, int outl)
 	return(ret);
 	}
 
-static long ssl_ctrl(BIO *b, int cmd, long num, char *ptr)
+static long ssl_ctrl(BIO *b, int cmd, long num, void *ptr)
 	{
 	SSL **sslp,*ssl;
 	BIO_SSL *bs;
@@ -470,7 +470,7 @@ static long ssl_ctrl(BIO *b, int cmd, long num, char *ptr)
 	return(ret);
 	}
 
-static long ssl_callback_ctrl(BIO *b, int cmd, void (*fp)())
+static long ssl_callback_ctrl(BIO *b, int cmd, bio_info_cb *fp)
 	{
 	SSL *ssl;
 	BIO_SSL *bs;
@@ -492,7 +492,7 @@ static long ssl_callback_ctrl(BIO *b, int cmd, void (*fp)())
 	return(ret);
 	}
 
-static int ssl_puts(BIO *bp, char *str)
+static int ssl_puts(BIO *bp, const char *str)
 	{
 	int n,ret;
 

@@ -56,6 +56,12 @@
  * [including the GNU Public Licence.]
  */
 
+#ifndef BN_DEBUG
+# undef NDEBUG /* avoid conflicting definitions */
+# define NDEBUG
+#endif
+
+#include <assert.h>
 #include <stdio.h>
 #include "cryptlib.h"
 #include "bn_lcl.h"
@@ -244,14 +250,8 @@ int BN_num_bits(const BIGNUM *a)
 
 	if (a->top == 0) return(0);
 	l=a->d[a->top-1];
+	assert(l != 0);
 	i=(a->top-1)*BN_BITS2;
-	if (l == 0)
-		{
-#if !defined(NO_STDIO) && !defined(WIN16)
-		fprintf(stderr,"BAD TOP VALUE\n");
-#endif
-		abort();
-		}
 	return(i+BN_num_bits_word(l));
 	}
 
@@ -262,24 +262,24 @@ void BN_clear_free(BIGNUM *a)
 	if (a == NULL) return;
 	if (a->d != NULL)
 		{
-		memset(a->d,0,a->max*sizeof(a->d[0]));
+		memset(a->d,0,a->dmax*sizeof(a->d[0]));
 		if (!(BN_get_flags(a,BN_FLG_STATIC_DATA)))
-			Free(a->d);
+			OPENSSL_free(a->d);
 		}
 	i=BN_get_flags(a,BN_FLG_MALLOCED);
 	memset(a,0,sizeof(BIGNUM));
 	if (i)
-		Free(a);
+		OPENSSL_free(a);
 	}
 
 void BN_free(BIGNUM *a)
 	{
 	if (a == NULL) return;
 	if ((a->d != NULL) && !(BN_get_flags(a,BN_FLG_STATIC_DATA)))
-		Free(a->d);
+		OPENSSL_free(a->d);
 	a->flags|=BN_FLG_FREE; /* REMOVE? */
 	if (a->flags & BN_FLG_MALLOCED)
-		Free(a);
+		OPENSSL_free(a);
 	}
 
 void BN_init(BIGNUM *a)
@@ -291,7 +291,7 @@ BIGNUM *BN_new(void)
 	{
 	BIGNUM *ret;
 
-	if ((ret=(BIGNUM *)Malloc(sizeof(BIGNUM))) == NULL)
+	if ((ret=(BIGNUM *)OPENSSL_malloc(sizeof(BIGNUM))) == NULL)
 		{
 		BNerr(BN_F_BN_NEW,ERR_R_MALLOC_FAILURE);
 		return(NULL);
@@ -299,7 +299,7 @@ BIGNUM *BN_new(void)
 	ret->flags=BN_FLG_MALLOCED;
 	ret->top=0;
 	ret->neg=0;
-	ret->max=0;
+	ret->dmax=0;
 	ret->d=NULL;
 	return(ret);
 	}
@@ -317,7 +317,7 @@ BIGNUM *bn_expand2(BIGNUM *b, int words)
 
 	bn_check_top(b);
 
-	if (words > b->max)
+	if (words > b->dmax)
 		{
 		bn_check_top(b);	
 		if (BN_get_flags(b,BN_FLG_STATIC_DATA))
@@ -325,7 +325,7 @@ BIGNUM *bn_expand2(BIGNUM *b, int words)
 			BNerr(BN_F_BN_EXPAND2,BN_R_EXPAND_ON_STATIC_BIGNUM_DATA);
 			return(NULL);
 			}
-		a=A=(BN_ULONG *)Malloc(sizeof(BN_ULONG)*(words+1));
+		a=A=(BN_ULONG *)OPENSSL_malloc(sizeof(BN_ULONG)*(words+1));
 		if (A == NULL)
 			{
 			BNerr(BN_F_BN_EXPAND2,ERR_R_MALLOC_FAILURE);
@@ -423,21 +423,21 @@ BIGNUM *bn_expand2(BIGNUM *b, int words)
 				case 0:	; /* ultrix cc workaround, see above */
 				}
 #endif
-			Free(b->d);
+			OPENSSL_free(b->d);
 			}
 
 		b->d=a;
-		b->max=words;
+		b->dmax=words;
 
 		/* Now need to zero any data between b->top and b->max */
 
 		A= &(b->d[b->top]);
-		for (i=(b->max - b->top)>>3; i>0; i--,A+=8)
+		for (i=(b->dmax - b->top)>>3; i>0; i--,A+=8)
 			{
 			A[0]=0; A[1]=0; A[2]=0; A[3]=0;
 			A[4]=0; A[5]=0; A[6]=0; A[7]=0;
 			}
-		for (i=(b->max - b->top)&7; i>0; i--,A++)
+		for (i=(b->dmax - b->top)&7; i>0; i--,A++)
 			A[0]=0;
 #else
 			memset(A,0,sizeof(BN_ULONG)*(words+1));
@@ -508,7 +508,7 @@ BIGNUM *BN_copy(BIGNUM *a, const BIGNUM *b)
 void BN_clear(BIGNUM *a)
 	{
 	if (a->d != NULL)
-		memset(a->d,0,a->max*sizeof(a->d[0]));
+		memset(a->d,0,a->dmax*sizeof(a->d[0]));
 	a->top=0;
 	a->neg=0;
 	}

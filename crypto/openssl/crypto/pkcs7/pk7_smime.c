@@ -64,12 +64,12 @@
 #include <openssl/x509v3.h>
 
 PKCS7 *PKCS7_sign(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs,
-							BIO *data, int flags)
+		  BIO *data, int flags)
 {
 	PKCS7 *p7;
 	PKCS7_SIGNER_INFO *si;
 	BIO *p7bio;
-	STACK *smcap;
+	STACK_OF(X509_ALGOR) *smcap;
 	int i;
 
 	if(!X509_check_private_key(signcert, pkey)) {
@@ -109,7 +109,9 @@ PKCS7 *PKCS7_sign(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs,
 		PKCS7_add_signed_attribute(si, NID_pkcs9_contentType,
 				V_ASN1_OBJECT, OBJ_nid2obj(NID_pkcs7_data));
 		/* Add SMIMECapabilities */
-		if(!(smcap = sk_new(NULL))) {
+		if(!(flags & PKCS7_NOSMIMECAP))
+		{
+		if(!(smcap = sk_X509_ALGOR_new_null())) {
 			PKCS7err(PKCS7_F_PKCS7_SIGN,ERR_R_MALLOC_FAILURE);
 			return NULL;
 		}
@@ -127,7 +129,8 @@ PKCS7 *PKCS7_sign(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs,
 		PKCS7_simple_smimecap (smcap, NID_rc2_cbc, 40);
 #endif
 		PKCS7_add_attrib_smimecap (si, smcap);
-		sk_pop_free(smcap, X509_ALGOR_free);
+		sk_X509_ALGOR_pop_free(smcap, X509_ALGOR_free);
+		}
 	}
 
 	if(flags & PKCS7_DETACHED)PKCS7_set_detached(p7, 1);
@@ -150,7 +153,7 @@ int PKCS7_verify(PKCS7 *p7, STACK_OF(X509) *certs, X509_STORE *store,
 	PKCS7_SIGNER_INFO *si;
 	X509_STORE_CTX cert_ctx;
 	char buf[4096];
-	int i, j=0;
+	int i, j=0, k;
 	BIO *p7bio;
 	BIO *tmpout;
 
@@ -169,12 +172,17 @@ int PKCS7_verify(PKCS7 *p7, STACK_OF(X509) *certs, X509_STORE *store,
 		PKCS7err(PKCS7_F_PKCS7_VERIFY,PKCS7_R_NO_CONTENT);
 		return 0;
 	}
+#if 0
+	/* NB: this test commented out because some versions of Netscape
+	 * illegally include zero length content when signing data.
+	 */
 
 	/* Check for data and content: two sets of data */
 	if(!PKCS7_get_detached(p7) && indata) {
 				PKCS7err(PKCS7_F_PKCS7_VERIFY,PKCS7_R_CONTENT_AND_DATA_PRESENT);
 		return 0;
 	}
+#endif
 
 	sinfos = PKCS7_get_signer_info(p7);
 
@@ -190,8 +198,8 @@ int PKCS7_verify(PKCS7 *p7, STACK_OF(X509) *certs, X509_STORE *store,
 
 	/* Now verify the certificates */
 
-	if (!(flags & PKCS7_NOVERIFY)) for (i = 0; i < sk_X509_num(signers); i++) {
-		signer = sk_X509_value (signers, i);
+	if (!(flags & PKCS7_NOVERIFY)) for (k = 0; k < sk_X509_num(signers); k++) {
+		signer = sk_X509_value (signers, k);
 		if (!(flags & PKCS7_NOCHAIN)) {
 			X509_STORE_CTX_init(&cert_ctx, store, signer,
 							p7->d.sign->cert);
@@ -282,7 +290,7 @@ STACK_OF(X509) *PKCS7_get0_signers(PKCS7 *p7, STACK_OF(X509) *certs, int flags)
 		PKCS7err(PKCS7_F_PKCS7_GET0_SIGNERS,PKCS7_R_WRONG_CONTENT_TYPE);
 		return NULL;
 	}
-	if(!(signers = sk_X509_new(NULL))) {
+	if(!(signers = sk_X509_new_null())) {
 		PKCS7err(PKCS7_F_PKCS7_GET0_SIGNERS,ERR_R_MALLOC_FAILURE);
 		return NULL;
 	}

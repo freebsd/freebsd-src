@@ -59,10 +59,6 @@
 #ifndef HEADER_CRYPTO_H
 #define HEADER_CRYPTO_H
 
-#ifdef  __cplusplus
-extern "C" {
-#endif
-
 #include <stdlib.h>
 
 #ifndef NO_FP_API
@@ -77,10 +73,13 @@ extern "C" {
 #include <openssl/ebcdic.h>
 #endif
 
-#if defined(VMS) || defined(__VMS)
-#include "vms_idhacks.h"
-#endif
+/* Resolve problems on some operating systems with symbol names that clash
+   one way or another */
+#include <openssl/symhacks.h>
 
+#ifdef  __cplusplus
+extern "C" {
+#endif
 
 /* Backward compatibility to SSLeay */
 /* This is more to be used to check the correct DLL is being used
@@ -121,7 +120,9 @@ extern "C" {
 #define	CRYPTO_LOCK_RSA_BLINDING	23
 #define	CRYPTO_LOCK_DH			24
 #define	CRYPTO_LOCK_MALLOC2		25
-#define	CRYPTO_NUM_LOCKS		26
+#define	CRYPTO_LOCK_DSO			26
+#define	CRYPTO_LOCK_DYNLOCK		27
+#define	CRYPTO_NUM_LOCKS		28
 
 #define CRYPTO_LOCK		1
 #define CRYPTO_UNLOCK		2
@@ -148,6 +149,17 @@ extern "C" {
 #define CRYPTO_r_unlock(a)
 #define CRYPTO_add(a,b,c)	((*(a))+=(b))
 #endif
+
+/* Some applications as well as some parts of OpenSSL need to allocate
+   and deallocate locks in a dynamic fashion.  The following typedef
+   makes this possible in a type-safe manner.  */
+/* struct CRYPTO_dynlock_value has to be defined by the application. */
+typedef struct
+	{
+	int references;
+	struct CRYPTO_dynlock_value *data;
+	} CRYPTO_dynlock;
+
 
 /* The following can be used to detect memory leaks in the SSLeay library.
  * It used, it turns on malloc checking */
@@ -230,11 +242,11 @@ DECLARE_STACK_OF(CRYPTO_EX_DATA_FUNCS)
  * unless CRYPTO_MDEBUG is defined) */
 #define CRYPTO_malloc_debug_init()	do {\
 	CRYPTO_set_mem_debug_functions(\
-		(void (*)())CRYPTO_dbg_malloc,\
-		(void (*)())CRYPTO_dbg_realloc,\
-		(void (*)())CRYPTO_dbg_free,\
-		(void (*)())CRYPTO_dbg_set_options,\
-		(long (*)())CRYPTO_dbg_get_options);\
+		CRYPTO_dbg_malloc,\
+		CRYPTO_dbg_realloc,\
+		CRYPTO_dbg_free,\
+		CRYPTO_dbg_set_options,\
+		CRYPTO_dbg_get_options);\
 	} while(0)
 
 int CRYPTO_mem_ctrl(int mode);
@@ -249,22 +261,17 @@ int CRYPTO_is_mem_check_on(void);
 #define MemCheck_off()	CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_DISABLE)
 #define is_MemCheck_on() CRYPTO_is_mem_check_on()
 
-#define Malloc(num)	CRYPTO_malloc((int)num,__FILE__,__LINE__)
-#define Realloc(addr,num) \
+#define OPENSSL_malloc(num)	CRYPTO_malloc((int)num,__FILE__,__LINE__)
+#define OPENSSL_realloc(addr,num) \
 	CRYPTO_realloc((char *)addr,(int)num,__FILE__,__LINE__)
-#define Remalloc(addr,num) \
+#define OPENSSL_remalloc(addr,num) \
 	CRYPTO_remalloc((char **)addr,(int)num,__FILE__,__LINE__)
-#define FreeFunc	CRYPTO_free
-#define Free(addr)	CRYPTO_free(addr)
+#define OPENSSL_freeFunc	CRYPTO_free
+#define OPENSSL_free(addr)	CRYPTO_free(addr)
 
-#define Malloc_locked(num) CRYPTO_malloc_locked((int)num,__FILE__,__LINE__)
-#define Free_locked(addr) CRYPTO_free_locked(addr)
-
-
-/* Case insensiteve linking causes problems.... */
-#if defined(WIN16) || defined(VMS)
-#define ERR_load_CRYPTO_strings	ERR_load_CRYPTOlib_strings
-#endif
+#define OPENSSL_malloc_locked(num) \
+	CRYPTO_malloc_locked((int)num,__FILE__,__LINE__)
+#define OPENSSL_free_locked(addr) CRYPTO_free_locked(addr)
 
 
 const char *SSLeay_version(int type);
@@ -298,14 +305,32 @@ const char *CRYPTO_get_lock_name(int type);
 int CRYPTO_add_lock(int *pointer,int amount,int type, const char *file,
 		    int line);
 
+int CRYPTO_get_new_dynlockid(void);
+void CRYPTO_destroy_dynlockid(int i);
+struct CRYPTO_dynlock_value *CRYPTO_get_dynlock_value(int i);
+void CRYPTO_set_dynlock_create_callback(struct CRYPTO_dynlock_value *(*dyn_create_function)(const char *file, int line));
+void CRYPTO_set_dynlock_lock_callback(void (*dyn_lock_function)(int mode, struct CRYPTO_dynlock_value *l, const char *file, int line));
+void CRYPTO_set_dynlock_destroy_callback(void (*dyn_destroy_function)(struct CRYPTO_dynlock_value *l, const char *file, int line));
+struct CRYPTO_dynlock_value *(*CRYPTO_get_dynlock_create_callback(void))(const char *file,int line);
+void (*CRYPTO_get_dynlock_lock_callback(void))(int mode, struct CRYPTO_dynlock_value *l, const char *file,int line);
+void (*CRYPTO_get_dynlock_destroy_callback(void))(struct CRYPTO_dynlock_value *l, const char *file,int line);
+
 /* CRYPTO_set_mem_functions includes CRYPTO_set_locked_mem_functions --
  * call the latter last if you need different functions */
 int CRYPTO_set_mem_functions(void *(*m)(size_t),void *(*r)(void *,size_t), void (*f)(void *));
 int CRYPTO_set_locked_mem_functions(void *(*m)(size_t), void (*free_func)(void *));
-int CRYPTO_set_mem_debug_functions(void (*m)(),void (*r)(),void (*f)(),void (*so)(),long (*go)());
+int CRYPTO_set_mem_debug_functions(void (*m)(void *,int,const char *,int,int),
+				   void (*r)(void *,void *,int,const char *,int,int),
+				   void (*f)(void *,int),
+				   void (*so)(long),
+				   long (*go)(void));
 void CRYPTO_get_mem_functions(void *(**m)(size_t),void *(**r)(void *, size_t), void (**f)(void *));
 void CRYPTO_get_locked_mem_functions(void *(**m)(size_t), void (**f)(void *));
-void CRYPTO_get_mem_debug_functions(void (**m)(),void (**r)(),void (**f)(),void (**so)(),long (**go)());
+void CRYPTO_get_mem_debug_functions(void (**m)(void *,int,const char *,int,int),
+				    void (**r)(void *,void *,int,const char *,int,int),
+				    void (**f)(void *,int),
+				    void (**so)(long),
+				    long (**go)(void));
 
 void *CRYPTO_malloc_locked(int num, const char *file, int line);
 void CRYPTO_free_locked(void *);
@@ -348,7 +373,7 @@ void CRYPTO_mem_leaks_fp(FILE *);
 #endif
 void CRYPTO_mem_leaks(struct bio_st *bio);
 /* unsigned long order, char *file, int line, int num_bytes, char *addr */
-void CRYPTO_mem_leaks_cb(void (*cb)());
+void CRYPTO_mem_leaks_cb(void (*cb)(unsigned long, const char *, int, int, void *));
 
 void ERR_load_CRYPTO_strings(void);
 
@@ -361,10 +386,12 @@ void ERR_load_CRYPTO_strings(void);
 
 /* Function codes. */
 #define CRYPTO_F_CRYPTO_GET_EX_NEW_INDEX		 100
+#define CRYPTO_F_CRYPTO_GET_NEW_DYNLOCKID		 103
 #define CRYPTO_F_CRYPTO_GET_NEW_LOCKID			 101
 #define CRYPTO_F_CRYPTO_SET_EX_DATA			 102
 
 /* Reason codes. */
+#define CRYPTO_R_NO_DYNLOCK_CREATE_CALLBACK		 100
 
 #ifdef  __cplusplus
 }
