@@ -189,3 +189,8 @@ mta3230|mo230|IBM MTA-3230 230 Meg 3.5inch Magneto-Optical:\
 	:se#512:nt#64:ns#32:nc#216:sc#2048:su#444384:\
 	:pa#444384:oa#0:ba#4096:fa#0:ta=4.2BSD:\
 	:pc#444384:oc#0:
+
+minimum:ty=mfs:se#512:nt#1:rm#300:\
+	:ns#2400:nc#1:\
+	:pa#2400:oa#0:ba#4096:fa#512:\
+	:pc#2400:oc#0:bc#4096:fc#512:
