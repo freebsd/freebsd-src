@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.34 1995/03/20 10:20:41 davidg Exp $
+ * $Id: vm_object.c,v 1.35 1995/03/21 01:11:42 davidg Exp $
  */
 
 /*
@@ -484,6 +484,7 @@ vm_object_terminate(object)
  *	Odd semantics: if start == end, we clean everything.
  *
  *	The object must be locked.
+ *	Returns true
  */
 boolean_t
 vm_object_page_clean(object, start, end, syncio, de_queue)
@@ -495,6 +496,7 @@ vm_object_page_clean(object, start, end, syncio, de_queue)
 {
 	register vm_page_t p, nextp;
 	int size;
+	int s;
 
 	if (object->pager == NULL)
 		return 1;
@@ -509,17 +511,19 @@ again:
 	/*
 	 * Wait until the pageout daemon is through with the object.
 	 */
+	s = splhigh();
 	while (object->paging_in_progress) {
 		object->flags |= OBJ_PIPWNT;
 		tsleep(object, PVM, "objpcw", 0);
 	}
+	splx(s);
 
 	nextp = object->memq.tqh_first;
 	while ((p = nextp) && ((start == end) || (size != 0))) {
 		nextp = p->listq.tqe_next;
 		if (start == end || (p->offset >= start && p->offset < end)) {
 			if ((p->flags & PG_BUSY) || p->busy) {
-				int s = splhigh();
+				s = splhigh();
 
 				p->flags |= PG_WANTED;
 				tsleep(p, PVM, "objpcn", 0);
