@@ -69,10 +69,6 @@ pkg_perform(char **pkgs)
 	    Zipper = BZIP2;
 	    pkg[len - 4] = '\0';
 	}
-	else if ((len > 5) && (!strcmp(&pkg[len - 5], ".tbz2"))) {
-	    Zipper = BZIP2;
-	    pkg[len - 5] = '\0';
-	}
     }
     if (Zipper == BZIP2) {
 	suf = "tbz";
