@@ -62,7 +62,6 @@ static struct cdevsw afd_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_DISK | D_TRACKCLOSE,
-	/* bmaj */	32
 };
 static struct cdevsw afddisk_cdevsw;
 

@@ -599,7 +599,6 @@ static struct cdevsw xpt_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 static struct intr_config_hook *xpt_config_hook;

@@ -209,9 +209,6 @@ static	d_psize_t	mcdsize;
 static	d_strategy_t	mcdstrategy;
 
 #define CDEV_MAJOR 29
-#define BDEV_MAJOR 7
-
-
 
 static struct cdevsw mcd_cdevsw = {
 	/* open */	mcdopen,
@@ -227,7 +224,6 @@ static struct cdevsw mcd_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_DISK,
-	/* bmaj */	BDEV_MAJOR
 };
 
 #define mcd_put(port,byte)	outb(port,byte)

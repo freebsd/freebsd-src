@@ -302,7 +302,6 @@ static struct periph_driver dadriver =
 PERIPHDRIVER_DECLARE(da, dadriver);
 
 #define DA_CDEV_MAJOR 13
-#define DA_BDEV_MAJOR 4
 
 /* For 2.2-stable support */
 #ifndef D_DISK
@@ -323,7 +322,6 @@ static struct cdevsw da_cdevsw = {
 	/* dump */	dadump,
 	/* psize */	nopsize,
 	/* flags */	D_DISK,
-	/* bmaj */	DA_BDEV_MAJOR
 };
 
 static struct cdevsw dadisk_cdevsw;

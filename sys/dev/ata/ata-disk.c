@@ -69,7 +69,6 @@ static struct cdevsw ad_cdevsw = {
 	/* dump */	addump,
 	/* psize */	nopsize,
 	/* flags */	D_DISK,
-	/* bmaj */	30
 };
 static struct cdevsw addisk_cdevsw;
 

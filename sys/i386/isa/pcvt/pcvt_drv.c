@@ -109,7 +109,6 @@ static struct cdevsw vt_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TTY | D_KQFILTER,
-	/* bmaj */	-1,
 	/* kqfilter */	ttykqfilter,
 };
 

@@ -49,7 +49,7 @@ static d_ioctl_t	acdioctl;
 static d_strategy_t	acdstrategy;
 
 #define CDEV_MAJOR 69
-#define BDEV_MAJOR 19
+
 static struct cdevsw acd_cdevsw = {
 	/* open */	acdopen,
 	/* close */	acdclose,
@@ -64,7 +64,6 @@ static struct cdevsw acd_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_DISK,
-	/* bmaj */	BDEV_MAJOR
 };
 
 #define NUNIT	16		/* Max # of devices */

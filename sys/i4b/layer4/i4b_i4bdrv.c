@@ -184,7 +184,6 @@ static struct cdevsw i4b_cdevsw = {
 	/* dump */      nodump,
 	/* psize */     nopsize,
 	/* flags */     0,
-	/* bmaj */      -1
 };
 #else
 static struct cdevsw i4b_cdevsw = {

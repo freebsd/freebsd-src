@@ -74,7 +74,6 @@ static struct cdevsw aac_disk_cdevsw = {
     /* dump */		nodump,
     /* psize */ 	nopsize,
     /* flags */		D_DISK,
-    /* bmaj */		-1
 };
 
 devclass_t		aac_disk_devclass;

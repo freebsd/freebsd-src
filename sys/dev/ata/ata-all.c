@@ -69,7 +69,6 @@ static struct cdevsw ata_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 /* prototypes */

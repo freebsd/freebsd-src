@@ -185,7 +185,7 @@ static	d_ioctl_t	scdioctl;
 static	d_strategy_t	scdstrategy;
 
 #define CDEV_MAJOR 45
-#define BDEV_MAJOR 16
+
 static struct cdevsw scd_cdevsw = {
 	/* open */	scdopen,
 	/* close */	scdclose,
@@ -200,7 +200,6 @@ static struct cdevsw scd_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_DISK,
-	/* bmaj */	BDEV_MAJOR
 };
 
 

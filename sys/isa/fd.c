@@ -315,7 +315,6 @@ static	d_ioctl_t	fdioctl;
 static	d_strategy_t	fdstrategy;
 
 #define CDEV_MAJOR 9
-#define BDEV_MAJOR 2
 
 static struct cdevsw fd_cdevsw = {
 	/* open */	Fdopen,
@@ -331,7 +330,6 @@ static struct cdevsw fd_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_DISK,
-	/* bmaj */	BDEV_MAJOR
 };
 
 static int

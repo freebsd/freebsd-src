@@ -80,7 +80,6 @@ static struct cdevsw nmdm_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TTY,
-	/* bmaj */	-1
 };
 
 #define BUFSIZ 100		/* Chunk size iomoved to/from user */

@@ -82,7 +82,6 @@ struct cdevsw pcicdev = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
   
 static int

@@ -78,7 +78,6 @@ static struct cdevsw codadevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 int     vcdebug = 1;

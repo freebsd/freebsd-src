@@ -92,7 +92,6 @@ static struct cdevsw mfs_cdevsw = {
 	/* dump */      nodump,
 	/* psize */     nopsize,
 	/* flags */     D_DISK,
-	/* bmaj */      253,
 };
 
 /*

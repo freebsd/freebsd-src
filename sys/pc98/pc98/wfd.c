@@ -53,7 +53,6 @@ static	d_ioctl_t	wfdioctl;
 static	d_strategy_t	wfdstrategy;
 
 #define CDEV_MAJOR 87
-#define BDEV_MAJOR 1
 
 static struct cdevsw wfd_cdevsw = {
 	/* open */	wfdopen,
@@ -69,7 +68,6 @@ static struct cdevsw wfd_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_DISK,
-	/* bmaj */	BDEV_MAJOR
 };
 
 int  wfdattach(struct atapi*, int, struct atapi_params*, int);

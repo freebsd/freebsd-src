@@ -65,7 +65,6 @@ static	d_close_t	idad_close;
 static	d_strategy_t	idad_strategy;
 static	d_dump_t	idad_dump;
 
-#define IDAD_BDEV_MAJOR	29
 #define IDAD_CDEV_MAJOR	109
 
 static struct cdevsw id_cdevsw = {
@@ -82,7 +81,6 @@ static struct cdevsw id_cdevsw = {
 	/* dump */	idad_dump,
 	/* psize */ 	nopsize,
 	/* flags */	D_DISK,
-	/* bmaj */	IDAD_BDEV_MAJOR
 };
 
 static devclass_t	idad_devclass;

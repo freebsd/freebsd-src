@@ -435,7 +435,6 @@ static struct cdevsw kbd_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 int

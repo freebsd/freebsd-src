@@ -58,7 +58,6 @@ static struct cdevsw snd_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TRACKCLOSE,
-	/* bmaj */	-1
 };
 
 /*

@@ -92,7 +92,6 @@ static struct cdevsw mem_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_MEM,
-	/* bmaj */	-1
 };
 
 struct mem_range_softc mem_range_softc;

@@ -167,7 +167,6 @@ static d_psize_t ccdsize;
 #define NCCDFREEHIWAT	16
 
 #define CDEV_MAJOR 74
-#define BDEV_MAJOR 21
 
 static struct cdevsw ccd_cdevsw = {
 	/* open */	ccdopen,
@@ -183,7 +182,6 @@ static struct cdevsw ccd_cdevsw = {
 	/* dump */	ccddump,
 	/* psize */	ccdsize,
 	/* flags */	D_DISK,
-	/* bmaj */	BDEV_MAJOR
 };
 
 /* called during module initialization */

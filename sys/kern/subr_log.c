@@ -80,7 +80,6 @@ static struct cdevsw log_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 static struct logsoftc {

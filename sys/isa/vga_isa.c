@@ -82,7 +82,6 @@ static struct cdevsw isavga_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 #endif /* FB_INSTALL_CDEV */

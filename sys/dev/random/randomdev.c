@@ -75,7 +75,6 @@ static struct cdevsw random_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 static void random_kthread(void *);

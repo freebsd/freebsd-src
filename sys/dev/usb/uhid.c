@@ -152,7 +152,6 @@ Static struct cdevsw uhid_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 #endif
 
