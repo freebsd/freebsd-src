@@ -47,6 +47,7 @@
 #include <sys/fcntl.h>
 #include <sys/disklabel.h>
 #include <sys/vmmeter.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/vm_prot.h>
@@ -234,6 +235,15 @@ spec_open(ap)
 	return (0);
 }
 
+#ifdef ALLOW_BDEV_ACCESS
+static int bdev_access = 1;
+#else
+static int bdev_access;
+#endif
+
+SYSCTL_INT(_vfs, OID_AUTO, bdev_access, CTLFLAG_RW, &bdev_access, 0,
+	"allow block device access");
+
 /*
  * Vnode op for read
  */
@@ -247,8 +257,8 @@ spec_read(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct uio *uio = ap->a_uio;
+	struct vnode *vp = ap->a_vp;
+	struct uio *uio = ap->a_uio;
  	struct proc *p = uio->uio_procp;
 	struct buf *bp;
 	daddr_t bn, nextbn;
@@ -273,7 +283,7 @@ spec_read(ap)
 	switch (vp->v_type) {
 
 	case VBLK:
-#ifdef ALLOW_BDEV_ACCESS
+if (bdev_access) {
 		if (uio->uio_offset < 0)
 			return (EINVAL);
 
@@ -307,7 +317,7 @@ spec_read(ap)
 			brelse(bp);
 		} while (error == 0 && uio->uio_resid > 0 && n != 0);
 		return (error);
-#endif /* ALLOW_BDEV_ACCESS */
+}
 	case VCHR:
 		VOP_UNLOCK(vp, 0, p);
 		error = (*devsw(dev)->d_read) (dev, uio, ap->a_ioflag);
@@ -333,8 +343,8 @@ spec_write(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct uio *uio = ap->a_uio;
+	struct vnode *vp = ap->a_vp;
+	struct uio *uio = ap->a_uio;
 	struct proc *p = uio->uio_procp;
 	struct buf *bp;
 	daddr_t bn;
@@ -357,7 +367,7 @@ spec_write(ap)
 	switch (vp->v_type) {
 
 	case VBLK:
-#ifdef ALLOW_BDEV_ACCESS
+if (bdev_access) {
 		if (uio->uio_offset < 0)
 			return (EINVAL);
 
@@ -393,7 +403,7 @@ spec_write(ap)
 				bdwrite(bp);
 		} while (error == 0 && uio->uio_resid > 0 && n != 0);
 		return (error);
-#endif /* ALLOW_BDEV_ACCESS */
+}
 
 	case VCHR:
 		VOP_UNLOCK(vp, 0, p);
