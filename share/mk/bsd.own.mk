@@ -39,6 +39,13 @@
 #
 # NOBINMODE	Mode for non-executable files. [444]
 #
+# INCOWN	Include owner. [root]
+#
+# INCGRP	Include group. [wheel]
+#
+# INCMODE	Include mode. [444]
+#
+# INCDIR	Base path for include files. [/usr/include]
 #
 # LIBDIR	Base path for libraries. [/usr/lib]
 #
@@ -138,6 +145,11 @@ BINOWN?=	root
 BINGRP?=	wheel
 BINMODE?=	555
 NOBINMODE?=	444
+
+INCOWN?=	root
+INCGRP?=	wheel
+INCMODE?=	444
+INCDIR?=	/usr/include
 
 .if ${OBJFORMAT} == aout
 LIBDIR?=	/usr/lib/aout

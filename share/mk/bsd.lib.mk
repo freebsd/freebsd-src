@@ -259,7 +259,17 @@ _EXTRADEPEND:
 
 .if !target(install)
 .if !target(beforeinstall)
-beforeinstall:
+beforeinstall: _includeinstall
+.endif
+
+_includeinstall:
+.if defined(INCS)
+.for header in ${INCS}
+	cd ${.CURDIR} && \
+	${INSTALL} -C -o ${INCOWN} -g ${INCGRP} -m ${INCMODE} \
+		${header} ${DESTDIR}${INCDIR}
+
+.endfor
 .endif
 
 .if defined(PRECIOUSLIB)
