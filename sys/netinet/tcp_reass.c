@@ -125,11 +125,11 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, drop_synfin, CTLFLAG_RW,
     &drop_synfin, 0, "Drop TCP packets with SYN+FIN set");
 #endif
 
-static int tcp_do_rfc3042 = 0;
+static int tcp_do_rfc3042 = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc3042, CTLFLAG_RW,
     &tcp_do_rfc3042, 0, "Enable RFC 3042 (Limited Transmit)");
 
-static int tcp_do_rfc3390 = 0;
+static int tcp_do_rfc3390 = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc3390, CTLFLAG_RW,
     &tcp_do_rfc3390, 0,
     "Enable RFC 3390 (Increasing TCP's Initial Congestion Window)");
