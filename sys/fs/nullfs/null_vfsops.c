@@ -169,7 +169,7 @@ nullfs_mount(mp, ndp, td)
 	 * Save reference.  Each mount also holds
 	 * a reference on the root vnode.
 	 */
-	error = null_node_create(mp, lowerrootvp, &vp);
+	error = null_nodeget(mp, lowerrootvp, &vp);
 	/*
 	 * Unlock the node (either the lower or the alias)
 	 */
@@ -354,7 +354,7 @@ nullfs_vget(mp, ino, flags, vpp)
 	if (error)
 		return (error);
 
-	return (null_node_create(mp, *vpp, vpp));
+	return (null_nodeget(mp, *vpp, vpp));
 }
 
 static int
@@ -368,7 +368,7 @@ nullfs_fhtovp(mp, fidp, vpp)
 	if (error)
 		return (error);
 
-	return (null_node_create(mp, *vpp, vpp));
+	return (null_nodeget(mp, *vpp, vpp));
 }
 
 static int
