@@ -187,6 +187,8 @@ print_ipsecstats(void)
 {
 #define	p(f, m) if (ipsecstat.f || sflag <= 1) \
     printf(m, (unsigned long long)ipsecstat.f, plural(ipsecstat.f))
+#define	pes(f, m) if (ipsecstat.f || sflag <= 1) \
+    printf(m, (unsigned long long)ipsecstat.f, plurales(ipsecstat.f))
 #define hist(f, n, t) \
     ipsec_hist((f), sizeof(f)/sizeof(f[0]), (n), (t));
 
@@ -215,7 +217,10 @@ print_ipsecstats(void)
 	hist(ipsecstat.out_ahhist, ipsec_ahnames, "AH output");
 	hist(ipsecstat.out_esphist, ipsec_espnames, "ESP output");
 	hist(ipsecstat.out_comphist, ipsec_compnames, "IPComp output");
+	p(spdcachelookup, "\t%llu SPD cache lookup%s\n");
+	pes(spdcachemiss, "\t%llu SPD cache miss%s\n");
 #undef p
+#undef pes
 #undef hist
 }
 
