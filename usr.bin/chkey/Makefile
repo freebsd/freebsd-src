@@ -1,13 +1,11 @@
 # $FreeBSD$
 
-PROG=	chkey
-SRCS=	chkey.c update.c generic.c
-
 .PATH: ${.CURDIR}/../newkey
 
+PROG=	chkey
+SRCS=	chkey.c generic.c update.c
 CFLAGS+=-DYP
-
-DPADD=	${LIBRPCSVC} ${LIBMP} ${LIBGMP}
+DPADD=	${LIBRPCSVC} ${LIBMP} ${LIBCRYPTO}
 LDADD=	-lrpcsvc -lmp -lcrypto
 
 .include <bsd.prog.mk>
