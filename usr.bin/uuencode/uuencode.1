@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)uuencode.1	8.1 (Berkeley) 6/6/93
-.\"	$Id$
+.\"	$Id: uuencode.1,v 1.5 1997/02/22 19:57:36 peter Exp $
 .\"
 .Dd June 6, 1993
 .Dt UUENCODE 1
@@ -45,7 +45,7 @@
 .Ar name
 .Nm uudecode
 .Op Fl cp
-.Op Ar file ...
+.Op Ar
 .Sh DESCRIPTION
 .Nm Uuencode
 and
@@ -127,6 +127,8 @@ The encoded form of the file is expanded by 35% (3 bytes become 4 plus
 control information).
 .Sh HISTORY
 The
-.Nm
-command appeared in
+.Nm uudecode
+and
+.Nm uuencode
+utilities appeared in
 .Bx 4.0 .
