@@ -159,7 +159,8 @@ struct zone {
  * of the two-letter variety, so we just size this array to suit.
  * Beats worrying about dynamic allocation.
  */
-static struct country countries[26*26];
+#define NCOUNTRIES	(26*26)
+static struct country countries[NCOUNTRIES];
 #define CODE2INT(s) ((s[0] - 'A') * 26 + (s[1] - 'A'))
 
 /*
@@ -291,7 +292,7 @@ compare_countries(const void *xa, const void *xb)
 static void
 sort_countries(void)
 {
-	qsort(countries, 576, sizeof countries[0], compare_countries);
+	qsort(countries, NCOUNTRIES, sizeof countries[0], compare_countries);
 }
 
 static void
