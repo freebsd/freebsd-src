@@ -417,7 +417,11 @@ typedef struct callout usb_callout_t;
 #define PWR_RESUME 0
 #define PWR_SUSPEND 1
 
-#define config_detach(dev, flag) device_delete_child(device_get_parent(dev), dev)
+#define config_detach(dev, flag) \
+	do { \
+		free(device_get_ivars(dev), M_USB); \
+		device_delete_child(device_get_parent(dev), dev); \
+	} while (0);
 
 typedef struct malloc_type *usb_malloc_type;
 
