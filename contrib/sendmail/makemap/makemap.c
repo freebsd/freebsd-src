@@ -20,7 +20,7 @@ SM_IDSTR(copyright,
      Copyright (c) 1992, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: makemap.c,v 8.175 2001/12/28 22:44:01 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: makemap.c,v 1.1.1.6 2002/02/17 21:56:43 gshapiro Exp $")
 
 /* $FreeBSD$ */
 
