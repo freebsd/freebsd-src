@@ -164,10 +164,6 @@ sethistsize(hs)
 	}
 }
 
-/*
- *  This command is provided since POSIX decided to standardize
- *  the Korn shell fc command.  Oh well...
- */
 int
 histcmd(int argc, char **argv)
 {
@@ -178,7 +174,7 @@ histcmd(int argc, char **argv)
 	int i, retval;
 	char *firststr, *laststr;
 	int first, last, direction;
-	char *pat = NULL, *repl;	/* ksh "fc old=new" crap */
+	char *pat = NULL, *repl;
 	static int active = 0;
 	struct jmploc jmploc;
 	struct jmploc *volatile savehandler;
