@@ -3,7 +3,7 @@
 # The user can override the default language to build and install
 # with the RELNOTES_LANG variable.
 # 
-#SUBDIR =	share/sgml
+SUBDIR =	share/sgml
 .if defined(RELNOTES_LANG) && !empty(RELNOTES_LANG)
 SUBDIR+= 	${RELNOTES_LANG}
 .else
