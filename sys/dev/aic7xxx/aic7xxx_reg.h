@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx_reg.h,v 1.14 1996/10/25 06:34:59 gibbs Exp $
+ *	$Id: aic7xxx_reg.h,v 1.15 1996/10/28 06:01:08 gibbs Exp $
  */
 
 /*
@@ -653,7 +653,11 @@
  * we can see what is getting thrown away.
  */
 #define REJBYTE			0x030
-#define	TARGID_MASK		0x031
+/*
+ * Since the sequencer cannot read QOUTCNT, we use this memory location
+ * to make sure that we don't overflow the QOUTFIFO when doing SCB Paging.
+ */
+#define	QOUTQCNT		0x031
 
 /*
  * Bit vector of targets that have disconnection disabled.
