@@ -79,6 +79,7 @@
 MALLOC_DEFINE(M_ISADEV, "isadev", "ISA device");
 
 static devclass_t isa_devclass;
+static int isa_running;
 
 /*
  * At 'probe' time, we add all the devices which we know about to the
@@ -90,7 +91,7 @@ isa_probe(device_t dev)
 {
 	device_set_desc(dev, "ISA bus");
 	isa_init();		/* Allow machdep code to initialise */
-	return bus_generic_probe(dev);
+	return 0;
 }
 
 extern device_t isa_bus_device;
@@ -432,6 +433,11 @@ isa_probe_children(device_t dev)
 	device_t *children;
 	int nchildren, i;
 
+	/*
+	 * Create all the children by calling driver's identify methods.
+	 */
+	bus_generic_probe(dev);
+
 	if (device_get_children(dev, &children, &nchildren))
 		return;
 
@@ -439,6 +445,8 @@ isa_probe_children(device_t dev)
 	 * First disable all pnp devices so that they don't get
 	 * matched by legacy probes.
 	 */
+	if (bootverbose)
+		printf("isa_probe_children: disabling PnP devices\n");
 	for (i = 0; i < nchildren; i++) {
 		device_t child = children[i];
 		struct isa_device *idev = DEVTOISA(child);
@@ -453,6 +461,8 @@ isa_probe_children(device_t dev)
 	 * Next probe all non-pnp devices so that they claim their
 	 * resources first.
 	 */
+	if (bootverbose)
+		printf("isa_probe_children: probing non-PnP devices\n");
 	for (i = 0; i < nchildren; i++) {
 		device_t child = children[i];
 		struct isa_device *idev = DEVTOISA(child);
@@ -466,6 +476,8 @@ isa_probe_children(device_t dev)
 	/*
 	 * Finally assign resource to pnp devices and probe them.
 	 */
+	if (bootverbose)
+		printf("isa_probe_children: probing PnP devices\n");
 	for (i = 0; i < nchildren; i++) {
 		device_t child = children[i];
 		struct isa_device* idev = DEVTOISA(child);
@@ -497,6 +509,8 @@ isa_probe_children(device_t dev)
 	}
 
 	free(children, M_TEMP);
+
+	isa_running = 1;
 }
 
 /*
@@ -762,6 +776,61 @@ isa_child_detached(device_t dev, device_t child)
 	}
 }
 
+static void
+isa_driver_added(device_t dev, driver_t *driver)
+{
+	device_t *children;
+	int nchildren, i;
+
+	/*
+	 * Don't do anything if drivers are dynamically
+	 * added during autoconfiguration (cf. ymf724).
+	 * since that would end up calling identify
+	 * twice.
+	 */
+	if (!isa_running)
+		return;
+
+	DEVICE_IDENTIFY(driver, dev);
+	if (device_get_children(dev, &children, &nchildren))
+		return;
+
+	for (i = 0; i < nchildren; i++) {
+		device_t child = children[i];
+		struct isa_device *idev = DEVTOISA(child);
+		struct resource_list *rl = &idev->id_resources;
+		struct resource_list_entry *rle;
+
+		if (device_get_state(child) != DS_NOTPRESENT)
+			continue;
+
+		if (TAILQ_FIRST(&idev->id_configs))
+			if (!isa_assign_resources(child))
+				continue;
+
+		device_probe_and_attach(child);
+
+		if (TAILQ_FIRST(&idev->id_configs)) {
+			/*
+			 * Claim any unallocated resources to keep other
+			 * devices from using them.
+			 */
+			SLIST_FOREACH(rle, rl, link) {
+				if (!rle->res) {
+					int rid = rle->rid;
+					resource_list_alloc(rl, dev, child,
+							    rle->type,
+							    &rid,
+							    0, ~0, 1,
+							    RF_ACTIVE);
+				}
+			}
+		}
+	}
+
+	free(children, M_TEMP);
+}
+
 static int
 isa_set_resource(device_t dev, device_t child, int type, int rid,
 		 u_long start, u_long count)
@@ -889,6 +958,7 @@ static device_method_t isa_methods[] = {
 	DEVMETHOD(bus_read_ivar,	isa_read_ivar),
 	DEVMETHOD(bus_write_ivar,	isa_write_ivar),
 	DEVMETHOD(bus_child_detached,	isa_child_detached),
+	DEVMETHOD(bus_driver_added,	isa_driver_added),
 	DEVMETHOD(bus_alloc_resource,	isa_alloc_resource),
 	DEVMETHOD(bus_release_resource,	isa_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
