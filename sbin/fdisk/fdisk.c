@@ -39,6 +39,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <paths.h>
 #include <regex.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -453,10 +454,10 @@ print_part(int i)
 	part_mb /= (1024 * 1024);
 	printf("sysid %d (%#04x),(%s)\n", partp->dp_typ, partp->dp_typ,
 	    get_type(partp->dp_typ));
-	printf("    start %lu, size %lu (%qd Meg), flag %x%s\n",
+	printf("    start %lu, size %lu (%ju Meg), flag %x%s\n",
 		(u_long)partp->dp_start,
 		(u_long)partp->dp_size, 
-		part_mb,
+		(uintmax_t)part_mb,
 		partp->dp_flag,
 		partp->dp_flag == ACTIVE ? " (active)" : "");
 	printf("\tbeg: cyl %d/ head %d/ sector %d;\n\tend: cyl %d/ head %d/ sector %d\n"
@@ -499,7 +500,7 @@ init_boot(void)
 	if ((mboot.bootinst = malloc(mboot.bootinst_size)) == NULL)
 		errx(1, "unable to allocate boot block buffer");
 	memset(mboot.bootinst, 0, mboot.bootinst_size);
-	*(uint16_t *)&mboot.bootinst[MBRSIGOFF] = BOOT_MAGIC;
+	*(uint16_t *)(void *)&mboot.bootinst[MBRSIGOFF] = BOOT_MAGIC;
 #endif
 }
 
@@ -783,7 +784,7 @@ read_s0()
 		warnx("can't read fdisk partition table");
 		return -1;
 	}
-	if (*(uint16_t *)&mboot.bootinst[MBRSIGOFF] != BOOT_MAGIC) {
+	if (*(uint16_t *)(void *)&mboot.bootinst[MBRSIGOFF] != BOOT_MAGIC) {
 		warnx("invalid fdisk partition table found");
 		/* So should we initialize things */
 		return -1;
