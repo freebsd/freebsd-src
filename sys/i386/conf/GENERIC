@@ -15,7 +15,7 @@
 # device lines is also present in the ./LINT configuration file. If you are
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.175 1999/06/29 18:55:53 peter Exp $
+#	$Id: GENERIC,v 1.176 1999/07/06 19:22:38 des Exp $
 
 machine		i386
 cpu		I386_CPU
@@ -180,11 +180,12 @@ device		fe0	at isa? port 0x300 irq ?
 device		le0	at isa? port 0x300 irq 5 iomem 0xd0000
 device		lnc0	at isa? port 0x280 irq 10 drq 0
 device		cs0	at isa? port 0x300 irq ?
+# requires PCCARD (PCMCIA) support to be activated
+#device		xe0	at isa? port? irq ?
 
 # PCCARD NIC drivers.
 # ze and zp take over the pcic and cannot coexist with generic pccard
 # support, nor the ed and ep drivers they replace.
-#device		xe0	at isa? port? irq ?
 #device		ze0	at isa? port 0x300 irq 10 iomem 0xd8000	
 #device		zp0	at isa? port 0x300 irq 10 iomem 0xd8000
 
