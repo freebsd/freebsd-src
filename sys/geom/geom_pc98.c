@@ -77,59 +77,10 @@ g_dec_dos_partition(u_char *ptr, struct dos_partition *d)
 }
 
 struct g_pc98_softc {
-	int type [NDOSPART];
-	struct dos_partition dp[NDOSPART];
+	u_int fwsectors, fwheads, sectorsize;
+	int type[NDOSPART];
+	u_char sec[8192];
 };
-
-static int
-g_pc98_start(struct bio *bp)
-{
-	struct g_provider *pp;
-	struct g_geom *gp;
-	struct g_pc98_softc *mp;
-	struct g_slicer *gsp;
-	int idx;
-
-	pp = bp->bio_to;
-	idx = pp->index;
-	gp = pp->geom;
-	gsp = gp->softc;
-	mp = gsp->softc;
-	if (bp->bio_cmd == BIO_GETATTR) {
-		if (g_handleattr_int(bp, "PC98::type", mp->type[idx]))
-			return (1);
-		if (g_handleattr_off_t(bp, "PC98::offset",
-				       gsp->slices[idx].offset))
-			return (1);
-	}
-	return (0);
-}
-
-static void
-g_pc98_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
-		struct g_consumer *cp __unused, struct g_provider *pp)
-{
-	struct g_pc98_softc *mp;
-	struct g_slicer *gsp;
-	char sname[17];
-
-	gsp = gp->softc;
-	mp = gsp->softc;
-	g_slice_dumpconf(sb, indent, gp, cp, pp);
-	if (pp != NULL) {
-		strncpy(sname, mp->dp[pp->index].dp_name, 16);
-		sname[16] = '\0';
-		if (indent == NULL) {
-			sbuf_printf(sb, " ty %d", mp->type[pp->index]);
-			sbuf_printf(sb, " sn %s", sname);
-		} else {
-			sbuf_printf(sb, "%s<type>%d</type>\n", indent,
-				    mp->type[pp->index]);
-			sbuf_printf(sb, "%s<sname>%s</sname>\n", indent,
-				    sname);
-		}
-	}
-}
 
 static void
 g_pc98_print(int i, struct dos_partition *dp)
@@ -147,17 +98,197 @@ g_pc98_print(int i, struct dos_partition *dp)
 	printf(" sname:%s\n", sname);
 }
 
+static int
+g_pc98_modify(struct g_geom *gp, struct g_pc98_softc *ms, u_char *sec)
+{
+	int i, error;
+	off_t s[NDOSPART], l[NDOSPART];
+	struct dos_partition dp[NDOSPART];
+
+	g_topology_assert();
+	
+	if (sec[0x1fe] != 0x55 || sec[0x1ff] != 0xaa)
+		return (EBUSY);
+
+#if 0
+	/*
+	 * XXX: Some sources indicate this is a magic sequence, but appearantly
+	 * XXX: it is not universal. Documentation would be wonderfule to have.
+	 */
+	if (sec[4] != 'I' || sec[5] != 'P' || sec[6] != 'L' || sec[7] != '1')
+		return (EBUSY);
+#endif
+
+	for (i = 0; i < NDOSPART; i++)
+		g_dec_dos_partition(
+			sec + 512 + i * sizeof(struct dos_partition), &dp[i]);
+
+	for (i = 0; i < NDOSPART; i++) {
+		/* If start and end are identical it's bogus */
+		if (dp[i].dp_ssect == dp[i].dp_esect &&
+		    dp[i].dp_shd == dp[i].dp_ehd &&
+		    dp[i].dp_scyl == dp[i].dp_ecyl)
+			s[i] = l[i] = 0;
+		else if (dp[i].dp_ecyl == 0)
+			s[i] = l[i] = 0;
+		else {
+			s[i] = (off_t)dp[i].dp_scyl *
+				ms->fwsectors * ms->fwheads * ms->sectorsize;
+			l[i] = (off_t)(dp[i].dp_ecyl - dp[i].dp_scyl + 1) *
+				ms->fwsectors * ms->fwheads * ms->sectorsize;
+		}
+		if (bootverbose) {
+			printf("PC98 Slice %d on %s:\n", i + 1, gp->name);
+			g_pc98_print(i, dp + i);
+		}
+		error = g_slice_config(gp, i, G_SLICE_CONFIG_CHECK,
+				       s[i], l[i], ms->sectorsize,
+				       "%ss%d", gp->name, i + 1);
+		if (error)
+			return (error);
+	}
+
+	for (i = 0; i < NDOSPART; i++) {
+		ms->type[i] = (dp[i].dp_sid << 8) | dp[i].dp_mid;
+		g_slice_config(gp, i, G_SLICE_CONFIG_SET, s[i], l[i],
+			       ms->sectorsize, "%ss%d", gp->name, i + 1);
+	}
+
+	bcopy(sec, ms->sec, sizeof (ms->sec));
+
+	return (0);
+}
+
+static void
+g_pc98_ioctl(void *arg)
+{
+	struct bio *bp;
+	struct g_geom *gp;
+	struct g_slicer *gsp;
+	struct g_pc98_softc *ms;
+	struct g_ioctl *gio;
+	struct g_consumer *cp;
+	u_char *sec;
+	int error;
+
+	/* Get hold of the interesting bits from the bio. */
+	bp = arg;
+	gp = bp->bio_to->geom;
+	gsp = gp->softc;
+	ms = gsp->softc;
+	gio = (struct g_ioctl *)bp->bio_data;
+
+	/* The disklabel to set is the ioctl argument. */
+	sec = gio->data;
+
+	error = g_pc98_modify(gp, ms, sec);
+	if (error) {
+		g_io_deliver(bp, error);
+		return;
+	}
+	cp = LIST_FIRST(&gp->consumer);
+	error = g_write_data(cp, 0, sec, 8192);
+	g_io_deliver(bp, error);
+}
+
+static int
+g_pc98_start(struct bio *bp)
+{
+	struct g_provider *pp;
+	struct g_geom *gp;
+	struct g_pc98_softc *mp;
+	struct g_slicer *gsp;
+	struct g_ioctl *gio;
+	int idx, error;
+
+	pp = bp->bio_to;
+	idx = pp->index;
+	gp = pp->geom;
+	gsp = gp->softc;
+	mp = gsp->softc;
+	if (bp->bio_cmd == BIO_GETATTR) {
+		if (g_handleattr_int(bp, "PC98::type", mp->type[idx]))
+			return (1);
+		if (g_handleattr_off_t(bp, "PC98::offset",
+				       gsp->slices[idx].offset))
+			return (1);
+	}
+
+	/* We only handle ioctl(2) requests of the right format. */
+	if (strcmp(bp->bio_attribute, "GEOM::ioctl"))
+		return (0);
+	else if (bp->bio_length != sizeof(*gio))
+		return (0);
+	/* Get hold of the ioctl parameters. */
+	gio = (struct g_ioctl *)bp->bio_data;
+
+	switch (gio->cmd) {
+	case DIOCGPC98:
+		/* Return a copy of the disklabel to userland. */
+		bcopy(mp->sec, gio->data, 8192);
+		g_io_deliver(bp, 0);
+		return (1);
+	case DIOCSPC98:
+		/*
+		 * These we cannot do without the topology lock and some
+		 * some I/O requests.  Ask the event-handler to schedule
+		 * us in a less restricted environment.
+		 */
+		error = g_call_me(g_pc98_ioctl, bp);
+		if (error)
+			g_io_deliver(bp, error);
+		/*
+		 * We must return non-zero to indicate that we will deal
+		 * with this bio, even though we have not done so yet.
+		 */
+		return (1);
+	default:
+		return (0);
+	}
+
+	return (0);
+}
+
+static void
+g_pc98_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
+		struct g_consumer *cp __unused, struct g_provider *pp)
+{
+	struct g_pc98_softc *mp;
+	struct g_slicer *gsp;
+	struct dos_partition dp;
+	char sname[17];
+
+	gsp = gp->softc;
+	mp = gsp->softc;
+	g_slice_dumpconf(sb, indent, gp, cp, pp);
+	if (pp != NULL) {
+		g_dec_dos_partition(
+			mp->sec + 512 +
+			pp->index * sizeof(struct dos_partition), &dp);
+		strncpy(sname, dp.dp_name, 16);
+		sname[16] = '\0';
+		if (indent == NULL) {
+			sbuf_printf(sb, " ty %d", mp->type[pp->index]);
+			sbuf_printf(sb, " sn %s", sname);
+		} else {
+			sbuf_printf(sb, "%s<type>%d</type>\n", indent,
+				    mp->type[pp->index]);
+			sbuf_printf(sb, "%s<sname>%s</sname>\n", indent,
+				    sname);
+		}
+	}
+}
+
 static struct g_geom *
 g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
-	int error, i, npart;
+	int error;
 	struct g_pc98_softc *ms;
 	struct g_slicer *gsp;
 	u_int fwsectors, fwheads, sectorsize;
 	u_char *buf;
-	off_t spercyl;
 
 	g_trace(G_T_TOPOLOGY, "g_pc98_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
@@ -170,7 +301,6 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	gsp = gp->softc;
 	g_topology_unlock();
 	gp->dumpconf = g_pc98_dumpconf;
-	npart = 0;
 	while (1) {	/* a trick to allow us to use break */
 		if (gp->rank != 2 && flags == G_TF_NORMAL)
 			break;
@@ -190,56 +320,16 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		if (sectorsize < 512)
 			break;
 		gsp->frontstuff = sectorsize * fwsectors;
-		spercyl = (off_t)fwsectors * fwheads * sectorsize;
-		buf = g_read_data(cp, 0,
-		    sectorsize < 1024 ? 1024 : sectorsize, &error);
+		buf = g_read_data(cp, 0, 8192, &error);
 		if (buf == NULL || error != 0)
 			break;
-		if (buf[0x1fe] != 0x55 || buf[0x1ff] != 0xaa) {
-			g_free(buf);
-			break;
-		}
-#if 0
-/*
- * XXX: Some sources indicate this is a magic sequence, but appearantly
- * XXX: it is not universal.  Documentation would be wonderfule to have.
- */
-		if (buf[4] != 'I' || buf[5] != 'P' ||
-		    buf[6] != 'L' || buf[7] != '1') {
-			g_free(buf);
-			break;
-		}
-#endif
-		for (i = 0; i < NDOSPART; i++)
-			g_dec_dos_partition(
-				buf + 512 + i * sizeof(struct dos_partition),
-				ms->dp + i);
+		ms->fwsectors = fwsectors;
+		ms->fwheads = fwheads;
+		ms->sectorsize = sectorsize;
+		g_topology_lock();
+		g_pc98_modify(gp, ms, buf);
+		g_topology_unlock();
 		g_free(buf);
-		for (i = 0; i < NDOSPART; i++) {
-			/* If start and end are identical it's bogus */
-			if (ms->dp[i].dp_ssect == ms->dp[i].dp_esect &&
-			    ms->dp[i].dp_shd == ms->dp[i].dp_ehd &&
-			    ms->dp[i].dp_scyl == ms->dp[i].dp_ecyl)
-				continue;
-			if (ms->dp[i].dp_ecyl == 0)
-				continue;
-                        if (bootverbose) {
-				printf("PC98 Slice %d on %s:\n",
-				       i + 1, gp->name);
-				g_pc98_print(i, ms->dp + i);
-			}
-			npart++;
-			ms->type[i] = (ms->dp[i].dp_sid << 8) |
-				ms->dp[i].dp_mid;
-			g_topology_lock();
-			g_slice_config(gp, i, G_SLICE_CONFIG_SET,
-			    ms->dp[i].dp_scyl * spercyl,
-			    (ms->dp[i].dp_ecyl - ms->dp[i].dp_scyl + 1) *
-					       spercyl,
-			    sectorsize,
-			    "%ss%d", gp->name, i + 1);
-			g_topology_unlock();
-		}
 		break;
 	}
 	g_topology_lock();
