@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1993, 1994, 1995, 1996, 1997
+ * Copyright (c) 1992, 1993, 1994, 1995, 1996
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -17,10 +17,49 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @(#) $Header: /tcpdump/master/libpcap/lbl/os-solaris2.h,v 1.19 2000/10/11 04:02:52 guy Exp $ (LBL)
  */
+#ifndef lint
+static const char rcsid[] =
+    "@(#) $Header: /tcpdump/master/libpcap/bpf_dump.c,v 1.12 2000/06/26 04:17:05 assar Exp $ (LBL)";
+#endif
 
-/* Prototypes missing in SunOS 5 */
-char    *strerror(int);
-int	snprintf(char *, size_t, const char *, ...);
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <sys/types.h>
+#include <sys/time.h>
+
+#include <pcap.h>
+#include <stdio.h>
+
+void
+bpf_dump(struct bpf_program *p, int option)
+{
+	struct bpf_insn *insn;
+	int i;
+	int n = p->bf_len;
+
+	insn = p->bf_insns;
+	if (option > 2) {
+		printf("%d\n", n);
+		for (i = 0; i < n; ++insn, ++i) {
+			printf("%u %u %u %u\n", insn->code,
+			       insn->jt, insn->jf, insn->k);
+		}
+		return ;
+	}
+	if (option > 1) {
+		for (i = 0; i < n; ++insn, ++i)
+			printf("{ 0x%x, %d, %d, 0x%08x },\n",
+			       insn->code, insn->jt, insn->jf, insn->k);
+		return;
+	}
+	for (i = 0; i < n; ++insn, ++i) {
+#ifdef BDEBUG
+		extern int bids[];
+		printf(bids[i] > 0 ? "[%02d]" : " -- ", bids[i] - 1);
+#endif
+		puts(bpf_image(insn, i));
+	}
+}
