@@ -24,12 +24,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
+#if 0
 static char * const rcsid = "@(#)re.c,v 1.6 1994/02/01 00:34:43 alm Exp";
+#else
+static char * const rcsid =
+	"$Id: re.c,v 1.13 1997/02/22 14:03:18 peter Exp $";
+#endif
 #endif /* not lint */
 
 #include "ed.h"

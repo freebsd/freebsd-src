@@ -24,12 +24,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
+#if 0
 static char * const rcsid = "@(#)glob.c,v 1.1 1994/02/01 00:34:40 alm Exp";
+#else
+static char * const rcsid =
+	"$Id: glbl.c,v 1.7 1997/02/22 14:03:15 peter Exp $";
+#endif
 #endif /* not lint */
 
 #include <sys/ioctl.h>
