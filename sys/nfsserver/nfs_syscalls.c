@@ -316,7 +316,7 @@ nfssvc_nfsd(struct thread *td)
 				nfsd->nfsd_flag |= NFSD_WAITING;
 				nfsd_waiting++;
 				error = tsleep(nfsd, PSOCK | PCATCH,
-				    "nfsd", 0);
+				    "-", 0);
 				nfsd_waiting--;
 				if (error)
 					goto done;
