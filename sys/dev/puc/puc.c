@@ -256,6 +256,9 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 		case PUC_PORT_TYPE_COM:
 			typestr = "sio";
 			break;
+		case PUC_PORT_TYPE_LPT:
+			typestr = "ppc";
+			break;
 		default:
 			continue;
 		}
@@ -457,8 +460,15 @@ puc_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	struct resource *retval;
 	struct resource_list *rl;
 	struct resource_list_entry *rle;
+	device_t my_child;
 
-	pdev = device_get_ivars(child);
+	/* 
+	 * in the case of a child of child we need to find our immediate child
+	 */
+	for (my_child = child; device_get_parent(my_child) != dev; 
+	     my_child = device_get_parent(my_child));
+
+	pdev = device_get_ivars(my_child);
 	rl = &pdev->resources;
 
 #ifdef PUC_DEBUG
@@ -476,8 +486,11 @@ puc_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		printf("found rle, %lx, %lx, %lx\n", start, end, count);
 #endif
 		retval = rle->res;
-	} else
+	} 
+#ifdef PUC_DEBUG
+	else
 		printf("oops rle is gone\n");
+#endif
 
 	return (retval);
 }

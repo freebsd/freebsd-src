@@ -36,10 +36,13 @@ Communications driver
 .Cd "device pci"
 .Cd "device puc"
 .Cd "device sio"
+.Cd "device ppc"
 .Cd "options PUC_FASTINTR"
 .Sh DESCRIPTION
-This driver acts as a shim to connect PCI serial ports to the
+This driver acts as a shim to connect PCI serial and parallel ports to the
 .Xr sio 4
+and
+.Xr ppc 4
 driver.
 .Pp
 The list of supported devices is in
@@ -57,6 +60,7 @@ errors.
 It cannot be used if the interrupt is shared.
 .Sh SEE ALSO
 .Xr sio 4
+.Xr ppc 4
 .Sh HISTORY
 This driver took the idea from the
 .Nx
@@ -67,6 +71,3 @@ card info.
 Only serial ports are supported through the
 .Xr sio 4
 driver at the moment.
-Someone should write support for parallel ports using the
-.Xr lpt 4
-driver.
