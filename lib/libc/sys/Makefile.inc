@@ -81,7 +81,7 @@ MAN+=	_exit.2 accept.2 access.2 acct.2 adjtime.2 \
 	sigstack.2 sigsuspend.2 socket.2 socketpair.2 stat.2 statfs.2 \
 	swapon.2 symlink.2 sync.2 sysarch.2 syscall.2 \
 	truncate.2 umask.2 undelete.2 \
-	unlink.2 utimes.2 uuidgen.2 vfork.2 wait.2 write.2
+	unlink.2 utimes.2 utrace.2 uuidgen.2 vfork.2 wait.2 write.2
 .if !defined(NO_P1003_1B)
 MAN+=	sched_get_priority_max.2 sched_setparam.2 \
 	sched_setscheduler.2 sched_yield.2
