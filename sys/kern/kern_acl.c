@@ -127,11 +127,11 @@ vaccess_acl_posix1e(enum vtype type, struct acl *acl, mode_t acc_mode,
 				break;
 			dac_granted = 0;
 			dac_granted |= VADMIN;
-			if (acl->acl_entry[i].ae_perm & ACL_PERM_EXEC)
+			if (acl->acl_entry[i].ae_perm & ACL_EXECUTE)
 				dac_granted |= VEXEC;
-			if (acl->acl_entry[i].ae_perm & ACL_PERM_READ)
+			if (acl->acl_entry[i].ae_perm & ACL_READ)
 				dac_granted |= VREAD;
-			if (acl->acl_entry[i].ae_perm & ACL_PERM_WRITE)
+			if (acl->acl_entry[i].ae_perm & ACL_WRITE)
 				dac_granted |= VWRITE;
 			if ((acc_mode & dac_granted) == acc_mode)
 				return (0);
@@ -174,11 +174,11 @@ vaccess_acl_posix1e(enum vtype type, struct acl *acl, mode_t acc_mode,
 	}
 	if (acl_mask != NULL) {
 		acl_mask_granted = 0;
-		if (acl_mask->ae_perm & ACL_PERM_EXEC)
+		if (acl_mask->ae_perm & ACL_EXECUTE)
 			acl_mask_granted |= VEXEC;
-		if (acl_mask->ae_perm & ACL_PERM_READ)
+		if (acl_mask->ae_perm & ACL_READ)
 			acl_mask_granted |= VREAD;
-		if (acl_mask->ae_perm & ACL_PERM_WRITE)
+		if (acl_mask->ae_perm & ACL_WRITE)
 			acl_mask_granted |= VWRITE;
 	} else
 		acl_mask_granted = VEXEC | VREAD | VWRITE;
@@ -200,11 +200,11 @@ vaccess_acl_posix1e(enum vtype type, struct acl *acl, mode_t acc_mode,
 			if (acl->acl_entry[i].ae_id != cred->cr_uid)
 				break;
 			dac_granted = 0;
-			if (acl->acl_entry[i].ae_perm & ACL_PERM_EXEC)
+			if (acl->acl_entry[i].ae_perm & ACL_EXECUTE)
 				dac_granted |= VEXEC;
-			if (acl->acl_entry[i].ae_perm & ACL_PERM_READ)
+			if (acl->acl_entry[i].ae_perm & ACL_READ)
 				dac_granted |= VREAD;
-			if (acl->acl_entry[i].ae_perm & ACL_PERM_WRITE)
+			if (acl->acl_entry[i].ae_perm & ACL_WRITE)
 				dac_granted |= VWRITE;
 			dac_granted &= acl_mask_granted;
 			if ((acc_mode & dac_granted) == acc_mode)
@@ -232,11 +232,11 @@ vaccess_acl_posix1e(enum vtype type, struct acl *acl, mode_t acc_mode,
 		case ACL_GROUP:
 			if (groupmember(acl->acl_entry[i].ae_id, cred)) {
 				dac_granted = 0;
-				if (acl->acl_entry[i].ae_perm & ACL_PERM_EXEC)
+				if (acl->acl_entry[i].ae_perm & ACL_EXECUTE)
 					dac_granted |= VEXEC;
-				if (acl->acl_entry[i].ae_perm & ACL_PERM_READ)
+				if (acl->acl_entry[i].ae_perm & ACL_READ)
 					dac_granted |= VREAD;
-				if (acl->acl_entry[i].ae_perm & ACL_PERM_WRITE)
+				if (acl->acl_entry[i].ae_perm & ACL_WRITE)
 					dac_granted |= VWRITE;
 				dac_granted  &= acl_mask_granted;
 
@@ -262,13 +262,13 @@ vaccess_acl_posix1e(enum vtype type, struct acl *acl, mode_t acc_mode,
 				    cred)) {
 					dac_granted = 0;
 					if (acl->acl_entry[i].ae_perm &
-					    ACL_PERM_EXEC)
+					    ACL_EXECUTE)
 					dac_granted |= VEXEC;
 					if (acl->acl_entry[i].ae_perm &
-					    ACL_PERM_READ)
+					    ACL_READ)
 						dac_granted |= VREAD;
 					if (acl->acl_entry[i].ae_perm &
-					    ACL_PERM_WRITE)
+					    ACL_WRITE)
 						dac_granted |= VWRITE;
 					dac_granted &= acl_mask_granted;
 					if ((acc_mode & (dac_granted |
@@ -292,11 +292,11 @@ vaccess_acl_posix1e(enum vtype type, struct acl *acl, mode_t acc_mode,
 	 * Fall back on ACL_OTHER.  ACL_MASK is not applied to ACL_OTHER.
 	 */
 	dac_granted = 0;
-	if (acl_other->ae_perm & ACL_PERM_EXEC)
+	if (acl_other->ae_perm & ACL_EXECUTE)
 		dac_granted |= VEXEC;
-	if (acl_other->ae_perm & ACL_PERM_READ)
+	if (acl_other->ae_perm & ACL_READ)
 		dac_granted |= VREAD;
-	if (acl_other->ae_perm & ACL_PERM_WRITE)
+	if (acl_other->ae_perm & ACL_WRITE)
 		dac_granted |= VWRITE;
 
 	if ((acc_mode & dac_granted) == acc_mode)
@@ -324,29 +324,29 @@ acl_posix1e_mode_to_perm(acl_tag_t tag, mode_t mode)
 	switch(tag) {
 	case ACL_USER_OBJ:
 		if (mode & S_IXUSR)
-			perm |= ACL_PERM_EXEC;
+			perm |= ACL_EXECUTE;
 		if (mode & S_IRUSR)
-			perm |= ACL_PERM_READ;
+			perm |= ACL_READ;
 		if (mode & S_IWUSR)
-			perm |= ACL_PERM_WRITE;
+			perm |= ACL_WRITE;
 		return (perm);
 
 	case ACL_GROUP_OBJ:
 		if (mode & S_IXGRP)
-			perm |= ACL_PERM_EXEC;
+			perm |= ACL_EXECUTE;
 		if (mode & S_IRGRP)
-			perm |= ACL_PERM_READ;
+			perm |= ACL_READ;
 		if (mode & S_IWGRP)
-			perm |= ACL_PERM_WRITE;
+			perm |= ACL_WRITE;
 		return (perm);
 
 	case ACL_OTHER:
 		if (mode & S_IXOTH)
-			perm |= ACL_PERM_EXEC;
+			perm |= ACL_EXECUTE;
 		if (mode & S_IROTH)
-			perm |= ACL_PERM_READ;
+			perm |= ACL_READ;
 		if (mode & S_IWOTH)
-			perm |= ACL_PERM_WRITE;
+			perm |= ACL_WRITE;
 		return (perm);
 
 	default:
@@ -397,23 +397,23 @@ acl_posix1e_perms_to_mode(struct acl_entry *acl_user_obj_entry,
 	mode_t	mode;
 
 	mode = 0;
-	if (acl_user_obj_entry->ae_perm & ACL_PERM_EXEC)
+	if (acl_user_obj_entry->ae_perm & ACL_EXECUTE)
 		mode |= S_IXUSR;
-	if (acl_user_obj_entry->ae_perm & ACL_PERM_READ)
+	if (acl_user_obj_entry->ae_perm & ACL_READ)
 		mode |= S_IRUSR;
-	if (acl_user_obj_entry->ae_perm & ACL_PERM_WRITE)
+	if (acl_user_obj_entry->ae_perm & ACL_WRITE)
 		mode |= S_IWUSR;
-	if (acl_group_obj_entry->ae_perm & ACL_PERM_EXEC)
+	if (acl_group_obj_entry->ae_perm & ACL_EXECUTE)
 		mode |= S_IXGRP;
-	if (acl_group_obj_entry->ae_perm & ACL_PERM_READ)
+	if (acl_group_obj_entry->ae_perm & ACL_READ)
 		mode |= S_IRGRP;
-	if (acl_group_obj_entry->ae_perm & ACL_PERM_WRITE)
+	if (acl_group_obj_entry->ae_perm & ACL_WRITE)
 		mode |= S_IWGRP;
-	if (acl_other_entry->ae_perm & ACL_PERM_EXEC)
+	if (acl_other_entry->ae_perm & ACL_EXECUTE)
 		mode |= S_IXOTH;
-	if (acl_other_entry->ae_perm & ACL_PERM_READ)
+	if (acl_other_entry->ae_perm & ACL_READ)
 		mode |= S_IROTH;
-	if (acl_other_entry->ae_perm & ACL_PERM_WRITE)
+	if (acl_other_entry->ae_perm & ACL_WRITE)
 		mode |= S_IWOTH;
 
 	return (mode);

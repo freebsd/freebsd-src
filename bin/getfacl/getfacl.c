@@ -61,31 +61,31 @@ acl_from_stat(struct stat sb)
 	acl->acl_entry[0].ae_id  = sb.st_uid;
 	acl->acl_entry[0].ae_perm = 0;
 	if (sb.st_mode & S_IRUSR)
-		acl->acl_entry[0].ae_perm |= ACL_PERM_READ;
+		acl->acl_entry[0].ae_perm |= ACL_READ;
 	if (sb.st_mode & S_IWUSR)
-		acl->acl_entry[0].ae_perm |= ACL_PERM_WRITE;
+		acl->acl_entry[0].ae_perm |= ACL_WRITE;
 	if (sb.st_mode & S_IXUSR)
-		acl->acl_entry[0].ae_perm |= ACL_PERM_EXEC;
+		acl->acl_entry[0].ae_perm |= ACL_EXECUTE;
 
 	acl->acl_entry[1].ae_tag = ACL_GROUP_OBJ;
 	acl->acl_entry[1].ae_id  = sb.st_gid;
 	acl->acl_entry[1].ae_perm = 0;
 	if (sb.st_mode & S_IRGRP)
-		acl->acl_entry[1].ae_perm |= ACL_PERM_READ;
+		acl->acl_entry[1].ae_perm |= ACL_READ;
 	if (sb.st_mode & S_IWGRP)
-		acl->acl_entry[1].ae_perm |= ACL_PERM_WRITE;
+		acl->acl_entry[1].ae_perm |= ACL_WRITE;
 	if (sb.st_mode & S_IXGRP)
-		acl->acl_entry[1].ae_perm |= ACL_PERM_EXEC;
+		acl->acl_entry[1].ae_perm |= ACL_EXECUTE;
 
 	acl->acl_entry[2].ae_tag = ACL_OTHER_OBJ;
 	acl->acl_entry[2].ae_id  = 0;
 	acl->acl_entry[2].ae_perm = 0;
 	if (sb.st_mode & S_IROTH)
-		acl->acl_entry[2].ae_perm |= ACL_PERM_READ;
+		acl->acl_entry[2].ae_perm |= ACL_READ;
 	if (sb.st_mode & S_IWOTH)
-		acl->acl_entry[2].ae_perm |= ACL_PERM_WRITE;
+		acl->acl_entry[2].ae_perm |= ACL_WRITE;
 	if (sb.st_mode & S_IXOTH)
-		acl->acl_entry[2].ae_perm |= ACL_PERM_EXEC;
+		acl->acl_entry[2].ae_perm |= ACL_EXECUTE;
 
 	acl->acl_cnt = 3;
 
