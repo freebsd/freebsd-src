@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.26 1994/10/10 00:46:09 jkh Exp $
+ *      $Id: bt742a.c,v 1.27 1994/10/12 04:15:30 phk Exp $
  */
 
 /*
@@ -403,6 +403,7 @@ struct bt_ccb *bt_get_ccb();
 struct bt_ccb *bt_ccb_phys_kv();
 
 static int btunit = 0;
+static int btprobing = 0;
 
 struct isa_driver btdriver =
 {
@@ -500,7 +501,9 @@ bt_cmd(unit, icnt, ocnt, wait, retval, opcode, args)
 			DELAY(10);
 		}
 		if (i == 0) {
-			printf("bt%d: bt_cmd, host not idle(0x%x)\n", unit, sts);
+			if(!btprobing)
+				printf("bt%d: bt_cmd, host not idle(0x%x)\n",
+					unit, sts);
 			return (ENXIO);
 		}
 	}
@@ -527,7 +530,9 @@ bt_cmd(unit, icnt, ocnt, wait, retval, opcode, args)
 			DELAY(10);
 		}
 		if (i == 0) {
-			printf("bt%d: bt_cmd, cmd/data port full\n", unit);
+			if(!btprobing)
+				printf("bt%d: bt_cmd, cmd/data port full\n",
+					unit);
 			outb(BT_CTRL_STAT_PORT, BT_SRST);
 			return (ENXIO);
 		}
@@ -546,8 +551,9 @@ bt_cmd(unit, icnt, ocnt, wait, retval, opcode, args)
 			DELAY(10);
 		}
 		if (i == 0) {
-			printf("bt%d: bt_cmd, cmd/data port empty %d\n",
-			    unit, ocnt);
+			if(!btprobing)
+				printf("bt%d: bt_cmd, cmd/data port empty %d\n",
+				    unit, ocnt);
 			return (ENXIO);
 		}
 		oc = inb(BT_CMD_DATA_PORT);
@@ -566,7 +572,9 @@ bt_cmd(unit, icnt, ocnt, wait, retval, opcode, args)
 		DELAY(10);
 	}
 	if (i == 0) {
-		printf("bt%d: bt_cmd, host not finished(0x%x)\n", unit, sts);
+		if(!btprobing)
+			printf("bt%d: bt_cmd, host not finished(0x%x)\n", 
+				unit, sts);
 		return (ENXIO);
 	}
 	outb(BT_CTRL_STAT_PORT, BT_IRST);
@@ -589,6 +597,7 @@ btprobe(dev)
 	int     unit = btunit;
 	struct bt_data *bt;
 
+	btprobing = 1;
 	if (unit >= NBT) {
 		printf("bt%d: unit number too high\n", unit);
 		return 0;
@@ -638,7 +647,8 @@ btattach(dev)
 {
 	int	unit = dev->id_unit;
 	struct	bt_data *bt = btdata[unit];
-
+	
+	btprobing = 0;
 	/*
 	 * fill in the prototype scsi_link.
 	 */
@@ -1075,7 +1085,10 @@ bt_init(unit)
          * Displaying Board ID and Hardware Revision
          *                                   94/05/18 amurai@spec.co.jp
          */
-	bt_cmd(unit, 1, sizeof(binfo),0,&binfo,BT_GET_BOARD_INFO,sizeof(binfo));
+	i = bt_cmd(unit, 1, sizeof(binfo),0,
+		&binfo,BT_GET_BOARD_INFO,sizeof(binfo));
+	if(i) 
+		return i;
 	printf("bt%d: Bt%c%c%c%c/%c%d-", unit,
 				binfo.id[0],
 				binfo.id[1],

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.65 1994/10/15 21:33:58 ache Exp $
+ *	$Id: syscons.c,v 1.66 1994/10/17 12:44:02 ache Exp $
  */
 
 #include "sc.h"
@@ -286,7 +286,7 @@ extern  char 		*video_mode_ptr;
 int     color_display = -1;
 
 struct	isa_driver scdriver = {
-	pcprobe, pcattach, "sc",
+	pcprobe, pcattach, "sc", 1
 };
 
 int

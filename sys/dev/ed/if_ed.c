@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.49 1994/10/08 09:24:20 davidg Exp $
+ * $Id: if_ed.c,v 1.50 1994/10/14 11:56:36 davidg Exp $
  */
 
 #include "ed.h"
@@ -128,7 +128,8 @@ void    ed_setrcr(struct ifnet *, struct ed_softc *);
 struct isa_driver eddriver = {
 	ed_probe,
 	ed_attach,
-	"ed"
+	"ed",
+	1		/* We are ultra sensitive */
 };
 
 /*
