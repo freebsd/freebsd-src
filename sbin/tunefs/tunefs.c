@@ -317,9 +317,9 @@ void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
-"usage: tunefs [-A] [-a maxcontig] [-d rotdelay] [-e maxbpg] [-f avgfilesize]",
-"              [-m minfree] [-p] [-n enable | disable] [-o space | time]",
-"              [-s filesperdir] special | file system");
+"usage: tunefs [-A] [-e maxbpg] [-f avgfilesize] [-m minfree]",
+"              [-n enable | disable] [-o space | time] [-p] [-s avgfpdir]",
+"              special | filesystem");
 	exit(2);
 }
 
@@ -386,8 +386,6 @@ printfs()
 {
 	warnx("soft updates:  (-n)                                %s", 
 		(sblock.fs_flags & FS_DOSOFTDEP)? "enabled" : "disabled");
-	warnx("maximum contiguous block count: (-a)               %d",
-	      sblock.fs_maxcontig);
 	warnx("maximum blocks per file in a cylinder group: (-e)  %d",
 	      sblock.fs_maxbpg);
 	warnx("average file size: (-f)                            %d",
