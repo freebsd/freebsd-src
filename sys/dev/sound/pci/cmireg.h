@@ -114,9 +114,11 @@
 #define CMPCI_REG_MISC			0x18
 #  define CMPCI_REG_POWER_DOWN		0x80000000
 #  define CMPCI_REG_BUS_AND_DSP_RESET	0x40000000
+#  define CMPCI_REG_N4SPK3D		0x04000000
 #  define CMPCI_REG_W_SPDIF_48L		0x01000000
-#  define CMPCI_REG_SPDIF_48K		0x00008000
+#  define CMPCI_REG_XCHGDAC		0x00400000
 #  define CMPCI_REG_FM_ENABLE		0x00080000
+#  define CMPCI_REG_SPDIF_48K		0x00008000
 
 #define CMPCI_REG_SBDATA		0x22
 #define CMPCI_REG_SBADDR		0x23
@@ -166,6 +168,11 @@
 #  define CMPCI_ADJUST_MIC_GAIN(sc, x) cmpci_adjust((x), 0xf8)
 #  define CMPCI_ADJUST_GAIN(sc, x)     cmpci_adjust((x), 0xf8)
 #  define CMPCI_ADJUST_2_GAIN(sc, x)   cmpci_adjust((x), 0xc0)
+
+#define CMPCI_REG_MIXER1		0x24
+#  define CMPCI_SPK4			0x20
+#  define CMPCI_REAR2FRONT		0x10
+#  define CMPCI_X3DEN			0x02
 
 #define CMPCI_REG_MPU_BASE		0x40
 #define CMPCI_REG_MPU_SIZE		0x10
