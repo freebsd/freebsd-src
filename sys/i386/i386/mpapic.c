@@ -466,7 +466,7 @@ imen_dump(void)
 	int x;
 
 	printf("SMP: enabled INTs: ");
-	for (x = 0; x < APIC_IMEN_BITS; ++x)
+	for (x = 0; x < NHWI; ++x)
 		if ((apic_imen & (1 << x)) == 0)
         		printf("%d, ", x);
 	printf("apic_imen: 0x%08x\n", apic_imen);
