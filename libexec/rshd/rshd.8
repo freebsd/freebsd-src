@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)rshd.8	8.1 (Berkeley) 6/4/93
-.\"	$Id: rshd.8,v 1.4 1996/09/22 21:55:06 wosch Exp $
+.\"	$Id: rshd.8,v 1.4.2.1 1997/05/10 21:41:51 davidn Exp $
 .\"
 .Dd June 4, 1993
 .Dt RSHD 8
@@ -43,7 +43,7 @@
 .Op Fl alnL
 .Sh DESCRIPTION
 The
-.Nm rshd
+.Nm
 server
 is the server for the 
 .Xr rcmd 3
@@ -53,7 +53,7 @@ program.  The server provides remote execution facilities
 with authentication based on privileged port numbers from trusted hosts.
 .Pp
 The
-.Nm rshd
+.Nm
 server
 listens for service requests at the port indicated in
 the ``cmd'' service specification; see
@@ -67,7 +67,9 @@ If the port is not in the range 512-1023, the server
 aborts the connection.
 .It
 The server reads characters from the socket up
-to a null (`\e0') byte.  The resultant string is
+to a
+.Tn NUL
+(`\e0') byte.  The resultant string is
 interpreted as an
 .Tn ASCII
 number, base 10.
@@ -85,7 +87,7 @@ and requests the corresponding host name (see
 .Xr gethostbyaddr 3 ,
 .Xr hosts 5
 and
-.Xr named 8 ) .
+.Xr named 8 ).
 If the hostname cannot be determined,
 the dot-notation representation of the host address is used.
 If the hostname is in the same domain as the server (according to
@@ -96,7 +98,7 @@ option is given,
 the addresses for the hostname are requested,
 verifying that the name and address correspond.
 If address verification fails, the connection is aborted
-with the message, ``Host address mismatch.''
+with the message: ``Host address mismatch.''.
 .It
 A null terminated user name of at most 16 characters
 is retrieved on the initial socket.  This user name
@@ -126,7 +128,9 @@ file found in the user's home directory.  The
 .Fl l
 option prevents
 .Xr ruserok 3
-from doing any validation based on the user's ``.rhosts'' file,
+from doing any validation based on the user's
+.Pa .rhosts
+file,
 unless the user is the superuser.
 .It
 If the file 
@@ -134,18 +138,23 @@ If the file
 exists and the user is not the superuser,
 the connection is closed.
 The name of the nologin file may be overridden
-using the nologin= capability in login.conf
+using the nologin capability in
+.Pa /etc/login.conf
 according to the local user's login class,
-which may also be used to restrict rsh access by
+which may also be used to restrict
+.Xr rsh 1
+access by
 login time (times.allow and times.deny capabilities)
 and remote host (hosts.allow and hosts.deny capabilities).
 .It
-A null byte is returned on the initial socket
+A
+.Tn NUL
+byte is returned on the initial socket
 and the command line is passed to the normal login
 shell of the user.  The
 shell inherits the network connections established
 by
-.Nm rshd .
+.Nm Ns .
 .El
 .Pp
 Transport-level keepalive messages are enabled unless the
@@ -176,27 +185,29 @@ longer than 16 characters.
 .It Sy Ruser too long.
 The name of the user on the remote machine is
 longer than 16 characters.
-.It Sy Command too long  .
+.It Sy Command too long.
 The command line passed exceeds the size of the argument
 list (as configured into the system).
 .It Sy Login incorrect.
 No password file entry for the user name existed.
 .It Sy Remote directory.
 The 
-.Xr chdir
-command to the home directory failed.
+.Xr chdir 2
+function to the home directory failed.
 .It Sy Permission denied.
 The authentication procedure described above failed.
 .It Sy Logins not available right now.
-Rsh was attempted outside the allowed hours defined in
-login.conf for the local user's login class.
+.Xr Rsh 1
+was attempted outside the allowed hours defined in
+.Pa /etc/login.conf
+for the local user's login class.
 .It Sy Can't make pipe.
 The pipe needed for the 
 .Em stderr ,
 wasn't created.
 .It Sy Can't fork; try again. 
 A
-.Xr fork
+.Xr fork 2
 by the server failed.
 .It Sy <shellname>: ...
 The user's login shell could not be started.  This message is returned
@@ -221,6 +232,7 @@ and is not preceded by a flag byte.
 .Bl -tag -width /etc/hosts -compact
 .It Pa /etc/hosts
 .It Pa /etc/hosts.equiv
+.It Pa /etc/login.conf
 .It Pa $HOME/.rhosts
 .It Pa /etc/nologin
 .El
