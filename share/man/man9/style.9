@@ -34,6 +34,10 @@ This file specifies the preferred style for kernel source files in the
 .Fx
 source tree.
 It is also a guide for preferred userland code style.
+Many of the style rules are implicit in the examples.
+Be careful to check the examples before assuming that
+.Xr style 9
+is silent on an issue.
 .Bd -literal
 /*
  * Style guide for FreeBSD.  Based on the CSRG's KNF (Kernel Normal Form).
@@ -103,6 +107,10 @@ For a network program, put the network include files next.
 #include <netinet/in.h>
 #include <protocols/rwhod.h>
 .Ed
+.Pp
+Do not use files in
+.Pa /usr/include
+for files in the kernel.
 .Pp
 Leave a blank line before the next group, the
 .Pa /usr
