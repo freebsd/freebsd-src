@@ -1553,7 +1553,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, ioctl_cmd_t cmd, caddr_t arg, struct thr
 		break;
 
 	case METEORSSIGNAL:
-		if(*(int *)arg == 0 || *(int *)arg >= NSIG) {
+		if(*(int *)arg <= 0 || *(int *)arg > _SIG_MAXSIG) {
 			return( EINVAL );
 			break;
 		}
