@@ -106,8 +106,8 @@ struct sym_fwa_ofs {
 };
 struct sym_fwb_ofs {
 	SYM_GEN_FW_B(u_short)
-	SYM_GEN_B(u_short, start64);
-	SYM_GEN_B(u_short, pm_handle);
+	SYM_GEN_B(u_short, start64)
+	SYM_GEN_B(u_short, pm_handle)
 };
 
 /*
@@ -119,8 +119,8 @@ struct sym_fwa_ba {
 };
 struct sym_fwb_ba {
 	SYM_GEN_FW_B(u32)
-	SYM_GEN_B(u32, start64);
-	SYM_GEN_B(u32, pm_handle);
+	SYM_GEN_B(u32, start64)
+	SYM_GEN_B(u32, pm_handle)
 };
 #undef	SYM_GEN_A
 #undef	SYM_GEN_B
