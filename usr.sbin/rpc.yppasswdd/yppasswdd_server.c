@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswdd_server.c,v 1.5 1996/06/23 22:44:06 wpaul Exp $
+ *	$Id: yppasswdd_server.c,v 1.6 1996/07/01 19:38:38 guido Exp $
  */
 
 #include <stdio.h>
@@ -61,7 +61,7 @@ struct dom_binding {};
 #include "yppasswd_comm.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yppasswdd_server.c,v 1.5 1996/06/23 22:44:06 wpaul Exp $";
+static const char rcsid[] = "$Id: yppasswdd_server.c,v 1.6 1996/07/01 19:38:38 guido Exp $";
 #endif /* not lint */
 
 char *tempname;
@@ -420,6 +420,19 @@ static int update_inplace(pw, domain)
 	return(0);
 }
 
+static char *yp_mktmpnam()
+{
+	static char path[MAXPATHLEN];
+	char *p;
+
+	sprintf(path,"%s",passfile);
+	if ((p = strrchr(path, '/')))
+		++p;
+	else
+		p = path;
+	strcpy(p, "yppwtmp.XXXXXX");
+	return(mktemp(path));
+}
 
 int *
 yppasswdproc_update_1_svc(yppasswd *argp, struct svc_req *rqstp)
@@ -437,8 +450,9 @@ yppasswdproc_update_1_svc(yppasswd *argp, struct svc_req *rqstp)
 	char *oldgecos = NULL;
 	char *passfile_hold;
 	char passfile_buf[MAXPATHLEN + 2];
-	char template[] = "/etc/yppwtmp.XXXXX";
 	char *domain = yppasswd_domain;
+	static struct sockaddr_in clntaddr;
+	static struct timeval t_saved, t_test;
 
 	/*
 	 * Normal user updates always use the 'default' master.passwd file.
@@ -448,6 +462,20 @@ yppasswdproc_update_1_svc(yppasswd *argp, struct svc_req *rqstp)
 	result = 1;
 
 	rqhost = svc_getcaller(rqstp->rq_xprt);
+
+	gettimeofday(&t_test, NULL);
+	if (!bcmp((char *)rqhost, (char *)&clntaddr,
+						sizeof(struct sockaddr_in)) &&
+		t_test.tv_sec > t_saved.tv_sec &&
+		t_test.tv_sec - t_saved.tv_sec < 300) {
+
+		bzero((char *)&clntaddr, sizeof(struct sockaddr_in));
+		bzero((char *)&t_saved, sizeof(struct timeval));
+		return(NULL);
+	}
+
+	bcopy((char *)rqhost, (char *)&clntaddr, sizeof(struct sockaddr_in));
+	gettimeofday(&t_saved, NULL);
 
 	if (yp_access(resvport ? "master.passwd.byname" : NULL, rqstp)) {
 		yp_error("rejected update request from unauthorized host");
@@ -562,7 +590,7 @@ cleaning up and bailing out");
 		return(&result);
 	}
 
-	passfile_hold = mktemp((char *)&template);
+	passfile_hold = yp_mktmpnam();
 	rename(passfile, passfile_hold);
 	if (strcmp(passfile, _PATH_MASTERPASSWD)) {
 		rename(tempname, passfile);
@@ -581,7 +609,6 @@ cleaning up and bailing out");
 
 	switch((pid = fork())) {
 	case 0:
-		/* unlink(passfile_hold); */
 		if (inplace && !rval) {
     			execlp(MAP_UPDATE_PATH, MAP_UPDATE, passfile,
 				yppasswd_domain, "pushpw", NULL);
@@ -597,11 +624,12 @@ cleaning up and bailing out");
 		break;
 	case -1:
 		yp_error("fork() failed: %s", strerror(errno));
-		return(&result);
 		unlink(passfile);
 		rename(passfile_hold, passfile);
+		return(&result);
 		break;
 	default:
+		unlink(passfile_hold);
 		break;
 	}
 
@@ -624,7 +652,6 @@ cleaning up and bailing out");
 
 	result = 0;
 	return (&result);
-
 }
 
 /*
@@ -641,7 +668,6 @@ static int update_master(master_yppasswd *argp)
 	DBT key, data;
 	char *passfile_hold;
 	char passfile_buf[MAXPATHLEN + 2];
-	char template[] = "/etc/yppwtmp.XXXXX";
 
 	result = 1;
 	passfile = passfile_default;
@@ -713,7 +739,7 @@ cleaning up and bailing out");
 		return(result);
 	}
 
-	passfile_hold = mktemp((char *)&template);
+	passfile_hold = yp_mktmpnam();
 	rename(passfile, passfile_hold);
 	if (strcmp(passfile, _PATH_MASTERPASSWD)) {
 		rename(tempname, passfile);
@@ -754,6 +780,7 @@ cleaning up and bailing out");
 		return(result);
 		break;
 	default:
+		unlink(passfile_hold);
 		break;
 	}
 
