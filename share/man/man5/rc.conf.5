@@ -109,6 +109,11 @@ for the default value.
 (str) List of arguments to be passed to ifconfig(8) at boot time or on
 insertion of of the card (e.g. "inet 192.168.1.1 netmask 255.255.255.0"
 for a fixed address or "DHCP" for a DHCP client).
+.It Ar pccard_beep
+(integer) If 0,
+set the PCCARD controller to silent mode.
+If 1,
+set it to beep mode.
 .It Ar pccard_conf
 (str) Path to the configuration file for the
 .Xr pccardd 8
