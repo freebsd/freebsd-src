@@ -93,6 +93,7 @@ SUBDIR=	accf_data \
 # XXX some of these can move to the general case when de-i386'ed
 .if ${MACHINE_ARCH} == "i386"
 SUBDIR+=aac \
+	ar \
 	asr \
 	bktr \
 	ciss \
@@ -111,6 +112,7 @@ SUBDIR+=aac \
 	smbfs \
 	splash \
 	sppp \
+	sr \
 	stg \
 	streams \
 	svr4 \

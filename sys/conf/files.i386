@@ -83,6 +83,7 @@ crypto/des/arch/i386/des_enc.S		optional	netsmbcrypto
 crypto/des/des_setkey.c			optional	netsmbcrypto
 dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_isa.c		optional	aic isa
+dev/ar/if_ar_isa.c		optional	ar isa
 dev/dgb/dgm.c			optional	dgm
 dev/cm/if_cm_isa.c		optional	cm isa
 dev/ed/if_ed.c			optional	ed
@@ -233,7 +234,6 @@ i386/isa/elink.c		optional	ie
 isa/fd.c			optional	fd
 i386/isa/gpib.c			optional	gp
 i386/isa/gsc.c			optional	gsc
-i386/isa/if_ar.c		optional	ar
 i386/isa/if_cx.c		optional	cx
 i386/isa/if_el.c		optional	el
 i386/isa/if_le.c		optional	le

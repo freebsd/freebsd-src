@@ -20,6 +20,8 @@ SUBDIR=	async \
 	pptpgre \
 	rfc1490 \
 	socket \
+	sync_ar \
+	sync_sr \
 	tee \
 	tty \
 	UI \
