@@ -1021,18 +1021,8 @@ my_attach(device_t dev)
 	my_stop(sc);
 	ifmedia_set(&sc->ifmedia, media);
 
-	/*
-	 * Call MI attach routines.
-	 */
-
-
-	if_attach(ifp);
-
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 
-#if NBPFILTER > 0
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif
 #if 0
 	at_shutdown(my_shutdown, sc, SHUTDOWN_POST_SYNC);
 	shutdownhook_establish(my_shutdown, sc);
