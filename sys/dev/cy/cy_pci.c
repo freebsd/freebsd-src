@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cy_pci.c,v 1.13 1999/05/02 20:42:13 peter Exp $
+ *	$Id: cy_pci.c,v 1.14 1999/05/09 17:06:43 peter Exp $
  */
 
 /*
@@ -72,11 +72,10 @@ cy_probe(config_id, device_id)
 	pcici_t config_id;
 	pcidi_t device_id;
 {
-	if ((device_id & 0xffff) == CY_VENDORID_CYCLADES &&
-	    ((device_id >> 16) == CY_DEVICEID_CYCLOM_Y_1 ||
-	     (device_id >> 16) == CY_DEVICEID_CYCLOM_Y_2))
+	device_id &= ~0x00060000;
+	if (device_id == 0x0100120e || device_id == 0x0101120e)
 		return ("Cyclades Cyclom-Y Serial Adapter");
-	return NULL;
+	return (NULL);
 }
 
 static void
