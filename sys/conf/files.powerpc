@@ -23,10 +23,12 @@ powerpc/powerpc/fpu.c		standard
 powerpc/powerpc/fuswintr.c	standard
 powerpc/powerpc/in_cksum.c	optional	inet
 powerpc/powerpc/interrupt.c	standard
+powerpc/powerpc/intr_machdep.c	standard
 powerpc/powerpc/machdep.c	standard
 powerpc/powerpc/nexus.c		standard
 powerpc/powerpc/ofwmagic.s	standard
 powerpc/powerpc/ofw_machdep.c	standard
+powerpc/powerpc/pic_if.m	standard
 powerpc/powerpc/pmap.c		standard
 powerpc/powerpc/sigcode.S	standard
 powerpc/powerpc/suswintr.c	standard
