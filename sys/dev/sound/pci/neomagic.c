@@ -428,10 +428,11 @@ static void
 nm_intr(void *p)
 {
 	struct sc_info *sc = (struct sc_info *)p;
-	int status, x;
+	int status, x, active;
 
+	active = (sc->pch.channel->buffer.dl || sc->rch.channel->buffer.dl);
 	status = nm_rd(sc, NM_INT_REG, sc->irsz);
-	if (status == 0) {
+	if (status == 0 && active) {
 		if (sc->badintr++ > 1000) {
 			device_printf(sc->dev, "1000 bad intrs\n");
 			sc->badintr = 0;
@@ -506,7 +507,7 @@ nm_init(struct sc_info *sc)
 		sc->recint = NM2_RECORD_INT;
 		sc->misc1int = NM2_MISC_INT_1;
 		sc->misc2int = NM2_MISC_INT_2;
-	}
+	} else return -1;
 	sc->badintr = 0;
 	ofs = sc->buftop - 0x0400;
 	sc->buftop -= 0x1400;
