@@ -1613,7 +1613,7 @@ channel_stop_listening()
 		switch (channels[i].type) {
 		case SSH_CHANNEL_AUTH_SOCKET:
 			close(channels[i].sock);
-			unlink(channels[i].path);
+			/* auth_sock_cleanup_proc deletes the socket */
 			channel_free(i);
 			break;
 		case SSH_CHANNEL_PORT_LISTENER:
@@ -2525,10 +2525,17 @@ auth_get_socket_name()
 /* removes the agent forwarding socket */
 
 void
-cleanup_socket(void)
+auth_sock_cleanup_proc(void *_pw)
 {
-	unlink(channel_forwarded_auth_socket_name);
-	rmdir(channel_forwarded_auth_socket_dir);
+	struct passwd *pw = _pw;
+
+	if (channel_forwarded_auth_socket_name) {
+		temporarily_use_uid(pw);
+		unlink(channel_forwarded_auth_socket_name);
+		rmdir(channel_forwarded_auth_socket_dir);
+		channel_forwarded_auth_socket_name = NULL;
+		restore_uid();
+	}
 }
 
 /*
@@ -2567,11 +2574,9 @@ auth_input_request_forwarding(struct passwd * pw)
 	snprintf(channel_forwarded_auth_socket_name, MAX_SOCKET_NAME, "%s/agent.%d",
 		 channel_forwarded_auth_socket_dir, (int) getpid());
 
-	if (atexit(cleanup_socket) < 0) {
-		int saved = errno;
-		cleanup_socket();
-		packet_disconnect("socket: %.100s", strerror(saved));
-	}
+	/* delete agent socket on fatal() */
+	fatal_add_cleanup(auth_sock_cleanup_proc, pw);
+
 	/* Create the socket. */
 	sock = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (sock < 0)
