@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.72 1997/12/27 02:56:21 bde Exp $
+ *	$Id: kern_exec.c,v 1.73 1998/01/06 05:15:34 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -54,17 +54,22 @@
 #include <vm/vm_prot.h>
 #include <sys/lock.h>
 #include <vm/pmap.h>
+#include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_zone.h>
+#include <vm/vm_pager.h>
+#include <vm/vm_pageout.h>
 
 #include <machine/reg.h>
 
 static int *exec_copyout_strings __P((struct image_params *));
 
-static int exec_check_permissions(struct image_params *);
+static int exec_check_permissions __P((struct image_params *));
+static int exec_map_first_page __P((struct image_params *));
+static void exec_unmap_first_page __P((struct image_params *));
 
 /*
  * XXX trouble here if sizeof(caddr_t) != sizeof(int), other parts
@@ -114,7 +119,6 @@ execve(p, uap)
 	imgp->proc = p;
 	imgp->uap = uap;
 	imgp->attr = &attr;
-	imgp->image_header = NULL;
 	imgp->argc = imgp->envc = 0;
 	imgp->argv0 = NULL;
 	imgp->entry_addr = 0;
@@ -122,18 +126,21 @@ execve(p, uap)
 	imgp->interpreted = 0;
 	imgp->interpreter_name[0] = '\0';
 	imgp->auxargs = NULL;
+	imgp->vp = NULL;
+	imgp->firstpage = NULL;
 
 	/*
 	 * Allocate temporary demand zeroed space for argument and
 	 *	environment strings
 	 */
-	imgp->stringbase = (char *)kmem_alloc_wait(exec_map, ARG_MAX);
+	imgp->stringbase = (char *)kmem_alloc_wait(exec_map, ARG_MAX + PAGE_SIZE);
 	if (imgp->stringbase == NULL) {
 		error = ENOMEM;
 		goto exec_fail;
 	}
 	imgp->stringp = imgp->stringbase;
 	imgp->stringspace = ARG_MAX;
+	imgp->image_header = imgp->stringbase + ARG_MAX;
 
 	/*
 	 * Translate the file name. namei() returns a vnode pointer
@@ -147,7 +154,8 @@ interpret:
 
 	error = namei(ndp);
 	if (error) {
-		kmem_free_wakeup(exec_map, (vm_offset_t)imgp->stringbase, ARG_MAX);
+		kmem_free_wakeup(exec_map, (vm_offset_t)imgp->stringbase,
+			ARG_MAX + PAGE_SIZE);
 		goto exec_fail;
 	}
 
@@ -162,38 +170,7 @@ interpret:
 		goto exec_fail_dealloc;
 	}
 
-	/*
-	 * Get the image header, which we define here as meaning the first
-	 * page of the executable.
-	 */
-	if (imgp->vp->v_object && imgp->vp->v_mount &&
-	    imgp->vp->v_mount->mnt_stat.f_iosize >= PAGE_SIZE &&
-	    imgp->vp->v_object->un_pager.vnp.vnp_size >=
-	    imgp->vp->v_mount->mnt_stat.f_iosize) {
-		/*
-		 * Get a buffer with (at least) the first page.
-		 */
-		error = bread(imgp->vp, 0, imgp->vp->v_mount->mnt_stat.f_iosize,
-		     p->p_ucred, &bp);
-		imgp->image_header = bp->b_data;
-	} else {
-		int resid;
-
-		/*
-		 * The filesystem block size is too small, so do this the hard
-		 * way. Malloc some space and read PAGE_SIZE worth of the image
-		 * header into it.
-		 */
-		imgp->image_header = malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
-		error = vn_rdwr(UIO_READ, imgp->vp,
-			(void *)imgp->image_header, PAGE_SIZE, 0,
-		    UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred, &resid, p);
-		/*
-		 * Clear out any remaining junk.
-		 */
-		if (!error && resid)
-			bzero((char *)imgp->image_header + PAGE_SIZE - resid, resid);
-	}
+	error = exec_map_first_page(imgp);
 	VOP_UNLOCK(imgp->vp, 0, p);
 	if (error)
 		goto exec_fail_dealloc;
@@ -216,13 +193,7 @@ interpret:
 		if (error)
 			goto exec_fail_dealloc;
 		if (imgp->interpreted) {
-			/* free old bp/image_header */
-			if (bp != NULL) {
-				brelse(bp);
-				bp = NULL;
-			} else
-				free((void *)imgp->image_header, M_TEMP);
-			imgp->image_header = NULL;
+			exec_unmap_first_page(imgp);
 			/* free old vnode and name buffer */
 			vrele(ndp->ni_vp);
 			zfree(namei_zone, ndp->ni_cnd.cn_pnbuf);
@@ -351,30 +322,25 @@ interpret:
 	/* Set entry address */
 	setregs(p, imgp->entry_addr, (u_long)stack_base);
 
+exec_fail_dealloc:
+
 	/*
 	 * free various allocated resources
 	 */
-	kmem_free_wakeup(exec_map, (vm_offset_t)imgp->stringbase, ARG_MAX);
-	if (bp != NULL)
-		brelse(bp);
-	else if (imgp->image_header != NULL)
-		free((void *)imgp->image_header, M_TEMP);
-	vrele(ndp->ni_vp);
-	zfree(namei_zone, ndp->ni_cnd.cn_pnbuf);
+	if (imgp->firstpage)
+		exec_unmap_first_page(imgp);
 
-	return (0);
-
-exec_fail_dealloc:
 	if (imgp->stringbase != NULL)
-		kmem_free_wakeup(exec_map, (vm_offset_t)imgp->stringbase, ARG_MAX);
-	if (bp != NULL)
-		brelse(bp);
-	else if (imgp->image_header != NULL)
-		free((void *)imgp->image_header, M_TEMP);
+		kmem_free_wakeup(exec_map, (vm_offset_t)imgp->stringbase,
+			ARG_MAX + PAGE_SIZE);
+
 	if (ndp->ni_vp) {
 		vrele(ndp->ni_vp);
 		zfree(namei_zone, ndp->ni_cnd.cn_pnbuf);
 	}
+
+	if (error == 0)
+		return (0);
 
 exec_fail:
 	if (imgp->vmspace_destroyed) {
@@ -384,6 +350,71 @@ exec_fail:
 		return(0);
 	} else {
 		return(error);
+	}
+}
+
+int
+exec_map_first_page(imgp)
+	struct image_params *imgp;
+{
+	int s;
+	vm_page_t m;
+	vm_object_t object;
+
+
+	if (imgp->firstpage) {
+		exec_unmap_first_page(imgp);
+	}
+
+	object = imgp->vp->v_object;
+	s = splvm();
+
+retry:
+	m = vm_page_lookup(object, 0);
+	if (m == NULL) {
+		m = vm_page_alloc(object, 0, VM_ALLOC_NORMAL);
+		if (m == NULL) {
+			VM_WAIT;
+			goto retry;
+		}
+	} else if ((m->flags & PG_BUSY) || m->busy) {
+		m->flags |= PG_WANTED;
+		tsleep(m, PVM, "execpw", 0);
+		goto retry;
+	}
+
+	m->flags |= PG_BUSY;
+
+	if ((m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) {
+		int rv;
+		rv = vm_pager_get_pages(object, &m, 1, 0);
+		if (rv != VM_PAGER_OK) {
+			vm_page_protect(m, VM_PROT_NONE);
+			vm_page_deactivate(m);
+			PAGE_WAKEUP(m);
+			splx(s);
+			return EIO;
+		}
+	}
+
+	vm_page_wire(m);
+	PAGE_WAKEUP(m);
+	splx(s);
+
+	pmap_kenter((vm_offset_t) imgp->image_header, VM_PAGE_TO_PHYS(m));
+	imgp->firstpage = m;
+
+	return 0;
+}
+
+void
+exec_unmap_first_page(imgp)
+	struct image_params *imgp;
+{
+	if (imgp->firstpage) {
+		pmap_kremove((vm_offset_t) imgp->image_header);
+		vm_page_unwire(imgp->firstpage);
+		imgp->firstpage = NULL;
 	}
 }
 
@@ -420,10 +451,11 @@ exec_new_vmspace(imgp)
 	}
 
 	/* Allocate a new stack */
-	error = vm_map_find(map, NULL, 0, (vm_offset_t *)&stack_addr,
-	    SGROWSIZ, FALSE, VM_PROT_ALL, VM_PROT_ALL, 0);
+	error = vm_map_insert(&vmspace->vm_map, NULL, 0,
+		(vm_offset_t) stack_addr, (vm_offset_t) USRSTACK,
+		VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (error)
-		return(error);
+		return (error);
 
 	vmspace->vm_ssize = SGROWSIZ >> PAGE_SHIFT;
 
