@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.31.2.2 1995/05/31 22:02:37 jkh Exp $
+ * $Id: label.c,v 1.31.2.3 1995/06/05 08:34:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -171,7 +171,10 @@ static PartInfo *
 new_part(char *mpoint, Boolean newfs, u_long size)
 {
     PartInfo *ret;
-    u_long target,divisor;
+    u_long target, divisor;
+
+    if (!mpoint)
+	mpoint = "/change_me";
 
     ret = (PartInfo *)safe_malloc(sizeof(PartInfo));
     strncpy(ret->mountpoint, mpoint, FILENAME_MAX);
@@ -400,7 +403,7 @@ diskLabelEditor(char *str)
     int sz, i, key = 0;
     Boolean labeling;
     char *msg = NULL;
-    PartInfo *p;
+    PartInfo *p, *oldp;
     PartType type;
     Device **devs;
 
@@ -580,9 +583,11 @@ diskLabelEditor(char *str)
 
 	    case PART_FAT:
 	    case PART_FILESYSTEM:
+		oldp = label_chunk_info[here].c->private;
 		p = get_mountpoint(label_chunk_info[here].c);
 		if (p) {
-		    p->newfs = FALSE;
+		    if (!oldp)
+		    	p->newfs = FALSE;
 		    if (label_chunk_info[here].type == PART_FAT
 			&& (!strcmp(p->mountpoint, "/") || !strcmp(p->mountpoint, "/usr")
 			    || !strcmp(p->mountpoint, "/var"))) {
@@ -608,10 +613,9 @@ diskLabelEditor(char *str)
 	    break;
 
 	case 'T':	/* Toggle newfs state */
-	    if (label_chunk_info[here].type == PART_FILESYSTEM &&
-		label_chunk_info[here].c->private) {
+	    if (label_chunk_info[here].type == PART_FILESYSTEM) {
 		    PartInfo *pi = ((PartInfo *)label_chunk_info[here].c->private);
-		    label_chunk_info[here].c->private = new_part(pi->mountpoint, !pi->newfs, label_chunk_info[here].c->size);
+		    label_chunk_info[here].c->private = new_part(pi ? pi->mountpoint : NULL, pi ? !pi->newfs : TRUE, label_chunk_info[here].c->size);
 		    safe_free(pi);
 		    label_chunk_info[here].c->private_free = safe_free;
 		}
