@@ -37,7 +37,7 @@ SSH=	${.CURDIR}/../crypto/openssh/ssh_config \
 SSL=	${.CURDIR}/../crypto/openssl/apps/openssl.cnf
 .endif
 
-# -rwxr-xr-x root.wheel, for the new cron root.wheel
+# -rwxr-xr-x root:wheel, for the new cron root:wheel
 BIN2=	netstart pccard_ether rc.suspend rc.resume
 
 MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist \
