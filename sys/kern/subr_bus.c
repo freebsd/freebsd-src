@@ -407,7 +407,9 @@ devclass_add_device(devclass_t dc, device_t dev)
 
 	PDEBUG(("%s in devclass %s", DEVICENAME(dev), DEVCLANAME(dc)));
 
-	buflen = strlen(dc->name) + 5;
+	buflen = snprintf(NULL, 0, "%s%d$", dc->name, dev->unit);
+	if (buflen < 0)
+		return (ENOMEM);
 	dev->nameunit = malloc(buflen, M_BUS, M_NOWAIT|M_ZERO);
 	if (!dev->nameunit)
 		return (ENOMEM);
