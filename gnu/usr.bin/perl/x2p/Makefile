@@ -1,9 +1,10 @@
-#	$Id$
+#	$Id: Makefile,v 1.12 1998/05/04 20:09:01 bde Exp $
 
 PROG= a2p
 
 SRCS= a2p.y hash.c str.c walk.c util.c
 CFLAGS+= -I${.CURDIR}/../perl
+YFLAGS=
 
 LDADD= -lm
 DPADD= ${LIBM}
