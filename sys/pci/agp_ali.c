@@ -102,6 +102,10 @@ agp_ali_attach(device_t dev)
 		return error;
 
 	sc->initial_aperture = AGP_GET_APERTURE(dev);
+	if (sc->initial_aperture == 0) {
+		device_printf(dev, "bad initial aperture size, disabling\n");
+		return ENXIO;
+	}
 
 	for (;;) {
 		gatt = agp_alloc_gatt(dev);

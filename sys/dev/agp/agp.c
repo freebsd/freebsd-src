@@ -175,6 +175,11 @@ agp_alloc_gatt(device_t dev)
 			      "allocating GATT for aperture of size %dM\n",
 			      apsize / (1024*1024));
 
+	if (entries == 0) {
+		device_printf(dev, "bad aperture size\n");
+		return NULL;
+	}
+
 	gatt = malloc(sizeof(struct agp_gatt), M_AGP, M_NOWAIT);
 	if (!gatt)
 		return 0;
