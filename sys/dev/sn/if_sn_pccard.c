@@ -56,17 +56,36 @@
 
 #include "card_if.h"
 
-/*
- * Initialize the device - called from Slot manager.
- */
+const struct pccard_product sn_pccard_products[] = {
+	{ PCCARD_STR_MEGAHERTZ2_XJACK,		PCCARD_VENDOR_MEGAHERTZ2,
+	  PCCARD_PRODUCT_MEGAHERTZ2_XJACK,	 0, NULL, NULL },
+	{ PCCARD_STR_NEWMEDIA_BASICS,		PCCARD_VENDOR_NEWMEDIA,
+	  PCCARD_PRODUCT_NEWMEDIA_BASICS,	0, NULL, NULL },
+#if 0
+	{ PCCARD_STR_SMC_8020BT,		PCCARD_VENDOR_SMC,
+	  PCCARD_PRODUCT_SMC_8020BT,		0, NULL, NULL},
+#endif
+	{ NULL }
+};
+static int
+sn_pccard_match(device_t dev)
+{
+	const struct pccard_product *pp;
+
+	if ((pp = pccard_product_lookup(dev, sn_pccard_products,
+	    sizeof(sn_pccard_products[0]), NULL)) != NULL) {
+		device_set_desc(dev, pp->pp_name);
+		return 0;
+	}
+	return EIO;
+}
+
 static int
 sn_pccard_probe(device_t dev)
 {
 	int err;
 
-	printf ("Probing sn driver\n");
 	err = sn_probe(dev, 1);
-	printf("sn_probe says %d\n", err);
 	return (err);
 }
 
@@ -98,12 +117,6 @@ sn_pccard_detach(device_t dev)
 	ether_ifdetach(&sc->arpcom.ac_if, ETHER_BPF_SUPPORTED);
 	sn_deactivate(dev);
 	return 0;
-}
-
-static int
-sn_pccard_match(device_t dev)
-{
-	return EIO;
 }
 
 static device_method_t sn_pccard_methods[] = {
