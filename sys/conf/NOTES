@@ -172,6 +172,9 @@ options		MUTEX_PROFILING
 #
 options 	COMPAT_43
 
+# Enable FreeBSD4 compatibility syscalls
+options 	COMPAT_FREEBSD4
+
 #
 # These three options provide support for System V Interface
 # Definition-style interprocess communication, in the form of shared
