@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.34 1996/06/10 22:51:10 jkh Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.35 1996/06/27 06:33:02 markm Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -483,6 +483,53 @@ for this domain.
 	Contact: <htmlurl url="mailto:count@nic.funet.fi"
 	name="count@nic.funet.fi">.
 
+</itemize>
+
+</descrip>
+
+
+<p>CTM/FreeBSD is available via anonymous FTP from the
+      following mirror sites. If you choose to obtain CTM via
+      anonymous FTP, please try to use a site near you.
+
+In case of problems, please contact Poul-Henning Kamp
+<htmlurl url="mailto:phk@FreeBSD.ORG" name="phk@freebsd.org">.
+
+
+<descrip>
+<tag>California</tag>
+
+<itemize>
+<item>
+<htmlurl url="ftp://freefall.freebsd.org/pub/CTM"
+	name="ftp://freefall.freebsd.org/pub/CTM"><newline>
+</itemize>
+
+
+<tag>Denmark</tag>
+
+<itemize>
+<item>
+<htmlurl url="ftp://sunsite.auc.dk/mirrors/freefall.freebsd.org/pub/CTM"
+	name="ftp://sunsite.auc.dk/mirrors/freefall.freebsd.org/pub/CTM"><newline>
+</itemize>
+
+
+<tag>Germany</tag>
+
+<itemize>
+<item>
+<htmlurl url="ftp://ftp6.de.freebsd.org/pub/bsd/CTM/FreeBSD"
+	name="ftp://ftp6.de.freebsd.org/pub/bsd/CTM/FreeBSD"><newline>
+</itemize>
+
+
+<tag>Taiwan</tag>
+
+<itemize>
+<item>
+<htmlurl url="ftp://ftp.iii.org.tw/OS/FreeBSD/00MIRROR/freefall.freebsd.org/CTM"
+	name="ftp://ftp.iii.org.tw/OS/FreeBSD/00MIRROR/freefall.freebsd.org/CTM"><newline>
 </itemize>
 
 </descrip>
