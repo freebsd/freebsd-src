@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: cardd.c,v 1.19 1997/10/26 04:36:24 nate Exp $";
+	"$Id: cardd.c,v 1.20 1997/10/28 17:51:25 nate Exp $";
 #endif /* not lint */
 
 #include <fcntl.h>
@@ -101,7 +101,7 @@ main(int argc, char *argv[])
 	readslots();
 	if (slots == 0)
 		die("no PC-CARD slots");
-	log_1s("pccardd started", NULL);
+	logmsg("pccardd started", NULL);
 	for (;;) {
 		fd_set  mask;
 		FD_ZERO(&mask);
@@ -183,7 +183,7 @@ readslots(void)
 			if (ioctl(fd, PIOCRWMEM, &mem))
 				logerr("ioctl (PIOCRWMEM)");
 #ifdef DEBUG
-			log_1s("mem=0x%x\n", mem);
+			logmsg("mem=0x%x\n", mem);
 #endif
 			if (mem == 0) {
 				mem = alloc_memory(4 * 1024);
@@ -279,7 +279,7 @@ card_inserted(struct slot *sp)
 	sleep(5);
 	sp->cis = readcis(sp->fd);
 	if (sp->cis == 0) {
-		log_1s("Error reading CIS on %s\n", sp->name);
+		logmsg("Error reading CIS on %s\n", sp->name);
 		return;
 	}
 #if 0
@@ -294,7 +294,7 @@ card_inserted(struct slot *sp)
 	reset_slot(sp);
 #endif
 	if (cp == 0) {
-		log_1s("No card in database for \"%s\"(\"%s\")",
+		logmsg("No card in database for \"%s\"(\"%s\")",
 			sp->cis->manuf, sp->cis->vers);
 		return;
 	}
@@ -306,7 +306,7 @@ card_inserted(struct slot *sp)
 		return;
 	}
 	if (assign_io(sp)) {
-		log_1s("Resource allocation failure for %s", sp->cis->manuf);
+		logmsg("Resource allocation failure for %s", sp->cis->manuf);
 		return;
 	}
 
@@ -343,7 +343,7 @@ read_ether(struct slot *sp)
 	sp->eaddr[3] = net_addr[6];
 	sp->eaddr[4] = net_addr[8];
 	sp->eaddr[5] = net_addr[10];
-	log_1s("Ether=%02x:%02x:%02x:%02x:%02x:%02x\n",
+	logmsg("Ether=%02x:%02x:%02x:%02x:%02x:%02x\n",
 	    sp->eaddr[0], sp->eaddr[1], sp->eaddr[2],
 	    sp->eaddr[3], sp->eaddr[4], sp->eaddr[5]);
 }
@@ -362,7 +362,7 @@ assign_driver(struct card *cp)
 		if (conf->inuse == 0 && conf->driver->card == cp &&
 		    conf->driver->config == conf) {
 #ifdef	DEBUG
-			log_1s("Found existing driver (%s) for %s\n",
+			logmsg("Found existing driver (%s) for %s\n",
 			    conf->driver->name, cp->manuf);
 #endif
 			return (conf);
@@ -375,7 +375,7 @@ assign_driver(struct card *cp)
 		if (conf->inuse == 0 && conf->driver->card == 0)
 			break;
 	if (conf == 0) {
-		log_1s("No free configuration for card %s", cp->manuf);
+		logmsg("No free configuration for card %s", cp->manuf);
 		return (0);
 	}
 	/*
@@ -387,7 +387,7 @@ assign_driver(struct card *cp)
 
 	/* If none available, then we can't use this card. */
 	if (drvp->inuse) {
-		log_1s("Driver already being used for %s", cp->manuf);
+		logmsg("Driver already being used for %s", cp->manuf);
 		return (0);
 	}
 	/* Allocate a free IRQ if none has been specified */
@@ -400,7 +400,7 @@ assign_driver(struct card *cp)
 				break;
 			}
 		if (conf->irq == 0) {
-			log_1s("Failed to allocate IRQ for %s\n", cp->manuf);
+			logmsg("Failed to allocate IRQ for %s\n", cp->manuf);
 			return (0);
 		}
 	}
@@ -411,7 +411,7 @@ assign_driver(struct card *cp)
 			int     i = bit_fns(io_avail, IOPORTS, ap->size);
 
 			if (i < 0) {
-				log_1s("Failed to allocate I/O ports for %s\n",
+				logmsg("Failed to allocate I/O ports for %s\n",
 				    cp->manuf);
 				return (0);
 			}
@@ -423,7 +423,7 @@ assign_driver(struct card *cp)
 		if (ap->addr == 0 && ap->size) {
 			ap->addr = alloc_memory(ap->size);
 			if (ap->addr == 0) {
-				log_1s("Failed to allocate memory for %s\n",
+				logmsg("Failed to allocate memory for %s\n",
 				    cp->manuf);
 				return (0);
 			}
@@ -483,7 +483,7 @@ assign_io(struct slot *sp)
 		}
 		sp->mem.cardaddr = 0x4000;
 #ifdef	DEBUG
-		log_1s("Using mem addr 0x%x, size %d, card addr 0x%x\n",
+		logmsg("Using mem addr 0x%x, size %d, card addr 0x%x\n",
 			sp->mem.addr, sp->mem.size, sp->mem.cardaddr);
 #endif
 	}
@@ -539,7 +539,7 @@ assign_io(struct slot *sp)
 			break;
 		}
 #ifdef	DEBUG
-		log_1s("Using I/O addr 0x%x, size %d\n",
+		logmsg("Using I/O addr 0x%x, size %d\n",
 		    sp->io.addr, sp->io.size);
 #endif
 	}
@@ -580,7 +580,7 @@ setup_slot(struct slot *sp)
 	c |= 0x40;
 	write(sp->fd, &c, sizeof(c));
 #ifdef	DEBUG
-	log_1s("Setting config reg at offs 0x%lx to 0x%x, Reset time = %d ms\n",
+	logmsg("Setting config reg at offs 0x%lx to 0x%x, Reset time = %d ms\n",
 		(unsigned long)offs, c, sp->card->reset_time);
 #endif
 	sleep(5);
@@ -624,7 +624,7 @@ setup_slot(struct slot *sp)
 		}
 #endif
 #ifdef	DEBUG
-		log_1s("Assigning I/O window %d, start 0x%x, size 0x%x flags 0x%x\n",
+		logmsg("Assigning I/O window %d, start 0x%x, size 0x%x flags 0x%x\n",
 			io.window, io.start, io.size, io.flags);
 #endif
 		io.flags |= IODF_ACTIVE;
@@ -649,7 +649,7 @@ setup_slot(struct slot *sp)
 	else
 		drv.iobase = 0;
 #ifdef	DEBUG
-	log_1s("Assign %s%d, io 0x%x, mem 0x%lx, %d bytes, irq %d, flags %x\n",
+	logmsg("Assign %s%d, io 0x%x, mem 0x%lx, %d bytes, irq %d, flags %x\n",
 	    drv.name, drv.unit, drv.iobase, drv.mem, drv.memsize, sp->irq, drv.flags);
 #endif
 
@@ -659,7 +659,7 @@ setup_slot(struct slot *sp)
 	 */
 	memcpy(drv.misc, sp->eaddr, 6);
 	if (ioctl(sp->fd, PIOCSDRV, &drv)) {
-		log_1s("driver allocation failed for %s", sp->card->manuf);
+		logmsg("driver allocation failed for %s", sp->card->manuf);
 		return (0);
 	}
 	return (1);
