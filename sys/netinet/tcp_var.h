@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.4 (Berkeley) 5/24/95
- * 	$Id: tcp_var.h,v 1.29 1996/02/26 21:47:13 guido Exp $
+ * 	$Id: tcp_var.h,v 1.30 1996/02/27 15:12:53 bde Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -191,10 +191,18 @@ struct rmxp_tao {
  * and thus an "ALPHA" of 0.875.  rttvar has 2 bits to the right of the
  * binary point, and is smoothed with an ALPHA of 0.75.
  */
+#ifdef notdef
 #define	TCP_RTT_SCALE		8	/* multiplier for srtt; 3 bits frac. */
 #define	TCP_RTT_SHIFT		3	/* shift for srtt; 3 bits frac. */
 #define	TCP_RTTVAR_SCALE	4	/* multiplier for rttvar; 2 bits */
 #define	TCP_RTTVAR_SHIFT	2	/* shift for rttvar; 2 bits */
+#else
+#define	TCP_RTT_SCALE		32	/* multiplier for srtt; 3 bits frac. */
+#define	TCP_RTT_SHIFT		5	/* shift for srtt; 3 bits frac. */
+#define	TCP_RTTVAR_SCALE	16	/* multiplier for rttvar; 2 bits */
+#define	TCP_RTTVAR_SHIFT	4	/* shift for rttvar; 2 bits */
+#define	TCP_DELTA_SHIFT		2	/* see tcp_input.c */
+#endif
 
 /*
  * The initial retransmission should happen at rtt + 4 * rttvar.
@@ -206,11 +214,25 @@ struct rmxp_tao {
  * 1.5 tick we need.  But, because the bias is
  * statistical, we have to test that we don't drop below
  * the minimum feasible timer (which is 2 ticks).
+#ifdef notdef
  * This macro assumes that the value of TCP_RTTVAR_SCALE
  * is the same as the multiplier for rttvar.
+#else
+ * This version of the macro adapted from a paper by Lawrence
+ * Brakmo and Larry Peterson which outlines a problem caused
+ * by insufficient precision in the original implementation,
+ * which results in inappropriately large RTO values for very
+ * fast networks.
+#endif
  */
+#ifdef notdef
 #define	TCP_REXMTVAL(tp) \
 	(((tp)->t_srtt >> TCP_RTT_SHIFT) + (tp)->t_rttvar)
+#else
+#define	TCP_REXMTVAL(tp) \
+	((((tp)->t_srtt >> (TCP_RTT_SHIFT - TCP_RTTVAR_SHIFT)) \
+	  + ((tp)->t_rttvar) >> TCP_RTTVAR_SHIFT))
+#endif
 
 /* XXX
  * We want to avoid doing m_pullup on incoming packets but that
