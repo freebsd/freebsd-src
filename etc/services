@@ -1123,8 +1123,8 @@ fujitsu-dev	747/tcp	   #Fujitsu Device Control
 fujitsu-dev	747/udp	   #Fujitsu Device Control
 ris-cm		748/tcp	   #Russell Info Sci Calendar Manager
 ris-cm		748/udp	   #Russell Info Sci Calendar Manager
-#kerberos-adm	 749/tcp    #Kerberos administration (v5)
-#kerberos-adm	 749/udp    #Kerberos administration (v5)
+kerberos-adm	 749/tcp    #Kerberos administration (v5)
+kerberos-adm	 749/udp    #Kerberos administration (v5)
 kerberos-iv	750/udp		kdc	# Kerberos (v4)
 kerberos-iv	750/tcp		kdc	# Kerberos (v4)
 #PROBLEMS!========================================================
