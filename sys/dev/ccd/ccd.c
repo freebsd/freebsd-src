@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: ccd.c,v 1.3 1995/12/28 00:22:45 asami Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -419,7 +419,10 @@ ccdinit(ccd, cpaths, p)
 		for (ci = cs->sc_cinfo;
 		     ci < &cs->sc_cinfo[cs->sc_nccdisks]; ci++)
 			ci->ci_size = minsize;
-		cs->sc_size = cs->sc_nccdisks * minsize;
+		if (ccd->ccd_flags & CCDF_PARITY)
+			cs->sc_size = (cs->sc_nccdisks-1) * minsize;
+		else
+		  cs->sc_size = cs->sc_nccdisks * minsize;
 	}
 
 	/*
@@ -810,8 +813,16 @@ ccdbuffer(cs, bp, bn, addr, bcount)
 			ccdisk = ii->ii_index[0];
 			cbn = ii->ii_startoff + off;
 		} else {
-			ccdisk = ii->ii_index[off % ii->ii_ndisk];
-			cbn = ii->ii_startoff + off / ii->ii_ndisk;
+			if (cs->sc_cflags & CCDF_PARITY) {
+				ccdisk = ii->ii_index[off % (ii->ii_ndisk-1)];
+				cbn = ii->ii_startoff + off / (ii->ii_ndisk-1);
+				if (cbn % ii->ii_ndisk <= ccdisk)
+					ccdisk++;
+			}
+			else {
+				ccdisk = ii->ii_index[off % ii->ii_ndisk];
+				cbn = ii->ii_startoff + off / ii->ii_ndisk;
+			}
 		}
 		cbn *= cs->sc_ileave;
 		ci = &cs->sc_cinfo[ccdisk];
@@ -1038,6 +1049,11 @@ ccdioctl(dev, cmd, data, flag, p)
 		/* Fill in some important bits. */
 		ccd.ccd_unit = unit;
 		ccd.ccd_interleave = ccio->ccio_ileave;
+		if ((ccio->ccio_flags & CCDF_PARITY) &&
+		    !(ccio->ccio_flags & CCDF_UNIFORM)) {
+			printf("ccd%d: parity forces uniform flag\n", unit);
+			ccio->ccio_flags |= CCDF_UNIFORM;
+		}
 		ccd.ccd_flags = ccio->ccio_flags & CCDF_USERMASK;
 
 		/*
