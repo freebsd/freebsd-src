@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cy_pci.c,v 1.7 1998/12/14 06:32:55 dillon Exp $
+ *	$Id: cy_pci.c,v 1.8 1999/01/11 23:35:01 bde Exp $
  */
 
 /*
@@ -82,7 +82,7 @@ cy_attach(config_id, unit)
 	void *vaddr;
 	u_int32_t ioport;
 	int adapter;
-	u_int16_t plx_ver;
+	u_char plx_ver;
 
 	ioport = (u_int32_t) pci_conf_read(config_id, CY_PCI_BASE_ADDR1) & ~0x3;
 	paddr = pci_conf_read(config_id, CY_PCI_BASE_ADDR2) & ~0xf;
@@ -120,21 +120,19 @@ cy_attach(config_id, unit)
 	 * Enable the "local" interrupt input to generate a
 	 * PCI interrupt.
 	 */
-	plx_ver = (*((char *)vaddr + PLX_VER)) & 0x0f;
+	plx_ver = *((u_char *)vaddr + PLX_VER) & 0x0f;
 	switch (plx_ver) {
-		case PLX_9050:
-
+	case PLX_9050:
 		outw(ioport + CY_PLX_9050_ICS, 
 		    inw(ioport + CY_PLX_9050_ICS) | CY_PLX_9050_ICS_IENABLE |
 		    CY_PLX_9050_ICS_LOCAL_IENABLE);
 		break;
-
-		case PLX_9060:
-		case PLX_9080:
-		default: /* Old boards, use PLX_9060 */
-
-		outw(ioport + CY_PLX_9060_ICS, inw(ioport + CY_PLX_9060_ICS) |
-		    CY_PLX_9060_ICS_IENABLE | CY_PLX_9060_ICS_LOCAL_IENABLE);
+	case PLX_9060:
+	case PLX_9080:
+	default:		/* Old board, use PLX_9060 values. */
+		outw(ioport + CY_PLX_9060_ICS,
+		    inw(ioport + CY_PLX_9060_ICS) | CY_PLX_9060_ICS_IENABLE |
+		    CY_PLX_9060_ICS_LOCAL_IENABLE);
 		break;
 	}
 
