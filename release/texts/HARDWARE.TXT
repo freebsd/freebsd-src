@@ -83,7 +83,7 @@ scd0    230     n/a     n/a     n/a     Sony CD-ROM
 sio0    3f8     4       n/a     n/a     Serial Port 0 (COM1)
 sio1    2f8     3       n/a     n/a     Serial Port 1 (COM2)
 
-lpt0    dyn     7       n/a     n/a     Printer Port 0
+ppc0    dyn     7       n/a     n/a     Parallel Port Chipset
 
 ax0     dyn     dyn     n/a     dyn     ASIX AX88140A PCI based cards
 de0     n/a     n/a     n/a     n/a     DEC DC21x40 PCI based cards
@@ -291,6 +291,7 @@ pca:    PCM audio ("/dev/audio") through your PC speaker
 pcm:    PCM audio on most modern ISA audio codecs
 psm:    PS/2 mouse port
 rc:     RISCom/8 multiport card
+rdp:	RealTek RTL 8002 Pocket Ethernet adapter
 sb:     SoundBlaster PCM - SoundBlaster, SB Pro, SB16, ProAudioSpectrum
 sbmidi: SoundBlaster 16 MIDI interface
 sbxvi:  SoundBlaster 16
