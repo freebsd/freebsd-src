@@ -35,13 +35,10 @@ __FBSDID("$FreeBSD$");
 
 static	d_open_t	cttyopen;
 
-#define	CDEV_MAJOR	1
-
 static struct cdevsw ctty_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_open =	cttyopen,
 	.d_name =	"ctty",
-	.d_maj =	CDEV_MAJOR,
 	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
@@ -78,4 +75,4 @@ ctty_drvinit(void *unused)
 	ctty = make_dev(&ctty_cdevsw, 0, 0, 0, 0666, "ctty");
 }
 
-SYSINIT(cttydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ctty_drvinit,NULL)
+SYSINIT(cttydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE,ctty_drvinit,NULL)
