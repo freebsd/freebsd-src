@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.7 1994/11/05 23:53:46 bde Exp $
+ *	$Id: microtime.s,v 1.8 1995/10/12 20:38:24 wollman Exp $
  */
 
 #include <machine/asmacros.h>
@@ -171,6 +171,7 @@ common_microtime:
 
 	ret
 
+#ifdef I586_CPU
 	.extern _i586_ctr_bias
 
 	ALIGN_TEXT
@@ -181,3 +182,4 @@ pentium_microtime:
 	sbbl	_i586_ctr_bias+4, %edx
 	divl	%ecx		# get value in usec
 	jmp	common_microtime
+#endif /* I586_CPU */
