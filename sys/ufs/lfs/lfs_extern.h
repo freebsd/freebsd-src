@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_extern.h	8.2 (Berkeley) 4/16/94
- * $Id: lfs_extern.h,v 1.9 1995/12/06 19:46:37 bde Exp $
+ * $Id: lfs_extern.h,v 1.10 1995/12/17 21:09:48 phk Exp $
  */
 
 #ifndef _UFS_LFS_LFS_EXTERN_H_
@@ -78,10 +78,6 @@ void	 lfs_vunref __P((struct vnode *));
 int	 lfs_writeinode __P((struct lfs *, struct segment *, struct inode *));
 int	 lfs_writeseg __P((struct lfs *, struct segment *));
 void	 lfs_writesuper __P((struct lfs *));
-#ifdef DEBUG
-void	lfs_dump_dinode __P((struct dinode *));
-void	lfs_dump_super __P((struct lfs *));
-#endif
 
 extern int lfs_allclean_wakeup;
 extern int locked_queue_count;
