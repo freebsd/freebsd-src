@@ -1,4 +1,4 @@
-/*	$NetBSD: usb_subr.c,v 1.52 1999/10/13 08:10:58 augustss Exp $	*/
+/*	$NetBSD: usb_subr.c,v 1.56 1999/11/18 23:32:32 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -564,8 +564,8 @@ usbd_set_config_index(dev, index, msg)
 			usbd_free_iface_data(dev, ifcidx);
 		free(dev->ifaces, M_USB);
 		free(dev->cdesc, M_USB);
-		dev->ifaces = 0;
-		dev->cdesc = 0;
+		dev->ifaces = NULL;
+		dev->cdesc = NULL;
 		dev->config = 0;
 	}
 
@@ -771,7 +771,7 @@ usbd_probe_and_attach(parent, dev, port, addr)
 	dv = USB_DO_ATTACH(dev, bdev, parent, &uaa, usbd_print, usbd_submatch);
 	if (dv) {
 		dev->subdevs = malloc(2 * sizeof dv, M_USB, M_NOWAIT);
-		if (dev->subdevs == 0)
+		if (dev->subdevs == NULL)
 			return (USBD_NOMEM);
 		dev->subdevs[0] = dv;
 		dev->subdevs[1] = 0;
@@ -807,7 +807,7 @@ usbd_probe_and_attach(parent, dev, port, addr)
 		uaa.ifaces = ifaces;
 		uaa.nifaces = nifaces;
 		dev->subdevs = malloc((nifaces+1) * sizeof dv, M_USB,M_NOWAIT);
-		if (dev->subdevs == 0) {
+		if (dev->subdevs == NULL) {
 #if defined(__FreeBSD__)
 			device_delete_child(parent, bdev);
 #endif
@@ -954,7 +954,6 @@ usbd_new_device(parent, bus, depth, lowspeed, port, up)
 	up->device = dev;
 	dd = &dev->ddesc;
 	/* Try a few times in case the device is slow (i.e. outside specs.) */
-	/* for (i = 0; i < 5; i++) { */
 	for (i = 0; i < 3; i++) {
 		/* Get the first 8 bytes of the device descriptor. */
 		err = usbd_get_desc(dev, UDESC_DEVICE, 0, USB_MAX_IPACKET, dd);
@@ -1140,6 +1139,20 @@ usbd_fill_deviceinfo(dev, di)
 
 	di->bus = USBDEVUNIT(dev->bus->bdev);
 	di->addr = dev->address;
+
+	if (dev->subdevs) {
+		for (i = 0; dev->subdevs[i] &&
+			    i < MAXDEVNAMES; i++) {
+			strncpy(di->devnames[i], USBDEVPTRNAME(dev->subdevs[i]),
+				MAXDEVNAMELEN);
+			di->devnames[i][MAXDEVNAMELEN-1] = '\0'; /* terminate */
+		}
+	} else {
+		i = 0;
+	}
+	for (/*i is set */; i < MAXDEVNAMES; i++)
+		di->devnames[i][0] = 0;			/* empty */
+
 	usbd_devinfo_vp(dev, di->vendor, di->product);
 	usbd_printBCD(di->release, UGETW(dev->ddesc.bcdDevice));
 	di->vendorNo = UGETW(dev->ddesc.idVendor);
@@ -1222,20 +1235,20 @@ usb_disconnect_port(up, parent)
 	device_ptr_t parent;
 {
 	usbd_device_handle dev = up->device;
-	char *hubname = USBDEVPTRNAME(parent);
+	const char *hubname = USBDEVPTRNAME(parent);
 	int i;
 
 	DPRINTFN(3,("uhub_disconnect: up=%p dev=%p port=%d\n", 
 		    up, dev, up->portno));
 
 #ifdef DIAGNOSTIC
-	if (!dev) {
+	if (dev == NULL) {
 		printf("usb_disconnect_port: no device\n");
 		return;
 	}
 #endif
 
-	if (!dev->cdesc) {
+	if (dev->cdesc == NULL) {
 		/* Partially attached device, just drop it. */
 		dev->bus->devices[dev->address] = 0;
 		up->device = 0;
@@ -1245,10 +1258,8 @@ usb_disconnect_port(up, parent)
 	usbd_add_event(USB_EVENT_DETACH, dev);
 
 	if (dev->subdevs != NULL) {
+		DPRINTFN(3,("usb_disconnect_port: disconnect subdevs\n"));
 		for (i = 0; dev->subdevs[i]; i++) {
-			if (!dev->subdevs[i])	/* skip empty elements */
-				continue;
-
 			printf("%s: at %s", USBDEVPTRNAME(dev->subdevs[i]), 
 			       hubname);
 			if (up->portno != 0)
@@ -1264,8 +1275,25 @@ usb_disconnect_port(up, parent)
 		}
 	}
 
-	dev->bus->devices[dev->address] = 0;
-	up->device = 0;
+	dev->bus->devices[dev->address] = NULL;
+	up->device = NULL;
 	usb_free_device(dev);
 }
 
+#ifdef __OpenBSD__
+void *usb_realloc(p, size, pool, flags)
+	void *p;
+	u_int size;
+	int pool;
+	int flags;
+{
+	void *q;
+
+	q = malloc(size, pool, flags);
+	if (q == NULL)
+		return (NULL);
+	bcopy(p, q, size);
+	free(p, pool);
+	return (q);
+}
+#endif
