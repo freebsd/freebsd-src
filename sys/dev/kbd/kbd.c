@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kbd.c,v 1.5 1999/05/18 11:07:12 yokota Exp $
+ * $Id: kbd.c,v 1.6 1999/05/18 11:08:39 yokota Exp $
  */
 
 #include "kbd.h"
@@ -399,7 +399,6 @@ static d_close_t	kbdclose;
 static d_read_t		kbdread;
 static d_write_t	kbdwrite;
 static d_ioctl_t	kbdioctl;
-static d_reset_t	kbdreset;
 static d_devtotty_t	kbddevtotty;
 static d_poll_t		kbdpoll;
 static d_mmap_t		kbdmmap;
@@ -408,7 +407,7 @@ static d_mmap_t		kbdmmap;
 
 static struct cdevsw kbd_cdevsw = {
 	kbdopen,	kbdclose,	kbdread,	kbdwrite,   /* ??? */
-	kbdioctl,	nullstop,	kbdreset,	kbddevtotty,
+	kbdioctl,	nullstop,	noreset,	kbddevtotty,
 	kbdpoll,	kbdmmap,	nostrategy,	"kbd",
 	NULL,		-1,		nodump,		nopsize,
 };
@@ -529,17 +528,6 @@ kbdioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 		return ENXIO;
 	return (*kbdcdevsw[unit]->d_ioctl)(makedev(0, keyboard[unit]->kb_minor),
 					   cmd, arg, flag, p);
-}
-
-static int
-kbdreset(dev_t dev)
-{
-	int unit;
-
-	unit = KBD_UNIT(dev);
-	if (kbdcdevsw[unit] == NULL)
-		return ENXIO;
-	return (*kbdcdevsw[unit]->d_reset)(makedev(0, keyboard[unit]->kb_minor));
 }
 
 static struct tty
