@@ -57,6 +57,7 @@ static const char rcsid[] =
 #include <ripemd.h>
 #endif
 #include <pwd.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <time.h>
 #include <unistd.h>
@@ -206,7 +207,8 @@ statf(indent, p)
 	if (keys & F_NLINK && p->fts_statp->st_nlink != 1)
 		output(indent, &offset, "nlink=%u", p->fts_statp->st_nlink);
 	if (keys & F_SIZE)
-		output(indent, &offset, "size=%qd", p->fts_statp->st_size);
+		output(indent, &offset, "size=%jd",
+		    (intmax_t)p->fts_statp->st_size);
 	if (keys & F_TIME)
 		output(indent, &offset, "time=%ld.%ld",
 		    (long)p->fts_statp->st_mtimespec.tv_sec,
