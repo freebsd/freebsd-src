@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)jot.1	8.1 (Berkeley) 6/6/93
-.\"	$Id$
+.\"	$Id: jot.1,v 1.5 1999/07/12 20:23:37 nik Exp $
 .\"
 .Dd June 6, 1993
 .Dt JOT 1
@@ -191,3 +191,17 @@ and to print all lines 80 characters or longer,
 .Xr yes 1 ,
 .Xr printf 3 ,
 .Xr random 3
+.Sh BUGS
+Conversion format specifiers for
+.Xr printf 3
+are limited to those of the form
+.Dl %[#][ ][{+,-}][0-9]*[.[0-9]*]?
+where
+.Dq ?
+must be one of
+.Dl [l]{d,i,o,u,x}
+or
+.Dl {c,e,f,g,D,E,G,O,U,X}
+.Pp
+No bounds-checking is performed on numeric values, so arithmetic overflow
+will cause a fatal error.
