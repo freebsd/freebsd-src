@@ -65,7 +65,6 @@ static void sched_setup __P((void *dummy));
 SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
 
 u_char	curpriority;
-u_char	currtpriority;
 int	hogticks;
 int	lbolt;
 int	sched_quantum;		/* Roundrobin scheduling quantum in ticks. */
@@ -112,15 +111,13 @@ curpriority_cmp(p)
 {
 	int c_class, p_class;
 
-	if (curproc->p_rtprio.prio != currtpriority)
-		Debugger("currtprio");
 	c_class = RTP_PRIO_BASE(curproc->p_rtprio.type);
 	p_class = RTP_PRIO_BASE(p->p_rtprio.type);
 	if (p_class != c_class)
 		return (p_class - c_class);
 	if (p_class == RTP_PRIO_NORMAL)
 		return (((int)p->p_priority - (int)curpriority) / PPQ);
-	return ((int)p->p_rtprio.prio - (int)currtpriority);
+	return ((int)p->p_rtprio.prio - (int)curproc->p_rtprio.prio);
 }
 
 /*
@@ -471,7 +468,6 @@ tsleep(ident, priority, wmesg, timo)
 	mi_switch();
 resume:
 	curpriority = p->p_usrpri;
-	currtpriority = p->p_rtprio.prio;
 	splx(s);
 	p->p_flag &= ~P_SINTR;
 	if (p->p_flag & P_TIMEOUT) {
@@ -611,7 +607,6 @@ await(int priority, int timo)
 		mi_switch();
 resume:
 		curpriority = p->p_usrpri;
-		currtpriority = p->p_rtprio.prio;
 
 		splx(s);
 		p->p_flag &= ~P_SINTR;
