@@ -650,6 +650,7 @@ vop_stdgetpages(ap)
 	    ap->a_count, ap->a_reqpage);
 }
 
+int
 vop_stdputpages(ap)
 	struct vop_putpages_args /* {
 		struct vnode *a_vp;
@@ -661,7 +662,7 @@ vop_stdputpages(ap)
 	} */ *ap;
 {
 
-	vnode_pager_generic_putpages(ap->a_vp, ap->a_m, ap->a_count,
+	return vnode_pager_generic_putpages(ap->a_vp, ap->a_m, ap->a_count,
 	     ap->a_sync, ap->a_rtvals);
 }
 
