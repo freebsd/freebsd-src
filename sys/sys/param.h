@@ -44,7 +44,7 @@
 
 #include <sys/_null.h>
 
-#define	BSD	199507		/* System version (year & month). */
+#define	BSD	199506		/* System version (year & month). */
 #define BSD4_3	1
 #define BSD4_4	1
 
@@ -59,7 +59,7 @@
  * scheme is:  <major><two digit minor><0 if release branch, otherwise 1>xx
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 502106	/* Master, propagated to newvers */
+#define __FreeBSD_version 502107	/* Master, propagated to newvers */
 
 #ifndef LOCORE
 #include <sys/types.h>
