@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.21 1994/12/03 10:02:20 bde Exp $
+ *	$Id: genassym.c,v 1.22 1995/01/21 15:22:28 bde Exp $
  */
 
 #include <stdio.h>
@@ -76,7 +76,7 @@ main()
 	struct pcb *pcb = (struct pcb *)0;
 	struct trapframe *tf = (struct trapframe *)0;
 	struct sigframe *sigf = (struct sigframe *)0;
-	struct bootinfo_t *bootinfo = (struct bootinfo_t *)0;
+	struct bootinfo *bootinfo = (struct bootinfo *)0;
 
 	/* XXX should use %p to print pointers.  About 80 lines are wrong. */
 	printf("#define\tUDOT_SZ %d\n", sizeof(struct user));
@@ -194,11 +194,16 @@ main()
 	printf("#define\tEFAULT %d\n", EFAULT);
 	printf("#define\tENAMETOOLONG %d\n", ENAMETOOLONG);
 	printf("#define\tMAXPATHLEN %d\n", MAXPATHLEN);
+
 	printf("#define\tBOOTINFO_SIZE %d\n", sizeof *bootinfo);
-	printf("#define\tBOOTINFO_VERSION %d\n", &bootinfo->version);
-	printf("#define\tBOOTINFO_KERNELNAME %d\n", &bootinfo->kernelname);
-	printf("#define\tBOOTINFO_NFS_DISKLESS %d\n", &bootinfo->nfs_diskless);
+	printf("#define\tBI_VERSION %d\n", &bootinfo->bi_version);
+	printf("#define\tBI_KERNELNAME %d\n", &bootinfo->bi_kernelname);
+	printf("#define\tBI_NFS_DISKLESS %d\n", &bootinfo->bi_nfs_diskless);
+	printf("#define\tBI_ENDCOMMON %d\n", &bootinfo->bi_endcommon);
 	printf("#define\tNFSDISKLESS_SIZE %d\n", sizeof(struct nfs_diskless));
+	printf("#define\tBI_SIZE %d\n", &bootinfo->bi_size);
+	printf("#define\tBI_SYMTAB %d\n", &bootinfo->bi_symtab);
+	printf("#define\tBI_ESYMTAB %d\n", &bootinfo->bi_esymtab);
 
 	return (0);
 }
