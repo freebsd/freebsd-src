@@ -688,7 +688,7 @@ g_ccd_create(struct gctl_req *req, struct g_class *mp)
 	/* Check for duplicate unit */
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		sc = gp->softc;
-		if (sc->sc_unit == *unit) {
+		if (sc != NULL && sc->sc_unit == *unit) {
 			gctl_error(req, "Unit %d already configured", *unit);
 			return;
 		}
@@ -817,7 +817,7 @@ g_ccd_list(struct gctl_req *req, struct g_class *mp)
 	sbuf_clear(sb);
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		cs = gp->softc;
-		if (unit >= 0 && unit != cs->sc_unit)
+		if (cs == NULL || (unit >= 0 && unit != cs->sc_unit))
 			continue;
 		sbuf_printf(sb, "ccd%d\t\t%d\t%d\t",
 		    cs->sc_unit, cs->sc_ileave, cs->sc_flags & CCDF_USERMASK);
