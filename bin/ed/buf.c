@@ -24,11 +24,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: buf.c,v 1.10 1997/02/22 14:03:11 peter Exp $
  */
+
 #ifndef lint
+#if 0
 static char * const rcsid = "@(#)buf.c,v 1.4 1994/02/01 00:34:35 alm Exp";
+#else
+static char * const rcsid =
+	"$Id: buf.c,v 1.11 1997/03/24 05:45:29 imp Exp $";
+#endif
 #endif /* not lint */
 
 #include <sys/file.h>
