@@ -1172,13 +1172,20 @@ pmap_extract(pmap, va)
 	register pmap_t pmap;
 	vm_offset_t va;
 {
+	struct ia64_lpte *pte;
 	pmap_t oldpmap;
-	vm_offset_t pa;
+
+	if (!pmap)
+		return 0;
 
 	oldpmap = pmap_install(pmap);
-	pa = ia64_tpa(va);
+	pte = pmap_find_vhpt(va);
 	pmap_install(oldpmap);
-	return pa;
+
+	if (!pte)
+		return 0;
+	
+	return pmap_pte_pa(pte);
 }
 
 /***************************************************
