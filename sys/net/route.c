@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.18 1995/03/20 23:00:57 davidg Exp $
+ *	$Id: route.c,v 1.19 1995/03/21 19:50:34 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -150,7 +150,7 @@ rtfree(rt)
 		rt_tables[rt_key(rt)->sa_family];
 	register struct ifaddr *ifa;
 
-	if (rt == 0)
+	if (rt == 0 || rnh == 0)
 		panic("rtfree");
 	rt->rt_refcnt--;
 	if(rnh->rnh_close && rt->rt_refcnt == 0) {
@@ -377,16 +377,23 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		if (rn->rn_flags & (RNF_ACTIVE | RNF_ROOT))
 			panic ("rtrequest delete");
 		rt = (struct rtentry *)rn;
-		rt->rt_flags &= ~RTF_UP;
 
 		/*
 		 * Now search what's left of the subtree for any cloned
 		 * routes which might have been formed from this node.
 		 */
-		if (rt->rt_flags & RTF_PRCLONING) {
+		if ((rt->rt_flags & RTF_PRCLONING) && netmask) {
 			rnh->rnh_walktree_from(rnh, dst, netmask,
 					       rt_fixdelete, rt);
 		}
+
+		/*
+		 * NB: RTF_UP must be set during the search above,
+		 * because we might delete the last ref, causing
+		 * rt to get freed prematurely.
+		 */
+		rt->rt_flags &= ~RTF_UP;
+
 		if (rt->rt_gwroute) {
 			rt = rt->rt_gwroute; RTFREE(rt);
 			(rt = (struct rtentry *)rn)->rt_gwroute = 0;
