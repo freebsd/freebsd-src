@@ -1,5 +1,7 @@
 #! /bin/sh
 
+# $FreeBSD$
+
 # Guess values for system-dependent variables and create Makefiles.
 # Generated automatically using autoconf version 2.13 
 # Copyright (C) 1992, 93, 94, 95, 96 Free Software Foundation, Inc.
@@ -2866,7 +2868,7 @@ for machine in $build $host $target; do
 		fixincludes=fixinc.wrap
 		tmake_file=t-freebsd
 		;;
-	i[34567]86-*-freebsd[3-9].* | i[34567]86-*-freebsd[3-9] | i[34567]86-*-freebsd* | i[34567]86-*-freebsdelf*)
+	i[34567]86-*-freebsd* | i[34567]86-*-freebsd[3-9].* | i[34567]86-*-freebsd[3-9] | i[34567]86-*-freebsdelf*)
 		tm_file="i386/i386.h i386/att.h svr4.h i386/freebsd.h i386/perform.h"
 		# On FreeBSD, the headers are already ok, except for math.h.
 		fixincludes=fixinc.wrap
