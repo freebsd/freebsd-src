@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.109 1998/12/14 18:09:13 luigi Exp $
+ * $Id: ip_input.c,v 1.110 1998/12/21 22:40:54 luigi Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -378,7 +378,9 @@ tooshort:
 	 * - Encapsulate: put it in another IP and send out. <unimp.>
  	 */
 
+#if defined(IPFIREWALL) && defined(DUMMYNET)
 iphack:
+#endif
 #if defined(IPFILTER) || defined(IPFILTER_LKM)
 	/*
 	 * Check if we want to allow this packet to be processed.
