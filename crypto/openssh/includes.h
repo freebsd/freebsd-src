@@ -1,4 +1,5 @@
-/*	$OpenBSD: includes.h,v 1.14 2001/01/29 01:58:16 niklas Exp $	*/
+/*	$OpenBSD: includes.h,v 1.17 2002/01/26 16:44:22 stevesk Exp $	*/
+/*	$FreeBSD$	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -11,8 +12,6 @@
  * software must be clearly marked as such, and if the derived work is
  * incompatible with the protocol description in the RFC file, it must be
  * called by a name other than "ssh" or "Secure Shell".
- *
- * $FreeBSD$
  */
 
 #ifndef INCLUDES_H
@@ -56,11 +55,6 @@
 #include <dirent.h>
 
 #include "version.h"
-
-/* Define this to be the path of the xauth program. */
-#ifndef XAUTH_PATH
-#define XAUTH_PATH "/usr/X11R6/bin/xauth"
-#endif
 
 /*
  * Define this to use pipes instead of socketpairs for communicating with the

@@ -1,4 +1,5 @@
 /*	$OpenBSD: rijndael.c,v 1.13 2001/12/19 07:18:56 deraadt Exp $ */
+/*	$FreeBSD$	*/
 
 /**
  * rijndael-alg-fst.c
@@ -25,6 +26,7 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include <sys/types.h>
 #include <stdlib.h>
 #include <string.h>
 

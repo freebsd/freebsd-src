@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth-krb4.c,v 1.23 2001/01/22 08:15:00 markus Exp $");
+RCSID("$OpenBSD: auth-krb4.c,v 1.25 2001/12/19 07:18:56 deraadt Exp $");
 RCSID("$FreeBSD$");
 
 #include "ssh.h"
@@ -32,6 +32,7 @@ RCSID("$FreeBSD$");
 #include "xmalloc.h"
 #include "log.h"
 #include "servconf.h"
+#include "uidswap.h"
 #include "auth.h"
 
 #ifdef AFS
@@ -39,48 +40,92 @@ RCSID("$FreeBSD$");
 #endif
 
 #ifdef KRB4
-char *ticket = NULL;
-
 extern ServerOptions options;
+
+static int
+krb4_init(void *context)
+{
+	static int cleanup_registered = 0;
+	Authctxt *authctxt = (Authctxt *)context;
+	const char *tkt_root = TKT_ROOT;
+	struct stat st;
+	int fd;
+
+	if (!authctxt->krb4_ticket_file) {
+		/* Set unique ticket string manually since we're still root. */
+		authctxt->krb4_ticket_file = xmalloc(MAXPATHLEN);
+#ifdef AFS
+		if (lstat("/ticket", &st) != -1)
+			tkt_root = "/ticket/";
+#endif /* AFS */
+		snprintf(authctxt->krb4_ticket_file, MAXPATHLEN, "%s%u_%d",
+		    tkt_root, authctxt->pw->pw_uid, getpid());
+		krb_set_tkt_string(authctxt->krb4_ticket_file);
+	}
+	/* Register ticket cleanup in case of fatal error. */
+	if (!cleanup_registered) {
+		fatal_add_cleanup(krb4_cleanup_proc, authctxt);
+		cleanup_registered = 1;
+	}
+	/* Try to create our ticket file. */
+	if ((fd = mkstemp(authctxt->krb4_ticket_file)) != -1) {
+		close(fd);
+		return (1);
+	}
+	/* Ticket file exists - make sure user owns it (just passed ticket). */
+	if (lstat(authctxt->krb4_ticket_file, &st) != -1) {
+		if (st.st_mode == (S_IFREG | S_IRUSR | S_IWUSR) &&
+		    st.st_uid == authctxt->pw->pw_uid)
+			return (1);
+	}
+	/* Failure - cancel cleanup function, leaving ticket for inspection. */
+	log("WARNING: bad ticket file %s", authctxt->krb4_ticket_file);
+
+	fatal_remove_cleanup(krb4_cleanup_proc, authctxt);
+	cleanup_registered = 0;
+
+	xfree(authctxt->krb4_ticket_file);
+	authctxt->krb4_ticket_file = NULL;
+
+	return (0);
+}
 
 /*
  * try krb4 authentication,
  * return 1 on success, 0 on failure, -1 if krb4 is not available
  */
-
 int
-auth_krb4_password(struct passwd * pw, const char *password)
+auth_krb4_password(Authctxt *authctxt, const char *password)
 {
 	AUTH_DAT adata;
 	KTEXT_ST tkt;
 	struct hostent *hp;
-	u_long faddr;
-	char localhost[MAXHOSTNAMELEN];
-	char phost[INST_SZ];
-	char realm[REALM_SZ];
+	struct passwd *pw;
+	char localhost[MAXHOSTNAMELEN], phost[INST_SZ], realm[REALM_SZ];
+	u_int32_t faddr;
 	int r;
+
+	if ((pw = authctxt->pw) == NULL)
+		return (0);
 
 	/*
 	 * Try Kerberos password authentication only for non-root
 	 * users and only if Kerberos is installed.
 	 */
 	if (pw->pw_uid != 0 && krb_get_lrealm(realm, 1) == KSUCCESS) {
-
 		/* Set up our ticket file. */
-		if (!krb4_init(pw->pw_uid)) {
+		if (!krb4_init(authctxt)) {
 			log("Couldn't initialize Kerberos ticket file for %s!",
 			    pw->pw_name);
-			goto kerberos_auth_failure;
+			goto failure;
 		}
 		/* Try to get TGT using our password. */
-		r = krb_get_pw_in_tkt((char *) pw->pw_name, "",
-		    realm, "krbtgt", realm,
-		    DEFAULT_TKT_LIFE, (char *) password);
+		r = krb_get_pw_in_tkt((char *) pw->pw_name, "", realm,
+		    "krbtgt", realm, DEFAULT_TKT_LIFE, (char *)password);
 		if (r != INTK_OK) {
-			packet_send_debug("Kerberos V4 password "
-			    "authentication for %s failed: %s",
-			    pw->pw_name, krb_err_txt[r]);
-			goto kerberos_auth_failure;
+			debug("Kerberos v4 password authentication for %s "
+			    "failed: %s", pw->pw_name, krb_err_txt[r]);
+			goto failure;
 		}
 		/* Successful authentication. */
 		chown(tkt_string(), pw->pw_uid, pw->pw_gid);
@@ -90,17 +135,17 @@ auth_krb4_password(struct passwd * pw, const char *password)
 		 * "rcmd" ticket to ensure that we are not talking
 		 * to a bogus Kerberos server.
 		 */
-		(void) gethostname(localhost, sizeof(localhost));
-		(void) strlcpy(phost, (char *) krb_get_phost(localhost),
-		    INST_SZ);
+		gethostname(localhost, sizeof(localhost));
+		strlcpy(phost, (char *)krb_get_phost(localhost),
+		    sizeof(phost));
 		r = krb_mk_req(&tkt, KRB4_SERVICE_NAME, phost, realm, 33);
 
 		if (r == KSUCCESS) {
-			if (!(hp = gethostbyname(localhost))) {
+			if ((hp = gethostbyname(localhost)) == NULL) {
 				log("Couldn't get local host address!");
-				goto kerberos_auth_failure;
+				goto failure;
 			}
-			memmove((void *) &faddr, (void *) hp->h_addr,
+			memmove((void *)&faddr, (void *)hp->h_addr,
 			    sizeof(faddr));
 
 			/* Verify our "rcmd" ticket. */
@@ -111,116 +156,71 @@ auth_krb4_password(struct passwd * pw, const char *password)
 				 * Probably didn't have a srvtab on
 				 * localhost. Disallow login.
 				 */
-				log("Kerberos V4 TGT for %s unverifiable, "
+				log("Kerberos v4 TGT for %s unverifiable, "
 				    "no srvtab installed? krb_rd_req: %s",
 				    pw->pw_name, krb_err_txt[r]);
-				goto kerberos_auth_failure;
+				goto failure;
 			} else if (r != KSUCCESS) {
-				log("Kerberos V4 %s ticket unverifiable: %s",
+				log("Kerberos v4 %s ticket unverifiable: %s",
 				    KRB4_SERVICE_NAME, krb_err_txt[r]);
-				goto kerberos_auth_failure;
+				goto failure;
 			}
 		} else if (r == KDC_PR_UNKNOWN) {
 			/*
 			 * Disallow login if no rcmd service exists, and
 			 * log the error.
 			 */
-			log("Kerberos V4 TGT for %s unverifiable: %s; %s.%s "
+			log("Kerberos v4 TGT for %s unverifiable: %s; %s.%s "
 			    "not registered, or srvtab is wrong?", pw->pw_name,
-			krb_err_txt[r], KRB4_SERVICE_NAME, phost);
-			goto kerberos_auth_failure;
+			    krb_err_txt[r], KRB4_SERVICE_NAME, phost);
+			goto failure;
 		} else {
 			/*
 			 * TGT is bad, forget it. Possibly spoofed!
 			 */
-			packet_send_debug("WARNING: Kerberos V4 TGT "
-			    "possibly spoofed for %s: %s",
-			    pw->pw_name, krb_err_txt[r]);
-			goto kerberos_auth_failure;
+			debug("WARNING: Kerberos v4 TGT possibly spoofed "
+			    "for %s: %s", pw->pw_name, krb_err_txt[r]);
+			goto failure;
 		}
-
 		/* Authentication succeeded. */
-		return 1;
-
-kerberos_auth_failure:
-		krb4_cleanup_proc(NULL);
-
-		if (!options.krb4_or_local_passwd)
-			return 0;
-	} else {
+		return (1);
+	} else
 		/* Logging in as root or no local Kerberos realm. */
-		packet_send_debug("Unable to authenticate to Kerberos.");
-	}
+		debug("Unable to authenticate to Kerberos.");
+
+ failure:
+	krb4_cleanup_proc(authctxt);
+
+	if (!options.kerberos_or_local_passwd)
+		return (0);
+
 	/* Fall back to ordinary passwd authentication. */
-	return -1;
+	return (-1);
 }
 
 void
-krb4_cleanup_proc(void *ignore)
+krb4_cleanup_proc(void *context)
 {
+	Authctxt *authctxt = (Authctxt *)context;
 	debug("krb4_cleanup_proc called");
-	if (ticket) {
+	if (authctxt->krb4_ticket_file) {
 		(void) dest_tkt();
-		xfree(ticket);
-		ticket = NULL;
+		xfree(authctxt->krb4_ticket_file);
+		authctxt->krb4_ticket_file = NULL;
 	}
 }
 
 int
-krb4_init(uid_t uid)
-{
-	static int cleanup_registered = 0;
-	const char *tkt_root = TKT_ROOT;
-	struct stat st;
-	int fd;
-
-	if (!ticket) {
-		/* Set unique ticket string manually since we're still root. */
-		ticket = xmalloc(MAXPATHLEN);
-#ifdef AFS
-		if (lstat("/ticket", &st) != -1)
-			tkt_root = "/ticket/";
-#endif /* AFS */
-		snprintf(ticket, MAXPATHLEN, "%s%u_%d", tkt_root, uid, getpid());
-		(void) krb_set_tkt_string(ticket);
-	}
-	/* Register ticket cleanup in case of fatal error. */
-	if (!cleanup_registered) {
-		fatal_add_cleanup(krb4_cleanup_proc, NULL);
-		cleanup_registered = 1;
-	}
-	/* Try to create our ticket file. */
-	if ((fd = mkstemp(ticket)) != -1) {
-		close(fd);
-		return 1;
-	}
-	/* Ticket file exists - make sure user owns it (just passed ticket). */
-	if (lstat(ticket, &st) != -1) {
-		if (st.st_mode == (S_IFREG | S_IRUSR | S_IWUSR) &&
-		    st.st_uid == uid)
-			return 1;
-	}
-	/* Failure - cancel cleanup function, leaving bad ticket for inspection. */
-	log("WARNING: bad ticket file %s", ticket);
-	fatal_remove_cleanup(krb4_cleanup_proc, NULL);
-	cleanup_registered = 0;
-	xfree(ticket);
-	ticket = NULL;
-
-	return 0;
-}
-
-int
-auth_krb4(const char *server_user, KTEXT auth, char **client)
+auth_krb4(Authctxt *authctxt, KTEXT auth, char **client)
 {
 	AUTH_DAT adat = {0};
 	KTEXT_ST reply;
-	char instance[INST_SZ];
-	int r, s;
-	socklen_t slen;
-	u_int cksum;
 	Key_schedule schedule;
 	struct sockaddr_in local, foreign;
+	char instance[INST_SZ];
+	socklen_t slen;
+	u_int cksum;
+	int r, s;
 
 	s = packet_get_connection_in();
 
@@ -238,9 +238,10 @@ auth_krb4(const char *server_user, KTEXT auth, char **client)
 	instance[1] = 0;
 
 	/* Get the encrypted request, challenge, and session key. */
-	if ((r = krb_rd_req(auth, KRB4_SERVICE_NAME, instance, 0, &adat, ""))) {
-		packet_send_debug("Kerberos V4 krb_rd_req: %.100s", krb_err_txt[r]);
-		return 0;
+	if ((r = krb_rd_req(auth, KRB4_SERVICE_NAME, instance,
+	    0, &adat, ""))) {
+		debug("Kerberos v4 krb_rd_req: %.100s", krb_err_txt[r]);
+		return (0);
 	}
 	des_key_sched((des_cblock *) adat.session, schedule);
 
@@ -249,12 +250,11 @@ auth_krb4(const char *server_user, KTEXT auth, char **client)
 	    *adat.pinst ? "." : "", adat.pinst, adat.prealm);
 
 	/* Check ~/.klogin authorization now. */
-	if (kuserok(&adat, (char *) server_user) != KSUCCESS) {
-		packet_send_debug("Kerberos V4 .klogin authorization failed!");
-		log("Kerberos V4 .klogin authorization failed for %s to account %s",
-		    *client, server_user);
+	if (kuserok(&adat, authctxt->user) != KSUCCESS) {
+		log("Kerberos v4 .klogin authorization failed for %s to "
+		    "account %s", *client, authctxt->user);
 		xfree(*client);
-		return 0;
+		return (0);
 	}
 	/* Increment the checksum, and return it encrypted with the
 	   session key. */
@@ -265,7 +265,7 @@ auth_krb4(const char *server_user, KTEXT auth, char **client)
 	   empty message, admitting our failure. */
 	if ((r = krb_mk_priv((u_char *) & cksum, reply.dat, sizeof(cksum) + 1,
 	    schedule, &adat.session, &local, &foreign)) < 0) {
-		packet_send_debug("Kerberos V4 mk_priv: (%d) %s", r, krb_err_txt[r]);
+		debug("Kerberos v4 mk_priv: (%d) %s", r, krb_err_txt[r]);
 		reply.dat[0] = 0;
 		reply.length = 0;
 	} else
@@ -278,89 +278,79 @@ auth_krb4(const char *server_user, KTEXT auth, char **client)
 	packet_put_string((char *) reply.dat, reply.length);
 	packet_send();
 	packet_write_wait();
-	return 1;
+	return (1);
 }
 #endif /* KRB4 */
 
 #ifdef AFS
 int
-auth_krb4_tgt(struct passwd *pw, const char *string)
+auth_krb4_tgt(Authctxt *authctxt, const char *string)
 {
 	CREDENTIALS creds;
+	struct passwd *pw;
 
-	if (pw == NULL)
-		goto auth_kerberos_tgt_failure;
+	if ((pw = authctxt->pw) == NULL)
+		goto failure;
+
+	temporarily_use_uid(pw);
+
 	if (!radix_to_creds(string, &creds)) {
-		log("Protocol error decoding Kerberos V4 tgt");
-		packet_send_debug("Protocol error decoding Kerberos V4 tgt");
-		goto auth_kerberos_tgt_failure;
+		log("Protocol error decoding Kerberos v4 TGT");
+		goto failure;
 	}
 	if (strncmp(creds.service, "", 1) == 0)	/* backward compatibility */
 		strlcpy(creds.service, "krbtgt", sizeof creds.service);
 
 	if (strcmp(creds.service, "krbtgt")) {
-		log("Kerberos V4 tgt (%s%s%s@%s) rejected for %s", creds.pname,
-		    creds.pinst[0] ? "." : "", creds.pinst, creds.realm,
-		    pw->pw_name);
-		packet_send_debug("Kerberos V4 tgt (%s%s%s@%s) rejected for %s",
+		log("Kerberos v4 TGT (%s%s%s@%s) rejected for %s",
 		    creds.pname, creds.pinst[0] ? "." : "", creds.pinst,
 		    creds.realm, pw->pw_name);
-		goto auth_kerberos_tgt_failure;
+		goto failure;
 	}
-	if (!krb4_init(pw->pw_uid))
-		goto auth_kerberos_tgt_failure;
+	if (!krb4_init(authctxt))
+		goto failure;
 
 	if (in_tkt(creds.pname, creds.pinst) != KSUCCESS)
-		goto auth_kerberos_tgt_failure;
+		goto failure;
 
 	if (save_credentials(creds.service, creds.instance, creds.realm,
-	    creds.session, creds.lifetime, creds.kvno,
-	    &creds.ticket_st, creds.issue_date) != KSUCCESS) {
-		packet_send_debug("Kerberos V4 tgt refused: couldn't save credentials");
-		goto auth_kerberos_tgt_failure;
+	    creds.session, creds.lifetime, creds.kvno, &creds.ticket_st,
+	    creds.issue_date) != KSUCCESS) {
+		debug("Kerberos v4 TGT refused: couldn't save credentials");
+		goto failure;
 	}
 	/* Successful authentication, passed all checks. */
 	chown(tkt_string(), pw->pw_uid, pw->pw_gid);
 
-	packet_send_debug("Kerberos V4 tgt accepted (%s.%s@%s, %s%s%s@%s)",
-	    creds.service, creds.instance, creds.realm, creds.pname,
-	    creds.pinst[0] ? "." : "", creds.pinst, creds.realm);
+	debug("Kerberos v4 TGT accepted (%s%s%s@%s)",
+	    creds.pname, creds.pinst[0] ? "." : "", creds.pinst, creds.realm);
 	memset(&creds, 0, sizeof(creds));
-	packet_start(SSH_SMSG_SUCCESS);
-	packet_send();
-	packet_write_wait();
-	return 1;
 
-auth_kerberos_tgt_failure:
-	krb4_cleanup_proc(NULL);
+	restore_uid();
+
+	return (1);
+
+ failure:
+	krb4_cleanup_proc(authctxt);
 	memset(&creds, 0, sizeof(creds));
-	packet_start(SSH_SMSG_FAILURE);
-	packet_send();
-	packet_write_wait();
-	return 0;
+	restore_uid();
+
+	return (0);
 }
 
 int
-auth_afs_token(struct passwd *pw, const char *token_string)
+auth_afs_token(Authctxt *authctxt, const char *token_string)
 {
 	CREDENTIALS creds;
+	struct passwd *pw;
 	uid_t uid;
 
-	if (pw == NULL) {
-		/* XXX fake protocol error */
-		packet_send_debug("Protocol error decoding AFS token");
-		packet_start(SSH_SMSG_FAILURE);
-		packet_send();
-		packet_write_wait();
-		return 0;
-	}
+	if ((pw = authctxt->pw) == NULL)
+		return (0);
+
 	if (!radix_to_creds(token_string, &creds)) {
 		log("Protocol error decoding AFS token");
-		packet_send_debug("Protocol error decoding AFS token");
-		packet_start(SSH_SMSG_FAILURE);
-		packet_send();
-		packet_write_wait();
-		return 0;
+		return (0);
 	}
 	if (strncmp(creds.service, "", 1) == 0)	/* backward compatibility */
 		strlcpy(creds.service, "afs", sizeof creds.service);
@@ -371,22 +361,14 @@ auth_afs_token(struct passwd *pw, const char *token_string)
 		uid = pw->pw_uid;
 
 	if (kafs_settoken(creds.realm, uid, &creds)) {
-		log("AFS token (%s@%s) rejected for %s", creds.pname, creds.realm,
-		    pw->pw_name);
-		packet_send_debug("AFS token (%s@%s) rejected for %s", creds.pname,
-		    creds.realm, pw->pw_name);
+		log("AFS token (%s@%s) rejected for %s",
+		    creds.pname, creds.realm, pw->pw_name);
 		memset(&creds, 0, sizeof(creds));
-		packet_start(SSH_SMSG_FAILURE);
-		packet_send();
-		packet_write_wait();
-		return 0;
+		return (0);
 	}
-	packet_send_debug("AFS token accepted (%s@%s, %s@%s)", creds.service,
-	    creds.realm, creds.pname, creds.realm);
+	debug("AFS token accepted (%s@%s)", creds.pname, creds.realm);
 	memset(&creds, 0, sizeof(creds));
-	packet_start(SSH_SMSG_SUCCESS);
-	packet_send();
-	packet_write_wait();
-	return 1;
+
+	return (1);
 }
 #endif /* AFS */
