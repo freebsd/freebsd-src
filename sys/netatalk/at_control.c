@@ -355,7 +355,7 @@ at_ifinit(ifp, aa, sat)
 {
     struct netrange	nr, onr;
     struct sockaddr_at	oldaddr;
-    int			s = splimp(), error = 0, i, j;
+    int			error = 0, i, j;
     int			netinc, nodeinc, nnets;
     u_short		net;
 
@@ -442,7 +442,6 @@ at_ifinit(ifp, aa, sat)
 		    aa->aa_addr = oldaddr;
 		    aa->aa_firstnet = onr.nr_firstnet;
 		    aa->aa_lastnet = onr.nr_lastnet;
-		    splx(s);
 		    return (EINVAL);
 		}
 		/*
@@ -511,7 +510,6 @@ at_ifinit(ifp, aa, sat)
 		    aa->aa_addr = oldaddr;
 		    aa->aa_firstnet = onr.nr_firstnet;
 		    aa->aa_lastnet = onr.nr_lastnet;
-		    splx(s); 
 		    return (EINTR);
 		}
 
@@ -545,7 +543,6 @@ at_ifinit(ifp, aa, sat)
 	    aa->aa_addr = oldaddr;
 	    aa->aa_firstnet = onr.nr_firstnet;
 	    aa->aa_lastnet = onr.nr_lastnet;
-	    splx(s);
 	    return (EADDRINUSE);
 	}
     }
@@ -563,7 +560,6 @@ at_ifinit(ifp, aa, sat)
 	aa->aa_addr = oldaddr;
 	aa->aa_firstnet = onr.nr_firstnet;
 	aa->aa_lastnet = onr.nr_lastnet;
-	splx(s);
 	return (error);
     }
 
@@ -631,7 +627,6 @@ at_ifinit(ifp, aa, sat)
 	aa->aa_addr = oldaddr;
 	aa->aa_firstnet = onr.nr_firstnet;
 	aa->aa_lastnet = onr.nr_lastnet;
-	splx(s);
 	return (error);
     }
 
@@ -640,7 +635,6 @@ at_ifinit(ifp, aa, sat)
      */
     aa->aa_ifa.ifa_flags |= IFA_ROUTE;
     aa->aa_flags |= AFA_ROUTE;
-    splx(s);
     return (0);
 }
 
