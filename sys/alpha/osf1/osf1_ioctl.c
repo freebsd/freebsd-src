@@ -202,7 +202,7 @@ osf1_ioctl_i(p, uap, cmd, dir, len)
 		 * structure, as DU interface names are all different.
 		 */
 		for (ifn = 0; ifn < if_index; ifn++) {
-			ifp = ifnet_byindex(ifn);
+			ifp = ifnet_byindex(ifn + 1);
 			/* Only look at ether interfaces, exclude alteon nics
 			 * because osf/1 doesn't know about most of them.
 			 */
