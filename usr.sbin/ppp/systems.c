@@ -340,19 +340,22 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
           }
 
           len = strlen(cp);
-          argc = command_Interpret(cp, len, argv);
-          allowcmd = argc > 0 && !strcasecmp(argv[0], "allow");
-          if ((!(how == SYSTEM_EXEC) && allowcmd) ||
-              ((how == SYSTEM_EXEC) && !allowcmd)) {
-            /*
-             * Disable any context so that warnings are given to everyone,
-             * including syslog.
-             */
-            op = log_PromptContext;
-            log_PromptContext = NULL;
-	    command_Run(bundle, argc, (char const *const *)argv, prompt,
-                        name, cx);
-            log_PromptContext = op;
+          if ((argc = command_Interpret(cp, len, argv)) < 0)
+            log_Printf(LogWARN, "%s: %d: Syntax error\n", filename, linenum);
+          else {
+            allowcmd = argc > 0 && !strcasecmp(argv[0], "allow");
+            if ((!(how == SYSTEM_EXEC) && allowcmd) ||
+                ((how == SYSTEM_EXEC) && !allowcmd)) {
+              /*
+               * Disable any context so that warnings are given to everyone,
+               * including syslog.
+               */
+              op = log_PromptContext;
+              log_PromptContext = NULL;
+	      command_Run(bundle, argc, (char const *const *)argv, prompt,
+                          name, cx);
+              log_PromptContext = op;
+            }
           }
         }
 

@@ -276,6 +276,7 @@ findblank(char *p, int instring)
 	return (p);
       p++;
     }
+    return NULL;
   } else {
     while (*p) {
       if (issep(*p))
@@ -311,7 +312,9 @@ MakeArgs(char *script, char **pvect, int maxargs)
       *pvect++ = script;
       nargs++;
       script = findblank(script, instring);
-      if (*script)
+      if (script == NULL)
+        return -1;
+      else if (*script)
 	*script++ = '\0';
     }
   }
