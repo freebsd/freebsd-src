@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.45 1995/05/30 08:06:07 rgrimes Exp $
+ * $Id: tty.c,v 1.45.2.1 1995/06/04 16:28:42 davidg Exp $
  */
 
 #include "snp.h"
@@ -1037,7 +1037,25 @@ ttywait(tp)
 	while ((tp->t_outq.c_cc || ISSET(tp->t_state, TS_BUSY)) &&
 	    (ISSET(tp->t_state, TS_CARR_ON) || ISSET(tp->t_cflag, CLOCAL))
 	    && tp->t_oproc) {
-		(*tp->t_oproc)(tp);
+		/*
+		 * XXX the call to t_oproc() can cause livelock.
+		 *
+		 * If two processes wait for output to drain from the same
+		 * tty, and the amount of output to drain is <= tp->t_lowat,
+		 * then the processes will take turns uselessly waking each
+		 * other up until the output drains, all running at spltty()
+		 * so that even interrupts on other terminals are blocked.
+		 *
+		 * Skipping the call when TS_BUSY is set avoids the problem
+		 * for current drivers but isn't "right".  There is no
+		 * problem for ptys - we only get woken up when the output
+		 * queue is actually reduced.  Hardware ttys should be
+		 * handled similarly.  There would still be excessive
+		 * wakeups for output below low water when we only care
+		 * about output complete.
+		 */
+		if (!ISSET(tp->t_state, TS_BUSY))
+			(*tp->t_oproc)(tp);
 		if ((tp->t_outq.c_cc || ISSET(tp->t_state, TS_BUSY)) &&
 		    (ISSET(tp->t_state, TS_CARR_ON) || ISSET(tp->t_cflag, CLOCAL))) {
 			SET(tp->t_state, TS_ASLEEP);
