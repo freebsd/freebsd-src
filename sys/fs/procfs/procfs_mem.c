@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.4 (Berkeley) 1/21/94
  *
- *	$Id: procfs_mem.c,v 1.12 1995/12/07 12:47:15 davidg Exp $
+ *	$Id: procfs_mem.c,v 1.13 1995/12/11 04:56:31 dyson Exp $
  */
 
 /*
@@ -90,7 +90,7 @@ procfs_rwmem(p, uio)
 		vm_prot_t out_prot;
 		vm_page_t m;
 		boolean_t wired, single_use;
-		vm_offset_t off;
+		vm_pindex_t pindex;
 		u_int len;
 		int fix_prot;
 
@@ -150,7 +150,7 @@ procfs_rwmem(p, uio)
 		tmap = map;
 		error = vm_map_lookup(&tmap, pageno,
 				      writing ? VM_PROT_WRITE : VM_PROT_READ,
-				      &out_entry, &object, &off, &out_prot,
+				      &out_entry, &object, &pindex, &out_prot,
 				      &wired, &single_use);
 		/*
 		 * We're done with tmap now.
@@ -162,7 +162,7 @@ procfs_rwmem(p, uio)
 		 * Fault the page in...
 		 */
 		if (!error && writing && object->backing_object) {
-			m = vm_page_lookup(object, off);
+			m = vm_page_lookup(object, pindex);
 			if (m == 0)
 				error = vm_fault(map, pageno,
 							VM_PROT_WRITE, FALSE);
@@ -171,7 +171,7 @@ procfs_rwmem(p, uio)
 		/* Find space in kernel_map for the page we're interested in */
 		if (!error)
 			error = vm_map_find(kernel_map, object,
-				IDX_TO_OFF(off), &kva, PAGE_SIZE, 1);
+				IDX_TO_OFF(pindex), &kva, PAGE_SIZE, 1);
 
 		if (!error) {
 			/*
