@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.82 1996/01/28 08:08:36 gpalmer Exp $
+#	$Id: rc,v 1.83 1996/01/29 08:46:13 gpalmer Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -224,7 +224,7 @@ fi
 
 if [ "X${amdflags}" != X"NO" ]; then
 	echo -n ' amd'
-	amd -p -l /var/log/amd.log ${amdflags} > /var/run/amd.pid
+	amd ${amdflags} > /var/run/amd.pid
 fi
 
 # Kerberos runs ONLY on the Kerberos server machine
