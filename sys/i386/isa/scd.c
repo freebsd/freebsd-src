@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.20 1996/05/03 16:49:03 phk Exp $ */
+/* $Id: scd.c,v 1.21 1996/06/08 09:18:23 bde Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -72,7 +72,6 @@
 #include <machine/clock.h>
 #include <machine/stdarg.h>
 
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/scdreg.h>
 

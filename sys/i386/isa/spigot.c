@@ -72,9 +72,7 @@ error "Can only have 1 spigot configured."
 #include	<machine/spigot.h>
 #include	<machine/psl.h>
 
-#include	<i386/isa/isa.h>
 #include	<i386/isa/isa_device.h>
-
 
 static struct spigot_softc {
 	u_long		flags;

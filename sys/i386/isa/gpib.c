@@ -43,7 +43,6 @@
 
 #include "i386/isa/gpibreg.h"
 #include "i386/isa/gpib.h"
-#include "i386/isa/isa.h"
 #include "i386/isa/isa_device.h"
 
 #define MIN(a,b) ((a < b) ? a : b)
