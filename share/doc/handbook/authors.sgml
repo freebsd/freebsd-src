@@ -68,6 +68,10 @@ Please keep this list in alphabetical order by entity names.
   <tt><htmlurl url='mailto:csgr@FreeBSD.ORG'
   name='&lt;csgr@FreeBSD.ORG&gt;'></tt>">
 
+<!ENTITY a.danny  "Daniel O'Callaghan
+  <tt><htmlurl url='mailto:danny@FreeBSD.ORG'
+  name='&lt;danny@FreeBSD.ORG&gt;'></tt>">
+
 <!ENTITY a.darrenr "Darren Reed 
   <tt><htmlurl url='mailto:darrenr@FreeBSD.ORG' 
   name='&lt;darrenr@FreeBSD.ORG&gt;'></tt>">
