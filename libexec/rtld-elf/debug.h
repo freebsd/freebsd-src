@@ -50,10 +50,17 @@ extern int debug;
 #define dbg(format, args...)	((void) 0)
 #endif
 
+#ifndef COMPAT_32BIT
+#define _MYNAME	"ld-elf.so.1"
+#else
+#define _MYNAME	"ld-elf32.so.1"
+#endif
+
 #define assert(cond)	((cond) ? (void) 0 :		\
-    (msg("ld-elf.so.1: assert failed: " __FILE__ ":"	\
+    (msg(_MYNAME ": assert failed: " __FILE__ ":"	\
       __XSTRING(__LINE__) "\n"), abort()))
 #define msg(s)		write(STDOUT_FILENO, s, strlen(s))
-#define trace()		msg("ld-elf.so.1: " __XSTRING(__LINE__) "\n")
+#define trace()		msg(_MYNAME ": " __XSTRING(__LINE__) "\n")
+
 
 #endif /* DEBUG_H */
