@@ -85,10 +85,10 @@ static int polltime;
 static struct callout_handle promtimeouthandle
 	= CALLOUT_HANDLE_INITIALIZER(&promtimeouthandle);
 
-void	promstart __P((struct tty *));
-void	promtimeout __P((void *));
-int	promparam __P((struct tty *, struct termios *));
-void	promstop __P((struct tty *, int));
+void	promstart(struct tty *);
+void	promtimeout(void *);
+int	promparam(struct tty *, struct termios *);
+void	promstop(struct tty *, int);
 
 int
 promopen(dev, flag, mode, td)

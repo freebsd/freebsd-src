@@ -58,11 +58,11 @@
 #include <cam/cam_xpt_sim.h>
 #include <cam/cam_debug.h>
 
-static void	configure __P((void *));
+static void	configure(void *);
 SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_THIRD, configure, NULL)
 
-static void	configure_finish __P((void));
-static void	configure_start __P((void));
+static void	configure_finish(void);
+static void	configure_start(void);
 
 #ifdef DEV_ISA
 #include <isa/isavar.h>

@@ -81,7 +81,7 @@
 static jmp_buf *db_nofault = 0;
 extern jmp_buf	db_jmpbuf;
 
-extern void	gdb_handle_exception __P((db_regs_t *, int, int));
+extern void	gdb_handle_exception(db_regs_t *, int, int);
 
 #if 0
 extern char *trap_type[];
@@ -90,8 +90,8 @@ extern int trap_types;
 
 int	db_active;
 
-void	ddbprinttrap __P((unsigned long, unsigned long, unsigned long,
-	    unsigned long));
+void	ddbprinttrap(unsigned long, unsigned long, unsigned long,
+	    unsigned long);
 
 struct db_variable db_regs[] = {
 	{	"v0",	&ddb_regs.tf_regs[FRAME_V0],	FCN_NULL	},

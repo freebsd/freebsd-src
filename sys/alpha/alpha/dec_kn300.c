@@ -62,8 +62,8 @@
 #endif
 static int comcnrate = CONSPEED;
 
-void dec_kn300_init __P((void));
-void dec_kn300_cons_init __P((void));
+void dec_kn300_init(void);
+void dec_kn300_cons_init(void);
 
 #define	ALPHASERVER_4100	"AlphaServer 4100"
 
@@ -73,9 +73,9 @@ const struct alpha_variation_table dec_kn300_variations[] = {
 };
 
 
-extern int siocnattach __P((int, int));
-extern int siogdbattach __P((int, int));
-extern int sccnattach __P((void));
+extern int siocnattach(int, int);
+extern int siogdbattach(int, int);
+extern int sccnattach(void);
 
 void
 dec_kn300_init()

@@ -50,9 +50,9 @@ struct bootinfo_v1 {
 	char	booted_kernel[64];	/* 80: name of booted kernel	*/
 	void	*hwrpb;			/* 144: hwrpb pointer (BEVA)	*/
 	u_long	hwrpbsize;		/* 152: size of hwrpb data	*/
-	int	(*cngetc) __P((void));	/* 160: console getc pointer	*/
-	void	(*cnputc) __P((int));	/* 168: console putc pointer	*/
-	void	(*cnpollc) __P((int));	/* 176: console pollc pointer	*/
+	int	(*cngetc)(void);	/* 160: console getc pointer	*/
+	void	(*cnputc)(int);	/* 168: console putc pointer	*/
+	void	(*cnpollc)(int);	/* 176: console pollc pointer	*/
 	u_long	pad[6];			/* 184: rsvd for future use	*/
 	char	*envp;			/* 232:	start of environment	*/
 	u_long	kernend;		/* 240: end of kernel		*/

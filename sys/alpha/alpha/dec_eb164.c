@@ -52,17 +52,17 @@
 #endif
 static int comcnrate = CONSPEED;
 
-void dec_eb164_init __P((void));
-static void dec_eb164_cons_init __P((void));
+void dec_eb164_init(void);
+static void dec_eb164_cons_init(void);
 static void eb164_intr_init(void);
 extern void eb164_intr_enable(int irq);
 extern void eb164_intr_disable(int irq);
 extern void eb164_intr_enable_icsr(int irq);
 extern void eb164_intr_disable_icsr(int irq);
 
-extern int siocnattach __P((int, int));
-extern int siogdbattach __P((int, int));
-extern int sccnattach __P((void));
+extern int siocnattach(int, int);
+extern int siogdbattach(int, int);
+extern int sccnattach(void);
 
 void
 dec_eb164_init()

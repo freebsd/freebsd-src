@@ -55,10 +55,10 @@ struct tc_softc {
 	int     nbuiltins;
 	struct tc_builtin     *builtins;
         struct tc_slotdesc *sc_slots;
-        void    (*sc_intr_establish) __P((struct device *, void *,
-                    tc_intrlevel_t, int (*)(void *), void *));
-        void    (*sc_intr_disestablish) __P((struct device *, void *));
-/*        bus_dma_tag_t (*sc_get_dma_tag) __P((int));
+        void    (*sc_intr_establish)(struct device *, void *,
+                    tc_intrlevel_t, int (*)(void *), void *);
+        void    (*sc_intr_disestablish)(struct device *, void *);
+/*        bus_dma_tag_t (*sc_get_dma_tag)(int);
 */
 };
 #define NTC_ROMOFFS     2
@@ -91,19 +91,19 @@ static driver_t tc_driver = {
 
 #define C(x)    ((void *)(u_long)x)
 
-int     tc_intrnull __P((void *));
+int     tc_intrnull(void *);
 struct tcintr {
-        int     (*tci_func) __P((void *));
+        int     (*tci_func)(void *);
         void    *tci_arg;
 };
 
 #ifdef DEC_3000_300
 
-void    tc_3000_300_intr_setup __P((void));
-void    tc_3000_300_intr_establish __P((struct device *, void *,
-            tc_intrlevel_t, int (*)(void *), void *));
-void    tc_3000_300_intr_disestablish __P((struct device *, void *));
-void    tc_3000_300_iointr __P((void *, unsigned long));
+void    tc_3000_300_intr_setup(void);
+void    tc_3000_300_intr_establish(struct device *, void *,
+            tc_intrlevel_t, int (*)(void *), void *);
+void    tc_3000_300_intr_disestablish(struct device *, void *);
+void    tc_3000_300_iointr(void *, unsigned long);
 
 
 
@@ -135,11 +135,11 @@ struct tcintr tc_3000_300_intr[TC_3000_300_NCOOKIES];
 #endif /* DEC_3000_300 */
 
 #ifdef DEC_3000_500
-void    tc_3000_500_intr_setup __P((void));
-void    tc_3000_500_intr_establish __P((struct device *, void *,
-            tc_intrlevel_t, int (*)(void *), void *));
-void    tc_3000_500_intr_disestablish __P((struct device *, void *));
-void    tc_3000_500_iointr __P((void *, unsigned long));
+void    tc_3000_500_intr_setup(void);
+void    tc_3000_500_intr_establish(struct device *, void *,
+            tc_intrlevel_t, int (*)(void *), void *);
+void    tc_3000_500_intr_disestablish(struct device *, void *);
+void    tc_3000_500_iointr(void *, unsigned long);
 
 struct tc_slotdesc tc_3000_500_slots[] = {
         { KV(0x100000000), C(TC_3000_500_DEV_OPT0), },  /* 0 - opt slot 0 */
@@ -212,7 +212,7 @@ tc_3000_300_intr_establish(tcadev, cookie, level, func, arg)
         struct device *tcadev;
         void *cookie, *arg;
         tc_intrlevel_t level;
-        int (*func) __P((void *));
+        int (*func)(void *);
 {
         volatile u_int32_t *imskp;
         u_long dev = (u_long)cookie;
@@ -383,7 +383,7 @@ tc_3000_500_intr_establish(tcadev, cookie, level, func, arg)
         struct device *tcadev;
         void *cookie, *arg;
         tc_intrlevel_t level;
-        int (*func) __P((void *));
+        int (*func)(void *);
 {
         u_long dev = (u_long)cookie;
 
@@ -666,7 +666,7 @@ tc_intr_establish(dev, cookie, level, handler, arg)
         struct device *dev;
         void *cookie, *arg;
         tc_intrlevel_t level;
-        int (*handler) __P((void *));
+        int (*handler)(void *);
 {
         struct tc_softc *sc = (struct tc_softc *)device_get_softc(dev);
 

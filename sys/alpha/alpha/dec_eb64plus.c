@@ -73,9 +73,9 @@
 #endif
 static int comcnrate = CONSPEED;
 
-void dec_eb64plus_init __P((void));
-static void dec_eb64plus_cons_init __P((void));
-static void dec_eb64plus_intr_init __P((void));
+void dec_eb64plus_init(void);
+static void dec_eb64plus_cons_init(void);
+static void dec_eb64plus_intr_init(void);
 
 extern void eb64plus_intr_enable(int irq); 	/* ../pci/pci_eb64plus_intr.s */
 extern void eb64plus_intr_disable(int irq);	/* ../pci/pci_eb64plus_intr.s */
@@ -83,8 +83,8 @@ extern void eb64plus_intr_disable(int irq);	/* ../pci/pci_eb64plus_intr.s */
 extern const char * bootdev_protocol(void);
 extern int bootdev_boot_dev_type(void);
 
-extern int siocnattach __P((int, int));
-extern int sccnattach __P((void));
+extern int siocnattach(int, int);
+extern int sccnattach(void);
 
 const struct alpha_variation_table dec_eb64plus_variations[] = {
 	{ 0, "DEC EB64-plus" },

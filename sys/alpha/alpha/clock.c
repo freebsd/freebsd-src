@@ -286,7 +286,7 @@ cpu_initclocks()
 	}
 
 	stathz = hz / 8;
-	platform.clockintr = (void (*) __P((void *))) handleclock;
+	platform.clockintr = (void (*)(void *)) handleclock;
 
 	/*
 	 * Get the clock started.
