@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vfsops.c	8.20 (Berkeley) 5/20/95
- * $Id: union_vfsops.c,v 1.25 1998/02/06 12:13:44 eivind Exp $
+ * $Id: union_vfsops.c,v 1.26 1998/02/10 08:04:31 kato Exp $
  */
 
 /*
@@ -74,6 +74,7 @@ static int	union_unmount __P((struct mount *mp, int mntflags,
 				   struct proc *p));
 extern int	union_vget __P((struct mount *mp, ino_t ino,
 				struct vnode **vpp));
+static int	union_vrele __P((struct mount *mp, struct vnode *vp));
 extern int	union_vptofh __P((struct vnode *vp, struct fid *fhp));
 
 /*
@@ -523,6 +524,21 @@ union_statfs(mp, sbp, p)
 }
 
 /*
+ * Complement to all vpp returning ops.
+ * XXX - initially only to get rid of WILLRELE.
+ * XXX - may change when modification of vops start.
+ */
+/* ARGSUSED */
+static int
+union_vrele(mp, vp)
+	struct mount *mp;
+	struct vnode *vp;
+{
+	vrele(vp);
+	return (0);
+}
+
+/*
  * XXX - Assumes no data cached at union layer.
  */
 #define union_sync ((int (*) __P((struct mount *, int, struct ucred *, \
@@ -547,6 +563,7 @@ static struct vfsops union_vfsops = {
 	union_statfs,
 	union_sync,
 	union_vget,
+	union_vrele,
 	union_fhtovp,
 	union_vptofh,
 	union_init,

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.32 1997/11/07 08:52:51 phk Exp $
+ * $Id: cd9660_vfsops.c,v 1.33 1997/12/21 21:40:02 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -73,6 +73,7 @@ static int cd9660_statfs __P((struct mount *, struct statfs *, struct proc *));
 static int cd9660_sync __P((struct mount *, int, struct ucred *, 
 	    struct proc *));
 static int cd9660_vget __P((struct mount *, ino_t, struct vnode **));
+static int cd9660_vrele __P((struct mount *, struct vnode *));
 static int cd9660_fhtovp __P((struct mount *, struct fid *, struct sockaddr *,
 	    struct vnode **, int *, struct ucred **));
 static int cd9660_vptofh __P((struct vnode *, struct fid *));
@@ -86,6 +87,7 @@ static struct vfsops cd9660_vfsops = {
 	cd9660_statfs,
 	cd9660_sync,
 	cd9660_vget,
+	cd9660_vrele,
 	cd9660_fhtovp,
 	cd9660_vptofh,
 	cd9660_init
@@ -656,6 +658,19 @@ cd9660_vget(mp, ino, vpp)
 	    0,
 #endif
 	    (struct iso_directory_record *)0));
+}
+
+/*
+ * Complement to all vpp returning ops.
+ * XXX - initially only to get rid of WILLRELE.
+ */
+/* ARGSUSED */
+static int
+cd9660_vrele(mp, vp)
+	struct mount *mp;
+	struct vnode *vp;
+{
+	return (EOPNOTSUPP);
 }
 
 int
