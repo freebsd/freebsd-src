@@ -751,7 +751,7 @@ index_initialize(char *path)
 	fclose(fp);
 	index_sort(&Top);
 	index_initted = TRUE;
+	restorescr(w);
     }
-    restorescr(w);
     return DITEM_SUCCESS;
 }
