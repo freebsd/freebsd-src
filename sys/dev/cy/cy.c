@@ -271,7 +271,6 @@ struct com_s {
 	u_char	last_modem_status;	/* last MSR read by intr handler */
 	u_char	prev_modem_status;	/* last MSR handled by high level */
 
-	u_char	hotchar;	/* ldisc-specific char to be handled ASAP */
 	u_char	*ibuf;		/* start of input buffer */
 	u_char	*ibufend;	/* end of input buffer */
 	u_char	*ibufold;	/* old input buffer, to be freed */
@@ -1111,7 +1110,7 @@ siointr1(vcom)
 			recv_data = cd_inb(iobase, CD1400_RDSR, cy_align);
 #ifndef SOFT_HOTCHAR
 			if (line_status & CD1400_RDSR_SPECIAL
-			    && com->hotchar != 0)
+			    && com->tp->t_hotchar != 0)
 				swi_sched(sio_fast_ih, 0);
 
 #endif
@@ -1139,7 +1138,7 @@ siointr1(vcom)
 #endif /* 1 */
 			++com->bytes_in;
 #ifdef SOFT_HOTCHAR
-			if (com->hotchar != 0 && recv_data == com->hotchar)
+			if (com->tp->t_hotchar != 0 && recv_data == com->tp->t_hotchar)
 				swi_sched(sio_fast_ih, 0);
 #endif
 			ioptr = com->iptr;
@@ -1187,9 +1186,9 @@ siointr1(vcom)
 								   CD1400_RDSR,
 								   cy_align);
 #ifdef SOFT_HOTCHAR
-						if (com->hotchar != 0
+						if (com->tp->t_hotchar != 0
 						    && recv_data
-						       == com->hotchar)
+						       == com->tp->t_hotchar)
 							swi_sched(sio_fast_ih,
 								  0);
 #endif
@@ -1204,8 +1203,8 @@ siointr1(vcom)
 					recv_data = cd_inb(iobase, CD1400_RDSR,
 							   cy_align);
 #ifdef SOFT_HOTCHAR
-					if (com->hotchar != 0
-					    && recv_data == com->hotchar)
+					if (com->tp->t_hotchar != 0
+					    && recv_data == com->tp->t_hotchar)
 						swi_sched(sio_fast_ih, 0);
 #endif
 				} while (--count != 0);
@@ -1229,8 +1228,8 @@ siointr1(vcom)
 					recv_data = cd_inb(iobase, CD1400_RDSR,
 							   cy_align);
 #ifdef SOFT_HOTCHAR
-					if (com->hotchar != 0
-					    && recv_data == com->hotchar)
+					if (com->tp->t_hotchar != 0
+					    && recv_data == com->tp->t_hotchar)
 						swi_sched(sio_fast_ih, 0);
 #endif
 					ioptr[0] = recv_data;
@@ -2578,12 +2577,12 @@ disc_optim(tp, t, com)
 	u_char	opt;
 #endif
 
-	com->hotchar = ttyldoptim(tp);
+	ttyldoptim(tp);
 #ifndef SOFT_HOTCHAR
 	opt = com->cor[2] & ~CD1400_COR3_SCD34;
-	if (com->hotchar != 0) {
-		cd_setreg(com, CD1400_SCHR3, com->hotchar);
-		cd_setreg(com, CD1400_SCHR4, com->hotchar);
+	if (com->tp->t_hotchar != 0) {
+		cd_setreg(com, CD1400_SCHR3, com->tp->t_hotchar);
+		cd_setreg(com, CD1400_SCHR4, com->tp->t_hotchar);
 		opt |= CD1400_COR3_SCD34;
 	}
 	if (opt != com->cor[2]) {
