@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.16.2.2 1998/10/04 18:51:59 wpaul Exp $
+ *	$Id: if_tl.c,v 1.16.2.3 1998/10/08 15:47:10 wpaul Exp $
  */
 
 /*
@@ -241,7 +241,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_tl.c,v 1.16.2.2 1998/10/04 18:51:59 wpaul Exp $";
+	"$Id: if_tl.c,v 1.16.2.3 1998/10/08 15:47:10 wpaul Exp $";
 #endif
 
 #ifdef TL_DEBUG
@@ -1829,12 +1829,12 @@ static int tl_list_rx_init(sc)
 	cd = &sc->tl_cdata;
 	ld = sc->tl_ldata;
 
-	for (i = 0; i < TL_TX_LIST_CNT; i++) {
+	for (i = 0; i < TL_RX_LIST_CNT; i++) {
 		cd->tl_rx_chain[i].tl_ptr =
 			(struct tl_list_onefrag *)&ld->tl_rx_list[i];
 		if (tl_newbuf(sc, &cd->tl_rx_chain[i]) == ENOBUFS)
 			return(ENOBUFS);
-		if (i == (TL_TX_LIST_CNT - 1)) {
+		if (i == (TL_RX_LIST_CNT - 1)) {
 			cd->tl_rx_chain[i].tl_next = NULL;
 			ld->tl_rx_list[i].tlist_fptr = 0;
 		} else {
