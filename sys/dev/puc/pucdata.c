@@ -900,7 +900,6 @@ const struct puc_device_description puc_devices[] = {
 
 	/* Moxa Technologies Co., Ltd. PCI I/O Card 8S RS232 */
 	{   "Moxa Technologies, C168U/PCI",
-	    NULL,
 	    {	0x1393,	0x1681,	0,	0	},
 	    {	0xffff,	0xffff,	0,	0,	},
 	    {
