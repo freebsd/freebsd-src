@@ -75,6 +75,7 @@
 #endif
 
 #define DRM_OS_IOCTL 		dev_t kdev, u_long cmd, caddr_t data, int flags, DRM_OS_STRUCTPROC *p
+#define IOCTL_ARGS_PASS		kdev, cmd, data, flags, p
 #define DRM_OS_LOCK		lockmgr(&dev->dev_lock, LK_EXCLUSIVE, 0, DRM_OS_CURPROC)
 #define DRM_OS_UNLOCK 		lockmgr(&dev->dev_lock, LK_RELEASE, 0, DRM_OS_CURPROC)
 #define DRM_OS_CHECKSUSER	suser(p)
@@ -291,9 +292,6 @@ find_first_zero_bit(volatile unsigned long *p, int max)
 /* Internal functions */
 
 /* drm_drv.h */
-extern d_ioctl_t	DRM(ioctl);
-extern d_ioctl_t	DRM(lock);
-extern d_ioctl_t	DRM(unlock);
 extern d_open_t		DRM(open);
 extern d_close_t	DRM(close);
 extern d_read_t		DRM(read);
@@ -305,77 +303,8 @@ extern int		DRM(open_helper)(dev_t kdev, int flags, int fmt,
 extern drm_file_t	*DRM(find_file_by_proc)(drm_device_t *dev, 
 					 DRM_OS_STRUCTPROC *p);
 
-/* Misc. IOCTL support (drm_ioctl.h) */
-extern d_ioctl_t	DRM(irq_busid);
-extern d_ioctl_t	DRM(getunique);
-extern d_ioctl_t	DRM(setunique);
-extern d_ioctl_t	DRM(getmap);
-extern d_ioctl_t	DRM(getclient);
-extern d_ioctl_t	DRM(getstats);
-
-/* Context IOCTL support (drm_context.h) */
-extern d_ioctl_t	DRM(resctx);
-extern d_ioctl_t	DRM(addctx);
-extern d_ioctl_t	DRM(modctx);
-extern d_ioctl_t	DRM(getctx);
-extern d_ioctl_t	DRM(switchctx);
-extern d_ioctl_t	DRM(newctx);
-extern d_ioctl_t	DRM(rmctx);
-extern d_ioctl_t	DRM(setsareactx);
-extern d_ioctl_t	DRM(getsareactx);
-
-/* Drawable IOCTL support (drm_drawable.h) */
-extern d_ioctl_t	DRM(adddraw);
-extern d_ioctl_t	DRM(rmdraw);
-
-/* Authentication IOCTL support (drm_auth.h) */
-extern d_ioctl_t	DRM(getmagic);
-extern d_ioctl_t	DRM(authmagic);
-
-/* Locking IOCTL support (drm_lock.h) */
-extern d_ioctl_t	DRM(block);
-extern d_ioctl_t	DRM(unblock);
-extern d_ioctl_t	DRM(finish);
-
-/* Buffer management support (drm_bufs.h) */
-extern d_ioctl_t	DRM(addmap);
-extern d_ioctl_t	DRM(rmmap);
-#if __HAVE_DMA
-extern d_ioctl_t	DRM(addbufs_agp);
-extern d_ioctl_t	DRM(addbufs_pci);
-extern d_ioctl_t	DRM(addbufs_sg);
-extern d_ioctl_t	DRM(addbufs);
-extern d_ioctl_t	DRM(infobufs);
-extern d_ioctl_t	DRM(markbufs);
-extern d_ioctl_t	DRM(freebufs);
-extern d_ioctl_t	DRM(mapbufs);
-#endif
-
 /* Memory management support (drm_memory.h) */
 extern int		DRM(mem_info) DRM_SYSCTL_HANDLER_ARGS;
-
-/* DMA support (drm_dma.h) */
-#if __HAVE_DMA_IRQ
-extern d_ioctl_t	DRM(control);
-#endif
-
-/* AGP/GART support (drm_agpsupport.h) */
-#if __REALLY_HAVE_AGP
-extern d_ioctl_t	DRM(agp_acquire);
-extern d_ioctl_t	DRM(agp_release);
-extern d_ioctl_t	DRM(agp_enable);
-extern d_ioctl_t	DRM(agp_info);
-extern d_ioctl_t	DRM(agp_alloc);
-extern d_ioctl_t	DRM(agp_free);
-extern d_ioctl_t	DRM(agp_unbind);
-extern d_ioctl_t	DRM(agp_bind);
-#endif
-
-/* Scatter Gather Support (drm_scatter.h) */
-#if __HAVE_SG
-extern d_ioctl_t	DRM(sg_alloc);
-extern d_ioctl_t	DRM(sg_free);
-#endif
 
 /* SysCtl Support (drm_sysctl.h) */
 extern int		DRM(sysctl_init)(drm_device_t *dev);

@@ -43,6 +43,7 @@
 
 #include "dev/drm/r128.h"
 #include "dev/drm/drmP.h"
+#include "dev/drm/r128_drm.h"
 #include "dev/drm/r128_drv.h"
 #if __REALLY_HAVE_SG
 #include "ati_pcigart.h"

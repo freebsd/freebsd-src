@@ -43,6 +43,7 @@
 
 #include "dev/drm/mga.h"
 #include "dev/drm/drmP.h"
+#include "dev/drm/mga_drm.h"
 #include "dev/drm/mga_drv.h"
 
 #define DRIVER_AUTHOR		"Gareth Hughes, VA Linux Systems Inc."

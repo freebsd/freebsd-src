@@ -223,6 +223,17 @@ typedef struct _drm_mga_sarea {
    	int ctxOwner;
 } drm_mga_sarea_t;
 
+/* MGA specific ioctls */
+#define DRM_IOCTL_MGA_INIT		DRM_IOW( 0x40, drm_mga_init_t)
+#define DRM_IOCTL_MGA_FLUSH		DRM_IOW( 0x41, drm_lock_t)
+#define DRM_IOCTL_MGA_RESET		DRM_IO(  0x42)
+#define DRM_IOCTL_MGA_SWAP		DRM_IO(  0x43)
+#define DRM_IOCTL_MGA_CLEAR		DRM_IOW( 0x44, drm_mga_clear_t)
+#define DRM_IOCTL_MGA_VERTEX		DRM_IOW( 0x45, drm_mga_vertex_t)
+#define DRM_IOCTL_MGA_INDICES		DRM_IOW( 0x46, drm_mga_indices_t)
+#define DRM_IOCTL_MGA_ILOAD		DRM_IOW( 0x47, drm_mga_iload_t)
+#define DRM_IOCTL_MGA_BLIT		DRM_IOW( 0x48, drm_mga_blit_t)
+
 
 /* WARNING: If you change any of these defines, make sure to change the
  * defines in the Xserver file (xf86drmMga.h)

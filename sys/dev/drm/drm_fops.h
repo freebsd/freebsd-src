@@ -117,7 +117,6 @@ int DRM(open_helper)(dev_t kdev, int flags, int fmt, DRM_OS_STRUCTPROC *p,
 	up(&dev->struct_sem);
 #endif /* __linux__ */
 #ifdef __FreeBSD__
-	/* FIXME: linux mallocs and bzeros here */
 	priv = (drm_file_t *) DRM(find_file_by_proc)(dev, p);
 	if (priv) {
 		priv->refs++;

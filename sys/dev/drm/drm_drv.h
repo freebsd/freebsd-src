@@ -1176,12 +1176,7 @@ int DRM(ioctl)( DRM_OS_IOCTL )
 	DRM_OS_DEVICE;
 	int retcode = 0;
 	drm_ioctl_desc_t *ioctl;
-#ifdef __linux__
 	drm_ioctl_t *func;
-#endif /* __linux__ */
-#ifdef __FreeBSD__
-	d_ioctl_t *func;
-#endif /* __FreeBSD__ */
 	int nr = DRM_IOCTL_NR(cmd);
 	DRM_OS_PRIV;
 
@@ -1227,12 +1222,7 @@ int DRM(ioctl)( DRM_OS_IOCTL )
 			 || ( ioctl->auth_needed && !priv->authenticated ) ) {
 			retcode = DRM_OS_ERR(EACCES);
 		} else {
-#ifdef __linux__
-			retcode = func( inode, filp, cmd, data );
-#endif /* __linux__ */
-#ifdef __FreeBSD__
-			retcode = func( kdev, cmd, data, flags, p );
-#endif /* __FreeBSD__ */
+			retcode = func( IOCTL_ARGS_PASS );
 		}
 	}
 
@@ -1291,7 +1281,7 @@ int DRM(lock)( DRM_OS_IOCTL )
 #endif /* __linux__ */
                         if ( !dev->lock.hw_lock ) {
                                 /* Device has been unregistered */
-                                ret = EINTR;
+                                ret = DRM_OS_ERR(EINTR);
                                 break;
                         }
                         if ( DRM(lock_take)( &dev->lock.hw_lock->lock,
@@ -1306,7 +1296,7 @@ int DRM(lock)( DRM_OS_IOCTL )
 #ifdef __linux__
                         schedule();
                         if ( signal_pending( current ) ) {
-                                ret = ERESTARTSYS;
+                                ret = DRM_OS_ERR(ERESTARTSYS);
                                 break;
                         }
 #endif /* __linux__ */
@@ -1366,7 +1356,7 @@ int DRM(lock)( DRM_OS_IOCTL )
         atomic_inc(&dev->histo.lacq[DRM(histogram_slot)(get_cycles()-start)]);
 #endif
 
-	return DRM_OS_ERR(ret);
+	return ret;
 }
 
 
