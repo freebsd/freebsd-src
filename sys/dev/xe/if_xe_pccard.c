@@ -61,21 +61,15 @@ __FBSDID("$FreeBSD$");
  */
 #define XE_DEBUG 0
 
-#define XE_VENDOR_ID_XIRCOM 0x0105
-#define XE_VENDOR_ID_COMPAQ_1 0x0138
-#define XE_VENDOR_ID_COMPAQ_2 0x0183
-#define XE_VENDOR_ID_INTEL 0x0089
-#define XE_VENDOR_ID_UNKNOWN 0
-
 struct xe_vendor_table {
 	u_int32_t vendor_id;
 	char *vendor_desc;
 } xe_vendor_devs[] = {
-	{ XE_VENDOR_ID_XIRCOM, "Xircom" },
-	{ XE_VENDOR_ID_COMPAQ_1, "Compaq" },
-	{ XE_VENDOR_ID_COMPAQ_2, "Compaq" },   /* Maybe Paralon Techologies, Inc */
-	{ XE_VENDOR_ID_INTEL, "Intel" },
-	{ XE_VENDOR_ID_UNKNOWN, "Unknown" }
+	{ PCMCIA_VENDOR_XIRCOM, "Xircom" },
+	{ PCMCIA_VENDOR_COMPAQ, "Compaq" },
+	{ PCMCIA_VENDOR_COMPAQ2, "Compaq" },   /* Maybe Paralon Techologies, Inc */
+	{ PCMCIA_VENDOR_INTEL, "Intel" },
+	{ 0, "Unknown" }
 };
 
 #define XE_CARD_TYPE_FLAGS_NO 0x0
@@ -224,9 +218,9 @@ xe_pccard_probe(device_t dev)
 	int i;
 
 #if XE_DEBUG > 1
-	char* vendor_str = NULL;
-	char* product_str = NULL;
-	char* cis4_str = NULL;
+	const char* vendor_str = NULL;
+	const char* product_str = NULL;
+	const char* cis4_str = NULL;
 	device_printf(dev, "pccard_probe\n");
 	pccard_get_vendor(dev, &vendor);
 	pccard_get_product(dev, &prodid);
