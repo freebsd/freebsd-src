@@ -219,7 +219,7 @@ main(argc, argv)
 			ru.ru_nivcsw, "involuntary context switches");
 	}
 	if (exitonsig) {
-		if (signal(exitonsig, SIG_DFL) < 0)
+		if (signal(exitonsig, SIG_DFL) == SIG_ERR)
 			perror("signal");
 		else
 			kill(getpid(), exitonsig);
