@@ -209,7 +209,6 @@ dev/acpica/acpi_resource.c	optional acpica
 dev/acpica/acpi_thermal.c	optional acpica
 dev/acpica/acpi_timer.c		optional acpica
 dev/acpica/Osd/OsdDebug.c	optional acpica
-dev/acpica/Osd/OsdEnvironment.c	optional acpica
 dev/acpica/Osd/OsdHardware.c	optional acpica
 dev/acpica/Osd/OsdInterrupt.c	optional acpica
 dev/acpica/Osd/OsdMemory.c	optional acpica
