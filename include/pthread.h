@@ -225,7 +225,7 @@ int		pthread_create __P((pthread_t *, const pthread_attr_t *,
 			void *(*) (void *), void *));
 int		pthread_detach __P((pthread_t));
 int		pthread_equal __P((pthread_t, pthread_t));
-void		pthread_exit __P((void *));
+void		pthread_exit __P((void *)) __dead2;
 void		*pthread_getspecific __P((pthread_key_t));
 int		pthread_join __P((pthread_t, void **));
 int		pthread_key_create __P((pthread_key_t *,
