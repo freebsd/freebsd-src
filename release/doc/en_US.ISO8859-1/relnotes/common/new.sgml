@@ -1072,7 +1072,9 @@ hw.pcic.irq="0"</programlisting>
     system paths now have the <literal>schg</literal> flag set to
     prevent exploit vectors when run by &man.cron.8;, by
     <username>root</username>, or by a user other then the one owning
-    the binary.</para>
+    the binary.  In addition, &man.uustat.1; is now run via
+    <filename>/etc/periodic/daily/410.status-uucp</filename> as
+    <username>uucp</username>, not <username>root</username>. &merged;</para>
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
