@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995-1997, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995-2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: snprintf.c,v 1.24 1999/12/02 16:58:52 joda Exp $");
+RCSID("$Id: snprintf.c,v 1.24.2.1 2000/06/14 07:26:49 joda Exp $");
 #endif
 #include <stdio.h>
 #include <stdarg.h>
@@ -265,7 +265,7 @@ append_char(struct state *state,
 if (long_flag) \
      res = (unsig long)va_arg(arg, unsig long); \
 else if (short_flag) \
-     res = (unsig short)va_arg(arg, unsig short); \
+     res = (unsig short)va_arg(arg, unsig int); \
 else \
      res = (unsig int)va_arg(arg, unsig int)
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,7 +33,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: verify_user.c,v 1.17.2.1 1999/12/06 22:57:17 assar Exp $");
+RCSID("$Id: verify_user.c,v 1.17.2.2 2000/12/15 14:43:37 assar Exp $");
 
 /*
  * Verify user (name.instance@realm) with `password'.
@@ -78,6 +78,7 @@ krb_verify_user_srvtab_exact(char *name,
 	
 	KTEXT_ST ticket;
 	AUTH_DAT auth;
+	int n;
 
 	char lrealm[REALM_SZ];
 	char hostname[MaxHostNameLen];
@@ -94,33 +95,31 @@ krb_verify_user_srvtab_exact(char *name,
 	    return -1;
 	}
 	memcpy(&addr, hp->h_addr, sizeof(addr));
-
-	ret = krb_get_lrealm(lrealm, 1);
-	if(ret != KSUCCESS){
-	    dest_tkt();
-	    return ret;
-	}
 	phost = krb_get_phost(hostname);
-	
 	if (linstance == NULL)
 	    linstance = "rcmd";
 
-	if(secure == KRB_VERIFY_SECURE_FAIL) {
-	    des_cblock key;
-	    ret = read_service_key(linstance, phost, lrealm, 0, srvtab, &key);
-	    memset(key, 0, sizeof(key));
-	    if(ret == KFAILURE)
-		return 0;
+	ret = KFAILURE;
+
+	for (n = 1; krb_get_lrealm(lrealm, n) == KSUCCESS; ++n) {
+	    if(secure == KRB_VERIFY_SECURE_FAIL) {
+		des_cblock key;
+		ret = read_service_key(linstance, phost, lrealm, 0, srvtab,
+				       &key);
+		memset(key, 0, sizeof(key));
+		if(ret == KFAILURE)
+		    continue;
+	    }
+
+	    ret = krb_mk_req(&ticket, linstance, phost, lrealm, 0);
+	    if(ret == KSUCCESS) {
+		ret = krb_rd_req(&ticket, linstance, phost, addr, &auth,
+				 srvtab);
+		if (ret == KSUCCESS)
+		    break;
+	    }
 	}
-	
-	ret = krb_mk_req(&ticket, linstance, phost, lrealm, 33);
-	if(ret != KSUCCESS){
-	    dest_tkt();
-	    return ret;
-	}
-	
-	ret = krb_rd_req(&ticket, linstance, phost, addr, &auth, srvtab);
-	if(ret != KSUCCESS){
+	if (ret != KSUCCESS) {
 	    dest_tkt();
 	    return ret;
 	}

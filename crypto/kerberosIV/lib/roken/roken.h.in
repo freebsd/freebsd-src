@@ -1,6 +1,6 @@
 /* -*- C -*- */
 /*
- * Copyright (c) 1995, 1996, 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: roken.h.in,v 1.125 1999/12/02 16:58:52 joda Exp $ */
+/* $Id: roken.h.in,v 1.125.2.4 2000/03/12 20:32:51 assar Exp $ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -68,6 +68,9 @@
 #endif
 #ifdef HAVE_NETINET6_IN6_H
 #include <netinet6/in6.h>
+#endif
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
 #endif
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
@@ -427,40 +430,52 @@ struct hostent *
 copyhostent (const struct hostent *h);
 #endif
 
+#ifndef HAVE_SOCKLEN_T
+typedef int socklen_t;
+#endif
+
 #ifndef HAVE_STRUCT_SOCKADDR_STORAGE
 
 #ifndef HAVE_SA_FAMILY_T
 typedef unsigned short sa_family_t;
 #endif
 
+#ifdef HAVE_IPV6
+#define _SS_MAXSIZE sizeof(struct sockaddr_in6)
+#else
+#define _SS_MAXSIZE sizeof(struct sockaddr_in)
+#endif
+
+#define _SS_ALIGNSIZE	sizeof(unsigned long)
+
 #if HAVE_STRUCT_SOCKADDR_SA_LEN
+
+typedef unsigned char roken_sa_family_t;
+
+#define _SS_PAD1SIZE   ((2 * _SS_ALIGNSIZE - sizeof (roken_sa_family_t) - sizeof(unsigned char)) % _SS_ALIGNSIZE)
+#define _SS_PAD2SIZE   (_SS_MAXSIZE - (sizeof (roken_sa_family_t) + sizeof(unsigned char) + _SS_PAD1SIZE + _SS_ALIGNSIZE))
 
 struct sockaddr_storage {
     unsigned char	__ss_len;
-    sa_family_t		__ss_family;
-    char		pad[
-#ifdef HAVE_IPV6
-			    sizeof(struct sockaddr_in6)
-#else
-			    sizeof(struct sockaddr_in)
-#endif
-			   - sizeof(unsigned char) - sizeof(sa_family_t)];
+    roken_sa_family_t	__ss_family;
+    char		__ss_pad1[_SS_PAD1SIZE];
+    unsigned long	__ss_align[_SS_PAD2SIZE / sizeof(unsigned long) + 1];
 };
 
-#else
+#else /* !HAVE_STRUCT_SOCKADDR_SA_LEN */
+
+typedef unsigned short roken_sa_family_t;
+
+#define _SS_PAD1SIZE   ((2 * _SS_ALIGNSIZE - sizeof (roken_sa_family_t)) % _SS_ALIGNSIZE)
+#define _SS_PAD2SIZE   (_SS_MAXSIZE - (sizeof (roken_sa_family_t) + _SS_PAD1SIZE + _SS_ALIGNSIZE))
 
 struct sockaddr_storage {
-    sa_family_t		__ss_family;
-    char		pad[
-#ifdef HAVE_IPV6
-			    sizeof(struct sockaddr_in6)
-#else
-			    sizeof(struct sockaddr_in)
-#endif
-			    - sizeof(sa_family_t)];
+    roken_sa_family_t	__ss_family;
+    char		__ss_pad1[_SS_PAD1SIZE];
+    unsigned long	__ss_align[_SS_PAD2SIZE / sizeof(unsigned long) + 1];
 };
 
-#endif
+#endif /* HAVE_STRUCT_SOCKADDR_SA_LEN */
 
 #endif /* HAVE_STRUCT_SOCKADDR_STORAGE */
 

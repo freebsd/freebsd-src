@@ -53,7 +53,7 @@
 
 #include <config.h>
 
-RCSID("$Id: kerberos5.c,v 1.37 1999/06/24 17:09:10 assar Exp $");
+RCSID("$Id: kerberos5.c,v 1.38 1999/09/16 20:41:33 assar Exp $");
 
 #ifdef	KRB5
 
@@ -587,7 +587,7 @@ kerberos5_status(Authenticator *ap, char *name, size_t name_sz, int level)
 		     ticket->client,
 		     UserNameRequested))
 	{
-	    strcpy_truncate(name, UserNameRequested, name_sz);
+	    strlcpy(name, UserNameRequested, name_sz);
 	    return(AUTH_VALID);
 	} else
 	    return(AUTH_USER);
@@ -606,11 +606,11 @@ kerberos5_printsub(unsigned char *data, int cnt, unsigned char *buf, int buflen)
 
     switch(data[3]) {
     case KRB_REJECT:		/* Rejected (reason might follow) */
-	strcpy_truncate((char *)buf, " REJECT ", buflen);
+	strlcpy((char *)buf, " REJECT ", buflen);
 	goto common;
 
     case KRB_ACCEPT:		/* Accepted (name might follow) */
-	strcpy_truncate((char *)buf, " ACCEPT ", buflen);
+	strlcpy((char *)buf, " ACCEPT ", buflen);
     common:
 	BUMP(buf, buflen);
 	if (cnt <= 4)
@@ -624,24 +624,24 @@ kerberos5_printsub(unsigned char *data, int cnt, unsigned char *buf, int buflen)
 
 
     case KRB_AUTH:			/* Authentication data follows */
-	strcpy_truncate((char *)buf, " AUTH", buflen);
+	strlcpy((char *)buf, " AUTH", buflen);
 	goto common2;
 
     case KRB_RESPONSE:
-	strcpy_truncate((char *)buf, " RESPONSE", buflen);
+	strlcpy((char *)buf, " RESPONSE", buflen);
 	goto common2;
 
     case KRB_FORWARD:		/* Forwarded credentials follow */
-	strcpy_truncate((char *)buf, " FORWARD", buflen);
+	strlcpy((char *)buf, " FORWARD", buflen);
 	goto common2;
 
     case KRB_FORWARD_ACCEPT:	/* Forwarded credentials accepted */
-	strcpy_truncate((char *)buf, " FORWARD_ACCEPT", buflen);
+	strlcpy((char *)buf, " FORWARD_ACCEPT", buflen);
 	goto common2;
 
     case KRB_FORWARD_REJECT:	/* Forwarded credentials rejected */
 	/* (reason might follow) */
-	strcpy_truncate((char *)buf, " FORWARD_REJECT", buflen);
+	strlcpy((char *)buf, " FORWARD_REJECT", buflen);
 	goto common2;
 
     default:

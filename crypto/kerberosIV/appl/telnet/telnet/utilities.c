@@ -37,7 +37,7 @@
 
 #include "telnet_locl.h"
 
-RCSID("$Id: utilities.c,v 1.21 1998/06/09 19:24:47 joda Exp $");
+RCSID("$Id: utilities.c,v 1.22.2.1 2000/10/10 13:10:27 assar Exp $");
 
 FILE	*NetTrace = 0;		/* Not in bss, since needs to stay */
 int	prettydump;
@@ -82,13 +82,13 @@ SetNetTrace(char *file)
     if (file  && (strcmp(file, "-") != 0)) {
 	NetTrace = fopen(file, "w");
 	if (NetTrace) {
-	    strcpy_truncate(NetTraceFile, file, sizeof(NetTraceFile));
+	    strlcpy(NetTraceFile, file, sizeof(NetTraceFile));
 	    return;
 	}
 	fprintf(stderr, "Cannot open %s.\n", file);
     }
     NetTrace = stdout;
-    strcpy_truncate(NetTraceFile, "(standard output)", sizeof(NetTraceFile));
+    strlcpy(NetTraceFile, "(standard output)", sizeof(NetTraceFile));
 }
 
 void
@@ -816,6 +816,9 @@ EmptyTerminal(void)
     fd_set	outs;
 
     FD_ZERO(&outs);
+
+    if (tout >= FD_SETSIZE)
+	ExitString("fd too large", 1);
 
     if (TTYBYTES() == 0) {
 	FD_SET(tout, &outs);

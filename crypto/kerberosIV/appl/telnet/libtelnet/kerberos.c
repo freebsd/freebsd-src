@@ -56,7 +56,7 @@
 #include <config.h>
 #endif
 
-RCSID("$Id: kerberos.c,v 1.45 1999/03/13 21:18:55 assar Exp $");
+RCSID("$Id: kerberos.c,v 1.46 1999/09/16 20:41:33 assar Exp $");
 
 #ifdef	KRB4
 #ifdef HAVE_SYS_TYPES_H
@@ -181,7 +181,7 @@ kerberos4_send(char *name, Authenticator *ap)
 
     memset(instance, 0, sizeof(instance));
 
-    strcpy_truncate (instance,
+    strlcpy (instance,
 		     krb_get_phost(RemoteHostName),
 		     INST_SZ);
 
@@ -522,7 +522,7 @@ kerberos4_status(Authenticator *ap, char *name, size_t name_sz, int level)
 	return(level);
 
     if (UserNameRequested && !kuserok(&adat, UserNameRequested)) {
-	strcpy_truncate(name, UserNameRequested, name_sz);
+	strlcpy(name, UserNameRequested, name_sz);
 	return(AUTH_VALID);
     } else
 	return(AUTH_USER);
@@ -541,11 +541,11 @@ kerberos4_printsub(unsigned char *data, int cnt, unsigned char *buf, int buflen)
 
     switch(data[3]) {
     case KRB_REJECT:		/* Rejected (reason might follow) */
-	strcpy_truncate((char *)buf, " REJECT ", buflen);
+	strlcpy((char *)buf, " REJECT ", buflen);
 	goto common;
 
     case KRB_ACCEPT:		/* Accepted (name might follow) */
-	strcpy_truncate((char *)buf, " ACCEPT ", buflen);
+	strlcpy((char *)buf, " ACCEPT ", buflen);
     common:
 	BUMP(buf, buflen);
 	if (cnt <= 4)
@@ -558,15 +558,15 @@ kerberos4_printsub(unsigned char *data, int cnt, unsigned char *buf, int buflen)
 	break;
 
     case KRB_AUTH:			/* Authentication data follows */
-	strcpy_truncate((char *)buf, " AUTH", buflen);
+	strlcpy((char *)buf, " AUTH", buflen);
 	goto common2;
 
     case KRB_CHALLENGE:
-	strcpy_truncate((char *)buf, " CHALLENGE", buflen);
+	strlcpy((char *)buf, " CHALLENGE", buflen);
 	goto common2;
 
     case KRB_RESPONSE:
-	strcpy_truncate((char *)buf, " RESPONSE", buflen);
+	strlcpy((char *)buf, " RESPONSE", buflen);
 	goto common2;
 
     default:

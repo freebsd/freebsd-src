@@ -33,7 +33,7 @@
 
 #include <config.h>
 
-RCSID("$Id: rsaencpwd.c,v 1.17 1998/07/09 23:16:32 assar Exp $");
+RCSID("$Id: rsaencpwd.c,v 1.18 1999/09/16 20:41:34 assar Exp $");
 
 #ifdef	RSA_ENCPWD
 /*
@@ -260,7 +260,7 @@ rsaencpwd_is(ap, data, cnt)
 		    snprintf(challenge, sizeof(challenge), "%x", now);
 		    challenge_len = strlen(challenge);
 		  } else {
-		    strcpy_truncate(challenge, "randchal", sizeof(challenge));
+		    strlcpy(challenge, "randchal", sizeof(challenge));
 		    challenge_len = 8;
 		  }
 
@@ -392,7 +392,7 @@ rsaencpwd_status(ap, name, name_sz, level)
 		return(level);
 
 	if (UserNameRequested && rsaencpwd_passwdok(UserNameRequested, UserPassword)) {
-		strcpy_truncate(name, UserNameRequested, name_sz);
+		strlcpy(name, UserNameRequested, name_sz);
 		return(AUTH_VALID);
 	} else {
 		return(AUTH_USER);
@@ -414,11 +414,11 @@ rsaencpwd_printsub(data, cnt, buf, buflen)
 
 	switch(data[3]) {
 	case RSA_ENCPWD_REJECT:	/* Rejected (reason might follow) */
-		strcpy_truncate((char *)buf, " REJECT ", buflen);
+		strlcpy((char *)buf, " REJECT ", buflen);
 		goto common;
 
 	case RSA_ENCPWD_ACCEPT:	/* Accepted (name might follow) */
-		strcpy_truncate((char *)buf, " ACCEPT ", buflen);
+		strlcpy((char *)buf, " ACCEPT ", buflen);
 	common:
 		BUMP(buf, buflen);
 		if (cnt <= 4)
@@ -431,11 +431,11 @@ rsaencpwd_printsub(data, cnt, buf, buflen)
 		break;
 
 	case RSA_ENCPWD_AUTH:		/* Authentication data follows */
-		strcpy_truncate((char *)buf, " AUTH", buflen);
+		strlcpy((char *)buf, " AUTH", buflen);
 		goto common2;
 
 	case RSA_ENCPWD_CHALLENGEKEY:
-		strcpy_truncate((char *)buf, " CHALLENGEKEY", buflen);
+		strlcpy((char *)buf, " CHALLENGEKEY", buflen);
 		goto common2;
 
 	default:

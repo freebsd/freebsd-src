@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,7 +33,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: getfile.c,v 1.5 1999/12/02 16:58:42 joda Exp $");
+RCSID("$Id: getfile.c,v 1.5.2.1 2000/12/07 17:04:48 assar Exp $");
 
 static int
 is_suid(void)
@@ -53,7 +53,7 @@ get_file(const char **files, int num, const char *file, char *buf, size_t len)
 {
     const char *p, **q;
     int i = 0;
-    if(!is_suid() && (p = getenv("KRBCONFDIR"))){
+    if(getuid() != 0 && !is_suid() && (p = getenv("KRBCONFDIR"))){
 	if(num == i){
 	    snprintf(buf, len, "%s/%s", p, file);
 	    return 0;

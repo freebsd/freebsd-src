@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 - 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -66,7 +66,7 @@
 
 #include <roken.h>
 
-RCSID("$Id: aklog.c,v 1.24 1999/12/02 16:58:28 joda Exp $");
+RCSID("$Id: aklog.c,v 1.24.2.1 2000/06/23 02:31:15 assar Exp $");
 
 static int debug = 0;
 
@@ -89,15 +89,15 @@ DEBUG(const char *fmt, ...)
 }
 
 static char *
-expand_cell_name(char *cell)
+expand_1 (const char *cell, const char *filename)
 {
   FILE *f;
   static char buf[128];
   char *p;
 
-  f = fopen(_PATH_CELLSERVDB, "r");
+  f = fopen(filename, "r");
   if(f == NULL)
-    return cell;
+    return NULL;
   while(fgets(buf, sizeof(buf), f) != NULL) {
     if(buf[0] == '>') {
       for(p=buf; *p && !isspace(*p) && *p != '#'; p++)
@@ -111,11 +111,25 @@ expand_cell_name(char *cell)
     buf[0] = 0;
   }
   fclose(f);
+  return NULL;
+}
+
+static const char *
+expand_cell_name(const char *cell)
+{
+  char *ret;
+
+  ret = expand_1(cell, _PATH_CELLSERVDB);
+  if (ret != NULL)
+    return ret;
+  ret = expand_1(cell, _PATH_ARLA_CELLSERVDB);
+  if (ret != NULL)
+    return ret;
   return cell;
 }
 
 static int
-createuser (char *cell)
+createuser (const char *cell)
 {
   char cellbuf[64];
   char name[ANAME_SZ];
@@ -129,9 +143,11 @@ createuser (char *cell)
 
     f = fopen (_PATH_THISCELL, "r");
     if (f == NULL)
-      err (1, "open(%s)", _PATH_THISCELL);
+      f = fopen (_PATH_ARLA_THISCELL, "r");
+    if (f == NULL)
+      err (1, "open(%s, %s)", _PATH_THISCELL, _PATH_ARLA_THISCELL);
     if (fgets (cellbuf, sizeof(cellbuf), f) == NULL)
-      err (1, "read cellname from %s", _PATH_THISCELL);
+      err (1, "read cellname from %s %s", _PATH_THISCELL, _PATH_ARLA_THISCELL);
     fclose (f);
     len = strlen(cellbuf);
     if (cellbuf[len-1] == '\n')
@@ -156,7 +172,7 @@ main(int argc, char **argv)
   int i;
   int do_aklog = -1;
   int do_createuser = -1;
-  char *cell = NULL;
+  const char *cell = NULL;
   char *realm = NULL;
   char cellbuf[64];
   

@@ -33,7 +33,7 @@
 
 #include "telnet_locl.h"
 
-RCSID("$Id: authenc.c,v 1.9 1999/03/19 23:13:51 assar Exp $");
+RCSID("$Id: authenc.c,v 1.10 1999/09/16 20:41:35 assar Exp $");
 
 #if	defined(AUTHENTICATION) || defined(ENCRYPTION)
 int
@@ -82,7 +82,7 @@ telnet_gets(char *prompt, char *result, int length, int echo)
 		printf("%s", prompt);
 		res = fgets(result, length, stdin);
 	} else if ((res = getpass(prompt))) {
-		strcpy_truncate(result, res, length);
+		strlcpy(result, res, length);
 		res = result;
 	}
 	TerminalNewMode(om);
