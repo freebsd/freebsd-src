@@ -185,14 +185,17 @@ void
 card_removed(struct slot *sp)
 {
 	struct card *cp;
+	int in_use = 0;
 
 	if (sp->cis)
 		freecis(sp->cis);
 	if (sp->config) {
+		if (sp->config->inuse && sp->config->driver->inuse)
+			in_use = 1;
 		sp->config->inuse = 0;
 		sp->config->driver->inuse = 0;
 	}
-	if ((cp = sp->card) != 0)
+	if ((cp = sp->card) != 0 && in_use)
 		execute(cp->remove, sp);
 	sp->cis = 0;
 	sp->config = 0;
@@ -229,10 +232,36 @@ card_inserted(struct slot *sp)
 #if 0
 	dumpcis(sp->cis);
 #endif
-	for (cp = cards; cp; cp = cp->next)
-		if (strncmp(cp->manuf, sp->cis->manuf, CIS_MAXSTR) == 0 &&
-		    strncmp(cp->version, sp->cis->vers, CIS_MAXSTR) == 0)
+	for (cp = cards; cp; cp = cp->next) {
+		switch (cp->deftype) {
+		case DT_VERS:
+			if (strncmp(cp->manuf, sp->cis->manuf, CIS_MAXSTR) == 0 &&
+			    strncmp(cp->version, sp->cis->vers, CIS_MAXSTR) == 0) {
+				logmsg("Card \"%s\"(\"%s\") "
+					"matched \"%s\" (\"%s\") ",
+					sp->cis->manuf, sp->cis->vers,
+					cp->manuf, cp->version
+					);
+				goto escape;
+			}
 			break;
+                case DT_FUNC:
+                        if (cp->func_id == sp->cis->func_id1) {
+                                logmsg("Card \"%s\"(\"%s\") "
+                                       "[%s] [%s] "
+                                       "has function ID %d\n",
+                                    sp->cis->manuf, sp->cis->vers,
+                                    sp->cis->add_info1, sp->cis->add_info2,
+                                    cp->func_id);
+                                goto escape;
+                        }
+                        break;
+		default:
+			logmsg("Unknown deftype %d\n", cp->deftype);
+			die("cardd.c:card_inserted()");
+		}
+	}
+escape:
 	sp->card = cp;
 #if 0
 	reset_slot(sp);
