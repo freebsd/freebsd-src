@@ -84,8 +84,8 @@ struct ciss_cdb
 #define CISS_CDB_ATTRIBUTE_AUTO_CONTINGENT	7
     u_int8_t	direction:2;
 #define CISS_CDB_DIRECTION_NONE			0
-#define CISS_CDB_DIRECTION_READ			1
-#define CISS_CDB_DIRECTION_WRITE		2
+#define CISS_CDB_DIRECTION_WRITE		1
+#define CISS_CDB_DIRECTION_READ			2
     u_int16_t	timeout;		/* seconds */
 #define CISS_CDB_BUFFER_SIZE	16
     u_int8_t	cdb[CISS_CDB_BUFFER_SIZE];
