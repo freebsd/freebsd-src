@@ -302,7 +302,7 @@ struct MCFGbody {
 		uint8_t		start;		/* Starting bus number */
 		uint8_t		end;		/* Ending bus number */
 		uint8_t		rsvd[4];	/* Reserved */
-	} s[];
+	} s[1] __packed;
 } __packed;
 
 /*
