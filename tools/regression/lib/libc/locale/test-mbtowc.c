@@ -53,6 +53,8 @@ main(int argc, char *argv[])
 	 * C/POSIX locale.
 	 */
 
+	printf("1..1\n");
+
 	assert(MB_CUR_MAX == 1);
 
 	/* No shift states in C locale. */
@@ -116,7 +118,7 @@ main(int argc, char *argv[])
 	assert(mbtowc(&wc, buf, 2) == 2);
 	assert(wc == 0xa3c1);
 
-	printf("PASS mbtowc()\n");
+	printf("ok 1 - mbtowc()\n");
 
 	return (0);
 }

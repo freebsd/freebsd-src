@@ -48,6 +48,8 @@ int main()
     char buf[BIG_PIPE_SIZE];	/* any value over PIPE_SIZE should do */
     int i, flags, fd[2];
 
+    printf("1..1\n");
+
     if (pipe(fd) < 0) { perror("pipe"); exit(1); }
 
     flags = fcntl(fd[1], F_GETFL);
@@ -75,5 +77,6 @@ int main()
     close(fd[0]);
     memset(buf, 0, sizeof buf);
     for (i = 0; i < 1000; i++) write_frame(fd[1], buf, sizeof buf);
+    printf("ok 1\n");
     exit(0);
 }

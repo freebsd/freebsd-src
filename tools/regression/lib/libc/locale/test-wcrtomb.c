@@ -55,6 +55,8 @@ main(int argc, char *argv[])
 	 * C/POSIX locale.
 	 */
 
+	printf("1..1\n");
+
 	assert(MB_CUR_MAX == 1);
 
 	/*
@@ -126,7 +128,7 @@ main(int argc, char *argv[])
 		(unsigned char)buf[1] == 0xc1 &&
 		(unsigned char)buf[2] == 0xcc);
 
-	printf("PASS wcrtomb()\n");
+	printf("ok 1 - wcrtomb()\n");
 
 	return (0);
 }

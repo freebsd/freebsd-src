@@ -53,6 +53,8 @@ main(int argc, char *argv[])
 		{ "toupper", towupper },
 	};
 
+	printf("1..2\n");
+
 	/*
 	 * C/POSIX locale.
 	 */
@@ -82,8 +84,8 @@ main(int argc, char *argv[])
 	for (i = 0; i < 65536; i++)
 		assert(towctrans(i, t) == i);
 
-	printf("PASS towctrans()\n");
-	printf("PASS wctrans()\n");
+	printf("ok 1 - towctrans()\n");
+	printf("ok 2 - wctrans()\n");
 
 	return (0);
 }

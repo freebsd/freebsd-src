@@ -40,6 +40,8 @@ main(void)
 	char *sret;
 	int iret;
 
+	printf("1..2\n");
+
 	/*
 	 * strerror() failure tests.
 	 */
@@ -71,7 +73,7 @@ main(void)
 	sret = strerror(ELAST);
 	assert(errno == 0);
 
-	printf("PASS strerror()\n");
+	printf("ok 1 - strerror()\n");
 
 	/*
 	 * strerror_r() failure tests.
@@ -124,7 +126,7 @@ main(void)
 	assert(strcmp(buf, "Too many processes") == 0);
 	assert(iret == 0);
 
-	printf("PASS strerror_r()\n");
+	printf("ok 2 - strerror_r()\n");
 
 	exit(0);
 }

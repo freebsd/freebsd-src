@@ -19,49 +19,36 @@ DATA1:=	${DATA5:S/l/r/g}
 NIL=
 
 all:
-	@echo "Running test variables"
+	@echo '1..14'
 	@echo 1:${DATA1} 2:${DATA2} 3:${DATA3} 4:${DATA4} 5:${DATA5} | \
 		diff -u ${.CURDIR}/regress.variables.out - || ${MAKE} failure
-	@echo "PASS: Test variables detected no regression, output matches."
-	@echo "Running test targets"
+	@echo "ok 1 - test_variables # Test variables detected no regression, output matches."
 	@${MAKE} double 2>/dev/null || ${MAKE} failure
-	@echo "PASS: Test targets detected no regression."
-	@echo "Running test sysvmatch"
+	@echo "ok 2 - test_targets # Test targets detected no regression."
 	@${MAKE} sysvmatch || ${MAKE} failure
-	@echo "PASS: Test sysvmatch detected no regression."
-	@echo "Running test lhs_expn"
+	@echo "ok 3 - sysvmatch # Test sysvmatch detected no regression."
 	@! ${MAKE} lhs_expn && true || ${MAKE} failure
-	@echo "PASS: Test lhs_expn detected no regression."
-	@echo "Running test notdef"
+	@echo "ok 4 lhs_expn # Test lhs_expn detected no regression."
 	@${MAKE} notdef || ${MAKE} failure
-	@echo "PASS: Test notdef detected no regression."
-	@echo "Running test modifiers"
+	@echo "ok 5 - notdef # Test notdef detected no regression."
 	@${MAKE} modifiers || ${MAKE} failure
-	@echo "PASS: Test modifiers detected no regression."
-	@echo "Running test funny_targets"
+	@echo "ok 6 - modifiers # Test modifiers detected no regression."
 	@${MAKE} funny_targets || ${MAKE} failure
-	@echo "PASS: Test funny_targets detected no regression."
-	@echo "Running test arith_expr"
+	@echo "ok 7 funny_targets # Test funny_targets detected no regression."
 	@${MAKE} arith_expr || ${MAKE} failure
-	@echo "PASS: Test arith_expr detected no regression."
-	@echo "Running test PATH_exists"
+	@echo "ok 8 arith_expr # Test arith_expr detected no regression."
 	@${MAKE} PATH_exists || ${MAKE} failure
-	@echo "PASS: Test PATH_exists detected no regression."
-	@echo "Running test double_quotes"
+	@echo "ok 9 PATH_exists # Test PATH_exists detected no regression."
 	@${MAKE} double_quotes || ${MAKE} failure
-	@echo "PASS: Test double_quotes detected no regression."
-	@echo "Running test double_quotes2"
+	@echo "ok 10 double_quotes # Test double_quotes detected no regression."
 	@! ${MAKE} double_quotes2 >/dev/null 2>&1 && true || ${MAKE} failure
-	@echo "PASS: Test double_quotes2 detected no regression."
-	@echo "Running test pass_cmd_vars"
+	@echo "ok 11 double_quotes2 # Test double_quotes2 detected no regression."
 	@${MAKE} pass_cmd_vars || ${MAKE} failure
-	@echo "PASS: Test pass_cmd_vars detected no regression."
-	@echo "Running test plus_flag"
+	@echo "ok 12 pass_cmd_vars # Test pass_cmd_vars detected no regression."
 	@${MAKE} plus_flag || ${MAKE} failure
-	@echo "PASS: Test plus_flag detected no regression."
-	@echo "Running test shell"
+	@echo "ok 13 plus_flag # Test plus_flag detected no regression."
 	@! ${MAKE} shell >/dev/null 2>&1 && true || ${MAKE} failure
-	@echo "PASS: Test shell detected no regression."
+	@echo "ok 14 shell # Test shell detected no regression."
 
 .if make(double)
 # Doubly-defined targets.  make(1) will warn, but use the "right" one.  If it
@@ -247,5 +234,5 @@ shell:
 .endif
 
 failure:
-	@echo "FAIL: Test failed: regression detected.  See above."
+	@echo "not ok # Test failed: regression detected.  See above."
 	@false

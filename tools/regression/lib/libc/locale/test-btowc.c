@@ -46,6 +46,8 @@ main(int argc, char *argv[])
 {
 	int i;
 
+	printf("1..2\n");
+
 	/*
 	 * C/POSIX locale.
 	 */
@@ -63,8 +65,8 @@ main(int argc, char *argv[])
 	assert(btowc('A') == L'A' && wctob(L'A') == 'A');
 	assert(btowc(0xa3) == WEOF && wctob(0xa3c1) == EOF);
 
-	printf("PASS btowc()\n");
-	printf("PASS wctob()\n");
+	printf("ok 1 - btowc()\n");
+	printf("ok 2 - wctob()\n");
 
 	return (0);
 }
