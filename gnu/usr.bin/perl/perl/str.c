@@ -1,4 +1,4 @@
-/* $RCSfile: str.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:33 $
+/* $RCSfile: str.c,v $$Revision: 1.2 $$Date: 1995/05/30 05:03:21 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: str.c,v $
+ * Revision 1.2  1995/05/30 05:03:21  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1994/09/10  06:27:33  gclarkii
  * Initial import of Perl 4.046 bmaked
  *
@@ -1024,7 +1027,7 @@ STR *src;
 	    t = s;
 	    if (*s == '$' && s[1] == '#' && (isALPHA(s[2]) || s[2] == '_'))
 		s++;
-	    s = scanident(s,send,tokenbuf);
+	    s = scanident(s,send,tokenbuf,sizeof tokenbuf);
 	    if (*t == '@' &&
 	      (!(stab = stabent(tokenbuf,FALSE)) ||
 		 (*s == '{' ? !stab_xhash(stab) : !stab_xarray(stab)) )) {
@@ -1058,7 +1061,7 @@ STR *src;
 		    case '@':
 		    case '&':
 		    case '*':
-			s = scanident(s,send,tokenbuf);
+			s = scanident(s,send,tokenbuf,sizeof tokenbuf);
 			continue;
 		    case '\'':
 		    case '"':
@@ -1112,7 +1115,7 @@ STR *src;
 			    case '$':
 				weight -= seen[un_char] * 10;
 				if (isALNUM(d[1])) {
-				    d = scanident(d,s,tokenbuf);
+				    d = scanident(d,s,tokenbuf,sizeof tokenbuf);
 				    if (stabent(tokenbuf,FALSE))
 					weight -= 100;
 				    else
