@@ -325,8 +325,11 @@ ktrsyscall(code, narg, args)
 		bcopy(args, buf, buflen);
 	}
 	req = ktr_getrequest(KTR_SYSCALL);
-	if (req == NULL)
+	if (req == NULL) {
+		if (buf != NULL)
+			free(buf, M_KTRACE);
 		return;
+	}
 	ktp = &req->ktr_data.ktr_syscall;
 	ktp->ktr_code = code;
 	ktp->ktr_narg = narg;
@@ -372,8 +375,11 @@ ktrnamei(path)
 		bcopy(path, buf, namelen);
 	}
 	req = ktr_getrequest(KTR_NAMEI);
-	if (req == NULL)
+	if (req == NULL) {
+		if (buf != NULL)
+			free(buf, M_KTRACE);
 		return;
+	}
 	if (namelen > 0) {
 		req->ktr_header.ktr_len = namelen;
 		req->ktr_header.ktr_buffer = buf;
@@ -621,11 +627,15 @@ utrace(td, uap)
 		return (EINVAL);
 	cp = malloc(uap->len, M_KTRACE, M_WAITOK);
 	error = copyin(uap->addr, cp, uap->len);
-	if (error)
+	if (error) {
+		free(cp, M_KTRACE);
 		return (error);
+	}
 	req = ktr_getrequest(KTR_USER);
-	if (req == NULL)
+	if (req == NULL) {
+		free(cp, M_KTRACE);
 		return (0);
+	}
 	req->ktr_header.ktr_buffer = cp;
 	req->ktr_header.ktr_len = uap->len;
 	ktr_submitrequest(req);
