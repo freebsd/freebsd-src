@@ -32,6 +32,9 @@
  * SUCH DAMAGE.
  *
  */
+
+#include "hash.h" 
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -68,6 +71,7 @@ int lbl_flag;
 int selected, no_options=0;
 
 extern FILE *outf;
+extern hash_table *global_bindings;
 
 struct MenuList {
 	char *option;
@@ -175,7 +179,7 @@ colours: COLOR NAME
 		{
 			color_table->pairs = pair_list;
 			cur_pair = 0;
-			form_bind_tuple(color_table->tablename, FT_COLTAB, color_table);
+			form_bind_tuple(global_bindings, color_table->tablename, FT_COLTAB, color_table);
 		}
 	;
 
@@ -232,6 +236,9 @@ forms:  FORM NAME
 				fprintf(stderr,"Failed to allocate memory for form\n");
 				exit(1);
 			}
+			form->bindings = hash_create(0);
+			if (!form->bindings)
+				errx(1, "Failed to allocate hash table for form");
 			form->y = y;
 			form->x = x;
 		}
@@ -242,9 +249,7 @@ forms:  FORM NAME
 			form->height = height;
 			form->width = width;
 			form->attr = formattr;
-			form->fieldlist = field_inst_list;
-			field_inst_list = 0;
-			form_bind_tuple(formname, FT_FORM, form);
+			form_bind_tuple(global_bindings, formname, FT_FORM, form);
 		}
 	;
 
@@ -298,20 +303,12 @@ field_at: NAME
 			field->fleft = left;
 			field->fright = right;
 			field->fnext = next;
-			if (!field_inst_list)
-				field_inst_list = field;
 			up = 0;
 			down = 0;
 			left = 0;
 			right = 0;
 			next = 0;
-			if (!cur_field)
-				cur_field = field;
-			else {
-				cur_field->next = field;
-				cur_field = field;
-			}
-			form_bind_tuple(fieldname, FT_FIELD_INST, field);
+			form_bind_tuple(form->bindings, fieldname, FT_FIELD_INST, field);
 		}
 	;
 
@@ -453,38 +450,6 @@ cpstr(char *ostr)
 	return (nstr);
 }
 
-/* Calculate a default height for a field */
-
-void
-calc_field_height(struct Field *field, char *string)
-{
-
-	int len;
-
-	len = strlen(string);
-
-	if (!field->width) {
-		/*
-		 * This is a failsafe, this routine shouldn't be called
-		 * with a width of 0, the width should be determined
-		 * first.
-		 */
-		field->height = 1;
-		return;
-	}
-
-	if (len < field->width) {
-		field->height = 1;
-		return;
-	} else
-		field->height = len / field->width;
-
-	if ((field->height*field->width) < len)
-		field->height++;
-
-	return;
-}
-
 void
 define_field(char *defname)
 {
@@ -558,7 +523,7 @@ define_field(char *defname)
 		default:
 			break;
 	}
-	form_bind_tuple(defname, FT_FIELD_DEF, field);
+	form_bind_tuple(global_bindings, defname, FT_FIELD_DEF, field);
 	width=0;
 	height = 0;
 	attr=0;

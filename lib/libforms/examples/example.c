@@ -32,7 +32,10 @@
  *
  */
 #include <stdio.h>
+#include "../hash.h"
 #include "../forms.h"
+
+extern hash_table *global_bindings;
 
 main()
 {
@@ -42,8 +45,6 @@ main()
 
 	initscr();
 
-	form_bind_tuple("exit_form", FT_FUNC, &exit_form);
-	form_bind_tuple("cancel_form", FT_FUNC, &cancel_form);
 
 	if (form_load("example.frm") == FS_ERROR)
 		exit(0);;
@@ -59,13 +60,16 @@ main()
 	cbreak();
 	noecho();
 
-	tuple = form_get_tuple("example", FT_FORM);
+	tuple = form_get_tuple(global_bindings, "example", FT_FORM);
 	if (!tuple)
 		err(0, "No such form");
 	else
 		form = (struct Form *)tuple->addr;
 
 	print_status("This is the status line");
+
+	form_bind_tuple(form->bindings, "exit_form", FT_FUNC, &exit_form);
+	form_bind_tuple(form->bindings, "cancel_form", FT_FUNC, &cancel_form);
 
 	res = form_show("example");
 
@@ -79,11 +83,11 @@ main()
 
 	if  (form->status == FS_EXIT) {
 		printf("You're entries were:\n\n");
-		tuple = form_get_tuple("input1", FT_FIELD_INST);
+		tuple = form_get_tuple(form->bindings, "input1", FT_FIELD_INST);
 		printf("Input 1 = %s\n", ((struct Field *)tuple->addr)->field.input->input);
-		tuple = form_get_tuple("input2", FT_FIELD_INST);
+		tuple = form_get_tuple(form->bindings, "input2", FT_FIELD_INST);
 		printf("Input 2 = %s\n", ((struct Field *)tuple->addr)->field.input->input);
-		tuple = form_get_tuple("menu1", FT_FIELD_INST);
+		tuple = form_get_tuple(form->bindings, "menu1", FT_FIELD_INST);
 		res = ((struct Field *)tuple->addr)->field.menu->selected;
 		printf("Menu selected = %d, %s\n", res,
 			 ((struct Field *)tuple->addr)->field.menu->options[res]);

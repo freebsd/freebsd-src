@@ -32,6 +32,7 @@
  *
  */
 
+#include <hash.h>
 #include <ctype.h>
 #include <err.h>
 #include <ncurses.h>
@@ -41,23 +42,43 @@
 
 #include "internal.h"
 
+extern hash_table *global_bindings;
+
+struct attr_cmd {
+	char *name;
+	int attr;
+};
+
+static struct attr_cmd attr_cmds[] = {
+	{ "standout", 0x00010000},
+	{ "underline", 0x00020000},
+	{ "reverse", 0x00040000},
+	{ "blink", 0x00080000},
+	{ "bold", 0x00200000 }
+};
+
 int done=0;
 
 int
-init_field(struct Field *field)
+init_field(char *key, void *data, void *arg)
 {
-	struct Tuple *tuple;
-	struct Field *def;
+	struct Tuple *tuple = (struct Tuple *)data;
+	struct Tuple *def_tuple;
+	struct Field *def, *field;
 	int i;
 	int len, lim;
+	int strwidth;
 	
-	tuple = form_get_tuple(field->defname, FT_FIELD_DEF);
-	if (!tuple) {
+	field = (struct Field *)tuple->addr;
+
+	/* Field definitions are global, at least for now */
+	def_tuple = form_get_tuple(global_bindings, field->defname, FT_FIELD_DEF);
+	if (!def_tuple) {
 		warnx("Field definition not found -- skipping field");
 		return (-1);
 	}
 
-	def = (struct Field *)tuple->addr;
+	def = (struct Field *)def_tuple->addr;
 	field->height = def->height;
 	field->width = def->width;
 	field->attr = def->attr;
@@ -75,7 +96,7 @@ init_field(struct Field *field)
 			/* Force height to one regardless, at least for now :-) */
 			field->height = 1;
 			if (!field->width && !field->field.input->limit) {
-				field->width = strlen(def->field.input->label);
+				field->width = calc_string_width(def->field.input->label);
 				field->field.input->limit = field->width;
 			} else if (!field->width)
 				field->width = field->field.input->limit;
@@ -84,19 +105,20 @@ init_field(struct Field *field)
 			if (field->field.input->limit < field->width)
 				field->width = field->field.input->limit;
 
-			field->field.input->input = malloc(field->field.input->limit + 1);
+			strwidth = strlen(def->field.input->label);
+			field->field.input->input = malloc(strwidth + 1);
 			if (!field->field.input->input) {
 				warnx("Couldn't allocate memory for input field text");
 				return (-1);
 			}
-			field->field.input->label = malloc(strlen(def->field.input->label)+1);
+			field->field.input->label = malloc(strwidth + 1);
 			if (!field->field.input->label) {
 				warnx("Couldn't allocate memory for input field label");
 				return (-1);
 			}
 			strncpy(field->field.input->label,
 					def->field.input->label,
-					strlen(def->field.input->label) + 1);
+					strwidth + 1);
 			field->field.input->lbl_flag = def->field.input->lbl_flag;
 
 			/*
@@ -107,9 +129,9 @@ init_field(struct Field *field)
 				field->field.input->input[0] = '\0';
 			else if (field->field.input->label) {
 				strncpy(field->field.input->input,
-				field->field.input->label,
-				field->field.input->limit);
-				field->field.input->input[field->field.input->limit] = 0;
+				        field->field.input->label,
+				        strwidth + 1);
+				field->field.input->input[strwidth] = 0;
 			}
 			break;
 		case FF_TEXT:
@@ -118,16 +140,17 @@ init_field(struct Field *field)
 				warnx("Couldn't allocate memory for text field");
 				return (FS_ERROR);
 			}
+			strwidth = strlen(def->field.text->text);
 			if (!field->width)
-				field->width = strlen(def->field.text->text);
-			field->field.text->text = malloc(field->width + 1);
+				field->width = calc_string_width(def->field.text->text);
+			field->field.text->text = malloc(strwidth + 1);
 			if (!field->field.text->text) {
 				warnx("Couldn't allocate memory for text field text");
 				return (FS_ERROR);
 			} else
 				strncpy(field->field.text->text,
 						def->field.text->text,
-						field->width + 1);
+						strwidth + 1);
 			if (!field->height)
 				calc_field_height(field, field->field.text->text);
 			break;
@@ -148,7 +171,7 @@ init_field(struct Field *field)
 					warnx("Couldn't add menu option");
 					return (FS_ERROR);
 				}
-				len = strlen(def->field.menu->options[i]);
+				len = calc_string_width(def->field.menu->options[i]);
 				if (len > lim)
 					lim = len;
 			}
@@ -162,15 +185,16 @@ init_field(struct Field *field)
 				return (FS_ERROR);
 			}
 			if (!field->width)
-				field->width = strlen(def->field.action->text);
-			field->field.action->text = malloc(field->width + 1);
+				field->width = calc_string_width(def->field.action->text);
+			strwidth = strlen(def->field.action->text);
+			field->field.action->text = malloc(strwidth + 1);
 			if (!field->field.action->text) {
 				warnx("Couldn't allocate memory for text field text");
 				return (FS_ERROR);
 			} else
 				strncpy(field->field.action->text,
 						def->field.action->text,
-						field->width + 1);
+						strwidth + 1);
 			if (!field->height)
 				calc_field_height(field, field->field.action->text);
 			field->field.action->fn = def->field.action->fn;
@@ -178,7 +202,7 @@ init_field(struct Field *field)
 		default:
 			break;
 	}
-	return (0);
+	return (1);
 }
 
 void
@@ -263,7 +287,7 @@ do_action(struct Form *form)
 		ch = wgetch(form->window);
 
 		if (ch == FK_ACCEPT) {
-			tuple = form_get_tuple(field->field.action->fn, FT_FUNC);
+			tuple = form_get_tuple(form->bindings, field->field.action->fn, FT_FUNC);
 			if (!tuple) {
 				print_status("No function bound to action");
 				beep();
@@ -303,6 +327,7 @@ do_menu(struct Form *form)
 				field->field.menu->selected++;
 				if (field->field.menu->selected >= field->field.menu->no_options)
 					field->field.menu->selected = 0;
+				ch = FS_OK;
 				break;
 			default:
 				ch = do_key_bind(form, ch);
@@ -325,8 +350,20 @@ do_menu(struct Form *form)
 int
 do_field(struct Form *form)
 {
+	struct Tuple *tuple;
 	struct Field *field = form->current_field;
+	void (* fn)();
 	int status;
+
+	/* Do field entry tasks */
+	if (field->enter) {
+		tuple = form_get_tuple(form->bindings, field->enter, FT_FUNC);
+
+		if (tuple) {
+			fn = tuple->addr;
+			(*fn)(form);
+		}
+	}
 
 	switch (field->type) {
 		case FF_TEXT:
@@ -350,14 +387,53 @@ do_field(struct Form *form)
 			break;
 	}
 
+	/* Do field leave tasks */
+	if (field->leave) {
+		tuple = form_get_tuple(form->bindings, field->leave, FT_FUNC);
+
+		if (tuple) {
+			fn = tuple->addr;
+			(*fn)(form);
+		}
+	}
+
 	return (status);
+}
+
+int
+parse_attr(WINDOW *window, char *string)
+{
+	int inc = 0;
+	struct attr_cmd *attr;
+
+	if (*(string) == '\\')
+		return (1);
+
+	while (!isspace(*(string + inc))) {
+		inc++;
+	}
+
+	for (attr = attr_cmds; attr->name; attr++) {
+		if (strncmp(attr->name, string, inc))
+			continue;
+		else {
+			wattron(window, attr->attr);
+			break;
+		}
+	}
+
+	/* Skip trailing space after the attribute string */
+	while (isspace(*(string + inc)))
+		inc++;
+
+	return (inc);
 }
 
 int
 print_string(WINDOW *window, int y, int x,
              int height, int fwidth, char *string)
 {
-	int len;
+	int len, skip;
 	int width;
 
 	if (!string)
@@ -371,15 +447,20 @@ print_string(WINDOW *window, int y, int x,
 		width = fwidth;
 		while (width--) {
 			if (len-- > 0) {
+				if (*string == '\\') {
+						string++;
+						len--;
+						skip = parse_attr(window, string);
+						len -= skip;
+						string += skip;
+				}
 				if (waddch(window, *string++) == ERR)
 					return (ERR);
-			} else
-				if (waddch(window, ' ') == ERR)
+			} else if (waddch(window, ' ') == ERR)
 					return (ERR);
 		}
 		if (wmove(window, ++y, x) == ERR)
 			return (ERR);
-
 	}
 	return (OK);
 }	
@@ -505,6 +586,83 @@ do_input(struct Form *form)
 		print_string(form->window, field->y, field->x, field->height,
 					 field->width, field->field.input->input+disp_off);
 	}
+}
+
+/*
+ * Calculate length of printable part of the string,
+ * stripping out the attribute modifiers.
+ */
+
+int
+calc_string_width(char *string)
+{
+	int len, width=0;
+
+	if (!string)
+		return (0);
+
+	len = strlen(string);
+
+	while (len) {
+		if (*string != '\\') {
+			width++;
+			len--;
+			string++;
+			continue;
+		} else {
+			string++;
+			len--;
+			if (*string == '\\') {
+				string++;
+				width++;
+				len--;
+				continue;
+			} else {
+				while (!isspace(*string)) {
+					string++;
+					len--;
+				}
+				while (isspace(*string)) {
+					string ++;
+					len--;
+				}
+			}
+		}
+	}
+
+	return (width);
+}
+
+/* Calculate a default height for a field */
+
+void
+calc_field_height(struct Field *field, char *string)
+{
+
+	int len;
+
+	len = calc_string_width(string);
+
+	if (!field->width) {
+		/*
+		 * This is a failsafe, this routine shouldn't be called
+		 * with a width of 0, the width should be determined
+		 * first.
+		 */
+		field->height = 1;
+		return;
+	}
+
+	if (len < field->width) {
+		field->height = 1;
+		return;
+	} else
+		field->height = len / field->width;
+
+	if ((field->height*field->width) < len)
+		field->height++;
+
+	return;
 }
 
 void
