@@ -95,10 +95,6 @@ write_device_resources(FILE *fp, struct device *dp)
 	fprintf(fp, "\t{ \"flags\",\tRES_INT,\t{ 0x%x }},\n", dp->d_flags);
 	count++;
     }
-    if (dp->d_conflicts) {
-	fprintf(fp, "\t{ \"conflicts\",\tRES_INT,\t{ %d }},\n", dp->d_conflicts);
-	count++;
-    }
     if (dp->d_disabled) {
 	fprintf(fp, "\t{ \"disabled\",\tRES_INT,\t{ %d }},\n", dp->d_disabled);
 	count++;

@@ -400,7 +400,9 @@ Info:
 	DISABLE	
 	      = { cur.d_disabled = 1; } |
 	CONFLICTS
-	      = { cur.d_conflicts = 1; };
+	      = {
+		warnx("line %d: Obsolete keyword 'conflicts' found", yyline);
+		};
 
 %%
 
@@ -489,7 +491,6 @@ init_dev(dp)
 	dp->d_name = "OHNO!!!";
 	dp->d_type = DEVICE;
 	dp->d_conn = 0;
-	dp->d_conflicts = 0;
 	dp->d_disabled = 0;
 	dp->d_flags = 0;
 	dp->d_bus = dp->d_lun = dp->d_target = dp->d_drive = dp->d_unit = \
