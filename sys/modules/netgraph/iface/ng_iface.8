@@ -1,0 +1,126 @@
+.\" Copyright (c) 1996-1999 Whistle Communications, Inc.
+.\" All rights reserved.
+.\" 
+.\" Subject to the following obligations and disclaimer of warranty, use and
+.\" redistribution of this software, in source or object code forms, with or
+.\" without modifications are expressly permitted by Whistle Communications;
+.\" provided, however, that:
+.\" 1. Any and all reproductions of the source or object code must include the
+.\"    copyright notice above and the following disclaimer of warranties; and
+.\" 2. No rights are granted, in any manner or form, to use Whistle
+.\"    Communications, Inc. trademarks, including the mark "WHISTLE
+.\"    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
+.\"    such appears in the above copyright notice or in the software.
+.\" 
+.\" THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
+.\" INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+.\" WHISTLE COMMUNICATIONS DOES NOT WARRANT, GUARANTEE, OR MAKE ANY
+.\" REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE USE OF THIS
+.\" SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY OR OTHERWISE.
+.\" IN NO EVENT SHALL WHISTLE COMMUNICATIONS BE LIABLE FOR ANY DAMAGES
+.\" RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
+.\" WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
+.\" OF SUCH DAMAGE.
+.\" 
+.\" Author: Archie Cobbs <archie@whistle.com>
+.\"
+.\" $FreeBSD$
+.\" $Whistle: ng_iface.8,v 1.5 1999/01/25 23:46:26 archie Exp $
+.\"
+.Dd January 19, 1999
+.Dt NG_IFACE 8
+.Os FreeBSD 4.0
+.Sh NAME
+.Nm ng_iface
+.Nd interface netgraph node type
+.Sh SYNOPSIS
+.Fd #include <netgraph/ng_iface.h>
+.Sh DESCRIPTION
+An
+.Nm iface
+node is both a netgraph node and a system networking interface.  When an
+.Nm iface
+node is created, a new point-to-point interface appears which is accessible via
+.Xr ifconfig 8 .
+The new interfaces are named
+.Dv ng0 ,
+.Dv ng1 ,
+etc.  The node is assigned the same name as its interface, unless the name
+already exists, in which case the node remains unnamed.
+.Pp
+.Nm Iface
+nodes have a single hook corresponding to each supported protocol.
+Packets transmitted via the interface flow out the corresponding
+protocol-specific hook.
+Similarly, packets received on a hook appear on the interface as 
+packets received in the corresponding protocol.
+.Pp
+The currently supported protocols are IP, IPX, AppleTalk, and NS.
+In the KLD module, only support for IP is compiled in by default.
+.Pp
+.Nm Iface
+nodes support the Berkeley Packet Filter (BPF). 
+In the KLD module, this support is disabled by default.
+.Sh HOOKS
+This node type supports the following hooks:
+.Pp
+.Bl -tag -width foobar
+.It Dv inet
+Transmission and reception of IP packets.
+.It Dv ipx
+Transmission and reception of IPX packets.
+.It Dv atalk
+Transmission and reception of AppleTalk packets.
+.It Dv ns
+Transmission and reception of NS packets.
+.El
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_IFACE_GET_IFNAME
+Returns the name of the interface corresponding to this node in a
+.Dv "struct ng_iface_ifname" :
+.Bd -literal -offset 4n
+struct ng_iface_ifname {
+  char  ngif_name[NG_IFACE_IFACE_NAME_MAX + 1];
+};
+.Ed
+.It Dv NGM_IFACE_GET_IFADDRS
+Returns the list of addresses associated with this interface.
+The list is returned in the same format as the
+.Dv SIOCGIFCONF
+ioctl().
+.It Dv NGM_CISCO_GET_IPADDR
+This message is defined by the
+.Xr ng_cisco 8
+node type; see
+.Xr ng_cisco 8
+for a description.
+.El
+.Sh SHUTDOWN
+Because it is currently not possible to remove a system networking
+interface in FreeBSD,
+.Nm iface
+nodes are
+.Em persistent.
+That is, once created they are never destroyed.
+The receipt of a
+.Dv NGM_SHUTDOWN
+control message disconnects all hooks but does not remove the node.
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr bpf 4 ,
+.Xr ng_cisco 8 ,
+.Xr ng_rfc1490 8 ,
+.Xr ngctl 8 ,
+.Xr ifconfig 8 .
+.Sh AUTHOR
+Archie Cobbs <archie@whistle.com>
