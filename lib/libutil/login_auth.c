@@ -75,7 +75,6 @@ static void
 free_auth_info(void)
 {
   int i;
-  char *ptr;
 
   auth_info.reject = 0;
   auth_info.auths = 0;
@@ -285,6 +284,7 @@ auth_env(void)
     }
     setenv(nam, ptr, 1);
   }
+  return 0;
 }
 
 
@@ -327,6 +327,7 @@ auth_rmfiles(void)
     free(auth_info.files[i]);
     auth_info.files[i] = NULL;
   }
+  return 0;
 }
 
 
