@@ -81,7 +81,10 @@
 #define	MMU_SFSR_FT_SIZE		(6)
 #define	MMU_SFSR_CT_SIZE		(2)
 
-#define	MMU_SFSR_W			(1L << MMU_SFSR_W_SHIFT)
+#define	MMU_SFSR_GET_ASI(sfsr) \
+	(((sfsr) >> MMU_SFSR_ASI_SHIFT) & ((1UL << MMU_SFSR_ASI_SIZE) - 1))
+#define	MMU_SFSR_W			(1UL << MMU_SFSR_W_SHIFT)
+#define	MMU_SFSR_FV			(1UL << MMU_SFSR_FV_SHIFT)
 
 struct tlb_entry;
 

@@ -211,37 +211,45 @@
 	 inc	dst ; \
 6:
 
-#define	CATCH_SETUP(label) \
-	SET(label, %g2, %g1) ; \
-	stx	%g1, [PCB_REG + PCB_ONFAULT]
+/*
+ * void ascopy(u_long asi, vm_offset_t src, vm_offset_t dst, size_t len)
+ */
+ENTRY(ascopy)
+	wr	%o0, 0, %asi
+	_MEMCPY(%o2, %o1, %o3, a, %asi, a, %asi)
+	retl
+	 nop
+END(ascopy)
 
-#define	CATCH_END() \
-	stx	%g0, [PCB_REG + PCB_ONFAULT]
+/*
+ * void ascopyfrom(u_long sasi, vm_offset_t src, caddr_t dst, size_t len)
+ */
+ENTRY(ascopyfrom)
+	wr	%o0, 0, %asi
+	_MEMCPY(%o2, %o1, %o3, E, E, a, %asi)
+	retl
+	 nop
+END(ascopyfrom)
 
-#define	FU_ALIGNED(loader, label) \
-	CATCH_SETUP(label) ; \
-	loader	[%o0] ASI_AIUP, %o0 ; \
-	retl ; \
-	 CATCH_END()
+/*
+ * void ascopyto(caddr_t src, u_long dasi, vm_offset_t dst, size_t len)
+ */
+ENTRY(ascopyto)
+	wr	%o1, 0, %asi
+	_MEMCPY(%o2, %o0, %o3, a, %asi, E, E)
+	retl
+	 nop
+END(ascopyto)
 
-#define	FU_BYTES(loader, size, label) \
-	btst	(size) - 1, %o0 ; \
-	bnz,pn	%xcc, .Lfsalign ; \
-	 EMPTY ; \
-	FU_ALIGNED(loader, label)
-
-#define	SU_ALIGNED(storer, label) \
-	CATCH_SETUP(label) ; \
-	storer	%o1, [%o0] ASI_AIUP ; \
-	CATCH_END() ; \
-	retl ; \
-	 clr	%o0
-
-#define	SU_BYTES(storer, size, label) \
-	btst	(size) - 1, %o0 ; \
-	bnz,pn	%xcc, .Lfsalign ; \
-	 EMPTY ; \
-	SU_ALIGNED(storer, label)
+/*
+ * void aszero(u_long asi, vm_offset_t pa, size_t len)
+ */
+ENTRY(aszero)
+	wr	%o0, 0, %asi
+	_MEMSET(%o1, %g0, %o2, a, %asi)
+	retl
+	 nop
+END(aszero)
 
 /*
  * int bcmp(const void *b1, const void *b2, size_t len)
@@ -308,44 +316,13 @@ ENTRY(bzero)
 END(bzero)
 
 /*
- * void ascopy(u_long asi, vm_offset_t src, vm_offset_t dst, size_t len)
+ * int copystr(const void *src, void *dst, size_t len, size_t *done)
  */
-ENTRY(ascopy)
-	wr	%o0, 0, %asi
-	_MEMCPY(%o2, %o1, %o3, a, %asi, a, %asi)
+ENTRY(copystr)
+	_COPYSTR(%o0, %o1, %o2, %o3, E, E, E, E)
 	retl
-	 nop
-END(ascopy)
-
-/*
- * void ascopyfrom(u_long sasi, vm_offset_t src, caddr_t dst, size_t len)
- */
-ENTRY(ascopyfrom)
-	wr	%o0, 0, %asi
-	_MEMCPY(%o2, %o1, %o3, E, E, a, %asi)
-	retl
-	 nop
-END(ascopyfrom)
-
-/*
- * void ascopyto(caddr_t src, u_long dasi, vm_offset_t dst, size_t len)
- */
-ENTRY(ascopyto)
-	wr	%o1, 0, %asi
-	_MEMCPY(%o2, %o0, %o3, a, %asi, E, E)
-	retl
-	 nop
-END(ascopyto)
-
-/*
- * void aszero(u_long asi, vm_offset_t pa, size_t len)
- */
-ENTRY(aszero)
-	wr	%o0, 0, %asi
-	_MEMSET(%o1, %g0, %o2, a, %asi)
-	retl
-	 nop
-END(aszero)
+	 mov	%g1, %o0
+END(copystr)
 
 /*
  * void *memcpy(void *dst, const void *src, size_t len)
@@ -367,14 +344,16 @@ ENTRY(memset)
 	 nop
 END(memset)
 
+	.globl	copy_nofault_begin
+copy_nofault_begin:
+	nop
+
 /*
  * int copyin(const void *uaddr, void *kaddr, size_t len)
  */
 ENTRY(copyin)
-	CATCH_SETUP(.Lefault)
 	wr	%g0, ASI_AIUP, %asi
 	_MEMCPY(%o1, %o0, %o2, E, E, a, %asi)
-	CATCH_END()
 	retl
 	 clr	%o0
 END(copyin)
@@ -383,10 +362,8 @@ END(copyin)
  * int copyinstr(const void *uaddr, void *kaddr, size_t len, size_t *done)
  */
 ENTRY(copyinstr)
-	CATCH_SETUP(.Lefault)
 	wr	%g0, ASI_AIUP, %asi
 	_COPYSTR(%o0, %o1, %o2, %o3, a, %asi, E, E)
-	CATCH_END()
 	retl
 	 mov	%g1, %o0
 END(copyinstr)
@@ -395,128 +372,137 @@ END(copyinstr)
  * int copyout(const void *kaddr, void *uaddr, size_t len)
  */
 ENTRY(copyout)
-	CATCH_SETUP(.Lefault)
 	wr	%g0, ASI_AIUP, %asi
 	_MEMCPY(%o1, %o0, %o2, a, %asi, E, E)
-	CATCH_END()
 	retl
 	 clr	%o0
 END(copyout)
 
-.Lefault:
-	CATCH_END()
+	.globl	copy_nofault_end
+copy_nofault_end:
+	nop
+
+ENTRY(copy_fault)
 	retl
 	 mov	EFAULT, %o0
+END(copy_fault)
+
+	.globl	fs_nofault_begin
+fs_nofault_begin:
+	nop
 
 /*
- * int copystr(const void *src, void *dst, size_t len, size_t *done)
+ * Chatty aliases for fetch, store functions.
  */
-ENTRY(copystr)
-	_COPYSTR(%o0, %o1, %o2, %o3, E, E, E, E)
+	.globl	fubyte, fusword, fuword, subyte, susword, suword
+	.set	fubyte, fuword8
+	.set	fusword, fuword16
+	.set	fuword, fuword64
+	.set	subyte, suword8
+	.set	susword, suword16
+	.set	suword, suword64
+
+/*
+ * int fuword8(const void *base)
+ */
+ENTRY(fuword8)
 	retl
-	 mov	%g1, %o0
-END(copystr)
+	 lduba	[%o0] ASI_AIUP, %o0
+END(fuword8)
 
 /*
- * int fubyte(const void *base)
- */
-ENTRY(fubyte)
-	FU_ALIGNED(lduba, .Lfsfault)
-END(fubyte)
-
-/*
- * long fuword(const void *base)
- */
-ENTRY(fuword)
-	FU_BYTES(ldxa, 8, .Lfsfault)
-END(fuword)
-
-/*
- * int fuswintr(const void *base)
- */
-ENTRY(fuswintr)
-	FU_BYTES(lduha, 2, fsbail)
-END(fuswintr)
-
-/*
- * int16_t fuword16(const void *base)
+ * int fuword16(const void *base)
  */
 ENTRY(fuword16)
-	FU_BYTES(lduha, 2, .Lfsfault)
+	retl
+	 lduha	[%o0] ASI_AIUP, %o0
 END(fuword16)
 
 /*
  * int32_t fuword32(const void *base)
  */
 ENTRY(fuword32)
-	FU_BYTES(lduwa, 4, .Lfsfault)
+	retl
+	 lduwa	[%o0] ASI_AIUP, %o0
 END(fuword32)
 
 /*
  * int64_t fuword64(const void *base)
  */
 ENTRY(fuword64)
-	FU_BYTES(ldxa, 8, .Lfsfault)
+	retl
+	 ldxa	[%o0] ASI_AIUP, %o0
 END(fuword64)
 
 /*
- * int subyte(const void *base, int byte)
+ * int suword8(const void *base, int word)
  */
-ENTRY(subyte)
-	SU_ALIGNED(stba, .Lfsfault)
-END(subyte)
+ENTRY(suword8)
+	stba	%o1, [%o0] ASI_AIUP
+	retl
+	 clr	%o0
+END(suword8)
 
 /*
- * int suword(const void *base, long word)
- */
-ENTRY(suword)
-	SU_BYTES(stxa, 8, .Lfsfault)
-END(suword)
-
-/*
- * int suswintr(const void *base, int word)
- */
-ENTRY(suswintr)
-	SU_BYTES(stwa, 2, fsbail)
-END(suswintr)
-
-/*
- * int suword16(const void *base, int16_t word)
+ * int suword16(const void *base, int word)
  */
 ENTRY(suword16)
-	SU_BYTES(stha, 2, .Lfsfault)
+	stha	%o1, [%o0] ASI_AIUP
+	retl
+	 clr	%o0
 END(suword16)
 
 /*
  * int suword32(const void *base, int32_t word)
  */
 ENTRY(suword32)
-	SU_BYTES(stwa, 4, .Lfsfault)
+	stwa	%o1, [%o0] ASI_AIUP
+	retl
+	 clr	%o0
 END(suword32)
 
 /*
  * int suword64(const void *base, int64_t word)
  */
 ENTRY(suword64)
-	SU_BYTES(stxa, 8, .Lfsfault)
+	stxa	%o1, [%o0] ASI_AIUP
+	retl
+	 clr	%o0
 END(suword64)
 
-	_ALIGN_TEXT
-.Lfsalign:
-	retl
-	 mov	-1, %o0
+	.globl	fs_nofault_intr_begin
+fs_nofault_intr_begin:
+	nop
 
-	_ALIGN_TEXT
-.Lfsfault:
-	CATCH_END()
+/*
+ * int fuswintr(const void *base)
+ */
+ENTRY(fuswintr)
 	retl
-	 mov	-1, %o0
+	 lduha	[%o0] ASI_AIUP, %o0
+END(fuswintr)
 
-ENTRY(fsbail)
-	CATCH_END()
+/*
+ * int suswintr(const void *base, int word)
+ */
+ENTRY(suswintr)
+	stha	%o1, [%o0] ASI_AIUP
+	retl
+	 clr	%o0
+END(suswintr)
+
+	.globl	fs_nofault_intr_end
+fs_nofault_intr_end:
+	nop
+
+	.globl	fs_nofault_end
+fs_nofault_end:
+	nop
+
+ENTRY(fs_fault)
 	retl
 	 mov	-1, %o0
-END(fsbail)
+END(fsfault)
 
 ENTRY(longjmp)
 	set	1, %g3
