@@ -657,6 +657,17 @@ again: /* jump here after setting a variable with ${var=text} */
 	}
 	varlen = 0;
 	startloc = expdest - stackblock();
+	if (!set && uflag) {
+		switch (subtype) {
+		case VSNORMAL:
+		case VSTRIMLEFT:
+		case VSTRIMLEFTMAX:
+		case VSTRIMRIGHT:
+		case VSTRIMRIGHTMAX:
+		case VSLENGTH:
+			error("%.*s: parameter not set", p - var - 1, var);
+		}
+	}
 	if (set && subtype != VSPLUS) {
 		/* insert the value of the variable */
 		if (special) {
