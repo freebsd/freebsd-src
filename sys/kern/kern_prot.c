@@ -339,7 +339,7 @@ getgroups(td, uap)
 	error = copyout((caddr_t)cred->cr_groups, (caddr_t)uap->gidset,
 	    ngrp * sizeof(gid_t));
 	if (error == 0)
-	    td->td_retval[0] = ngrp;
+		td->td_retval[0] = ngrp;
 	return (error);
 }
 
