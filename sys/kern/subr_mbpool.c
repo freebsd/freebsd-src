@@ -138,7 +138,7 @@ mbp_create(struct mbpool **pp, const char *name, bus_dma_tag_t dmat,
 	(*pp)->nchunks = nchunks;
 
 	SLIST_INIT(&(*pp)->free_list);
-	mtx_init(&(*pp)->free_lock, name, NULL, 0);
+	mtx_init(&(*pp)->free_lock, name, NULL, MTX_DEF);
 
 	return (0);
 }
