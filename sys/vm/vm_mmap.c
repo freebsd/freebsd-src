@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.56 1996/12/28 22:40:44 dyson Exp $
+ * $Id: vm_mmap.c,v 1.57 1996/12/30 05:31:15 dyson Exp $
  */
 
 /*
@@ -697,8 +697,10 @@ mincore(p, uap, retval)
 						pmap_is_modified(VM_PAGE_TO_PHYS(m)))
 						mincoreinfo |= MINCORE_MODIFIED_OTHER;
 					if ((m->flags & PG_REFERENCED) ||
-						pmap_is_referenced(VM_PAGE_TO_PHYS(m)))
+						pmap_ts_referenced(VM_PAGE_TO_PHYS(m))) {
+						m->flags |= PG_REFERENCED;
 						mincoreinfo |= MINCORE_REFERENCED_OTHER;
+					}
 				}
 			}
 
