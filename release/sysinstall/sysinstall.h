@@ -56,7 +56,7 @@
 
 /* Different packages we depend on - update this when package version change! */
 #define PACKAGE_GATED	"gated-3.5b3"
-#define PACKAGE_APACHE	"apache-1.1.1"
+#define PACKAGE_APACHE	"apache-1.2b4"
 #define PACKAGE_NETCON	"commerce/netcon/bsd61"
 #define PACKAGE_PCNFSD	"pcnfsd-93.02.16"
 #define PACKAGE_SAMBA	"samba-1.9.15p8"
