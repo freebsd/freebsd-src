@@ -11,8 +11,11 @@ module prompts for the old password, things should work either way.
 
 	FreeBSD.
 
-Currently, FreeBSD doesn't use PAM for password changing.  This means
-you won't be able to use pam_passwdqc with FreeBSD.
+As of this writing (April 2002), FreeBSD-current is moving to OpenPAM
+which pam_passwdqc already includes support for.  The next step would
+be for FreeBSD to start actually using PAM from password changing.
+Once that becomes a reality, you should be able to use pam_passwdqc
+with FreeBSD.
 
 
 	Solaris.
