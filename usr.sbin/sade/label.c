@@ -320,7 +320,7 @@ record_label_chunks(Device **devs, Device *dev)
 
 /* A new partition entry */
 static PartInfo *
-new_part(char *mpoint, Boolean newfs, u_long size)
+new_part(char *mpoint, Boolean newfs)
 {
     PartInfo *ret;
 
@@ -333,8 +333,6 @@ new_part(char *mpoint, Boolean newfs, u_long size)
     strcat(ret->newfs_cmd, variable_get(VAR_NEWFS_ARGS));
     ret->newfs = newfs;
     ret->soft = strcmp(mpoint, "/") ? 1 : 0;
-    if (!size)
-	return ret;
     return ret;
 }
 
@@ -391,7 +389,7 @@ get_mountpoint(struct chunk *old)
     	safe_free(tmp);
     }
     val = string_skipwhite(string_prune(val));
-    tmp = new_part(val, newfs, 0);
+    tmp = new_part(val, newfs);
     if (old) {
 	old->private_data = tmp;
 	old->private_free = safe_free;
@@ -901,13 +899,7 @@ diskLabel(Device *dev)
 		}
 #endif	/* alpha */
 
-		if (type != PART_SWAP) {
-		    /* This is needed to tell the newfs -u about the size */
-		    tmp->private_data = new_part(p->mountpoint, p->newfs, tmp->size);
-		    safe_free(p);
-		}
-		else
-		    tmp->private_data = p;
+		tmp->private_data = p;
 		tmp->private_free = safe_free;
 		if (variable_cmp(DISK_LABELLED, "written"))
 		    variable_set2(DISK_LABELLED, "yes", 0);
@@ -1018,7 +1010,7 @@ diskLabel(Device *dev)
 		    label_chunk_info[here].c->flags &= ~CHUNK_NEWFS;
 
 		label_chunk_info[here].c->private_data =
-		    new_part(pi ? pi->mountpoint : NULL, pi ? !pi->newfs : TRUE, label_chunk_info[here].c->size);
+		    new_part(pi ? pi->mountpoint : NULL, pi ? !pi->newfs : TRUE);
 		if (pi && pi->soft)
 		    ((PartInfo *)label_chunk_info[here].c->private_data)->soft = 1;
 		safe_free(pi);
@@ -1181,7 +1173,7 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 	    msg = "Unable to create the root partition. Too big?";
 	    goto done;
 	}
-	root_chunk->private_data = new_part("/", TRUE, root_chunk->size);
+	root_chunk->private_data = new_part("/", TRUE);
 	root_chunk->private_free = safe_free;
 	root_chunk->flags |= CHUNK_NEWFS;
 	record_label_chunks(devs, dev);
@@ -1228,7 +1220,7 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 		   "partition your disk manually with a custom install!";
 	    goto done;
 	}
-	var_chunk->private_data = new_part("/var", TRUE, var_chunk->size);
+	var_chunk->private_data = new_part("/var", TRUE);
 	var_chunk->private_free = safe_free;
 	var_chunk->flags |= CHUNK_NEWFS;
 	record_label_chunks(devs, dev);
@@ -1245,7 +1237,7 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 		   "partition your disk manually with a custom install!";
 	    goto done;
 	}
-	tmp_chunk->private_data = new_part("/tmp", TRUE, tmp_chunk->size);
+	tmp_chunk->private_data = new_part("/tmp", TRUE);
 	tmp_chunk->private_free = safe_free;
 	tmp_chunk->flags |= CHUNK_NEWFS;
 	record_label_chunks(devs, dev);
@@ -1270,7 +1262,7 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 			   "You will need to partition your disk manually with a custom install!";
 		goto done;
 	    }
-	    usr_chunk->private_data = new_part("/usr", TRUE, usr_chunk->size);
+	    usr_chunk->private_data = new_part("/usr", TRUE);
 	    usr_chunk->private_free = safe_free;
 	    usr_chunk->flags |= CHUNK_NEWFS;
 	    record_label_chunks(devs, dev);
@@ -1297,7 +1289,7 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 			   "You will need to partition your disk manually with a custom install!";
 		goto done;
 	    }
-	    home_chunk->private_data = new_part("/home", TRUE, home_chunk->size);
+	    home_chunk->private_data = new_part("/home", TRUE);
 	    home_chunk->private_free = safe_free;
 	    home_chunk->flags |= CHUNK_NEWFS;
 	    record_label_chunks(devs, dev);
@@ -1401,7 +1393,7 @@ diskLabelNonInteractive(Device *dev)
 			    break;
 			}
 			else {
-			    tmp->private_data = new_part(mpoint, TRUE, sz);
+			    tmp->private_data = new_part(mpoint, TRUE);
 			    tmp->private_free = safe_free;
 			    ((PartInfo *)tmp->private_data)->soft = soft;
 			    status = DITEM_SUCCESS;
@@ -1435,7 +1427,7 @@ diskLabelNonInteractive(Device *dev)
 		    strcpy(p->mountpoint, mpoint);
 		}
 		else {
-		    c1->private_data = new_part(mpoint, newfs, 0);
+		    c1->private_data = new_part(mpoint, newfs);
 		    c1->private_free = safe_free;
 		}
 		if (!strcmp(mpoint, "/"))
