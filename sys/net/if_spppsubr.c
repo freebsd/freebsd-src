@@ -720,7 +720,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 		if (debug)
 			log(LOG_DEBUG, SPP_FMT "protocol queue overflow\n",
 				SPP_ARGS(ifp));
-		goto drop;
+		goto drop2;
 	}
 	if (do_account)
 		/*
