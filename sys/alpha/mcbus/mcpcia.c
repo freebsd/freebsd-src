@@ -73,7 +73,7 @@ struct mcpcia_softc {
 	vm_offset_t	io_base;	/* sparse i/o */
 	int		mcpcia_inst;	/* our mcpcia instance # */
 	struct swiz_space io_space;	/* accessor for ports */
-	struct swiz_space mem_space;  /* accessor for memory */
+	struct swiz_space mem_space;	/* accessor for memory */
 	struct rman	io_rman;	/* resource manager for ports */
 	struct rman	mem_rman;	/* resource manager for memory */
 };
@@ -261,63 +261,82 @@ mcpcia_disable_intr(struct mcpcia_softc *sc, int irq)
 static void
 mcpcia_disable_intr_vec(int vector)
 {
-	int gid, mid, irq;
-	vm_offset_t p;
+	int mid, irq;
+	struct mcpcia_softc *sc = mcpcia_root;
 
-	printf("D<%03x>", vector);
+	if (vector < MCPCIA_VEC_PCI) {
+		printf("EISA isable (0x%x)\n", vector);
+		return;
+	}
+
 	if (vector == MCPCIA_VEC_NCR) {
 		mid = 5;
 		irq = 16;
 	} else {
-		irq = ((vector - 0x900) >> 4) - 8;
-		if (irq < 32)
-			mid = 4;
-		else {
-			irq -= 32;
-			mid = 5;
+		int tmp, slot;
+                tmp = vector - MCPCIA_VEC_PCI;
+                mid = (tmp / MCPCIA_VECWIDTH_PER_MCPCIA) + 4;
+		tmp &= (MCPCIA_VECWIDTH_PER_MCPCIA - 1);
+		slot = tmp / MCPCIA_VECWIDTH_PER_SLOT;
+		if (slot < 2 || slot > 5) {
+			printf("Bad slot (%d) for vector %x\n", slot, vector);
+			return;
 		}
+		tmp -= (2 * MCPCIA_VECWIDTH_PER_SLOT);
+		irq = (tmp / MCPCIA_VECWIDTH_PER_INTPIN);
+		irq = ((vector - 0x900) >> 4) - 8;
 	}
-
-	gid = MCBUS_GID_FROM_INSTANCE(0);
-	p = (MCBUS_IOSPACE | 
-	     (((u_int64_t) gid) << MCBUS_GID_SHIFT) |
-	     (((u_int64_t) mid) << MCBUS_MID_SHIFT) |
-	     MCPCIA_PCI_BRIDGE |
-	     _MCPCIA_INT_MASK0);
-
-	alpha_mb();
-	REGVAL(p) &= ~(1 << irq);
-	alpha_mb();
+	printf("D<%03x>=%d,%d\n", vector, mid, irq);
+	while (sc) {
+		if (mcbus_get_mid(sc->dev) == mid) {
+			break;
+		}
+		sc = sc->next;
+	}
+	if (sc == NULL) {
+		panic("couldn't find MCPCIA softc for vector 0x%x", vector);
+	}
+	mcpcia_disable_intr(sc, irq);
 }
 
 static void
 mcpcia_enable_intr_vec(int vector)
 {
-	int gid, mid, irq;
-	vm_offset_t p;
+	int mid, irq;
+	struct mcpcia_softc *sc = mcpcia_root;
 
-	printf("E<%03x>", vector);
+	if (vector < MCPCIA_VEC_PCI) {
+		printf("EISA ensable (0x%x)\n", vector);
+		return;
+	}
+
 	if (vector == MCPCIA_VEC_NCR) {
 		mid = 5;
 		irq = 16;
 	} else {
-		irq = ((vector - 0x900) >> 4) - 8;
-		if (irq < 32)
-			mid = 4;
-		else
-			mid = 5;
+		int tmp, slot;
+                tmp = vector - MCPCIA_VEC_PCI;
+                mid = (tmp / MCPCIA_VECWIDTH_PER_MCPCIA) + 4;
+		tmp &= (MCPCIA_VECWIDTH_PER_MCPCIA - 1);
+		slot = tmp / MCPCIA_VECWIDTH_PER_SLOT;
+		if (slot < 2 || slot > 5) {
+			printf("Bad slot (%d) for vector %x\n", slot, vector);
+			return;
+		}
+		tmp -= (2 * MCPCIA_VECWIDTH_PER_SLOT);
+		irq = (tmp / MCPCIA_VECWIDTH_PER_INTPIN);
 	}
-
-	gid = MCBUS_GID_FROM_INSTANCE(0);
-	p = (MCBUS_IOSPACE | 
-	     (((u_int64_t) gid) << MCBUS_GID_SHIFT) |
-	     (((u_int64_t) mid) << MCBUS_MID_SHIFT) |
-	     MCPCIA_PCI_BRIDGE |
-	     _MCPCIA_INT_MASK0);
-
-	alpha_mb();
-	REGVAL(p) |= (1 << irq);
-	alpha_mb();
+	printf("E<%03x>=%d,%d\n", vector, mid, irq);
+	while (sc) {
+		if (mcbus_get_mid(sc->dev) == mid) {
+			break;
+		}
+		sc = sc->next;
+	}
+	if (sc == NULL) {
+		panic("couldn't find MCPCIA softc for vector 0x%x", vector);
+	}
+	mcpcia_enable_intr(sc, irq);
 }
 
 static int
@@ -343,7 +362,7 @@ mcpcia_setup_intr(device_t dev, device_t child, struct resource *ir, int flags,
 
 	if (slot == 0) {
 		device_t bdev; 
-		/* bridged - get slot from granparent */
+		/* bridged - get slot from grandparent */
 		/* note that this is broken for all but the most trival case */
 		bdev = device_get_parent(device_get_parent(child));
 		slot = pci_get_slot(bdev);
