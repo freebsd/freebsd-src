@@ -946,12 +946,15 @@ syncache_add(inc, to, th, sop, m)
 	sc->sc_flowlabel = 0;
 	if (tcp_syncookies) {
 		sc->sc_iss = syncookie_generate(sc, &flowtmp);
+#ifdef INET6   
 		if (inc->inc_isipv6 &&
 		    (sc->sc_tp->t_inpcb->in6p_flags & IN6P_AUTOFLOWLABEL)) {
 			sc->sc_flowlabel = flowtmp & IPV6_FLOWLABEL_MASK;
 		}
+#endif
 	} else {
 		sc->sc_iss = arc4random();
+#ifdef INET6   
 		if (inc->inc_isipv6 &&
 		    (sc->sc_tp->t_inpcb->in6p_flags & IN6P_AUTOFLOWLABEL)) {
 			sc->sc_flowlabel =
@@ -961,6 +964,7 @@ syncache_add(inc, to, th, sop, m)
 			    (htonl(ip6_flow_seq++) & IPV6_FLOWLABEL_MASK);
 #endif
 		}
+#endif
 	}
 
 	/* Initial receive window: clip sbspace to [0 .. TCP_MAXWIN] */
