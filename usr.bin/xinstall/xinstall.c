@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";
 #endif
 static const char rcsid[] =
-	"$Id: xinstall.c,v 1.26 1997/10/27 22:53:33 ache Exp $";
+	"$Id: xinstall.c,v 1.27 1997/10/28 14:20:10 ache Exp $";
 #endif /* not lint */
 
 /*-
@@ -713,10 +713,18 @@ trymmap(fd)
 
 	if (fstatfs(fd, &stfs) < 0)
 		return 0;
+
+/* NetBSD MOUNT_XXX defines are strings, but doesn't have a MOUNT_NONE. */
+#ifdef	MOUNT_NONE
 	switch(stfs.f_type) {
 	case MOUNT_UFS:		/* should be safe.. */
 	case MOUNT_CD9660:	/* should be safe.. */
 		return 1;
 	}
+#else
+	if (strcmp(stfs.f_fstypename,MOUNT_UFS) == 0 ||
+	    strcmp(stfs.f_fstypename,MOUNT_CD9660) == 0)
+		return 1;
+#endif
 	return 0;
 }
