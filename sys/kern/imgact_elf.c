@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.47 1999/01/29 22:59:43 dillon Exp $
+ *	$Id: imgact_elf.c,v 1.48 1999/02/04 12:42:31 newton Exp $
  */
 
 #include "opt_rlimit.h"
@@ -82,6 +82,12 @@ static int exec_elf_imgact __P((struct image_params *imgp));
 
 static int elf_trace = 0;
 SYSCTL_INT(_debug, OID_AUTO, elf_trace, CTLFLAG_RW, &elf_trace, 0, "");
+
+/*
+ * XXX Maximum length of an ELF brand (sysctl wants a statically-allocated
+ * buffer).
+ */
+#define	MAXBRANDLEN	16
 
 static struct sysentvec elf_freebsd_sysvec = {
         SYS_MAXSYSCALL,
@@ -406,6 +412,11 @@ fail:
 	return error;
 }
 
+static char fallback_elf_brand[MAXBRANDLEN+1] = { "none" };
+SYSCTL_STRING(_kern, OID_AUTO, fallback_elf_brand, CTLFLAG_RW,
+		fallback_elf_brand, sizeof(fallback_elf_brand),
+		"ELF brand of last resort");
+
 static int
 exec_elf_imgact(struct image_params *imgp)
 {
@@ -536,6 +547,19 @@ exec_elf_imgact(struct image_params *imgp)
 
 			if (bi != NULL &&
 			    strcmp(interp, bi->interp_path) == 0) {
+				brand_info = bi;
+				break;
+			}
+		}
+	}
+
+	/* Lacking a recognized interpreter, try the default brand */
+	if (brand_info == NULL & fallback_elf_brand[0] != '\0') {
+		for (i = 0; i < MAX_BRANDS; i++) {
+			Elf_Brandinfo *bi = elf_brand_list[i];
+
+			if (bi != NULL
+			    && strcmp(fallback_elf_brand, bi->brand) == 0) {
 				brand_info = bi;
 				break;
 			}
