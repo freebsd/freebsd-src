@@ -340,6 +340,8 @@ _get_diskinfo:
 	mov	%esp, %ebp
 	push	%es
 	push	%ebx
+	push	%esi
+	push	%edi
 	push	%ecx
 	push	%edx
 
@@ -392,6 +394,8 @@ ok:
 
 	pop	%edx
 	pop	%ecx
+	pop	%edi
+	pop	%esi
 	pop	%ebx
 	pop	%es
 	pop	%ebp
