@@ -121,7 +121,7 @@ cpu_fork(struct thread *td1, struct proc *p2, int flags)
 		mtx_unlock_spin(&sched_lock);
 	}
 	/* Make sure the copied windows are spilled. */
-	__asm __volatile("flushw" : :);
+	flushw();
 	/* Copy the pcb (this will copy the windows saved in the pcb, too). */
 	bcopy(td1->td_pcb, pcb, sizeof(*pcb));
 
