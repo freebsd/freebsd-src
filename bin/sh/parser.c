@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: parser.c,v 1.9 1995/08/28 19:24:35 joerg Exp $
+ *	$Id: parser.c,v 1.10 1995/12/10 17:59:23 joerg Exp $
  */
 
 #ifndef lint
@@ -149,12 +149,12 @@ list(nlflag) {
 	n1 = andor();
 	for (;;) {
 		switch (readtoken()) {
+		case TBACKGND:
 		case TNL:
 			parseheredoc();
 			if (nlflag)
 				return n1;
 			/* fall through */
-		case TBACKGND:
 		case TSEMI:
 			checkkwd = 2;
 			if (tokendlist[peektoken()])
