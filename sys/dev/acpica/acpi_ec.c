@@ -697,9 +697,13 @@ EcSpaceSetup(ACPI_HANDLE Region, UINT32 Function, void *Context,
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     /*
-     * Just pass the context through, there's nothing to do here.
+     * If deactivating a region, always set the output to NULL.  Otherwise,
+     * just pass the context through.
      */
-    *RegionContext = Context;
+    if (Function == ACPI_REGION_DEACTIVATE)
+	*RegionContext = NULL;
+    else
+	*RegionContext = Context;
 
     return_ACPI_STATUS (AE_OK);
 }
