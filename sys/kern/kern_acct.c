@@ -250,8 +250,10 @@ acct_process(td)
 	acct.ac_stime = encode_comp_t(st.tv_sec, st.tv_usec);
 
 	/* (3) The elapsed time the command ran (and its starting time) */
-	acct.ac_btime = p->p_stats->p_start.tv_sec;
-	microtime(&tmp);
+	tmp = boottime;
+	timevaladd(&tmp, &p->p_stats->p_start);
+	acct.ac_btime = tmp.tv_sec;
+	microuptime(&tmp);
 	timevalsub(&tmp, &p->p_stats->p_start);
 	acct.ac_etime = encode_comp_t(tmp.tv_sec, tmp.tv_usec);
 
