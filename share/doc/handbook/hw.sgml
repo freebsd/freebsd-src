@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.46 1996/10/07 14:31:01 jfieber Exp $ -->
+<!-- $Id: hw.sgml,v 1.47 1996/10/29 03:28:04 alex Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -131,17 +131,20 @@ Slippery when wet.  Beware of dog.
     of multiuser disk I/O.  
 
   <sect2><heading>CDROM drives</heading>
-    <p>My SCSI preferences extend to SCSI CDROM drives as well, and the
-    <htmlurl url="http://www.toshiba.com" name="Toshiba"> XM-3501B (now
+    <p>My SCSI preferences extend to SCSI CDROM drives as well, and while
+    the <htmlurl url="http://www.toshiba.com" name="Toshiba"> XM-3501B (also
     released in a caddy-less model called the XM-5401B) drive has always
-    performed well for me.  Generally speaking, most SCSI CDROM drives I've 
-    seen have been of pretty solid construction (probably because they don't 
-    occupy the lower end of the market, due to their higher price) and you
-    probably won't go wrong with an HP or NEC SCSI CDROM drive either.
+    performed well for me, I'm now a great fan of the <htmlurl
+    url="http://www.plasmon.com" name="Plasmon"> PX-12CS drive.  It's
+    a 12 speed drive with excellent performance and reliability.
 
-    NOTE:  SCSI CDROM prices appear to have dropped considerably in the
-    last few months and are now quite competetive with IDE CDROMs while
-    remaining the technically superior solution.
+    <p>Generally speaking, most SCSI CDROM drives I've seen have been of
+    pretty solid construction and you probably won't go wrong with an HP or
+    NEC SCSI CDROM drive either.  SCSI CDROM prices also appear to have
+    dropped considerably in the last few months and are now quite competetive
+    with IDE CDROMs while remaining a technically superior solution.  I now see
+    no reason whatsoever to settle for an IDE CDROM drive if given a choice
+    between the two.
 
 
   <sect2><heading>CD Recordable (WORM) drives</heading>
