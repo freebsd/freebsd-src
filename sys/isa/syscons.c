@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id$
+ *  $Id: syscons.c,v 1.202 1997/02/22 09:37:15 peter Exp $
  */
 
 #include "sc.h"
@@ -897,12 +897,10 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    return EINVAL;
 	}
 	/* make screensaver happy */
-	if (scp == cur_console) {
-	    scrn_time_stamp = time.tv_sec;
-	    if (scrn_blanked) {
-		(*current_saver)(FALSE);
-		mark_all(scp);
-	    }
+	scrn_time_stamp = time.tv_sec;
+	if (scrn_blanked) {
+	    (*current_saver)(FALSE);
+	    mark_all(curr_console);
 	}
 	return 0;
     }
@@ -3373,6 +3371,7 @@ set_normal_mode()
     case M_CG640x350: case M_ENH_CG640:
     case M_BG640x480: case M_CG640x480: case M_VGA_CG320:
 	modetable = video_mode_ptr + (cur_console->mode * 64);
+	break;
 
     default:
 	modetable = video_mode_ptr + (64*M_VGA_C80x25);
