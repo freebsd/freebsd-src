@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: rfcomm_pppd.8,v 1.5 2003/04/27 19:45:37 max Exp $
+.\" $Id: rfcomm_pppd.8,v 1.7 2003/09/07 18:32:11 max Exp $
 .\" $FreeBSD$
 .\"
 .Dd February 4, 2003
@@ -54,7 +54,7 @@ It can operate in two modes: client and server.
 .Pp
 In the client mode,
 .Nm
-opens an RFCOMM connection to the specified server's
+opens a RFCOMM connection to the specified server's
 .Ar BD_ADRR
 and
 .Ar channel .
@@ -75,7 +75,7 @@ and connect to the Internet.
 .Pp
 In the server mode,
 .Nm
-opens an RFCOMM socket and listens for incomming connections from remote clients.
+opens a RFCOMM socket and listens for incomming connections from remote clients.
 Once the new incomming connection is accepted,
 .Nm
 forks and executes
@@ -92,7 +92,7 @@ the standard serial port thus providing network connectivity to remote clients.
 The options are as follows:
 .Bl -tag -width indent
 .It Fl a Ar BD_ADDR
-In the client mode, this required option specifies the remote BD_ADDR of the
+In the client mode this required option specifies the remote BD_ADDR of the
 RFCOMM server.
 In the server mode, this option can be used to specify the local
 BD_ADDR to listen on.
@@ -100,21 +100,32 @@ By default, server will listen on
 .Dv ANY
 address.
 .It Fl C Ar channel
-In both client and server modes, this required option specifies RFCOMM channel
+In both client and server modes this required option specifies RFCOMM channel
 to connect to or listen on.
+In the server mode RFCOMM channel should be number between 1 and 30.
+In the client mode RFCOMM channel could be either number between 1 and 30 or
+service name. Supported service names are:
+.Cm DUN
+for DialUp Networking service and
+.Cm LAN
+for LAN Access Using PPP service.
+If service name was specified instead of numeric RFCOMM channel then
+.Nm
+utility will try to obtain RFCOMM channel for the service via Service
+Discovery Protocol.
 .It Fl c
-Act as an RFCOMM client.
+Act as a RFCOMM client.
 This is the default mode.
 .It Fl d
 Do not detach from the controlling terminal, i.e., run in foreground.
 .It Fl h
 Display usage message and exit.
 .It Fl l Ar label
-In both client and server modes, this required option specifies which
+In both client and server modes this required option specifies which
 .Xr ppp 8
 label will be used.
 .It Fl s
-Act as an RFCOMM server.
+Act as a RFCOMM server.
 .El
 .Sh PPP CONFIGURATION
 .Ss Important Notes on PPP Configuration
@@ -265,7 +276,7 @@ label.
 The
 .Nm
 utility
-is not currently integrated with the SDP (Service Discovery Protocol).
+does not register services with local SDP (Service Discovery Protocol) daemon.
 .Sh SEE ALSO
 .Xr rfcomm_sppd 1 ,
 .Xr ng_btsocket 4 ,

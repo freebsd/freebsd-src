@@ -3,10 +3,8 @@
 
 .PATH: ${.CURDIR}/../../../../netgraph/bluetooth/hci
 
-CFLAGS+=	-g -I${.CURDIR}/../../../../netgraph/bluetooth/include \
+CFLAGS+=	-I${.CURDIR}/../../../../netgraph/bluetooth/include \
 		-I${.CURDIR}/../../../../netgraph/bluetooth/hci
-
-#CFLAGS+=	-DINVARIANTS=1 -DINVARIANT_SUPPORT=1 
 
 KMOD=		ng_hci
 SRCS=		ng_hci_main.c ng_hci_cmds.c ng_hci_evnt.c  \

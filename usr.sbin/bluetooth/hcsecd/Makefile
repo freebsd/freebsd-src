@@ -1,12 +1,13 @@
-# $Id: Makefile,v 1.2 2003/03/15 03:07:42 max Exp $
+# $Id: Makefile,v 1.8 2003/08/14 20:06:20 max Exp $
 # $FreeBSD$
 
-DESTDIR=	/usr/sbin/
-MANDIR=		../share/man/man
 PROG=		hcsecd
-MAN8=		hcsecd.8
-WARNS?=		1
-CFLAGS+=	-g -I${.CURDIR} -I${.CURDIR}/../../../sys/netgraph/bluetooth/include
+MAN=		hcsecd.8 hcsecd.conf.5
 SRCS=		hcsecd.c lexer.l parser.y
+WARNS?=		1
+CFLAGS+=	-I${.CURDIR}
+
+DPADD=		${LIBBLUETOOTH}
+LDADD=		-lbluetooth
 
 .include <bsd.prog.mk>

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_ubt.c,v 1.14 2003/04/14 23:00:50 max Exp $
+ * $Id: ng_ubt.c,v 1.16 2003/10/10 19:15:06 max Exp $
  * $FreeBSD$
  */
 
@@ -2704,7 +2704,6 @@ ubt_create_device_nodes(ubt_softc_p sc)
 Static void
 ubt_destroy_device_nodes(ubt_softc_p sc)
 {
-
 	/*
 	 * Wait for processes to go away. This should be safe as we will not
 	 * call ubt_destroy_device_nodes() from Netgraph unless all devices

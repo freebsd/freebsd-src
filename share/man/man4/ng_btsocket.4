@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: ng_btsocket.4,v 1.6 2003/03/18 00:09:34 max Exp $
+.\" $Id: ng_btsocket.4,v 1.7 2003/05/21 19:37:35 max Exp $
 .\" $FreeBSD$
 .\"
 .Dd July 8, 2002
@@ -186,6 +186,10 @@ Returns list of active baseband connections (i.e. ACL links) for the L2CAP
 node.
 .It Dv SIOC_L2CAP_NODE_GET_CHAN_LIST
 Returns list of active channels for the L2CAP node.
+.It Dv SIOC_L2CAP_NODE_GET_AUTO_DISCON_TIMO
+Returns current value of the auto disconnect timeout for the L2CAP node.
+.It Dv SIOC_L2CAP_NODE_SET_AUTO_DISCON_TIMO
+Sets current value of the auto disconnect timeout for the L2CAP node.
 .It Dv SIOC_L2CAP_L2CA_PING
 Issues L2CAP
 .Dv ECHO_REQUEST .

@@ -3,11 +3,8 @@
 
 .PATH: ${.CURDIR}/../../../../netgraph/bluetooth/drivers/ubtbcmfw
 
-CFLAGS+=	-g -I${.CURDIR}/../../../../netgraph/bluetooth/include \
+CFLAGS+=	-I${.CURDIR}/../../../../netgraph/bluetooth/include \
 		-I${.CURDIR}/../../../../netgraph/bluetooth/drivers/ubtbcmfw
-
-#CFLAGS+=	-DINVARIANTS=1 -DINVARIANT_SUPPORT=1
-#CFLAGS+=	-DWITNESS=1 -DWITNESS_SKIPSPIN=1
 
 KMOD=		ubtbcmfw
 SRCS=		ubtbcmfw.c bus_if.h device_if.h vnode_if.h opt_usb.h

@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: ng_l2cap.4,v 1.2 2003/04/28 20:16:29 max Exp $
+.\" $Id: ng_l2cap.4,v 1.4 2003/09/14 23:37:52 max Exp $
 .\" $FreeBSD$
 .\"
 .Dd July 4, 2002
@@ -58,7 +58,7 @@ The ACL link between two units is set up.
 The Baseband provides orderly
 delivery of data packets, although there might be individual packet corruption
 and duplicates.
-No more than 1 ACL link exists between any two devices.
+No more than one ACL link exists between any two devices.
 .It
 The Baseband always provides the impression of full-duplex communication
 channels.
@@ -220,7 +220,7 @@ Upper layer protocol upstream hook.
 Usually the Bluetooth L2CAP socket layer is connected to the hook.
 .It Dv ctl
 Control hook.
-Usually Bluetooth raw L2CAP sockets layer is connected to the hook.
+Usually the Bluetooth raw L2CAP sockets layer is connected to the hook.
 .El
 .Sh INTERFACE TO THE UPPER LAYER PROTOCOLS (L2CA CONTROL MESSAGES)
 Bluetooth specification says that L2CA request must block until response

@@ -26,14 +26,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: parser.y,v 1.1 2002/11/24 20:22:39 max Exp $
+ * $Id: parser.y,v 1.5 2003/06/07 21:22:30 max Exp $
  * $FreeBSD$
  */
 
-#include <sys/types.h>
+#include <sys/fcntl.h>
 #include <sys/queue.h>
+#include <bluetooth.h>
 #include <errno.h>
-#include <ng_hci.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
@@ -49,7 +50,7 @@ static	int	hexa2int8(char *a);
 
 extern	int			 yylineno;
 static	LIST_HEAD(, link_key)	 link_keys;
-	char			*config_file = "/usr/local/etc/hcsecd.conf";
+	char			*config_file = "/etc/bluetooth/hcsecd.conf";
 
 static	link_key_p		 key = NULL;
 %}
@@ -82,13 +83,8 @@ line:		T_DEVICE
 			{
 			if (get_key(&key->bdaddr, 1) != NULL) {
 				syslog(LOG_ERR, "Ignoring duplicated entry " \
-						"for bdaddr %x:%x:%x:%x:%x:%x",
-						key->bdaddr.b[5],
-						key->bdaddr.b[4],
-						key->bdaddr.b[3],
-						key->bdaddr.b[2],
-						key->bdaddr.b[1],
-						key->bdaddr.b[0]);
+						"for bdaddr %s",
+						bt_ntoa(&key->bdaddr, NULL));
 				free_key(key);
 			} else 
 				LIST_INSERT_HEAD(&link_keys, key, next);
@@ -109,21 +105,11 @@ option:		bdaddr
 
 bdaddr:		T_BDADDR T_BDADDRSTRING
 			{
-			int a0, a1, a2, a3, a4, a5;
-
-			if (sscanf($2, "%x:%x:%x:%x:%x:%x",
-					&a5, &a4, &a3, &a2, &a1, &a0) != 6) {
+			if (!bt_aton($2, &key->bdaddr)) {
 				syslog(LOG_ERR, "Cound not parse BDADDR " \
 						"'%s'", $2);
 				exit(1);
 			}
-
-			key->bdaddr.b[0] = (a0 & 0xff);
-			key->bdaddr.b[1] = (a1 & 0xff);
-			key->bdaddr.b[2] = (a2 & 0xff);
-			key->bdaddr.b[3] = (a3 & 0xff);
-			key->bdaddr.b[4] = (a4 & 0xff);
-			key->bdaddr.b[5] = (a5 & 0xff);
 			}
 		;
 
@@ -205,7 +191,7 @@ yyerror(char const *message)
 
 /* Re-read config file */
 void
-read_config_file(int s)
+read_config_file(void)
 {
 	extern FILE	*yyin;
 
@@ -286,17 +272,124 @@ dump_config(void)
 
 		syslog(LOG_DEBUG, 
 "device %s " \
-"bdaddr %x:%x:%x:%x:%x:%x " \
+"bdaddr %s " \
 "pin %s " \
 "key %s",
 			(key->name != NULL)? key->name : "noname",
-			key->bdaddr.b[5], key->bdaddr.b[4], key->bdaddr.b[3],
-			key->bdaddr.b[2], key->bdaddr.b[1], key->bdaddr.b[0],
+			bt_ntoa(&key->bdaddr, NULL),
 			(key->pin != NULL)? key->pin : "nopin",
 			(key->key != NULL)? buffer : "nokey");
 	}
 }
 #endif
+
+/* Read keys file */
+int
+read_keys_file(void)
+{
+	FILE		*f = NULL;
+	link_key_t	*key = NULL;
+	char		 buf[HCSECD_BUFFER_SIZE], *p = NULL, *cp = NULL;
+	bdaddr_t	 bdaddr;
+	int		 i, len;
+
+	if ((f = fopen(HCSECD_KEYSFILE, "r")) == NULL) {
+		if (errno == ENOENT)
+			return (0);
+
+		syslog(LOG_ERR, "Could not open keys file %s. %s (%d)\n",
+				HCSECD_KEYSFILE, strerror(errno), errno);
+
+		return (-1);
+	}
+
+	while ((p = fgets(buf, sizeof(buf), f)) != NULL) {
+		if (*p == '#')
+			continue;
+		if ((cp = strpbrk(p, " ")) == NULL)
+			continue;
+
+		*cp++ = '\0';
+
+		if (!bt_aton(p, &bdaddr))
+			continue;
+
+		if ((key = get_key(&bdaddr, 1)) == NULL)
+			continue;
+
+		if (key->key == NULL) {
+			key->key = (u_int8_t *) malloc(NG_HCI_KEY_SIZE);
+			if (key->key == NULL) {
+				syslog(LOG_ERR, "Could not allocate link key");
+				exit(1);
+			}
+		}
+
+		memset(key->key, 0, NG_HCI_KEY_SIZE);
+
+		len = strlen(cp) / 2;
+		if (len > NG_HCI_KEY_SIZE)
+			len = NG_HCI_KEY_SIZE;
+
+		for (i = 0; i < len; i ++)
+			key->key[i] = hexa2int8(cp + 2*i);
+
+		syslog(LOG_DEBUG, "Restored link key for the entry, " \
+				"remote bdaddr %s, name '%s'",
+				bt_ntoa(&key->bdaddr, NULL),
+				(key->name != NULL)? key->name : "No name");
+	}
+
+	fclose(f);
+
+	return (0);
+}
+
+/* Dump keys file */
+int
+dump_keys_file(void)
+{
+	link_key_p	key = NULL;
+	char		tmp[PATH_MAX], buf[HCSECD_BUFFER_SIZE];
+	int		f;
+
+	snprintf(tmp, sizeof(tmp), "%s.tmp", HCSECD_KEYSFILE);
+	if ((f = open(tmp, O_RDWR|O_CREAT|O_TRUNC|O_EXCL, 0600)) < 0) {
+		syslog(LOG_ERR, "Could not create temp keys file %s. %s (%d)\n",
+				tmp, strerror(errno), errno);
+		return (-1);
+	}
+
+	LIST_FOREACH(key, &link_keys, next) {
+		if (key->key == NULL)
+			continue;
+
+		snprintf(buf, sizeof(buf),
+"%s %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+			bt_ntoa(&key->bdaddr, NULL),
+			key->key[0],  key->key[1],  key->key[2],  key->key[3],
+			key->key[4],  key->key[5],  key->key[6],  key->key[7],
+			key->key[8],  key->key[9],  key->key[10], key->key[11],
+			key->key[12], key->key[13], key->key[14], key->key[15]);
+
+		if (write(f, buf, strlen(buf)) < 0) {
+			syslog(LOG_ERR, "Could not write temp keys file. " \
+					"%s (%d)\n", strerror(errno), errno);
+			break;
+		}
+	}
+
+	close(f);
+
+	if (rename(tmp, HCSECD_KEYSFILE) < 0) {
+		syslog(LOG_ERR, "Could not rename(%s, %s). %s (%d)\n",
+				tmp, HCSECD_KEYSFILE, strerror(errno), errno);
+		unlink(tmp);
+		return (-1);
+	}
+
+	return (0);
+}
 
 /* Free key entry */
 static void

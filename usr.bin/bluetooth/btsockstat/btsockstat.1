@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: btsockstat.1,v 1.4 2003/04/27 19:25:15 max Exp $
+.\" $Id: btsockstat.1,v 1.6 2003/05/21 00:09:45 max Exp $
 .\" $FreeBSD$
 .\"
 .Dd August 31, 2002
@@ -33,7 +33,7 @@
 .Nd show Bluetooth sockets information
 .Sh SYNOPSIS
 .Nm
-.Op Fl rh
+.Op Fl nrh
 .Op Fl M Ar core
 .Op Fl p Ar protocol
 .Sh DESCRIPTION
@@ -57,6 +57,10 @@ Display usage message and exit.
 Extract values associated with the name list from the specified core
 instead of the default
 .Pa /dev/kmem .
+.It Fl n
+Show Bluetooth addresses as numbers. Normally 
+.Nm
+attempts to resolve Bluetooth addresses, and display them symbolically.
 .It Fl p Ar protocol
 Display a list of active sockets (protocol control blocks) for each
 specified protocol.

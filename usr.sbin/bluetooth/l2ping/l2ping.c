@@ -25,27 +25,22 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: l2ping.c,v 1.3 2003/04/27 19:45:36 max Exp $
+ * $Id: l2ping.c,v 1.5 2003/05/16 19:54:40 max Exp $
  * $FreeBSD$
  */
 
-#include <sys/types.h>
 #include <sys/ioctl.h>
-#include <sys/socket.h>
 #include <sys/time.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <assert.h>
-#include <bitstring.h>
+#include <bluetooth.h>
 #include <err.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <ng_hci.h>
-#include <ng_l2cap.h>
-#include <ng_btsocket.h>
 
 static void	usage	(void);
 static void	tv_sub	(struct timeval *, struct timeval const *);
@@ -64,11 +59,12 @@ static char const		pattern[] = "1234567890-";
 int
 main(int argc, char *argv[])
 {
-	bdaddr_t				src, dst;
-	struct sockaddr_l2cap			sa;
-	struct ng_btsocket_l2cap_raw_ping	r;
-	int					n, s, count, wait, flood, fail;
-	struct timeval				a, b;
+	bdaddr_t				 src, dst;
+	struct hostent				*he = NULL;
+	struct sockaddr_l2cap			 sa;
+	struct ng_btsocket_l2cap_raw_ping	 r;
+	int					 n, s, count, wait, flood, fail;
+	struct timeval				 a, b;
 
 	/* Set defaults */
 	memcpy(&src, NG_HCI_BDADDR_ANY, sizeof(src));
@@ -90,31 +86,22 @@ main(int argc, char *argv[])
 	while ((n = getopt(argc, argv, "a:c:fi:n:s:S:h")) != -1) {
 		switch (n) {
 		case 'a':
-		case 'S': {
-			int	a0, a1, a2, a3, a4, a5;
+			if (!bt_aton(optarg, &dst)) {
+				if ((he = bt_gethostbyname(optarg)) == NULL)
+					errx(1, "%s: %s", optarg, hstrerror(h_errno));
 
-			if (sscanf(optarg, "%x:%x:%x:%x:%x:%x",
-					&a5, &a4, &a3, &a2, &a1, &a0) != 6)
-				usage();
-
-			if (n == 'a') {
-				/* destination bdaddr */
-				dst.b[0] = (a0 & 0xff);
-				dst.b[1] = (a1 & 0xff);
-				dst.b[2] = (a2 & 0xff);
-				dst.b[3] = (a3 & 0xff);
-				dst.b[4] = (a4 & 0xff);
-				dst.b[5] = (a5 & 0xff);
-			} else {
-				/* source bdaddr */
-				src.b[0] = (a0 & 0xff);
-				src.b[1] = (a1 & 0xff);
-				src.b[2] = (a2 & 0xff);
-				src.b[3] = (a3 & 0xff);
-				src.b[4] = (a4 & 0xff);
-				src.b[5] = (a5 & 0xff);
+				memcpy(&dst, he->h_addr, sizeof(dst));
 			}
-			} break;
+			break;
+
+		case 'S':
+			if (!bt_aton(optarg, &src)) {
+				if ((he = bt_gethostbyname(optarg)) == NULL)
+					errx(1, "%s: %s", optarg, hstrerror(h_errno));
+
+				memcpy(&src, he->h_addr, sizeof(src));
+			}
+			break;
 
 		case 'c':
 			count = atoi(optarg);
@@ -162,10 +149,7 @@ main(int argc, char *argv[])
 
 	if (bind(s, (struct sockaddr *) &sa, sizeof(sa)) < 0)
 		err(3,
-"Could not bind socket, src bdaddr=%x:%x:%x:%x:%x:%x",
-			sa.l2cap_bdaddr.b[5], sa.l2cap_bdaddr.b[4],
-			sa.l2cap_bdaddr.b[3], sa.l2cap_bdaddr.b[2],
-			sa.l2cap_bdaddr.b[1], sa.l2cap_bdaddr.b[0]);
+"Could not bind socket, src bdaddr=%s", bt_ntoa(&sa.l2cap_bdaddr, NULL));
 
 	memset(&sa, 0, sizeof(sa));
 	sa.l2cap_len = sizeof(sa);
@@ -174,10 +158,7 @@ main(int argc, char *argv[])
 
 	if (connect(s, (struct sockaddr *) &sa, sizeof(sa)) < 0)
 		err(4,
-"Could not connect socket, dst bdaddr=%x:%x:%x:%x:%x:%x",
-			sa.l2cap_bdaddr.b[5], sa.l2cap_bdaddr.b[4],
-			sa.l2cap_bdaddr.b[3], sa.l2cap_bdaddr.b[2],
-			sa.l2cap_bdaddr.b[1], sa.l2cap_bdaddr.b[0]);
+"Could not connect socket, dst bdaddr=%s", bt_ntoa(&sa.l2cap_bdaddr, NULL));
 
 	/* Fill pattern */
 	for (n = 0; n < r.echo_size; ) {
@@ -198,10 +179,8 @@ main(int argc, char *argv[])
 			r.result = errno;
 			fail = 1;
 /*
-			warn("Could not ping, dst bdaddr=%x:%x:%x:%x:%x:%x",
-				r.echo_dst.b[5], r.echo_dst.b[4],
-				r.echo_dst.b[3], r.echo_dst.b[2],
-				r.echo_dst.b[1], r.echo_dst.b[0]);
+			warn("Could not ping, dst bdaddr=%s",
+				bt_ntoa(&r.echo_dst, NULL));
 */
 		}
 
@@ -211,10 +190,9 @@ main(int argc, char *argv[])
 		tv_sub(&b, &a);
 
 		fprintf(stdout,
-"%d bytes from %x:%x:%x:%x:%x:%x seq_no=%d time=%.3f ms result=%#x %s\n",
-			r.echo_size, 
-			dst.b[5], dst.b[4], dst.b[3], 
-			dst.b[2], dst.b[1], dst.b[0],
+"%d bytes from %s seq_no=%d time=%.3f ms result=%#x %s\n",
+			r.echo_size,
+			bt_ntoa(&dst, NULL),
 			ntohl(*((int *)(r.echo_data))),
 			tv2msec(&b), r.result,
 			((fail == 0)? "" : strerror(errno)));

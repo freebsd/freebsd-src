@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: hcsecd.8,v 1.3 2003/04/27 19:45:32 max Exp $
+.\" $Id: hcsecd.8,v 1.8 2003/09/08 18:54:20 max Exp $
 .\" $FreeBSD$
 .\"
 .Dd November 16, 2002
@@ -38,22 +38,28 @@
 .Sh DESCRIPTION
 The
 .Nm
-daemon controls link keys and PIN code for Bluetooth devices.
+daemon controls link keys and PIN codes for Bluetooth devices.
 It opens raw HCI socket and listens for the
-.Dv Link_Key_Request
-and
+.Dv Link_Key_Request ,
 .Dv PIN_Code_Request
+and
+.Dv Link_Key_Notification
 HCI events.
-Once appropriate HCI event has been received, the daemon will
+.Pp
+Once
+.Dv Link_Key_Request
+or
+.Dv PIN_Code_Request
+HCI event is received, the daemon will
 scan configuration file for matching entry.
-The remove device BD_ADDR is used as a key.
+The remote device BD_ADDR is used as a key.
 If no matching entry was found, the default entry will be used.
-If no default entry was found then it is assumed that no link key and no PIN code
-exist.
+If no default entry was found then it is assumed that no link key and no
+PIN code exists.
 For any given entry, link key takes precedence over PIN code.
 If link key was not specified, it means device must generate link key from
 PIN code.
-If entry was found and has the link key (or PIN code) then the
+If entry was found and the link key (or PIN code) exists then the
 .Dv Link_Key_Request_Reply
 (or
 .Dv PIN_Code_Request_Reply )
@@ -66,12 +72,28 @@ command will be sent back to the device.
 .Pp
 The
 .Nm
-daemon currently does not handle HCI
+daemon also handles HCI
 .Dv Link_Key_Notification
-event and does not cache link keys created from the PIN codes.
-It means that the link key only exists while connection is opened.
-After the connection has been terminated, the user will have to enter PIN code
-again.
+event and caches link keys created from the PIN codes in the memory.
+To preserve link keys between restarts the
+.Nm
+daemon dumps link keys for all entries in the
+.Pa /var/db/hcsecd.keys
+link keys file.
+If exists, the link keys file gets processed by
+.Nm
+daemon after it processes its main configuration file.
+The link keys file gets written every time
+.Nm
+daemon is gracefully shutdown.
+It is possible to force
+.Nm
+daemon to re-read its main configuration file and dump link keys file by sending
+.Dv HUP
+signal to the
+.Nm
+process.
+User is not expected to modify link keys file by hand.
 .Pp
 The command line options are as follows:
 .Bl -tag -width indent
@@ -80,7 +102,7 @@ Do not detach from the controlling terminal.
 .It Fl f Ar configfile
 Specify name of the configuration file.
 The default is
-.Pa /usr/local/etc/hcsecd.conf .
+.Pa /etc/bluetooth/hcsecd.conf .
 .It Fl h
 Display usage message and exit.
 .El
@@ -91,15 +113,15 @@ Everything is based on remote device BD_ADDR.
 Also might implement interface for external helpers to obtain link keys and
 PIN codes.
 .Sh FILES
-.Bl -tag -width ".Pa /usr/local/etc/hcsecd.conf" -compact
-.It Pa /usr/local/etc/hcsecd.conf
-.It Pa /var/run/hcsecd.pid
+.Bl -tag -width ".Pa /etc/bluetooth/hcsecd.conf" -compact
+.It Pa /etc/bluetooth/hcsecd.conf
+.It Pa /var/db/hcsecd.pid
+.It Pa /var/run/hcsecd.keys
 .El
 .Sh SEE ALSO
-.Xr netgraph 3 ,
-.Xr netgraph 4 ,
 .Xr ng_btsocket 4 ,
 .Xr ng_hci 4 ,
+.Xr hcsecd.conf 5 ,
 .Xr hccontrol 8 ,
 .Xr hcseriald 8
 .Sh AUTHORS

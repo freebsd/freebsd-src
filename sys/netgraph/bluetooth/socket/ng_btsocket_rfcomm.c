@@ -25,12 +25,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_btsocket_rfcomm.c,v 1.24 2003/04/07 01:37:05 max Exp $
+ * $Id: ng_btsocket_rfcomm.c,v 1.28 2003/09/14 23:29:06 max Exp $
  * $FreeBSD$
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bitstring.h>
 #include <sys/domain.h>
 #include <sys/endian.h>
 #include <sys/errno.h>
@@ -51,7 +52,6 @@
 #include <sys/uio.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
-#include <sys/bitstring.h>
 #include "ng_bluetooth.h"
 #include "ng_hci.h"
 #include "ng_l2cap.h"
@@ -2025,6 +2025,9 @@ ng_btsocket_rfcomm_receive_sabm(ng_btsocket_rfcomm_session_p s, int dlci)
 		pcb->dlci = dlci;
 
 		error = ng_btsocket_rfcomm_send_command(s,RFCOMM_FRAME_UA,dlci);
+		if (error == 0)
+			error = ng_btsocket_rfcomm_send_msc(pcb);
+
 		if (error == 0) {
 			pcb->state = NG_BTSOCKET_RFCOMM_DLC_CONNECTED;
 			soisconnected(pcb->so);
@@ -3139,7 +3142,13 @@ ng_btsocket_rfcomm_send_pn(ng_btsocket_rfcomm_pcb_p pcb)
 	hdr->length = RFCOMM_MKLEN8(sizeof(*pn));
 
 	pn->dlci = pcb->dlci;
-	pn->priority = 0;
+
+	/*
+	 * Set default DLCI priority as described in GSM 07.10
+	 * (ETSI TS 101 369) clause 5.6 page 42
+	 */
+
+	pn->priority = (pcb->dlci < 56)? (((pcb->dlci >> 3) << 3) + 7) : 61;
 	pn->ack_timer = 0;
 	pn->mtu = htole16(pcb->mtu);
 	pn->max_retrans = 0;
