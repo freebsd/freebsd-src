@@ -153,6 +153,12 @@
 
       <para>The &man.dc.4; driver now has support for VLANs.</para>
 
+      <para arch="i386">Support for Intel Gigabit Ethernet cards in
+	the <filename>GENERIC</filename> kernel is now provided by the
+	&man.em.4; driver, rather than the &man.wx.4; driver.  The
+	latter driver has been deprecated since &os;
+	4.5-RELEASE.</para>
+
       <para arch="alpha">The &man.fpa.4; driver now works on Alpha
         machines.</para>
 
