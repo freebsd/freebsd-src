@@ -264,8 +264,8 @@ update_gpt(int fd, const struct disk *disk, struct gpt_hdr *hdr,
 		} else
 			idx = CHUNK_FTOI(c->flags);
 
-		tbl[idx].ent_lba_start = c->offset / disk->sector_size;
-		tbl[idx].ent_lba_end = c->end / disk->sector_size;
+		tbl[idx].ent_lba_start = c->offset;
+		tbl[idx].ent_lba_end = c->end;
  	}
 
 	hdr[0].hdr_crc_table = crc32(tbl,
