@@ -1,4 +1,4 @@
-<!-- $Id: sup.sgml,v 1.10 1996/01/03 03:18:36 jfieber Exp $ -->
+<!-- $Id: sup.sgml,v 1.11 1996/02/05 18:52:05 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -92,17 +92,40 @@ src-eBones:	/usr/src/eBones		Kerberos and DES
 
 <p>And for the ports collection:
 <verb>
-ports-base:	/usr/ports/...		misc files at the top of /usr/ports
-ports-editors:  /usr/ports/editors	text editors
-ports-game:	/usr/ports/games	games
-ports-lang:	/usr/ports/lang		programming languages
-ports-mail:	/usr/ports/mail		mail software
-ports-math:	/usr/ports/math		math software
-ports-net:	/usr/ports/net		networking software
-ports-news:	/usr/ports/news		USENET news software
-ports-print:	/usr/ports/print	printing software
-ports-russian:  /usr/ports/russian      russian software
-ports-shells:	/usr/ports/shells	various UN*X shells
-ports-utils:	/usr/ports/utils	miscellaneous utilities
-ports-x11:	/usr/ports/x11		X11 software
+ports-base:	  /usr/ports/...	misc files at the top of /usr/ports
+ports-archivers:  /usr/ports/archivers	archiving tools
+ports-audio:	  /usr/ports/audio	sound support
+ports-benchmarks: /usr/ports/benchmarks	benchmarks
+ports-cad:	  /usr/ports/cad	CAD tools
+ports-comms:	  /usr/ports/comms	communication software
+ports-databases:  /usr/ports/databases	databases
+ports-devel:	  /usr/ports/devel	development utilities
+ports-editors:    /usr/ports/editors	editors
+ports-emulators:  /usr/ports/emulators	emulators for other OSes
+ports-games:	  /usr/ports/games	games
+ports-graphics:	  /usr/ports/graphics	various graphics utilities
+ports-japanese:	  /usr/ports/japanese	Japanese software.
+ports-lang:	  /usr/ports/lang	programming languages
+ports-mail:	  /usr/ports/mail	mail software
+ports-math:	  /usr/ports/math	numerical computation software
+ports-misc:	  /usr/ports/misc	miscellaneous utilities
+ports-net:	  /usr/ports/net	networking software
+ports-news:	  /usr/ports/news	USENET news software
+ports-plan9:	  /usr/ports/plan9	various programs from Plan9
+ports-print:	  /usr/ports/print	printing software
+ports-russian:    /usr/ports/russian    Russian software
+ports-security:	  /usr/ports/security	``security'' utilities, for better or for worse
+ports-shells:	  /usr/ports/shells	various UN*X shells
+ports-sysutils:	  /usr/ports/sysutils	system utilities
+ports-www:	  /usr/ports/www	software related to the world wide web
+ports-x11:	  /usr/ports/x11	X11 software
+</verb>
+
+<p>If you want to keep updated on the original source of the ports,
+you can also add this to your supfile.  But note that this collection
+is <em>enormous</em>, and unless you are an ftp site mirroring the
+entire FreeBSD tree (but can't use ``mirror'' for some reason), you
+(and us) are much better off not using sup to collect these:
+<verb>
+ports-distfiles: /usr/ports/distfiles	original tarballs
 </verb>
