@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.61 1997/03/23 20:08:11 guido Exp $
+ * $Id: vfs_syscalls.c,v 1.62 1997/03/31 12:02:42 peter Exp $
  */
 
 /*
@@ -1854,6 +1854,46 @@ chown(p, uap, retval)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
+	if (error = namei(&nd))
+		return (error);
+	vp = nd.ni_vp;
+	VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+	VATTR_NULL(&vattr);
+	vattr.va_uid = SCARG(uap, uid);
+	vattr.va_gid = SCARG(uap, gid);
+	error = VOP_SETATTR(vp, &vattr, p->p_ucred, p);
+	vput(vp);
+	return (error);
+}
+
+/*
+ * Set ownership given a path name, do not cross symlinks.
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct lchown_args {
+	char	*path;
+	int	uid;
+	int	gid;
+};
+#endif
+/* ARGSUSED */
+int
+lchown(p, uap, retval)
+	struct proc *p;
+	register struct lchown_args /* {
+		syscallarg(char *) path;
+		syscallarg(int) uid;
+		syscallarg(int) gid;
+	} */ *uap;
+	register_t *retval;
+{
+	register struct vnode *vp;
+	struct vattr vattr;
+	int error;
+	struct nameidata nd;
+
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
 	if (error = namei(&nd))
 		return (error);
 	vp = nd.ni_vp;
