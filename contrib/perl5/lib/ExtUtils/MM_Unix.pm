@@ -8,8 +8,8 @@ use strict;
 use vars qw($VERSION $Is_Mac $Is_OS2 $Is_VMS $Is_Win32 $Is_Dos $Is_PERL_OBJECT
 	    $Verbose %pm %static $Xsubpp_Version);
 
-$VERSION = substr q$Revision: 1.1.1.1 $, 10;
-# $Id: MM_Unix.pm,v 1.1.1.1 1998/09/09 06:59:54 markm Exp $
+$VERSION = substr q$Revision: 1.2 $, 10;
+# $Id: MM_Unix.pm,v 1.2 1998/09/09 13:10:46 markm Exp $
 
 Exporter::import('ExtUtils::MakeMaker',
 	qw( $Verbose &neatvalue));
@@ -1707,11 +1707,12 @@ usually solves this kind of problem.
     #    prefix/lib/perl5/man/		INSTALLMAN1DIR
 
     $replace_prefix = qq[\$\(PREFIX\)];
+    $search_prefix = $self->catdir($configure_prefix,"local");
     for $install_variable (qw/
 			   INSTALLBIN
 			   INSTALLSCRIPT
 			   /) {
-	$self->prefixify($install_variable,$configure_prefix,$replace_prefix);
+	$self->prefixify($install_variable,$search_prefix,$replace_prefix);
     }
     $search_prefix = $configure_prefix =~ /perl/ ?
 	$self->catdir($configure_prefix,"lib") :
