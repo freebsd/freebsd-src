@@ -10,6 +10,7 @@ LIBS=	\
 	libfetch.so.2 \
 	libpam.so.1 \
 	libperl.so.3 \
+	libposix1e.so.2 \
 	libssl.so.1 \
 	libstdc++.so.3 \
 	libusb.so.0 \
