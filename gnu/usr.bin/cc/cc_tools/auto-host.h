@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 
 /* auto-host.h.  Generated automatically by configure.  */
-/* config.in.  Generated automatically from configure.in by autoheader.  */
+/* config.in.  Generated automatically from configure.in by autoheader 2.13.  */
 
 /* Define if using alloca.c.  */
 /* #undef C_ALLOCA */
@@ -26,9 +26,6 @@
 /* Define if you have <alloca.h> and it should be used (not on Ultrix).  */
 /* #undef HAVE_ALLOCA_H */
 
-/* Define if you don't have vprintf but do have _doprnt.  */
-/* #undef HAVE_DOPRNT */
-
 /* Define if you have the ANSI # stringizing operator in cpp. */
 #define HAVE_STRINGIZE 1
 
@@ -37,9 +34,6 @@
 
 /* Define if you have <vfork.h>.  */
 /* #undef HAVE_VFORK_H */
-
-/* Define if you have the vprintf function.  */
-#define HAVE_VPRINTF 1
 
 /* Define as __inline if that's what the C compiler calls it.  */
 /* #undef inline */
@@ -77,23 +71,8 @@
 /* Define vfork as fork if vfork does not work.  */
 /* #undef vfork */
 
-/* Define to 1 if NLS is requested.  */
-/* #undef ENABLE_NLS */
-
-/* Define as 1 if you have catgets and don't want to use GNU gettext.  */
-/* #undef HAVE_CATGETS */
-
-/* Define as 1 if you have gettext and don't want to use GNU gettext.  */
-/* #undef HAVE_GETTEXT */
-
-/* Define if your locale.h file contains LC_MESSAGES.  */
-#define HAVE_LC_MESSAGES 1
-
-/* Define as 1 if you have the stpcpy function.  */
-/* #undef HAVE_STPCPY */
-
 /* Define if your assembler supports specifying the maximum number
-   of bytes to skip when using the GAS .p2align command. */
+   of bytes to skip when using the GAS .p2align command.  */
 #define HAVE_GAS_MAX_SKIP_P2ALIGN 1
 
 /* Define if your assembler supports .balign and .p2align.  */
@@ -105,6 +84,9 @@
 /* Define to `int' if <sys/types.h> doesn't define.  */
 /* #undef ssize_t */
 
+/* Define if cpp should also search $prefix/include.  */
+#define PREFIX_INCLUDE_DIR "NONE/include"
+
 /* Define if you have the __argz_count function.  */
 /* #undef HAVE___ARGZ_COUNT */
 
@@ -115,19 +97,28 @@
 /* #undef HAVE___ARGZ_STRINGIFY */
 
 /* Define if you have the atoll function.  */
-/* #undef HAVE_ATOLL */
+#define HAVE_ATOLL 1
 
 /* Define if you have the atoq function.  */
 /* #undef HAVE_ATOQ */
 
-/* Define if you have the bcopy function.  */
-#define HAVE_BCOPY 1
-
-/* Define if you have the bsearch function.  */
-#define HAVE_BSEARCH 1
+/* Define if you have the clock function.  */
+#define HAVE_CLOCK 1
 
 /* Define if you have the dcgettext function.  */
 /* #undef HAVE_DCGETTEXT */
+
+/* Define if you have the dup2 function.  */
+#define HAVE_DUP2 1
+
+/* Define if you have the feof_unlocked function.  */
+/* #undef HAVE_FEOF_UNLOCKED */
+
+/* Define if you have the fgets_unlocked function.  */
+/* #undef HAVE_FGETS_UNLOCKED */
+
+/* Define if you have the fprintf_unlocked function.  */
+/* #undef HAVE_FPRINTF_UNLOCKED */
 
 /* Define if you have the fputc_unlocked function.  */
 /* #undef HAVE_FPUTC_UNLOCKED */
@@ -135,8 +126,20 @@
 /* Define if you have the fputs_unlocked function.  */
 /* #undef HAVE_FPUTS_UNLOCKED */
 
+/* Define if you have the fwrite_unlocked function.  */
+/* #undef HAVE_FWRITE_UNLOCKED */
+
 /* Define if you have the getcwd function.  */
 #define HAVE_GETCWD 1
+
+/* Define if you have the getegid function.  */
+#define HAVE_GETEGID 1
+
+/* Define if you have the geteuid function.  */
+#define HAVE_GETEUID 1
+
+/* Define if you have the getgid function.  */
+#define HAVE_GETGID 1
 
 /* Define if you have the getpagesize function.  */
 #define HAVE_GETPAGESIZE 1
@@ -147,11 +150,8 @@
 /* Define if you have the getrusage function.  */
 #define HAVE_GETRUSAGE 1
 
-/* Define if you have the gettimeofday function.  */
-#define HAVE_GETTIMEOFDAY 1
-
-/* Define if you have the isascii function.  */
-#define HAVE_ISASCII 1
+/* Define if you have the getuid function.  */
+#define HAVE_GETUID 1
 
 /* Define if you have the kill function.  */
 #define HAVE_KILL 1
@@ -159,14 +159,14 @@
 /* Define if you have the lstat function.  */
 #define HAVE_LSTAT 1
 
+/* Define if you have the mempcpy function.  */
+/* #undef HAVE_MEMPCPY */
+
 /* Define if you have the munmap function.  */
 #define HAVE_MUNMAP 1
 
 /* Define if you have the nl_langinfo function.  */
 #define HAVE_NL_LANGINFO 1
-
-/* Define if you have the popen function.  */
-#define HAVE_POPEN 1
 
 /* Define if you have the putc_unlocked function.  */
 /* #undef HAVE_PUTC_UNLOCKED */
@@ -195,20 +195,20 @@
 /* Define if you have the strdup function.  */
 #define HAVE_STRDUP 1
 
-/* Define if you have the strrchr function.  */
-#define HAVE_STRRCHR 1
-
 /* Define if you have the strsignal function.  */
 #define HAVE_STRSIGNAL 1
-
-/* Define if you have the strstr function.  */
-#define HAVE_STRSTR 1
 
 /* Define if you have the strtoul function.  */
 #define HAVE_STRTOUL 1
 
 /* Define if you have the sysconf function.  */
 #define HAVE_SYSCONF 1
+
+/* Define if you have the times function.  */
+#define HAVE_TIMES 1
+
+/* Define if you have the tsearch function.  */
+#define HAVE_TSEARCH 1
 
 /* Define if you have the <argz.h> header file.  */
 /* #undef HAVE_ARGZ_H */
@@ -233,9 +233,6 @@
 
 /* Define if you have the <nl_types.h> header file.  */
 #define HAVE_NL_TYPES_H 1
-
-/* Define if you have the <stab.h> header file.  */
-#define HAVE_STAB_H 1
 
 /* Define if you have the <stddef.h> header file.  */
 #define HAVE_STDDEF_H 1
@@ -273,9 +270,6 @@
 /* Define if you have the <unistd.h> header file.  */
 #define HAVE_UNISTD_H 1
 
-/* Define if you have the i library (-li).  */
-/* #undef HAVE_LIBI */
-
 /* Define to enable the use of a default linker. */
 /* #undef DEFAULT_LINKER */
 
@@ -283,7 +277,7 @@
 /* #undef DEFAULT_ASSEMBLER */
 
 #ifdef WANT_COMPILER_INVARIANTS
-/*	#warning WANT_COMPILER_INVARIANTS turned on*/
+//#warning WANT_COMPILER_INVARIANTS turned on
 
 /* Define if you want more run-time sanity checks.  This one gets a grab
    bag of miscellaneous but relatively cheap checks. */
@@ -308,23 +302,54 @@
    every opportunity.  This is extremely expensive. */
 #define ENABLE_GC_ALWAYS_COLLECT 1
 
-#endif
+#endif	/* WANT_COMPILER_INVARIANTS */
 
 /* Define if you want the C and C++ compilers to support multibyte
    character sets for source code. */
 /* #undef MULTIBYTE_CHARS */
 
+/* Define if your compiler understands volatile. */
+#define HAVE_VOLATILE 1
+
 /* Define if your compiler supports the `long double' type. */
 #define HAVE_LONG_DOUBLE 1
+
+/* Define if your compiler supports the `long long' type. */
+#define HAVE_LONG_LONG 1
+
+/* Define if your compiler supports the `__int64' type. */
+/* #undef HAVE___INT64 */
 
 /* Define if the `_Bool' type is built-in. */
 /* #undef HAVE__BOOL */
 
+/* The number of bytes in type short */
+#define SIZEOF_SHORT 2
+
+/* The number of bytes in type int */
+#define SIZEOF_INT 4
+
+/* The number of bytes in type long */
+/* #define SIZEOF_LONG 4 */
+#if defined(__i386__) || defined(__powerpc__) || defined(__strongarm__)
+#define SIZEOF_LONG SIZEOF_INT
+#elif defined(__alpha__) || defined(__sparc64__) || defined(__ia64__)
+#define SIZEOF_LONG SIZEOF_LONG_LONG
+#else
+#error "I don't know what arch this is."
+#endif
+
+/* The number of bytes in type long long */
+#define SIZEOF_LONG_LONG 8
+
+/* The number of bytes in type __int64 */
+/* #undef SIZEOF___INT64 */
+
+/* Define if the host execution character set is EBCDIC. */
+/* #undef HOST_EBCDIC */
+
 /* Always define this when using the GNU C Library */
 /* #undef _GNU_SOURCE */
-
-/* Define if your compiler understands volatile. */
-#define HAVE_VOLATILE 1
 
 /* Define if you have a working <stdbool.h> header file. */
 #define HAVE_STDBOOL_H 1
@@ -332,11 +357,26 @@
 /* Define if you can safely include both <string.h> and <strings.h>. */
 #define STRING_WITH_STRINGS 1
 
-/* Define if you have a working <inttypes.h> header file. */
-/* #undef HAVE_INTTYPES_H */
+/* Define as the number of bits in a byte, if `limits.h' doesn't. */
+/* #undef CHAR_BIT */
 
-/* Define if enumerated bitfields are treated as unsigned values. */
-#define ENUM_BITFIELDS_ARE_UNSIGNED 1
+/* Define if the host machine stores words of multi-word integers in
+   big-endian order. */
+/* #undef HOST_WORDS_BIG_ENDIAN */
+
+/* Define to the floating point format of the host machine, if not IEEE. */
+/* #undef HOST_FLOAT_FORMAT */
+
+/* Define to 1 if the host machine stores floating point numbers in
+   memory with the word containing the sign bit at the lowest address,
+   or to 0 if it does it the other way around.
+
+   This macro should not be defined if the ordering is the same as for
+   multi-word integers. */
+/* #undef HOST_FLOAT_WORDS_BIG_ENDIAN */
+
+/* Define if you have a working <inttypes.h> header file. */
+#define HAVE_INTTYPES_H 1
 
 /* Define if printf supports %p. */
 #define HAVE_PRINTF_PTR 1
@@ -355,9 +395,6 @@
 
 /* Define as const if the declaration of iconv() needs const. */
 /* #undef ICONV_CONST */
-
-/* Define to 1 if we found this declaration otherwise define to 0. */
-#define HAVE_DECL_BCOPY 1
 
 /* Define to 1 if we found this declaration otherwise define to 0. */
 #define HAVE_DECL_GETENV 1
@@ -390,10 +427,16 @@
 #define HAVE_DECL_FPUTS_UNLOCKED 0
 
 /* Define to 1 if we found this declaration otherwise define to 0. */
+#define HAVE_DECL_FWRITE_UNLOCKED 0
+
+/* Define to 1 if we found this declaration otherwise define to 0. */
+#define HAVE_DECL_FPRINTF_UNLOCKED 0
+
+/* Define to 1 if we found this declaration otherwise define to 0. */
 #define HAVE_DECL_STRSTR 1
 
 /* Define to 1 if we found this declaration otherwise define to 0. */
-#define HAVE_DECL_ENVIRON 0
+#define HAVE_DECL_ERRNO 1
 
 /* Define to 1 if we found this declaration otherwise define to 0. */
 #define HAVE_DECL_MALLOC 1
@@ -414,6 +457,9 @@
 #define HAVE_DECL_GETOPT 1
 
 /* Define to 1 if we found this declaration otherwise define to 0. */
+#define HAVE_DECL_CLOCK 1
+
+/* Define to 1 if we found this declaration otherwise define to 0. */
 #define HAVE_DECL_GETRLIMIT 1
 
 /* Define to 1 if we found this declaration otherwise define to 0. */
@@ -422,21 +468,50 @@
 /* Define to 1 if we found this declaration otherwise define to 0. */
 #define HAVE_DECL_GETRUSAGE 1
 
+/* Define to 1 if we found this declaration otherwise define to 0. */
+#define HAVE_DECL_TIMES 1
+
+/* Define if <sys/times.h> defines struct tms. */
+#define HAVE_STRUCT_TMS 1
+
+/* Define if <time.h> defines clock_t. */
+#define HAVE_CLOCK_T 1
+
 /* Define if host mkdir takes a single argument. */
 /* #undef MKDIR_TAKES_ONE_ARG */
 
-/* Define to the name of the distribution. */
-#define PACKAGE "gcc"
+/* Define if you have the iconv() function. */
+/* #undef HAVE_ICONV */
 
-/* Define to the version of the distribution. */
-#define VERSION "3.0.1"
+/* Define as const if the declaration of iconv() needs const. */
+/* #undef ICONV_CONST */
+
+/* Define if you have <langinfo.h> and nl_langinfo(CODESET). */
+#define HAVE_LANGINFO_CODESET 1
+
+/* Define if your <locale.h> file defines LC_MESSAGES. */
+#define HAVE_LC_MESSAGES 1
+
+/* Define to 1 if translation of program messages to the user's native language
+   is requested. */
+/* #define ENABLE_NLS 1 */
+
+/* Define if you have the <libintl.h> header file. */
+/* #undef HAVE_LIBINTL_H */
+
+/* Define if the GNU gettext() function is already present or preinstalled. */
+/* #undef HAVE_GETTEXT */
+
+/* Define to use the libintl included with this package instead of any
+   version in the system libraries. */
+/* #define USE_INCLUDED_LIBINTL 1 */
 
 /* Define to 1 if installation paths should be looked up in Windows32
    Registry. Ignored on non windows32 hosts. */
-#define ENABLE_WIN32_REGISTRY 1
+/* #undef ENABLE_WIN32_REGISTRY */
 
 /* Define to be the last portion of registry key on windows hosts. */
-#define WIN32_REGISTRY_KEY "3.0.1"
+/* #undef WIN32_REGISTRY_KEY */
 
 /* Define if your assembler supports .subsection and .subsection -1 starts
    emitting at the beginning of your section. */
@@ -454,11 +529,20 @@
 /* Define if your assembler mis-optimizes .eh_frame data. */
 /* #undef USE_AS_TRADITIONAL_FORMAT */
 
+/* Define if your assembler supports marking sections with SHF_MERGE flag. */
+#define HAVE_GAS_SHF_MERGE 1
+
+/* Define if your assembler supports explicit relocations. */
+/* #undef HAVE_AS_EXPLICIT_RELOCS */
+
 /* Define if your assembler supports .register. */
 /* #undef HAVE_AS_REGISTER_PSEUDO_OP */
 
 /* Define if your assembler supports -relax option. */
 /* #undef HAVE_AS_RELAX_OPTION */
+
+/* Define if your assembler and linker support unaligned PC relative relocs. */
+/* #undef HAVE_AS_SPARC_UA_PCREL */
 
 /* Define if the assembler supports 64bit sparc. */
 /* #undef AS_SPARC64_FLAG */
@@ -466,11 +550,21 @@
 /* Define if your assembler supports offsetable %lo(). */
 /* #undef HAVE_AS_OFFSETABLE_LO10 */
 
-/* Define if your assembler supports dwarf2 .file/.loc directives. */
+/* Define true if the assembler supports '.long foo@GOTOFF'. */
+#define HAVE_AS_GOTOFF_IN_DATA 1
+
+/* Define if your assembler supports dwarf2 .file/.loc directives,
+   and preserves file table indices exactly as given. */
 /* #undef HAVE_AS_DWARF2_DEBUG_LINE */
 
-/* Define to 1 if you want to enable namespaces (-fhonor-std) by default. */
-#define ENABLE_STD_NAMESPACE 1
+/* Define if your assembler supports the --gdwarf2 option. */
+#define HAVE_AS_GDWARF2_DEBUG_FLAG 1
+
+/* Define if your assembler supports the --gstabs option. */
+#define HAVE_AS_GSTABS_DEBUG_FLAG 1
+
+/* Define if your linker supports --eh-frame-hdr option. */
+#define HAVE_LD_EH_FRAME_HDR 1
 
 /* Define 0/1 to force the choice for exception handling model. */
 /* #undef CONFIG_SJLJ_EXCEPTIONS */
