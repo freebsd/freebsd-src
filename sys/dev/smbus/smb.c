@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smb.c,v 1.1.1.1 1998/09/03 20:52:53 nsouch Exp $
+ *	$Id: smb.c,v 1.2 1998/09/04 17:53:42 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -92,9 +92,9 @@ static	d_write_t	smbwrite;
 static	d_read_t	smbread;
 static	d_ioctl_t	smbioctl;
 
-#define CDEV_MAJOR 73
+#define CDEV_MAJOR 106
 static struct cdevsw smb_cdevsw = 
-	{ smbopen,	smbclose,	smbread,	smbwrite,	/*73*/
+	{ smbopen,	smbclose,	smbread,	smbwrite,	/*106*/
 	  smbioctl,	nullstop,	nullreset,	nodevtotty,	/*smb*/
 	  seltrue,	nommap,		nostrat,	"smb",	NULL,	-1 };
 
@@ -284,6 +284,4 @@ smb_drvinit(void *unused)
 CDEV_DRIVER_MODULE(smb, smbus, smb_driver, smb_devclass, CDEV_MAJOR,
 			smb_cdevsw, 0, 0);
 
-#if 0
 SYSINIT(smbdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,smb_drvinit,NULL)
-#endif
