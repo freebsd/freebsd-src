@@ -75,7 +75,7 @@ handle_string(struct l___sysctl_args *la, char *value)
 }
 
 int
-linux_sysctl(struct thread *td, struct linux_sysctl_args *args)
+linux_sysctl(struct proc *p, struct linux_sysctl_args *args)
 {
 	struct l___sysctl_args la;
 	l_int *mib;
