@@ -2447,9 +2447,9 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">Comtrol Rocketport card (rp driver)</para>
+    <para arch="i386,alpha">Comtrol Rocketport card (&man.rp.4; driver)</para>
 
-    <para arch="i386">Cyclades Cyclom-y serial board (&man.cy.4; driver)</para>
+    <para arch="i386">Cyclades Cyclom-Y serial board (&man.cy.4; driver)</para>
 
     <para arch="i386">STB 4 port card using shared IRQ</para>
 
@@ -2943,7 +2943,7 @@
         </listitem>
       </itemizedlist>
     </para>
-    <para arch="i386,pc98">Scanners (through SANE) (&man.uscanner.4; driver)
+    <para arch="i386,pc98">Scanners (through <application>SANE</application>) (&man.uscanner.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>Perfection 636U</para>
