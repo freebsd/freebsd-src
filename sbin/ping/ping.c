@@ -602,7 +602,7 @@ main(argc, argv)
 		ip->ip_id = 0;
 		ip->ip_off = df ? IP_DF : 0;
 		if (options & F_SO_EVIL)
-			ip->ip_off |= IP_EVIL;
+			ip->ip_off |= IP_EF;
 		ip->ip_ttl = ttl;
 		ip->ip_p = IPPROTO_ICMP;
 		ip->ip_src.s_addr = source ? sock_in.sin_addr.s_addr : INADDR_ANY;
@@ -1001,7 +1001,7 @@ pr_pack(buf, cc, from, tv)
 			(void)printf(" ttl=%d", ip->ip_ttl);
 			if (timing)
 				(void)printf(" time=%.3f ms", triptime);
-			if (ip->ip_off & IP_EVIL)
+			if (ip->ip_off & IP_EF)
 				(void)printf(" (EVIL)");
 			if (dupflag)
 				(void)printf(" (DUP!)");
