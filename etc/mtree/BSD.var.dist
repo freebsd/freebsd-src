@@ -33,7 +33,7 @@
         pkg
         ..
     ..
-    empty
+    empty               mode=0555 flags=schg
     ..
 /set gname=games mode=0775
     games
