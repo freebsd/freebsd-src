@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.21 1998/10/26 02:39:21 fenner Exp $
+ *	$Id: http.c,v 1.22 1998/12/08 13:00:49 cracauer Exp $
  */
 
 #include <sys/types.h>
@@ -1394,6 +1394,14 @@ parse_http_date(char *string)
 		tm.tm_year = i - 1900;
 	} else {
 		/* Monday, 27-Jan-97 14:31:09 stuffwedon'tcareabout */
+		/* Quoth RFC 2068:
+  o  HTTP/1.1 clients and caches should assume that an RFC-850 date
+     which appears to be more than 50 years in the future is in fact
+     in the past (this helps solve the "year 2000" problem).
+                 */
+		time_t now;
+		struct tm *tmnow;
+		int this2dyear;
 		char *comma = strchr(string, ',');
 		char mname[4];
 
@@ -1415,6 +1423,14 @@ parse_http_date(char *string)
 		if (i >= 12)
 			return -1;
 		tm.tm_mon = i;
+		/*
+		 * RFC 2068 year interpretation.
+		 */
+		time(&now);
+		tmnow = gmtime(&now);
+		this2dyear = tmnow->tm_year % 100;
+		if (tm.tm_year - this2dyear >= 50)
+			tm.tm_year += 100;
 	}
 #undef digit
 
