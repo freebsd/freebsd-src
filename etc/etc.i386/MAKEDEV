@@ -101,7 +101,7 @@
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #	perfmon	CPU performance-monitoring counters
 #
-#	$Id: MAKEDEV,v 1.122 1996/09/09 00:02:44 ache Exp $
+#	$Id: MAKEDEV,v 1.123 1996/09/09 18:47:19 sos Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -744,26 +744,42 @@ tty0?|ttyd?|tty?)
 	chown root.wheel tty*d$unit
 	;;
 
-cuac?)
-	umask 7
-	unit=`expr $i : 'cua.*\(.\)$'`
-	rm -f cua*c$unit
-	m=`ttyminor $unit`
-	mknod cuac$unit c 48 `expr $m + 128`
-	mknod cuaic$unit c 48 `expr $m + 32 + 128`
-	mknod cualc$unit c 48 `expr $m + 64 + 128`
-	chown uucp.dialer cua*c$unit
-	umask 77
+ttyc?)
+	portlist="0 1 2 3 4 5 6 7 8 9 a b c d e f g h i j k l m n o p q r s t u v"
+	major=48
+	card=`expr $i : 'tty.*\(.\)$'`
+
+	for unit in $portlist
+	do
+		minor=`ttyminor $unit`
+		minor=`expr $card \* 65536 + $minor`
+		name=$card$unit
+		rm -f ttyc$name ttyic$name ttylc$name
+		mknod ttyc$name c $major $minor
+		mknod ttyic$name c $major `expr $minor + 32`
+		mknod ttylc$name c $major `expr $minor + 64`
+		chown root.wheel ttyc$name ttyic$name ttylc$name
+	done
 	;;
 
-ttyc?)
-	unit=`expr $i : 'tty.*\(.\)$'`
-	rm -f tty*c$unit
-	m=`ttyminor $unit`
-	mknod ttyc$unit c 48 $m
-	mknod ttyic$unit c 48 `expr $m + 32`
-	mknod ttylc$unit c 48 `expr $m + 64`
-	chown root.wheel tty*c$unit
+cuac?)
+	portlist="0 1 2 3 4 5 6 7 8 9 a b c d e f g h i j k l m n o p q r s t u v"
+	major=48
+	card=`expr $i : 'cua.*\(.\)$'`
+	umask 7
+
+	for unit in $portlist
+	do
+		minor=`ttyminor $unit`
+		minor=`expr $card \* 65536 + $minor`
+		name=$card$unit
+		rm -f cuac$name cuaic$name cualc$name
+		mknod cuac$name c $major `expr $minor + 128`
+		mknod cuaic$name c $major `expr $minor + 160`
+		mknod cualc$name c $major `expr $minor + 192`
+		chown uucp.dialer cuac$name cuaic$name cualc$name
+	done
+	umask 77
 	;;
 
 # RISCom8 'rc' driver entries
