@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: main.c,v 1.18 1998/09/14 19:22:59 jkh Exp $";
+	"$Id: main.c,v 1.19 1999/01/17 01:22:54 billf Exp $";
 #endif
 
 /*
@@ -137,7 +137,8 @@ main(int argc, char **argv)
 		else
 	    	   strcpy(packageroot, (getenv("PACKAGESITE")));
 		remotepkg = strcat(packageroot, *argv);
-		if (!((ptr = strrchr(remotepkg, '.')) && ptr[1] == 't' && ptr[2] == 'g' && ptr[3] == 'z' && !ptr[4]))
+		if (!((ptr = strrchr(remotepkg, '.')) && ptr[1] == 't' && 
+			ptr[2] == 'g' && ptr[3] == 'z' && !ptr[4]))
 		   strcat(remotepkg, ".tgz");
     	    }
 	    if (!strcmp(*argv, "-"))	/* stdin? */
@@ -182,28 +183,25 @@ main(int argc, char **argv)
 	return 0;
 }
 
-char
-*getpackagesite(char binform[1024])
+static char *
+getpackagesite(char binform[1024])
 {
-
     int reldate;
 
     reldate = getosreldate();
 
     if (reldate == 300005)
-  	return("packages-3.0/Latest/");
-    else if (30004 > reldate >= 300000)
-	return("packages-current-aout/Latest/");
-    else if (30004 < reldate) {
-	if (strcmp(binform, "elf") != 0)
-	    return("packages-current-aout/Latest/");
-	else
-	    return("packages-current/Latest/");
-    }
+  	return "packages-3.0/Latest/";
+    else if (30004 > reldate && reldate >= 300000)
+	return "packages-current-aout/Latest/" ;
+    else if (30004 < reldate) 
+	return !strcmp(binform, "elf") ? "packages-current/Latest/" :
+		"packages-current-aout/Latest";
 
     return(0);
 
 }
+
 static void
 usage()
 {
