@@ -684,7 +684,7 @@ acpi_handle_rsdt(struct ACPIsdt *rsdp)
 }
 
 struct ACPIsdt *
-sdt_load_devmem()
+sdt_load_devmem(void)
 {
 	struct	ACPIrsdp *rp;
 	struct	ACPIsdt *rsdp;
