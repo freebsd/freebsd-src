@@ -242,7 +242,10 @@ inferior(p)
 }
 
 /*
- * Locate a process by number
+ * Locate a process by number; return only "live" processes -- i.e., neither
+ * zombies nor newly born but incompletely initialized processes.  By not
+ * returning processes in the PRS_NEW state, we allow callers to avoid
+ * testing for that condition to avoid dereferencing p_ucred, et al.
  */
 struct proc *
 pfind(pid)
@@ -253,6 +256,10 @@ pfind(pid)
 	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, PIDHASH(pid), p_hash)
 		if (p->p_pid == pid) {
+			if (p->p_state == PRS_NEW) {
+				p = NULL;
+				break;
+			}
 			PROC_LOCK(p);
 			break;
 		}
