@@ -4,8 +4,7 @@
 
 # Sometimes this is .include'd several times...
 .if !defined(GCCDIR)
-#GCCDIR=		${.CURDIR}/../../../../contrib/gcc
-GCCDIR=		/usr/src/contrib/gcc
+GCCDIR=		${.CURDIR}/../../../../contrib/gcc
 
 .if ${MACHINE_ARCH} == "mipsel" || ${MACHINE_ARCH} == "mipseb"
 GCC_ARCH=mips
@@ -49,14 +48,22 @@ CFLAGS+=	-I${.OBJDIR}/../cc_tools
 CFLAGS+=	-I${.CURDIR}/../cc_tools
 CFLAGS+=	-I${GCCDIR} -I${GCCDIR}/config
 
-.if exists(${.OBJDIR}/../cc_int)
-LIBDESTDIR=	${.OBJDIR}/..
+.if exists(${.OBJDIR}/../cc_drv)
+LIBCC_DRV=	${.OBJDIR}/../cc_drv/libcc_drv.a
 .else
-LIBDESTDIR=	${.CURDIR}/..
+LIBCC_DRV=	${.CURDIR}/../cc_drv/libcc_drv.a
 .endif
 
-LIBCC_INT=	${LIBDESTDIR}/cc_int/libcc_int.a
-LIBCC_DRV=	${LIBDESTDIR}/cc_drv/libcc_drv.a
-LIBCC_FBSD=	${LIBDESTDIR}/cc_fbsd/libcc_fbsd.a
+.if exists(${.OBJDIR}/../cc_fbsd)
+LIBCC_FBSD=	${.OBJDIR}/../cc_fbsd/libcc_drv.a
+.else
+LIBCC_FBSD=	${.CURDIR}/../cc_fbsd/libcc_drv.a
+.endif
+
+.if exists(${.OBJDIR}/../cc_int)
+LIBCC_INT=	${.OBJDIR}/../cc_int/libcc_int.a
+.else
+LIBCC_INT=	${.CURDIR}/../cc_int/libcc_int.a
+.endif
 
 .endif # !GCCDIR
