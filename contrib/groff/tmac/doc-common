@@ -493,6 +493,8 @@
 .\" Ns Lb macro - Formal library names for LIBRARY sections
 .\"  note: this macro does not handle punctuation
 .\"        it is really only intended for standalone use.
+.\" Note: please don't forget to update mdoc.samples(7)' `Library name' list
+.\"       when adding new library
 .de Lb
 .nr cF \\n(.f
 .nr cZ \\n(.s
