@@ -43,6 +43,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <rpc/rpc.h>
+#include <setjmp.h>
 
 #ifndef lint
 static const char rcsid[] = "$Id: yp_server.c,v 1.10 1996/05/31 16:01:51 wpaul Exp $";
@@ -51,10 +52,12 @@ static const char rcsid[] = "$Id: yp_server.c,v 1.10 1996/05/31 16:01:51 wpaul E
 int forked = 0;
 int children = 0;
 static DB *spec_dbp = NULL;	/* Special global DB handle for ypproc_all. */
+static SVCXPRT *xprt;		/* Special SVCXPRT handle for ypproc_all. */
 static char *master_string = "YP_MASTER_NAME";
 static char *order_string = "YP_LAST_MODIFIED";
 static int master_sz = sizeof("YP_MASTER_NAME") - 1;
 static int order_sz = sizeof("YP_LAST_MODIFIED") - 1;
+static jmp_buf env;
 
 /*
  * NIS v2 support. This is where most of the action happens.
@@ -473,34 +476,19 @@ ypproc_clear_2_svc(void *argp, struct svc_req *rqstp)
  */
 
 /*
- * Custom XDR routine for serialzing results of ypproc_all: keep
- * reading from the database and spew until we run out of records
- * or encounter an error.
+ * Custom XDR routine for serialzing results of ypproc_all: grab control
+ * of the transport and xdr handle from the RPC library and this request
+ * to the async queue. It will multiplex the record transmission in such
+ * a way that we can service other requests between transmissions and
+ * avoid blocking. (It will also close the DB handle for us when the
+ * request is done.)
  */
 static bool_t
 xdr_my_ypresp_all(register XDR *xdrs, ypresp_all *objp)
 {
-	DBT key = { NULL, 0 } , data = { NULL, 0 };
-
-	while (1) {
-		/* Get a record. */
-		if ((objp->ypresp_all_u.val.stat =
-	    		yp_next_record(spec_dbp,&key,&data,1,0)) == YP_TRUE) {
-			objp->ypresp_all_u.val.val.valdat_len = data.size;
-			objp->ypresp_all_u.val.val.valdat_val = data.data;
-			objp->ypresp_all_u.val.key.keydat_len = key.size;
-			objp->ypresp_all_u.val.key.keydat_val = key.data;
-			objp->more = TRUE;
-		} else {
-			objp->more = FALSE;
-		}
-
-		/* Serialize. */
-		if (!xdr_ypresp_all(xdrs, objp))
-			return(FALSE);
-		if (objp->more == FALSE)
-			return(TRUE);
-	}
+	if (yp_add_async(xdrs, xprt, spec_dbp) == FALSE)
+		return(FALSE);
+	longjmp(env, 1);	/* XXX EVIL!! */
 }
 
 ypresp_all *
@@ -531,38 +519,16 @@ ypproc_all_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 		return (&result);
 	}
 
-	/*
-	 * The ypproc_all procedure can take a while to complete.
-	 * Best to handle it in a subprocess so the parent doesn't
-	 * block. (Is there a better way to do this? Maybe with
-	 * async socket I/O?)
-	 */
-	if (!debug && children < MAX_CHILDREN && fork()) {
-		children++;
-		forked = 0;
-		return (NULL);
-	} else {
-		forked++;
-	}
-
-#ifndef DB_CACHE
 	if ((spec_dbp = yp_open_db(argp->domain, argp->map)) == NULL) {
 		result.ypresp_all_u.val.stat = yp_errno;
 		return(&result);
 	}
-#else
-	if ((spec_dbp = yp_open_db_cache(argp->domain, argp->map, NULL, 0)) == NULL) {
-		result.ypresp_all_u.val.stat = yp_errno;
-		return(&result);
-	}
-#endif
 
 	/* Kick off the actual data transfer. */
-	svc_sendreply(rqstp->rq_xprt, xdr_my_ypresp_all, (char *)&result);
-
-#ifndef DB_CACHE
-	(void)(spec_dbp->close)(spec_dbp);
-#endif
+	xprt = rqstp->rq_xprt;
+	if (!setjmp(env))	/* XXX EVIL!!! */
+		svc_sendreply(rqstp->rq_xprt, xdr_my_ypresp_all,
+							(char *)&result);
 	/*
 	 * Returning NULL prevents the dispatcher from calling
 	 * svc_sendreply() since we already did it.

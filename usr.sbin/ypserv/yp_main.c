@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_main.c,v 1.3 1996/05/01 02:39:34 wpaul Exp wpaul $
+ *	$Id: yp_main.c,v 1.6 1996/05/31 16:01:50 wpaul Exp $
  */
 
 /*
@@ -66,7 +66,7 @@
 
 #define	_RPCSVC_CLOSEDOWN 120
 #ifndef lint
-static const char rcsid[] = "$Id: yp_main.c,v 1.3 1996/05/01 02:39:34 wpaul Exp wpaul $";
+static const char rcsid[] = "$Id: yp_main.c,v 1.6 1996/05/31 16:01:50 wpaul Exp $";
 #endif /* not lint */
 int _rpcpmstart;		/* Started by a port monitor ? */
 static int _rpcfdtype;
@@ -79,7 +79,6 @@ static int _rpcfdtype;
 
 extern void ypprog_1 __P((struct svc_req, register SVCXPRT));
 extern void ypprog_2 __P((struct svc_req, register SVCXPRT));
-extern int _rpc_dtablesize __P((void));
 extern int _rpcsvcstate;	 /* Set when a request is serviced */
 char *progname = "ypserv";
 char *yp_dir = _PATH_YP;
@@ -96,45 +95,6 @@ void _msgout(char* msg)
 			(void) fprintf(stderr, "%s\n", msg);
 	} else
 		syslog(LOG_ERR, msg);
-}
-
-static void
-yp_svc_run()
-{
-#ifdef FD_SETSIZE
-	fd_set readfds;
-#else
-	int readfds;
-#endif /* def FD_SETSIZE */
-	extern int forked;
-	int pid;
-	int fd_setsize = _rpc_dtablesize();
-
-	/* Establish the identity of the parent ypserv process. */
-	pid = getpid();
-
-	for (;;) {
-#ifdef FD_SETSIZE
-		readfds = svc_fdset;
-#else
-		readfds = svc_fds;
-#endif /* def FD_SETSIZE */
-		switch (select(fd_setsize, &readfds, NULL, NULL,
-			       (struct timeval *)0)) {
-		case -1:
-			if (errno == EINTR) {
-				continue;
-			}
-			perror("svc_run: - select failed");
-			return;
-		case 0:
-			continue;
-		default:
-			svc_getreqset(&readfds);
-			if (forked && pid != getpid())
-				exit(0);
-		}
-	}
 }
 
 static void unregister()
@@ -230,6 +190,7 @@ main(argc, argv)
 	}
 
 	load_securenets();
+	yp_init_async();
 #ifdef DB_CACHE
 	yp_init_dbs();
 #endif
