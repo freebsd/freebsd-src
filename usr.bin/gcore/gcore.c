@@ -63,8 +63,8 @@ static const char rcsid[] =
 #include <sys/proc.h>
 #include <sys/user.h>
 #include <sys/sysctl.h>
-#include <machine/elf.h>
 
+#include <machine/elf.h>
 #include <machine/vmparam.h>
 
 #include <a.out.h>
