@@ -53,6 +53,10 @@
 #endif
 #endif
 
+/* toc */
+#define MCD_MAXTOCS	104	/* from the Linux driver */
+#define MCD_LASTPLUS1	170	/* special toc entry */
+
 typedef unsigned char	bcd_t;
 #define	M_msf(msf)	msf[0]
 #define	S_msf(msf)	msf[1]
@@ -61,13 +65,13 @@ typedef unsigned char	bcd_t;
 /* io lines used */
 #define	MCD_IO_BASE	0x300
 
-#define	mcd_command	0
-#define	mcd_status	0
-#define	mcd_rdata	0
+#define	MCD_REG_COMMAND	0
+#define	MCD_REG_STATUS	0
+#define	MCD_REG_RDATA	0
 
-#define	mcd_reset	1
-#define	mcd_ctl2	2 /* XXX Is this right? */
-#define	mcd_config	3
+#define	MCD_REG_RESET	1
+#define	MCD_REG_CTL2	2	/* XXX Is this right? */
+#define	MCD_REG_CONFIG	3
 
 #define	MCD_MASK_DMA	0x07	/* bits 2-0 = DMA channel */
 #define	MCD_MASK_IRQ	0x70	/* bits 6-4 = INT number */
