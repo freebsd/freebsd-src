@@ -147,7 +147,6 @@ static long time_precision = 1;		/* clock precision (ns) */
 static long time_maxerror = MAXPHASE / 1000; /* maximum error (us) */
 static long time_esterror = MAXPHASE / 1000; /* estimated error (us) */
 static long time_reftime;		/* time at last adjustment (s) */
-static long time_tick;			/* nanoseconds per tick (ns) */
 static l_fp time_offset;		/* time offset (ns) */
 static l_fp time_freq;			/* frequency offset (ns/s) */
 static l_fp time_adj;			/* tick adjust (ns/s) */
@@ -579,12 +578,6 @@ ntp_update_second(int64_t *adjustment, time_t *newsec)
 static void
 ntp_init()
 {
-
-	/*
-	 * The following variable must be initialized any time the
-	 * kernel variable hz is changed.
-	 */
-	time_tick = NANOSECOND / hz;
 
 	/*
 	 * The following variables are initialized only at startup. Only
