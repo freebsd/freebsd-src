@@ -29,6 +29,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
+ * from: FreeBSD: .../i386/vm_machdep.c,v 1.165 2001/07/04 23:27:04 dillon
  */
 
 #include <sys/cdefs.h>
@@ -53,8 +54,8 @@ __FBSDID("$FreeBSD$");
 SYSCTL_DECL(_vm_stats_misc);
 
 static int cnt_prezero;
-SYSCTL_INT(_vm_stats_misc, OID_AUTO,
-	cnt_prezero, CTLFLAG_RD, &cnt_prezero, 0, "");
+SYSCTL_INT(_vm_stats_misc, OID_AUTO, cnt_prezero, CTLFLAG_RD,
+    &cnt_prezero, 0, "");
 
 static int idlezero_enable = 1;
 SYSCTL_INT(_vm, OID_AUTO, idlezero_enable, CTLFLAG_RW, &idlezero_enable, 0, "");
@@ -78,7 +79,7 @@ vm_page_zero_check(void)
 {
 
 	if (!idlezero_enable)
-		return 0;
+		return (0);
 	/*
 	 * Attempt to maintain approximately 1/2 of our free pages in a
 	 * PG_ZERO'd state.   Add some hysteresis to (attempt to) avoid
@@ -88,10 +89,10 @@ vm_page_zero_check(void)
 	 * pages because doing so may flush our L1 and L2 caches too much.
 	 */
 	if (zero_state && vm_page_zero_count >= ZIDLE_LO(cnt.v_free_count))
-		return 0;
+		return (0);
 	if (vm_page_zero_count >= ZIDLE_HI(cnt.v_free_count))
-		return 0;
-	return 1;
+		return (0);
+	return (1);
 }
 
 static int
@@ -117,11 +118,10 @@ vm_page_zero_idle(void)
 	}
 	free_rover = (free_rover + PQ_PRIME2) & PQ_L2_MASK;
 	mtx_unlock_spin(&vm_page_queue_free_mtx);
-	return 1;
+	return (1);
 }
 
-
-/* Called by vm_page_free to hint that a new page is available */
+/* Called by vm_page_free to hint that a new page is available. */
 void
 vm_page_zero_idle_wakeup(void)
 {
@@ -133,16 +133,16 @@ vm_page_zero_idle_wakeup(void)
 static void
 vm_pagezero(void __unused *arg)
 {
-	struct thread *td;
 	struct proc *p;
 	struct rtprio rtp;
-	int pages = 0;
-	int pri;
+	struct thread *td;
+	int pages, pri;
 
 	td = curthread;
 	p = td->td_proc;
 	rtp.prio = RTP_PRIO_MAX;
 	rtp.type = RTP_PRIO_IDLE;
+	pages = 0;
 	mtx_lock_spin(&sched_lock);
 	rtp_to_pri(&rtp, td->td_ksegrp);
 	pri = td->td_priority;
