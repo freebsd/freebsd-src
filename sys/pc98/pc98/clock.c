@@ -140,6 +140,8 @@ static void setup_8254_mixed_mode(void);
 int	adjkerntz;		/* local offset from GMT in seconds */
 int	clkintr_pending;
 int	disable_rtc_set;	/* disable resettodr() if != 0 */
+int	pscnt = 1;
+int	psdiv = 1;
 int	statclock_disable;
 #ifndef TIMER_FREQ
 #ifdef PC98
@@ -441,7 +443,13 @@ static void
 rtcintr(struct clockframe frame)
 {
 	while (rtcin(RTC_INTR) & RTCIR_PERIOD) {
-		statclock(&frame);
+		if (profprocs != 0) {
+			if (--pscnt == 0)
+				pscnt = psdiv;
+			profclock(&frame);
+		}
+		if (pscnt == psdiv)
+			statclock(&frame);
 #ifdef SMP
 		forward_statclock();
 #endif
@@ -1518,7 +1526,7 @@ setup_8254_mixed_mode()
 #endif
 
 void
-setstatclockrate(int newhz)
+cpu_startprofclock(void)
 {
 #ifndef PC98
 	if (newhz == RTC_PROFRATE)
@@ -1527,6 +1535,11 @@ setstatclockrate(int newhz)
 		rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
 	writertc(RTC_STATUSA, rtc_statusa);
 #endif
+}
+
+void
+cpu_stopprofclock(void)
+{
 }
 
 static int
