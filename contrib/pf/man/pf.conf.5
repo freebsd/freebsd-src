@@ -627,6 +627,14 @@ For example,
 scrub in on $ext_if all fragment reassemble
 .Ed
 .Sh QUEUEING/ALTQ
+The ALTQ system is currently not available in the GENERIC kernel nor as
+loadable modules.
+In order to use the herein after called queueing options one has to use a
+custom built kernel.
+Please refer to the
+.Xr altq 4
+manpage to learn about the related kernel options.
+.Pp
 Packets can be assigned to queues for the purpose of bandwidth
 control.
 At least two declarations are required to configure queues, and later
@@ -2642,6 +2650,7 @@ for the moment.
 This workaround will still produce the LOR, but Giant will protect from the
 deadlock.
 .Sh SEE ALSO
+.Xr altq 4 ,
 .Xr icmp 4 ,
 .Xr icmp6 4 ,
 .Xr ip 4 ,
