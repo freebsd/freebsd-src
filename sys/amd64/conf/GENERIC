@@ -112,6 +112,7 @@ device		cd		# CD
 device		pass		# Passthrough device (direct SCSI access)
 
 # RAID controllers
+device		aac		# Adaptec FSA RAID
 device		ida		# Compaq Smart RAID
 device		amr		# AMI MegaRAID
 device		mlx		# Mylex DAC960 family
