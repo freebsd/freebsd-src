@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.196 1998/05/11 08:11:57 dyson Exp $
+ *	$Id: pmap.c,v 1.197 1998/05/15 07:25:25 dyson Exp $
  */
 
 /*
@@ -962,8 +962,11 @@ pmap_new_proc(p)
 		/*
 		 * Get a kernel stack page
 		 */
-		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+		m = vm_page_grab(upobj, i, VM_ALLOC_ZERO | VM_ALLOC_RETRY);
 
+		if ((m->flags & PG_ZERO) == 0)
+			vm_page_zero_fill(m);
+		
 		/*
 		 * Wire the page
 		 */
@@ -2784,7 +2787,7 @@ pmap_zero_page(phys)
 #else
 #if !defined(MAX_PERF)
 	if (*(int *) CMAP2)
-		panic("pmap_zero_page: CMAP busy");
+		panic("pmap_zero_page: CMAP2 busy");
 #endif
 
 	*(int *) CMAP2 = PG_V | PG_RW | (phys & PG_FRAME) | PG_A | PG_M;
