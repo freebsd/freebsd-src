@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.56 1997/09/07 15:06:08 joerg Exp $
+ *	$Id: scsiconf.h,v 1.57 1997/09/21 22:03:10 gibbs Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -613,10 +613,11 @@ errval scsi_change_def( struct scsi_link *sc_link, u_int32_t flags);
 #define SCSI_ID(DEV)       (((DEV) & 0x00F00000) >> 20)
 #define SCSI_LUN(DEV)      (((DEV) & 0x00070000) >> 16)
 
-#define SCSI_MKFIXED(B, T, L) ( \
+#define SCSI_MKFIXED(B, T, L, P) ( \
          ((B) << 24) | \
          ((T) << 20) | \
          ((L) << 16) | \
+         (P) | \
          SCSI_FIXED_MASK )
 
 #endif /*SCSI_SCSICONF_H*/
