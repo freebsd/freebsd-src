@@ -290,7 +290,7 @@ linux_fstatfs(struct thread *td, struct linux_fstatfs_args *args)
 	error = getvnode(td->td_proc->p_fd, args->fd, &fp);
 	if (error)
 		return error;
-	mp = ((struct vnode *)fp->f_data)->v_mount;
+	mp = fp->f_vnode->v_mount;
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_ucred, mp);
 	if (error) {

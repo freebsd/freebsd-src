@@ -313,7 +313,7 @@ mmap(td, uap)
 		 */
 		if (fp->f_flag & FPOSIXSHM)
 			flags |= MAP_NOSYNC;
-		vp = fp->f_data;
+		vp = fp->f_vnode;
 		error = vget(vp, LK_EXCLUSIVE, td);
 		if (error)
 			goto done;

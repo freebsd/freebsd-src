@@ -324,7 +324,7 @@ ibcs2_getdents(td, uap)
 		fdrop(fp, td);
 		return (EBADF);
 	}
-	vp = fp->f_data;
+	vp = fp->f_vnode;
 	if (vp->v_type != VDIR) {	/* XXX  vnode readdir op should do this */
 		fdrop(fp, td);
 		return (EINVAL);
@@ -481,7 +481,7 @@ ibcs2_read(td, uap)
 		fdrop(fp, td);
 		return (EBADF);
 	}
-	vp = fp->f_data;
+	vp = fp->f_vnode;
 	if (vp->v_type != VDIR) {
 		fdrop(fp, td);
 		return read(td, (struct read_args *)uap);
