@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.96 1997/11/09 22:56:15 brian Exp $
+ * $Id: command.c,v 1.97 1997/11/09 23:40:21 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -77,6 +77,7 @@ static int QuitCommand(struct cmdtab const *, int, char **);
 static int CloseCommand(struct cmdtab const *, int, char **);
 static int DialCommand(struct cmdtab const *, int, char **);
 static int DownCommand(struct cmdtab const *, int, char **);
+static int AllowCommand(struct cmdtab const *, int, char **);
 static int SetCommand(struct cmdtab const *, int, char **);
 static int AddCommand(struct cmdtab const *, int, char **);
 static int DeleteCommand(struct cmdtab const *, int, char **);
@@ -154,13 +155,9 @@ DialCommand(struct cmdtab const * cmdlist, int argc, char **argv)
     return 0;
   }
 
-  if (argc > 0) {
-    if (SelectSystem(*argv, CONFFILE) < 0) {
-      if (VarTerm)
-	fprintf(VarTerm, "%s: not found.\n", *argv);
-      return -1;
-    }
-  }
+  if (argc > 0 && LoadCommand(cmdlist, argc, argv) == -1)
+    return -1;
+
   tries = 0;
   do {
     if (VarTerm)
@@ -227,7 +224,7 @@ ShellCommand(struct cmdtab const * cmdlist, int argc, char **argv, int bg)
    * we want to stop shell commands when we've got a telnet connection to an
    * auto mode ppp
    */
-  if ((mode & (MODE_AUTO | MODE_INTER)) == (MODE_AUTO | MODE_INTER)) {
+  if (VarTerm && !(mode & MODE_INTER)) {
     LogPrintf(LogWARN, "Shell is not allowed interactively in auto mode\n");
     return 1;
   }
@@ -235,16 +232,16 @@ ShellCommand(struct cmdtab const * cmdlist, int argc, char **argv, int bg)
 
   if (argc == 0)
     if (!(mode & MODE_INTER)) {
-      LogPrintf(LogWARN, "Can only start an interactive shell in"
-		" interactive mode\n");
+      if (VarTerm)
+        LogPrintf(LogWARN, "Can't start an interactive shell from"
+		  " a telnet session\n");
+      else
+        LogPrintf(LogWARN, "Can only start an interactive shell in"
+		  " interactive mode\n");
       return 1;
     } else if (bg) {
       LogPrintf(LogWARN, "Can only start an interactive shell in"
 		" the foreground mode\n");
-      return 1;
-    } else if (mode&(MODE_AUTO|MODE_DEDICATED|MODE_DIRECT)) {
-      LogPrintf(LogWARN, "Can't start an interactive shell from"
-		" a telnet session\n");
       return 1;
     }
   if ((shell = getenv("SHELL")) == 0)
@@ -324,6 +321,8 @@ static struct cmdtab const Commands[] = {
   "accept option request", "accept option .."},
   {"add", NULL, AddCommand, LOCAL_AUTH,
   "add route", "add dest mask gateway"},
+  {"allow", "auth", AllowCommand, LOCAL_AUTH,
+  "Allow ppp access", "allow users|modes ...."},
   {"bg", "!bg", BgShellCommand, LOCAL_AUTH,
   "Run a command in the background", "[!]bg command"},
   {"close", NULL, CloseCommand, LOCAL_AUTH,
@@ -668,7 +667,7 @@ Prompt()
 {
   char *pconnect, *pauth;
 
-  if (!(mode & MODE_INTER) || !VarTerm || TermMode)
+  if (!VarTerm || TermMode)
     return;
 
   if (!aft_cmd)
@@ -689,25 +688,39 @@ Prompt()
 }
 
 void
-DecodeCommand(char *buff, int nb, int prompt)
+InterpretCommand(char *buff, int nb, int *argc, char ***argv)
 {
-  char *vector[20];
-  char **argv;
-  int argc;
+  static char *vector[40];
   char *cp;
 
   if (nb > 0) {
     cp = buff + strcspn(buff, "\r\n");
     if (cp)
       *cp = '\0';
-    argc = MakeArgs(buff, vector, VECSIZE(vector));
-    argv = vector;
+    *argc = MakeArgs(buff, vector, VECSIZE(vector));
+    *argv = vector;
+  } else
+    *argc = 0;
+}
 
-    if (argc > 0)
-      FindExec(Commands, argc, argv);
-  }
+void
+RunCommand(int argc, char **argv, int prompt)
+{
+  if (argc > 0)
+    FindExec(Commands, argc, argv);
+
   if (prompt)
     Prompt();
+}
+
+void
+DecodeCommand(char *buff, int nb, int prompt)
+{
+  int argc;
+  char **argv;
+
+  InterpretCommand(buff, nb, &argc, &argv);
+  RunCommand(argc, argv, prompt);
 }
 
 static int
@@ -751,26 +764,26 @@ QuitCommand(struct cmdtab const * list, int argc, char **argv)
 {
   FILE *oVarTerm;
 
-  if (mode & (MODE_DIRECT | MODE_DEDICATED | MODE_AUTO)) {
-    if (argc > 0 && !strcasecmp(*argv, "all") && (VarLocalAuth & LOCAL_AUTH)) {
-      mode &= ~MODE_INTER;
-      oVarTerm = VarTerm;
-      VarTerm = 0;
-      if (oVarTerm && oVarTerm != stdout)
-	fclose(oVarTerm);
-      Cleanup(EX_NORMAL);
-    } else if (VarTerm) {
-      LogPrintf(LogPHASE, "Client connection closed.\n");
-      mode &= ~MODE_INTER;
-      oVarTerm = VarTerm;
-      VarTerm = 0;
-      if (oVarTerm && oVarTerm != stdout)
-	fclose(oVarTerm);
-      close(netfd);
-      netfd = -1;
-    }
-  } else
+  if (mode & MODE_INTER)
     Cleanup(EX_NORMAL);
+  else if (argc > 0 && !strcasecmp(*argv, "all") &&
+           (VarLocalAuth & LOCAL_AUTH)) {
+    oVarTerm = VarTerm;
+    VarTerm = 0;
+    if (oVarTerm && oVarTerm != stdout)
+      fclose(oVarTerm);
+    close(netfd);
+    netfd = -1;
+    Cleanup(EX_NORMAL);
+  } else if (VarTerm) {
+    LogPrintf(LogPHASE, "Client connection closed.\n");
+    oVarTerm = VarTerm;
+    VarTerm = 0;
+    if (oVarTerm && oVarTerm != stdout)
+      fclose(oVarTerm);
+    close(netfd);
+    netfd = -1;
+  }
 
   return 0;
 }
@@ -1172,11 +1185,10 @@ SetInterfaceAddr(struct cmdtab const * list, int argc, char **argv)
   IpcpInfo.want_ipaddr.s_addr = DefMyAddress.ipaddr.s_addr;
   IpcpInfo.his_ipaddr.s_addr = DefHisAddress.ipaddr.s_addr;
 
-  if ((mode & MODE_AUTO) ||
-      ((mode & MODE_DEDICATED) && dstsystem)) {
-    if (OsSetIpaddress(DefMyAddress.ipaddr, DefHisAddress.ipaddr, ifnetmask) < 0)
-      return 4;
-  }
+  if ((mode & MODE_AUTO) &&
+      OsSetIpaddress(DefMyAddress.ipaddr, DefHisAddress.ipaddr, ifnetmask) < 0)
+    return 4;
+
   return 0;
 }
 
@@ -1547,4 +1559,28 @@ AliasOption(struct cmdtab const * list, int argc, char **argv, void *param)
       LogPrintf(LogWARN, "alias not enabled\n");
     }
   return -1;
+}
+
+static struct cmdtab const AllowCommands[] = {
+  {"users", "user", AllowUsers, LOCAL_AUTH,
+  "Allow users access to ppp", "allow users logname..."},
+  {"modes", "mode", AllowModes, LOCAL_AUTH,
+  "Only allow certain ppp modes", "allow modes mode..."},
+  {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
+  "Display this message", "allow help|? [command]", (void *)AllowCommands},
+  {NULL, NULL, NULL},
+};
+
+static int
+AllowCommand(struct cmdtab const *list, int argc, char **argv)
+{
+  if (argc > 0)
+    FindExec(AllowCommands, argc, argv);
+  else if (VarTerm)
+    fprintf(VarTerm, "Use `allow ?' to get a list or `allow ? <cmd>' for"
+	    " syntax help.\n");
+  else
+    LogPrintf(LogWARN, "allow command must have arguments\n");
+
+  return 0;
 }

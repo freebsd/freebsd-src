@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.33 1997/10/29 01:19:40 brian Exp $
+ * $Id: ipcp.c,v 1.34 1997/11/08 00:28:07 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -193,7 +193,7 @@ IpcpInit()
 
   FsmInit(&IpcpFsm);
   memset(icp, '\0', sizeof(struct ipcpstate));
-  if ((mode & MODE_DEDICATED) && !dstsystem) {
+  if ((mode & MODE_DEDICATED) && !GetLabel()) {
     icp->want_ipaddr.s_addr = icp->his_ipaddr.s_addr = 0;
   } else {
     icp->want_ipaddr.s_addr = DefMyAddress.ipaddr.s_addr;

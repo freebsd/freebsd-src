@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.30 1997/11/08 00:28:10 brian Exp $
+ * $Id: os.c,v 1.31 1997/11/09 06:22:44 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -218,8 +218,8 @@ OsLinkup()
       LogPrintf(LogLCP, "OsLinkup: %s\n", s);
 
     if (SelectSystem(inet_ntoa(IpcpInfo.want_ipaddr), LINKUPFILE) < 0) {
-      if (dstsystem) {
-	if (SelectSystem(dstsystem, LINKUPFILE) < 0)
+      if (GetLabel()) {
+	if (SelectSystem(GetLabel(), LINKUPFILE) < 0)
 	  SelectSystem("MYADDR", LINKUPFILE);
       } else
 	SelectSystem("MYADDR", LINKUPFILE);
@@ -248,12 +248,11 @@ OsLinkdown()
     FsmDown(&IpcpFsm);	/* IPCP must come down */
     FsmDown(&CcpFsm);	/* CCP must come down */
 
-    if (!(mode & MODE_AUTO))
-      DeleteIfRoutes(0);
+    DeleteIfRoutes(0);
     linkup = 0;
     if (SelectSystem(s, LINKDOWNFILE) < 0) {
-      if (dstsystem) {
-	if (SelectSystem(dstsystem, LINKDOWNFILE) < 0)
+      if (GetLabel()) {
+	if (SelectSystem(GetLabel(), LINKDOWNFILE) < 0)
 	  SelectSystem("MYADDR", LINKDOWNFILE);
       } else
 	SelectSystem("MYADDR", LINKDOWNFILE);
@@ -268,7 +267,7 @@ OsInterfaceDown(int final)
   int s;
 
   OsLinkdown();
-  if (!final && (mode & MODE_AUTO))	/* We still want interface alive */
+  if (!final && (mode & MODE_DAEMON))	/* We still want interface alive */
     return (0);
   s = socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.21 1997/11/09 14:18:53 brian Exp $
+ * $Id: systems.c,v 1.22 1997/11/09 17:51:27 brian Exp $
  *
  *  TODO:
  */
@@ -43,6 +43,7 @@
 #include "pathnames.h"
 #include "vars.h"
 #include "server.h"
+#include "chat.h"
 #include "systems.h"
 
 #define issep(ch) ((ch) == ' ' || (ch) == '\t')
@@ -165,8 +166,66 @@ DecodeCtrlCommand(char *line, char *arg)
   return CTRL_UNKNOWN;
 }
 
+static int userok;
+
 int
-SelectSystem(char *name, char *file)
+AllowUsers(struct cmdtab const *list, int argc, char **argv)
+{
+  int f;
+  char *user;
+
+  userok = 0;
+  user = getlogin();
+  if (user && *user)
+    for (f = 0; f < argc; f++)
+      if (!strcmp("*", argv[f]) || !strcmp(user, argv[f])) {
+        userok = 1;
+        break;
+      }
+
+  return 0;
+}
+
+static struct {
+  int mode;
+  char *name;
+} modes[] = {
+  { MODE_INTER, "interactive" },
+  { MODE_AUTO, "auto" },
+  { MODE_DIRECT, "direct" },
+  { MODE_DEDICATED, "dedicated" },
+  { MODE_DDIAL, "ddial" },
+  { MODE_BACKGROUND, "background" },
+  { ~0, "*" },
+  { 0, 0 }
+};
+
+static int modeok;
+
+int
+AllowModes(struct cmdtab const *list, int argc, char **argv)
+{
+  int f;
+  int m;
+  int allowed;
+
+  allowed = 0;
+  for (f = 0; f < argc; f++) {
+    for (m = 0; modes[m].mode; m++)
+      if (!strcasecmp(modes[m].name, argv[f])) {
+        allowed |= modes[m].mode;
+        break;
+      }
+    if (modes[m].mode == 0)
+      LogPrintf(LogWARN, "%s: Invalid mode\n", argv[f]);
+  }
+
+  modeok = (mode | allowed) == allowed ? 1 : 0;
+  return 0;
+}
+
+static int
+ReadSystem(const char *name, const char *file, int doexec)
 {
   FILE *fp;
   char *cp, *wp;
@@ -175,6 +234,9 @@ SelectSystem(char *name, char *file)
   char line[LINE_LEN];
   char filename[200];
   int linenum;
+  int argc;
+  char **argv;
+  int allowcmd;
 
   if (*file == '/')
     snprintf(filename, sizeof filename, "%s", file);
@@ -182,10 +244,10 @@ SelectSystem(char *name, char *file)
     snprintf(filename, sizeof filename, "%s/%s", _PATH_PPP, file);
   fp = ID0fopen(filename, "r");
   if (fp == NULL) {
-    LogPrintf(LogDEBUG, "SelectSystem: Can't open %s.\n", filename);
+    LogPrintf(LogDEBUG, "ReadSystem: Can't open %s.\n", filename);
     return (-1);
   }
-  LogPrintf(LogDEBUG, "SelectSystem: Checking %s (%s).\n", name, filename);
+  LogPrintf(LogDEBUG, "ReadSystem: Checking %s (%s).\n", name, filename);
 
   linenum = 0;
   while (fgets(line, sizeof(line), fp)) {
@@ -211,7 +273,7 @@ SelectSystem(char *name, char *file)
         switch (DecodeCtrlCommand(cp+1, arg)) {
         case CTRL_INCLUDE:
           LogPrintf(LogCOMMAND, "%s: Including \"%s\"\n", filename, arg);
-          n = SelectSystem(name, arg);
+          n = ReadSystem(name, arg, doexec);
           LogPrintf(LogCOMMAND, "%s: Done include of \"%s\"\n", filename, arg);
           if (!n)
             return 0;	/* got it */
@@ -233,12 +295,16 @@ SelectSystem(char *name, char *file)
               cp[--len] = '\0';
             if (!len)
               continue;
-	    LogPrintf(LogCOMMAND, "%s: %s\n", name, cp);
-	    olauth = VarLocalAuth;
-	    if (VarLocalAuth == LOCAL_NO_AUTH)
-	      VarLocalAuth = LOCAL_AUTH;
-	    DecodeCommand(cp, len, 0);
-	    VarLocalAuth = olauth;
+            InterpretCommand(cp, len, &argc, &argv);
+            allowcmd = argc > 0 && !strcasecmp(*argv, "allow");
+            if ((!doexec && allowcmd) || (doexec && !allowcmd)) {
+	      LogPrintf(LogCOMMAND, "%s: %s\n", name, cp);
+	      olauth = VarLocalAuth;
+	      if (VarLocalAuth == LOCAL_NO_AUTH)
+	        VarLocalAuth = LOCAL_AUTH;
+	      RunCommand(argc, argv, 0);
+	      VarLocalAuth = olauth;
+	    }
 	  } else if (*cp == '#') {
 	    continue;
 	  } else
@@ -255,6 +321,26 @@ SelectSystem(char *name, char *file)
 }
 
 int
+ValidSystem(const char *name)
+{
+  if (ID0realuid() == 0)
+    return userok = modeok = 1;
+  userok = 0;
+  modeok = 1;
+  ReadSystem("default", CONFFILE, 0);
+  if (name != NULL)
+    ReadSystem(name, CONFFILE, 0);
+  return userok && modeok;
+}
+
+int
+SelectSystem(const char *name, const char *file)
+{
+  userok = modeok = 1;
+  return ReadSystem(name, file, 1);
+}
+
+int
 LoadCommand(struct cmdtab const * list, int argc, char **argv)
 {
   char *name;
@@ -264,10 +350,13 @@ LoadCommand(struct cmdtab const * list, int argc, char **argv)
   else
     name = "default";
 
-  if (SelectSystem(name, CONFFILE) < 0) {
+  if (!ValidSystem(name))
+    LogPrintf(LogERROR, "%s: Label not allowed\n");
+  else if (SelectSystem(name, CONFFILE) < 0) {
     LogPrintf(LogWARN, "%s: not found.\n", name);
     return -1;
-  }
+  } else
+    SetLabel(argc ? name : NULL);
   return 0;
 }
 

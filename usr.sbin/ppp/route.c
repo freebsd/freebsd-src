@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.23 1997/11/09 06:22:47 brian Exp $
+ * $Id: route.c,v 1.24 1997/11/09 14:18:50 brian Exp $
  *
  */
 
@@ -268,7 +268,7 @@ ShowRoute()
 	  mask <<= 8;
       }
     }
-    fprintf(VarTerm, "%08lx  ", mask);
+    fprintf(VarTerm, "0x%08lx  ", mask);
     p_flags(rtm->rtm_flags & (RTF_UP | RTF_GATEWAY | RTF_HOST), "%-6.6s ");
     fprintf(VarTerm, "(%d)\n", rtm->rtm_index);
   }
