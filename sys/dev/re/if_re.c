@@ -420,9 +420,6 @@ re_gmii_writereg(dev, phy, reg, data)
 	u_int32_t		rval;
 	int			i;
 
-	if (phy > 0)
-		return(0);
-
 	sc = device_get_softc(dev);
 
 	CSR_WRITE_4(sc, RL_PHYAR, (reg << 16) |
