@@ -23,6 +23,7 @@
 #endif
 #include <sys/systm.h>
 #if defined(__FreeBSD_version) && (__FreeBSD_version >= 220000)
+# include "opt_devfs.h"
 # include <sys/conf.h>
 # include <sys/kernel.h>
 # ifdef DEVFS
