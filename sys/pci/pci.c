@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.107 1999/05/31 11:29:01 phk Exp $
+ * $Id: pci.c,v 1.108 1999/05/31 22:13:34 roger Exp $
  *
  */
 
@@ -57,6 +57,7 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
+#include <machine/md_var.h>		/* For the Alpha */
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
