@@ -1,0 +1,1003 @@
+
+Received: from huey2.ee.udel.edu by mail.eecis.udel.edu id aa25207;
+          10 Dec 1997 10:39 EST
+Received: from copland.udel.edu by huey.udel.edu id aa16958;
+          10 Dec 1997 10:39 EST
+Received: from rrzs2.rz.uni-regensburg.de (rrzs2.rz.uni-regensburg.de [132.199.1.2]) by copland.udel.edu (8.8.5/8.7.3) with ESMTP id KAA21293 for <mills@udel.edu>; Wed, 10 Dec 1997 10:39:12 -0500 (EST)
+Received: from ngate.ngate.uni-regensburg.de (ngate.rz.uni-regensburg.de [132.199.3.13])
+	by rrzs2.rz.uni-regensburg.de (8.8.5/8.8.5) with SMTP id QAA19974
+	for <mills@udel.edu>; Wed, 10 Dec 1997 16:38:42 +0100 (MET)
+Received: from rkdvmks1.ngate.uni-regensburg.de by ngate.ngate.uni-regensburg.de; Wed, 10 Dec 97 16:39 MET
+Received: from rkdvmks1.ngate.uni-regensburg.de by kgate.ngate.uni-regensburg.de; Wed, 10 Dec 97 15:38 GMT
+Received: from RKDVMKS1/SpoolDir by rkdvmks1.ngate.uni-regensburg.de (Mercury 1.32);
+    10 Dec 97 16:38:34 +0100
+Received: from SpoolDir by RKDVMKS1 (Mercury 1.32); 10 Dec 97 16:38:06 +0100
+From: Ulrich Windl <ulrich.windl@rz.uni-regensburg.de>
+Organization: Universitaet Regensburg, Klinikum
+To: mills@udel.edu
+Date: Wed, 10 Dec 1997 16:38:04 +0100
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-transfer-encoding: 7BIT
+Subject: Big patch to scripts/monitoring
+Priority: normal
+X-mailer: Pegasus Mail for Windows (v2.53/R1)
+Message-ID: <103AB9D209F5@rkdvmks1.ngate.uni-regensburg.de>
+
+Dave, there's another big patch against scripts/monitoring. The Perl 
+programs in there are rather old. As they are quite nice thogh, I 
+decided to update them for the latest version of Perl, namely 5.004.
+
+I'll include the description of changes and the patch.
+
+Ulrich
+
+Here is a description of changes made in ntploopwatch:
+
+Corrected most warnings that PERL 5.004 might emit.  Corrected signal
+handlers to make them work again. Corrected scaling (at least I
+think). Supported case when output is sent to file or printer and
+there is no X11 available. Fixed number of month in xlabels of the
+plot.
+
+Added the ability to specify printer for GNUplot other that
+PostScript. Use hostname if $STATHOST is not given in configuration
+file. Corrected verbosity level for some messages. Added ability to
+specify a non-standard print command.
+
+Perl 5.004_04 does no longer ignore ``-w--*-perl-*-''. Made some
+cosmetic changes and added a timescale of 10 minutes.
+
+(Other programs are functionally unchanged. lr.pl is a PERL module now.)
+
+
+Index: README
+===================================================================
+RCS file: /home/windl/NTP/mon-REP/monitoring/README,v
+retrieving revision 1.1.1.1
+retrieving revision 1.2
+diff -u -r1.1.1.1 -r1.2
+--- README	1993/08/24 19:29:34	1.1.1.1
++++ README	1997/10/23 17:51:37	1.2
+@@ -1,14 +1,14 @@
+ This directory contains support for monitoring the local clock of xntp daemons.
+ 
+-WARNING: The scripts and routines contained in this directory are bete realease!
+-	 Do not depend on their correct operation. They are, however, in regular
+-	 use at University of Erlangen-Nuernberg. No severe problems are known
+-	 for this code.
++WARNING: The scripts and routines contained in this directory are beta
++	 release!  Do not depend on their correct operation. They are,
++	 however, in regular use at University of Erlangen-Nuernberg.
++	 No severe problems are known for this code.
+ 
+ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ PLEASE THINK TWICE BEFORE STARTING MONITORING REMOTE XNTP DEAMONS !!!!
+ MONITORING MAY INCREASE THE LOAD OF THE DEAMON MONITORED AND MAY
+-INCREASE THE NETWORK LOAD SIGNIFICANTLY 
++INCREASE THE NETWORK LOAD SIGNIFICANTLY
+ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ 
+ 
+@@ -23,8 +23,8 @@
+ 	It sends a set_trap request to each server given and dumps the
+ 	trap messages received. It handles refresh of set_trap.
+ 	Currently it handles only NTP V2, however the NTP V3 servers
+-	also accept v2 requests. It will not interpret v3 system and peer
+-	stati correctly.
++	also accept v2 requests. It will not interpret v3 system and
++	peer stati correctly.
+ 
+ 	usage:
+ 	  ntptrap [-n] [-p <port>] [-l <debug-output>] servers...
+@@ -72,7 +72,9 @@
+ 	
+ 	if a timeout occurs the next sample is tried after delay/2 seconds
+ 
+-	The script will terminate after MAX_FAIL (currently 60) consecutive errors.
++	The script will terminate after MAX_FAIL (currently 60)
++	consecutive errors.
++
+ 	Errors are counted for:
+ 		- error on send call
+ 		- error on select call
+@@ -114,10 +116,10 @@
+ 	command line values would be replaced by settings from the config file.
+ 
+ 	printer:	specify printer to print plot
+-			BSD print systems semantics apply; if printer is omitted
+-			the name "ps" is used; plots are prepared using
+-			PostScript, thus the printer should best accept
+-			postscript input
++			BSD print systems semantics apply; if printer
++			is omitted the name "ps" is used; plots are
++			prepared using PostScript, thus the printer
++			should best accept postscript input
+ 
+ 	For the following see also the comments in loopwatch.config.SAMPLE
+ 
+@@ -139,8 +141,10 @@
+ 	within display range
+ 
+ timelocal.pl:
+-	used during conversion of ISO_DATE_TIME values specified in loopwatch
+-	config files to unix epoch values (seconds since 1970-01-01_00:00_00 UTC)
++
++	used during conversion of ISO_DATE_TIME values specified in
++	loopwatch config files to unix epoch values (seconds since
++	1970-01-01_00:00_00 UTC)
+ 
+ 	A version of this file is distributed with perl-4.x, however,
+ 	it has a bug related to dates crossing 1970, causing endless loops..
+Index: lr.pl
+===================================================================
+RCS file: /home/windl/NTP/mon-REP/monitoring/lr.pl,v
+retrieving revision 1.1.1.1
+retrieving revision 1.4
+diff -u -r1.1.1.1 -r1.4
+--- lr.pl	1993/08/24 19:29:33	1.1.1.1
++++ lr.pl	1997/10/23 17:51:37	1.4
+@@ -9,9 +9,14 @@
+ ;#  Frank Kardel, Rainer Pruy
+ ;#  Friedrich-Alexander Universitaet Erlangen-Nuernberg
+ ;#
++;#  Copyright (c) 1997 by
++;#  Ulrich Windl <Ulrich.Windl@rz.uni-regensburg.de>
++;#  (Converted to a PERL 5.004 package)
+ ;#
+ ;#############################################################
+ 
++package lr;
++
+ ##
+ ## y = A + Bx
+ ##
+@@ -23,123 +28,124 @@
+ ##
+ ## interface
+ ##
+-*lr_init   = *lr'lr_init;	#';# &lr_init(tag); initialize data set for tag
+-*lr_sample = *lr'lr_sample;	#';# &lr_sample(x,y,tag); enter sample
+-*lr_Y      = *lr'lr_Y;		#';# &lr_Y(x,tag); compute y for given x 
+-*lr_X      = *lr'lr_X;		#';# &lr_X(y,tag); compute x for given y
+-*lr_r      = *lr'lr_r;		#';# &lr_r(tag);   regression coeffizient
+-*lr_cov    = *lr'lr_cov;	#';# &lr_cov(tag); covariance
+-*lr_A      = *lr'lr_A;		#';# &lr_A(tag);   
+-*lr_B      = *lr'lr_B;		#';# &lr_B(tag);
+-*lr_sigma  = *lr'lr_sigma;	#';# &lr_sigma(tag); standard deviation
+-*lr_mean   = *lr'lr_mean;	#';# &lr_mean(tag);
++;# init(tag);		initialize data set for tag
++;# sample(x, y, tag);	enter sample
++;# Y(x, tag);		compute y for given x 
++;# X(y, tag);		compute x for given y
++;# r(tag);		regression coefficient
++;# cov(tag);		covariance
++;# A(tag);   
++;# B(tag);
++;# sigma(tag);		standard deviation
++;# mean(tag);
+ #########################
+ 
+-package lr;
+-
+-sub tagify
+-{
+-    local($tag) = @_;
+-    if (defined($tag))
+-    {
+-      *lr_n   = eval "*${tag}_n";
+-      *lr_sx  = eval "*${tag}_sx";
+-      *lr_sx2 = eval "*${tag}_sx2";
+-      *lr_sxy = eval "*${tag}_sxy";
+-      *lr_sy  = eval "*${tag}_sy";
+-      *lr_sy2 = eval "*${tag}_sy2";
+-    }
+-}
+-
+-sub lr_init
++sub init
+ {
+-    &tagify($_[$[]) if defined($_[$[]);
++    my $self = shift;
+ 
+-    $lr_n   = 0;
+-    $lr_sx  = 0.0;
+-    $lr_sx2 = 0.0;
+-    $lr_sxy = 0.0;
+-    $lr_sy  = 0.0;
+-    $lr_sy2 = 0.0;
++    $self->{n}   = 0;
++    $self->{sx}  = 0.0;
++    $self->{sx2} = 0.0;
++    $self->{sxy} = 0.0;
++    $self->{sy}  = 0.0;
++    $self->{sy2} = 0.0;
+ }
+ 
+-sub lr_sample
++sub sample($$$)
+ {
+-    local($_x, $_y) = @_;
+-
+-    &tagify($_[$[+2]) if defined($_[$[+2]);
++    my $self = shift;
++    my($_x, $_y) = @_;
+ 
+-    $lr_n++;
+-    $lr_sx  += $_x;
+-    $lr_sy  += $_y;
+-    $lr_sxy += $_x * $_y;
+-    $lr_sx2 += $_x**2;
+-    $lr_sy2 += $_y**2;
++    ++($self->{n});
++    $self->{sx}  += $_x;
++    $self->{sy}  += $_y;
++    $self->{sxy} += $_x * $_y;
++    $self->{sx2} += $_x**2;
++    $self->{sy2} += $_y**2;
+ }
+ 
+-sub lr_B
++sub B($)
+ {
+-    &tagify($_[$[]) if defined($_[$[]);
++    my $self = shift;
+ 
+-    return 1 unless ($lr_n * $lr_sx2 - $lr_sx**2);
+-    return ($lr_n * $lr_sxy - $lr_sx * $lr_sy) / ($lr_n * $lr_sx2 - $lr_sx**2);
++    return 1 unless ($self->{n} * $self->{sx2} - $self->{sx}**2);
++    return ($self->{n} * $self->{sxy} - $self->{sx} * $self->{sy})
++	/ ($self->{n} * $self->{sx2} - $self->{sx}**2);
+ }
+ 
+-sub lr_A
++sub A($)
+ {
+-    &tagify($_[$[]) if defined($_[$[]);
++    my $self = shift;
+ 
+-    return ($lr_sy - &lr_B * $lr_sx) / $lr_n;
++    return ($self->{sy} - B($self) * $self->{sx}) / $self->{n};
+ }
+ 
+-sub lr_Y
++sub Y($$)
+ {
+-    &tagify($_[$[]) if defined($_[$[]);
++    my $self = shift;
+ 
+-    return &lr_A + &lr_B * $_[$[];
++    return A($self) + B($self) * $_[$[];
+ }
+ 
+-sub lr_X
++sub X($$)
+ {
+-    &tagify($_[$[]) if defined($_[$[]);
++    my $self = shift;
+ 
+-    return ($_[$[] - &lr_A) / &lr_B;
++    return ($_[$[] - A($self)) / B($self);
+ }
+ 
+-sub lr_r
++sub r($)
+ {
+-    &tagify($_[$[]) if defined($_[$[]);
++    my $self = shift;
+ 
+-    local($s) = ($lr_n * $lr_sx2 - $lr_sx**2) * ($lr_n * $lr_sy2 - $lr_sy**2);
++    my $s = ($self->{n} * $self->{sx2} - $self->{sx}**2)
++	  * ($self->{n} * $self->{sy2} - $self->{sy}**2);
+ 
+     return 1 unless $s;
+     
+-    return ($lr_n * $lr_sxy - $lr_sx * $lr_sy) / sqrt($s);
++    return ($self->{n} * $self->{sxy} - $self->{sx} * $self->{sy}) / sqrt($s);
+ }
+ 
+-sub lr_cov
++sub cov($)
+ {
+-    &tagify($_[$[]) if defined($_[$[]);
++    my $self = shift;
+ 
+-    return ($lr_sxy - $lr_sx * $lr_sy / $lr_n) / ($lr_n - 1);
++    return ($self->{sxy} - $self->{sx} * $self->{sy} / $self->{n})
++	/ ($self->{n} - 1);
+ }
+ 
+-sub lr_sigma
++sub sigma($)
+ {
+-    &tagify($_[$[]) if defined($_[$[]);
++    my $self = shift;
+ 
+-    return 0 if $lr_n <= 1;
+-    return sqrt(($lr_sy2 - ($lr_sy * $lr_sy) / $lr_n) / ($lr_n));
++    return 0 if $self->{n} <= 1;
++    return sqrt(($self->{sy2} - ($self->{sy} * $self->{sy}) / $self->{n})
++		/ ($self->{n}));
+ }
+ 
+-sub lr_mean
++sub mean($)
+ {
+-    &tagify($_[$[]) if defined($_[$[]);
++    my $self = shift;
+ 
+-    return 0 if $lr_n <= 0;
+-    return $lr_sy / $lr_n;
++    return 0 if $self->{n} <= 0;
++    return $self->{sy} / $self->{n};
+ }
+ 
+-&lr_init();
++sub new
++{
++    my $class = shift;
++    my $self = {
++	(n => undef,
++	 sx => undef,
++	 sx2 => undef,
++	 sxy => undef,
++	 sy => undef,
++	 sy2 => undef)
++    };
++    bless $self, $class;
++    init($self);
++    return $self;
++}
+ 
+ 1;
+Index: ntp.pl
+===================================================================
+RCS file: /home/windl/NTP/mon-REP/monitoring/ntp.pl,v
+retrieving revision 1.1.1.1
+retrieving revision 1.3
+diff -u -r1.1.1.1 -r1.3
+--- ntp.pl	1993/08/24 19:29:34	1.1.1.1
++++ ntp.pl	1997/10/23 18:19:41	1.3
+@@ -1,4 +1,4 @@
+-#!/local/bin/perl
++#!/usr/bin/perl -w
+ ;#
+ ;# ntp.pl,v 3.1 1993/07/06 01:09:09 jbj Exp
+ ;#
+@@ -43,7 +43,7 @@
+     ;#  N  key
+     ;#  N2 checksum
+     
+-;# first bye of packet
++;# first byte of packet
+ sub pkt_LI   { return ($_[$[] >> 6) & 0x3; }
+ sub pkt_VN   { return ($_[$[] >> 3) & 0x7; }
+ sub pkt_MODE { return ($_[$[]     ) & 0x7; }
+@@ -223,6 +223,7 @@
+ {
+     &getval(&psw_PSel($_[$[]),*PeerSelection);
+ }
++
+ sub PeerEvent
+ {
+     &getval(&psw_PCode($_[$[]),*PeerEvent);
+@@ -394,14 +395,14 @@
+ 	$lastseen = 1 if !&pkt_M($r_e_m_op);
+ 	if (!defined(%FRAGS))
+ 	{
+-	    (&pkt_M($r_e_m_op) ? " more" : "")."\n";
++	    print((&pkt_M($r_e_m_op) ? " more" : "")."\n");
+ 	    $FRAGS{$offset} = $data;
+ 	    ;# save other info
+ 	    @FRAGS = ($status,$associd,&pkt_OP($r_e_m_op),$seq,$auth_keyid,$r_e_m_op);
+ 	}
+ 	else
+ 	{
+-	    (&pkt_M($r_e_m_op) ? " more" : "")."\n";
++	    print((&pkt_M($r_e_m_op) ? " more" : "")."\n");
+ 	    ;# add frag to previous - combine on the fly
+ 	    if (defined($FRAGS{$offset}))
+ 	    {
+Index: ntploopstat
+===================================================================
+RCS file: /home/windl/NTP/mon-REP/monitoring/ntploopstat,v
+retrieving revision 1.1.1.1
+retrieving revision 1.3
+diff -u -r1.1.1.1 -r1.3
+--- ntploopstat	1993/08/24 19:29:32	1.1.1.1
++++ ntploopstat	1997/11/23 19:07:12	1.3
+@@ -1,4 +1,5 @@
+-#!/local/bin/perl -w--*-perl-*-
++#!/usr/bin/perl -w
++# --*-perl-*-
+ ;#
+ ;# ntploopstat,v 3.1 1993/07/06 01:09:11 jbj Exp
+ ;# 
+@@ -22,7 +23,7 @@
+ ;#              (Should have implemented &gettimeofday()..)
+ ;#
+ 
+-$0 =~ s!^.*/([^/]+)$!\1!;		# beautify script name
++$0 =~ s!^.*/([^/]+)$!$1!;		# beautify script name
+ 
+ $ntpserver = 'localhost';		# default host to poll
+ $delay = 60;				# default sampling rate
+Index: ntploopwatch
+===================================================================
+RCS file: /home/windl/NTP/mon-REP/monitoring/ntploopwatch,v
+retrieving revision 1.1.1.1
+retrieving revision 1.14
+diff -u -r1.1.1.1 -r1.14
+--- ntploopwatch	1993/10/22 14:28:18	1.1.1.1
++++ ntploopwatch	1997/12/07 17:06:36	1.14
+@@ -1,4 +1,5 @@
+-#!/local/bin/perl -w--*-perl-*-
++#!/usr/bin/perl -w
++#--*-perl-*-
+ ;#
+ ;# ntploopwatch,v 3.1 1993/07/06 01:09:13 jbj Exp
+ ;#
+@@ -9,12 +10,17 @@
+ ;#  Copyright (c) 1992 
+ ;#  Rainer Pruy Friedrich-Alexander Universitaet Erlangen-Nuernberg
+ ;#
++;#  Copyright (c) 1997
++;#  Ulrich Windl <Ulrich.Windl@rz.uni-regensburg.de>
++;#  (Corrections for Perl5 and other fixes)
+ ;#
+ ;#############################################################
+-$0 =~ s!^.*/([^/]+)$!\1!;
++$0 =~ s!^.*/([^/]+)$!$1!;
+ $F = ' ' x length($0);
+ $|=1;
+ 
++use 5.004;	# require 5.004
++
+ $ENV{'SHELL'} = '/bin/sh'; # use bourne shell
+ 
+ undef($config);
+@@ -23,17 +29,17 @@
+ undef($samples);
+ undef($StartTime);
+ undef($EndTime);
+-($a,$b) if 0;			# keep -w happy
++
+ $usage = <<"E-O-P";
+ usage:
+-  to watch statistics permanently:
++  to watch statistics periodically:
+      $0 [-v[<level>]] [-c <config-file>] [-d <working-dir>]
+      $F [-h <hostname>]
+ 
+   to get a single print out specify also
+-     $F -P[<printer>] [-s<samples>]
+-     $F               [-S <start-time>] [-E <end-time>]
+-     $F               [-Y <MaxOffs>] [-y <MinOffs>]
++     $F -P[[<term_type:>]<printer>]
++     $F [-s<samples>] [-S <start-time>] [-E <end-time>]
++     $F [-Y <MaxOffs>] [-y <MinOffs>]
+ 
+ If You like long option names, You can use:
+     -help
+@@ -41,21 +47,28 @@
+     -d    +directory
+     -h    +host
+     -v    +verbose[=<level>]
+-    -P    +printer[=<printer>]
++    -P    +printer[=[<term_type>:]<printer>[:<print_cmd>]]
+     -s    +samples[=<samples>]
+     -S    +starttime
+     -E    +endtime
+     -Y    +maxy
+     -y    +miny
+ 
++If <printer> is prefixed with a <term_type> and a colon, the <term_type>
++given is used as terminal fpr gnuplot.
+ If <printer> contains a '/' (slash character) output is directed to 
+ a file of this name instead of delivered to a printer.
++If suffix :<print_cmd> is given, the suffix is used as the print command,
++and <printer> is ignored.  If blanks are needed inside <term_type> or
++<print_cmd>, just use underscores instead.
+ E-O-P
+ 
+ ;# add directory to look for lr.pl and timelocal.pl (in front of current list)
+ unshift(@INC,"/src/NTP/v3/xntp/monitoring");
+ 
+ require "lr.pl";	# linear regresion routines
++my $lr_offs = new lr;
++my $lr_freq = new lr;
+ 
+ $MJD_1970 = 40587;		# from ntp.h (V3)
+ $RecordSize = 48;		# usually a line fits into 42 bytes
+@@ -171,16 +184,20 @@
+ 
+ ;# configuration file
+ $config = "loopwatch.config" unless defined($config);
+-($STATHOST = $config) =~ s!.*loopwatch\.config.([^/\.]*)$!\1!
++($STATHOST = $config) =~ s!.*loopwatch\.config.([^/\.]+)$!$1!
+     unless defined($STATHOST);
+-($STATTAG = $STATHOST) =~ s/^([^\.\*\s]+)\..*$/\1/;
++if ($STATHOST eq $config) {
++    require "hostname.pl";
++    $STATHOST = hostname();
++}
++($STATTAG = $STATHOST) =~ s/^([^\.\*\s]+)\..*$/$1/;
+ 
+ $srcprefix =~ s/\$STATHOST/$STATHOST/g;
+ 
+ ;# plot command 
+-@plotcmd=("gnuplot",
+-	  '-title', "Ntp loop filter statistics $STATHOST",
+-	  '-name', "NtpLoopWatch_$STATTAG");
++@plotcmd=("gnuplot");
++push(@plotcmd, '-title', "NTP loop filter statistics for $STATHOST",
++     '-name', "NtpLoopWatch_$STATTAG") unless $PrintIt;
+ $tmpfile = "/tmp/ntpstat.$$";
+ 
+ ;# other variables
+@@ -211,9 +228,8 @@
+ 	       $?>>8,$? & 0xff)) if $?;
+   exit(1) if $? && defined($Plotpid) && $pid == $Plotpid;
+ }
+-&sigchld if 0;
+-$SIG{'CHLD'} = "sigchld";
+-$SIG{'CLD'} = "sigchld";
++$SIG{'CHLD'} = \&sigchld;
++$SIG{'CLD'} = \&sigchld;
+ 
+ sub abort
+ {
+@@ -221,8 +237,7 @@
+   defined($Plotpid) && kill('TERM',$Plotpid);
+   die("$0: received signal SIG$_[$[] - exiting\n");
+ }
+-&abort if 0;	# make -w happy - &abort IS used
+-$SIG{'INT'} = $SIG{'HUP'} = $SIG{'QUIT'} = $SIG{'TERM'} = $SIG{'PIPE'} = "abort";
++$SIG{'INT'} = $SIG{'HUP'} = $SIG{'QUIT'} = $SIG{'TERM'} = $SIG{'PIPE'} = \&abort;
+ 
+ ;#
+ sub abs
+@@ -248,7 +263,7 @@
+    open(STDOUT,">&STDERR") ||
+        die("$0: failed to redirect STDOUT of plot command: $!\n");
+    
+-   print STDOUT "plot command running as $$\n";
++   print STDOUT "plot command has PID $$\n";
+ 
+    exec @plotcmd;
+    die("$0: failed to exec (@plotcmd): $!\n");
+@@ -275,128 +290,83 @@
+     s/^([^\#]*[^\#\s]?)\s*\#.*$//;
+     next if /^\s*$/;
+ 
+-    s/^\s*([^=\s]*)\s*=\s*(.*\S)\s*$/\1=\2/;
++    s/^\s*([^=\s]*)\s*=\s*(.*\S)\s*$/$1=$2/;
+ 
+-    ($c,$v) = split(/=/,$_,2);
++    ($c,$v) = ($1, $2);
+     print "processing \"$c=$v\"\n" if $verbose > 3;
+-    ($c eq "delay") && ($delay = $v,1) && next;
+-    ($c eq 'samples') && (!defined($PrintIt) || !defined($samples)) &&
+-	($samples = $v,1) && next;
+-    ($c eq 'srcprefix') && (($srcprefix=$v)=~s/\$STATHOST/$STATHOST/g,1)
+-	&& next;
+-    ($c eq 'showoffs') &&
+-	($showoffs = ($v eq 'yes' || $v eq 'y' || $v != 0),1) && next;
+-    ($c eq 'showfreq') &&
+-	($showfreq = ($v eq 'yes' || $v eq 'y' || $v != 0),1) && next;
+-    ($c eq 'showcmpl') &&
+-	($showcmpl = ($v eq 'yes' || $v eq 'y' || $v != 0),1) && next;
+-    ($c eq 'showoreg') &&
+-	($showoreg = ($v eq 'yes' || $v eq 'y' || $v != 0),1) && next;
+-    ($c eq 'showfreg') &&
+-	($showfreg = ($v eq 'yes' || $v eq 'y' || $v != 0),1) && next;
+-
+-    ($c eq 'exit') && (unlink($tmpfile),die("$0: exit by config request\n"));
+-
+-    ($c eq 'freqbase' ||
+-     $c eq 'cmplscale') &&
+-	do {
+-	    if (! defined($v) || $v eq "" || $v eq 'dynamic')
+-	    {
+-	      eval "undef(\$$c);";
+-	    }
+-	    else
+-	    {
+-	      eval "\$$c = \$v;";
+-	    }
+-	    next;
+-	};
+-    ($c eq 'timebase') &&
+-	do {
+-	    if (! defined($v) || $v eq "" || $v eq "dynamic")
+-	    {
+-	      undef($timebase);
+-	    }
+-	    else
+-	    {
+-	      $timebase=&date_time_spec2seconds($v);
+-	    }
+-	};
+-    ($c eq 'EndTime') &&
+-	do {
+-	    next if defined($EndTime) && defined($PrintIt);
+-	    if (! defined($v) || $v eq "" || $v eq "none")
+-	    {
+-	      undef($EndTime);
+-	    }
+-	    else
+-	    {
+-	      $EndTime=&date_time_spec2seconds($v);
+-	    }
+-	};
+-    ($c eq 'StartTime') &&
+-	do {
+-	    next if defined($StartTime) && defined($PrintIt);
+-	    if (! defined($v) || $v eq "" || $v eq "none")
+-	    {
+-	      undef($StartTime);
+-	    }
+-	    else
+-	    {
+-	      $StartTime=&date_time_spec2seconds($v);
+-	    }
+-	};
+-
+-    ($c eq 'MaxY') &&
+-	do {
+-	    next if defined($MaxY) && defined($PrintIt);
+-	    if (! defined($v) || $v eq "" || $v eq "none")
+-	    {
+-	      undef($MaxY);
+-	    }
+-	    else
+-	    {
+-	      $MaxY=$v;
+-	    }
+-	};
+-
+-    ($c eq 'MinY') &&
+-	do {
+-	    next if defined($MinY) && defined($PrintIt);
+-	    if (! defined($v) || $v eq "" || $v eq "none")
+-	    {
+-	      undef($MinY);
+-	    }
+-	    else
+-	    {
+-	      $MinY=$v;
+-	    }
+-	};
+-
+-    ($c eq 'deltaT') &&
+-	do {
+-	    if (!defined($v) || $v eq "")
+-	    {
+-	      undef($deltaT);
+-	    }
+-	    else
+-	    {
+-	      $deltaT = $v;
+-	    }
+-	    next;
+-	};
+-    ($c eq 'verbose') && ! defined($PrintIt) &&
+-	do {
+-	     if (!defined($v) || $v == 0)
+-	     {
+-	       $verbose = 0;
+-	     }
+-	     else
+-	     {
+-	       $verbose = $v;
+-	     }
+-	     next;
+-	};
+-    ;# otherwise: silently ignore unrecognized config line
++    if ($c eq "delay") {
++	$delay = $v;
++    } elsif ($c eq 'samples') {
++	$samples = $v if (!defined($PrintIt) || !defined($samples));
++    } elsif ($c eq 'srcprefix') {
++	($srcprefix = $v) =~ s/\$STATHOST/$STATHOST/g;
++    } elsif ($c eq 'showoffs') {
++	$showoffs = ($v =~ /^yes$|^y$|^1$/);
++    } elsif ($c eq 'showfreq') {
++	$showfreq = ($v =~ /^yes$|^y$|^1$/);
++    } elsif ($c eq 'showcmpl') {
++	$showcmpl = ($v =~ /^yes$|^y$|^1$/);
++    } elsif ($c eq 'showoreg') {
++	$showoreg = ($v =~ /^yes$|^y$|^1$/);
++    } elsif ($c eq 'showfreg') {
++	$showfreg = ($v =~ /^yes$|^y$|^1$/);
++    } elsif ($c eq 'exit') {
++	unlink($tmpfile); die("$0: exit by config request\n");
++    } elsif ($c eq 'freqbase' || $c eq 'cmplscale') {
++	if (! defined($v) || $v eq "" || $v eq 'dynamic') {
++	    eval "undef(\$$c);";
++	} else {
++	    eval "\$$c = \$v;";
++	}
++    } elsif ($c eq 'timebase') {
++	if (! defined($v) || $v eq "" || $v eq "dynamic") {
++	    undef($timebase);
++	} else {
++	    $timebase=&date_time_spec2seconds($v);
++	}
++    } elsif ($c eq 'EndTime') {
++	next if defined($EndTime) && defined($PrintIt);
++	if (! defined($v) || $v eq "" || $v eq "none") {
++	    undef($EndTime);
++	} else {
++	    $EndTime=&date_time_spec2seconds($v);
++	}
++    } elsif ($c eq 'StartTime') {
++	next if defined($StartTime) && defined($PrintIt);
++	if (! defined($v) || $v eq "" || $v eq "none") {
++	    undef($StartTime);
++	} else {
++	    $StartTime=&date_time_spec2seconds($v);
++	}
++    } elsif ($c eq 'MaxY') {
++	next if defined($MaxY) && defined($PrintIt);
++	if (! defined($v) || $v eq "" || $v eq "none") {
++	    undef($MaxY);
++	} else {
++	    $MaxY=$v;
++	}
++    } elsif ($c eq 'MinY') {
++	next if defined($MinY) && defined($PrintIt);
++	if (! defined($v) || $v eq "" || $v eq "none") {
++	    undef($MinY);
++	} else {
++	    $MinY=$v;
++	}
++    } elsif ($c eq 'deltaT') {
++	if (!defined($v) || $v eq "") {
++	    undef($deltaT);
++	} else {
++	    $deltaT = $v;
++	}
++    } elsif ($c eq 'verbose' && ! defined($PrintIt)) {
++	if (!defined($v) || $v == 0) {
++	    $verbose = 0;
++	} else {
++	    $verbose = $v;
++	}
++    } else {
++	;# otherwise: silently ignore unrecognized config line
++    }
+   }
+   close(CF);
+   ;# set show defaults when nothing selected
+@@ -413,16 +383,16 @@
+     print  "   showcmpl\t= $showcmpl\n";
+     print  "   showoreg\t= $showoreg\n";
+     print  "   showfreg\t= $showfreg\n";
+-    printf "   timebase\t= %s",defined($timebase)?&ctime($timebase):"dynamic\n";
+-    printf "   freqbase\t= %s\n",defined($freqbase)  ?"$freqbase":"dynamic";
+-    printf "   cmplscale\t= %s\n",defined($cmplscale)?"$cmplscale":"dynamic";
+-    printf "   StartTime\t= %s",defined($StartTime)?&ctime($StartTime):"none\n";
+-    printf "   EndTime\t= %s",  defined($EndTime) ?  &ctime($EndTime):"none\n";
+-    printf "   MaxY\t= %s",defined($MaxY)? $MaxY      :"none\n";
+-    printf "   MinY\t= %s",defined($MinY)? $MinY      :"none\n";
++    printf "   timebase\t= %s", defined($timebase) ? &ctime($timebase) : "dynamic\n";
++    printf "   freqbase\t= %s\n", defined($freqbase) ? "$freqbase" : "dynamic";
++    printf "   cmplscale\t= %s\n", defined($cmplscale) ? "$cmplscale" : "dynamic";
++    printf "   StartTime\t= %s", defined($StartTime) ? &ctime($StartTime) : "none\n";
++    printf "   EndTime\t= %s", defined($EndTime) ? &ctime($EndTime):"none\n";
++    printf "   MaxY\t= %s", defined($MaxY) ? $MaxY : "none\n";
++    printf "   MinY\t= %s", defined($MinY) ? $MinY : "none\n";
+     print  "   verbose\t= $verbose\n";
+   }
+-print "configuration file read\n" if $verbose > 2;
++  print "configuration file read\n" if $verbose > 2;
+ }
+ 
+ sub make_doplot
+@@ -443,10 +413,9 @@
+     ;# number of integral seconds to get at least 12 tic marks on x axis
+     $t = int(($maxtime - $mintime) / 12 + 0.5);
+     $t = 1 unless $t;		# prevent $t to be zero
+-    foreach $i (30,
+-		60,5*60,15*60,30*60,
+-		60*60,2*60*60,6*60*60,12*60*60,
+-		24*60*60,48*60*60)
++    foreach $i (30, 60,
++		5*60, 10*60, 15*60, 30*60, 60*60,
++		2*60*60, 6*60*60, 12*60*60, 24*60*60, 48*60*60)
+     {
+ 	last if $t < $i;
+ 	$t = $t - ($t % $i);
+@@ -458,31 +427,30 @@
+ 	 $i <= $maxtime + $t;
+ 	 $i += $t, $c=",")
+     {
++	my ($sec, $min, $hour, $mday, $mon, $year, $wday) = localtime($i);
++
+ 	$s .= $c;
+ 	((int($i / $t) % 2) &&
+ 	 ($s .= sprintf("'' %lf",($i - $LastTimeBase)/3600))) ||
+ 	     (($t <= 60) &&
+ 	      ($s .= sprintf("'%d:%02d:%02d' %lf",
+-			     (localtime($i))[$[+2,$[+1,$[+0],
+-			     ($i - $LastTimeBase)/3600))) 
++			     $hour, $min, $sec, ($i - $LastTimeBase) / 3600))) 
+ 		 || (($t <= 2*60*60) &&
+ 		     ($s .= sprintf("'%d:%02d' %lf",
+-				    (localtime($i))[$[+2,$[+1],
+-				    ($i - $LastTimeBase)/3600)))
++				    $hour, $min, ($i - $LastTimeBase) / 3600)))
+ 		     || (($t <= 12*60*60) &&
+ 			 ($s .= sprintf("'%s %d:00' %lf",
+-					$Day[(localtime($i))[$[+6]],
+-					(localtime($i))[$[+2],
+-					($i - $LastTimeBase)/3600)))
++					$Day[$wday], $hour,
++					($i - $LastTimeBase) / 3600)))
+ 			 || ($s .= sprintf("'%d.%d-%d:00' %lf",
+-					   (localtime($i))[$[+3,$[+4,$[+2],
+-					   ($i - $LastTimeBase)/3600));
++					   $mday, $mon + 1, $hour,
++					   ($i - $LastTimeBase) / 3600));
+     }
+     $doplot .= "set xtics ($s)\n";
+     
+     chop($xts = &ctime($mintime));
+     chop($xte = &ctime($maxtime));
+-    $doplot .= "set xlabel 'Start:  $xts    --   Time Scale   --    End:  $xte'\n";
++    $doplot .= "set xlabel 'Start: $xts   -- Time Scale --   End: $xte'\n";
+     $doplot .= "set yrange [" ;
+     $doplot .= defined($MinY) ? sprintf("%lf", $MinY) : $miny;
+     $doplot .= ':';
+@@ -518,22 +486,22 @@
+ 	 $c = ",");
+     $showoreg && $showoffs &&
+ 	($doplot .= sprintf($regfmt, $c,
+-			    &lr_B('offs'),&lr_A('offs'),
+-			    "offset   ",
+-			    &lr_B('offs'),
+-			    ((&lr_A('offs')) < 0 ? '-' : '+'),
+-			    &abs(&lr_A('offs')), &lr_r('offs'),
++			    $lr_offs->B(),$lr_offs->A(),
++			    "offset",
++			    $lr_offs->B(),
++			    (($lr_offs->A()) < 0 ? '-' : '+'),
++			    &abs($lr_offs->A()), $lr_offs->r(),
+ 			    "[ms]"),
+ 	 $c = ",");
+     $showfreg && $showfreq &&
+ 	($doplot .= sprintf($regfmt, $c,
+-			    &lr_B('freq') * $FreqScale,
+-			    (&lr_A('freq') + $minfreq) * $FreqScale - $LastFreqBase,
++			    $lr_freq->B() * $FreqScale,
++			    ($lr_freq->A() + $minfreq) * $FreqScale - $LastFreqBase,
+ 			    "frequency",
+-			    &lr_B('freq') * $FreqScale,
+-			    ((&lr_A('freq') + $minfreq) * $FreqScale - $LastFreqBase) < 0 ? '-' : '+',
+-			    &abs((&lr_A('freq') + $minfreq) * $FreqScale - $LastFreqBase),
+-			    &lr_r('freq'),
++			    $lr_freq->B() * $FreqScale,
++			    (($lr_freq->A() + $minfreq) * $FreqScale - $LastFreqBase) < 0 ? '-' : '+',
++			    &abs(($lr_freq->A() + $minfreq) * $FreqScale - $LastFreqBase),
++			    $lr_freq->r(),
+ 			    "[${FreqScaleInv}ppm]"),
+ 	 $c = ",");
+     $doplot .= "\n";
+@@ -583,7 +551,7 @@
+     $#loffset = $[ - 1;
+     $#filekey = $[ - 1;
+     print "memory allocation ready\n" if $verbose > 2;
+-    sleep(3) if $verbose > 1;
++    sleep(3) if $verbose > 2;
+ 
+     if (index($in,"/") < $[)
+     {
+@@ -606,7 +574,6 @@
+ 	;# rescan directory on changes
+ 	$Lsdir = $sdir;
+ 	$Ltime = (stat($sdir))[$[+9];
+-	</X{> if 0;		# dummy line - calm down my formatter
+ 	local(@newfiles) = < ${in}*[0-9] >;
+ 	local($st_dev,$st_ino,$st_mtime,$st_size,$name,$key,$modified);
+ 
+@@ -626,7 +593,7 @@
+ 		$F_key{$name} = $key;
+ 		$modified++;
+ 	    }
+-	    if (!defined($F_name{$key}) || $F_name{$key} != $name)
++	    if (!defined($F_name{$key}) || $F_name{$key} ne $name)
+ 	    {
+ 		$F_name{$key} = $name;
+ 		$modified++;
+@@ -643,9 +610,9 @@
+ 	    }
+ 	    if ($modified)
+ 	    {
+-		print "new data \"$name\" key: $key;\n" if $verbose > 1;
++		print "new data \"$name\" key: $key;\n" if $verbose > 2;
+ 	        print "             size: $st_size; mtime: $st_mtime;\n"
+-		    if $verbose > 1;
++		    if $verbose > 2;
+ 		$F_last{$key} = $F_first{$key} = $st_mtime;
+ 		$F_first{$key}--; # prevent zero divide later on
+ 		;# now compute derivated attributes
+@@ -692,7 +659,7 @@
+ 		}
+ 		close(IN);
+ 		print("             first: ",$F_first{$key},
+-		      " last: ",$F_last{$key},"\n") if $verbose > 1;
++		      " last: ",$F_last{$key},"\n") if $verbose > 2;
+ 	    }
+ 	}
+ 	;# now reclaim memory used for files no longer referenced ...
+@@ -739,7 +706,7 @@
+ 	}
+ 	;# create list sorted by time
+ 	@F_files = sort {$F_first{$a} <=> $F_first{$b}; } keys(%F_name);
+-	if ($verbose > 1)
++	if ($verbose > 2)
+ 	{
+ 	    print "Resulting file list:\n";
+ 	    foreach (@F_files)
+@@ -797,7 +764,7 @@
+ 	    print "guess start according to StartTime ($StartTime)\n"
+ 		if $verbose > 3;
+ 
+-	    if ($fpos[$[] eq 'start')
++	    if (defined $fpos[$[] && $fpos[$[] eq 'start')
+ 	    {
+ 		if (grep($_ eq $fpos[$[+1],@f))
+ 		{
+@@ -1001,9 +968,9 @@
+ 	    $t += $F[$[+1];	# add seconds + fraction
+ 	    
+ 	    ;# multiply offset by 1000 to get ms - try to avoid float op
+-	    (($F[$[+2] =~ s/(\d*)\.(\d{3})(\d*)/\1\2.\3/) &&
++	    (($F[$[+2] =~ s/(\d*)\.(\d{3})(\d*)/$1$2.$3/) &&
+ 	     $F[$[+2] =~ s/0+([\d\.])/($1 eq '.') ? '0.' : $1/e) # strip leading zeros
+-		|| $F[$[+2] *= 1000;
++		|| ($F[$[+2] *= 1000);
+ 
+ 	    
+ 	    ;# skip samples out of specified time range
+@@ -1036,8 +1003,8 @@
+     print "input scanned ($l lines/",scalar(@time)," samples)\n"
+ 	if $verbose > 1;
+     
+-    &lr_init('offs');
+-    &lr_init('freq');
++    $lr_offs->init();
++    $lr_freq->init();
+     
+     if (@time)
+     {
+@@ -1047,17 +1014,17 @@
+ 	local($freqbase) unless defined($freqbase);
+ 	local($cmplscale) unless defined($cmplscale);
+ 	
+-	undef($mintime,$maxtime,$minoffs,$maxoffs,
+-	      $minfreq,$maxfreq,$mincmpl,$maxcmpl,
+-	      $miny,$maxy);
++	undef $mintime; undef $maxtime; undef $minoffs; undef $maxoffs;
++	undef $minfreq; undef $maxfreq; undef $mincmpl; undef $maxcmpl;
++	undef $miny; undef $maxy;
+ 	
+ 	print "computing ranges\n" if $verbose > 2;
+ 	
+ 	$LastCnt = @time;
+ 
+ 	;# @time is in ascending order (;-)
+-	$mintime = @time[$[];
+-	$maxtime = @time[$#time];
++	$mintime = $time[$[];
++	$maxtime = $time[$#time];
+ 	unless (defined($timebase))
+ 	{
+ 	    local($time,@X) = (time);
+@@ -1081,24 +1048,24 @@
+ 	    ;# (otherwise a (shift(@a1),shift(a2)) would do),
+ 	    ;# I dont like to make copies of these arrays as they may be huge
+ 	    $i = $[;
+-	    &lr_sample(($time[$i]-$timebase)/3600,$offs[$
+

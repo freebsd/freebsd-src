@@ -1,0 +1,82 @@
+<HTML>
+<HEAD>
+   <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+   <META NAME="GENERATOR" CONTENT="Mozilla/4.01 [en] (Win95; I) [Netscape]">
+   <TITLE>ntptrace - trace a chain of NTP servers back to the primary
+source
+</TITLE>
+</HEAD>
+<BODY>
+
+<H3>
+<TT>ntptrace</TT> - trace a chain of NTP servers back to the primary source</H3>
+
+<HR>
+<H4>
+Synopsis</H4>
+<TT>ntptrace [ -vdn ] [ -r <I>retries</I> ] [ -t <I>timeout</I> ] [ <I>server</I>
+]</TT>
+<H4>
+Description</H4>
+<TT>ntptrace</TT> determines where a given Network Time Protocol (NTP)
+server gets its time from, and follows the chain of NTP servers back to
+their master time source. If given no arguments, it starts with <TT>localhost</TT>.
+Here is an example of the output from <TT>ntptrace</TT>:
+<PRE>% ntptrace
+localhost: stratum 4, offset 0.0019529, synch distance 0.144135
+server2ozo.com: stratum 2, offset 0.0124263, synch distance 0.115784
+usndh.edu: stratum 1, offset 0.0019298, synch distance 0.011993, refid
+'WWVB'</PRE>
+On each line, the fields are (left to right): the host name, the host stratum,
+the time offset between that host and the local host (as measured by <TT>ntptrace</TT>;
+this is why it is not always zero for "<TT>localhost</TT>"), the host synchronization
+distance, and (only for stratum-1 servers) the reference clock ID. All
+times are given in seconds. Note that the stratum is the server hop count
+to the primary source, while the synchronization distance is the estimated
+error relative to the primary source. These terms are precisely defined
+in RFC-1305.
+<H4>
+Options</H4>
+
+<DL>
+<DT>
+<TT>-d</TT></DT>
+
+<DD>
+Turns on some debugging output.</DD>
+
+<DT>
+<TT>-n</TT></DT>
+
+<DD>
+Turns off the printing of host names; instead, host IP addresses are given.
+This may be useful if a nameserver is down.</DD>
+
+<DT>
+<TT>-r <I>retries</I></TT></DT>
+
+<DD>
+Sets the number of retransmission attempts for each host (default = 5).</DD>
+
+<DT>
+<TT>-t <I>timeout</I></TT></DT>
+
+<DD>
+Sets the retransmission timeout (in seconds) (default = 2).</DD>
+
+<DT>
+<TT>-v</TT></DT>
+
+<DD>
+Prints verbose information about the NTP servers.</DD>
+</DL>
+
+<H4>
+Bugs</H4>
+This program makes no attempt to improve accuracy by doing multiple samples.&nbsp;
+<HR>
+<ADDRESS>
+David L. Mills (mills@udel.edu)</ADDRESS>
+
+</BODY>
+</HTML>

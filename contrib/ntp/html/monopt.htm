@@ -1,0 +1,370 @@
+<HTML>
+<HEAD>
+   <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+   <META NAME="GENERATOR" CONTENT="Mozilla/4.01 [en] (Win95; I) [Netscape]">
+   <TITLE>Monitoring Options
+</TITLE>
+</HEAD>
+<BODY>
+
+<H3>
+Monitoring Options</H3>
+
+<HR>
+<H4>
+Monitoring Support</H4>
+<TT>ntpd</TT> includes a comprehensive monitoring facility suitable for
+continuous, long term recording of server and client timekeeping performance.
+See the <TT>statistics</TT> command below for a listing and example of
+each type of statistics currently supported. Statistic files are managed
+using file generation sets and scripts in the ./scripts directory of this
+distribution. Using these facilities and Unix <TT>cron</TT> jobs, the data
+can be automatically summarized and archived for retrospective analysis.
+<H4>
+Monitoring Commands</H4>
+
+<DL>
+<DT>
+<TT>statistics <I>name</I> [...]</TT></DT>
+
+<DD>
+Enables writing of statistics records. Currently, four kinds of <I><TT>name</TT></I>
+statistics are supported.</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DL>
+<DT>
+<TT>loopstats</TT></DT>
+
+<DD>
+Enables recording of loop filter statistics information. Each update of
+the local clock outputs a line of the following form to the file generation
+set named <TT>loopstats</TT>:</DD>
+
+<PRE>50935 75440.031 0.000006019 13.778190 0.000351733 0.013380 6</PRE>
+
+<DD>
+The first two fields show the date (Modified Julian Day) and time (seconds
+and fraction past UTC midnight). The next five fields show time offset
+(seconds), frequency offset (parts per million - PPM), RMS jitter (seconds),
+Allan deviation (PPM) and clock discipline time constant.</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DT>
+<TT>peerstats</TT></DT>
+
+<DD>
+Enables recording of peer statistics information. This includes statistics
+records of all peers of a NTP server and of special signals, where present
+and configured. Each valid update appends a line of the following form
+to the current element of a file generation set named <TT>peerstats</TT>:</DD>
+
+<PRE>48773 10847.650 127.127.4.1 9714 -0.001605 0.00000 0.00142</PRE>
+
+<DD>
+The first two fields show the date (Modified Julian Day) and time (seconds
+and fraction past UTC midnight). The next two fields show the peer address
+in dotted-quad notation and status, respectively. The status field is encoded
+in hex in the format described in Appendix A of the NTP specification RFC
+1305. The final three fields show the offset, delay and RMS jitter, all
+in seconds.</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DT>
+<TT>clockstats</TT></DT>
+
+<DD>
+Enables recording of clock driver statistics information. Each update received
+from a clock driver appends a line of the following form to the file generation
+set named <TT>clockstats</TT>:</DD>
+
+<PRE>49213 525.624 127.127.4.1 93 226 00:08:29.606 D</PRE>
+
+<DD>
+The first two fields show the date (Modified Julian Day) and time (seconds
+and fraction past UTC midnight). The next field shows the clock address
+in dotted-quad notation, The final field shows the last timecode received
+from the clock in decoded ASCII format, where meaningful. In some clock
+drivers a good deal of additional information can be gathered and displayed
+as well. See information specific to each clock for further details.</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DT>
+<TT>rawstats</TT></DT>
+
+<DD>
+Enables recording of raw-timestamp statistics information. This includes
+statistics records of all peers of a NTP server and of special signals,
+where present and configured. Each NTP message received from a peer or
+clock driver appends a line of the following form to the file generation
+set named <TT>rawstats</TT>:</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DD>
+<TT>50928 2132.543 128.4.1.1 128.4.1.20 3102453281.584327000 3102453281.58622800031
+02453332.540806000 3102453332.541458000</TT></DD>
+
+<DD>
+<TT>&nbsp;</TT></DD>
+
+<DD>
+The first two fields show the date (Modified Julian Day) and time (seconds
+and fraction past UTC midnight). The next field shows the peer or clock
+address in dotted-quad notation, The final four fields show the originate,
+receive, transmit and final NTP timestamps in order. The timestamp values
+are as received and before processing by the various data smoothing and
+mitigation algorithms.</DD>
+</DL>
+
+<DD>
+&nbsp;</DD>
+
+<DT>
+<TT>statsdir <I>directory_path</I></TT></DT>
+
+<DD>
+Indicates the full path of a directory where statistics files should be
+created (see below). This keyword allows the (otherwise constant) <TT>filegen</TT>
+filename prefix to be modified for file generation sets, which is useful
+for handling statistics logs.</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DT>
+<TT>filegen <I>name</I> [file <I>filename</I>] [type <I>typename</I>] [link
+| nolink] [enable | disable]</TT></DT>
+
+<DT>
+<TT>&nbsp;</TT></DT>
+
+<DD>
+Configures setting of generation file set <I>name</I>. Generation file
+sets provide a means for handling files that are continuously growing during
+the lifetime of a server. Server statistics are a typical example for such
+files. Generation file sets provide access to a set of files used to store
+the actual data. At any time at most one element of the set is being written
+to. The type given specifies when and how data will be directed to a new
+element of the set. This way, information stored in elements of a file
+set that are currently unused are available for administrational operations
+without the risk of disturbing the operation of <TT>ntpd</TT>. (Most important:
+they can be removed to free space for new data produced.)</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DD>
+Note that this command can be sent from the <TT>ntpdc</TT> program running
+at a remote location.</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DL>
+<DT>
+<I><TT>name</TT></I></DT>
+
+<DD>
+This is the type of the statistics records, as shown in the <TT>statististics</TT>
+command.</DD>
+
+<DD>
+&nbsp;</DD>
+</DL>
+
+<DD>
+<TT>file <I>filename</I></TT></DD>
+
+<DL>
+<DD>
+This is the file name for the statistics records. Filenames of set members
+are built from three elements:</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DL>
+<DT>
+prefix</DT>
+
+<DD>
+This is a constant filename path. It is not subject to modifications via
+the <TT>filegen</TT> option. It is defined by the server, usually specified
+as a compile-time constant. It may, however, be configurable for individual
+file generation sets via other commands. For example, the prefix used with
+<TT>loopstats</TT> and <TT>peerstats</TT> generation can be configured
+using the <TT>statsdir</TT> option explained above.</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DT>
+<I><TT>filename</TT></I></DT>
+
+<DD>
+This string is directly concatenated to the prefix mentioned above (no
+intervening <TT>/</TT> (slash)). This can be modified using the <TT>file</TT>
+argument to the <TT>filegen</TT> statement. No <TT>..</TT> elements are
+allowed in this component to prevent filenames referring to parts outside
+the filesystem hierarchy denoted by <TT>prefix</TT>.</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DT>
+suffix</DT>
+
+<DD>
+This part is reflects individual elements of a file set. It is generated
+according to the type of a file set.</DD>
+</DL>
+
+<DD>
+&nbsp;</DD>
+</DL>
+
+<DD>
+<TT>type <I>typename</I></TT></DD>
+
+<DL>
+<DD>
+A file generation set is characterized by its type. The following types
+are supported:</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DL>
+<DT>
+<TT>none</TT></DT>
+
+<DD>
+The file set is actually a single plain file.</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DT>
+<TT>pid</TT></DT>
+
+<DD>
+One element of file set is used per incarnation of a <TT>ntpd</TT> server.
+This type does not perform any changes to file set members during runtime,
+however it provides an easy way of separating files belonging to different
+<TT>ntpd</TT> server incarnations. The set member filename is built by
+appending a <TT>.</TT> (dot) to concatenated <I>prefix</I> and <I>filename</I>
+strings, and appending the decimal representation of the process ID of
+the <TT>ntpd</TT> server process.</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DT>
+<TT>day</TT></DT>
+
+<DD>
+One file generation set element is created per day. A day is defined as
+the period between 00:00 and 24:00 UTC. The file set member suffix consists
+of a <TT>.</TT> (dot) and a day specification in the form <TT>YYYYMMDD.
+YYYY</TT> is a 4-digit year number (e.g., 1992). <TT>MM</TT> is a two digit
+month number. <TT>DD</TT> is a two digit day number. Thus, all information
+written at 10 December 1992 would end up in a file named <TT><I>prefix
+filename</I>.19921210</TT>.</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DT>
+<TT>week</TT></DT>
+
+<DD>
+Any file set member contains data related to a certain week of a year.
+The term week is defined by computing day-of-year modulo 7. Elements of
+such a file generation set are distinguished by appending the following
+suffix to the file set filename base: A dot, a 4-digit year number, the
+letter <TT>W</TT>, and a 2-digit week number. For example, information
+from January, 10th 1992 would end up in a file with suffix <TT>.1992W1</TT>.</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DT>
+<TT>month</TT></DT>
+
+<DD>
+One generation file set element is generated per month. The file name suffix
+consists of a dot, a 4-digit year number, and a 2-digit month.</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DT>
+<TT>year</TT></DT>
+
+<DD>
+One generation file element is generated per year. The filename suffix
+consists of a dot and a 4 digit year number.</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DT>
+<TT>age</TT></DT>
+
+<DD>
+This type of file generation sets changes to a new element of the file
+set every 24 hours of server operation. The filename suffix consists of
+a dot, the letter <TT>a</TT>, and an 8-digit number. This number is taken
+to be the number of seconds the server is running at the start of the corresponding
+24-hour period. Information is only written to a file generation by specifying
+<TT>enabl</TT>; output is prevented by specifying <TT>disable</TT>.</DD>
+
+<DD>
+&nbsp;</DD>
+</DL>
+</DL>
+
+<DD>
+<TT>link | nolink</TT></DD>
+
+<DL>
+<DD>
+It is convenient to be able to access the current element of a file generation
+set by a fixed name. This feature is enabled by specifying <TT>link</TT>
+and disabled using <TT>nolink</TT>. If <TT>link</TT> is specified, a hard
+link from the current file set element to a file without suffix is created.
+When there is already a file with this name and the number of links of
+this file is one, it is renamed appending a dot, the letter <TT>C</TT>,
+and the pid of the <TT>ntpd</TT> server process. When the number of links
+is greater than one, the file is unlinked. This allows the current file
+to be accessed by a constant name.</DD>
+
+<DD>
+&nbsp;</DD>
+</DL>
+
+<DD>
+<TT>enable | disable</TT></DD>
+
+<DL>
+<DD>
+Enables or disables the recording function.</DD>
+</DL>
+</DL>
+
+<HR>
+<ADDRESS>
+David L. Mills (mills@udel.edu)</ADDRESS>
+
+</BODY>
+</HTML>
