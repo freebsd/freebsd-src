@@ -156,8 +156,9 @@ struct sppp {
 #define CONF_ENABLE_IPV6  0x02	/* IPv6 administratively enabled */
 	time_t	pp_last_recv;	/* time last packet has been received */
 	time_t	pp_last_sent;	/* time last packet has been sent */
-	struct callout_handle ch[IDX_COUNT]; /* per-proto and if callouts */
-	struct callout_handle pap_my_to_ch; /* PAP needs one more... */
+	struct callout ch[IDX_COUNT];	/* per-proto and if callouts */
+	struct callout pap_my_to_ch;	/* PAP needs one more... */
+	struct callout keepalive_callout; /* keepalive callout */
 	struct slcp lcp;		/* LCP params */
 	struct sipcp ipcp;		/* IPCP params */
 	struct sipcp ipv6cp;		/* IPv6CP params */
@@ -194,6 +195,11 @@ struct sppp {
 	/* These two fields are for use by the lower layer */
 	void    *pp_lowerp;
 	int     pp_loweri;
+	/* Lock */
+	struct mtx	mtx;
+	/* if_start () wrapper */
+	void	(*if_start) (struct ifnet *);
+	struct callout ifstart_callout; /* if_start () scheduler */
 };
 
 /* bits for pp_flags */
