@@ -48,9 +48,14 @@
 #include <netinet/ip.h>
 
 #include <machine/../linux/linux.h>
+#ifdef __alpha__
+#include <linux_proto.h>
+#else
 #include <machine/../linux/linux_proto.h>
+#endif
 #include <compat/linux/linux_util.h>
 
+#ifndef __alpha__
 static int
 linux_to_bsd_domain(int domain)
 {
@@ -902,3 +907,4 @@ linux_socketcall(struct proc *p, struct linux_socketcall_args *args)
 	uprintf("LINUX: 'socket' typ=%d not implemented\n", args->what);
 	return (ENOSYS);
 }
+#endif	/*!__alpha__*/

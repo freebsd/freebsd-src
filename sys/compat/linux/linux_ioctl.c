@@ -51,8 +51,18 @@
 #include <machine/console.h>
 
 #include <machine/../linux/linux.h>
+#ifdef __alpha__
+#include <linux_proto.h>
+#else
 #include <machine/../linux/linux_proto.h>
+#endif
+
+#include <linux_proto.h>
+#ifdef __alpha__
+#include <machine/../linux/linux_ioctl.h>
+#else
 #include <compat/linux/linux_ioctl.h>
+#endif
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_util.h>
 
@@ -129,8 +139,15 @@ struct linux_termios {
 	unsigned int c_oflag;
 	unsigned int c_cflag;
 	unsigned int c_lflag;
+#ifdef __alpha__
+	unsigned char c_cc[LINUX_NCCS];
+	unsigned char c_line;
+	unsigned int  c_ispeed;
+	unsigned int  c_ospeed;
+#else
 	unsigned char c_line;
 	unsigned char c_cc[LINUX_NCCS];
+#endif
 };
 
 struct linux_winsize {
@@ -966,7 +983,7 @@ linux_ioctl_cdrom(struct proc *p, struct linux_ioctl_args *args)
  * Sound related ioctls
  */
 
-static unsigned dirbits[4] = { IOC_VOID, IOC_IN, IOC_OUT, IOC_INOUT };
+static u_int32_t dirbits[4] = { IOC_VOID, IOC_IN, IOC_OUT, IOC_INOUT };
 
 #define	SETDIR(c)	(((c) & ~IOC_DIRMASK) | dirbits[args->cmd >> 30])
 

@@ -41,10 +41,31 @@
 #include <sys/vnode.h>
 
 #include <machine/../linux/linux.h>
+#ifdef __alpha__
+#include <linux_proto.h>
+#else
 #include <machine/../linux/linux_proto.h>
+#endif
 #include <compat/linux/linux_util.h>
 
 struct linux_newstat {
+#ifdef __alpha__
+	u_int	stat_dev;
+	u_int	stat_ino;
+	u_int	stat_mode;
+	u_int	stat_nlink;
+	u_int	stat_uid;
+	u_int	stat_gid;
+	u_int	stat_rdev;
+	long	stat_size;
+	u_long	stat_atime;
+	u_long	stat_mtime;
+	u_long	stat_ctime;
+	u_int	stat_blksize;
+	int		stat_blocks;
+	u_int	stat_flags;
+	u_int	stat_gen;
+#else
 	u_short	stat_dev;
 	u_short	__pad1;
 	u_long	stat_ino;
@@ -65,6 +86,7 @@ struct linux_newstat {
 	u_long	__unused3;
 	u_long	__unused4;
 	u_long	__unused5;
+#endif
 };
 
 struct linux_ustat 
@@ -192,16 +214,16 @@ linux_newfstat(struct proc *p, struct linux_newfstat_args *args)
 }
 
 struct linux_statfs_buf {
-	long ftype;
-	long fbsize;
-	long fblocks;
-	long fbfree;
-	long fbavail;
-	long ffiles;
-	long fffree;
+	int ftype;
+	int fbsize;
+	int fblocks;
+	int fbfree;
+	int fbavail;
+	int ffiles;
+	int fffree;
 	linux_fsid_t ffsid;
-	long fnamelen;
-	long fspare[6];
+	int fnamelen;
+	int fspare[6];
 };
 
 #ifndef VT_NWFS
@@ -360,8 +382,8 @@ linux_ustat(p, uap)
 	 * dev_t returned from previous syscalls. Just return a bzeroed
 	 * ustat in that case.
 	 */
-	dev = makebdev(uap->dev >> 8, uap->dev & 0xFF);
-	if (vfinddev(dev, VBLK, &vp)) {
+	dev = makedev(uap->dev >> 8, uap->dev & 0xFF);
+	if (vfinddev(dev, VCHR, &vp)) {
 		if (vp->v_mount == NULL)
 			return (EINVAL);
 		stat = &(vp->v_mount->mnt_stat);
