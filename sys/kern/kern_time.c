@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.46 1998/04/04 18:46:13 phk Exp $
+ * $Id: kern_time.c,v 1.47 1998/04/05 07:31:44 peter Exp $
  */
 
 #include <sys/param.h>
@@ -199,43 +199,37 @@ nanosleep1(p, rqt, rmt)
 	struct timespec *rqt, *rmt;
 {
 	struct timespec ts, ts2;
-	int error, timo;
+	struct timeval tv;
+	int error;
 
 	if (rqt->tv_nsec < 0 || rqt->tv_nsec >= 1000000000)
 		return (EINVAL);
 	if (rqt->tv_sec < 0 || rqt->tv_sec == 0 && rqt->tv_nsec == 0)
 		return (0);
-
 	getnanoruntime(&ts);
 	timespecadd(&ts, rqt);
-	error = 0;
-	while (1) {
+	TIMESPEC_TO_TIMEVAL(&tv, rqt);
+	for (;;) {
+		error = tsleep(&nanowait, PWAIT | PCATCH, "nanslp",
+		    tvtohz(&tv));
 		getnanoruntime(&ts2);
+		if (error != EWOULDBLOCK) {
+			if (error == ERESTART)
+				error = EINTR;
+			if (rmt != NULL) {
+				timespecsub(&ts, &ts2);
+				if (ts.tv_sec < 0)
+					timespecclear(&ts);
+				*rmt = ts;
+			}
+			return (error);
+		}
 		if (timespeccmp(&ts2, &ts, >=))
-			break;
-		else if (ts2.tv_sec + 60 * 60 * 24 * hz < ts.tv_sec) 
-			timo = 60 * 60 * 24 * hz;
-		else if (ts2.tv_sec + 2 < ts.tv_sec) {
-			/* Leave one second for the difference in tv_nsec */
-			timo = ts.tv_sec - ts2.tv_sec - 1;
-			timo *= hz;
-		} else {
-			timo = (ts.tv_sec - ts2.tv_sec) * 1000000000;
-			timo += ts.tv_nsec - ts2.tv_nsec;
-			timo /= (1000000000 / hz);
-			timo ++;
-		}
-		error = tsleep(&nanowait, PWAIT | PCATCH, "nanslp", timo);
-		if (error == ERESTART) {
-			error = EINTR;
-			break;
-		}
+			return (0);
+		getnanoruntime(&ts2);
+		timespecsub(&ts2, &ts);
+		TIMESPEC_TO_TIMEVAL(&tv, &ts2);
 	}
-	if (rmt) {
-		*rmt = ts;
-		timespecsub(rmt, &ts2);
-	}
-	return (error == EWOULDBLOCK ? 0 : error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
