@@ -31,19 +31,19 @@
 .Nd Advansys ISA/VL/EISA/PCI 8bit SCSI Host adapter driver
 .Sh SYNOPSIS
 For one or more ISA or VL cards:
-.Cd controller isa0
-.Cd controller "adv0 at isa? port ? cam irq ? drq ?"
+.Cd device isa0
+.Cd device "adv0 at isa? port ? cam irq ? drq ?"
 .Pp
 For one or more EISA cards:
-.Cd controller eisa0
-.Cd controller adv0
+.Cd device eisa0
+.Cd device adv0
 .Pp
 For one or more PCI cards:
-.Cd controller pci0
-.Cd controller adv0
+.Cd device pci0
+.Cd device adv0
 .Pp
 For one or more SCSI busses:
-.Cd controller scbus0 at adv0
+.Cd device scbus0 at adv0
 .Sh DESCRIPTION
 This driver provides access to the 8bit
 .Tn SCSI
