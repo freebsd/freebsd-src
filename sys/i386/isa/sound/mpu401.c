@@ -1,12 +1,12 @@
 /*
  * sound/mpu401.c
- * 
+ *
  * The low level driver for Roland MPU-401 compatible Midi cards.
- * 
+ *
  * This version supports just the DUMB UART mode.
- * 
+ *
  * Copyright by Hannu Savolainen 1993
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met: 1. Redistributions of source code must retain the above copyright
@@ -14,7 +14,7 @@
  * Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -26,7 +26,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  */
 
 #include "sound_config.h"
@@ -35,7 +35,7 @@
 
 #if !defined(EXCLUDE_MPU401) && !defined(EXCLUDE_MIDI)
 
-#define	DATAPORT   (mpu401_base)	/* MPU-401 Data I/O Port on IBM */
+#define	DATAPORT   (mpu401_base)/* MPU-401 Data I/O Port on IBM */
 #define	COMDPORT   (mpu401_base+1)	/* MPU-401 Command Port on IBM */
 #define	STATPORT   (mpu401_base+1)	/* MPU-401 Status Port on IBM */
 
@@ -61,58 +61,16 @@ static int      my_dev;
 static int      reset_mpu401 (void);
 static void     (*midi_input_intr) (int dev, unsigned char data);
 
-static void
-mpu401_input_loop (void)
-{
-  int             count;
-
-  count = 10;
-
-  while (count)			/* Not timed out */
-    if (input_avail ())
-      {
-	unsigned char   c = mpu401_read ();
-
-	count = 100;
-
-	if (mpu401_opened & OPEN_READ)
-	  midi_input_intr (my_dev, c);
-      }
-    else
-      while (!input_avail () && count)
-	count--;
-}
-
 void
 mpuintr (int unit)
 {
-  if (input_avail ())
-    mpu401_input_loop ();
-}
+  while (input_avail ())
+    {
+      unsigned char   c = mpu401_read ();
 
-/*
- * It looks like there is no input interrupts in the UART mode. Let's try
- * polling.
- */
-
-static void
-poll_mpu401 (unsigned long dummy)
-{
-  unsigned long   flags;
-
-  DEFINE_TIMER (mpu401_timer, poll_mpu401);
-
-  if (!(mpu401_opened & OPEN_READ))
-    return;			/* No longer required */
-
-  DISABLE_INTR (flags);
-
-  if (input_avail ())
-    mpu401_input_loop ();
-
-  ACTIVATE_TIMER (mpu401_timer, poll_mpu401, 1);	/* Come back later */
-
-  RESTORE_INTR (flags);
+      if (mpu401_opened & OPEN_READ)
+	midi_input_intr (my_dev, c);
+    }
 }
 
 static int
@@ -127,11 +85,10 @@ mpu401_open (int dev, int mode,
       return RET_ERROR (EBUSY);
     }
 
-  mpu401_input_loop ();
+  mpuintr (0);
 
   midi_input_intr = input;
   mpu401_opened = mode;
-  poll_mpu401 (0);		/* Enable input polling */
 
   return 0;
 }
@@ -155,7 +112,7 @@ mpu401_out (int dev, unsigned char midi_byte)
   DISABLE_INTR (flags);
 
   if (input_avail ())
-    mpu401_input_loop ();
+    mpuintr (0);
 
   RESTORE_INTR (flags);
 
@@ -250,7 +207,11 @@ attach_mpu401 (long mem_start, struct address_info *hw_config)
 
   RESTORE_INTR (flags);
 
+#ifdef __FreeBSD__
   printk ("snd5: <Roland MPU-401>");
+#else
+  printk (" <Roland MPU-401>");
+#endif
 
   my_dev = num_midis;
   mpu401_dev = num_midis;
@@ -291,7 +252,7 @@ reset_mpu401 (void)
 
   mpu401_opened = 0;
   if (ok)
-    mpu401_input_loop ();	/* Flush input before enabling interrupts */
+    mpuintr (0);		/* Flush input before enabling interrupts */
 
   RESTORE_INTR (flags);
 

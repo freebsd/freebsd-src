@@ -1,12 +1,12 @@
 /*
  * sound/sb16_dsp.c
- * 
+ *
  * The low level driver for the SoundBlaster DSP chip.
- * 
+ *
  * (C) 1993 J. Schubert (jsb@sth.ruhr-uni-bochum.de)
  *
  * based on SB-driver by (C) Hannu Savolainen
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met: 1. Redistributions of source code must retain the above copyright
@@ -14,7 +14,7 @@
  * Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -26,7 +26,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  */
 
 #define DEB(x)
@@ -40,9 +40,9 @@
 
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_SB16) && !defined(EXCLUDE_SB) && !defined(EXCLUDE_AUDIO) && !defined(EXCLUDE_SBPRO)
 
-extern int      sbc_base;
+extern int      sbc_base, sbc_minor, sbc_major;
 
-static int      sb16_dsp_ok = 0;	/* Set to 1 after successful initialization */
+static int      sb16_dsp_ok = 0;/* Set to 1 after successful initialization */
 static int      dsp_16bit = 0;
 static int      dsp_stereo = 0;
 static int      dsp_current_speed = 8000;	/*DSP_DEFAULT_SPEED; */
@@ -74,6 +74,7 @@ int             sb_reset_dsp (void);
 static struct audio_operations sb16_dsp_operations =
 {
   "SoundBlaster 16",
+  NOTHING_SPECIAL,
   sb16_dsp_open,
   sb16_dsp_close,
   sb16_dsp_output_block,
@@ -87,7 +88,7 @@ static struct audio_operations sb16_dsp_operations =
   NULL
 };
 
-static int 
+static int
 sb_dsp_command01 (unsigned char val)
 {
   int             i = 1 << 16;
@@ -98,33 +99,32 @@ sb_dsp_command01 (unsigned char val)
   return sb_dsp_command (val);
 }
 
-static int 
-wait_data_avail (int t)
+static int
+wait_data_avail (unsigned long t)
 {
   int             loopc = 5000000;
-  unsigned long   tt;
 
-  tt = t + GET_TIME ();
+  t += GET_TIME ();
   do
     {
       if (INB (DSP_DATA_AVAIL) & 0x80)
 	return 1;
     }
-  while (--loopc && GET_TIME () < tt);
+  while (--loopc && GET_TIME () < t);
   printk ("!data_avail l=%d\n", loopc);
   return 0;
 }
 
-static int 
+static int
 read_dsp (int t)
 {
-  if (!wait_data_avail (t))
+  if (!wait_data_avail ((unsigned long) t))
     return -1;
   else
     return INB (DSP_READ);
 }
 
-static int 
+static int
 dsp_ini2 (void)
 {
 #if 0
@@ -141,6 +141,7 @@ dsp_ini2 (void)
 #endif
   return 0;
 }
+
 /*
    static char *dsp_getmessage(unsigned char command,int maxn)
    {
@@ -148,7 +149,7 @@ dsp_ini2 (void)
    int n=0;
 
    sb_dsp_command(command);
-   while(n<maxn && wait_data_avail(2)) {
+   while(n<maxn && wait_data_avail(2L)) {
    buff[++n]=INB(DSP_READ);
    if(!buff[n])
    break;
@@ -171,7 +172,7 @@ dsp_ini2 (void)
    printk("\n");
    }
  */
-static int 
+static int
 dsp_set_speed (int mode)
 {
   DEB (printk ("dsp_set_speed(%d)\n", mode));
@@ -186,7 +187,7 @@ dsp_set_speed (int mode)
   return mode;
 }
 
-static int 
+static int
 dsp_set_stereo (int mode)
 {
   DEB (printk ("dsp_set_stereo(%d)\n", mode));
@@ -196,7 +197,7 @@ dsp_set_stereo (int mode)
   return mode;
 }
 
-static int 
+static int
 dsp_set_bits (int arg)
 {
   DEB (printk ("dsp_set_bits(%d)\n", arg));
@@ -523,36 +524,24 @@ set_irq_hw (int level)
 long
 sb16_dsp_init (long mem_start, struct address_info *hw_config)
 {
-  int             i, major, minor;
-
-  major = minor = 0;
-  sb_dsp_command (0xe1);	/* Get version */
-
-  for (i = 1000; i; i--)
-    {
-      if (INB (DSP_DATA_AVAIL) & 0x80)
-	{			/* wait for Data Ready */
-	  if (major == 0)
-	    major = INB (DSP_READ);
-	  else
-	    {
-	      minor = INB (DSP_READ);
-	      break;
-	    }
-	}
-    }
+  if (sbc_major < 4)
+    return mem_start;
 
 #ifndef SCO
-  sprintf (sb16_dsp_operations.name, "SoundBlaster 16 %d.%d", major, minor);
+  sprintf (sb16_dsp_operations.name, "SoundBlaster 16 %d.%d", sbc_major, sbc_minor);
 #endif
 
+#ifdef __FreeBSD__
   printk ("snd6: <%s>", sb16_dsp_operations.name);
+#else
+  printk (" <%s>", sb16_dsp_operations.name);
+#endif
 
   if (num_dspdevs < MAX_DSP_DEV)
     {
       dsp_devs[my_dev = num_dspdevs++] = &sb16_dsp_operations;
       sound_dsp_dmachan[my_dev] = hw_config->dma;
-      sound_buffcounts[my_dev] = DSP_BUFFCOUNT;
+      sound_buffcounts[my_dev] = 1;
       sound_buffsizes[my_dev] = DSP_BUFFSIZE;
       sound_dma_automode[my_dev] = 1;
     }
@@ -576,22 +565,12 @@ sb16_dsp_detect (struct address_info *hw_config)
       return 0;
     }
 
-  if (sbc_base != hw_config->io_base)
-    printk ("Warning! SB16 I/O != SB I/O\n");
-
   /* sb_setmixer(OPSW,0xf);
      if(sb_getmixer(OPSW)!=0xf)
      return 0; */
 
   if (!sb_reset_dsp ())
     return 0;
-
-  if (hw_config->irq != sb_config->irq)
-    {
-      printk ("SB16 Error: Invalid IRQ number %d/%d\n",
-	      sb_config->irq, hw_config->irq);
-      return 0;
-    }
 
   if (hw_config->dma < 4)
     if (hw_config->dma != sb_config->dma)
@@ -603,12 +582,12 @@ sb16_dsp_detect (struct address_info *hw_config)
 
   dma16 = hw_config->dma;
   dma8 = sb_config->dma;
-  set_irq_hw (hw_config->irq);
+  set_irq_hw (sb_config->irq);
   sb_setmixer (DMA_NR, (1 << hw_config->dma) | (1 << sb_config->dma));
 
-  DEB (printk ("SoundBlaster 16: IRQ %d DMA %d OK\n", hw_config->irq, hw_config->dma));
+  DEB (printk ("SoundBlaster 16: IRQ %d DMA %d OK\n", sb_config->irq, hw_config->dma));
 
-/*
+  /*
    dsp_showmessage(0xe3,99);
  */
   sb16_dsp_ok = 1;
@@ -639,4 +618,5 @@ sb16_dsp_interrupt (int unused)
 	printk ("SoundBlaster: Unexpected interrupt\n");
       }
 }
+
 #endif

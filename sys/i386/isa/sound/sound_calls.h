@@ -129,12 +129,13 @@ int probe_sb16midi(struct address_info *hw_config);
 
 /*	From sb_midi.c	*/
 void sb_midi_init(int model);
+void sb_midi_interrupt(int dummy);
 
 /*	From sb_mixer.c	*/
 void sb_setmixer (unsigned int port, unsigned int value);
 int sb_getmixer (unsigned int port);
 void sb_mixer_set_stereo(int mode);
-void sb_mixer_init(int major_model);
+int sb_mixer_init(int major_model);
 
 /*	From opl3.c	*/
 int opl3_detect (int ioaddr);
@@ -181,6 +182,7 @@ unsigned char gus_read8 (int reg);
 void gus_write8(int reg, unsigned int data);
 void guswave_dma_irq(void);
 void gus_delay(void);
+int gus_default_mixer_ioctl (int dev, unsigned int cmd, unsigned int arg);
 
 /*	From gus_midi.c */
 long gus_midi_init(long mem_start);
@@ -201,3 +203,6 @@ int pmgr_write (int dev, struct fileinfo *file, snd_rw_buf * buf, int count);
 int pmgr_access(int dev, struct patmgr_info *rec);
 int pmgr_inform(int dev, int event, unsigned long parm1, unsigned long parm2,
 				    unsigned long parm3, unsigned long parm4);
+
+/* 	From ics2101.c */
+long ics2101_mixer_init(long mem_start);
