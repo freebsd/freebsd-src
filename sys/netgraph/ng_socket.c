@@ -255,6 +255,12 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	}
 	m_copydata(m, 0, len, (char *)msg);
 
+	if (msg->header.version != NG_VERSION &&
+	    msg->header.version != 0 ) {
+		error = EINVAL;
+		goto release;
+	}
+
 #ifdef TRACE_MESSAGES
 	do {								
 		item_p item;						
