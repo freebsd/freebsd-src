@@ -3066,6 +3066,17 @@ next_code:
 		}
 		break;
 
+	    case PASTE:
+#ifndef SC_NO_CUTPASTE
+	    /* XXX need to set MOUSE_VISIBLE flag 'cause sc_mouse_paste() */
+	    /* and sc_paste() will not operate without it. */
+		i = scp->status;
+		scp->status |= MOUSE_VISIBLE;
+		sc_mouse_paste(scp);
+		scp->status = i;
+#endif
+		break;
+
 	    /* NON-LOCKING KEYS */
 	    case NOP:
 	    case LSH:  case RSH:  case LCTR: case RCTR:

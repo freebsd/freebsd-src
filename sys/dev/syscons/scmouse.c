@@ -87,7 +87,6 @@ static void mouse_cut_end(scr_stat *scp);
 static void mouse_cut_word(scr_stat *scp);
 static void mouse_cut_line(scr_stat *scp);
 static void mouse_cut_extend(scr_stat *scp);
-static void mouse_paste(scr_stat *scp);
 #endif /* SC_NO_CUTPASTE */
 
 #ifndef SC_NO_CUTPASTE
@@ -589,8 +588,8 @@ mouse_cut_extend(scr_stat *scp)
 }
 
 /* paste cut buffer contents into the current vty */
-static void
-mouse_paste(scr_stat *scp) 
+void
+sc_mouse_paste(scr_stat *scp)
 {
     if (scp->status & MOUSE_VISIBLE)
 	sc_paste(scp, cut_buffer, strlen(cut_buffer));
@@ -784,7 +783,7 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 		    mouse_cut_end(cur_scp);
 		if (cur_scp->mouse_buttons & MOUSE_BUTTON2DOWN ||
 		    cur_scp->mouse_buttons & MOUSE_BUTTON3DOWN)
-		    mouse_paste(cur_scp);
+		    sc_mouse_paste(cur_scp);
 	    }
 #endif /* SC_NO_CUTPASTE */
 	    break;
@@ -855,7 +854,7 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 		case 0:	/* up */
 		    break;
 		default:
-		    mouse_paste(cur_scp);
+		    sc_mouse_paste(cur_scp);
 		    break;
 		}
 		break;
