@@ -129,6 +129,8 @@ label:
 				pt = _conv(t->tm_mday, "%02d", pt, ptlim);
 				continue;
 			case 'E':
+				if (Ealternative || Oalternative)
+					break;
 				Ealternative++;
 				goto label;
 			case 'O':
@@ -136,17 +138,32 @@ label:
 				** POSIX locale extensions, a la
 				** Arnold Robbins' strftime version 3.0.
 				** The sequences
-				**	%Ec %EC %Ex %Ey %EY
+				**      %Ec %EC %Ex %EX %Ey %EY
 				**	%Od %oe %OH %OI %Om %OM
 				**	%OS %Ou %OU %OV %Ow %OW %Oy
 				** are supposed to provide alternate
 				** representations.
 				** (ado, 5/24/93)
+				**
+				** FreeBSD extensions
+				**      %OB %Ef %EF
 				*/
+				if (Ealternative || Oalternative)
+					break;
 				Oalternative++;
 				goto label;
 			case 'e':
 				pt = _conv(t->tm_mday, "%2d", pt, ptlim);
+				continue;
+			case 'f':
+				if (!Ealternative)
+					break;
+				pt = _fmt(Locale->Ef_fmt, t, pt, ptlim);
+				continue;
+			case 'F':
+				if (!Ealternative)
+					break;
+				pt = _fmt(Locale->EF_fmt, t, pt, ptlim);
 				continue;
 			case 'H':
 				pt = _conv(t->tm_hour, "%02d", pt, ptlim);
@@ -361,7 +378,7 @@ label:
 				pt = _fmt(Locale->X_fmt, t, pt, ptlim);
 				continue;
 			case 'x':
-				pt = _fmt(Ealternative ? Locale->Ex_fmt : Locale->x_fmt, t, pt, ptlim);
+				pt = _fmt(Locale->x_fmt, t, pt, ptlim);
 				continue;
 			case 'y':
 				pt = _conv((t->tm_year + TM_YEAR_BASE) % 100,

@@ -152,12 +152,25 @@ label:
 			break;
 
 		case 'E':
+			if (Ealternative || Oalternative)
+				break;
 			Ealternative++;
 			goto label;
 
 		case 'O':
+			if (Ealternative || Oalternative)
+				break;
 			Oalternative++;
 			goto label;
+
+		case 'F':
+		case 'f':
+			if (!Ealternative)
+				break;
+			buf = _strptime(buf, (c == 'f') ? Locale->Ef_fmt : Locale->EF_fmt, tm);
+			if (buf == 0)
+				return 0;
+			break;
 
 		case 'R':
 			buf = _strptime(buf, "%H:%M", tm);
@@ -184,7 +197,7 @@ label:
 			break;
 
 		case 'x':
-			buf = _strptime(buf, Ealternative ? Locale->Ex_fmt : Locale->x_fmt, tm);
+			buf = _strptime(buf, Locale->x_fmt, tm);
 			if (buf == 0)
 				return 0;
 			break;
