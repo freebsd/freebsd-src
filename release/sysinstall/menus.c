@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.58 1996/07/03 01:31:15 jkh Exp $
+ * $Id: menus.c,v 1.80 1996/07/08 12:00:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -704,9 +704,8 @@ DMenu MenuDESDistributions = {
     "Select the encryption facilities you wish to install.",
     "Please check off any special DES-based encryption distributions\n\
 you would like to install.  Please note that these services are NOT FOR\n\
-EXPORT from the United States, nor are they available on CDROM (for the\n\
-same reason).  For information on non-U.S. FTP distributions of this\n\
-software, please consult the release notes.",
+EXPORT from the United States.  For information on non-U.S. FTP\n\
+distributions of this software, please consult the release notes.",
     NULL,
     NULL,
 { { "des",	"Basic DES encryption services [1MB]",
