@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)xdr.c 1.35 87/08/12";*/
 /*static char *sccsid = "from: @(#)xdr.c	2.1 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: xdr.c,v 1.4 1996/12/30 14:07:07 peter Exp $";
+static char *rcsid = "$Id: xdr.c,v 1.7 1997/05/28 04:57:30 wpaul Exp $";
 #endif
 
 /*
@@ -243,6 +243,62 @@ xdr_u_int32_t(xdrs, u_int32_p)
 			return (FALSE);
 		}
 		*u_int32_p = (u_int32_t) l;
+		return (TRUE);
+
+	case XDR_FREE:
+		return (TRUE);
+	}
+	return (FALSE);
+}
+
+/*
+ * XDR 64-bit integers
+ */
+bool_t
+xdr_int64_t(xdrs, int64_p)
+	register XDR *xdrs;
+	int64_t *int64_p;
+{
+	int64_t x;
+
+	switch (xdrs->x_op) {
+
+	case XDR_ENCODE:
+		return (xdr_opaque(xdrs, (caddr_t)int64_p, sizeof(int64_t)));
+
+	case XDR_DECODE:
+		if (!xdr_opaque(xdrs, (caddr_t)&x, sizeof x)) {
+			return (FALSE);
+		}
+		*int64_p = x;
+		return (TRUE);
+
+	case XDR_FREE:
+		return (TRUE);
+	}
+	return (FALSE);
+}
+
+/*
+ * XDR unsigned 64-bit integers
+ */
+bool_t
+xdr_u_int64_t(xdrs, uint64_p)
+	register XDR *xdrs;
+	u_int64_t *uint64_p;
+{
+	u_int64_t x;
+
+	switch (xdrs->x_op) {
+
+	case XDR_ENCODE:
+		return (xdr_opaque(xdrs, (caddr_t)uint64_p, sizeof(u_int64_t)));
+
+	case XDR_DECODE:
+		if (!xdr_opaque(xdrs, (caddr_t)&x, sizeof x)) {
+			return (FALSE);
+		}
+		*uint64_p = x;
 		return (TRUE);
 
 	case XDR_FREE:
