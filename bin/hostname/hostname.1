@@ -50,6 +50,10 @@ network initialization script
 .Pa /etc/rc.network ,
 normally run at boot
 time.
+This script uses the
+.Va hostname
+variable in
+.Pa /etc/rc.conf .
 .Pp
 Options:
 .Bl -tag -width flag
@@ -58,7 +62,8 @@ Trim off any domain information from the printed
 name.
 .El
 .Sh SEE ALSO
-.Xr gethostname 3
+.Xr gethostname 3 , 
+.Xr rc.conf 5
 .Sh HISTORY
 The
 .Nm
