@@ -43,6 +43,7 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
+#include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/namei.h>
@@ -111,6 +112,8 @@ static int cn_mute;
 static int openflag;			/* how /dev/console was opened */
 static int cn_is_open;
 static dev_t cn_devfsdev;		/* represents the device private info */
+
+void	cndebug(char *);
 
 CONS_DRIVER(cons, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 SET_DECLARE(cons_set, struct consdev);
@@ -365,7 +368,7 @@ cnopen(dev_t dev, int flag, int mode, struct thread *td)
 {
 	struct cn_device *cnd;
 
-	openflag = flag;
+	openflag = flag | FWRITE;	/* XXX */
 	cn_is_open = 1;			/* console is logically open */
 	if (cn_mute)
 		return (0);
@@ -382,7 +385,7 @@ cnclose(dev_t dev, int flag, int mode, struct thread *td)
 	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
 		if (cnd->cnd_vp == NULL)
 			continue; 
-		vn_close(cnd->cnd_vp, mode, td->td_proc->p_ucred, td);
+		vn_close(cnd->cnd_vp, openflag, td->td_proc->p_ucred, td);
 		cnd->cnd_vp = NULL;
 	}
 	cn_is_open = 0;
