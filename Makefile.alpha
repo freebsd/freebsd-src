@@ -1,4 +1,4 @@
-# $Id: Makefile.alpha,v 1.7 1998/03/23 22:18:42 jb Exp $
+# $Id: Makefile.alpha,v 1.8 1998/03/30 23:10:39 jb Exp $
 #
 # NOTE:
 #
@@ -98,6 +98,10 @@ buildworld:
 	@echo " Warning: This build is not supposed to clobber anything on the"
 	@echo " =======  system you are building on, but you should consider what"
 	@echo " =======  you would do if that happened."
+	@echo
+	@echo " You will need to manually edit /etc/group on your NetBSD"
+	@echo " system to include any missing groups in FreeBSD's"
+	@echo " src/etc/group."
 	@echo
 	@echo " ABORT NOW IF UNSURE!"
 	@sleep 10
