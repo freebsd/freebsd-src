@@ -55,6 +55,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <ctype.h>
 #include <fstab.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -360,11 +361,11 @@ bread(int fd, char *buf, ufs2_daddr_t blk, long size)
 		if (read(fd, cp, (int)secsize) != secsize) {
 			(void)lseek(fd, offset + i + secsize, 0);
 			if (secsize != dev_bsize && dev_bsize != 1)
-				printf(" %lld (%lld),",
-				    (long long)(blk * dev_bsize + i) / secsize,
-				    (long long)blk + i / dev_bsize);
+				printf(" %jd (%jd),",
+				    (intmax_t)(blk * dev_bsize + i) / secsize,
+				    (intmax_t)blk + i / dev_bsize);
 			else
-				printf(" %lld,", (long long)blk + i / dev_bsize);
+				printf(" %jd,", (intmax_t)blk + i / dev_bsize);
 			errs++;
 		}
 	}
@@ -399,7 +400,7 @@ bwrite(int fd, char *buf, ufs2_daddr_t blk, long size)
 	for (cp = buf, i = 0; i < size; i += dev_bsize, cp += dev_bsize)
 		if (write(fd, cp, (int)dev_bsize) != dev_bsize) {
 			(void)lseek(fd, offset + i + dev_bsize, 0);
-			printf(" %lld,", (long long)blk + i / dev_bsize);
+			printf(" %jd,", (intmax_t)blk + i / dev_bsize);
 		}
 	printf("\n");
 	return;

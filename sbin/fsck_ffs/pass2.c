@@ -46,6 +46,7 @@ static const char rcsid[] =
 #include <ufs/ffs/fs.h>
 
 #include <err.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "fsck.h"
@@ -134,7 +135,7 @@ pass2(void)
 	inpend = &inpsort[inplast];
 	for (inpp = inpsort; inpp < inpend; inpp++) {
 		if (got_siginfo) {
-			printf("%s: phase 2: dir %d of %d (%d%%)\n", cdevname,
+			printf("%s: phase 2: dir %td of %d (%d%%)\n", cdevname,
 			    inpp - inpsort, (int)inplast,
 			    (int)((inpp - inpsort) * 100 / inplast));
 			got_siginfo = 0;
@@ -153,13 +154,13 @@ pass2(void)
 		} else if ((inp->i_isize & (DIRBLKSIZ - 1)) != 0) {
 			getpathname(pathbuf, inp->i_number, inp->i_number);
 			if (usedsoftdep)
-				pfatal("%s %s: LENGTH %d NOT MULTIPLE OF %d",
-					"DIRECTORY", pathbuf, inp->i_isize,
-					DIRBLKSIZ);
+				pfatal("%s %s: LENGTH %jd NOT MULTIPLE OF %d",
+					"DIRECTORY", pathbuf,
+					(intmax_t)inp->i_isize, DIRBLKSIZ);
 			else
-				pwarn("%s %s: LENGTH %d NOT MULTIPLE OF %d",
-					"DIRECTORY", pathbuf, inp->i_isize,
-					DIRBLKSIZ);
+				pwarn("%s %s: LENGTH %jd NOT MULTIPLE OF %d",
+					"DIRECTORY", pathbuf,
+					(intmax_t)inp->i_isize, DIRBLKSIZ);
 			if (preen)
 				printf(" (ADJUSTED)\n");
 			inp->i_isize = roundup(inp->i_isize, DIRBLKSIZ);
