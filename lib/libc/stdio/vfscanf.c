@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 
 #ifdef FLOATING_POINT
 #include <locale.h>
-#include "floatio.h"
 #endif
 
 #define	BUF		513	/* Maximum length of numeric string. */
