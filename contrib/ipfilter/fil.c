@@ -136,6 +136,8 @@ struct	frgroup *ipfgroups[3][2];
 int	fr_flags = IPF_LOGGING;
 int	fr_active = 0;
 int	fr_chksrc = 0;
+int	fr_minttl = 3;
+int	fr_minttllog = 1;
 #if defined(IPFILTER_DEFAULT_BLOCK)
 int	fr_pass = FR_NOMATCH|FR_BLOCK;
 #else
@@ -269,6 +271,40 @@ fr_info_t *fin;
 
 	switch (p)
 	{
+#ifdef USE_INET6
+	case IPPROTO_ICMPV6 :
+	{
+		int minicmpsz = sizeof(struct icmp6_hdr);
+		struct icmp6_hdr *icmp6;
+
+		if (fin->fin_dlen > 1) {
+			fin->fin_data[0] = *(u_short *)tcp;
+
+			icmp6 = (struct icmp6_hdr *)tcp;
+
+			switch (icmp6->icmp6_type)
+			{
+			case ICMP6_ECHO_REPLY :
+			case ICMP6_ECHO_REQUEST :
+				minicmpsz = ICMP6ERR_MINPKTLEN;
+				break;
+			case ICMP6_DST_UNREACH :
+			case ICMP6_PACKET_TOO_BIG :
+			case ICMP6_TIME_EXCEEDED :
+			case ICMP6_PARAM_PROB :
+				minicmpsz = ICMP6ERR_IPICMPHLEN;
+				break;
+			default :
+				break;
+			}
+		}
+
+		if (!(plen >= hlen + minicmpsz))
+			fi->fi_fl |= FI_SHORT;
+
+		break;
+	}
+#endif
 	case IPPROTO_ICMP :
 	{
 		int minicmpsz = sizeof(struct icmp);
@@ -747,8 +783,8 @@ int out;
 #endif
 
 #ifdef	_KERNEL
+	int p, len, drop = 0, logit = 0;
 	mb_t *mc = NULL;
-	int p, len;
 # if !defined(__SVR4) && !defined(__svr4__)
 #  ifdef __sgi
 	char hbuf[(0xf << 2) + sizeof(struct icmp) + sizeof(ip_t) + 8];
@@ -802,11 +838,17 @@ int out;
 				break;
 			/* 96 - enough for complete ICMP error IP header */
 			case IPPROTO_ICMP:
-# ifdef USE_INET6
-	    		case IPPROTO_ICMPV6 :
-# endif
 				plen = ICMPERR_MAXPKTLEN - sizeof(ip_t);
 				break;
+# ifdef USE_INET6
+	    		case IPPROTO_ICMPV6 :
+				/*
+				 * XXX does not take intermediate header
+				 * into account
+				 */
+				plen = ICMP6ERR_MINPKTLEN + 8 - sizeof(ip6_t);
+				break;
+# endif
 			}
 		up = MIN(hlen + plen, len);
 
@@ -865,22 +907,37 @@ int out;
 # ifdef	USE_INET6
 	if (v == 6) {
 		ATOMIC_INCL(frstats[0].fr_ipv6[out]);
+		if (((ip6_t *)ip)->ip6_hlim < fr_minttl) {
+			ATOMIC_INCL(frstats[0].fr_badttl);
+			if (fr_minttllog)
+				logit = -2;
+		}
 	} else
 # endif
-		if (!out && fr_chksrc && !fr_verifysrc(ip->ip_src, ifp)) {
+	if (!out) {
+		if (fr_chksrc && !fr_verifysrc(ip->ip_src, ifp)) {
 			ATOMIC_INCL(frstats[0].fr_badsrc);
+			if (fr_chksrc == 2)
+				logit = -2;
+		} else if (ip->ip_ttl < fr_minttl) {
+			ATOMIC_INCL(frstats[0].fr_badttl);
+			if (fr_minttllog)
+				logit = -3;
+		}
+	}
+	if (drop) {
 # ifdef	IPFILTER_LOG
-			if (fr_chksrc == 2) {
-				fin->fin_group = -2;
-				pass = FR_INQUE|FR_NOMATCH|FR_LOGB;
-				(void) IPLLOG(pass, ip, fin, m);
-			}
+		if (logit) {
+			fin->fin_group = logit;
+			pass = FR_INQUE|FR_NOMATCH|FR_LOGB;
+			(void) IPLLOG(pass, ip, fin, m);
+		}
 # endif
 # if !SOLARIS
-			m_freem(m);
+		m_freem(m);
 # endif
-			return error;
-		}
+		return error;
+	}
 #endif
 	pass = fr_pass;
 	if (fin->fin_fi.fi_fl & FI_SHORT) {
@@ -1401,7 +1458,7 @@ nodata:
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: fil.c,v 2.35.2.27 2000/10/26 21:20:54 darrenr Exp $
+ * $Id: fil.c,v 2.35.2.30 2000/12/17 05:49:22 darrenr Exp $
  */
 /*
  * Copy data from an mbuf chain starting "off" bytes from the beginning,

@@ -350,7 +350,7 @@ fr_authioctlloop:
 		READ_ENTER(&ipf_auth);
 		if ((fr_authnext != fr_authend) && fr_authpkts[fr_authnext]) {
 			error = IWCOPYPTR((char *)&fr_auth[fr_authnext], data,
-					  sizeof(fr_info_t));
+					  sizeof(frauth_t));
 			RWLOCK_EXIT(&ipf_auth);
 			if (error)
 				break;

@@ -348,6 +348,12 @@ char	**argv;
 
 		printf("Options: %d\n", olen);
 		ti = (struct tcpiphdr *)malloc(olen + ip->ip_len);
+		if(!ti)
+		    {
+			fprintf(stderr,"malloc failed\n");
+			exit(2);
+		    } 
+
 		bcopy((char *)ip, (char *)ti, sizeof(*ip));
 		ip = (ip_t *)ti;
 		ip->ip_hl = (olen >> 2);
