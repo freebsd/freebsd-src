@@ -124,7 +124,7 @@ pcic_setb(struct pcic_slot *sp, int reg, unsigned char mask)
  * Write a 16 bit value to 2 adjacent PCIC registers
  */
 static __inline void
-putw(struct pcic_slot *sp, int reg, unsigned short word)
+pcic_putw(struct pcic_slot *sp, int reg, unsigned short word)
 {
 	sp->putb(sp, reg, word & 0xFF);
 	sp->putb(sp, reg + 1, (word >> 8) & 0xff);
@@ -173,9 +173,9 @@ pcic_memory(struct slot *slt, int win)
 		 * The values are all stored as the upper 12 bits of the
 		 * 24 bit address i.e everything is allocated as 4 Kb chunks.
 		 */
-		putw(sp, reg, sys_addr & 0xFFF);
-		putw(sp, reg+2, (sys_addr + (mp->size >> 12) - 1) & 0xFFF);
-		putw(sp, reg+4, ((mp->card >> 12) - sys_addr) & 0x3FFF);
+		pcic_putw(sp, reg, sys_addr & 0xFFF);
+		pcic_putw(sp, reg+2, (sys_addr + (mp->size >> 12) - 1) & 0xFFF);
+		pcic_putw(sp, reg+4, ((mp->card >> 12) - sys_addr) & 0x3FFF);
 		/*
 		 *	Each 16 bit register has some flags in the upper bits.
 		 */
@@ -198,9 +198,9 @@ pcic_memory(struct slot *slt, int win)
 		DELAY(50);
 	} else {
 		pcic_clrb(sp, PCIC_ADDRWINE, 1<<win);
-		putw(sp, reg, 0);
-		putw(sp, reg+2, 0);
-		putw(sp, reg+4, 0);
+		pcic_putw(sp, reg, 0);
+		pcic_putw(sp, reg+2, 0);
+		pcic_putw(sp, reg+4, 0);
 	}
 	return (0);
 }
@@ -235,8 +235,8 @@ pcic_io(struct slot *slt, int win)
 	if (ip->flags & IODF_ACTIVE) {
 		unsigned char x, ioctlv;
 
-		putw(sp, reg, ip->start);
-		putw(sp, reg+2, ip->start+ip->size-1);
+		pcic_putw(sp, reg, ip->start);
+		pcic_putw(sp, reg+2, ip->start+ip->size-1);
 		x = 0;
 		if (ip->flags & IODF_ZEROWS)
 			x |= PCIC_IO_0WS;
@@ -267,14 +267,14 @@ pcic_io(struct slot *slt, int win)
 	} else {
 		pcic_clrb(sp, PCIC_ADDRWINE, mask);
 		DELAY(100);
-		putw(sp, reg, 0);
-		putw(sp, reg + 2, 0);
+		pcic_putw(sp, reg, 0);
+		pcic_putw(sp, reg + 2, 0);
 	}
 	return (0);
 }
 
 static void
-do_mgt_irq(struct pcic_slot *sp, int irq)
+pcic_do_mgt_irq(struct pcic_slot *sp, int irq)
 {
 	/* Management IRQ changes */
 	pcic_clrb(sp, PCIC_INT_GEN, PCIC_INTR_ENA);
@@ -363,7 +363,7 @@ pcic_attach(device_t dev)
 		if (sp->slt == NULL)
 			continue;
 
-		do_mgt_irq(sp, irq);
+		pcic_do_mgt_irq(sp, irq);
 
 		/* Check for changes */
 		pcic_setb(sp, PCIC_POWER, PCIC_PCPWRE | PCIC_DISRST);
@@ -488,11 +488,12 @@ pcic_power(struct slot *slt)
 		}
 
 		/*
-		 * Technically, The A, B, C stepping didn't support the 3.3V
-		 * cards.  However, many cardbus bridges are identified
-		 * as AB cards by our probe routine, so we do both.  It
-		 * won't hurt the A, B, C bridges that don't support this
-		 * bit since it is one of the reserved bits.
+		 * Technically, The A, B, C stepping didn't support
+		 * the 3.3V cards.  However, many cardbus bridges are
+		 * identified as B step cards by our probe routine, so
+		 * we do both.  It won't hurt the A, B, C bridges that
+		 * don't support this bit since it is one of the
+		 * reserved bits.
 		 */
 		if (sc->flags & (PCIC_AB_POWER | PCIC_DF_POWER))
 			reg |= PCIC_VCC_3V;
@@ -682,7 +683,7 @@ pcic_resume(struct slot *slt)
 {
 	struct pcic_slot *sp = slt->cdata;
 
-	do_mgt_irq(sp, slt->irq);
+	pcic_do_mgt_irq(sp, slt->irq);
 	if (sp->controller == PCIC_PD672X) {
 		pcic_setb(sp, PCIC_MISC1, PCIC_MISC1_SPEAKER);
 		pcic_setb(sp, PCIC_MISC2, PCIC_LPDM_EN);
