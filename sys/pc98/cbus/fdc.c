@@ -47,7 +47,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.51 1999/01/28 11:24:36 kato Exp $
+ *	$Id: fd.c,v 1.52 1999/02/10 00:03:58 ken Exp $
  *
  */
 
@@ -2549,7 +2549,7 @@ fdformat(dev, finfo, p)
 	/*
 	 * keep the process from being swapped
 	 */
-	p->p_flag |= P_PHYSIO;
+	PHOLD(p);
 	bzero((void *)bp, sizeof(struct buf));
 	bp->b_flags = B_BUSY | B_PHYS | B_FORMAT;
 	bp->b_proc = p;
@@ -2588,7 +2588,7 @@ fdformat(dev, finfo, p)
 	/*
 	 * allow the process to be swapped
 	 */
-	p->p_flag &= ~P_PHYSIO;
+	PRELE(p);
 	free(bp, M_TEMP);
 	return rv;
 }
