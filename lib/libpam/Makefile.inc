@@ -24,4 +24,8 @@
 #
 # $FreeBSD$
 
+.ifdef PAM_DEBUG
+DEBUG_FLAGS+=	-DDEBUG
+.endif
+
 SHLIB_MAJOR=	2
