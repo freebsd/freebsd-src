@@ -1011,6 +1011,15 @@ fxp_intr(void *xsc)
 
 	while ((statack = CSR_READ_1(sc, FXP_CSR_SCB_STATACK)) != 0) {
 		/*
+		 * It should not be possible to have all bits set; the
+		 * FXP_SCB_INTR_SWI bit always returns 0 on a read.  If 
+		 * all bits are set, this may indicate that the card has
+		 * been physically ejected, so ignore it.
+		 */  
+		if (statack == 0xff) 
+			return;
+
+		/*
 		 * First ACK all the interrupts in this pass.
 		 */
 		CSR_WRITE_1(sc, FXP_CSR_SCB_STATACK, statack);
