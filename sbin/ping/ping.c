@@ -206,6 +206,7 @@ main(argc, argv)
 	struct timeval last, intvl;
 	struct hostent *hp;
 	struct sockaddr_in *to;
+	double t;
 	u_char *datap, *packet;
 	char *ep, *source, *target;
 #ifdef IPSEC_POLICY_IPSEC
@@ -275,36 +276,29 @@ main(argc, argv)
 			setbuf(stdout, (char *)NULL);
 			break;
 		case 'i':		/* wait between sending packets */
-			{
-			    double t = strtod(optarg, &ep) * 1000.0;
-
-			    if (*ep || ep == optarg || t > (double)INT_MAX) {
-				    errx(
-					    EX_USAGE,
-					     "invalid timing interval: `%s'",
-					     optarg
-				    );
-			    }
-			    options |= F_INTERVAL;
-			    interval = (int)t;
-			    if (uid && interval < 1000) {
-				    errno = EPERM;
-				    err(EX_NOPERM, "-i interval too short");
-			    }
+			t = strtod(optarg, &ep) * 1000.0;
+			if (*ep || ep == optarg || t > (double)INT_MAX)
+				errx(EX_USAGE, "invalid timing interval: `%s'",
+				    optarg);
+			options |= F_INTERVAL;
+			interval = (int)t;
+			if (uid && interval < 1000) {
+				errno = EPERM;
+				err(EX_NOPERM, "-i interval too short");
 			}
 			break;
 		case 'I':		/* multicast interface */
 			if (inet_aton(optarg, &ifaddr) == 0)
-				errx(EX_USAGE, 
-				     "invalid multicast interface: `%s'",
-				     optarg);
+				errx(EX_USAGE,
+				    "invalid multicast interface: `%s'",
+				    optarg);
 			options |= F_MIF;
 			break;
 		case 'l':
 			ultmp = strtoul(optarg, &ep, 0);
 			if (*ep || ep == optarg || ultmp > INT_MAX)
-				errx(EX_USAGE, 
-				     "invalid preload value: `%s'", optarg);
+				errx(EX_USAGE,
+				    "invalid preload value: `%s'", optarg);
 			if (uid) {
 				errno = EPERM;
 				err(EX_NOPERM, "-l flag");
@@ -318,8 +312,7 @@ main(argc, argv)
 		case 'm':		/* TTL */
 			ultmp = strtoul(optarg, &ep, 0);
 			if (*ep || ep == optarg || ultmp > 255)
-				errx(EX_USAGE, "invalid TTL: `%s'",
-				     optarg);
+				errx(EX_USAGE, "invalid TTL: `%s'", optarg);
 			ttl = ultmp;
 			options |= F_TTL;
 			break;
@@ -350,10 +343,10 @@ main(argc, argv)
 			ultmp = strtoul(optarg, &ep, 0);
 			if (ultmp > MAXPACKET)
 				errx(EX_USAGE, "packet size too large: %lu",
-				     ultmp);
+				    ultmp);
 			if (*ep || ep == optarg || !ultmp)
-				errx(EX_USAGE, "invalid packet size: `%s'", 
-				     optarg);
+				errx(EX_USAGE, "invalid packet size: `%s'",
+				    optarg);
 			datalen = ultmp;
 			break;
 		case 'S':
@@ -373,7 +366,7 @@ main(argc, argv)
 			ultmp = strtoul(optarg, &ep, 0);
 			if (*ep || ep == optarg || ultmp > 255)
 				errx(EX_USAGE, "invalid multicast TTL: `%s'",
-				     optarg);
+				    optarg);
 			mttl = ultmp;
 			options |= F_MTTL;
 			break;
@@ -411,15 +404,15 @@ main(argc, argv)
 			hp = gethostbyname2(source, AF_INET);
 			if (!hp)
 				errx(EX_NOHOST, "cannot resolve %s: %s",
-				     source, hstrerror(h_errno));
+				    source, hstrerror(h_errno));
 
 			sin.sin_len = sizeof sin;
 			if (hp->h_length > sizeof(sin.sin_addr))
-				errx(1,"gethostbyname2: illegal address");
-			memcpy(&sin.sin_addr, hp->h_addr_list[0], 
-				sizeof (sin.sin_addr));
-			(void)strncpy(snamebuf, hp->h_name, 
-				sizeof(snamebuf) - 1);
+				errx(1, "gethostbyname2: illegal address");
+			memcpy(&sin.sin_addr, hp->h_addr_list[0],
+			    sizeof(sin.sin_addr));
+			(void)strncpy(snamebuf, hp->h_name,
+			    sizeof(snamebuf) - 1);
 			snamebuf[sizeof(snamebuf) - 1] = '\0';
 			shostname = snamebuf;
 		}
@@ -437,10 +430,10 @@ main(argc, argv)
 		hp = gethostbyname2(target, AF_INET);
 		if (!hp)
 			errx(EX_NOHOST, "cannot resolve %s: %s",
-			     target, hstrerror(h_errno));
+			    target, hstrerror(h_errno));
 
 		if (hp->h_length > sizeof(to->sin_addr))
-			errx(1,"gethostbyname2 returned an illegal address");
+			errx(1, "gethostbyname2 returned an illegal address");
 		memcpy(&to->sin_addr, hp->h_addr_list[0], sizeof to->sin_addr);
 		(void)strncpy(hnamebuf, hp->h_name, sizeof(hnamebuf) - 1);
 		hnamebuf[sizeof(hnamebuf) - 1] = '\0';
@@ -451,12 +444,12 @@ main(argc, argv)
 		errx(EX_USAGE, "-f and -i: incompatible options");
 
 	if (options & F_FLOOD && IN_MULTICAST(ntohl(to->sin_addr.s_addr)))
-		errx(EX_USAGE, 
-		     "-f flag cannot be used with multicast destination");
+		errx(EX_USAGE,
+		    "-f flag cannot be used with multicast destination");
 	if (options & (F_MIF | F_NOLOOP | F_MTTL)
 	    && !IN_MULTICAST(ntohl(to->sin_addr.s_addr)))
-		errx(EX_USAGE, 
-		     "-I, -L, -T flags cannot be used with unicast destination");
+		errx(EX_USAGE,
+		    "-I, -L, -T flags cannot be used with unicast destination");
 
 	if (datalen >= PHDR_LEN)	/* can we time transfer */
 		timing = 1;
@@ -491,7 +484,8 @@ main(argc, argv)
 				errx(EX_CONFIG, "%s", ipsec_strerror());
 			if (setsockopt(s, IPPROTO_IP, IP_IPSEC_POLICY,
 					buf, ipsec_get_policylen(buf)) < 0)
-				err(EX_CONFIG, "ipsec policy cannot be configured");
+				err(EX_CONFIG,
+				    "ipsec policy cannot be configured");
 			free(buf);
 		}
 
@@ -501,7 +495,8 @@ main(argc, argv)
 				errx(EX_CONFIG, "%s", ipsec_strerror());
 			if (setsockopt(s, IPPROTO_IP, IP_IPSEC_POLICY,
 					buf, ipsec_get_policylen(buf)) < 0)
-				err(EX_CONFIG, "ipsec policy cannot be configured");
+				err(EX_CONFIG,
+				    "ipsec policy cannot be configured");
 			free(buf);
 		}
 	}
@@ -521,7 +516,7 @@ main(argc, argv)
 			err(EX_OSERR, "setsockopt IP_OPTIONS");
 #else
 		errx(EX_UNAVAILABLE,
-		  "record route not available in this implementation");
+		    "record route not available in this implementation");
 #endif /* IP_OPTIONS */
 	}
 
@@ -886,14 +881,14 @@ pr_pack(buf, cc, from, tv)
 				if (*cp != *dp) {
 	(void)printf("\nwrong data byte #%d should be 0x%x but was 0x%x",
 	    i, *dp, *cp);
-					printf("\ncp:");
+					(void)printf("\ncp:");
 					cp = (u_char*)&icp->icmp_data[0];
 					for (i = 0; i < datalen; ++i, ++cp) {
 						if ((i % 32) == 8)
 							(void)printf("\n\t");
 						(void)printf("%x ", *cp);
 					}
-					printf("\ndp:");
+					(void)printf("\ndp:");
 					cp = &outpack[8];
 					for (i = 0; i < datalen; ++i, ++cp) {
 						if ((i % 32) == 8)
@@ -912,7 +907,7 @@ pr_pack(buf, cc, from, tv)
 		 * and ICMP type and ID.
 		 *
 		 * Only print all the error messages if we are running
-		 * as root to avoid leaking information not normally 
+		 * as root to avoid leaking information not normally
 		 * available to those not running as root.
 		 */
 #ifndef icmp_data
@@ -955,11 +950,12 @@ pr_pack(buf, cc, from, tv)
 					l = (l<<8) + *++cp;
 					l = (l<<8) + *++cp;
 					if (l == 0) {
-						printf("\t0.0.0.0");
+						(void)printf("\t0.0.0.0");
 					} else {
 						struct in_addr ina;
 						ina.s_addr = ntohl(l);
-						printf("\t%s", pr_addr(ina));
+						(void)printf("\t%s",
+						     pr_addr(ina));
 					}
 				hlen -= 4;
 				j -= 4;
@@ -1001,11 +997,11 @@ pr_pack(buf, cc, from, tv)
 				l = (l<<8) + *++cp;
 				l = (l<<8) + *++cp;
 				if (l == 0) {
-					printf("\t0.0.0.0");
+					(void)printf("\t0.0.0.0");
 				} else {
 					struct in_addr ina;
 					ina.s_addr = ntohl(l);
-					printf("\t%s", pr_addr(ina));
+					(void)printf("\t%s", pr_addr(ina));
 				}
 				hlen -= 4;
 				i -= 4;
@@ -1013,7 +1009,7 @@ pr_pack(buf, cc, from, tv)
 				if (i <= 0)
 					break;
 				if (j >= MAX_IPOPTLEN) {
-					(void) printf("\t(truncated route)");
+					(void)printf("\t(truncated route)");
 					break;
 				}
 				(void)putchar('\n');
@@ -1147,7 +1143,7 @@ finish()
 			(void)printf("-- somebody's printing up packets!");
 		else
 			(void)printf("%d%% packet loss",
-			    (int) (((ntransmitted - nreceived) * 100) /
+			    (int)(((ntransmitted - nreceived) * 100) /
 			    ntransmitted));
 	}
 	(void)putchar('\n');
@@ -1155,8 +1151,8 @@ finish()
 		double n = nreceived + nrepeats;
 		double avg = tsum / n;
 		double vari = tsumsq / n - avg * avg;
-		printf("round-trip min/avg/max/stddev = "
-		       "%.3f/%.3f/%.3f/%.3f ms\n",
+		(void)printf(
+		    "round-trip min/avg/max/stddev = %.3f/%.3f/%.3f/%.3f ms\n",
 		    tmin, avg, tmax, sqrt(vari));
 	}
 	if (reset_kerninfo && tcgetattr(STDOUT_FILENO, &ts) != -1) {
@@ -1420,9 +1416,9 @@ fill(bp, patp)
 
 	for (cp = patp; *cp; cp++) {
 		if (!isxdigit(*cp))
-			errx(EX_USAGE, 
-			     "patterns must be specified as hex digits");
-			
+			errx(EX_USAGE,
+			    "patterns must be specified as hex digits");
+
 	}
 	ii = sscanf(patp,
 	    "%2x%2x%2x%2x%2x%2x%2x%2x%2x%2x%2x%2x%2x%2x%2x%2x",
@@ -1447,7 +1443,7 @@ fill(bp, patp)
 static void
 usage()
 {
-	fprintf(stderr, "%s\n%s\n%s\n",
+	(void)fprintf(stderr, "%s\n%s\n%s\n",
 "usage: ping [-QRadfnqrv] [-c count] [-i wait] [-l preload] [-m ttl]",
 "            [-p pattern] "
 #ifdef IPSEC
