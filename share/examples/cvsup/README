@@ -39,3 +39,8 @@ you will need to edit in an appropriate "host" setting.  See:
     http://www.freebsd.org/handbook/mirrors.html
 
 for an up-to-date list of public CVSup mirror sites.
+
+To prevent CVSup from updating particular directories and files, use
+this file:
+
+    refuse
