@@ -79,7 +79,7 @@ directories (or the order thereof) from the cache or to specify additional
 directories where shared libraries might be found.
 .Ev LD_LIBRARY_PATH
 is a
-.Sq \:
+.Sq \&:
 separated list of directory paths which are searched by
 the dynamic linker
 when it needs to load a shared library.
@@ -128,6 +128,7 @@ Do not scan the built-in system directory
 for shared libraries.
 .It Fl v
 Switch on verbose mode.
+.El
 .Sh Security
 Special care must be taken when loading shared libraries into the address
 space of
@@ -183,6 +184,7 @@ containing either
 .Ql OBJFORMAT=aout
 or
 .Ql OBJFORMAT=elf .
+.El
 .Sh SEE ALSO
 .Xr ld 1 ,
 .Xr link 5
