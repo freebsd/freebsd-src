@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
-.\"	$Id: inetd.8,v 1.22 1998/06/10 12:34:25 phk Exp $
+.\"	$Id: inetd.8,v 1.23 1999/03/28 10:50:30 markm Exp $
 .\"
 .Dd February 7, 1996
 .Dt INETD 8
@@ -383,9 +383,13 @@ records its process ID in the file
 .Pa /var/run/inetd.pid
 to assist in reconfiguration.
 .Pp
-Support is provided for tcp_wrappers; see the relevant documentation. The
+Support is provided for tcp_wrappers; see the relevant documentation (
+.Xr hosts_access 5
+).
+The 
 .Pa tcpd
-daemon is not required.
+daemon is not required, as that functionality is builtin. This also allows
+the ``internal'' services to be wrapped.
 .Sh TCPMUX
 .Pp
 .Tn RFC 1078 
