@@ -509,7 +509,7 @@ DMenu MenuMediaCDROM = {
 DMenu MenuMediaFloppy = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Choose a Floppy drive",
-    "You have more than one floppy drive.  Please chose which drive\n"
+    "You have more than one floppy drive.  Please choose which drive\n"
     "you would like to use.",
     NULL,
     NULL,
@@ -773,7 +773,7 @@ DMenu MenuDistributions = {
     "type of system in question.  If you would prefer to pick and choose the\n"
     "list of distributions yourself, simply select \"Custom\".  You can also\n"
     "pick a canned distribution set and then fine-tune it with the Custom item.\n\n"
-    "Choose an item by pressing [SPACE]. When you are finished, chose the Exit\n"
+    "Choose an item by pressing [SPACE]. When you are finished, choose the Exit\n"
     "item or press [ENTER].",
     "Press F1 for more information on these options.",
     "distributions",
@@ -1147,7 +1147,7 @@ DMenu MenuHTMLDoc = {
     DMENU_NORMAL_TYPE,
     "Select HTML Documentation pointer",
     "Please select the body of documentation you're interested in, the main\n"
-    "ones right now being the FAQ and the Handbook.  You can also chose \"other\"\n"
+    "ones right now being the FAQ and the Handbook.  You can also choose \"other\"\n"
     "to enter an arbitrary URL for browsing.",
     "Press F1 for more help on what you see here.",
     "html",
