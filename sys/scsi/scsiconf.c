@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: scsiconf.c,v 1.13 1994/11/12 17:13:23 ats Exp $
+ *      $Id: scsiconf.c,v 1.14 1994/11/14 23:39:32 ats Exp $
  */
 
 #include <sys/types.h>
@@ -601,6 +601,7 @@ scsi_probedev(sc_link, maybe_more)
 	char    manu[32];
 	char    model[32];
 	char    version[32];
+	int	z;
 
 	bzero(&inqbuf, sizeof(inqbuf));
 	/*
@@ -736,6 +737,9 @@ scsi_probedev(sc_link, maybe_more)
 		strncpy(manu, inqbuf.vendor, 8);
 		strncpy(model, inqbuf.product, 16);
 		strncpy(version, inqbuf.revision, 4);
+		for(z = 0; z < 4; z++) {
+			if (version[z]<' ') version[z]='?';
+		}
 	} else
 		/*
 		 * If not advanced enough, use default values
