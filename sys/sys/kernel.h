@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.44 1998/11/10 08:41:41 peter Exp $
+ * $Id: kernel.h,v 1.45 1998/11/15 15:25:56 bde Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -239,7 +239,8 @@ struct sysinit {
  * Default: no special processing
  */
 #define	SYSINIT(uniquifier, subsystem, order, func, ident)	\
-	static struct sysinit uniquifier ## _sys_init = {	\
+	static struct sysinit __attribute__ ((unused))		\
+	    uniquifier ## _sys_init = {				\
 		subsystem,					\
 		order,						\
 		func,						\
@@ -251,7 +252,8 @@ struct sysinit {
  * Called on module unload: no special processing
  */
 #define	SYSUNINIT(uniquifier, subsystem, order, func, ident)	\
-	static struct sysinit uniquifier ## _sys_uninit = {	\
+	static struct sysinit __attribute__ ((unused))		\
+	    uniquifier ## _sys_uninit = {			\
 		subsystem,					\
 		order,						\
 		func,						\
@@ -265,7 +267,8 @@ struct sysinit {
  * for making a kernel 'thread' (or builtin process.)
  */
 #define	SYSINIT_KT(uniquifier, subsystem, order, func, ident)	\
-	static struct sysinit uniquifier ## _sys_init = {	\
+	static struct sysinit __attribute__ ((unused))		\
+	    uniquifier ## _sys_init = {				\
 		subsystem,					\
 		order,						\
 		func,						\
@@ -275,12 +278,13 @@ struct sysinit {
 	DATA_SET(sysinit_set,uniquifier ## _sys_init);
 
 #define	SYSINIT_KP(uniquifier, subsystem, order, func, ident)	\
-	static struct sysinit uniquifier ## _sys_init = {	\
+	static struct sysinit __attribute__ ((unused))		\
+	    uniquifier ## _sys_init = {				\
 		subsystem,					\
 		order,						\
 		func,						\
 		ident,						\
-		SI_TYPE_KPROCESS					\
+		SI_TYPE_KPROCESS				\
 	};							\
 	DATA_SET(sysinit_set,uniquifier ## _sys_init);
 
