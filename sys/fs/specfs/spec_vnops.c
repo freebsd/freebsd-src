@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.92 1999/08/13 10:10:10 phk Exp $
+ * $Id: spec_vnops.c,v 1.93 1999/08/13 10:29:23 phk Exp $
  */
 
 #include <sys/param.h>
@@ -61,7 +61,6 @@ static int	spec_bmap __P((struct vop_bmap_args *));
 static int	spec_close __P((struct vop_close_args *));
 static int	spec_freeblks __P((struct vop_freeblks_args *));
 static int	spec_fsync __P((struct  vop_fsync_args *));
-static int	spec_getattr __P((struct  vop_getattr_args *));
 static int	spec_getpages __P((struct vop_getpages_args *));
 static int	spec_inactive __P((struct  vop_inactive_args *));
 static int	spec_ioctl __P((struct vop_ioctl_args *));
@@ -83,7 +82,6 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_create_desc,		(vop_t *) spec_badop },
 	{ &vop_freeblks_desc,		(vop_t *) spec_freeblks },
 	{ &vop_fsync_desc,		(vop_t *) spec_fsync },
-	{ &vop_getattr_desc,		(vop_t *) spec_getattr },
 	{ &vop_getpages_desc,		(vop_t *) spec_getpages },
 	{ &vop_inactive_desc,		(vop_t *) spec_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) spec_ioctl },
