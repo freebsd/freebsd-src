@@ -26,7 +26,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)yp.8	1.0 (deraadt) 4/26/93
-.\"	$Id: yp.4,v 1.7.2.1 1997/02/28 03:26:41 mpp Exp $
+.\"	$Id: yp.4,v 1.7.2.2 1997/03/11 17:42:37 wpaul Exp $
 .\"
 .Dd April 5, 1993
 .Dt YP 4
@@ -67,7 +67,7 @@ The
 subsystem is started automatically in
 .Pa /etc/rc
 if it has been initialized in
-.Pa /etc/sysconfig
+.Pa /etc/rc.conf
 and if the directory
 .Pa /var/yp
 exists (which it does in the default distribution). The default
@@ -75,7 +75,7 @@ NIS domain must also be set with the
 .Xr domainname 1
 command, which will happen automatically at system startup if it is
 specified in
-.Pa /etc/sysconfig.
+.Pa /etc/rc.conf.
 .Pp
 NIS is an RPC-based client/server system that allows a group of
 machines within an NIS
