@@ -234,7 +234,6 @@ aac_attach(struct aac_softc *sc)
 	aac_initq_free(sc);
 	aac_initq_ready(sc);
 	aac_initq_busy(sc);
-	aac_initq_complete(sc);
 	aac_initq_bio(sc);
 
 #if __FreeBSD_version >= 500005
