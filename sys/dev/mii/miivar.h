@@ -192,6 +192,7 @@ int	miibus_attach(device_t);
 int	miibus_detach(device_t);
 
 int	mii_anar(int);
+void	mii_down(struct mii_data *);
 int	mii_mediachg(struct mii_data *);
 void	mii_tick(struct mii_data *);
 void	mii_pollstat(struct mii_data *);
@@ -202,7 +203,8 @@ void	mii_phy_add_media(struct mii_softc *);
 int	mii_media_from_bmcr(int);
 
 int	mii_phy_auto(struct mii_softc *, int);
-void	mii_phy_auto_stop(struct mii_softc *);
+int	mii_phy_detach(device_t dev);
+void	mii_phy_down(struct mii_softc *);
 void	mii_phy_reset(struct mii_softc *);
 void	mii_phy_setmedia(struct mii_softc *sc);
 void	mii_phy_update(struct mii_softc *, int);
