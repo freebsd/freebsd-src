@@ -279,6 +279,12 @@
             ..
             en_GB.US-ASCII
             ..
+            en_NZ.ISO8859-1
+            ..
+            en_NZ.ISO8859-15
+            ..
+            en_NZ.US-ASCII
+            ..
             en_US.ISO8859-1
             ..
             en_US.ISO8859-15
