@@ -51,6 +51,7 @@ static const char rcsid[] =
 #include <sys/time.h>
 #include <sys/mount.h>
 #include <sys/resource.h>
+#include <sys/sysctl.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/ufsmount.h>
@@ -60,14 +61,13 @@ static const char rcsid[] =
 #include <errno.h>
 #include <fstab.h>
 #include <paths.h>
+#include <string.h>
 
 #include "fsck.h"
 
 static void usage __P((void));
 static int argtoi __P((int flag, char *req, char *str, int base));
-static int docheck __P((struct fstab *fsp));
-static int checkfilesys __P((char *filesys, char *mntpt, long auxdata,
-		int child));
+static int checkfilesys __P((char *filesys));
 static struct statfs *getmntpt __P((const char *));
 int main __P((int argc, char *argv[]));
 
@@ -156,7 +156,7 @@ main(argc, argv)
 		(void)setrlimit(RLIMIT_DATA, &rlimit);
 	}
 	while (argc-- > 0)
-		(void)checkfilesys(*argv++, 0, 0L, 0);
+		(void)checkfilesys(*argv++);
 
 	if (returntosingle)
 		ret = 2;
@@ -183,10 +183,8 @@ argtoi(flag, req, str, base)
  */
 /* ARGSUSED */
 static int
-checkfilesys(filesys, mntpt, auxdata, child)
-	char *filesys, *mntpt;
-	long auxdata;
-	int child;
+checkfilesys(filesys)
+	char *filesys;
 {
 	ufs_daddr_t n_ffree, n_bfree;
 	struct ufs_args args;
@@ -197,8 +195,6 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	ufs_daddr_t files;
 	int cylno, size;
 
-	if (preen && child)
-		(void)signal(SIGQUIT, voidquit);
 	cdevname = filesys;
 	if (debug && preen)
 		pwarn("starting\n");
@@ -299,8 +295,8 @@ checkfilesys(filesys, mntpt, auxdata, child)
 		return (0);
 	case -1:
 	clean:
-		pwarn("clean, %ld free ", sblock.fs_cstotal.cs_nffree +
-		    sblock.fs_frag * sblock.fs_cstotal.cs_nbfree);
+		pwarn("clean, %ld free ", (long)(sblock.fs_cstotal.cs_nffree +
+		    sblock.fs_frag * sblock.fs_cstotal.cs_nbfree));
 		printf("(%d frags, %d blocks, %.1f%% fragmentation)\n",
 		    sblock.fs_cstotal.cs_nffree, sblock.fs_cstotal.cs_nbfree,
 		    sblock.fs_cstotal.cs_nffree * 100.0 / sblock.fs_dsize);
@@ -374,11 +370,12 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	blks = maxfsblock - (n_ffree + sblock.fs_frag * n_bfree) - blks;
 	if (bkgrdflag && (files > 0 || blks > 0)) {
 		countdirs = sblock.fs_cstotal.cs_ndir - countdirs;
-		pwarn("Reclaimed: %d directories, %d files, %d fragments\n",
-		    countdirs, files - countdirs, blks);
+		pwarn("Reclaimed: %ld directories, %ld files, %d fragments\n",
+		    countdirs, (long)files - countdirs, blks);
 	}
 	pwarn("%ld files, %ld used, %ld free ",
-	    n_files, n_blks, n_ffree + sblock.fs_frag * n_bfree);
+	    (long)n_files, (long)n_blks, (long)(n_ffree +
+	    sblock.fs_frag * n_bfree));
 	printf("(%d frags, %d blocks, %.1f%% fragmentation)\n",
 	    n_ffree, n_bfree, n_ffree * 100.0 / sblock.fs_dsize);
 	if (debug) {

@@ -64,8 +64,8 @@ char *
 blockcheck(origname)
 	char *origname;
 {
-	struct stat stslash, stblock, stchar;
-	char *newname, *raw, *cp;
+	struct stat stblock;
+	char *newname, *cp;
 	struct fstab *fsinfo;
 	int retried = 0, len;
 	static char device[MAXPATHLEN];

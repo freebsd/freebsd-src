@@ -102,15 +102,17 @@ struct bufarea cgblk;		/* cylinder group blocks */
 struct bufarea *pdirbp;		/* current directory contents */
 struct bufarea *pbp;		/* current inode block */
 
-#define	dirty(bp) \
+#define	dirty(bp) do { \
 	if (fswritefd < 0) \
 		pfatal("SETTING DIRTY FLAG IN READ_ONLY MODE\n"); \
 	else \
-		(bp)->b_dirty = 1
-#define	initbarea(bp) \
+		(bp)->b_dirty = 1; \
+} while (0)
+#define	initbarea(bp) do { \
 	(bp)->b_dirty = 0; \
 	(bp)->b_bno = (ufs_daddr_t)-1; \
-	(bp)->b_flags = 0;
+	(bp)->b_flags = 0; \
+} while (0)
 
 #define	sbdirty()	dirty(&sblk)
 #define	cgdirty()	dirty(&cgblk)
@@ -319,4 +321,3 @@ void		rwerror __P((char *mesg, ufs_daddr_t blk));
 void		sblock_init __P((void));
 void		setinodebuf __P((ino_t));
 int		setup __P((char *dev));
-void		voidquit __P((int));

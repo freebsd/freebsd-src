@@ -254,8 +254,8 @@ chkrange(blk, cnt)
 	if (cnt > sblock.fs_frag ||
 	    fragnum(&sblock, blk) + cnt > sblock.fs_frag) {
 		if (debug)
-			printf("bad size: blk %ld, offset %ld, size %ld\n",
-				blk, fragnum(&sblock, blk), cnt);
+			printf("bad size: blk %ld, offset %i, size %d\n",
+			    (long)blk, (int)fragnum(&sblock, blk), cnt);
 		return (1);
 	}
 	c = dtog(&sblock, blk);
@@ -493,7 +493,7 @@ clri(idesc, type, flag)
 			cmd.value = idesc->id_number;
 			cmd.size = -dp->di_nlink;
 			if (debug)
-				printf("adjrefcnt ino %d amt %d\n",
+				printf("adjrefcnt ino %ld amt %ld\n",
 				    (long)cmd.value, cmd.size);
 			if (sysctl(adjrefcnt, MIBSIZE, 0, 0,
 			    &cmd, sizeof cmd) == -1)
@@ -580,7 +580,7 @@ blkerror(ino, type, blk)
 	ufs_daddr_t blk;
 {
 
-	pfatal("%ld %s I=%lu", blk, type, ino);
+	pfatal("%ld %s I=%lu", (long)blk, type, (u_long)ino);
 	printf("\n");
 	switch (inoinfo(ino)->ino_state) {
 
