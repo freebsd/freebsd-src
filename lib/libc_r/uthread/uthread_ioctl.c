@@ -64,7 +64,7 @@ _ioctl(int fd, unsigned long request,...)
 			ret = 0;
 			break;
 		default:
-			ret = _thread_sys_ioctl(fd, request, va_arg(ap, char *));
+			ret = __sys_ioctl(fd, request, va_arg(ap, char *));
 			break;
 		}
 

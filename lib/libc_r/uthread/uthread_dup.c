@@ -44,12 +44,12 @@ _dup(int fd)
 	/* Lock the file descriptor: */
 	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
 		/* Perform the 'dup' syscall: */
-		if ((ret = _thread_sys_dup(fd)) < 0) {
+		if ((ret = __sys_dup(fd)) < 0) {
 		}
 		/* Initialise the file descriptor table entry: */
 		else if (_thread_fd_table_init(ret) != 0) {
 			/* Quietly close the file: */
-			_thread_sys_close(ret);
+			__sys_close(ret);
 
 			/* Reset the file descriptor: */
 			ret = -1;

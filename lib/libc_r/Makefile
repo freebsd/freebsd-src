@@ -23,7 +23,7 @@ AINC=	-I${.CURDIR}/../libc/${MACHINE_ARCH} -I${.CURDIR}/uthread
 PRECIOUSLIB=	yes
 
 #
-# This is a list of syscalls that are renamed as _thread_sys_{syscall}
+# This is a list of syscalls that are renamed as __sys_{syscall}
 # so that libc_r can provide replacement functions.
 #
 HIDDEN_SYSCALLS= aio_suspend.o accept.o bind.o close.o connect.o dup.o dup2.o \

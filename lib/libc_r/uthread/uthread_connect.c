@@ -46,7 +46,7 @@ _connect(int fd, const struct sockaddr * name, socklen_t namelen)
 	int             errnolen, ret, tmpnamelen;
 
 	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
-		if ((ret = _thread_sys_connect(fd, name, namelen)) < 0) {
+		if ((ret = __sys_connect(fd, name, namelen)) < 0) {
 			if ((_thread_fd_getflags(fd) & O_NONBLOCK) == 0
 			    && ((errno == EWOULDBLOCK) || (errno == EINPROGRESS)
 			    || (errno == EALREADY) || (errno == EAGAIN))) {
@@ -58,14 +58,14 @@ _connect(int fd, const struct sockaddr * name, socklen_t namelen)
 
 				tmpnamelen = sizeof(tmpname);
 				/* 0 now lets see if it really worked */
-				if (((ret = _thread_sys_getpeername(fd, &tmpname, &tmpnamelen)) < 0) && (errno == ENOTCONN)) {
+				if (((ret = __sys_getpeername(fd, &tmpname, &tmpnamelen)) < 0) && (errno == ENOTCONN)) {
 
 					/*
 					 * Get the error, this function
 					 * should not fail 
 					 */
 					errnolen = sizeof(errno);
-					_thread_sys_getsockopt(fd, SOL_SOCKET, SO_ERROR, &errno, &errnolen);
+					__sys_getsockopt(fd, SOL_SOCKET, SO_ERROR, &errno, &errnolen);
 				}
 			} else {
 				ret = -1;

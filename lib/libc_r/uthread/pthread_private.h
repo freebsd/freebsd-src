@@ -114,12 +114,12 @@
 #define stdout_debug(args...)	do {		\
 	char buf[128];				\
 	snprintf(buf, sizeof(buf), ##args);	\
-	_thread_sys_write(1, buf, strlen(buf));	\
+	__sys_write(1, buf, strlen(buf));	\
 } while (0)
 #define stderr_debug(args...)	do {		\
 	char buf[128];				\
 	snprintf(buf, sizeof(buf), ##args);	\
-	_thread_sys_write(2, buf, strlen(buf));	\
+	__sys_write(2, buf, strlen(buf));	\
 } while (0)
 
 
@@ -1283,122 +1283,121 @@ void	_thread_cancellation_point(void);
 
 /* #include <sys/event.h> */
 #ifdef _SYS_EVENT_H_
-int	_thread_sys_kevent(int, const struct kevent *, int, struct kevent *, int, const struct timespec *);
+int	__sys_kevent(int, const struct kevent *, int, struct kevent *, int, const struct timespec *);
 #endif
 
 /* #include <sys/ioctl.h> */
 #ifdef _SYS_IOCTL_H_
-int	_thread_sys_ioctl(int, unsigned long, ...);
+int	__sys_ioctl(int, unsigned long, ...);
 #endif
 
 /* #include <sys/mman.h> */
 #ifdef _SYS_MMAN_H_
-int	_thread_sys_msync(void *, size_t, int);
+int	__sys_msync(void *, size_t, int);
 #endif
 
 /* #include <sys/mount.h> */
 #ifdef _SYS_MOUNT_H_
-int	_thread_sys_fstatfs(int, struct statfs *);
+int	__sys_fstatfs(int, struct statfs *);
 #endif
 
 /* #include <sys/socket.h> */
 #ifdef _SYS_SOCKET_H_
-int	_thread_sys_accept(int, struct sockaddr *, socklen_t *);
-int	_thread_sys_bind(int, const struct sockaddr *, socklen_t);
-int	_thread_sys_connect(int, const struct sockaddr *, socklen_t);
-int	_thread_sys_getpeername(int, struct sockaddr *, socklen_t *);
-int	_thread_sys_getsockname(int, struct sockaddr *, socklen_t *);
-int	_thread_sys_getsockopt(int, int, int, void *, socklen_t *);
-int	_thread_sys_listen(int, int);
-int	_thread_sys_sendfile(int, int, off_t, size_t, struct sf_hdtr *, off_t *, int);
-int	_thread_sys_setsockopt(int, int, int, const void *, socklen_t);
-int	_thread_sys_shutdown(int, int);
-int	_thread_sys_socket(int, int, int);
-int	_thread_sys_socketpair(int, int, int, int *);
-ssize_t	_thread_sys_recvfrom(int, void *, size_t, int, struct sockaddr *, socklen_t *);
-ssize_t	_thread_sys_recvmsg(int, struct msghdr *, int);
-ssize_t	_thread_sys_sendmsg(int, const struct msghdr *, int);
-ssize_t	_thread_sys_sendto(int, const void *,size_t, int, const struct sockaddr *, socklen_t);
+int	__sys_accept(int, struct sockaddr *, socklen_t *);
+int	__sys_bind(int, const struct sockaddr *, socklen_t);
+int	__sys_connect(int, const struct sockaddr *, socklen_t);
+int	__sys_getpeername(int, struct sockaddr *, socklen_t *);
+int	__sys_getsockname(int, struct sockaddr *, socklen_t *);
+int	__sys_getsockopt(int, int, int, void *, socklen_t *);
+int	__sys_listen(int, int);
+int	__sys_sendfile(int, int, off_t, size_t, struct sf_hdtr *, off_t *, int);
+int	__sys_setsockopt(int, int, int, const void *, socklen_t);
+int	__sys_shutdown(int, int);
+int	__sys_socket(int, int, int);
+int	__sys_socketpair(int, int, int, int *);
+ssize_t	__sys_recvfrom(int, void *, size_t, int, struct sockaddr *, socklen_t *);
+ssize_t	__sys_recvmsg(int, struct msghdr *, int);
+ssize_t	__sys_sendmsg(int, const struct msghdr *, int);
+ssize_t	__sys_sendto(int, const void *,size_t, int, const struct sockaddr *, socklen_t);
 #endif
 
 /* #include <sys/stat.h> */
 #ifdef _SYS_STAT_H_
-int	_thread_sys_fchflags(int, u_long);
-int	_thread_sys_fchmod(int, mode_t);
-int	_thread_sys_fstat(int, struct stat *);
+int	__sys_fchflags(int, u_long);
+int	__sys_fchmod(int, mode_t);
+int	__sys_fstat(int, struct stat *);
 #endif
 
 /* #include <sys/uio.h> */
 #ifdef _SYS_UIO_H_
-ssize_t	_thread_sys_readv(int, const struct iovec *, int);
-ssize_t	_thread_sys_writev(int, const struct iovec *, int);
+ssize_t	__sys_readv(int, const struct iovec *, int);
+ssize_t	__sys_writev(int, const struct iovec *, int);
 #endif
 
 /* #include <sys/wait.h> */
 #ifdef WNOHANG
-pid_t	_thread_sys_wait4(pid_t, int *, int, struct rusage *);
+pid_t	__sys_wait4(pid_t, int *, int, struct rusage *);
 #endif
 
 /* #include <aio.h> */
 #ifdef _SYS_AIO_H_
-int	_thread_sys_aio_suspend(const struct aiocb * const[], int, const struct timespec *);
+int	__sys_aio_suspend(const struct aiocb * const[], int, const struct timespec *);
 #endif
 
 /* #include <dirent.h> */
 #ifdef _DIRENT_H_
-int	_thread_sys_getdirentries(int, char *, int, long *);
+int	__sys_getdirentries(int, char *, int, long *);
 #endif
 
 /* #include <fcntl.h> */
 #ifdef _SYS_FCNTL_H_
-int	_thread_sys_fcntl(int, int, ...);
-int	_thread_sys_flock(int, int);
-int	_thread_sys_open(const char *, int, ...);
+int	__sys_fcntl(int, int, ...);
+int	__sys_flock(int, int);
+int	__sys_open(const char *, int, ...);
 #endif
 
 /* #include <poll.h> */
 #ifdef _SYS_POLL_H_
-int 	_thread_sys_poll(struct pollfd *, unsigned, int);
+int 	__sys_poll(struct pollfd *, unsigned, int);
 #endif
 
 /* #include <sched.h> */
 #ifdef _SCHED_H_
-int	_thread_sys_sched_yield(void);
 #endif
 
 /* #include <signal.h> */
 #ifdef _SIGNAL_H_
-int	_thread_sys_sigaction(int, const struct sigaction *, struct sigaction *);
-int	_thread_sys_sigaltstack(const struct sigaltstack *, struct sigaltstack *);
-int	_thread_sys_sigblock(int);
-int	_thread_sys_sigpending(sigset_t *);
-int	_thread_sys_sigprocmask(int, const sigset_t *, sigset_t *);
-int	_thread_sys_sigsetmask(int);
-int	_thread_sys_sigsuspend(const sigset_t *);
+int	__sys_sigaction(int, const struct sigaction *, struct sigaction *);
+int	__sys_sigaltstack(const struct sigaltstack *, struct sigaltstack *);
+int	__sys_sigblock(int);
+int	__sys_sigpending(sigset_t *);
+int	__sys_sigprocmask(int, const sigset_t *, sigset_t *);
+int	__sys_sigsetmask(int);
+int	__sys_sigsuspend(const sigset_t *);
 #endif
 
 /* #include <time.h> */
 #ifdef _TIME_H_
-int	_thread_sys_nanosleep(const struct timespec *, struct timespec *);
+int	__sys_nanosleep(const struct timespec *, struct timespec *);
 #endif
 
 /* #include <unistd.h> */
 #ifdef _UNISTD_H_
-void	_thread_sys__exit(int);
-int	_thread_sys_close(int);
-int	_thread_sys_dup(int);
-int	_thread_sys_dup2(int, int);
-int	_thread_sys_execve(const char *, char * const *, char * const *);
-int	_thread_sys_fchown(int, uid_t, gid_t);
-pid_t	_thread_sys_fork(void);
-long	_thread_sys_fpathconf(int, int);
-int	_thread_sys_fsync(int);
-int	_thread_sys_pipe(int *);
-ssize_t	_thread_sys_read(int, void *, size_t);
-pid_t	_thread_sys_rfork(int);
-int	_thread_sys_select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
-pid_t	_thread_sys_vfork(void);
-ssize_t	_thread_sys_write(int, const void *, size_t);
+void	__sys__exit(int);
+int	__sys_close(int);
+int	__sys_dup(int);
+int	__sys_dup2(int, int);
+int	__sys_execve(const char *, char * const *, char * const *);
+int	__sys_fchown(int, uid_t, gid_t);
+pid_t	__sys_fork(void);
+long	__sys_fpathconf(int, int);
+int	__sys_fsync(int);
+int	__sys_pipe(int *);
+ssize_t	__sys_read(int, void *, size_t);
+pid_t	__sys_rfork(int);
+int	__sys_select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
+pid_t	__sys_vfork(void);
+ssize_t	__sys_write(int, const void *, size_t);
 #endif
 
 /* #include <setjmp.h> */

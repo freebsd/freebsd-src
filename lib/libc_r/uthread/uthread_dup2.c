@@ -57,7 +57,7 @@ _dup2(int fd, int newfd)
 		if (!(newfd_opened = (_thread_fd_table[newfd] != NULL)) || 
 		    (ret = _FD_LOCK(newfd, FD_RDWR, NULL)) == 0) {
 			/* Perform the 'dup2' syscall: */
-			ret = _thread_sys_dup2(fd, newfd);
+			ret = __sys_dup2(fd, newfd);
 			if (ret >= 0) {
 				/*
 				 * If we are duplicating one of the standard
@@ -71,7 +71,7 @@ _dup2(int fd, int newfd)
 				/* Initialise the file descriptor table entry */
 				if (_thread_fd_table_init(ret) != 0) {
 					/* Quietly close the file: */
-					_thread_sys_close(ret);
+					__sys_close(ret);
 
 					/* Reset the file descriptor: */
 					ret = -1;

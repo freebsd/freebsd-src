@@ -76,7 +76,7 @@ _write(int fd, const void *buf, size_t nbytes)
 		 */
 		while (ret == 0) {
 			/* Perform a non-blocking write syscall: */
-			n = _thread_sys_write(fd, buf + num, nbytes - num);
+			n = __sys_write(fd, buf + num, nbytes - num);
 
 			/* Check if one or more bytes were written: */
 			if (n > 0)

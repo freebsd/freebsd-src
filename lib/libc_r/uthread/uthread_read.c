@@ -66,7 +66,7 @@ _read(int fd, void *buf, size_t nbytes)
 		}
 
 		/* Perform a non-blocking read syscall: */
-		while ((ret = _thread_sys_read(fd, buf, nbytes)) < 0) {
+		while ((ret = __sys_read(fd, buf, nbytes)) < 0) {
 			if ((_thread_fd_getflags(fd) & O_NONBLOCK) == 0 &&
 			    (errno == EWOULDBLOCK || errno == EAGAIN)) {
 				_thread_run->data.fd.fd = fd;

@@ -98,7 +98,7 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 				gact.sa_handler = (void (*) ()) _thread_sig_handler;
 
 			/* Change the signal action in the kernel: */
-		    	if (_thread_sys_sigaction(sig,&gact,NULL) != 0)
+		    	if (__sys_sigaction(sig,&gact,NULL) != 0)
 				ret = -1;
 		}
 	}

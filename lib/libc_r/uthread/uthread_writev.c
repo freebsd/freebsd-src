@@ -92,7 +92,7 @@ _writev(int fd, const struct iovec * iov, int iovcnt)
 		 */
 		while (ret == 0) {
 			/* Perform a non-blocking write syscall: */
-			n = _thread_sys_writev(fd, &p_iov[idx], iovcnt - idx);
+			n = __sys_writev(fd, &p_iov[idx], iovcnt - idx);
 
 			/* Check if one or more bytes were written: */
 			if (n > 0) {

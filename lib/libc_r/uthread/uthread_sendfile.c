@@ -105,7 +105,7 @@ sendfile(int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr *hdtr,
 	 */
 	for (;;) {
 		/* Perform a non-blocking sendfile syscall. */
-		ret = _thread_sys_sendfile(fd, s, offset + num, nbytes - num,
+		ret = __sys_sendfile(fd, s, offset + num, nbytes - num,
 		    NULL, &n, flags);
 
 		/*

@@ -71,7 +71,7 @@ _poll(struct pollfd *fds, unsigned int nfds, int timeout)
 		return (-1);
 	}
 
-	if (((ret = _thread_sys_poll(fds, numfds, 0)) == 0) && (timeout != 0)) {
+	if (((ret = __sys_poll(fds, numfds, 0)) == 0) && (timeout != 0)) {
 		data.nfds = numfds;
 		data.fds = fds;
 

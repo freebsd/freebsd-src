@@ -46,7 +46,7 @@ _sendto(int fd, const void *msg, size_t len, int flags, const struct
 	int             ret;
 
 	if ((ret = _FD_LOCK(fd, FD_WRITE, NULL)) == 0) {
-		while ((ret = _thread_sys_sendto(fd, msg, len, flags, to, to_len)) < 0) {
+		while ((ret = __sys_sendto(fd, msg, len, flags, to, to_len)) < 0) {
 			if (((_thread_fd_getflags(fd) & O_NONBLOCK) == 0)
 			    && ((errno == EWOULDBLOCK) || (errno == EAGAIN))) {
 				_thread_run->data.fd.fd = fd;

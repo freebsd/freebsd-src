@@ -45,7 +45,7 @@ kevent(int kq, const struct kevent *changelist, int nchanges,
 	/* Set the wake up time */
 	_thread_kern_set_timeout(timeout);
 
-	rc = _thread_sys_kevent(kq, changelist, nchanges,
+	rc = __sys_kevent(kq, changelist, nchanges,
 	    eventlist, nevents, &nullts);
 	if (rc == 0 && eventlist != NULL && nevents > 0 && (timeout == NULL ||
 	    timeout->tv_sec != 0 || timeout->tv_nsec != 0)) {
@@ -67,7 +67,7 @@ kevent(int kq, const struct kevent *changelist, int nchanges,
 				rc = -1;
 				break;
 			}
-			rc = _thread_sys_kevent(kq, NULL, 0,
+			rc = __sys_kevent(kq, NULL, 0,
 			    eventlist, nevents, &nullts);
 		} while (rc == 0 && _thread_run->timeout == 0);
 	}

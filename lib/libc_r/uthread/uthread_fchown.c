@@ -44,7 +44,7 @@ _fchown(int fd, uid_t owner, gid_t group)
 	int             ret;
 
 	if ((ret = _FD_LOCK(fd, FD_WRITE, NULL)) == 0) {
-		ret = _thread_sys_fchown(fd, owner, group);
+		ret = __sys_fchown(fd, owner, group);
 		_FD_UNLOCK(fd, FD_WRITE);
 	}
 	return (ret);
