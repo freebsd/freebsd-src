@@ -51,9 +51,9 @@
 SYSCTL_NODE(_kern, OID_AUTO, lomac, CTLFLAG_RW, 0, "LOMAC");
 SYSCTL_NODE(_kern_lomac, OID_AUTO, verbose, CTLFLAG_RW, 0, "LOMAC verbosity");
 #define	VERBOSITY_SETTING(level) 					\
-	unsigned int lomac_verbose_##level## = 1;			\
+	unsigned int lomac_verbose_##level = 1;				\
 	SYSCTL_UINT(_kern_lomac_verbose, OID_AUTO, level,		\
-	    CTLFLAG_RW, &lomac_verbose_##level##, 1, "")
+	    CTLFLAG_RW, &lomac_verbose_##level, 1, "")
 #include "kernel_log.h"
 
 /* sbuf_start()
