@@ -100,17 +100,13 @@ tryagain:
 	rv = __hashpw(&key);
 	if(!rv) return (struct passwd *)NULL;
 #ifdef YP
-	if (_yp_enabled) {
-		if(_pw_passwd.pw_name[0] == '+' || _pw_passwd.pw_name[0] == '-')
-			goto tryagain;
-		else {
-			_pw_copy = _pw_passwd;
-			return (_nextyppass(&_pw_passwd) ? &_pw_passwd : 0);
-		}
+	if(_pw_passwd.pw_name[0] == '+' || _pw_passwd.pw_name[0] == '-') {
+		_pw_copy = _pw_passwd;
+		return (_nextyppass(&_pw_passwd) ? &_pw_passwd : 0);
 	}
 #else
 	/* Ignore YP password file entries when YP is disabled. */
-	if(_pw_passwd.pw_name[0] == '+') {
+	if(_pw_passwd.pw_name[0] == '+' || _pw_passwd.pw_name[0] == '-') {
 		goto tryagain;
 	}
 #endif
@@ -143,7 +139,8 @@ getpwnam(name)
 	 * Prevent login attempts when YP is not enabled but YP entries
 	 * are in /etc/master.passwd.
 	 */
-	if (rval && _pw_passwd.pw_name[0] == '+') rval = 0;
+	if (rval && (_pw_passwd.pw_name[0] == '+'||
+			_pw_passwd.pw_name[0] == '-')) rval = 0;
 
 	endpwent();
 	return(rval ? &_pw_passwd : (struct passwd *)NULL);
@@ -178,6 +175,12 @@ getpwuid(uid)
 		rval = _getyppass(&_pw_passwd, ypbuf, "passwd.byuid");
 	}
 #endif
+	/*
+	 * Prevent login attempts when YP is not enabled but YP entries
+	 * are in /etc/master.passwd.
+	 */
+	if (rval && (_pw_passwd.pw_name[0] == '+'||
+			_pw_passwd.pw_name[0] == '-')) rval = 0;
 
 	endpwent();
 	return(rval ? &_pw_passwd : (struct passwd *)NULL);
