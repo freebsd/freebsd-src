@@ -35,19 +35,24 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)touch.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
-#include <fcntl.h>
-#include <dirent.h>
-#include <ranlib.h>
 #include <ar.h>
-#include <time.h>
-#include <unistd.h>
+#include <dirent.h>
+#include <err.h>
+#include <fcntl.h>
+#include <ranlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <archive.h>
+#include <time.h>
+#include <unistd.h>
+#include "archive.h"
 
 extern CHDR chdr;			/* converted header */
 extern char *archive;			/* archive name */
@@ -65,8 +70,7 @@ touch(void)
 
 	if (!get_arobj(afd) ||
 	    strncmp(RANLIBMAG, chdr.name, sizeof(RANLIBMAG) - 1)) {
-		(void)fprintf(stderr,
-		    "ranlib: %s: no symbol table.\n", archive);
+		warnx("%s: no symbol table", archive);
 		return(1);
 	}
 	settime(afd);
