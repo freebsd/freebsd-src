@@ -496,7 +496,7 @@ do_status(char *cname, int argc, char **argv)
 	description = NULL;
 
 	optind = optreset = 1;
-	while ((c = getopt(argc, argv, "vVsSbaI")) != EOF) {
+	while ((c = getopt(argc, argv, "vVsSbaI")) != -1) {
 		switch (c) {
 		case 'v':
 			pvoltag = 1;
@@ -730,7 +730,7 @@ do_voltag(char *cname, int argc, char **argv)
 	bzero(&csvr, sizeof(csvr));
 
 	optind = optreset = 1;
-	while ((c = getopt(argc, argv, "fca")) != EOF) {
+	while ((c = getopt(argc, argv, "fca")) != -1) {
 		switch (c) {
 		case 'f':
 			force = 1;

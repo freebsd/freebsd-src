@@ -27,7 +27,7 @@
  *	i4b daemon - main program entry
  *	-------------------------------
  *
- *	$Id: main.c,v 1.36 1999/04/29 08:27:10 hm Exp $ 
+ *	$Id: main.c,v 1.3 1999/05/20 10:12:42 hm Exp $ 
  *
  *      last edit-date: [Thu Apr 29 09:41:21 1999]
  *
@@ -118,7 +118,7 @@ main(int argc, char **argv)
 #endif
 #endif
 	
-	while ((i = getopt(argc, argv, "bmc:d:fFlL:Pr:s:t:u:?")) != EOF)
+	while ((i = getopt(argc, argv, "bmc:d:fFlL:Pr:s:t:u:?")) != -1)
 	{
 		switch (i)
 		{
