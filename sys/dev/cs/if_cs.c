@@ -600,7 +600,6 @@ cs_attach(device_t dev)
 
 	ifp->if_softc=sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_output=ether_output;
 	ifp->if_start=cs_start;
 	ifp->if_ioctl=cs_ioctl;
 	ifp->if_watchdog=cs_watchdog;
