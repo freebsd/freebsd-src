@@ -80,7 +80,7 @@ past.
 is defined in the include file
 .Aq Pa stdio.h .
 If the argument
-.Fa s
+.Fa str
 is
 .Pf non- Dv NULL ,
 the file name is copied to the buffer it references.
@@ -90,7 +90,7 @@ In either case,
 returns a pointer to the file name.
 .Pp
 The buffer referenced by 
-.Fa s
+.Fa str
 is expected to be at least
 .Dv L_tmpnam
 bytes in length.
