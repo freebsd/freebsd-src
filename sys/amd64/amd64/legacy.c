@@ -46,6 +46,7 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
@@ -73,10 +74,21 @@
 #include <i386/isa/intr_machdep.h>
 #include <sys/rtprio.h>
 
+MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
+
+struct nexus_device {
+	struct resource_list	nx_resources;
+};
+
+#define DEVTONX(dev)	((struct nexus_device *)device_get_ivars(dev))
+
 static struct rman irq_rman, drq_rman, port_rman, mem_rman;
 
 static	int nexus_probe(device_t);
 static	int nexus_attach(device_t);
+static	int nexus_print_resources(struct resource_list *rl, const char *name, int type,
+				  const char *format);
+static	int nexus_print_all_resources(device_t dev);
 static	int nexus_print_child(device_t, device_t);
 static device_t nexus_add_child(device_t bus, int order, const char *name,
 				int unit);
@@ -92,6 +104,9 @@ static	int nexus_setup_intr(device_t, device_t, struct resource *, int flags,
 			     void (*)(void *), void *, void **);
 static	int nexus_teardown_intr(device_t, device_t, struct resource *,
 				void *);
+static	int nexus_set_resource(device_t, device_t, int, int, u_long, u_long);
+static	int nexus_get_resource(device_t, device_t, int, int, u_long *, u_long *);
+static void nexus_delete_resource(device_t, device_t, int, int);
 
 static device_method_t nexus_methods[] = {
 	/* Device interface */
@@ -113,6 +128,9 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_deactivate_resource, nexus_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
+	DEVMETHOD(bus_set_resource,	nexus_set_resource),
+	DEVMETHOD(bus_get_resource,	nexus_get_resource),
+	DEVMETHOD(bus_delete_resource,	nexus_delete_resource),
 
 	{ 0, 0 }
 };
@@ -131,6 +149,17 @@ nexus_probe(device_t dev)
 {
 
 	device_quiet(dev);	/* suppress attach message for neatness */
+
+	/* 
+	 * XXX working notes:
+	 *
+	 * - IRQ resource creation should be moved to the PIC/APIC driver.
+	 * - DRQ resource creation should be moved to the DMAC driver.
+	 * - The above should be sorted to probe earlier than any child busses.
+	 *
+	 * - Leave I/O and memory creation here, as child probes may need them.
+	 *   (especially eg. ACPI)
+	 */
 
 	/*
 	 * IRQ's are on the mainboard on old systems, but on the ISA part
@@ -236,12 +265,58 @@ nexus_attach(device_t dev)
 }
 
 static int
+nexus_print_resources(struct resource_list *rl, const char *name, int type,
+		      const char *format)
+{
+	struct resource_list_entry *rle;
+	int printed, retval;
+
+	printed = 0;
+	retval = 0;
+	/* Yes, this is kinda cheating */
+	SLIST_FOREACH(rle, rl, link) {
+		if (rle->type == type) {
+			if (printed == 0)
+				retval += printf(" %s ", name);
+			else if (printed > 0)
+				retval += printf(",");
+			printed++;
+			retval += printf(format, rle->start);
+			if (rle->count > 1) {
+				retval += printf("-");
+				retval += printf(format, rle->start +
+						 rle->count - 1);
+			}
+		}
+	}
+	return retval;
+}
+
+static int
+nexus_print_all_resources(device_t dev)
+{
+	struct	nexus_device *ndev = DEVTONX(dev);
+	struct resource_list *rl = &ndev->nx_resources;
+	int retval = 0;
+
+	if (SLIST_FIRST(rl))
+		retval += printf(" at");
+	
+	retval += nexus_print_resources(rl, "port", SYS_RES_IOPORT, "%#lx");
+	retval += nexus_print_resources(rl, "iomem", SYS_RES_MEMORY, "%#lx");
+	retval += nexus_print_resources(rl, "irq", SYS_RES_IRQ, "%ld");
+
+	return retval;
+}
+
+static int
 nexus_print_child(device_t bus, device_t child)
 {
 	int retval = 0;
 
 	retval += bus_print_child_header(bus, child);
-	retval += printf(" on motherboard\n");
+	retval += nexus_print_all_resources(child);
+	retval += printf(" on motherboard\n");	/* XXX "motherboard", ick */
 
 	return (retval);
 }
@@ -249,7 +324,21 @@ nexus_print_child(device_t bus, device_t child)
 static device_t
 nexus_add_child(device_t bus, int order, const char *name, int unit)
 {
-	return device_add_child_ordered(bus, order, name, unit);
+	device_t		child;
+	struct nexus_device	*ndev;
+
+	ndev = malloc(sizeof(struct nexus_device), M_NEXUSDEV, M_NOWAIT);
+	if (!ndev)
+		return(0);
+	bzero(ndev, sizeof(struct nexus_device));
+	resource_list_init(&ndev->nx_resources);
+
+	child = device_add_child_ordered(bus, order, name, unit); 
+
+	/* should we free this in nexus_child_detached? */
+	device_set_ivars(child, ndev);
+
+	return(child);
 }
 
 /*
@@ -261,9 +350,27 @@ static struct resource *
 nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		     u_long start, u_long end, u_long count, u_int flags)
 {
+	struct nexus_device *ndev = DEVTONX(child);
 	struct	resource *rv;
+	struct resource_list_entry *rle;
 	struct	rman *rm;
 	int needactivate = flags & RF_ACTIVE;
+
+	/*
+	 * If this is an allocation of the "default" range for a given RID, and
+	 * we know what the resources for this device are (ie. they aren't maintained
+	 * by a child bus), then work out the start/end values.
+	 */
+	if ((start == 0UL) && (end == ~0UL) && (count == 1)) {
+		if (ndev == NULL)
+			return(NULL);
+		rle = resource_list_find(&ndev->nx_resources, type, *rid);
+		if (rle == NULL)
+			return(NULL);
+		start = rle->start;
+		end = rle->end;
+		count = rle->count;
+	}
 
 	flags &= ~RF_ACTIVE;
 
@@ -438,6 +545,45 @@ static int
 nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 {
 	return (inthand_remove(ih));
+}
+
+static int
+nexus_set_resource(device_t dev, device_t child, int type, int rid, u_long start, u_long count)
+{
+	struct nexus_device	*ndev = DEVTONX(child);
+	struct resource_list	*rl = &ndev->nx_resources;
+
+	/* XXX this should return a success/failure indicator */
+	resource_list_add(rl, type, rid, start, start + count - 1, count);
+	return(0);
+}
+
+static int
+nexus_get_resource(device_t dev, device_t child, int type, int rid, u_long *startp, u_long *countp)
+{
+	struct nexus_device	*ndev = DEVTONX(child);
+	struct resource_list	*rl = &ndev->nx_resources;
+	struct resource_list_entry *rle;
+
+	rle = resource_list_find(rl, type, rid);
+	device_printf(child, "type %d  rid %d  startp %p  countp %p - got %p\n",
+		      type, rid, startp, countp, rle);
+	if (!rle)
+		return(ENOENT);
+	if (startp)
+		*startp = rle->start;
+	if (countp)
+		*countp = rle->count;
+	return(0);
+}
+
+static void
+nexus_delete_resource(device_t dev, device_t child, int type, int rid)
+{
+	struct nexus_device	*ndev = DEVTONX(child);
+	struct resource_list	*rl = &ndev->nx_resources;
+
+	resource_list_delete(rl, type, rid);
 }
 
 /*
