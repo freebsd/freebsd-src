@@ -698,7 +698,7 @@ rt_Set(struct bundle *bundle, int cmd, const struct ncprange *dst,
        const struct ncpaddr *gw, int bang, int quiet)
 {
   struct rtmsg rtmes;
-  int s, nb, wb, width;
+  int s, nb, wb;
   char *cp;
   const char *cmdstr;
   struct sockaddr_storage sadst, samask, sagw;
