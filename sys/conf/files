@@ -148,6 +148,8 @@ dev/ep/if_ep_mca.c	optional ep mca
 dev/ep/if_ep_pccard.c	optional ep card
 dev/ex/if_ex.c		optional ex
 dev/ex/if_ex_isa.c	optional ex isa
+dev/fe/if_fe.c		optional fe
+dev/fe/if_fe_pccard.c	optional fe card
 dev/hea/eni.c		optional hea
 dev/hea/eni_buffer.c	optional hea
 dev/hea/eni_globals.c	optional hea
