@@ -39,7 +39,6 @@
 #include <stand.h>
 
 #include <sys/disklabel.h>
-#include <sys/diskslice.h>
 #include <sys/diskmbr.h>
 #include <sys/reboot.h>
 
@@ -83,7 +82,7 @@ struct open_disk {
 #define BD_PARTTABOK		0x0010
     struct disklabel		od_disklabel;
     int				od_nslices;	/* slice count */
-    struct dos_partition	od_slicetab[MAX_SLICES];
+    struct dos_partition	od_slicetab[NEXTDOSPART];
 };
 
 /*
@@ -655,7 +654,7 @@ bd_checkextended(struct open_disk *od, int slicenum)
 	for (i = 0; i < NDOSPART; i++, dp++) {
 		if (dp->dp_size == 0)
 			continue;
-		if (od->od_nslices == MAX_SLICES)
+		if (od->od_nslices == NEXTDOSPART)
 			goto done;
 		dp->dp_start += base;
 		bcopy(dp, &od->od_slicetab[od->od_nslices], sizeof(*dp));
