@@ -80,6 +80,7 @@ int verbose = 0;					    /* set verbose operation */
 int Verbose = 0;					    /* set very verbose operation */
 int recurse = 0;					    /* set recursion */
 int stats = 0;						    /* show statistics */
+int dowait = 0;						    /* wait for completion */
 
 /* Structures to read kernel data into */
 struct _vinum_conf vinum_conf;				    /* configuration information */
@@ -309,6 +310,10 @@ parseline(int args, char *argv[])
 
 	    case 's':					    /* -s: show statistics */
 		stats = 1;
+		break;
+
+	    case 'w':					    /* -w: wait for completion */
+		dowait = 1;
 		break;
 
 	    default:
