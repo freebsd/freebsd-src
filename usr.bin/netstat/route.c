@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)route.c	8.6 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: route.c,v 1.13 1996/06/02 23:19:11 alex Exp $";
+	"$Id: route.c,v 1.14 1996/06/08 00:20:42 julian Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -416,10 +416,9 @@ p_sockaddr(sa, mask, flags, width)
 	    }
 	case AF_APPLETALK:
 	    {
-			cp = atalk_print(sa);
+			cp = atalk_print(sa,3);
 		break;
 	    }
-
 #ifdef NS
 	case AF_NS:
 		cp = ns_print(sa);
@@ -712,41 +711,6 @@ rt_stats(off)
 		rtstat.rts_unreach, plural(rtstat.rts_unreach));
 	printf("\t%u use%s of a wildcard route\n",
 		rtstat.rts_wildcard, plural(rtstat.rts_wildcard));
-}
-
-char * 
-at_addr_print(ata)
-	struct at_addr *ata;
-{
-static	char mybuf[50];
-
-	sprintf(mybuf,"[%hd.%d]",ntohs(ata->s_net),(unsigned long)ata->s_node);
-	return mybuf;
-}
-
-char *
-atalk_print(sa)
-	register struct sockaddr *sa;
-{
-	struct sockaddr_at *sat = (struct sockaddr_at *)sa;
-static	char mybuf[50];
-
-	strcpy(mybuf,at_addr_print(&sat->sat_addr));
-	sprintf(mybuf+strlen(mybuf),":%d",sat->sat_port);
-#if 0
-	switch(sat->sat_hints.type) {
-	case	SATHINT_NONE:
-		sprintf(mybuf,"[no type]");
-		break;
-	case	SATHINT_CONFIG:
-	case	SATHINT_IFACE:
-		sprintf(mybuf,"[too hard for now]");
-		break;
-	default:
-		sprintf(mybuf,"[unknown type]");
-	}
-#endif
-	return mybuf;
 }
 
 char *
