@@ -536,11 +536,11 @@ hpfs_vget(
 			vput(vp);
 			return (0);
 		}
-	} while(LOCKMGR(&hpfs_hphash_lock,LK_EXCLUSIVE|LK_SLEEPFAIL,NULL,NULL));
+	} while(lockmgr(&hpfs_hphash_lock,LK_EXCLUSIVE|LK_SLEEPFAIL,NULL,NULL));
 
 	hpfs_hphashins(hp);
 
-	LOCKMGR(&hpfs_hphash_lock, LK_RELEASE, NULL, NULL);
+	lockmgr(&hpfs_hphash_lock, LK_RELEASE, NULL, NULL);
 
 	error = bread(hpmp->hpm_devvp, ino, FNODESIZE, NOCRED, &bp);
 	if (error) {
