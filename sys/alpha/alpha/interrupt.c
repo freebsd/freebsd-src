@@ -134,7 +134,7 @@ interrupt(a0, a1, a2, framep)
 		alpha_clock_interrupt(framep);
 		break;
 
-	case  ALPHA_INTR_ERROR:	/* Machine Check or Correctable Error */
+	case ALPHA_INTR_ERROR:	/* Machine Check or Correctable Error */
 		a0 = alpha_pal_rdmces();
 		if (platform.mcheck_handler)
 			(*platform.mcheck_handler)(a0, framep, a1, a2);
