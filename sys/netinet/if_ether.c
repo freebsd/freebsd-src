@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.27 1996/02/05 18:04:30 wollman Exp $
+ * $Id: if_ether.c,v 1.28 1996/02/20 17:54:17 fenner Exp $
  */
 
 /*
@@ -106,7 +106,6 @@ static void	arprequest __P((struct arpcom *, u_long *, u_long *, u_char *));
 static void	arpintr __P((void));
 static void	arptfree __P((struct llinfo_arp *));
 static void	arptimer __P((void *));
-static void	arpwhohas __P((struct arpcom *ac, struct in_addr *addr));
 static struct llinfo_arp
 		*arplookup __P((u_long, int, int));
 static void	in_arpinput __P((struct mbuf *));
@@ -258,16 +257,6 @@ arp_rtrequest(req, rt, sa)
 		Free((caddr_t)la);
 	}
 }
-/*
- * Broadcast an ARP packet, asking who has addr on interface ac.
- */
-static void
-arpwhohas(ac, addr)
-	struct arpcom *ac;
-	struct in_addr *addr;
-{
-	arprequest(ac, &ac->ac_ipaddr.s_addr, &addr->s_addr, ac->ac_enaddr);
-}
 
 /*
  * Broadcast an ARP request. Caller specifies:
@@ -375,7 +364,10 @@ arpresolve(ac, rt, m, dst, desten, rt0)
 		if (la->la_asked == 0 || rt->rt_expire != time.tv_sec) {
 			rt->rt_expire = time.tv_sec;
 			if (la->la_asked++ < arp_maxtries)
-				arpwhohas(ac, &(SIN(dst)->sin_addr));
+			    arprequest(ac,
+				&(SIN(rt0->rt_ifa->ifa_addr)->sin_addr.s_addr),
+				&(SIN(dst)->sin_addr.s_addr),
+				ac->ac_enaddr);
 			else {
 				rt->rt_flags |= RTF_REJECT;
 				rt->rt_expire += arpt_down;
@@ -634,8 +626,8 @@ arp_ifinit(ac, ifa)
 	struct arpcom *ac;
 	struct ifaddr *ifa;
 {
-	ac->ac_ipaddr = IA_SIN(ifa)->sin_addr;
-	arpwhohas(ac, &ac->ac_ipaddr);
+	arprequest(ac, &(IA_SIN(ifa)->sin_addr.s_addr),
+		       &(IA_SIN(ifa)->sin_addr.s_addr), ac->ac_enaddr);
 	ifa->ifa_rtrequest = arp_rtrequest;
 	ifa->ifa_flags |= RTF_CLONING;
 }
