@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)msgs.c	8.2 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: msgs.c,v 1.10 1998/07/07 12:02:59 jkh Exp $";
+	"$Id: msgs.c,v 1.11 1998/07/07 22:20:50 jkh Exp $";
 #endif /* not lint */
 
 /*
@@ -78,6 +78,7 @@ static const char rcsid[] =
 #include <dirent.h>
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <locale.h>
 #include <pwd.h>
 #include <setjmp.h>
@@ -178,7 +179,8 @@ int argc; char *argv[];
 	setlocale(LC_ALL, "");
 
 	time(&t);
-	setuid(uid = getuid());
+	seteuid(uid = getuid());
+	setuid(uid);
 	ruptible = (signal(SIGINT, SIG_IGN) == SIG_DFL);
 	if (ruptible)
 		signal(SIGINT, SIG_DFL);
@@ -610,11 +612,16 @@ prmesg(length)
 int length;
 {
 	FILE *outf;
+	char *env_pager;
 
 	if (use_pager && length > Lpp) {
 		signal(SIGPIPE, SIG_IGN);
 		signal(SIGQUIT, SIG_IGN);
-		snprintf(cmdbuf, sizeof(cmdbuf), _PATH_PAGER, Lpp);
+		if ((env_pager = getenv("PAGER")) == NULL) {
+			snprintf(cmdbuf, sizeof(cmdbuf), _PATH_PAGER, Lpp);
+		} else {
+			snprintf(cmdbuf, sizeof(cmdbuf), env_pager);
+		}
 		outf = popen(cmdbuf, "w");
 		if (!outf)
 			outf = stdout;
@@ -716,7 +723,7 @@ ask(prompt)
 char *prompt;
 {
 	char	inch;
-	int	n, cmsg;
+	int	n, cmsg, fd;
 	off_t	oldpos;
 	FILE	*cpfrom, *cpto;
 
@@ -760,15 +767,20 @@ char *prompt;
 			}
 			else
 				strcpy(fname, "Messages");
+			fd = open(fname, O_RDWR|O_EXCL|O_CREAT|O_APPEND);
 		}
 		else {
 			strcpy(fname, _PATH_TMP);
-			mktemp(fname);
-			snprintf(cmdbuf, sizeof(cmdbuf), _PATH_MAIL, fname);
-			mailing = YES;
+			fd = mkstemp(fname);
+			if (fd != -1) {
+				snprintf(cmdbuf, sizeof(cmdbuf), _PATH_MAIL,
+				    fname);
+				mailing = YES;
+			}
 		}
-		cpto = fopen(fname, "a");
-		if (!cpto) {
+		if (fd == -1 || (cpto = fdopen(fd, "a")) == NULL) {
+			if (fd != -1)
+				close(fd);
 			warn("%s", fname);
 			mailing = NO;
 			fseek(newmsg, oldpos, 0);
@@ -798,6 +810,7 @@ gfrsub(infile)
 FILE *infile;
 {
 	off_t frompos;
+	int count;
 
 	seensubj = seenfrom = NO;
 	local = YES;
@@ -815,11 +828,14 @@ FILE *infile;
 			frompos = ftell(infile);
 			ptr = from;
 			in = nxtfld(inbuf);
-			if (*in) while (*in && *in > ' ') {
-				if (*in == ':' || *in == '@' || *in == '!')
-					local = NO;
-				*ptr++ = *in++;
-				/* what about sizeof from ? */
+			if (*in) {
+				count = sizeof(from) - 1;
+				while (*in && *in > ' ' && count-- > 0) {
+					if (*in == ':' || *in == '@' ||
+					    *in == '!')
+						local = NO;
+					*ptr++ = *in++;
+				}
 			}
 			*ptr = NULL;
 			if (*(in = nxtfld(in)))
