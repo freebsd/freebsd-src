@@ -1268,10 +1268,11 @@ ffs_vget(mp, ino, flags, vpp)
 		*vpp = NULL;
 		return (error);
 	}
+
 	/*
 	 * Finish inode initialization.
 	 */
-	VREF(ip->i_devvp);
+
 	/*
 	 * Set up a generation number for this inode if it does not
 	 * already have one. This should only happen on old filesystems.
