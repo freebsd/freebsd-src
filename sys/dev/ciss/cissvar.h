@@ -72,6 +72,14 @@
 #define CISS_MAX_EVENTS		32
 
 /************************************************************************
+ * Compatibility with older versions of FreeBSD
+ */
+#if __FreeBSD_version < 440001
+#warning testing old-FreeBSD compat
+typedef struct proc	d_thread_t;
+#endif
+
+/************************************************************************
  * Command queue statistics
  */
 
@@ -89,7 +97,7 @@ struct ciss_qstat
 /************************************************************************
  * Driver version.  Only really significant to the ACU interface.
  */
-#define CISS_DRIVER_VERSION	20011009
+#define CISS_DRIVER_VERSION	20011201
 
 /************************************************************************
  * Driver data structures
