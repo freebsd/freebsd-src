@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)du.1	8.2 (Berkeley) 4/1/94
-.\"	$Id: du.1,v 1.8 1997/02/22 19:54:52 peter Exp $
+.\"	$Id: du.1,v 1.9 1997/06/30 06:50:06 charnier Exp $
 .\"
 .Dd April 1, 1994
 .Dt DU 1
@@ -40,8 +40,9 @@
 .Nd display disk usage statistics
 .Sh SYNOPSIS
 .Nm du
-.Op Fl H | Fl L | Fl P
+.Op Fl P | Fl H | Fl L
 .Op Fl a | s | d Ar depth
+.Op Fl c
 .Op Fl k
 .Op Fl x
 .Op Ar file ...
@@ -53,37 +54,37 @@ and for each directory in the file hierarchy rooted in each directory
 argument.
 If no file is specified, the block usage of the hierarchy rooted in
 the current directory is displayed.
-The number of blocks are in the same units as that returned by the
-.Xr stat 2
-system call, i.e. 512-byte blocks.
 If the
 .Fl k
-flag is specified, the number displayed is the number of 1024-byte
-blocks.
+flag is specified, the number of 1024-byte
+blocks used by the file is displayed, otherwise
+.Xr getbsize 3
+is used to determine the preferred block size.
 Partial numbers of blocks are rounded up.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl H
-Symbolic links on the command line are followed.
-(Symbolic links encountered in the tree traversal are not followed.)
-.It Fl L
-All symbolic links are followed.
 .It Fl P
-No symbolic links are followed.
+No symbolic links are followed. (default)
+.It Fl H
+Symbolic links on the command line are followed, symbolic links in file
+hierarchies are not followed.
+.It Fl L
+Symbolic links on the command line and in file hierarchies are followed.
 .It Fl a
-Display an entry for each file in the file hierarchy.
+Display an entry for each file in a file hierarchy.
+.It Fl s
+Display an entry for each specified file. (Equivalent to
+.Fl d
+0 )
 .It Fl d Ar depth
-Displays all directories only
+Display an entry for all files and directories
 .Ar depth
 directories deep.
+.It Fl c
+Display a grand total.
 .It Fl k
-Report in 1024-byte (1-Kbyte) blocks rather than the default.  Note that
-this overrides the
-.Ev BLOCKSIZE
-setting from the environment.
-.It Fl s
-Display only the grand total for the specified files.
+Display block counts in 1024-byte (1-Kbyte) blocks.
 .It Fl x
 Filesystem mount points are not traversed.
 .El
@@ -101,13 +102,6 @@ or
 .Fl L
 options are specified, storage used by any symbolic links which are
 followed is not counted or displayed.
-The
-.Fl H ,
-.Fl L
-and
-.Fl P
-options override each other and the command's actions are determined
-by the last one specified.
 .Pp
 Files having multiple hard links are counted (and displayed) a single
 time per
@@ -120,8 +114,11 @@ If the environment variable
 .Ev BLOCKSIZE
 is set, and the
 .Fl k
-option is not specified, the block counts will be displayed in units of that
-size block.
+option is not specified, the block counts will be displayed in 1024-byte blocks. If
+.Ev BLOCKSIZE
+is not set, and the
+.Fl k
+option is not specified, the block counts will be displayed in 512-byte blocks.
 .El
 .Sh SEE ALSO
 .Xr df 1 ,

@@ -44,6 +44,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)du.c	8.5 (Berkeley) 5/4/95";
 #endif /* not lint */
 
+
 #include <sys/param.h>
 #include <sys/stat.h>
 
@@ -56,63 +57,75 @@ static char sccsid[] = "@(#)du.c	8.5 (Berkeley) 5/4/95";
 #include <string.h>
 #include <unistd.h>
 
-int	 linkchk __P((FTSENT *));
-static void	 usage __P((void));
+int		linkchk __P((FTSENT *));
+static void	usage __P((void));
 
 int
 main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	FTS *fts;
-	FTSENT *p;
-	long blocksize;
-	int ftsoptions, listdirs, listfiles, depth;
-	int Hflag, Lflag, Pflag, aflag, ch, notused, rval, sflag, dflag;
-	char **save;
+	FTS		*fts;
+	FTSENT		*p;
+	FTSENT		*savedp;
+	long		blocksize;
+	int		ftsoptions;
+	int		listall;
+	int		depth;
+	int		Hflag, Lflag, Pflag, aflag, sflag, dflag, cflag, ch, notused, rval;
+	char 		**save;
 
+	Hflag = Lflag = Pflag = aflag = sflag = dflag = cflag = 0;
+	
 	save = argv;
-	Hflag = Lflag = Pflag = aflag = sflag = dflag = 0;
+	ftsoptions = 0;
 	depth = INT_MAX;
-	ftsoptions = FTS_PHYSICAL;
-	while ((ch = getopt(argc, argv, "HLPad:ksx")) != -1)
+	
+	while ((ch = getopt(argc, argv, "HLPad:ksxc")) != -1)
 		switch (ch) {
-		case 'H':
-			Hflag = 1;
-			Lflag = Pflag = 0;
-			break;
-		case 'L':
-			Lflag = 1;
-			Hflag = Pflag = 0;
-			break;
-		case 'P':
-			Pflag = 1;
-			Hflag = Lflag = 0;
-			break;
-		case 'a':
-			aflag = 1;
-			break;
-		case 'k':
-			putenv("BLOCKSIZE=1024");
-			break;
-		case 's':
-			sflag = 1;
-			break;
-		case 'x':
-			ftsoptions |= FTS_XDEV;
-			break;
-		case 'd':
-			dflag = 1;
-			depth=atoi(optarg);
-			if(errno == ERANGE) {
-				(void)fprintf(stderr, "Invalid argument to option d: %s", optarg);
+			case 'H':
+				Hflag = 1;
+				break;
+			case 'L':
+				if (Pflag)
+					usage();
+				Lflag = 1;
+				break;
+			case 'P':
+				if (Lflag)
+					usage();
+				Pflag = 1;
+				break;
+			case 'a':
+				aflag = 1;
+				break;
+			case 'k':
+				putenv("BLOCKSIZE=1024");
+				break;
+			case 's':
+				sflag = 1;
+				break;
+			case 'x':
+				ftsoptions |= FTS_XDEV;
+				break;
+			case 'd':
+				dflag = 1;
+				errno = 0;
+				depth = atoi(optarg);
+				if (errno == ERANGE || depth < 0) {
+					(void) fprintf(stderr, "Invalid argument to option d: %s", optarg);
+					usage();
+				}
+				break;
+			case 'c':
+				cflag = 1;
+				break;
+			case '?':
+			case 'h':
+			default:
 				usage();
-			}
-			break;
-		case '?':
-		default:
-			usage();
 		}
+
 	argc -= optind;
 	argv += optind;
 
@@ -128,27 +141,32 @@ main(argc, argv)
 	 * very nasty, very fast.  The bottom line is that it's documented in
 	 * the man page, so it's a feature.
 	 */
+
+	if (Hflag + Lflag + Pflag > 1)
+		usage();
+
+	if (Hflag + Lflag + Pflag == 0)
+		Pflag = 1;			/* -P (physical) is default */
+
 	if (Hflag)
 		ftsoptions |= FTS_COMFOLLOW;
-	if (Lflag) {
-		ftsoptions &= ~FTS_PHYSICAL;
+
+	if (Lflag)
 		ftsoptions |= FTS_LOGICAL;
-	}
+
+	if (Pflag)
+		ftsoptions |= FTS_PHYSICAL;
+
+	listall = 0;
 
 	if (aflag) {
 		if (sflag || dflag)
 			usage();
-		listdirs = listfiles = 1;
+		listall = 1;
 	} else if (sflag) {
 		if (dflag)
 			usage();
-		listdirs = listfiles = 0;
-	} else if (dflag) {
-		listfiles = 0;
-		listdirs = 1;
-	} else {
-		listfiles = 0;
-		listdirs = 1;
+		depth = 0;
 	}
 
 	if (!*argv) {
@@ -157,60 +175,66 @@ main(argc, argv)
 		argv[1] = NULL;
 	}
 
-	(void)getbsize(&notused, &blocksize);
+	(void) getbsize(&notused, &blocksize);
 	blocksize /= 512;
 
+	rval = 0;
+	
 	if ((fts = fts_open(argv, ftsoptions, NULL)) == NULL)
-		err(1, NULL);
+		err(1, "fts_open");
 
-	for (rval = 0; (p = fts_read(fts)) != NULL;)
+	while ((p = fts_read(fts)) != NULL) {
+		savedp = p;
 		switch (p->fts_info) {
-		case FTS_D:			/* Ignore. */
-			break;
-		case FTS_DP:
-			p->fts_parent->fts_number +=
-			    p->fts_number += p->fts_statp->st_blocks;
-			/*
-			 * If listing each directory, or not listing files
-			 * or directories and this is post-order of the
-			 * root of a traversal, display the total.
-			 */
-			if ((p->fts_level <= depth && listdirs) || 
-                            (!listfiles && !p->fts_level))
-				(void)printf("%ld\t%s\n",
-				    howmany(p->fts_number, blocksize),
-				    p->fts_path);
-			break;
-		case FTS_DC:			/* Ignore. */
-			break;
-		case FTS_DNR:			/* Warn, continue. */
-		case FTS_ERR:
-		case FTS_NS:
-			warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
-			rval = 1;
-			break;
-		default:
-			if (p->fts_statp->st_nlink > 1 && linkchk(p))
+			case FTS_D:			/* Ignore. */
 				break;
-			/*
-			 * If listing each file, or a non-directory file was
-			 * the root of a traversal, display the total.
-			 */
-			if (listfiles || !p->fts_level)
-				(void)printf("%qd\t%s\n",
-				    howmany(p->fts_statp->st_blocks, blocksize),
-				    p->fts_path);
-			p->fts_parent->fts_number += p->fts_statp->st_blocks;
+			case FTS_DP:
+				p->fts_parent->fts_number +=
+				    p->fts_number += p->fts_statp->st_blocks;
+				
+				if (p->fts_level <= depth)
+					(void) printf("%ld\t%s\n",
+					    howmany(p->fts_number, blocksize),
+					    p->fts_path);
+				break;
+			case FTS_DC:			/* Ignore. */
+				break;
+			case FTS_DNR:			/* Warn, continue. */
+			case FTS_ERR:
+			case FTS_NS:
+				warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
+				rval = 1;
+				break;
+			default:
+				if (p->fts_statp->st_nlink > 1 && linkchk(p))
+					break;
+				
+				if (listall || p->fts_level == 0)
+					(void) printf("%qd\t%s\n",
+					    howmany(p->fts_statp->st_blocks, blocksize),
+					    p->fts_path);
+
+				p->fts_parent->fts_number += p->fts_statp->st_blocks;
 		}
+	}
+
 	if (errno)
 		err(1, "fts_read");
+
+	if (cflag) {
+		p = savedp->fts_parent;
+		(void) printf("%ld\ttotal\n", howmany(p->fts_number, blocksize));
+	}
+
 	exit(rval);
 }
+
 
 typedef struct _ID {
 	dev_t	dev;
 	ino_t	inode;
 } ID;
+
 
 int
 linkchk(p)
