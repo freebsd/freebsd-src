@@ -1,12 +1,11 @@
 #
-# $Id$
+# $Id: Makefile,v 1.3 1998/09/12 19:16:33 markm Exp $
 #
 
 PROG=	miniperl
 NOMAN=	true
 CFLAGS+=-I${PERL5SRC} -I${.OBJDIR}
 SRCS=	miniperlmain.c config.h
-NOSHARED=true
 DPADD=	${LIBPERL} ${LIBM} ${LIBCRYPT}
 LDADD=	-lperl -lm -lcrypt
 
@@ -23,7 +22,7 @@ miniperlmain.o: config.h
 config.h: config_h.sh config.sh
 	sh config_h.sh
 
-config.sh: ${.CURDIR}/../libperl/config.SH-${OBJFORMAT}
+config.sh: ${.CURDIR}/../libperl/config.SH-${OBJFORMAT}.${MACHINE_ARCH}
 	@ln -sf ${.OODATE} ${.TARGET}
 
 config_h.sh: config_h.SH

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.2 1998/09/12 15:45:29 markm Exp $
+# $Id: Makefile,v 1.3 1998/09/12 19:16:32 markm Exp $
 #
 
 LIB=	perl
@@ -28,7 +28,7 @@ CLEANFILES+=	config.h config.sh config_h.sh
 config.h: config_h.sh config.sh
 	sh config_h.sh
 
-config.sh: config.SH-${OBJFORMAT}
+config.sh: config.SH-${OBJFORMAT}.${MACHINE_ARCH}
 	ln -sf ${.OODATE} ${.TARGET}
 
 config_h.sh: config_h.SH
