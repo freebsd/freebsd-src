@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.357
+    Original revision: 1.22.2.358
 -->
 
 <articleinfo>
@@ -148,8 +148,26 @@
     <sect3 id="net-proto">
       <title>ネットワークプロトコル</title>
 
-      <para></para>
+      <para>&man.ipfw.4; ルールに、カンマで区切られたアドレスリスト
+        (たとえば <literal>1.2.3.4, 5.6.7.8/30, 9.10.11.12/22</literal>)
+        が使用できるようになりました。また、可読性を向上させるため、
+        カンマの後ろに空白文字を入れることも可能になっています。</para>
 
+      <para>&man.ipfw.4; ルールに、C++ 風のコメントが書けるようになりました。
+        このコメントはルールと同じ場所に格納され、
+        &man.ipfw.8; <literal>show</literal>
+        コマンドでルールと一緒に表示させることができます。</para>
+
+      <para>&man.ipfw.8; を使って、ルールセット 31 にある
+        &man.ipfw.4; ルールが変更できるようになりました。
+        従来のルールセット 31 は、デフォルトのルールを格納するために
+        使われる読みとり専用のルールセットでしたが、
+        この変更により <command>ipfw delete set 31</command> という
+        コマンドを使って、ルールセット 31 を削除することができるようになっています。
+        ただし、このルールセットは <command>ipfw flush</command>
+        コマンドでは削除されません。つまり、このルールセットを使うと、
+        一種の <quote>永続ルール</quote> を記述することが可能になります。
+        詳細については、&man.ipfw.8; に書かれています。</para>
     </sect3>
 
     <sect3 id="fs">
@@ -194,6 +212,12 @@
       グループリストの設定に対応しました。
       設定にはそれぞれ、<option>-u</option>, <option>-g</option>,
       <option>-G</option> オプションを使います。</para>
+
+    <para>&man.ipfw.8; <literal>list</literal> および <literal>show</literal>
+      コマンドで、ルール番号を範囲で指定することができるようになりました。</para>
+
+    <para>&man.ipfw.8; に、実際の動作を行なわずにコマンドの文法だけをチェックする
+      <option>-n</option> フラグが追加されました。</para>
 
     <para>&man.uudecode.1; と &man.b64decode.1; に、
       先頭フレーム行、もしくは最終フレーム行が欠けた、
