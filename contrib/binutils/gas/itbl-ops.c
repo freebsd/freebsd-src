@@ -183,17 +183,18 @@ itbl_parse (char *insntbl)
 {
   extern FILE *yyin;
   extern int yyparse (void);
-  yyin = fopen (insntbl, "r");
+
+  yyin = fopen (insntbl, FOPEN_RT);
   if (yyin == 0)
     {
       printf ("Can't open processor instruction specification file \"%s\"\n",
 	      insntbl);
       return 1;
     }
-  else
-    {
-      while (yyparse ());
-    }
+
+  while (yyparse ())
+    ;
+
   fclose (yyin);
   itbl_have_entries = 1;
   return 0;
@@ -506,7 +507,7 @@ itbl_assemble (char *name, char *s)
   int processor;
 
   if (!name || !*name)
-    return 0;			/* error!  must have a opcode name/expr */
+    return 0;			/* error!  must have an opcode name/expr */
 
   /* find entry in list of instructions for all processors */
   for (processor = 0; processor < e_nprocs; processor++)

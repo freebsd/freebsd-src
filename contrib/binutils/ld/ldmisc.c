@@ -1,5 +1,6 @@
 /* ldmisc.c
-   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+   2000, 2002
    Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support.
 
@@ -27,10 +28,8 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 #ifdef ANSI_PROTOTYPES
 #include <stdarg.h>
-#define USE_STDARG 1
 #else
 #include <varargs.h>
-#define USE_STDARG 0
 #endif
 
 #include "ld.h"
@@ -71,18 +70,20 @@ demangle (string)
      const char *string;
 {
   char *res;
+  const char *p;
 
   if (output_bfd != NULL
       && bfd_get_symbol_leading_char (output_bfd) == string[0])
     ++string;
 
-  /* This is a hack for better error reporting on XCOFF, or the MS PE
-     format.  Xcoff has a single '.', while the NT PE for PPC has
-     '..'.  So we remove all of them.  */
-  while (string[0] == '.')
-    ++string;
+  /* This is a hack for better error reporting on XCOFF, PowerPC64-ELF
+     or the MS PE format.  These formats have a number of leading '.'s
+     on at least some symbols, so we remove all dots.  */
+  p = string;
+  while (*p == '.')
+    ++p;
 
-  res = cplus_demangle (string, DMGL_ANSI | DMGL_PARAMS);
+  res = cplus_demangle (p, DMGL_ANSI | DMGL_PARAMS);
   return res ? res : xstrdup (string);
 }
 
@@ -399,6 +400,9 @@ vfinfo (fp, fmt, arg)
 	}
     }
 
+  if (config.fatal_warnings)
+    config.make_executable = false;
+
   if (fatal == true)
     xexit (1);
 }
@@ -409,51 +413,25 @@ vfinfo (fp, fmt, arg)
    would hosed by LynxOS, which defines that name in its libc.)  */
 
 void
-#if USE_STDARG
-info_msg (const char *fmt, ...)
-#else
-info_msg (va_alist)
-     va_dcl
-#endif
+info_msg VPARAMS ((const char *fmt, ...))
 {
-  va_list arg;
-
-#if ! USE_STDARG
-  const char *fmt;
-
-  va_start (arg);
-  fmt = va_arg (arg, const char *);
-#else
-  va_start (arg, fmt);
-#endif
+  VA_OPEN (arg, fmt);
+  VA_FIXEDARG (arg, const char *, fmt);
 
   vfinfo (stdout, fmt, arg);
-  va_end (arg);
+  VA_CLOSE (arg);
 }
 
 /* ('e' for error.) Format info message and print on stderr.  */
 
 void
-#if USE_STDARG
-einfo (const char *fmt, ...)
-#else
-einfo (va_alist)
-     va_dcl
-#endif
+einfo VPARAMS ((const char *fmt, ...))
 {
-  va_list arg;
-
-#if ! USE_STDARG
-  const char *fmt;
-
-  va_start (arg);
-  fmt = va_arg (arg, const char *);
-#else
-  va_start (arg, fmt);
-#endif
+  VA_OPEN (arg, fmt);
+  VA_FIXEDARG (arg, const char *, fmt);
 
   vfinfo (stderr, fmt, arg);
-  va_end (arg);
+  VA_CLOSE (arg);
 }
 
 void
@@ -467,50 +445,24 @@ info_assert (file, line)
 /* ('m' for map) Format info message and print on map.  */
 
 void
-#if USE_STDARG
-minfo (const char *fmt, ...)
-#else
-minfo (va_alist)
-     va_dcl
-#endif
+minfo VPARAMS ((const char *fmt, ...))
 {
-  va_list arg;
-
-#if ! USE_STDARG
-  const char *fmt;
-  va_start (arg);
-  fmt = va_arg (arg, const char *);
-#else
-  va_start (arg, fmt);
-#endif
+  VA_OPEN (arg, fmt);
+  VA_FIXEDARG (arg, const char *, fmt);
 
   vfinfo (config.map_file, fmt, arg);
-  va_end (arg);
+  VA_CLOSE (arg);
 }
 
 void
-#if USE_STDARG
-lfinfo (FILE *file, const char *fmt, ...)
-#else
-lfinfo (va_alist)
-     va_dcl
-#endif
+lfinfo VPARAMS ((FILE *file, const char *fmt, ...))
 {
-  va_list arg;
-
-#if ! USE_STDARG
-  FILE *file;
-  const char *fmt;
-
-  va_start (arg);
-  file = va_arg (arg, FILE *);
-  fmt = va_arg (arg, const char *);
-#else
-  va_start (arg, fmt);
-#endif
+  VA_OPEN (arg, fmt);
+  VA_FIXEDARG (arg, FILE *, file);
+  VA_FIXEDARG (arg, const char *, fmt);
 
   vfinfo (file, fmt, arg);
-  va_end (arg);
+  VA_CLOSE (arg);
 }
 
 /* Functions to print the link map.  */

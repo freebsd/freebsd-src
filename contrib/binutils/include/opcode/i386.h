@@ -553,9 +553,12 @@ static const template i386_optab[] = {
 
 {"sgdt",   1, 0x0f01, 0, Cpu286, wlq_Suf|Modrm,		{ WordMem, 0, 0} },
 {"sidt",   1, 0x0f01, 1, Cpu286, wlq_Suf|Modrm,		{ WordMem, 0, 0} },
-{"sldt",   1, 0x0f00, 0, Cpu286, wlq_Suf|Modrm,		{ WordReg|WordMem, 0, 0} },
-{"smsw",   1, 0x0f01, 4, Cpu286, wlq_Suf|Modrm,		{ WordReg|WordMem, 0, 0} },
-{"str",	   1, 0x0f00, 1, Cpu286, w_Suf|Modrm|IgnoreSize,{ Reg16|ShortMem, 0, 0} },
+{"sldt",   1, 0x0f00, 0, Cpu286, wlq_Suf|Modrm,		{ WordReg|InvMem, 0, 0} },
+{"sldt",   1, 0x0f00, 0, Cpu286, w_Suf|Modrm|IgnoreSize,{ ShortMem, 0, 0} },
+{"smsw",   1, 0x0f01, 4, Cpu286, wlq_Suf|Modrm,		{ WordReg|InvMem, 0, 0} },
+{"smsw",   1, 0x0f01, 4, Cpu286, w_Suf|Modrm|IgnoreSize,{ ShortMem, 0, 0} },
+{"str",	   1, 0x0f00, 1, Cpu286, wlq_Suf|Modrm,		{ WordReg|InvMem, 0, 0} },
+{"str",	   1, 0x0f00, 1, Cpu286, w_Suf|Modrm|IgnoreSize,{ ShortMem, 0, 0} },
 
 {"verr",   1, 0x0f00, 4, Cpu286, w_Suf|Modrm|IgnoreSize,{ Reg16|ShortMem, 0, 0} },
 {"verw",   1, 0x0f00, 5, Cpu286, w_Suf|Modrm|IgnoreSize,{ Reg16|ShortMem, 0, 0} },

@@ -164,6 +164,8 @@ void list_matching_formats PARAMS ((char **p));
 
 void list_supported_targets PARAMS ((const char *, FILE *));
 
+void list_supported_architectures PARAMS ((const char *, FILE *));
+
 void print_arelt_descr PARAMS ((FILE *file, bfd *abfd, boolean verbose));
 
 char *make_tempname PARAMS ((char *));

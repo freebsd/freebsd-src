@@ -1,6 +1,10 @@
-2001-06-07  Alan Modra  <amodra@bigpond.net.au>
+2001-09-18  Alan Modra  <amodra@bigpond.net.au>
 
-	* Many files: Update copyright notices.
+	* aout64.h: Formatting fixes.
+	(N_TXTADDR): Evaluate to a bfd_vma.
+	(N_DATADDR): Avoid negative unsigned warning.
+	* hp300hpux.h: Formatting fixes.
+	(N_DATADDR): Avoid negative unsigned warning.
 
 Mon Apr  3 13:29:08 2000  Hans-Peter Nilsson  <hp@axis.com>
 
@@ -40,6 +44,10 @@ Tue Sep 12 12:07:02 1995  Ian Lance Taylor  <ian@cygnus.com>
 Wed Jul 12 00:15:13 1995  Ken Raeburn  <raeburn@kr-pc.cygnus.com>
 
 	* sun4.h (PAGE_SIZE): Undefine before defining.
+
+Sun Sep 04 17:58:10 1994  Richard Earnshaw (rwe@pegasus.esprit.ec.org)
+
+	* aout64.h: Only define QMAGIC if it isn't already defined.
 
 Thu Jun 16 14:22:55 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 
@@ -175,20 +183,20 @@ Thu Jun 11 01:12:07 1992  John Gilmore  (gnu at cygnus.com)
 
 Thu Jan 30 18:12:44 1992  John Gilmore  (gnu at cygnus.com)
 
-	* aout/aout64.h: N_TXTSIZE needs some more parentheses.
+	* aout64.h: N_TXTSIZE needs some more parentheses.
 	I don't trust C precedence.
 
 Wed Dec 18 14:32:01 1991  Per Bothner  (bothner at cygnus.com)
 
-	* aout/aout64.h:  Move common sunos-specific test
+	* aout64.h:  Move common sunos-specific test
 	to recognize shared libraries into new macro N_SHARED_LIB.
-	Use it to simplify&reformat N_TXTADDR, N_TXTOFF, N_TXTSIZE.
+	Use it to simplify & reformat N_TXTADDR, N_TXTOFF, N_TXTSIZE.
 
 Sat Nov 30 20:34:52 1991  Steve Chamberlain  (sac at rtl.cygnus.com)
 
-	* ChangeLog, aout64.h, ar.h, encap.h, host.h, hp.h, ranlib.h,
-	reloc.h, stab.def, stab_gnu.h, sun4.h: All moved from the
-	devo/include directory
+	* aout64.h, ar.h, encap.h, host.h, hp.h, ranlib.h, reloc.h,
+	stab.def, stab_gnu.h, sun4.h: All moved from the devo/include
+	directory.
 
 
 Local Variables:

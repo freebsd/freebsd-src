@@ -157,7 +157,7 @@ coff_i386_reloc (abfd, reloc_entry, symbol, data, input_section, output_bfd,
 	    {
 	      short x = bfd_get_16 (abfd, addr);
 	      DOIT (x);
-	      bfd_put_16 (abfd, x, addr);
+	      bfd_put_16 (abfd, (bfd_vma) x, addr);
 	    }
 	    break;
 
@@ -165,7 +165,7 @@ coff_i386_reloc (abfd, reloc_entry, symbol, data, input_section, output_bfd,
 	    {
 	      long x = bfd_get_32 (abfd, addr);
 	      DOIT (x);
-	      bfd_put_32 (abfd, x, addr);
+	      bfd_put_32 (abfd, (bfd_vma) x, addr);
 	    }
 	    break;
 

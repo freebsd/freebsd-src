@@ -84,7 +84,7 @@ frag_grow (nchars)
       frchain_now->frch_obstack.chunk_size = oldc;
     }
   if (obstack_room (&frchain_now->frch_obstack) < nchars)
-    as_fatal (_("Can't extend frag %d. chars"), nchars);
+    as_fatal (_("can't extend frag %u chars"), nchars);
 }
 
 /* Call this to close off a completed frag, and start up a new (empty)

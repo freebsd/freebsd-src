@@ -46,7 +46,7 @@ Wed Nov  3 23:31:19 1999  Jeffrey A Law  (law@cygnus.com)
 
 1999-10-27  Andreas Jaeger  <aj@suse.de>
 
-	* ld/configure.host: Added HOSTING_CRT0, HOSTING_LIBS for
+	* configure.host: Added HOSTING_CRT0, HOSTING_LIBS for
 	target "mips*-*-linux-gnu*".
 
 1999-10-27  Scott Bambrough  <scottb@netwinder.org>
@@ -187,7 +187,7 @@ Mon Sep 13 00:17:18 1999  Jeffrey A Law  (law@cygnus.com)
 
 1999-09-12  Ian Lance Taylor  <ian@zembu.com>
 
-	* pe.em: Don't include "../bfd/libbfd.h".
+	* emultempl/pe.em: Don't include "../bfd/libbfd.h".
 	(gld_${EMULATION_NAME}_after_open): Use xmalloc rather than
 	bfd_alloc.
 
@@ -291,7 +291,7 @@ Wed Sep  8 00:07:39 1999  Jeffrey A Law  (law@cygnus.com)
 
 1999-09-03  Scott Bambrough  <scottb@netwinder.org>
 
-	* ld/configure.host: Added HOSTING_CRT0, HOSTING_LIBS for
+	* configure.host: Added HOSTING_CRT0, HOSTING_LIBS for
 	target "arm*-*-linux-gnu*"
 
 1999-09-04  Steve Chamberlain  <sac@pobox.com>
@@ -330,7 +330,7 @@ Thu Sep  2 14:32:03 1999  Jeffrey A Law  (law@cygnus.com)
 	* configure.tgt (arm-*-netbsd*): New target.
 	* Makefile.am (ALL_EMULATIONS): Add earmnbsd.o.
 	(earmnbsd.c): New rule with deps.
-	* Makefile.on: Regenerate.
+	* Makefile.in: Regenerate.
 	* emulparams/armnbsd.sh: New file.
 
 1999-08-23  Nick Clifton  <nickc@cygnus.com>
@@ -683,7 +683,7 @@ Mon Jun 14 10:38:36 1999  Andreas Schwab  <schwab@issan.cs.uni-dortmund.de>
 	(..._before_allocation): Pass the value of the new variable
 	no_pipeline_knowledge to bfd_elf32_arm_process_before_allocation.
 
-	* emultemp/armelf_oabi.em (..._before_allocation): Pass zero as
+	* emultempl/armelf_oabi.em (..._before_allocation): Pass zero as
 	the third parameter to bfd_elf32_arm_process_before_allocation.
 
 1999-05-28  Nick Clifton  <nickc@cygnus.com>
@@ -1270,7 +1270,7 @@ Wed Nov  4 16:39:18 1998  Nick Clifton  <nickc@cygnus.com>
 	* configure.tgt: Add support for FR30 target.
 	* Makefile.in: Regenerate.
 	* emulparams/fr30.sh: New file.
-	* scripttemp/fr30.sc: New file.
+	* scripttempl/fr30.sc: New file.
 
 Mon Nov  2 14:47:15 1998  Catherine Moore  <clm@cygnus.com>
 
@@ -1740,7 +1740,7 @@ Tue Apr 21 23:12:40 1998  Tom Tromey  <tromey@scribbles.cygnus.com>
 	(po/POTFILES.in): New target.
 	(ld_new_LDADD): Added INTLLIBS.
 	(ld_new_DEPENDENCIES): Added INTLDEPS.
-	* po/Make-in, po/POTFILES.in, po/gas.pot: New files.
+	* po/Make-in, po/POTFILES.in, po/ld.pot: New files.
 
 Tue Apr 21 23:07:07 1998  Ian Lance Taylor  <ian@cygnus.com>
 

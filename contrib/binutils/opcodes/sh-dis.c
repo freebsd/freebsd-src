@@ -1,5 +1,5 @@
 /* Disassemble SH instructions.
-   Copyright 1993, 1994, 1995, 1997, 1998, 2000
+   Copyright 1993, 1994, 1995, 1997, 1998, 2000, 2001
    Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -25,6 +25,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "dis-asm.h"
 
 #define LITTLE_BIT 2
+
+static void print_movxy
+  PARAMS ((sh_opcode_info *, int, int, fprintf_ftype, void *));
+static void print_insn_ddt PARAMS ((int, struct disassemble_info *));
+static void print_dsp_reg PARAMS ((int, fprintf_ftype, void *));
+static void print_insn_ppi PARAMS ((int, struct disassemble_info *));
+static int print_insn_shx PARAMS ((bfd_vma, struct disassemble_info *));
 
 static void
 print_movxy (op, rn, rm, fprintf_fn, stream)

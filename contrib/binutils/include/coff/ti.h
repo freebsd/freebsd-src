@@ -17,22 +17,24 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
-
 #ifndef COFF_TI_H
 #define COFF_TI_H
 
+/* Note "coff/external.h is not used because TI adds extra fields to the structures.  */
+
 /********************** FILE HEADER **********************/
 
-struct external_filehdr {
-	char f_magic[2];	/* magic number			*/
-	char f_nscns[2];	/* number of sections		*/
-	char f_timdat[4];	/* time & date stamp		*/
-	char f_symptr[4];	/* file pointer to symtab	*/
-	char f_nsyms[4];	/* number of symtab entries	*/
-	char f_opthdr[2];	/* sizeof(optional hdr)		*/
-	char f_flags[2];	/* flags			*/
-        char f_target_id[2];    /* magic no. (TI COFF-specific) */
-};
+struct external_filehdr
+  {
+    char f_magic[2];	/* magic number			*/
+    char f_nscns[2];	/* number of sections		*/
+    char f_timdat[4];	/* time & date stamp		*/
+    char f_symptr[4];	/* file pointer to symtab	*/
+    char f_nsyms[4];	/* number of symtab entries	*/
+    char f_opthdr[2];	/* sizeof(optional hdr)		*/
+    char f_flags[2];	/* flags			*/
+    char f_target_id[2];    /* magic no. (TI COFF-specific) */
+  };
 
 /* COFF0 has magic number in f_magic, and omits f_target_id from the file
    header; for later versions, f_magic is 0xC1 for COFF1 and 0xC2 for COFF2
@@ -89,17 +91,23 @@ struct external_filehdr {
 
 /* we need to read/write an extra field in the coff file header */
 #ifndef COFF_ADJUST_FILEHDR_IN_POST
-#define COFF_ADJUST_FILEHDR_IN_POST(abfd,src,dst) \
-do { ((struct internal_filehdr *)(dst))->f_target_id = \
-bfd_h_get_16(abfd, (bfd_byte *)(((FILHDR *)(src))->f_target_id)); \
-} while(0)
+#define COFF_ADJUST_FILEHDR_IN_POST(abfd, src, dst) \
+  do									\
+    {									\
+      ((struct internal_filehdr *)(dst))->f_target_id =			\
+	H_GET_16 (abfd, ((FILHDR *)(src))->f_target_id);		\
+    }									\
+  while (0)
 #endif
 
 #ifndef COFF_ADJUST_FILEHDR_OUT_POST
-#define COFF_ADJUST_FILEHDR_OUT_POST(abfd,src,dst) \
-do { bfd_h_put_16(abfd, ((struct internal_filehdr *)(src))->f_target_id, \
-             (bfd_byte *)(((FILHDR *)(dst))->f_target_id)); \
-} while(0)
+#define COFF_ADJUST_FILEHDR_OUT_POST(abfd, src, dst) \
+  do									\
+    {									\
+      H_PUT_16 (abfd, ((struct internal_filehdr *)(src))->f_target_id,	\
+	       ((FILHDR *)(dst))->f_target_id);				\
+    }									\
+  while (0)
 #endif
 
 #define	FILHDR	struct external_filehdr
@@ -198,74 +206,59 @@ struct external_scnhdr {
    Assume we're dealing with the COFF2 scnhdr structure, and adjust
    accordingly 
  */
-#define GET_SCNHDR_NRELOC(ABFD,PTR) \
-(COFF2_P(ABFD) ? bfd_h_get_32 (ABFD,PTR) : bfd_h_get_16 (ABFD, PTR))
-#define PUT_SCNHDR_NRELOC(ABFD,VAL,PTR) \
-(COFF2_P(ABFD) ? bfd_h_put_32 (ABFD,VAL,PTR) : bfd_h_put_16 (ABFD,VAL,PTR))
-#define GET_SCNHDR_NLNNO(ABFD,PTR) \
-(COFF2_P(ABFD) ? bfd_h_get_32 (ABFD,PTR) : bfd_h_get_16 (ABFD, (PTR)-2))
-#define PUT_SCNHDR_NLNNO(ABFD,VAL,PTR) \
-(COFF2_P(ABFD) ? bfd_h_put_32 (ABFD,VAL,PTR) : bfd_h_put_16 (ABFD,VAL,(PTR)-2))
-#define GET_SCNHDR_FLAGS(ABFD,PTR) \
-(COFF2_P(ABFD) ? bfd_h_get_32 (ABFD,PTR) : bfd_h_get_16 (ABFD, (PTR)-4))
-#define PUT_SCNHDR_FLAGS(ABFD,VAL,PTR) \
-(COFF2_P(ABFD) ? bfd_h_put_32 (ABFD,VAL,PTR) : bfd_h_put_16 (ABFD,VAL,(PTR)-4))
-#define GET_SCNHDR_PAGE(ABFD,PTR) \
-(COFF2_P(ABFD) ? bfd_h_get_16 (ABFD,PTR) : bfd_h_get_8 (ABFD, (PTR)-7))
+#define GET_SCNHDR_NRELOC(ABFD, PTR) \
+  (COFF2_P (ABFD) ? H_GET_32 (ABFD, PTR) : H_GET_16 (ABFD, PTR))
+#define PUT_SCNHDR_NRELOC(ABFD, VAL, PTR) \
+  (COFF2_P (ABFD) ? H_PUT_32 (ABFD, VAL, PTR) : H_PUT_16 (ABFD, VAL, PTR))
+#define GET_SCNHDR_NLNNO(ABFD, PTR) \
+  (COFF2_P (ABFD) ? H_GET_32 (ABFD, PTR) : H_GET_16 (ABFD, (PTR) -2))
+#define PUT_SCNHDR_NLNNO(ABFD, VAL, PTR) \
+  (COFF2_P (ABFD) ? H_PUT_32 (ABFD, VAL, PTR) : H_PUT_16 (ABFD, VAL, (PTR) -2))
+#define GET_SCNHDR_FLAGS(ABFD, PTR) \
+  (COFF2_P (ABFD) ? H_GET_32 (ABFD, PTR) : H_GET_16 (ABFD, (PTR) -4))
+#define PUT_SCNHDR_FLAGS(ABFD, VAL, PTR) \
+  (COFF2_P (ABFD) ? H_PUT_32 (ABFD, VAL, PTR) : H_PUT_16 (ABFD, VAL, (PTR) -4))
+#define GET_SCNHDR_PAGE(ABFD, PTR) \
+  (COFF2_P (ABFD) ? H_GET_16 (ABFD, PTR) : (unsigned) H_GET_8 (ABFD, (PTR) -7))
 /* on output, make sure that the "reserved" field is zero */
-#define PUT_SCNHDR_PAGE(ABFD,VAL,PTR) \
-(COFF2_P(ABFD) ? bfd_h_put_16 (ABFD,VAL,PTR) : \
-bfd_h_put_8 (ABFD,VAL,(PTR)-7), bfd_h_put_8 (ABFD, 0, (PTR)-8))
+#define PUT_SCNHDR_PAGE(ABFD, VAL, PTR) \
+  (COFF2_P (ABFD) \
+   ? H_PUT_16 (ABFD, VAL, PTR) \
+   : H_PUT_8 (ABFD, VAL, (PTR) -7), H_PUT_8 (ABFD, 0, (PTR) -8))
 
 /* TI COFF stores section size as number of bytes (address units, not octets),
    so adjust to be number of octets, which is what BFD expects */ 
-#define GET_SCNHDR_SIZE(ABFD,SZP) \
-(bfd_h_get_32(ABFD,SZP)*bfd_octets_per_byte(ABFD))
-#define PUT_SCNHDR_SIZE(ABFD,SZ,SZP) \
-bfd_h_put_32(ABFD,(SZ)/bfd_octets_per_byte(ABFD),SZP)
+#define GET_SCNHDR_SIZE(ABFD, SZP) \
+  (H_GET_32 (ABFD, SZP) * bfd_octets_per_byte (ABFD))
+#define PUT_SCNHDR_SIZE(ABFD, SZ, SZP) \
+  H_PUT_32 (ABFD, (SZ) / bfd_octets_per_byte (ABFD), SZP)
 
-#define COFF_ADJUST_SCNHDR_IN_POST(ABFD,EXT,INT) \
-do { ((struct internal_scnhdr *)(INT))->s_page = \
-GET_SCNHDR_PAGE(ABFD,(bfd_byte *)((SCNHDR *)(EXT))->s_page); \
-} while(0)
+#define COFF_ADJUST_SCNHDR_IN_POST(ABFD, EXT, INT) \
+  do									\
+    {									\
+      ((struct internal_scnhdr *)(INT))->s_page =			\
+	GET_SCNHDR_PAGE (ABFD, ((SCNHDR *)(EXT))->s_page);		\
+    }									\
+   while (0)
 
 /* The line number and reloc overflow checking in coff_swap_scnhdr_out in
    coffswap.h doesn't use PUT_X for s_nlnno and s_nreloc.
    Due to different sized v0/v1/v2 section headers, we have to re-write these
    fields.
  */
-#define COFF_ADJUST_SCNHDR_OUT_POST(ABFD,INT,EXT) \
-do { \
-PUT_SCNHDR_NLNNO(ABFD,((struct internal_scnhdr *)(INT))->s_nlnno,\
-                (bfd_byte *)((SCNHDR *)(EXT))->s_nlnno); \
-PUT_SCNHDR_NRELOC(ABFD,((struct internal_scnhdr *)(INT))->s_nreloc,\
-                (bfd_byte *)((SCNHDR *)(EXT))->s_nreloc); \
-PUT_SCNHDR_FLAGS(ABFD,((struct internal_scnhdr *)(INT))->s_flags, \
-                (bfd_byte *)((SCNHDR *)(EXT))->s_flags); \
-PUT_SCNHDR_PAGE(ABFD,((struct internal_scnhdr *)(INT))->s_page, \
-                (bfd_byte *)((SCNHDR *)(EXT))->s_page); \
-} while(0)
-
-/* Page macros
-
-   The first GDB port requires flags in its remote memory access commands to
-   distinguish between data/prog space.  Hopefully we can make this go away
-   eventually.  Stuff the page in the upper bits of a 32-bit address, since
-   the c5x family only uses 16 or 23 bits.
-
-   c2x, c5x and most c54x devices have 16-bit addresses, but the c548 has
-   23-bit program addresses.  Make sure the page flags don't interfere.
-   These flags are used by GDB to identify the destination page for
-   addresses. 
-*/
-
-/* recognized load pages */
-#define PG_PROG         0x0         /* PROG page */
-#define PG_DATA         0x1         /* DATA page */
-
-#define ADDR_MASK       0x00FFFFFF
-#define PG_TO_FLAG(p)   (((unsigned long)(p) & 0xFF) << 24)
-#define FLAG_TO_PG(f)   (((f) >> 24) & 0xFF)
+#define COFF_ADJUST_SCNHDR_OUT_POST(ABFD, INT, EXT) \
+  do									   \
+    {									   \
+      PUT_SCNHDR_NLNNO (ABFD, ((struct internal_scnhdr *)(INT))->s_nlnno,  \
+			((SCNHDR *)(EXT))->s_nlnno);			   \
+      PUT_SCNHDR_NRELOC (ABFD, ((struct internal_scnhdr *)(INT))->s_nreloc,\
+			 ((SCNHDR *)(EXT))->s_nreloc);			   \
+      PUT_SCNHDR_FLAGS (ABFD, ((struct internal_scnhdr *)(INT))->s_flags,  \
+			((SCNHDR *)(EXT))->s_flags);			   \
+      PUT_SCNHDR_PAGE (ABFD, ((struct internal_scnhdr *)(INT))->s_page,    \
+		       ((SCNHDR *)(EXT))->s_page);			   \
+    }									   \
+   while (0)
 
 /*
  * names of "special" sections
@@ -384,51 +377,71 @@ union external_auxent {
 #define	AUXESZ	18
 
 /* section lengths are in target bytes (not host bytes) */
-#define GET_SCN_SCNLEN(ABFD,EXT) \
-(bfd_h_get_32(ABFD,(bfd_byte *)(EXT)->x_scn.x_scnlen)*bfd_octets_per_byte(ABFD))
-#define PUT_SCN_SCNLEN(ABFD,INT,EXT) \
-bfd_h_put_32(ABFD,(INT)/bfd_octets_per_byte(ABFD),\
-             (bfd_byte *)(EXT)->x_scn.x_scnlen)
+#define GET_SCN_SCNLEN(ABFD, EXT) \
+  (H_GET_32 (ABFD, (EXT)->x_scn.x_scnlen) * bfd_octets_per_byte (ABFD))
+#define PUT_SCN_SCNLEN(ABFD, INT, EXT) \
+  H_PUT_32 (ABFD, (INT) / bfd_octets_per_byte (ABFD), (EXT)->x_scn.x_scnlen)
 
 /* lnsz size is in bits in COFF file, in bytes in BFD */
 #define GET_LNSZ_SIZE(abfd, ext) \
-(bfd_h_get_16(abfd, (bfd_byte *)ext->x_sym.x_misc.x_lnsz.x_size) / \
- (class != C_FIELD ? 8 : 1))
+ (H_GET_16 (abfd, ext->x_sym.x_misc.x_lnsz.x_size) / (class != C_FIELD ? 8 : 1))
 
 #define PUT_LNSZ_SIZE(abfd, in, ext) \
- bfd_h_put_16(abfd, ((class != C_FIELD) ? (in)*8 : (in)), \
-              (bfd_byte*) ext->x_sym.x_misc.x_lnsz.x_size)
+  H_PUT_16 (abfd, ((class != C_FIELD) ? (in) * 8 : (in)), \
+	   ext->x_sym.x_misc.x_lnsz.x_size)
  
-/* TI COFF stores offsets for MOS and MOU in bits; BFD expects bytes */
-#define COFF_ADJUST_SYM_IN_POST(ABFD,EXT,INT) \
-do { struct internal_syment *dst = (struct internal_syment *)(INT); \
-if (dst->n_sclass == C_MOS || dst->n_sclass == C_MOU) dst->n_value /= 8; \
-} while (0)
+/* TI COFF stores offsets for MOS and MOU in bits; BFD expects bytes 
+   Also put the load page flag of the section into the symbol value if it's an
+   address.  */
+#ifndef NEEDS_PAGE
+#define NEEDS_PAGE(X) 0
+#define PAGE_MASK 0
+#endif
+#define COFF_ADJUST_SYM_IN_POST(ABFD, EXT, INT) \
+  do									\
+    {									\
+      struct internal_syment *dst = (struct internal_syment *)(INT);	\
+      if (dst->n_sclass == C_MOS || dst->n_sclass == C_MOU)		\
+	dst->n_value /= 8;						\
+      else if (NEEDS_PAGE (dst->n_sclass)) {                            \
+        asection *scn = coff_section_from_bfd_index (abfd, dst->n_scnum); \
+        dst->n_value |= (scn->lma & PAGE_MASK);                         \
+      }									\
+    }									\
+   while (0)
 
-#define COFF_ADJUST_SYM_OUT_POST(ABFD,INT,EXT) \
-do { struct internal_syment *src = (struct internal_syment *)(INT); \
-SYMENT *dst = (SYMENT *)(EXT); \
-if(src->n_sclass == C_MOU || src->n_sclass == C_MOS) \
-bfd_h_put_32(abfd,src->n_value * 8,(bfd_byte *)dst->e_value); \
-} while (0)
+#define COFF_ADJUST_SYM_OUT_POST(ABFD, INT, EXT) \
+  do									\
+    {									\
+       struct internal_syment *src = (struct internal_syment *)(INT);	\
+       SYMENT *dst = (SYMENT *)(EXT);					\
+       if (src->n_sclass == C_MOU || src->n_sclass == C_MOS)		\
+	 H_PUT_32 (abfd, src->n_value * 8, dst->e_value);		\
+       else if (NEEDS_PAGE (src->n_sclass)) {                           \
+         H_PUT_32 (abfd, src->n_value &= ~PAGE_MASK, dst->e_value);     \
+       }								\
+    }									\
+   while (0)
 
 /* Detect section-relative absolute symbols so they get flagged with a sym
    index of -1.
 */
-#define SECTION_RELATIVE_ABSOLUTE_SYMBOL_P(RELOC,SECT) \
-((*(RELOC)->sym_ptr_ptr)->section->output_section == (SECT) \
- && (RELOC)->howto->name[0] == 'A')
+#define SECTION_RELATIVE_ABSOLUTE_SYMBOL_P(RELOC, SECT) \
+  ((*(RELOC)->sym_ptr_ptr)->section->output_section == (SECT) \
+   && (RELOC)->howto->name[0] == 'A')
 
 /********************** RELOCATION DIRECTIVES **********************/
 
-struct external_reloc_v0 {
+struct external_reloc_v0
+{
   char r_vaddr[4];
   char r_symndx[2];
   char r_reserved[2];
   char r_type[2];
 };
 
-struct external_reloc {
+struct external_reloc
+{
   char r_vaddr[4];
   char r_symndx[4];
   char r_reserved[2]; /* extended pmad byte for COFF2 */

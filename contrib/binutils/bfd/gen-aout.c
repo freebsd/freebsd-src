@@ -1,5 +1,5 @@
 /* Generate parameters for an a.out system.
-   Copyright 1990, 1991, 1992, 1993, 1994, 1995
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 2001
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -87,9 +87,12 @@ main (argc, argv)
       fprintf (stderr, _("         fix DEFAULT_ARCH in the output file yourself\n"));
       arch = "unknown";
     }
-  printf("#define DEFAULT_ARCH bfd_arch_%s\n", arch);
+  printf("#define DEFAULT_ARCH bfd_arch_%s\n\n", arch);
 
-  printf("\n#define MY(OP) CAT(%s_,OP)\n", target);
+  printf("/* Do not \"beautify\" the CONCAT* macro args.  Traditional C will not");
+  printf("   remove whitespace added here, and thus will fail to concatenate");
+  printf("   the tokens.  */");
+  printf("\n#define MY(OP) CONCAT2 (%s_,OP)\n\n", target);
   printf("#define TARGETNAME \"a.out-%s\"\n\n", target);
 
   printf("#include \"bfd.h\"\n");

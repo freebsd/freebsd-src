@@ -2072,10 +2072,10 @@ Wed Jun 16 03:09:57 1999  Jeffrey A Law  (law@cygnus.com)
 
 1999-06-10  Jakub Jelinek  <jj@ultra.linux.cz>
 
-	* elf64_sparc.c (sparc64_elf_relocate_section): Use R_SPARC_max_std
+	* elf64-sparc.c (sparc64_elf_relocate_section): Use R_SPARC_max_std
 	instead of R_SPARC_max.
 	(sparc64_elf_info_to_howto): Likewise.
-	* elf32_sparc.c (elf32_sparc_relocate_section): Likewise.
+	* elf32-sparc.c (elf32_sparc_relocate_section): Likewise.
 	(elf32_sparc_info_to_howto): Likewise; handle vtable relocations.
 
 1999-06-07  Richard Henderson  <rth@cygnus.com>
@@ -2380,7 +2380,7 @@ Wed Jun  2 11:51:12 1999  Andreas Schwab  <schwab@issan.cs.uni-dortmund.de>
 
 1999-05-25  Philip Blundell  <pb@nexus.co.uk>
 
-	* bfd/elf32-arm.h (elf32_arm_link_hash_newfunc): New function.
+	* elf32-arm.h (elf32_arm_link_hash_newfunc): New function.
 	(elf32_arm_link_hash_table_create): Use above function as the
 	constructor for hash table entries.
 	(elf32_arm_relocate_section): Avoid crash when there is no output
@@ -2431,7 +2431,7 @@ Mon May 17 13:35:35 1999  Stan Cox  <scox@cygnus.com>
 	IMAGE_REL_MCORE_RVA.
 	(coff_mcore_relocate_section): Add support for
 	IMAGE_REL_MCORE_RVA.
-	* elf32-mcore (mcore_elf_howto_): Add R_MCORE_RELATIVE.
+	* elf32-mcore.c (mcore_elf_howto_): Add R_MCORE_RELATIVE.
 	(mcore_elf_reloc_type_lookup): Map BFD_RELOC_RVA to
 	R_MCORE_RELATIVE.
 	(mcore_elf_relocate_section): Delete redundant case labels.
@@ -2724,9 +2724,9 @@ Sat Apr 10 15:12:09 1999  Richard Henderson  <rth@cygnus.com>
 	* targets.c: Add support for arm-epoc-pe target.
 	* coff-arm.c: Allow header files to override definition of
 	TARGET_UNDERSCORE and USER_LABEL_PREFIX.
-	* pe-arm.h: Allow previous header files to override definition of
+	* pe-arm.c: Allow previous header files to override definition of
 	TARGET_LITTLE_SYM and TARGET_BIG_SYM.
-	* pei-arm.h: Allow previous header files to override definition of
+	* pei-arm.c: Allow previous header files to override definition of
 	TARGET_LITTLE_SYM and TARGET_BIG_SYM.
 	* epoc-pe-arm.c: New file.  Support arm-epoc-pe target.
 	* epoc-pei-arm.c: New file.  Support arm-epoc-pei target.
@@ -3079,7 +3079,8 @@ Tue Dec 22 15:21:41 1998  Catherine Moore  <clm@cygnus.com>
 
 1998-12-16  Gavin Romig-Koch  <gavin@cygnus.com>
 
-	* archures.c,bfd-in2.h (bfd_mach_mips4111): New.
+	* archures.c (bfd_mach_mips4111): New.
+	* bfd-in2.h: Regenerate.
 	* cpu-mips.c: Add support for and independent 4111.
 	* elf32-mips.c (elf_mips_mach): E_MIPS_MACH_4111 -> bfd_mach_mips4111.
 	(_bfd_mips_elf_final_write_processing):
@@ -3597,7 +3598,7 @@ Mon Oct  5 12:02:31 1998  Gavin Romig-Koch  <gavin@cygnus.com>
 
 	* dwarf1.c : New file.  Adds _bfd_dwarf1_find_nearest_line.
 	* configure.in (elf): Add dwarf1.lo.
-	* elf_bfd.h (elf_ob_tdata): Add dwarf1_find_line_info.
+	* elf-bfd.h (elf_ob_tdata): Add dwarf1_find_line_info.
 	* elf.c (_bfd_elf_find_nearest_line): Add call to
 	_bfd_dwarf1_find_nearest_line.
 	* elf32-mips.c (_bfd_mips_elf_find_nearest_line):
@@ -4334,7 +4335,10 @@ Thu Jun 25 18:31:41 1998  Richard Henderson  <rth@cygnus.com>
 	* aout-adobe.c: Hook to default implementation.
 	* aout-target.h, aout-tic30.c, binary.c, bout.c: Likewise.
 	* coff-alpha.c, coff-mips.c, coff-rs6000.c, coffcode.h: Likewise.
-	* evax-alpha.c, i386msdos.c, i386os9k.c, ieee.c: Likewise.
+	* evax-alpha.c: Likewise.
+	* i386msdos.c: Likewise.
+	* i386os9k.c: Likewise.
+	* ieee.c: Likewise.
 	* ihex.c, nlm-target.h, oasys.c, ppcboot.c, srec.c: Likewise.
 	* tekhex.c, versados.c: Likewise.
 	* libbfd-in.h (_bfd_nolink_bfd_gc_sections): New.
@@ -4600,7 +4604,7 @@ Thu May  7 17:40:56 1998  Ian Lance Taylor  <ian@cygnus.com>
 	* aoutx.h: Don't include <string.h>.  Use "sysdep.h" rather than
 	<sysdep.h>.
 	* archive.c: Don't include <string.h> or <errno.h>.
-	* evax-alpha.c; Don't include <stdio.h>.
+	* evax-alpha.c: Don't include <stdio.h>.
 	* evax-egsd.c: Likewise.
 	* evax-etir.c: Likewise.
 	* evax-misc.c: Likewise.

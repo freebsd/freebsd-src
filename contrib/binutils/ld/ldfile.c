@@ -24,6 +24,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "bfd.h"
 #include "sysdep.h"
 #include "bfdlink.h"
+#include "safe-ctype.h"
 #include "ld.h"
 #include "ldmisc.h"
 #include "ldexp.h"
@@ -34,8 +35,6 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "ldlex.h"
 #include "ldemul.h"
 #include "libiberty.h"
-
-#include <ctype.h>
 
 const char *ldfile_input_filename;
 boolean ldfile_assumed_script = false;
@@ -79,6 +78,9 @@ ldfile_add_library_path (name, cmdline)
      boolean cmdline;
 {
   search_dirs_type *new;
+
+  if (!cmdline && config.only_cmd_line_lib_dirs)
+    return;
 
   new = (search_dirs_type *) xmalloc (sizeof (search_dirs_type));
   new->next = NULL;
@@ -190,7 +192,7 @@ ldfile_open_file_search (arch, entry, lib, suffix)
       else if (entry->filename[0] == '/' || entry->filename[0] == '.'
 #if defined (__MSDOS__) || defined (_WIN32)
 	       || entry->filename[0] == '\\'
-	       || (isalpha (entry->filename[0])
+	       || (ISALPHA (entry->filename[0])
 	           && entry->filename[1] == ':')
 #endif
 	  )
@@ -350,7 +352,8 @@ ldfile_open_command_file (name)
 
   ldfile_input_filename = name;
   lineno = 1;
-  had_script = true;
+  
+  saved_script_handle = ldlex_input_stack;
 }
 
 #ifdef GNU960
@@ -425,8 +428,7 @@ ldfile_add_arch (in_name)
   new->next = (search_arch_type *) NULL;
   while (*name)
     {
-      if (isupper ((unsigned char) *name))
-	*name = tolower ((unsigned char) *name);
+      *name = TOLOWER (*name);
       name++;
     }
   *search_arch_tail_ptr = new;

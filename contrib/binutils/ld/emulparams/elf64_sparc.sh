@@ -8,6 +8,7 @@ MACHINE=
 DATA_PLT=
 GENERATE_SHLIB_SCRIPT=yes
 NOP=0x01000000
+NO_SMALL_DATA=yes
 
 case "$target" in
   sparc*-solaris*)

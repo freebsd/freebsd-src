@@ -35,10 +35,21 @@ enum bfd_link_strip
    if strip_all is used.  */
 enum bfd_link_discard
 {
+  discard_sec_merge,	/* Discard local temporary symbols in SEC_MERGE
+			   sections.  */
   discard_none,		/* Don't discard any locals.  */
   discard_l,		/* Discard local temporary symbols.  */
   discard_all		/* Discard all locals.  */
 };
+
+/* Describes the type of hash table entry structure being used.
+   Different hash table structure have different fields and so
+   support different linking features.  */
+enum bfd_link_hash_table_type
+  {
+    bfd_link_generic_hash_table,
+    bfd_link_elf_hash_table
+  };
 
 /* These are the possible types of an entry in the BFD link hash
    table.  */
@@ -144,6 +155,8 @@ struct bfd_link_hash_table
   struct bfd_link_hash_entry *undefs;
   /* Entries are added to the tail of the undefs list.  */
   struct bfd_link_hash_entry *undefs_tail;
+  /* The type of the ink hash table.  */
+  enum bfd_link_hash_table_type type;
 };
 
 /* Look up an entry in a link hash table.  If FOLLOW is true, this
@@ -189,6 +202,9 @@ struct bfd_link_info
   boolean shared;
   /* true if BFD should pre-bind symbols in a shared object.  */
   boolean symbolic;
+  /* true if BFD should export all symbols in the dynamic symbol table
+     of an executable, rather than only those used.  */
+  boolean export_dynamic;
   /* true if shared objects should be linked directly, not shared.  */
   boolean static_link;
   /* true if the output file should be in a traditional format.  This
@@ -269,6 +285,25 @@ struct bfd_link_info
 
   /* May be used to set DT_FLAGS_1 for ELF. */
   bfd_vma flags_1;
+
+  /* True if auto-import thunks for DATA items in pei386 DLLs 
+     should be generated/linked against.  */
+  boolean pei386_auto_import;
+
+  /* True if non-PLT relocs should be merged into one reloc section
+     and sorted so that relocs against the same symbol come together.  */
+  boolean combreloc;
+
+  /* True if executable should not contain copy relocs.
+     Setting this true may result in a non-sharable text segment.  */
+  boolean nocopyreloc;
+
+  /* True if .eh_frame_hdr section and PT_GNU_EH_FRAME ELF segment
+     should be created.  */
+  boolean eh_frame_hdr;
+
+  /* How many spare .dynamic DT_NULL entries should be added?  */
+  unsigned int spare_dynamic_tags;
 };
 
 /* This structures holds a set of callback functions.  These are
