@@ -12,6 +12,13 @@ For information about FreeBSD and the layout of the 3.0-SNAPSHOT release
 directory (especially if you're installing from floppies!), see ABOUT.TXT.
 For installation instructions, see the INSTALL.TXT and HARDWARE.TXT files.
 
+And for the latest 3.0-current (HEAD branch) snapshot releases,
+please install from:
+
+        ftp://current.freebsd.org/pub/FreeBSD
+
+Many many bugs fixed and security enhancements made.
+
 
 1. What's new since 2.2.X-RELEASE
 ------------------------------------
@@ -304,7 +311,7 @@ The following CD-ROM type systems are supported at this time:
 (matcd) Matsushita/Panasonic (Creative SoundBlaster) proprietary
         interface (562/563 models)
 (scd)   Sony proprietary interface (all models)
-(wcd)   ATAPI IDE interface (should be considered BETA quality).
+(wcd)   ATAPI IDE interface
 
 
 Unmaintained drivers, they might or might not work for your hardware:
