@@ -50,7 +50,7 @@ struct alq {
 	int	aq_flags;		/* Queue flags */
 	struct mtx	aq_mtx;		/* Queue lock */
 	struct vnode	*aq_vp;		/* Open vnode handle */
-	struct thread	*aq_td;		/* Thread that opened the vnode */
+	struct ucred	*aq_cred;	/* Credentials of the opening thread */
 	struct ale	*aq_first;	/* First ent */
 	struct ale	*aq_entfree;	/* First free ent */
 	struct ale	*aq_entvalid;	/* First ent valid for writing */
@@ -224,8 +224,9 @@ alq_shutdown(struct alq *alq)
 	}
 	ALQ_UNLOCK(alq);
 
-	vn_close(alq->aq_vp, FREAD|FWRITE, alq->aq_td->td_ucred,
-	    alq->aq_td);
+	vn_close(alq->aq_vp, FREAD|FWRITE, alq->aq_cred,
+	    curthread);
+	crfree(alq->aq_cred);
 }
 
 /*
@@ -286,9 +287,9 @@ alq_doio(struct alq *alq)
 	 */
 	vn_start_write(vp, &mp, V_WAIT);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
+	VOP_LEASE(vp, td, alq->aq_cred, LEASE_WRITE);
 	/* XXX error ignored */
-	VOP_WRITE(vp, &auio, IO_UNIT | IO_APPEND, td->td_ucred);	
+	VOP_WRITE(vp, &auio, IO_UNIT | IO_APPEND, alq->aq_cred);	
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 
@@ -352,7 +353,7 @@ alq_open(struct alq **alqp, const char *file, int size, int count)
 	alq->aq_entbuf = malloc(count * size, M_ALD, M_WAITOK|M_ZERO);
 	alq->aq_first = malloc(sizeof(*ale) * count, M_ALD, M_WAITOK|M_ZERO);
 	alq->aq_vp = nd.ni_vp;
-	alq->aq_td = td;
+	alq->aq_cred = crhold(td->td_ucred);
 	alq->aq_entmax = count;
 	alq->aq_entlen = size;
 	alq->aq_entfree = alq->aq_first;
