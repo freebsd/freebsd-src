@@ -50,7 +50,7 @@
 .Op Fl o Ar optimize_preference
 .Op Fl p
 .Ek
-.Op Ar special | Ar filesystem
+.Ar special | Ar filesystem
 .Sh DESCRIPTION
 .Nm Tunefs
 is designed to change the dynamic parameters of a file system
@@ -123,6 +123,8 @@ obtained in the
 .Xr dumpfs 8
 manual page.
 .El
+.Pp
+At least one of the above flags is required.
 .Sh ERRORS
 If
 .Nm
