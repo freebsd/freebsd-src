@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass1.c,v 1.7 1995/02/25 05:02:18 phk Exp $
+ * $Id: ctm_pass1.c,v 1.8 1995/03/04 20:36:46 phk Exp $
  *
  */
 
@@ -54,7 +54,7 @@ Pass1(FILE *fd, unsigned applied)
     GETFIELDCOPY(Prefix,'\n');				/* <Prefix> */
 
     sscanf(Nbr, "%u", &current);
-    if(current <= applied) {
+    if(current && current <= applied) {
 	if(Verbose)
 	    fprintf(stderr,"Delta number %u is already applied; ignoring.\n",
 		    current);
