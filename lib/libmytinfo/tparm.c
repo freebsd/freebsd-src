@@ -5,6 +5,7 @@
  * Public Domain
  * 92/02/01 07:30:36
  *
+ * $FreeBSD$
  */
 
 #include "defs.h"
@@ -346,8 +347,8 @@ va_dcl {
 					return OOPS;
 				if ((sp[1] == 'p' || sp[1] == 'c')
 			            && sp[2] != '\0' && fmt == NULL) {
-					/* GNU aritmitic parameter, what they
-					   realy need is terminfo.	      */
+					/* GNU arithmetic parameter, what they
+					   really need is terminfo.	      */
 					int val, lc;
 					if (sp[1] == 'p'
 					    && getarg(termcap - 1 + sp[2] - '@',
@@ -475,7 +476,7 @@ va_dcl {
 				sp++;
 				fmt = sbuf;
 				while(*fmt != '\0') {
-					if (*fmt == '$')
+					if (*fmt == '$' || *fmt == '^' ||  *fmt == '\\')
 						*dp++ = '\\';
 					*dp++ = *fmt++;
 				}
