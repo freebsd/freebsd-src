@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_compat.h	1.8 1/14/96
- * $Id: ip_compat.h,v 2.26.2.39 2002/03/13 03:54:34 darrenr Exp $
+ * $Id: ip_compat.h,v 2.26.2.43 2002/04/23 16:08:50 darrenr Exp $
  */
 
 #ifndef	__IP_COMPAT_H__
@@ -103,7 +103,6 @@ struct  ether_addr {
 # include <sys/sysmacros.h>
 #endif
 
-
 /*
  * This is a workaround for <sys/uio.h> troubles on FreeBSD and OpenBSD.
  */
@@ -197,10 +196,6 @@ typedef	 int	minor_t;
 #endif /* SOLARIS */
 #define	IPMINLEN(i, h)	((i)->ip_len >= ((i)->ip_hl * 4 + sizeof(struct h)))
 
-#if defined(__FreeBSD__) && (__FreeBSD__ >= 5) && defined(_KERNEL)
-# include <machine/in_cksum.h>
-#endif
-
 #ifndef	IP_OFFMASK
 #define	IP_OFFMASK	0x1fff
 #endif
@@ -214,6 +209,30 @@ typedef	 int	minor_t;
 # define	QUAD_T		long
 #endif /* BSD > 199306 */
 
+
+#if defined(__FreeBSD__) && (defined(KERNEL) || defined(_KERNEL))
+# include <sys/param.h>
+# ifndef __FreeBSD_version
+#  include <sys/osreldate.h>
+# endif
+# ifdef IPFILTER_LKM
+#  define       ACTUALLY_LKM_NOT_KERNEL
+# endif
+# if defined(__FreeBSD_version) && (__FreeBSD_version < 300000)
+#  include <machine/spl.h>
+# else
+#  if (__FreeBSD_version >= 300000) && (__FreeBSD_version < 400000)
+#   if defined(IPFILTER_LKM) && !defined(ACTUALLY_LKM_NOT_KERNEL)
+#    define	ACTUALLY_LKM_NOT_KERNEL
+#   endif
+#  endif
+# endif
+#endif /* __FreeBSD__ && KERNEL */
+
+#if defined(__FreeBSD_version) && (__FreeBSD_version >= 500000) && \
+    defined(_KERNEL)
+# include <machine/in_cksum.h>
+#endif
 
 /*
  * These operating systems already take care of the problem for us.
@@ -230,6 +249,13 @@ typedef u_int32_t       u_32_t;
 #   include "opt_inet6.h"
 #  endif
 #  ifdef INET6
+#   define USE_INET6     
+#  endif   
+# endif
+# if !defined(_KERNEL) && !defined(IPFILTER_LKM)
+#  if (defined(__FreeBSD_version) && (__FreeBSD_version >= 400000)) || \
+      (defined(OpenBSD) && (OpenBSD >= 200111)) || \
+      (defined(__NetBSD_Version__) && (__NetBSD_Version__ >= 105000000))
 #   define USE_INET6
 #  endif
 # endif
@@ -341,40 +367,9 @@ union	i6addr	{
 #define	IPOPT_EIP	145	/* EIP */
 #define	IPOPT_FINN	205	/* FINN */
 
-
-#if defined(__FreeBSD__) && (defined(KERNEL) || defined(_KERNEL))
-# ifdef IPFILTER_LKM
-#  ifndef __FreeBSD_cc_version
-#   include <osreldate.h>
-#  else
-#   if __FreeBSD_cc_version < 430000
-#    include <osreldate.h>
-#   else
-#    include <sys/param.h>
-#   endif
-#  endif
-#  define       ACTUALLY_LKM_NOT_KERNEL
-# else
-#  ifndef __FreeBSD_cc_version
-#   include <sys/osreldate.h>
-#  else
-#   if __FreeBSD_cc_version < 430000
-#    include <sys/osreldate.h>
-#   else
-#    include <sys/param.h>
-#   endif
-#  endif
-# endif
-# if __FreeBSD__ < 3
-#  include <machine/spl.h>
-# else
-#  if __FreeBSD__ == 3
-#   if defined(IPFILTER_LKM) && !defined(ACTUALLY_LKM_NOT_KERNEL)
-#    define	ACTUALLY_LKM_NOT_KERNEL
-#   endif
-#  endif
-# endif
-#endif /* __FreeBSD__ && KERNEL */
+#ifndef	TCPOPT_WSCALE
+# define	TCPOPT_WSCALE	3
+#endif
 
 /*
  * Build some macros and #defines to enable the same code to compile anywhere
@@ -580,7 +575,8 @@ extern	void	m_copyback __P((struct mbuf *, int, int, caddr_t));
        defined(__FreeBSD__) || defined(__OpenBSD__) || defined(_BSDI_VERSION)
 #   include <vm/vm.h>
 #  endif
-#  if !defined(__FreeBSD__) || (defined (__FreeBSD__) && __FreeBSD__>=3)
+#  if !defined(__FreeBSD__) || (defined (__FreeBSD_version) && \
+      (__FreeBSD_version >= 300000))
 #   if (defined(__NetBSD_Version__) && (__NetBSD_Version__ >= 105180000)) || \
        (defined(OpenBSD) && (OpenBSD >= 200111))
 #    include <uvm/uvm_extern.h>
@@ -589,9 +585,9 @@ extern	void	m_copyback __P((struct mbuf *, int, int, caddr_t));
 extern	vm_map_t	kmem_map;
 #   endif
 #   include <sys/proc.h>
-#  else /* !__FreeBSD__ || (__FreeBSD__ && __FreeBSD__>=3) */
+#  else /* !__FreeBSD__ || (__FreeBSD__ && __FreeBSD_version >= 300000) */
 #   include <vm/vm_kern.h>
-#  endif /* !__FreeBSD__ || (__FreeBSD__ && __FreeBSD__>=3) */
+#  endif /* !__FreeBSD__ || (__FreeBSD__ && __FreeBSD_version >= 300000) */
 #  ifdef	M_PFIL
 #   define	KMALLOC(a, b)	MALLOC((a), b, sizeof(*(a)), M_PFIL, M_NOWAIT)
 #   define	KMALLOCS(a, b, c)	MALLOC((a), b, (c), M_PFIL, M_NOWAIT)
