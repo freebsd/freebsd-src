@@ -33,11 +33,8 @@
 
 #ifndef RPC_HDR
 %#ifndef lint
-%#if 0
-%static char sccsid[] = "@(#)from: yp.x	2.1 88/08/01 4.0 RPCSRC";
-%#endif
 %static const char rcsid[] =
-%	"$Id$";
+%	"$Id: yp.x,v 1.9 1997/10/31 12:26:52 charnier Exp $";
 %#endif /* not lint */
 #endif
 
