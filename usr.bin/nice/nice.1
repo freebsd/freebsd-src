@@ -72,10 +72,6 @@ super-user.
 Negative numbers are expressed as
 .Fl - Ns Ar number .
 .Pp
-The returned exit status is the exit value from the
-command executed by
-.Nm .
-.Pp
 Some shells may provide a builtin
 .Nm
 command which is similar or identical to this utility.
@@ -96,6 +92,20 @@ Execute command
 .Sq date
 at priority -19 assuming the priority of the
 shell is 0 and you are the super-user.
+.Sh DIAGNOSTICS
+If
+.Ar command
+is invoked, the exit status of
+.Nm
+is the exit status of
+.Ar command .
+.Pp
+An exit status of 126 indicates
+.Ar command
+was found, but could not be executed.
+An exit status of 127 indicates
+.Ar command
+could not be found.
 .Sh SEE ALSO
 .Xr builtin 1 ,
 .Xr csh 1 ,
