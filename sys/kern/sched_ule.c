@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
+#include <sys/turnstile.h>
 #include <sys/vmmeter.h>
 #ifdef KTRACE
 #include <sys/uio.h>
@@ -133,8 +134,7 @@ struct kse {
 #define	KEF_XFERABLE	0x0004		/* Thread was added as transferable. */
 #define	KEF_HOLD	0x0008		/* Thread is temporarily bound. */
 #define	KEF_REMOVED	0x0010		/* Thread was removed while ASSIGNED */
-#define	KEF_PRIOELEV	0x0020		/* Thread has had its prio elevated. */
-#define	KEF_INTERNAL	0x0040
+#define	KEF_INTERNAL	0x0020
 
 struct kg_sched {
 	struct thread	*skg_last_assigned; /* (j) Last thread assigned to */
@@ -234,7 +234,7 @@ static struct kg_sched kg_sched0;
 #define	SCHED_INTERACTIVE(kg)						\
     (sched_interact_score(kg) < SCHED_INTERACT_THRESH)
 #define	SCHED_CURR(kg, ke)						\
-    ((ke->ke_flags & KEF_PRIOELEV) || SCHED_INTERACTIVE(kg))
+    ((ke->ke_thread->td_flags & TDF_BORROWING) || SCHED_INTERACTIVE(kg))
 
 /*
  * Cpu percentage computation macros and defines.
@@ -315,6 +315,7 @@ static void	slot_fill(struct ksegrp *kg);
 static struct kse *sched_choose(void);		/* XXX Should be thread * */
 static void sched_slice(struct kse *ke);
 static void sched_priority(struct ksegrp *kg);
+static void sched_thread_priority(struct thread *td, u_char prio);
 static int sched_interact_score(struct ksegrp *kg);
 static void sched_interact_update(struct ksegrp *kg);
 static void sched_interact_fork(struct ksegrp *kg);
@@ -1066,7 +1067,7 @@ sched_slice(struct kse *ke)
 	kg = ke->ke_ksegrp;
 	kseq = KSEQ_CPU(ke->ke_cpu);
 
-	if (ke->ke_flags & KEF_PRIOELEV) {
+	if (ke->ke_thread->td_flags & TDF_BORROWING) {
 		ke->ke_slice = SCHED_SLICE_MIN;
 		return;
 	}
@@ -1230,7 +1231,7 @@ sched_pctcpu_update(struct kse *ke)
 }
 
 void
-sched_prio(struct thread *td, u_char prio)
+sched_thread_priority(struct thread *td, u_char prio)
 {
 	struct kse *ke;
 
@@ -1239,6 +1240,8 @@ sched_prio(struct thread *td, u_char prio)
 	    curthread->td_proc->p_comm);
 	ke = td->td_kse;
 	mtx_assert(&sched_lock, MA_OWNED);
+	if (td->td_priority == prio)
+		return;
 	if (TD_ON_RUNQ(td)) {
 		/*
 		 * If the priority has been elevated due to priority
@@ -1253,8 +1256,6 @@ sched_prio(struct thread *td, u_char prio)
 			ke->ke_runq = KSEQ_CPU(ke->ke_cpu)->ksq_curr;
 			runq_add(ke->ke_runq, ke, 0);
 		}
-		if (prio < td->td_priority)
-			ke->ke_flags |= KEF_PRIOELEV;
 		/*
 		 * Hold this kse on this cpu so that sched_prio() doesn't
 		 * cause excessive migration.  We only want migration to
@@ -1267,6 +1268,70 @@ sched_prio(struct thread *td, u_char prio)
 		td->td_priority = prio;
 }
 
+/*
+ * Update a thread's priority when it is lent another thread's
+ * priority.
+ */
+void
+sched_lend_prio(struct thread *td, u_char prio)
+{
+
+	td->td_flags |= TDF_BORROWING;
+	sched_thread_priority(td, prio);
+}
+
+/*
+ * Restore a thread's priority when priority propagation is
+ * over.  The prio argument is the minimum priority the thread
+ * needs to have to satisfy other possible priority lending
+ * requests.  If the thread's regular priority is less
+ * important than prio, the thread will keep a priority boost
+ * of prio.
+ */
+void
+sched_unlend_prio(struct thread *td, u_char prio)
+{
+	u_char base_pri;
+
+	if (td->td_base_pri >= PRI_MIN_TIMESHARE &&
+	    td->td_base_pri <= PRI_MAX_TIMESHARE)
+		base_pri = td->td_ksegrp->kg_user_pri;
+	else
+		base_pri = td->td_base_pri;
+	if (prio >= base_pri) {
+		td->td_flags &= ~ TDF_BORROWING;
+		sched_thread_priority(td, base_pri);
+	} else
+		sched_lend_prio(td, prio);
+}
+
+void
+sched_prio(struct thread *td, u_char prio)
+{
+	u_char oldprio;
+
+	/* First, update the base priority. */
+	td->td_base_pri = prio;
+
+	/*
+	 * If the therad is borrowing another thread's priority, don't
+	 * ever lower the priority.
+	 */
+	if (td->td_flags & TDF_BORROWING && td->td_priority < prio)
+		return;
+
+	/* Change the real priority. */
+	oldprio = td->td_priority;
+	sched_thread_priority(td, prio);
+
+	/*
+	 * If the thread is on a turnstile, then let the turnstile update
+	 * its state.
+	 */
+	if (TD_ON_LOCK(td) && oldprio != prio)
+		turnstile_adjust(td, oldprio);
+}
+	
 void
 sched_switch(struct thread *td, struct thread *newtd, int flags)
 {
@@ -1374,7 +1439,6 @@ sched_sleep(struct thread *td)
 	mtx_assert(&sched_lock, MA_OWNED);
 
 	td->td_slptime = ticks;
-	td->td_base_pri = td->td_priority;
 }
 
 void
@@ -1644,21 +1708,14 @@ void
 sched_userret(struct thread *td)
 {
 	struct ksegrp *kg;
-	struct kse *ke;
 
-	kg = td->td_ksegrp;
-	ke = td->td_kse;
-	
-	if (td->td_priority != kg->kg_user_pri ||
-	    ke->ke_flags & KEF_PRIOELEV) {
+	KASSERT((td->td_flags & TDF_BORROWING) == 0,
+	    ("thread with borrowed priority returning to userland"));
+	kg = td->td_ksegrp;	
+	if (td->td_priority != kg->kg_user_pri) {
 		mtx_lock_spin(&sched_lock);
 		td->td_priority = kg->kg_user_pri;
-		if (ke->ke_flags & KEF_PRIOELEV) {
-			ke->ke_flags &= ~KEF_PRIOELEV;
-			sched_slice(ke);
-			if (ke->ke_slice == 0)
-				mi_switch(SW_INVOL, NULL);
-		}
+		td->td_base_pri = kg->kg_user_pri;
 		mtx_unlock_spin(&sched_lock);
 	}
 }
