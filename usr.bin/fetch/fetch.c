@@ -572,8 +572,8 @@ fetch(char *URL, const char *path)
 	 */
  signal:
 	/* set mtime of local file */
-	if (!n_flag && us.mtime && !o_stdout
-	    && (stat(path, &sb) != -1) && sb.st_mode & S_IFREG) {
+	if (!n_flag && us.mtime && !o_stdout && of != NULL &&
+	    (stat(path, &sb) != -1) && sb.st_mode & S_IFREG) {
 		struct timeval tv[2];
 
 		fflush(of);
