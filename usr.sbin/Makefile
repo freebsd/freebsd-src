@@ -122,7 +122,7 @@ SUBDIR=	IPXrouted \
 	ypset \
 	zic
 
-.if ${MACHINE_ARCH} != "ia64" && ${MACHINE_ARCH} != "sparc64"
+.if ${MACHINE_ARCH} != "sparc64"
 SUBDIR+=sysinstall
 .endif
 
