@@ -130,6 +130,7 @@ MAN=	accept_filter.9 \
 	mbchain.9 \
 	mbpool.9 \
 	mbuf.9 \
+	mbuf_tags.9 \
 	MD5.9 \
 	mdchain.9 \
 	microseq.9 \
