@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.29 1998/06/15 19:06:42 brian Exp $
+ * $Id: fsm.c,v 1.30 1998/06/16 19:40:36 brian Exp $
  *
  *  TODO:
  */
@@ -119,11 +119,8 @@ StoppedTimeout(void *v)
               fp->link->name, fp->name);
     timer_Stop(&fp->OpenTimer);
   }
-  if (fp->state == ST_STOPPED) {
-    /* Force ourselves back to initial */
-    fsm_Down(fp);
-    fsm_Close(fp);
-  }
+  if (fp->state == ST_STOPPED)
+    fsm2initial(fp);
 }
 
 void
@@ -958,4 +955,15 @@ fsm_NullRecvResetAck(struct fsm *fp, u_char id)
 {
   log_Printf(fp->LogLevel, "%s: Oops - received unexpected reset ack\n",
             fp->link->name);
+}
+
+void
+fsm2initial(struct fsm *fp)
+{
+  if (fp->state == ST_STOPPED)
+    fsm_Close(fp);
+  if (fp->state > ST_INITIAL)
+    fsm_Down(fp);
+  if (fp->state > ST_INITIAL)
+    fsm_Close(fp);
 }

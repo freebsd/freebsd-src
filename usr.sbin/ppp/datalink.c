@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.9 1998/06/15 19:05:15 brian Exp $
+ *	$Id: datalink.c,v 1.10 1998/06/16 07:15:16 brian Exp $
  */
 
 #include <sys/types.h>
@@ -512,8 +512,7 @@ datalink_LayerDown(void *v, struct fsm *fp)
     switch (dl->state) {
       case DATALINK_OPEN:
         peerid_Init(&dl->peer);
-        fsm_Down(&dl->physical->link.ccp.fsm);
-        fsm_Close(&dl->physical->link.ccp.fsm);
+        fsm2initial(&dl->physical->link.ccp.fsm);
         datalink_NewState(dl, DATALINK_LCP);  /* before parent TLD */
         (*dl->parent->LayerDown)(dl->parent->object, fp);
         /* fall through */
@@ -533,9 +532,7 @@ datalink_LayerFinish(void *v, struct fsm *fp)
   struct datalink *dl = (struct datalink *)v;
 
   if (fp->proto == PROTO_LCP) {
-    if (fp->state == ST_STOPPED)
-      fsm_Close(fp);			/* back to CLOSED */
-    fsm_Down(fp);			/* Bring us to INITIAL or STARTING */
+    fsm2initial(fp);
     (*dl->parent->LayerFinish)(dl->parent->object, fp);
     datalink_ComeDown(dl, CLOSE_NORMAL);
   } else if (fp->state == ST_CLOSED && fp->open_mode == OPEN_PASSIVE)
@@ -740,8 +737,7 @@ datalink_Close(struct datalink *dl, int how)
   switch (dl->state) {
     case DATALINK_OPEN:
       peerid_Init(&dl->peer);
-      fsm_Down(&dl->physical->link.ccp.fsm);
-      fsm_Close(&dl->physical->link.ccp.fsm);
+      fsm2initial(&dl->physical->link.ccp.fsm);
       /* fall through */
 
     case DATALINK_AUTH:
@@ -767,19 +763,12 @@ datalink_Down(struct datalink *dl, int how)
   switch (dl->state) {
     case DATALINK_OPEN:
       peerid_Init(&dl->peer);
-      fsm_Down(&dl->physical->link.ccp.fsm);
-      fsm_Close(&dl->physical->link.ccp.fsm);
+      fsm2initial(&dl->physical->link.ccp.fsm);
       /* fall through */
 
     case DATALINK_AUTH:
     case DATALINK_LCP:
-      if (dl->physical->link.lcp.fsm.state == ST_STOPPED)
-        fsm_Close(&dl->physical->link.lcp.fsm);		/* back to CLOSED */
-      fsm_Down(&dl->physical->link.lcp.fsm);
-      if (how != CLOSE_NORMAL)
-        fsm_Close(&dl->physical->link.lcp.fsm);
-      else
-        fsm_Open(&dl->physical->link.ccp.fsm);
+      fsm2initial(&dl->physical->link.lcp.fsm);
       /* fall through */
 
     default:
