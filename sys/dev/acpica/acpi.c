@@ -704,6 +704,8 @@ acpi_add_child(device_t bus, int order, const char *name, int unit)
     child = device_add_child_ordered(bus, order, name, unit);
     if (child != NULL)
 	device_set_ivars(child, ad);
+    else
+	free(ad, M_ACPIDEV);
     return (child);
 }
 

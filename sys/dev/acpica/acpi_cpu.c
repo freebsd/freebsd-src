@@ -392,6 +392,8 @@ acpi_cpu_add_child(device_t dev, int order, const char *name, int unit)
     child = device_add_child_ordered(dev, order, name, unit);
     if (child != NULL)
         device_set_ivars(child, ad);
+    else
+	free(ad, M_TEMP);
     return (child);
 }
 
