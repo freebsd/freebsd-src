@@ -211,6 +211,7 @@ static	scr_stat	*cur_console;
 static	scr_stat	*new_scp, *old_scp;
 static	term_stat	kernel_console; 
 static	default_attr	*current_default;
+static 	char 		init_done = FALSE;
 static	char		switch_in_progress = FALSE;
 static	char		blink_in_progress = FALSE;
 static	char 		write_in_progress = FALSE;
@@ -225,7 +226,7 @@ static 	const u_int 	n_fkey_tab = sizeof(fkey_tab) / sizeof(*fkey_tab);
 #if ASYNCH
 static  u_char		kbd_reply = 0;
 #endif
-static	int	 	delayed_next_scr;
+static	int	 	delayed_next_scr = FALSE;
 static	int		configuration = 0;	/* current setup */
 static	long		scrn_blank_time = 0;	/* screen saver timeout value */
 static	int		scrn_blanked = FALSE;	/* screen saver active flag */
@@ -485,7 +486,7 @@ static scr_stat
 
 	if (unit > MAXCONS || unit < 0)
 		return(NULL);
-	if (unix == MAXCONS)
+	if (unit == MAXCONS)
 		return console[0];
 	return console[unit];
 }
@@ -690,7 +691,10 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		if (SAVER(data)->num < 0 
 		    || SAVER(data)->num >= NUM_SCRN_SAVERS)
 			return EIO;
-		SCRN_SAVER(FALSE);
+		if (scrn_blanked) {
+			SCRN_SAVER(FALSE);
+			cur_console->status |= UPDATE_SCREEN;
+		}
 		scrn_saver = SAVER(data)->num;
 		scrn_blank_time = SAVER(data)->time;
 		return 0;
@@ -810,9 +814,10 @@ set_mouse_pos:
 		/* make screensaver happy */
 		if (scp == cur_console) {
 			scrn_time_stamp = time.tv_sec;
-			if (scrn_blanked)
-				scp->status |= UPDATE_SCREEN;
+			if (scrn_blanked) {
 				SCRN_SAVER(FALSE);
+				scp->status |= UPDATE_SCREEN;
+			}
 		}
 		return 0;
 	}
@@ -894,8 +899,6 @@ set_mouse_pos:
 				sizeof(u_short), M_DEVBUF, M_NOWAIT);
 		if (scp == cur_console)
 			set_mode(scp);
-		else
-			scp->scr_buf = scp->scr_buf;
 		clear_screen(scp);
 		if (tp->t_winsize.ws_col != scp->xsize 
 		    || tp->t_winsize.ws_row != scp->ysize) {
@@ -1533,7 +1536,7 @@ scrn_timer()
     scr_stat *scp = cur_console;
 
     /* should we just return ? */
-    if ((scp->status & UNKNOWN_MODE) || blink_in_progress) {
+    if ((scp->status&UNKNOWN_MODE) || blink_in_progress || switch_in_progress) {
 	timeout((timeout_func_t)scrn_timer, 0, hz/10);
 	return;
     }
@@ -1548,13 +1551,13 @@ scrn_timer()
 	if ((scp->status & MOUSE_ENABLED) && 
 	    ((scp->status & UPDATE_MOUSE) || (scp->status & UPDATE_SCREEN)))
 	    draw_mouse_image(scp);
+
 	/* update cursor image */
-	if (scp->status & CURSOR_ENABLED) {
-	    if ((configuration & BLINK_CURSOR) && (cursor_blinkrate++ & 0x04))
-		draw_cursor(scp, FALSE);
-	    else	
-		draw_cursor(scp, TRUE);
-	}
+	if (scp->status & CURSOR_ENABLED)
+	    draw_cursor(scp,
+		!(configuration&BLINK_CURSOR) || !(cursor_blinkrate++&0x04));
+
+	/* signal update done */
 	scp->status &= ~UPDATE_SCREEN;
     }
     if (scrn_blank_time && (time.tv_sec>scrn_time_stamp+scrn_blank_time))
@@ -1574,12 +1577,12 @@ static int
 switch_scr(scr_stat *scp, u_int next_scr)
 {
 	if (switch_in_progress && 
-	    (cur_console->proc != pfind(cur_console->pid)))
+		(cur_console->proc != pfind(cur_console->pid)))
 		switch_in_progress = FALSE;
 
 	if (next_scr >= MAXCONS || switch_in_progress
-	    || (cur_console->smode.mode == VT_AUTO 
-		&& cur_console->status & UNKNOWN_MODE)) {
+	    || (cur_console->smode.mode == VT_AUTO && 
+		cur_console->status & UNKNOWN_MODE)) {
 		do_bell(scp, BELL_PITCH, BELL_DURATION);
 		return EINVAL;
 	}
@@ -1603,6 +1606,7 @@ switch_scr(scr_stat *scp, u_int next_scr)
 	wakeup((caddr_t)&new_scp->smode);
 	if (new_scp == old_scp) {
 		switch_in_progress = FALSE;
+		delayed_next_scr = FALSE;
 		return 0;
 	}
 	
@@ -2113,8 +2117,7 @@ static inline void
 draw_cursor(scr_stat *scp, int show)
 {
 	if (show && !(scp->status & CURSOR_SHOWN)) {
-	    u_short cursor_image = 
-		*(Crtat + (cur_console->cursor_pos - cur_console->scr_buf));
+	    u_short cursor_image = *(Crtat + (scp->cursor_pos - scp->scr_buf));
 
 		scp->cursor_saveunder = cursor_image;
 		if (configuration & CHAR_CURSOR)
@@ -2130,8 +2133,7 @@ draw_cursor(scr_stat *scp, int show)
 					cursor_image &= 0xf0ff;
 			}
 		}
-		*(Crtat + (cur_console->cursor_pos - cur_console->scr_buf)) =
-			cursor_image;
+		*(Crtat + (scp->cursor_pos - scp->scr_buf)) = cursor_image;
 		scp->status |= CURSOR_SHOWN;
 	}
 	if (!show && (scp->status & CURSOR_SHOWN)) {
@@ -2246,16 +2248,13 @@ outloop:
 static void 
 scinit(void)
 {
-
-static 	char 	init_done = 0;
-	
 	u_short volatile *cp = Crtat + (CGA_BUF-MONO_BUF)/sizeof(u_short), was;
 	unsigned hw_cursor;
 	int i;
 
 	if (init_done) 	
 		return;
-	init_done = 1;
+	init_done = TRUE;
 	/*
 	 * Crtat initialized to point to MONO buffer, if not present change
 	 * to CGA_BUF offset. ONLY ADD the difference since locore.s adds
@@ -2371,10 +2370,10 @@ init_scp(scr_stat *scp)
 static void 
 scput(u_char c)
 {
-	scr_stat *scp = console[0];
+	scr_stat *scp;
 	term_stat save;
 
-	scinit();
+	scp = console[0];
 	save = scp->term;
 	scp->term = kernel_console;
 	current_default = &kernel_default;
@@ -2384,9 +2383,12 @@ scput(u_char c)
 	kernel_console = scp->term;
 	current_default = &user_default;
 	scp->term = save;
-	if (scp == cur_console)
+	if ((scp->scr_buf != Crtat) && (scp == cur_console)) {
 		bcopyw(scp->scr_buf, Crtat, 
 		       scp->xsize*scp->ysize*sizeof(u_short));
+		scp->status &= ~CURSOR_SHOWN;
+		draw_cursor(scp, TRUE);
+	}
 }
 
 static u_char 
@@ -2966,7 +2968,8 @@ special_80x60:	special_modetable[2]  = 0x08;
 	case M_VGA_C80x30:
 		bcopyw(video_mode_ptr+(64*M_VGA_C80x25),&special_modetable, 64);
 special_80x30:	special_modetable[19] = 0x4f;
-special_480l:	special_modetable[16] = 0x08;
+special_480l:	special_modetable[9] |= 0xc0;
+		special_modetable[16] = 0x08;
 		special_modetable[17] = 0x3e;
 		special_modetable[26] = 0xea;
 		special_modetable[28] = 0xdf; 
@@ -3331,6 +3334,8 @@ blink_screen(scr_stat *scp)
 	else {
 		scp->status |= UPDATE_SCREEN;
 		blink_in_progress = FALSE;
+		if (delayed_next_scr)
+			switch_scr(scp, delayed_next_scr - 1);
 	}
 }
 
