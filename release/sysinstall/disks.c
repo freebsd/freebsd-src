@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.90 1997/09/07 14:05:21 joerg Exp $
+ * $Id: disks.c,v 1.91 1997/09/11 17:12:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -45,7 +45,7 @@
 static struct chunk *chunk_info[16];
 static int current_chunk;
 
-static void	diskPartitionNonInteractive(Device *dev, Disk *d);
+static void	diskPartitionNonInteractive(Device *dev);
 
 static void
 record_chunks(Disk *d)
@@ -171,8 +171,27 @@ getBootMgr(char *dname)
     return NULL;
 }
 
+int
+diskGetSelectCount(Device ***devs)
+{
+    int i, cnt, enabled;
+    char *cp;
+    Device **dp;
+
+    cp = variable_get(VAR_DISK);
+    dp = *devs = deviceFind(cp, DEVICE_TYPE_DISK);
+    cnt = deviceCount(dp);
+    if (!cnt)
+	return -1;
+    for (i = 0, enabled = 0; i < cnt; i++) {
+	if (dp[i]->enabled)
+	    ++enabled;
+    }
+    return enabled;
+}
+
 void
-diskPartition(Device *dev, Disk *d)
+diskPartition(Device *dev)
 {
     char *cp, *p;
     int rv, key = 0;
@@ -180,6 +199,7 @@ diskPartition(Device *dev, Disk *d)
     char *msg = NULL;
     u_char *mbrContents;
     WINDOW *w = savescr();
+    Disk *d = (Disk *)dev->private;
 
     chunking = TRUE;
     keypad(stdscr, TRUE);
@@ -416,7 +436,8 @@ diskPartition(Device *dev, Disk *d)
 			       "installation.  If you are installing FreeBSD for the first time\n"
 			       "then you should simply type Q when you're finished here and your\n"
 			       "changes will be committed in one batch automatically at the end of\n"
-			       "these questions.\n\n"
+			       "these questions.  If you're adding a disk, you should NOT write\n"
+			       "from this screen, you should do it from the label editor.\n\n"
 			       "Are you absolutely sure you want to do this now?")) {
 		variable_set2(DISK_PARTITIONED, "yes");
 		
@@ -494,11 +515,11 @@ partitionHook(dialogMenuItem *selected)
     /* Toggle enabled status? */
     if (!devs[0]->enabled) {
 	devs[0]->enabled = TRUE;
-	diskPartition(devs[0], (Disk *)devs[0]->private);
+	diskPartition(devs[0]);
     }
     else
 	devs[0]->enabled = FALSE;
-    return DITEM_SUCCESS | DITEM_REDRAW;
+    return DITEM_SUCCESS | DITEM_RESTORE;
 }
 
 static int
@@ -518,57 +539,61 @@ diskPartitionEditor(dialogMenuItem *self)
     DMenu *menu;
     Device **devs;
     int i, cnt;
-    char *cp;
 
-    cp = variable_get(VAR_DISK);
-    devs = deviceFind(cp, DEVICE_TYPE_DISK);
-    cnt = deviceCount(devs);
-    if (!cnt) {
+    cnt = diskGetSelectCount(&devs);
+    if (cnt == -1) {
 	msgConfirm("No disks found!  Please verify that your disk controller is being\n"
 		   "properly probed at boot time.  See the Hardware Guide on the\n"
 		   "Documentation menu for clues on diagnosing this type of problem.");
-	i = DITEM_FAILURE;
+	return DITEM_FAILURE;
     }
-    else if (cnt == 1) {
-	devs[0]->enabled = TRUE;
-	if (variable_get(VAR_NONINTERACTIVE))
-	    diskPartitionNonInteractive(devs[0], (Disk *)devs[0]->private);
-	else
-	    diskPartition(devs[0], (Disk *)devs[0]->private);
-	i = DITEM_SUCCESS;
+    else if (cnt) {
+	/* Some are already selected */
+	for (i = 0; i < cnt; i++) {
+	    if (devs[i]->enabled) {
+		if (variable_get(VAR_NONINTERACTIVE))
+		    diskPartitionNonInteractive(devs[i]);
+		else
+		    diskPartition(devs[i]);
+	    }
+	}
     }
     else {
-	menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, partitionHook, partitionCheck);
-	if (!menu) {
-	    msgConfirm("No devices suitable for installation found!\n\n"
-		       "Please verify that your disk controller (and attached drives)\n"
-		       "were detected properly.  This can be done by pressing the\n"
-		       "[Scroll Lock] key and using the Arrow keys to move back to\n"
-		       "the boot messages.  Press [Scroll Lock] again to return.");
-	    i = DITEM_FAILURE;
+	/* No disks are selected, fall-back case now */
+	cnt = deviceCount(devs);
+	if (cnt == 1) {
+	    devs[0]->enabled = TRUE;
+	    if (variable_get(VAR_NONINTERACTIVE))
+		diskPartitionNonInteractive(devs[0]);
+	    else
+		diskPartition(devs[0]);
+	    return DITEM_SUCCESS;
 	}
 	else {
-	    i = dmenuOpenSimple(menu, FALSE) ? DITEM_SUCCESS : DITEM_FAILURE;
-	    free(menu);
+	    menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, partitionHook, partitionCheck);
+	    if (!menu) {
+		msgConfirm("No devices suitable for installation found!\n\n"
+			   "Please verify that your disk controller (and attached drives)\n"
+			   "were detected properly.  This can be done by pressing the\n"
+			   "[Scroll Lock] key and using the Arrow keys to move back to\n"
+			   "the boot messages.  Press [Scroll Lock] again to return.");
+		return DITEM_FAILURE;
+	    }
+	    else {
+		i = dmenuOpenSimple(menu, FALSE) ? DITEM_SUCCESS : DITEM_FAILURE;
+		free(menu);
+	    }
+	    return i | DITEM_RESTORE;
 	}
-	i = i | DITEM_RESTORE;
     }
-    return i;
+    return DITEM_FAILURE;
 }
 
 int
 diskPartitionWrite(dialogMenuItem *self)
 {
     Device **devs;
-    char *cp;
     int i;
-
-    if ((cp = variable_get(DISK_PARTITIONED)) && strcmp(cp, "yes"))
-	return DITEM_SUCCESS;
-    else if (!cp) {
-	msgConfirm("You must partition the disk(s) before this option can be used.");
-	return DITEM_FAILURE;
-    }
 
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
@@ -615,11 +640,12 @@ diskPartitionWrite(dialogMenuItem *self)
 
 /* Partition a disk based wholly on which variables are set */
 static void
-diskPartitionNonInteractive(Device *dev, Disk *d)
+diskPartitionNonInteractive(Device *dev)
 {
     char *cp;
     int i, sz, all_disk = 0;
     u_char *mbrContents;
+    Disk *d = (Disk *)dev->private;
 
     record_chunks(d);
     cp = variable_get(VAR_GEOMETRY);
