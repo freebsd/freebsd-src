@@ -137,7 +137,7 @@ main(argc, argv)
 
 	openlog("savecore", LOG_PERROR, LOG_DAEMON);
 
-	while ((ch = getopt(argc, argv, "cdfNvz")) != EOF)
+	while ((ch = getopt(argc, argv, "cdfN:vz")) != EOF)
 		switch(ch) {
 		case 'c':
 			clear = 1;
