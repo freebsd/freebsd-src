@@ -63,6 +63,9 @@ Ethernet and Netgear GA620T 1000baseT Gigabit Ethernet cards. [4.1.1]
 The ng_bridge(4) node type has been added to the netgraph subsystem.
 Miscellaneous bug fixes and enhancements have also been made. [4.1.1]
 
+Support for Fujitsu MB86960A/MB86965A based Ethernet PC-Cards is back.
+[4.1.1]
+
 The pcn(4) driver, which supports the AMD PCnet/FAST, PCnet/FAST+,
 PCnet/FAST III, PCnet/PRO, PCnet/Home, and HomePNA adapters, has been
 added.  Although these cards are already supported by the lnc(4)
