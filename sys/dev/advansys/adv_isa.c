@@ -106,7 +106,8 @@ adv_isa_probe(device_t dev)
 {
 	int	port_index;
 	int	max_port_index;
-	u_long	iobase, irq;
+	u_long	iobase, iocount, irq;
+	int	user_iobase = 0;
 	int	rid = 0;
 	void	*ih;
 	struct resource	*iores, *irqres;
@@ -117,7 +118,8 @@ adv_isa_probe(device_t dev)
 	port_index = 0;
 	max_port_index = MAX_ISA_IOPORT_INDEX;
 
-	if (bus_get_resource(dev, SYS_RES_IOPORT, 0, &iobase, NULL) == 0) {
+	if (bus_get_resource(dev, SYS_RES_IOPORT, 0, &iobase, &iocount) == 0) {
+		user_iobase = 1;
 		for (;port_index <= max_port_index; port_index++)
 			if (iobase <= adv_isa_ioports[port_index])
 				break;
@@ -172,7 +174,7 @@ adv_isa_probe(device_t dev)
 				rman_get_bushandle(iores));
 		if (adv == NULL) {
 			bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
-			return ENXIO;
+			break;
 		}
 
 		/*
@@ -234,7 +236,7 @@ adv_isa_probe(device_t dev)
 			       adv_name(adv), error); 
 			adv_free(adv); 
 			bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
-			return ENXIO; 
+			break;
 		}
 
 		adv->init_level += 2;
@@ -256,7 +258,7 @@ adv_isa_probe(device_t dev)
 				adv_free(adv);
 				bus_release_resource(dev, SYS_RES_IOPORT, 0,
 						     iores);
-				return ENXIO;
+				break;
 			}
 			if (bus_dmamem_alloc(overrun_dmat,
 					     (void **)&overrun_buf,
@@ -266,7 +268,7 @@ adv_isa_probe(device_t dev)
 				adv_free(adv);
 				bus_release_resource(dev, SYS_RES_IOPORT, 0,
 						     iores);
-				return ENXIO;
+				break;
 			}
 			/* And permanently map it in */  
 			bus_dmamap_load(overrun_dmat, overrun_dmamap,
@@ -284,7 +286,7 @@ adv_isa_probe(device_t dev)
 			bus_dma_tag_destroy(overrun_dmat);
 			adv_free(adv);
 			bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
-			return ENXIO;
+			break;
 		}
 
 		switch (adv->type) {
@@ -319,21 +321,26 @@ adv_isa_probe(device_t dev)
 		irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
 					    RF_ACTIVE);
 		if (irqres == NULL ||
-		    bus_setup_intr(dev, irqres, INTR_TYPE_CAM|INTR_ENTROPY, adv_intr, adv,
-				   &ih)) {
+		    bus_setup_intr(dev, irqres, INTR_TYPE_CAM|INTR_ENTROPY,
+				   adv_intr, adv, &ih)) {
 			bus_dmamap_unload(overrun_dmat, overrun_dmamap);
 			bus_dmamem_free(overrun_dmat, overrun_buf,
 			    overrun_dmamap);
 			bus_dma_tag_destroy(overrun_dmat);
 			adv_free(adv);
 			bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
-			return ENXIO;
+			break;
 		}
 
 		/* Mark as probed */
 		adv_isa_ioports[port_index] = 0;
 		return 0;
 	}
+
+	if (user_iobase)
+		bus_set_resource(dev, SYS_RES_IOPORT, 0, iobase, iocount);
+	else
+		bus_delete_resource(dev, SYS_RES_IOPORT, 0);
 
 	return ENXIO;
 }
