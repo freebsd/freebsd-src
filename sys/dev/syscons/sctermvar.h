@@ -322,17 +322,7 @@ sc_term_gen_print(scr_stat *scp, u_char **buf, int *len, int attr)
 		cnt = imin(l, scp->xsize - scp->xpos);
 		i = cnt;
 		do {
-			/*
-			 * gcc-2.6.3 generates poor (un)sign extension code.
-			 * Casting the pointers in the following to volatile 
-			 * should have no effect, but in fact speeds up this 
-			 * inner loop from 26 to 18 cycles (+ cache misses) 
-			 * on i486's.
-			 * XXX: out of date?
-			 */
-#define	UCVP(ucp)	((u_char volatile *)(ucp))
-			p = sc_vtb_putchar(&scp->vtb, p,
-					   UCVP(map)[*UCVP(ptr)], attr);
+			p = sc_vtb_putchar(&scp->vtb, p, map[*ptr], attr);
 			++ptr;
 			--i;
 		} while ((i > 0) && PRINTABLE(*ptr));
