@@ -57,9 +57,4 @@
 #define	BYTE_ORDER	BIG_ENDIAN
 #endif /* !_POSIX_SOURCE */
 
-#define	__htonl(x)	(x)
-#define	__htons(x)	(x)
-#define	__ntohl(x)	(x)
-#define	__ntohs(x)	(x)
-
 #endif /* !_MACHINE_ENDIAN_H_ */

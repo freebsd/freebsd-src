@@ -36,6 +36,28 @@
 
 #include <machine/endian.h>
 
+#ifdef _KERNEL
+
+/*
+ * XXX: remove these defines and change the function calls in the code. Use
+ * it unconditionally if (when) the extended byte order functions become
+ * available in user space.
+ */
+#define	htoles(x)	htole16((x))
+#define	letohs(x)	le16toh((x))
+#define	htolel(x)	htole32((x))
+#define	letohl(x)	le32toh((x))
+#define	htoleq(x)	htole64((int64_t)(x))
+#define	letohq(x)	le64toh((int64_t)(x))
+
+#define	htobes(x)	htobe16((x))
+#define	betohs(x)	be16toh((x))
+#define	htobel(x)	htobe32((x))
+#define	betohl(x)	be32toh((x))
+#define	htobeq(x)	htobe64((int64_t)(x))
+#define	betohq(x)	be64toh((int64_t)(x))
+
+#else
 /*
  * This macros probably belongs to the endian.h
  */
@@ -78,6 +100,7 @@ betohq(int64_t x)
 #define	letohl(x)	((u_int32_t)(x))
 */
 #endif	/* (BYTE_ORDER == LITTLE_ENDIAN) */
+#endif	/* _KERNEL */
 
 
 #ifdef _KERNEL

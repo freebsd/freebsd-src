@@ -59,12 +59,12 @@
 #define	BYTE_ORDER	LITTLE_ENDIAN
 #endif /* !_POSIX_SOURCE */
 
+#ifdef _KERNEL
 #ifdef __GNUC__
 
-__BEGIN_DECLS
-
+#define	_BSWAP64_DEFINED
 static __inline __uint64_t
-__uint8_swap_uint64(__uint64_t __x)
+__bswap64(__uint64_t __x)
 {
 	__uint64_t __r;
 	__asm __volatile("mux1 %0=%1,@rev"
@@ -72,36 +72,30 @@ __uint8_swap_uint64(__uint64_t __x)
 	return __r;
 }
 
+#define	_BSWAP32_DEFINED
 static __inline __uint32_t
-__htonl(__uint32_t __x)
+__bswap32(__uint32_t __x)
 {
 
-	return (__uint8_swap_uint64(__x) >> 32);
+	return (__bswap64(__x) >> 32);
 }
 
+#define	_BSWAP16_DEFINED
 static __inline __uint16_t
-__htons(__uint16_t __x)
+__bswap16(__uint16_t __x)
 {
 
-	return (__uint8_swap_uint64(__x) >> 48);
+	return (__bswap64(__x) >> 48);
 }
 
-static __inline __uint32_t
-__ntohl(__uint32_t __x)
-{
-
-	return (__uint8_swap_uint64(__x) >> 32);
-}
-
-static __inline __uint16_t
-__ntohs(__uint16_t __x)
-{
-
-	return (__uint8_swap_uint64(__x) >> 48);
-}
-
-__END_DECLS
-
+#else /* !__GNUC__ */
+/* XXX: use the libkern versions for now; these might go away soon. */
+#define	_BSWAP16_DEFINED
+__uint16_t __bswap16(__uint16_t);
+#define	_BSWAP32_DEFINED
+__uint32_t __bswap32(__uint32_t);
 #endif /* __GNUC__ */
+
+#endif /* _KERNEL */
 
 #endif /* !_MACHINE_ENDIAN_H_ */

@@ -215,9 +215,7 @@ isa/psm.c			optional	psm
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
 kern/subr_diskmbr.c		standard
-libkern/alpha/htonl.S		standard
-libkern/alpha/htons.S		standard
-libkern/alpha/ntohl.S		standard
-libkern/alpha/ntohs.S		standard
+libkern/alpha/bswap16.S		standard
+libkern/alpha/bswap32.S		standard
 libkern/bcmp.c			standard
 libkern/ffs.c			standard
