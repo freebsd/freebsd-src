@@ -1,9 +1,9 @@
                                  RELEASE NOTES
-                           FreeBSD Release 3.1-RELEASE
+                           FreeBSD Release 3.2-RELEASE
 
-Welcome to 3.1-RELEASE, a full follow-on to the 3.0-RELEASE
+Welcome to 3.2-RELEASE, a full follow-on to the 3.1-RELEASE
 released November 1998 and which marked the beginning of the
-3.0-STABLE branch.  In the 4 months since 3.0 was released, many
+3.0-STABLE branch.  In the 4 months since 3.1 was released, many
 hundreds of bug fixes and general enhancements were made to the
 system.  Please see relevant details below.
 
@@ -11,14 +11,14 @@ Any installation failures or crashes should be reported by using the
 send-pr command (those preferring a WEB based interface can also see
 http://www.freebsd.org/send-pr.html).
 
-For information about FreeBSD and the layout of the 3.1-RELEASE
+For information about FreeBSD and the layout of the 3.2-RELEASE
 directory (especially if you're installing from floppies!), see
 ABOUT.TXT.  For installation instructions, see the INSTALL.TXT and
 HARDWARE.TXT files.
 
 Table of contents:
 ------------------
-1. What's new since 3.0-RELEASE
+1. What's new since 3.1-RELEASE
    1.1 KERNEL CHANGES
    1.2 SECURITY FIXES
    1.3 USERLAND CHANGES
@@ -39,7 +39,7 @@ Table of contents:
 6. Acknowledgements
 
 
-1. What's new since 3.0-RELEASE
+1. What's new since 3.1-RELEASE
 ---------------------------------
 
 1.1. KERNEL CHANGES
@@ -83,6 +83,7 @@ instead (see the ppc(4) and ppbus(4) man pages for details). At some
 point before the next release, the old lpt driver will be removed and
 the nlpt driver will be renamed to lpt.
 
+Support has been added for direct access to NTFS filesystems.
 
 1.2. SECURITY FIXES
 -------------------
@@ -103,6 +104,9 @@ constructs that make maintenance easier.
 Support for PAM (Pluggable Authentication Modules) including
 modules for radius, TACACS, S/Key, Kerberos, Unix (passwd) and
 other authentication methods.
+
+The Internet Software Consortium's DHCP client has been added to the 
+base system.
  
 Sendmail upgraded to version 8.9.2.
 
@@ -432,7 +436,7 @@ LAST resort!
 3.2. CDROM
 ----------
 
-FreeBSD 3.1-RELEASE CDs may be ordered on CDROM from:
+FreeBSD 3.2-RELEASE CDs may be ordered on CDROM from:
 
         Walnut Creek CDROM
         4041 Pike Lane, Suite F
@@ -475,12 +479,12 @@ FreeBSD distributions:
 
 In the case of using sources, there are simply two targets you need to
 be aware of: The standard ``upgrade'' target, which will upgrade a 2.x
-or 3.0 system to 3.1 and the ``world'' target, which will take an
+or 3.0 system to 3.2 and the ``world'' target, which will take an
 already upgraded system and keep it in sync with whatever changes have
 happened since the initial upgrade.
 
 In the case of using the binary upgrade option, the system will go
-straight to 3.1/ELF but also populate the /<basepath>/lib/aout
+straight to 3.2/ELF but also populate the /<basepath>/lib/aout
 directories for backwards compatibility with older binaries.
 
 In either case, going to ELF will mean that you'll have somewhat
