@@ -85,7 +85,3 @@ extern void	yp_flush_all __P(( void ));
 extern void	yp_init_dbs __P(( void ));
 extern int	yp_testflag __P(( char *, char *, int ));
 extern void	load_securenets __P(( void ));
-
-extern void	yp_svc_run __P(( void ));
-extern void	yp_init_async __P(( void ));
-extern bool_t	yp_add_async __P(( XDR *, SVCXPRT *, DB * ));

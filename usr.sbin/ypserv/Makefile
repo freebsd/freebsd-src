@@ -2,7 +2,7 @@
 
 PROG=	ypserv
 SRCS=	yp_svc.c yp_server.c yp_dblookup.c yp_dnslookup.c \
-	ypxfr_clnt.c yp_main.c yp_error.c yp_access.c yp_async.c
+	ypxfr_clnt.c yp_main.c yp_error.c yp_access.c
 
 MAN8=	ypserv.8
 
