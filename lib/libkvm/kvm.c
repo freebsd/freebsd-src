@@ -71,6 +71,9 @@ static const char rcsid[] =
 
 #include "kvm_private.h"
 
+/* from src/lib/libc/gen/nlist.c */
+int __fdnlist		__P((int, struct nlist *));
+
 char *
 kvm_geterr(kd)
 	kvm_t *kd;
@@ -372,12 +375,12 @@ kvm_read(kd, kva, buf, len)
 		errno = 0;
 		if (lseek(kd->vmfd, (off_t)kva, 0) == -1 && errno != 0) {
 			_kvm_err(kd, 0, "invalid address (%x)", kva);
-			return (0);
+			return (-1);
 		}
 		cc = read(kd->vmfd, buf, len);
 		if (cc < 0) {
 			_kvm_syserr(kd, 0, "kvm_read");
-			return (0);
+			return (-1);
 		} else if (cc < len)
 			_kvm_err(kd, kd->program, "short read");
 		return (cc);
@@ -388,7 +391,7 @@ kvm_read(kd, kva, buf, len)
 
 			cc = _kvm_kvatop(kd, kva, &pa);
 			if (cc == 0)
-				return (0);
+				return (-1);
 			if (cc > len)
 				cc = len;
 			errno = 0;
@@ -434,19 +437,19 @@ kvm_write(kd, kva, buf, len)
 		errno = 0;
 		if (lseek(kd->vmfd, (off_t)kva, 0) == -1 && errno != 0) {
 			_kvm_err(kd, 0, "invalid address (%x)", kva);
-			return (0);
+			return (-1);
 		}
 		cc = write(kd->vmfd, buf, len);
 		if (cc < 0) {
 			_kvm_syserr(kd, 0, "kvm_write");
-			return (0);
+			return (-1);
 		} else if (cc < len)
 			_kvm_err(kd, kd->program, "short write");
 		return (cc);
 	} else {
 		_kvm_err(kd, kd->program,
 		    "kvm_write not implemented for dead kernels");
-		return (0);
+		return (-1);
 	}
 	/* NOTREACHED */
 }
