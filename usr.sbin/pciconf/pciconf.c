@@ -138,13 +138,13 @@ main(int argc, char **argv)
 
 	if (listmode) {
 		list_devs(verbose);
-	} else if(attachedmode) {
+	} else if (attachedmode) {
 		chkattached(argv[optind], 
 		       byte ? 1 : isshort ? 2 : 4);
-	} else if(readmode) {
+	} else if (readmode) {
 		readit(argv[optind], argv[optind + 1], 
 		       byte ? 1 : isshort ? 2 : 4);
-	} else if(writemode) {
+	} else if (writemode) {
 		writeit(argv[optind], argv[optind + 1], argv[optind + 2],
 		       byte ? 1 : isshort ? 2 : 4);
 	} else {
