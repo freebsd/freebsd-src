@@ -243,6 +243,24 @@ By default, the modification time is set to the time stored in the archive.
 .It Fl n
 (c, r, u modes only)
 Do not recursively archive the contents of directories.
+.It Fl -newer Ar date ( Fl W Cm newer Ns = Ns Ar date )
+(c, r, u modes only)
+Only include files and directories newer than the specified date.
+This compares ctime entries.
+.It Fl -newer-mtime Ar date ( Fl W Cm newer-mtime Ns = Ns Ar date )
+(c, r, u modes only)
+Like
+.Fl -newer ,
+except it compares mtime entries instead of ctime entries.
+.It Fl -newer-than Pa file ( Fl W Cm newer-than Ns = Ns Pa file )
+(c, r, u modes only)
+Only include files and directories newer than the specified file.
+This compares ctime entries.
+.It Fl -newer-mtime-than Pa file ( Fl W Cm newer-mtime-than Ns = Ns Pa file )
+(c, r, u modes only)
+Like
+.Fl -newer-than ,
+except it compares mtime entries instead of ctime entries.
 .It Fl -nodump ( Fl W Cm nodump )
 (c and r modes only)
 Honor the nodump file flag by skipping this file.
@@ -460,6 +478,17 @@ Finally, it will switch to the
 directory and add
 .Pa foo2
 to the output archive.
+.Pp
+The
+.Fl -newer
+and
+.Fl -newer-mtime
+switches accept a variety of common date and time specifications, including
+.Dq 12 Mar 2005 7:14:29pm ,
+.Dq 2005-03-12 19:14 ,
+.Dq 5 minutes ago ,
+and
+.Dq 19:14 PST May 1 .
 .Sh COMPATIBILITY
 The bundled-arguments format is supported for compatibility
 with historic implementations.

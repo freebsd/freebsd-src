@@ -6,8 +6,10 @@
 #
 
 PROG=	bsdtar
-VERSION=	1.01.021
-SRCS=	bsdtar.c matching.c read.c util.c write.c
+VERSION=	1.01.022
+# bsd.prog.mk rewrites SRCS, but I need the unedited list below
+SRCS_ORIGINAL=	bsdtar.c getdate.y matching.c read.c util.c write.c
+SRCS= ${SRCS_ORIGINAL}
 WARNS?=	6
 DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ}
 LDADD=	-larchive -lbz2 -lz
@@ -22,7 +24,7 @@ DIST_BUILD_DIR=	${.OBJDIR}/${PROG}-${VERSION}
 CLEANDIRS+=	${DIST_BUILD_DIR}
 DISTFILE=	${PROG}-${VERSION}.tar.gz
 # Files that just get copied to the distfile build directory
-DIST_FILES=	${SRCS}
+DIST_FILES=	${SRCS_ORIGINAL}
 DIST_FILES+=	${MAN}
 DIST_FILES+=	bsdtar.h bsdtar_platform.h
 DIST_FILES+=	Makefile.am
