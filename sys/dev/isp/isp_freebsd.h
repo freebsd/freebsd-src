@@ -28,7 +28,7 @@
 #define	_ISP_FREEBSD_H
 
 #define	ISP_PLATFORM_VERSION_MAJOR	4
-#define	ISP_PLATFORM_VERSION_MINOR	13
+#define	ISP_PLATFORM_VERSION_MINOR	15
 
 #include <sys/param.h>
 #include <sys/param.h>
