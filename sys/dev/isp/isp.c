@@ -212,6 +212,9 @@ isp_reset(struct ispsoftc *isp)
 		case ISP_HA_FC_2200:
 			revname = "2200";
 			break;
+		case ISP_HA_FC_2300:
+			revname = "2300";
+			break;
 		default:
 			break;
 		}
@@ -505,7 +508,7 @@ again:
 #endif
 	} else {
 		ISP_WRITE(isp, RISC_MTR2100, 0x1212);
-		if (IS_2200(isp)) {
+		if (IS_2200(isp) || IS_2300(isp)) {
 			ISP_WRITE(isp, HCCR, HCCR_2X00_DISABLE_PARITY_PAUSE);
 		}
 	}
@@ -1135,7 +1138,7 @@ isp_fibre_init(struct ispsoftc *isp)
 	 * Right now we just set extended options to prefer point-to-point
 	 * over loop based upon some soft config options.
 	 */
-	if (IS_2200(isp)) {
+	if (IS_2200(isp) || IS_2300(isp)) {
 		icbp->icb_fwoptions |= ICBOPT_EXTENDED;
 		/*
 		 * Prefer or force Point-To-Point instead Loop?
@@ -1412,7 +1415,7 @@ isp_fclink_test(struct ispsoftc *isp, int usdelay)
 		return (-1);
 	}
 	fcp->isp_loopid = mbs.param[1];
-	if (IS_2200(isp)) {
+	if (IS_2200(isp) || IS_2300(isp)) {
 		int topo = (int) mbs.param[6];
 		if (topo < TOPO_NL_PORT || topo > TOPO_PTP_STUB)
 			topo = TOPO_PTP_STUB;
@@ -1728,7 +1731,7 @@ isp_pdb_sync(struct ispsoftc *isp)
 			mbs.param[1] = loopid << 8;
 			mbs.param[2] = portid >> 16;
 			mbs.param[3] = portid & 0xffff;
-			if (IS_2200(isp)) {
+			if (IS_2200(isp) || IS_2300(isp)) {
 				/* only issue a PLOGI if not logged in */
 				mbs.param[1] |= 0x1;
 			}
@@ -2259,7 +2262,6 @@ isp_start(XS_T *xs)
 
 	XS_INITERR(xs);
 	isp = XS_ISP(xs);
-
 
 	/*
 	 * Check to make sure we're supporting initiator role.
@@ -2949,6 +2951,7 @@ isp_intr(void *arg)
 		isp_prt(isp, ISP_LOGDEBUG2,
 		    "bogus intr- isr %x (%x) iptr %x optr %x",
 		    isr, junk, iptr, optr);
+		isp->isp_intbogus++;
 	}
 
 	while (optr != iptr) {
@@ -3336,7 +3339,7 @@ isp_parse_async(struct ispsoftc *isp, int mbox)
 		FCPARAM(isp)->isp_loopstate = LOOP_LIP_RCVD;
 		isp->isp_sendmarker = 1;
 		isp_mark_getpdb_all(isp);
-		isp_prt(isp, ISP_LOGINFO, "LIP occurred");
+		isp_async(isp, ISPASYNC_LIP, NULL);
 #ifdef	ISP_TARGET_MODE
 		isp_target_async(isp, bus, mbox);
 #endif
@@ -3369,7 +3372,7 @@ isp_parse_async(struct ispsoftc *isp, int mbox)
 		FCPARAM(isp)->isp_fwstate = FW_CONFIG_WAIT;
 		FCPARAM(isp)->isp_loopstate = LOOP_NIL;
 		isp_mark_getpdb_all(isp);
-		isp_prt(isp, ISP_LOGINFO, "Loop RESET");
+		isp_async(isp, ISPASYNC_LOOP_RESET, NULL);
 #ifdef	ISP_TARGET_MODE
 		isp_target_async(isp, bus, mbox);
 #endif
