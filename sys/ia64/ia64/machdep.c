@@ -599,13 +599,6 @@ ia64_init()
 	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
 	mtx_lock(&Giant);
 
-#if 0
-	/*
-	 * Enable interrupts on first release (in switch_trampoline).
-	 */
-	sched_lock.mtx_saveipl = ALPHA_PSL_IPL_0;
-#endif
-
 	/*
 	 * Look at arguments passed to us and compute boothowto.
 	 */
