@@ -52,7 +52,6 @@ struct kt {
 	{ "and",	AND },
 	{ "args",	ARGS },
 	{ "at",		AT },
-	{ "auto",	AUTO },
 #if MACHINE_I386
 	{ "bio",	BIO },
 	{ "bus",	BUS },
@@ -90,7 +89,6 @@ struct kt {
 	{ "net",	NET },
 #endif
 	{ "nexus",	NEXUS },
-	{ "none",	NONE },
 	{ "on",		ON },
 	{ "options",	OPTIONS },
 #if MACHINE_I386
