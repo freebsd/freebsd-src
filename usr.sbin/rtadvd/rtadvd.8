@@ -1,4 +1,4 @@
-.\"	$KAME: rtadvd.8,v 1.8 2000/05/22 22:12:11 itojun Exp $
+.\"	$KAME: rtadvd.8,v 1.9 2000/05/27 13:37:01 jinmei Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
@@ -38,22 +38,22 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl c Ar configfile
-.Op Fl dDfmRs
+.Op Fl dDfRs
 .Ar interface ...
 .Sh DESCRIPTION
 .Nm
-advertises router advertisement packet to the specified
+sends router advertisement packets to the specified
 .Ar interfaces .
 .Pp
 The program will daemonize itself on invocation.
-It will then periodically send router advertisement packets, as well
+It will then send router advertisement packets periodically, as well
 as in response to router solicitation messages sent by end hosts.
 .Pp
 Router advertisements can be configured on a per-interface basis, as
 described in
 .Xr rtadvd.conf 5 .
 .Pp
-In the event of no configuration file entry for an interface,
+If there is no configuration file entry for an interface,
 or if the configuration file does not exist altogether,
 .Nm
 sets all the parameters to their default values.
@@ -71,8 +71,8 @@ specified by the configuration file,
 adds/deletes the corresponding prefix to/from its advertising list,
 respectively.
 The
-.Ic Fl s
-may be used to disable this behavior.
+.Fl s
+option may be used to disable this behavior.
 Moreover, if the status of an advertising interface changes,
 .Nm
 will start or stop sending router advertisements according
@@ -94,10 +94,10 @@ Print debugging information.
 Even more debugging information is printed.
 .It Fl f
 Foreground mode (useful when debugging).
-.It Fl m
-Enables mobile IPv6 support.
-This changes the content of router advertisement option, as well as
-permitted configuration directives.
+.\".It Fl m
+.\"Enables mobile IPv6 support.
+.\"This changes the content of router advertisement option, as well as
+.\"permitted configuration directives.
 .It Fl R
 Accept router renumbering requests.
 If you enable it, certain IPsec setup is suggested for security reasons.
@@ -110,7 +110,7 @@ Upon receipt of signal
 .Dv SIGUSR1 ,
 .Nm
 will dump the current internal state into
-.Pa /var/run/rtadvd.dump.
+.Pa /var/run/rtadvd.dump .
 .Pp
 Use
 .Dv SIGTERM
@@ -121,18 +121,20 @@ In this case,
 .Nm
 will transmit router advertisement with router lifetime 0
 to all the interfaces
-.Pq according to RFC2461 6.2.5 .
+.Pq in accordance with RFC2461 6.2.5 .
 .Sh RETURN VALUES
-The program exits with 0 on success, and non-zero on failures.
+The
+.Nm
+program exits 0 on success, and >0 on failures.
 .Sh FILES
-.Bl -tag -width /etc/rtadvd.conf -compact
+.Bl -tag -width Pa -compact
 .It Pa /etc/rtadvd.conf
 The default configuration file.
 .It Pa /var/run/rtadvd.pid
-contains pid of the currently running
+contains the pid of the currently running
 .Nm rtadvd .
 .It Pa /var/run/rtadvd.dump
-on which
+in which
 .Nm
 dumps its internal state.
 .El
