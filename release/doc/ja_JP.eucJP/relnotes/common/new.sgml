@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.260
+    Original revision: 1.261
 -->
 
 <articleinfo>
@@ -90,42 +90,23 @@
   <sect2 id="kernel">
     <title>カーネルの変更点</title>
 
-    <para>&os; カーネルに &man.kqueue.2;
-      イベント通知機能が追加されました.
-      これは &man.poll.2;/&man.select.2;
-      を置き換えることができる新たなインターフェイスで,
-      高パフォーマンスなだけでなく数多くの異なる種類のイベントを報告する機能を持っています.
-      また, シグナルやプロセスの監視だけでなく,
-      ソケット, パイプ, FIFO, ファイルの変更の監視にも対応しています. &merged;</para>
-      
-    <para>出荷時の状態で USB デバイスをサポートするため,
-      <filename>GENERIC</filename> カーネルと
-      インストールプログラムに USB デバイスのサポートが加えられました.
-      現時点で SRM は USB デバイスに対応していないため,
-      シリアルコンソールを使っていない場合には
-      まだ AT キーボードを使う必要があります. &merged;</para>
-
-    <para>POSIX.1b 共有メモリオブジェクトに対応しました.
-      実装は通常ファイルを使っていますが, ファイルが
-      &man.mmap.2; されている場合は MAP_NOSYNC フラグが自動的に有効化されます.
-      &merged;</para>
+    <para arch="i386">新しく &man.amdpm.4; ドライバが追加されました.
+      これは AMD 756 チップセットのシステム監視機能へのアクセスを
+      提供します. &merged;</para>
 
     <para>AGP ハードウェア用ドライバ &man.agp.4; が追加されました.
       &merged;</para>
 
-    <para><literal>PQ_*CACHE</literal> オプションが
-      <literal>PQ_CACHESIZE</literal>
-      という一つのオプションに置き換えられました.
-      これにはキャッシュサイズをキロバイト単位で指定します.
-      後方互換性を保つため, 従来のオプションは現在もサポートされています.
-      &merged;</para>
+    <para>&man.ddb.4; に新たなコマンド
+      <command>show pcpu</command> が追加されました.
+      これは各 CPU の情報を表示します.</para>
 
-    <para arch="i386">SMP カーネルを設定するためのカーネルオプションである
-      <literal>NCPU</literal>, <literal>NAPIC</literal>,
-      <literal>NBUS</literal>, <literal>NINTR</literal>
-      は削除されました.
-      現在 <literal>NCPU</literal> は最大の 16 に設定されており,
-      上記のその他のオプションは動的に変化するものとなっています.
+    <para>&man.ddb.4; に新たなコマンド <command>hwatch</command>
+      <command>dhwatch</command> が導入されました.
+      アーキテクチャが対応している必要がありますが,
+      これらは (ソフトウェアウォッチポイントを設定する)
+      <command>watch</command> および <command>dwatch</command>
+      のようにハードウェアウォッチポイントを設定するためのものです.
       &merged;</para>
 
     <para>&man.devfs.5; の大部分が書き直されました.
@@ -136,53 +117,144 @@
       <literal>NODEVFS</literal>
       カーネルオプションを使うことで無効化できます.</para>
 
-    <para>クラッシュダンプに write combining 機能 (訳注:
-      データをひとまとめにしてバス使用効率を向上させる機能)
-      が実装されました.
-      この機能は SCSI, IDE ディスクの両方で書き込みキャッシュが無効化されていて,
-      メモリのダンプが終了するまで 1 時間近くかかるような場合に有効です.
-      &merged;</para>
+    <para>digi ドライバの採用にともない, dgm ドライバは削除されました.</para>
 
-    <para>極めて大きいスワップ領域 (67 GB 以上)
-      でも, システムがパニックしなくなりました.</para>
+    <para>PCI Xr ベースのカード, ISA Xem Digiboard カードに対応した
+      digi ドライバが新たに追加されました.
+      新たに追加された &man.digictl.8; プログラムは (主に)
+      PC/Xem のような外部ポートモジュールを持つカードを再初期化するためのものです.</para>
+
+    <para>&man.eaccess.2; システムコールが追加されました.
+      &man.access.2; と似ていますが, 後者は実権限を使うのに対して,
+      前者は実効権限を使います.</para>
 
     <para arch="i386">Intel 82801AA (ICH) SMBus コントローラおよびその互換品に対応した
       &man.ichsmb.4; ドライバが追加されました. &merged;</para>
 
-    <para arch="i386">標準的な USB スキャナに対応した
-      &man.uscanner.4; ドライバが追加されました.
-      これは SANE を利用していますので, 対応スキャナは
-      <ulink url="http://www.mostang.com/sane/">SANE
-        ホームページ</ulink>をご覧ください.
-      HP ScanJet 4100C, 5200C, 6300C の動作が確認されています.</para>
+    <para>各 &man.jail.2; 環境は各々の securelevel で動作することがで
+      きるようになりました.</para>
 
-    <para arch="i386">USB モデムに対応した umodem ドライバが追加されました.
-      このドライバは
-      3Com 5605 と Metricom Ricochet GS wireless USB モデムに対応しています.</para>
+    <para>&man.jail.2; 用の設定可能な sysctl 変数
+      が <varname>jail.*</varname> から
+      <varname>security.*</varname> へと移動しました.
+      他のセキュリティ関連の sysctl 変数は
+      <varname>kern.security.*</varname> から
+      <varname>security.*</varname> へと移動しました.</para>
 
-    <para arch="alpha">Linux 互換機能が thread に対応しました.</para>
+    <para><varname>kern.maxvnodes</varname> は使用する vnode の
+      数を正しく制限するようになりました.
+      これまでは, キャッシュされていないページの vnode のみが
+      free でき, これにより多くのメモリを積んだマシンが
+      多くの小さいファイルにアクセスする際に, 制限なしに vnode の
+      数を大きくすることが可能でした.
+      <literal>vnlru</literal> カーネルスレッドが vnode の解放
+      と再利用を行なっています. &merged;</para>
 
-    <para>PCI サブシステムに対して整頓と改良が数多く行なわれました.</para>
+    <para>カーネルメッセージバッファが
+      (アーキテクチャに依存しない)
+      sysctl 変数 <varname>kern.msgbuf</varname>
+      経由でアクセスできるようになりました.
+      それにともない, &man.dmesg.8; が
+      <groupname>kmem</groupname> で SGID
+      されている必要はなくなりました.</para>
 
-    <para arch="i386">&man.spic.4; ドライバが追加されました.
-      これは Sony
-      製ラップトップに搭載されているジョグダイアルデバイスへアクセスを提供するものです.</para>
+    <para>&os; カーネルに &man.kqueue.2;
+      イベント通知機能が追加されました.
+      これは &man.poll.2;/&man.select.2;
+      を置き換えることができる新たなインターフェイスで,
+      高パフォーマンスなだけでなく数多くの異なる種類のイベントを報告する機能を持っています.
+      また, シグナルやプロセスの監視だけでなく,
+      ソケット, パイプ, FIFO, ファイルの変更の監視にも対応しています. &merged;</para>
+      
+    <para arch="i386">新しいカーネルオプション <varname>KVA_SPACE</varname> が追加されました.
+      これはカーネル仮想アドレス空間の大きさを再設定するために使われます.
+      &merged;</para>
+
+    <para>&man.labpc.4; ドライバは古くなったため削除されました.</para>
+
+    <para>ローダとカーネルリンカは,
+      KLD のある各ディレクトリに存在する
+      <filename>linker.hints</filename> というファイルから
+      モジュール名およびバージョンと KLD ファイル名の対応を調べるようになりました.
+      新しく追加されたユーティリティ &man.kldxref.8; は,
+      これらのファイルを生成するために使用します.</para>
+
+    <para>Linux エミュレーションは
+      <port>emulators/linux_base-7</port> (RedHat 7.X emulation)
+      で必要とされるカーネル機能に対応しました. &merged;</para>
+
+    <para>Low-Watermark Mandatory Access Control 用
+      セキュリティ機構 &man.lomac.4; がカーネルモジュールとして
+      追加されました.
+      これは管理者からの追加の設定を必要としない,
+      従来の UID ベースのセキュリティ機構に加えて使うことのできる
+      セキュリティ機構です.
+      この機能のスポンサーは DARPA と NAI Labs です.</para>
+
+    <para>カーネル設定パラメータ <varname>maxusers</varname>
+      が起動時に変更可能になりました.  <varname>maxusers</varname>
+      に由来する他のカーネル設定パラメータも起動時に反映されます.
+      また, <varname>hz</varname> パラメータも同様に変更可能になっています.
+      &merged;</para>
+
+    <para>カーネル設定パラメータ <varname>maxusers</varname>
+      に <literal>0</literal> を指定すると,
+      ブート時に適切な値 (32 から 512 の間で, 搭載メモリ量に依存して)
+      を計算するようになりました
+      すべての <filename>GENERIC</filename> カーネルではこの値が
+      デフォルトとなりました. &merged;</para>
+
+    <para arch="alpha">カーネルオプション <varname>MAXMEM</varname>
+      と <varname>hw.physmem</varname> 環境変数
+      はテスト (やその他の目的) のために, 人工的にマシンのメモリサイズ
+      を減らすことに使えるようになりました. &merged;</para>
+
+    <para>カーネルコンフィギュレーションパラメータ
+      <varname>MAXTSIZ</varname>, <varname>DFLDSIZ</varname>,
+      <varname>MAXDSIZ</varname>, <varname>DFLSSIZ</varname>,
+      <varname>MAXSSIZ</varname>, <varname>SGROWSIZ</varname>
+      は loader で設定可能になりました
+      (<varname>kern.maxtsiz</varname>,
+      <varname>kern.maxdfldsiz</varname> など). &merged;</para>
+
+    <para arch="i386">SMP カーネルを設定するためのカーネルオプションである
+      <literal>NCPU</literal>, <literal>NAPIC</literal>,
+      <literal>NBUS</literal>, <literal>NINTR</literal>
+      は削除されました.
+      現在 <literal>NCPU</literal> は最大の 16 に設定されており,
+      上記のその他のオプションは動的に変化するものとなっています.
+      &merged;</para>
+
+    <para>新しく &man.nmdm.4; ヌルモデム端末ドライバが追加されました.
+      &merged;</para>
+
+    <para>&man.open.2; および &man.fcntl.2; に
+      <literal>O_DIRECT</literal> フラグが追加されました.
+      ファイルオープン時にこのフラグを設定すると,
+      読み書き時のキャッシュの影響を最小化します.
+      &merged;</para>
+
+    <para>&man.orm.4; デバイスが追加されました.
+      これは他のドライバが誤って ROM と重なったアドレスを割り当てることのないよう,
+      ISA メモリ I/O 空間内のオプション ROM を取得するためのものです.
+      &merged;</para>
 
     <para arch="i386">PECOFF (Win32 実行ファイルフォーマット)
       に対応しました.</para>
 
-    <para>VESA S3 リニアフレームバッファドライバが追加されました.</para>
+    <para arch="i386">NEC PC-98NOTE 用のパワーマネージメント
+      コントローラである pmc ドライバが追加されました. &merged;</para>
 
-    <para><maketarget>buildkernel</maketarget> ターゲットは,
-      構築するカーネルのコンフィグレーションファイル名 (複数の場合もあり)
-      を <varname>KERNEL</varname> ではなく,
-      <varname>KERNCONF</varname> という変数から受け取るようになりました.
-      <maketarget>buildkernel</maketarget> の前に
-      <maketarget>buildworld</maketarget> を行なう必要はありません
-      (ただし <application>binutil</application>
-      が更新されたメジャーリリース間でアップグレードを行なう場合,
-      もしくは &man.config.8; が更新された場合は
-      <maketarget>buildworld</maketarget> を行なう必要があります).
+    <para>POSIX.1b 共有メモリオブジェクトに対応しました.
+      実装は通常ファイルを使っていますが, ファイルが
+      &man.mmap.2; されている場合は MAP_NOSYNC フラグが自動的に有効化されます.
+      &merged;</para>
+
+    <para><literal>PQ_*CACHE</literal> オプションが
+      <literal>PQ_CACHESIZE</literal>
+      という一つのオプションに置き換えられました.
+      これにはキャッシュサイズをキロバイト単位で指定します.
+      後方互換性を保つため, 従来のオプションは現在もサポートされています.
       &merged;</para>
 
     <para>&man.random.4; デバイスが
@@ -201,43 +273,72 @@
       疑似乱数データストリームを生成するようになりました.
       これは <filename>/dev/urandom</filename> と完全に同じ動作です.</para>
 
-    <para>&man.syscons.4; ドライバがキーボード操作によるペーストに対応しました.
-      標準では <keycap>Shift</keycap>-<keycap>Insert</keycap>
-      に設定されています.</para>
-
-    <para>&man.labpc.4; ドライバは古くなったため削除されました.</para>
-
     <para>カーネルオプション <literal>options REGRESSION</literal>
       が新たに追加されました.  これは動作検証やレグレションテスト時に有用な
       インターフェイスや機能を提供します.</para>
 
+    <para arch="i386">&man.spic.4; ドライバが追加されました.
+      これは Sony
+      製ラップトップに搭載されているジョグダイアルデバイスへアクセスを提供するものです.</para>
+
+    <para>&man.syscons.4; ドライバがキーボード操作によるペーストに対応しました.
+      標準では <keycap>Shift</keycap>-<keycap>Insert</keycap>
+      に設定されています.</para>
+
+    <para>出荷時の状態で USB デバイスをサポートするため,
+      <filename>GENERIC</filename> カーネルと
+      インストールプログラムに USB デバイスのサポートが加えられました.
+      現時点で SRM は USB デバイスに対応していないため,
+      シリアルコンソールを使っていない場合には
+      まだ AT キーボードを使う必要があります. &merged;</para>
+
+    <para arch="i386">USB モデムに対応した umodem ドライバが追加されました.
+      このドライバは
+      3Com 5605 と Metricom Ricochet GS wireless USB モデムに対応しています.</para>
+
+    <para arch="i386">標準的な USB スキャナに対応した
+      &man.uscanner.4; ドライバが追加されました.
+      これは SANE を利用していますので, 対応スキャナは
+      <ulink url="http://www.mostang.com/sane/">SANE
+        ホームページ</ulink>をご覧ください.
+      HP ScanJet 4100C, 5200C, 6300C の動作が確認されています.</para>
+
     <para><literal>USER_LDT</literal>
       カーネルオプションが標準設定で有効化されるようになりました.</para>
 
-    <para>&man.ddb.4; に新たなコマンド
-      <command>show pcpu</command> が追加されました.
-      これは各 CPU の情報を表示します.</para>
+    <para>VESA S3 リニアフレームバッファドライバが追加されました.</para>
 
-    <para>PCI Xr ベースのカード, ISA Xem Digiboard カードに対応した
-      digi ドライバが新たに追加されました.
-      新たに追加された &man.digictl.8; プログラムは (主に)
-      PC/Xem のような外部ポートモジュールを持つカードを再初期化するためのものです.</para>
+    <!-- Above this line, order bootloader changes by keyword-->
 
-    <para>digi ドライバの採用にともない, dgm ドライバは削除されました.</para>
-
-    <para>&man.open.2; および &man.fcntl.2; に
-      <literal>O_DIRECT</literal> フラグが追加されました.
-      ファイルオープン時にこのフラグを設定すると,
-      読み書き時のキャッシュの影響を最小化します.
+    <para>クラッシュダンプに write combining 機能 (訳注:
+      データをひとまとめにしてバス使用効率を向上させる機能)
+      が実装されました.
+      この機能は SCSI, IDE ディスクの両方で書き込みキャッシュが無効化されていて,
+      メモリのダンプが終了するまで 1 時間近くかかるような場合に有効です.
       &merged;</para>
 
+    <para>極めて大きいスワップ領域 (67 GB 以上)
+      でも, システムがパニックしなくなりました.</para>
+
+    <para arch="alpha">Linux 互換機能が thread に対応しました.</para>
+
+    <para>PCI サブシステムに対して整頓と改良が数多く行なわれました.</para>
+
+    <para><maketarget>buildkernel</maketarget> ターゲットは,
+      構築するカーネルのコンフィグレーションファイル名 (複数の場合もあり)
+      を <varname>KERNEL</varname> ではなく,
+      <varname>KERNCONF</varname> という変数から受け取るようになりました.
+      <maketarget>buildkernel</maketarget> の前に
+      <maketarget>buildworld</maketarget> を行なう必要はありません
+      (ただし <application>binutil</application>
+      が更新されたメジャーリリース間でアップグレードを行なう場合,
+      もしくは &man.config.8; が更新された場合は
+      <maketarget>buildworld</maketarget> を行なう必要があります).
+      &merged;</para>
+
+    <!-- ??? -->
     <para><literal>OLDCARD</literal> および &man.pccardd.8;
       が PCI カードに対応しました.</para>
-
-    <para>&man.orm.4; デバイスが追加されました.
-      これは他のドライバが誤って ROM と重なったアドレスを割り当てることのないよう,
-      ISA メモリ I/O 空間内のオプション ROM を取得するためのものです.
-      &merged;</para>
 
     <para>デッドロックを避けるため,
       スワップ領域不足時のプロセス終了処理は古いプロセスから行なわれるようになりました.
@@ -261,49 +362,10 @@
       オプションを使ってください.
       &merged;</para>
 
-    <para>カーネルメッセージバッファが
-      (アーキテクチャに依存しない)
-      sysctl 変数 <varname>kern.msgbuf</varname>
-      経由でアクセスできるようになりました.
-      それにともない, &man.dmesg.8; が
-      <groupname>kmem</groupname> で SGID
-      されている必要はなくなりました.</para>
-
-    <para>&man.ddb.4; に新たなコマンド <command>hwatch</command>
-      <command>dhwatch</command> が導入されました.
-      アーキテクチャが対応している必要がありますが,
-      これらは (ソフトウェアウォッチポイントを設定する)
-      <command>watch</command> および <command>dwatch</command>
-      のようにハードウェアウォッチポイントを設定するためのものです.
-      &merged;</para>
-
-    <para>新しく &man.nmdm.4; ヌルモデム端末ドライバが追加されました.
-      &merged;</para>
-
-    <para>カーネル設定パラメータ <varname>maxusers</varname>
-      が起動時に変更可能になりました.  <varname>maxusers</varname>
-      に由来する他のカーネル設定パラメータも起動時に反映されます.
-      また, <varname>hz</varname> パラメータも同様に変更可能になっています.
-      &merged;</para>
-
-    <para>カーネル設定パラメータ <varname>maxusers</varname>
-      に <literal>0</literal> を指定すると,
-      ブート時に適切な値 (32 から 512 の間で, 搭載メモリ量に依存して)
-      を計算するようになりました
-      すべての <filename>GENERIC</filename> カーネルではこの値が
-      デフォルトとなりました. &merged;</para>
-
     <para>カーネル構築時に &man.config.8; の <literal>ENV</literal>
       指示子を用いることで, (調整可能な)
       カーネル環境変数を設定することができるようになりました.
       <!-- hrs:needs to be revised --></para>
-
-    <para>ローダとカーネルリンカは,
-      KLD のある各ディレクトリに存在する
-      <filename>linker.hints</filename> というファイルから
-      モジュール名およびバージョンと KLD ファイル名の対応を調べるようになりました.
-      新しく追加されたユーティリティ &man.kldxref.8; は,
-      これらのファイルを生成するために使用します.</para>
 
     <para>新しく, idle 時にページをゼロで初期化する機能が追加されました.
       これは <varname>vm.zeroidle_enable</varname> sysctl
@@ -315,30 +377,10 @@
       &man.ps.1; が正しく動作可能になっています.
       &merged;</para>
 
-    <para arch="i386">新しいカーネルオプション <varname>KVA_SPACE</varname> が追加されました.
-      これはカーネル仮想アドレス空間の大きさを再設定するために使われます.
-      &merged;</para>
-
     <para>非常に大きいプロセス (あるいは非常に多数のプロセス)
       のコアダンプが発生した場合でも,
       マシンが長時間ロックしなくなりました.
       &merged;</para>
-
-    <para>各 &man.jail.2; 環境は各々の securelevel で動作することがで
-      きるようになりました.</para>
-
-    <para arch="alpha">カーネルオプション <varname>MAXMEM</varname>
-      と <varname>hw.physmem</varname> 環境変数
-      はテスト (やその他の目的) のために, 人工的にマシンのメモリサイズ
-      を減らすことに使えるようになりました. &merged;</para>
-
-    <para>&man.eaccess.2; システムコールが追加されました.
-      &man.access.2; と似ていますが, 後者は実権限を使うのに対して,
-      前者は実効権限を使います.</para>
-
-    <para arch="i386">新しく &man.amdpm.4; ドライバが追加されました.
-      これは AMD 756 チップセットのシステム監視機能へのアクセスを
-      提供します. &merged;</para>
 
     <para>カーネルが, プロセスよりも細かいスケジューリング単位に対応しました
       (ただし現時点で利用できるのは,
@@ -357,25 +399,10 @@
       用の削られたカーネルではなく) 完全なカーネルをインストール時に
       使うことができるようになります. &merged;</para>
 
-    <para arch="i386">NEC PC-98NOTE 用のパワーマネージメント
-      コントローラである pmc ドライバが追加されました. &merged;</para>
-
-    <para>カーネルコンフィギュレーションパラメータ
-      <varname>MAXTSIZ</varname>, <varname>DFLDSIZ</varname>,
-      <varname>MAXDSIZ</varname>, <varname>DFLSSIZ</varname>,
-      <varname>MAXSSIZ</varname>, <varname>SGROWSIZ</varname>
-      は loader で設定可能になりました
-      (<varname>kern.maxtsiz</varname>,
-      <varname>kern.maxdfldsiz</varname> など). &merged;</para>
-
     <para>システムのロードアベレージの計算において,
       定期的に実行されるプロセスと同期してしまうことを
       避けるために, サンプリングのタイミングにいくらかの
       ゆらぎを加えるようになりました. &merged;</para>
-
-    <para>Linux エミュレーションは
-      <port>emulators/linux_base-7</port> (RedHat 7.X emulation)
-      で必要とされるカーネル機能に対応しました. &merged;</para>
 
     <para>モジュール付きデバッグ用カーネルが構築された場合,
       (例えば <literal>makeoptions DEBUG=-g</literal> を使った場合)
@@ -384,30 +411,6 @@
       この副作用として, デバッグ用のモジュールの構築とインストールに,
       以前よりも大きなディスク容量が必要とされるようになりました.
       &merged;</para>
-
-    <para>Low-Watermark Mandatory Access Control 用
-      セキュリティ機構 &man.lomac.4; がカーネルモジュールとして
-      追加されました.
-      これは管理者からの追加の設定を必要としない,
-      従来の UID ベースのセキュリティ機構に加えて使うことのできる
-      セキュリティ機構です.
-      この機能のスポンサーは DARPA と NAI Labs です.</para>
-
-    <para>&man.jail.2; 用の設定可能な sysctl 変数
-      が <varname>jail.*</varname> から
-      <varname>security.*</varname> へと移動しました.
-      他のセキュリティ関連の sysctl 変数は
-      <varname>kern.security.*</varname> から
-      <varname>security.*</varname> へと移動しました.</para>
-
-    <para><varname>kern.maxvnodes</varname> は使用する vnode の
-      数を正しく制限するようになりました.
-      これまでは, キャッシュされていないページの vnode のみが
-      free でき, これにより多くのメモリを積んだマシンが
-      多くの小さいファイルにアクセスする際に, 制限なしに vnode の
-      数を大きくすることが可能でした.
-      <literal>vnlru</literal> カーネルスレッドが vnode の解放
-      と再利用を行なっています. &merged;</para>
 
     <sect3>
       <title>プロセッサ・マザーボードの対応状況</title>
@@ -508,8 +511,6 @@
 	API が異なるため古いバージョンの PXE には対応していません.
 	これにより DHCP を使ったネットワーク経由の起動が可能になってい
 	ます. &merged;</para>
-
-      <!-- Above this line, order bootloader changes by keyword-->
 
       <para arch="i386">&os; ブートローダに対して,
 	疑似フロッピの第一セクタに変更のできる有効な MS-DOS BPB を想定している
