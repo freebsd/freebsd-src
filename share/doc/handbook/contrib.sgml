@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.76 1996/05/04 02:53:22 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.77 1996/05/04 07:39:01 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -189,6 +189,7 @@
 	  <item>Frank Nobis &lt;fn@trinity.radio-do.de&gt;
 	  <item>Gary A. Browning &lt;gab10@griffcd.amdahl.com&gt;
 	  <item>Gene Stark &lt;stark@cs.sunysb.edu&gt;
+	  <item>Greg Ungerer &lt;gerg@stallion.oz.au&gt;
 	  <item>Harlan Stenn &lt;Harlan.Stenn@pfcs.com&gt;
 	  <item>Havard Eidnes &lt;Havard.Eidnes@runit.sintef.no&gt;
 	  <item>Hideaki Ohmon &lt;ohmon@sfc.keio.ac.jp&gt;
