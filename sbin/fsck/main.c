@@ -135,6 +135,7 @@ main(argc, argv)
 		(void)signal(SIGINT, catch);
 	if (preen)
 		(void)signal(SIGQUIT, catchquit);
+	signal(SIGINFO, infohandler);
 	/*
 	 * Push up our allowed memory limit so we can cope
 	 * with huge filesystems.
@@ -226,6 +227,7 @@ checkfilesys(filesys, mntpt, auxdata, child)
 		    sblock.fs_cstotal.cs_nffree * 100.0 / sblock.fs_dsize);
 		return (0);
 	}
+	got_siginfo = 0;
 
 	/*
 	 * Get the mount point information of the filesystem, if
