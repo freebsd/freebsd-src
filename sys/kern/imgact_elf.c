@@ -431,9 +431,12 @@ fail:
 	return error;
 }
 
-static int fallback_elf_brand = ELFOSABI_FREEBSD;
+/*
+ * non static, as it can be overridden by start_init()
+ */
+int fallback_elf_brand = -1;
 SYSCTL_INT(_kern, OID_AUTO, fallback_elf_brand, CTLFLAG_RW,
-		&fallback_elf_brand, ELFOSABI_FREEBSD,
+		&fallback_elf_brand, -1,
 		"ELF brand of last resort");
 
 static int
@@ -604,12 +607,6 @@ exec_elf_imgact(struct image_params *imgp)
 			}
 		}
 	}
-
-#ifdef __alpha__
-	/* XXX - Assume FreeBSD on the alpha. */
-	if (brand_info == NULL)
-		brand_info = &freebsd_brand_info;
-#endif
 
 	if (brand_info == NULL) {
 		uprintf("ELF binary type \"%u\" not known.\n",
