@@ -7,9 +7,9 @@
 .Nd control an special tty device.
 .Sh SYNOPSIS
 .Nm comcontrol
-.Ar special_device | -
-.Op dtrwait Op number
-.Op drainwait Op number
+.Ar special_device | Fl
+.Op dtrwait Ar number
+.Op drainwait Ar number
 .Sh DESCRIPTION
 .Nm Comcontrol
 is used to examine and modify some of the special characteristics
@@ -22,8 +22,6 @@ Only the superuser can change the settings.
 .Pp
 The following options are available:
 .Bl -tag -width indent
-.It Cm dtrwait
-Print current DTR wait time.
 .It Cm dtrwait Ar number
 Set the time to wait after dropping DTR
 to the given number.
@@ -31,8 +29,6 @@ The units are hundredths of a second.
 The default is 300 hundredths, i.e., 3 seconds.
 This option needed mainly to set proper recover time after
 modem reset.
-.It Cm drainwait
-Print current output drain timeout.
 .It Cm drainwait Ar number
 Set the time to wait for output drain
 to the given number.
