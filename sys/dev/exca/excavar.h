@@ -77,8 +77,7 @@ struct exca_softc
 #define EXCA_SOCKET_PRESENT	0x00000001
 #define EXCA_HAS_MEMREG_WIN	0x00000002
 #define EXCA_CARD_OK		0x00000004
-#define	EXCA_KTHREAD_RUNNING	0x00000008
-#define	EXCA_KTHREAD_DONE	0x00000010
+#define EXCA_EVENT		0x80000000
 	uint32_t	offset;
 	int		chipset;
 #define EXCA_CARDBUS	0
@@ -99,10 +98,8 @@ struct exca_softc
 #define EXCA_BOGUS	-1		/* Invalid/not present/etc */
 	exca_getb_fn	*getb;
 	exca_putb_fn	*putb;
-	struct proc	*event_thread;
-	struct mtx	mtx;
-	struct cv	cv;
 	device_t	pccarddev;
+	uint32_t	status;		/* status, hw dependent */
 };
 
 void exca_init(struct exca_softc *sc, device_t dev, 
