@@ -131,6 +131,8 @@ __stdcall static uint32_t
 	ntoskrnl_interlock_inc(/*volatile uint32_t * */ void);
 __stdcall static uint32_t
 	ntoskrnl_interlock_dec(/*volatile uint32_t * */ void);
+__stdcall static void ntoskrnl_interlock_addstat(/*uint64_t,
+	uint32_t*/ void);
 __stdcall static void ntoskrnl_freemdl(ndis_buffer *);
 __stdcall static uint32_t ntoskrnl_sizeofmdl(void *, size_t);
 __stdcall static void ntoskrnl_build_npaged_mdl(ndis_buffer *);
@@ -1080,6 +1082,21 @@ ntoskrnl_interlock_dec(/*addend*/ void)
 }
 
 __stdcall static void
+ntoskrnl_interlock_addstat(/*addend, inc*/)
+{
+	uint64_t		*addend;
+	uint32_t		inc;
+
+	__asm__ __volatile__ ("" : "=c" (addend), "=d" (inc));
+
+	mtx_pool_lock(ndis_mtxpool, ntoskrnl_interlock);
+	*addend += inc;
+	mtx_pool_unlock(ndis_mtxpool, ntoskrnl_interlock);
+
+	return;
+};
+
+__stdcall static void
 ntoskrnl_freemdl(mdl)
 	ndis_buffer		*mdl;
 {
@@ -1615,6 +1632,7 @@ image_patch_table ntoskrnl_functbl[] = {
 	{ "strcpy",			(FUNC)strcpy },
 	{ "strlen",			(FUNC)strlen },
 	{ "memcpy",			(FUNC)memcpy },
+	{ "memmove",			(FUNC)memcpy },
 	{ "memset",			(FUNC)memset },
 	{ "IofCallDriver",		(FUNC)ntoskrnl_iofcalldriver },
 	{ "IofCompleteRequest",		(FUNC)ntoskrnl_iofcompletereq },
@@ -1651,6 +1669,8 @@ image_patch_table ntoskrnl_functbl[] = {
 	{ "KefReleaseSpinLockFromDpcLevel", (FUNC)ntoskrnl_unlock_dpc },
 	{ "InterlockedIncrement",	(FUNC)ntoskrnl_interlock_inc },
 	{ "InterlockedDecrement",	(FUNC)ntoskrnl_interlock_dec },
+	{ "ExInterlockedAddLargeStatistic",
+					(FUNC)ntoskrnl_interlock_addstat },
 	{ "IoFreeMdl",			(FUNC)ntoskrnl_freemdl },
 	{ "MmSizeOfMdl",		(FUNC)ntoskrnl_sizeofmdl },
 	{ "MmMapLockedPages",		(FUNC)ntoskrnl_mmaplockedpages },
