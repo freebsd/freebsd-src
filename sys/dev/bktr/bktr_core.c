@@ -1,4 +1,4 @@
-/* $Id: brooktree848.c,v 1.56 1998/10/01 09:35:48 sos Exp $ */
+/* $Id: brooktree848.c,v 1.57 1998/10/31 11:26:38 nsouch Exp $ */
 /* BT848 Driver for Brooktree's Bt848 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
@@ -4421,16 +4421,6 @@ readEEProm( bktr_ptr_t bktr, int offset, int count, u_char *data )
 }
 
 #define ABSENT		(-1)
-static int
-probeDevice(bktr_ptr_t bktr, u_char addr)
-{
-	int read;
-	read = i2cRead( bktr, addr);
-	if (read == ABSENT || read == 0)
-		return (0);
-
-	return (1);
-}
 
 /*
  * get a signature of the card
@@ -4448,8 +4438,9 @@ signCard( bktr_ptr_t bktr, int offset, int count, u_char* sig )
 		sig[ x ] = 0;
 
 	for ( x = 0; x < count; ++x ) {
-		if (probeDevice(bktr, (u_char)(2 * x + 1)))
+		if ( i2cRead( bktr, (2 * x) + 1 ) != ABSENT ) {
 			sig[ x / 8 ] |= (1 << (x % 8) );
+		}
 	}
 
 	return( 0 );
@@ -4468,12 +4459,17 @@ signCard( bktr_ptr_t bktr, int offset, int count, u_char* sig )
  *     (eg VideoLogic Captivator PCI rev. 2F with BT848A)
  */
 static int check_for_i2c_devices( bktr_ptr_t bktr ){
-  int x;
+  int x, temp_read;
+  int i2c_all_0 = 1;
+  int i2c_all_absent = 1;
   for ( x = 0; x < 128; ++x ) {
-	if (probeDevice(bktr, (u_char)(2 * x + 1)))
-		return (1);
+	 temp_read = i2cRead( bktr, (2 * x) + 1 );
+	  if (temp_read != 0)      i2c_all_0 = 0;
+     if (temp_read != ABSENT) i2c_all_absent = 0;
   }
-  return (0);
+
+  if ((i2c_all_0) || (i2c_all_absent)) return 0;
+  else return 1;
 }
 
 /*
@@ -4508,9 +4504,6 @@ probeCard( bktr_ptr_t bktr, int verbose )
 	int tuner_i2c_address = -1;
 
         any_i2c_devices = check_for_i2c_devices( bktr );
-	if (bootverbose)
-		if (!any_i2c_devices)
-			printf("bktr: no I2C device found!\n");
 	bt848 = bktr->base;
 
 	bt848->gpio_out_en = 0;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: bt848_i2c.c,v 1.1 1998/10/31 11:26:38 nsouch Exp $
  *
  */
 
@@ -345,7 +345,7 @@ bti2c_smb_writeb(device_t dev, u_char slave, char cmd, char byte)
 	struct bti2c_softc *sc = (struct bti2c_softc *)device_get_softc(dev);
 	u_long data;
 
-	data = ((slave & 0xff) << 24) | ((byte & 0xff) << 16) | cmd;
+	data = ((slave & 0xff) << 24) | ((byte & 0xff) << 16) | (u_char)cmd;
 
 	return (bti2c_write(sc->base, data));
 }
@@ -365,7 +365,7 @@ bti2c_smb_writew(device_t dev, u_char slave, char cmd, short word)
 	high = (char)((word & 0xff00) >> 8);
 
 	data = ((slave & 0xff) << 24) | ((low & 0xff) << 16) |
-		((high & 0xff) << 8) | BT848_DATA_CTL_I2CW3B | cmd;
+		((high & 0xff) << 8) | BT848_DATA_CTL_I2CW3B | (u_char)cmd;
 
 	return (bti2c_write(sc->base, data));
 }
@@ -385,9 +385,9 @@ bti2c_smb_readb(device_t dev, u_char slave, char cmd, char *byte)
 	/* clear status bits */
 	bti2c->int_stat = (BT848_INT_RACK | BT848_INT_I2CDONE);
 
-	bti2c->i2c_data_ctl = ((slave & 0xff) << 24) | cmd;
+	bti2c->i2c_data_ctl = ((slave & 0xff) << 24) | (u_char)cmd;
 
-	BTI2C_DEBUG(printf("r%lx/", (u_long)(((slave & 0xff) << 24) | cmd)));
+	BTI2C_DEBUG(printf("r%lx/", (u_long)(((slave & 0xff) << 24) | (u_char)cmd)));
 
 	/* wait for completion */
 	for ( x = 0x7fffffff; x; --x ) {	/* safety valve */
