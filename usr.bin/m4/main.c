@@ -59,6 +59,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include "mdef.h"
@@ -181,8 +182,11 @@ main(argc,argv)
         argv += optind;
 
 	active = stdout;		/* default active output     */
+	if ((p = strdup(_PATH_DIVDIRNAME)) == NULL)
+		err(1, "strdup");
+
 					/* filename for diversions   */
-	m4dir = mkdtemp(xstrdup(_PATH_DIVDIRNAME));
+	m4dir = mkdtemp(p);
 	err_set_exit(cleanup);
 	(void) asprintf(&m4temp, "%s/%s", m4dir, _PATH_DIVNAME);
 
@@ -406,7 +410,8 @@ initkwds() {
 
 	for (i = 0; i < MAXKEYS; i++) {
 		h = hash(keywrds[i].knam);
-		p = (ndptr) xalloc(sizeof(struct ndblock));
+		if ((p = malloc(sizeof(struct ndblock))) == NULL)
+			err(1, "malloc");
 		p->nxtptr = hashtab[h];
 		hashtab[h] = p;
 		p->name = keywrds[i].knam;

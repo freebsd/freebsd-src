@@ -37,8 +37,6 @@
  * $FreeBSD$
  */
 
-char	*basename __P((char *));
-char	*xalloc __P((unsigned long));
 int	expr __P((char *));
 ndptr	addent __P((char *));
 void	chrsave __P((int));
@@ -58,7 +56,6 @@ void	doundiv __P((char *[], int));
 void	eval __P((char *[], int, int));
 void	expand __P((char *[], int));
 void	getdiv __P((int));
-char	*xstrdup __P((const char *));
 int	hash __P((char *));
 int	indx __P((char *, char *));
 void	killdiv __P((void));
