@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.233 1997/03/28 12:37:44 joerg Exp $
+ *	$Id: machdep.c,v 1.234 1997/03/31 11:10:37 davidg Exp $
  */
 
 #include "npx.h"
@@ -748,6 +748,7 @@ int _default_ldt;
 union descriptor gdt[NGDT];		/* global descriptor table */
 struct gate_descriptor idt[NIDT];	/* interrupt descriptor table */
 union descriptor ldt[NLDT];		/* local descriptor table */
+struct i386tss common_tss;
 
 static struct i386tss dblfault_tss;
 static char dblfault_stack[PAGE_SIZE];
@@ -787,7 +788,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 {	(int) ldt,		/* segment base address  */
 	sizeof(ldt)-1,		/* length - all address space */
 	SDT_SYSLDT,		/* segment type */
-	0,			/* segment descriptor priority level */
+	SEL_UPL,		/* segment descriptor priority level */
 	1,			/* segment descriptor present */
 	0, 0,
 	0,			/* unused - default 32 vs 16 bit size */
@@ -811,7 +812,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0,			/* unused - default 32 vs 16 bit size */
 	0  			/* limit granularity (byte/page units)*/ },
 /* GPROC0_SEL	6 Proc 0 Tss Descriptor */
-{	(int) kstack,		/* segment base address  */
+{	(int) &common_tss,	/* segment base address  */
 	sizeof(struct i386tss)-1,/* length - all address space */
 	SDT_SYS386TSS,		/* segment type */
 	0,			/* segment descriptor priority level */
@@ -1300,9 +1301,11 @@ init386(first)
 	msgbufmapped = 1;
 
 	/* make a initial tss so microp can get interrupt stack on syscall! */
-	proc0.p_addr->u_pcb.pcb_tss.tss_esp0 = (int) kstack + UPAGES*PAGE_SIZE;
-	proc0.p_addr->u_pcb.pcb_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL) ;
+	common_tss.tss_esp0 = (int) kstack + UPAGES*PAGE_SIZE;
+	common_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL) ;
+	common_tss.tss_ioopt = (sizeof common_tss) << 16;
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
+	ltr(gsel_tss);
 
 	dblfault_tss.tss_esp = dblfault_tss.tss_esp0 = dblfault_tss.tss_esp1 =
 	    dblfault_tss.tss_esp2 = (int) &dblfault_stack[sizeof(dblfault_stack)];
@@ -1315,11 +1318,6 @@ init386(first)
 		GSEL(GDATA_SEL, SEL_KPL);
 	dblfault_tss.tss_cs = GSEL(GCODE_SEL, SEL_KPL);
 	dblfault_tss.tss_ldt = GSEL(GLDT_SEL, SEL_KPL);
-
-	((struct i386tss *)gdt_segs[GPROC0_SEL].ssd_base)->tss_ioopt =
-		(sizeof(struct i386tss))<<16;
-
-	ltr(gsel_tss);
 
 	/* make a call gate to reenter kernel with */
 	gdp = &ldt[LSYS5CALLS_SEL].gd;
