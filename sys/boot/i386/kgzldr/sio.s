@@ -29,18 +29,18 @@
 
 		.set SIO_PRT,SIOPRT		# Base port
 
-		.globl sio_putchr
+		.globl _(sio_putchr)
 
 # void sio_putchr(int c)
 
-sio_putchr:	movw $SIO_PRT+0x5,%dx		# Line status reg
+_(sio_putchr):	movw $SIO_PRT+0x5,%dx		# Line status reg
 		xor %ecx,%ecx			# Timeout
 		movb $0x40,%ch			#  counter
-sio_putchr.1:	inb (%dx),%al			# Transmitter
+sio_putchr.1:	inb %dx,%al			# Transmitter
 		testb $0x20,%al 		#  buffer empty?
 		loopz sio_putchr.1		# No
 		jz sio_putchr.2			# If timeout
 		movb 0x4(%esp,1),%al		# Get character
 		subb $0x5,%dl			# Transmitter hold reg
-		outb %al,(%dx)			# Write character
+		outb %al,%dx			# Write character
 sio_putchr.2:	ret				# To caller
