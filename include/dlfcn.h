@@ -38,10 +38,12 @@
 #include <sys/cdefs.h>
 
 /*
- * Modes for dlopen().
+ * Modes and flags for dlopen().
  */
 #define RTLD_LAZY	1	/* Bind function calls lazily */
 #define RTLD_NOW	2	/* Bind function calls immediately */
+#define RTLD_MODEMASK	0x3
+#define RTLD_GLOBAL	0x100	/* Make symbols globally available */
 
 /*
  * Special handle argument for dlsym().  It causes the search for the
