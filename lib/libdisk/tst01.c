@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: tst01.c,v 1.12 1995/05/11 05:22:54 phk Exp $
+ * $Id: tst01.c,v 1.13 1995/05/12 18:50:00 phk Exp $
  *
  */
 
@@ -112,9 +112,9 @@ Scan_Disk(struct disk *d)
 				printf(".%lu\nG: %lu.",l-1,l);
 				fflush(stdout);
 			}
-			i = j;	
+			i = j;
 		}
-	} 
+	}
 	close(fd);
 }
 
@@ -135,7 +135,7 @@ main(int argc, char **argv)
 		exit(1);
 	}
 	d = Open_Disk(argv[1]);
-	if (!d) 
+	if (!d)
 		err(1,"Couldn't open disk %s",argv[1]);
 
 	sprintf(myprompt,"%s %s> ",argv[0],argv[1]);
@@ -192,41 +192,41 @@ main(int argc, char **argv)
 			All_FreeBSD(d);
 			continue;
 		}
-		if (!strcasecmp(*cmds,"bios") && ncmd == 4) { 
+		if (!strcasecmp(*cmds,"bios") && ncmd == 4) {
 			Set_Bios_Geom(d,
 				strtol(cmds[1],0,0),
 				strtol(cmds[2],0,0),
 				strtol(cmds[3],0,0));
 			continue;
 		}
-		if (!strcasecmp(*cmds,"phys") && ncmd == 4) { 
+		if (!strcasecmp(*cmds,"phys") && ncmd == 4) {
 			d = Set_Phys_Geom(d,
 				strtol(cmds[1],0,0),
 				strtol(cmds[2],0,0),
 				strtol(cmds[3],0,0));
 			continue;
 		}
-		if (!strcasecmp(*cmds,"collapse")) { 
+		if (!strcasecmp(*cmds,"collapse")) {
 			if (cmds[1])
 				while (Collapse_Chunk(d,
 				    (struct chunk *)strtol(cmds[1],0,0)))
 					;
-			else		
+			else
 				Collapse_Disk(d);
 			continue;
-		}	
-		if (!strcasecmp(*cmds,"list")) { 
+		}
+		if (!strcasecmp(*cmds,"list")) {
 			cp = Disk_Names();
 			printf("Disks:");
 			for(i=0;cp[i];i++) {
 				printf(" %s",cp[i]);
 				free(cp[i]);
-			}		
+			}
 			free(cp);
 			continue;
 		}
-		if (!strcasecmp(*cmds,"create") && ncmd == 6) { 
-				
+		if (!strcasecmp(*cmds,"create") && ncmd == 6) {
+
 			printf("Create=%d\n",
 				Create_Chunk(d,
 					strtol(cmds[1],0,0),
@@ -294,7 +294,7 @@ main(int argc, char **argv)
 		for(i=0;chunk_n[i];i++)
 			printf("%d = %s%s",i,chunk_n[i],i == 4 ? "\n\t" : "  ");
 		printf("\n");
-		
+
 	}
 	exit (0);
 }

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.18 1995/05/20 19:11:44 phk Exp $
+ * $Id: create_chunk.c,v 1.19 1995/05/24 08:59:38 jkh Exp $
  *
  */
 
@@ -40,7 +40,7 @@ Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
 	}
 
 	/* Allocate the first swap-partition we find */
-	for (c1 = c->part; c1 ; c1 = c1->next) { 
+	for (c1 = c->part; c1 ; c1 = c1->next) {
 		if (c1->type == unused) continue;
 		if (c1->subtype != FS_SWAP) continue;
 		sprintf(c1->name,"%s%c",c->name,SWAP_PART+'a');
@@ -48,7 +48,7 @@ Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
 	}
 
 	/* Allocate the first root-partition we find */
-	for (c1 = c->part; c1 ; c1 = c1->next) { 
+	for (c1 = c->part; c1 ; c1 = c1->next) {
 		if (c1->type == unused) continue;
 		if (!(c1->flags & CHUNK_IS_ROOT)) continue;
 		sprintf(c1->name,"%s%c",c->name,0+'a');
@@ -58,7 +58,7 @@ Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
 	/* Try to give them the same as they had before */
 	for (c1 = c->part; c1 ; c1 = c1->next) {
 		if (strcmp(c1->name,"X")) continue;
-		for(c3 = c->part; c3 ; c3 = c3->next) 
+		for(c3 = c->part; c3 ; c3 = c3->next)
 			if (c1 != c3 && !strcmp(c3->name, c1->oname)) {
 				goto newname;
 			}
@@ -75,7 +75,7 @@ Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
 
 		for(j=0;j<strlen(order);j++) {
 			sprintf(c1->name,"%s%c",c->name,order[j]);
-			for(c3 = c->part; c3 ; c3 = c3->next) 
+			for(c3 = c->part; c3 ; c3 = c3->next)
 				if (c1 != c3 && !strcmp(c3->name, c1->name))
 					goto match;
 			break;
@@ -124,7 +124,7 @@ Fixup_Names(struct disk *d)
 		if(!c2->oname) err(1,"malloc failed");
 		for(j=1;j<=NDOSPART;j++) {
 			sprintf(c2->oname,"%ss%d",c1->name,j);
-			for(c3 = c1->part; c3 ; c3 = c3->next) 
+			for(c3 = c1->part; c3 ; c3 = c3->next)
 				if (c3 != c2 && !strcmp(c3->name, c2->oname))
 					goto match;
 			free(c2->name);
@@ -204,7 +204,7 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e ty
 	}
 	Fixup_Names(d);
 	for (c1=parent->part; c1 ; c1 = c1->next)
-		if (c1->offset == offset) 
+		if (c1->offset == offset)
 			return c1;
 	err(1,"Serious internal trouble");
 }
@@ -215,7 +215,7 @@ MakeDev(struct chunk *c1, char *path)
 	char *p = c1->name;
 	u_long cmaj,bmaj,min,unit,part,slice;
 	char buf[BUFSIZ],buf2[BUFSIZ];
-	
+
 	*buf2 = '\0';
 
 	if(!strcmp(p,"X"))

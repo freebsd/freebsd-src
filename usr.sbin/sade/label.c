@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.29 1995/05/28 23:12:06 jkh Exp $
+ * $Id: label.c,v 1.30 1995/05/29 00:50:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -13,8 +13,8 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer, 
- *    verbatim and that no modifications are made prior to this 
+ *    notice, this list of conditions and the following disclaimer,
+ *    verbatim and that no modifications are made prior to this
  *    point in the file.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -181,7 +181,7 @@ new_part(char *mpoint, Boolean newfs, u_long size)
 	    return ret;
     for (target = size; target; target--) {
 	for (divisor = 4096 ; divisor > 1023; divisor--) {
-	    if (!(target % divisor)) { 
+	    if (!(target % divisor)) {
 		sprintf(ret->newfs_cmd + strlen(ret->newfs_cmd), " -u %ld",divisor);
 		return ret;
 	    }
@@ -549,7 +549,7 @@ diskLabelEditor(char *str)
 		    safe_free(p);
 		} else {
 		    tmp->private = p;
-		}	
+		}
 		tmp->private_free = safe_free;
 		record_label_chunks();
 	    }
