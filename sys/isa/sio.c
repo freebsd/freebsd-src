@@ -548,13 +548,53 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x0205d041, "Multiport serial device (non-intelligent 16550)"}, /* PNP0502 */
 	{0x1005d041, "Generic IRDA-compatible device"},	/* PNP0510 */
 	{0x1105d041, "Generic IRDA-compatible device"},	/* PNP0511 */
-	{0x01017256, NULL},				/* USR0101 */
-	{0x30207256, NULL},				/* USR2030 */
-	{0x31307256, NULL},				/* USR3031 */
-	{0x7420b04e, NULL},				/* SUP2070 */
-	{0x8020b04e, NULL},				/* SUP2080 */
-	{0x8024b04e, NULL},				/* SUP2480 */
-	{0x6045f435, NULL},				/* MOT4560 */
+	/* Devices that do not have a compatid */
+	{0x7602a904, NULL},	/* AEI0276 - 56K v.90 Fax Modem (LKT) */
+	{0x00007905, NULL},	/* AKY0000 - 56K Plug&Play Modem */
+	{0x01405407, NULL},	/* AZT4001 - AZT3000 PnP SOUND DEVICE, MODEM */
+	{0x56039008, NULL},	/* BDP0356 - Best Data 56x2 */
+	{0x36339008, NULL},	/* BDP3336 - Best Data Prods. 336F */
+	{0x0014490a, NULL},	/* BRI1400 - Boca 33.6 PnP */
+	{0x0015490a, NULL},	/* BRI1500 - Internal Fax Data */
+	{0x0034490a, NULL},	/* BRI3400 - Internal ACF Modem */
+	{0x00b4490a, NULL},	/* BRIB400 - Boca 56k PnP */
+	{0x0030320d, NULL},	/* CIR3000 - Cirrus Logic V43 */
+	{0x1200c31e, NULL},	/* GVC0012 - VF1128HV-R9 (win modem?) */
+	{0x0303c31e, NULL},	/* GVC0303 - MaxTech 33.6 PnP D/F/V */
+	{0x0050c31e, NULL},	/* GVC5000 - some GVC modem */
+	{0x3800f91e, NULL},	/* GWY0038 - Telepath with v.90 */
+	{0x9062f91e, NULL},	/* GWY6290 - Telepath with x2 Technology */
+	{0x0000f435, NULL},	/* MOT0000 - Motorola ModemSURFR 33.6 Intern */
+	{0x5015f435, NULL},	/* MOT1550 - Motorola ModemSURFR 56K Modem */
+	{0xf015f435, NULL},	/* MOT15F0 - Motorola VoiceSURFR 56K Modem */
+	{0x6045f435, NULL},	/* MOT4560 - Motorola ? */
+	{0x61e7a338, NULL},	/* NECE761 - 33.6Modem */
+	{0x39804f3f, NULL},	/* OZO8039 - Zoom 56k flex */
+	{0x1000eb49, NULL},	/* ROK0010 - Rockwell ? */
+	{0x5002734a, NULL},	/* RSS0250 - 5614Jx3(G) Internal Modem */
+	{0xc100ad4d, NULL},	/* SMM00C1 - Leopard 56k PnP */
+	{0x1013b04e, NULL},	/* SUP1310 - SupraExpress 336i PnP */
+	{0x8013b04e, NULL},	/* SUP1380 - SupraExpress 288i PnP Voice */
+	{0x8113b04e, NULL},	/* SUP1381 - SupraExpress 336i PnP Voice */
+	{0x5016b04e, NULL},	/* SUP1650 - Supra 336i Sp Intl */
+	{0x7420b04e, NULL},	/* SUP2070 - Supra ? */
+	{0x8020b04e, NULL},	/* SUP2080 - Supra ? */
+	{0x8420b04e, NULL},	/* SUP2084 - SupraExpress 56i PnP */
+	{0x8024b04e, NULL},	/* SUP2480 - Supra ? */
+	{0x01007256, NULL},	/* USR0001 - U.S. Robotics Inc., Sportster W */
+	{0x02007256, NULL},	/* USR0002 - U.S. Robotics Inc. Sportster 33. */
+	{0x04007256, NULL},	/* USR0004 - USR Sportster 14.4k */
+	{0x06007256, NULL},	/* USR0006 - USR Sportster 33.6k */
+	{0x01017256, NULL},	/* USR0101 - USR ? */
+	{0x30207256, NULL},	/* USR2030 - U.S.Robotics Inc. Sportster 560 */
+	{0x50207256, NULL},	/* USR2050 - U.S.Robotics Inc. Sportster 33. */
+	{0x70207256, NULL},	/* USR2070 - U.S.Robotics Inc. Sportster 560 */
+	{0x30307256, NULL},	/* USR3030 - U.S. Robotics 56K FAX INT */
+	{0x31307256, NULL},	/* USR3031 - U.S. Robotics 56K FAX INT */
+	{0x70307256, NULL},	/* USR3070 - U.S. Robotics 56K Voice INT */
+	{0x90917256, NULL},	/* USR9190 - USR 56k Voice INT */
+	{0x0300695c, NULL},	/* WCI0003 - Fax/Voice/Modem/Speakphone/Asvd */
+	{0x61f7896a, NULL},	/* ZTIF761 - Zoom ComStar 33.6 */
 	{0}
 };
 
