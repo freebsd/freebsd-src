@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.84 1999/03/04 10:36:27 kato Exp $
+#	$Id: files.pc98,v 1.85 1999/03/10 13:59:20 kato Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -270,7 +270,7 @@ i386/isa/tw.c			optional	tw	device-driver
 pc98/pc98/wd.c			optional	wdc	device-driver
 pc98/pc98/wd.c			optional	wd	device-driver
 i386/isa/atapi.c		optional	atapi	device-driver
-i386/isa/atapi-cd.c		optional	acd	device-driver
+i386/isa/atapi-cd.c		optional	wcd	device-driver
 i386/isa/wfd.c			optional	wfd	device-driver
 i386/isa/wst.c			optional	wst	device-driver
 i386/isa/wt.c			optional	wt	device-driver
