@@ -242,7 +242,7 @@ Static device_method_t ubsa_methods[] = {
 };
 
 Static driver_t ubsa_driver = {
-	"ubsa",
+	"ucom",
 	ubsa_methods,
 	sizeof (struct ubsa_softc)
 };
