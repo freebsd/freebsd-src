@@ -36,7 +36,7 @@
 .Nm stli
 .Nd "drivers for Stallion Technologies multiport serial controllers"
 .Sh SYNOPSIS
-.Cd "stl0 at isa? port <addr> tty irq <irq> vector stlintr"
+.Cd "stl0 at isa? port <addr> tty irq <irq>"
 .Cd "stli0 at isa? port <io-addr> tty iomem <mem-addr> iosiz <size> flags <type> "
 .Cd "stli0 at eisa? port <io-addr> tty iomem <mem-addr> iosiz <size> flags <type> "
 .Sh DESCRIPTION
@@ -78,7 +78,7 @@ ISA board configuration entries for the
 .Nm stl
 driver take the general form of:
 .Pp
-.Cd "stlX at isa? port <io-addr> tty irq <irq> vector stlintr"
+.Cd "stlX at isa? port <io-addr> tty irq <irq>"
 .Pp
 .Ar X
 is the unit number assigned to the board.
@@ -119,7 +119,7 @@ board types.
 Each EasyIO board requires 8 bytes of I/O address space and 1 IRQ line.
 A configuration entry for an EasyIO board would look like:
 .Pp
-.Cd "stl0 at isa? port 0x2a8 tty irq 15 vector stlintr"
+.Cd "stl0 at isa? port 0x2a8 tty irq 15"
 .Pp
 This entry specifies an EasyIO board at I/O address 0x2a8 using IRQ 15.
 The I/O and IRQ values can be modified as required.
@@ -133,7 +133,7 @@ by multiple EasyConnection 8/32-AT boards.
 This secondary I/O address is set at 0x280 in the driver code.
 A configuration entry would look like:
 .Pp
-.Cd "stl0 at isa? port 0x2a0 irq 10 tty vector stlintr"
+.Cd "stl0 at isa? port 0x2a0 irq 10 tty"
 .Pp
 This specifies an EasyConnection 8/32-AT with primary I/O address 0x2a0,
 secondary I/O address of 0x280 and IRQ 10.

@@ -57,7 +57,7 @@ To install the device driver, please do the following steps:
 6. Edit your kernel configuration file (in /usr/src/sys/i386/conf/)
    by inserting the following line:
 
-	device	asc0	at isa? port 0x2ab tty drq 3 irq 10 vector ascintr
+	device	asc0	at isa? port 0x2ab tty drq 3 irq 10
 
    This should usually work for you as it reflects the factory
    settings of the AMI scanner. However, if this conflicts with
