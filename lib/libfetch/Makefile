@@ -2,7 +2,8 @@
 
 MAINTAINER=	des@freebsd.org
 LIB=		fetch
-CFLAGS+=	-I. -Wall -pedantic
+WARNS?=		2
+CFLAGS+=	-I.
 CFLAGS+=	-DINET6
 .if !defined(DEBUG)
 CFLAGS+=	-DNDEBUG
@@ -38,12 +39,33 @@ httperr.h: http.errors
 	@echo "    { -1, FETCH_UNKNOWN, \"Unknown HTTP error\" }" >> ${.TARGET}
 	@echo "};" >> ${.TARGET}
 
-.for MP in fetchFreeURL fetchGet fetchGetFTP fetchGetFile fetchGetHTTP \
-fetchGetURL fetchList fetchListFTP fetchListFile fetchListHTTP fetchListURL \
-fetchMakeURL fetchParseURL fetchPut fetchPutFTP fetchPutFile fetchPutHTTP \
-fetchPutURL fetchStat fetchStatFTP fetchStatFile fetchStatHTTP fetchStatURL \
-fetchXGet fetchXGetFTP fetchXGetFile fetchXGetHTTP fetchXGetURL
-MLINKS+= fetch.3 ${MP}.3
-.endfor
+MLINKS+= fetch.3 fetchFreeURL.3
+MLINKS+= fetch.3 fetchGet.3
+MLINKS+= fetch.3 fetchGetFTP.3
+MLINKS+= fetch.3 fetchGetFile.3
+MLINKS+= fetch.3 fetchGetHTTP.3
+MLINKS+= fetch.3 fetchGetURL.3
+MLINKS+= fetch.3 fetchList.3
+MLINKS+= fetch.3 fetchListFTP.3
+MLINKS+= fetch.3 fetchListFile.3
+MLINKS+= fetch.3 fetchListHTTP.3
+MLINKS+= fetch.3 fetchListURL.3
+MLINKS+= fetch.3 fetchMakeURL.3
+MLINKS+= fetch.3 fetchParseURL.3
+MLINKS+= fetch.3 fetchPut.3
+MLINKS+= fetch.3 fetchPutFTP.3
+MLINKS+= fetch.3 fetchPutFile.3
+MLINKS+= fetch.3 fetchPutHTTP.3
+MLINKS+= fetch.3 fetchPutURL.3
+MLINKS+= fetch.3 fetchStat.3
+MLINKS+= fetch.3 fetchStatFTP.3
+MLINKS+= fetch.3 fetchStatFile.3
+MLINKS+= fetch.3 fetchStatHTTP.3
+MLINKS+= fetch.3 fetchStatURL.3
+MLINKS+= fetch.3 fetchXGet.3
+MLINKS+= fetch.3 fetchXGetFTP.3
+MLINKS+= fetch.3 fetchXGetFile.3
+MLINKS+= fetch.3 fetchXGetHTTP.3
+MLINKS+= fetch.3 fetchXGetURL.3
 
 .include <bsd.lib.mk>

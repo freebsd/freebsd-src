@@ -110,13 +110,13 @@ struct cookie
     int		 fd;
     char	*buf;
     size_t	 b_size;
-    size_t	 b_len;
+    ssize_t	 b_len;
     int		 b_pos;
     int		 eof;
     int		 error;
-    long	 chunksize;
+    size_t	 chunksize;
 #ifndef NDEBUG
-    long	 total;
+    size_t	 total;
 #endif
 };
 
@@ -149,7 +149,8 @@ _http_new_chunk(struct cookie *c)
 		"end of last chunk\033[m\n");
     else
 	fprintf(stderr, "\033[1m_http_fillbuf(): "
-		"new chunk: %ld (%ld)\033[m\n", c->chunksize, c->total);
+		"new chunk: %lu (%lu)\033[m\n",
+		(unsigned long)c->chunksize, (unsigned long)c->total);
 #endif
     
     return c->chunksize;
@@ -297,11 +298,11 @@ typedef enum {
     hdr_location,
     hdr_transfer_encoding,
     hdr_www_authenticate
-} hdr;
+} hdr_t;
 
 /* Names of interesting headers */
 static struct {
-    hdr		 num;
+    hdr_t	 num;
     const char	*name;
 } hdr_names[] = {
     { hdr_content_length,	"Content-Length" },
@@ -404,7 +405,7 @@ _http_match(const char *str, const char *hdr)
 /*
  * Get the next header and return the appropriate symbolic code.
  */
-static hdr
+static hdr_t
 _http_next_header(int fd, const char **p)
 {
     int i;
@@ -462,7 +463,10 @@ _http_parse_length(const char *p, off_t *length)
     
     for (len = 0; *p && isdigit(*p); ++p)
 	len = len * 10 + (*p - '0');
-    DEBUG(fprintf(stderr, "content length: [\033[1m%lld\033[m]\n", len));
+    if (*p)
+	return -1;
+    DEBUG(fprintf(stderr, "content length: [\033[1m%lld\033[m]\n",
+		  (long long)len));
     *length = len;
     return 0;
 }
@@ -473,7 +477,7 @@ _http_parse_length(const char *p, off_t *length)
 static int
 _http_parse_range(const char *p, off_t *offset, off_t *length, off_t *size)
 {
-    int first, last, len;
+    off_t first, last, len;
 
     if (strncasecmp(p, "bytes ", 6) != 0)
 	return -1;
@@ -487,10 +491,10 @@ _http_parse_range(const char *p, off_t *offset, off_t *length, off_t *size)
 	return -1;
     for (len = 0, ++p; *p && isdigit(*p); ++p)
 	len = len * 10 + *p - '0';
-    if (len < last - first + 1)
+    if (*p || len < last - first + 1)
 	return -1;
-    DEBUG(fprintf(stderr, "content range: [\033[1m%d-%d/%d\033[m]\n",
-		  first, last, len));
+    DEBUG(fprintf(stderr, "content range: [\033[1m%lld-%lld/%lld\033[m]\n",
+		  (long long)first, (long long)last, (long long)len));
     *offset = first;
     *length = last - first + 1;
     *size = len;
@@ -688,7 +692,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
     time_t mtime;
     const char *p;
     FILE *f;
-    hdr h;
+    hdr_t h;
     char *host;
 #ifdef INET6
     char hbuf[MAXHOSTNAMELEN + 1];
@@ -783,7 +787,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 	else
 	    _http_cmd(fd, "User-Agent: %s " _LIBFETCH_VER, __progname);
 	if (url->offset)
-	    _http_cmd(fd, "Range: bytes=%lld-", url->offset);
+	    _http_cmd(fd, "Range: bytes=%lld-", (long long)url->offset);
 	_http_cmd(fd, "Connection: close");
 	_http_cmd(fd, "");
 
@@ -921,8 +925,10 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 	goto ouch;
     }
 
-    DEBUG(fprintf(stderr, "offset %lld, length %lld, size %lld, clength %lld\n",
-		  offset, length, size, clength));
+    DEBUG(fprintf(stderr, "offset %lld, length %lld,"
+		  " size %lld, clength %lld\n",
+		  (long long)offset, (long long)length,
+		  (long long)size, (long long)clength));
     
     /* check for inconsistencies */
     if (clength != -1 && length != -1 && clength != length) {
@@ -1006,7 +1012,7 @@ fetchGetHTTP(struct url *URL, const char *flags)
  * Store a file by HTTP
  */
 FILE *
-fetchPutHTTP(struct url *URL, const char *flags)
+fetchPutHTTP(struct url *URL __unused, const char *flags __unused)
 {
     warnx("fetchPutHTTP(): not implemented");
     return NULL;
@@ -1030,7 +1036,7 @@ fetchStatHTTP(struct url *URL, struct url_stat *us, const char *flags)
  * List a directory
  */
 struct url_ent *
-fetchListHTTP(struct url *url, const char *flags)
+fetchListHTTP(struct url *url __unused, const char *flags __unused)
 {
     warnx("fetchListHTTP(): not implemented");
     return NULL;

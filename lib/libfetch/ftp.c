@@ -267,7 +267,7 @@ _ftp_stat(int cd, const char *file, struct url_stat *us)
     }
     if (us->size == 0)
 	us->size = -1;
-    DEBUG(fprintf(stderr, "size: [\033[1m%lld\033[m]\n", us->size));
+    DEBUG(fprintf(stderr, "size: [\033[1m%lld\033[m]\n", (long long)us->size));
 
     if ((e = _ftp_cmd(cd, "MDTM %s", s)) != FTP_FILE_STATUS) {
 	_ftp_seterr(e);
@@ -385,7 +385,7 @@ _ftp_writefn(void *v, const char *buf, int len)
 }
 
 static fpos_t
-_ftp_seekfn(void *v, fpos_t pos, int whence)
+_ftp_seekfn(void *v, fpos_t pos __unused, int whence __unused)
 {
     struct ftpio *io;
     
@@ -450,7 +450,7 @@ static FILE *
 _ftp_transfer(int cd, const char *oper, const char *file,
 	      int mode, off_t offset, const char *flags)
 {
-    struct sockaddr_storage sin;
+    struct sockaddr_storage sa;
     struct sockaddr_in6 *sin6;
     struct sockaddr_in *sin4;
     int low, pasv, verbose;
@@ -470,14 +470,14 @@ _ftp_transfer(int cd, const char *oper, const char *file,
 		strncasecmp(s, "no", 2) != 0);
 
     /* find our own address, bind, and listen */
-    l = sizeof sin;
-    if (getsockname(cd, (struct sockaddr *)&sin, &l) == -1)
+    l = sizeof sa;
+    if (getsockname(cd, (struct sockaddr *)&sa, &l) == -1)
 	goto sysouch;
-    if (sin.ss_family == AF_INET6)
-	unmappedaddr((struct sockaddr_in6 *)&sin);
+    if (sa.ss_family == AF_INET6)
+	unmappedaddr((struct sockaddr_in6 *)&sa);
 
     /* open data socket */
-    if ((sd = socket(sin.ss_family, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+    if ((sd = socket(sa.ss_family, SOCK_STREAM, IPPROTO_TCP)) == -1) {
 	_fetch_syserr();
 	return NULL;
     }
@@ -485,13 +485,13 @@ _ftp_transfer(int cd, const char *oper, const char *file,
     if (pasv) {
 	u_char addr[64];
 	char *ln, *p;
-	int i;
+	unsigned int i;
 	int port;
 	
 	/* send PASV command */
 	if (verbose)
 	    _fetch_info("setting passive mode");
-	switch (sin.ss_family) {
+	switch (sa.ss_family) {
 	case AF_INET:
 	    if ((e = _ftp_cmd(cd, "PASV")) != FTP_PASSIVE_MODE)
 		goto ouch;
@@ -555,14 +555,14 @@ _ftp_transfer(int cd, const char *oper, const char *file,
 		goto sysouch;
 	
 	/* construct sockaddr for data socket */
-	l = sizeof sin;
-	if (getpeername(cd, (struct sockaddr *)&sin, &l) == -1)
+	l = sizeof sa;
+	if (getpeername(cd, (struct sockaddr *)&sa, &l) == -1)
 	    goto sysouch;
-	if (sin.ss_family == AF_INET6)
-	    unmappedaddr((struct sockaddr_in6 *)&sin);
-	switch (sin.ss_family) {
+	if (sa.ss_family == AF_INET6)
+	    unmappedaddr((struct sockaddr_in6 *)&sa);
+	switch (sa.ss_family) {
 	case AF_INET6:
-	    sin6 = (struct sockaddr_in6 *)&sin;
+	    sin6 = (struct sockaddr_in6 *)&sa;
 	    if (e == FTP_EPASSIVE_MODE)
 		sin6->sin6_port = htons(port);
 	    else {
@@ -571,7 +571,7 @@ _ftp_transfer(int cd, const char *oper, const char *file,
 	    }
 	    break;
 	case AF_INET:
-	    sin4 = (struct sockaddr_in *)&sin;
+	    sin4 = (struct sockaddr_in *)&sa;
 	    if (e == FTP_EPASSIVE_MODE)
 		sin4->sin_port = htons(port);
 	    else {
@@ -587,7 +587,7 @@ _ftp_transfer(int cd, const char *oper, const char *file,
 	/* connect to data port */
 	if (verbose)
 	    _fetch_info("opening data connection");
-	if (connect(sd, (struct sockaddr *)&sin, sin.ss_len) == -1)
+	if (connect(sd, (struct sockaddr *)&sa, sa.ss_len) == -1)
 	    goto sysouch;
 
 	/* make the server initiate the transfer */
@@ -604,9 +604,9 @@ _ftp_transfer(int cd, const char *oper, const char *file,
 	char *ap;
 	char hname[INET6_ADDRSTRLEN];
 	
-	switch (sin.ss_family) {
+	switch (sa.ss_family) {
 	case AF_INET6:
-	    ((struct sockaddr_in6 *)&sin)->sin6_port = 0;
+	    ((struct sockaddr_in6 *)&sa)->sin6_port = 0;
 #ifdef IPV6_PORTRANGE
 	    arg = low ? IPV6_PORTRANGE_DEFAULT : IPV6_PORTRANGE_HIGH;
 	    if (setsockopt(sd, IPPROTO_IPV6, IPV6_PORTRANGE,
@@ -615,7 +615,7 @@ _ftp_transfer(int cd, const char *oper, const char *file,
 #endif
 	    break;
 	case AF_INET:
-	    ((struct sockaddr_in *)&sin)->sin_port = 0;
+	    ((struct sockaddr_in *)&sa)->sin_port = 0;
 	    arg = low ? IP_PORTRANGE_DEFAULT : IP_PORTRANGE_HIGH;
 	    if (setsockopt(sd, IPPROTO_IP, IP_PORTRANGE,
 			   (char *)&arg, sizeof arg) == -1)
@@ -624,17 +624,17 @@ _ftp_transfer(int cd, const char *oper, const char *file,
 	}
 	if (verbose)
 	    _fetch_info("binding data socket");
-	if (bind(sd, (struct sockaddr *)&sin, sin.ss_len) == -1)
+	if (bind(sd, (struct sockaddr *)&sa, sa.ss_len) == -1)
 	    goto sysouch;
 	if (listen(sd, 1) == -1)
 	    goto sysouch;
 
 	/* find what port we're on and tell the server */
-	if (getsockname(sd, (struct sockaddr *)&sin, &l) == -1)
+	if (getsockname(sd, (struct sockaddr *)&sa, &l) == -1)
 	    goto sysouch;
-	switch (sin.ss_family) {
+	switch (sa.ss_family) {
 	case AF_INET:
-	    sin4 = (struct sockaddr_in *)&sin;
+	    sin4 = (struct sockaddr_in *)&sa;
 	    a = ntohl(sin4->sin_addr.s_addr);
 	    p = ntohs(sin4->sin_port);
 	    e = _ftp_cmd(cd, "PORT %d,%d,%d,%d,%d,%d",
@@ -645,8 +645,8 @@ _ftp_transfer(int cd, const char *oper, const char *file,
 	case AF_INET6:
 #define UC(b)	(((int)b)&0xff)
 	    e = -1;
-	    sin6 = (struct sockaddr_in6 *)&sin;
-	    if (getnameinfo((struct sockaddr *)&sin, sin.ss_len,
+	    sin6 = (struct sockaddr_in6 *)&sa;
+	    if (getnameinfo((struct sockaddr *)&sa, sa.ss_len,
 			    hname, sizeof(hname),
 			    NULL, 0, NI_NUMERICHOST) == 0) {
 		e = _ftp_cmd(cd, "EPRT |%d|%s|%d|", 2, hname,
@@ -718,7 +718,7 @@ ouch:
 static int
 _ftp_authenticate(int cd, struct url *url, struct url *purl)
 {
-    char *user, *pwd, *logname;
+    const char *user, *pwd, *logname;
     char pbuf[MAXHOSTNAMELEN + MAXLOGNAME + 1];
     int e, len;
 
@@ -1028,7 +1028,7 @@ fetchStatFTP(struct url *url, struct url_stat *us, const char *flags)
  * List a directory
  */
 struct url_ent *
-fetchListFTP(struct url *url, const char *flags)
+fetchListFTP(struct url *url __unused, const char *flags __unused)
 {
     warnx("fetchListFTP(): not implemented");
     return NULL;
