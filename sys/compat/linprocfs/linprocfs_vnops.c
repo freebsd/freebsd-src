@@ -55,6 +55,7 @@
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/dirent.h>
+#include <sys/malloc.h>
 #include <machine/reg.h>
 #include <vm/vm_zone.h>
 #include <i386/linux/linprocfs/linprocfs.h>
@@ -94,8 +95,8 @@ static struct proc_target {
 	/*	  name		type		validp */
 	{ DT_DIR, N("."),	Pproc,		NULL },
 	{ DT_DIR, N(".."),	Proot,		NULL },
-	{ DT_REG, N("exe"),	Pexe,		linprocfs_validfile },
 	{ DT_REG, N("mem"),	Pmem,		NULL },
+	{ DT_LNK, N("exe"),	Pexe,		NULL },
 #undef N
 };
 static const int nproc_targets = sizeof(proc_targets) / sizeof(proc_targets[0]);
@@ -513,9 +514,19 @@ linprocfs_getattr(ap)
 		vap->va_size = vap->va_bytes = DEV_BSIZE;
 		break;
 
-	case Pexe:
-		error = EOPNOTSUPP;
+	case Pexe: {
+		char *fullpath, *freepath;
+		error = textvp_fullpath(procp, &fullpath, &freepath);
+		if (error == 0) {
+			vap->va_size = strlen(fullpath);
+			free(freepath, M_TEMP);
+		} else {
+			vap->va_size = sizeof("unknown") - 1;
+			error = 0;
+		}
+		vap->va_bytes = vap->va_size;
 		break;
+	}
 
 	case Pmeminfo:
 	case Pcpuinfo:
@@ -650,9 +661,7 @@ linprocfs_lookup(ap)
 	struct vnode **vpp = ap->a_vpp;
 	struct vnode *dvp = ap->a_dvp;
 	char *pname = cnp->cn_nameptr;
-	struct proc *curp = cnp->cn_proc;
 	struct proc_target *pt;
-	struct vnode *fvp;
 	pid_t pid;
 	struct pfsnode *pfs;
 	struct proc *p;
@@ -710,15 +719,6 @@ linprocfs_lookup(ap)
 		break;
 
 	found:
-		if (pt->pt_pfstype == Pexe) {
-			fvp = procfs_findtextvp(p);
-			/* We already checked that it exists. */
-			VREF(fvp);
-			vn_lock(fvp, LK_EXCLUSIVE | LK_RETRY, curp);
-			*vpp = fvp;
-			return (0);
-		}
-
 		return (linprocfs_allocvp(dvp->v_mount, vpp, pfs->pfs_pid,
 		    pt->pt_pfstype));
 
@@ -916,21 +916,50 @@ linprocfs_readdir(ap)
 }
 
 /*
- * readlink reads the link of `self'
+ * readlink reads the link of `self' or `exe'
  */
 static int
 linprocfs_readlink(ap)
 	struct vop_readlink_args *ap;
 {
 	char buf[16];		/* should be enough */
-	int len;
+	struct proc *procp;
+	struct vnode *vp = ap->a_vp;
+	struct pfsnode *pfs = VTOPFS(vp);
+	char *fullpath, *freepath;
+	int error, len;
 
-	if (VTOPFS(ap->a_vp)->pfs_fileno != PROCFS_FILENO(0, Pself))
+	switch (pfs->pfs_type) {
+	case Pself:
+		if (pfs->pfs_fileno != PROCFS_FILENO(0, Pself))
+			return (EINVAL);
+
+		len = snprintf(buf, sizeof(buf), "%ld", (long)curproc->p_pid);
+
+		return (uiomove(buf, len, ap->a_uio));
+	/*
+	 * There _should_ be no way for an entire process to disappear
+	 * from under us...
+	 */
+	case Pexe:
+		procp = PFIND(pfs->pfs_pid);
+		if (procp == NULL || procp->p_cred == NULL ||
+		    procp->p_ucred == NULL) {
+			printf("linprocfs_readlink: pid %d disappeared\n",
+			    pfs->pfs_pid);
+			return (uiomove("unknown", sizeof("unknown") - 1,
+			    ap->a_uio));
+		}
+		error = textvp_fullpath(procp, &fullpath, &freepath);
+		if (error != 0)
+			return (uiomove("unknown", sizeof("unknown") - 1,
+			    ap->a_uio));
+		error = uiomove(fullpath, strlen(fullpath), ap->a_uio);
+		free(freepath, M_TEMP);
+		return (error);
+	default:
 		return (EINVAL);
-
-	len = snprintf(buf, sizeof(buf), "%ld", (long)curproc->p_pid);
-
-	return (uiomove((caddr_t)buf, len, ap->a_uio));
+	}
 }
 
 /*

@@ -108,7 +108,6 @@ struct dbreg;
 void linprocfs_exit __P((struct proc *));
 int linprocfs_freevp __P((struct vnode *));
 int linprocfs_allocvp __P((struct mount *, struct vnode **, long, pfstype));
-struct vnode *linprocfs_findtextvp __P((struct proc *));
 int linprocfs_sstep __P((struct proc *));
 void linprocfs_fix_sstep __P((struct proc *));
 #if 0
