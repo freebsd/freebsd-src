@@ -776,10 +776,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 	const char *p;
 	FILE *f;
 	hdr_t h;
-	char *host;
-#ifdef INET6
-	char hbuf[MAXHOSTNAMELEN + 1];
-#endif
+	char hbuf[MAXHOSTNAMELEN + 7], *host;
 
 	direct = CHECK_FLAG('d');
 	noredirect = CHECK_FLAG('A');
@@ -831,24 +828,29 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 			host = hbuf;
 		}
 #endif
+		if (url->port != _fetch_default_port(url->scheme)) {
+			if (host != hbuf) {
+				strcpy(hbuf, host);
+				host = hbuf;
+			}
+			snprintf(hbuf + strlen(hbuf),
+			    sizeof(hbuf) - strlen(hbuf), ":%d", url->port);
+		}
 
 		/* send request */
 		if (verbose)
-			_fetch_info("requesting %s://%s:%d%s",
-			    url->scheme, host, url->port, url->doc);
+			_fetch_info("requesting %s://%s%s",
+			    url->scheme, host, url->doc);
 		if (purl) {
-			_http_cmd(conn, "%s %s://%s:%d%s HTTP/1.1",
-			    op, url->scheme, host, url->port, url->doc);
+			_http_cmd(conn, "%s %s://%s%s HTTP/1.1",
+			    op, url->scheme, host, url->doc);
 		} else {
 			_http_cmd(conn, "%s %s HTTP/1.1",
 			    op, url->doc);
 		}
 
 		/* virtual host */
-		if (url->port == _fetch_default_port(url->scheme))
-			_http_cmd(conn, "Host: %s", host);
-		else
-			_http_cmd(conn, "Host: %s:%d", host, url->port);
+		_http_cmd(conn, "Host: %s", host);
 
 		/* proxy authorization */
 		if (purl) {
@@ -874,6 +876,13 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 		}
 
 		/* other headers */
+		if ((p = getenv("HTTP_REFERER")) != NULL && *p != '\0') {
+			if (strcasecmp(p, "auto") == 0)
+				_http_cmd(conn, "Referer: %s://%s%s",
+				    url->scheme, host, url->doc);
+			else
+				_http_cmd(conn, "Referer: %s", p);
+		}
 		if ((p = getenv("HTTP_USER_AGENT")) != NULL && *p != '\0')
 			_http_cmd(conn, "User-Agent: %s", p);
 		else
