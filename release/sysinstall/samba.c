@@ -63,7 +63,7 @@ configSamba(dialogMenuItem *self)
 
     if (!dmenuOpenSimple(&MenuSamba, FALSE))
 	i = DITEM_FAILURE;
-    else if (DITEM_STATUS(package_add(PACKAGE_SAMBA)) != DITEM_SUCCESS)
+    else if (DITEM_STATUS(package_add(variable_get(VAR_SAMBA_PKG))) != DITEM_SUCCESS)
 	i = DITEM_FAILURE;
     else {
 	FILE *fptr;
