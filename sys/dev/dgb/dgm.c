@@ -1,5 +1,5 @@
 /*-
- *	$Id: dgm.c,v 1.12 1999/05/03 09:32:31 brian Exp $
+ *	$Id: dgm.c,v 1.13 1999/05/08 07:02:25 phk Exp $
  *
  *  This driver and the associated header files support the ISA PC/Xem
  *  Digiboards.  Its evolutionary roots are described below.
@@ -228,12 +228,26 @@ static	d_stop_t	dgmstop;
 static	d_devtotty_t	dgmdevtotty;
 
 #define	CDEV_MAJOR	101
-static	struct cdevsw	dgm_cdevsw = {
-	dgmopen,	dgmclose,	dgmread,	dgmwrite,
-	dgmioctl,	dgmstop,	noreset,	dgmdevtotty,
-	ttpoll,		nommap,		NULL,		"dgm",
-	NULL,		-1,		nodump,		nopsize,
-	D_TTY,
+static struct cdevsw dgm_cdevsw = {
+	/* open */	dgmopen,
+	/* close */	dgmclose,
+	/* read */	dgmread,
+	/* write */	dgmwrite,
+	/* ioctl */	dgmioctl,
+	/* stop */	dgmstop,
+	/* reset */	noreset,
+	/* devtotty */	dgmdevtotty,
+	/* poll */	ttpoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"dgm",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	D_TTY,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 static	speed_t	dgmdefaultrate = TTYDEF_SPEED;

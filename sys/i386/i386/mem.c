@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.60 1999/05/08 17:48:21 peter Exp $
+ *	$Id: mem.c,v 1.61 1999/05/11 19:54:06 phk Exp $
  */
 
 /*
@@ -87,10 +87,27 @@ static	d_mmap_t	memmmap;
 static	d_poll_t	mmpoll;
 
 #define CDEV_MAJOR 2
-static struct cdevsw mem_cdevsw = 
-	{ mmopen,	mmclose,	mmrw,		mmrw,		/*2*/
-	  mmioctl,	nullstop,	nullreset,	nodevtotty,/* memory */
-	  mmpoll,	memmmap,	NULL,	"mem",	NULL, -1 };
+static struct cdevsw mem_cdevsw = {
+	/* open */	mmopen,
+	/* close */	mmclose,
+	/* read */	mmrw,
+	/* write */	mmrw,
+	/* ioctl */	mmioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	mmpoll,
+	/* mmap */	memmmap,
+	/* strategy */	nostrategy,
+	/* name */	"mem",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 static struct random_softc random_softc[16];
 static caddr_t	zbuf;

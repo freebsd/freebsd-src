@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.95 1999/05/10 09:37:37 kato Exp $
+ *	$Id: sio.c,v 1.96 1999/05/11 08:38:28 kato Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -481,12 +481,26 @@ static	d_stop_t	siostop;
 static	d_devtotty_t	siodevtotty;
 
 #define	CDEV_MAJOR	28
-static	struct cdevsw	sio_cdevsw = {
-	sioopen,	sioclose,	sioread,	siowrite,
-	sioioctl,	siostop,	noreset,	siodevtotty,
-	ttpoll,		nommap,		NULL,		driver_name,
-	NULL,		-1,		nodump,		nopsize,
-	D_TTY,
+static struct cdevsw sio_cdevsw = {
+	/* open */	sioopen,
+	/* close */	sioclose,
+	/* read */	sioread,
+	/* write */	siowrite,
+	/* ioctl */	sioioctl,
+	/* stop */	siostop,
+	/* reset */	noreset,
+	/* devtotty */	siodevtotty,
+	/* poll */	ttpoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	driver_name,
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	D_TTY,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 int	comconsole = -1;

@@ -1,4 +1,4 @@
-/* $Id: promcons.c,v 1.6 1999/05/07 10:09:28 phk Exp $ */
+/* $Id: promcons.c,v 1.7 1999/05/09 08:57:47 phk Exp $ */
 /* $NetBSD: promcons.c,v 1.13 1998/03/21 22:52:59 mycroft Exp $ */
 
 /*
@@ -69,10 +69,25 @@ static	d_devtotty_t	promdevtotty;
 
 #define CDEV_MAJOR 97
 static struct cdevsw prom_cdevsw = {
-	promopen,	promclose,	promread,	promwrite,
-	promioctl,	promstop,	noreset,	promdevtotty,
-	ttpoll,		nommap,		NULL,		"prom",
-	NULL,		-1,
+	/* open */	promopen,
+	/* close */	promclose,
+	/* read */	promread,
+	/* write */	promwrite,
+	/* ioctl */	promioctl,
+	/* stop */	promstop,
+	/* reset */	noreset,
+	/* devtotty */	promdevtotty,
+	/* poll */	ttpoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"prom",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 static struct  tty prom_tty[1];

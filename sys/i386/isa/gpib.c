@@ -75,10 +75,27 @@ static	d_write_t	gpwrite;
 static	d_ioctl_t	gpioctl;
 
 #define CDEV_MAJOR 44
-static struct cdevsw gp_cdevsw = 
-	{ gpopen,	gpclose,	noread,		gpwrite,	/*44*/
-	  gpioctl,	nostop,		nullreset,	nodevtotty,/* GPIB */
-          seltrue,	nommap,		NULL,	"gp",	NULL,	-1 };
+static struct cdevsw gp_cdevsw = {
+	/* open */	gpopen,
+	/* close */	gpclose,
+	/* read */	noread,
+	/* write */	gpwrite,
+	/* ioctl */	gpioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"gp",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 #define   BUFSIZE      1024
 #define   ATTACHED     0x08

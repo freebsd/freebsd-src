@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.44 1999/05/07 07:03:29 phk Exp $ */
+/* $Id: scd.c,v 1.45 1999/05/09 20:29:04 phk Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -193,11 +193,26 @@ static	d_strategy_t	scdstrategy;
 #define CDEV_MAJOR 45
 #define BDEV_MAJOR 16
 static struct cdevsw scd_cdevsw = {
-	  scdopen,	scdclose,	physread,	nowrite,
-	  scdioctl,	nostop,		nullreset,	nodevtotty,
-	  seltrue,	nommap,		scdstrategy,	"scd",
-	  NULL,		-1,		nodump,		nopsize,
-	  D_DISK,	0,		-1 };
+	/* open */	scdopen,
+	/* close */	scdclose,
+	/* read */	physread,
+	/* write */	nowrite,
+	/* ioctl */	scdioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	scdstrategy,
+	/* name */	"scd",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	D_DISK,
+	/* maxio */	0,
+	/* bmaj */	BDEV_MAJOR
+};
 
 
 static int

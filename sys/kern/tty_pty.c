@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.4 (Berkeley) 2/20/95
- * $Id: tty_pty.c,v 1.58 1999/05/14 20:44:20 luoqi Exp $
+ * $Id: tty_pty.c,v 1.59 1999/05/18 14:53:52 luoqi Exp $
  */
 
 /*
@@ -80,21 +80,49 @@ static	d_write_t	ptcwrite;
 static	d_poll_t	ptcpoll;
 
 #define	CDEV_MAJOR_S	5
-static	struct cdevsw	pts_cdevsw = {
-	ptsopen,	ptsclose,	ptsread,	ptswrite,
-	ptyioctl,	ptsstop,	nullreset,	ptydevtotty,
-	ttpoll,		nommap,		NULL,		"pts",
-	NULL,		-1,		nodump,		nopsize,
-	D_TTY,
+static struct cdevsw pts_cdevsw = {
+	/* open */	ptsopen,
+	/* close */	ptsclose,
+	/* read */	ptsread,
+	/* write */	ptswrite,
+	/* ioctl */	ptyioctl,
+	/* stop */	ptsstop,
+	/* reset */	noreset,
+	/* devtotty */	ptydevtotty,
+	/* poll */	ttpoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"pts",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR_S,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	D_TTY,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 #define	CDEV_MAJOR_C	6
-static	struct cdevsw	ptc_cdevsw = {
-	ptcopen,	ptcclose,	ptcread,	ptcwrite,
-	ptyioctl,	nullstop,	nullreset,	ptydevtotty,
-	ptcpoll,	nommap,		NULL,		"ptc",
-	NULL,		-1,		nodump,		nopsize,
-	D_TTY,
+static struct cdevsw ptc_cdevsw = {
+	/* open */	ptcopen,
+	/* close */	ptcclose,
+	/* read */	ptcread,
+	/* write */	ptcwrite,
+	/* ioctl */	ptyioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	ptydevtotty,
+	/* poll */	ptcpoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"ptc",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR_C,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	D_TTY,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 #if NPTY == 1

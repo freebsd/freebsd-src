@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.85 1999/05/09 13:00:41 phk Exp $
+ *	$Id: apm.c,v 1.86 1999/05/11 19:54:03 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -88,10 +88,27 @@ static d_close_t apmclose;
 static d_ioctl_t apmioctl;
 
 #define CDEV_MAJOR 39
-static struct cdevsw apm_cdevsw = 
-	{ apmopen,	apmclose,	noread,		nowrite,	/*39*/
-	  apmioctl,	nostop,		nullreset,	nodevtotty,/* APM */
-	  seltrue,	nommap,		NULL ,	"apm"	,NULL,	-1};
+static struct cdevsw apm_cdevsw = {
+	/* open */	apmopen,
+	/* close */	apmclose,
+	/* read */	noread,
+	/* write */	nowrite,
+	/* ioctl */	apmioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"apm",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 /* setup APM GDT discriptors */
 static void

@@ -221,10 +221,27 @@ static	d_write_t	twwrite;
 static	d_poll_t	twpoll;
 
 #define CDEV_MAJOR 19
-static struct cdevsw tw_cdevsw = 
-	{ twopen,	twclose,	twread,		twwrite,	/*19*/
-	  noioc,	nullstop,	nullreset,	nodevtotty, /* tw */
-	  twpoll,	nommap,		nostrat,	"tw",	NULL,	-1 };
+static struct cdevsw tw_cdevsw = {
+	/* open */	twopen,
+	/* close */	twclose,
+	/* read */	twread,
+	/* write */	twwrite,
+	/* ioctl */	noioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	twpoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"tw",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 /*
  * Software control structure for TW523

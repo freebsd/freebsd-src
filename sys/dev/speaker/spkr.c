@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.34 1998/06/07 17:11:00 dfr Exp $
+ *    $Id: spkr.c,v 1.35 1998/08/24 02:28:16 bde Exp $
  */
 
 #include "speaker.h"
@@ -35,10 +35,27 @@ static	d_write_t	spkrwrite;
 static	d_ioctl_t	spkrioctl;
 
 #define CDEV_MAJOR 26
-static struct cdevsw spkr_cdevsw = 
-	{ spkropen,     spkrclose,      noread,         spkrwrite,      /*26*/
-	  spkrioctl,    nostop,         nullreset,      nodevtotty,/* spkr */
-	  seltrue,	nommap,		NULL,	"spkr",	NULL,	-1 };
+static struct cdevsw spkr_cdevsw = {
+	/* open */	spkropen,
+	/* close */	spkrclose,
+	/* read */	noread,
+	/* write */	spkrwrite,
+	/* ioctl */	spkrioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"spkr",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 /**************** MACHINE DEPENDENT PART STARTS HERE *************************
  *

@@ -291,10 +291,27 @@ static	d_ioctl_t	labpcioctl;
 static	d_strategy_t	labpcstrategy;
 
 #define CDEV_MAJOR 66
-static struct cdevsw labpc_cdevsw = 
-	{ labpcopen,	labpcclose,	physread,	physwrite,
-	  labpcioctl,	nostop,		nullreset,	nodevtotty,
-	  seltrue,	nommap,		labpcstrategy, "labpc",	NULL,	-1 };
+static struct cdevsw labpc_cdevsw = {
+	/* open */	labpcopen,
+	/* close */	labpcclose,
+	/* read */	physread,
+	/* write */	physwrite,
+	/* ioctl */	labpcioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	labpcstrategy,
+	/* name */	"labpc",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 static ointhand2_t labpcintr;
 static void start(struct ctlr *ctlr);

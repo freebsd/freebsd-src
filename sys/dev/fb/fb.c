@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: fb.c,v 1.2 1999/01/12 10:35:50 yokota Exp $
+ * $Id: fb.c,v 1.3 1999/01/19 11:31:10 yokota Exp $
  */
 
 #include "fb.h"
@@ -286,10 +286,25 @@ static d_mmap_t		fbmmap;
 #define CDEV_MAJOR	141	/* XXX */
 
 static struct cdevsw fb_cdevsw = {
-	fbopen,		fbclose,	noread,		nowrite,   /* ??? */
-	fbioctl,	nostop,		nullreset,	nodevtotty,
-	seltrue,	fbmmap,		NULL,		DRIVER_NAME,
-	NULL,		-1,		nodump,		nopsize,
+	/* open */	fbopen,
+	/* close */	fbclose,
+	/* read */	noread,
+	/* write */	nowrite,
+	/* ioctl */	fbioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	fbmmap,
+	/* strategy */	nostrategy,
+	/* name */	DRIVER_NAME,
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 static void

@@ -1,5 +1,5 @@
 /*
- * $Id: scsi_sa.c,v 1.25 1999/05/22 22:00:23 gibbs Exp $
+ * $Id: scsi_sa.c,v 1.26 1999/05/25 23:10:54 mjacob Exp $
  *
  * Implementation of SCSI Sequential Access Peripheral driver for CAM.
  *
@@ -340,27 +340,26 @@ DATA_SET(periphdriver_set, sadriver);
 #define SA_CDEV_MAJOR 14
 #define SA_BDEV_MAJOR 5
 
-static struct cdevsw sa_cdevsw = 
-{
-	/*d_open*/	saopen,
-	/*d_close*/	saclose,
-	/*d_read*/	physread,
-	/*d_write*/	physwrite,
-	/*d_ioctl*/	saioctl,
-	/*d_stop*/	nostop,
-	/*d_reset*/	noreset,
-	/*d_devtotty*/	nodevtotty,
-	/*d_poll*/	seltrue,
-	/*d_mmap*/	nommap,
-	/*d_strategy*/	sastrategy,
-	/*d_name*/	"sa",
-	/*d_spare*/	NULL,
-	/*d_maj*/	-1,
-	/*d_dump*/	nodump,
-	/*d_psize*/	nopsize,
-	/*d_flags*/	D_TAPE,
-	/*d_maxio*/	0,
-	/*b_maj*/	-1
+static struct cdevsw sa_cdevsw = {
+	/* open */	saopen,
+	/* close */	saclose,
+	/* read */	physread,
+	/* write */	physwrite,
+	/* ioctl */	saioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	sastrategy,
+	/* name */	"sa",
+	/* parms */	noparms,
+	/* maj */	SA_CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	D_TAPE,
+	/* maxio */	0,
+	/* bmaj */	SA_BDEV_MAJOR
 };
 
 static struct extend_array *saperiphs;

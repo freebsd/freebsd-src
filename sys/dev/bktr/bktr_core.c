@@ -1,4 +1,4 @@
-/* $Id: brooktree848.c,v 1.80 1999/05/23 21:40:51 roger Exp $ */
+/* $Id: brooktree848.c,v 1.81 1999/05/25 12:43:40 roger Exp $ */
 /* BT848 Driver for Brooktree's Bt848, Bt848A, Bt849A, Bt878, Bt879 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
@@ -600,12 +600,26 @@ static	d_ioctl_t	bktr_ioctl;
 static	d_mmap_t	bktr_mmap;
 
 #define CDEV_MAJOR 92 
-static struct cdevsw bktr_cdevsw = 
-{
-	bktr_open,	bktr_close,	bktr_read,	bktr_write,
-	bktr_ioctl,	nostop,		nullreset,	nodevtotty,
-	seltrue,	bktr_mmap,	NULL,		"bktr",
-	NULL,		-1
+static struct cdevsw bktr_cdevsw = {
+	/* open */	bktr_open,
+	/* close */	bktr_close,
+	/* read */	bktr_read,
+	/* write */	bktr_write,
+	/* ioctl */	bktr_ioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	bktr_mmap,
+	/* strategy */	nostrategy,
+	/* name */	"bktr",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 #endif  /* __FreeBSD__ */
 

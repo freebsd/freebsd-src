@@ -48,7 +48,7 @@
  *	from: unknown origin, 386BSD 0.1
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
  *	From Id: nlpt.c,v 1.14 1999/02/08 13:55:43 des Exp
- *	$Id: lpt.c,v 1.2 1999/02/14 16:19:16 nsouch Exp $
+ *	$Id: lpt.c,v 1.3 1999/04/28 10:51:35 dt Exp $
  */
 
 /*
@@ -206,10 +206,27 @@ static	d_read_t	lptread;
 static	d_ioctl_t	lptioctl;
 
 #define CDEV_MAJOR 16
-static struct cdevsw lpt_cdevsw = 
-	{ lptopen,	lptclose,	lptread,	lptwrite,	/*16*/
-	  lptioctl,	nullstop,	nullreset,	nodevtotty,	/* lpt */
-	  seltrue,	nommap,		nostrat,	LPT_NAME,	NULL,	-1 };
+static struct cdevsw lpt_cdevsw = {
+	/* open */	lptopen,
+	/* close */	lptclose,
+	/* read */	lptread,
+	/* write */	lptwrite,
+	/* ioctl */	lptioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	LPT_NAME,
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 static int
 lpt_request_ppbus(struct lpt_data *sc, int how)

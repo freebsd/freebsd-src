@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbd.c,v 1.9 1999/05/18 11:05:58 yokota Exp $
+ * $Id: atkbd.c,v 1.10 1999/05/20 09:49:33 yokota Exp $
  */
 
 #include "atkbd.h"
@@ -64,11 +64,26 @@ static d_read_t		atkbdread;
 static d_ioctl_t	atkbdioctl;
 static d_poll_t		atkbdpoll;
 
-static struct  cdevsw atkbd_cdevsw = {
-	atkbdopen,	atkbdclose,	atkbdread,	nowrite,
-	atkbdioctl,	nostop,		nullreset,	nodevtotty,
-	atkbdpoll,	nommap,		NULL,		ATKBD_DRIVER_NAME,
-	NULL,		-1,
+static struct cdevsw atkbd_cdevsw = {
+	/* open */	atkbdopen,
+	/* close */	atkbdclose,
+	/* read */	atkbdread,
+	/* write */	nowrite,
+	/* ioctl */	atkbdioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	atkbdpoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	ATKBD_DRIVER_NAME,
+	/* parms */	noparms,
+	/* maj */	-1,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 #endif /* KBD_INSTALL_CDEV */

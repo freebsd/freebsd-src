@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.46 1999/05/07 10:09:42 phk Exp $ */
+/* $Id: ccd.c,v 1.47 1999/05/11 19:54:00 phk Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -174,11 +174,26 @@ static d_psize_t ccdsize;
 #define BDEV_MAJOR 21
 
 static struct cdevsw ccd_cdevsw = {
-	  ccdopen,	ccdclose,	physread,	physwrite,
-	  ccdioctl,	nostop,		nullreset,	nodevtotty,
-	  seltrue,	nommap,		ccdstrategy,	"ccd",
-	  NULL, 	-1,		ccddump,	ccdsize,
-	  D_DISK,	0,		-1 };
+	/* open */	ccdopen,
+	/* close */	ccdclose,
+	/* read */	physread,
+	/* write */	physwrite,
+	/* ioctl */	ccdioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	ccdstrategy,
+	/* name */	"ccd",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	ccddump,
+	/* psize */	ccdsize,
+	/* flags */	D_DISK,
+	/* maxio */	0,
+	/* bmaj */	BDEV_MAJOR
+};
 
 /* called during module initialization */
 static	void ccdattach __P((void));

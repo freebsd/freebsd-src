@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.47 1999/05/06 18:12:29 peter Exp $
+ *	$Id: pcaudio.c,v 1.48 1999/05/06 18:58:05 peter Exp $
  */
 
 #include "pca.h"
@@ -141,10 +141,27 @@ static	d_ioctl_t	pcaioctl;
 static	d_poll_t	pcapoll;
 
 #define CDEV_MAJOR 24
-static struct cdevsw pca_cdevsw = 
- 	{ pcaopen,      pcaclose,       noread,         pcawrite,       /*24*/
- 	  pcaioctl,     nostop,         nullreset,      nodevtotty,/* pcaudio */
- 	  pcapoll,	nommap,		NULL,	"pca",	NULL,	-1 };
+static struct cdevsw pca_cdevsw = {
+	/* open */	pcaopen,
+	/* close */	pcaclose,
+	/* read */	noread,
+	/* write */	pcawrite,
+	/* ioctl */	pcaioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	pcapoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"pca",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 static void pca_continue __P((void));
 static void pca_init __P((void));
