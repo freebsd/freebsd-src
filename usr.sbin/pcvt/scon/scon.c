@@ -1,5 +1,7 @@
 /*
- * Copyright (c) 1992,1993,1994 Hellmuth Michaelis and Joerg Wunsch
+ * Copyright (c) 1992, 2000 Hellmuth Michaelis
+ *
+ * Copyright (c) 1992, 1994 Joerg Wunsch
  *
  * All rights reserved.
  *
@@ -11,12 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by
- *	Hellmuth Michaelis and Joerg Wunsch
- * 4. The name authors may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -28,30 +24,16 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
-
-static char *id =
-	"@(#)scon.c, 3.20, Last Edit-Date: [Sun Sep 25 12:33:21 1994]";
 
 /*---------------------------------------------------------------------------*
  *
- *	history:
+ *	scon - screen control utility for pcvt
+ *	--------------------------------------
  *
- *	-hm	moving fd for default device from 1 -> 0 for such things
- *		as "scon -p list | more" to be possible
- *		(reported by Gordon L. Burditt, gordon@sneaky.lonestar.org)
- *	-hm	adding option "a" for just returning the type of video adaptor
- *	-hm	removing explicit HGC support, same as MDA ...
- *	-hm	vga type/family/132col support info on -l
- *	-hm	force 24 lines in DEC 25 lines mode and HP 28 lines mode
- *	-hm	fixed bug with 132 column mode display status display
- *	-jw	added 132/80 col mode switching
- *	-hm	removed -h flag, use -? now ... ;-)
- *	-hm	S3 chipsets ..
- *	-hm	Cirrus chipsets support from Onno van der Linden
- *	-hm	-m option, display monitor type
- *	-hm	bugfix, scon -c <screen-num> cleared dest screen, fixed
+ *	Last Edit-Date: [Mon Mar 27 17:19:34 2000]
+ *
+ * $FreeBSD$
  *
  *---------------------------------------------------------------------------*/
 
