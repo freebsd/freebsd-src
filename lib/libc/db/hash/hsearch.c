@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -44,14 +46,14 @@ static char sccsid[] = "@(#)hsearch.c	8.4 (Berkeley) 7/21/94";
 #include <string.h>
 
 #include <db.h>
-#include "search.h"
+#include <search.h>
 
 static DB *dbp = NULL;
 static ENTRY retval;
 
 extern int
 hcreate(nel)
-	u_int nel;
+	size_t nel;
 {
 	HASHINFO info;
 
