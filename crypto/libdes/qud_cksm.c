@@ -1,9 +1,9 @@
 /* crypto/des/qud_cksm.c */
-/* Copyright (C) 1995-1997 Eric Young (eay@mincom.oz.au)
+/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
  * This package is an SSL implementation written
- * by Eric Young (eay@mincom.oz.au).
+ * by Eric Young (eay@cryptsoft.com).
  * The implementation was written so as to conform with Netscapes SSL.
  * 
  * This library is free for commercial and non-commercial use as long as
@@ -11,7 +11,7 @@
  * apply to all code found in this distribution, be it the RC4, RSA,
  * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
  * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@mincom.oz.au).
+ * except that the holder is Tim Hudson (tjh@cryptsoft.com).
  * 
  * Copyright remains Eric Young's, and as such any Copyright notices in
  * the code are not to be removed.
@@ -31,12 +31,12 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *    "This product includes cryptographic software written by
- *     Eric Young (eay@mincom.oz.au)"
+ *     Eric Young (eay@cryptsoft.com)"
  *    The word 'cryptographic' can be left out if the rouines from the library
  *    being used are not cryptographic related :-).
  * 4. If you include any Windows specific code (or a derivative thereof) from 
  *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@mincom.oz.au)"
+ *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
  * 
  * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -73,71 +73,68 @@
 /* Got the value MIT uses via brute force :-) 2/10/90 eay */
 #define NOISE	((DES_LONG)83653421L)
 
-DES_LONG des_quad_cksum(input, output, length, out_count, seed)
-     des_cblock (*input);
-     des_cblock (*output);
-     long length;
-     int out_count;
-     des_cblock (*seed);
-{
-    DES_LONG z0,z1,t0,t1;
-    int i;
-    long l;
-#ifdef _CRAY
-    typedef struct {
-	unsigned int a:32;
-	unsigned int b:32;
-    } XXX;
-#else
-    typedef DES_LONG XXX;
-#endif
-    unsigned char *cp;
-    XXX *lp;
-
-    if (out_count < 1) out_count=1;
-    lp=(XXX*)output;
-
-    z0=Q_B0((*seed)[0])|Q_B1((*seed)[1])|Q_B2((*seed)[2])|Q_B3((*seed)[3]);
-    z1=Q_B0((*seed)[4])|Q_B1((*seed)[5])|Q_B2((*seed)[6])|Q_B3((*seed)[7]);
-
-    for (i=0; ((i<4)&&(i<out_count)); i++)
+DES_LONG des_quad_cksum(const unsigned char *input, des_cblock output[],
+	     long length, int out_count, des_cblock *seed)
 	{
-	    cp=(unsigned char *)input;
-	    l=length;
-	    while (l > 0)
+	DES_LONG z0,z1,t0,t1;
+	int i;
+	long l;
+	const unsigned char *cp;
+	unsigned char *lp;
+
+	if (out_count < 1) out_count=1;
+	lp = &(output[0])[0];
+
+	z0=Q_B0((*seed)[0])|Q_B1((*seed)[1])|Q_B2((*seed)[2])|Q_B3((*seed)[3]);
+	z1=Q_B0((*seed)[4])|Q_B1((*seed)[5])|Q_B2((*seed)[6])|Q_B3((*seed)[7]);
+
+	for (i=0; ((i<4)&&(i<out_count)); i++)
 		{
-		    if (l > 1)
+		cp=input;
+		l=length;
+		while (l > 0)
 			{
-			    t0= (DES_LONG)(*(cp++));
-			    t0|=(DES_LONG)Q_B1(*(cp++));
-			    l--;
+			if (l > 1)
+				{
+				t0= (DES_LONG)(*(cp++));
+				t0|=(DES_LONG)Q_B1(*(cp++));
+				l--;
+				}
+			else
+				t0= (DES_LONG)(*(cp++));
+			l--;
+			/* add */
+			t0+=z0;
+			t0&=0xffffffffL;
+			t1=z1;
+			/* square, well sort of square */
+			z0=((((t0*t0)&0xffffffffL)+((t1*t1)&0xffffffffL))
+				&0xffffffffL)%0x7fffffffL; 
+			z1=((t0*((t1+NOISE)&0xffffffffL))&0xffffffffL)%0x7fffffffL;
 			}
-		    else
-			t0= (DES_LONG)(*(cp++));
-		    l--;
-		    /* add */
-		    t0+=z0;
-		    t0&=0xffffffffL;
-		    t1=z1;
-		    /* square, well sort of square */
-		    z0=((((t0*t0)&0xffffffffL)+((t1*t1)&0xffffffffL))
-			&0xffffffffL)%0x7fffffffL; 
-		    z1=((t0*((t1+NOISE)&0xffffffffL))&0xffffffffL)%0x7fffffffL;
+		if (lp != NULL)
+			{
+			/* I believe I finally have things worked out.
+			 * The MIT library assumes that the checksum
+			 * is one huge number and it is returned in a
+			 * host dependant byte order.
+			 */
+			static DES_LONG ltmp=1;
+			static unsigned char *c=(unsigned char *)&ltmp;
+
+			if (c[0])
+				{
+				l2c(z0,lp);
+				l2c(z1,lp);
+				}
+			else
+				{
+				lp = &(output[out_count-i-1])[0];
+				l2n(z1,lp);
+				l2n(z0,lp);
+				}
+			}
 		}
-	    if (lp != NULL) 
-		{
-		    /* The MIT library assumes that the checksum is
-		     * composed of 2*out_count 32 bit ints */
-#ifdef _CRAY
-		    lp->a = z0;
-		    lp->b = z1;
-		    lp++;
-#else
-		    *lp++ = (XXX)z0;
-		    *lp++ = (XXX)z1;
-#endif
-		}
+	return(z0);
 	}
-    return(z0);
-}
 

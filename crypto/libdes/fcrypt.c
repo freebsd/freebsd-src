@@ -1,68 +1,18 @@
-/* crypto/des/fcrypt.c */
-/* Copyright (C) 1995-1997 Eric Young (eay@mincom.oz.au)
- * All rights reserved.
- *
- * This package is an SSL implementation written
- * by Eric Young (eay@mincom.oz.au).
- * The implementation was written so as to conform with Netscapes SSL.
- * 
- * This library is free for commercial and non-commercial use as long as
- * the following conditions are aheared to.  The following conditions
- * apply to all code found in this distribution, be it the RC4, RSA,
- * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
- * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@mincom.oz.au).
- * 
- * Copyright remains Eric Young's, and as such any Copyright notices in
- * the code are not to be removed.
- * If this package is used in a product, Eric Young should be given attribution
- * as the author of the parts of the library used.
- * This can be in the form of a textual message at program startup or
- * in documentation (online or textual) provided with the package.
- * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    "This product includes cryptographic software written by
- *     Eric Young (eay@mincom.oz.au)"
- *    The word 'cryptographic' can be left out if the rouines from the library
- *    being used are not cryptographic related :-).
- * 4. If you include any Windows specific code (or a derivative thereof) from 
- *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@mincom.oz.au)"
- * 
- * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- * 
- * The licence and distribution terms for any publically available version or
- * derivative of this code cannot be changed.  i.e. this code cannot simply be
- * copied and put under another distribution licence
- * [including the GNU Public Licence.]
- */
-
+/* NOCW */
 #include <stdio.h>
+#ifdef _OSD_POSIX
+#ifndef CHARSET_EBCDIC
+#define CHARSET_EBCDIC 1
+#endif
+#endif
+#ifdef CHARSET_EBCDIC
+#include <openssl/ebcdic.h>
+#endif
 
-/* Eric Young.
- * This version of crypt has been developed from my MIT compatable
+/* This version of crypt has been developed from my MIT compatable
  * DES library.
  * The library is available at pub/Crypto/DES at ftp.psy.uq.oz.au
- * eay@mincom.oz.au or eay@psych.psy.uq.oz.au
+ * Eric Young (eay@cryptsoft.com)
  */
 
 /* Modification by Jens Kupferschmidt (Cu)
@@ -73,193 +23,7 @@
  * defined 24.
  */
 
-#define FCRYPT_MOD(R,u,t,E0,E1,tmp) \
-	u=R>>16; \
-	t=R^u; \
-	u=t&E0; t=t&E1; \
-	tmp=(u<<16); u^=R^s[S  ]; u^=tmp; \
-	tmp=(t<<16); t^=R^s[S+1]; t^=tmp
-
-#define DES_FCRYPT
 #include "des_locl.h"
-#undef DES_FCRYPT
-
-#undef PERM_OP
-#define PERM_OP(a,b,t,n,m) ((t)=((((a)>>(n))^(b))&(m)),\
-	(b)^=(t),\
-	(a)^=((t)<<(n)))
-
-#undef HPERM_OP
-#define HPERM_OP(a,t,n,m) ((t)=((((a)<<(16-(n)))^(a))&(m)),\
-	(a)=(a)^(t)^(t>>(16-(n))))\
-
-#ifdef PARA
-#define STATIC
-#else
-#define STATIC	static
-#endif
-
-/* It is really only FreeBSD that still suffers from MD5 based crypts */
-#ifdef __FreeBSD__
-#define MD5_CRYPT_SUPPORT 1
-#endif
-#if     MD5_CRYPT_SUPPORT
-/*
- * ----------------------------------------------------------------------------
- * "THE BEER-WARE LICENSE" (Revision 42):
- * <phk@login.dknet.dk> wrote this file.  As long as you retain this notice you
- * can do whatever you want with this stuff. If we meet some day, and you think
- * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
- * ----------------------------------------------------------------------------
- */
-
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-#include <md5.h>
-
-static unsigned char itoa64[] =		/* 0 ... 63 => ascii - 64 */
-	"./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-
-static void
-to64(s, v, n)
-	char *s;
-	unsigned long v;
-	int n;
-{
-	while (--n >= 0) {
-		*s++ = itoa64[v&0x3f];
-		v >>= 6;
-	}
-}
-
-/*
- * UNIX password
- *
- * Use MD5 for what it is best at...
- */
-
-static
-char *
-crypt_md5(pw, salt)
-	register const char *pw;
-	register const char *salt;
-{
-	static char	*magic = "$1$";	/*
-						 * This string is magic for
-						 * this algorithm.  Having
-						 * it this way, we can get
-						 * get better later on
-						 */
-	static char     passwd[120], *p;
-	static const char *sp,*ep;
-	unsigned char	final[16];
-	int sl,pl,i,j;
-	MD5_CTX	ctx,ctx1;
-	unsigned long l;
-
-	/* Refine the Salt first */
-	sp = salt;
-
-	/* If it starts with the magic string, then skip that */
-	if(!strncmp(sp,magic,strlen(magic)))
-		sp += strlen(magic);
-
-	/* It stops at the first '$', max 8 chars */
-	for(ep=sp;*ep && *ep != '$' && ep < (sp+8);ep++)
-		continue;
-
-	/* get the length of the true salt */
-	sl = ep - sp;
-
-	MD5Init(&ctx);
-
-	/* The password first, since that is what is most unknown */
-	MD5Update(&ctx,pw,strlen(pw));
-
-	/* Then our magic string */
-	MD5Update(&ctx,magic,strlen(magic));
-
-	/* Then the raw salt */
-	MD5Update(&ctx,sp,sl);
-
-	/* Then just as many characters of the MD5(pw,salt,pw) */
-	MD5Init(&ctx1);
-	MD5Update(&ctx1,pw,strlen(pw));
-	MD5Update(&ctx1,sp,sl);
-	MD5Update(&ctx1,pw,strlen(pw));
-	MD5Final(final,&ctx1);
-	for(pl = strlen(pw); pl > 0; pl -= 16)
-		MD5Update(&ctx,final,pl>16 ? 16 : pl);
-
-	/* Don't leave anything around in vm they could use. */
-	memset(final,0,sizeof final);
-
-	/* Then something really weird... */
-	for (j=0,i = strlen(pw); i ; i >>= 1)
-		if(i&1)
-		    MD5Update(&ctx, final+j, 1);
-		else
-		    MD5Update(&ctx, pw+j, 1);
-
-	/* Now make the output string */
-	snprintf (passwd, sizeof(passwd),
-		  "%s%.*s$", magic, sl, sp);
-
-	MD5Final(final,&ctx);
-
-	/*
-	 * and now, just to make sure things don't run too fast
-	 * On a 60 Mhz Pentium this takes 34 msec, so you would
-	 * need 30 seconds to build a 1000 entry dictionary...
-	 */
-	for(i=0;i<1000;i++) {
-		MD5Init(&ctx1);
-		if(i & 1)
-			MD5Update(&ctx1,pw,strlen(pw));
-		else
-			MD5Update(&ctx1,final,16);
-
-		if(i % 3)
-			MD5Update(&ctx1,sp,sl);
-
-		if(i % 7)
-			MD5Update(&ctx1,pw,strlen(pw));
-
-		if(i & 1)
-			MD5Update(&ctx1,final,16);
-		else
-			MD5Update(&ctx1,pw,strlen(pw));
-		MD5Final(final,&ctx1);
-	}
-
-	p = passwd + strlen(passwd);
-
-	l = (final[ 0]<<16) | (final[ 6]<<8) | final[12]; to64(p,l,4); p += 4;
-	l = (final[ 1]<<16) | (final[ 7]<<8) | final[13]; to64(p,l,4); p += 4;
-	l = (final[ 2]<<16) | (final[ 8]<<8) | final[14]; to64(p,l,4); p += 4;
-	l = (final[ 3]<<16) | (final[ 9]<<8) | final[15]; to64(p,l,4); p += 4;
-	l = (final[ 4]<<16) | (final[10]<<8) | final[ 5]; to64(p,l,4); p += 4;
-	l =                    final[11]                ; to64(p,l,2); p += 2;
-	*p = '\0';
-
-	/* Don't leave anything around in vm they could use. */
-	memset(final,0,sizeof final);
-
-	return passwd;
-}
-#endif /* MD5_CRYPT_SUPPORT */
-
-#ifndef NOPROTO
-
-STATIC int fcrypt_body(DES_LONG *out0, DES_LONG *out1,
-	des_key_schedule ks, DES_LONG Eswap0, DES_LONG Eswap1);
-
-#else
-
-STATIC int fcrypt_body();
-
-#endif
 
 /* Added more values to handle illegal salt values the way normal
  * crypt() implementations do.  The patch was sent by 
@@ -295,43 +59,55 @@ static unsigned const char cov_2char[64]={
 0x73,0x74,0x75,0x76,0x77,0x78,0x79,0x7A
 };
 
-#ifndef NOPROTO
-#ifdef PERL5
-char *des_crypt(const char *buf,const char *salt);
-#else
-char *crypt(const char *buf,const char *salt);
-#endif
-#else
-#ifdef PERL5
-char *des_crypt();
-#else
-char *crypt();
-#endif
+void fcrypt_body(DES_LONG *out,des_key_schedule ks,
+	DES_LONG Eswap0, DES_LONG Eswap1);
+
+#if !defined(PERL5) && !defined(__FreeBSD__) && !defined(NeXT)
+char *crypt(const char *buf, const char *salt)
+	{
+	return(des_crypt(buf, salt));
+	}
 #endif
 
-#ifdef PERL5
-char *des_crypt(buf,salt)
-#else
-char *crypt(buf,salt)
-#endif
-const char *buf;
-const char *salt;
+char *des_crypt(const char *buf, const char *salt)
 	{
 	static char buff[14];
 
-#if     MD5_CRYPT_SUPPORT
-	if (!strncmp(salt, "$1$", 3))
-		return crypt_md5(buf, salt);
-#endif
-
+#ifndef CHARSET_EBCDIC
 	return(des_fcrypt(buf,salt,buff));
+#else
+	char e_salt[2+1];
+	char e_buf[32+1];	/* replace 32 by 8 ? */
+	char *ret;
+
+	/* Copy at most 2 chars of salt */
+	if ((e_salt[0] = salt[0]) != '\0')
+	    e_salt[1] = salt[1];
+
+	/* Copy at most 32 chars of password */
+	strncpy (e_buf, buf, sizeof(e_buf));
+
+	/* Make sure we have a delimiter */
+	e_salt[sizeof(e_salt)-1] = e_buf[sizeof(e_buf)-1] = '\0';
+
+	/* Convert the e_salt to ASCII, as that's what des_fcrypt works on */
+	ebcdic2ascii(e_salt, e_salt, sizeof e_salt);
+
+	/* Convert the cleartext password to ASCII */
+	ebcdic2ascii(e_buf, e_buf, sizeof e_buf);
+
+	/* Encrypt it (from/to ASCII) */
+	ret = des_fcrypt(e_buf,e_salt,buff);
+
+	/* Convert the result back to EBCDIC */
+	ascii2ebcdic(ret, ret, strlen(ret));
+	
+	return ret;
+#endif
 	}
 
 
-char *des_fcrypt(buf,salt,ret)
-const char *buf;
-const char *salt;
-char *ret;
+char *des_fcrypt(const char *buf, const char *salt, char *ret)
 	{
 	unsigned int i,j,x,y;
 	DES_LONG Eswap0,Eswap1;
@@ -350,10 +126,17 @@ char *ret;
 	 * crypt to "*".  This was found when replacing the crypt in
 	 * our shared libraries.  People found that the disbled
 	 * accounts effectivly had no passwd :-(. */
+#ifndef CHARSET_EBCDIC
 	x=ret[0]=((salt[0] == '\0')?'A':salt[0]);
 	Eswap0=con_salt[x]<<2;
 	x=ret[1]=((salt[1] == '\0')?'A':salt[1]);
 	Eswap1=con_salt[x]<<6;
+#else
+	x=ret[0]=((salt[0] == '\0')?os_toascii['A']:salt[0]);
+	Eswap0=con_salt[x]<<2;
+	x=ret[1]=((salt[1] == '\0')?os_toascii['A']:salt[1]);
+	Eswap1=con_salt[x]<<6;
+#endif
 
 /* EAY
 r=strlen(buf);
@@ -368,8 +151,8 @@ r=(r+7)/8;
 	for (; i<8; i++)
 		key[i]=0;
 
-	des_set_key((des_cblock *)(key),ks);
-	fcrypt_body(&(out[0]),&(out[1]),ks,Eswap0,Eswap1);
+	des_set_key(&key,ks);
+	fcrypt_body(&(out[0]),ks,Eswap0,Eswap1);
 
 	ll=out[0]; l2c(ll,b);
 	ll=out[1]; l2c(ll,b);
@@ -394,75 +177,5 @@ r=(r+7)/8;
 		}
 	ret[13]='\0';
 	return(ret);
-	}
-
-STATIC int fcrypt_body(out0, out1, ks, Eswap0, Eswap1)
-DES_LONG *out0;
-DES_LONG *out1;
-des_key_schedule ks;
-DES_LONG Eswap0;
-DES_LONG Eswap1;
-	{
-	register DES_LONG l,r,t,u;
-#ifdef DES_PTR
-	register unsigned char *des_SP=(unsigned char *)des_SPtrans;
-#endif
-	register DES_LONG *s;
-	register int j;
-	register DES_LONG E0,E1;
-
-	l=0;
-	r=0;
-
-	s=(DES_LONG *)ks;
-	E0=Eswap0;
-	E1=Eswap1;
-
-	for (j=0; j<25; j++)
-		{
-#ifdef DES_UNROLL
-		register int i;
-
-		for (i=0; i<32; i+=8)
-			{
-			D_ENCRYPT(l,r,i+0); /*  1 */
-			D_ENCRYPT(r,l,i+2); /*  2 */
-			D_ENCRYPT(l,r,i+4); /*  3 */
-			D_ENCRYPT(r,l,i+6); /*  4 */
-			}
-#else
-		D_ENCRYPT(l,r, 0); /*  1 */
-		D_ENCRYPT(r,l, 2); /*  2 */
-		D_ENCRYPT(l,r, 4); /*  3 */
-		D_ENCRYPT(r,l, 6); /*  4 */
-		D_ENCRYPT(l,r, 8); /*  5 */
-		D_ENCRYPT(r,l,10); /*  6 */
-		D_ENCRYPT(l,r,12); /*  7 */
-		D_ENCRYPT(r,l,14); /*  8 */
-		D_ENCRYPT(l,r,16); /*  9 */
-		D_ENCRYPT(r,l,18); /*  10 */
-		D_ENCRYPT(l,r,20); /*  11 */
-		D_ENCRYPT(r,l,22); /*  12 */
-		D_ENCRYPT(l,r,24); /*  13 */
-		D_ENCRYPT(r,l,26); /*  14 */
-		D_ENCRYPT(l,r,28); /*  15 */
-		D_ENCRYPT(r,l,30); /*  16 */
-#endif
-		t=l;
-		l=r;
-		r=t;
-		}
-	l=ROTATE(l,3)&0xffffffffL;
-	r=ROTATE(r,3)&0xffffffffL;
-
-	PERM_OP(l,r,t, 1,0x55555555L);
-	PERM_OP(r,l,t, 8,0x00ff00ffL);
-	PERM_OP(l,r,t, 2,0x33333333L);
-	PERM_OP(r,l,t,16,0x0000ffffL);
-	PERM_OP(l,r,t, 4,0x0f0f0f0fL);
-
-	*out0=r;
-	*out1=l;
-	return(0);
 	}
 

@@ -1,5 +1,5 @@
 
-		libdes, Version 4.01 13-Jan-97
+		libdes, Version 4.01 10-Jan-97
 
 		Copyright (c) 1997, Eric Young
 			  All rights reserved.
@@ -50,5 +50,5 @@ It is worth noting that on sparc and Alpha CPUs, performance of the DES
 library can vary by upto %10 due to the positioning of files after application
 linkage.
 
-Eric Young (eay@mincom.oz.au)
+Eric Young (eay@cryptsoft.com)
 
