@@ -360,12 +360,6 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 	cninit();
 
 	/*
-	 * Initialize tunables.
-	 */
-	init_param1();
-	init_param2(physmem);
-
-	/*
 	 * XXX: Initialize the interrupt tables.
 	 */
 	bcopy(&decrint, (void *)EXC_DECR, (size_t)&decrsize);
@@ -404,6 +398,12 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 	 */
 	ofmsr |= PSL_IR | PSL_DR;
 	pmap_bootstrap(startkernel, endkernel);
+
+	/*
+	 * Initialize tunables.
+	 */
+	init_param1();
+	init_param2(physmem);
 
 	/*
 	 * Finish setting up thread0.
