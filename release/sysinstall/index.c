@@ -530,7 +530,7 @@ pkg_selected(dialogMenuItem *self, int is_selected)
 
     if (!is_selected || kp->type != PACKAGE)
 	return;
-    msgInfo(kp->desc);
+    msgInfo("%s", kp->desc);
 }
 
 int

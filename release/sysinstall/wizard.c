@@ -80,7 +80,7 @@ slice_wizard(Disk *d)
 	    printf("%s",p);
 	    free(p);
 	}
-	printf(myprompt);
+	printf("%s", myprompt);
 	fflush(stdout);
 	q = p = fgets(input,sizeof(input),stdin);
 	if(!p)

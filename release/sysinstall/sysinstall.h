@@ -425,7 +425,7 @@ extern void	mediaShutdownCDROM(Device *dev);
 extern void	command_clear(void);
 extern void	command_sort(void);
 extern void	command_execute(void);
-extern void	command_shell_add(char *key, char *fmt, ...);
+extern void	command_shell_add(char *key, char *fmt, ...) __printflike(2, 3);
 extern void	command_func_add(char *key, commandFunc func, void *data);
 
 /* config.c */
@@ -679,18 +679,18 @@ extern int      setMouseFlags(dialogMenuItem *self);
 
 /* msg.c */
 extern Boolean	isDebug(void);
-extern void	msgInfo(char *fmt, ...);
-extern void	msgYap(char *fmt, ...);
-extern void	msgWarn(char *fmt, ...);
-extern void	msgDebug(char *fmt, ...);
-extern void	msgError(char *fmt, ...);
-extern void	msgFatal(char *fmt, ...);
-extern void	msgConfirm(char *fmt, ...);
-extern void	msgNotify(char *fmt, ...);
-extern void	msgWeHaveOutput(char *fmt, ...);
-extern int	msgYesNo(char *fmt, ...);
-extern int	msgNoYes(char *fmt, ...);
-extern char	*msgGetInput(char *buf, char *fmt, ...);
+extern void	msgInfo(char *fmt, ...) __printf0like(1, 2);
+extern void	msgYap(char *fmt, ...) __printflike(1, 2);
+extern void	msgWarn(char *fmt, ...) __printflike(1, 2);
+extern void	msgDebug(char *fmt, ...) __printflike(1, 2);
+extern void	msgError(char *fmt, ...) __printflike(1, 2);
+extern void	msgFatal(char *fmt, ...) __printflike(1, 2);
+extern void	msgConfirm(char *fmt, ...) __printflike(1, 2);
+extern void	msgNotify(char *fmt, ...) __printflike(1, 2);
+extern void	msgWeHaveOutput(char *fmt, ...) __printflike(1, 2);
+extern int	msgYesNo(char *fmt, ...) __printflike(1, 2);
+extern int	msgNoYes(char *fmt, ...) __printflike(1, 2);
+extern char	*msgGetInput(char *buf, char *fmt, ...) __printflike(2, 3);
 extern int	msgSimpleConfirm(char *);
 extern int	msgSimpleNotify(char *);
 
@@ -729,7 +729,7 @@ extern void	systemChangeLang(char *lang);
 extern void	systemChangeTerminal(char *color, const u_char c_termcap[], char *mono, const u_char m_termcap[]);
 extern void	systemChangeScreenmap(const u_char newmap[]);
 extern void	systemCreateHoloshell(void);
-extern int	vsystem(char *fmt, ...);
+extern int	vsystem(char *fmt, ...) __printflike(1, 2);
 
 /* tape.c */
 extern char	*mediaTapeBlocksize(void);
