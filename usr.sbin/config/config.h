@@ -50,6 +50,7 @@ struct file_list {
 	char	*f_depends;		/* additional dependancies */
 	char	*f_clean;		/* File list to add to clean rule */
 	char	*f_needs;
+	char	*f_warn;		/* warning message */
 };
 
 /*
