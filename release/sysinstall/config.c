@@ -622,7 +622,7 @@ tryagain:
 	}
     }
 
-    if (file_readable("/var/run/ld.so.hints"))
+    if (file_readable("/var/run/ld-elf.so.hints"))
 	vsystem("/sbin/ldconfig -m /usr/lib /usr/X11R6/lib /usr/local/lib /usr/lib/compat");
     else
 	vsystem("/sbin/ldconfig /usr/lib /usr/X11R6/lib /usr/local/lib /usr/lib/compat");
