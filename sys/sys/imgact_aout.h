@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)exec.h	8.1 (Berkeley) 6/11/93
- *	$Id$
+ *	$Id: imgact_aout.h,v 1.1 1994/09/24 21:09:18 davidg Exp $
  */
 
 #ifndef	_IMGACT_AOUT_H_
@@ -62,7 +62,7 @@
 #define N_ALIGN(ex,x) \
 	(N_GETMAGIC(ex) == ZMAGIC || N_GETMAGIC(ex) == QMAGIC || \
 	 N_GETMAGIC_NET(ex) == ZMAGIC || N_GETMAGIC_NET(ex) == QMAGIC ? \
-	 ((x) + __LDPGSZ - 1) & ~(__LDPGSZ - 1) : (x))
+	 ((x) + __LDPGSZ - 1) & ~(unsigned long)(__LDPGSZ - 1) : (x))
 
 /* Valid magic number check. */
 #define	N_BADMAG(ex) \
