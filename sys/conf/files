@@ -177,6 +177,7 @@ crypto/sha2/sha2.c	optional ipsec
 ddb/db_access.c		optional ddb
 ddb/db_break.c		optional ddb
 ddb/db_command.c	optional ddb
+ddb/db_elf.c		optional ddb
 ddb/db_examine.c	optional ddb
 ddb/db_expr.c		optional ddb
 ddb/db_input.c		optional ddb
