@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-icmp.c,v 1.57 2000/10/10 05:03:32 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-icmp.c,v 1.62 2001/07/24 16:56:11 fenner Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -247,7 +247,7 @@ static struct tok type2str[] = {
 	{ ICMP_REDIRECT_NET,		"redirect %s to net %s" },
 	{ ICMP_REDIRECT_HOST,		"redirect %s to host %s" },
 	{ ICMP_REDIRECT_TOSNET,		"redirect-tos %s to net %s" },
-	{ ICMP_REDIRECT_TOSHOST,	"redirect-tos %s to net %s" },
+	{ ICMP_REDIRECT_TOSHOST,	"redirect-tos %s to host %s" },
 	{ 0,				NULL }
 };
 
@@ -270,26 +270,20 @@ struct id_rdiscovery {
 };
 
 void
-icmp_print(register const u_char *bp, u_int plen, register const u_char *bp2)
+icmp_print(const u_char *bp, u_int plen, const u_char *bp2)
 {
-	register char *cp;
-	register const struct icmp *dp;
-	register const struct ip *ip;
-	register const char *str, *fmt;
-	register const struct ip *oip;
-	register const struct udphdr *ouh;
-	register u_int hlen, dport, mtu;
+	char *cp;
+	const struct icmp *dp;
+	const struct ip *ip;
+	const char *str, *fmt;
+	const struct ip *oip;
+	const struct udphdr *ouh;
+	u_int hlen, dport, mtu;
 	char buf[MAXHOSTNAMELEN + 100];
 
 	dp = (struct icmp *)bp;
 	ip = (struct ip *)bp2;
 	str = buf;
-
-#if 0
-        (void)printf("%s > %s: ",
-		ipaddr_string(&ip->ip_src),
-		ipaddr_string(&ip->ip_dst));
-#endif
 
 	TCHECK(dp->icmp_code);
 	switch (dp->icmp_type) {
@@ -341,12 +335,12 @@ icmp_print(register const u_char *bp, u_int plen, register const u_char *bp2)
 		    {
 			register const struct mtu_discovery *mp;
 			mp = (struct mtu_discovery *)&dp->icmp_void;
-                        mtu = EXTRACT_16BITS(&mp->nexthopmtu);
-                        if (mtu) {
+			mtu = EXTRACT_16BITS(&mp->nexthopmtu);
+			if (mtu) {
 				(void)snprintf(buf, sizeof(buf),
 				    "%s unreachable - need to frag (mtu %d)",
 				    ipaddr_string(&dp->icmp_ip.ip_dst), mtu);
-                        } else {
+			} else {
 				(void)snprintf(buf, sizeof(buf),
 				    "%s unreachable - need to frag",
 				    ipaddr_string(&dp->icmp_ip.ip_dst));
@@ -482,7 +476,7 @@ icmp_print(register const u_char *bp, u_int plen, register const u_char *bp2)
 		str = tok2str(icmp2str, "type-#%d", dp->icmp_type);
 		break;
 	}
-        (void)printf("icmp: %s", str);
+	(void)printf("icmp: %s", str);
 	if (vflag) {
 		if (TTEST2(*bp, plen)) {
 			if (in_cksum((u_short*)dp, plen, 0))

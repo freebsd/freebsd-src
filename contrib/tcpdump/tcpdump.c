@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997
+ * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -17,14 +17,20 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ *
+ * Support for splitting captures into multiple files with a maximum
+ * file size:
+ *
+ * Copyright (c) 2001
+ *	Seth Webster <swebster@sst.ll.mit.edu>
  */
 
 #ifndef lint
 static const char copyright[] =
-    "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997\n\
+    "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000\n\
 The Regents of the University of California.  All rights reserved.\n";
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/tcpdump.c,v 1.158 2000/12/21 10:43:24 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/tcpdump.c,v 1.173 2001/12/22 22:12:23 guy Exp $ (LBL)";
 #endif
 
 /* $FreeBSD$ */
@@ -78,11 +84,14 @@ int uflag = 0;			/* Print undecoded NFS handles */
 int vflag;			/* verbose */
 int xflag;			/* print packet in hex */
 int Xflag;			/* print packet in ascii as well as hex */
+off_t Cflag = 0;                /* rotate dump files after this many bytes */
 
 char *espsecret = NULL;		/* ESP secret key */
 
 int packettype;
 
+int infodelay;
+int infoprint;
 
 char *program_name;
 
@@ -91,6 +100,12 @@ int32_t thiszone;		/* seconds offset from gmt to local time */
 /* Forwards */
 static RETSIGTYPE cleanup(int);
 static void usage(void) __attribute__((noreturn));
+
+static void dump_and_trunc(u_char *, const struct pcap_pkthdr *, const u_char *);
+
+#ifdef SIGINFO
+RETSIGTYPE requestinfo(int);
+#endif
 
 /* Length of saved portion of packet. */
 int snaplen = DEFAULT_SNAPLEN;
@@ -101,6 +116,7 @@ struct printer {
 };
 
 static struct printer printers[] = {
+	{ arcnet_if_print,	DLT_ARCNET },
 	{ ether_if_print,	DLT_EN10MB },
 	{ token_if_print,	DLT_IEEE802 },
 #ifdef DLT_LANE8023
@@ -126,11 +142,23 @@ static struct printer printers[] = {
 #ifdef DLT_C_HDLC
 	{ chdlc_if_print,	DLT_C_HDLC },
 #endif
+#ifdef DLT_HDLC
+	{ chdlc_if_print,	DLT_HDLC },
+#endif
 #ifdef DLT_PPP_SERIAL
 	{ ppp_hdlc_if_print,    DLT_PPP_SERIAL },
 #endif
+#ifdef DLT_PPP_ETHER
+	{ pppoe_if_print,	DLT_PPP_ETHER },
+#endif
 #ifdef DLT_LINUX_SLL
 	{ sll_if_print,		DLT_LINUX_SLL },
+#endif
+#ifdef DLT_IEEE802_11
+	{ ieee802_11_if_print,	DLT_IEEE802_11},
+#endif
+#ifdef DLT_LTALK
+	{ ltalk_if_print,	DLT_LTALK },
 #endif
 	{ NULL,			0 },
 };
@@ -154,6 +182,12 @@ extern int optind;
 extern int opterr;
 extern char *optarg;
 
+struct dump_info {
+	char	*WFileName;
+	pcap_t	*pd;
+	pcap_dumper_t *p;
+};
+
 int
 main(int argc, char **argv)
 {
@@ -163,6 +197,7 @@ main(int argc, char **argv)
 	pcap_handler printer;
 	struct bpf_program fcode;
 	RETSIGTYPE (*oldhandler)(int);
+	struct dump_info dumpinfo;
 	u_char *pcap_userdata;
 	char ebuf[PCAP_ERRBUF_SIZE];
 
@@ -185,7 +220,7 @@ main(int argc, char **argv)
 	
 	opterr = 0;
 	while (
-	    (op = getopt(argc, argv, "ac:deE:fF:i:lm:nNOpqr:Rs:StT:uvw:xXY")) != -1)
+	    (op = getopt(argc, argv, "ac:C:deE:fF:i:lm:nNOpqr:Rs:StT:uvw:xXY")) != -1)
 		switch (op) {
 
 		case 'a':
@@ -196,6 +231,12 @@ main(int argc, char **argv)
 			cnt = atoi(optarg);
 			if (cnt <= 0)
 				error("invalid packet count %s", optarg);
+			break;
+
+		case 'C':
+			Cflag = atoi(optarg) * 1000000;
+			if (Cflag < 0) 
+				error("invalid file size %s", optarg);
 			break;
 
 		case 'd':
@@ -374,9 +415,12 @@ main(int argc, char **argv)
 			if (device == NULL)
 				error("%s", ebuf);
 		}
+		*ebuf = '\0';
 		pd = pcap_open_live(device, snaplen, !pflag, 1000, ebuf);
 		if (pd == NULL)
 			error("%s", ebuf);
+		else if (*ebuf)
+			warning("%s", ebuf);
 		i = pcap_snapshot(pd);
 		if (snaplen < i) {
 			warning("snaplen raised from %d to %d", snaplen, i);
@@ -417,11 +461,22 @@ main(int argc, char **argv)
 		pcap_dumper_t *p = pcap_dump_open(pd, WFileName);
 		if (p == NULL)
 			error("%s", pcap_geterr(pd));
-		printer = pcap_dump;
-		pcap_userdata = (u_char *)p;
+		if (Cflag != 0) {
+			printer = dump_and_trunc;
+			dumpinfo.WFileName = WFileName;
+			dumpinfo.pd = pd;
+			dumpinfo.p = p;
+			pcap_userdata = (u_char *)&dumpinfo;
+		} else {
+			printer = pcap_dump;
+			pcap_userdata = (u_char *)p;
+		}
 	} else {
 		printer = lookup_printer(pcap_datalink(pd));
 		pcap_userdata = 0;
+#ifdef SIGINFO
+		(void)setsignal(SIGINFO, requestinfo);
+#endif
 	}
 	if (RFileName == NULL) {
 		(void)fprintf(stderr, "%s: listening on %s\n",
@@ -433,6 +488,8 @@ main(int argc, char **argv)
 		    program_name, pcap_geterr(pd));
 		exit(1);
 	}
+	if (RFileName == NULL)
+		info(1);
 	pcap_close(pd);
 	exit(0);
 }
@@ -441,23 +498,92 @@ main(int argc, char **argv)
 static RETSIGTYPE
 cleanup(int signo)
 {
-	struct pcap_stat stat;
 
 	/* Can't print the summary if reading from a savefile */
 	if (pd != NULL && pcap_file(pd) == NULL) {
 		(void)fflush(stdout);
 		putc('\n', stderr);
-		if (pcap_stats(pd, &stat) < 0)
-			(void)fprintf(stderr, "pcap_stats: %s\n",
-			    pcap_geterr(pd));
-		else {
-			(void)fprintf(stderr, "%d packets received by filter\n",
-			    stat.ps_recv);
-			(void)fprintf(stderr, "%d packets dropped by kernel\n",
-			    stat.ps_drop);
-		}
+		info(1);
 	}
 	exit(0);
+}
+
+void
+info(register int verbose)
+{
+	struct pcap_stat stat;
+
+	if (pcap_stats(pd, &stat) < 0) {
+		(void)fprintf(stderr, "pcap_stats: %s\n", pcap_geterr(pd));
+		return;
+	}
+	if (!verbose)
+		fprintf(stderr, "%s: ", program_name);
+	(void)fprintf(stderr, "%d packets received by filter", stat.ps_recv);
+	if (!verbose)
+		fputs(", ", stderr);
+	else
+		putc('\n', stderr);
+	(void)fprintf(stderr, "%d packets dropped by kernel\n", stat.ps_drop);
+	infoprint = 0;
+}
+
+static void
+reverse(char *s)
+{
+	int i, j, c;
+
+	for (i = 0, j = strlen(s) - 1; i < j; i++, j--) {
+		c = s[i];
+		s[i] = s[j];
+		s[j] = c;
+	}
+}
+
+
+static void
+swebitoa(unsigned int n, char *s)
+{
+	unsigned int i;
+
+	i = 0;
+	do {
+		s[i++] = n % 10 + '0';
+	} while ((n /= 10) > 0);
+
+	s[i] = '\0';
+	reverse(s);
+}
+
+static void
+dump_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
+{
+	struct dump_info *info;
+	static uint cnt = 2;
+	char *name;
+
+	info = (struct dump_info *)user;
+	
+	/*
+	 * XXX - this won't prevent capture files from getting
+	 * larger than Cflag - the last packet written to the
+	 * file could put it over Cflag.
+	 */
+	if (ftell((FILE *)info->p) > Cflag) {
+		name = (char *) malloc(strlen(info->WFileName) + 4);
+		if (name == NULL)
+			error("dump_and_trunc: malloc");
+		strcpy(name, info->WFileName);
+		swebitoa(cnt, name + strlen(info->WFileName));
+		cnt++;
+		pcap_dump_close(info->p);
+		info->p = pcap_dump_open(info->pd, name);
+		free(name);
+		if (info->p == NULL)
+			error("%s", pcap_geterr(pd));
+	}
+
+	pcap_dump((u_char *)info->p, h, sp);
 }
 
 /* Like default_print() but data need not be aligned */
@@ -495,6 +621,16 @@ default_print(register const u_char *bp, register u_int length)
 	default_print_unaligned(bp, length);
 }
 
+#ifdef SIGINFO
+RETSIGTYPE requestinfo(int signo)
+{
+	if (infodelay)
+		++infoprint;
+	else
+		info(0);
+}
+#endif
+
 static void
 usage(void)
 {
@@ -504,10 +640,10 @@ usage(void)
 	(void)fprintf(stderr, "%s version %s\n", program_name, version);
 	(void)fprintf(stderr, "libpcap version %s\n", pcap_version);
 	(void)fprintf(stderr,
-"Usage: %s [-adeflnNOpqStuvxX] [-c count] [ -F file ]\n", program_name);
+"Usage: %s [-adeflnNOpqRStuvxX] [ -c count ] [ -C file_size ]\n", program_name);
 	(void)fprintf(stderr,
-"\t\t[ -i interface ] [ -r file ] [ -s snaplen ]\n");
+"\t\t[ -F file ] [ -i interface ] [ -r file ] [ -s snaplen ]\n");
 	(void)fprintf(stderr,
-"\t\t[ -T type ] [ -w file ] [ expression ]\n");
-	exit(-1);
+"\t\t[ -T type ] [ -w file ] [ -E algo:secret ] [ expression ]\n");
+	exit(1);
 }
