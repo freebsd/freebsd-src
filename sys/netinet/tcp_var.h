@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.4 (Berkeley) 5/24/95
- * 	$Id: tcp_var.h,v 1.41 1998/02/26 05:25:39 dg Exp $
+ * 	$Id: tcp_var.h,v 1.42 1998/04/06 06:52:47 phk Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -203,7 +203,7 @@ struct rmxp_tao {
  * fast networks.
  */
 #define	TCP_REXMTVAL(tp) \
-	((((tp)->t_srtt >> (TCP_RTT_SHIFT - TCP_DELTA_SHIFT))  \
+	max((tp)->t_rttmin, (((tp)->t_srtt >> (TCP_RTT_SHIFT - TCP_DELTA_SHIFT))  \
 	  + (tp)->t_rttvar) >> TCP_DELTA_SHIFT)
 
 /* XXX
