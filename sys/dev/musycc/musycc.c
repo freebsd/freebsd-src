@@ -739,7 +739,7 @@ musycc_intr0_rx_eom(struct softc *sc, int ch)
 			/* Don't print a lot, just the begining will do */
 			if (m->m_len > 16)
 				m->m_len = m->m_pkthdr.len = 16;
-			m_print(m);
+			m_print(m, -1);
 			printf("\n");
 		}
 		md->status = 1600;	/* XXX: MTU */
