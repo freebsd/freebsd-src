@@ -37,7 +37,6 @@
 
 #define	K_NEXT		*(u_short *)0x41a
 #define	K_FREE		*(u_short *)0x41c
-#define	KbdEmpty()	(K_NEXT == K_FREE)
 
 #define	HWM	16
 volatile int	poll_cnt = 0;

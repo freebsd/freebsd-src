@@ -88,7 +88,7 @@ extern struct vconnect_area vconnect_area;
 #define IntState vconnect_area.int_state
 
 /* ParseBuffer.c */
-extern int	ParseBuffer(char *, char **, int);
+int	ParseBuffer(char *, char **, int);
 
 /* bios.c */
 #define	BIOSDATA	((u_char *)0x400)
@@ -99,22 +99,26 @@ extern int nserial;
 extern int nparallel;
 
 extern volatile int	poll_cnt;
-extern void		bios_init(void);
-extern void		wakeup_poll(void);
-extern void		reset_poll(void);
-extern void		sleep_poll(void);
+void	bios_init(void);
+void	wakeup_poll(void);
+void	reset_poll(void);
+void	sleep_poll(void);
 
 /* cmos.c */
 extern time_t	delta_clock;
 
-extern void	cmos_init(void);
+void	cmos_init(void);
 
 /* config.c */
-extern int	read_config(FILE *fp);
+int	read_config(FILE *fp);
 
 /* cpu.c */
-extern void	cpu_init(void);
-extern int	emu_instr(regcontext_t *);
+void	cpu_init(void);
+int	emu_instr(regcontext_t *);
+void	int00(regcontext_t *);
+void	int01(regcontext_t *);
+void	int03(regcontext_t *);
+void	int0d(regcontext_t *);
 
 /* debug.c */
 extern int	vflag;
@@ -153,22 +157,20 @@ extern int	debug_flags;
 #define	TTYF_ALL	(TTYF_ECHO | TTYF_CTRL | TTYF_REDIRECT)
 #define	TTYF_BLOCKALL	(TTYF_ECHO | TTYF_CTRL | TTYF_REDIRECT | TTYF_BLOCK)
 
-extern void	unknown_int2(int, int, regcontext_t *REGS);
-extern void	unknown_int3(int, int, int, regcontext_t *REGS);
-extern void	unknown_int4(int, int, int, int, regcontext_t *REGS);
-extern void	fatal(char *fmt, ...) __printflike(1, 2);
-extern void	debug(int flags, char *fmt, ...) __printflike(2, 3);
-extern void	dump_regs(regcontext_t *REGS);
-extern void	debug_set(int x);
-extern void	debug_unset(int x);
-extern u_long	debug_isset(int x);
+void	unknown_int2(int, int, regcontext_t *);
+void	unknown_int3(int, int, int, regcontext_t *);
+void	unknown_int4(int, int, int, int, regcontext_t *);
+void	fatal(char *, ...) __printflike(1, 2);
+void	debug(int, char *, ...) __printflike(2, 3);
+void	dump_regs(regcontext_t *);
+void	debug_set(int);
+void	debug_unset(int);
+u_long	debug_isset(int);
 
 /* disktab.c */
-extern int	map_type(int, int *, int *, int *);
+int	map_type(int, int *, int *, int *);
 
 /* doscmd.c */
-extern int	squirrel_fd(int);
-
 extern int		capture_fd;
 extern int		dead;
 extern int		xmode;
@@ -179,16 +181,18 @@ extern char		cmdname[];
 extern struct timeval	boot_time;
 extern unsigned long	*ivec;
 
-extern int		open_prog(char *name);
-extern void		done(regcontext_t *REGS, int val);
-extern void 		quit(int);
-extern void		call_on_quit(void (*)(void *), void *);
-extern void		iomap_port(int port, int count);
+int	_prog(char *);
+void	call_on_quit(void (*)(void *), void *);
+void	done(regcontext_t *, int);
+void	iomap_port(int, int);
+int 	open_prog(char *);
+void 	quit(int);
+int	squirrel_fd(int);
 
 /* ems.c */
-extern int ems_init();
-extern void ems_entry(regcontext_t *REGS);
-extern u_long ems_frame_addr;
+int	ems_init(void);
+void	ems_entry(regcontext_t *);
+u_long	ems_frame_addr;
 
 /* emuint.c */
 extern void	emuint(regcontext_t *REGS);
@@ -216,11 +220,18 @@ extern void	make_readonly(int drive);
 extern int	search_floppy(int i);
 extern void	disk_bios_init(void);
 
+/* int16.c */
+void	int16(regcontext_t *);
+
 /* int17.c */
-extern void	lpt_poll(void);
-extern void	printer_direct(int printer);
-extern void	printer_spool(int printer, char *print_queue);
-extern void	printer_timeout(int printer, char *time_out);
+void	int17(regcontext_t *);
+void	lpt_poll(void);
+void	printer_direct(int printer);
+void	printer_spool(int printer, char *print_queue);
+void	printer_timeout(int printer, char *time_out);
+
+/* int1a.c */
+void	int1a(regcontext_t *);
 
 /* int2f.c */
 extern void	int2f(regcontext_t *);
@@ -239,24 +250,31 @@ extern void	mem_free_owner(int owner);
 extern void	mem_change_owner(int addr, int owner);
 
 /* mouse.c */
-extern void	mouse_init(void);
+void	int33(regcontext_t *);
+void	mouse_init(void);
 
 /* net.c */
-extern void	net_init(void);
+void	net_init(void);
 
 /* port.c */
-extern void	define_input_port_handler(int, unsigned char (*)(int));
-extern void	define_output_port_handler(int, void (*)(int, unsigned char));
-extern void	inb(regcontext_t *, int);
-extern void	init_io_port_handlers(void);
-extern void	inx(regcontext_t *, int);
-extern void	outb(regcontext_t *, int);
-extern void	outx(regcontext_t *, int);
-extern void	speaker_init(void);
-extern void	outb_traceport(int, unsigned char);
-extern unsigned char	inb_traceport(int);
-extern void	outb_port(int, unsigned char);
-extern unsigned char	inb_port(int);
+void	define_input_port_handler(int, unsigned char (*)(int));
+void	define_output_port_handler(int, void (*)(int, unsigned char));
+void	inb(regcontext_t *, int);
+unsigned char	inb_port(int);
+unsigned char	inb_speaker(int);
+unsigned char	inb_traceport(int);
+void	init_io_port_handlers(void);
+void	insb(regcontext_t *, int);
+void	insx(regcontext_t *, int);
+void	inx(regcontext_t *, int);
+void	outb(regcontext_t *, int);
+void	outb_port(int, unsigned char);
+void	outb_speaker(int, unsigned char);
+void	outb_traceport(int, unsigned char);
+void	outsb(regcontext_t *, int);
+void	outsx(regcontext_t *, int);
+void	outx(regcontext_t *, int);
+void	speaker_init(void);
 
 /* setver.c */
 extern void	setver(char *, short);
