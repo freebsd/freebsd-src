@@ -1952,27 +1952,37 @@ ata_sis_ident(device_t dev)
      { ATA_SIS540,  0x00, SIS66,     0, ATA_UDMA4, "SiS 540" },
      { ATA_SIS530,  0x00, SIS66,     0, ATA_UDMA4, "SiS 530" },
 
-     { ATA_SIS5513, 0xc2, SIS33,     0, ATA_UDMA2, "SiS 5513" },
+     { ATA_SIS5513, 0xc2, SIS33,     1, ATA_UDMA2, "SiS 5513" },
      { ATA_SIS5513, 0x00, SIS33,     1, ATA_WDMA2, "SiS 5513" },
      { 0, 0, 0, 0, 0, 0 }};
     char buffer[64];
+    int found = 0;
 
     if (!(idx = ata_find_chip(dev, ids, -pci_get_slot(dev)))) 
 	return ENXIO;
 
-    if (idx->cfg2) {
-	pci_write_config(dev, 0x57, pci_read_config(dev, 0x57, 1) & 0x7f, 1);
-	if (pci_read_config(dev, 0x00, 4) == ATA_SIS5518) {
+    if (idx->cfg2 && !found) {
+	u_int8_t reg57 = pci_read_config(dev, 0x57, 1);
+
+	pci_write_config(dev, 0x57, (reg57 & 0x7f), 1);
+	if (pci_read_config(dev, PCIR_DEVVENDOR, 4) == ATA_SIS5518) {
+	    found = 1;
 	    idx->cfg1 = SIS133NEW;
 	    idx->max_dma = ATA_UDMA6;
 	    sprintf(buffer, "SiS 962/963 %s controller",
 		    ata_mode2str(idx->max_dma));
 	}
-	else {
-	    struct ata_chip_id id[] =
-		{{ ATA_SISSOUTH, 0x10, 0, 0, ATA_UDMA6, "SiS 961" },
-		 { 0, 0, 0, 0, 0, 0 }};
+	pci_write_config(dev, 0x57, reg57, 1);
+    }
+    if (idx->cfg2 && !found) {
+	u_int8_t reg4a = pci_read_config(dev, 0x4a, 1);
 
+	pci_write_config(dev, 0x4a, (reg4a | 0x10), 1);
+	if (pci_read_config(dev, PCIR_DEVVENDOR, 4) == ATA_SIS5517) {
+	    struct ata_chip_id id[] =
+		{{ ATA_SISSOUTH, 0x10, 0, 0, 0, "" }, { 0, 0, 0, 0, 0, 0 }};
+
+	    found = 1;
 	    if (ata_find_chip(dev, id, pci_get_slot(dev))) {
 		idx->cfg1 = SIS133OLD;
 		idx->max_dma = ATA_UDMA6;
@@ -1983,10 +1993,11 @@ ata_sis_ident(device_t dev)
 	    }
 	    sprintf(buffer, "SiS 961 %s controller",ata_mode2str(idx->max_dma));
 	}
-	pci_write_config(dev, 0x57, pci_read_config(dev, 0x57, 1) | 0x80, 1);
+	pci_write_config(dev, 0x4a, reg4a, 1);
     }
-    else
+    if (!found)
 	sprintf(buffer,"%s %s controller",idx->text,ata_mode2str(idx->max_dma));
+
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_sis_chipinit;
