@@ -105,7 +105,11 @@ Lidle2:
 	call_pal PAL_OSF1_swpipl
 	jmp	zero, sw1			/* jump back into the fray */
 Lpgzero:
-	CALL(vm_page_zero_idle)	
+#ifdef	DEVICE_POLLING
+	CALL(idle_poll)
+#else	/* standard code */
+	CALL(vm_page_zero_idle)
+#endif
 	br	zero, Lidle2
 	END(idle)
 
