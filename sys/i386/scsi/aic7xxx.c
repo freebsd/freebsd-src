@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.23 1995/04/27 17:47:16 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.24 1995/05/01 09:49:45 gibbs Exp $
  */
 /*
  * TODO:
@@ -1510,9 +1510,9 @@ ahc_init(unit)
 	{
 		/* 
 		 * See if we have a Rev E or higher
-		 * aic7770.  If so, use 16 SCBs.
-		 * Anything below a Rev E will have a
-		 * R/O autoflush disable configuration bit.
+		 * aic7770. Anything below a Rev E will 
+		 * have a R/O autoflush disable configuration 
+		 * bit.
 		 */
 		u_char sblkctl_orig;
 		sblkctl_orig = inb(SBLKCTL + iobase);
@@ -1522,7 +1522,6 @@ ahc_init(unit)
 		if(sblkctl != sblkctl_orig)
 		{
 			printf("aic7770 >= Rev E, ");
-			ahc->maxscbs = 0x10;
 			/*
 			 * Ensure autoflush is enabled
 			 */
@@ -2113,7 +2112,6 @@ ahc_abort_scb( unit, ahc, scb )
 		goto done;
 	}
 	scb_control = inb(SCBARRAY + iobase);
-	scb_control &= ~SCB_DIS;
 	if( scb_control & SCB_DIS ) {
 		scb_control &= ~SCB_DIS;
 		outb(SCBARRAY + iobase, scb_control);
