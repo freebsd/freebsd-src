@@ -152,7 +152,11 @@ int newstyle;		/* newstyle of passing arguments (by value) */
 int Cflag = 0;		/* ANSI C syntax */
 int CCflag = 0;		/* C++ files */
 static int allfiles;   /* generate all files */
+#if defined(__FreeBSD__) || defined(__NetBSD__)
+int tirpcflag = 0;    /* generating code for tirpc, by default */
+#else
 int tirpcflag = 1;    /* generating code for tirpc, by default */
+#endif
 xdrfunc *xdrfunc_head = NULL; /* xdr function list */
 xdrfunc *xdrfunc_tail = NULL; /* xdr function list */
 pid_t childpid;
@@ -1170,7 +1174,11 @@ parseargs(argc, argv, cmd)
 					 *  generating backward compatible
 					 *  code
 					 */
+#if defined(__FreeBSD__) || defined(__NetBSD__)
+					tirpcflag = 1;
+#else
 					tirpcflag = 0;
+#endif
 					break;
 
 				case 'I':
@@ -1266,7 +1274,9 @@ parseargs(argc, argv, cmd)
 		}
 	} else {		/* 4.1 mode */
 		pmflag = 0;	/* set pmflag only in tirpcmode */
+#if !defined(__FreeBSD__) && !defined(__NetBSD__)
 		inetdflag = 1;	/* inetdflag is TRUE by default */
+#endif
 		if (cmd->nflag) { /* netid needs TIRPC */
 			warnx("cannot use netid flag without TIRPC");
 			return (0);
