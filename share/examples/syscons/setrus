@@ -13,4 +13,5 @@ kbdcontrol -f 61 '[~'
 kbdcontrol -r fast
 # Blank after 5 min
 vidcontrol -t 300
-vidcontrol -s snake
+# Syscons screen saver
+(modstat | grep -q _saver || modload -u -o /tmp/snake_saver_mod -e saver_init -q /lkm/snake_saver_mod.o) > /dev/null 2>&1
