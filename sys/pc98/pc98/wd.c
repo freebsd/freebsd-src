@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.24 1997/05/28 09:19:35 kato Exp $
+ *	$Id: wd.c,v 1.25 1997/07/02 11:01:37 kato Exp $
  */
 
 /* TODO:
@@ -71,13 +71,9 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
-#include <sys/file.h>
-#include <sys/stat.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
 #include <sys/buf.h>
-#include <sys/proc.h>
-#include <sys/uio.h>
 #include <sys/malloc.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
@@ -98,7 +94,6 @@
 #include <sys/syslog.h>
 #include <sys/dkstat.h>
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_prot.h>
 #include <vm/pmap.h>
 
