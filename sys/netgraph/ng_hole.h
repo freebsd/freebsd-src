@@ -47,4 +47,24 @@
 #define NG_HOLE_NODE_TYPE	"hole"
 #define NGM_HOLE_COOKIE		915433206
 
+/* Statistics structure for one hook. */
+struct ng_hole_hookstat {
+	uint64_t	frames;
+	uint64_t	octets;
+};
+
+/* Keep this in sync with the above structure definition. */
+#define	NG_HOLE_HOOKSTAT_TYPE_INFO {				\
+	{ "frames",	&ng_parse_uint64_type },		\
+	{ "octets",	&ng_parse_uint64_type },		\
+	{ NULL }						\
+}
+
+/* Netgraph commands. */
+enum {
+	NGM_HOLE_GET_STATS = 1,
+	NGM_HOLE_CLR_STATS,
+	NGM_HOLE_GETCLR_STATS,
+};
+
 #endif /* _NETGRAPH_HOLE_H_ */

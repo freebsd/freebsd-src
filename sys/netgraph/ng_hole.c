@@ -45,14 +45,58 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
+#include <netgraph/ng_parse.h>
 #include <netgraph/ng_hole.h>
 
+/* Per hook private info. */
+struct ng_hole_hookinfo {
+	struct ng_hole_hookstat	stats;
+};
+typedef struct ng_hole_hookinfo *hinfo_p;
+
+/* Parse type for struct ng_hole_hookstat. */
+static const struct ng_parse_struct_field ng_hole_hookstat_type_fields[] =
+	NG_HOLE_HOOKSTAT_TYPE_INFO;
+static const struct ng_parse_type ng_hole_hookstat_type = {
+	&ng_parse_struct_type,
+	&ng_hole_hookstat_type_fields
+};
+
+/* List of commands and how to convert arguments to/from ASCII. */
+static const struct ng_cmdlist ng_hole_cmdlist[] = {
+	{
+	  NGM_HOLE_COOKIE,
+	  NGM_HOLE_GET_STATS,
+	  "getstats",
+	  &ng_parse_hookbuf_type,
+	  &ng_hole_hookstat_type
+	},
+	{
+	  NGM_HOLE_COOKIE,
+	  NGM_HOLE_CLR_STATS,
+	  "clrstats",
+	  &ng_parse_hookbuf_type,
+	  NULL
+	},
+	{
+	  NGM_HOLE_COOKIE,
+	  NGM_HOLE_GETCLR_STATS,
+	  "getclrstats",
+	  &ng_parse_hookbuf_type,
+	  &ng_hole_hookstat_type
+	},
+	{ 0 }
+};
+
 /* Netgraph methods */
+static ng_rcvmsg_t	ngh_rcvmsg;
+static ng_newhook_t	ngh_newhook;
 static ng_rcvdata_t	ngh_rcvdata;
 static ng_disconnect_t	ngh_disconnect;
 
@@ -61,17 +105,91 @@ static struct ng_type typestruct = {
 	NG_HOLE_NODE_TYPE,
 	NULL,
 	NULL,
+	ngh_rcvmsg,
 	NULL,
-	NULL,
-	NULL,
+	ngh_newhook,
 	NULL,
 	NULL,
 	ngh_rcvdata,
 	ngh_rcvdata,
 	ngh_disconnect,
-	NULL
+	ng_hole_cmdlist
 };
 NETGRAPH_INIT(hole, &typestruct);
+
+/*
+ * Add a hook.
+ */
+static int
+ngh_newhook(node_p node, hook_p hook, const char *name)
+{
+	hinfo_p hip;
+
+	/* Create hook private structure. */
+	MALLOC(hip, hinfo_p, sizeof(*hip), M_NETGRAPH, M_NOWAIT | M_ZERO);
+	if (hip == NULL)
+		return (ENOMEM);
+	NG_HOOK_SET_PRIVATE(hook, hip);
+	return (0);
+}
+
+/*
+ * Receive a control message.
+ */
+static int
+ngh_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
+    struct ng_mesg **rptr)
+{
+	struct ng_mesg *resp = NULL;
+	int error = 0;
+	struct ng_hole_hookstat *stats;
+	hook_p hook;
+
+	switch (msg->header.typecookie) {
+	case NGM_HOLE_COOKIE:
+		switch (msg->header.cmd) {
+		case NGM_HOLE_GET_STATS:
+		case NGM_HOLE_CLR_STATS:
+		case NGM_HOLE_GETCLR_STATS:
+			/* Sanity check. */
+			if (msg->header.arglen != NG_HOOKLEN + 1) {
+				error = EINVAL;
+				break;
+			}
+			/* Find hook. */
+			hook = ng_findhook(node, (char *)msg->data);
+			if (hook == NULL) {
+				error = ENOENT;
+				break;
+			}
+			stats = &((hinfo_p)NG_HOOK_PRIVATE(hook))->stats;
+			/* Build response (if desired). */
+			if (msg->header.cmd != NGM_HOLE_CLR_STATS) {
+				NG_MKRESPONSE(resp, msg, sizeof(*stats),
+				    M_NOWAIT);
+				if (resp == NULL) {
+					error = ENOMEM;
+					break;
+				}
+				bcopy(stats, resp->data, sizeof(*stats));
+			}
+			/* Clear stats (if desired). */
+			if (msg->header.cmd != NGM_HOLE_GET_STATS)
+				bzero(stats, sizeof(*stats));
+			break;
+		default:		/* Unknown command. */
+			error = EINVAL;
+			break;
+		}
+		break;
+	default:			/* Unknown type cookie. */
+		error = EINVAL;
+		break;
+	}
+	NG_RESPOND_MSG(error, node, retaddr, resp, rptr);
+	NG_FREE_MSG(msg);
+	return (error);
+}
 
 /*
  * Receive data
@@ -79,6 +197,10 @@ NETGRAPH_INIT(hole, &typestruct);
 static int
 ngh_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 {
+	const hinfo_p hip = NG_HOOK_PRIVATE(hook);
+
+	hip->stats.frames++;
+	hip->stats.octets += m->m_pkthdr.len;
 	NG_FREE_DATA(m, meta);
 	return 0;
 }
@@ -89,6 +211,8 @@ ngh_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 static int
 ngh_disconnect(hook_p hook)
 {
+
+	NG_HOOK_SET_PRIVATE(hook, NULL);
 	if (hook->node->numhooks == 0)
 		ng_rmnode(hook->node);
 	return (0);
