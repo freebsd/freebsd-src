@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.22.2.289
+     Original revision: 1.22.2.290
 -->
 
 <articleinfo>
@@ -430,6 +430,18 @@
     travers d'autres firewalls ne supportant pas les nouvelles
     requ&egrave;tes FTP.</para>
 
+    <para>&man.ftpd.8; supporte maintenant l'option <option>-m</option> 
+    permettant aux utilisateurs anonymes de modifier les fichiers existants, 
+    dans le cas ou les permissions du syst&egrave;me de fichier les y 
+    autorisent. En particulier cela permet aux utilisateurs anonymes de 
+    reprendre un transfert non termin&eacute;.</para>
+
+    <para>&man.ftpd.8; supporte l'option <option>-M</option> pour empecher 
+    les utilisateurs anonymes de cr&eacute;er des r&eacute;pertoires.</para>
+
+    <para>&man.ftpd.8; supporte l'option <option>-W</option> permettant de 
+    d&eacute;sactiver le tracage des sessions FTP dans &man.wtmp.5;.</para>
+ 
     <para>&man.ifconfig.8; dispose de la commande <option>eui64</option>
     permettant de remplir les 64 bits inf&eacute;rieurs d'une adresse
     IPv6 automatiquement. &man.prefix.8; devient donc obsol&egrave;te.</para>
