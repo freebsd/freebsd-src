@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socket.h	8.4 (Berkeley) 2/21/94
- * $Id$
+ * $Id: socket.h,v 1.2 1994/08/02 07:53:35 davidg Exp $
  */
 
 #ifndef _SYS_SOCKET_H_
@@ -262,6 +262,7 @@ struct msghdr {
 #define	MSG_CTRUNC	0x20		/* control data lost before delivery */
 #define	MSG_WAITALL	0x40		/* wait for full request or error */
 #define	MSG_DONTWAIT	0x80		/* this message should be nonblocking */
+#define MSG_COMPAT      0x8000		/* used in sendit() */
 
 /*
  * Header for ancillary data objects in msg_control buffer.
