@@ -38,7 +38,7 @@
  */
 
 #ifdef PC98
-#error isa.h is included from PC-9801 source
+#error isareg.h is included from PC-9801 source
 #endif
 
 #ifndef _ISA_ISA_H_
