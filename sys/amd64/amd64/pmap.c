@@ -812,17 +812,7 @@ pmap_kremove(vm_offset_t va)
 vm_offset_t
 pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
 {
-	vm_offset_t va, sva;
-
-	va = sva = *virt;
-	while (start < end) {
-		pmap_kenter(va, start);
-		va += PAGE_SIZE;
-		start += PAGE_SIZE;
-	}
-	pmap_invalidate_range(kernel_pmap, sva, va);
-	*virt = va;
-	return (sva);
+	return PHYS_TO_DMAP(start);
 }
 
 
