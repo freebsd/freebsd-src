@@ -824,43 +824,56 @@ checkTuner:
 	    /* Hauppauge kindly supplied the following Tuner Table */
 	    /* FIXME: I think the tuners the driver selects for types */
 	    /* 0x08 and 0x15 may be incorrect but no one has complained. */
+	    /* Old Temic tuners had their own API, but newer Temic tuners */
+	    /* have the same API as Philips tuners */
 	    /*
-   	    	ID Tuner Model          Format         	We select Format
-	   	 0 NONE               
-		 1 EXTERNAL             
-		 2 OTHER                
-		 3 Philips FI1216       BG 
-		 4 Philips FI1216MF     BGLL'		PHILIPS_SECAM
-		 5 Philips FI1236       MN 		PHILIPS_NTSC
-		 6 Philips FI1246       I 		PHILIPS_PALI
-		 7 Philips FI1256       DK 
-		 8 Philips FI1216 MK2   BG 		PHILIPS_PALI
-		 9 Philips FI1216MF MK2 BGLL' 		PHILIPS_SECAM
-		 a Philips FI1236 MK2   MN 		PHILIPS_NTSC
-		 b Philips FI1246 MK2   I 		PHILIPS_PALI
-		 c Philips FI1256 MK2   DK 
-		 d Temic 4032FY5        NTSC		TEMIC_NTSC
-		 e Temic 4002FH5        BG		TEMIC_PAL
-		 f Temic 4062FY5        I 		TEMIC_PALI
-		10 Philips FR1216 MK2   BG 
-		11 Philips FR1216MF MK2 BGLL' 		PHILIPS_FR1236_SECAM
-		12 Philips FR1236 MK2   MN 		PHILIPS_FR1236_NTSC
-		13 Philips FR1246 MK2   I 
-		14 Philips FR1256 MK2   DK 
-		15 Philips FM1216       BG 		PHILIPS_FR1216_PAL
-		16 Philips FM1216MF     BGLL' 		PHILIPS_FR1236_SECAM
-		17 Philips FM1236       MN 		PHILIPS_FR1236_NTSC
-		18 Philips FM1246       I 
-		19 Philips FM1256       DK 
-		1a Temic 4036FY5        MN - FI1236 MK2 clone PHILIPS_NTSC
-		1b Samsung TCPN9082D    MN 
-		1c Samsung TCPM9092P    Pal BG/I/DK 
-		1d Temic 4006FH5        BG 		PHILIPS_PALI clone
-		1e Samsung TCPN9085D    MN/Radio 
-		1f Samsung TCPB9085P    Pal BG/I/DK / Radio 
-		20 Samsung TCPL9091P    Pal BG & Secam L/L' 
-		21 Temic 4039FY5        NTSC Radio
-
+  ID  Tuner Model           Format			We select Format
+ 0x00 NONE               
+ 0x01 EXTERNAL             
+ 0x02 OTHER                
+ 0x03 Philips FI1216        BG 
+ 0x04 Philips FI1216MF      BGLL'			PHILIPS_SECAM
+ 0x05 Philips FI1236        MN 				PHILIPS_NTSC
+ 0x06 Philips FI1246        I 				PHILIPS_PALI
+ 0x07 Philips FI1256        DK 
+ 0x08 Philips FI1216 MK2    BG 				PHILIPS_PALI
+ 0x09 Philips FI1216MF MK2  BGLL' 			PHILIPS_SECAM
+ 0x0a Philips FI1236 MK2    MN 				PHILIPS_NTSC
+ 0x0b Philips FI1246 MK2    I 				PHILIPS_PALI
+ 0x0c Philips FI1256 MK2    DK 
+ 0x0d Temic 4032FY5         NTSC			TEMIC_NTSC
+ 0x0e Temic 4002FH5         BG				TEMIC_PAL
+ 0x0f Temic 4062FY5         I 				TEMIC_PALI
+ 0x10 Philips FR1216 MK2    BG 
+ 0x11 Philips FR1216MF MK2  BGLL' 			PHILIPS_FR1236_SECAM
+ 0x12 Philips FR1236 MK2    MN 				PHILIPS_FR1236_NTSC
+ 0x13 Philips FR1246 MK2    I 
+ 0x14 Philips FR1256 MK2    DK 
+ 0x15 Philips FM1216        BG 				PHILIPS_FR1216_PAL
+ 0x16 Philips FM1216MF      BGLL' 			PHILIPS_FR1236_SECAM
+ 0x17 Philips FM1236        MN 				PHILIPS_FR1236_NTSC
+ 0x18 Philips FM1246        I 
+ 0x19 Philips FM1256        DK 
+ 0x1a Temic 4036FY5         MN (FI1236 MK2 clone)	PHILIPS_NTSC
+ 0x1b Samsung TCPN9082D     MN 
+ 0x1c Samsung TCPM9092P     Pal BG/I/DK 
+ 0x1d Temic 4006FH5         BG				PHILIPS_PALI
+ 0x1e Samsung TCPN9085D     MN/Radio 
+ 0x1f Samsung TCPB9085P     Pal BG/I/DK / Radio 
+ 0x20 Samsung TCPL9091P     Pal BG & Secam L/L' 
+ 0x21 Temic 4039FY5         NTSC Radio
+ 0x22 Philips FQ1216ME      Pal BGIDK & Secam L/L' 
+ 0x23 Temic 4066FY5         Pal I (FI1246 MK2 clone)	PHILIPS_PALI
+ 0x24 Philips TD1536        MN/ATSCDigital
+ 0x25 Philips TD1536D       MN/ATSCDigital DUAL INPUT
+ 0x26 Philips FMR1236       M/N FM(no demod)
+ 0x27 Philips FI1256MP      B/G, D/K
+ 0x28 Samsung TCPQ9091P     BG/I/DK, L/L'
+ 0x29 Temic 4006FN5         BG/I/DK
+ 0x2a Temic 4009FR5         BG FM
+ 0x2b Temic 4046FM5         B/G, I, D/K, L/L'
+ 0x2c Temic 4009FN5         B/G, I, D/K, FM (no demod)
+ 0x2d Philips TD1536D_FH_44 MN/ATSCDigital DUAL INPUT
 	    */
 
 
@@ -912,6 +925,7 @@ checkTuner:
 	          case 0x8:
 	          case 0xb:
 	          case 0x1d:
+	          case 0x23:
 		    select_tuner( bktr, PHILIPS_PALI );
 		    goto checkDBX;
 
