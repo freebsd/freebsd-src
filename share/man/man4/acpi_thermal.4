@@ -1,4 +1,3 @@
-.\"
 .\" Copyright (c) 2003 Takanori Watanabe.
 .\" All rights reserved.
 .\"
@@ -52,7 +51,7 @@ the AML.
 .Pp
 The
 .Nm
-driver also activates the active cooling system in according to
+driver also activates the active cooling system according to
 each thermal zone's setpoints.
 .Sh SYSCTLS
 .Bl -tag -width indent
@@ -75,7 +74,9 @@ Temperature to start critical shutdown (S5).
 .It Va hw.acpi.thermal.tz%d._ACx
 Temperatures at which to switch to the corresponding active cooling
 level.
-For instance, values of "3200 3100" mean to switch on _AC0 at 320.0K
+For instance, values of
+.Qq Li "3200 3100"
+mean to switch on _AC0 at 320.0K
 and _AC1 at 310.0K.
 The lower the _ACx value, the higher the cooling power.
 .El
@@ -97,16 +98,15 @@ The
 .Nm
 driver sends events with the following attributes:
 .Pp
-.Bl -tag -width indent -compact
+.Bl -tag -width "subsystem" -compact
 .It system
-.Li "ACPI"
+.Li ACPI
 .It subsystem
-.Li "Thermal"
+.Li Thermal
 .It type
 The fully qualified thermal zone object path as in the ASL.
 .It notify
-An integer designating the event, specified below.
-.El
+An integer designating the event:
 .Pp
 .Bl -tag -width indent -compact
 .It Li 0x80
@@ -115,6 +115,7 @@ Current temperature has changed.
 One or more trip points (_ACx, _PSV) have changed.
 .It Li 0x82
 One or more device lists (_ALx, _PSL, _TZD) have changed.
+.El
 .El
 .Sh SEE ALSO
 .Xr acpi 4 ,
