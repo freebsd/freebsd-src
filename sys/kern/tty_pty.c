@@ -813,8 +813,6 @@ static void
 ptc_drvinit(unused)
 	void *unused;
 {
-	cdevsw_add(&pts_cdevsw);
-	cdevsw_add(&ptc_cdevsw);
 	/* XXX: Gross hack for DEVFS */
 	ptyinit(0);
 }
