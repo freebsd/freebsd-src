@@ -488,7 +488,7 @@ coda_call(mntinfo, inSize, outSize, buffer)
 	int error;
 #ifdef	CTL_C
 	struct proc *p = curproc;
-	sigset_t psig_omask = p->p_sigmask;
+	sigset_t psig_omask;
 	sigset_t tempset;
 	int i;
 #endif
@@ -544,8 +544,10 @@ coda_call(mntinfo, inSize, outSize, buffer)
 	   can not do this.  A better solution is necessary.
 	 */
 	i = 0;
+	PROC_LOCK(p);
+	psig_omask = p->p_sigmask;
 	do {
-		error = tsleep(&vmp->vm_sleep,
+		error = msleep(&vmp->vm_sleep, &p->p_mtx,
 			       (coda_call_sleep|coda_pcatch), "coda_call",
 			       hz*2);
 		if (error == 0)
@@ -597,6 +599,7 @@ coda_call(mntinfo, inSize, outSize, buffer)
 		}
 	} while (error && i++ < 128 && VC_OPEN(vcp));
 	p->p_sigmask = psig_omask;
+	PROC_UNLOCK(p);
 #else
 	(void) tsleep(&vmp->vm_sleep, coda_call_sleep, "coda_call", 0);
 #endif
