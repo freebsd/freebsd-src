@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.54 1995/05/25 01:52:02 jkh Exp $
+ * $Id: install.c,v 1.55 1995/05/25 18:48:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -367,136 +367,61 @@ copy_self(void)
     i = vsystem("find -x /stand | cpio -pdmv /mnt");
     if (i)
 	msgConfirm("Copy returned error status of %d!", i);
+    /* copy up the etc files */
+    (void)vsystem("(cd /mnt/stand; find etc) | cpio -pdmv /mnt");
 }
 
-static Device *floppyDev;
-
-static int
-floppyChoiceHook(char *str)
-{
-    Device **devs;
-
-    /* Clip garbage off the ends */
-    string_prune(str);
-    str = string_skipwhite(str);
-    if (!*str)
-	return 0;
-    devs = deviceFind(str, DEVICE_TYPE_FLOPPY);
-    if (devs)
-	floppyDev = devs[0];
-    return devs ? 1 : 0;
-}
+static void loop_on_root_floppy();
 
 static void
 root_extract(void)
 {
-    int i, j, zpid, cpid, pfd[2];
-    Boolean onCDROM = FALSE;
+    int fd, status;
 
-    if (mediaDevice && mediaDevice->type == DEVICE_TYPE_CDROM) {
-	if (mediaDevice->init) {
-	    if ((*mediaDevice->init)(mediaDevice)) {
-		RootFD = open("/cdrom/floppies/root.flp", O_RDONLY);
-		if (RootFD != -1) {
-		    msgNotify("Loading root floppy from CDROM");
-		    onCDROM = TRUE;
-		}
-	    }
-	}
+    if (OnCDROM) {
+	fd = open("/floppies/root.flp", O_RDONLY);
+	mediaExtractDist("root.flp", "/", fd);
+	return;
     }
+    if (mediaDevice) {
+	switch(mediaDevice->type) {
 
- tryagain:
-    while (RootFD == -1) {
-	if (!floppyDev) {
-	    Device **devs;
-	    int cnt;
-
-	    devs = deviceFind(NULL, DEVICE_TYPE_FLOPPY);
-	    cnt = deviceCount(devs);
-	    if (cnt == 1)
-		floppyDev = devs[0];
-	    else if (cnt > 1) {
-		DMenu *menu;
-
-		menu = deviceCreateMenu(&MenuMediaFloppy, DEVICE_TYPE_FLOPPY, floppyChoiceHook);
-		dmenuOpenSimple(menu);
+	case DEVICE_TYPE_DOS:
+	case DEVICE_TYPE_FTP:
+	case DEVICE_TYPE_DISK:
+	case DEVICE_TYPE_NETWORK:
+	case DEVICE_TYPE_CDROM:
+	    if (mediaDevice->init)
+		if (!(*mediaDevice->init)(mediaDevice))
+		    break;
+	    fd = (*mediaDevice->get)("root.flp", "floppies/");
+	    if (fd != -1) {
+		msgNotify("Loading root floppy over %s", mediaDevice->name);
+		status = mediaExtractDist("root.flp", "/", fd);
+		if (mediaDevice->close)
+		    (*mediaDevice->close)(mediaDevice, fd);
+		else
+		    close(fd);
 	    }
-	    else {
-		msgConfirm("No floppy devices found!  Something is seriously wrong!");
-		return;
-	    }
-	    if (!floppyDev)
-		continue;
-	}
-	dialog_clear();
-	msgConfirm("Please Insert ROOT floppy in %s", floppyDev->description);
-	RootFD = open(floppyDev->devname, O_RDONLY);
-	if (RootFD >= 0)
 	    break;
-	msgDebug("Error on open of root floppy: %s (%d)\n", strerror(errno), errno);
-    }
-    j = fork();
-    if (!j) {
-	chdir("/");
-	msgWeHaveOutput("Extracting contents of root floppy...");
-	pipe(pfd);
-	zpid = fork();
-	if (!zpid) {
-	    dup2(RootFD, 0); close(RootFD);
-	    dup2(pfd[1], 1); close(pfd[1]);
-	    if (DebugFD != -1)
-		dup2(DebugFD, 2);
-	    close(pfd[0]);
-	    i = execl("/stand/gunzip", "/stand/gunzip", 0);
-	    msgDebug("/stand/gunzip command returns %d status\n", i);
-	    exit(i);
-	}
-	cpid = fork();
-	if (!cpid) {
-	    dup2(pfd[0], 0); close(pfd[0]);
-	    close(RootFD);
-	    close(pfd[1]);
-	    if (DebugFD != -1) {
-		dup2(DebugFD, 1);
-		dup2(DebugFD, 2);
-	    }
-	    else {
-		close(1); open("/dev/null", O_WRONLY);
-		dup2(1, 2);
-	    }
-	    i = execl("/stand/cpio", "/stand/cpio", "-iduvm", 0);
-	    msgDebug("/stand/cpio command returns %d status\n", i);
-	    exit(i);
-	}
-	close(pfd[0]);
-	close(pfd[1]);
-	close(RootFD);
 
-	i = waitpid(zpid, &j, 0);
-	if (i < 0) {	/* Don't check status - gunzip seems to return a bogus one! */
-	    dialog_clear();
-	    msgConfirm("wait for gunzip returned status of %d!", i);
-	    exit(1);
+	case DEVICE_TYPE_FLOPPY:
+	default:
+	    loop_on_root_floppy();
+	    break;
 	}
-	i = waitpid(cpid, &j, 0);
-	if (i < 0 || WEXITSTATUS(j)) {
-	    dialog_clear();
-	    msgConfirm("cpio returned error status of %d!", WEXITSTATUS(j));
-	    exit(2);
-	}
-	exit(0);
     }
     else
-	i = wait(&j);
-    if (i < 0 || WEXITSTATUS(j) || access("/OK", R_OK) == -1) {
-	dialog_clear();
-	msgConfirm("Root floppy did not extract properly!  Please verify\nthat your media is correct and try again.");
-	close(RootFD);
-	RootFD = -1;
-	dialog_clear();
-	goto tryagain;
-    }
-    unlink("/OK");
-    if (!onCDROM)
-	msgConfirm("Please remove all floppies in any drives at this time.\nThey are no longer needed.");
+	loop_on_root_floppy();
+}
+
+static void
+loop_on_root_floppy(void)
+{
+    int fd;
+
+    fd = genericGetDist("root.flp", NULL, TRUE);
+    if (fd == -1)
+	return;
+    mediaExtractDist("root.flp", "/", fd);
 }

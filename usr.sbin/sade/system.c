@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.33 1995/05/25 01:52:03 jkh Exp $
+ * $Id: system.c,v 1.34 1995/05/25 18:48:31 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -60,7 +60,6 @@ systemInitialize(int argc, char **argv)
 	    close(0); open("/bootcd/dev/console", O_RDWR);
 	    close(1); dup(0);
 	    close(2); dup(0);
-	    RootFD = open("/floppies/root.flp", O_RDONLY);
 	    OnCDROM = TRUE;
 	    chroot("/bootcd");
 	} else {
@@ -70,9 +69,9 @@ systemInitialize(int argc, char **argv)
 	}
 	printf("%s running as init\n", argv[0]);
 
-	ioctl(0, TIOCSCTTY, (char *)NULL);
+	i = ioctl(0, TIOCSCTTY, (char *)NULL);
 	setlogin("root");
-	setenv("PATH", "/stand:/mnt/bin:/mnt/sbin:/mnt/usr/sbin:/mnt/usr/bin", 1);
+	setenv("PATH", "/stand:/bin:/sbin:/usr/sbin:/mnt/bin:/mnt/sbin:/mnt/usr/sbin:/mnt/usr/bin", 1);
 	setbuf(stdin, 0);
 	setbuf(stderr, 0);
     }
