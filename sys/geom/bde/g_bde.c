@@ -209,7 +209,14 @@ g_bde_create_geom(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 		mtx_unlock(&Giant);
 		g_topology_lock();
 		pp = g_new_providerf(gp, gp->name);
+#if 0
+		/*
+		 * XXX: Disable this for now.  Appearantly UFS no longer
+		 * XXX: issues BIO_DELETE requests correctly, with the obvious
+		 * XXX: outcome that userdata is trashed.
+		 */
 		pp->flags |= G_PF_CANDELETE;
+#endif
 		pp->stripesize = kp->zone_cont;
 		pp->stripeoffset = 0;
 		pp->mediasize = sc->mediasize;
