@@ -8,8 +8,8 @@
 # libcom_err must be built before libkrb, libpam and libss.
 # libcrypt must be built before libkrb, libpam and libskey.
 # libm must be built before libg++ and libstdc++.
-# libmd must be built before libatm, libcrypt, libopie, libradius, libskey,
-# and libtacplus.
+# libmd must be built before libatm, libopie, libradius, libskey, and
+# libtacplus.
 # libncurses must be built before libdialog, libedit and libreadline.
 # libradius must be built before libpam.
 # libskey must be built before libpam.
@@ -18,7 +18,7 @@
 #
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
-SUBDIR=	${_csu} libcom_err libmd ${_libcrypt} ${_libm} \
+SUBDIR=	${_csu} libcom_err ${_libcrypt} ${_libm} libmd \
 	libncurses libradius libskey libtacplus libutil \
 	${_compat} libalias libatm ${_libbind} libc ${_libc_r} libcalendar \
 	libcam libcompat libdevstat libdisk libedit libfetch libform \
