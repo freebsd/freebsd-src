@@ -200,7 +200,7 @@ kue_setword(struct kue_softc *sc, u_int8_t breq, u_int16_t word)
 	usb_device_request_t	req;
 	usbd_status		err;
 
-	if (sc->kue_gone)
+	if (sc->kue_dying)
 		return(USBD_NORMAL_COMPLETION);
 
 	dev = sc->kue_udev;
@@ -231,7 +231,7 @@ kue_ctl(struct kue_softc *sc, int rw, u_int8_t breq, u_int16_t val,
 
 	dev = sc->kue_udev;
 
-	if (sc->kue_gone)
+	if (sc->kue_dying)
 		return(USBD_NORMAL_COMPLETION);
 
 	KUE_LOCK(sc);
@@ -493,7 +493,7 @@ USB_ATTACH(kue)
 	 */
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	usb_register_netisr();
-	sc->kue_gone = 0;
+	sc->kue_dying = 0;
 
 	KUE_UNLOCK(sc);
 
@@ -510,7 +510,7 @@ kue_detach(device_ptr_t dev)
 	KUE_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
-	sc->kue_gone = 1;
+	sc->kue_dying = 1;
 
 	if (ifp != NULL)
 		ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
