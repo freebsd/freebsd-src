@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.180 1999/01/05 18:49:53 eivind Exp $
+ * $Id: vfs_subr.c,v 1.181 1999/01/08 17:31:17 eivind Exp $
  */
 
 /*
@@ -797,6 +797,7 @@ bgetvp(vp, bp)
 	int s;
 
 	KASSERT(bp->b_vp == NULL, ("bgetvp: not free"));
+
 	vhold(vp);
 	bp->b_vp = vp;
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
@@ -990,6 +991,7 @@ pbgetvp(vp, bp)
 	register struct vnode *vp;
 	register struct buf *bp;
 {
+
 	KASSERT(bp->b_vp == NULL, ("pbgetvp: not free"));
 
 	bp->b_vp = vp;
@@ -1302,7 +1304,7 @@ vrele(vp)
 {
 	struct proc *p = curproc;	/* XXX */
 
-	KASSERT(vp, ("vrele: null vp"));
+	KASSERT(vp != NULL, ("vrele: null vp"));
 
 	simple_lock(&vp->v_interlock);
 

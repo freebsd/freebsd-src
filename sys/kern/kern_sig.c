@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.51 1998/12/19 02:55:33 julian Exp $
+ * $Id: kern_sig.c,v 1.52 1999/01/08 17:31:10 eivind Exp $
  */
 
 #include "opt_compat.h"
@@ -1213,7 +1213,7 @@ postsig(signum)
 		 * If we get here, the signal must be caught.
 		 */
 		KASSERT(action != SIG_IGN && (p->p_sigmask & mask) == 0,
-			("postsig action"));
+		    ("postsig action"));
 		/*
 		 * Set the new mask value and also defer further
 		 * occurences of this signal.

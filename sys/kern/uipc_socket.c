@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.47 1998/12/07 21:58:29 archie Exp $
+ *	$Id: uipc_socket.c,v 1.48 1999/01/08 17:31:13 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -736,7 +736,7 @@ dontblock:
 			break;
 		else
 		    KASSERT(m->m_type == MT_DATA || m->m_type == MT_HEADER,
-			    ("receive 3"));
+			("receive 3"));
 		so->so_state &= ~SS_RCVATMARK;
 		len = uio->uio_resid;
 		if (so->so_oobmark && len > so->so_oobmark - offset)

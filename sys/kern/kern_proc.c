@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.40 1998/11/11 10:55:56 truckman Exp $
+ * $Id: kern_proc.c,v 1.41 1999/01/08 17:31:09 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -196,9 +196,10 @@ enterpgrp(p, pgid, mksess)
 	register struct pgrp *pgrp = pgfind(pgid);
 
 	KASSERT(pgrp == NULL || !mksess,
-		("enterpgrp: setsid into non-empty pgrp"));
+	    ("enterpgrp: setsid into non-empty pgrp"));
 	KASSERT(!SESS_LEADER(p),
-		("enterpgrp: session leader attempted setpgrp"));
+	    ("enterpgrp: session leader attempted setpgrp"));
+
 	if (pgrp == NULL) {
 		pid_t savepid = p->p_pid;
 		struct proc *np;
@@ -206,7 +207,7 @@ enterpgrp(p, pgid, mksess)
 		 * new process group
 		 */
 		KASSERT(p->p_pid == pgid,
-			("enterpgrp: new pgrp and pid != pgid"));
+		    ("enterpgrp: new pgrp and pid != pgid"));
 		MALLOC(pgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP,
 		    M_WAITOK);
 		if ((np = pfind(savepid)) == NULL || np != p)
@@ -229,7 +230,7 @@ enterpgrp(p, pgid, mksess)
 			p->p_flag &= ~P_CONTROLT;
 			pgrp->pg_session = sess;
 			KASSERT(p == curproc,
-				("enterpgrp: mksession and p != curproc"));
+			    ("enterpgrp: mksession and p != curproc"));
 		} else {
 			pgrp->pg_session = p->p_session;
 			pgrp->pg_session->s_count++;
