@@ -1945,7 +1945,7 @@ umass_cam_attach_sim()
 	/* A HBA is attached to the CAM layer.
 	 *
 	 * The CAM layer will then after a while start probing for
-	 * devices on the bus. The number of SIMs is limitted to one.
+	 * devices on the bus. The number of SIMs is limited to one.
 	 */
 
 	devq = cam_simq_alloc(1 /*maximum openings*/);
