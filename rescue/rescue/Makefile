@@ -266,17 +266,17 @@ $(OUTPUTS): $(CONF)
 	    -c $(OUTC) $(CONF)
 
 $(PROG): $(OUTPUTS) objs
-	MAKEOBJDIRPREFIX=${CRUNCHOBJS} make -f $(OUTMK) 
+	MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} -f $(OUTMK) 
 
 objs: $(OUTMK)
-	MAKEOBJDIRPREFIX=${CRUNCHOBJS} make -f $(OUTMK) objs
+	MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} -f $(OUTMK) objs
 
 # <sigh> Someone should replace the bin/csh and bin/sh build-tools with
 # shell scripts so we can remove this nonsense.
 build-tools:
 .for _tool in bin/csh bin/sh 
 	cd $(.CURDIR)/../../${_tool}; \
-	MAKEOBJDIRPREFIX=${CRUNCHOBJS} make DIRPRFX=rescue/${_tool} build-tools
+	MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} DIRPRFX=rescue/${_tool} build-tools
 .endfor
 
 # Use a separate build tree to hold files compiled for this crunchgen binary
@@ -288,10 +288,10 @@ cleandepend cleandir obj objlink:
 .for P in $(CRUNCH_PROGS_$(D))
 .ifdef CRUNCH_SRCDIR_${P}
 	cd ${CRUNCH_SRCDIR_$(P)} && \
-	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} make ${.TARGET}
+	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} ${MAKE} ${.TARGET}
 .else
 	cd $(.CURDIR)/../../${D}/${P} && \
-	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} make ${.TARGET}
+	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} ${MAKE} ${.TARGET}
 .endif
 .endfor
 .endfor
@@ -299,16 +299,16 @@ cleandepend cleandir obj objlink:
 clean:
 	rm -f ${CLEANFILES}
 	if [ -e ${.OBJDIR}/$(OUTMK) ]; then				\
-		MAKEOBJDIRPREFIX=${CRUNCHOBJS} make -f $(OUTMK) clean;	\
+		MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} -f $(OUTMK) clean;	\
 	fi
 .for D in $(CRUNCH_SRCDIRS)
 .for P in $(CRUNCH_PROGS_$(D))
 .ifdef CRUNCH_SRCDIR_${P}
 	cd ${CRUNCH_SRCDIR_$(P)} && \
-	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} make ${.TARGET}
+	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} ${MAKE} ${.TARGET}
 .else
 	cd $(.CURDIR)/../../${D}/${P} && \
-	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} make ${.TARGET}
+	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} ${MAKE} ${.TARGET}
 .endif
 .endfor
 .endfor
