@@ -1,4 +1,4 @@
-/*	$NetBSD: uhci.c,v 1.141 2001/10/24 21:04:04 augustss Exp $	*/
+/*	$NetBSD: uhci.c,v 1.142 2001/10/25 02:08:13 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -157,7 +157,8 @@ struct uhci_pipe {
 	} u;
 };
 
-Static void		uhci_busreset(uhci_softc_t *);
+Static void		uhci_globalreset(uhci_softc_t *);
+Static void		uhci_reset(uhci_softc_t *);
 #if 0
 Static void		uhci_reset(uhci_softc_t *);
 #endif
@@ -370,7 +371,7 @@ uhci_find_prev_qh(uhci_soft_qh_t *pqh, uhci_soft_qh_t *sqh)
 }
 
 void
-uhci_busreset(uhci_softc_t *sc)
+uhci_globalreset(uhci_softc_t *sc)
 {
 	UHCICMD(sc, UHCI_CMD_GRESET);	/* global reset */
 	usb_delay_ms(&sc->sc_bus, USB_BUS_RESET_DELAY); /* wait a little */
@@ -394,10 +395,10 @@ uhci_init(uhci_softc_t *sc)
 		uhci_dumpregs(sc);
 #endif
 
-	uhci_run(sc, 0);			/* stop the controller */
 	UWRITE2(sc, UHCI_INTR, 0);		/* disable interrupts */
 
-	uhci_busreset(sc);
+	uhci_globalreset(sc);			/* reset the controller */
+	uhci_reset(sc);
 
 	/* Allocate and initialize real frame array. */
 	err = usb_allocmem(&sc->sc_bus,
@@ -1521,7 +1522,6 @@ uhci_poll(struct usbd_bus *bus)
 		uhci_intr1(sc);
 }
 
-#if 0
 void
 uhci_reset(uhci_softc_t *sc)
 {
@@ -1536,7 +1536,6 @@ uhci_reset(uhci_softc_t *sc)
 		printf("%s: controller did not reset\n",
 		       USBDEVNAME(sc->sc_bus.bdev));
 }
-#endif
 
 usbd_status
 uhci_run(uhci_softc_t *sc, int run)
