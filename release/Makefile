@@ -717,9 +717,9 @@ release.9:
 	    ${.CURDIR}/${TARGET}/drivers-small.conf \
 	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/modules
 .endif
-	sh -e ${DOFS_SH} mfsroot-small ${RD} ${MNT} \
+	sh -e ${DOFS_SH} ${RD}/mfsroot-small/mfsroot ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
-	@gzip -9cnv mfsroot-small > ${RD}/mfsroot-small/mfsroot.gz
+	@gzip -9nv ${RD}/mfsroot-small/mfsroot
 	@rm -rf ${RD}/mfsfd/modules
 .endif
 .if exists(${.CURDIR}/${TARGET}/drivers.conf)
@@ -729,10 +729,9 @@ release.9:
 	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/modules
 .endif
 	@mkdir -p ${RD}/mfsroot
-	sh -e ${DOFS_SH} mfsroot ${RD} ${MNT} \
+	sh -e ${DOFS_SH} ${RD}/mfsroot/mfsroot ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
-	@gzip -9cnv mfsroot > ${RD}/mfsroot/mfsroot.gz
-	@rm -f mfsroot mfsroot-small
+	@gzip -9nv ${RD}/mfsroot/mfsroot
 	touch ${.TARGET}
 
 release.10:
@@ -987,9 +986,8 @@ doTARBALL:
 		   md5 * > CHECKSUM.MD5) \
 	)
 
-doRELEASE:  release.1 release.2 release.3 ${DOCREL} release.4 release.5 \
-		release.6 release.7 release.8 release.9 release.10
-	@cd ${.CURDIR} && ${MAKE} ${EXTRAS}
+doRELEASE: release.1 release.2 release.3 ${DOCREL} release.4 release.5 \
+    release.6 release.7 release.8 release.9 release.10 ${EXTRAS}
 	@echo "Release done"
 
 floppies:
