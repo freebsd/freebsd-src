@@ -204,6 +204,9 @@ ucom_attach(struct ucom_softc *sc)
 int
 ucom_detach(struct ucom_softc *sc)
 {
+	struct tty *tp = sc->sc_tty;
+	int s;
+
 	DPRINTF(("ucom_detach: sc = %p, tp = %p\n", sc, sc->sc_tty));
 
 	sc->sc_dying = 1;
@@ -213,10 +216,27 @@ ucom_detach(struct ucom_softc *sc)
 	if (sc->sc_bulkout_pipe != NULL)
 		usbd_abort_pipe(sc->sc_bulkout_pipe);
 
-	if (sc->sc_tty == NULL) {
+	if (tp != NULL) {
+		if (tp->t_state & TS_ISOPEN) {
+			device_printf(sc->sc_dev,
+				      "still open, focing close\n");
+			(*linesw[tp->t_line].l_close)(tp, 0);
+			tp->t_gen++;
+			ttyclose(tp);
+			ttwakeup(tp);
+			ttwwakeup(tp);
+		}
+	} else {
 		DPRINTF(("ucom_detach: no tty\n"));
 		return (0);
 	}
+
+	s = splusb();
+	if (--sc->sc_refcnt >= 0) {
+		/* Wait for processes to go away. */
+		usb_detach_wait(USBDEV(sc->sc_dev));
+	}
+	splx(s);
 
 	destroy_dev(sc->dev);
 
@@ -252,7 +272,7 @@ ucomopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 	USB_GET_SC_OPEN(ucom, unit, sc);
 
 	if (sc->sc_dying)
-		return (EIO);
+		return (ENXIO);
 
 	tp = sc->sc_tty;
 
@@ -373,8 +393,8 @@ ucomopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 		/*
 		 * Handle initial DCD.
 		 */
-		if (ISSET(sc->sc_msr, UMSR_DCD)
-		    || (minor(dev) & UCOM_CALLOUT_MASK))
+		if (ISSET(sc->sc_msr, UMSR_DCD) ||
+		    (minor(dev) & UCOM_CALLOUT_MASK))
 			(*linesw[tp->t_line].l_modem)(tp, 1);
 
 		ucomstartread(sc);
@@ -397,6 +417,7 @@ ucomopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 	DPRINTF(("%s: ucomopen: success\n", USBDEVNAME(sc->sc_dev)));
 
 	sc->sc_poll = 1;
+	sc->sc_refcnt++;
 
 	return (0);
 
@@ -447,7 +468,7 @@ ucomclose(dev_t dev, int flag, int mode, usb_proc_ptr p)
 		USBDEVNAME(sc->sc_dev), UCOMUNIT(dev)));
 
 	if (!ISSET(tp->t_state, TS_ISOPEN))
-		return (0);
+		goto quit;
 
 	s = spltty();
 	(*linesw[tp->t_line].l_close)(tp, flag);
@@ -456,7 +477,7 @@ ucomclose(dev_t dev, int flag, int mode, usb_proc_ptr p)
 	splx(s);
 
 	if (sc->sc_dying)
-		return (0);
+		goto quit;
 
 	if (!ISSET(tp->t_state, TS_ISOPEN)) {
 		/*
@@ -469,6 +490,10 @@ ucomclose(dev_t dev, int flag, int mode, usb_proc_ptr p)
 
 	if (sc->sc_callback->ucom_close != NULL)
 		sc->sc_callback->ucom_close(sc->sc_parent, sc->sc_portno);
+
+    quit:
+	if (--sc->sc_refcnt < 0)
+		usb_detach_wakeup(USBDEV(sc->sc_dev));
 
 	return (0);
 }
@@ -927,6 +952,8 @@ ucomstop(struct tty *tp, int flag)
 		}
 		splx(s);
 	}
+
+	DPRINTF(("ucomstop: done\n"));
 }
 
 Static void
@@ -1106,12 +1133,24 @@ ucom_cleanup(struct ucom_softc *sc)
 Static void
 ucomstopread(struct ucom_softc *sc)
 {
+	usbd_status err;
+
+	DPRINTF(("ucomstopread: enter\n"));
+
 	if (!(sc->sc_state & UCS_RXSTOP)) {
-		if (sc->sc_bulkin_pipe == NULL)
+		if (sc->sc_bulkin_pipe == NULL) {
+			DPRINTF(("ucomstopread: bulkin pipe NULL\n"));
 			return;
+		}
 		sc->sc_state |= UCS_RXSTOP;
-		usbd_abort_pipe(sc->sc_bulkin_pipe);
+		err = usbd_abort_pipe(sc->sc_bulkin_pipe);
+		if (err) {
+			DPRINTF(("ucomstopread: err = %s\n",
+				 usbd_errstr(err)));
+		}
 	}
+
+	DPRINTF(("ucomstopread: leave\n"));
 }
 
 static void

@@ -712,7 +712,7 @@ uvscom_open(void *addr, int portno)
 	int i;
 	
 	if (sc->sc_ucom.sc_dying)
-		return (EIO);
+		return (ENXIO);
 
 	DPRINTF(("uvscom_open: sc = %p\n", sc));
 
@@ -725,7 +725,7 @@ uvscom_open(void *addr, int portno)
 		if (err) {
 			DPRINTF(("%s: uvscom_open: readstat faild\n",
 				 USBDEVNAME(sc->sc_ucom.sc_dev)));
-			return (EIO);
+			return (ENXIO);
 		}
 
 		sc->sc_intr_buf = malloc(sc->sc_isize, M_USBDEV, M_WAITOK);
@@ -742,7 +742,7 @@ uvscom_open(void *addr, int portno)
 			printf("%s: cannot open interrupt pipe (addr %d)\n",
 				 USBDEVNAME(sc->sc_ucom.sc_dev),
 				 sc->sc_intr_number);
-			return (EIO);
+			return (ENXIO);
 		}
 	} else {
 		DPRINTF(("uvscom_open: did not open interrupt pipe.\n"));
@@ -759,14 +759,14 @@ uvscom_open(void *addr, int portno)
 		if (i == 0) {
 			DPRINTF(("%s: unit is not ready\n",
 				 USBDEVNAME(sc->sc_ucom.sc_dev)));
-			return (EIO);
+			return (ENXIO);
 		}
 
 		/* check PC card was inserted */
 		if (ISSET(sc->sc_usr, UVSCOM_NOCARD)) {
 			DPRINTF(("%s: no card\n",
 				 USBDEVNAME(sc->sc_ucom.sc_dev)));
-			return (EIO);
+			return (ENXIO);
 		}
 	}
 
