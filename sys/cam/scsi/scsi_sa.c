@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_sa.c,v 1.6 1998/11/26 10:47:52 joerg Exp $
+ *      $Id: scsi_sa.c,v 1.7 1998/12/11 07:19:36 mjacob Exp $
  */
 
 #include <sys/param.h>
@@ -76,6 +76,10 @@
 #define	SAUNIT(DEV) ((minor(DEV)&0xF0) >> 4)	/* 4 bit unit.	*/
 #define	SASETUNIT(DEV, U) makedev(major(DEV), ((U) << 4))
 
+#ifndef	UNUSED_PARAMETER
+#define	UNUSED_PARAMETER(x)	x = x
+#endif
+
 typedef enum {
 	SA_STATE_NORMAL
 } sa_state;
@@ -95,15 +99,14 @@ typedef enum {
 	SA_FLAG_TAPE_MOUNTED	= 0x0008,
 	SA_FLAG_TAPE_WP		= 0x0010,
 	SA_FLAG_TAPE_WRITTEN	= 0x0020,
-	SA_FLAG_2FM_AT_EOD	= 0x0040,
-	SA_FLAG_EOM_PENDING	= 0x0080,
-	SA_FLAG_EIO_PENDING	= 0x0100,
-	SA_FLAG_EOF_PENDING	= 0x0200,
+	SA_FLAG_EOM_PENDING	= 0x0040,
+	SA_FLAG_EIO_PENDING	= 0x0080,
+	SA_FLAG_EOF_PENDING	= 0x0100,
 	SA_FLAG_ERR_PENDING	= (SA_FLAG_EOM_PENDING|SA_FLAG_EIO_PENDING|
 				   SA_FLAG_EOF_PENDING),
-	SA_FLAG_INVALID		= 0x0400,
-	SA_FLAG_COMP_ENABLED	= 0x0800,
-	SA_FLAG_COMP_UNSUPP	= 0x1000
+	SA_FLAG_INVALID		= 0x0200,
+	SA_FLAG_COMP_ENABLED	= 0x0400,
+	SA_FLAG_COMP_UNSUPP	= 0x0800
 } sa_flags;
 
 typedef enum {
@@ -126,7 +129,10 @@ typedef enum {
 
 typedef enum {
 	SA_QUIRK_NONE		= 0x00,
-	SA_QUIRK_NOCOMP		= 0x01
+	SA_QUIRK_NOCOMP		= 0x01,	/* can't deal with compression at all */
+	SA_QUIRK_FIXED		= 0x02,	/* force fixed mode */
+	SA_QUIRK_VARIABLE	= 0x04,	/* force variable mode */
+	SA_QUIRK_2FM		= 0x05	/* Two File Marks at EOD */
 } sa_quirks;
 
 struct sa_softc {
@@ -143,6 +149,7 @@ struct sa_softc {
 	u_int32_t	comp_algorithm;
 	u_int32_t	saved_comp_algorithm;
 	u_int32_t	media_blksize;
+	u_int32_t	last_media_blksize;
 	u_int32_t	media_numblks;
 	u_int8_t	media_density;
 	u_int8_t	speed;
@@ -161,11 +168,11 @@ static struct sa_quirk_entry sa_quirk_table[] =
 {
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "ARCHIVE",
-		  "Python 25601*", "*"}, /*quirks*/SA_QUIRK_NOCOMP
+		  "Python 25601*", "*"}, SA_QUIRK_NOCOMP
 	},
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "TANDBERG",
-		  " TDC 3600", "U07:"}, /*quirks*/SA_QUIRK_NOCOMP
+		  " TDC 3600", "U07:"}, SA_QUIRK_NOCOMP
 	}
 };
 
@@ -203,7 +210,7 @@ static void		saprevent(struct cam_periph *periph, int action);
 static int		sarewind(struct cam_periph *periph);
 static int		saspace(struct cam_periph *periph, int count,
 				scsi_space_code code);
-static int		samount(struct cam_periph *periph);
+static int		samount(struct cam_periph *, int, dev_t);
 static int		saretension(struct cam_periph *periph);
 static int		sareservereleaseunit(struct cam_periph *periph,
 					     int reserve);
@@ -314,9 +321,8 @@ saopen(dev_t dev, int flags, int fmt, struct proc *p)
 			error = EBUSY;
 		}
 		
-		if (error == 0) {
-			error = samount(periph);
-		}
+		if (error == 0)
+			error = samount(periph, flags, dev);
 		/* Perform other checking... */
 	}
 
@@ -350,22 +356,65 @@ saclose(dev_t dev, int flag, int fmt, struct proc *p)
 		return (error); /* error code from tsleep */
 	}
 
-	sacheckeod(periph);
+	/*
+	 * See whether or not we need to write filemarks...
+	 */
+	error = sacheckeod(periph);
+	if (error) {
+		xpt_print_path(periph->path);
+		printf("failure at writing filemarks - opting for safety\n");
+		mode = SA_MODE_OFFLINE;
+	}
 
+	/*
+	 * Whatever we end up doing, allow users to eject tapes from here on.
+	 */
 	saprevent(periph, PR_ALLOW);
 
+	/*
+	 * Decide how to end...
+	 */
 	switch (mode) {
-	case SA_MODE_REWIND:
-		sarewind(periph);
-		break;
+	default:
+		xpt_print_path(periph->path);
+		printf("unknown close mode %x- opting for safety\n", mode);
+		/* FALLTHROUGH */
 	case SA_MODE_OFFLINE:
 		sarewind(periph);
 		saloadunload(periph, /*load*/FALSE);
 		break;
+	case SA_MODE_REWIND:
+		sarewind(periph);
+		break;
 	case SA_MODE_NOREWIND:
-	default:
+		/*
+		 * If we're not rewinding/unloading the tape, find out
+		 * whether we need to back up over one of two filemarks
+		 * we wrote (if we wrote two filemarks) so that appends
+		 * from this point on will be sane.
+		 */
+		if ((softc->quirks & SA_QUIRK_2FM) && 
+		    (softc->flags & SA_FLAG_TAPE_WRITTEN)) {
+			error = saspace(periph, -1, SS_FILEMARKS);
+			if (error) {
+				xpt_print_path(periph->path);
+				printf("unable to backspace over one of double"
+				   " filemarks at EOD- opting for safety\n");
+				sarewind(periph);
+				saloadunload(periph, FALSE);
+			}
+		}
 		break;
 	}
+
+	/*
+	 * We wish to note here that there are no filemarks written.
+	 */
+	softc->filemarks = 0;
+
+	/*
+	 * And we are no longer open for business.
+	 */
 
 	softc->flags &= ~SA_FLAG_OPEN;
 	
@@ -570,9 +619,8 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 
 		count = mt->mt_count;
 		switch (mt->mt_op) {
-		case MTWEOF:	/* write an end-of-file record */
-			error = sawritefilemarks(periph, count,
-						   /*setmarks*/FALSE);
+		case MTWEOF:	/* write an end-of-file marker */
+			error = sawritefilemarks(periph, count, FALSE);
 			break;
 		case MTBSR:	/* backward space record */
 		case MTFSR:	/* forward space record */
@@ -585,8 +633,18 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 
 			nmarks = softc->filemarks;
 			error = sacheckeod(periph);
+			if (error) {
+				xpt_print_path(periph->path);
+				printf("EOD check prior to spacing failed\n");
+				softc->flags |= SA_FLAG_EIO_PENDING;
+				break;
+			}
 			nmarks -= softc->filemarks;
-
+			/*
+			 * XXX: This very interestingly treats filemarks as
+			 * XXX: marks we can just BSR over if the op is indeed
+			 * XXX: a MTBSR.
+			 */
 			if ((mt->mt_op == MTBSR) || (mt->mt_op == MTBSF))
 				count = -count;
 
@@ -606,10 +664,25 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 			if (error == 0)
 				error = saspace(periph, count - nmarks,
 						spaceop);
+			/*
+			 * At this point, clear that we've written the tape
+			 * and that we've written any filemarks. We really
+			 * don't know what the applications wishes to do next-
+			 * the sacheckeod's will make sure we terminated the
+			 * tape correctly if we'd been writing, but the next
+			 * action the user application takes will set again
+			 * whether we need to write filemarks.
+			 */
+			softc->flags &= ~SA_FLAG_TAPE_WRITTEN;
+			softc->filemarks = 0;
 			break;
 		}
 		case MTREW:	/* rewind */
+			(void) sacheckeod(periph);
 			error = sarewind(periph);
+			/* see above */
+			softc->flags &= ~SA_FLAG_TAPE_WRITTEN;
+			softc->filemarks = 0;
 			break;
 		case MTERASE:	/* erase */
 			error = saerase(periph, count);
@@ -618,6 +691,12 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 			error = saretension(periph);		
 			break;
 		case MTOFFL:	/* rewind and put the drive offline */
+
+			(void) sacheckeod(periph);
+			/* see above */
+			softc->flags &= ~SA_FLAG_TAPE_WRITTEN;
+			softc->filemarks = 0;
+
 			/*
 			 * Be sure to allow media removal before
 			 * attempting the eject.
@@ -630,7 +709,6 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 			else
 				break;
 
-			/* XXX KDM */
 			softc->flags &= ~SA_FLAG_TAPE_LOCKED;
 			softc->flags &= ~SA_FLAG_TAPE_MOUNTED;
 			break;
@@ -644,6 +722,8 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 			error = sasetparams(periph, SA_PARAM_BLOCKSIZE, count,
 					    0, 0);
 			if (error == 0) {
+				softc->last_media_blksize =
+				    softc->media_blksize;
 				softc->media_blksize = count;
 				if (count) {
 					softc->flags |= SA_FLAG_FIXED;
@@ -655,6 +735,11 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 						softc->blk_mask = ~0;
 						softc->blk_shift = 0;
 					}
+					/*
+					 * Make the user's desire 'persistent'.
+					 */
+					softc->quirks &= ~SA_QUIRK_VARIABLE;
+					softc->quirks |= SA_QUIRK_FIXED;
 				} else {
 					softc->flags &= ~SA_FLAG_FIXED;
 					if (softc->max_blk == 0) {
@@ -667,6 +752,11 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 					} else {
 						softc->blk_mask = 0;
 					}
+					/*
+					 * Make the user's desire 'persistent'.
+					 */
+					softc->quirks |= SA_QUIRK_VARIABLE;
+					softc->quirks &= ~SA_QUIRK_FIXED;
 				}
 			}
 			break;
@@ -1009,14 +1099,18 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 					length =
 					    bp->b_bcount / softc->media_blksize;
 				}
+				CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
+				    ("Fixed Record Count is %d\n", length));
 			} else {
 				length = bp->b_bcount;
+				CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_INFO,
+				    ("Variable Record Count is %d\n", length));
 			}
 
 			devstat_start_transaction(&softc->device_stats);
 
 			/*
-			 * XXX - Perhaps we should...
+			 * Some people have theorized that we should
 			 * suppress illegal length indication if we are
 			 * running in variable block mode so that we don't
 			 * have to request sense every time our requested
@@ -1027,6 +1121,13 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 			 * information about blocks that are larger than
 			 * our read buffer unless we set the block size
 			 * in the mode page to something other than 0.
+			 *
+			 * I believe that this is a non-issue. If user apps
+			 * don't adjust their read size to match our record
+			 * size, that's just life. Anyway, the typical usage
+			 * would be to issue, e.g., 64KB reads and occasionally
+			 * have to do deal with 512 byte or 1KB intermediate
+			 * records.
 			 */
 			scsi_sa_read_write(&start_ccb->csio,
 					   /*retries*/4,
@@ -1075,7 +1176,6 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 		bp = (struct buf *)done_ccb->ccb_h.ccb_bp;
 		error = 0;
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-			
 			if ((error = saerror(done_ccb, 0, 0)) == ERESTART) {
 				/*
 				 * A retry was scheuled, so
@@ -1156,13 +1256,25 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 	xpt_release_ccb(done_ccb);
 }
 
+
+/*
+ * Mount the tape (make sure it's ready for I/O).
+ */
 static int
-samount(struct cam_periph *periph)
+samount(struct cam_periph *periph, int oflags, dev_t dev)
 {
 	struct	sa_softc *softc;
 	union	ccb *ccb;
 	struct	ccb_scsiio *csio;
 	int	error;
+
+	/*
+	 * oflags can be checked for 'kind' of open (read-only check) - later
+	 * dev can be checked for a control-mode or compression open - later
+	 */
+	UNUSED_PARAMETER(oflags);
+	UNUSED_PARAMETER(dev);
+
 
 	softc = (struct sa_softc *)periph->softc;
 	ccb = cam_periph_getccb(periph, /* priority */1);
@@ -1196,7 +1308,7 @@ samount(struct cam_periph *periph)
 	if ((softc->flags & SA_FLAG_TAPE_MOUNTED) == 0) {
 		struct	scsi_read_block_limits_data *rblim;
 		int	comp_enabled, comp_supported;
-		u_int8_t write_protect;
+		u_int8_t write_protect, guessing = 0;
 
 		/*
 		 * Clear out old state.
@@ -1275,6 +1387,51 @@ samount(struct cam_periph *periph)
 			goto exit;
 		}
 
+		/*
+		 * If no quirk has determined that this is a device that is
+		 * preferred to be in fixed or variable mode, now is the time
+		 * to find out.
+	 	 */
+		if ((softc->quirks & (SA_QUIRK_FIXED|SA_QUIRK_VARIABLE)) == 0) {
+			guessing = 1;
+			switch (softc->media_density) {
+			case SCSI_DENSITY_QIC_11_4TRK:
+			case SCSI_DENSITY_QIC_11_9TRK:
+			case SCSI_DENSITY_QIC_24:
+			case SCSI_DENSITY_QIC_120:
+			case SCSI_DENSITY_QIC_150:
+				softc->quirks |= SA_QUIRK_FIXED;
+				softc->last_media_blksize = 512;
+				break;
+			default:
+				softc->last_media_blksize =
+				    softc->media_blksize;
+				softc->quirks |= SA_QUIRK_VARIABLE;
+				break;
+			}
+		}
+		/*
+		 * If no quirk has determined that this is a device that needs
+		 * to have 2 Filemarks at EOD, now is the time to find out.
+		 */
+		if ((softc->quirks & SA_QUIRK_2FM) != 0) {
+			switch (softc->media_density) {
+			case SCSI_DENSITY_HALFINCH_800:
+			case SCSI_DENSITY_HALFINCH_1600:
+			case SCSI_DENSITY_HALFINCH_6250:
+			case SCSI_DENSITY_HALFINCH_6250C:
+			case SCSI_DENSITY_HALFINCH_PE:
+				softc->quirks |= SA_QUIRK_2FM;
+				break;
+			default:
+				break;
+			}
+		}
+
+		/*
+		 * Now validate that some info we got makes sense.
+		 */
+
 		if ((softc->max_blk < softc->media_blksize) ||
 		    (softc->min_blk > softc->media_blksize &&
 		    softc->media_blksize)) {
@@ -1285,6 +1442,57 @@ samount(struct cam_periph *periph)
 			softc->max_blk = softc->min_blk =
 			    softc->media_blksize;
 		}
+
+		/*
+		 * Now put ourselves into the right frame of mind based
+		 * upon quirks...
+		 */
+tryagain:
+		if ((softc->quirks & SA_QUIRK_FIXED) &&
+		    (softc->media_blksize == 0)) {
+			softc->media_blksize = softc->last_media_blksize;
+			if (softc->media_blksize == 0) {
+				softc->media_blksize = BLKDEV_IOSIZE;
+				if (softc->media_blksize < softc->min_blk) {
+					softc->media_blksize = softc->min_blk;
+				}
+			}
+			error = sasetparams(periph, SA_PARAM_BLOCKSIZE,
+			    softc->media_blksize, 0, 0);
+			if (error) {
+				xpt_print_path(ccb->ccb_h.path);
+				printf("unable to set fixed blocksize to %d\n",
+				     softc->media_blksize);
+				goto exit;
+			}
+		}
+
+		if ((softc->quirks & SA_QUIRK_VARIABLE) && 
+		    (softc->media_blksize != 0)) {
+			softc->last_media_blksize = softc->media_blksize;
+			softc->media_blksize = 0;
+			error = sasetparams(periph, SA_PARAM_BLOCKSIZE,
+			    0, 0, 0);
+			if (error) {
+				/*
+				 * If this fails and we were guessing, just
+				 * assume that we got it wrong and go try
+				 * fixed block mode...
+				 */
+				xpt_print_path(ccb->ccb_h.path);
+				if (guessing && softc->media_density ==
+				    SCSI_DEFAULT_DENSITY) {
+					softc->quirks &= ~SA_QUIRK_VARIABLE;
+					softc->quirks |= SA_QUIRK_FIXED;
+					if (softc->last_media_blksize == 0)
+						softc->last_media_blksize = 512;
+					goto tryagain;
+				}
+				printf("unable to set variable blocksize\n");
+				goto exit;
+			}
+		}
+
 		/*
 		 * Now that we have the current block size,
 		 * set up some parameters for sastart's usage.
@@ -1331,13 +1539,16 @@ samount(struct cam_periph *periph)
 		} else
 			softc->flags |= SA_FLAG_COMP_UNSUPP;
 
-		if (softc->buffer_mode != SMH_SA_BUF_MODE_NOBUF)
-			goto exit;
+		if (softc->buffer_mode == SMH_SA_BUF_MODE_NOBUF) {
+			error = sasetparams(periph, SA_PARAM_BUFF_MODE, 0,
+			    0, 0);
+			if (error == 0)
+				softc->buffer_mode = SMH_SA_BUF_MODE_SIBUF;
+		}
 
-		error = sasetparams(periph, SA_PARAM_BUFF_MODE, 0, 0, 0);
 
 		if (error == 0)
-			softc->buffer_mode = SMH_SA_BUF_MODE_SIBUF;
+			softc->flags |= SA_FLAG_TAPE_MOUNTED;
 exit:
 		if (rblim != NULL)
 			free(rblim, M_TEMP);
@@ -1367,15 +1578,13 @@ sacheckeod(struct cam_periph *periph)
 
 	if ((softc->flags & SA_FLAG_TAPE_WRITTEN) != 0) {
 		markswanted++;
-
-		if ((softc->flags & SA_FLAG_2FM_AT_EOD) != 0)
+		if ((softc->quirks & SA_QUIRK_2FM) != 0)
 			markswanted++;
 	}
 
 	if (softc->filemarks < markswanted) {
 		markswanted -= softc->filemarks;
-		error = sawritefilemarks(periph, markswanted,
-					 /*setmarks*/FALSE);
+		error = sawritefilemarks(periph, markswanted, FALSE);
 	} else {
 		error = 0;
 	}
@@ -1405,7 +1614,7 @@ saerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	  || (sense_key == SSD_KEY_BLANK_CHECK))) {
 		u_int32_t info;
 		u_int32_t resid;
-		int	  defer_action;
+		int	defer_action;
 
 		/*
 		 * Filter out some sense codes of interest.
@@ -1423,6 +1632,11 @@ saerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 					info /= softc->media_blksize;
 			}
 		}
+		CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
+		    ("Key 0x%x ASC/ASCQ 0x%x 0x%x flags 0x%x resid %d "
+		    "dxfer_len %d\n", sense_key, asc, ascq,
+		    sense->flags & ~SSD_KEY_RESERVED, resid, csio->dxfer_len));
+		 
 		if ((resid > 0 && resid < csio->dxfer_len)
 		 && (softc->flags & SA_FLAG_FIXED) != 0)
 			defer_action = TRUE;
@@ -1643,6 +1857,15 @@ retry:
 				bcopy(ncomp_page, comp_page,sizeof(*comp_page));
 		}
 
+		if (CAM_DEBUGGED(periph->path, CAM_DEBUG_INFO)) {
+			int idx;
+			char *xyz = mode_buffer;
+			xpt_print_path(periph->path);
+			printf("Mode Sense Data=");
+			for (idx = 0; idx < mode_buffer_len; idx++)
+				printf(" 0x%02x", xyz[idx]);
+			printf("\n");
+		}
 	} else if (status == CAM_SCSI_STATUS_ERROR) {
 		/* Tell the user about the fatal error. */
 		scsi_sense_print(&ccb->csio);
@@ -1859,11 +2082,12 @@ sasetparams(struct cam_periph *periph, sa_params params_to_set,
 			/*timeout*/ 5000);
 
 	if (CAM_DEBUGGED(periph->path, CAM_DEBUG_INFO)) {
+		int idx;
 		char *xyz = mode_buffer;
 		xpt_print_path(periph->path);
 		printf("Mode Select Data=");
-		for (error = 0; error < mode_buffer_len; error++)
-			printf(" 0x%02x", xyz[error]);
+		for (idx = 0; idx < mode_buffer_len; idx++)
+			printf(" 0x%02x", xyz[idx]);
 		printf("\n");
 	}
 
@@ -2003,9 +2227,7 @@ sarewind(struct cam_periph *periph)
 				 /*reduction*/0, 
 				 /*timeout*/0,
 				 /*getcount_only*/0);
-
 	xpt_release_ccb(ccb);
-
 	return (error);
 }
 
@@ -2037,9 +2259,7 @@ saspace(struct cam_periph *periph, int count, scsi_space_code code)
 				 /*reduction*/0, 
 				 /*timeout*/0,
 				 /*getcount_only*/0);
-
 	xpt_release_ccb(ccb);
-
 	return (error);
 }
 
@@ -2074,6 +2294,10 @@ sawritefilemarks(struct cam_periph *periph, int nmarks, int setmarks)
 				 /*timeout*/0,
 				 /*getcount_only*/0);
 
+	/*
+	 * XXXX: Actually, we need to get back the actual number of filemarks
+	 * XXXX: written (there can be a residual).
+	 */
 	if (error == 0) {
 		struct sa_softc *softc;
 
@@ -2082,7 +2306,6 @@ sawritefilemarks(struct cam_periph *periph, int nmarks, int setmarks)
 	}
 
 	xpt_release_ccb(ccb);
-
 	return (error);
 }
 
@@ -2117,9 +2340,7 @@ saretension(struct cam_periph *periph)
 				 /*reduction*/0, 
 				 /*timeout*/0,
 				 /*getcount_only*/0);
-
 	xpt_release_ccb(ccb);
-
 	return(error);
 }
 
@@ -2208,9 +2429,7 @@ saloadunload(struct cam_periph *periph, int load)
 				 /*reduction*/0, 
 				 /*timeout*/0,
 				 /*getcount_only*/0);
-
 	xpt_release_ccb(ccb);
-
 	return (error);
 }
 
@@ -2244,9 +2463,7 @@ saerase(struct cam_periph *periph, int longerase)
 				 /*reduction*/0, 
 				 /*timeout*/0,
 				 /*getcount_only*/0);
-
 	xpt_release_ccb(ccb);
-
 	return (error);
 }
 
