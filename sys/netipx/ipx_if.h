@@ -80,11 +80,18 @@ struct ipxip_req {
 #endif
 
 #ifdef	KERNEL
+
 extern struct	ifqueue	ipxintrq;	/* IPX input packet queue */
 extern struct	ipx_ifaddr *ipx_ifaddr;
-int ipx_ifinit();
-void ipx_ifscrub();
-struct ipx_ifaddr *ipx_iaonnetof();
+
+#include <sys/cdefs.h>
+
+__BEGIN_DECLS
+int ipx_ifinit __P((struct ifnet *ifp, struct ipx_ifaddr *ia, struct sockaddr_ipx *sipx, int scrub));
+void ipx_ifscrub __P((struct ifnet *ifp, struct ipx_ifaddr *ia));
+struct ipx_ifaddr *ipx_iaonnetof __P((struct ipx_addr *dst));
+__END_DECLS
+
 #endif
 
 #endif

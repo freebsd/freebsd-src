@@ -64,11 +64,15 @@ int	spx_debx;
 
 #ifdef KERNEL
 
-void spx_trace();
-
 extern char *prurequests[];
 extern char *sanames[];
 extern char *tcpstates[];
+
+#include <sys/cdefs.h>
+
+__BEGIN_DECLS
+void spx_trace __P((int act, int ostate, struct spxpcb *sp, struct spx *si, int req));
+__END_DECLS
 
 #endif
 
