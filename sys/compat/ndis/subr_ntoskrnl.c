@@ -2575,10 +2575,10 @@ KeSetTimerEx(timer, duetime, period, dpc)
 	uint64_t		curtime;
 	uint8_t			pending;
 
-	mtx_lock(&ntoskrnl_dispatchlock);
-
 	if (timer == NULL)
 		return(FALSE);
+
+	mtx_lock(&ntoskrnl_dispatchlock);
 
 	if (timer->k_header.dh_inserted == TRUE) {
 		untimeout(ntoskrnl_timercall, timer, timer->k_handle);
