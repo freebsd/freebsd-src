@@ -1671,8 +1671,10 @@ exptilde(char *s)
 	user = p + 1;	/* skip tilde */
 	if ((path = strchr(p, '/')) != NULL)
 		*(path++) = '\0'; /* separate ~user from the rest of path */
-	ppw = *user ? getpwnam(user) : pw;
-	if (ppw) {
+	if (*user == '\0') /* no user specified, use the current user */
+		user = pw->pw_name;
+	/* read passwd even for the current user since we may be chrooted */
+	if ((ppw = getpwnam(user)) != NULL) {
 		/* user found, substitute login directory for ~user */
 		if (path)
 			asprintf(&q, "%s/%s", ppw->pw_dir, path);
