@@ -451,11 +451,6 @@ struct	xtcpcb {
 };
 #endif
 
-struct tcp_ident_mapping {
-	struct sockaddr_storage faddr, laddr;
-	uid_t euid, ruid;
-};
-
 /*
  * Names for TCP sysctl objects
  */
