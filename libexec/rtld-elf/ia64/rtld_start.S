@@ -50,7 +50,7 @@ ENTRY(_rtld_start, 0)
 	;;
 	sub	out0=r14,r15		// out0 is image base address
 	br.call.sptk.many rp=_rtld_reloc // fixup image
-	
+
 	add	sp=-16,sp		// 16 bytes for us, 16 for _rtld
 	;;
 	mov	out0=in0
@@ -60,7 +60,7 @@ ENTRY(_rtld_start, 0)
 	br.call.sptk.many rp=_rtld	// r8=_rtld(sp, &exit_proc, &obj_main)
 
 	add	r16=16,sp		// address for exit proc
-	;; 
+	;;
 	ld8	r15=[r16]		// read exit proc
 	add	sp=16,sp		// readjust stack
 	mov	b7=r8			// address of real _start
@@ -106,12 +106,12 @@ ENTRY(_rtld_bind_start, 0)
 	stf.spill [r17]=f10,32
 	stf.spill [r18]=f11,32
 	mov	out0=r16		// Obj_Entry for caller
-	;; 
+	;;
 } { .mmi
 	stf.spill [r17]=f12,32
 	stf.spill [r18]=f13,32
 	shladd	out1=r15,3,out1		// rela offset = 24 * index
-	;; 
+	;;
 } { .mmb
 	stf.spill [r17]=f14,32
 	stf.spill [r18]=f15,32
@@ -125,21 +125,21 @@ ENTRY(_rtld_bind_start, 0)
 	ld8	r1=[r8]			// target gp
 	mov	ar.pfs=loc0		// clean up
 	mov	rp=loc1
-} { .mmi	
+} { .mmi
 	ldf.fill f8=[r17],32		// restore float arguments
 	ldf.fill f9=[r18],32
 	mov	r8=loc2			// restore structure pointer
-	;; 
+	;;
 } { .mmi
 	ldf.fill f10=[r17],32
 	ldf.fill f11=[r18],32
 	mov	r9=loc3
-	;; 
+	;;
 } { .mmi
 	ldf.fill f12=[r17],32
 	ldf.fill f13=[r18],32
 	mov	r10=loc4
-	;; 
+	;;
 } { .mmi
 	ldf.fill f14=[r17],32
 	ldf.fill f15=[r18],32
@@ -157,69 +157,15 @@ ENTRY(_rtld_bind_start, 0)
 }
 END(_rtld_bind_start)
 
-/*
- * int cmp0_and_store_int(volatile int *p, int newval);
- *
- * If an int holds 0, store newval into it; else do nothing.  Returns
- * the previous value.
- */
-ENTRY(cmp0_and_store_int, 2)
-	mov	ar.ccv=0
-	;;
-	cmpxchg4.acq r8=[in0],in1,ar.ccv
-	br.ret.sptk.many rp
-END(cmp0_and_store_int)
-
-ENTRY(atomic_add_int, 2)
-1:	ld4	r14=[in0]
-	;;
-	mov	ar.ccv=r14
-	add	r15=in1,r14
-	;;
-	cmpxchg4.acq r16=[in0],r15,ar.ccv
-	;;
-	cmp.ne	p6,p0=r14,r16
-(p6)	br.cond.spnt.few 1b
-	br.ret.sptk.many rp
-END(atomic_add_int)
- 
-/* Atomically increment an int. */
-ENTRY(atomic_incr_int, 1)
-1:	ld4	r14=[in0]
-	;;
-	mov	ar.ccv=r14
-	add	r15=1,r14
-	;;
-	cmpxchg4.acq r16=[in0],r15,ar.ccv
-	;;
-	cmp.ne	p6,p0=r14,r16
-(p6)	br.cond.spnt.few 1b
-	br.ret.sptk.many rp
-END(atomic_incr_int)
-
-/* Atomically decrement an int. */
-ENTRY(atomic_decr_int, 1)
-1:	ld4	r14=[in0]
-	;;
-	mov	ar.ccv=r14
-	add	r15=-1,r14
-	;;
-	cmpxchg4.acq r16=[in0],r15,ar.ccv
-	;;
-	cmp.ne	p6,p0=r14,r16
-(p6)	br.cond.spnt.few 1b
-	br.ret.sptk.many rp
-END(atomic_decr_int)
-
 #define DT_NULL		0	/* Terminating entry. */
 #define DT_RELA		7	/* Address of ElfNN_Rela relocations. */
 #define DT_RELASZ	8	/* Total size of ElfNN_Rela relocations. */
 #define DT_RELAENT	9	/* Size of each ElfNN_Rela relocation entry. */
-	
+
 #define R_IA64_NONE		0	/* None */
 #define R_IA64_DIR64LSB		0x27	/* word64 LSB	S + A */
 #define R_IA64_REL64LSB		0x6f	/* word64 LSB	BD + A */
-	
+
 /*
  * _rtld_reloc:	relocate the rtld image, apart from @fptrs.
  *
@@ -233,7 +179,7 @@ END(atomic_decr_int)
 STATIC_ENTRY(_rtld_reloc, 1)
 	alloc	loc0=ar.pfs,1,2,0,0
 	mov	loc1=rp
-	;; 
+	;;
 	movl	r15=@gprel(_DYNAMIC)	// find _DYNAMIC etc.
 	;;
 	add	r15=r15,gp		// relocate _DYNAMIC etc.
@@ -244,24 +190,24 @@ STATIC_ENTRY(_rtld_reloc, 1)
 	;;
 	cmp.eq	p6,p0=DT_NULL,r16	// done?
 (p6)	br.cond.dpnt.few 2f
-	;; 
+	;;
 	cmp.eq	p6,p0=DT_RELA,r16
-	;; 
+	;;
 (p6)	add	r18=r17,in0		// found rela section
-	;; 
+	;;
 	cmp.eq	p6,p0=DT_RELASZ,r16
-	;; 
+	;;
 (p6)	mov	r19=r17			// found rela size
-	;; 
+	;;
 	cmp.eq	p6,p0=DT_RELAENT,r16
-	;; 
+	;;
 (p6)	mov	r22=r17			// found rela entry size
 	;;
 	br.sptk.few 1b
-	
-2:	
+
+2:
 	ld8	r15=[r18],8		// read r_offset
-	;; 
+	;;
 	ld8	r16=[r18],8		// read r_info
 	add	r15=r15,in0		// relocate r_offset
 	;;
@@ -284,7 +230,7 @@ STATIC_ENTRY(_rtld_reloc, 1)
 
 3:	cmp.ltu	p6,p0=0,r19		// more?
 (p6)	br.cond.dptk.few 2b		// loop
-	
+
 	mov	r8=0			// success return value
 	;;
 	br.cond.sptk.few 9f		// done

@@ -91,7 +91,7 @@ lm_init (void)
 
 			/*
 			 * There should be nothing except whitespace or comment
-			 * from this point to the end of the line.   
+			  from this point to the end of the line.
 			 */
 			while(isspace(*cp++));
 			if (!iseol(*cp)) continue;
@@ -114,7 +114,7 @@ lm_init (void)
 		/* Parse 'to' mapping */
 		t = cp++;
 		while (!isspace(*cp) && !iseol(*cp)) cp++;
-		
+
 		/* Skip and zero out the trailing whitespace */
 		while (isspace(*cp)) *cp++ = '\0';
 
@@ -166,10 +166,6 @@ lm_add (char *p, char *f, char *t)
 
 	if (p == NULL)
 		p = "$DEFAULT$";
-
-#if 0
-	printf("%s(\"%s\", \"%s\", \"%s\")\n", __func__, p, f, t);
-#endif
 
 	if ((lml = lmp_find(p)) == NULL)
 		lml = lmp_init(xstrdup(p));
@@ -240,3 +236,4 @@ lmp_init (char *n)
 
 	return (&lmp->lml);
 }
+

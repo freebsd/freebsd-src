@@ -79,7 +79,7 @@ END(.rtld_start)
 	 *
 	 * The first two entries of PLT2 contain the xword object pointer.
 	 *
-	 * These routines are called with two longword arguments, 
+	 * These routines are called with two longword arguments,
 	 * x and y.  To calculate the address of the entry,
 	 * _rtld_bind_start_1(x, y) does:
 	 *
@@ -120,7 +120,7 @@ ENTRY(_rtld_bind_start_0)
 	add	%l4, %l5, %l4		/* (i / 5120) * 160 + (i % 5120) / 24 */
 	add	%l4, %l6, %l4		/* + NPLTLOSLOTS */
 	sub	%l4, 4, %l4		/* XXX:	4 entries are reserved */
-	
+
 	sllx	%l4, 1, %l5		/* Each element is an Elf_Rela which */
 	add	%l5, %l4, %l4		/*  is 3 longwords or 24 bytes. */
 	sllx	%l4, 3, %l4		/*  So multiply by 24. */
@@ -133,17 +133,17 @@ ENTRY(_rtld_bind_start_0)
 	jmp	%o0			/* return value == function address */
 	 restore			/* Dump our stack frame */
 END(_rtld_bind_start_0)
-	
+
 ENTRY(_rtld_bind_start_1)
 	srax	%o0, 15, %o2		/* %o0 is the index to our PLT slot */
 	sub	%o2, 4, %o2		/* XXX:	4 entries are reserved */
-	
+
 	sllx	%o2, 1, %o3		/* Each element is an Elf_Rela which */
 	add	%o3, %o2, %o2		/*  is 3 longwords or 24 bytes. */
 	sllx	%o2, 3, %o2		/*  So multiply by 24. */
-	
+
 	ldx	[%o1 + 8], %o0		/* The object pointer is at [%o1 + 8] */
-	
+
 	call	_rtld_bind		/* Call _rtld_bind(obj, offset) */
 	 mov	%o2, %o1
 

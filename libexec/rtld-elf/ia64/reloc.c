@@ -122,8 +122,8 @@ alloc_fptrs(Obj_Entry *obj, bool mapped)
 	}
 
 	/*
-	 * This assertion is necessary to guarantee function pointer 
-	 * uniqueness 
+	 * This assertion is necessary to guarantee function pointer
+	 * uniqueness
  	 */
 	assert(fptrs != NULL);
 
@@ -136,12 +136,12 @@ free_fptrs(Obj_Entry *obj, bool mapped)
 	struct fptr **fptrs;
 	size_t fbytes;
 
-	fptrs  = obj->priv; 
+	fptrs  = obj->priv;
 	if (fptrs == NULL)
 		return;
 
 	fbytes = obj->nchains * sizeof(struct fptr *);
-	if (mapped) 
+	if (mapped)
 		munmap(fptrs, fbytes);
 	else
 		free(fptrs);
@@ -186,7 +186,7 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		/*
 		 * We have to make sure that all @fptr references to
 		 * the same function are identical so that code can
-		 * compare function pointers. 
+		 * compare function pointers.
 		 */
 		const Elf_Sym *def;
 		const Obj_Entry *defobj;
@@ -313,8 +313,8 @@ done:
 	if (cache)
 		munmap(cache, bytes);
 
-	/* 
-	 * Release temporarily mapped fptrs if relocating 
+	/*
+	 * Release temporarily mapped fptrs if relocating
 	 * rtld object itself. A new table will be created
 	 * in make_function_pointer using malloc when needed.
 	 */

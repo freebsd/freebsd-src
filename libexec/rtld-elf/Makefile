@@ -1,10 +1,11 @@
 # $FreeBSD$
 
 PROG=		ld-elf.so.1
-SRCS=		rtld_start.S rtld.c lockdflt.c map_object.c malloc.c \
+SRCS=		rtld_start.S rtld.c rtld_lock.c map_object.c malloc.c \
 		xmalloc.c debug.c reloc.c
 MAN=		rtld.1
-CFLAGS+=	-Wall -DFREEBSD_ELF -I${.CURDIR}/${MACHINE_ARCH} -I${.CURDIR}
+CFLAGS+=	-Wall -DFREEBSD_ELF -DIN_RTLD
+CFLAGS+=	-I${.CURDIR}/${MACHINE_ARCH} -I${.CURDIR}
 LDFLAGS+=	-nostdlib -e .rtld_start
 INSTALLFLAGS=	-fschg -C -b
 MLINKS=		rtld.1 ld-elf.so.1.1 \
