@@ -357,8 +357,7 @@ slot_suspend(void *arg)
 
 	for (dp = sp->devices; dp; dp = dp->next)
 		(void)dp->drv->suspend(dp);
-	if (!sp->suspend_power)
-		sp->ctrl->disable(sp);
+	sp->ctrl->disable(sp);
 	return (0);
 }
 
@@ -385,8 +384,7 @@ slot_resume(void *arg)
 	} else {
 		struct pccard_dev *dp;
 
-		if (!sp->suspend_power)
-			sp->ctrl->power(sp);
+		sp->ctrl->power(sp);
 		if (sp->irq)
 			sp->ctrl->mapirq(sp, sp->irq);
 		for (dp = sp->devices; dp; dp = dp->next)
@@ -663,9 +661,6 @@ inserted(void *arg)
 	 *	Now start resetting the card.
 	 */
 	sp->ctrl->reset(sp);
-#if   NAPM > 0
-	sp->suspend_power = 0;
-#endif
 }
 
 /*
