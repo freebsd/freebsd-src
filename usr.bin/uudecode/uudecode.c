@@ -114,7 +114,6 @@ main(int argc, char *argv[])
         argc -= optind;
         argv += optind;
 
-			
 	if (*argv) {
 		rval = 0;
 		do {
@@ -138,7 +137,7 @@ decode(void)
 	int flag;
 
 	/* decode only one file per input stream */
-	if (!cflag) 
+	if (!cflag)
 		return(decode2(0));
 
 	/* multiple uudecode'd files */
@@ -199,7 +198,7 @@ decode2(int flag)
 	if (strlcpy(buf, outfile, sizeof(buf)) >= sizeof(buf))
 		errx(1, "%s: filename too long", outfile);
 	if (!sflag && !pflag) {
-		strlcpy(buffn, buf, sizeof(buffn)); 
+		strlcpy(buffn, buf, sizeof(buffn));
 		if (strrchr(buffn, '/') != NULL)
 			strncpy(buf, strrchr(buffn, '/') + 1, sizeof(buf));
 		if (buf[0] == '\0') {
@@ -288,7 +287,7 @@ if (!ignore) \
 			break;
 		for (++p; n > 0; p += 4, n -= 3)
 			if (n >= 3) {
-				if (!(IS_DEC(*p) && IS_DEC(*(p + 1)) && 
+				if (!(IS_DEC(*p) && IS_DEC(*(p + 1)) &&
 				     IS_DEC(*(p + 2)) && IS_DEC(*(p + 3))))
                                 	OUT_OF_RANGE
 
@@ -298,7 +297,6 @@ if (!ignore) \
 				PUTCHAR(ch);
 				ch = DEC(p[2]) << 6 | DEC(p[3]);
 				PUTCHAR(ch);
-				
 			}
 			else {
 				if (n >= 1) {
@@ -308,7 +306,7 @@ if (!ignore) \
 					PUTCHAR(ch);
 				}
 				if (n >= 2) {
-					if (!(IS_DEC(*(p + 1)) && 
+					if (!(IS_DEC(*(p + 1)) &&
 						IS_DEC(*(p + 2))))
 		                                OUT_OF_RANGE
 
@@ -316,7 +314,7 @@ if (!ignore) \
 					PUTCHAR(ch);
 				}
 				if (n >= 3) {
-					if (!(IS_DEC(*(p + 2)) && 
+					if (!(IS_DEC(*(p + 2)) &&
 						IS_DEC(*(p + 3))))
 		                                OUT_OF_RANGE
 					ch = DEC(p[2]) << 6 | DEC(p[3]);
@@ -324,7 +322,7 @@ if (!ignore) \
 				}
 			}
 	}
-	if (fgets(buf, sizeof(buf), stdin) == NULL || 
+	if (fgets(buf, sizeof(buf), stdin) == NULL ||
 	    (strcmp(buf, "end") && strcmp(buf, "end\n") &&
 	     strcmp(buf, "end\r\n"))) {
 		warnx("%s: no \"end\" line", filename);
