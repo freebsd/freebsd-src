@@ -872,7 +872,7 @@ semop(td, uap)
 {
 	int semid = uap->semid;
 	u_int nsops = uap->nsops;
-	struct sembuf *sops = NULL;
+	struct sembuf *sops;
 	struct semid_ds *semaptr;
 	struct sembuf *sopptr = 0;
 	struct sem *semptr = 0;
@@ -1128,6 +1128,7 @@ done:
 	td->td_retval[0] = 0;
 done2:
 	mtx_unlock(sema_mtxp);
+	free(sops, M_SEM);
 	return (error);
 }
 
