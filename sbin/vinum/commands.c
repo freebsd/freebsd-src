@@ -36,7 +36,7 @@
  *
  */
 
-/* $Id: commands.c,v 1.5 1999/01/18 03:36:32 grog Exp grog $ */
+/* $Id: commands.c,v 1.6 1999/03/23 03:40:07 grog Exp grog $ */
 
 #include <ctype.h>
 #include <errno.h>
@@ -54,6 +54,8 @@
 #include <dev/vinum/vinumhdr.h>
 #include "vext.h"
 #include <sys/types.h>
+#include <sys/linker.h>
+#include <sys/module.h>
 #include <sys/wait.h>
 #include <readline/history.h>
 #include <readline/readline.h>
@@ -67,7 +69,9 @@ vinum_create(int argc, char *argv[], char *arg0[])
     int error;
     FILE *dfd;						    /* file descriptor for the config file */
     char buffer[BUFSIZE];				    /* read config file in here */
+    char commandline[BUFSIZE];				    /* issue command from here */
     struct _ioctl_reply *reply;
+    int ioctltype;					    /* for ioctl call */
 
     if (argc != 1) {					    /* wrong arg count */
 	fprintf(stderr, "Expecting 1 parameter, not %d\n", argc);
@@ -79,7 +83,7 @@ vinum_create(int argc, char *argv[], char *arg0[])
 	fprintf(stderr, "Can't open %s: %s\n", argv[0], strerror(errno));
 	return;
     }
-    if (ioctl(superdev, VINUM_STARTCONFIG, NULL)) {	    /* can't get config? */
+    if (ioctl(superdev, VINUM_STARTCONFIG, &force)) {	    /* can't get config? */
 	printf("Can't configure: %s (%d)\n", strerror(errno), errno);
 	return;
     }
@@ -97,19 +101,23 @@ vinum_create(int argc, char *argv[], char *arg0[])
 	}
 	file_line++;					    /* count the lines */
 	if (verbose)
-	    printf("%4d: %s", file_line, buffer);	    /* XXX */
-	ioctl(superdev, VINUM_CREATE, &buffer);
+	    printf("%4d: %s", file_line, buffer);
+	strcpy(commandline, buffer);			    /* make a copy */
+	ioctl(superdev, VINUM_CREATE, buffer);
 	if (reply->error != 0) {			    /* error in config */
+	    if (!verbose)				    /* print this line anyway */
+		printf("%4d: %s", file_line, commandline);
 	    fprintf(stdout, "** %d %s: %s\n", file_line, reply->msg, strerror(reply->error));
 	    /* XXX at the moment, we reset the config
 	     * lock on error, so try to get it again.
 	     * If we fail, don't cry again */
-	    if (ioctl(superdev, VINUM_STARTCONFIG, NULL))   /* can't get config? */
+	    if (ioctl(superdev, VINUM_STARTCONFIG, &force)) /* can't get config? */
 		return;
 	}
     }
     fclose(dfd);					    /* done with the config file */
-    error = ioctl(superdev, VINUM_SAVECONFIG, NULL);	    /* save the config to disk */
+    ioctltype = 0;					    /* saveconfig after update */
+    error = ioctl(superdev, VINUM_SAVECONFIG, &ioctltype);  /* save the config to disk */
     if (error != 0)
 	perror("Can't save Vinum config");
     make_devices();
@@ -136,7 +144,7 @@ vinum_read(int argc, char *argv[], char *arg0[])
 	strcat(buffer, " ");
     }
 
-    if (ioctl(superdev, VINUM_STARTCONFIG, NULL)) {	    /* can't get config? */
+    if (ioctl(superdev, VINUM_STARTCONFIG, &force)) {	    /* can't get config? */
 	fprintf(stderr, "Can't configure: %s (%d)\n", strerror(errno), errno);
 	return;
     }
@@ -304,9 +312,8 @@ vinum_resetconfig(int argc, char *argv[], char *arg0[])
 	    else
 		perror("Can't find vinum config");
 	} else {
+	    make_devices();				    /* recreate the /dev/vinum hierarchy */
 	    printf("\b Vinum configuration obliterated\n");
-	    system("rm -rf " VINUM_DIR "/" "*");	    /* remove the old /dev/vinum */
-	    syslog(LOG_NOTICE | LOG_KERN, "configuration obliterated");
 	    start_daemon();				    /* then restart the daemon */
 	}
     }
@@ -448,10 +455,11 @@ vinum_start(int argc, char *argv[], char *arg0[])
 	    fprintf(stderr, "Can't allocate memory for drive list\n");
 	    return;
 	}
-	token[0] = "read";				    /* make a read command of this mess */
-	tokens = 1;					    /* so far, it's the only token */
-
-	getdevs(&statinfo);				    /* find out what devices we have */
+	tokens = 0;					    /* no tokens yet */
+	if (getdevs(&statinfo) < 0) {			    /* find out what devices we have */
+	    perror("Can't get device list");
+	    return;
+	}
 	namelist[0] = '\0';				    /* start with empty namelist */
 	enamelist = namelist;				    /* point to the end of the list */
 
@@ -459,7 +467,7 @@ vinum_start(int argc, char *argv[], char *arg0[])
 	    struct devstat *stat = &statinfo.dinfo->devices[i];
 
 	    if (((stat->device_type & DEVSTAT_TYPE_MASK) == DEVSTAT_TYPE_DIRECT) /* disk device */
-	    &&((stat->device_type & DEVSTAT_TYPE_PASS) == 0) /* and not passthrough */
+&&((stat->device_type & DEVSTAT_TYPE_PASS) == 0)	    /* and not passthrough */
 	    &&((stat->device_name[0] != '\0'))) {	    /* and it has a name */
 		sprintf(enamelist, "/dev/%s%d", stat->device_name, stat->unit_number);
 		token[tokens] = enamelist;		    /* point to it */
@@ -480,24 +488,81 @@ vinum_start(int argc, char *argv[], char *arg0[])
 	    if (type == invalid_object)
 		fprintf(stderr, "Can't find object: %s\n", argv[index]);
 	    else {
-		message->index = object;		    /* pass object number */
-		message->type = type;			    /* and type of object */
-		message->state = object_up;
-		message->force = 0;			    /* don't force it, use a larger hammer */
-		ioctl(superdev, VINUM_SETSTATE, message);
-		if (reply.error != 0) {
-		    if ((reply.error == EAGAIN)		    /* we're reviving */
-		    &&(type == sd_object))
-			continue_revive(object);
+		int doit = 0;				    /* set to 1 if we pass our tests */
+		switch (type) {
+		case drive_object:
+		    fprintf(stderr, "Can't start a drive: %s\n", argv[index]);
+		    break;
+
+		case sd_object:
+		    if (sd.state == sd_up)		    /* already up */
+			fprintf(stderr, "%s is already up\n", sd.name);
 		    else
-			fprintf(stderr,
-			    "Can't start %s: %s (%d)\n",
-			    argv[index],
-			    reply.msg[0] ? reply.msg : strerror(reply.error),
-			    reply.error);
+			doit = 1;
+		    break;
+
+		case plex_object:
+		    if (plex.state == plex_up)		    /* already up */
+			fprintf(stderr, "%s is already up\n", plex.name);
+		    else {
+			int sdno;
+
+			for (sdno = 0; sdno < plex.subdisks; sdno++) {
+			    get_plex_sd_info(&sd, object, sdno);
+			    if ((sd.state >= sd_empty)
+				&& (sd.state <= sd_stale)) { /* candidate for init */
+				message->index = sd.sdno;   /* pass object number */
+				message->type = sd_object;  /* it's a subdisk */
+				message->state = object_up;
+				message->force = 0;	    /* don't force it, use a larger hammer */
+				ioctl(superdev, VINUM_SETSTATE, message);
+				if (reply.error != 0) {
+				    if (reply.error == EAGAIN) /* we're reviving */
+					continue_revive(sd.sdno);
+				    else
+					fprintf(stderr,
+					    "Can't start %s: %s (%d)\n",
+					    argv[index],
+					    reply.msg[0] ? reply.msg : strerror(reply.error),
+					    reply.error);
+				}
+				if (Verbose)
+				    vinum_lsi(sd.sdno, 0);
+			    }
+			}
+		    }
+		    break;
+
+		case volume_object:
+		    if (vol.state == volume_up)		    /* already up */
+			fprintf(stderr, "%s is already up\n", vol.name);
+		    else
+			doit = 1;
+		    break;
+
+		default:
 		}
-		if (Verbose)
-		    vinum_li(object, type);
+
+		if (doit) {
+		    message->index = object;		    /* pass object number */
+		    message->type = type;		    /* and type of object */
+		    message->state = object_up;
+		    message->force = 0;			    /* don't force it, use a larger hammer */
+		    ioctl(superdev, VINUM_SETSTATE, message);
+		    if (reply.error != 0) {
+			if ((reply.error == EAGAIN)	    /* we're reviving */
+			&&(type == sd_object))
+			    continue_revive(object);
+			else
+			    fprintf(stderr,
+				"Can't start %s: %s (%d)\n",
+				argv[index],
+				reply.msg[0] ? reply.msg : strerror(reply.error),
+				reply.error);
+		    }
+		    if (Verbose)
+			vinum_li(object, type);
+		}
 	    }
 	}
     }
@@ -511,9 +576,27 @@ vinum_stop(int argc, char *argv[], char *arg0[])
     struct vinum_ioctl_msg *message = (struct vinum_ioctl_msg *) &reply;
 
     message->force = force;				    /* should we force the transition? */
-    if (argc == 0)					    /* stop everything */
-	fprintf(stderr, "stop must have an argument\n");
-    else {						    /* stop specified objects */
+    if (argc == 0) {					    /* stop vinum */
+	int fileid = 0;					    /* ID of Vinum kld */
+
+	close(superdev);				    /* we can't stop if we have vinum open */
+	sleep(1);					    /* wait for the daemon to let go */
+	fileid = kldfind(VINUMMOD);
+	if ((fileid < 0)				    /* no go */
+	||(kldunload(fileid) < 0))
+	    perror("Can't unload " VINUMMOD);
+	else {
+	    fprintf(stderr, VINUMMOD " unloaded\n");
+	    exit(0);
+	}
+
+	/* If we got here, the stop failed.  Reopen the superdevice. */
+	superdev = open(VINUM_SUPERDEV_NAME, O_RDWR);	    /* reopen vinum superdevice */
+	if (superdev < 0) {
+	    perror("Can't reopen Vinum superdevice");
+	    exit(1);
+	}
+    } else {						    /* stop specified objects */
 	int i;
 	enum objecttype type;
 
@@ -636,8 +719,10 @@ reset_sd_stats(int sdno, int recurse)
     if (ioctl(superdev, VINUM_RESETSTATS, &msg) < 0) {
 	fprintf(stderr, "Can't reset stats for subdisk %d: %s\n", sdno, reply->msg);
 	longjmp(command_fail, -1);
-    } else if (recurse)
-	reset_drive_stats(sd.driveno);
+    } else if (recurse) {
+	get_sd_info(&sd, sdno);				    /* get the info */
+	reset_drive_stats(sd.driveno);			    /* and clear the drive */
+    }
 }
 
 void 
@@ -1101,4 +1186,19 @@ vinum_setdaemon(int argc, char *argv[], char *argv0[])
     default:
 	fprintf(stderr, "Usage: \tsetdaemon [<bitmask>]\n");
     }
+}
+
+/* Save config info */
+void 
+vinum_saveconfig(int argc, char *argv[], char *argv0[])
+{
+    int ioctltype;
+
+    if (argc != 0) {
+	printf("Usage: saveconfig\n");
+	return;
+    }
+    ioctltype = 1;					    /* user saveconfig */
+    if (ioctl(superdev, VINUM_SAVECONFIG, &ioctltype) < 0)
+	fprintf(stderr, "Can't set daemon options: %s (%d)\n", strerror(errno), errno);
 }
