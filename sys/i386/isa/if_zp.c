@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.12 1995/11/18 08:58:14 bde Exp $
+ *	$Id: if_zp.c,v 1.13 1995/12/05 02:01:18 davidg Exp $
  */
 /*-
  * TODO:
@@ -101,42 +101,6 @@
  */
 
 #include "zp.h"
-#if	NZP > 0
-#ifdef	MACH_KERNEL
-
-#define IF_CNTRS	MACH
-
-#include	<mach_ttd.h>
-#include	<kern/time_out.h>
-#include	<device/device_types.h>
-#include	<device/errno.h>
-#include	<device/io_req.h>
-#include	<device/if_hdr.h>
-#include	<device/if_ether.h>
-#include	<device/net_status.h>
-#include	<device/net_io.h>
-
-#include	<i386/ipl.h>
-#include	<chips/busses.h>
-
-#include 	<i386at/if_zpreg.h>
-
-#define	SPLNET	spl6
-
-#if	MACH_TTD
-#include <ttd/ttd_stub.h>
-#endif	/* MACH_TTD */
-
-#include "i82365.h"
-
-#define	MAXSLOT	8
-#define	SHARED_MEMORY
-
-enum memtype {
-    COMMON, ATTRIBUTE
-};
-
-#else	/* MACH_KERNEL */
 
 #include "bpfilter.h"
 
@@ -151,9 +115,6 @@ enum memtype {
 #include <sys/ioctl.h>
 #include <sys/errno.h>
 #include <sys/syslog.h>
-#if defined(__NetBSD__)
-#include <sys/select.h>
-#endif
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -182,13 +143,7 @@ enum memtype {
 #include <net/bpfdesc.h>
 #endif
 
-#if defined(__FreeBSD__)
 #include <machine/clock.h>
-#endif
-
-#if defined(__FreeBSD__) && defined(ZP_DEBUG)
-#include <machine/cons.h>
-#endif
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
@@ -199,9 +154,7 @@ enum memtype {
 #include "apm.h"
 #if NAPM > 0
 #include <machine/apm_bios.h>
-#endif	/* NAPM > 0 */
-
-#endif	/* MACH_KERNEL */
+#endif				/* NAPM > 0 */
 
 #define ETHER_MIN_LEN	64
 #define ETHER_MAX_LEN	1518
@@ -215,86 +168,48 @@ enum memtype {
 /*
  * zp_softc: per line info and status
  */
-struct zp_softc {
-#ifdef	MACH_KERNEL
-    struct ifnet    ds_if;	/* generic interface header */
-    u_char          ds_addr[6];	/* Ethernet hardware address */
-#else	/* MACH_KERNEL */
-    struct arpcom   arpcom;	/* Ethernet common part		 */
-#define MAX_MBS  8	/* # of mbufs we keep around	 */
-    struct mbuf    *mb[MAX_MBS];	/* spare mbuf storage.		 */
-    int             next_mb;	/* Which mbuf to use next. 	 */
-    int             last_mb;	/* Last mbuf.			 */
-    caddr_t         bpf;	/* BPF  "magic cookie"		 */
-#endif	/* MACH_KERNEL */
-    short           ep_io_addr;	/* i/o bus address		 */
-    char            ep_connectors;	/* Connectors on this card.	 */
-    int             tx_start_thresh;	/* Current TX_start_thresh.	 */
-    char            bus32bit;	/* 32bit access possible	 */
-#ifdef	MACH_KERNEL
-    u_char          attached;
-#endif
-#ifndef	ORIGINAL
-    u_short         if_port;
-#endif	/* ORIGINAL */
-    u_char          last_alive;	/* information for reconfiguration */
-    u_char          last_up;	/* information for reconfiguration */
-    int             slot;	/* PCMCIA slot */
+static struct zp_softc {
+	struct arpcom arpcom;	/* Ethernet common part		 */
+#define MAX_MBS  8		/* # of mbufs we keep around	 */
+	struct mbuf *mb[MAX_MBS];	/* spare mbuf storage.		 */
+	int     next_mb;	/* Which mbuf to use next. 	 */
+	int     last_mb;	/* Last mbuf.			 */
+	caddr_t bpf;		/* BPF  "magic cookie"		 */
+	short   ep_io_addr;	/* i/o bus address		 */
+	char    ep_connectors;	/* Connectors on this card.	 */
+	int     tx_start_thresh;/* Current TX_start_thresh.	 */
+	char    bus32bit;	/* 32bit access possible	 */
+	u_short if_port;
+	u_char  last_alive;	/* information for reconfiguration */
+	u_char  last_up;	/* information for reconfiguration */
+	int     slot;		/* PCMCIA slot */
 #if NAPM > 		0
-    struct apmhook  s_hook;	/* reconfiguration support */
-    struct apmhook  r_hook;	/* reconfiguration support */
-#endif	/* NAPM > 0 */
-}               zp_softc[NZP];
+	struct apmhook s_hook;	/* reconfiguration support */
+	struct apmhook r_hook;	/* reconfiguration support */
+#endif				/* NAPM > 0 */
+}       zp_softc[NZP];
 
-#ifdef	MACH_KERNEL
-
-int             zpprobe(), zpopen(), zpoutput(), zpsetinput(), zpgetstat(),
-                zpsetstat(), zpintr();
-void            zpattach(), zpinit(), zpstart(), zpread(), zpreset(),
-                zpwatchdog(), zpstop();
-
-static vm_offset_t zp_std[NZP] = {0};
-static struct bus_device *zp_info[NZP];
-
-struct bus_driver zpdriver =
-{zpprobe, 0, zpattach, 0, zp_std, "zp", zp_info, 0, 0, 0};
-
-typedef struct zp_softc zp_softc_t;
-
-char           *zp_name = "zp";
-
-static unsigned char card_info[256];
-
-#define	splnet	spl7
-#define	splimp	spl7
-
-#else	/* MACH_KERNEL */
-
-int zpprobe     __P((struct isa_device *));
-int zpattach    __P((struct isa_device *));
+static int zpprobe __P((struct isa_device *));
+static int zpattach __P((struct isa_device *));
 static int zp_suspend __P((void *visa_dev));
 static int zp_resume __P((void *visa_dev));
 static int zpioctl __P((struct ifnet * ifp, int, caddr_t));
 static u_short read_eeprom_data __P((int, int));
 
-void zpinit     __P((int));
-void zpmbuffill __P((void *));
+static void zpinit __P((int));
+static void zpmbuffill __P((void *));
 static void zpmbufempty __P((struct zp_softc *));
-void zpread     __P((struct zp_softc *));
-void zpreset    __P((int));
-void zpstart    __P((struct ifnet *));
-void zpstop     __P((int));
-void zpwatchdog __P((struct ifnet *));
+static void zpread __P((struct zp_softc *));
+static void zpreset __P((int));
+static void zpstart __P((struct ifnet *));
+static void zpstop __P((int));
+static void zpwatchdog __P((struct ifnet *));
 
 struct isa_driver zpdriver = {
-    zpprobe,
-    zpattach,
-    "zp"
+	zpprobe,
+	zpattach,
+	"zp"
 };
-
-
-#endif	/* MACH_KERNEL */
-
 #define CARD_INFO  "3Com Corporation~3C589"
 
 static unsigned char card_info[256];
@@ -308,39 +223,26 @@ static unsigned char card_info[256];
 static int
 zp_check_cis(unsigned char *scratch)
 {
-    int             i, j, k;
+	int     i, j, k;
 
-    card_info[0] = '\0';
-    i = 0;
-    while (scratch[i] != 0xff && i < 1024) {
-	unsigned char   link = scratch[i + 2];
+	card_info[0] = '\0';
+	i = 0;
+	while (scratch[i] != 0xff && i < 1024) {
+		unsigned char link = scratch[i + 2];
 
-#if 0
-	printf("[%02x] %02x ", i, link);
-	for (j = 4; j < 2 * link + 4 && j < 32; j += 2)
-	    printf("%02x ", scratch[j + i]);
-	printf("\n");
-#endif
-	if (scratch[i] == 0x15) {
-	    /*
-	     * level 1 version/product info copy to card_info, translating
-	     * '\0' to '~'
-	     */
-	    k = 0;
-	    for (j = i + 8; scratch[j] != 0xff; j += 2)
-		card_info[k++] = scratch[j] == '\0' ? '~' : scratch[j];
-	    card_info[k++] = '\0';
-#ifdef ZP_DEBUG
-	    printf("card info = %s\n", card_info);
-	    printf("result = %d\n", bcmp(card_info, CARD_INFO, sizeof(CARD_INFO) - 1) == 0);
-#endif
-	    return (bcmp(card_info, CARD_INFO, sizeof(CARD_INFO) - 1) == 0);
+		if (scratch[i] == 0x15) {
+			/* level 1 version/product info copy to card_info,
+			 * translating '\0' to '~' */
+			k = 0;
+			for (j = i + 8; scratch[j] != 0xff; j += 2)
+				card_info[k++] = scratch[j] == '\0' ? '~' : scratch[j];
+			card_info[k++] = '\0';
+			return (bcmp(card_info, CARD_INFO, sizeof(CARD_INFO) - 1) == 0);
+		}
+		i += 4 + 2 * link;
 	}
-	i += 4 + 2 * link;
-    }
-    return 0;
+	return 0;
 }
-
 /*
  * Probe each slot looking for an IBM Credit Card Adapter for Ethernet
  * For each card that we find, map its card information structure
@@ -354,76 +256,62 @@ zp_check_cis(unsigned char *scratch)
  * + Leaves product/vendor id of last card probed in 'card_info'
  */
 
-int             prev_slot = 0;
+static int     prev_slot = 0;
 
 static int
 zp_find_adapter(unsigned char *scratch, int reconfig)
 {
-    int             slot;
+	int     slot;
 
-    for (slot = prev_slot; slot < MAXSLOT; ++slot) {
-	/*
-	 * see if there's a PCMCIA controller here Intel PCMCIA controllers
-	 * use 0x82 and 0x83 IBM clone chips use 0x88 and 0x89, apparently
-	 */
-	/*
-	 * IBM ThinkPad230Cs use 0x84.
-	 */
-	unsigned char   idbyte = pcic_getb(slot, PCIC_ID_REV);
+	for (slot = prev_slot; slot < MAXSLOT; ++slot) {
+		/* see if there's a PCMCIA controller here Intel PCMCIA
+		 * controllers use 0x82 and 0x83 IBM clone chips use 0x88 and
+		 * 0x89, apparently */
+		/* IBM ThinkPad230Cs use 0x84. */
+		unsigned char idbyte = pcic_getb(slot, PCIC_ID_REV);
 
-	if (idbyte != 0x82 && idbyte != 0x83 &&
-	    idbyte != 0x84 &&	/* for IBM ThinkPad 230Cs */
-	    idbyte != 0x88 && idbyte != 0x89) {
-#if 0
-	    printf("ibmccae: pcic slot %d: wierd id/rev code 0x%02x\n",
-		   slot, idbyte);
-#endif
-	    continue;
+		if (idbyte != 0x82 && idbyte != 0x83 &&
+		    idbyte != 0x84 &&	/* for IBM ThinkPad 230Cs */
+		    idbyte != 0x88 && idbyte != 0x89) {
+			continue;
+		}
+		if ((pcic_getb(slot, PCIC_STATUS) & PCIC_CD) != PCIC_CD) {
+			if (!reconfig) {
+				printf("zp: slot %d: no card in slot\n", slot);
+			} else {
+				log(LOG_NOTICE, "zp: slot %d: no card in slot\n", slot);
+			}
+			/* no card in slot */
+			continue;
+		}
+		pcic_power_on(slot);
+		pcic_reset(slot);
+		/* map the card's attribute memory and examine its card
+		 * information structure tuples for something we recognize. */
+		pcic_map_memory(slot, 0, kvtop(scratch), 0L,
+		    0xFFFL, ATTRIBUTE, 1);
+
+		if ((zp_check_cis(scratch)) > 0) {
+			/* found it */
+			if (!reconfig) {
+				printf("zp: found card in slot %d\n", slot);
+			} else {
+				log(LOG_NOTICE, "zp: found card in slot %d\n", slot);
+			}
+			prev_slot = (prev_slot == MAXSLOT - 1) ? 0 : prev_slot + 1;
+
+			return slot;
+		} else {
+			if (!reconfig) {
+				printf("zp: pcmcia slot %d: %s\n", slot, card_info);
+			} else {
+				log(LOG_NOTICE, "zp: pcmcia slot %d: %s\n", slot, card_info);
+			}
+		}
+		pcic_unmap_memory(slot, 0);
 	}
-	if ((pcic_getb(slot, PCIC_STATUS) & PCIC_CD) != PCIC_CD) {
-	    if (!reconfig) {
-		printf("zp: slot %d: no card in slot\n", slot);
-	    } else {
-		log(LOG_NOTICE, "zp: slot %d: no card in slot\n", slot);
-	    }
-	    /* no card in slot */
-	    continue;
-	}
-	pcic_power_on(slot);
-	pcic_reset(slot);
-	/*
-	 * map the card's attribute memory and examine its card information
-	 * structure tuples for something we recognize.
-	 */
-#ifdef	MACH_KERNEL
-	pcic_map_memory(slot, 0, scratch, 0L,
-			0xFFFL, ATTRIBUTE, 1);
-#else	/* MACH_KERNEL */
-	pcic_map_memory(slot, 0, kvtop(scratch), 0L,
-			0xFFFL, ATTRIBUTE, 1);
-#endif	/* MACH_KERNEL */
-
-	if ((zp_check_cis(scratch)) > 0) {
-	    /* found it */
-	    if (!reconfig) {
-		printf("zp: found card in slot %d\n", slot);
-	    } else {
-		log(LOG_NOTICE, "zp: found card in slot %d\n", slot);
-	    }
-	    prev_slot = (prev_slot == MAXSLOT - 1) ? 0 : prev_slot + 1;
-
-	    return slot;
-	} else {
-	    if (!reconfig) {
-		printf("zp: pcmcia slot %d: %s\n", slot, card_info);
-	    } else {
-		log(LOG_NOTICE, "zp: pcmcia slot %d: %s\n", slot, card_info);
-	    }
-	}
-	pcic_unmap_memory(slot, 0);
-    }
-    prev_slot = 0;
-    return -1;
+	prev_slot = 0;
+	return -1;
 }
 
 
@@ -444,1702 +332,851 @@ zp_find_adapter(unsigned char *scratch, int reconfig)
  *	NULL if device not found
  *	or # of i/o addresses used (if found)
  */
-#ifdef	MACH_KERNEL
-int
-zpprobe(port, dev)
-    struct bus_device *dev;
-#else	/* MACH_KERNEL */
-int
+static int
 zpprobe(struct isa_device * isa_dev)
-#endif	/* MACH_KERNEL */
 {
-#ifdef	MACH_KERNEL
-    zp_softc_t     *sc = &zp_softc[dev->unit];
-#else	/* MACH_KERNEL */
-    struct zp_softc *sc = &zp_softc[isa_dev->id_unit];
-#endif	/* MACH_KERNEL */
-    int             slot;
-    u_short         k;
-    int             re_init_flag;
+	struct zp_softc *sc = &zp_softc[isa_dev->id_unit];
+	int     slot;
+	u_short k;
+	int     re_init_flag;
 
-#ifdef	ZP_DEBUG
-    printf("### zpprobe ####\n");
-#ifdef	MACH_KERNEL
-    cngetc();
-#endif	/* MACH_KERNEL */
-#endif	/* ZP_DEBUG */
+	if ((slot = zp_find_adapter(isa_dev->id_maddr, isa_dev->id_reconfig)) < 0)
+		return NULL;
 
-
-#ifdef	MACH_KERNEL
-#define	DELAY(x)	delay(x * 10)
-    sc->attached = 0;
-    BASE = dev->address;
-#endif	/* MACH_KERNEL */
-
-    if ((slot = zp_find_adapter(isa_dev->id_maddr, isa_dev->id_reconfig)) < 0)
-	return NULL;
-
-    /*
-     * okay, we found a card, so set it up
-     */
-    /*
-     * Inhibit 16 bit memory delay. POINTETH.SYS apparently does this, for
-     * what reason I don't know.
-     */
-    pcic_putb(slot, PCIC_CDGC,
-	      pcic_getb(slot, PCIC_CDGC) | PCIC_16_DL_INH);
-    /*
-     * things to map (1) card's EEPROM is already mapped by the find_adapter
-     * routine but we still need to get the card's ethernet address. after
-     * that we unmap that part of attribute memory. (2) card configuration
-     * registers need to be mapped in so we can set the configuration and
-     * socket # registers. (3) shared memory packet buffer (4) i/o ports (5)
-     * IRQ
-     */
+	/* okay, we found a card, so set it up */
+	/* Inhibit 16 bit memory delay. POINTETH.SYS apparently does this, for
+	 * what reason I don't know. */
+	pcic_putb(slot, PCIC_CDGC,
+	    pcic_getb(slot, PCIC_CDGC) | PCIC_16_DL_INH);
+	/* things to map (1) card's EEPROM is already mapped by the
+	 * find_adapter routine but we still need to get the card's ethernet
+	 * address. after that we unmap that part of attribute memory. (2)
+	 * card configuration registers need to be mapped in so we can set the
+	 * configuration and socket # registers. (3) shared memory packet
+	 * buffer (4) i/o ports (5) IRQ */
 #ifdef	notdef
-    /*
-     * Sigh.  Location of the ethernet address isn't documented in [1]. It
-     * was derived by doing a hex dump of all of attribute memory and looking
-     * for the IBM vendor prefix.
-     */
-    enet_addr[0] = PEEK(isa_dev->id_maddr + 0xff0);
-    enet_addr[1] = PEEK(isa_dev->id_maddr + 0xff2);
-    enet_addr[2] = PEEK(isa_dev->id_maddr + 0xff4);
-    enet_addr[3] = PEEK(isa_dev->id_maddr + 0xff6);
-    enet_addr[4] = PEEK(isa_dev->id_maddr + 0xff8);
-    enet_addr[5] = PEEK(isa_dev->id_maddr + 0xffa);
+	/* Sigh.  Location of the ethernet address isn't documented in [1]. It
+	 * was derived by doing a hex dump of all of attribute memory and
+	 * looking for the IBM vendor prefix. */
+	enet_addr[0] = PEEK(isa_dev->id_maddr + 0xff0);
+	enet_addr[1] = PEEK(isa_dev->id_maddr + 0xff2);
+	enet_addr[2] = PEEK(isa_dev->id_maddr + 0xff4);
+	enet_addr[3] = PEEK(isa_dev->id_maddr + 0xff6);
+	enet_addr[4] = PEEK(isa_dev->id_maddr + 0xff8);
+	enet_addr[5] = PEEK(isa_dev->id_maddr + 0xffa);
 #endif
-#if 0
-    pcic_unmap_memory(slot, 0);
-#endif
-    re_init_flag = 0;
+	re_init_flag = 0;
 re_init:
-    /*
-     * (2) map card configuration registers.  these are offset in card memory
-     * space by 0x20000.  normally we could get this offset from the card
-     * information structure, but I'm too lazy and am not quite sure if I
-     * understand the CIS anyway.
-     *
-     * XXX IF YOU'RE TRYING TO PORT THIS DRIVER FOR A DIFFERENT PCMCIA CARD, the
-     * most likely thing to change is the constant 0x20000 in the next
-     * statement.  Oh yes, also change the card id string that we probe for.
-     */
-#ifdef MACH_KERNEL
-    pcic_map_memory(slot, 0, dev->phys_address, 0x10000, 8L,
-		    ATTRIBUTE, 1);
-    POKE(phystokv(dev->phys_address), 0x80);	/* reset the card (how long?) */
-    DELAY(10000);
-#else
-    pcic_map_memory(slot, 0, kvtop(isa_dev->id_maddr), 0x10000, 8L,
-		    ATTRIBUTE, 1);
-    POKE(isa_dev->id_maddr, 0x80);	/* reset the card (how long?) */
-    DELAY(40000);
-#endif
-    /*
-     * Set the configuration index.  According to [1], the adapter won't
-     * respond to any i/o signals until we do this; it uses the Memory Only
-     * interface (whatever that is; it's not documented). Also turn on
-     * "level" (not pulse) interrupts.
-     *
-     * XXX probably should init the socket and copy register also, so that we
-     * can deal with multiple instances of the same card.
-     */
-#ifdef	MACH_KERNEL
-    POKE(phystokv(dev->phys_address), 0x41);
-    pcic_unmap_memory(slot, 0);
-#else	/* MACH_KERNEL */
-    POKE(isa_dev->id_maddr, 0x41);
-    pcic_unmap_memory(slot, 0);
-#endif	/* MACH_KERNEL */
+	/* (2) map card configuration registers.  these are offset in card
+	 * memory space by 0x20000.  normally we could get this offset from
+	 * the card information structure, but I'm too lazy and am not quite
+	 * sure if I understand the CIS anyway.
+	 * 
+	 * XXX IF YOU'RE TRYING TO PORT THIS DRIVER FOR A DIFFERENT PCMCIA CARD,
+	 * the most likely thing to change is the constant 0x20000 in the next
+	 * statement.  Oh yes, also change the card id string that we probe
+	 * for. */
+	pcic_map_memory(slot, 0, kvtop(isa_dev->id_maddr), 0x10000, 8L,
+	    ATTRIBUTE, 1);
+	POKE(isa_dev->id_maddr, 0x80);	/* reset the card (how long?) */
+	DELAY(40000);
+	/* Set the configuration index.  According to [1], the adapter won't
+	 * respond to any i/o signals until we do this; it uses the Memory
+	 * Only interface (whatever that is; it's not documented). Also turn
+	 * on "level" (not pulse) interrupts.
+	 * 
+	 * XXX probably should init the socket and copy register also, so that we
+	 * can deal with multiple instances of the same card. */
+	POKE(isa_dev->id_maddr, 0x41);
+	pcic_unmap_memory(slot, 0);
 
-#ifdef	notdef
-    /*
-     * (3) now map in the shared memory buffer.  This has to be mapped as
-     * words, not bytes, and on a 16k boundary.  The offset value was derived
-     * by installing IBM's POINTETH.SYS under DOS and looking at the PCIC
-     * registers; it's not documented in IBM's tech ref manual ([1]).
-     */
-    pcic_map_memory(slot, 0, kvtop(isa_dev->id_maddr), 0x4000L, 0x4000L,
-		    COMMON, 2);
-#endif
+	/* (4) map i/o ports.
+	 * 
+	 * XXX is it possible that the config file leaves this unspecified, in
+	 * which case we have to pick one?
+	 * 
+	 * At least one PCMCIA device driver I'v seen maps a block of 32
+	 * consecutive i/o ports as two windows of 16 ports each. Maybe some
+	 * other pcic chips are restricted to 16-port windows; the 82365SL
+	 * doesn't seem to have that problem.  But since we have an extra
+	 * window anyway... */
+	pcic_map_io(slot, 0, isa_dev->id_iobase, 16, 2);
 
-    /*
-     * (4) map i/o ports.
-     *
-     * XXX is it possible that the config file leaves this unspecified, in which
-     * case we have to pick one?
-     *
-     * At least one PCMCIA device driver I'v seen maps a block of 32 consecutive
-     * i/o ports as two windows of 16 ports each. Maybe some other pcic chips
-     * are restricted to 16-port windows; the 82365SL doesn't seem to have
-     * that problem.  But since we have an extra window anyway...
-     */
-#ifdef MACH_KERNEL
-    pcic_map_io(slot, 0, dev->address, 16, 2);
-#else
-#if 1
-    pcic_map_io(slot, 0, isa_dev->id_iobase, 16, 2);
-#else
-    pcic_map_io(slot, 0, isa_dev->id_iobase, 16, 1);
-    pcic_map_io(slot, 1, isa_dev->id_iobase + 16, 16, 1);
-#endif
-#endif
+	/* (5) configure the card for the desired interrupt
+	 * 
+	 * XXX is it possible that the config file leaves this unspecified? */
+	pcic_map_irq(slot, ffs(isa_dev->id_irq) - 1);
 
-    /*
-     * (5) configure the card for the desired interrupt
-     *
-     * XXX is it possible that the config file leaves this unspecified?
-     */
-    pcic_map_irq(slot, ffs(isa_dev->id_irq) - 1);
+	/* tell the PCIC that this is an I/O card (not memory) */
+	pcic_putb(slot, PCIC_INT_GEN,
+	    pcic_getb(slot, PCIC_INT_GEN) | PCIC_CARDTYPE);
 
-    /* tell the PCIC that this is an I/O card (not memory) */
-    pcic_putb(slot, PCIC_INT_GEN,
-	      pcic_getb(slot, PCIC_INT_GEN) | PCIC_CARDTYPE);
-
-#if 0
-    /* tell the PCIC to use level-mode interrupts */
-    /* XXX this register may not be present on all controllers */
-    pcic_putb(slot, PCIC_GLO_CTRL,
-	      pcic_getb(slot, PCIC_GLO_CTRL) | PCIC_LVL_MODE);
-#endif
-
-#ifdef ZP_DEBUG
-    pcic_print_regs(slot);
-#endif
-#ifdef	notdef
-    /* I couldn't find the following part in linux. seiji */
-
-    /*
-     * Setup i/o addresses
-     */
-    sc->nic_addr = isa_dev->id_iobase;
-#if 0
-    sc->vector = isa_dev->id_irq;
-#endif
-    sc->smem_start = (caddr_t) isa_dev->id_maddr;
-
-#if 0
-    sc->vendor = ZE_VENDOR_IBM;
-    sc->type = xxx;
-#endif
-
-    /* reset card to force it into a known state */
-    tmp = inb(isa_dev->id_iobase + ZE_RESET);
-    DELAY(20000);
-    outb(isa_dev->id_iobase + ZE_RESET, tmp);
-    DELAY(20000);
-
-    /*
-     * query MAM bit in misc register for 10base2
-     */
-    tmp = inb(isa_dev->id_iobase + ZE_MISC);
-    if (!tmp && !re_init_flag) {
-	re_init_flag++;
-	goto re_init;
-    }
-    sc->mau = tmp & 0x09 ? "10base2" : "10baseT";
-#endif
-
-#ifdef	MACH_KERNEL
-    sc->ep_io_addr = dev->address;
-#else	/* MACH_KERNEL */
-    sc->ep_io_addr = isa_dev->id_iobase;
-#endif	/* MACH_KERNEL */
-    GO_WINDOW(0);
-    k = read_eeprom_data(BASE, EEPROM_ADDR_CFG);	/* get addr cfg */
-#ifndef	ORIGINAL
-    sc->if_port = k >> 14;
-#endif	/* ORIGINAL */
-#ifdef ZP_DEBUG
-    printf("EEPROM data = 0x%x\n", k);
-#endif
-    k = (k & 0x1f) * 0x10 + 0x200;	/* decode base addr. */
-#ifdef	MACH_KERNEL
-    if (k != (u_short) dev->address)
-#else	/* MACH_KERNEL */
-    if (k != (u_short) isa_dev->id_iobase)
-#endif	/* MACH_KERNEL */
-    {
-	if (!re_init_flag) {
-	    re_init_flag++;
-	    goto re_init;
+	sc->ep_io_addr = isa_dev->id_iobase;
+	GO_WINDOW(0);
+	k = read_eeprom_data(BASE, EEPROM_ADDR_CFG);	/* get addr cfg */
+	sc->if_port = k >> 14;
+	k = (k & 0x1f) * 0x10 + 0x200;	/* decode base addr. */
+	if (k != (u_short) isa_dev->id_iobase) {
+		if (!re_init_flag) {
+			re_init_flag++;
+			goto re_init;
+		}
+		return (0);
 	}
-	return (0);
-    }
-    k = read_eeprom_data(BASE, EEPROM_RESOURCE_CFG);
+	k = read_eeprom_data(BASE, EEPROM_RESOURCE_CFG);
 
-    k >>= 12;
+	k >>= 12;
 
-#ifdef	MACH_KERNEL
-#ifdef	ZP_DEBUG
-    printf("!!!IRQ Mach config: %d, board config: %d!!!\n",
-	   dev->sysdep1, (k == 2) ? 9 : k);
-#ifdef	MACH_KERNEL
-    cngetc();
-#endif	/* MACH_KERNEL */
-#endif	/* ZP_DEBUG */
-    if (dev->sysdep1 != ((k == 2) ? 9 : k))
-#else	/* MACH_KERNEL */
-    if (isa_dev->id_irq != (1 << ((k == 2) ? 9 : k)))
-#endif	/* MACH_KERNEL */
-#ifdef	ZP_DEBUG
-    {
-	printf("Unmatched !!!!!!\n");
-	return (0);
-    }
-#else	/* ZP_DEBUG */
-	return (0);
-#endif	/* ZP_DEBUG */
+	if (isa_dev->id_irq != (1 << ((k == 2) ? 9 : k)))
+		return (0);
 
-#if 0
-    outb(id_port, ACTIVATE_ADAPTER_TO_CONFIG);
-#else
-    outb(BASE, ACTIVATE_ADAPTER_TO_CONFIG);
-#endif
+	outb(BASE, ACTIVATE_ADAPTER_TO_CONFIG);
 
-#ifdef	MACH_KERNEL
-    dev->name = zp_name;
-    return (1);
-#else	/* MACH_KERNEL */
 
-    /* information for reconfiguration */
-    sc->last_alive = 0;
-    sc->last_up = 0;
-    sc->slot = slot;
+	/* information for reconfiguration */
+	sc->last_alive = 0;
+	sc->last_up = 0;
+	sc->slot = slot;
 
-    return (0x10);	/* 16 bytes of I/O space used. */
-#endif	/* MACH_KERNEL */
+	return (0x10);		/* 16 bytes of I/O space used. */
 }
-
 #if NAPM > 0
 static int
 zp_suspend(visa_dev)
-    void *visa_dev;
+	void   *visa_dev;
 {
-    struct isa_device *isa_dev = visa_dev;
-    struct zp_softc *sc = &zp_softc[isa_dev->id_unit];
+	struct isa_device *isa_dev = visa_dev;
+	struct zp_softc *sc = &zp_softc[isa_dev->id_unit];
 
-    pcic_power_off(sc->slot);
-    return 0;
+	pcic_power_off(sc->slot);
+	return 0;
 }
 
 static int
 zp_resume(visa_dev)
-    void *visa_dev;
+	void   *visa_dev;
 {
-    struct isa_device *isa_dev = visa_dev;
+	struct isa_device *isa_dev = visa_dev;
 
-    prev_slot = 0;
-    reconfig_isadev(isa_dev, &net_imask);
-    return 0;
+	prev_slot = 0;
+	reconfig_isadev(isa_dev, &net_imask);
+	return 0;
 }
-#endif	/* NAPM > 0 */
+#endif				/* NAPM > 0 */
 
 
 /*
  * Install interface into kernel networking data structures
  */
 
-#ifdef	MACH_KERNEL
-void
-zpattach(dev)
-    struct bus_device *dev;
-#else	/* MACH_KERNEL */
-int
+static int
 zpattach(isa_dev)
-    struct isa_device *isa_dev;
-#endif	/* MACH_KERNEL */
+	struct isa_device *isa_dev;
 {
-#ifdef	MACH_KERNEL
-    zp_softc_t     *sc = &zp_softc[dev->unit];
-    struct ifnet   *ifp = &(sc->ds_if);
-#else	/* MACH_KERNEL */
-    struct zp_softc *sc = &zp_softc[isa_dev->id_unit];
-    struct ifnet   *ifp = &sc->arpcom.ac_if;
-#endif	/* MACH_KERNEL */
-    u_short         i;
-    struct ifaddr  *ifa;
-    struct sockaddr_dl *sdl;
-    int             pl;
+	struct zp_softc *sc = &zp_softc[isa_dev->id_unit];
+	struct ifnet *ifp = &sc->arpcom.ac_if;
+	u_short i;
+	struct ifaddr *ifa;
+	struct sockaddr_dl *sdl;
+	int     pl;
 
-#ifdef	ZP_DEBUG
-    printf("### zpattach ####\n");
-#ifdef	MACH_KERNEL
-    cngetc();
-#endif	/* MACH_KERNEL */
-#endif	/* ZP_DEBUG */
-
-    /* PCMCIA card can be offlined. Reconfiguration is required */
-    if (isa_dev->id_reconfig) {
-	if (!isa_dev->id_alive && sc->last_alive) {
-	    pl = splimp();
-	    sc->last_up = (ifp->if_flags & IFF_UP);
-	    if_down(ifp);
-	    splx(pl);
-	    sc->last_alive = 0;
+	/* PCMCIA card can be offlined. Reconfiguration is required */
+	if (isa_dev->id_reconfig) {
+		if (!isa_dev->id_alive && sc->last_alive) {
+			pl = splimp();
+			sc->last_up = (ifp->if_flags & IFF_UP);
+			if_down(ifp);
+			splx(pl);
+			sc->last_alive = 0;
+		}
+		if (isa_dev->id_alive && !sc->last_alive) {
+			zpreset(isa_dev->id_unit);
+			if (sc->last_up) {
+				pl = splimp();
+				if_up(ifp);
+				splx(pl);
+			}
+			sc->last_alive = 1;
+		}
+		return 1;
+	} else {
+		sc->last_alive = 1;
 	}
-	if (isa_dev->id_alive && !sc->last_alive) {
-	    zpreset(isa_dev->id_unit);
-	    if (sc->last_up) {
-		pl = splimp();
-		if_up(ifp);
-		splx(pl);
-	    }
-	    sc->last_alive = 1;
+
+
+	sc->ep_io_addr = isa_dev->id_iobase;
+	printf("zp%d: ", isa_dev->id_unit);
+
+	sc->ep_connectors = 0;
+
+	i = inw(isa_dev->id_iobase + EP_W0_CONFIG_CTRL);
+
+	if (i & IS_AUI) {
+		printf("aui");
+		sc->ep_connectors |= AUI;
 	}
-	return 1;
-    } else {
-	sc->last_alive = 1;
-    }
-
-
-#ifdef	MACH_KERNEL
-    printf(", port = %x, spl = %d, pic = %d. ",
-	   dev->address, dev->sysdep, dev->sysdep1);
-
-    take_dev_irq(dev);
-    sc->ep_io_addr = dev->address;
-#else	/* MACH_KERNEL */
-    sc->ep_io_addr = isa_dev->id_iobase;
-    printf("zp%d: ", isa_dev->id_unit);
-#endif	/* MACH_KERNEL */
-
-    sc->ep_connectors = 0;
-
-#ifdef	MACH_KERNEL
-    i = inw(sc->ep_io_addr + EP_W0_CONFIG_CTRL);
-#else	/* MACH_KERNEL */
-    i = inw(isa_dev->id_iobase + EP_W0_CONFIG_CTRL);
-#endif	/* MACH_KERNEL */
-
-#ifdef	ZP_DEBUG
-    {
-	short           if_port;
-	if_port = read_eeprom_data(BASE, 8) >> 14;
-	sc->if_port = if_port;
-	printf("Linux select:%x\n", if_port);
-#ifdef	MACH_KERNEL
-	cngetc();
-#endif	/* MACH_KERNEL */
-    }
-
-    printf("SELECT connectors:%x\n", i);
-#endif	/* ZP_DEBUG */
-
-    if (i & IS_AUI) {
-	printf("aui");
-	sc->ep_connectors |= AUI;
-    }
-    if (i & IS_BNC) {
-	if (sc->ep_connectors)
-	    printf("/");
-	printf("bnc");
-	sc->ep_connectors |= BNC;
-    }
-    if (i & IS_UTP) {
-	if (sc->ep_connectors)
-	    printf("/");
-	printf("utp");
-	sc->ep_connectors |= UTP;
-    }
-    if (!sc->ep_connectors)
-	printf("no connectors!");
-
-#ifdef	MACH_KERNEL
-#ifndef	ORIGINAL
-    printf(":%s was selected.\n", if_names[sc->if_port]);
-#ifdef	ZP_DEBUG
-    cngetc();
-#endif	/* ZP_DEBUG */
-#endif	/* ORIGINAL */
-#endif	/* MACH_KERNEL */
-
-    GO_WINDOW(0);
-    {
-	short           tmp_addr[3];
-	int             i;
-	for (i = 0; i < 3; i++) {
-	    tmp_addr[i] = htons(read_eeprom_data(BASE, i));
+	if (i & IS_BNC) {
+		if (sc->ep_connectors)
+			printf("/");
+		printf("bnc");
+		sc->ep_connectors |= BNC;
 	}
-#ifdef	MACH_KERNEL
-	bcopy(tmp_addr, sc->ds_addr, 6);
-#else	/* MACH_KERNEL */
-	bcopy(tmp_addr, sc->arpcom.ac_enaddr, 6);
-#endif	/* MACH_KERNEL */
-    }
+	if (i & IS_UTP) {
+		if (sc->ep_connectors)
+			printf("/");
+		printf("utp");
+		sc->ep_connectors |= UTP;
+	}
+	if (!sc->ep_connectors)
+		printf("no connectors!");
 
-#ifdef	MACH_KERNEL
-    printf("id [%x:%x:%x:%x:%x:%x]",
-	   sc->ds_addr[0], sc->ds_addr[1], sc->ds_addr[2],
-	   sc->ds_addr[3], sc->ds_addr[4], sc->ds_addr[5]);
-    printf(" address %s\n", ether_sprintf(sc->ds_addr));
-#ifdef	ZP_DEBUG
-    cngetc();
-#endif	/* ZP_DEBUG */
-#else	/* MACH_KERNEL */
-    printf(" address %s\n", ether_sprintf(sc->arpcom.ac_enaddr));
-#endif	/* MACH_KERNEL */
+	GO_WINDOW(0);
+	{
+		short   tmp_addr[3];
+		int     i;
+		for (i = 0; i < 3; i++) {
+			tmp_addr[i] = htons(read_eeprom_data(BASE, i));
+		}
+		bcopy(tmp_addr, sc->arpcom.ac_enaddr, 6);
+	}
 
-    ifp->if_mtu = ETHERMTU;
-#ifdef	MACH_KERNEL
-    ifp->if_flags = IFF_BROADCAST;
-    ifp->if_unit = dev->unit;
-    ifp->if_header_size = sizeof(struct ether_header);
-    ifp->if_header_format = HDR_ETHERNET;
-    ifp->if_address_size = 6;
-    ifp->if_address = (char *) &sc->ds_addr[0];
+	printf(" address %s\n", ether_sprintf(sc->arpcom.ac_enaddr));
 
-#define	IFF_ALTPHYS	0x8000
-
-#ifdef	ORIGINAL
-    /*
-     * This is a temporary. Mach can not select link with ifconfig, so I
-     * select AUI statically.
-     */
-    ifp->if_flags |= IFF_ALTPHYS;
-#else	/* ORIGINAL */
-    /*
-     * Select connector according to board setting.
-     */
-    if (sc->if_port != 3) {
-	ifp->if_flags |= IFF_ALTPHYS;
-    }
-#endif	/* ORIGINAL */
-
-    if_init_queues(ifp);
-    sc->attached = 1;
-
-#else	/* MACH_KERNEL */
-    ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX;
-    ifp->if_unit = isa_dev->id_unit;
-    ifp->if_name = "zp";
-    ifp->if_output = ether_output;
-    ifp->if_start = zpstart;
-    ifp->if_ioctl = zpioctl;
-    ifp->if_watchdog = zpwatchdog;
-    /*
-     * Select connector according to board setting.
-     */
-#if defined(__NetBSD__) || defined(__FreeBSD__)
-#if 0
-    if (sc->if_port != 3) {
+	ifp->if_mtu = ETHERMTU;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX;
+	ifp->if_unit = isa_dev->id_unit;
+	ifp->if_name = "zp";
+	ifp->if_output = ether_output;
+	ifp->if_start = zpstart;
+	ifp->if_ioctl = zpioctl;
+	ifp->if_watchdog = zpwatchdog;
+	/* Select connector according to board setting. */
 	ifp->if_flags |= IFF_LINK0;
-    }
-#else
-    ifp->if_flags |= IFF_LINK0;
-#endif
-#endif	/* __NetBSD__ || __FreeBSD__ */
 
-    if_attach(ifp);
-#endif	/* MACH_KERNEL */
+	if_attach(ifp);
 
-#ifndef	MACH_KERNEL
-    /*
-     * Fill the hardware address into ifa_addr if we find an AF_LINK entry.
-     * We need to do this so bpf's can get the hardware addr of this card.
-     * netstat likes this too!
-     */
-    ifa = ifp->if_addrlist;
-    while ((ifa != 0) && (ifa->ifa_addr != 0) &&
-	   (ifa->ifa_addr->sa_family != AF_LINK))
-	ifa = ifa->ifa_next;
+	/* Fill the hardware address into ifa_addr if we find an AF_LINK
+	 * entry. We need to do this so bpf's can get the hardware addr of
+	 * this card. netstat likes this too! */
+	ifa = ifp->if_addrlist;
+	while ((ifa != 0) && (ifa->ifa_addr != 0) &&
+	    (ifa->ifa_addr->sa_family != AF_LINK))
+		ifa = ifa->ifa_next;
 
-    if ((ifa != 0) && (ifa->ifa_addr != 0)) {
-	sdl = (struct sockaddr_dl *) ifa->ifa_addr;
-	sdl->sdl_type = IFT_ETHER;
-	sdl->sdl_alen = ETHER_ADDR_LEN;
-	sdl->sdl_slen = 0;
-	bcopy(sc->arpcom.ac_enaddr, LLADDR(sdl), ETHER_ADDR_LEN);
-    }
+	if ((ifa != 0) && (ifa->ifa_addr != 0)) {
+		sdl = (struct sockaddr_dl *) ifa->ifa_addr;
+		sdl->sdl_type = IFT_ETHER;
+		sdl->sdl_alen = ETHER_ADDR_LEN;
+		sdl->sdl_slen = 0;
+		bcopy(sc->arpcom.ac_enaddr, LLADDR(sdl), ETHER_ADDR_LEN);
+	}
 #if NBPFILTER > 0
-    bpfattach(&sc->bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
+	bpfattach(&sc->bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 #if NAPM > 0
-    sc->s_hook.ah_fun = zp_suspend;
-    sc->s_hook.ah_arg = (void *) isa_dev;
-    sc->s_hook.ah_name = "3Com PCMCIA Etherlink III 3C589";
-    sc->s_hook.ah_order = APM_MID_ORDER;
-    apm_hook_establish(APM_HOOK_SUSPEND, &sc->s_hook);
-    sc->r_hook.ah_fun = zp_resume;
-    sc->r_hook.ah_arg = (void *) isa_dev;
-    sc->r_hook.ah_name = "3Com PCMCIA Etherlink III 3C589";
-    sc->r_hook.ah_order = APM_MID_ORDER;
-    apm_hook_establish(APM_HOOK_RESUME, &sc->r_hook);
-#endif	/* NAPM > 0 */
-    return 1;
-#endif	/* MACH_KERNEL */
+	sc->s_hook.ah_fun = zp_suspend;
+	sc->s_hook.ah_arg = (void *) isa_dev;
+	sc->s_hook.ah_name = "3Com PCMCIA Etherlink III 3C589";
+	sc->s_hook.ah_order = APM_MID_ORDER;
+	apm_hook_establish(APM_HOOK_SUSPEND, &sc->s_hook);
+	sc->r_hook.ah_fun = zp_resume;
+	sc->r_hook.ah_arg = (void *) isa_dev;
+	sc->r_hook.ah_name = "3Com PCMCIA Etherlink III 3C589";
+	sc->r_hook.ah_order = APM_MID_ORDER;
+	apm_hook_establish(APM_HOOK_RESUME, &sc->r_hook);
+#endif				/* NAPM > 0 */
+	return 1;
 }
-
 /*
  * The order in here seems important. Otherwise we may not receive
  * interrupts. ?!
  */
-void
+static void
 zpinit(unit)
-    int             unit;
+	int     unit;
 {
-    register struct zp_softc *sc = &zp_softc[unit];
-#ifdef	MACH_KERNEL
-    register struct ifnet *ifp = &sc->ds_if;
-#else	/* MACH_KERNEL */
-    register struct ifnet *ifp = &sc->arpcom.ac_if;
-#endif	/* MACH_KERNEL */
-    int             s, i;
+	register struct zp_softc *sc = &zp_softc[unit];
+	register struct ifnet *ifp = &sc->arpcom.ac_if;
+	int     s, i;
 
-#ifdef	ZP_DEBUG
-    printf("### zpinit ####\n");
-#endif	/* ZP_DEBUG */
+	if (ifp->if_addrlist == (struct ifaddr *) 0)
+		return;
 
-#ifndef	MACH_KERNEL
-    if (ifp->if_addrlist == (struct ifaddr *) 0)
-	return;
-#endif	/* MACH_KERNEL */
+	s = splimp();
+	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
 
-    s = splimp();
-    while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	GO_WINDOW(0);
 
-    GO_WINDOW(0);
+	/* Disable the card */
+	outw(BASE + EP_W0_CONFIG_CTRL, 0);
 
-    /* Disable the card */
-    outw(BASE + EP_W0_CONFIG_CTRL, 0);
+	/* Enable the card */
+	outw(BASE + EP_W0_CONFIG_CTRL, ENABLE_DRQ_IRQ);
 
-    /* Enable the card */
-    outw(BASE + EP_W0_CONFIG_CTRL, ENABLE_DRQ_IRQ);
+	GO_WINDOW(2);
 
-    GO_WINDOW(2);
+	/* Reload the ether_addr. */
+	for (i = 0; i < 6; i++)
+		outb(BASE + EP_W2_ADDR_0 + i, sc->arpcom.ac_enaddr[i]);
 
-    /* Reload the ether_addr. */
-    for (i = 0; i < 6; i++)
-#ifdef	MACH_KERNEL
-	outb(BASE + EP_W2_ADDR_0 + i, sc->ds_addr[i]);
-#else	/* MACH_KERNEL */
-	outb(BASE + EP_W2_ADDR_0 + i, sc->arpcom.ac_enaddr[i]);
-#endif	/* MACH_KERNEL */
+	outw(BASE + EP_COMMAND, RX_RESET);
+	outw(BASE + EP_COMMAND, TX_RESET);
 
-    outw(BASE + EP_COMMAND, RX_RESET);
-    outw(BASE + EP_COMMAND, TX_RESET);
+	/* Window 1 is operating window */
+	GO_WINDOW(1);
+	for (i = 0; i < 31; i++)
+		inb(BASE + EP_W1_TX_STATUS);
 
-    /* Window 1 is operating window */
-    GO_WINDOW(1);
-    for (i = 0; i < 31; i++)
-	inb(BASE + EP_W1_TX_STATUS);
+	/* get rid of stray intr's */
+	outw(BASE + EP_COMMAND, ACK_INTR | 0xff);
 
-    /* get rid of stray intr's */
-    outw(BASE + EP_COMMAND, ACK_INTR | 0xff);
+	outw(BASE + EP_COMMAND, SET_RD_0_MASK | S_CARD_FAILURE | S_RX_COMPLETE |
+	    S_TX_COMPLETE | S_TX_AVAIL);
+	outw(BASE + EP_COMMAND, SET_INTR_MASK | S_CARD_FAILURE | S_RX_COMPLETE |
+	    S_TX_COMPLETE | S_TX_AVAIL);
 
-    outw(BASE + EP_COMMAND, SET_RD_0_MASK | S_CARD_FAILURE | S_RX_COMPLETE |
-	 S_TX_COMPLETE | S_TX_AVAIL);
-    outw(BASE + EP_COMMAND, SET_INTR_MASK | S_CARD_FAILURE | S_RX_COMPLETE |
-	 S_TX_COMPLETE | S_TX_AVAIL);
-
-#ifndef	ORIGINAL
 #ifndef IFF_MULTICAST
 #define	IFF_MULTICAST	0x10000
 #endif
 
-#ifdef MACH_KERNEL
-    outw(BASE + EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
-	 ((sc->ds_if.if_flags & IFF_MULTICAST) ? FIL_GROUP : 0) |
-	 FIL_BRDCST |
-	 ((sc->ds_if.if_flags & IFF_PROMISC) ? FIL_ALL : 0));
-#else
-    outw(BASE + EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
-	 ((sc->arpcom.ac_if.if_flags & IFF_MULTICAST) ? FIL_GROUP : 0) |
-	 FIL_BRDCST |
-	 ((sc->arpcom.ac_if.if_flags & IFF_PROMISC) ? FIL_ALL : 0));
-#endif	/* MACH_KERNEL */
-#else	/* ORIGINAL */
-    outw(BASE + EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
-	 FIL_GROUP | FIL_BRDCST);
-#endif	/* ORIGINAL */
-    /*
-     * you can `ifconfig (link0|-link0) ep0' to get the following behaviour:
-     * -link0	disable AUI/UTP. enable BNC. link0	disable BNC. enable
-     * AUI. if the card has a UTP connector, that is enabled too. not sure,
-     * but it seems you have to be careful to not plug things into both AUI &
-     * UTP.
-     */
+	outw(BASE + EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
+	    ((sc->arpcom.ac_if.if_flags & IFF_MULTICAST) ? FIL_GROUP : 0) |
+	    FIL_BRDCST |
+	    ((sc->arpcom.ac_if.if_flags & IFF_PROMISC) ? FIL_ALL : 0));
+	/* you can `ifconfig (link0|-link0) ep0' to get the following
+	 * behaviour: -link0	disable AUI/UTP. enable BNC. link0 disable
+	 * BNC. enable AUI. if the card has a UTP connector, that is enabled
+	 * too. not sure, but it seems you have to be careful to not plug
+	 * things into both AUI & UTP. */
 
+	if (!(ifp->if_flags & IFF_LINK0) && (sc->ep_connectors & BNC)) {
+		GO_WINDOW(0);
+		/* set the xcvr */
+		outw(BASE + EP_W0_ADDRESS_CFG, 3 << 14);
+		GO_WINDOW(2);
+		outw(BASE + EP_COMMAND, START_TRANSCEIVER);
+		GO_WINDOW(1);
+	}
 #if defined(__NetBSD__) || defined(__FreeBSD__)
-    if (!(ifp->if_flags & IFF_LINK0) && (sc->ep_connectors & BNC)) {
+	if ((ifp->if_flags & IFF_LINK0) && (sc->ep_connectors & UTP)) {
 #else
-    if (!(ifp->if_flags & IFF_ALTPHYS) && (sc->ep_connectors & BNC)) {
+	if ((ifp->if_flags & IFF_ALTPHYS) && (sc->ep_connectors & UTP)) {
 #endif
-#ifdef ZP_DEBUG
-	printf("START TRANCEIVER");
-#endif	/* ZP_DEBUG */
-        GO_WINDOW(0);
-        /* set the xcvr */
-        outw(BASE + EP_W0_ADDRESS_CFG, 3 << 14);
-        GO_WINDOW(2);
-        outw(BASE + EP_COMMAND, START_TRANSCEIVER);
-        GO_WINDOW(1);
-    }
-#if defined(__NetBSD__) || defined(__FreeBSD__)
-    if ((ifp->if_flags & IFF_LINK0) && (sc->ep_connectors & UTP)) {
-#else
-    if ((ifp->if_flags & IFF_ALTPHYS) && (sc->ep_connectors & UTP)) {
-#endif
-#ifdef ZP_DEBUG
-	printf("ENABLE UTP");
-#endif	/* ZP_DEBUG */
-	GO_WINDOW(4);
-	outw(BASE + EP_W4_MEDIA_TYPE, ENABLE_UTP);
-	GO_WINDOW(1);
-    }
-    outw(BASE + EP_COMMAND, RX_ENABLE);
-    outw(BASE + EP_COMMAND, TX_ENABLE);
+		GO_WINDOW(4);
+		outw(BASE + EP_W4_MEDIA_TYPE, ENABLE_UTP);
+		GO_WINDOW(1);
+	}
+	outw(BASE + EP_COMMAND, RX_ENABLE);
+	outw(BASE + EP_COMMAND, TX_ENABLE);
 
-    ifp->if_flags |= IFF_RUNNING;
-#ifndef	MACH_KERNEL
-    ifp->if_flags &= ~IFF_OACTIVE;	/* just in case */
-#endif	/* MACH_KERNEL */
-    sc->tx_start_thresh = 20;	/* probably a good starting point. */
-#ifndef	MACH_KERNEL
-    /*
-     * Store up a bunch of mbuf's for use later. (MAX_MBS). First we free up
-     * any that we had in case we're being called from intr or somewhere
-     * else.
-     */
-    sc->last_mb = 0;
-    sc->next_mb = 0;
-    zpmbuffill(sc);
-#endif	/* MACH_KERNEL */
-#ifdef	MACH_KERNEL
-#if 0	/* seiji */
-    sc->tbusy = 0;
-#endif
-    zpstart(unit);
-#else	/* MACH_KERNEL */
-    zpstart(ifp);
-#endif	/* MACH_KERNEL */
-    splx(s);
-#ifdef	ZP_DEBUG
-    printf("### zpinit done ####\n");
-#endif	/* ZP_DEBUG */
+	ifp->if_flags |= IFF_RUNNING;
+	ifp->if_flags &= ~IFF_OACTIVE;	/* just in case */
+	sc->tx_start_thresh = 20;	/* probably a good starting point. */
+	/* Store up a bunch of mbuf's for use later. (MAX_MBS). First we free
+	 * up any that we had in case we're being called from intr or
+	 * somewhere else. */
+	sc->last_mb = 0;
+	sc->next_mb = 0;
+	zpmbuffill(sc);
+	zpstart(ifp);
+	splx(s);
 }
 
 static const char padmap[] = {0, 3, 2, 1};
-
-#ifdef	MACH_KERNEL
-void
-zpstart(unit)
-    int             unit;
-#else	/* MACH_KERNEL */
-void
+static void
 zpstart(ifp)
-    struct ifnet   *ifp;
-#endif	/* MACH_KERNEL */
+	struct ifnet *ifp;
 {
-#ifdef	MACH_KERNEL
-    register struct zp_softc *sc = &zp_softc[unit];
-    struct ifnet   *ifp = &sc->ds_if;
-    io_req_t        m;
-#else	/* MACH_KERNEL */
-    register struct zp_softc *sc = &zp_softc[ifp->if_unit];
-    struct mbuf    *m, *top;
-#endif	/* MACH_KERNEL */
+	register struct zp_softc *sc = &zp_softc[ifp->if_unit];
+	struct mbuf *m, *top;
 
-    int             s, len, pad;
+	int     s, len, pad;
 
-#ifdef	ZP_DEBUG
-    printf("### zpstart ####\n");
-#endif	/* ZP_DEBUG */
-#ifdef	ZP_DEBUG
-    printf("head1 = 0x%x\n", sc->arpcom.ac_if.if_snd.ifq_head);
-    printf("BASE = 0x%x\n", BASE);
-#endif
+	s = splimp();
 
-    s = splimp();
-
-#ifndef	MACH_KERNEL
-    if (sc->arpcom.ac_if.if_flags & IFF_OACTIVE) {
-	splx(s);
-#ifdef	ZP_DEBUG
-	printf("### zpstart oactive ####\n");
-#endif	/* ZP_DEBUG */
-	return;
-    }
-#endif	/* MACH_KERNEL */
-
+	if (sc->arpcom.ac_if.if_flags & IFF_OACTIVE) {
+		splx(s);
+		return;
+	}
 startagain:
 
-#ifdef	MACH_KERNEL
-
-#if 0	/* seiji */
-    if (sc->tbusy) {
-	return;
-    }
-#endif
-    /* Sneak a peek at the next packet */
-    m = (io_req_t)
-	((ifp->if_snd.ifq_head.next == (queue_t) & (ifp->if_snd.ifq_head)) ?
-	 0 : ifp->if_snd.ifq_head.next);
-    if (m == 0) {
-	splx(s);
-#ifdef	ZP_DEBUG
-	printf("### zpstart none data 1 ####\n");
-#endif	/* ZP_DEBUG */
-	return;
-    }
-#if 0
-    IF_DEQUEUE(&ifp->if_snd, m);
-    if (NULL == m) {
-	return;
-    }
-#endif
-
-#if	0	/* seiji */
-    sc->tbusy++;
-    zp_cntrs[unit].xmt++;
-#endif
-    len = m->io_count;
-#else	/* MACH_KERNEL */
-
-    /* Sneak a peek at the next packet */
-    m = sc->arpcom.ac_if.if_snd.ifq_head;
-#ifdef	ZP_DEBUG
-    printf("head2 = 0x%x\n", sc->arpcom.ac_if.if_snd.ifq_head);
-#endif
-    if (m == 0) {
-	splx(s);
-#ifdef	ZP_DEBUG
-	printf("### zpstart none data 2 ####\n");
-#endif	/* EP_DEBUG */
-	return;
-    }
-#if  0
-    len = m->m_pkthdr.len;
-#else
-    for (len = 0, top = m; m; m = m->m_next)
-	len += m->m_len;
-#endif
-#endif	/* MACH_KERNEL */
-
-    pad = padmap[len & 3];
-
-    /*
-     * The 3c509 automatically pads short packets to minimum ethernet length,
-     * but we drop packets that are too large. Perhaps we should truncate
-     * them instead?
-     */
-    if (len + pad > ETHER_MAX_LEN) {
-	/* packet is obviously too large: toss it */
-#ifdef	MACH_KERNEL
-	++(ifp->if_oerrors);
-	IF_DEQUEUE(&(ifp->if_snd), m);
-	iodone(m);
-
-#else	/* MACH_KERNEL */
-	++sc->arpcom.ac_if.if_oerrors;
-	IF_DEQUEUE(&sc->arpcom.ac_if.if_snd, m);
-	m_freem(m);
-#endif	/* MACH_KERNEL */
-	goto readcheck;
-    }
-#if 1
-    if (inw(BASE + EP_W1_FREE_TX) < len + pad + 4) {
-	/* no room in FIFO */
-	outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | (len + pad + 4));
-#ifndef	MACH_KERNEL
-	sc->arpcom.ac_if.if_flags |= IFF_OACTIVE;
-#endif	/* MACH_KERNEL */
-	splx(s);
-
-#ifdef	ZP_DEBUG
-	printf("### zpstart no room ####\n");
-#endif	/* EP_DEBUG */
-	return;
-    }
-#else
-    {
-	int             i;
-	if ((i = inw(BASE + EP_W1_FREE_TX)) < len + pad + 4) {
-	    printf("BASE + EP_W1_FREE_TX = 0x%x\n", i);
-	    /* no room in FIFO */
-	    outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | (len + pad + 4));
-#ifndef	MACH_KERNEL
-	    sc->arpcom.ac_if.if_flags |= IFF_OACTIVE;
-#endif	/* MACH_KERNEL */
-	    splx(s);
-
-	    printf("### zpstart no room ####\n");
-	    return;
+	/* Sneak a peek at the next packet */
+	m = sc->arpcom.ac_if.if_snd.ifq_head;
+	if (m == 0) {
+		splx(s);
+		return;
 	}
-	printf("BASE + EP_W1_FREE_TX = 0x%x\n", i);
-    }
-#endif
-#ifdef	MACH_KERNEL
-    IF_DEQUEUE(&(ifp->if_snd), m);
-#else	/* MACH_KERNEL */
-    IF_DEQUEUE(&sc->arpcom.ac_if.if_snd, m);
-#endif	/* MACH_KERNEL */
+	for (len = 0, top = m; m; m = m->m_next)
+		len += m->m_len;
 
-    if (m == 0) {	/* not really needed */
-	splx(s);
-#ifdef	ZP_DEBUG
-	printf("### zpstart ??? ####\n");
-#endif	/* ZP_DEBUG */
-	return;
-    }
-    outw(BASE + EP_COMMAND, SET_TX_START_THRESH |
-	 (len / 4 + sc->tx_start_thresh));
+	pad = padmap[len & 3];
 
-    outw(BASE + EP_W1_TX_PIO_WR_1, len);
-    outw(BASE + EP_W1_TX_PIO_WR_1, 0xffff);	/* Second dword meaningless */
-
-#ifdef	MACH_KERNEL
-    if (sc->bus32bit) {
-	loutl(BASE + EP_W1_TX_PIO_WR_1, m->io_data, len / 4);
-	if (len & 3)
-	    loutb(BASE + EP_W1_TX_PIO_WR_1,
-		  m->io_data + (len & ~3), len & 3);
-    } else {
-	loutw(BASE + EP_W1_TX_PIO_WR_1, m->io_data, len / 2);
-	if (len & 1)
-	    outb(BASE + EP_W1_TX_PIO_WR_1, *(m->io_data + len - 1));
-    }
-#else	/* MACH_KERNEL */
-    for (top = m; m != 0; m = m->m_next) {
-	if (sc->bus32bit) {
-	    outsl(BASE + EP_W1_TX_PIO_WR_1, mtod(m, caddr_t),
-		  m->m_len / 4);
-	    if (m->m_len & 3)
-		outsb(BASE + EP_W1_TX_PIO_WR_1,
-		      mtod(m, caddr_t) + m->m_len / 4,
-		      m->m_len & 3);
-	} else {
-#ifdef ZP_DEBUG
-	    printf("Output len = %d\n", m->m_len);
-#endif	/* ZP_DEBUG */
-	    outsw(BASE + EP_W1_TX_PIO_WR_1, mtod(m, caddr_t), m->m_len / 2);
-	    if (m->m_len & 1)
-		outb(BASE + EP_W1_TX_PIO_WR_1,
-		     *(mtod(m, caddr_t) + m->m_len - 1));
-	}
-    }
-#endif	/* MACH_KERNEL */
-    while (pad--)
-	outb(BASE + EP_W1_TX_PIO_WR_1, 0);	/* Padding */
-
-#ifndef	MACH_KERNEL
-#if NBPFILTER > 0
-    if (sc->bpf) {
-#if 0
-	u_short         etype;
-	int             off, datasize, resid;
-	struct ether_header *eh;
-	struct trailer_header {
-	    u_short         ether_type;
-	    u_short         ether_residual;
-	}               trailer_header;
-	char            ether_packet[ETHER_MAX_LEN];
-	char           *ep;
-
-	ep = ether_packet;
-
-	/*
-	 * We handle trailers below: Copy ether header first, then residual
-	 * data, then data. Put all this in a temporary buffer 'ether_packet'
-	 * and send off to bpf. Since the system has generated this packet,
-	 * we assume that all of the offsets in the packet are correct; if
-	 * they're not, the system will almost certainly crash in m_copydata.
-	 * We make no assumptions about how the data is arranged in the mbuf
-	 * chain (i.e. how much data is in each mbuf, if mbuf clusters are
-	 * used, etc.), which is why we use m_copydata to get the ether
-	 * header rather than assume that this is located in the first mbuf.
-	 */
-	/* copy ether header */
-	m_copydata(top, 0, sizeof(struct ether_header), ep);
-	eh = (struct ether_header *) ep;
-	ep += sizeof(struct ether_header);
-	eh->ether_type = etype = ntohs(eh->ether_type);
-	if (etype >= ETHERTYPE_TRAIL &&
-	    etype < ETHERTYPE_TRAIL + ETHERTYPE_NTRAILER) {
-	    datasize = ((etype - ETHERTYPE_TRAIL) << 9);
-	    off = datasize + sizeof(struct ether_header);
-
-	    /* copy trailer_header into a data structure */
-	    m_copydata(top, off, sizeof(struct trailer_header),
-		       (caddr_t) & trailer_header.ether_type);
-
-	    /* copy residual data */
-	    resid = trailer_header.ether_residual -
-		sizeof(struct trailer_header);
-	    resid = ntohs(resid);
-	    m_copydata(top, off + sizeof(struct trailer_header),
-		       resid, ep);
-	    ep += resid;
-
-	    /* copy data */
-	    m_copydata(top, sizeof(struct ether_header),
-		       datasize, ep);
-	    ep += datasize;
-
-	    /* restore original ether packet type */
-	    eh->ether_type = trailer_header.ether_type;
-
-	    bpf_tap(sc->bpf, ether_packet, ep - ether_packet);
-	} else
-	    bpf_mtap(sc->bpf, top);
-#endif
-
-	bpf_mtap(sc->bpf, top);
-    }
-#endif
-#endif	/* MACH_KERNEL */
-
-#ifdef	MACH_KERNEL
-    ++(ifp->if_opackets);
-    iodone(m);
-#else	/* MACH_KERNEL */
-    m_freem(top);
-    ++sc->arpcom.ac_if.if_opackets;
-#endif	/* MACH_KERNEL */
-    /*
-     * Is another packet coming in? We don't want to overflow the tiny RX
-     * fifo.
-     */
-readcheck:
-    if (inw(BASE + EP_W1_RX_STATUS) & RX_BYTES_MASK) {
-	splx(s);
-#ifdef	ZP_DEBUG
-	printf("### zpstart done ####\n");
-#endif	/* ZP_DEBUG */
-	return;
-    }
-#ifdef	ZP_DEBUG2
-    printf("### zpstart startagain ####\n");
-#endif	/* ZP_DEBUG */
-    goto startagain;
-}
-
-#ifdef	MACH_KERNEL
-int
-zpopen(dev, flag)
-    dev_t           dev;
-    int             flag;
-{
-    register int    unit = minor(dev);
-
-#ifdef	ZP_DEBUG
-    printf("### zpopen ####\n");
-#endif	/* ZP_DEBUG */
-
-    if (unit < 0 || unit >= NZP || zp_softc[unit].attached == 0) {
-	return (ENXIO);
-    }
-    zp_softc[unit].ds_if.if_flags |= IFF_UP;
-    zpinit(unit);
-    return (0);
-}
-
-int
-zpoutput(dev, ior)
-    dev_t           dev;
-    io_req_t        ior;
-{
-    register int    unit = minor(dev);
-    io_return_t     result;
-
-#ifdef	ZP_DEBUG
-    printf("### zpoutput ####\n");
-#endif	/* ZP_DEBUG */
-
-    if (unit < 0 || unit >= NZP || zp_softc[unit].attached == 0) {
-	return (ENXIO);
-    }
-    result = net_write(&zp_softc[unit].ds_if, zpstart, ior);
-#ifdef	ZP_DEBUG
-    printf("### zpoutput done ####\n");
-#endif	/* ZP_DEBUG */
-    return (result);
-}
-
-int
-zpsetinput(dev, receive_port, priority, filter, filter_count)
-    dev_t           dev;
-    mach_port_t     receive_port;
-    int             priority;
-    filter_t        filter[];
-    unsigned int    filter_count;
-{
-    register int    unit = minor(dev);
-
-#ifdef	ZP_DEBUG
-    printf("### zpsetinput ####\n");
-#endif	/* ZP_DEBUG */
-
-    if (unit < 0 || unit >= NZP || zp_softc[unit].attached == 0) {
-	return (ENXIO);
-    }
-    return (net_set_filter(&zp_softc[unit].ds_if,
-			   receive_port, priority, filter,
-			   filter_count));
-}
-
-#endif	/* MACH_KERNEL */
-
-#ifdef	MACH_KERNEL
-int
-#else	/* MACH_KERNEL */
-void
-#endif	/* MACH_KERNEL */
-zpintr(unit)
-    int             unit;
-{
-    int             status, i;
-    register struct zp_softc *sc = &zp_softc[unit];
-
-#ifdef	MACH_KERNEL
-    struct ifnet   *ifp = &sc->ds_if;
-#else	/* MACH_KERNEL */
-    struct ifnet   *ifp = &sc->arpcom.ac_if;
-#endif	/* MACH_KERNEL */
-
-#ifdef	ZP_DEBUG
-    printf("### zpintr ####\n");
-#endif	/* ZP_DEBUG */
-
-    status = 0;
-checkintr:
-    status = inw(BASE + EP_STATUS) &
-	(S_TX_COMPLETE | S_TX_AVAIL | S_RX_COMPLETE | S_CARD_FAILURE);
-#ifndef	ORIGINAL
-checkintr2:
-#endif	/* ORIGINAL */
-    if (status == 0) {
-	/* No interrupts. */
-	outw(BASE + EP_COMMAND, C_INTR_LATCH);
-#ifdef	ZP_DEBUG
-	printf("### zpintr done ####\n");
-#endif	/* ZP_DEBUG */
-
-#ifndef	ORIGINAL
-	if (status = inw(BASE + EP_STATUS) &
-	    (S_TX_COMPLETE | S_TX_AVAIL | S_RX_COMPLETE |
-	     S_CARD_FAILURE)) {
-	    goto checkintr2;
-	}
-#endif	/* ORIGINAL */
-
-#ifdef	MACH_KERNEL
-	return (0);
-#else	/* MACH_KERNEL */
-	return;
-#endif	/* MACH_KERNEL */
-    }
-    /* important that we do this first. */
-    outw(BASE + EP_COMMAND, ACK_INTR | status);
-
-    if (status & S_TX_AVAIL) {
-	status &= ~S_TX_AVAIL;
-	inw(BASE + EP_W1_FREE_TX);
-#ifdef	MACH_KERNEL
-	zpstart(unit);
-#else	/* MACH_KERNEL */
-	sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
-	zpstart(&sc->arpcom.ac_if);
-#endif	/* MACH_KERNEL */
-
-    }
-    if (status & S_RX_COMPLETE) {
-	status &= ~S_RX_COMPLETE;
-	zpread(sc);
-    }
-    if (status & S_CARD_FAILURE) {
-	printf("zp%d: reset (status: %x)\n", unit, status);
-	outw(BASE + EP_COMMAND, C_INTR_LATCH);
-	zpinit(unit);
-#ifdef	ZP_DEBUG
-	printf("### zpintr error ####\n");
-#endif	/* ZP_DEBUG */
-#ifdef	MACH_KERNEL
-	return (0);
-#else	/* MACH_KERNEL */
-	return;
-#endif	/* MACH_KERNEL */
-    }
-    if (status & S_TX_COMPLETE) {
-	status &= ~S_TX_COMPLETE;
-	/*
-	 * We need to read TX_STATUS until we get a 0 status in order to turn
-	 * off the interrupt flag.
-	 */
-	while ((i = inb(BASE + EP_W1_TX_STATUS)) & TXS_COMPLETE) {
-	    outw(BASE + EP_W1_TX_STATUS, 0x0);
-#if ZE_DEBUG
-	    printf("EP_W1_TX_STATUS = 0x%x\n", i);
-#endif
-	    if (i & (TXS_MAX_COLLISION | TXS_JABBER | TXS_UNDERRUN)) {
-		if (i & TXS_MAX_COLLISION)
-#ifdef	MACH_KERNEL
-		    ++(ifp->if_collisions);
-#else	/* MACH_KERNEL */
-		    ++sc->arpcom.ac_if.if_collisions;
-#endif	/* MACH_KERNEL */
-		if (i & (TXS_JABBER | TXS_UNDERRUN)) {
-		    outw(BASE + EP_COMMAND, TX_RESET);
-		    if (i & TXS_UNDERRUN) {
-			if (sc->tx_start_thresh < ETHER_MAX_LEN) {
-			    sc->tx_start_thresh += 20;
-			    outw(BASE + EP_COMMAND,
-				 SET_TX_START_THRESH |
-				 sc->tx_start_thresh);
-			}
-		    }
-		}
-		outw(BASE + EP_COMMAND, TX_ENABLE);
-#ifdef	MACH_KERNEL
-		++(ifp->if_oerrors);
-#else	/* MACH_KERNEL */
+	/* The 3c509 automatically pads short packets to minimum ethernet
+	 * length, but we drop packets that are too large. Perhaps we should
+	 * truncate them instead? */
+	if (len + pad > ETHER_MAX_LEN) {
+		/* packet is obviously too large: toss it */
 		++sc->arpcom.ac_if.if_oerrors;
-#endif	/* MACH_KERNEL */
-	    }
+		IF_DEQUEUE(&sc->arpcom.ac_if.if_snd, m);
+		m_freem(m);
+		goto readcheck;
 	}
-#ifdef	MACH_KERNEL
-	zpstart(unit);
-#else	/* MACH_KERNEL */
-	zpstart(ifp);
-#endif	/* MACH_KERNEL */
-    }
-    goto checkintr;
+	if (inw(BASE + EP_W1_FREE_TX) < len + pad + 4) {
+		/* no room in FIFO */
+		outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | (len + pad + 4));
+		sc->arpcom.ac_if.if_flags |= IFF_OACTIVE;
+		splx(s);
+
+		return;
+	}
+	IF_DEQUEUE(&sc->arpcom.ac_if.if_snd, m);
+
+	if (m == 0) {		/* not really needed */
+		splx(s);
+		return;
+	}
+	outw(BASE + EP_COMMAND, SET_TX_START_THRESH |
+	    (len / 4 + sc->tx_start_thresh));
+
+	outw(BASE + EP_W1_TX_PIO_WR_1, len);
+	outw(BASE + EP_W1_TX_PIO_WR_1, 0xffff);	/* Second dword meaningless */
+
+	for (top = m; m != 0; m = m->m_next) {
+		if (sc->bus32bit) {
+			outsl(BASE + EP_W1_TX_PIO_WR_1, mtod(m, caddr_t),
+			    m->m_len / 4);
+			if (m->m_len & 3)
+				outsb(BASE + EP_W1_TX_PIO_WR_1,
+				    mtod(m, caddr_t) + m->m_len / 4,
+				    m->m_len & 3);
+		} else {
+			outsw(BASE + EP_W1_TX_PIO_WR_1, mtod(m, caddr_t), m->m_len / 2);
+			if (m->m_len & 1)
+				outb(BASE + EP_W1_TX_PIO_WR_1,
+				    *(mtod(m, caddr_t) + m->m_len - 1));
+		}
+	}
+	while (pad--)
+		outb(BASE + EP_W1_TX_PIO_WR_1, 0);	/* Padding */
+
+#if NBPFILTER > 0
+	if (sc->bpf) {
+		bpf_mtap(sc->bpf, top);
+	}
+#endif
+
+	m_freem(top);
+	++sc->arpcom.ac_if.if_opackets;
+	/* Is another packet coming in? We don't want to overflow the tiny RX
+	 * fifo. */
+readcheck:
+	if (inw(BASE + EP_W1_RX_STATUS) & RX_BYTES_MASK) {
+		splx(s);
+		return;
+	}
+	goto startagain;
+}
+void
+zpintr(unit)
+	int     unit;
+{
+	int     status, i;
+	register struct zp_softc *sc = &zp_softc[unit];
+
+	struct ifnet *ifp = &sc->arpcom.ac_if;
+
+
+	status = 0;
+checkintr:
+	status = inw(BASE + EP_STATUS) &
+	    (S_TX_COMPLETE | S_TX_AVAIL | S_RX_COMPLETE | S_CARD_FAILURE);
+checkintr2:
+	if (status == 0) {
+		/* No interrupts. */
+		outw(BASE + EP_COMMAND, C_INTR_LATCH);
+
+		status = inw(BASE + EP_STATUS) &
+		    (S_TX_COMPLETE | S_TX_AVAIL | S_RX_COMPLETE |
+			S_CARD_FAILURE);
+		if (status)
+			goto checkintr2;
+
+		return;
+	}
+	/* important that we do this first. */
+	outw(BASE + EP_COMMAND, ACK_INTR | status);
+
+	if (status & S_TX_AVAIL) {
+		status &= ~S_TX_AVAIL;
+		inw(BASE + EP_W1_FREE_TX);
+		sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
+		zpstart(&sc->arpcom.ac_if);
+
+	}
+	if (status & S_RX_COMPLETE) {
+		status &= ~S_RX_COMPLETE;
+		zpread(sc);
+	}
+	if (status & S_CARD_FAILURE) {
+		printf("zp%d: reset (status: %x)\n", unit, status);
+		outw(BASE + EP_COMMAND, C_INTR_LATCH);
+		zpinit(unit);
+		return;
+	}
+	if (status & S_TX_COMPLETE) {
+		status &= ~S_TX_COMPLETE;
+		/* We need to read TX_STATUS until we get a 0 status in order
+		 * to turn off the interrupt flag. */
+		while ((i = inb(BASE + EP_W1_TX_STATUS)) & TXS_COMPLETE) {
+			outw(BASE + EP_W1_TX_STATUS, 0x0);
+			if (i & (TXS_MAX_COLLISION | TXS_JABBER | TXS_UNDERRUN)) {
+				if (i & TXS_MAX_COLLISION)
+					++sc->arpcom.ac_if.if_collisions;
+				if (i & (TXS_JABBER | TXS_UNDERRUN)) {
+					outw(BASE + EP_COMMAND, TX_RESET);
+					if (i & TXS_UNDERRUN) {
+						if (sc->tx_start_thresh < ETHER_MAX_LEN) {
+							sc->tx_start_thresh += 20;
+							outw(BASE + EP_COMMAND,
+							    SET_TX_START_THRESH |
+							    sc->tx_start_thresh);
+						}
+					}
+				}
+				outw(BASE + EP_COMMAND, TX_ENABLE);
+				++sc->arpcom.ac_if.if_oerrors;
+			}
+		}
+		zpstart(ifp);
+	}
+	goto checkintr;
 }
 
-void
+static void
 zpread(sc)
-    register struct zp_softc *sc;
+	register struct zp_softc *sc;
 {
-    struct ether_header *eh;
-#ifdef	MACH_KERNEL
-    struct ether_header eth;
-    ipc_kmsg_t      new_kmsg;
-    struct packet_header *pkt;
-    int             totlen;
-#else	/* MACH_KERNEL */
-    struct mbuf    *mcur, *m, *m0, *top;
-    int             totlen, lenthisone;
-    int             save_totlen;
-    int             off;
-#endif	/* MACH_KERNEL */
+	struct ether_header *eh;
+	struct mbuf *mcur, *m, *m0, *top;
+	int     totlen, lenthisone;
+	int     save_totlen;
+	int     off;
 
-#ifdef	ZP_DEBUG
-    printf("### zpread ####\n");
-#endif	/* ZP_DEBUG */
 
-    totlen = inw(BASE + EP_W1_RX_STATUS);
-#ifndef	MACH_KERNEL
-    off = 0;
-    top = 0;
-#endif	/* MACH_KERNEL */
+	totlen = inw(BASE + EP_W1_RX_STATUS);
+	off = 0;
+	top = 0;
 
-    if (totlen & ERR_RX) {
-#ifdef	MACH_KERNEL
-	++(sc->ds_if.if_ierrors);
-#else	/* MACH_KERNEL */
-	++sc->arpcom.ac_if.if_ierrors;
-#endif	/* MACH_KERNEL */
-	goto out;
-    }
-#ifdef	MACH_KERNEL
-    totlen &= RX_BYTES_MASK;	/* Lower 11 bits = RX bytes. */
-#else	/* MACH_KERNEL */
-    save_totlen = totlen &= RX_BYTES_MASK;	/* Lower 11 bits = RX bytes. */
-#endif	/* MACH_KERNEL */
+	if (totlen & ERR_RX) {
+		++sc->arpcom.ac_if.if_ierrors;
+		goto out;
+	}
+	save_totlen = totlen &= RX_BYTES_MASK;	/* Lower 11 bits = RX bytes. */
 
-#ifdef	MACH_KERNEL
-    /* Get Etherheader */
+	m = sc->mb[sc->next_mb];
+	sc->mb[sc->next_mb] = 0;
 
-    linw(BASE + EP_W1_RX_PIO_RD_1,
-	 (char *) &eth, sizeof(struct ether_header) / 2);
-    totlen -= sizeof(struct ether_header);
+	if (m == 0) {
+		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		if (m == 0)
+			goto out;
+	} else {
+		/* Convert one of our saved mbuf's */
+		sc->next_mb = (sc->next_mb + 1) % MAX_MBS;
+		m->m_data = m->m_pktdat;
+		m->m_flags = M_PKTHDR;
+	}
 
-    new_kmsg = net_kmsg_get();
-    if (new_kmsg == IKM_NULL) {
-	/* Drop the packet */
-	++(sc->ds_if.if_rcvdrops);
-	/*
-	 * Is this true ? Do I have to remove the packet ? Maybe out discard
-	 * incoming packet.
-	 */
-	goto out;
-    }
-    eh = (struct ether_header *) (&net_kmsg(new_kmsg)->header[0]);
-    pkt = (struct packet_header *) (&net_kmsg(new_kmsg)->packet[0]);
-
-    *eh = eth;	/* Is this true ? */
-
-    if (sc->bus32bit) {
-	linl(BASE + EP_W1_RX_PIO_RD_1, (char *) (pkt + 1), totlen / 4);
-	if (totlen & 3)
-	    linb(BASE + EP_W1_RX_PIO_RD_1,
-		 (char *) (pkt + 1) + (totlen & ~3), totlen & 3);
-    } else {
-	linw(BASE + EP_W1_RX_PIO_RD_1,
-	     (char *) (pkt + 1), totlen / 2);
-	if (totlen & 1)
-	    *((char *) (pkt + 1) + totlen - 1) =
-		inb(BASE + EP_W1_RX_PIO_RD_1);
-    }
-
-    outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
-    while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
-    ++(sc->ds_if.if_ipackets);
-
-    pkt->type = eh->ether_type;
-    pkt->length = totlen + sizeof(struct packet_header);
-
-    net_packet(&(sc->ds_if), new_kmsg, pkt->length,
-	       ethernet_priority(new_kmsg, pkt->type));
-
-#ifdef	ZP_DEBUG
-    printf("### zpread done ####\n");
-#endif	/* ZP_DEBUG */
-
-    return;
-
-#else	/* MACH_KERNEL */
-    m = sc->mb[sc->next_mb];
-    sc->mb[sc->next_mb] = 0;
-
-    if (m == 0) {
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
-	if (m == 0)
-	    goto out;
-    } else {
-	/* Convert one of our saved mbuf's */
-	sc->next_mb = (sc->next_mb + 1) % MAX_MBS;
-	m->m_data = m->m_pktdat;
-	m->m_flags = M_PKTHDR;
-    }
-
-    top = m0 = m;	/* We assign top so we can "goto out" */
+	top = m0 = m;		/* We assign top so we can "goto out" */
 #define EROUND  ((sizeof(struct ether_header) + 3) & ~3)
 #define EOFF    (EROUND - sizeof(struct ether_header))
-    m0->m_data += EOFF;
-    /* Read what should be the header. */
-    insw(BASE + EP_W1_RX_PIO_RD_1,
-	 mtod(m0, caddr_t), sizeof(struct ether_header) / 2);
-    m->m_len = sizeof(struct ether_header);
-    totlen -= sizeof(struct ether_header);
-    /*
-     * mostly deal with trailer here.  (untested) We do this in a couple of
-     * parts.  First we check for a trailer, if we have one we convert the
-     * mbuf back to a regular mbuf and set the offset and subtract
-     * sizeof(struct ether_header) from the pktlen. After we've read the
-     * packet off the interface (all except for the trailer header, we then
-     * get a header mbuf, read the trailer into it, and fix up the mbuf
-     * pointer chain.
-     */
-    eh = mtod(m, struct ether_header *);
-#if 0	/* by nor@aecl.ntt.jp */
-    eh->ether_type = etype = ntohs((u_short) eh->ether_type);
-    if (etype >= ETHERTYPE_TRAIL &&
-	etype < ETHERTYPE_TRAIL + ETHERTYPE_NTRAILER) {
-	m->m_data = m->m_dat;	/* Convert back to regular mbuf.  */
-	m->m_flags = 0;	/* This sucks but non-trailers are the norm */
-	off = (etype - ETHERTYPE_TRAIL) * 512;
-	if (off >= ETHERMTU) {
-	    m_freem(m);
-	    return;	/* sanity */
-	}
-	totlen -= sizeof(struct ether_header);	/* We don't read the trailer */
-	m->m_data += 2 * sizeof(u_short);	/* Get rid of type & len */
-    }
-#endif	/* by nor@aecl.ntt.jp */
-    while (totlen > 0) {
-	lenthisone = min(totlen, M_TRAILINGSPACE(m));
-	if (lenthisone == 0) {	/* no room in this one */
-	    mcur = m;
-	    m = sc->mb[sc->next_mb];
-	    sc->mb[sc->next_mb] = 0;
-	    if (!m) {
-		MGET(m, M_DONTWAIT, MT_DATA);
-		if (m == 0)
-		    goto out;
-	    } else {
-		timeout(zpmbuffill, sc, 0);
-		sc->next_mb = (sc->next_mb + 1) % MAX_MBS;
-	    }
-	    if (totlen >= MINCLSIZE)
-		MCLGET(m, M_DONTWAIT);
-	    m->m_len = 0;
-	    mcur->m_next = m;
-	    lenthisone = min(totlen, M_TRAILINGSPACE(m));
-	}
-	if (sc->bus32bit) {
-	    insl(BASE + EP_W1_RX_PIO_RD_1, mtod(m, caddr_t) + m->m_len,
-		 lenthisone / 4);
-	    m->m_len += (lenthisone & ~3);
-	    if (lenthisone & 3)
-		insb(BASE + EP_W1_RX_PIO_RD_1,
-		     mtod(m, caddr_t) + m->m_len,
-		     lenthisone & 3);
-	    m->m_len += (lenthisone & 3);
-	} else {
-	    insw(BASE + EP_W1_RX_PIO_RD_1, mtod(m, caddr_t) + m->m_len,
-		 lenthisone / 2);
-	    m->m_len += lenthisone;
-	    if (lenthisone & 1)
-		*(mtod(m, caddr_t) + m->m_len - 1) = inb(BASE + EP_W1_RX_PIO_RD_1);
-	}
-	totlen -= lenthisone;
-    }
-    if (off) {
-	top = sc->mb[sc->next_mb];
-	sc->mb[sc->next_mb] = 0;
-	if (top == 0) {
-	    MGETHDR(m, M_DONTWAIT, MT_DATA);
-	    if (top == 0) {
-		top = m0;
-		goto out;
-	    }
-	} else {
-	    /* Convert one of our saved mbuf's */
-	    sc->next_mb = (sc->next_mb + 1) % MAX_MBS;
-	    top->m_data = top->m_pktdat;
-	    top->m_flags = M_PKTHDR;
-	}
-	insw(BASE + EP_W1_RX_PIO_RD_1, mtod(top, caddr_t),
-	     sizeof(struct ether_header));
-	top->m_next = m0;
-	top->m_len = sizeof(struct ether_header);
-	/* XXX Accomodate for type and len from beginning of trailer */
-	top->m_pkthdr.len = save_totlen - (2 * sizeof(u_short));
-    } else {
-	top = m0;
-	top->m_pkthdr.len = save_totlen;
-    }
-
-    top->m_pkthdr.rcvif = &sc->arpcom.ac_if;
-    outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
-    while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
-    ++sc->arpcom.ac_if.if_ipackets;
-#if NBPFILTER > 0
-    if (sc->bpf) {
-	bpf_mtap(sc->bpf, top);
-
-	/*
-	 * Note that the interface cannot be in promiscuous mode if there are
-	 * no BPF listeners.  And if we are in promiscuous mode, we have to
-	 * check if this packet is really ours.
-	 */
-	if ((sc->arpcom.ac_if.if_flags & IFF_PROMISC) &&
-	    (eh->ether_dhost[0] & 1) == 0 &&
-	    bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
-		 sizeof(eh->ether_dhost)) != 0 &&
-	    bcmp(eh->ether_dhost, etherbroadcastaddr,
-		 sizeof(eh->ether_dhost)) != 0) {
-	    m_freem(top);
-	    return;
-	}
-    }
-#endif
-    m_adj(top, sizeof(struct ether_header));
-    ether_input(&sc->arpcom.ac_if, eh, top);
-    return;
-#endif	/* MACH_KERNEL */
-
-out:outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
-    while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
-#ifndef	MACH_KERNEL
-    if (top)
-	m_freem(top);
-#endif	/* MACH_KERNEL */
-
-#ifdef	ZP_DEBUG
-    printf("### zpread Error ####\n");
-#endif	/* ZP_DEBUG */
-}
-
-
-#ifdef	MACH_KERNEL
-
-int
-zpgetstat(dev, flavor, status, count)
-    dev_t           dev;
-    int             flavor;
-    dev_status_t    status;
-    unsigned int   *count;
-{
-    register int    unit = minor(dev);
-
-#ifdef	ZP_DEBUG
-    printf("### zpgetstat ####\n");
-#endif	/* ZP_DEBUG */
-
-    if (unit < 0 || unit >= NZP || zp_softc[unit].attached == 0) {
-	return (ENXIO);
-    }
-    return (net_getstat(&zp_softc[unit].ds_if, flavor, status, count));
-}
-
-int
-zpsetstat(dev, flavor, status, count)
-    dev_t           dev;
-    int             flavor;
-    dev_status_t    status;
-    unsigned int    count;
-{
-    register int    unit = minor(dev);
-    register zp_softc_t *sc;
-
-#ifdef	ZP_DEBUG
-    printf("### zpsetstat ####\n");
-#endif	/* ZP_DEBUG */
-
-    if (unit < 0 || unit >= NZP || zp_softc[unit].attached == 0) {
-	return (ENXIO);
-    }
-    sc = &zp_softc[unit];
-
-    switch (flavor) {
-    case NET_STATUS:
-	{
-	    register struct net_status *ns =
-	    (struct net_status *) status;
-
-	    if (count < NET_STATUS_COUNT) {
-		return (D_INVALID_SIZE);
-	    }
-	    if (sc->ds_if.if_flags != ns->flags) {
-		sc->ds_if.if_flags = ns->flags;
-		if (sc->ds_if.if_flags & IFF_RUNNING) {
-		    zpinit(sc->ds_if.if_unit);
+	m0->m_data += EOFF;
+	/* Read what should be the header. */
+	insw(BASE + EP_W1_RX_PIO_RD_1,
+	    mtod(m0, caddr_t), sizeof(struct ether_header) / 2);
+	m->m_len = sizeof(struct ether_header);
+	totlen -= sizeof(struct ether_header);
+	/* mostly deal with trailer here.  (untested) We do this in a couple
+	 * of parts.  First we check for a trailer, if we have one we convert
+	 * the mbuf back to a regular mbuf and set the offset and subtract
+	 * sizeof(struct ether_header) from the pktlen. After we've read the
+	 * packet off the interface (all except for the trailer header, we
+	 * then get a header mbuf, read the trailer into it, and fix up the
+	 * mbuf pointer chain. */
+	eh = mtod(m, struct ether_header *);
+	while (totlen > 0) {
+		lenthisone = min(totlen, M_TRAILINGSPACE(m));
+		if (lenthisone == 0) {	/* no room in this one */
+			mcur = m;
+			m = sc->mb[sc->next_mb];
+			sc->mb[sc->next_mb] = 0;
+			if (!m) {
+				MGET(m, M_DONTWAIT, MT_DATA);
+				if (m == 0)
+					goto out;
+			} else {
+				timeout(zpmbuffill, sc, 0);
+				sc->next_mb = (sc->next_mb + 1) % MAX_MBS;
+			}
+			if (totlen >= MINCLSIZE)
+				MCLGET(m, M_DONTWAIT);
+			m->m_len = 0;
+			mcur->m_next = m;
+			lenthisone = min(totlen, M_TRAILINGSPACE(m));
 		}
-	    }
+		if (sc->bus32bit) {
+			insl(BASE + EP_W1_RX_PIO_RD_1, mtod(m, caddr_t) + m->m_len,
+			    lenthisone / 4);
+			m->m_len += (lenthisone & ~3);
+			if (lenthisone & 3)
+				insb(BASE + EP_W1_RX_PIO_RD_1,
+				    mtod(m, caddr_t) + m->m_len,
+				    lenthisone & 3);
+			m->m_len += (lenthisone & 3);
+		} else {
+			insw(BASE + EP_W1_RX_PIO_RD_1, mtod(m, caddr_t) + m->m_len,
+			    lenthisone / 2);
+			m->m_len += lenthisone;
+			if (lenthisone & 1)
+				*(mtod(m, caddr_t) + m->m_len - 1) = inb(BASE + EP_W1_RX_PIO_RD_1);
+		}
+		totlen -= lenthisone;
 	}
-	break;
-    default:
-	return (D_INVALID_OPERATION);
-    }
-    return (D_SUCCESS);
+	if (off) {
+		top = sc->mb[sc->next_mb];
+		sc->mb[sc->next_mb] = 0;
+		if (top == 0) {
+			MGETHDR(m, M_DONTWAIT, MT_DATA);
+			if (top == 0) {
+				top = m0;
+				goto out;
+			}
+		} else {
+			/* Convert one of our saved mbuf's */
+			sc->next_mb = (sc->next_mb + 1) % MAX_MBS;
+			top->m_data = top->m_pktdat;
+			top->m_flags = M_PKTHDR;
+		}
+		insw(BASE + EP_W1_RX_PIO_RD_1, mtod(top, caddr_t),
+		    sizeof(struct ether_header));
+		top->m_next = m0;
+		top->m_len = sizeof(struct ether_header);
+		/* XXX Accomodate for type and len from beginning of trailer */
+		top->m_pkthdr.len = save_totlen - (2 * sizeof(u_short));
+	} else {
+		top = m0;
+		top->m_pkthdr.len = save_totlen;
+	}
+
+	top->m_pkthdr.rcvif = &sc->arpcom.ac_if;
+	outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
+	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	++sc->arpcom.ac_if.if_ipackets;
+#if NBPFILTER > 0
+	if (sc->bpf) {
+		bpf_mtap(sc->bpf, top);
+
+		/* Note that the interface cannot be in promiscuous mode if
+		 * there are no BPF listeners.  And if we are in promiscuous
+		 * mode, we have to check if this packet is really ours. */
+		if ((sc->arpcom.ac_if.if_flags & IFF_PROMISC) &&
+		    (eh->ether_dhost[0] & 1) == 0 &&
+		    bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
+			sizeof(eh->ether_dhost)) != 0 &&
+		    bcmp(eh->ether_dhost, etherbroadcastaddr,
+			sizeof(eh->ether_dhost)) != 0) {
+			m_freem(top);
+			return;
+		}
+	}
+#endif
+	m_adj(top, sizeof(struct ether_header));
+	ether_input(&sc->arpcom.ac_if, eh, top);
+	return;
+
+out:	outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
+	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	if (top)
+		m_freem(top);
+
 }
 
-#else	/* MACH_KERNEL */
 
 /*
  * Look familiar?
  */
 static int
 zpioctl(ifp, cmd, data)
-    register struct ifnet *ifp;
-    int             cmd;
-    caddr_t         data;
+	register struct ifnet *ifp;
+	int     cmd;
+	caddr_t data;
 {
-    register struct ifaddr *ifa = (struct ifaddr *) data;
-    struct zp_softc *sc = &zp_softc[ifp->if_unit];
-    int             error = 0;
+	register struct ifaddr *ifa = (struct ifaddr *) data;
+	struct zp_softc *sc = &zp_softc[ifp->if_unit];
+	int     error = 0;
 
-#ifdef	ZP_DEBUG
-    printf("### zpioctl ####\n");
-#endif	/* ZP_DEBUG */
 
-    switch (cmd) {
-    case SIOCSIFADDR:
-	ifp->if_flags |= IFF_UP;
-	switch (ifa->ifa_addr->sa_family) {
+	switch (cmd) {
+	case SIOCSIFADDR:
+		ifp->if_flags |= IFF_UP;
+		switch (ifa->ifa_addr->sa_family) {
 #ifdef INET
-	case AF_INET:
-	    zpinit(ifp->if_unit);	/* before arpwhohas */
+		case AF_INET:
+			zpinit(ifp->if_unit);	/* before arpwhohas */
 #if 1
-	    arp_ifinit((struct arpcom *) ifp, ifa);
+			arp_ifinit((struct arpcom *) ifp, ifa);
 #else
-	    ((struct arpcom *) ifp)->ac_ipaddr = IA_SIN(ifa)->sin_addr;
-	    arpwhohas((struct arpcom *) ifp, &IA_SIN(ifa)->sin_addr);
+			((struct arpcom *) ifp)->ac_ipaddr = IA_SIN(ifa)->sin_addr;
+			arpwhohas((struct arpcom *) ifp, &IA_SIN(ifa)->sin_addr);
 #endif
-	    break;
+			break;
 #endif
 #ifdef IPX
-	case AF_IPX:
-	    {
-		register struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
+		case AF_IPX:
+			{
+				register struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
 
-		if (ipx_nullhost(*ina))
-		    ina->x_host =
-			*(union ipx_host *) (sc->arpcom.ac_enaddr);
-		else {
-		    ifp->if_flags &= ~IFF_RUNNING;
-		    bcopy((caddr_t) ina->x_host.c_host,
-			  (caddr_t) sc->arpcom.ac_enaddr,
-			  sizeof(sc->arpcom.ac_enaddr));
-		}
-		zpinit(ifp->if_unit);
-		break;
-	    }
+				if (ipx_nullhost(*ina))
+					ina->x_host =
+					    *(union ipx_host *) (sc->arpcom.ac_enaddr);
+				else {
+					ifp->if_flags &= ~IFF_RUNNING;
+					bcopy((caddr_t) ina->x_host.c_host,
+					    (caddr_t) sc->arpcom.ac_enaddr,
+					    sizeof(sc->arpcom.ac_enaddr));
+				}
+				zpinit(ifp->if_unit);
+				break;
+			}
 #endif
 #ifdef NS
-	case AF_NS:
-	    {
-		register struct ns_addr *ina = &(IA_SNS(ifa)->sns_addr);
+		case AF_NS:
+			{
+				register struct ns_addr *ina = &(IA_SNS(ifa)->sns_addr);
 
-		if (ns_nullhost(*ina))
-		    ina->x_host =
-			*(union ns_host *) (sc->arpcom.ac_enaddr);
-		else {
-		    ifp->if_flags &= ~IFF_RUNNING;
-		    bcopy((caddr_t) ina->x_host.c_host,
-			  (caddr_t) sc->arpcom.ac_enaddr,
-			  sizeof(sc->arpcom.ac_enaddr));
+				if (ns_nullhost(*ina))
+					ina->x_host =
+					    *(union ns_host *) (sc->arpcom.ac_enaddr);
+				else {
+					ifp->if_flags &= ~IFF_RUNNING;
+					bcopy((caddr_t) ina->x_host.c_host,
+					    (caddr_t) sc->arpcom.ac_enaddr,
+					    sizeof(sc->arpcom.ac_enaddr));
+				}
+				zpinit(ifp->if_unit);
+				break;
+			}
+#endif
+		default:
+			zpinit(ifp->if_unit);
+			break;
 		}
-		zpinit(ifp->if_unit);
 		break;
-	    }
-#endif
+	case SIOCSIFFLAGS:
+		if ((ifp->if_flags & IFF_UP) == 0 && ifp->if_flags & IFF_RUNNING) {
+			ifp->if_flags &= ~IFF_RUNNING;
+			zpstop(ifp->if_unit);
+			zpmbufempty(sc);
+			break;
+		}
+		if (ifp->if_flags & IFF_UP && (ifp->if_flags & IFF_RUNNING) == 0)
+			zpinit(ifp->if_unit);
+		break;
 	default:
-	    zpinit(ifp->if_unit);
-	    break;
+		error = EINVAL;
 	}
-	break;
-    case SIOCSIFFLAGS:
-	if ((ifp->if_flags & IFF_UP) == 0 && ifp->if_flags & IFF_RUNNING) {
-	    ifp->if_flags &= ~IFF_RUNNING;
-	    zpstop(ifp->if_unit);
-	    zpmbufempty(sc);
-	    break;
-	}
-	if (ifp->if_flags & IFF_UP && (ifp->if_flags & IFF_RUNNING) == 0)
-	    zpinit(ifp->if_unit);
-	break;
-#ifdef notdef
-    case SIOCGHWADDR:
-	bcopy((caddr_t) sc->sc_addr, (caddr_t) & ifr->ifr_data,
-	      sizeof(sc->sc_addr));
-	break;
-#endif
-    default:
-	error = EINVAL;
-    }
-    return (error);
+	return (error);
 }
 
-#endif	/* MACH_KERNEL */
-
-void
+static void
 zpreset(unit)
-    int             unit;
+	int     unit;
 {
-    int             s = splimp();
+	int     s = splimp();
 
-#ifdef	ZP_DEBUG
-    printf("### zpreset ####\n");
-#endif	/* ZP_DEBUG */
-
-    zpstop(unit);
-    zpinit(unit);
-    splx(s);
+	zpstop(unit);
+	zpinit(unit);
+	splx(s);
 }
 
-void
+static void
 zpwatchdog(ifp)
-    struct ifnet *ifp;
+	struct ifnet *ifp;
 {
-#ifdef	ZP_DEBUG
-    printf("### zpwatchdog ####\n");
-#endif	/* ZP_DEBUG */
-
-#ifdef	MACH_KERNEL
-    ifp->if_oerrors++;
-#else	/* MACH_KERNEL */
-    log(LOG_ERR, "zp%d: watchdog\n", ifp->if_unit);
-    ifp->if_oerrors++;
-#endif	/* MACH_KERNEL */
-    zpreset(ifp->if_unit);
+	log(LOG_ERR, "zp%d: watchdog\n", ifp->if_unit);
+	ifp->if_oerrors++;
+	zpreset(ifp->if_unit);
 }
 
-void
+static void
 zpstop(unit)
-    int             unit;
+	int     unit;
 {
-    struct zp_softc *sc = &zp_softc[unit];
+	struct zp_softc *sc = &zp_softc[unit];
 
-#ifdef	ZP_DEBUG
-    printf("### zpstop ####\n");
-#endif	/* ZP_DEBUG */
-
-    outw(BASE + EP_COMMAND, RX_DISABLE);
-    outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
-    while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
-    outw(BASE + EP_COMMAND, TX_DISABLE);
-    outw(BASE + EP_COMMAND, STOP_TRANSCEIVER);
-    outw(BASE + EP_COMMAND, RX_RESET);
-    outw(BASE + EP_COMMAND, TX_RESET);
-    outw(BASE + EP_COMMAND, C_INTR_LATCH);
-    outw(BASE + EP_COMMAND, SET_RD_0_MASK);
-    outw(BASE + EP_COMMAND, SET_INTR_MASK);
-    outw(BASE + EP_COMMAND, SET_RX_FILTER);
+	outw(BASE + EP_COMMAND, RX_DISABLE);
+	outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
+	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	outw(BASE + EP_COMMAND, TX_DISABLE);
+	outw(BASE + EP_COMMAND, STOP_TRANSCEIVER);
+	outw(BASE + EP_COMMAND, RX_RESET);
+	outw(BASE + EP_COMMAND, TX_RESET);
+	outw(BASE + EP_COMMAND, C_INTR_LATCH);
+	outw(BASE + EP_COMMAND, SET_RD_0_MASK);
+	outw(BASE + EP_COMMAND, SET_INTR_MASK);
+	outw(BASE + EP_COMMAND, SET_RX_FILTER);
 }
 
 
 
-static          u_short
+static  u_short
 read_eeprom_data(id_port, offset)
-    int             id_port;
-    int             offset;
+	int     id_port;
+	int     offset;
 {
 
-#ifdef	ZP_DEBUG
-    printf("### read_eeprom_data ####\n");
-#ifdef MACH_KERNEL
-    cngetc();
-#endif	/* MACH_KERNEL */
-#endif	/* ZP_DEBUG */
-
-    outb(id_port + 10, 0x80 + offset);
-    DELAY(1000);
-    return inw(id_port + 12);
+	outb(id_port + 10, 0x80 + offset);
+	DELAY(1000);
+	return inw(id_port + 12);
 }
 
 
 
 
-#ifndef	MACH_KERNEL
-void
+static void
 zpmbuffill(sp)
-    void           *sp;
+	void   *sp;
 {
-    struct zp_softc *sc = (struct zp_softc *) sp;
-    int             s, i;
+	struct zp_softc *sc = (struct zp_softc *) sp;
+	int     s, i;
 
-#ifdef	ZP_DEBUG
-    printf("### zpmbuffill ####\n");
-#endif	/* ZP_DEBUG */
-
-    s = splimp();
-    i = sc->last_mb;
-    do {
-	if (sc->mb[i] == NULL)
-	    MGET(sc->mb[i], M_DONTWAIT, MT_DATA);
-	if (sc->mb[i] == NULL)
-	    break;
-	i = (i + 1) % MAX_MBS;
-    } while (i != sc->next_mb);
-    sc->last_mb = i;
-    splx(s);
+	s = splimp();
+	i = sc->last_mb;
+	do {
+		if (sc->mb[i] == NULL)
+			MGET(sc->mb[i], M_DONTWAIT, MT_DATA);
+		if (sc->mb[i] == NULL)
+			break;
+		i = (i + 1) % MAX_MBS;
+	} while (i != sc->next_mb);
+	sc->last_mb = i;
+	splx(s);
 }
 
 static void
 zpmbufempty(sc)
-    struct zp_softc *sc;
+	struct zp_softc *sc;
 {
-    int             s, i;
+	int     s, i;
 
-#ifdef	ZP_DEBUG
-    printf("### zpmbufempty ####\n");
-#endif	/* ZP_DEBUG */
-
-    s = splimp();
-    for (i = 0; i < MAX_MBS; i++) {
-	if (sc->mb[i]) {
-	    m_freem(sc->mb[i]);
-	    sc->mb[i] = NULL;
+	s = splimp();
+	for (i = 0; i < MAX_MBS; i++) {
+		if (sc->mb[i]) {
+			m_freem(sc->mb[i]);
+			sc->mb[i] = NULL;
+		}
 	}
-    }
-    sc->last_mb = sc->next_mb = 0;
-    untimeout(zpmbuffill, sc);
-    splx(s);
+	sc->last_mb = sc->next_mb = 0;
+	untimeout(zpmbuffill, sc);
+	splx(s);
 }
-
-#endif	/* MACH_KERNEL */
-
-#endif	/* NZP > 0 */
