@@ -684,9 +684,8 @@ u_char *ram;
 		u_long	w;
 		char	c[4];
 	} w1, w2;
-#endif
 	int	n;
-	int	cnt = 0;
+#endif
 	u_char	*bufp;
 	u_long	*lp;
 
@@ -1338,7 +1337,7 @@ char *argv[];
 				hb3 = CP_READ(Mon->mon_bstat);
 				if (hb3 != BOOT_RUNNING) {
 					if (verbose)
-						printf("bstat %x\n", hb3);
+						printf("bstat %lx\n", hb3);
 					continue;
 				}
 
@@ -1346,7 +1345,7 @@ char *argv[];
 				delay(1);
 				hb2 = CP_READ(aap->aali_heartbeat);
 				if (verbose)
-					printf("hb %x %x\n", hb1, hb2);
+					printf("hb %lx %lx\n", hb1, hb2);
 				if (hb1 < hb2)
 					break;
 			     }
