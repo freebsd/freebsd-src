@@ -170,7 +170,7 @@ alpha_set_uac(struct thread *td, char *args)
 	int error;
 	unsigned long uac;
 	struct proc *p;
-	struct thread *td;
+	struct thread *td2;
 
 	error = copyin(args, &uac, sizeof(uac));
 	if (error)
@@ -181,9 +181,9 @@ alpha_set_uac(struct thread *td, char *args)
 	if (p->p_pptr) {
 		PROC_LOCK(p->p_pptr);
 		/* XXXKSE which threads? */
-		td = FIRST_THREAD_IN_PROC(p->p_pptr);
-		td->td_md.md_flags &= ~MDP_UAC_MASK;
-		td->td_md.md_flags |= uac & MDP_UAC_MASK;
+		td2 = FIRST_THREAD_IN_PROC(p->p_pptr);
+		td2->td_md.md_flags &= ~MDP_UAC_MASK;
+		td2->td_md.md_flags |= uac & MDP_UAC_MASK;
 		PROC_UNLOCK(p->p_pptr);
 	}
 	PROC_UNLOCK(p);
@@ -194,7 +194,7 @@ static	int
 alpha_get_uac(struct thread *td, char *args)
 {
 	struct proc *p;
-	struct thread *td;
+	struct thread *td2;
 	int error;
 	unsigned long uac;
 
@@ -204,8 +204,8 @@ alpha_get_uac(struct thread *td, char *args)
 	if (p->p_pptr) {
 		PROC_LOCK(p->p_pptr);
 		/* XXXKSE which threads? */
-		td = FIRST_THREAD_IN_PROC(p->p_pptr);
-		uac = td->td_md.md_flags & MDP_UAC_MASK;
+		td2 = FIRST_THREAD_IN_PROC(p->p_pptr);
+		uac = td2->td_md.md_flags & MDP_UAC_MASK;
 		PROC_UNLOCK(p->p_pptr);
 		PROC_UNLOCK(p);
 		error = copyout(&uac, args, sizeof(uac));
