@@ -754,6 +754,7 @@ static int aue_detach(dev)
 
 	sc->aue_gone = 1;
 	untimeout(aue_tick, sc, sc->aue_stat_ch);
+	bpfdetach(ifp);
 	if_detach(ifp);
 
 	if (sc->aue_ep[AUE_ENDPT_TX] != NULL)
