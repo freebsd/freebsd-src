@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.89 1996/04/28 03:27:02 jkh Exp $
+ * $Id: install.c,v 1.90 1996/04/28 20:54:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -179,6 +179,8 @@ installInitial(void)
 	msgConfirm("Couldn't make filesystems properly.  Aborting.");
 	return DITEM_FAILURE;
     }
+    else if (isDebug())
+	msgDebug("installInitial: Scribbled successfully on the disk(s)\n");
 
     if (!copySelf()) {
 	msgConfirm("Couldn't clone the boot floppy onto the root file system.\n"
@@ -378,6 +380,8 @@ installCommit(dialogMenuItem *self)
 
     str = variable_get(SYSTEM_STATE);
     i = DITEM_LEAVE_MENU;
+    if (isDebug())
+	msgDebug("installCommit: System state is `%s'\n", str);
     if (RunningAsInit) {
 	if (DITEM_STATUS(installInitial()) == DITEM_FAILURE)
 	    return DITEM_FAILURE;
