@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: rtprio.h,v 1.1 1994/09/01 05:12:53 davidg Exp $
  */
 
 #ifndef _SYS_RTPRIO_H_
@@ -37,16 +37,34 @@
 /*
  * Process realtime-priority specifications to rtprio.
  */
-#define RTPRIO_MIN      0    /* relativ-FASTEST */
-#define RTPRIO_MAX      31   /* relativ-SLOWEST */
-#define RTPRIO_NOCHG    100  /* look only */
-#define RTPRIO_RTOFF    101  /* NON-realtime */
+
+/* priority types */
+#define RTP_PRIO_REALTIME	0
+#define RTP_PRIO_NORMAL		1
+#define RTP_PRIO_IDLE		2
+
+/* priority range */
+#define RTP_PRIO_MIN		0	/* Highest priority */
+#define RTP_PRIO_MAX		31	/* Lowest priority */
+
+/*
+ * rtprio() syscall functions
+ */
+#define RTP_LOOKUP		0
+#define RTP_SET			1
+
+#ifndef LOCORE
+struct rtprio {
+	u_short type;
+	u_short prio;
+};
+#endif
 
 #ifndef KERNEL
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int	rtprio __P((int, int));
+int	rtprio __P((int, pid_t, struct rtprio *));
 __END_DECLS
 #endif	/* !KERNEL */
 #endif	/* !_SYS_RTPRIO_H_ */
