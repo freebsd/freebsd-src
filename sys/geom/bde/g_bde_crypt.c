@@ -146,6 +146,7 @@ g_bde_kkey(struct g_bde_softc *sc, keyInstance *ki, int dir, off_t sector)
 			v += 13;	/* A small prime */
 		else
 			u += 131;	/* A prime roughly G_BDE_MKEYLEN / 2 */
+		w >>= 1;
 		if (t == G_BDE_SKEYLEN / 2)
 			MD5Update(&ct, (void *)&sector, sizeof sector);
 	}
