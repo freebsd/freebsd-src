@@ -1,4 +1,4 @@
-<!-- $Id: basics.sgml,v 1.5 1995/12/11 15:09:02 jkh Exp $ -->
+<!-- $Id: basics.sgml,v 1.6 1995/12/14 19:42:34 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Unix Basics<label id="basics"></heading>
@@ -66,7 +66,7 @@
 	  using the <tt><bf>apropos</bf></tt> command.
 
 	<p>So, you are looking at all those fancy commands in <tt>
-	  /usr/bin</tt> but don't even have the faintest idea
+	  /usr/bin</tt> but do not even have the faintest idea
 	  what most of them actually do?  Simply do a
 	  <tscreen>
 	    % <bf>cd /usr/bin; man -f *</bf>

@@ -1,4 +1,4 @@
-<!-- $Id: linuxemu.sgml,v 1.2 1996/05/15 15:17:28 jfieber Exp $ -->
+<!-- $Id: linuxemu.sgml,v 1.3 1996/05/16 22:50:29 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Linux Emulation<label id="linuxemu"></heading>
@@ -7,7 +7,7 @@
 
 <sect><heading>How to install the Linux emulator</heading>
 
-<p>Linux emulation in FreeBSD has reached a point where it's possible
+<p>Linux emulation in FreeBSD has reached a point where it is possible
 to run a large fraction of Linux binaries in both a.out and ELF
 format.  The linux emulation in the -STABLE branch is capable of
 running Linux DOOM and Mathematica; the version present in
@@ -126,7 +126,7 @@ linux
 <p>In -current it is no longer necessary to specify options "LINUX" 
 or options "COMPAT_LINUX".  Linux emulation is done with an LKM 
 (``Loadable Kernel Module'') so it can be installed on the fly without
-having to reboot.  You'll need the following things in your startup files, 
+having to reboot.  You will need the following things in your startup files, 
 however:
 <enum>
 <item> In <tt>/etc/sysconfig</tt>, you need the following line:
@@ -143,7 +143,7 @@ fi
 </verb>
 </enum>
 
-<p>If you want to verify it's running, <tt>modstat</tt> will do that:
+<p>If you want to verify it is running, <tt>modstat</tt> will do that:
 <tscreen>
 <verb>
 % modstat
@@ -168,9 +168,9 @@ and Installing a Custom Kernel">.
 
 <sect2><heading>Installing using the linux_lib port</heading>
 
-<p>Most linux applications use shared libraries, so you're still not
-done untill you install the shared libraries.  It's possible to do
-this by hand, however, it's vastly simpler to just grab the
+<p>Most linux applications use shared libraries, so you are still not
+done untill you install the shared libraries.  It is possible to do
+this by hand, however, it is vastly simpler to just grab the
 <tt>linux_lib</tt> port:
 <tscreen>
 <verb>
@@ -186,12 +186,12 @@ linux binaries linked against the ZMAGIC libraries; QMAGIC libraries
 Linuxulator heartburn.  As of this writing (March 1996) ELF emulation
 is still in the formulative stages but seems to work pretty well.  Also, 
 expect some programs to complain about incorrect minor versions.  In 
-general this doesn't seem to be a problem.
+general this does not seem to be a problem.
 
 <sect2><heading>Installing libraries manually</heading>
 
 <p>If you don't have the ``ports'' distribution, you can install the
-libraries by hand instead.  You'll need the Linux shared libraries
+libraries by hand instead.  You will need the Linux shared libraries
 that the program depends on and the runtime linker.  Also, you will
 need to create a "shadow root" directory, /compat/linux, for Linux
 libraries on your FreeBSD system.  Any shared libraries opened by
@@ -250,7 +250,7 @@ these files on your FreeBSD system:
 
 <p>Note that if you already have a Linux shared library with a
 matching major revision number to the first column of the 'ldd'
-output, you won't need to copy the file named in the last column to
+output, you will not need to copy the file named in the last column to
 your system, the one you already have should work. It is advisable to
 copy the shared library anyway if it is a newer version, though. You
 can remove the old one, as long as you make the symbolic link point to
@@ -266,8 +266,8 @@ according to the output of ldd:
 libc.so.4 (DLL Jump 4.5pl26) -> libc.so.4.6.29
 </verb>
 
-If it's only one or two versions out of date in the in the trailing
-digit then don't worry about copying /lib/libc.so.4.6.29 too, because
+If it is only one or two versions out of date in the in the trailing
+digit then do not worry about copying /lib/libc.so.4.6.29 too, because
 the program should work fine with the slightly older version.
 However, if you like you can decide to replace the libc.so anyway, and
 that should leave you with:
@@ -278,7 +278,7 @@ that should leave you with:
 
 <p>Please note that the symbolic link mechanism is <em>only</em>
 needed for Linux binaries, the FreeBSD runtime linker takes care of
-looking for matching major revision numbers itself, you don't need to
+looking for matching major revision numbers itself, you do not need to
 worry about that.
 
 <sect2><heading>Configuring the ld.so -- for FreeBSD-current
@@ -296,9 +296,9 @@ place on your FreeBSD system (to the /compat/linux tree):
 /compat/linux/etc/ld.so.config
 </verb>
 
-<p>If you don't have access to a Linux system, you should get the
+<p>If you do nott have access to a Linux system, you should get the
 extra files you need from various ftp sites.  Information on where to
-look for the various files is appended below. For now, let's assume
+look for the various files is appended below. For now, let us assume
 you know where to get the files.
 
 <p>
@@ -312,9 +312,9 @@ version mismatches), and install them under /compat/linux
 /lib/ld.so
 </verb>
 
-<p>ldconfig and ldd don't necessarily need to be under /compat/linux,
+<p>ldconfig and ldd do not necessarily need to be under /compat/linux,
 you can install them elsewhere in the system too. Just make sure they
-don't conflict with their FreeBSD counterparts. A good idea would be
+do not conflict with their FreeBSD counterparts. A good idea would be
 to install them in /usr/local/bin as ldconfig-linux and ldd-linux.
 <p>
 Create the file /compat/linux/etc/ld.so.conf, containing the
@@ -339,7 +339,7 @@ in order for the emulator to find them.
 % /compat/linux/sbin/ldconfig 
 </verb>
 
-<p>Ldconfig is statically linked, so it doesn't need any shared
+<p>Ldconfig is statically linked, so it does not need any shared
 libraries to run.  It creates the file /compat/linux/etc/ld.so.cache
 which contains the names of all the shared libraries. It should rerun
 to recreate this file whenever you install additional shared
@@ -347,7 +347,7 @@ libraries.
 
 On FreeBSD-stable do not install /compat/linux/etc/ld.so.cache or run
 ldconfig becuase in FreeBSD-stable the syscalls are implemented
-differently and ldconfig isn't needed or used.
+differently and ldconfig is not needed or used.
 
 <p>You should now be set up for Linux binaries which only need a
 shared libc. You can test this by running the Linux ldd on
@@ -394,7 +394,7 @@ multi on
 </tscreen>
 
 where the order here specifies that /etc/hosts is searched first and
-DNS is searched second.  When /compat/linux/etc/host.conf isn't
+DNS is searched second.  When /compat/linux/etc/host.conf is not
 installed linux applications find FreeBSD's /etc/host.conf and
 complain about the incompatible FreeBSD syntax.  You should remove
 `bind,' if you have not configured a name-server using the
@@ -441,9 +441,9 @@ ftp.demon.co.uk:/pub/linux/distributions
 src.doc.ic.ac.uk:/packages/linux/distributions
 </verb>
 
-<p>For simplicity, let's concentrate on Slackware here. This
+<p>For simplicity, let us concentrate on Slackware here. This
 distribution consists of a number of subdirectories, containing
-separate packages.  Normally, they're controlled by an install
+separate packages.  Normally, they are controlled by an install
 program, but you can retrieve files "by hand" too. First of all, you
 will need to look in the "contents" subdir of the distribution. You
 will find a lot of small text files here describing the contents of the

@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.19 1996/04/08 15:01:04 jfieber Exp $ -->
+<!-- $Id: hw.sgml,v 1.20 1996/05/09 23:04:43 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -42,7 +42,7 @@ Slippery when wet.  Beware of dog.
 
  <sect1><heading>Jordan's Picks</heading>
     <p>I have had fairly good luck building workstation and server
-    configurations with the following components.  I can't guarantee that
+    configurations with the following components.  I cannot guarantee that
     you will too, nor that any of the companies here will remain "best buys"
     forever.  I will try, when I can, to keep this list up-to-date but
     cannot obviously guarantee that it will be at any given time.
@@ -52,9 +52,9 @@ Slippery when wet.  Beware of dog.
     <htmlurl url="http://asustek.asus.com.tw/FTP/ASUS/Info/Spec/pi-p55tp4xe.txt"
      name="P55TP4XE">
     motherboard appears to be a good choice for mid-to-high range Pentium
-    server and workstation systems.  If you're really looking for performance,
-    be also sure to get the <htmlurl url="http://asustek.asus.com.tw/Products/TB/mem-0002.html" name="pipelined burst cache module">.  I feel that it's worth
-    the extra cost.  If you're looking for a 486 class motherboard, you might
+    server and workstation systems.  If you are really looking for performance,
+    be also sure to get the <htmlurl url="http://asustek.asus.com.tw/Products/TB/mem-0002.html" name="pipelined burst cache module">.  I feel that it is worth
+    the extra cost.  If you are looking for a 486 class motherboard, you might
     also investigate ASUS's <htmlurl url="http://asustek.asus.com.tw/FTP/ASUS/Info/Spec/pvi-486sp3.txt" name="486SP3G"> offering.
 
     NOTE:  The Intel <htmlurl url="http://asustek.asus.com.tw/Products/TB/triton-intro.html" name="Triton"> chipset based motherboards do not offer memory
@@ -63,8 +63,8 @@ Slippery when wet.  Beware of dog.
     therefore want to wait for Intel's newest generation of motherboards
     based on the Orion chipset or investigate ASUS's SiS chipset based
     motherboard, the <htmlurl url="http://asustek.asus.com.tw/FTP/ASUS/Info/Spec/pi-p55sp4.txt" name="P55SP4">.  I have no personal experience with this
-    motherboard and have heard mixed reports - some say it's a fine MB, others
-    say that it's measurably slower than the Triton.  The only undisputed
+    motherboard and have heard mixed reports - some say it is a fine MB, others
+    say that it is measurably slower than the Triton.  The only undisputed
     advantage it offers is being available <em>now</em>. 
 
   <sect2><heading>Disk Controllers</heading>
@@ -75,7 +75,7 @@ Slippery when wet.  Beware of dog.
     1542CF for ISA, Buslogic Bt747c for EISA and Adaptec 2940 for PCI.
 
   <sect2><heading>Disk drives</heading>
-    <p>In this particular game of Russian roulette, I'll make few specific
+    <p>In this particular game of Russian roulette, I will make few specific
     recommendations except to say "SCSI over IDE whenever you can afford it."
     Even in small desktop configurations, SCSI often makes more sense since it
     allows you to easily migrate drives from server to desktop as falling drive
@@ -84,17 +84,17 @@ Slippery when wet.  Beware of dog.
     food chain!
 
     <p>I do not currently see SCSI WIDE drives as a necessary expense unless
-    you're putting together an NFS or NEWS server that will be doing a lot
+    you are putting together an NFS or NEWS server that will be doing a lot
     of multiuser disk I/O.  
 
   <sect2><heading>CDROM drives</heading>
     <p>My SCSI preferences extend to SCSI CDROM drives as well, and the
     <htmlurl url="http://www.toshiba.com" name="Toshiba"> XM-3501B (now
     released in a caddy-less model called the XM-5401B) drive has always
-    performed well for me.  Generally speaking, most SCSI CDROM drives I've 
-    seen have been of pretty solid construction (probably because they don't 
+    performed well for me.  Generally speaking, most SCSI CDROM drives I have 
+    seen have been of pretty solid construction (probably because they do not
     occupy the lower end of the market, due to their higher price) and you
-    probably won't go wrong with an HP or NEC SCSI CDROM drive either.
+    probably will not go wrong with an HP or NEC SCSI CDROM drive either.
 
   <sect2><heading>Tape drives</heading>
    <p>I've had pretty good luck with both
@@ -104,7 +104,7 @@ Slippery when wet.  Beware of dog.
    <htmlurl url="http://www-dmo.external.hp.com:80/tape/_cpb0001.htm" 
    name="4mm (DAT)"> drives from <htmlurl url="http://www.hp.com" name="HP">.
    
-   <p>For backup purposes, I'd have to give the higher recommendation to the
+   <p>For backup purposes, I would have to give the higher recommendation to the
    Exabyte due to the more robust nature (and higher storage capacity) of
    8mm tape.
 
@@ -114,7 +114,7 @@ Slippery when wet.  Beware of dog.
     can heartily recommend the <htmlurl url="http://www.matrox.com/"
     name="Matrox"> <htmlurl url="http://www.matrox.com/mgaweb/brochure.htm"
     name="Millenium"> card.  If free X servers are more to your
-    liking, you certainly can't go wrong with one of <htmlurl url="http://www.nine.com/" name="Number 9's"> cards - their S3 Vision 868 and 968 based cards 
+    liking, you certainly cannot go wrong with one of <htmlurl url="http://www.nine.com/" name="Number 9's"> cards - their S3 Vision 868 and 968 based cards 
     (the 9FX series) are pretty fast cards as well, and are supported by
     <htmlurl url="http://www.xfree86.org" name="XFree86">'s S3 server.
 
@@ -123,7 +123,7 @@ Slippery when wet.  Beware of dog.
     name="Sony Multiscan 17SE monitors">, as have I with 
     the Viewsonic offering in the same (trinitron) tube.  For larger than
     17", all I can recommend at the time of this writing is to not spend
-    any less than U.S. &dollar;2,500 for a 21" monitor if that's what you really
+    any less than U.S. &dollar;2,500 for a 21" monitor if that is what you really
     need.  There are good monitors available in the >=20" range and there
     are also cheap monitors in the >=20" range.  Unfortunately, none are
     both cheap and good!
@@ -137,7 +137,7 @@ Slippery when wet.  Beware of dog.
     will generally work as well.
 
    <sect2><heading>Serial</heading>
-    <p>If you're looking for high-speed serial networking solutions, then
+    <p>If you are looking for high-speed serial networking solutions, then
     <htmlurl url="http://www.dgii.com/" name="Digi International">
     makes the <htmlurl url="http://www.dgii.com/prodprofiles/profiles-prices/digiprofiles/digispecs/sync570.html" name="SYNC/570"> series, with drivers now in
     FreeBSD-current. <htmlurl url="http://www.etinc.com"
@@ -148,9 +148,9 @@ Slippery when wet.  Beware of dog.
     said that FreeBSD's support for <htmlurl url="http://www.cyclades.com/"
     name="Cyclades">'s products is probably the tightest, primarily as a result
     of that company's committment to making sure that we are adequately supplied
-    with evaluation boards and technical specs.  I've heard that the Cyclom-16Ye
-    offers the best price/performance, though I've not checked the prices lately.
-    Other multiport cards I've heard good things about are the BOCA and AST
+    with evaluation boards and technical specs.  I have heard that the Cyclom-16Ye
+    offers the best price/performance, though I have not checked the prices lately.
+    Other multiport cards I have heard good things about are the BOCA and AST
     cards, and <htmlurl url="http://www.stallion.com/" name="Stallion
     Technologies"> apparently offers an unofficial driver for their 
     cards at <htmlurl url="ftp://ftp.stallion.com/drivers/unsupported/freebsd/stalbsd-0.0.4.tar.gz" name="this"> location.
@@ -159,12 +159,12 @@ Slippery when wet.  Beware of dog.
     <p>I currently use the <htmlurl url="http://www.gravis.com/" name="Gravis">
     Ultrasound MAX due to its high sound quality and full-duplex audio
     capabilities (dual DMA channels).  Support for Windows NT and OS/2 is
-    fairly anemic, however, so I'm not sure that I can recommend it as an
+    fairly anemic, however, so I am not sure that I can recommend it as an
     all-around card for a machine that will be running both FreeBSD and NT
     or OS/2.  In such a scenario, I might recommend the <htmlurl url="http://www.creaf.com/" name="Creative Labs"> AWE32 instead.
 
    <sect2><heading>Video</heading>
-   <p>For video capture, there's really only once choice - the
+   <p>For video capture, there is really only once choice - the
    <htmlurl url="http://www.matrox.com/" name="Matrox">
    <htmlurl url="http://www.matrox.com/imgweb/meteor.htm" name="Meteor">
    card.  FreeBSD also supports the older video spigot card from

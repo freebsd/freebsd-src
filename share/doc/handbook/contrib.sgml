@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.83 1996/05/13 09:31:34 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.84 1996/05/15 17:32:46 joerg Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -36,7 +36,7 @@
       couple of FreeBSD hackers alive and busy.  Thanks!
 
       Thanks also to Dermot McDonnell for his donation of a
-      Toshiba XM3401B CDROM drive.  It's been most useful!
+      Toshiba XM3401B CDROM drive.  It has been most useful!
 
       Thanks to Chuck Robey &lt;chuckr@eng.umd.edu&gt; who
       contributed his floppy tape streamer for experimental

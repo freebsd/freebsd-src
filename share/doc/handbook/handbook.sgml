@@ -1,4 +1,4 @@
-<!-- $Id: handbook.sgml,v 1.46 1996/05/14 20:31:51 rich Exp $ -->
+<!-- $Id: handbook.sgml,v 1.47 1996/05/15 15:17:25 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
@@ -10,6 +10,10 @@
 <!-- Entity shorthand for authors' names and email addresses -->
 <!ENTITY % authors SYSTEM "authors.sgml">
 %authors;
+
+<!-- Entity shorthand for mailing list email addresses -->
+<!ENTITY % lists SYSTEM "lists.sgml">
+%lists;
 
 <!-- Entity definitions for all the parts -->
 <!ENTITY % sections SYSTEM "sections.sgml">

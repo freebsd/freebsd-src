@@ -1,4 +1,4 @@
-<!-- $Id: eresources.sgml,v 1.21 1996/05/09 23:04:37 mpp Exp $ -->
+<!-- $Id: eresources.sgml,v 1.22 1996/05/11 09:24:45 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>
@@ -23,7 +23,7 @@
         <heading>Mailing lists<label id="eresources:mail"></heading>
 
 <p>Though many of the FreeBSD development members read USENET, we cannot
-always guarantee that we'll get to your questions in a timely fashion
+always guarantee that we will get to your questions in a timely fashion
 (or at all) if you post them only to one of the comp.unix.bsd.freebsd.*
 groups.  By addressing your questions to the appropriate mailing list
 you will reach both us and a concentrated FreeBSD audience, invariably
@@ -118,11 +118,7 @@ cvs-usrsbin     /usr/src/usr.sbin    System binaries
 given list you simply mail to <em>listname</em><tt>@FreeBSD.ORG</tt>.  It
 will then be redistributed to mailing list members world-wide.
 
-To subscribe to a list, send mail to:
-<tscreen><verb>
-majordomo@FreeBSD.ORG
-</verb></tscreen>
-And include the keyword
+To subscribe to a list, send mail to &a.majordomo and include
 <tscreen><verb>
 subscribe <listname> [<optional address>]
 </verb></tscreen>
@@ -151,9 +147,9 @@ list of available commands, do this:
 help
 ^D
 </verb></tscreen>
-Again, we'd like to request that you keep discussion in the technical mailing
-lists on a technical track.  If you're only interested in the "high points"
-then it's suggested that you join freebsd-announce, which is intended only
+Again, we would like to request that you keep discussion in the technical mailing
+lists on a technical track.  If you are only interested in the "high points"
+then it is suggested that you join freebsd-announce, which is intended only
 for infrequent traffic.
 
 <sect1><heading>List charters</heading>

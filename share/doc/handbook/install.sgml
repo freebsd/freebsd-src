@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.27 1996/05/16 20:01:26 jkh Exp $ -->
+<!-- $Id: install.sgml,v 1.28 1996/05/16 20:20:57 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -351,10 +351,10 @@ Boot:
 	  There is not a lot of preparatory work that needs to be done to
 	  successfully install from one of Walnut Creek's FreeBSD CDROMs (other
 	  CDROM distributions may work as well, though we cannot say for certain
-	  as we have no hand or say in how they're created).  You can either
+	  as we have no hand or say in how they are created).  You can either
 	  boot into the CD installation directly from DOS using Walnut Creek's
 	  supplied ``install.bat'' batch file or you can make a boot floppy with
-	  the ``makeflp.bat'' command.  [NOTE:  If you're running
+	  the ``makeflp.bat'' command.  [NOTE:  If you are running
 	  FreeBSD 2.1-RELEASE and have an IDE CDROM, use the
 	  inst&lowbar;ide.bat or atapiflp.bat batch files instead].
 
@@ -375,8 +375,8 @@ Boot:
 	  from the hard disk, you can mount the cdrom at any time by
 	  typing: <tt>mount /cdrom</tt>
 
-	  Before removing the CD again, also note that it's necessary to first
-	  type: <tt>umount /cdrom</tt>.  Don't just remove it from the drive!
+	  Before removing the CD again, also note that it is necessary to first
+	  type: <tt>umount /cdrom</tt>.  Do not just remove it from the drive!
 
 	  <quote><bf>Special note:</bf> Before invoking the
 	    installation, be sure that the CDROM is in the drive
@@ -413,29 +413,29 @@ ftp:*:99:99::0:0:FTP:/cdrom:/nonexistent
 
 	  The first floppy that you will need in addition to the boot.flp 
 	  image is ``floppies/root.flp'', which is somewhat special in that 
-	  it's not a DOS filesystem floppy at all, but rather a floppy "image" 
+	  it is not a DOS filesystem floppy at all, but rather a floppy "image" 
 	  (it's actually a gzip'd cpio file).  You can create this floppy in 
 	  the same way that you created the boot floppy <ref id="install"
 	    name="the beginning of this guide">.  Once this floppy is
 	  made, you can go on to make the distribution set floppies
-	  using ordinary DOS or UFS (if you're preparing the floppies on
+	  using ordinary DOS or UFS (if you are preparing the floppies on
 	  another FreeBSD machine) formatted diskettes.
 
 	  You will need, at minimum, as many 1.44MB or 1.2MB floppies as
 	  it takes to hold all files in the bin (binary distribution)
-	  directory.  If you're preparing these floppies under DOS, then
+	  directory.  If you are preparing these floppies under DOS, then
 	  THESE floppies *must* be formatted using the MS-DOS FORMAT
-	  command.  If you're using Windows, use the Windows File
+	  command.  If you are using Windows, use the Windows File
 	  Manager format command.
 
 	  Do <em>not</em> trust Factory Preformatted floppies!  Format
 	  them again yourself, just to make sure.  Many problems
 	  reported by our users in the past have resulted from the use
-	  of improperly formatted media, which is why I'm taking such
+	  of improperly formatted media, which is why I am taking such
 	  special care to mention it here!
 
-	  If you're creating the floppies from another FreeBSD machine,
-	  a format is still not a bad idea though you don't need to put
+	  If you are creating the floppies from another FreeBSD machine,
+	  a format is still not a bad idea though you do nott need to put
 	  a DOS filesystem on each floppy.  You can use the `disklabel'
 	  and `newfs' commands to put a UFS filesystem on them instead,
 	  as the following sequence of commands (for a 3.5" 1.44MB floppy

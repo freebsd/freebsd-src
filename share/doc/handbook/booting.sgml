@@ -3,7 +3,7 @@
      
      This conversion has been made by Ollivier Robert.
 
-     $Id: booting.sgml,v 1.9 1996/01/31 14:25:57 mpp Exp $
+     $Id: booting.sgml,v 1.10 1996/01/31 19:02:55 mpp Exp $
 
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
@@ -51,7 +51,7 @@
 
           Dosboot was written by DI. Christian Gusenbauer, and is
           unfortunately at this time one of the few pieces of code that
-          isn't compilable under FreeBSD itself because it is written for
+          will not compile under FreeBSD itself because it is written for
           Microsoft compilers.
 
           Dosboot will boot the kernel from a MS-DOS file or from a FreeBSD
@@ -83,7 +83,7 @@
 
       <tag>MSDOS</tag>
 
-          While this is technically possible, it isn't particular useful,
+          While this is technically possible, it is not particular useful,
           because of ``FAT'' filesystems inability to make links, device
           nodes and such ``UNIXisms''.
 
@@ -147,7 +147,7 @@
             <tt>/nfs</tt>, chroots to <tt>/nfs</tt> and executes
             <tt>/sbin/init</tt> there
 
-            Now you run FreeBSD diskless, even though you don't control
+            Now you run FreeBSD diskless, even though you do not control
             the NFS server...
 
           <tag/C -- Start an X-server/

@@ -1,6 +1,6 @@
 <!-- This is an SGML document in the linuxdoc DTD of the Tutorial for
      Configuring a FreeBSD for Dialup Services by Guy Helmer.
-     $Id: dialup.sgml,v 1.7 1996/03/31 18:01:53 joerg Exp $
+     $Id: dialup.sgml,v 1.8 1996/05/09 23:04:35 mpp Exp $
 
 <!DOCTYPE linuxdoc PUBLIC "-//Linux//DTD linuxdoc//EN">
 
@@ -68,10 +68,10 @@ If you need more information about these terms and data communications
 in general, the author remembers reading that <em/The RS-232 Bible/
 (anybody have an ISBN?) is a good reference.
 
-When talking about communications data rates, the author doesn't use
+When talking about communications data rates, the author does notuse
 the term <bf/baud/.  Baud refers to the number of electrical state
 transitions that may be made in a period of time, while <bf/bps/ (bits
-per second) is the ``correct'' term to use (at least it doesn't seem
+per second) is the ``correct'' term to use (at least it does not seem
 to bother the curmudgeons quite a much).
 
 <sect2><heading>External vs. Internal Modems</heading>
@@ -97,7 +97,7 @@ A background knowledge of these items is assumed
 <itemize>
 
 <item> You know how to connect your modem to your computer so that the
-two can communicate (unless you have an internal modem, which doesn't
+two can communicate (unless you have an internal modem, which does not
 need such a cable)
 
 <item> You are familiar with your modem's command set, or know where
@@ -134,7 +134,7 @@ without all of the needed signals, so if you have problems, such as
 a login session not going away when the line hangs up, you may have a
 problem with your cable.
 
-The second prerequisite depends on the modem(s) you use.  If you don't
+The second prerequisite depends on the modem(s) you use.  If you do not
 know your modem's command set by heart, you will need to have the
 modem's reference book or user's guide handy.  Sample commands for USR
 Sportster 14,400 external modems will be given, which you may be able
@@ -228,7 +228,7 @@ sio3 at 0x2e8-0x2ef irq 9 on isa
 sio3: type 16550A
 </verb></tscreen>
 
-If your kernel doesn't recognize all of your serial ports, you'll
+If your kernel does not recognize all of your serial ports, you will
 probably need to configure a custom FreeBSD kernel for your system.
 
 Please see the BSD System Manager's Manual chapter on ``Building
@@ -238,13 +238,13 @@ Options'' &lsqb;in <tt>/sys/conf/options</tt> and in
 <tt>/sys/<em>arch</em>/conf/options.<em>arch</em></tt>, with
 <em>arch</em> for example being <tt>i386</tt>&rsqb; for more
 information on configuring and building kernels.  You may have to
-unpack the kernel source distribution if haven't installed the system
+unpack the kernel source distribution if have not installed the system
 sources already (<tt>srcdist/srcsys.??</tt> in FreeBSD 1.1,
 <tt>srcdist/sys.??</tt> in FreeBSD 1.1.5.1, or the entire source
 distribution in FreeBSD 2.0) to be able to configure and build
 kernels.
 
-Create a kernel configuration file for your system (if you haven't
+Create a kernel configuration file for your system (if you have not
 already) by <tt/cd/ing to <tt>/sys/i386/conf</tt>.  Then, if you are
 creating a new custom configuration file, copy the file GENERICAH (or
 GENERICBT, if you have a BusTek SCSI controller on FreeBSD 1.x) to
@@ -258,7 +258,7 @@ device		sio2	at isa? port "IO_COM3" tty irq 5 vector siointr
 device		sio3	at isa? port "IO_COM4" tty irq 9 vector siointr
 </verb></tscreen>
 
-You can comment-out or completely remove lines for devices you don't
+You can comment-out or completely remove lines for devices you do not
 have.  If you have a multiport serial board, such as the Boca Board
 BB2016, please see the <tt/sio(4)/ man page for complete information
 on how to write configuration lines for multiport boards.  Be careful
@@ -271,7 +271,7 @@ Note that <tt/port "IO_COM1"/ is a substitution for <tt/port 0x3f8/,
 <tt/IO_COM4/ is <tt/0x2e8/, which are fairly common port addresses for
 their respective serial ports; interrupts 4, 3, 5, and 9 are fairly
 common interrupt request lines.  Also note that regular serial ports
-<bf>can't</bf> share interrupts on ISA-bus PCs (multiport boards have
+<bf>cannot</bf> share interrupts on ISA-bus PCs (multiport boards have
 on-board electronics that allow all the 16550A's on the board to share
 one or two interrupt request lines).
 
@@ -319,7 +319,7 @@ exists.
 After making new device special files, be sure to check the
 permissions on the files (especially the <tt>/dev/cua*</tt> files) to
 make sure that only users who should have access to those device
-special files can read &amp; write on them - you probably don't want
+special files can read &amp; write on them - you probably do not want
 to allow your average user to use your modems to dialout.  The default
 permissions on the <tt>/dev/cua*</tt> files should be sufficient:
 
@@ -336,7 +336,7 @@ These permissions allow the user <tt/uucp/ and users in the group
 <p>
 
 There are three system configuration files in the <tt>/etc</tt>
-directory that you'll probably need to edit to allow dialup access to
+directory that yo will probably need to edit to allow dialup access to
 your FreeBSD system.  The first, <tt>/etc/gettytab</tt>, contains
 configuration information for the <tt>/usr/libexec/getty</tt> daemon.
 Second, <tt>/etc/ttys</tt> holds information that tells
@@ -351,8 +351,8 @@ group likes to configure their modems and system so that no matter at
 what speed a remote user dials in, the local computer-to-modem RS-232
 interface runs at a locked speed.  The benefit of this configuration
 is that the remote user always sees a system login prompt immediately.
-The downside is that the system doesn't know what a user's true data
-rate is, so full-screen programs like Emacs won't adjust their
+The downside is that the system does not know what a user's true data
+rate is, so full-screen programs like Emacs will not adjust their
 screen-painting methods to make their response better for slower
 connections.
 
@@ -360,17 +360,17 @@ The other school configures their modems' RS-232 interface to vary its
 speed based on the remote user's connection speed.  For example,
 V.32bis (14.4 Kbps) connections to the modem might make the modem run
 its RS-232 interface at 19.2 Kbps, while 2400 bps connections make the
-modem's RS-232 interface run at 2400 bps.  Because <tt/getty/ doesn't
+modem's RS-232 interface run at 2400 bps.  Because <tt/getty/ does not
 understand any particular modem's connection speed reporting,
 <tt/getty/ gives a <tt/login:/ message at an initial speed and watches
 the characters that come back in response.  If the user sees junk,
-it's assumed that they know they should press the
+it is assumed that they know they should press the
 <tt>&lt;Enter&gt;</tt> key until they see a recognizable prompt.  If
-the data rates don't match, <tt/getty/ sees anything the user types as
+the data rates do not match, <tt/getty/ sees anything the user types as
 ``junk'', tries going to the next speed and gives the <tt/login:/
 prompt again.  This procedure can continue ad nauseum, but normally
 only takes a keystroke or two before the user sees a good prompt.
-Obviously, this login sequence doesn't look as clean as the former
+Obviously, this login sequence does not look as clean as the former
 ``locked-speed'' method, but a user on a low-speed connection should
 receive better interactive response from full-screen programs.
 
@@ -390,17 +390,17 @@ the file and the list of capabilities.
 <p>
 
 If you are locking your modem's data communications rate at a
-particular speed, you probably won't need to make any changes to
+particular speed, you probably will not need to make any changes to
 <tt>/etc/gettytab</tt>.
 
 <sect3><heading>Matching-Speed Config</heading>
 <p>
 
-You'll need to setup an entry in <tt>/etc/gettytab</tt> to give
+You will need to setup an entry in <tt>/etc/gettytab</tt> to give
 <tt/getty/ information about the speeds you wish to use for your
 modem.  If you have a 2400 bps modem, you can probably use the
 existing <tt/D2400/ entry.  This entry already exists in the FreeBSD
-1.1.5.1 <tt/gettytab/ file, so you don't need to add it unless it is
+1.1.5.1 <tt/gettytab/ file, so you do not need to add it unless it is
 missing under your version of FreeBSD:
 
 <tscreen><verb>
@@ -415,8 +415,8 @@ D2400|d2400|Fast-Dial-2400:\
         :nx=D2400:tc=300-baud:
 </verb></tscreen>
 
-If you have a higher speed modem, you'll probably need to add an entry
-in <tt>/etc/gettytab</tt>; here's an entry you could use for a 14.4
+If you have a higher speed modem, you will probably need to add an entry
+in <tt>/etc/gettytab</tt>; here is an entry you could use for a 14.4
 Kbps modem with a top interface speed of 19.2 Kpbs:
 
 <tscreen><verb>
@@ -450,7 +450,7 @@ rate.
 
 If you have a 28.8 Kbps modem and/or you want to take advantage of
 compression on a 14.4 Kbps modem, you need to use a higher
-communications rate than 19.2 Kbps.  Here's an example of a
+communications rate than 19.2 Kbps.  Here is an example of a
 <tt/gettytab/ entry starting a 57.6 Kpbs:
 
 <tscreen><verb>
@@ -470,7 +470,7 @@ vq|VH57600|Very High Speed Modem at 57600,8-bit:\
         :nx=VH9600:tc=std.57600:
 </verb></tscreen>
 
-If you have a slow CPU or a heavily loaded system and you don't have
+If you have a slow CPU or a heavily loaded system and you dobnot have
 16550A-based serial ports, you may receive sio ``silo'' errors at 57.6
 Kbps.
 
@@ -482,7 +482,7 @@ Kbps.
 (user <tt/root/ may only login on ttys marked <tt/secure/).  See the
 manual page for <tt/ttys(5)/ for more information.
 
-You'll need to either modify existing lines in <tt>/etc/ttys</tt> or
+You will need to either modify existing lines in <tt>/etc/ttys</tt> or
 add new lines to make <tt/init/ run <tt/getty/ processes automatically
 on your new dialup ports.  The general format of the line will be the
 same, whether you are using a locked-speed or matching-speed
@@ -588,7 +588,7 @@ stty -f /dev/ttyd2 crtscts
 stty -f /dev/ttyd3 crtscts
 </verb></tscreen>
 
-Since there isn't an initialization device special file on FreeBSD
+Since there is no initialization device special file on FreeBSD
 1.1, one has to just set the flags on the sole device special file and
 hope the flags aren't cleared by a miscreant.
 
@@ -596,7 +596,7 @@ hope the flags aren't cleared by a miscreant.
 <p>
 
 If you have a modem whose parameters may be permanently set in
-non-volatile RAM, you'll need to use a terminal program (such as Telix
+non-volatile RAM, you will need to use a terminal program (such as Telix
 under PC-DOS or <tt/tip/ under FreeBSD) to set the parameters.
 Connect to the modem using the same communications speed as the
 initial speed <tt/getty/ will use and configure the modem's
@@ -644,7 +644,7 @@ settings as an example:
 
 <item> Switch 1: UP - DTR Normal
 
-<item> Switch 2: Don't care (Verbal Result Codes/Numeric Result Codes)
+<item> Switch 2: Do not care (Verbal Result Codes/Numeric Result Codes)
 
 <item> Switch 3: UP - Suppress Result Codes
 
@@ -656,20 +656,20 @@ settings as an example:
 
 <item> Switch 7: UP - Load NVRAM Defaults
 
-<item> Switch 8: Don't care (Smart Mode/Dumb Mode)
+<item> Switch 8: Do not care (Smart Mode/Dumb Mode)
 
 </itemize>
 
 Result codes should be disabled/suppressed for dialup modems to avoid
 problems that can occur if <tt/getty/ mistakenly gives a <tt/login:/
 prompt to a modem that is in command mode and the modem echoes the
-command or returns a result code.  I've heard this sequence can result
+command or returns a result code.  I have heard this sequence can result
 in a extended, silly conversation between <tt/getty/ and the modem.
 
 <sect2><heading>Locked-speed Config</heading>
 <p>
 
-For a locked-speed configuration, you'll need to configure the modem
+For a locked-speed configuration, you will need to configure the modem
 to maintain a constant modem-to-computer data rate independent of the
 communications rate.  On a USR Sportster 14,400 external modem, these
 commands will lock the modem-to-computer data rate at the speed used
@@ -683,7 +683,7 @@ AT&amp;B1&amp;W
 <sect2><heading>Matching-speed Config</heading>
 <p>
 
-For a variable-speed configuration, you'll need to configure your
+For a variable-speed configuration, you will need to configure your
 modem to adjust its serial port data rate to match the incoming call
 rate.  On a USR Sportster 14,400 external modem, these commands will
 lock the modem's error-corrected data rate to the speed used to issue
@@ -741,13 +741,13 @@ If you see something different, like this:
       ^^
 </verb></tscreen>
 
-and the modem hasn't accepted a call yet, this means that <tt/getty/
+and the modem has not accepted a call yet, this means that <tt/getty/
 has completed its open on the communications port.  This could
 indicate a problem with the cabling or a mis-configured modem, because
 <tt/getty/ should not be able to open the communications port until
 <tt/CD/ (carrier detect) has been asserted by the modem.
 
-If you don't see any <tt/getty/ processes waiting to open the desired
+If you do not see any <tt/getty/ processes waiting to open the desired
 <tt/ttyd?/ port, double-check your entries in <tt>/etc/ttys</tt> to
 see if there are any mistakes there.  Also, check the log file
 <tt>/var/log/messages</tt> to see if there are any log messages from
@@ -761,15 +761,15 @@ missing device special files.
 <p>
 
 Try dialing into the system; be sure to use 8 bits, no parity, 1 stop
-bit on the remote system.  If you don't get a prompt right away, or
+bit on the remote system.  If you do not get a prompt right away, or
 get garbage, try pressing <tt>&lt;Enter&gt;</tt> about once per
-second.  If you still don't see a <tt/login:/ prompt after a while,
+second.  If you still do not see a <tt/login:/ prompt after a while,
 try sending a <tt>BREAK</tt>.  If you are using a high-speed modem to
 do the dialing, try dialing again after locking the dialing modem's
 interface speed (via <tt>AT&amp;B1</tt> on a USR Sportster, for
 example).
 
-If you still can't get a <tt/login:/ prompt, check
+If you still cannot get a <tt/login:/ prompt, check
 <tt>/etc/gettytab</tt> again and double-check that
 
 <itemize>
@@ -784,14 +784,14 @@ name
 
 </itemize>
 
-If you dial but the modem on the FreeBSD system won't answer, make
+If you dial but the modem on the FreeBSD system will not answer, make
 sure that the modem is configured to answer the phone when <tt/DTR/ is
 asserted.  If the modem seems to be configured correctly, verify that
 the <tt/DTR/ line is asserted by checking the modem's indicator lights
 (if it has any).
 
-If you've gone over everything several times and it still doesn't work,
-take a break and come back to it later.  If it still doesn't work,
+If you have gone over everything several times and it still does not work,
+take a break and come back to it later.  If it still does not work,
 perhaps you can send an electronic mail message to the &a.questions
 describing your modem and youer problem, and the good folks on the list will
 try to help.
