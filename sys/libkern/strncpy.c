@@ -43,10 +43,7 @@
  * Return dst.
  */
 char *
-strncpy(dst, src, n)
-	char *dst;
-	const char *src;
-	register size_t n;
+strncpy(char * __restrict dst, const char * __restrict src, size_t n)
 {
 	if (n != 0) {
 		register char *d = dst;
