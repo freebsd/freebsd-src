@@ -341,11 +341,7 @@ end
 
 # Show backtrace for process selected with "defproc"
 define btpp
-  if ($myvectorproc->p_flag & 4)
-    btr $myvectorproc->p_threads.tqh_first->td_pcb->pcb_ebp
-  else
-    echo (not loaded)\n
-  end
+btr $myvectorproc->p_threads.tqh_first->td_pcb->pcb_ebp
 end
 document btpp
 Show a backtrace for the process previously selected with 'defproc'.
@@ -355,30 +351,26 @@ end
 define fr
 set $fno = 0
 set $searching = 1
-if ($myvectorproc->p_flag & 4)
-  set $frame = $myvectorproc->p_threads.tqh_first->td_pcb->pcb_ebp
-  while (($searching == 1) && (*(int *) $frame > 0xc0000000))
-    set $myebp = *(int *) $frame
-    set $myeip = *(int *) ($frame + 4)
-    if ($fno == $arg0)
-      printf " frame %d at %p: ebp %8x, eip ", $fno, $frame, $myebp
-      x/1i $myeip
-      printf "Called from %8x, stack frame at %8x\n", *(int *) ($myebp+4), *(int *) $myebp
-      printf "last 20 local variables:\n"
-      x/20x ($myebp-80)
-      printf "call parameters:\n"
-      x/8x ($myebp+8)
-      set $searching = 0
-    else
-      set $frame = $myebp
-      set $fno = $fno + 1
-    end
+set $frame = $myvectorproc->p_threads.tqh_first->td_pcb->pcb_ebp
+while (($searching == 1) && (*(int *) $frame > 0xc0000000))
+  set $myebp = *(int *) $frame
+  set $myeip = *(int *) ($frame + 4)
+  if ($fno == $arg0)
+    printf " frame %d at %p: ebp %8x, eip ", $fno, $frame, $myebp
+    x/1i $myeip
+    printf "Called from %8x, stack frame at %8x\n", *(int *) ($myebp+4), *(int *) $myebp
+    printf "last 20 local variables:\n"
+    x/20x ($myebp-80)
+    printf "call parameters:\n"
+    x/8x ($myebp+8)
+    set $searching = 0
+  else
+    set $frame = $myebp
+    set $fno = $fno + 1
   end
-  if ($searching == 1)
-    echo frame not found\n
-  end
-else
-  printf "process %d is not loaded in memory\n", $myvectorproc->p_pid
+end
+if ($searching == 1)
+  echo frame not found\n
 end
 end
 document fr
