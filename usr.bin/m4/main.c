@@ -227,13 +227,9 @@ main(argc,argv)
 	if (outfile[0] != NULL) {
 		(void) fclose(outfile[0]);
 		m4temp[UNIQUE] = '0';
-#ifdef vms
 		(void) remove(m4temp);
-#else
-		(void) unlink(m4temp);
-		(void) rmdir(m4dir);
-#endif
 	}
+	(void) remove(m4dir);
 
 	return 0;
 }
