@@ -68,8 +68,6 @@
 
 typedef struct _seqdev_info seqdev_info;
 
-typedef int (seq_callback_t)(seqdev_info *sd, int reason);
-
 /*
  * The order of mutex lock (from the first to the last)
  *
@@ -101,7 +99,7 @@ struct _seqdev_info {
 	d_write_t *write;
 	d_ioctl_t *ioctl;
 	d_poll_t *poll;
-	seq_callback_t *callback;
+	midi_callback_t *callback;
 
 	/*
 	 * combinations of the following flags are used as second argument in
@@ -234,7 +232,7 @@ struct _seqdev_info {
 /*
  * finally, all default parameters
  */
-#define SEQ_BUFFSIZE (4 * 1024) /* XXX */
+#define SEQ_BUFFSIZE (1024) /* XXX */
 
 /*
  * some macros for debugging purposes

@@ -289,7 +289,7 @@ gusmidi_intr(void *arg)
 	sc_p scp;
 	u_char c;
 	mididev_info *devinfo;
-	int stat, did_something;
+	int stat, did_something, leni;
 
 	scp = (sc_p)arg;
 	devinfo = scp->devinfo;
@@ -308,13 +308,13 @@ gusmidi_intr(void *arg)
 			    (!(devinfo->flags & MIDI_F_BUSY) ||
 			     !(devinfo->fflags & FWRITE))) {
 				midibuf_input_intr(&devinfo->midi_dbuf_passthru,
-				    &c, sizeof c);
+				    &c, sizeof c, &leni);
 				devinfo->callback(devinfo,
 				    MIDI_CB_START | MIDI_CB_WR);
 			}
 			if ((devinfo->flags & MIDI_F_READING) && c != 0xfe) {
 				midibuf_input_intr(&devinfo->midi_dbuf_in,
-				    &c, sizeof c);
+				    &c, sizeof c, &leni);
 			}
 			did_something = 1;
 		} else
@@ -342,10 +342,13 @@ gusmidi_intr(void *arg)
 }
 
 static int
-gusmidi_callback(mididev_info *d, int reason)
+gusmidi_callback(void *di, int reason)
 {
 	int unit;
 	sc_p scp;
+	mididev_info *d;
+
+	d = (mididev_info *)di;
 
 	mtx_assert(&d->flagqueue_mtx, MA_OWNED);
 
@@ -424,6 +427,7 @@ gusmidi_xmit(sc_p scp)
 	register mididev_info *devinfo;
 	register midi_dbuf *dbuf;
 	u_char c;
+	int leno;
 
 	devinfo = scp->devinfo;
 
@@ -450,7 +454,7 @@ gusmidi_xmit(sc_p scp)
 			mtx_lock(&scp->mtx);
 			if (gusmidi_readport(scp, PORT_ST) & MIDIST_TXDONE) {
 				/* Send the data. */
-				midibuf_output_intr(dbuf, &c, sizeof(c));
+				midibuf_output_intr(dbuf, &c, sizeof(c), &leno);
 				gusmidi_writeport(scp, PORT_TX, c);
 				/* We are playing now. */
 			} else {

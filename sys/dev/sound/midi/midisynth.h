@@ -64,8 +64,8 @@ typedef int (mdsy_setupvoice_t)(mididev_info *md, int voice, int chn);
 typedef int (mdsy_sendsysex_t)(mididev_info *md, u_char *sysex, int len);
 typedef int (mdsy_prefixcmd_t)(mididev_info *md, int status);
 typedef int (mdsy_volumemethod_t)(mididev_info *md, int mode);
-typedef int (mdsy_readraw_t)(mididev_info *md, u_char *buf, int len, int nonblock);
-typedef int (mdsy_writeraw_t)(mididev_info *md, u_char *buf, int len, int nonblock);
+typedef int (mdsy_readraw_t)(mididev_info *md, u_char *buf, int len, int *lenr, int nonblock);
+typedef int (mdsy_writeraw_t)(mididev_info *md, u_char *buf, int len, int *lenw, int nonblock);
 
 /*
  * The order of mutex lock (from the first to the last)
