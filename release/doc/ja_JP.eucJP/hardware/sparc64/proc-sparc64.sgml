@@ -1,0 +1,144 @@
+<!--
+    $FreeBSD$
+    Original revision: 1.5
+-->
+<sect1>
+  <title>対応システム</title>
+
+  <para>この節には、&arch.print; プラットフォーム版 &os;
+    で、現在動作することが確認されているシステムが書かれています。
+    ハードウェア構成の予備知識については
+    <ulink url="http://sunsolve.sun.com/handbook_pub/">Sun System Handbook</ulink>
+    を参照してください。</para>
+
+  <para>複数のプロセッサを搭載したすべてのシステムにおける
+    SMP 機能に対応しています。</para>
+
+  <para>ここに載っていないシステムは試験されていないだけで、
+    動作する可能性があります。もしそのようなシステムがありましたら、
+    <ulink url="freebsd-sparc@freebsd.org">わたしたち</ulink>にお知らせください。</para>
+
+  <sect2>
+    <title>完全対応しているシステム</title>
+
+    <para>&os; が完全対応しているシステムは、以下のとおりです。</para>
+
+    <para>
+      <itemizedlist>
+        <listitem>
+          <para>Blade 100</para>
+        </listitem>
+        <listitem>
+          <para>Blade 150</para>
+        </listitem>
+        <listitem>
+          <para>Enterprise 220R</para>
+        </listitem>
+        <listitem>
+          <para>Enterprise 250</para>
+        </listitem>
+        <listitem>
+          <para>Enterprise 420R</para>
+        </listitem>
+        <listitem>
+          <para>Fire V100</para>
+        </listitem>
+        <listitem>
+          <para>Fire V120</para>
+        </listitem>
+        <listitem>
+          <para>Netra t1 105</para> 
+        </listitem>
+        <listitem>
+          <para>Netra T1 AC200/DC200</para> 
+        </listitem>
+        <listitem>
+          <para>Netra t 1100</para>
+        </listitem>
+        <listitem>
+          <para>Netra t 1120</para>
+        </listitem>
+        <listitem>
+          <para>Netra t 1125</para>
+        </listitem>
+        <listitem>
+          <para>Netra t 1400/1405</para>
+        </listitem>
+        <listitem>
+          <para>Netra 120</para>
+        </listitem>
+        <listitem>
+          <para>Netra X1</para>
+        </listitem>
+        <listitem>
+          <para>SPARCEngine Ultra AXi</para>
+        </listitem>
+        <listitem>
+          <para>SPARCEngine Ultra AXmp</para>
+        </listitem>
+        <listitem>
+          <para>Ultra 5</para>
+        </listitem>
+        <listitem>
+          <para>Ultra 10</para>
+        </listitem>
+        <listitem>
+          <para>Ultra 30</para>
+        </listitem>
+        <listitem>
+          <para>Ultra 60</para>
+        </listitem>
+        <listitem>
+          <para>Ultra 80</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+  </sect2>
+
+  <sect2>
+    <title>対応に制限のあるシステム</title>
+
+    <para>&os; は以下のシステムに対応していますが、
+      一部の機能に制限があります。
+      特に、sbus システムのオンボード SCSI コントローラには対応していません。 </para>
+
+    <para>
+      <itemizedlist>
+        <listitem>
+          <para>Enterprise 4500</para>
+        </listitem>
+        <listitem>
+          <para>Ultra 1E</para>
+        </listitem>
+        <listitem>
+          <para>Ultra 2</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+  </sect2>
+
+  <sect2>
+    <title>未対応のシステム</title>
+
+    <para>&os; は以下のシステムに対応していません。
+      これは、
+      (UltraSPARC III のように) プロセッサそのものに対応していない、
+      あるいはシステムの内部設計に &os; を不安定にするような微妙な独自部分がある、
+      &os; を使う際に必要となるオンボードデバイスへの対応が不十分であるなどの
+      理由によるものです。</para>
+
+    <para>
+      <itemizedlist>
+        <listitem>
+          <para>UltraSPARC III プロセッサを搭載したシステムすべて</para>
+        </listitem>
+        <listitem>
+          <para>Enterprise 450</para>
+        </listitem>
+        <listitem>
+          <para>Ultra 1</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+  </sect2>
+</sect1>
