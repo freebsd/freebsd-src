@@ -1090,7 +1090,7 @@ END_DEBUG
 	xfer = sbp_write_cmd(sdev, FWTCODE_WREQQ, 0x04);
 	if (xfer == NULL)
 		return;
-	if (sdev->status == SBP_DEV_ATTACHED)
+	if (sdev->status == SBP_DEV_ATTACHED || sdev->status == SBP_DEV_PROBE)
 		xfer->act.hand = sbp_agent_reset_callback;
 	else
 		xfer->act.hand = sbp_do_attach;
