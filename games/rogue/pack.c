@@ -247,7 +247,7 @@ object *obj, *pack;
 next_avail_ichar()
 {
 	object *obj;
-	i;
+	int i;
 	boolean ichars[26];
 
 	for (i = 0; i < 26; i++) {

@@ -175,7 +175,7 @@ short rn;
 }
 
 get_dungeon_char(row, col)
-row, col;
+int row, col;
 {
 	unsigned short mask = dungeon[row][col];
 
@@ -314,7 +314,7 @@ party_objects(rn)
 }
 
 get_room_number(row, col)
-row, col;
+int row, col;
 {
 	short i;
 
