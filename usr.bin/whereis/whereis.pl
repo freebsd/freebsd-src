@@ -28,7 +28,7 @@
 #
 # Rewritten from scratch for FreeBSD after the 4.3BSD manual page.
 #
-# $Id: whereis.pl,v 1.5 1997/12/22 19:11:28 ache Exp $
+# $Id: whereis.pl,v 1.6 1998/10/04 10:33:37 obrien Exp $
 #
 
 sub usage
@@ -176,7 +176,6 @@ foreach $name (@names) {
     $name =~ s|^.*/||;		# strip leading path name component
     $name =~ s/,v$//; $name =~ s/^s\.//; # RCS or SCCS suffix/prefix
     $name =~ s/\.(Z|z|gz)$//;	# compression suffix
-    $name =~ s/\.[^.]+//;	# any other suffix
 
     $line = "";
     $unusual = 0;
