@@ -82,6 +82,7 @@
 #define FTP_OK				200
 #define FTP_FILE_STATUS			213
 #define FTP_SERVICE_READY		220
+#define FTP_TRANSFER_COMPLETE		226
 #define FTP_PASSIVE_MODE		227
 #define FTP_LPASSIVE_MODE		228
 #define FTP_EPASSIVE_MODE		229
@@ -327,6 +328,10 @@ _ftp_readfn(void *v, char *buf, int len)
     int r;
 
     io = (struct ftpio *)v;
+    if (io == NULL) {
+	errno = EBADF;
+	return -1;
+    }
     if (io->csd == -1 || io->dsd == -1 || io->dir == O_WRONLY) {
 	errno = EBADF;
 	return -1;
@@ -355,6 +360,10 @@ _ftp_writefn(void *v, const char *buf, int len)
     int w;
     
     io = (struct ftpio *)v;
+    if (io == NULL) {
+	errno = EBADF;
+	return -1;
+    }
     if (io->csd == -1 || io->dsd == -1 || io->dir == O_RDONLY) {
 	errno = EBADF;
 	return -1;
@@ -373,6 +382,13 @@ _ftp_writefn(void *v, const char *buf, int len)
 static fpos_t
 _ftp_seekfn(void *v, fpos_t pos, int whence)
 {
+    struct ftpio *io;
+    
+    io = (struct ftpio *)v;
+    if (io == NULL) {
+	errno = EBADF;
+	return -1;
+    }
     errno = ESPIPE;
     return -1;
 }
@@ -381,8 +397,13 @@ static int
 _ftp_closefn(void *v)
 {
     struct ftpio *io;
+    int r;
 
     io = (struct ftpio *)v;
+    if (io == NULL) {
+	errno = EBADF;
+	return -1;
+    }
     if (io->dir == -1)
 	return 0;
     if (io->csd == -1 || io->dsd == -1) {
@@ -393,7 +414,10 @@ _ftp_closefn(void *v)
     io->dir = -1;
     io->dsd = -1;
     DEBUG(fprintf(stderr, "Waiting for final status\n"));
-    io->err = _ftp_chkerr(io->csd);
+    if ((r = _ftp_chkerr(io->csd)) != FTP_TRANSFER_COMPLETE)
+	io->err = r;
+    else
+	io->err = 0;
     close(io->csd);
     io->csd = -1;
     return io->err ? -1 : 0;
