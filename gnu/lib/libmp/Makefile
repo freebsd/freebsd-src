@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.6 1996/10/20 09:29:39 markm Exp $
 #
 
 LIB=	mp
@@ -29,12 +29,14 @@ SRCS=		memory.c mp_set_fns.c mp_clz_tab.c version.c stack-alloc.c \
 		mp_bpl.c extract-double.c insert-double.c \
 		${MPN_SRCS} ${MPBSD_SRCS}
 
-.ifmake all || depend
-.BEGIN:
+beforedepend all: mpz sysdep.h asm-syntax.h
+
+sysdep.h: ${GMPDIR}/mpn/bsd.h
 	cp ${GMPDIR}/mpn/bsd.h sysdep.h
+
+asm-syntax.h:
 	(echo "#define BSD_SYNTAX" ; \
 		echo "#include \"syntax.h\"") > asm-syntax.h
-.endif
 
 CLEANFILES+=	sysdep.h asm-syntax.h
 
@@ -42,12 +44,11 @@ CLEANFILES+=	sysdep.h asm-syntax.h
 # same name. Nasty hack to keep them from being found by being in
 # .PATH:s
 #
+mpz:
 .if exists(${.OBJDIR})
-beforedepend:
-	test -d ${.OBJDIR}/mpz || mkdir ${.OBJDIR}/mpz
+	mkdir ${.OBJDIR}/$@
 .else
-beforedepend:
-	test -d ${.CURDIR}/mpz || mkdir ${.CURDIR}/mpz
+	mkdir ${.CURDIR}/$@
 .endif
 
 CLEANDIRS+=	 ${.OBJDIR}/mpz ${.CURDIR}/mpz
