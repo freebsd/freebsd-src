@@ -85,7 +85,6 @@ void	 conv_c __P((PR *, u_char *));
 void	 conv_u __P((PR *, u_char *));
 void	 display __P((void));
 void	 doskip __P((char *, int));
-void	 err __P((const char *, ...));
 void	*emalloc __P((int));
 void	 escape __P((char *));
 u_char	*get __P((void));
