@@ -45,7 +45,7 @@
 
  /* Node type name and magic cookie */
 #define NG_VJC_NODE_TYPE	"vjc"
-#define NGM_VJC_COOKIE		868219208
+#define NGM_VJC_COOKIE		868219209
 
  /* Hook names */
 #define NG_VJC_HOOK_IP		"ip"		/* normal IP traffic */
@@ -61,7 +61,7 @@
 struct ngm_vjc_config {
 	u_char	enableComp;	/* Enable compression */
 	u_char	enableDecomp;	/* Enable decompression */
-	u_char	numChannels;	/* Number of compression channels */
+	u_char	maxChannel;	/* Number of compression channels - 1 */
 	u_char	compressCID;	/* OK to compress outgoing CID's */
 };
 
