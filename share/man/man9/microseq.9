@@ -186,7 +186,7 @@ Predefined macro: MS_RSET(reg,assert,clear)
 is used to assert all bits of a particular parallel port register.
 .Pp
 Parameters:
-.Bl -enum -offset ident
+.Bl -enum -offset indent
 .It
 register
 .It
@@ -198,7 +198,7 @@ Predefined macro: MS_RASSERT(reg,byte)
 is used to delay the execution of the microsequence.
 .Pp
 Parameter:
-.Bl -enum -offset ident
+.Bl -enum -offset indent
 .It
 delay in microseconds
 .El
@@ -208,7 +208,7 @@ Predefined macro: MS_DELAY(delay)
 is used to set the value of the internal branch register.
 .Pp
 Parameter:
-.Bl -enum -offset ident
+.Bl -enum -offset indent
 .It
 integer value
 .El
@@ -219,7 +219,7 @@ is used to branch if internal branch register decremented by one result value
 is positive.
 .Pp
 Parameter:
-.Bl -enum -offset ident
+.Bl -enum -offset indent
 .It
 integer offset in the current executed (sub)microsequence.
 Offset is added to
@@ -232,7 +232,7 @@ is used to branch if some of the status register bits of the parallel port
 are set.
 .Pp
 Parameter:
-.Bl -enum -offset ident
+.Bl -enum -offset indent
 .It
 bits of the status register
 .It
@@ -247,7 +247,7 @@ is used to branch if some of the status register bits of the parallel port
 are cleared.
 .Pp
 Parameter:
-.Bl -enum -offset ident
+.Bl -enum -offset indent
 .It
 bits of the status register
 .It
@@ -266,7 +266,7 @@ The return code is returned in the integer pointed by the (int *) parameter
 of the ppb_MS_microseq().
 .Pp
 Parameter:
-.Bl -enum -offset ident
+.Bl -enum -offset indent
 .It
 integer return code
 .El
@@ -279,7 +279,7 @@ when a non-standard i/o is performed to retrieve a data character from the
 parallel port.
 .Pp
 Parameter:
-.Bl -enum -offset ident
+.Bl -enum -offset indent
 .It
 the C function to call
 .It
@@ -296,7 +296,7 @@ is used to initialize the internal pointer to the currently scanned buffer.
 This pointer is passed to any C call (see above).
 .Pp
 Parameter:
-.Bl -enum -offset ident
+.Bl -enum -offset indent
 .It          
 pointer to the buffer that shall be accessed by xxx_P() microsequence calls.
 Note that this pointer is automatically incremented during xxx_P() calls
@@ -309,7 +309,7 @@ The tsleep is
 executed at PPBPRI level.
 .Pp
 Parameter:
-.Bl -enum -offset ident
+.Bl -enum -offset indent
 .It
 delay in ms
 .El 
@@ -319,7 +319,7 @@ Predefined macro: MS_ADELAY(delay)
 is used to branch on status register state condition.
 .Pp
 Parameter:
-.Bl -enum -offset ident
+.Bl -enum -offset indent
 .It
 mask of asserted bits.
 Bits that shall be asserted in the status register
@@ -350,7 +350,7 @@ is used to call a submicrosequence.
 A submicrosequence is a microsequence with
 a SUBRET call.
 Parameter:
-.Bl -enum -offset ident
+.Bl -enum -offset indent
 .It
 the submicrosequence to execute
 .El
@@ -360,7 +360,7 @@ Predefined macro: MS_CALL(microseq)
 is used to assert a register with data currently pointed by the internal PTR
 pointer.
 Parameter: 
-.Bl -enum -offset ident
+.Bl -enum -offset indent
 .It
 amount of data to write to the register
 .It
@@ -373,7 +373,7 @@ is used to fetch data from a register.
 Data is stored in the buffer currently
 pointed by the internal PTR pointer.
 Parameter:
-.Bl -enum -offset ident
+.Bl -enum -offset indent
 .It
 amount of data to read from the register
 .It
@@ -392,7 +392,7 @@ is writing data, wait a while, write data, wait a while...
 This allows to
 write magic sequences to the port.
 Parameter:
-.Bl -enum -offset ident
+.Bl -enum -offset indent
 .It 
 amount of data to read from the register
 .It
