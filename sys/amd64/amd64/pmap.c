@@ -974,14 +974,9 @@ pmap_new_thread(struct thread *td)
 		/*
 		 * Get a kernel stack page
 		 */
-		m = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+		m = vm_page_grab(ksobj, i,
+		    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED);
 		ma[i] = m;
-
-		/*
-		 * Wire the page
-		 */
-		m->wire_count++;
-		cnt.v_wire_count++;
 
 		vm_page_wakeup(m);
 		vm_page_flag_clear(m, PG_ZERO);
@@ -1222,12 +1217,7 @@ pmap_pinit(pmap)
 	 * allocate the page directory page
 	 */
 	ptdpg = vm_page_grab(pmap->pm_pteobj, PTDPTDI,
-			VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
-
-	ptdpg->wire_count = 1;
-	++cnt.v_wire_count;
-
-
+			VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED);
 	vm_page_flag_clear(ptdpg, PG_MAPPED | PG_BUSY); /* not usually mapped*/
 	ptdpg->valid = VM_PAGE_BITS_ALL;
 
@@ -2347,7 +2337,9 @@ retry:
 			m[0] = p;
 
 			if (vm_pager_get_pages(object, m, 1, 0) != VM_PAGER_OK) {
+				vm_page_lock_queues();
 				vm_page_free(p);
+				vm_page_unlock_queues();
 				return;
 			}
 
