@@ -5836,22 +5836,24 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 			cts->flags &= ~CCB_TRANS_TAG_ENB;
 			cts->flags |= cur_cts.flags & CCB_TRANS_TAG_ENB;
 		}
+
 		if (((device->flags & CAM_DEV_INQUIRY_DATA_VALID) != 0
 		  && (inq_data->flags & SID_Sync) == 0)
-		 || (cpi.hba_inquiry & PI_SDTR_ABLE) == 0) {
+		 || ((cpi.hba_inquiry & PI_SDTR_ABLE) == 0)
+		 || (cts->sync_offset == 0)
+		 || (cts->sync_period == 0)) {
 			/* Force async */
 			cts->sync_period = 0;
 			cts->sync_offset = 0;
-		}
-
-		/*
-		 * Don't allow DT transmission rates if the
-		 * device does not support it.
-		 */
-		if ((device->flags & CAM_DEV_INQUIRY_DATA_VALID) != 0
-		 && (inq_data->spi3data & SID_SPI_CLOCK_DT) == 0
-		 && cts->sync_period <= 0x9)
+		} else if ((device->flags & CAM_DEV_INQUIRY_DATA_VALID) != 0
+			&& (inq_data->spi3data & SID_SPI_CLOCK_DT) == 0
+			&& cts->sync_period <= 0x9) {
+			/*
+			 * Don't allow DT transmission rates if the
+			 * device does not support it.
+			 */
 			cts->sync_period = 0xa;
+		}
 
 		switch (cts->bus_width) {
 		case MSG_EXT_WDTR_BUS_32_BIT:
