@@ -1692,24 +1692,22 @@ ENTRY(do_syscall, 0)
 } { .mmi
 	ld8	r14=[r14]		// curthread
 	;;
-	add	r14=TD_KSE,r14		// &curthread->td_kse
 	nop.i	0
 	;;
 } { .mmi
-	ld8	r14=[r14]		// curkse
 	;;
-	add	r14=KE_FLAGS,r14	// &curkse->ke_flags
+	add	r14=TD_FLAGS,r14	// &curthread->td_flags
 	nop.i	0
 	;;
 } { .mmi
 	ld4	r14=[r14]		// curkse->ke_flags
 	;;
 	nop.m	0
-	tbit.nz	p6,p7=r14,10		// KEF_ASTPENDING
+	tbit.nz	p6,p7=r14,11		// TDF_ASTPENDING
 	;;
 } { .mib
 	nop.m	0
-(p7)	tbit.nz.or.andcm p6,p7=r14,11	// KEF_NEEDRESCHED
+(p7)	tbit.nz.or.andcm p6,p7=r14,16	// TDF_NEEDRESCHED
 (p7)	br.cond.dptk 2f
 	;;
 } { .mmi
