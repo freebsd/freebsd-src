@@ -2012,8 +2012,10 @@ restart:
 	}
 	VATTR_NULL(&vattr);
 	vattr.va_size = 0;
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	VOP_LEASE(vp, td, cred, LEASE_WRITE);
 	VOP_SETATTR(vp, &vattr, cred, td);
+	VOP_UNLOCK(vp, 0, td);
 	PROC_LOCK(p);
 	p->p_acflag |= ACORE;
 	PROC_UNLOCK(p);
