@@ -1581,15 +1581,22 @@ getconfigent(void)
 	static char TCPMUX_TOKEN[] = "tcpmux/";
 #define MUX_LEN		(sizeof(TCPMUX_TOKEN)-1)
 #ifdef IPSEC
-	char *policy = NULL;
+	char *policy;
 #endif
-	int v4bind = 0;
+	int v4bind;
 #ifdef INET6
-	int v6bind = 0;
+	int v6bind;
 #endif
 	int i;
 
+#ifdef IPSEC
+	policy = NULL;
+#endif
 more:
+	v4bind = 0;
+#ifdef INET6
+	v6bind = 0;
+#endif
 	while ((cp = nextline(fconfig)) != NULL) {
 #ifdef IPSEC
 		/* lines starting with #@ is not a comment, but the policy */
