@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 
 ENTRY(alloca)
 	popq	%rdx		/*  pop return addr */
-	movl	%rsp,%rcx
+	movq	%rsp,%rcx
 	addq	$15,%rdi	/*  round amount to allocate up to 16 bytes */
 	andq	$~15,%rdi
 	subq	%rdi,%rsp
