@@ -4,13 +4,17 @@
  * <Copyright.MIT>.
  *
  *	from: k_gethostname.c,v 4.1 88/12/01 14:04:42 jtkohl Exp $
- *	$Id: k_gethostname.c,v 1.2 1994/07/19 19:25:36 g89r4222 Exp $
+ *	$Id: k_gethostname.c,v 1.3 1995/07/18 16:38:51 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: k_gethostname.c,v 1.2 1994/07/19 19:25:36 g89r4222 Exp $";
+"$Id: k_gethostname.c,v 1.3 1995/07/18 16:38:51 mark Exp $";
 #endif /* lint */
+#endif
+
+#include <unistd.h>
 
 #ifndef PC
 #ifndef BSD42
@@ -37,8 +41,7 @@ extern get_custom();
  * not work.
  */
 
-k_gethostname(name, namelen)
-    char *name;
+int k_gethostname(char *name, int namelen)
 {
 #ifdef BSD42
     return gethostname(name, namelen);

@@ -5,13 +5,15 @@
  * <Copyright.MIT>.
  *
  *	from: get_krbrlm.c,v 4.8 89/01/22 20:02:54 rfrench Exp $
- *	$Id: get_krbrlm.c,v 1.2 1994/07/19 19:25:19 g89r4222 Exp $
+ *	$Id: get_krbrlm.c,v 1.3 1995/07/18 16:38:34 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char *rcsid =
-"$Id: get_krbrlm.c,v 1.2 1994/07/19 19:25:19 g89r4222 Exp $";
+"$Id: get_krbrlm.c,v 1.3 1995/07/18 16:38:34 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <stdio.h>
 #include <krb.h>
@@ -32,11 +34,9 @@ static char *rcsid =
  * krb_get_krbhst().
  */
 
-krb_get_lrealm(r,n)
-    char *r;
-    int n;
+int krb_get_lrealm(char *r, int n)
 {
-    FILE *cnffile, *fopen();
+    FILE *cnffile;
 
     if (n > 1)
 	return(KFAILURE);  /* Temporary restriction */

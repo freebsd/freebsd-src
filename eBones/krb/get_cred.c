@@ -5,13 +5,15 @@
  * <Copyright.MIT>.
  *
  *	from: get_cred.c,v 4.10 89/05/31 17:46:22 jtkohl Exp $
- *	$Id: get_cred.c,v 1.1.1.1 1994/09/30 14:50:00 csgr Exp $
+ *	$Id: get_cred.c,v 1.3 1995/07/18 16:38:28 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char *rcsid =
-"$Id: get_cred.c,v 1.1.1.1 1994/09/30 14:50:00 csgr Exp $";
+"$Id: get_cred.c,v 1.3 1995/07/18 16:38:28 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <stdio.h>
 #include <krb.h>
@@ -25,11 +27,7 @@ static char *rcsid =
  * On failure it returns a Kerberos error code.
  */
 
-krb_get_cred(service,instance,realm,c)
-    char *service;              /* Service name */
-    char *instance;             /* Instance */
-    char *realm;                /* Auth domain */
-    CREDENTIALS *c;             /* Credentials struct */
+int krb_get_cred(char *service, char *instance, char *realm, CREDENTIALS *c)
 {
     int tf_status;              /* return value of tf function calls */
 

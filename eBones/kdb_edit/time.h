@@ -6,7 +6,7 @@
 
 /*
  *	from: time.h,v 1.1 82/05/06 11:34:29 wft Exp $
- *	$Id: time.h,v 1.2 1994/07/19 19:23:58 g89r4222 Exp $
+ *	$Id: time.h,v 1.3 1995/07/18 16:37:31 mark Exp $
  */
 
 struct tm {     /* See defines below for allowable ranges */

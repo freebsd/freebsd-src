@@ -5,14 +5,36 @@
  * For copying and distribution information,
  * please see the file <mit-copyright.h>.
  *
- * $Revision: 4.7 $
- * $Date: 92/11/10 23:01:06 $
+ * $Revision: 1.1.1.1 $
+ * $Date: 1995/08/03 07:36:18 $
  * $State: Exp $
- * $Source: /afs/net.mit.edu/project/krb4/src/slave/RCS/kprop.c,v $
- * $Author: tytso $
+ * $Source: /usr/cvs/src/eBones/kprop/kprop.c,v $
+ * $Author: mark $
  * $Locker:  $
  *
- * $Log:	kprop.c,v $
+ * $Log: kprop.c,v $
+ * Revision 1.1.1.1  1995/08/03  07:36:18  mark
+ * Import an updated revision of the MIT kprop program for distributing
+ * kerberos databases to slave servers.
+ *
+ * NOTE: This method was abandoned by MIT long ago, this code is close to
+ *       garbage,  but it is slightly more secure than using rdist.
+ *       There is no documentation available on how to use it, and
+ *       it should -not- be built by default.
+ *
+ * Obtained from:	MIT Project Athena
+ *
+ * Revision 1.1.1.1  1995/08/02  22:11:44  pst
+ * Import an updated revision of the MIT kprop program for distributing
+ * kerberos databases to slave servers.
+ *
+ * NOTE: This method was abandoned by MIT long ago, this code is close to
+ *       garbage,  but it is slightly more secure than using rdist.
+ *       There is no documentation available on how to use it, and
+ *       it should -not- be built by default.
+ *
+ * Obtained from:	MIT Project Athena
+ *
  * Revision 4.7  92/11/10  23:01:06  tytso
  * Removed incompatible #include
  * 
@@ -50,7 +72,7 @@
 
 #ifndef	lint
 static char rcsid_kprop_c[] =
-"$Id: kprop.c,v 4.7 92/11/10 23:01:06 tytso Exp $";
+"$Id: kprop.c,v 1.1.1.1 1995/08/03 07:36:18 mark Exp $";
 #endif	lint
 
 #include <stdio.h>

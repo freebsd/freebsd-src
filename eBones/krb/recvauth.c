@@ -4,21 +4,25 @@
  * <Copyright.MIT>.
  *
  *	from: recvauth.c,v 4.4 90/03/10 19:03:08 jon Exp $";
- *	$Id: recvauth.c,v 1.1.1.1 1994/09/30 14:50:03 csgr Exp $
+ *	$Id: recvauth.c,v 1.3 1995/07/18 16:39:38 mark Exp $
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: recvauth.c,v 1.1.1.1 1994/09/30 14:50:03 csgr Exp $";
+"$Id: recvauth.c,v 1.3 1995/07/18 16:39:38 mark Exp $";
 #endif	lint
+#endif
 
-#include <krb.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <syslog.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <strings.h>
+#include <krb.h>
 
 
 #define	KRB_SENDAUTH_VERS	"AUTHV0.1" /* MUST be KRB_SENDAUTH_VLEN
@@ -29,8 +33,6 @@ static char rcsid[] =
  * and make appropriate changes in krb_sendauth.c
  * be sure to support old versions of krb_sendauth!
  */
-
-extern int errno;
 
 /*
  * krb_recvauth() reads (and optionally responds to) a message sent
@@ -118,24 +120,14 @@ extern int errno;
 #endif /* max */
 
 int
-krb_recvauth(options, fd, ticket, service, instance, faddr, laddr, kdata,
-	     filename, schedule, version)
-long options;			 /* bit-pattern of options */
-int fd;				 /* file descr. to read from */
-KTEXT ticket;			 /* storage for client's ticket */
-char *service;			 /* service expected */
-char *instance;			 /* inst expected (may be filled in) */
-struct sockaddr_in *faddr;	 /* address of foreign host on fd */
-struct sockaddr_in *laddr;	 /* local address */
-AUTH_DAT *kdata;		 /* kerberos data (returned) */
-char *filename;			 /* name of file with service keys */
-Key_schedule schedule;		 /* key schedule (return) */
-char *version;			 /* version string (filled in) */
+krb_recvauth(long options, int fd, KTEXT ticket, char *service, char *instance,
+    struct sockaddr_in *faddr, struct sockaddr_in *laddr, AUTH_DAT *kdata,
+    char *filename, des_key_schedule schedule, char *version)
 {
 
     int i, cc, old_vers = 0;
     char krb_vers[KRB_SENDAUTH_VLEN + 1]; /* + 1 for the null terminator */
-    char *cp;
+    char *cp = NULL;
     int rem;
     long tkt_len, priv_len;
     u_long cksum;
@@ -250,7 +242,7 @@ char *version;			 /* version string (filled in) */
 	cksum = kdata->checksum + 1;
 	cksum = htonl(cksum);
 #ifndef NOENCRYPTION
-	key_sched(kdata->session,schedule);
+	key_sched((des_cblock *)kdata->session,schedule);
 #endif
 	priv_len = krb_mk_priv((unsigned char *)&cksum,
 			       tmp_buf,

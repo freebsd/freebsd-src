@@ -1,9 +1,9 @@
 #	Copyright 1987,1988 Massachusetts Institute of Technology
 #	For copying and distribution information, see the file
 #	"Copyright.MIT".
-# 
+#
 #	from: krb_err.et,v 4.1 89/09/26 09:24:20 jtkohl Exp $
-#	$Id: krb_err.et,v 1.2 1994/07/19 19:25:44 g89r4222 Exp $
+#	$Id: krb_err.et,v 1.3 1995/07/18 16:39:00 mark Exp $
 #
 	error_table	krb
 
@@ -45,7 +45,7 @@
 
 	ec		KRBET_KRB_RES12,
 		        "Reserved 12"
-  
+
 	ec		KRBET_KRB_RES13,
 		        "Reserved 13"
 

@@ -5,13 +5,15 @@
  * <Copyright.MIT>.
  *
  *	from: create_ciph.c,v 4.8 89/05/18 21:24:26 jis Exp $
- *	$Id: create_ciph.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $
+ *	$Id: create_ciph.c,v 1.3 1995/07/18 16:38:07 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char *rcsid =
-"$Id: create_ciph.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $";
+"$Id: create_ciph.c,v 1.3 1995/07/18 16:38:07 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <krb.h>
 #include <des.h>
@@ -54,18 +56,9 @@ static char *rcsid =
  *
  */
 
-create_ciph(c, session, service, instance, realm, life, kvno, tkt,
-	    kdc_time, key)
-    KTEXT           c;		/* Text block to hold ciphertext */
-    C_Block         session;	/* Session key to send to user */
-    char            *service;	/* Service name on ticket */
-    char            *instance;	/* Instance name on ticket */
-    char            *realm;	/* Realm of this KDC */
-    unsigned long   life;	/* Lifetime of the ticket */
-    int             kvno;	/* Key version number for service */
-    KTEXT           tkt;	/* The ticket for the service */
-    unsigned long   kdc_time;	/* KDC time */
-    C_Block         key;	/* Key to encrypt ciphertext with */
+int create_ciph(KTEXT c, des_cblock session, char *service, char *instance,
+    char *realm, unsigned long life, int kvno, KTEXT tkt,
+    unsigned long kdc_time, des_cblock key)
 {
     char            *ptr;
     Key_schedule    key_s;
@@ -100,9 +93,9 @@ create_ciph(c, session, service, instance, realm, life, kvno, tkt,
     c->length = (((ptr - (char *) c->dat) + 7) / 8) * 8;
 
 #ifndef NOENCRYPTION
-    key_sched(key,key_s);
-    pcbc_encrypt((C_Block *)c->dat,(C_Block *)c->dat,(long) c->length,key_s,
-	key,ENCRYPT);
+    key_sched((des_cblock *)key,key_s);
+    pcbc_encrypt((des_cblock *)c->dat,(des_cblock *)c->dat,(long) c->length,
+    key_s,(des_cblock *)key,ENCRYPT);
 #endif /* NOENCRYPTION */
 
     return(KSUCCESS);

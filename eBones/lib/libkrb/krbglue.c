@@ -4,13 +4,15 @@
  * <Copyright.MIT>.
  *
  *	from: krbglue.c,v 4.1 89/01/23 15:51:50 wesommer Exp $
- *	$Id: krbglue.c,v 1.2 1994/07/19 19:25:49 g89r4222 Exp $
+ *	$Id: krbglue.c,v 1.3 1995/07/18 16:39:05 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char rcsid[] =
-$Id: krbglue.c,v 1.2 1994/07/19 19:25:49 g89r4222 Exp $";
+$Id: krbglue.c,v 1.3 1995/07/18 16:39:05 mark Exp $";
 #endif lint
+#endif
 
 #ifndef NCOMPAT
 /*

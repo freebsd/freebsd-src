@@ -5,13 +5,15 @@
  * <Copyright.MIT>.
  *
  *	from: der: mk_req.c,v 4.17 89/07/07 15:20:35 jtkohl Exp $
- *	$Id: mk_req.c,v 1.1.1.1 1994/09/30 14:50:02 csgr Exp $
+ *	$Id: mk_req.c,v 1.3 1995/07/18 16:39:15 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char *rcsid =
-"$Id: mk_req.c,v 1.1.1.1 1994/09/30 14:50:02 csgr Exp $";
+"$Id: mk_req.c,v 1.3 1995/07/18 16:39:15 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <krb.h>
 #include <prot.h>
@@ -19,7 +21,6 @@ static char *rcsid =
 #include <sys/time.h>
 #include <strings.h>
 
-extern          int     krb_ap_req_debug;
 static struct   timeval tv_local = { 0, 0 };
 static int lifetime = DEFAULT_TKT_LIFE;
 
@@ -67,12 +68,8 @@ static int lifetime = DEFAULT_TKT_LIFE;
  *                  all rounded up to multiple of 8.
  */
 
-krb_mk_req(authent,service,instance,realm,checksum)
-    register KTEXT   authent;	/* Place to build the authenticator */
-    char    *service;           /* Name of the service */
-    char    *instance;          /* Service instance */
-    char    *realm;             /* Authentication domain of service */
-    long    checksum;           /* Checksum of data (optional) */
+int krb_mk_req(KTEXT authent, char *service, char *instance, char *realm,
+    long checksum)
 {
     static KTEXT_ST req_st; /* Temp storage for req id */
     register KTEXT req_id = &req_st;
@@ -106,9 +103,9 @@ krb_mk_req(authent,service,instance,realm,checksum)
     retval = krb_get_cred(service,instance,realm,&cr);
 
     if (retval == RET_NOTKT) {
-        if (retval = get_ad_tkt(service,instance,realm,lifetime))
+        if ((retval = get_ad_tkt(service,instance,realm,lifetime)))
             return(retval);
-        if (retval = krb_get_cred(service,instance,realm,&cr))
+        if ((retval = krb_get_cred(service,instance,realm,&cr)))
             return(retval);
     }
 
@@ -126,7 +123,7 @@ krb_mk_req(authent,service,instance,realm,checksum)
     if (krb_ap_req_debug)
         printf("Ticket->length = %d\n",ticket->length);
     if (krb_ap_req_debug)
-        printf("Issue date: %d\n",cr.issue_date);
+        printf("Issue date: %ld\n",cr.issue_date);
 
     /* Build request id */
     (void) strcpy((char *)(req_id->dat),cr.pname); /* Auth name */
@@ -154,9 +151,9 @@ krb_mk_req(authent,service,instance,realm,checksum)
     req_id->length = ((req_id->length+7)/8)*8;
 
 #ifndef NOENCRYPTION
-    key_sched(cr.session,key_s);
-    pcbc_encrypt((C_Block *)req_id->dat,(C_Block *)req_id->dat,
-	(long)req_id->length,key_s,cr.session,ENCRYPT);
+    key_sched((des_cblock *)cr.session,key_s);
+    pcbc_encrypt((des_cblock *)req_id->dat,(des_cblock *)req_id->dat,
+	(long)req_id->length,key_s,(des_cblock *)cr.session,ENCRYPT);
     bzero((char *) key_s, sizeof(key_s));
 #endif /* NOENCRYPTION */
 
@@ -184,9 +181,7 @@ krb_mk_req(authent,service,instance,realm,checksum)
  * It returns the previous value of the default lifetime.
  */
 
-int
-krb_set_lifetime(newval)
-int newval;
+int krb_set_lifetime(int newval)
 {
     int olife = lifetime;
 

@@ -5,12 +5,12 @@
  * <Copyright.MIT>.
  *
  *	from: kerberos.c,v 4.19 89/11/01 17:18:07 qjb Exp $
- *	$Id: kerberos.c,v 1.1.1.1 1994/09/30 14:49:57 csgr Exp $
+ *	$Id: kerberos.c,v 1.4 1995/07/18 16:37:51 mark Exp $
  */
 
 #ifndef lint
 static char rcsid[] =
-"$Id: kerberos.c,v 1.1.1.1 1994/09/30 14:49:57 csgr Exp $";
+"$Id: kerberos.c,v 1.4 1995/07/18 16:37:51 mark Exp $";
 #endif  lint
 
 #include <stdio.h>

@@ -5,12 +5,12 @@
  * <Copyright.MIT>.
  *
  *	from: kstash.c,v 4.0 89/01/23 09:45:43 jtkohl Exp $
- *	$Id: kstash.c,v 1.1.1.1 1994/09/30 14:50:05 csgr Exp $
+ *	$Id: kstash.c,v 1.3 1995/07/18 16:40:16 mark Exp $
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: kstash.c,v 1.1.1.1 1994/09/30 14:50:05 csgr Exp $";
+"$Id: kstash.c,v 1.3 1995/07/18 16:40:16 mark Exp $";
 #endif	lint
 
 #include <stdio.h>

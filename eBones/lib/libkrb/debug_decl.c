@@ -4,13 +4,15 @@
  * <Copyright.MIT>.
  *
  *	from: debug_decl.c,v 4.5 88/10/07 06:07:49 shanzer Exp $
- *	$Id: debug_decl.c,v 1.2 1994/07/19 19:25:03 g89r4222 Exp $
+ *	$Id: debug_decl.c,v 1.3 1995/07/18 16:38:14 mark Exp $
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: debug_decl.c,v 1.2 1994/07/19 19:25:03 g89r4222 Exp $";
+"$Id: debug_decl.c,v 1.3 1995/07/18 16:38:14 mark Exp $";
 #endif	lint
+#endif
 
 /* Declare global debugging variables. */
 

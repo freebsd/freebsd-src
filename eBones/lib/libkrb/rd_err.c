@@ -13,16 +13,19 @@
  * Steve Miller    Project Athena  MIT/DEC
  *
  *	from: rd_err.c,v 4.5 89/01/13 17:26:38 steiner Exp $
- *	$Id: rd_err.c,v 1.2 1994/07/19 19:26:10 g89r4222 Exp $
+ *	$Id: rd_err.c,v 1.3 1995/07/18 16:39:29 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: rd_err.c,v 1.2 1994/07/19 19:26:10 g89r4222 Exp $";
+"$Id: rd_err.c,v 1.3 1995/07/18 16:39:29 mark Exp $";
 #endif /* lint */
+#endif
 
 /* system include files */
 #include <stdio.h>
+#include <string.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -47,12 +50,7 @@ static char rcsid[] =
  * The AUTH_MSG_APPL_ERR message format can be found in mk_err.c
  */
 
-int
-krb_rd_err(in,in_length,code,m_data)
-    u_char *in;                 /* pointer to the msg received */
-    u_long in_length;           /* of in msg */
-    long *code;                 /* received error code */
-    MSG_DAT *m_data;
+int krb_rd_err(u_char *in, u_long in_length, long *code, MSG_DAT *m_data)
 {
     register u_char *p;
     int swap_bytes = 0;

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.1.1.1 1994/09/30 14:49:57 csgr Exp $
+#	$Id: Makefile,v 1.3 1995/07/18 16:37:47 mark Exp $
 
 PROG=	kerberos
 SRCS=	kerberos.c cr_err_reply.c

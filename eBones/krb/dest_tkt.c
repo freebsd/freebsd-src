@@ -5,15 +5,20 @@
  * <Copyright.MIT>.
  *
  *	from: dest_tkt.c,v 4.9 89/10/02 16:23:07 jtkohl Exp $
- *	$Id: dest_tkt.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $
+ *	$Id: dest_tkt.c,v 1.3 1995/07/18 16:38:19 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char *rcsid =
-"$Id: dest_tkt.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $";
+"$Id: dest_tkt.c,v 1.3 1995/07/18 16:38:19 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <krb.h>
 #include <sys/file.h>
 #include <sys/types.h>
@@ -32,7 +37,7 @@ static char *rcsid =
  * The ticket file (TKT_FILE) is defined in "krb.h".
  */
 
-dest_tkt()
+int dest_tkt()
 {
     char *file = TKT_FILE;
     int i,fd;

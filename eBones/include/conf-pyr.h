@@ -6,7 +6,7 @@
  * Machine-type definitions: Pyramid
  *
  *	from: conf-pyr.h,v 4.0 89/12/19 13:27:16 jtkohl Exp $
- *	$Id: conf-pyr.h,v 1.2 1994/07/19 19:23:02 g89r4222 Exp $
+ *	$Id: conf-pyr.h,v 1.3 1995/07/18 16:36:20 mark Exp $
  */
 
 #define BITS32

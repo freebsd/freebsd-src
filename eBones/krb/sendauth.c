@@ -4,13 +4,15 @@
  * <Copyright.MIT>.
  *
  *	from: sendauth.c,v 4.6 90/03/10 23:18:28 jon Exp $
- *	$Id: sendauth.c,v 1.2 1994/07/19 19:26:23 g89r4222 Exp $
+ *	$Id: sendauth.c,v 1.3 1995/07/18 16:39:44 mark Exp $
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: sendauth.c,v 1.2 1994/07/19 19:26:23 g89r4222 Exp $";
+"$Id: sendauth.c,v 1.3 1995/07/18 16:39:44 mark Exp $";
 #endif	lint
+#endif
 
 #include <krb.h>
 #include <sys/types.h>
@@ -25,10 +27,6 @@ static char rcsid[] =
  * If the protocol changes, you will need to change the version string
  * and make appropriate changes in krb_recvauth.c
  */
-
-extern int errno;
-
-extern char *krb_get_phost();
 
 /*
  * This file contains two routines: krb_sendauth() and krb_sendsrv().
@@ -109,21 +107,10 @@ extern char *krb_get_phost();
  * will disappear when krb_sendauth() returns.
  */
 
-int
-krb_sendauth(options, fd, ticket, service, inst, realm, checksum,
-	msg_data, cred, schedule, laddr, faddr, version)
-long options;			 /* bit-pattern of options */
-int fd;				 /* file descriptor to write onto */
-KTEXT ticket;			 /* where to put ticket (return); or
-				  * supplied in case of KOPT_DONT_MK_REQ */
-char *service, *inst, *realm;	 /* service name, instance, realm */
-u_long checksum;		 /* checksum to include in request */
-MSG_DAT *msg_data;		 /* mutual auth MSG_DAT (return) */
-CREDENTIALS *cred;		 /* credentials (return) */
-Key_schedule schedule;		 /* key schedule (return) */
-struct sockaddr_in *laddr;	 /* local address */
-struct sockaddr_in *faddr;	 /* address of foreign host on fd */
-char *version;			 /* version string */
+int krb_sendauth(long options, int fd, KTEXT ticket, char *service, char *inst,
+	char *realm, u_long checksum, MSG_DAT *msg_data, CREDENTIALS *cred,
+	des_key_schedule schedule, struct sockaddr_in *laddr,
+	struct sockaddr_in *faddr, char *version)
 {
     int rem, i, cc;
     char srv_inst[INST_SZ];
@@ -168,7 +155,7 @@ char *version;			 /* version string */
     /* if mutual auth, get credentials so we have service session
        keys for decryption below */
     if (options & KOPT_DO_MUTUAL)
-	if (cc = krb_get_cred(service, srv_inst, realm, cred))
+	if ((cc = krb_get_cred(service, srv_inst, realm, cred)))
 	    return(cc);
 
     /* zero the buffer */
@@ -211,10 +198,10 @@ char *version;			 /* version string */
 
 	/* ...and decrypt it */
 #ifndef NOENCRYPTION
-	key_sched(cred->session,schedule);
+	key_sched((des_cblock *)cred->session,schedule);
 #endif
-	if (cc = krb_rd_priv(priv_buf,(unsigned long) tkt_len, schedule,
-			     cred->session, faddr, laddr, msg_data))
+	if ((cc = krb_rd_priv(priv_buf,(unsigned long) tkt_len, schedule,
+			     cred->session, faddr, laddr, msg_data)))
 	    return(cc);
 
 	/* fetch the (modified) checksum */
@@ -234,10 +221,7 @@ char *version;			 /* version string */
  * krb_sendsvc
  */
 
-int
-krb_sendsvc(fd, service)
-int fd;
-char *service;
+int krb_sendsvc(int fd, char *service)
 {
     /* write the service name length and then the service name to
        the fd */

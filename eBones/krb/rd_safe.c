@@ -13,16 +13,19 @@
  * Steve Miller    Project Athena  MIT/DEC
  *
  *	from: rd_safe.c,v 4.12 89/01/23 15:16:16 steiner Exp $
- *	$Id: rd_safe.c,v 1.1.1.1 1994/09/30 14:50:03 csgr Exp $
+ *	$Id: rd_safe.c,v 1.3 1995/07/18 16:39:34 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: rd_safe.c,v 1.1.1.1 1994/09/30 14:50:03 csgr Exp $";
+"$Id: rd_safe.c,v 1.3 1995/07/18 16:39:34 mark Exp $";
 #endif /* lint */
+#endif
 
 /* system include files */
 #include <stdio.h>
+#include <string.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -33,10 +36,6 @@ static char rcsid[] =
 #include <krb.h>
 #include <prot.h>
 #include "lsb_addr_comp.h"
-
-extern char *errmsg();
-extern int errno;
-extern int krb_debug;
 
 /* static storage */
 
@@ -63,13 +62,9 @@ static u_long delta_t;
  * information, MSG_DAT, is defined in "krb.h".
  */
 
-long krb_rd_safe(in,in_length,key,sender,receiver,m_data)
-    u_char *in;                 /* pointer to the msg received */
-    u_long in_length;           /* length of "in" msg */
-    C_Block *key;               /* encryption key for seed and ivec */
-    struct sockaddr_in *sender; /* sender's address */
-    struct sockaddr_in *receiver; /* receiver's address -- me */
-    MSG_DAT *m_data;		/* where to put message information */
+long krb_rd_safe(u_char *in, u_long in_length, des_cblock key,
+    struct sockaddr_in *sender, struct sockaddr_in *receiver,
+    MSG_DAT *m_data)
 {
     register u_char     *p,*q;
     static      u_long  src_addr; /* Can't send structs since no
@@ -167,11 +162,11 @@ krb_rd_safe protocol err sizeof(u_long) != sizeof(struct in_addr)");
 #ifdef NOENCRYPTION
     bzero(calc_cksum, sizeof(calc_cksum));
 #else
-    quad_cksum(q,calc_cksum,p-q,2,key);
+    quad_cksum((des_cblock *)q,calc_cksum,p-q,2,(des_cblock *)key);
 #endif
 
     if (krb_debug)
-        printf("\ncalc_cksum = %u, received cksum = %u",
+        printf("\ncalc_cksum = %lu, received cksum = %lu",
                (long) calc_cksum[0], (long) big_cksum[0]);
     if (bcmp((char *)big_cksum,(char *)calc_cksum,sizeof(big_cksum)))
         return(RD_AP_MODIFIED);

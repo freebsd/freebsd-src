@@ -16,16 +16,19 @@
  * Steve Miller    Project Athena  MIT/DEC
  *
  *	from: mk_priv.c,v 4.13 89/03/22 14:48:59 jtkohl Exp $
- *	$Id: mk_priv.c,v 1.1.1.1 1994/09/30 14:50:02 csgr Exp $
+ *	$Id: mk_priv.c,v 1.3 1995/07/18 16:39:13 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: mk_priv.c,v 1.1.1.1 1994/09/30 14:50:02 csgr Exp $";
+"$Id: mk_priv.c,v 1.3 1995/07/18 16:39:13 mark Exp $";
 #endif /* lint */
+#endif
 
 /* system include files */
 #include <stdio.h>
+#include <string.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -37,12 +40,7 @@ static char rcsid[] =
 #include <prot.h>
 #include "lsb_addr_comp.h"
 
-extern char *errmsg();
-extern int errno;
-extern int krb_debug;
-
 /* static storage */
-
 
 static u_long c_length;
 static struct timeval msg_time;
@@ -92,16 +90,9 @@ static long msg_time_sec;
  * 0<=n<=7  bytes	pad to 8 byte multiple	zeroes
  */
 
-long krb_mk_priv(in,out,length,schedule,key,sender,receiver)
-    u_char *in;                 /* application data */
-    u_char *out;                /* put msg here, leave room for
-                                 * header! breaks if in and out
-                                 * (header stuff) overlap */
-    u_long length;              /* of in data */
-    Key_schedule schedule;      /* precomputed key schedule */
-    C_Block key;                /* encryption key for seed and ivec */
-    struct sockaddr_in *sender; /* sender address */
-    struct sockaddr_in *receiver; /* receiver address */
+long krb_mk_priv(u_char *in, u_char *out, u_long length,
+    des_key_schedule schedule, des_cblock key, struct sockaddr_in *sender,
+    struct sockaddr_in *receiver)
 {
     register u_char     *p,*q;
     static       u_char *c_length_ptr;
@@ -196,7 +187,8 @@ long krb_mk_priv(in,out,length,schedule,key,sender,receiver)
     bcopy((char *) &c_length,(char *)c_length_ptr,sizeof(c_length));
 
 #ifndef NOENCRYPTION
-    pcbc_encrypt((C_Block *)q,(C_Block *)q,(long)(p-q),schedule,key,ENCRYPT);
+    pcbc_encrypt((des_cblock *)q,(des_cblock *)q,(long)(p-q),schedule,
+	(des_cblock *)key,ENCRYPT);
 #endif /* NOENCRYPTION */
 
     return (q - out + c_length);        /* resulting size */

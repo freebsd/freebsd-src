@@ -5,13 +5,15 @@
  * <Copyright.MIT>.
  *
  *	from: log.c,v 4.7 88/12/01 14:15:14 jtkohl Exp $
- *	$Id: log.c,v 1.2 1994/07/19 19:25:53 g89r4222 Exp $
+ *	$Id: log.c,v 1.3 1995/07/18 16:39:09 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char *rcsid =
-"$Id: log.c,v 1.2 1994/07/19 19:25:53 g89r4222 Exp $";
+"$Id: log.c,v 1.3 1995/07/18 16:39:09 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <sys/time.h>
 #include <stdio.h>
@@ -42,18 +44,12 @@ static is_open;
  * The return value is undefined.
  */
 
-__BEGIN_DECLS
-char	*month_sname __P((int));
-__END_DECLS
-
-
 /*VARARGS1 */
-void log(format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a0)
-    char *format;
-    int a1,a2,a3,a4,a5,a6,a7,a8,a9,a0;
+void log(char *format,int a1,int a2,int a3,int a4,int a5,int a6,int a7,
+    int a8,int a9,int a0)
 {
-    FILE *logfile, *fopen();
-    long time(),now;
+    FILE *logfile;
+    long now;
     struct tm *tm;
 
     if ((logfile = fopen(log_name,"a")) == NULL)
@@ -77,8 +73,7 @@ void log(format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a0)
  * the logfile defaults to KRBLOG, defined in "krb.h".
  */
 
-set_logfile(filename)
-    char *filename;
+void set_logfile(char *filename)
 {
     log_name = filename;
     is_open = 0;
@@ -91,9 +86,7 @@ set_logfile(filename)
  * on success.
  */
 
-new_log(t,string)
-    long t;
-    char *string;
+int new_log(long t, char *string)
 {
     static FILE *logfile;
 

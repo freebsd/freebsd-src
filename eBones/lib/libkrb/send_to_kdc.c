@@ -4,18 +4,22 @@
  * <Copyright.MIT>.
  *
  *	from: send_to_kdc.c,v 4.20 90/01/02 13:40:37 jtkohl Exp $
- *	$Id: send_to_kdc.c,v 1.3 1995/01/25 06:37:33 gibbs Exp $
+ *	$Id: send_to_kdc.c,v 1.3 1995/07/18 16:39:42 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char rcsid_send_to_kdc_c[] =
 "$Id: send_to_kdc.c,v 1.1 1994/03/21 17:35:39 piero Exp ";
 #endif /* lint */
+#endif
 
 #include <krb.h>
 #include <prot.h>
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <errno.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -24,15 +28,11 @@ static char rcsid_send_to_kdc_c[] =
 #endif /* lint */
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <strings.h>
 
 #define S_AD_SZ sizeof(struct sockaddr_in)
-
-extern int errno;
-extern int krb_debug;
-
-extern char *malloc(), *calloc(), *realloc();
 
 int krb_udp_port = 0;
 
@@ -41,12 +41,90 @@ int krb_udp_port = 0;
  */
 static struct timeval timeout = { CLIENT_KRB_TIMEOUT, 0};
 static char *prog = "send_to_kdc";
-static send_recv();
 
 /*
  * This file contains two routines, send_to_kdc() and send_recv().
  * send_recv() is a static routine used by send_to_kdc().
  */
+
+/*
+ * try to send out and receive message.
+ * return 1 on success, 0 on failure
+ */
+
+static int send_recv(KTEXT pkt, KTEXT rpkt, int f, struct sockaddr_in *_to,
+    struct hostent *addrs)
+{
+    fd_set readfds;
+    register struct hostent *hp;
+    struct sockaddr_in from;
+    int sin_size;
+    int numsent;
+
+    if (krb_debug) {
+        if (_to->sin_family == AF_INET)
+            printf("Sending message to %s...",
+                   inet_ntoa(_to->sin_addr));
+        else
+            printf("Sending message...");
+        (void) fflush(stdout);
+    }
+    if ((numsent = sendto(f,(char *)(pkt->dat), pkt->length, 0,
+			  (struct sockaddr *)_to,
+                          S_AD_SZ)) != pkt->length) {
+        if (krb_debug)
+            printf("sent only %d/%d\n",numsent, pkt->length);
+        return 0;
+    }
+    if (krb_debug) {
+        printf("Sent\nWaiting for reply...");
+        (void) fflush(stdout);
+    }
+    FD_ZERO(&readfds);
+    FD_SET(f, &readfds);
+    errno = 0;
+    /* select - either recv is ready, or timeout */
+    /* see if timeout or error or wrong descriptor */
+    if (select(f + 1, &readfds, (fd_set *)0, (fd_set *)0, &timeout) < 1
+        || !FD_ISSET(f, &readfds)) {
+        if (krb_debug) {
+            fprintf(stderr, "select failed: readfds=%lx",
+                    (unsigned long)&readfds);
+            perror("");
+        }
+        return 0;
+    }
+    sin_size = sizeof(from);
+    if (recvfrom(f, (char *)(rpkt->dat), sizeof(rpkt->dat), 0,
+		 (struct sockaddr *)&from, &sin_size)
+        < 0) {
+        if (krb_debug)
+            perror("recvfrom");
+        return 0;
+    }
+    if (krb_debug) {
+        printf("received packet from %s\n", inet_ntoa(from.sin_addr));
+        fflush(stdout);
+    }
+    for (hp = addrs; hp->h_name != (char *)NULL; hp++) {
+        if (!bcmp(hp->h_addr, (char *)&from.sin_addr.s_addr,
+                  hp->h_length)) {
+            if (krb_debug) {
+                printf("Received it\n");
+                (void) fflush(stdout);
+            }
+            return 1;
+        }
+        if (krb_debug)
+            fprintf(stderr,
+                    "packet not from %lx\n",
+                    (unsigned long)hp->h_addr);
+    }
+    if (krb_debug)
+        fprintf(stderr, "%s: received packet from wrong host! (%lx)\n",
+                "send_to_kdc(send_rcv)", (unsigned long)from.sin_addr.s_addr);
+    return 0;
+}
 
 /*
  * send_to_kdc() sends a message to the Kerberos authentication
@@ -75,10 +153,7 @@ static send_recv();
  *		  after several retries
  */
 
-send_to_kdc(pkt,rpkt,realm)
-    KTEXT pkt;
-    KTEXT rpkt;
-    char *realm;
+int send_to_kdc(KTEXT pkt, KTEXT rpkt, char *realm)
 {
     int i, f;
     int no_host; /* was a kerberos host found? */
@@ -229,87 +304,4 @@ rtn:
         free((char *)hostlist);
     }
     return(retval);
-}
-
-/*
- * try to send out and receive message.
- * return 1 on success, 0 on failure
- */
-
-static send_recv(pkt,rpkt,f,_to,addrs)
-    KTEXT pkt;
-    KTEXT rpkt;
-    int f;
-    struct sockaddr_in *_to;
-    struct hostent *addrs;
-{
-    fd_set readfds;
-    register struct hostent *hp;
-    struct sockaddr_in from;
-    int sin_size;
-    int numsent;
-
-    if (krb_debug) {
-        if (_to->sin_family == AF_INET)
-            printf("Sending message to %s...",
-                   inet_ntoa(_to->sin_addr));
-        else
-            printf("Sending message...");
-        (void) fflush(stdout);
-    }
-    if ((numsent = sendto(f,(char *)(pkt->dat), pkt->length, 0,
-			  (struct sockaddr *)_to,
-                          S_AD_SZ)) != pkt->length) {
-        if (krb_debug)
-            printf("sent only %d/%d\n",numsent, pkt->length);
-        return 0;
-    }
-    if (krb_debug) {
-        printf("Sent\nWaiting for reply...");
-        (void) fflush(stdout);
-    }
-    FD_ZERO(&readfds);
-    FD_SET(f, &readfds);
-    errno = 0;
-    /* select - either recv is ready, or timeout */
-    /* see if timeout or error or wrong descriptor */
-    if (select(f + 1, &readfds, (fd_set *)0, (fd_set *)0, &timeout) < 1
-        || !FD_ISSET(f, &readfds)) {
-        if (krb_debug) {
-            fprintf(stderr, "select failed: readfds=%x",
-                    readfds);
-            perror("");
-        }
-        return 0;
-    }
-    sin_size = sizeof(from);
-    if (recvfrom(f, (char *)(rpkt->dat), sizeof(rpkt->dat), 0,
-		 (struct sockaddr *)&from, &sin_size)
-        < 0) {
-        if (krb_debug)
-            perror("recvfrom");
-        return 0;
-    }
-    if (krb_debug) {
-        printf("received packet from %s\n", inet_ntoa(from.sin_addr));
-        fflush(stdout);
-    }
-    for (hp = addrs; hp->h_name != (char *)NULL; hp++) {
-        if (!bcmp(hp->h_addr, (char *)&from.sin_addr.s_addr,
-                  hp->h_length)) {
-            if (krb_debug) {
-                printf("Received it\n");
-                (void) fflush(stdout);
-            }
-            return 1;
-        }
-        if (krb_debug)
-            fprintf(stderr,
-                    "packet not from %x\n",
-                    hp->h_addr);
-    }
-    if (krb_debug)
-        fprintf(stderr, "%s: received packet from wrong host! (%x)\n",
-                "send_to_kdc(send_rcv)", from.sin_addr.s_addr);
-    return 0;
 }

@@ -15,16 +15,19 @@
  * Steve Miller    Project Athena  MIT/DEC
  *
  *	from: rd_priv.c,v 4.14 89/04/28 11:59:42 jtkohl Exp $
- *	$Id: rd_priv.c,v 1.1.1.1 1994/09/30 14:50:03 csgr Exp $
+ *	$Id: rd_priv.c,v 1.3 1995/07/18 16:39:31 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char rcsid[]=
-"$Id: rd_priv.c,v 1.1.1.1 1994/09/30 14:50:03 csgr Exp $";
+"$Id: rd_priv.c,v 1.3 1995/07/18 16:39:31 mark Exp $";
 #endif /* lint */
+#endif
 
 /* system include files */
 #include <stdio.h>
+#include <string.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -35,10 +38,6 @@ static char rcsid[]=
 #include <krb.h>
 #include <prot.h>
 #include "lsb_addr_comp.h"
-
-extern char *errmsg();
-extern int errno;
-extern int krb_debug;
 
 /* static storage */
 
@@ -69,14 +68,9 @@ int private_msg_ver = KRB_PROT_VERSION;
  * information, MSG_DAT, is defined in "krb.h".
  */
 
-long krb_rd_priv(in,in_length,schedule,key,sender,receiver,m_data)
-    u_char *in;			/* pointer to the msg received */
-    u_long in_length;		/* length of "in" msg */
-    Key_schedule schedule;	/* precomputed key schedule */
-    C_Block key;		/* encryption key for seed and ivec */
-    struct sockaddr_in *sender;
-    struct sockaddr_in *receiver;
-    MSG_DAT *m_data;		/*various input/output data from msg */
+long krb_rd_priv(u_char *in, u_long in_length, des_key_schedule schedule,
+    des_cblock key, struct sockaddr_in *sender, struct sockaddr_in *receiver,
+    MSG_DAT *m_data)
 {
     register u_char *p,*q;
     static u_long src_addr;	/* Can't send structs since no
@@ -109,7 +103,8 @@ long krb_rd_priv(in,in_length,schedule,key,sender,receiver,m_data)
     q = p;			/* mark start of encrypted stuff */
 
 #ifndef NOENCRYPTION
-    pcbc_encrypt((C_Block *)q,(C_Block *)q,(long)c_length,schedule,key,DECRYPT);
+    pcbc_encrypt((des_cblock *)q,(des_cblock *)q,(long)c_length,schedule,
+    (des_cblock *)key,DECRYPT);
 #endif
 
     /* safely get application data length */
@@ -176,7 +171,7 @@ long krb_rd_priv(in,in_length,schedule,key,sender,receiver,m_data)
     if (delta_t > CLOCK_SKEW)
 	return RD_AP_TIME;
     if (krb_debug)
-	printf("\ndelta_t = %d",delta_t);
+	printf("\ndelta_t = %ld",delta_t);
 
     /*
      * caller must check timestamps for proper order and

@@ -4,13 +4,15 @@
  * <Copyright.MIT>.
  *
  *	from: get_svc_in_tkt.c,v 4.9 89/07/18 16:33:34 jtkohl Exp $
- *	$Id: get_svc_in_tkt.c,v 1.1.1.1 1994/09/30 14:50:00 csgr Exp $
+ *	$Id: get_svc_in_tkt.c,v 1.3 1995/07/18 16:38:41 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: get_svc_in_tkt.c,v 1.1.1.1 1994/09/30 14:50:00 csgr Exp $";
+"$Id: get_svc_in_tkt.c,v 1.3 1995/07/18 16:38:41 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <krb.h>
 #include <prot.h>
@@ -63,7 +65,7 @@ static int srvtab_to_key(user, instance, realm, srvtab, key)
  * It returns the return value of the krb_get_in_tkt() call.
  */
 
-krb_get_svc_in_tkt(user, instance, realm, service, sinstance, life, srvtab)
+int krb_get_svc_in_tkt(user, instance, realm, service, sinstance, life, srvtab)
     char *user, *instance, *realm, *service, *sinstance;
     int life;
     char *srvtab;

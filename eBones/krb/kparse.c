@@ -30,15 +30,18 @@
  *
  *
  *	from: kparse.c,v 4.5 89/01/21 17:20:39 jtkohl Exp $
- *	$Id: kparse.c,v 1.2 1994/07/19 19:25:42 g89r4222 Exp $
+ *	$Id: kparse.c,v 1.3 1995/07/18 16:38:58 mark Exp $
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: kparse.c,v 1.2 1994/07/19 19:25:42 g89r4222 Exp $";
+"$Id: kparse.c,v 1.3 1995/07/18 16:38:58 mark Exp $";
 #endif	lint
+#endif
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <ctype.h>
 #include <kparse.h>
 
@@ -47,23 +50,21 @@ static char rcsid[] =
 #define TRUE 1
 #endif
 
-#define void int
-
 #define MAXKEY          80
 #define MAXVALUE        80
 
-char *malloc();
-char *strcpy();
+int fGetKeywordValue(FILE *fp, char *keyword, int klen, char *value, int vlen);
+int fGetToken(FILE *fp, char *dest, int maxlen);
+int fGetChar(FILE *fp);
+int fUngetChar(int ch, FILE*fp);
+int fGetLiteral(FILE *fp);;
 
 int LineNbr=1;		/* current line nbr in parameter file */
 char ErrorMsg[80];	/* meaningful only when KV_SYNTAX, PS_SYNTAX,
                          * or PS_BAD_KEYWORD is returned by
                          * fGetKeywordValue or fGetParameterSet */
 
-int fGetParameterSet( fp,parm,parmcount )
-    FILE *fp;
-    parmtable parm[];
-    int parmcount;
+int fGetParameterSet(FILE *fp, parmtable parm[], int parmcount )
 {
     int rc,i;
     char keyword[MAXKEY];
@@ -126,11 +127,7 @@ int fGetParameterSet( fp,parm,parmcount )
  * different. Like strcmp, ParmCompare returns 0 for a match found, -1
  * otherwise
  */
-int ParmCompare( parm, parmcount, keyword, value )
-    parmtable parm[];
-    int parmcount;
-    char *keyword;
-    char *value;
+int ParmCompare(parmtable parm[], int parmcount, char *keyword, char *value )
 {
     int i;
 
@@ -146,9 +143,7 @@ int ParmCompare( parm, parmcount, keyword, value )
     return(-1);
 }
 
-void FreeParameterSet(parm,parmcount)
-    parmtable parm[];
-    int parmcount;
+void FreeParameterSet(parmtable parm[], int parmcount)
 {
     int i;
 
@@ -160,12 +155,7 @@ void FreeParameterSet(parm,parmcount)
     }
 }
 
-int fGetKeywordValue( fp, keyword, klen, value, vlen )
-    FILE *fp;
-    char *keyword;
-    int klen;
-    char *value;
-    int vlen;
+int fGetKeywordValue(FILE *fp, char *keyword, int klen, char *value, int vlen)
 {
     int rc;
     int gotit;
@@ -321,6 +311,7 @@ int fGetKeywordValue( fp, keyword, klen, value, vlen )
 
     } while ( !gotit );
     /*NOTREACHED*/
+    return 0; /* I know, I know. - markm */
 }
 
 /*
@@ -352,10 +343,7 @@ int fGetKeywordValue( fp, keyword, klen, value, vlen )
  *				classification for end of file is
  *				always zero.
  */
-int fGetToken(fp, dest, maxlen)
-    FILE *fp;
-    char *dest;
-    int  maxlen;
+int fGetToken(FILE *fp, char *dest, int maxlen)
 {
     int ch='\0';
     int len=0;
@@ -448,8 +436,7 @@ int fGetToken(fp, dest, maxlen)
  * special case certain values (\n, \f, \r, \b) or return a literal
  * otherwise (useful for \", for example).
  */
-fGetLiteral(fp)
-    FILE *fp;
+int fGetLiteral(FILE *fp)
 {
     int ch;
     int n=0;
@@ -524,9 +511,7 @@ fGetLiteral(fp)
  * exactly the same as ungetc(3) except that the line number of the
  * input file is maintained.
  */
-fUngetChar(ch,fp)
-    int ch;
-    FILE *fp;
+int fUngetChar(int ch, FILE*fp)
 {
     if (ch=='\n') LineNbr--;
     return(ungetc(ch,fp));
@@ -537,8 +522,7 @@ fUngetChar(ch,fp)
  * exactly the same as fgetc(3) except that the line number of the
  * input file is maintained.
  */
-fGetChar(fp)
-    FILE *fp;
+int fGetChar(FILE *fp)
 {
     int ch = fgetc(fp);
     if (ch=='\n') LineNbr++;
@@ -564,8 +548,7 @@ fGetChar(fp)
  * Return Value: pointer to copied string
  *
  */
-char * strsave(p)
-    char *p;
+char *strsave(char *p)
 {
     return(strcpy(malloc(strlen(p)+1),p));
 }
@@ -576,8 +559,7 @@ char * strsave(p)
  * the pointer to the beginning of the string is returned.
  */
 
-char * strutol( start )
-    char *start;
+char *strutol(char *start)
 {
     char *q;
     for (q=start; *q; q++)
@@ -592,9 +574,7 @@ char * strutol( start )
 
 char *pgm = "gettoken";
 
-main(argc,argv)
-    int argc;
-    char **argv;
+main(int argc, char **argv)
 {
     char *p;
     int type;
@@ -647,9 +627,7 @@ main(argc,argv)
 
 #ifdef KVTEST
 
-main(argc,argv)
-    int argc;
-    char **argv;
+main(int argc, char **argv)
 {
     int rc,ch;
     FILE *fp;
@@ -706,9 +684,7 @@ parmtable kparm[] = {
     { "instance",   "",    (char *)NULL }
 };
 
-main(argc,argv)
-    int argc;
-    char **argv;
+main(int argc, char **argv)
 {
     int rc,i,ch;
     FILE *fp;

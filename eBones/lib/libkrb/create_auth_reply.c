@@ -5,14 +5,17 @@
  * <Copyright.MIT>.
  *
  *	from: create_auth_reply.c,v 4.10 89/01/13 17:47:38 steiner Exp $
- *	$Id: create_auth_reply.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $
+ *	$Id: create_auth_reply.c,v 1.3 1995/07/18 16:38:06 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char *rcsid =
-"$Id: create_auth_reply.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $";
+"$Id: create_auth_reply.c,v 1.3 1995/07/18 16:38:06 mark Exp $";
 #endif /* lint */
+#endif
 
+#include <stdio.h>
 #include <krb.h>
 #include <prot.h>
 #include <strings.h>

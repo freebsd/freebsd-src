@@ -5,13 +5,15 @@
  * <Copyright.MIT>.
  *
  *	from: get_pw_tkt.c,v 4.6 89/01/13 18:19:11 steiner Exp $
- *	$Id: get_pw_tkt.c,v 1.2 1994/07/19 19:25:23 g89r4222 Exp $
+ *	$Id: get_pw_tkt.c,v 1.3 1995/07/18 16:38:37 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char *rcsid =
-"$Id: get_pw_tkt.c,v 1.2 1994/07/19 19:25:23 g89r4222 Exp $";
+"$Id: get_pw_tkt.c,v 1.3 1995/07/18 16:38:37 mark Exp $";
 #endif /* lint */
+#endif
 
 
 #include <krb.h>
@@ -46,11 +48,7 @@ static char *rcsid =
  * the password-changing server will be in the user's ticket file.
  */
 
-get_pw_tkt(user,instance,realm,cpw)
-    char *user;
-    char *instance;
-    char *realm;
-    char *cpw;
+int get_pw_tkt(char *user, char *instance, char *realm, char *cpw)
 {
     int kerror;
 

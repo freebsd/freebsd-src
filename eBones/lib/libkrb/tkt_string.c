@@ -5,21 +5,22 @@
  * <Copyright.MIT>.
  *
  *	from: tkt_string.c,v 4.6 89/01/05 12:31:51 raeburn Exp $
- *	$Id: tkt_string.c,v 1.2 1994/07/19 19:26:29 g89r4222 Exp $
+ *	$Id: tkt_string.c,v 1.3 1995/07/18 16:39:52 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char *rcsid =
-"$Id: tkt_string.c,v 1.2 1994/07/19 19:26:29 g89r4222 Exp $";
+"$Id: tkt_string.c,v 1.3 1995/07/18 16:39:52 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <krb.h>
 #include <string.h>
 #include <sys/param.h>
-
-char *getenv();
 
 /*
  * This routine is used to generate the name of the file that holds
@@ -43,14 +44,14 @@ char *tkt_string()
     uid_t getuid();
 
     if (!*krb_ticket_string) {
-        if (env = getenv("KRBTKFILE")) {
+        if ((env = getenv("KRBTKFILE"))) {
 	    (void) strncpy(krb_ticket_string, env,
 			   sizeof(krb_ticket_string)-1);
 	    krb_ticket_string[sizeof(krb_ticket_string)-1] = '\0';
 	} else {
 	    /* 32 bits of signed integer will always fit in 11 characters
 	     (including the sign), so no need to worry about overflow */
-	    (void) sprintf(krb_ticket_string, "%s%d",TKT_ROOT,getuid());
+	    (void) sprintf(krb_ticket_string, "%s%ld",TKT_ROOT,getuid());
         }
     }
     return krb_ticket_string;
@@ -67,9 +68,7 @@ char *tkt_string()
  * and return an undesired ticket file name until this routine is called.
  */
 
-void
-krb_set_tkt_string(val)
-char *val;
+void krb_set_tkt_string(char *val)
 {
 
     (void) strncpy(krb_ticket_string, val, sizeof(krb_ticket_string)-1);

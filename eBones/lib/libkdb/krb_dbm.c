@@ -4,19 +4,27 @@
  * <Copyright.MIT>.
  *
  *	from: krb_dbm.c,v 4.9 89/04/18 16:15:13 wesommer Exp $
- *	$Id: krb_dbm.c,v 1.3 1995/05/30 06:40:38 rgrimes Exp $
- */
+ *	$Id: krb_dbm.c,v 1.4 1995/08/03 17:15:42 mark Exp $
+*/
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: krb_dbm.c,v 1.3 1995/05/30 06:40:38 rgrimes Exp $";
+"$Id: krb_dbm.c,v 1.4 1995/08/03 17:15:42 mark Exp $";
 #endif	lint
+#endif
 
 #if defined(__FreeBSD__) || defined(__NetBSD__)
-#define NDBM
+#define NDBM_
+#endif
+
+#if defined(__FreeBSD__) || defined(__NetBSD__)
+#define	DBM_
 #endif
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <sys/uio.h>
@@ -27,17 +35,17 @@ static char rcsid[] =
 #include <strings.h>
 #include <des.h>
 #include <sys/file.h>
-#ifdef NDBM
+#ifdef NDBM_
 #include <ndbm.h>
-#else /*NDBM*/
+#else /*NDBM_*/
 #include <dbm.h>
-#endif /*NDBM*/
+#endif /*NDBM_*/
 /* before krb_db.h */
 #include <krb.h>
 #include <krb_db.h>
 
 #ifdef dbm_pagfno
-#define	DB
+#define	DBM_
 #endif
 
 #define KERB_DB_MAX_RETRY 5
@@ -47,10 +55,8 @@ extern int debug;
 extern long kerb_debug;
 extern char *progname;
 #endif
-extern char *malloc();
-extern int errno;
 
-static  init = 0;
+static init = 0;
 static char default_db_name[] = DBM_FILE;
 static char *current_db_name = default_db_name;
 static void encode_princ_key(), decode_princ_key();
@@ -122,7 +128,7 @@ static int non_blocking = 0;
  * Instead, all routines call "dbm_next" instead.
  */
 
-#ifndef NDBM
+#ifndef NDBM_
 typedef char DBM;
 
 #define dbm_open(file, flags, mode) ((dbminit(file) == 0)?"":((char *)0))
@@ -139,9 +145,7 @@ typedef char DBM;
  * Utility routine: generate name of database file.
  */
 
-static char *gen_dbsuffix(db_name, sfx)
-    char *db_name;
-    char *sfx;
+static char *gen_dbsuffix(char *db_name, char *sfx)
 {
     char *dbsuffix;
 
@@ -158,7 +162,7 @@ static char *gen_dbsuffix(db_name, sfx)
  * initialization for data base routines.
  */
 
-kerb_db_init()
+int kerb_db_init()
 {
     init = 1;
     return (0);
@@ -169,7 +173,7 @@ kerb_db_init()
  * a kerb_db_init
  */
 
-kerb_db_fini()
+void kerb_db_fini()
 {
 }
 
@@ -180,8 +184,7 @@ kerb_db_fini()
  * If the alternate database doesn't exist, nothing is changed.
  */
 
-kerb_db_set_name(name)
-	char *name;
+int kerb_db_set_name(char *name)
 {
     DBM *db;
 
@@ -225,8 +228,7 @@ long kerb_get_db_age()
  * the server (for example, during slave updates).
  */
 
-static long kerb_start_update(db_name)
-    char *db_name;
+static long kerb_start_update(char *db_name)
 {
     char *okname = gen_dbsuffix(db_name, ".ok");
     long age = kerb_get_db_age();
@@ -239,9 +241,7 @@ static long kerb_start_update(db_name)
     return age;
 }
 
-static long kerb_end_update(db_name, age)
-    char *db_name;
-    long age;
+static long kerb_end_update(char *db_name, long age)
 {
     int fd;
     int retval = 0;
@@ -281,8 +281,7 @@ static long kerb_start_read()
     return kerb_get_db_age();
 }
 
-static long kerb_end_read(age)
-    u_long age;
+static long kerb_end_read(u_long age)
 {
     if (kerb_get_db_age() != age || age == -1) {
 	return -1;
@@ -294,13 +293,12 @@ static long kerb_end_read(age)
  * Create the database, assuming it's not there.
  */
 
-kerb_db_create(db_name)
-    char *db_name;
+int kerb_db_create(char *db_name)
 {
     char *okname = gen_dbsuffix(db_name, ".ok");
     int fd;
     register int ret = 0;
-#ifdef NDBM
+#ifdef NDBM_
     DBM *db;
 
     db = dbm_open(db_name, O_RDWR|O_CREAT|O_EXCL, 0600);
@@ -343,11 +341,10 @@ kerb_db_create(db_name)
  * necessarily know to complete the transaction the rename, but...
  */
 
-kerb_db_rename(from, to)
-    char *from;
-    char *to;
+int kerb_db_rename(char *from, char *to)
 {
-#ifdef DB
+    int ok = 0;
+#ifdef DBM_
     char *fromdb = gen_dbsuffix (from, ".db");
     char *todb = gen_dbsuffix (to, ".db");
 #else
@@ -358,9 +355,8 @@ kerb_db_rename(from, to)
 #endif
     char *fromok = gen_dbsuffix(from, ".ok");
     long trans = kerb_start_update(to);
-    int ok;
 
-#ifdef DB
+#ifdef DBM_
     if (rename (fromdb, todb) == 0) {
 #else
     if ((rename (fromdir, todir) == 0)
@@ -371,7 +367,7 @@ kerb_db_rename(from, to)
     }
 
     free (fromok);
-#ifdef DB
+#ifdef DBM_
     free (fromdb);
     free (todb);
 #else
@@ -389,15 +385,15 @@ kerb_db_rename(from, to)
 /*
  * look up a principal in the data base returns number of principals
  * found , and whether there were more than requested.
+    char   *name		 could have wild card
+    char   *inst		 could have wild card
+    Principal *principal
+    unsigned int max		 max number of name structs to return
+    int    *more		 where there more than 'max' tuples?
  */
 
-kerb_db_get_principal(name, inst, principal, max, more)
-    char   *name;		/* could have wild card */
-    char   *inst;		/* could have wild card */
-    Principal *principal;
-    unsigned int max;		/* max number of name structs to return */
-    int    *more;		/* where there more than 'max' tuples? */
-
+int kerb_db_get_principal(char *name, char *inst, Principal *principal,
+    unsigned int max, int *more)
 {
     int     found = 0, code;
     extern int errorproc();
@@ -495,11 +491,7 @@ kerb_db_get_principal(name, inst, principal, max, more)
  * successfully updated.
  */
 
-kerb_db_put_principal(principal, max)
-    Principal *principal;
-    unsigned int max;		/* number of principal structs to
-				 * update */
-
+int kerb_db_put_principal(Principal *principal, unsigned int max)
 {
     int     found = 0, code;
     u_long  i;
@@ -544,9 +536,7 @@ kerb_db_put_principal(principal, max)
 }
 
 static void
-encode_princ_key(key, name, instance)
-    datum  *key;
-    char   *name, *instance;
+encode_princ_key(datum *key, char *name, char *instance)
 {
     static char keystring[ANAME_SZ + INST_SZ];
 
@@ -558,9 +548,7 @@ encode_princ_key(key, name, instance)
 }
 
 static void
-decode_princ_key(key, name, instance)
-    datum  *key;
-    char   *name, *instance;
+decode_princ_key(datum *key, char *name, char *instance)
 {
     strncpy(name, key->dptr, ANAME_SZ);
     strncpy(instance, key->dptr + ANAME_SZ, INST_SZ);
@@ -569,24 +557,19 @@ decode_princ_key(key, name, instance)
 }
 
 static void
-encode_princ_contents(contents, principal)
-    datum  *contents;
-    Principal *principal;
+encode_princ_contents(datum *contents, Principal *principal)
 {
     contents->dsize = sizeof(*principal);
     contents->dptr = (char *) principal;
 }
 
 static void
-decode_princ_contents(contents, principal)
-    datum  *contents;
-    Principal *principal;
+decode_princ_contents(datum *contents, Principal *principal)
 {
     bcopy(contents->dptr, (char *) principal, sizeof(*principal));
 }
 
-kerb_db_get_stat(s)
-    DB_stat *s;
+void kerb_db_get_stat(DB_stat *s)
 {
     gettimeofday(&timestamp, NULL);
 
@@ -604,13 +587,11 @@ kerb_db_get_stat(s)
     /* update local copy too */
 }
 
-kerb_db_put_stat(s)
-    DB_stat *s;
+void kerb_db_put_stat(DB_stat *s)
 {
 }
 
-delta_stat(a, b, c)
-    DB_stat *a, *b, *c;
+void delta_stat(DB_stat *a, DB_stat *b, DB_stat *c)
 {
     /* c = a - b then b = a for the next time */
 
@@ -626,7 +607,6 @@ delta_stat(a, b, c)
     c->n_put_stat = a->n_put_stat - b->n_put_stat;
 
     bcopy(a, b, sizeof(DB_stat));
-    return;
 }
 
 /*
@@ -634,21 +614,14 @@ delta_stat(a, b, c)
  * whether there were more than requested.
  */
 
-kerb_db_get_dba(dba_name, dba_inst, dba, max, more)
-    char   *dba_name;		/* could have wild card */
-    char   *dba_inst;		/* could have wild card */
-    Dba    *dba;
-    unsigned int max;		/* max number of name structs to return */
-    int    *more;		/* where there more than 'max' tuples? */
-
+int kerb_db_get_dba(char *dba_name, char *dba_inst, Dba *dba, unsigned int max,
+    int *more)
 {
     *more = 0;
     return (0);
 }
 
-kerb_db_iterate (func, arg)
-    int (*func)();
-    char *arg;			/* void *, really */
+int kerb_db_iterate (int (*func)(), char *arg)
 {
     datum key, contents;
     Principal *principal;
@@ -677,7 +650,7 @@ static int dblfd = -1;
 static int mylock = 0;
 static int inited = 0;
 
-static kerb_dbl_init()
+static int kerb_dbl_init()
 {
     if (!inited) {
 	char *filename = gen_dbsuffix (current_db_name, ".ok");
@@ -701,8 +674,7 @@ static void kerb_dbl_fini()
     mylock = 0;
 }
 
-static int kerb_dbl_lock(mode)
-    int     mode;
+static int kerb_dbl_lock(int mode)
 {
     int flock_mode;
 
@@ -750,8 +722,7 @@ static void kerb_dbl_unlock()
     mylock = 0;
 }
 
-int kerb_db_set_lockmode(mode)
-    int mode;
+int kerb_db_set_lockmode(int mode)
 {
     int old = non_blocking;
     non_blocking = mode;
