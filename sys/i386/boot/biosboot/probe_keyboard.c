@@ -42,7 +42,7 @@
  *
  * This grody hack brought to you by Bill Paul (wpaul@ctr.columbia.edu)
  *
- *	$Id: probe_keyboard.c,v 1.7 1996/09/26 20:52:13 pst Exp $
+ *	$Id: probe_keyboard.c,v 1.8 1996/11/23 07:38:24 peter Exp $
  */
 
 #ifdef PROBE_KEYBOARD
@@ -96,7 +96,7 @@ gotres:
 	}
 gotack:
 	delay1ms();
-	while ((inb(IO_KBD + KBD_STATUS_PORT) & KBDS_CONTROLLER_BUSY) == 0)
+	while ((inb(IO_KBD + KBD_STATUS_PORT) & KBDS_KBD_BUFFER_FULL) == 0)
 		delay1ms();
 	delay1ms();
 #ifdef DEBUG
