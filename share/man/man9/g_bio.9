@@ -30,7 +30,8 @@
 .Sh NAME
 .Nm g_new_bio ,
 .Nm g_clone_bio ,
-.Nm g_destroy_bio
+.Nm g_destroy_bio ,
+.Nm g_print_bio
 .Nd "bio controlling functions"
 .Sh SYNOPSIS
 .In sys/bio.h
@@ -41,6 +42,8 @@
 .Fn g_clone_bio "struct bio *bp"
 .Ft void
 .Fn g_destroy_bio "struct bio *bp"
+.Ft void
+.Fn g_print_bio "struct bio *bp"
 .Sh DESCRIPTION
 The
 .Fa bio
@@ -167,6 +170,12 @@ The
 function kills the given
 .Vt bio
 structure.
+.Pp
+The
+.Fn g_print_bio
+function prints informations about given
+.Vt bio
+structure.
 .Sh EXAMPLES
 Implementation of
 .Dq Dv NULL Ns \-transformation ,
@@ -183,6 +192,10 @@ example_start(struct bio *bp)
 {
 	struct example_softc *sc;
 	struct bio *cbp;
+
+	printf("Request received: ");
+	g_print_bio();
+	printf("\\n");
 
 	sc = bp->bio_to->geom->softc;
 	if (sc == NULL) {
