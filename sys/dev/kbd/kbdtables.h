@@ -132,7 +132,7 @@ keymap_t key_map = { 0x69,	/* DK iso8859 keymap */
 #endif
 
 #ifdef UKKEYMAP
-keymap_t keymap = { 0x69,	/* uk iso8859 keymap */
+keymap_t key_map = { 0x69,	/* uk iso8859 keymap */
 /*                                                            alt
  * scan                          cntrl          alt    alt   cntrl
  * code     base   shift  cntrl  shift   alt   shift  cntrl  shift  spcl  flgs
@@ -247,7 +247,7 @@ keymap_t keymap = { 0x69,	/* uk iso8859 keymap */
 #endif
 
 #ifdef GRKEYMAP
-keymap_t keymap = { 0x69,	/* german iso8859 keymap */
+keymap_t key_map = { 0x69,	/* german iso8859 keymap */
 /*                                                            alt
  * scan                          cntrl          alt    alt   cntrl
  * code     base   shift  cntrl  shift   alt   shift  cntrl  shift  spcl  flgs
@@ -362,7 +362,7 @@ keymap_t keymap = { 0x69,	/* german iso8859 keymap */
 #endif
 
 #ifdef SWKEYMAP
-keymap_t keymap = { 0x69,	/* swedish iso8859 keymap */
+keymap_t key_map = { 0x69,	/* swedish iso8859 keymap */
 /*                                                            alt
  * scan                          cntrl          alt    alt   cntrl
  * code     base   shift  cntrl  shift   alt   shift  cntrl  shift  spcl  flgs
@@ -477,7 +477,7 @@ keymap_t keymap = { 0x69,	/* swedish iso8859 keymap */
 #endif
 
 #ifdef RUKEYMAP
-keymap_t keymap = { 0xe9,        /* keys number */
+keymap_t key_map = { 0xe9,        /* keys number */
 /*                                                                          alt
  * scan                          cntrl                alt        alt       cntrl
  * code     base   shift  cntrl  shift     alt       shift      cntrl      shift    spcl  flgs
