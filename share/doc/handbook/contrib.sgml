@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.25 1995/10/04 02:10:38 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.26 1995/10/04 08:19:09 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -100,6 +100,7 @@
 	  <item>Bob Wilcox &lt;bob@obiwan.uucp&gt;
 	  <item>Brian Tao &lt;taob@gate.sinica.edu.tw&gt;
 	  <item>Charles Hannum &lt;mycroft@ai.mit.edu&gt;
+	  <item>Chet Ramey &lt;chet@odin.INS.CWRU.Edu&gt;
 	  <item>Chris G. Demetriou &lt;cgd@postgres.berkeley.edu&gt;
 	  <item>Chris Provenzano &lt;proven@athena.mit.edu&gt;
 	  <item>Chris Stenton &lt;jacs@gnome.co.uk&gt;
@@ -142,6 +143,7 @@
 	  <item>Jim Wilson &lt;wilson@moria.cygnus.com&gt;
 	  <item>Jonathan Bresler &lt; jmb@FreeBSD.ORG&gt; 
 	  <item>Josh MacDonald &lt;jmacd@uclink.berkeley.edu&gt;
+	  <item>Juergen Lock &lt;nox@jelal.hb.north.de&gt;
 	  <item>Julian Elischer &lt;julian@dialix.oz.au&gt;
 	  <item>Julian Stacey &lt;stacey@guug.de&gt;
 	    (fallback: &lt;julian@meepmeep.pcs.com&gt)
