@@ -167,6 +167,10 @@ spec_open(ap)
 	if (vp->v_mount && (vp->v_mount->mnt_flag & MNT_NODEV))
 		return (ENXIO);
 
+	/* Make this field valid before any I/O in ->d_open */
+	if (!dev->si_iosize_max)
+		dev->si_iosize_max = DFLTPHYS;
+
 	switch (vp->v_type) {
 	case VCHR:
 		dsw = devsw(dev);
@@ -233,15 +237,13 @@ spec_open(ap)
 	if (vn_isdisk(vp)) {
 		if (!dev->si_bsize_phys)
 			dev->si_bsize_phys = DEV_BSIZE;
-		maxio = dev->si_iosize_max;
-		if (!maxio)
-			maxio = devsw(dev)->d_maxio;	/* XXX */
-		if (!maxio)
-			maxio = DFLTPHYS;
-		if (maxio > MAXPHYS)
-			maxio = MAXPHYS;
-		vp->v_maxio = maxio;
 	}
+	maxio = dev->si_iosize_max;
+	if (!maxio)
+		maxio = DFLTPHYS;
+	if (maxio > MAXPHYS)
+		maxio = MAXPHYS;
+	vp->v_maxio = maxio;
 
 	return (error);
 }

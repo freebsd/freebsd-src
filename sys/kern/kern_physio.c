@@ -172,14 +172,9 @@ u_int
 minphys(bp)
 	struct buf *bp;
 {
-	u_int maxphys = DFLTPHYS;
-	struct cdevsw *bdsw;
+	u_int maxphys;
 
-	bdsw = devsw(bp->b_dev);
-
-	if (bdsw && bdsw->d_maxio) {
-		maxphys = bdsw->d_maxio;
-	}
+	maxphys = bp->b_dev->si_iosize_max;
 	if (bp->b_kvasize && (bp->b_kvasize < maxphys))
 		maxphys = bp->b_kvasize;
 
