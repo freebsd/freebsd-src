@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.52 1998/07/29 17:38:14 bde Exp $
+ * $Id: kern_lkm.c,v 1.53 1998/08/10 14:27:34 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -238,8 +238,7 @@ lkmcioctl(dev, cmd, data, flag, p)
 		resrvp->addr = curp->area; /* ret kernel addr */
 
 #ifdef DEBUG
-		printf("LKM: LMRESERV (actual   = 0x%8p)\n",
-		    (void *)curp->area);
+		printf("LKM: LMRESERV (actual   = 0x%08lx)\n", curp->area);
 		printf("LKM: LMRESERV (adjusted = 0x%08x)\n",
 		    trunc_page(curp->area));
 #endif	/* DEBUG */
