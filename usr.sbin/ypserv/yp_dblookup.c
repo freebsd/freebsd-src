@@ -468,7 +468,7 @@ yp_get_record(const char *domain, const char *map,
 
 	if (ypdb_debug)
 		yp_error("looking up key [%.*s]",
-			  key->size, key->data);
+		    (int)key->size, (char *)key->data);
 
 	/*
 	 * Avoid passing back magic "YP_*" entries unless
@@ -498,7 +498,8 @@ yp_get_record(const char *domain, const char *map,
 
 	if (ypdb_debug)
 		yp_error("result of lookup: key: [%.*s] data: [%.*s]",
-			 key->size, key->data, data->size, data->data);
+		    (int)key->size, (char *)key->data,
+		    (int)data->size, (char *)data->data);
 
 #ifdef DB_CACHE
 	if (TAILQ_FIRST(&qhead)->dbptr->size) {
@@ -550,7 +551,8 @@ yp_first_record(const DB *dbp, DBT *key, DBT *data, int allow)
 
 	if (ypdb_debug)
 		yp_error("result of lookup: key: [%.*s] data: [%.*s]",
-			 key->size, key->data, data->size, data->data);
+		    (int)key->size, (char *)key->data,
+		    (int)data->size, (char *)data->data);
 
 #ifdef DB_CACHE
 	if (TAILQ_FIRST(&qhead)->dbptr->size) {
@@ -591,7 +593,7 @@ yp_next_record(const DB *dbp, DBT *key, DBT *data, int all, int allow)
 
 	if (ypdb_debug)
 		yp_error("retrieving next key, previous was: [%.*s]",
-			  key->size, key->data);
+		    (int)key->size, (char *)key->data);
 
 	if (!all) {
 #ifdef DB_CACHE
@@ -631,7 +633,8 @@ yp_next_record(const DB *dbp, DBT *key, DBT *data, int all, int allow)
 
 	if (ypdb_debug)
 		yp_error("result of lookup: key: [%.*s] data: [%.*s]",
-			 key->size, key->data, data->size, data->data);
+		    (int)key->size, (char *)key->data,
+		    (int)data->size, (char *)data->data);
 
 #ifdef DB_CACHE
 	if (TAILQ_FIRST(&qhead)->dbptr->size) {
