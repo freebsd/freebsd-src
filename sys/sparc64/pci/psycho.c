@@ -94,6 +94,7 @@ static void psycho_wakeup(void *);
 
 /* IOMMU support */
 static void psycho_iommu_init(struct psycho_softc *, int);
+static ofw_pci_binit_t psycho_binit;
 
 /*
  * bus space and bus dma support for UltraSPARC `psycho'.  note that most
@@ -288,6 +289,7 @@ psycho_attach(device_t dev)
 	struct psycho_softc *osc = NULL;
 	struct psycho_softc *asc;
 	struct upa_regs *reg;
+	struct ofw_pci_bdesc obd;
 	char compat[32];
 	char *model;
 	phandle_t node;
@@ -416,20 +418,8 @@ psycho_attach(device_t dev)
 	    PCICTL_RTRYWAIT);
 	PCICTL_WRITE8(sc, PCR_CS, csr);
 
-	/* grab the psycho ranges */
+	/* Grab the psycho ranges */
 	psycho_get_ranges(sc->sc_node, &sc->sc_range, &sc->sc_nrange);
-
-	/* get the bus-range for the psycho */
-	n = OF_getprop(node, "bus-range", (void *)psycho_br, sizeof(psycho_br));
-	if (n == -1)
-		panic("could not get psycho bus-range");
-	if (n != sizeof(psycho_br))
-		panic("broken psycho bus-range (%d)", n);
-
-	printf("bus range %u to %u; PCI bus %d\n", psycho_br[0], psycho_br[1],
-	    psycho_br[0]);
-
-	sc->sc_busno = psycho_br[0];
 
 	/* Initialize memory and i/o rmans */
 	sc->sc_io_rman.rm_type = RMAN_ARRAY;
@@ -606,14 +596,36 @@ psycho_attach(device_t dev)
 #endif
 
 	/*
+	 * Get the bus range from the firmware; it is used solely for obtaining
+	 * the inital bus number, and cannot be trusted on all machines.
+	 */
+	n = OF_getprop(node, "bus-range", (void *)psycho_br, sizeof(psycho_br));
+	if (n == -1)
+		panic("could not get psycho bus-range");
+	if (n != sizeof(psycho_br))
+		panic("broken psycho bus-range (%d)", n);
+
+	sc->sc_busno = ofw_pci_alloc_busno(sc->sc_node);
+	obd.obd_bus = psycho_br[0];
+	obd.obd_secbus = obd.obd_subbus = sc->sc_busno;
+	obd.obd_slot = PCS_DEVICE;
+	obd.obd_func = PCS_FUNC;
+	obd.obd_init = psycho_binit;
+	obd.obd_super = NULL;
+	/* Initial setup. */
+	psycho_binit(dev, &obd);
+	/* Update the bus number to what was just programmed. */
+	obd.obd_bus = obd.obd_secbus;
+	/*
 	 * Initialize the interrupt registers of all devices hanging from
 	 * the host bridge directly or indirectly via PCI-PCI bridges.
 	 * The MI code (and the PCI spec) assume that this is done during
 	 * system initialization, however the firmware does not do this
 	 * at least on some models, and we probably shouldn't trust that
 	 * the firmware uses the same model as this driver if it does.
+	 * Additionally, set up the bus numbers and ranges.
 	 */
-	ofw_pci_init_intr(dev, sc->sc_node);
+	ofw_pci_init(dev, sc->sc_node, &obd);
 
 	device_add_child(dev, "pci", device_get_unit(dev));
 	return (bus_generic_attach(dev));
@@ -837,6 +849,25 @@ psycho_iommu_init(struct psycho_softc *sc, int tsbsize)
 	iommu_init(name, is, tsbsize, iobase);
 }
 
+static void
+psycho_binit(device_t busdev, struct ofw_pci_bdesc *obd)
+{
+
+#ifdef PSYCHO_DEBUG
+	printf("psycho at %u/%u/%u: setting bus #s to %u/%u/%u\n",
+	    obd->obd_bus, obd->obd_slot, obd->obd_func, obd->obd_bus,
+	    obd->obd_secbus, obd->obd_subbus);
+#endif /* PSYCHO_DEBUG */
+	/*
+	 * NOTE: this must be kept in this order, since the last write will
+	 * change the config space address of the psycho.
+	 */
+	PCIB_WRITE_CONFIG(busdev, obd->obd_bus, obd->obd_slot, obd->obd_func,
+	    PCSR_SUBBUS, obd->obd_subbus, 1);
+	PCIB_WRITE_CONFIG(busdev, obd->obd_bus, obd->obd_slot, obd->obd_func,
+	    PCSR_SECBUS, obd->obd_secbus, 1);
+}
+
 static int
 psycho_maxslots(device_t dev)
 {
@@ -961,7 +992,6 @@ psycho_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 static int
 psycho_route_interrupt(device_t bus, device_t dev, int pin)
 {
-	int intline;
 
 	/*
 	 * XXX: ugly loathsome hack:
