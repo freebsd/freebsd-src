@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.12 1995/08/31 01:39:31 dyson Exp $
+ *	$Id: uipc_usrreq.c,v 1.14 1996/02/25 07:02:14 hsu Exp $
  */
 
 #include <sys/param.h>
@@ -725,10 +725,10 @@ unp_gc()
 		return;
 	unp_gcing = 1;
 	unp_defer = 0;
-	for (fp = filehead; fp; fp = fp->f_filef)
+	for (fp = filehead.lh_first; fp != 0; fp = fp->f_list.le_next)
 		fp->f_flag &= ~(FMARK|FDEFER);
 	do {
-		for (fp = filehead; fp; fp = fp->f_filef) {
+		for (fp = filehead.lh_first; fp != 0; fp = fp->f_list.le_next) {
 			if (fp->f_count == 0)
 				continue;
 			if (fp->f_flag & FDEFER) {
@@ -806,8 +806,9 @@ unp_gc()
 	 * 91/09/19, bsy@cs.cmu.edu
 	 */
 	extra_ref = malloc(nfiles * sizeof(struct file *), M_FILE, M_WAITOK);
-	for (nunref = 0, fp = filehead, fpp = extra_ref; fp; fp = nextfp) {
-		nextfp = fp->f_filef;
+	for (nunref = 0, fp = filehead.lh_first, fpp = extra_ref; fp != 0;
+	    fp = nextfp) {
+		nextfp = fp->f_list.le_next;
 		if (fp->f_count == 0)
 			continue;
 		if (fp->f_count == fp->f_msgcount && !(fp->f_flag & FMARK)) {
