@@ -341,7 +341,7 @@ m_dup(struct mbuf *m, int how)
 	/* Sanity check */
 	if (m == NULL)
 		return (NULL);
-	KASSERT((m->m_flags & M_PKTHDR) != 0, ("%s: !PKTHDR", __FUNCTION__));
+	KASSERT((m->m_flags & M_PKTHDR) != 0, ("%s: !PKTHDR", __func__));
 
 	/* While there's more data, get a new mbuf, tack it on, and fill it */
 	remain = m->m_pkthdr.len;
@@ -389,7 +389,7 @@ m_dup(struct mbuf *m, int how)
 
 		/* Check correct total mbuf length */
 		KASSERT((remain > 0 && m != NULL) || (remain == 0 && m == NULL),
-		    	("%s: bogus m_pkthdr.len", __FUNCTION__));
+		    	("%s: bogus m_pkthdr.len", __func__));
 	}
 	return (top);
 

@@ -85,7 +85,7 @@ sx_destroy(struct sx *sx)
 	LOCK_LOG_DESTROY(&sx->sx_object, 0);
 
 	KASSERT((sx->sx_cnt == 0 && sx->sx_shrd_wcnt == 0 && sx->sx_excl_wcnt ==
-	    0), ("%s (%s): holders or waiters\n", __FUNCTION__,
+	    0), ("%s (%s): holders or waiters\n", __func__,
 	    sx->sx_object.lo_name));
 
 	sx->sx_lock = NULL;
@@ -101,7 +101,7 @@ _sx_slock(struct sx *sx, const char *file, int line)
 
 	mtx_lock(sx->sx_lock);
 	KASSERT(sx->sx_xholder != curthread,
-	    ("%s (%s): slock while xlock is held @ %s:%d\n", __FUNCTION__,
+	    ("%s (%s): slock while xlock is held @ %s:%d\n", __func__,
 	    sx->sx_object.lo_name, file, line));
 
 	/*
@@ -154,7 +154,7 @@ _sx_xlock(struct sx *sx, const char *file, int line)
 	 * INVARIANTS.
 	 */
 	KASSERT(sx->sx_xholder != curthread,
-	    ("%s (%s): xlock already held @ %s:%d", __FUNCTION__,
+	    ("%s (%s): xlock already held @ %s:%d", __func__,
 	    sx->sx_object.lo_name, file, line));
 
 	/* Loop in case we lose the race for lock acquisition. */
