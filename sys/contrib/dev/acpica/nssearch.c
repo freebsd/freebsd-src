@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nssearch - Namespace search
- *              $Revision: 100 $
+ *              $Revision: 101 $
  *
  ******************************************************************************/
 
@@ -191,6 +191,13 @@ AcpiNsSearchNode (
 
         if (NextNode->Name.Integer == TargetName)
         {
+            /* Resolve a control method alias if any */
+
+            if (AcpiNsGetType (NextNode) == ACPI_TYPE_LOCAL_METHOD_ALIAS)
+            {
+                NextNode = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE, NextNode->Object);
+            }
+
             /*
              * Found matching entry.
              */

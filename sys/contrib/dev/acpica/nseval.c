@@ -2,7 +2,7 @@
  *
  * Module Name: nseval - Object evaluation interfaces -- includes control
  *                       method lookup and execution.
- *              $Revision: 124 $
+ *              $Revision: 125 $
  *
  ******************************************************************************/
 
@@ -398,6 +398,16 @@ AcpiNsEvaluateByHandle (
     {
         (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
         return_ACPI_STATUS (AE_BAD_PARAMETER);
+    }
+
+    /*
+     * For a method alias, we must grab the actual method node
+     * so that proper scoping context will be established
+     * before execution.
+     */
+    if (AcpiNsGetType (Node) == ACPI_TYPE_LOCAL_METHOD_ALIAS)
+    {
+        Node = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE, Node->Object);
     }
 
     /*

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsaddr - Address resource descriptors (16/32/64)
- *              $Revision: 34 $
+ *              $Revision: 35 $
  *
  ******************************************************************************/
 
@@ -162,6 +162,7 @@ AcpiRsAddress16Resource (
 
     ACPI_FUNCTION_TRACE ("RsAddress16Resource");
 
+
     /*
      * Point past the Descriptor to get the number of bytes consumed
      */
@@ -226,7 +227,7 @@ AcpiRsAddress16Resource (
         OutputStruct->Data.Address16.Attribute.Memory.ReadWriteAttribute =
                 (UINT16) (Temp8 & 0x01);
         OutputStruct->Data.Address16.Attribute.Memory.CacheAttribute =
-                (UINT16) ((Temp8 >> 1) & 0x0F);
+                (UINT16) ((Temp8 >> 1) & 0x03);
     }
     else
     {
@@ -431,7 +432,7 @@ AcpiRsAddress16Stream (
 
         Temp8 |=
             (LinkedList->Data.Address16.Attribute.Memory.CacheAttribute &
-             0x0F) << 1;
+             0x03) << 1;
     }
     else if (ACPI_IO_RANGE == LinkedList->Data.Address16.ResourceType)
     {
@@ -628,7 +629,7 @@ AcpiRsAddress32Resource (
                 (UINT16) (Temp8 & 0x01);
 
         OutputStruct->Data.Address32.Attribute.Memory.CacheAttribute =
-                (UINT16) ((Temp8 >> 1) & 0x0F);
+                (UINT16) ((Temp8 >> 1) & 0x03);
     }
     else
     {
@@ -831,7 +832,7 @@ AcpiRsAddress32Stream (
 
         Temp8 |=
             (LinkedList->Data.Address32.Attribute.Memory.CacheAttribute &
-             0x0F) << 1;
+             0x03) << 1;
     }
     else if (ACPI_IO_RANGE == LinkedList->Data.Address32.ResourceType)
     {
@@ -1027,7 +1028,7 @@ AcpiRsAddress64Resource (
                 (UINT16) (Temp8 & 0x01);
 
         OutputStruct->Data.Address64.Attribute.Memory.CacheAttribute =
-                (UINT16) ((Temp8 >> 1) & 0x0F);
+                (UINT16) ((Temp8 >> 1) & 0x03);
     }
     else
     {
@@ -1232,7 +1233,7 @@ AcpiRsAddress64Stream (
 
         Temp8 |=
             (LinkedList->Data.Address64.Attribute.Memory.CacheAttribute &
-             0x0F) << 1;
+             0x03) << 1;
     }
     else if (ACPI_IO_RANGE == LinkedList->Data.Address64.ResourceType)
     {

@@ -2,7 +2,7 @@
  *
  * Module Name: nsutils - Utilities for accessing ACPI namespace, accessing
  *                        parents and siblings and Scope manipulation
- *              $Revision: 133 $
+ *              $Revision: 134 $
  *
  *****************************************************************************/
 
@@ -341,7 +341,7 @@ AcpiNsGetType (
 
     if (!Node)
     {
-        ACPI_REPORT_WARNING (("NsGetType: Null Node ptr"));
+        ACPI_REPORT_WARNING (("NsGetType: Null Node input pointer\n"));
         return_VALUE (ACPI_TYPE_ANY);
     }
 
