@@ -254,7 +254,7 @@ to waste as little space as possible.
 See
 .Xr mdmfs 8
 for other options you can use in
-.Li tmpmfs_flags .
+.Va tmpmfs_flags .
 .It Va varmfs
 Controls the creation of a
 .Pa /var
@@ -284,7 +284,7 @@ to waste as little space as possible.
 See
 .Xr mdmfs 8
 for other options you can use in
-.Li varmfs_flags .
+.Va varmfs_flags .
 .It Va populate_var
 Controls the automatic population of the
 .Pa /var
@@ -723,7 +723,9 @@ appropriately.
 .Pp
 .Dl "device pf"
 .Pp
-builds pf into the kernel.
+builds
+.Xr pf 4
+into the kernel.
 Otherwise it is loaded from a module.
 .It Va pf_rules
 .Pq Vt str
@@ -1124,7 +1126,7 @@ parts.
 .Pq Vt int
 Number of times to attempt attaching to a
 .Xr gbde 4
-device, i.e. how many times the user is asked for the pass-phrase.
+device, i.e., how many times the user is asked for the pass-phrase.
 Default is 3.
 .It Va gbde_swap_enable
 .Pq Vt bool
@@ -1637,19 +1639,18 @@ If set to
 .Dq Li YES ,
 .Xr ntpd 8
 is run with the
-.Op Fl g
+.Fl g
 flag, which syncs the system's clock on startup.
 See
 .Xr ntpd 8
 for more information regarding the
-.Op Fl g
+.Fl g
 option.
 This is a preferred alternative to using
-.Xr ntpdate 1
+.Xr ntpdate 8
 or specifying the
-.Pa /etc/rc.conf
-tunable
-.Op Ar ntpdate_enable .
+.Va ntpdate_enable
+variable.
 .It Va nis_client_enable
 .Pq Vt bool
 If set to
@@ -2256,7 +2257,7 @@ etc).
 .It Va moused_nondefault_enable
 .Pq Vt str
 If set to
-.Dq Li NO
+.Dq Li NO ,
 the mouse device specified on
 the command line is not automatically treated as enabled by the
 .Pa /etc/rc.d/moused
@@ -2701,28 +2702,16 @@ indicates that
 should use the lowest power state available while
 .Dq Li HIGH
 indicates that the lowest latency state (less power savings) should be used.
-.It Va performance_throttle_state
+.It Va performance_cpu_freq
 .Pq Vt str
-CPU throttling state to use while on AC power.
+CPU clock frequency to use while on AC power.
 The string
 .Dq Li LOW
 indicates that
-.Xr acpi 4
-should use the lowest throttling state available while
+.Xr cpufreq 4
+should use the lowest frequency available while
 .Dq Li HIGH
-indicates that the highest performance state (less power savings) should be
-used.
-.It Va economy_throttle_state
-.Pq Vt str
-CPU throttling state to use when off AC power.
-The string
-.Dq Li LOW
-indicates that
-.Xr acpi 4
-should use the lowest throttling state available while
-.Dq Li HIGH
-indicates that the highest performance state (less power savings) should be
-used.
+indicates that the highest frequency (less power savings) should be used.
 .It Va economy_cx_lowest
 .Pq Vt str
 CPU idle state to use when off AC power.
@@ -2733,6 +2722,16 @@ indicates that
 should use the lowest power state available while
 .Dq Li HIGH
 indicates that the lowest latency state (less power savings) should be used.
+.It Va economy_cpu_freq
+.Pq Vt str
+CPU clock frequency to use when off AC power.
+The string
+.Dq Li LOW
+indicates that
+.Xr cpufreq 4
+should use the lowest frequency available while
+.Dq Li HIGH
+indicates that the highest frequency (less power savings) should be used.
 .It Va jail_enable
 .Pq Vt bool
 If set to
@@ -3079,16 +3078,20 @@ recover pre-maturely terminated
 .Xr vi 1
 sessions.
 .It Va ugidfw_enable
-.Dq Li NO
-Load the
+.Pq Vt bool
+Set to
+.Dq Li YES
+to load the
 .Xr mac_bsdextended 4
 module upon system initialization and load a default
 ruleset file.
 .It Va bsdextended_script
-.Dq Pa /etc/rc.bsdextended
+.Pq Vt str
 The default
 .Xr mac_bsdextended 4
 ruleset file to load.
+The default value of this variable is
+.Pa /etc/rc.bsdextended .
 .It Va ramdisk_units
 .Pq Vt str
 A list of one or more ramdisk units to configure with
