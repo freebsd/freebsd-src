@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)touch.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: touch.c,v 1.1.1.1.8.2 1997/12/23 07:18:29 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -623,7 +623,7 @@ writetouched(overwrite)
 
 	botch = 0;
 	oktorm = 1;
-	while((nread = fread(edbuf, 1, sizeof(edbuf), o_touchedfile)) != NULL){
+	while((nread = fread(edbuf, 1, sizeof(edbuf), o_touchedfile)) != 0) {
 		if (nread != fwrite(edbuf, 1, nread, n_touchedfile)){
 			/*
 			 *	Catastrophe in temporary area: file system full?
@@ -678,7 +678,7 @@ mustoverwrite(preciousfile, tmpfile)
 {
 	int	nread;
 
-	while((nread = fread(edbuf, 1, sizeof(edbuf), tmpfile)) != NULL){
+	while((nread = fread(edbuf, 1, sizeof(edbuf), tmpfile)) != 0) {
 		if (mustwrite(edbuf, nread, preciousfile) == 0)
 			return(0);
 	}
@@ -725,7 +725,7 @@ mustwrite(base, n, preciousfile)
 }
 
 void
-onintr()
+onintr(int unused)
 {
 	switch(inquire(terse
 	    ? "\nContinue? "
