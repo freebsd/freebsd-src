@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.22 1998/02/17 19:29:00 brian Exp $
+ * $Id: modem.c,v 1.77.2.23 1998/02/19 02:08:51 brian Exp $
  *
  *  TODO:
  */
@@ -84,30 +84,49 @@ static int modem_UpdateSet(struct descriptor *, fd_set *, fd_set *, fd_set *,
                            int *);
 
 struct physical *
-modem_Create(const char *name)
+modem_Create(const char *name, struct ccp *ccp)
 {
   struct physical *p;
 
   p = (struct physical *)malloc(sizeof(struct physical));
   if (!p)
     return NULL;
-  memset(p, '\0', sizeof *p);
+
   p->link.type = PHYSICAL_LINK;
   p->link.name = strdup(name);
   p->link.len = sizeof *p;
+  memset(&p->link.throughput, '\0', sizeof p->link.throughput);
+  memset(&p->link.Timer, '\0', sizeof p->link.Timer);
+  memset(p->link.Queue, '\0', sizeof p->link.Queue);
+  p->link.ccp = ccp;
+  memset(p->link.proto_in, '\0', sizeof p->link.proto_in);
+  memset(p->link.proto_out, '\0', sizeof p->link.proto_out);
   p->link.StartOutput = modem_StartOutput;
   p->link.IsActive = modem_IsActive;
   p->link.Close = modem_Hangup;
   p->link.Destroy = modem_Destroy;
-  p->fd = -1;
-  p->cfg.rts_cts = MODEM_CTSRTS;
-  p->cfg.speed = MODEM_SPEED;
-  p->cfg.parity = CS8;
+
   p->desc.type = PHYSICAL_DESCRIPTOR;
   p->desc.UpdateSet = modem_UpdateSet;
   p->desc.IsSet = Physical_IsSet;
   p->desc.Read = modem_DescriptorRead;
   p->desc.Write = Physical_DescriptorWrite;
+
+  hdlc_Init(&p->hdlc);
+  async_Init(&p->async);
+
+  p->fd = -1;
+  p->mbits = 0;
+  p->abort = 0;
+  p->dev_is_modem = 0;
+  p->out = NULL;
+  p->connect_count = 0;
+
+  p->cfg.is_direct = 0;		/* not yet used */
+  p->cfg.is_dedicated = 0;	/* not yet used */
+  p->cfg.rts_cts = MODEM_CTSRTS;
+  p->cfg.speed = MODEM_SPEED;
+  p->cfg.parity = CS8;
 
   return p;
 }

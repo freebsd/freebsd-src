@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.11 1998/02/18 19:35:41 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.12 1998/02/18 19:36:13 brian Exp $
  *
  *	TODO:
  */
@@ -56,6 +56,7 @@
 #include "prompt.h"
 #include "chat.h"
 #include "datalink.h"
+#include "bundle.h"
 
 static u_short const fcstab[256] = {
    /* 00 */ 0x0000, 0x1189, 0x2312, 0x329b, 0x4624, 0x57ad, 0x6536, 0x74bf,
@@ -139,10 +140,8 @@ HdlcOutput(struct link *l, int pri, u_short proto, struct mbuf *bp)
   u_char *cp;
   u_short fcs;
 
-  if ((proto & 0xfff1) == 0x21)		/* Network Layer protocol */
-    if (CcpInfo.fsm.state == ST_OPENED)
-      if (CcpOutput(l, pri, proto, bp))
-        return;
+  if (ccp_Output(l->ccp, l, pri, proto, bp))
+    return;
 
   if (!p) {
     /*
@@ -360,12 +359,13 @@ DecodePacket(struct bundle *bundle, u_short proto, struct mbuf * bp,
              struct link *l)
 {
   struct physical *p = link2physical(l);
+  struct ccp *ccp = bundle2ccp(bundle, l->name);
   u_char *cp;
 
   LogPrintf(LogDEBUG, "DecodePacket: proto = 0x%04x\n", proto);
 
   /* decompress everything.  CCP needs uncompressed data too */
-  if ((bp = ccp_Decompress(&proto, bp)) == NULL)
+  if ((bp = ccp_Decompress(ccp, &proto, bp)) == NULL)
     return;
 
   switch (proto) {

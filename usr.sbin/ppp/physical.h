@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.h,v 1.1.2.9 1998/02/17 19:29:03 brian Exp $
+ *  $Id: physical.h,v 1.1.2.10 1998/02/18 19:35:58 brian Exp $
  *
  */
 
@@ -40,8 +40,8 @@ struct physical {
       belong in the generic physical struct. It comes from modem.c. */
 
   struct {
-    unsigned is_dedicated : 1; /* Dedicated mode?  XXX-ML - not yet init'd */
-    unsigned is_direct : 1;    /* Direct mode?  XXX-ML - not yet initialized */
+    unsigned is_dedicated : 1; /* Dedicated mode?  XXX-ML - not yet used */
+    unsigned is_direct : 1;    /* Direct mode?  XXX-ML - not yet used */
     unsigned rts_cts : 1;      /* Is rts/cts enabled? */
     unsigned int parity;       /* What parity is enabled? (TTY flags) */
     unsigned int speed;        /* Modem speed */

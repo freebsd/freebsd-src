@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.27.2.2 1998/02/07 20:49:14 brian Exp $
+ * $Id: arp.c,v 1.27.2.3 1998/02/08 11:04:37 brian Exp $
  *
  */
 
@@ -57,7 +57,6 @@
 #include "throughput.h"
 #include "defs.h"
 #include "iplist.h"
-#include "ipcp.h"
 #include "arp.h"
 
 static int get_ether_addr(int, struct in_addr, struct sockaddr_dl *);
@@ -87,7 +86,7 @@ static struct {
 static int arpmsg_valid;
 
 int
-sifproxyarp(struct bundle *bundle, struct ipcp *ipcp, int s)
+sifproxyarp(struct bundle *bundle, struct in_addr addr, int s)
 {
   int routes;
 
@@ -96,7 +95,7 @@ sifproxyarp(struct bundle *bundle, struct ipcp *ipcp, int s)
    * address.
    */
   memset(&arpmsg, 0, sizeof arpmsg);
-  if (!get_ether_addr(s, ipcp->if_peer, &arpmsg.hwa)) {
+  if (!get_ether_addr(s, addr, &arpmsg.hwa)) {
     LogPrintf(LogERROR, "Cannot determine ethernet address for proxy ARP\n");
     return 0;
   }
@@ -114,7 +113,7 @@ sifproxyarp(struct bundle *bundle, struct ipcp *ipcp, int s)
   arpmsg.hdr.rtm_inits = RTV_EXPIRE;
   arpmsg.dst.sin_len = sizeof(struct sockaddr_inarp);
   arpmsg.dst.sin_family = AF_INET;
-  arpmsg.dst.sin_addr.s_addr = ipcp->if_peer.s_addr;
+  arpmsg.dst.sin_addr.s_addr = addr.s_addr;
   arpmsg.dst.sin_other = SIN_PROXY;
 
   arpmsg.hdr.rtm_msglen = (char *) &arpmsg.hwa - (char *) &arpmsg
@@ -133,7 +132,7 @@ sifproxyarp(struct bundle *bundle, struct ipcp *ipcp, int s)
  * cifproxyarp - Delete the proxy ARP entry for the peer.
  */
 int
-cifproxyarp(struct bundle *bundle, struct ipcp *ipcp, int s)
+cifproxyarp(struct bundle *bundle, struct in_addr addr, int s)
 {
   int routes;
 
@@ -165,7 +164,7 @@ cifproxyarp(struct bundle *bundle, struct ipcp *ipcp, int s)
  * sifproxyarp - Make a proxy ARP entry for the peer.
  */
 int
-sifproxyarp(struct bundle *bundle, struct ipcp *ipcp, int s)
+sifproxyarp(struct bundle *bundle, struct in_addr addr, int s)
 {
   struct arpreq arpreq;
   struct {
@@ -179,7 +178,7 @@ sifproxyarp(struct bundle *bundle, struct ipcp *ipcp, int s)
    * Get the hardware address of an interface on the same subnet as our local
    * address.
    */
-  if (!get_ether_addr(s, ipcp->if_peer, &dls.sdl)) {
+  if (!get_ether_addr(s, addr, &dls.sdl)) {
     LogPrintf(LOG_PHASE_BIT, "Cannot determine ethernet address for proxy ARP\n");
     return 0;
   }
@@ -187,8 +186,7 @@ sifproxyarp(struct bundle *bundle, struct ipcp *ipcp, int s)
   arpreq.arp_ha.sa_family = AF_UNSPEC;
   memcpy(arpreq.arp_ha.sa_data, LLADDR(&dls.sdl), dls.sdl.sdl_alen);
   SET_SA_FAMILY(arpreq.arp_pa, AF_INET);
-  ((struct sockaddr_in *)&arpreq.arp_pa)->sin_addr.s_addr =
-    ipcp->if_peer.s_addr;
+  ((struct sockaddr_in *)&arpreq.arp_pa)->sin_addr.s_addr = addr.s_addr;
   arpreq.arp_flags = ATF_PERM | ATF_PUBL;
   if (ID0ioctl(s, SIOCSARP, (caddr_t) & arpreq) < 0) {
     LogPrintf(LogERROR, "sifproxyarp: ioctl(SIOCSARP): %s\n", strerror(errno));
@@ -201,14 +199,13 @@ sifproxyarp(struct bundle *bundle, struct ipcp *ipcp, int s)
  * cifproxyarp - Delete the proxy ARP entry for the peer.
  */
 int
-cifproxyarp(struct bundle *bundle, struct ipcp *ipcp, int s)
+cifproxyarp(struct bundle *bundle, struct in_addr addr, int s)
 {
   struct arpreq arpreq;
 
   memset(&arpreq, '\0', sizeof arpreq);
   SET_SA_FAMILY(arpreq.arp_pa, AF_INET);
-  ((struct sockaddr_in *)&arpreq.arp_pa)->sin_addr.s_addr =
-    ipcp->if_peer.s_addr;
+  ((struct sockaddr_in *)&arpreq.arp_pa)->sin_addr.s_addr = addr.s_addr;
   if (ID0ioctl(s, SIOCDARP, (caddr_t) & arpreq) < 0) {
     LogPrintf(LogERROR, "cifproxyarp: ioctl(SIOCDARP): %s\n", strerror(errno));
     return 0;

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.10 1998/02/18 19:36:09 brian Exp $
+ * $Id: ccp.c,v 1.30.2.11 1998/02/19 19:56:53 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -45,6 +45,11 @@
 #include "bundle.h"
 #include "descriptor.h"
 #include "prompt.h"
+#include "hdlc.h"
+#include "throughput.h"
+#include "link.h"
+#include "chat.h"
+#include "datalink.h"
 
 static void CcpSendConfigReq(struct fsm *);
 static void CcpSendTerminateReq(struct fsm *);
@@ -55,6 +60,8 @@ static void CcpLayerFinish(struct fsm *);
 static void CcpLayerUp(struct fsm *);
 static void CcpLayerDown(struct fsm *);
 static void CcpInitRestartCounter(struct fsm *);
+static void CcpRecvResetReq(struct fsm *);
+static void CcpRecvResetAck(struct fsm *, u_char);
 
 static struct fsm_callbacks ccp_Callbacks = {
   CcpLayerUp,
@@ -65,27 +72,12 @@ static struct fsm_callbacks ccp_Callbacks = {
   CcpSendConfigReq,
   CcpSendTerminateReq,
   CcpSendTerminateAck,
-  CcpDecodeConfig
+  CcpDecodeConfig,
+  CcpRecvResetReq,
+  CcpRecvResetAck
 };
 
-struct ccp CcpInfo = {
-  {
-    "CCP",
-    PROTO_CCP,
-    CCP_MAXCODE,
-    0,
-    ST_INITIAL,
-    0, 0, 0,
-    {0, 0, 0, NULL, NULL, NULL},	/* FSM timer */
-    {0, 0, 0, NULL, NULL, NULL},	/* Open timer */
-    {0, 0, 0, NULL, NULL, NULL},	/* Stopped timer */
-    LogCCP,
-    NULL,				/* link */
-    NULL,				/* bundle */
-    &ccp_Callbacks
-  },
-  -1, -1, -1, -1, -1, -1
-};
+struct ccp CcpInfo;
 
 static char const *cftypes[] = {
   /* Check out the latest ``Compression Control Protocol'' rfc (rfc1962.txt) */
@@ -129,30 +121,41 @@ static const struct ccp_algorithm *algorithm[] = {
 #define NALGORITHMS (sizeof algorithm/sizeof algorithm[0])
 
 int
-ReportCcpStatus(struct cmdargs const *arg)
+ccp_ReportStatus(struct cmdargs const *arg)
 {
-  prompt_Printf(&prompt, "%s [%s]\n", CcpInfo.fsm.name,
-                StateNames[CcpInfo.fsm.state]);
+  struct ccp *ccp = bundle2ccp(arg->bundle, arg->cx ? arg->cx->name : NULL);
+
+  prompt_Printf(&prompt, "%s [%s]\n", ccp->fsm.name,
+                StateNames[ccp->fsm.state]);
   prompt_Printf(&prompt, "My protocol = %s, His protocol = %s\n",
-                protoname(CcpInfo.my_proto), protoname(CcpInfo.his_proto));
+                protoname(ccp->my_proto), protoname(ccp->his_proto));
   prompt_Printf(&prompt, "Output: %ld --> %ld,  Input: %ld --> %ld\n",
-                CcpInfo.uncompout, CcpInfo.compout,
-                CcpInfo.compin, CcpInfo.uncompin);
+                ccp->uncompout, ccp->compout,
+                ccp->compin, ccp->uncompin);
   return 0;
 }
 
 void
-CcpInit(struct bundle *bundle, struct link *l)
+ccp_Init(struct ccp *ccp, struct bundle *bundle, struct link *l)
 {
   /* Initialise ourselves */
-  FsmInit(&CcpInfo.fsm, bundle, l, 10);
-  CcpInfo.his_proto = CcpInfo.my_proto = -1;
-  CcpInfo.reset_sent = CcpInfo.last_reset = -1;
-  CcpInfo.in_algorithm = CcpInfo.out_algorithm = -1;
-  CcpInfo.his_reject = CcpInfo.my_reject = 0;
-  CcpInfo.out_init = CcpInfo.in_init = 0;
-  CcpInfo.uncompout = CcpInfo.compout = 0;
-  CcpInfo.uncompin = CcpInfo.compin = 0;
+  fsm_Init(&CcpInfo.fsm, "CCP", PROTO_CCP, CCP_MAXCODE, 10, LogCCP,
+           bundle, l, &ccp_Callbacks);
+  ccp_Setup(ccp);
+}
+
+void
+ccp_Setup(struct ccp *ccp)
+{
+  /* Set ourselves up for a startup */
+  ccp->fsm.open_mode = 0;
+  ccp->his_proto = ccp->my_proto = -1;
+  ccp->reset_sent = ccp->last_reset = -1;
+  ccp->in_algorithm = ccp->out_algorithm = -1;
+  ccp->his_reject = ccp->my_reject = 0;
+  ccp->out_init = ccp->in_init = 0;
+  ccp->uncompout = ccp->compout = 0;
+  ccp->uncompin = ccp->compin = 0;
 }
 
 static void
@@ -213,7 +216,7 @@ CcpSendTerminateAck(struct fsm *fp)
   FsmOutput(fp, CODE_TERMACK, fp->reqid++, NULL, 0);
 }
 
-void
+static void
 CcpRecvResetReq(struct fsm *fp)
 {
   /* Got a reset REQ, reset outgoing dictionary */
@@ -417,8 +420,8 @@ CcpInput(struct bundle *bundle, struct mbuf *bp)
   }
 }
 
-void
-CcpResetInput(u_char id)
+static void
+CcpRecvResetAck(struct fsm *fp, u_char id)
 {
   /* Got a reset ACK, reset incoming dictionary */
   if (CcpInfo.reset_sent != -1) {
@@ -442,35 +445,36 @@ CcpResetInput(u_char id)
 }
 
 int
-CcpOutput(struct link *l, int pri, u_short proto, struct mbuf *m)
+ccp_Output(struct ccp *ccp, struct link *l, int pri, u_short proto,
+           struct mbuf *m)
 {
-  /* Compress outgoing data */
-  if (CcpInfo.out_init)
-    return (*algorithm[CcpInfo.out_algorithm]->o.Write)(l, pri, proto, m);
+  /* Compress outgoing Network Layer data */
+  if ((proto & 0xfff1) == 0x21 && ccp->fsm.state == ST_OPENED && ccp->out_init)
+    return (*algorithm[ccp->out_algorithm]->o.Write)(l, pri, proto, m);
   return 0;
 }
 
 struct mbuf *
-ccp_Decompress(u_short *proto, struct mbuf *bp)
+ccp_Decompress(struct ccp *ccp, u_short *proto, struct mbuf *bp)
 {
   /*
    * If proto isn't PROTO_COMPD, we still want to pass it to the
    * decompression routines so that the dictionary's updated
    */
-  if (CcpInfo.fsm.state == ST_OPENED)
+  if (ccp->fsm.state == ST_OPENED)
     if (*proto == PROTO_COMPD) {
       /* Decompress incoming data */
-      if (CcpInfo.reset_sent != -1) {
+      if (ccp->reset_sent != -1) {
         /* Send another REQ and put the packet in the bit bucket */
-        LogPrintf(LogCCP, "ReSendResetReq(%d)\n", CcpInfo.reset_sent);
-        FsmOutput(&CcpInfo.fsm, CODE_RESETREQ, CcpInfo.reset_sent, NULL, 0);
-      } else if (CcpInfo.in_init)
-        return (*algorithm[CcpInfo.in_algorithm]->i.Read)(proto, bp);
+        LogPrintf(LogCCP, "ReSendResetReq(%d)\n", ccp->reset_sent);
+        FsmOutput(&ccp->fsm, CODE_RESETREQ, ccp->reset_sent, NULL, 0);
+      } else if (ccp->in_init)
+        return (*algorithm[ccp->in_algorithm]->i.Read)(proto, bp);
       pfree(bp);
       bp = NULL;
-    } else if ((*proto & 0xfff1) == 0x21 && CcpInfo.in_init)
+    } else if ((*proto & 0xfff1) == 0x21 && ccp->in_init)
       /* Add incoming Network Layer traffic to our dictionary */
-      (*algorithm[CcpInfo.in_algorithm]->i.DictSetup)(*proto, bp);
+      (*algorithm[ccp->in_algorithm]->i.DictSetup)(*proto, bp);
 
   return bp;
 }

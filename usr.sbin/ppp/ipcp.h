@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.18.2.11 1998/02/08 11:04:52 brian Exp $
+ * $Id: ipcp.h,v 1.18.2.12 1998/02/08 19:29:44 brian Exp $
  *
  *	TODO:
  */
@@ -42,35 +42,36 @@ struct in_range {
 struct ipcp {
   struct fsm fsm;			/* The finite state machine */
 
-  int VJInitSlots;			/* Maximum VJ slots */
-  int VJInitComp : 1;			/* Slot compression */
+  struct {
+    int VJInitSlots;			/* Maximum VJ slots */
+    int VJInitComp : 1;			/* Slot compression */
+
+    struct in_range  my_range;		/* MYADDR spec */
+    struct in_range  peer_range;	/* HISADDR spec */
+    struct iplist    peer_list;		/* Ranges of HISADDR values */
+
+    struct in_addr   TriggerAddress;	/* Address to suggest in REQ */
+    int HaveTriggerAddress : 1;		/* Trigger address specified */
+
+#ifndef NOMSEXT
+    struct in_addr ns_entries[2];	/* DNS addresses offered */
+    struct in_addr nbns_entries[2];	/* NetBIOS NS addresses offered */
+#endif
+  } cfg;
 
   int heis1172 : 1;			/* True if he is speaking rfc1172 */
 
-  struct in_addr his_ipaddr;		/* IP address he's willing to use */
-  u_int32_t his_compproto;		/* VJ params he's willing to use */
+  struct in_addr peer_ip;		/* IP address he's willing to use */
+  u_int32_t peer_compproto;		/* VJ params he's willing to use */
 
-  struct in_addr want_ipaddr;		/* IP address I'm willing to use */
-  u_int32_t want_compproto;		/* VJ params I'm willing to use */
+  struct in_addr my_ip;			/* IP address I'm willing to use */
+  u_int32_t my_compproto;		/* VJ params I'm willing to use */
 
-  u_int32_t his_reject;			/* Request codes rejected by peer */
+  u_int32_t peer_reject;		/* Request codes rejected by peer */
   u_int32_t my_reject;			/* Request codes I have rejected */
 
-#ifndef NOMSEXT
-  struct in_addr ns_entries[2];		/* DNS addresses offered */
-  struct in_addr nbns_entries[2];	/* NetBIOS NS addresses offered */
-#endif
-
-  struct in_range  DefMyAddress;	/* MYADDR spec */
-
-  struct in_range  DefHisAddress;	/* HISADDR spec */
-  struct iplist    DefHisChoice;	/* Ranges of HISADDR values */
-
-  struct in_addr   TriggerAddress;	/* Address to suggest in REQ */
-  int HaveTriggerAddress : 1;		/* Trigger address specified */
-
-  struct in_addr if_mine;               /* My configured interface address */
-  struct in_addr if_peer;               /* My congigured destination address */
+  struct in_addr my_ifip;		/* My configured interface address */
+  struct in_addr peer_ifip;		/* My congigured destination address */
 
   struct pppThroughput throughput;	/* throughput statistics */
 };
@@ -79,8 +80,9 @@ extern struct ipcp IpcpInfo;
 
 #define fsm2ipcp(fp) (fp->proto == PROTO_IPCP ? (struct ipcp *)fp : NULL)
 
-extern void IpcpInit(struct bundle *, struct link *l);
-extern void IpcpDefAddress(void);
+extern void ipcp_Init(struct ipcp *, struct bundle *, struct link *l);
+extern void ipcp_Setup(struct ipcp *);
+
 extern void IpcpUp(void);
 extern void IpcpOpen(void);
 extern int  ReportIpcpStatus(struct cmdargs const *);

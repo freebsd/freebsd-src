@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.10 1998/02/17 19:29:09 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.11 1998/02/18 00:27:47 brian Exp $
  */
 
 #include <sys/param.h>
@@ -143,10 +143,10 @@ datalink_LoginDone(struct datalink *dl)
     LogPrintf(LogPHASE, "%s: Entering OPEN state\n", dl->name);
     dl->state = DATALINK_OPEN;
 
-    LcpInit(dl->bundle, dl->physical);
-    CcpInit(dl->bundle, &dl->physical->link);
+    lcp_Setup(&LcpInfo, dl->state == DATALINK_READY ? 0 : VarOpenMode);
+    ccp_Setup(&CcpInfo);
+
     FsmUp(&LcpInfo.fsm);
-    LcpInfo.fsm.open_mode = dl->state == DATALINK_READY ? 0 : VarOpenMode;
     FsmOpen(&LcpInfo.fsm);
   }
 }
@@ -352,16 +352,16 @@ datalink_Create(const char *name, struct bundle *bundle)
   dl->cfg.reconnect_timeout = RECONNECT_TIMEOUT;
 
   dl->name = strdup(name);
-  if ((dl->physical = modem_Create(dl->name)) == NULL) {
+  if ((dl->physical = modem_Create(dl->name, &CcpInfo)) == NULL) {
     free(dl->name);
     free(dl);
     return NULL;
   }
   chat_Init(&dl->chat, dl->physical, NULL, 1);
 
-  IpcpDefAddress();
-  LcpInit(dl->bundle, dl->physical);
-  CcpInit(dl->bundle, &dl->physical->link);
+  ipcp_Init(&IpcpInfo, dl->bundle, &dl->physical->link);
+  lcp_Init(&LcpInfo, dl->bundle, dl->physical);
+  ccp_Init(&CcpInfo, dl->bundle, &dl->physical->link);
 
   LogPrintf(LogPHASE, "%s: Created in CLOSED state\n", dl->name);
 

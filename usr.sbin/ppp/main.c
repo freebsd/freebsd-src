@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.25 1998/02/17 19:28:29 brian Exp $
+ * $Id: main.c,v 1.121.2.26 1998/02/18 00:27:49 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -407,7 +407,7 @@ main(int argc, char **argv)
      */
     SetLabel(label);
     if (mode & MODE_AUTO &&
-	IpcpInfo.DefHisAddress.ipaddr.s_addr == INADDR_ANY) {
+	IpcpInfo.cfg.peer_range.ipaddr.s_addr == INADDR_ANY) {
       LogPrintf(LogWARN, "You must \"set ifaddr\" in label %s for auto mode.\n",
 		label);
       Cleanup(EX_START);
@@ -590,7 +590,7 @@ DoLoop(struct bundle *bundle)
       }
       if (!tun_check_header(tun, AF_INET))
           continue;
-      if (((struct ip *) rbuff)->ip_dst.s_addr == IpcpInfo.want_ipaddr.s_addr) {
+      if (((struct ip *) rbuff)->ip_dst.s_addr == IpcpInfo.my_ip.s_addr) {
 	/* we've been asked to send something addressed *to* us :( */
 	if (VarLoopback) {
 	  pri = PacketCheck(rbuff, n, FL_IN);

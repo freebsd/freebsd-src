@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.h,v 1.16.2.5 1998/02/06 02:24:16 brian Exp $
+ * $Id: fsm.h,v 1.16.2.6 1998/02/19 19:56:57 brian Exp $
  *
  *	TODO:
  */
@@ -57,6 +57,9 @@ struct fsm_callbacks {
   void (*SendTerminateReq) (struct fsm *);   /* Term REQ just sent */
   void (*SendTerminateAck) (struct fsm *);   /* Send Term ACK please */
   void (*DecodeConfig) (struct fsm *, u_char *, int, int);
+                                             /* Deal with incoming data */
+  void (*RecvResetReq) (struct fsm *fp);         /* Reset output */
+  void (*RecvResetAck) (struct fsm *fp, u_char); /* Reset input */
 };
 
 struct fsm {
@@ -131,10 +134,14 @@ extern u_char *rejp;
 
 extern char const *StateNames[];
 
-extern void FsmInit(struct fsm *, struct bundle *, struct link *, int);
+extern void fsm_Init(struct fsm *, const char *, u_short, int, int, int,
+                     struct bundle *, struct link *, struct fsm_callbacks *);
 extern void FsmOutput(struct fsm *, u_int, u_int, u_char *, int);
 extern void FsmOpen(struct fsm *);
 extern void FsmUp(struct fsm *);
 extern void FsmDown(struct fsm *);
 extern void FsmInput(struct fsm *, struct mbuf *);
 extern void FsmClose(struct fsm *);
+
+extern void NullRecvResetReq(struct fsm *fp);
+extern void NullRecvResetAck(struct fsm *fp, u_char);

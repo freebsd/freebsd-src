@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.11 1998/02/18 19:35:38 brian Exp $
+ * $Id: fsm.c,v 1.27.2.12 1998/02/19 19:56:54 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -84,16 +84,24 @@ StoppedTimeout(void *v)
 }
 
 void
-FsmInit(struct fsm *fp, struct bundle *bundle, struct link *l, int maxcfg)
+fsm_Init(struct fsm *fp, const char *name, u_short proto, int maxcode,
+         int maxcfg, int LogLevel, struct bundle *bundle, struct link *l,
+         struct fsm_callbacks *fn)
 {
-  LogPrintf(LogDEBUG, "FsmInit\n");
+  fp->name = name;
+  fp->proto = proto;
+  fp->max_code = maxcode;
   fp->state = ST_INITIAL;
   fp->reqid = 1;
   fp->restart = 1;
-  fp->maxconfig = 3;
+  fp->maxconfig = maxcfg;
+  memset(&fp->FsmTimer, '\0', sizeof fp->FsmTimer);
+  memset(&fp->OpenTimer, '\0', sizeof fp->OpenTimer);
+  memset(&fp->StoppedTimer, '\0', sizeof fp->StoppedTimer);
+  fp->LogLevel = LogLevel;
   fp->link = l;
   fp->bundle = bundle;
-  fp->maxconfig = maxcfg;
+  fp->fn = fn;
 }
 
 static void
@@ -783,10 +791,10 @@ FsmRecvTimeRemain(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 }
 
 static void
-FsmRecvResetReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
+FsmRecvResetReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 {
   LogPrintf(fp->LogLevel, "RecvResetReq(%d)\n", lhp->id);
-  CcpRecvResetReq(fp);
+  (*fp->fn->RecvResetReq)(fp);
   /*
    * All sendable compressed packets are queued in the PRI_NORMAL modem
    * output queue.... dump 'em to the priority queue so that they arrive
@@ -799,10 +807,10 @@ FsmRecvResetReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 }
 
 static void
-FsmRecvResetAck(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
+FsmRecvResetAck(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 {
   LogPrintf(fp->LogLevel, "RecvResetAck(%d)\n", lhp->id);
-  CcpResetInput(lhp->id);
+  (*fp->fn->RecvResetAck)(fp, lhp->id);
   fp->reqid++;
   pfree(bp);
 }
@@ -857,4 +865,16 @@ FsmInput(struct fsm * fp, struct mbuf * bp)
   (codep->action)(fp, lhp, bp);
   if (LogIsKept(LogDEBUG))
     LogMemory();
+}
+
+void
+NullRecvResetReq(struct fsm *fp)
+{
+  LogPrintf(fp->LogLevel, "Oops - received unexpected reset req\n");
+}
+
+void
+NullRecvResetAck(struct fsm *fp, u_char id)
+{
+  LogPrintf(fp->LogLevel, "Oops - received unexpected reset ack\n");
 }

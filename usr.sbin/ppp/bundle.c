@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.13 1998/02/17 19:28:19 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.14 1998/02/18 00:27:44 brian Exp $
  */
 
 #include <sys/param.h>
@@ -126,7 +126,7 @@ bundle_NewPhase(struct bundle *bundle, struct physical *physical, u_int new)
 
   case PHASE_NETWORK:
     tun_configure(bundle, LcpInfo.his_mru, modem_Speed(physical));
-    IpcpInit(bundle, &physical->link);
+    ipcp_Setup(&IpcpInfo);
     IpcpUp();
     IpcpOpen();
     CcpUp();
@@ -355,8 +355,6 @@ bundle_Create(const char *prefix)
     LogPrintf(LogERROR, "Cannot create data link: %s\n", strerror(errno));
     return NULL;
   }
-
-  IpcpInit(&bundle, &bundle.links->physical->link);
 
   return &bundle;
 }
@@ -658,6 +656,12 @@ bundle2physical(struct bundle *bundle, const char *name)
 {
   struct datalink *dl = bundle2datalink(bundle, name);
   return dl ? dl->physical : NULL;
+}
+
+struct ccp *
+bundle2ccp(struct bundle *bundle, const char *name)
+{
+  return &CcpInfo;
 }
 
 struct link *

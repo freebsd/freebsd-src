@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.27.2.7 1998/02/09 19:20:32 brian Exp $
+ * $Id: auth.c,v 1.27.2.8 1998/02/13 05:10:05 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -151,7 +151,7 @@ AuthValidate(struct bundle *bundle, const char *fname, const char *system,
 	if (n > 2 && !UseHisaddr(bundle, vector[2], 1))
 	    return (0);
         /* XXX This should be deferred - we may join an existing bundle ! */
-	IpcpInit(bundle, physical2link(physical));
+	ipcp_Setup(&IpcpInfo);
 	if (n > 3)
 	  SetLabel(vector[3]);
 	return (1);		/* Valid */
@@ -186,11 +186,11 @@ AuthGetSecret(struct bundle *bundle, const char *fname, const char *system,
     if (strlen(vector[0]) == len && strncmp(vector[0], system, len) == 0) {
       chat_ExpandString(NULL, vector[1], passwd, sizeof passwd, 0);
       if (setaddr)
-	memset(&IpcpInfo.DefHisAddress, '\0', sizeof IpcpInfo.DefHisAddress);
+	memset(&IpcpInfo.cfg.peer_range, '\0', sizeof IpcpInfo.cfg.peer_range);
       if (n > 2 && setaddr)
 	if (UseHisaddr(bundle, vector[2], 1))
           /* XXX This should be deferred - we may join an existing bundle ! */
-	  IpcpInit(bundle, physical2link(physical));
+	  ipcp_Setup(&IpcpInfo);
         else
           return NULL;
       if (n > 3)

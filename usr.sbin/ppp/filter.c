@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.22.2.3 1998/01/31 02:48:17 brian Exp $
+ * $Id: filter.c,v 1.22.2.4 1998/02/10 03:23:18 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -91,9 +91,9 @@ ParseAddr(int argc,
   len = cp ? cp - *argv : strlen(*argv);
 
   if (strncasecmp(*argv, "HISADDR", len) == 0)
-    *paddr = IpcpInfo.his_ipaddr;
+    *paddr = IpcpInfo.peer_ip;
   else if (strncasecmp(*argv, "MYADDR", len) == 0)
-    *paddr = IpcpInfo.want_ipaddr;
+    *paddr = IpcpInfo.my_ip;
   else if (len > 15)
     LogPrintf(LogWARN, "ParseAddr: %s: Bad address\n", *argv);
   else {

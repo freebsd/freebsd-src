@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.h,v 1.1.2.3 1998/02/07 20:49:48 brian Exp $
+ *  $Id: link.h,v 1.1.2.4 1998/02/16 00:00:25 brian Exp $
  *
  */
 
@@ -35,6 +35,7 @@
 #define NPROTOSTAT 11
 
 struct bundle;
+struct ccp;
 
 struct link {
   int type;                               /* _LINK type */
@@ -43,6 +44,7 @@ struct link {
   struct pppThroughput throughput;        /* Link throughput statistics */
   struct pppTimer Timer;                  /* inactivity timeout */
   struct mqueue Queue[LINK_QUEUES];       /* Our output queue of mbufs */
+  struct ccp *ccp;                        /* Link compression */
 
   u_long proto_in[NPROTOSTAT];            /* outgoing protocol stats */
   u_long proto_out[NPROTOSTAT];           /* incoming protocol stats */

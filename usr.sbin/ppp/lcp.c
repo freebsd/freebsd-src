@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.17 1998/02/18 19:35:48 brian Exp $
+ * $Id: lcp.c,v 1.55.2.18 1998/02/19 19:57:01 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -96,7 +96,9 @@ static struct fsm_callbacks lcp_Callbacks = {
   LcpSendConfigReq,
   LcpSendTerminateReq,
   LcpSendTerminateAck,
-  LcpDecodeConfig
+  LcpDecodeConfig,
+  NullRecvResetReq,
+  NullRecvResetAck
 };
 
 struct lcp LcpInfo = {
@@ -183,32 +185,43 @@ GenerateMagic(void)
 }
 
 void
-LcpInit(struct bundle *bundle, struct physical *physical)
+lcp_Init(struct lcp *lcp, struct bundle *bundle, struct physical *physical)
 {
   /* Initialise ourselves */
-  FsmInit(&LcpInfo.fsm, bundle, physical2link(physical), 10);
-  hdlc_Init(&physical->hdlc);
-  async_Init(&physical->async);
+  fsm_Init(&lcp->fsm, "LCP", PROTO_LCP, LCP_MAXCODE, 10, LogLCP, bundle,
+           &physical->link, &lcp_Callbacks);
+  lcp_Setup(lcp, 1);
+}
 
-  LcpInfo.his_mru = DEF_MRU;
-  LcpInfo.his_accmap = 0xffffffff;
-  LcpInfo.his_magic = 0;
-  LcpInfo.his_lqrperiod = 0;
-  LcpInfo.his_protocomp = 0;
-  LcpInfo.his_acfcomp = 0;
-  LcpInfo.his_auth = 0;
+void
+lcp_Setup(struct lcp *lcp, int openmode)
+{
+  struct physical *p = link2physical(lcp->fsm.link);
 
-  LcpInfo.want_mru = VarMRU;
-  LcpInfo.want_accmap = VarAccmap;
-  LcpInfo.want_magic = GenerateMagic();
-  LcpInfo.want_auth = Enabled(ConfChap) ? PROTO_CHAP :
-                      Enabled(ConfPap) ?  PROTO_PAP : 0;
-  LcpInfo.want_lqrperiod = Enabled(ConfLqr) ?  VarLqrTimeout * 100 : 0;
-  LcpInfo.want_protocomp = Enabled(ConfProtocomp) ? 1 : 0;
-  LcpInfo.want_acfcomp = Enabled(ConfAcfcomp) ? 1 : 0;
+  lcp->fsm.open_mode = openmode;
 
-  LcpInfo.his_reject = LcpInfo.my_reject = 0;
-  LcpInfo.auth_iwait = LcpInfo.auth_ineed = 0;
+  hdlc_Init(&p->hdlc);
+  async_Init(&p->async);
+
+  lcp->his_mru = DEF_MRU;
+  lcp->his_accmap = 0xffffffff;
+  lcp->his_magic = 0;
+  lcp->his_lqrperiod = 0;
+  lcp->his_protocomp = 0;
+  lcp->his_acfcomp = 0;
+  lcp->his_auth = 0;
+
+  lcp->want_mru = VarMRU;
+  lcp->want_accmap = VarAccmap;
+  lcp->want_magic = GenerateMagic();
+  lcp->want_auth = Enabled(ConfChap) ? PROTO_CHAP :
+                   Enabled(ConfPap) ?  PROTO_PAP : 0;
+  lcp->want_lqrperiod = Enabled(ConfLqr) ?  VarLqrTimeout * 100 : 0;
+  lcp->want_protocomp = Enabled(ConfProtocomp) ? 1 : 0;
+  lcp->want_acfcomp = Enabled(ConfAcfcomp) ? 1 : 0;
+
+  lcp->his_reject = lcp->my_reject = 0;
+  lcp->auth_iwait = lcp->auth_ineed = 0;
 }
 
 static void
