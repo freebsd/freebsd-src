@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: md_var.h,v 1.22 1998/01/21 18:28:46 gibbs Exp $
+ *	$Id: md_var.h,v 1.23 1998/02/01 23:00:53 bde Exp $
  */
 
 #ifndef _MACHINE_MD_VAR_H_
@@ -43,14 +43,18 @@ extern	char	*bouncememory;
 extern	int	bouncepages;
 #endif
 extern	int	busdma_swi_pending;
-extern	u_long	cpu_feature;
-extern	u_long	cpu_high;
-extern	u_long	cpu_id;
-extern	u_long	cyrix_did;
+extern	u_int	cpu_feature;
+extern	u_int	cpu_high;
+extern	u_int	cpu_id;
 extern	char	cpu_vendor[];
+extern	u_int	cyrix_did;
 extern	char	kstack[];
 #ifdef BOUNCE_BUFFERS
 extern	int	maxbkva;
+#endif
+#ifdef PC98
+extern	int	need_pre_dma_flush;
+extern	int	need_post_dma_flush;
 #endif
 extern	void	(*netisrs[32]) __P((void));
 extern	int	nfs_diskless_valid;
@@ -63,9 +67,9 @@ struct	reg;
 
 void	bcopyb __P((const void *from, void *to, size_t len));
 void	busdma_swi __P((void));
-void	cpu_reset __P((void));
 void	cpu_halt __P((void));
 void	cpu_power_down __P((void));
+void	cpu_reset __P((void));
 void	cpu_switch_load_fs __P((void)) __asm(__STRING(cpu_switch_load_fs));
 void	cpu_switch_load_gs __P((void)) __asm(__STRING(cpu_switch_load_gs));
 void	doreti_iret __P((void)) __asm(__STRING(doreti_iret));
@@ -84,10 +88,5 @@ void	swi_vm __P((void));
 void	userconfig __P((void));
 void	vm_bounce_init __P((void));
 int	vm_page_zero_idle __P((void));
-
-#ifdef PC98
-extern int need_pre_dma_flush;
-extern int need_post_dma_flush;
-#endif
 
 #endif /* !_MACHINE_MD_VAR_H_ */
