@@ -625,6 +625,7 @@ legacy:
 	@${ECHODIR} "===> ${_tool}"; \
 	    cd ${.CURDIR}/${_tool}; \
 	    ${MAKE} DIRPRFX=${_tool}/ obj; \
+	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy includes; \
 	    ${MAKE} DIRPRFX=${_tool}/ depend; \
 	    ${MAKE} DIRPRFX=${_tool}/ all; \
 	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy install
