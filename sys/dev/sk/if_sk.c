@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_sk.c,v 1.51 1999/07/14 21:48:19 wpaul Exp $
+ *	$Id: if_sk.c,v 1.5 1999/07/22 04:04:11 wpaul Exp $
  */
 
 /*
@@ -102,7 +102,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_sk.c,v 1.51 1999/07/14 21:48:19 wpaul Exp $";
+	"$Id: if_sk.c,v 1.5 1999/07/22 04:04:11 wpaul Exp $";
 #endif
 
 static struct sk_type sk_devs[] = {
@@ -1343,7 +1343,7 @@ static int sk_detach(dev)
 #ifdef SK_USEIOSPACE
 	bus_release_resource(dev, SYS_RES_IOPORT, SK_PCI_LOIO, sc->sk_res);
 #else
-	bus_release_resource(dev, SYS_RES_IOPORT, SK_PCI_LOMEM, sc->sk_res);
+	bus_release_resource(dev, SYS_RES_MEMORY, SK_PCI_LOMEM, sc->sk_res);
 #endif
 
 	splx(s);
