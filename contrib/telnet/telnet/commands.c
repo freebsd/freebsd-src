@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)commands.c	8.4 (Berkeley) 5/30/95";
+static const char sccsid[] = "@(#)commands.c	8.4 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 #if	defined(unix)
@@ -56,6 +56,8 @@ static char sccsid[] = "@(#)commands.c	8.4 (Berkeley) 5/30/95";
 #include <pwd.h>
 #include <varargs.h>
 #include <errno.h>
+#include <unistd.h>
+#include <stdlib.h>
 
 #include <arpa/telnet.h>
 
@@ -66,6 +68,13 @@ static char sccsid[] = "@(#)commands.c	8.4 (Berkeley) 5/30/95";
 #include "externs.h"
 #include "defines.h"
 #include "types.h"
+
+#if	defined(AUTHENTICATION)
+#include <libtelnet/auth.h>
+#endif
+#if	defined(ENCRYPTION)
+#include <libtelnet/encrypt.h>
+#endif
 
 #if !defined(CRAY) && !defined(sysV88)
 #include <netinet/in_systm.h>
@@ -93,7 +102,11 @@ extern int isprefix();
 extern char **genget();
 extern int Ambiguous();
 
-static call();
+static int help(int argc, char *argv[]);
+static int call();
+static void cmdrc(char *m1, char *m2);
+
+int quit(void);
 
 typedef struct {
 	char	*name;		/* command name */
@@ -106,6 +119,37 @@ static char line[256];
 static char saveline[256];
 static int margc;
 static char *margv[20];
+
+#if	defined(SKEY)
+#include <sys/wait.h>
+#define PATH_SKEY	"/usr/bin/key"
+    int
+skey_calc(argc, argv)
+	int argc;
+	char **argv;
+{
+	int status;
+
+	if(argc != 3) {
+		printf("%s sequence challenge\n", argv[0]);
+		return;
+	}
+
+	switch(fork()) {
+	case 0:
+		execv(PATH_SKEY, argv);
+		exit (1);
+	case -1:
+		perror("fork");
+		break;
+	default:
+		(void) wait(&status);
+		if (WIFEXITED(status))
+			return (WEXITSTATUS(status));
+		return (0);
+	}
+}
+#endif
 
     static void
 makeargv()
@@ -121,7 +165,7 @@ makeargv()
 	margc++;
 	cp++;
     }
-    while (c = *cp) {
+    while ((c = *cp)) {
 	register int inquote = 0;
 	while (isspace(c))
 	    c = *++cp;
@@ -164,7 +208,7 @@ makeargv()
  * Todo:  1.  Could take random integers (12, 0x12, 012, 0b1).
  */
 
-	static
+	static int
 special(s)
 	register char *s;
 {
@@ -293,7 +337,6 @@ sendcmd(argc, argv)
 {
     int count;		/* how many bytes we are going to need to send */
     int i;
-    int question = 0;	/* was at least one argument a question */
     struct sendlist *s;	/* pointer to current command */
     int success = 0;
     int needconnect = 0;
@@ -499,7 +542,7 @@ togdebug()
     }
 #else	/* NOT43 */
     if (debug) {
-	if (net > 0 && SetSockOpt(net, SOL_SOCKET, SO_DEBUG, 0, 0) < 0)
+	if (net > 0 && SetSockOpt(net, SOL_SOCKET, SO_DEBUG, 1) < 0)
 	    perror("setsockopt (SO_DEBUG)");
     } else
 	printf("Cannot turn off socket debugging\n");
@@ -1082,7 +1125,7 @@ unsetcmd(argc, argv)
 #ifdef	KLUDGELINEMODE
 extern int kludgelinemode;
 
-    static int
+    static void
 dokludgemode()
 {
     kludgelinemode = 1;
@@ -1139,7 +1182,7 @@ dolmmode(bit, on)
 }
 
     int
-setmode(bit)
+setmod(bit)
 {
     return dolmmode(bit, 1);
 }
@@ -1171,17 +1214,17 @@ static struct modelist ModeList[] = {
 #endif
     { "", "", 0 },
     { "",	"These require the LINEMODE option to be enabled", 0 },
-    { "isig",	"Enable signal trapping",	setmode, 1, MODE_TRAPSIG },
-    { "+isig",	0,				setmode, 1, MODE_TRAPSIG },
+    { "isig",	"Enable signal trapping",	setmod, 1, MODE_TRAPSIG },
+    { "+isig",	0,				setmod, 1, MODE_TRAPSIG },
     { "-isig",	"Disable signal trapping",	clearmode, 1, MODE_TRAPSIG },
-    { "edit",	"Enable character editing",	setmode, 1, MODE_EDIT },
-    { "+edit",	0,				setmode, 1, MODE_EDIT },
+    { "edit",	"Enable character editing",	setmod, 1, MODE_EDIT },
+    { "+edit",	0,				setmod, 1, MODE_EDIT },
     { "-edit",	"Disable character editing",	clearmode, 1, MODE_EDIT },
-    { "softtabs", "Enable tab expansion",	setmode, 1, MODE_SOFT_TAB },
-    { "+softtabs", 0,				setmode, 1, MODE_SOFT_TAB },
+    { "softtabs", "Enable tab expansion",	setmod, 1, MODE_SOFT_TAB },
+    { "+softtabs", 0,				setmod, 1, MODE_SOFT_TAB },
     { "-softtabs", "Disable character editing",	clearmode, 1, MODE_SOFT_TAB },
-    { "litecho", "Enable literal character echo", setmode, 1, MODE_LIT_ECHO },
-    { "+litecho", 0,				setmode, 1, MODE_LIT_ECHO },
+    { "litecho", "Enable literal character echo", setmod, 1, MODE_LIT_ECHO },
+    { "+litecho", 0,				setmod, 1, MODE_LIT_ECHO },
     { "-litecho", "Disable literal character echo", clearmode, 1, MODE_LIT_ECHO },
     { "help",	0,				modehelp, 0 },
 #ifdef	KLUDGELINEMODE
@@ -1435,7 +1478,7 @@ extern int shell();
 #endif	/* !defined(TN3270) */
 
     /*VARARGS*/
-    static
+    static int
 bye(argc, argv)
     int  argc;		/* Number of arguments */
     char *argv[];	/* arguments */
@@ -1465,6 +1508,7 @@ bye(argc, argv)
 }
 
 /*VARARGS*/
+	int
 quit()
 {
 	(void) call(bye, "bye", "fromquit", 0);
@@ -1530,7 +1574,7 @@ getslc(name)
 		genget(name, (char **) SlcList, sizeof(struct slclist));
 }
 
-    static
+    static int
 slccmd(argc, argv)
     int  argc;
     char *argv[];
@@ -1627,6 +1671,7 @@ getenvcmd(name)
 		genget(name, (char **) EnvList, sizeof(struct envlist));
 }
 
+	int
 env_cmd(argc, argv)
     int  argc;
     char *argv[];
@@ -1693,7 +1738,7 @@ env_init()
 	extern char *strchr();
 
 	for (epp = environ; *epp; epp++) {
-		if (cp = strchr(*epp, '=')) {
+		if ((cp = strchr(*epp, '='))) {
 			*cp = '\0';
 			ep = env_define((unsigned char *)*epp,
 					(unsigned char *)cp+1);
@@ -1738,7 +1783,7 @@ env_define(var, value)
 {
 	register struct env_lst *ep;
 
-	if (ep = env_find(var)) {
+	if ((ep = env_find(var))) {
 		if (ep->var)
 			free(ep->var);
 		if (ep->value)
@@ -1764,7 +1809,7 @@ env_undefine(var)
 {
 	register struct env_lst *ep;
 
-	if (ep = env_find(var)) {
+	if ((ep = env_find(var))) {
 		ep->prev->next = ep->next;
 		if (ep->next)
 			ep->next->prev = ep->prev;
@@ -1782,7 +1827,7 @@ env_export(var)
 {
 	register struct env_lst *ep;
 
-	if (ep = env_find(var))
+	if ((ep = env_find(var)))
 		ep->export = 1;
 }
 
@@ -1792,7 +1837,7 @@ env_unexport(var)
 {
 	register struct env_lst *ep;
 
-	if (ep = env_find(var))
+	if ((ep = env_find(var)))
 		ep->export = 0;
 }
 
@@ -1842,10 +1887,10 @@ env_default(init, welldefined)
 
 	if (init) {
 		nep = &envlisthead;
-		return;
+		return(NULL);
 	}
 	if (nep) {
-		while (nep = nep->next) {
+		while ((nep = nep->next)) {
 			if (nep->export && (nep->welldefined == welldefined))
 				return(nep->var);
 		}
@@ -1859,7 +1904,7 @@ env_getvalue(var)
 {
 	register struct env_lst *ep;
 
-	if (ep = env_find(var))
+	if ((ep = env_find(var)))
 		return(ep->value);
 	return(NULL);
 }
@@ -1949,6 +1994,7 @@ auth_help()
     return 0;
 }
 
+	int
 auth_cmd(argc, argv)
     int  argc;
     char *argv[];
@@ -2055,6 +2101,7 @@ EncryptHelp()
     return 0;
 }
 
+	int
 encrypt_cmd(argc, argv)
     int  argc;
     char *argv[];
@@ -2142,7 +2189,7 @@ filestuff(fd)
  * Print status about the connection.
  */
     /*ARGSUSED*/
-    static
+    static int
 status(argc, argv)
     int	 argc;
     char *argv[];
@@ -2215,6 +2262,7 @@ status(argc, argv)
 /*
  * Function that gets called when SIGINFO is received.
  */
+	void
 ayt_status()
 {
     (void) call(status, "status", "notmuch", 0);
@@ -2313,10 +2361,15 @@ tn(argc, argv)
     } else {
 #endif
 	temp = inet_addr(hostp);
-	if (temp != (unsigned long) -1) {
+ 	if (temp != INADDR_NONE) {
 	    sin.sin_addr.s_addr = temp;
 	    sin.sin_family = AF_INET;
-	    (void) strcpy(_hostname, hostp);
+ 	    host = gethostbyaddr((char *)&temp, sizeof(temp), AF_INET);
+ 	    if (host)
+ 	        (void) strncpy(_hostname, host->h_name, sizeof(_hostname));
+ 	    else
+ 		(void) strncpy(_hostname, hostp, sizeof(_hostname));
+ 	    _hostname[sizeof(_hostname)-1] = '\0';
 	    hostname = _hostname;
 	} else {
 	    host = gethostbyname(hostp);
@@ -2437,8 +2490,8 @@ tn(argc, argv)
 
 	user = getenv("USER");
 	if (user == NULL ||
-	    (pw = getpwnam(user)) && pw->pw_uid != getuid()) {
-		if (pw = getpwuid(getuid()))
+	    ((pw = getpwnam(user)) && pw->pw_uid != getuid())) {
+		if ((pw = getpwuid(getuid())))
 			user = pw->pw_name;
 		else
 			user = NULL;
@@ -2483,11 +2536,12 @@ static char
 #if	defined(unix)
 	zhelp[] =	"suspend telnet",
 #endif	/* defined(unix) */
+#if	defined(SKEY)
+	skeyhelp[] =    "compute response to s/key challenge",
+#endif
 	shellhelp[] =	"invoke a subshell",
 	envhelp[] =	"change environment variables ('environ ?' for more)",
 	modestring[] = "try to enter line or character mode ('mode ?' for more)";
-
-static int	help();
 
 static Command cmdtab[] = {
 	{ "close",	closehelp,	bye,		1 },
@@ -2521,7 +2575,10 @@ static Command cmdtab[] = {
 #endif
 	{ "environ",	envhelp,	env_cmd,	0 },
 	{ "?",		helphelp,	help,		0 },
-	0
+#if	defined(SKEY)
+	{ "skey",       skeyhelp,       skey_calc,      0 },
+#endif		
+	{ 0, 0, 0, 0 }
 };
 
 static char	crmodhelp[] =	"deprecated command -- use 'toggle crmod' instead";
@@ -2531,7 +2588,7 @@ static Command cmdtab2[] = {
 	{ "help",	0,		help,		0 },
 	{ "escape",	escapehelp,	setescape,	0 },
 	{ "crmod",	crmodhelp,	togcrmod,	0 },
-	0
+	{ 0, 0, 0, 0 }
 };
 
 
@@ -2540,7 +2597,7 @@ static Command cmdtab2[] = {
  */
 
     /*VARARGS1*/
-    static
+    static int
 call(va_alist)
     va_dcl
 {
@@ -2566,7 +2623,7 @@ getcmd(name)
 {
     Command *cm;
 
-    if (cm = (Command *) genget(name, (char **) cmdtab, sizeof(Command)))
+    if ((cm = (Command *) genget(name, (char **) cmdtab, sizeof(Command))))
 	return cm;
     return (Command *) genget(name, (char **) cmdtab2, sizeof(Command));
 }
@@ -2655,7 +2712,7 @@ command(top, tbuf, cnt)
 /*
  * Help command.
  */
-	static
+	static int
 help(argc, argv)
 	int argc;
 	char *argv[];
@@ -2669,9 +2726,8 @@ help(argc, argv)
 				printf("%-*s\t%s\n", HELPINDENT, c->name,
 								    c->help);
 			}
-		return 0;
 	}
-	while (--argc > 0) {
+	else while (--argc > 0) {
 		register char *arg;
 		arg = *++argv;
 		c = getcmd(arg);
@@ -2682,12 +2738,13 @@ help(argc, argv)
 		else
 			printf("%s\n", c->help);
 	}
-	return 0;
+	return(0);
 }
 
 static char *rcname = 0;
 static char rcbuf[128];
 
+	void
 cmdrc(m1, m2)
 	char *m1, *m2;
 {
@@ -2706,7 +2763,7 @@ cmdrc(m1, m2)
 
     if (rcname == 0) {
 	rcname = getenv("HOME");
-	if (rcname)
+	if (rcname && (strlen(rcname) + 10) < sizeof(rcbuf))
 	    strcpy(rcbuf, rcname);
 	else
 	    rcbuf[0] = '\0';
@@ -2881,7 +2938,7 @@ sourceroute(arg, cpp, lenp)
 	for (c = 0;;) {
 		if (c == ':')
 			cp2 = 0;
-		else for (cp2 = cp; c = *cp2; cp2++) {
+		else for (cp2 = cp; (c = *cp2); cp2++) {
 			if (c == ',') {
 				*cp2++ = '\0';
 				if (*cp2 == '@')
@@ -2899,7 +2956,7 @@ sourceroute(arg, cpp, lenp)
 
 		if ((tmp = inet_addr(cp)) != -1) {
 			sin_addr.s_addr = tmp;
-		} else if (host = gethostbyname(cp)) {
+		} else if ((host = gethostbyname(cp))) {
 #if	defined(h_addr)
 			memmove((caddr_t)&sin_addr,
 				host->h_addr_list[0], host->h_length);

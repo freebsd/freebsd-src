@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)encrypt.c	8.2 (Berkeley) 5/30/95";
+static const char sccsid[] = "@(#)encrypt.c	8.2 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 /*
@@ -58,6 +58,7 @@ static char sccsid[] = "@(#)encrypt.c	8.2 (Berkeley) 5/30/95";
 #ifdef	ENCRYPTION
 
 #define	ENCRYPT_NAMES
+#include <stdio.h>
 #include <arpa/telnet.h>
 
 #include "encrypt.h"
@@ -78,6 +79,18 @@ static char sccsid[] = "@(#)encrypt.c	8.2 (Berkeley) 5/30/95";
  */
 void	(*encrypt_output) P((unsigned char *, int));
 int	(*decrypt_input) P((int));
+
+int EncryptType(char *type, char *mode);
+int EncryptStart(char *mode);
+int EncryptStop(char *mode);
+int EncryptStartInput(void);
+int EncryptStartOutput(void);
+int EncryptStopInput(void);
+int EncryptStopOutput(void);
+
+int Ambiguous(char **s);
+int isprefix(char *s1, char *s2);
+char **genget(char *name, char **table, int stlen);
 
 int encrypt_debug_mode = 0;
 static int decrypt_mode = 0;
@@ -174,6 +187,8 @@ static struct key_info {
 	{ { 0 }, 0, DIR_DECRYPT, &decrypt_mode, finddecryption },
 };
 
+static void encrypt_keyid(struct key_info *kp, unsigned char *keyid, int len);
+
 	void
 encrypt_init(name, server)
 	char *name;
@@ -248,10 +263,10 @@ EncryptDisable(type, mode)
 	if (isprefix(type, "help") || isprefix(type, "?")) {
 		printf("Usage: encrypt disable <type> [input|output]\n");
 		encrypt_list_types();
-	} else if ((ep = (Encryptions *)genget(type, encryptions,
+	} else if ((ep = (Encryptions *)genget(type, (char **)encryptions,
 						sizeof(Encryptions))) == 0) {
 		printf("%s: invalid encryption type\n", type);
-	} else if (Ambiguous(ep)) {
+	} else if (Ambiguous((char **)ep)) {
 		printf("Ambiguous type '%s'\n", type);
 	} else {
 		if ((mode == 0) || (isprefix(mode, "input") ? 1 : 0)) {
@@ -283,10 +298,10 @@ EncryptType(type, mode)
 	if (isprefix(type, "help") || isprefix(type, "?")) {
 		printf("Usage: encrypt type <type> [input|output]\n");
 		encrypt_list_types();
-	} else if ((ep = (Encryptions *)genget(type, encryptions,
+	} else if ((ep = (Encryptions *)genget(type, (char **)encryptions,
 						sizeof(Encryptions))) == 0) {
 		printf("%s: invalid encryption type\n", type);
-	} else if (Ambiguous(ep)) {
+	} else if (Ambiguous((char **)ep)) {
 		printf("Ambiguous type '%s'\n", type);
 	} else {
 		if ((mode == 0) || isprefix(mode, "input")) {
@@ -559,7 +574,7 @@ encrypt_is(data, cnt)
 	} else {
 		ret = (*ep->is)(data, cnt);
 		if (encrypt_debug_mode)
-			printf("(*ep->is)(%x, %d) returned %s(%d)\n", data, cnt,
+			printf("(*ep->is)(%p, %d) returned %s(%d)\n", data, cnt,
 				(ret < 0) ? "FAIL " :
 				(ret == 0) ? "SUCCESS " : "MORE_TO_DO ", ret);
 	}
@@ -603,7 +618,7 @@ encrypt_reply(data, cnt)
 	} else {
 		ret = (*ep->reply)(data, cnt);
 		if (encrypt_debug_mode)
-			printf("(*ep->reply)(%x, %d) returned %s(%d)\n",
+			printf("(*ep->reply)(%p, %d) returned %s(%d)\n",
 				data, cnt,
 				(ret < 0) ? "FAIL " :
 				(ret == 0) ? "SUCCESS " : "MORE_TO_DO ", ret);
@@ -641,7 +656,7 @@ encrypt_start(data, cnt)
 		return;
 	}
 
-	if (ep = finddecryption(decrypt_mode)) {
+	if ((ep = finddecryption(decrypt_mode))) {
 		decrypt_input = ep->input;
 		if (encrypt_verbose)
 			printf("[ Input is now decrypted with type %s ]\r\n",
@@ -725,6 +740,7 @@ encrypt_request_start(data, cnt)
 
 static unsigned char str_keyid[(MAXKEYLEN*2)+5] = { IAC, SB, TELOPT_ENCRYPT };
 
+	void
 encrypt_enc_keyid(keyid, len)
 	unsigned char *keyid;
 	int len;
@@ -732,6 +748,7 @@ encrypt_enc_keyid(keyid, len)
 	encrypt_keyid(&ki[1], keyid, len);
 }
 
+	void
 encrypt_dec_keyid(keyid, len)
 	unsigned char *keyid;
 	int len;
@@ -739,13 +756,13 @@ encrypt_dec_keyid(keyid, len)
 	encrypt_keyid(&ki[0], keyid, len);
 }
 
+	void
 encrypt_keyid(kp, keyid, len)
 	struct key_info *kp;
 	unsigned char *keyid;
 	int len;
 {
 	Encryptions *ep;
-	unsigned char *strp, *cp;
 	int dir = kp->dir;
 	register int ret = 0;
 
@@ -942,7 +959,6 @@ encrypt_send_request_end()
 	void
 encrypt_wait()
 {
-	register int encrypt, decrypt;
 	if (encrypt_debug_mode)
 		printf(">>>%s: in encrypt_wait\r\n", Name);
 	if (!havesessionkey || !(I_SUPPORT_ENCRYPT & remote_supports_decrypt))

@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)auth.c	8.3 (Berkeley) 5/30/95";
+static const char sccsid[] = "@(#)auth.c	8.3 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 /*
@@ -64,6 +64,7 @@ static char sccsid[] = "@(#)auth.c	8.3 (Berkeley) 5/30/95";
 #include <arpa/telnet.h>
 #ifdef	__STDC__
 #include <stdlib.h>
+#include <unistd.h>
 #endif
 #ifdef	NO_STRING_H
 #include <strings.h>
@@ -105,6 +106,9 @@ static	int	validuser = 0;
 static	unsigned char	_auth_send_data[256];
 static	unsigned char	*auth_send_data;
 static	int	auth_send_cnt = 0;
+
+int auth_onoff(char *type, int on);
+void auth_encrypt_user(char *name);
 
 /*
  * Authentication types supported.  Plese note that these are stored
@@ -500,7 +504,7 @@ auth_is(data, cnt)
 		return;
 	}
 
-	if (ap = findauthenticator(data[0], data[1])) {
+	if ((ap = findauthenticator(data[0], data[1]))) {
 		if (ap->is)
 			(*ap->is)(ap, data+2, cnt-2);
 	} else if (auth_debug_mode)
@@ -518,7 +522,7 @@ auth_reply(data, cnt)
 	if (cnt < 2)
 		return;
 
-	if (ap = findauthenticator(data[0], data[1])) {
+	if ((ap = findauthenticator(data[0], data[1]))) {
 		if (ap->reply)
 			(*ap->reply)(ap, data+2, cnt-2);
 	} else if (auth_debug_mode)
@@ -531,7 +535,6 @@ auth_name(data, cnt)
 	unsigned char *data;
 	int cnt;
 {
-	Authenticator *ap;
 	unsigned char savename[256];
 
 	if (cnt < 1) {

@@ -79,11 +79,17 @@ void encrypt_send_end P((void));
 void encrypt_wait P((void));
 void encrypt_send_support P((void));
 void encrypt_send_keyid P((int, unsigned char *, int, int));
+void encrypt_start P((unsigned char *, int));
+void encrypt_end P((void));
+void encrypt_support P((unsigned char *, int));
+void encrypt_request_start P((unsigned char *, int));
+void encrypt_request_end P((void));
+void encrypt_enc_keyid P((unsigned char *, int));
+void encrypt_dec_keyid P((unsigned char *, int));
+void encrypt_printsub P((unsigned char *, int, unsigned char *, int));
 int net_write P((unsigned char *, int));
 
-#ifdef	TELENTD
-void encrypt_wait P((void));
-#else
+#ifndef	TELENTD
 int encrypt_cmd P((int, char **));
 void encrypt_display P((void));
 #endif
@@ -117,9 +123,4 @@ void ofb64_session P((Session_Key *, int));
 int ofb64_keyid P((int, unsigned char *, int *));
 void ofb64_printsub P((unsigned char *, int, unsigned char *, int));
 
-int  des_new_random_key P((Block));
-void des_set_random_generator_seed P((Block));
-void des_key_sched P((Block, Schedule));
-void des_ecb_encrypt P((Block, Block, Schedule, int));
-int  des_string_to_key P((char *, Block));
 #endif	/* ENCRYPTION */
