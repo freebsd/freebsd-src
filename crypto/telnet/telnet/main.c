@@ -180,10 +180,13 @@ main(argc, argv)
 #define IPSECOPT
 #endif
 	while ((ch = getopt(argc, argv,
-			    "468EKLNS:X:acde:fFk:l:n:rs:t:xy" IPSECOPT)) != -1)
+			    "468EKLNS:X:acde:fFk:l:n:rs:t:uxy" IPSECOPT)) != -1)
 #undef IPSECOPT
 	{
 		switch(ch) {
+		case 'u':
+			family = AF_UNIX;
+			break;
 		case '4':
 			family = AF_INET;
 			break;
