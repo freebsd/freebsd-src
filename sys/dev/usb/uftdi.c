@@ -153,6 +153,7 @@ USB_MATCH(uftdi)
 	if (uaa->vendor == USB_VENDOR_FTDI &&
 	    (uaa->product == USB_PRODUCT_FTDI_SERIAL_8U100AX ||
 	     uaa->product == USB_PRODUCT_FTDI_SERIAL_8U232AM ||
+	     uaa->product == USB_PRODUCT_FTDI_SEMC_DSS20 ||
 	     uaa->product == USB_PRODUCT_FTDI_CFA_631 ||
 	     uaa->product == USB_PRODUCT_FTDI_CFA_632 ||
 	     uaa->product == USB_PRODUCT_FTDI_CFA_633 ||
@@ -213,6 +214,7 @@ USB_ATTACH(uftdi)
 		sc->sc_type = UFTDI_TYPE_SIO;
 		sc->sc_hdrlen = 1;
 		break;
+	case USB_PRODUCT_FTDI_SEMC_DSS20:
 	case USB_PRODUCT_FTDI_SERIAL_8U232AM:
 	case USB_PRODUCT_FTDI_CFA_631:
 	case USB_PRODUCT_FTDI_CFA_632:
