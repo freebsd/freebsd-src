@@ -81,22 +81,55 @@
 #define	APIC_IO_INTS	(IDT_IO_INTS + 16)
 #define	APIC_NUM_IOINTS	192
 
-#define	APIC_LOCAL_INTS	240
-#define	APIC_TIMER_INT	APIC_LOCAL_INTS
-#define	APIC_ERROR_INT	(APIC_LOCAL_INTS + 1)
-#define	APIC_THERMAL_INT (APIC_LOCAL_INTS + 2)
+/*  
+ ********************* !!! WARNING !!! ******************************
+ * Each local apic has an interrupt receive fifo that is two entries deep
+ * for each interrupt priority class (higher 4 bits of interrupt vector).
+ * Once the fifo is full the APIC can no longer receive interrupts for this
+ * class and sending IPIs from other CPUs will be blocked.
+ * To avoid deadlocks there should be no more than two IPI interrupts
+ * pending at the same time.
+ * Currently this is guaranteed by dividing the IPIs in two groups that have 
+ * each at most one IPI interrupt pending. The first group is protected by the
+ * smp_ipi_mtx and waits for the completion of the IPI (Only one IPI user 
+ * at a time) The second group uses a single interrupt and a bitmap to avoid
+ * redundant IPI interrupts.
+ *
+ * Right now IPI_STOP used by kdb shares the interrupt priority class with
+ * the two IPI groups mentioned above. As such IPI_STOP may cause a deadlock.
+ * Eventually IPI_STOP should use NMI IPIs - this would eliminate this and
+ * other deadlocks caused by IPI_STOP.
+ */ 
 
-#define	APIC_IPI_INTS	(APIC_LOCAL_INTS + 3)
-#define	IPI_AST		APIC_IPI_INTS		/* Generate software trap. */
+#define	APIC_LOCAL_INTS	240
+
+#if 0
+#define	APIC_TIMER_INT	(APIC_LOCAL_INTS  +  X)
+#define	APIC_ERROR_INT	(APIC_LOCAL_INTS  +  X)
+#define	APIC_THERMAL_INT (APIC_LOCAL_INTS +  X)
+#endif
+
+#define	APIC_IPI_INTS	(APIC_LOCAL_INTS + 0)
+#define	IPI_RENDEZVOUS	(APIC_IPI_INTS)		/* Inter-CPU rendezvous. */
 #define	IPI_INVLTLB	(APIC_IPI_INTS + 1)	/* TLB Shootdown IPIs */
 #define	IPI_INVLPG	(APIC_IPI_INTS + 2)
 #define	IPI_INVLRNG	(APIC_IPI_INTS + 3)
 #define	IPI_LAZYPMAP	(APIC_IPI_INTS + 4)	/* Lazy pmap release. */
-#define	IPI_HARDCLOCK	(APIC_IPI_INTS + 8)	/* Inter-CPU clock handling. */
-#define	IPI_STATCLOCK	(APIC_IPI_INTS + 9)
-#define	IPI_RENDEZVOUS	(APIC_IPI_INTS + 10)	/* Inter-CPU rendezvous. */
-#define	IPI_STOP	(APIC_IPI_INTS + 11)	/* Stop CPU until restarted. */
+/* Vector to handle bitmap based IPIs */
+#define	IPI_BITMAP_VECTOR	(APIC_IPI_INTS + 5) 
 
+/* IPIs handled by IPI_BITMAPED_VECTOR  (XXX ups is there a better place?) */
+#define	IPI_AST		0 	/* Generate software trap. */
+#define	IPI_HARDCLOCK	1	/* Inter-CPU clock handling. */
+#define	IPI_STATCLOCK	2
+#define IPI_BITMAP_LAST IPI_STATCLOCK
+#define IPI_IS_BITMAPED(x) ((x) <= IPI_BITMAP_LAST)
+
+#define	IPI_STOP	(APIC_IPI_INTS + 6)	/* Stop CPU until restarted. */
+
+/* The spurious interrupt can share the priority class with the IPIs since
+ * it is not a normal interrupt. (Does not use the APIC's interrupt fifo)
+ */
 #define	APIC_SPURIOUS_INT 255
 
 #define	LVT_LINT0	0
