@@ -17,7 +17,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <vm/vm_param.h>
-#include <vm/swap_pager.h>
 
 #include <err.h>
 #include <errno.h>
@@ -33,14 +32,6 @@ __FBSDID("$FreeBSD$");
 
 #include "kvm_private.h"
 
-static struct nlist kvm_swap_nl[] = {
-	{ "_swapblist" },	/* new radix swap list		*/
-	{ "_swdevt" },		/* list of swap devices and sizes */
-	{ "_nswdev" },		/* number of swap devices */
-	{ "_dmmax" },		/* maximum size of a swap block */
-	{ "" }
-};
-
 #define NL_SWAPBLIST	0
 #define NL_SWDEVT	1
 #define NL_NSWDEV	2
@@ -55,7 +46,6 @@ static int kvm_getswapinfo2(kvm_t *kd, struct kvm_swap *swap_ary,
 			    int swap_max, int flags);
 static int  kvm_getswapinfo_kvm(kvm_t *, struct kvm_swap *, int, int);
 static int  kvm_getswapinfo_sysctl(kvm_t *, struct kvm_swap *, int, int);
-static int  nlist_init(kvm_t *);
 static int  getsysctl(kvm_t *, char *, void *, size_t);
 
 #define	SVAR(var) __STRING(var)	/* to force expansion */
@@ -109,75 +99,8 @@ kvm_getswapinfo(
 	if (ISALIVE(kd)) {
 		return kvm_getswapinfo_sysctl(kd, swap_ary, swap_max, flags);
 	} else {
-		return kvm_getswapinfo_kvm(kd, swap_ary, swap_max, flags);
+		return -1;
 	}
-}
-
-int
-kvm_getswapinfo_kvm(
-	kvm_t *kd, 
-	struct kvm_swap *swap_ary,
-	int swap_max, 
-	int flags
-) {
-	int ti = 0;
-
-	/*
-	 * namelist
-	 */
-	if (!nlist_init(kd))
-		return (-1);
-
-	{
-		struct swdevt *sw;
-		int i;
-
-		ti = unswdev;
-		if (ti >= swap_max)
-			ti = swap_max - 1;
-
-		if (ti >= 0)
-			bzero(swap_ary, sizeof(struct kvm_swap) * (ti + 1));
-
-		KGET(NL_SWDEVT, sw);
-		for (i = 0; i < unswdev; ++i) {
-			struct swdevt swinfo;
-			int ttl;
-
-			KGET2(&sw[i], &swinfo, sizeof(swinfo), "swinfo");
-
-			/*
-			 * old style: everything in DEV_BSIZE'd chunks,
-			 * convert to pages.
-			 *
-			 * new style: swinfo in DEV_BSIZE'd chunks but dmmax
-			 * in pages.
-			 *
-			 * The first dmmax is never allocating to avoid 
-			 * trashing the disklabels
-			 */
-
-			ttl = swinfo.sw_nblks - dmmax;
-
-			if (ttl == 0)
-				continue;
-
-			if (i < ti) {
-				swap_ary[i].ksw_total = ttl;
-				swap_ary[i].ksw_used = swinfo.sw_used;
-				swap_ary[i].ksw_flags = swinfo.sw_flags;
-				GETSWDEVNAME(swinfo.sw_dev, 
-				    swap_ary[i].ksw_devname, flags
-				);
-			}
-			if (ti >= 0) {
-				swap_ary[ti].ksw_total += ttl;
-				swap_ary[ti].ksw_used += swinfo.sw_used;
-			}
-		}
-	}
-
-	return(ti);
 }
 
 #define	GETSYSCTL(kd, name, var)					\
@@ -250,53 +173,6 @@ kvm_getswapinfo_sysctl(
 		swap_ary[ti] = tot;
 
         return(ti);
-}
-
-static int
-nlist_init (
-	kvm_t *kd
-) {
-	struct swdevt *sw;
-
-	if (kvm_swap_nl_cached)
-		return (1);
-
-	if (kvm_nlist(kd, kvm_swap_nl) < 0)
-		return (0);
-	
-	/*
-	 * required entries
-	 */
-	if (
-	    kvm_swap_nl[NL_SWDEVT].n_value == 0 ||
-	    kvm_swap_nl[NL_NSWDEV].n_value == 0 ||
-	    kvm_swap_nl[NL_DMMAX].n_value == 0 ||
-	    kvm_swap_nl[NL_SWAPBLIST].n_type == 0
-	   ) {
-		return (0);
-	}
-	
-	/*
-	 * get globals, type of swap
-	 */
-	KGET(NL_NSWDEV, nswdev);
-	KGET(NL_DMMAX, dmmax);
-
-	/*
-	 * figure out how many actual swap devices are enabled
-	 */
-	KGET(NL_SWDEVT, sw);
-	for (unswdev = nswdev - 1; unswdev >= 0; --unswdev) {
-		struct swdevt swinfo;
-		
-		KGET2(&sw[unswdev], &swinfo, sizeof(swinfo), "swinfo");
-		if (swinfo.sw_nblks)
-			break;
-	}
-	++unswdev;
-
-	kvm_swap_nl_cached = 1;
-	return (1);
 }
 
 static int
