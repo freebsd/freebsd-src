@@ -217,7 +217,7 @@ ucom_detach(struct ucom_softc *sc)
 	if (tp != NULL) {
 		if (tp->t_state & TS_ISOPEN) {
 			device_printf(sc->sc_dev,
-				      "still open, focing close\n");
+				      "still open, forcing close\n");
 			(*linesw[tp->t_line].l_close)(tp, 0);
 			tp->t_gen++;
 			ttyclose(tp);
