@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclUnixTime.c 1.10 96/02/15 11:58:41
+ * SCCS: @(#) tclUnixTime.c 1.11 96/07/23 16:17:21
  */
 
 #include "tclInt.h"
@@ -18,7 +18,7 @@
 /*
  *-----------------------------------------------------------------------------
  *
- * TclGetSeconds --
+ * TclpGetSeconds --
  *
  *	This procedure returns the number of seconds from the epoch.  On
  *	most Unix systems the epoch is Midnight Jan 1, 1970 GMT.
@@ -33,7 +33,7 @@
  */
 
 unsigned long
-TclGetSeconds()
+TclpGetSeconds()
 {
     return time((time_t *) NULL);
 }
@@ -41,7 +41,7 @@ TclGetSeconds()
 /*
  *-----------------------------------------------------------------------------
  *
- * TclGetClicks --
+ * TclpGetClicks --
  *
  *	This procedure returns a value that represents the highest resolution
  *	clock available on the system.  There are no garantees on what the
@@ -58,7 +58,7 @@ TclGetSeconds()
  */
 
 unsigned long
-TclGetClicks()
+TclpGetClicks()
 {
     unsigned long now;
 #ifdef NO_GETTOD
@@ -81,7 +81,7 @@ TclGetClicks()
 /*
  *----------------------------------------------------------------------
  *
- * TclGetTimeZone --
+ * TclpGetTimeZone --
  *
  *	Determines the current timezone.  The method varies wildly
  *	between different platform implementations, so its hidden in
@@ -97,7 +97,7 @@ TclGetClicks()
  */
 
 int
-TclGetTimeZone (currentTime)
+TclpGetTimeZone (currentTime)
     unsigned long  currentTime;
 {
     /*
@@ -190,7 +190,7 @@ TclGetTimeZone (currentTime)
 /*
  *----------------------------------------------------------------------
  *
- * TclGetTime --
+ * TclpGetTime --
  *
  *	Gets the current system time in seconds and microseconds
  *	since the beginning of the epoch: 00:00 UCT, January 1, 1970.
@@ -205,7 +205,7 @@ TclGetTimeZone (currentTime)
  */
 
 void
-TclGetTime(timePtr)
+TclpGetTime(timePtr)
     Tcl_Time *timePtr;		/* Location to store time information. */
 {
     struct timeval tv;
