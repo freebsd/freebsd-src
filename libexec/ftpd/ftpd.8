@@ -40,7 +40,7 @@
 .Nd Internet File Transfer Protocol server
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46AdDEmMoOrRSUvW
+.Op Fl 46AdDEhmMoOrRSUvW
 .Op Fl l Op Fl l
 .Op Fl a Ar address
 .Op Fl p Ar file
@@ -107,6 +107,9 @@ and is thus useful on busy servers to reduce load.
 .It Fl E
 Disable the EPSV command.
 This is useful for servers behind older firewalls.
+.It Fl h
+Disable printing host-specific information, such as the
+server software version or hostname, in server messages.
 .It Fl l
 Each successful and failed
 .Xr ftp 1
