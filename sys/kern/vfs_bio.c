@@ -1253,10 +1253,12 @@ brelse(struct buf * bp)
 		 * cannot be set while we hold the buf lock, it can only be
 		 * cleared if it is already pending.
 		 */
-		VI_LOCK(bp->b_vp);
-		if (!(bp->b_vflags & BV_BKGRDINPROG))
-			bp->b_flags |= B_RELBUF;
-		VI_UNLOCK(bp->b_vp);
+		if (bp->b_vp) {
+			VI_LOCK(bp->b_vp);
+			if (!(bp->b_vflags & BV_BKGRDINPROG))
+				bp->b_flags |= B_RELBUF;
+			VI_UNLOCK(bp->b_vp);
+		}
 	}
 
 	/*
