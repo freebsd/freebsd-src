@@ -713,6 +713,7 @@ usbd_probe_and_attach(parent, dev, port, addr)
 	    printf("%s: Device creation failed\n", USBDEVNAME(dev->bus->bdev));
 	    return (USBD_INVAL);
 	}
+	device_quiet(bdev);
 #endif
 
 	uaa.device = dev;
@@ -764,6 +765,7 @@ usbd_probe_and_attach(parent, dev, port, addr)
 						USBDEVNAME(dev->bus->bdev));
 					return (USBD_NORMAL_COMPLETION);
 				}
+				device_quiet(bdev);
 #endif
 			}
 		}
