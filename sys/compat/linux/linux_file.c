@@ -786,8 +786,6 @@ linux_mount(struct thread *td, struct linux_mount_args *args)
 			fsflags |= MNT_RDONLY;
 		if (args->rwflag & LINUX_MS_NOSUID)
 			fsflags |= MNT_NOSUID;
-		if (args->rwflag & LINUX_MS_NODEV)
-			fsflags |= MNT_NODEV;
 		if (args->rwflag & LINUX_MS_NOEXEC)
 			fsflags |= MNT_NOEXEC;
 		if (args->rwflag & LINUX_MS_REMOUNT)
