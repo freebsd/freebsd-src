@@ -348,48 +348,6 @@ returns any pending error on the socket and clears
 the error status.
 It may be used to check for asynchronous errors on connected
 datagram sockets or for other asynchronous errors.
-.Sh IMPLEMENTATION NOTES
-In the non-threaded library
-.Fn getsockopt
-is implemented as the
-.Va getsockopt
-syscall.
-.Pp
-In the threaded library, the
-.Va getsockopt
-syscall is assembled to
-.Fn _thread_sys_getsockopt
-and
-.Fn getsockopt
-is implemented as a function which locks
-.Fa s
-for read and write, then calls
-.Fn _thread_sys_getsockopt .
-Before returning,
-.Fn getsockopt
-unlocks
-.Fa s .
-.Pp
-In the non-threaded library
-.Fn setsockopt
-is implemented as the
-.Va setsockopt
-syscall.
-.Pp
-In the threaded library, the
-.Va setsockopt
-syscall is assembled to
-.Fn _thread_sys_setsockopt
-and
-.Fn setsockopt
-is implemented as a function which locks
-.Fa s
-for read and write, then calls
-.Fn _thread_sys_setsockopt .
-Before returning,
-.Fn setsockopt
-unlocks
-.Fa s .
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
