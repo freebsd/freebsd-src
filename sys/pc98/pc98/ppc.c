@@ -33,7 +33,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/malloc.h>
   
 #include <vm/vm.h>
 #include <vm/pmap.h>

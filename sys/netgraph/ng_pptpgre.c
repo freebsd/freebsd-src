@@ -57,7 +57,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/time.h>
-#include <sys/conf.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
