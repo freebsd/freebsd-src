@@ -500,7 +500,6 @@ addupc_intr(struct thread *td, uintptr_t pc, u_int ticks)
 /*
  * Much like before, but we can afford to take faults here.  If the
  * update fails, we simply turn off profiling.
- * XXXKSE, don't use kse unless we got sched lock.
  */
 void
 addupc_task(struct thread *td, uintptr_t pc, u_int ticks)
