@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.26 1995/03/21 01:13:16 davidg Exp $
+ * $Id: vfs_subr.c,v 1.27 1995/04/09 06:02:46 davidg Exp $
  */
 
 /*
@@ -1242,7 +1242,7 @@ vprint(label, vp)
 	}
 }
 
-#ifdef DEBUG
+#ifdef DDB
 /*
  * List all of the locked vnodes in the system.
  * Called when debugging the kernel.
