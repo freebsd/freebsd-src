@@ -5,7 +5,7 @@
 SUBDIR=	accf_data accf_http agp aha amr an aue \
 	ccd cd9660 coda cue dc fdesc fxp if_disc if_ef if_ppp \
 	if_sl if_tap if_tun ipfilter ipfw ispfw joy kernfs kue \
-	md mfs mii mlx msdos ncp netgraph nfs ntfs nullfs \
+	md mfs mii mlx msdos ncp pcn netgraph nfs ntfs nullfs \
 	nwfs portal procfs rl sf sis sk ste syscons ti tl twe \
 	ugen uhid ukbd ulpt umapfs umass umodem ums union usb vinum vn vpo vr wb wx xl
 

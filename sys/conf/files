@@ -190,6 +190,7 @@ dev/mii/exphy.c		optional miibus
 dev/mii/mlphy.c		optional miibus
 dev/mii/nsphy.c		optional miibus
 dev/mii/pnphy.c		optional miibus
+dev/mii/pnaphy.c	optional miibus
 dev/mii/tlphy.c		optional miibus
 dev/mii/rlphy.c		optional miibus
 dev/mii/xmphy.c		optional miibus
@@ -910,6 +911,7 @@ pci/if_de.c		optional de
 pci/if_en_pci.c		optional en pci
 pci/if_fxp.c		optional fxp
 pci/if_lnc_p.c		optional lnc pci
+pci/if_pcn.c		optional pcn
 pci/if_mn.c		optional mn
 pci/if_rl.c		optional rl
 pci/if_sf.c		optional sf
