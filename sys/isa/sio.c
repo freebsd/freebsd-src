@@ -949,11 +949,13 @@ sioprobe(dev, xrid)
 			} else {
 				/* Unknown, Just omit this chip.. XXX */
 				result = ENXIO;
+				sio_setreg(com, com_mcr, 0);
 			}
 		} else {
 			/* OK. this is well-known guys */
 			CLR_FLAG(dev, COM_C_IIR_TXRDYBUG);
 		}
+		sio_setreg(com, com_ier, 0);
 		sio_setreg(com, com_cfcr, CFCR_8BITS);
 		enable_intr();
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
