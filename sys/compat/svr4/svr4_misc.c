@@ -88,6 +88,7 @@
 #include <vm/vm_map.h>
 #if defined(__FreeBSD__)
 #include <vm/uma.h>
+#include <vm/vm_extern.h>
 #endif
 
 #if defined(NetBSD)
