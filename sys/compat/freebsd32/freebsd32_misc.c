@@ -56,6 +56,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/stat.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
@@ -358,43 +359,26 @@ struct sigaltstack32 {
 int
 ia32_sigaltstack(struct thread *td, struct ia32_sigaltstack_args *uap)
 {
+	struct sigaltstack32 s32;
+	struct sigaltstack ss, oss, *ssp;
 	int error;
-	caddr_t sg;
-	struct sigaltstack32 *p32, *op32, s32;
-	struct sigaltstack *p = NULL, *op = NULL, s;
 
-	p32 = uap->ss;
-	if (p32) {
-		sg = stackgap_init();
-		p = stackgap_alloc(&sg, sizeof(struct sigaltstack));
-		uap->ss = (struct sigaltstack32 *)p;
-		error = copyin(p32, &s32, sizeof(s32));
+	if (uap->ss != NULL) {
+		error = copyin(uap->ss, &s32, sizeof(s32));
 		if (error)
 			return (error);
-		PTRIN_CP(s32, s, ss_sp);
-		CP(s32, s, ss_size);
-		CP(s32, s, ss_flags);
-		error = copyout(&s, p, sizeof(s));
-		if (error)
-			return (error);
-	}
-	op32 = uap->oss;
-	if (op32) {
-		sg = stackgap_init();
-		op = stackgap_alloc(&sg, sizeof(struct sigaltstack));
-		uap->oss = (struct sigaltstack32 *)op;
-	}
-	error = sigaltstack(td, (struct sigaltstack_args *) uap);
-	if (error)
-		return (error);
-	if (op32) {
-		error = copyin(op, &s, sizeof(s));
-		if (error)
-			return (error);
-		PTROUT_CP(s, s32, ss_sp);
-		CP(s, s32, ss_size);
-		CP(s, s32, ss_flags);
-		error = copyout(&s32, op32, sizeof(s32));
+		PTRIN_CP(s32, ss, ss_sp);
+		CP(s32, ss, ss_size);
+		CP(s32, ss, ss_flags);
+		ssp = &ss;
+	} else
+		ssp = NULL;
+	error = kern_sigaltstack(td, ssp, &oss);
+	if (error == 0 && uap->oss != NULL) {
+		PTROUT_CP(oss, s32, ss_sp);
+		CP(oss, s32, ss_size);
+		CP(oss, s32, ss_flags);
+		error = copyout(&s32, uap->oss, sizeof(s32));
 	}
 	return (error);
 }
@@ -1279,43 +1263,26 @@ struct sigaction32 {
 int
 ia32_sigaction(struct thread *td, struct ia32_sigaction_args *uap)
 {
+	struct sigaction32 s32;
+	struct sigaction sa, osa, *sap;
 	int error;
-	caddr_t sg;
-	struct sigaction32 *p32, *op32, s32;
-	struct sigaction *p = NULL, *op = NULL, s;
 
-	p32 = uap->act;
-	if (p32) {
-		sg = stackgap_init();
-		p = stackgap_alloc(&sg, sizeof(struct sigaction));
-		uap->act = (struct sigaction32 *)p;
-		error = copyin(p32, &s32, sizeof(s32));
+	if (uap->act) {
+		error = copyin(uap->act, &s32, sizeof(s32));
 		if (error)
 			return (error);
-		s.sa_handler = PTRIN(s32.sa_u);
-		CP(s32, s, sa_flags);
-		CP(s32, s, sa_mask);
-		error = copyout(&s, p, sizeof(s));
-		if (error)
-			return (error);
-	}
-	op32 = uap->oact;
-	if (op32) {
-		sg = stackgap_init();
-		op = stackgap_alloc(&sg, sizeof(struct sigaction));
-		uap->oact = (struct sigaction32 *)op;
-	}
-	error = sigaction(td, (struct sigaction_args *) uap);
-	if (error)
-		return (error);
-	if (op32) {
-		error = copyin(op, &s, sizeof(s));
-		if (error)
-			return (error);
-		s32.sa_u = PTROUT(s.sa_handler);
-		CP(s, s32, sa_flags);
-		CP(s, s32, sa_mask);
-		error = copyout(&s32, op32, sizeof(s32));
+		sa.sa_handler = PTRIN(s32.sa_u);
+		CP(s32, sa, sa_flags);
+		CP(s32, sa, sa_mask);
+		sap = &sa;
+	} else
+		sap = NULL;
+	error = kern_sigaction(td, uap->sig, sap, &osa, 0);
+	if (error != 0 && uap->oact != NULL) {
+		s32.sa_u = PTROUT(osa.sa_handler);
+		CP(osa, s32, sa_flags);
+		CP(osa, s32, sa_mask);
+		error = copyout(&s32, uap->oact, sizeof(s32));
 	}
 	return (error);
 }
