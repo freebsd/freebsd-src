@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.1 1998/05/21 03:19:55 wpaul Exp $
+ *	$Id: if_tl.c,v 1.2 1998/05/21 16:24:04 jkh Exp $
  */
 
 /*
@@ -236,13 +236,11 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
-#include <osreldate.h>
-
 #include <pci/if_tlreg.h>
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_tl.c,v 1.1 1998/05/21 03:19:55 wpaul Exp $";
+	"$Id: if_tl.c,v 1.2 1998/05/21 16:24:04 jkh Exp $";
 #endif
 
 /*
