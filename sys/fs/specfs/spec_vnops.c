@@ -317,6 +317,7 @@ spec_ioctl(ap)
 	} */ *ap;
 {
 	dev_t dev;
+	int error;
 
 	dev = ap->a_vp->v_rdev;
 	error = (*devsw(dev)->d_ioctl)(dev, ap->a_command,
