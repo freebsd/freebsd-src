@@ -854,7 +854,8 @@ MLINKS+=taskqueue.9 TASK_INIT.9 \
 MLINKS+=time.9 boottime.9 \
 	time.9 mono_time.9 \
 	time.9 runtime.9
-MLINKS+=timeout.9 callout_handle_init.9 \
+MLINKS+=timeout.9 callout_drain.9 \
+	timeout.9 callout_handle_init.9 \
 	timeout.9 callout_init.9 \
 	timeout.9 callout_reset.9 \
 	timeout.9 callout_stop.9 \
