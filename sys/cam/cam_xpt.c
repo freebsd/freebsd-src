@@ -5151,6 +5151,7 @@ proberegister(struct cam_periph *periph, void *arg)
 	/*
 	 * Ensure we've waited at least a bus settle
 	 * delay before attempting to probe the device.
+	 * For HBAs that don't do bus resets, this won't make a difference.
 	 */
 	cam_periph_freeze_after_event(periph, &periph->path->bus->last_reset,
 				      SCSI_DELAY);
