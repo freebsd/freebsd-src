@@ -65,6 +65,8 @@ ENTRY(vm86_bioscall)
 	pushl	%gs
 
 #ifdef DEV_NPX
+	pushfl
+	cli
 	movl	PCPU(CURPROC),%ecx
 	cmpl	%ecx,PCPU(NPXPROC)	/* do we need to save fp? */
 	jne	1f
@@ -77,9 +79,10 @@ ENTRY(vm86_bioscall)
 	call	npxsave
 	popl	%ecx
 	popl	%edx			/* recover our pcb */
+1:
+	popfl
 #endif
 
-1:
 	movl	SCR_VMFRAME(%edx),%ebx	/* target frame location */
 	movl	%ebx,%edi		/* destination */
 	movl    SCR_ARGFRAME(%edx),%esi	/* source (set on entry) */
