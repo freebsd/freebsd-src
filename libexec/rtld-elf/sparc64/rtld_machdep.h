@@ -32,16 +32,6 @@
 #include <sys/types.h>
 #include <machine/atomic.h>
 
-#define	atomic_incr_int(p)	atomic_add_int((p), 1)
-#define	atomic_decr_int(p)	atomic_subtract_int((p), 1)
-
-/*
- * This value of CACHE_LINE_SIZE is conservative.  The actual size
- * is 32 on the  21064, 21064A, 21066, 21066A, and 21164.  It is 64
- * on the 21264.  Compaq recommends sequestering each lock in its own
- * 128-byte block to allow for future implementations with larger
- * cache lines.
- */
 #define CACHE_LINE_SIZE		128
 
 struct Struct_Obj_Entry;

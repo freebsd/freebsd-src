@@ -142,9 +142,9 @@ static const char *reloc_names[] = {
 	"GLOB_DAT", "JMP_SLOT", "RELATIVE", "UA_32", "PLT32",
 	"HIPLT22", "LOPLT10", "LOPLT10", "PCPLT22", "PCPLT32",
 	"10", "11", "64", "OLO10", "HH22",
-	"HM10", "LM22", "PC_HH22", "PC_HM10", "PC_LM22", 
+	"HM10", "LM22", "PC_HH22", "PC_HM10", "PC_LM22",
 	"WDISP16", "WDISP19", "GLOB_JMP", "7", "5", "6",
-	"DISP64", "PLT64", "HIX22", "LOX10", "H44", "M44", 
+	"DISP64", "PLT64", "HIX22", "LOX10", "H44", "M44",
 	"L44", "REGISTER", "UA64", "UA16"
 };
 #endif
@@ -166,7 +166,7 @@ static long reloc_target_bitmask[] = {
 	_BM(22), _BM(22),		/* HI22, _22 */
 	_BM(13), _BM(10),		/* RELOC_13, _LO10 */
 	_BM(10), _BM(13), _BM(22),	/* GOT10, GOT13, GOT22 */
-	_BM(10), _BM(22),		/* _PC10, _PC22 */  
+	_BM(10), _BM(22),		/* _PC10, _PC22 */
 	_BM(30), 0,			/* _WPLT30, _COPY */
 	_BM(32), _BM(32), _BM(32),	/* _GLOB_DAT, JMP_SLOT, _RELATIVE */
 	_BM(32), _BM(32),		/* _UA32, PLT32 */
@@ -284,7 +284,7 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela, SymCache *cache)
 	Elf_Word type;
 	Elf_Addr value;
 	Elf_Addr mask;
-	
+
 	where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
 	where32 = (Elf_Half *)where;
 	defobj = NULL;
@@ -364,11 +364,11 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela, SymCache *cache)
 		char *ptr;
 		int size;
 		int i;
-	
+
 		size = RELOC_TARGET_SIZE(type) / 8;
 		ptr = (char *)where;
 		tmp = 0;
-	
+
 		/* Read it in one byte at a time. */
 		for (i = 0; i < size; i++)
 			tmp = (tmp << 8) | ptr[i];
@@ -499,7 +499,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 		where = (Elf_Half *)wherep;
 		offset = ((Elf_Addr)where) - target;
 		if (offset <= (1L<<20) && offset >= -(1L<<20)) {
-			/* 
+			/*
 			 * We're within 1MB -- we can use a direct branch insn.
 			 *
 			 * We can generate this pattern:
@@ -517,7 +517,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 			where[1] = BAA | ((offset >> 2) &0x3fffff);
 			flush(where, 4);
 		} else if (target >= 0 && target < (1L<<32)) {
-			/* 
+			/*
 			 * We're withing 32-bits of address zero.
 			 *
 			 * The resulting code in the jump slot is:
@@ -537,7 +537,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 			where[1] = SETHI | HIVAL(target, 10);
 			flush(where, 4);
 		} else if (target <= 0 && target > -(1L<<32)) {
-			/* 
+			/*
 			 * We're withing 32-bits of address -1.
 			 *
 			 * The resulting code in the jump slot is:
@@ -559,7 +559,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 			where[1] = SETHI | HIVAL(~target, 10);
 			flush(where, 4);
 		} else if (offset <= (1L<<32) && offset >= -((1L<<32) - 4)) {
-			/* 
+			/*
 			 * We're withing 32-bits -- we can use a direct call
 			 * insn
 			 *
@@ -582,7 +582,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 			where[1] = MOV71;
 			flush(where, 4);
 		} else if (offset >= 0 && offset < (1L<<44)) {
-			/* 
+			/*
 			 * We're withing 44 bits.  We can generate this pattern:
 			 *
 			 * The resulting code in the jump slot is:
@@ -590,8 +590,8 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 			 *	sethi	%hi(. - .PLT0), %g1
 			 *	sethi	%h44(addr), %g1
 			 *	or	%g1, %m44(addr), %g1
-			 *	sllx	%g1, 12, %g1	
-			 *	jmp	%g1+%l44(addr)	
+			 *	sllx	%g1, 12, %g1
+			 *	jmp	%g1+%l44(addr)
 			 *	nop
 			 *	nop
 			 *	nop
@@ -606,7 +606,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 			where[1] = SETHI | HIVAL(offset, 22);
 			flush(where, 4);
 		} else if (offset < 0 && offset > -(1L<<44)) {
-			/* 
+			/*
 			 * We're withing 44 bits.  We can generate this pattern:
 			 *
 			 * The resulting code in the jump slot is:
@@ -614,8 +614,8 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 			 *	sethi	%hi(. - .PLT0), %g1
 			 *	sethi	%h44(-addr), %g1
 			 *	xor	%g1, %m44(-addr), %g1
-			 *	sllx	%g1, 12, %g1	
-			 *	jmp	%g1+%l44(addr)	
+			 *	sllx	%g1, 12, %g1
+			 *	jmp	%g1+%l44(addr)
 			 *	nop
 			 *	nop
 			 *	nop
@@ -630,7 +630,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 			where[1] = SETHI | HIVAL(~offset, 22);
 			flush(where, 4);
 		} else {
-			/* 
+			/*
 			 * We need to load all 64-bits
 			 *
 			 * The resulting code in the jump slot is:

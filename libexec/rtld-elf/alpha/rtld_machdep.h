@@ -29,6 +29,18 @@
 #ifndef RTLD_MACHDEP_H
 #define RTLD_MACHDEP_H	1
 
+#include <sys/types.h>
+#include <machine/atomic.h>
+
+/*
+ * This value of CACHE_LINE_SIZE is conservative.  The actual size
+ * is 32 on the  21064, 21064A, 21066, 21066A, and 21164.  It is 64
+ * on the 21264.  Compaq recommends sequestering each lock in its own
+ * 128-byte block to allow for future implementations with larger
+ * cache lines.
+ */
+#define CACHE_LINE_SIZE		128
+
 struct Struct_Obj_Entry;
 
 /* Return the address of the .dynamic section in the dynamic linker. */
@@ -47,11 +59,5 @@ Elf_Addr reloc_jmpslot(Elf_Addr *, Elf_Addr,
 
 /* Lazy binding entry point, called via PLT. */
 void _rtld_bind_start_old(void);
-
-/* Atomic operations. */
-int cmp0_and_store_int(volatile int *, int);
-void atomic_add_int(volatile int *, int);
-void atomic_incr_int(volatile int *);
-void atomic_decr_int(volatile int *);
 
 #endif

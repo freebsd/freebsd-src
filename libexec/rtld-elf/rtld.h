@@ -36,6 +36,7 @@
 #include <link.h>
 #include <stddef.h>
 
+#include "rtld_lock.h"
 #include "rtld_machdep.h"
 
 #ifndef STANDARD_LIBRARY_PATH
@@ -191,7 +192,7 @@ unsigned long elf_hash(const char *);
 const Elf_Sym *find_symdef(unsigned long, const Obj_Entry *,
   const Obj_Entry **, bool, SymCache *);
 void init_pltgot(Obj_Entry *);
-void lockdflt_init(LockInfo *);
+void lockdflt_init();
 void obj_free(Obj_Entry *);
 Obj_Entry *obj_new(void);
 int reloc_non_plt(Obj_Entry *, Obj_Entry *);

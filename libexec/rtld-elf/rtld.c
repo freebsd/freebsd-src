@@ -100,7 +100,6 @@ static void linkmap_delete(Obj_Entry *);
 static int load_needed_objects(Obj_Entry *);
 static int load_preload_objects(void);
 static Obj_Entry *load_object(char *);
-static void lock_check(void);
 static Obj_Entry *obj_from_addr(const void *);
 static void objlist_call_fini(Objlist *);
 static void objlist_call_init(Objlist *);
@@ -155,8 +154,6 @@ static Objlist list_main =	/* Objects loaded at program startup */
 static Objlist list_fini =	/* Objects needing fini() calls */
   STAILQ_HEAD_INITIALIZER(list_fini);
 
-static LockInfo lockinfo;
-
 static Elf_Sym sym_zero;	/* For resolving undefined weak refs. */
 
 #define GDB_STATE(s,m)	r_debug.r_state = s; r_debug_state(&r_debug,m);
@@ -178,6 +175,7 @@ static func_ptr_type exports[] = {
     (func_ptr_type) &dladdr,
     (func_ptr_type) &dllockinit,
     (func_ptr_type) &dlinfo,
+    (func_ptr_type) &_rtld_thread_init,
     NULL
 };
 
@@ -198,36 +196,6 @@ char **environ;
     assert((dlp)->objs != NULL),				\
     (dlp)->num_alloc = obj_count,				\
     (dlp)->num_used = 0)
-
-static __inline void
-rlock_acquire(void)
-{
-    lockinfo.rlock_acquire(lockinfo.thelock);
-    atomic_incr_int(&lockinfo.rcount);
-    lock_check();
-}
-
-static __inline void
-wlock_acquire(void)
-{
-    lockinfo.wlock_acquire(lockinfo.thelock);
-    atomic_incr_int(&lockinfo.wcount);
-    lock_check();
-}
-
-static __inline void
-rlock_release(void)
-{
-    atomic_decr_int(&lockinfo.rcount);
-    lockinfo.rlock_release(lockinfo.thelock);
-}
-
-static __inline void
-wlock_release(void)
-{
-    atomic_decr_int(&lockinfo.wcount);
-    lockinfo.wlock_release(lockinfo.thelock);
-}
 
 /*
  * Main entry point for dynamic linking.  The first argument is the
@@ -259,6 +227,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     Obj_Entry *obj;
     Obj_Entry **preload_tail;
     Objlist initlist;
+    int lockstate;
 
     /*
      * On entry, the dynamic linker itself has not been relocated yet.
@@ -406,8 +375,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     set_program_var("environ", env);
 
     dbg("initializing thread locks");
-    lockdflt_init(&lockinfo);
-    lockinfo.thelock = lockinfo.lock_create(lockinfo.context);
+    lockdflt_init();
 
     /* Make a list of init functions to call. */
     objlist_init(&initlist);
@@ -416,9 +384,9 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     r_debug_state(NULL, &obj_main->linkmap); /* say hello to gdb! */
 
     objlist_call_init(&initlist);
-    wlock_acquire();
+    lockstate = wlock_acquire(rtld_bind_lock);
     objlist_clear(&initlist);
-    wlock_release();
+    wlock_release(rtld_bind_lock, lockstate);
 
     dbg("transferring control to program entry point = %p", obj_main->entry);
 
@@ -436,8 +404,9 @@ _rtld_bind(Obj_Entry *obj, Elf_Word reloff)
     const Obj_Entry *defobj;
     Elf_Addr *where;
     Elf_Addr target;
+    int lockstate;
 
-    rlock_acquire();
+    lockstate = rlock_acquire(rtld_bind_lock);
     if (obj->pltrel)
 	rel = (const Elf_Rel *) ((caddr_t) obj->pltrel + reloff);
     else
@@ -462,7 +431,7 @@ _rtld_bind(Obj_Entry *obj, Elf_Word reloff)
      * that the trampoline needs.
      */
     target = reloc_jmpslot(where, target, defobj, obj, rel);
-    rlock_release();
+    rlock_release(rtld_bind_lock, lockstate);
     return target;
 }
 
@@ -1092,7 +1061,7 @@ is_exported(const Elf_Sym *def)
     const func_ptr_type *p;
 
     value = (Elf_Addr)(obj_rtld.relocbase + def->st_value);
-    for (p = exports;  *p != NULL;  p++) 
+    for (p = exports;  *p != NULL;  p++)
 	if (FPTR_TARGET(*p) == value)
 	    return true;
     return false;
@@ -1228,26 +1197,6 @@ load_object(char *path)
 	free(path);
 
     return obj;
-}
-
-/*
- * Check for locking violations and die if one is found.
- */
-static void
-lock_check(void)
-{
-    int rcount, wcount;
-
-    rcount = lockinfo.rcount;
-    wcount = lockinfo.wcount;
-    assert(rcount >= 0);
-    assert(wcount >= 0);
-    if (wcount > 1 || (wcount != 0 && rcount != 0)) {
-	_rtld_error("Application locking error: %d readers and %d writers"
-	  " in dynamic linker.  See DLLOCKINIT(3) in manual pages.",
-	  rcount, wcount);
-	die();
-    }
 }
 
 static Obj_Entry *
@@ -1572,11 +1521,12 @@ int
 dlclose(void *handle)
 {
     Obj_Entry *root;
+    int lockstate;
 
-    wlock_acquire();
+    lockstate = wlock_acquire(rtld_bind_lock);
     root = dlcheck(handle);
     if (root == NULL) {
-	wlock_release();
+	wlock_release(rtld_bind_lock, lockstate);
 	return -1;
     }
 
@@ -1590,9 +1540,9 @@ dlclose(void *handle)
 	 * The object is no longer referenced, so we must unload it.
 	 * First, call the fini functions with no locks held.
 	 */
-	wlock_release();
+	wlock_release(rtld_bind_lock, lockstate);
 	objlist_call_fini(&list_fini);
-	wlock_acquire();
+	lockstate = wlock_acquire(rtld_bind_lock);
 	objlist_remove_unref(&list_fini);
 
 	/* Finish cleaning up the newly-unreferenced objects. */
@@ -1600,7 +1550,7 @@ dlclose(void *handle)
 	unload_object(root);
 	GDB_STATE(RT_CONSISTENT,NULL);
     }
-    wlock_release();
+    wlock_release(rtld_bind_lock, lockstate);
     return 0;
 }
 
@@ -1640,7 +1590,7 @@ dlopen(const char *name, int mode)
     Obj_Entry **old_obj_tail;
     Obj_Entry *obj;
     Objlist initlist;
-    int result;
+    int result, lockstate;
 
     ld_tracing = (mode & RTLD_TRACE) == 0 ? NULL : "1";
     if (ld_tracing != NULL)
@@ -1648,7 +1598,7 @@ dlopen(const char *name, int mode)
 
     objlist_init(&initlist);
 
-    wlock_acquire();
+    lockstate = wlock_acquire(rtld_bind_lock);
     GDB_STATE(RT_ADD,NULL);
 
     old_obj_tail = obj_tail;
@@ -1699,15 +1649,15 @@ dlopen(const char *name, int mode)
     GDB_STATE(RT_CONSISTENT,obj ? &obj->linkmap : NULL);
 
     /* Call the init functions with no locks held. */
-    wlock_release();
+    wlock_release(rtld_bind_lock, lockstate);
     objlist_call_init(&initlist);
-    wlock_acquire();
+    lockstate = wlock_acquire(rtld_bind_lock);
     objlist_clear(&initlist);
-    wlock_release();
+    wlock_release(rtld_bind_lock, lockstate);
     return obj;
 trace:
     trace_loaded_objects(obj);
-    wlock_release();
+    wlock_release(rtld_bind_lock, lockstate);
     exit(0);
 }
 
@@ -1718,12 +1668,13 @@ dlsym(void *handle, const char *name)
     unsigned long hash;
     const Elf_Sym *def;
     const Obj_Entry *defobj;
+    int lockstate;
 
     hash = elf_hash(name);
     def = NULL;
     defobj = NULL;
 
-    rlock_acquire();
+    lockstate = rlock_acquire(rtld_bind_lock);
     if (handle == NULL || handle == RTLD_NEXT ||
 	handle == RTLD_DEFAULT || handle == RTLD_SELF) {
 	void *retaddr;
@@ -1731,7 +1682,7 @@ dlsym(void *handle, const char *name)
 	retaddr = __builtin_return_address(0);	/* __GNUC__ only */
 	if ((obj = obj_from_addr(retaddr)) == NULL) {
 	    _rtld_error("Cannot determine caller's shared object");
-	    rlock_release();
+	    rlock_release(rtld_bind_lock, lockstate);
 	    return NULL;
 	}
 	if (handle == NULL) {	/* Just the caller's shared object. */
@@ -1753,7 +1704,7 @@ dlsym(void *handle, const char *name)
 	}
     } else {
 	if ((obj = dlcheck(handle)) == NULL) {
-	    rlock_release();
+	    rlock_release(rtld_bind_lock, lockstate);
 	    return NULL;
 	}
 
@@ -1775,7 +1726,7 @@ dlsym(void *handle, const char *name)
     }
 
     if (def != NULL) {
-	rlock_release();
+	rlock_release(rtld_bind_lock, lockstate);
 
 	/*
 	 * The value required by the caller is derived from the value
@@ -1792,7 +1743,7 @@ dlsym(void *handle, const char *name)
     }
 
     _rtld_error("Undefined symbol \"%s\"", name);
-    rlock_release();
+    rlock_release(rtld_bind_lock, lockstate);
     return NULL;
 }
 
@@ -1803,12 +1754,13 @@ dladdr(const void *addr, Dl_info *info)
     const Elf_Sym *def;
     void *symbol_addr;
     unsigned long symoffset;
- 
-    rlock_acquire();
+    int lockstate;
+
+    lockstate = rlock_acquire(rtld_bind_lock);
     obj = obj_from_addr(addr);
     if (obj == NULL) {
         _rtld_error("No shared object contains address");
-	rlock_release();
+	rlock_release(rtld_bind_lock, lockstate);
         return 0;
     }
     info->dli_fname = obj->path;
@@ -1847,7 +1799,7 @@ dladdr(const void *addr, Dl_info *info)
         if (info->dli_saddr == addr)
             break;
     }
-    rlock_release();
+    rlock_release(rtld_bind_lock, lockstate);
     return 1;
 }
 
@@ -1855,9 +1807,9 @@ int
 dlinfo(void *handle, int request, void *p)
 {
     const Obj_Entry *obj;
-    int error;
+    int error, lockstate;
 
-    rlock_acquire();
+    lockstate = rlock_acquire(rtld_bind_lock);
 
     if (handle == NULL || handle == RTLD_SELF) {
 	void *retaddr;
@@ -1869,7 +1821,7 @@ dlinfo(void *handle, int request, void *p)
 	obj = dlcheck(handle);
 
     if (obj == NULL) {
-	rlock_release();
+	rlock_release(rtld_bind_lock, lockstate);
 	return (-1);
     }
 
@@ -1892,7 +1844,7 @@ dlinfo(void *handle, int request, void *p)
 	error = -1;
     }
 
-    rlock_release();
+    rlock_release(rtld_bind_lock, lockstate);
 
     return (error);
 }
@@ -2393,7 +2345,7 @@ unload_object(Obj_Entry *root)
     /*
      * Pass over the DAG removing unreferenced objects from
      * appropriate lists.
-     */ 
+     */
     unlink_object(root);
 
     /* Unmap all objects that are no longer referenced. */
@@ -2447,3 +2399,5 @@ unref_dag(Obj_Entry *root)
     STAILQ_FOREACH(elm, &root->dagmembers , link)
 	elm->obj->refcount--;
 }
+
+
