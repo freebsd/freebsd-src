@@ -1,6 +1,7 @@
 /*
  * Copyright 1993 by Holger Veit (data part)
  * Copyright 1993 by Brian Moore (audio part)
+ * Changes Copyright 1993 by Gary Clark II  
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,7 +69,7 @@ static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #undef MCD_TO_WARNING_ON
 #endif
 #else
-#define MCD_TRACE(fmt,a,b,c,xd)	{if (mcd_data[unit].debug) {printf("mcd%d st=%02x: ",unit,mcd_data[unit].status); printf(fmt,a,b,c,xd);}}
+#define MCD_TRACE(fmt,a,b,c,d)	{if (mcd_data[unit].debug) {printf("mcd%d st=%02x: ",unit,mcd_data[unit].status); printf(fmt,a,b,c,d);}}
 #endif
 
 #define mcd_part(dev)	((minor(dev)) & 7)
@@ -158,7 +159,7 @@ static	void	hsg2msf(int hsg, bcd_t *msf);
 static	int	msf2hsg(bcd_t *msf);
 static	int	mcd_volinfo(int unit);
 static	int	mcd_waitrdy(int port,int dly);
-static 	void	mcd_doread(caddr_t, int);
+static 	void	mcd_doread(int state, struct mcd_mbx *mbxin);
 #ifndef MCDMINI
 static	int 	mcd_setmode(int unit, int mode);
 static	int	mcd_getqchan(int unit, struct mcd_qchninfo *q);
@@ -397,7 +398,7 @@ static void mcd_start(int unit)
 	cd->mbx.p_offset = p->p_offset;
 
 	/* calling the read routine */
-	mcd_doread((caddr_t)MCD_S_BEGIN, (int)&(cd->mbx));
+	mcd_doread(MCD_S_BEGIN,&(cd->mbx));
 	/* triggers mcd_start, when successful finished */
 	return;
 }
@@ -540,14 +541,13 @@ static void mcd_configure(struct mcd_data *cd)
 	outb(cd->iobase+mcd_config,cd->config);
 }
 
-/* check if there is a cdrom */
-/* Heavly hacked by gclarkii@sugar.neosoft.com */
+/* check to see if a Mitsumi CD-ROM is attached to the ISA bus */
 
 int mcd_probe(struct isa_device *dev)
 {
 	int port = dev->id_iobase;	
 	int unit = dev->id_unit;
-	int i;
+	int i,j;
 	int st;
 	int check;
 	int junk;
@@ -562,71 +562,42 @@ int mcd_probe(struct isa_device *dev)
 #endif
 
 	/* send a reset */
-	outb(port+MCD_FLAGS,0);
-	DELAY(100000);
-	/* get any pending status and throw away...*/
-	for (i=10; i != 0; i--) {
+	outb(port+MCD_FLAGS,M_RESET);
+	DELAY(30000);
+
+        for (j=3; j != 0; j--)  { 
+
+	/* get any pending garbage (old data) and throw away...*/
+	for (i=10; i != 0; i--) { 
 		inb(port+MCD_DATA);
-	}
-	DELAY(1000);
-
-	outb(port+MCD_DATA,MCD_CMDGETSTAT);	/* Send get status command */
-
-	/* Loop looking for avail of status */
-	/* XXX May have to increase for fast machinces */
-	for (i = 1000; i != 0; i--) {
-		if ((inb(port+MCD_FLAGS) & 0xF ) == STATUS_AVAIL) {
-			break;
-		}
-		DELAY(10);
-	}
-	/* get status */
-
-	if (i == 0) {
-#ifdef DEBUG
-		printf ("Mitsumi drive NOT detected\n");
-#endif
-	return 0;
-	}
-
-/*
- * The following code uses the 0xDC command, it returns a M from the
- * second byte and a number in the third.  Does anyone know what the
- * number is for? Better yet, how about someone thats REAL good in
- * i80x86 asm looking at the Dos driver... Most of this info came
- * from a friend of mine spending a whole weekend.....
- */
+        }
 
 	DELAY (2000);
 	outb(port+MCD_DATA,MCD_CMDCONTINFO);
-	for (i = 0; i < 100000; i++) {
-		if ((inb(port+MCD_FLAGS) & 0xF) == STATUS_AVAIL)
-			break;
-	}
-	if (i > 100000) {
-#ifdef DEBUG
-		printf ("Mitsumi drive error\n");
-#endif
-		return 0;
-	}
-	DELAY (40000);
-	st = inb(port+MCD_DATA);
-	DELAY (500);
-	check = inb(port+MCD_DATA);
-	DELAY (500);
-	junk = inb(port+MCD_DATA);	/* What is byte used for?!?!? */
-
-	if (check = 'M') {
+	for (i = 0; i < 300000; i++) {
+      	   if ((inb(port+MCD_FLAGS) & M_STATUS_AVAIL) == M_STATUS_AVAIL)
+            {
+      		DELAY (4000);
+		st = inb(port+MCD_DATA);
+		DELAY (500);
+		check = inb(port+MCD_DATA);
+		DELAY (500);
+		junk = inb(port+MCD_DATA);	/* What is byte used for?!?!? */
+	
+		if (check = 'M') {
 #ifdef DEBUG
 		printf("Mitsumi drive detected\n");
 #endif
 		return 4;
-	} else {
+		} else {
 		printf("Mitsumi drive NOT detected\n");
-		printf("Mitsumi drive error\n");
 		return 0;
-	}
+	       }
+           } 
+       }
+   }     
 }
+
 
 static int mcd_waitrdy(int port,int dly)
 {
@@ -811,13 +782,8 @@ mcdintr(unit)
  */
 static struct mcd_mbx *mbxsave;
 
-/*
- * Good thing Alphas come with real CD players...
- */
-static void mcd_doread(caddr_t xstate, int xmbxin)
+static void mcd_doread(int state, struct mcd_mbx *mbxin)
 {
-	int state = (int)xstate;
-	struct mcd_mbx *mbxin = (struct mcd_mbx *)xmbxin;
 	struct mcd_mbx *mbx = (state!=MCD_S_BEGIN) ? mbxsave : mbxin;
 	int	unit = mbx->unit;
 	int	port = mbx->port;
@@ -841,7 +807,7 @@ loop:
 		timeout((timeout_func_t)mcd_doread,(caddr_t)MCD_S_WAITSTAT,hz/100); /* XXX */
 		return;
 	case MCD_S_WAITSTAT:
-		untimeout(mcd_doread, (caddr_t)MCD_S_WAITSTAT);
+		untimeout(mcd_doread,MCD_S_WAITSTAT);
 		if (mbx->count-- >= 0) {
 			if (inb(port+mcd_xfer) & MCD_ST_BUSY) {
 				timeout((timeout_func_t)mcd_doread,(caddr_t)MCD_S_WAITSTAT,hz/100); /* XXX */
@@ -878,7 +844,7 @@ loop:
 		}
 
 	case MCD_S_WAITMODE:
-		untimeout(mcd_doread, (caddr_t)MCD_S_WAITMODE);
+		untimeout(mcd_doread,MCD_S_WAITMODE);
 		if (mbx->count-- < 0) {
 #ifdef MCD_TO_WARNING_ON
 			printf("mcd%d: timeout set mode\n",unit);
@@ -916,7 +882,7 @@ nextblock:
 		timeout((timeout_func_t)mcd_doread,(caddr_t)MCD_S_WAITREAD,hz/100); /* XXX */
 		return;
 	case MCD_S_WAITREAD:
-		untimeout(mcd_doread,(caddr_t)MCD_S_WAITREAD);
+		untimeout(mcd_doread,MCD_S_WAITREAD);
 		if (mbx->count-- > 0) {
 			k = inb(port+mcd_xfer);
 			if ((k & 2)==0) {
