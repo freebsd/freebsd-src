@@ -1,0 +1,68 @@
+Troubleshooting Tips - or "These are the times that try men's souls"
+--------------------------------------------------------------------
+
+The following tips and tricks may help you turn a failing (or failed)
+installation attempt into a success.  Please read them carefully.
+
+---
+
+Summary:	Hardware conflict or misconfiguration.
+
+Problem:	A device is conflicting with another or doesn't match
+		the kernel's compiled-in IRQ or address.
+
+Cause:		While most device drivers in FreeBSD are now smart
+		enough to match themselves to your hardware settings
+		dynamically, there are a few that still require fairly
+		rigid configuration parameters to be compiled in (and
+		matched by the hardware) before they'll work.  We're
+		working hard to eliminate as many of these last
+		hold-outs as we can, but it's not always as easy as
+		it looks.
+
+Solution:	There are several possible solutions.  The first,
+		and easiest, is to boot the kernel with the -c flag.
+		When you see the initial boot prompt (from floppy or
+		hard disk), type:
+
+			/kernel -c
+
+		This will boot just past the memory sizing code and
+		then drop into a dynamic kernel configuration utility.
+		Type `?' at it to see a list of commands.  You can
+		use this utility to reset the IRQ, memory address,
+		IO address or a number of other device configuration
+		parameters.  You can also disable a device entirely
+		if it's causing problems for other devices you'd much
+		rather have work.  Note that this only affects the
+		kernel being booted temporarily, it does not "write out"
+		the information to the kernel so that these settings
+		are permanantly altered (this would be actually rather
+		hard).  If you reboot, you'll have to make the same
+		changes again.  The goal of the -c utility is to get
+		you up far enough to be able to download the appropriate
+		sources and configure and rebuild a kernel more specific
+		to your needs.
+
+		Another solution is, obviously, to remove the offending
+		hardware or simply strip the system down to the bare
+		essentials until the problem (hopefully) goes away.
+		Once you're up, you can do the same thing mentioned
+		above - compile a kernel more suited to your hardware,
+		or incrementally try to figure out what it was about
+		your original hardware configuration that didn't work.
+
+---
+
+Summary:	Boot blocks aren't updated onto hard drive.
+
+Problem:	Updating an existing FreeBSD installation, the old
+		boot blocks are still on the drive, and "386bsd"
+		is the default kernel.
+
+Cause:		The fdisk/disklabel stuff is a little funky in 2.0 ALPHA
+		right now and will be fixed.
+
+Solution:	Go into the Fdisk menu and simply say "(W)rite".  This
+		will write out the new boot blocks.  Yes, this should
+		be done by disklabel!
