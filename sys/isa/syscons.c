@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.60 1994/09/29 15:49:09 ache Exp $
+ *	$Id: syscons.c,v 1.61 1994/10/01 02:56:19 davidg Exp $
  */
 
 #include "sc.h"
@@ -397,11 +397,6 @@ pcattach(struct isa_device *dev)
 		}
 	}
 	/* get cursor going */
-#if defined(FAT_CURSOR)
-	if (crtc_vga)
-		cursor_shape(console[0].cursor_start,
-			     console[0].cursor_end);
-#endif
 	cursor_pos(1);
 	update_leds(console[0].status);
 #ifdef APM
@@ -2078,6 +2073,7 @@ scinit(void)
 #if defined(FAT_CURSOR)
                 start = 0;
                 end = 18;
+		cursor_shape(start, end);
 #else
 		get_cursor_shape(&start, &end);
 #endif
