@@ -1,0 +1,108 @@
+.\" Copyright (c) 2001 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\" 
+.\" This software was developed for the FreeBSD Project by Chris
+.\" Costello at Safeport Network Services and NAI Labs, the Security
+.\" Research Division of Network Associates, Inc. under DARPA/SPAWAR
+.\" contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS
+.\" research program.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.Dd December 21, 2001
+.Dt MAC_GET 3
+.Sh NAME
+.Nm mac_get_file ,
+.Nm mac_get_fd ,
+.Nm mac_get_proc
+.Nd get the label of a file, socket, socket peer or process
+.Sh SYNOPSIS
+.In sys/mac.h
+.Ft mac_t
+.Fn mac_get_file "const char *path_p"
+.Ft mac_t
+.Fn mac_get_fd "int fd"
+.Ft mac_t
+.Fn mac_get_proc
+.Sh DESCRIPTION
+The
+.Fn mac_get_file
+and
+.Fn mac_get_fd
+functions return the MAC label associated
+with the file referenced by
+the pathname pointed to by
+.Fa path_p
+or the file descriptor specified by
+.Fa fd ,
+respectively.  Note this function will
+fail on socket descriptors.  For information on
+getting MAC labels on socket descriptors see
+.Xr getsockopt 2 .
+The
+.Fn mac_get_proc
+function returns a MAC label associated
+with the requesting process.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EACCES
+A component of
+.Fa path_p
+is not searchable,
+or MAC read access to the file
+is denied.
+.It Bq Er ENAMETOOLONG
+The pathname pointed to by
+.Fa path_p
+exceeds
+.Dv PATH_MAX ,
+or a component of the pathname exceeds
+.Dv NAME_MAX .
+.It Bq Er ENOENT
+A component of
+.Fa path_p
+does not exist.
+.It Bq Er ENOMEM
+Insufficient memory is available
+to allocate a new MAC label structure.
+.It Bq Er ENOTDIR
+A component of
+.Fa path_p
+is not a directory.
+.El
+.Sh SEE ALSO
+.Xr mac 3 ,
+.Xr mac_free 3 ,
+.Xr mac_text 3 ,
+.Xr mac_set 3
+.Sh STANDARDS
+POSIX.1e is described in IEEE POSIX.1e draft 17.
+Discussion of the draft
+continues on the cross-platform POSIX.1e implementation mailing list.
+To join this list, see the
+.Fx
+POSIX.1e implementation page
+for more information.
