@@ -407,23 +407,29 @@ sparc64_installcheck:
 #
 # Checks to be sure system is ready for installworld
 #
-installcheck: ${SPECIAL_INSTALLCHECKS}
+CHECK_UIDS=
+CHECK_GIDS=
 .if !defined(NO_SENDMAIL)
-	@if ! `id -u smmsp > /dev/null`; then \
-		echo "ERROR: Required smmsp user is missing, see /usr/src/UPDATING."; \
-		false; \
-	fi
-	@if ! `pw groupshow smmsp > /dev/null`; then \
-		echo "ERROR: Required smmsp group is missing, see /usr/src/UPDATING."; \
-		false; \
-	fi
+CHECK_UIDS+=	smmsp
+CHECK_GIDS+=	smmsp
 .endif
 .if !defined(NO_PF)
-	@if ! `id -u proxy > /dev/null`; then \
-		echo "ERROR: Required proxy user is missing, see /usr/src/UPDATING."; \
+CHECK_UIDS+=	proxy
+CHECK_GIDS+=	proxy authpf
+.endif
+installcheck: ${SPECIAL_INSTALLCHECKS}
+.for uid in ${CHECK_UIDS}
+	@if ! `id -u ${uid} > /dev/null`; then \
+		echo "ERROR: Required ${uid} user is missing, see /usr/src/UPDATING."; \
 		false; \
 	fi
-.endif
+.endfor
+.for gid in ${CHECK_GIDS}
+	@if ! `find / -prune -group ${gid} > /dev/null`; then \
+		echo "ERROR: Required ${gid} group is missing, see /usr/src/UPDATING."; \
+		false; \
+	fi
+.endfor
 
 #
 # distributeworld
