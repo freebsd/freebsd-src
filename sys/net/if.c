@@ -848,8 +848,10 @@ ifioctl(so, cmd, data, p)
 		if (ifr->ifr_mtu < IF_MINMTU || ifr->ifr_mtu > IF_MAXMTU)
 			return (EINVAL);
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
-		if (error == 0)
+		if (error == 0) {
 			getmicrotime(&ifp->if_lastchange);
+			rt_ifmsg(ifp);
+		}
 		/*
 		 * If the link MTU changed, do network layer specific procedure.
 		 */
