@@ -179,5 +179,6 @@ device		umass		# Disks/Mass storage - Requires scbus and da0
 device		ums		# Mouse
 # USB Ethernet
 device		aue		# ADMtek USB ethernet
+device		axe		# ASIX Electronics USB ethernet
 device		cue		# CATC USB ethernet
 device		kue		# Kawasaki LSI USB ethernet

@@ -261,6 +261,7 @@ device		uscanner	# Scanners
 device		urio		# Diamond Rio MP3 Player
 # USB Ethernet, requires mii
 device		aue		# ADMtek USB ethernet
+device		axe		# ASIX Electronics USB ethernet
 device		cue		# CATC USB ethernet
 device		kue		# Kawasaki LSI USB ethernet
 

@@ -1369,6 +1369,7 @@ dev/usb/umodem.c	optional umodem
 dev/usb/uhub.c		optional usb
 dev/usb/uscanner.c	optional uscanner
 dev/usb/if_aue.c	optional aue
+dev/usb/if_axe.c	optional axe
 dev/usb/if_cue.c	optional cue
 dev/usb/if_kue.c	optional kue
 dev/usb/if_rue.c	optional rue

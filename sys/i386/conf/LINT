@@ -2760,6 +2760,11 @@ device		uftdi
 # eval board.
 device		aue
 #
+# ASIX Electronics AX88172 USB 2.0 ethernet. Supports the LinkSys
+# USB200M, the D-Link DUB-E100, the Melco LUAU2-KTX, the NetGear
+# FA120, the SystemTalks SGC-X2UL, and the Sitecom LN029.
+device		axe
+#
 # CATC USB-EL1201A USB ethernet. Supports the CATC Netmate
 # and Netmate II, and the Belkin F5U111.
 device		cue
