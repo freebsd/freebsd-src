@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.39 1995/01/08 13:41:28 dufault Exp $
+ *      $Id: aha1542.c,v 1.40 1995/01/19 12:33:10 dufault Exp $
  */
 
 /*
@@ -676,7 +676,7 @@ ahaintr(unit)
 	for (i = 0; i < AHA_MBX_SIZE; i++) {
 		if (aha->aha_mbx.mbi[i].stat != AHA_MBI_FREE) {
 			ccb = (struct aha_ccb *) PHYSTOKV(
-			    (_3btol(aha->aha_mbx.mbi[i].ccb_addr)));
+			    (scsi_3btou(aha->aha_mbx.mbi[i].ccb_addr)));
 
 			if ((stat = aha->aha_mbx.mbi[i].stat) != AHA_MBI_OK) {
 				switch (stat) {
@@ -834,14 +834,14 @@ aha_done(unit, ccb)
 				switch(ccb->opcode)
 				{
 					case AHA_TARGET_CCB:
-					xs->resid = xs->datalen - _3btol(ccb->data_length);
+					xs->resid = xs->datalen - scsi_3btoi(ccb->data_length);
 					if (xs->resid <= 0)
 						xs->error = XS_LENGTH;
 					break;
 
 					case AHA_INIT_RESID_CCB:
 					case AHA_INIT_SG_RESID_CCB:
-					xs->resid = _3btol(ccb->data_length);
+					xs->resid = scsi_3btoi(ccb->data_length);
 					if (xs->resid <= 0)
 						xs->error = XS_LENGTH;
 					printf("aha over under: resid %d error %d.\n",
@@ -1092,7 +1092,7 @@ aha_init(unit)
 	/*
 	 * Initialize mail box 
 	 */
-	lto3b(KVTOPHYS(&aha->aha_mbx), ad);
+	scsi_uto3b(KVTOPHYS(&aha->aha_mbx), ad);
 
 	aha_cmd(unit, 4, 0, 0, 0, AHA_MBX_INIT,
 	    AHA_MBX_SIZE,
@@ -1110,7 +1110,7 @@ aha_init(unit)
 		aha->aha_ccb_free = &aha->aha_ccb[i];
 		aha->aha_ccb_free->flags = CCB_FREE;
 		aha->aha_ccb_free->mbx = &aha->aha_mbx.mbo[i];
-		lto3b(KVTOPHYS(aha->aha_ccb_free), aha->aha_mbx.mbo[i].ccb_addr);
+		scsi_uto3b(KVTOPHYS(aha->aha_ccb_free), aha->aha_mbx.mbo[i].ccb_addr);
 	}
 	/*
 	 * Note that we are going and return (to probe)
@@ -1193,7 +1193,7 @@ aha_scsi_cmd(xs)
 
 	if ((xs->datalen) && (!(flags & SCSI_RESET))) {
 		/* can use S/G only if not zero length */
-		lto3b(KVTOPHYS(ccb->scat_gath), ccb->data_addr);
+		scsi_uto3b(KVTOPHYS(ccb->scat_gath), ccb->data_addr);
 		sg = ccb->scat_gath;
 		seg = 0;
 #ifdef	TFS_ONLY
@@ -1201,8 +1201,8 @@ aha_scsi_cmd(xs)
 			iovp = ((struct uio *) xs->data)->uio_iov;
 			datalen = ((struct uio *) xs->data)->uio_iovcnt;
 			while ((datalen) && (seg < AHA_NSEG)) {
-				lto3b(iovp->iov_base, sg->seg_addr);
-				lto3b(iovp->iov_len, sg->seg_len);
+				scsi_uto3b(iovp->iov_base, sg->seg_addr);
+				scsi_uto3b(iovp->iov_len, sg->seg_len);
 				SC_DEBUGN(xs->sc_link, SDEV_DB4, ("UIO(0x%x@0x%x)"
 					,iovp->iov_len
 					,iovp->iov_base));
@@ -1228,7 +1228,7 @@ aha_scsi_cmd(xs)
 				bytes_this_seg = 0;
 
 				/* put in the base address */
-				lto3b(thisphys, sg->seg_addr);
+				scsi_uto3b(thisphys, sg->seg_addr);
 
 				SC_DEBUGN(xs->sc_link, SDEV_DB4,
 				    ("0x%x", thisphys));
@@ -1271,12 +1271,12 @@ aha_scsi_cmd(xs)
 				 */
 				SC_DEBUGN(xs->sc_link, SDEV_DB4,
 				    ("(0x%x)", bytes_this_seg));
-				lto3b(bytes_this_seg, sg->seg_len);
+				scsi_uto3b(bytes_this_seg, sg->seg_len);
 				sg++;
 				seg++;
 			}
 		}
-		lto3b(seg * sizeof(struct aha_scat_gath), ccb->data_length);
+		scsi_uto3b(seg * sizeof(struct aha_scat_gath), ccb->data_length);
 		SC_DEBUGN(xs->sc_link, SDEV_DB4, ("\n"));
 
 		if (datalen) {	/* there's still data, must have run out of segs! */
@@ -1287,10 +1287,10 @@ aha_scsi_cmd(xs)
 			return (HAD_ERROR);
 		}
 	} else {		/* No data xfer, use non S/G values */
-		lto3b(0, ccb->data_addr);
-		lto3b(0, ccb->data_length);
+		scsi_uto3b(0, ccb->data_addr);
+		scsi_uto3b(0, ccb->data_length);
 	}
-	lto3b(0, ccb->link_addr);
+	scsi_uto3b(0, ccb->link_addr);
 	/*
 	 * Put the scsi command in the ccb and start it
 	 */
@@ -1486,7 +1486,7 @@ aha_bus_speed_check(unit, speed)
 	 * put the test data into the buffer and calculate
 	 * it's address. Read it onto the board
 	 */
-	lto3b(KVTOPHYS(aha_scratch_buf), ad);
+	scsi_uto3b(KVTOPHYS(aha_scratch_buf), ad);
 	for(loopcount = 2000;loopcount;loopcount--)
 	{
 		strcpy(aha_scratch_buf, aha_test_string);

@@ -348,13 +348,13 @@ wds_scsi_cmd(struct scsi_xfer *sxp)
     return TRY_AGAIN_LATER;
   }
 
-  lto3b(KVTOPHYS(&r->cmd),wds[unit].ombs[r->ombn].addr);
+  scsi_uto3b(KVTOPHYS(&r->cmd),wds[unit].ombs[r->ombn].addr);
 
   bzero(&r->cmd, sizeof r->cmd);
   r->cmd.cmd = WDSX_SCSICMD;
   r->cmd.targ = (sxp->sc_link->target << 5) | sxp->sc_link->lun;
   bcopy(sxp->cmd, &r->cmd.scb, sxp->cmdlen<12 ? sxp->cmdlen : 12);
-  lto3b(sxp->datalen, r->cmd.len);
+  scsi_uto3b(sxp->datalen, r->cmd.len);
 
   if(wds_data_in_use[unit])
   {
@@ -367,18 +367,18 @@ wds_scsi_cmd(struct scsi_xfer *sxp)
   if(sxp->datalen && !(sxp->flags&SCSI_DATA_IN))
     bcopy(sxp->data, wds_data[unit], sxp->datalen);
 
-  lto3b(sxp->datalen ? KVTOPHYS(wds_data[unit]) : 0, r->cmd.data);
+  scsi_uto3b(sxp->datalen ? KVTOPHYS(wds_data[unit]) : 0, r->cmd.data);
 
   r->cmd.write = (sxp->flags&SCSI_DATA_IN)? 0x80 : 0x00;
 
-  lto3b(KVTOPHYS(&r->sense),r->cmd.next);
+  scsi_uto3b(KVTOPHYS(&r->sense),r->cmd.next);
 
   bzero(&r->sense, sizeof r->sense);
   r->sense.cmd = r->cmd.cmd;
   r->sense.targ = r->cmd.targ;
   r->sense.scb[0] = REQUEST_SENSE;
-  lto3b(KVTOPHYS(&sxp->sense),r->sense.data);
-  lto3b(sizeof(sxp->sense), r->sense.len);
+  scsi_uto3b(KVTOPHYS(&sxp->sense),r->sense.data);
+  scsi_uto3b(sizeof(sxp->sense), r->sense.len);
   r->sense.write = 0x80;
 
   if(sxp->flags & SCSI_NOMASK) 
@@ -458,7 +458,7 @@ wdsintr(int unit)
     c = c & ~WDSI_MASK;
     in = &wds[unit].imbs[c];
 
-    pc = (struct wds_cmd *)_3btol(in->addr);
+    pc = (struct wds_cmd *)scsi_3btou(in->addr);
     vc = (struct wds_cmd *)PHYSTOKV((long)pc);
     stat = in->stat;
 
@@ -564,7 +564,7 @@ wds_getvers(int unit)
   r->done = 0;
   r->sxp = NULL;
 
-  lto3b(KVTOPHYS(&r->cmd), wds[unit].ombs[r->ombn].addr);
+  scsi_uto3b(KVTOPHYS(&r->cmd), wds[unit].ombs[r->ombn].addr);
 
   bzero(&r->cmd, sizeof r->cmd);
   r->cmd.cmd = WDSX_GETFIRMREV;
@@ -686,7 +686,7 @@ wds_init(struct isa_device *dev)
   init.scsi_id = 7;
   init.buson_t = 24;
   init.busoff_t = 48;
-  lto3b(KVTOPHYS(wds[unit].ombs), init.mbaddr);
+  scsi_uto3b(KVTOPHYS(wds[unit].ombs), init.mbaddr);
   init.xx = 0;
   init.nomb = WDS_NOMB;
   init.nimb = WDS_NIMB;
