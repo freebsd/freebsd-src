@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union.h	8.9 (Berkeley) 12/10/94
- * $Id: union.h,v 1.10 1998/01/20 10:02:50 kato Exp $
+ * $Id: union.h,v 1.11 1998/02/10 03:32:03 kato Exp $
  */
 
 struct union_args {
@@ -93,10 +93,6 @@ struct union_node {
 #define UN_ULOCK	0x04		/* Upper node is locked */
 #define UN_KLOCK	0x08		/* Keep upper node locked on vput */
 #define UN_CACHED	0x10		/* In union cache */
-#define	UN_GLOCK	0x20		/* Keep upper node locked on vget */
-
-#define	SETGLOCK(un)	(un)->un_flags |= UN_GLOCK
-#define	CLEARGLOCK(un)	(un)->un_flags &= ~UN_GLOCK
 
 extern int union_allocvp __P((struct vnode **, struct mount *,
 				struct vnode *, struct vnode *,

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.53 1998/02/06 12:13:44 eivind Exp $
+ * $Id: union_vnops.c,v 1.54 1998/02/10 03:32:07 kato Exp $
  */
 
 #include <sys/param.h>
@@ -1533,11 +1533,9 @@ start:
 	if (un->un_uppervp != NULLVP) {
 		if (((un->un_flags & UN_ULOCK) == 0) &&
 		    (vp->v_usecount != 0)) {
-			if ((un->un_flags & UN_GLOCK) == 0) {
-				error = vn_lock(un->un_uppervp, flags, p);
-				if (error)
-					return (error);
-			}
+			error = vn_lock(un->un_uppervp, flags, p);
+			if (error)
+				return (error);
 			un->un_flags |= UN_ULOCK;
 		}
 #ifdef DIAGNOSTIC
@@ -1602,7 +1600,7 @@ union_unlock(ap)
 
 	un->un_flags &= ~UN_LOCKED;
 
-	if ((un->un_flags & (UN_ULOCK|UN_KLOCK|UN_GLOCK)) == UN_ULOCK)
+	if ((un->un_flags & (UN_ULOCK|UN_KLOCK)) == UN_ULOCK)
 		VOP_UNLOCK(un->un_uppervp, 0, p);
 
 	un->un_flags &= ~(UN_ULOCK|UN_KLOCK);
