@@ -325,7 +325,11 @@ int
 scan_dump(FILE *fp, off_t size)
 {
 	struct pcap_file_header hdr;
+#ifdef __FreeBSD__
+	struct pcap_sf_pkthdr ph;
+#else
 	struct pcap_pkthdr ph;
+#endif
 	off_t pos;
 
 	/*
@@ -395,17 +399,34 @@ void
 dump_packet_nobuf(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 {
 	FILE *f = (FILE *)user;
+#ifdef __FreeBSD__
+	struct pcap_sf_pkthdr sh;
+#endif
 
 	if (suspended) {
 		packets_dropped++;
 		return;
 	}
 
+#ifdef __FreeBSD__
+	sh.ts.tv_sec = (bpf_int32)h->ts.tv_sec;
+	sh.ts.tv_usec = (bpf_int32)h->ts.tv_usec;
+	sh.caplen = h->caplen;
+	sh.len = h->len;
+
+	if (fwrite((char *)&sh, sizeof(sh), 1, f) != 1) {
+#else
 	if (fwrite((char *)h, sizeof(*h), 1, f) != 1) {
+#endif
 		/* try to undo header to prevent corruption */
 		off_t pos = ftello(f);
+#ifdef __FreeBSD__
+		if (pos < sizeof(sh) ||
+		    ftruncate(fileno(f), pos - sizeof(sh))) {
+#else
 		if (pos < sizeof(*h) ||
 		    ftruncate(fileno(f), pos - sizeof(*h))) {
+#endif
 			logmsg(LOG_ERR, "Write failed, corrupted logfile!");
 			set_suspended(1);
 			gotsig_close = 1;
@@ -474,7 +495,12 @@ void
 dump_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 {
 	FILE *f = (FILE *)user;
+#ifdef __FreeBSD__
+	struct pcap_sf_pkthdr sh;
+	size_t len = sizeof(sh) + h->caplen;
+#else
 	size_t len = sizeof(*h) + h->caplen;
+#endif
 
 	if (len < sizeof(*h) || h->caplen > (size_t)cur_snaplen) {
 		logmsg(LOG_NOTICE, "invalid size %u (%u/%u), packet dropped",
@@ -502,8 +528,18 @@ dump_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 	}
 
  append:	
+#ifdef __FreeBSD__
+ 	sh.ts.tv_sec = (bpf_int32)h->ts.tv_sec;
+ 	sh.ts.tv_usec = (bpf_int32)h->ts.tv_usec;
+	sh.caplen = h->caplen;
+	sh.len = h->len;
+
+	memcpy(bufpos, &sh, sizeof(sh));
+	memcpy(bufpos + sizeof(sh), sp, h->caplen);
+#else
 	memcpy(bufpos, h, sizeof(*h));
 	memcpy(bufpos + sizeof(*h), sp, h->caplen);
+#endif
 
 	bufpos += len;
 	bufleft -= len;
