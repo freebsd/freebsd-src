@@ -25,6 +25,7 @@ LOCALES=	bg_BG.CP1251 \
 		ru_RU.KOI8-R \
 		sv_SE.ISO8859-15 \
 		sv_SE.ISO8859-1 \
+		uk_UA.ISO8859-5 \
 		uk_UA.KOI8-U
 
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
@@ -71,6 +72,7 @@ ru_RU.ISO8859-5.out:    map.ISO8859-5
 ru_RU.KOI8-R.out:       map.KOI8-R
 sv_SE.ISO8859-15.out:   map.ISO8859-15
 sv_SE.ISO8859-1.out:    map.ISO8859-1
+uk_UA.ISO8859-5.out:	map.ISO8859-5
 uk_UA.KOI8-U.out:       map.KOI8-U
 
 afterinstall:
