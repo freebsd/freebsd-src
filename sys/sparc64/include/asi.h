@@ -62,6 +62,11 @@
 #define		AA_IMMU_TSB			0x28
 #define		AA_IMMU_TAR			0x30
 
+#define	ASI_INTR_DISPATCH_STATUS		0x48
+#define	ASI_INTR_RECEIVE			0x49
+
+#define	ASI_IMMU_TAG_TARGET_REG			0x4e
+
 #define	ASI_IMMU_TSB_8KB_PTR_REG		0x51
 #define	ASI_IMMU_TSB_64KB_PTR_REG		0x52
 #define	ASI_ITLB_DATA_IN_REG			0x54
@@ -92,8 +97,17 @@
 
 #define	ASI_BLK_AUIP				0x70
 #define	ASI_BLK_AIUS				0x71
+
+#define	ASI_SDB_INTR_W				0x77
+#define		AA_SDB_INTR_D0			0x40
+#define		AA_SDB_INTR_D1			0x50
+#define		AA_SDB_INTR_D2			0x60
+
 #define	ASI_BLK_AIUPL				0x78
 #define	ASI_BLK_AIUSL				0x79
+
+#define	ASI_SDB_INTR_R				0x7f
+
 #define	ASI_BLK_COMMIT_S			0xe0
 #define	ASI_BLK_COMMIT_P			0xe1
 #define	ASI_BLK_P				0xf0
