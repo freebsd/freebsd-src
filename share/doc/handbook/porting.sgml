@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.10 1995/12/04 17:58:44 jfieber Exp $ -->
+<!-- $Id: porting.sgml,v 1.11 1995/12/07 13:22:15 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -96,8 +96,30 @@ the ports collection.
 	  to use the <tt>BSD</tt> macros described above.  If there
 	  actually is a FreeBSD specific change (such as special
 	  shared library options when using `<tt>ld</tt>') then it's
-	  OK to use <tt>__FreeBSD__</tt> and `<tt>#if __FreeBSD_ &gt;
+	  OK to use <tt>__FreeBSD__</tt> and `<tt>#if __FreeBSD__ &gt;
 	  1</tt>' to detect a FreeBSD 2.x system.
+
+	  If you need more granduarity in detecting FreeBSD systems since
+	  2.0-RELEASE you can use the following:
+
+<tscreen><verb>
+#if __FreeBSD__ >= 2
+#include <osreldate.h>
+#    if __FreeBSD_version >= 199504
+         /* 2.0.5+ release specific code here */
+#    endif
+#endif
+</verb></tscreen>
+<tt>__FreeBSD_version</tt> values:
+<tscreen><verb>
+2.0-RELEASE:                    199411
+2.1-current's:                  199501, 199503
+2.0.5-RELEASE:                  199504
+2.1.0-RELEASE:                  199511
+2.2-current before 2.1:         199508
+2.2-current as 10 Jan 1996:     199512  (will certainly be bumped)
+</verb></tscreen>
+The pattern is the year followed by the month.
 
       </itemize>
 
@@ -134,7 +156,7 @@ the ports collection.
  # Date created:		5 December 1994
  # Whom:			asami
  #
- # $Id: porting.sgml,v 1.10 1995/12/04 17:58:44 jfieber Exp $
+ # $Id: porting.sgml,v 1.11 1995/12/07 13:22:15 jkh Exp $
  #
  
  DISTNAME=	oneko-1.1b
@@ -889,7 +911,7 @@ lib/libtcl.so.7.3
   person who wrote this Makefile]
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
- # $Id: porting.sgml,v 1.10 1995/12/04 17:58:44 jfieber Exp $
+ # $Id: porting.sgml,v 1.11 1995/12/07 13:22:15 jkh Exp $
  [ ^^^^ don't worry about this...it will be automatically filled in by CVS when 
   it is committed to our repository]
  #
