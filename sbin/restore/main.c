@@ -65,7 +65,6 @@ static const char rcsid[] =
 int	bflag = 0, cvtflag = 0, dflag = 0, vflag = 0, yflag = 0;
 int	hflag = 1, mflag = 1, Nflag = 0;
 int	uflag = 0;
-int	dokerberos = 0;
 char	command = '\0';
 long	dumpnum = 1;
 long	volno = 0;
@@ -98,11 +97,7 @@ main(int argc, char *argv[])
 	if ((inputdev = getenv("TAPE")) == NULL)
 		inputdev = _PATH_DEFTAPE;
 	obsolete(&argc, &argv);
-#ifdef KERBEROS
-#define	optlist "b:df:hikmNRrs:tuvxy"
-#else
 #define	optlist "b:df:himNRrs:tuvxy"
-#endif
 	while ((ch = getopt(argc, argv, optlist)) != -1)
 		switch(ch) {
 		case 'b':
@@ -123,11 +118,6 @@ main(int argc, char *argv[])
 		case 'h':
 			hflag = 0;
 			break;
-#ifdef KERBEROS
-		case 'k':
-			dokerberos = 1;
-			break;
-#endif
 		case 'i':
 		case 'R':
 		case 'r':
