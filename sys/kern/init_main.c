@@ -302,7 +302,8 @@ proc0_init(void *dummy __unused)
 	p->p_sysent = &aout_sysvec;
 #endif
 
-	p->p_flag = P_INMEM | P_SYSTEM;
+	p->p_flag = P_SYSTEM;
+	p->p_sflag = PS_INMEM;
 	p->p_stat = SRUN;
 	p->p_nice = NZERO;
 	p->p_rtprio.type = RTP_PRIO_NORMAL;
@@ -379,22 +380,6 @@ proc0_init(void *dummy __unused)
 	 * Charge root for one process.
 	 */
 	(void)chgproccnt(cred0.p_uidinfo, 1, 0);
-
-	LIST_INIT(&p->p_heldmtx);
-	LIST_INIT(&p->p_contested);
-
-	/*
-	 * Initialize the current process pointer (curproc) before
-	 * any possible traps/probes to simplify trap processing.
-	 */
-	PCPU_SET(curproc, p);
-
-	/*
-	 * Enter the Giant mutex.
-	 * XXX This should be done BEFORE cpu_startup().
-	 */
-	mtx_enter(&Giant, MTX_DEF);
-
 }
 SYSINIT(p0init, SI_SUB_INTRINSIC, SI_ORDER_FIRST, proc0_init, NULL)
 
@@ -596,10 +581,15 @@ create_init(const void *udata __unused)
 	error = fork1(&proc0, RFFDG | RFPROC | RFSTOPPED, &initproc);
 	if (error)
 		panic("cannot fork init: %d\n", error);
-	initproc->p_flag |= P_INMEM | P_SYSTEM;
+	PROC_LOCK(initproc);
+	initproc->p_flag |= P_SYSTEM;
+	PROC_UNLOCK(initproc);
+	mtx_enter(&sched_lock, MTX_SPIN);
+	initproc->p_sflag |= PS_INMEM;
+	mtx_exit(&sched_lock, MTX_SPIN);
 	cpu_set_fork_handler(initproc, start_init, NULL);
 }
-SYSINIT(init,SI_SUB_CREATE_INIT, SI_ORDER_FIRST, create_init, NULL)
+SYSINIT(init, SI_SUB_CREATE_INIT, SI_ORDER_FIRST, create_init, NULL)
 
 /*
  * Make it runnable now.
@@ -607,9 +597,10 @@ SYSINIT(init,SI_SUB_CREATE_INIT, SI_ORDER_FIRST, create_init, NULL)
 static void
 kick_init(const void *udata __unused)
 {
+
 	mtx_enter(&sched_lock, MTX_SPIN);
 	initproc->p_stat = SRUN;
 	setrunqueue(initproc);
 	mtx_exit(&sched_lock, MTX_SPIN);
 }
-SYSINIT(kickinit,SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST, kick_init, NULL)
+SYSINIT(kickinit, SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST, kick_init, NULL)
