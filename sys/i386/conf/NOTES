@@ -636,7 +636,6 @@ device		aacp	# SCSI Passthrough interface (optional, CAM required)
 #	0x01 - alternate layout of pins
 #	0x02 - use the windowed PC/Xe in 64K mode
 
-
 device		wt	1
 hint.wt.0.at="isa"
 hint.wt.0.port="0x300"
@@ -709,6 +708,8 @@ hint.stli.0.msize="0x1000"
 device		loran
 hint.loran.0.at="isa"
 hint.loran.0.irq="5"
+# HOT1 Xilinx 6200 card (http://www.vcc.com/)
+device		xrpu
 
 #
 # Laptop/Notebook options:
