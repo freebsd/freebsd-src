@@ -61,7 +61,7 @@ mode2str(int mode)
 	case ATA_PIO4: return "PIO4";
 	case ATA_WDMA2: return "WDMA2";
 	case ATA_UDMA2: return "UDMA33";
- 	case ATA_UDMA4: return "UDMA66";
+	case ATA_UDMA4: return "UDMA66";
 	case ATA_UDMA5: return "UDMA100";
 	case ATA_UDMA6: return "UDMA133";
 	case ATA_SA150: return "SATA150";
@@ -103,26 +103,26 @@ int
 version(int ver)
 {
 	int bit;
-    
+
 	if (ver == 0xffff)
 		return 0;
 	for (bit = 15; bit >= 0; bit--)
 		if (ver & (1<<bit))
 			return bit;
-    	return 0;
+	return 0;
 }
 
 void
 param_print(struct ata_params *parm)
 {
-	printf("<%.40s/%.8s> ", parm->model, parm->revision); 
+	printf("<%.40s/%.8s> ", parm->model, parm->revision);
 	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
 		if (parm->satacapabilities & ATA_SATA_GEN1)
 			printf("Serial ATA v1.0\n");
 		if (parm->satacapabilities & ATA_SATA_GEN2)
 			printf("Serial ATA II\n");
 	}
-	else 
+	else
 		printf("ATA/ATAPI revision %d\n", version(parm->version_major));
 }
 
@@ -136,7 +136,7 @@ cap_print(struct ata_params *parm)
 				((u_int64_t)parm->lba_size48_2 << 16) |
 				((u_int64_t)parm->lba_size48_3 << 32) |
 				((u_int64_t)parm->lba_size48_4 << 48);
- 
+
 	printf("\n");
 	printf("Protocol              ");
 	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
@@ -145,7 +145,7 @@ cap_print(struct ata_params *parm)
 		if (parm->satacapabilities & ATA_SATA_GEN2)
 			printf("Serial ATA II\n");
 	}
-	else 
+	else
 		printf("ATA/ATAPI revision %d\n", version(parm->version_major));
 	printf("device model          %.40s\n", parm->model);
 	printf("serial number         %.20s\n", parm->serial);
@@ -153,8 +153,8 @@ cap_print(struct ata_params *parm)
 
 	printf("cylinders             %d\n", parm->cylinders);
 	printf("heads                 %d\n", parm->heads);
-	printf("sectors/track         %d\n", parm->sectors);	
-	
+	printf("sectors/track         %d\n", parm->sectors);
+
 	printf("lba%ssupported         ",
 		parm->capabilities1 & ATA_SUPPORT_LBA ? " " : " not ");
 	if (lbasize)
@@ -165,7 +165,7 @@ cap_print(struct ata_params *parm)
 	printf("lba48%ssupported       ",
 		parm->support.command2 & ATA_SUPPORT_ADDRESS48 ? " " : " not ");
 	if (lbasize48)
-		printf("%ju sectors\n", (uintmax_t)lbasize48);	
+		printf("%ju sectors\n", (uintmax_t)lbasize48);
 	else
 		printf("\n");
 
@@ -174,7 +174,7 @@ cap_print(struct ata_params *parm)
 
 	printf("overlap%ssupported\n",
 		parm->capabilities1 & ATA_SUPPORT_OVERLAP ? " " : " not ");
-  
+
 	printf("\nFeature                      "
 		"Support  Enable    Value   Vendor\n");
 
@@ -184,7 +184,7 @@ cap_print(struct ata_params *parm)
 
 	printf("read ahead                     %s	%s\n",
 		parm->support.command1 & ATA_SUPPORT_LOOKAHEAD ? "yes" : "no",
-		parm->enabled.command1 & ATA_SUPPORT_LOOKAHEAD ? "yes" : "no");	
+		parm->enabled.command1 & ATA_SUPPORT_LOOKAHEAD ? "yes" : "no");
 
 	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
 		printf("SATA NCQ                       %s	%s	%d/0x%02X\n",
@@ -192,11 +192,11 @@ cap_print(struct ata_params *parm)
 			" -", ATA_QUEUE_LEN(parm->queue),
 			ATA_QUEUE_LEN(parm->queue));
 	}
-	else 
+	else
 		printf("dma queued                     %s	%s	%d/0x%02X\n",
 			parm->support.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no",
 			parm->enabled.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no",
-			ATA_QUEUE_LEN(parm->queue), ATA_QUEUE_LEN(parm->queue));	
+			ATA_QUEUE_LEN(parm->queue), ATA_QUEUE_LEN(parm->queue));
 
 	printf("SMART                          %s	%s\n",
 		parm->support.command1 & ATA_SUPPORT_SMART ? "yes" : "no",
@@ -204,15 +204,15 @@ cap_print(struct ata_params *parm)
 
 	printf("microcode download             %s	%s\n",
 		parm->support.command2 & ATA_SUPPORT_MICROCODE ? "yes" : "no",
-		parm->enabled.command2 & ATA_SUPPORT_MICROCODE ? "yes" : "no");	
+		parm->enabled.command2 & ATA_SUPPORT_MICROCODE ? "yes" : "no");
 
 	printf("security                       %s	%s\n",
 		parm->support.command1 & ATA_SUPPORT_SECURITY ? "yes" : "no",
-		parm->enabled.command1 & ATA_SUPPORT_SECURITY ? "yes" : "no");	
+		parm->enabled.command1 & ATA_SUPPORT_SECURITY ? "yes" : "no");
 
 	printf("power management               %s	%s\n",
 		parm->support.command1 & ATA_SUPPORT_POWERMGT ? "yes" : "no",
-		parm->enabled.command1 & ATA_SUPPORT_POWERMGT ? "yes" : "no");	
+		parm->enabled.command1 & ATA_SUPPORT_POWERMGT ? "yes" : "no");
 
 	printf("advanced power management      %s	%s	%d/0x%02X\n",
 		parm->support.command2 & ATA_SUPPORT_APM ? "yes" : "no",
@@ -390,9 +390,9 @@ main(int argc, char **argv)
 						    "| RAID0+1 | SPAN | JBOD\n");
 			exit(EX_USAGE);
 		}
-		
+
 		if (iocmd.u.raid_setup.type & 1) {
-			if (argc < 4 || 
+			if (argc < 4 ||
 			    !sscanf(argv[3], "%d",
 				    &iocmd.u.raid_setup.interleave) == 1) {
 				fprintf(stderr, "atacontrol: Invalid interleave\n");
@@ -402,7 +402,7 @@ main(int argc, char **argv)
 		}
 		else
 			offset = 3;
-		
+
 		for (disk = 0; disk < 16 && (offset + disk) < argc; disk++) {
 			if (!(sscanf(argv[offset + disk], "%d", &dev) == 1 ||
 			      sscanf(argv[offset + disk], "ad%d", &dev) == 1)) {
@@ -511,11 +511,11 @@ main(int argc, char **argv)
 			if (ioctl(fd, IOCATA, &iocmd) < 0)
 				err(1, "ioctl(ATAGMODE)");
 			printf("Master = %s \nSlave  = %s\n",
-				mode2str(iocmd.u.mode.mode[0]), 
+				mode2str(iocmd.u.mode.mode[0]),
 				mode2str(iocmd.u.mode.mode[1]));
 		}
 	}
 	else
-	    	usage();
+		usage();
 	exit(EX_OK);
 }
