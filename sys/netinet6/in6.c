@@ -1151,7 +1151,6 @@ in6_unlink_ifa(ia, ifp)
 	struct in6_ifaddr *ia;
 	struct ifnet *ifp;
 {
-	int plen, iilen;
 	struct in6_ifaddr *oia;
 	int	s = splnet();
 
@@ -1169,12 +1168,6 @@ in6_unlink_ifa(ia, ifp)
 			/* search failed */
 			printf("Couldn't unlink in6_ifaddr from in6_ifaddr\n");
 		}
-	}
-
-	if (oia->ia6_ifpr) {	/* check for safety */
-		plen = in6_mask2len(&oia->ia_prefixmask.sin6_addr, NULL);
-		iilen = (sizeof(oia->ia_prefixmask.sin6_addr) << 3) - plen;
-		in6_prefix_remove_ifid(iilen, oia);
 	}
 
 	/*

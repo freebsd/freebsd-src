@@ -1517,7 +1517,6 @@ netinet6/in6_cksum.c	optional inet6
 netinet6/in6_gif.c	optional gif inet6
 netinet6/in6_ifattach.c	optional inet6
 netinet6/in6_pcb.c	optional inet6
-netinet6/in6_prefix.c	optional inet6
 netinet6/in6_proto.c	optional inet6
 netinet6/in6_rmx.c	optional inet6
 netinet6/in6_src.c	optional inet6

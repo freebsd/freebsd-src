@@ -104,7 +104,6 @@
 #include <netinet6/scope6_var.h>
 #include <netinet6/in6_ifattach.h>
 #include <netinet6/nd6.h>
-#include <netinet6/in6_prefix.h>
 
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
@@ -207,10 +206,6 @@ ip6_init2(dummy)
 	/* nd6_timer_init */
 	callout_init(&nd6_timer_ch, 0);
 	callout_reset(&nd6_timer_ch, hz, nd6_timer, NULL);
-
-	/* router renumbering prefix list maintenance */
-	callout_init(&in6_rr_timer_ch, 0);
-	callout_reset(&in6_rr_timer_ch, hz, in6_rr_timer, NULL);
 
 	/* timer for regeneranation of temporary addresses randomize ID */
 	callout_init(&in6_tmpaddrtimer_ch, 0);
