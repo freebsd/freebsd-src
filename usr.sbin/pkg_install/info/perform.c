@@ -28,26 +28,20 @@ static const char rcsid[] =
 
 #include <sys/types.h>
 #include <err.h>
-#include <glob.h>
-#include <fts.h>
-#include <regex.h>
 #include <signal.h>
 
-static int fname_cmp(const FTSENT **, const FTSENT **);
 static int pkg_do(char *);
-static int rexs_match(char **, char *);
 
 int
 pkg_perform(char **pkgs)
 {
-    int i, err_cnt = 0;
+    char **matched;
     char *tmp;
+    int err_cnt = 0;
+    int i, errcode;
 
     signal(SIGINT, cleanup);
 
-    tmp = getenv(PKG_DBDIR);
-    if (!tmp)
-	tmp = DEF_LOG_DIR;
     /* Overriding action? */
     if (CheckPkg) {
 	char buf[FILENAME_MAX];
@@ -57,89 +51,32 @@ pkg_perform(char **pkgs)
 	/* Not reached */
     }
 
-    switch (MatchType) {
-    case MATCH_ALL:
-    case MATCH_REGEX:
-	{
-	    FTS *ftsp;
-	    FTSENT *f;
-	    char *paths[2];
-	    int errcode;
+    if (MatchType != MATCH_EXACT) {
+	matched = matchinstalled(MatchType, pkgs, &errcode);
+	if (errcode != 0)
+	    return 1;
+	    /* Not reached */
 
-	    if (!isdir(tmp))
+	if (matched != NULL)
+	    pkgs = matched;
+	else switch (MatchType) {
+	    case MATCH_GLOB:
+		break;
+	    case MATCH_ALL:
+		warnx("no packages installed");
+		return 0;
+		/* Not reached */
+	    case MATCH_REGEX:
+		warnx("no packages match pattern(s)");
 		return 1;
-	    paths[0] = tmp;
-	    paths[1] = NULL;
-	    ftsp = fts_open(paths, FTS_LOGICAL | FTS_NOCHDIR | FTS_NOSTAT,
-	      fname_cmp);
-	    if (ftsp != NULL) {
-		while ((f = fts_read(ftsp)) != NULL) {
-		    if (f->fts_info == FTS_D && f->fts_level == 1) {
-			fts_set(ftsp, f, FTS_SKIP);
-			if (MatchType == MATCH_REGEX) {
-			    errcode = rexs_match(pkgs, f->fts_name);
-			    if (errcode == -1) {
-				err_cnt += 1;
-				break;
-			    }
-			    else if (errcode == 0)
-				continue;
-			}
-			err_cnt += pkg_do(f->fts_name);
-		    }
-		}
-		fts_close(ftsp);
-	    }
+		/* Not reached */
+	    default:
+		break;
 	}
-	break;
-    case MATCH_GLOB:
-	{
-	    glob_t g;
-	    char *gexpr;
-	    char *cp;
-	    int gflags;
-	    int prev_matchc;
-
-	    gflags = GLOB_ERR;
-	    prev_matchc = 0;
-	    for (i = 0; pkgs[i]; i++) {
-		asprintf(&gexpr, "%s/%s", tmp, pkgs[i]);
-
-		if (glob(gexpr, gflags, NULL, &g) != 0) {
-		    warn("%s: error encountered when matching glob", pkgs[i]);
-		    return 1;
-		}
-
-		/*
-		 * If glob doesn't match try to use pkgs[i] directly - it
-		 * could be name of the tarball.
-		 */
-		if (g.gl_matchc == prev_matchc)
-		    err_cnt += pkg_do(pkgs[i]);
-
-		prev_matchc = g.gl_matchc;
-		gflags |= GLOB_APPEND;
-		free(gexpr);
-	    }
-
-	    for (i = 0; i < g.gl_matchc; i++) {
-		cp = strrchr(g.gl_pathv[i], '/');
-		if (cp == NULL)
-		    cp = g.gl_pathv[i];
-		else
-		    cp++;
-
-		err_cnt += pkg_do(cp);
-	    }
-
-	    globfree(&g);
-	}
-	break;
-    default:
-	for (i = 0; pkgs[i]; i++)
-	    err_cnt += pkg_do(pkgs[i]);
-	break;
     }
+
+    for (i = 0; pkgs[i]; i++)
+	err_cnt += pkg_do(pkgs[i]);
 
     return err_cnt;
 }
@@ -299,57 +236,3 @@ cleanup(int sig)
 	exit(1);
 }
 
-static int
-fname_cmp(const FTSENT **a, const FTSENT **b)
-{
-    return strcmp((*a)->fts_name, (*b)->fts_name);
-}
-
-/*
- * Returns 1 if specified pkgname matches at least one
- * of the RE from patterns. Otherwise return 0 if no
- * matches were found or -1 if RE engine reported an
- * error (usually invalid syntax).
- */
-static int
-rexs_match(char **patterns, char *pkgname)
-{
-    Boolean matched;
-    char errbuf[128];
-    int i;
-    int errcode;
-    int retval;
-    regex_t rex;
-
-    errcode = 0;
-    retval = 0;
-    matched = FALSE;
-    for (i = 0; patterns[i]; i++) {
-	errcode = regcomp(&rex, patterns[i], REG_BASIC | REG_NOSUB);
-	if (errcode != 0)
-	    break;
-
-	errcode = regexec(&rex, pkgname, 0, NULL, 0);
-	if (errcode == 0) {
-	    matched = TRUE;
-	    retval = 1;
-	    break;
-	}
-	else if (errcode != REG_NOMATCH)
-	    break;
-
-	regfree(&rex);
-	errcode = 0;
-    }
-
-    if (errcode != 0) {
-	regerror(errcode, &rex, errbuf, sizeof(errbuf));
-	warnx("%s: %s", patterns[i], errbuf);
-	retval = -1;
-    }
-
-    if ((errcode != 0) || (matched == TRUE))
-	regfree(&rex);
-
-    return retval;
-}
