@@ -50,7 +50,9 @@ _CPUCFLAGS = -march=${CPUTYPE}
 .  elif ${CPUTYPE} == "k5"
 _CPUCFLAGS = -march=pentium
 .  elif ${CPUTYPE} == "p4"
-_CPUCFLAGS = -march=pentium4
+# gcc 3.2 is known to produce broken code with -march=pentium4, so it is
+# disabled for now.  This is fixed in gcc 3.3.
+_CPUCFLAGS = -march=pentium3
 .  elif ${CPUTYPE} == "p3"
 _CPUCFLAGS = -march=pentium3
 .  elif ${CPUTYPE} == "p2"
