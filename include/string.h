@@ -62,6 +62,7 @@ int	 strcoll __P((const char *, const char *));
 char	*strcpy __P((char *, const char *));
 size_t	 strcspn __P((const char *, const char *));
 char	*strerror __P((int));
+int	 strerror_r __P((int, char *, size_t));
 size_t	 strlen __P((const char *));
 char	*strncat __P((char *, const char *, size_t));
 int	 strncmp __P((const char *, const char *, size_t));
