@@ -38,7 +38,7 @@ vers.o: ${.CURDIR}/newvers.sh ${.CURDIR}/Makefile
 	sh ${.CURDIR}/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 	${CC} -c vers.c
 
-${BASE}: ${BASE}.sym
+${BASE}: ${BASE}.sym ${BASE}.help
 	objcopy -O binary ${BASE}.sym ${BASE}
 
 ${BASE}.sym: ${OBJS} ${LIBSTAND} ${LIBALPHA} ${CRT} vers.o setdef0.o setdef1.o
