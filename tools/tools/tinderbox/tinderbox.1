@@ -74,6 +74,9 @@ The date to specify to
 using the
 .Fl D
 option, when checking out sources.
+As a special case, the value
+.Dq today
+corresponds to midnight GMT the day the run starts.
 The default is to use the top of whichever branch was specified.
 .It Fl -jobs Ns = Ns Ar NUM
 The maximum number of paralell jobs, as specified to
@@ -220,8 +223,6 @@ The following variables are set for all builds:
 .Va /dev/null
 .It CFLAGS
 .Va -O -pipe
-.It NO_CPU_CFLAGS
-.Va YES
 .El
 .Pp
 In addition, if one or more of the
@@ -234,14 +235,10 @@ builds, are set:
 .Bl -tag -width 18n
 .It COPTFLAGS
 .Va -O -pipe
-.It NO_CPU_COPTFLAGS
-.Va YES
 .El
 .Pp
 Finally, the following variables are set for release builds:
 .Bl -tag -width 18n
-.It BUILDNAME
-.Va ${BRANCH}_TINDERBOX
 .It CHROOTDIR
 .Va $SANDBOX/root
 .It CVSROOT
