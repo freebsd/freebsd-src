@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 #endif
 static const char rcsid[] =
-	"$Id: vmstat.c,v 1.34 1999/02/08 02:39:45 dillon Exp $";
+	"$Id: vmstat.c,v 1.35 1999/03/22 03:44:01 bde Exp $";
 #endif /* not lint */
 
 /*
@@ -82,6 +82,7 @@ static struct Info {
 	int	desiredvnodes;
 	long	numvnodes;
 	long	freevnodes;
+	long	numdirtybuffers;
 } s, s1, s2, z;
 
 struct statinfo cur, last, run;
@@ -164,6 +165,8 @@ static struct nlist namelist[] = {
 	{ "_numvnodes" },
 #define	X_FREEVNODES	10
 	{ "_freevnodes" },
+#define X_NUMDIRTYBUFFERS 11
+	{ "_numdirtybuffers" },
 	{ "" },
 };
 
@@ -310,10 +313,11 @@ labelkre()
 	mvprintw(VMSTATROW + 11, VMSTATCOL + 10, "pdpgs");
 	mvprintw(VMSTATROW + 12, VMSTATCOL + 10, "intrn");
 	mvprintw(VMSTATROW + 13, VMSTATCOL + 10, "buf");
+	mvprintw(VMSTATROW + 14, VMSTATCOL + 10, "dirtybuf");
 
-	mvprintw(VMSTATROW + 14, VMSTATCOL + 10, "desiredvnodes");
-	mvprintw(VMSTATROW + 15, VMSTATCOL + 10, "numvnodes");
-	mvprintw(VMSTATROW + 16, VMSTATCOL + 10, "freevnodes");
+	mvprintw(VMSTATROW + 15, VMSTATCOL + 10, "desiredvnodes");
+	mvprintw(VMSTATROW + 16, VMSTATCOL + 10, "numvnodes");
+	mvprintw(VMSTATROW + 17, VMSTATCOL + 10, "freevnodes");
 
 	mvprintw(GENSTATROW, GENSTATCOL, "  Csw  Trp  Sys  Int  Sof  Flt");
 
@@ -330,6 +334,7 @@ labelkre()
 	mvprintw(DISKROW + 1, DISKCOL, "KB/t");
 	mvprintw(DISKROW + 2, DISKCOL, "tps");
 	mvprintw(DISKROW + 3, DISKCOL, "MB/s");
+	mvprintw(DISKROW + 4, DISKCOL, "%% busy");
 	/*
 	 * For now, we don't support a fourth disk statistic.  So there's
 	 * no point in providing a label for it.  If someone can think of a
@@ -504,9 +509,10 @@ showkre()
 	}
 
 	putint(s.bufspace/1024, VMSTATROW + 13, VMSTATCOL, 9);
-	putint(s.desiredvnodes, VMSTATROW + 14, VMSTATCOL, 9);
-	putint(s.numvnodes, VMSTATROW + 15, VMSTATCOL, 9);
-	putint(s.freevnodes, VMSTATROW + 16, VMSTATCOL, 9);
+	putint(s.numdirtybuffers, VMSTATROW + 14, VMSTATCOL, 9);
+	putint(s.desiredvnodes, VMSTATROW + 15, VMSTATCOL, 9);
+	putint(s.numvnodes, VMSTATROW + 16, VMSTATCOL, 9);
+	putint(s.freevnodes, VMSTATROW + 17, VMSTATCOL, 9);
 	PUTRATE(Cnt.v_vnodein, PAGEROW + 2, PAGECOL + 5, 5);
 	PUTRATE(Cnt.v_vnodeout, PAGEROW + 2, PAGECOL + 10, 5);
 	PUTRATE(Cnt.v_swapin, PAGEROW + 2, PAGECOL + 17, 5);
@@ -736,6 +742,7 @@ getinfo(s, st)
 	NREAD(X_FREEVNODES, &s->freevnodes, LONG);
 	NREAD(X_NCHSTATS, &s->nchstats, sizeof s->nchstats);
 	NREAD(X_INTRCNT, s->intrcnt, nintr * LONG);
+	NREAD(X_NUMDIRTYBUFFERS, &s->numdirtybuffers, sizeof(s->numdirtybuffers));
 	size = sizeof(s->Total);
 	mib[0] = CTL_VM;
 	mib[1] = VM_METER;
@@ -800,24 +807,39 @@ dinfo(dn, c, now, then)
 {
 	long double transfers_per_second;
 	long double kb_per_transfer, mb_per_second;
-	long double busy_seconds;
+	long double elapsed_time, device_busy;
 	int di;
 
 	di = dev_select[dn].position;
 
-	busy_seconds = compute_etime(now->busy_time, then ?
+	elapsed_time = compute_etime(now->busy_time, then ?
 				     then->busy_time :
 				     now->dinfo->devices[di].dev_creation_time);
 
+	device_busy =  compute_etime(now->dinfo->devices[di].busy_time, then ?
+				     then->dinfo->devices[di].busy_time :
+				     now->dinfo->devices[di].dev_creation_time);
+
 	if (compute_stats(&now->dinfo->devices[di], then ?
-			  &then->dinfo->devices[di] : NULL, busy_seconds,
+			  &then->dinfo->devices[di] : NULL, elapsed_time,
 			  NULL, NULL, NULL,
 			  &kb_per_transfer, &transfers_per_second,
 			  &mb_per_second, NULL, NULL) != 0)
 		errx(1, "%s", devstat_errbuf);
 
+	if ((device_busy == 0) && (transfers_per_second > 5))
+		/* the device has been 100% busy, fake it because
+		 * as long as the device is 100% busy the busy_time
+		 * field in the devstat struct is not updated */
+		device_busy = elapsed_time;
+	if (device_busy > elapsed_time)
+		/* this normally happens after one or more periods
+		 * where the device has been 100% busy, correct it */
+		device_busy = elapsed_time;
+
 	c = DISKCOL + c * 6;
 	putlongdouble(kb_per_transfer, DISKROW + 1, c, 5, 2, 0);
 	putlongdouble(transfers_per_second, DISKROW + 2, c, 5, 0, 0);
 	putlongdouble(mb_per_second, DISKROW + 3, c, 5, 2, 0);
+	putlongdouble(device_busy * 100 / elapsed_time, DISKROW + 4, c, 5, 0, 0);
 }
