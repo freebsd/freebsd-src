@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id$
  */
 
 /*****************************************************************************/
@@ -45,14 +47,14 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 
-#include "cdk.h"
+#include <machine/cdk.h>
 
 /*****************************************************************************/
 
 char	*version = "0.0.5";
 char	*defdevice = "/dev/staliomem%d";
-char	*image = "/usr/lib/stallion/cdk.sys";
-char	*oldimage = "/usr/lib/stallion/2681.sys";
+char	*image = BOOTDIR "/cdk.sys";
+char	*oldimage = BOOTDIR "/2681.sys";
 
 char	*progname;
 char	*memdevice;
