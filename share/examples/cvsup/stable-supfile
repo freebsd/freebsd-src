@@ -1,4 +1,4 @@
-# $Id: stable-supfile,v 1.12 1997/10/02 00:01:35 jkh Exp $
+# $Id: stable-supfile,v 1.13 1999/02/11 18:04:17 jdp Exp $
 #
 # This file contains all of the "CVSup collections" that make up the
 # FreeBSD-stable source tree.
@@ -20,12 +20,13 @@
 # You may wish to change some of the settings in this file to better
 # suit your system:
 #
-# host=cvsup.FreeBSD.org
+# host=CHANGE_THIS.FreeBSD.org
 #		This specifies the server host which will supply the
-#		file updates.  Please change this to one of the mirror
-#		sites if possible.  (See the "README" file.)  You can
-#		override this setting on the command line with cvsup's
-#		"-h host" option.
+#		file updates.  You must change it to one of the CVSup
+#		mirror sites listed in the FreeBSD Handbook at
+#		http://www.freebsd.org/handbook/mirrors.html.
+#		You can	override this setting on the command line
+#		with cvsup's "-h host" option.
 #
 # base=/usr
 #		This specifies the root where CVSup will store information
@@ -59,7 +60,10 @@
 ###############################################################################
 
 # Defaults that apply to all the collections
-*default host=cvsup.FreeBSD.org
+#
+# IMPORTANT: Change the next line to use one of the CVSup mirror sites
+# listed at http://www.freebsd.org/handbook/mirrors.html.
+*default host=CHANGE_THIS.FreeBSD.org
 *default base=/usr
 *default prefix=/usr
 # The following line is for 3-stable.  If you want 2.2-stable, change
