@@ -34,7 +34,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rtprio.c,v 1.5 1997/10/13 11:24:01 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -81,6 +81,7 @@ main(argc, argv)
 		printf("%s: ", p);
 		switch (rtp.type) {
 		case RTP_PRIO_REALTIME:
+		case RTP_PRIO_FIFO:
 			printf("realtime priority %d\n", rtp.prio);
 			break;
 		case RTP_PRIO_NORMAL:
