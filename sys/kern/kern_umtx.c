@@ -181,7 +181,7 @@ _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
 				return (EFAULT);
 
 			if (owner == UMTX_CONTESTED)
-				return (0);
+				goto out;
 
 			/* If this failed the lock has changed, restart. */
 			continue;
@@ -211,14 +211,20 @@ _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
 
 		/*
 		 * We set the contested bit, sleep. Otherwise the lock changed
-		 * and we need to retry.
+		 * and we need to retry or we lost a race to the thread
+		 * unlocking the umtx.
 		 */
 		UMTX_LOCK();
-		if (old == owner)
+		mtx_lock_spin(&sched_lock);
+		if (old == owner && (td->td_flags & TDF_UMTXWAKEUP) == 0) {
+			mtx_unlock_spin(&sched_lock);
 			error = msleep(td, &umtx_lock,
 			    td->td_priority | PCATCH, "umtx", 0);
-		else
+			mtx_lock_spin(&sched_lock);
+		} else
 			error = 0;
+		td->td_flags &= ~TDF_UMTXWAKEUP;
+		mtx_unlock_spin(&sched_lock);
 
 		umtx_remove(uq, td);
 		UMTX_UNLOCK();
@@ -230,8 +236,37 @@ _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
 		if (error)
 			return (error);
 	}
-
-	return (0);
+out:
+	/*
+	 * We reach here only if we just acquired a contested umtx.
+	 *
+	 * If there are no other threads on this umtx's queue
+	 * clear the contested bit. However, we cannot hold
+	 * a lock across casuptr().  So after we unset it we
+	 * have to recheck, and set it again if another thread has
+	 * put itself on the queue in the mean time.
+	 */
+	error = 0;
+	UMTX_LOCK();
+	uq = umtx_lookup(td, umtx);
+	UMTX_UNLOCK();
+	if (uq == NULL)
+		old = casuptr((intptr_t *)&umtx->u_owner,
+		    ((intptr_t)td | UMTX_CONTESTED), (intptr_t)td);
+	if (uq == NULL && old == ((intptr_t)td | UMTX_CONTESTED)) {
+		UMTX_LOCK();
+		uq = umtx_lookup(td, umtx);
+		UMTX_UNLOCK();
+		if (uq != NULL) {
+			old = casuptr((intptr_t *)&umtx->u_owner,
+			    (intptr_t)td, ((intptr_t)td | UMTX_CONTESTED));
+			if (old == -1)
+				error = EFAULT;
+			else if (old != (intptr_t)td)
+				error = EINVAL;
+		}
+	}
+	return (error);
 }
 
 int
@@ -257,25 +292,9 @@ _umtx_unlock(struct thread *td, struct _umtx_unlock_args *uap)
 
 	if ((struct thread *)(owner & ~UMTX_CONTESTED) != td)
 		return (EPERM);
-	/*
-	 * If we own it but it isn't contested then we can just release and
-	 * return.
-	 */
-	if ((owner & UMTX_CONTESTED) == 0) {
-		owner = casuptr((intptr_t *)&umtx->u_owner,
-		    (intptr_t)td, UMTX_UNOWNED);
 
-		if (owner == -1)
-			return (EFAULT);
-		/*
-		 * If this failed someone modified the memory without going
-		 * through this api.
-		 */
-		if (owner != (intptr_t)td)
-			return (EINVAL);
-
-		return (0);
-	}
+	/* We should only ever be in here for contested locks */
+	KASSERT((owner & UMTX_CONTESTED) != 0, ("contested umtx is not."));
 
 	old = casuptr((intptr_t *)&umtx->u_owner, owner, UMTX_CONTESTED);
 
@@ -296,6 +315,10 @@ _umtx_unlock(struct thread *td, struct _umtx_unlock_args *uap)
 	uq = umtx_lookup(td, umtx);
 	if (uq != NULL) {
 		blocked = TAILQ_FIRST(&uq->uq_tdq);
+		KASSERT(blocked != NULL, ("umtx_q with no waiting threads."));
+		mtx_lock_spin(&sched_lock);
+		blocked->td_flags |= TDF_UMTXWAKEUP;
+		mtx_unlock_spin(&sched_lock);
 		wakeup(blocked);
 	}
 

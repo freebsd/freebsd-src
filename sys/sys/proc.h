@@ -350,6 +350,7 @@ struct thread {
 #define	TDF_NEEDRESCHED	0x010000 /* Thread needs to yield. */
 #define	TDF_NEEDSIGCHK	0x020000 /* Thread may need signal delivery. */
 #define	TDF_SA		0x040000 /* A scheduler activation based thread */
+#define TDF_UMTXWAKEUP	0x080000 /* Libthr thread must not sleep on a umtx. */
 #define	TDF_DEADLKTREAT	0x800000 /* Lock aquisition - deadlock treatment. */
 
 /* "private" flags kept in td_pflags */
