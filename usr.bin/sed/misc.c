@@ -59,9 +59,7 @@ static const char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/6/93";
  * the buffer).
  */
 char *
-strregerror(errcode, preg)
-	int errcode;
-	regex_t *preg;
+strregerror(int errcode, regex_t *preg)
 {
 	static char *oe;
 	size_t s;
