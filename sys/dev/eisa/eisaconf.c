@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.29 1997/08/21 07:36:43 fsmp Exp $
+ *	$Id: eisaconf.c,v 1.30 1997/08/21 20:33:29 bde Exp $
  */
 
 #include "opt_eisa.h"
@@ -146,30 +146,15 @@ eisa_configure()
 		e_dev = &(dev_node->dev);
 
 		e_dev->id = eisa_id;
-		/*
-		 * Add an EISA ID based descriptive name incase we don't
-		 * have a driver for it.  We do this now instead of after all
-		 * probes because in the future, the eisa module will only
-		 * be responsible for creating the list of devices in the system
-		 * for the configuration manager to use.
-		 */
-		e_dev->full_name = (char *)malloc(8*sizeof(char),
-						  M_DEVBUF, M_NOWAIT);
-		if (!e_dev->full_name) {
-			panic("Eisa probe unable to malloc");
-		}
-		sprintf(e_dev->full_name, "%c%c%c%x%x",
-			EISA_MFCTR_CHAR0(e_dev->id),
-			EISA_MFCTR_CHAR1(e_dev->id),
-			EISA_MFCTR_CHAR2(e_dev->id),
-			EISA_PRODUCT_ID(e_dev->id),
-			EISA_REVISION_ID(e_dev->id));
+
+		e_dev->full_name = "Unattached Device";
 
 		e_dev->ioconf.slot = slot; 
 
 		/* Initialize our lists of reserved addresses */
 		LIST_INIT(&(e_dev->ioconf.ioaddrs));
 		LIST_INIT(&(e_dev->ioconf.maddrs));
+		TAILQ_INIT(&(e_dev->ioconf.irqs));
 
 		*eisa_dev_list_tail = dev_node;
 		eisa_dev_list_tail = &dev_node->next;
@@ -183,18 +168,23 @@ eisa_configure()
 
 	/* The first will be the motherboard in a true EISA system */
 	if (dev_node && (dev_node->dev.ioconf.slot == 0)) {
+		char *idstring;
+
 		e_dev = &dev_node->dev;
 		e_dev->driver = &mainboard_drv;
 		e_dev->unit = (*e_dev->driver->unit)++; 
-		id_string = e_dev->full_name;
-		e_dev->full_name = (char *)malloc(strlen(e_dev->full_name)
-						  + sizeof(" (System Board)")
-						  + 1, M_DEVBUF, M_NOWAIT);
-		if (!e_dev->full_name) {
+		idstring = (char *)malloc(8 + sizeof(" (System Board)") + 1,
+					  M_DEVBUF, M_NOWAIT);
+		if (idstring == NULL) {
 			panic("Eisa probe unable to malloc");
 		}
-		sprintf(e_dev->full_name, "%s (System Board)", id_string);
-		free(id_string, M_DEVBUF);
+		sprintf(idstring, "%c%c%c%x%x (System Board)",
+			EISA_MFCTR_CHAR0(e_dev->id),
+			EISA_MFCTR_CHAR1(e_dev->id),
+			EISA_MFCTR_CHAR2(e_dev->id),
+			EISA_PRODUCT_ID(e_dev->id),
+			EISA_REVISION_ID(e_dev->id));
+		e_dev->full_name = idstring;
 
 		printf("%s%ld: <%s>\n",
 		       e_dev->driver->name,
@@ -254,10 +244,14 @@ eisa_configure()
 		}
 		else {
 			/* Announce unattached device */
-			printf("%s0:%d <%s=0x%x> unknown device\n",
+			printf("%s0:%d <%c%c%c%x%x=0x%x> unknown device\n",
 				mainboard_drv.name,
 				e_dev->ioconf.slot,
-				e_dev->full_name,
+				EISA_MFCTR_CHAR0(e_dev->id),
+				EISA_MFCTR_CHAR1(e_dev->id), 
+				EISA_MFCTR_CHAR2(e_dev->id), 
+				EISA_PRODUCT_ID(e_dev->id),
+				EISA_REVISION_ID(e_dev->id),
 				e_dev->id);
 		}
 	}
@@ -266,7 +260,7 @@ eisa_configure()
 struct eisa_device *
 eisa_match_dev(e_dev, match_func)
 	struct eisa_device *e_dev;
-	char* (*match_func)(eisa_id_t);
+	const char* (*match_func)(eisa_id_t);
 {
 	struct eisa_device_node *e_node = eisa_dev_list;
 
@@ -276,14 +270,13 @@ eisa_match_dev(e_dev, match_func)
 	}
 
 	for(; e_node; e_node = e_node->next) {
-		char *result;
+		const char *result;
 		if (e_node->dev.driver) {
 			/* Already claimed */
 			continue;
 		}
 		result = (*match_func)(e_node->dev.id);
 		if (result) {
-			free(e_node->dev.full_name, M_DEVBUF);
 			e_node->dev.full_name = result;
 			return (&(e_node->dev));
 		}
@@ -378,7 +371,18 @@ eisa_add_intr(e_dev, irq)
 	struct eisa_device *e_dev;
 	int irq;
 {
-	e_dev->ioconf.irq |= 1ul << irq;
+	struct	irq_node *irq_info;
+	void	*dev_instance = (void *)-1; /* XXX use cfg->devdata  */
+	void	*idesc;
+ 
+	irq_info = (struct irq_node *)malloc(sizeof(*irq_info), M_DEVBUF,
+					     M_NOWAIT);
+	if (irq_info == NULL)
+		return (1);
+
+	irq_info->irq_no = irq;
+	irq_info->idesc = NULL;
+	TAILQ_INSERT_TAIL(&e_dev->ioconf.irqs, irq_info, links);
 	return 0;
 }
 
@@ -386,7 +390,7 @@ int
 eisa_reg_intr(e_dev, irq, func, arg, maskptr, shared)
 	struct eisa_device *e_dev;
 	int   irq;
-	void  (*func)(void *);
+	void (*func)(void *);
 	void  *arg;
 	u_int *maskptr;
 	int   shared;
@@ -407,30 +411,35 @@ eisa_reg_intr(e_dev, irq, func, arg, maskptr, shared)
         	return 1;
 #endif
 	if (reg_state.in_registration) {
-		s = splhigh();
 		/*
-		 * This should really go to a routine that can optionally
-		 * handle shared interrupts.
+		 * Find the first instance of this irq that has a
+		 * NULL idesc.
 		 */
-		result = register_intr(irq,		   /* isa irq	   */
-				       0,		   /* deviced??    */
-				       0,		   /* flags?       */
-				       (inthand2_t*) func, /* handler      */
-				       maskptr,		   /* mask pointer */
-				       (int)arg);	   /* handler arg  */
+		struct irq_node *cur_irq;
 
-		if (result) {
-			printf ("\neisa_reg_int: result=%d\n", result);
-			splx(s);
-			return (result);
-		};
-		update_intr_masks();
-		splx(s);
-	}
-	else
+		cur_irq = TAILQ_FIRST(&e_dev->ioconf.irqs);
+		while (cur_irq != NULL) {
+			if (cur_irq->irq_no == irq
+			 && cur_irq->idesc == NULL) {
+				/* XXX use cfg->devdata  */
+                		void *dev_instance = (void *)-1;
+
+				cur_irq->idesc = intr_create(dev_instance,
+							     irq,
+							     func,
+							     arg,
+							     maskptr, 0);
+				break;
+			}
+			cur_irq = TAILQ_NEXT(cur_irq, links);
+		}
+ 
+		if (cur_irq == NULL || cur_irq->idesc == NULL)
+			return (-1);
+	} else {
 		return EPERM;
+	}
 
-	e_dev->ioconf.irq |= 1ul << irq;
 	sprintf(string, " irq %d", irq);
 	eisa_reg_print(e_dev, string, reg_state.num_interrupts ? 
 				      &separator : NULL);
@@ -444,27 +453,28 @@ eisa_release_intr(e_dev, irq, func)
 	int   irq;
 	void  (*func)(void *);
 {
-	int result;
-	int s;
-       	
-	if (!(e_dev->ioconf.irq & (1ul << irq))) {
+	int	result;
+	struct	irq_node *cur_irq;
+
+	result = -1;
+	cur_irq = TAILQ_FIRST(&e_dev->ioconf.irqs);
+       	while (cur_irq != NULL) {
+		if (cur_irq->irq_no == irq) {
+			if (cur_irq->idesc != NULL)
+				intr_destroy(cur_irq->idesc);
+			cur_irq = TAILQ_NEXT(cur_irq, links);
+			TAILQ_REMOVE(&e_dev->ioconf.irqs, cur_irq, links);
+			result = 0;
+		} else {
+			cur_irq = TAILQ_NEXT(cur_irq, links);
+		}
+	}
+	if (result != 0) {
 		printf("%s%ld: Attempted to release an interrupt (%d) "
 		       "it doesn't own\n", e_dev->driver->name,
 			e_dev->unit, irq);
-		return (-1);
 	}
 
-	s = splhigh();
-	INTRDIS ((1ul<<irq));
-
-	result = unregister_intr (irq, (inthand2_t*)func);
-        
-	if (result)
-		printf ("eisa_release_intr: result=%d\n", result);
-  
-	update_intr_masks();
-
-	splx(s);
 	return (result);
 }
 
@@ -473,18 +483,19 @@ eisa_enable_intr(e_dev, irq)
 	struct eisa_device *e_dev;
 	int irq;
 {
-	int s;
+	struct	irq_node *cur_irq;
+	int	result;
 
-	if (!(e_dev->ioconf.irq & (1ul << irq))) {
-		printf("%s%ld: Attempted to enable an interrupt (%d) "
-		       "it doesn't own\n", e_dev->driver->name,
-			e_dev->unit, irq);
-		return (-1);
+	result = -1;
+	cur_irq = TAILQ_FIRST(&e_dev->ioconf.irqs);
+       	while (cur_irq != NULL) {
+		if (cur_irq->irq_no == irq
+		 && cur_irq->idesc != NULL) {
+			result = intr_connect(cur_irq->idesc);
+		}
+		cur_irq = TAILQ_NEXT(cur_irq, links);
 	}
-	s = splhigh();
-	INTREN((1ul << irq));
-	splx(s);
-	return 0;
+	return (result);
 }
 
 static int
