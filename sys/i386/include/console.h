@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.25.2.2 1996/12/04 16:11:18 phk Exp $
+ *	$Id: console.h,v 1.25.2.3 1997/09/04 12:40:29 kato Exp $
  */
 
 #ifndef	_MACHINE_CONSOLE_H_
@@ -153,6 +153,7 @@ struct mouse_info {
 
 #define K_RAW		0		/* keyboard returns scancodes	*/
 #define K_XLATE		1		/* keyboard returns ascii 	*/
+#define K_CODE		2		/* keyboard returns keycodes 	*/
 
 #define KB_84		1		/* 'old' 84 key AT-keyboard	*/
 #define KB_101		2		/* MF-101 or MF-102 keyboard	*/
@@ -306,6 +307,8 @@ typedef struct ssaver ssaver_t;
 #define M_VGA_M80x30	33	/* vga 8x16 font on color */
 #define M_VGA_C80x60	34	/* vga 8x8 font on color */
 #define M_VGA_M80x60	35	/* vga 8x8 font on color */
+#define M_VGA_CG640	36	/* vga 640x400 256 color */
+#define M_VGA_MODEX	37	/* vga 320x240 256 color */
 
 #define M_ENH_B80x43	0x70	/* ega black & white 80x43 */
 #define M_ENH_C80x43	0x71	/* ega color 80x43 */
@@ -355,5 +358,7 @@ typedef struct ssaver ssaver_t;
 #define SW_CG640x480	_IO('S', M_VGA12)
 #define SW_VGA13	_IO('S', M_VGA13)
 #define SW_VGA_CG320	_IO('S', M_VGA13)
+#define SW_VGA_CG640	_IO('S', M_VGA_CG640)
+#define SW_VGA_MODEX	_IO('S', M_VGA_MODEX)
 
 #endif /* !_MACHINE_CONSOLE_H_ */
