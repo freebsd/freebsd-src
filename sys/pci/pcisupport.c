@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.78 1998/12/09 01:33:03 eivind Exp $
+**  $Id: pcisupport.c,v 1.79 1998/12/14 05:47:28 dillon Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -273,8 +273,6 @@ chipset_probe (pcici_t tag, pcidi_t type)
 	case 0x05971106:
 		return("VIA 82C597 (Apollo VP3) system controller");
 	/* XXX need info on the MVP3 -- any takers? */
-	case 0x30381106:
-		return("VIA 82C586B USB host controller");
 	case 0x30401106:
 		return("VIA 82C586B ACPI interface");
 
