@@ -536,6 +536,12 @@ acpi_tz_switch_cooler_off(ACPI_OBJECT *obj, void *arg)
     ACPI_ASSERTLOCK;
 
     switch(obj->Type) {
+    case ACPI_TYPE_ANY:
+	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "called to turn %s off\n", acpi_name(obj->Reference.Handle)));
+
+	acpi_pwr_switch_consumer(obj->Reference.Handle, ACPI_STATE_D3);
+	break;
+	
     case ACPI_TYPE_STRING:
 	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "called to turn %s off\n", obj->String.Pointer));
 
@@ -576,6 +582,16 @@ acpi_tz_switch_cooler_on(ACPI_OBJECT *obj, void *arg)
     ACPI_ASSERTLOCK;
 
     switch(obj->Type) {
+    case ACPI_TYPE_ANY:
+	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "called to turn %s on\n", acpi_name(obj->Reference.Handle)));
+
+	if (ACPI_FAILURE(status = acpi_pwr_switch_consumer(obj->Reference.Handle, ACPI_STATE_D0))) {
+	    ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
+		"failed to activate %s - %s\n", acpi_name(obj->Reference.Handle),
+		AcpiFormatException(status));
+	}
+	break;
+	
     case ACPI_TYPE_STRING:
 	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "called to turn %s on\n", obj->String.Pointer));
 
