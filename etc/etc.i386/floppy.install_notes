@@ -103,7 +103,7 @@ to make initial installation of the system from floppy as easy as possible.
 
 12. Reboot so that the system comes up multiuser by typing ``reboot''.
 
-13. You are now running FreeBSD!  Congradulations!  You may now continue
+13. You are now running FreeBSD!  Congratulations!  You may now continue
     with installing the source distribution, or stop here for now.
 
 14. The file /magic contains the special sh commands used during
@@ -140,4 +140,4 @@ to make initial installation of the system from floppy as easy as possible.
     freebsd.cdrom.com - please have a look around!  You may also find 
     this a good time to read the release notes in RELNOTES.FreeBSD.
     
-End of $Id: floppy.install_notes,v 1.13.2.1 1994/05/05 03:58:27 rgrimes Exp $
+End of $Id: floppy.install_notes,v 1.14 1994/05/15 01:09:23 rgrimes Exp $
