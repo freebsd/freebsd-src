@@ -1017,6 +1017,14 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		ifr = (struct ifreq *)data;
 		copyout(&ic->ic_stats, ifr->ifr_data, sizeof (ic->ic_stats));
 		break;
+	case SIOCSIFMTU:
+		ifr = (struct ifreq *)data;
+		if (!(IEEE80211_MTU_MIN <= ifr->ifr_mtu &&
+		    ifr->ifr_mtu <= IEEE80211_MTU_MAX))
+			error = EINVAL;
+		else
+			ifp->if_mtu = ifr->ifr_mtu;
+		break;
 	default:
 		error = ether_ioctl(ifp, cmd, data);
 		break;
