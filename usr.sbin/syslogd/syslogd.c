@@ -918,9 +918,9 @@ fprintlog(f, flags, msg)
 	  	static char fp_buf[30];	/* Hollow laugh */
 		int fac = f->f_prevpri & LOG_FACMASK;
 		int pri = LOG_PRI(f->f_prevpri);
-		char *f_s = 0;
+		const char *f_s = NULL;
 		char f_n[5];	/* Hollow laugh */
-		char *p_s = 0;
+		const char *p_s = NULL;
 		char p_n[5];	/* Hollow laugh */
 
 		if (LogFacPri > 1) {
