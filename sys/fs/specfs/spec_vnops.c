@@ -730,7 +730,6 @@ spec_getpages(ap)
 	bp->b_iocmd = BIO_READ;
 	bp->b_iodone = bdone;
 
-	/* B_PHYS is not set, but it is nice to fill this in. */
 	KASSERT(bp->b_rcred == NOCRED, ("leaking read ucred"));
 	KASSERT(bp->b_wcred == NOCRED, ("leaking write ucred"));
 	bp->b_rcred = crhold(curthread->td_ucred);
