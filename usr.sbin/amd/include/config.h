@@ -1976,7 +1976,7 @@
 #define HAVE_EXTERN_GETPAGESIZE 1
 
 /* does extern definition for innetgr() exist? */
-/* #undef HAVE_EXTERN_INNETGR */
+#define HAVE_EXTERN_INNETGR
 
 /* does extern definition for mkstemp() exist? */
 #define HAVE_EXTERN_MKSTEMP 1
