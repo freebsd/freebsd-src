@@ -23,6 +23,9 @@ Cambridge, MA 02139, USA.  */
 extern "C" {
 #endif
 
+#ifdef __FreeBSD__
+#include <sys/cdefs.h>
+#else
 #if defined (__cplusplus) || (defined (__STDC__) && __STDC__)
 #undef	__P
 #define	__P(args)	args
@@ -32,6 +35,7 @@ extern "C" {
 #undef	const
 #define	const
 #endif /* C++ or ANSI C.  */
+#endif
 
 /* Bits set in the FLAGS argument to `fnmatch'.  */
 #ifdef FNM_PATHNAME    /* Because it is already defined in <unistd.h> */
