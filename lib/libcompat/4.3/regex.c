@@ -50,6 +50,7 @@ static char sccsid[] = "@(#)regex.c	5.1 (Berkeley) 3/29/92";
 #include <regexp.h>
 #include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 static regexp *re_regexp;
 static int re_goterr;
