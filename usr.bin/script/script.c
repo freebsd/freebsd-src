@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)script.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: script.c,v 1.7 1997/12/30 01:20:08 peter Exp $";
+	"$Id: script.c,v 1.8 1998/03/08 14:19:18 peter Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -71,11 +71,11 @@ int	qflg;
 
 struct	termios tt;
 
-void	done __P((void)) __dead2;
+void	done __P((int)) __dead2;
 void	dooutput __P((void));
 void	doshell __P((char **));
 void	fail __P((void));
-void	finish __P((int));
+void	finish __P((void));
 static void usage __P((void));
 
 int
@@ -145,11 +145,10 @@ main(argc, argv)
 	rtt.c_lflag &= ~ECHO;
 	(void)tcsetattr(STDIN_FILENO, TCSAFLUSH, &rtt);
 
-	(void)signal(SIGCHLD, finish);
 	child = fork();
 	if (child < 0) {
 		warn("fork");
-		fail();
+		done(1);
 	}
 	if (child == 0)
 		doshell(argv);
@@ -196,7 +195,8 @@ main(argc, argv)
 			start = tvec;
 		}
 	}
-	done();
+	finish();
+	done(0);
 }
 
 static void
@@ -208,19 +208,25 @@ usage()
 }
 
 void
-finish(signo)
-	int signo;
+finish()
 {
-	register int die, pid;
+	int die, e, pid;
 	union wait status;
 
-	die = 0;
+	die = e = 0;
 	while ((pid = wait3((int *)&status, WNOHANG, 0)) > 0)
-		if (pid == child)
+	        if (pid == child) {
 			die = 1;
+			if (WIFEXITED(status))
+				e = WEXITSTATUS(status);
+			else if (WIFSIGNALED(status))
+				e = WTERMSIG(status);
+			else /* can't happen */
+				e = 1;
+		}
 
 	if (die)
-		done();
+		done(e);
 }
 
 void
@@ -236,24 +242,26 @@ doshell(av)
 	(void)close(master);
 	(void)fclose(fscript);
 	login_tty(slave);
-	if (av[0])
+	if (av[0]) {
 		execvp(av[0], av);
-	else
+		warn(av[0]);
+	} else {
 		execl(shell, "sh", "-i", NULL);
-	warn(shell);
+		warn(shell);
+	}
 	fail();
 }
 
 void
 fail()
 {
-
 	(void)kill(0, SIGTERM);
-	done();
+	done(1);
 }
 
 void
-done()
+done(eno)
+	int eno;
 {
 	time_t tvec;
 
@@ -265,5 +273,5 @@ done()
 	}
 	(void)fclose(fscript);
 	(void)close(master);
-	exit(0);
+	exit(eno);
 }
