@@ -3,6 +3,7 @@
 #include "defs.h"
 
 #define DEFAULT_TIMEOUT	10	/* How long to wait before retrying requests */
+#define JAN_1970	2208988800	/* 1970 - 1900 in seconds */
 
 int     timeout = DEFAULT_TIMEOUT;
 
@@ -77,30 +78,12 @@ flag_type(type)
 }    
 
 int
-t_diff(a_sec, a_usec, b_sec, b_usec)
-    u_long a_sec, a_usec, b_sec, b_usec;
+t_diff(a, b)
+    u_long a, b;
 {
-    int d = a_sec - b_sec;
-    int ms = a_usec - b_usec;
+    int d = a - b;
 
-    if ((d < 0) ||
-	((d == 0) && (ms < 0))) {
-	d = b_sec - a_sec;
-	ms = b_usec - a_usec;
-    }
-
-    switch (d) {
-      case 0:
-	break;
-      case 2:
-	ms += 1000000;
-      case 1:
-	ms += 1000000;
-	break;
-      default:
-	ms += (1000000) * d;
-    }
-    return (ms/1000);
+    return ((d * 125) >> 13);
 }
 
 main(argc, argv)
@@ -109,7 +92,7 @@ char *argv[];
 {
     struct timeval tq;
     struct timezone tzp;
-    u_long resptime;
+    u_long querytime, resptime;
 
     int udp;
     struct sockaddr_in addr;
@@ -136,7 +119,14 @@ char *argv[];
     int i;
     int done = 0;
 
+    if (geteuid() != 0) {
+	fprintf(stderr, "must be root\n");
+	exit(1);
+    }
+
     argv++, argc--;
+
+    if (argc == 0) goto usage;
 
     while (argc > 0 && *argv[0] == '-') {
 	switch (argv[0][1]) {
@@ -260,6 +250,7 @@ usage:	printf("usage: mtrace -s <src> -g <grp> -d <dst> -n <# reports> \n");
      * set timer to calculate delays & send query
      */
     gettimeofday(&tq, &tzp);
+    querytime = ((tq.tv_sec + JAN_1970) << 16) + (tq.tv_usec << 10) / 15625;
 
     send_igmp(lcl_addr, dst, IGMP_MTRACE, qno,
 	      qgrp, datalen);
@@ -278,7 +269,7 @@ usage:	printf("usage: mtrace -s <src> -g <grp> -d <dst> -n <# reports> \n");
 	struct timezone tzp;
 
 	int     count, recvlen, dummy = 0;
-	register u_long src, dst, group, smask;
+	register u_long src, group, smask;
 	struct ip *ip;
 	struct igmp *igmp;
 	struct tr_resp *resp;
@@ -302,6 +293,9 @@ usage:	printf("usage: mtrace -s <src> -g <grp> -d <dst> -n <# reports> \n");
 	    printf("Timed out receiving responses\n");
 	    exit(1);
 	}
+
+	gettimeofday(&tq, &tzp);
+	resptime = ((tq.tv_sec + JAN_1970) << 16) + (tq.tv_usec << 10) / 15625;
 
 	recvlen = recvfrom(igmp_socket, recv_buf, sizeof(recv_buf),
 			   0, NULL, &dummy);
@@ -366,8 +360,9 @@ usage:	printf("usage: mtrace -s <src> -g <grp> -d <dst> -n <# reports> \n");
 	/*
 	 * print the responses out in reverse order (from src to dst)
 	 */
-	printf("src: <%s>  grp: <%s>  dst: <%s>\n\n", inet_fmt(qsrc, s1),
-	       inet_fmt(qgrp, s2), inet_fmt(qdst, s3));
+	printf("src: <%s>  grp: <%s>  dst: <%s>  rtt: %d ms\n\n",
+	       inet_fmt(qsrc, s1), inet_fmt(qgrp, s2), inet_fmt(qdst, s3),
+	       t_diff(resptime, querytime));
 
 	VAL_TO_MASK(smask, (resp+rno-1)->tr_smask);
 
@@ -376,19 +371,14 @@ usage:	printf("usage: mtrace -s <src> -g <grp> -d <dst> -n <# reports> \n");
 	else
 	    printf("     * * *\n");
 
-	resptime = 0;
 	while (rno--) {
 	    struct tr_resp *r = resp + rno;
 
 	    printf("          |          \n");
 	    printf("  %-15s  ", inet_fmt(r->tr_inaddr, s1));
 	    printf("ttl %d ", r->tr_fttl);
-	    printf("cum: %d ms ",
-		   t_diff(r->tr_qarr >> 16, (r->tr_qarr & 0xffff) << 4,
-			  tq.tv_sec & 0xffff, tq.tv_usec));
-	    printf("hop: %d ms ",
-		   t_diff(resptime >> 16, (resptime & 0xffff) << 4,
-		   	r->tr_qarr >> 16, (r->tr_qarr & 0xffff) << 4));
+	    printf("cum: %d ms ", t_diff(r->tr_qarr, querytime));
+	    printf("hop: %d ms ", t_diff(resptime, r->tr_qarr));
 	    printf("%s ", proto_type(r->tr_rproto));
 	    printf("%s\n", flag_type(r->tr_rflags));
 	    

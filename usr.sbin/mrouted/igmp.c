@@ -109,7 +109,6 @@ static char *packet_kind(type, code)
 void accept_igmp(recvlen)
     int recvlen;
 {
-    register vifi_t vifi;
     register u_long src, dst, group;
     struct ip *ip;
     struct igmp *igmp;
@@ -131,7 +130,7 @@ void accept_igmp(recvlen)
      * necessary to install a route into the kernel for this.
      */
     if (ip->ip_p == 0) {
-	if (src == NULL || dst == NULL)
+	if (src == 0 || dst == 0)
 	    log(LOG_WARNING, 0, "kernel request not accurate");
 	else
 	    add_table_entry(src, dst);
@@ -280,8 +279,12 @@ void send_igmp(src, dst, type, code, group, datalen)
     sdst.sin_addr.s_addr = dst;
     if (sendto(igmp_socket, send_buf, ip->ip_len, 0,
 			(struct sockaddr *)&sdst, sizeof(sdst)) < 0) {
-	if (errno == ENETDOWN) check_vif_state();
-	else log(LOG_WARNING, errno, "sendto on %s", inet_fmt(src, s1));
+	if (errno == ENETDOWN)
+	    check_vif_state();
+	else
+	    log(LOG_WARNING, errno,
+		"sendto to %s on %s",
+		inet_fmt(dst, s1), inet_fmt(src, s2));
     }
 
     if (dst == allhosts_group) k_set_loop(FALSE);
