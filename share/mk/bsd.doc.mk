@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.8 1995/01/11 00:00:11 wollman Exp $
+#	$Id: bsd.doc.mk,v 1.9 1995/01/11 02:06:58 wollman Exp $
 
 PRINTER?=	ps
 
@@ -81,7 +81,7 @@ cleandir: clean
 	cd ${.CURDIR}; rm -rf obj
 
 FILES?=	${SRCS}
-install:
+realinstall:
 	@if [ ! -d "${DESTDIR}${BINDIR}/${VOLUME}" ]; then \
                 /bin/rm -f ${DESTDIR}${BINDIR}/${VOLUME}  ; \
                 mkdir -p ${DESTDIR}${BINDIR}/${VOLUME}  ; \
@@ -92,6 +92,17 @@ install:
         fi
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${DOC}.${PRINTER} ${DESTDIR}${BINDIR}/${VOLUME}
+
+install:	beforeinstall realinstall afterinstall
+
+.if !target(beforeinstall)
+beforeinstall:
+
+.endif
+.if !target(afterinstall)
+afterinstall:
+
+.endif
 
 DISTRIBUTION?=	bindist
 .if !target(distribute)
