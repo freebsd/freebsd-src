@@ -1,4 +1,4 @@
-#	$Id: bsd.obj.mk,v 1.1 1996/03/24 16:37:36 wosch Exp wosch $
+#	$Id: bsd.obj.mk,v 1.1 1996/03/24 22:49:16 wosch Exp $
 
 # _SUBDIRUSE:
 # BSDSRCDIR?=/usr/src
@@ -34,5 +34,23 @@ obj:	_SUBDIRUSE cleanobj
 .endif
 .endif
 
-cleanobj:
+#
+# cleanup
+#
+cleanobj: 
 	rm -f -r ${.CURDIR}/${__objdir}
+
+cleanfiles:
+	rm -f a.out Errs errs mklog ${CLEANFILES} 
+
+# see bsd.dep.mk
+.if !target(cleandepend)
+cleandepend:
+.endif
+
+
+.if !target(clean)
+clean: _SUBDIRUSE cleanfiles
+.endif
+
+cleandir: _SUBDIRUSE cleanfiles cleandepend cleanobj
