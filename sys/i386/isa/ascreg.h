@@ -30,6 +30,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*
+ * $Id:$
+ */
+
     /***    Registers (base=3EB): ************/
 #define	ASC_CFG	(scu->base)
     /*** ASC_CFG 3EB: configuration register. Write only, mirror in RAM
