@@ -1,4 +1,4 @@
-/*	$Id: cmds.c,v 1.13 1998/01/09 13:45:11 msmith Exp $	*/
+/*	$Id: cmds.c,v 1.5.2.3 1998/01/28 02:27:54 msmith Exp $	*/
 /*	$NetBSD: cmds.c,v 1.30.2.1 1997/11/18 00:58:26 mellon Exp $	*/
 
 /*
@@ -39,7 +39,7 @@
 #if 0
 static char sccsid[] = "@(#)cmds.c	8.6 (Berkeley) 10/9/94";
 #else
-__RCSID("$Id: cmds.c,v 1.13 1998/01/09 13:45:11 msmith Exp $");
+__RCSID("$Id: cmds.c,v 1.5.2.3 1998/01/28 02:27:54 msmith Exp $");
 __RCSID_SOURCE("$NetBSD: cmds.c,v 1.30.2.1 1997/11/18 00:58:26 mellon Exp $");
 #endif
 #endif /* not lint */
@@ -1448,19 +1448,17 @@ quote1(initial, argc, argv)
 	int argc;
 	char *argv[];
 {
-	int i, len;
+	int i, len, len1;
 	char buf[BUFSIZ];		/* must be >= sizeof(line) */
 
-	(void)strncpy(buf, initial, sizeof(buf) - 1);
-	buf[sizeof(buf) - 1] = '\0';
-	if (argc > 1) {
-		len = strlen(buf);
-		len += strlen(strncpy(&buf[len], argv[1],
-		    sizeof(buf) - len - 1));
-		for (i = 2; i < argc && len < sizeof(buf); i++) {
-			buf[len++] = ' ';
-			len += strlen(strncpy(&buf[len], argv[i],
-			    sizeof(buf) - len) - 1);
+	len = snprintf(buf, sizeof(buf), "%s", initial);
+	if (len >= 0 && len < sizeof(buf)) {
+		for (i = 1; i < argc; i++) {
+			len1 = snprintf(&buf[len], sizeof(buf) - len,
+			    i == 1 ? "%s" : " %s", argv[i]);
+			if (len1 < 0 || len1 > sizeof(buf) - len)
+				break;
+			len += len1;
 		}
 	}
 	if (command(buf) == PRELIM) {
