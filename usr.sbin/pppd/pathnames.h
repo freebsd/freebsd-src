@@ -20,7 +20,7 @@
 #define _PATH_AUTHUP	"/etc/ppp/auth-up"
 #define _PATH_AUTHDOWN	"/etc/ppp/auth-down"
 #define _PATH_TTYOPT	"/etc/ppp/options."
-#define _PATH_CONNERRS	"/etc/ppp/connect-errors"
+#define _PATH_CONNERRS	"/var/log/connect-errors"
 #define _PATH_USEROPT	".ppprc"
 #define _PATH_PEERFILES	"/etc/ppp/peers/"
 #define _PATH_PPPDENY  "/etc/ppp/ppp.deny"
