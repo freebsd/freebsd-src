@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.54 1998/06/12 17:45:10 brian Exp $
+ * $Id: ipcp.c,v 1.55 1998/06/15 19:05:44 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -41,10 +41,10 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "defs.h"
 #include "command.h"
 #include "mbuf.h"
 #include "log.h"
-#include "defs.h"
 #include "timer.h"
 #include "fsm.h"
 #include "lcpproto.h"

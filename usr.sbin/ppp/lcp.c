@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.57 1998/05/21 21:46:00 brian Exp $
+ * $Id: lcp.c,v 1.58 1998/05/29 18:32:40 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -35,10 +35,10 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "defs.h"
 #include "command.h"
 #include "mbuf.h"
 #include "log.h"
-#include "defs.h"
 #include "timer.h"
 #include "fsm.h"
 #include "iplist.h"
