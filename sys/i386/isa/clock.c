@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.123 1998/06/07 20:36:39 phk Exp $
+ *	$Id: clock.c,v 1.124 1998/06/09 13:10:46 phk Exp $
  */
 
 /*
@@ -953,7 +953,7 @@ cpu_initclocks()
 	/* Finish initializing 8253 timer 0. */
 #ifdef APIC_IO
 
-	apic_8254_intr = isa_apic_pin(0);
+	apic_8254_intr = isa_apic_irq(0);
 	apic_8254_trial = 0;
 	if (apic_8254_intr >= 0 ) {
 		if (apic_int_type(0, 0) == 3)
@@ -993,7 +993,7 @@ cpu_initclocks()
 		printf("RTC BIOS diagnostic error %b\n", diag, RTCDG_BITS);
 
 #ifdef APIC_IO
-	if (isa_apic_pin(8) != 8)
+	if (isa_apic_irq(8) != 8)
 		panic("APIC RTC != 8");
 #endif /* APIC_IO */
 

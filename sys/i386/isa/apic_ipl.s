@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic_ipl.s,v 1.20 1998/04/22 22:49:29 tegge Exp $
+ *	$Id: apic_ipl.s,v 1.21 1998/08/11 15:08:12 bde Exp $
  */
 
 
@@ -227,7 +227,6 @@ bad_mask:	.asciz	"bad mask"
 #endif
 
 /*
- * MULTIPLE_IOAPICSXXX: cannot assume apic #0 in the following function.
  * (soon to be) MP-safe function to clear ONE INT mask bit.
  * The passed arg is a 32bit u_int MASK.
  * It sets the associated bit in _apic_imen.
@@ -244,10 +243,9 @@ ENTRY(INTREN)
 
 	QUALIFY_MASK
 
-	leal	16(,%ecx,2), %ecx	/* calculate register index */
-
-	movl	$0, %edx		/* XXX FIXME: APIC # */
-	movl	_ioapic(,%edx,4), %edx	/* %edx holds APIC base address */
+	shll	$4, %ecx
+	movl	CNAME(int_to_apicintpin) + 8(%ecx), %edx
+	movl	CNAME(int_to_apicintpin) + 12(%ecx), %ecx
 
 	movl	%ecx, (%edx)		/* write the target register index */
 	movl	16(%edx), %eax		/* read the target register data */
@@ -259,7 +257,6 @@ ENTRY(INTREN)
 	ret
 
 /*
- * MULTIPLE_IOAPICSXXX: cannot assume apic #0 in the following function.
  * (soon to be) MP-safe function to set ONE INT mask bit.
  * The passed arg is a 32bit u_int MASK.
  * It clears the associated bit in _apic_imen.
@@ -276,10 +273,9 @@ ENTRY(INTRDIS)
 
 	QUALIFY_MASK
 
-	leal	16(,%ecx,2), %ecx	/* calculate register index */
-
-	movl	$0, %edx		/* XXX FIXME: APIC # */
-	movl	_ioapic(,%edx,4), %edx	/* %edx holds APIC base address */
+	shll	$4, %ecx
+	movl	CNAME(int_to_apicintpin) + 8(%ecx), %edx
+	movl	CNAME(int_to_apicintpin) + 12(%ecx), %ecx
 
 	movl	%ecx, (%edx)		/* write the target register index */
 	movl	16(%edx), %eax		/* read the target register data */

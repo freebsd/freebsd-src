@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.42 1998/04/01 21:07:36 tegge Exp $
+ * $Id: smp.h,v 1.43 1998/05/17 22:12:05 tegge Exp $
  *
  */
 
@@ -103,6 +103,14 @@ extern u_int32_t		io_apic_versions[];
 extern int			cpu_num_to_apic_id[];
 extern int			io_num_to_apic_id[];
 extern int			apic_id_to_logical[];
+#define APIC_INTMAPSIZE 24
+struct apic_intmapinfo {
+  	int ioapic;
+	int int_pin;
+	volatile void *apic_address;
+	int redirindex;
+};
+extern struct apic_intmapinfo	int_to_apicintpin[];
 extern u_int			all_cpus;
 extern u_char			SMP_ioapic[];
 extern struct pcb		stoppcbs[];
@@ -113,9 +121,10 @@ int	mp_probe		__P((void));
 void	mp_start		__P((void));
 void	mp_announce		__P((void));
 u_int	isa_apic_mask		__P((u_int));
-int	isa_apic_pin		__P((int));
-int	pci_apic_pin		__P((int, int, int));
-int	next_apic_pin		__P((int));
+int	isa_apic_irq		__P((int));
+int	pci_apic_irq		__P((int, int, int));
+int	apic_irq		__P((int, int));
+int	next_apic_irq		__P((int));
 int	undirect_isa_irq	__P((int));
 int	undirect_pci_irq	__P((int));
 int	apic_bus_type		__P((int));
@@ -141,12 +150,7 @@ void	set_lapic_isrloc	__P((int, int));
 
 /* global data in mpapic.c */
 extern volatile lapic_t		lapic;
-
-#if defined(MULTIPLE_IOAPICS)
-#error MULTIPLE_IOAPICSXXX
-#else
 extern volatile ioapic_t	*ioapic[];
-#endif /* MULTIPLE_IOAPICS */
 
 /* functions in mpapic.c */
 void	apic_dump		__P((char*));

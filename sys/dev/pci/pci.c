@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.84 1998/07/22 08:40:46 dfr Exp $
+ * $Id: pci.c,v 1.85 1998/08/13 19:12:20 gibbs Exp $
  *
  */
 
@@ -343,7 +343,7 @@ pci_readcfg(pcicfgregs *probe)
 		if (cfg->intpin != 0) {
 			int airq;
 
-			airq = pci_apic_pin(cfg->bus, cfg->slot, cfg->intpin);
+			airq = pci_apic_irq(cfg->bus, cfg->slot, cfg->intpin);
 			if (airq >= 0) {
 				/* PCI specific entry found in MP table */
 				if (airq != cfg->intline) {
@@ -357,7 +357,7 @@ pci_readcfg(pcicfgregs *probe)
 				 * same methods as used by the ISA devices
 				 * devices to find the proper IOAPIC int pin.
 				 */
-				airq = isa_apic_pin(cfg->intline);
+				airq = isa_apic_irq(cfg->intline);
 				if ((airq >= 0) && (airq != cfg->intline)) {
 					/* XXX: undirect_pci_irq() ? */
 					undirect_isa_irq(cfg->intline);
