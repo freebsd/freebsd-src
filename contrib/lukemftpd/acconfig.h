@@ -1,4 +1,4 @@
-/* $Id: acconfig.h,v 1.9 2001/04/28 07:11:06 lukem Exp $ */
+/* $Id: acconfig.h,v 1.10 2002/05/23 02:42:55 lukem Exp $ */
 
 @TOP@
 @BOTTOM@
@@ -47,6 +47,9 @@
 
 /* Define if fclose() is declared in <stdio.h> */
 #undef HAVE_FCLOSE_D
+
+/* Define if FNM_CASEFOLD is declared in <fnmatch.h> */
+#undef HAVE_FNM_CASEFOLD
 
 /* Define if optarg is declared in <stdlib.h> or <unistd.h> */
 #undef HAVE_OPTARG_D
