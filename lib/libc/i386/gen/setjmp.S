@@ -54,8 +54,7 @@
 #include "DEFS.h"
 #include "SYS.h"
 
-ALTENTRY(setjmp)
-ENTRY(__setjmp)
+ENTRY(setjmp)
 	movl	4(%esp),%ecx
 	PIC_PROLOGUE
 	leal	28(%ecx), %eax
@@ -81,10 +80,12 @@ ENTRY(__setjmp)
 	xorl	%eax,%eax
 	ret
 
-#ifndef _THREAD_SAFE
-ALTENTRY(longjmp)
-#endif
+#ifdef _THREAD_SAFE
 ENTRY(__longjmp)
+#else
+ALTENTRY(__longjmp)
+ENTRY(longjmp)
+#endif
 	movl	4(%esp),%edx
 	PIC_PROLOGUE
 	pushl	$0			/* (sigset_t*)oset */
