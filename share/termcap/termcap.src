@@ -2597,8 +2597,7 @@ xterm-xf86-v32|xterm terminal emulator (X Window System):\
 xterm|vs100|xterm terminal emulator (X window system):\
 	:li#65:\
 	:kh=\EOH:@7=\EOF:kb=^H:kD=^?:\
-	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:\
-	:hs:km:ts=\E[?E\E[?%i%dT:fs=\E[?F:es:ds=\E[?E:\
+	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:km:\
 	:is=\E>\E[?1;3;4;5l\E[?7;8h\E[1;65r\E[65;1H:\
 	:rs=\E>\E[?1;3;4;5l\E[?7;8h:\
 	:tc=vt220:
