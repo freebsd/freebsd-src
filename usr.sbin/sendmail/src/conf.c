@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)conf.c	8.312 (Berkeley) 10/17/96";
+static char sccsid[] = "@(#)conf.c	8.315 (Berkeley) 11/10/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -1188,8 +1188,19 @@ init_md(argc, argv)
 	/* keep gethostby*() from stripping the local domain name */
 	set_domain_trim_off();
 #endif
-#if SECUREWARE
+#if SECUREWARE || defined(_SCO_unix_)
 	set_auth_parameters(argc, argv);
+
+# ifdef _SCO_unix_
+	/*
+	**  This is required for highest security levels (the kernel
+	**  won't let it call set*uid() or run setuid binaries without
+	**  it).  It may be necessary on other SECUREWARE systems.
+	*/
+
+	if (getluid() == -1)
+		setluid(0);
+# endif
 #endif
 
 #ifdef VENDOR_DEFAULT
@@ -1245,6 +1256,8 @@ init_vendor_macros(e)
 #define LA_DGUX		9	/* special DGUX implementation */
 #define LA_HPUX		10	/* special HPUX implementation */
 #define LA_IRIX6	11	/* special IRIX 6.2 implementation */
+#define LA_KSTAT	12	/* special Solaris kstat(3k) implementation */
+#define LA_DEVSHORT	13	/* read short from a device */
 
 /* do guesses based on general OS type */
 #ifndef LA_TYPE
@@ -1780,8 +1793,100 @@ int getla(void)
 }
 #endif
 
+#if LA_TYPE == LA_KSTAT
+
+#include <kstat.h>
+
+int
+getla()
+{
+	kstat_ctl_t *kc;
+	kstat_t *ksp;
+	kstat_named_t *ksn;
+	int la;
+
+	kc = kstat_open();
+	if (kc == NULL)
+	{
+		if (tTd(3, 1))
+			printf("getla: kstat_open(): %s\n",
+				errstring(errno));
+		return -1;
+	}
+	ksp = kstat_lookup(kc, "unix", 0, "system_misc"); /* NULL on error */
+	if (ksp == NULL)
+	{
+		if (tTd(3, 1))
+			printf("getla: kstat_lookup(): %s\n",
+				errstring(errno);
+		return -1;
+	}
+	if (kstat_read(kc, ksp, NULL) < 0)
+	{
+		if (tTd(3, 1))
+			printf("getla: kstat_read(): %s\n",
+				errstring(errno);
+		return -1;
+	}
+	ksn = (kstat_named_t *) kstat_data_lookup(ksp, "avenrun_1min");
+	la = (ksn->value.ul + FSCALE/2) >> FSHIFT;
+	kstat_close(kc);
+	return la;
+}
+
+#endif /* LA_TYPE == LA_KSTAT */
+
+#if LA_TYPE == LA_DEVSHORT
+
+/*
+**  Read /dev/table/avenrun for the load average.  This should contain
+**  three shorts for the 1, 5, and 15 minute loads.  We only read the
+**  first, since that's all we care about.
+**
+**	Intended for SCO OpenServer 5.
+*/
+
+# ifndef _PATH_AVENRUN
+#  define _PATH_AVENRUN	"/dev/table/avenrun"
+# endif
+
+int
+getla()
+{
+	static int afd = -1;
+	short avenrun;
+	int loadav;
+	int r;
+
+	errno = EBADF;
+
+	if (afd == -1 || lseek(afd, 0L, SEEK_SET) == -1)
+	{
+		if (errno != EBADF)
+			return -1;
+		afd = open(_PATH_AVENRUN, O_RDONLY|O_SYNC);
+		if (afd < 0)
+		{
+			syslog(LOG_ERR, "can't open %s: %m", _PATH_AVENRUN);
+			return -1;
+		}
+	}
+
+	r = read(afd, &avenrun, sizeof avenrun);
+
+	if (tTd(3, 5))
+		printf("getla: avenrun = %d\n", avenrun);
+	loadav = (int) (avenrun + FSCALE/2) >> FSHIFT;
+	if (tTd(3, 1))
+		printf("getla: %d\n", loadav);
+	return loadav;
+}
+
+#endif /* LA_TYPE == LA_DEVSHORT */
+
 #if LA_TYPE == LA_ZERO
 
+int
 getla()
 {
 	if (tTd(3, 1))
@@ -1941,8 +2046,10 @@ refuseconnections(port)
 			syslog(LOG_INFO, "rejecting connections on port %d: load average: %d",
 				port, CurrentLA);
 #endif
+		return TRUE;
 	}
-	else if (!enoughdiskspace(MinBlocksFree + 1))
+
+	if (!enoughdiskspace(MinBlocksFree + 1))
 	{
 		setproctitle("rejecting connections on port %d: min free: %d",
 			port, MinBlocksFree);
@@ -1951,20 +2058,26 @@ refuseconnections(port)
 			syslog(LOG_INFO, "rejecting connections on port %d: min free: %d",
 				port, MinBlocksFree);
 #endif
+		return TRUE;
 	}
-	else if (MaxChildren > 0 && CurChildren >= MaxChildren)
+
+	if (MaxChildren > 0 && CurChildren >= MaxChildren)
 	{
-		setproctitle("rejecting connections on port %d: %d children, max %d",
-			port, CurChildren, MaxChildren);
-#ifdef LOG
-		if (LogLevel >= 14)
-			syslog(LOG_INFO, "rejecting connections on port %d: %d children, max %d",
+		proc_list_probe();
+		if (CurChildren >= MaxChildren)
+		{
+			setproctitle("rejecting connections on port %d: %d children, max %d",
 				port, CurChildren, MaxChildren);
+#ifdef LOG
+			if (LogLevel >= 14)
+				syslog(LOG_INFO, "rejecting connections on port %d: %d children, max %d",
+					port, CurChildren, MaxChildren);
 #endif
+			return TRUE;
+		}
 	}
-	else
-		return FALSE;
-	return TRUE;
+
+	return FALSE;
 }
 /*
 **  SETPROCTITLE -- set process title for ps

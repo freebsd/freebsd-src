@@ -36,9 +36,9 @@
 
 #ifndef lint
 #if NAMED_BIND
-static char sccsid[] = "@(#)domain.c	8.63 (Berkeley) 9/15/96 (with name server)";
+static char sccsid[] = "@(#)domain.c	8.64 (Berkeley) 10/30/96 (with name server)";
 #else
-static char sccsid[] = "@(#)domain.c	8.63 (Berkeley) 9/15/96 (without name server)";
+static char sccsid[] = "@(#)domain.c	8.64 (Berkeley) 10/30/96 (without name server)";
 #endif
 #endif /* not lint */
 
@@ -48,10 +48,23 @@ static char sccsid[] = "@(#)domain.c	8.63 (Berkeley) 9/15/96 (without name serve
 #include <resolv.h>
 #include <arpa/inet.h>
 
+/*
+**  The standard udp packet size PACKETSZ (512) is not sufficient for some
+**  nameserver answers containing very many resource records. The resolver
+**  may switch to tcp and retry if it detects udp packet overflow.
+**  Also note that the resolver routines res_query and res_search return
+**  the size of the *un*truncated answer in case the supplied answer buffer
+**  it not big enough to accommodate the entire answer.
+*/
+
+#ifndef MAXPACKET
+# define MAXPACKET 8192		/* max packet size used internally by BIND */
+#endif
+
 typedef union
 {
 	HEADER	qb1;
-	u_char	qb2[PACKETSZ];
+	u_char	qb2[MAXPACKET];
 } querybuf;
 
 #ifndef MXHOSTBUFSIZE
@@ -205,6 +218,10 @@ getmxrr(host, mxhosts, droplocalhost, rcode)
 		/* irreconcilable differences */
 		return (-1);
 	}
+
+	/* avoid problems after truncation in tcp packets */
+	if (n > sizeof(answer))
+		n = sizeof(answer);
 
 	/* find first satisfactory answer */
 	hp = (HEADER *)&answer;
@@ -515,7 +532,7 @@ dns_getcanonname(host, hbsize, trymx, statp)
 	int qtype;
 	int loopcnt;
 	char *xp;
-	char nbuf[MAX(PACKETSZ, MAXDNAME*2+2)];
+	char nbuf[MAX(MAXPACKET, MAXDNAME*2+2)];
 	char *searchlist[MAXDNSRCH+2];
 	extern char *gethostalias();
 
@@ -647,6 +664,10 @@ cnameloop:
 		}
 		else if (tTd(8, 7))
 			printf("\tYES\n");
+
+		/* avoid problems after truncation in tcp packets */
+		if (ret > sizeof(answer))
+			ret = sizeof(answer);
 
 		/*
 		**  Appear to have a match.  Confirm it by searching for A or
