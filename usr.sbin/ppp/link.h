@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.h,v 1.4 1998/08/25 17:48:42 brian Exp $
+ *  $Id: link.h,v 1.5 1999/05/08 11:07:00 brian Exp $
  *
  */
 
@@ -36,6 +36,7 @@
 
 struct bundle;
 struct prompt;
+struct cmdargs;
 
 struct link {
   int type;                               /* _LINK type */
@@ -73,3 +74,4 @@ extern void link_EmptyStack(struct link *);
 #define PROTO_OUT 2
 extern void link_ProtocolRecord(struct link *, u_short, int);
 extern void link_ReportProtocolStatus(struct link *, struct prompt *);
+extern int link_ShowLayers(struct cmdargs const *);
