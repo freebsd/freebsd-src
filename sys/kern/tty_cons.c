@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.45 1996/03/28 15:03:41 bde Exp $
+ *	$Id: cons.c,v 1.46 1996/05/01 03:32:46 bde Exp $
  */
 
 #include <sys/param.h>
@@ -297,7 +297,7 @@ int
 cncheckc()
 {
 	if (cn_tab == NULL)
-		return (0);
+		return (-1);
 	return ((*cn_tab->cn_checkc)(cn_tab->cn_dev));
 }
 
