@@ -70,6 +70,9 @@
 #ifdef IPX
 #include <netipx/ipx.h>
 #include <netipx/ipx_if.h>
+int (*ef_inputp)(struct ifnet*, struct ether_header *eh, struct mbuf *m);
+int (*ef_outputp)(struct ifnet *ifp, struct mbuf *m,
+		struct sockaddr *dst, short *tp);
 #endif
 
 #ifdef NS
@@ -233,7 +236,14 @@ ether_output(ifp, m0, dst, rt0)
 #endif
 #ifdef IPX
 	case AF_IPX:
-		type = htons(ETHERTYPE_IPX);
+		if (ef_outputp) {
+		    error = ef_outputp(ifp, m, dst, &type);
+		    if (error < 0)
+			senderr(EPFNOSUPPORT);
+		    if (error > 0)
+			type = htons(ETHERTYPE_IPX);
+		} else
+		    type = htons(ETHERTYPE_IPX);
  		bcopy((caddr_t)&(((struct sockaddr_ipx *)dst)->sipx_addr.x_host),
 		    (caddr_t)edst, sizeof (edst));
 		break;
@@ -543,6 +553,8 @@ ether_input(ifp, eh, m)
 #endif
 #ifdef IPX
 	case ETHERTYPE_IPX:
+		if (ef_inputp && ef_inputp(ifp, eh, m) == 0)
+			return;
 		schednetisr(NETISR_IPX);
 		inq = &ipxintrq;
 		break;
@@ -571,6 +583,10 @@ ether_input(ifp, eh, m)
                 return;
 #endif NETATALK
 	default:
+#ifdef IPX
+		if (ef_inputp && ef_inputp(ifp, eh, m) == 0)
+			return;
+#endif /* IPX */
 #ifdef NS
 		checksum = mtod(m, ushort *);
 		/* Novell 802.3 */
