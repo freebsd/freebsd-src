@@ -171,7 +171,7 @@ static const struct uscan_info uscanner_devs[] = {
  {{ USB_VENDOR_VISIONEER, USB_PRODUCT_VISIONEER_8100 }, 0 },
  {{ USB_VENDOR_VISIONEER, USB_PRODUCT_VISIONEER_8600 }, 0 },
 };
-#define uscanner_lookup(v, p) ((struct uscan_info *)usb_lookup(uscanner_devs, v, p))
+#define uscanner_lookup(v, p) ((const struct uscan_info *)usb_lookup(uscanner_devs, v, p))
 
 #define	USCANNER_BUFFERSIZE	1024
 
