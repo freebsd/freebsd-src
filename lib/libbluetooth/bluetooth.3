@@ -33,19 +33,15 @@
 .Nm bt_gethostbyaddr ,
 .Nm bt_gethostent ,
 .Nm bt_sethostent ,
-.Nm bt_endhostent
-.Nd get Bluetooth host entry
-.Pp
+.Nm bt_endhostent ,
 .Nm bt_getprotobyname ,
 .Nm bt_getprotobynumber ,
 .Nm bt_getprotoent ,
 .Nm bt_setprotoent ,
-.Nm bt_endprotoent
-.Nd get Bluetooth Protocol Service Multiplexor entry
-.Pp
+.Nm bt_endprotoent ,
 .Nm bt_aton ,
 .Nm bt_ntoa
-.Nd Bluetooth address manipulation routines
+.Nd Bluetooth routines
 .Sh LIBRARY
 .Lb libbluetooth
 .Sh SYNOPSIS
@@ -101,7 +97,7 @@ should point to an address which is
 .Fa len
 bytes long,
 in binary form
-(i.e., not an Bluetooth BD_ADDR in human readable
+(i.e., not a Bluetooth BD_ADDR in human readable
 .Tn ASCII
 form).
 The
@@ -191,7 +187,7 @@ string representing the address into the buffer provided.
 It is up to the caller to ensure that provided buffer has enough space.
 If no buffer was provided then internal static buffer will be used.
 .Sh FILES
-.Bl -tag -width /etc/bluetooth/hosts -compact
+.Bl -tag -width ".Pa /etc/bluetooth/hosts" -compact
 .It Pa /etc/bluetooth/hosts
 .It Pa /etc/bluetooth/protocols
 .El
@@ -225,7 +221,7 @@ The external integer
 may then be checked to see whether this is a temporary failure
 or an invalid or unknown host.
 The routine
-.Fn herror
+.Xr herror 3
 can be used to print an error message describing the failure.
 If its argument
 .Fa string
@@ -237,7 +233,7 @@ The error message is printed with a trailing newline.
 The variable
 .Va h_errno
 can have the following values:
-.Bl -tag -width HOST_NOT_FOUND
+.Bl -tag -width ".Dv HOST_NOT_FOUND"
 .It Dv HOST_NOT_FOUND
 No such host is known.
 .It Dv NO_RECOVERY
@@ -250,9 +246,9 @@ The
 .Fn bt_getprotobyname
 and
 .Fn bt_getprotobynumber
-return Null pointer (0) on
-.Dv EOF
-or error.
+return
+.Dv NULL
+on EOF or error.
 .Sh SEE ALSO
 .Xr gethostbyaddr 3 ,
 .Xr gethostbyname 3 ,
