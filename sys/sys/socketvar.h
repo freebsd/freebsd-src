@@ -44,28 +44,25 @@
  */
 typedef	u_quad_t so_gen_t;
 
-/*
- * List of locks:
- * (c)	const, inited in either socreate() or sonewconn()
- * (m)	sb_mtx mutex
- * (mr)	so_rcv.sb_mtx mutex
- * (sg)	sigio_lock sx
- * (sh)	sohead_lock sx
- *
- * Lock of so_rcv.sb_mtx can duplicate, provided that sohead_lock
- * is exclusively locked.
- *
- * Brackets mean that this data is not protected yet.
+/*-
+ * Locking key to struct socket:
+ * (a) constant after allocation, no locking required.
+ * (b) locked by SOCK_LOCK(so).
+ * (c) locked by SOCKBUF_LOCK(&so->so_rcv).
+ * (d) locked by SOCKBUF_LOCK(&so->so_snd).
+ * (e) locked by ACCEPT_LOCK().
+ * (f) not locked since integer reads/writes are atomic.
+ * (g) used only as a sleep/wakeup address, no value.
  */
 struct socket {
 	int	so_count;		/* reference count */
-	short	so_type;		/* generic type, see socket.h */
+	short	so_type;		/* (a) generic type, see socket.h */
 	short	so_options;		/* from socket call, see socket.h */
 	short	so_linger;		/* time to linger while closing */
-	short	so_state;		/* internal state flags SS_*, below */
+	short	so_state;		/* internal state flags SS_* */
 	int	so_qstate;		/* internal state flags SQ_* */
 	void	*so_pcb;		/* protocol control block */
-	struct	protosw *so_proto;	/* protocol handle */
+	struct	protosw *so_proto;	/* (a) protocol handle */
 /*
  * Variables for connection queuing.
  * Socket where accepts occur is so_head in all subsidiary sockets.
