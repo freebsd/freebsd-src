@@ -40,7 +40,7 @@
  *	Naofumi HONDA.  All rights reserved.
  */
 
-#include <machine/asm.h>
+#include <machine/asmacros.h>
 
 #include "assym.s"
 
