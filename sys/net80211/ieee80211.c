@@ -103,6 +103,21 @@ ieee80211_remove_vap(struct ieee80211com *ic)
 	mtx_unlock(&ieee80211_vap_mtx);
 }
 
+/*
+ * Default reset method for use with the ioctl support.  This
+ * method is invoked after any state change in the 802.11
+ * layer that should be propagated to the hardware but not
+ * require re-initialization of the 802.11 state machine (e.g
+ * rescanning for an ap).  We always return ENETRESET which
+ * should cause the driver to re-initialize the device. Drivers
+ * can override this method to implement more optimized support.
+ */
+static int
+ieee80211_default_reset(struct ifnet *ifp)
+{
+	return ENETRESET;
+}
+
 void
 ieee80211_ifattach(struct ieee80211com *ic)
 {
@@ -181,6 +196,13 @@ ieee80211_ifattach(struct ieee80211com *ic)
 	ieee80211_add_vap(ic);
 
 	ieee80211_sysctl_attach(ic);		/* NB: requires ic_vap */
+
+	/*
+	 * Install a default reset method for the ioctl support.
+	 * The driver is expected to fill this in before calling us.
+	 */
+	if (ic->ic_reset == NULL)
+		ic->ic_reset = ieee80211_default_reset;
 }
 
 void
