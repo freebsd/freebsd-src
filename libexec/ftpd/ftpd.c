@@ -2526,7 +2526,7 @@ renamefrom(char *name)
 	}
 	if (lstat(name, &st) < 0) {
 		perror_reply(550, name);
-		return ((char *)0);
+		return (NULL);
 	}
 	reply(350, "File exists, ready for destination name");
 	return (name);
