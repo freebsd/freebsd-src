@@ -1,4 +1,4 @@
-/*	$Id: ppp_deflate.c,v 1.9 1998/03/25 14:28:28 peter Exp $	*/
+/*	$Id: ppp_deflate.c,v 1.10 1998/06/20 16:28:03 peter Exp $	*/
 
 /*
  * ppp_deflate.c - interface the zlib procedures for Deflate compression
@@ -329,11 +329,8 @@ z_compress(arg, mret, mp, orig_len, maxolen)
 
     /*
      * See if we managed to reduce the size of the packet.
-     * If the compressor just gave us a single zero byte, it means
-     * the packet was incompressible.
      */
-    if (m != NULL && olen < orig_len
-	&& !(olen == PPP_HDRLEN + 3 && *wptr == 0)) {
+    if (m != NULL && olen < orig_len) {
 	state->stats.comp_bytes += olen;
 	state->stats.comp_packets++;
     } else {
