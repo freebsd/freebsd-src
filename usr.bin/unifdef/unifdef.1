@@ -40,17 +40,16 @@
 .Dt UNIFDEF 1
 .Os
 .Sh NAME
-.Nm unifdef ,
-.Nm unifdefall
+.Nm unifdef , unifdefall
 .Nd remove preprocessor conditionals from code
 .Sh SYNOPSIS
 .Nm
 .Op Fl clst
 .Oo
 .Fl I Ns Ar path
-.Fl D Ns Ar sym Ns Oo = Ns Ar val Oc
+.Fl D Ns Ar sym Ns Op = Ns Ar val
 .Fl U Ns Ar sym
-.Fl iD Ns Ar sym Ns Oo = Ns Ar val Oc
+.Fl iD Ns Ar sym Ns Op = Ns Ar val
 .Fl iU Ns Ar sym
 .Oc
 .Ar ...
@@ -73,43 +72,31 @@ while otherwise leaving the file alone.
 The
 .Nm
 utility acts on
-.Li #if ,
-.Li #ifdef ,
-.Li #ifndef ,
-.Li #elif ,
-.Li #else ,
+.Ic #if , #ifdef , #ifndef , #elif , #else ,
 and
-.Li #endif
+.Ic #endif
 lines,
 and it understands only the commonly-used subset
 of the expression syntax for
-.Li #if
+.Ic #if
 and
-.Li #elif
+.Ic #elif
 lines.
 Integer values of symbols defined on the command line,
 the
 .Fn defined
 operator applied to symbols defined or undefined on the command line,
 the operators
-.Li ! ,
-.Li < ,
-.Li > ,
-.Li <= ,
-.Li >= ,
-.Li == ,
-.Li != ,
-.Li && ,
-.Li || ,
+.Ic \&! , < , > , <= , >= , == , != , && , || ,
 and parenthesized expressions
 are handled,
 and anything more complicated is passed through unharmed.
-.Li #ifdef
+.Ic #ifdef
 and
-.Li #ifndef
+.Ic #ifndef
 directives are only processed
 if the symbol is specified on the command line,
-otherwise they are also passed though unchanged.
+otherwise they are also passed through unchanged.
 .Pp
 The
 .Nm
@@ -131,24 +118,24 @@ can be used to remove all conditional
 .Xr cpp 1
 directives from a file.
 It uses
-.Li unifdef -s
+.Nm Fl s
 and
-.Li cpp -dM
+.Nm cpp Fl dM
 to get lists of all the controlling symbols
 and their definitions (or lack thereof),
 then invokes
-.Li unifdef
+.Nm
 with appropriate arguments to process the file.
 .Pp
 Available options:
-.Bl -tag -width Ds
-.It Fl D Ns Ar sym Ns Oo = Ns Ar val Oc
+.Bl -tag -width indent -compact
+.It Fl D Ns Ar sym Ns Op = Ns Ar val
 Specify that a symbol is defined,
 and optionally specify what value to give it
 for the purpose of handling
-.Li #if
+.Ic #if
 and
-.Li #elif
+.Ic #elif
 directives.
 .Pp
 .It Fl U Ns Ar sym
@@ -163,7 +150,7 @@ flag is specified,
 then the operation of
 .Nm
 is complemented,
-i.e. the lines that would have been removed or blanked
+i.e., the lines that would have been removed or blanked
 are retained and vice versa.
 .Pp
 .It Fl l
@@ -190,23 +177,27 @@ command lines.
 Disables parsing for C comments and quotes, which is useful
 for plain text.
 .Pp
-.It Fl iD Ns Ar sym Ns Oo = Ns Ar val Oc
+.It Fl iD Ns Ar sym Ns Op = Ns Ar val
 .It Fl iU Ns Ar sym
-Ignore ifdefs.
-If your C code uses ifdefs to delimit non-C lines,
+Ignore
+.Ic #ifdef Ns s .
+If your C code uses
+.Ic #ifdef Ns s
+to delimit non-C lines,
 such as comments
 or code which is under construction,
 then you must tell
 .Nm
-which symbols are used for that purpose so that it won't try to parse
+which symbols are used for that purpose so that it will not try to parse
 for quotes and comments
-inside those ifdefs.
+inside those
+.Ic #ifdef Ns s .
 One specifies ignored symbols with
 .Fl iD Ns Ar sym Ns Oo = Ns Ar val Oc
 and
 .Fl iU Ns Ar sym
 similar to
-.Fl D Ns Ar sym Ns Oo = Ns Ar val Oc
+.Fl D Ns Ar sym Ns Op = Ns Ar val
 and
 .Fl U Ns Ar sym
 above.
@@ -215,7 +206,7 @@ above.
 Specifies to
 .Nm unifdefall
 an additional place to look for
-.Li #include
+.Ic #include
 files.
 This option is ignored by
 .Nm
@@ -245,21 +236,24 @@ option of
 .Xr cpp 1 ,
 .Xr diff 1
 .Sh DIAGNOSTICS
-.Bl -item -compact
+.Bl -item
 .It
 Inappropriate elif, else or endif.
 .It
 Premature
 .Tn EOF
 with line numbers of the unterminated
-.Li #ifdefs .
+.Ic #ifdef Ns s .
 .El
 .Pp
-Exit status is 0 if output is exact copy of input, 1 if not, 2 if trouble.
+The
+.Nm
+utility exits 0 if the output is an exact copy of the input,
+1 if not, and 2 if in trouble.
 .Sh BUGS
 Expression evaluation is very limited.
 .Pp
-Doesn't work correctly if input contains null characters.
+Does not work correctly if input contains null characters.
 .Sh HISTORY
 The
 .Nm
