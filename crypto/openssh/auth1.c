@@ -223,6 +223,7 @@ do_authloop(struct passwd * pw)
 			if (!options.krb4_authentication) {
 				/* packet_get_all(); */
 				verbose("Kerberos v4 authentication disabled.");
+				break;
 			} else {
 				/* Try Kerberos v4 authentication. */
 				KTEXT_ST auth;
