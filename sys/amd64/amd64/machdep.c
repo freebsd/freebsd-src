@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.161 1995/12/19 14:30:26 davidg Exp $
+ *	$Id: machdep.c,v 1.162 1995/12/22 18:17:34 bde Exp $
  */
 
 #include "npx.h"
@@ -479,6 +479,7 @@ static struct cpu_nameclass i386_cpus[] = {
 	{ "i486DX",		CPUCLASS_486 },		/* CPU_486   */
 	{ "Pentium",		CPUCLASS_586 },		/* CPU_586   */
 	{ "Cy486DLC",		CPUCLASS_486 },		/* CPU_486DLC */
+	{ "Pentium Pro",	CPUCLASS_686 },		/* CPU_686 */
 };
 
 static void
@@ -494,12 +495,12 @@ identifycpu()
 		panic("startup: bad cpu id");
 	}
 
-#if defined(I586_CPU)
-	if(cpu_class == CPUCLASS_586) {
+#if defined(I586_CPU) || defined(I686_CPU)
+	if (cpu_class == CPUCLASS_586 || cpu_class == CPUCLASS_686) {
 		calibrate_cyclecounter();
 	}
 #endif
-#if defined(I486_CPU) || defined(I586_CPU)
+#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	if (!strcmp(cpu_vendor,"GenuineIntel")) {
 		if ((cpu_id & 0xf00) > 3) {
 			cpu_model[0] = '\0';
@@ -512,14 +513,20 @@ identifycpu()
 				strcpy(cpu_model, "Dual ");
 				break;
 			}
-			if ((cpu_id & 0xf00) == 0x400) {
+
+			switch (cpu_id & 0xf00) {
+			case 0x400:
 				strcat(cpu_model, "i486 ");
-#if defined(I586_CPU)
-			} else if ((cpu_id & 0xf00) == 0x500) {
+				break;
+			case 0x500:
 				strcat(cpu_model, "Pentium"); /* nb no space */
-#endif
-			} else {
-				strcat(cpu_model, "unknown ");
+				break;
+			case 0x600:
+				strcat(cpu_model, "Pentium Pro");
+				break;
+			default:
+				strcat(cpu_model, "unknown");
+				break;
 			}
 
 			switch (cpu_id & 0xff0) {
@@ -540,18 +547,7 @@ identifycpu()
 				break;
 			case 0x480:
 				strcat(cpu_model, "DX4"); break;
-#if defined(I586_CPU)
-			case 0x510:
-			case 0x520:
-				/*
-				 * We used to do all sorts of nonsense here
-				 * to print out iCOMP numbers.  Since these
-				 * are meaningless except to Intel
-				 * marketroids, there seems to be little
-				 * sense in doing so.
-				 */
 				break;
-#endif
 			}
 		}
 	}
@@ -579,11 +575,19 @@ identifycpu()
 		printf("586");
 		break;
 #endif
+#if defined(I686_CPU)
+	case CPUCLASS_686:
+		printf("%d.%02d-MHz ",
+		       ((100 * i586_ctr_rate) >> I586_CTR_RATE_SHIFT) / 100,
+		       ((100 * i586_ctr_rate) >> I586_CTR_RATE_SHIFT) % 100);
+		printf("686");
+		break;
+#endif
 	default:
 		printf("unknown");	/* will panic below... */
 	}
 	printf("-class CPU)\n");
-#if defined(I486_CPU) || defined(I586_CPU)
+#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	if(*cpu_vendor)
 		printf("  Origin = \"%s\"",cpu_vendor);
 	if(cpu_id)
@@ -606,7 +610,7 @@ identifycpu()
 	 */
 	switch (cpu_class) {
 	case CPUCLASS_286:	/* a 286 should not make it this far, anyway */
-#if !defined(I386_CPU) && !defined(I486_CPU) && !defined(I586_CPU)
+#if !defined(I386_CPU) && !defined(I486_CPU) && !defined(I586_CPU) && !defined(I686_CPU)
 #error This kernel is not configured for one of the supported CPUs
 #endif
 #if !defined(I386_CPU)
@@ -616,6 +620,9 @@ identifycpu()
 	case CPUCLASS_486:
 #endif
 #if !defined(I586_CPU)
+	case CPUCLASS_586:
+#endif
+#if !defined(I686_CPU)
 	case CPUCLASS_586:
 #endif
 		panic("CPU class not configured");

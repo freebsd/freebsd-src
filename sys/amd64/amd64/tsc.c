@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.41 1995/12/14 23:01:51 bde Exp $
+ *	$Id: clock.c,v 1.42 1995/12/20 20:57:33 wollman Exp $
  */
 
 /*
@@ -93,7 +93,7 @@
 int	adjkerntz = 0;		/* offset from CMOS clock */
 int	disable_rtc_set	= 0;	/* disable resettodr() if != 0 */
 u_int	idelayed;
-#ifdef I586_CPU
+#if defined(I586_CPU) || defined(I686_CPU)
 unsigned	i586_ctr_rate;
 long long	i586_ctr_bias;
 long long	i586_last_tick;
@@ -280,7 +280,7 @@ getit(void)
 	return ((high << 8) | low);
 }
 
-#ifdef I586_CPU
+#if defined(I586_CPU) || defined(I686_CPU)
 /*
  * Figure out how fast the cyclecounter runs.  This must be run with
  * clock interrupts disabled, but with the timer/counter programmed
@@ -569,7 +569,7 @@ cpu_initclocks()
 		      /* XXX */ (inthand2_t *)clkintr, &clk_imask,
 		      /* unit */ 0);
 	INTREN(IRQ0);
-#ifdef I586_CPU
+#if defined(I586_CPU) || defined(I686_CPU)
 	/*
 	 * Finish setting up anti-jitter measures.
 	 */
