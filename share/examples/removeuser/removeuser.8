@@ -1,0 +1,105 @@
+.\" Copyright 1995, 1996
+.\"     Guy Helmer, Madison, South Dakota 57042.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Guy Helmer.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY GUY HELMER ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL GUY HELMER BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	$Id$
+.\"
+.Dd June 28, 1996
+.Dt REMOVEUSER 8
+.Os
+.Sh NAME
+.Nm removeuser
+.Nd remove users from the system
+.Sh SYNOPSIS
+.Nm removeuser
+.Op Ar username
+.Sh DESCRIPTION
+The utility
+.Nm removeuser
+removes a user's 
+.Xr crontab 1
+entry (if any) and any 
+.Xr at 1
+jobs belonging to the user,
+then removes a user from the system's local password file, removes
+the user's home directory if it is owned by the user, and removes
+the user's incoming mail file if it exists.  The username is removed
+from any groups to which it belongs in the file
+.Pa /etc/group .
+If a group becomes empty and the group name is the same as the username,
+the group is removed (this complements
+.Xr adduser 8 's
+per-user unique groups).
+.Pp
+.Nm removeuser
+politely refuses to remove users whose uid is 0 (typically root), since
+it seemed like a good idea at the time
+.Nm removeuser
+was written.
+.Pp
+.Nm removeuser
+shows the selected user's password file entry and asks for confirmation
+that you wish to remove the user.  If the user's home directory is owned
+by the user (and not by any other user),
+.Nm removeuser
+asks whether you wish to remove the user's home directory and everything
+below.
+.Pp
+Available options:
+.Pp
+.Bl -tag -width username
+.It Ar \&username
+Identifies the user to be removed; if not present,
+.Nm removeuser
+interactively asks for the user to be removed.
+.Sh FILES
+.Bl -tag -width /etc/master.passwd -compact
+.It Pa /etc/master.passwd
+.It Pa /etc/passwd
+.It Pa /etc/group
+.It Pa /etc/spwd.db
+.It Pa /etc/pwd.db
+.El
+.Sh SEE ALSO
+.Xr at 1 ,
+.Xr chpass 1 ,
+.Xr crontab 1 ,
+.Xr finger 1 ,
+.Xr passwd 1 ,
+.Xr group 5 ,
+.Xr passwd 5 ,
+.Xr adduser 8 ,
+.Xr pwd_mkdb 8 ,
+.Xr vipw 8
+.Sh HISTORY
+The
+.Nm
+command appeared in FreeBSD 2.1.5
+
+.\" .Sh AUTHOR
+.\" Guy Helmer, Madison, South Dakota
