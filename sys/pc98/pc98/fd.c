@@ -47,7 +47,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.58 1999/05/07 07:03:42 phk Exp $
+ *	$Id: fd.c,v 1.59 1999/05/07 10:11:14 phk Exp $
  *
  */
 
@@ -116,12 +116,6 @@
 
 /* internally used only, not really from CMOS: */
 #define RTCFDT_144M_PRETENDED	0x1000
-
-/*
- * this biotab field doubles as a field for the physical unit number
- * on the controller
- */
-#define id_physid id_scsiid
 
 /* error returns for fd_cmd() */
 #define FD_FAILED -1
@@ -779,8 +773,8 @@ fdc_probe(device_t dev)
 		goto out;
 	}
 	fdc->dmachan = fdc->res_drq->r_start;
-	error = BUS_SETUP_INTR(device_get_parent(dev), dev,
-			       fdc->res_irq, fdc_intr, fdc, &fdc->fdc_intr);
+	error = BUS_SETUP_INTR(device_get_parent(dev), dev, fdc->res_irq,
+			       INTR_TYPE_BIO, fdc_intr, fdc, &fdc->fdc_intr);
 
 #ifndef PC98
 	/* First - lets reset the floppy controller */
@@ -2757,7 +2751,6 @@ static device_method_t fdc_methods[] = {
 static driver_t fdc_driver = {
 	"fdc",
 	fdc_methods,
-	DRIVER_TYPE_BIO,
 	sizeof(struct fdc_data)
 };
 
@@ -2778,7 +2771,6 @@ static device_method_t fd_methods[] = {
 static driver_t fd_driver = {
 	"fd",
 	fd_methods,
-	DRIVER_TYPE_BIO,
 	sizeof(struct fd_data)
 };
 
