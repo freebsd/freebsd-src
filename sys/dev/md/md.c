@@ -609,18 +609,6 @@ mdcreate_vnode(struct md_ioctl *mdio, struct thread *td)
 	struct nameidata nd;
 	int error, flags;
 
-	if (mdio->md_options & MD_AUTOUNIT) {
-		sc = mdnew(-1);
-		mdio->md_unit = sc->unit;
-	} else {
-		sc = mdnew(mdio->md_unit);
-	}
-	if (sc == NULL)
-		return (EBUSY);
-
-	sc->type = MD_VNODE;
-	sc->flags = mdio->md_options & MD_FORCE;
-
 	flags = FREAD|FWRITE;
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, mdio->md_file, td);
 	error = vn_open(&nd, &flags, 0);
@@ -628,7 +616,6 @@ mdcreate_vnode(struct md_ioctl *mdio, struct thread *td)
 		if (error != EACCES && error != EPERM && error != EROFS)
 			return (error);
 		flags &= ~FWRITE;
-		sc->flags |= MD_READONLY;
 		NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, mdio->md_file, td);
 		error = vn_open(&nd, &flags, 0);
 		if (error)
@@ -642,6 +629,22 @@ mdcreate_vnode(struct md_ioctl *mdio, struct thread *td)
 		return (error ? error : EINVAL);
 	}
 	VOP_UNLOCK(nd.ni_vp, 0, td);
+
+	if (mdio->md_options & MD_AUTOUNIT) {
+		sc = mdnew(-1);
+		mdio->md_unit = sc->unit;
+	} else {
+		sc = mdnew(mdio->md_unit);
+	}
+	if (sc == NULL) {
+		(void) vn_close(nd.ni_vp, flags, td->td_ucred, td);
+		return (EBUSY);
+	}
+
+	sc->type = MD_VNODE;
+	sc->flags = mdio->md_options & MD_FORCE;
+	if (!(flags & FWRITE))
+		sc->flags |= MD_READONLY;
 	sc->secsize = DEV_BSIZE;
 	sc->vnode = nd.ni_vp;
 
