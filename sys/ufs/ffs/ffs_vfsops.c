@@ -428,9 +428,7 @@ ffs_reload(mp, cred, td)
 	if (vn_isdisk(devvp, NULL)) {
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 		vfs_object_create(devvp, td, td->td_ucred);
-		/* XXX Why lock only to release immediately?? */
-		mtx_lock(&devvp->v_interlock);
-		VOP_UNLOCK(devvp, LK_INTERLOCK, td);
+		VOP_UNLOCK(devvp, 0, td);
 	}
 
 	/*
@@ -504,17 +502,18 @@ loop:
 			goto loop;
 		}
 		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
+		VI_LOCK(vp);
 		mtx_unlock(&mntvnode_mtx);
 		/*
 		 * Step 4: invalidate all inactive vnodes.
 		 */
-		if (vrecycle(vp, NULL, td))
+		if (vp->v_usecount == 0) {
+			vgonel(vp, td);
 			goto loop;
+		}
 		/*
 		 * Step 5: invalidate all cached file data.
 		 */
-		/* XXX Why lock only to release immediately? */
-		mtx_lock(&vp->v_interlock);
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
 			goto loop;
 		}
@@ -597,9 +596,7 @@ ffs_mountfs(devvp, mp, td)
 	if (vn_isdisk(devvp, NULL)) {
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 		vfs_object_create(devvp, td, cred);
-		/* XXX Why lock only to release immediately?? */
-		mtx_lock(&devvp->v_interlock);
-		VOP_UNLOCK(devvp, LK_INTERLOCK, td);
+		VOP_UNLOCK(devvp, 0, td);
 	}
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
