@@ -381,6 +381,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	bcopy(&trapcode, (void *)EXC_DECR, (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_SC,   (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_TRC,  (size_t)&trapsize);
+	__syncicache(EXC_RSVD, EXC_LAST - EXC_RSVD);
 
 	/*
 	 * Start initializing proc0 and thread0.
