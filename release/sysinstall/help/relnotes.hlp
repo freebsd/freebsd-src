@@ -149,7 +149,7 @@ o The generic part of VOP_LOOKUP() has been put it in system-wide function
   which filesystems can rely on for the canonical stuff.
 
 o Vnode freelist handling has been hauled over.  Vnodes are only on the
-  freelist if nobody care about them.
+  freelist if nobody cares about them.
 
 o The kernel provides assistance to getcwd() from data stored in the name
   cache if possible.
@@ -281,6 +281,11 @@ It also automatically recognizes mice which support the PnP COM device
 standard, so that the user is no longer required to supply a mouse 
 protocol type on the command line.
 [MERGED: Also in 2.2.6 and later releases on 2.2-STABLE branch]
+
+ppp(8) supports many additional features including the PPP Multilink
+Protocol (rfc1990), PPP Callback (with CBCP extensions) and client
+side DNS negotiation.  Refer to the README.changes file in the source
+directory for details of possible configuration conflicts.
 
 
 2. Supported Configurations
