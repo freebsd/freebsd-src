@@ -67,9 +67,8 @@ struct smapi_softc {
 	struct smapi_bios_header *header;
 };
 
-u_long smapi32_offset;
-u_short smapi32_segment;
-#define	SMAPI32_SEGMENT	0x18
+extern u_long smapi32_offset;
+extern u_short smapi32_segment;
 
 devclass_t smapi_devclass;
 
@@ -123,14 +122,8 @@ smapi_ioctl (dev, cmd, data, fflag, td)
 		error = 0;
 		break;
 	case SMAPIOCGFUNCTION:
-#if 1
-		smapi32_segment = SMAPI32_SEGMENT;
 		smapi32_offset = sc->smapi32_entry;
-		error = smapi32(
-#else
-		error = smapi32_new(sc->smapi32_entry, SMAPI32_SEGMENT,
-#endif
-				(struct smapi_bios_parameter *)data,
+		error = smapi32((struct smapi_bios_parameter *)data,
 				(struct smapi_bios_parameter *)data);
 		break;
 	default:
