@@ -10,7 +10,7 @@
 .\"
 .\" CTM and ctm(1) by <phk@login.dknet.dk>
 .\"
-.\" $Id: ctm.1,v 1.5 1996/04/29 21:02:26 phk Exp $
+.\" $Id: ctm.1,v 1.6 1996/05/27 22:46:21 wosch Exp $
 .\"
 .Dd Mar 25, 1995
 .Os
@@ -126,6 +126,16 @@ is the level of verbosity.
 
 .El
 
+.Sh ENVIRONMENT
+.Ev TMPDIR,
+if set to a pathname, will cause ctm to use that pathname
+as the location of temporary file.
+See
+.Xr tempnam 3,
+for more details on this.
+The same effect may be achieved with the
+.Fl T
+flag.
 
 .Sh FILES
 
