@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.118 1996/09/12 04:54:55 dyson Exp $
+ *	$Id: pmap.c,v 1.119 1996/09/13 07:10:00 bde Exp $
  */
 
 /*
@@ -401,20 +401,6 @@ pmap_track_modified( vm_offset_t va) {
 		return 0;
 }
 
-/*
- * The below are finer grained pmap_update routines.  These eliminate
- * the gratuitious tlb flushes on non-i386 architectures.
- */
-static PMAP_INLINE void
-pmap_update_1pg( vm_offset_t va) {
-#if defined(I386_CPU)
-	if (cpu_class == CPUCLASS_386)
-		pmap_update();
-	else
-#endif
-		__asm __volatile(".byte 0xf,0x1,0x38": :"a" (va));
-}
-
 static PMAP_INLINE void
 pmap_update_2pg( vm_offset_t va1, vm_offset_t va2) {
 #if defined(I386_CPU)
@@ -423,8 +409,8 @@ pmap_update_2pg( vm_offset_t va1, vm_offset_t va2) {
 	} else
 #endif
 	{
-		__asm __volatile(".byte 0xf,0x1,0x38": :"a" (va1));
-		__asm __volatile(".byte 0xf,0x1,0x38": :"a" (va2));
+		pmap_update_1pg(va1);
+		pmap_update_1pg(va2);
 	}
 }
 
@@ -1102,7 +1088,6 @@ retry:
 		kmem_free(kernel_map, (vm_offset_t) pmap->pm_pdir, PAGE_SIZE);
 	}
 	pmap->pm_pdir = 0;
-	pmap_update();
 }
 
 /*
@@ -1584,29 +1569,31 @@ pmap_remove_all(pa)
 	while ((pv = TAILQ_FIRST(&ppv->pv_list)) != NULL) {
 		pmap_lock(pv->pv_pmap);
 		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
-		if (tpte = *pte) {
-			pv->pv_pmap->pm_stats.resident_count--;
-			*pte = 0;
-			if (tpte & PG_W)
-				pv->pv_pmap->pm_stats.wired_count--;
-			/*
-			 * Update the vm_page_t clean and reference bits.
-			 */
-			if (tpte & PG_M) {
+
+		pv->pv_pmap->pm_stats.resident_count--;
+
+		tpte = *pte;
+		*pte = 0;
+		if (tpte & PG_W)
+			pv->pv_pmap->pm_stats.wired_count--;
+		/*
+		 * Update the vm_page_t clean and reference bits.
+		 */
+		if (tpte & PG_M) {
 #if defined(PMAP_DIAGNOSTIC)
-				if (pmap_nw_modified((pt_entry_t) tpte)) {
-					printf("pmap_remove_all: modified page not writable: va: 0x%lx, pte: 0x%lx\n", pv->pv_va, tpte);
-				}
+			if (pmap_nw_modified((pt_entry_t) tpte)) {
+				printf("pmap_remove_all: modified page not writable: va: 0x%lx, pte: 0x%lx\n", pv->pv_va, tpte);
+			}
 #endif
-				if (pmap_track_modified(pv->pv_va))
-					ppv->pv_vm_page->dirty = VM_PAGE_BITS_ALL;
-			}
-			if (!update_needed &&
-				((!curproc || (&curproc->p_vmspace->vm_pmap == pv->pv_pmap)) ||
-				(pv->pv_pmap == kernel_pmap))) {
-				update_needed = 1;
-			}
+			if (pmap_track_modified(pv->pv_va))
+				ppv->pv_vm_page->dirty = VM_PAGE_BITS_ALL;
 		}
+		if (!update_needed &&
+			((!curproc || (&curproc->p_vmspace->vm_pmap == pv->pv_pmap)) ||
+			(pv->pv_pmap == kernel_pmap))) {
+			update_needed = 1;
+		}
+
 		TAILQ_REMOVE(&pv->pv_pmap->pm_pvlist, pv, pv_plist);
 		TAILQ_REMOVE(&ppv->pv_list, pv, pv_list);
 		--ppv->pv_list_count;
@@ -2376,12 +2363,14 @@ pmap_page_exists(pmap, pa)
 	return (FALSE);
 }
 
-#ifdef NOT_USED_YET
 #define PMAP_REMOVE_PAGES_CURPROC_ONLY
 /*
  * Remove all pages from specified address space
  * this aids process exit speeds.  Also, this code
- * is special cased for current process only.
+ * is special cased for current process only, but
+ * can have the more generic (and slightly slower)
+ * mode enabled.  This is much faster than pmap_remove
+ * in the case of running down an entire address space.
  */
 void
 pmap_remove_pages(pmap, sva, eva)
@@ -2447,7 +2436,6 @@ pmap_remove_pages(pmap, sva, eva)
 	pmap_update();
 	pmap_unlock(pmap);
 }
-#endif
 
 /*
  * pmap_testbit tests bits in pte's
@@ -2541,8 +2529,6 @@ pmap_changebit(pa, bit, setem)
 		pv;
 		pv = TAILQ_NEXT(pv, pv_list)) {
 
-		va = pv->pv_va;
-
 		/*
 		 * don't write protect pager mappings
 		 */
@@ -2553,13 +2539,13 @@ pmap_changebit(pa, bit, setem)
 
 #if defined(PMAP_DIAGNOSTIC)
 		if (!pv->pv_pmap) {
-			printf("Null pmap (cb) at va: 0x%lx\n", va);
+			printf("Null pmap (cb) at va: 0x%lx\n", pv->pv_va);
 			continue;
 		}
 #endif
 
 		pmap_lock(pv->pv_pmap);
-		pte = pmap_pte_quick(pv->pv_pmap, va);
+		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
 		if (pte == NULL) {
 			pmap_unlock(pv->pv_pmap);
 			continue;
@@ -2977,12 +2963,10 @@ static void
 pmap_pvdump(pa)
 	vm_offset_t pa;
 {
-	pv_table_t *ppv;
 	register pv_entry_t pv;
 
 	printf("pa %x", pa);
-	ppv = pa_to_pvh(pa);
-	for (pv = TAILQ_FIRST(&ppv->pv_list);
+	for (pv = TAILQ_FIRST(pa_to_pvh(pa));
 		pv;
 		pv = TAILQ_NEXT(pv, pv_list)) {
 #ifdef used_to_be
