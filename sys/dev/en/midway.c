@@ -978,6 +978,7 @@ en_start(struct ifnet *ifp)
 	u_int flags;
 	uint32_t tbd[2];
 	uint32_t pdu[2];
+	struct en_vcc *vc;
 	struct en_map *map;
 	struct en_txslot *tx;
 
@@ -990,15 +991,17 @@ en_start(struct ifnet *ifp)
 
 	    	ap = mtod(m, struct atm_pseudohdr *);
 		vci = ATM_PH_VCI(ap);
-		if (ATM_PH_FLAGS(ap) & ATM_PH_AAL5)
-			flags |= TX_AAL5;
 
-		if (ATM_PH_VPI(ap) != 0 || vci >= MID_N_VC) {
+		if (ATM_PH_VPI(ap) != 0 || vci >= MID_N_VC ||
+		    (vc = sc->vccs[vci]) == NULL ||
+		    (vc->vflags & VCC_CLOSE_RX)) {
 			DBG(sc, TX, ("output vpi=%u, vci=%u -- drop",
 			    ATM_PH_VPI(ap), vci));
 			m_freem(m);
 			continue;
 		}
+		if (vc->vcc.aal == ATMIO_AAL_5)
+			flags |= TX_AAL5;
 		m_adj(m, sizeof(struct atm_pseudohdr));
 
 		/*
@@ -1058,8 +1061,7 @@ en_start(struct ifnet *ifp)
 		if (M_WRITABLE(m) && M_LEADINGSPACE(m) >= MID_TBD_SIZE) {
 			tbd[0] = htobe32(MID_TBD_MK1((flags & TX_AAL5) ?
 			    MID_TBD_AAL5 : MID_TBD_NOAAL5,
-			    sc->vccs[vci]->txspeed,
-			    m->m_pkthdr.len / MID_ATMDATASZ));
+			    vc->txspeed, m->m_pkthdr.len / MID_ATMDATASZ));
 			tbd[1] = htobe32(MID_TBD_MK2(vci, 0, 0));
 
 			m->m_data -= MID_TBD_SIZE;
@@ -1098,7 +1100,7 @@ en_start(struct ifnet *ifp)
 		/*
 		 * get assigned channel (will be zero unless txspeed is set)
 		 */
-		tx = sc->vccs[vci]->txslot;
+		tx = vc->txslot;
 
 		if (m->m_pkthdr.len > EN_TXSZ * 1024) {
 			DBG(sc, TX, ("tx%zu: packet larger than xmit buffer "
@@ -2264,7 +2266,7 @@ en_service(struct en_softc *sc)
 		EN_COUNT(sc->stats.ttrash);
 		DBG(sc, SERV, ("RX overflow lost %d cells!", MID_RBD_CNT(rbd)));
 
-	} else if (!(vc->vcc.flags & ATM_PH_AAL5)) {
+	} else if (vc->vcc.aal != ATMIO_AAL_5) {
 		/* 1 cell (ick!) */
 		mlen = MID_CHDR_SIZE + MID_ATMDATASZ;
 		rx.pre_skip = MID_RBD_SIZE;
