@@ -111,7 +111,7 @@ dev/fb/splash.c			optional	splash
 dev/fb/vga.c			optional	vga
 dev/fe/if_fe_isa.c		optional	fe isa
 dev/kbd/atkbd.c			optional	atkbd
-dev/kbd/atkbdc.c		count		atkbdc
+dev/kbd/atkbdc.c		optional	atkbdc
 dev/kbd/kbd.c			optional	atkbd
 dev/kbd/kbd.c			optional	kbd
 dev/kbd/kbd.c			optional	sc
@@ -128,7 +128,7 @@ dev/sio/sio.c			optional	sio
 dev/sio/sio_isa.c		optional	sio isa
 dev/sr/if_sr_isa.c		optional	sr isa
 dev/syscons/apm/apm_saver.c	optional	apm_saver apm
-dev/syscons/schistory.c		count		sc
+dev/syscons/schistory.c		optional	sc
 dev/syscons/scmouse.c		optional	sc
 dev/syscons/scterm.c		optional	sc
 dev/syscons/scterm-dumb.c	optional	sc
