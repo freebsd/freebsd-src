@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.50 1997/05/19 14:36:50 dfr Exp $
+ * $Id: nfs_vnops.c,v 1.51 1997/05/20 08:06:31 dfr Exp $
  */
 
 
@@ -2790,12 +2790,14 @@ nfs_flush(vp, cred, waitfor, p, commit)
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	int s, error = 0, slptimeo = 0, slpflag = 0, retv, bvecpos;
 	int passone = 1;
-	u_quad_t off = (u_quad_t)-1, endoff = 0, toff;
+	u_quad_t off, endoff, toff;
 	struct ucred* wcred = NULL;
+	struct buf **bvec = NULL;
 #ifndef NFS_COMMITBVECSIZ
 #define NFS_COMMITBVECSIZ	20
 #endif
-	struct buf *bvec[NFS_COMMITBVECSIZ];
+	struct buf *bvec_on_stack[NFS_COMMITBVECSIZ];
+	int bvecsize = 0, bveccount;
 
 	if (nmp->nm_flag & NFSMNT_INT)
 		slpflag = PCATCH;
@@ -2809,12 +2811,45 @@ nfs_flush(vp, cred, waitfor, p, commit)
 	 * job.
 	 */
 again:
+	off = (u_quad_t)-1;
+	endoff = 0;
 	bvecpos = 0;
 	if (NFS_ISV3(vp) && commit) {
 		s = splbio();
+		/*
+		 * Count up how many buffers waiting for a commit.
+		 */
+		bveccount = 0;
 		for (bp = vp->v_dirtyblkhd.lh_first; bp; bp = nbp) {
 			nbp = bp->b_vnbufs.le_next;
-			if (bvecpos >= NFS_COMMITBVECSIZ)
+			if ((bp->b_flags & (B_BUSY | B_DELWRI | B_NEEDCOMMIT))
+			    == (B_DELWRI | B_NEEDCOMMIT))
+				bveccount++;
+		}
+		/*
+		 * Allocate space to remember the list of bufs to commit.  It is
+		 * important to use M_NOWAIT here to avoid a race with nfs_write.
+		 * If we can't get memory (for whatever reason), we will end up
+		 * committing the buffers one-by-one in the loop below.
+		 */
+		if (bveccount > NFS_COMMITBVECSIZ) {
+			if (bvec != NULL && bvec != bvec_on_stack)
+				free(bvec, M_TEMP);
+			bvec = (struct buf **)
+				malloc(bveccount * sizeof(struct buf *),
+				       M_TEMP, M_NOWAIT);
+			if (bvec == NULL) {
+				bvec = bvec_on_stack;
+				bvecsize = NFS_COMMITBVECSIZ;
+			} else
+				bvecsize = bveccount;
+		} else {
+			bvec = bvec_on_stack;
+			bvecsize = NFS_COMMITBVECSIZ;
+		}
+		for (bp = vp->v_dirtyblkhd.lh_first; bp; bp = nbp) {
+			nbp = bp->b_vnbufs.le_next;
+			if (bvecpos >= bvecsize)
 				break;
 			if ((bp->b_flags & (B_BUSY | B_DELWRI | B_NEEDCOMMIT))
 				!= (B_DELWRI | B_NEEDCOMMIT))
@@ -2912,8 +2947,10 @@ loop:
 				"nfsfsync", slptimeo);
 			splx(s);
 			if (error) {
-			    if (nfs_sigintr(nmp, (struct nfsreq *)0, p))
-				return (EINTR);
+			    if (nfs_sigintr(nmp, (struct nfsreq *)0, p)) {
+				error = EINTR;
+				goto done;
+			    }
 			    if (slpflag == PCATCH) {
 				slpflag = 0;
 				slptimeo = 2 * hz;
@@ -2945,8 +2982,10 @@ loop:
 			error = tsleep((caddr_t)&vp->v_numoutput,
 				slpflag | (PRIBIO + 1), "nfsfsync", slptimeo);
 			if (error) {
-			    if (nfs_sigintr(nmp, (struct nfsreq *)0, p))
-				return (EINTR);
+			    if (nfs_sigintr(nmp, (struct nfsreq *)0, p)) {
+				error = EINTR;
+				goto done;
+			    }
 			    if (slpflag == PCATCH) {
 				slpflag = 0;
 				slptimeo = 2 * hz;
@@ -2961,6 +3000,9 @@ loop:
 		error = np->n_error;
 		np->n_flag &= ~NWRITEERR;
 	}
+done:
+	if (bvec != NULL && bvec != bvec_on_stack)
+		free(bvec, M_TEMP);
 	return (error);
 }
 
