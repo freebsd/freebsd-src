@@ -383,7 +383,9 @@ callout_handle_init(struct callout_handle *handle)
  *
  * <sys/callout.h> defines three convenience macros:
  *
- * callout_active() - returns truth if callout has not been serviced
+ * callout_active() - returns truth if callout has not been stopped,
+ *	drained, or deactivated since the last time the callout was
+ *	reset.
  * callout_pending() - returns truth if callout is still waiting for timeout
  * callout_deactivate() - marks the callout as having been serviced
  */
