@@ -10,6 +10,11 @@
  *	>
  */
 
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
+
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,7 +23,7 @@
 
 #ifdef	__MSDOS__
 #include <dos.h>
-#else	/* Assume BSD unix */
+#else	/* Assume BSD Unix */
 #include <fcntl.h>
 #endif
 
@@ -59,14 +64,14 @@ char *argv[];
 		seed = slash;
 
 		if((n = atoi(argv[optind])) < 0){
-			fprintf(stderr,"%s not positive\n",argv[optind]);
+			warnx("%s not positive",argv[optind]);
 			usage();
 		}
 	}
 	else {
 
 		if((n = atoi(argv[optind])) < 0){
-			fprintf(stderr,"%s not positive\n",argv[optind]);
+			warnx("%s not positive",argv[optind]);
 			usage();
 		}
 		seed = argv[++optind];
