@@ -78,7 +78,8 @@ MLINKS+=	sk.4 ../sk.4
 MLINKS+=	spkr.4 ../spkr.4 spkr.4 speaker.4 spkr.4 ../speaker.4
 MLINKS+=	splash.4 ../splash.4 splash.4 screensaver.4 splash.4 ../screensaver.4
 MLINKS+=	sr.4 ../sr.4
-MLINKS+=	syscons.4 ../syscons.4
+MLINKS+=	syscons.4 ../syscons.4 \
+		syscons.4 sc.4 syscons.4 ../sc.4
 MLINKS+=	sysmouse.4 ../sysmouse.4
 MLINKS+=	ti.4 ../ti.4
 MLINKS+=	tl.4 ../tl.4
