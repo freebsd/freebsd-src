@@ -1,4 +1,5 @@
 \input texinfo  @c -*-texinfo-*-
+@c %** $FreeBSD$
 @c %**start of header 
 @setfilename g++int.info
 @settitle G++ internals
@@ -23,7 +24,6 @@ Questions and comments to Benjamin Kosnik @code{<bkoz@@cygnus.com>}.
 * Access Control::              
 * Error Reporting::             
 * Parser::                      
-* Copying Objects::             
 * Exception Handling::          
 * Free Store::                  
 * Mangling::  Function name mangling for C++ and Java
@@ -166,77 +166,6 @@ class foo @{ public: int b; int a; foo (); @};
 @noindent
 Thus, @samp{b} will be initialized with 2 first, then @samp{a} will be
 initialized with 1, regardless of how they're listed in the mem-initializer.
-
-@item Argument Matching
-
-In early 1993, the argument matching scheme in @sc{gnu} C++ changed
-significantly.  The original code was completely replaced with a new
-method that will, hopefully, be easier to understand and make fixing
-specific cases much easier.
-
-The @samp{-fansi-overloading} option is used to enable the new code; at
-some point in the future, it will become the default behavior of the
-compiler.
-
-The file @file{cp-call.c} contains all of the new work, in the functions
-@code{rank_for_overload}, @code{compute_harshness},
-@code{compute_conversion_costs}, and @code{ideal_candidate}.
-
-Instead of using obscure numerical values, the quality of an argument
-match is now represented by clear, individual codes.  The new data
-structure @code{struct harshness} (it used to be an @code{unsigned}
-number) contains:
-
-@enumerate a
-@item the @samp{code} field, to signify what was involved in matching two
-arguments;
-@item the @samp{distance} field, used in situations where inheritance
-decides which function should be called (one is ``closer'' than
-another);
-@item and the @samp{int_penalty} field, used by some codes as a tie-breaker.
-@end enumerate
-
-The @samp{code} field is a number with a given bit set for each type of
-code, OR'd together.  The new codes are:
-
-@itemize @bullet
-@item @code{EVIL_CODE}
-The argument was not a permissible match.
-
-@item @code{CONST_CODE}
-Currently, this is only used by @code{compute_conversion_costs}, to
-distinguish when a non-@code{const} member function is called from a
-@code{const} member function.
-
-@item @code{ELLIPSIS_CODE}
-A match against an ellipsis @samp{...} is considered worse than all others.
-
-@item @code{USER_CODE}
-Used for a match involving a user-defined conversion.
-
-@item @code{STD_CODE}
-A match involving a standard conversion.
-
-@item @code{PROMO_CODE}
-A match involving an integral promotion.  For these, the
-@code{int_penalty} field is used to handle the ARM's rule (XXX cite)
-that a smaller @code{unsigned} type should promote to a @code{int}, not
-to an @code{unsigned int}.
-
-@item @code{QUAL_CODE}
-Used to mark use of qualifiers like @code{const} and @code{volatile}.
-
-@item @code{TRIVIAL_CODE}
-Used for trivial conversions.  The @samp{int_penalty} field is used by
-@code{convert_harshness} to communicate further penalty information back
-to @code{build_overload_call_real} when deciding which function should
-be call.
-@end itemize
-
-The functions @code{convert_to_aggr} and @code{build_method_call} use
-@code{compute_conversion_costs} to rate each argument's suitability for
-a given candidate function (that's how we get the list of candidates for
-@code{ideal_candidate}).
 
 @item The Explicit Keyword
 
@@ -1002,7 +931,7 @@ To have the line number on the error message indicate the line of the
 DECL, use @code{cp_error_at} and its ilk; to indicate which argument you want,
 use @code{%+D}, or it will default to the first.
 
-@node Parser, Copying Objects, Error Reporting, Top
+@node Parser, Exception Handling, Error Reporting, Top
 @section Parser
 
 Some comments on the parser:
@@ -1093,33 +1022,7 @@ conflicts.
 
 Unlike the others, this ambiguity is not recognized by the Working Paper.
 
-@node  Copying Objects, Exception Handling, Parser, Top
-@section Copying Objects
-
-The generated copy assignment operator in g++ does not currently do the
-right thing for multiple inheritance involving virtual bases; it just
-calls the copy assignment operators for its direct bases.  What it
-should probably do is:
-
-1) Split up the copy assignment operator for all classes that have
-vbases into "copy my vbases" and "copy everything else" parts.  Or do
-the trickiness that the constructors do to ensure that vbases don't get
-initialized by intermediate bases.
-
-2) Wander through the class lattice, find all vbases for which no
-intermediate base has a user-defined copy assignment operator, and call
-their "copy everything else" routines.  If not all of my vbases satisfy
-this criterion, warn, because this may be surprising behavior.
-
-3) Call the "copy everything else" routine for my direct bases.
-
-If we only have one direct base, we can just foist everything off onto
-them.
-
-This issue is currently under discussion in the core reflector
-(2/28/94).
-
-@node  Exception Handling, Free Store, Copying Objects, Top
+@node  Exception Handling, Free Store, Parser, Top
 @section Exception Handling
 
 Note, exception handling in g++ is still under development.  
@@ -1666,18 +1569,18 @@ as @samp{P} followed by the mangling of the class name.
 
 @subsection Squangled type compression
 
-Squangling (enabled with the @samp{-fsquangle} option), utilizes 
-the @samp{B} code to indicate reuse of a previously
-seen type within an indentifier. Types are recognized in a left to
-right manner and given increasing values, which are
-appended to the code in the standard manner. Ie, multiple digit numbers
-are delimited by @samp{_} characters. A type is considered to be any 
-non primitive type, regardless of whether its a parameter, template
-parameter, or entire template. Certain codes are considered modifiers
-of a type, and are not included as part of the type. These are the
-@samp{C}, @samp{V}, @samp{P}, @samp{A}, @samp{R}, and @samp{U} codes, 
-denoting constant, volatile, pointer, array, reference, and unsigned. 
-These codes may precede a @samp{B} type in order to make the required 
+Squangling (enabled with the @samp{-fsquangle} option), utilizes the
+@samp{B} code to indicate reuse of a previously seen type within an
+indentifier. Types are recognized in a left to right manner and given
+increasing values, which are appended to the code in the standard
+manner. Ie, multiple digit numbers are delimited by @samp{_}
+characters. A type is considered to be any non primitive type,
+regardless of whether its a parameter, template parameter, or entire
+template. Certain codes are considered modifiers of a type, and are not
+included as part of the type. These are the @samp{C}, @samp{V},
+@samp{P}, @samp{A}, @samp{R}, @samp{U} and @samp{u} codes, denoting
+constant, volatile, pointer, array, reference, unsigned, and restrict.
+These codes may precede a @samp{B} type in order to make the required
 modifications to the type.
 
 For example:
@@ -1845,6 +1748,14 @@ Used to indicate a template function.
 @item i
 Encodes the C++ and Java @code{int} types.
 
+@item I
+Encodes typedef names of the form @code{int@var{n}_t}, where @var{n} is a
+positive decimal number.  The @samp{I} is followed by either two
+hexidecimal digits, which encode the value of @var{n}, or by an
+arbitrary number of hexidecimal digits between underscores.  For
+example, @samp{I40} encodes the type @code{int64_t}, and @samp{I_200_}
+encodes the type @code{int512_t}.
+
 @item J
 Indicates a complex type.
 
@@ -1854,12 +1765,21 @@ Used by squangling to compress qualified names.
 @item l
 Encodes the C++ @code{long} type.
 
+@item n
+Immediate repeated type. Followed by the repeat count.
+
+@item N 
+Repeated type. Followed by the repeat count of the repeated type,
+followed by the type index of the repeated type. Due to a bug in
+g++ 2.7.2, this is only generated if index is 0. Superceded by
+@samp{n} when squangling.
+
 @item P
 Indicates a pointer type.  Followed by the type pointed to.
 
 @item Q
 Used to mangle qualified names, which arise from nested classes.
-Should also be used for namespaces (?).
+Also used for namespaces.
 In Java used to mangle package-qualified names, and inner classes.
 
 @item r
@@ -1888,11 +1808,14 @@ A modifier that indicates that the following integer type is unsigned.
 Also used to indicate that the following class or namespace name
 is encoded using Unicode-mangling.
 
+@item u
+The @code{restrict} type qualifier.
+
 @item v
 Encodes the C++ and Java @code{void} types.
 
 @item V
-A modified for a @code{const} type or method.
+A modifier for a @code{volatile} type or method.
 
 @item w
 Encodes the C++ @code{wchar_t} type, and the Java @code{char} types.
