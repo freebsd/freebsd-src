@@ -131,12 +131,15 @@ main(int argc, CHAR16 *argv[])
 
 	efinet_init_driver();
 
+
+	/* Get our loaded image protocol interface structure. */
+	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
+
+	printf("Image base: 0x%016lx\n", (u_long)img->ImageBase);
+
 	printf("\n");
 	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
 	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
-#if 0
-	printf("Memory: %ld k\n", memsize() / 1024);
-#endif
 
 	/*
 	 * XXX quick and dirty check to see if we're loaded from the
@@ -144,8 +147,6 @@ main(int argc, CHAR16 *argv[])
 	 * other cases we set the default device to 'disk'. We presume
 	 * fixed positions in devsw for both net and disk.
 	 */
-	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
-
 	status = BS->HandleProtocol(img->DeviceHandle, &netid, (VOID**)&net);
 	if (status == EFI_SUCCESS && net != NULL) {
 		currdev.d_dev = devsw[1];	/* XXX net */
