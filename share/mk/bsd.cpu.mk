@@ -11,7 +11,7 @@ MACHINE_CPU = i486
 . elif ${MACHINE_ARCH} == "alpha"
 _CPUCFLAGS = -mcpu=ev4 -mtune=ev5
 MACHINE_CPU = ev4
-.elif ${MACHINE_ARCH} == "amd64"
+. elif ${MACHINE_ARCH} == "amd64"
 MACHINE_CPU = amd64 sse2 sse
 . elif ${MACHINE_ARCH} == "ia64"
 _CPUCFLAGS =
@@ -88,13 +88,13 @@ _CPUCFLAGS = -mcpu=ev4
 # unordered list to make it easy for client makefiles to test for the
 # presence of a CPU feature.
 
-.if ${MACHINE_ARCH} == "i386"
-. if ${CPUTYPE} == "athlon-mp" || ${CPUTYPE} == "athlon-xp" || \
+. if ${MACHINE_ARCH} == "i386"
+.  if ${CPUTYPE} == "athlon-mp" || ${CPUTYPE} == "athlon-xp" || \
     ${CPUTYPE} == "athlon-4"
 MACHINE_CPU = athlon-xp k7 3dnow sse mmx k6 k5 i586 i486 i386
-. elif ${CPUTYPE} == "athlon" || ${CPUTYPE} == "athlon-tbird"
+.  elif ${CPUTYPE} == "athlon" || ${CPUTYPE} == "athlon-tbird"
 MACHINE_CPU = athlon k7 3dnow mmx k6 k5 i586 i486 i386
-. elif ${CPUTYPE} == "k6-3" || ${CPUTYPE} == "k6-2"
+.  elif ${CPUTYPE} == "k6-3" || ${CPUTYPE} == "k6-2"
 MACHINE_CPU = 3dnow mmx k6 k5 i586 i486 i386
 .  elif ${CPUTYPE} == "k6"
 MACHINE_CPU = mmx k6 k5 i586 i486 i386
