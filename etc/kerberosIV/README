@@ -6,7 +6,7 @@ Notes about the contents of the /etc/kerberosIV directory:
 The file master_key contains a copy of the master key under which the
 entire Kerberos database is encrypted.  Disclosing this key would be bad
 news.  The reason it is stored in the filesystem is because the following
-programs need to inspect or modify the kereros database, and so the key
+programs need to inspect or modify the kerberos database, and so the key
 must be available for them, (or else it would have to be typed in by
 hand):
 		- kerberos (the server itself)
