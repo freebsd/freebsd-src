@@ -80,6 +80,7 @@ struct uufsd {
 				/* superblock as buffer */
 	} d_sbunion;
 	const char *d_error;	/* human readable disk error */
+	int d_mine;		/* internal flags */
 #define	d_fs	d_sbunion.d_fs
 #define	d_sb	d_sbunion.d_sb
 };
