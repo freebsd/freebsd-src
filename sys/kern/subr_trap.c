@@ -100,8 +100,19 @@ userret(td, frame, oticks)
 	sched_userret(td);
 
 	/*
-	 * Do special thread processing, e.g. suspension checking, upcall
-	 * tweaking and such.
+	 * We need to check to see if we have to exit or wait due to a
+	 * single threading requirement or some other STOP condition.
+	 * Don't bother doing all the work if the stop bits are not set
+	 * at this time.. If we miss it, we miss it.. no big deal.
+	 */
+	if (P_SHOULDSTOP(p)) {
+		PROC_LOCK(p);
+		thread_suspend_check(0);	/* Can suspend or kill */
+		PROC_UNLOCK(p);
+	}
+
+	/*
+	 * Do special thread processing, e.g. upcall tweaking and such.
 	 */
 	if (p->p_flag & P_KSES) {
 		thread_userret(td, frame);
