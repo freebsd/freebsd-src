@@ -29,7 +29,7 @@ maxusers	32
 #To statically compile in device wiring instead of /boot/device.hints
 #hints		"GENERIC.hints"
 
-#makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
@@ -52,6 +52,12 @@ options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
 options		P1003_1B		#Posix P1003_1B real-time extentions
 options 	_KPOSIX_PRIORITY_SCHEDULING
+
+# Debugging for use in -current
+options 	DDB
+options 	INVARIANTS
+options 	INVARIANT_SUPPORT
+options 	WITNESS
 
 # Standard busses
 device		isa
