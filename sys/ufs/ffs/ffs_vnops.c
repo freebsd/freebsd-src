@@ -175,7 +175,7 @@ loop:
 			continue;
 		if (!wait && LIST_FIRST(&bp->b_dep) != NULL &&
 		    (bp->b_flags & B_DEFERRED) == 0 &&
-		    bioops.io_countdeps && (*bioops.io_countdeps)(bp, 0)) {
+		    buf_countdeps(bp, 0)) {
 			bp->b_flags |= B_DEFERRED;
 			continue;
 		}
@@ -278,5 +278,8 @@ loop:
 		}
 	}
 	splx(s);
-	return (UFS_UPDATE(vp, wait));
+	error = UFS_UPDATE(vp, wait);
+	if (error == 0 && vp->v_mount && (vp->v_mount->mnt_flag & MNT_SOFTDEP))
+		error = softdep_fsync(vp);
+	return (error);
 }
