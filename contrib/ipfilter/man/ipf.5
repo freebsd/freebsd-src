@@ -1,6 +1,6 @@
 .TH IPF 5
 .SH NAME
-ipf \- IP packet filter rule syntax
+ipf, ipf.conf \- IP packet filter rule syntax
 .SH DESCRIPTION
 .PP
 A rule file for \fBipf\fP may have any name or even be stdin.  As
@@ -477,8 +477,14 @@ Note, that if we wanted to say "port = telnet", "proto tcp" would
 need to be specified as the parser interprets each rule on its own and
 qualifies all service/port names with the protocol specified.
 .SH FILES
-/etc/services
+/dev/ipauth
+.br
+/dev/ipl
+.br
+/dev/ipstate
 .br
 /etc/hosts
+.br
+/etc/services
 .SH SEE ALSO
-ipf(8), ipftest(1), mkfilters(1), ipmon(8)
+ipftest(1), iptest(1), mkfilters(1), ipf(4), ipnat(5), ipf(8), ipfstat(8)

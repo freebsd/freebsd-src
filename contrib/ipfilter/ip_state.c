@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_state.c	1.8 6/5/96 (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.0.2.24.2.4 1997/11/19 11:44:09 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.0.2.24.2.14 1998/05/24 03:53:04 darrenr Exp $";
 #endif
 
 #if !defined(_KERNEL) && !defined(KERNEL) && !defined(__KERNEL__)
@@ -85,6 +85,11 @@ ips_stat_t ips_stats;
 extern	kmutex_t	ipf_state;
 #endif
 
+static int fr_matchsrcdst __P((ipstate_t *, struct in_addr, struct in_addr,
+			       fr_info_t *, void *, u_short, u_short));
+static int fr_state_flush __P((int));
+static ips_stat_t *fr_statetstats __P((void));
+
 
 #define	FIVE_DAYS	(2 * 5 * 86400)	/* 5 days: half closed session */
 
@@ -97,7 +102,7 @@ u_long	fr_tcpidletimeout = FIVE_DAYS,
 	fr_icmptimeout = 120;
 
 
-ips_stat_t *fr_statetstats()
+static ips_stat_t *fr_statetstats()
 {
 	ips_stats.iss_active = ips_num;
 	ips_stats.iss_table = ips_table;
@@ -111,7 +116,7 @@ ips_stat_t *fr_statetstats()
  * which == 1 : flush TCP connections which have started to close but are
  *              stuck for some reason.
  */
-int fr_state_flush(which)
+static int fr_state_flush(which)
 int which;
 {
 	register int i;
@@ -134,10 +139,10 @@ int which;
 				break;
 			case 1 :
 				if ((is->is_p == IPPROTO_TCP) &&
-				    ((is->is_state[0] <= TCPS_ESTABLISHED) &&
-				     (is->is_state[1] > TCPS_ESTABLISHED)) ||
-				    ((is->is_state[1] <= TCPS_ESTABLISHED) &&
-				     (is->is_state[0] > TCPS_ESTABLISHED)))
+				    (((is->is_state[0] <= TCPS_ESTABLISHED) &&
+				      (is->is_state[1] > TCPS_ESTABLISHED)) ||
+				     ((is->is_state[1] <= TCPS_ESTABLISHED) &&
+				      (is->is_state[0] > TCPS_ESTABLISHED))))
 					delete = 1;
 				break;
 			}
@@ -237,7 +242,7 @@ u_int pass;
 		switch (ic->icmp_type)
 		{
 		case ICMP_ECHO :
-			is->is_icmp.ics_type = 0;
+			is->is_icmp.ics_type = ICMP_ECHOREPLY;	/* XXX */
 			hv += (is->is_icmp.ics_id = ic->icmp_id);
 			hv += (is->is_icmp.ics_seq = ic->icmp_seq);
 			break;
@@ -301,11 +306,33 @@ u_int pass;
 	bcopy((char *)&ips, (char *)is, sizeof(*is));
 	hv %= IPSTATE_SIZE;
 	MUTEX_ENTER(&ipf_state);
-	is->is_next = ips_table[hv];
-	ips_table[hv] = is;
+
 	is->is_pass = pass;
 	is->is_pkts = 1;
 	is->is_bytes = ip->ip_len;
+	/*
+	 * Copy these from the rule itself.
+	 */
+	is->is_opt = fin->fin_fr->fr_ip.fi_optmsk;
+	is->is_optmsk = fin->fin_fr->fr_mip.fi_optmsk;
+	is->is_sec = fin->fin_fr->fr_ip.fi_secmsk;
+	is->is_secmsk = fin->fin_fr->fr_mip.fi_secmsk;
+	is->is_auth = fin->fin_fr->fr_ip.fi_auth;
+	is->is_authmsk = fin->fin_fr->fr_mip.fi_auth;
+	is->is_flags = fin->fin_fr->fr_ip.fi_fl;
+	is->is_flags |= fin->fin_fr->fr_mip.fi_fl << 4;
+	/*
+	 * add into table.
+	 */
+	is->is_next = ips_table[hv];
+	ips_table[hv] = is;
+	if (fin->fin_out) {
+		is->is_ifpin = NULL;
+		is->is_ifpout = fin->fin_ifp;
+	} else {
+		is->is_ifpin = fin->fin_ifp;
+		is->is_ifpout = NULL;
+	}
 	if (pass & FR_LOGFIRST)
 		is->is_pass &= ~(FR_LOGFIRST|FR_LOG);
 	ips_num++;
@@ -324,12 +351,11 @@ u_int pass;
  * change timeout depending on whether new packet is a SYN-ACK returning for a
  * SYN or a RST or FIN which indicate time to close up shop.
  */
-int fr_tcpstate(is, fin, ip, tcp, sport)
+int fr_tcpstate(is, fin, ip, tcp)
 register ipstate_t *is;
 fr_info_t *fin;
 ip_t *ip;
 tcphdr_t *tcp;
-u_short sport;
 {
 	register int seqskew, ackskew;
 	register u_short swin, dwin;
@@ -341,7 +367,7 @@ u_short sport;
 	 */
 	seq = ntohl(tcp->th_seq);
 	ack = ntohl(tcp->th_ack);
-	source = (sport == is->is_sport);
+	source = (ip->ip_src.s_addr == is->is_src.s_addr);
 
 	if (!(tcp->th_flags & TH_ACK))  /* Pretend an ack was sent */
 		ack = source ? is->is_ack : is->is_seq;
@@ -385,7 +411,7 @@ u_short sport;
 		swin = is->is_dwin;
 	}
 
-	if ((seqskew <= swin) && (ackskew <= dwin)) {
+	if ((seqskew <= dwin) && (ackskew <= swin)) {
 		if (source) {
 			is->is_seq = seq;
 			is->is_ack = ack;
@@ -401,11 +427,78 @@ u_short sport;
 		/*
 		 * Nearing end of connection, start timeout.
 		 */
-		fr_tcp_age(&is->is_age, is->is_state, ip, fin,
-			   tcp->th_sport == is->is_sport);
+		fr_tcp_age(&is->is_age, is->is_state, ip, fin, source);
 		return 1;
 	}
 	return 0;
+}
+
+
+static int fr_matchsrcdst(is, src, dst, fin, tcp, sp, dp)
+ipstate_t *is;
+struct in_addr src, dst;
+fr_info_t *fin;
+void *tcp;
+u_short sp, dp;
+{
+	int ret = 0, rev, out;
+	void *ifp;
+
+	rev = (is->is_dst.s_addr != dst.s_addr);
+	ifp = fin->fin_ifp;
+	out = fin->fin_out;
+
+	if (!rev) {
+		if (out) {
+			if (!is->is_ifpout)
+				is->is_ifpout = ifp;
+		} else {
+			if (!is->is_ifpin)
+				is->is_ifpin = ifp;
+		}
+	} else {
+		if (out) {
+			if (!is->is_ifpin)
+				is->is_ifpin = ifp;
+		} else {
+			if (!is->is_ifpout)
+				is->is_ifpout = ifp;
+		}
+	}
+
+	if (!rev) {
+		if (((out && is->is_ifpout == ifp) ||
+		     (!out && is->is_ifpin == ifp)) &&
+		    (is->is_dst.s_addr == dst.s_addr) &&
+		    (is->is_src.s_addr == src.s_addr) &&
+		    (!tcp || (sp == is->is_sport) &&
+		     (dp == is->is_dport))) {
+			ret = 1;
+		}
+	} else {
+		if (((out && is->is_ifpin == ifp) ||
+		     (!out && is->is_ifpout == ifp)) &&
+		    (is->is_dst.s_addr == src.s_addr) &&
+		    (is->is_src.s_addr == dst.s_addr) &&
+		    (!tcp || (sp == is->is_dport) &&
+		     (dp == is->is_sport))) {
+			ret = 1;
+		}
+	}
+
+	/*
+	 * Whether or not this should be here, is questionable, but the aim
+	 * is to get this out of the main line.
+	 */
+	if (ret) {
+		if (((fin->fin_fi.fi_optmsk & is->is_optmsk) != is->is_opt) ||
+		    ((fin->fin_fi.fi_secmsk & is->is_secmsk) != is->is_sec) ||
+		    ((fin->fin_fi.fi_auth & is->is_authmsk) != is->is_auth) ||
+		    ((fin->fin_fi.fi_fl & (is->is_flags >> 4)) !=
+		     (is->is_flags & 0xf)))
+			ret = 0;
+	}
+	return ret;
 }
 
 
@@ -447,13 +540,8 @@ fr_info_t *fin;
 			if ((is->is_p == pr) &&
 			    (ic->icmp_id == is->is_icmp.ics_id) &&
 			    (ic->icmp_seq == is->is_icmp.ics_seq) &&
-			    IPPAIR(src, dst, is->is_src, is->is_dst)) {
-				/*
-				 * If we have type 0 stored, allow any icmp
-				 * replies through.
-				 */
-				if (is->is_icmp.ics_type &&
-				    is->is_icmp.ics_type != ic->icmp_type)
+			    fr_matchsrcdst(is, src, dst, fin, NULL, 0, 0)) {
+				if (is->is_icmp.ics_type != ic->icmp_type)
 					continue;
 				is->is_age = fr_icmptimeout;
 				is->is_pkts++;
@@ -473,11 +561,11 @@ fr_info_t *fin;
 		hv += sport;
 		hv %= IPSTATE_SIZE;
 		MUTEX_ENTER(&ipf_state);
-		for (isp = &ips_table[hv]; (is = *isp); isp = &is->is_next) {
+		for (isp = &ips_table[hv]; (is = *isp); isp = &is->is_next)
 			if ((is->is_p == pr) &&
-			    PAIRS(sport, dport, is->is_sport, is->is_dport) &&
-			    IPPAIR(src, dst, is->is_src, is->is_dst))
-				if (fr_tcpstate(is, fin, ip, tcp, sport)) {
+			    fr_matchsrcdst(is, src, dst, fin, tcp,
+					   sport, dport)) {
+				if (fr_tcpstate(is, fin, ip, tcp)) {
 					pass = is->is_pass;
 #ifdef	_KERNEL
 					MUTEX_EXIT(&ipf_state);
@@ -491,7 +579,7 @@ fr_info_t *fin;
 #endif
 					return pass;
 				}
-		}
+			}
 		MUTEX_EXIT(&ipf_state);
 		break;
 	    }
@@ -508,8 +596,8 @@ fr_info_t *fin;
 		MUTEX_ENTER(&ipf_state);
 		for (is = ips_table[hv]; is; is = is->is_next)
 			if ((is->is_p == pr) &&
-			    PAIRS(sport, dport, is->is_sport, is->is_dport) &&
-			    IPPAIR(src, dst, is->is_src, is->is_dst)) {
+			    fr_matchsrcdst(is, src, dst, fin,
+					   tcp, sport, dport)) {
 				ips_stats.iss_hits++;
 				is->is_pkts++;
 				is->is_bytes += ip->ip_len;

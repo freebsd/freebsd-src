@@ -1,6 +1,6 @@
 .TH IPNAT 5
 .SH NAME
-ipnat \- IP NAT file format
+ipnat, ipnat.conf \- IP NAT file format
 .SH DESCRIPTION
 The format for files accepted by ipnat is described by the following grammar:
 .LP
@@ -37,10 +37,10 @@ range of port numbers to remap into given as \fBport-number:port-number\fP.
 .SH Examples
 .PP
 To change IP#'s used internally from network 10 into an ISP provided 8 bit
-subnet at 209.1.2.0, the following would be used:
+subnet at 209.1.2.0 through the ppp0 interface, the following would be used:
 .LP
 .nf
-map 10.0.0.0/8 -> 209.1.2.0/24
+map ppp0 10.0.0.0/8 -> 209.1.2.0/24
 .fi
 .PP
 The obvious problem here is we're trying to squeeze over 16,000,000 IP
@@ -48,7 +48,7 @@ addresses into a 254 address space.  To increase the scope, remapping for TCP
 and/or UDP, port remapping can be used;
 .LP
 .nf
-map 10.0.0.0/8 -> 209.1.2.0/24 portmap tcp/udp 1025:65000
+map ppp0 10.0.0.0/8 -> 209.1.2.0/24 portmap tcp/udp 1025:65000
 .fi
 .PP
 which falls only 527,566 `addresses' short of the space available in network
@@ -56,15 +56,17 @@ which falls only 527,566 `addresses' short of the space available in network
 follows:
 .LP
 .nf
-map 10.0.0.0/8 -> 209.1.2.0/24 portmap tcp/udp 1025:65000
-map 10.0.0.0/8 -> 209.1.2.0/24
+map ppp0 10.0.0.0/8 -> 209.1.2.0/24 portmap tcp/udp 1025:65000
+map ppp0 10.0.0.0/8 -> 209.1.2.0/24
 .fi
 .PP
 so that all TCP/UDP packets were port mapped and only other protocols, such as
 ICMP, only have their IP# changed.
 .SH FILES
+/dev/ipnat
+.br
 /etc/services
 .br
 /etc/hosts
 .SH SEE ALSO
-ipnat(1), ipf(5), ipnat(4)
+ipnat(4), hosts(5), ipf(5), services(5), ipf(8), ipnat(8)
