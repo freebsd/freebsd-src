@@ -78,6 +78,7 @@ int	yp_first(char *indomain, char *inmap, char **outkey, int *outkeylen,
 	    char **outval, int *outvallen);
 int	yp_next(char *indomain, char *inmap, char *inkey, int inkeylen,
 	    char **outkey, int *outkeylen, char **outval, int *outvallen);
+int	yp_maplist(char *indomain, struct ypmaplist **outmaplist);
 int	yp_master(char *indomain, char *inmap, char **outname);
 int	yp_order(char *indomain, char *inmap, int *outorder);
 int	yp_all(char *indomain, char *inmap, struct ypall_callback *incallback);
