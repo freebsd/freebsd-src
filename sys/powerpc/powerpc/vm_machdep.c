@@ -115,10 +115,14 @@ vm_fault_quick(v, prot)
  * ready to run and return to user mode.
  */
 void
-cpu_fork(p1, p2)
+cpu_fork(p1, p2, flags)
 	register struct proc *p1, *p2;
+	int flags;
 {
 	struct user *up = p2->p_addr;
+
+	if ((flags & RFPROC) == 0)
+		return;
 
 	p2->p_md.md_tf = p1->p_md.md_tf;
 	p2->p_md.md_flags = p1->p_md.md_flags & MDP_FPUSED;
