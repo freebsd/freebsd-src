@@ -56,6 +56,11 @@
 #define	DOSPTYP_EXTENDEDX	15
 #define	DOSPTYP_ONTRACK		84
 #endif
+#if defined(PC98) && !defined(PC98_ATCOMPAT)
+#include <sys/diskpc98.h>
+#else
+#include <sys/diskmbr.h>
+#endif
 #include <sys/diskslice.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>

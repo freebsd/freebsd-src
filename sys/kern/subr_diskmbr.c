@@ -49,6 +49,7 @@
 #endif
 #include <sys/disk.h>
 #include <sys/disklabel.h>
+#include <sys/diskmbr.h>
 #define	DOSPTYP_EXTENDED	5
 #define	DOSPTYP_EXTENDEDX	15
 #define	DOSPTYP_ONTRACK		84
