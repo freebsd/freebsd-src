@@ -146,6 +146,10 @@
         is no longer needed when only a USB keyboard is connected.
         &merged;</para>
 
+      <para arch="amd64,alpha,i386,ia64">The &man.puc.4;, 
+        PCI Universal Communications driver now supports
+        to connect parallel ports to the &man.ppc.4; driver.</para>
+
       <para arch="i386,pc98">The &man.safe.4; driver has been added
         to support SafeNet 1141, 1741-based crypto accelerators.
         &merged;
@@ -176,6 +180,10 @@
 
       <para>A bug in the &man.bge.4; driver that prevented it from
 	working correctly at 10 Mbps has been fixed.</para>
+
+      <para>The &man.em.4; driver now has support for tuning
+        the interrupt delays using sysctl tunables
+        without recompiling the driver.</para>
 
       <para arch="i386,pc98,sparc64">The &man.harp.4; driver has been added.
         This is a pseudo physical interface driver for HARP, 
