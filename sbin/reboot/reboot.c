@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: reboot.c,v 1.3.2.1 1997/06/18 06:19:44 charnier Exp $
+ *	$Id: reboot.c,v 1.3.2.2 1997/06/30 11:18:14 charnier Exp $
  */
 
 #ifndef lint
@@ -74,7 +74,7 @@ main(argc, argv)
 	} else
 		howto = 0;
 	lflag = nflag = qflag = 0;
-	while ((ch = getopt(argc, argv, "lnpq")) != EOF)
+	while ((ch = getopt(argc, argv, "lnpq")) != -1)
 		switch(ch) {
 		case 'l':		/* Undocumented; used by shutdown. */
 			lflag = 1;
