@@ -297,10 +297,6 @@ int	ratecheck(struct timeval *, const struct timeval *);
 void	timevaladd(struct timeval *t1, const struct timeval *t2);
 void	timevalsub(struct timeval *t1, const struct timeval *t2);
 int	tvtohz(struct timeval *tv);
-
-struct thread;
-int	kern_nanosleep(struct thread *td, struct timespec *rqt,
-	    struct timespec *rmt);
 #else /* !_KERNEL */
 #include <time.h>
 
