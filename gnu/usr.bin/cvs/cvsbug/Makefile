@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-MAINAINER=	peter@FreeBSD.org
+MAINTAINER=	peter@FreeBSD.org
 
 .include "${.CURDIR}/../Makefile.inc"
 
