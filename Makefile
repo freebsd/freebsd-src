@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.109.2.29 1998/05/29 06:06:08 jkh Exp $
+#	$Id: Makefile,v 1.109.2.30 1998/06/02 18:41:21 jhay Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -527,14 +527,14 @@ lib-tools:
 		usr.bin/tsort		\
 		gnu/usr.bin/as		\
 		gnu/usr.bin/bison	\
-		gnu/usr.bin/cc		\
 		usr.bin/ar		\
 		usr.bin/compile_et	\
 		usr.bin/lex/lib		\
 		usr.bin/mk_cmds		\
 		usr.bin/nm		\
 		usr.bin/ranlib		\
-		usr.bin/uudecode
+		usr.bin/uudecode	\
+		gnu/usr.bin/cc
 	cd ${.CURDIR}/$d && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
@@ -551,6 +551,16 @@ libraries:
 .endif
 .if exists(lib/libcompat)
 	cd ${.CURDIR}/lib/libcompat && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all && \
+		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
+.endif
+.if exists(lib/libc)
+	cd ${.CURDIR}/lib/libc && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all && \
+		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
+.endif
+.if exists(lib/libmytinfo)
+	cd ${.CURDIR}/lib/libmytinfo && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
