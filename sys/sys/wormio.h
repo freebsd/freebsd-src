@@ -72,6 +72,23 @@ struct wormio_fixation
  */
 #define WORMIOCFINISHTRACK      _IO('W', 23)
 
+
+struct wormio_session_info {
+    u_short lead_in;
+    u_short lead_out;
+};
+#define WORMIOCREADSESSIONINFO  _IOR('W', 31, struct wormio_session_info)
+
+struct wormio_write_session {
+    int toc_type;
+    int onp;
+    int lofp;
+    int length;
+    char catalog[13];
+    u_char *track_desc;
+};
+#define WORMIOCWRITESESSION     _IOW('W', 32, struct wormio_write_session)
+    
 /* Errors/warnings */
 #define WORM_SEQUENCE_ERROR                  1
 #define WORM_DUMMY_BLOCKS_ADDED              2
