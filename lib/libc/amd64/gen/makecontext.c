@@ -36,7 +36,7 @@ typedef void (*func_t)(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t,
     uint64_t);
 
 /* Prototypes */
-static void ctx_wrapper(ucontext_t *ucp, func_t func, uint64_t *args);
+static void makectx_wrapper(ucontext_t *ucp, func_t func, uint64_t *args);
 
 __weak_reference(__makecontext, makecontext);
 
@@ -91,11 +91,11 @@ __makecontext(ucontext_t *ucp, void (*start)(void), int argc, ...)
 	ucp->uc_mcontext.mc_rbp = (register_t)sp;
 	ucp->uc_mcontext.mc_rbx = (register_t)sp;
 	ucp->uc_mcontext.mc_rsp = (register_t)sp;
-	ucp->uc_mcontext.mc_rip = (register_t)ctx_wrapper;
+	ucp->uc_mcontext.mc_rip = (register_t)makectx_wrapper;
 }
 
 static void
-ctx_wrapper(ucontext_t *ucp, func_t func, uint64_t *args)
+makectx_wrapper(ucontext_t *ucp, func_t func, uint64_t *args)
 {
 	(*func)(args[0], args[1], args[2], args[3], args[4], args[5]);
 	if (ucp->uc_link == NULL)
