@@ -115,3 +115,4 @@ uart_pci_probe(device_t dev)
 }
 
 DRIVER_MODULE(uart, pci, uart_pci_driver, uart_devclass, 0, 0);
+DRIVER_MODULE(uart, cardbus, uart_pci_driver, uart_devclass, 0, 0);

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ahc_pci.c,v 1.53 2003/05/03 23:27:57 gibbs Exp $
+ * $Id: ahc_pci.c,v 1.58 2003/11/03 09:22:16 dfr Exp $
  */
 
 #include <sys/cdefs.h>
@@ -57,6 +57,7 @@ static driver_t ahc_pci_driver = {
 };
 
 DRIVER_MODULE(ahc_pci, pci, ahc_pci_driver, ahc_devclass, 0, 0);
+DRIVER_MODULE(ahc_pci, cardbus, ahc_pci_driver, ahc_devclass, 0, 0);
 MODULE_DEPEND(ahc_pci, ahc, 1, 1, 1);
 MODULE_VERSION(ahc_pci, 1);
 
