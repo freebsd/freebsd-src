@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: imgact_gzip.c,v 1.28 1997/02/22 09:38:57 peter Exp $
  *
  * This module handles execution of a.out files which have been run through
  * "gzip".  This saves diskspace, but wastes cpu-cycles and VM.
@@ -149,7 +149,7 @@ static int
 do_aout_hdr(struct imgact_gzip * gz)
 {
 	int             error;
-	struct vmspace *vmspace = gz->ip->proc->p_vmspace;
+	struct vmspace *vmspace;
 	vm_offset_t     vmaddr;
 
 	/*
@@ -226,6 +226,8 @@ do_aout_hdr(struct imgact_gzip * gz)
 	 * Destroy old process VM and create a new one (with a new stack)
 	 */
 	exec_new_vmspace(gz->ip);
+
+	vmspace = gz->ip->proc->p_vmspace;
 
 	vmaddr = gz->virtual_offset;
 
