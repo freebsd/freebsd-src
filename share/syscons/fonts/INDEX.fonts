@@ -229,6 +229,8 @@ iso08-8x14.fnt:iw:ISO-8859-8 8x14 ,תירבע
 iso08-8x8.fnt:en:ISO-8859-8 Hebrew, 8x8
 iso08-8x8.fnt:iw:ISO-8859-8 8x8 ,תירבע
 
+iso09-8x16.fnt:en:ISO-8859-9 Turkish, 8x16
+
 iso04-vga9-8x16.fnt:en:ISO-8859-4 Baltic (VGA 9bit mapped), 8x16
 iso04-vga9-8x16.fnt:es:ISO-8859-4 bבltico, 8x16 (VGA 9 bits)
 
