@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.88 1997/04/28 06:15:48 jkh Exp $
+ * $Id: config.c,v 1.89 1997/04/28 10:31:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -391,7 +391,7 @@ configRC_conf(char *config)
 		    strcpy(comment, cp3);
 		}
 		free(lines[i]);
-		lines[i] = (char *)malloc(strlen(v->name) + strlen(v->value) + (comment ? 0 : strlen(comment)) + 10);
+		lines[i] = (char *)malloc(strlen(v->name) + strlen(v->value) + (comment ? strlen(comment) : 0) + 10);
 		if (comment)
 		    sprintf(lines[i], "%s=\"%s\"\t\t%s\n", v->name, v->value, comment);
 		else
