@@ -11,7 +11,7 @@ CLEANFILES+=keywords.h _keywords.tmp
 
 keywords.h: keywords
 	sed -e '/^#/d' -e '/^$$/d' ${.CURDIR}/keywords > _keywords.tmp
-	LANG=C tr 'a-z' 'A-Z' < _keywords.tmp | paste _keywords.tmp - | \
+	LC_ALL=C tr 'a-z' 'A-Z' < _keywords.tmp | paste _keywords.tmp - | \
 	    awk '{ \
 		if (NF > 1) \
 			printf "#define\tK_%s\t%d\n\t{\"%s\", K_%s},\n", \
