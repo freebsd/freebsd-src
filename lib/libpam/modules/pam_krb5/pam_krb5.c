@@ -6,7 +6,7 @@
  *   Copyright (c) Nicolas Williams, 2001. All rights reserved.
  *   Copyright (c) Perot Systems Corporation, 2001. All rights reserved.
  *   Copyright (c) Mark R V Murray, 2001.  All rights reserved.
- *   Copyright (c) Networks Associates Technology, Inc., 2002-2003.
+ *   Copyright (c) Networks Associates Technology, Inc., 2002-2005.
  *       All rights reserved.
  *
  * Portions of this software were developed for the FreeBSD Project by
@@ -86,6 +86,7 @@ static void	compat_free_data_contents(krb5_context, krb5_data *);
 #define NEW_PASSWORD_PROMPT	"New Password:"
 
 #define PAM_OPT_CCACHE		"ccache"
+#define PAM_OPT_DEBUG		"debug"
 #define PAM_OPT_FORWARDABLE	"forwardable"
 #define PAM_OPT_NO_CCACHE	"no_ccache"
 #define PAM_OPT_REUSE_CCACHE	"reuse_ccache"
@@ -270,7 +271,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 		goto cleanup;
 	}
 	krbret = verify_krb_v5_tgt(pam_context, ccache, srvdup,
-	    openpam_get_option(pamh, PAM_OPT_FORWARDABLE) ? 1 : 0);
+	    openpam_get_option(pamh, PAM_OPT_DEBUG) ? 1 : 0);
 	free(srvdup);
 	if (krbret == -1) {
 		PAM_VERBOSE_ERROR("Kerberos 5 error");
