@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.6 1998/12/07 21:58:20 archie Exp $
+ *	$Id: atapi-cd.c,v 1.7 1999/01/02 17:11:45 hoek Exp $
  */
 
 #include "wdc.h"
@@ -97,7 +97,6 @@ static void acd_describe(struct acd *);
 static int acd_setchan(struct acd *, u_char, u_char, u_char, u_char);
 static int acd_eject(struct acd *, int);
 static void acd_select_slot(struct acd *);
-static int acd_rezero_unit(struct acd *);
 static int acd_open_disk(struct acd *, int);
 static int acd_open_track(struct acd *, struct wormio_prepare_track *);
 static int acd_close_track(struct acd *);
@@ -394,21 +393,8 @@ acdopen(dev_t dev, int flags, int fmt, struct proc *p)
     else
         ++cdp->refcnt;
 
-    if ((flags & O_NONBLOCK) == 0) {
-        if ((flags & FWRITE) != 0) {
-            /* read/write */
-            if (acd_rezero_unit(cdp)) {
-                printf("acd%d: rezero failed\n", lun);
-                return EIO;
-            }
-        } else {
-            /* read only */
-            if (acd_read_toc(cdp) != 0) {
-                printf("acd%d: read_toc failed\n", lun);
-                /* return EIO; */
-            }
-        }
-    }
+    if (!(flags & O_NONBLOCK) && acd_read_toc(cdp) && !(flags & FWRITE))
+        printf("acd%d: read_toc failed\n", lun);
     return 0;
 }
 
@@ -1256,13 +1242,6 @@ acd_select_slot(struct acd *cdp)
         acd_request_wait(cdp, ATAPI_PREVENT_ALLOW, 0, 0, 0, 1,
 			 0, 0, 0, 0, 0, 0, 0);
     }
-}
-
-static int
-acd_rezero_unit(struct acd *cdp)
-{
-    return acd_request_wait(cdp, ATAPI_REZERO_UNIT, 0, 0, 0, 0,
-			    0, 0, 0, 0, 0, 0, 0);
 }
 
 static int
