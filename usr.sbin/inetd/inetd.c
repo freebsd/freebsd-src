@@ -428,6 +428,9 @@ main(argc, argv, envp)
 		    if (debug)
 			    warnx("someone wants %s", sep->se_service);
 		    if (sep->se_accept && sep->se_socktype == SOCK_STREAM) {
+			    i = 1;
+			    if (ioctl(sep->se_fd, FIONBIO, &i) < 0)
+				    syslog(LOG_ERR, "ioctl (FIONBIO, 1): %m");
 			    ctrl = accept(sep->se_fd, (struct sockaddr *)0,
 				(int *)0);
 			    if (debug)
@@ -442,6 +445,11 @@ main(argc, argv, envp)
                                               close(ctrl);
 				    continue;
 			    }
+			    i = 0;
+			    if (ioctl(sep->se_fd, FIONBIO, &i) < 0)
+				    syslog(LOG_ERR, "ioctl1(FIONBIO, 0): %m");
+			    if (ioctl(ctrl, FIONBIO, &i) < 0)
+				    syslog(LOG_ERR, "ioctl2(FIONBIO, 0): %m");
 			    if (cpmip(sep, ctrl) < 0) {
 				close(ctrl);
 				continue;
