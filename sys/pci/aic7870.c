@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7870.c,v 1.11.2.9 1996/04/01 00:25:26 gibbs Exp $
+ *	$Id: aic7870.c,v 1.11.2.10 1996/04/28 19:37:09 gibbs Exp $
  */
 
 #include <pci.h>
@@ -153,7 +153,7 @@ struct seeprom_config {
 static char* aic7870_probe __P((pcici_t tag, pcidi_t type));
 static void aic7870_attach __P((pcici_t config_id, int unit));
 static int ahc_pci_intr __P((void *arg));
-static int load_seeprom __P((struct ahc_data *ahc));
+static void load_seeprom __P((struct ahc_data *ahc));
 static int acquire_seeprom __P((u_long offset, u_short CS, u_short CK,
 				u_short DO, u_short DI, u_short RDY,  
 				u_short MS));
@@ -228,6 +228,8 @@ aic7870_attach(config_id, unit)
 	ahc_type ahc_t = AHC_NONE;
 	ahc_flag ahc_f = AHC_FNONE;
 	struct ahc_data *ahc;
+	u_char ultra_enb = 0;
+	u_char our_id = 0;
 
         if(!(io_port = pci_conf_read(config_id, PCI_BASEADR0)))
 		return;
@@ -276,6 +278,11 @@ aic7870_attach(config_id, unit)
 
 	/* On all PCI adapters, we allow SCB paging */
 	ahc_f |= AHC_PAGESCBS;
+
+	/* Remeber how the card was setup in case there is no SEEPROM */
+	our_id = inb(SCSIID + io_port) & OID;
+	if(ahc_t & AHC_ULTRA)
+		ultra_enb = inb(SXFRCTL0 + io_port) & ULTRAEN;
 
 	ahc_reset(io_port);
 
@@ -372,14 +379,20 @@ aic7870_attach(config_id, unit)
 		   case AHC_AIC7860:
 		   {
 			id_string = "aic7860 ";
-			/* Assume there is no BIOS for these cards? */
+			/*
+			 * Use defaults, if the chip wasn't initialized by
+			 * a BIOS.
+			 */
 			ahc->flags |= AHC_USEDEFAULTS;
 			break;
 		   }
 		   case AHC_AIC7850:
 		   {
 			id_string = "aic7850 ";
-			/* Assume there is no BIOS for these cards? */
+			/*
+			 * Use defaults, if the chip wasn't initialized by
+			 * a BIOS.
+			 */
 			ahc->flags |= AHC_USEDEFAULTS;
 			break;
 		   }
@@ -390,8 +403,6 @@ aic7870_attach(config_id, unit)
 			break;
 		   }
 		}
-
-		printf("ahc%d: %s", unit, id_string);
 
 		/*
 		 * Take the LED out of diagnostic mode
@@ -409,13 +420,36 @@ aic7870_attach(config_id, unit)
 			/*
 			 * PCI Adapter default setup
 			 * Should only be used if the adapter does not have
-			 * an SEEPROM and we don't think a BIOS was installed.
+			 * an SEEPROM.
 			 */
-			/* Set the host ID */
-			outb(SCSICONF + iobase, 7);
+			/* See if someone else set us up already */
+			u_long i;
+		        for(i=io_port + TARG_SCRATCH; i < io_port + 0x60; i++) {
+                        	if(inb(i) != 0xff)
+					break;
+			}
+			if(i != io_port + 0x60) {
+				printf("ahc%d: Using left over BIOS settings\n",
+					ahc->unit);
+				ahc->flags &= ~AHC_USEDEFAULTS;
+			}
+			else
+				our_id = 0x07;
+			outb(SCSICONF, (our_id & 0x07)|ENSPCHK|RESET_SCSI);
 			/* In case we are a wide card */
-			outb(SCSICONF + 1 + iobase, 7);
+			outb(SCSICONF + 1, our_id);
+
+			if(!ultra_enb || (ahc->flags & AHC_USEDEFAULTS)) {
+				/*
+				 * If there wasn't a BIOS or the board
+				 * wasn't in this mode to begin with, 
+				 * turn off ultra.
+				 */
+				ahc->type &= ~AHC_ULTRA;
+			}
 		}
+
+		printf("ahc%d: %s", unit, id_string);
 	}
 
 	if(ahc_init(ahc)){
@@ -443,7 +477,7 @@ ahc_pci_intr(arg)
 /*
  * Read the SEEPROM.  Return 0 on failure
  */
-int
+void
 load_seeprom(ahc)
 	struct	ahc_data *ahc;
 {
@@ -453,7 +487,7 @@ load_seeprom(ahc)
 	u_long	iobase = ahc->baseport;
 	u_char	scsi_conf;
 	u_char	host_id;
-	int	have_seeprom, retval;
+	int	have_seeprom;
                  
 	if(bootverbose) 
 		printf("ahc%d: Reading SEEPROM...", ahc->unit);
@@ -474,7 +508,8 @@ load_seeprom(ahc)
 			for (i = 0;i < (sizeof(sc)/2 - 1);i = i + 1)
 				checksum = checksum + scarray[i];
 			if (checksum != sc.checksum) {
-				printf ("checksum error");
+				if(bootverbose)
+					printf ("checksum error");
 				have_seeprom = 0;
 			}
 			else if(bootverbose)
@@ -482,17 +517,9 @@ load_seeprom(ahc)
 		}
 	}
 	if (!have_seeprom) {
-		printf("\nahc%d: SEEPROM read failed, "
-		       "using leftover BIOS values\n", ahc->unit);
-		retval = 0;
-
-		host_id = 0x7;
-		scsi_conf = host_id | ENSPCHK; /* Assume a default */
-		/*
-		 * If we happen to be an ULTRA card,
-		 * default to non-ultra mode.
-		 */
-		ahc->type &= ~AHC_ULTRA;
+		if(bootverbose)
+			printf("\nahc%d: No SEEPROM availible\n", ahc->unit);
+		ahc->flags |= AHC_USEDEFAULTS;
 	}
 	else {
 		/*
@@ -521,6 +548,8 @@ load_seeprom(ahc)
 		scsi_conf = (host_id & 0x7);
 		if(sc.adapter_control & CFSPARITY)
 			scsi_conf |= ENSPCHK;
+		if(sc.adapter_control & CFRESETB)
+			scsi_conf |= RESET_SCSI;
 
 		if(ahc->type & AHC_ULTRA) {
 			/* Should we enable Ultra mode? */
@@ -528,14 +557,13 @@ load_seeprom(ahc)
 				/* Treat us as a non-ultra card */
 				ahc->type &= ~AHC_ULTRA;
 		}
-		retval = 1;
+		/* Set the host ID */
+		outb(SCSICONF + iobase, scsi_conf);
+		/* In case we are a wide card */
+		outb(SCSICONF + 1 + iobase, host_id);
 	}
-	/* Set the host ID */
-	outb(SCSICONF + iobase, scsi_conf);
-	/* In case we are a wide card */
-	outb(SCSICONF + 1 + iobase, host_id);
 
-	return(retval);
+	return;
 }
 
 static int
