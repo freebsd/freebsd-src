@@ -35,6 +35,7 @@
 static char sccsid[] = "@(#)board.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
+#include <string.h>
 #include "back.h"
 
 static int	i, j, k;
