@@ -63,6 +63,12 @@ struct {
 
 char *NULLUNIT = "";
 
+#ifdef MSDOS
+#define SEPERATOR      ";"
+#else
+#define SEPARATOR      ":"
+#endif
+
 int unitcount;
 int prefixcount;
 
@@ -107,26 +113,17 @@ readunits(char *userfile)
 		if (!unitfile) {
 			char *direc, *env;
 			char filename[1000];
-			char separator[2];
 
 			env = getenv("PATH");
 			if (env) {
-				if (strchr(env, ';'))
-					strcpy(separator, ";");
-				else
-					strcpy(separator, ":");
-				direc = strtok(env, separator);
+				direc = strtok(env, SEPARATOR);
 				while (direc) {
-					strcpy(filename, "");
-					strncat(filename, direc, 999);
-					strncat(filename, "/",
-					    999 - strlen(filename));
-					strncat(filename, UNITSFILE,
-					    999 - strlen(filename));
+					snprintf(filename, sizeof(filename),
+					    "%s/%s", direc, UNITSFILE);
 					unitfile = fopen(filename, "rt");
 					if (unitfile)
 						break;
-					direc = strtok(NULL, separator);
+					direc = strtok(NULL, SEPARATOR);
 				}
 			}
 			if (!unitfile)
@@ -286,6 +283,9 @@ addunit(struct unittype * theunit, char *toadd, int flip)
 	char *divider, *slash;
 	int doingtop;
 
+	if (!strlen(toadd))
+		return 1;
+	
 	savescr = scratch = dupstr(toadd);
 	for (slash = scratch + 1; *slash; slash++)
 		if (*slash == '-' &&
@@ -435,7 +435,7 @@ lookupunit(char *unit)
 		copy[strlen(copy) - 1] = 0;
 		for (i = 0; i < unitcount; i++) {
 			if (!strcmp(unittable[i].uname, copy)) {
-				strcpy(buffer, copy);
+				strlcpy(buffer, copy, sizeof(buffer));
 				free(copy);
 				return buffer;
 			}
@@ -447,7 +447,7 @@ lookupunit(char *unit)
 		copy[strlen(copy) - 1] = 0;
 		for (i = 0; i < unitcount; i++) {
 			if (!strcmp(unittable[i].uname, copy)) {
-				strcpy(buffer, copy);
+				strlcpy(buffer, copy, sizeof(buffer));
 				free(copy);
 				return buffer;
 			}
@@ -456,7 +456,7 @@ lookupunit(char *unit)
 			copy[strlen(copy) - 1] = 0;
 			for (i = 0; i < unitcount; i++) {
 				if (!strcmp(unittable[i].uname, copy)) {
-					strcpy(buffer, copy);
+					strlcpy(buffer, copy, sizeof(buffer));
 					free(copy);
 					return buffer;
 				}
@@ -469,9 +469,8 @@ lookupunit(char *unit)
 			strlen(prefixtable[i].prefixname))) {
 			unit += strlen(prefixtable[i].prefixname);
 			if (!strlen(unit) || lookupunit(unit)) {
-				strcpy(buffer, prefixtable[i].prefixval);
-				strcat(buffer, " ");
-				strcat(buffer, unit);
+				snprintf(buffer, sizeof(buffer), "%s %s",
+				    prefixtable[i].prefixval, unit);
 				return buffer;
 			}
 		}
@@ -652,8 +651,8 @@ main(int argc, char **argv)
 	readunits(userfile);
 
 	if (optind == argc - 2) {
-		strcpy(havestr, argv[optind]);
-		strcpy(wantstr, argv[optind + 1]);
+		strlcpy(havestr, argv[optind], sizeof(havestr));
+		strlcpy(wantstr, argv[optind + 1], sizeof(wantstr));
 		initializeunit(&have);
 		addunit(&have, havestr, 0);
 		completereduce(&have);
