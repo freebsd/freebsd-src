@@ -4,7 +4,7 @@
 #			ptx spell spline struct units xsend
 # XXX MISSING SOURCES:	file grep sort
 # XXX MISSING Makefile:	uucp
-# XXX Use GNU versions:	ld man apropos whatis
+# XXX Use GNU versions:	ld man apropos whatis patch
 SUBDIR=	apply ar banner basename bdes biff cal calendar \
 	cap_mkdb checknr chflags chpass cksum col colcrt colrm column \
 	comm compress cpp ctags cut dirname du \
@@ -13,7 +13,7 @@ SUBDIR=	apply ar banner basename bdes biff cal calendar \
 	join jot kdump ktrace lam last lastcomm leave locate \
 	lock logger login logname lorder m4 mail make mesg mkdep \
 	mkfifo mklocale mkstr more msgs mt netstat nfsstat nice nm nohup \
-	pagesize passwd paste patch pr printenv printf quota \
+	pagesize passwd paste pr printenv printf quota \
 	ranlib rdist renice rev rlogin rs rsh ruptime rwho \
 	script sed shar showmount size soelim split \
 	strings strip su talk tcopy tee telnet tftp time tip \
