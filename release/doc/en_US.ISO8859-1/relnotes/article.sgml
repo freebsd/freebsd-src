@@ -1575,6 +1575,11 @@
     <para>&man.moused.8; now takes a <option>-a</option> to control
     mouse acceleration.</para>
 
+    <para arch="i386">&man.fdisk.8; no longer attempts to search for
+    a device if none has been specified on the command line, but
+    instead tries to figure out the default device name from the
+    root device.</para>
+
     <sect3>
       <title>Contributed Software</title>
 
