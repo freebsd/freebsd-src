@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)cltp_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: cltp_usrreq.c,v 1.2 1994/08/02 07:49:55 davidg Exp $
  */
 
 #ifndef CLTPOVAL_SRC /* XXX -- till files gets changed */
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>

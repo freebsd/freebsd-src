@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_cons.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tp_cons.c,v 1.2 1994/08/02 07:50:56 davidg Exp $
  */
 
 /***********************************************************
@@ -62,7 +62,7 @@ SOFTWARE.
  */
 /* 
  * ARGO TP
- * $Header: /home/ncvs/src/sys/netiso/tp_cons.c,v 1.1.1.1 1994/05/24 10:06:58 rgrimes Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_cons.c,v 1.2 1994/08/02 07:50:56 davidg Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_cons.c,v $
  *
  * Here is where you find the iso- and cons-dependent code.  We've tried
@@ -80,6 +80,7 @@ SOFTWARE.
 #ifdef TPCONS
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/socket.h>
 #include <sys/domain.h>
 #include <sys/mbuf.h>
