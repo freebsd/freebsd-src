@@ -131,6 +131,18 @@ parameter below for more information.
 .\" However, two consecutive dots imply a zero
 .\" byte, and the dots are optional, if the user wishes to (carefully)
 .\" count out long strings of digits in network byte order.
+.Pp
+The link-level
+.Pq Dq link
+address
+is specified as a series of colon-separated hex digits.
+This can be used to
+e.g. set a new MAC address on an ethernet interface, though the
+mechanism used is not ethernet-specific.
+If the interface is already
+up when this option is used, it will be briefly brought down and
+then brought back up again in order to ensure that the receive
+filter in the underlying ethernet hardware is properly reprogrammed.
 .It Ar address_family
 Specify the
 address family
@@ -142,14 +154,19 @@ supported are
 .Dq inet ,
 .Dq inet6 ,
 .Dq atalk ,
-.Dq ether ,
+.Dq ipx ,
 .\" .Dq iso ,
 and
-.Dq ipx .
+.Dq link .
 .\" and
 .\" .Dq ns .
-The default is 
+The default is
 .Dq inet .
+.Dq ether
+and
+.Dq lladdr
+are synonyms for
+.Dq link .
 .It Ar dest_address
 Specify the address of the correspondent on the other end
 of a point to point link.
@@ -230,10 +247,6 @@ the system will not attempt to
 transmit messages through that interface.
 If possible, the interface will be reset to disable reception as well.
 This action does not automatically disable routes using the interface.
-.It Cm ether
-Another name for the
-.Cm lladdr
-parameter.
 .\" .It Cm ipdst
 .\" This is used to specify an Internet host who is willing to receive
 .\" ip packets encapsulating NS packets bound for a remote network.
@@ -243,18 +256,6 @@ parameter.
 .\" IP encapsulation of
 .\" .Tn CLNP
 .\" packets is done differently.
-.It Cm lladdr Ar addr
-Set the link-level address on an interface.
-This can be used to
-e.g. set a new MAC address on an ethernet interface, though the
-mechanism used is not ethernet-specific.
-The address
-.Ar addr
-is specified as a series of colon-separated hex digits.
-If the interface is already
-up when this option is used, it will be briefly brought down and
-then brought back up again in order to ensure that the receive
-filter in the underlying ethernet hardware is properly reprogrammed.
 .It Cm media Ar type
 If the driver supports the media selection system, set the media type
 of the interface to
