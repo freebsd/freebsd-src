@@ -2108,15 +2108,14 @@ get_mcontext(struct thread *td, mcontext_t *mcp)
 /*
  * Set machine context.
  *
- * However, we don't set any but the user modifyable flags, and
- * we we won't touch the cs selector.
+ * However, we don't set any but the user modifiable flags, and we won't
+ * touch the cs selector.
  */
 int
 set_mcontext(struct thread *td, const mcontext_t *mcp)
 {
 	struct trapframe *tp;
-	int ret;
-	int	eflags;
+	int eflags, ret;
 
 	tp = td->td_frame;
 	if (mcp->mc_len != sizeof(*mcp))
@@ -2150,7 +2149,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 #ifndef DEV_NPX
 	mcp->mc_fpformat = _MC_FPFMT_NODEV;
 	mcp->mc_ownedfp = _MC_FPOWNED_NONE;
-#else
+#else /* DEV_NPX */
 	union savefpu *addr;
 
 	/*
@@ -2182,7 +2181,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 	}
 	bcopy(&mcp->mc_fpstate, &td->td_pcb->pcb_save, sizeof(mcp->mc_fpstate));
 	mcp->mc_fpformat = npxformat();
-#endif
+#endif /* !DEV_NPX */
 }
 
 static int
@@ -2192,7 +2191,7 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 
 	if (mcp->mc_fpformat == _MC_FPFMT_NODEV)
 		return (0);
-	else if (mcp->mc_ownedfp == _MC_FPOWNED_NONE)
+	if (mcp->mc_ownedfp == _MC_FPOWNED_NONE)
 		/* We don't care what state is left in the FPU or PCB. */
 		fpstate_drop(td);
 	else if (mcp->mc_ownedfp == _MC_FPOWNED_FPU ||
@@ -2215,7 +2214,6 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 		 * be called with interrupts disabled.
 		 */
 		npxsetregs(td, addr);
-#endif
 		/*
 		 * Don't bother putting things back where they were in the
 		 * misaligned case, since we know that the caller won't use
@@ -2223,12 +2221,14 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 		 */
 	} else {
 		/*
-		 * There's no valid FPU state to restore, so use the
-		 * saved state in the PCB only of the process has used
-		 * the FPU since.
+		 * There is no valid FPU state in *mcp, so use the saved
+		 * state in the PCB if there is one.  XXX the test for
+		 * whether there is one seems to be quite broken.  We
+		 * forcibly drop the state in sendsig().
 		 */
 		if ((td->td_pcb->pcb_flags & PCB_NPXINITDONE) != 0)
 			npxsetregs(td, &td->td_pcb->pcb_save);
+#endif
 #if !defined(COMPAT_FREEBSD4) && !defined(COMPAT_43)
 		return (EINVAL);
 #endif
