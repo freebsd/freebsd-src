@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: skeleton.c,v 1.15 1999/04/18 13:37:49 peter Exp $
+ *	$Id: skeleton.c,v 1.16 1999/07/29 08:47:30 obrien Exp $
  */
 
 #ifndef lint
@@ -142,11 +142,15 @@ char *body[] =
     "    else if ((newsize *= 2) > YYMAXDEPTH)",
     "        newsize = YYMAXDEPTH;",
     "    i = yyssp - yyss;",
-    "    if ((newss = (short *)realloc(yyss, newsize * sizeof *newss)) == NULL)",
+    "    newss = yyss ? (short *)realloc(yyss, newsize * sizeof *newss) :",
+    "      (short *)malloc(newsize * sizeof *newss);",
+    "    if (newss == NULL)",
     "        return -1;",
     "    yyss = newss;",
     "    yyssp = newss + i;",
-    "    if ((newvs = (YYSTYPE *)realloc(yyvs, newsize * sizeof *newvs)) == NULL)",
+    "    newvs = yyvs ? (YYSTYPE *)realloc(yyvs, newsize * sizeof *newvs) :",
+    "      (YYSTYPE *)malloc(newsize * sizeof *newvs);",
+    "    if (newvs == NULL)",
     "        return -1;",
     "    yyvs = newvs;",
     "    yyvsp = newvs + i;",
@@ -161,7 +165,11 @@ char *body[] =
     "#define YYERROR goto yyerrlab",
     "",
     "int",
+    "#if defined(__cplusplus) || __STDC__",
+    "yyparse(void)",
+    "#else",
     "yyparse()",
+    "#endif",
     "{",
     "    register int yym, yyn, yystate;",
     "#if YYDEBUG",
