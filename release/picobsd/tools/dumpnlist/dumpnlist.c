@@ -20,7 +20,6 @@ struct nlist    nl[] = {
     {"_scsi_cinit"},
     {"_scsi_dinit"},
     {"_scsi_tinit"},
-    {"_cnt"},
     {""},
 };
 
@@ -36,10 +35,11 @@ main(int ac, char **av)
 	return 1;
     }
     printf("%d\n", sizeof(nl) / sizeof(struct nlist));
-    for (i = 0; nl[i].n_name; i++) {
+    i=0;
+    do {
 	printf("%s\n", nl[i].n_name);
 	printf("%d %d %d %ld\n",
 	       nl[i].n_type, nl[i].n_other, nl[i].n_desc, nl[i].n_value);
-    }
+    } while(strcmp(nl[i++].n_name,"")!=NULL);
     return 0;
 }
