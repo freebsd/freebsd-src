@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.34 1997/04/21 01:01:53 brian Exp $
+ * $Id: modem.c,v 1.35 1997/05/10 01:22:17 brian Exp $
  *
  *  TODO:
  */
@@ -47,7 +47,6 @@ static int mbits;			/* Current DCD status */
 static int connect_time;		/* connection time */
 static int connect_count;
 static struct pppTimer ModemTimer;
-static char uucplock[10];
 
 extern void PacketMode(), TtyTermMode(), TtyCommandMode();
 extern int TermMode;
@@ -395,10 +394,8 @@ int mode;
     } else if (modem < 0)
 	return(modem);
   } else if (modem < 0) {
-    if (strncmp(VarDevice, "/dev", 4) == 0) {
-      strncpy(uucplock, rindex(VarDevice, '/')+1,sizeof(uucplock)-1);
-      uucplock[sizeof(uucplock)-1] = '\0';
-      if ((res = uu_lock(uucplock)) != UU_LOCK_OK) {
+    if (strncmp(VarDevice, "/dev/", 5) == 0) {
+      if ((res = uu_lock(VarBaseDevice)) != UU_LOCK_OK) {
         if (res == UU_LOCK_INUSE)
           LogPrintf(LOG_PHASE_BIT, "Modem %s is in use\n", VarDevice);
         else
@@ -409,7 +406,7 @@ int mode;
       modem = open(VarDevice, O_RDWR|O_NONBLOCK);
       if (modem < 0) {
         LogPrintf(LOG_PHASE_BIT, "Open Failed %s\n", VarDevice);
-        (void) uu_unlock(uucplock);
+        (void) uu_unlock(VarBaseDevice);
         return(modem);
       }
     } else {
@@ -621,7 +618,7 @@ int flag;
 	close(modem);
     }
     modem = -1;                 /* Mark as modem has closed */
-    (void) uu_unlock(uucplock);
+    (void) uu_unlock(VarBaseDevice);
   } else if (modem >= 0) {
     mbits |= TIOCM_DTR;
 #ifndef notyet
@@ -642,7 +639,7 @@ CloseModem()
       close(modem);
       modem = -1;
   }
-  (void) uu_unlock(uucplock);
+  (void) uu_unlock(VarBaseDevice);
 }
 
 /*
