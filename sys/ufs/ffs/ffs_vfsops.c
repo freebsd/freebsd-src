@@ -531,7 +531,8 @@ loop:
 		    bread(devvp, fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
 		    (int)fs->fs_bsize, NOCRED, &bp);
 		if (error) {
-			vput(vp);
+			VOP_UNLOCK(vp, 0, td);
+			vrele(vp);
 			return (error);
 		}
 		ffs_load_inode(bp, ip, fs, ip->i_number);
