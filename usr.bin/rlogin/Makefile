@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	rlogin
-SRCS=	rlogin.c
 
 BINOWN=	root
 BINMODE=4555

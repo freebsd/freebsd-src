@@ -2,7 +2,6 @@
 
 PROG=   setpmac
 MAN=	setpmac.8
-SRCS=   setpmac.c
 
 WARNS?=	6
 
