@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.78 1998/07/06 05:04:33 julian Exp $
+ *	$Id: ip_output.c,v 1.79 1998/07/13 12:12:25 bde Exp $
  */
 
 #define _IP_VHL
@@ -390,8 +390,7 @@ sendit:
 	 */
 	if (ip_fw_chk_ptr) {
 #ifdef IPFIREWALL_FORWARD
-		struct sockaddr_in *old;
-		old = dst;
+		struct sockaddr_in *old = dst;
 #endif
 #ifdef IPDIVERT
 		ip_divert_port = (*ip_fw_chk_ptr)(&ip,
