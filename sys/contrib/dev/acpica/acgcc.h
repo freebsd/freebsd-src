@@ -130,9 +130,7 @@
 #define BREAKPOINT3
 #define disable() __cli()
 #define enable()  __sti()
-#ifndef __FreeBSD__	/* XXX conflicts with inline in cpufunc.h */
 #define wbinvd()
-#endif
 
 /*! [Begin] no source code translation */
 
