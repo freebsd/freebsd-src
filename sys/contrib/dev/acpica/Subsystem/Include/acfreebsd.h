@@ -134,7 +134,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/libkern.h>
-#include <stdarg.h>
+#include <machine/stdarg.h>
 
 #define asm         __asm
 #define __cli()     disable_intr()
