@@ -51,6 +51,7 @@ static char const sccsid[] = "@(#)df.c	8.9 (Berkeley) 5/8/95";
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
+#include <ufs/ufs/ufsmount.h>
 
 #include <err.h>
 #include <errno.h>
@@ -59,61 +60,17 @@ static char const sccsid[] = "@(#)df.c	8.9 (Berkeley) 5/8/95";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <ufs/ufs/ufsmount.h>
 
-/* XXX assumes MOUNT_MAXTYPE < 32 */
-#define MT(m)		(1 << (m))
+int	  checkvfsname __P((const char *, char **));
+char	**makevfslist __P((char *));
+long	  regetmntinfo __P((struct statfs **, long, char **));
+int	  bread __P((off_t, void *, int));
+char	 *getmntpt __P((char *));
+void	  prtstat __P((struct statfs *, int));
+void	  ufs_df __P((char *, int));
+void	  usage __P((void));
 
-/* fixed values */
-#define MT_NONE		(0)
-#define MT_ALL		(MT(MOUNT_MAXTYPE+1)-1)
-
-/* subject to change */
-#define MT_LOCAL \
-    (MT(MOUNT_UFS)|MT(MOUNT_MFS)|MT(MOUNT_LFS)|MT(MOUNT_MSDOS)|MT(MOUNT_CD9660))
-#define MT_DEFAULT	MT_ALL
-
-struct typetab {
-	char *str;
-	long types;
-} typetab[] = {
-	{"ufs",		MT(MOUNT_UFS)},
-	{"local",	MT_LOCAL},
-	{"all",		MT_ALL},
-	{"nfs",		MT(MOUNT_NFS)},
-	{"mfs",		MT(MOUNT_MFS)},
-	{"lfs",		MT(MOUNT_LFS)},
-	{"msdos",	MT(MOUNT_MSDOS)},
-	{"fdesc",	MT(MOUNT_FDESC)},
-	{"portal",	MT(MOUNT_PORTAL)},
-#if 0
-	/* return fsid of underlying FS */
-	{"lofs",	MT(MOUNT_LOFS)},
-	{"null",	MT(MOUNT_NULL)},
-	{"umap",	MT(MOUNT_UMAP)},
-#endif
-	{"kernfs",	MT(MOUNT_KERNFS)},
-	{"procfs",	MT(MOUNT_PROCFS)},
-	{"afs",		MT(MOUNT_AFS)},
-	{"iso9660fs",	MT(MOUNT_CD9660)},
-	{"isofs",	MT(MOUNT_CD9660)},
-	{"cd9660",	MT(MOUNT_CD9660)},
-	{"cdfs",	MT(MOUNT_CD9660)},
-	{"misc",	MT(MOUNT_LOFS)|MT(MOUNT_FDESC)|MT(MOUNT_PORTAL)|
-			MT(MOUNT_KERNFS)|MT(MOUNT_PROCFS)},
-	{NULL,		0}
-
-};
-
-long	addtype __P((long, char *));
-long	regetmntinfo __P((struct statfs **, long, long));
-int	 bread __P((off_t, void *, int));
-char	*getmntpt __P((char *));
-void	 prtstat __P((struct statfs *, int));
-void	 ufs_df __P((char *, int));
-void	 usage __P((void));
-
-int	iflag, nflag, tflag;
+int	iflag, nflag;
 struct	ufs_args mdev;
 
 int
@@ -123,13 +80,11 @@ main(argc, argv)
 {
 	struct stat stbuf;
 	struct statfs statfsbuf, *mntbuf;
-	long fsmask, mntsize;
+	long mntsize;
 	int ch, err, i, maxwidth, width;
-	char *mntpt;
+	char *mntpt, **vfslist;
 
-	iflag = nflag = tflag = 0;
-	fsmask = MT_NONE;
-
+	vfslist = NULL;
 	while ((ch = getopt(argc, argv, "iknt:")) != EOF)
 		switch (ch) {
 		case 'i':
@@ -142,8 +97,9 @@ main(argc, argv)
 			nflag = 1;
 			break;
 		case 't':
-			fsmask = addtype(fsmask, optarg);
-			tflag = 1;
+			if (vfslist != NULL)
+				errx(1, "only one -t option may be specified.");
+			vfslist = makevfslist(optarg);
 			break;
 		case '?':
 		default:
@@ -161,10 +117,8 @@ main(argc, argv)
 	}
 
 	if (!*argv) {
-		if (!tflag)
-			fsmask = MT_DEFAULT;
-		mntsize = regetmntinfo(&mntbuf, mntsize, fsmask);
-		if (fsmask != MT_ALL) {
+		mntsize = regetmntinfo(&mntbuf, mntsize, vfslist);
+		if (vfslist != NULL) {
 			maxwidth = 0;
 			for (i = 0; i < mntsize; i++) {
 				width = strlen(mntbuf[i].f_mntfromname);
@@ -195,7 +149,7 @@ main(argc, argv)
 					warn("%s", mntpt);
 					continue;
 				}
-				if (mount(MOUNT_UFS, mntpt, MNT_RDONLY,
+				if (mount("ufs", mntpt, MNT_RDONLY,
 				    &mdev) != 0) {
 					ufs_df(*argv, maxwidth);
 					(void)rmdir(mntpt);
@@ -241,55 +195,32 @@ getmntpt(name)
 	return (0);
 }
 
-long
-addtype(omask, str)
-	long omask;
-	char *str;
-{
-	struct typetab *tp;
-
-	/*
-	 * If it is one of our known types, add it to the current mask
-	 */
-	for (tp = typetab; tp->str; tp++)
-		if (strcmp(str, tp->str) == 0)
-			return (tp->types | (tflag ? omask : MT_NONE));
-	/*
-	 * See if it is the negation of one of the known values
-	 */
-	if (strlen(str) > 2 && str[0] == 'n' && str[1] == 'o')
-		for (tp = typetab; tp->str; tp++)
-			if (strcmp(str+2, tp->str) == 0)
-				return (~tp->types & (tflag ? omask : MT_ALL));
-	errx(1, "unknown type `%s'", str);
-}
-
 /*
  * Make a pass over the filesystem info in ``mntbuf'' filtering out
- * filesystem types not in ``fsmask'' and possibly re-stating to get
+ * filesystem types not in vfslist and possibly re-stating to get
  * current (not cached) info.  Returns the new count of valid statfs bufs.
  */
 long
-regetmntinfo(mntbufp, mntsize, fsmask)
+regetmntinfo(mntbufp, mntsize, vfslist)
 	struct statfs **mntbufp;
-	long mntsize, fsmask;
+	long mntsize;
+	char **vfslist;
 {
 	int i, j;
 	struct statfs *mntbuf;
 
-	if (fsmask == MT_ALL)
+	if (vfslist == NULL)
 		return (nflag ? mntsize : getmntinfo(mntbufp, MNT_WAIT));
 
 	mntbuf = *mntbufp;
-	j = 0;
-	for (i = 0; i < mntsize; i++) {
-		if (fsmask & MT(mntbuf[i].f_type)) {
-			if (!nflag)
-				(void)statfs(mntbuf[i].f_mntonname,&mntbuf[j]);
-			else if (i != j)
-				mntbuf[j] = mntbuf[i];
-			j++;
-		}
+	for (j = 0, i = 0; i < mntsize; i++) {
+		if (checkvfsname(mntbuf[i].f_fstypename, vfslist))
+			continue;
+		if (!nflag)
+			(void)statfs(mntbuf[i].f_mntonname,&mntbuf[j]);
+		else if (i != j)
+			mntbuf[j] = mntbuf[i];
+		j++;
 	}
 	return (j);
 }
@@ -348,6 +279,7 @@ prtstat(sfsp, maxwidth)
  * This code constitutes the pre-system call Berkeley df code for extracting
  * information from filesystem superblocks.
  */
+#include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
 #include <errno.h>
 #include <fstab.h>
@@ -382,7 +314,8 @@ ufs_df(file, maxwidth)
 		return;
 	}
 	sfsp = &statfsbuf;
-	sfsp->f_type = MOUNT_UFS;
+	sfsp->f_type = 1;
+	strcpy(sfsp->f_fstypename, "ufs");
 	sfsp->f_flags = 0;
 	sfsp->f_bsize = sblock.fs_fsize;
 	sfsp->f_iosize = sblock.fs_bsize;
@@ -424,7 +357,7 @@ bread(off, buf, cnt)
 void
 usage()
 {
-	fprintf(stderr,
-		"usage: df [-ikn] [-t fstype] [file | file_system ...]\n");
+	(void)fprintf(stderr,
+	    "usage: df [-ikn] [-t type] [file | filesystem ...]\n");
 	exit(1);
 }
