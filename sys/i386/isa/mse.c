@@ -44,29 +44,92 @@
  *   that causes spurious button pushes.
  */
 
-#include "mse.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/bus.h>
 #include <sys/poll.h>
 #include <sys/select.h>
 #include <sys/uio.h>
 
+#include <machine/bus_pio.h>
+#include <machine/bus.h>
 #include <machine/clock.h>
 #include <machine/mouse.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
 
-#include <i386/isa/isa_device.h>
+#include <isa/isavar.h>
 
 /* driver configuration flags (config) */
 #define MSE_CONFIG_ACCEL	0x00f0  /* acceleration factor */
 #define MSE_CONFIG_FLAGS	(MSE_CONFIG_ACCEL)
 
-static int mseprobe(struct isa_device *);
-static int mseattach(struct isa_device *);
+/*
+ * Software control structure for mouse. The sc_enablemouse(),
+ * sc_disablemouse() and sc_getmouse() routines must be called spl'd().
+ */
+typedef struct mse_softc {
+	int		sc_flags;
+	int		sc_mousetype;
+	struct selinfo	sc_selp;
+	struct resource	*sc_port;
+	struct resource	*sc_intr;
+	bus_space_tag_t	sc_iot;
+	bus_space_handle_t sc_ioh;
+	void		*sc_ih;
+	void		(*sc_enablemouse) __P((bus_space_tag_t t,
+					       bus_space_handle_t h));
+	void		(*sc_disablemouse) __P((bus_space_tag_t t,
+						bus_space_handle_t h));
+	void		(*sc_getmouse) __P((bus_space_tag_t t,
+					    bus_space_handle_t h,
+					    int *dx, int *dy, int *but));
+	int		sc_deltax;
+	int		sc_deltay;
+	int		sc_obuttons;
+	int		sc_buttons;
+	int		sc_bytesread;
+	u_char		sc_bytes[MOUSE_SYS_PACKETSIZE];
+	struct		callout_handle sc_callout;
+	int		sc_watchdog;
+	dev_t		sc_dev;
+	dev_t		sc_ndev;
+	mousehw_t	hw;
+	mousemode_t	mode;
+	mousestatus_t	status;
+} mse_softc_t;
 
-struct	isa_driver msedriver = {
-	mseprobe, mseattach, "mse"
+static	devclass_t	mse_devclass;
+
+static	int		mse_probe __P((device_t dev));
+static	int		mse_attach __P((device_t dev));
+static	int		mse_detach __P((device_t dev));
+
+static	device_method_t	mse_methods[] = {
+	DEVMETHOD(device_probe,		mse_probe),
+	DEVMETHOD(device_attach,	mse_attach),
+	DEVMETHOD(device_detach,	mse_detach),
+	{ 0, 0 }
+};
+
+static	driver_t	mse_driver = {
+	"mse",
+	mse_methods,
+	sizeof(mse_softc_t),
+};
+
+DRIVER_MODULE(mse, isa, mse_driver, mse_devclass, 0, 0);
+
+static struct isa_pnp_id mse_ids[] = {
+	{ 0x000fd041, "Bus mouse" },			/* PNP0F00 */
+	{ 0x020fd041, "InPort mouse" },			/* PNP0F02 */
+	{ 0x0d0fd041, "InPort mouse compatible" },	/* PNP0F0D */
+	{ 0x110fd041, "Bus mouse compatible" },		/* PNP0F11 */
+	{ 0x150fd041, "Logitech bus mouse" },		/* PNP0F15 */
+	{ 0x180fd041, "Logitech bus mouse compatible" },/* PNP0F18 */
+	{ 0 }
 };
 
 static	d_open_t	mseopen;
@@ -93,30 +156,8 @@ static struct cdevsw mse_cdevsw = {
 	/* bmaj */	-1
 };
 
-static ointhand2_t mseintr;
-
-/*
- * Software control structure for mouse. The sc_enablemouse(),
- * sc_disablemouse() and sc_getmouse() routines must be called spl'd().
- */
-static struct mse_softc {
-	int	sc_flags;
-	int	sc_mousetype;
-	struct	selinfo sc_selp;
-	u_int	sc_port;
-	void	(*sc_enablemouse) __P((u_int port));
-	void	(*sc_disablemouse) __P((u_int port));
-	void	(*sc_getmouse) __P((u_int port, int *dx, int *dy, int *but));
-	int	sc_deltax;
-	int	sc_deltay;
-	int	sc_obuttons;
-	int	sc_buttons;
-	int	sc_bytesread;
-	u_char	sc_bytes[MOUSE_SYS_PACKETSIZE];
-	mousehw_t	hw;
-	mousemode_t	mode;
-	mousestatus_t	status;
-} mse_sc[NMSE];
+static	void		mseintr __P((void *));
+static	timeout_t	msetimeout;
 
 /* Flags */
 #define	MSESC_OPEN	0x1
@@ -132,6 +173,7 @@ static struct mse_softc {
 #define	MSE_PORTB	1
 #define	MSE_PORTC	2
 #define	MSE_PORTD	3
+#define MSE_IOSIZE	4
 
 #define	MSE_UNIT(dev)		(minor(dev) >> 1)
 #define	MSE_NBLOCKIO(dev)	(minor(dev) & 0x1)
@@ -173,10 +215,14 @@ static struct mse_softc {
 #define	MSE_DISINTR	0x10
 #define MSE_INTREN	0x00
 
-static int mse_probelogi __P((struct isa_device *idp));
-static void mse_disablelogi __P((u_int port));
-static void mse_getlogi __P((u_int port, int *dx, int *dy, int *but));
-static void mse_enablelogi __P((u_int port));
+static	int		mse_probelogi __P((device_t dev, mse_softc_t *sc));
+static	void		mse_disablelogi __P((bus_space_tag_t t,
+					     bus_space_handle_t h));
+static	void		mse_getlogi __P((bus_space_tag_t t,
+					 bus_space_handle_t h,
+					 int *dx, int *dy, int *but));
+static	void		mse_enablelogi __P((bus_space_tag_t t,
+					    bus_space_handle_t h));
 
 /*
  * ATI Inport mouse definitions
@@ -189,10 +235,14 @@ static void mse_enablelogi __P((u_int port));
 #define	MSE_INPORT_HOLD		0x20
 #define	MSE_INPORT_INTREN	0x09
 
-static int mse_probeati __P((struct isa_device *idp));
-static void mse_enableati __P((u_int port));
-static void mse_disableati __P((u_int port));
-static void mse_getati __P((u_int port, int *dx, int *dy, int *but));
+static	int		mse_probeati __P((device_t dev, mse_softc_t *sc));
+static	void		mse_enableati __P((bus_space_tag_t t,
+					   bus_space_handle_t h));
+static	void		mse_disableati __P((bus_space_tag_t t,
+					    bus_space_handle_t h));
+static	void		mse_getati __P((bus_space_tag_t t,
+					bus_space_handle_t h,
+					int *dx, int *dy, int *but));
 
 #define	MSEPRI	(PZERO + 3)
 
@@ -203,13 +253,14 @@ static void mse_getati __P((u_int port, int *dx, int *dy, int *but));
  */
 static struct mse_types {
 	int	m_type;		/* Type of bus mouse */
-	int	(*m_probe) __P((struct isa_device *idp));
+	int	(*m_probe) __P((device_t dev, mse_softc_t *sc));
 				/* Probe routine to test for it */
-	void	(*m_enable) __P((u_int port));
+	void	(*m_enable) __P((bus_space_tag_t t, bus_space_handle_t h));
 				/* Start routine */
-	void	(*m_disable) __P((u_int port));
+	void	(*m_disable) __P((bus_space_tag_t t, bus_space_handle_t h));
 				/* Disable interrupts routine */
-	void	(*m_get) __P((u_int port, int *dx, int *dy, int *but));
+	void	(*m_get) __P((bus_space_tag_t t, bus_space_handle_t h,
+			      int *dx, int *dy, int *but));
 				/* and get mouse status */
 	mousehw_t   m_hw;	/* buttons iftype type model hwid */
 	mousemode_t m_mode;	/* proto rate res accel level size mask */
@@ -227,45 +278,117 @@ static struct mse_types {
 	{ 0, },
 };
 
-int
-mseprobe(idp)
-	register struct isa_device *idp;
+static	int
+mse_probe(dev)
+	device_t dev;
 {
-	register struct mse_softc *sc = &mse_sc[idp->id_unit];
-	register int i;
+	mse_softc_t *sc;
+	int error;
+	int rid;
+	int i;
+
+	/* check PnP IDs */
+	error = ISA_PNP_PROBE(device_get_parent(dev), dev, mse_ids);
+	if (error == ENXIO)
+		return ENXIO;
+
+	sc = device_get_softc(dev);
+	rid = 0;
+	sc->sc_port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+					 MSE_IOSIZE, RF_ACTIVE);
+	if (sc->sc_port == NULL)
+		return ENXIO;
+	sc->sc_iot = rman_get_bustag(sc->sc_port);
+	sc->sc_ioh = rman_get_bushandle(sc->sc_port);
 
 	/*
 	 * Check for each mouse type in the table.
 	 */
 	i = 0;
 	while (mse_types[i].m_type) {
-		if ((*mse_types[i].m_probe)(idp)) {
+		if ((*mse_types[i].m_probe)(dev, sc)) {
 			sc->sc_mousetype = mse_types[i].m_type;
 			sc->sc_enablemouse = mse_types[i].m_enable;
 			sc->sc_disablemouse = mse_types[i].m_disable;
 			sc->sc_getmouse = mse_types[i].m_get;
 			sc->hw = mse_types[i].m_hw;
 			sc->mode = mse_types[i].m_mode;
-			return (1);
+			bus_release_resource(dev, SYS_RES_IOPORT, rid,
+					     sc->sc_port);
+			device_set_desc(dev, "Bus/InPort Mouse");
+			return 0;
 		}
 		i++;
 	}
-	return (0);
+	bus_release_resource(dev, SYS_RES_IOPORT, rid, sc->sc_port);
+	return ENXIO;
 }
 
-int
-mseattach(idp)
-	struct isa_device *idp;
+static	int
+mse_attach(dev)
+	device_t dev;
 {
-	int unit = idp->id_unit;
-	struct mse_softc *sc = &mse_sc[unit];
+	mse_softc_t *sc;
+	int flags;
+	int unit;
+	int rid;
 
-	idp->id_ointr = mseintr;
-	sc->sc_port = idp->id_iobase;
-	sc->mode.accelfactor = (idp->id_flags & MSE_CONFIG_ACCEL) >> 4;
-	make_dev(&mse_cdevsw, unit << 1, 0, 0, 0600, "mse%d", unit);
-	make_dev(&mse_cdevsw, (unit<<1)+1, 0, 0, 0600, "nmse%d", unit);
-	return (1);
+	sc = device_get_softc(dev);
+	unit = device_get_unit(dev);
+
+	rid = 0;
+	sc->sc_port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+					 MSE_IOSIZE, RF_ACTIVE);
+	if (sc->sc_port == NULL)
+		return ENXIO;
+	sc->sc_intr = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+					 RF_ACTIVE);
+	if (sc->sc_intr == NULL) {
+		bus_release_resource(dev, SYS_RES_IOPORT, rid, sc->sc_port);
+		return ENXIO;
+	}
+	sc->sc_iot = rman_get_bustag(sc->sc_port);
+	sc->sc_ioh = rman_get_bushandle(sc->sc_port);
+
+	if (BUS_SETUP_INTR(device_get_parent(dev), dev, sc->sc_intr,
+			   INTR_TYPE_TTY, mseintr, sc, &sc->sc_ih)) {
+		bus_release_resource(dev, SYS_RES_IOPORT, rid, sc->sc_port);
+		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->sc_intr);
+		return ENXIO;
+	}
+
+	flags = device_get_flags(dev);
+	sc->mode.accelfactor = (flags & MSE_CONFIG_ACCEL) >> 4;
+	callout_handle_init(&sc->sc_callout);
+
+	sc->sc_dev = make_dev(&mse_cdevsw, unit << 1, 0, 0, 0600,
+			      "mse%d", unit);
+	sc->sc_ndev = make_dev(&mse_cdevsw, (unit<<1)+1, 0, 0, 0600,
+			       "nmse%d", unit);
+
+	return 0;
+}
+
+static	int
+mse_detach(dev)
+	device_t dev;
+{
+	mse_softc_t *sc;
+	int rid;
+
+	sc = device_get_softc(dev);
+	if (sc->sc_flags & MSESC_OPEN)
+		return EBUSY;
+
+	rid = 0;
+	BUS_TEARDOWN_INTR(device_get_parent(dev), dev, sc->sc_intr, sc->sc_ih);
+	bus_release_resource(dev, SYS_RES_IRQ, rid, sc->sc_intr);
+	bus_release_resource(dev, SYS_RES_IOPORT, rid, sc->sc_port);
+
+	destroy_dev(sc->sc_dev);
+	destroy_dev(sc->sc_ndev);
+
+	return 0;
 }
 
 /*
@@ -278,12 +401,12 @@ mseopen(dev, flags, fmt, p)
 	int fmt;
 	struct proc *p;
 {
-	register struct mse_softc *sc;
+	mse_softc_t *sc;
 	int s;
 
-	if (MSE_UNIT(dev) >= NMSE)
+	sc = devclass_get_softc(mse_devclass, MSE_UNIT(dev));
+	if (sc == NULL)
 		return (ENXIO);
-	sc = &mse_sc[MSE_UNIT(dev)];
 	if (sc->sc_mousetype == MSE_NONE)
 		return (ENXIO);
 	if (sc->sc_flags & MSESC_OPEN)
@@ -292,6 +415,8 @@ mseopen(dev, flags, fmt, p)
 	sc->sc_obuttons = sc->sc_buttons = MOUSE_MSC_BUTTONS;
 	sc->sc_deltax = sc->sc_deltay = 0;
 	sc->sc_bytesread = sc->mode.packetsize = MOUSE_MSC_PACKETSIZE;
+	sc->sc_watchdog = FALSE;
+	sc->sc_callout = timeout(msetimeout, dev, hz*2);
 	sc->mode.level = 0;
 	sc->status.flags = 0;
 	sc->status.button = sc->status.obutton = 0;
@@ -301,7 +426,7 @@ mseopen(dev, flags, fmt, p)
 	 * Initialize mouse interface and enable interrupts.
 	 */
 	s = spltty();
-	(*sc->sc_enablemouse)(sc->sc_port);
+	(*sc->sc_enablemouse)(sc->sc_iot, sc->sc_ioh);
 	splx(s);
 	return (0);
 }
@@ -316,11 +441,13 @@ mseclose(dev, flags, fmt, p)
 	int fmt;
 	struct proc *p;
 {
-	struct mse_softc *sc = &mse_sc[MSE_UNIT(dev)];
+	mse_softc_t *sc = devclass_get_softc(mse_devclass, MSE_UNIT(dev));
 	int s;
 
+	untimeout(msetimeout, dev, sc->sc_callout);
+	callout_handle_init(&sc->sc_callout);
 	s = spltty();
-	(*sc->sc_disablemouse)(sc->sc_port);
+	(*sc->sc_disablemouse)(sc->sc_iot, sc->sc_ioh);
 	sc->sc_flags &= ~MSESC_OPEN;
 	splx(s);
 	return(0);
@@ -337,7 +464,7 @@ mseread(dev, uio, ioflag)
 	struct uio *uio;
 	int ioflag;
 {
-	register struct mse_softc *sc = &mse_sc[MSE_UNIT(dev)];
+	mse_softc_t *sc = devclass_get_softc(mse_devclass, MSE_UNIT(dev));
 	int xfer, s, error;
 
 	/*
@@ -406,7 +533,7 @@ mseioctl(dev, cmd, addr, flag, p)
 	int flag;
 	struct proc *p;
 {
-	register struct mse_softc *sc = &mse_sc[MSE_UNIT(dev)];
+	mse_softc_t *sc = devclass_get_softc(mse_devclass, MSE_UNIT(dev));
 	mousestatus_t status;
 	int err = 0;
 	int s;
@@ -521,7 +648,7 @@ msepoll(dev, events, p)
 	int events;
 	struct proc *p;
 {
-	register struct mse_softc *sc = &mse_sc[MSE_UNIT(dev)];
+	mse_softc_t *sc = devclass_get_softc(mse_devclass, MSE_UNIT(dev));
 	int s;
 	int revents = 0;
 
@@ -544,11 +671,32 @@ msepoll(dev, events, p)
 }
 
 /*
+ * msetimeout: watchdog timer routine.
+ */
+static void
+msetimeout(arg)
+	void *arg;
+{
+	dev_t dev;
+	mse_softc_t *sc;
+
+	dev = (dev_t)arg;
+	sc = devclass_get_softc(mse_devclass, MSE_UNIT(dev));
+	if (sc->sc_watchdog) {
+		if (bootverbose)
+			printf("mse%d: lost interrupt?\n", MSE_UNIT(dev));
+		mseintr(sc);
+	}
+	sc->sc_watchdog = TRUE;
+	sc->sc_callout = timeout(msetimeout, dev, hz);
+}
+
+/*
  * mseintr: update mouse status. sc_deltax and sc_deltay are accumulative.
  */
 static void
-mseintr(unit)
-	int unit;
+mseintr(arg)
+	void *arg;
 {
 	/*
 	 * the table to turn MouseSystem button bits (MOUSE_MSC_BUTTON?UP)
@@ -564,7 +712,7 @@ mseintr(unit)
 		MOUSE_BUTTON1DOWN | MOUSE_BUTTON2DOWN,
         	MOUSE_BUTTON1DOWN | MOUSE_BUTTON2DOWN | MOUSE_BUTTON3DOWN
 	};
-	register struct mse_softc *sc = &mse_sc[unit];
+	mse_softc_t *sc = arg;
 	int dx, dy, but;
 	int sign;
 
@@ -576,7 +724,7 @@ mseintr(unit)
 	if ((sc->sc_flags & MSESC_OPEN) == 0)
 		return;
 
-	(*sc->sc_getmouse)(sc->sc_port, &dx, &dy, &but);
+	(*sc->sc_getmouse)(sc->sc_iot, sc->sc_ioh, &dx, &dy, &but);
 	if (sc->mode.accelfactor > 0) {
 		sign = (dx < 0);
 		dx = dx * dx / sc->mode.accelfactor;
@@ -602,6 +750,8 @@ mseintr(unit)
 	    | (sc->status.button ^ but);
 	sc->status.button = but;
 
+	sc->sc_watchdog = FALSE;
+
 	/*
 	 * If mouse state has changed, wake up anyone wanting to know.
 	 */
@@ -624,24 +774,26 @@ mseintr(unit)
  *  interrupts and return 1)
  */
 static int
-mse_probelogi(idp)
-	register struct isa_device *idp;
+mse_probelogi(dev, sc)
+	device_t dev;
+	mse_softc_t *sc;
 {
 
 	int sig;
 
-	outb(idp->id_iobase + MSE_PORTD, MSE_SETUP);
+	bus_space_write_1(sc->sc_iot, sc->sc_ioh, MSE_PORTD, MSE_SETUP);
 		/* set the signature port */
-	outb(idp->id_iobase + MSE_PORTB, MSE_LOGI_SIG);
+	bus_space_write_1(sc->sc_iot, sc->sc_ioh, MSE_PORTB, MSE_LOGI_SIG);
 
 	DELAY(30000); /* 30 ms delay */
-	sig = inb(idp->id_iobase + MSE_PORTB) & 0xFF;
+	sig = bus_space_read_1(sc->sc_iot, sc->sc_ioh, MSE_PORTB) & 0xFF;
 	if (sig == MSE_LOGI_SIG) {
-		outb(idp->id_iobase + MSE_PORTC, MSE_DISINTR);
+		bus_space_write_1(sc->sc_iot, sc->sc_ioh, MSE_PORTC,
+				  MSE_DISINTR);
 		return(1);
 	} else {
 		if (bootverbose)
-			printf("mse%d: wrong signature %x\n",idp->id_unit,sig);
+			device_printf(dev, "wrong signature %x\n", sig);
 		return(0);
 	}
 }
@@ -650,51 +802,54 @@ mse_probelogi(idp)
  * Initialize Logitech mouse and enable interrupts.
  */
 static void
-mse_enablelogi(port)
-	register u_int port;
+mse_enablelogi(tag, handle)
+	bus_space_tag_t tag;
+	bus_space_handle_t handle;
 {
 	int dx, dy, but;
 
-	outb(port + MSE_PORTD, MSE_SETUP);
-	mse_getlogi(port, &dx, &dy, &but);
+	bus_space_write_1(tag, handle, MSE_PORTD, MSE_SETUP);
+	mse_getlogi(tag, handle, &dx, &dy, &but);
 }
 
 /*
  * Disable interrupts for Logitech mouse.
  */
 static void
-mse_disablelogi(port)
-	register u_int port;
+mse_disablelogi(tag, handle)
+	bus_space_tag_t tag;
+	bus_space_handle_t handle;
 {
 
-	outb(port + MSE_PORTC, MSE_DISINTR);
+	bus_space_write_1(tag, handle, MSE_PORTC, MSE_DISINTR);
 }
 
 /*
  * Get the current dx, dy and button up/down state.
  */
 static void
-mse_getlogi(port, dx, dy, but)
-	register u_int port;
+mse_getlogi(tag, handle, dx, dy, but)
+	bus_space_tag_t tag;
+	bus_space_handle_t handle;
 	int *dx;
 	int *dy;
 	int *but;
 {
 	register char x, y;
 
-	outb(port + MSE_PORTC, MSE_HOLD | MSE_RXLOW);
-	x = inb(port + MSE_PORTA);
+	bus_space_write_1(tag, handle, MSE_PORTC, MSE_HOLD | MSE_RXLOW);
+	x = bus_space_read_1(tag, handle, MSE_PORTA);
 	*but = (x >> 5) & MOUSE_MSC_BUTTONS;
 	x &= 0xf;
-	outb(port + MSE_PORTC, MSE_HOLD | MSE_RXHIGH);
-	x |= (inb(port + MSE_PORTA) << 4);
-	outb(port + MSE_PORTC, MSE_HOLD | MSE_RYLOW);
-	y = (inb(port + MSE_PORTA) & 0xf);
-	outb(port + MSE_PORTC, MSE_HOLD | MSE_RYHIGH);
-	y |= (inb(port + MSE_PORTA) << 4);
+	bus_space_write_1(tag, handle, MSE_PORTC, MSE_HOLD | MSE_RXHIGH);
+	x |= (bus_space_read_1(tag, handle, MSE_PORTA) << 4);
+	bus_space_write_1(tag, handle, MSE_PORTC, MSE_HOLD | MSE_RYLOW);
+	y = (bus_space_read_1(tag, handle, MSE_PORTA) & 0xf);
+	bus_space_write_1(tag, handle, MSE_PORTC, MSE_HOLD | MSE_RYHIGH);
+	y |= (bus_space_read_1(tag, handle, MSE_PORTA) << 4);
 	*dx = x;
 	*dy = y;
-	outb(port + MSE_PORTC, MSE_INTREN);
+	bus_space_write_1(tag, handle, MSE_PORTC, MSE_INTREN);
 }
 
 /*
@@ -705,13 +860,14 @@ mse_getlogi(port, dx, dy, but)
  * (do not enable interrupts)
  */
 static int
-mse_probeati(idp)
-	register struct isa_device *idp;
+mse_probeati(dev, sc)
+	device_t dev;
+	mse_softc_t *sc;
 {
 	int i;
 
 	for (i = 0; i < 2; i++)
-		if (inb(idp->id_iobase + MSE_PORTC) == 0xde)
+		if (bus_space_read_1(sc->sc_iot, sc->sc_ioh, MSE_PORTC) == 0xde)
 			return (1);
 	return (0);
 }
@@ -720,49 +876,52 @@ mse_probeati(idp)
  * Initialize ATI Inport mouse and enable interrupts.
  */
 static void
-mse_enableati(port)
-	register u_int port;
+mse_enableati(tag, handle)
+	bus_space_tag_t tag;
+	bus_space_handle_t handle;
 {
 
-	outb(port + MSE_PORTA, MSE_INPORT_RESET);
-	outb(port + MSE_PORTA, MSE_INPORT_MODE);
-	outb(port + MSE_PORTB, MSE_INPORT_INTREN);
+	bus_space_write_1(tag, handle, MSE_PORTA, MSE_INPORT_RESET);
+	bus_space_write_1(tag, handle, MSE_PORTA, MSE_INPORT_MODE);
+	bus_space_write_1(tag, handle, MSE_PORTB, MSE_INPORT_INTREN);
 }
 
 /*
  * Disable interrupts for ATI Inport mouse.
  */
 static void
-mse_disableati(port)
-	register u_int port;
+mse_disableati(tag, handle)
+	bus_space_tag_t tag;
+	bus_space_handle_t handle;
 {
 
-	outb(port + MSE_PORTA, MSE_INPORT_MODE);
-	outb(port + MSE_PORTB, 0);
+	bus_space_write_1(tag, handle, MSE_PORTA, MSE_INPORT_MODE);
+	bus_space_write_1(tag, handle, MSE_PORTB, 0);
 }
 
 /*
  * Get current dx, dy and up/down button state.
  */
 static void
-mse_getati(port, dx, dy, but)
-	register u_int port;
+mse_getati(tag, handle, dx, dy, but)
+	bus_space_tag_t tag;
+	bus_space_handle_t handle;
 	int *dx;
 	int *dy;
 	int *but;
 {
 	register char byte;
 
-	outb(port + MSE_PORTA, MSE_INPORT_MODE);
-	outb(port + MSE_PORTB, MSE_INPORT_HOLD);
-	outb(port + MSE_PORTA, MSE_INPORT_STATUS);
-	*but = ~inb(port + MSE_PORTB) & MOUSE_MSC_BUTTONS;
-	outb(port + MSE_PORTA, MSE_INPORT_DX);
-	byte = inb(port + MSE_PORTB);
+	bus_space_write_1(tag, handle, MSE_PORTA, MSE_INPORT_MODE);
+	bus_space_write_1(tag, handle, MSE_PORTB, MSE_INPORT_HOLD);
+	bus_space_write_1(tag, handle, MSE_PORTA, MSE_INPORT_STATUS);
+	*but = ~bus_space_read_1(tag, handle, MSE_PORTB) & MOUSE_MSC_BUTTONS;
+	bus_space_write_1(tag, handle, MSE_PORTA, MSE_INPORT_DX);
+	byte = bus_space_read_1(tag, handle, MSE_PORTB);
 	*dx = byte;
-	outb(port + MSE_PORTA, MSE_INPORT_DY);
-	byte = inb(port + MSE_PORTB);
+	bus_space_write_1(tag, handle, MSE_PORTA, MSE_INPORT_DY);
+	byte = bus_space_read_1(tag, handle, MSE_PORTB);
 	*dy = byte;
-	outb(port + MSE_PORTA, MSE_INPORT_MODE);
-	outb(port + MSE_PORTB, MSE_INPORT_INTREN);
+	bus_space_write_1(tag, handle, MSE_PORTA, MSE_INPORT_MODE);
+	bus_space_write_1(tag, handle, MSE_PORTB, MSE_INPORT_INTREN);
 }
