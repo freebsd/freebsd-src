@@ -926,11 +926,8 @@ skip_ipsec2:;
 	/*
 	 * Run through list of hooks for output packets.
 	 */
-	if (pfil_run_hooks(&inet6_pfil_hook, &m, ifp, PFIL_OUT) != 0) {
-		error = EHOSTUNREACH;
-		goto done;
-	}
-	if (m == NULL)
+	error = pfil_run_hooks(&inet6_pfil_hook, &m, ifp, PFIL_OUT);
+	if (error != 0 || m == NULL)
 		goto done;
 	ip6 = mtod(m, struct ip6_hdr *);
 #endif /* PFIL_HOOKS */

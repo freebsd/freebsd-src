@@ -522,10 +522,9 @@ ip6_forward(m, srcrt)
 	/*
 	 * Run through list of hooks for output packets.
 	 */
-	if (pfil_run_hooks(&inet6_pfil_hook, &m, rt->rt_ifp, PFIL_OUT) != 0) {
-		error = EHOSTUNREACH;
-		goto freecopy;
-	}
+	error = pfil_run_hooks(&inet6_pfil_hook, &m, rt->rt_ifp, PFIL_OUT);
+	if (error != 0)
+		goto senderr;
 	if (m == NULL)
 		goto freecopy;
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -545,6 +544,9 @@ ip6_forward(m, srcrt)
 				goto freecopy;
 		}
 	}
+#ifdef PFIL_HOOKS
+senderr:
+#endif
 	if (mcopy == NULL)
 		return;
 	switch (error) {
