@@ -19,7 +19,7 @@
 To specify the default maximum size of
 .Xr malloc 9
 backed disks:
-.Cd options MDNSECT=20000
+.Cd options MD_NSECT=20000
 .Sh DESCRIPTION
 The
 .Nm
@@ -57,7 +57,7 @@ backed by
 is 20,000 sectors of 512 bytes each.
 This can be changed
 with the kernel option
-.Dv MDNSECT .
+.Dv MD_NSECT .
 .Pp
 At boot time the
 .Nm
