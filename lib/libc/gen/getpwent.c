@@ -57,28 +57,21 @@ static int _pw_stayopen;		/* keep fd's open */
 #include <rpc/rpc.h>
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
-struct _namelist {
-	char *name;
-	struct _namelist *next;
-};
+
 static struct passwd _pw_copy;
-struct _pw_cache {
-	struct passwd pw_entry;
-	struct _namelist *namelist;
-	struct _pw_cache *next;
-};
-static int _pluscnt, _minuscnt;
-static struct _pw_cache *_plushead = NULL, *_minushead = NULL;
-static void _createcaches(), _freecaches();
-static int _scancaches(char *);
+static DBT empty = { NULL, 0 };
+static DB *_ypcache = (DB *)NULL;
+static int _yp_exclusions = 0;
 static int _yp_enabled;			/* set true when yp enabled */
 static int _pw_stepping_yp;		/* set true when stepping thru map */
-static int _yp_done;
+static char _ypnam[YPMAXRECORD];
 static int _gotmaster;
 static char *_pw_yp_domain;
-static int _havemaster(char *);
-static int _getyppass(struct passwd *, const char *, const char *);
-static int _nextyppass(struct passwd *);
+static inline int unwind __P(( char * ));
+static inline void _ypinitdb __P(( void ));
+static int _havemaster __P((char *));
+static int _getyppass __P((struct passwd *, const char *, const char * ));
+static int _nextyppass __P((struct passwd *));
 #endif
 static int __hashpw(), __initdb();
 
@@ -95,10 +88,8 @@ getpwent()
 #ifdef YP
 	if(_pw_stepping_yp) {
 		_pw_passwd = _pw_copy;
-		if (_nextyppass(&_pw_passwd))
-			return (&_pw_passwd);
-		else
-			_yp_done = 1;
+		if (unwind((char *)&_ypnam))
+			return(&_pw_passwd);
 	}
 #endif
 tryagain:
@@ -112,11 +103,14 @@ tryagain:
 	if(!rv) return (struct passwd *)NULL;
 #ifdef YP
 	if(_pw_passwd.pw_name[0] == '+' || _pw_passwd.pw_name[0] == '-') {
+		bzero((char *)&_ypnam, sizeof(_ypnam));
+		bcopy(_pw_passwd.pw_name, _ypnam,
+			strlen(_pw_passwd.pw_name));
 		_pw_copy = _pw_passwd;
-		if (_yp_done || !_nextyppass(&_pw_passwd))
+		if (unwind((char *)&_ypnam) == 0)
 			goto tryagain;
 		else
-			return (&_pw_passwd);
+			return(&_pw_passwd);
 	}
 #else
 	/* Ignore YP password file entries when YP is disabled. */
@@ -206,7 +200,7 @@ setpassent(stayopen)
 {
 	_pw_keynum = 0;
 #ifdef YP
-	_pw_stepping_yp = _yp_done = 0;
+	_pw_stepping_yp = 0;
 #endif
 	_pw_stayopen = stayopen;
 	return(1);
@@ -217,7 +211,7 @@ setpwent()
 {
 	_pw_keynum = 0;
 #ifdef YP
-	_pw_stepping_yp = _yp_done = 0;
+	_pw_stepping_yp = 0;
 #endif
 	_pw_stayopen = 0;
 	return(1);
@@ -228,15 +222,19 @@ endpwent()
 {
 	_pw_keynum = 0;
 #ifdef YP
-	_pw_stepping_yp = _yp_done = 0;
+	_pw_stepping_yp = 0;
 #endif
 	if (_pw_db) {
 		(void)(_pw_db->close)(_pw_db);
 		_pw_db = (DB *)NULL;
-#ifdef YP
-		_freecaches();
-#endif
 	}
+#ifdef YP
+	if (_ypcache) {
+		(void)(_ypcache->close)(_ypcache);
+		_ypcache = (DB *)NULL;
+		_yp_exclusions = 0;
+	}
+#endif
 }
 
 static
@@ -257,7 +255,6 @@ __initdb()
 			_yp_enabled = 0;
 		} else {
 			_yp_enabled = (int)*((char *)data.data) - 2;
-			_createcaches();
 		/* Don't even bother with this if we aren't root. */
 			if (!geteuid()) {
 				if (!_pw_yp_domain)
@@ -265,6 +262,8 @@ __initdb()
 					return(1);
 				_gotmaster = _havemaster(_pw_yp_domain);
 			} else _gotmaster = 0;
+			if (!_ypcache)
+				_ypinitdb();
 		}
 #endif
 		return(1);
@@ -311,239 +310,243 @@ __hashpw(key)
 }
 
 #ifdef YP
+
 /*
- * Build special +@netgroup and -@netgroup caches. We also handle ordinary
- * +user/-user entries, *and* +@group/-@group entries, which are special
- * cases of the +@netgroup/-@netgroup substitutions: if we can't find
- * netgroup 'foo', we look for a regular user group called 'foo' and
- * match against that instead. The netgroup takes precedence since the
- * +group/-group support is basically just a hack to make Justin T. Gibbs
- * happy. :) Sorting out all the funny business here lets us have a
- * yp_enabled flag with a simple on or off value instead of the somewhat
- * bogus setup we had before.
- *
- * We cache everything here in one shot so that we only have to scan
- * each netgroup/group once. The alternative is to use innetgr() inside the
- * NIS lookup functions, which would make retrieving the whole password
- * database though getpwent() very slow. +user/-user entries are treated
- * like @groups/@netgroups with only one member.
+ * Create a DB hash database in memory. Bet you didn't know you
+ * could do a dbopen() will a NULL filename, did you.
  */
-static void
-_createcaches()
+static inline void _ypinitdb()
 {
-	DBT key, data;
-	int i;
-	char bf[UT_NAMESIZE + 2];
-	struct _pw_cache *p, *m;
-	struct _namelist *n, *namehead;
-	char *user, *host, *domain;
-	struct group *grp;
+	if (_ypcache == (DB *)NULL)
+		_ypcache = dbopen(NULL, O_RDWR, 600, DB_HASH, NULL);
+	return;
+}
 
-	/*
-	 * Assume that the database has already been initialized
-	 * but be paranoid and check that YP is in fact enabled.
-	 */
+/*
+ * See if a user is in the blackballed list.
+ */
+static inline int lookup(name)
+	char *name;
+{
+	DBT key;
 
-	if (!_yp_enabled)
+	if (!_yp_exclusions)
+		return(0);
+
+	key.data = name;
+	key.size = strlen(name);
+
+	if ((_ypcache->get)(_ypcache, &key, &empty, 0)) {
+		return(0);
+	}
+
+	return(1);
+}
+
+/*
+ * Store a blackballed user in an in-core hash database.
+ */
+static inline void store(key)
+	char *key;
+{
+	DBT lkey;
+/*
+	if (lookup(key))
 		return;
-	/*
-	 * For the plus list, we have to store both the linked list of
-	 * names and the +entries from the password database so we can
-	 * do the substitution later if we find a match.
-	 */
-	bf[0] = _PW_KEYPLUSCNT;
-	key.data = (u_char*)bf;
-	key.size = 1;
-	if (!(_pw_db->get)(_pw_db, &key, &data, 0)) {
-		_pluscnt = (int)*((char *)data.data);
-		for (i = 0; i < _pluscnt; i++) {
-			bf[0] = _PW_KEYPLUSBYNUM;
-			bcopy(&i, bf + 1, sizeof(i) + 1);
-			key.size = (sizeof(i)) + 1;
-			if (__hashpw(&key)) {
-				p = (struct _pw_cache *)malloc(sizeof (struct _pw_cache));
-				if (strlen(_pw_passwd.pw_name) > 2 && _pw_passwd.pw_name[1] == '@') {
-					setnetgrent(_pw_passwd.pw_name+2);
-					namehead = NULL;
-					while(getnetgrent(&host, &user, &domain)) {
-						n = (struct _namelist *)malloc(sizeof (struct _namelist));
-						n->name = strdup(user);
-						n->next = namehead;
-						namehead = n;
-					}
-					/*
-					 * If netgroup 'foo' doesn't exist,
-					 * try group 'foo' instead.
-					 */
-					if (namehead == NULL && (grp = getgrnam(_pw_passwd.pw_name+2)) != NULL) {
-						while(*grp->gr_mem) {
-							n = (struct _namelist *)malloc(sizeof (struct _namelist));
-							n->name = strdup(*grp->gr_mem);
-							n->next = namehead;
-							namehead = n;
-							grp->gr_mem++;
-						}
-					}
-				} else {
-					if (_pw_passwd.pw_name[1] != '@') {
-						namehead = (struct _namelist *)malloc(sizeof (struct _namelist));
-						namehead->name = strdup(_pw_passwd.pw_name+1);
-						namehead->next = NULL;
-					}
-				}
-				p->namelist = namehead;
-				p->pw_entry.pw_name = strdup(_pw_passwd.pw_name);
-				p->pw_entry.pw_passwd = strdup(_pw_passwd.pw_passwd);
-				p->pw_entry.pw_uid = _pw_passwd.pw_uid;
-				p->pw_entry.pw_gid = _pw_passwd.pw_gid;
-				p->pw_entry.pw_expire = _pw_passwd.pw_expire;
-				p->pw_entry.pw_change = _pw_passwd.pw_change;
-				p->pw_entry.pw_class = strdup(_pw_passwd.pw_class);
-				p->pw_entry.pw_gecos = strdup(_pw_passwd.pw_gecos);
-				p->pw_entry.pw_dir = strdup(_pw_passwd.pw_dir);
-				p->pw_entry.pw_shell = strdup(_pw_passwd.pw_shell);
-				p->pw_entry.pw_fields = _pw_passwd.pw_fields;
-				p->next = _plushead;
-				_plushead = p;
-			}
-		}
-	}
+*/
 
-	/*
-	 * All we need for the minuslist is the usernames.
-	 * The actual -entries data can be ignored since no substitution
-	 * will be done: anybody on the minus list is treated like a
-	 * non-person.
-	 */
-	bf[0] = _PW_KEYMINUSCNT;
-	key.data = (u_char*)bf;
-	key.size = 1;
-	if (!(_pw_db->get)(_pw_db, &key, &data, 0)) {
-		_minuscnt = (int)*((char *)data.data);
-		for (i = _minuscnt; i > -1; i--) {
-			bf[0] = _PW_KEYMINUSBYNUM;
-			bcopy(&i, bf + 1, sizeof(i) + 1);
-			key.size = (sizeof(i)) + 1;
-			if (__hashpw(&key)) {
-				m = (struct _pw_cache *)malloc(sizeof (struct _pw_cache));
-				if (strlen (_pw_passwd.pw_name) > 2 && _pw_passwd.pw_name[1] == '@') {
-					namehead = NULL;
-					setnetgrent(_pw_passwd.pw_name+2);
-					while(getnetgrent(&host, &user, &domain)) {
-						n = (struct _namelist *)malloc(sizeof (struct _namelist));
-						n->name = strdup(user);
-						n->next = namehead;
-						namehead = n;
-					}
-					/*
-					 * If netgroup 'foo' doesn't exist,
-					 * try group 'foo' instead.
-					 */
-					if (namehead == NULL && (grp = getgrnam(_pw_passwd.pw_name+2)) != NULL) {
-						while(*grp->gr_mem) {
-							n = (struct _namelist *)malloc(sizeof (struct _namelist));
-							n->name = strdup(*grp->gr_mem);
-							n->next = namehead;
-							namehead = n;
-							grp->gr_mem++;
-						}
-					}
-				} else {
-					if (_pw_passwd.pw_name[1] != '@') {
-						namehead = (struct _namelist *)malloc(sizeof (struct _namelist));
-						namehead->name = strdup(_pw_passwd.pw_name+1);
-						namehead->next = NULL;
-					}
-				}
-				/* Save just the name */
-				m->pw_entry.pw_name = strdup(_pw_passwd.pw_name);
-				m->namelist = namehead;
-				m->next = _minushead;
-				_minushead = m;
-			}
-		}
-	}
-	endgrent();
-	endnetgrent();
+	_yp_exclusions = 1;
+
+	lkey.data = key;
+	lkey.size = strlen(key);
+
+	(void)(_ypcache->put)(_ypcache, &lkey, &empty, R_NOOVERWRITE);
 }
 
 /*
- * Free the +@netgroup/-@netgroup caches. Should be called
- * from endpwent(). We have to blow away both the list of
- * netgroups and the attached linked lists of usernames.
+ * Parse the + entries in the password database and do appropriate
+ * NIS lookups. While ugly to look at, this is optimized to do only
+ * as many lookups as are absolutely necessary in any given case.
+ * Basically, the getpwent() function will feed us + and - lines
+ * as they appear in the database. For + lines, we do netgroup/group
+ * and user lookups to find all usernames that match the rule and
+ * extract them from the NIS passwd maps. For - lines, we save the
+ * matching names in a database and a) exlude them, and b) make sure
+ * we don't consider them when processing other + lines that appear
+ * later.
  */
-static void
-_freecaches()
+static inline int unwind(grp)
+	char *grp;
 {
-struct _pw_cache *p, *m;
-struct _namelist *n;
+	char *user, *host, *domain;
+	static int latch = 0;
+	static struct group *gr = NULL;
+	int rv = 0;
 
-	while (_plushead) {
-		while(_plushead->namelist) {
-			n = _plushead->namelist->next;
-			free(_plushead->namelist->name);
-			free(_plushead->namelist);
-			_plushead->namelist = n;
+	if (grp[0] == '+') {
+		if (strlen(grp) == 1) {
+			return(_nextyppass(&_pw_passwd));
 		}
-		free(_plushead->pw_entry.pw_name);
-		free(_plushead->pw_entry.pw_passwd);
-		free(_plushead->pw_entry.pw_class);
-		free(_plushead->pw_entry.pw_gecos);
-		free(_plushead->pw_entry.pw_dir);
-		free(_plushead->pw_entry.pw_shell);
-		p = _plushead->next;
-		free(_plushead);
-		_plushead = p;
-	}
-
-	while(_minushead) {
-		while(_minushead->namelist) {
-			n = _minushead->namelist->next;
-			free(_minushead->namelist->name);
-			free(_minushead->namelist);
-			_minushead->namelist = n;
-		}
-		m = _minushead->next;
-		free(_minushead);
-		_minushead = m;
-	}
-	_pluscnt = _minuscnt = 0;
-}
-
-static int _scancaches(user)
-char *user;
-{
-	register struct _pw_cache *m, *p;
-	register struct _namelist *n;
-
-	if (_minuscnt && _minushead) {
-		m = _minushead;
-		while (m) {
-			n = m->namelist;
-			while (n) {
-				if (!strcmp(n->name,user) || *n->name == '\0')
-					return (1);
-				n = n->next;
+		if (grp[1] == '@') {
+			_pw_stepping_yp = 1;
+grpagain:
+			if (gr != NULL) {
+				if (*gr->gr_mem != NULL) {
+					if (lookup(*gr->gr_mem)) {
+						gr->gr_mem++;
+						goto grpagain;
+					}
+					rv = _getyppass(&_pw_passwd,
+							*gr->gr_mem,
+							"passwd.byname");
+					gr->gr_mem++;
+					return(rv);
+				} else {
+					endgrent();
+					latch = 0;
+					gr = NULL;
+					return(0);
+				}
 			}
-			m = m->next;
-		}
-	}
-	if (_pluscnt && _plushead) {
-		p = _plushead;
-		while (p) {
-			n = p->namelist;
-			while (n) {
-				if (!strcmp(n->name, user) || *n->name == '\0')
-					bcopy((char *)&p->pw_entry,
-					(char *)&_pw_passwd, sizeof(p->pw_entry));
-				n = n->next;
+			if (!latch) {
+				setnetgrent(grp+2);
+				latch++;
 			}
-			p = p->next;
+again:
+			if (getnetgrent(&host, &user, &domain) == NULL) {
+				if ((gr = getgrnam(grp+2)) != NULL)
+					goto grpagain;
+				latch = 0;
+				_pw_stepping_yp = 0;
+				return(0);
+			} else {
+				if (lookup(user))
+					goto again;
+				if (_getyppass(&_pw_passwd, user,
+							"passwd.byname"))
+					return(1);
+				else
+					goto again;
+			}
+		} else {
+			if (lookup(grp+1))
+				return(0);
+			return(_getyppass(&_pw_passwd, grp+1, "passwd.byname"));
+		}
+	} else {
+		if (grp[1] == '@') {
+			setnetgrent(grp+2);
+			rv = 0;
+			while(getnetgrent(&host, &user, &domain) != NULL) {
+				store(user);
+				rv++;
+			}
+			if (!rv && (gr = getgrnam(grp+2)) != NULL) {
+				while(gr->gr_mem) {
+					store(gr->gr_mem);
+					gr->gr_mem++;
+				}
+			}
+		} else {
+			store(grp+1);
 		}
 	}
 	return(0);
 }
 
+/*
+ * See if a user is a member of a particular group.
+ */
+static inline int ingr(grp, name)
+	char *grp;
+	char *name;
+{
+	register struct group *gr;
+
+	if ((gr = getgrnam(grp)) == NULL)
+		return(0);
+
+	while(*gr->gr_mem) {
+		if (!strcmp(*gr->gr_mem, name)) {
+			endgrent();
+			return(1);
+		}
+		gr->gr_mem++;
+	}
+
+	endgrent();
+	return(0);
+}
+
+/*
+ * Check a user against the +@netgroup/-@netgroup lines listed in
+ * the local password database. Also checks +user/-user lines.
+ * If no netgroup exists that matches +@netgroup/-@netgroup,
+ * try searching regular groups with the same name.
+ */
+static inline int verf(name)
+	char *name;
+{
+	DBT key;
+	char bf[sizeof(_pw_keynum) + 1];
+	int keynum = 0;
+
+again:
+	++keynum;
+	bf[0] = _PW_KEYYPBYNUM;
+	bcopy((char *)&keynum, bf + 1, sizeof(keynum));
+	key.data = (u_char *)bf;
+	key.size = sizeof(keynum) + 1;
+	if (!__hashpw(&key)) {
+		/* Try again using old format */
+		bf[0] = _PW_KEYBYNUM;
+		bcopy((char *)&keynum, bf + 1, sizeof(keynum));
+		key.data = (u_char *)bf;
+		if (!__hashpw(&key))
+			return(0);
+	}
+	if (_pw_passwd.pw_name[0] != '+' && (_pw_passwd.pw_name[0] != '-'))
+		goto again;
+	if (_pw_passwd.pw_name[0] == '+') {
+		if (strlen(_pw_passwd.pw_name) == 1) /* Wildcard */
+			return(1);
+		if (_pw_passwd.pw_name[1] == '@') {
+			if ((innetgr(_pw_passwd.pw_name+2, NULL, name,
+							_pw_yp_domain) ||
+			    ingr(_pw_passwd.pw_name+2, name)) && !lookup(name))
+				return(1);
+			else
+				goto again;
+		} else {
+			if (!strcmp(name, _pw_passwd.pw_name+1) &&
+								!lookup(name))
+				return(1);
+			else
+				goto again;
+		}
+	}
+	if (_pw_passwd.pw_name[0] == '-') {
+		/* Note that a minus wildcard is a no-op. */
+		if (_pw_passwd.pw_name[1] == '@') {
+			if (innetgr(_pw_passwd.pw_name+2, NULL, name,
+							_pw_yp_domain) ||
+			    ingr(_pw_passwd.pw_name+2, name)) {
+				store(name);
+				return(0);
+			} else
+				goto again;
+		} else {
+			if (!strcmp(name, _pw_passwd.pw_name+1)) {
+				store(name);
+				return(0);
+			} else
+				goto again;
+		}
+		
+	}
+	return(0);
+}
+	
 static int
 _pw_breakout_yp(struct passwd *pw, char *res, int master)
 {
@@ -650,6 +653,7 @@ _havemaster(char *_pw_yp_domain)
 
 	if (yp_first(_pw_yp_domain, "master.passwd.byname",
 		&key, &keylen, &result, &resultlen)) {
+		free(result);
 		return 0;
 	}
 	free(result);
@@ -662,7 +666,7 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 	char *result, *s;
 	int resultlen;
 	int rv;
-	char mastermap[1024];
+	char mastermap[YPMAXRECORD];
 
 	if(!_pw_yp_domain) {
 		if(yp_get_default_domain(&_pw_yp_domain))
@@ -678,25 +682,25 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 		    &result, &resultlen))
 		return 0;
 
-	s = strchr(result, ':');
-	if (s) {
-		*s = '\0';
-	} else {
-		/* Must be a malformed entry if no colons. */
-		free(result);
-		return(0);
+	if (!_pw_stepping_yp) {
+		s = strchr(result, ':');
+		if (s) {
+			*s = '\0';
+		} else {
+			/* Must be a malformed entry if no colons. */
+			free(result);
+			return(0);
+		}
+
+		if (!verf(result)) {
+			*s = ':';
+			free(result);
+			return(0);
+		}
+
+		*s = ':'; /* Put back the colon we previously replaced with a NUL. */
 	}
-	_pw_passwd.pw_fields = -1; /* Impossible value */
-	if (_scancaches(result)) {
-		free(result);
-		return(0);
-	}
-	/* No hits in the plus or minus lists: Bzzt! reject. */
-	if (_pw_passwd.pw_fields == -1) {
-		free(result);
-		return(0);
-	}
-	*s = ':'; /* Put back the colon we previously replaced with a NUL. */
+
 	rv = _pw_breakout_yp(pw, result, _gotmaster);
 	free(result);
 	return(rv);
@@ -745,22 +749,18 @@ unpack:
 		if (s) {
 			*s = '\0';
 		} else {
-			/* Must be a malformed entry if no colon. */
+			/* Must be a malformed entry if no colons. */
 			free(result);
 			goto tryagain;
 		}
-		_pw_passwd.pw_fields = -1; /* Impossible value */
-		if (_scancaches(result)) {
+
+		if (lookup(result)) {
+			*s = ':';
 			free(result);
 			goto tryagain;
 		}
-		/* No plus or minus hits: Bzzzt! reject. */
-		if (_pw_passwd.pw_fields == -1) {
-			free(result);
-			goto tryagain;
-		}
-		*s = ':';	/* Put back colon we previously replaced with a NUL. */
-		if(s = strchr(result, '\n')) *s = '\0';
+
+		*s = ':'; /* Put back the colon we previously replaced with a NUL. */
 		if (_pw_breakout_yp(pw, result, _gotmaster)) {
 			free(result);
 			return(1);
