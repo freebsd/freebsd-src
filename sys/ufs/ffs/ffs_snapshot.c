@@ -230,7 +230,7 @@ restart:
 		    fs->fs_bsize, td->td_ucred, BA_METAONLY, &ibp);
 		if (error)
 			goto out;
-		bdwrite(ibp);
+		bawrite(ibp);
 	}
 	/*
 	 * Allocate copies for the superblock and its summary information.
@@ -257,7 +257,7 @@ restart:
 		    fs->fs_bsize, KERNCRED, 0, &nbp);
 		if (error)
 			goto out;
-		bdwrite(nbp);
+		bawrite(nbp);
 	}
 	/*
 	 * Copy all the cylinder group maps. Although the
@@ -290,9 +290,12 @@ restart:
 	ip->i_flag |= IN_CHANGE | IN_UPDATE;
 	/*
 	 * Ensure that the snapshot is completely on disk.
+	 * Since we have marked it as a snapshot it is safe to
+	 * unlock it as no process will be allowed to write to it.
 	 */
 	if ((error = VOP_FSYNC(vp, KERNCRED, MNT_WAIT, td)) != 0)
 		goto out;
+	VOP_UNLOCK(vp, 0, td);
 	/*
 	 * All allocations are done, so we can now snapshot the system.
 	 *
@@ -309,12 +312,14 @@ restart:
 		vn_finished_write(wrtmp);
 		if ((error = vfs_write_suspend(vp->v_mount)) != 0) {
 			vn_start_write(NULL, &wrtmp, V_WAIT);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 			goto out;
 		}
 		if (mp->mnt_kern_flag & MNTK_SUSPENDED)
 			break;
 		vn_start_write(NULL, &wrtmp, V_WAIT);
 	}
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (collectsnapstats)
 		nanotime(&starttime);
 	/*
