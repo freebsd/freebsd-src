@@ -43,7 +43,7 @@
 .Fn getbsize "int *headerlenp" "long *blocksizep"
 .Sh DESCRIPTION
 The
-.Nm getbsize
+.Fn getbsize
 function determines the user's preferred block size based on the value of the
 .Dq BLOCKSIZE
 environment variable; see
@@ -51,7 +51,7 @@ environment variable; see
 for details on its use and format.
 .Pp
 The
-.Nm getbsize
+.Fn getbsize
 function returns a pointer to a null-terminated string describing
 the block size, something like
 .Dq 1K-blocks .
@@ -74,6 +74,6 @@ a block size of 512 bytes.
 .Xr environ 7
 .Sh HISTORY
 The
-.Nm getbsize
+.Fn getbsize
 function first appeared in
 .Bx 4.4 .

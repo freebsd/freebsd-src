@@ -43,7 +43,8 @@
 .Fn confstr "int name" "char *buf" "size_t len"
 .Sh DESCRIPTION
 .Bf -symbolic
-This interface is obsoleted by sysctl(3).
+This interface is obsoleted by
+.Xr sysctl 3 .
 .Ef
 .Pp
 The
@@ -84,7 +85,7 @@ environment variable that finds all the standard utilities.
 .El
 .Sh RETURN VALUES
 If the call to
-.Nm confstr
+.Fn confstr
 is not successful, \-1 is returned and
 .Va errno
 is set appropriately.
@@ -101,7 +102,7 @@ the string in
 was truncated.
 .Sh ERRORS
 The
-.Nm confstr
+.Fn confstr
 function may fail and set
 .Va error
 for any of the errors specified for the library functions
@@ -119,5 +120,5 @@ argument is invalid.
 .Xr sysctl 3
 .Sh HISTORY
 The
-.Nm confstr
+.Fn confstr
 function first appeared in 4.4BSD.

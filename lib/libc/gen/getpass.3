@@ -48,7 +48,7 @@ The
 function displays a prompt to, and reads in a password from,
 .Pa /dev/tty .
 If this file is not accessible,
-.Nm getpass
+.Fn getpass
 displays the prompt on the standard error output and reads from the standard
 input.
 .Pp
@@ -57,12 +57,14 @@ characters in length.
 Any additional
 characters and the terminating newline character are discarded.
 .Pp
-.Nm Getpass
-turns off character echoing while reading the password.
+The
+.Fn getpass
+function turns off character echoing while reading the password.
 .Pp
 .Sh RETURN VALUES
-.Nm Getpass
-returns a pointer to the null terminated password.
+The
+.Fn getpass
+function returns a pointer to the null terminated password.
 .Sh FILES
 .Bl -tag -width /dev/tty -compact
 .It Pa /dev/tty
@@ -71,16 +73,16 @@ returns a pointer to the null terminated password.
 .Xr crypt 3
 .Sh HISTORY
 A
-.Nm getpass
+.Fn getpass
 function appeared in
 .At v7 .
 .Sh BUGS
 The
-.Nm getpass
+.Fn getpass
 function leaves its result in an internal static object and returns
 a pointer to that object.
 Subsequent calls to
-.Nm getpass
+.Fn getpass
 will modify the same object.
 .Pp
 The calling process should zero the password as soon as possible to
