@@ -940,24 +940,6 @@ s_trap:
 	rfi
 
 /*
- * Child comes here at the end of a fork.
- * Mostly similar to the above.
- */
-	.globl	fork_trampoline
-fork_trampoline:
-	xor	3,3,3
-#if 0 /* XXX */
-	bl	lcsplx
-#endif
-	mtlr	31
-	mr	3,30
-	blrl				/* jump indirect to r31 */
-	mr	3,30
-	bl	ast
-	FRAME_LEAVE(tempsave)
-	rfi
-
-/*
  * DSI second stage fault handler
  */
 s_dsitrap:

@@ -86,11 +86,15 @@ ASSYM(FRAME_EXC, offsetof(struct trapframe, exc));
 
 ASSYM(SFRAMELEN, roundup(sizeof(struct switchframe), 16));
 
+ASSYM(CF_FUNC, offsetof(struct callframe, cf_func));
+ASSYM(CF_ARG0, offsetof(struct callframe, cf_arg0));
+ASSYM(CF_ARG1, offsetof(struct callframe, cf_arg1));
+
 ASSYM(PCB_CONTEXT, offsetof(struct pcb, pcb_context));
 ASSYM(PCB_CR, offsetof(struct pcb, pcb_cr));
 ASSYM(PCB_PMR, offsetof(struct pcb, pcb_pmreal));
 ASSYM(PCB_SP, offsetof(struct pcb, pcb_sp));
-ASSYM(PCB_SPL, offsetof(struct pcb, pcb_spl));
+ASSYM(PCB_LR, offsetof(struct pcb, pcb_lr));
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 

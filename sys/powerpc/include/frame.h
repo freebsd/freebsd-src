@@ -67,9 +67,9 @@ struct trapframe {
 
 struct switchframe {
 	register_t sp;
-	int fill;
-	int user_sr;
-	int cr;
+	register_t fill;
+	register_t user_sr;
+	register_t cr;
 	register_t fixreg2;
 	register_t fixreg[19];		/* R13-R31 */
 };
@@ -85,10 +85,9 @@ struct clockframe {
  * Call frame for PowerPC used during fork.
  */
 struct callframe {
-	register_t sp;
-	register_t lr;
-	register_t r30;
-	register_t r31;
+	register_t	cf_func;
+	register_t	cf_arg0;
+	register_t	cf_arg1;
 };
 
 #endif	/* _MACHINE_FRAME_H_ */

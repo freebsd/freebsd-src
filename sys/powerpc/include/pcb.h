@@ -38,18 +38,19 @@
 typedef int faultbuf[23];
 
 struct pcb {
-	u_int32_t pcb_context[18];	/* non-volatile r14-r31 */
-	u_int32_t pcb_cr;		/* Condition register */
-	struct pmap *pcb_pm;	/* pmap of our vmspace */
-	struct pmap *pcb_pmreal; /* real address of above */
-	register_t pcb_sp;	/* saved SP */
-	int pcb_spl;		/* saved SPL */
-	faultbuf *pcb_onfault;	/* For use during copyin/copyout */
-	int pcb_flags;
+	register_t	pcb_context[18];	/* non-volatile r14-r31 */
+	register_t	pcb_cr;			/* Condition register */
+	register_t	pcb_sp;			/* stack pointer */
+	register_t	pcb_lr;			/* link register */
+	struct		pmap *pcb_pm;		/* pmap of our vmspace */
+	struct		pmap *pcb_pmreal;	 /* real address of above */
+	faultbuf	*pcb_onfault;		/* For use during
+						    copyin/copyout */
+	int		pcb_flags;
 #define	PCB_FPU		1	/* Process had FPU initialized */
 	struct fpu {
-		double fpr[32];
-		double fpscr;	/* FPSCR stored as double for easier access */
+		double	fpr[32];
+		double	fpscr;	/* FPSCR stored as double for easier access */
 	} pcb_fpu;		/* Floating point processor */
 };
 

@@ -121,3 +121,14 @@ ENTRY(savectx)
 	mfcr	%r4			/* Save the condition register */
 	stw	%r4,PCB_CONTEXT(%r3)
 	blr
+
+/*
+ * fork_trampoline()
+ * Set up the return from cpu_fork()
+ */
+ENTRY(fork_trampoline)
+	lwz	%r3,CF_FUNC(1)
+	lwz	%r4,CF_ARG0(1)
+	lwz	%r5,CF_ARG1(1)
+	bl	fork_exit
+	rfi
