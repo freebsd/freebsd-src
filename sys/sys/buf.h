@@ -35,8 +35,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)buf.h	8.7 (Berkeley) 1/21/94
- * $Id: buf.h,v 1.27 1996/01/19 03:59:03 dyson Exp $
+ *	@(#)buf.h	8.9 (Berkeley) 3/30/95
+ * $Id: buf.h,v 1.29 1996/02/24 04:05:54 hsu Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -118,7 +118,7 @@ struct buf {
  * These flags are kept in b_flags.
  */
 #define	B_AGE		0x00000001	/* Move to age queue when I/O done. */
-#define	B_APPENDWRITE	0x00000002	/* Append-write in progress. */
+#define	B_NEEDCOMMIT	0x00000002	/* Append-write in progress. */
 #define	B_ASYNC		0x00000004	/* Start I/O, do not wait. */
 #define	B_BAD		0x00000008	/* Bad block revectoring in progress. */
 #define	B_BUSY		0x00000010	/* I/O in progress. */
@@ -215,7 +215,7 @@ struct buf *gbincore __P((struct vnode *, daddr_t));
 int	inmem __P((struct vnode *, daddr_t));
 struct buf *getblk __P((struct vnode *, daddr_t, int, int, int));
 struct buf *geteblk __P((int));
-int allocbuf __P((struct buf *, int));
+int	allocbuf __P((struct buf *, int));
 int	biowait __P((struct buf *));
 void	biodone __P((struct buf *));
 
