@@ -125,8 +125,8 @@ ad_attach(struct ata_device *atadev)
     adp->total_secs = atadev->param->cylinders * adp->heads * adp->sectors;	
     bioq_init(&adp->queue);
 
-    lbasize = (u_int32_t)atadev->param->lba_size_lo |
-	((u_int32_t)atadev->param->lba_size_hi << 16);
+    lbasize = (u_int32_t)atadev->param->lba_size_1 |
+	       ((u_int32_t)atadev->param->lba_size_2 << 16);
 
     /* does this device need oldstyle CHS addressing */
     if (!ad_version(atadev->param->version_major) || 
@@ -137,10 +137,10 @@ ad_attach(struct ata_device *atadev)
     if (atadev->param->cylinders == 16383 && adp->total_secs < lbasize)
 	adp->total_secs = lbasize;
 
-    lbasize48 = (u_int64_t)atadev->param->lba_size48_1 |
-	((u_int64_t)atadev->param->lba_size48_2 << 16) |
-	((u_int64_t)atadev->param->lba_size48_3 << 32) |
-	((u_int64_t)atadev->param->lba_size48_4 << 48);
+    lbasize48 = ((u_int64_t)atadev->param->lba_size48_1) |
+		((u_int64_t)atadev->param->lba_size48_2 << 16) |
+		((u_int64_t)atadev->param->lba_size48_3 << 32) |
+		((u_int64_t)atadev->param->lba_size48_4 << 48);
 
     /* use the 48bit LBA size if valid */
     if (atadev->param->support.address48 && lbasize48 > 268435455)
