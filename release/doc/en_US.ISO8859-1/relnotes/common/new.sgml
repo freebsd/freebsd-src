@@ -427,6 +427,8 @@
       <para>The &man.ee.1; <application>Easy Editor</application> has
       been updated to 1.4.2.</para>
 
+      <para><application>file</application> has been updated to 3.36.</para>
+
       <para>&man.gcc.1; now supports the environment variable
       <varname>GCC_OPTIONS</varname>, which can hold a set of default
       options for <application>GCC</application>.</para>
