@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: ruptime.c,v 1.4 1995/07/22 22:28:31 joerg Exp $ */
+/* $Id: ruptime.c,v 1.5 1995/08/07 19:17:40 wollman Exp $ */
 
 #ifndef lint
 static char copyright[] =
@@ -161,7 +161,7 @@ main(argc, argv)
 		++nhosts;
 	}
 	if (nhosts == 0)
-		errx(0, "no hosts in %s.", _PATH_RWHODIR);
+		errx(1, "no hosts in %s.", _PATH_RWHODIR);
 
 	(void)time(&now);
 	qsort(hs, nhosts, sizeof(hs[0]), cmp);
