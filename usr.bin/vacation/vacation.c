@@ -109,8 +109,6 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern int optind, opterr;
-	extern char *optarg;
 	struct passwd *pw;
 	ALIAS *cur;
 	time_t interval;

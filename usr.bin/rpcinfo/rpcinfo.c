@@ -53,6 +53,7 @@ static char rcsid[] =
 #include <rpc/pmap_clnt.h>
 #include <signal.h>
 #include <ctype.h>
+#include <unistd.h>
 #include <sys/param.h>
 #include <arpa/inet.h>
 
@@ -89,8 +90,6 @@ main(argc, argv)
 	char **argv;
 {
 	register int c;
-	extern char *optarg;
-	extern int optind;
 	int errflg;
 	int function;
 	u_short portnum;

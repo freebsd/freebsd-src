@@ -38,7 +38,11 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)tput.c	8.2 (Berkeley) 3/19/94";
+#endif
+static char rcsid[] =
+"$FreeBSD$";
 #endif /* not lint */
 
 #include <termios.h>
@@ -61,8 +65,6 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern char *optarg;
-	extern int optind;
 	int ch, exitval, n;
 	char *cptr, *p, *term, buf[1024], tbuf[1024];
 
