@@ -917,6 +917,14 @@ cdrom.1:
 	@echo 'mfsroot_load="YES"' > ${CD_DISC2}/boot/loader.conf
 	@echo 'mfsroot_type="mfs_root"' >> ${CD_DISC2}/boot/loader.conf
 	@echo 'mfsroot_name="/boot/mfsroot"' >> ${CD_DISC2}/boot/loader.conf
+.if exists(${HINTSFILE})
+	# Break the link to device.hints so we can modify it
+	@rm ${CD_DISC2}/boot/device.hints
+	@cp ${HINTSFILE} ${CD_DISC2}/boot/device.hints
+.if ${TARGET} == "i386" || ${TARGET_ARCH} == "amd64"
+	@echo 'hint.atkbd.0.flags="0x1"' >> ${CD_DISC2}/boot/device.hints
+.endif
+.endif
 .if defined(CD_BOOT)
 	@cp -Rp ${CD_DISC2}/boot ${CD_BOOT}
 .if defined(MINIROOT)
@@ -1149,7 +1157,11 @@ buildBootFloppy:
 	@cp -Rp ${BOOTDIR}/*.4th ${BOOTDIR}/defaults ${BOOTDIR}/loader.help \
 	    ${BOOTDIR}/loader.rc ${IMAGEDIR}/boot
 .if exists(${HINTSFILE})
-	@gzip -9nc ${HINTSFILE} > ${IMAGEDIR}/boot/device.hints.gz
+	@cp ${HINTSFILE} ${IMAGEDIR}/boot/device.hints
+.if ${TARGET} == "i386" || ${TARGET_ARCH} == "amd64"
+	@echo 'hint.atkbd.0.flags="0x1"' >> ${IMAGEDIR}/boot/device.hints
+.endif
+	@gzip -9n ${IMAGEDIR}/boot/device.hints
 .endif
 	@gzip -9n ${IMAGEDIR}/boot/*.4th ${IMAGEDIR}/boot/loader.help \
 	    ${IMAGEDIR}/boot/defaults/loader.conf
