@@ -59,6 +59,9 @@
 
 #define MAX_THREAD_CMDS	10
 
+static void log_error(const char *, ...) __printflike(1, 2);
+static void log_trace (const char *, ...) __printflike(1, 2);
+static void log (const char *, ...) __printflike(1, 2);
 
 /*------------------------------------------------------------
  * Types
@@ -162,7 +165,7 @@ static pthread_mutex_t	waiter_mutex;
 static pthread_mutex_t	cond_mutex;
 static pthread_cond_t	cond_var;
 
-static FILE *logfile = stdout;
+static FILE *logfile;
 static int error_count = 0, pass_count = 0, total = 0;
 
 
@@ -351,7 +354,7 @@ waiter (void *arg)
 		/* Do we report our status? */
 		if (statep->flags & FLAGS_REPORT_WAITCONDVAR) {
 			write (pipefd[1], &statep->id, sizeof (statep->id));
-			log_trace ("Thread %d: wrote %d to pipe.\n",
+			log_trace ("Thread %d: wrote to pipe.\n",
 			    (int) statep->id);
 		}
 		log_trace ("Thread %d: received cond_var signal.\n",
@@ -1435,6 +1438,8 @@ int main (int argc, char *argv[])
 	struct sigaction act;
 	struct sched_param param;
 
+	logfile = stdout;
+ 
 	assert (pthread_getschedparam (pthread_self (), &policy, &param) == 0);
 	main_prio = param.sched_priority;
 
