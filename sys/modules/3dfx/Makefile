@@ -5,7 +5,6 @@ MAINTAINER=	cokane@FreeBSD.org
 .PATH: $(.CURDIR)/../../dev/tdfx
 
 KMOD=	3dfx
-NOMAN=	YES
 SRCS=	opt_tdfx.h  bus_if.h pci_if.h device_if.h tdfx_pci.h tdfx_io.h\
 	tdfx_vars.h tdfx_pci.c
 INCSRC=	../../sys
