@@ -24,7 +24,7 @@
 machine		ia64
 cpu		ITANIUM
 ident		GENERIC
-maxusers	32
+maxusers	0
 
 #To statically compile in device wiring instead of /boot/device.hints
 #hints		"GENERIC.hints"

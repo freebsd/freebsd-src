@@ -25,7 +25,7 @@ machine		alpha
 cpu		EV4
 cpu		EV5
 ident		GENERIC
-maxusers	32
+maxusers	0
 
 #To statically compile in device wiring instead of /boot/device.hints
 #hints		"GENERIC.hints"

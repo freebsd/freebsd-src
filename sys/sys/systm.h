@@ -121,7 +121,8 @@ void	*phashinit __P((int count, struct malloc_type *type, u_long *nentries));
 
 void	cpu_boot __P((int));
 void	cpu_rootconf __P((void));
-void	init_param __P((void));
+void	init_param1 __P((void));
+void	init_param2 __P((int physpages));
 void	tablefull __P((const char *));
 int	kvprintf __P((char const *, void (*)(int, void*), void *, int,
 		      _BSD_VA_LIST_)) __printflike(1, 0);

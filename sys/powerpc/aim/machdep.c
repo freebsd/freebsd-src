@@ -436,7 +436,8 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 	__asm ("mtsprg 0, %0" :: "r"(globalp));
 
 	/* Init basic tunables, hz etc */
-	init_param();
+	init_param1();
+	init_param2(physmem);
 
 	/* setup curproc so the mutexes work */
 

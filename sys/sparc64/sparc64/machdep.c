@@ -250,9 +250,14 @@ sparc64_init(caddr_t mdp, ofw_vec_t *vec)
 	}
 
 	/*
+	 * XXX calculate physmem
+	 */
+
+	/*
 	 * Initialize tunables.
 	 */
-	init_param();
+	init_param1();
+	init_param2(physmem);
 
 #ifdef DDB
 	kdb_init();
