@@ -1,3 +1,36 @@
+2002-02-26  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* configure.in (LINGUAS): Add de.po.
+	* configure: Regenerate.
+	* po/de.po: New file.
+
+Mon Feb 25 18:40:33 CET 2002  Jan Hubicka  <jh@suse.cz>
+
+	* i386-dis.c (prefix_name): Fix handling of 32bit address prefix
+	in 64bit mode.
+	(print_insn) Likewise.
+	(putop): Fix handling of 'E'
+	(OP_E, OP_OFF): handle 32bit addressing mode in 64bit.
+	(ptr_reg): Likewise.
+
+2002-02-25  Alan Modra  <amodra@bigpond.net.au>
+
+	* ppc-dis.c (powerpc_dialect): Handle power4 option.
+	* ppc-opc.c (insert_bdm): Correct description of "at" branch
+	hints.  Test PPC_OPCODE_POWER4 to determine branch hint flavour.
+	(extract_bdm, insert_bdp, extract_bdp, valid_bo): Likewise.
+	(BOFM64, BOFP64, BOTM64, BOFP64): Rename to BOFM4, BOFP4 etc.
+	(BODNZM64, BODNZP64, BODZM64, BODZP64): Likewise.
+	(PPCCOM32, PPCCOM64): Delete.
+	(NOPOWER4, POWER4): Define.
+	(powerpc_opcodes): Replace occurences of PPCCOM32 with NOPOWER4,
+	and PPCCOM4 with POWER4 so that "at" style branch hint opcodes
+	are enabled for power4 rather than ppc64.
+
+	Merge from mainline 2002-02-19  matthew green  <mrg@redhat.com>
+	* ppc-opc.c (powerpc_dialect): Fix comment; BookE is not Motorola
+	specific.
+
 2002-02-15  Richard Henderson  <rth@redhat.com>
 
 	* alpha-opc.c (alpha_opcodes): Fix thinko in ret pseudo

@@ -623,6 +623,15 @@ typedef struct unw_rec_list {
 
 #define SLOT_NUM_NOT_SET        (unsigned)-1
 
+/* Linked list of saved prologue counts.  A very poor
+   implementation of a map from label numbers to prologue counts.  */
+typedef struct label_prologue_count
+{
+  struct label_prologue_count *next;
+  unsigned long label_number;
+  unsigned int prologue_count;
+} label_prologue_count;
+
 static struct
 {
   unsigned long next_slot_number;
@@ -649,6 +658,8 @@ static struct
   int prologue;
   int prologue_mask;
   unsigned int prologue_count;	/* number of .prologues seen so far */
+  /* Prologue counts at previous .label_state directives.  */
+  struct label_prologue_count * saved_prologue_counts;
 } unwind;
 
 typedef void (*vbyte_func) PARAMS ((int, char *, char *));
@@ -862,6 +873,9 @@ static int output_unw_records PARAMS ((unw_rec_list *, void **));
 static int convert_expr_to_ab_reg PARAMS ((expressionS *, unsigned int *, unsigned int *));
 static int convert_expr_to_xy_reg PARAMS ((expressionS *, unsigned int *, unsigned int *));
 static int generate_unwind_image PARAMS ((const char *));
+static unsigned int get_saved_prologue_count PARAMS ((unsigned long));
+static void save_prologue_count PARAMS ((unsigned long, unsigned int));
+static void free_saved_prologue_counts PARAMS ((void));
 
 /* Build the unwind section name by appending the (possibly stripped)
    text section NAME to the unwind PREFIX.  The resulting string
@@ -3156,6 +3170,14 @@ dot_restore (dummy)
     }
   else
     ecount = unwind.prologue_count - 1;
+
+  if (ecount >= unwind.prologue_count)
+    {
+      as_bad ("Epilogue count of %lu exceeds number of nested prologues (%u)",
+	      ecount + 1, unwind.prologue_count);
+      return;
+    }
+
   add_unwind_entry (output_epilogue (ecount));
 
   if (ecount < unwind.prologue_count)
@@ -3288,6 +3310,7 @@ generate_unwind_image (text_name)
     }
 
   free_list_records (unwind.list);
+  free_saved_prologue_counts ();
   unwind.list = unwind.tail = unwind.current_entry = NULL;
 
   return size;
@@ -3714,6 +3737,61 @@ dot_spillmem_p (psprel)
     add_unwind_entry (output_spill_sprel_p (ab, reg, e3.X_add_number, qp));
 }
 
+static unsigned int
+get_saved_prologue_count (lbl)
+     unsigned long lbl;
+{
+  label_prologue_count *lpc = unwind.saved_prologue_counts;
+
+  while (lpc != NULL && lpc->label_number != lbl)
+    lpc = lpc->next;
+
+  if (lpc != NULL)
+    return lpc->prologue_count;
+
+  as_bad ("Missing .label_state %ld", lbl);
+  return 1;
+}
+
+static void
+save_prologue_count (lbl, count)
+     unsigned long lbl;
+     unsigned int count;
+{
+  label_prologue_count *lpc = unwind.saved_prologue_counts;
+
+  while (lpc != NULL && lpc->label_number != lbl)
+    lpc = lpc->next;
+
+  if (lpc != NULL)
+    lpc->prologue_count = count;
+  else
+    {
+      label_prologue_count * new_lpc = xmalloc (sizeof (* new_lpc));
+
+      new_lpc->next = unwind.saved_prologue_counts;
+      new_lpc->label_number = lbl;
+      new_lpc->prologue_count = count;
+      unwind.saved_prologue_counts = new_lpc;
+    }
+}
+
+static void
+free_saved_prologue_counts ()
+{
+  label_prologue_count * lpc = unwind.saved_prologue_counts;
+  label_prologue_count * next;
+
+  while (lpc != NULL)
+    {
+      next = lpc->next;
+      free (lpc);
+      lpc = next;
+    }
+
+  unwind.saved_prologue_counts = NULL;
+}
+
 static void
 dot_label_state (dummy)
      int dummy ATTRIBUTE_UNUSED;
@@ -3727,6 +3805,7 @@ dot_label_state (dummy)
       return;
     }
   add_unwind_entry (output_label_state (e.X_add_number));
+  save_prologue_count (e.X_add_number, unwind.prologue_count);
 }
 
 static void
@@ -3742,6 +3821,7 @@ dot_copy_state (dummy)
       return;
     }
   add_unwind_entry (output_copy_state (e.X_add_number));
+  unwind.prologue_count = get_saved_prologue_count (e.X_add_number);
 }
 
 static void
@@ -6336,6 +6416,11 @@ md_show_usage (stream)
 {
   fputs (_("\
 IA-64 options:\n\
+  --mconstant-gp	  mark output file as using the constant-GP model\n\
+			  (sets ELF header flag EF_IA_64_CONS_GP)\n\
+  --mauto-pic		  mark output file as using the constant-GP model\n\
+			  without function descriptors (sets ELF header flag\n\
+			  EF_IA_64_NOFUNCDESC_CONS_GP)\n\
   -milp32|-milp64|-mlp64|-mp64	select data model (default -mlp64)\n\
   -mle | -mbe		  select little- or big-endian byte order (default -mle)\n\
   -x | -xexplicit	  turn on dependency violation checking (default)\n\
