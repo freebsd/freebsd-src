@@ -2716,8 +2716,10 @@ static void dc_intr(arg)
 	DC_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
-	if ( (CSR_READ_4(sc, DC_ISR) & DC_INTRS) == 0)
+	if ( (CSR_READ_4(sc, DC_ISR) & DC_INTRS) == 0) {
+		DC_UNLOCK(sc);
 		return ;
+	}
 
 	/* Suppress unwanted interrupts */
 	if (!(ifp->if_flags & IFF_UP)) {
