@@ -92,10 +92,8 @@ done
 # This shell script is intended for use with man, so warnings are
 # probably not wanted.  Also load nroff-style character definitions.
 
-OLD_PATH=$PATH
 : ${GROFF_BIN_PATH=@BINDIR@}
 export GROFF_BIN_PATH
-PATH=$GROFF_BIN_PATH
-PATH=$OLD_PATH groff $safer -Wall -mtty-char $T $opts ${1+"$@"}
+PATH=$GROFF_BIN_PATH:$PATH groff $safer -Wall -mtty-char $T $opts ${1+"$@"}
 
 # eof
