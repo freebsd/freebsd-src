@@ -1,4 +1,4 @@
-<!-- $Id: ports.sgml,v 1.12 1996/06/26 03:28:51 jfieber Exp $ -->
+<!-- $Id: ports.sgml,v 1.13 1996/08/13 19:51:36 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>The Ports collection<label id="ports"></heading>
@@ -392,7 +392,7 @@ Skipping over the next few lines for a minute, the line
 <verb>
  .include <bsd.port.mk> 
 </verb>
-says that the other statements and commmands 
+says that the other statements and commands 
 needed for this port are in a standard file called 
 `bsd.port.mk&quot;. As these are the same for all ports, there is
 no point in duplicating them all over the place, so they are kept in a

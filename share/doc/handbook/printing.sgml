@@ -1,7 +1,7 @@
 <!-- This is an SGML document in the linuxdoc DTD describing
      Printing with FreeBSD.  By Sean Kelly, 1995.
 
-     $Id: printing.sgml,v 1.8 1996/08/12 16:07:50 jfieber Exp $
+     $Id: printing.sgml,v 1.9 1996/09/22 15:40:27 wosch Exp $
 
      The FreeBSD Documentation Project
 
@@ -3733,7 +3733,7 @@ total                     337.00  154   $  6.74
 	    To compute the dollar amount due, <tt/pac/ uses the
 	    <tt/pc/ capability in the <tt>/etc/printcap</tt> file
 	    (default of 200, or 2 cents per page).  Specify, in
-	    hundreths of cents, the price per page or per foot you
+	    hundredths of cents, the price per page or per foot you
 	    want to charge for printouts in this capability.  You can
 	    override this value when you run <tt/pac/ with the <tt/-p/
 	    option.  The units for the <tt/-p/ option are in dollars,

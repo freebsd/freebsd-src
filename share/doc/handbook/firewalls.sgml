@@ -1,4 +1,4 @@
-<!-- $Id: firewalls.sgml,v 1.12 1996/09/14 17:18:10 alex Exp $ -->
+<!-- $Id: firewalls.sgml,v 1.13 1996/09/15 00:15:33 alex Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Firewalls<label id="firewalls"></heading>
@@ -141,7 +141,7 @@ will happen.
 packets logged through <tt>syslogd(8)</tt> on a per entry basis.
 You may wish to use this option in hostile environments in which
 you want to log firewall activity, but do not want to be open to
-a denial of serivce attack via syslog flooding.
+a denial of service attack via syslog flooding.
 
 <p>When a chain entry reaches the packet limit specified, logging
 is turned off for that particular entry.  To resume logging, you
