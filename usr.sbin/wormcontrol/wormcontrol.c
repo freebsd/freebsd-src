@@ -96,6 +96,10 @@ main(int argc, char **argv)
 				d.speed = 1;
 			else if (eq(argv[i], "double"))
 				d.speed = 2;
+			else if (eq(argv[i], "quad"))
+				d.speed = 4;
+			else if (eq(argv[i], "max"))
+				d.speed = 99;
 			else
 				errx(EX_USAGE,
 				     "wrong param for \"prepdisk\": %s",

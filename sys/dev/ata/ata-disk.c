@@ -28,12 +28,7 @@
  * $FreeBSD$
  */
 
-#include "ata.h"
-#include "atadisk.h"
 #include "apm.h"
-
-#if NATA > 0 && NATADISK > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -282,6 +277,7 @@ adopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     printf("adopen: lun=%d adnlun=%d\n", adp->lun, adnlun);
 #endif
 
+    dev->si_iosize_max = 256 * DEV_BSIZE;
     dl = &adp->disk.d_label;
     bzero(dl, sizeof *dl);
     dl->d_secsize = DEV_BSIZE;
@@ -660,8 +656,6 @@ ad_version(u_int16_t version)
 static void 
 ad_drvinit(void)
 {
-    if (!ad_cdevsw.d_maxio)
-	ad_cdevsw.d_maxio = 256 * DEV_BSIZE;
     fakewd_cdevsw = ad_cdevsw;
     fakewd_cdevsw.d_maj = 3;
     fakewd_cdevsw.d_bmaj = 0;
@@ -684,4 +678,3 @@ ad_drvinit(void)
 }
 
 SYSINIT(addev, SI_SUB_DRIVERS, SI_ORDER_SECOND, ad_drvinit, NULL)
-#endif /* NATA && NATADISK */

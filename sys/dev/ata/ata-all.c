@@ -30,9 +30,6 @@
 
 #include "ata.h"
 #include "apm.h"
-
-#if NATA > 0
-
 #include "isa.h"
 #include "pci.h"
 #include "atadisk.h"
@@ -870,4 +867,3 @@ bpack(int8_t *src, int8_t *dst, int32_t len)
     }
     dst[j] = 0x00;
 }
-#endif /* NATA > 0 */
