@@ -10,6 +10,7 @@
     <year>2001</year>
     <year>2002</year>
     <year>2003</year>
+    <year>2004</year>
     <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
   </copyright>
 
@@ -439,10 +440,6 @@
 
       <para>Kernel support has been added for Protocol Independent
 	Multicast routing (&man.pim.4;). &merged;</para>
-
-      <para>To reduce information leakage, IPv4 packets no longer have
-	an <varname>ip_id</varname> field set unless fragmentation is
-	being done.</para>
 
       <para>The &os; Bluetooth protocol stack has been updated:</para>
      
