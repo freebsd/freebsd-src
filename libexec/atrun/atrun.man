@@ -1,4 +1,4 @@
-.\" $Id: atrun.man,v 1.1 1994/05/10 18:23:08 kernel Exp $
+.\" $Id: atrun.man,v 1.1 1995/04/12 02:52:21 ache Exp $
 .Dd April 12, 1995
 .Dt ATRUN 8
 .Os "FreeBSD 2.1"
@@ -29,12 +29,12 @@ At every invocation, every job in lowercase queues whose starting time
 has passed is started.
 A maximum of one batch jobs (denoted by uppercase queues) are started
 each time
-.Nm atrun
+.Nm
 is invoked.
 .Sh OPTIONS
 .Bl -tag -width indent
 .It Fl l Ar load_avg
-Specifies a limiting load factor, over which batch jobs should
+Specify a limiting load factor, over which batch jobs should
 not be run, instead of the compiled \- in value of _LOADAVG_MX.
 .It Fl d
 Debug; print error messages to standard error instead of using
@@ -42,7 +42,7 @@ Debug; print error messages to standard error instead of using
 .El
 .Sh WARNINGS
 For
-.Nm atrun
+.Nm
 to work, you have to start up a
 .Xr cron 8
 daemon.
@@ -54,13 +54,13 @@ Directory containing output spool files
 Directory containing job files
 .El
 .Sh SEE ALSO
-.Xr cron 8 ,
-.Xr crontab 1 ,
-.Xr crontab 5 ,
 .Xr at 1 ,
-.Xr syslog 3 .
+.Xr crontab 1 ,
+.Xr syslog 3 ,
+.Xr crontab 5 ,
+.Xr cron 8
 .Sh BUGS
 The functionality of 
-.Nm atrun
+.Nm
 should be merged into
 .Xr cron 8 .
