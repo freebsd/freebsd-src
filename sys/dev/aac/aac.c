@@ -1113,7 +1113,6 @@ aac_release_command(struct aac_command *cm)
 	 * intermediate stage may have destroyed them.  They're left
 	 * initialised here for debugging purposes only.
 	 */
-	cm->cm_fib->Header.SenderFibAddress = (u_int32_t)cm->cm_fib;
 	cm->cm_fib->Header.ReceiverFibAddress = (u_int32_t)cm->cm_fibphys;
 	cm->cm_fib->Header.SenderData = 0;
 
@@ -1408,8 +1407,7 @@ aac_init(struct aac_softc *sc)
 {
 	struct aac_adapter_init	*ip;
 	time_t then;
-	u_int32_t code;
-	u_int8_t *qaddr;
+	u_int32_t code, qoffset;
 	int error;
 
 	debug_called(1);
@@ -1581,12 +1579,10 @@ aac_init(struct aac_softc *sc)
 	 * list manipulation functions which 'know' the size of each list by
 	 * virtue of a table.
 	 */
-	qaddr = &sc->aac_common->ac_qbuf[0] + AAC_QUEUE_ALIGN;
-	qaddr -= (u_int32_t)qaddr % AAC_QUEUE_ALIGN;
-	sc->aac_queues = (struct aac_queue_table *)qaddr;
-	ip->CommHeaderAddress = sc->aac_common_busaddr +
-				((u_int32_t)sc->aac_queues -
-				(u_int32_t)sc->aac_common);
+	qoffset = offsetof(struct aac_common, ac_qbuf) + AAC_QUEUE_ALIGN;
+	qoffset &= (AAC_QUEUE_ALIGN - 1);
+	sc->aac_queues = (struct aac_queue_table *)((uintptr_t)sc->aac_common + qoffset);
+	ip->CommHeaderAddress = sc->aac_common_busaddr + qoffset;
 
 	sc->aac_queues->qt_qindex[AAC_HOST_NORM_CMD_QUEUE][AAC_PRODUCER_INDEX] =
 		AAC_HOST_NORM_CMD_ENTRIES;
@@ -1757,7 +1753,7 @@ aac_sync_fib(struct aac_softc *sc, u_int32_t command, u_int32_t xferstate,
 	fib->Header.StructType = AAC_FIBTYPE_TFIB;
 	fib->Header.Size = sizeof(struct aac_fib) + datasize;
 	fib->Header.SenderSize = sizeof(struct aac_fib);
-	fib->Header.SenderFibAddress = (u_int32_t)fib;
+	fib->Header.SenderFibAddress = 0;	/* Not needed */
 	fib->Header.ReceiverFibAddress = sc->aac_common_busaddr +
 					 offsetof(struct aac_common,
 						  ac_sync_fib);
@@ -2383,7 +2379,7 @@ aac_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 	union aac_statrequest *as;
 	struct aac_softc *sc;
 	int error = 0;
-	int i;
+	uint32_t cookie;
 
 	debug_called(2);
 
@@ -2434,8 +2430,8 @@ aac_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 		 * Here, we give it the proc pointer of the per-adapter aif 
 		 * thread. It's only used as a sanity check in other calls.
 		 */
-		i = (int)sc->aifthread;
-		error = copyout(&i, arg, sizeof(i));
+		cookie = (uint32_t)(uintptr_t)sc->aifthread;
+		error = copyout(&cookie, arg, sizeof(cookie));
 		break;
 	case FSACTL_GET_NEXT_ADAPTER_FIB:
 		arg = *(caddr_t*)arg;
@@ -2531,7 +2527,7 @@ aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib)
 		goto out;
 	size = cm->cm_fib->Header.Size + sizeof(struct aac_fib_header);
 	if (size > sizeof(struct aac_fib)) {
-		device_printf(sc->aac_dev, "incoming FIB oversized (%d > %d)\n",
+		device_printf(sc->aac_dev, "incoming FIB oversized (%d > %zd)\n",
 			      size, sizeof(struct aac_fib));
 		size = sizeof(struct aac_fib);
 	}
@@ -2554,7 +2550,7 @@ aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib)
 	 */
 	size = cm->cm_fib->Header.Size;
 	if (size > sizeof(struct aac_fib)) {
-		device_printf(sc->aac_dev, "outbound FIB oversized (%d > %d)\n",
+		device_printf(sc->aac_dev, "outbound FIB oversized (%d > %zd)\n",
 			      size, sizeof(struct aac_fib));
 		size = sizeof(struct aac_fib);
 	}
@@ -2776,7 +2772,7 @@ aac_getnext_aif(struct aac_softc *sc, caddr_t arg)
 		/*
 		 * Check the magic number that we gave the caller.
 		 */
-		if (agf.AdapterFibContext != (int)sc->aifthread) {
+		if (agf.AdapterFibContext != (int)(uintptr_t)sc->aifthread) {
 			error = EFAULT;
 		} else {
 			error = aac_return_aif(sc, agf.AifFib);
