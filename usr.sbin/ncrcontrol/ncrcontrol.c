@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrcontrol.c,v 1.17 1997/07/25 20:46:39 se Exp $
+**  $Id: ncrcontrol.c,v 1.18 1997/07/28 21:33:45 se Exp $
 **
 **  Utility for NCR 53C810 device driver.
 **
@@ -50,13 +50,16 @@
 #ifdef __NetBSD__
 #include <sys/device.h>
 #endif
+#include <err.h>
+#include <errno.h>
+#include <kvm.h>
+#include <limits.h>
 #include <nlist.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
-#include <paths.h>
-#include <limits.h>
-#include <kvm.h>
+#include <string.h>
+#include <unistd.h>
 #include <pci/ncr.c>
 
 /*
@@ -72,8 +75,6 @@ kvm_t	*kvm;
 #define	KVM_READ(o, p, l)	(kvm_read((void*)(o), (p), (l)) == (l))
 #endif
 
-extern void  exit();
-extern char* strerror (int num);
 
 /*===========================================================
 **
@@ -82,7 +83,6 @@ extern char* strerror (int num);
 **===========================================================
 */
 
-char	*prog;
 u_long	verbose;
 u_long  wizard;
 
@@ -128,6 +128,9 @@ u_long  target_mask;
 u_long  global_lun_mask;
 u_long  lun_mask;
 u_long  interval;
+
+static void usage __P((void));
+
 
 /*===========================================================
 **
@@ -136,39 +139,33 @@ u_long  interval;
 **===========================================================
 */
 
-read_ccb(u_long base)
+void read_ccb(u_long base)
 {
 	ccb_base = base;
 	if (!KVM_READ (
 		base,
 		&ccb,
-		sizeof (struct ccb))) {
-		fprintf (stderr, "%s: bad kvm read at %x.\n", prog, base);
-		exit (1);
-	};
+		sizeof (struct ccb)))
+		errx(1, "bad kvm read at %x", base);
 }
 
-read_lcb(u_long base)
+void read_lcb(u_long base)
 {
 	lcb_base = base;
 	if (!KVM_READ (
 		base,
 		&lcb,
-		sizeof (struct lcb))) {
-		fprintf (stderr, "%s: bad kvm read at %x.\n", prog, base);
-		exit (1);
-	};
+		sizeof (struct lcb)))
+		errx(1, "bad kvm read at %x", base);
 }
 
-read_ncr()
+void read_ncr()
 {
 	if (!KVM_READ (
 		ncr_base,
 		&ncr,
-		sizeof (ncr))) {
-		fprintf (stderr, "%s: bad kvm read at %x.\n", prog, ncr_base);
-		exit (1);
-	};
+		sizeof (ncr)))
+		errx(1, "bad kvm read at %x", ncr_base);
 }
 
 void open_kvm(int flags)
@@ -197,10 +194,8 @@ void open_kvm(int flags)
 	}
 
 	kvm = kvm_openfiles(vmunix, kmemf, NULL, flags, errbuf);
-	if (kvm == NULL) {
-		fprintf(stderr, "%s: kvm_openfiles: %s\n", prog, errbuf);
-		exit(1);
-	}
+	if (kvm == NULL)
+		errx(1, "kvm_openfiles: %s", errbuf);
 #else
 	if (vmunix != NULL) {
 #if (__FreeBSD__ >= 2)
@@ -209,108 +204,78 @@ void open_kvm(int flags)
 		vmunix = _PATH_UNIX;
 #endif
 	}
-	if (kvm_openfiles(vmunix, kmemf, NULL) == -1) {
-		fprintf(stderr, "%s: kvm_openfiles: %s\n", prog, kvm_geterr());
-		exit(1);
-	}
+	if (kvm_openfiles(vmunix, kmemf, NULL) == -1)
+		errx(1, "kvm_openfiles: %s", kvm_geterr());
 #endif
 
-	if (!KVM_NLIST(nl)) {
-		fprintf(stderr, "%s: no symbols in \"%s\".\n",
-			prog, vmunix);
-		exit (2);
-	};
+	if (!KVM_NLIST(nl))
+		errx(2, "no symbols in \"%s\"", vmunix);
 
 	for (i=0; nl[i].n_name; i++)
-		if (nl[i].n_type == 0) {
-			fprintf(stderr, "%s: no symbol \"%s\" in \"%s\".\n",
-				prog, nl[i].n_name, vmunix);
-			exit(1);
-		}
+		if (nl[i].n_type == 0)
+			errx(1, "no symbol \"%s\" in \"%s\"",
+				nl[i].n_name, vmunix);
 
 	if (!KVM_READ (
 		nl[N_NCR_VERSION].n_value,
 		&kernel_version,
-		sizeof (kernel_version))) {
-		fprintf (stderr, "%s: bad kvm read.\n", prog);
-		exit (1);
-	};
+		sizeof (kernel_version)))
+		errx(1, "bad kvm read");
 
-	if (kernel_version != ncr_version){
-		fprintf (stderr, "%s: incompatible with kernel. Rebuild!\n",
-			prog);
-		exit (1);
-	};
+	if (kernel_version != ncr_version)
+		errx(1, "incompatible with kernel. Rebuild!");
 
 #ifdef __NetBSD__
 
 	if (!KVM_READ (
 		nl[N_NCRCD].n_value,
 		&ncrcd,
-		sizeof (ncrcd))) {
-		fprintf (stderr, "%s: bad kvm read.\n", prog);
-		exit (1);
-	};
+		sizeof (ncrcd)))
+		errx(1, "bad kvm read");
 
-	if (ncr_unit >= ncrcd.cd_ndevs){
-		fprintf (stderr, "%s: bad unit number (valid range: 0-%d).\n",
-			prog, ncrcd.cd_ndevs-1);
-		exit (1);
-	};
+	if (ncr_unit >= ncrcd.cd_ndevs)
+		errx(1, "bad unit number (valid range: 0-%d)",
+			ncrcd.cd_ndevs-1);
 
 	if (!KVM_READ (
 		ncrcd.cd_devs+4*ncr_unit,
 		&ncr_base,
-		sizeof (ncr_base))) {
-		fprintf (stderr, "%s: bad kvm read.\n", prog);
-		exit (1);
-	};
+		sizeof (ncr_base)))
+		errx(1, "bad kvm read");
 
-	if (!ncr_base) {
-		fprintf (stderr,
-		"%s: control structure not allocated (not found in autoconfig?)\n", prog);
-		exit (1);
-	};
+	if (!ncr_base)
+		errx(1,
+		"control structure not allocated (not found in autoconfig?)");
 
 #else /* !__NetBSD__ */
 
 	if (!KVM_READ (
 		nl[N_NNCR].n_value,
 		&ncr_units,
-		sizeof (ncr_units))) {
-		fprintf (stderr, "%s: bad kvm read.\n", prog);
-		exit (1);
-	};
+		sizeof (ncr_units)))
+		errx(1, "bad kvm read");
 
-	if (ncr_unit >= ncr_units){
-		fprintf (stderr, "%s: bad unit number (valid range: 0-%d).\n",
-			prog, ncr_units-1);
-		exit (1);
-	};
+	if (ncr_unit >= ncr_units)
+		errx(1, "bad unit number (valid range: 0-%d)",
+			ncr_units-1);
 
 	if (!KVM_READ (
 		nl[N_NCRP].n_value+4*ncr_unit,
 		&ncr_base,
 		sizeof (ncr_base))) {
-		fprintf (stderr, "%s: bad kvm read.\n", prog);
-		exit (1);
+		errx(1, "bad kvm read");
 	};
 
-	if (!ncr_base) {
-		fprintf (stderr,
-		"%s: control structure not allocated (not found in autoconfig?)\n", prog);
-		exit (1);
-	};
+	if (!ncr_base)
+		errx(1,
+		"control structure not allocated (not found in autoconfig?)");
 
 #endif /* !__NetBSD__ */
 
 	read_ncr();
 
-	if (!ncr.vaddr) {
-		fprintf (stderr,
-		"%s: 53c810 not mapped (not found in autoconfig?)\n", prog);
-		exit (1);
-	};
+	if (!ncr.vaddr)
+		errx(1, "53c810 not mapped (not found in autoconfig?)");
 
 	kvm_isopen = 1;
 }
@@ -524,7 +489,7 @@ void do_info(void)
 **================================================================
 */
 
-do_profile(void)
+void do_profile(void)
 {
 #define old  backup.profile
 #define new  ncr.profile
@@ -656,27 +621,18 @@ void openkernelwritefile(void)
 	if (kernelwritefile) return;
 
 	kernelwritefile = open (kernelwritefilename, O_WRONLY);
-	if (kernelwritefile<3) {
-		fprintf (stderr, "%s: %s: %s\n",
-			prog, kernelwritefilename, strerror(errno));
-		exit (1);
-	};
+	if (kernelwritefile<3)
+		err(1, "%s", kernelwritefilename);
 }
 
 void out (u_char reg, u_char val)
 {
 	u_long addr = ncr.vaddr + reg;
 	openkernelwritefile();
-	if (lseek (kernelwritefile, addr, 0) != addr) {
-		fprintf (stderr, "%s: %s: %s\n",
-			prog, kernelwritefilename, strerror(errno));
-		exit (1);
-	}
-	if (write (kernelwritefile, &val, 1) < 0) {
-		fprintf (stderr, "%s: %s: %s\n",
-			prog, kernelwritefilename, strerror(errno));
-		exit (1);
-	};
+	if (lseek (kernelwritefile, addr, 0) != addr)
+		err(1, "%s", kernelwritefilename);
+	if (write (kernelwritefile, &val, 1) < 0)
+		err(1, "%s", kernelwritefilename);
 }
 
 u_char in (u_char reg)
@@ -685,10 +641,8 @@ u_char in (u_char reg)
 	if (!KVM_READ (
 		(ncr.vaddr + reg),
 		&res,
-		1)) {
-		fprintf (stderr, "%s: bad kvm read.\n", prog);
-		exit (1);
-	}
+		1))
+		errx(1, "bad kvm read");
 	return (res);
 }
 
@@ -731,17 +685,13 @@ void do_set (char * arg)
 		if (!KVM_READ (
 			(addr),
 			&user,
-			sizeof (user))) {
-			fprintf (stderr, "%s: bad kvm read.\n", prog);
-			exit (1);
-		}
+			sizeof (user)))
+			errx(1, "bad kvm read");
 		if (!user.cmd) break;
 		sleep (1);
 	}
-	if (user.cmd) {
-		fprintf (stderr, "%s: ncb.user busy.\n", prog);
-		exit (1);
-	};
+	if (user.cmd)
+		errx(1, "ncb.user busy");
 
 	set_target_mask();
 
@@ -816,22 +766,15 @@ void do_set (char * arg)
 	if (user.cmd) {
 		openkernelwritefile();
 
-		if (lseek (kernelwritefile, addr, 0) != addr) {
-			fprintf (stderr, "%s: %s: %s\n",
-				prog, kernelwritefilename, strerror(errno));
-			exit (1);
-		}
-		if (write (kernelwritefile, &user, sizeof (user)) < 0) {
-			fprintf (stderr, "%s: %s: %s\n",
-				prog, kernelwritefilename, strerror(errno));
-			exit (1);
-		}
+		if (lseek (kernelwritefile, addr, 0) != addr)
+			err(1, "%s", kernelwritefilename);
+		if (write (kernelwritefile, &user, sizeof (user)) < 0)
+			errx(1, "%s", kernelwritefilename);
 
 		return;
 	};
 
-	fprintf (stderr, "%s: do_set \"%s\" not (yet) implemented.\n",
-		prog, arg);
+	warnx ("do_set \"%s\" not (yet) implemented", arg);
 }
 
 /*================================================================
@@ -843,7 +786,7 @@ void do_set (char * arg)
 **================================================================
 */
 
-do_kill(char * arg)
+void do_kill(char * arg)
 {
 	open_kvm(O_RDWR);
 
@@ -859,10 +802,8 @@ do_kill(char * arg)
 		return;
 	};
 
-	if (!wizard) {
-		fprintf (stderr, "%s: You are NOT a wizard!\n", prog);
-		exit (2);
-	};
+	if (!wizard)
+		errx(2, "you are NOT a wizard!");
 
 	if (!strcmp(arg, "scsireset")) {
 		out (0x01, 0x08);
@@ -894,8 +835,7 @@ do_kill(char * arg)
 		out (0x04, in (0x04) | RRE);
 		return;
         };
-        fprintf (stderr, "%s: do_kill \"%s\" not (yet) implemented.\n",
-		prog, arg);
+        warnx ("do_kill \"%s\" not (yet) implemented", arg);
 }
 
 /*================================================================
@@ -1149,7 +1089,7 @@ static void dump_reg(struct ncr_reg * rp)
 
 char * debug_opt;
 
-dump_head (struct head * hp)
+void dump_head (struct head * hp)
 {
 	dump_link ("      launch", & hp->launch);
 	printf    ("       savep: %08x %s\n",
@@ -1246,10 +1186,8 @@ static void dump_lcb (u_long base)
 	if (!KVM_READ (
 		base,
 		&l,
-		sizeof (struct lcb))) {
-		fprintf (stderr, "%s: bad kvm read.\n", prog);
-		exit (1);
-	};
+		sizeof (struct lcb)))
+		errx(1, "bad kvm read");
 	printf   ("     reqccbs: %d\n", l.reqccbs);
 	printf   ("     actccbs: %d\n", l.actccbs);
 	printf   ("     reqlink: %d\n", l.reqlink);
@@ -1267,10 +1205,8 @@ static void dump_lcb (u_long base)
 		if (!KVM_READ (
 			cp,
 			&c,
-			sizeof (struct ccb))) {
-			fprintf (stderr, "%s: bad kvm read.\n", prog);
-			exit (1);
-		};
+			sizeof (struct ccb)))
+			errx(1, "bad kvm read");
 		dump_ccb (&c, cp);
 		cp= (u_long) c.next_ccb;
 	};
@@ -1331,7 +1267,6 @@ static void dump_tip (struct tcb * tip)
 
 static void dump_ncr (void)
 {
-	u_long tp;
 	int i;
 
 	printf ("----------------------\n");
@@ -1347,10 +1282,8 @@ static void dump_ncr (void)
 		if (!KVM_READ (
 			ncr.vaddr,
 			&reg,
-			sizeof (reg))) {
-			fprintf (stderr, "%s: bad kvm read.\n", prog);
-			exit (1);
-		};
+			sizeof (reg)))
+			errx(1, "bad kvm read");
 
 		printf ("\n");
 		dump_reg (&reg);
@@ -1383,10 +1316,8 @@ static void dump_ncr (void)
 			((u_long)ncr.script
 				+offsetof(struct script, startpos)),
 			&startpos,
-			sizeof (startpos))) {
-			fprintf (stderr, "%s: bad kvm read.\n", prog);
-			exit (1);
-		};
+			sizeof (startpos)))
+			errx(1, "bad kvm read");
 
 		printf ("    startpos: %x\n", startpos);
 		printf ("        slot: %d\n", (startpos-
@@ -1450,7 +1381,7 @@ static void dump_ncr (void)
 */
 
 
-do_debug(char * arg)
+void do_debug(char * arg)
 {
 	open_kvm(O_RDONLY);
 	debug_opt = arg;
@@ -1475,19 +1406,15 @@ do_debug(char * arg)
 
 	if (strchr (debug_opt, 'n')) dump_ncr ();
 
-	if (!wizard) {
-		fprintf (stderr, "%s: You are NOT a wizard!\n", prog);
-		exit (2);
-	};
+	if (!wizard)
+		errx(2, "you are NOT a wizard!");
 	if (strchr (debug_opt, 'r')) {
 		struct ncr_reg reg;
 		if (!KVM_READ (
 			ncr.vaddr,
 			&reg,
-			sizeof (reg))) {
-			fprintf (stderr, "%s: bad kvm read.\n", prog);
-			exit (1);
-		};
+			sizeof (reg)))
+			errx(1, "bad kvm read");
 		dump_reg (&reg);
 	};
 }
@@ -1502,64 +1429,43 @@ do_debug(char * arg)
 **================================================================
 */
 
-void main(argc, argv)
+int main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern char *optarg;
-	extern int optind;
-	int	usage=0;
+	int usageflg=0;
 	char * charp;
-	int ch, getopt(),atoi();
-	int i,step;
+	int ch;
+	int i;
 
-	prog = *argv;
 	while ((ch = getopt(argc, argv, "M:N:u:f:t:l:p:s:k:d:vwhin:?")) != -1)
 	switch((char)ch) {
 	case 'M':
-		if (kvm_isopen) {
-			fprintf (stderr,
-				"%s: -M: kernel file already open.\n",
-				prog);
-			exit (1);
-		};
+		if (kvm_isopen)
+			errx(1, "-M: kernel file already open");
 		kmemf = optarg;
 		break;
 	case 'N':
-		if (kvm_isopen) {
-			fprintf (stderr,
-				"%s: -N: symbol table already open.\n",
-				prog);
-			exit (1);
-		};
+		if (kvm_isopen)
+			errx(1, "-N: symbol table already open");
 		vmunix = optarg;
 		break;
 #ifdef OPT_F
 	case 'f':
-		fprintf (stderr,
-			"%s: -f: option not yet implemented.\n",
-			prog);
-		exit (1);
+		errx(1, "-f: option not yet implemented");
 #endif
 
         case 'u':
 		i = strtoul (optarg, &charp, 0);
-		if (!*optarg || *charp || (i<0)) {
-			fprintf (stderr,
-				"%s: bad unit number \"%s\".\n",
-				prog, optarg);
-			exit (1);
-		}
+		if (!*optarg || *charp || (i<0))
+			errx(1, "bad unit number \"%s\"", optarg);
 		ncr_unit = i;
 		break;
 	case 't':
 		i = strtoul (optarg, &charp, 0);
-		if (!*optarg || *charp || (i<0) || (i>=MAX_TARGET)) {
-			fprintf (stderr,
-				"%s: bad target number \"%s\" (valid range: 0-%d).\n",
-				prog, optarg, MAX_TARGET-1);
-			exit (1);
-		}
+		if (!*optarg || *charp || (i<0) || (i>=MAX_TARGET))
+			errx(1, "bad target number \"%s\" (valid range: 0-%d)",
+				optarg, MAX_TARGET-1);
 		target_mask |= 1ul << i;
 		break;
 	case 'n':
@@ -1570,22 +1476,16 @@ void main(argc, argv)
 		break;
 	case 'l':
 		i = strtoul (optarg, &charp, 0);
-		if (!*optarg || *charp || (i<0) || (i>=MAX_LUN)) {
-			fprintf (stderr,
-				"%s: bad logic unit number \"%s\" (valid range: 0-%d).\n",
-				prog, optarg, MAX_LUN);
-			exit (1);
-		}
+		if (!*optarg || *charp || (i<0) || (i>=MAX_LUN))
+			errx(1,
+			"bad logic unit number \"%s\" (valid range: 0-%d)",
+				optarg, MAX_LUN);
 		global_lun_mask |= 1ul << i;
 		break;
 	case 'p':
 		i = strtoul (optarg, &charp, 0);
-		if (!*optarg || *charp || (i<1) || (i>60)) {
-			fprintf (stderr,
-				"%s: bad interval \"%s\".\n",
-				prog, optarg);
-			exit (1);
-		}
+		if (!*optarg || *charp || (i<1) || (i>60))
+			errx(1, "bad interval \"%s\"", optarg);
 		interval = i;
 		do_profile();
 		break;
@@ -1612,51 +1512,22 @@ void main(argc, argv)
 		break;
 	case 'h':
 	case '?':
-		usage++;
+		usageflg++;
 		break;
-	default:(void)fprintf(stderr,
-		"%s: illegal option \"%c\".\n", prog, ch);
-		usage++;
+	default:
+		warnx("illegal option \"%c\"", ch);
+		usageflg++;
 	}
 
 	argv += optind;
 	argc -= optind;
 
-	if (argc) printf ("%s: rest of line starting with \"%s\" ignored.\n",
-		prog, *argv);
+	if (argc)
+		warnx("rest of line starting with \"%s\" ignored", *argv);
 
-	if (verbose&&!kvm_isopen) usage++;
-	if (usage) {
-		fprintf (stderr,
-	"Usage:\n"
-	"\n"
-	"%s [-M$] [-N$] [-u] {-t#} {-l#} [-hivw?] [-d$] [-s$] [-k] [[-p] <time>]\n"
-	"\n"
-	"-u <#>             select controller number\n"
-	"-t <#>             select target number\n"
-	"-l <#>             select lun number\n"
-	"-i                 get info\n"
-	"-v                 verbose\n"
-	"-p <seconds>       performance data\n"
-	"\n"
-	"Wizards only (proceed on your own risk):\n"
-	"-n <#>             get the name for address #\n"
-	"-w                 wizard mode\n"
-	"-d <options>       debug info\n"
-	"-d?                list debug options\n"
-	"-s <param=value>   set parameter\n"
-	"-s?                list parameters\n"
-	"-k <torture>       torture driver by simulating errors\n"
-	"-k?                list tortures\n"
-	"-M <kernelimage>   (default: %s)\n"
-	"-N <symboltable>   (default: %s)\n"
-	, prog, _PATH_KMEM, 
-#if (__FreeBSD__ >= 2)
-			 getbootfile()
-#else
-			 _PATH_UNIX
-#endif
-			 );
+	if (verbose&&!kvm_isopen) usageflg++;
+	if (usageflg) {
+		usage();
 		if (verbose) fprintf (stderr, ident);
 		exit (1);
 	}
@@ -1666,4 +1537,16 @@ void main(argc, argv)
 		do_profile();
 	};
 	exit (0);
+}
+
+
+static void
+usage (void)
+{
+	fprintf (stderr, "%s\n%s\n%s\n%s\n%s\n",
+"usage: ncrcontrol [-M core] [-N system] [-u unit] [-v] [-v] -i",
+"       ncrcontrol [-N system] [-u unit] [-p wait]",
+"       ncrcontrol [-N system] [-u unit] [-t target] -s name=value",
+"       ncrcontrol [-M core] [-N system] [-u unit] [-t target] -d debug",
+"       ncrcontrol [-N system] [-u unit] -w -k torture");
 }

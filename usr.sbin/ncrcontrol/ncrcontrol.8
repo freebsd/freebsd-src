@@ -22,7 +22,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"     $Id$
+.\"     $Id: ncrcontrol.8,v 1.6 1997/02/22 16:08:14 peter Exp $
 .\"
 .Dd September 16, 1994
 .Dt NCRCONTROL 8
@@ -81,7 +81,7 @@
 .\"
 .Sh DESCRIPTION
 The
-.Nm ncrcontrol
+.Nm
 command symbolically displays the contents of the ncr810/ncr825
 pci/scsi driver control structure.
 There are a number of output formats,
@@ -102,7 +102,7 @@ requests a verbose output.
 Using the second form, with a
 .Ar wait
 interval specified,
-.Nm ncrcontrol
+.Nm
 will continuously display the information regarding data
 traffic on the selected scsi bus.
 
@@ -181,13 +181,13 @@ instead of the default
 .\"------------------------------------------------------------
 .It Fl N
 Extract the name list from the specified system instead of the default
-.Pa /kernel
+.Pa /kernel .
 
 .\"------------------------------------------------------------
 .\"  -p wait
 .\"------------------------------------------------------------
 When
-.Nm ncrcontrol
+.Nm
 is invoked with a
 .Ar wait
 interval argument, it displays a running count of statistics related to
@@ -261,25 +261,28 @@ option.
 .\"
 .Sh HISTORY
 The
-.Nm ncrcontrol
+.Nm
 command was hacked for
 .Bx 386
 and ported to version 1.1 of
 .Bx Free
-by Wolfgang Stanglmeier <wolf@dentaro.GUN.de>.
+by
+.An Wolfgang Stanglmeier Aq wolf@dentaro.GUN.de .
 It was ported to
 .Bx Net
-by Charles M. Hannum <mycroft@gnu.ai.mit.edu>
+by
+.An Charles M. Hannum Aq mycroft@gnu.ai.mit.edu
 and to version 2.0 of
 .Bx Free
-by Stefan Esser <se@zpr.Uni-Koeln.DE>.
+by
+.An Stefan Esser Aq se@zpr.Uni-Koeln.DE .
 
 .\"
 .\"=====================================================================
 .\"
 .Sh BUGS
 The
-.Nm ncrcontrol
+.Nm
 was hacked as a debugging tool for the ncr810 driver.
 It should be deleted sometimes.
 There should be a general tool to change device driver options
