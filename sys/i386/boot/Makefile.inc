@@ -1,6 +1,6 @@
 #	$Id: Makefile.inc,v 1.3 1998/12/30 10:05:56 bde Exp $
 
-BINDIR?=	/boot
+BINDIR?=	/usr/mdec
 CFLAGS+=	-aout
 .if exists(${.CURDIR}/../../../../include)
 CFLAGS+=	-nostdinc -I${.CURDIR}/../../../../include
