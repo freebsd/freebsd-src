@@ -892,7 +892,13 @@ static void kue_init(xsc)
 	kue_setword(sc, KUE_CMD_SET_PKT_FILTER, sc->kue_rxfilt);
 
 	/* I'm not sure how to tune these. */
+#ifdef notdef
+	/*
+	 * Leave this one alone for now; setting it
+	 * wrong causes lockups on some machines/controllers.
+	 */
 	kue_setword(sc, KUE_CMD_SET_SOFS, 1);
+#endif
 	kue_setword(sc, KUE_CMD_SET_URB_SIZE, 64);
 
 	/* Init TX ring. */
