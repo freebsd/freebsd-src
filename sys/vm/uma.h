@@ -162,7 +162,12 @@ uma_zone_t uma_zcreate(char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 			uma_init uminit, uma_fini fini, int align,
 			u_int16_t flags);
 
-/* Definitions for uma_zcreate flags */
+/*
+ * Definitions for uma_zcreate flags
+ *
+ * These flags share space with UMA_ZFLAGs in uma_int.h.  Be careful not to
+ * overlap when adding new features.  0xf000 is in use by uma_int.h.
+ */
 #define UMA_ZONE_PAGEABLE	0x0001	/* Return items not fully backed by
 					   physical memory XXX Not yet */
 #define UMA_ZONE_ZINIT		0x0002	/* Initialize with zeros */
