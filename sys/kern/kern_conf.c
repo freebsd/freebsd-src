@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.41 1999/05/31 11:27:28 phk Exp $
+ * $Id: kern_conf.c,v 1.42 1999/06/01 18:56:24 phk Exp $
  */
 
 #include <sys/param.h>
@@ -114,7 +114,7 @@ cdevsw_add(struct cdevsw *newentry)
 
 	cdevsw[newentry->d_maj] = newentry;
 
-	if (newentry->d_bmaj >= 0 || newentry->d_bmaj < NUMCDEVSW) 
+	if (newentry->d_bmaj >= 0 && newentry->d_bmaj < NUMCDEVSW) 
 		bmaj2cmaj[newentry->d_bmaj] = newentry->d_maj;
 
 	return 0;
