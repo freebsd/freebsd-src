@@ -34,27 +34,29 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1990, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)xargs.c	8.1 (Berkeley) 6/6/93";
+static const char sccsid[] = "@(#)xargs.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/wait.h>
+
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
 #include "pathnames.h"
 
 int tflag, rval;
@@ -63,13 +65,15 @@ int zflag;
 void run __P((char **));
 static void usage __P((void));
 
+static char echo[] = _PATH_ECHO;
+
 int
 main(argc, argv, env)
 	int argc;
 	char **argv, **env;
 {
-	register int ch;
-	register char *p, *bbp, *ebp, **bxp, **exp, **xp;
+	int ch;
+	char *p, *bbp, **bxp, *ebp, **exp, **xp;
 	int cnt, jfound, indouble, insingle;
 	int nargs, nflag, nline, xflag, wasquoted;
 	char **av, **avj, *argp, **ep, *replstr;
@@ -148,7 +152,7 @@ main(argc, argv, env)
 	 * arguments.
 	 */
 	if (!*argv)
-		cnt = strlen(*bxp++ = _PATH_ECHO);
+		cnt = strlen((*bxp++ = echo));
 	else {
 		cnt = 0;
 		do {
@@ -293,7 +297,7 @@ run(argv)
 	char **argv;
 {
 	volatile int noinvoke;
-	register char **p;
+	char **p;
 	pid_t pid;
 	int status;
 
