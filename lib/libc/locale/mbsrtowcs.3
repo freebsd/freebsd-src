@@ -34,7 +34,10 @@
 .Sh SYNOPSIS
 .In wchar.h
 .Ft size_t
-.Fn mbsrtowcs "wchar_t * restrict dst" "const char ** restrict src" "size_t len" "mbstate_t * restrict ps"
+.Fo mbsrtowcs
+.Fa "wchar_t * restrict dst" "const char ** restrict src" "size_t len"
+.Fa "mbstate_t * restrict ps"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn mbsrtowcs
@@ -43,10 +46,11 @@ function converts a sequence of multibyte characters pointed to indirectly by
 into a sequence of corresponding wide characters and stores at most
 .Fa len
 of them in the
-.Ft wchar_t
+.Vt wchar_t
 array pointed to by
 .Fa dst ,
-until it encounters a terminating null character ('\e0').
+until it encounters a terminating null character
+.Pq Li '\e0' .
 .Pp
 If
 .Fa dst
@@ -62,12 +66,12 @@ the pointer pointed to by
 .Fa src
 is updated to point to the character after the one that conversion stopped at.
 If conversion stops because a null character is encountered,
-.No * Ns Fa src
+.Fa *src
 is set to
 .Dv NULL .
 .Pp
 The
-.Ft mbstate_t
+.Vt mbstate_t
 argument,
 .Fa ps ,
 is used to keep track of the shift state.
@@ -75,7 +79,7 @@ If it is
 .Dv NULL ,
 .Fn mbsrtowcs
 uses an internal, static
-.Ft mbstate_t
+.Vt mbstate_t
 object.
 .Sh RETURN VALUES
 The
@@ -84,9 +88,7 @@ function returns the number of wide characters stored in
 the array pointed to by
 .Fa dst
 if successful, otherwise it returns
-.No ( Ns
-.Ft size_t Ns
-.No ) Ns -1 .
+.Po Vt size_t Pc Ns \-1 .
 .Sh ERRORS
 The
 .Fn mbsrtowcs

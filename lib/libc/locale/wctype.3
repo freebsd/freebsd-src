@@ -28,8 +28,7 @@
 .Dt WCTYPE 3
 .Os
 .Sh NAME
-.Nm iswctype ,
-.Nm wctype
+.Nm iswctype , wctype
 .Nd "wide character class functions"
 .Sh LIBRARY
 .Lb libc
@@ -50,9 +49,9 @@ may be used as the second argument for calls to
 .Pp
 The following character class names are recognised:
 .Bl -column -offset indent ".Li alnum" ".Li cntrl" ".Li phonogram" ".Li print" ".Li special"
-.It Li alnum Ta Li cntrl Ta Li ideogram Ta Li print Ta Li special    
-.It Li alpha Ta Li digit Ta Li lower Ta Li punct Ta Li upper      
-.It Li blank Ta Li graph Ta Li phonogram Ta Li space Ta Li xdigit   
+.It Li "alnum	cntrl	ideogram	print	special"
+.It Li "alpha	digit	lower	punct	upper"
+.It Li "blank	graph	phonogram	space	xdigit"
 .El
 .Pp
 The
@@ -82,7 +81,7 @@ that can be used in subsequent calls to
 .Fn iswctype .
 .Sh EXAMPLES
 Reimplement
-.Fn iswalpha
+.Xr iswalpha 3
 in terms of
 .Fn iswctype
 and
@@ -104,10 +103,10 @@ and
 functions conform to
 .St -p1003.1-2001 .
 The
-.Li ideogram ,
-.Li phonogram
+.Dq Li ideogram ,
+.Dq Li phonogram
 and
-.Li special
+.Dq Li special
 character classes are extensions.
 .Sh HISTORY
 The
