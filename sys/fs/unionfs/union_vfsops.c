@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vfsops.c	8.20 (Berkeley) 5/20/95
- * $Id: union_vfsops.c,v 1.21 1997/10/12 20:24:57 phk Exp $
+ * $Id: union_vfsops.c,v 1.22 1997/11/18 15:07:35 phk Exp $
  */
 
 /*
@@ -132,12 +132,9 @@ union_mount(mp, path, data, ndp, p)
 
 	/*
 	 * Unlock lower node to avoid deadlock.
-	 * (XXX) VOP_ISLOCKED is needed?
 	 */
-	if ((lowerrootvp->v_op == union_vnodeop_p) && VOP_ISLOCKED(lowerrootvp)) {
+	if (lowerrootvp->v_op == union_vnodeop_p)
 		VOP_UNLOCK(lowerrootvp, 0, p);
-		islowerunlocked = 1;
-	}
 
 	/*
 	 * Find upper node.
@@ -146,11 +143,7 @@ union_mount(mp, path, data, ndp, p)
 	       UIO_USERSPACE, args.target, p);
 
 	error = namei(ndp);
-	/*
-	 * Re-lock vnode.
-	 * (XXX) VOP_ISLOCKED is needed?
-	 */
-	if (islowerunlocked && !VOP_ISLOCKED(lowerrootvp))
+	if (lowerrootvp->v_op == union_vnodeop_p)
 		vn_lock(lowerrootvp, LK_EXCLUSIVE | LK_RETRY, p);
 	if (error)
 		goto bad;
@@ -404,27 +397,24 @@ union_root(mp, vpp)
 	struct union_mount *um = MOUNTTOUNIONMOUNT(mp);
 	int error;
 	int loselock;
+	int lockadj = 0;
+
+	if (um->um_lowervp && um->um_op != UNMNT_BELOW &&
+		VOP_ISLOCKED(um->um_lowervp)) {
+		VREF(um->um_lowervp);
+		VOP_UNLOCK(um->um_lowervp, 0, p);
+		lockadj = 1;
+	}
 
 	/*
 	 * Return locked reference to root.
 	 */
 	VREF(um->um_uppervp);
 	if ((um->um_op == UNMNT_BELOW) &&
-	     VOP_ISLOCKED(um->um_uppervp)) {
+	    VOP_ISLOCKED(um->um_uppervp)) {
 		loselock = 1;
 	} else {
-		if (VOP_ISLOCKED(um->um_uppervp)) {
-			/*
-			 * XXX
-			 * Should we check type of node?
-			 */
-#ifdef DIAGNOSTIC
-			printf("union_root: multi union mount?");
-#endif
-			vrele(um->um_uppervp);
-			return EDEADLK;
-		} else
-			vn_lock(um->um_uppervp, LK_EXCLUSIVE | LK_RETRY, p);
+		vn_lock(um->um_uppervp, LK_EXCLUSIVE | LK_RETRY, p);
 		loselock = 0;
 	}
 	if (um->um_lowervp)
@@ -447,6 +437,10 @@ union_root(mp, vpp)
 	} else {
 		if (loselock)
 			VTOUNION(*vpp)->un_flags &= ~UN_ULOCK;
+	}
+	if (lockadj) {
+		vn_lock(um->um_lowervp, LK_EXCLUSIVE | LK_RETRY, p);
+		vrele(um->um_lowervp);
 	}
 
 	return (error);
