@@ -152,6 +152,7 @@ net/raw_usrreq.c	standard
 net/route.c		standard
 net/rtsock.c		standard
 net/slcompress.c	optional sl
+net/if_tun.c		optional tun
 netccitt/ccitt_proto.c	optional ccitt
 netccitt/hd_debug.c	optional hdlc
 netccitt/hd_input.c	optional hdlc
