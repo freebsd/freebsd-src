@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2004 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: rpool.c,v 1.27 2003/10/09 17:49:47 ca Exp $")
+SM_RCSID("@(#)$Id: rpool.c,v 1.28 2004/08/03 20:44:04 ca Exp $")
 
 /*
 **  resource pools
@@ -31,6 +31,9 @@ typedef union
 	SM_POOLLINK_T	link;
 	char		align[SM_ALIGN_SIZE];
 } SM_POOLHDR_T;
+
+static char	*sm_rpool_allocblock_x __P((SM_RPOOL_T *, size_t));
+static char	*sm_rpool_allocblock __P((SM_RPOOL_T *, size_t));
 
 /*
 **  Tune this later

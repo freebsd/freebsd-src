@@ -1,7 +1,7 @@
 #
 #  Makefile for configuration files.
 #
-#	$Id: Makefile,v 8.58 2003/10/20 22:01:00 ca Exp $
+#	$Id: Makefile,v 8.59 2004/08/06 03:54:05 gshapiro Exp $
 #
 
 #
@@ -164,6 +164,7 @@ M4FILES=\
 	${CFDIR}/ostype/bsdi2.0.m4 \
 	${CFDIR}/ostype/dgux.m4 \
 	${CFDIR}/ostype/domainos.m4 \
+	${CFDIR}/ostype/dragonfly.m4 \
 	${CFDIR}/ostype/dynix3.2.m4 \
 	${CFDIR}/ostype/freebsd4.m4 \
 	${CFDIR}/ostype/freebsd5.m4 \

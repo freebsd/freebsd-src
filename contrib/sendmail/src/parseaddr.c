@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: parseaddr.c,v 8.378 2004/05/18 20:01:54 ca Exp $")
+SM_RCSID("@(#)$Id: parseaddr.c,v 8.379 2004/08/06 22:19:36 ca Exp $")
 
 static void	allocaddr __P((ADDRESS *, int, char *, ENVELOPE *));
 static int	callsubr __P((char**, int, ENVELOPE *));
@@ -2196,7 +2196,7 @@ cataddr(pvp, evp, buf, sz, spacesub)
 
 	/* Don't silently truncate long strings */
 	if (sz <= 0)
-		syserr("cataddr: string too long");
+		usrerr("cataddr: string too long");
 	*p = '\0';
 }
 /*

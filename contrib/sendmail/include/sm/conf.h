@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 1.116 2004/07/26 18:08:35 ca Exp $
+ *	$Id: conf.h,v 1.118 2004/08/20 20:30:32 ca Exp $
  */
 
 /*
@@ -866,7 +866,7 @@ extern unsigned int sleepX __P((unsigned int seconds));
 
 
 /*
-**  FreeBSD / NetBSD / OpenBSD (all architectures, all versions)
+**  DragonFly BSD/ FreeBSD / NetBSD / OpenBSD (all architectures, all versions)
 **
 **  4.3BSD clone, closer to 4.4BSD	for FreeBSD 1.x and NetBSD 0.9x
 **  4.4BSD-Lite based			for FreeBSD 2.x and NetBSD 1.x
@@ -874,7 +874,7 @@ extern unsigned int sleepX __P((unsigned int seconds));
 **	See also BSD defines.
 */
 
-# if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+# if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
 #  include <paths.h>
 #  define HASUNSETENV	1	/* has unsetenv(3) call */
 #  define HASSETSID	1	/* has POSIX setsid(2) call */
@@ -919,6 +919,23 @@ extern unsigned int sleepX __P((unsigned int seconds));
 #   include <sys/param.h>
 #   include <sys/sysctl.h>
 #  endif
+#  if defined(__DragonFly__)
+#   define HASSETLOGIN		1	/* has setlogin(2) */
+#   define HASSRANDOMDEV	1	/* has srandomdev(3) */
+#   define HASURANDOMDEV	1	/* has /dev/urandom(4) */
+#   undef SPT_TYPE
+#   include <libutil.h>
+#   define SPT_TYPE		SPT_BUILTIN
+#   define HASSETUSERCONTEXT	1	/* BSDI-style login classes */
+#   ifndef SMRSH_CMDDIR
+#    define SMRSH_CMDDIR	"/usr/libexec/sm.bin"
+#   endif /* ! SMRSH_CMDDIR */
+#   ifndef SMRSH_PATH
+#    define SMRSH_PATH		"/bin:/usr/bin"
+#   endif /* ! SMRSH_PATH */
+#  define USESYSCTL		1	/* use sysctl(3) for getting ncpus */
+#  include <sys/sysctl.h>
+#  endif /* defined(__DragonFly__) */
 #  if defined(__FreeBSD__)
 #   define HASSETLOGIN	1	/* has setlogin(2) */
 #   if __FreeBSD_version >= 227001
@@ -970,7 +987,7 @@ extern unsigned int sleepX __P((unsigned int seconds));
 #    define HASCLOSEFROM	1	/* closefrom(3) added in 3.5 */
 #   endif /* OpenBSD >= 200405 */
 #  endif /* defined(__OpenBSD__) */
-# endif /* defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) */
+# endif /* defined(__DragonFly__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) */
 
 
 /*
@@ -2924,7 +2941,7 @@ struct sm_align
 		long	al_l;
 		void	*al_p;
 		double	al_d;
-		void	(*al_f)();
+		void	(*al_f) __P((void));
 	} al_u;
 };
 #  define SM_ALIGN_SIZE offsetof(struct sm_align, al_u)

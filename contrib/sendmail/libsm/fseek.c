@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2001, 2004 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -13,7 +13,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: fseek.c,v 1.45 2001/09/11 04:04:48 gshapiro Exp $")
+SM_RCSID("@(#)$Id: fseek.c,v 1.46 2004/08/03 20:17:38 ca Exp $")
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -29,6 +29,7 @@ SM_RCSID("@(#)$Id: fseek.c,v 1.45 2001/09/11 04:04:48 gshapiro Exp $")
 
 #define POS_ERR	(-(off_t)1)
 
+static void	seekalrm __P((int));
 static jmp_buf SeekTimeOut;
 
 /*

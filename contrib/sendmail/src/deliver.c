@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sys/time.h>
 
-SM_RCSID("@(#)$Id: deliver.c,v 8.976 2004/07/23 20:45:01 gshapiro Exp $")
+SM_RCSID("@(#)$Id: deliver.c,v 8.983 2005/01/07 17:43:22 ca Exp $")
 
 #if HASSETUSERCONTEXT
 # include <login_cap.h>
@@ -28,10 +28,10 @@ SM_RCSID("@(#)$Id: deliver.c,v 8.976 2004/07/23 20:45:01 gshapiro Exp $")
 # include "sfsasl.h"
 #endif /* STARTTLS || SASL */
 
-void		markfailure __P((ENVELOPE *, ADDRESS *, MCI *, int, bool));
 static int	deliver __P((ENVELOPE *, ADDRESS *));
 static void	dup_queue_file __P((ENVELOPE *, ENVELOPE *, int));
-static void	mailfiletimeout __P((void));
+static void	mailfiletimeout __P((int));
+static void	endwaittimeout __P((int));
 static int	parse_hostsignature __P((char *, char **, MAILER *));
 static void	sendenvelope __P((ENVELOPE *, int));
 extern MCI	*mci_new __P((SM_RPOOL_T *));
@@ -1659,7 +1659,7 @@ deliver(e, firstto)
 		}
 
 		/*
-		**  Strip one leading backslash if requested and the
+		**  Strip all leading backslashes if requested and the
 		**  next character is alphanumerical (the latter can
 		**  probably relaxed a bit, see RFC2821).
 		*/
@@ -3769,7 +3769,8 @@ markfailure(e, q, mci, rcode, ovr)
 static jmp_buf	EndWaitTimeout;
 
 static void
-endwaittimeout()
+endwaittimeout(ignore)
+	int ignore;
 {
 	/*
 	**  NOTE: THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
@@ -3797,7 +3798,10 @@ endmailer(mci, e, pv)
 
 	/* close output to mailer */
 	if (mci->mci_out != NULL)
+	{
 		(void) sm_io_close(mci->mci_out, SM_TIME_DEFAULT);
+		mci->mci_out = NULL;
+	}
 
 	/* copy any remaining input to transcript */
 	if (mci->mci_in != NULL && mci->mci_state != MCIS_ERROR &&
@@ -3824,8 +3828,10 @@ endmailer(mci, e, pv)
 
 	/* now close the input */
 	if (mci->mci_in != NULL)
+	{
 		(void) sm_io_close(mci->mci_in, SM_TIME_DEFAULT);
-	mci->mci_in = mci->mci_out = NULL;
+		mci->mci_in = NULL;
+	}
 	mci->mci_state = MCIS_CLOSED;
 
 	errno = save_errno;
@@ -4001,7 +4007,7 @@ giveresponse(status, dsn, m, mci, ctladdr, xstart, e, to)
 #ifdef EHOSTUNREACH
 			  case EHOSTUNREACH:	/* No route to host */
 #endif /* EHOSTUNREACH */
-				if (mci->mci_host != NULL)
+				if (mci != NULL && mci->mci_host != NULL)
 				{
 					(void) sm_strlcpyn(bp,
 							   SPACELEFT(buf, bp),
@@ -5601,7 +5607,8 @@ mailfile(filename, mailer, ctladdr, sfflags, e)
 }
 
 static void
-mailfiletimeout()
+mailfiletimeout(ignore)
+	int ignore;
 {
 	/*
 	**  NOTE: THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD

@@ -16,8 +16,8 @@
 #####
 #####		SENDMAIL CONFIGURATION FILE
 #####
-##### built by ca@wiz.smi.sendmail.com on Fri Jul 30 11:06:26 PDT 2004
-##### in /extra/home/ca/sm-8.13.1/OpenSource/sendmail-8.13.1/cf/cf
+##### built by ca@wiz.smi.sendmail.com on Tue Jan 11 20:36:44 PST 2005
+##### in /extra/home/ca/sm-8.13.3/OpenSource/sendmail-8.13.3/cf/cf
 ##### using ../ as configuration include directory
 #####
 ######################################################################
@@ -35,7 +35,7 @@
 #####  $Id: no_default_msa.m4,v 8.2 2001/02/14 05:03:22 gshapiro Exp $  #####
 
 
-#####  $Id: proto.m4,v 8.710 2004/07/27 17:32:48 ca Exp $  #####
+#####  $Id: proto.m4,v 8.711 2004/08/04 21:29:55 ca Exp $  #####
 
 # level 10 config file format
 V10/Berkeley
@@ -114,7 +114,7 @@ D{MTAHost}[127.0.0.1]
 
 
 # Configuration version number
-DZ8.13.1/Submit
+DZ8.13.3/Submit
 
 
 ###############
@@ -371,7 +371,7 @@ O TimeZoneSpec=
 #O RetryFactor=90000
 
 # default character set
-#O DefaultCharSet=iso-8859-1
+#O DefaultCharSet=unknown-8bit
 
 # service switch file (name hardwired on Solaris, Ultrix, OSF/1, others)
 #O ServiceSwitchFile=/etc/mail/service.switch
@@ -1283,7 +1283,7 @@ R$*			$#relay $@ ${MTAHost} $: $1 < @ $j >
 ###   Local and Program Mailer specification   ###
 ##################################################
 
-#####  $Id: local.m4,v 8.58 2000/10/26 01:58:29 ca Exp $  #####
+#####  $Id: local.m4,v 8.59 2004/11/23 00:37:25 ca Exp $  #####
 
 #
 #  Envelope sender rewriting

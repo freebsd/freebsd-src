@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_IDSTR(id, "@(#)$Id: smstdio.c,v 1.33 2004/03/03 19:14:51 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: smstdio.c,v 1.34 2004/08/03 20:46:34 ca Exp $")
 #include <unistd.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -18,6 +18,8 @@ SM_IDSTR(id, "@(#)$Id: smstdio.c,v 1.33 2004/03/03 19:14:51 ca Exp $")
 #include <sm/io.h>
 #include <sm/string.h>
 #include "local.h"
+
+static void	setup __P((SM_FILE_T *));
 
 /*
 ** Overall:
