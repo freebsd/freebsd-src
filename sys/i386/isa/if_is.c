@@ -851,15 +851,18 @@ is_ioctl(ifp, cmd, data)
                  */
 		case AF_NS:
 		    {
-			register struct arpcom.ac_enaddr *ina = &(IA_SNS(ifa)->sns_addr);
+			register struct ns_addr *ina = &(IA_SNS(ifa)->sns_addr);
 
 			if (ns_nullhost(*ina))
-				ina->x_host = *(union ns_host *)(is->arpcom.ac_enaddr);
+				ina->x_host =
+					*(union ns_host *)(is->arpcom.ac_enaddr);
 			else {
 				/* 
+				 *
 				 */
 				bcopy((caddr_t)ina->x_host.c_host,
-				    (caddr_t)is->arpcom.ac_enaddr, sizeof(is->arpcom.ac_enaddr));
+				    (caddr_t)is->arpcom.ac_enaddr,
+					sizeof(is->arpcom.ac_enaddr));
 			}
                         /*
                          * Set new address
