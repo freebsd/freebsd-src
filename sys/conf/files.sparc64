@@ -8,7 +8,7 @@
 # dependency lines other than the first are silently ignored.
 #
 
-dev/ofw/ofw_console.c		optional ofw_console
+dev/ofw/ofw_console.c		optional	ofw_console
 dev/ofw/openfirm.c		standard
 libkern/ffs.c			standard
 kern/subr_diskmbr.c		standard
@@ -19,14 +19,16 @@ sparc64/isa/ofw_isa.c		standard
 sparc64/pci/apb.c		optional	apb
 sparc64/pci/ofw_pci.c		optional	pci
 sparc64/pci/psycho.c		optional	pci
+sparc64/sbus/sbus.c		optional	sbus
 sparc64/sparc64/autoconf.c	standard
 sparc64/sparc64/bus_machdep.c	standard
 sparc64/sparc64/cache.c		standard
 sparc64/sparc64/clock.c		standard
-sparc64/sparc64/db_disasm.c	optional ddb
-sparc64/sparc64/db_interface.c	optional ddb
-sparc64/sparc64/db_trace.c	optional ddb
-sparc64/sparc64/db_hwwatch.c	optional ddb
+sparc64/sparc64/counter.c	standard
+sparc64/sparc64/db_disasm.c	optional	ddb
+sparc64/sparc64/db_interface.c	optional	ddb
+sparc64/sparc64/db_trace.c	optional	ddb
+sparc64/sparc64/db_hwwatch.c	optional	ddb
 sparc64/sparc64/elf_machdep.c	standard
 # locore.s and exception.s need to be handled in Makefile to put them first.
 # Otherwise it's they're normal.
@@ -35,7 +37,7 @@ sparc64/sparc64/elf_machdep.c	standard
 sparc64/sparc64/emul.c		standard
 sparc64/sparc64/fp.c		standard
 sparc64/sparc64/identcpu.c	standard
-sparc64/sparc64/in_cksum.c	optional inet
+sparc64/sparc64/in_cksum.c	optional	inet
 sparc64/sparc64/intr_machdep.c	standard
 sparc64/sparc64/iommu.c		standard
 sparc64/sparc64/machdep.c	standard
