@@ -86,42 +86,6 @@ void m_dumpm(struct mbuf *m);
 
 #define SMB_STRFREE(p)	do { if (p) smb_strfree(p); } while(0)
 
-/*
- * The simple try/catch/finally interface.
- * With GCC it is possible to allow more than one try/finally block per
- * function, but we'll avoid it to maintain portability.
- */
-#define itry		{						\
-				__label__ _finlab, _catchlab;		\
-				int _tval;				\
-
-#define icatch(var)							\
-				goto _finlab;				\
-				(void)&&_catchlab;			\
-				_catchlab:				\
-				var = _tval;
-
-#define ifinally		(void)&&_finlab;			\
-				_finlab:				
-#define iendtry		}
-
-#define inocatch							\
-				goto _finlab;				\
-				(void)&&_catchlab;			\
-				_catchlab:				\
-
-#define ithrow(t)	do {						\
-				if ((_tval = (int)(t)) != 0)		\
-					goto _catchlab;			\
-			} while (0)
-
-#define ierror(t,e)	do {						\
-				if (t) {				\
-					_tval = e;			\
-					goto _catchlab;			\
-				}					\
-			} while (0)
-
 typedef u_int16_t	smb_unichar;
 typedef	smb_unichar	*smb_uniptr;
 
