@@ -100,9 +100,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 	struct session sess;
 	struct tty tty;
 	struct vmspace vmspace;
-#ifdef BAD_JHB_NO_COOKIE
-	struct procsig procsig;
-#endif
+	struct sigacts sigacts;
 	struct pstats pstats;
 	struct ucred ucred;
 	struct thread mtd;
@@ -194,17 +192,15 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 		kp->ki_textvp = proc.p_textvp;
 		kp->ki_fd = proc.p_fd;
 		kp->ki_vmspace = proc.p_vmspace;
-#ifdef BAD_JHB_NO_COOKIE
-		if (proc.p_procsig != NULL) {
-			if (KREAD(kd, (u_long)proc.p_procsig, &procsig)) {
+		if (proc.p_sigacts != NULL) {
+			if (KREAD(kd, (u_long)proc.p_sigacts, &sigacts)) {
 				_kvm_err(kd, kd->program,
-				    "can't read procsig at %x", proc.p_procsig);
+				    "can't read sigacts at %x", proc.p_sigacts);
 				return (-1);
 			}
-			kp->ki_sigignore = procsig.ps_sigignore;
-			kp->ki_sigcatch = procsig.ps_sigcatch;
+			kp->ki_sigignore = sigacts.ps_sigignore;
+			kp->ki_sigcatch = sigacts.ps_sigcatch;
 		}
-#endif
 		if ((proc.p_sflag & PS_INMEM) && proc.p_stats != NULL) {
 			if (KREAD(kd, (u_long)proc.p_stats, &pstats)) {
 				_kvm_err(kd, kd->program,
