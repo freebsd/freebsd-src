@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)tape.c	8.2 (Berkeley) 3/17/94";
+static char sccsid[] = "@(#)tape.c	8.4 (Berkeley) 5/1/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -45,8 +45,8 @@ static char sccsid[] = "@(#)tape.c	8.2 (Berkeley) 3/17/94";
 #include <ufs/fs.h>
 #include <ufs/inode.h>
 #else
-#include <ufs/ffs/fs.h>
 #include <ufs/ufs/dinode.h>
+#include <ufs/ffs/fs.h>
 #endif
 
 #include <protocols/dumprestore.h>
@@ -584,10 +584,10 @@ restore_check_point:
 		 * the remaining names for subsequent volumes.
 		 */
 		tapeno++;               /* current tape sequence */
-		if (nexttape || index(tape, ',')) {
+		if (nexttape || strchr(tape, ',')) {
 			if (nexttape && *nexttape)
 				tape = nexttape;
-			if ((p = index(tape, ',')) != NULL) {
+			if ((p = strchr(tape, ',')) != NULL) {
 				*p = '\0';
 				nexttape = p + 1;
 			} else

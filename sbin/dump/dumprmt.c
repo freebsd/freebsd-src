@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)dumprmt.c	8.1 (Berkeley) 6/5/93";
+static char sccsid[] = "@(#)dumprmt.c	8.3 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -55,6 +55,7 @@ static char sccsid[] = "@(#)dumprmt.c	8.1 (Berkeley) 6/5/93";
 #include <protocols/dumprestore.h>
 
 #include <ctype.h>
+#include <err.h>
 #include <netdb.h>
 #include <pwd.h>
 #include <signal.h>
@@ -157,7 +158,7 @@ rmtgetconn()
 			exit(X_ABORT);
 		}
 	}
-	if ((cp = index(rmtpeer, '@')) != NULL) {
+	if ((cp = strchr(rmtpeer, '@')) != NULL) {
 		tuser = rmtpeer;
 		*cp = '\0';
 		if (!okname(tuser))
