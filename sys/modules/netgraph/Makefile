@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 SUBDIR=	async bpf bridge cisco echo ether frame_relay hole iface ksocket lmi \
-	netgraph ppp pppoe pptpgre rfc1490 socket tee tty UI vjc
+	netgraph one2many ppp pppoe pptpgre rfc1490 socket tee tty UI vjc
 
 .if !defined(NOCRYPT) && exists(${.CURDIR}/../../crypto/rc4/rc4.c)
 SUBDIR+=	mppc
