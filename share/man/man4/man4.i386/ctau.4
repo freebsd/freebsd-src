@@ -13,7 +13,7 @@
 .\" Cronyx Id: ct.4,v 1.1.2.6 2004/06/21 17:56:40 rik Exp $
 .\" $FreeBSD$
 .\"
-.Dd June 21, 2004
+.Dd September 6, 2004
 .Dt CTAU 4 i386
 .Os
 .Sh NAME
@@ -78,6 +78,21 @@ Refer to
 for information about the
 .Nm
 adapter configuration.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following cards:
+.Pp
+.Bl -bullet -compact
+.It
+Cronyx Tau (RS-232/V.35)
+.It
+Cronyx Tau/R (RS-530/RS-449)
+.It
+Cronyx Tau/E1 (fractional E1)
+.It
+Cronyx Tau/G703 (unframed E1)
+.El
 .Sh SEE ALSO
 .Xr cp 4 ,
 .Xr cx 4 ,
