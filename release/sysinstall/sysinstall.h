@@ -403,6 +403,7 @@ extern DMenu		MenuUsermgmt;		/* User management menu				*/
 extern DMenu		MenuFixit;		/* Fixit floppy/CDROM/shell menu		*/
 extern DMenu		MenuXF86Config;		/* Select XFree86 configuration type		*/
 extern int              FixItMode;              /* FixItMode starts shell onc urrent device (ie Serial port) */
+extern const char *	StartName;		/* Which name we were started as */
 
 /* Stuff from libdialog which isn't properly declared outside */
 extern void display_helpfile(void);
