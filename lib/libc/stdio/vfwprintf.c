@@ -114,6 +114,7 @@ enum typeid {
 };
 
 static int	__sbprintf(FILE *, const wchar_t *, va_list);
+static wint_t	__xfputwc(wchar_t, FILE *);
 static wchar_t	*__ujtoa(uintmax_t, wchar_t *, int, int, const wchar_t *, int,
 		    char, const char *);
 static wchar_t	*__ultoa(u_long, wchar_t *, int, int, const wchar_t *, int,
@@ -153,6 +154,34 @@ __sbprintf(FILE *fp, const wchar_t *fmt, va_list ap)
 	if (fake._flags & __SERR)
 		fp->_flags |= __SERR;
 	return (ret);
+}
+
+/*
+ * Like __fputwc, but handles fake string (__SSTR) files properly.
+ * File must already be locked.
+ */
+static wint_t
+__xfputwc(wchar_t wc, FILE *fp)
+{
+	char buf[MB_LEN_MAX];
+	struct __suio uio;
+	struct __siov iov;
+	size_t i, len;
+	int ret;
+
+	if ((fp->_flags & __SSTR) == 0)
+		return (__fputwc(wc, fp));
+
+	if ((len = wcrtomb(buf, wc, NULL)) == (size_t)-1) {
+		fp->_flags |= __SERR;
+		return (WEOF);
+	}
+	uio.uio_iov = &iov;
+	uio.uio_resid = len;
+	uio.uio_iovcnt = 1;
+	iov.iov_base = buf;
+	iov.iov_len = len;
+	return (__sfvwrite(fp, &uio) != EOF ? (wint_t)wc : WEOF);
 }
 
 /*
@@ -529,7 +558,7 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 	 */
 #define	PRINT(ptr, len)	do {			\
 	for (n3 = 0; n3 < (len); n3++)		\
-		__fputwc((ptr)[n3], fp);	\
+		__xfputwc((ptr)[n3], fp);	\
 } while (0)
 #define	PAD(howmany, with)	do {		\
 	if ((n = (howmany)) > 0) {		\
