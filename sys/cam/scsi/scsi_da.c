@@ -143,6 +143,21 @@ static struct da_quirk_entry da_quirk_table[] =
 {
 	{
 		/*
+		 * Fujitsu M2513A MO drives.
+		 * Tested devices: M2513A2 firmware versions 1200 & 1300.
+		 * (dip switch selects whether T_DIRECT or T_OPTICAL device)
+		 * Reported by: W.Scholten <whs@xs4all.nl>
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "FUJITSU", "M2513A", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/* See above. */
+		{T_OPTICAL, SIP_MEDIA_REMOVABLE, "FUJITSU", "M2513A", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
 		 * This particular Fujitsu drive doesn't like the
 		 * synchronize cache command.
 		 * Reported by: Tom Jackson <toj@gorilla.net>
