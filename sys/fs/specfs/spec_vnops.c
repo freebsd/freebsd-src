@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
- * $Id: spec_vnops.c,v 1.25 1995/12/13 15:13:31 julian Exp $
+ * $Id: spec_vnops.c,v 1.26 1995/12/14 09:53:06 phk Exp $
  */
 
 #include <sys/param.h>
@@ -755,6 +755,12 @@ spec_getpages(ap)
 	 * Calculate the size of the transfer.
 	 */
 	blkno = (IDX_TO_OFF(ap->a_m[0]->pindex) + ap->a_offset) / DEV_BSIZE;
+
+	/* XXX sanity check before we go into details */
+	if (blkno < 0) {
+		printf("spec_getpages: negative blkno (%ld)\n", blkno);
+		return (VM_PAGER_ERROR);
+	}
 
 	/*
 	 * Round up physical size for real devices.
