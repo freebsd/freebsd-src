@@ -729,7 +729,7 @@ write_vc(ctp, buf, len)
 	sal = sizeof(sa);
 	if ((_getpeername(ct->ct_fd, &sa, &sal) == 0) &&
 	    (sa.sa_family == AF_LOCAL)) {
-		for (cnt = len; cnt > 0; cnt -= i, buf += i) {
+		for (cnt = len; cnt > 0; cnt -= i, buf = (char *)buf + i) {
 			if ((i = __msgwrite(ct->ct_fd, buf,
 			     (size_t)cnt)) == -1) {
 				ct->ct_error.re_errno = errno;
