@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.303 1998/07/11 07:45:30 bde Exp $
+ *	$Id: machdep.c,v 1.304 1998/08/18 07:46:58 msmith Exp $
  */
 
 #include "apm.h"
@@ -169,6 +169,12 @@ SYSCTL_INT(_debug, OID_AUTO, tlb_flush_count,
 	CTLFLAG_RD, &tlb_flush_count, 0, "");
 #endif
 
+#ifdef PC98
+int ispc98 = 1;
+#else
+int	ispc98 = 0;
+#endif
+SYSCTL_INT(_hw, OID_AUTO, ispc98, CTLFLAG_RD, &ispc98, 0, "");
 
 int physmem = 0;
 int cold = 1;
