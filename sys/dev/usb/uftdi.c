@@ -165,6 +165,9 @@ USB_MATCH(uftdi)
 	     uaa->product == USB_PRODUCT_FTDI_LK202 ||
 	     uaa->product == USB_PRODUCT_FTDI_LK204))
 		return (UMATCH_VENDOR_PRODUCT);
+	if (uaa->vendor == USB_VENDOR_SIIG2 &&
+	    (uaa->product == USB_PRODUCT_SIIG2_US2308))
+		return (UMATCH_VENDOR_PRODUCT);
 
 	return (UMATCH_NONE);
 }
@@ -210,24 +213,43 @@ USB_ATTACH(uftdi)
 
 	id = usbd_get_interface_descriptor(iface);
 	ucom->sc_iface = iface;
-	switch( uaa->product ){
-	case USB_PRODUCT_FTDI_SERIAL_8U100AX:
-		sc->sc_type = UFTDI_TYPE_SIO;
-		sc->sc_hdrlen = 1;
+	switch( uaa->vendor ){
+	case USB_VENDOR_FTDI:
+		switch( uaa->product ){
+		case USB_PRODUCT_FTDI_SERIAL_8U100AX:
+			sc->sc_type = UFTDI_TYPE_SIO;
+			sc->sc_hdrlen = 1;
+			break;
+		case USB_PRODUCT_FTDI_SEMC_DSS20:
+		case USB_PRODUCT_FTDI_SERIAL_8U232AM:
+		case USB_PRODUCT_FTDI_CFA_631:
+		case USB_PRODUCT_FTDI_CFA_632:
+		case USB_PRODUCT_FTDI_CFA_633:
+		case USB_PRODUCT_FTDI_CFA_634:
+		case USB_PRODUCT_FTDI_USBSERIAL:
+		case USB_PRODUCT_FTDI_MX2_3:
+		case USB_PRODUCT_FTDI_MX4_5:
+		case USB_PRODUCT_FTDI_LK202:
+		case USB_PRODUCT_FTDI_LK204:
+			sc->sc_type = UFTDI_TYPE_8U232AM;
+			sc->sc_hdrlen = 0;
+			break;
+
+		default:		/* Can't happen */
+			goto bad;
+		}
 		break;
-	case USB_PRODUCT_FTDI_SEMC_DSS20:
-	case USB_PRODUCT_FTDI_SERIAL_8U232AM:
-	case USB_PRODUCT_FTDI_CFA_631:
-	case USB_PRODUCT_FTDI_CFA_632:
-	case USB_PRODUCT_FTDI_CFA_633:
-	case USB_PRODUCT_FTDI_CFA_634:
-	case USB_PRODUCT_FTDI_USBSERIAL:
-	case USB_PRODUCT_FTDI_MX2_3:
-	case USB_PRODUCT_FTDI_MX4_5:
-	case USB_PRODUCT_FTDI_LK202:
-	case USB_PRODUCT_FTDI_LK204:
-		sc->sc_type = UFTDI_TYPE_8U232AM;
-		sc->sc_hdrlen = 0;
+
+	case USB_VENDOR_SIIG2:
+		switch( uaa->product ){
+		case USB_PRODUCT_SIIG2_US2308:
+			sc->sc_type = UFTDI_TYPE_8U232AM;
+			sc->sc_hdrlen = 0;
+			break;
+
+		default:		/* Can't happen */
+			goto bad;
+		}
 		break;
 
 	default:		/* Can't happen */
