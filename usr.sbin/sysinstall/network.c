@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.17 1996/12/08 12:27:58 jkh Exp $
+ * $Id: network.c,v 1.18 1996/12/09 06:02:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -46,12 +46,14 @@
 static Boolean	networkInitialized;
 static pid_t	startPPP(Device *devp);
 
+static pid_t	pppPID;
+
 Boolean
 mediaInitNetwork(Device *dev)
 {
     int i;
     char *rp;
-    char *cp, ifconfig[64];
+    char *cp, ifconfig[255];
 
     if (!RunningAsInit || networkInitialized)
 	return TRUE;
@@ -60,13 +62,13 @@ mediaInitNetwork(Device *dev)
     if (!file_readable("/etc/resolv.conf"))
 	configResolv();
 
-    /* Old process lying around? */
-    if (dev->private) {
-	kill((pid_t)dev->private, SIGTERM);
-	dev->private = NULL;
+    /* Old PPP process lying around? */
+    if (pppPID) {
+	kill(pppPID, SIGTERM);
+	pppPID = 0;
     }
     if (!strncmp("ppp", dev->name, 3)) {	/* PPP? */
-	if (!(dev->private = (void *)startPPP(dev))) {
+	if (!(pppPID = startPPP(dev))) {
 	    msgConfirm("Unable to start PPP!  This installation method cannot be used.");
 	    return FALSE;
 	}
@@ -95,8 +97,8 @@ mediaInitNetwork(Device *dev)
 	    strcpy(attach, val);
 	/*
 	 * Doing this with vsystem() is actually bogus since we should be storing the pid of slattach
-	 * in dev->private for later killing.  It's just too convenient to call vsystem(), however,
-	 * rather than constructing a proper argument for exec() so we punt on doing slip right for now.
+	 * for later killing.  It's just too convenient to call vsystem(), however, rather than
+	 * constructing a proper argument for exec() so we punt on doing slip right for now.
 	 */
 	if (vsystem(attach)) {
 	    msgConfirm("slattach returned a bad status!  Please verify that\n"
@@ -164,10 +166,10 @@ mediaShutdownNetwork(Device *dev)
 	    vsystem("route delete default");
 	}
     }
-    else if (dev->private) {	/* ppp sticks its PID there */
-	msgNotify("Killing previous PPP process %d.", (int)dev->private);
-	kill((pid_t)dev->private, SIGTERM);
-	dev->private = NULL;
+    else if (pppPID) {
+	msgNotify("Killing previous PPP process %d.", pppPID);
+	kill(pppPID, SIGTERM);
+	pppPID = 0;
     }
     networkInitialized = FALSE;
 }
@@ -196,12 +198,12 @@ startPPP(Device *devp)
 		      "maximum data rate since most modems can talk at one speed to the\n"
 		      "computer and at another speed to the remote end.\n\n"
 		      "If you're not sure what to put here, just select the default.");
-    strcpy(speed, (val && *val) ? val : "115200");
+    strncpy(speed, (val && *val) ? val : "115200", 16);
 
-    strcpy(provider, variable_get(VAR_GATEWAY) ? variable_get(VAR_GATEWAY) : "0");
+    strncpy(provider, variable_get(VAR_GATEWAY) ? variable_get(VAR_GATEWAY) : "0", 16);
     val = msgGetInput(provider, "Enter the IP address of your service provider or 0 if you\n"
 		      "don't know it and would prefer to negotiate it dynamically.");
-    strcpy(provider, val ? val : "0");
+    strncpy(provider, val ? val : "0", 16);
 
     if (devp->private && ((DevInfo *)devp->private)->ipaddr[0])
 	strcpy(myaddr, ((DevInfo *)devp->private)->ipaddr);
