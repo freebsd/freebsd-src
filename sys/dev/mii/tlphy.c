@@ -77,6 +77,7 @@
 #include <sys/errno.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/malloc.h>
 
 #include <machine/bus.h>
 
