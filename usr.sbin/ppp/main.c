@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.4 1995/03/11 15:18:47 amurai Exp $
+ * $Id: main.c,v 1.5 1995/05/30 03:50:47 rgrimes Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -43,7 +43,7 @@
 #include "filter.h"
 
 #define LAUTH_M1 "Warning: No password entry for this host in ppp.secret\n"
-#define LAUTH_M2 "Warning: All manipulation is allowed by anyone in a world\n"
+#define LAUTH_M2 "Warning: All manipulation is allowed by anyone in the world\n"
 
 #ifndef O_NONBLOCK
 #ifdef O_NDELAY
