@@ -75,6 +75,7 @@ SUBDIR=	accf_data \
 	trm \
 	twe \
 	txp \
+	ubsa \
 	ucom \
 	ufm \
 	uftdi \
