@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: semctl.2,v 1.1 1995/10/03 19:17:17 joerg Exp $
+.\" $Id: semctl.2,v 1.2 1996/01/30 16:34:34 mpp Exp $
 .\"
 .Dd September 12, 1995
 .Dt SEMCTL 2
@@ -36,7 +36,7 @@
 .Fd #include <sys/ipc.h>
 .Fd #include <sys/sem.h>
 .Ft int
-.Fn "semctl" "int semid" "int semnum" "int cmd" "union semun arg"
+.Fn "semctl" "int semid" "int semnum" "int cmd" "union semun *arg"
 .Sh DESCRIPTION
 .Fn Semctl
 performs the operation indicated by
