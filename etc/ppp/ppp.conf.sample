@@ -4,18 +4,18 @@
 #
 #	  Written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.1.1.1 1995/01/31 06:24:33 amurai Exp $
+# $Id: ppp.conf.sample,v 1.2 1995/02/26 12:16:36 amurai Exp $
 #
 #################################################################
 #
 # Default setup. Executed always when PPP is invoked.
 #
 default:
- set device /dev/tty01
+ set device /dev/cua01
  set speed 38400
  disable lqr
  deny lqr
- set dial "ABORT BUSY ABORT NO\\sCARRIR TIMEOUT 5 \"\" AT OK-AT-OK \\dATDT\\T TIMEOUT 40 CONNECT"
+ set dial "ABORT BUSY ABORT NO\\sCARRIER TIMEOUT 5 \"\" ATE1Q0 OK-AT-OK \\dATDT\\T TIMEOUT 40 CONNECT"
 #
 # Example with login script
 #   o From PPP prompt,
