@@ -584,6 +584,118 @@ ltr(u_short sel)
 	__asm __volatile("ltr %0" : : "r" (sel));
 }
 
+static __inline u_int64_t
+rdr0(void)
+{
+	u_int64_t data;
+	__asm __volatile("movq %%dr0,%0" : "=r" (data));
+	return (data);
+}
+
+static __inline void
+load_dr0(u_int64_t dr0)
+{
+	__asm __volatile("movq %0,%%dr0" : : "r" (dr0));
+}
+
+static __inline u_int64_t
+rdr1(void)
+{
+	u_int64_t data;
+	__asm __volatile("movq %%dr1,%0" : "=r" (data));
+	return (data);
+}
+
+static __inline void
+load_dr1(u_int64_t dr1)
+{
+	__asm __volatile("movq %0,%%dr1" : : "r" (dr1));
+}
+
+static __inline u_int64_t
+rdr2(void)
+{
+	u_int64_t data;
+	__asm __volatile("movq %%dr2,%0" : "=r" (data));
+	return (data);
+}
+
+static __inline void
+load_dr2(u_int64_t dr2)
+{
+	__asm __volatile("movq %0,%%dr2" : : "r" (dr2));
+}
+
+static __inline u_int64_t
+rdr3(void)
+{
+	u_int64_t data;
+	__asm __volatile("movq %%dr3,%0" : "=r" (data));
+	return (data);
+}
+
+static __inline void
+load_dr3(u_int64_t dr3)
+{
+	__asm __volatile("movq %0,%%dr3" : : "r" (dr3));
+}
+
+static __inline u_int64_t
+rdr4(void)
+{
+	u_int64_t data;
+	__asm __volatile("movq %%dr4,%0" : "=r" (data));
+	return (data);
+}
+
+static __inline void
+load_dr4(u_int64_t dr4)
+{
+	__asm __volatile("movq %0,%%dr4" : : "r" (dr4));
+}
+
+static __inline u_int64_t
+rdr5(void)
+{
+	u_int64_t data;
+	__asm __volatile("movq %%dr5,%0" : "=r" (data));
+	return (data);
+}
+
+static __inline void
+load_dr5(u_int64_t dr5)
+{
+	__asm __volatile("movq %0,%%dr5" : : "r" (dr5));
+}
+
+static __inline u_int64_t
+rdr6(void)
+{
+	u_int64_t data;
+	__asm __volatile("movq %%dr6,%0" : "=r" (data));
+	return (data);
+}
+
+static __inline void
+load_dr6(u_int64_t dr6)
+{
+	__asm __volatile("movq %0,%%dr6" : : "r" (dr6));
+}
+
+static __inline u_int64_t
+rdr7(void)
+{
+	u_int64_t data;
+	__asm __volatile("movq %%dr7,%0" : "=r" (data));
+	return (data);
+}
+
+static __inline void
+load_dr7(u_int64_t dr7)
+{
+	__asm __volatile("movq %0,%%dr7" : : "r" (dr7));
+}
+
 static __inline register_t
 intr_disable(void)
 {
@@ -650,13 +762,28 @@ u_int	read_rflags(void);
 void	wbinvd(void);
 void	write_rflags(u_int rf);
 void	wrmsr(u_int msr, u_int64_t newval);
-void	load_dr7(u_int dr7);
+u_int64_t	rdr0(void);
+void	load_dr0(u_int64_t dr0);
+u_int64_t	rdr1(void);
+void	load_dr1(u_int64_t dr1);
+u_int64_t	rdr2(void);
+void	load_dr2(u_int64_t dr2);
+u_int64_t	rdr3(void);
+void	load_dr3(u_int64_t dr3);
+u_int64_t	rdr4(void);
+void	load_dr4(u_int64_t dr4);
+u_int64_t	rdr5(void);
+void	load_dr5(u_int64_t dr5);
+u_int64_t	rdr6(void);
+void	load_dr6(u_int64_t dr6);
+u_int64_t	rdr7(void);
+void	load_dr7(u_int64_t dr7);
 register_t	intr_disable(void);
 void	intr_restore(register_t rf);
 
 #endif	/* __GNUC__ */
 
-void    reset_dbregs(void);
+void	reset_dbregs(void);
 
 __END_DECLS
 
