@@ -868,6 +868,7 @@ main(int ac, char **av)
 				    options.connections_period, myaddr,
 				    get_sock_port(newsock, 1), ntop);
 				free((void *)myaddr);
+				close(newsock);
 				ratelim_exceeded = 0;
 				continue;
 			} else {
