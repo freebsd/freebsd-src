@@ -515,6 +515,7 @@ init_private(void)
 	if (_lock_init(&_keytable_lock, LCK_ADAPTIVE,
 	    _thr_lock_wait, _thr_lock_wakeup) != 0)
 		PANIC("Cannot initialize thread specific keytable lock");
+	_thr_spinlock_init();
 
 	/* Clear pending signals and get the process signal mask. */
 	sigemptyset(&_thr_proc_sigpending);
