@@ -48,7 +48,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: lpr.c	8.4 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: lpr.c,v 1.21 1997/09/24 06:48:07 charnier Exp $";
+	"$Id: lpr.c,v 1.22 1997/12/02 20:46:10 wollman Exp $";
 #endif /* not lint */
 
 /*
@@ -254,7 +254,7 @@ main(argc, argv)
 	if (pp->no_copies && ncopies > 1)
 		errx(1, "multiple copies are not allowed");
 	if (pp->max_copies > 0 && ncopies > pp->max_copies)
-		errx(1, "only %d copies are allowed", pp->max_copies);
+		errx(1, "only %ld copies are allowed", pp->max_copies);
 	/*
 	 * Get the identity of the person doing the lpr using the same
 	 * algorithm as lprm.  Actually, not quite -- lprm will override
