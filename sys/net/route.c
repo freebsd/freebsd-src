@@ -1148,16 +1148,12 @@ rt_maskedcopy(struct sockaddr *src, struct sockaddr *dst, struct sockaddr *netma
 int
 rtinit(struct ifaddr *ifa, int cmd, int flags)
 {
-	register struct rtentry *rt;
-	register struct sockaddr *dst;
-	register struct sockaddr *deldst;
+	struct sockaddr *dst;
 	struct sockaddr *netmask;
 	struct mbuf *m = 0;
-	struct rtentry *nrt = 0;
-	struct radix_node_head *rnh;
-	struct radix_node *rn;
-	int error;
+	struct rtentry *rt = 0;
 	struct rt_addrinfo info;
+	int error;
 
 	if (flags & RTF_HOST) {
 		dst = ifa->ifa_dstaddr;
@@ -1172,6 +1168,10 @@ rtinit(struct ifaddr *ifa, int cmd, int flags)
 	 * be confusing at best and possibly worse.
 	 */
 	if (cmd == RTM_DELETE) {
+		struct sockaddr *deldst;
+		struct radix_node_head *rnh;
+		struct radix_node *rn;
+
 		/*
 		 * It's a delete, so it should already exist..
 		 * If it's a net, mask off the host bits
@@ -1213,8 +1213,8 @@ bad:
 	info.rti_info[RTAX_DST] = dst;
 	info.rti_info[RTAX_GATEWAY] = ifa->ifa_addr;
 	info.rti_info[RTAX_NETMASK] = netmask;
-	error = rtrequest1(cmd, &info, &nrt);
-	if (error == 0 && (rt = nrt) != NULL) {
+	error = rtrequest1(cmd, &info, &rt);
+	if (error == 0 && rt != NULL) {
 		/*
 		 * notify any listening routing agents of the change
 		 */
