@@ -87,7 +87,6 @@ recrack(line, argc, argc_max)
     argv[i] = argv[i - 1] + strlen(argv[i - 1]) + 1;
     argv[i][strcspn(argv[i], "\n")] = '\0';
     *argc = i + 1;
-    printf("returning with argc %u\n", *argc);
     return argv;
 }
 
