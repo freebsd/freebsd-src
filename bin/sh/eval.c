@@ -275,7 +275,14 @@ evaltree(n, flags)
 out:
 	if (pendingsigs)
 		dotrap();
-	if ((flags & EV_EXIT) || (eflag && exitstatus && !(flags & EV_TESTED)))
+	/*
+	 * XXX - Like "!(n->type == NSEMI)", more types will probably
+	 * need to be excluded from this test. It's probably better
+	 * to set or unset EV_TESTED in the loop above than to bloat
+	 * the conditional here.
+	 */
+	if ((flags & EV_EXIT) || (eflag && exitstatus 
+	    && !(flags & EV_TESTED) && !(n->type == NSEMI)))
 		exitshell(exitstatus);
 }
 
