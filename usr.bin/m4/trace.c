@@ -25,7 +25,6 @@
  */
 
 #include <sys/cdefs.h>
-__RCSID_SOURCE("$OpenBSD: trace.c,v 1.6 2002/04/26 16:15:16 espie Exp $");
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
