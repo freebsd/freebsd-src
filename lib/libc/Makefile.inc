@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.1 1997/05/03 03:49:51 jb Exp $
+#	$Id: Makefile.inc,v 1.2 1997/10/15 16:29:08 bde Exp $
 #
 # This file contains make rules that are shared by libc and libc_r.
 #
@@ -21,4 +21,15 @@
 .if !defined(NO_YP_LIBC)
 CFLAGS+= -DYP
 .include "${.CURDIR}/../libc/yp/Makefile.inc"
+.endif
+
+# Append machine-dependent sources, then append machine-independent sources
+# for which there is no machine-dependent variant.
+.if !empty(MDSRCS)
+SRCS+=	${MDSRCS}
+.for _src in ${MISRCS}
+.if ${MDSRCS:R:M${_src:R}} == ""
+SRCS+=	${_src}
+.endif
+.endfor
 .endif
