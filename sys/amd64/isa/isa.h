@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
- *	$Id: isa.h,v 1.2 1993/10/16 13:45:57 rgrimes Exp $
+ *	$Id: isa.h,v 1.3 1993/11/07 17:44:30 wollman Exp $
  */
 
 #ifndef _I386_ISA_ISA_H_
@@ -66,8 +66,8 @@ int isa_irq_pending __P((struct isa_device *dvp));
 		/* CPU Board */
 #define IO_DMA1		0x000		/* 8237A DMA Controller #1 */
 #define IO_ICU1		0x020		/* 8259A Interrupt Controller #1 */
-#define IO_TIMER1	0x040		/* 8252 Timer #1 */
-#define IO_TIMER2	0x048		/* 8252 Timer #2 */
+#define IO_TIMER1	0x040		/* 8253 Timer #1 */
+#define IO_TIMER2	0x048		/* 8253 Timer #2 */
 #define IO_KBD		0x060		/* 8042 Keyboard */
 #define IO_RTC		0x070		/* RTC */
 #define IO_NMI		IO_RTC		/* NMI Control */
