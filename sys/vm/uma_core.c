@@ -997,6 +997,7 @@ zone_ctor(void *mem, int size, void *udata)
 	zone->uz_ctor = arg->ctor;
 	zone->uz_dtor = arg->dtor;
 	zone->uz_init = arg->uminit;
+	zone->uz_fini = arg->fini;
 	zone->uz_align = arg->align;
 	zone->uz_free = 0;
 	zone->uz_pages = 0;
