@@ -106,8 +106,6 @@ void checkernel(char *);
 int open_drive(struct drive *, struct proc *, int);
 void close_drive(struct drive *drive);
 int driveio(struct drive *, char *, size_t, off_t, int);
-/* #define read_drive(a, b, c, d) driveio (a, b, c, d, B_READ)
-   #define write_drive(a, b, c, d) driveio (a, b, c, d, B_WRITE) */
 int set_drive_parms(struct drive *drive);
 int init_drive(struct drive *, int);
 /* void throw_rude_remark (int, struct _ioctl_reply *, char *, ...); XXX */

@@ -1,5 +1,7 @@
-/* XXX replace all the checks on object validity with
-   * calls to valid<object> */
+/*
+ * XXX replace all the checks on object validity with
+ * calls to valid<object> 
+ */
 /*-
  * Copyright (c) 1997, 1998
  *	Nan Yang Computer Services Limited.  All rights reserved.
@@ -35,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumioctl.c,v 1.6 1999/01/21 00:35:35 grog Exp $
+ * $Id: vinumioctl.c,v 1.7 1999/01/18 03:36:17 grog Exp grog $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
@@ -127,8 +129,9 @@ vinumioctl(dev_t dev,
 	case VINUM_STARTCONFIG:
 	    return start_config();			    /* just lock it */
 
-	    /* Move the individual parts of the config to user space.
-
+	    /*
+	     * Move the individual parts of the config to user space.
+	     *
 	     * Specify the index of the object in the first word of data,
 	     * and return the object there
 	     */
@@ -194,8 +197,10 @@ vinumioctl(dev_t dev,
 
 	case VINUM_RESETCONFIG:
 	    if (vinum_inactive() && (vinum_conf.opencount < 2)) { /* if we're not active */
-		/* Note the open count.  We may be called from v, so we'll be open.
-		 * Keep the count so we don't underflow */
+		/*
+		 * Note the open count.  We may be called from v, so we'll be open.
+		 * Keep the count so we don't underflow 
+		 */
 		int oc = vinum_conf.opencount;
 		free_vinum(1);				    /* clean up everything */
 		printf("vinum: CONFIGURATION OBLITERATED\n");
@@ -291,7 +296,7 @@ vinumioctl(dev_t dev,
 	printf("vinumioctl: invalid ioctl from process %d (%s): %lx\n",
 	    curproc->p_pid,
 	    curproc->p_comm,
-	    cmd);					    /* XXX */
+	    cmd);
 	return EINVAL;
 
     case VINUM_DRIVE_TYPE:
@@ -324,18 +329,22 @@ vinumioctl(dev_t dev,
 	    get_volume_label(vol, (struct disklabel *) data);
 	    break;
 
-	    /* Care!  DIOCGPART returns *pointers* to
+	    /*
+	     * Care!  DIOCGPART returns *pointers* to
 	     * the caller, so we need to store this crap as well.
-	     * And yes, we need it. */
+	     * And yes, we need it. 
+	     */
 	case DIOCGPART:					    /* get partition information */
 	    get_volume_label(vol, &vol->label);
 	    ((struct partinfo *) data)->disklab = &vol->label;
 	    ((struct partinfo *) data)->part = &vol->label.d_partitions[0];
 	    break;
 
-	    /* We don't have this stuff on hardware,
+	    /*
+	     * We don't have this stuff on hardware,
 	     * so just pretend to do it so that
-	     * utilities don't get upset. */
+	     * utilities don't get upset.
+	     */
 	case DIOCWDINFO:				    /* write partition info */
 	case DIOCSDINFO:				    /* set partition info */
 	    return 0;					    /* not a titty */
@@ -357,10 +366,12 @@ vinumioctl(dev_t dev,
     return 0;						    /* XXX */
 }
 
-/* The following four functions check the supplied
+/*
+ * The following four functions check the supplied
  * object index and return a pointer to the object
  * if it exists.  Otherwise they longjump out via
- * throw_rude_remark */
+ * throw_rude_remark.
+ */
 struct drive *
 validdrive(int driveno, struct _ioctl_reply *reply)
 {
@@ -636,8 +647,10 @@ detachobject(struct vinum_ioctl_msg *msg)
 	    if ((!msg->force)				    /* don't force things */
 	    &&((vol->state == volume_up)		    /* and the volume is up */
 	    &&(vol->plexes == 1))) {			    /* and this is the last plex */
-		/* XXX As elsewhere, check whether we will lose
-		   * mapping by removing this plex */
+		/*
+		   * XXX As elsewhere, check whether we will lose
+		   * mapping by removing this plex 
+		 */
 		reply->error = EBUSY;			    /* we need this plex */
 		reply->msg[0] = '\0';
 		return;

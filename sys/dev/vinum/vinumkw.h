@@ -40,13 +40,17 @@
 #include "opt_vinum.h"
 #endif
 
-/* Command keywords that vinum knows.  These include both user-level
- * and kernel-level stuff */
+/*
+ * Command keywords that vinum knows.  These include both user-level
+ * and kernel-level stuff 
+ */
 
-/* Our complete vocabulary.  The names of the commands are
+/*
+ * Our complete vocabulary.  The names of the commands are
  * the same as the identifier without the kw_ at the beginning
  * (i.e. kw_create defines the "create" keyword).  Preprocessor
- * magic in parser.c does the rest. */
+ * magic in parser.c does the rest. 
+ */
 enum keyword {
     kw_create,
     kw_modify,
