@@ -21,8 +21,8 @@ TAR=tar
 TAR_FLAGS=xvf
 TMP=/tmp
 IFCONFIG=ifconfig
-ROUTE=route
-ROUTE_FLAGS="add default"
+HOME=/
+export HOME
 
 # Set the initial state of the system.
 set_defaults() {
@@ -32,11 +32,14 @@ set_defaults() {
 	hostname="" ;
 	ether_intr="" ;
 	domain="" ;
-	netmask="" ;
+	netmask="0xffffff00" ;
 	ifconfig_flags="" ;
+	remote_hostip="" ;
 	tmp_dir="/usr/tmp" ;
+	ftp_path="ftp://ftp.freebsd.org/pub/FreeBSD/2.0-ALPHA/bindist"
 	installing=1 ;
 	mkdir -p ${TMP}
+	cp /stand/etc/* /etc
 }
 
 # Handle the return value from a dialog, doing some pre-processing
@@ -76,15 +79,16 @@ expect it to be in the release.  Please press RETURN to go on." 10 60
 # Print welcome banner.
 welcome() {
 	dialog --title "Welcome to FreeBSD" --clear \
---msgbox "Hi!  Nice to see you've made it this far.  We're now ready to
-install one or more packed distribution sets onto your machine.
-At the minimum, you need a bindist installation though a
-secrdist is also useful if you want your system to have any kind
-of effective security.  The secrdist is a bit of a special case
-since it cannot be legally obtained from the U.S. due to export
-restrictions, but non-U.S. versions are also available.  See the
-release notes for more information on where to obtain a secrdist
-for your part of the world." 15 72
+--msgbox " We're now ready to install one or more packed distribution
+sets onto your machine.  At the minimum, you need a bindist
+installation though a secrdist is also useful if you want your
+system to use the same DES and/or Kerberos security model used
+by other commercial systems (the FreeBSD model is md5 based,
+and not bad in and of itself though).  The secrdist is also a
+bit of a special case since it cannot be legally obtained from
+the U.S. due to export restrictions, but non-U.S. versions are
+also available.  See the release notes for more information on
+obtaining a secrdist for your part of the world." 15 72
 	if ! handle_rval $?; then return 1; fi
 }
 
@@ -97,8 +101,8 @@ choose_media() {
 --menu "Before we begin the installation, we need to chose and possibly \n\
 configure your method of installation.  Please pick from one of \n\
 the following options.  If your option isn't listed here, your \n\
-best bet may be to simply hit ESC twice to get a shell and proceed \n\
-manually on your own. \n\n\
+best bet may be to simply hit ESC twice to get a subshell and proceed \n\
+manually on your own.  If you are finished installing, select cancel.\n\n\
 	Please choose one of the following:" 20 72 5 \
 	"Tape" "Load installation from SCSI or QIC tape" \
 	"CDROM" "Load installation from SCSI or Mitsumi CDROM" \
@@ -168,10 +172,11 @@ specification (e.g. something like ftp://ftp.freeBSD.org/pub/...) or
 simply the name of a host to connect to.  If only a host name is
 specified, the installation assumes that you will properly connect
 and \"mget\" the files yourself.\n\n" \
-16 72 "ftp://ftp.freebsd.org/pub/FreeBSD/2.0-ALPHA/bindist/" 2> ${TMP}/inputbox.tmp.$$
+16 72 "$ftp_path" 2> ${TMP}/inputbox.tmp.$$
 		if ! handle_rval $?; then continue; fi
 		media_type=ftp
 		media_device=`cat ${TMP}/inputbox.tmp.$$`
+		ftp_path=$media_device
 		rm -f ${TMP}/inputbox.tmp.$$
 	;;
 	NFS)
@@ -196,7 +201,6 @@ you specify does not exist, it will be created for you.\n\n" \
 	tmp_dir=`cat ${TMP}/inputbox.tmp.$$`
 	rm -f ${TMP}/inputbox.tmp.$$
 	mkdir -p $tmp_dir
-	echo wahoo
 	return 0
 }
 
@@ -247,7 +251,18 @@ setup_network_ppp()
 
 setup_network_plip()
 {
-	not_supported
+	default_value=""
+	if ! network_dialog "What is the ip number for the remote host"; then return 1; fi
+	remote_hostip=$answer
+}
+
+network_dialog()
+{
+	dialog --title "Network Information" --clear \
+	--inputbox "$*" 10 60 "$default_value" 2> ${TMP}/inputbox.tmp.$$
+	if ! handle_rval $?; then return 1; fi
+	answer=`cat ${TMP}/inputbox.tmp.$$`
+	rm -f ${TMP}/inputbox.tmp.$$
 }
 
 setup_network()
@@ -285,55 +300,54 @@ setup_network()
 	;;
 	esac	
 	if [ "$interface" = "" ]; then	continue; fi
-	dialog --title "Hostname Information" --clear \
-	--inputbox "Please specify the name of this host" 5 60 "foo" \
-	2> ${TMP}/inputbox.tmp.$$
-	if ! handle_rval $?; then return 1; fi
-	hostname=`cat ${TMP}/inputbox.tmp.$$`
-	rm -f ${TMP}/inputbox.tmp.$$
 
-	dialog --title "Address Information" --clear \
-	--inputbox "Please specify the IP address of this host" 5 60 "" \
-	2> ${TMP}/inputbox.tmp.$$
-	if ! handle_rval $?; then return 1; fi
-	ipaddr=`cat ${TMP}/inputbox.tmp.$$`
-	rm -f ${TMP}/inputbox.tmp.$$
+	default_value=""
+	if ! network_dialog "What is the fully qualified name of this host"; then return 1; fi
+	hostname=$answer
+	echo $hostname > /etc/myname
+	hostname $hostname
 
-	dialog --title "Netmask Information" --clear \
-	--inputbox "Please specify the netmask" 5 60 "0xffffff00" \
-	2> ${TMP}/inputbox.tmp.$$
-	if handle_rval $?; then
-		netmask=`cat ${TMP}/inputbox.tmp.$$`
-	else
-		netmask="0xffffff00"
+	default_value=`echo $hostname | sed -e 's/[^.]*\.//'`
+	if network_dialog "What is the domain name of this host (Internet, not YP/NIS)"; then
+		domain=$answer
 	fi
-	rm -f ${TMP}/inputbox.tmp.$$
 
-	dialog --title "Extra Information" --clear \
-	--inputbox "Any extra flags to ifconfig?" 5 60 "" \
-	2> ${TMP}/inputbox.tmp.$$
-	if handle_rval $?; then
-		ifconfig_flags=`cat ${TMP}/inputbox.tmp.$$`
+	default_value=""
+	if ! network_dialog "What is the IP address of this host"; then return 1; fi
+	ipaddr=$answer
+
+        echo "$ipaddr    $hostname `echo $hostname | sed -e s/\.$domain//`" \
+             >> /etc/hosts
+
+	default_value="$netmask"
+	if network_dialog "Please specify the netmask"; then
+		netmask=$answer
 	fi
-	if ! $IFCONFIG $interface netmask $netmask $ifconfig_flags 2>/dev/ttyv1 ; then
+
+	default_value=""
+	if network_dialog "Any extra flags to ifconfig?" ; then
+		ifconfig_flags=$answer
+	fi
+	echo "Progress <$IFCONFIG $interface $ipaddr $remote_hostip netmask $netmask $ifconfig_flags>" >/dev/ttyv1
+	if ! $IFCONFIG $interface $ipaddr $remote_hostip netmask $netmask $ifconfig_flags 2>&1 > /dev/ttyv1 ; then
 		error "Unable to configure interface $interface"
 		ipaddr=""; interface=""
 		continue
 	fi
 	rm -f ${TMP}/inputbox.tmp.$$
-
-	dialog --title "Gateway host" --clear \
-	--inputbox "Please specify the gateway host, if any" 5 60 "" \
-	2> ${TMP}/inputbox.tmp.$$
-	if handle_rval $?; then
-		gateway=`cat ${TMP}/inputbox.tmp.$$`
-		if [ "$gateway" = "" ]; then
-			:;
-		else
-			$ROUTE $route_flags $gateway 2>/dev/ttyv1
-		fi
+	echo "$ipaddr $remote_hostip netmask $netmask $ifconfig_flags" > /etc/hostname.$interface
+	default_value=""
+	if network_dialog "If you have a gateway, enter its IP address (otherwise cancel)"; then
+		gateway=$answer
+		echo "Progress <route add default $gateway>" > /dev/ttyv1
+		route add default $gateway 2>&1 > /dev/ttyv1
 	fi
-	rm -f ${TMP}/inputbox.tmp.$$
+
+	default_value=""
+	if network_dialog "If you have a name server, enter its IP address (otherwise cancel)"; then
+		nameserver=$answer
+		echo "nameserver $nameserver" > /etc/resolv.conf
+	fi
 	done
 }
 
@@ -347,7 +361,7 @@ install_set()
 		dialog --title "Results of tape extract" --clear \
 			--prgbox "$TAR $TAR_FLAGS $media_device" 10 72
 		if [ -f extract.sh ]; then
-			sh ./extract.sh
+			sh ./extract.sh 2>&1 > /dev/ttyv1
 		else
 			error "This isn't a proper distribution.  No installation script found."
 		fi
@@ -369,11 +383,11 @@ install_set()
 		if ! set_tmpdir; then return; fi
 		if ! cd_tmpdir; then return; fi
 		if ! echo $media_device | grep -v 'ftp://'; then
-			if ! ncftp $media_device/* ; then
+			if ! ncftp $media_device/* 2>&1 > /dev/ttyv1; then
 				error "Couldn't fetch distribution from ${media_device}!"
 			else
 				if [ -f extract.sh ]; then
-					sh ./extract.sh
+					sh ./extract.sh 2>&1 > /dev/ttyv1
 				else
 					error "This isn't a proper distribution.  No installation script found."
 				fi
@@ -381,7 +395,7 @@ install_set()
 		else
 			ftp $media_device
 			if [ -f extract.sh ]; then
-				sh ./extract.sh
+				sh ./extract.sh 2>&1 > /dev/ttyv1
 			else
 				error "No installation script found.  Please grab the right bits."
 			fi
@@ -402,11 +416,11 @@ do_last_config()
 	dialog --title "Aufwiedersehen!" \
 --msgbox "We now come to the end of the installation.  At this point in
 time, there's nothing fancy here, but for the release we plan to
-ask some additional questions about time zone setup, your name
-server, what sort of mail client this host is, etc.  We just ran
-out of time for ALPHA!  At the very least, you may wish to check
-out the 'tzsetup' command - it will at least handle the first
-checklist item for you.  Thanks!" 15 72
+ask some additional questions about time zone setup, what sort of
+mail client this host is, etc.  We just ran out of time for ALPHA!
+At the very least, you may wish to check out the 'tzsetup' command;
+it will at least handle the first checklist item for you.  Thanks!
+\nAny install-related comments to jkh, phk or paul (@freebsd.org)." 15 72
 }
 
 welcome
@@ -421,4 +435,6 @@ while [ $installing -eq 1 ]; do
 		installing=0
 	fi
 done
+echo; echo "Exiting to shell"
+echo "Progress <installation completed>" > /dev/ttyv1
 exec /stand/sh
