@@ -141,7 +141,7 @@ int	 getdtablesize __P((void));
 int	 getgrouplist __P((const char *, int, int *, int *));
 long	 gethostid __P((void));
 int	 gethostname __P((char *, int));
-char	*getlogin_r __P((char *, int));
+int	getlogin_r __P((char *, int));
 mode_t	 getmode __P((const void *, mode_t));
 int	 getpagesize __P((void)) __pure2;
 char	*getpass __P((const char *));
