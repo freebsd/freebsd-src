@@ -272,8 +272,9 @@ uniarp_svcout(ivp, dst)
 
 	/*
 	 * We're a client with an open VCC to the server, get a new arp entry
+	 * May be called from timeout - don't wait.
 	 */
-	uap = uma_zalloc(uniarp_zone, M_WAITOK);
+	uap = uma_zalloc(uniarp_zone, M_NOWAIT);
 	if (uap == NULL) {
 		(void) splx(s);
 		return (MAP_FAILED);
@@ -433,8 +434,9 @@ uniarp_svcin(ivp, dst, dstsub)
 
 	/*
 	 * No info in the cache - get a new arp entry
+	 * May be called from timeout - don't wait.
 	 */
-	uap = uma_zalloc(uniarp_zone, M_WAITOK | M_ZERO);
+	uap = uma_zalloc(uniarp_zone, M_NOWAIT | M_ZERO);
 	if (uap == NULL) {
 		(void) splx(s);
 		return (MAP_FAILED);
