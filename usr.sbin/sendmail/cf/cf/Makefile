@@ -24,7 +24,7 @@ RM=	rm -f
 	(cd ${.CURDIR} && $(M4) ${CFDIR}/m4/cf.m4 ${@:R}.mc) > $@
 	$(CHMOD) $(ROMODE) $@
 
-ALL=	freebsd.cf freefall.cf
+ALL=	freebsd.cf
 
 # Local sendmail.cf, may be set in /etc/make.conf.  Warning! If set, this
 # causes 'make install' to always copy it over /etc/sendmail.cf!!!
