@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id$
+ *	$Id: diskslice_machdep.c,v 1.3 1995/01/23 02:31:53 phk Exp $
  */
 
 #include <stddef.h>
@@ -59,6 +59,7 @@ dsinit(dname, dev, strat, lp, sspp)
 	struct dos_partition *dp;
 	struct dos_partition *dp0;
 	int	error;
+	int	max_ncyls;
 	int	max_nsectors;
 	int	max_ntracks;
 	u_long	secpercyl;
@@ -67,22 +68,19 @@ dsinit(dname, dev, strat, lp, sspp)
 	struct diskslices *ssp;
 
 	/*
-	 * Free old slices "struct", if any, and allocate a dummy new one.
+	 * Allocate a dummy slices "struct" and initialize it to contain
+	 * only an empty compatibility slice (pointing to itself) and a
+	 * whole disk slice (which may be a dummy if the label is a dummy).
+	 * If there is an error, then these slices become the only slices.
 	 */
-	if (*sspp != NULL)
-		free(*sspp, M_DEVBUF);
-	ssp = malloc(offsetof(struct diskslices, dss_slices) + sizeof(*sp),
-		     M_DEVBUF, M_WAITOK);
+	ssp = malloc(offsetof(struct diskslices, dss_slices)
+		     + BASE_SLICE * sizeof *sp, M_DEVBUF, M_WAITOK);
 	*sspp = ssp;
-
-	/*
-	 * Initialize dummy slice.  If there is an error, this becomes the
-	 * only slice, and no more restrictive than the (dummy) label.
-	 */
+	ssp->dss_first_bsd_slice = COMPATIBILITY_SLICE;
+	ssp->dss_nslices = BASE_SLICE;
 	sp = &ssp->dss_slices[0];
-	bzero(sp, sizeof *sp);
-	sp->ds_size = lp->d_secperunit;
-	ssp->dss_nslices = 1;
+	bzero(sp, BASE_SLICE * sizeof *sp);
+	sp[WHOLE_DISK_SLICE].ds_size = lp->d_secperunit;
 
 	/* Read master boot record. */
 	bp = geteblk((int)lp->d_secsize);
@@ -109,6 +107,7 @@ dsinit(dname, dev, strat, lp, sspp)
 	 * Perhaps skip entries with 0 size.
 	 * Perhaps only look at entries of type DOSPTYP_386BSD.
 	 */
+	max_ncyls = 0;
 	max_nsectors = 0;
 	max_ntracks = 0;
 	dp0 = (struct dos_partition *)(cp + DOSPARTOFF);
@@ -116,6 +115,9 @@ dsinit(dname, dev, strat, lp, sspp)
 		int nsectors;
 		int ntracks;
 
+		max_ncyls = DPCYL(dp->dp_ecyl, dp->dp_esect);
+		if (max_ncyls < max_ncyls)
+			max_ncyls = max_ncyls;
 		nsectors = DPSECT(dp->dp_esect);
 		if (max_nsectors < nsectors)
 			max_nsectors = nsectors;
@@ -129,7 +131,7 @@ dsinit(dname, dev, strat, lp, sspp)
 	 * TODO:
 	 * As above.
 	 * Check for overlaps.
-	 * Check or adjust against d_ncylinders and d_secperunit.
+	 * Check against d_secperunit if the latter is reliable.
 	 */
 	error = 0;
 	secpercyl = max_nsectors * max_ntracks;
@@ -169,39 +171,61 @@ dsinit(dname, dev, strat, lp, sspp)
 
 	/*
 	 * We're not handling extended partitions yet, so there are always
-	 * 1 + NDOSPART slices.
+	 * BASE_SLICE + NDOSPART slices.
 	 */
-	if (dkslice(dev) >= 1 + NDOSPART) {
+	if (dkslice(dev) >= BASE_SLICE + NDOSPART) {
 		error = ENXIO;
 		goto done;
 	}
 
 	/*
 	 * Accept the DOS partition table.
-	 * Free dummy slices "struct" and allocate a real new one.
+	 * First adjust the label (we have been careful not to change it
+	 * before we can guarantee success).
 	 */
-	free(ssp, M_DEVBUF);
-	ssp = malloc(offsetof(struct diskslices, dss_slices)
-		     + (1 + NDOSPART) * sizeof(*sp), M_DEVBUF, M_WAITOK);
-	*sspp = ssp;
-	sp = &ssp->dss_slices[0];
-	bzero(sp, (1 + NDOSPART) * sizeof *sp);
-	sp->ds_size = lp->d_secperunit;
-	sp++;
-	for (dp = dp0, slice = 1; slice <= NDOSPART; dp++, slice++, sp++) {
-		sp->ds_offset = dp->dp_start;
-		sp->ds_size = dp->dp_size;
-	}
-	ssp->dss_nslices = 1 + NDOSPART;
-	if (max_nsectors != 0) {
+	if (secpercyl != 0) {
+		u_long	secperunit;
+
 		lp->d_nsectors = max_nsectors;
 		lp->d_ntracks = max_ntracks;
 		lp->d_secpercyl = secpercyl;
+		secperunit = secpercyl * max_ncyls;
+		if (lp->d_secperunit < secperunit)
+			lp->d_secperunit = secperunit;
 	}
+
+	/*
+	 * Free the dummy slices "struct" and allocate a real new one.
+	 * Initialize special slices as above.
+	 */
+	free(ssp, M_DEVBUF);
+	ssp = malloc(offsetof(struct diskslices, dss_slices)
+		     + (BASE_SLICE + NDOSPART) * sizeof *sp,
+		     M_DEVBUF, M_WAITOK);
+	*sspp = ssp;
+	ssp->dss_first_bsd_slice = COMPATIBILITY_SLICE;
+	ssp->dss_nslices = BASE_SLICE + NDOSPART;
+	sp = &ssp->dss_slices[0];
+	bzero(sp, (BASE_SLICE + NDOSPART) * sizeof *sp);
+	sp[WHOLE_DISK_SLICE].ds_size = lp->d_secperunit;
+
+	/* Initialize normal slices. */
+	sp += BASE_SLICE;
+	for (dp = dp0, slice = 1; slice <= NDOSPART; dp++, slice++, sp++) {
+		if (dp->dp_typ == DOSPTYP_386BSD
+		    && ssp->dss_first_bsd_slice == COMPATIBILITY_SLICE) {
+			ssp->dss_first_bsd_slice = BASE_SLICE + slice - 1;
+			ssp->dss_slices[COMPATIBILITY_SLICE].ds_offset
+			    = dp->dp_start;
+			ssp->dss_slices[COMPATIBILITY_SLICE].ds_size
+			    = dp->dp_size;
+		}
+		sp->ds_offset = dp->dp_start;
+		sp->ds_size = dp->dp_size;
 #if 0
-	lp->d_secperunit = what?;
 	lp->d_subtype |= (lp->d_subtype & 3) + (slice - 1) | DSTYPE_INDOSPART;
 #endif
+	}
 
 done:
 	bp->b_flags = B_INVAL | B_AGE;
