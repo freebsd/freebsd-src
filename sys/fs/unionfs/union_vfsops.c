@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vfsops.c	8.7 (Berkeley) 3/5/94
- * $Id: union_vfsops.c,v 1.3 1994/08/02 07:45:45 davidg Exp $
+ * $Id: union_vfsops.c,v 1.4 1994/09/21 03:47:13 wollman Exp $
  */
 
 /*
@@ -44,6 +44,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/proc.h>

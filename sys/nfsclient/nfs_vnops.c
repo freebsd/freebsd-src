@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.5 1994/08/29 06:09:08 davidg Exp $
+ * $Id: nfs_vnops.c,v 1.6 1994/09/21 03:47:25 wollman Exp $
  */
 
 /*
@@ -180,7 +180,6 @@ struct vnodeopv_desc spec_nfsv2nodeop_opv_desc =
 	{ &spec_nfsv2nodeop_p, spec_nfsv2nodeop_entries };
 VNODEOP_SET(spec_nfsv2nodeop_opv_desc);
 
-#ifdef FIFO
 int (**fifo_nfsv2nodeop_p)();
 struct vnodeopv_entry_desc fifo_nfsv2nodeop_entries[] = {
 	{ &vop_default_desc, vn_default_error },
@@ -230,7 +229,6 @@ struct vnodeopv_entry_desc fifo_nfsv2nodeop_entries[] = {
 struct vnodeopv_desc fifo_nfsv2nodeop_opv_desc =
 	{ &fifo_nfsv2nodeop_p, fifo_nfsv2nodeop_entries };
 VNODEOP_SET(fifo_nfsv2nodeop_opv_desc);
-#endif /* FIFO */
 
 void nqnfs_clientlease();
 
@@ -965,10 +963,8 @@ nfs_mknod(ap)
 	isnq = (VFSTONFS(dvp->v_mount)->nm_flag & NFSMNT_NQNFS);
 	if (vap->va_type == VCHR || vap->va_type == VBLK)
 		rdev = txdr_unsigned(vap->va_rdev);
-#ifdef FIFO
 	else if (vap->va_type == VFIFO)
 		rdev = 0xffffffff;
-#endif /* FIFO */
 	else {
 		VOP_ABORTOP(dvp, cnp);
 		vput(dvp);
@@ -2228,10 +2224,8 @@ nfs_print(ap)
 
 	printf("tag VT_NFS, fileid %d fsid 0x%x",
 		np->n_vattr.va_fileid, np->n_vattr.va_fsid);
-#ifdef FIFO
 	if (vp->v_type == VFIFO)
 		fifo_printinfo(vp);
-#endif /* FIFO */
 	printf("\n");
 	return (0);
 }
@@ -2455,7 +2449,6 @@ nfsspec_close(ap)
 	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_close), ap));
 }
 
-#ifdef FIFO
 /*
  * Read wrapper for fifos.
  */
@@ -2545,4 +2538,3 @@ nfsfifo_close(ap)
 	}
 	return (VOCALL(fifo_vnodeop_p, VOFFSET(vop_close), ap));
 }
-#endif /* FIFO */

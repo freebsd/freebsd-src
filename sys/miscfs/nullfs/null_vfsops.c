@@ -36,7 +36,7 @@
  *	@(#)null_vfsops.c	8.2 (Berkeley) 1/21/94
  *
  * @(#)lofs_vfsops.c	1.2 (Berkeley) 6/18/92
- * $Id: null_vfsops.c,v 1.1.1.1 1994/05/24 10:05:03 rgrimes Exp $
+ * $Id: null_vfsops.c,v 1.2 1994/09/21 03:47:01 wollman Exp $
  */
 
 /*
@@ -46,6 +46,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/vnode.h>

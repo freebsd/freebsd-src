@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_vnops.c,v 1.6 1994/09/15 19:46:03 bde Exp $
+ * $Id: cd9660_vnops.c,v 1.7 1994/09/21 03:46:35 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -992,7 +992,6 @@ struct vnodeopv_desc cd9660_specop_opv_desc =
 	{ &cd9660_specop_p, cd9660_specop_entries };
 VNODEOP_SET(cd9660_specop_opv_desc);
 
-#ifdef FIFO
 int (**cd9660_fifoop_p)();
 struct vnodeopv_entry_desc cd9660_fifoop_entries[] = {
 	{ &vop_default_desc, vn_default_error },
@@ -1042,4 +1041,3 @@ struct vnodeopv_desc cd9660_fifoop_opv_desc =
 	{ &cd9660_fifoop_p, cd9660_fifoop_entries };
 
 VNODEOP_SET(cd9660_fifoop_opv_desc);
-#endif /* FIFO */

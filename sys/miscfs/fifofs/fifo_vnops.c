@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.2 (Berkeley) 1/4/94
- * $Id: fifo_vnops.c,v 1.3 1994/08/02 07:44:56 davidg Exp $
+ * $Id: fifo_vnops.c,v 1.4 1994/09/21 03:46:57 wollman Exp $
  */
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/time.h>
 #include <sys/namei.h>

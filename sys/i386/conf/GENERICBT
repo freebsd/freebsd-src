@@ -1,7 +1,7 @@
 #
 # GENERICBT -- Generic machine with WD/BTx family disks
 #
-#	$Id: GENERICBT,v 1.39 1994/09/09 22:12:37 csgr Exp $
+#	$Id: GENERICBT,v 1.40 1994/09/16 20:14:03 wollman Exp $
 #
 
 machine		"i386"
@@ -19,7 +19,6 @@ options		NFS			#Network File System
 options		PROCFS			#Process File System
 options		FDESC			#/dev/fd file system
 options		"CD9660"		#CD ISO9660 File System
-options		FIFO			#Support for FIFO files
 options		"COMPAT_43"		#Compatible with BSD 4.3
 #options		"TCP_COMPAT_42"		#TCP/IP compatible with 4.2
 options		UCONSOLE		#X Console support

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsnode.h	8.4 (Berkeley) 2/13/94
- * $Id: nfsnode.h,v 1.4 1994/08/09 15:10:14 davidg Exp $
+ * $Id: nfsnode.h,v 1.5 1994/08/21 06:50:11 paul Exp $
  */
 
 #ifndef _NFS_NFSNODE_H_
@@ -119,9 +119,7 @@ int	nfs_mknod __P((struct vop_mknod_args *));
 int	nfs_open __P((struct vop_open_args *));
 int	nfs_close __P((struct vop_close_args *));
 int	nfsspec_close __P((struct vop_close_args *));
-#ifdef FIFO
 int	nfsfifo_close __P((struct vop_close_args *));
-#endif
 int	nfs_access __P((struct vop_access_args *));
 int	nfsspec_access __P((struct vop_access_args *));
 int	nfs_getattr __P((struct vop_getattr_args *));
@@ -130,10 +128,8 @@ int	nfs_read __P((struct vop_read_args *));
 int	nfs_write __P((struct vop_write_args *));
 int	nfsspec_read __P((struct vop_read_args *));
 int	nfsspec_write __P((struct vop_write_args *));
-#ifdef FIFO
 int	nfsfifo_read __P((struct vop_read_args *));
 int	nfsfifo_write __P((struct vop_write_args *));
-#endif
 #define nfs_ioctl ((int (*) __P((struct  vop_ioctl_args *)))enoioctl)
 #define nfs_select ((int (*) __P((struct  vop_select_args *)))seltrue)
 int	nfs_mmap __P((struct vop_mmap_args *));

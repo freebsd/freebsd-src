@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_extern.h	8.2 (Berkeley) 4/16/94
- * $Id: lfs_extern.h,v 1.2 1994/08/02 07:54:34 davidg Exp $
+ * $Id: lfs_extern.h,v 1.3 1994/08/21 07:16:09 paul Exp $
  */
 
 #ifndef _UFS_LFS_LFS_EXTERN_H_
@@ -102,11 +102,7 @@ void	lfs_dump_super __P((struct lfs *));
 __END_DECLS
 extern int (**lfs_vnodeop_p)();
 extern int (**lfs_specop_p)();
-#ifdef FIFO
 extern int (**lfs_fifoop_p)();
 #define LFS_FIFOOPS lfs_fifoop_p
-#else
-#define LFS_FIFOOPS NULL
-#endif
 
 #endif

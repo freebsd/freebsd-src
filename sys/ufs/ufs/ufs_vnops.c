@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.3 1994/08/02 07:55:03 davidg Exp $
+ * $Id: ufs_vnops.c,v 1.4 1994/08/08 17:31:01 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -1755,10 +1755,8 @@ ufs_print(ap)
 
 	printf("tag VT_UFS, ino %d, on dev %d, %d", ip->i_number,
 		major(ip->i_dev), minor(ip->i_dev));
-#ifdef FIFO
 	if (vp->v_type == VFIFO)
 		fifo_printinfo(vp);
-#endif /* FIFO */
 	printf("%s\n", (ip->i_flag & IN_LOCKED) ? " (LOCKED)" : "");
 	if (ip->i_lockholder == 0)
 		return (0);
@@ -1830,7 +1828,6 @@ ufsspec_close(ap)
 	return (VOCALL (spec_vnodeop_p, VOFFSET(vop_close), ap));
 }
 
-#ifdef FIFO
 /*
  * Read wrapper for fifo's
  */
@@ -1894,7 +1891,6 @@ ufsfifo_close(ap)
 		ITIMES(ip, &time, &time);
 	return (VOCALL (fifo_vnodeop_p, VOFFSET(vop_close), ap));
 }
-#endif /* FIFO */
 
 /*
  * Return POSIX pathconf information applicable to ufs filesystems.
@@ -1991,12 +1987,8 @@ ufs_vinit(mntp, specops, fifoops, vpp)
 		}
 		break;
 	case VFIFO:
-#ifdef FIFO
 		vp->v_op = fifoops;
 		break;
-#else
-		return (EOPNOTSUPP);
-#endif
 	}
 	if (ip->i_number == ROOTINO)
                 vp->v_flag |= VROOT;

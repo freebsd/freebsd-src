@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_node.c,v 1.3 1994/08/02 07:41:19 davidg Exp $
+ * $Id: cd9660_node.c,v 1.4 1994/09/15 19:45:59 bde Exp $
  */
 
 #include <sys/param.h>
@@ -289,14 +289,8 @@ loop:
 	vp->v_type = IFTOVT(ip->inode.iso_mode);
 	
 	if ( vp->v_type == VFIFO ) {
-#ifdef	FIFO
 		extern int (**cd9660_fifoop_p)();
 		vp->v_op = cd9660_fifoop_p;
-#else
-		iso_iput(ip);
-		*ipp = 0;
-		return EOPNOTSUPP;
-#endif	/* FIFO */
 	} else if ( vp->v_type == VCHR || vp->v_type == VBLK ) {
 		extern int (**cd9660_specop_p)();
 
