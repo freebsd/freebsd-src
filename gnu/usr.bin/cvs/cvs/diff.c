@@ -22,6 +22,7 @@ static char rcsid[] = "@(#)diff.c 1.52 92/04/10";
 
 #if __STDC__
 static Dtype diff_dirproc (char *dir, char *pos_repos, char *update_dir);
+static int diff_filesdoneproc (int err, char *repos, char *update_dir);
 static int diff_dirleaveproc (char *dir, int err, char *update_dir);
 static int diff_file_nodiff (char *file, char *repository, List *entries,
 			     List *srcfiles, Vers_TS *vers);
@@ -31,6 +32,7 @@ static void diff_mark_errors (int err);
 #else
 static int diff_fileproc ();
 static Dtype diff_dirproc ();
+static int diff_filesdoneproc ();
 static int diff_dirleaveproc ();
 static int diff_file_nodiff ();
 static void diff_mark_errors ();
@@ -151,7 +153,7 @@ diff (argc, argv)
 	options = xstrdup ("");
 
     /* start the recursion processor */
-    err = start_recursion (diff_fileproc, (int (*) ()) NULL, diff_dirproc,
+    err = start_recursion (diff_fileproc, diff_filesdoneproc, diff_dirproc,
 			   diff_dirleaveproc, argc, argv, local,
 			   W_LOCAL, 0, 1, (char *) NULL, 1);
 
@@ -226,7 +228,14 @@ diff_fileproc (file, update_dir, repository, entries, srcfiles)
 	return (0);
     }
 
+    /* Output an "Index:" line for patch to use */
     (void) fflush (stdout);
+    if (update_dir[0])
+	(void) printf ("Index: %s/%s\n", update_dir, file);
+    else
+	(void) printf ("Index: %s\n", file);
+    (void) fflush (stdout);
+
     if (use_rev2)
     {
 	run_setup ("%s%s %s %s -r%s -r%s", Rcsbin, RCS_DIFF,
@@ -288,7 +297,20 @@ diff_dirproc (dir, pos_repos, update_dir)
 }
 
 /*
- * Concoct the proper exit status.
+ * Concoct the proper exit status - done with files
+ */
+/* ARGSUSED */
+static int
+diff_filesdoneproc (err, repos, update_dir)
+    int err;
+    char *repos;
+    char *update_dir;
+{
+    return (diff_errors);
+}
+
+/*
+ * Concoct the proper exit status - leaving directories
  */
 /* ARGSUSED */
 static int
