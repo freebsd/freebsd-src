@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exprep - ACPI AML (p-code) execution - field prep utilities
- *              $Revision: 125 $
+ *              $Revision: 127 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -598,7 +598,7 @@ AcpiExPrepFieldValue (
 
         if (!ObjDesc->IndexField.DataObj || !ObjDesc->IndexField.IndexObj)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Null Index Object\n"));
+            ACPI_REPORT_ERROR (("Null Index Object during field prep\n"));
             return_ACPI_STATUS (AE_AML_INTERNAL);
         }
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbconvrt - ACPI Table conversion utilities
- *              $Revision: 54 $
+ *              $Revision: 56 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -217,12 +217,12 @@ AcpiTbConvertToXsdt (
         if (AcpiGbl_RSDP->Revision < 2)
         {
             ACPI_STORE_ADDRESS (NewTable->TableOffsetEntry[i],
-                ((RSDT_DESCRIPTOR_REV1 *) TableInfo->Pointer)->TableOffsetEntry[i]);
+                (ACPI_CAST_PTR (RSDT_DESCRIPTOR_REV1, TableInfo->Pointer))->TableOffsetEntry[i]);
         }
         else
         {
             NewTable->TableOffsetEntry[i] =
-                ((XSDT_DESCRIPTOR *) TableInfo->Pointer)->TableOffsetEntry[i];
+                (ACPI_CAST_PTR (XSDT_DESCRIPTOR, TableInfo->Pointer))->TableOffsetEntry[i];
         }
     }
 
@@ -232,7 +232,7 @@ AcpiTbConvertToXsdt (
 
     /* Point the table descriptor to the new table */
 
-    TableInfo->Pointer      = (ACPI_TABLE_HEADER *) NewTable;
+    TableInfo->Pointer      = ACPI_CAST_PTR (ACPI_TABLE_HEADER, NewTable);
     TableInfo->Length       = TableSize;
     TableInfo->Allocation   = ACPI_MEM_ALLOCATED;
 
@@ -567,7 +567,7 @@ AcpiTbConvertTableFadt (void)
 
     /* Install the new table */
 
-    TableDesc->Pointer      = (ACPI_TABLE_HEADER *) AcpiGbl_FADT;
+    TableDesc->Pointer      = ACPI_CAST_PTR (ACPI_TABLE_HEADER, AcpiGbl_FADT);
     TableDesc->Allocation   = ACPI_MEM_ALLOCATED;
     TableDesc->Length       = sizeof (FADT_DESCRIPTOR_REV2);
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evregion - ACPI AddressSpace (OpRegion) handler dispatch
- *              $Revision: 146 $
+ *              $Revision: 149 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -127,7 +127,7 @@
 
 #define ACPI_NUM_DEFAULT_SPACES     4
 
-UINT8                   AcpiGbl_DefaultAddressSpaces[ACPI_NUM_DEFAULT_SPACES] = {
+static UINT8        AcpiGbl_DefaultAddressSpaces[ACPI_NUM_DEFAULT_SPACES] = {
                             ACPI_ADR_SPACE_SYSTEM_MEMORY,
                             ACPI_ADR_SPACE_SYSTEM_IO,
                             ACPI_ADR_SPACE_PCI_CONFIG,
@@ -329,7 +329,7 @@ AcpiEvAddressSpaceDispatch (
     HandlerDesc = RegionObj->Region.Handler;
     if (!HandlerDesc)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, 
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
             "No handler for Region [%4.4s] (%p) [%s]\n",
             AcpiUtGetNodeName (RegionObj->Region.Node),
             RegionObj, AcpiUtGetRegionName (RegionObj->Region.SpaceId)));
@@ -630,7 +630,7 @@ AcpiEvAttachRegion (
     ACPI_DEBUG_PRINT ((ACPI_DB_OPREGION,
         "Adding Region [%4.4s] %p to address handler %p [%s]\n",
         AcpiUtGetNodeName (RegionObj->Region.Node),
-        RegionObj, HandlerObj, 
+        RegionObj, HandlerObj,
         AcpiUtGetRegionName (RegionObj->Region.SpaceId)));
 
     /* Link this region to the front of the handler's list */
@@ -811,9 +811,6 @@ AcpiEvRegRun (
     ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_NAMESPACE_NODE     *Node;
     ACPI_STATUS             Status;
-
-
-    ACPI_FUNCTION_NAME ("EvRegRun");
 
 
     HandlerObj = (ACPI_OPERAND_OBJECT  *) Context;

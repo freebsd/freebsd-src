@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acglobal.h - Declarations for global variables
- *       $Revision: 144 $
+ *       $Revision: 147 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -130,6 +130,12 @@
 #define ACPI_EXTERN extern
 #endif
 
+/* 
+ * Keep local copies of these FADT-based registers.  NOTE: These globals
+ * are first in this file for alignment reasons on 64-bit systems.
+ */
+ACPI_EXTERN ACPI_GENERIC_ADDRESS        AcpiGbl_XPm1aEnable;
+ACPI_EXTERN ACPI_GENERIC_ADDRESS        AcpiGbl_XPm1bEnable;
 
 /*****************************************************************************
  *
@@ -170,6 +176,11 @@ ACPI_EXTERN FADT_DESCRIPTOR            *AcpiGbl_FADT;
 ACPI_EXTERN ACPI_TABLE_HEADER          *AcpiGbl_DSDT;
 ACPI_EXTERN FACS_DESCRIPTOR            *AcpiGbl_FACS;
 ACPI_EXTERN ACPI_COMMON_FACS            AcpiGbl_CommonFACS;
+/*
+ * Since there may be multiple SSDTs and PSDTS, a single pointer is not
+ * sufficient; Therefore, there isn't one!
+ */
+
 
 /*
  * Handle both ACPI 1.0 and ACPI 2.0 Integer widths
@@ -179,17 +190,6 @@ ACPI_EXTERN ACPI_COMMON_FACS            AcpiGbl_CommonFACS;
 ACPI_EXTERN UINT8                       AcpiGbl_IntegerBitWidth;
 ACPI_EXTERN UINT8                       AcpiGbl_IntegerByteWidth;
 ACPI_EXTERN UINT8                       AcpiGbl_IntegerNybbleWidth;
-
-/* Keep local copies of these FADT-based registers */
-
-ACPI_EXTERN ACPI_GENERIC_ADDRESS        AcpiGbl_XPm1aEnable;
-ACPI_EXTERN ACPI_GENERIC_ADDRESS        AcpiGbl_XPm1bEnable;
-
-/*
- * Since there may be multiple SSDTs and PSDTS, a single pointer is not
- * sufficient; Therefore, there isn't one!
- */
-
 
 /*
  * ACPI Table info arrays
@@ -238,7 +238,8 @@ ACPI_EXTERN BOOLEAN                     AcpiGbl_EventsInitialized;
 extern BOOLEAN                          AcpiGbl_Shutdown;
 extern UINT32                           AcpiGbl_StartupFlags;
 extern const UINT8                      AcpiGbl_DecodeTo8bit[8];
-extern const char                      *AcpiGbl_DbSleepStates[ACPI_S_STATE_COUNT];
+extern const char                      *AcpiGbl_SleepStateNames[ACPI_S_STATE_COUNT];
+extern const char                      *AcpiGbl_HighestDstateNames[4];
 extern const ACPI_OPCODE_INFO           AcpiGbl_AmlOpInfo[AML_NUM_OPCODES];
 extern const char                      *AcpiGbl_RegionTypes[ACPI_NUM_PREDEFINED_REGIONS];
 
