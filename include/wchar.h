@@ -95,6 +95,11 @@ typedef	_BSD_SIZE_T_	size_t;
 #undef	_BSD_SIZE_T_
 #endif
 
+#ifndef _WCTYPE_T
+typedef long	wctype_t;
+#define _WCTYPE_T
+#endif
+
 #ifndef WEOF
 #define	WEOF 	((wint_t)-1)
 #endif
