@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.38 1998/06/22 08:06:58 kato Exp $
+ *	$Id: npx.c,v 1.39 1998/10/22 05:58:45 bde Exp $
  */
 
 #include "npx.h"
@@ -151,15 +151,17 @@ SYSCTL_INT(_hw,HW_FLOATINGPT, floatingpoint,
 	CTLFLAG_RD, &hw_float, 0, 
 	"Floatingpoint instructions executed in hardware");
 
-static u_int	npx0_imask = SWI_CLOCK_MASK;
+#ifndef SMP
+static	u_int			npx0_imask = SWI_CLOCK_MASK;
+static	struct gate_descriptor	npx_idt_probeintr;
+static	volatile u_int		npx_intrs_while_probing;
+static	volatile u_int		npx_traps_while_probing;
+#endif
 
 static	bool_t			npx_ex16;
 static	bool_t			npx_exists;
-static	struct gate_descriptor	npx_idt_probeintr;
 static	int			npx_intrno;
-static	volatile u_int		npx_intrs_while_probing;
 static	bool_t			npx_irq13;
-static	volatile u_int		npx_traps_while_probing;
 
 #ifndef SMP
 /*
@@ -279,8 +281,10 @@ static int
 npxprobe1(dvp)
 	struct isa_device *dvp;
 {
+#ifndef SMP
 	u_short control;
 	u_short status;
+#endif
 
 	/*
 	 * Partially reset the coprocessor, if any.  Some BIOS's don't reset
