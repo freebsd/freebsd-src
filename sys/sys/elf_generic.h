@@ -60,6 +60,7 @@ __ElfType(Off);
 __ElfType(Sword);
 __ElfType(Word);
 __ElfType(Size);
+__ElfType(Hashelt);
 __ElfType(Ehdr);
 __ElfType(Shdr);
 __ElfType(Phdr);

@@ -44,6 +44,19 @@ typedef u_int64_t	Elf64_Size;
 typedef u_int16_t	Elf64_Quarter;
 
 /*
+ * Types of dynamic symbol hash table bucket and chain elements.
+ *
+ * This is inconsistent among 64 bit architectures, so a machine dependent
+ * typedef is required.
+ */
+
+#ifdef __alpha__
+typedef Elf64_Off	Elf64_Hashelt;
+#else
+typedef Elf64_Half	Elf64_Hashelt;
+#endif
+
+/*
  * ELF header.
  */
 
