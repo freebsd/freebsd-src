@@ -59,7 +59,6 @@
  *
  * NOTE 3: Doesn't interact with leases, should it?
  */
-#include "vn.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
