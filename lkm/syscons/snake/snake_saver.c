@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: snake_saver.c,v 1.7 1995/11/13 07:19:03 bde Exp $
+ *	$Id: snake_saver.c,v 1.8 1995/11/14 07:34:58 bde Exp $
  */
 
 #include <sys/param.h>
@@ -105,7 +105,6 @@ snake_saver_load(struct lkm_table *lkmtp, int cmd)
 	(*current_saver)(0);
 	old_saver = current_saver;
 	current_saver = snake_saver;
-	uprintf("snake screen saver installed\n");
 	return 0;
 }
 
@@ -114,7 +113,6 @@ snake_saver_unload(struct lkm_table *lkmtp, int cmd)
 {
 	(*current_saver)(0);
 	current_saver = old_saver;
-	uprintf("snake screen saver removed\n");
 	return 0;
 }
 
