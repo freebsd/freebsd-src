@@ -257,8 +257,6 @@
 #define _mp_gdtbase			mp_gdtbase
 #define _mp_lock			mp_lock
 #define _mp_ncpus			mp_ncpus
-#define	__mtx_enter_giant_def		_mtx_enter_giant_def
-#define	__mtx_exit_giant_def		_mtx_exit_giant_def
 #define _mul64				mul64
 #define _nfs_diskless			nfs_diskless
 #define _nfs_diskless_valid		nfs_diskless_valid
