@@ -1,7 +1,7 @@
 /* uuconf.h
    Header file for UUCP configuration routines.
 
-   Copyright (C) 1992, 1993, 1994 Ian Lance Taylor
+   Copyright (C) 1992, 1993, 1994, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP uuconf library.
 
@@ -17,7 +17,7 @@
 
    You should have received a copy of the GNU Library General Public
    License along with this library; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The use of an object file which uses material from this header
    file, and from no other portion of the uuconf library, is
@@ -26,7 +26,7 @@
    informative, and does not modify the License in any way).
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #ifndef UUCONF_H
@@ -206,6 +206,12 @@ struct uuconf_system
      other system should transfer at that time.  May be NULL, in which
      case there are no grade restrictions.  */
   struct uuconf_timespan *uuconf_qcalltimegrade;
+  /* The times at which to allow a particular grade of work to be
+     transferred to the system, when it calls in.  The ival field of
+     each uuconf_timespan structure is the lowest grade which should
+     be transferred at that time.  May be NULL, in which case there
+     are no grade restrictions.  */
+  struct uuconf_timespan *uuconf_qcalledtimegrade;
   /* The maximum number of times to retry calling this system.  If
      this is 0, there is no limit.  */
   int uuconf_cmax_retries;
@@ -565,6 +571,10 @@ struct uuconf_dialer
    be b1 - b2.  */
 #define UUCONF_GRADE_CMP(b1, b2) (uuconf_grade_cmp ((b1), (b2)))
 
+/* Definitions for bits returned by uuconf_strip.  */
+#define UUCONF_STRIP_LOGIN (01)
+#define UUCONF_STRIP_PROTO (02)
+
 /* uuconf_runuuxqt returns either a positive number (the number of
    execution files to receive between uuxqt invocations) or one of
    these constant values.  */
@@ -870,6 +880,11 @@ extern int uuconf_debugfile (void *uuconf_pglobal,
    freed.  */
 extern int uuconf_debuglevel (void *uuconf_pglobal,
 			      const char **uuconf_pzdebug);
+
+/* Get a combination of UUCONF_STRIP bits indicating what types of
+   global information should be stripped on input.  */
+extern int uuconf_strip (void *uuconf_pglobal,
+			 int *uuconf_pistrip);
 
 /* Get the maximum number of simultaneous uuxqt executions.  This will
    set *pcmaxuuxqt to the number.  Zero indicates no maximum.  */

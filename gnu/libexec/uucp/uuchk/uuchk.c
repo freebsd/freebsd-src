@@ -1,7 +1,7 @@
 /* uuchk.c
    Display what we think the permissions of systems are.
 
-   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uuchk_rcsid[] = "$Id: uuchk.c,v 1.2 1994/05/07 18:13:37 ache Exp $";
+const char uuchk_rcsid[] = "$Id: uuchk.c,v 1.65 1995/07/18 00:59:30 ian Rel $";
 #endif
 
 #include "getopt.h"
@@ -70,6 +70,7 @@ static const char *zKprogram;
 /* Long getopt options.  */
 static const struct option asKlongopts[] =
 {
+  { "system", required_argument, NULL,'s' },
   { "config", required_argument, NULL, 'I' },
   { "debug", required_argument, NULL, 'x' },
   { "version", no_argument, NULL, 'v' },
@@ -83,19 +84,23 @@ main (argc, argv)
      char **argv;
 {
   int iopt;
-  /* The configuration file name.  */
+  const char *zsystem = NULL;
   const char *zconfig = NULL;
   int iret;
   pointer puuconf;
-  char **pzsystems;
 
   zKprogram = argv[0];
 
-  while ((iopt = getopt_long (argc, argv, "I:vx:", asKlongopts,
+  while ((iopt = getopt_long (argc, argv, "I:s:vx:", asKlongopts,
 			      (int *) NULL)) != EOF)
     {
       switch (iopt)
 	{
+	case 's':
+	  /* Examine specific system.  */
+	  zsystem = optarg;
+	  break;
+
 	case 'I':
 	  /* Set the configuration file name.  */
 	  zconfig = optarg;
@@ -108,11 +113,11 @@ main (argc, argv)
 
 	case 'v':
 	  /* Print version and exit.  */
-	  printf ("%s: Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+	  printf ("%s: Taylor UUCP %s, copyright (C) 1991, 92, 93, 94, 1995 Ian Lance Taylor\n",
 		  zKprogram, VERSION);
 	  exit (EXIT_SUCCESS);
 	  /*NOTREACHED*/
-
+	  
 	case 1:
 	  /* --help.  */
 	  ukhelp ();
@@ -139,29 +144,132 @@ main (argc, argv)
   if (iret != UUCONF_SUCCESS)
     ukuuconf_error (puuconf, iret);
 
-  iret = uuconf_system_names (puuconf, &pzsystems, FALSE);
-  if (iret != UUCONF_SUCCESS)
-    ukuuconf_error (puuconf, iret);
-
-  if (*pzsystems == NULL)
-    {
-      fprintf (stderr, "%s: no systems found\n", zKprogram);
-      exit (EXIT_FAILURE);
-    }
-
-  while (*pzsystems != NULL)
+  if (zsystem != NULL)
     {
       struct uuconf_system ssys;
 
-      iret = uuconf_system_info (puuconf, *pzsystems, &ssys);
+      iret = uuconf_system_info (puuconf, zsystem, &ssys);
+      if (iret == UUCONF_NOT_FOUND)
+	{
+	  fprintf (stderr, "%s: system not found\n", zsystem);
+	  exit (EXIT_FAILURE);
+	}
+      else if (iret != UUCONF_SUCCESS)
+	ukuuconf_error (puuconf, iret);
+
+      ukshow (&ssys, puuconf);
+      (void) uuconf_system_free (puuconf, &ssys);
+    }
+  else
+    {
+      const char *zstr;
+      int iint;
+      char **pzsystems;
+
+      iret = uuconf_localname (puuconf, &zstr);
+      if (iret == UUCONF_SUCCESS)
+	printf ("Local node name %s\n", zstr);
+      else if (iret != UUCONF_NOT_FOUND)
+	ukuuconf_error (puuconf, iret);
+
+      iret = uuconf_spooldir (puuconf, &zstr);
       if (iret != UUCONF_SUCCESS)
 	ukuuconf_error (puuconf, iret);
+      printf ("Spool directory %s\n", zstr);
+
+      iret = uuconf_pubdir (puuconf, &zstr);
+      if (iret != UUCONF_SUCCESS)
+	ukuuconf_error (puuconf, iret);
+      printf ("Public directory %s\n", zstr);
+
+      iret = uuconf_lockdir (puuconf, &zstr);
+      if (iret != UUCONF_SUCCESS)
+	ukuuconf_error (puuconf, iret);
+      printf ("Lock directory %s\n", zstr);
+
+      iret = uuconf_logfile (puuconf, &zstr);
+      if (iret != UUCONF_SUCCESS)
+	ukuuconf_error (puuconf, iret);
+      printf ("Log file %s\n", zstr);
+
+      iret = uuconf_statsfile (puuconf, &zstr);
+      if (iret != UUCONF_SUCCESS)
+	ukuuconf_error (puuconf, iret);
+      printf ("Statistics file %s\n", zstr);
+
+      iret = uuconf_debugfile (puuconf, &zstr);
+      if (iret != UUCONF_SUCCESS)
+	ukuuconf_error (puuconf, iret);
+      printf ("Debug file %s\n", zstr);
+
+      iret = uuconf_debuglevel (puuconf, &zstr);
+      if (iret != UUCONF_SUCCESS)
+	ukuuconf_error (puuconf, iret);
+      if (zstr != NULL)
+	printf ("Global debugging level %s\n", zstr);
+
+      iret = uuconf_strip (puuconf, &iint);
+      if (iret != UUCONF_SUCCESS)
+	ukuuconf_error (puuconf, iret);
+      printf ("uucico -l will %sstrip login names and passwords\n",
+	      (iint & UUCONF_STRIP_LOGIN) != 0 ? "" : "not ");
+      printf ("uucico will %sstrip UUCP protocol commands\n",
+	      (iint & UUCONF_STRIP_PROTO) != 0 ? "" : "not ");
+
+      iret = uuconf_maxuuxqts (puuconf, &iint);
+      if (iret != UUCONF_SUCCESS)
+	ukuuconf_error (puuconf, iret);
+      if (iint != 0)
+	printf ("Maximum number of uuxqt processes permitted %d\n", iint);
+
+      iret = uuconf_runuuxqt (puuconf, &iint);
+      if (iret != UUCONF_SUCCESS)
+	ukuuconf_error (puuconf, iret);
+      if (iint > 0)
+	printf ("Start uuxqt every %d jobs\n", iint);
       else
-	ukshow (&ssys, puuconf);
-      (void) uuconf_system_free (puuconf, &ssys);
-      ++pzsystems;
-      if (*pzsystems != NULL)
-	printf ("\n");
+	{
+	  switch (iint)
+	    {
+	    case UUCONF_RUNUUXQT_NEVER:
+	      printf ("Never start uuxqt\n");
+	      break;
+	    case UUCONF_RUNUUXQT_ONCE:
+	      printf ("Start uuxqt once per uucico invocation\n");
+	      break;
+	    case UUCONF_RUNUUXQT_PERCALL:
+	      printf ("Start uuxqt once per call\n");
+	      break;
+	    default:
+	      fprintf (stderr, "Illegal value from uuconf_runuuxqt\n");
+	      exit (EXIT_FAILURE);
+	      break;
+	    }
+	}
+
+      iret = uuconf_system_names (puuconf, &pzsystems, FALSE);
+      if (iret != UUCONF_SUCCESS)
+	ukuuconf_error (puuconf, iret);
+
+      if (*pzsystems == NULL)
+	{
+	  fprintf (stderr, "%s: no systems found\n", zKprogram);
+	  exit (EXIT_FAILURE);
+	}
+
+      while (*pzsystems != NULL)
+	{
+	  struct uuconf_system ssys;
+
+	  printf ("\n");
+	  iret = uuconf_system_info (puuconf, *pzsystems, &ssys);
+	  if (iret != UUCONF_SUCCESS)
+	    ukuuconf_error (puuconf, iret);
+	  else
+	    ukshow (&ssys, puuconf);
+	  (void) uuconf_system_free (puuconf, &ssys);
+	  ++pzsystems;
+	}
     }
 
   exit (EXIT_SUCCESS);
@@ -174,7 +282,7 @@ main (argc, argv)
 
 static void ukusage ()
 {
-  fprintf (stderr, "Usage: %s [{-I,--config} file]\n", zKprogram);
+  fprintf (stderr, "Usage: %s [-s system] [-I file]\n", zKprogram);
   fprintf (stderr, "Use %s --help for help\n", zKprogram);
   exit (EXIT_FAILURE);
 }
@@ -184,10 +292,10 @@ static void ukusage ()
 static void
 ukhelp ()
 {
-  printf ("Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+  printf ("Taylor UUCP %s, copyright (C) 1991, 92, 93, 94, 1995 Ian Lance Taylor\n",
 	  VERSION);
-  printf ("Usage: %s [{-I,--config} file] [-v] [--version] [--help]\n",
-	  zKprogram);
+  printf ("Usage: %s [-s system] [-I file] [-v]\n", zKprogram);
+  printf (" -s,--system system: Only print configuration for named system\n");
   printf (" -I,--config file: Set configuration file to use\n");
   printf (" -v,--version: Print version and exit\n");
   printf (" --help: Print help and exit\n");
@@ -203,6 +311,7 @@ ukshow (qsys, puuconf)
   char **pz;
   int i;
   int iret;
+  boolean fanycall;
 
   printf ("System: %s", qsys->uuconf_zname);
   if (qsys->uuconf_pzalias != NULL)
@@ -218,6 +327,7 @@ ukshow (qsys, puuconf)
     }
   printf ("\n");
 
+  fanycall = FALSE;
   for (i = 0; qsys != NULL; qsys = qsys->uuconf_qalternate, i++)
     {
       boolean fcall, fcalled;
@@ -244,6 +354,9 @@ ukshow (qsys, puuconf)
 	  printf (" This alternate is never used\n");
 	  continue;
 	}
+
+      if (fcall)
+	fanycall = TRUE;
 
       if (fcalled)
 	{
@@ -279,7 +392,7 @@ ukshow (qsys, puuconf)
 	    printf (" Call out");
 	  else
 	    printf (" This alternate applies when calling");
-
+	  
 	  if (qsys->uuconf_zport != NULL || qsys->uuconf_qport != NULL)
 	    {
 	      printf (" using ");
@@ -389,6 +502,10 @@ ukshow (qsys, puuconf)
 	      printf ("\n");
 	    }
 
+	  if (qsys->uuconf_cmax_retries > 0)
+	    printf (" May retry the call up to %d times\n",
+		    qsys->uuconf_cmax_retries);
+
 	  if (qsys->uuconf_qcalltimegrade != NULL)
 	    {
 	      boolean fprint, fother;
@@ -426,6 +543,50 @@ ukshow (qsys, puuconf)
 		printf (" (At other times may accept any work)\n");
 	    }
 	}
+
+      if (fcalled)
+	{
+	  if (qsys->uuconf_qcalledtimegrade != NULL)
+	    {
+	      boolean fprint, fother;
+
+	      qtime = qcompress_span (qsys->uuconf_qcalledtimegrade);
+	      fprint = FALSE;
+	      fother = FALSE;
+	      if (qtime->uuconf_istart != 0)
+		fother = TRUE;
+	      for (qspan = qtime; qspan != NULL; qspan = qspan->uuconf_qnext)
+		{
+		  if ((char) qspan->uuconf_ival == UUCONF_GRADE_LOW)
+		    {
+		      fother = TRUE;
+		      continue;
+		    }
+		  fprint = TRUE;
+		  printf (" ");
+		  ukshow_time (qspan);
+		  printf (" will send work grade %c or higher\n",
+			  (char) qspan->uuconf_ival);
+		  if (qspan->uuconf_qnext == NULL)
+		    {
+		      if (qspan->uuconf_iend != 7 * 24 * 60)
+			fother = TRUE;
+		    }
+		  else
+		    {
+		      if (qspan->uuconf_iend
+			  != qspan->uuconf_qnext->uuconf_istart)
+			fother = TRUE;
+		    }
+		}
+	      if (fprint && fother)
+		printf (" (At other times will send any work)\n");
+	    }
+	}
+
+      if (fcall && qsys->uuconf_csuccess_wait != 0)
+	printf (" Will wait %d seconds after a successful call\n",
+		qsys->uuconf_csuccess_wait);
 
       if (qsys->uuconf_fsequence)
 	printf (" Sequence numbers are used\n");
@@ -514,7 +675,7 @@ ukshow (qsys, puuconf)
 	    printf (" %s", *pz);
 	  printf ("\n");
 	}
-
+	  
       if (qsys->uuconf_pzforward_to != NULL)
 	{
 	  printf (" May forward to");
@@ -522,7 +683,7 @@ ukshow (qsys, puuconf)
 	    printf (" %s", *pz);
 	  printf ("\n");
 	}
-
+	  
       if (qsys->uuconf_zprotocols != NULL)
 	printf (" Will use protocols %s\n", qsys->uuconf_zprotocols);
       else
@@ -531,6 +692,9 @@ ukshow (qsys, puuconf)
       if (qsys->uuconf_qproto_params != NULL)
 	ukshow_proto_params (qsys->uuconf_qproto_params, 1);
     }
+
+  if (! fanycall)
+    printf (" Calls will never be placed to this system\n");
 }
 
 /* Show information about a port.  */

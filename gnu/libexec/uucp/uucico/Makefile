@@ -1,5 +1,5 @@
 # Makefile for uucico
-# $Id: Makefile,v 1.6 1994/05/31 15:55:43 ache Exp $
+# $Id: Makefile,v 1.7 1995/05/13 12:29:57 ache Exp $
 
 BINDIR=         $(libxdir)
 BINOWN=		$(owner)
@@ -7,8 +7,8 @@ BINMODE=        4555
 
 PROG=		uucico
 SRCS=		uucico.c trans.c send.c rec.c xcmd.c prot.c protg.c protf.c \
-		prott.c prote.c proti.c protj.c protz.c time.c chat.c \
-		conn.c copy.c log.c tcp.c tli.c util.c
+		prott.c prote.c proti.c protj.c proty.c protz.c time.c log.c \
+		chat.c conn.c util.c copy.c
 LDADD+=		$(LIBUNIX) $(LIBUUCONF) $(LIBUUCP)
 DPADD+=		$(LIBUNIX) $(LIBUUCONF) $(LIBUUCP)
 CFLAGS+=	-I$(.CURDIR)/../common_sources\

@@ -1,7 +1,7 @@
 /* cu.c
    Call up a remote system.
 
-   Copyright (C) 1992, 1993, 1994 Ian Lance Taylor
+   Copyright (C) 1992, 1993, 1994, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char cu_rcsid[] = "$Id: cu.c,v 1.3 1994/10/02 23:10:39 ache Exp $";
+const char cu_rcsid[] = "$Id: cu.c,v 1.42 1995/08/02 01:19:50 ian Rel $";
 #endif
 
 #include "cu.h"
@@ -213,6 +213,7 @@ static boolean fcusend_buf P((struct sconnection *qconn, const char *zbuf,
 static const struct option asCulongopts[] =
 {
   { "phone", required_argument, NULL, 'c' },
+  { "escape", required_argument, NULL, 'E' },
   { "parity", required_argument, NULL, 2 },
   { "halfduplex", no_argument, NULL, 'h' },
   { "prompt", no_argument, NULL, 'n' },
@@ -221,6 +222,7 @@ static const struct option asCulongopts[] =
   { "speed", required_argument, NULL, 's' },
   { "baud", required_argument, NULL, 's' },
   { "mapcr", no_argument, NULL, 't' },
+  { "nostop", no_argument, NULL, 3 },
   { "system", required_argument, NULL, 'z' },
   { "config", required_argument, NULL, 'I' },
   { "debug", required_argument, NULL, 'x' },
@@ -252,6 +254,8 @@ main (argc, argv)
   boolean fmapcr = FALSE;
   /* -z: system.  */
   const char *zsystem = NULL;
+  /* --nostop: turn off XON/XOFF.  */
+  enum txonxoffsetting txonxoff = XONXOFF_ON;
   /* -I: configuration file name.  */
   const char *zconfig = NULL;
   int iopt;
@@ -291,7 +295,7 @@ main (argc, argv)
 	}
     }
 
-  while ((iopt = getopt_long (argc, argv, "a:c:dehnI:l:op:s:tvx:z:",
+  while ((iopt = getopt_long (argc, argv, "a:c:deE:hnI:l:op:s:tvx:z:",
 			      asCulongopts, (int *) NULL)) != EOF)
     {
       switch (iopt)
@@ -311,6 +315,11 @@ main (argc, argv)
 	case 'e':
 	  /* Even parity.  */
 	  feven = TRUE;
+	  break;
+
+	case 'E':
+	  /* Escape character.  */
+	  zCuvar_escape = optarg;
 	  break;
 
 	case 'h':
@@ -371,7 +380,7 @@ main (argc, argv)
 	  /* Print version and exit.  */
 	  fprintf
 	    (stderr,
-	     "%s: Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+	     "%s: Taylor UUCP %s, copyright (C) 1991, 92, 93, 94, 1995 Ian Lance Taylor\n",
 	     zProgram, VERSION);
 	  exit (EXIT_SUCCESS);
 	  /*NOTREACHED*/
@@ -393,6 +402,11 @@ main (argc, argv)
 		       zProgram);
 	      ucuusage ();
 	    }
+	  break;
+
+	case 3:
+	  /* --nostop.  */
+	  txonxoff = XONXOFF_OFF;
 	  break;
 
 	case 1:
@@ -531,6 +545,7 @@ main (argc, argv)
     {
       enum tparitysetting tparity;
       enum tstripsetting tstrip;
+      long iusebaud;
 
       /* The uuconf_find_port function only selects directly on a port
 	 name and a speed.  To select based on the line name, we use a
@@ -599,6 +614,7 @@ main (argc, argv)
 	      if (! fsysdep_port_access (&sport))
 		ulog (LOG_FATAL, "%s: Permission denied", zline);
 	    }
+	  iusebaud = ibaud;
 	  ihighbaud = 0L;
 	}
       else
@@ -660,12 +676,12 @@ main (argc, argv)
 		ulog (LOG_FATAL, "%s: No %smatching ports", zsystem, zrem);
 	    }
 
-	  ibaud = qsys->uuconf_ibaud;
+	  iusebaud = qsys->uuconf_ibaud;
 	  ihighbaud = qsys->uuconf_ihighbaud;
 	}
 
       /* Here we have locked a connection to use.  */
-      if (! fconn_open (&sconn, ibaud, ihighbaud, FALSE))
+      if (! fconn_open (&sconn, iusebaud, ihighbaud, FALSE))
 	ucuabort ();
 
       fCuclose_conn = TRUE;
@@ -695,7 +711,7 @@ main (argc, argv)
 	  tstrip = STRIPSETTING_DEFAULT;
 	}
 
-      if (! fconn_set (&sconn, tparity, tstrip, XONXOFF_ON))
+      if (! fconn_set (&sconn, tparity, tstrip, txonxoff))
 	ucuabort ();
 
       if (qsys != NULL)
@@ -815,7 +831,7 @@ static void
 ucuhelp ()
 {
   fprintf (stderr,
-	   "Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+	   "Taylor UUCP %s, copyright (C) 1991, 92, 93, 94, 1995 Ian Lance Taylor\n",
 	   VERSION);
   fprintf (stderr,
 	   "Usage: %s [options] [system or phone-number]\n", zProgram);
@@ -836,7 +852,11 @@ ucuhelp ()
   fprintf (stderr,
 	   " --parity={odd,even}: Set parity\n");
   fprintf (stderr,
+	   " -E,--escape char: Set escape character\n");
+  fprintf (stderr,
 	   " -h,--halfduplex: Echo locally\n");
+  fprintf (stderr,
+	   " --nostop: Turn off XON/XOFF handling\n");
   fprintf (stderr,
 	   " -t,--mapcr: Map carriage return to carriage return/linefeed\n");
   fprintf (stderr,
@@ -1012,7 +1032,7 @@ fcudo_cmd (puuconf, qconn, bcmd)
     {
     default:
       if (! isprint (*zCuvar_escape))
-	sprintf (abescape, "\\%03o", (unsigned int) *zCuvar_escape);
+	sprintf (abescape, "\\%03o", BUCHAR (*zCuvar_escape));
       else
 	{
 	  abescape[0] = *zCuvar_escape;
@@ -1047,7 +1067,7 @@ fcudo_cmd (puuconf, qconn, bcmd)
 	  case '|': t = SHELL_STDIN_FROM_PORT; break;
 	  case '+': t = SHELL_STDIO_ON_PORT; break;
 	  }
-
+	  
 	(void) fsysdep_shell (qconn, zline, t);
       }
       if (! fsysdep_cu_copy (TRUE)
@@ -1098,7 +1118,7 @@ fcudo_cmd (puuconf, qconn, bcmd)
 	ucuabort ();
       fCurestore_terminal = TRUE;
       return TRUE;
-
+      
     case 's':
       fret = fcuset_var (puuconf, zline);
       ubuffree (zline);
@@ -1110,7 +1130,7 @@ fcudo_cmd (puuconf, qconn, bcmd)
 
     case '?':
       if (! isprint (*zCuvar_escape))
-	sprintf (abescape, "\\%03o", (unsigned int) *zCuvar_escape);
+	sprintf (abescape, "\\%03o", BUCHAR (*zCuvar_escape));
       else
 	{
 	  abescape[0] = *zCuvar_escape;
@@ -1192,7 +1212,6 @@ fcuset_var (puuconf, zline)
 {
   char *zvar, *zval;
   char *azargs[2];
-  char azbool[2];
   int iuuconf;
 
   zvar = strtok (zline, "= \t");
@@ -1208,25 +1227,27 @@ fcuset_var (puuconf, zline)
     {
       azargs[0] = zvar;
       if (azargs[0][0] != '!')
-	azbool[0] = 't';
+	azargs[1] = zbufcpy ("t");
       else
 	{
 	  ++azargs[0];
-	  azbool[0] = 'f';
+	  azargs[1] = zbufcpy ("f");
 	}
-      azbool[1] = '\0';
-      azargs[1] = azbool;
     }
   else
     {
       azargs[0] = zvar;
-      azargs[1] = zval;
+      azargs[1] = zbufcpy (zval);
     }
 
   iuuconf = uuconf_cmd_args (puuconf, 2, azargs, asCuvars,
 			     (pointer) NULL, icuunrecogvar, 0,
 			     (pointer) NULL);
-  if (iuuconf != UUCONF_SUCCESS)
+
+  if ((iuuconf & UUCONF_CMDTABRET_KEEP) == 0)
+    ubuffree (azargs[1]);
+
+  if ((iuuconf &~ UUCONF_CMDTABRET_KEEP) != UUCONF_SUCCESS)
     ulog_uuconf (LOG_ERROR, puuconf, iuuconf);
 
   return TRUE;
@@ -1246,7 +1267,7 @@ icuunrecogvar (puuconf, argc, argv, pvar, pinfo)
   char abescape[5];
 
   if (! isprint (*zCuvar_escape))
-    sprintf (abescape, "\\%03o", (unsigned int) *zCuvar_escape);
+    sprintf (abescape, "\\%03o", BUCHAR (*zCuvar_escape));
   else
     {
       abescape[0] = *zCuvar_escape;
@@ -1301,7 +1322,7 @@ uculist_vars ()
 
 		if (! isprint (*z))
 		  {
-		    sprintf (abchar, "\\%03o", (unsigned int) *z);
+		    sprintf (abchar, "\\%03o", BUCHAR (*z));
 		    cchar = 4;
 		  }
 		else
@@ -1413,7 +1434,7 @@ icuunrecogfn (puuconf, argc, argv, pvar, pinfo)
   char abescape[5];
 
   if (! isprint (*zCuvar_escape))
-    sprintf (abescape, "\\%03o", (unsigned int) *zCuvar_escape);
+    sprintf (abescape, "\\%03o", BUCHAR (*zCuvar_escape));
   else
     {
       abescape[0] = *zCuvar_escape;
@@ -1651,7 +1672,7 @@ icuput (puuconf, argc, argv, pvar, pinfo)
 	  if (ffileeof (e))
 	    break;
 	  c = cfileread (e, abbuf, sizeof abbuf);
-	  if (ffilereaderror (e, c))
+	  if (ffileioerror (e, c))
 	    {
 	      ucuputs ("[file read error]");
 	      break;
@@ -1827,8 +1848,6 @@ icutake (puuconf, argc, argv, pvar, pinfo)
       return UUCONF_CMDTABRET_CONTINUE;
     }
 
-  ubuffree (zto);
-
   if (! fsysdep_cu_copy (FALSE)
       || ! fsysdep_terminal_signals (TRUE))
     ucuabort ();
@@ -1860,6 +1879,7 @@ icutake (puuconf, argc, argv, pvar, pinfo)
 	    {
 	      ucuputs ("[timed out waiting for newline]");
 	      ucuputs (abCuconnected);
+	      ubuffree (zto);
 	      return UUCONF_CMDTABRET_CONTINUE;
 	    }
 	}
@@ -1883,7 +1903,7 @@ icutake (puuconf, argc, argv, pvar, pinfo)
 	     the future.  */
 	  afSignal[INDEXSIG_SIGINT] = FALSE;
 	  break;
-	}
+	}	
 
       b = breceive_char (qconn, cCuvar_timeout, TRUE);
       if (b == -2)
@@ -1896,7 +1916,7 @@ icutake (puuconf, argc, argv, pvar, pinfo)
 	  break;
 	}
 
-      if (b == '\r')
+      if (b == '\r' && ! fCuvar_binary)
 	continue;
 
       if (ceoflen == 0)
@@ -1941,8 +1961,16 @@ icutake (puuconf, argc, argv, pvar, pinfo)
 
   ubuffree (zlook);
 
-  if (! ffileclose (e))
-    ferr = TRUE;
+  if (! fsysdep_sync (e, zto))
+    {
+      (void) ffileclose (e);
+      ferr = TRUE;
+    }
+  else
+    {
+      if (! ffileclose (e))
+	ferr = TRUE;
+    }
   if (ferr)
     ucuputs ("[file write error]");
 
@@ -1951,6 +1979,8 @@ icutake (puuconf, argc, argv, pvar, pinfo)
     ucuabort ();
 
   ucuputs (abCuconnected);
+
+  ubuffree (zto);
 
   return UUCONF_CMDTABRET_CONTINUE;
 }
@@ -2055,7 +2085,7 @@ fcusend_buf (qconn, zbufarg, cbufarg)
 	      *zput++ = *zget;
 	    }
 	}
-
+		
       zbuf += csend;
       cbuf -= csend;
 

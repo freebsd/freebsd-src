@@ -1,7 +1,7 @@
 /* callin.c
    Check a login name and password against the UUCP password file.
 
-   Copyright (C) 1992, 1993 Ian Lance Taylor
+   Copyright (C) 1992, 1993, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP uuconf library.
 
@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU Library General Public
    License along with this library; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_callin_rcsid[] = "$Id: callin.c,v 1.2 1994/05/07 18:11:58 ache Exp $";
+const char _uuconf_callin_rcsid[] = "$Id: callin.c,v 1.11 1995/06/21 19:21:42 ian Rel $";
 #endif
 
 #include <errno.h>
@@ -109,20 +109,31 @@ uuconf_callin (pglobal, pcmpfn, pinfo)
 
       while (getline (&zline, &cline, e) > 0)
 	{
-	  char *zcolon;
+	  char *z0, *z1;
 
 	  ++qglobal->ilineno;
 
-	  /* Turn the first two colon characters into spaces.  This is
-	     a hack to make Unix style passwd files work.  */
-	  zcolon = strchr (zline, ':');
-	  if (zcolon != NULL)
+	  /* We have a few hacks to make Unix style passwd files work.
+	     1) We turn the first two colon characters into spaces.
+	     2) If the colon characters are adjacent, we assume there
+	        is no password, and we skip the entry.
+	     3) If the password between colon characters contains a
+	        space, we assume that it has been disabled, and we
+		skip the entry.  */
+	  z0 = strchr (zline, ':');
+	  if (z0 != NULL)
 	    {
-	      *zcolon = ' ';
-	      zcolon = strchr (zcolon, ':');
-	      if (zcolon != NULL)
-		*zcolon = ' ';
-	    }
+	      *z0 = ' ';
+	      z1 = strchr (z0, ':');
+	      if (z1 != NULL)
+		{
+		  if (z1 - z0 == 1)
+		    continue;
+		  *z1 = '\0';
+		  if (strchr (z0 + 1, ' ') != NULL)
+		    continue;
+		}
+	    }		  
 	  iret = uuconf_cmd_line (pglobal, zline, as, (pointer) &s,
 				  ipcheck, 0, (pointer) NULL);
 	  if ((iret & UUCONF_CMDTABRET_EXIT) != 0)

@@ -1,5 +1,5 @@
-''' $Id: cu.1,v 1.2 1994/05/07 18:09:51 ache Exp $
-.TH cu 1 "Taylor UUCP 1.05"
+''' $Id: cu.1,v 1.9 1995/08/02 00:16:58 ian Rel $
+.TH cu 1 "Taylor UUCP 1.06"
 .SH NAME
 cu \- Call up another system
 .SH SYNOPSIS
@@ -169,7 +169,7 @@ returns.  The default is false.
 A string used before sending a binary character in a file transfer, if
 the
 .B binary
-variable is true.  The default is ^Z.
+variable is true.  The default is ^V.
 .TP 5
 .B echo-check
 Whether to check file transfers by examining what the remote system
@@ -228,6 +228,15 @@ are given.
 .B \-h, \-\-halfduplex
 Echo characters locally (half-duplex mode).
 .TP 5
+.B \-\-nostop
+Turn off XON/XOFF handling (it is on by default).
+.TP 5
+.B \-E char, \-\-escape char
+Set the escape character.  Initially
+.B ~
+(tilde).  To eliminate the escape character, use
+.B -E ''.
+.TP 5
 .B \-z system, \-\-system system
 The system to call.
 .TP 5
@@ -258,7 +267,7 @@ Prompt for the phone number to use.
 .TP 5
 .B \-d
 Enter debugging mode.  Equivalent to
-.B \-debug all.
+.B \-\-debug all.
 .TP 5
 .B \-x type, \-\-debug type
 Turn on particular debugging types.  The following types are

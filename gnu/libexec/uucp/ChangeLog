@@ -1,3 +1,656 @@
+Thu Aug 10 22:42:53 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* Released version 1.06.
+
+	* uuconf/tsinfo.c (_uuconf_itaylor_system_internal): Don't set
+	uuconf_fcall merely because uuconf_qtimegrade is not set.  Check
+	values against _uuconf_unset, not NULL.
+
+	* trans.c (fgot_data): Only log when data comes in if fsendfile is
+	FALSE.
+
+Wed Aug  9 20:52:29 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* Makefile.in (VERSION): Change to 1.06.
+
+Tue Aug  1 20:13:36 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* uuconf/tsinfo.c (_uuconf_itaylor_system_internal): Set the fcall
+	field for the first alternate if it has some way of selecting a
+	port.
+
+	* Ard van Breemen: unix/serial.c (fsserial_hardflow): Add support
+	for NCR Tower using IRTS.
+
+	* policy.h (FSYNC_ON_CLOSE): Define.
+	* system.h (fsysdep_sync): Declare.
+	* uucp.h (fstdiosync): Define, twice.
+	* unix/sync.c: New file.
+	* copy.c (fcopy_open_file): Call fsysdep_sync.
+	* cu.c (icutake): Likewise.
+	* rec.c (frec_file_end): Likewise.
+	(frec_file_end): Call fstdiosync.
+	* uucp.c (uccopy): Likewise.
+	* uux.c (main): Likewise.
+	(uxadd_send_file): Likewise.
+	* unix/splcmd.c (zsysdep_spool_commands): Likewise.
+	* unix/Makefile.in (OBJS): Add sync.o.
+	(sync.o): New target.
+
+	* Peter Wemm: unix/filnam.c (fscmd_seq): Increase the delay each
+	time an attempt to lock LCK..SEQ fails.
+
+	* Peter Wemm: uustat.c (fsnotify): Escape a leading "From " when
+	including standard input in a mail message.
+
+Mon Jul 31 22:45:23 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* unix/serial.c (fsserial_lockfile): In the HAVE_SVR4_LOCKFILES
+	case, increase the space allocated to print the major and minor
+	numbers.
+
+Sun Jul 30 22:30:51 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* trans.c (fgot_data): Log a message as soon as anything comes in,
+	not just for file data.
+
+	* prote.c (feprocess_data): Handle a zero length file.
+
+Wed Jul 19 00:14:46 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* unix/xqtfil.c (fSone_dir): New static variable.
+	(fsysdep_get_xqt_init): Add zsystem argument.
+	(zsysdep_get_xqt): Likewise.
+	(usysdep_get_xqt_free): Likewise.
+	* system.h (fsysdep_get_xqt_init): Update declaration.
+	(zsysdep_get_xqt): Likewise.
+	(usysdep_get_xqt_free): Likewise.
+	* uuxqt.c (main): Pass zdosys for system to get_xqt routines.
+	* uustat.c (fsexecutions): Pass NULL for system to get_xqt
+	routines.
+	(fsquery): Likewise.
+
+	* uux.c (main): If we are not starting uucico, and we queued a
+	local execution, start uuxqt.
+
+Tue Jul 18 22:33:08 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* uuxqt.c (REMOVE_QINPUT): Define.
+	(uqdo_xqt_file): Set REMOVE_QINPUT if zQinput is in the spool
+	directory.
+	(isave_files): If REMOVE_QINPUT is set, save the input file.
+	(uqcleanup): If REMOVE_QINPUT and REMOVE_NEEDED are set, remove
+	the input file.
+
+Mon Jul 17 20:59:20 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* uuchk.c (ukshow): Add missing \n.
+
+Sun Jul 16 12:02:03 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* Makefile.in (TEXI2HTML): Define.
+	(doc-dist): Depend upon uucp.html; put HTML files in documentation
+	distribution.
+	(html, uucp.html): New targets.
+
+Mon Jul 10 20:24:48 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* unix/lcksys.c: Rewrite to not truncate the system name in the
+	lock file name, unless HAVE_LONG_FILE_NAMES is 0.
+
+Sat Jul  8 13:41:26 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* Andrey A. Chernov: cu.c (ucuhelp): Mention -E.
+	(fcudo_cmd): Use BUCHAR rather than casting to unsigned int.
+	(icuunrecogvar): Likewise.
+	(uculist_vars): Likewise.
+	(icuunrecogfn): Likewise.
+	* lib/getopt.c (_getopt_internal): Likewise.
+
+	* Andrey A. Chernov: Makefile.in (infodir): Changed commented out
+	setting from share/doc to share/info.
+
+	* Godfrey van der Linden: unix/serial.c (fsysdep_conn_io): Base
+	select or alarm timeout on connection speed.
+
+	* configure.in: Move AC_PREFIX_PROGRAM before AC_PROG_CC.
+	* configure: Rebuild.
+
+	* policy.h (HAVE_BROKEN_SETLKW): Add new define.
+	* unix/filnam.c (USE_POSIX_LOCKS): Don't set if HAVE_BROKEN_SETLKW
+	is set.
+	(fscmd_seq): If the F_SETLKW call returns EINVAL, revert to using
+	lock files.
+
+	* unix/spawn.c (ixsspawn): If setreuid is available, use it,
+	rather than setuid, to set the real user ID to the effective user
+	ID.
+
+	* Thomas Mechtersheimer: uuchk.c (main): Correct typo (iret for
+	iint).
+
+	* Bob Thrush: unix/serial.c (fsserial_hardflow): Correct typo
+	(c_cflags for c_cflag).
+
+	* configure.in: Check for sys/statvfs.h.  Check for memset,
+	memcmp, and memcpy with the correct argument types (apparently
+	some systems require this).
+	* config.h.in (HAVE_SYS_STATVFS_H): Define.
+	* configure: Rebuild.
+
+Mon Jul  3 00:26:50 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* Released version beta 1.06.
+
+Sun Jul  2 10:39:40 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* configure.in: Add AC_OUTPUT code to touch stamp-h when
+	rebuilding config.h.
+	* Makefile.in (stamp-h): Remove ``echo > stamp-h''.
+
+	* Makefile.in (dist): Fix for srcdir != objdir.
+	* unix/Makefile.in (dist): Likewise.
+	* uuconf/Makefile.in (dist): Likewise.
+	* lib/Makefile.in (dist): Likewise.
+
+Sat Jul  1 13:42:35 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* configure.in: Check for termios.h.
+	* config.h.in (HAVE_TERMIOS_H): Mention.
+	* policy.h: Set HAVE_POSIX_TERMIOS if HAVE_TERMIOS_H.
+
+Fri Jun 30 09:24:13 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* uux.c (zXxqt_name): Remove.
+	(fXxqtlocal): New static variable; replaces local fxqtlocal.
+	(sXxqtsys): New static variable; replaces local sxqtsys.
+	(zXxqtloc): New static variable; replaces local zxqtloc.
+	(bXgrade): New static variable; replaces local bgrade.
+	(abXxqt_tname): New static variable; replaces local abxqt_tname.
+	(abXxqt_xname): New static variable; replaces local abxqt_xname.
+	(main): Use new static variables instead of locals.  Don't set
+	zXxqt_name.
+	(uxadd_xqt_line): Get file name here before opening file.
+	(uxadd_send_file): Remove parameters qxqtsys, zxqtloc, and bgrade.
+	Change all callers.
+
+	* unix/filnam.c (usput62): New static function.
+	(zscmd_file): When SPOOLDIR_TAYLOR, use a different algorithm
+	which does not read the sequence file.
+	* unix/splcmd.c (zsysdep_spool_commands): Return value of
+	zscmd_file might already exist; handle that case.
+	* unix/jobid.c (zsfile_to_jobid): Change jobid format when
+	SPOOLDIR_TAYLOR, since sequence number is now much longer.
+	(zsjobid_to_file): Corresponding change.
+	* unix/work.c (fswork_file): When SPOOLDIR_TAYLOR, don't require
+	the the file name to be 7 characters long.
+	(bsgrade): Change algorithm used when SPOOLDIR_TAYLOR.
+
+	* uustat.c (fsworkfile_show): Correct kill prompt to put program
+	name at start of line.  Add trailing space after question mark.
+	(fsexecutions): Likewise.
+
+	* unix/work.c (fsysdep_get_work): Don't call fsysdep_get_work_init
+	if no more jobs are found.
+
+Thu Jun 29 15:27:31 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* fsusg.c: Update with changes from fileutils 3.12.
+	* configure.in: Update filesystem space tests to fileutils 3.12.
+	* config.h.in: Corresponding changes.
+
+	* unix/filnam.c (fscmd_seq): If F_SETLKW fails with ENOMEM,
+	ENOSPC, or ENOLCK, sleep and try again.
+
+	* Makefile.in (MORECFLAGS): Remove unused SBINDIR definition.
+	* unix/Makefile.in (run.o): Add dependency on Makefile and
+	../Makefile, so that it is rebuilt if sbindir changes.
+	* uuconf/Makefile.in (callin.o): Add dependency on Makefile and
+	../Makefile, so that it is rebuilt if NEWCONFIGLIB or OLDCONFIGLIB
+	change.
+	(hinit.o, hrmunk.o, maxuxq.o, rdperm.o, tinit.o): Likewise.
+	(vinit.o): Likewise.
+
+	* cu.c (main, ucuhelp): Update copyright.
+	* tstuu.c (main): Likewise.
+	* uuchk.c (main, ukhelp): Likewise.
+	* uucico.c (main, uhelp): Likewise.
+	* uuconv.c (main, uvhelp): Likewise.
+	* uucp.c (main, uchelp): Likewise.
+	* uulog.c (main, ulhelp): Likewise.
+	* uuname.c (main, unhelp): Likewise.
+	* uupick.c (main, uphelp): Likewise.
+	* uustat.c (main, ushelp): Likewise.
+	* uux.c (main, uxhelp): Likewise.
+	* uuxqt.c (main, uqhelp): Likewise.
+
+	* Makefile.in (VERSION): Update to beta1.06.
+
+Wed Jun 28 10:36:35 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* trans.c (struct scharge, sTsend, sTreceive): Remove.
+	(qTtiming_rec, iTrecsecs, iTrecmicros): New static variables.
+	(fqueue_receive): If adding something to an empty receive queue,
+	update iTrecsecs and iTrecmicros.
+	(utransfree): Remove references to sTsend and sTreceive.  If
+	freeing qTtiming_rec, clear it.
+	(ftcharge): Remove.  Remove all calls to it.
+	(fttime): New static function.
+	(uclear_queue): Clear qTtiming_rec.
+	(floop): Add timing code to replace ftcharge.
+	(fgot_data): Likewise.
+	(ftadd_cmd): Set s.bcmd to 'H' for a hangup request, for better
+	debugging information.
+	(ufailed): Remove setting of iTchecktime and calls to ftcharge.
+
+	* uuconf.h (UUCONF_STRIP_LOGIN): Define.
+	(UUCONF_STRIP_PROTO): Define.
+	(uuconf_strip): Declare.
+	* uuconf/strip.c: New file, definining uuconf_strip.
+	* uuconf/Makefile.in (OBJS): Add strip.o.
+	* uuconf/uucnfi.h (struct sprocess): Add new fields fstrip_login
+	and fstrip_proto.
+	* uuconf/iniglb.c (_uuconf_iinit_global): Initialize new fields.
+	* uuconf/tinit.c (asCmds): Add "strip-login" and "strip-proto".
+	* uucico.c (fdo_call): Check whether protocol commands should be
+	stripped, and pass information to zget_uucp_cmd.
+	(faccept_call): Likewise.
+	(flogin_prompt): Check whether login commands should be stripped,
+	and pass information to zget_typed_line.
+	(zget_uucp_cmd): Add fstrip argument, and use it to control
+	whether incoming characters are stripped.
+	(zget_typed_line): Likewise.
+	* uuchk.c (main): Report uuconf_strip information.
+
+Mon Jun 26 17:57:14 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* uuchk.c (main): Report global configuration information.
+
+	* uux.c (main): If an attempt is made to execute an empty command,
+	just create a poll file instead.
+
+	* uupick.c (main): Mention 'd' as a possible command.
+
+Wed Jun 21 16:16:13 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* unix/filnam.c (fscmd_seq): If available, use POSIX style locking
+	for the sequence file.  Use IPRIVATE_FILE_MODE when creating the
+	sequene file.
+
+	* copy.c (fcopy_file): Add fsignals argument, and pass it to
+	fcopy_open_file.  Update all callers.
+	(fcopy_open_file): Add fsignals argument; if TRUE, check for
+	signals while copying the file.  Update all callers.
+	* uudefs.h (fcopy_file, fcopy_open_file): Update prototypes.
+
+Thu Jun 15 20:34:00 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* Rob Janssen: getopt.h: Don't fail if P is not defined because
+	this file got included by something other than uucp.h.
+
+Tue Jun  6 13:17:14 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* log.c (ulog): Always open the log file even if zmsg is NULL.
+	* unix/detach.c (usysdep_detach): Call ulog with NULL before
+	closing stderr.
+
+	* log.c (ulog): Print file name correctly under HDB_LOGGING if an
+	error occurs.
+
+	* Andrey A. Chernov: uucp.h: Use off_t rather than long when
+	casting arguments to lseek.
+
+	* proti.c (IMAXPACKSIZE): Subtract one.
+	(fijstart): Correct iIforced_remote_packsize check.
+
+	* unix/filnam.c (zsfile_name): Only use remote system name in
+	local filename for SPOOLDIR_SVR4, not for SPOOLDIR_HDB.
+
+	* Peter da Silva: cu.c (asCulongopts): Add "escape".
+	(main): Handle -E/--escape.
+	* cu.1: Document -E/--escape.
+	* unix/cusub.c (fsysdep_cu): Don't treat \0 as an escape
+	character.
+
+	* Takatoshi Ikeda: log.c (ustats): Base 'M' vs. 'S' in HDB_LOGGING
+	on fcaller, not on fmaster.
+	(zldate_and_time): In HDB_LOGGING, don't zero fill the hour.
+	* uudefs.h (ustats): Change argument name in prototype.
+	* send.c (fsend_await_confirm): Pass fcaller rather than fmaster
+	to ustats.
+	* rec.c (frec_file_end): Likewise.
+	* trans.c (ufailed): Likewise.
+
+	* unix/tcp.c: Include <arpa/inet.h>.
+	(ftcp_dial): If gethostbyname fails, try inet_addr.
+
+	* Jim Brownfield: unix/detach.c (usysdep_detach): Call TIOCNOTTY
+	on /dev/tty, not on file descriptor 0.
+
+	* uuchk.c (ukshow): If the system will never be called, say so
+	explicitly.
+
+	* unix/pause.c (usysdep_pause): When using poll, clear the sdummy
+	structure before passing it down.
+
+	* unix/bytfre.c (csysdep_bytes_free): Check for overflow.
+
+	* C.A. Lademann: cu.c (asCulongopts): Add "nostop".
+	(main): Handle --nostop.
+	(ucuhelp): Mention --nostop.
+	* cu.1: Document --nostop.
+
+	* Dean Edmonds: cu.c (fcuset_var): Copy string before calling
+	uuconf_cmd_args, and handle UUCONF_CMDTABRET_KEEP correctly.
+
+	* Jorge Cwik: Add support for 'y' protocol.
+	* proty.c: New file, written by Jorge Cwik.
+	* prot.h: Declare 'y' protocol functions.
+	* uucico.c (asProtocols): Add entry for 'y' protocol.
+	* Makefile.in (UUOBJS): Add proty.o.
+	(ALLOBJS): Add proty.o.
+	(proty.o): New target.
+
+Mon Jun  5 12:05:22 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* cu.c (main): Don't clobber user specified ibaud when a specific
+	system is being called.
+
+	* unix/serial.c (fsysdep_stdin_init): chmod /dev/tty to 0600 to
+	prevent other users from writing to it.
+
+	* uux.c (main): If the argument is quoted by parentheses, don't
+	break it at shell separator characters.
+
+	* protg.c (fgprocess_data): Don't treat a duplicate RR as an RJ if
+	we are retransmitting packets.  Corrects change of May 15, 1993.
+
+	* unix/lock.c (fsdo_lock): Log an error message if the LOCKFILES
+	define appears to not match the contents of the lock file.
+
+Sun Jun  4 14:25:43 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* Makefile.in (uucp.info): Use explicit $(srcdir) rather than $<.
+	(uucp.dvi): Likewise.
+	(uucp.ps): Use uucp.dvi rather than $<.
+
+	* Scott Guthridge: cu.c (icutake): Skip \r characters unless
+	fCuvar_binary is set.
+
+	* unix/status.c (fsysdep_get_status): Ignore double quotes around
+	description string in status file.
+	(fsysdep_set_status): If SPOOLDIR_SVR4, put double quotes around
+	description string.
+
+	* uustat.c (fsxqt_file_read): Change second argument from file
+	name to open file.
+	(fsworkfile_show): Make sure execution file can be opened before
+	displaying information in execution file format.
+	(fsexecutions): Open file before passing it to fsxqt_file_read.
+
+	* uucp.h (ffileioerror): Rename from ffilereaderror.
+	* cu.c (icuput): Corresponding change.
+	* trans.c (floop): Likewise.
+	(fgot_data): Use ffileioerror to decide whether to print message
+	using errno.
+
+	* uuconv.c (uvwrite_taylor_port): Fix handling of dialer-sequence
+	for a modem port to actually print ``dialer-sequence''.
+
+	* uuconf/hsinfo.c (_uuconf_ihdb_system_internal): Treat a syntax
+	error in the time field as equivalent to ``never''.
+	* uuconf/vsinfo.c (_uuconf_iv2_system_internal): Likewise.
+
+	* uuchk.c (ukshow): Print max-retries information.
+
+	* Don Phillips: Add support for new called-timegrade command.
+	* uuconf.h (struct uuconf_system): Add uuconf_qcalledtimegrade
+	field.
+	* uuconf/tsinfo.c (asIcmds): Add "called-timegrade".
+	* uuconf/syssub.c (SYSTEM_TIMESPANS): Add uuconf_qcalledtimegrade.
+	* trans.c (fqueue): Check uuconf_qcalledtimegrade.
+	* uuchk.c (ukshow): Print called-timegrade and success-wait
+	information.
+	* uuconv.c (uvwrite_taylor_system): Handled called-timegrade.
+
+	* unix/xqtsub.c (fsysdep_lock_uuxqt_dir): Accept EISDIR.
+
+	* Damon: unix/mkdirs.c (fsysdep_make_dirs): Accept EROFS.
+
+Sat May 27 09:55:38 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* unix/detach.c (usysdep_detach): Mention routine name in
+	debugging message.
+
+	* tstuu.c (main): Exit with an error message if not compiled with
+        HAVE_TAYLOR_CONFIG.
+
+	* Jim Avera: Makefile.in (install-info): Get the info files from
+	the source directory if they aren't in the object directory.
+
+	* uuchk.c (main): Accept -s to only print information for a
+	specific system.
+	(asKlongopts): Add --system as a synonym for -s.
+ 	(ukusage): Mention -s.
+	(ukhelp): Likewise.
+
+	* Makefile.in (uuconf/libuuconf.a): Depend upon config.h.
+	(unix/libunix.a, lib/libuucp.a): Likewise.
+
+	* Matthias Urlichs and Olaf Kirch: If an execution fails, save the
+	files.
+	* sysh.unx (FAILEDDIR): Define.
+	* system.h (zsysdep_save_failed_file): Declare.
+	* uuxqt.c (uqdo_xqt_file): Call isave_files if an execution fails.
+	Move the execution files out of the execution directory on any
+	failure, not just a temporary one.
+	(isave_files): New function; pass all the execution files to
+	zsysdep_save_failed_file, and send mail to OWNER.
+	* unix/failed.c: New file.
+	* unix/Makefile.in (OBJS): Add failed.o.
+	(failed.o): New target.
+
+	* Johannes Stille: Remove various race conditions, as follows:
+	* rec.c (flocal_rec_send_request): Don't free qtrans if pfsendcmd
+	fails.
+	(fremote_send_reply): Likewise.
+	(fremote_send_fail_send): Move pfsendcmd call to the end of the
+	routine, after everything else has been done.
+	(frec_file_send_confirm): Likewise.
+	* send.c (struct ssendinfo): Add new fields fnever and zconfirm.
+	(flocal_send_fail): Remove first argument; change all callers.
+	(usfree_send): Free new zconfirm field.
+	(flocal_send_file_init): Initialize new zconfirm field.
+	(fremote_rec_file_init): Likewise.
+	(flocal_send_request): Free qtrans explicitly, rather than
+	expecting flocal_send_fail to do it.
+	(flocal_send_request): Don't free qtrans if pfsendcmd fails.
+	(flocal_send_await_reply): Use new fnever field rather than
+	overloading fsent.
+	(flocal_send_cancelled): Likewise.
+	(flocal_send_await_reply): Set fcmd field to TRUE.
+	(fremote_rec_reply): Set fcmd field to TRUE.  Set qtrans->zlog
+	before calling pfsendcmd.  Don't free qtrans if pfsendcmd fails.
+	(fremote_rec_fail_send): Move pfsendcmd call to the end of the
+	routine, after everything else has been done.
+	(fsend_file_end): If zconfirm is set, call fsend_await_confirm.
+	Don't bother to set fcmd here.
+	(fsend_await_confirm): If fsent is not set, just save command in
+	zconfirm and return.
+	(fsend_exec_file_init): Free and clear new zconfirm field.
+	* xcmd.c (flocal_xcmd_request): Don't free qtrans if pfsendcmd
+	fails.
+
+	* unix/pause.c: Prefer any of the other choices to nap, since the
+	meaning of nap argument varies from system to system, and the user
+	may not set HAVE_HUNDREDTHS_NAP correctly.
+
+	* unix/cusub.c (fsysdep_shell): When starting up an interactive
+	shell, use the environment variable SHELL rather than /bin/sh.
+
+Fri May 26 00:03:46 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* Chip Salzenberg: uulog.c (main): Set cluser, not clsys, when
+	using HAVE_HDB_LOGGING.
+
+	* Robert Joop: uuconf/callin.c (uuconf_callin): Improve handling
+	of Unix style passwd files.
+
+	* uupick.c (main): Don't fail if we can't get system information,
+	since uupick is not setuid.
+
+	* Stephen Harris: uudefs.h (struct sstatus): Add new field
+	zstring.
+	* unix/status.c (fsysdep_get_status): Set zstring field.
+	* uustat.c (fsquery_show): Print and free zstring field, if set,
+	rather than indexing off type.
+	(fsmachines): Likewise.
+	* uucico.c (fcall): Free sstat.zstring.
+
+	* proti.c (cIwindow_timeout): New static variable.
+	(fijstart): Initialize cIwindow_timeout based on the window size
+	and connection speed.  Increment both timeouts in callee.
+	(fishutdown): Initialize cIwindow_timeout.
+	(fiwindow_wait): Use cIwindow_timeout rather than cItimeout.
+
+	* unix/serial.c (fsysdep_conn_io): Try using select before doing a
+	blocking write, and use an alarm if we fall back to the blocking
+	write, to try to avoid deadlock when both systems fill the pipe.
+
+	* Trever Miller: unix/lock.c (fsdo_lock): Fix use of inid where
+	inme was intended, in HAVE_QNX_LOCKFILES code.
+
+	* unix/lock.c (fsdo_lock): Treat an empty lock file as stale.
+
+Thu May 25 11:46:32 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* Kenji Rikitake: unix/serial.c (fsserial_hardflow): Handle
+	CRTS_IFLOW as used on BSDI.
+
+	* Gerriet M. Denkmann: uuconf/vsnams.c (uuconf_v2_system_names):
+	Accept continuation lines in L.sys.
+	* uuconf/vsinfo.c (_uuconf_iv2_system_internal): Skip comment
+	lines in L.cmds.  Ignore everything after comma in L.cmds lines.
+
+	* Gerriet M. Denkmann: unix/ftw.c (ftw_dir): Initialize newlev to
+        avoid warning.
+
+	* Paul Pryor: unix/tli.c (ftli_open): Swap real and effective user
+	ID's when running as a server, so that root can bind privileged
+	ports.
+
+	* unix/tcp.c (ftcp_open): Call fsuser_perms and fsuucp_perms
+	rather than having the same code inline.
+
+	* sysh.unx (fsuser_perms, fsuucp_perms): Declare.
+	* unix/ufopen.c (fsuser_perms, fsuucp_perms): Move into uid.c.
+	* unix/uid.c: New file.
+	* unix/Makefile.in (OBJS): Add uid.o.
+	(uid.o): New target.
+
+	* unix/tcp.c: Move tcp.c into unix subdirectory.
+	* unix/tli.c: Likewise for tli.c.
+	* Makefile.in (UUOBJS, CUOBJS, ALLOBJS): Remove tcp.o and tli.o.
+	(tcp.o, tli.o): Remove.
+	* unix/Makefile.in (OBJS): Add tcp.o and tli.o.
+	(tcp.o, tli.o): New targets.
+
+	* Paul Pryor: configure.in: Check for -lnsl_s before -lnsl.
+
+	* Makefile.in (prefix): Use @prefix@, not /usr/local.
+	(exec_prefix): New variable, set to @exec_prefix@.
+	(sbindir, bindir): Use $(exec_prefix) rather than $(prefix).
+	(CPPFLAGS): New variable, set to @CPPFLAGS@.
+	(@SET_MAKE@): New macro used by autoconf 2.
+	(MORECFLAGS): Put -I. before -I$(srcdir).
+	(MDEFINES): Pass down CPPFLAGS.
+	(.c.o): Use CPPFLAGS.
+	(uuconv.o): Likewise.
+	(distclean): Remove stamp-h, config.log and config.cache.
+	(maintainer-clean): New synonym for realclean.
+	(configure, config.h, stamp-h, Makefile, config.status): Rewrite
+	as suggested by autoconf 2.3.
+	(.PHONY): Add maintainer-clean.
+	* lib/Makefile.in (CPPFLAGS): New variable, set to @CPPFLAGS@.
+	(MORECFLAGS): Put `-I..' before `-I$(srcdir)/..'.
+	(maintainer-clean): New synonym for realclean.
+	(.c.o): Use CPPFLAGS.
+	(Makefile): Just rebuild this Makefile, not the others.
+	(.PHONY): Add maintainer-clean.
+	* unix/Makefile.in (CPPFLAGS): New variable, set to @CPPFLAGS@.
+	(prefix): Removed.
+	(sbindir): Use @exec_prefix@ rather than $(prefix).
+	(MORECFLAGS): Put `-I..' before `-I$(srcdir)/..'.
+	(maintainer-clean): New synonym for realclean.
+	(.c.o): Use CPPFLAGS.
+	(Makefile): Just rebuild this Makefile, not the others.
+	(.PHONY): Add maintainer-clean.
+	* uuconf/Makefile.in (prefix): Set to @prefix@, not /usr/local.
+	(CPPFLAGS): New variable, set to @CPPFLAGS@.
+	(MORECFLAGS): Put `-I.' before `-I$(srcdir)' and `-I..' before
+	`-I$(srcdir)/..'.
+	(maintainer-clean): New synonym for realclean.
+	(.c.o): Use CPPFLAGS.
+	(Makefile): Just rebuild this Makefile, not the others.
+	(.PHONY): Add maintainer-clean.
+
+	* configure.in: Extensive changes for autoconf 2.3.
+	* configure: Regenerate using autoconf 2.3.
+	* install-sh: New file.
+
+Mon May 22 22:18:59 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* Mister Flash: chat.c (fcsend): Don't get forget to add 10 in \x.
+
+Tue Jan 17 22:49:05 1995  Ian Lance Taylor  <ian@airs.com>
+
+	* unix/mkdirs.c (fsysdep_make_dirs): Don't get confused by a
+	double slash.
+
+Wed Aug 10 09:25:10 1994  Ian Lance Taylor  (ian@airs.com)
+
+	* uuconf/hport.c (uuconf_hdb_find_port): Set iret to
+	UUCONF_SUCCESS when a port is found.
+
+Tue Aug  2 08:57:05 1994  Ian Lance Taylor  (ian@airs.com)
+
+	* trans.c (ftadd_cmd): Report a 'P' (poll) command as garbled.
+
+Wed Jul 20 21:53:03 1994  Ian Lance Taylor  (ian@airs.com)
+
+	* rec.c (flocal_rec_file_init): Set name of local system after
+	calling uuconf_system_local.
+	* uustat.c (fsexecutions): Likewise.
+
+Sat Jul 16 16:54:12 1994  Ian Lance Taylor  (ian@airs.com)
+
+	* log.c (ulog): Use strerror in message about being unable to open
+	the log file.
+
+Wed Jul 13 00:44:33 1994  Ian Lance Taylor  (ian@airs.com)
+
+	* rec.c (fremote_send_reply): Set qinfo->freplied before sending
+	the command.
+
+Sun Jul 10 23:25:23 1994  Ian Lance Taylor  (ian@airs.com)
+
+	* Tin Le: lib/debug.c (udebug_buffer): Only compile if DEBUG > 1.
+
+Mon Jun 27 21:06:29 1994  Ian Lance Taylor  (ian@airs.com)
+
+	* uuconf.h (UUCONF_CMDTABFLAG_NOCOMMENTS): Define.
+	* uuconf/cmdlin.c (uuconf_cmd_line): Handle NOCOMMENTS.
+	* uuxqt.c (uqdo_xqt_file): Pass NOCOMMENTS to uuconf_cmd_file.
+
+Thu May 19 22:50:37 1994  Ian Lance Taylor  (ian@airs.com)
+
+	* Ollivier Robert: unix/mkdirs.c: Permit EISDIR.
+
+Wed May 18 23:15:36 1994  Ian Lance Taylor  (ian@airs.com)
+
+	* uucico.c (fcall): Reset sDaemon fields each time through the
+	loop, not just once.
+
 Thu May  5 23:15:11 1994  Ian Lance Taylor  (ian@airs.com)
 
 	* Released version 1.05.

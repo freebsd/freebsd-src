@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char conn_rcsid[] = "$Id: conn.c,v 1.2 1994/05/07 18:08:38 ache Exp $";
+const char conn_rcsid[] = "$Id: conn.c,v 1.15 1995/06/21 19:14:35 ian Rel $";
 #endif
 
 #include <ctype.h>
@@ -234,7 +234,7 @@ fconn_dial (qconn, puuconf, qsys, zphone, qdialer, ptdialerfound)
     qdialer = &sdialer;
   if (ptdialerfound == NULL)
     ptdialerfound = &tfound;
-
+      
   qdialer->uuconf_zname = NULL;
   *ptdialerfound = DIALERFOUND_FALSE;
 

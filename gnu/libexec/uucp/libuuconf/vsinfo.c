@@ -1,7 +1,7 @@
 /* vsinfo.c
    Get information about a system from the V2 configuration files.
 
-   Copyright (C) 1992, 1993 Ian Lance Taylor
+   Copyright (C) 1992, 1993, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP uuconf library.
 
@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU Library General Public
    License along with this library; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_vsinfo_rcsid[] = "$Id: vsinfo.c,v 1.2 1994/05/07 18:13:23 ache Exp $";
+const char _uuconf_vsinfo_rcsid[] = "$Id: vsinfo.c,v 1.14 1995/06/21 19:25:24 ian Rel $";
 #endif
 
 #include <errno.h>
@@ -210,6 +210,13 @@ _uuconf_iv2_system_internal (qglobal, zsystem, qsys)
 				      _uuconf_itime_grade_cmp,
 				      &qset->uuconf_qtimegrade,
 				      pblock);
+
+	  /* We treat a syntax error in the time field as equivalent
+	     to ``never'', on the assumption that that is what V2
+	     does.  */
+	  if (iret == UUCONF_SYNTAX_ERROR)
+	    iret = UUCONF_SUCCESS;
+
 	  if (iret != UUCONF_SUCCESS)
 	    break;
 
@@ -501,7 +508,26 @@ _uuconf_iv2_system_internal (qglobal, zsystem, qsys)
 	    ++qglobal->ilineno;
 
 	    zline[strcspn (zline, "#\n")] = '\0';
-	    if (strncmp (zline, "PATH=", sizeof "PATH=" - 1) == 0)
+
+	    while (*zline == '\0')
+	      {
+		if (getline (&zline, &cline, e) <= 0)
+		  {
+		    if (zline != NULL)
+		      {
+			free ((pointer) zline);
+			zline = NULL;
+		      }
+		  }
+		else
+		  {
+		    ++qglobal->ilineno;
+		    zline[strcspn (zline, "#\n")] = '\0';
+		  }
+	      }
+
+	    if (zline != NULL
+		&& strncmp (zline, "PATH=", sizeof "PATH=" - 1) == 0)
 	      {
 		int ctoks;
 		char **pznew;
@@ -531,7 +557,7 @@ _uuconf_iv2_system_internal (qglobal, zsystem, qsys)
 		    qsys->uuconf_pzpath = pznew;
 		    zline = NULL;
 		    cline = 0;
-		  }
+		  }      
 
 		if (getline (&zline, &cline, e) < 0)
 		  {
@@ -550,12 +576,15 @@ _uuconf_iv2_system_internal (qglobal, zsystem, qsys)
 	  {
 	    while (TRUE)
 	      {
-		zline[strcspn (zline, "#\n")] = '\0';
-		iret = _uuconf_iadd_string (qglobal, zline, TRUE, FALSE,
-					    &qsys->uuconf_pzcmds,
-					    pblock);
-		if (iret != UUCONF_SUCCESS)
-		  break;
+		zline[strcspn (zline, "#,\n")] = '\0';
+		if (*zline != '\0')
+		  {
+		    iret = _uuconf_iadd_string (qglobal, zline, TRUE, FALSE,
+						&qsys->uuconf_pzcmds,
+						pblock);
+		    if (iret != UUCONF_SUCCESS)
+		      break;
+		  }
 		if (getline (&zline, &cline, e) < 0)
 		  break;
 		++qglobal->ilineno;

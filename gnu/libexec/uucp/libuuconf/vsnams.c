@@ -1,7 +1,7 @@
 /* vsnams.c
    Get all known system names from the V2 configuration files.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP uuconf library.
 
@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU Library General Public
    License along with this library; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_vsnams_rcsid[] = "$Id: vsnams.c,v 1.4 1994/01/30 21:14:29 ian Rel $";
+const char _uuconf_vsnams_rcsid[] = "$Id: vsnams.c,v 1.8 1995/06/21 19:25:26 ian Rel $";
 #endif
 
 #include <errno.h>
@@ -68,7 +68,7 @@ uuconf_v2_system_names (pglobal, ppzsystems, falias)
 
   zline = NULL;
   cline = 0;
-  while (getline (&zline, &cline, e) > 0)
+  while (_uuconf_getline (qglobal, &zline, &cline, e) > 0)
     {
       char *zname;
 

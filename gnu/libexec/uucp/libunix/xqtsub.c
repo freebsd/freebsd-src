@@ -1,7 +1,7 @@
 /* xqtsub.c
    System dependent functions used only by uuxqt.
 
-   Copyright (C) 1991, 1992, 1993 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char xqtsub_rcsid[] = "$Id: xqtsub.c,v 1.2 1994/05/07 18:11:43 ache Exp $";
+const char xqtsub_rcsid[] = "$Id: xqtsub.c,v 1.18 1995/06/21 20:21:14 ian Rel $";
 #endif
 
 #include "uudefs.h"
@@ -263,9 +263,9 @@ fsysdep_execute (qsys, zuser, pazargs, zfullcmd, zinput, zoutput,
 	{
 	  ulog (LOG_ERROR, "fcntl (FD_CLOEXEC): %s", strerror (errno));
 	  ferr = TRUE;
-	}
+	}	
     }
-
+  
   if (! ferr && zoutput != NULL)
     {
       aidescs[1] = creat ((char *) zoutput, IPRIVATE_FILE_MODE);
@@ -280,7 +280,7 @@ fsysdep_execute (qsys, zuser, pazargs, zfullcmd, zinput, zoutput,
 	{
 	  ulog (LOG_ERROR, "fcntl (FD_CLOEXEC): %s", strerror (errno));
 	  ferr = TRUE;
-	}
+	}	
     }
 
   if (! ferr)
@@ -312,7 +312,7 @@ fsysdep_execute (qsys, zuser, pazargs, zfullcmd, zinput, zoutput,
 	{
 	  ulog (LOG_ERROR, "fcntl (FD_CLOEXEC): %s", strerror (errno));
 	  ferr = TRUE;
-	}
+	}	
     }
 
   if (iseq == 0)
@@ -545,7 +545,8 @@ fsysdep_lock_uuxqt_dir (iseq)
     }
 
   if (mkdir (zxqtdir, S_IRWXU) < 0
-      && errno != EEXIST)
+      && errno != EEXIST
+      && errno != EISDIR)
     {
       ulog (LOG_ERROR, "mkdir (%s): %s", zxqtdir, strerror (errno));
       return FALSE;
@@ -658,7 +659,7 @@ fsysdep_move_uuxqt_files (cfiles, pzfrom, pzto, fto, iseq, pzinput)
       if (! fto)
 	{
 	  const char *ztemp;
-
+	  
 	  ztemp = zfrom;
 	  zfrom = zto;
 	  zto = ztemp;
@@ -682,7 +683,7 @@ fsysdep_move_uuxqt_files (cfiles, pzfrom, pzto, fto, iseq, pzinput)
 	      break;
 	    }
 
-	  if (! fcopy_file (zfrom, zto, FALSE, FALSE))
+	  if (! fcopy_file (zfrom, zto, FALSE, FALSE, FALSE))
 	    {
 	      ubuffree (zfree);
 	      break;

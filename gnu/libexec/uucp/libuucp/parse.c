@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char parse_rcsid[] = "$Id: parse.c,v 1.2 1994/05/07 18:13:33 ache Exp $";
+const char parse_rcsid[] = "$Id: parse.c,v 1.8 1995/06/21 19:18:35 ian Rel $";
 #endif
 
 #include "uudefs.h"
@@ -104,7 +104,7 @@ fparse_cmd (zcmd, qcmd)
   if (z == NULL)
     return FALSE;
   qcmd->zto = z;
-
+      
   z = strtok ((char *) NULL, " \t\n");
   if (z == NULL)
     return FALSE;
@@ -155,7 +155,7 @@ fparse_cmd (zcmd, qcmd)
 	}
 
       return TRUE;
-    }
+    }      
 
   z = strtok ((char *) NULL, " \t\n");
   if (z == NULL)
@@ -203,7 +203,7 @@ fparse_cmd (zcmd, qcmd)
 	}
       else if (qcmd->bcmd == 'E')
 	return FALSE;
-
+      
       if (z != NULL)
 	{
 	  z = strtok ((char *) NULL, "");

@@ -197,7 +197,7 @@ sub print_dashes {
 
 sub gethostname {
   $ENV{"SHELL"} = "/bin/sh";
-  $try = `hostname 2>/dev/null`;
+  $try = `(hostname) 2>/dev/null`;
   chop $try;
   return $+ if $try =~ /^[-.\w]+$/;
   $try = `uname -n 2>/dev/null`;

@@ -1,7 +1,7 @@
 /* policy.h
    Configuration file for policy decisions.  To be edited on site.
 
-   Copyright (C) 1991, 1992, 1993 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -17,10 +17,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 /* This header file contains macro definitions which must be set by
@@ -72,10 +72,10 @@
    figure out what's happening if something goes wrong.  */
 
 #if HAVE_BSD_TTY + HAVE_SYSV_TERMIO + HAVE_POSIX_TERMIOS == 0
-#ifdef __QNX__
+#if HAVE_TERMIOS_H
 #undef HAVE_POSIX_TERMIOS
 #define HAVE_POSIX_TERMIOS 1
-#else /* ! defined (__QNX__) */
+#else /* ! HAVE_TERMIOS_H */
 #if HAVE_CBREAK
 #undef HAVE_BSD_TTY
 #define HAVE_BSD_TTY 1
@@ -83,7 +83,7 @@
 #undef HAVE_SYSV_TERMIO
 #define HAVE_SYSV_TERMIO 1
 #endif /* ! HAVE_CBREAK */
-#endif /* ! defined (__QNX__) */
+#endif /* ! HAVE_TERMIOS_H */
 #endif /* HAVE_BSD_TTY + HAVE_SYSV_TERMIO + HAVE_POSIX_TERMIOS == 0 */
 
 /* On some systems a write to a serial port will block even if the
@@ -214,6 +214,12 @@
    messages from setreuid.  Systems on which setreuid exists but is
    broken pretty much always have saved setuid.  */
 #define HAVE_BROKEN_SETREUID 0
+
+/* On a few systems, such as NextStep 3.3, the POSIX macro F_SETLKW is
+   defined, but does not work.  On such systems, you must set
+   HAVE_BROKEN_SETLKW to 1.  If you do not, uux will hang, or log
+   peculiar error messages, every time it is run.  */
+#define HAVE_BROKEN_SETLKW 0
 
 /* On the 3B2, and possibly other systems, nap takes an argument in
    hundredths of a second rather than milliseconds.  I don't know of
@@ -622,6 +628,15 @@
    the command will be rejected.  By default, any argument is
    permitted. */
 #define ALLOW_FILENAME_ARGUMENTS 1
+
+/* If you set FSYNC_ON_CLOSE to 1, all output files will be forced out
+   to disk using the fsync system call when they are closed.  This can
+   be useful if you can not afford to lose people's mail if the system
+   crashes.  However, not all systems have the fsync call, and it is
+   always less efficient to use it.  Note that some versions of SCO
+   Unix, and possibly other systems, make fsync a synonym for sync,
+   which is extremely inefficient.  */
+#define FSYNC_ON_CLOSE 0
 
 #if HAVE_TAYLOR_LOGGING
 
