@@ -866,8 +866,7 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				error = EINVAL;
 				break;
 			} 
-			if (ireq->i_len < IEEE80211_WEP_KEYLEN ||
-			    ireq->i_len > sizeof(tmpkey)) {
+			if (ireq->i_len > sizeof(tmpkey)) {
 				error = EINVAL;
 				break;
 			}
