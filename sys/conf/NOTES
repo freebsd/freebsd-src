@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.48 1994/01/29 21:41:36 rgrimes Exp $
+#	$Id: LINT,v 1.49 1994/01/31 10:26:43 davidg Exp $
 #
 
 machine		"i386"
@@ -29,10 +29,13 @@ options		"COMPAT_43"		#compatible with BSD 4.3
 options		"SYMTAB_SPACE=104705"	#This kernel needs LOTS of symtable
 options		GATEWAY			#internetwork gateway
 options		KTRACE			#kernel tracing
+
 options		"NCONS=8"		#number of syscons virtual consoles
 options		"FAT_CURSOR"		#block cursor in syscons or pccons
 options		"STAR_SAVER"		#syscons "stars" screen saver
+options         "FADE_SAVER"            #syscons "fade" screen saver
 options		"SNAKE_SAVER"		#syscons "snake" screen saver
+
 options		"TCP_COMPAT_42"		#tcp/ip compatible with 4.2
 					# ^^^ NOT RECOMMENDED FOR NORMAL USE
 options		UCONSOLE		#x console support
