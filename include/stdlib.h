@@ -96,10 +96,6 @@ int	 atexit __P((void (*)(void)));
 double	 atof __P((const char *));
 int	 atoi __P((const char *));
 long	 atol __P((const char *));
-#ifdef __LONG_LONG_SUPPORTED
-long long
-	 atoll __P((const char *));
-#endif
 void	*bsearch __P((const void *, const void *, size_t,
 	    size_t, int (*)(const void *, const void *)));
 void	*calloc __P((size_t, size_t));
@@ -151,6 +147,10 @@ __uint32_t
 	 arc4random __P((void));
 void	 arc4random_addrandom __P((unsigned char *dat, int datlen));
 void	 arc4random_stir __P((void));
+#ifdef __LONG_LONG_SUPPORTED
+long long
+	 atoll __P((const char *));
+#endif
 char	*getbsize __P((int *, long *));
 char	*cgetcap __P((char *, char *, int));
 int	 cgetclose __P((void));
