@@ -1693,7 +1693,7 @@ coda_bmap(v)
     struct vnode *vp __attribute__((unused)) = ap->a_vp;	/* file's vnode */
     daddr_t bn __attribute__((unused)) = ap->a_bn;	/* fs block number */
     struct vnode **vpp = ap->a_vpp;			/* RETURN vp of device */
-    daddr64_t *bnp __attribute__((unused)) = ap->a_bnp;	/* RETURN device block number */
+    daddr_t *bnp __attribute__((unused)) = ap->a_bnp;	/* RETURN device block number */
     struct thread *td __attribute__((unused)) = curthread;
 /* upcall decl */
 /* locals */

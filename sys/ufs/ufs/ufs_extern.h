@@ -60,7 +60,7 @@ int	ufs_vnoperatefifo(struct vop_generic_args *);
 int	ufs_vnoperatespec(struct vop_generic_args *);
 
 int	 ufs_bmap(struct vop_bmap_args *);
-int	 ufs_bmaparray(struct vnode *, daddr_t, daddr_t *, int *, int *);
+int	 ufs_bmaparray(struct vnode *, ufs_daddr_t, ufs_daddr_t *, int *, int *);
 int	 ufs_fhtovp(struct mount *, struct ufid *, struct vnode **);
 int	 ufs_checkpath(struct inode *, struct inode *, struct ucred *);
 void	 ufs_dirbad(struct inode *, doff_t, char *);

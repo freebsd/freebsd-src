@@ -193,7 +193,7 @@ vnode_pager_haspage(object, pindex, before, after)
 	int *after;
 {
 	struct vnode *vp = object->handle;
-	daddr64_t bn;
+	daddr_t bn;
 	int err;
 	daddr_t reqblock;
 	int poff;
@@ -369,7 +369,7 @@ vnode_pager_addr(vp, address, run)
 {
 	int rtaddress;
 	int bsize;
-	daddr64_t block;
+	daddr_t block;
 	struct vnode *rtvp;
 	int err;
 	daddr_t vblock;
