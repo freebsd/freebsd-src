@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002, 2003 Tim J. Robbins.
+ * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,17 +36,16 @@ __FBSDID("$FreeBSD$");
 int
 mbtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n)
 {
+	static const mbstate_t initial;
+	static mbstate_t mbs;
 	size_t rval;
 
-	if (s == NULL)
+	if (s == NULL) {
 		/* No support for state dependent encodings. */
+		mbs = initial;
 		return (0);
-	/*
-	 * We pass NULL as the state pointer to mbrtowc() because we don't
-	 * support state-dependent encodings and don't want to waste time
-	 * creating a zeroed mbstate_t that will not be used.
-	 */
-	rval = mbrtowc(pwc, s, n, NULL);
+	}
+	rval = mbrtowc(pwc, s, n, &mbs);
 	if (rval == (size_t)-1 || rval == (size_t)-2)
 		return (-1);
 	if (rval > INT_MAX) {

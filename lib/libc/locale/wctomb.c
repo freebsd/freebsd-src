@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002, 2003 Tim J. Robbins.
+ * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,20 +36,16 @@ __FBSDID("$FreeBSD$");
 int
 wctomb(char *s, wchar_t wchar)
 {
-	char buf[MB_LEN_MAX];
+	static const mbstate_t initial;
+	static mbstate_t mbs;
 	size_t rval;
 
-	if (s == NULL)
+	if (s == NULL) {
 		/* No support for state dependent encodings. */
+		mbs = initial;
 		return (0);
-	if (s == NULL)
-		s = buf;
-	/*
-	 * We pass NULL as the state pointer to wcrtomb() because we don't
-	 * support state-dependent encodings and don't want to waste time
-	 * creating a zeroed mbstate_t that will not be used.
-	 */
-	if ((rval = wcrtomb(s, wchar, NULL)) == (size_t)-1)
+	}
+	if ((rval = wcrtomb(s, wchar, &mbs)) == (size_t)-1)
 		return (-1);
 	if (rval > INT_MAX) {
 		errno = ERANGE;

@@ -34,6 +34,9 @@ extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
 size_t
 wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 {
+	static mbstate_t mbs;
 
+	if (ps == NULL)
+		ps = &mbs;
 	return (__wcrtomb(s, wc, ps));
 }
