@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ldd.c,v 1.13 1997/02/22 15:46:43 peter Exp $
+ *	$Id: ldd.c,v 1.14 1997/09/02 21:54:39 jdp Exp $
  */
 
 #include <sys/types.h>
@@ -37,6 +37,7 @@
 #include <sys/resource.h>
 #include <sys/wait.h>
 #include <a.out.h>
+#include <elf.h>
 #include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -118,18 +119,60 @@ char	*argv[];
 			argv++;
 			continue;
 		}
-		if (read(fd, &hdr, sizeof hdr) != sizeof hdr
-		    || (N_GETFLAG(hdr) & EX_DPMASK) != EX_DYNAMIC
-#if 1 /* Compatibility */
-		    || hdr.a_entry < __LDPGSZ
-#endif
-		    ) {
-
-			warnx("%s: not a dynamic executable", *argv);
+		if (read(fd, &hdr, sizeof hdr) != sizeof hdr) {
+			warnx("%s: can't read program header", *argv);
 			(void)close(fd);
 			rval |= 1;
 			argv++;
 			continue;
+		}
+
+		if (!N_BADMAG(hdr)) {
+			/* a.out file */
+			if ((N_GETFLAG(hdr) & EX_DPMASK) != EX_DYNAMIC
+#if 1 /* Compatibility */
+			    || hdr.a_entry < __LDPGSZ
+#endif
+				) {
+				warnx("%s: not a dynamic executable", *argv);
+				(void)close(fd);
+				rval |= 1;
+				argv++;
+				continue;
+			}
+		} else if (IS_ELF(*(Elf32_Ehdr*)&hdr)) {
+			Elf32_Ehdr ehdr;
+			Elf32_Phdr phdr;
+			int dynamic = 0, i;
+
+			lseek(fd, 0, SEEK_SET);
+			if (read(fd, &ehdr, sizeof ehdr) != sizeof ehdr) {
+				warnx("%s: can't read program header", *argv);
+				(void)close(fd);
+				rval |= 1;
+				argv++;
+				continue;
+			}
+			lseek(fd, 0, ehdr.e_phoff);
+			for (i = 0; i < ehdr.e_phnum; i++) {
+				if (read(fd, &phdr, ehdr.e_phentsize)
+				   != sizeof phdr) {
+					warnx("%s: can't read program header", *argv);
+					(void)close(fd);
+					rval |= 1;
+					argv++;
+					continue;
+				}
+				if (phdr.p_type == PT_DYNAMIC)
+					dynamic = 1;
+			}
+			if (!dynamic) {
+				warnx("%s: not a dynamic executable", *argv);
+				(void)close(fd);
+				rval |= 1;
+				argv++;
+				continue;
+			}
 		}
 		(void)close(fd);
 
