@@ -46,11 +46,6 @@
 #ifndef _AMU_NFS_PROT_H
 #define _AMU_NFS_PROT_H
 
-#ifdef COMMENT_OUT
-#ifdef HAVE_RPCSVC_NFS_PROT_H
-# include <rpcsvc/nfs_prot.h>
-#endif /* HAVE_RPCSVC_NFS_PROT_H */
-#endif	/* COMMENT_OUT */
 /* nfs_prot.h defines struct `nfs_fh3', but it is a ``dmr "unwarranted
  * chumminess with the C implementation".  We need the more complete
  * structure, which is defined below.  So get the stock `nfs_fh3'
@@ -58,7 +53,11 @@
  */
 struct nfs_fh3;
 #define nfs_fh3 nfs_fh3_fbsd_
-# include "nfs_prot.h"
+
+#ifdef HAVE_RPCSVC_NFS_PROT_H
+# include <rpcsvc/nfs_prot.h>
+#endif /* HAVE_RPCSVC_NFS_PROT_H */
+
 #undef nfs_fh3
 
 #ifdef HAVE_NFS_RPCV2_H

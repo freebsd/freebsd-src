@@ -22,10 +22,11 @@ SRCS+=	transp_sockets.c mtab_bsd.c umount_bsd44.c
 SRCS+=		nfs_prot_x.c
 CLEANFILES+=	nfs_prot_x.c
 
-CFLAGS+= -I${.CURDIR}/../../../contrib/amd/libamu
+CFLAGS+= -I${.CURDIR}/../../../contrib/amd/libamu \
+	 -I${DESTDIR}/usr/include/rpcsvc
 
 nfs_prot_x.c: ${NFS_PROT_X}
-	${RPCCOM} -c -DWANT_NFS3 ${NFS_PROT_X} -o ${.TARGET}
+	${RPCCOM} -c -C -DWANT_NFS3 ${NFS_PROT_X} -o ${.TARGET}
 
 install:
 
