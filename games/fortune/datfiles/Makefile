@@ -31,6 +31,6 @@ fortunes-o.dat: fortunes-o
 	${.CURDIR}/../strfile/obj/strfile -rsx fortunes-o ${.TARGET}
 
 fortunes-o: fortunes-o.${TYPE}
-	/usr/games/caesar 13 < ${.ALLSRC} > ${.TARGET}
+	PATH=../../caesar:$$PATH ; caesar 13 < ${.ALLSRC} > ${.TARGET}
 
 .include <bsd.prog.mk>
