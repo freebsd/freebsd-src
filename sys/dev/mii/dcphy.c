@@ -179,12 +179,17 @@ static int dcphy_attach(dev)
 		sc->mii_capabilities = BMSR_ANEG|BMSR_10TFDX|BMSR_10THDX;
 		break;
 	default:
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP,
-		    sc->mii_inst), BMCR_LOOP|BMCR_S100);
+		if (dc_sc->dc_pmode == DC_PMODE_SIA) {
+			sc->mii_capabilities =
+			    BMSR_ANEG|BMSR_10TFDX|BMSR_10THDX;
+		} else {
+			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP,
+			    sc->mii_inst), BMCR_LOOP|BMCR_S100);
 
-		sc->mii_capabilities =
-		    BMSR_ANEG|BMSR_100TXFDX|BMSR_100TXHDX|
-		    BMSR_10TFDX|BMSR_10THDX;
+			sc->mii_capabilities =
+			    BMSR_ANEG|BMSR_100TXFDX|BMSR_100TXHDX|
+			    BMSR_10TFDX|BMSR_10THDX;
+		}
 		break;
 	}
 
@@ -429,10 +434,11 @@ dcphy_status(sc)
 	}
 
 skip:
-	if (CSR_READ_4(dc_sc, DC_NETCFG) & DC_NETCFG_SCRAMBLER)
-		mii->mii_media_active |= IFM_100_TX;
-	else
+
+	if (CSR_READ_4(dc_sc, DC_NETCFG) & DC_NETCFG_SPEEDSEL)
 		mii->mii_media_active |= IFM_10_T;
+	else
+		mii->mii_media_active |= IFM_100_TX;
 	if (CSR_READ_4(dc_sc, DC_NETCFG) & DC_NETCFG_FULLDUPLEX)
 		mii->mii_media_active |= IFM_FDX;
 
