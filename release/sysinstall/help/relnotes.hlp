@@ -40,6 +40,10 @@ Update sgmlfmt to `instant'.
 
 Protection against the widely reported SYN attack.
 
+Support for SNMP-style interface MIBs, including full RFC
+1650-compliant MIBs for the `de' (DEC 21x4x) and `ed' (SMC/WD/Novell)
+drivers.
+
 
 2. Technical overview
 ---------------------
@@ -531,4 +535,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.25 1996/11/15 18:44:02 jkh Exp $
+$Id: relnotes.hlp,v 1.26 1996/11/27 01:44:57 jkh Exp $
