@@ -1,6 +1,5 @@
 # $FreeBSD$
 
-# pcic -- currently broken and being worked on out of tree.
 # oldcard -- specialized use for debugging only.
 # owi -- totally unsupported for debugging only.
 
