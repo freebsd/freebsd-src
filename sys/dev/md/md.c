@@ -1171,11 +1171,11 @@ md_drvinit(struct g_class *mp __unused)
 	u_char *ptr, *name, *type;
 	unsigned len;
 
+	g_topology_unlock();
 #ifdef MD_ROOT_SIZE
 	md_preloaded(mfs_root, MD_ROOT_SIZE*1024);
 #endif
 	mod = NULL;
-	g_topology_unlock();
 	while ((mod = preload_search_next_name(mod)) != NULL) {
 		name = (char *)preload_search_info(mod, MODINFO_NAME);
 		type = (char *)preload_search_info(mod, MODINFO_TYPE);
