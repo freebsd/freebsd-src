@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.9 1998/08/23 16:05:55 dfr Exp $
+ *	$Id: pmap.c,v 1.10 1998/09/04 18:49:35 dfr Exp $
  */
 
 /*
@@ -1353,6 +1353,8 @@ pmap_release_free_page(pmap_t pmap, vm_page_t p)
 	}
 #endif
 
+	p->wire_count--;
+	cnt.v_wire_count--;
 	vm_page_free_zero(p);
 	return 1;
 }
