@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.62 1995/09/04 00:20:13 dyson Exp $
+ * $Id: vfs_bio.c,v 1.63 1995/09/09 18:10:14 davidg Exp $
  */
 
 /*
@@ -485,10 +485,23 @@ brelse(struct buf * bp)
 						m->flags &= ~PG_WANTED;
 					}
 					vm_page_test_dirty(m);
-					if ((m->dirty & m->valid) == 0 &&
+					/*
+					 * if page isn't valid, no sense in keeping it around
+					 */
+					if (m->valid == 0) {
+						pmap_page_protect(VM_PAGE_TO_PHYS(m), VM_PROT_NONE);
+						vm_page_free(m);
+					/*
+					 * if page isn't dirty and hasn't been referenced by
+					 * a process, then cache it
+					 */
+					} else if ((m->dirty & m->valid) == 0 &&
 						(m->flags & PG_REFERENCED) == 0 &&
 							!pmap_is_referenced(VM_PAGE_TO_PHYS(m))) {
 						vm_page_cache(m);
+					/*
+					 * otherwise activate it
+					 */
 					} else if ((m->flags & PG_ACTIVE) == 0) {
 						vm_page_activate(m);
 						m->act_count = 0;
@@ -871,11 +884,50 @@ loop:
 		}
 		bp->b_flags |= B_BUSY | B_CACHE;
 		bremfree(bp);
+				
 		/*
-		 * check for size inconsistancies
+		 * check for size inconsistancies (note that they shouldn't happen
+		 * but do when filesystems don't handle the size changes correctly.)
+		 * We are conservative on metadata and don't just extend the buffer
+		 * but write and re-constitute it.
 		 */
 		if (bp->b_bcount != size) {
-			allocbuf(bp, size);
+			if (bp->b_flags & B_VMIO) {
+				allocbuf(bp, size);
+			} else {
+				bp->b_flags |= B_NOCACHE;
+				VOP_BWRITE(bp);
+				goto loop;
+			}
+		}
+		/*
+		 * make sure that all pages in the buffer are valid, if they
+		 * aren't, clear the cache flag.
+		 * ASSUMPTION:
+		 *  if the buffer is greater than 1 page in size, it is assumed
+		 *  that the buffer address starts on a page boundary...
+		 */
+		if (bp->b_flags & B_VMIO) {
+			int szleft, i;
+			szleft = size;
+			for (i=0;i<bp->b_npages;i++) {
+				if (szleft > PAGE_SIZE) {
+					if ((bp->b_pages[i]->valid & VM_PAGE_BITS_ALL) !=
+						VM_PAGE_BITS_ALL) {
+						bp->b_flags &= ~B_CACHE;
+						break;
+					}
+					szleft -= PAGE_SIZE;
+				} else {
+					if (!vm_page_is_valid(bp->b_pages[i],
+						(((vm_offset_t) bp->b_data) & PAGE_MASK),
+						szleft)) {
+						bp->b_flags &= ~B_CACHE;
+						break;
+					}
+					szleft = 0;
+				}
+			}
 		}
 		splx(s);
 		return (bp);
