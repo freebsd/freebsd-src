@@ -20,6 +20,7 @@ SUBDIR=	accf_data \
 	ath \
 	aue \
 	axe \
+	bfe \
 	bge \
 	bridge \
 	cam \
