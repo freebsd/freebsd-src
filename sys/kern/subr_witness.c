@@ -1949,11 +1949,11 @@ DB_SHOW_COMMAND(alllocks, db_witness_list_all)
 	FOREACH_PROC_IN_SYSTEM(p) {
 		if (!witness_proc_has_locks(p))
 			continue;
-		printf("Process %d (%s)\n", p->p_pid, p->p_comm);
 		FOREACH_THREAD_IN_PROC(p, td) {
 			if (!witness_thread_has_locks(td))
 				continue;
-			printf("Thread 0x%x\n", td->td_tid);
+			printf("Process %d (%s) thread %p (%d)\n", p->p_pid,
+			    p->p_comm, td, td->td_tid);
 			witness_list(td);
 		}
 	}
