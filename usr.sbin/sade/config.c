@@ -1237,7 +1237,7 @@ configMTAExim(dialogMenuItem *self)
 	fprintf(mailerconf, "sendmail	/usr/local/sbin/exim\n");
 	fprintf(mailerconf, "send-mail	/usr/local/sbin/exim\n");
 	fprintf(mailerconf, "mailq		/usr/local/sbin/exim\n");
-	fprintf(mailerconf, "newaliases	/usr/local/sbin/exim -bi\n");
+	fprintf(mailerconf, "newaliases	/usr/local/sbin/exim\n");
 	fprintf(mailerconf, "hoststat	/usr/bin/true\n");
 	fprintf(mailerconf, "purgestat	/usr/bin/true\n");
 	fclose(mailerconf);
