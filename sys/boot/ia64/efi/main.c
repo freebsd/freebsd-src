@@ -104,26 +104,12 @@ find_pal_proc(void)
 }
 
 EFI_STATUS
-efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
+main(int argc, CHAR16 *argv[])
 {
-	EFI_PHYSICAL_ADDRESS mem;
 	EFI_LOADED_IMAGE *img;
 	EFI_SIMPLE_NETWORK *net;
 	EFI_STATUS status;
-	struct ia64_pal_result res;
-	char buf[32];
 	int i;
-
-	efi_init(image_handle, system_table);
-
-	/* 
-	 * Initialise the heap as early as possible.  Once this is done,
-	 * alloc() is usable. The stack is buried inside us, so this is
-	 * safe.
-	 */
-	BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
-			  512*1024/4096, &mem);
-	setheap((void *)mem, (void *)(mem + 512*1024));
 
 	/* 
 	 * XXX Chicken-and-egg problem; we want to have console output
@@ -148,7 +134,7 @@ efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 			(devsw[i]->dv_init)();
 
 	efinet_init_driver();
-	
+
 	printf("\n");
 	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
 	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
@@ -156,14 +142,13 @@ efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 	printf("Memory: %ld k\n", memsize() / 1024);
 #endif
 
-
 	/*
 	 * XXX quick and dirty check to see if we're loaded from the
 	 * network. If so, we set the default device to 'net'. In all
 	 * other cases we set the default device to 'disk'. We presume
 	 * fixed positions in devsw for both net and disk.
 	 */
-	BS->HandleProtocol(image_handle, &imgid, (VOID**)&img);
+	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
 
 	status = BS->HandleProtocol(img->DeviceHandle, &netid, (VOID**)&net);
 	if (status == EFI_SUCCESS && net != NULL) {
@@ -177,7 +162,6 @@ efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 		/* default to 'a' */
 		currdev.d_kind.efidisk.partition = 0;
 	}
-
 	currdev.d_type = currdev.d_dev->dv_type;
 
 	/*
