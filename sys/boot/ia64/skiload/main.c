@@ -49,7 +49,7 @@ struct arch_switch	archsw;		/* MI/MD interface boundary */
 void
 __start(void)
 {
-	static char stack[16384] __attribute__((aligned (16)));
+	static char stack[16384] __aligned(16);
 	static char malloc[512*1024];
 	int i;
 
