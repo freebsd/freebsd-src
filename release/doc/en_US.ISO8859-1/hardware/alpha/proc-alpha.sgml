@@ -1516,7 +1516,7 @@ cpu             EV5</programlisting>
 
       <para>The AS200 & AS250 sound hardware is reported to work OK assuming 
       you have the following line in your kernel config file:</para>
-      <programlisting>device pcm0 at isa? port 0x530 irq 9 drq 0 flags 0x10011</programlisting>
+      <programlisting>device pcm0 at isa? port 0x530 irq 10 drq 0 flags 0x10011</programlisting>
 
       <para>AlphaStation 200 & 250 series have an automatic SCSI terminator. 
       This means that as soon as you plug a cable onto the external SCSI 
