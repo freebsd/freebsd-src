@@ -366,6 +366,12 @@ _ieee80211_crypto_delkey(struct ieee80211com *ic, struct ieee80211_key *key)
 
 	KASSERT(key->wk_cipher != NULL, ("No cipher!"));
 
+	IEEE80211_DPRINTF(ic, IEEE80211_MSG_CRYPTO,
+	    "%s: %s keyix %u flags 0x%x rsc %ju tsc %ju len %u\n",
+	    __func__, key->wk_cipher->ic_name,
+	    key->wk_keyix, key->wk_flags,
+	    key->wk_keyrsc, key->wk_keytsc, key->wk_keylen);
+
 	keyix = key->wk_keyix;
 	if (keyix != IEEE80211_KEYIX_NONE) {
 		/*
@@ -436,6 +442,12 @@ ieee80211_crypto_setkey(struct ieee80211com *ic, struct ieee80211_key *key,
 
 	KASSERT(cip != NULL, ("No cipher!"));
 
+	IEEE80211_DPRINTF(ic, IEEE80211_MSG_CRYPTO,
+	    "%s: %s keyix %u flags 0x%x mac %s rsc %ju tsc %ju len %u\n",
+	    __func__, cip->ic_name, key->wk_keyix,
+	    key->wk_flags, ether_sprintf(macaddr),
+	    key->wk_keyrsc, key->wk_keytsc, key->wk_keylen);
+
 	/*
 	 * Give cipher a chance to validate key contents.
 	 * XXX should happen before modifying state.
@@ -481,8 +493,9 @@ ieee80211_crypto_encap(struct ieee80211com *ic,
 	    ni->ni_ucastkey.wk_cipher == &ieee80211_cipher_none) {
 		if (ic->ic_def_txkey == IEEE80211_KEYIX_NONE) {
 			IEEE80211_DPRINTF(ic, IEEE80211_MSG_CRYPTO,
-				"%s: No default xmit key for frame to %s\n",
-				__func__, ether_sprintf(wh->i_addr1));
+			    "[%s] no default transmit key (%s) deftxkey %u\n",
+			    ether_sprintf(wh->i_addr1), __func__,
+			    ic->ic_def_txkey);
 			ic->ic_stats.is_tx_nodefkey++;
 			return NULL;
 		}
