@@ -210,17 +210,19 @@ draw:
 	
 	/* See if its the short-cut to "OK" */
 	if (toupper(key) == okButton) {
-	    if (ditems && result && ditems[OK_BUTTON].fire) {
-		int st;
-		WINDOW *save;
+	    if (ditems) {
+		if (result && ditems[OK_BUTTON].fire) {
+		    int st;
+		    WINDOW *save;
 
-		save = dupwin(newscr);
-		st = ditems[OK_BUTTON].fire(&ditems[OK_BUTTON]);
-		if (st & DITEM_RESTORE) {
-		    touchwin(save);
-		    wrefresh(save);
+		    save = dupwin(newscr);
+		    st = ditems[OK_BUTTON].fire(&ditems[OK_BUTTON]);
+		    if (st & DITEM_RESTORE) {
+			touchwin(save);
+			wrefresh(save);
+		    }
+		    delwin(save);
 		}
-		delwin(save);
 	    }
 	    else if (result) {
 		*result = '\0';
@@ -453,19 +455,21 @@ draw:
 	    
 	case '\r':
 	case '\n':
-	    if (ditems && result && ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire) {
-		int st;
-		WINDOW *save;
+	    if (ditems) {
+		if (result && ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire) {
+		    int st;
+		    WINDOW *save;
 
-		save = dupwin(newscr);
-		st = ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire(&ditems[button ? CANCEL_BUTTON : OK_BUTTON]);
-		if (st & DITEM_RESTORE) {
-		    touchwin(save);
-		    wrefresh(save);
+		    save = dupwin(newscr);
+		    st = ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire(&ditems[button ? CANCEL_BUTTON : OK_BUTTON]);
+		    if (st & DITEM_RESTORE) {
+			touchwin(save);
+			wrefresh(save);
+		    }
+		    delwin(save);
 		}
-		delwin(save);
 	    }
-	    else if (!ditems && result) {
+	    else if (result) {
 		*result = '\0';
 		for (i = 0; i < item_no; i++) {
 		    if (status[i]) {
