@@ -9,8 +9,6 @@ GENSRCS=yp.h yp_clnt.c ypxfr_clnt.c
 
 .PATH: ${.CURDIR}/../../usr.sbin/ypserv
 
-MAN8=	ypxfr.8
-
 CFLAGS+= -I.
 DPADD=	${LIBRPCSVC}
 LDADD=	-lrpcsvc

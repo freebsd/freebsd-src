@@ -2,6 +2,5 @@
 # $FreeBSD$
 
 PROG=	comsat
-MAN8=	comsat.8
 
 .include <bsd.prog.mk>

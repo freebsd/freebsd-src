@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	makekey
-MAN8=	makekey.8
 
 DPADD+= ${LIBCRYPT}
 LDADD+= -lcrypt

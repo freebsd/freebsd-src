@@ -21,6 +21,4 @@ LIBISC:=	${LIBISCDIR}/libisc.a
 DPADD+=		${LIBISC}
 LDADD+=		${LIBISC}
 
-MAN8=	named-xfer.8
-
 .include <bsd.prog.mk>
