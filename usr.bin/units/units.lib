@@ -1,4 +1,4 @@
-/ $Id$
+/ $Id: units.lib,v 1.3 1997/02/22 19:57:34 peter Exp $
 
 / primitive units
 
@@ -232,9 +232,7 @@ lux			cd sr/m2
 $			dollar
 argentinapeso		$
 australiadollar		.66 $
-austriaschilling	.83 $
 bahraindinar		2.6522 $
-belgiumfranc		.028 $
 brazilcruzeiro		.000019 $
 britainpound		1.49 $
 canadadollar		.77 $
@@ -244,18 +242,13 @@ chinarenminbi		.174856 $
 colombiapeso		.001495 $
 denmarkkrone		.15 $
 ecuadorsucre		.000539 $
-finlandmarkka		.17 $
-francefranc		.17 $
-germanymark		.58 $
 greatbritainpound	britainpound
 greecedrachma		.0043 $
 hongkongdollar		.13  $
 hungaryforint		.011 $
 indiarupee		.03211 $
 indonesiarupiah		.0004782 $
-irelandpunt		1.43 $
 israelshekel		.3642 $
-italylira		.00064 $
 japanyen		.0093 $
 jordandinar		1.4682 $
 kuwaitdinar		3.3173 $
@@ -263,20 +256,17 @@ lebanonpound		.000578 $
 malaysiaringgit		.338 $
 maltalira		2.6042 $
 mexicopeso		.3205128 $
-netherlandguilder	.52 $
 newzealanddollar	.539 $
 norwaykrone		.139 $
 pakistanrupee		.037 $
 perunewsol		.5065 $
 philippinespeso		.03738 $
 polandzloty		.000059 $
-portugalescudo		.00617 $
 saudiarabiariyal	.26702 $
 singaporedollar		.6157 $
 slovakkoruna		.034 $
 southamericarand	.21 $
 southkoreawon		.001 $
-spainpeseta		.007 $
 swedenkrona		.13 $
 switzerlandfranc	.66 $
 taiwandollar		.038285 $
@@ -285,6 +275,21 @@ turkeylira		.0000929 $
 unitedarabdirham	.2723 $
 uruguaynewpeso		.246852 $
 venezuelabolivar	.011 $
+
+/ EMU currencies have constant exchange rate against Euro since 1.1.1999
+austriaschilling	1|13.7603 euro
+belgiumfranc		1|40.3399 euro
+finlandmarkka		1|5.94573 euro
+francefranc		1|6.55957 euro
+germanymark		1|1.95583 euro
+irelandpunt		1|0.787564 euro
+italylira		1|1936.27 euro
+netherlandguilder	1|2.20371 euro
+portugalescudo		1|200.482 euro
+spainpeseta		1|166.386 euro
+
+/ rate of euro aganist dollar is just suggestive
+euro			1.17 $
 
 mark			germanymark
 bolivar			venezuelabolivar
