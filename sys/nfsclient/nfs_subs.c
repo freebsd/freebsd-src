@@ -1141,7 +1141,7 @@ nfs_init(vfsp)
 		nqnfsstarttime = boottime.tv_sec + nqsrv_maxlease
 			+ nqsrv_clockskew + nqsrv_writeslack;
 		NQLOADNOVRAM(nqnfsstarttime);
-		CIRCLEQ_INIT(&nqtimerhead);
+		TAILQ_INIT(&nqtimerhead);
 		nqfhhashtbl = hashinit(NQLCHSZ, M_NQLEASE, &nqfhhash);
 	}
 

@@ -75,7 +75,7 @@ struct	nfsmount {
 	int	nm_acdirmax;		/* Directory attr cache max lifetime */
 	int	nm_acregmin;		/* Reg file attr cache min lifetime */
 	int	nm_acregmax;		/* Reg file attr cache max lifetime */
-	CIRCLEQ_HEAD(, nfsnode) nm_timerhead; /* Head of lease timer queue */
+	TAILQ_HEAD(timhd, nfsnode) nm_timerhead; /* Head of lease timer queue */
 	struct vnode *nm_inprog;	/* Vnode in prog by nqnfs_clientd() */
 	uid_t	nm_authuid;		/* Uid for authenticator */
 	int	nm_authtype;		/* Authenticator type */

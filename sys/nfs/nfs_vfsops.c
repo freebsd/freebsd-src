@@ -890,7 +890,7 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 	nmp->nm_readahead = NFS_DEFRAHEAD;
 	nmp->nm_leaseterm = NQ_DEFLEASE;
 	nmp->nm_deadthresh = NQ_DEADTHRESH;
-	CIRCLEQ_INIT(&nmp->nm_timerhead);
+	TAILQ_INIT(&nmp->nm_timerhead);
 	nmp->nm_inprog = NULLVP;
 	nmp->nm_fhsize = argp->fhsize;
 	bcopy((caddr_t)argp->fh, (caddr_t)nmp->nm_fh, argp->fhsize);
