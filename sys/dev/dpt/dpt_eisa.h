@@ -32,11 +32,20 @@
  */
 
 /*
- * $Id: dpt_eisa.h,v 1.1 1998/03/10 21:31:06 ShimonR Exp ShimonR $
+ * $Id: dpt_eisa.h,v 1.1 1998/03/11 00:30:14 julian Exp $
  */
 
-#define DPT_EISA_SLOT_OFFSET		0xc88	/* 8 */
-#define DPT_EISA_IOSIZE			sizeof(eata_reg_t)
+#define DPT_EISA_SLOT_OFFSET		0xc00
+#define DPT_EISA_IOSIZE			0x100
+
+#define DPT_EISA_INTDEF			0x90
+#define		DPT_EISA_INT_LEVEL	0x04
+#define		DPT_EISA_INT_NUM_MASK	0x38
+#define		DPT_EISA_INT_NUM_11	0x08
+#define		DPT_EISA_INT_NUM_15	0x10
+#define		DPT_EISA_INT_NUM_14	0x20
+
+#define DPT_EISA_EATA_REG_OFFSET	0x88
 
 #define ISA_PRIMARY_WD_ADDRESS		0x1f8   
 

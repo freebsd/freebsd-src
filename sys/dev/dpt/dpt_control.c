@@ -36,7 +36,7 @@
  * future.
  */
 
-#ident "$Id: dpt_control.c,v 1.7 1998/07/13 09:52:51 bde Exp $"
+#ident "$Id: dpt_control.c,v 1.8 1998/08/05 00:54:36 eivind Exp $"
 
 #include "opt_dpt.h"
 
@@ -54,7 +54,7 @@
 #include <vm/pmap.h>
 #include <scsi/scsiconf.h>
 
-#include <sys/dpt.h>
+#include <dev/dpt/dpt.h>
 
 #define INLINE __inline
 
@@ -100,33 +100,8 @@ NULL, -1};
 static struct buf *dpt_inbuf[DPT_MAX_ADAPTERS];
 static char     dpt_rw_command[DPT_MAX_ADAPTERS][DPT_RW_CMD_LEN + 1];
 
-#ifdef DPT_MEASURE_PERFORMANCE
-void
-dpt_reset_performance(dpt_softc_t *dpt)
-{
-	int ndx;
 
-    /* Zero out all command counters */
-    bzero(&dpt->performance, sizeof(dpt_perf_t));
-    for ( ndx = 0; ndx < 256; ndx ++ )
-	  dpt->performance.min_command_time[ndx] = BIG_ENOUGH;
-    
-    dpt->performance.min_intr_time     = BIG_ENOUGH;
-    dpt->performance.min_waiting_time  = BIG_ENOUGH;
-    dpt->performance.min_submit_time   = BIG_ENOUGH;
-    dpt->performance.min_complete_time = BIG_ENOUGH;
-    dpt->performance.min_eata_tries    = BIG_ENOUGH;
-    
-    for (ndx = 0; ndx < 10; ndx++ ) {
-	    dpt->performance.read_by_size_min_time[ndx] = BIG_ENOUGH;
-	    dpt->performance.write_by_size_min_time[ndx] = BIG_ENOUGH;
-    }
-	
-}
-
-#endif        /* DPT_MEASURE_PERFORMANCE */
-
-/**
+/*
  * Given a minor device number,
  * return the pointer to its softc structure
  */
@@ -395,7 +370,7 @@ dpt_get_sysinfo(void)
 	dpt_sysinfo.flags |= SI_BusTypeValid;
 	dpt_sysinfo.busType = HBA_BUS_PCI;
 
-#warning "O/S Version determination is an ugly hack"
+	/* XXX Use _FreeBSD_Version_ */
 	dpt_sysinfo.osType = OS_FREEBSD;
 	dpt_sysinfo.osMajorVersion = osrelease[0] - '0';
 	if (osrelease[1] == '.')
