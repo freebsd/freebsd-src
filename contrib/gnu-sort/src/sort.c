@@ -301,13 +301,11 @@ static bool reverse;
    they were read if all keys compare equal.  */
 static bool stable;
 
-/* If TAB has this value, blanks separate fields.  */
-enum { TAB_DEFAULT = CHAR_MAX + 1 };
-
-/* Tab character separating fields.  If TAB_DEFAULT, then fields are
+/* Tab character separating fields.  If tab_default, then fields are
    separated by the empty string between a non-blank character and a blank
    character. */
-static int tab[MB_LEN_MAX + 1] = { TAB_DEFAULT };
+static bool tab_default = true;
+static unsigned char tab[MB_LEN_MAX + 1];
 static size_t tab_length = 1;
 
 /* Flag to remove consecutive duplicate lines from the output.
@@ -949,7 +947,7 @@ begfield_uni (const struct line *line, const struct keyfield *key)
   /* The leading field separator itself is included in a field when -t
      is absent.  */
 
-  if (tab[0] != TAB_DEFAULT)
+  if (!tab_default)
     while (ptr < lim && sword--)
       {
 	while (ptr < lim && *ptr != tab[0])
@@ -993,7 +991,7 @@ begfield_mb (const struct line *line, const struct keyfield *key)
 
   memset (&state, '\0', sizeof(mbstate_t));
 
-  if (tab[0] != TAB_DEFAULT)
+  if (!tab_default)
     while (ptr < lim && sword--)
       {
 	while (ptr < lim && memcmp (ptr, tab, tab_length) != 0)
@@ -1056,7 +1054,7 @@ limfield_uni (const struct line *line, const struct keyfield *key)
      `beginning' is the first character following the delimiting TAB.
      Otherwise, leave PTR pointing at the first `blank' character after
      the preceding field.  */
-  if (tab[0] != TAB_DEFAULT)
+  if (!tab_default)
     while (ptr < lim && eword--)
       {
 	while (ptr < lim && *ptr != tab[0])
@@ -1105,7 +1103,7 @@ limfield_uni (const struct line *line, const struct keyfield *key)
      */
 
   /* Make LIM point to the end of (one byte past) the current field.  */
-  if (tab[0] != TAB_DEFAULT)
+  if (!tab_default)
     {
       char *newlim;
       newlim = memchr (ptr, tab[0], lim - ptr);
@@ -1152,7 +1150,7 @@ limfield_mb (const struct line *line, const struct keyfield *key)
 
   memset (&state, '\0', sizeof(mbstate_t));
 
-  if (tab[0])
+  if (!tab_default)
     while (ptr < lim && eword--)
       {
 	while (ptr < lim && memcmp (ptr, tab, tab_length) != 0)
@@ -1183,7 +1181,7 @@ limfield_mb (const struct line *line, const struct keyfield *key)
 
 # ifdef POSIX_UNSPECIFIED
   /* Make LIM point to the end of (one byte past) the current field.  */
-  if (tab[0])
+  if (!tab_default)
     {
       char *newlim, *p;
 
@@ -3150,6 +3148,7 @@ main (int argc, char **argv)
 	case 't':
 	  {
 	    char newtab[MB_LEN_MAX + 1];
+	    size_t newtab_length = 1;
 	    strncpy (newtab, optarg, MB_LEN_MAX);
 	    if (! newtab[0])
 	      error (SORT_FAILURE, 0, _("empty tab"));
@@ -3158,7 +3157,7 @@ main (int argc, char **argv)
 	      {
 		wchar_t wc;
 		mbstate_t state;
-		size_t newtab_length, i;
+		size_t i;
 
 		memset (&state, '\0', sizeof (mbstate_t));
 		newtab_length = mbrtowc (&wc, newtab, strnlen (newtab, MB_LEN_MAX), &state);
@@ -3170,7 +3169,7 @@ main (int argc, char **argv)
                     newtab_length = 1;
                   }
 
-                if (optarg[tab_length])
+                if (optarg[newtab_length])
 		  {
 		    /* Provoke with `sort -txx'.  Complain about
 		       "multi-character tab" instead of "multibyte tab", so
@@ -3179,9 +3178,6 @@ main (int argc, char **argv)
 		    error (SORT_FAILURE, 0, _("multi-character tab `%s'"),
 			   optarg);
 		  }
-
-		for (i = 0; i < newtab_length; i++)
-		  tab[i] = newtab[i];
 	      }
             else
 #endif
@@ -3200,9 +3196,12 @@ main (int argc, char **argv)
 			   optarg);
 		  }
 	      }
-	    if (tab[0] != TAB_DEFAULT && tab[0] != newtab[0])
+	    if (!tab_default && (tab_length != newtab_length
+		|| memcmp(tab, newtab, tab_length) != 0))
 	      error (SORT_FAILURE, 0, _("incompatible tabs"));
-	    tab[0] = newtab[0];
+	    memcpy(tab, newtab, newtab_length);
+	    tab_length = newtab_length;
+	    tab_default = false;
 	  }
 	  break;
 
