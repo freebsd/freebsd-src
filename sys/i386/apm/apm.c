@@ -14,7 +14,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.45 1996/07/10 15:09:46 nate Exp $
+ *	$Id: apm.c,v 1.46 1996/07/11 16:35:12 nate Exp $
  */
 
 #include "apm.h"
@@ -34,7 +34,7 @@
 #include <sys/file.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
-#include "i386/isa/isa_device.h"
+#include <i386/isa/isa_device.h>
 #include <machine/apm_bios.h>
 #include <machine/segments.h>
 #include <machine/clock.h>
@@ -43,7 +43,7 @@
 #include <vm/pmap.h>
 #include <sys/syslog.h>
 #include <sys/devconf.h>
-#include "apm_setup.h"
+#include <i386/apm/apm_setup.h>
 
 static int apm_display_off __P((void));
 static int apm_int __P((u_long *eax, u_long *ebx, u_long *ecx));
