@@ -109,6 +109,13 @@ struct statfs {
  * Structure per mounted file system.  Each mounted file system has an
  * array of operations and an instance record.  The file systems are
  * put on a doubly linked list.
+ *
+ * NOTE: mnt_nvnodelist and mnt_reservedvnlist.  At the moment vnodes
+ * are linked into mnt_nvnodelist.  At some point in the near future the
+ * vnode list will be split into a 'dirty' and 'clean' list. mnt_nvnodelist
+ * will become the dirty list and mnt_reservedvnlist will become the 'clean'
+ * list.  Filesystem kld's syncing code should remain compatible since
+ * they only need to scan the dirty vnode list (nvnodelist -> dirtyvnodelist).
  */
 TAILQ_HEAD(vnodelst, vnode);
 
@@ -119,6 +126,7 @@ struct mount {
 	struct vnode	*mnt_vnodecovered;	/* vnode we mounted on */
 	struct vnode	*mnt_syncer;		/* syncer vnode */
 	struct vnodelst	mnt_nvnodelist;		/* list of vnodes this mount */
+	struct vnodelst	mnt_reservedvnlist;	/* (future) dirty vnode list */
 	struct lock	mnt_lock;		/* mount structure lock */
 	int		mnt_writeopcount;	/* write syscalls in progress */
 	int		mnt_flag;		/* flags shared with user */
