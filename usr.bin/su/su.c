@@ -359,6 +359,8 @@ main(int argc, char *argv[])
 	child_pid = fork();
 	switch (child_pid) {
 	default:
+		sa.sa_handler = SIG_IGN;
+		sigaction(SIGTTOU, &sa, NULL);
 		close(fds[0]);
 		setpgid(child_pid, child_pid);
 		tcsetpgrp(1, child_pid);
