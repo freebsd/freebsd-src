@@ -2307,7 +2307,7 @@ vt100|dec-vt100|vt100-am|vt100am|dec vt100:\
 	:if=/usr/share/tabset/vt100:nw=2\EE:\
 	:as=2\E(0:ae=2\E(B:ac=llmmkkjjuuttvvwwqqxxnnoosspprr``aaffgg~~..--++,,hhII00yyzz:\
 	:rs=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h:ks=\E[?1h\E=:ke=\E[?1l\E>:\
-	:ku=\EOA:kd=\EOB:kr=\EOC:kl=\EOD:kb=^H:\
+	:ku=\EOA:kd=\EOB:kr=\EOC:kl=\EOD:kb=\177:\
 	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=2*\EM:vt#3:xn:\
 	:sc=2\E7:rc=2\E8:cs=5\E[%i%d;%dr:UP=2\E[%dA:DO=2\E[%dB:RI=2\E[%dC:\
 	:LE=2\E[%dD:ct=2\E[3g:st=2\EH:ta=^I:ms:bl=^G:cr=^M:nl=^J:eo:it#8:ut:
