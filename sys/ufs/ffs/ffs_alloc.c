@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.18 (Berkeley) 5/26/95
- * $Id: ffs_alloc.c,v 1.49 1998/03/30 09:55:50 phk Exp $
+ * $Id: ffs_alloc.c,v 1.50 1998/07/11 07:46:04 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -42,8 +42,9 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
-#include <sys/kernel.h>
+#ifdef notyet
 #include <sys/sysctl.h>
+#endif
 #include <sys/syslog.h>
 
 #include <ufs/ufs/quota.h>
