@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.23 1995/10/03 23:20:52 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.24 1995/10/04 01:07:04 jmz Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -119,6 +119,7 @@
 	  <item>Dave Rivers &lt;rivers@ponds.uucp&gt;
 	  <item>David Dawes &lt;dawes@physics.su.OZ.AU&gt;
 	  <item>Dean Huxley &lt;dean@fsa.ca&gt;
+	  <item>Dirk Froemberg &lt;dirk@hal.in-berlin.de&gt;
 	  <item>Don Whiteside &lt;dwhite@anshar.shadow.net&gt;
 	  <item>Eric L. Hernes &lt;erich@lodgenet.com&gt;
 	  <item>Frank Bartels &lt;knarf@nasim.cube.net&gt;
