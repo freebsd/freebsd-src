@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.58.2.1 1999/01/27 11:06:23 kato Exp $
+ *	$Id$
  */
 
 /*
@@ -1303,7 +1303,7 @@ ed_probe_Novell_generic(sc, port, unit, flags)
 	 */
 #ifdef PC98
 	if (sc->type == ED_TYPE98_BDN) {
-		outb(sc->asic_addr + ED_NOVELL_RESET, tmp & 0xf0 | 0x08);
+		outb(sc->asic_addr + ED_NOVELL_RESET, (tmp & 0xf0) | 0x08);
 		outb(sc->nic_addr + 0x4000, tmp);
 		(void) inb(sc->asic_addr + 0x8000);
 		outb(sc->asic_addr + 0x8000, tmp);
@@ -1900,7 +1900,6 @@ static int ed_probe_SIC98(struct isa_device* pc98_dev)
 	struct ed_softc *sc = &ed_softc[pc98_dev->id_unit];
 	u_char sum;
 	u_int memsize;
-	int unit = pc98_dev->id_unit;
 
 	if ((pc98_dev->id_maddr == 0) || (pc98_dev->id_msize == 0))
 		return 0;
@@ -1963,8 +1962,8 @@ static int ed_probe_SIC98(struct isa_device* pc98_dev)
 
 	for (i = 0; i < memsize; ++i)
 		if (sc->mem_start[i]) {
-			printf("ed%d: failed to clear shared memory at %lx - check configuration\n",
-			       pc98_dev->id_unit, kvtop(sc->mem_start + i));
+printf("ed%d: failed to clear shared memory at %lx - check configuration\n",
+			     pc98_dev->id_unit, kvtop(sc->mem_start + i));
 			return (0);
 		}
 
@@ -1994,50 +1993,51 @@ ed_probe_CNET98(isa_dev)
 		return 0;
 
 	sc->vendor         = ED_VENDOR_MISC;	 /* vendor name          */
-	sc->type_str       = "CNET98";           /* board name           */
-	sc->isa16bit       = 0;					 /* 16bit mode off = 0   */
-	sc->cr_proto       = ED_CR_RD2;          /*                      */
+	sc->type_str       = "CNET98";		 /* board name           */
+	sc->isa16bit       = 0;			 /* 16bit mode off = 0   */
+	sc->cr_proto       = ED_CR_RD2;		 /*                      */
 	sc->asic_addr      = isa_dev->id_iobase; /* 0xa3d0,0xb3d0,0xc3d0 */
 	sc->nic_addr       = isa_dev->id_iobase; /* 0xd3d0,0xe3d0,0xf3d0 */
-	sc->is790          = 0;			 		 /* special chip         */
+	sc->is790          = 0;			 /* special chip         */
 
 	sc->mem_start      = (caddr_t)isa_dev->id_maddr;
 	sc->mem_end        = sc->mem_start + isa_dev->id_msize;
 	sc->mem_ring       = sc->mem_start + (ED_PAGE_SIZE * ED_TXBUF_SIZE);
 	sc->mem_size       = isa_dev->id_msize;
-	sc->mem_shared     = 1;					 /* shared memory on    */
-	sc->txb_cnt        = 1;					 /* tx buffer counter 1 */
-	sc->tx_page_start  = 0;					 /* page offset 0       */
-	sc->rec_page_start = ED_TXBUF_SIZE;		 /* page offset 6       */
+	sc->mem_shared     = 1;			 /* shared memory on    */
+	sc->txb_cnt        = 1;			 /* tx buffer counter 1 */
+	sc->tx_page_start  = 0;			 /* page offset 0       */
+	sc->rec_page_start = ED_TXBUF_SIZE;	 /* page offset 6       */
 	sc->rec_page_stop  = isa_dev->id_msize / ED_PAGE_SIZE;
-											 /* page offset 40      */
+						 /* page offset 40      */
 	/*
 	 * Check i/o address.
 	 * 0xa3d0, 0xb3d0, 0xc3d0, 0xd3d0, 0xe3d0, 0xf3d0
 	 */
-	if ( ((sc->asic_addr & (u_short) 0x0fff) != 0x03d0) &&
-	     ((sc->asic_addr & (u_short) 0xf000) >= 0xa000)   ){
+	if (((sc->asic_addr & (u_short) 0x0fff) != 0x03d0) &&
+	     ((sc->asic_addr & (u_short) 0xf000) >= 0xa000)){
 		printf("ed%d: Invalid i/o port configuration (0x%x) must be "
-			   "0x?3d0 for CNET98\n",
-			   isa_dev->id_unit, sc->asic_addr);
+		    "0x?3d0 for CNET98\n",
+		    isa_dev->id_unit, sc->asic_addr);
 		return (0);
 	}
 	/*
 	 * Check window area address.
 	 */
 	tmp_s = kvtop(sc->mem_start) >> 12;
-	if ( tmp_s < 0x80 ) {
-		printf("ed%d: Please change window address(0x%x) \n",
-			   isa_dev->id_unit,sc->mem_start);
-	  return (0);
+	if (tmp_s < 0x80) {
+		printf("ed%d: Please change window address(0x%lx)\n",
+		    isa_dev->id_unit, (u_long)sc->mem_start);
+		return (0);
 	}
 
 	tmp   = sc->asic_addr >> 12;
 	tmp_s = (tmp_s & (u_char) 0x0f);
 	tmp_e = tmp_s + 4;
-	if ( (tmp_s <= tmp) && (tmp < tmp_e ) ){
-printf("ed%d: Please change iobase address(0x%x) or window address(0x%x) \n",
-	   isa_dev->id_unit,isa_dev->id_iobase,kvtop(sc->mem_start));
+	if ((tmp_s <= tmp) && (tmp < tmp_e )){
+printf("ed%d: Please change iobase address(0x%x) or window address(0x%lx) \n",
+		    isa_dev->id_unit, isa_dev->id_iobase,
+		    kvtop(sc->mem_start));
 	  return (0);
 	}
 
@@ -2068,21 +2068,21 @@ printf("ed%d: Please change iobase address(0x%x) or window address(0x%x) \n",
 	 *    board memory base 0x480000  data 256byte 
 	 *    FreeBSD address 0xf00xxxxx
 	 */
-	outb((sc->asic_addr + ED_CNET98_MAP_REG0L),0x00);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG0L), 0x00);
 	DELAY(10);
-	outb((sc->asic_addr + ED_CNET98_MAP_REG0H),0x48);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG0H), 0x48);
 	DELAY(10);
-	outb((sc->asic_addr + ED_CNET98_MAP_REG1L),0x00);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG1L), 0x00);
 	DELAY(10);
-	outb((sc->asic_addr + ED_CNET98_MAP_REG1H),0x41);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG1H), 0x41);
 	DELAY(10);
-	outb((sc->asic_addr + ED_CNET98_MAP_REG2L),0x00);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG2L), 0x00);
 	DELAY(10);
-	outb((sc->asic_addr + ED_CNET98_MAP_REG2H),0x42);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG2H), 0x42);
 	DELAY(10);
-	outb((sc->asic_addr + ED_CNET98_MAP_REG3L),0x00);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG3L), 0x00);
 	DELAY(10);
-	outb((sc->asic_addr + ED_CNET98_MAP_REG3H),0x43);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG3H), 0x43);
 	DELAY(10);
 
 	/*
@@ -2107,7 +2107,8 @@ printf("ed%d: Please change iobase address(0x%x) or window address(0x%x) \n",
 	 * Get station address from on-board ROM
 	 */
 	for (i = 0; i < ETHER_ADDR_LEN; ++i) 
-		sc->arpcom.ac_enaddr[i] = *((caddr_t)(isa_dev -> id_maddr + i));
+		sc->arpcom.ac_enaddr[i] =
+		    *((caddr_t)(isa_dev -> id_maddr + i));
 
 	/*
 	 * Disable window memory
@@ -2122,21 +2123,21 @@ printf("ed%d: Please change iobase address(0x%x) or window address(0x%x) \n",
 	 *    board memory base 0x400000  data 16kbyte 
 	 *    FreeBSD address 0xf00xxxxx
 	 */
-	outb((sc->asic_addr + ED_CNET98_MAP_REG0L),0x00);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG0L), 0x00);
 	DELAY(10);
-	outb((sc->asic_addr + ED_CNET98_MAP_REG0H),0x40);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG0H), 0x40);
 	DELAY(10);
-	outb((sc->asic_addr + ED_CNET98_MAP_REG1L),0x00);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG1L), 0x00);
 	DELAY(10);
-	outb((sc->asic_addr + ED_CNET98_MAP_REG1H),0x41);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG1H), 0x41);
 	DELAY(10);
-	outb((sc->asic_addr + ED_CNET98_MAP_REG2L),0x00);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG2L), 0x00);
 	DELAY(10);
-	outb((sc->asic_addr + ED_CNET98_MAP_REG2H),0x42);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG2H), 0x42);
 	DELAY(10);
-	outb((sc->asic_addr + ED_CNET98_MAP_REG3L),0x00);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG3L), 0x00);
 	DELAY(10);
-	outb((sc->asic_addr + ED_CNET98_MAP_REG3H),0x43);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG3H), 0x43);
 	DELAY(10);
 
 	/*
@@ -2144,7 +2145,7 @@ printf("ed%d: Please change iobase address(0x%x) or window address(0x%x) \n",
 	 *   bit7:1 enable , 0 disable
 	 */
 	cmd = cmd | 0x80;
-	outb((sc->asic_addr + ED_CNET98_WIN_REG),cmd);
+	outb((sc->asic_addr + ED_CNET98_WIN_REG), cmd);
 	DELAY(10);
 
 	/*
@@ -2156,7 +2157,7 @@ printf("ed%d: Please change iobase address(0x%x) or window address(0x%x) \n",
 		sum |= sc->mem_start[j];
 	if (sum != 0x0) {
 		printf("ed%d: CNET98 dual port RAM address error\n",
-			   isa_dev->id_unit);
+		    isa_dev->id_unit);
 		return (0);
 	}
 
@@ -2165,28 +2166,28 @@ printf("ed%d: Please change iobase address(0x%x) or window address(0x%x) \n",
 	 */
 	switch (isa_dev->id_irq) {
 	case IRQ12:
-		outb((sc->asic_addr + ED_CNET98_INT_LEV),ED_CNET98_INT_IRQ12);
+		outb((sc->asic_addr + ED_CNET98_INT_LEV), ED_CNET98_INT_IRQ12);
 		break;
 	case IRQ3:
-		outb((sc->asic_addr + ED_CNET98_INT_LEV),ED_CNET98_INT_IRQ3);
+		outb((sc->asic_addr + ED_CNET98_INT_LEV), ED_CNET98_INT_IRQ3);
 		break;
 	case IRQ5:
-		outb((sc->asic_addr + ED_CNET98_INT_LEV),ED_CNET98_INT_IRQ5);
+		outb((sc->asic_addr + ED_CNET98_INT_LEV), ED_CNET98_INT_IRQ5);
 		break;
 	case IRQ6:
-		outb((sc->asic_addr + ED_CNET98_INT_LEV),ED_CNET98_INT_IRQ6);
+		outb((sc->asic_addr + ED_CNET98_INT_LEV), ED_CNET98_INT_IRQ6);
 		break;
 	case IRQ9:
-		outb((sc->asic_addr + ED_CNET98_INT_LEV),ED_CNET98_INT_IRQ9);
+		outb((sc->asic_addr + ED_CNET98_INT_LEV), ED_CNET98_INT_IRQ9);
 		break;
 	case IRQ13:
-		outb((sc->asic_addr + ED_CNET98_INT_LEV),ED_CNET98_INT_IRQ13);
+		outb((sc->asic_addr + ED_CNET98_INT_LEV), ED_CNET98_INT_IRQ13);
 		break;
 	default:
 printf("ed%d: Change Interrupt level default value from %d to %d.\n",
-			isa_dev->id_irq,IRQ5);
+		    isa_dev->id_unit, isa_dev->id_irq,IRQ5);
 		isa_dev->id_irq = IRQ5;
-		outb((sc->asic_addr + ED_CNET98_INT_LEV),ED_CNET98_INT_IRQ5);
+		outb((sc->asic_addr + ED_CNET98_INT_LEV), ED_CNET98_INT_IRQ5);
 		break;
 	}
 	DELAY(1000);
@@ -2196,7 +2197,7 @@ printf("ed%d: Change Interrupt level default value from %d to %d.\n",
 	 *     bit1:1 timer interrupt mask
 	 *     bit0:0 NS controler interrupt enable
 	 */
-	outb((sc->asic_addr + ED_CNET98_INT_MASK),0x7e);
+	outb((sc->asic_addr + ED_CNET98_INT_MASK), 0x7e);
 	DELAY(1000);
 
 	return (ED_CNET98_IO_PORTS); 
@@ -2211,7 +2212,6 @@ static int ed_probe_CNET98EL(struct isa_device* isa_dev)
 	static char test_pattern[32] = "THIS is A memory TEST pattern";
 	char    test_buffer[32];
 	u_short	init_addr = ED_CNET98EL_INIT;
-	int unit = isa_dev->id_unit;
 
 	sc->asic_addr = isa_dev->id_iobase + ED_NOVELL_ASIC_OFFSET;
 	sc->nic_addr  = isa_dev->id_iobase + ED_NOVELL_NIC_OFFSET;
@@ -2227,7 +2227,7 @@ static int ed_probe_CNET98EL(struct isa_device* isa_dev)
 	/* Check i/o address. CNET98E/L only allows ?3d0h */
 	if ((sc->nic_addr & (u_short) 0x0fff) != 0x03d0) {
 		printf("ed%d: Invalid i/o port configuration (%x) must be "
-			   "?3d0h for CNET98E/L\n",
+		    "?3d0h for CNET98E/L\n",
 		isa_dev->id_unit, sc->nic_addr);
 		return (0);
 	}
@@ -2258,8 +2258,8 @@ static int ed_probe_CNET98EL(struct isa_device* isa_dev)
 	DELAY(5000);
 	tmp = inb(sc->nic_addr + ED_P0_CR);
 #ifdef ED_DEBUG
-	printf("ed%d: inb(%x) = %x\n", isa_dev->id_unit, sc->nic_addr + ED_P0_CR,
-		   tmp);
+	printf("ed%d: inb(%x) = %x\n",
+	    isa_dev->id_unit, sc->nic_addr + ED_P0_CR, tmp);
 #endif
 	if ((tmp & ~ED_CR_STA) != (ED_CR_RD2 | ED_CR_STP))
 		return (0);
@@ -2305,7 +2305,8 @@ static int ed_probe_CNET98EL(struct isa_device* isa_dev)
 	}
 	if (n != (ED_CNET98EL_PAGE_OFFSET + memsize)) {
 #ifdef ED_DEBUG
-		printf("ed%d: CNET98E/L memory failure at %x\n", isa_dev->id_unit, n);
+		printf("ed%d: CNET98E/L memory failure at %x\n",
+		    isa_dev->id_unit, n);
 #endif
 		return (0);     /* not a CNET98E/L */
 	}
@@ -2329,9 +2330,8 @@ static int ed_probe_CNET98EL(struct isa_device* isa_dev)
 		break;
 #endif
 	default:
-		printf(
-		  "ed%d: Invalid irq configuration (%d) must be 3,5,6 for CNET98E/L\n",
-		isa_dev->id_unit, ffs(isa_dev->id_irq) - 1);
+printf("ed%d: Invalid irq configuration (%d) must be 3,5,6 for CNET98E/L\n",
+		    isa_dev->id_unit, ffs(isa_dev->id_irq) - 1);
 		return (0);
 	}
 	outb(sc->asic_addr + ED_CNET98EL_IMR, 0x7e);
@@ -2350,7 +2350,8 @@ static int ed_probe_CNET98EL(struct isa_device* isa_dev)
 	 * Use one xmit buffer if < 16k, two buffers otherwise (if not told
 	 * otherwise).
 	 */
-	if ((memsize < 16384) || (isa_dev->id_flags & ED_FLAGS_NO_MULTI_BUFFERING))
+	if ((memsize < 16384) ||
+	    (isa_dev->id_flags & ED_FLAGS_NO_MULTI_BUFFERING))
 		sc->txb_cnt = 1;
 	else
 		sc->txb_cnt = 2;
@@ -2358,7 +2359,8 @@ static int ed_probe_CNET98EL(struct isa_device* isa_dev)
 	sc->rec_page_start = sc->tx_page_start + sc->txb_cnt * ED_TXBUF_SIZE;
 	sc->rec_page_stop = sc->tx_page_start + memsize / ED_PAGE_SIZE;
 
-	sc->mem_ring = sc->mem_start + sc->txb_cnt * ED_PAGE_SIZE * ED_TXBUF_SIZE;
+	sc->mem_ring = sc->mem_start +
+	    sc->txb_cnt * ED_PAGE_SIZE * ED_TXBUF_SIZE;
 
 	/*
 	 * Get station address from on-board ROM
