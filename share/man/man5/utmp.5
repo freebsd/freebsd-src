@@ -67,7 +67,7 @@ file.
 #define UT_HOSTSIZE     16
 
 struct lastlog {
-        time_t  ll_time;		/* When user logged in */
+        int32_t ll_time;		/* When user logged in */
         char    ll_line[UT_LINESIZE];	/* Terminal line name */
         char    ll_host[UT_HOSTSIZE];	/* Host user came from */
 };
@@ -76,7 +76,7 @@ struct utmp {
         char    ut_line[UT_LINESIZE];	/* Terminal line name */
         char    ut_name[UT_NAMESIZE];	/* User's login name */
         char    ut_host[UT_HOSTSIZE];	/* Host user came from */
-        time_t  ut_time;		/* When user logged in */
+        int32_t ut_time;		/* When user logged in */
 };
 .Ed
 .Pp
