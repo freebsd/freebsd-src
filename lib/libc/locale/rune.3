@@ -69,6 +69,25 @@
 .Ft int
 .Fn fputrune "rune_t rune" "FILE *stream"
 .Sh DESCRIPTION
+.Bf Em
+The
+.Bx 4.4
+.Dq rune
+functions have been deprecated in favour of the
+.Tn ISO
+C99 extended multibyte and wide character facilities
+and should not be used in new applications.
+.Ef
+Consider using
+.Xr setlocale 3 ,
+.Xr mbrtowc 3 ,
+.Xr wcrtomb 3 ,
+.Xr fgetwc 3 ,
+.Xr ungetwc 3 ,
+and
+.Xr fputwc 3
+instead.
+.Pp
 The
 .Fn setrunelocale
 controls the type of encoding used to represent runes as multibyte strings
