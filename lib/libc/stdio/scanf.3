@@ -178,9 +178,10 @@ and the next pointer is a pointer to
 (rather than
 .Vt float ) ,
 or that the conversion will be one of
-.Cm c
-or
+.Cm c ,
 .Cm s
+or
+.Cm \&[
 and the next pointer is a pointer to an array of
 .Vt wchar_t
 (rather than
@@ -254,8 +255,15 @@ If no width is given,
 a default of
 .Dq infinity
 is used (with one exception, below);
-otherwise at most this many characters are scanned
+otherwise at most this many bytes are scanned
 in processing the conversion.
+In the case of the
+.Cm lc ,
+.Cm ls
+and
+.Cm l[
+conversions, the field width specifies the maximum number
+of multibyte characters that will be scanned.
 Before conversion begins,
 most conversions skip white space;
 this white space is not counted against the field width.
@@ -334,6 +342,13 @@ terminating
 character.
 The input string stops at white space
 or at the maximum field width, whichever occurs first.
+.Pp
+If an
+.Cm l
+qualifier is present, the next pointer must be a pointer to
+.Vt wchar_t ,
+into which the input will be placed after conversion by
+.Xr mbrtowc 3 .
 .It Cm S
 The same as
 .Cm ls .
@@ -350,6 +365,13 @@ and there must be enough room for all the characters
 is added).
 The usual skip of leading white space is suppressed.
 To skip white space first, use an explicit space in the format.
+.Pp
+If an
+.Cm l
+qualifier is present, the next pointer must be a pointer to
+.Vt wchar_t ,
+into which the input will be placed after conversion by
+.Xr mbrtowc 3 .
 .It Cm C
 The same as
 .Cm lc .
@@ -395,6 +417,13 @@ means the set
 The string ends with the appearance of a character not in the
 (or, with a circumflex, in) set
 or when the field width runs out.
+.Pp
+If an
+.Cm l
+qualifier is present, the next pointer must be a pointer to
+.Vt wchar_t ,
+into which the input will be placed after conversion by
+.Xr mbrtowc 3 .
 .It Cm p
 Matches a pointer value (as printed by
 .Ql %p
@@ -490,18 +519,6 @@ and
 The
 .Cm %n$
 modifiers for positional arguments are not implemented.
-.Pp
-The
-.Cm l
-modifier for
-.Cm %c
-and
-.Cm %s
-(and
-.Cm %C
-and
-.Cm %S )
-to specify wide characters and strings is not implemented.
 .Pp
 The
 .Cm \&%a
