@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.28 1994/11/23 11:04:00 jkh Exp $
+# $Id: instdist.sh,v 1.29 1994/11/24 20:49:58 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -494,14 +494,10 @@ of the distribution when we come back." -1 -1
 		dialog --clear
 		/stand/sh
 		title="Please enter directory"
-		default_value="${MNT}/bindist"
-		if input "Ok, now give me the full pathname of the directory where you've got the distribution."; then
-			if [ ! -f $answer/extract.sh ]; then
-				error "That's not a valid distribution"
-			else
-				media_type=ufs
-				media_device=$answer
-			fi
+		default_value="${MNT}"
+		if input "Ok, now give me the full pathname of the parent directorys for the distribution(s)."; then
+			media_type=ufs
+			media_device=$answer
 		fi
 	;;
 	esac
