@@ -501,6 +501,16 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		  /*quirks*/0, /*mintags*/55, /*maxtags*/255
 	},
 	{
+		/*
+		 * Would respond to all LUNs.  Device type and removable
+		 * flag are jumper-selectable.
+		 */
+		{ T_ANY, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED, "MaxOptix",
+		  "Tahiti 1", "*"
+		},
+		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
+	},
+	{
 		/* Default tagged queuing parameters for all devices */
 		{
 		  T_ANY, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED,
