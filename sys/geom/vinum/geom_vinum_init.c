@@ -127,6 +127,7 @@ void
 gv_start_vol(struct gv_volume *v)
 {
 	struct gv_plex *p;
+	struct gv_sd *s;
 
 	KASSERT(v != NULL, ("gv_start_vol: NULL v"));
 
@@ -144,6 +145,11 @@ gv_start_vol(struct gv_volume *v)
 			case GV_PLEX_DEGRADED:  /* XXX not yet */
 			default:
 				return;
+			}
+		} else {
+			LIST_FOREACH(s, &p->subdisks, in_plex) {
+				gv_set_sd_state(s, GV_SD_UP,
+				    GV_SETSTATE_CONFIG);
 			}
 		}
 	} else
@@ -259,6 +265,8 @@ gv_sync_td(void *arg)
 	}
 	g_topology_unlock();
 
+	printf("GEOM_VINUM: plex sync %s -> %s started\n", sync->from->name,
+	    sync->to->name);
 	for (i = 0; i < p->size; i+= sync->syncsize) {
 		/* Read some bits from the good plex. */
 		buf = g_read_data(from, i, sync->syncsize, &error);
@@ -291,7 +299,7 @@ gv_sync_td(void *arg)
 		 * This hack declare this bio as part of an initialization
 		 * process, so that the lower levels allow it to get through.
 		 */
-		bp->bio_caller1 = p;
+		bp->bio_cflags |= GV_BIO_SYNCREQ;
 
 		/* Schedule it down ... */
 		g_io_request(bp, to);
@@ -319,7 +327,8 @@ gv_sync_td(void *arg)
 	/* Successful initialization. */
 	if (!error) {
 		p->flags &= ~GV_PLEX_SYNCING;
-		printf("gvinum: plex '%s': sync finished\n", p->name);
+		printf("GEOM_VINUM: plex sync %s -> %s finished\n",
+		    sync->from->name, sync->to->name);
 	}
 
 	g_free(sync);

@@ -32,6 +32,7 @@
 #define	ERRBUFSIZ	1024
 
 /* geom_vinum_drive.c */
+void	gv_config_new_drive(struct gv_drive *);
 void	gv_save_config_all(struct gv_softc *);
 void	gv_save_config(struct g_consumer *, struct gv_drive *,
 	    struct gv_softc *);
@@ -67,7 +68,9 @@ struct gv_volume *gv_find_vol(struct gv_softc *, char *);
 void	gv_format_config(struct gv_softc *, struct sbuf *, int, char *);
 int	gv_is_striped(struct gv_plex *);
 int	gv_is_open(struct g_geom *);
-void	gv_kill_thread(struct gv_plex *);
+void	gv_kill_drive_thread(struct gv_drive *);
+void	gv_kill_plex_thread(struct gv_plex *);
+void	gv_kill_vol_thread(struct gv_volume *);
 int	gv_object_type(struct gv_softc *, char *);
 void	gv_parse_config(struct gv_softc *, u_char *, int);
 const char	*gv_roughlength(off_t, int);

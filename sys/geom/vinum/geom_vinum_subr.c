@@ -472,7 +472,8 @@ gv_sd_to_drive(struct gv_softc *sc, struct gv_drive *d, struct gv_sd *s,
 	KASSERT(d != NULL, ("gv_sd_to_drive: NULL drive"));
 	KASSERT(s != NULL, ("gv_sd_to_drive: NULL subdisk"));
 	KASSERT(errstr != NULL, ("gv_sd_to_drive: NULL errstr"));
-	KASSERT(errlen >= ERRBUFSIZ, ("gv_sd_to_drive: short errlen", errlen));
+	KASSERT(errlen >= ERRBUFSIZ, ("gv_sd_to_drive: short errlen (%d)",
+	    errlen));
 
 	/* Check if this subdisk was already given to this drive. */
 	if (s->drive_sc == d)
@@ -816,14 +817,40 @@ gv_object_type(struct gv_softc *sc, char *name)
 }
 
 void
-gv_kill_thread(struct gv_plex *p)
+gv_kill_drive_thread(struct gv_drive *d)
 {
-	if ((p->org == GV_PLEX_RAID5) && (p->flags & GV_PLEX_THREAD_ACTIVE)) {
+	if (d->flags & GV_DRIVE_THREAD_ACTIVE) {
+		d->flags |= GV_DRIVE_THREAD_DIE;
+		wakeup(d);
+		while (!(d->flags & GV_DRIVE_THREAD_DEAD))
+			tsleep(d, PRIBIO, "gv_die", hz);
+		d->flags &= ~GV_DRIVE_THREAD_ACTIVE;
+		mtx_destroy(&d->bqueue_mtx);
+	}
+}
+
+void
+gv_kill_plex_thread(struct gv_plex *p)
+{
+	if (p->flags & GV_PLEX_THREAD_ACTIVE) {
 		p->flags |= GV_PLEX_THREAD_DIE;
 		wakeup(p);
 		while (!(p->flags & GV_PLEX_THREAD_DEAD))
 			tsleep(p, PRIBIO, "gv_die", hz);
 		p->flags &= ~GV_PLEX_THREAD_ACTIVE;
-		mtx_destroy(&p->worklist_mtx);
+		mtx_destroy(&p->bqueue_mtx);
+	}
+}
+
+void
+gv_kill_vol_thread(struct gv_volume *v)
+{
+	if (v->flags & GV_VOL_THREAD_ACTIVE) {
+		v->flags |= GV_VOL_THREAD_DIE;
+		wakeup(v);
+		while (!(v->flags & GV_VOL_THREAD_DEAD))
+			tsleep(v, PRIBIO, "gv_die", hz);
+		v->flags &= ~GV_VOL_THREAD_ACTIVE;
+		mtx_destroy(&v->bqueue_mtx);
 	}
 }

@@ -43,6 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <geom/vinum/geom_vinum_raid5.h>
 #include <geom/vinum/geom_vinum.h>
 
+static void gv_plex_completed_request(struct gv_plex *, struct bio *);
+static void gv_plex_normal_request(struct gv_plex *, struct bio *);
+static void gv_plex_worker(void *);
+
 /* XXX: is this the place to catch dying subdisks? */
 static void
 gv_plex_orphan(struct g_consumer *cp)
@@ -67,7 +71,7 @@ gv_plex_orphan(struct g_consumer *cp)
 
 	p = gp->softc;
 	if (p != NULL) {
-		gv_kill_thread(p);
+		gv_kill_plex_thread(p);
 		p->geom = NULL;
 		p->provider = NULL;
 		p->consumer = NULL;
@@ -76,47 +80,38 @@ gv_plex_orphan(struct g_consumer *cp)
 	g_wither_geom(gp, error);
 }
 
-static void
+void
 gv_plex_done(struct bio *bp)
 {
-	struct g_geom *gp;
-	struct gv_sd *s;
-	
-	gp = bp->bio_to->geom;
+	struct gv_plex *p;
+	struct gv_bioq *bq;
 
-	s = bp->bio_caller1;
-	KASSERT(s != NULL, ("gv_plex_done: NULL s"));
-
-	if (bp->bio_error == 0)
-		s->initialized += bp->bio_length;
-	
-	if (s->initialized >= s->size) {
-		gv_set_sd_state(s, GV_SD_UP, 0);
-		s->initialized = 0;
-	}
-
-	g_std_done(bp);
+	p = bp->bio_from->geom->softc;
+	bp->bio_cflags |= GV_BIO_DONE;
+	bq = g_malloc(sizeof(*bq), M_NOWAIT | M_ZERO);
+	bq->bp = bp;
+	mtx_lock(&p->bqueue_mtx);
+	TAILQ_INSERT_TAIL(&p->bqueue, bq, queue);
+	wakeup(p);
+	mtx_unlock(&p->bqueue_mtx);
 }
 
 /* Find the correct subdisk to send the bio to and build a bio to send. */
 static int
-gv_plexbuffer(struct bio *bp, struct bio **bp2, struct g_consumer **cp,
-    caddr_t addr, long bcount, off_t boff)
+gv_plexbuffer(struct gv_plex *p, struct bio *bp, caddr_t addr, off_t boff, off_t bcount)
 {
 	struct g_geom *gp;
-	struct gv_plex *p;
 	struct gv_sd *s;
-	struct bio *cbp;
+	struct bio *cbp, *pbp;
 	int i, sdno;
-	off_t len_left, real_len, real_off, stripeend, stripeno, stripestart;
-
-	s = NULL;
-
-	gp = bp->bio_to->geom;
-	p = gp->softc;
+	off_t len_left, real_len, real_off;
+	off_t stripeend, stripeno, stripestart;
 
 	if (p == NULL || LIST_EMPTY(&p->subdisks))
 		return (ENXIO);
+
+	s = NULL;
+	gp = bp->bio_to->geom;
 
 	/*
 	 * We only handle concatenated and striped plexes here.  RAID5 plexes
@@ -190,10 +185,10 @@ gv_plexbuffer(struct bio *bp, struct bio **bp2, struct g_consumer **cp,
 		break;
 
 	case GV_SD_STALE:
-		if (bp->bio_caller1 != p)
+		if (!(bp->bio_cflags & GV_BIO_SYNCREQ))
 			return (ENXIO);
 
-		printf("FOO: setting sd %s to GV_SD_INITIALIZING\n", s->name);
+		printf("GEOM_VINUM: sd %s is initializing\n", s->name);
 		gv_set_sd_state(s, GV_SD_INITIALIZING, GV_SETSTATE_FORCE);
 		break;
 
@@ -214,103 +209,365 @@ gv_plexbuffer(struct bio *bp, struct bio **bp2, struct g_consumer **cp,
 	cbp->bio_offset = real_off;
 	cbp->bio_length = real_len;
 	cbp->bio_data = addr;
-	if (bp->bio_caller1 == p) {
-		cbp->bio_caller1 = s;
+	cbp->bio_done = g_std_done;
+	cbp->bio_caller2 = s->consumer;
+	if ((bp->bio_cflags & GV_BIO_SYNCREQ)) {
+		cbp->bio_cflags |= GV_BIO_SYNCREQ;
 		cbp->bio_done = gv_plex_done;
-	} else
-		cbp->bio_done = g_std_done;
-	*bp2 = cbp;
-	*cp = s->consumer;
+	}
+
+	if (bp->bio_driver1 == NULL) {
+		bp->bio_driver1 = cbp;
+	} else {
+		pbp = bp->bio_driver1;
+		while (pbp->bio_caller1 != NULL)
+			pbp = pbp->bio_caller1;
+		pbp->bio_caller1 = cbp;
+	}
+
 	return (0);
 }
 
 static void
 gv_plex_start(struct bio *bp)
 {
-	struct g_geom *gp;
-	struct g_consumer *cp;
 	struct gv_plex *p;
-	struct gv_raid5_packet *wp;
-	struct bio *bp2;
-	caddr_t addr;
-	off_t boff;
-	long bcount, rcount;
-	int err;
-
-	gp = bp->bio_to->geom;
-	p = gp->softc;
-
-	/*
-	 * We cannot handle this request if too many of our subdisks are
-	 * inaccessible.
-	 */
-	if ((p->state < GV_PLEX_DEGRADED) && (bp->bio_caller1 != p)) {
-		g_io_deliver(bp, ENXIO);  /* XXX: correct way? */
-		return;
-	}
+	struct gv_bioq *bq;
 
 	switch(bp->bio_cmd) {
 	case BIO_READ:
 	case BIO_WRITE:
 	case BIO_DELETE:
-		/*
-		 * We split up the request in smaller packets and hand them
-		 * down to our subdisks.
-		 */
-		wp = NULL;
-		addr = bp->bio_data;
-		boff = bp->bio_offset;
-		for (bcount = bp->bio_length; bcount > 0; bcount -= rcount) {
-			/*
-			 * RAID5 requests usually need to be split up in
-			 * several subrequests.
-			 */
-			if (p->org == GV_PLEX_RAID5) {
-				wp = gv_new_raid5_packet();
-				wp->bio = bp;
-				err = gv_build_raid5_req(wp, bp, addr, bcount,
-				    boff);
-			} else
-				err = gv_plexbuffer(bp, &bp2, &cp, addr, bcount,
-				    boff);
-
-			if (err) {
-				if (p->org == GV_PLEX_RAID5)
-					gv_free_raid5_packet(wp);
-				bp->bio_completed += bcount;
-				if (bp->bio_error == 0)
-					bp->bio_error = err;
-				if (bp->bio_completed == bp->bio_length)
-					g_io_deliver(bp, bp->bio_error);
-				return;
-			}
-		
-			if (p->org != GV_PLEX_RAID5) {
-				rcount = bp2->bio_length;
-				g_io_request(bp2, cp);
-
-			/*
-			 * RAID5 subrequests are queued on a worklist
-			 * and picked up from the worker thread.  This
-			 * ensures correct order.
-			 */
-			} else {
-				mtx_lock(&p->worklist_mtx);
-				TAILQ_INSERT_TAIL(&p->worklist, wp,
-				    list);
-				mtx_unlock(&p->worklist_mtx);
-				wakeup(&p);
-				rcount = wp->length;
-			}
-
-			boff += rcount;
-			addr += rcount;
-		}
-		return;
-
+		break;
+	case BIO_GETATTR:
 	default:
 		g_io_deliver(bp, EOPNOTSUPP);
 		return;
+	}
+
+	/*
+	 * We cannot handle this request if too many of our subdisks are
+	 * inaccessible.
+	 */
+	p = bp->bio_to->geom->softc;
+	if ((p->state < GV_PLEX_DEGRADED) &&
+	    !(bp->bio_cflags & GV_BIO_SYNCREQ)) {
+		g_io_deliver(bp, ENXIO);
+		return;
+	}
+
+	bq = g_malloc(sizeof(*bq), M_NOWAIT | M_ZERO);
+	bq->bp = bp;
+	mtx_lock(&p->bqueue_mtx);
+	TAILQ_INSERT_TAIL(&p->bqueue, bq, queue);
+	wakeup(p);
+	mtx_unlock(&p->bqueue_mtx);
+}
+
+static void
+gv_plex_worker(void *arg)
+{
+	struct bio *bp;
+	struct gv_plex *p;
+	struct gv_sd *s;
+	struct gv_bioq *bq;
+
+	p = arg;
+	KASSERT(p != NULL, ("NULL p"));
+
+	mtx_lock(&p->bqueue_mtx);
+	for (;;) {
+		/* We were signaled to exit. */
+		if (p->flags & GV_PLEX_THREAD_DIE)
+			break;
+
+		/* Take the first BIO from our queue. */
+		bq = TAILQ_FIRST(&p->bqueue);
+		if (bq == NULL) {
+			msleep(p, &p->bqueue_mtx, PRIBIO, "-", hz/10);
+			continue;
+		}
+		TAILQ_REMOVE(&p->bqueue, bq, queue);
+		mtx_unlock(&p->bqueue_mtx);
+
+		bp = bq->bp;
+
+		/* A completed request. */
+		if (bp->bio_cflags & GV_BIO_DONE) {
+			g_free(bq);
+			if (bp->bio_cflags & GV_BIO_SYNCREQ) {
+				s = bp->bio_to->private;
+				if (bp->bio_error == 0)
+					s->initialized += bp->bio_length;
+				if (s->initialized >= s->size) {
+					g_topology_lock();
+					gv_set_sd_state(s, GV_SD_UP,
+					    GV_SETSTATE_CONFIG);
+					g_topology_unlock();
+					s->initialized = 0;
+				}
+				g_std_done(bp);
+			} else
+				gv_plex_completed_request(p, bp);
+		/*
+		 * A sub-request that was hold back because it interfered with
+		 * another sub-request.
+		 */
+		} else if (bp->bio_cflags & GV_BIO_ONHOLD) {
+			/* Is it still locked out? */
+			if (gv_stripe_active(p, bp)) {
+				mtx_lock(&p->bqueue_mtx);
+				TAILQ_INSERT_TAIL(&p->bqueue, bq, queue);
+				mtx_unlock(&p->bqueue_mtx);
+			} else {
+				g_free(bq);
+				bp->bio_cflags &= ~GV_BIO_ONHOLD;
+				g_io_request(bp, bp->bio_caller2);
+			}
+
+		/* A normal request to this plex. */
+		} else {
+			g_free(bq);
+			gv_plex_normal_request(p, bp);
+		}
+
+		mtx_lock(&p->bqueue_mtx);
+	}
+	mtx_unlock(&p->bqueue_mtx);
+	p->flags |= GV_PLEX_THREAD_DEAD;
+	wakeup(p);
+
+	kthread_exit(ENXIO);
+}
+
+void
+gv_plex_completed_request(struct gv_plex *p, struct bio *bp)
+{
+	struct bio *cbp, *pbp;
+	struct gv_bioq *bq, *bq2;
+	struct gv_raid5_packet *wp;
+	int i;
+
+	wp = bp->bio_driver1;
+
+	switch (bp->bio_parent->bio_cmd) {
+	case BIO_READ:
+		if (wp == NULL)
+			break;
+
+		TAILQ_FOREACH_SAFE(bq, &wp->bits, queue, bq2) {
+			if (bq->bp == bp) {
+				TAILQ_REMOVE(&wp->bits, bq, queue);
+				g_free(bq);
+				for (i = 0; i < wp->length; i++)
+					wp->data[i] ^= bp->bio_data[i];
+				break;
+			}
+		}
+		if (TAILQ_EMPTY(&wp->bits)) {
+			bp->bio_parent->bio_completed += wp->length;
+			if (wp->lockbase != -1)
+				TAILQ_REMOVE(&p->packets, wp, list);
+			g_free(wp);
+		}
+
+		break;
+
+ 	case BIO_WRITE:
+		if (wp == NULL)
+			break;
+
+		/* Check if we need to handle parity data. */
+		TAILQ_FOREACH_SAFE(bq, &wp->bits, queue, bq2) {
+			if (bq->bp == bp) {
+				TAILQ_REMOVE(&wp->bits, bq, queue);
+				g_free(bq);
+				cbp = wp->parity;
+				if (cbp != NULL) {
+					for (i = 0; i < wp->length; i++)
+						cbp->bio_data[i] ^=
+						    bp->bio_data[i];
+				}
+				break;
+			}
+		}
+
+		/* Handle parity data. */
+		if (TAILQ_EMPTY(&wp->bits)) {
+			if (wp->waiting != NULL) {
+				pbp = wp->waiting;
+				wp->waiting = NULL;
+				cbp = wp->parity;
+				for (i = 0; i < wp->length; i++)
+					cbp->bio_data[i] ^= pbp->bio_data[i];
+				g_io_request(pbp, pbp->bio_caller2);
+			} else if (wp->parity != NULL) {
+				cbp = wp->parity;
+				wp->parity = NULL;
+				g_io_request(cbp, cbp->bio_caller2);
+			} else {
+				bp->bio_parent->bio_completed += wp->length;
+				TAILQ_REMOVE(&p->packets, wp, list);
+				g_free(wp);
+			}
+		}
+
+		break;
+	}
+
+	pbp = bp->bio_parent;
+	if (pbp->bio_error == 0)
+		pbp->bio_error = bp->bio_error;
+
+	/* When the original request is finished, we deliver it. */
+	pbp->bio_inbed++;
+	if (pbp->bio_inbed == pbp->bio_children)
+		g_io_deliver(pbp, pbp->bio_error);
+
+	/* Clean up what we allocated. */
+	if (bp->bio_cflags & GV_BIO_MALLOC)
+		g_free(bp->bio_data);
+	g_destroy_bio(bp);
+}
+
+void
+gv_plex_normal_request(struct gv_plex *p, struct bio *bp)
+{
+	struct bio *cbp, *pbp;
+	struct gv_bioq *bq, *bq2;
+	struct gv_raid5_packet *wp, *wp2;
+	caddr_t addr;
+	off_t bcount, boff;
+	int err;
+
+	bcount = bp->bio_length;
+	addr = bp->bio_data;
+	boff = bp->bio_offset;
+
+	/* Walk over the whole length of the request, we might split it up. */
+	while (bcount > 0) {
+		wp = NULL;
+
+ 		/*
+		 * RAID5 plexes need special treatment, as a single write
+		 * request involves several read/write sub-requests.
+ 		 */
+		if (p->org == GV_PLEX_RAID5) {
+			wp = g_malloc(sizeof(*wp), M_WAITOK | M_ZERO);
+			wp->bio = bp;
+			TAILQ_INIT(&wp->bits);
+
+			err = gv_build_raid5_req(p, wp, bp, addr, boff, bcount);
+
+ 			/*
+			 * Building the sub-request failed, we probably need to
+			 * clean up a lot.
+ 			 */
+ 			if (err) {
+				printf("GEOM_VINUM: plex request failed for ");
+				g_print_bio(bp);
+				printf("\n");
+				TAILQ_FOREACH_SAFE(bq, &wp->bits, queue, bq2) {
+					TAILQ_REMOVE(&wp->bits, bq, queue);
+					g_free(bq);
+				}
+				if (wp->waiting != NULL) {
+					if (wp->waiting->bio_cflags &
+					    GV_BIO_MALLOC)
+						g_free(wp->waiting->bio_data);
+					g_destroy_bio(wp->waiting);
+				}
+				if (wp->parity != NULL) {
+					if (wp->parity->bio_cflags &
+					    GV_BIO_MALLOC)
+						g_free(wp->parity->bio_data);
+					g_destroy_bio(wp->parity);
+				}
+				g_free(wp);
+
+				TAILQ_FOREACH_SAFE(wp, &p->packets, list, wp2) {
+					if (wp->bio == bp) {
+						TAILQ_REMOVE(&p->packets, wp,
+						    list);
+						TAILQ_FOREACH_SAFE(bq,
+						    &wp->bits, queue, bq2) {
+							TAILQ_REMOVE(&wp->bits,
+							    bq, queue);
+							g_free(bq);
+						}
+						g_free(wp);
+					}
+				}
+
+				cbp = bp->bio_driver1;
+				while (cbp != NULL) {
+					pbp = cbp->bio_caller1;
+					if (cbp->bio_cflags & GV_BIO_MALLOC)
+						g_free(cbp->bio_data);
+					g_destroy_bio(cbp);
+					cbp = pbp;
+				}
+
+				g_io_deliver(bp, err);
+ 				return;
+ 			}
+ 
+			if (TAILQ_EMPTY(&wp->bits))
+				g_free(wp);
+			else if (wp->lockbase != -1)
+				TAILQ_INSERT_TAIL(&p->packets, wp, list);
+
+		/*
+		 * Requests to concatenated and striped plexes go straight
+		 * through.
+		 */
+		} else {
+			err = gv_plexbuffer(p, bp, addr, boff, bcount);
+
+			/* Building the sub-request failed. */
+			if (err) {
+				printf("GEOM_VINUM: plex request failed for ");
+				g_print_bio(bp);
+				printf("\n");
+				cbp = bp->bio_driver1;
+				while (cbp != NULL) {
+					pbp = cbp->bio_caller1;
+					g_destroy_bio(cbp);
+					cbp = pbp;
+				}
+				g_io_deliver(bp, err);
+				return;
+			}
+		}
+ 
+		/* Abuse bio_caller1 as linked list. */
+		pbp = bp->bio_driver1;
+		while (pbp->bio_caller1 != NULL)
+			pbp = pbp->bio_caller1;
+		bcount -= pbp->bio_length;
+		addr += pbp->bio_length;
+		boff += pbp->bio_length;
+	}
+
+	/* Fire off all sub-requests. */
+	pbp = bp->bio_driver1;
+	while (pbp != NULL) {
+		/*
+		 * RAID5 sub-requests need to come in correct order, otherwise
+		 * we trip over the parity, as it might be overwritten by
+		 * another sub-request.
+		 */
+		if (pbp->bio_driver1 != NULL &&
+		    gv_stripe_active(p, pbp)) {
+			pbp->bio_cflags |= GV_BIO_ONHOLD;
+			bq = g_malloc(sizeof(*bq), M_WAITOK | M_ZERO);
+			bq->bp = pbp;
+			mtx_lock(&p->bqueue_mtx);
+			TAILQ_INSERT_TAIL(&p->bqueue, bq, queue);
+			mtx_unlock(&p->bqueue_mtx);
+		} else
+			g_io_request(pbp, pbp->bio_caller2);
+		pbp = pbp->bio_caller1;
 	}
 }
 
@@ -425,16 +682,12 @@ gv_plex_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		gp->softc = p;
 		p->geom = gp;
 
-		/* RAID5 plexes need a 'worker' thread, where IO is handled. */
-		if (p->org == GV_PLEX_RAID5) {
-			TAILQ_INIT(&p->worklist);
-			mtx_init(&p->worklist_mtx, "gvinum_worklist", NULL,
-			    MTX_DEF);
-			p->flags &= ~GV_PLEX_THREAD_DIE;
-			kthread_create(gv_raid5_worker, gp, NULL, 0, 0,
-			    "gv_raid5");
-			p->flags |= GV_PLEX_THREAD_ACTIVE;
-		}
+		TAILQ_INIT(&p->packets);
+		TAILQ_INIT(&p->bqueue);
+		mtx_init(&p->bqueue_mtx, "gv_plex", NULL, MTX_DEF);
+		kthread_create(gv_plex_worker, p, NULL, 0, 0, "gv_p %s",
+		    p->name);
+		p->flags |= GV_PLEX_THREAD_ACTIVE;
 
 		/* Attach a consumer to this provider. */
 		cp = g_new_consumer(gp);
@@ -468,7 +721,7 @@ gv_plex_destroy_geom(struct gctl_req *req, struct g_class *mp,
 	 * If this is a RAID5 plex, check if its worker thread is still active
 	 * and signal it to self destruct.
 	 */
-	gv_kill_thread(p);
+	gv_kill_plex_thread(p);
 	/* g_free(sc); */
 	g_wither_geom(gp, ENXIO);
 	return (0);

@@ -44,243 +44,62 @@ __FBSDID("$FreeBSD$");
 #include <geom/vinum/geom_vinum_raid5.h>
 #include <geom/vinum/geom_vinum.h>
 
-int	gv_raid5_parity(struct gv_raid5_packet *);
-int	gv_stripe_active(struct gv_raid5_packet *, struct gv_plex *);
-
-struct gv_raid5_bit *
-gv_new_raid5_bit(void)
-{
-	struct gv_raid5_bit *r;
-	r = g_malloc(sizeof(*r), M_NOWAIT | M_ZERO);
-	KASSERT(r != NULL, ("gv_new_raid5_bit: NULL r"));
-	return (r);
-}
-
-struct gv_raid5_packet *
-gv_new_raid5_packet(void)
-{
-	struct gv_raid5_packet *wp;
-
-	wp = g_malloc(sizeof(*wp), M_NOWAIT | M_ZERO);
-	KASSERT(wp != NULL, ("gv_new_raid5_packet: NULL wp"));
-	wp->state = SETUP;
-	wp->type = JUNK;
-	TAILQ_INIT(&wp->bits);
-
-	return (wp);
-}
-
-void
-gv_free_raid5_packet(struct gv_raid5_packet *wp)
-{
-	struct gv_raid5_bit *r, *r2;
-
-	/* Remove all the bits from this work packet. */
-	TAILQ_FOREACH_SAFE(r, &wp->bits, list, r2) {
-		TAILQ_REMOVE(&wp->bits, r, list);
-		if (r->malloc)
-			g_free(r->buf);
-		if (r->bio != NULL)
-			g_destroy_bio(r->bio);
-		g_free(r);
-	}
-
-	if (wp->bufmalloc == 1)
-		g_free(wp->buf);
-	g_free(wp);
-}
-
 /*
  * Check if the stripe that the work packet wants is already being used by
  * some other work packet.
  */
 int
-gv_stripe_active(struct gv_raid5_packet *wp, struct gv_plex *sc)
+gv_stripe_active(struct gv_plex *p, struct bio *bp)
 {
-	struct gv_raid5_packet *wpa;
+	struct gv_raid5_packet *wp, *owp;
+	int overlap;
 
-	TAILQ_FOREACH(wpa, &sc->worklist, list) {
-		if (wpa->lockbase == wp->lockbase) {
-			if (wpa->bio == wp->bio)
-				return (0);
-			return (1);
+	wp = bp->bio_driver1;
+	if (wp->lockbase == -1)
+		return (0);
+
+	overlap = 0;
+	TAILQ_FOREACH(owp, &p->packets, list) {
+		if (owp == wp)
+			break;
+		if ((wp->lockbase >= owp->lockbase) &&
+		    (wp->lockbase <= owp->lockbase + owp->length)) {
+			overlap++;
+			break;
+		}
+		if ((wp->lockbase <= owp->lockbase) &&
+		    (wp->lockbase + wp->length >= owp->lockbase)) {
+			overlap++;
+			break;
 		}
 	}
-	return (0);
-}
 
-/*
- * The "worker" thread that runs through the worklist and fires off the
- * "subrequests" needed to fulfill a RAID5 read or write request.
- */
-void
-gv_raid5_worker(void *arg)
-{
-	struct bio *bp;
-	struct g_geom *gp;
-	struct gv_plex *p;
-	struct gv_raid5_packet *wp, *wpt;
-	struct gv_raid5_bit *rbp, *rbpt;
-	int error, restart;
-
-	gp = arg;
-	p = gp->softc;
-
-	mtx_lock(&p->worklist_mtx);
-	for (;;) {
-		restart = 0;
-		TAILQ_FOREACH_SAFE(wp, &p->worklist, list, wpt) {
-			/* This request packet is already being processed. */
-			if (wp->state == IO)
-				continue;
-			/* This request packet is ready for processing. */
-			if (wp->state == VALID) {
-				/* Couldn't get the lock, try again. */
-				if ((wp->lockbase != -1) &&
-				    gv_stripe_active(wp, p))
-					continue;
-
-				wp->state = IO;
-				mtx_unlock(&p->worklist_mtx);
-				TAILQ_FOREACH_SAFE(rbp, &wp->bits, list, rbpt)
-					g_io_request(rbp->bio, rbp->consumer);
-				mtx_lock(&p->worklist_mtx);
-				continue;
-			}
-			if (wp->state == FINISH) {
-				bp = wp->bio;
-				bp->bio_completed += wp->length;
-				/*
-				 * Deliver the original request if we have
-				 * finished.
-				 */
-				if (bp->bio_completed == bp->bio_length) {
-					mtx_unlock(&p->worklist_mtx);
-					g_io_deliver(bp, 0);
-					mtx_lock(&p->worklist_mtx);
-				}
-				TAILQ_REMOVE(&p->worklist, wp, list);
-				gv_free_raid5_packet(wp);
-				restart++;
-				/*break;*/
-			}
-		}
-		if (!restart) {
-			/* Self-destruct. */
-			if (p->flags & GV_PLEX_THREAD_DIE)
-				break;
-			error = msleep(p, &p->worklist_mtx, PRIBIO, "-",
-			    hz/100);
-		}
-	}
-	mtx_unlock(&p->worklist_mtx);
-
-	g_trace(G_T_TOPOLOGY, "gv_raid5_worker die");
-
-	/* Signal our plex that we are dead. */
-	p->flags |= GV_PLEX_THREAD_DEAD;
-	wakeup(p);
-	kthread_exit(0);
-}
-
-/* Final bio transaction to write out the parity data. */
-int
-gv_raid5_parity(struct gv_raid5_packet *wp)
-{
-	struct bio *bp;
-
-	bp = g_new_bio();
-	if (bp == NULL)
-		return (ENOMEM);
-
-	wp->type = ISPARITY;
-	bp->bio_cmd = BIO_WRITE;
-	bp->bio_data = wp->buf;
-	bp->bio_offset = wp->offset;
-	bp->bio_length = wp->length;
-	bp->bio_done = gv_raid5_done;
-	bp->bio_caller1 = wp;
-	bp->bio_caller2 = NULL;
-	g_io_request(bp, wp->parity);
-
-	return (0);
-}
-
-/* We end up here after each subrequest. */
-void
-gv_raid5_done(struct bio *bp)
-{
-	struct bio *obp;
-	struct g_geom *gp;
-	struct gv_plex *p;
-	struct gv_raid5_packet *wp;
-	struct gv_raid5_bit *rbp;
-	off_t i;
-	int error;
-
-	wp = bp->bio_caller1;
-	rbp = bp->bio_caller2;
-	obp = wp->bio;
-	gp = bp->bio_from->geom;
-	p = gp->softc;
-
-	/* One less active subrequest. */
-	wp->active--;
-
-	switch (obp->bio_cmd) {
-	case BIO_READ:
-		/* Degraded reads need to handle parity data. */
-		if (wp->type == DEGRADED) {
-			for (i = 0; i < wp->length; i++)
-				wp->buf[i] ^= bp->bio_data[i];
-
-			/* When we're finished copy back the data we want. */
-			if (wp->active == 0)
-				bcopy(wp->buf, wp->data, wp->length);
-		}
-
-		break;
-
-	case BIO_WRITE:
-		/* Handle the parity data, if needed. */
-		if ((wp->type != NOPARITY) && (wp->type != ISPARITY)) {
-			for (i = 0; i < wp->length; i++)
-				wp->buf[i] ^= bp->bio_data[i];
-
-			/* Write out the parity data we calculated. */
-			if (wp->active == 0) {
-				wp->active++;
-				error = gv_raid5_parity(wp);
-			}
-		}
-		break;
-	}
-
-	/* This request group is done. */
-	if (wp->active == 0)
-		wp->state = FINISH;
+	return (overlap);
 }
 
 /* Build a request group to perform (part of) a RAID5 request. */
 int
-gv_build_raid5_req(struct gv_raid5_packet *wp, struct bio *bp, caddr_t addr,
-    long bcount, off_t boff)
+gv_build_raid5_req(struct gv_plex *p, struct gv_raid5_packet *wp,
+    struct bio *bp, caddr_t addr, off_t boff, off_t bcount)
 {
 	struct g_geom *gp;
-	struct gv_plex *p;
-	struct gv_raid5_bit *rbp;
 	struct gv_sd *broken, *original, *parity, *s;
-	int i, psdno, sdno;
-	off_t len_left, real_off, stripeend, stripeoff, stripestart;
+	struct gv_bioq *bq;
+	struct bio *cbp, *pbp;
+	int i, psdno, sdno, type;
+	off_t len_left, real_len, real_off, stripeend, stripeoff, stripestart;
 
 	gp = bp->bio_to->geom;
-	p = gp->softc;	
 
 	if (p == NULL || LIST_EMPTY(&p->subdisks))
 		return (ENXIO);
 
 	/* We are optimistic and assume that this request will be OK. */
-	wp->type = NORMAL;
+#define	REQ_TYPE_NORMAL		0
+#define	REQ_TYPE_DEGRADED	1
+#define	REQ_TYPE_NOPARITY	2
+
+	type = REQ_TYPE_NORMAL;
 	original = parity = broken = NULL;
 
 	/* The number of the subdisk containing the parity stripe. */
@@ -330,29 +149,20 @@ gv_build_raid5_req(struct gv_raid5_packet *wp, struct bio *bp, caddr_t addr,
 
 	/* Our data stripe is missing. */
 	if (original->state != GV_SD_UP)
-		wp->type = DEGRADED;
+		type = REQ_TYPE_DEGRADED;
 	/* Our parity stripe is missing. */
 	if (parity->state != GV_SD_UP) {
 		/* We cannot take another failure if we're already degraded. */
-		if (wp->type != NORMAL)
+		if (type != REQ_TYPE_NORMAL)
 			return (ENXIO);
 		else
-			wp->type = NOPARITY;
+			type = REQ_TYPE_NOPARITY;
 	}
 
-	/*
-	 * A combined write is necessary when the original data subdisk and the
-	 * parity subdisk are both up, but one of the other subdisks isn't.
-	 */
-	if ((broken != NULL) && (broken != parity) && (broken != original))
-		wp->type = COMBINED;
-
-	wp->offset = real_off;
-	wp->length = (bcount <= len_left) ? bcount : len_left;
+	real_len = (bcount <= len_left) ? bcount : len_left;
+	wp->length = real_len;
 	wp->data = addr;
-	wp->original = original->consumer;
-	wp->parity = parity->consumer;
-	wp->lockbase = stripestart;
+	wp->lockbase = real_off;
 
 	KASSERT(wp->length >= 0, ("gv_build_raid5_request: wp->length < 0"));
 
@@ -363,58 +173,45 @@ gv_build_raid5_req(struct gv_raid5_packet *wp, struct bio *bp, caddr_t addr,
 		 * the broken one plus the parity stripe and then recalculate
 		 * the desired data.
 		 */
-		if (wp->type == DEGRADED) {
-			wp->buf = g_malloc(wp->length, M_NOWAIT | M_ZERO);
-			if (wp->buf == NULL)
-				return (ENOMEM);
-			wp->bufmalloc = 1;
+		if (type == REQ_TYPE_DEGRADED) {
+			bzero(wp->data, wp->length);
 			LIST_FOREACH(s, &p->subdisks, in_plex) {
 				/* Skip the broken subdisk. */
 				if (s == broken)
 					continue;
-				rbp = gv_new_raid5_bit();
-				rbp->consumer = s->consumer;
-				rbp->bio = g_new_bio();
-				if (rbp->bio == NULL)
+				cbp = g_clone_bio(bp);
+				if (cbp == NULL)
 					return (ENOMEM);
-				rbp->buf = g_malloc(wp->length,
-					M_NOWAIT | M_ZERO);
-				if (rbp->buf == NULL)
-					return (ENOMEM);
-				rbp->malloc = 1;
-				rbp->bio->bio_cmd = BIO_READ;
-				rbp->bio->bio_offset = wp->offset;
-				rbp->bio->bio_length = wp->length;
-				rbp->bio->bio_data = rbp->buf;
-				rbp->bio->bio_done = gv_raid5_done;
-				rbp->bio->bio_caller1 = wp;
-				rbp->bio->bio_caller2 = rbp;
-				TAILQ_INSERT_HEAD(&wp->bits, rbp, list);
-				wp->active++;
-				wp->rqcount++;
+				cbp->bio_data = g_malloc(real_len, M_WAITOK);
+				cbp->bio_cflags |= GV_BIO_MALLOC;
+				cbp->bio_offset = real_off;
+				cbp->bio_length = real_len;
+				cbp->bio_done = gv_plex_done;
+				cbp->bio_caller2 = s->consumer;
+				cbp->bio_driver1 = wp;
+
+				GV_ENQUEUE(bp, cbp, pbp);
+
+				bq = g_malloc(sizeof(*bq), M_WAITOK | M_ZERO);
+				bq->bp = cbp;
+				TAILQ_INSERT_TAIL(&wp->bits, bq, queue);
 			}
 
 		/* A normal read can be fulfilled with the original subdisk. */
 		} else {
-			rbp = gv_new_raid5_bit();
-			rbp->consumer = wp->original;
-			rbp->bio = g_new_bio();
-			if (rbp->bio == NULL)
+			cbp = g_clone_bio(bp);
+			if (cbp == NULL)
 				return (ENOMEM);
-			rbp->bio->bio_cmd = BIO_READ;
-			rbp->bio->bio_offset = wp->offset;
-			rbp->bio->bio_length = wp->length;
-			rbp->buf = addr;
-			rbp->bio->bio_data = rbp->buf;
-			rbp->bio->bio_done = gv_raid5_done;
-			rbp->bio->bio_caller1 = wp;
-			rbp->bio->bio_caller2 = rbp;
-			TAILQ_INSERT_HEAD(&wp->bits, rbp, list);
-			wp->active++;
-			wp->rqcount++;
+			cbp->bio_offset = real_off;
+			cbp->bio_length = real_len;
+			cbp->bio_data = addr;
+			cbp->bio_done = g_std_done;
+			cbp->bio_caller2 = original->consumer;
+
+			GV_ENQUEUE(bp, cbp, pbp);
 		}
-		if (wp->type != COMBINED)
-			wp->lockbase = -1;
+		wp->lockbase = -1;
+
 		break;
 
 	case BIO_WRITE:
@@ -424,164 +221,65 @@ gv_build_raid5_req(struct gv_raid5_packet *wp, struct bio *bp, caddr_t addr,
 		 * recalculate the parity from the original data, and then
 		 * write the parity stripe back out.
 		 */
-		if (wp->type == DEGRADED) {
-			wp->buf = g_malloc(wp->length, M_NOWAIT | M_ZERO);
-			if (wp->buf == NULL)
-				return (ENOMEM);
-			wp->bufmalloc = 1;
-
-			/* Copy the original data. */
-			bcopy(wp->data, wp->buf, wp->length);
-
+		if (type == REQ_TYPE_DEGRADED) {
+			/* Read all subdisks. */
 			LIST_FOREACH(s, &p->subdisks, in_plex) {
 				/* Skip the broken and the parity subdisk. */
-				if ((s == broken) ||
-				    (s->consumer == wp->parity))
+				if ((s == broken) || (s == parity))
 					continue;
 
-				rbp = gv_new_raid5_bit();
-				rbp->consumer = s->consumer;
-				rbp->bio = g_new_bio();
-				if (rbp->bio == NULL)
+				cbp = g_clone_bio(bp);
+				if (cbp == NULL)
 					return (ENOMEM);
-				rbp->buf = g_malloc(wp->length,
-				    M_NOWAIT | M_ZERO);
-				if (rbp->buf == NULL)
-					return (ENOMEM);
-				rbp->malloc = 1;
-				rbp->bio->bio_cmd = BIO_READ;
-				rbp->bio->bio_data = rbp->buf;
-				rbp->bio->bio_offset = wp->offset;
-				rbp->bio->bio_length = wp->length;
-				rbp->bio->bio_done = gv_raid5_done;
-				rbp->bio->bio_caller1 = wp;
-				rbp->bio->bio_caller2 = rbp;
-				TAILQ_INSERT_HEAD(&wp->bits, rbp, list);
-				wp->active++;
-				wp->rqcount++;
+				cbp->bio_cmd = BIO_READ;
+				cbp->bio_data = g_malloc(real_len, M_WAITOK);
+				cbp->bio_cflags |= GV_BIO_MALLOC;
+				cbp->bio_offset = real_off;
+				cbp->bio_length = real_len;
+				cbp->bio_done = gv_plex_done;
+				cbp->bio_caller2 = s->consumer;
+				cbp->bio_driver1 = wp;
+
+				GV_ENQUEUE(bp, cbp, pbp);
+
+				bq = g_malloc(sizeof(*bq), M_WAITOK | M_ZERO);
+				bq->bp = cbp;
+				TAILQ_INSERT_TAIL(&wp->bits, bq, queue);
 			}
+
+			/* Write the parity data. */
+			cbp = g_clone_bio(bp);
+			if (cbp == NULL)
+				return (ENOMEM);
+			cbp->bio_data = g_malloc(real_len, M_WAITOK);
+			cbp->bio_cflags |= GV_BIO_MALLOC;
+			bcopy(addr, cbp->bio_data, real_len);
+			cbp->bio_offset = real_off;
+			cbp->bio_length = real_len;
+			cbp->bio_done = gv_plex_done;
+			cbp->bio_caller2 = parity->consumer;
+			cbp->bio_driver1 = wp;
+			wp->parity = cbp;
 
 		/*
-		 * When we don't have the parity stripe we just write out the
-		 * data.
+		 * When the parity stripe is missing we just write out the data.
 		 */
-		} else if (wp->type == NOPARITY) {
-			rbp = gv_new_raid5_bit();
-			rbp->consumer = wp->original;
-			rbp->bio = g_new_bio();
-			if (rbp->bio == NULL)
+		} else if (type == REQ_TYPE_NOPARITY) {
+			cbp = g_clone_bio(bp);
+			if (cbp == NULL)
 				return (ENOMEM);
-			rbp->bio->bio_cmd = BIO_WRITE;
-			rbp->bio->bio_offset = wp->offset;
-			rbp->bio->bio_length = wp->length;
-			rbp->bio->bio_data = addr;
-			rbp->bio->bio_done = gv_raid5_done;
-			rbp->bio->bio_caller1 = wp;
-			rbp->bio->bio_caller2 = rbp;
-			TAILQ_INSERT_HEAD(&wp->bits, rbp, list);
-			wp->active++;
-			wp->rqcount++;
+			cbp->bio_offset = real_off;
+			cbp->bio_length = real_len;
+			cbp->bio_data = addr;
+			cbp->bio_done = gv_plex_done;
+			cbp->bio_caller2 = original->consumer;
+			cbp->bio_driver1 = wp;
 
-		/*
-		 * A combined write means that our data subdisk and the parity
-		 * subdisks are both up, but another subdisk isn't.  We need to
-		 * read all valid stripes including the parity to recalculate
-		 * the data of the stripe that is missing.  Then we write our
-		 * original data, and together with the other data stripes
-		 * recalculate the parity again.
-		 */
-		} else if (wp->type == COMBINED) {
-			wp->buf = g_malloc(wp->length, M_NOWAIT | M_ZERO);
-			if (wp->buf == NULL)
-				return (ENOMEM);
-			wp->bufmalloc = 1;
+			GV_ENQUEUE(bp, cbp, pbp);
 
-			/* Get the data from all subdisks. */
-			LIST_FOREACH(s, &p->subdisks, in_plex) {
-				/* Skip the broken subdisk. */
-				if (s == broken)
-					continue;
-
-				rbp = gv_new_raid5_bit();
-				rbp->consumer = s->consumer;
-				rbp->bio = g_new_bio();
-				if (rbp->bio == NULL)
-					return (ENOMEM);
-				rbp->bio->bio_cmd = BIO_READ;
-				rbp->buf = g_malloc(wp->length,
-				    M_NOWAIT | M_ZERO);
-				if (rbp->buf == NULL)
-					return (ENOMEM);
-				rbp->malloc = 1;
-				rbp->bio->bio_data = rbp->buf;
-				rbp->bio->bio_offset = wp->offset;
-				rbp->bio->bio_length = wp->length;
-				rbp->bio->bio_done = gv_raid5_done;
-				rbp->bio->bio_caller1 = wp;
-				rbp->bio->bio_caller2 = rbp;
-				TAILQ_INSERT_HEAD(&wp->bits, rbp, list);
-				wp->active++;
-				wp->rqcount++;
-			}
-
-			/* Write the original data. */
-			rbp = gv_new_raid5_bit();
-			rbp->consumer = wp->original;
-			rbp->buf = addr;
-			rbp->bio = g_new_bio();
-			if (rbp->bio == NULL)
-				return (ENOMEM);
-			rbp->bio->bio_cmd = BIO_WRITE;
-			rbp->bio->bio_data = rbp->buf;
-			rbp->bio->bio_offset = wp->offset;
-			rbp->bio->bio_length = wp->length;
-			rbp->bio->bio_done = gv_raid5_done;
-			rbp->bio->bio_caller1 = wp;
-			rbp->bio->bio_caller2 = rbp;
-			/*
-			 * Insert at the tail, because we want to read the old
-			 * data first.
-			 */
-			TAILQ_INSERT_TAIL(&wp->bits, rbp, list);
-			wp->active++;
-			wp->rqcount++;
-
-			/* Get the rest of the data again. */
-			LIST_FOREACH(s, &p->subdisks, in_plex) {
-				/*
-				 * Skip the broken subdisk, the parity, and the
-				 * one we just wrote.
-				 */
-				if ((s == broken) ||
-				    (s->consumer == wp->parity) ||
-				    (s->consumer == wp->original))
-					continue;
-				rbp = gv_new_raid5_bit();
-				rbp->consumer = s->consumer;
-				rbp->bio = g_new_bio();
-				if (rbp->bio == NULL)
-					return (ENOMEM);
-				rbp->bio->bio_cmd = BIO_READ;
-				rbp->buf = g_malloc(wp->length,
-				    M_NOWAIT | M_ZERO);
-				if (rbp->buf == NULL)
-					return (ENOMEM);
-				rbp->malloc = 1;
-				rbp->bio->bio_data = rbp->buf;
-				rbp->bio->bio_offset = wp->offset;
-				rbp->bio->bio_length = wp->length;
-				rbp->bio->bio_done = gv_raid5_done;
-				rbp->bio->bio_caller1 = wp;
-				rbp->bio->bio_caller2 = rbp;
-				/*
-				 * Again, insert at the tail to keep correct
-				 * order.
-				 */
-				TAILQ_INSERT_TAIL(&wp->bits, rbp, list);
-				wp->active++;
-				wp->rqcount++;
-			}
-			
+			bq = g_malloc(sizeof(*bq), M_WAITOK | M_ZERO);
+			bq->bp = cbp;
+			TAILQ_INSERT_TAIL(&wp->bits, bq, queue);
 
 		/*
 		 * A normal write request goes to the original subdisk, then we
@@ -589,52 +287,83 @@ gv_build_raid5_req(struct gv_raid5_packet *wp, struct bio *bp, caddr_t addr,
 		 * out the parity again.
 		 */
 		} else {
-			wp->buf = g_malloc(wp->length, M_NOWAIT | M_ZERO);
-			if (wp->buf == NULL)
+			/* Read old parity. */
+			cbp = g_clone_bio(bp);
+			if (cbp == NULL)
 				return (ENOMEM);
-			wp->bufmalloc = 1;
-			LIST_FOREACH(s, &p->subdisks, in_plex) {
-				/* Skip the parity stripe. */
-				if (s->consumer == wp->parity)
-					continue;
+			cbp->bio_cmd = BIO_READ;
+			cbp->bio_data = g_malloc(real_len, M_WAITOK);
+			cbp->bio_cflags |= GV_BIO_MALLOC;
+			cbp->bio_offset = real_off;
+			cbp->bio_length = real_len;
+			cbp->bio_done = gv_plex_done;
+			cbp->bio_caller2 = parity->consumer;
+			cbp->bio_driver1 = wp;
 
-				rbp = gv_new_raid5_bit();
-				rbp->consumer = s->consumer;
-				rbp->bio = g_new_bio();
-				if (rbp->bio == NULL)
-					return (ENOMEM);
-				/*
-				 * The data for the original stripe is written,
-				 * the others need to be read in for the parity
-				 * calculation.
-				 */
-				if (s->consumer == wp->original) {
-					rbp->bio->bio_cmd = BIO_WRITE;
-					rbp->buf = addr;
-				} else {
-					rbp->bio->bio_cmd = BIO_READ;
-					rbp->buf = g_malloc(wp->length,
-					    M_NOWAIT | M_ZERO);
-					if (rbp->buf == NULL)
-						return (ENOMEM);
-					rbp->malloc = 1;
-				}
-				rbp->bio->bio_data = rbp->buf;
-				rbp->bio->bio_offset = wp->offset;
-				rbp->bio->bio_length = wp->length;
-				rbp->bio->bio_done = gv_raid5_done;
-				rbp->bio->bio_caller1 = wp;
-				rbp->bio->bio_caller2 = rbp;
-				TAILQ_INSERT_HEAD(&wp->bits, rbp, list);
-				wp->active++;
-				wp->rqcount++;
-			}
+			GV_ENQUEUE(bp, cbp, pbp);
+
+			bq = g_malloc(sizeof(*bq), M_WAITOK | M_ZERO);
+			bq->bp = cbp;
+			TAILQ_INSERT_TAIL(&wp->bits, bq, queue);
+
+			/* Read old data. */
+			cbp = g_clone_bio(bp);
+			if (cbp == NULL)
+				return (ENOMEM);
+			cbp->bio_cmd = BIO_READ;
+			cbp->bio_data = g_malloc(real_len, M_WAITOK);
+			cbp->bio_cflags |= GV_BIO_MALLOC;
+			cbp->bio_offset = real_off;
+			cbp->bio_length = real_len;
+			cbp->bio_done = gv_plex_done;
+			cbp->bio_caller2 = original->consumer;
+			cbp->bio_driver1 = wp;
+
+			GV_ENQUEUE(bp, cbp, pbp);
+
+			bq = g_malloc(sizeof(*bq), M_WAITOK | M_ZERO);
+			bq->bp = cbp;
+			TAILQ_INSERT_TAIL(&wp->bits, bq, queue);
+
+			/* Write new data. */
+			cbp = g_clone_bio(bp);
+			if (cbp == NULL)
+				return (ENOMEM);
+			cbp->bio_data = addr;
+			cbp->bio_offset = real_off;
+			cbp->bio_length = real_len;
+			cbp->bio_done = gv_plex_done;
+			cbp->bio_caller2 = original->consumer;
+
+			cbp->bio_driver1 = wp;
+
+			/*
+			 * We must not write the new data until the old data
+			 * was read, so hold this BIO back until we're ready
+			 * for it.
+			 */
+			wp->waiting = cbp;
+
+			/* The final bio for the parity. */
+			cbp = g_clone_bio(bp);
+			if (cbp == NULL)
+				return (ENOMEM);
+			cbp->bio_data = g_malloc(real_len, M_WAITOK | M_ZERO);
+			cbp->bio_cflags |= GV_BIO_MALLOC;
+			cbp->bio_offset = real_off;
+			cbp->bio_length = real_len;
+			cbp->bio_done = gv_plex_done;
+			cbp->bio_caller2 = parity->consumer;
+			cbp->bio_driver1 = wp;
+
+			/* Remember that this is the BIO for the parity data. */
+			wp->parity = cbp;
 		}
 		break;
+
 	default:
 		return (EINVAL);
 	}
 
-	wp->state = VALID;
 	return (0);
 }
