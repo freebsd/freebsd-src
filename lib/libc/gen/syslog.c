@@ -241,10 +241,16 @@ vsyslog(pri, fmt, ap)
 	 */
 	if (LogStat & LOG_CONS &&
 	    (fd = open(_PATH_CONSOLE, O_WRONLY, 0)) >= 0) {
-		(void)strcat(tbuf, "\r\n");
-		cnt += 2;
-		p = index(tbuf, '>') + 1;
-		(void)write(fd, p, cnt - (p - tbuf));
+		struct iovec iov[2];
+		register struct iovec *v = iov;
+
+		p = strchr(tbuf, '>') + 1;
+		v->iov_base = p;
+		v->iov_len = cnt - (p - tbuf);
+		++v;
+		v->iov_base = "\r\n";
+		v->iov_len = 2;
+		(void)writev(fd, iov, 2);
 		(void)close(fd);
 	}
 }
