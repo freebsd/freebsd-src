@@ -3,7 +3,7 @@
 /*
  * stallion.c  -- stallion multiport serial driver.
  *
- * Copyright (c) 1995 Greg Ungerer (gerg@stallion.oz.au).
+ * Copyright (c) 1995-1996 Greg Ungerer (gerg@stallion.oz.au).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,11 +50,16 @@
 #include <sys/uio.h>
 #include <sys/syslog.h>
 #include <sys/devconf.h>
-
 #include <machine/cpu.h>
 #include <machine/clock.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/ic/scd1400.h>
+
+#include <pci.h>
+#if NPCI > 0
+#include <pci/pcivar.h>
+#include <pci/pcireg.h>
+#endif
 
 /*****************************************************************************/
 
@@ -121,11 +126,11 @@ static unsigned int	stl_irqshared = 0;
  *	a good balance between performance and memory usage. These seem
  *	to work pretty well...
  */
-#define	STL_RXBUFSIZE		1024
-#define	STL_TXBUFSIZE		1024
+#define	STL_RXBUFSIZE		2048
+#define	STL_TXBUFSIZE		2048
 
-#define	STL_TXBUFLOW		256
-#define	STL_RXBUFHIGH		768
+#define	STL_TXBUFLOW		(STL_TXBUFSIZE / 4)
+#define	STL_RXBUFHIGH		(3 * STL_RXBUFSIZE / 4)
 
 /*****************************************************************************/
 
@@ -135,7 +140,7 @@ static unsigned int	stl_irqshared = 0;
  */
 static char	*stl_drvname = "stl";
 static char	*stl_longdrvname = "Stallion Multiport Serial Driver";
-static char	*stl_drvversion = "0.0.2";
+static char	*stl_drvversion = "0.0.3";
 static int	stl_brdprobed[STL_MAXBRDS];
 
 static int	stl_nrbrds = 0;
@@ -204,11 +209,13 @@ typedef struct {
 	int		dtrwait;
 	int		dotimestamp;
 	int		waitopens;
+	int		hotchar;
 	unsigned int	state;
 	unsigned int	sigs;
 	unsigned int	rxignoremsk;
 	unsigned int	rxmarkmsk;
 	unsigned int	rxerrs[STL_NRRXERRS];
+	unsigned long	clk;
 	struct termios	initintios;
 	struct termios	initouttios;
 	struct termios	lockintios;
@@ -242,6 +249,7 @@ typedef struct {
 	unsigned int	iostatus;
 	unsigned int	ioctrl;
 	unsigned int	ioctrlval;
+	unsigned long	clk;
 	stlpanel_t	*panels[STL_MAXPANELS];
 	stlport_t	*ports[STL_PORTSPERBRD];
 } stlbrd_t;
@@ -264,6 +272,8 @@ static stlbrd_t		*stl_brds[STL_MAXBRDS];
 #define	ASY_DCDCHANGE	0x4
 #define	ASY_DTRWAIT	0x8
 #define	ASY_RTSFLOW	0x10
+#define	ASY_RTSFLOWMODE	0x20
+#define	ASY_CTSFLOWMODE	0x40
 
 #define	ASY_ACTIVE	(ASY_TXLOW | ASY_RXDATA | ASY_DCDCHANGE)
 
@@ -337,6 +347,10 @@ static char	*stl_brdnames[] = {
 #define	ECH_PNLINTRPEND	0x80
 #define	ECH_ADDR2MASK	0x1e0
 
+#define	EIO_CLK		25000000
+#define	EIO_CLK8M	20000000
+#define	ECH_CLK		EIO_CLK
+
 /*
  *	Define the offsets within the register bank for all io registers.
  *	These io address offsets are common to both the EIO and ECH.
@@ -348,6 +362,11 @@ static char	*stl_brdnames[] = {
 #define	EREG_MDACK	7
 
 #define	EREG_BANKSIZE	8
+
+/*
+ *	Define the PCI vendor and device id for ECH8/32-PCI.
+ */
+#define	STL_PCIDEVID	0xd001100b
 
 /*
  *	Define the vector mapping bits for the programmable interrupt board
@@ -427,17 +446,19 @@ STATIC	d_stop_t	stlstop;
 #if VFREEBSD >= 220
 STATIC	d_devtotty_t	stldevtotty;
 #else
-struct tty	*stldevtotty(dev_t dev);
+struct tty		*stldevtotty(dev_t dev);
 #endif
 
 /*
  *	Internal function prototypes.
  */
 static stlport_t *stl_dev2port(dev_t dev);
+static int	stl_findfreeunit(void);
 static int	stl_rawopen(stlport_t *portp);
 static int	stl_rawclose(stlport_t *portp);
 static int	stl_param(struct tty *tp, struct termios *tiosp);
 static void	stl_start(struct tty *tp);
+static void	stl_ttyoptim(stlport_t *portp, struct termios *tiosp);
 static void	stl_dotimeout(void);
 static void	stl_poll(void *arg);
 static void	stl_rxprocess(stlport_t *portp);
@@ -462,6 +483,12 @@ static void	stl_disableintrs(stlport_t *portp);
 static void	stl_sendbreak(stlport_t *portp, long len);
 static void	stl_flush(stlport_t *portp, int flag);
 
+#if NPCI > 0
+static char	*stlpciprobe(pcici_t tag, pcidi_t type);
+static void	stlpciattach(pcici_t tag, int unit);
+static int	stlpciintr(void * arg);
+#endif
+
 /*****************************************************************************/
 
 /*
@@ -473,13 +500,34 @@ struct isa_driver	stldriver = {
 
 /*****************************************************************************/
 
+#if NPCI > 0
+
+/*
+ *	Declare the driver pci structure.
+ */
+static unsigned long	stl_count;
+
+static struct pci_device	stlpcidriver = {
+	"stl",
+	stlpciprobe,
+	stlpciattach,
+	&stl_count,
+	NULL,
+};
+
+DATA_SET (pcidevice_set, stlpcidriver);
+
+#endif
+
+/*****************************************************************************/
+
 #if VFREEBSD >= 220
 
 /*
  *	FreeBSD-2.2+ kernel linkage.
  */
 
-#define	CDEV_MAJOR	70
+#define	CDEV_MAJOR	72
 
 static struct cdevsw stl_cdevsw = 
 	{ stlopen,	stlclose,	stlread,	stlwrite,
@@ -508,7 +556,8 @@ SYSINIT(sidev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,stl_drvinit,NULL)
 /*
  *	Probe for some type of EasyIO or EasyConnection 8/32 board at
  *	the supplied address. All we do is check if we can find the
- *	board ID for the board...
+ *	board ID for the board... (Note, PCI boards not checked here,
+ *	they are done in the stlpciprobe() routine).
  */
 
 int stlprobe(struct isa_device *idp)
@@ -547,6 +596,24 @@ int stlprobe(struct isa_device *idp)
 /*****************************************************************************/
 
 /*
+ *	Find an available internal board number (unit number). The problem
+ *	is that the same unit numbers can be assigned to different boards
+ *	detected during the ISA and PCI initialization phases.
+ */
+
+static int stl_findfreeunit()
+{
+	int	i;
+
+	for (i = 0; (i < STL_MAXBRDS); i++)
+		if (stl_brds[i] == (stlbrd_t *) NULL)
+			break;
+	return((i >= STL_MAXBRDS) ? -1 : i);
+}
+
+/*****************************************************************************/
+
+/*
  *	Allocate resources for and initialize the specified board.
  */
 
@@ -567,10 +634,14 @@ int stlattach(struct isa_device *idp)
 	}
 	bzero(brdp, sizeof(stlbrd_t));
 
-	if (idp->id_unit >= stl_nrbrds)
-		stl_nrbrds = idp->id_unit + 1;
+	if ((brdp->brdnr = stl_findfreeunit()) < 0) {
+		printf("STALLION: too many boards found, max=%d\n",
+			STL_MAXBRDS);
+		return(0);
+	}
+	if (brdp->brdnr >= stl_nrbrds)
+		stl_nrbrds = brdp->brdnr + 1;
 
-	brdp->brdnr = idp->id_unit;
 	brdp->brdtype = stl_brdprobed[idp->id_unit];
 	brdp->ioaddr1 = idp->id_iobase;
 	brdp->ioaddr2 = stl_ioshared;
@@ -580,6 +651,95 @@ int stlattach(struct isa_device *idp)
 
 	return(1);
 }
+
+/*****************************************************************************/
+
+#if NPCI > 0
+
+/*
+ *	Probe specifically for the PCI boards. We need to be a little
+ *	carefull here, since it looks sort like a Nat Semi IDE chip...
+ */
+
+char *stlpciprobe(pcici_t tag, pcidi_t type)
+{
+	unsigned long	class;
+
+#if DEBUG
+	printf("stlpciprobe(tag=%x,type=%x)\n", (int) &tag, (int) type);
+#endif
+
+	switch (type) {
+	case STL_PCIDEVID:
+		break;
+	default:
+		return((char *) NULL);
+	}
+
+	class = pci_conf_read(tag, PCI_CLASS_REG);
+	if ((class & PCI_CLASS_MASK) == PCI_CLASS_MASS_STORAGE)
+		return((char *) NULL);
+
+	return("Stallion EasyConnection 8/32-PCI");
+}
+
+/*****************************************************************************/
+
+/*
+ *	Allocate resources for and initialize the specified PCI board.
+ */
+
+void stlpciattach(pcici_t tag, int unit)
+{
+	stlbrd_t	*brdp;
+	unsigned long	iobase, iopage, irq;
+
+#if DEBUG
+	printf("stlpciattach(tag=%x,unit=%x)\n", (int) &tag, unit);
+#endif
+
+	brdp = (stlbrd_t *) malloc(sizeof(stlbrd_t), M_TTYS, M_NOWAIT);
+	if (brdp == (stlbrd_t *) NULL) {
+		printf("STALLION: failed to allocate memory (size=%d)\n",
+			sizeof(stlbrd_t));
+		return;
+	}
+	bzero(brdp, sizeof(stlbrd_t));
+
+	if ((unit < 0) || (unit > STL_MAXBRDS)) {
+		printf("STALLION: bad PCI board unit number=%d\n", unit);
+		return;
+	}
+
+/*
+ *	Allocate us a new driver unique unit number.
+ */
+	if ((brdp->brdnr = stl_findfreeunit()) < 0) {
+		printf("STALLION: too many boards found, max=%d\n",
+			STL_MAXBRDS);
+		return;
+	}
+	if (brdp->brdnr >= stl_nrbrds)
+		stl_nrbrds = brdp->brdnr + 1;
+
+	brdp->brdtype = BRD_ECHPCI;
+	brdp->ioaddr1 = ((unsigned int) pci_conf_read(tag, 0x14)) & 0xfffc;
+	brdp->ioaddr2 = ((unsigned int) pci_conf_read(tag, 0x10)) & 0xfffc;
+	brdp->irq = ((int) pci_conf_read(tag, 0x3c)) & 0xff;
+	brdp->irqtype = 0;
+	if (pci_map_int(tag, stlpciintr, (void *) NULL, &tty_imask) == 0) {
+		printf("STALLION: failed to map interrupt irq=%d for unit=%d\n",
+			brdp->irq, brdp->brdnr);
+		return;
+	}
+
+#if 0
+	printf("%s(%d): ECH-PCI iobase=%x iopage=%x irq=%d\n", __file__,			 __LINE__, brdp->ioaddr2, brdp->ioaddr1, brdp->irq);
+#endif
+	stl_brdinit(brdp);
+}
+
+#endif
 
 /*****************************************************************************/
 
@@ -600,7 +760,6 @@ STATIC int stlopen(dev_t dev, int flag, int mode, struct proc *p)
 	portp = stl_dev2port(dev);
 	if (portp == (stlport_t *) NULL)
 		return(ENXIO);
-
 	tp = &portp->tty;
 	callout = minor(dev) & STL_CALLOUTDEV;
 	error = 0;
@@ -666,7 +825,7 @@ stlopen_restart:
 			((tp->t_cflag & CLOCAL) == 0) &&
 			((flag & O_NONBLOCK) == 0)) {
 		portp->waitopens++;
-		error = tsleep(TSA_CARR_ON(tp), (TTIPRI | PCATCH), "stldcd",0);
+		error = tsleep(TSA_CARR_ON(tp), (TTIPRI | PCATCH), "stldcd", 0);
 		portp->waitopens--;
 		if (error)
 			goto stlopen_end;
@@ -677,6 +836,7 @@ stlopen_restart:
  *	Open the line discipline.
  */
 	error = (*linesw[tp->t_line].l_open)(dev, tp);
+	stl_ttyoptim(portp, &tp->t_termios);
 	if ((tp->t_state & TS_ISOPEN) && callout)
 		portp->callout = 1;
 
@@ -712,6 +872,7 @@ STATIC int stlclose(dev_t dev, int flag, int mode, struct proc *p)
 
 	x = spltty();
 	(*linesw[tp->t_line].l_close)(tp, flag);
+	stl_ttyoptim(portp, &tp->t_termios);
 	stl_rawclose(portp);
 	ttyclose(tp);
 	splx(x);
@@ -737,23 +898,29 @@ STATIC int stlread(dev_t dev, struct uio *uiop, int flag)
 /*****************************************************************************/
 
 #if VFREEBSD >= 220
+
 STATIC void stlstop(struct tty *tp, int rw)
-#else
-STATIC int stlstop(struct tty *tp, int rw)
-#endif
 {
 #if DEBUG
 	printf("stlstop(tp=%x,rw=%x)\n", (int) tp, rw);
 #endif
 
 	stl_flush((stlport_t *) tp, rw);
-
-#if VFREEBSD >= 220
-	return;
-#else
-	return(0);
-#endif
 }
+
+#else
+
+STATIC int stlstop(struct tty *tp, int rw)
+{
+#if DEBUG
+	printf("stlstop(tp=%x,rw=%x)\n", (int) tp, rw);
+#endif
+
+	stl_flush((stlport_t *) tp, rw);
+	return(0);
+}
+
+#endif
 
 /*****************************************************************************/
 
@@ -890,6 +1057,7 @@ STATIC int stlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 	x = spltty();
 	error = ttioctl(tp, cmd, data, flag);
+	stl_ttyoptim(portp, &tp->t_termios);
 	if (error >= 0) {
 		splx(x);
 		return(error);
@@ -1104,9 +1272,6 @@ static void stl_start(struct tty *tp)
 	}
 #endif
 
-/*
- *	Do not transmit if we are timing out or stopped.
- */
 	if (tp->t_state & (TS_TIMEOUT | TS_TTSTOP)) {
 		splx(x);
 		return;
@@ -1450,7 +1615,7 @@ static inline void stl_rxisr(stlpanel_t *panelp, int ioaddr)
  */
 	if (buflen <= (STL_RXBUFSIZE - STL_RXBUFHIGH)) {
 		if (((portp->state & ASY_RTSFLOW) == 0) &&
-				(tp->t_cflag & CRTS_IFLOW)) {
+				(portp->state & ASY_RTSFLOWMODE)) {
 			portp->state |= ASY_RTSFLOW;
 			stl_setreg(portp, MCOR1,
 				(stl_getreg(portp, MCOR1) & 0xf0));
@@ -1497,6 +1662,10 @@ static inline void stl_rxisr(stlpanel_t *panelp, int ioaddr)
 		if (status & ST_OVERRUN)
 			portp->rxerrs[STL_RXOVERRUN]++;
 		if ((portp->rxignoremsk & status) == 0) {
+			if ((tp->t_state & TS_CAN_BYPASS_L_RINT) &&
+			    ((status & ST_FRAMING) ||
+			    ((status & ST_PARITY) && (tp->t_iflag & INPCK))))
+				ch = 0;
 			if ((portp->rxmarkmsk & status) == 0)
 				status = 0;
 			*(head + STL_RXBUFSIZE) = status;
@@ -1700,6 +1869,18 @@ void stlintr(int unit)
 
 /*****************************************************************************/
 
+#if NPCI > 0
+
+static int stlpciintr(void *arg)
+{
+	stlintr(0);
+	return(1);
+}
+
+#endif
+
+/*****************************************************************************/
+
 /*
  *	If we haven't scheduled a timeout then do it, some port needs high
  *	level processing.
@@ -1782,7 +1963,7 @@ static void stl_poll(void *arg)
 static void stl_rxprocess(stlport_t *portp)
 {
 	struct tty	*tp;
-	unsigned int	len, stlen;
+	unsigned int	len, stlen, lostlen;
 	char		*head, *tail;
 	char		status;
 	int		ch;
@@ -1815,10 +1996,23 @@ static void stl_rxprocess(stlport_t *portp)
 	}
 
 	if (tp->t_state & TS_CAN_BYPASS_L_RINT) {
-#if 1
-printf("%s(%d): cannot TS_CAN_BYPASS_L_RINT!\n", __file__, __LINE__);
-#else
 		if (len > 0) {
+			if (((tp->t_rawq.c_cc + len) >= TTYHOG) &&
+					((portp->state & ASY_RTSFLOWMODE) ||
+					(tp->t_iflag & IXOFF)) &&
+					((tp->t_state & TS_TBLOCK) == 0)) {
+#if 1
+				if ((TTYHOG - tp->t_rawq.c_cc - 1) < 0)
+					printf("%s(%d): len < 0, len=%d "
+						"stlen=%d TTYHOG=%d cc=%d\n",
+						__file__, __LINE__, len,
+						stlen, TTYHOG, tp->t_rawq.c_cc);
+#endif
+				ch = TTYHOG - tp->t_rawq.c_cc - 1;
+				len = (ch > 0) ? ch : 0;
+				stlen = MIN(stlen, len);
+				ttyblock(tp);
+			}
 			lostlen = b_to_q(tail, stlen, &tp->t_rawq);
 			tail += stlen;
 			len -= stlen;
@@ -1829,14 +2023,8 @@ printf("%s(%d): cannot TS_CAN_BYPASS_L_RINT!\n", __file__, __LINE__);
 			}
 			portp->rxerrs[STL_RXLDLOST] += lostlen;
 			ttwakeup(tp);
-			if (tp->t_state & TS_TTSTOP) {
-				tp->t_state &= ~TS_TTSTOP;
-				tp->t_lflag &= ~FLUSHO;
-				ttstart(tp);
-			}
 			portp->rx.tail = tail;
 		}
-#endif
 	} else {
 		while (portp->rx.tail != head) {
 			ch = *(portp->rx.tail);
@@ -1960,6 +2148,9 @@ static int stl_param(struct tty *tp, struct termios *tiosp)
 		cor1 |= COR1_PARNONE;
 	}
 
+	if (tiosp->c_iflag & ISTRIP)
+		cor5 |= COR5_ISTRIP;
+
 /*
  *	Set the RX FIFO threshold at 6 chars. This gives a bit of breathing
  *	space for hardware flow control and the like. This should be set to
@@ -1982,7 +2173,7 @@ static int stl_param(struct tty *tp, struct termios *tiosp)
 
 	if (tiosp->c_ospeed > 0) {
 		for (clk = 0; (clk < CD1400_NUMCLKS); clk++) {
-			clkdiv = ((CD1400_CLKHZ / stl_cd1400clkdivs[clk]) /
+			clkdiv = ((portp->clk / stl_cd1400clkdivs[clk]) /
 				tiosp->c_ospeed);
 			if (clkdiv < 0x100)
 				break;
@@ -2018,10 +2209,9 @@ static int stl_param(struct tty *tp, struct termios *tiosp)
 		mcor1 |= FIFO_RTSTHRESHOLD;
 
 /*
- *	All register cd1400 register values calculated so go through and set
- *	them all up.
+ *	All cd1400 register values calculated so go through and set them
+ *	all up.
  */
-
 #if DEBUG
 	printf("SETPORT: portnr=%d panelnr=%d brdnr=%d\n", portp->portnr,
 		portp->panelnr, portp->brdnr);
@@ -2040,12 +2230,9 @@ static int stl_param(struct tty *tp, struct termios *tiosp)
 	stl_setreg(portp, CAR, (portp->portnr & 0x3));
 	srer = stl_getreg(portp, SRER);
 	stl_setreg(portp, SRER, 0);
-	if (stl_updatereg(portp, COR1, cor1))
-		ccr = 1;
-	if (stl_updatereg(portp, COR2, cor2))
-		ccr = 1;
-	if (stl_updatereg(portp, COR3, cor3))
-		ccr = 1;
+	ccr += stl_updatereg(portp, COR1, cor1);
+	ccr += stl_updatereg(portp, COR2, cor2);
+	ccr += stl_updatereg(portp, COR3, cor3);
 	if (ccr) {
 		stl_ccrwait(portp);
 		stl_setreg(portp, CCR, CCR_CORCHANGE);
@@ -2075,6 +2262,10 @@ static int stl_param(struct tty *tp, struct termios *tiosp)
 		portp->sigs &= ~TIOCM_CD;
 	stl_setreg(portp, SRER, ((srer & ~sreroff) | sreron));
 	BRDDISABLE(portp->brdnr);
+	portp->state &= ~(ASY_RTSFLOWMODE | ASY_CTSFLOWMODE);
+	portp->state |= ((tiosp->c_cflag & CRTS_IFLOW) ? ASY_RTSFLOWMODE : 0);
+	portp->state |= ((tiosp->c_cflag & CCTS_OFLOW) ? ASY_CTSFLOWMODE : 0);
+	stl_ttyoptim(portp, tiosp);
 	enable_intr();
 	return(0);
 }
@@ -2097,7 +2288,7 @@ static void stl_flowcontrol(stlport_t *portp, int hw, int sw)
 
 	hwflow = -1;
 
-	if (portp->tty.t_cflag & CRTS_IFLOW) {
+	if (portp->state & ASY_RTSFLOWMODE) {
 		if (hw == 0) {
 			if ((portp->state & ASY_RTSFLOW) == 0)
 				hwflow = 0;
@@ -2320,6 +2511,35 @@ static void stl_sendbreak(stlport_t *portp, long len)
 /*****************************************************************************/
 
 /*
+ *	Enable l_rint processing bypass mode if tty modes allow it.
+ */
+
+static void stl_ttyoptim(stlport_t *portp, struct termios *tiosp)
+{
+	struct tty	*tp;
+
+	tp = &portp->tty;
+	if (((tiosp->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR)) == 0) &&
+	    (((tiosp->c_iflag & BRKINT) == 0) || (tiosp->c_iflag & IGNBRK)) &&
+	    (((tiosp->c_iflag & PARMRK) == 0) ||
+		((tiosp->c_iflag & (IGNPAR | IGNBRK)) == (IGNPAR | IGNBRK))) &&
+	    ((tiosp->c_lflag & (ECHO | ICANON | IEXTEN | ISIG | PENDIN)) ==0) &&
+	    (linesw[tp->t_line].l_rint == ttyinput))
+		tp->t_state |= TS_CAN_BYPASS_L_RINT;
+	else
+		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
+
+	if (tp->t_line == SLIPDISC)
+		portp->hotchar = 0xc0;
+	else if (tp->t_line == PPPDISC)
+		portp->hotchar = 0x7e;
+	else
+		portp->hotchar = 0;
+}
+
+/*****************************************************************************/
+
+/*
  *	Try and find and initialize all the ports on a panel. We don't care
  *	what sort of board these ports are on - since the port io registers
  *	are almost identical when dealing with ports.
@@ -2401,6 +2621,7 @@ static int stl_initports(stlbrd_t *brdp, stlpanel_t *panelp)
 		portp->portnr = i;
 		portp->brdnr = panelp->brdnr;
 		portp->panelnr = panelp->panelnr;
+		portp->clk = brdp->clk;
 		portp->ioaddr = ioaddr;
 		portp->uartaddr = (i & 0x4) << 5;
 		portp->pagenr = panelp->pagenr + (i >> 3);
@@ -2461,11 +2682,14 @@ static int stl_initeio(stlbrd_t *brdp)
 
 	brdp->ioctrl = brdp->ioaddr1 + 1;
 	brdp->iostatus = brdp->ioaddr1 + 2;
+	brdp->clk = EIO_CLK;
 
 	status = inb(brdp->iostatus);
 	switch (status & EIO_IDBITMASK) {
-	case EIO_8PORTRS:
 	case EIO_8PORTM:
+		brdp->clk = EIO_CLK8M;
+		/* fall thru */
+	case EIO_8PORTRS:
 	case EIO_8PORTDI:
 		brdp->nrports = 8;
 		break;
@@ -2568,6 +2792,8 @@ static int stl_initech(stlbrd_t *brdp)
 	} else if (brdp->brdtype == BRD_ECHPCI) {
 		brdp->ioctrl = brdp->ioaddr1 + 2;
 	}
+
+	brdp->clk = ECH_CLK;
 
 /*
  *	Scan through the secondary io address space looking for panels.
@@ -2678,7 +2904,7 @@ static int stl_brdinit(stlbrd_t *brdp)
 		}
 	}
 
-	printf("stl%d: %s (driver version %s) nrpanels=%d nrports=%d\n",
+	printf("stl(%d): %s (driver version %s) nrpanels=%d nrports=%d\n",
 		brdp->brdnr, stl_brdnames[brdp->brdtype], stl_drvversion,
 		brdp->nrpanels, brdp->nrports);
 	return(0);
