@@ -109,13 +109,13 @@ highest priority
 of 0 means "the current process".
 .Pp
 Only root is allowed to set realtime or idle priority for a process.
-.Sh RETURN VALUE
+.Sh DIAGNOSTICS
 If
 .Nm
 execute a command, the exit value is that of the command executed.
 In all other cases,
 .Nm
-exits with 0 for success and 1 for all other errors.
+exits 0 on success, and 1 for all other errors.
 .Sh EXAMPLES
 To see which realtime priority the current process is at:
 .Bd -literal -offset indent -compact
