@@ -320,8 +320,6 @@ gx_attach(device_t dev)
 		error = ENXIO;
 		goto fail;
 	}
-	device_printf(dev, "Ethernet address: %6D\n",
-	    gx->arpcom.ac_enaddr, ":");
 
 	/* Allocate the ring buffers. */
 	gx->gx_rdata = contigmalloc(sizeof(struct gx_ring_data), M_DEVBUF,

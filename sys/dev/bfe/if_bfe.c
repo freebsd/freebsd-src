@@ -406,9 +406,6 @@ bfe_attach(device_t dev)
 
 	bfe_get_config(sc);
 
-	printf("bfe%d: Ethernet address: %6D\n", unit,
-	    sc->arpcom.ac_enaddr, ":");
-
 	/* Reset the chip and turn on the PHY */
 	bfe_chip_reset(sc);
 

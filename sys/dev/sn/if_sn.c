@@ -201,7 +201,6 @@ sn_attach(device_t dev)
 		p[i + 1] = address >> 8;
 		p[i] = address & 0xFF;
 	}
-	printf(" MAC address %6D\n", sc->arpcom.ac_enaddr, ":");
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;

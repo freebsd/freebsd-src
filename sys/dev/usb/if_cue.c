@@ -510,11 +510,6 @@ USB_ATTACH(cue)
 	 */
 	cue_getmac(sc, &eaddr);
 
-	/*
-	 * A CATC chip was detected. Inform the world.
-	 */
-	printf("cue%d: Ethernet address: %6D\n", sc->cue_unit, eaddr, ":");
-
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	ifp = &sc->arpcom.ac_if;

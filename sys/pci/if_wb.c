@@ -892,11 +892,6 @@ wb_attach(dev)
 	 */
 	wb_read_eeprom(sc, (caddr_t)&eaddr, 0, 3, 0);
 
-	/*
-	 * A Winbond chip was detected. Inform the world.
-	 */
-	printf("wb%d: Ethernet address: %6D\n", unit, eaddr, ":");
-
 	sc->wb_unit = unit;
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 

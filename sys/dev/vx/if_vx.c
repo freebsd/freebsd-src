@@ -155,8 +155,6 @@ vxattach(dev)
         sc->arpcom.ac_enaddr[(i << 1) + 1] = x;
     }
 
-    printf(" address %6D\n", sc->arpcom.ac_enaddr, ":");
-
     if_initname(ifp, device_get_name(dev), device_get_unit(dev));
     ifp->if_mtu = ETHERMTU;
     ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;

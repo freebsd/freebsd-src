@@ -999,11 +999,6 @@ rl_attach(dev)
 		eaddr[(i * 2) + 1] = as[i] >> 8;
 	}
 
-	/*
-	 * A RealTek chip was detected. Inform the world.
-	 */
-	printf("rl%d: Ethernet address: %6D\n", unit, eaddr, ":");
-
 	sc->rl_unit = unit;
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 

@@ -1212,11 +1212,6 @@ re_attach(dev)
 		}
 	}
 
-	/*
-	 * A RealTek chip was detected. Inform the world.
-	 */
-	printf("re%d: Ethernet address: %6D\n", unit, eaddr, ":");
-
 	sc->rl_unit = unit;
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 

@@ -868,6 +868,9 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *llc)
 		(*ng_ether_attach_p)(ifp);
 	if (BDG_LOADED)
 		bdgtakeifaces_ptr();
+
+	/* Announce Ethernet MAC address. */
+	if_printf(ifp, "Ethernet address: %6D\n", llc, ":");
 }
 
 /*

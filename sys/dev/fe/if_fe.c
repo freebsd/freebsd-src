@@ -821,8 +821,7 @@ fe_attach (device_t dev)
 	fe_stop(sc);
   
   	/* Print additional info when attached.  */
- 	device_printf(dev, "address %6D, type %s%s\n",
-		      sc->sc_enaddr, ":" , sc->typestr,
+ 	device_printf(dev, "type %s%s\n", sc->typestr,
 		      (sc->proto_dlcr4 & FE_D4_DSC) ? ", full duplex" : "");
 	if (bootverbose) {
 		int buf, txb, bbw, sbw, ram;

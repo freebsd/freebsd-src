@@ -894,13 +894,11 @@ lnc_attach_common(device_t dev)
 
 	ether_ifattach(&sc->arpcom.ac_if, sc->arpcom.ac_enaddr);
 
-	printf("%s: ", sc->arpcom.ac_if.if_xname);
 	if (sc->nic.ic == LANCE || sc->nic.ic == C_LANCE)
-		printf("%s (%s)",
+		if_printf(&sc->arpcom.ac_if, "%s (%s)\n",
 		       nic_ident[sc->nic.ident], ic_ident[sc->nic.ic]);
 	else
-		printf("%s", ic_ident[sc->nic.ic]);
-	printf(" address %6D\n", sc->arpcom.ac_enaddr, ":");
+		if_printf(&sc->arpcom.ac_if, "%s\n", ic_ident[sc->nic.ic]);
 
 	return (1);
 }

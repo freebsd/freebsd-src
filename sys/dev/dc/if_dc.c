@@ -2152,11 +2152,6 @@ dc_attach(device_t dev)
 		break;
 	}
 
-	/*
-	 * A 21143 or clone chip was detected. Inform the world.
-	 */
-	printf("dc%d: Ethernet address: %6D\n", unit, eaddr, ":");
-
 	sc->dc_unit = unit;
 	bcopy(eaddr, &sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 

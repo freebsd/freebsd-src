@@ -906,11 +906,6 @@ nge_attach(dev)
 	nge_read_eeprom(sc, (caddr_t)&eaddr[2], NGE_EE_NODEADDR + 1, 1, 0);
 	nge_read_eeprom(sc, (caddr_t)&eaddr[0], NGE_EE_NODEADDR + 2, 1, 0);
 
-	/*
-	 * A NatSemi chip was detected. Inform the world.
-	 */
-	printf("nge%d: Ethernet address: %6D\n", unit, eaddr, ":");
-
 	sc->nge_unit = unit;
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 

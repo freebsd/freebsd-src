@@ -1480,11 +1480,6 @@ xl_attach(dev)
 		goto fail;
 	}
 
-	/*
-	 * A 3Com chip was detected. Inform the world.
-	 */
-	printf("xl%d: Ethernet address: %6D\n", unit, eaddr, ":");
-
 	sc->xl_unit = unit;
 	callout_handle_init(&sc->xl_stat_ch);
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
