@@ -39,12 +39,12 @@ then
     source_periodic_confs
 fi
 
-TMP=`mktemp ${TMPDIR:-/tmp}/security.XXXXXXXXXX`
 LOG="${daily_status_security_logdir}"
 rc=0
 
 case "$daily_status_security_ipfwdenied_enable" in
     [Yy][Ee][Ss])
+	TMP=`mktemp ${TMPDIR:-/tmp}/security.XXXXXXXXXX`
 	if ipfw -a l 2>/dev/null | egrep "deny|reset|unreach" > ${TMP}; then
 	    if [ ! -f ${LOG}/ipfw.today ]; then
 		rc=1

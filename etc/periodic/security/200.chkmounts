@@ -38,13 +38,13 @@ then
     source_periodic_confs
 fi
 
-TMP=`mktemp ${TMPDIR:-/tmp}/security.XXXXXXXXXX`
 LOG="${daily_status_security_logdir}"
 ignore="${daily_status_security_chkmounts_ignore}"
 rc=0
 
 case "$daily_status_security_chkmounts_enable" in
     [Yy][Ee][Ss])
+	TMP=`mktemp ${TMPDIR:-/tmp}/security.XXXXXXXXXX`
 	case "$daily_status_security_noamd" in
 	    [Yy][Ee][Ss])
 		ignore="${ignore}|^amd:"
