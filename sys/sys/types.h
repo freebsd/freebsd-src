@@ -118,9 +118,32 @@ typedef	quad_t *	qaddr_t;
 typedef	char *		caddr_t;	/* core address */
 typedef	__const char *	c_caddr_t;	/* core address, pointer to const */
 typedef	__volatile char *v_caddr_t;	/* core address, pointer to volatile */
+
+#ifndef _CLOCK_T_DECLARED
+typedef	__clock_t	clock_t;
+#define	_CLOCK_T_DECLARED
+#endif
+
+#ifndef _CLOCKID_T_DECLARED
+typedef	__clockid_t	clockid_t;
+#define	_CLOCKID_T_DECLARED
+#endif
+
 typedef	__critical_t	critical_t;	/* Critical section value */
 typedef	__int64_t	daddr_t;	/* disk address */
+
+#ifndef _FFLAGS_T_DECLARED
+typedef	__fflags_t	fflags_t;	/* file flags */
+#define	_FFLAGS_T_DECLARED
+#endif
+
 typedef	__uint32_t	fixpt_t;	/* fixed point number */
+
+#ifndef _FSBLKCNT_T_DECLARED		/* for statvfs() */
+typedef	__fsblkcnt_t	fsblkcnt_t;
+typedef	__fsfilcnt_t	fsfilcnt_t;
+#define	_FSBLKCNT_T_DECLARED
+#endif
 
 #ifndef _GID_T_DECLARED
 typedef	__gid_t		gid_t;		/* group id */
@@ -175,9 +198,29 @@ typedef	__rlim_t	rlim_t;		/* resource limit */
 
 typedef	__segsz_t	segsz_t;	/* segment size (in pages) */
 
+#ifndef _SIZE_T_DECLARED
+typedef	__size_t	size_t;
+#define	_SIZE_T_DECLARED
+#endif
+
+#ifndef _SSIZE_T_DECLARED
+typedef	__ssize_t	ssize_t;
+#define	_SSIZE_T_DECLARED
+#endif
+
 #ifndef _SUSECONDS_T_DECLARED
 typedef	__suseconds_t	suseconds_t;	/* microseconds (signed) */
 #define	_SUSECONDS_T_DECLARED
+#endif
+
+#ifndef _TIME_T_DECLARED
+typedef	__time_t	time_t;
+#define	_TIME_T_DECLARED
+#endif
+
+#ifndef _TIMER_T_DECLARED
+typedef	__timer_t	timer_t;
+#define	_TIMER_T_DECLARED
 #endif
 
 typedef	__u_register_t	u_register_t;
@@ -228,47 +271,6 @@ typedef	__uint32_t	dev_t;		/* device number */
 #define udev_t dev_t
 
 #endif /* !_KERNEL */
-
-#ifndef _CLOCK_T_DECLARED
-typedef	__clock_t	clock_t;
-#define	_CLOCK_T_DECLARED
-#endif
-
-#ifndef _CLOCKID_T_DECLARED
-typedef	__clockid_t	clockid_t;
-#define	_CLOCKID_T_DECLARED
-#endif
-
-#ifndef _FFLAGS_T_DECLARED
-typedef	__fflags_t	fflags_t;	/* file flags */
-#define	_FFLAGS_T_DECLARED
-#endif
-
-#ifndef _FSBLKCNT_T_DECLARED		/* for statvfs() */
-typedef	__fsblkcnt_t	fsblkcnt_t;
-typedef	__fsfilcnt_t	fsfilcnt_t;
-#define	_FSBLKCNT_T_DECLARED
-#endif
-
-#ifndef _SIZE_T_DECLARED
-typedef	__size_t	size_t;
-#define	_SIZE_T_DECLARED
-#endif
-
-#ifndef _SSIZE_T_DECLARED
-typedef	__ssize_t	ssize_t;
-#define	_SSIZE_T_DECLARED
-#endif
-
-#ifndef _TIME_T_DECLARED
-typedef	__time_t	time_t;
-#define	_TIME_T_DECLARED
-#endif
-
-#ifndef _TIMER_T_DECLARED
-typedef	__timer_t	timer_t;
-#define	_TIMER_T_DECLARED
-#endif
 
 /*
  * The following are all things that really shouldn't exist in this header,
