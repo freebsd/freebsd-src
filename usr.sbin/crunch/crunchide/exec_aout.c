@@ -28,6 +28,7 @@
 #include <sys/cdefs.h>
 #ifndef lint
 __RCSID("$NetBSD: exec_aout.c,v 1.6 1997/08/02 21:30:17 perry Exp $");
+__FBSDID("$FreeBSD$");
 #endif
  
 #include <unistd.h>
@@ -56,7 +57,7 @@ struct nlist *symbase;
 #define IS_GLOBAL_DEFINED(sp) \
                   (((sp)->n_type & N_EXT) && ((sp)->n_type & N_TYPE) != N_UNDF)
 
-#ifdef __sparc
+#ifdef arch_sparc
 /* is the relocation entry dependent on a symbol? */
 #define IS_SYMBOL_RELOC(rp)   \
 	((rp)->r_extern || \

@@ -646,7 +646,8 @@ _xlint=	usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint
 
 cross-tools:
 .for _tool in ${_btxld} ${_elf2exe} \
-    gnu/usr.bin/binutils usr.bin/objformat gnu/usr.bin/cc ${_xlint}
+    gnu/usr.bin/binutils usr.bin/objformat usr.sbin/crunch/crunchide \
+    gnu/usr.bin/cc ${_xlint}
 	cd ${.CURDIR}/${_tool}; \
 		${MAKE} obj; \
 		${MAKE} depend; \
