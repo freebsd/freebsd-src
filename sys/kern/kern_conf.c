@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.9 1995/12/22 15:56:33 phk Exp $
+ * $Id: kern_conf.c,v 1.10 1996/07/23 21:52:06 phk Exp $
  */
 
 #include <sys/param.h>
@@ -39,8 +39,10 @@
 #include <sys/conf.h>
 #include <sys/vnode.h>
 
-#define NUMCDEV 96
-#define NUMBDEV 32
+#define NUMBDEV 128
+#define NUMCDEV 256
+#define bdevsw_ALLOCSTART	(NUMBDEV/2)
+#define cdevsw_ALLOCSTART	(NUMCDEV/2)
 
 struct bdevsw 	*bdevsw[NUMBDEV];
 int	nblkdev = NUMBDEV;
@@ -118,21 +120,21 @@ chrtoblk(dev_t dev)
  * (re)place an entry in the bdevsw or cdevsw table
  * return the slot used in major(*descrip)
  */
-#define ADDENTRY(TTYPE,NXXXDEV) \
+#define ADDENTRY(TTYPE,NXXXDEV,ALLOCSTART) \
 int TTYPE##_add(dev_t *descrip,						\
 		struct TTYPE *newentry,					\
 		struct TTYPE **oldentry)				\
 {									\
 	int i ;								\
-	if ( (int)*descrip == -1) {	/* auto (0 is valid) */		\
+	if ( (int)*descrip == NODEV) {	/* auto (0 is valid) */		\
 		/*							\
 		 * Search the table looking for a slot...		\
 		 */							\
-		for (i = 0; i < NXXXDEV; i++)				\
+		for (i = ALLOCSTART; i < NXXXDEV; i++)				\
 			if (TTYPE[i] == NULL)				\
 				break;		/* found one! */	\
 		/* out of allocable slots? */				\
-		if (i == NXXXDEV) {					\
+		if (i >= NXXXDEV) {					\
 			return ENFILE;					\
 		}							\
 	} else {				/* assign */		\
@@ -155,8 +157,10 @@ int TTYPE##_add(dev_t *descrip,						\
 	return 0;							\
 } \
 
-ADDENTRY(bdevsw, nblkdev)
-ADDENTRY(cdevsw, nchrdev)
+ADDENTRY(bdevsw, nblkdev,bdevsw_ALLOCSTART)
+ADDENTRY(cdevsw, nchrdev,cdevsw_ALLOCSTART)
+
+/* Maybe the author might indicate what the f*@# tehis is for? */
 
 void
 cdevsw_make(struct bdevsw *from)
