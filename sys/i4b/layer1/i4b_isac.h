@@ -30,9 +30,9 @@
  *
  *---------------------------------------------------------------------------
  *
- *	$Id: i4b_isac.h,v 1.5 1998/03/28 15:11:03 hm Exp $ 
+ *	$Id: i4b_isac.h,v 1.6 1999/02/14 09:44:59 hm Exp $ 
  *
- *      last edit-date: [Fri Mar 27 15:52:40 1998]
+ *      last edit-date: [Sun Feb 14 10:27:13 1999]
  *
  *	-hm	split up for rewrite of Siemens chipset driver
  *

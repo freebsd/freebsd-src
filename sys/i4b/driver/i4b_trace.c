@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	i4btrc - device driver for trace data read device
  *	---------------------------------------------------
  *
- *	$Id: i4b_trace.c,v 1.14 1998/12/05 18:02:51 hm Exp $
+ *	$Id: i4b_trace.c,v 1.16 1999/02/14 19:51:01 hm Exp $
  *
- *	last edit-date: [Sat Dec  5 18:01:53 1998]
+ *	last edit-date: [Sun Feb 14 10:03:01 1999]
  *
  *	NOTE: the code assumes that SPLI4B >= splimp !
  *
@@ -112,7 +112,11 @@ void i4btrcattach __P((void));
 int i4btrcopen __P((dev_t dev, int flag, int fmt, struct proc *p));
 int i4btrcclose __P((dev_t dev, int flag, int fmt, struct proc *p));
 int i4btrcread __P((dev_t dev, struct uio * uio, int ioflag));
+#ifdef __bsdi__
+int i4btrcioctl __P((dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p));
+#else
 int i4btrcioctl __P((dev_t dev, int cmd, caddr_t data, int flag, struct proc *p));
+#endif
 #endif
 
 #if BSD > 199306 && defined(__FreeBSD__)
@@ -156,6 +160,36 @@ static void i4btrcattach(void *);
 PSEUDO_SET(i4btrcattach, i4b_trace);
 
 #endif /* BSD > 199306 && defined(__FreeBSD__) */
+
+#ifdef __bsdi__
+#include <sys/device.h>
+int i4btrcmatch(struct device *parent, struct cfdata *cf, void *aux);
+void dummy_i4btrcattach(struct device*, struct device *, void *);
+
+#define CDEV_MAJOR 60
+
+static struct cfdriver i4btrccd =
+	{ NULL, "i4btrc", i4btrcmatch, dummy_i4btrcattach, DV_DULL,
+	  sizeof(struct cfdriver) };
+struct devsw i4btrcsw = 
+	{ &i4btrccd,
+	  i4btrcopen,	i4btrcclose,	i4btrcread,	nowrite,
+	  i4btrcioctl,	seltrue,	nommap,		nostrat,
+	  nodump,	nopsize,	0,		nostop
+};
+
+int
+i4btrcmatch(struct device *parent, struct cfdata *cf, void *aux)
+{
+	printf("i4btrcmatch: aux=0x%x\n", aux);
+	return 1;
+}
+void
+dummy_i4btrcattach(struct device *parent, struct device *self, void *aux)
+{
+	printf("dummy_i4btrcattach: aux=0x%x\n", aux);
+}
+#endif /* __bsdi__ */
 
 int get_trace_data_from_l1(i4b_trace_hdr_t *hdr, int len, char *buf);
 
@@ -423,6 +457,8 @@ i4btrcpoll(dev_t dev, int events, struct proc *p)
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
 #if defined (__FreeBSD_version) && __FreeBSD_version >= 300003
+i4btrcioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+#elif defined(__bsdi__)
 i4btrcioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 #else
 i4btrcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)

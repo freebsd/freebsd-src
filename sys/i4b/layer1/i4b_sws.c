@@ -47,9 +47,9 @@
  *		EXPERIMENTAL !!!!
  *		=================
  *
- *	$Id: i4b_sws.c,v 1.12 1998/12/18 09:32:45 hm Exp $
+ *	$Id: i4b_sws.c,v 1.13 1999/02/14 09:44:59 hm Exp $
  *
- *	last edit-date: [Sun Dec 13 10:49:25 1998]
+ *	last edit-date: [Sun Feb 14 10:28:31 1999]
  *
  *	-hm	adding driver to i4b
  *	-hm	adjustments for FreeBSD < 2.2.6, no PnP support yet

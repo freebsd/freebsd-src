@@ -37,9 +37,9 @@
  *	But we attach to the supio, so just see "isic".
  *	-----------------------------------------------
  *
- *	$Id: isic_supio.c,v 1.5 1998/12/19 12:07:55 hm Exp $ 
+ *	$Id: isic_supio.c,v 1.6 1999/02/14 09:45:00 hm Exp $ 
  *
- *      last edit-date: [Mon Nov 16 12:29:19 1998]
+ *      last edit-date: [Sun Feb 14 10:29:19 1999]
  *
  *	-is	original implementation
  *

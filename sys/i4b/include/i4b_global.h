@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	i4b_global.h - i4b global include file
  *	--------------------------------------
  *
- *	$Id: i4b_global.h,v 1.17 1998/12/05 18:02:53 hm Exp $
+ *	$Id: i4b_global.h,v 1.19 1999/02/27 11:08:01 hm Exp $
  *
- *	last edit-date: [Sat Dec  5 18:03:41 1998]
+ *	last edit-date: [Sun Feb 14 10:03:55 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -58,7 +58,7 @@
 #endif /* >= 3 */
 #endif /* __FreeBSD__ */
 
-#if defined(__NetBSD__) || defined (__OpenBSD__)
+#if defined(__NetBSD__) || defined (__OpenBSD__) || defined(__bsdi__)
 
 #define TIMEOUT_FUNC_T	void *
 #define SECOND		time.tv_sec

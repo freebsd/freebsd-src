@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	i4b - Siemens HSCX chip (B-channel) handling
  *	--------------------------------------------
  *
- *	$Id: i4b_hscx.c,v 1.37 1998/12/05 18:04:38 hm Exp $ 
+ *	$Id: i4b_hscx.c,v 1.39 1999/02/14 19:51:01 hm Exp $ 
  *
- *      last edit-date: [Sat Dec  5 18:23:36 1998]
+ *      last edit-date: [Sun Feb 14 10:26:49 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -55,7 +55,9 @@
 #include <machine/clock.h>
 #include <i386/isa/isa_device.h>
 #else
+#ifndef __bsdi__
 #include <machine/bus.h>
+#endif
 #include <sys/device.h>
 #endif
 
