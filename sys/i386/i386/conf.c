@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.44 1994/12/04 20:08:57 phk Exp $
+ *	$Id: conf.c,v 1.45 1994/12/11 23:05:18 bde Exp $
  */
 
 #include <sys/param.h>
@@ -644,6 +644,19 @@ extern struct tty *cx_tty[];
 #define cx_tty		NULL
 #endif
 
+#include "gp.h"
+#if NGP > 0
+d_open_t gpopen;
+d_close_t gpclose;
+d_rdwr_t gpwrite;
+d_ioctl_t gpioctl; 
+#else   
+#define gpopen          (d_open_t *)enxio
+#define gpclose (d_close_t *)enxio
+#define gpwrite         (d_rdwr_t *)enxio
+#define gpioctl (d_ioctl_t *)enxio
+#endif
+
 /* open, close, read, write, ioctl, stop, reset, ttys, select, mmap, strat */
 struct cdevsw	cdevsw[] =
 {
@@ -787,7 +800,10 @@ struct cdevsw	cdevsw[] =
 	  cxselect,	nommap,		NULL },
 	{ vnopen,	vnclose,	rawread,	rawwrite,	/*43*/
 	  vnioctl,	nostop,		nullreset,	NULL,	/* vn */
-	  seltrue,	nommap,		vnstrategy }
+	  seltrue,	nommap,		vnstrategy },
+	{ gpopen,	gpclose,	noread,		gpwrite,	/*44*/
+	  gpioctl,	nostop,		nullreset,	NULL,   /* GPIB */
+          seltrue,	nommap,		NULL },                 
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
 
