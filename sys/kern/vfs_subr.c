@@ -1508,7 +1508,9 @@ vrele(vp)
 
 	mtx_lock(&vp->v_interlock);
 
-	KASSERT(vp->v_writecount < vp->v_usecount, ("vrele: missed vn_close"));
+	/* Skip this v_writecount check if we're going to panic below. */
+	KASSERT(vp->v_writecount < vp->v_usecount || vp->v_usecount < 1,
+	    ("vrele: missed vn_close"));
 
 	if (vp->v_usecount > 1) {
 
@@ -1554,7 +1556,9 @@ vput(vp)
 
 	KASSERT(vp != NULL, ("vput: null vp"));
 	mtx_lock(&vp->v_interlock);
-	KASSERT(vp->v_writecount < vp->v_usecount, ("vput: missed vn_close"));
+	/* Skip this v_writecount check if we're going to panic below. */
+	KASSERT(vp->v_writecount < vp->v_usecount || vp->v_usecount < 1,
+	    ("vput: missed vn_close"));
 
 	if (vp->v_usecount > 1) {
 
