@@ -114,43 +114,63 @@ r_reg(fp, style, off, sbp)
 	long off;
 	struct stat *sbp;
 {
-	off_t size;
-	int llen;
-	char *p;
-	char *start;
+	struct mapinfo map;
+	off_t curoff, size, lineend;
+	int i;
 
 	if (!(size = sbp->st_size))
 		return;
 
-	if (size > SIZE_T_MAX) {
-		errno = EFBIG;
-		ierr();
-		return;
-	}
+	map.start = NULL;
+	map.mapoff = map.maxoff = size;
+	map.fd = fileno(fp);
 
-	if ((start = mmap(NULL, (size_t)size,
-	    PROT_READ, MAP_SHARED, fileno(fp), (off_t)0)) == MAP_FAILED) {
-		ierr();
-		return;
-	}
-	p = start + size - 1;
-
-	if (style == RBYTES && off < size)
-		size = off;
-
-	/* Last char is special, ignore whether newline or not. */
-	for (llen = 1; --size; ++llen)
-		if (*--p == '\n') {
-			WR(p + 1, llen);
-			llen = 0;
-			if (style == RLINES && !--off) {
-				++p;
-				break;
+	/*
+	 * Last char is special, ignore whether newline or not. Note that
+	 * size == 0 is dealt with above, and size == 1 sets curoff to -1.
+	 */
+	curoff = size - 2;
+	lineend = size;
+	while (curoff >= 0) {
+		if (curoff < map.mapoff || curoff >= map.mapoff + map.maplen) {
+			if (maparound(&map, curoff) != 0) {
+				ierr();
+				return;
 			}
 		}
-	if (llen)
-		WR(p, llen);
-	if (munmap(start, (size_t)sbp->st_size))
+		for (i = curoff - map.mapoff; i >= 0; i--) {
+			if (style == RBYTES && --off == 0)
+				break;
+			if (map.start[i] == '\n')
+				break;
+		}
+		/* `i' is either the map offset of a '\n', or -1. */
+		curoff = map.mapoff + i;
+		if (i < 0)
+			continue;
+
+		/* Print the line and update offsets. */
+		if (mapprint(&map, curoff + 1, lineend - curoff - 1) != 0) {
+			ierr();
+			return;
+		}
+		lineend = curoff + 1;
+		curoff--;
+
+		if (style == RLINES)
+			off--;
+
+		if (off == 0 && style != REVERSE) {
+			/* Avoid printing anything below. */
+			curoff = 0;
+			break;
+		}
+	}
+	if (curoff < 0 && mapprint(&map, 0, lineend) != 0) {
+		ierr();
+		return;
+	}
+	if (map.start != NULL && munmap(map.start, map.maplen))
 		ierr();
 }
 
