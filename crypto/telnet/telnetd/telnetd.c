@@ -683,38 +683,33 @@ getterminaltype(name)
 	static unsigned char sb[] =
 			{ IAC, SB, TELOPT_TSPEED, TELQUAL_SEND, IAC, SE };
 
-	memmove(nfrontp, sb, sizeof sb);
-	nfrontp += sizeof sb;
+	output_datalen(sb, sizeof sb);
 	DIAG(TD_OPTIONS, printsub('>', sb + 2, sizeof sb - 2););
     }
     if (his_state_is_will(TELOPT_XDISPLOC)) {
 	static unsigned char sb[] =
 			{ IAC, SB, TELOPT_XDISPLOC, TELQUAL_SEND, IAC, SE };
 
-	memmove(nfrontp, sb, sizeof sb);
-	nfrontp += sizeof sb;
+	output_datalen(sb, sizeof sb);
 	DIAG(TD_OPTIONS, printsub('>', sb + 2, sizeof sb - 2););
     }
     if (his_state_is_will(TELOPT_NEW_ENVIRON)) {
 	static unsigned char sb[] =
 			{ IAC, SB, TELOPT_NEW_ENVIRON, TELQUAL_SEND, IAC, SE };
 
-	memmove(nfrontp, sb, sizeof sb);
-	nfrontp += sizeof sb;
+	output_datalen(sb, sizeof sb);
 	DIAG(TD_OPTIONS, printsub('>', sb + 2, sizeof sb - 2););
     }
     else if (his_state_is_will(TELOPT_OLD_ENVIRON)) {
 	static unsigned char sb[] =
 			{ IAC, SB, TELOPT_OLD_ENVIRON, TELQUAL_SEND, IAC, SE };
 
-	memmove(nfrontp, sb, sizeof sb);
-	nfrontp += sizeof sb;
+	output_datalen(sb, sizeof sb);
 	DIAG(TD_OPTIONS, printsub('>', sb + 2, sizeof sb - 2););
     }
     if (his_state_is_will(TELOPT_TTYPE)) {
 
-	memmove(nfrontp, ttytype_sbbuf, sizeof ttytype_sbbuf);
-	nfrontp += sizeof ttytype_sbbuf;
+	output_datalen(ttytype_sbbuf, sizeof ttytype_sbbuf);
 	DIAG(TD_OPTIONS, printsub('>', ttytype_sbbuf + 2,
 					sizeof ttytype_sbbuf - 2););
     }
@@ -793,8 +788,7 @@ _gettermname()
     if (his_state_is_wont(TELOPT_TTYPE))
 	return;
     settimer(baseline);
-    memmove(nfrontp, ttytype_sbbuf, sizeof ttytype_sbbuf);
-    nfrontp += sizeof ttytype_sbbuf;
+    output_datalen(ttytype_sbbuf, sizeof ttytype_sbbuf);
     DIAG(TD_OPTIONS, printsub('>', ttytype_sbbuf + 2,
 					sizeof ttytype_sbbuf - 2););
     while (sequenceIs(ttypesubopt, baseline))
@@ -1044,9 +1038,7 @@ telnet(f, p, host)
 	 * mode, which we do not want.
 	 */
 	if (his_want_state_is_will(TELOPT_ECHO)) {
-		DIAG(TD_OPTIONS,
-			{sprintf(nfrontp, "td: simulating recv\r\n");
-			 nfrontp += strlen(nfrontp);});
+		DIAG(TD_OPTIONS, output_data("td: simulating recv\r\n"));
 		willoption(TELOPT_ECHO);
 	}
 
@@ -1181,9 +1173,7 @@ telnet(f, p, host)
 	localstat();
 #endif	/* LINEMODE */
 
-	DIAG(TD_REPORT,
-		{sprintf(nfrontp, "td: Entering processing loop\r\n");
-		 nfrontp += strlen(nfrontp);});
+	DIAG(TD_REPORT, output_data("td: Entering processing loop\r\n"));
 
 	/*
 	 * Startup the login process on the slave side of the terminal
@@ -1312,8 +1302,7 @@ telnet(f, p, host)
 			netip = netibuf;
 		    }
 		    DIAG((TD_REPORT | TD_NETDATA),
-			    {sprintf(nfrontp, "td: netread %d chars\r\n", ncc);
-			     nfrontp += strlen(nfrontp);});
+			output_data("td: netread %d chars\r\n", ncc));
 		    DIAG(TD_NETDATA, printdata("nd", netip, ncc));
 		}
 
@@ -1360,8 +1349,7 @@ telnet(f, p, host)
 					 * royally if we send them urgent
 					 * mode data.
 					 */
-					*nfrontp++ = IAC;
-					*nfrontp++ = DM;
+					output_data("%c%c", IAC, DM);
 					neturg = nfrontp-1; /* off by one XXX */
 					DIAG(TD_OPTIONS,
 					    printoption("td: send IAC", DM));
@@ -1375,13 +1363,11 @@ telnet(f, p, host)
 					    ptyibuf[0] & TIOCPKT_DOSTOP ? 1 : 0;
 					if (newflow != flowmode) {
 						flowmode = newflow;
-						(void) sprintf(nfrontp,
-							"%c%c%c%c%c%c",
+						output_data("%c%c%c%c%c%c",
 							IAC, SB, TELOPT_LFLOW,
 							flowmode ? LFLOW_ON
 								 : LFLOW_OFF,
 							IAC, SE);
-						nfrontp += 6;
 						DIAG(TD_OPTIONS, printsub('>',
 						    (unsigned char *)nfrontp-4,
 						    4););
@@ -1407,19 +1393,19 @@ telnet(f, p, host)
 				break;
 			c = *ptyip++ & 0377, pcc--;
 			if (c == IAC)
-				*nfrontp++ = c;
+				output_data("%c", c);
 #if	defined(CRAY2) && defined(UNICOS5)
 			else if (c == '\n' &&
 				     my_state_is_wont(TELOPT_BINARY) && newmap)
-				*nfrontp++ = '\r';
+				output_data("\r");
 #endif	/* defined(CRAY2) && defined(UNICOS5) */
-			*nfrontp++ = c;
+			output_data("%c", c);
 			if ((c == '\r') && (my_state_is_wont(TELOPT_BINARY))) {
 				if (pcc > 0 && ((*ptyip & 0377) == '\n')) {
-					*nfrontp++ = *ptyip++ & 0377;
+					output_data("%c", *ptyip++ & 0377);
 					pcc--;
 				} else
-					*nfrontp++ = '\0';
+					output_data("%c", '\0');
 			}
 		}
 #if	defined(CRAY2) && defined(UNICOS5)
@@ -1613,8 +1599,7 @@ recv_ayt()
 		return;
 	}
 #endif
-	(void) strcpy(nfrontp, "\r\n[Yes]\r\n");
-	nfrontp += 9;
+	output_data("\r\n[Yes]\r\n");
 }
 
 	void
