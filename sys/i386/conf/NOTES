@@ -1334,6 +1334,15 @@ hint.wds.0.drq="6"
 # default.
 options 	AHC_ALLOW_MEMIO
 
+# Enable diagnostic sequencer code.
+options 	AHC_DEBUG_SEQUENCER
+
+# Dump the contents of the ahc controller configuration PROM.
+options 	AHC_DUMP_EEPROM
+
+# Bitmap of units to enable targetmode operations.
+options 	AHC_TMODE_ENABLE
+
 # The adw driver will attempt to use memory mapped I/O for all PCI
 # controllers that have it configured only if this option is set.
 options 	ADW_ALLOW_MEMIO
@@ -2649,8 +2658,6 @@ options 	SHMSEG=9
 # More undocumented options for linting.
 # Note that documenting these are not considered an affront.
 
-options 	AHC_DUMP_EEPROM
-options 	AHC_TMODE_ENABLE
 options 	CAM_DEBUG_DELAY
 options 	CLUSTERDEBUG
 options 	COMPAT_LINUX
