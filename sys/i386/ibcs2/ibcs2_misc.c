@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ibcs2_misc.c,v 1.16 1994/10/13 23:10:58 sos Exp $
+ *	$Id: ibcs2_misc.c,v 1.1 1994/10/14 08:53:06 sos Exp $
  */
 
 #include <i386/ibcs2/ibcs2.h>
@@ -150,7 +150,7 @@ ibcs2_break(struct proc *p, struct ibcs2_break_args *args, int *retval)
 		if (swap_pager_full) {
 			return ENOMEM;
 		}
-		rv = vm_allocate(&vm->vm_map, &old, diff, FALSE);
+		rv = vm_map_find(&vm->vm_map, NULL, 0, &old, diff, FALSE);
 		if (rv != KERN_SUCCESS) {
 			return ENOMEM;
 		}
@@ -158,7 +158,7 @@ ibcs2_break(struct proc *p, struct ibcs2_break_args *args, int *retval)
 	}
 	else if (diff < 0) {
 		diff = -diff;
-		rv = vm_deallocate(&vm->vm_map, new, diff);
+		rv = vm_map_remove(&vm->vm_map, new, new + diff);
 		if (rv != KERN_SUCCESS)
 			return ENOMEM;
 		vm->vm_dsize -= btoc(diff);
