@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installFinal.c,v 1.17 1995/11/04 17:16:45 jkh Exp $
+ * $Id: installFinal.c,v 1.18 1995/11/09 02:31:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -192,7 +192,7 @@ configNFSServer(char *unused)
 		   "an /etc/exports file to indicate which hosts are allowed certain\n"
 		   "kinds of access to your local file systems.\n"
 		   "Press [ENTER] now to invoke an editor on /etc/exports (the editor\n"
-		   "may take several moments to start up the first time - please be\n"
+		   "may take a little while to uncompress the first time - please be\n"
 		   "patient!)");
 	vsystem("echo '#The following examples export /usr to 3 machines named after ducks,' > /etc/exports");
 	vsystem("echo '#/home and all directories under it to machines named after dead rock stars' >> /etc/exports");
@@ -203,6 +203,8 @@ configNFSServer(char *unused)
 	vsystem("echo '#' >> /etc/exports");
 	vsystem("echo '# You should replace these lines with your actual exported filesystems.' >> /etc/exports");
 	vsystem("echo >> /etc/exports");
+	dialog_clear();
+	msgNotify("Uncompressing the editor..  Please wait.");
 	systemExecute("ee /etc/exports");
     }
     variable_set2("nfs_server", "YES");

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: anonFTP.c,v 1.4 1995/11/11 11:49:22 jkh Exp $
+ * $Id: anonFTP.c,v 1.5 1995/11/11 11:56:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -468,8 +468,13 @@ configAnonFTP(char *unused)
 
     dialog_clear();
     if (!msgYesNo("Create a welcome message file for anonymous FTP users?")) {
+      char cmd[256];
+
+      dialog_clear();
+      msgNotify("Uncompressing the editor - please wait..");
       vsystem("echo Your welcome message here. > %s/etc/%s", tconf.homedir, MOTD_FILE);
-      vsystem("/stand/ee %s/etc/%s", tconf.homedir, MOTD_FILE);
+      sprintf(cmd, "/stand/ee %s/etc/%s", tconf.homedir, MOTD_FILE);
+      systemExecute(cmd);
      }
   }
   else {
