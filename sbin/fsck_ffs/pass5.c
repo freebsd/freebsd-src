@@ -358,7 +358,7 @@ pass5(void)
 		if (cmd.value != 0) {
 			if (debug)
 				printf("adjndir by %+" PRIi64 "\n", cmd.value);
-			if (sysctl(adjndir, MIBSIZE, 0, 0,
+			if (bkgrdsumadj == 0 || sysctl(adjndir, MIBSIZE, 0, 0,
 			    &cmd, sizeof cmd) == -1)
 				rwerror("ADJUST NUMBER OF DIRECTORIES", cmd.value);
 		}
@@ -367,7 +367,7 @@ pass5(void)
 		if (cmd.value != 0) {
 			if (debug)
 				printf("adjnbfree by %+" PRIi64 "\n", cmd.value);
-			if (sysctl(adjnbfree, MIBSIZE, 0, 0,
+			if (bkgrdsumadj == 0 || sysctl(adjnbfree, MIBSIZE, 0, 0,
 			    &cmd, sizeof cmd) == -1)
 				rwerror("ADJUST NUMBER OF FREE BLOCKS", cmd.value);
 		}
@@ -376,7 +376,7 @@ pass5(void)
 		if (cmd.value != 0) {
 			if (debug)
 				printf("adjnifree by %+" PRIi64 "\n", cmd.value);
-			if (sysctl(adjnifree, MIBSIZE, 0, 0,
+			if (bkgrdsumadj == 0 || sysctl(adjnifree, MIBSIZE, 0, 0,
 			    &cmd, sizeof cmd) == -1)
 				rwerror("ADJUST NUMBER OF FREE INODES", cmd.value);
 		}
@@ -385,7 +385,7 @@ pass5(void)
 		if (cmd.value != 0) {
 			if (debug)
 				printf("adjnffree by %+" PRIi64 "\n", cmd.value);
-			if (sysctl(adjnffree, MIBSIZE, 0, 0,
+			if (bkgrdsumadj == 0 || sysctl(adjnffree, MIBSIZE, 0, 0,
 			    &cmd, sizeof cmd) == -1)
 				rwerror("ADJUST NUMBER OF FREE FRAGS", cmd.value);
 		}
@@ -394,7 +394,7 @@ pass5(void)
 		if (cmd.value != 0) {
 			if (debug)
 				printf("adjnumclusters by %+" PRIi64 "\n", cmd.value);
-			if (sysctl(adjnumclusters, MIBSIZE, 0, 0,
+			if (bkgrdsumadj == 0 || sysctl(adjnumclusters, MIBSIZE, 0, 0,
 			    &cmd, sizeof cmd) == -1)
 				rwerror("ADJUST NUMBER OF FREE CLUSTERS", cmd.value);
 		}
