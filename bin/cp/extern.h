@@ -42,7 +42,7 @@ typedef struct {
 
 extern PATH_T to;
 extern int fflag, iflag, nflag, pflag, vflag;
-extern int info;
+extern volatile sig_atomic_t info;
 
 __BEGIN_DECLS
 int	copy_fifo(struct stat *, int);
