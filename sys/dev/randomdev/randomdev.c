@@ -51,6 +51,7 @@ static d_write_t randomwrite;
 
 #define CDEV_MAJOR	2
 #define RANDOM_MINOR	3
+#define URANDOM_MINOR	4
 
 static struct cdevsw random_cdevsw = {
 	/* open */	(d_open_t *)nullop,
@@ -71,6 +72,7 @@ static struct cdevsw random_cdevsw = {
 
 /* For use with make_dev(9)/destroy_dev(9). */
 static dev_t randomdev;
+static dev_t urandomdev;
 
 void *buf;
 
@@ -126,12 +128,15 @@ random_modevent(module_t mod, int type, void *data)
 		if (bootverbose)
 			printf("random: <entropy source>\n");
 		randomdev = make_dev(&random_cdevsw, RANDOM_MINOR, UID_ROOT,
-			GID_WHEEL, 0666, "zero");
+			GID_WHEEL, 0666, "random");
+		urandomdev = make_dev(&random_cdevsw, URANDOM_MINOR, UID_ROOT,
+			GID_WHEEL, 0666, "urandom");
 		randominit();
 		return 0;
 
 	case MOD_UNLOAD:
 		destroy_dev(randomdev);
+		destroy_dev(urandomdev);
 		return 0;
 
 	case MOD_SHUTDOWN:
