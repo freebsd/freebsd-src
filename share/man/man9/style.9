@@ -114,7 +114,7 @@ Do not #define or declare names in the implementation namespace except
 for implementing application interfaces.
 .Pp
 The names of
-.Dq Li unsafe
+.Dq unsafe
 macros (ones that have side effects), and the names of macros for
 manifest constants, are all in uppercase.
 The expansions of expression-like macros are either a single token
@@ -242,7 +242,7 @@ void	function(int fd);
 .Pp
 In header files visible to userland applications, prototypes that are
 visible must use either
-.Dq Li protected
+.Dq protected
 names (ones beginning with an underscore) or no names with the types.
 It is preferable to use protected names.
 E.g., use:
