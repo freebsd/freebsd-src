@@ -531,6 +531,9 @@ ifconfig_net0="inet 10.0.0.1/16"</programlisting>
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
+    <para><application>BIND</application> has been updated from version
+      9.3.0 to version 9.3.1.</para>
+
     <para><application>Heimdal</application> has been updated from
       0.6.1 to 0.6.3.</para>
 
