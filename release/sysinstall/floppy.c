@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.31 1998/12/22 12:31:24 jkh Exp $
+ * $Id: floppy.c,v 1.31.2.1 1999/02/15 00:49:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -148,7 +148,7 @@ mediaShutdownFloppy(Device *dev)
 	    msgDebug("Umount of floppy on %s failed: %s (%d)\n", mp, strerror(errno), errno);
 	else {
 	    floppyMounted = FALSE;
-	    if (!variable_get(VAR_NONINTERACTIVE))
+	    if (!variable_get(VAR_NONINTERACTIVE) && variable_cmp(SYSTEM_STATE, "fixit"))
 		msgConfirm("You may remove the floppy from %s", dev->description);
 	}
     }
