@@ -38,6 +38,7 @@
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/time.h>
+#include <sys/uio.h>
 #include <signal.h>
 #include <libutil.h>
 
@@ -822,7 +823,17 @@ distExtract(char *parent, Distribution *me)
 	else
 	    continue;
 	if (unmounted_dev) {
-	    (void)mount("devfs", "/dev", 0, NULL);
+	    struct iovec iov[4];
+
+	    iov[0].iov_base = "fstype";
+	    iov[0].iov_len = sizeof("fstype");
+	    iov[1].iov_base = "devfs";
+	    iov[1].iov_len = sizeof("devfs");
+	    iov[2].iov_base = "fspath";
+	    iov[2].iov_len = sizeof("fstype");
+	    iov[3].iov_base = "/dev";
+	    iov[3].iov_len = sizeof("/dev");
+	    (void)nmount(iov, 4, 0);
 	    unmounted_dev = 0;
 	}
     }
