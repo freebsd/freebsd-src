@@ -118,6 +118,7 @@ int kernel_tlb_slots;
 
 int cold = 1;
 long Maxmem;
+long realmem;
 
 char pcpu0[PCPU_PAGES * PAGE_SIZE];
 struct trapframe frame0;
@@ -198,6 +199,7 @@ cpu_startup(void *arg)
 		physsz += sparc64_memreg[i].mr_size;
 	printf("real memory  = %lu (%lu MB)\n", physsz,
 	    physsz / (1024 * 1024));
+	realmem = (long)physsz;
 
 	vm_ksubmap_init(&kmi);
 
