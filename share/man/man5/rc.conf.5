@@ -271,7 +271,7 @@ or
 flag is automatically added with the above
 .Va natd_interface
 as an argument.
-.\" ----- ipfilter_enable seting --------------------------------
+.\" ----- ipfilter_enable setting --------------------------------
 .It Va ipfilter_enable
 .Pq Vt bool
 Set to
@@ -282,62 +282,37 @@ Setting this to
 enables
 .Xr ipf 8
 packet filtering.
-Strictly speaking almost any filter could be established
-"abusing" this setting and the fact that
-.Va ipfilter_program ,
-.Va ipfilter_rules
-and
-.Va ipfilter_flags
-are concatenated to form a command,
-as long as the file specified in
-.Va ipfilter_rules
-is readable.
-When
-.Va ipfilter_enable
-and
-.Va ipnat_enable
-are set to
-.Dq YES
-and the file specified in
-.Va ipnat_rules
-is readable,
-.Va ipnat_program ,
-.Va ipnat_rules
-and
-.Va ipnat_flags
-make up a command line to start a network address translation program.
-When
-.Va ipfilter_enable
-and
-.Va ipmon_enable
-are set to
-.Dq YES ,
-.Va ipmon_program
-and
-.Va ipmon_flags
-form another command line for monitoring the above actions.
-See
-.Pa /etc/rc.network
-for details.
 .Pp
 Typical usage will require putting
 .Bd -literal
 ipfilter_enable="YES"
-ipfilter_flags=""
 ipnat_enable="YES"
 ipmon_enable="YES"
+ipfs_enable="YES"
 .Ed
 .Pp
 into
-.Pa /etc/rc.conf
-and editing
+.Pa /etc/rc.conf .
+Then you should edit
 .Pa /etc/ipf.rules
 and
 .Pa /etc/ipnat.rules
 appropriately.
-Turning off
-.Va firewall_enable
-when using ipf is recommended.
+.Pp
+Note that
+.Va ipfilter_enable
+and 
+.Va ipnat_enable
+can be enabled independently.
+.Va ipmon_enable
+and
+.Va ipfs_enable
+both require at least one of
+.Va ipfilter_enable
+and
+.Va ipnat_enable
+to be enabled.
+.Pp
 Having
 .Bd -literal
 options  IPFILTER
@@ -349,15 +324,10 @@ in the kernel configuration file is a good idea, too.
 .\" ----- ipfilter_program setting ------------------------------
 .It Va ipfilter_program
 .Pq Vt str
-Set to
-.Dq /sbin/ipf -Fa -f
-by default.
-This variable contains a command line
-up to (but not including) the filter rule definition
-(expected to live in a separate file).
-See
-.Va ipfilter_enable
-for a detailled discussion.
+Path to
+.Xr ipf 8
+(default
+.Pa /sbin/ipf ) .
 .\" ----- ipfilter_rules setting --------------------------------
 .It Va ipfilter_rules
 .Pq Vt str
@@ -365,25 +335,16 @@ Set to
 .Dq /etc/ipf.rules
 by default.
 This variable contains the name of the filter rule definition file.
-The file is expected to be readable for the filter command to execute.
-See
-.Va ipfilter_enable
-for a detailled discussion.
+The file is expected to be readable for the
+.Xr ipf 8
+command to execute.
 .\" ----- ipfilter_flags setting --------------------------------
 .It Va ipfilter_flags
 .Pq Vt str
-Set to
-.Dq -E
-by default.
-This variable contains flags appended to the filter command
-after the rule definition filename.
-The default setting will initialize an on demand loaded ipf module.
-When compiling ipfilter directly into the kernel (as is recommended)
-the variable should be empty to not initialize
-the code more than once.
-See
-.Va ipfilter_enable
-for a detailled discussion.
+Empty by default.
+This variable contains flags passed to the
+.Xr ipf 8
+program.
 .\" ----- ipnat_enable setting ----------------------------------
 .It Va ipnat_enable
 .Pq Vt bool
@@ -395,24 +356,16 @@ Set it to
 to enable
 .Xr ipnat 1
 network address translation.
-Setting this variable needs setting
-.Va ipfilter_enable ,
-too.
 See
 .Va ipfilter_enable
-for a detailled discussion.
+for a detailed discussion.
 .\" ----- ipnat_program setting ---------------------------------
 .It Va ipnat_program
 .Pq Vt str
-Set to
-.Dq /sbin/ipnat -CF -f
-by default.
-This variable contains a command line
-up to (but not including) the translation rule definition
-(expected to live in a separate file).
-See
-.Va ipfilter_enable
-for a detailled discussion.
+Path to
+.Xr ipnat 1
+(default
+.Pa /sbin/ipnat ) .
 .\" ----- ipnat_rules setting -----------------------------------
 .It Va ipnat_rules
 .Pq Vt str
@@ -421,20 +374,16 @@ Set to
 by default.
 This variable contains the name of the file
 holding the network address translation definition.
-This file is expected to be readable for the NAT command to execute.
-See
-.Va ipfilter_enable
-for a detailled discussion.
+This file is expected to be readable for the
+.Xr ipnat 1
+command to execute.
 .\" ----- ipnat_flags setting -----------------------------------
 .It Va ipnat_flags
 .Pq Vt str
 Empty by default.
-This variable contains additional flags
-appended to the ipnat command line
-after the rule definition filename.
-See
-.Va ipfilter_enable
-for a detailled discussion.
+This variable contains flags passed to the
+.Xr ipnat 1
+program.
 .\" ----- ipmon_enable setting ----------------------------------
 .It Va ipmon_enable
 .Pq Vt bool
@@ -451,23 +400,20 @@ and
 .Xr ipnat 1
 events).
 Setting this variable needs setting
-.Va ipfilter_enable ,
+.Va ipfilter_enable
+or
+.Va ipnat_enable
 too.
 See
 .Va ipfilter_enable
-for a detailled discussion.
+for a detailed discussion.
 .\" ----- ipmon_program setting ---------------------------------
 .It Va ipmon_program
 .Pq Vt str
-Set to
-.Dq /sbin/ipmon
-by default.
-This variable contains the
+Path to
 .Xr ipmon 8
-executable filename.
-See
-.Va ipfilter_enable
-for a detailled discussion.
+(default
+.Pa /sbin/ipmon ) .
 .\" ----- ipmon_flags setting -----------------------------------
 .It Va ipmon_flags
 .Pq Vt str
@@ -489,10 +435,51 @@ in such case like this:
 .Bd -literal
 /var/log/ipflog  640  10  100  *  Z  /var/run/ipmon.pid
 .Ed
-.Pp
+.\" ----- ipfs_enable setting -----------------------------------
+.It Va ipfs_enable
+.Pq Vt bool
+Set to
+.Dq NO
+by default.
+Set it to
+.Dq YES
+to enable
+.Xr ipfs 8
+saving the filter and NAT state tables during shutdown
+and reloading them during startup again.
+Setting this variable needs setting
+.Va ipfilter_enable
+or
+.Va ipnat_enable
+to
+.Dq YES
+too.
 See
 .Va ipfilter_enable
-for a detailled discussion.
+for a detailed discussion.
+Note that if you are running with
+.Va kern_securelevel
+set to
+.Dq 3 ,
+then you cannot use
+.Va ipfs_enable
+because the raised securelevel will prevent
+.Xr ipfs 8
+from saving the state tables at shutdown time.
+.\" ----- ipfs_program setting ----------------------------------
+.It Va ipfs_program
+.Pq Vt str
+Path to
+.Xr ipfs 8
+(default
+.Pa /sbin/ipfs ) .
+.\" ----- ipfs_flags setting ------------------------------------
+.It Va ipfs_flags
+.Pq Vt str
+Empty by default.
+This variable contains flags passed to the
+.Xr ipfs 8
+program.
 .\" ----- end of added ipf hook ---------------------------------
 .It Va tcp_extensions
 .Pq Vt bool
