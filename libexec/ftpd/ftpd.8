@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ftpd.8	8.2 (Berkeley) 4/19/94
-.\"	$Id: ftpd.8,v 1.20 1997/12/04 03:58:02 steve Exp $
+.\"	$Id: ftpd.8,v 1.21 1998/02/18 10:53:16 obrien Exp $
 .\"
 .Dd April 19, 1994
 .Dt FTPD 8
@@ -393,6 +393,9 @@ This file is displayed after the user logs in.
 It defaults to
 .Pa /etc/ftpmotd .
 .El
+.Pp
+Lines beginning with a '#' are ignored and can be used to include 
+comments.
 .Pp
 Defining a virtual host for the primary IP address or hostname
 changes the default for ftp logins to that address.
