@@ -44,38 +44,26 @@ static char rcsid[] =
 #include <time.h>
 #include <unistd.h>
 
-/*
- * sleep() -	attempt to sleep the specified number of seconds, returning
- *		any remaining unslept time if interrupted or 0 if the entire
- *		sleep completes without being interrupted.  Avoid seconds vs
- *		time_t typing problems by breaking down large times with a
- *		loop.
- */
-
 unsigned int
 sleep(seconds)
 	unsigned int seconds;
 {
-	while (seconds != 0) {
-		struct timespec time_to_sleep;
-		struct timespec time_remaining;
+	struct timespec time_to_sleep;
+	struct timespec time_remaining;
 
-		time_to_sleep.tv_sec  = (seconds > INT_MAX) ? INT_MAX : seconds;
-		time_to_sleep.tv_nsec = 0;
+	/*
+	 * Avoid overflow when `seconds' is huge.  This assumes that
+	 * the maximum value for a time_t is >= INT_MAX.
+	 */
+	if (seconds > INT_MAX)
+		return (seconds - INT_MAX + sleep(INT_MAX));
 
-		if (nanosleep(&time_to_sleep, &time_remaining) == -1) {
-			/*
-			 * time_remaining only valid if EINTR, else assume no
-			 * time elapsed.
-			 */
-			if (errno == EINTR)
-				seconds -= time_to_sleep.tv_sec - time_remaining.tv_sec;
-			if (time_remaining.tv_nsec)
-				++seconds;
-			break;
-		}
-		seconds -= time_to_sleep.tv_sec;
-	}
-	return(seconds);
+	time_to_sleep.tv_sec = seconds;
+	time_to_sleep.tv_nsec = 0;
+	if (nanosleep(&time_to_sleep, &time_remaining) != -1)
+		return (0);
+	if (errno != EINTR)
+		return (seconds);		/* best guess */
+	return (time_remaining.tv_sec +
+		(time_remaining.tv_nsec != 0)); /* round up */
 }
-
