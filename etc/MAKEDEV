@@ -63,7 +63,7 @@
 #	speaker	pc speaker
 #	tw*	xten power controller
 #
-#	$Id: MAKEDEV,v 1.6 1993/09/05 15:53:39 rgrimes Exp $
+#	$Id: MAKEDEV,v 1.7 1993/09/06 03:00:38 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -296,7 +296,7 @@ pc*)
 	;;
 
 # Use this to create virtual consoles for syscons, pcvt or codrv
-# /dev/ttyv00-12
+# /dev/ttyv0-b
 # use as MAKEDEV vtyNN to create NN entries
 vty*)
 	chr=12
