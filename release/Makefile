@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.21 1995/10/05 04:36:59 jkh Exp $
+#	$Id: Makefile,v 1.193.2.22 1995/10/05 06:55:28 jkh Exp $
 #
 # How to roll a release:
 #
@@ -363,6 +363,7 @@ release.8: write_mfs_in_kernel
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=boot \
 		DIR=${RD}/mfsfd/stand ZIP=false
 	( cd ${RD}/trees/bin/dev && \
+		sh MAKEDEV wcd0 && \
 		ls console tty ttyv0 ttyv1 ttyv2 ttyv3 null zero \
 		*[sw]d* cuaa[01] fd[01] rfd[01] \
 		cd0a mcd0a scd0a matcd0a wcd0a rst0 ft0 rwt0 | \
@@ -444,7 +445,7 @@ release.10:
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=fixit \
 		DIR=${RD}/fixitfd/stand ZIP=true
 	( cd ${RD}/trees/bin/dev && \
-		sh MAKEDEV all && \
+		sh MAKEDEV all wcd0 && \
 		find . -print | \
 	cpio -dump ${RD}/fixitfd/dev )
 	cp ${RD}/trees/bin/etc/spwd.db ${RD}/fixitfd/etc
