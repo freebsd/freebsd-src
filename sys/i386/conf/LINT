@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.547 1999/01/27 20:09:20 dillon Exp $
+#	$Id: LINT,v 1.548 1999/01/30 06:31:11 newton Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1335,14 +1335,14 @@ device pca0 at isa? port "IO_TIMER1" tty
 # stl: Stallion EasyIO and EasyConnection 8/32 (cd1400 based)
 # stli: Stallion EasyConnection 8/64, ONboard, Brumby (intelligent)
 
-#
 # Notes on APM
 #  The flags takes the following meaning for apm0:
 #    0x0020  Statclock is broken.
 #    0x0011  Limit APM protocol to 1.1 or 1.0
 #    0x0010  Limit APM protocol to 1.0
-#
-#
+#  If apm is omitted, some systems require sysctl -w kern.timcounter.method=1
+#  for correct timekeeping.
+
 # Notes on the spigot:
 #  The video spigot is at 0xad6.  This port address can not be changed.
 #  The irq values may only be 10, 11, or 15
@@ -1353,7 +1353,6 @@ device pca0 at isa? port "IO_TIMER1" tty
 #  to access the spigot.  This option is not secure because it allows users
 #  direct access to the I/O page. 
 #  	options SPIGOT_UNSECURE
-#
 
 # Notes on the Comtrol Rocketport driver:
 #
