@@ -336,8 +336,9 @@ The
 .Xr flock 2
 interface has much more rational last close semantics and
 allows locks to be inherited by child processes.
-.Xr Flock 2
-is recommended for applications that want to ensure the integrity
+The
+.Xr flock 2
+system call is recommended for applications that want to ensure the integrity
 of their locks when using library routines or wish to pass locks
 to their children.
 Note that

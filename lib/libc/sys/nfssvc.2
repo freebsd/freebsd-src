@@ -106,7 +106,7 @@ The initial call has only the
 flag set to specify service for the mount point.
 If the mount point is using Kerberos, then the
 .Xr mount_nfs 8
-daemon will return from
+utility will return from
 .Fn nfssvc
 with
 .Va errno
@@ -114,8 +114,9 @@ with
 .Er ENEEDAUTH
 whenever the client side requires an ``rcmd''
 authentication ticket for the user.
-.Xr Mount_nfs 8
-will attempt to get the Kerberos ticket, and if successful will call
+The
+.Xr mount_nfs 8
+utility will attempt to get the Kerberos ticket, and if successful will call
 .Fn nfssvc
 with the flags
 .Dv NFSSVC_MNTD
@@ -171,7 +172,7 @@ with
 .Er ENEEDAUTH .
 The
 .Xr nfsd 8
-will attempt to authenticate the ticket and generate a set of credentials
+utility will attempt to authenticate the ticket and generate a set of credentials
 on the server for the ``user id'' specified in the field nsd_uid.
 This is done by first authenticating the Kerberos ticket and then mapping
 the Kerberos principal to a local name and getting a set of credentials for
@@ -181,7 +182,7 @@ and
 .Xr getgrouplist 3 .
 If successful, the
 .Xr nfsd 8
-will call
+utility will call
 .Fn nfssvc
 with the
 .Dv NFSSVC_NFSD
