@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: busdma_machdep.c,v 1.4 1998/02/20 13:11:47 bde Exp $
+ *      $Id: busdma_machdep.c,v 1.5 1998/04/17 22:36:26 des Exp $
  */
 
 #include <sys/param.h>
@@ -43,13 +43,14 @@
 
 struct bus_dma_tag {
 	bus_dma_tag_t	  parent;
+	bus_size_t	  alignment;
 	bus_size_t	  boundary;
 	bus_addr_t	  lowaddr;
 	bus_addr_t	  highaddr;
 	bus_dma_filter_t *filter;
 	void		 *filterarg;
 	bus_size_t	  maxsize;
-	int		  nsegments;
+	u_int		  nsegments;
 	bus_size_t	  maxsegsz;
 	int		  flags;
 	int		  ref_count;
@@ -114,15 +115,16 @@ run_filter(bus_dma_tag_t dmat, bus_addr_t paddr)
 	return (retval);
 }
 
+#define BUS_DMA_MIN_ALLOC_COMP BUS_DMA_BUS4
 /*
  * Allocate a device specific dma_tag.
  */
 int
-bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t boundary,
-		   bus_addr_t lowaddr, bus_addr_t highaddr,
-		   bus_dma_filter_t *filter, void *filterarg,
-		   bus_size_t maxsize, int nsegments, bus_size_t maxsegsz,
-		   int flags, bus_dma_tag_t *dmat)
+bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
+		   bus_size_t boundary, bus_addr_t lowaddr,
+		   bus_addr_t highaddr, bus_dma_filter_t *filter,
+		   void *filterarg, bus_size_t maxsize, int nsegments,
+		   bus_size_t maxsegsz, int flags, bus_dma_tag_t *dmat)
 {
 	bus_dma_tag_t newtag;
 	int error = 0;
@@ -155,7 +157,7 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t boundary,
 		 * XXX Not really correct??? Probably need to honor boundary
 		 *     all the way up the inheritence chain.
 		 */
-		newtag->boundary = MIN(parent->boundary, newtag->boundary);
+		newtag->boundary = MAX(parent->boundary, newtag->boundary);
 		if (newtag->filter == NULL) {
 			/*
 			 * Short circuit looking at our parent directly
@@ -170,7 +172,7 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t boundary,
 		}
 	}
 	
-	if (newtag->lowaddr < ptoa(Maxmem)) {
+	if (newtag->lowaddr < ptoa(Maxmem) && (flags & BUS_DMA_ALLOCNOW) != 0) {
 		/* Must bounce */
 
 		if (lowaddr > bounce_lowaddr) {
@@ -178,7 +180,7 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t boundary,
 			 * Go through the pool and kill any pages
 			 * that don't reside below lowaddr.
 			 */
-			panic("bus_dmamap_create: page reallocation "
+			panic("bus_dma_tag_create: page reallocation "
 			      "not implemented");
 		}
 		if (ptoa(total_bpages) < maxsize) {
@@ -190,6 +192,8 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t boundary,
 			if (alloc_bounce_pages(newtag, pages) < pages)
 				error = ENOMEM;
 		}
+		/* Performed initial allocation */
+		newtag->flags |= BUS_DMA_MIN_ALLOC_COMP;
 	}
 	
 	if (error != 0) {
@@ -240,7 +244,7 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		*mapp = (bus_dmamap_t)malloc(sizeof(**mapp), M_DEVBUF,
 					     M_NOWAIT);
 		if (*mapp == NULL) {
-			error = ENOMEM;
+			return (ENOMEM);
 		} else {
 			/* Initialize the new map */
 			bzero(*mapp, sizeof(**mapp));
@@ -251,16 +255,32 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		 * basis up to a sane limit.
 		 */
 		maxpages = MIN(MAX_BPAGES, Maxmem - atop(dmat->lowaddr));
-		if (dmat->map_count > 0
-		 && total_bpages < maxpages) {
+		if ((dmat->flags & BUS_DMA_MIN_ALLOC_COMP) == 0
+		 || (dmat->map_count > 0
+		  && total_bpages < maxpages)) {
 			int pages;
 
+			if (dmat->lowaddr > bounce_lowaddr) {
+				/*
+				 * Go through the pool and kill any pages
+				 * that don't reside below lowaddr.
+				 */
+				panic("bus_dmamap_create: page reallocation "
+				      "not implemented");
+			}
 			pages = atop(dmat->maxsize);
 			pages = MIN(maxpages - total_bpages, pages);
-			alloc_bounce_pages(dmat, pages);
+			error = alloc_bounce_pages(dmat, pages);
+
+			if ((dmat->flags & BUS_DMA_MIN_ALLOC_COMP) == 0) {
+				if (error == 0)
+					dmat->flags |= BUS_DMA_MIN_ALLOC_COMP;
+			} else {
+				error = 0;
+			}
 		}
 	} else {
-		*mapp = NULL;
+		*mapp = &nobounce_dmamap;
 	}
 	if (error == 0)
 		dmat->map_count++;
@@ -281,6 +301,54 @@ bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 	}
 	dmat->map_count--;
 	return (0);
+}
+
+
+/*
+ * Allocate a piece of memory that can be efficiently mapped into
+ * bus device space based on the constraints lited in the dma tag.
+ * A dmamap to for use with dmamap_load is also allocated.
+ */
+int
+bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
+		 bus_dmamap_t *mapp)
+{
+	/* If we succeed, no mapping/bouncing will be required */
+	*mapp = &nobounce_dmamap;
+
+	if ((dmat->maxsize <= PAGE_SIZE) && dmat->lowaddr >= ptoa(Maxmem)) {
+		*vaddr = malloc(dmat->maxsize, M_DEVBUF,
+				(flags & BUS_DMA_NOWAIT) ? M_NOWAIT : M_WAITOK);
+	} else {
+		/*
+		 * XXX Use Contigmalloc until it is merged into this facility
+		 *     and handles multi-seg allocations.  Nobody is doing
+		 *     multi-seg allocations yet though.
+		 */
+		*vaddr = contigmalloc(dmat->maxsize, M_DEVBUF,
+				      (flags & BUS_DMA_NOWAIT)
+				      ? M_NOWAIT : M_WAITOK,
+				      0ul, dmat->lowaddr, 1ul, dmat->boundary);
+	}
+	if (*vaddr == NULL)
+		return (ENOMEM);
+	return (0);
+}
+
+/*
+ * Free a piece of memory and it's allociated dmamap, that was allocated
+ * via bus_dmamem_alloc.
+ */
+void
+bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
+{
+	/*
+	 * dmamem does not need to be bounced, so the map should be
+	 * NULL
+	 */
+	if (map != NULL)
+		panic("bus_dmamem_free: Invalid map freed\n");
+	free(vaddr, M_DEVBUF);
 }
 
 #define BUS_DMAMAP_NSEGS ((BUS_SPACE_MAXSIZE / PAGE_SIZE) + 1)
@@ -329,9 +397,6 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		}
 	}
 
-	if (map == NULL)
-		map = &nobounce_dmamap;
-
 	/* Reserve Necessary Bounce Pages */
 	if (map->pagesneeded != 0) {
 		int s;
@@ -361,7 +426,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 
 	do {
 		bus_size_t	size;
-		vm_offset_t	nextpaddr;
+		vm_offset_t	nextpaddr;	/* GCC warning expected */
 
 		paddr = pmap_kextract(vaddr);
 		size = PAGE_SIZE - (paddr & PAGE_MASK);
@@ -393,7 +458,8 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	} while (buflen > 0);
 
 	if (buflen != 0) {
-		printf("bus_dmamap_load: Too many segs!\n");
+		printf("bus_dmamap_load: Too many segs! buf_len = 0x%x\n",
+		       buflen);
 		error = EFBIG;
 	}
 
@@ -479,7 +545,8 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 		bpage->vaddr = (vm_offset_t)contigmalloc(PAGE_SIZE, M_DEVBUF,
 							 M_NOWAIT, 0ul,
 							 dmat->lowaddr,
-							 PAGE_SIZE, 0x10000);
+							 PAGE_SIZE,
+							 0);
 		if (bpage->vaddr == NULL) {
 			free(bpage, M_DEVBUF);
 			break;
