@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.8 1996/03/26 19:57:24 wollman Exp $
+#	$Id: options.i386,v 1.9 1996/04/11 21:18:26 bde Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -19,6 +19,6 @@ COM_ESP			opt_sio.h
 COM_MULTIPORT		opt_sio.h
 DSI_SOFT_MODEM		opt_sio.h
 FAT_CURSOR		opt_pcvt.h
-PCVT_FREEBSD=210	opt_pcvt.h
+PCVT_FREEBSD		opt_pcvt.h
 PCVT_SCANSET		opt_pcvt.h
 XSERVER			opt_pcvt.h
