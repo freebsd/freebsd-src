@@ -478,6 +478,13 @@ main(argc, argv)
 					/* avoid faults on read-only strings */
 	static char syspath[] = _PATH_DEFSYSPATH;
 
+#if DEFSHELL == 2
+	/*
+	 * Turn off ENV to make ksh happier.
+	 */
+	unsetenv("ENV");
+#endif
+
 #ifdef RLIMIT_NOFILE
 	/*
 	 * get rid of resource limit on file descriptors
@@ -1000,7 +1007,13 @@ Cmd_Exec(cmd, err)
 	(void) dup2(fds[1], 1);
 	(void) close(fds[1]);
 
+#if DEFSHELL == 1
 	(void) execv("/bin/sh", args);
+#elif DEFSHELL == 2
+	(void) execv("/bin/ksh", args);
+#else
+#error "DEFSHELL must be 1 or 2."
+#endif
 	_exit(1);
 	/*NOTREACHED*/
 
