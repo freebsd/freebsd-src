@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.35 1996/01/31 08:22:24 olah Exp $
+ *	$Id: tcp_input.c,v 1.36 1996/02/22 11:46:39 davidg Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -396,8 +396,10 @@ findpcb:
 		if (so->so_options & SO_ACCEPTCONN) {
 			register struct tcpcb *tp0 = tp;
 			so = sonewconn(so, 0);
-			if (so == 0)
+			if (so == 0) {
+				tcpstat.tcps_listendrop++;
 				goto drop;
+			}
 			/*
 			 * This is ugly, but ....
 			 *

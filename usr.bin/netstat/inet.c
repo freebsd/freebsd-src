@@ -218,6 +218,7 @@ tcp_stats(off, name)
 	p(tcps_connattempt, "\t%d connection request%s\n");
 	p(tcps_accepts, "\t%d connection accept%s\n");
 	p(tcps_badsyn, "\t%d bad connection attempt%s\n");
+	p(tcps_listendrop, "\t%d listen queue overflow%s\n");
 	p(tcps_connects, "\t%d connection%s established (including accepts)\n");
 	p2(tcps_closed, tcps_drops,
 		"\t%d connection%s closed (including %d drop%s)\n");
