@@ -62,6 +62,7 @@ static const struct ngcmd *const cmds[] = {
 	&config_cmd,
 	&connect_cmd,
 	&debug_cmd,
+	&dot_cmd,
 	&help_cmd,
 	&list_cmd,
 	&mkpeer_cmd,

@@ -78,6 +78,7 @@ struct ngcmd {
 extern const struct ngcmd config_cmd;
 extern const struct ngcmd connect_cmd;
 extern const struct ngcmd debug_cmd;
+extern const struct ngcmd dot_cmd;
 extern const struct ngcmd help_cmd;
 extern const struct ngcmd list_cmd;
 extern const struct ngcmd mkpeer_cmd;
