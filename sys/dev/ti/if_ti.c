@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ti.c,v 1.106 1999/04/06 15:55:01 wpaul Exp $
+ *	$Id: if_ti.c,v 1.1 1999/04/06 17:08:29 wpaul Exp $
  */
 
 /*
@@ -128,7 +128,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_ti.c,v 1.106 1999/04/06 15:55:01 wpaul Exp $";
+	"$Id: if_ti.c,v 1.1 1999/04/06 17:08:29 wpaul Exp $";
 #endif
 
 /*
@@ -1756,7 +1756,6 @@ fail:
  * 2) the frame is from the jumbo recieve ring
  * 3) the frame is from the standard receive ring
  */
-int ti_cksumok = 0;
 
 static void ti_rxeof(sc)
 	struct ti_softc		*sc;
@@ -1855,10 +1854,8 @@ static void ti_rxeof(sc)
 #ifdef TI_CSUM_OFFLOAD
 		ip = mtod(m, struct ip *);
 		if (!(cur_rx->ti_tcp_udp_cksum ^ 0xFFFF) &&
-		    !(ip->ip_off & htons(IP_MF | IP_OFFMASK | IP_RF))) {
+		    !(ip->ip_off & htons(IP_MF | IP_OFFMASK | IP_RF)))
 			m->m_flags |= M_HWCKSUM;
-			ti_cksumok++;
-		}
 #endif
 
 #if NVLAN > 0
