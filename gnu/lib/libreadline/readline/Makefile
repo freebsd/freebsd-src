@@ -17,7 +17,7 @@ INSTALLED_HEADERS= readline.h chardefs.h keymaps.h history.h tilde.h \
 DPADD=	${LIBNCURSES}
 LDADD=	-lncurses
 
-INCDIR=	/usr/include/readline
+INCSDIR=${INCLUDEDIR}/readline
 
 .for hdr in ${INSTALLED_HEADERS}
 INCS+=	${SRCDIR}/${hdr}

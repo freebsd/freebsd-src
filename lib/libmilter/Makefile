@@ -12,7 +12,7 @@ CFLAGS+=-D_THREAD_SAFE
 # User customizations to the sendmail build environment
 CFLAGS+=${SENDMAIL_CFLAGS}
 
-INCDIR=	/usr/include/libmilter
+INCSDIR=${INCLUDEDIR}/libmilter
 INCS=	${SENDMAIL_DIR}/include/libmilter/mfapi.h \
 	${SENDMAIL_DIR}/include/libmilter/mfdef.h
 LIB=	milter
