@@ -670,7 +670,7 @@ udp6_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
 
 	inp->inp_vflag &= ~INP_IPV4;
 	inp->inp_vflag |= INP_IPV6;
-	if (ip6_mapped_addr_on && (inp->inp_flags & IN6P_BINDV6ONLY) == 0) {
+	if ((inp->inp_flags & IN6P_BINDV6ONLY) == 0) {
 		struct sockaddr_in6 *sin6_p;
 
 		sin6_p = (struct sockaddr_in6 *)nam;
@@ -705,7 +705,7 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 	inp = sotoinpcb(so);
 	if (inp == 0)
 		return EINVAL;
-	if (ip6_mapped_addr_on) {
+	if ((inp->inp_flags & IN6P_BINDV6ONLY) == 0) {
 		struct sockaddr_in6 *sin6_p;
 
 		sin6_p = (struct sockaddr_in6 *)nam;
@@ -794,7 +794,7 @@ udp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		return EINVAL;
 	}
 
-	if (ip6_mapped_addr_on) {
+	if ((inp->inp_flags & IN6P_BINDV6ONLY) == 0) {
 		int hasv4addr;
 		struct sockaddr_in6 *sin6 = 0;
 

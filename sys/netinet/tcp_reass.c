@@ -740,7 +740,7 @@ findpcb:
 			if (isipv6)
 				inp->in6p_laddr = ip6->ip6_dst;
 			else {
-				if (ip6_mapped_addr_on) {
+				if ((inp->inp_flags & IN6P_BINDV6ONLY) == 0) {
 					inp->inp_vflag &= ~INP_IPV6;
 					inp->inp_vflag |= INP_IPV4;
 				}

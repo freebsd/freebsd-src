@@ -224,7 +224,7 @@ in6_pcbbind(inp, nam, p)
 				    (so->so_cred->cr_uid !=
 				     t->inp_socket->so_cred->cr_uid))
 					return (EADDRINUSE);
-				if (ip6_mapped_addr_on != 0 &&
+				if ((inp->inp_flags & IN6P_BINDV6ONLY) == 0 &&
 				    IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
 					struct sockaddr_in sin;
 
@@ -246,7 +246,7 @@ in6_pcbbind(inp, nam, p)
 						lport, wild);
 			if (t && (reuseport & t->inp_socket->so_options) == 0)
 				return(EADDRINUSE);
-			if (ip6_mapped_addr_on != 0 &&
+			if ((inp->inp_flags & IN6P_BINDV6ONLY) == 0 &&
 			    IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
 				struct sockaddr_in sin;
 
