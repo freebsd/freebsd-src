@@ -900,7 +900,6 @@ txloop:
 		dbch->flags |= FWOHCI_DBCH_FULL;
 	}
 kick:
-	if (firewire_debug) printf("kick\n");
 	/* kick asy q */
 
 	if(dbch->xferq.flag & FWXFERQ_RUNNING) {
