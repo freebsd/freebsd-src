@@ -54,7 +54,12 @@
 #include "lockd_lock.h"
 #include "lockd.h"
 
-/* A set of utilities for managing file locking */
+/*
+ * A set of utilities for managing file locking
+ *
+ * XXX: All locks are in a linked list, a better structure should be used
+ * to improve search/access effeciency.
+ */
 LIST_HEAD(lcklst_head, file_lock);
 struct lcklst_head lcklst_head = LIST_HEAD_INITIALIZER(lcklst_head);
 
@@ -75,6 +80,7 @@ struct file_lock {
 
 /* lock status */
 #define LKST_LOCKED	1 /* lock is locked */
+/* XXX: Is this flag file specific or lock specific? */
 #define LKST_WAITING	2 /* file is already locked by another host */
 #define LKST_PROCESSING	3 /* child is trying to aquire the lock */
 #define LKST_DYING	4 /* must dies when we get news from the child */
@@ -85,6 +91,8 @@ enum nlm_stats do_unlock __P((struct file_lock *));
 void send_granted __P((struct file_lock *, int));
 void siglock __P((void));
 void sigunlock __P((void));
+int  regions_overlap __P((u_int64_t start1, u_int64_t len1, u_int64_t start2,
+	u_int64_t len2));
 
 /* list of hosts we monitor */
 LIST_HEAD(hostlst_head, host);
@@ -100,14 +108,44 @@ struct host {
 void do_mon __P((char *));
 
 /*
+ * regions_overlap(): This function examines the two provided regions for overlap.
+ * It is non-trivial because start+len *CAN* overflow a 64-bit unsigned integer
+ * and NFS semantics are unspecified on this account.
+ */
+int
+regions_overlap(start1, len1, start2, len2)
+	u_int64_t start1, len1, start2, len2;
+{
+	int result;
+
+	/* XXX: Need to adjust checks to account for integer overflow */
+	if (len1 == 0 && len2 == 0) {
+		/* Regions *must* overlap if they both extend to the end */
+		result = TRUE;
+	} else if (len1 == 0 && start2+len2 < start1) {
+		/* Region 2 is completely to the left of Region 1 */
+		result = FALSE;
+	} else if (start1+len1 < start2 && len2 == 0) {
+		/* Region 1 is completely to the left of region 2 */
+		result = FALSE;
+	} else if (start1 + len1 <= start2 || start2+len2 <= start1) {
+		/* 1 is completely left of 2 or 2 is completely left of 1 */
+		result = FALSE;
+	} else {
+		result = TRUE;
+	}
+	return (result);
+}
+/*
  * testlock(): inform the caller if the requested lock would be granted or not
  * returns NULL if lock would granted, or pointer to the current nlm4_holder
  * otherwise.
  */
 
 struct nlm4_holder *
-testlock(lock, flags)
+testlock(lock, exclusive, flags)
 	struct nlm4_lock *lock;
+	bool_t exclusive;
 	int flags;
 {
 	struct file_lock *fl;
@@ -122,18 +160,40 @@ testlock(lock, flags)
 	    fl = LIST_NEXT(fl, lcklst)) {
 		if (fl->status != LKST_LOCKED)
 			continue;
+		/*
+		 * XXX: Could we possibly have identical filehandles
+		 * on different systems?
+		 * ie. Do we need to check more than just the filehandle?
+		 * ie. Could someone artificially create requests which are
+		 * security violations?
+		 */
 		if (memcmp(&fl->filehandle, &filehandle, sizeof(filehandle)))
 			continue;
-		/* got it ! */
+		/* File handles match, look for lock region overlap */
+		if (regions_overlap(lock->l_offset, lock->l_len,
+				    fl->client.l_offset, fl->client.l_len)) {
+			syslog(LOG_DEBUG,
+			    "Region overlap found %llu : %llu -- %llu : %llu\n",
+			    lock->l_offset, lock->l_len,
+			    fl->client.l_offset,fl->client.l_len);
+			/* Regions overlap. Now check for exclusivity. */
+			if (exclusive || fl->client.exclusive) {
+				/* Lock test must fail, regions are exclusive */
+				break;
+			}
+		}
+		/* Continue looping through all locks */
+	}
+	sigunlock();
+	if (fl == NULL) {
+		syslog(LOG_DEBUG, "test for %s: no lock found",
+		    lock->caller_name);
+		return NULL;
+	} else {
 		syslog(LOG_DEBUG, "test for %s: found lock held by %s",
 		    lock->caller_name, fl->client_name);
-		sigunlock();
 		return (&fl->client);
 	}
-	/* not found */
-	sigunlock();
-	syslog(LOG_DEBUG, "test for %s: no lock found", lock->caller_name);
-	return NULL;
 }
 
 /*
