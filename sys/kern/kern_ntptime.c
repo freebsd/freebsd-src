@@ -596,7 +596,7 @@ ntp_init()
 #endif /* PPS_SYNC */	   
 }
 
-SYSINIT(ntpclocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, ntp_init, NULL)
+SYSINIT(ntpclocks, SI_SUB_CLOCKS, SI_ORDER_MIDDLE, ntp_init, NULL)
 
 /*
  * hardupdate() - local clock update
