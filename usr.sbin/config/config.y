@@ -110,6 +110,10 @@
  */
 
 #include "config.h"
+
+#include <sys/disklabel.h>
+#include <sys/diskslice.h>
+
 #include <ctype.h>
 #include <stdio.h>
 #include <err.h>
@@ -245,7 +249,7 @@ System_parameter:
 	
 addr_spec:
 	  AT NUMBER
-		= { loadaddress = $2; };
+		= { loadaddress = $2; }
 	;
 
 swap_spec:
@@ -270,7 +274,8 @@ swap_device_spec:
 			if (eq($1, "generic"))
 				fl->f_fn = $1;
 			else {
-				fl->f_swapdev = nametodev($1, 0, 'b');
+				fl->f_swapdev = nametodev($1, 0,
+						    COMPATIBILITY_SLICE, 'b');
 				fl->f_fn = devtoname(fl->f_swapdev);
 			}
 			$$ = fl;
@@ -308,7 +313,7 @@ root_device_specs:
 
 root_device_spec:
 	  device_name
-		= { $$ = nametodev($1, 0, 'a'); }
+		= { $$ = nametodev($1, 0, COMPATIBILITY_SLICE, 'a'); }
 	| major_minor
 	;
 
@@ -327,7 +332,7 @@ dump_spec:
 
 dump_device_spec:
 	  device_name
-		= { $$ = nametodev($1, 0, 'b'); }
+		= { $$ = nametodev($1, 0, COMPATIBILITY_SLICE, 'b'); }
 	| major_minor
 	;
 
@@ -338,7 +343,7 @@ arg_spec:
 
 arg_device_spec:
 	  device_name
-		= { $$ = nametodev($1, 0, 'b'); }
+		= { $$ = nametodev($1, 0, COMPATIBILITY_SLICE, 'b'); }
 	| major_minor
 	;
 
@@ -381,6 +386,20 @@ device_name:
 			char buf[80];
 
 			(void) sprintf(buf, "%s%d%s", $1, $2, $3);
+			$$ = ns(buf); free($1);
+		}
+	| Save_id NUMBER ID NUMBER
+		= {
+			char buf[80];
+
+			(void) sprintf(buf, "%s%d%s%d", $1, $2, $3, $4);
+			$$ = ns(buf); free($1);
+		}
+	| Save_id NUMBER ID NUMBER ID
+		= {
+			char buf[80];
+
+			(void) sprintf(buf, "%s%d%s%d%s", $1, $2, $3, $4, $5);
 			$$ = ns(buf); free($1);
 		}
 	;
@@ -503,7 +522,8 @@ comp_device_spec:
 		= {
 			struct file_list *fl = newflist(COMPSPEC);
 
-			fl->f_compdev = nametodev($1, 0, 'c');
+			fl->f_compdev = nametodev($1, 0, COMPATIBILITY_SLICE,
+						  'c');
 			fl->f_fn = devtoname(fl->f_compdev);
 			$$ = fl;
 		}
@@ -979,14 +999,13 @@ checksystemspec(fl)
 
 		swap = newflist(SWAPSPEC);
 		dev = fl->f_rootdev;
-		if (minor(dev) & 07) {
+		if (dkpart(dev) != 0) {
 			(void) sprintf(buf, 
 "Warning, swap defaulted to 'b' partition with root on '%c' partition",
-				(minor(dev) & 07) + 'a');
+				dkpart(dev) + 'a');
 			yyerror(buf);
 		}
-		swap->f_swapdev =
-		   makedev(major(dev), (minor(dev) &~ 07) | ('b' - 'a'));
+		swap->f_swapdev = dkmodpart(dev, SWAP_PART);
 		swap->f_fn = devtoname(swap->f_swapdev);
 		mkswap(fl, swap, 0);
 	}
@@ -1036,8 +1055,6 @@ verifysystemspecs()
 			deverror(fl->f_needs, "root");
 		*pchecked++ = fl->f_rootdev;
 		pchecked = verifyswap(fl->f_next, checked, pchecked);
-#define	samedev(dev1, dev2) \
-	((minor(dev1) &~ 07) != (minor(dev2) &~ 07))
 		if (!alreadychecked(fl->f_dumpdev, checked, pchecked)) {
 			if (!finddev(fl->f_dumpdev))
 				deverror(fl->f_needs, "dump");
@@ -1088,7 +1105,7 @@ verifycomp(fl)
 
 /*
  * Has a device already been checked
- * for it's existence in the configuration?
+ * for its existence in the configuration?
  */
 alreadychecked(dev, list, last)
 	dev_t dev, list[];
@@ -1097,7 +1114,7 @@ alreadychecked(dev, list, last)
 	register dev_t *p;
 
 	for (p = list; p < last; p++)
-		if (samedev(*p, dev))
+		if (dkmodpart(*p, 0) != dkmodpart(dev, 0))
 			return (1);
 	return (0);
 }
