@@ -69,7 +69,7 @@ static const char rcsid[] =
 static char	root[] = "root";
 static int	all = 0;		/* eliminate all files (root only) */
 static int	cur_daemon;		/* daemon's pid */
-static char	current[40];		/* active control file name */
+static char	current[7+MAXHOSTNAMELEN];  /* active control file name */
 
 extern uid_t	uid, euid;		/* real and effective user id's */
 
