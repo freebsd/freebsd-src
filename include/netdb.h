@@ -208,6 +208,7 @@ typedef	_BSD_SOCKLEN_T_	socklen_t;
 __BEGIN_DECLS
 void		endhostent __P((void));
 void		endnetent __P((void));
+void		endnetgrent __P((void));
 void		endprotoent __P((void));
 void		endservent __P((void));
 void		freehostent __P((struct hostent *));
@@ -220,6 +221,7 @@ struct hostent	*getipnodebyname __P((const char *, int, int, int *));
 struct netent	*getnetbyaddr __P((unsigned long, int));
 struct netent	*getnetbyname __P((const char *));
 struct netent	*getnetent __P((void));
+int		getnetgrent __P((char **, char **, char **));
 struct protoent	*getprotobyname __P((const char *));
 struct protoent	*getprotobynumber __P((int));
 struct protoent	*getprotoent __P((void));
@@ -228,6 +230,8 @@ struct servent	*getservbyport __P((int, const char *));
 struct servent	*getservent __P((void));
 void		herror __P((const char *));
 __const char	*hstrerror __P((int));
+int		innetgr __P((const char *, const char *, const char *,
+				const char *));
 void		sethostent __P((int));
 /* void		sethostfile __P((const char *)); */
 void		setnetent __P((int));
@@ -238,6 +242,7 @@ int		getnameinfo __P((const struct sockaddr *, socklen_t, char *,
 				 size_t, char *, size_t, int));
 void		freeaddrinfo __P((struct addrinfo *));
 char		*gai_strerror __P((int));
+void		setnetgrent __P((const char *));
 void		setservent __P((int));
 
 /*

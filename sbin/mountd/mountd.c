@@ -193,11 +193,6 @@ int	xdr_explist __P((XDR *, caddr_t));
 int	xdr_fhs __P((XDR *, caddr_t));
 int	xdr_mlist __P((XDR *, caddr_t));
 
-/* C library */
-int	getnetgrent();
-void	endnetgrent();
-void	setnetgrent();
-
 struct exportlist *exphead;
 struct mountlist *mlhead;
 struct grouplist *grphead;
