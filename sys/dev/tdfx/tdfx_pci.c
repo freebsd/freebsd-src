@@ -390,8 +390,8 @@ tdfx_setmtrr(device_t dev) {
 		 */
 #ifdef DEBUG
 		if(retval == 0) {
-			device_printf(dev, "MTRR Set Type Uncacheable
-					%x\n", (u_int32_t)tdfx_info->mrdesc.mr_base);
+			device_printf(dev, "MTRR Set Type Uncacheable %x\n",
+			    (u_int32_t)tdfx_info->mrdesc.mr_base);
 		} else {
 			device_printf(dev, "Couldn't Set MTRR\n");
 		}
