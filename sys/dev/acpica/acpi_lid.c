@@ -82,7 +82,7 @@ static int
 acpi_lid_probe(device_t dev)
 {
     if (acpi_get_type(dev) == ACPI_TYPE_DEVICE && !acpi_disabled("lid") &&
-	acpi_MatchHid(dev, "PNP0C0D")) {
+	acpi_MatchHid(acpi_get_handle(dev), "PNP0C0D")) {
 
 	device_set_desc(dev, "Control Method Lid Switch");
 	return (0);

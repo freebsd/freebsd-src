@@ -90,24 +90,26 @@ static int
 acpi_button_probe(device_t dev)
 {
     struct acpi_button_softc	*sc;
+    ACPI_HANDLE h;
     int ret = ENXIO;
 
+    h = acpi_get_handle(dev);
     sc = device_get_softc(dev);
     if (acpi_get_type(dev) == ACPI_TYPE_DEVICE && !acpi_disabled("button")) {
-	if (acpi_MatchHid(dev, "PNP0C0C")) {
+	if (acpi_MatchHid(h, "PNP0C0C")) {
 	    device_set_desc(dev, "Power Button");
 	    sc->button_type = ACPI_POWER_BUTTON;
 	    ret = 0;
-	} else if (acpi_MatchHid(dev, "ACPI_FPB")) {
+	} else if (acpi_MatchHid(h, "ACPI_FPB")) {
 	    device_set_desc(dev, "Power Button (fixed)");
 	    sc->button_type = ACPI_POWER_BUTTON;
 	    sc->fixed = 1;
 	    ret = 0;
-	} else if (acpi_MatchHid(dev, "PNP0C0E")) {
+	} else if (acpi_MatchHid(h, "PNP0C0E")) {
 	    device_set_desc(dev, "Sleep Button");
 	    sc->button_type = ACPI_SLEEP_BUTTON;
 	    ret = 0;
-	} else if (acpi_MatchHid(dev, "ACPI_FSB")) {
+	} else if (acpi_MatchHid(h, "ACPI_FSB")) {
 	    device_set_desc(dev, "Sleep Button (fixed)");
 	    sc->button_type = ACPI_SLEEP_BUTTON;
 	    sc->fixed = 1;

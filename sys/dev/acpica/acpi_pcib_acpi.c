@@ -117,7 +117,7 @@ acpi_pcib_acpi_probe(device_t dev)
 {
 
     if (acpi_get_type(dev) == ACPI_TYPE_DEVICE && !acpi_disabled("pci") &&
-	acpi_MatchHid(dev, "PNP0A03")) {
+	acpi_MatchHid(acpi_get_handle(dev), "PNP0A03")) {
 
 	if (pci_cfgregopen() == 0)
 		return (ENXIO);
