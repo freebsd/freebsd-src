@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.80 1996/07/08 12:00:43 jkh Exp $
+ * $Id: menus.c,v 1.81 1996/07/10 09:41:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -386,7 +386,7 @@ on building a kernel.",
     "ln -fs /dev/cuaa3 /dev/mouse", '(', '*', ')', 1 },
   { "BusMouse",	"Logitech or ATI bus mouse", whichMouse, dmenuSystemCommand, NULL,
     "ln -fs /dev/mse0 /dev/mouse", '(', '*', ')', 1 },
-  { "PS/2",	"PS/2 style mouse (requires kernel rebuild)", whichMouse, dmenuSystemCommand, NULL,
+  { "PS/2",	"PS/2 style mouse (must enable psm0 device)", whichMouse, dmenuSystemCommand, NULL,
     "ln -fs /dev/psm0 /dev/mouse", '(', '*', ')', 1 },
   { NULL } },
 };
