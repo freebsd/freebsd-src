@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.212 1999/07/19 09:37:59 phk Exp $
+ * $Id: vfs_subr.c,v 1.213 1999/07/20 09:47:44 phk Exp $
  */
 
 /*
@@ -2622,12 +2622,12 @@ vfs_object_create(vp, p, cred)
 	vm_object_t object;
 	int error = 0;
 
-	if ((vp->v_type != VREG) && (vp->v_type != VBLK))
+	if (vp->v_type != VBLK && vn_canvmio(vp) == FALSE)
 		return 0;
 
 retry:
 	if ((object = vp->v_object) == NULL) {
-		if (vp->v_type == VREG) {
+		if (vp->v_type == VREG || vp->v_type == VDIR) {
 			if ((error = VOP_GETATTR(vp, &vat, cred, p)) != 0)
 				goto retn;
 			object = vnode_pager_alloc(vp, vat.va_size, 0, 0);

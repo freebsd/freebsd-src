@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.90 1999/07/18 14:30:30 phk Exp $
+ * $Id: vnode.h,v 1.91 1999/07/20 09:47:54 phk Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -453,6 +453,20 @@ struct vop_generic_args {
 #define VCALL(VP,OFF,AP) VOCALL((VP)->v_op,(OFF),(AP))
 #define VDESC(OP) (& __CONCAT(OP,_desc))
 #define VOFFSET(OP) (VDESC(OP)->vdesc_offset)
+
+/*
+ * VMIO support inline
+ */
+
+extern int vmiodirenable;
+ 
+static __inline int
+vn_canvmio(struct vnode *vp) 
+{
+    if (vp && (vp->v_type == VREG || (vmiodirenable && vp->v_type == VDIR)))
+        return(TRUE); 
+    return(FALSE); 
+}
 
 /*
  * Finally, include the default set of vnode operations.
