@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.54 1997/09/24 07:37:56 phk Exp $
+**  $Id: pcisupport.c,v 1.55 1997/10/10 11:52:17 asami Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -237,6 +237,9 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("VLSI 82C535 Eagle II System Controller");
 	case 0x01051004:
 		return ("VLSI 82C147 IrDA Controller");
+	/* TI -- vendor 0x104c */
+	case 0xac15104c:
+		return ("TI 1131 PCI-CardBus bridge");
 	};
 
 	if (descr = generic_pci_bridge(tag))
@@ -810,6 +813,13 @@ DATA_SET (pcidevice_set, vga_device);
 static char* vga_probe (pcici_t tag, pcidi_t type)
 {
 	int data = pci_conf_read(tag, PCI_CLASS_REG);
+	u_int id = pci_conf_read(tag, PCI_ID_REG);
+
+	switch (id) {
+	/* NeoMagic -- vendor 0x10c8 */
+	case 0x000410c8:
+		return ("NeoMagic NM2160 Laptop SVGA controller");
+	}
 
 	switch (data & PCI_CLASS_MASK) {
 
