@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.145 1995/04/22 00:01:26 jkh Exp $
+# $Id: bsd.port.mk,v 1.146 1995/04/22 00:05:46 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -561,7 +561,9 @@ do-install:
 	@(cd ${WRKSRC}; ${MAKE} ${MAKE_FLAGS} ${MAKEFILE} install.man)
 .endif
 .endif
+.if !defined(NO_PACKAGE)
 	@${MAKE} ${.MAKEFLAGS} fake-pkg
+.endif
 .endif
 
 ################################################################
