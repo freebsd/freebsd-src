@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.8 1994/12/22 04:42:31 bde Exp $
+ * $Id: ufs_disksubr.c,v 1.9 1995/02/16 14:47:38 bde Exp $
  */
 
 #include <sys/param.h>
@@ -621,7 +621,7 @@ diskerr(bp, dname, what, pri, blkdone, lp)
 	int part = dkpart(bp->b_dev);
 	register void (*pr) __P((const char *, ...));
 	char partname[2];
-	char slicename[32];
+	char *sname;
 	int sn;
 
 	if (pri != LOG_PRINTF) {
@@ -629,15 +629,9 @@ diskerr(bp, dname, what, pri, blkdone, lp)
 		pr = addlog;
 	} else
 		pr = printf;
-	slicename[0] = partname[0] = '\0';
-	if (slice != WHOLE_DISK_SLICE || part != RAW_PART) {
-		partname[0] = 'a' + part;
-		partname[1] = '\0';
-		if (slice != COMPATIBILITY_SLICE)
-			sprintf(slicename, "s%d", slice - 1);
-	}
-	(*pr)("%s%d%s%s: %s %sing fsbn ", dname, unit, slicename, partname,
-	      what, bp->b_flags & B_READ ? "read" : "writ");
+	sname = dsname("", unit, slice, part, partname);
+	(*pr)("%s%s: %s %sing fsbn ", sname, partname, what,
+	      bp->b_flags & B_READ ? "read" : "writ");
 	sn = bp->b_blkno;
 	if (bp->b_bcount <= DEV_BSIZE)
 		(*pr)("%d", sn);
@@ -661,8 +655,7 @@ diskerr(bp, dname, what, pri, blkdone, lp)
 		 * independent of slices, labels and bad sector remapping,
 		 * but some drivers don't set bp->b_pblkno.
 		 */
-		(*pr)(" (%s%d%s bn %d; cn %d", dname, unit, slicename, sn,
-		    sn / lp->d_secpercyl);
+		(*pr)(" (%s bn %d; cn %d", sname, sn, sn / lp->d_secpercyl);
 		sn %= lp->d_secpercyl;
 		(*pr)(" tn %d sn %d)", sn / lp->d_nsectors, sn % lp->d_nsectors);
 	}
