@@ -738,9 +738,6 @@ pmap_invalidate_all(pmap_t pmap)
 	u_int cpumask;
 	u_int other_cpus;
 
-#ifdef SWTCH_OPTIM_STATS
-	tlb_flush_count++;
-#endif
 	critical_enter();
 	/*
 	 * We need to disable interrupt preemption but MUST NOT have
@@ -1307,17 +1304,8 @@ pmap_lazyfix_action(void)
 {
 	u_int mymask = PCPU_GET(cpumask);
 
-	if (rcr3() == lazyptd) {
+	if (rcr3() == lazyptd)
 		load_cr3(PCPU_GET(curpcb)->pcb_cr3);
-#ifdef SWTCH_OPTIM_STATS
-		atomic_add_int(&lazy_flush_smpfixup, 1);
-	} else {
-		if (*lazymask & mymask)
-			lazy_flush_smpbadcr3++;
-		else
-			lazy_flush_smpmiss++;
-#endif
-	}
 	atomic_clear_int(lazymask, mymask);
 	atomic_store_rel_int(&lazywait, 1);
 }
@@ -1326,17 +1314,8 @@ static void
 pmap_lazyfix_self(u_int mymask)
 {
 
-	if (rcr3() == lazyptd) {
+	if (rcr3() == lazyptd)
 		load_cr3(PCPU_GET(curpcb)->pcb_cr3);
-#ifdef SWTCH_OPTIM_STATS
-		lazy_flush_fixup++;
-	} else {
-		if (*lazymask & mymask)
-			lazy_flush_smpbadcr3++;
-		else
-			lazy_flush_smpmiss++;
-#endif
-	}
 	atomic_clear_int(lazymask, mymask);
 }
 
@@ -1370,9 +1349,6 @@ pmap_lazyfix(pmap_t pmap)
 				if (--spins == 0)
 					break;
 			}
-#ifdef SWTCH_OPTIM_STATS
-			lazy_flush_smpipi++;
-#endif
 		}
 		mtx_unlock_spin(&lazypmap_lock);
 		if (spins == 0)
@@ -1397,9 +1373,6 @@ pmap_lazyfix(pmap_t pmap)
 	if (cr3 == rcr3()) {
 		load_cr3(PCPU_GET(curpcb)->pcb_cr3);
 		pmap->pm_active &= ~(PCPU_GET(cpumask));
-#ifdef SWTCH_OPTIM_STATS
-		lazy_flush_fixup++;
-#endif
 	}
 }
 #endif	/* SMP */
@@ -3272,9 +3245,6 @@ pmap_activate(struct thread *td)
 		td->td_pcb->pcb_cr3 = cr3;
 	}
 	load_cr3(cr3);
-#ifdef SWTCH_OPTIM_STATS
-	tlb_flush_count++;
-#endif
 	PCPU_SET(curpmap, pmap);
 	critical_exit();
 }

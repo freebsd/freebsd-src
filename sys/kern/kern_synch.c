@@ -72,9 +72,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <machine/cpu.h>
-#ifdef SWTCH_OPTIM_STATS
-#include <machine/md_var.h>
-#endif
 
 static void sched_setup(void *dummy);
 SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
@@ -525,10 +522,6 @@ mi_switch(void)
 	newtd = choosethread();
 	if (td != newtd)
 		cpu_switch(td, newtd);	/* SHAZAM!! */
-#ifdef SWTCH_OPTIM_STATS
-	else
-		stupid_switch++;
-#endif
 #else
 	cpu_switch();		/* SHAZAM!!*/
 #endif

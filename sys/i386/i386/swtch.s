@@ -75,9 +75,6 @@ ENTRY(cpu_throw)
 1:
 	movl	8(%esp),%ecx			/* New thread */
 	movl	TD_PCB(%ecx),%edx
-#ifdef SWTCH_OPTIM_STATS
-	incl	tlb_flush_count
-#endif
 	movl	PCB_CR3(%edx),%eax
 	movl	%eax,%cr3			/* new address space */
 	/* set bit in new pm_active */
@@ -166,30 +163,16 @@ ENTRY(cpu_switch)
 	/* switch address space */
 	movl	PCB_CR3(%edx),%eax
 #ifdef LAZY_SWITCH
-	cmpl	$0,lazy_flush_enable
-	je	1f
 #ifdef PAE
 	cmpl	%eax,IdlePDPT			/* Kernel address space? */
 #else
 	cmpl	%eax,IdlePTD			/* Kernel address space? */
 #endif
-#ifdef SWTCH_OPTIM_STATS
-	je	3f
-#else
 	je	sw1
-#endif
-1:
 #endif
 	movl	%cr3,%ebx			/* The same address space? */
 	cmpl	%ebx,%eax
-#ifdef SWTCH_OPTIM_STATS
-	je	2f				/* Yes, skip all that cruft */
-#else
 	je	sw1
-#endif
-#ifdef SWTCH_OPTIM_STATS
-	incl	tlb_flush_count
-#endif
 	movl	%eax,%cr3			/* new address space */
 
 	/* Release bit from old pmap->pm_active */
@@ -208,19 +191,6 @@ ENTRY(cpu_switch)
 	lock
 #endif
 	btsl	%esi, PM_ACTIVE(%ebx)		/* set new */
-
-#ifdef LAZY_SWITCH
-#ifdef SWTCH_OPTIM_STATS
-	jmp	sw1
-
-2:						/* same address space */
-	incl	swtch_optim_stats
-	jmp	sw1
-
-3:						/* kernel address space */
-	incl	lazy_flush_count
-#endif
-#endif
 
 sw1:
 	/*
