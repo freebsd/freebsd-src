@@ -1,8 +1,8 @@
 .\"
 .\" bc.1 - the *roff document processor source for the bc manual
 .\"
-.\" This file is part of bc written for MINIX.
-.\" Copyright (C) 1991, 1992 Free Software Foundation, Inc.
+.\" This file is part of bc written initially for MINIX.
+.\" Copyright (C) 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 .\"
 .\" This program is free software; you can redistribute it and/or modify
 .\" it under the terms of the GNU General Public License as published by
@@ -25,15 +25,15 @@
 .\" Western Washington University
 .\" Bellingham, WA 98226-9062
 .\"
-.\" $Id$
+.\" $Id: bc.1,v 1.3 1996/10/05 22:26:19 wosch Exp $
 .\"
-.TH bc 1 .\" "Command Manual" v1.02 "Feb 3, 1992"
+.TH bc 1 .\" "Command Manual" v1.03 "Nov 2, 1994"
 .SH NAME
 bc - An arbitrary precision calculator language
 .SH SYNTAX
 \fBbc\fR [ \fB-lws\fR ] [ \fI file ...\fR ]
 .SH VERSION
-This man page documents GNU bc version 1.02.
+This man page documents GNU bc version 1.03.
 .SH DESCRIPTION
 \fBbc\fR is a language that supports arbitrary precision numbers
 with interactive execution of statements.  There are some similarities
@@ -317,7 +317,9 @@ last value printed without having to retype the expression that
 printed the number.  Assigning to \fBlast\fR is legal and will
 overwrite the last printed value with the assigned value.  The newly
 assigned value will remain until the next number is printed or another
-value is assigned to \fBlast\fR.
+value is assigned to \fBlast\fR.  (Some installations may allow the 
+use of a single period (.) which is not part of a number as a short
+hand notation for for \fBlast\fR.)
 .IP "string"
 The string is printed to the output.  Strings start with a double quote
 character and contain all characters until the next double quote character.
@@ -332,10 +334,9 @@ value is printed and assigned the variable \fBlast\fR. Strings
 in the print statement are printed to the output and may contain
 special characters.  Special characters start with the backslash
 character (\e).  The special characters recognized by \fBbc\fR are
-"b" (bell), "f" (form feed), "n" (newline), "r" (carriage return), "t"
-(tab), and "\e" (backslash).  Any other character following the
-backslash will be ignored.  This still does not allow the double quote
-character to be part of any string.
+"a" (alert or bell), "b" (backspace), "f" (form feed), "n" (newline),
+"r" (carriage return), "q" (double quote), "t" (tab), and "\e" (backslash).
+Any other character following the backslash will be ignored.  
 .IP "{ statement_list }"
 This is the compound statement.  It allows multiple statements to be
 grouped together for execution.
@@ -702,9 +703,9 @@ The multiply routine may yield incorrect results if a number
 has more than LONG_MAX / 90 total digits.  For 32 bit longs, this number is
 23,860,929 digits.
 .IP "code size"
-Each function and the "main" program are limited to 10240 bytes of
+Each function and the "main" program are limited to 16384 bytes of
 compiled byte code each.  This limit (BC_MAX_SEGS) can be easily changed
-to have more than 10 segments of 1024 bytes.
+to have more than 16 segments of 1024 bytes.
 .IP "variable names"
 The current limit on the number of unique names is 32767 for each of
 simple variables, arrays and functions.
@@ -726,6 +727,6 @@ Philip A. Nelson
 phil@cs.wwu.edu
 .fi
 .SH ACKNOWLEDGEMENTS
-The author would like to thank Steve Sommars (sesv@iwtsf.att.com) for
+The author would like to thank Steve Sommars (Steve.Sommars@att.com) for
 his extensive help in testing the implementation.  Many great suggestions
 were given.  This is a much better product due to his involvement.

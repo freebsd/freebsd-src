@@ -1,7 +1,7 @@
 /* const.h: Constants for bc. */
 
 /*  This file is part of bc written for MINIX.
-    Copyright (C) 1991, 1992 Free Software Foundation, Inc.
+    Copyright (C) 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -71,9 +71,13 @@
 
 #define FALSE 0
 #define TRUE  1
-#define SIMPLE 0
-#define ARRAY  1
-#define FUNCT  2
+
+/* for use with lookup (). */
+#define SIMPLE   0
+#define ARRAY    1
+#define FUNCT    2
+#define FUNCTDEF 3
+
 #define EXTERN extern
 #ifdef __STDC__
 #define CONST const

@@ -1,7 +1,7 @@
 /* execute.c - run a bc program. */
 
 /*  This file is part of bc written for MINIX.
-    Copyright (C) 1991, 1992 Free Software Foundation, Inc.
+    Copyright (C) 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -213,11 +213,13 @@ execute ()
 	      if (ch == '"') break;
 	      switch (ch)
 		{
-		case 'n':  out_char ('\n'); break;
-		case 't':  out_char ('\t'); break;
-		case 'r':  out_char ('\r'); break;
-		case 'b':  out_char (007); break;
+		case 'a':  out_char (007); break;
+		case 'b':  out_char ('\b'); break;
 		case 'f':  out_char ('\f'); break;
+		case 'n':  out_char ('\n'); break;
+		case 'q':  out_char ('"'); break;
+		case 'r':  out_char ('\r'); break;
+		case 't':  out_char ('\t'); break;
 		case '\\': out_char ('\\'); break;
 		default:  break;
 		}
