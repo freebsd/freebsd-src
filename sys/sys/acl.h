@@ -50,6 +50,7 @@
 
 #define MAX_ACL_ENTRIES 32    /* maximum entries in an ACL */
 #define _POSIX_ACL_PATH_MAX     MAX_ACL_ENTRIES
+#define	ACL_MAX_ENTRIES	MAX_ACL_ENTRIES
 
 typedef int	acl_type_t;
 typedef int	acl_tag_t;
