@@ -36,7 +36,7 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- *	$Id: icu.s,v 1.5 1993/11/25 01:31:33 wollman Exp $
+ *	$Id: icu.s,v 1.6 1993/12/19 00:50:35 wollman Exp $
  */
 
 /*
@@ -212,7 +212,8 @@ none_to_unpend:
 #endif	/* ISO */
 
 #ifdef	CCITT
-	DONET(NETISR_CCITT, _pkintr, 29)
+	DONET(NETISR_X25, _pkintr, 29)
+	DONET(NETISR_HDLC, _hdintr, 30)
 #endif	/* CCITT */
 
 	FASTSPL($0)
