@@ -57,9 +57,8 @@ const struct ngcmd dot_cmd = {
 static int
 DotCmd(int ac, char **av)
 {
-	u_char nlrbuf[16 * 1024];
-	struct ng_mesg *const nlresp = (struct ng_mesg *)nlrbuf;
-	struct namelist *const nlist = (struct namelist *)nlresp->data;
+	struct ng_mesg *nlresp;
+	struct namelist *nlist;
 	FILE *f = stdout;
 	int ch;
 	u_int i;
@@ -99,11 +98,12 @@ DotCmd(int ac, char **av)
 		warn("send listnodes msg");
 		goto error;
 	}
-	if (NgRecvMsg(csock, nlresp, sizeof(nlrbuf), NULL) < 0) {
+	if (NgAllocRecvMsg(csock, &nlresp, NULL) < 0) {
 		warn("recv listnodes msg");
 		goto error;
 	}
 
+	nlist = (struct namelist *)nlresp->data;
 	fprintf(f, "graph netgraph {\n");
 	/* TODO: implement rank = same or subgraphs at some point */
 	fprintf(f, "\tedge [ weight = 1.0 ];\n");
@@ -125,10 +125,9 @@ DotCmd(int ac, char **av)
 	fprintf(f, "\t};\n");
 
 	for (i = 0; i < nlist->numnames; i++) {
-		u_char hlrbuf[16 * 1024];
-		struct ng_mesg *const hlresp = (struct ng_mesg *)hlrbuf;
-		struct hooklist *const hlist = (struct hooklist *)hlresp->data;
-		struct nodeinfo *const ninfo = &hlist->nodeinfo;
+		struct ng_mesg *hlresp;
+		struct hooklist *hlist;
+		struct nodeinfo *ninfo;
 		char path[NG_PATHSIZ];
 		u_int j;
 
@@ -138,16 +137,22 @@ DotCmd(int ac, char **av)
 		/* Get node info and hook list */
 		if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE, NGM_LISTHOOKS,
 		    NULL, 0) < 0) {
+			free(nlresp);
 			warn("send listhooks msg");
 			goto error;
 		}
-		if (NgRecvMsg(csock, hlresp, sizeof(hlrbuf), NULL) < 0) {
+		if (NgAllocRecvMsg(csock, &hlresp, NULL) < 0) {
+			free(nlresp);
 			warn("recv listhooks msg");
 			goto error;
 		}
 
-		if (ninfo->hooks == 0)
+		hlist = (struct hooklist *)hlresp->data;
+		ninfo = &hlist->nodeinfo;
+		if (ninfo->hooks == 0) {
+			free(hlresp);
 			continue;
+		}
 
 		fprintf(f, "\tnode [ shape = octagon, fontsize = 10 ] {\n");
 		for (j = 0; j < ninfo->hooks; j++)
@@ -174,11 +179,12 @@ DotCmd(int ac, char **av)
 			    (uintmax_t)hlist->link[j].nodeinfo.id,
 			    hlist->link[j].peerhook);
 		}
-
+		free(hlresp);
 	}
 
 	fprintf(f, "};\n");
 
+	free(nlresp);
 	if (f != stdout)
 		(void)fclose(f);
 	return (CMDRTN_OK);

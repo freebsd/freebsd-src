@@ -40,8 +40,6 @@
 
 #include "ngctl.h"
 
-#define BUF_SIZE	4096
-
 static int MsgCmd(int ac, char **av);
 
 const struct ngcmd msg_cmd = {
@@ -58,9 +56,9 @@ const struct ngcmd msg_cmd = {
 static int
 MsgCmd(int ac, char **av)
 {
-	char buf[BUF_SIZE];
+	char *buf;
 	char *path, *cmdstr;
-	int i;
+	int i, len;
 
 	/* Get arguments */
 	if (ac < 3)
@@ -69,16 +67,24 @@ MsgCmd(int ac, char **av)
 	cmdstr = av[2];
 
 	/* Put command and arguments back together as one string */
+	for (len = 1, i = 3; i < ac; i++)
+		len += strlen(av[i]) + 1;
+	if ((buf = malloc(len)) == NULL) {
+		warn("malloc");
+		return(CMDRTN_ERROR);
+	}
 	for (*buf = '\0', i = 3; i < ac; i++) {
 		snprintf(buf + strlen(buf),
-		    sizeof(buf) - strlen(buf), " %s", av[i]);
+		    len - strlen(buf), " %s", av[i]);
 	}
 
 	/* Send it */
 	if (NgSendAsciiMsg(csock, path, "%s%s", cmdstr, buf) < 0) {
+		free(buf);
 		warn("send msg");
 		return(CMDRTN_ERROR);
 	}
+	free(buf);
 
 	/* See if a synchronous reply awaits */
 	{
@@ -109,13 +115,12 @@ MsgCmd(int ac, char **av)
 void
 MsgRead()
 {
-	u_char buf[2 * sizeof(struct ng_mesg) + BUF_SIZE];
-	struct ng_mesg *const m = (struct ng_mesg *)buf;
-	struct ng_mesg *const ascii = (struct ng_mesg *)m->data;
+	struct ng_mesg *m, *m2;
+	struct ng_mesg *ascii;
 	char path[NG_PATHSIZ];
 
 	/* Get incoming message (in binary form) */
-	if (NgRecvMsg(csock, m, sizeof(buf), path) < 0) {
+	if (NgAllocRecvMsg(csock, &m, path) < 0) {
 		warn("recv incoming message");
 		return;
 	}
@@ -123,7 +128,7 @@ MsgRead()
 	/* Ask originating node to convert message to ASCII */
 	if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE,
 	      NGM_BINARY2ASCII, m, sizeof(*m) + m->header.arglen) < 0
-	    || NgRecvMsg(csock, m, sizeof(buf), NULL) < 0) {
+	    || NgAllocRecvMsg(csock, &m2, NULL) < 0) {
 		printf("Rec'd %s %d from \"%s\":\n",
 		    (m->header.flags & NGF_RESP) != 0 ? "response" : "command",
 		    m->header.cmd, path);
@@ -131,10 +136,13 @@ MsgRead()
 			printf("No arguments\n");
 		else
 			DumpAscii(m->data, m->header.arglen);
+		free(m);
 		return;
 	}
 
 	/* Display message in ASCII form */
+	free(m);
+	ascii = (struct ng_mesg *)m2->data;
 	printf("Rec'd %s \"%s\" (%d) from \"%s\":\n",
 	    (ascii->header.flags & NGF_RESP) != 0 ? "response" : "command",
 	    ascii->header.cmdstr, ascii->header.cmd, path);
@@ -142,5 +150,6 @@ MsgRead()
 		printf("Args:\t%s\n", ascii->data);
 	else
 		printf("No arguments\n");
+	free(m2);
 }
 
