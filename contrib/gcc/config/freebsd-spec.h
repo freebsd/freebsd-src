@@ -1,10 +1,3 @@
-/*
-  %{!ansi:								\
-    %{!std=*:-D_LONGLONG}						\
-    %{std=gnu*:-D_LONGLONG} }						\
-  %{std=c99:-D_LONGLONG}						\
-
-*/
 /* Base configuration file for all FreeBSD targets.
    Copyright (C) 1999, 2000, 2001 Free Software Foundation, Inc.
 
