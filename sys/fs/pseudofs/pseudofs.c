@@ -122,7 +122,8 @@ pfs_init(struct pfs_info *pi, struct vfsconf *vfc)
 {
 	mtx_init(&pi->pi_mutex, "pseudofs", MTX_DEF);
 	pfs_fileno_init(pi);
-	printf("%s registered\n", pi->pi_name);
+	if (bootverbose)
+		printf("%s registered\n", pi->pi_name);
 	return (0);
 }
 
@@ -134,7 +135,8 @@ pfs_uninit(struct pfs_info *pi, struct vfsconf *vfc)
 {
 	pfs_fileno_uninit(pi);
 	mtx_destroy(&pi->pi_mutex);
-	printf("%s unregistered\n", pi->pi_name);
+	if (bootverbose)
+		printf("%s unregistered\n", pi->pi_name);
 	return (0);
 }
 
