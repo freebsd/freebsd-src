@@ -68,6 +68,7 @@ static __inline long labs(long a) { return (a < 0 ? -a : a); }
 static __inline quad_t qabs(quad_t a) { return (a < 0 ? -a : a); }
 
 /* Prototypes for non-quad routines. */
+struct malloc_type;
 uint32_t arc4random(void);
 void	 arc4rand(void *ptr, u_int len, int reseed);
 int	 bcmp(const void *, const void *, size_t);
@@ -92,7 +93,7 @@ void	 srandom(u_long);
 char	*strcat(char * __restrict, const char * __restrict);
 int	 strcmp(const char *, const char *);
 char	*strcpy(char * __restrict, const char * __restrict);
-char	*strdup(const char *__restrict);
+char	*strdup(const char *__restrict, struct malloc_type *);
 size_t	 strlcat(char *, const char *, size_t);
 size_t	 strlcpy(char *, const char *, size_t);
 size_t	 strlen(const char *);
