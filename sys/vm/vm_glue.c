@@ -93,6 +93,8 @@
 
 #include <sys/user.h>
 
+extern int maxslp;
+
 /*
  * System initialization
  *
@@ -395,7 +397,7 @@ loop:
 	 * Nothing to do, back to sleep.
 	 */
 	if ((p = pp) == NULL) {
-		tsleep(&proc0, PVM, "sched", 0);
+		tsleep(&proc0, PVM, "sched", maxslp * hz / 2);
 		mtx_lock(&Giant);
 		goto loop;
 	}
@@ -464,16 +466,17 @@ retry:
 			continue;
 		}
 		vm = p->p_vmspace;
-		PROC_UNLOCK(p);
 		mtx_lock_spin(&sched_lock);
 		if ((p->p_sflag & (PS_INMEM|PS_SWAPPING)) != PS_INMEM) {
 			mtx_unlock_spin(&sched_lock);
+			PROC_UNLOCK(p);
 			continue;
 		}
 
 		switch (p->p_stat) {
 		default:
 			mtx_unlock_spin(&sched_lock);
+			PROC_UNLOCK(p);
 			continue;
 
 		case SSLEEP:
@@ -483,6 +486,7 @@ retry:
 			 */
 			if (PRI_IS_REALTIME(p->p_pri.pri_class)) {
 				mtx_unlock_spin(&sched_lock);
+				PROC_UNLOCK(p);
 				continue;
 			}
 
@@ -494,6 +498,7 @@ retry:
 			if (((p->p_pri.pri_level) < PSOCK) ||
 				(p->p_slptime < swap_idle_threshold1)) {
 				mtx_unlock_spin(&sched_lock);
+				PROC_UNLOCK(p);
 				continue;
 			}
 
@@ -506,10 +511,19 @@ retry:
 				(((action & VM_SWAP_IDLE) == 0) ||
 				  (p->p_slptime < swap_idle_threshold2))) {
 				mtx_unlock_spin(&sched_lock);
+				PROC_UNLOCK(p);
 				continue;
 			}
 			mtx_unlock_spin(&sched_lock);
 
+#if 0
+			/*
+			 * XXX: This is broken.  We release the lock we
+			 * acquire before calling swapout, so we could
+			 * still deadlock if another CPU locks this process'
+			 * VM data structures after we release the lock but
+			 * before we call swapout().
+			 */
 			++vm->vm_refcnt;
 			/*
 			 * do not swapout a process that is waiting for VM
@@ -519,9 +533,11 @@ retry:
 					LK_EXCLUSIVE | LK_NOWAIT,
 					(void *)0, curproc)) {
 				vmspace_free(vm);
+				PROC_UNLOCK(p);
 				continue;
 			}
 			vm_map_unlock(&vm->vm_map);
+#endif
 			/*
 			 * If the process has been asleep for awhile and had
 			 * most of its pages taken away already, swap it out.
@@ -534,6 +550,7 @@ retry:
 				didswap++;
 				goto retry;
 			}
+			PROC_UNLOCK(p);
 		}
 	}
 	sx_sunlock(&allproc_lock);
@@ -550,6 +567,7 @@ swapout(p)
 	register struct proc *p;
 {
 
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 #if defined(SWAP_DEBUG)
 	printf("swapping out %d\n", p->p_pid);
 #endif
@@ -562,6 +580,7 @@ swapout(p)
 	mtx_lock_spin(&sched_lock);
 	p->p_sflag &= ~PS_INMEM;
 	p->p_sflag |= PS_SWAPPING;
+	PROC_UNLOCK_NOSWITCH(p);
 	if (p->p_stat == SRUN)
 		remrunqueue(p);
 	mtx_unlock_spin(&sched_lock);
