@@ -925,6 +925,7 @@ dev/sound/pcm/mixer.c	optional pcm
 dev/sound/pci/csa.c	optional csa pcm
 dev/sound/pci/csapcm.c	optional csa pcm
 dev/sound/pci/es137x.c	optional pcm pci
+dev/sound/pci/neomagic.c	optional pcm pci
 dev/sound/pci/t4dwave.c	optional pcm pci
 #dev/sound/pci/aureal.c	optional pcm pci
 #
