@@ -1,61 +1,54 @@
-/* $Header: common.h,v 2.0 86/09/17 15:36:39 lwall Exp $
- *
- * $Log:	common.h,v $
- * Revision 2.0  86/09/17  15:36:39  lwall
- * Baseline for netwide release.
+/*	$OpenBSD: common.h,v 1.25 2003/10/31 20:20:45 millert Exp $	*/
+
+/*
+ * patch - a program to apply diffs to original files
  * 
+ * Copyright 1986, Larry Wall
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following condition is met:
+ * 1. Redistributions of source code must retain the above copyright notice,
+ * this condition and the following disclaimer.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ * 
+ * -C option added in 1998, original code by Marc Espie, based on FreeBSD
+ * behaviour
  */
+
+#include <stdbool.h>
 
 #define DEBUGGING
 
-#include "config.h"
-
-/* shut lint up about the following when return value ignored */
-
-#define Signal (void)signal
-#define Unlink (void)unlink
-#define Lseek (void)lseek
-#define Fseek (void)fseek
-#define Fstat (void)fstat
-#define Pclose (void)pclose
-#define Close (void)close
-#define Fclose (void)fclose
-#define Fflush (void)fflush
-#define Sprintf (void)sprintf
-#define Mktemp (void)mktemp
-#define Strcpy (void)strcpy
-#define Strcat (void)strcat
-
-#include <stdio.h>
-#include <assert.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <ctype.h>
-#include <signal.h>
-
 /* constants */
 
-#define TRUE (1)
-#define FALSE (0)
-
-#define MAXHUNKSIZE 100000		/* is this enough lines? */
-#define INITHUNKMAX 125			/* initial dynamic allocation size */
-#define MAXLINELEN 1024
+#define MAXHUNKSIZE 100000	/* is this enough lines? */
+#define INITHUNKMAX 125		/* initial dynamic allocation size */
+#define MAXLINELEN 8192
 #define BUFFERSIZE 1024
-#define ORIGEXT ".orig"
+
 #define SCCSPREFIX "s."
 #define GET "get -e %s"
+#define SCCSDIFF "get -p %s | diff - %s >/dev/null"
+
 #define RCSSUFFIX ",v"
 #define CHECKOUT "co -l %s"
+#define RCSDIFF "rcsdiff %s > /dev/null"
+
+#define ORIGEXT ".orig"
+#define REJEXT ".rej"
 
 /* handy definitions */
-
-#define Null(t) ((t)0)
-#define Nullch Null(char *)
-#define Nullfp Null(FILE *)
-#define Nulline Null(LINENUM)
-
-#define Ctl(ch) ((ch) & 037)
 
 #define strNE(s1,s2) (strcmp(s1, s2))
 #define strEQ(s1,s2) (!strcmp(s1, s2))
@@ -64,75 +57,58 @@
 
 /* typedefs */
 
-typedef char bool;
-typedef long LINENUM;			/* must be signed */
-typedef unsigned MEM;			/* what to feed malloc */
+typedef long    LINENUM;	/* must be signed */
 
 /* globals */
 
-EXT int Argc;				/* guess */
-EXT char **Argv;
-EXT int Argc_last;			/* for restarting plan_b */
-EXT char **Argv_last;
+extern int	filemode;
 
-EXT struct stat filestat;		/* file statistics area */
-EXT int filemode INIT(0644);
+extern char	buf[MAXLINELEN];/* general purpose buffer */
 
-EXT char buf[MAXLINELEN];		/* general purpose buffer */
-EXT FILE *ofp INIT(Nullfp);		/* output file pointer */
-EXT FILE *rejfp INIT(Nullfp);		/* reject file pointer */
-
-EXT bool using_plan_a INIT(TRUE);	/* try to keep everything in memory */
-EXT bool out_of_mem INIT(FALSE);	/* ran out of memory in plan a */
+extern bool	using_plan_a;	/* try to keep everything in memory */
+extern bool	out_of_mem;	/* ran out of memory in plan a */
 
 #define MAXFILEC 2
-EXT int filec INIT(0);			/* how many file arguments? */
-EXT char *filearg[MAXFILEC];
-EXT bool ok_to_create_file INIT(FALSE);
-EXT char *bestguess INIT(Nullch);	/* guess at correct filename */
 
-EXT char *outname INIT(Nullch);
-EXT char rejname[128];
+extern char	*filearg[MAXFILEC];
+extern bool	ok_to_create_file;
+extern char	*outname;
+extern char	*origprae;
 
-EXT char *origext INIT(Nullch);
+extern char	*TMPOUTNAME;
+extern char	*TMPINNAME;
+extern char	*TMPREJNAME;
+extern char	*TMPPATNAME;
+extern bool	toutkeep;
+extern bool	trejkeep;
 
-EXT char TMPOUTNAME[] INIT("/tmp/patchoXXXXXX");
-EXT char TMPINNAME[] INIT("/tmp/patchiXXXXXX");	/* might want /usr/tmp here */
-EXT char TMPREJNAME[] INIT("/tmp/patchrXXXXXX");
-EXT char TMPPATNAME[] INIT("/tmp/patchpXXXXXX");
-EXT bool toutkeep INIT(FALSE);
-EXT bool trejkeep INIT(FALSE);
-
-EXT LINENUM last_offset INIT(0);
 #ifdef DEBUGGING
-EXT int debug INIT(0);
+extern int	debug;
 #endif
-EXT LINENUM maxfuzz INIT(2);
-EXT bool force INIT(FALSE);
-EXT bool verbose INIT(TRUE);
-EXT bool reverse INIT(FALSE);
-EXT bool noreverse INIT(FALSE);
-EXT bool skip_rest_of_patch INIT(FALSE);
-EXT int strippath INIT(957);
-EXT bool canonicalize INIT(FALSE);
+
+extern bool	force;
+extern bool	batch;
+extern bool	verbose;
+extern bool	reverse;
+extern bool	noreverse;
+extern bool	skip_rest_of_patch;
+extern int	strippath;
+extern bool	canonicalize;
+/* TRUE if -C was specified on command line.  */
+extern bool	check_only;
+extern bool	warn_on_invalid_line;
+extern bool	last_line_missing_eol;
+
 
 #define CONTEXT_DIFF 1
 #define NORMAL_DIFF 2
 #define ED_DIFF 3
 #define NEW_CONTEXT_DIFF 4
-EXT int diff_type INIT(0);
+#define UNI_DIFF 5
 
-EXT bool do_defines INIT(FALSE);	/* patch using ifdef, ifndef, etc. */
-EXT char if_defined[128];		/* #ifdef xyzzy */
-EXT char not_defined[128];		/* #ifndef xyzzy */
-EXT char else_defined[] INIT("#else\n");/* #else */
-EXT char end_defined[128];		/* #endif xyzzy */
+extern int	diff_type;
+extern char	*revision;	/* prerequisite revision, if any */
+extern LINENUM	input_lines;	/* how long is input file in lines */
 
-EXT char *revision INIT(Nullch);	/* prerequisite revision, if any */
+extern int	posix;
 
-char *malloc();
-char *realloc();
-char *strcpy();
-char *strcat();
-long atol();
-char *mktemp();
