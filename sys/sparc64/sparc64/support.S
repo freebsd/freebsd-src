@@ -79,7 +79,7 @@ __FBSDID("$FreeBSD$");
 	ST(b, da) %g1, [dst] dasi ; \
 	brz,pn	%g1, 3f ; \
 	 inc	src ; \
-	b	%xcc, 1b ; \
+	ba	%xcc, 1b ; \
 	 inc	dst ; \
 2:	mov	ENAMETOOLONG, %g1 ; \
 3:	sub	src, %g2, %g2 ; \
@@ -117,7 +117,7 @@ __FBSDID("$FreeBSD$");
 	bz,a,pt	%xcc, 2f ; \
 	 inc	1, len ; \
 	ST(b, da) pat, [dst] dasi ; \
-	b	%xcc, 1b ; \
+	ba	%xcc, 1b ; \
 	 inc	dst ; \
 	.align 16 ; \
 2:	deccc	32, len ; \
@@ -127,21 +127,21 @@ __FBSDID("$FreeBSD$");
 	ST(x, da) pat, [dst + 8] dasi ; \
 	ST(x, da) pat, [dst + 16] dasi ; \
 	ST(x, da) pat, [dst + 24] dasi ; \
-	b	%xcc, 2b ; \
+	ba	%xcc, 2b ; \
 	 inc	32, dst ; \
 	.align 16 ; \
 3:	deccc	8, len ; \
 	bl,a,pn	%xcc, 4f ; \
 	 inc	8, len ; \
 	ST(x, da) pat, [dst] dasi ; \
-	b	%xcc, 3b ; \
+	ba	%xcc, 3b ; \
 	 inc	8, dst ; \
 	.align 16 ; \
 4:	deccc	1, len ; \
 	bl,a,pn	%xcc, 5f ; \
 	 nop ; \
 	ST(b, da) pat, [dst] dasi ; \
-	b	%xcc, 4b ; \
+	ba	%xcc, 4b ; \
 	 inc	1, dst ; \
 5:
 
@@ -170,13 +170,13 @@ __FBSDID("$FreeBSD$");
 	LD(ub, sa) [src] sasi, %g1 ; \
 	ST(b, da) %g1, [dst] dasi ; \
 	inc	1, src ; \
-	b	%xcc, 1b ; \
+	ba	%xcc, 1b ; \
 	 inc	1, dst ; \
 	.align 16 ; \
 2:	btst	7, src ; \
 	bz,a,pt	%xcc, 3f ; \
 	 nop ; \
-	b,a	%xcc, 5f ; \
+	ba,a	%xcc, 5f ; \
 	.align 16 ; \
 3:	deccc	32, len ; \
 	bl,a,pn	%xcc, 4f ; \
@@ -190,7 +190,7 @@ __FBSDID("$FreeBSD$");
 	ST(x, da) %g3, [dst + 16] dasi ; \
 	ST(x, da) %g4, [dst + 24] dasi ; \
 	inc	32, src ; \
-	b	%xcc, 3b ; \
+	ba	%xcc, 3b ; \
 	 inc	32, dst ; \
 	.align 16 ; \
 4:	deccc	8, len ; \
@@ -199,7 +199,7 @@ __FBSDID("$FreeBSD$");
 	LD(x, sa) [src] sasi, %g1 ; \
 	ST(x, da) %g1, [dst] dasi ; \
 	inc	8, src ; \
-	b	%xcc, 4b ; \
+	ba	%xcc, 4b ; \
 	 inc	8, dst ; \
 	.align 16 ; \
 5:	deccc	1, len ; \
@@ -208,7 +208,7 @@ __FBSDID("$FreeBSD$");
 	LD(ub, sa) [src] sasi, %g1 ; \
 	ST(b, da) %g1, [dst] dasi ; \
 	inc	src ; \
-	b	%xcc, 5b ; \
+	ba	%xcc, 5b ; \
 	 inc	dst ; \
 6:
 
@@ -293,7 +293,7 @@ ENTRY(bcopy)
 	dec	1, %o0
 	ldub	[%o0], %g1
 	dec	1, %o1
-	b	%xcc, 1b
+	ba	%xcc, 1b
 	 stb	%g1, [%o1]
 2:	retl
 	 nop
