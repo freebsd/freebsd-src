@@ -727,7 +727,8 @@ int
 ieee80211_ibss_merge(struct ieee80211com *ic, struct ieee80211_node *ni)
 {
 
-	if (IEEE80211_ADDR_EQ(ni->ni_bssid, ic->ic_bss->ni_bssid)) {
+	if (ni == ic->ic_bss ||
+	    IEEE80211_ADDR_EQ(ni->ni_bssid, ic->ic_bss->ni_bssid)) {
 		/* unchanged, nothing to do */
 		return 0;
 	}
