@@ -26,6 +26,9 @@
 /*
  * HISTORY
  * $Log: db_disasm.c,v $
+ * Revision 1.1.1.1  1993/06/12  14:58:07  rgrimes
+ * Initial import, 0.1 + pk 0.2.4-B1
+ *
  * Revision 1.1  1992/03/25  21:42:01  pace
  * Initial revision
  *
@@ -719,8 +722,8 @@ struct inst db_inst_table[256] = {
 /*a9*/	{ "test",  FALSE, LONG,  op2(I, A),   0 },
 /*aa*/	{ "stos",  FALSE, BYTE,  op1(DI),     0 },
 /*ab*/	{ "stos",  FALSE, LONG,  op1(DI),     0 },
-/*ac*/	{ "ldos",  FALSE, BYTE,  op1(SI),     0 },
-/*ad*/	{ "ldos",  FALSE, LONG,  op1(SI),     0 },
+/*ac*/	{ "lods",  FALSE, BYTE,  op1(SI),     0 },
+/*ad*/	{ "lods",  FALSE, LONG,  op1(SI),     0 },
 /*ae*/	{ "scas",  FALSE, BYTE,  op1(SI),     0 },
 /*af*/	{ "scas",  FALSE, LONG,  op1(SI),     0 },
 
