@@ -1,5 +1,3 @@
-.\" $FreeBSD$
-.\"
 .\" Copyright (c) 1994 Winning Strategies, Inc.
 .\" All rights reserved.
 .\"
@@ -28,6 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
+.\" $FreeBSD$
 .Dd May 29, 1994
 .Dt CATOPEN 3
 .Os
@@ -80,10 +79,10 @@ environment variable
 determines the message catalog locale.
 .Pp
 A message catalog descriptor
-remains valid in a process until that process closes it, or a
-successful call to one of the
+remains valid in a process until that process closes it, or
+until a successful call to one of the
 .Xr exec 3
-functions.
+function.
 .Sh RETURN VALUE
 Upon successful completion, 
 .Fn catopen
@@ -93,6 +92,16 @@ Otherwise, (nl_catd) -1 is returned and
 is set to indicate the error.
 .Sh ERRORS
 .Bl -tag -width Er
+.It Bq Er EINVAL
+Argument
+.Fa name
+does not point to a valid message catalog.
+.It Bq Er ENAMETOOLONG
+An entire path to the message catalog exceeded 1024 characters.
+.It Bq Er ENOENT
+The named message catalog does not exists, or the
+.Fa name
+argument points to an empty string.
 .It Bq Er ENOMEM
 Insufficient memory is available.
 .El
