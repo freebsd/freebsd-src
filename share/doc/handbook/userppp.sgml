@@ -1,4 +1,4 @@
-<!-- $Id: userppp.sgml,v 1.15 1997/05/08 02:53:17 brian Exp $ -->
+<!-- $Id: userppp.sgml,v 1.16 1997/05/12 16:29:48 brian Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect>Setting up user PPP<label id="userppp">
@@ -185,8 +185,8 @@
    bind
 </verb></tscreen>
    which instructs the resolver to first look in the file
-   <tt>/etc/hosts</tt> first, and then to consult the DNS
-   if the name was not found.
+   <tt>/etc/hosts</tt>, and then to consult the DNS if the
+   name was not found.
 
 <sect2><heading>Edit the /etc/hosts(5) file</heading>
 
@@ -240,8 +240,6 @@
    on whether your ISP allocates IP addresses statically (i.e., you get
    given one IP address, and always use that one) or dynamically (i.e.,
    your IP address can be different during different PPP sessions).
-   However, there are a few things that you should do first, regardless
-   of whether you are using static or dynamic IP addresses.
 
 <sect2><heading>PPP and static IP addresses</heading>
 
@@ -304,23 +302,23 @@
 
 	       You will need to alter this script to suit your own needs.
 
-<tag/Line 10:/ Sets the default timeout (in seconds) for the connection.
+<tag/Line 8:/  Sets the default timeout (in seconds) for the connection.
                Here, the connection will be closed automatically after
                120 seconds of inactivity.
 
-<tag/Line 11:/ Sets the interface addresses. The string x.x.x.x should be
+<tag/Line 9:/  Sets the interface addresses. The string x.x.x.x should be
                replaced by the IP address that your provider allocates you.
                The string y.y.y.y should be replaced by the IP address that
                your ISP indicated for their gateway (the machine to which
                you connect).
 
-<tag/Line 12:/ Deletes all existing routing table entries for the
+<tag/Line 10:/ Deletes all existing routing table entries for the
                acquired tun device.
 
-<tag/Line 13:/ Adds a default route to your ISPs IP number.  The IP
+<tag/Line 11:/ Adds a default route to your ISPs IP number.  The IP
                number should always be that of your ISPs gateway.
 
-<tag/Line 14:/ Tells our side to begin negotiation.  This is not always
+<tag/Line 12:/ Tells our side to begin negotiation.  This is not always
                necessary, but it does no harm to have both sides initiating
                the Line Control Protocol (LCP).
 </descrip>
