@@ -17,7 +17,7 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $Id: machine.c,v 1.3.2.1 1997/05/31 03:18:12 gpalmer Exp $
+ * $Id: machine.c,v 1.3.2.2 1997/09/27 21:30:16 wosch Exp $
  */
 
 
@@ -726,8 +726,8 @@ struct proc **pp2;
     /* compare percent cpu (pctcpu) */
     if ((lresult = PP(p2, p_pctcpu) - PP(p1, p_pctcpu)) == 0)
     {
-	/* use cpticks to break the tie */
-	if ((result = PP(p2, p_cpticks) - PP(p1, p_cpticks)) == 0)
+	/* use lifetime CPU usage to break the tie */
+	if ((result = PP(p2, p_rtime).tv_sec - PP(p1, p_rtime).tv_sec) == 0)
 	{
 	    /* use process state to break the tie */
 	    if ((result = sorted_state[(unsigned char) PP(p2, p_stat)] -
