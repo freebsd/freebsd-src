@@ -213,7 +213,7 @@ be useful to set up clients and server for diskless boot.
 
 	    This is a safety mechanism
 
-	*   The program is capable of maintaing MD5 check cache files and
+	*   The program is capable of maintaining MD5 check cache files and
 	    doing an MD5 check between source and destination during the
 	    scan.
 
