@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.12 1995/12/04 02:26:53 jkh Exp $ */
+/*	$Id: sysv_shm.c,v 1.13 1995/12/07 12:46:55 davidg Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -64,7 +64,7 @@ static void shminit __P((void *));
 SYSINIT(sysv_shm, SI_SUB_SYSV_SHM, SI_ORDER_FIRST, shminit, NULL)
 
 struct oshmctl_args;
-int oshmctl __P((struct proc *p, struct oshmctl_args *uap, int *retval));
+static int oshmctl __P((struct proc *p, struct oshmctl_args *uap, int *retval));
 static int shmget_allocate_segment __P((struct proc *p, struct shmget_args *uap, int mode, int *retval));
 static int shmget_existing __P((struct proc *p, struct shmget_args *uap, int mode, int segnum, int *retval));
 
@@ -80,8 +80,8 @@ sy_call_t *shmcalls[] = {
 #define	SHMSEG_ALLOCATED	0x0800
 #define	SHMSEG_WANTED		0x1000
 
-vm_map_t sysvshm_map;
-int shm_last_free, shm_nused, shm_committed;
+static vm_map_t sysvshm_map;
+static int shm_last_free, shm_nused, shm_committed;
 struct shmid_ds	*shmsegs;
 
 struct shm_handle {
@@ -284,7 +284,7 @@ struct oshmctl_args {
 	struct oshmid_ds *ubuf;
 };
 
-int
+static int
 oshmctl(p, uap, retval)
 	struct proc *p;
 	struct oshmctl_args *uap;

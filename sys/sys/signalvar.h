@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signalvar.h	8.3 (Berkeley) 1/4/94
- * $Id: signalvar.h,v 1.6 1995/10/19 19:16:01 swallace Exp $
+ * $Id: signalvar.h,v 1.7 1995/11/19 00:51:29 bde Exp $
  */
 
 #ifndef	_SYS_SIGNALVAR_H_		/* tmp for user.h */
@@ -104,7 +104,7 @@ struct	sigacts {
 #define	SA_CANTMASK	0x40		/* non-maskable, catchable */
 
 #ifdef	SIGPROP
-int sigprop[NSIG + 1] = {
+static int sigprop[NSIG + 1] = {
 	0,			/* unused */
 	SA_KILL,		/* SIGHUP */
 	SA_KILL,		/* SIGINT */
@@ -151,7 +151,6 @@ int sigprop[NSIG + 1] = {
 /*
  * Machine-independent functions:
  */
-int	coredump __P((struct proc *p));
 void	execsigs __P((struct proc *p));
 void	gsignal __P((int pgid, int sig));
 int	issig __P((struct proc *p));

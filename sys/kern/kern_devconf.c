@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_devconf.c,v 1.11 1995/11/20 12:42:01 phk Exp $
+ *	$Id: kern_devconf.c,v 1.12 1995/12/06 23:37:06 bde Exp $
  */
 
 /*
@@ -38,7 +38,7 @@
 #include <sys/sysctl.h>
 #include <sys/devconf.h>
 
-struct kern_devconf *dc_list = 0;
+static struct kern_devconf *dc_list = 0;
 static unsigned dc_lastnum = 0;
 
 int

@@ -6,7 +6,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: tty_subr.c,v 1.17 1995/11/02 08:37:22 peter Exp $
+ * $Id: tty_subr.c,v 1.18 1995/11/20 12:15:45 phk Exp $
  */
 
 /*
@@ -24,7 +24,7 @@
 static void clist_init __P((void *));
 SYSINIT(clist, SI_SUB_CLIST, SI_ORDER_FIRST, clist_init, NULL)
 
-struct cblock *cfreelist = 0;
+static struct cblock *cfreelist = 0;
 int cfreecount = 0;
 static int cslushcount;
 static int ctotcount;
@@ -39,10 +39,10 @@ static void cblock_free __P((struct cblock *cblockp));
 static void cblock_free_cblocks __P((int number));
 
 #ifdef DDB
-static void cbstat __P((void));
+void DDB_cbstat __P((void));
 
 static void
-cbstat()
+DDB_cbstat()
 {
 	printf(
 	"tot = %d (active = %d, free = %d (reserved = %d, slush = %d))\n",

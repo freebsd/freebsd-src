@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.31 1995/07/31 22:50:08 bde Exp $
+ * $Id: tty.h,v 1.32 1995/12/08 11:19:32 julian Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -235,7 +235,6 @@ void	 termioschars __P((struct termios *t));
 int	 tputchar __P((int c, struct tty *tp));
 int	 ttioctl __P((struct tty *tp, int com, void *data, int flag));
 int	 ttread __P((struct tty *tp, struct uio *uio, int flag));
-void	 ttrstrt __P((void *tp));
 int	 ttyselect __P((struct tty *tp, int rw, struct proc *p));
 int	 ttselect __P((dev_t dev, int rw, struct proc *p));
 void	 ttsetwater __P((struct tty *tp));
@@ -257,7 +256,6 @@ int	 ttyopen __P((dev_t device, struct tty *tp));
 int	 ttysleep __P((struct tty *tp,
 	    void *chan, int pri, char *wmesg, int timeout));
 int	 ttywait __P((struct tty *tp));
-int	 ttywflush __P((struct tty *tp));
 struct tty *ttymalloc __P((void));
 void     ttyfree __P((struct tty *));
 

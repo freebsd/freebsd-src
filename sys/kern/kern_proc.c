@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.4 (Berkeley) 1/4/94
- * $Id: kern_proc.c,v 1.12 1995/12/02 18:58:49 bde Exp $
+ * $Id: kern_proc.c,v 1.13 1995/12/07 12:46:47 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -65,18 +65,18 @@ struct prochd idqs[NQS];	/* Space for IDLE queues too */
 volatile struct proc *allproc;	/* all processes */
 struct proc *zombproc;		/* just zombies */
 
-void pgdelete	__P((struct pgrp *));
+static void pgdelete	__P((struct pgrp *));
 
 /*
  * Structure associated with user cacheing.
  */
-struct uidinfo {
+static struct uidinfo {
 	struct	uidinfo *ui_next;
 	struct	uidinfo **ui_prev;
 	uid_t	ui_uid;
 	long	ui_proccnt;
 } **uihashtbl;
-u_long	uihash;		/* size of hash table - 1 */
+static u_long	uihash;		/* size of hash table - 1 */
 #define	UIHASH(uid)	((uid) & uihash)
 
 static void	orphanpg __P((struct pgrp *pg));
@@ -307,7 +307,7 @@ leavepgrp(p)
 /*
  * delete a process group
  */
-void
+static void
 pgdelete(pgrp)
 	register struct pgrp *pgrp;
 {

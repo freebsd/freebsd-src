@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.54 1995/12/11 04:58:02 dyson Exp $
+ * $Id: swap_pager.c,v 1.55 1995/12/11 15:43:33 dyson Exp $
  */
 
 /*
@@ -160,7 +160,6 @@ static int	swap_pager_getswapspace __P((vm_object_t object,
 					     daddr_t *rtval));
 static void	swap_pager_iodone __P((struct buf *));
 static void	swap_pager_iodone1 __P((struct buf *bp));
-static int	swap_pager_ready __P((void));
 static void	swap_pager_reclaim __P((void));
 static void	swap_pager_ridpages __P((vm_page_t *m, int count,
 					 int reqpage));
@@ -1606,16 +1605,4 @@ swap_pager_iodone(bp)
 		pagedaemon_wakeup();
 	}
 	splx(s);
-}
-
-/*
- * return true if any swap control structures can be allocated
- */
-static int
-swap_pager_ready()
-{
-	if (swap_pager_free.tqh_first)
-		return 1;
-	else
-		return 0;
 }

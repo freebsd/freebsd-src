@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_log.c,v 1.14 1995/12/08 11:17:06 julian Exp $
+ * $Id: subr_log.c,v 1.15 1995/12/08 23:21:33 phk Exp $
  */
 
 /*
@@ -69,7 +69,7 @@ static struct cdevsw log_cdevsw =
 	  logioctl,	nostop,		nullreset,	nodevtotty,/* klog */
 	  logselect,	nommap,		NULL,	"log",	NULL,	-1 };
 
-struct logsoftc {
+static struct logsoftc {
 	int	sc_state;		/* see above for possibilities */
 	struct	selinfo sc_selp;	/* process waiting on select call */
 	int	sc_pgid;		/* process/group for async I/O */

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.14 1995/11/18 10:01:38 bde Exp $
+ * $Id: kern_sig.c,v 1.15 1995/12/07 12:46:49 davidg Exp $
  */
 
 #define	SIGPROP		/* include signal properties table */
@@ -69,9 +69,11 @@
 #include <vm/vm_map.h>
 #include <sys/user.h>		/* for coredump */
 
-extern int killpg1	__P((struct proc *cp, int signum, int pgid, int all));
-extern void killproc	__P((struct proc *p, char *why));
-extern void stop	__P((struct proc *));
+static int coredump     __P((struct proc *p));
+static int killpg1	__P((struct proc *cp, int signum, int pgid, int all));
+/* XXX killproc may be a supported interface, but it isn't used anywhere... */
+static void killproc	__P((struct proc *p, char *why));
+static void stop	__P((struct proc *));
 
 /*
  * Can process p, with pcred pc, send the signal signum to process q?
@@ -1188,7 +1190,7 @@ sigexit(p, signum)
  * Dump core, into a file named "progname.core", unless the process was
  * setuid/setgid.
  */
-int
+static int
 coredump(p)
 	register struct proc *p;
 {

@@ -1,4 +1,4 @@
-/*	$Id: sysv_msg.c,v 1.8 1995/09/09 18:10:06 davidg Exp $ */
+/*	$Id: sysv_msg.c,v 1.9 1995/10/21 19:49:57 bde Exp $ */
 
 /*
  * Implementation of SVID messages
@@ -44,14 +44,14 @@ static int msgrcv __P((struct proc *p, struct msgrcv_args *uap, int *retval));
 static void msg_freehdr __P((struct msg *msghdr));
 
 /* XXX casting to (sy_call_t *) is bogus, as usual. */
-sy_call_t *msgcalls[] = {
+static sy_call_t *msgcalls[] = {
 	(sy_call_t *)msgctl, (sy_call_t *)msgget,
 	(sy_call_t *)msgsnd, (sy_call_t *)msgrcv
 };
 
-int nfree_msgmaps;		/* # of free map entries */
-short free_msgmaps;		/* head of linked list of free map entries */
-struct msg *free_msghdrs;	/* list of free msg headers */
+static int nfree_msgmaps;	/* # of free map entries */
+static short free_msgmaps;	/* head of linked list of free map entries */
+static struct msg *free_msghdrs;	/* list of free msg headers */
 char *msgpool;			/* MSGMAX byte long msg buffer pool */
 struct msgmap *msgmaps;		/* MSGSEG msgmap structures */
 struct msg *msghdrs;		/* MSGTQL msg headers */

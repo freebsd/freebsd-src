@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.55 1995/12/06 13:27:38 phk Exp $
+ * $Id: kern_sysctl.c,v 1.56 1995/12/07 12:46:52 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -957,7 +957,7 @@ userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *old
  * limited kernel stack...  -Peter
  */
 
-struct {
+static struct {
 	int	bsdi_machine;		/* "i386" on BSD/386 */
 /*      ^^^ this is an offset to the string, relative to the struct start */
 	char	*pad0;
@@ -994,7 +994,7 @@ struct {
  * This contains "FreeBSD\02.0-BUILT-nnnnnn\0i386\0", and these strings
  * should not exceed the length of the buffer here... (or else!! :-)
  */
-char bsdi_strings[80];	/* It had better be less than this! */
+static char bsdi_strings[80];	/* It had better be less than this! */
 
 #ifndef _SYS_SYSPROTO_H_
 struct getkerninfo_args {

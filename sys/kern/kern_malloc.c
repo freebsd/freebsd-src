@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.15 1995/12/02 17:10:34 bde Exp $
+ * $Id: kern_malloc.c,v 1.16 1995/12/07 12:46:44 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -49,7 +49,7 @@
 static void kmeminit __P((void *));
 SYSINIT(kmem, SI_SUB_KMEM, SI_ORDER_FIRST, kmeminit, NULL)
 
-struct kmembuckets bucket[MINBUCKET + 16];
+static struct kmembuckets bucket[MINBUCKET + 16];
 struct kmemstats kmemstats[M_LAST];
 struct kmemusage *kmemusage;
 char *kmembase, *kmemlimit;
@@ -59,7 +59,7 @@ char *memname[] = INITKMEMNAMES;
 /*
  * This structure provides a set of masks to catch unaligned frees.
  */
-long addrmask[] = { 0,
+static long addrmask[] = { 0,
 	0x00000001, 0x00000003, 0x00000007, 0x0000000f,
 	0x0000001f, 0x0000003f, 0x0000007f, 0x000000ff,
 	0x000001ff, 0x000003ff, 0x000007ff, 0x00000fff,
