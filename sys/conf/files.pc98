@@ -132,7 +132,7 @@ geom/geom_bsd_enc.c		standard
 geom/geom_pc98.c		standard
 geom/geom_pc98_enc.c		standard
 i386/bios/apm.c			optional	apm
-i386/i386/apic_vector.s		optional	apic
+#i386/i386/apic_vector.s		optional	apic
 i386/i386/atomic.c		standard				\
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} ${.IMPSRC}"
 i386/i386/autoconf.c		standard
@@ -195,7 +195,7 @@ i386/ibcs2/ibcs2_xenix.c	optional	ibcs2
 i386/ibcs2/ibcs2_xenix_sysent.c	optional	ibcs2
 i386/ibcs2/imgact_coff.c	optional	ibcs2
 i386/isa/atpic.c		standard
-i386/isa/atpic_vector.s		standard
+#i386/isa/atpic_vector.s		standard
 i386/isa/elink.c		optional	ep
 i386/isa/elink.c		optional	ie
 i386/isa/isa.c			optional	isa
