@@ -10,7 +10,7 @@ CFLAGS+=	-I${.CURDIR}/${MACHINE_ARCH} -I${.CURDIR}
 LDFLAGS+=	-nostdlib -e .rtld_start
 INSTALLFLAGS=	-fschg -C -b
 BINDIR=		/libexec
-SYMLINKS=	${BINDIR}/ld-elf.so.1 /usr/libexec/${PROG}
+SYMLINKS=	${BINDIR}/${PROG} /usr/libexec/${PROG}
 MLINKS=		rtld.1 ld-elf.so.1.1 \
 		rtld.1 ld.so.1
 
