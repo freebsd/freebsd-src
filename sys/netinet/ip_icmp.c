@@ -543,7 +543,11 @@ reflect:
 			       (int)(gw >> 24), (int)((gw >> 16) & 0xff),
 			       (int)((gw >> 8) & 0xff), (int)(gw & 0xff));
 		}
-		if (drop_redirect)
+		/*
+		 * RFC1812 says we must ignore ICMP redirects if we
+		 * are acting as router.
+		 */
+		if (drop_redirect || ipforwarding)
 			break;
 		if (code > 3)
 			goto badcode;
