@@ -604,13 +604,13 @@ cisco_send(sc_p sc, int type, long par1, long par2)
 	int     error = 0;
 	struct timeval time;
 
-	getmicrotime(&time);
+	getmicrouptime(&time);
 
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (!m)
 		return (ENOBUFS);
 
-	t = (time.tv_sec - boottime.tv_sec) * 1000;
+	t = time.tv_sec * 1000 + time.tv_usec / 1000;
 	m->m_pkthdr.len = m->m_len = CISCO_HEADER_LEN + CISCO_PACKET_LEN;
 	m->m_pkthdr.rcvif = 0;
 
