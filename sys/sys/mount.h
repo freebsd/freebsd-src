@@ -210,7 +210,8 @@ struct mount {
 			MNT_SYNCHRONOUS	| MNT_UNION	| MNT_ASYNC	| \
 			MNT_NOATIME | \
 			MNT_NOSYMFOLLOW	| MNT_IGNORE	| MNT_JAILDEVFS	| \
-			MNT_NOCLUSTERR	| MNT_NOCLUSTERW | MNT_SUIDDIR)
+			MNT_NOCLUSTERR	| MNT_NOCLUSTERW | MNT_SUIDDIR	| \
+			MNT_ACLS )
   
 /*
  * External filesystem command modifier flags.
