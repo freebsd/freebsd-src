@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.48 1995/01/07 14:51:52 jkh Exp $
+ *	$Id: conf.c,v 1.49 1995/01/07 23:20:08 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -589,10 +589,19 @@ extern	struct tty sio_tty[];
 d_open_t suopen;
 d_close_t suclose;
 d_ioctl_t suioctl;
+d_rdwr_t suread, suwrite;
+d_select_t suselect;
+#define	summap		(d_mmap_t *)enxio
+d_strategy_t sustrategy;
 #else
 #define	suopen		(d_open_t *)enxio
 #define	suclose		(d_close_t *)enxio
 #define	suioctl		(d_ioctl_t *)enxio
+#define	suread		(d_rdwr_t *)enxio
+#define	suwrite		(d_rdwr_t *)enxio
+#define	suselect	(d_select_t *)enxio
+#define	summap		(d_mmap_t *)enxio
+#define	sustrategy	(d_strategy_t *)enxio
 #endif
 
 #include "uk.h"
@@ -645,6 +654,27 @@ d_ioctl_t ctxioctl;
 #define ctxwrite	(d_rdwr_t *)enxio
 #define ctxioctl	(d_ioctl_t *)enxio
 #endif
+
+#include "ssc.h"
+#if NSSC > 0
+d_open_t sscopen;
+d_close_t sscclose;
+d_ioctl_t sscioctl;
+d_rdwr_t sscread, sscwrite;
+d_select_t sscselect;
+#define	sscmmap		(d_mmap_t *)enxio
+d_strategy_t sscstrategy;
+#else
+#define	sscopen		(d_open_t *)enxio
+#define	sscclose		(d_close_t *)enxio
+#define	sscioctl		(d_ioctl_t *)enxio
+#define	sscread		(d_rdwr_t *)enxio
+#define	sscwrite		(d_rdwr_t *)enxio
+#define	sscselect	(d_select_t *)enxio
+#define	sscmmap		(d_mmap_t *)enxio
+#define	sscstrategy	(d_strategy_t *)enxio
+#endif
+
 
 #define noopen		(d_open_t *)enodev
 #define noclose		(d_close_t *)enodev
@@ -765,9 +795,9 @@ struct cdevsw	cdevsw[] =
 	{ chopen,	chclose,	noread,		nowrite,	/*17*/
 	  chioctl,	nostop,		nullreset,	NULL,	/* ch */
 	  noselect,	nommap,		nostrat },
-	{ suopen,	suclose,	noread,		nowrite,	/*18*/
+	{ suopen,	suclose,	suread,		suwrite,	/*18*/
 	  suioctl,	nostop,		nullreset,	NULL,	/* scsi */
-	  seltrue,	nommap,		nostrat },		/* 'generic' */
+	  suselect,	summap,		sustrategy },		/* 'generic' */
 	{ twopen,	twclose,	twread,		twwrite,	/*19*/
 	  noioc,	nullstop,	nullreset,	NULL,	/* tw */
 	  twselect,	nommap,		nostrat },
@@ -861,14 +891,16 @@ struct cdevsw	cdevsw[] =
 	{ pcdopen,	pcdclose,	rawread,	nowrite,	/*46*/
 	  pcdioctl,	nostop,		nullreset,	NULL,	/* panasonic cd */
 	  seltrue,	nommap,		pcdstrategy },
-        { gscopen,      gscclose,       gscread,        nowrite,	/*47*/
-          gscioctl,     nostop,         nullreset,      NULL,	/* gsc */
-          seltrue,      nommap,         NULL },
-
+	{ gscopen,      gscclose,       gscread,        nowrite,	/*47*/
+	  gscioctl,     nostop,         nullreset,      NULL,	/* gsc */
+	  seltrue,      nommap,         NULL },
 	{ (d_open_t *)enxio, (d_close_t *)enxio, (d_rdwr_t *)enxio,	/*48*/
 	  (d_rdwr_t *)enxio, (d_ioctl_t *)enxio, (d_stop_t *)enxio,/* cyclades */
 	  (d_reset_t *)enxio, NULL, (d_select_t *)enxio,
 	  (d_mmap_t *)enxio, NULL },
+	{ sscopen,	sscclose,	sscread,	sscwrite,	/*49*/
+	  sscioctl,	nostop,		nullreset,	NULL,	/* scsi super */
+	  sscselect,	sscmmap,		sscstrategy },
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
 
