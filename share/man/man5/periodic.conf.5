@@ -192,6 +192,11 @@ No rotations are necessary unless
 .Ar accounting_enable
 is enabled in
 .Xr rc.conf 5 .
+.It Ar daily_accounting_compress
+(bool) Set to
+.Dq YES
+if you want your daily accounting files to be compressed using
+.Xr gzip 1 .
 .It Ar daily_distfile_enable
 (bool) Set to
 .Dq YES
@@ -395,6 +400,7 @@ is shared or distributed.
 .Xr apropos 1 ,
 .Xr calendar 1 ,
 .Xr df 1 ,
+.Xr gzip 1 ,
 .Xr locate 1 ,
 .Xr man 1 ,
 .Xr msgs 1 ,
