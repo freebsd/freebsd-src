@@ -50,3 +50,7 @@ version of binutils by running the "update.sh" script in that directory.
 
 When upgrading to a new version, you also need to update the VERSION
 definition in "src/gnu/usr.bin/binutils/Makefile.inc0".
+
+Also, verify that all applicable vendor changes to
+contrib/binutils/ld/genscripts.sh are propogated to
+src/gnu/usr.bin/binutils/ld/genscripts.sh.
