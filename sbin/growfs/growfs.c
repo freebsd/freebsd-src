@@ -366,7 +366,7 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 {
 	DBG_FUNC("initcg")
 	static caddr_t iobuf;
-	long i, j, d, dlower, dupper, blkno, start;
+	long i, d, dlower, dupper, blkno, start;
 	ufs2_daddr_t cbase, dmax;
 	struct ufs1_dinode *dp1;
 	struct ufs2_dinode *dp2;
@@ -2365,7 +2365,7 @@ updrefs(int cg, ino_t in, struct gfs_bpp *bp, int fsi, int fso, unsigned int
 	ufs_lbn_t	len, lbn, numblks;
 	ufs2_daddr_t	iptr, blksperindir;
 	union dinode	*ino;
-	int		i, mode, remaining_blocks, inodeupdated;
+	int		i, mode, inodeupdated;
 
 	DBG_ENTER;
 
@@ -2445,7 +2445,6 @@ indirchk(ufs_lbn_t blksperindir, ufs_lbn_t lbn, ufs2_daddr_t blkno,
 {
 	DBG_FUNC("indirchk")
 	void *ibuf;
-	off_t offset;
 	int i, last;
 	ufs2_daddr_t iptr;
 
