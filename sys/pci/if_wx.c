@@ -256,12 +256,8 @@ wx_attach(parent, self, aux)
 	/*
 	 * Attach the interface.
 	 */
-	if_attach(ifp);
 	ether_ifattach(ifp, sc->wx_enaddr);
-#if	NBPFILTER > 0
-	bpfattach(&sc->w.ethercom.ec_if.if_bpf, ifp, DLT_EN10MB,
-	    sizeof (struct ether_header));
-#endif
+
 	/*
 	 * Add shutdown hook so that DMA is disabled prior to reboot. Not
 	 * doing do could allow DMA to corrupt kernel memory during the
@@ -539,7 +535,6 @@ wx_attach(device_t dev)
 	int error = 0;
 	wx_softc_t *tmp, *sc = device_get_softc(dev);
 	struct ifnet *ifp;
-	int s;
 	u_long val;
 	int rid;
 
@@ -572,8 +567,8 @@ wx_attach(device_t dev)
 		}
 	}
 
-
-	s = splimp();
+        mtx_init(&sc->wx_mtx, device_get_nameunit(dev), MTX_DEF);
+	WX_LOCK(sc);
 	/*
  	 * get revision && id...
 	 */
@@ -657,7 +652,7 @@ wx_attach(device_t dev)
 		wxlist = sc;
 	}
 out:
-	splx(s);
+	WX_UNLOCK(sc);
 	return (error);
 }
 
@@ -665,13 +660,14 @@ static int
 wx_detach(device_t dev)
 {
 	wx_softc_t *sc = device_get_softc(dev);
-	int s = splimp();
+
+	WX_LOCK(sc);
 	ether_ifdetach(&sc->w.arpcom.ac_if, ETHER_BPF_SUPPORTED);
 	wx_stop(sc);
 	bus_teardown_intr(dev, sc->w.irq, sc->w.ih);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->w.irq);
 	bus_release_resource(dev, SYS_RES_MEMORY, WX_MMBA, sc->w.mem);
-	splx(s);
+	WX_UNLOCK(sc);
 	return (0);
 }
 
@@ -1003,6 +999,7 @@ wx_start(ifp)
 	wx_softc_t *sc = SOFTC_IFP(ifp);
 	u_int16_t cidx, nactv;
 
+	WX_LOCK(sc);
 	nactv = sc->tactive;
 	while (nactv < WX_MAX_TDESC) {
 		int ndesc;
@@ -1180,6 +1177,7 @@ again:
 		sc->wx_xmitblocked++;
 		ifp->if_flags |= IFF_OACTIVE;
 	}
+	WX_UNLOCK(sc);
 }
 
 /*
@@ -1192,6 +1190,7 @@ wx_intr(arg)
 	wx_softc_t *sc = arg;
 	int claimed = 0;
 
+	WX_LOCK(sc);
 	/*
 	 * Read interrupt cause register. Reading it clears bits.
 	 */
@@ -1212,6 +1211,7 @@ wx_intr(arg)
 		}
 		WX_ENABLE_INT(sc);
 	}
+	WX_UNLOCK(sc);
 	return (claimed);
 }
 
@@ -1488,11 +1488,12 @@ wx_gc(sc)
 	wx_softc_t *sc;
 {
 	struct ifnet *ifp = &sc->wx_if;
-	txpkt_t *txpkt = sc->tbsyf;
-	u_int32_t tdh = READ_CSR(sc, WXREG_TDH);
-	int s;
+	txpkt_t *txpkt;
+	u_int32_t tdh;
 
-	s = splimp();
+	WX_LOCK(sc);
+	txpkt = sc->tbsyf;
+	tdh = READ_CSR(sc, WXREG_TDH);
 	while (txpkt != NULL) {
 		u_int32_t end = txpkt->eidx, cidx = tdh;
 
@@ -1570,7 +1571,7 @@ wx_gc(sc)
 		ifp->if_timer = 0;
 		ifp->if_flags &= ~IFF_OACTIVE;
 	}
-	splx(s);
+	WX_UNLOCK(sc);
 }
 
 /*
@@ -1583,12 +1584,11 @@ wx_watchdog(arg)
 	void *arg;
 {
 	wx_softc_t *sc = arg;
-	int s;
 
-	s = splimp();
+	WX_LOCK(sc);
 	wx_gc(sc);
 	wx_check_link(sc);
-	splx(s);
+	WX_UNLOCK(sc);
 
 	/*
 	 * Schedule another timeout one second from now.
@@ -1828,9 +1828,9 @@ wx_init(xsc)
 	rxpkt_t *rxpkt;
 	wxrd_t *rd;
 	size_t len;
-	int s, i, bflags;
+	int i, bflags;
 
-	s = splimp();
+	WX_LOCK(sc);
 
 	/*
 	 * Cancel any pending I/O by resetting things.
@@ -1844,6 +1844,7 @@ wx_init(xsc)
 	 */
 
 	if (wx_hw_initialize(sc)) {
+		WX_UNLOCK(sc);
 		return (EIO);
 	}
 
@@ -1863,6 +1864,7 @@ wx_init(xsc)
 	if (i != WX_MAX_RDESC) {
 		printf("%s: could not set up rbufs\n", sc->wx_name);
 		wx_stop(sc);
+		WX_UNLOCK(sc);
 		return (ENOMEM);
 	}
 
@@ -1938,7 +1940,7 @@ wx_init(xsc)
 	ifm->ifm_media = ifm->ifm_cur->ifm_media;
 	wx_ifmedia_upd(ifp);
 	ifm->ifm_media = i;
-	splx(s);
+	WX_UNLOCK(sc);
 
 	/*
 	 * Start stats updater.
@@ -2001,9 +2003,9 @@ wx_ioctl(ifp, command, data)
 {
 	wx_softc_t *sc = SOFTC_IFP(ifp);
 	struct ifreq *ifr = (struct ifreq *) data;
-	int s, error = 0;
+	int error = 0;
 
-	s = splimp();
+	WX_LOCK(sc);
 	switch (command) {
 	case SIOCSIFADDR:
 #if !defined(__NetBSD__)
@@ -2070,7 +2072,7 @@ wx_ioctl(ifp, command, data)
 		error = EINVAL;
 	}
 
-	(void) splx(s);
+	WX_UNLOCK(sc);
 	return (error);
 }
 
