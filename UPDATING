@@ -26,7 +26,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	about the new system calls that support the new statfs
 	structure.  Running an old kernel after a `make world' will
 	cause programs such as `df' that do a statfs system call to
-	fail with a bad system call.
+	fail with a bad system call. Marco Wertejuk <wertejuk@mwcis.com>
+	also reports that cfsd (ports/security/cfs) needs to be
+	recompiled after these changes are installed.
 
 	****************************DANGER*******************************
 
