@@ -27,7 +27,7 @@
 .\"
 .Dd April 19, 2001
 .Dt DEVINFO 3
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm devinfo ,
 .Nm devinfo_init ,
@@ -57,24 +57,24 @@
 .Ft int
 .Fo devinfo_foreach_device_child
 .Fa "struct devinfo_dev *parent" 
-.Fa "int (* fn)(struct devinfo_dev *child, void *arg)"
+.Fa "int \*[lp]*fn\*[rp]\*[lp]struct devinfo_dev *child, void *arg\*[rp]"
 .Fa "void *arg"
 .Fc
 .Ft int
 .Fo devinfo_foreach_device_resource
 .Fa "struct devinfo_dev *dev"
-.Fa "int (* fn)(struct devinfo_dev *dev, struct devinfo_res *res, void *arg)"
+.Fa "int \*[lp]*fn\*[rp]\*[lp]struct devinfo_dev *dev, struct devinfo_res *res, void *arg\*[rp]"
 .Fa "void *arg"
 .Fc
 .Ft int
 .Fo devinfo_foreach_rman_resource
 .Fa "struct devinfo_rman *rman"
-.Fa "int (* fn)(struct devinfo_res *res, void *arg)"
+.Fa "int \*[lp]*fn\*[rp]\*[lp]struct devinfo_res *res, void *arg\*[rp]"
 .Fa "void *arg"
 .Fc
 .Ft int
 .Fo devinfo_foreach_rman
-.Fa "int (* fn)(struct devinfo_rman *rman, void *arg)"
+.Fa "int \*[lp]*fn\*[rp]\*[lp]struct devinfo_rman *rman, void *arg\*[rp]"
 .Fa "void *arg"
 .Fc
 .Sh DESCRIPTION
@@ -92,7 +92,7 @@ in a number of different fashions,
 the library does not attempt to impose any structure on the data.
 .Pp
 Device, resource, and resource manager information is returned in
-datastructures defined in
+data structures defined in
 .Aq Pa devinfo.h :
 .Bd -literal -offset indent
 struct devinfo_dev {
@@ -120,7 +120,7 @@ struct devinfo_res {
 .Ed
 .Pp
 The
-.Va devinfo_handle_t
+.Vt devinfo_handle_t
 values can be used to look up the correspondingly referenced structures.
 .Pp
 .Fn devinfo_init
@@ -142,12 +142,12 @@ must be called again before using any other functions.
 and
 .Fn devinfo_handle_to_rman
 return pointers to 
-.Va devinfo_dev ,
-.Va devinfo_res
+.Vt devinfo_dev ,
+.Vt devinfo_res
 and
-.Va devinfo_rman
+.Vt devinfo_rman
 structures respectively based on the
-.Va devinfo_handle_t
+.Vt devinfo_handle_t
 passed to them.
 These functions can be used to traverse the tree from any node to any
 other node.
@@ -159,15 +159,15 @@ it will return the handle to the root of the device tree.
 .Pp
 .Fn devinfo_foreach_device_child
 invokes its callback argument
-.Ar fn
+.Fa fn
 on every device which is an immediate child of
-.Ar device .
-.Ar fn
+.Fa device .
+.Fa fn
 is also passed
-.Ar arg ,
+.Fa arg ,
 allowing state to be passed to the callback function.
 If
-.Ar fn
+.Fa fn
 returns a nonzero error value the traversal is halted,
 and
 .Fn devinfo_foreach_device_child
@@ -175,17 +175,17 @@ returns the error value to its caller.
 .Pp
 .Fn devinfo_foreach_device_resource
 invokes its callback argument
-.Ar fn
+.Fa fn
 on every resource which is owned by
-.Ar device .
-.Ar fn
+.Fa device .
+.Fa fn
 is also passed
-.Ar device
+.Fa device
 and
-.Ar arg ,
+.Fa arg ,
 allowing state to be passed to the callback function.
 If
-.Ar fn
+.Fa fn
 returns a nonzero error value the traversal is halted,
 and
 .Fn devinfo_foreach_device_resource
@@ -193,15 +193,15 @@ returns the error value to its caller.
 .Pp
 .Fn devinfo_foreach_rman_resource
 invokes its callback argument
-.Ar fn
+.Fa fn
 on every resource within the resource manager
-.Ar rman .
-.Ar fn
+.Fa rman .
+.Fa fn
 is also passed
-.Ar arg ,
+.Fa arg ,
 allowing state to be passed to the callback function.
 If
-.Ar fn
+.Fa fn
 returns a nonzero error value the traversal is halted,
 and
 .Fn devinfo_foreach_rman_resource
@@ -209,14 +209,14 @@ returns the error value to its caller.
 .Pp
 .Fn devinfo_foreach_rman
 invokes its callback argument
-.Ar fn
+.Fa fn
 on every resource manager.
-.Ar fn
+.Fa fn
 is also passed
-.Ar arg ,
+.Fa arg ,
 allowing state to be passed to the callback function.
 If
-.Ar fn
+.Fa fn
 returns a nonzero error value the traversal is halted,
 and
 .Fn devinfo_foreach_rman
