@@ -936,7 +936,7 @@ if [ "$hname" != "" ]; then
 	if [ ! "$have_dos_part" ]; then
 		echo "/dev/${drivename}h	/$hname	ufs	rw 1 5" >>etc/fstab
 	else
-		echo "/dev/${drivename}h	/$hname	pcfs	rw" >>etc/fstab
+		echo "/dev/${drivename}h	/$hname	pcfs	rw 0 0" >>etc/fstab
 	fi
 fi
 
