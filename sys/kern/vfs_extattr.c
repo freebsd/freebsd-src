@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.105 1998/07/15 02:32:13 bde Exp $
+ * $Id: vfs_syscalls.c,v 1.106 1998/09/10 02:27:52 tegge Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -1818,10 +1818,7 @@ setfflags(p, vp, flags)
 	struct vattr vattr;
 
 	VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
-	if (error = vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p)) {
-		return error;
-	}
-		
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	VATTR_NULL(&vattr);
 	vattr.va_flags = flags;
 	error = VOP_SETATTR(vp, &vattr, p->p_ucred, p);
@@ -1892,12 +1889,9 @@ setfmode(p, vp, mode)
 {
 	int error;
 	struct vattr vattr;
-	VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
 
-	if (error = vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p)) {
-		return error;
-	}
-		
+	VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	VATTR_NULL(&vattr);
 	vattr.va_mode = mode & ALLPERMS;
 	error = VOP_SETATTR(vp, &vattr, p->p_ucred, p);
@@ -1998,12 +1992,9 @@ setfown(p, vp, uid, gid)
 {
 	int error;
 	struct vattr vattr;
-	VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
 
-	if (error = vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p)) {
-		return error;
-	}
-		
+	VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	VATTR_NULL(&vattr);
 	vattr.va_uid = uid;
 	vattr.va_gid = gid;
@@ -2115,11 +2106,7 @@ setutimes(p, vp, tv, nullflag)
 	struct vattr vattr;
 
 	VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
-
-	if (error = vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p)) {
-		return error;
-	}
-		
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	VATTR_NULL(&vattr);
 	vattr.va_atime.tv_sec = tv[0].tv_sec;
 	vattr.va_atime.tv_nsec = tv[0].tv_usec * 1000;
@@ -2421,22 +2408,14 @@ fsync(p, uap)
 	if (error = getvnode(p->p_fd, SCARG(uap, fd), &fp))
 		return (error);
 	vp = (struct vnode *)fp->f_data;
-	if ((error = vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p)) == NULL) {
-		if (vp->v_object) {
-			vm_object_page_clean(vp->v_object, 0, 0, FALSE);
-		}
-		if (vp->v_mount && (vp->v_mount->mnt_flag & MNT_SOFTDEP)) {
-			error = VOP_FSYNC(vp, fp->f_cred, MNT_LAZY, p);
-		} else {
-			error = VOP_FSYNC(vp, fp->f_cred,
-				(vp->v_mount && (vp->v_mount->mnt_flag & MNT_ASYNC)) ? 
-				MNT_NOWAIT : MNT_WAIT, p);
-		}
-		VOP_UNLOCK(vp, 0, p);
-
-		if ((vp->v_mount->mnt_flag & MNT_SOFTDEP) && bioops.io_sync)
-			(*bioops.io_sync)(NULL);
-	}
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+	if (vp->v_object)
+		vm_object_page_clean(vp->v_object, 0, 0, FALSE);
+	if ((error = VOP_FSYNC(vp, fp->f_cred, MNT_WAIT, p)) == 0 &&
+	    vp->v_mount && (vp->v_mount->mnt_flag & MNT_SOFTDEP) &&
+	    bioops.io_fsync)
+		error = (*bioops.io_fsync)(vp);
+	VOP_UNLOCK(vp, 0, p);
 	return (error);
 }
 
