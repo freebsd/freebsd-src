@@ -132,13 +132,12 @@ mpttimeout(void *arg)
 		mpt_read(mpt, MPT_OFFSET_INTR_STATUS),
 		mpt_read(mpt, MPT_OFFSET_INTR_MASK),
 		mpt_read(mpt, MPT_OFFSET_DOORBELL) );
-	printf( "request state %s\n", mpt_req_state(req->debug)); 
-	if (ccb != req->ccb)
+	printf("request state %s\n", mpt_req_state(req->debug)); 
+	if (ccb != req->ccb) {
 		printf("time out: ccb %p != req->ccb %p\n",
 			ccb,req->ccb);
-
+	}
 	mpt_print_scsi_io_request((MSG_SCSI_IO_REQUEST *)req->req_vbuf);
-
 	req->debug = REQ_TIMEOUT;
 	req->ccb = NULL;
 	ccb->ccb_h.status = CAM_CMD_TIMEOUT;
@@ -146,6 +145,7 @@ mpttimeout(void *arg)
 	MPTLOCK_2_CAMLOCK(mpt);
 	xpt_done(ccb);
 	CAMLOCK_2_MPTLOCK(mpt);
+	MPT_UNLOCK(mpt);
 }
 
 /*
@@ -459,7 +459,6 @@ mpt_start(union ccb *ccb)
 				 * Virtual address that needs to translated into
 				 * one or more physical pages.
 				 */
-				int s;
 				int error;
 
 				error = bus_dmamap_load(mpt->buffer_dmat,
@@ -475,7 +474,6 @@ mpt_start(union ccb *ccb)
 					xpt_freeze_simq(mpt->sim, 1);
 					ccbh->status |= CAM_RELEASE_SIMQ;
 				}
-				splx(s);
 			} else {
 				/*
 				 * We have been given a pointer to single
