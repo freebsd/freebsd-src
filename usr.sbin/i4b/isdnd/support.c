@@ -31,7 +31,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Wed Oct  4 18:24:27 2000]
+ *      last edit-date: [Thu Nov 30 20:36:29 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -543,8 +543,8 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 	}
 	else
 	{
-		log(LL_CHD, "%05d <unknown> incoming call from %s to %s",
-			mp->header.cdid, mp->src_telno, mp->dst_telno);
+		log(LL_CHD, "%05d <unknown> incoming call from %s to %s ctrl %d",
+			mp->header.cdid, mp->src_telno, mp->dst_telno, mp->controller);
 	}
 	return(NULL);
 }
