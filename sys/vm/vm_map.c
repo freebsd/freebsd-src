@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.170 1999/06/17 21:29:38 alc Exp $
+ * $Id: vm_map.c,v 1.171 1999/07/01 19:53:41 peter Exp $
  */
 
 /*
@@ -472,8 +472,6 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		 */
 		if ((object->ref_count > 1) || (object->shadow_count != 0)) {
 			vm_object_clear_flag(object, OBJ_ONEMAPPING);
-		} else {
-			vm_object_set_flag(object, OBJ_ONEMAPPING);
 		}
 	}
 	else if ((prev_entry != &map->header) &&
@@ -739,8 +737,6 @@ vm_map_simplify_entry(map, entry)
 { \
 	if (startaddr > entry->start) \
 		_vm_map_clip_start(map, entry, startaddr); \
-	else if (entry->object.vm_object && (entry->object.vm_object->ref_count == 1)) \
-		vm_object_set_flag(entry->object.vm_object, OBJ_ONEMAPPING); \
 }
 
 /*
@@ -789,9 +785,6 @@ _vm_map_clip_start(map, entry, start)
 	vm_map_entry_link(map, entry->prev, new_entry);
 
 	if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
-		if (new_entry->object.vm_object->ref_count == 1)
-			vm_object_set_flag(new_entry->object.vm_object,
-					   OBJ_ONEMAPPING);
 		vm_object_reference(new_entry->object.vm_object);
 	}
 }
@@ -808,8 +801,6 @@ _vm_map_clip_start(map, entry, start)
 { \
 	if (endaddr < entry->end) \
 		_vm_map_clip_end(map, entry, endaddr); \
-	else if (entry->object.vm_object && (entry->object.vm_object->ref_count == 1)) \
-		vm_object_set_flag(entry->object.vm_object, OBJ_ONEMAPPING); \
 }
 
 /*
@@ -853,9 +844,6 @@ _vm_map_clip_end(map, entry, end)
 	vm_map_entry_link(map, entry, new_entry);
 
 	if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
-		if (new_entry->object.vm_object->ref_count == 1)
-			vm_object_set_flag(new_entry->object.vm_object,
-					   OBJ_ONEMAPPING);
 		vm_object_reference(new_entry->object.vm_object);
 	}
 }
