@@ -15,7 +15,7 @@
 .\" * Paul Vixie          <paul@vix.com>          uunet!decwrl!vixie!paul
 .\" */
 .\"
-.\" $Id: crontab.1,v 1.4 1997/09/15 06:39:13 charnier Exp $
+.\" $Id: crontab.1,v 1.6 1999/08/14 06:34:50 chris Exp $
 .\"
 .Dd December 29, 1993
 .Dt CRONTAB 1
@@ -71,11 +71,11 @@ tweaked.  If this option is not given,
 .Nm
 examines "your" crontab, i.e., the crontab of the person executing the
 command.  Note that
-.Xr su 8
+.Xr su 1
 can confuse
 .Nm
 and that if you are running inside of
-.Xr su 8
+.Xr su 1
 you should always use the
 .Fl u
 option for safety's sake.
