@@ -29,6 +29,10 @@
  */
 
 /*
+ * Bug fixes gratefully acknowledged from:
+ *	Oded Kedem <oded@kashya.com>
+ */
+/*
  * Include header file appropriate for platform we're building on.
  */
 
@@ -678,6 +682,7 @@ isp_notify_ack(struct ispsoftc *isp, void *arg)
 			na->na_task_flags = inp->in_task_flags;
 			na->na_seqid = inp->in_seqid;
 			na->na_flags = NAFC_RCOUNT;
+			na->na_status = inp->in_status;
 			if (inp->in_status == IN_RESET) {
 				na->na_flags |= NAFC_RST_CLRD;
 			}
