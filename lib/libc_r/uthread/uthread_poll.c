@@ -41,7 +41,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-__weak_reference(_poll, poll);
+__weak_reference(__poll, poll);
 
 int 
 _poll(struct pollfd *fds, unsigned int nfds, int timeout)
@@ -96,4 +96,16 @@ _poll(struct pollfd *fds, unsigned int nfds, int timeout)
 	}
 
 	return (ret);
+}
+
+int
+__poll(struct pollfd *fds, unsigned int nfds, int timeout)
+{
+	int ret;
+
+	_thread_enter_cancellation_point();
+	ret = _poll(fds, nfds, timeout);
+	_thread_leave_cancellation_point();
+
+	return ret;
 }
