@@ -252,6 +252,7 @@ struct	tcpstat {
 	u_long	tcps_rcvbyte;		/* bytes received in sequence */
 	u_long	tcps_rcvbadsum;		/* packets received with ccksum errs */
 	u_long	tcps_rcvbadoff;		/* packets received with bad offset */
+	u_long	tcps_rcvmemdrop;	/* packets dropped for lack of memory */
 	u_long	tcps_rcvshort;		/* packets received too short */
 	u_long	tcps_rcvduppack;	/* duplicate-only packets received */
 	u_long	tcps_rcvdupbyte;	/* duplicate-only bytes received */
@@ -314,7 +315,8 @@ struct	xtcpcb {
 #define	TCPCTL_KEEPINIT		10	/* receive buffer space */
 #define	TCPCTL_PCBLIST		11	/* list of all outstanding PCBs */
 #define	TCPCTL_DELACKTIME	12	/* time before sending delayed ACK */
-#define TCPCTL_MAXID		13
+#define	TCPCTL_V6MSSDFLT	13	/* MSS default for IPv6 */
+#define	TCPCTL_MAXID		14
 
 #define TCPCTL_NAMES { \
 	{ 0, 0 }, \
@@ -330,6 +332,7 @@ struct	xtcpcb {
 	{ "keepinit", CTLTYPE_INT }, \
 	{ "pcblist", CTLTYPE_STRUCT }, \
 	{ "delacktime", CTLTYPE_INT }, \
+	{ "v6mssdflt", CTLTYPE_INT }, \
 }
 
 
