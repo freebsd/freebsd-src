@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.154 1998/02/12 17:53:19 yokota Exp $
+ * $Id: menus.c,v 1.155 1998/03/07 08:59:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1235,7 +1235,7 @@ DMenu MenuNetworking = {
 	dmenuVarCheck, dmenuToggleVariable, NULL, "amd_enable=YES" },
       { "AMD Flags",	"Set flags to AMD service (if enabled)",
 	dmenuVarCheck, dmenuISetVariable, NULL, "amd_flags" },
-      { "TCP Extentions",	"Allow RFC1323 and RFC1544 TCP extentions?",
+      { "TCP Extentions",       "Allow RFC1323 and RFC1644 TCP extentions?",
 	dmenuVarCheck, dmenuToggleVariable, NULL, "tcp_extentions=YES" },
       { "Gateway",	"This machine will route packets between interfaces",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "gateway_enable=YES" },
