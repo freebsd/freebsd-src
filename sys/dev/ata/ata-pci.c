@@ -363,13 +363,13 @@ ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq,
 #endif
     }
     else {
-	    struct ata_pci_controller *controller = device_get_softc(dev);
-	    int unit = ((struct ata_channel *)device_get_softc(child))->unit;
+	struct ata_pci_controller *controller = device_get_softc(dev);
+	int unit = ((struct ata_channel *)device_get_softc(child))->unit;
 
-	    controller->interrupt[unit].function = function;
-	    controller->interrupt[unit].argument = argument;
-	    *cookiep = controller;
-	    return 0;
+	controller->interrupt[unit].function = function;
+	controller->interrupt[unit].argument = argument;
+	*cookiep = controller;
+	return 0;
     }
 }
 
@@ -384,8 +384,14 @@ ata_pci_teardown_intr(device_t dev, device_t child, struct resource *irq,
 	return BUS_TEARDOWN_INTR(device_get_parent(dev), child, irq, cookie);
 #endif
     }
-    else
+    else {
+	struct ata_pci_controller *controller = device_get_softc(dev);
+	int unit = ((struct ata_channel *)device_get_softc(child))->unit;
+
+	controller->interrupt[unit].function = NULL;
+	controller->interrupt[unit].argument = NULL;
 	return 0;
+    }
 }
 
 static void
