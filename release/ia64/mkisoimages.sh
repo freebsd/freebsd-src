@@ -23,48 +23,80 @@
 # extra-bits-dir, if provided, contains additional files to be merged
 # into base-bits-dir as part of making the image.
 
-IMG=/tmp/bootfs
-LOADER=/boot/loader
-MNT=/mnt
+set -e
+
+# The hackery function is to help with the development of the release
+# process. It's not intended to be an integral part of it. JFYI...
+hackery() {
+    echo "Sorry, no hackery today and you're out of milk too"
+    exit 2
+}
+
+MKISOFS_PORT=/usr/ports/sysutils/mkisofs
 
 if [ "x$1" = "x-b" ]; then
-	dd if=/dev/zero of=${IMG} bs=512 count=1024
-	MD=`mdconfig -a -t vnode -f ${IMG}`
-	disklabel -Brw ${MD} auto
-	newfs /dev/${MD}c
-	mount /dev/${MD}c ${MNT}
-	mkdir ${MNT}/boot
-	cp ${LOADER} ${MNT}/boot
-	umount ${MNT}
-	mdconfig -d -u ${MD#md}
-	bootable="-B ,,,,${IMG}"
-	shift
+    bootable=yes
+    shift
 else
-	bootable=""
+    bootable=no
 fi
 
 if [ $# -lt 3 ]; then
-	echo Usage: $0 '[-b] image-label image-name base-bits-dir [extra-bits-dir]'
-	rm -f ${IMG}
-	exit 1
+    echo usage: $0 '[-b] label iso-name base-dir [extra-dir]'
+    exit 1
 fi
 
-type mkisofs 2>&1 | grep " is " >/dev/null
-if [ $? -ne 0 ]; then
-	echo The mkisofs port is not installed.  Trying to get it now.
-	if [ -f /usr/ports/sysutils/mkisofs/Makefile ]; then
-		cd /usr/ports/sysutils/mkisofs && make install && make clean
-	else
-		if ! pkg_add -r mkisofs; then
-			echo "Could not get it via pkg_add - please go install this"
-			echo "from the ports collection and run this script again."
-			exit 2
-		fi
-	fi
-fi
-
+BOOTOPTS=""
 LABEL=$1; shift
 NAME=$1; shift
+BASE=$1; shift
 
-mkisofs $bootable -r -J -V $LABEL -o $NAME $*
-rm -f ${IMG}
+if ! which mkisofs; then
+    echo 'mkisofs(8) does not exist. Fetching the package...'
+    if ! pkg_add -r mkisofs; then
+	if [ -f /usr/ports/sysutils/mkisofs/Makefile ]; then
+	    echo "Don't worry; building the port..."
+	    if ! (cd $MKISOFS_PORT && make install && make clean); then
+		echo "Worry; reverting to hackery..."
+		hackery
+	    fi
+	else
+	    echo "Ports not present. Reverting to hackery..."
+	    hackery
+	fi
+    fi
+fi
+
+EFIPART=efipart.sys
+
+# To create a bootable CD under EFI, the boot image should be an EFI
+# system partition. Since we already made that on the boot floppy,
+# we sneakily extract that.
+if [ $bootable = yes ]; then
+    if [ -f $BASE/floppies/boot.flp ]; then
+	md=`mdconfig -a -t vnode -f $BASE/floppies/boot.flp`
+	dd if=/dev/${md}p1 of=$BASE/$EFIPART
+	mdconfig -d -u $md
+    else
+	EFISZ=10240
+	MNT=/mnt
+	dd if=/dev/zero of=$BASE/$EFIPART count=$EFISZ
+	md=`mdconfig -a -t vnode -f $BASE/$EFIPART`
+	newfs_msdos -F 12 -S 512 -h 4 -o 0 -s $EFISZ -u 16 $md
+	mount -t msdos /dev/$md $MNT
+	mkdir -p $MNT/efi/boot $MNT/boot $MNT/boot/kernel
+	cp -R $BASE/boot/defaults $MNT/boot
+	cp $BASE/boot/kernel/kernel $MNT/boot/kernel
+	cp $BASE/boot/device.hints $MNT/boot
+	cp $BASE/boot/loader.* $MNT/boot
+	cp $BASE/boot/support.4th $MNT/boot
+	mv $MNT/boot/loader.efi $MNT/efi/boot/bootia64.efi
+	umount $MNT
+	mdconfig -d -u $md
+    fi
+    BOOTOPTS="-b $EFIPART -no-emul-boot"
+fi
+
+mkisofs $BOOTOPTS -r -J -V $LABEL -o $NAME $BASE $*
+rm -f $BASE/$EFIPART
+exit 0
