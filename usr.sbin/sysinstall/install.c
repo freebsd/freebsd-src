@@ -240,7 +240,8 @@ installInitial(void)
 	status = DITEM_FAILURE;
 
     /* stick a helpful shell over on the 4th VTY */
-    systemCreateHoloshell();
+    if (!variable_get(VAR_NO_HOLOSHELL))
+	systemCreateHoloshell();
 
     alreadyDone = TRUE;
     return status;
