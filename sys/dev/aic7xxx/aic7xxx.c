@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.5 1998/09/20 23:30:14 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.6 1998/10/07 03:34:13 gibbs Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -2404,7 +2404,7 @@ ahc_init(struct ahc_softc *ahc)
 	int	max_targ = 15;
 	int	i;
 	int	term;
-	u_int	scsi_conf, sxfrctl1;
+	u_int	scsi_conf;
 
 #ifdef AHC_PRINT_SRAM
 	printf("Scratch Ram:");
@@ -2529,7 +2529,6 @@ ahc_init(struct ahc_softc *ahc)
 		else
 			ahc_outb(ahc, SCSIID, ahc->our_id_b);
 		scsi_conf = ahc_inb(ahc, SCSICONF + 1);
-		sxfrctl1 = ahc_inb(ahc, SXFRCTL1);
 		ahc_outb(ahc, SXFRCTL1, (scsi_conf & (ENSPCHK|STIMESEL))
 					|term|ENSTIMER|ACTNEGEN);
 		ahc_outb(ahc, SIMODE1, ENSELTIMO|ENSCSIRST|ENSCSIPERR);
@@ -2552,7 +2551,6 @@ ahc_init(struct ahc_softc *ahc)
 	else
 		ahc_outb(ahc, SCSIID, ahc->our_id);
 	scsi_conf = ahc_inb(ahc, SCSICONF);
-	sxfrctl1 = ahc_inb(ahc, SXFRCTL1);
 	ahc_outb(ahc, SXFRCTL1, (scsi_conf & (ENSPCHK|STIMESEL))
 				|term
 				|ENSTIMER|ACTNEGEN);
@@ -2595,7 +2593,8 @@ ahc_init(struct ahc_softc *ahc)
 	if (ahc->flags & AHC_USEDEFAULTS) {
 		printf("%s: Host Adapter Bios disabled.  Using default SCSI "
 			"device parameters\n", ahc_name(ahc));
-		ahc->flags |= AHC_EXTENDED_TRANS_A|AHC_EXTENDED_TRANS_B;
+		ahc->flags |= AHC_EXTENDED_TRANS_A|AHC_EXTENDED_TRANS_B|
+			      AHC_TERM_ENB_A|AHC_TERM_ENB_B;
 		ahc->discenable = ALL_TARGETS;
 		if ((ahc->features & AHC_ULTRA) != 0)
 			ahc->ultraenb = 0xffff;
