@@ -32,6 +32,7 @@
  * $FreeBSD$
  */
 #include <sys/param.h>
+#include <sys/stat.h>
 #include <sys/errno.h>
 #include <sys/mount.h>
 
@@ -47,7 +48,6 @@
 
 #include <netncp/ncp_lib.h>
 #include <netncp/ncp_rcfile.h>
-#include <nwfs/nwfs.h>
 #include <nwfs/nwfs_mount.h>
 #include "mntopts.h"
 
