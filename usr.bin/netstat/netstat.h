@@ -68,7 +68,7 @@ void	icmp_stats __P((u_long, char *));
 void	igmp_stats __P((u_long, char *));
 void	protopr __P((u_long, char *));
 
-void	mbpr __P((u_long));
+void	mbpr __P((void));
 
 void	hostpr __P((u_long, u_long));
 void	impstats __P((u_long, u_long));
@@ -106,7 +106,7 @@ void	ddp_stats __P((u_long, char *));
 
 void	intpr __P((int, u_long));
 
-void	unixpr __P((u_long));
+void	unixpr __P((void));
 
 void	esis_stats __P((u_long, char *));
 void	clnp_stats __P((u_long, char *));

@@ -36,13 +36,12 @@
 static char sccsid[] = "@(#)unix.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: unix.c,v 1.4 1997/07/29 06:51:41 charnier Exp $";
+	"$Id: unix.c,v 1.5 1997/08/25 16:55:00 wollman Exp $";
 #endif /* not lint */
 
 /*
  * Display protocol blocks in the unix domain.
  */
-#include <kvm.h>
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/protosw.h>
@@ -52,71 +51,93 @@ static const char rcsid[] =
 #include <sys/sysctl.h>
 #include <sys/un.h>
 #include <sys/unpcb.h>
-#define KERNEL
-struct uio;
-struct proc;
-#include <sys/file.h>
 
 #include <netinet/in.h>
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <kvm.h>
 #include "netstat.h"
 
-static	void unixdomainpr __P((struct socket *, caddr_t));
+static	void unixdomainpr __P((struct xunpcb *, struct xsocket *));
 
-static struct	file *file, *fileNFILE;
-static int	nfiles;
-extern	kvm_t *kvmd;
+static	const char *const socktype[] =
+    { "#0", "stream", "dgram", "raw", "rdm", "seqpacket" };
 
 void
-unixpr(off)
-	u_long	off;
+unixpr()
 {
-	register struct file *fp;
-	struct socket sock, *so = &sock;
-	char *filebuf;
-	struct protosw *unixsw = (struct protosw *)off;
+	char 	*buf;
+	int	type;
+	size_t	len;
+	struct	xsocket *so;
+	struct	xunpgen *xug, *oxug;
+	struct	xunpcb *xunp;
+	char mibvar[sizeof "net.local.seqpacket.pcblist"];
 
-	filebuf = (char *)kvm_getfiles(kvmd, KERN_FILE, 0, &nfiles);
-	if (filebuf == 0) {
-		printf("Out of memory (file table).\n");
-		return;
-	}
-	file = (struct file *)(filebuf + sizeof(fp));
-	fileNFILE = file + nfiles;
-	for (fp = file; fp < fileNFILE; fp++) {
-		if (fp->f_count == 0 || fp->f_type != DTYPE_SOCKET)
+	for (type = SOCK_STREAM; type < SOCK_SEQPACKET; type++) {
+		sprintf(mibvar, "net.local.%s.pcblist", socktype[type]);
+
+		len = 0;
+		if (sysctlbyname(mibvar, 0, &len, 0, 0) < 0) {
+			if (errno != ENOENT)
+				warn("sysctl: %s", mibvar);
 			continue;
-		if (kread((u_long)fp->f_data, (char *)so, sizeof (*so)))
-			continue;
-		/* kludge */
-		if (so->so_proto >= unixsw && so->so_proto <= unixsw + 2)
-			if (so->so_pcb)
-				unixdomainpr(so, fp->f_data);
+		}
+		if ((buf = malloc(len)) == 0) {
+			warn("malloc %lu bytes", (u_long)len);
+			return;
+		}
+		if (sysctlbyname(mibvar, buf, &len, 0, 0) < 0) {
+			warn("sysctl: %s", mibvar);
+			free(buf);
+			return;
+		}
+
+		oxug = xug = (struct xunpgen *)buf;
+		for (xug = (struct xunpgen *)((char *)xug + xug->xug_len);
+		     xug->xug_len > sizeof(struct xunpgen);
+		     xug = (struct xunpgen *)((char *)xug + xug->xug_len)) {
+			xunp = (struct xunpcb *)xug;
+			so = &xunp->xu_socket;
+
+			/* Ignore PCBs which were freed during copyout. */
+			if (xunp->xu_unp.unp_gencnt > oxug->xug_gen)
+				continue;
+			unixdomainpr(xunp, so);
+		}
+		if (xug != oxug && xug->xug_gen != oxug->xug_gen) {
+			if (oxug->xug_count > xug->xug_count) {
+				printf("Some %s sockets may have been deleted.\n",
+				       socktype[type]);
+			} else if (oxug->xug_count < xug->xug_count) {
+				printf("Some %s sockets may have been created.\n",
+			       socktype[type]);
+			} else {
+				printf("Some %s sockets may have been created or deleted",
+			       socktype[type]);
+			}
+		}
+		free(buf);
 	}
 }
 
-static	char *socktype[] =
-    { "#0", "stream", "dgram", "raw", "rdm", "seqpacket" };
-
 static void
-unixdomainpr(so, soaddr)
-	register struct socket *so;
-	caddr_t soaddr;
+unixdomainpr(xunp, so)
+	struct xunpcb *xunp;
+	struct xsocket *so;
 {
-	struct unpcb unpcb, *unp = &unpcb;
-	struct sockaddr_un s_un, *sa = NULL;
+	struct unpcb *unp;
+	struct sockaddr_un *sa;
 	static int first = 1;
 
-	if (kread((u_long)so->so_pcb, (char *)unp, sizeof (*unp)))
-		return;
-	if (unp->unp_addr) {
-		sa = &s_un;
-		if (kread((u_long)unp->unp_addr, (char *)sa, sizeof *sa))
-			sa = (struct sockaddr_un *)0;
-	} else
+	unp = &xunp->xu_unp;
+	if (unp->unp_addr)
+		sa = &xunp->xu_addr;
+	else
 		sa = (struct sockaddr_un *)0;
+
 	if (first) {
 		printf("Active UNIX domain sockets\n");
 		printf(
@@ -125,10 +146,11 @@ unixdomainpr(so, soaddr)
 		    "Inode", "Conn", "Refs", "Nextref");
 		first = 0;
 	}
-	printf("%8x %-6.6s %6ld %6ld %8x %8x %8x %8x",
-	    (int)soaddr, socktype[so->so_type], so->so_rcv.sb_cc, so->so_snd.sb_cc,
-	    (int)unp->unp_vnode, (int)unp->unp_conn,
-	    (int)unp->unp_refs, (int)unp->unp_nextref);
+	printf("%8lx %-6.6s %6ld %6ld %8lx %8lx %8lx %8lx",
+	       (long)so->so_pcb, socktype[so->so_type], so->so_rcv.sb_cc,
+	       so->so_snd.sb_cc,
+	       (long)unp->unp_vnode, (long)unp->unp_conn,
+	       (long)unp->unp_refs.lh_first, (long)unp->unp_reflink.le_next);
 	if (sa)
 		printf(" %.*s", sa->sun_len, sa->sun_path);
 	putchar('\n');
