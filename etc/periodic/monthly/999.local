@@ -14,11 +14,11 @@ fi
 rc=0
 for script in $monthly_local
 do
+    echo ''
     case "$script" in
 	/*)
 	    if [ -f "$script" ]
 	    then
-		echo ""
 		echo "Running $script:"
 
 		sh $script || rc=3
