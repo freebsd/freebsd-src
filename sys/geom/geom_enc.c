@@ -62,7 +62,7 @@
 #include <geom/geom.h>
 #include <geom/geom_int.h>
 
-uint32_t
+uint16_t
 g_dec_be2(u_char *p)
 {
 
@@ -76,7 +76,7 @@ g_dec_be4(u_char *p)
 	return((p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3]);
 }
 
-uint32_t
+uint16_t
 g_dec_le2(u_char *p)
 {
 

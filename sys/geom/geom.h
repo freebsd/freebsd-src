@@ -295,9 +295,9 @@ extern struct sx topology_lock;
 #define GEOMGETCONF _IOWR('G',  0, struct sbuf)
 
 /* geom_enc.c */
-uint32_t g_dec_be2(u_char *p);
+uint16_t g_dec_be2(u_char *p);
 uint32_t g_dec_be4(u_char *p);
-uint32_t g_dec_le2(u_char *p);
+uint16_t g_dec_le2(u_char *p);
 uint32_t g_dec_le4(u_char *p);
 uint64_t g_dec_le8(u_char *p);
 void g_enc_le4(u_char *p, uint32_t u);
