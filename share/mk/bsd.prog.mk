@@ -56,10 +56,11 @@ ${PROG}: ${OBJS}
 
 .endif
 
-.if	!defined(MAN1) && !defined(MAN2) && !defined(MAN3) && \
+.if	!defined(NOMAN) && !defined(MAN) && \
+	!defined(MAN1) && !defined(MAN2) && !defined(MAN3) && \
 	!defined(MAN4) && !defined(MAN5) && !defined(MAN6) && \
 	!defined(MAN7) && !defined(MAN8) && !defined(MAN9) && \
-	!defined(NOMAN) && !defined(MAN1aout)
+	!defined(MAN1aout)
 MANSECT?=	1
 .for sect in ${MANSECT}
 MAN${sect}=	${PROG}.${sect}
@@ -68,7 +69,11 @@ MAN${sect}=	${PROG}.${sect}
 .endif
 
 .MAIN: all
+.if !defined(NOMAN)
 all: objwarn ${PROG} all-man _SUBDIR
+.else
+all: objwarn ${PROG} _SUBDIR
+.endif
 
 CLEANFILES+= ${PROG} ${OBJS}
 
@@ -165,7 +170,6 @@ tags: ${SRCS} _SUBDIR
 .include <bsd.man.mk>
 .elif !target(maninstall)
 maninstall:
-all-man:
 .endif
 
 .if !target(regress)
