@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.5 1995/05/16 11:37:11 jkh Exp $
+ * $Id: dist.c,v 1.6 1995/05/17 14:39:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -158,6 +158,7 @@ static Distribution SrcDistTable[] = {
 { "sys",	&SrcDists,	DIST_SRC_SYS,		NULL		},
 { "ubin",	&SrcDists,	DIST_SRC_UBIN,		NULL		},
 { "usbin",	&SrcDists,	DIST_SRC_USBIN,		NULL		},
+{ "xf86",	&SrcDists,	DIST_SRC_XF86,		NULL		},
 { NULL },
 };
 
@@ -225,7 +226,7 @@ distExtract(char *parent, Distribution *me)
 		    if (getenv(NO_CONFIRMATION))
 			status = 0;
 		    else
-			status = msgYesNo("Unable to retreive the %s distribution from %s.\nDo you want to retry that distribution later?");
+			status = msgYesNo("Unable to transfer the %s distribution from %s.\nDo you want to retry this distribution later?");
 		}
 	    }
 	    if (!status) {

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.20 1995/05/17 14:39:38 jkh Exp $
+ * $Id: disks.c,v 1.21 1995/05/17 16:16:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -79,7 +79,7 @@ print_chunks(Disk *d)
     int row;
     int i;
 
-    dialog_clear();
+    clear();
     attrset(A_NORMAL);
     mvaddstr(0, 0, "Disk name:\t");
     attrset(A_REVERSE); addstr(d->name); attrset(A_NORMAL);
@@ -179,7 +179,10 @@ diskPartition(Disk *d)
 		msg = "Can only scan for bad blocks in FreeBSD partition.";
 	    else if (strncmp(name, "sd", 2) ||
 		     !msgYesNo("This typically makes sense only for ESDI, IDE or MFM drives.\nAre you sure you want to do this on a SCSI disk?"))
-		chunk_info[current_chunk]->flags |= CHUNK_BAD144;
+		if (chunk_info[current_chunk]->flags & CHUNK_BAD144)
+		    chunk_info[current_chunk]->flags &= ~CHUNK_BAD144;
+		else
+		    chunk_info[current_chunk]->flags |= CHUNK_BAD144;
 	    break;
 
 	case 'C':

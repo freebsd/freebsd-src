@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: command.c,v 1.4 1995/05/16 11:37:07 jkh Exp $
+ * $Id: command.c,v 1.5 1995/05/18 02:42:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -137,7 +137,8 @@ command_func_add(char *key, commandFunc func, void *data)
     strcpy(commandStack[numCommands]->key, key);
     commandStack[numCommands]->ncmds = 1;
     commandStack[numCommands]->cmds[0].type = CMD_FUNCTION;
-    commandStack[numCommands++]->cmds[0].ptr = (void *)func;
+    commandStack[numCommands]->cmds[0].ptr = (void *)func;
+    commandStack[numCommands++]->cmds[0].data = data;
 }
 
 /* arg to sort */
@@ -164,20 +165,16 @@ command_execute(void)
 	for (j = 0; j < commandStack[i]->ncmds; j++) {
 	    /* If it's a shell command, run system on it */
 	    if (commandStack[i]->cmds[j].type == CMD_SHELL) {
-		msgNotify("Executing command: %s",
-			  commandStack[i]->cmds[j].ptr);
+		msgNotify("Executing command: %s", commandStack[i]->cmds[j].ptr);
 		ret = vsystem((char *)commandStack[i]->cmds[j].ptr);
-		msgDebug("Command `%s' returns status %d\n",
-			 commandStack[i]->cmds[j].ptr, ret);
+		msgDebug("Command `%s' returns status %d\n", commandStack[i]->cmds[j].ptr, ret);
 	    }
 	    else {
 		/* It's a function pointer - call it with the key and the data */
 		func = (commandFunc)commandStack[i]->cmds[j].ptr;
 		msgNotify("Executing internal command @ %0x", func);
-		ret = (*func)(commandStack[i]->key,
-			      commandStack[i]->cmds[j].data);
-		msgDebug("Function @ %x returns status %d\n",
-			 commandStack[i]->cmds[j].ptr, ret);
+		ret = (*func)(commandStack[i]->key, commandStack[i]->cmds[j].data);
+		msgDebug("Function @ %x returns status %d\n", commandStack[i]->cmds[j].ptr, ret);
 	    }
 	}
     }
