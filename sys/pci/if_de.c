@@ -4774,7 +4774,6 @@ tulip_attach(
     ifp->if_start = tulip_ifstart;
     ifp->if_watchdog = tulip_ifwatchdog;
     ifp->if_timer = 1;
-    ifp->if_output = ether_output;
     ifp->if_init = tulip_ifinit;
   
     printf("%s: %s%s pass %d.%d%s\n",

@@ -917,7 +917,6 @@ wb_attach(dev)
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = wb_ioctl;
-	ifp->if_output = ether_output;
 	ifp->if_start = wb_start;
 	ifp->if_watchdog = wb_watchdog;
 	ifp->if_init = wb_init;
