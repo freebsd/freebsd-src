@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.59 1996/05/10 21:42:58 ache Exp $
+#	$Id: BSD.usr.dist,v 1.60 1996/06/22 06:02:47 phk Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -182,6 +182,8 @@
                 ..
             ..
             sup
+            ..
+            worm
             ..
         ..
 /set type=dir uname=games gname=bin mode=0755
