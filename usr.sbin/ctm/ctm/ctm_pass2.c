@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass2.c,v 1.7 1995/03/19 12:01:23 roberto Exp $
+ * $Id: ctm_pass2.c,v 1.8 1995/05/30 03:47:24 rgrimes Exp $
  *
  */
 
@@ -27,6 +27,7 @@ Pass2(FILE *fd)
     struct CTM_Syntax *sp;
     struct stat st;
     int ret = 0;
+    char md5_1[33];
 
     if(Verbose>3)
 	printf("Pass2 -- Checking if CTM-patch will apply\n");
@@ -117,7 +118,7 @@ Pass2(FILE *fd)
 		    if(j & CTM_Q_MD5_Before) {
 			GETFIELD(p,sep);
 			if((st.st_mode & S_IFMT) == S_IFREG &&
-			  strcmp(MD5File(name),p)) {
+			  strcmp(MD5File(name,md5_1),p)) {
 			    fprintf(stderr,"  %s: %s md5 mismatch.\n",
 				sp->Key,name);
 			    if(j & CTM_Q_MD5_Force) {
@@ -153,7 +154,7 @@ Pass2(FILE *fd)
 				sp->Key,name,j);
 			    ret |= j;
 			    return ret;
-			} else if(strcmp(md5,MD5File(p))) {
+			} else if(strcmp(md5,MD5File(p,md5_1))) {
 			    fprintf(stderr,"  %s: %s edit fails.\n",
 				sp->Key,name);
 			    ret |= Exit_Mess;
@@ -168,7 +169,7 @@ Pass2(FILE *fd)
 	    }
         }
     }
-    q = MD5End (&ctx);
+    q = MD5End (&ctx,md5_1);
     GETFIELD(p,'\n');			/* <MD5> */
     if(strcmp(q,p)) WRONG
     if (-1 != getc(fd)) WRONG

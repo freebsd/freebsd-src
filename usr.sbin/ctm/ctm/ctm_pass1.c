@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass1.c,v 1.9 1995/03/26 20:09:52 phk Exp $
+ * $Id: ctm_pass1.c,v 1.10 1995/05/30 03:47:23 rgrimes Exp $
  *
  */
 
@@ -27,6 +27,7 @@ Pass1(FILE *fd, unsigned applied)
     struct CTM_Syntax *sp;
     int slashwarn=0;
     unsigned current;
+    char md5_1[33];
 
     if(Verbose>3)
 	printf("Pass1 -- Checking integrity of incoming CTM-patch\n");
@@ -166,7 +167,7 @@ Pass1(FILE *fd, unsigned applied)
 		case CTM_F_Bytes:
 		    if(cnt < 0) WRONG
 		    GETDATA(trash,cnt);
-		    p = MD5Data(trash,cnt);
+		    p = MD5Data(trash,cnt,md5_1);
 		    if(md5 && strcmp(md5,p)) {
 			Fatal("Internal MD5 failed.");
 			return 1;
@@ -183,7 +184,7 @@ Pass1(FILE *fd, unsigned applied)
 	    putc('\n',stderr);
 	continue;
     }
-    q = MD5End (&ctx);
+    q = MD5End (&ctx,md5_1);
     if(Verbose > 2)
 	printf("Expecting Global MD5 <%s>\n",q);
     GETFIELD(p,'\n');			/* <MD5> */
