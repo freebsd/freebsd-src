@@ -866,16 +866,16 @@ rt_stats(u_long off)
 	}
 	kread(off, (char *)&rtstat, sizeof (rtstat));
 	printf("routing:\n");
-	printf("\t%u bad routing redirect%s\n",
-		rtstat.rts_badredirect, plural(rtstat.rts_badredirect));
-	printf("\t%u dynamically created route%s\n",
-		rtstat.rts_dynamic, plural(rtstat.rts_dynamic));
-	printf("\t%u new gateway%s due to redirects\n",
-		rtstat.rts_newgateway, plural(rtstat.rts_newgateway));
-	printf("\t%u destination%s found unreachable\n",
-		rtstat.rts_unreach, plural(rtstat.rts_unreach));
-	printf("\t%u use%s of a wildcard route\n",
-		rtstat.rts_wildcard, plural(rtstat.rts_wildcard));
+
+#define	p(f, m) if (rtstat.f || sflag <= 1) \
+	printf(m, rtstat.f, plural(rtstat.f))
+
+	p(rts_badredirect, "\t%u bad routing redirect%s\n");
+	p(rts_dynamic, "\t%u dynamically created route%s\n");
+	p(rts_newgateway, "\t%u new gateway%s due to redirects\n");
+	p(rts_unreach, "\t%u destination%s found unreachable\n");
+	p(rts_wildcard, "\t%u use%s of a wildcard route\n");
+#undef p
 }
 
 char *
