@@ -1,0 +1,2 @@
+Host *
+FallBackToRsh no

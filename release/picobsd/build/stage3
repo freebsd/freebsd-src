@@ -1,0 +1,91 @@
+#! /bin/sh -
+
+#
+#	$Id: stage3,v 1.4 1998/08/10 19:06:48 abial Exp $
+#
+set -e
+
+if [ ! -f kernel.kz ]; then
+	echo "-> ERROR: you must build kernel.kz first"
+	exit 1
+fi
+
+echo "-> Preparing 1.44 floppy filesystem..."
+umount /dev/vn0 2> /dev/null || true
+umount /mnt 2> /dev/null || true
+vnconfig -u /dev/rvn0 2> /dev/null || true
+
+dd of=picobsd.bin if=/dev/zero count=1440 bs=1k 2> /dev/null
+
+awk 'BEGIN {printf "%c%c", 85, 170}' | \
+                dd of=picobsd.bin obs=1 seek=510 conv=notrunc  2> /dev/null
+
+#vnconfig -s labels -c /dev/rvn0 picobsd.bin 2>/dev/null
+vnconfig -c /dev/rvn0 picobsd.bin 2>/dev/null
+if [ "X$?" != "X0" ]
+then
+	echo "-> ERROR while doing vnconfig of picobsd.bin on /dev/rvn0..."
+	echo "-> Aborting $0"
+	exit 10
+fi
+
+dd if=/usr/mdec/boot1 of=picobsd.bin conv=notrunc 2> /dev/null
+
+disklabel -Brw -b /usr/mdec/fdboot -s /usr/mdec/bootfd /dev/rvn0 fd1440 2>&1 >/dev/null
+if [ "X$?" != "X0" ]
+then
+	echo "-> ERROR while labeling picobsd.bin on /dev/rvn0..."
+	echo "-> Aborting $0"
+	exit 10
+fi
+
+newfs -i 32768 -m 0 -p 0 -o space /dev/rvn0c 2>&1 >/dev/null
+
+mount /dev/vn0c /mnt
+
+pwd=`pwd`
+
+cd ../${TYPE}/floppy.tree
+echo "-> Copying language dependent files..."
+for i in hosts motd rc resolv.conf
+do
+	cp ../lang/${i}.${LANGUAGE} etc/${i}
+done
+if [ "${TYPE}" != "router" ]
+then
+	cp ../lang/rc.conf.${LANGUAGE} etc/rc.conf
+	cp ../lang/rc.network.${LANGUAGE} etc/rc.network
+fi
+
+echo "-> Populating floppy filesystem..."
+cp ../lang/boot.help.${LANGUAGE} /mnt/boot.help
+cp -pr . /mnt
+if [ "${TYPE}" = "dial" ]
+then
+	pwd_mkdb -d etc/ etc/master.passwd
+	mv etc/spwd.db /mnt/etc/
+	rm etc/pwd.db
+fi
+
+if [ "X$?" != "X0" ]
+then
+	echo "-> ERROR while transferring ../${TYPE}/floppy.tree to /mnt..."
+	echo "-> Aborting $0"
+	exit 10
+fi
+
+cd ${pwd}
+cp kernel.kz /mnt/kernel
+if [ "X$?" != "X0" ]
+then
+	echo "-> ERROR while transferring kernel.kz to /mnt..."
+	echo "-> Aborting $0"
+	exit 10
+fi
+(echo "-> Fixing permissions"; cd /mnt; chown -R root *)
+rm kernel.kz
+
+df -ik /mnt
+
+umount /mnt
+vnconfig -u /dev/rvn0
