@@ -120,6 +120,7 @@ enum constants {
 #define DEVTYPE(x) ((x >> VINUM_TYPE_SHIFT) & 7)
 
     VINUM_SUPERDEV = VINUMBDEV(0, 0, 0, VINUM_SUPERDEV_TYPE), /* superdevice number */
+    VINUM_DAEMON_DEV = VINUMBDEV(1, 0, 0, VINUM_SUPERDEV_TYPE),	/* daemon superdevice number */
 
 /*
  * the number of object entries to cater for initially, and also the
@@ -185,7 +186,8 @@ struct devcode {
 
 #define VINUM_DIR   "/dev/vinum"
 #define VINUM_RDIR   "/dev/rvinum"
-#define VINUM_SUPERDEV_NAME VINUM_DIR"/control"
+#define VINUM_SUPERDEV_NAME VINUM_DIR"/control"		    /* normal super device */
+#define VINUM_DAEMON_DEV_NAME VINUM_DIR"/controld"	    /* super device for daemon only */
 
 /*
  * Flags for all objects.  Most of them only apply to
@@ -195,6 +197,7 @@ struct devcode {
 enum objflags {
     VF_LOCKED = 1,					    /* somebody has locked access to this object */
     VF_LOCKING = 2,					    /* we want access to this object */
+    VF_OPEN = 4,					    /* object has openers */
     VF_WRITETHROUGH = 8,				    /* volume: write through */
     VF_INITED = 0x10,					    /* unit has been initialized */
     VF_WLABEL = 0x20,					    /* label area is writable */
@@ -207,9 +210,11 @@ enum objflags {
     VF_CONFIG_INCOMPLETE = 0x1000,			    /* haven't finished changing the config */
     VF_CONFIG_SETUPSTATE = 0x2000,			    /* set a volume up if all plexes are empty */
     VF_READING_CONFIG = 0x4000,				    /* we're reading config database from disk */
-    VF_KERNELOP = 0x8000,				    /* we're performing ops from kernel space */
+    VF_DISKCONFIG = 0x8000,				    /* we're reading the config from disk */
     VF_NEWBORN = 0x10000,				    /* for objects: we've just created it */
     VF_CONFIGURED = 0x20000,				    /* for drives: we read the config */
+    VF_STOPPING = 0x40000,				    /* for vinum_conf: stop on last close */
+    VF_DAEMONOPEN = 0x80000,				    /* the daemon has us open */
 };
 
 /* Global configuration information for the vinum subsystem */
@@ -260,14 +265,14 @@ struct _vinum_conf {
  * |--------------------------------------|
  * |   Disk label, maybe                  |      1
  * |--------------------------------------|
- * |   Slice definition  (vinum_hdr)      |      2
+ * |   Slice definition  (vinum_hdr)      |      8
  * |--------------------------------------|
  * |                                      |
- * |   Configuration info, first copy     |      3
+ * |   Configuration info, first copy     |      9
  * |                                      |
  * |--------------------------------------|
  * |                                      |
- * |   Configuration info, second copy    |      3 + size of config
+ * |   Configuration info, second copy    |      9 + size of config
  * |                                      |
  * |--------------------------------------|
  */
@@ -376,7 +381,6 @@ struct sd {
     int sdno;						    /* our index in vinum_conf */
     int plexsdno;					    /* and our number in our plex
 							    * (undefined if no plex) */
-    int pid;						    /* pid of process which opened us */
     u_int64_t reads;					    /* number of reads on this subdisk */
     u_int64_t writes;					    /* number of writes on this subdisk */
     u_int64_t bytes_read;				    /* number of bytes read */
@@ -411,7 +415,6 @@ struct plex {
     int plexno;						    /* index of plex in vinum_conf */
     int volno;						    /* index of volume */
     int volplexno;					    /* number of plex in volume */
-    int pid;						    /* pid of process which opened us */
     /* Lock information */
     int locks;						    /* number of locks used */
     int alloclocks;					    /* number of locks allocated */
@@ -445,7 +448,6 @@ struct volume {
     int blocksize;					    /* logical block size */
     int active;						    /* number of outstanding requests active */
     int subops;						    /* and the number of suboperations */
-    pid_t pid;						    /* pid of locker */
     /* Statistics */
     u_int64_t bytes_read;				    /* number of bytes read */
     u_int64_t bytes_written;				    /* number of bytes written */
