@@ -450,7 +450,8 @@ pr_header(nowp, nusers)
 	if (sysctl(mib, 2, &boottime, &size, NULL, 0) != -1 &&
 	    boottime.tv_sec != 0) {
 		uptime = now - boottime.tv_sec;
-		uptime += 30;
+		if (uptime > 60)
+			uptime += 30;
 		days = uptime / 86400;
 		uptime %= 86400;
 		hrs = uptime / 3600;
