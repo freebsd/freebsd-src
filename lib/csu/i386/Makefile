@@ -1,7 +1,7 @@
 #	from: @(#)Makefile	5.6 (Berkeley) 5/22/91
-#	$Id: Makefile,v 1.18 1995/08/06 12:37:20 bde Exp $
+#	$Id: Makefile,v 1.19 1995/10/18 04:19:00 davidg Exp $
 
-CFLAGS+=	-DLIBC_SCCS
+CFLAGS+=	-DLIBC_SCCS -fno-omit-frame-pointer
 OBJS=		scrt0.o crt0.o gcrt0.o c++rt0.o
 CLEANFILES+=	a.out
 MAN3+=		dlopen.3
