@@ -192,8 +192,7 @@
 
     &hwlist.pst;
 
-    <para arch="i386">The hptmv(4) driver supports the HighPoint
-      RocketRAID 182x SATA controllers.</para>
+    &hwlist.hptmv;
 
     &hwlist.ips;
 
@@ -343,6 +342,8 @@
     &hwlist.re;
 
     &hwlist.ixgb;
+
+    &hwlist.vge;
 
   </sect2>
 
@@ -718,15 +719,13 @@
   <sect2 id="audio">
     <title>Audio Devices</title>
 
+    &hwlist.snd.ad1816;
+    &hwlist.snd.cs4281;
+    &hwlist.snd.solo;
+
     &hwlist.snd.sbc;
 
-    <para arch="i386,amd64">CMedia sound chips
-      <itemizedlist>
-        <listitem>
-	  <para>CMI8338/CMI8738</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.snd.cmi;
 
     <para arch="i386,amd64">Crystal Semiconductor (&man.csa.4; driver)
       <itemizedlist>
@@ -739,13 +738,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,amd64">ENSONIQ (&man.pcm.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>AudioPCI ES1370/1371</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.snd.es137x;
 
     &hwlist.snd.ess;
 
@@ -771,29 +764,19 @@
 
     <para arch="i386,alpha,amd64">MSS/WSS Compatible DSPs (&man.pcm.4; driver)</para>
 
-    <para arch="i386,amd64">NeoMagic 256AV/ZX (&man.pcm.4; driver)</para>
+    &hwlist.snd.neomagic;
 
     <para arch="i386,amd64">OPTi 931/82C931 (&man.pcm.4; driver)</para>
 
     <para arch="i386,amd64">S3 Sonicvibes</para>
 
-    <para arch="i386,amd64">Creative Technologies Sound Blaster Live! series
-    (emu10k1 driver)</para>
+    &hwlist.snd.emu10k1;
 
     <para arch="i386,amd64">Trident 4DWave DX/NX (&man.pcm.4; driver)</para>
 
     <para arch="i386,amd64">VIA Technologies VT82C686A</para>
 
-    <para arch="i386,amd64">Yamaha
-      <itemizedlist>
-        <listitem>
-	  <para>DS1</para>
-	</listitem>
-        <listitem>
-	  <para>DS1e</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.snd.ds1;
 
     &hwlist.snd.ich;
 
