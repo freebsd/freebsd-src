@@ -38,7 +38,7 @@ static unsigned char *welcome[] = {
     "6. Install",
     "Proceed with full installation.",
     "7. Fixit",
-    "Repair existing installation (`fixit' mode).",
+    "Repair existing installation (fixit mode).",
     "8. Quit",
     "Don't do anything, just reboot.",
 };
