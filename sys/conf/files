@@ -642,6 +642,7 @@ dev/usb/ohci.c		optional ohci
 dev/usb/ucom.c		optional ucom
 dev/usb/udbp.c		optional udbp
 dev/usb/ufm.c		optional ufm
+dev/usb/uftdi.c		optional uftdi ucom
 dev/usb/ugen.c		optional ugen
 dev/usb/uhci.c		optional uhci
 dev/usb/uhid.c		optional uhid
