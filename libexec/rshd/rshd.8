@@ -49,7 +49,8 @@ is the server for the
 .Xr rcmd 3
 routine and, consequently, for the
 .Xr rsh 1
-utility.  The server provides remote execution facilities
+utility.
+The server provides remote execution facilities
 with authentication based on privileged port numbers from trusted hosts.
 .Pp
 The
@@ -70,7 +71,8 @@ aborts the connection.
 The server reads characters from the socket up
 to a
 .Tn NUL
-(`\e0') byte.  The resultant string is
+(`\e0') byte.
+The resultant string is
 interpreted as an
 .Tn ASCII
 number, base 10.
@@ -80,7 +82,8 @@ it is interpreted as the port number of a secondary
 stream to be used for the
 .Em stderr .
 A second connection is then created to the specified
-port on the client's machine.  The source port of this
+port on the client's machine.
+The source port of this
 second connection is also in the range 512-1023.
 .It
 The server checks the client's source address
@@ -94,19 +97,22 @@ not match after verification,
 the dot-notation representation of the host address is used.
 .It
 A null terminated user name of at most 16 characters
-is retrieved on the initial socket.  This user name
+is retrieved on the initial socket.
+This user name
 is interpreted as the user identity on the
 .Em client Ns 's
 machine.
 .It
 A null terminated user name of at most 16 characters
-is retrieved on the initial socket.  This user name
+is retrieved on the initial socket.
+This user name
 is interpreted as a user identity to use on the
 .Em server Ns 's
 machine.
 .It
 A null terminated command to be passed to a
-shell is retrieved on the initial socket.  The length of
+shell is retrieved on the initial socket.
+The length of
 the command is limited by the upper bound on the size of
 the system's argument list.
 .It
@@ -118,7 +124,8 @@ which uses the file
 .Pa /etc/hosts.equiv
 and the
 .Pa .rhosts
-file found in the user's home directory.  The
+file found in the user's home directory.
+The
 .Fl l
 option prevents
 .Xr ruserok 3
@@ -131,7 +138,8 @@ A
 .Tn NUL
 byte is returned on the initial socket
 and the command line is passed to the normal login
-shell of the user.  The
+shell of the user.
+The
 shell inherits the network connections established
 by
 .Nm .
@@ -158,7 +166,8 @@ Do not use the user's
 .Pa .rhosts
 file for authentication, unless the user is the superuser.
 .It Fl n
-Turn off transport level keepalive messages.  This will prevent sessions
+Turn off transport level keepalive messages.
+This will prevent sessions
 from timing out if the client crashes or becomes unreachable.
 .El
 .Sh DIAGNOSTICS
@@ -201,7 +210,8 @@ A
 .Xr fork 2
 by the server failed.
 .It Sy <shellname>: ...
-The user's login shell could not be started.  This message is returned
+The user's login shell could not be started.
+This message is returned
 on the connection associated with the
 .Em stderr ,
 and is not preceded by a flag byte.
@@ -239,7 +249,8 @@ are not supported.
 .El
 .Sh BUGS
 The authentication procedure used here assumes the integrity
-of each client machine and the connecting medium.  This is
+of each client machine and the connecting medium.
+This is
 insecure, but is useful in an
 .Dq open
 environment.

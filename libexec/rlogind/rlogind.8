@@ -46,14 +46,16 @@ The
 .Nm
 utility is the server for the
 .Xr rlogin 1
-program.  The server provides a remote login facility
+program.
+The server provides a remote login facility
 with authentication based on privileged port numbers from trusted hosts.
 .Pp
 Options supported by
 .Nm :
 .Bl -tag -width indent
 .It Fl D
-Set TCP_NODELAY socket option. This improves responsiveness at the expense of
+Set TCP_NODELAY socket option.
+This improves responsiveness at the expense of
 some additional network traffic.
 .It Fl a
 Ask hostname for verification.
@@ -75,7 +77,8 @@ Enable vacuous mode.
 Enable
 .Tn DES
 encryption for all data passed via the rlogin
-session.  This may impact response time
+session.
+This may impact response time
 and
 .Tn CPU
 utilization, but provides increased security.
@@ -139,13 +142,15 @@ The parent of the login process manipulates the master side of
 the pseudo terminal, operating as an intermediary
 between the login process and the client instance of the
 .Xr rlogin 1
-program.  In normal operation, the packet protocol described
+program.
+In normal operation, the packet protocol described
 in
 .Xr pty 4
 is invoked to provide
 .Ql ^S/^Q
 type facilities and propagate
-interrupt signals to the remote programs.  The login process
+interrupt signals to the remote programs.
+The login process
 propagates the client terminal's baud rate and terminal type,
 as found in the environment variable,
 .Ev TERM ;
@@ -190,7 +195,8 @@ by the server failed.
 .El
 .Sh BUGS
 The authentication procedure used here assumes the integrity
-of each client machine and the connecting medium.  This is
+of each client machine and the connecting medium.
+This is
 insecure, but is useful in an
 .Dq open
 environment.

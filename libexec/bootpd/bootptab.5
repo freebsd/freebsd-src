@@ -17,7 +17,8 @@ the Internet Bootstrap Protocol server.
 Its format is similar to that of
 .Xr termcap 5
 in which two-character case-sensitive tag symbols are used to
-represent host parameters.  These parameter declarations are separated by
+represent host parameters.
+These parameter declarations are separated by
 colons (:), with a general format of:
 .Pp
 .Dl "hostname:tg=value. . . :tg=value. . . :tg=value. . . ."
@@ -26,12 +27,15 @@ where
 .Em hostname
 is the actual name of a bootp client (or a "dummy entry"), and
 .Em tg
-is a two-character tag symbol.  Dummy entries have an invalid hostname
+is a two-character tag symbol.
+Dummy entries have an invalid hostname
 (one with a "." as the first character) and are used to provide
 default values used by other entries via the
 .Em tc=.dummy-entry
-mechanism.  Most tags must be followed by an equals-sign
-and a value as above.  Some may also appear in a boolean form with no
+mechanism.
+Most tags must be followed by an equals-sign
+and a value as above.
+Some may also appear in a boolean form with no
 value (i.e.\&
 .Em :tg: ) .
 The currently recognized tags are:
@@ -105,13 +109,16 @@ There is also a generic tag,
 .Pf T Em n ,
 where
 .Em n
-is an RFC1084 vendor field tag number.  Thus it is possible to immediately
+is an RFC1084 vendor field tag number.
+Thus it is possible to immediately
 take advantage of future extensions to RFC1084 without being forced to modify
 .Nm bootpd
-first.  Generic data may be represented as either a stream of hexadecimal
+first.
+Generic data may be represented as either a stream of hexadecimal
 numbers or as a quoted string of
 .Tn ASCII
-characters.  The length of the generic
+characters.
+The length of the generic
 data is automatically determined and inserted into the proper field(s) of the
 RFC1084-style bootp reply.
 .Pp
@@ -177,10 +184,12 @@ for Chaos, ARCNET, and AX.25 Amateur Radio networks, respectively.
 The
 .Em ha
 tag takes a hardware address which may be specified as a host name
-or in numeric form.  Note that the numeric form
+or in numeric form.
+Note that the numeric form
 .Em must
 be specified in hexadecimal; optional periods and/or a leading '0x' may be
-included for readability.  The
+included for readability.
+The
 .Em ha
 tag must be preceded by the
 .Em ht
@@ -196,7 +205,8 @@ will try to determine the hardware address using
 The hostname, home directory, and bootfile are
 .Tn ASCII
 strings which may be
-optionally surrounded by double quotes (").  The client's request and the
+optionally surrounded by double quotes (").
+The client's request and the
 values of the
 .Em hd
 and
@@ -258,7 +268,8 @@ use:
 The
 .Em sa
 tag may be used to specify the IP address of the particular TFTP server
-you wish the client to use.  In the absence of this tag,
+you wish the client to use.
+In the absence of this tag,
 .Nm bootpd
 will tell the client to perform TFTP to the same machine
 .Nm bootpd
@@ -269,7 +280,8 @@ The time offset
 may be either a signed decimal integer specifying the client's
 time zone offset in seconds from UTC, or the keyword
 .Em auto
-which uses the server's time zone offset.  Specifying the
+which uses the server's time zone offset.
+Specifying the
 .Em to
 symbol as a boolean has the same effect as specifying
 .Em auto
@@ -281,7 +293,8 @@ may be either a decimal, octal, or hexadecimal integer specifying the size of
 the bootfile in 512-octet blocks, or the keyword
 .Em auto
 which causes the server to automatically calculate the bootfile size at each
-request.  As with the time offset, specifying the
+request.
+As with the time offset, specifying the
 .Em bs
 symbol as a boolean has the same effect as specifying
 .Em auto
@@ -302,7 +315,8 @@ or
 The
 .Em hn
 tag is strictly a boolean tag; it does not take the usual equals-sign and
-value.  Its presence indicates that the hostname should be sent to RFC1084
+value.
+Its presence indicates that the hostname should be sent to RFC1084
 clients.
 .Nm Bootpd
 attempts to send the entire hostname as it is specified in the configuration
@@ -312,25 +326,30 @@ In no case is an arbitrarily-truncated hostname sent (if nothing reasonable
 will fit, nothing is sent).
 .Pp
 Often, many host entries share common values for certain tags (such as name
-servers, etc.).  Rather than repeatedly specifying these tags, a full
+servers, etc.).
+Rather than repeatedly specifying these tags, a full
 specification can be listed for one host entry and shared by others via the
 .Em tc
 (table continuation) mechanism.
 Often, the template entry is a dummy host which doesn't actually exist and
-never sends bootp requests.  This feature is similar to the
+never sends bootp requests.
+This feature is similar to the
 .Em tc
 feature of
 .Xr termcap 5
-for similar terminals.  Note that
+for similar terminals.
+Note that
 .Nm bootpd
 allows the
 .Em tc
 tag symbol to appear anywhere in the host entry, unlike
 .Pa termcap
-which requires it to be the last tag.  Information explicitly specified for a
+which requires it to be the last tag.
+Information explicitly specified for a
 host always overrides information implied by a
 .Em tc
-tag symbol, regardless of its location within the entry.  The
+tag symbol, regardless of its location within the entry.
+The
 value of the
 .Em tc
 tag may be the hostname or IP address of any host entry
@@ -347,7 +366,8 @@ as in
 .Xr termcap 5 .
 For example, to completely undo an IEN-116 name server specification, use
 .Em :ns@:
-at an appropriate place in the configuration entry.  After removal
+at an appropriate place in the configuration entry.
+After removal
 with
 .Em @ ,
 a tag is eligible to be set again through the
@@ -355,9 +375,12 @@ a tag is eligible to be set again through the
 mechanism.
 .Pp
 Blank lines and lines beginning with "#" are ignored in the configuration
-file.  Host entries are separated from one another by newlines; a single host
+file.
+Host entries are separated from one another by newlines; a single host
 entry may be extended over multiple lines if the lines end with a backslash
-(\\).  It is also acceptable for lines to be longer than 80 characters.  Tags
+(\\).
+It is also acceptable for lines to be longer than 80 characters.
+Tags
 may appear in any order, with the following exceptions:  the hostname must be
 the very first field in an entry, and the hardware type must precede the
 hardware address.

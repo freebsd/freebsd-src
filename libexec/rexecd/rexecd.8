@@ -46,7 +46,8 @@ The
 .Nm
 utility is the server for the
 .Xr rexec 3
-routine.  The server provides remote execution facilities
+routine.
+The server provides remote execution facilities
 with authentication based on user names and
 passwords.
 .Pp
@@ -62,7 +63,8 @@ is initiated:
 The server reads characters from the socket up
 to a NUL
 .Pq Ql \e0
-byte.  The resultant string is
+byte.
+The resultant string is
 interpreted as an
 .Tn ASCII
 number, base 10.
@@ -81,7 +83,8 @@ A NUL terminated, unencrypted password of at most
 16 characters is retrieved on the initial socket.
 .It
 A NUL terminated command to be passed to a
-shell is retrieved on the initial socket.  The length of
+shell is retrieved on the initial socket.
+The length of
 the command is limited by the upper bound on the size of
 the system's argument list.
 .It
@@ -96,7 +99,8 @@ aborted with a diagnostic message returned.
 .It
 A NUL byte is returned on the initial socket
 and the command line is passed to the normal login
-shell of the user.  The
+shell of the user.
+The
 shell inherits the network connections established
 by
 .Nm .
