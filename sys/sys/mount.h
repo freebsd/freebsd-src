@@ -169,7 +169,6 @@ struct mount {
  * Mask of flags that are visible to statfs()
  * XXX I think that this could now become (~(MNT_CMDFLAGS))
  * but the 'mount' program may need changing to handle this.
- * XXX MNT_EXPUBLIC is presently left out. I don't know why.
  */
 #define	MNT_VISFLAGMASK	(MNT_RDONLY	| MNT_SYNCHRONOUS | MNT_NOEXEC	| \
 			MNT_NOSUID	| MNT_NODEV	| MNT_UNION	| \
@@ -178,8 +177,7 @@ struct mount {
 			MNT_LOCAL	| MNT_USER	| MNT_QUOTA	| \
 			MNT_ROOTFS	| MNT_NOATIME	| MNT_NOCLUSTERR| \
 			MNT_NOCLUSTERW	| MNT_SUIDDIR	| MNT_SOFTDEP	| \
-			MNT_IGNORE \
-			/*	| MNT_EXPUBLIC */)
+			MNT_IGNORE	| MNT_NOSYMFOLLOW | MNT_EXPUBLIC )
 /*
  * External filesystem command modifier flags.
  * Unmount can use the MNT_FORCE flag.
