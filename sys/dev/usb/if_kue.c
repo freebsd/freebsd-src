@@ -668,7 +668,7 @@ static void kue_rxeof(xfer, priv, status)
 
 	usbd_get_xfer_status(xfer, NULL, NULL, &total_len, NULL);
 	m = c->kue_mbuf;
-	if (total_len == 1)
+	if (total_len <= 1)
 		goto done;
 
 	len = *mtod(m, u_int16_t *);
@@ -763,8 +763,7 @@ static void kue_txeof(xfer, priv, status)
 	else
 		ifp->if_opackets++;
 
-	if (ifp->if_snd.ifq_head != NULL)
-		kue_start(ifp);
+	usb_tx_done(ifp);
 
 	splx(s);
 
