@@ -65,7 +65,6 @@ struct ioapic_info {
 } ioapics[NIOAPICS];
 
 struct lapic_info {
-	u_int la_present:1;
 	u_int la_enabled:1;
 	u_int la_acpi_id:8;
 } lapics[NLAPICS];
@@ -447,18 +446,17 @@ madt_probe_cpus_handler(APIC_HEADER *entry, void *arg)
 			printf("MADT: Found CPU APIC ID %d ACPI ID %d: %s\n",
 			    proc->LocalApicId, proc->ProcessorId,
 			    proc->ProcessorEnabled ? "enabled" : "disabled");
+		if (!proc->ProcessorEnabled)
+			break;
 		if (proc->LocalApicId >= NLAPICS)
 			panic("%s: CPU ID %d too high", __func__,
 			    proc->LocalApicId);
 		la = &lapics[proc->LocalApicId];
-		KASSERT(la->la_present == 0,
+		KASSERT(la->la_enabled == 0,
 		    ("Duplicate local APIC ID %d", proc->LocalApicId));
-		la->la_present = 1;
+		la->la_enabled = 1;
 		la->la_acpi_id = proc->ProcessorId;
-		if (proc->ProcessorEnabled) {
-			la->la_enabled = 1;
-			lapic_create(proc->LocalApicId, 0);
-		}
+		lapic_create(proc->LocalApicId, 0);
 		break;
 	}
 }
@@ -548,15 +546,12 @@ madt_find_cpu(u_int acpi_id, u_int *apic_id)
 	int i;
 
 	for (i = 0; i < NLAPICS; i++) {
-		if (!lapics[i].la_present)
+		if (!lapics[i].la_enabled)
 			continue;
 		if (lapics[i].la_acpi_id != acpi_id)
 			continue;
 		*apic_id = i;
-		if (lapics[i].la_enabled)
-			return (0);
-		else
-			return (ENXIO);
+		return (0);
 	}
 	return (ENOENT);
 }
@@ -770,7 +765,7 @@ madt_set_ids(void *dummy)
 		pc = pcpu_find(i);
 		KASSERT(pc != NULL, ("no pcpu data for CPU %d", i));
 		la = &lapics[pc->pc_apic_id];
-		if (!la->la_present || !la->la_enabled)
+		if (!la->la_enabled)
 			panic("APIC: CPU with APIC ID %u is not enabled",
 			    pc->pc_apic_id);
 		pc->pc_acpi_id = la->la_acpi_id;
