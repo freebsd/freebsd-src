@@ -491,10 +491,17 @@ It is commonly needed to run CFS without real NFS used.
 .Ar YES ,
 allow services like PCNFSD to make non-privileged mount
 requests.
-.It Ar nfs_reserved_port_only
+.It Ar nfs_privport
 (bool) If set to
 .Ar YES ,
 provide NFS services only on a secure port.
+.It Ar nfs_bufpackets
+(integer) If set to a number, indicates the number of packets worth of
+socket buffer space to reserve on an NFS client.  If set to
+.Ar DEFAULT ,
+the kernel default is used (typically 4).  Using a higher number may be
+useful on gigabit networks to improve performance.  The minimum value is
+2 and the maximum is 64.
 .It Ar rcp_lockd_enable
 (bool) If set to
 .Ar YES
