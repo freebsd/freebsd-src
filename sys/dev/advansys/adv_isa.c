@@ -44,7 +44,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: adv_isa.c,v 1.6 1998/10/12 18:53:33 imp Exp $
+ *      $Id: adv_isa.c,v 1.7 1998/11/10 06:44:54 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -71,9 +71,9 @@
  * The overrun buffer shared amongst all ISA/VL adapters.
  */
 static	u_int8_t*	overrun_buf;
-bus_dma_tag_t		overrun_dmat;
-bus_dmamap_t		overrun_dmamap;
-bus_addr_t		overrun_physbase;
+static	bus_dma_tag_t	overrun_dmat;
+static	bus_dmamap_t	overrun_dmamap;
+static	bus_addr_t	overrun_physbase;
 
 /* Possible port addresses an ISA or VL adapter can live at */
 u_int16_t adv_isa_ioports[] =
