@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";
 #endif
 static const char rcsid[] =
-	"$Id: xinstall.c,v 1.31 1998/01/20 13:52:32 bde Exp $";
+	"$Id: xinstall.c,v 1.32 1998/06/02 12:00:07 peter Exp $";
 #endif /* not lint */
 
 /*-
@@ -645,7 +645,7 @@ strip(to_name)
 {
 	int serrno, status;
 
-	switch (vfork()) {
+	switch (fork()) {
 	case -1:
 		serrno = errno;
 		(void)unlink(to_name);

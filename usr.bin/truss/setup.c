@@ -31,7 +31,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: setup.c,v 1.7 1998/01/05 07:30:25 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -56,7 +56,7 @@ static int evflags = 0;
 
 /*
  * setup_and_wait() is called to start a process.  All it really does
- * is vfork(), set itself up to stop on exec or exit, and then exec
+ * is fork(), set itself up to stop on exec or exit, and then exec
  * the given command.  At that point, the child process stops, and
  * the parent can wake up and deal with it.
  */
@@ -69,9 +69,9 @@ setup_and_wait(char *command[]) {
   int pid;
   int flags;
 
-  pid = vfork();
+  pid = fork();
   if (pid == -1) {
-    err(1, "vfork failed");
+    err(1, "fork failed");
   }
   if (pid == 0) {	/* Child */
     int mask = S_EXEC | S_EXIT;
