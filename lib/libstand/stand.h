@@ -244,9 +244,9 @@ extern void	free_region(void *start, void *end);
 struct		disklabel;
 extern char	*getdisklabel(const char *, struct disklabel *);
 
-extern int	printf(const char *fmt, ...);
+extern int	printf(const char *fmt, ...) __printflike(1, 2);
 extern void	vprintf(const char *fmt, _BSD_VA_LIST_);
-extern int	sprintf(char *buf, const char *cfmt, ...);
+extern int	sprintf(char *buf, const char *cfmt, ...) __printflike(2, 3);
 extern void	vsprintf(char *buf, const char *cfmt, _BSD_VA_LIST_);
 
 extern void	twiddle(void);
