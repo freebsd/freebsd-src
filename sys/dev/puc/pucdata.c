@@ -772,6 +772,30 @@ const struct puc_device_description puc_devices[] = {
 		{ PUC_PORT_TYPE_COM, 0x14, 0x00, COM_FREQ * 8 },
 	    },
 	},
+	/*
+	 * VScom (Titan?) PCI-800L.  More modern variant of the
+	 * PCI-800.  Uses 6 discrete 16550 UARTs, plus another
+	 * two of them obviously implemented as macro cells in
+	 * the ASIC.  This causes the weird port access pattern
+	 * below, where two of the IO port ranges each access
+	 * one of the ASIC UARTs, and a block of IO addresses
+	 * access the external UARTs.
+	 */
+	{   "Titan VScom PCI-800L",
+	    NULL,
+	    {   0x14d2, 0x8080, 0x14d2, 0x8080  },
+	    {   0xffff, 0xffff, 0xffff, 0xffff  },
+	    {
+		{ PUC_PORT_TYPE_COM, 0x14, 0x00, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x00, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x20, 0x00, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x20, 0x08, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x20, 0x10, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x20, 0x18, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x20, 0x20, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x20, 0x28, COM_FREQ * 8 },
+	    },
+	},
 
 	/* NEC PK-UG-X001 K56flex PCI Modem card.
 	   NEC MARTH bridge chip and Rockwell RCVDL56ACF/SP using. */
