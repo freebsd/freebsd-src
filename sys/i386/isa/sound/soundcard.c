@@ -150,11 +150,11 @@ static int
 sndmmap( dev_t dev, int offset, int nprot )
 {
 	struct dma_buffparms * dmap;
+	u_int min = minor(dev) >> 4;
 
-	dev = minor(dev) >> 4;
-	if (dev > 0 ) return (-1);
+	if (min > 0 ) return (-1);
 
-	dmap =	audio_devs[dev]->dmap_out;
+	dmap =	audio_devs[min]->dmap_out;
 
 	if (nprot & PROT_EXEC)
 		return( -1 );
@@ -167,9 +167,9 @@ static int
 sndread(dev_t dev, struct uio * buf, int flag)
 {
     int             count = buf->uio_resid;
+    u_int min = minor(dev);
 
-    dev = minor(dev);
-    FIX_RETURN(sound_read_sw(dev, &files[dev], buf, count));
+    FIX_RETURN(sound_read_sw(min, &files[min], buf, count));
 }
 
 
@@ -177,9 +177,9 @@ static int
 sndwrite(dev_t dev, struct uio * buf, int flag)
 {
     int             count = buf->uio_resid;
+    u_int min = minor(dev);
 
-    dev = minor(dev);
-    FIX_RETURN(sound_write_sw(dev, &files[dev], buf, count));
+    FIX_RETURN(sound_write_sw(min, &files[min], buf, count));
 }
 
 static int
@@ -187,9 +187,9 @@ sndopen(dev_t dev, int flags, int mode, struct proc * p)
 {
     int             retval;
     struct fileinfo tmp_file;
+    u_int min = minor(dev);
 
-    dev = minor(dev);
-    if (!soundcard_configured && dev) {
+    if (!soundcard_configured && min) {
 	printf("SoundCard Error: soundcard system has not been configured\n");
 	return ENODEV ;
     }
@@ -202,12 +202,12 @@ sndopen(dev_t dev, int flags, int mode, struct proc * p)
     else if (flags & FWRITE)
 	tmp_file.mode = OPEN_WRITE;
 
-    selinfo[dev >> 4].si_pid = 0;
-    selinfo[dev >> 4].si_flags = 0;
-    if ((retval = sound_open_sw(dev, &tmp_file)) < 0)
+    selinfo[min >> 4].si_pid = 0;
+    selinfo[min >> 4].si_flags = 0;
+    if ((retval = sound_open_sw(min, &tmp_file)) < 0)
 	FIX_RETURN(retval);
 
-    bcopy((char *) &tmp_file, (char *) &files[dev], sizeof(tmp_file));
+    bcopy((char *) &tmp_file, (char *) &files[min], sizeof(tmp_file));
 
     FIX_RETURN(retval);
 }
@@ -216,38 +216,37 @@ sndopen(dev_t dev, int flags, int mode, struct proc * p)
 static int
 sndclose(dev_t dev, int flags, int mode, struct proc * p)
 {
-    dev = minor(dev);
-    sound_release_sw(dev, &files[dev]);
+    u_int min = minor(dev);
 
+    sound_release_sw(min, &files[min]);
     return 0 ;
 }
 
 static int
 sndioctl(dev_t dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 {
-    dev = minor(dev);
-    FIX_RETURN(sound_ioctl_sw(dev, &files[dev], cmd, arg));
+    u_int min = minor(dev);
+    FIX_RETURN(sound_ioctl_sw(min, &files[min], cmd, arg));
 }
 
 int
 sndpoll(dev_t dev, int events, struct proc * p)
 {
-    dev = minor(dev);
-    dev = minor(dev);
+    u_int min = minor(dev);
 
-    /* printf ("snd_select(dev=%d, rw=%d, pid=%d)\n", dev, rw, p->p_pid); */
+    /* printf ("snd_select(dev=%d, rw=%d, pid=%d)\n", min, rw, p->p_pid); */
 #ifdef ALLOW_POLL
-    switch (dev & 0x0f) {
+    switch (min & 0x0f) {
 #ifdef CONFIG_SEQUENCER
     case SND_DEV_SEQ:
     case SND_DEV_SEQ2:
-	return sequencer_poll(dev, &files[dev], events, p);
+	return sequencer_poll(min, &files[min], events, p);
 	break;
 #endif
 
 #ifdef CONFIG_MIDI
     case SND_DEV_MIDIN:
-	return MIDIbuf_poll(dev, &files[dev], events, p);
+	return MIDIbuf_poll(min, &files[min], events, p);
 	break;
 #endif
 
@@ -256,7 +255,7 @@ sndpoll(dev_t dev, int events, struct proc * p)
     case SND_DEV_DSP16:
     case SND_DEV_AUDIO:
 
-	return audio_poll(dev, &files[dev], events, p);
+	return audio_poll(min, &files[min], events, p);
 	break;
 #endif
 
@@ -265,7 +264,7 @@ sndpoll(dev_t dev, int events, struct proc * p)
     }
 
 #endif	/* ALLOW_POLL */
-    DEB(printf("sound_ioctl(dev=%d, cmd=0x%x, arg=0x%x)\n", dev, cmd, arg));
+    DEB(printf("sound_ioctl(min=%d, cmd=0x%x, arg=0x%x)\n", min, cmd, arg));
 
     return 0 ;
 }

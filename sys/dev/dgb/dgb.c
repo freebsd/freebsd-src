@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.46 1999/04/28 10:51:55 dt Exp $
+ *  dgb.c $Id: dgb.c,v 1.47 1999/05/02 21:39:52 peter Exp $
  *
  *  Digiboard driver.
  *
@@ -1953,9 +1953,8 @@ dgbparam(tp, t)
 	struct tty	*tp;
 	struct termios	*t;
 {
-	int dev=tp->t_dev;
-	int unit=MINOR_TO_UNIT(dev);
-	int pnum=MINOR_TO_PORT(dev);
+	int unit=MINOR_TO_UNIT(minor(tp->t_dev));
+	int pnum=MINOR_TO_PORT(minor(tp->t_dev));
 	struct dgb_softc *sc=&dgb_softc[unit];
 	struct dgb_p *port=&sc->ports[pnum];
 	volatile struct board_chan *bc=port->brdchan;
