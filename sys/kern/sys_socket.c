@@ -39,8 +39,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/mac.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/sigio.h>
+#include <sys/signal.h>
+#include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/filio.h>			/* XXX */
@@ -114,6 +117,11 @@ soo_write(fp, uio, active_cred, flags, td)
 #endif
 	error = so->so_proto->pr_usrreqs->pru_sosend(so, 0, uio, 0, 0, 0,
 						    uio->uio_td);
+	if (error == EPIPE && (so->so_options & SO_NOSIGPIPE) == 0) {
+		PROC_LOCK(uio->uio_td->td_proc);
+		psignal(uio->uio_td->td_proc, SIGPIPE);
+		PROC_UNLOCK(uio->uio_td->td_proc);
+	}
 	NET_UNLOCK_GIANT();
 	return (error);
 }
