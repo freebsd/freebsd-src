@@ -216,9 +216,12 @@ namei(ndp)
 			break;
 		}
 #ifdef MAC
-		error = mac_check_vnode_readlink(td->td_ucred, ndp->ni_vp);
-		if (error)
-			break;
+		if ((cnp->cn_flags & NOMACCHECK) == 0) {
+			error = mac_check_vnode_readlink(td->td_ucred,
+			    ndp->ni_vp);
+			if (error)
+				break;
+		}
 #endif
 		if (ndp->ni_pathlen > 1)
 			cp = uma_zalloc(namei_zone, M_WAITOK);
@@ -471,9 +474,11 @@ dirloop:
 	 */
 unionlookup:
 #ifdef MAC
-	error = mac_check_vnode_lookup(td->td_ucred, dp, cnp);
-	if (error)
-		goto bad;
+	if ((cnp->cn_flags & NOMACCHECK) == 0) {
+		error = mac_check_vnode_lookup(td->td_ucred, dp, cnp);
+		if (error)
+			goto bad;
+	}
 #endif
 	ndp->ni_dvp = dp;
 	ndp->ni_vp = NULL;
