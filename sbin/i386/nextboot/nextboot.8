@@ -81,6 +81,11 @@ nameblock is only consulted ONCE per boot.
 .Xr fdisk 8
 .Sh BUGS
 The entire program should be made more user-friendly.
+The option of whether to write back or not should be stored on the
+disk and not a compile time option. I want to rethink this at some 
+later stage to make it co-exist with disks that do not have
+a fdisk partitioning table (i.e. purely disklabel'd systems)
+
 .Pp
 Whether to write back or not should be specified at run-time in the nameblock
 so that the boot blocks need not be altered to get this feature.
