@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.61 1994/11/18 11:27:41 phk Exp $
+ *	$Id: wd.c,v 1.62 1994/12/13 18:20:08 guido Exp $
  */
 
 /* TODO:
@@ -621,7 +621,7 @@ loop:
 	secpercyl = lp->d_secpercyl;
 
 	if(du->dk_dkunit >= 0) {
-		dk_wds[du->dk_dkunit] += bp->b_bcount >> 1;
+		dk_wds[du->dk_dkunit] += bp->b_bcount >> 6;
 	}
 
 	if (du->dk_skip == 0) {
