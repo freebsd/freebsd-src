@@ -1,0 +1,12 @@
+These two shell scripts are what the developers use to burn CDs,
+including the FreeBSD releases made for Walnut Creek CDROM.
+
+makecdfs.sh is used to turn an arbitrary tree of files into a single
+ISO9660 (with RockRidge extensions) filesystem image.  See the top
+of the shell script for usage instructions.
+
+burncd.sh takes the filesystem image produced by makecdfs.sh and burns
+it onto an HP 4020i CDR drive (see script for information on customizing
+it to other types of CDR drives).
+
+It's that simple!
