@@ -46,6 +46,17 @@ shift
 startstop=$1
 shift
 
+case ${pccard_ether_delay} in
+[Nn][Oo])
+	;;
+[0-9])
+	sleep ${pccard_ether_delay}
+	;;
+*)	# Default until it has had a chance to make it to /etc/defaults/rc.conf
+	sleep 5
+	;;
+esac
+
 case ${pccard_ifconfig} in
 [Nn][Oo] | '')
 	;;
