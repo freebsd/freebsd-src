@@ -29,7 +29,7 @@
 	build.
 
         $FreeBSD$
-        Original revision: 1.136
+        Original revision: 1.143
 -->
 
 <sect1 id="support">
@@ -1700,6 +1700,23 @@
       </itemizedlist>
     </para>
 
+    <para arch="i386,pc98">ASIX Electronics AX88172 ベースの USB Ethernet NIC
+      (&man.axe.4; ドライバ)
+
+      <itemizedlist>
+        <listitem>
+	  <para>D-Link DUBE100</para>
+        </listitem>
+        <listitem>
+	  <para>Linksys USB200M</para>
+        </listitem>
+        <listitem>
+	  <para>Netgear FA120</para>
+        </listitem>
+      </itemizedlist>
+
+      </para>
+
     <para arch="i386,pc98,alpha">ASIX Electronics AX88140A PCI NIC
       (&man.dc.4; ドライバ)
       <itemizedlist>
@@ -1839,7 +1856,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha,ia64">Intel 82557, 82258, 82559, 82550,
+    <para arch="i386,pc98,alpha,ia64,sparc64">Intel 82557, 82258, 82559, 82550,
       82562 ベースの Fast Ethernet NIC (&man.fxp.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -2453,13 +2470,16 @@
   <sect2>
     <title>その他のネットワーク機器</title>
 
-    <para arch="i386">Granch SBNI12 point-to-point 通信アダプタ (sbni ドライバ)
+    <para arch="i386">Granch SBNI12 point-to-point 通信アダプタ (&man.sbni.4; ドライバ)
       <itemizedlist>
         <listitem>
 	  <para>SBNI12-XX および SBNI12D-XX ISA 版/PCI 版</para>
 	</listitem>
       </itemizedlist>
     </para>
+
+    <para arch="i386">Granch SBNI16 SHDSL モデム (&man.sbsh.4;
+      ドライバ)</para>
 
     <para arch="i386">SMC COM90cx6 ARCNET ネットワークアダプタ (cm ドライバ)
       <itemizedlist>
@@ -2627,24 +2647,72 @@
     <para arch="i386">PCI ベースのマルチポートシリアルボード (&man.puc.4;
       ドライバ)
       <itemizedlist>
-        <listitem>
-	  <para>Avlab Technology, PCI IO 2S</para>
+	<listitem>
+	  <para>Actiontech 56K PCI</para>
 	</listitem>
         <listitem>
-	  <para>Moxa Industio CP-114</para>
+	  <para>Avlab Technology, PCI IO 2S および PCI IO 4S</para>
 	</listitem>
+	<listitem>
+	  <para>Comtrol RocketPort 550</para>
+	</listitem>
+	<listitem>
+	  <para>Decision Computers PCCOM 4-port シリアルおよびデュアルポート RS232/422/485</para>
+	</listitem>
+	<listitem>
+	  <para>Dolphin Peripherals 4025/4035/4036</para>
+	</listitem>
+	<listitem>
+	  <para>IC Book Labs Dreadnought 16x Lite および Pro</para>
+	</listitem>
+	<listitem>
+	  <para>Lava Computers 2SP-PCI/DSerial-PCI/Quattro-PCI/Octopus-550</para>
+	</listitem>
+	<listitem>
+	  <para>Middle Digital, Weasle シリアルポート</para>
+ 	</listitem>
         <listitem>
-	  <para>Syba Tech Ltd. PCI-4S2P-550-ECP</para>
+	  <para>Moxa Industio CP-114, Smartio C104H-PCI および C168H/PCI</para>
 	</listitem>
+	<listitem>
+	  <para>NEC PK-UG-X001 および PK-UG-X008</para>
+ 	</listitem>
         <listitem>
 	  <para>Netmos NM9835 PCI-2S-550</para>
 	</listitem>
-        <listitem>
-	  <para>PCCOM dual port RS232/422/485</para>
+	<listitem>
+	  <para>Oxford Semiconductor OX16PCI954 PCI UART</para>
+	</listitem>
+	<listitem>
+	  <para>Syba Tech SD-LAB PCI-4S2P-550-ECP</para>
+	</listitem>
+	<listitem>
+	  <para>SIIG Cyber I/O PCI 16C550/16C650/16C850</para>
+	</listitem>
+	<listitem>
+	  <para>SIIG Cyber 2P1S PCI 16C550/16C650/16C850</para>
+	</listitem>
+	<listitem>
+	  <para>SIIG Cyber 2S1P PCI 16C550/16C650/16C850</para>
+	</listitem>
+	<listitem>
+	  <para>SIIG Cyber 4S PCI 16C550/16C650/16C850</para>
+	</listitem>
+	<listitem>
+	  <para>SIIG Cyber Serial (シングルおよびデュアル) PCI 16C550/16C650/16C850</para>
 	</listitem>
         <listitem>
-          <para>SIIG Cyber Serial Dual PCI 16C550</para>
-        </listitem>
+	  <para>Syba Tech Ltd. PCI-4S2P-550-ECP</para>
+ 	</listitem>
+        <listitem>
+	  <para>Titan PCI-200H および PCI-800H</para>
+	</listitem>
+	<listitem>
+	  <para>US Robotics (3Com) 3CP5609 モデム</para>
+	</listitem>
+	<listitem>
+	  <para>VScom PCI-400 および PCI-800</para>
+ 	</listitem>
       </itemizedlist>
     </para>
 
@@ -3021,6 +3089,10 @@
         </listitem>
       </itemizedlist>
     </para>
+
+    <para arch="i386,ia64,pc98">EHCI インタフェースを使った
+      USB 2.0 コントローラ (ehci ドライバ)</para>
+
     <para arch="i386,pc98,alpha">ハブ
       <itemizedlist>
         <listitem>
@@ -3218,7 +3290,7 @@
   <sect2 id="firewire">
     <title>IEEE 1394 (FireWire) デバイス</title>
 
-    <para arch="i386,pc98,powerpc">ホストコントローラ (&man.fwohci.4;
+    <para arch="i386,sparc64">ホストコントローラ (&man.fwohci.4;
       ドライバ)
 
       <itemizedlist>
@@ -3241,7 +3313,7 @@
 
       </para>
 
-    <para arch="i386,pc98,powerpc">ストレージ (&man.sbp.4; ドライバ)
+    <para arch="i386,sparc64">ストレージ (&man.sbp.4; ドライバ)
 
       <itemizedlist>
 	<listitem>
@@ -3337,7 +3409,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha">フロッピドライブ (&man.fd.4; ドライバ)</para>
+    <para arch="i386,pc98,alpha">フロッピドライブ (&man.fdc.4; ドライバ)</para>
     <para arch="i386">Genius および Mustek ハンドスキャナ</para>
     <para arch="i386">GPB および Transputer ドライバ</para>
     <para arch="i386,pc98,alpha,ia64">キーボード
