@@ -54,7 +54,7 @@ static char sccsid[] = "@(#)comsat.c	8.1 (Berkeley) 6/4/93";
 #include <netdb.h>
 #include <paths.h>
 #include <pwd.h>
-#include <sgtty.h>
+#include <termios.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -206,7 +206,7 @@ notify(utp, file, offset, folder)
 {
 	FILE *tp;
 	struct stat stb;
-	struct sgttyb gttybuf;
+	struct termios tio;
 	char tty[20], name[sizeof(utmp[0].ut_name) + 1];
 
 	(void)snprintf(tty, sizeof(tty), "%s%.*s",
@@ -229,9 +229,8 @@ notify(utp, file, offset, folder)
 		dsyslog(LOG_ERR, "%s: %s", tty, strerror(errno));
 		_exit(-1);
 	}
-	(void)ioctl(fileno(tp), TIOCGETP, &gttybuf);
-	cr = (gttybuf.sg_flags&CRMOD) && !(gttybuf.sg_flags&RAW) ?
-	    "\n" : "\n\r";
+	(void)tcgetattr(fileno(tp), &tio);
+	cr = (tio.c_oflag & (OPOST|ONLCR) == (OPOST|ONLCR)) ?  "\n" : "\n\r";
 	(void)strncpy(name, utp->ut_name, sizeof(utp->ut_name));
 	name[sizeof(name) - 1] = '\0';
 	(void)fprintf(tp, "%s\007New mail for %s@%.*s\007 has arrived%s%s%s:%s----%s",
