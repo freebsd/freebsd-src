@@ -770,7 +770,10 @@ ndis_shutdown_nic(arg)
 	if (shutdownfunc == NULL)
 		return(EINVAL);
 
-	shutdownfunc(sc->ndis_chars.nmc_rsvd0);
+	if (sc->ndis_chars.nmc_rsvd0 == NULL)
+		shutdownfunc(adapter);
+	else
+		shutdownfunc(sc->ndis_chars.nmc_rsvd0);
 
 	return(0);
 }
