@@ -122,12 +122,12 @@ struct	arpcom {
 	struct	 ifnet ac_if;			/* network-visible interface */
 	u_int8_t ac_enaddr[ETHER_ADDR_LEN];	/* ethernet hardware address */
 	char	 ac__pad[2];			/* be nice to m68k ports */
-	LIST_HEAD(, struct ether_multi) ac_multiaddrs;	/* list of ether multicast addrs */
+	LIST_HEAD(, ether_multi) ac_multiaddrs;	/* list of ether multicast addrs */
 	int	 ac_multicnt;			/* length of ac_multiaddrs list */
 };
 
 struct llinfo_arp {
-	LIST_ENTRY(struct llinfo_arp) la_list;
+	LIST_ENTRY(llinfo_arp) la_list;
 	struct	rtentry *la_rt;
 	struct	mbuf *la_hold;		/* last packet until resolved/timeout */
 	long	la_asked;		/* last time we QUERIED for this addr */
@@ -181,7 +181,7 @@ struct ether_multi {
 	u_int8_t enm_addrhi[ETHER_ADDR_LEN]; /* high or only address of range */
 	struct	 arpcom *enm_ac;	/* back pointer to arpcom */
 	u_int	 enm_refcount;		/* no. claims to this addr/range */
-	LIST_ENTRY(struct ether_multi) enm_list;
+	LIST_ENTRY(ether_multi) enm_list;
 };
 
 /*

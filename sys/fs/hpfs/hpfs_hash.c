@@ -50,7 +50,7 @@ MALLOC_DEFINE(M_HPFSHASH, "HPFS hash", "HPFS node hash tables");
 /*
  * Structures associated with hpfsnode cacheing.
  */
-static LIST_HEAD(hphashhead, struct hpfsnode) *hpfs_hphashtbl;
+static LIST_HEAD(hphashhead, hpfsnode) *hpfs_hphashtbl;
 static u_long	hpfs_hphash;		/* size of hash table - 1 */
 #define	HPNOHASH(dev, lsn)	(&hpfs_hphashtbl[(minor(dev) + (lsn)) & hpfs_hphash])
 #ifndef NULL_SIMPLELOCKS

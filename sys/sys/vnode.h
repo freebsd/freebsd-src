@@ -71,7 +71,7 @@ enum vtagtype	{
  * Each underlying filesystem allocates its own private area and hangs
  * it from v_data.  If non-null, this area is freed in getnewvnode().
  */
-TAILQ_HEAD(buflists, struct buf);
+TAILQ_HEAD(buflists, buf);
 
 typedef	int 	vop_t __P((void *));
 struct namecache;
@@ -92,11 +92,11 @@ struct vnode {
 	u_long	v_id;				/* capability identifier */
 	struct	mount *v_mount;			/* ptr to vfs we are in */
 	vop_t	**v_op;				/* vnode operations vector */
-	TAILQ_ENTRY(struct vnode) v_freelist;	/* vnode freelist */
-	LIST_ENTRY(struct vnode) v_mntvnodes;	/* vnodes for mount point */
+	TAILQ_ENTRY(vnode) v_freelist;		/* vnode freelist */
+	LIST_ENTRY(vnode) v_mntvnodes;		/* vnodes for mount point */
 	struct	buflists v_cleanblkhd;		/* clean blocklist head */
 	struct	buflists v_dirtyblkhd;		/* dirty blocklist head */
-	LIST_ENTRY(struct vnode) v_synclist;	/* vnodes with dirty buffers */
+	LIST_ENTRY(vnode) v_synclist;		/* vnodes with dirty buffers */
 	long	v_numoutput;			/* num of writes in progress */
 	enum	vtype v_type;			/* vnode type */
 	union {
@@ -104,7 +104,7 @@ struct vnode {
 		struct socket	*vu_socket;	/* unix ipc (VSOCK) */
 		struct {
 			struct specinfo	*vu_specinfo; /* device (VCHR, VBLK) */
-			SLIST_ENTRY(struct vnode) vu_specnext;
+			SLIST_ENTRY(vnode) vu_specnext;
 		} vu_spec;
 		struct fifoinfo	*vu_fifoinfo;	/* fifo (VFIFO) */
 	} v_un;
@@ -118,8 +118,8 @@ struct vnode {
 	struct	lock *v_vnlock;			/* used for non-locking fs's */
 	enum	vtagtype v_tag;			/* type of underlying data */
 	void 	*v_data;			/* private data for fs */
-	LIST_HEAD(, struct namecache) v_cache_src; /* Cache entries from us */
-	TAILQ_HEAD(, struct namecache) v_cache_dst; /* Cache entries to us */
+	LIST_HEAD(, namecache) v_cache_src;	/* Cache entries from us */
+	TAILQ_HEAD(, namecache) v_cache_dst;	/* Cache entries to us */
 	struct	vnode *v_dd;			/* .. vnode */
 	u_long	v_ddid;				/* .. capability identifier */
 	struct	{
@@ -621,7 +621,7 @@ void	vbusy __P((struct vnode *vp));
 extern	vop_t	**default_vnodeop_p;
 extern	vop_t **spec_vnodeop_p;
 
-extern TAILQ_HEAD(tobefreelist, struct vnode)
+extern TAILQ_HEAD(tobefreelist, vnode)
 	vnode_tobefree_list;	/* vnode free list */
 
 #endif /* _KERNEL */

@@ -104,8 +104,8 @@ struct nqhost {
 #define	lph_inetaddr	lph_un.un_udp.udp_haddr.had_inetaddr
 
 struct nqlease {
-	LIST_ENTRY(struct nqlease) lc_hash;	/* Fhandle hash list */
-	CIRCLEQ_ENTRY(struct nqlease) lc_timer; /* Timer queue list */
+	LIST_ENTRY(nqlease) lc_hash;	/* Fhandle hash list */
+	CIRCLEQ_ENTRY(nqlease) lc_timer; /* Timer queue list */
 	time_t		lc_expiry;	/* Expiry time (sec) */
 	struct nqhost	lc_host;	/* Host that got lease */
 	struct nqm	*lc_morehosts;	/* Other hosts that share read lease */
@@ -173,14 +173,14 @@ struct nqm {
 /*
  * List head for timer queue.
  */
-extern CIRCLEQ_HEAD(nqtimerhead, struct nqlease) nqtimerhead;
+extern CIRCLEQ_HEAD(nqtimerhead, nqlease) nqtimerhead;
 
 /*
  * List head for the file handle hash table.
  */
 #define	NQFHHASH(f) \
 	(&nqfhhashtbl[(*((u_int32_t *)(f))) & nqfhhash])
-extern LIST_HEAD(nqfhhashhead, struct nqlease) *nqfhhashtbl;
+extern LIST_HEAD(nqfhhashhead, nqlease) *nqfhhashtbl;
 extern u_long nqfhhash;
 
 /*

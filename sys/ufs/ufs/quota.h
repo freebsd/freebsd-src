@@ -119,8 +119,8 @@ struct dqblk {
  * used entries.
  */
 struct dquot {
-	LIST_ENTRY(struct dquot) dq_hash;	/* hash list */
-	TAILQ_ENTRY(struct dquot) dq_freelist;	/* free list */
+	LIST_ENTRY(dquot) dq_hash;	/* hash list */
+	TAILQ_ENTRY(dquot) dq_freelist;	/* free list */
 	u_int16_t dq_flags;		/* flags, see below */
 	u_int16_t dq_cnt;		/* count of active references */
 	u_int16_t dq_spare;		/* unused spare padding */

@@ -86,10 +86,10 @@ typedef u_char objtype_t;
  */
 
 struct vm_object {
-	TAILQ_ENTRY(struct vm_object) object_list; /* list of all objects */
-	TAILQ_HEAD(, struct vm_object) shadow_head; /* objects that this is a shadow for */
-	TAILQ_ENTRY(struct vm_object) shadow_list; /* chain of shadow objects */
-	TAILQ_HEAD(, struct vm_page) memq;	/* list of resident pages */
+	TAILQ_ENTRY(vm_object) object_list; /* list of all objects */
+	TAILQ_HEAD(, vm_object) shadow_head; /* objects that this is a shadow for */
+	TAILQ_ENTRY(vm_object) shadow_list; /* chain of shadow objects */
+	TAILQ_HEAD(, vm_page) memq;	/* list of resident pages */
 	int generation;			/* generation ID */
 	vm_size_t size;			/* Object size */
 	int ref_count;			/* How many refs?? */
@@ -102,7 +102,7 @@ struct vm_object {
 	int resident_page_count;	/* number of resident pages */
 	struct vm_object *backing_object; /* object that I'm a shadow of */
 	vm_ooffset_t backing_object_offset;/* Offset in backing object */
-	TAILQ_ENTRY(struct vm_object) pager_object_list; /* list of all objects of this pager type */
+	TAILQ_ENTRY(vm_object) pager_object_list; /* list of all objects of this pager type */
 	void *handle;
 	union {
 		/*
@@ -120,7 +120,7 @@ struct vm_object {
 		 *	devp_pglist - list of allocated pages
 		 */
 		struct {
-			TAILQ_HEAD(, struct vm_page) devp_pglist;
+			TAILQ_HEAD(, vm_page) devp_pglist;
 		} devp;
 
 		/*
@@ -129,7 +129,7 @@ struct vm_object {
 		 *	physp_pglist - list of allocated pages
 		 */
 		struct {
-			TAILQ_HEAD(, struct vm_page) physp_pglist;
+			TAILQ_HEAD(, vm_page) physp_pglist;
 		} physp;
 
 		/*
@@ -167,7 +167,7 @@ struct vm_object {
 #define OBJPC_INVAL	0x2			/* invalidate */
 #define OBJPC_NOSYNC	0x4			/* skip if PG_NOSYNC */
 
-TAILQ_HEAD(object_q, struct vm_object);
+TAILQ_HEAD(object_q, vm_object);
 
 extern struct object_q vm_object_list;	/* list of allocated objects */
 

@@ -580,7 +580,7 @@ typedef enum {
 
 struct bt_ccb {
 	struct	bt_hccb		 hccb;
-	SLIST_ENTRY(struct bt_ccb)	 links;
+	SLIST_ENTRY(bt_ccb)	 links;
 	u_int32_t		 flags;
 	union ccb		*ccb;
 	bus_dmamap_t		 dmamap;
@@ -592,7 +592,7 @@ struct sg_map_node {
 	bus_dmamap_t		 sg_dmamap;
 	bus_addr_t		 sg_physaddr;
 	bt_sg_t*		 sg_vaddr;
-	SLIST_ENTRY(struct sg_map_node) links;
+	SLIST_ENTRY(sg_map_node) links;
 };
 	
 struct bt_softc {
@@ -610,8 +610,8 @@ struct bt_softc {
 	bt_mbox_out_t		*last_outbox;
 	bt_mbox_in_t		*last_inbox;
 	struct	bt_ccb		*bt_ccb_array;
-	SLIST_HEAD(, struct bt_ccb)	 free_bt_ccbs;
-	LIST_HEAD(, struct ccb_hdr)	 pending_ccbs;
+	SLIST_HEAD(,bt_ccb)	 free_bt_ccbs;
+	LIST_HEAD(,ccb_hdr)	 pending_ccbs;
 	u_int			 active_ccbs;
 	u_int32_t		 bt_ccb_physbase;
 	bt_mbox_in_t		*in_boxes;
@@ -633,7 +633,7 @@ struct bt_softc {
 	bus_dma_tag_t		 sg_dmat;	/* dmat for our sg segments */
 	bus_dma_tag_t		 sense_dmat;	/* dmat for our sense buffers */
 	bus_dmamap_t		 sense_dmamap;
-	SLIST_HEAD(, struct sg_map_node) sg_maps;
+	SLIST_HEAD(, sg_map_node) sg_maps;
 	bus_addr_t		 mailbox_physbase;
 	u_int			 num_ccbs;	/* Number of CCBs malloc'd */
 	u_int			 max_ccbs;	/* Maximum allocatable CCBs */

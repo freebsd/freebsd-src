@@ -94,7 +94,7 @@ struct kevent {
  */
 #include <sys/queue.h> 
 struct knote;
-SLIST_HEAD(klist, struct knote);
+SLIST_HEAD(klist, knote);
 
 #ifdef _KERNEL
 
@@ -114,9 +114,9 @@ struct filterops {
 };
 
 struct knote {
-	SLIST_ENTRY(struct knote)	kn_link;	/* for fd */
-	SLIST_ENTRY(struct knote)	kn_selnext;	/* for struct selinfo */
-	TAILQ_ENTRY(struct knote)	kn_tqe;
+	SLIST_ENTRY(knote)	kn_link;	/* for fd */
+	SLIST_ENTRY(knote)	kn_selnext;	/* for struct selinfo */
+	TAILQ_ENTRY(knote)	kn_tqe;
 	struct			kqueue *kn_kq;	/* which queue we are on */
 	struct 			kevent kn_kevent;
 	int			kn_status;

@@ -107,12 +107,12 @@
  *	NFS to implement piecemeal writes.
  */
 
-TAILQ_HEAD(pglist, struct vm_page);
+TAILQ_HEAD(pglist, vm_page);
 
 struct vm_page {
-	TAILQ_ENTRY(struct vm_page) pageq; /* queue info for FIFO queue or free list (P) */
+	TAILQ_ENTRY(vm_page) pageq;	/* queue info for FIFO queue or free list (P) */
 	struct vm_page	*hnext;		/* hash table link (O,P)	*/
-	TAILQ_ENTRY(struct vm_page) listq; /* pages in same object (O) 	*/
+	TAILQ_ENTRY(vm_page) listq;	/* pages in same object (O) 	*/
 
 	vm_object_t object;		/* which object am I in (O,P)*/
 	vm_pindex_t pindex;		/* offset into object (O,P) */

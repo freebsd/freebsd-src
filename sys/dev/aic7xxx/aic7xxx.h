@@ -250,7 +250,7 @@ struct hardware_scb {
 
 struct scb {
 	struct	hardware_scb	*hscb;
-	SLIST_ENTRY(struct scb)	 links;	 /* for chaining */
+	SLIST_ENTRY(scb)	 links;	 /* for chaining */
 	union ccb		*ccb;	 /* the ccb for this cmd */
 	scb_flag		 flags;
 	bus_dmamap_t		 dmamap;
@@ -432,13 +432,13 @@ struct sg_map_node {
 	bus_dmamap_t		 sg_dmamap;
 	bus_addr_t		 sg_physaddr;
 	struct ahc_dma_seg*	 sg_vaddr;
-	SLIST_ENTRY(struct sg_map_node) links;
+	SLIST_ENTRY(sg_map_node) links;
 };
 	
 struct scb_data {
 	struct	hardware_scb	*hscbs;	    /* Array of hardware SCBs */
 	struct	scb *scbarray;		    /* Array of kernel SCBs */
-	SLIST_HEAD(, struct scb) free_scbs;	/*
+	SLIST_HEAD(, scb) free_scbs;	/*
 					 * Pool of SCBs ready to be assigned
 					 * commands to execute.
 					 */
@@ -454,7 +454,7 @@ struct scb_data {
 	bus_dmamap_t	 sense_dmamap;
 	bus_addr_t	 sense_busaddr;
 	bus_dma_tag_t	 sg_dmat;	/* dmat for our sg segments */
-	SLIST_HEAD(, struct sg_map_node) sg_maps;
+	SLIST_HEAD(, sg_map_node) sg_maps;
 	u_int8_t	numscbs;
 	u_int8_t	maxhscbs;	/* Number of SCBs on the card */
 	u_int8_t	init_level;	/*
@@ -472,7 +472,7 @@ struct ahc_softc {
 	/*
 	 * CCBs that have been send to the controller
 	 */
-	LIST_HEAD(, struct ccb_hdr)	 pending_ccbs;
+	LIST_HEAD(, ccb_hdr)	 pending_ccbs;
 
 	/*
 	 * Target mode related state kept on a per enabled lun basis.

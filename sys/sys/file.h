@@ -54,7 +54,7 @@ struct uio;
  * One entry for each open kernel vnode and socket.
  */
 struct file {
-	LIST_ENTRY(struct file) f_list;/* list of active files */
+	LIST_ENTRY(file) f_list;/* list of active files */
 	short	f_flag;		/* see fcntl.h */
 #define	DTYPE_VNODE	1	/* file */
 #define	DTYPE_SOCKET	2	/* communications endpoint */
@@ -96,7 +96,7 @@ struct file {
 MALLOC_DECLARE(M_FILE);
 #endif
 
-LIST_HEAD(filelist, struct file);
+LIST_HEAD(filelist, file);
 extern struct filelist filehead; /* head of list of open files */
 extern struct fileops vnops;
 extern struct fileops badfileops;

@@ -556,7 +556,7 @@ extern u_long nfsnodehash;
 struct nfssvc_args;
 extern int nfssvc(struct proc *, struct nfssvc_args *, int *);
 
-LIST_HEAD(nfsnodehashhead, struct nfsnode);
+LIST_HEAD(nfsnodehashhead, nfsnode);
 
 int nfs_webnamei __P((struct nameidata *, struct vnode *, struct proc *));
 

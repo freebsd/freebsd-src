@@ -75,10 +75,10 @@ struct	ether_header;
 
 #include <sys/queue.h>		/* get TAILQ macros */
 
-TAILQ_HEAD(ifnethead, struct ifnet);	/* we use TAILQs so that the order of */
-TAILQ_HEAD(ifaddrhead, struct ifaddr);	/* instantiation is preserved in the list */
-TAILQ_HEAD(ifprefixhead, struct ifprefix);
-LIST_HEAD(ifmultihead, struct ifmultiaddr);
+TAILQ_HEAD(ifnethead, ifnet);	/* we use TAILQs so that the order of */
+TAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
+TAILQ_HEAD(ifprefixhead, ifprefix);
+LIST_HEAD(ifmultihead, ifmultiaddr);
 
 /*
  * Structure defining a queue for a network interface.
@@ -99,7 +99,7 @@ struct	ifqueue {
 struct ifnet {
 	void	*if_softc;		/* pointer to driver state */
 	char	*if_name;		/* name, e.g. ``en'' or ``lo'' */
-	TAILQ_ENTRY(struct ifnet) if_link; /* all struct ifnets are chained */
+	TAILQ_ENTRY(ifnet) if_link; 	/* all struct ifnets are chained */
 	struct	ifaddrhead if_addrhead;	/* linked list of addresses per if */
         int	if_pcount;		/* number of promiscuous listeners */
 	struct	bpf_if *if_bpf;		/* packet filter structure */
@@ -260,7 +260,7 @@ struct ifaddr {
 #define	ifa_broadaddr	ifa_dstaddr	/* broadcast address interface */
 	struct	sockaddr *ifa_netmask;	/* used to determine subnet */
 	struct	ifnet *ifa_ifp;		/* back-pointer to interface */
-	TAILQ_ENTRY(struct ifaddr) ifa_link;	/* queue macro glue */
+	TAILQ_ENTRY(ifaddr) ifa_link;	/* queue macro glue */
 	void	(*ifa_rtrequest)	/* check or clean routes (+ or -)'d */
 		__P((int, struct rtentry *, struct sockaddr *));
 	u_short	ifa_flags;		/* mostly rt_flags for cloning */
@@ -287,7 +287,7 @@ struct ifaddr {
 struct ifprefix {
 	struct	sockaddr *ifpr_prefix;	/* prefix of interface */
 	struct	ifnet *ifpr_ifp;	/* back-pointer to interface */
-	TAILQ_ENTRY(struct ifprefix) ifpr_list; /* queue macro glue */
+	TAILQ_ENTRY(ifprefix) ifpr_list; /* queue macro glue */
 	u_char	ifpr_plen;		/* prefix length in bits */
 	u_char	ifpr_type;		/* protocol dependent prefix type */
 };
@@ -299,7 +299,7 @@ struct ifprefix {
  * address, not a count of pointers to this structure.
  */
 struct ifmultiaddr {
-	LIST_ENTRY(struct ifmultiaddr) ifma_link; /* queue macro glue */
+	LIST_ENTRY(ifmultiaddr) ifma_link; /* queue macro glue */
 	struct	sockaddr *ifma_addr; 	/* address this membership is for */
 	struct	sockaddr *ifma_lladdr;	/* link-layer translation, if any */
 	struct	ifnet *ifma_ifp;	/* back-pointer to interface */

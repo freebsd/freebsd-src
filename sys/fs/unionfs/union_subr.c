@@ -67,7 +67,7 @@ extern int	union_init __P((void));
 #define UNION_HASH(u, l) \
 	(((((uintptr_t) (u)) + ((uintptr_t) l)) >> 8) & (NHASH-1))
 
-static LIST_HEAD(unhead, struct union_node) unhead[NHASH];
+static LIST_HEAD(unhead, union_node) unhead[NHASH];
 static int unvplock[NHASH];
 
 static void	union_dircache_r __P((struct vnode *vp, struct vnode ***vppp,

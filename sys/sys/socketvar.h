@@ -68,9 +68,9 @@ struct socket {
  * and limit on number of queued connections for this socket.
  */
 	struct	socket *so_head;	/* back pointer to accept socket */
-	TAILQ_HEAD(, struct socket) so_incomp;	/* queue of partial unaccepted connections */
-	TAILQ_HEAD(, struct socket) so_comp;	/* queue of complete unaccepted connections */
-	TAILQ_ENTRY(struct socket) so_list;	/* list of unaccepted connections */
+	TAILQ_HEAD(, socket) so_incomp;	/* queue of partial unaccepted connections */
+	TAILQ_HEAD(, socket) so_comp;	/* queue of complete unaccepted connections */
+	TAILQ_ENTRY(socket) so_list;	/* list of unaccepted connections */
 	short	so_qlen;		/* number of unaccepted connections */
 	short	so_incqlen;		/* number of unaccepted incomplete
 					   connections */
@@ -80,7 +80,7 @@ struct socket {
 	struct  sigio *so_sigio;	/* information for async I/O or
 					   out of band data (SIGURG) */
 	u_long	so_oobmark;		/* chars to oob mark */
-	TAILQ_HEAD(, struct aiocblist) so_aiojobq; /* AIO ops waiting on socket */
+	TAILQ_HEAD(, aiocblist) so_aiojobq; /* AIO ops waiting on socket */
 /*
  * Variables for socket buffering.
  */
@@ -264,7 +264,7 @@ struct sockopt {
 };
 
 struct sf_buf {
-	SLIST_ENTRY(struct sf_buf) free_list;	/* list of free buffer slots */
+	SLIST_ENTRY(sf_buf) free_list;	/* list of free buffer slots */
 	int		refcnt;		/* reference count */
 	struct		vm_page *m;	/* currently mapped page */
 	vm_offset_t	kva;		/* va of mapping */

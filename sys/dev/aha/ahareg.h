@@ -319,7 +319,7 @@ typedef enum {
 
 struct aha_ccb {
 	struct	aha_hccb	 hccb;		/* hccb assumed to be at 0 */
-	SLIST_ENTRY(struct aha_ccb)	 links;
+	SLIST_ENTRY(aha_ccb)	 links;
 	u_int32_t		 flags;
 	union ccb		*ccb;
 	bus_dmamap_t		 dmamap;
@@ -331,7 +331,7 @@ struct sg_map_node {
 	bus_dmamap_t		 sg_dmamap;
 	bus_addr_t		 sg_physaddr;
 	aha_sg_t*		 sg_vaddr;
-	SLIST_ENTRY(struct sg_map_node) links;
+	SLIST_ENTRY(sg_map_node) links;
 };
 	
 struct aha_softc {
@@ -344,8 +344,8 @@ struct aha_softc {
 	aha_mbox_out_t		*last_outbox;
 	aha_mbox_in_t		*last_inbox;
 	struct	aha_ccb		*aha_ccb_array;
-	SLIST_HEAD(, struct aha_ccb)	 free_aha_ccbs;
-	LIST_HEAD(, struct ccb_hdr)	 pending_ccbs;
+	SLIST_HEAD(,aha_ccb)	 free_aha_ccbs;
+	LIST_HEAD(,ccb_hdr)	 pending_ccbs;
 	u_int			 active_ccbs;
 	u_int32_t		 aha_ccb_physbase;
 	aha_ccb_opcode_t	 ccb_sg_opcode;
@@ -367,7 +367,7 @@ struct aha_softc {
 	bus_dma_tag_t		 ccb_dmat;	/* dmat for our ccb array */
 	bus_dmamap_t		 ccb_dmamap;
 	bus_dma_tag_t		 sg_dmat;	/* dmat for our sg maps */
-	SLIST_HEAD(, struct sg_map_node) sg_maps;
+	SLIST_HEAD(, sg_map_node) sg_maps;
 	bus_addr_t		 mailbox_physbase;
 	u_int			 num_ccbs;	/* Number of CCBs malloc'd */
 	u_int			 max_ccbs;	/* Maximum allocatable CCBs */

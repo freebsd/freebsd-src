@@ -80,7 +80,7 @@ typedef enum {
 /* We stick a pointer to the originating accept TIO in each continue I/O CCB */
 #define ccb_atio	ppriv_ptr1
 
-TAILQ_HEAD(ccb_queue, struct ccb_hdr);
+TAILQ_HEAD(ccb_queue, ccb_hdr);
 
 struct targbh_softc {
 	struct		ccb_queue pending_queue;

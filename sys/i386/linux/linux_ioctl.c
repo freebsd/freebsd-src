@@ -85,12 +85,12 @@ DATA_SET(linux_ioctl_handler_set, termio_handler);
 
 struct handler_element 
 {
-	TAILQ_ENTRY(struct handler_element) list;
+	TAILQ_ENTRY(handler_element) list;
 	int	(*func)(struct proc *, struct linux_ioctl_args *);
 	int	low, high, span;
 };
 
-static TAILQ_HEAD(, struct handler_element) handlers =
+static TAILQ_HEAD(, handler_element) handlers =
 	TAILQ_HEAD_INITIALIZER(handlers);
 
 static int

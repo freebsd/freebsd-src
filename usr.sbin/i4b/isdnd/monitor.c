@@ -75,21 +75,21 @@ void monitor_fixup_rights()
 #endif
 
 
-static TAILQ_HEAD(rights_q, struct monitor_rights) rights = TAILQ_HEAD_INITIALIZER(rights);
+static TAILQ_HEAD(rights_q, monitor_rights) rights = TAILQ_HEAD_INITIALIZER(rights);
 
 static struct monitor_rights * local_rights = NULL;	/* entry for local socket */
 
 /* for each active monitor connection we have one of this: */
 
 struct monitor_connection {
-	TAILQ_ENTRY(struct monitor_connection) connections;
+	TAILQ_ENTRY(monitor_connection) connections;
 	int sock;			/* socket for this connection */
 	int rights;			/* active rights for this connection */
 	int events;			/* bitmask of events client is interested in */
 	char source[FILENAME_MAX];
 };
 
-static TAILQ_HEAD(connections_tq, struct monitor_connection) connections = TAILQ_HEAD_INITIALIZER(connections);
+static TAILQ_HEAD(connections_tq, monitor_connection) connections = TAILQ_HEAD_INITIALIZER(connections);
 
 /* local prototypes */
 static int cmp_rights(const struct monitor_rights *pa, const struct monitor_rights *pb);

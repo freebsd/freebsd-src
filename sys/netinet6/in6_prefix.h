@@ -31,8 +31,8 @@
 
 struct rr_prefix {
 	struct	ifprefix	rp_ifpr;
-	LIST_ENTRY(struct rr_prefix) rp_entry;
-	LIST_HEAD(rp_addrhead, struct rp_addr) rp_addrhead;
+	LIST_ENTRY(rr_prefix) rp_entry;
+	LIST_HEAD(rp_addrhead, rp_addr) rp_addrhead;
 	struct	sockaddr_in6 rp_prefix;	/* prefix */
 	u_int32_t	rp_vltime;	/* advertised valid lifetime */
 	u_int32_t	rp_pltime;	/* advertised preferred lifetime */
@@ -63,7 +63,7 @@ struct rr_prefix {
 #define	rp_rrf_decrprefd	rp_flags.prf_rr.decrprefd
 
 struct rp_addr {
-	LIST_ENTRY(struct rp_addr) ra_entry;
+	LIST_ENTRY(rp_addr) ra_entry;
 	struct	in6_addr	ra_ifid;
 	struct	in6_ifaddr	*ra_addr;
 	struct	ra_flags {
@@ -79,7 +79,7 @@ struct rp_addr {
 #define	RR_INFINITE_LIFETIME		0xffffffff
 
 
-LIST_HEAD(rr_prhead, struct rr_prefix);
+LIST_HEAD(rr_prhead, rr_prefix);
 
 extern struct	rr_prhead rr_prefix;
 

@@ -110,12 +110,12 @@ static int key_blockacq_lifetime = 20;	/* lifetime for blocking SADB_ACQUIRE.*/
 static u_int32_t acq_seq = 0;
 static int key_tick_init_random = 0;
 
-static LIST_HEAD(_sptree, struct secpolicy) sptree[IPSEC_DIR_MAX];	/* SPD */
-static LIST_HEAD(_sahtree, struct secashead) sahtree;			/* SAD */
-static LIST_HEAD(_regtree, struct secreg) regtree[SADB_SATYPE_MAX + 1];
+static LIST_HEAD(_sptree, secpolicy) sptree[IPSEC_DIR_MAX];	/* SPD */
+static LIST_HEAD(_sahtree, secashead) sahtree;			/* SAD */
+static LIST_HEAD(_regtree, secreg) regtree[SADB_SATYPE_MAX + 1];
 							/* registed list */
 #ifndef IPSEC_NONBLOCK_ACQUIRE
-static LIST_HEAD(_acqtree, struct secacq) acqtree;	/* acquiring list */
+static LIST_HEAD(_acqtree, secacq) acqtree;		/* acquiring list */
 #endif
 
 struct key_cb key_cb;

@@ -103,7 +103,7 @@ struct pccard_config_entry {
 		u_long	hostaddr;
 	} memspace[2];		/* XXX this could be as high as 8 */
 	int		maxtwins;
-	STAILQ_ENTRY(struct pccard_config_entry) cfe_list;
+	STAILQ_ENTRY(pccard_config_entry) cfe_list;
 };
 
 struct pccard_function {
@@ -115,8 +115,8 @@ struct pccard_function {
 	u_long		ccr_mask;
 	struct resource *ccr_res;
 	int		ccr_rid;
-	STAILQ_HEAD(, struct pccard_config_entry) cfe_head;
-	STAILQ_ENTRY(struct pccard_function) pf_list;
+	STAILQ_HEAD(, pccard_config_entry) cfe_head;
+	STAILQ_ENTRY(pccard_function) pf_list;
 	/* run-time state */
 	struct pccard_softc *sc;
 	struct pccard_config_entry *cfe;
@@ -154,7 +154,7 @@ struct pccard_card {
 #define	PCCARD_PRODUCT_INVALID		-1
 	u_int16_t	error;
 #define	PCCARD_CIS_INVALID		{ NULL, NULL, NULL, NULL }
-	STAILQ_HEAD(, struct pccard_function) pf_head;
+	STAILQ_HEAD(, pccard_function) pf_head;
 };
 
 #define	PCCARD_MEM_ATTR		1

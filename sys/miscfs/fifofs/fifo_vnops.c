@@ -372,7 +372,7 @@ filt_fifordetach(struct knote *kn)
 	struct vnode *vn = (struct vnode *)kn->kn_fp->f_data;
 	struct socket *so = (struct socket *)vn->v_fifoinfo->fi_readsock;
 
-	SLIST_REMOVE(&so->so_rcv.sb_sel.si_note, kn, struct knote, kn_selnext);
+	SLIST_REMOVE(&so->so_rcv.sb_sel.si_note, kn, knote, kn_selnext);
 	if (SLIST_EMPTY(&so->so_rcv.sb_sel.si_note))
 		so->so_rcv.sb_flags &= ~SB_KNOTE;
 }
@@ -409,7 +409,7 @@ filt_fifowdetach(struct knote *kn)
 	struct vnode *vn = (struct vnode *)kn->kn_fp->f_data;
 	struct socket *so = (struct socket *)vn->v_fifoinfo->fi_readsock;
 
-	SLIST_REMOVE(&so->so_snd.sb_sel.si_note, kn, struct knote, kn_selnext);
+	SLIST_REMOVE(&so->so_snd.sb_sel.si_note, kn, knote, kn_selnext);
 	if (SLIST_EMPTY(&so->so_snd.sb_sel.si_note))
 		so->so_snd.sb_flags &= ~SB_KNOTE;
 }
