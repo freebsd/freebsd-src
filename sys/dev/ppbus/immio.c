@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 1998, 1999 Nicolas Souchu
+ * Copyright (c) 2001 Alcove - Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,12 +41,7 @@
 #include <sys/bus.h>
 #include <sys/malloc.h>
 
-#include <machine/clock.h>
-
 #endif	/* _KERNEL */
-
-#ifdef	_KERNEL
-#endif /* _KERNEL */
 
 #include "opt_vpo.h"
 
@@ -67,9 +63,27 @@
  * Microcode to execute very fast I/O sequences at the lowest bus level.
  */
 
+#define WAIT_RET		MS_PARAM(7, 2, MS_TYP_PTR)
+#define WAIT_TMO		MS_PARAM(1, 0, MS_TYP_INT)
+
+#define DECLARE_WAIT_MICROSEQUENCE \
+struct ppb_microseq wait_microseq[] = {					\
+	MS_CASS(0x0c),							\
+	MS_SET(MS_UNKNOWN),						\
+	/* loop */							\
+	MS_BRSET(nBUSY, 4 /* ready */),					\
+	MS_DBRA(-2 /* loop */),						\
+	MS_CASS(0x04),							\
+	MS_RET(1), /* timed out */					\
+	/* ready */							\
+	MS_CASS(0x04),							\
+	MS_RFETCH(MS_REG_STR, 0xb8, MS_UNKNOWN ),			\
+	MS_RET(0) /* no error */					\
+}
+
 #define SELECT_TARGET		MS_PARAM(6, 1, MS_TYP_CHA)
 
-#define DECLARE_SELECT_MICROSEQUENCE					\
+#define DECLARE_SELECT_MICROSEQUENCE \
 struct ppb_microseq select_microseq[] = {				\
 	MS_CASS(0xc),							\
 	/* first, check there is nothing holding onto the bus */	\
@@ -134,7 +148,7 @@ struct ppb_microseq cpp_microseq[] = {					\
 #define NEGOCIATED_MODE		MS_PARAM(2, 1, MS_TYP_CHA)
 
 #define DECLARE_NEGOCIATE_MICROSEQ \
-static struct ppb_microseq negociate_microseq[] = { 			\
+struct ppb_microseq negociate_microseq[] = {				\
 	MS_CASS(0x4),							\
 	MS_DELAY(5),							\
 	MS_DASS(MS_UNKNOWN /* mode */),					\
@@ -152,6 +166,35 @@ static struct ppb_microseq negociate_microseq[] = { 			\
 	MS_CASS(0x7),							\
 	MS_DELAY(5),							\
 	MS_CASS(0x6),							\
+	MS_RET(0)							\
+}
+
+#define INB_NIBBLE_L MS_PARAM(3, 2, MS_TYP_PTR)
+#define INB_NIBBLE_H MS_PARAM(6, 2, MS_TYP_PTR)
+#define INB_NIBBLE_F MS_PARAM(9, 0, MS_TYP_FUN)
+#define INB_NIBBLE_P MS_PARAM(9, 1, MS_TYP_PTR)
+
+/*
+ * This is the sub-microseqence for MS_GET in NIBBLE mode
+ * Retrieve the two nibbles and call the C function to generate the character
+ * and store it in the buffer (see nibble_inbyte_hook())
+ */
+
+#define DECLARE_NIBBLE_INBYTE_SUBMICROSEQ \
+struct ppb_microseq nibble_inbyte_submicroseq[] = {			\
+	MS_CASS(0x4),							\
+/* loop: */								\
+	MS_CASS(0x6),							\
+	MS_DELAY(1),							\
+	MS_RFETCH(MS_REG_STR, MS_FETCH_ALL, MS_UNKNOWN /* low nibble */),\
+	MS_CASS(0x5),							\
+	MS_DELAY(1),							\
+	MS_RFETCH(MS_REG_STR, MS_FETCH_ALL, MS_UNKNOWN /* high nibble */),\
+	MS_CASS(0x4),							\
+	MS_DELAY(1),							\
+	/* do a C call to format the received nibbles */		\
+	MS_C_CALL(MS_UNKNOWN /* C hook */, MS_UNKNOWN /* param */),	\
+	MS_DBRA(-7 /* loop */),						\
 	MS_RET(0)							\
 }
 
@@ -182,47 +225,6 @@ nibble_inbyte_hook (void *p, char *ptr)
 
 	return (0);
 }
-
-/*
- * Macro used to initialize each vpoio_data structure during
- * low level attachment
- *
- * XXX should be converted to ppb_MS_init_msq()
- */
-#define INIT_NIBBLE_INBYTE_SUBMICROSEQ(vpo) {		    	\
-	(vpo)->vpo_nibble_inbyte_msq[6].arg[2].p =		\
-			(void *)&(vpo)->vpo_nibble.h;		\
-	(vpo)->vpo_nibble_inbyte_msq[3].arg[2].p =		\
-			(void *)&(vpo)->vpo_nibble.l;		\
-	(vpo)->vpo_nibble_inbyte_msq[9].arg[0].f =		\
-			nibble_inbyte_hook;			\
-	(vpo)->vpo_nibble_inbyte_msq[9].arg[1].p =		\
-			(void *)&(vpo)->vpo_nibble;		\
-}
-
-/*
- * This is the sub-microseqence for MS_GET in NIBBLE mode
- * Retrieve the two nibbles and call the C function to generate the character
- * and store it in the buffer (see nibble_inbyte_hook())
- */
-static struct ppb_microseq nibble_inbyte_submicroseq[] = {
-	  MS_CASS(0x4),
-
-/* loop: */
-	  MS_CASS(0x6),
-	  MS_DELAY(1),
-	  MS_RFETCH(MS_REG_STR, MS_FETCH_ALL, MS_UNKNOWN /* low nibble */),
-	  MS_CASS(0x5),
-	  MS_DELAY(1),
-	  MS_RFETCH(MS_REG_STR, MS_FETCH_ALL, MS_UNKNOWN /* high nibble */),
-	  MS_CASS(0x4),
-	  MS_DELAY(1),
-
-	  /* do a C call to format the received nibbles */
-	  MS_C_CALL(MS_UNKNOWN /* C hook */, MS_UNKNOWN /* param */),
-	  MS_DBRA(-7 /* loop */),
-	  MS_RET(0)
-};
 
 /*
  * This is the sub-microseqence for MS_GET in PS2 mode
@@ -483,21 +485,14 @@ imm_select(struct vpoio_data *vpo, int initiator, int target)
  *
  * H_SELIN must be low.
  *
- * XXX should be ported to microseq
  */
 static char
 imm_wait(struct vpoio_data *vpo, int tmo)
 {
+	DECLARE_WAIT_MICROSEQUENCE;
+
 	device_t ppbus = device_get_parent(vpo->vpo_dev);
-	register int	k;
-	register char	r;
-
-	ppb_wctr(ppbus, 0xc);
-
-	/* XXX should be ported to microseq */
-	k = 0;
-	while (!((r = ppb_rstr(ppbus)) & 0x80) && (k++ < tmo))
-		DELAY(1);
+	int ret, err;
 
 	/*
 	 * Return some status information.
@@ -506,11 +501,17 @@ imm_wait(struct vpoio_data *vpo, int tmo)
 	 *		0xa8 = ZIP+ wants command
 	 *		0xb8 = end of transfer, ZIP+ is sending status
 	 */
-	ppb_wctr(ppbus, 0x4);
-	if (k < tmo)
-	  return (r & 0xb8);
 
-	return (0);			   /* command timed out */	
+	ppb_MS_init_msq(wait_microseq, 2,
+			WAIT_RET, (void *)&ret,
+			WAIT_TMO, tmo);
+
+	ppb_MS_microseq(ppbus, vpo->vpo_dev, wait_microseq, &err);
+
+	if (err)
+		return (0);			   /* command timed out */	
+
+	return(ret);
 }
 
 static int
@@ -574,7 +575,9 @@ imm_probe(device_t dev, struct vpoio_data *vpo)
 int
 imm_attach(struct vpoio_data *vpo)
 {
+	DECLARE_NIBBLE_INBYTE_SUBMICROSEQ;	
 	device_t ppbus = device_get_parent(vpo->vpo_dev);
+	int error = 0;
 
 	/*
 	 * Initialize microsequence code
@@ -589,12 +592,17 @@ imm_attach(struct vpoio_data *vpo)
 		(void *)vpo->vpo_nibble_inbyte_msq,
 		sizeof(nibble_inbyte_submicroseq));
 
-	INIT_NIBBLE_INBYTE_SUBMICROSEQ(vpo);
+	ppb_MS_init_msq(vpo->vpo_nibble_inbyte_msq, 4,
+		INB_NIBBLE_H, (void *)&(vpo)->vpo_nibble.h,
+		INB_NIBBLE_L, (void *)&(vpo)->vpo_nibble.l,
+		INB_NIBBLE_F, nibble_inbyte_hook,
+		INB_NIBBLE_P, (void *)&(vpo)->vpo_nibble); 
 
 	/*
 	 * Initialize mode dependent in/out microsequences
 	 */
-	ppb_request_bus(ppbus, vpo->vpo_dev, PPB_WAIT);
+	if ((error = ppb_request_bus(ppbus, vpo->vpo_dev, PPB_WAIT)))
+	    goto error;
 
 	/* ppbus automatically restore the last mode entered during detection */
 	switch (vpo->vpo_mode_found) {
@@ -618,8 +626,8 @@ imm_attach(struct vpoio_data *vpo)
 	}
 
 	ppb_release_bus(ppbus, vpo->vpo_dev);
-
-	return (0);
+ error:
+	return (error);
 }
 
 /*
@@ -671,7 +679,7 @@ imm_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
 	 * XXX
 	 * Should we allow this call to be interruptible?
 	 * The only way to report the interruption is to return
-	 * EIO do upper SCSI code :^(
+	 * EIO to upper SCSI code :^(
 	 */
 	if ((error = imm_connect(vpo, PPB_WAIT|PPB_INTR, &not_connected, 1)))
 		return (error);

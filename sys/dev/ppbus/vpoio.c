@@ -98,6 +98,21 @@
  * Microcode to execute very fast I/O sequences at the lowest bus level.
  */
 
+#define WAIT_RET	MS_PARAM(4, 2, MS_TYP_PTR)
+#define WAIT_TMO	MS_PARAM(0, 0, MS_TYP_INT)
+
+#define DECLARE_WAIT_MICROSEQUENCE			\
+struct ppb_microseq wait_microseq[] = {			\
+	MS_SET(MS_UNKNOWN),				\
+	/* loop */					\
+	MS_BRSET(nBUSY, 2 /* ready */),			\
+	MS_DBRA(-2 /* loop */),				\
+	MS_RET(1), /* timed out */			\
+	/* ready */					\
+	MS_RFETCH(MS_REG_STR, 0xf0, MS_UNKNOWN),	\
+	MS_RET(0) /* no error */			\
+}
+
 /* call this macro to initialize connect/disconnect microsequences */
 #define INIT_TRIG_MICROSEQ {						\
 	int i;								\
@@ -157,44 +172,31 @@ nibble_inbyte_hook (void *p, char *ptr)
 	return (0);
 }
 
-/*
- * Macro used to initialize each vpoio_data structure during
- * low level attachment
- *
- * XXX should be converted to ppb_MS_init_msq()
- */
-#define INIT_NIBBLE_INBYTE_SUBMICROSEQ(vpo) {		    	\
-	(vpo)->vpo_nibble_inbyte_msq[2].arg[2].p =		\
-			(void *)&(vpo)->vpo_nibble.h;		\
-	(vpo)->vpo_nibble_inbyte_msq[4].arg[2].p =		\
-			(void *)&(vpo)->vpo_nibble.l;		\
-	(vpo)->vpo_nibble_inbyte_msq[5].arg[0].f =		\
-			nibble_inbyte_hook;			\
-	(vpo)->vpo_nibble_inbyte_msq[5].arg[1].p =		\
-			(void *)&(vpo)->vpo_nibble;		\
-}
+#define INB_NIBBLE_H MS_PARAM(2, 2, MS_TYP_PTR)
+#define INB_NIBBLE_L MS_PARAM(4, 2, MS_TYP_PTR)
+#define INB_NIBBLE_F MS_PARAM(5, 0, MS_TYP_FUN)
+#define INB_NIBBLE_P MS_PARAM(5, 1, MS_TYP_PTR)
 
 /*
  * This is the sub-microseqence for MS_GET in NIBBLE mode
  * Retrieve the two nibbles and call the C function to generate the character
  * and store it in the buffer (see nibble_inbyte_hook())
  */
-static struct ppb_microseq nibble_inbyte_submicroseq[] = {
 
-/* loop: */
-	  MS_CASS( H_AUTO | H_SELIN | H_INIT | H_STROBE),
-	  MS_DELAY(VP0_PULSE),
-	  MS_RFETCH(MS_REG_STR, MS_FETCH_ALL, MS_UNKNOWN /* high nibble */),
-	  MS_CASS(H_nAUTO | H_SELIN | H_INIT | H_STROBE),
-	  MS_RFETCH(MS_REG_STR, MS_FETCH_ALL, MS_UNKNOWN /* low nibble */),
-
-	  /* do a C call to format the received nibbles */
-	  MS_C_CALL(MS_UNKNOWN /* C hook */, MS_UNKNOWN /* param */),
-	  MS_DBRA(-7 /* loop */),
-
-	  MS_CASS(H_AUTO | H_nSELIN | H_INIT | H_STROBE),
-	  MS_RET(0)
-};
+#define DECLARE_NIBBLE_INBYTE_SUBMICROSEQ			\
+struct ppb_microseq nibble_inbyte_submicroseq[] = {		\
+/* loop: */							\
+	  MS_CASS( H_AUTO | H_SELIN | H_INIT | H_STROBE),	\
+	  MS_DELAY(VP0_PULSE),					\
+	  MS_RFETCH(MS_REG_STR, MS_FETCH_ALL, MS_UNKNOWN /* high nibble */),\
+	  MS_CASS(H_nAUTO | H_SELIN | H_INIT | H_STROBE),	\
+	  MS_RFETCH(MS_REG_STR, MS_FETCH_ALL, MS_UNKNOWN /* low nibble */),\
+	  /* do a C call to format the received nibbles */	\
+	  MS_C_CALL(MS_UNKNOWN /* C hook */, MS_UNKNOWN /* param */),\
+	  MS_DBRA(-7 /* loop */),				\
+	  MS_CASS(H_AUTO | H_nSELIN | H_INIT | H_STROBE),	\
+	  MS_RET(0)						\
+}
 
 /*
  * This is the sub-microseqence for MS_GET in PS2 mode
@@ -518,9 +520,10 @@ vpoio_select(struct vpoio_data *vpo, int initiator, int target)
 static char
 vpoio_wait(struct vpoio_data *vpo, int tmo)
 {
+	DECLARE_WAIT_MICROSEQUENCE;
+
 	device_t ppbus = device_get_parent(vpo->vpo_dev);
-	register int	k;
-	register char	r;
+	int ret, err;
 
 #if 0	/* broken */
 	if (ppb_poll_device(ppbus, 150, nBUSY, nBUSY, PPB_INTR))
@@ -529,11 +532,6 @@ vpoio_wait(struct vpoio_data *vpo, int tmo)
 	return (ppb_rstr(ppbus) & 0xf0);
 #endif
 
-	/* XXX should be ported to microseq */
-	k = 0;
-	while (!((r = ppb_rstr(ppbus)) & nBUSY) && (k++ < tmo))
-		;
-
 	/*
 	 * Return some status information.
 	 * Semantics :	0xc0 = ZIP wants more data
@@ -541,10 +539,17 @@ vpoio_wait(struct vpoio_data *vpo, int tmo)
 	 *		0xe0 = ZIP wants command
 	 *		0xf0 = end of transfer, ZIP is sending status
 	 */
-	if (k < tmo)
-	  return (r & 0xf0);
 
-	return (0);			   /* command timed out */	
+	ppb_MS_init_msq(wait_microseq, 2,
+			WAIT_RET, (void *)&ret,
+			WAIT_TMO, tmo);
+
+	ppb_MS_microseq(ppbus, vpo->vpo_dev, wait_microseq, &err);
+
+	if (err)
+		return (0);	 /* command timed out */	
+
+	return(ret);
 }
 
 /*
@@ -583,6 +588,7 @@ vpoio_probe(device_t dev, struct vpoio_data *vpo)
 int
 vpoio_attach(struct vpoio_data *vpo)
 {
+	DECLARE_NIBBLE_INBYTE_SUBMICROSEQ;	
 	device_t ppbus = device_get_parent(vpo->vpo_dev);
 	int error = 0;
 
@@ -596,7 +602,11 @@ vpoio_attach(struct vpoio_data *vpo)
 		(void *)vpo->vpo_nibble_inbyte_msq,
 		sizeof(nibble_inbyte_submicroseq));
 
-	INIT_NIBBLE_INBYTE_SUBMICROSEQ(vpo);
+	ppb_MS_init_msq(vpo->vpo_nibble_inbyte_msq, 4,
+		INB_NIBBLE_H, (void *)&(vpo)->vpo_nibble.h,
+		INB_NIBBLE_L, (void *)&(vpo)->vpo_nibble.l,
+		INB_NIBBLE_F, nibble_inbyte_hook,
+		INB_NIBBLE_P, (void *)&(vpo)->vpo_nibble); 
 
 	/*
 	 * Initialize mode dependent in/out microsequences
