@@ -38,7 +38,7 @@
 .Sh NAME
 .Nm floor ,
 .Nm floorf
-.Nd round to largest integral value <= x
+.Nd largest integral value less than or equal to x
 .Sh LIBRARY
 .Lb libm
 .Sh SYNOPSIS
@@ -52,10 +52,10 @@ The
 .Fn floor
 and the
 .Fn floorf
-function returns the largest integral value
-(represented as a double precision number)
+function return the largest integral value
 less than or equal to
-.Fa x .
+.Fa x ,
+expressed as a floating-point number.
 .Sh SEE ALSO
 .Xr abs 3 ,
 .Xr ceil 3 ,
