@@ -472,7 +472,7 @@ print_syscall_ret(struct trussinfo *trussinfo, const char *name, int nargs,
 {
   print_syscall(trussinfo, name, nargs, s_args);
   if (errorp) {
-    fprintf(trussinfo->outfile, " ERR#%d '%s'\n", retval, strerror(retval));
+    fprintf(trussinfo->outfile, " ERR#%ld '%s'\n", retval, strerror(retval));
   } else {
     fprintf(trussinfo->outfile, " = %ld (0x%lx)\n", retval, retval);
   }
