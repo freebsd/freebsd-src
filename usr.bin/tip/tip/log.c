@@ -1,3 +1,6 @@
+/*	$OpenBSD: log.c,v 1.5 2001/09/09 19:30:49 millert Exp $	*/
+/*	$NetBSD: log.c,v 1.4 1994/12/24 17:56:28 cgd Exp $	*/
+
 /*
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -31,28 +34,28 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)log.c	8.1 (Berkeley) 6/6/93";
+static char rcsid[] = "$OpenBSD: log.c,v 1.5 2001/09/09 19:30:49 millert Exp $";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
 
-#include "tipconf.h"
 #include "tip.h"
-#include <err.h>
 
-#if ACULOG
+#ifdef ACULOG
 static	FILE *flog = NULL;
 
 /*
  * Log file maintenance routines
  */
-
 void
 logent(group, num, acu, message)
-	char *group, *num, *acu, *message;
+	char *group;
+	const char *num, *acu, *message;
 {
 	char *user, *timestamp;
 	struct passwd *pwd;
@@ -61,20 +64,21 @@ logent(group, num, acu, message)
 	if (flog == NULL)
 		return;
 	if (flock(fileno(flog), LOCK_EX) < 0) {
-		warn("flock");
+		perror("flock");
 		return;
 	}
-	if ((user = getlogin()) == NOSTR)
+	if ((user = getlogin()) == NOSTR) {
 		if ((pwd = getpwuid(getuid())) == NOPWD)
 			user = "???";
 		else
 			user = pwd->pw_name;
+	}
 	t = time(0);
 	timestamp = ctime(&t);
 	timestamp[24] = '\0';
 	fprintf(flog, "%s (%s) <%s, %s, %s> %s\n",
 		user, timestamp, group,
-#if PRISTINE
+#ifdef PRISTINE
 		"",
 #else
 		num,
