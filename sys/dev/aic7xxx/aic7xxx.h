@@ -809,25 +809,28 @@ typedef enum {
 /*********************** Software Configuration Structure *********************/
 TAILQ_HEAD(scb_tailq, scb);
 
+struct ahc_suspend_channel_state {
+	uint8_t	scsiseq;
+	uint8_t	sxfrctl0;
+	uint8_t	sxfrctl1;
+	uint8_t	simode0;
+	uint8_t	simode1;
+	uint8_t	seltimer;
+	uint8_t	seqctl;
+};
+
 struct ahc_suspend_state {
-	uint8_t		scsiseq;
-	uint8_t		sxfrctl0;
-	uint8_t		sxfrctl1;
-	/* scsiid */
-	uint8_t		optionmode;
-	uint8_t		simode0;
-	uint8_t		simode1;
-	uint8_t		seltimer;
-	uint8_t		seqctl;
-	uint8_t		dscommand0;
-	uint8_t		dspcistatus;
+	struct	ahc_suspend_channel_state channel[2];
+	uint8_t	optionmode;
+	uint8_t	dscommand0;
+	uint8_t	dspcistatus;
 	/* hsmailbox */
-	uint8_t		crccontrol1;
-	uint8_t		scbbaddr;
+	uint8_t	crccontrol1;
+	uint8_t	scbbaddr;
 	/* Host and sequencer SCB counts */
-	uint8_t		dff_thrsh;
-	uint8_t		*scratch_ram;
-	uint8_t		*btt;
+	uint8_t	dff_thrsh;
+	uint8_t	*scratch_ram;
+	uint8_t	*btt;
 };
 
 struct ahc_softc {
@@ -982,6 +985,10 @@ struct ahc_softc {
 	const char		 *description;
 	char			 *name;
 	int			  unit;
+
+	/* Selection Timer settings */
+	int			  seltime;
+	int			  seltime_b;
 
 	uint16_t	 	  user_discenable;/* Disconnection allowed  */
 	uint16_t		  user_tagenable;/* Tagged Queuing allowed */
