@@ -1,4 +1,6 @@
+/*	$NetBSD: crunchide.c,v 1.8 1997/11/01 06:51:45 lukem Exp $	*/
 /*
+ * Copyright (c) 1997 Christopher G. Demetriou.  All rights reserved.
  * Copyright (c) 1994 University of Maryland
  * All Rights Reserved.
  *
@@ -56,38 +58,54 @@
  *	  that the final crunched binary BSS size is the max of all the
  *	  component programs' BSS sizes, rather than their sum.
  */
-#include <a.out.h>
-#include <err.h>
-#include <fcntl.h>
+#include <sys/cdefs.h>
+#ifndef lint
+__RCSID("$NetBSD: crunchide.c,v 1.8 1997/11/01 06:51:45 lukem Exp $");
+#endif
+
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+#include <fcntl.h>
+#include <a.out.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/errno.h>
+
+#include "extern.h"
+
+char *pname = "crunchide";
 
 void usage(void);
 
 void add_to_keep_list(char *symbol);
 void add_file_to_keep_list(char *filename);
 
-void hide_syms(char *filename);
+int hide_syms(const char *filename);
 
+int verbose;
+
+int main __P((int, char *[]));
 
 int main(argc, argv)
 int argc;
 char **argv;
 {
-    int ch;
+    int ch, errors;
 
-    while ((ch = getopt(argc, argv, "k:f:")) != -1)
+    if(argc > 0) pname = argv[0];
+
+    while ((ch = getopt(argc, argv, "k:f:v")) != -1)
 	switch(ch) {
 	case 'k':
 	    add_to_keep_list(optarg);
 	    break;
 	case 'f':
 	    add_file_to_keep_list(optarg);
+	    break;
+	case 'v':
+	    verbose = 1;
 	    break;
 	default:
 	    usage();
@@ -98,18 +116,21 @@ char **argv;
 
     if(argc == 0) usage();
 
+    errors = 0;
     while(argc) {
-	hide_syms(*argv);
+	if (hide_syms(*argv))
+		errors = 1;
 	argc--, argv++;
     }
 
-    return 0;
+    return errors;
 }
 
 void usage(void)
 {
     fprintf(stderr,
-	"usage: crunchide [-k <symbol-name>] [-f <keep-list-file>] <files> ...\n");
+	    "Usage: %s [-k <symbol-name>] [-f <keep-list-file>] <files> ...\n",
+	    pname);
     exit(1);
 }
 
@@ -125,6 +146,8 @@ void add_to_keep_list(char *symbol)
     struct keep *newp, *prevp, *curp;
     int cmp;
 
+    cmp = 0;
+
     for(curp = keep_list, prevp = NULL; curp; prevp = curp, curp = curp->next)
 	if((cmp = strcmp(symbol, curp->sym)) <= 0) break;
 
@@ -134,7 +157,8 @@ void add_to_keep_list(char *symbol)
     newp = (struct keep *) malloc(sizeof(struct keep));
     if(newp) newp->sym = strdup(symbol);
     if(newp == NULL || newp->sym == NULL) {
-	errx(1, "out of memory for keep list");
+	fprintf(stderr, "%s: out of memory for keep list\n", pname);
+	exit(1);
     }
 
     newp->next = curp;
@@ -142,10 +166,12 @@ void add_to_keep_list(char *symbol)
     else keep_list = newp;
 }
 
-int in_keep_list(char *symbol)
+int in_keep_list(const char *symbol)
 {
     struct keep *curp;
     int cmp;
+
+    cmp = 0;
 
     for(curp = keep_list; curp; curp = curp->next)
 	if((cmp = strcmp(symbol, curp->sym)) <= 0) break;
@@ -160,7 +186,7 @@ void add_file_to_keep_list(char *filename)
     int len;
 
     if((keepf = fopen(filename, "r")) == NULL) {
-	warn("%s", filename);
+	perror(filename);
 	usage();
     }
 
@@ -174,141 +200,68 @@ void add_file_to_keep_list(char *filename)
     fclose(keepf);
 }
 
-/* ---------------------- */
+/* ---------------------------- */
 
-int nsyms, ntextrel, ndatarel;
-struct exec *hdrp;
-char *aoutdata, *strbase;
-struct relocation_info *textrel, *datarel;
-struct nlist *symbase;
-
-
-#define SYMSTR(sp)	&strbase[(sp)->n_un.n_strx]
-
-/* is the symbol a global symbol defined in the current file? */
-#define IS_GLOBAL_DEFINED(sp) \
-                  (((sp)->n_type & N_EXT) && ((sp)->n_type & N_TYPE) != N_UNDF)
-
-/* is the relocation entry dependent on a symbol? */
-#define IS_SYMBOL_RELOC(rp)   \
-                  ((rp)->r_extern||(rp)->r_baserel||(rp)->r_jmptable)
-
-void check_reloc(char *filename, struct relocation_info *relp);
-
-void hide_syms(char *filename)
-{
-    int inf, rc;
-    struct stat infstat;
-    struct relocation_info *relp;
-    struct nlist *symp;
-
-    /*
-     * Open the file and do some error checking.
-     */
-
-    if((inf = open(filename, O_RDWR)) == -1) {
-	warn("%s", filename);
-	return;
-    }
-
-    if(fstat(inf, &infstat) == -1) {
-	warn("%s", filename);
-	close(inf);
-	return;
-    }
-
-    if(infstat.st_size < sizeof(struct exec)) {
-	warnx("%s: short file", filename);
-	close(inf);
-	return;
-    }
-
-    /*
-     * Read the entire file into memory.  XXX - Really, we only need to
-     * read the header and from TRELOFF to the end of the file.
-     */
-
-    if((aoutdata = (char *) malloc(infstat.st_size)) == NULL) {
-	warnx("%s: too big to read into memory", filename);
-	close(inf);
-	return;
-    }
-
-    if((rc = read(inf, aoutdata, infstat.st_size)) < infstat.st_size) {
-	warnx("%s: read error: %s", filename,
-		rc == -1? strerror(errno) : "short read");
-	close(inf);
-	return;
-    }
-
-    /*
-     * Check the header and calculate offsets and sizes from it.
-     */
-
-    hdrp = (struct exec *) aoutdata;
-
-    if(N_BADMAG(*hdrp)) {
-	warnx("%s: bad magic: not an a.out file", filename);
-	close(inf);
-	return;
-    }
-
-#ifdef __FreeBSD__
-    textrel = (struct relocation_info *) (aoutdata + N_RELOFF(*hdrp));
-    datarel = (struct relocation_info *) (aoutdata + N_RELOFF(*hdrp) +
-					  hdrp->a_trsize);
-#else
-    textrel = (struct relocation_info *) (aoutdata + N_TRELOFF(*hdrp));
-    datarel = (struct relocation_info *) (aoutdata + N_DRELOFF(*hdrp));
+struct {
+	const char *name;
+	int	(*check)(int, const char *);	/* 1 if match, zero if not */
+	int	(*hide)(int, const char *);	/* non-zero if error */
+} exec_formats[] = {
+#ifdef NLIST_AOUT
+	{	"a.out",	check_aout,	hide_aout,	},
 #endif
-    symbase = (struct nlist *)		 (aoutdata + N_SYMOFF(*hdrp));
-    strbase = (char *) 			 (aoutdata + N_STROFF(*hdrp));
+#ifdef NLIST_ECOFF
+	{	"ECOFF",	check_ecoff,	hide_ecoff,	},
+#endif
+#ifdef NLIST_ELF32
+	{	"ELF32",	check_elf32,	hide_elf32,	},
+#endif
+#ifdef NLIST_ELF64
+	{	"ELF64",	check_elf64,	hide_elf64,	},
+#endif
+};
 
-    ntextrel = hdrp->a_trsize / sizeof(struct relocation_info);
-    ndatarel = hdrp->a_drsize / sizeof(struct relocation_info);
-    nsyms    = hdrp->a_syms   / sizeof(struct nlist);
-
-    /*
-     * Zap the type field of all globally-defined symbols.  The linker will
-     * subsequently ignore these entries.  Don't zap any symbols in the
-     * keep list.
-     */
-
-    for(symp = symbase; symp < symbase + nsyms; symp++)
-	if(IS_GLOBAL_DEFINED(symp) && !in_keep_list(SYMSTR(symp)))
-	    symp->n_type = 0;
-
-    /*
-     * Check whether the relocation entries reference any symbols that we
-     * just zapped.  I don't know whether ld can handle this case, but I
-     * haven't encountered it yet.  These checks are here so that the program
-     * doesn't fail silently should such symbols be encountered.
-     */
-
-    for(relp = textrel; relp < textrel + ntextrel; relp++)
-	check_reloc(filename, relp);
-    for(relp = datarel; relp < datarel + ndatarel; relp++)
-	check_reloc(filename, relp);
-
-    /*
-     * Write the .o file back out to disk.  XXX - Really, we only need to
-     * write the symbol table entries back out.
-     */
-    lseek(inf, 0, SEEK_SET);
-    if((rc = write(inf, aoutdata, infstat.st_size)) < infstat.st_size) {
-	warnx("%s: write error: %s", filename,
-		rc == -1? strerror(errno) : "short write");
-    }
-
-    close(inf);
-}
-
-
-void check_reloc(char *filename, struct relocation_info *relp)
+int hide_syms(const char *filename)
 {
-    /* bail out if we zapped a symbol that is needed */
-    if(IS_SYMBOL_RELOC(relp) && symbase[relp->r_symbolnum].n_type == 0) {
-	errx(1, "%s: oops, have hanging relocation for %s: bailing out!",
-		filename, SYMSTR(&symbase[relp->r_symbolnum]));
-    }
+	int fd, i, n, rv;
+
+	fd = open(filename, O_RDWR, 0);
+	if (fd == -1) {
+		perror(filename);
+		return 1;
+	}
+
+	rv = 0;
+
+        n = sizeof exec_formats / sizeof exec_formats[0];
+        for (i = 0; i < n; i++) {
+		if (lseek(fd, 0, SEEK_SET) != 0) {
+			perror(filename);
+			goto err;
+		}
+                if ((*exec_formats[i].check)(fd, filename) != 0)
+                        break;
+	}
+	if (i == n) {
+		fprintf(stderr, "%s: unknown executable format\n", filename);
+		goto err;
+	}
+
+	if (verbose)
+		fprintf(stderr, "%s is an %s binary\n", filename,
+		    exec_formats[i].name);
+
+	if (lseek(fd, 0, SEEK_SET) != 0) {
+		perror(filename);
+		goto err;
+	}
+	rv = (*exec_formats[i].hide)(fd, filename);
+
+out:
+	close (fd);
+	return (rv);
+
+err:
+	rv = 1;
+	goto out;
 }
