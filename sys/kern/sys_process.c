@@ -807,6 +807,13 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			else
 				pl->pl_event = 0;
 		}
+		if (td2->td_pflags & TDP_SA) {
+			pl->pl_flags = PL_FLAG_SA;
+			if (td2->td_upcall && !TD_CAN_UNBIND(td2))
+				pl->pl_flags |= PL_FLAG_BOUND;
+		} else {
+			pl->pl_flags = 0;
+		}
 		_PRELE(p);
 		PROC_UNLOCK(p);
 		return (0);
