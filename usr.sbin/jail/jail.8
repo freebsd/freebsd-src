@@ -88,6 +88,15 @@ cd $D
 ln -sf dev/null kernel
 .Ed
 .Pp
+NOTE: It is important that only appropriate device nodes in devfs be
+exposed to a jail; access to disk devices in the jail may permit processes
+in the jail to bypass the jail sandboxing by modifying files outside of
+the jail.
+See
+.Xr devfs 8
+for information on how to use devfs rules to limit access to entries
+in the per-jail devfs.
+.Pp
 In many cases this example would put far more stuff in the jail than is needed.
 In the other extreme case a jail might contain only one single file:
 the executable to be run in the jail.
@@ -402,6 +411,7 @@ by setting this MIB entry to 1.
 .Xr procfs 5 ,
 .Xr rc.conf 5 ,
 .Xr sysctl.conf 5 ,
+.Xr devfs 8 ,
 .Xr halt 8 ,
 .Xr inetd 8 ,
 .Xr jexec 8 ,
