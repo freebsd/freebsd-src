@@ -15,7 +15,7 @@
 machine		i386
 
 #
-# We want LINT to cover profiling as well
+# We want LINT to cover profiling as well.
 profile         2
 
 
@@ -95,20 +95,20 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # CPU_DIRECT_MAPPED_CACHE sets L1 cache of Cyrix 486DLC CPU in direct
 # mapped mode.  Default is 2-way set associative mode.
 #
-# CPU_DISABLE_5X86_LSSER disables load store serialize (i.e. enables
+# CPU_DISABLE_5X86_LSSER disables load store serialize (i.e., enables
 # reorder).  This option should not be used if you use memory mapped
 # I/O device(s).
 #
 # CPU_DISABLE_CMPXCHG disables the CMPXCHG instruction on > i386 IA32
 # machines.  VmWare seems to emulate this instruction poorly, causing
-# the guest OS to run very slowly.  Enabling this with a SMP kernel
+# the guest OS to run very slowly.  Enabling this with an SMP kernel
 # will cause the kernel to be unusable.
 #
-# CPU_DISABLE_SSE explicitly prevent I686_CPU from turning on SSE.
+# CPU_DISABLE_SSE explicitly prevents I686_CPU from turning on SSE.
 #
 # CPU_ELAN enables support for AMDs ElanSC520 CPU.
 #    CPU_ELAN_PPS enables precision timestamp code.
-#    CPU_ELAN_XTAL sets the clock crystal frequency in Hz
+#    CPU_ELAN_XTAL sets the clock crystal frequency in Hz.
 #
 # CPU_ENABLE_LONGRUN enables support for Transmeta Crusoe LongRun
 # technology which allows to restrict power consumption of the CPU by
@@ -119,7 +119,7 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 #
 # CPU_ENABLE_TCC enables Thermal Control Circuitry (TCC) found in some
 # Pentium(tm) 4 and (possibly) later CPUs.  When enabled and detected,
-# TCC allows to restrict power consumption by using group of hw.p4tcc.*
+# TCC supports restricting power consumption using the hw.p4tcc.*
 # sysctls.  This operates independently of SpeedStep and is useful on
 # systems where other mechanisms such as apm(4) or acpi(4) don't work.
 #
@@ -638,7 +638,7 @@ options		SAFE_RNDTEST	# enable rndtest support
 # cy: Cyclades serial driver
 # digi: Digiboard driver
 # gp:  National Instruments AT-GPIB and AT-GPIB/TNT board, PCMCIA-GPIB
-# asc: GI1904-based hand scanners, e.g. the Trust Amiscan Grey
+# asc: GI1904-based hand scanners, e.g., the Trust Amiscan Grey
 # gsc: Genius GS-4500 hand scanner.
 # spic: Sony Programmable I/O controller (VAIO notebooks)
 # stl: Stallion EasyIO and EasyConnection 8/32 (cd1400 based)
