@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1989, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1989 The Regents of the University of California.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,12 +30,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)pathnames.h	8.1 (Berkeley) 6/4/93
+ *	@(#)pathnames.h	5.3 (Berkeley) 6/1/90
  */
 
 #include <paths.h>
 
-#define	_PATH_GETTYTAB		"/etc/gettytab"
-#define	_PATH_LOGIN		"/usr/bin/login"
-#define _PATH_FBTAB		"/etc/fbtab"
-#define _PATH_LOGINDEVPERM	"/etc/logindevperm"
+#define	_PATH_GETTYTAB	"/etc/gettytab"
+#define	_PATH_LOGIN	"/usr/bin/login"
