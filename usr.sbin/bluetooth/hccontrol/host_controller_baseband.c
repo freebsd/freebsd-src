@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: host_controller_baseband.c,v 1.12 2002/11/19 18:34:06 max Exp $
+ * $Id: host_controller_baseband.c,v 1.1 2002/11/24 20:22:38 max Exp $
  * $FreeBSD$
  */
 

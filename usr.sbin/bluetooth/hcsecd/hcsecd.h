@@ -1,5 +1,5 @@
 /*
- * l2control.h
+ * hcsecd.h
  *
  * Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
@@ -25,25 +25,33 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: l2control.h,v 1.1 2002/11/24 20:22:41 max Exp $
+ * $Id: hcsecd.h,v 1.1 2002/11/24 20:22:39 max Exp $
  * $FreeBSD$
  */
 
-#ifndef _L2CONTROL_H_
-#define _L2CONTROL_H_
+#ifndef _HCSECD_H_
+#define _HCSECD_H_ 1
 
-#define	OK			0	/* everything was OK */
-#define	ERROR			1	/* could not execute command */
-#define	FAILED			2	/* error was reported */
-#define	USAGE			3	/* invalid parameters */
-
-struct l2cap_command {
-	char const		*command;
-	char const		*description;
-	int			(*handler)(int, int, char **);
+struct link_key
+{
+	bdaddr_t		 bdaddr; /* remote device BDADDR */
+	char			*name;   /* remote device name */
+	u_int8_t		*key;    /* link key (or NULL if no key) */
+	char			*pin;    /* pin (or NULL if no pin) */
+	LIST_ENTRY(link_key)	 next;   /* link to the next */
 };
+typedef struct link_key		link_key_t;
+typedef struct link_key *	link_key_p;
 
-extern struct l2cap_command	 l2cap_commands[];
+extern char	*config_file;
 
-#endif /* _L2CONTROL_H_ */
+#if __config_debug__
+void		dump_config	(void);
+#endif
+
+void		read_config_file(int s);
+void		clean_config	(void);
+link_key_p	get_key		(bdaddr_p bdaddr, int exact_match);
+
+#endif /* ndef _HCSECD_H_ */
 

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: bt3cfw.c,v 1.1.1.1 2002/11/12 00:39:18 max Exp $
+ * $Id: bt3cfw.c,v 1.1 2002/11/24 20:22:37 max Exp $
  * $FreeBSD$
  */
 
