@@ -757,7 +757,7 @@ parse_parms(char *line,
 
 		} else if (PARS("passive")) {
 			CKF((GROUP_IS_SOL_OUT|GROUP_IS_ADV_OUT), IS_NO_RDISC);
-			parm.parm_int_state |= IS_NO_RIP;
+			parm.parm_int_state |= IS_NO_RIP| IS_PASSIVE;
 
 		} else if (PARSEQ("rdisc_pref")) {
 			if (parm.parm_rdisc_pref != 0

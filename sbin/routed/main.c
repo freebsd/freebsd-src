@@ -82,7 +82,9 @@ time_t	now_expire;
 time_t	now_garbage;
 
 struct timeval next_bcast;		/* next general broadcast */
-struct timeval no_flash = {EPOCH+SUPPLY_INTERVAL};  /* inhibit flash update */
+struct timeval no_flash = {		/* inhibit flash update */
+	EPOCH+SUPPLY_INTERVAL, 0
+};
 
 struct timeval flush_kern_timer;
 
@@ -221,7 +223,7 @@ main(int argc,
 		case 'v':
 			/* display version */
 			verbose++;
-			msglog("version 2.17");
+			msglog("version 2.22");
 			break;
 
 		default:
