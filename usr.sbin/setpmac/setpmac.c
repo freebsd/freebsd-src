@@ -46,7 +46,7 @@
 
 #define	MAXELEMENTS	32
 
-void
+static void
 usage(void)
 {
 
@@ -57,7 +57,7 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	char *shell;
+	const char *shell;
 	mac_t label;
 	int error;
 
