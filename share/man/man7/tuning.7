@@ -234,19 +234,6 @@ recovery times.
 For example,
 .Dq Li "newfs -i 32768 ..." .
 .Pp
-Finally, increasing the
-.Em cylinders/group
-ratio has the effect of packing the inodes closer together.
-This can increase directory performance and also decrease
-.Xr fsck 8
-times.
-If you use this option at all, we recommend maxing it out.
-Use
-.Dq Li "newfs -c 999"
-and
-.Xr newfs 8
-will error out and tell you what the maximum is, then use that.
-.Pp
 .Xr tunefs 8
 may be used to further tune a filesystem.
 This command can be run in
