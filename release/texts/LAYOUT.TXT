@@ -12,7 +12,7 @@ RELNOTES.TXT    compat22        floppies        ports
 XF86333
 
 If you want to do a CDROM, FTP or NFS installation from this
-distribution directory, all you need to do is make a 1.44Mb floppy
+distribution directory, all you need to do is make a 1.44MB floppy
 from the floppies/boot.flp image file (see floppies/README.TXT for
 instructions on how to do this), boot it and follow the instructions.
 See INSTALL.TXT for more information.
