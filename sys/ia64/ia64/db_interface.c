@@ -343,7 +343,7 @@ kdb_trap(int vector, struct trapframe *regs)
 	/*
 	 * XXX pretend that registers outside the current frame don't exist.
 	 */
-	db_eregs = db_regs + DB_MISC_REGS + 32 + (ddb_regs.tf_cr_ifs & 0xff);
+	db_eregs = db_regs + DB_MISC_REGS + 32 + (ddb_regs.tf_cr_ifs & 0x7f);
 
 	__asm __volatile("flushrs"); /* so we can look at them */
 
