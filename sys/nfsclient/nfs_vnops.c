@@ -691,6 +691,7 @@ nfs_setattrrpc(struct vnode *vp, struct vattr *vap, struct ucred *cred,
     struct thread *td)
 {
 	struct nfsv2_sattr *sp;
+	struct nfsnode *np = VTONFS(vp);
 	caddr_t bpos, dpos;
 	u_int32_t *tl;
 	int error = 0, wccflag = NFSV3_WCCRATTR;
@@ -726,6 +727,7 @@ nfs_setattrrpc(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 	}
 	nfsm_request(vp, NFSPROC_SETATTR, td, cred);
 	if (v3) {
+		np->n_modestamp = 0;
 		nfsm_wcc_data(vp, wccflag);
 	} else
 		nfsm_loadattr(vp, NULL);
