@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_lookup.c,v 1.4 1995/05/30 08:07:41 rgrimes Exp $ */
+/*	$Id: msdosfs_lookup.c,v 1.5 1995/11/07 14:06:43 phk Exp $ */
 /*	$NetBSD: msdosfs_lookup.c,v 1.14 1994/08/21 18:44:07 ws Exp $	*/
 
 /*-
@@ -60,6 +60,9 @@
 #include <msdosfs/denode.h>
 #include <msdosfs/msdosfsmount.h>
 #include <msdosfs/fat.h>
+
+static int	markdeleted __P((struct msdosfsmount *pmp, u_long dirclust,
+				 u_long diroffset));
 
 /*
  * When we search a directory the blocks containing directory entries are

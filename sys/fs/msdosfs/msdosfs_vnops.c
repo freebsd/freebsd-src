@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.27 1995/11/09 08:17:23 bde Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.28 1995/11/13 18:47:40 bde Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -105,6 +105,7 @@ static int msdosfs_strategy __P((struct vop_strategy_args *));
 static int msdosfs_print __P((struct vop_print_args *));
 static int msdosfs_islocked __P((struct vop_islocked_args *));
 static int msdosfs_advlock __P((struct vop_advlock_args *));
+static int msdosfs_pathconf __P((struct vop_pathconf_args *ap));
 static int msdosfs_reallocblks __P((struct vop_reallocblks_args *));
 
 /*

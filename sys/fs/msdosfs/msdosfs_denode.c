@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.12 1995/05/30 08:07:37 rgrimes Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.13 1995/08/02 12:59:48 dfr Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.9 1994/08/21 18:44:00 ws Exp $	*/
 
 /*-
@@ -86,6 +86,12 @@ union _qcvt {
 	tmp.val[_QUAD_LOWWORD] = (l); \
 	(q) = tmp.qcvt; \
 }
+
+static struct denode *
+		msdosfs_hashget __P((dev_t dev, u_long dirclust,
+				     u_long diroff));
+static void	msdosfs_hashins __P((struct denode *dep));
+static void	msdosfs_hashrem __P((struct denode *dep));
 
 int msdosfs_init()
 {
