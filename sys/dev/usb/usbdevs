@@ -553,6 +553,9 @@ product EPSON 1200		0x0104	Perfection 1200U / 1200Photo scanner
 product EPSON 1600		0x0107	Expression 1600 scanner
 product EPSON 1640		0x010a	Perfection 1640SU scanner
 product EPSON 1240		0x010b	Perfection 1240U / 1240Photo scanner
+product EPSON 640U		0x010c	Perfection 640U scanner
+product EPSON 1650		0x0110	Perfection 1650 scanner
+product EPSON GT9700F		0x0112	GT-9700F scanner
 
 /* e-TEK Labs products */
 product ETEK 1COM		0x8007	Serial port
@@ -993,6 +996,7 @@ product UMAX ASTRA1220U		0x0010	Astra 1220U Scanner
 product UMAX ASTRA2000U		0x0030	Astra 2000U Scanner
 product UMAX ASTRA2100U		0x0130	Astra 2100U Scanner
 product UMAX ASTRA2200U		0x0230	Astra 2200U Scanner
+product UMAX ASTRA3400		0x0060	Astra 3400 Scanner
 
 /* Universal Access products */
 product UNIACCESS PANACHE	0x0101	Panache Surf USB ISDN Adapter
