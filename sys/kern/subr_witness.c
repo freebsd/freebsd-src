@@ -208,7 +208,6 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "ng_worklist", &lock_class_mtx_spin },
 	{ "ithread table lock", &lock_class_mtx_spin },
 	{ "sched lock", &lock_class_mtx_spin },
-	{ "clk", &lock_class_mtx_spin },
 	{ "callout", &lock_class_mtx_spin },
 	/*
 	 * leaf locks
@@ -220,6 +219,7 @@ static struct witness_order_list_entry order_lists[] = {
 #endif
 	{ "smp rendezvous", &lock_class_mtx_spin },
 #endif
+	{ "clk", &lock_class_mtx_spin },
 	{ NULL, NULL },
 	{ NULL, NULL }
 };
@@ -284,6 +284,7 @@ witness_initialize(void *dummy __unused)
 	mtx_unlock(&Giant);
 	mtx_assert(&Giant, MA_NOTOWNED);
 
+	CTR1(KTR_WITNESS, "%s: initializing witness", __func__);
 	STAILQ_INSERT_HEAD(&all_locks, &all_mtx.mtx_object, lo_list);
 	mtx_init(&w_mtx, "witness lock", MTX_SPIN | MTX_QUIET | MTX_NOWITNESS);
 	for (i = 0; i < WITNESS_COUNT; i++)
@@ -380,6 +381,8 @@ witness_destroy(struct lock_object *lock)
 		mtx_lock_spin(&w_mtx);
 		w->w_refcount--;
 		if (w->w_refcount == 0) {
+			CTR1(KTR_WITNESS, "Marking witness %s as dead",
+			    w->w_name);
 			w->w_name = "(dead)";
 			w->w_file = "(dead)";
 			w->w_line = 0;
@@ -538,6 +541,9 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 			    lock1->li_line);
 			panic("recurse");
 		}
+		CTR3(KTR_WITNESS, "witness_lock: pid %d recursed on %s r=%d",
+		    curproc->p_pid, lock->lo_name,
+		    lock1->li_flags & LI_RECURSEMASK);
 		lock1->li_file = file;
 		lock1->li_line = line;
 		return;
@@ -662,6 +668,8 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 		}
 	}
 	lock1 = &(*lock_list)->ll_children[(*lock_list)->ll_count - 1];
+	CTR2(KTR_WITNESS, "Adding %s as a child of %s", lock->lo_name,
+	    lock1->li_lock->lo_name);
 	if (!itismychild(lock1->li_lock->lo_witness, w))
 		mtx_unlock_spin(&w_mtx);
 
@@ -675,11 +683,13 @@ out:
 	
 	lle = *lock_list;
 	if (lle == NULL || lle->ll_count == LOCK_NCHILDREN) {
-		*lock_list = witness_lock_list_get();
-		if (*lock_list == NULL)
+		lle = witness_lock_list_get();
+		if (lle == NULL)
 			return;
-		(*lock_list)->ll_next = lle;
-		lle = *lock_list;
+		lle->ll_next = *lock_list;
+		CTR2(KTR_WITNESS, "witness_lock: pid %d added lle %p",
+		    curproc->p_pid, lle);
+		*lock_list = lle;
 	}
 	lock1 = &lle->ll_children[lle->ll_count++];
 	lock1->li_lock = lock;
@@ -689,6 +699,8 @@ out:
 		lock1->li_flags = LI_EXCLUSIVE;
 	else
 		lock1->li_flags = 0;
+	CTR3(KTR_WITNESS, "witness_lock: pid %d added %s as lle[%d]",
+	    curproc->p_pid, lock->lo_name, lle->ll_count - 1);
 }
 
 void
@@ -698,6 +710,7 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 	struct lock_instance *instance;
 	struct lock_class *class;
 	struct proc *p;
+	critical_t s;
 	int i, j;
 
 	if (witness_cold || witness_dead || lock->lo_witness == NULL ||
@@ -739,16 +752,30 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 				}
 				/* If we are recursed, unrecurse. */
 				if ((instance->li_flags & LI_RECURSEMASK) > 0) {
+					CTR3(KTR_WITNESS,
+				"witness_unlock: pid %d unrecursed on %s r=%d",
+					    curproc->p_pid,
+					    instance->li_lock->lo_name,
+					    instance->li_flags);
 					instance->li_flags--;
 					goto out;
 				}
+				s = critical_enter();
+				CTR3(KTR_WITNESS,
+			    "witness_unlock: pid %d removed %s from lle[%d]",
+				    curproc->p_pid, instance->li_lock->lo_name,
+				    (*lock_list)->ll_count - 1);
 				(*lock_list)->ll_count--;
 				for (j = i; j < (*lock_list)->ll_count; j++)
 					(*lock_list)->ll_children[j] =
 					    (*lock_list)->ll_children[j + 1];
+				critical_exit(s);
 				if ((*lock_list)->ll_count == 0) {
 					lle = *lock_list;
 					*lock_list = lle->ll_next;
+					CTR2(KTR_WITNESS,
+				    "witness_unlock: pid %d removed lle %p",
+					    curproc->p_pid, lle);
 					witness_lock_list_free(lle);
 				}
 				goto out;
@@ -803,8 +830,14 @@ again:
 			    lock1->li_lock == &Giant.mtx_object)
 				continue;
 			if ((lock1->li_lock->lo_flags & LO_SLEEPABLE) != 0) {
-				if (check_only == 0)
+				if (check_only == 0) {
+					CTR3(KTR_WITNESS,
+				    "pid %d: sleeping with (%s) %s held",
+					    curproc->p_pid,
+					    lock1->li_lock->lo_class->lc_name,
+					    lock1->li_lock->lo_name);
 					lock1->li_flags |= LI_SLEPT;
+				}
 				continue;
 			}
 			n++;
