@@ -292,7 +292,7 @@ DMenu MenuInitial = {
     "option with [SPACE] or [ENTER].  To exit, use [TAB] to move to Exit.", 
     "Press F1 for Installation Guide",			/* help line */
     "INSTALL",						/* help file */
-    { { "Select" },
+    { { " Select " },
       { "X Exit Install",	NULL, NULL, dmenuExit },
       { " Usage",	"Quick start - How to use this menu system",	NULL, dmenuDisplayFile, NULL, "usage" },
       { "Standard",	"Begin a standard installation (recommended)",	NULL, installStandard },
