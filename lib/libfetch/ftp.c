@@ -349,7 +349,7 @@ _ftp_readfn(void *v, char *buf, int len)
 	return r;
     if (r == 0) {
 	io->eof = 1;
-	return _ftp_closefn(v);
+	return 0;
     }
     if (errno != EINTR)
 	io->err = errno;
@@ -712,6 +712,49 @@ ouch:
 }
 
 /*
+ * Authenticate
+ */
+static int
+_ftp_authenticate(int cd, struct url *url, struct url *purl)
+{
+    char *user, *pwd, *logname;
+    char pbuf[MAXHOSTNAMELEN + MAXLOGNAME + 1];
+    int e, len;
+
+    /* XXX FTP_AUTH, and maybe .netrc */
+    
+    /* send user name and password */
+    user = url->user;
+    if (!user || !*user)
+	user = getenv("FTP_LOGIN");
+    if (!user || !*user)
+	user = FTP_ANONYMOUS_USER;
+    if (purl && url->port == _fetch_default_port(url->scheme))
+	e = _ftp_cmd(cd, "USER %s@%s", user, url->host);
+    else if (purl)
+	e = _ftp_cmd(cd, "USER %s@%s@%d", user, url->host, url->port);
+    else
+	e = _ftp_cmd(cd, "USER %s", user);
+    
+    /* did the server request a password? */
+    if (e == FTP_NEED_PASSWORD) {
+	pwd = url->pwd;
+	if (!pwd || !*pwd)
+	    pwd = getenv("FTP_PASSWORD");
+	if (!pwd || !*pwd) {
+	    if ((logname = getlogin()) == 0)
+		logname = FTP_ANONYMOUS_USER;
+	    len = snprintf(pbuf, MAXLOGNAME + 1, "%s@", logname);
+	    gethostname(pbuf + len, sizeof pbuf - len);
+	    pwd = pbuf;
+	}
+	e = _ftp_cmd(cd, "PASS %s", pwd);
+    }
+    
+    return e;
+}
+
+/*
  * Log on to FTP server
  */
 static int
@@ -723,11 +766,6 @@ _ftp_connect(struct url *url, struct url *purl, const char *flags)
 #else
     int af = AF_INET;
 #endif
-    const char *logname;
-    const char *user;
-    const char *pwd;
-    char localhost[MAXHOSTNAMELEN];
-    char pbuf[MAXHOSTNAMELEN + MAXLOGNAME + 1];
 
     direct = CHECK_FLAG('d');
     verbose = CHECK_FLAG('v');
@@ -758,45 +796,11 @@ _ftp_connect(struct url *url, struct url *purl, const char *flags)
     /* expect welcome message */
     if ((e = _ftp_chkerr(cd)) != FTP_SERVICE_READY)
 	goto fouch;
-
-    /* XXX FTP_AUTH, and maybe .netrc */
     
-    /* send user name and password */
-    user = url->user;
-    if (!user || !*user)
-	user = getenv("FTP_LOGIN");
-    if (!user || !*user)
-	user = FTP_ANONYMOUS_USER;
-    if (purl && url->port == _fetch_default_port(url->scheme))
-	e = _ftp_cmd(cd, "USER %s@%s", user, url->host);
-    else if (purl)
-	e = _ftp_cmd(cd, "USER %s@%s@%d", user, url->host, url->port);
-    else
-	e = _ftp_cmd(cd, "USER %s", user);
-    
-    /* did the server request a password? */
-    if (e == FTP_NEED_PASSWORD) {
-	pwd = url->pwd;
-	if (!pwd || !*pwd)
-	    pwd = getenv("FTP_PASSWORD");
-	if (!pwd || !*pwd) {
-	    if ((logname = getlogin()) == 0)
-		logname = FTP_ANONYMOUS_USER;
-	    gethostname(localhost, sizeof localhost);
-	    snprintf(pbuf, sizeof pbuf, "%s@%s", logname, localhost);
-	    pwd = pbuf;
-	}
-	e = _ftp_cmd(cd, "PASS %s", pwd);
-    }
-
-    /* did the server request an account? */
-    if (e == FTP_NEED_ACCOUNT)
+    /* authenticate */
+    if ((e = _ftp_authenticate(cd, url, purl)) != FTP_LOGGED_IN)
 	goto fouch;
     
-    /* we should be done by now */
-    if (e != FTP_LOGGED_IN)
-	goto fouch;
-
     /* might as well select mode and type at once */
 #ifdef FTP_FORCE_STREAM_MODE
     if ((e = _ftp_cmd(cd, "MODE S")) != FTP_OK) /* default is S */

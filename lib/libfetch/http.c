@@ -294,7 +294,8 @@ typedef enum {
     hdr_content_range,
     hdr_last_modified,
     hdr_location,
-    hdr_transfer_encoding
+    hdr_transfer_encoding,
+    hdr_www_authenticate
 } hdr;
 
 /* Names of interesting headers */
@@ -307,6 +308,7 @@ static struct {
     { hdr_last_modified,	"Last-Modified" },
     { hdr_location,		"Location" },
     { hdr_transfer_encoding,	"Transfer-Encoding" },
+    { hdr_www_authenticate,	"WWW-Authenticate" },
     { hdr_unknown,		NULL },
 };
 
@@ -564,6 +566,8 @@ _http_basic_auth(int fd, const char *hdr, const char *usr, const char *pwd)
     char *upw, *auth;
     int r;
 
+    DEBUG(fprintf(stderr, "usr: [\033[1m%s\033[m]\n", usr));
+    DEBUG(fprintf(stderr, "pwd: [\033[1m%s\033[m]\n", pwd));
     if (asprintf(&upw, "%s:%s", usr, pwd) == -1)
 	return -1;
     auth = _http_base64(upw);
@@ -705,16 +709,16 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
     n = noredirect ? 1 : MAX_REDIRECT;
     i = 0;
 
+    need_auth = 0;
     do {
 	new = NULL;
 	chunked = 0;
-	need_auth = 0;
 	offset = 0;
 	clength = -1;
 	length = -1;
 	size = -1;
 	mtime = 0;
-    retry:
+	
 	/* check port */
 	if (!url->port)
 	    url->port = _fetch_default_port(url->scheme);
@@ -743,6 +747,12 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 		      op, url->doc);
 	}
 
+	/* virtual host */
+	if (url->port == _fetch_default_port(url->scheme))
+	    _http_cmd(fd, "Host: %s", host);
+	else
+	    _http_cmd(fd, "Host: %s:%d", host, url->port);
+	
 	/* proxy authorization */
 	if (purl) {
 	    if (*purl->user || *purl->pwd)
@@ -753,7 +763,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 	}
 	
 	/* server authorization */
-	if (need_auth) {
+	if (need_auth || *url->user || *url->pwd) {
 	    if (*url->user || *url->pwd)
 		_http_basic_auth(fd, "Authorization", url->user, url->pwd);
 	    else if ((p = getenv("HTTP_AUTH")) != NULL && *p != '\0')
@@ -765,11 +775,10 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 	}
 
 	/* other headers */
-	if (url->port == _fetch_default_port(url->scheme))
-	    _http_cmd(fd, "Host: %s", host);
+	if ((p = getenv("HTTP_USER_AGENT")) != NULL && *p != '\0')
+	    _http_cmd(fd, "User-Agent: %s", p);
 	else
-	    _http_cmd(fd, "Host: %s:%d", host, url->port);
-	_http_cmd(fd, "User-Agent: %s " _LIBFETCH_VER, __progname);
+	    _http_cmd(fd, "User-Agent: %s " _LIBFETCH_VER, __progname);
 	if (url->offset)
 	    _http_cmd(fd, "Range: bytes=%lld-", url->offset);
 	_http_cmd(fd, "Connection: close");
@@ -800,9 +809,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 	    /* try again, but send the password this time */
 	    if (verbose)
 		_fetch_info("server requires authorization");
-	    need_auth = 1;
-	    close(fd);
-	    goto retry;
+	    break;
 	case HTTP_NEED_PROXY_AUTH:
 	    /*
 	     * If we're talking to a proxy, we already sent our proxy
@@ -867,6 +874,11 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 		/* XXX weak test*/
 		chunked = (strcasecmp(p, "chunked") == 0);
 		break;
+	    case hdr_www_authenticate:
+		if (code != HTTP_NEED_AUTH)
+		    break;
+		/* if we were smarter, we'd check the method and realm */
+		break;
 	    case hdr_end:
 		/* fall through */
 	    case hdr_unknown:
@@ -875,19 +887,32 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 	    }
 	} while (h > hdr_end);
 
-	/* we either have a hit, or a redirect with no Location: header */
-	if (code == HTTP_OK || code == HTTP_PARTIAL || !new)
+	/* we have a hit */
+	if (code == HTTP_OK || code == HTTP_PARTIAL)
 	    break;
 
-	/* we have a redirect */
+	/* we need to provide authentication */
+	if (code == HTTP_NEED_AUTH) {
+	    need_auth = 1;
+	    close(fd);
+	    fd = -1;
+	    continue;
+	}
+	
+	/* all other cases: we got a redirect */
+	need_auth = 0;
 	close(fd);
 	fd = -1;
+	if (!new) {
+	    DEBUG(fprintf(stderr, "redirect with no new location\n"));
+	    break;
+	}
 	if (url != URL)
 	    fetchFreeURL(url);
 	url = new;
     } while (++i < n);
 
-    /* no success */
+    /* we failed, or ran out of retries */
     if (fd == -1) {
 	_http_seterr(code);
 	goto ouch;

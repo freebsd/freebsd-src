@@ -342,7 +342,7 @@ and
 .Fn fetchPutHTTP
 functions implement the HTTP/1.1 protocol.
 With a little luck, there's
-even a chance that they comply with RFC2068.
+even a chance that they comply with RFC2616 and RFC2617.
 .Pp
 If the
 .Fa d
@@ -487,6 +487,10 @@ variable.
 This variable is used if and only if connected to an HTTP proxy, and
 is ignored if a user and/or a password were specified in the proxy
 URL.
+.It Ev HTTP_USER_AGENT
+Specifies the User-Agent string to use for HTTP requests.
+This can be useful when working with HTTP origin or proxy servers that
+differentiate between usder agents.
 .El
 .Sh SEE ALSO
 .Xr fetch 1 ,
@@ -520,10 +524,24 @@ URL.
 .%A J. Gettys
 .%A J. Mogul
 .%A H. Frystyk
+.%A L. Masinter
+.%A P. Leach
 .%A T. Berners-Lee
-.%D Januray 1997
+.%D Januray 1999
 .%B Hypertext Transfer Protocol -- HTTP/1.1
-.%O RFC2068
+.%O RFC2616
+.Re
+.Rs
+.%A J. Franks
+.%A P. Hallam-Baker
+.%A J. Hostetler
+.%A S. Lawrence
+.%A P. Leach
+.%A A. Luotonen
+.%A L. Stewart
+.%D June 1999
+.%B HTTP Authentication: Basic and Digest Access Authentication
+.%O RFC2617
 .Re
 .Sh HISTORY
 The
