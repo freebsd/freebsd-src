@@ -1908,6 +1908,7 @@ vput(vp)
 	struct thread *td = curthread;	/* XXX */
 
 	KASSERT(vp != NULL, ("vput: null vp"));
+	ASSERT_VOP_LOCKED(vp, "vput");
 	VI_LOCK(vp);
 	/* Skip this v_writecount check if we're going to panic below. */
 	VNASSERT(vp->v_writecount < vp->v_usecount || vp->v_usecount < 1, vp,
@@ -1920,26 +1921,24 @@ vput(vp)
 		return;
 	}
 
-	if (vp->v_usecount == 1) {
-		v_incr_usecount(vp, -1);
-		if (VOP_ISLOCKED(vp, td) != LK_EXCLUSIVE &&
-		    VOP_LOCK(vp, LK_EXCLUPGRADE, td) != 0)
-			vp->v_iflag |= VI_OWEINACT;
-		else
-			vinactive(vp, td);
-		VOP_UNLOCK(vp, 0, td);
-		if (VSHOULDFREE(vp))
-			vfree(vp);
-		else
-			vlruvp(vp);
-		VI_UNLOCK(vp);
-
-	} else {
+	if (vp->v_usecount != 1) {
 #ifdef DIAGNOSTIC
 		vprint("vput: negative ref count", vp);
 #endif
 		panic("vput: negative ref cnt");
 	}
+	v_incr_usecount(vp, -1);
+	if (VOP_ISLOCKED(vp, td) != LK_EXCLUSIVE &&
+	    VOP_LOCK(vp, LK_EXCLUPGRADE, td) != 0)
+		vp->v_iflag |= VI_OWEINACT;
+	else
+		vinactive(vp, td);
+	VOP_UNLOCK(vp, 0, td);
+	if (VSHOULDFREE(vp))
+		vfree(vp);
+	else
+		vlruvp(vp);
+	VI_UNLOCK(vp);
 }
 
 /*
