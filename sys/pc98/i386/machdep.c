@@ -38,6 +38,7 @@
  * $FreeBSD$
  */
 
+#include "opt_apic.h"
 #include "opt_atalk.h"
 #include "opt_compat.h"
 #include "opt_cpu.h"
@@ -90,7 +91,10 @@
 #include <sys/exec.h>
 #include <sys/cons.h>
 
+#ifdef DDB
 #include <ddb/ddb.h>
+#include <ddb/db_sym.h>
+#endif
 
 #include <net/netisr.h>
 
@@ -100,6 +104,7 @@
 #include <machine/clock.h>
 #include <machine/specialreg.h>
 #include <machine/bootinfo.h>
+#include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/pc/bios.h>
 #include <machine/pcb_ext.h>		/* pcb.h included via sys/user.h */
@@ -112,8 +117,10 @@
 #include <machine/smp.h>
 #endif
 
+#ifdef DEV_ISA
 #include <i386/isa/icu.h>
-#include <i386/isa/intr_machdep.h>
+#endif
+
 #ifdef PC98
 #include <pc98/pc98/pc98_machdep.h>
 #include <pc98/pc98/pc98.h>
@@ -158,7 +165,7 @@ int	need_post_dma_flush;	/* If 1, use invd after DMA transfer. */
 #endif
 
 int	_udatasel, _ucodesel;
-u_int	atdevbase;
+u_int	atdevbase, basemem;
 
 #ifdef PC98
 static int	ispc98 = 1;
@@ -242,10 +249,7 @@ cpu_startup(dummy)
 	bufinit();
 	vm_pager_bufferinit();
 
-#ifndef SMP
-	/* For SMP, we delay the cpu_setregs() until after SMP startup. */
 	cpu_setregs();
-#endif
 }
 
 /*
@@ -1485,6 +1489,31 @@ extern inthand_t
 	IDTVEC(page), IDTVEC(mchk), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
 	IDTVEC(xmm), IDTVEC(lcall_syscall), IDTVEC(int0x80_syscall);
 
+#ifdef DDB
+/*
+ * Display the index and function name of any IDT entries that don't use
+ * the default 'rsvd' entry point.
+ */
+DB_SHOW_COMMAND(idt, db_show_idt)
+{
+	struct gate_descriptor *ip;
+	int idx, quit;
+	uintptr_t func;
+
+	ip = idt;
+	db_setup_paging(db_simple_pager, &quit, DB_LINES_PER_PAGE);
+	for (idx = 0, quit = 0; idx < NIDT; idx++) {
+		func = (ip->gd_hioffset << 16 | ip->gd_looffset);
+		if (func != (uintptr_t)&IDTVEC(rsvd)) {
+			db_printf("%3d\t", idx);
+			db_printsym(func, DB_STGY_PROC);
+			db_printf("\n");
+		}
+		ip++;
+	}
+}
+#endif
+
 void
 sdtossd(sd, ssd)
 	struct segment_descriptor *sd;
@@ -1519,13 +1548,13 @@ getmemsize(int first)
 {
 #ifdef PC98
 	int i, physmap_idx, pa_indx, pg_n;
-	u_int basemem, extmem, under16;
+	u_int extmem, under16;
 	vm_offset_t pa, physmap[PHYSMAP_SIZE];
 	pt_entry_t *pte;
 	char *cp;
 #else
 	int i, physmap_idx, pa_indx;
-	u_int basemem, extmem;
+	u_int extmem;
 	struct vm86frame vmf;
 	struct vm86context vmc;
 	vm_paddr_t pa, physmap[PHYSMAP_SIZE];
@@ -1775,10 +1804,7 @@ physmap_done:
 
 #ifdef SMP
 	/* make hole for AP bootstrap code */
-	physmap[1] = mp_bootaddress(physmap[1] / 1024);
-
-	/* look for the MP hardware - needed for apic addresses */
-	i386_mp_probe();
+	physmap[1] = mp_bootaddress(physmap[1]);
 #endif
 
 	/*
@@ -2132,7 +2158,7 @@ init386(first)
 		printf("WARNING: loader(8) metadata is missing!\n");
 
 #ifdef DEV_ISA
-	isa_defaultirq();
+	atpic_startup();
 #endif
 
 #ifdef DDB
@@ -2216,6 +2242,7 @@ init386(first)
 void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 {
+
 }
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
