@@ -115,12 +115,14 @@ static int
 chn_polltrigger(pcm_channel *c)
 {
 	snd_dbuf *bs = &c->buffer2nd;
-	unsigned lim = (c->flags & CHN_F_HAS_SIZE)? c->blocksize2nd : 1;
+	unsigned lim = (c->flags & CHN_F_HAS_SIZE)? c->blocksize2nd : 0;
 	int trig = 0;
 
+	lim = 0;
 	if (c->flags & CHN_F_MAPPED)
 		trig = ((bs->int_count > bs->prev_int_count) || bs->first_poll);
-	else trig = (((c->direction == PCMDIR_PLAY)? bs->fl : bs->rl) > lim);
+	else
+		trig = (((c->direction == PCMDIR_PLAY)? bs->fl : bs->rl) > lim);
 	return trig;
 }
 
@@ -387,7 +389,7 @@ chn_wrintr(pcm_channel *c)
 /*		printf("%d >= %d && !(%x & %x)\n", b->rl, DMA_ALIGN_THRESHOLD, c->flags, CHN_F_ABORTING | CHN_F_CLOSING);
 */		start = (b->rl >= DMA_ALIGN_THRESHOLD && !(c->flags & CHN_F_ABORTING));
 	}
-    	if (start) {
+    	if (start & !(c->flags & CHN_F_NOTRIGGER)) {
 		chn_dmaupdate(c);
 		if (c->flags & CHN_F_MAPPED) l = c->blocksize;
 		else l = min(b->rl, c->blocksize) & DMA_ALIGN_MASK;
@@ -465,10 +467,13 @@ chn_write(pcm_channel *c, struct uio *buf)
 	 * the write operation avoids blocking.
 	 */
 	if ((c->flags & CHN_F_NBIO) && buf->uio_resid > c->blocksize2nd) {
+		DEB(printf("pcm warning: broken app, nbio and tried to write %d bytes with fragsz %d\n",
+			buf->uio_resid, c->blocksize2nd));
 		newsize = 16;
-		while (newsize < min(buf->uio_resid, CHN_2NDBUFMAXSIZE / c->fragments))
+		while (newsize < min(buf->uio_resid, CHN_2NDBUFMAXSIZE / 2))
 			newsize <<= 1;
-		chn_setblocksize(c, c->fragments, c->fragments);
+		chn_setblocksize(c, c->fragments, newsize);
+		DEB(printf("pcm warning: frags reset to %d x %d\n", c->fragments, c->blocksize2nd));
 	}
 
 	/* Store the initial size in the uio. */
@@ -482,18 +487,15 @@ chn_write(pcm_channel *c, struct uio *buf)
 	/* Check for underflow before writing into the buffers. */
 	chn_checkunderflow(c);
   	while (chn_wrfeed2nd(c, buf) > 0);
+   	if (c->flags & CHN_F_NBIO && buf->uio_resid > 0)
+		ret = EAGAIN;
 
 	/* Start playing if not yet. */
-	if ((bs->rl || b->rl) && !b->dl) {
+	if ((bs->rl || b->rl) && !b->dl)
 		chn_intr(c);
-	}
 
-   	if (c->flags & CHN_F_NBIO) {
-		/* If no pcm data was written on nonblocking, return EAGAIN. */
-		if (buf->uio_resid == res)
-			ret = EAGAIN;
-	} else {
-   		/* Wait until all samples are played in blocking mode. */
+	if (ret == 0) {
+		/* Wait until all samples are played in blocking mode. */
    		while (buf->uio_resid > 0) {
 			/* Check for underflow before writing into the buffers. */
 			chn_checkunderflow(c);
@@ -501,7 +503,8 @@ chn_write(pcm_channel *c, struct uio *buf)
   			while (chn_wrfeed2nd(c, buf) > 0);
 
 			/* Start playing if necessary. */
-  			if ((bs->rl || b->rl) && !b->dl) chn_intr(c);
+  			if ((bs->rl || b->rl) && !b->dl)
+				chn_intr(c);
 
 			/* Have we finished to feed the secondary buffer? */
 			if (buf->uio_resid == 0)
@@ -513,9 +516,11 @@ chn_write(pcm_channel *c, struct uio *buf)
    			ret = tsleep(b, PRIBIO | PCATCH, "pcmwr", timeout);
    			s = spltty();
  			/* if (ret == EINTR) chn_abort(c); */
- 			if (ret == EINTR || ret == ERESTART) break;
+ 			if (ret == EINTR || ret == ERESTART)
+				break;
  		}
-  	}
+	} else
+		ret = 0;
 	c->flags &= ~CHN_F_WRITING;
    	splx(s);
 	return ret;
@@ -1156,15 +1161,18 @@ chn_setblocksize(pcm_channel *c, int blkcnt, int blksz)
 		return EINVAL;
 	}
 	c->flags &= ~CHN_F_HAS_SIZE;
-	if (blksz >= 2) c->flags |= CHN_F_HAS_SIZE;
+	if (blksz >= 2)
+		c->flags |= CHN_F_HAS_SIZE;
 	/* let us specify blksz without setting CHN_F_HAS_SIZE */
-	if (blksz < 0) blksz = -blksz;
+	if (blksz < 0)
+		blksz = -blksz;
 	/* default to blksz = ~0.25s */
-	if (blksz < 16) blksz = (c->buffer.sample_size * c->speed) >> 2;
+	if (blksz < 16)
+		blksz = (c->buffer.sample_size * c->speed) >> 2;
 
+	if (blkcnt * blksz > CHN_2NDBUFMAXSIZE)
+		blkcnt = CHN_2NDBUFMAXSIZE / blksz;
 	bufsz = blkcnt * blksz;
-	if (blksz < 16 || bufsz > CHN_2NDBUFMAXSIZE)
-		return EINVAL;
 
 	s = spltty();
 	if (bs->buf != NULL)
