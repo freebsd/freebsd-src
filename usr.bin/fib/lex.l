@@ -39,6 +39,19 @@ extern int off;
 %}
 
 %%
+colortable		{ return COLORTABLE; }
+colourtable		{ return COLORTABLE; }
+Colors			{ return COLOR; }
+Colours			{ return COLOR; }
+black			{ return BLACK; }
+red				{ return RED; }
+green			{ return GREEN; }
+yellow			{ return YELLOW; }
+blue			{ return BLUE; }
+magenta			{ return MAGENTA; }
+cyan			{ return CYAN; }
+white			{ return WHITE; }
+pair			{ return PAIR; }
 Form			{ return FORM; }
 at				{ return AT; }
 as				{ return AS; }
@@ -49,6 +62,7 @@ start			{ return STARTFIELD; }
 text			{ return TEXT; }
 Field			{ return FIELD; }
 attributes		{ return ATTR; }
+highlight		{ return SELATTR; }
 label			{ return LABEL; }
 default			{ return DEFAULT; }
 limit			{ return LIMIT; }
@@ -62,11 +76,11 @@ down			{ return DOWN; }
 left			{ return LEFT; }
 right			{ return RIGHT; }
 next			{ return NEXT; }
-,				{ return COLON; }
+,				{ return COMMA; }
 \{				{ return LBRACE; }
 \}				{ return RBRACE; }
 [0-9]+			{ yylval.ival = atoi(yytext); return NUMBER; }
-[A-Za-z_][A-Za-z0-9_|&]*		{ yylval.sval = yytext; return NAME; }
+[A-Za-z_][A-Za-z0-9_()|&]*		{ yylval.sval = yytext; return NAME; }
 \"[^"]* {
 			if (yytext[yyleng-1] == '\\') {
 				yymore();
