@@ -153,6 +153,10 @@ is an invalid descriptor.
 The argument
 .Fa fd
 refers to an object other than a file.
+.It Bq Er EOPNOTSUPP
+The argument
+.Fa fd
+refers to an object that does not support file locking.
 .El
 .Sh SEE ALSO
 .Xr open 2 ,
