@@ -896,6 +896,9 @@ moused_ums0_port="/dev/ums0"</programlisting>
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
+    <para><application>BIND</application> has been updated from version
+      9.3.0 to version 9.3.1.</para>
+
     <para><application>FILE</application> has been updated from 4.10
       to 4.12.</para>
 
