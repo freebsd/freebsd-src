@@ -630,10 +630,14 @@ pppoe:
 #
 #   /usr/libexec/pppoed -p pppoe-in fxp0
 #
+# See rc.conf(5)
+#
 pppoe-in:
- allow mode direct
- set mru 1492
- set mtu 1492
- set speed sync
- enable lqr
- set ifaddr 10.0.0.1 10.0.0.2
+ allow mode direct				# Only for use on server-side
+ set mru 1492					# Max allowed by the PPPoE spec
+ set mtu 1492					# Max allowed by the PPPoE spec
+ set speed sync					# PPPoE is always synchronous
+ enable lqr proxy				# Enable LQR and proxy-arp
+ enable chap pap passwdauth			# Force client authentication
+ set ifaddr 10.0.0.1 10.0.0.100-10.0.0.199	# Hand out up to 100 IP numbers
+ accept dns					# Allow DNS negotiation
