@@ -9,7 +9,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.23.2.6 2000/08/07 12:36:19 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.23.2.8 2000/10/19 15:42:10 darrenr Exp $";
 #endif
 
 #include <sys/types.h>
@@ -441,7 +441,7 @@ caddr_t data;
 	}
 
 	group = fp->fr_group;
-	if (group != NULL) {
+	if (group != 0) {
 		fg = fr_findgroup(group, fp->fr_flags, unit, set, NULL);
 		if (fg == NULL) {
 			error = ESRCH;
@@ -613,7 +613,7 @@ caddr_t data;
 					fixskip(fprev, f, 1);
 				f->fr_grp = NULL;
 				group = f->fr_grhead;
-				if (group != NULL)
+				if (group != 0)
 					fg = fr_addgroup(group, f, unit, set);
 			} else
 				error = ENOMEM;
@@ -688,7 +688,7 @@ ip_t *oip;
 fr_info_t *fin;
 {
 	tcphdr_t *tcp, *tcp2;
-	int tlen = 0, hlen;
+	int tlen, hlen;
 	mblk_t *m;
 #ifdef	USE_INET6
 	ip6_t *ip6, *oip6 = (ip6_t *)oip;
@@ -698,8 +698,7 @@ fr_info_t *fin;
 	tcp = (struct tcphdr *)fin->fin_dp;
 	if (tcp->th_flags & TH_RST)
 		return -1;
-	if (tcp->th_flags & TH_SYN)
-		tlen = 1;
+	tlen = (tcp->th_flags & (TH_SYN|TH_FIN)) ? 1 : 0;
 #ifdef	USE_INET6
 	if (fin->fin_v == 6)
 		hlen = sizeof(ip6_t);
@@ -717,8 +716,15 @@ fr_info_t *fin;
 	tcp2 = (struct tcphdr *)(m->b_rptr + hlen - sizeof(*tcp2));
 	tcp2->th_dport = tcp->th_sport;
 	tcp2->th_sport = tcp->th_dport;
-	tcp2->th_ack = htonl(ntohl(tcp->th_seq) + tlen);
-	tcp2->th_seq = tcp->th_ack;
+	if (tcp->th_flags & TH_ACK) {
+		tcp2->th_seq = tcp->th_ack;
+		tcp2->th_flags = TH_RST|TH_ACK;
+	} else {
+		tcp2->th_ack = ntohl(tcp->th_seq);
+		tcp2->th_ack += tlen;
+		tcp2->th_ack = htonl(tcp2->th_ack);
+		tcp2->th_flags = TH_RST;
+	}
 	tcp2->th_off = sizeof(struct tcphdr) >> 2;
 	tcp2->th_flags = TH_RST|TH_ACK;
 
@@ -791,8 +797,9 @@ int dst;
 	struct icmp *icmp;
 	mblk_t *m, *mb;
 	int hlen, code;
-	qif_t	*qif;
+	qif_t *qif;
 	u_short sz;
+	ill_t *il;
 #ifdef	USE_INET6
 	ip6_t *ip6, *oip6;
 #endif
@@ -851,6 +858,11 @@ int dst;
 	icmp->icmp_type = type;
 	icmp->icmp_code = code;
 	icmp->icmp_cksum = 0;
+#ifdef	icmp_nextmtu
+	if (type == ICMP_UNREACH && (il = qif->qf_ill) &&
+	    fin->fin_icode == ICMP_UNREACH_NEEDFRAG)
+		icmp->icmp_nextmtu = htons(il->ill_max_frag);
+#endif
 
 #ifdef	USE_INET6
 	if (oip->ip_v == 6) {
