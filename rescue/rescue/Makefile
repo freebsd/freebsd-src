@@ -81,7 +81,7 @@ CRUNCH_ALIAS_ln= link
 CRUNCH_ALIAS_rm= unlink
 CRUNCH_ALIAS_ed= red
 
-.if !defined(NO_RCMNDS)
+.if !defined(NO_RCMDS)
 CRUNCH_PROGS_bin+= rcp
 .endif
 

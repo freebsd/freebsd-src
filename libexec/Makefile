@@ -16,14 +16,14 @@ SUBDIR=	atrun \
 	pt_chown \
 	rbootd \
 	revnetgroup \
-	rexecd \
-	rlogind \
+	${_rexecd} \
+	${_rlogind} \
 	rpc.rquotad \
 	rpc.rstatd \
 	rpc.rusersd \
 	rpc.rwalld \
 	rpc.sprayd \
-	rshd \
+	${_rshd} \
 	${_rtld-elf} \
 	save-entropy \
 	${_smrsh} \
@@ -44,6 +44,12 @@ _ftp-proxy=	ftp-proxy
 
 .if !defined(NO_PIC)
 _rtld-elf=	rtld-elf
+.endif
+
+.if !defined(NO_RCMDS)
+_rexecd=	rexecd
+_logind=	rlogind
+_rshd=		rshd
 .endif
 
 .if !defined(NO_SENDMAIL)

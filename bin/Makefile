@@ -37,7 +37,7 @@ SUBDIR= cat \
 	sync \
 	test
 
-.if !defined(NO_RCMNDS)
+.if !defined(NO_RCMDS)
 _rcp=	rcp
 .endif
 
