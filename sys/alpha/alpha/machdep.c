@@ -1513,11 +1513,6 @@ sigreturn(struct thread *td,
 	unsigned long val;
 	struct proc *p;
 
-#ifdef COMPAT_43
-	if (((struct osigcontext*)uap->sigcntxp)->sc_regs[R_ZERO] == 0xACEDBADE)
-		return osigreturn(td, (struct osigreturn_args *)uap);
-#endif
-
 	ucp = uap->sigcntxp;
 	pcb = td->td_pcb;
 	p = td->td_proc;
@@ -1529,9 +1524,22 @@ sigreturn(struct thread *td,
 
 	/*
 	 * Fetch the entire context structure at once for speed.
+	 * Note that struct osigcontext is smaller than a ucontext_t,
+	 * so even if copyin() faults, we may have actually gotten a complete
+	 * struct osigcontext.
 	 */
-	if (copyin((caddr_t)ucp, (caddr_t)&uc, sizeof(ucontext_t)))
+	if (copyin((caddr_t)ucp, (caddr_t)&uc, sizeof(ucontext_t))) {
+#ifdef COMPAT_43
+		if (((struct osigcontext*)&uc)->sc_regs[R_ZERO] == 0xACEDBADE)
+			return osigreturn(td, (struct osigreturn_args *)uap);
+#endif
 		return (EFAULT);
+	}
+
+#ifdef COMPAT_43
+	 if (((struct osigcontext*)&uc)->sc_regs[R_ZERO] == 0xACEDBADE)
+		  return osigreturn(td, (struct osigreturn_args *)uap);
+#endif
 
 	/*
 	 * Restore the user-supplied information
