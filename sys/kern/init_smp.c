@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: init_smp.c,v 1.13 1997/07/22 16:49:54 fsmp Exp $
+ * $Id: init_smp.c,v 1.10 1997/08/15 02:13:31 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -44,7 +44,7 @@
 
 #include <machine/cpu.h>
 #include <machine/smp.h>
-#include <machine/smptests.h>	/** IGNORE_IDLEPROCS, TEST_TEST1 */
+#include <machine/smptests.h>	/** IGNORE_IDLEPROCS */
 #include <machine/specialreg.h>
 
 #include <vm/vm.h>
@@ -53,10 +53,6 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <sys/user.h>
-
-#if defined(TEST_TEST1)
-void	ipi_test1(void);
-#endif  /** TEST_TEST1 */
 
 int smp_active = 0;	/* are the APs allowed to run? */
 
@@ -108,7 +104,7 @@ static void smp_idleloop __P((void *));
 
 void	secondary_main __P((void));
 
-static int idle_loops = 0;
+volatile int	smp_idle_loops = 0;
 void	boot_unlock __P((void));
  
 struct proc *SMPidleproc[NCPU];
@@ -134,7 +130,6 @@ smp_kickoff(dummy)
 		SMPidleproc[i] = p;
 		p->p_flag |= P_INMEM | P_SYSTEM | P_IDLEPROC;
 		sprintf(p->p_comm, "cpuidle%d", i);
-
 		/*
 		 * PRIO_IDLE is the last scheduled of the three
 		 * classes and we choose the lowest priority possible
@@ -186,15 +181,7 @@ secondary_main()
 	printf("SMP: AP CPU #%d LAUNCHED!!  Starting Scheduling...\n",
 		cpuid);
 
-#if defined(TEST_TEST1)
-/* XXX this would be dangerous for > 2 CPUs! */
-	if (cpuid == IPI_TARGET_TEST1) {
-		lapic.tpr = 0xff;
-		ipi_test1();
-	}
-#endif  /** TEST_TEST1 */
-
-        /* Setup the FPU. */
+        /* XXX FIXME: i386 specific, and redundant: Setup the FPU. */
         load_cr0((rcr0() & ~CR0_EM) | CR0_MP | CR0_NE | CR0_TS);
 
 	curproc = NULL;			/* ensure no context to save */
@@ -215,23 +202,17 @@ void *dummy;
 	int dcnt = 0;
 	int apic_id;
 
-#if 1
-	/*
-	 * XXX FIXME: cheap fix for "trap 9 on boot" problem.
-	 * this is temporary, but seems to be the most benign of our choices.
-	 * expected to be fixed properly "real soon now".
-	 */
-	asm("pushl %ds; popl %es");
-#endif
-
 	/*
 	 * This code is executed only on startup of the idleprocs
 	 * The fact that this is executed is an indication that the
 	 * idle procs are online and it's safe to kick off the first
 	 * AP cpu.
 	 */
-	if ( ++idle_loops == mp_ncpus ) {
+	if ( ++smp_idle_loops == mp_ncpus ) {
 		printf("SMP: All idle procs online.\n");
+
+		/* let the init process finish */
+		wakeup((caddr_t *)&smp_idle_loops);
 
 #ifndef NO_AUTOSTART
 		printf("SMP: *** AUTO *** starting 1st AP!\n");
