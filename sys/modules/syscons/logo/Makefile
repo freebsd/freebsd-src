@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-KMOD=	logo_saver
-SRCS=	logo_saver.c
-NOMAN=
+.PATH:	${.CURDIR}/../../../dev/syscons/logo
 
-CFLAGS+= -I${.CURDIR}/.. -I${.CURDIR}
+KMOD=	logo_saver
+SRCS=	logo_saver.c logo.c
+NOMAN=
 
 .include <bsd.kmod.mk>
