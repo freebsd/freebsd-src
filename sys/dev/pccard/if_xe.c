@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_xe.c,v 1.18 1999/04/08 12:42:35 scott Exp $
+ *	$Id: if_xe.c,v 1.19 1999/04/15 22:15:53 scott Exp $
  */
 
 /*
@@ -61,29 +61,40 @@
 
 /*		
  * FreeBSD device driver for Xircom CreditCard PCMCIA Ethernet adapters.  The
- * following cards and media are, or will eventually be, supported (Ethernet
- * part only on the multifunction CEM cards):
- *   CE2	10BASE-2, 10BASE-T (I think)
- *   CEM28	ditto
- *   CEM33	ditto
- *   CE3	10BASE-T, 100BASE-TX
- *   CEM56	ditto
- *   RealPort   ditto
- * Compaq and Intel cards using the Xircom CE3 hardware are also known to
- * work.  See the website for full details of supported hardware.
+ * following cards are currently known to work with the driver:
+ *   Xircom CreditCard 10/100 (CE3)
+ *   Xircom CreditCard Ethernet 10/100 + Modem 56 (CEM56)
+ *   Xircom RealPort Ethernet 10/100
+ *   Xircom RealPort Ethernet 10/100 + Modem 56 (REM56, REM56G)
+ *   Intel EtherExpress Pro/100 PC Card Mobile Adapter 16 (Pro/100 M16A)
+ *   Compaq Netelligent 10/100 PC Card (CPQ-10/100)
+ *
+ * Some other cards *should* work, but support for them is either broken or in 
+ * an unknown state at the moment.  I'm always interested in hearing from
+ * people who own any of these cards:
+ *   Xircom CreditCard 10Base-T (PS-CE2-10)
+ *   Xircom CreditCard Ethernet + ModemII (CEM2)
+ *   Xircom CEM28 and CEM33 Ethernet/Modem cards (may be variants of CEM2?)
  *
  * Thanks to all who assisted with the development and testing of the driver,
- * especially: Werner Koch, Duke Kamstra, Duncan Barclay, Ade Lovett, Jason
- * George, Dru Nelson, Mike Kephart, Bill Rainey and Douglas Rand.  Apologies
- * if I've left out anyone who deserves a mention here.
+ * especially: Werner Koch, Duke Kamstra, Duncan Barclay, Jason George, Dru
+ * Nelson, Mike Kephart, Bill Rainey and Douglas Rand.  Apologies if I've left
+ * out anyone who deserves a mention here.
  *
- * Driver web page: http://www.freebsd-uk.eu.org/~scott/xe_drv/
+ * Special thanks to Ade Lovett for both hosting the mailing list and doing
+ * the CEM56/REM56 support code; and the FreeBSD UK Users' Group for hosting
+ * the web pages.
+ *
+ * Contact points:
+ *
+ * Driver web page: http://ukug.uk.freebsd.org/~scott/xe_drv/
  *
  * Mailing list: http://www.lovett.com/lists/freebsd-xircom/
  * or send "subscribe freebsd-xircom" to <majordomo@lovett.com>
  *
- * Author email: <scott@freebsd-uk.eu.org>
+ * Author email: <scott@uk.freebsd.org>
  */
+
 
 #define XE_DEBUG 1
 
@@ -168,6 +179,8 @@ struct xe_softc {
 };
 
 static struct xe_softc *sca[MAXSLOT];
+static int iob[MAXSLOT];	/* XXX - very gross */
+
 
 /*
  * MII command structure
@@ -305,9 +318,10 @@ struct isa_driver xedriver = {
 static int
 xe_probe (struct isa_device *dev) {
 #ifdef XE_DEBUG
-  printf("xe: probe\n");
+  printf("xe%d: probe, iobase = %#x\n", dev->id_unit, dev->id_iobase);
 #endif
   bzero(sca, MAXSLOT * sizeof(sca[0]));
+  iob[dev->id_unit] = dev->id_iobase;
   return 0;
 }
 
@@ -371,86 +385,53 @@ xe_cem56fix(struct xe_softc *scp)
   struct pccard_devinfo *devi;
   struct slot *slt;
   struct slot_ctrl *ctrl;
-  int ioport;
-
-#ifdef XE_DEBUG
-  u_char buf[32];
-  int i;
-#endif
+  int ioport, fail;
 
   /* initialise a few variables */
   devi = scp->crd;
   slt = devi->slt;
   ctrl = slt->ctrl;
 
-  /* move the modem (on I/O 0), to I/0 1
-   * not entirely sure if this is necessary, but it's in the Linux
-   * driver, so we do it
+  /* allocate a new I/O slot for the ethernet */
+  /* XXX: ctrl->mapio() always appears to return 0 (success), so
+   *      this may cause problems if another device is listening
+   *	  on 0x300 already
    */
-
-  /* save the modem data */
   slt->io[1].window = 1;
-  slt->io[1].flags = slt->io[0].flags;
-  slt->io[1].start = slt->io[0].start;
-  slt->io[1].size = slt->io[0].size;
-
-  /* unregister I/O port 0 */
-  ctrl->mapio( slt, 0 );
-
-  /* re-register modem as I/O port 1 */
-  ctrl->mapio( slt, 1 );
-
-  /* find an available I/O address to use for the Ethernet part */
-  slt->io[0].window = 0;
-  slt->io[0].flags = IODF_WS|IODF_16BIT|IODF_ZEROWS|IODF_ACTIVE;
-  slt->io[0].size = 16;
-  for (ioport = 0x300; ioport < 0x400; ioport += 0x10) {
-      slt->io[0].start = ioport;
-      if (ctrl->mapio( slt, 0 ) == 0)
-	  break;
+  slt->io[1].flags = IODF_WS|IODF_16BIT|IODF_ZEROWS|IODF_ACTIVE;
+  slt->io[1].size = 0x10;
+  if (iob[scp->unit] == -1) {
+    for (ioport = 0x300; ioport < 0x400; ioport += 0x10) {
+      slt->io[1].start = ioport;
+      if ((fail = ctrl->mapio( slt, 1 )) == 0)
+	break;
+    }
+  }
+  else {
+    ioport = iob[scp->unit];
+    slt->io[1].start = ioport;
+    fail = ctrl->mapio(slt, 1);
   }
 
   /* did we find one? */
-  if (ioport == 0x400) {
+  if (fail) {
     printf( "xe%d: xe_cem56fix: no free address space\n", scp->unit );
     return -1;
   }
+
 
   /* munge the id_iobase entry for use by the rest of the driver */
 #ifdef XE_DEBUG
   printf( "xe%d: using 0x%x for RealPort ethernet\n", scp->unit, ioport );
 #endif
   scp->dev->id_iobase = ioport;
+  scp->dev->id_alive  = 0x10;
 
-  /* first bit of magic */
+  /* magic to set up the ethernet */
   xe_memwrite( devi, 0x800, 0x47 );
   xe_memwrite( devi, 0x80a, ioport & 0xff );
   xe_memwrite( devi, 0x80c, (ioport >> 8) & 0xff );
 
-#ifdef XE_DEBUG
-  if (xe_memread( devi, 0x800, buf, 14 ) == 0) {
-    printf( "ECOR:" );
-    for (i = 0; i < 7; i++)
-      printf( " %02x", buf[i*2] );
-    printf( "\n" );
-  }
-
-  if (xe_memread( devi, 0x820, buf, 8 ) == 0) {
-    printf( "DCOR:" );
-    for (i = 0; i < 4; i++)
-      printf( " %02x", buf[i*2] );
-    printf( "\n" );
-  }
-
-  if (xe_memread( devi, 0x840, buf, 20 ) == 0) {
-    printf( "SCOR:" );
-    for (i = 0; i < 10; i++)
-      printf( " %02x", buf[i*2] );
-    printf( "\n" );
-  }
-#endif
-
-  /* second bit of magic */
   xe_memwrite( devi, 0x820, 0x01 );
   xe_memwrite( devi, 0x822, 0x0c );
   xe_memwrite( devi, 0x824, 0x00 );
@@ -537,7 +518,7 @@ xe_card_init(struct pccard_devinfo *devi)
 #endif
 	for (i = 0; i < CISTPL_LEN(buf); ver_str[i] = CISTPL_DATA(buf, i++));
 	ver_str[i] = '\0';
-	ver_str[CISTPL_BUFSIZE>>1 - 1] = CISTPL_LEN(buf);
+	ver_str[(CISTPL_BUFSIZE>>1) - 1] = CISTPL_LEN(buf);
 	success++;
 	break;
 
@@ -1224,7 +1205,7 @@ xe_card_intr(struct pccard_devinfo *devi) {
 	       */
 	      for (i = 0; i < len; i++, rhs++) {
 		((char *)ehp)[i] = XE_INB(XE_EDP);
-		if (rhs = 0x8000) {
+		if (rhs == 0x8000) {
 		  rhs = 0;
 		  i--;
 		}
@@ -1917,7 +1898,7 @@ xe_setaddrs(struct xe_softc *scp) {
     }
 
     for (i = 0; i < 6; i++, byte++) {
-#ifdef XE_DEBUG
+#if XE_DEBUG > 1
       if (i)
 	printf(":%x", addr[i]);
       else
@@ -1935,7 +1916,7 @@ xe_setaddrs(struct xe_softc *scp) {
       else
 	XE_OUTB(byte, addr[i]);
     }
-#ifdef XE_DEBUG
+#if XE_DEBUG > 1
     printf("\n");
 #endif
   }
@@ -2390,11 +2371,13 @@ xe_reg_dump(struct xe_softc *scp) {
  */
 static int
 xe_suspend(void *xunit) {
-  struct xe_softc *scp = sca[(int)xunit];
 
 #ifdef XE_DEBUG
+  struct xe_softc *scp = sca[(int)xunit];
+
   printf("xe%d: APM suspend\n", scp->unit);
 #endif
+
   return 0;
 }
 
@@ -2403,11 +2386,13 @@ xe_suspend(void *xunit) {
  */
 static int
 xe_resume(void *xunit) {
-  struct xe_softc *scp = sca[(int)xunit];
 
 #ifdef XE_DEBUG
+  struct xe_softc *scp = sca[(int)xunit];
+
   printf("xe%d: APM resume\n", scp->unit);
 #endif
+
   return 0;
 }
 
