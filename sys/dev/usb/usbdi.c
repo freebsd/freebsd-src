@@ -1224,18 +1224,26 @@ usbd_print_child(device_t parent, device_t child)
 int
 usbd_driver_load(module_t mod, int what, void *arg)
 {
+#if 1
+	return 0;
+#else
 	devclass_t usb_devclass = devclass_find("usb");
 	devclass_t ugen_devclass = devclass_find("ugen");
 	device_t *devlist;
 	int devcount;
 	int error;
 
-	switch (what) { 
-	case MOD_LOAD:
-	case MOD_UNLOAD:
+	if ( what == MOD_LOAD || what == MOD_UNLOAD ) {
 		if (!usb_devclass)
 			return 0;	/* just ignore call */
 
+		/* Detach all the generic devices and do a reconfigure
+		 * of the bus. This should attach the new driver to anything
+		 * that is already connected and it can handle.
+		 * XXX For the moment disabled. The detach does not remove
+		 * the device from the list of devices attached to the hub.
+		 * Legacy of converting from NetBSD to FreeBSD.
+		 */
 		if (ugen_devclass) {
 			/* detach devices from generic driver if possible */
 			error = devclass_get_devices(ugen_devclass, &devlist,
@@ -1243,8 +1251,11 @@ usbd_driver_load(module_t mod, int what, void *arg)
 			if (!error)
 				for (devcount--; devcount >= 0; devcount--)
 					(void)DEVICE_DETACH(devlist[devcount]);
+			free(devlist, M_TEMP);
 		}
 
+		/* Reconfigure the busses, possibly attaching something to the
+		 * new driver */
 		error = devclass_get_devices(usb_devclass, &devlist, &devcount);
 		if (error)
 			return 0;	/* XXX maybe transient, or error? */
@@ -1253,10 +1264,10 @@ usbd_driver_load(module_t mod, int what, void *arg)
 			USB_RECONFIGURE(devlist[devcount]);
 
 		free(devlist, M_TEMP);
-		return 0;
 	}
 
-	return 0;			/* nothing to do by us */
+	return 0;			/* nothing to do */
+#endif
 }
 
 /* Set the description of the device including a malloc and copy. */
