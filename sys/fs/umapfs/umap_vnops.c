@@ -197,7 +197,7 @@ umap_bypass(ap)
 	 * Call the operation on the lower layer
 	 * with the modified argument structure.
 	 */
-	error = VCALL(*(vps_p[0]), descp->vdesc_offset, ap);
+	error = VCALL(ap);
 
 	/*
 	 * Maintain the illusion of call-by-value
