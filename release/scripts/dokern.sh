@@ -47,7 +47,7 @@ sed	-e '/	pci$/d' \
 	-e '/splash/d' \
 	-e '/PROCFS/d' \
 	-e '/KTRACE/d' \
-	-e '/SYSVMSG/d' \
+	-e '/SYSV/d' \
 	-e '/SOFTUPDATES/d' \
 	-e '/UFS_DIRHASH/d' \
 	-e '/MFS/d' \
@@ -75,7 +75,7 @@ sed	-e '/pty/d' \
 	-e '/splash/d' \
 	-e '/PROCFS/d' \
 	-e '/KTRACE/d' \
-	-e '/SYSVMSG/d' \
+	-e '/SYSV/d' \
 	-e '/SOFTUPDATES/d' \
 	-e '/UFS_DIRHASH/d' \
 	-e '/MFS/d' \
