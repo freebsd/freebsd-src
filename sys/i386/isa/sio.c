@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.210 1998/08/11 17:01:32 bde Exp $
+ *	$Id: sio.c,v 1.211 1998/08/19 04:17:37 bde Exp $
  */
 
 #include "opt_comconsole.h"
@@ -1070,6 +1070,12 @@ determined_type: ;
 	com_addr(unit) = com;
 	splx(s);
 
+	if (!sio_registered) {
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev, &sio_cdevsw, NULL);
+		register_swi(SWI_TTY, siopoll);
+		sio_registered = TRUE;
+	}
 #ifdef DEVFS
 	com->devfs_token_ttyd = devfs_add_devswf(&sio_cdevsw,
 		unit, DV_CHR,
@@ -1090,12 +1096,6 @@ determined_type: ;
 		unit | CALLOUT_MASK | CONTROL_LOCK_STATE, DV_CHR,
 		UID_UUCP, GID_DIALER, 0660, "cuala%r", unit);
 #endif
-	if (!sio_registered) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev, &sio_cdevsw, NULL);
-		register_swi(SWI_TTY, siopoll);
-		sio_registered = TRUE;
-	}
 	com->id_flags = isdp->id_flags; /* Heritate id_flags for later */
 	return (1);
 }
