@@ -62,9 +62,6 @@ __FBSDID("$FreeBSD$");
  * done using usbd_transfer() and friends.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
