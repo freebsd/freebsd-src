@@ -1,0 +1,322 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)boot_vax.8	8.2 (Berkeley) 4/19/94
+.\"
+.Dd April 19, 1994
+.Dt BOOT 8 vax
+.Os
+.Sh NAME
+.Nm boot
+.Nd
+system bootstrapping procedures
+.Sh DESCRIPTION
+.Sy Power fail and crash recovery.
+Normally, the system will reboot itself at power-up or after crashes.
+Provided the auto-restart is enabled on the machine front panel,
+an automatic consistency check of the file systems will be performed,
+and unless this fails, the system will resume multi-user operations.
+.Pp
+.Sy Cold starts.
+These are processor-type dependent.
+On an 11/780, there are two floppy files for each disk controller,
+both of which cause boots from unit 0 of the root file system
+of a controller located on mba0 or uba0.
+One gives a single user shell, while the other invokes the multi-user
+automatic reboot.
+Thus these files are
+.Tn HPS
+and
+.Tn HPM
+for the single
+and multi-user boot from
+.Tn MASSBUS
+RP06/RM03/RM05 disks,
+.Tn UPS
+and
+.Tn UPM
+for
+.Tn UNIBUS
+storage module controller and disks
+such as the
+.Tn EMULEX
+SC-21
+and
+.Tn AMPEX
+9300 pair,
+.Tn RAS
+and
+.Tn RAM
+to boot from
+.Tn MSCP
+controllers and disks such as the RA81,
+or
+.Tn HKS
+and
+.Tn HKM
+for RK07 disks.
+There is also a script for booting from the default device,
+which is normally a copy of one of the standard multi-user boot scripts,
+but which may be modified to perform other actions
+or to boot from a different unit.
+The situation on the 8600 is similar, with scripts loaded from the console RL02.
+.Pp
+Giving the command
+.Pp
+.Dl >>>BOOT HPM
+.Pp
+would boot the system from (e.g.) an RP06 and run the automatic consistency
+check as described in
+.Xr fsck 8 .
+(Note that it may
+be necessary to type control-P
+and halt the processor
+to gain the attention of the
+.Tn LSI-11
+before getting the >>> prompt.)
+The command
+.Pp
+.Dl >>>BOOT ANY
+.Pp
+invokes a version of the boot program in a way which allows you to
+specify any system as the system to be booted.
+It reads from the console a device specification (see below) followed
+immediately by a pathname.
+.Pp
+The scripts may be modified for local configuration if necessary.
+The flags are placed in register 11 (as defined in
+.Aq Pa sys/reboot.h ) .
+The boot device is specified in register 10.
+The encoding of this register is also defined in
+.Aq Pa sys/reboot.h .
+The current encoding has a historical basis, and is shown in the following
+table:
+.Pp
+.Bd -unfilled -offset indent -compact
+bits	usage
+0-7	boot device type (the device major number)
+8-15	disk partition
+16-19	drive unit
+20-23	controller number
+24-27	adaptor number (UNIBUS or MASSBUS as appropriate)
+.Ed
+.Pp
+The adaptor number corresponds to the normal configuration on the 11/750,
+and to the order in which adaptors are found on the 11/780 and 8600
+(generally the same as the numbers used by
+.Tn UNIX ) .
+.Pp
+On an 11/750, the reset button will boot from the device
+selected by the front panel boot device switch.  In systems
+with RK07's, position B normally selects the RK07 for boot.
+This will boot multi-user.  To boot from RK07 with boot flags you
+may specify
+.Pp
+.Bd -unfilled -offset indent -compact
+.Li \&>>>B/ Ns Fl n No DMA0
+.Ed
+.Pp
+where, giving a
+.Ar n
+of 1 causes the boot program
+to ask for the name of the system to be bootstrapped,
+giving a
+.Ar n
+of 2 causes the boot program to come up single
+user, and a
+.Ar n
+of 3 causes both of these actions to occur.
+The ``DM'' specifies RK07, the ``A'' represents the adaptor number
+.Pf ( Tn UNIBUS
+or
+.Tn MASSBUS ) ,
+and the ``0'' is the drive unit number.
+Other disk types which may be used are DB
+.Pq Tn MASSBUS ,
+DD (TU58),
+and DU
+.Pf ( Tn UDA-50/RA
+disk).
+A non-zero disk partition can be used by adding (partition times 1000 hex)
+to
+.Ar  n .
+.Pp
+The boot procedure on the Micro
+.Tn VAX
+II
+is similar.
+A switch on the back panel sets the power-up action
+to autoboot or to halt.
+When halted, the processor may be booted using the same syntax
+as on the 11/750.
+.Pp
+The 11/750 boot procedure uses the boot roms to load block 0 off of
+the specified device.  The /usr/mdec directory contains a number
+of bootstrap programs for the various disks which should be placed
+in a new pack by
+.Xr disklabel 8 .
+Similarly, the Micro
+.Tn VAX
+II boot procedure loads a boot parameter block
+from block 0 of the disk.
+The
+.Xr rdboot
+.Dq bootstrap
+contains the correct parameters for an
+.Tn MSCP
+disk such
+as the RD53.
+.Pp
+On any processor, the 
+.Em boot
+program
+finds the corresponding file on the given device 
+.Pf ( Pa vmunix
+by default), loads that file
+into memory location zero, and starts the program at the entry address
+specified in the program header (after clearing off the high bit
+of the specified entry address).
+.Pp
+The file specifications used with
+.Dq BOOT ANY
+or
+.Dq \&B/3
+are of the form:
+.Pp
+.Dl device(adaptor,controller,unit,minor)
+.Pp
+where
+.Ar device
+is the type of the device to be searched,
+.Ar adaptor
+is the
+.Tn UNIBUS
+or
+.Tn MASSBUS
+number of the adaptor to which the device is attached,
+.Ar controller
+is the unit number of the controller or
+.Tn MASSBUS
+tape formatter on that adaptor,
+.Ar unit
+is the unit number of the disk or transport slave unit of the tape,
+and
+.Ar minor
+is the disk partition or tape file number.
+Leading adaptor or controller numbers default to 0.
+Normal line editing characters can be used when typing the file specification.
+The following list of supported devices may vary from installation to
+installation:
+.Pp
+.Bd -unfilled -offset indent -compact
+hp	MASSBUS disk drive
+up	UNIBUS storage module drive
+ht	TE16,TU45,TU77 on MASSBUS
+kra	storage module on a KDB50
+mt	TU78 on MASSBUS
+hk	RK07 on UNIBUS
+ra	storage module on a MSCP-compatible UNIBUS controller
+rb	storage module on a 730 IDC
+rl	RL02 on UNIBUS
+tm	TM11 emulation tape drives on UNIBUS
+tms	TMSCP-compatible tape
+ts	TS11 on UNIBUS
+ut	UNIBUS TU45 emulator
+.Ed
+.Pp
+For example,
+to boot from a file system which starts at cylinder 0
+of unit 0 of a
+.Tn MASSBUS
+disk, type
+.Ql hp(0,0)vmunix
+to the boot prompt;
+.Ql hp(2,0,1,0)vmunix
+would specify drive 1 on
+.Tn MASSBUS
+adaptor 2;
+.Ql up(0,0)vmunix
+would specify a
+.Tn UNIBUS
+drive,
+.Ql hk(0,0)vmunix
+would specify
+an RK07 disk drive,
+.Ql ra(1,0,0,0)vmunix
+would specify a
+.Tn UDA50
+disk drive on a second
+.Tn UNIBUS ,
+and
+.Ql rb(0,0)vmunix
+would specify a
+disk on a 730
+.Tn IDC .
+For tapes, the minor device number gives a file offset;
+.Ql mt(1,2,3,4)
+would specify the fifth file on slave 3 of the formatter
+at
+.Ql drive
+2 on mba 1.
+.Pp
+On an 11/750 with patchable control store,
+microcode patches will be installed by
+.Em boot
+if the file
+.Pa psc750.bin
+exists in the root of the filesystem from which the system is booted.
+.Pp
+In an emergency, the bootstrap methods described in the paper
+.%T Installing and Operating 4.3bsd
+can be used to boot from a distribution tape.
+.Sh FILES
+.Bl -tag -width /usr/mdec/xxboot -compact
+.It Pa /vmunix
+system code
+.It Pa /boot
+system bootstrap
+.It Pa /usr/mdec/xxboot
+sector-0 boot block for 750, xx is disk type
+.It Pa /usr/mdec/bootxx
+second-stage boot for 750, xx is disk type
+.It Pa /pcs750.bin
+microcode patch file on 750
+.El
+.Sh SEE ALSO
+.Xr arff 8 ,
+.Xr halt 8 ,
+.Xr reboot 8 ,
+.Xr shutdown 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.0 .

@@ -1,0 +1,282 @@
+.\" Copyright (c) 1983, 1987, 1991, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)newfs.8	8.3 (Berkeley) 3/27/94
+.\"
+.Dd March 27, 1994
+.Dt NEWFS 8
+.Os BSD 4.2
+.Sh NAME
+.Nm newfs ,
+.Nm mfs
+.Nd construct a new file system
+.Sh SYNOPSIS
+.Nm newfs
+.Op Fl NO
+.Op Fl S Ar sector-size
+.Op Fl a maxcontig
+.Op Fl b Ar block-size
+.Op Fl c Ar cylinders
+.Op Fl d Ar rotdelay
+.Op Fl e Ar maxbpg
+.Op Fl f Ar frag-size
+.Op Fl i Ar bytes
+.Op Fl k Ar skew
+.Op Fl l Ar interleave
+.Op Fl m Ar free space
+.Op Fl o Ar optimization
+.Op Fl p Ar sectors
+.Op Fl r Ar revolutions
+.Op Fl s Ar size
+.Op Fl t Ar tracks
+.Op Fl u Ar sectors
+.Op Fl x Ar sectors
+.Ar special
+.Nm mount_mfs
+.Op Fl N
+.Op Fl a maxcontig
+.Op Fl b Ar block-size
+.Op Fl c Ar cylinders
+.Op Fl d Ar rotdelay
+.Op Fl e Ar maxbpg
+.Op Fl f Ar frag-size
+.Op Fl i Ar bytes
+.Op Fl m Ar free space
+.Op Fl o Ar options
+.Op Fl s Ar size
+.Ar special node
+.Sh DESCRIPTION
+.Nm Newfs
+replaces the more obtuse
+.Xr mkfs 8
+program.
+Before running 
+.Nm newfs
+or
+.Nm mount_mfs ,
+the disk must be labeled using 
+.Xr disklabel 8 .
+.Nm Newfs
+builds a file system on the specified special device
+basing its defaults on the information in the disk label.
+Typically the defaults are reasonable, however
+.Nm newfs
+has numerous options to allow the defaults to be selectively overridden.
+.Pp
+.Nm Mount_mfs
+is used to build a file system in virtual memory and then mount it
+on a specified node.
+.Nm Mount_mfs
+exits and the contents of the file system are lost
+when the file system is unmounted.
+If
+.Nm mount_mfs
+is sent a signal while running,
+for example during system shutdown,
+it will attempt to unmount its
+corresponding file system.
+The parameters to
+.Nm mount_mfs
+are the same as those to
+.Nm newfs .
+The special file is only used to read the disk label which provides
+a set of configuration parameters for the memory based file system.
+The special file is typically that of the primary swap area,
+since that is where the file system will be backed up when
+free memory gets low and the memory supporting
+the file system has to be paged.
+.Pp
+The following options define the general layout policies.
+.Bl -tag -width Fl
+.It Fl N
+Causes the file system parameters to be printed out
+without really creating the file system.
+.It Fl O
+Creates a 4.3BSD format filesystem.
+This options is primarily used to build root filesystems
+that can be understood by older boot ROMs.
+.It Fl a Ar maxcontig
+This specifies the maximum number of contiguous blocks that will be
+laid out before forcing a rotational delay (see the
+.Fl d
+option).
+The default value is one.
+See
+.Xr tunefs 8
+for more details on how to set this option.
+.It Fl b Ar block-size
+The block size of the file system, in bytes.  
+.It Fl c Ar #cylinders/group
+The number of cylinders per cylinder group in a file system.
+The default value is 16.
+.It Fl d Ar rotdelay
+This specifies the expected time (in milliseconds) to service a transfer
+completion interrupt and initiate a new transfer on the same disk.
+The default is 4 milliseconds.
+See
+.Xr tunefs 8
+for more details on how to set this option.
+.It Fl e Ar maxbpg
+This indicates the maximum number of blocks any single file can
+allocate out of a cylinder group before it is forced to begin
+allocating blocks from another cylinder group.
+The default is about one quarter of the total blocks in a cylinder group.
+See
+.Xr tunefs 8
+for more details on how to set this option.
+.It Fl f Ar frag-size
+The fragment size of the file system in bytes.
+.It Fl i Ar number of bytes per inode
+This specifies the density of inodes in the file system.
+The default is to create an inode for each 2048 bytes of data space.
+If fewer inodes are desired, a larger number should be used;
+to create more inodes a smaller number should be given.
+.It Fl m Ar free space \&%
+The percentage of space reserved from normal users; the minimum free
+space threshold.
+The default value used is 10%.
+See
+.Xr tunefs 8
+for more details on how to set this option.
+.It Fl o Ar optimization\ preference
+.Pq ``space'' or ``time''
+The file system can either be instructed to try to minimize the time spent
+allocating blocks, or to try to minimize the space fragmentation on the disk.
+If the value of minfree (see above) is less than 10%,
+the default is to optimize for space;
+if the value of minfree is greater than or equal to 10%,
+the default is to optimize for time.
+See
+.Xr tunefs 8
+for more details on how to set this option.
+.It Fl s Ar size
+The size of the file system in sectors.
+.El
+.Pp
+The following options override the standard sizes for the disk geometry. 
+Their default values are taken from the disk label.
+Changing these defaults is useful only when using
+.Nm newfs
+to build a file system whose raw image will eventually be used on a
+different type of disk than the one on which it is initially created
+(for example on a write-once disk).
+Note that changing any of these values from their defaults will make
+it impossible for 
+.Xr fsck
+to find the alternate superblocks if the standard superblock is lost.
+.Bl -tag -width Fl
+.It Fl S Ar sector-size
+The size of a sector in bytes (almost never anything but 512).
+.It Fl k Ar sector \&0 skew , per track
+Used to describe perturbations in the media format to compensate for
+a slow controller.
+Track skew is the offset of sector 0 on track N relative to sector 0
+on track N-1 on the same cylinder.
+.It Fl l Ar hardware sector interleave
+Used to describe perturbations in the media format to compensate for
+a slow controller.
+Interleave is physical sector interleave on each track,
+specified as the denominator of the ratio:
+.Dl sectors read/sectors passed over
+Thus an interleave of 1/1 implies contiguous layout, while 1/2 implies
+logical sector 0 is separated by one sector from logical sector 1.
+.It Fl p Ar spare sectors per track
+Spare sectors (bad sector replacements) are physical sectors that occupy
+space at the end of each track.
+They are not counted as part of the sectors/track
+.Pq Fl u
+since they are not available to the file system for data allocation.
+.It Fl r Ar revolutions/minute
+The speed of the disk in revolutions per minute.
+.It Fl t Ar #tracks/cylinder
+The number of tracks/cylinder available for data allocation by the file
+system.
+.It Fl u Ar sectors/track
+The number of sectors per track available for data allocation by the file
+system.
+This does not include sectors reserved at the end of each track for bad
+block replacement (see the
+.Fl p
+option.)
+.It Fl x Ar spare sectors per cylinder
+Spare sectors (bad sector replacements) are physical sectors that occupy
+space at the end of the last track in the cylinder.
+They are deducted from the sectors/track
+.Pq Fl u
+of the last track of each cylinder since they are not available to the file
+system for data allocation.
+.El
+.Pp
+The options to the
+.Nm mount_mfs
+command are as described for the
+.Nm newfs
+command, except for the
+.Fl o
+option.
+.Pp
+That option is as follows:
+.Bl -tag -width indent
+.It Fl o
+Options are specified with a
+.Fl o
+flag followed by a comma separated string of options.
+See the
+.Xr mount 8
+man page for possible options and their meanings.
+.El
+.Sh SEE ALSO
+.Xr disktab 5 ,
+.Xr fs 5 ,
+.Xr dumpfs 8 ,
+.Xr disklabel 8 ,
+.Xr diskpart 8 ,
+.Xr fsck 8 ,
+.Xr format 8 ,
+.Xr mount 8 ,
+.Xr tunefs 8
+.Rs
+.%A M. McKusick
+.%A W. Joy
+.%A S. Leffler
+.%A R. Fabry
+.%T A Fast File System for UNIX ,
+.%J ACM Transactions on Computer Systems 2
+.%V 3
+.%P pp 181-197
+.%D August 1984
+.%O (reprinted in the BSD System Manager's Manual)
+.Re
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .

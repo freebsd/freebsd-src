@@ -1,0 +1,343 @@
+.\" Copyright (c) 1987, 1988, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Symmetric Computer Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)disklabel.8	8.2 (Berkeley) 4/19/94
+.\"
+.Dd "April 19, 1994"
+.Dt DISKLABEL 8
+.Os BSD 4.2
+.Sh NAME
+.Nm disklabel
+.Nd read and write disk pack label
+.Sh SYNOPSIS
+.Nm disklabel
+.Op Fl r
+.Ar disk
+.Nm disklabel
+.Fl w
+.Op Fl r
+.Ar disk Ar disktype
+.Oo Ar packid Oc
+.Nm disklabel
+.Fl e
+.Op Fl r
+.Ar disk
+.Nm disklabel
+.Fl R
+.Op Fl r
+.Ar disk Ar protofile
+.Nm disklabel
+.Op Fl NW
+.Ar disk
+.sp
+.Nm disklabel
+.Fl B
+.Oo
+.Fl b Ar boot1
+.Op Fl s Ar boot2
+.Oc
+.Ar disk
+.Oo Ar disktype Oc
+.Nm disklabel
+.Fl w
+.Fl B
+.Oo
+.Fl b Ar boot1
+.Op Fl s Ar boot2
+.Oc
+.Ar disk Ar disktype
+.Oo Ar packid Oc
+.Nm disklabel
+.Fl R
+.Fl B
+.Oo
+.Fl b Ar boot1
+.Op Fl s Ar boot2
+.Oc
+.Ar disk Ar protofile
+.Oo Ar disktype Oc
+.Sh DESCRIPTION
+.Nm Disklabel
+can be used to install, examine or modify the label on a disk drive or pack.
+When writing the label, it can be used
+to change the drive identification,
+the disk partitions on the drive,
+or to replace a damaged label.
+On some systems,
+.Nm disklabel
+can be used to install bootstrap code as well.
+There are several forms of the command that read (display), install or edit
+the label on a disk.
+Each form has an additional option,
+.Fl r ,
+which causes the label to be read from or written to the disk directly,
+rather than going through the system's in-core copy of the label.
+This option may allow a label to be installed on a disk
+without kernel support for a label, such as when labels are first installed
+on a system; it must be used when first installing a label on a disk.
+The specific effect of
+.Fl r
+is described under each command.
+The read and install forms also support the
+.Fl B
+option to install bootstrap code.
+These variants are described later.
+.Pp
+The first form of the command (read) is used to examine the label on the named
+disk drive (e.g. sd0 or /dev/rsd0c).
+It will display all of the parameters associated with the drive
+and its partition layout.
+Unless the
+.Fl r
+flag is given,
+the kernel's in-core copy of the label is displayed;
+if the disk has no label, or the partition types on the disk are incorrect,
+the kernel may have constructed or modified the label.
+If the
+.Fl r
+flag is given, the label from the raw disk will be displayed rather
+than the in-core label.
+.Pp
+The second form of the command, with the
+.Fl w
+flag, is used to write a standard label on the designated drive.
+The required arguments to
+.Nm disklabel
+are the drive to be labelled (e.g. sd0), and
+the drive type as described in the
+.Xr disktab 5
+file.
+The drive parameters and partitions are taken from that file.
+If different disks of the same physical type are to have different
+partitions, it will be necessary to have separate disktab entries
+describing each, or to edit the label after installation as described below.
+The optional argument is a pack identification string,
+up to 16 characters long.
+The pack id must be quoted if it contains blanks.
+If the
+.Fl r
+flag is given, the disk sectors containing the label and bootstrap
+will be written directly.
+A side-effect of this is that any existing bootstrap code will be overwritten
+and the disk rendered unbootable.
+If
+.Fl r
+is not specified,
+the existing label will be updated via the in-core copy and any bootstrap
+code will be unaffected.
+If the disk does not already have a label, the
+.Fl r
+flag must be used.
+In either case, the kernel's in-core label is replaced.
+.Pp
+An existing disk label may be edited by using the
+.Fl e
+flag.
+The label is read from the in-core kernel copy,
+or directly from the disk if the
+.Fl r
+flag is also given.
+The label is formatted and then supplied to an editor for changes.
+If no editor is specified in an
+.Ev EDITOR
+environment variable,
+.Xr vi 1
+is used.
+When the editor terminates, the formatted label is reread
+and used to rewrite the disk label.
+Existing bootstrap code is unchanged regardless of whether
+.Fl r
+was specified.
+.Pp
+With the
+.Fl R
+flag,
+.Nm disklabel
+is capable of restoring a disk label that was formatted
+in a prior operation and saved in an ascii file.
+The prototype file used to create the label should be in the same format
+as that produced when reading or editing a label.
+Comments are delimited by
+.Ar \&#
+and newline.
+As with
+.Fl w ,
+any existing bootstrap code will be clobbered if
+.Fl r
+is specified and will be unaffected otherwise.
+.Pp
+The
+.Fl NW
+flags for
+.Nm disklabel
+explicitly disallow and
+allow, respectively, writing of the pack label area on the selected disk.
+.Pp
+The final three forms of
+.Nm disklabel
+are used to install boostrap code on machines where the bootstrap is part
+of the label.
+The bootstrap code is comprised of one or two boot programs depending on
+the machine.
+The
+.Fl B
+option is used to denote that bootstrap code is to be installed.
+The
+.Fl r
+flag is implied by
+.Fl B
+and never needs to be specified.
+The name of the boot program(s) to be installed can be selected in a
+variety of ways.
+First, the names can be specified explicitly via the
+.Fl b
+and
+.Fl s
+flags.
+On machines with only a single level of boot program,
+.Fl b
+is the name of that program.
+For machines with a two-level bootstrap,
+.Fl b
+indicates the primary boot program and
+.Fl s
+the secondary boot program.
+If the names are not explicitly given, standard boot programs will be used.
+The boot programs are located in
+.Pa /usr/mdec .
+The names of the programs are taken from the ``b0'' and ``b1'' parameters
+of the
+.Xr disktab 5
+entry for the disk if
+.Ar disktype
+was given and its disktab entry exists and includes those parameters.
+Otherwise, boot program names are derived from the name of the disk.
+These names are of the form
+.Pa basename Ns boot
+for the primary (or only) bootstrap, and
+.Pf boot Pa basename
+for the secondary bootstrap;
+for example,
+.Pa /usr/mdec/sdboot
+and
+.Pa /usr/mdec/bootsd
+if the disk device is
+.Em sd0 .
+.Pp
+The first of the three boot-installation forms is used to install
+bootstrap code without changing the existing label.
+It is essentially a read command with respect to the disk label
+itself and all options are related to the specification of the boot
+program as described previously.
+The final two forms are analogous to the basic write and restore versions
+except that they will install bootstrap code in addition to a new label.
+.Sh FILES
+.Bl -tag -width Pa -compact
+.It Pa /etc/disktab
+.It Pa /usr/mdec/ Ns Em xx Ns boot
+.It Pa /usr/mdec/boot Ns Em xx
+.El
+.Sh EXAMPLES
+.Dl disklabel sd0
+.Pp
+Display the in-core label for sd0 as obtained via
+.Pa /dev/rsd0c .
+.Pp
+.Dl disklabel -w -r /dev/rsd0c sd2212 foo
+.Pp
+Create a label for sd0 based on information for ``sd2212'' found in
+.Pa /etc/disktab .
+Any existing bootstrap code will be clobbered.
+.Pp
+.Dl disklabel -e -r sd0
+.Pp
+Read the on-disk label for sd0, edit it and reinstall in-core as well
+as on-disk.
+Existing bootstrap code is unaffected.
+.Pp
+.Dl disklabel -R sd0 mylabel
+.Pp
+Restore the on-disk and in-core label for sd0 from information in
+.Pa mylabel .
+Existing bootstrap code is unaffected.
+.Pp
+.Dl disklabel -B sd0
+.Pp
+Install a new bootstrap on sd0.
+The boot code comes from
+.Pa /usr/mdec/sdboot
+and possibly
+.Pa /usr/mdec/bootsd .
+On-disk and in-core labels are unchanged.
+.Pp
+.Dl disklabel -w -B /dev/rsd0c -b newboot sd2212
+.Pp
+Install a new label and bootstrap.
+The label is derived from disktab information for ``sd2212'' and
+installed both in-core and on-disk.
+The bootstrap code comes from the file
+.Pa /usr/mdec/newboot .
+.Sh SEE ALSO
+.Xr disktab 5 ,
+.Xr disklabel 5
+.Sh DIAGNOSTICS
+The kernel device drivers will not allow the size of a disk partition
+to be decreased or the offset of a partition to be changed while it is open.
+Some device drivers create a label containing only a single large partition
+if a disk is unlabeled; thus, the label must be written to the ``a''
+partition of the disk while it is open.
+This sometimes requires the desired label to be set in two steps,
+the first one creating at least one other partition,
+and the second setting the label on the new partition
+while shrinking the ``a'' partition.
+.Pp
+On some machines the bootstrap code may not fit entirely in the area
+allocated for it by some filesystems.
+As a result, it may not be possible to have filesystems on some partitions
+of a ``bootable'' disk.
+When installing bootstrap code,
+.Nm disklabel
+checks for these cases.
+If the installed boot code would overlap a partition of type FS_UNUSED
+it is marked as type FS_BOOT.
+The
+.Xr newfs 8
+utility will disallow creation of filesystems on FS_BOOT partitions.
+Conversely, if a partition has a type other than FS_UNUSED or FS_BOOT,
+.Nm disklabel
+will not install bootstrap code that overlaps it.
+.Sh BUGS
+When a disk name is given without a full pathname,
+the constructed device name uses the ``a'' partition on the tahoe,
+the ``c'' partition on all others.

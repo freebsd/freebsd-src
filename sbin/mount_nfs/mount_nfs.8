@@ -1,0 +1,222 @@
+.\" Copyright (c) 1992, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)mount_nfs.8	8.2 (Berkeley) 3/27/94
+.\"
+.Dd March 27, 1994
+.Dt MOUNT_NFS 8
+.Os BSD 4.4
+.Sh NAME
+.Nm mount_nfs
+.Nd mount nfs file systems
+.Sh SYNOPSIS
+.Nm mount_nfs
+.Op Fl KMPTbcdiklqs
+.Op Fl D Ar deadthresh
+.Op Fl L Ar leaseterm
+.Op Fl R Ar retrycnt
+.Op Fl a Ar maxreadahead
+.Op Fl g Ar maxgroups
+.Op Fl m Ar realm
+.Op Fl o Ar options
+.Op Fl r Ar readsize
+.Op Fl t Ar timeout
+.Op Fl w Ar writesize
+.Op Fl x Ar retrans
+.Ar rhost:path node
+.Sh DESCRIPTION
+The
+.Nm mount_nfs
+command
+calls the
+.Xr mount 2
+system call to prepare and graft a remote nfs file system (rhost:path)
+on to the file system tree at the point
+.Ar node.
+This command is normally executed by
+.Xr mount 8 .
+It implements the mount protocol as described in RFC 1094, Appendix A.
+.Pp
+The options are:
+.Bl -tag -width indent
+.It Fl D
+Used with NQNFS to set the
+.Dq "dead server threshold"
+to the specified number of round trip timeout intervals.
+After a
+.Dq "dead server threshold"
+of retransmit timeouts,
+cached data for the unresponsive server is assumed to still be valid.
+Values may be set in the range of 1 - 9, with 9 referring to an
+.Dq "infinite dead threshold"
+(i.e. never assume cached data still valid).
+This option is not generally recommended and is really an experimental
+feature.
+.It Fl K
+Pass Kerberos authenticators to the server for client-to-server
+user-credential mapping.
+This may only be used over TCP mounts between 4.4BSD clients and servers.
+.It Fl L
+Used with NQNFS to set the lease term to the specified number of seconds.
+Only use this argument for mounts with a large round trip delay.
+Values are normally in the 10-30 second range.
+.It Fl M
+Assume that other clients are not writing a file concurrently with this client.
+This implements a slightly less strict consistency criteria than 4.3BSD-Reno
+did, that is more in line with most commercial client implementations.
+This is recommended for servers that do not support leasing.
+.It Fl P
+Use a reserved socket port number.
+This is useful for mounting servers that require clients to use a
+reserved port number.
+.It Fl R
+Set the retry count for doing the mount to the specified value.
+.It Fl T
+Use TCP transport instead of UDP.
+This is recommended for servers that are not on the same LAN cable as
+the client.
+(NB: This is NOT supported by most non-BSD servers.)
+.It Fl a
+Set the read-ahead count to the specified value.
+This may be in the range of 0 - 4, and determines how many blocks
+will be read ahead when a large file is being read sequentially.
+This is recommended for mounts with a large bandwidth * delay product.
+.It Fl b
+If an initial attempt to contact the server fails, fork off a child to keep
+trying the mount in the background.
+Useful for
+.Xr fstab 5 ,
+where the filesystem mount is not critical to multiuser operation.
+.It Fl c
+For UDP mount points, do not do a
+.Xr connect 2 .
+This must be used for servers that do not reply to requests from the
+standard port number.
+.It Fl d
+Do not estimate retransmit timeout dynamically.
+This may be useful for UDP mounts that exhibit high retry rates.
+.It Fl g
+Set the maximum size of the group list for the credentials to the
+specified value.
+This should be used for mounts on old servers that cannot handle a
+group list size of 16, as specified in RFC 1057.
+Try 8, if users in a lot of groups cannot get response from the mount
+point.
+.It Fl i
+Make the mount interruptible, which implies that file system calls that
+are delayed due to an unresponsive server will fail with EINTR when a
+termination signal is posted for the process.
+.It Fl k
+Used with NQNFS to specify
+.Dq get a lease
+for the file name being looked up.
+This is recommended unless the server is complaining about excessive
+lease load.
+.It Fl l
+Used with NQNFS to specify that the \fBReaddir_and_Lookup\fR RPC should
+be used.
+This option reduces RPC traffic for cases such as
+.Dq "ls -l" ,
+but increases the lease load on the server.
+This is recommended unless the server is complaining about excessive
+lease load.
+.It Fl m
+Set the Kerberos realm to the string argument.
+Used with the
+.Fl K
+option for mounts to other realms.
+.It Fl o
+Options are specified with a
+.Fl o
+flag followed by a comma separated string of options.
+See the
+.Xr mount 8
+man page for possible options and their meanings.
+.It Fl q
+Use the leasing extensions to the protocol to maintain cache consistency.
+This protocol, referred to as Not Quite Nfs (NQNFS),
+is only supported by 4.4BSD servers.
+.It Fl r
+Set the read data size to the specified value.
+It should be a power of 2 greater than or equal to 1024.
+This should be used for UDP mounts when the
+.Dq "fragments dropped due to timeout"
+value is getting large while actively using a mount point.
+(Use
+.Xr netstat 1
+with the
+.Fl s
+option to see what the
+.Dq "fragments dropped due to timeout"
+value is.)
+See the
+.Fl w
+option as well.
+.It Fl s
+A soft mount, which implies that file system calls will fail
+after \fBRetry\fR round trip timeout intervals.
+.It Fl t
+Set the initial retransmit timeout to the specified value.
+May be useful for fine tuning UDP mounts over internetworks
+with high packet loss rates or an overloaded server.
+Try increasing the interval if
+.Xr nfsstat 1
+shows high retransmit rates while the file system is active or reducing the
+value if there is a low retransmit rate but long response delay observed.
+.It Fl w
+Set the write data size to the specified value.
+Ditto the comments w.r.t. the
+.Fl r
+option, but using the
+.Dq "fragments dropped due to timeout"
+value on the server instead of the client.
+Note that both the
+.Fl r
+and
+.Fl w
+options should only be used as a last ditch effort at improving performance
+when mounting servers that do not support TCP mounts.
+.It Fl x
+Set the retransmit timeout count for soft mounts to the specified value.
+.El
+.Sh SEE ALSO
+.Xr mount 2 ,
+.Xr unmount 2 ,
+.Xr fstab 5 ,
+.Xr mount 8
+.Sh BUGS
+Due to the way that Sun RPC is implemented on top of UDP (unreliable datagram)
+transport, tuning such mounts is really a black art that can only be expected
+to have limited success.
+For clients mounting servers that are not on the same
+LAN cable or that tend to be overloaded,
+TCP transport is strongly recommended,
+but unfortunately this is restricted to mostly 4.4BSD servers.
