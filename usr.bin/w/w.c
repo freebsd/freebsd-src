@@ -505,11 +505,10 @@ ttystat(line, sz)
 	char ttybuf[MAXPATHLEN];
 
 	(void)snprintf(ttybuf, sizeof(ttybuf), "%s%.*s", _PATH_DEV, sz, line);
-	if (stat(ttybuf, &sb)) {
-		warn("%s", ttybuf);
+	if (stat(ttybuf, &sb) == 0) {
+		return (&sb);
+	} else
 		return (NULL);
-	}
-	return (&sb);
 }
 
 static void
