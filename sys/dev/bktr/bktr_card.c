@@ -550,7 +550,6 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
 	u_char 		probe_signature[128], *probe_temp;
         int   		any_i2c_devices;
 	u_char 		eeprom[256];
-	u_char 		tuner_code = 0;
 	int 		tuner_i2c_address = -1;
 	int 		eeprom_i2c_address = -1;
 
@@ -894,23 +893,52 @@ checkTuner:
  0x27 Philips FI1256MP      B/G, D/K
  0x28 Samsung TCPQ9091P     BG/I/DK, L/L'
  0x29 Temic 4006FN5         BG/I/DK
- 0x2a Temic 4009FR5         BG FM
+ 0x2a Temic 4009FR5         BG FM			PHILIPS_FR1216_PAL
  0x2b Temic 4046FM5         B/G, I, D/K, L/L'
- 0x2c Temic 4009FN5         B/G, I, D/K, FM (no demod)  PHILIPS_PALI
+ 0x2c Temic 4009FN5         B/G, I, D/K, FM (no demod)
  0x2d Philips TD1536D_FH_44 MN/ATSCDigital DUAL INPUT
 	    */
 
 
-
 	    /* Determine the model number from the eeprom */
 	    if (bktr->card.eepromAddr != 0) {
-		u_int model;
-		u_int revision;
+	        /* eeprom data block structure */
+	        unsigned char *block_1, *block_2, *block_3, *block_4;
+	        int block_1_data_size,  block_2_data_size, block_3_data_size;
+	        int block_1_total_size, block_2_total_size, block_3_total_size;
+		int block_4_header_size;
+
+		unsigned int model,revision;
+		unsigned char tuner_code;
+		unsigned char no_audio_mux;
 
 		readEEProm(bktr, 0, 128, (u_char *) &eeprom );
 
-		model    = (eeprom[12] << 8  | eeprom[11]);
-		revision = (eeprom[15] << 16 | eeprom[14] << 8 | eeprom[13]);
+	        /* LOCATE THE EEPROM DATA BLOCKS */
+	        block_1 = &eeprom[0];
+	        block_1_data_size = (block_1[2] << 8 | block_1[1]);
+	        block_1_total_size = block_1_data_size + 3; /* Header bytes */   
+    
+	        block_2 = &eeprom[block_1_total_size];
+	        block_2_data_size = (block_2[2] << 8 | block_2[1]);
+	        block_2_total_size = block_2_data_size + 3; /* Header bytes */
+    
+	        block_3 = &eeprom[block_1_total_size + block_2_total_size];
+	        block_3_data_size = (block_3[0] &0x07);
+	        block_3_total_size = block_3_data_size + 1; /* Header size */
+
+	        block_4 = &eeprom[block_1_total_size +block_2_total_size +block_3_total_size];
+	        block_4_header_size = 1;
+
+		model    = (block_1[12] << 8  | block_1[11]);
+		revision = (block_1[15] << 16 | block_1[14] << 8 | block_1[13]);
+
+		tuner_code = block_1[9];
+
+		no_audio_mux = ((block_3[3] >> 7) &0x01);
+
+		if (no_audio_mux) bktr->audio_mux_present = 0;
+               
 		if (verbose)
 		    printf("%s: Hauppauge Model %d %c%c%c%c\n",
 			   bktr_name(bktr),
@@ -921,7 +949,7 @@ checkTuner:
 			   ((revision >>  0) & 0x3f) + 32 );
 
 	        /* Determine the tuner type from the eeprom */
-		tuner_code = eeprom[9];
+
 		switch (tuner_code) {
 
 		  case 0x5:
@@ -950,7 +978,6 @@ checkTuner:
 	          case 0xb:
 	          case 0x1d:
 	          case 0x23:
-	          case 0x2c:
 		    select_tuner( bktr, PHILIPS_PALI );
 		    goto checkDBX;
 
@@ -967,6 +994,11 @@ checkTuner:
 		    goto checkDBX;
 
                   case 0x15:
+		    select_tuner( bktr, PHILIPS_FR1216_PAL );
+		    goto checkDBX;
+
+                  case 0x2a:
+		    bktr->msp_use_mono_source = 1;
 		    select_tuner( bktr, PHILIPS_FR1216_PAL );
 		    goto checkDBX;
 

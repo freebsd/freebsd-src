@@ -202,14 +202,54 @@ set_audio( bktr_ptr_t bktr, int cmd )
 	else
 		idx = bktr->audio_mux_select;
 
+
 	temp = INL(bktr, BKTR_GPIO_DATA) & ~bktr->card.gpio_mux_bits;
 #if defined( AUDIOMUX_DISCOVER )
 	OUTL(bktr, BKTR_GPIO_DATA, temp | (cmd & 0xff));
 	printf("%s: cmd: %d audio mux %x temp %x \n", bktr_name(bktr),
-	       cmd, bktr->card.audiomuxs[ idx ], temp );
+	  	cmd, bktr->card.audiomuxs[ idx ], temp );
 #else
 	OUTL(bktr, BKTR_GPIO_DATA, temp | bktr->card.audiomuxs[ idx ]);
 #endif /* AUDIOMUX_DISCOVER */
+
+
+
+	/* Some new Hauppauge cards do not have an audio mux */
+	/* Instead we use the MSP34xx chip to select TV audio, Line-In */
+	/* FM Radio and Mute */
+	/* Examples of this are the Hauppauge 44xxx MSP34xx models */
+	/* It is ok to drive both the mux and the MSP34xx chip. */
+	/* If there is no mux, the MSP does the switching of the audio source */
+	/* If there is a mux, it does the switching of the audio source */
+
+	if ((bktr->card.msp3400c) && (bktr->audio_mux_present == 0)) {
+
+	  if (bktr->audio_mute_state == TRUE ) {
+		 msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0000, 0x0000); /* volume to MUTE */
+	  } else {
+		 if(bktr->audio_mux_select == 0) { /* TV Tuner */
+		    msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0000, 0x7300); /* 0 db volume */
+		    if (bktr->msp_source_selected != 0) msp_autodetect(bktr);  /* setup TV audio mode */
+		    bktr->msp_source_selected = 0;
+		 }
+		 if(bktr->audio_mux_select == 1) { /* Line In */
+		    msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0000, 0x7300); /* 0 db volume */
+		    msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x000d, 0x1900); /* scart prescale */
+		    msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0008, 0x0220); /* SCART | STEREO */
+		    msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0013, 0x0000); /* DSP In = SC1_IN_L/R */
+		    bktr->msp_source_selected = 1;
+		 }
+
+		 if(bktr->audio_mux_select == 2) { /* FM Radio */
+		    msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0000, 0x7300); /* 0 db volume */
+		    msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x000d, 0x1900); /* scart prescale */
+		    msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0008, 0x0220); /* SCART | STEREO */
+		    msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0013, 0x0200); /* DSP In = SC2_IN_L/R */
+		    bktr->msp_source_selected = 2;
+		 }
+	  }
+	}
+
 
 	return( 0 );
 }
@@ -449,11 +489,24 @@ void msp_autodetect( bktr_ptr_t bktr ) {
   }
 
 
+  /* MSP3415D SPECIAL CASE Use the Tuner's Mono audio ouput for the MSP */
+  /* (for Hauppauge 44xxx card with Tuner Type 0x2a) */
+  else if (  ( (strncmp("3415D", bktr->msp_version_string, 5) == 0)
+               &&(bktr->msp_use_mono_source == 1)
+              )
+           || (bktr->slow_msp_audio == 2) ){
+    msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0000, 0x7300); /* 0 db volume */
+    msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x000d, 0x1900); /* scart prescale */
+    msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0008, 0x0220); /* SCART | STEREO */
+    msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0013, 0x0100); /* DSP In = MONO IN */
+  }
+
+
   /* MSP3410/MSP3415 - countries with mono, stereo using 2 FM channels and NICAM */
   /* FAST sound scheme */
-  if ( (strncmp("3430G", bktr->msp_version_string, 5) != 0)
-    && (bktr->slow_msp_audio == 0) ){
+  else if (bktr->slow_msp_audio == 0) {
     msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0000,0x7300);/* Set volume to 0db gain */
+    msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0008,0x0000);/* Spkr Source = default(FM/AM) */
     msp_dpl_write(bktr, bktr->msp_addr, 0x10, 0x0020,0x0001);/* Enable Auto format detection */
     msp_dpl_write(bktr, bktr->msp_addr, 0x10, 0x0021,0x0001);/* Auto selection of NICAM/MONO mode */
   }
@@ -461,8 +514,7 @@ void msp_autodetect( bktr_ptr_t bktr ) {
 
   /* MSP3410/MSP3415 - European Countries where the fast MSP3410/3415 programming fails */
   /* SLOW sound scheme */
-  if ( (strncmp("3430G", bktr->msp_version_string, 5) != 0)
-    && (bktr->slow_msp_audio == 1) ){
+  else if ( bktr->slow_msp_audio == 1) {
     msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0000,0x7300);/* Set volume to 0db gain */
     msp_dpl_write(bktr, bktr->msp_addr, 0x10, 0x0020,0x0001);/* Enable Auto format detection */
     
