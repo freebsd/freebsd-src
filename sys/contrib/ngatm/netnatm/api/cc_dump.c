@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: libunimsg/netnatm/api/cc_dump.c,v 1.1 2004/07/08 08:21:51 brandt Exp $
+ * $Begemot: libunimsg/netnatm/api/cc_dump.c,v 1.3 2004/08/05 07:10:56 brandt Exp $
  *
  * ATM API as defined per af-saa-0108
  */
@@ -43,7 +43,7 @@
 
 #ifdef _KERNEL
 #ifdef __FreeBSD__
-#include <sys/stdarg.h>
+#include <machine/stdarg.h>
 #endif
 #else	/* !_KERNEL */
 #include <stdarg.h>
@@ -84,7 +84,7 @@ cc_dumpf(struct dump *d, const char *fmt, ...)
 	va_end(ap);
 
 	if (n < 0) {
-		d->ret = errno;
+		d->ret = CCGETERRNO();
 		return;
 	}
 	if ((size_t)n < d->maxsiz - d->len) {
@@ -105,7 +105,7 @@ cc_dumpf(struct dump *d, const char *fmt, ...)
 	va_end(ap);
 
 	if (n < 0) {
-		d->ret = errno;
+		d->ret = CCGETERRNO();
 		return;
 	}
 	if ((size_t)n >= d->maxsiz) {
@@ -123,18 +123,18 @@ static void
 cc_dump_sap(struct dump *d, const struct uni_sap *sap)
 {
 	static const char *const tagtab[] = {
-		[UNISVE_ABSENT] "absent",
-		[UNISVE_ANY]	"any",
-		[UNISVE_PRESENT]"present"
+		[UNISVE_ABSENT] =	"absent",
+		[UNISVE_ANY] =		"any",
+		[UNISVE_PRESENT] =	"present"
 	};
 	static const char *const plantab[] = {
-		[UNI_ADDR_E164]	"E164",
-		[UNI_ADDR_ATME]	"ATME",
+		[UNI_ADDR_E164] =	"E164",
+		[UNI_ADDR_ATME] =	"ATME",
 	};
 	static const char *const hlitab[] = {
-		[UNI_BHLI_ISO]		"ISO",
-		[UNI_BHLI_VENDOR]	"VENDOR",
-		[UNI_BHLI_USER]		"USER"
+		[UNI_BHLI_ISO] =	"ISO",
+		[UNI_BHLI_VENDOR] =	"VENDOR",
+		[UNI_BHLI_USER] =	"USER"
 	};
 	u_int i;
 
