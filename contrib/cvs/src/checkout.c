@@ -33,6 +33,7 @@
  * edited by the user, if necessary (when the repository is moved, e.g.)
  */
 
+#include <assert.h>
 #include "cvs.h"
 
 static char *findslash PROTO((char *start, char *p));
@@ -431,7 +432,7 @@ struct dir_to_build
 };
 
 static int build_dirs_and_chdir PROTO ((struct dir_to_build *list,
-					int sticky));
+					int sticky, int check_existing_dirs));
 
 static void build_one_dir PROTO ((char *, char *, int));
 
@@ -580,7 +581,11 @@ checkout_proc (pargc, argv, where_orig, mwhere, mfile, shorten,
 	    (void) strcat (where, "/");
 	}
 
-	if (mwhere != NULL)
+	/* If the -d flag in the modules file specified an absolute
+           directory, let the user override it with the command-line
+           -d option. */
+
+	if ((mwhere != NULL) && (! isabsolute (mwhere)))
 	    (void) strcat (where, mwhere);
 	else
 	    (void) strcat (where, argv[0]);
@@ -723,19 +728,39 @@ internal error: %s doesn't start with %s in checkout_proc",
 	/* Make a copy of the repository name to play with. */
 	reposcopy = xstrdup (repository);
 
-	/* FIXME: this should be written in terms of last_component instead
-	   of hardcoding '/'.  This presumably affects OS/2, NT, &c, if
-	   the user specifies '\'.  Likewise for the call to findslash.  */
-	cp = strrchr (where, '/');
-	while (cp != NULL)
+	/* FIXME: this should be written in terms of last_component
+	   instead of hardcoding '/'.  This presumably affects OS/2,
+	   NT, &c, if the user specifies '\'.  Likewise for the call
+	   to findslash.  */
+	cp = where + strlen (where);
+	while (1)
 	{
 	    struct dir_to_build *new;
+
+	    cp = findslash (where, cp - 1);
+	    if (cp == NULL)
+		break;		/* we're done */
+
 	    new = (struct dir_to_build *)
 		xmalloc (sizeof (struct dir_to_build));
 	    new->dirpath = xmalloc (strlen (where));
-	    strncpy (new->dirpath, where, cp - where);
-	    new->dirpath[cp - where] = '\0';
 
+	    /* If the user specified an absolute path for where, the
+               last path element we create should be the top-level
+               directory. */
+
+	    if (cp - where)
+	    {
+		strncpy (new->dirpath, where, cp - where);
+		new->dirpath[cp - where] = '\0';
+	    }
+	    else
+	    {
+		/* where should always be at least one character long. */
+		assert (strlen (where));
+		strcpy (new->dirpath, "/");
+	    }
+	    
 	    /* Now figure out what repository directory to generate.
                The most complete case would be something like this:
 
@@ -813,31 +838,41 @@ internal error: %s doesn't start with %s in checkout_proc",
 	    
 	    new->next = head;
 	    head = new;
-
-	    cp = findslash (where, cp - 1);
 	}
 
 	/* clean up */
 	free (reposcopy);
 
-	/* The top-level CVSADM directory should always be
-           CVSroot_directory.  Create it.
-	
-	   It may be argued that we shouldn't set any sticky bits for
-	   the top-level repository.  FIXME?  */
-	build_one_dir (CVSroot_directory, ".", *pargc <= 1);
-
-	/*
-	 * build dirs on the path if necessary and leave us in the bottom
-	 * directory (where if where was specified) doesn't contain a CVS
-	 * subdir yet, but all the others contain CVS and Entries.Static
-	 * files
-	 */
-	if (build_dirs_and_chdir (head, *pargc <= 1) != 0)
 	{
-	    error (0, 0, "ignoring module %s", omodule);
-	    err = 1;
-	    goto out;
+	    int where_is_absolute = isabsolute (where);
+	    
+	    /* The top-level CVSADM directory should always be
+	       CVSroot_directory.  Create it, but only if WHERE is
+	       relative.  If WHERE is absolute, our current directory
+	       may not have a thing to do with where the sources are
+	       being checked out.  If it does, build_dirs_and_chdir
+	       will take care of creating adm files here. */
+	       
+	    if (! where_is_absolute)
+	    {
+		/* It may be argued that we shouldn't set any sticky
+		   bits for the top-level repository.  FIXME?  */
+		build_one_dir (CVSroot_directory, ".", *pargc <= 1);
+	    }
+
+
+	    /* Build dirs on the path if necessary and leave us in the
+	       bottom directory (where if where was specified) doesn't
+	       contain a CVS subdir yet, but all the others contain
+	       CVS and Entries.Static files */
+
+	    if (build_dirs_and_chdir (head, *pargc <= 1,
+				      where_is_absolute) != 0)
+	    {
+		error (0, 0, "ignoring module %s", omodule);
+		err = 1;
+		goto out;
+	    }
 	}
 
 	/* set up the repository (or make sure the old one matches) */
@@ -969,7 +1004,7 @@ internal error: %s doesn't start with %s in checkout_proc",
 	List *entries;
 
 	/* we are only doing files, so register them */
-	entries = Entries_Open (0);
+	entries = Entries_Open (0, NULL);
 	for (i = 1; i < *pargc; i++)
 	{
 	    char *line;
@@ -1066,13 +1101,22 @@ emptydir_name ()
     return repository;
 }
 
-/* Build all the dirs along the path to DIRS with CVS subdirs with appropriate
-   repositories.  If ->repository is NULL, do not create a CVSADM directory
-   for that subdirectory; just CVS_CHDIR into it.  */
+
+/* Build all the dirs along the path to DIRS with CVS subdirs with
+   appropriate repositories.  If ->repository is NULL, do not create a
+   CVSADM directory for that subdirectory; just CVS_CHDIR into it.  If
+   check_existing_dirs is nonzero, don't create directories if they
+   already exist, and don't try to write adm files in directories
+   where we don't have write permission.  We use this last option
+   primarily when a user has specified an absolute path for checkout
+   -- we will often not have permission to top-level directories, so
+   we shouldn't complain. */
+
 static int
-build_dirs_and_chdir (dirs, sticky)
+build_dirs_and_chdir (dirs, sticky, check_existing_dirs)
     struct dir_to_build *dirs;
     int sticky;
+    int check_existing_dirs;
 {
     int retval = 0;
     struct dir_to_build *nextdir;
@@ -1080,20 +1124,31 @@ build_dirs_and_chdir (dirs, sticky)
     while (dirs != NULL)
     {
 	char *dir = last_component (dirs->dirpath);
+	int dir_is_writeable;
 
-	mkdir_if_needed (dir);
+	if ((! check_existing_dirs) || (! isdir (dir)))
+	    mkdir_if_needed (dir);
+
 	Subdir_Register (NULL, NULL, dir);
+
+	/* This is an expensive call -- only make it if necessary. */
+	if (check_existing_dirs)
+	    dir_is_writeable = iswritable (dir);
+
 	if (CVS_CHDIR (dir) < 0)
 	{
 	    error (0, errno, "cannot chdir to %s", dir);
 	    retval = 1;
 	    goto out;
 	}
-	if (dirs->repository != NULL)
+
+	if ((dirs->repository != NULL)
+	    && ((! check_existing_dirs) || dir_is_writeable))
 	{
 	    build_one_dir (dirs->repository, dirs->dirpath, sticky);
 	    free (dirs->repository);
 	}
+
 	nextdir = dirs->next;
 	free (dirs->dirpath);
 	free (dirs);

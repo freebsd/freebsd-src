@@ -264,7 +264,7 @@ add (argc, argv)
 	/* Find the repository associated with our current dir.  */
 	repository = Name_Repository (NULL, finfo.update_dir);
 
-	entries = Entries_Open (0);
+	entries = Entries_Open (0, NULL);
 
 	finfo.repository = repository;
 	finfo.entries = entries;

@@ -453,6 +453,13 @@ extern int errno;
 #define CVS_STAT stat
 #endif
 
+/* Open question: should CVS_STAT be lstat by default?  We need
+   to use lstat in order to handle symbolic links correctly with
+   the PreservePermissions option. -twp */
+#ifndef CVS_LSTAT
+#define CVS_LSTAT lstat
+#endif
+
 #ifndef CVS_UNLINK
 #define CVS_UNLINK unlink
 #endif

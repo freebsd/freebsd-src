@@ -1,3 +1,7 @@
+Sat Feb 21 22:02:12 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in (clean): Change "/bin/rm" to "rm".
+
 Wed Jan  8 14:50:47 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
 	* Makefile.in: Remove CVSid; we decided to get rid

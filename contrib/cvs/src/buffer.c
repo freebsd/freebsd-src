@@ -16,6 +16,7 @@
 static struct buffer_data *free_buffer_data;
 
 /* Local functions.  */
+static void buf_default_memory_error PROTO ((struct buffer *));
 static void allocate_buffer_datas PROTO((void));
 static struct buffer_data *get_buffer_data PROTO((void));
 
@@ -42,9 +43,23 @@ buf_initialize (input, output, flush, block, shutdown, memory, closure)
     buf->flush = flush;
     buf->block = block;
     buf->shutdown = shutdown;
-    buf->memory_error = memory;
+    buf->memory_error = memory ? memory : buf_default_memory_error;
     buf->closure = closure;
     return buf;
+}
+
+/* Free a buffer structure.  */
+
+void
+buf_free (buf)
+     struct buffer *buf;
+{
+    if (buf->data != NULL)
+    {
+	buf->last->next = free_buffer_data;
+	free_buffer_data = buf->data;
+    }
+    free (buf);
 }
 
 /* Initialize a buffer structure which is not to be used for I/O.  */
@@ -61,6 +76,15 @@ buf_nonio_initialize (memory)
 	     (int (*) PROTO((void *))) NULL,
 	     memory,
 	     (void *) NULL));
+}
+
+/* Default memory error handler.  */
+
+static void
+buf_default_memory_error (buf)
+     struct buffer *buf;
+{
+    error (1, 0, "out of memory");
 }
 
 /* Allocate more buffer_data structures.  */
@@ -470,6 +494,19 @@ buf_append_data (buf, data, last)
     }
 }
 
+/* Append the data on one buffer to another.  This removes the data
+   from the source buffer.  */
+
+void
+buf_append_buffer (to, from)
+     struct buffer *to;
+     struct buffer *from;
+{
+    buf_append_data (to, from->data, from->last);
+    from->data = NULL;
+    from->last = NULL;
+}
+
 /*
  * Copy the contents of file F into buffer_data structures.  We can't
  * copy directly into an buffer, because we want to handle failure and
@@ -619,6 +656,15 @@ buf_chain_length (buf)
 	buf = buf->next;
     }
     return size;
+}
+
+/* Return the number of bytes in a buffer.  */
+
+int
+buf_length (buf)
+    struct buffer *buf;
+{
+    return buf_chain_length (buf->data);
 }
 
 /*
