@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.19 1997/06/09 04:13:48 brian Exp $ */
+/* $Id: ppp_tty.c,v 1.20 1997/06/18 02:50:40 brian Exp $ */
 /* from Id: ppp_tty.c,v 1.3 1995/08/16 01:36:40 paulus Exp */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
@@ -641,10 +641,6 @@ pppstart(tp)
     }
 
     s = spltty();	/* in case.. do not want netisrs to preempt us */
-
-    m = sc->sc_outm;
-    if (m && m->m_len < 0)
-        MFREE(m, sc->sc_outm);
 
     idle = 0;
     while (CCOUNT(&tp->t_outq) < PPP_HIWAT) {
