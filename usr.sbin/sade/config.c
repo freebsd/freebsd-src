@@ -712,10 +712,6 @@ tryagain:
 	vsystem("/sbin/ldconfig -m /usr/lib /usr/X11R6/lib /usr/local/lib /usr/lib/compat");
     else
 	vsystem("/sbin/ldconfig /usr/lib /usr/X11R6/lib /usr/local/lib /usr/lib/compat");
-    if (file_readable("/var/run/ld.so.hints"))
-	vsystem("ldconfig -m -aout /usr/lib/aout /usr/lib/compat/aout /usr/local/lib/aout /usr/X11R6/lib/aout");
-    else
-	vsystem("ldconfig -aout /usr/lib/aout /usr/lib/compat/aout /usr/local/lib/aout /usr/X11R6/lib/aout");
 
     vsystem("/sbin/ifconfig lo0 127.0.0.1");
 
