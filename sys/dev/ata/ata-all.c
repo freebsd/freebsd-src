@@ -87,10 +87,10 @@ static u_int8_t ata_drawersensor(struct ata_device *, int, u_int8_t, u_int8_t);
 SYSCTL_NODE(_hw, OID_AUTO, ata, CTLFLAG_RD, 0, "ATA driver parameters");
 
 /* global vars */
+struct intr_config_hook *ata_delayed_attach = NULL;
 devclass_t ata_devclass;
 
 /* local vars */
-static struct intr_config_hook *ata_delayed_attach = NULL;
 static MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
 
 /* misc defines */
@@ -134,7 +134,9 @@ ata_probe(device_t dev)
 		   (int)rman_get_start(ch->r_altio),
 		   (ch->r_bmio) ? (int)rman_get_start(ch->r_bmio) : 0);
 
+    ch->lock_func(ch, ATA_LF_LOCK);
     ata_reset(ch);
+    ch->lock_func(ch, ATA_LF_UNLOCK);
 
     ch->device[MASTER].channel = ch;
     ch->device[MASTER].unit = ATA_MASTER;
@@ -186,6 +188,7 @@ ata_attach(device_t dev)
      * otherwise attach what the probe has found in ch->devices.
      */
     if (!ata_delayed_attach) {
+	ch->lock_func(ch, ATA_LF_LOCK);
 	if (ch->devices & ATA_ATA_SLAVE)
 	    if (ata_getparam(&ch->device[SLAVE], ATA_C_ATA_IDENTIFY))
 		ch->devices &= ~ATA_ATA_SLAVE;
@@ -213,6 +216,7 @@ ata_attach(device_t dev)
 #ifdef DEV_ATAPICAM
 	atapi_cam_attach_bus(ch);
 #endif
+	ch->lock_func(ch, ATA_LF_UNLOCK);
     }
     return 0;
 }
@@ -228,6 +232,7 @@ ata_detach(device_t dev)
 	return ENXIO;
 
     /* make sure channel is not busy */
+    ch->lock_func(ch, ATA_LF_LOCK);
     ATA_SLEEPLOCK_CH(ch, ATA_CONTROL);
 
     s = splbio();
@@ -274,13 +279,23 @@ ata_detach(device_t dev)
     ch->r_bmio = NULL;
     ch->r_irq = NULL;
     ATA_UNLOCK_CH(ch);
+    ch->lock_func(ch, ATA_LF_UNLOCK);
     return 0;
 }
 
 int
 ata_resume(device_t dev)
 {
-    return ata_reinit(device_get_softc(dev));
+    struct ata_channel *ch;
+    int error;
+
+    if (!dev || !(ch = device_get_softc(dev)))
+	return ENXIO;
+
+    ch->lock_func(ch, ATA_LF_LOCK);
+    error = ata_reinit(ch);
+    ch->lock_func(ch, ATA_LF_UNLOCK);
+    return error;
 }
 
 static int
@@ -313,9 +328,10 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	case ATAREINIT:
 	    if (!device || !(ch = device_get_softc(device)))
 		return ENXIO;
+	    ch->lock_func(ch, ATA_LF_LOCK);
 	    ATA_SLEEPLOCK_CH(ch, ATA_ACTIVE);
-	    if ((error = ata_reinit(ch)))
-		ATA_UNLOCK_CH(ch);
+	    error = ata_reinit(ch);
+	    ch->lock_func(ch, ATA_LF_UNLOCK);
 	    return error;
 
 	case ATAGMODE:
@@ -339,6 +355,7 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	    if (!device || !(ch = device_get_softc(device)))
 		return ENXIO;
 
+	    ch->lock_func(ch, ATA_LF_LOCK);
 	    if ((iocmd->device == MASTER || iocmd->device == -1) &&
 		iocmd->u.mode.mode[MASTER] >= 0 && ch->device[MASTER].param) {
 		ata_change_mode(&ch->device[MASTER],iocmd->u.mode.mode[MASTER]);
@@ -354,6 +371,7 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	    }
 	    else
 		iocmd->u.mode.mode[SLAVE] = -1;
+	    ch->lock_func(ch, ATA_LF_UNLOCK);
 	    return 0;
 
 	case ATAGPARM:
@@ -386,6 +404,7 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	    if (!device || !(ch = device_get_softc(device)))
 		return ENXIO;
 
+	    ch->lock_func(ch, ATA_LF_LOCK);
 	    ATA_SLEEPLOCK_CH(ch, ATA_ACTIVE);
 	    
 	    if (iocmd->device == SLAVE)
@@ -399,6 +418,7 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	    id2 = ata_drawersensor(atadev, 0, 0x4f, 0);
 	    if (id1 != 0xa3 || id2 != 0x5c) {
 		ATA_UNLOCK_CH(ch);
+		ch->lock_func(ch, ATA_LF_UNLOCK);
 		return ENXIO;
 	    }
 
@@ -419,6 +439,7 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	    iocmd->u.enclosure.v12 = ata_drawersensor(atadev, 0, 0x24, 0) * 61;
 
 	    ATA_UNLOCK_CH(ch);
+	    ch->lock_func(ch, ATA_LF_UNLOCK);
 	    return 0;
 	}
 
@@ -533,12 +554,6 @@ ata_boot_attach(void)
     struct ata_channel *ch;
     int ctlr;
 
-    if (ata_delayed_attach) {
-	config_intrhook_disestablish(ata_delayed_attach);
-	free(ata_delayed_attach, M_TEMP);
-	ata_delayed_attach = NULL;
-    }
-
     /*
      * run through all ata devices and look for real ATA & ATAPI devices
      * using the hints we found in the early probe, this avoids some of
@@ -547,6 +562,7 @@ ata_boot_attach(void)
     for (ctlr=0; ctlr<devclass_get_maxunit(ata_devclass); ctlr++) {
 	if (!(ch = devclass_get_softc(ata_devclass, ctlr)))
 	    continue;
+	ch->lock_func(ch, ATA_LF_LOCK);
 	if (ch->devices & ATA_ATA_SLAVE)
 	    if (ata_getparam(&ch->device[SLAVE], ATA_C_ATA_IDENTIFY))
 		ch->devices &= ~ATA_ATA_SLAVE;
@@ -559,24 +575,26 @@ ata_boot_attach(void)
 	if (ch->devices & ATA_ATAPI_MASTER)
 	    if (ata_getparam(&ch->device[MASTER], ATA_C_ATAPI_IDENTIFY))
 		ch->devices &= ~ATA_ATAPI_MASTER;
+	ch->lock_func(ch, ATA_LF_UNLOCK);
     }
-
 #ifdef DEV_ATADISK
     /* now we know whats there, do the real attach, first the ATA disks */
     for (ctlr=0; ctlr<devclass_get_maxunit(ata_devclass); ctlr++) {
 	if (!(ch = devclass_get_softc(ata_devclass, ctlr)))
 	    continue;
+	ch->lock_func(ch, ATA_LF_LOCK);
 	if (ch->devices & ATA_ATA_MASTER)
 	    ad_attach(&ch->device[MASTER]);
 	if (ch->devices & ATA_ATA_SLAVE)
 	    ad_attach(&ch->device[SLAVE]);
+	ch->lock_func(ch, ATA_LF_UNLOCK);
     }
-    ata_raid_attach();
 #endif
     /* then the atapi devices */
     for (ctlr=0; ctlr<devclass_get_maxunit(ata_devclass); ctlr++) {
 	if (!(ch = devclass_get_softc(ata_devclass, ctlr)))
 	    continue;
+	ch->lock_func(ch, ATA_LF_LOCK);
 #if DEV_ATAPIALL
 	if (ch->devices & ATA_ATAPI_MASTER)
 	    atapi_attach(&ch->device[MASTER]);
@@ -586,7 +604,14 @@ ata_boot_attach(void)
 #ifdef DEV_ATAPICAM
 	atapi_cam_attach_bus(ch);
 #endif
+	ch->lock_func(ch, ATA_LF_UNLOCK);
     }
+    if (ata_delayed_attach) {
+	config_intrhook_disestablish(ata_delayed_attach);
+	free(ata_delayed_attach, M_TEMP);
+	ata_delayed_attach = NULL;
+    }
+    ata_raid_attach();
 }
 
 static void
@@ -598,7 +623,7 @@ ata_intr(void *data)
      * device or our twin ATA channel, so call ch->intr_func to figure 
      * out if it is really an interrupt we should process here
      */
-    if (ch->intr_func && ch->intr_func(ch))
+    if (!ch->intr_func(ch))
 	return;
 
     /* if drive is busy it didn't interrupt */
@@ -638,14 +663,20 @@ ata_intr(void *data)
 	return;
     }
 
+    if (ch->active & ATA_WAIT_INTR) {
+	ATA_UNLOCK_CH(ch);
+	return;
+    }
+
     if ((ch->flags & ATA_QUEUED) &&
 	ATA_INB(ch->r_altio, ATA_ALTSTAT) & ATA_S_SERVICE) { 
 	ATA_FORCELOCK_CH(ch, ATA_ACTIVE);
 	if (ata_service(ch) == ATA_OP_CONTINUES)
 	    return;
     }
-    ATA_UNLOCK_CH(ch);
     ch->running = NULL;
+    ATA_UNLOCK_CH(ch);
+    ch->lock_func(ch, ATA_LF_UNLOCK);
     ata_start(ch);
     return;
 }
@@ -661,6 +692,7 @@ ata_start(struct ata_channel *ch)
 #endif
     int s;
 
+    ch->lock_func(ch, ATA_LF_LOCK);
     if (!ATA_LOCK_CH(ch, ATA_ACTIVE))
 	return;
 
@@ -703,6 +735,7 @@ ata_start(struct ata_channel *ch)
     }
 #endif
     ATA_UNLOCK_CH(ch);
+    ch->lock_func(ch, ATA_LF_UNLOCK);
     splx(s);
 }
 
@@ -841,10 +874,13 @@ ata_reinit(struct ata_channel *ch)
 {
     int devices, misdev, newdev;
 
-    if (!ch->r_io || !ch->r_altio || !ch->r_irq)
-	return ENXIO;
-
     ATA_FORCELOCK_CH(ch, ATA_CONTROL);
+
+    if (!ch->r_io || !ch->r_altio || !ch->r_irq) {
+	ATA_UNLOCK_CH(ch);
+	return ENXIO;
+    }
+
     ch->running = NULL;
     devices = ch->devices;
     ata_printf(ch, -1, "resetting devices ..\n");
@@ -1263,7 +1299,7 @@ ata_change_mode(struct ata_device *atadev, int mode)
     ATA_SLEEPLOCK_CH(atadev->channel, ATA_ACTIVE);
     ata_dmainit(atadev, pmode, wmode, umode);
     ATA_UNLOCK_CH(atadev->channel);
-    ata_start(atadev->channel); /* XXX SOS */
+    ata_start(atadev->channel);
 }
 
 int
