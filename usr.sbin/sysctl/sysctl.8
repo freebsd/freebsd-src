@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	From: @(#)sysctl.8	8.1 (Berkeley) 6/6/93
-.\"	$Id: sysctl.8,v 1.3 1994/10/17 18:55:21 ache Exp $
+.\"	$Id: sysctl.8,v 1.4 1994/10/18 03:41:16 ache Exp $
 .\"
 .Dd September 23, 1994
 .Dt SYSCTL 8
@@ -132,11 +132,6 @@ privilege can change the value.
 .It kern.osreldate	string	no
 .It kern.bootfile	string	yes
 .It vm.loadavg	struct	no
-.It net.inet.ip.forwarding	integer	yes
-.It net.inet.ip.redirect	integer	yes
-.It net.inet.ip.ttl	integer	yes
-.It net.inet.icmp.maskrepl	integer	yes
-.It net.inet.udp.checksum	integer	yes
 .It hw.machine	string	no
 .It hw.model	string	no
 .It hw.ncpu	integer	no
