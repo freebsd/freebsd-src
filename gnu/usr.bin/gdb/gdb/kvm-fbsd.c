@@ -791,14 +791,29 @@ kvtophys (fd, addr)
   if (physrd (fd, v, (char *)&pte, sizeof pte) < 0 || (pte&PG_V) == 0)
     return (~0);
 
-  /*
-   * Read the second-level page table.
-   */
-  v = (pte&PG_FRAME) + ((addr >> PAGE_SHIFT)&(NPTEPG-1)) * sizeof pte;
-  if (physrd (fd, v, (char *) &pte, sizeof (pte)) < 0 || (pte&PG_V) == 0)
-    return (~0);
+  if (pte & PG_PS)
+    {
+      /*
+       * No second-level page table; ptd describes one 4MB page.
+       * (We assume that the kernel wouldn't set PG_PS without enabling
+       * it cr0, and that the kernel doesn't support 36-bit physical
+       * addresses).
+       */
+#define	PAGE4M_MASK	(NBPDR - 1)
+#define	PG_FRAME4M	(~PAGE4M_MASK)
+      addr = (pte & PG_FRAME4M) + (addr & PAGE4M_MASK);
+    }
+  else
+    {
+      /*
+       * Read the second-level page table.
+       */
+      v = (pte&PG_FRAME) + ((addr >> PAGE_SHIFT)&(NPTEPG-1)) * sizeof pte;
+      if (physrd (fd, v, (char *) &pte, sizeof (pte)) < 0 || (pte&PG_V) == 0)
+	return (~0);
 
-  addr = (pte & PG_FRAME) + (addr & PAGE_MASK);
+      addr = (pte & PG_FRAME) + (addr & PAGE_MASK);
+    }
 #if 0
   printf ("vtophys (%x) -> %x\n", oldaddr, addr);
 #endif
