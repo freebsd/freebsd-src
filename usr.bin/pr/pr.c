@@ -1709,12 +1709,14 @@ setup(argc, argv)
 			++sflag;
 			if (eoptarg == NULL)
 				schar = SCHAR;
-			else
+			else {
 				schar = *eoptarg++;
-			if (*eoptarg != '\0') {
-				(void)fprintf(err,
-				      "pr: invalid value for -s %s\n", eoptarg);
-				return(1);
+				if (*eoptarg != '\0') {
+					(void)fprintf(err,
+					    "pr: invalid value for -s %s\n",
+					    eoptarg);
+					return(1);
+				}
 			}
 			break;
 		case 't':
