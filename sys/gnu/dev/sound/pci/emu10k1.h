@@ -35,8 +35,8 @@
  */
 
 
-#ifndef _8010_H
-#define _8010_H
+#ifndef EMU10K1_H
+#define EMU10K1_H
 
 /* ------------------- DEFINES -------------------- */
 
@@ -663,4 +663,10 @@
 #define HIWORD_RESULT_MASK	0x000ffc00	/* Instruction result				*/
 #define HIWORD_OPA_MASK		0x000003ff	/* Instruction operand A			*/
 
-#endif /* _8010_H */
+#define ENABLE 			0xffffffff
+#define DISABLE 		0x00000000
+
+#define ENV_ON			0x80
+#define ENV_OFF			0x00
+
+#endif /* EMU10K1_H */
