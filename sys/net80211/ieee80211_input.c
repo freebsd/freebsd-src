@@ -112,7 +112,6 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m, struct ieee80211_node *ni,
 		if (ifp->if_flags & IFF_DEBUG)
 			if_printf(ifp, "receive packet with wrong version: %x\n",
 			    wh->i_fc[0]);
-		ieee80211_unref_node(&ni);
 		ic->ic_stats.is_rx_badversion++;
 		goto err;
 	}
