@@ -281,7 +281,10 @@ ID0setproctitle(const char *title)
     setproctitle(NULL);
     log_Printf(LogID0, "setproctitle(NULL)\n");
   } else {
-    setproctitle("%s", title);
+    if (title[0] == '-' && title[1] != '\0')
+      setproctitle("-%s", title + 1);
+    else
+      setproctitle("%s", title);
     log_Printf(LogID0, "setproctitle(\"%%s\", \"%s\")\n", title);
   }
   ID0setuser();
