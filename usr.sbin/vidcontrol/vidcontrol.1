@@ -24,7 +24,11 @@
 .Op Fl b Ar color
 .Op Fl c Ar appearance
 .Op Fl d
-.Op Fl f Oo Ar size Oc Ar \ file
+.Oo
+.Fl f
+.Op Ar size
+.Ar file
+.Oc
 .Op Fl g Ar geometry
 .Op Fl i Cm adapter | mode
 .Op Fl l Ar screen_map
@@ -142,7 +146,11 @@ or
 Used together with the 
 .Xr moused 8
 daemon for text mode cut & paste functionality.
-.It Fl f [ Ar size ] Ar file
+.It Xo
+.Fl f
+.Op Ar size
+.Ar file
+.Xc
 Load font
 .Ar file
 for
@@ -240,8 +248,8 @@ See below.
 .Pp
 If you want to use the raster text mode
 .Ar VESA_800x600 ,
-you need to recomile your kernel with the
-.Em SC_PIXEL_MODE
+you need to recompile your kernel with the
+.Dv SC_PIXEL_MODE
 option.  See
 .Xr syscons 4
 for more details on this kernel option.
@@ -302,7 +310,7 @@ you may abbreviate the file name as
 .Dl vidcontrol -f 8x16 iso-8x16
 .Pp
 Furthermore, you can also omit font size
-.Dq 8x16 :
+.Dq Li 8x16 :
 .Pp
 .Dl vidcontrol -f iso-8x16
 .Pp
