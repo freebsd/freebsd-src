@@ -37,7 +37,7 @@
  * and/or sent to the upper layer (e.g. in case of multicast).
  *
  * Output packets are intercepted near the end of ether_output(),
- * the correct destination is selected calling bdg_dst_lookup(),
+ * the correct destination is selected calling bridge_dst_lookup(),
  * and then forwarding is done using bdg_forward().
  * Bridging is controlled by the sysctl variable net.link.ether.bridge
  *
@@ -63,9 +63,6 @@
  * from doing both (modulo bugs in the implementation...).
  *
  * THINGS TO REMEMBER
- *  - bridging requires some (small) modifications to the interface
- *    driver. Not all of them have been changed, see the "ed" and "de"
- *    drivers as examples on how to operate.
  *  - bridging is incompatible with multicast routing on the same
  *    machine. There is not an easy fix to this.
  *  - loop detection is still not very robust.
@@ -134,41 +131,16 @@ bdg_hash_table *bdg_table = NULL ;
 
 SYSINIT(interfaces, SI_SUB_PROTO_IF, SI_ORDER_FIRST, bdginit, NULL)
 
-/*
- * We need additional info for the bridge. The bdg_ifp2sc[] array
- * provides a pointer to this struct using the if_index.
- * bdg_softc has a backpointer to the struct ifnet, the bridge
- * flags, and a cluster (bridging occurs only between port of the
- * same cluster).
- */
-struct bdg_softc {
-    struct ifnet *ifp ;
-    /* ((struct arpcom *)ifp)->ac_enaddr is the eth. addr */
-    int flags ;
-#define	IFF_BDG_PROMISC 0x0001  /* set promisc mode on this if.  */
-#define	IFF_MUTE        0x0002  /* mute this if for bridging.   */
-#define	IFF_USED        0x0004  /* use this if for bridging.    */
-    short cluster_id ; /* in network format */
-    u_long magic;
-} ;
-
 static struct bdg_stats bdg_stats ;
-static struct bdg_softc *ifp2sc = NULL ;
+struct bdg_softc *ifp2sc = NULL ;
 /* XXX make it static of size BDG_MAX_PORTS */
 
-#define	USED(ifp) (ifp2sc[ifp->if_index].flags & IFF_USED)
-#define	MUTED(ifp) (ifp2sc[ifp->if_index].flags & IFF_MUTE)
-#define	MUTE(ifp) ifp2sc[ifp->if_index].flags |= IFF_MUTE
-#define	UNMUTE(ifp) ifp2sc[ifp->if_index].flags &= ~IFF_MUTE
-#define	CLUSTER(ifp) (ifp2sc[ifp->if_index].cluster_id)
 #define	IFP_CHK(ifp, x) \
 	if (ifp2sc[ifp->if_index].magic != 0xDEADBEEF) { x ; }
 
-#define	SAMECLUSTER(ifp,src) \
-	(src == NULL || CLUSTER(ifp) == CLUSTER(src) )
-
 /*
- * turn off promisc mode, optionally clear the IFF_USED flag
+ * turn off promisc mode, optionally clear the IFF_USED flag.
+ * The flag is turned on by parse_bdg_config
  */
 static void
 bdg_promisc_off(int clear_used)
@@ -181,13 +153,13 @@ bdg_promisc_off(int clear_used)
 	    ret = ifpromisc(ifp, 0);
 	    splx(s);
 	    ifp2sc[ifp->if_index].flags &= ~(IFF_BDG_PROMISC|IFF_MUTE) ;
-	    if (clear_used) {
-		ifp2sc[ifp->if_index].flags &= ~(IFF_USED) ;
-		bdg_stats.s[ifp->if_index].name[0] = '\0';
-	    }
 	    printf(">> now %s%d promisc OFF if_flags 0x%x bdg_flags 0x%x\n",
 		    ifp->if_name, ifp->if_unit,
 		    ifp->if_flags, ifp2sc[ifp->if_index].flags);
+	}
+	if (clear_used) {
+	    ifp2sc[ifp->if_index].flags &= ~(IFF_USED) ;
+	    bdg_stats.s[ifp->if_index].name[0] = '\0';
 	}
     }
 }
@@ -202,7 +174,7 @@ bdg_promisc_on()
     int s ;
 
     for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next ) {
-	if ( !USED(ifp) )
+	if ( !BDG_USED(ifp) )
 	    continue ;
 	if ( 0 == ( ifp->if_flags & IFF_UP) ) {
 	    s = splimp();
@@ -219,9 +191,9 @@ bdg_promisc_on()
 		    ifp->if_name, ifp->if_unit,
 		    ifp->if_flags, ifp2sc[ifp->if_index].flags);
 	}
-	if (MUTED(ifp)) {
+	if (BDG_MUTED(ifp)) {
 	    printf(">> unmuting %s%d\n", ifp->if_name, ifp->if_unit);
-	    UNMUTE(ifp) ;
+	    BDG_UNMUTE(ifp) ;
        }
     }
 }
@@ -240,11 +212,12 @@ sysctl_bdg(SYSCTL_HANDLER_ARGS)
     if (bdg_table == NULL)
 	do_bridge = 0 ;
     if (oldval != do_bridge) {
+	bdg_promisc_off( 1 ); /* reset previously used interfaces */
 	flush_table();
-	if (do_bridge == 0)
-	    bdg_promisc_off( 0 ); /* leave IFF_USED set */
-	else
+	if (do_bridge) {
+	    parse_bdg_cfg();
 	    bdg_promisc_on();
+	}
     }
     return error ;
 }
@@ -365,6 +338,7 @@ SYSCTL_PROC(_net_link_ether, OID_AUTO, bridge_refresh, CTLTYPE_INT|CTLFLAG_WR,
 
 #if 1 /* diagnostic vars */
 
+SY(_net_link_ether, verbose, "Be verbose");
 SY(_net_link_ether, bdg_split_pkts, "Packets split in bdg_forward");
 
 SY(_net_link_ether, bdg_thru, "Packets through bridge");
@@ -440,7 +414,7 @@ bdg_timeout(void *dummy)
  * local MAC addresses are held in a small array. This makes comparisons
  * much faster.
  */
-unsigned char bdg_addresses[6*BDG_MAX_PORTS];
+bdg_addr bdg_addresses[BDG_MAX_PORTS];
 int bdg_ports ;
 
 /*
@@ -473,17 +447,16 @@ bdgtakeifaces(void)
     int i ;
     struct ifnet *ifp;
     struct arpcom *ac ;
-    u_char *eth_addr ;
+    bdg_addr *p = bdg_addresses ;
     struct bdg_softc *bp;
 
     if (!bdg_initialized)
 	return;
 
     bdg_ports = 0 ;
-    eth_addr = bdg_addresses ;
     *bridge_cfg = '\0';
 
-    printf("BRIDGE 990810, have %d interfaces\n", if_index);
+    printf("BRIDGE 010131, have %d interfaces\n", if_index);
     for (i = 0 , ifp = ifnet.tqh_first ; i < if_index ;
 		i++, ifp = ifp->if_link.tqe_next)
 	if (ifp->if_type == IFT_ETHER) { /* ethernet ? */
@@ -497,8 +470,8 @@ bdgtakeifaces(void)
 		    (int)ifp->if_type, (int) ifp->if_physical,
 		    (int)ifp->if_addrlen,
 		    ac->ac_enaddr, "." );
-	    bcopy(ac->ac_enaddr, eth_addr, 6);
-	    eth_addr += 6 ;
+	    bcopy(ac->ac_enaddr, p->etheraddr, 6);
+	    p++ ;
 	    bp->ifp = ifp ;
 	    bp->flags = IFF_USED ;
 	    bp->cluster_id = htons(1) ;
@@ -534,7 +507,7 @@ bridge_in(struct ifnet *ifp, struct ether_header *eh)
 {
     int index;
     struct ifnet *dst , *old ;
-    int dropit = MUTED(ifp) ;
+    int dropit = BDG_MUTED(ifp) ;
 
     /*
      * hash the source address
@@ -562,11 +535,11 @@ bridge_in(struct ifnet *ifp, struct ether_header *eh)
 			bdg_loops, eh->ether_shost, ".",
 			ifp->if_name, ifp->if_unit,
 			old->if_name, old->if_unit,
-			MUTED(old) ? "muted":"active");
+			BDG_MUTED(old) ? "muted":"active");
 	    dropit = 1 ;
-	    if ( !MUTED(old) ) {
+	    if ( !BDG_MUTED(old) ) {
 		if (++bdg_loops > 10)
-		    MUTE(old) ;
+		    BDG_MUTE(old) ;
 	    }
         }
     }
@@ -619,7 +592,7 @@ bridge_in(struct ifnet *ifp, struct ether_header *eh)
  * Forward to dst, excluding src port and muted interfaces.
  * The packet is freed if possible (i.e. surely not of interest for
  * the upper layer), otherwise a copy is left for use by the caller
- * (pointer in *m0).
+ * (pointer in m0).
  *
  * It would be more efficient to make bdg_forward() always consume
  * the packet, leaving to the caller the task to check if it needs a copy
@@ -628,17 +601,17 @@ bridge_in(struct ifnet *ifp, struct ether_header *eh)
  *
  * XXX be careful about eh, it can be a pointer into *m
  */
-int
-bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
+struct mbuf *
+bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 {
-    struct ifnet *src = (*m0)->m_pkthdr.rcvif; /* could be NULL in output */
+    struct ifnet *src = m0->m_pkthdr.rcvif; /* could be NULL in output */
     struct ifnet *ifp, *last = NULL ;
-    int error=0, s ;
-    int canfree = !bdg_copy ; /* can free the buf at the end if set */
+    int s ;
+    int shared = bdg_copy ; /* someone else is using the mbuf */
     int once = 0;      /* loop only once */
 
     /*
-     * XXX eh might be a pointer within the mbuf (some ethernet drivers
+     * XXX eh is usually a pointer within the mbuf (some ethernet drivers
      * do that), so we better copy it before doing anything with the mbuf,
      * or we might corrupt the header.
      */
@@ -650,24 +623,23 @@ bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
     if (dst == BDG_DROP) { /* this should not happen */
 	printf("xx bdg_forward for BDG_DROP\n");
 #ifdef DUMMYNET
-	if ((*m0)->m_type == MT_DUMMYNET)
-		/* XXX: Shouldn't have to be doing this. */
-		m_freem((*m0)->m_next);
+	if (m0->m_type == MT_DUMMYNET)
+	    /* XXX: Shouldn't have to be doing this. */
+	    m_freem(m0->m_next);
 	else
 #endif
-		m_freem(*m0);
-	*m0 = NULL;
-	return 0;
+	    m_freem(m0);
+	return NULL;
     }
     if (dst == BDG_LOCAL) { /* this should not happen as well */
 	printf("xx ouch, bdg_forward for local pkt\n");
-	return 0;
+	return m0;
     }
     if (dst == BDG_BCAST || dst == BDG_MCAST || dst == BDG_UNKNOWN) {
 	ifp = ifnet.tqh_first ; /* scan all ports */
 	once = 0 ;
 	if (dst != BDG_UNKNOWN) /* need a copy for the local stack */
-	    canfree = 0 ;
+	    shared = 1 ;
     } else {
 	ifp = dst ;
 	once = 1 ;
@@ -686,22 +658,20 @@ bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
      */
     if (ip_fw_chk_ptr) {
 	struct ip_fw_chain *rule = NULL ;
-	int i;
 	struct ip *ip ;
-	struct mbuf *m;
+	int i;
 
-	m = *m0 ;
 #ifdef DUMMYNET
-	if (m->m_type == MT_DUMMYNET) {
+	if (m0->m_type == MT_DUMMYNET) {
 	    /*
 	     * the packet was already tagged, so part of the
 	     * processing was already done, and we need to go down.
 	     */
-	    rule = (struct ip_fw_chain *)(m->m_data) ;
-	    (*m0) = m = m->m_next ;
+	    rule = (struct ip_fw_chain *)(m0->m_data) ;
+	    m0 = m0->m_next ;
 
-	    src = m->m_pkthdr.rcvif; /* could be NULL in output */
-	    canfree = 1 ; /* for sure, a copy is not needed later. */
+	    src = m0->m_pkthdr.rcvif; /* could be NULL in output */
+	    shared = 0 ; /* for sure, a copy is not needed later. */
 	    bdg_thru--; /* already accounted for once */
 	    goto forward; /* HACK! I should obey the fw_one_pass */
 	}
@@ -712,30 +682,18 @@ bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
 	    goto forward ; /* do not apply to packets from ether_output */
 	if (ntohs(save_eh.ether_type) != ETHERTYPE_IP)
 	    goto forward ; /* not an IP packet, ipfw is not appropriate */
-	i = sizeof(struct ip) ; /* this is what i need to be contiguous */
-	if (m->m_pkthdr.len < i )
+	if (m0->m_pkthdr.len < sizeof(struct ip) )
 	    goto forward ; /* header too short for an IP pkt, cannot filter */
 	/*
-	 * If canfree==0 we need to make a copy of the pkt because the firewall
-	 * might destroy the packet, and in any case we need to swap fields
-	 * same as IP does to put them in host order.
-	 * In all cases, make sure that the IP header is contiguous and,
-	 * in case of a copy, it resides in the mbuf and not in a cluster.
+	 * i need some amt of data to be contiguous, and in case others need
+	 * the packet (shared==1) also better be in the first mbuf.
 	 */
-	if (canfree == 0 ) {
-	    bdg_copied++;
-	    m = m_copypacket( (*m0), M_DONTWAIT);
-	    if (m == NULL) {
-	        printf("-- bdg: m_copypacket failed.\n") ;
-		return ENOBUFS ;
-	    }
-	} else if ( m->m_len >= i )
-	    i = 0 ; /* no need to pullup, header is already contiguous */
-	if (i > 0) {
-	    m = m_pullup(m, i) ;
-	    if (m == NULL) {
+	i = min(m0->m_pkthdr.len, max_protohdr) ;
+	if ( shared || m0->m_len < i) {
+	    m0 = m_pullup(m0, i) ;
+	    if (m0 == NULL) {
 		printf("-- bdg: pullup failed.\n") ;
-		return ENOBUFS ;
+		return NULL ;
 	    }
 	}
 
@@ -743,72 +701,71 @@ bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
 	 * before calling the firewall, swap fields the same as IP does.
 	 * here we assume the pkt is an IP one and the header is contiguous
 	 */
-	ip = mtod(m, struct ip *);
+	ip = mtod(m0, struct ip *);
 	NTOHS(ip->ip_len);
 	NTOHS(ip->ip_off);
 
 	/*
-	 * The third parameter to the firewall code is the dst.  interface.
+	 * The third parameter to the firewall code is the dst. interface.
 	 * Since we apply checks only on input pkts we use NULL.
 	 * The firewall knows this is a bridged packet as the cookie ptr
 	 * is NULL.
 	 */
-	i = (*ip_fw_chk_ptr)(&ip, 0, NULL, NULL /* cookie */, &m, &rule, NULL);
+	i = (*ip_fw_chk_ptr)(&ip, 0, NULL, NULL /* cookie */, &m0, &rule, NULL);
+	if (i & IP_FW_PORT_DENY_FLAG) { /* XXX new interface - discard */
+	    m_freem(m0);
+	    m0 = NULL ;
+	} else if (m0 == NULL) {
+	    printf("firewall using old interface\n");
+	}
 
-	if (m == NULL) { /* pkt discarded by firewall */
-	    /*
-	     * If canfree==1, m and *m0 were the same thing, so just clear
-	     * the pointer. Otherwise, leave it alone, the
-	     * upper layer might still use the packet somewhere.
-	     */
-	    if (canfree)
-		*m0 = NULL ;
-	    return 0 ;
+	if (m0 == NULL) { /* pkt discarded by firewall */
+	    if (verbose) printf("pkt discarded by firewall\n");
+	    return NULL ;
 	}
 
 	/*
 	 * If we get here, the firewall has passed the pkt, but the
 	 * mbuf pointer might have changed. Restore the fields NTOHS()'d.
-	 * Then, if canfree==1, also restore *m0.
 	 */
 	HTONS(ip->ip_len);
 	HTONS(ip->ip_off);
-	if (canfree) /* m was a reference to *m0, so update *m0 */
-	    *m0 = m ;
 
-	if (i == 0) { /* a PASS rule.  */
-	    if (canfree == 0) /* the packet was a copy, so destroy it */
-		m_freem(m);
+	if (i == 0) /* a PASS rule.  */
 	    goto forward ;
-	}
 #ifdef DUMMYNET
-	if (i & 0x10000) {  
+	if (i & 0x10000) {
 	    /*
-	     * pass the pkt to dummynet. Need to include m, dst, rule.
-	     * Dummynet consumes the packet in all cases.
-	     * Also need to prepend the ethernet header.
+	     * pass the pkt to dummynet, which consumes it.
+	     * If shared, make a copy and keep the origina.
+	     * Need to prepend the ethernet header, optimize the common
+	     * case of eh pointing already into the original mbuf.
 	     */
-	    /*
-	     * check the common case of eh pointing already into the mbuf
-	     */
-	    if ( (void *)eh + ETHER_HDR_LEN == (void *)m->m_data) {
+	    struct mbuf *m ;
+	    if (shared) {
+		m = m_copypacket(m0, M_DONTWAIT);
+		if (m == NULL) {
+		    printf("bdg_fwd: copy(1) failed\n");
+		    return m0;
+		}
+	    } else {
+		m = m0 ; /* pass the original to dummynet */
+		m0 = NULL ; /* and nothing back to the caller */
+	    }
+	    if ( (void *)(eh + 1) == (void *)m->m_data) {
 		m->m_data -= ETHER_HDR_LEN ;
 		m->m_len += ETHER_HDR_LEN ;
 		m->m_pkthdr.len += ETHER_HDR_LEN ;
 		bdg_predict++;
 	    } else {
 		M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
-		if (m == NULL) {
-		    if (canfree)
-			*m0 = NULL;
-		    return ENOBUFS;
-		}
+		if (!m && verbose) printf("M_PREPEND failed\n");
+		if (m == NULL) /* nope... */
+		    return m0 ;
 		bcopy(&save_eh, mtod(m, struct ether_header *), ETHER_HDR_LEN);
 	    }
 	    dummynet_io((i & 0xffff), DN_TO_BDG_FWD, m, dst, NULL, 0, rule, 0);
-	    if (canfree) /* dummynet has consumed the original one */
-		*m0 = NULL ;
-	    return 0 ;
+	    return m0 ;
 	}
 #endif
 	/*
@@ -816,70 +773,58 @@ bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
 	 */
 	/* if none of the above matches, we have to drop the pkt */
 	bdg_ipfw_drops++ ;
-	m_freem(m);
-	if (canfree == 0) /* m was a copy */
-	    m_freem(*m0);
-#ifdef DIAGNOSTIC
 	printf("bdg_forward: No rules match, so dropping packet!\n");
-#endif
-	*m0 = NULL ;
-	return 0 ;
+	return m0 ;
     }
 forward:
 #endif /* IPFIREWALL */
     /*
-     * Now *m0 is the only pkt left. If canfree != 0 the pkt might be
-     * used by the upper layers which could scramble header fields.
-     * (basically ntoh*() etc.). To avoid problems, make sure that
-     * all fields that might be changed by the local network stack are not
-     * in a cluster by calling m_pullup on *m0. We lose some efficiency
-     * but better than having packets corrupt!
+     * Again, bring up the headers in case of shared bufs to avoid
+     * corruptions in the future.
      */
-    if (canfree == 0 ) {
-	int needed = min(MHLEN, ETHER_HDR_LEN+ max_protohdr) ;
-	needed = min(needed, (*m0)->m_len ) ;
+    if ( shared ) {
+	int i = min(m0->m_pkthdr.len, max_protohdr) ;
 
-	*m0 = m_pullup(*m0, needed) ;
-	if ( *m0 == NULL) {
-	    printf("-- bdg: pullup(2) failed.\n") ;
-	    return ENOBUFS ;
+	m0 = m_pullup(m0, i) ;
+	if (m0 == NULL) {
+	    printf("-- bdg: pullup2 failed.\n") ;
+	    return NULL ;
 	}
     }
     for (;;) {
 	if (last) { /* need to forward packet */
 	    struct mbuf *m ;
-	    if (canfree && once ) { /* no need to copy */
-		m = *m0 ;
-		*m0 = NULL ; /* original is gone */
-	    } else
-		m = m_copypacket(*m0, M_DONTWAIT);
-	    if (m == NULL) {
-		printf("bdg_forward: sorry, m_copypacket failed!\n");
-		return ENOBUFS ; /* the original is still there... */
+	    if (shared == 0 && once ) { /* no need to copy */
+		m = m0 ;
+		m0 = NULL ; /* original is gone */
+	    } else {
+		m = m_copypacket(m0, M_DONTWAIT);
+		if (m == NULL) {
+		    printf("bdg_forward: sorry, m_copypacket failed!\n");
+		    return m0 ; /* the original is still there... */
+		}
 	    }
 	    /*
 	     * Last part of ether_output: add header, queue pkt and start
-	     * output if interface not yet active.
+	     * output if interface not yet active. Optimized for the
+	     * common case of eh pointing already into the mbuf
 	     */
-	    /*
-	     * check the common case of eh pointing already into the mbuf
-	     */
-	    if ( (void *)eh + ETHER_HDR_LEN == (void *)m->m_data) {
+	    if ( (void *)(eh + 1) == (void *)m->m_data) {
 		m->m_data -= ETHER_HDR_LEN ;
 		m->m_len += ETHER_HDR_LEN ;
 		m->m_pkthdr.len += ETHER_HDR_LEN ;
 		bdg_predict++;
 	    } else {
 		M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
+		if (!m && verbose) printf("M_PREPEND failed\n");
 		if (m == NULL)
-		    return ENOBUFS;
+		    return m0;
 		bcopy(&save_eh, mtod(m, struct ether_header *), ETHER_HDR_LEN);
 	    }
 	    if (! IF_HANDOFF(&last->if_snd, m, last)) {
 #if 0
-		MUTE(last); /* should I also mute ? */
+		BDG_MUTE(last); /* should I also mute ? */
 #endif
-		error = ENOBUFS ;
 	    }
 	    BDG_STAT(last, BDG_OUT);
 	    last = NULL ;
@@ -889,11 +834,11 @@ forward:
 	if (ifp == NULL)
 	    break ;
 	if (ifp != src &&       /* do not send to self */
-		USED(ifp) &&	/* if used for bridging */
+		BDG_USED(ifp) &&	/* if used for bridging */
 		! _IF_QFULL(&ifp->if_snd) &&
 		(ifp->if_flags & (IFF_UP|IFF_RUNNING)) ==
 			 (IFF_UP|IFF_RUNNING) &&
-		SAMECLUSTER(ifp, src) && !MUTED(ifp) )
+		BDG_SAMECLUSTER(ifp, src) && !BDG_MUTED(ifp) )
 	    last = ifp ;
 	ifp = ifp->if_link.tqe_next ;
 	if (ifp == NULL)
@@ -902,5 +847,5 @@ forward:
     DEB(bdg_fw_ticks += (u_long)(rdtsc() - ticks) ; bdg_fw_count++ ;
 	if (bdg_fw_count != 0) bdg_fw_avg = bdg_fw_ticks/bdg_fw_count; )
 
-    return error ;
+    return m0 ;
 }
