@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.117 1999/05/08 06:39:18 phk Exp $
+ *	$Id: autoconf.c,v 1.118 1999/05/09 07:56:36 phk Exp $
  */
 
 /*
@@ -51,6 +51,7 @@
 #include "opt_mfs.h"
 #include "opt_nfsroot.h"
 #include "opt_bus.h"
+#include "opt_rootdevname.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -103,6 +104,8 @@ static void	configure_finish __P((void));
 static void	configure_start __P((void));
 static int	setdumpdev __P((dev_t dev));
 static void	setroot __P((void));
+static int	setrootbyname __P((char *name));
+static void	gets __P((char *));
 
 SYSINIT(configure1, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure_first, NULL);
 /* SI_ORDER_SECOND is hookable */
@@ -110,6 +113,8 @@ SYSINIT(configure2, SI_SUB_CONFIGURE, SI_ORDER_THIRD, configure, NULL);
 /* SI_ORDER_MIDDLE is hookable */
 SYSINIT(configure3, SI_SUB_CONFIGURE, SI_ORDER_ANY, configure_final, NULL);
 
+dev_t	rootdev = NODEV;
+dev_t	dumpdev = NODEV;
 
 #if defined(CD9660) || defined(CD9660_ROOT)
 
@@ -431,7 +436,11 @@ setroot()
 	char partname[2];
 	char *sname;
 
-	if (boothowto & RB_DFLTROOT || (bootdev & B_MAGICMASK) != B_DEVMAGIC)
+	if (boothowto & RB_DFLTROOT) {
+		setrootbyname(ROOTDEVNAME);
+		return;
+	}
+	if ((bootdev & B_MAGICMASK) != B_DEVMAGIC)
 		return;
 	majdev = B_TYPE(bootdev);
 	dev = makedev(majdev, 0);
@@ -497,3 +506,118 @@ sysctl_kern_dumpdev SYSCTL_HANDLER_ARGS
 
 SYSCTL_PROC(_kern, KERN_DUMPDEV, dumpdev, CTLTYPE_OPAQUE|CTLFLAG_RW,
 	0, sizeof dumpdev, sysctl_kern_dumpdev, "T,dev_t", "");
+
+
+
+static int
+setrootbyname(char *name)
+{
+	char *cp;
+	int bd, unit, slice, part;
+	dev_t dev;
+
+	slice = 0;
+	part = 0;
+	cp = name;
+	while (cp != '\0' && (*cp < '0' || *cp > '9'))
+		cp++;
+	if (cp == name) {
+		printf("missing device name\n");
+		return(1);
+	}
+	if (*cp == '\0') {
+		printf("missing unit number\n");
+		return(1);
+	}
+	unit = *cp - '0';
+	*cp++ = '\0';
+	for (bd = 0; bd < nblkdev; bd++) {
+		dev = makedev(bd, 0);
+		if (bdevsw(dev) != NULL &&
+		    strcmp(bdevsw(dev)->d_name, name) == 0)
+			goto gotit;
+	}
+	return (2);
+gotit:
+	while (*cp >= '0' && *cp <= '9')
+		unit += 10 * unit + *cp++ - '0';
+	if (*cp == 's' && cp[1] >= '0' && cp[1] <= '9') {
+		slice = cp[1] - '0';
+		cp += 2;
+	}
+	if (*cp >= 'a' && *cp <= 'h') {
+		part = *cp - 'a';
+		cp++;
+	}
+	if (*cp != '\0') {
+		printf("junk after name\n");
+		return (1);
+	}
+	printf("driver=%s, unit=%d, slice=%d, part=%d\n",
+		name, unit, slice, part);
+	rootdev = makedev(bd, dkmakeminor(unit, slice, part));
+	return 0;
+}
+
+void
+setconf()
+{
+	char name[128];
+	int i;
+	dev_t dev;
+
+	for(;;) {
+		printf("root device? ");
+		gets(name);
+		i = setrootbyname(name);
+		if (!i)
+			return;
+	
+		printf("use one of:\n");
+		for (i = 0; i < nblkdev; i++) {
+			dev = makedev(i, 0);
+			if (bdevsw(dev) != NULL)
+			    printf(" %s", bdevsw(dev)->d_name);
+		}
+		printf(" followed by a unit number...\n");
+	}
+}
+
+static void
+gets(cp)
+	char *cp;
+{
+	register char *lp;
+	register int c;
+
+	lp = cp;
+	for (;;) {
+		printf("%c", c = cngetc() & 0177);
+		switch (c) {
+		case -1:
+		case '\n':
+		case '\r':
+			*lp++ = '\0';
+			return;
+		case '\b':
+		case '\177':
+			if (lp > cp) {
+				printf(" \b");
+				lp--;
+			}
+			continue;
+		case '#':
+			lp--;
+			if (lp < cp)
+				lp = cp;
+			continue;
+		case '@':
+		case 'u' & 037:
+			lp = cp;
+			printf("%c", '\n');
+			continue;
+		default:
+			*lp++ = c;
+		}
+	}
+}

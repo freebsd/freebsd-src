@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.237 1999/05/05 07:36:55 wpaul Exp $
+#	$Id: files.i386,v 1.238 1999/05/08 15:46:46 peter Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -97,7 +97,6 @@ i386/i386/pmap.c		standard
 i386/i386/procfs_machdep.c	standard
 i386/i386/simplelock.s		optional	smp
 i386/i386/support.s		standard
-i386/i386/swapgeneric.c		standard
 i386/i386/swtch.s		standard
 i386/i386/sys_machdep.c		standard
 i386/i386/trap.c		standard
