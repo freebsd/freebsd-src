@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.51 1995/03/23 01:25:16 jkh Exp $
+#	$Id: rc,v 1.52 1995/03/23 06:42:36 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -78,17 +78,17 @@ fi
 
 # configure serial devices
 if [ -f /etc/rc.serial ]; then
-	sh /etc/rc.serial
+	. /etc/rc.serial
 fi
 
 # start up the network
 if [ -f /etc/netstart ]; then
-	sh /etc/netstart
+	. /etc/netstart
 fi
 
 # Do system maintainance functions.
 if [ -f /etc/rc.maint ]; then
-	sh /etc/rc.maint
+	. /etc/rc.maint
 fi
 
 # Now start up miscellaneous daemons that don't belong anywhere else
