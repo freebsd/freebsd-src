@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.43 1995/10/01 20:10:20 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.44 1995/11/18 06:54:11 bde Exp $
  */
 
 #include "npx.h"
@@ -707,7 +707,7 @@ vmapbuf(bp)
 	register caddr_t addr;
 	int off;
 	vm_offset_t kva;
-	vm_offset_t pa, v;
+	vm_offset_t pa;
 
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vmapbuf");
@@ -764,7 +764,7 @@ vunmapbuf(bp)
 	register struct buf *bp;
 {
 	register caddr_t addr;
-	vm_offset_t v,pa;
+	vm_offset_t pa;
 
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vunmapbuf");

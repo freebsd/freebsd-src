@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.35 1995/10/06 05:36:51 jkh Exp $
+ **      $Id: userconfig.c,v 1.36 1995/10/14 12:57:01 jkh Exp $
  **/
 
 /**
@@ -749,7 +749,6 @@ static int
 findconflict(DEV_LIST *list)
 {
     int		count = 0;			/* number of conflicts found */
-    int		ic;
     DEV_LIST	*dp,*sp;
 
     for (dp = list; dp; dp = dp->next)		/* over the whole list */
@@ -2143,7 +2142,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.35 1995/10/06 05:36:51 jkh Exp $
+ *      $Id: userconfig.c,v 1.36 1995/10/14 12:57:01 jkh Exp $
  */
 
 
@@ -2242,10 +2241,8 @@ static Cmd CmdList[] = {
 void
 userconfig(void)
 {
-    char command[80];
     char input[80];
     int rval;
-    struct isa_device *dt;
     Cmd *cmd;
 
     printf("\nFreeBSD Kernel Configuration Utility - Version 1.0\n"
