@@ -1,4 +1,4 @@
-#	$Id: bsd.info.mk,v 1.32 1997/03/08 23:46:53 wosch Exp $
+#	$Id: bsd.info.mk,v 1.33 1997/03/12 06:24:52 peter Exp $
 #
 # The include file <bsd.info.mk> handles installing GNU (tech)info files.
 # Texinfo is a documentation system that uses a single source
@@ -83,10 +83,14 @@ ICOMPRESS_EXT?=	${COMPRESS_EXT}
 .MAIN: all
 
 .SUFFIXES: ${ICOMPRESS_EXT} .info .texi .texinfo
+
 .texi.info:
-	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} ${.IMPSRC} -o ${.TARGET}
+	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} ${.IMPSRC} -o ${.TARGET}.new
+	mv -f ${.TARGET}.new ${.TARGET}
+
 .texinfo.info:
-	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} ${.IMPSRC} -o ${.TARGET}
+	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} ${.IMPSRC} -o ${.TARGET}.new
+	mv -f ${.TARGET}.new ${.TARGET}
 
 .PATH: ${.CURDIR} ${SRCDIR}
 
@@ -136,7 +140,8 @@ distribute: _SUBDIR
 
 .if defined(SRCS)
 ${INFO}.info: ${SRCS}
-	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} ${SRCS:S/^/${SRCDIR}\//g} -o ${INFO}.info
+	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} ${SRCS:S/^/${SRCDIR}\//g} -o ${INFO}.info.new
+	mv -f ${INFO}.info.new ${INFO}.info
 .endif
 
 depend: _SUBDIR
