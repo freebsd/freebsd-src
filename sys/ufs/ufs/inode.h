@@ -63,8 +63,6 @@
 struct inode {
 	LIST_ENTRY(inode) i_hash;/* Hash chain. */
 	TAILQ_ENTRY(inode) i_nextsnap; /* snapshot file list. */
-	daddr_t	  i_snaplistsize; /* size of snapblklist. */
-	daddr_t	  *i_snapblklist; /* list of known snapshot blocks. */
 	struct	vnode  *i_vnode;/* Vnode associated with this inode. */
 	struct	ufsmount *i_ump;/* Ufsmount point associated with this inode. */
 	struct	vnode  *i_devvp;/* Vnode for block I/O. */
