@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.14 1996/06/17 12:43:04 bde Exp $
+ *	$Id: microtime.s,v 1.15 1996/07/17 11:25:53 bde Exp $
  */
 
 #include <machine/asmacros.h>
@@ -45,7 +45,7 @@
 ENTRY(microtime)
 
 #if defined(I586_CPU) || defined(I686_CPU)
-	movl	_i586_ctr_rate, %ecx
+	movl	_i586_ctr_freq, %ecx
 	testl	%ecx, %ecx
 	jne	pentium_microtime
 #else
@@ -189,9 +189,7 @@ pentium_microtime:
 	cli
 	.byte	0x0f, 0x31	/* RDTSC */
 	subl	_i586_ctr_bias, %eax
-	sbbl	_i586_ctr_bias+4, %edx
-	shldl	$I586_CTR_RATE_SHIFT, %eax, %edx	/* magic suggested by */
-	shll	$I586_CTR_RATE_SHIFT, %eax		/* math_emulate.c */
-	divl	%ecx		/* get value in usec */
+	mull	_i586_ctr_multiplier
+	movl	%edx, %eax
 	jmp	common_microtime
 #endif
