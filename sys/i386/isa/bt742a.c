@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.25 1994/09/28 16:23:13 jkh Exp $
+ *      $Id: bt742a.c,v 1.26 1994/10/10 00:46:09 jkh Exp $
  */
 
 /*
@@ -1053,6 +1053,8 @@ bt_init(unit)
 	 */
 
 	outb(BT_CTRL_STAT_PORT, BT_HRST | BT_SRST);
+
+	DELAY(10000);
 
 	for (i = BT_RESET_TIMEOUT; i; i--) {
 		sts = inb(BT_CTRL_STAT_PORT);
