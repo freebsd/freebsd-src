@@ -78,4 +78,4 @@ struct cdce_softc {
 #define CDCE_UNLOCK(_sc)
 #endif
 
-#endif
+#endif /* _USB_IF_CDCEREG_H_ */
