@@ -296,12 +296,12 @@ ufs_close(ap)
 	struct vnode *vp = ap->a_vp;
 	struct mount *mp;
 
-	mtx_lock(&vp->v_interlock);
+	VI_LOCK(vp);
 	if (vp->v_usecount > 1) {
 		ufs_itimes(vp);
-		mtx_unlock(&vp->v_interlock);
+		VI_UNLOCK(vp);
 	} else {
-		mtx_unlock(&vp->v_interlock);
+		VI_UNLOCK(vp);
 		/*
 		 * If we are closing the last reference to an unlinked
 		 * file, then it will be freed by the inactive routine.
@@ -2050,10 +2050,10 @@ ufsspec_close(ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-	mtx_lock(&vp->v_interlock);
+	VI_LOCK(vp);
 	if (vp->v_usecount > 1)
 		ufs_itimes(vp);
-	mtx_unlock(&vp->v_interlock);
+	VI_UNLOCK(vp);
 	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_close), ap));
 }
 
@@ -2124,10 +2124,10 @@ ufsfifo_close(ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-	mtx_lock(&vp->v_interlock);
+	VI_LOCK(vp);
 	if (vp->v_usecount > 1)
 		ufs_itimes(vp);
-	mtx_unlock(&vp->v_interlock);
+	VI_UNLOCK(vp);
 	return (VOCALL(fifo_vnodeop_p, VOFFSET(vop_close), ap));
 }
 
