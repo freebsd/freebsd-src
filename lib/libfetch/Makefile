@@ -5,9 +5,6 @@ LIB=		fetch
 WARNS?=		2
 CFLAGS+=	-I.
 CFLAGS+=	-DINET6
-.if !defined(DEBUG)
-CFLAGS+=	-DNDEBUG
-.endif
 SRCS=		fetch.c common.c ftp.c http.c file.c \
 		ftperr.h httperr.h
 INCS=		fetch.h
