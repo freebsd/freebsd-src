@@ -284,9 +284,8 @@ configAnonFTP(dialogMenuItem *self)
 	
 	if (DITEM_STATUS(createFtpUser()) == DITEM_SUCCESS) {
 	    msgNotify("Copying password information for anon FTP.");
-	    vsystem("cp /etc/pwd.db %s/etc && chmod 444 %s/etc/pwd.db", tconf.homedir, tconf.homedir);
-	    vsystem("cp /etc/passwd %s/etc && chmod 444 %s/etc/passwd", tconf.homedir, tconf.homedir);
-	    vsystem("cp /etc/group %s/etc && chmod 444 %s/etc/group", tconf.homedir, tconf.homedir);
+	    vsystem("awk -F: '{if ($3 < 10 || $1 == "ftp") print $0}' /etc/passwd > %s/etc/passwd && chmod 444 %s/etc/passwd", tconf.homedir, tconf.homedir);
+	    vsystem("awk -F: '{if ($3 < 100) print $0}' /etc/group > %s/etc/group && chmod 444 %s/etc/group", tconf.homedir, tconf.homedir);
 	    vsystem("chown -R root.%s %s/pub", tconf.group, tconf.homedir);
 	}
 	else {
