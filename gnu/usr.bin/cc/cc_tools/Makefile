@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.35 1999/08/14 22:40:01 obrien Exp $
+#	$Id: Makefile,v 1.36 1999/08/16 04:10:44 obrien Exp $
 
 #
 # This could probably be merged with ../cc_int/Makefile, but bsd.lib.mk
