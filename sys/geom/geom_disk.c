@@ -367,8 +367,10 @@ g_disk_destroy(void *ptr, int flag)
 	g_topology_assert();
 	dp = ptr;
 	gp = dp->d_geom;
-	gp->softc = NULL;
-	g_wither_geom(gp, ENXIO);
+	if (gp != NULL) {
+		gp->softc = NULL;
+		g_wither_geom(gp, ENXIO);
+	}
 	g_free(dp);
 }
 
