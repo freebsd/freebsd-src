@@ -74,10 +74,6 @@ main()
 		exit(1);
 	}
 
-	/* revoke privs */
-	setegid(getgid());
-	setgid(getgid());
-
 	printf("Snake players scores to date\n");
 	fread(&whoallbest, sizeof(short), 1, fd);
 	fread(&allbest, sizeof(short), 1, fd);
