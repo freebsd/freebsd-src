@@ -42,6 +42,11 @@
 .Op Fl a
 .Op Fl A Ar num
 .Op Fl B Ar num
+.Oo Fl t Ar dd
+.Sm off
+.Op . Ar mm Op . Ar year
+.Sm on
+.Oc
 .Op Fl f Ar calendarfile
 .Sh DESCRIPTION
 .Nm Calendar
@@ -71,12 +76,20 @@ use
 .Pa calendarfile
 as default calendar file.
 
+.It Xo Fl t
+.Sm off
+.Ar dd
+.Op . Ar mm Op . Ar year
+.Sm on
+.Xc
+for test purposes only:	set date directly to argument values.
+
 .El
 .Pp
 To handle calendars in your national code table you can specify
 .Dq LANG=<locale_name>
 in the calendar file as early as possible. To handle national Easter
-names
+names in the calendars
 .Dq Easter=<national_name>
 (for Catholic Easter) or
 .Dq Paskha=<national_name>
@@ -85,6 +98,8 @@ names
 Other lines should begin with a month and day.
 They may be entered in almost any format, either numeric or as character
 strings.
+If proper locale is set, national months and weekdays
+names can be used.
 A single asterisk (``*'') matches every month.
 A day without a month matches that day of every week.
 A month without a day matches the first of that month.
@@ -98,9 +113,14 @@ Orthodox Easter for this year.
 Weekdays may be followed by ``-4'' ... ``+5'' (aliases
 last, first, second, third, fourth) for moving events like 
 ``the last Monday in April''
-
+.Pp
 By convention, dates followed by an asterisk are not fixed, i.e., change
 from year to year.
+.Pp
+Day description	start after the	first <tab> character in the line;
+if the line not	contains <tab> character, it isn't printed out.
+If the first character in the line is a	<tab> character, it is treated as
+continue of previous description.
 .Pp
 The ``calendar'' file is preprocessed by
 .Xr cpp 1 ,
@@ -115,26 +135,28 @@ Empty lines and lines protected by the C commenting syntax
 .Pq Li /* ... */
 are ignored.
 .Pp
-Some possible calendar entries:
+Some possible calendar entries (<tab> characters highlighted by
+\fB\et\fR sequence)
 .Bd -unfilled -offset indent
 LANG=C
 Easter=Ostern
 
-#include        <calendar.usholiday>
-#include        <calendar.birthday>
+#include <calendar.usholiday>
+#include <calendar.birthday>
 
-6/15            ... June 15 (if ambiguous, will default to month/day).
-Jun. 15         ... June 15.
-15 June         ... June 15.
-Thursday        ... Every Thursday.
-June            ... Every June 1st.
-15 *            ... 15th of every month.
+6/15\fB\et\fRJune 15 (if ambiguous, will default to month/day).
+Jun. 15\fB\et\fRJune 15.
+15 June\fB\et\fRJune 15.
+Thursday\fB\et\fREvery Thursday.
+June\fB\et\fREvery June	1st.
+15 *\fB\et\fR15th of every month.
 
-May Sun+2       ... second Sunday in May (Muttertag)
-04/SunLast      ... last Sunday in April, summer time in Europe
-Easter          ... Easter
-Easter-2        ... Good Friday (2 days before Easter)
-Paskha          ... Orthodox Easter
+May Sun+2\fB\et\fRsecond Sunday	in May (Muttertag)
+04/SunLast\fB\et\fRlast	Sunday in April,
+\fB\et\fRsummer	time in	Europe
+Easter\fB\et\fREaster
+Ostern-2\fB\et\fRGood Friday (2	days before Easter)
+Paskha\fB\et\fROrthodox	Easter
 
 .Ed
 .Sh FILES
