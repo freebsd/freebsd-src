@@ -33,7 +33,7 @@
  *
  *	@(#)spx_usrreq.h
  *
- * $Id$
+ * $Id: spx_usrreq.c,v 1.10 1997/02/22 09:42:00 peter Exp $
  */
 
 #include <sys/param.h>
@@ -71,6 +71,37 @@ u_short spx_newchecks[50];
 
 struct spx_istat spx_istat;
 u_short spx_iss;
+
+static	int spx_usr_abort(struct socket *so);
+static	int spx_accept(struct socket *so, struct mbuf *nam);
+static	int spx_attach(struct socket *so, int proto);
+static	int spx_bind(struct socket *so, struct mbuf *nam);
+static	int spx_connect(struct socket *so, struct mbuf *nam);
+static	int spx_detach(struct socket *so);
+static	int spx_usr_disconnect(struct socket *so);
+static	int spx_listen(struct socket *so);
+static	int spx_rcvd(struct socket *so, int flags);
+static	int spx_rcvoob(struct socket *so, struct mbuf *m, int flags);
+static	int spx_send(struct socket *so, int flags, struct mbuf *m,
+		     struct mbuf *addr, struct mbuf *control);
+static	int spx_shutdown(struct socket *so);
+static	int spx_sp_attach(struct socket *so, int proto);
+
+struct	pr_usrreqs spx_usrreqs = {
+	spx_usr_abort, spx_accept, spx_attach, spx_bind,
+	spx_connect, pru_connect2_notsupp, ipx_control, spx_detach,
+	spx_usr_disconnect, spx_listen, ipx_peeraddr, spx_rcvd,
+	spx_rcvoob, spx_send, pru_sense_null, spx_shutdown,
+	ipx_sockaddr
+};
+
+struct	pr_usrreqs spx_usrreq_sps = {
+	spx_usr_abort, spx_accept, spx_sp_attach, spx_bind,
+	spx_connect, pru_connect2_notsupp, ipx_control, spx_detach,
+	spx_usr_disconnect, spx_listen, ipx_peeraddr, spx_rcvd,
+	spx_rcvoob, spx_send, pru_sense_null, spx_shutdown,
+	ipx_sockaddr
+};
 
 void
 spx_init()
@@ -1266,252 +1297,319 @@ spx_ctloutput(req, so, level, name, value)
 		return (error);
 }
 
-/*ARGSUSED*/
-int
-spx_usrreq(so, req, m, nam, controlp)
+static int
+spx_usr_abort(so)
 	struct socket *so;
-	int req;
-	struct mbuf *m, *nam, *controlp;
 {
-	struct ipxpcb *ipxp = sotoipxpcb(so);
-	register struct spxpcb *cb = NULL;
-	int s = splnet();
-	int error = 0, ostate;
+	int s;
+	struct ipxpcb *ipxp;
+	struct spxpcb *cb;
+
+	ipxp = sotoipxpcb(so);
+	cb = ipxtospxpcb(ipxp);
+
+	s = splnet();
+	spx_drop(cb, ECONNABORTED);
+	splx(s);
+	return (0);
+}
+
+/*
+ * Accept a connection.  Essentially all the work is
+ * done at higher levels; just return the address
+ * of the peer, storing through addr.
+ */
+static int
+spx_accept(so, nam)
+	struct socket *so;
+	struct mbuf *nam;
+{
+	struct ipxpcb *ipxp;
+	struct sockaddr_ipx *sipx;
+
+	ipxp = sotoipxpcb(so);
+	sipx = mtod(nam, struct sockaddr_ipx *);
+
+	nam->m_len = sizeof (struct sockaddr_ipx);
+	sipx->sipx_family = AF_IPX;
+	sipx->sipx_addr = ipxp->ipxp_faddr;
+	return (0);
+}
+
+static int
+spx_attach(so, proto)
+	struct socket *so;
+	int proto;
+{
+	int error;
+	int s;
+	struct ipxpcb *ipxp;
+	struct spxpcb *cb;
 	struct mbuf *mm;
-	register struct sockbuf *sb;
+	struct sockbuf *sb;
 
-	if (req == PRU_CONTROL)
-                return (ipx_control(so, (int)m, (caddr_t)nam,
-			(struct ifnet *)controlp));
-	if (ipxp == NULL) {
-		if (req != PRU_ATTACH) {
-			error = EINVAL;
-			goto release;
-		}
-	} else
-		cb = ipxtospxpcb(ipxp);
+	ipxp = sotoipxpcb(so);
+	cb = ipxtospxpcb(ipxp);
 
-	ostate = cb ? cb->s_state : 0;
-
-	switch (req) {
-
-	case PRU_ATTACH:
-		if (ipxp != NULL) {
-			error = EISCONN;
-			break;
-		}
-		error = ipx_pcballoc(so, &ipxpcb);
+	if (ipxp != NULL)
+		return (EISCONN);
+	s = splnet();
+	error = ipx_pcballoc(so, &ipxpcb);
+	if (error)
+		goto spx_attach_end;
+	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
+		error = soreserve(so, (u_long) 3072, (u_long) 3072);
 		if (error)
-			break;
-		if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
-			error = soreserve(so, (u_long) 3072, (u_long) 3072);
-			if (error)
-				break;
-		}
-		ipxp = sotoipxpcb(so);
+			goto spx_attach_end;
+	}
+	ipxp = sotoipxpcb(so);
 
-		mm = m_getclr(M_DONTWAIT, MT_PCB);
-		sb = &so->so_snd;
+	mm = m_getclr(M_DONTWAIT, MT_PCB);
+	sb = &so->so_snd;
 
-		if (mm == NULL) {
-			error = ENOBUFS;
-			break;
-		}
-		cb = mtod(mm, struct spxpcb *);
-		mm = m_getclr(M_DONTWAIT, MT_HEADER);
-		if (mm == NULL) {
-			(void) m_free(dtom(m));
-			error = ENOBUFS;
-			break;
-		}
-		cb->s_ipx = mtod(mm, struct ipx *);
+	if (mm == NULL) {
+		error = ENOBUFS;
+		goto spx_attach_end;
+	}
+	cb = mtod(mm, struct spxpcb *);
+	mm = m_getclr(M_DONTWAIT, MT_HEADER);
+	if (mm == NULL) {
+		m_freem(dtom(cb));
+		error = ENOBUFS;
+		goto spx_attach_end;
+	}
+	cb->s_ipx = mtod(mm, struct ipx *);
+	cb->s_state = TCPS_LISTEN;
+	cb->s_smax = -1;
+	cb->s_swl1 = -1;
+	cb->s_q.si_next = cb->s_q.si_prev = &cb->s_q;
+	cb->s_ipxpcb = ipxp;
+	cb->s_mtu = 576 - sizeof (struct spx);
+	cb->s_cwnd = sbspace(sb) * CUNIT / cb->s_mtu;
+	cb->s_ssthresh = cb->s_cwnd;
+	cb->s_cwmx = sbspace(sb) * CUNIT /
+			(2 * sizeof (struct spx));
+	/* Above is recomputed when connecting to account
+	   for changed buffering or mtu's */
+	cb->s_rtt = SPXTV_SRTTBASE;
+	cb->s_rttvar = SPXTV_SRTTDFLT << 2;
+	SPXT_RANGESET(cb->s_rxtcur,
+	    ((SPXTV_SRTTBASE >> 2) + (SPXTV_SRTTDFLT << 2)) >> 1,
+	    SPXTV_MIN, SPXTV_REXMTMAX);
+	ipxp->ipxp_pcb = (caddr_t) cb; 
+spx_attach_end:
+	splx(s);
+	return (error);
+}
+
+static int
+spx_bind(so, nam)
+	struct socket *so;
+	struct mbuf *nam;
+{  
+	struct ipxpcb *ipxp;
+
+	ipxp = sotoipxpcb(so);
+
+	return (ipx_pcbbind(ipxp, nam));
+}  
+   
+/*
+ * Initiate connection to peer.
+ * Enter SYN_SENT state, and mark socket as connecting.
+ * Start keep-alive timer, setup prototype header,
+ * Send initial system packet requesting connection.
+ */
+static int
+spx_connect(so, nam)
+	struct socket *so;
+	struct mbuf *nam;
+{
+	int error;
+	int s;
+	struct ipxpcb *ipxp;
+	struct spxpcb *cb;
+
+	ipxp = sotoipxpcb(so);
+	cb = ipxtospxpcb(ipxp);
+
+	s = splnet();
+	if (ipxp->ipxp_lport == 0) {
+		error = ipx_pcbbind(ipxp, (struct mbuf *)0);
+		if (error)
+			goto spx_connect_end;
+	}
+	error = ipx_pcbconnect(ipxp, nam);
+	if (error)
+		goto spx_connect_end;
+	soisconnecting(so);
+	spxstat.spxs_connattempt++;
+	cb->s_state = TCPS_SYN_SENT;
+	cb->s_did = 0;
+	spx_template(cb);
+	cb->s_timer[SPXT_KEEP] = SPXTV_KEEP;
+	cb->s_force = 1 + SPXTV_KEEP;
+	/*
+	 * Other party is required to respond to
+	 * the port I send from, but he is not
+	 * required to answer from where I am sending to,
+	 * so allow wildcarding.
+	 * original port I am sending to is still saved in
+	 * cb->s_dport.
+	 */
+	ipxp->ipxp_fport = 0;
+	error = spx_output(cb, (struct mbuf *) 0);
+spx_connect_end:
+	splx(s);
+	return (error);
+}
+
+static int
+spx_detach(so)
+	struct socket *so;
+{
+	int s;
+	struct ipxpcb *ipxp;
+	struct spxpcb *cb;
+
+	ipxp = sotoipxpcb(so);
+	cb = ipxtospxpcb(ipxp);
+
+	if (ipxp == NULL)
+		return (ENOTCONN);
+	s = splnet();
+	if (cb->s_state > TCPS_LISTEN)
+		spx_disconnect(cb);
+	else
+		spx_close(cb);
+	splx(s);
+	return (0);
+}
+
+/*
+ * We may decide later to implement connection closing
+ * handshaking at the spx level optionally.
+ * here is the hook to do it:
+ */
+static int
+spx_usr_disconnect(so)
+	struct socket *so;
+{
+	int s;
+	struct ipxpcb *ipxp;
+	struct spxpcb *cb;
+
+	ipxp = sotoipxpcb(so);
+	cb = ipxtospxpcb(ipxp);
+
+	s = splnet();
+	spx_disconnect(cb);
+	splx(s);
+	return (0);
+}
+
+static int
+spx_listen(so)
+	struct socket *so;
+{
+	int error;
+	struct ipxpcb *ipxp;
+	struct spxpcb *cb;
+
+	error = 0;
+	ipxp = sotoipxpcb(so);
+	cb = ipxtospxpcb(ipxp);
+
+	if (ipxp->ipxp_lport == 0)
+		error = ipx_pcbbind(ipxp, (struct mbuf *)0);
+	if (error == 0)
 		cb->s_state = TCPS_LISTEN;
-		cb->s_smax = -1;
-		cb->s_swl1 = -1;
-		cb->s_q.si_next = cb->s_q.si_prev = &cb->s_q;
-		cb->s_ipxpcb = ipxp;
-		cb->s_mtu = 576 - sizeof (struct spx);
-		cb->s_cwnd = sbspace(sb) * CUNIT / cb->s_mtu;
-		cb->s_ssthresh = cb->s_cwnd;
-		cb->s_cwmx = sbspace(sb) * CUNIT /
-				(2 * sizeof (struct spx));
-		/* Above is recomputed when connecting to account
-		   for changed buffering or mtu's */
-		cb->s_rtt = SPXTV_SRTTBASE;
-		cb->s_rttvar = SPXTV_SRTTDFLT << 2;
-		SPXT_RANGESET(cb->s_rxtcur,
-		    ((SPXTV_SRTTBASE >> 2) + (SPXTV_SRTTDFLT << 2)) >> 1,
-		    SPXTV_MIN, SPXTV_REXMTMAX);
-		ipxp->ipxp_pcb = (caddr_t) cb; 
-		break;
+	return (error);
+}
 
-	case PRU_DETACH:
-		if (ipxp == NULL) {
-			error = ENOTCONN;
-			break;
-		}
-		if (cb->s_state > TCPS_LISTEN)
-			cb = spx_disconnect(cb);
-		else
-			cb = spx_close(cb);
-		break;
+/*
+ * After a receive, possibly send acknowledgment
+ * updating allocation.
+ */
+static int
+spx_rcvd(so, flags)
+	struct socket *so;
+	int flags;
+{
+	int s;
+	struct ipxpcb *ipxp;
+	struct spxpcb *cb;
 
-	case PRU_BIND:
-		error = ipx_pcbbind(ipxp, nam);
-		break;
+	ipxp = sotoipxpcb(so);
+	cb = ipxtospxpcb(ipxp);
 
-	case PRU_LISTEN:
-		if (ipxp->ipxp_lport == 0)
-			error = ipx_pcbbind(ipxp, (struct mbuf *)0);
-		if (error == 0)
-			cb->s_state = TCPS_LISTEN;
-		break;
+	s = splnet();
+	cb->s_flags |= SF_RVD;
+	spx_output(cb, (struct mbuf *) 0);
+	cb->s_flags &= ~SF_RVD;
+	splx(s);
+	return (0);
+}
 
-	/*
-	 * Initiate connection to peer.
-	 * Enter SYN_SENT state, and mark socket as connecting.
-	 * Start keep-alive timer, setup prototype header,
-	 * Send initial system packet requesting connection.
-	 */
-	case PRU_CONNECT:
-		if (ipxp->ipxp_lport == 0) {
-			error = ipx_pcbbind(ipxp, (struct mbuf *)0);
-			if (error)
-				break;
-		}
-		error = ipx_pcbconnect(ipxp, nam);
-		if (error)
-			break;
-		soisconnecting(so);
-		spxstat.spxs_connattempt++;
-		cb->s_state = TCPS_SYN_SENT;
-		cb->s_did = 0;
-		spx_template(cb);
-		cb->s_timer[SPXT_KEEP] = SPXTV_KEEP;
-		cb->s_force = 1 + SPXTV_KEEP;
-		/*
-		 * Other party is required to respond to
-		 * the port I send from, but he is not
-		 * required to answer from where I am sending to,
-		 * so allow wildcarding.
-		 * original port I am sending to is still saved in
-		 * cb->s_dport.
-		 */
-		ipxp->ipxp_fport = 0;
-		error = spx_output(cb, (struct mbuf *) 0);
-		break;
+static int
+spx_rcvoob(so, m, flags)
+	struct socket *so;
+	struct mbuf *m;
+	int flags;
+{
+	struct ipxpcb *ipxp;
+	struct spxpcb *cb;
 
-	case PRU_CONNECT2:
-		error = EOPNOTSUPP;
-		break;
+	ipxp = sotoipxpcb(so);
+	cb = ipxtospxpcb(ipxp);
 
-	/*
-	 * We may decide later to implement connection closing
-	 * handshaking at the spx level optionally.
-	 * here is the hook to do it:
-	 */
-	case PRU_DISCONNECT:
-		cb = spx_disconnect(cb);
-		break;
+	if ((cb->s_oobflags & SF_IOOB) || so->so_oobmark ||
+	    (so->so_state & SS_RCVATMARK)) {
+		m->m_len = 1;
+		*mtod(m, caddr_t) = cb->s_iobc;
+		return (0);
+	}
+	return (EINVAL);
+}
 
-	/*
-	 * Accept a connection.  Essentially all the work is
-	 * done at higher levels; just return the address
-	 * of the peer, storing through addr.
-	 */
-	case PRU_ACCEPT: {
-		struct sockaddr_ipx *sipx = mtod(nam, struct sockaddr_ipx *);
+static int
+spx_send(so, flags, m, addr, controlp)
+	struct socket *so;
+	int flags;
+	struct mbuf *m;
+	struct mbuf *addr;
+	struct mbuf *controlp;
+{
+	int error;
+	int s;
+	struct ipxpcb *ipxp;
+	struct spxpcb *cb;
 
-		nam->m_len = sizeof (struct sockaddr_ipx);
-		sipx->sipx_family = AF_IPX;
-		sipx->sipx_addr = ipxp->ipxp_faddr;
-		break;
-		}
+	error = 0;
+	ipxp = sotoipxpcb(so);
+	cb = ipxtospxpcb(ipxp);
 
-	case PRU_SHUTDOWN:
-		socantsendmore(so);
-		cb = spx_usrclosed(cb);
-		if (cb)
-			error = spx_output(cb, (struct mbuf *) 0);
-		break;
-
-	/*
-	 * After a receive, possibly send acknowledgment
-	 * updating allocation.
-	 */
-	case PRU_RCVD:
-		cb->s_flags |= SF_RVD;
-		(void) spx_output(cb, (struct mbuf *) 0);
-		cb->s_flags &= ~SF_RVD;
-		break;
-
-	case PRU_ABORT:
-		(void) spx_drop(cb, ECONNABORTED);
-		break;
-
-	case PRU_SENSE:
-	case PRU_CONTROL:
-		m = NULL;
-		error = EOPNOTSUPP;
-		break;
-
-	case PRU_RCVOOB:
-		if ((cb->s_oobflags & SF_IOOB) || so->so_oobmark ||
-		    (so->so_state & SS_RCVATMARK)) {
-			m->m_len = 1;
-			*mtod(m, caddr_t) = cb->s_iobc;
-			break;
-		}
-		error = EINVAL;
-		break;
-
-	case PRU_SENDOOB:
+	s = splnet();
+	if (flags & PRUS_OOB) {
 		if (sbspace(&so->so_snd) < -512) {
 			error = ENOBUFS;
-			break;
+			goto spx_send_end;
 		}
 		cb->s_oobflags |= SF_SOOB;
-		/* fall into */
-	case PRU_SEND:
-		if (controlp) {
-			u_short *p = mtod(controlp, u_short *);
-			spx_newchecks[2]++;
-			if ((p[0] == 5) && p[1] == 1) { /* XXXX, for testing */
-				cb->s_shdr.spx_dt = *(u_char *)(&p[2]);
-				spx_newchecks[3]++;
-			}
-			m_freem(controlp);
-		}
-		controlp = NULL;
-		error = spx_output(cb, m);
-		m = NULL;
-		break;
-
-	case PRU_SOCKADDR:
-		ipx_setsockaddr(ipxp, nam);
-		break;
-
-	case PRU_PEERADDR:
-		ipx_setpeeraddr(ipxp, nam);
-		break;
-
-	case PRU_SLOWTIMO:
-		cb = spx_timers(cb, (int)nam);
-		req |= ((int)nam) << 8;
-		break;
-
-	case PRU_FASTTIMO:
-	case PRU_PROTORCV:
-	case PRU_PROTOSEND:
-		error =  EOPNOTSUPP;
-		break;
-
-	default:
-		panic("spx_usrreq");
 	}
-	if (cb && (so->so_options & SO_DEBUG || traceallspxs))
-		spx_trace(SA_USER, (u_char)ostate, cb, (struct spx *)0, req);
-release:
+	if (controlp) {
+		u_short *p = mtod(controlp, u_short *);
+		spx_newchecks[2]++;
+		if ((p[0] == 5) && p[1] == 1) { /* XXXX, for testing */
+			cb->s_shdr.spx_dt = *(u_char *)(&p[2]);
+			spx_newchecks[3]++;
+		}
+		m_freem(controlp);
+	}
+	controlp = NULL;
+	error = spx_output(cb, m);
+	m = NULL;
+spx_send_end:
 	if (controlp != NULL)
 		m_freem(controlp);
 	if (m != NULL)
@@ -1520,16 +1618,40 @@ release:
 	return (error);
 }
 
-int
-spx_usrreq_sp(so, req, m, nam, controlp)
-	struct socket *so;
-	int req;
-	struct mbuf *m, *nam, *controlp;
+static int
+spx_shutdown(so)
+	struct socket *so;            
 {
-	int error = spx_usrreq(so, req, m, nam, controlp);
+	int error;
+	int s;
+	struct ipxpcb *ipxp;
+	struct spxpcb *cb;
 
-	if (req == PRU_ATTACH && error == 0) {
-		struct ipxpcb *ipxp = sotoipxpcb(so);
+	error = 0;
+	ipxp = sotoipxpcb(so);
+	cb = ipxtospxpcb(ipxp);
+
+	s = splnet();
+	socantsendmore(so);
+	cb = spx_usrclosed(cb);
+	if (cb)
+		error = spx_output(cb, (struct mbuf *) 0);
+	splx(s);
+	return (error);
+}
+
+static int
+spx_sp_attach(so, proto)
+	struct socket *so;
+	int proto;
+{
+	int error;
+	struct ipxpcb *ipxp;
+	struct spxpcb *cb;
+
+	error = spx_attach(so, proto);
+	if (error == 0) {
+		ipxp = sotoipxpcb(so);
 		((struct spxpcb *)ipxp->ipxp_pcb)->s_flags |=
 					(SF_HI | SF_HO | SF_PI);
 	}
@@ -1698,9 +1820,7 @@ spx_slowtimo()
 			goto tpgone;
 		for (i = 0; i < SPXT_NTIMERS; i++) {
 			if (cb->s_timer[i] && --cb->s_timer[i] == 0) {
-				(void) spx_usrreq(cb->s_ipxpcb->ipxp_socket,
-				    PRU_SLOWTIMO, (struct mbuf *)0,
-				    (struct mbuf *)i, (struct mbuf *)0);
+				spx_timers(cb, i);
 				if (ipnxt->ipxp_prev != ip)
 					goto tpgone;
 			}

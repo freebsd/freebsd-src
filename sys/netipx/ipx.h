@@ -33,7 +33,7 @@
  *
  *	@(#)ipx.h
  *
- * $Id$
+ * $Id: ipx.h,v 1.9 1997/02/22 09:41:52 peter Exp $
  */
 
 #ifndef _NETIPX_IPX_H_
@@ -158,6 +158,8 @@ struct ipx {
 
 #ifdef KERNEL
 
+extern struct pr_usrreqs ipx_usrreqs;
+extern struct pr_usrreqs ripx_usrreqs;
 extern int ipxcksum;
 extern struct domain ipxdomain;
 extern struct sockaddr_ipx ipx_netmask;
@@ -191,12 +193,11 @@ void	ipx_input __P((struct mbuf *m, struct ipxpcb *ipxp));
 void	ipxintr __P((void));
 int	ipx_output __P((struct ipxpcb *ipxp, struct mbuf *m0));
 int	ipx_outputfl __P((struct mbuf *m0, struct route *ro, int flags));
-int	ipx_raw_usrreq __P((struct socket *so, int req, struct mbuf *m,
-			    struct mbuf *nam, struct mbuf *control));
 void	ipx_undo_route __P((struct route *ro));
-int	ipx_usrreq __P((struct socket *so, int req, struct mbuf *m,
-			struct mbuf *nam, struct mbuf *control));
 void	ipx_watch_output __P((struct mbuf *m, struct ifnet *ifp));
+
+int	ipx_peeraddr __P((struct socket *so, struct mbuf *nam));
+int	ipx_sockaddr __P((struct socket *so, struct mbuf *nam));
 
 #else
 
