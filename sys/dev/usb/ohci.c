@@ -573,7 +573,7 @@ ohci_alloc_std_chain(struct ohci_pipe *opipe, ohci_softc_t *sc,
 			/* the length must be a multiple of the max size */
 			curlen -= curlen %
 			    UGETW(opipe->pipe.endpoint->edesc->wMaxPacketSize);
-			KASSERT ((curlen == 0), ("ohci_alloc_std: curlen == 0"));
+			KASSERT((curlen != 0), ("ohci_alloc_std: curlen == 0"));
 		}
 		DPRINTFN(4,("ohci_alloc_std_chain: dataphys=0x%08x "
 			    "len=%d curlen=%d\n",
