@@ -40,7 +40,6 @@ static char sccsid[] = "@(#)popen.c	8.3 (Berkeley) 5/3/95";
 
 #include <sys/param.h>
 #include <sys/wait.h>
-#include <sys/socket.h>
 
 #include <signal.h>
 #include <errno.h>
@@ -73,14 +72,17 @@ popen(command, type)
 		type = "r+";
 	} else  {
 		twoway = 0;
-		if (*type != 'r' && *type != 'w' || type[1])
+		if ((*type != 'r' && *type != 'w') || type[1])
 			return (NULL);
 	}
 	if (pipe(pdes) < 0)
 		return (NULL);
 
-	if ((cur = malloc(sizeof(struct pid))) == NULL)
+	if ((cur = malloc(sizeof(struct pid))) == NULL) {
+		(void)close(pdes[0]);
+		(void)close(pdes[1]);
 		return (NULL);
+	}
 
 	switch (pid = vfork()) {
 	case -1:			/* Error. */
