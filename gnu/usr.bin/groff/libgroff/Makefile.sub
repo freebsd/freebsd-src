@@ -1,0 +1,15 @@
+LIB=groff
+OBJS=assert.o change_lf.o cmap.o cset.o device.o errarg.o error.o fatal.o \
+  filename.o font.o fontfile.o lf.o lineno.o macropath.o nametoindex.o new.o \
+  prime.o progname.o ptable.o searchpath.o string.o strsave.o tmpfile.o \
+  iftoa.o itoa.o matherr.o version.o illegal.o $(LIBOBJS)
+CCSRCS=assert.cc change_lf.cc cmap.cc cset.cc device.cc errarg.cc error.cc \
+  fatal.cc filename.cc font.cc fontfile.cc lf.cc lineno.cc macropath.cc \
+  nametoindex.cc new.cc prime.cc progname.cc ptable.cc searchpath.cc \
+  string.cc strsave.cc tmpfile.cc version.cc illegal.cc
+CSRCS=fmod.c getcwd.c iftoa.c itoa.c matherr.c strerror.c strtol.c putenv.c
+GENSRCS=version.cc
+
+version.cc: $(srcdir)/../VERSION
+	@echo Making version.cc
+	@echo const char \*version_string = \"`cat $(srcdir)/../VERSION`\"\; >$@
