@@ -42,8 +42,9 @@
 #define OPT_PROXY	0x0040
 #define OPT_PROXYALL	0x0080
 #define OPT_SROUTES	0x0100
-#define OPT_THROUGHPUT	0x0200
-#define OPT_UTMP	0x0400
+#define OPT_TCPMSSFIXUP	0x0200
+#define OPT_THROUGHPUT	0x0400
+#define OPT_UTMP	0x0800
 
 #define MAX_ENDDISC_CLASS 5
 
@@ -72,6 +73,7 @@ struct bundle {
   } dev;
 
   u_long bandwidth;           /* struct tuninfo speed */
+  int mtu;                    /* struct tuninfo MTU */
   struct iface *iface;        /* Interface information */
 
   int routing_seq;            /* The current routing sequence number */
@@ -101,7 +103,7 @@ struct bundle {
     } auth;
     unsigned opt;             /* Uses OPT_ bits from above */
     char label[50];           /* last thing `load'ed */
-    u_short mtu;              /* Interface mtu */
+    u_short mtu;              /* Required interface MTU */
     u_short ifqueue;          /* Interface queue size */
 
     struct {
