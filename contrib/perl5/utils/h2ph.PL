@@ -46,7 +46,7 @@ die "-r and -a options are mutually exclusive\n" if ($opt_r and $opt_a);
 
 my $Exit = 0;
 
-my $Dest_dir = $opt_d || $Config{installsitearch};
+my $Dest_dir = $opt_d || $Config{installarchlib};
 die "Destination directory $Dest_dir doesn't exist or isn't a directory\n"
     unless -d $Dest_dir;
 
@@ -551,7 +551,7 @@ If run with no arguments, filters standard input to standard output.
 =item -d destination_dir
 
 Put the resulting B<.ph> files beneath B<destination_dir>, instead of
-beneath the default Perl library location (C<$Config{'installsitsearch'}>).
+beneath the default Perl library location (C<$Config{'installarchlib'}>).
 
 =item -r
 
