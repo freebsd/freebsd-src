@@ -41,7 +41,6 @@
 .Nm chdir ,
 .Nm command ,
 .Nm continue ,
-.Nm cwd ,
 .Nm default ,
 .Nm dirs ,
 .Nm do ,
@@ -152,14 +151,9 @@ details on the operation of any given builtin command under those shells.
 Users of other shells will need to consult the documentation supplied
 with the other shells.
 .Bl -column "continueXX" "ExternalXX" "csh(1)" "sh(1)" -offset indent
-.\"
-.\" XXX:
-.\" The correct table header here can not be rendered with mdoc's current
-.\" argument maximum.  When mdoc can handle sufficient arguments, the
-.\" correct table header will be as follows:
-.\" .It Em Command Ta Em External Ta Xr csh 1 Ta Xr sh 1
-.\"
-.It Em Command	External	csh	sh
+.It Xo
+.Em Command Ta Em External Ta Xo
+.Xc Xc Xr csh 1 Ta Xr sh 1
 .It Ic alias Ta \&No Ta Yes Ta Yes
 .It Ic alloc Ta \&No Ta Yes Ta \&No
 .It Ic bg Ta \&No Ta Yes Ta Yes
@@ -170,7 +164,6 @@ with the other shells.
 .It Ic chdir Ta \&No Ta Yes Ta \&No
 .It Ic command Ta \&No Ta \&No Ta Yes
 .It Ic continue Ta \&No Ta Yes Ta \&No
-.It Ic cwd Ta \&No Ta Yes Ta \&No
 .It Ic default Ta \&No Ta Yes Ta \&No
 .It Ic dirs Ta \&No Ta Yes Ta \&No
 .It Ic do Ta \&No Ta \&No Ta Yes
