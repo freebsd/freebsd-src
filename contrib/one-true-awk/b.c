@@ -282,24 +282,9 @@ int quoted(char **pp)	/* pick up next thing after a \\ */
 	return c;
 }
 
-static int collate_range_cmp(int a, int b)
-{
-	int r;
-	static char s[2][2];
-
-	if ((uschar)a == (uschar)b)
-		return 0;
-	s[0][0] = a;
-	s[1][0] = b;
-	if ((r = strcoll(s[0], s[1])) == 0)
-		r = (uschar)a - (uschar)b;
-	return r;
-}
-
 char *cclenter(const char *argp)	/* add a character class */
 {
 	int i, c, c2;
-	int j;
 	uschar *p = (uschar *) argp;
 	uschar *op, *bp;
 	static uschar *buf = 0;
@@ -318,18 +303,15 @@ char *cclenter(const char *argp)	/* add a character class */
 				c2 = *p++;
 				if (c2 == '\\')
 					c2 = quoted((char **) &p);
-				if (collate_range_cmp(c, c2) > 0) {	/* empty; ignore */
+				if (c > c2) {	/* empty; ignore */
 					bp--;
 					i--;
 					continue;
 				}
-				for (j = 0; j < NCHARS; j++) {
-					if ((collate_range_cmp(c, j) > 0) ||
-					    collate_range_cmp(j, c2) > 0)
-						continue;
+				while (c < c2) {
 					if (!adjbuf((char **) &buf, &bufsz, bp-buf+2, 100, (char **) &bp, 0))
 						FATAL("out of space for character class [%.10s...] 2", p);
-					*bp++ = j;
+					*bp++ = ++c;
 					i++;
 				}
 				continue;
@@ -713,24 +695,23 @@ Node *unary(Node *np)
  * relex(), the expanded character class (prior to range expansion)
  * must be less than twice the size of their full name.
  */
-
 struct charclass {
 	const char *cc_name;
 	int cc_namelen;
-	int (*cc_func)(int);
+	const char *cc_expand;
 } charclasses[] = {
-	{ "alnum",	5,	isalnum },
-	{ "alpha",	5,	isalpha },
-	{ "blank",	5,	isblank },
-	{ "cntrl",	5,	iscntrl },
-	{ "digit",	5,	isdigit },
-	{ "graph",	5,	isgraph },
-	{ "lower",	5,	islower },
-	{ "print",	5,	isprint },
-	{ "punct",	5,	ispunct },
-	{ "space",	5,	isspace },
-	{ "upper",	5,	isupper },
-	{ "xdigit",	6,	isxdigit },
+	{ "alnum",	5,	"0-9A-Za-z" },
+	{ "alpha",	5,	"A-Za-z" },
+	{ "blank",	5,	" \t" },
+	{ "cntrl",	5,	"\000-\037\177" },
+	{ "digit",	5,	"0-9" },
+	{ "graph",	5,	"\041-\176" },
+	{ "lower",	5,	"a-z" },
+	{ "print",	5,	" \041-\176" },
+	{ "punct",	5,	"\041-\057\072-\100\133-\140\173-\176" },
+	{ "space",	5,	" \f\n\r\t\v" },
+	{ "upper",	5,	"A-Z" },
+	{ "xdigit",	6,	"0-9A-Fa-f" },
 	{ NULL,		0,	NULL },
 };
 
@@ -743,7 +724,7 @@ int relex(void)		/* lexical analyzer for reparse */
 	static int bufsz = 100;
 	uschar *bp;
 	struct charclass *cc;
-	int i;
+	const uschar *p;
 
 	switch (c = *prestr++) {
 	case '|': return OR;
@@ -792,14 +773,8 @@ int relex(void)		/* lexical analyzer for reparse */
 				if (cc->cc_name != NULL && prestr[1 + cc->cc_namelen] == ':' &&
 				    prestr[2 + cc->cc_namelen] == ']') {
 					prestr += cc->cc_namelen + 3;
-					for (i = 0; i < NCHARS; i++) {
-						if (!adjbuf((char **) &buf, &bufsz, bp-buf+1, 100, (char **) &bp, 0))
-						    FATAL("out of space for reg expr %.10s...", lastre);
-						if (cc->cc_func(i)) {
-							*bp++ = i;
-							n++;
-						}
-					}
+					for (p = (const uschar *) cc->cc_expand; *p; p++)
+						*bp++ = *p;
 				} else
 					*bp++ = c;
 			} else if (c == '\0') {
