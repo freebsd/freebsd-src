@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.94 1997/10/11 18:31:19 phk Exp $
+ **      $Id: userconfig.c,v 1.95 1997/10/12 20:23:20 phk Exp $
  **/
 
 /**
@@ -307,6 +307,7 @@ static DEV_INFO device_info[] = {
 {"vga",		"Catchall PCI VGA driver",		FLG_INVISIBLE,	CLS_MISC},
 {"chip",	"PCI chipset support",			FLG_INVISIBLE,	CLS_MISC},
 {"piix",        "Intel 82371 Bus-master IDE controller", FLG_INVISIBLE, CLS_MISC},
+{"ide_pci",	"PCI IDE controller",			FLG_INVISIBLE,	CLS_MISC},
 {"","",0,0}};
 
 
@@ -2367,7 +2368,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.94 1997/10/11 18:31:19 phk Exp $
+ *      $Id: userconfig.c,v 1.95 1997/10/12 20:23:20 phk Exp $
  */
 
 #include "scbus.h"
