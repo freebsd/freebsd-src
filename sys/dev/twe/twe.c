@@ -46,9 +46,13 @@ static int	twe_get_param_2(struct twe_softc *sc, int table_id, int param_id, u_i
 static int	twe_get_param_4(struct twe_softc *sc, int table_id, int param_id, u_int32_t *result);
 static void	*twe_get_param(struct twe_softc *sc, int table_id, int parameter_id, size_t size, 
 					       void (* func)(struct twe_request *tr));
+#ifdef TWE_SHUTDOWN_NOTIFICATION
 static int	twe_set_param_1(struct twe_softc *sc, int table_id, int param_id, u_int8_t value);
+#endif
+#if 0
 static int	twe_set_param_2(struct twe_softc *sc, int table_id, int param_id, u_int16_t value);
 static int	twe_set_param_4(struct twe_softc *sc, int table_id, int param_id, u_int32_t value);
+#endif
 static int	twe_set_param(struct twe_softc *sc, int table_id, int param_id, int param_size, 
 					      void *data);
 static int	twe_init_connection(struct twe_softc *sc, int mode);
@@ -714,12 +718,15 @@ err:
 /********************************************************************************
  * Set integer parameter table entries.
  */
+#ifdef TWE_SHUTDOWN_NOTIFICATION
 static int
 twe_set_param_1(struct twe_softc *sc, int table_id, int param_id, u_int8_t value)
 {
     return(twe_set_param(sc, table_id, param_id, sizeof(value), &value));
 }
+#endif
 
+#if 0
 static int
 twe_set_param_2(struct twe_softc *sc, int table_id, int param_id, u_int16_t value)
 {
@@ -731,6 +738,7 @@ twe_set_param_4(struct twe_softc *sc, int table_id, int param_id, u_int32_t valu
 {
     return(twe_set_param(sc, table_id, param_id, sizeof(value), &value));
 }
+#endif
 
 /********************************************************************************
  * Perform a TWE_OP_SET_PARAM command, returns nonzero on error.
