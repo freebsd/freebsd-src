@@ -19,7 +19,7 @@ CLEANFILES+=win_st.gr twinkle1.gr twinkle2.gr life.gr intro.2.tbl appen.A.tbl \
 # Don't re-run vgrind unless you want to patch the output files.
 VFONT=	/usr/libexec/vfontedpr
 .c.gr:
-	${VFONT} $*.c | grep -v "^'wh" > $*.gr
+	${VFONT} ${.PREFIX}.c | grep -v "^'wh" > ${.PREFIX}.gr
 
 paper.ps: ${SRCS}
 	soelim ${SRCS} | ${ROFF} > ${.TARGET}
