@@ -786,8 +786,14 @@ no_kernend:
 	movl	%esi, R(SMPpt)		/* relocated to KVM space */
 #endif	/* SMP */
 
-/* Map read-only from zero to the beginning of the kernel text section */
+/* Map page zero read-write so bios32 calls can use it */
 	xorl	%eax, %eax
+	movl	$PG_RW,%edx
+	movl	$PAGE_SIZE,%ecx
+	fillkptphys(%edx)
+
+/* Map read-only from page 1 to the beginning of the kernel text section */
+	movl	$PAGE_MASK, %eax
 	xorl	%edx,%edx
 	movl	$R(btext),%ecx
 	addl	$PAGE_MASK,%ecx

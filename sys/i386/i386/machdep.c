@@ -1504,13 +1504,6 @@ getmemsize(int first)
 	char *cp;
 	struct bios_smap *smap;
 
-	/*
-	 * Change the mapping of the page at address zero from r/o to r/w
-	 * so that vm86 can scribble on this page.  Note that this page is
-	 * not in the general free page pool.
-	 */
-	pmap_kenter(KERNBASE, 0);
-
 	hasbrokenint12 = 0;
 	TUNABLE_INT_FETCH("hw.hasbrokenint12", &hasbrokenint12);
 	bzero(&vmf, sizeof(vmf));
