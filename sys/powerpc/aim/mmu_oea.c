@@ -198,11 +198,6 @@ int	pmap_bootstrapped = 0;
 struct		msgbuf *msgbufp;
 vm_offset_t	msgbuf_phys;
 
-/*
- * Physical address of the last available physical page.
- */
-vm_offset_t avail_end;
-
 int pmap_pagedaemon_waken;
 
 /*
@@ -776,8 +771,7 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	 */
 	for (i = 0; phys_avail[i + 2] != 0; i += 2)
 		;
-	avail_end = phys_avail[i + 1];
-	Maxmem = powerpc_btop(avail_end);
+	Maxmem = powerpc_btop(phys_avail[i + 1]);
 
 	/*
 	 * Allocate virtual address space for the message buffer.
