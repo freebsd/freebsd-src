@@ -148,8 +148,11 @@
 
     <para>The &man.stl.4; driver has been updated to version 5.6.0b1.</para>
 
+    <para>The &man.umct.4; driver, which provides support for USB to RS-232
+      converters based on the Magic Control Technology USB-232 has been added.</para>
+
     <para>The &man.usb.4; support has been improved, which includes a lot of
-      bug fixes and initial support of EHCI.
+      bug fixes and early support for some USB2 devices.
 
       <note>
 	<para>&man.umodem.4; now uses <filename>/dev/ucom*</filename>
@@ -216,7 +219,7 @@
 
       <para>The &man.amr.4; driver now has system crashdump support.</para>
 
-      <para arch="i386">The twa driver, which supports
+      <para arch="i386">The &man.twa.4; driver, which supports
 	3ware's 9000 series PATA/SATA RAID controllers has been added.</para>
 
       <para>The &man.umass.4; driver now supports the missing
@@ -326,15 +329,45 @@
   <sect2 id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
 
-    <para></para>
+    <para>The <literal>SIZE</literal> attribute for distfiles,
+      which can be used for checking file sizes before fetching,
+      has been added and enabled by default.
+      <varname>DISABLE_SIZE</varname> is a user control knob
+      to disable the distfile size checking.  This is especially
+      useful on old &os; versions which didn't have &man.fetch.1;
+      support for this, and for some FTP proxies which always
+      report incorrect or bogus sizes.</para>
 
   </sect2>
 
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
 
-    <para></para>
+    <para>The supported release of <application>GNOME</application>
+      has been updated from 2.4 to 2.6.
 
+      <note>
+	<para>If you are using the older <application>GNOME</application>
+	  desktop itself, simply upgrade it from &os; Ports Collection
+	  (<filename role="package">x11/kde3</filename>) with
+	  <command>portupgrade</command>
+	  (<filename role="package">sysutils/portupgrade</filename>)
+	  will cause serious problems.
+	  If you are a <application>GNOME</application> desktop user,
+	  please read the instructions carefully at
+	  <ulink url="http://www.FreeBSD.org/gnome/docs/faq26.html"></ulink>,
+	  and use the <filename>gnome_upgrade.sh</filename> script to
+	  properly upgrade to <application>GNOME</application> 2.6.</para>
+
+	<para>Note that if you are just a casual user of some of the
+	  <application>GNOME</application> libraries,
+	  <command>portupgrade</command> should be sufficient
+	  to update your ports.</para>
+      </note>
+    </para>
+
+    <para>The supported release of <application>KDE</application>
+      has been updated from 3.1.4 to 3.2.1.</para>
   </sect2>
 </sect1>
 
