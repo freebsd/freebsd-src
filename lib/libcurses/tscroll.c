@@ -66,7 +66,7 @@ __tscroll(cap, n1, n2)
 	int n1, n2;
 {
 	static char result[MAXRETURNSIZE];
-	int c, n;
+	int c, n, increment = 0;
 	char *dp;
 
 	if (cap == NULL)
@@ -94,6 +94,8 @@ __tscroll(cap, n1, n2)
 two:			*dp++ = n / 10 | '0';
 one:			*dp++ = n % 10 | '0';
 			n = n2;
+			if (increment)
+				n++;
 			continue;
 		case '>':
 			if (n > *cap++)
@@ -108,6 +110,7 @@ one:			*dp++ = n % 10 | '0';
 			*dp++ = n;
 			continue;
 		case 'i':
+			increment = 1;
 			n++;
 			continue;
 		case '%':
