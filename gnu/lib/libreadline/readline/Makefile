@@ -3,7 +3,7 @@
 SUBDIR= doc
 
 LIB=    readline
-MAN=	readline.3
+MAN=    doc/readline.3
 
 TILDESRC= tilde.c
 SRCS=     readline.c vi_mode.c funmap.c keymaps.c parens.c search.c \
