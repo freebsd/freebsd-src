@@ -134,6 +134,61 @@ sysctl_kern_stackprot(SYSCTL_HANDLER_ARGS)
  */
 static const struct execsw **execsw;
 
+#ifndef _SYS_SYSPROTO_H_
+struct execve_args {
+        char    *fname; 
+        char    **argv;
+        char    **envv; 
+};
+#endif
+
+/*
+ * MPSAFE
+ */
+int
+execve(td, uap)
+	struct thread *td;
+	struct execve_args /* {
+		char *fname;
+		char **argv;
+		char **envv;
+	} */ *uap;
+{
+
+	return (kern_execve(td, uap->fname, uap->argv, uap->envv, NULL));
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct __mac_execve_args {
+	char	*fname;
+	char	**argv;
+	char	**envv;
+	struct mac	*mac_p;
+};
+#endif
+
+/*
+ * MPSAFE
+ */
+int
+__mac_execve(td, uap)
+	struct thread *td;
+	struct __mac_execve_args /* {
+		char *fname;
+		char **argv;
+		char **envv;
+		struct mac *mac_p;
+	} */ *uap;
+{
+
+#ifdef MAC
+	return (kern_execve(td, uap->fname, uap->argv, uap->envv,
+	    uap->mac_p));
+#else
+	return (ENOSYS);
+#endif
+}
+
 /*
  * In-kernel implementation of execve().  All arguments are assumed to be
  * userspace pointers from the passed thread.
@@ -667,61 +722,6 @@ done2:
 #endif
 	mtx_unlock(&Giant);
 	return (error);
-}
-
-#ifndef _SYS_SYSPROTO_H_
-struct execve_args {
-        char    *fname; 
-        char    **argv;
-        char    **envv; 
-};
-#endif
-
-/*
- * MPSAFE
- */
-int
-execve(td, uap)
-	struct thread *td;
-	struct execve_args /* {
-		char *fname;
-		char **argv;
-		char **envv;
-	} */ *uap;
-{
-
-	return (kern_execve(td, uap->fname, uap->argv, uap->envv, NULL));
-}
-
-#ifndef _SYS_SYSPROTO_H_
-struct __mac_execve_args {
-	char	*fname;
-	char	**argv;
-	char	**envv;
-	struct mac	*mac_p;
-};
-#endif
-
-/*
- * MPSAFE
- */
-int
-__mac_execve(td, uap)
-	struct thread *td;
-	struct __mac_execve_args /* {
-		char *fname;
-		char **argv;
-		char **envv;
-		struct mac *mac_p;
-	} */ *uap;
-{
-
-#ifdef MAC
-	return (kern_execve(td, uap->fname, uap->argv, uap->envv,
-	    uap->mac_p));
-#else
-	return (ENOSYS);
-#endif
 }
 
 int
