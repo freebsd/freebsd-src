@@ -72,7 +72,6 @@ static char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <tzfile.h>
 #include <unistd.h>
 #include <utmp.h>
 #include <vis.h>
@@ -371,11 +370,11 @@ pr_header(nowp, nusers)
 	    boottime.tv_sec != 0) {
 		uptime = now - boottime.tv_sec;
 		uptime += 30;
-		days = uptime / SECSPERDAY;
-		uptime %= SECSPERDAY;
-		hrs = uptime / SECSPERHOUR;
-		uptime %= SECSPERHOUR;
-		mins = uptime / SECSPERMIN;
+		days = uptime / 86400;
+		uptime %= 86400;
+		hrs = uptime / 3600;
+		uptime %= 3600;
+		mins = uptime / 60;
 		(void)printf(" up");
 		if (days > 0)
 			(void)printf(" %d day%s,", days, days > 1 ? "s" : "");

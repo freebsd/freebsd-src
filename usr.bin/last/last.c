@@ -52,7 +52,6 @@ static char sccsid[] = "@(#)last.c	8.2 (Berkeley) 4/2/94";
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <tzfile.h>
 #include <unistd.h>
 #include <utmp.h>
 
@@ -248,12 +247,12 @@ wtmp()
 						printf("- %5.5s",
 						    ctime(&T->logout)+11);
 					delta = T->logout - bp->ut_time;
-					if (delta < SECSPERDAY)
+					if (delta < 86400)
 						printf("  (%5.5s)\n",
 						    asctime(gmtime(&delta))+11);
 					else
 						printf(" (%ld+%5.5s)\n",
-						    delta / SECSPERDAY,
+						    delta / 86400,
 						    asctime(gmtime(&delta))+11);
 				}
 				if (maxrec != -1 && !--maxrec)
