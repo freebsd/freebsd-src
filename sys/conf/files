@@ -1195,7 +1195,6 @@ pci/cy_pci.c		optional cy pci
 pci/if_dc.c		optional dc
 pci/if_de.c		optional de
 pci/if_en_pci.c		optional en pci
-#pci/if_fxp.c		optional fxp
 pci/if_mn.c		optional mn
 pci/if_pcn.c		optional pcn
 pci/if_rl.c		optional rl
