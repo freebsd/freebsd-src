@@ -61,7 +61,6 @@ alpha/alpha/ipl_funcs.c		standard
 alpha/alpha/machdep.c		standard
 alpha/alpha/mem.c		standard
 alpha/alpha/mountroot.c		optional	slice
-alpha/alpha/mp_machdep.c	optional	smp
 alpha/alpha/pal.s		standard
 alpha/alpha/perfmon.c		optional	perfmon	profiling-routine
 alpha/alpha/perfmon.c		optional	perfmon
@@ -72,7 +71,6 @@ alpha/alpha/prom.c		standard
 alpha/alpha/promcons.c		standard
 alpha/alpha/prom_disp.s		standard
 alpha/alpha/sgmap.c		standard
-alpha/alpha/simplelock.s	optional	smp
 alpha/alpha/support.s		standard
 alpha/alpha/swtch.s		standard
 alpha/alpha/sys_machdep.c	standard
