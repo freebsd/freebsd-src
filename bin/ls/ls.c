@@ -639,6 +639,7 @@ display(FTSENT *p, FTSENT *list)
 						maxflags = flen;
 				} else
 					flen = 0;
+				lattr = NULL;
 				if (f_lomac) {
 					lattr = get_lattr(cur);
 					lattrlen = strlen(lattr);
