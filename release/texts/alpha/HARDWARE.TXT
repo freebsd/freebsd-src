@@ -1205,6 +1205,9 @@ Features:
 NOTE: Lynx support is currently flagged as experimental due to lack of
       testing / test hardware.
 
+CPU:
+The CPUs spec-ed as 200 Mhz are in reality running at 190 MHz.
+
 Memory:
 The machines use dedicated memory boards. These boards live on a 128 bit 
 C-bus shared with the CPU boards. DemiSable supports up to 1Gb, Sable up 
@@ -1225,7 +1228,9 @@ slots. Lynx, being newer, has 8 PCI and 3 EISA slots. Make sure you run the
 EISA Configuration Utility (from floppy) when adding/change expansion cards
 in EISA slots.
 
-	NOTE: EISA slots are currently unsupported.
+	NOTE: EISA slots are currently unsupported, but the Compaq Qvision
+	      EISA VGA adapter is treated as an ISA device. It therefore
+	      works OK as a console.
 
 Power:
 The machines can be equipped with redundant power supplies.
@@ -1279,7 +1284,9 @@ PCI0 has 1 dedicated PCI slot and (shared) 3 PCI/EISA slots. PCI0 also has a
 PCI/EISA bridge that drives things like the serial and parallel ports,
 keyboard/mouse etc. PCI1 has 4 PCI slots and an NCR810 SCSI chip.
 
-	NOTE: EISA slots are currently unsupported.
+	NOTE: EISA slots are currently unsupported, but the Compaq Qvision
+	      EISA VGA adapter is treated as an ISA device. It therefore
+	      works OK as a console.
 
 Power:
 The system employs an I2C based power controller system. If you want to be
@@ -1391,7 +1398,8 @@ GENERIC contains things that are known to work on Alpha only.
 in GENERIC and has limited support (see the relevant machine model info).
 The MCA bus is not supported. The EISA bus is not supported for use with
 EISA expansion cards as the EISA support code is lacking. ISA cards in EISA 
-slots are reported to work.
+slots are reported to work. The Compaq Qvision EISA VGA card is driven in
+ISA mode and works OK as a console.
 
 - Floppy drives: 1.44 Mbyte and 1.2 Mbyte floppy drives are supported.
 2.88Mbyte drives sometimes found in Alpha machines are supported up to
