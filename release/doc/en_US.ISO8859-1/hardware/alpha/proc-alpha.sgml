@@ -44,6 +44,8 @@
       <para>You will see references to DEC, Digital Equipment Corporation and 
       Compaq used more or less interchangeably. Now that Compaq has acquired 
       Digital Equipment it would be more correct to refer to Compaq only.
+      To be completely politically correct given that Hewlett Packard 
+      in turn has acquired Compaq I probably should be using HP everywhere.
       Given the fact that you will see the mix of names everywhere, I don't
       bother.</para>
     </note>
@@ -2519,21 +2521,29 @@ cpu	EV5	#dependent on CPU model installed</programlisting>
 	  </listitem>
         </itemizedlist>
 
+     <para>Rawhide can be equipped with a variety of CPU modules. CPU
+     modules exist in versions with and without external cache. In all
+     cases the CPU modules installed always must be of the same speed. A mix
+     of NT-only and full-blown Tru64/VMS CPUs works fine. It will however
+     result in the system reporting itself to the operating system 
+     as a Digital Server 730x (so the NT-only variant). &os; does not care,
+     but such a system will not allow Tru64 or VMS to run.</para>
+
      <para>Rawhide uses a maximum of 8 RAM modules. These modules are used 
      in pairs and supply 72 bits to the bus (this includes ECC bits). 
      Memory can be EDO RAM or synchronous DRAM. A fully populated AS4100 
      has 4 pairs of memory modules. The AS4000 model is limited to 2 pairs
      of memory modules. Given the choice use SDRAM for 
-     best performance. The highest capacity memory board must be in 
-     memory slot 0. A mix of memory board sizes is allowed. A mix 
-     of EDO and SDRAM works as well (assuming you don't 
-     try to mix EDO and SDRAM in one module pair). A mix of EDO and SDRAM
+     best performance. The highest capacity memory boards must be in the
+     memory slots marked MEM0L and MEM0H. A mix of memory board 
+     sizes is allowed. A mix of EDO and SDRAM works as well (assuming you don't 
+     try to mix EDO and SDRAM in a single module pair). A mix of EDO and SDRAM
      results in the <emphasis>entire</emphasis> memory subsystem running at
-     the slower EDO timing</para>
+     the slower EDO timing.</para>
 
      <para>Rawhide has an embedded Symbios 810 chip that gives you a
      narrow fast-SCSI bus. Generally only the SCSI CDROM is driven by
-     this interface. </para>
+     this interface.</para>
 
      <para>Rawhides are available with a 8 64-bit PCI / 3 EISA 
      slot expansion backplanes (called <quote>Saddle</quote> modules). There 
@@ -2552,13 +2562,13 @@ cpu	EV5	#dependent on CPU model installed</programlisting>
 
      <note><para>EISA slots are currently unsupported, but the Compaq Qvision
      EISA VGA adapter is treated as an ISA device. It therefore works 
-     OK as a console. In case you use EISA options in your machine you
+     as a console. In case you use EISA options in your machine you
      must run the EISA Configuration Utility (ECU) from floppy. Do yourself
      a favor and use the Tru64/OpenVMS ECU, and not the WindowsNT ECU.
      </para></note>
 
      <para>Rawhide employs an I2C based power controller system. If 
-     you want to be sure all power is removed from the system remove the 
+     you want to be sure all power is removed from the system remove all
      mains cables from the system.</para>
 
      <para>Rawhide comes with RCM functionality, which means you can 
