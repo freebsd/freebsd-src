@@ -133,7 +133,7 @@ static void		 cleanup_editfile(void);
 
 
 #define	RTRIM(string) do {						\
-	int _length;						\
+	int _length;							\
 	while (isspace(string[_length = strlen(string) - 1]))		\
 		string[_length] = '\0';					\
 } while (0)
