@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.230 1999/05/07 06:50:27 mckusick Exp $
+ *	$Id: sio.c,v 1.231 1999/05/07 10:10:42 phk Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -2851,12 +2851,15 @@ siocnprobe(cp)
 				printf("sio%d: gdb debugging port\n", unit);
 				siogdbiobase = iobase;
 				siogdbunit = unit;
+#ifdef	__i386__
 				gdbdev = makedev(CDEV_MAJOR, unit);
 				gdb_getc = siocngetc;
 				gdb_putc = siocnputc;
+#endif
 			}
 		}
 	}
+#ifdef	__i386__
 	/*
 	 * XXX Ugly Compatability.
 	 * If no gdb port has been specified, set it to be the console
@@ -2870,6 +2873,7 @@ siocnprobe(cp)
 		gdb_getc = siocngetc;
 		gdb_putc = siocnputc;
 	}
+#endif
 }
 
 #ifdef __alpha__
