@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.45 1997/06/15 16:35:13 kato Exp $
+ *	$Id: machdep.c,v 1.46 1997/06/23 09:35:36 kato Exp $
  */
 
 #include "apm.h"
@@ -114,7 +114,6 @@
 #include <machine/md_var.h>
 #ifdef SMP
 #include <machine/smp.h>
-#include <machine/smptests.h>	/** LATE_START */
 #endif
 #ifdef PERFMON
 #include <machine/perfmon.h>
@@ -788,7 +787,7 @@ SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock,
 int currentldt;
 int _default_ldt;
 #ifdef SMP
-union descriptor gdt[NGDT + NCPU];		/* global descriptor table */
+union descriptor gdt[NGDT + NCPU];	/* global descriptor table */
 #else
 union descriptor gdt[NGDT];		/* global descriptor table */
 #endif
