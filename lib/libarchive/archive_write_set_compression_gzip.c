@@ -25,6 +25,10 @@
  */
 
 #include "archive_platform.h"
+
+/* Don't compile this if we don't have zlib. */
+#if HAVE_ZLIB_H
+
 __FBSDID("$FreeBSD$");
 
 #include <errno.h>
@@ -381,3 +385,5 @@ drive_compressor(struct archive *a, struct private_data *state, int finishing)
 		}
 	}
 }
+
+#endif /* HAVE_ZLIB_H */
