@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: load_elf.c,v 1.9 1998/10/17 03:06:38 peter Exp $
+ *	$Id: load_elf.c,v 1.10 1999/01/04 18:37:41 peter Exp $
  */
 
 #include <sys/param.h>
@@ -229,7 +229,7 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
     firstaddr = lastaddr = 0;
     if (kernel) {
 #ifdef __i386__
-	off = 0x10000000;	/* -0xf0000000  - i386 relocates after locore */
+	off = - (off & 0xff000000u);	/* i386 relocates after locore */
 #else
 	off = 0;		/* alpha is direct mapped for kernels */
 #endif
