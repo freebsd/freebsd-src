@@ -87,51 +87,50 @@ isab_probe(device_t dev)
     /*
      * Try for a generic match based on class/subclass.
      */
-    if ((pci_get_class(dev) == PCIC_BRIDGE) &&
-	(pci_get_subclass(dev) == PCIS_BRIDGE_ISA))
-	matched = 1;
-    /*
-     * Some bridges don't report the ISA bus correctly.
-     * (Note that some of the devices listed here probably do, we will
-     *  kvetch about this below and request updates.)
-     */
-    switch (pci_get_devid(dev)) {
-    case 0x04848086:	/* Intel 82378ZB/82378IB */
-    case 0x122e8086:	/* Intel 82371FB */
-    case 0x70008086:	/* Intel 82371SB */
-    case 0x71988086:	/* Intel 82443MX */
-    case 0x24108086:	/* Intel 82801AA (ICH) */
-    case 0x24208086:	/* Intel 82801AB (ICH0) */
-    case 0x00061004:	/* VLSI 82C593 */
-    case 0x05861106:	/* VIA 82C586 */
-    case 0x05961106:	/* VIA 82C596 PCI-ISA */
-	/* AcerLabs -- vendor 0x10b9 */
-	/* Funny : The datasheet told me vendor id is "10b8",sub-vendor */
-	/* id is '10b9" but the register always shows "10b9". -Foxfair  */
-    case 0x153310b9:	/* AcerLabs M1533 */
-    case 0x154310b9:	/* AcerLabs M1543 */
-    case 0x00081039:	/* SiS 85c503 */
-    case 0x00001078:	/* Cyrix Cx5510 */
-    case 0x01001078:	/* Cyrix Cx5530 */
-    case 0xc7001045:	/* OPTi 82C700 (FireStar) */
-    case 0x00011033:	/* NEC 0001 (C-bus) */
-    case 0x002c1033:	/* NEC 002C (C-bus) */
-    case 0x003b1033:	/* NEC 003B (C-bus) */
-    case 0x886a1060:	/* UMC UM8886 ISA */
-    case 0x02001166:	/* ServerWorks IB6566 PCI */
-	matched = 1;
-	/*
-	 * Report redundant matches (debugging)
-	 */
-	if ((pci_get_class(dev) == PCIC_BRIDGE) &&
-	    (pci_get_subclass(dev) == PCIS_BRIDGE_ISA)) {
-	    printf("** REDUNDANT ISA BRIDGE MATCH FOR DEVICE 0x%08x\n", pci_get_devid(dev));
-	    printf("** Please report to msmith@freebsd.org\n");
-	}
-	break;
+    if (pci_get_class(dev) == PCIC_BRIDGE) {
+	if (pci_get_subclass(dev) == PCIS_BRIDGE_ISA) {
+	    matched = 1;
+	} else {
+	    /*
+	     * These are devices that we *know* are PCI:ISA bridges. 
+	     * Sometimes, however, they don't report themselves as
+	     * such.  Check in case one of them is pretending to be
+	     * something else.
+	     */
+	    switch (pci_get_devid(dev)) {
+	    case 0x04848086:	/* Intel 82378ZB/82378IB */
+	    case 0x122e8086:	/* Intel 82371FB */
+	    case 0x70008086:	/* Intel 82371SB */
+	    case 0x71108086:	/* Intel 82371AB */
+	    case 0x71988086:	/* Intel 82371MX */
+	    case 0x24108086:	/* Intel 82801AA (ICH) */
+	    case 0x24208086:	/* Intel 82801AB (ICH0) */
+	    case 0x24408086:	/* Intel 82801AB (ICH2) */
+	    case 0x00061004:	/* VLSI 82C593 */
+	    case 0x05861106:	/* VIA 82C586 */
+	    case 0x05961106:	/* VIA 82C596 */
+	    case 0x06861106:	/* VIA 82C686 */
+	    case 0x153310b9:	/* AcerLabs M1533 */
+	    case 0x154310b9:	/* AcerLabs M1543 */
+	    case 0x00081039:	/* SiS 85c503 */
+	    case 0x00001078:	/* Cyrix Cx5510 */
+	    case 0x01001078:	/* Cyrix Cx5530 */
+	    case 0xc7001045:	/* OPTi 82C700 (FireStar) */
+	    case 0x00011033:	/* NEC 0001 (C-bus) */
+	    case 0x002c1033:	/* NEC 002C (C-bus) */
+	    case 0x003b1033:	/* NEC 003B (C-bus) */
+	    case 0x886a1060:	/* UMC UM8886 ISA */
+	    case 0x02001166:	/* ServerWorks IB6566 PCI */
+		if (bootverbose)
+		    printf("PCI-ISA bridge with incorrect subclass 0x%x\n",
+			   pci_get_subclass(dev));
+		matched = 1;
+		break;
 	
-    default:
-	break;
+	    default:
+		break;
+	    }
+	}
     }
 
     if (matched) {
