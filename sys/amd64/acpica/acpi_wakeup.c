@@ -79,70 +79,70 @@ static void		acpi_alloc_wakeup_handler(void);
 extern int		acpi_savecpu(void);
 extern int		acpi_restorecpu(void);
 
-__asm__("
-	.text
-	.p2align 2, 0x90
-	.type acpi_restorecpu, @function
-acpi_restorecpu:
-	.align 4
-	movl	r_eax,%eax
-	movl	r_ebx,%ebx
-	movl	r_ecx,%ecx
-	movl	r_edx,%edx
-	movl	r_ebp,%ebp
-	movl	r_esi,%esi
-	movl	r_edi,%edi
-	movl	r_esp,%esp
-
-	pushl	r_efl
-	popfl
-
-	pushl	ret_addr
-	xorl	%eax,%eax
-	ret
-
-	.text
-	.p2align 2, 0x90
-	.type acpi_savecpu, @function
-acpi_savecpu:
-	movw	%cs,r_cs
-	movw	%ds,r_ds
-	movw	%es,r_es
-	movw	%fs,r_fs
-	movw	%gs,r_gs
-	movw	%ss,r_ss
-
-	movl	%eax,r_eax
-	movl	%ebx,r_ebx
-	movl	%ecx,r_ecx
-	movl	%edx,r_edx
-	movl	%ebp,r_ebp
-	movl	%esi,r_esi
-	movl	%edi,r_edi
-
-	movl	%cr0,%eax
-	movl	%eax,r_cr0
-	movl	%cr2,%eax
-	movl	%eax,r_cr2
-	movl	%cr3,%eax
-	movl	%eax,r_cr3
-	movl	%cr4,%eax
-	movl	%eax,r_cr4
-
-	pushfl
-	popl	r_efl
-
-	movl	%esp,r_esp
-
-	sgdt	r_gdt
-	sidt	r_idt
-	sldt	r_ldt
-	str	r_tr
-
-	movl	(%esp),%eax
-	movl	%eax,ret_addr
-	movl	$1,%eax
-	ret
+__asm__("				\n\
+	.text				\n\
+	.p2align 2, 0x90		\n\
+	.type acpi_restorecpu, @function\n\
+acpi_restorecpu:			\n\
+	.align 4			\n\
+	movl	r_eax,%eax		\n\
+	movl	r_ebx,%ebx		\n\
+	movl	r_ecx,%ecx		\n\
+	movl	r_edx,%edx		\n\
+	movl	r_ebp,%ebp		\n\
+	movl	r_esi,%esi		\n\
+	movl	r_edi,%edi		\n\
+	movl	r_esp,%esp		\n\
+					\n\
+	pushl	r_efl			\n\
+	popfl				\n\
+					\n\
+	pushl	ret_addr		\n\
+	xorl	%eax,%eax		\n\
+	ret				\n\
+					\n\
+	.text				\n\
+	.p2align 2, 0x90		\n\
+	.type acpi_savecpu, @function	\n\
+acpi_savecpu:				\n\
+	movw	%cs,r_cs		\n\
+	movw	%ds,r_ds		\n\
+	movw	%es,r_es		\n\
+	movw	%fs,r_fs		\n\
+	movw	%gs,r_gs		\n\
+	movw	%ss,r_ss		\n\
+					\n\
+	movl	%eax,r_eax		\n\
+	movl	%ebx,r_ebx		\n\
+	movl	%ecx,r_ecx		\n\
+	movl	%edx,r_edx		\n\
+	movl	%ebp,r_ebp		\n\
+	movl	%esi,r_esi		\n\
+	movl	%edi,r_edi		\n\
+					\n\
+	movl	%cr0,%eax		\n\
+	movl	%eax,r_cr0		\n\
+	movl	%cr2,%eax		\n\
+	movl	%eax,r_cr2		\n\
+	movl	%cr3,%eax		\n\
+	movl	%eax,r_cr3		\n\
+	movl	%cr4,%eax		\n\
+	movl	%eax,r_cr4		\n\
+					\n\
+	pushfl				\n\
+	popl	r_efl			\n\
+					\n\
+	movl	%esp,r_esp		\n\
+					\n\
+	sgdt	r_gdt			\n\
+	sidt	r_idt			\n\
+	sldt	r_ldt			\n\
+	str	r_tr			\n\
+					\n\
+	movl	(%esp),%eax		\n\
+	movl	%eax,ret_addr		\n\
+	movl	$1,%eax			\n\
+	ret				\n\
 ");
 
 static void
