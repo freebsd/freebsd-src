@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.1 1993/10/12 06:52:31 rgrimes Exp $
+ *	$Id: if_ie.c,v 1.2 1993/11/25 01:31:36 wollman Exp $
  */
 
 /*
@@ -115,7 +115,6 @@ iomem, and to make 16-pointers, we subtract iomem and and with 0xffff.
 #include "net/if.h"
 #include "net/if_types.h"
 #include "net/if_dl.h"
-#include "net/netisr.h"
 #include "net/route.h"
 
 #include "bpfilter.h"
