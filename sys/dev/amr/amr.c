@@ -692,9 +692,9 @@ amr_query_controller(struct amr_softc *sc)
 	}
 	/* first-time enquiry? */
 	if (sc->amr_maxdrives == 0) {
-	    device_printf(sc->amr_dev, "firmware %.4s bios %.4s  %dMB memory, chipset %x\n", 
+	    device_printf(sc->amr_dev, "firmware %.4s bios %.4s  %dMB memory\n", 
 			  ae->ae_adapter.aa_firmware, ae->ae_adapter.aa_bios,
-			  ae->ae_adapter.aa_memorysize, ae->ae_adapter.aa_chipsetvalue);
+			  ae->ae_adapter.aa_memorysize);
 	}
 	sc->amr_maxdrives = 8;
 	sc->amr_maxio = ae->ae_adapter.aa_maxio;
