@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.24 1997/02/22 09:39:19 peter Exp $
+ * $Id: sys_pipe.c,v 1.25 1997/03/22 06:52:57 bde Exp $
  */
 
 #ifndef OLD_PIPE
@@ -54,6 +54,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/protosw.h>
 #include <sys/stat.h>

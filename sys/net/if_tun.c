@@ -28,7 +28,7 @@
 #include <sys/errno.h>
 #include <sys/syslog.h>
 #include <sys/select.h>
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>

@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id$
+ * $Id: vm_mmap.c,v 1.62 1997/02/22 09:48:27 peter Exp $
  */
 
 /*
@@ -54,6 +54,7 @@
 #include <sys/resourcevar.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
+#include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/mman.h>
 #include <sys/conf.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_ktrace.c	8.2 (Berkeley) 9/23/93
- * $Id$
+ * $Id: kern_ktrace.c,v 1.17 1997/02/22 09:39:05 peter Exp $
  */
 
 #include "opt_ktrace.h"
@@ -40,7 +40,7 @@
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/proc.h>
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
 #include <sys/ktrace.h>

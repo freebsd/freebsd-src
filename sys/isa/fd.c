@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id$
+ *	$Id: fd.c,v 1.97 1997/02/22 09:36:09 peter Exp $
  *
  */
 
@@ -59,7 +59,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/ioctl.h>
 #include <machine/clock.h>
 #include <machine/ioctl_fd.h>
