@@ -153,7 +153,7 @@ is called multiple times without an intervening
 the 
 .Fn await
 is effectively a NOP but will also call
-.Fn mswitch
+.Fn mi_switch
 for safety.  The
 .Fn await
 function allows you to override the priority and timeout values to be used.
@@ -227,7 +227,7 @@ used to be the traditional form.  It doesn't let you specify a timeout or a
 .Ar wmesg ,
 hence it has been discontinued.
 .Sh AUTHORS
-This man page has been written by
+This man page was written by
 .ie t J\(:org Wunsch.
 .el Joerg Wunsch. 
 .Nm Asleep
