@@ -37,7 +37,7 @@ CC		?=	c89
 CFLAGS		?=	-O
 .else
 CC		?=	cc
-CFLAGS		?=	-O -pipe
+CFLAGS		?=	-O2 -pipe
 .endif
 
 CXX		?=	c++
