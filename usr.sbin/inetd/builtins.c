@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: builtins.c,v 1.6 1999/07/23 15:26:42 sheldonh Exp $
+ * $Id: builtins.c,v 1.7 1999/07/23 15:49:14 green Exp $
  *
  */
 
@@ -290,7 +290,7 @@ iderror(lport, fport, s, er)
 	asprintf(&p, "%d , %d : ERROR : %s\r\n", lport, fport, 
 	    er == -1 ? "HIDDEN-USER" : er ? strerror(er) : "UNKNOWN-ERROR");
 	if (p == NULL) {
-		syslog(LOG_ERR, "asprintf: %s", strerror(errno));
+		syslog(LOG_ERR, "Out of memory.");
 		exit(EX_OSERR);
 	}
 	write(s, p, strlen(p));
@@ -334,7 +334,8 @@ ident_stream(s, sep)		/* Ident service */
 			case 'o':
 				osname = optarg;
 				break;
-			case 't': {
+			case 't':
+			{
 				int sec, usec;
 
 				switch (sscanf(optarg, "%d.%d", &sec, &usec)) {
@@ -424,8 +425,10 @@ ident_stream(s, sep)		/* Ident service */
 		cp = pw->pw_name;
 printit:
 	if (asprintf(&p, "%d , %d : USERID : %s : %s\r\n", lport, fport, osname,
-	    cp) == -1)
-		iderror(0, 0, s, errno);
+	    cp) == -1) {
+		syslog(LOG_ERR, "Out of memory.");
+		exit(EX_OSERR);
+	}
 	write(s, p, strlen(p));
 	free(p);
 	
