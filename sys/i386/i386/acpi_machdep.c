@@ -43,6 +43,10 @@
 #include <dev/acpi/acpireg.h>
 #include <dev/acpi/acpivar.h>
 
+#ifdef ACPI_NO_OSDFUNC_INLINE
+#include <machine/acpica_osd.h>
+#endif
+
 struct ACPIrsdp *
 acpi_find_rsdp(void)
 {

@@ -42,7 +42,10 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <machine/bus.h>
 #include <dev/acpi/acpireg.h>
+#include <dev/acpi/acpivar.h>
 #ifndef ACPI_NO_OSDFUNC_INLINE
 #include <machine/acpica_osd.h>
 #endif /* !ACPI_NO_OSDFUNC_INLINE */
