@@ -11,8 +11,6 @@
 #
 # DESTDIR	Change the tree where the info files gets installed. [not set]
 #
-# DISTRIBUTION	Name of distribution. [info]
-#
 # DVIPS		A program which convert a TeX DVI file to PostScript [dvips]
 #
 # DVIPS2ASCII	A program to convert a PostScript file which was prior
@@ -64,10 +62,6 @@
 #
 #
 # +++ targets +++
-#
-#	distribute:
-#		This is a variant of install, which will
-#		put the stuff into the right "distribution".
 #
 #	install:
 #		Install the info files.
@@ -158,15 +152,6 @@ ${x:S/$/-install/}: ${DESTDIR}${INFODIR}/${INFODIRFILE}
 .endfor
 
 .PHONY: ${INSTALLINFODIRS}
-
-DISTRIBUTION?=	base
-
-.if !target(distribute)
-distribute:
-.for dist in ${DISTRIBUTION}
-	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${dist} SHARED=copies
-.endfor
-.endif
 
 .if defined(SRCS)
 CLEANFILES+=	${INFO}.texi

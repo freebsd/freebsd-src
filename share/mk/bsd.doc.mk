@@ -121,14 +121,6 @@ afterinstall:
 
 .endif
 
-DISTRIBUTION?=	doc
-.if !target(distribute)
-distribute:
-.for dist in ${DISTRIBUTION}
-	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${dist} SHARED=copies
-.endfor
-.endif
-
 spell: ${SRCS}
 	(cd ${.CURDIR};  spell ${SRCS} ) | sort | \
 		comm -23 - ${.CURDIR}/spell.ok > ${DOC}.spell
@@ -154,5 +146,7 @@ ${DFILE}: ${SRCS} _stamp.extraobjs
 	    ${DCOMPRESS_CMD} > ${.TARGET}
 .endif
 .endif
+
+DISTRIBUTION?=	doc
 
 .include <bsd.obj.mk>
