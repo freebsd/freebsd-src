@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.55 1996/09/10 23:30:59 bde Exp $
+**  $Id: pci.c,v 1.56 1996/10/14 13:04:34 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -52,6 +52,11 @@
 #include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/proc.h> /* declaration of wakeup(), used by vm.h */
+#include <sys/conf.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /* DEVFS */
+#include <sys/fcntl.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -63,6 +68,7 @@
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 #include <pci/pcibus.h>
+#include <pci/pci_ioctl.h>
 
 #define PCI_MAX_IRQ	(16)
 
@@ -113,6 +119,8 @@ pci_bridge_config (void);
 
 static int
 pci_mfdev (int bus, int device);
+
+static void pci_remember (int bus, int dev, int func);
 
 /*========================================================
 **
@@ -377,7 +385,7 @@ static int
 pci_mfdev (int bus, int device)
 {
     pcici_t tag0,tag1;
-    int	pci_id0, pci_id1;
+    unsigned pci_id0, pci_id1;
 
     /*
     ** Detect a multi-function device that complies to the PCI 2.0 spec
@@ -424,7 +432,7 @@ pci_bus_config (void)
 	u_long  data;
 	int     unit;
 	u_char	pciint;
-	u_char	irq;
+	int	irq;
 
 	struct	pci_device *dvp;
 
@@ -513,6 +521,8 @@ pci_bus_config (void)
 		if (func == 0 && pci_mfdev (bus_no, device)) {
 			maxfunc = 7;
 		}
+
+		pci_remember(bus_no, device, func);
 
 		if (dvp==NULL) {
 #ifndef PCI_QUIET
@@ -1720,4 +1730,156 @@ void not_supported (pcici_t tag, u_long type)
 	    }
 	}
 }
+
+/*
+ * This is the user interface to the PCI configuration space.
+ */
+static struct pci_conf *pci_dev_list;
+static unsigned pci_dev_list_count;
+static unsigned pci_dev_list_size;
+
+static void
+pci_remember(int bus, int dev, int func)
+{
+	struct pci_conf *p;
+	pcici_t tag;
+
+	if (++pci_dev_list_count > pci_dev_list_size) {
+		struct pci_conf *new;
+
+		pci_dev_list_size += 8;
+		MALLOC(new, struct pci_conf *, pci_dev_list_size * sizeof *new,
+		       M_DEVL, M_NOWAIT);
+		if (!new) {
+			pci_dev_list_size -= 8;
+			pci_dev_list_count--;
+			return;
+		}
+
+		if (pci_dev_list) {
+			bcopy(pci_dev_list, new, ((pci_dev_list_size - 8) *
+						  sizeof *new));
+			FREE(pci_dev_list, M_DEVL);
+		}
+		pci_dev_list = new;
+	}
+
+	p = &pci_dev_list[pci_dev_list_count - 1];
+	p->pc_sel.pc_bus = bus;
+	p->pc_sel.pc_dev = dev;
+	p->pc_sel.pc_func = func;
+	tag = pcibus->pb_tag  (bus, dev, func);
+	p->pc_devid = pci_conf_read(tag, PCI_ID_REG);
+	p->pc_subid = pci_conf_read(tag, PCI_SUBID_REG);
+	p->pc_class = pci_conf_read(tag, PCI_CLASS_REG);
+}
+
+static int
+pci_open(dev_t dev, int oflags, int devtype, struct proc *p)
+{
+	if ((oflags & FWRITE) && securelevel > 0) {
+		return EPERM;
+	}
+
+	return 0;
+}
+
+static int
+pci_close(dev_t dev, int flag, int devtype, struct proc *p)
+{
+	return 0;
+}
+
+static int
+pci_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+{
+	struct pci_conf_io *cio;
+	struct pci_io *io;
+	size_t iolen;
+	int error;
+	pcici_t tag;
+
+	if (cmd != PCIOCGETCONF && !(flag & FWRITE))
+		return EPERM;
+
+	switch(cmd) {
+	case PCIOCGETCONF:
+		cio = (struct pci_conf_io *)data;
+		iolen = min(cio->pci_len, 
+			    pci_dev_list_count * sizeof(struct pci_conf));
+		cio->pci_len = pci_dev_list_count * sizeof(struct pci_conf);
+
+		error = copyout(pci_dev_list, cio->pci_buf, iolen);
+		break;
+		
+	case PCIOCREAD:
+		io = (struct pci_io *)data;
+		switch(io->pi_width) {
+		case 4:
+			tag = pcibus->pb_tag (io->pi_sel.pc_bus, 
+					      io->pi_sel.pc_dev, 
+					      io->pi_sel.pc_func);
+			io->pi_data = pci_conf_read(tag, io->pi_reg);
+			error = 0;
+			break;
+		case 2:
+		case 1:
+		default:
+			error = ENODEV;
+			break;
+		}
+		break;
+
+	case PCIOCWRITE:
+		io = (struct pci_io *)data;
+		switch(io->pi_width) {
+		case 4:
+			tag = pcibus->pb_tag (io->pi_sel.pc_bus, 
+					      io->pi_sel.pc_dev, 
+					      io->pi_sel.pc_func);
+			pci_conf_write(tag, io->pi_reg, io->pi_data);
+			error = 0;
+			break;
+		case 2:
+		case 1:
+		default:
+			error = ENODEV;
+			break;
+		}
+		break;
+
+	default:
+		error = ENOTTY;
+		break;
+	}
+
+	return (error);
+}
+
+#define	PCI_CDEV	78
+
+static struct cdevsw pcicdev = {
+	pci_open, pci_close, noread, nowrite, pci_ioctl, nostop, noreset,
+	nodevtotty, noselect, nommap, nostrategy, "pci", 0, PCI_CDEV
+};
+
+#ifdef DEVFS
+static void *pci_devfs_token;
+#endif
+
+static void
+pci_cdevinit(void *dummy)
+{
+	dev_t dev;
+
+	dev = makedev(PCI_CDEV, 0);
+	cdevsw_add(&dev, &pcicdev, NULL);
+#ifdef	DEVFS
+	pci_devfs_token = devfs_add_devswf(&pcicdev, 0, DV_CHR,
+					   UID_ROOT, GID_WHEEL, 0644, "pci");
+#endif
+}
+
+SYSINIT(pcidev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+PCI_CDEV, pci_cdevinit, NULL);
+
 #endif /* NPCI */
