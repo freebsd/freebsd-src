@@ -104,6 +104,7 @@ i386/isa/if_ed.c		optional	ed	device-driver
 i386/isa/if_eg.c		optional	eg	device-driver
 i386/isa/if_el.c		optional	el	device-driver
 i386/isa/if_ep.c		optional	ep	device-driver
+i386/isa/if_ex.c		optional	ex	device-driver
 i386/isa/if_fe.c		optional	fe	device-driver
 i386/isa/if_ie.c		optional	ie	device-driver
 i386/isa/if_ix.c		optional	ix	device-driver
