@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
  * SUCH DAMAGE. 
+ *
+ * $FreeBSD$
  */
 
 #ifdef HAVE_CONFIG_H
@@ -42,7 +44,7 @@ RCSID("$Id: make-print-version.c,v 1.3 2000/08/16 11:30:04 assar Exp $");
 extern const char *heimdal_version;
 #endif
 #ifdef KRB4
-extern char *krb4_version;
+extern const char *krb4_version;
 #endif
 #include <version.h>
 
