@@ -163,7 +163,7 @@ ad_attach(struct ata_softc *scp, int32_t device)
 	printf("ad%d: <%.40s/%.8s> ATA-%d disk at ata%d as %s\n", 
 	       adp->lun, AD_PARAM->model, AD_PARAM->revision,
 	       ad_version(AD_PARAM->versmajor), scp->lun,
-	       (adp->unit == ATA_MASTER) ? "master" : "slave ");
+	       (adp->unit == ATA_MASTER) ? "master" : "slave");
 
 	 printf("ad%d: %luMB (%u sectors), %u cyls, %u heads, %u S/T, %u B/S\n",
 	       adp->lun, adp->total_secs / ((1024L * 1024L)/DEV_BSIZE),
@@ -185,7 +185,7 @@ ad_attach(struct ata_softc *scp, int32_t device)
 	       adp->lun, adp->total_secs / ((1024L * 1024L) / DEV_BSIZE),
 	       AD_PARAM->model, adp->total_secs / (adp->heads * adp->sectors),
 	       adp->heads, adp->sectors, scp->lun,
-	       (adp->unit == ATA_MASTER) ? "master" : "slave ",
+	       (adp->unit == ATA_MASTER) ? "master" : "slave",
 	       ata_mode2str(adp->controller->mode[ATA_DEV(adp->unit)]));
 
     devstat_add_entry(&adp->stats, "ad", adp->lun, DEV_BSIZE,
