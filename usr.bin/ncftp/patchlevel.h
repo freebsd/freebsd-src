@@ -1,3 +1,6 @@
+v1.9.4 - April 15, 1995.  Using PORT by default instead of PASV by default.
+  Method to get the mail pathname changed.
+
 v1.9.3 - March 5, 1995.  Support for NetBSD and DELL added.  Linger works
   with passive mode now.
 
