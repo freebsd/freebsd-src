@@ -93,6 +93,13 @@
   <sect1 id="security">
     <title>Security Advisories</title>
 
+    <para>(1 Dec 2004) A bug in &man.procfs.5; and &man.linprocfs.5;
+      which could cause a malicious local user could perform a local
+      denial of service attack by causing a system panic, or the user
+      could read parts of kernel memory, has been fixed.
+      For more information, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:17.procfs.asc">FreeBSD-SA-04:17</ulink>.</para>
+
     <para>(18 Nov 2004) A bug in the &man.fetch.1; utility which allows
       a malicious HTTP server to cause arbitrary portions of the client's
       memory to be overwritten, has been fixed.
