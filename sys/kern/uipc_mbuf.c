@@ -34,12 +34,15 @@
  * $FreeBSD$
  */
 
+#include "opt_mac.h"
 #include "opt_param.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/sysctl.h>
 #include <sys/domain.h>
@@ -75,9 +78,17 @@ m_copy_pkthdr(struct mbuf *to, struct mbuf *from)
 	KASSERT(to->m_flags & M_PKTHDR,
 	    ("m_copy_pkthdr() called on non-header"));
 #endif
+#ifdef MAC
+	if (to->m_flags & M_PKTHDR)
+		mac_destroy_mbuf(to);
+#endif
 	to->m_data = to->m_pktdat;
 	to->m_flags = from->m_flags & M_COPYFLAGS;
 	to->m_pkthdr = from->m_pkthdr;
+#ifdef MAC
+	mac_init_mbuf(to, 1);			/* XXXMAC no way to fail */
+	mac_create_mbuf_from_mbuf(from, to);
+#endif
 	from->m_pkthdr.aux = NULL;
 }
 
@@ -98,6 +109,9 @@ m_prepend(struct mbuf *m, int len, int how)
 	}
 	if (m->m_flags & M_PKTHDR) {
 		M_COPY_PKTHDR(mn, m);
+#ifdef MAC
+		mac_destroy_mbuf(m);
+#endif
 		m->m_flags &= ~M_PKTHDR;
 	}
 	mn->m_next = m;
