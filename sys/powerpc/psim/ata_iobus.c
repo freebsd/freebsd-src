@@ -124,7 +124,6 @@ ata_iobus_print_child(device_t dev, device_t child)
     int retval = 0;
 
     retval += bus_print_child_header(dev, child);
-    retval += printf(": at 0x%lx", rman_get_start(ch->r_io));
     /* irq ? */
     retval += bus_print_child_footer(dev, child);
 
