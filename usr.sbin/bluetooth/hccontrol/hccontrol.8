@@ -69,6 +69,12 @@ To get more information about specific command use
 .Cm help Ar command .
 .It Ar parameters
 One or more optional space separated command parameters.
+Many commands require remote device address as one of the parameters.
+The remote device address can be specified as BD_ADDR or name.
+If name was specified then the
+.Nm
+utility will attempt to resolve the name via
+.Xr bt_gethostbyname 3 .
 .El
 .Sh COMMANDS
 The currently supported HCI commands in
@@ -168,6 +174,7 @@ Please report if found.
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh SEE ALSO
+.Xr bluetooth 3 ,
 .Xr netgraph 3 ,
 .Xr netgraph 4 ,
 .Xr ng_hci 4 ,

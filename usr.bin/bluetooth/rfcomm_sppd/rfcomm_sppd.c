@@ -391,7 +391,7 @@ usage(void)
 	fprintf(stdout,
 "Usage: %s options\n" \
 "Where options are:\n" \
-"\t-a bdaddr  BDADDR to connect to (required)\n" \
+"\t-a address Address to connect to (required)\n" \
 "\t-b         Run in background\n" \
 "\t-c channel RFCOMM channel to connect to\n" \
 "\t-t tty     TTY name\n" \

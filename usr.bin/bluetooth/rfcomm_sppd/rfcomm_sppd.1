@@ -34,16 +34,16 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl bh
-.Fl a Ar BD_ADDR
+.Fl a Ar address
 .Fl c Ar channel
 .Fl t Ar tty
 .Sh DESCRIPTION
 The
 .Nm
 utility is a Serial Port Profile daemon.
-It opens RFCOMM connection to the specified server's
-.Ar BD_ADDR
-and
+It opens RFCOMM connection to the specified
+.Ar address
+server and
 .Ar channel .
 Once connection is established, the
 .Nm
@@ -67,8 +67,13 @@ port.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
-.It Fl a Ar BD_ADDR
-This required option specifies the remote BD_ADDR of the RFCOMM server.
+.It Fl a Ar address
+This required option specifies the address of the remote RFCOMM server.
+The address can be specified as BD_ADDR or name.
+If name was specified then the
+.Nm
+utility will attempt to resolve the name via
+.Xr bt_gethostbyname 3 .
 .It Fl b
 Detach from the controlling terminal, i.e., run in background.
 .It Fl c Ar channel
@@ -107,6 +112,7 @@ slave pseudo terminals
 .Sh BUGS
 Please report if found.
 .Sh SEE ALSO
+.Xr bluetooth 3 ,
 .Xr ng_btsocket 4 ,
 .Xr pty 4 ,
 .Xr rfcomm_pppd 8
