@@ -12,7 +12,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS abi accounting addswap adjkerntz altqd \
 	mountall mountcritlocal mountcritremote mountd moused mroute6d \
 	mrouted msgs named network network1 network2 network3 \
 	network_ipv6 newsyslog nfsclient nfsd nfslocking \
-	othermta nfsserver ntpd ntpdate pccard poffd ppp-user \
+	othermta nfsserver ntpd ntpdate pccard pcvt poffd ppp-user \
 	postfix ppp pppoed pwcheck quota racoon raidframe random rarpd \
 	rbootd root route6d routed rpcbind rtadvd rtsold \
 	rwho savecore screenblank securelevel sendmail serial sppp sshd swap1 \
