@@ -94,7 +94,7 @@ SUBDIR+= etc
 # rebuilt before you do them.
 .if defined(LOCAL_DIRS)
 .for _DIR in ${LOCAL_DIRS}
-.if exists(${.CURDIR}/${_DIR}) & exists(${.CURDIR}/${_DIR}/Makefile)
+.if exists(${.CURDIR}/${_DIR}) && exists(${.CURDIR}/${_DIR}/Makefile)
 SUBDIR+= ${_DIR}
 .endif
 .endfor
