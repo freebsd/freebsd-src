@@ -71,19 +71,23 @@ int fg, bg;
 	}
 }
 
-#define previous_attr SP->_current_attr
-
 int vidputs(chtype newmode, int  (*outc)(int))
 {
-chtype	turn_off = (~newmode & previous_attr) & ~A_COLOR;
-chtype	turn_on  = (newmode & ~previous_attr) & ~A_COLOR;
-int pair, current_pair;
+static chtype  previous_attr=0;
+chtype	turn_off,turn_on;
+int	pair, current_pair;
+
+	if (SP)
+		previous_attr = SP->_current_attr;
 
 	T(("vidputs(%x) called %s", newmode, _traceattr(newmode)));
 	T(("previous attribute was %s", _traceattr(previous_attr)));
 
 	if (newmode == previous_attr)
 		return OK;
+
+	turn_off = (~newmode & previous_attr) & ~A_COLOR;
+	turn_on  = (newmode & ~previous_attr) & ~A_COLOR;
 
 	pair = PAIR_NUMBER(newmode);
 	current_pair = PAIR_NUMBER(previous_attr);
@@ -184,6 +188,8 @@ int pair, current_pair;
    	}
 
 	previous_attr = newmode;
+	if (SP)
+		SP->_current_attr = previous_attr;
 
 	T(("vidputs finished"));
 	return OK;
