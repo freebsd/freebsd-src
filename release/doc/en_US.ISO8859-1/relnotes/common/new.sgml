@@ -142,6 +142,9 @@
 
       <para>&man.bge.4; now supports Broadcom 5705 based Gigabit Ethernet NICs.</para>
 
+      <para>The suspend/resume support for the &man.wi.4; driver
+        now works correctly when the device is configured down.</para>
+
 <!-- Above this line, order network driver changes by manpage/variable name-->
 
     </sect3>
