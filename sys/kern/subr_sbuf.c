@@ -206,6 +206,7 @@ sbuf_bcopyin(struct sbuf *s, const void *uaddr, size_t len)
 		len = s->s_size - s->s_len - 1;
 	if (copyin(uaddr, s->s_buf + s->s_len, len) != 0)
 		return (-1);
+	s->s_len += len;
 	
 	return (0);
 }
