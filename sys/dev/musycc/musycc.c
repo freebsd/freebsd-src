@@ -14,6 +14,7 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
 #include <sys/mbuf.h>
@@ -35,7 +36,17 @@
 
 static MALLOC_DEFINE(M_MUSYCC, "musycc", "MUSYCC related");
 
-static void init_8370(u_int32_t *p);
+static int maxlatency = 250;
+SYSCTL_INT(_debug, OID_AUTO, musycc_maxlatency, CTLFLAG_RW, &maxlatency, 0,
+	"The number of milliseconds a packet is allowed to spend in the output q
+ueue.  "
+	"If the output queue is longer than this number of milliseconds when the
+ packet "
+	"arrives for output, the packet will be dropped."
+);
+
+struct softc;
+static void init_8370(struct softc *sc);
 static	u_int32_t parse_ts(const char *s, int *nbit);
 
 /*
@@ -129,6 +140,7 @@ struct schan {
 
 	u_long		rx_drop;	/* mbuf allocation failures */
 	u_long		tx_limit;
+	u_long		tx_pending;
 	int		tx_next_md;	/* index to the next MD */
 	int		tx_last_md;	/* index to the last MD */
 	int		rx_last_md;	/* index to next MD */
@@ -151,13 +163,13 @@ struct schan {
 	int		last_error;
 	int		prev_error;
 
-	u_long		tx_pending;
 #endif
 };
 
+enum framing {WHOKNOWS, E1, E1U, T1, T1U};
 
 struct softc {
-	enum {WHOKNOWS, E1, T1}	framing;
+	enum framing framing;
 	u_int32_t last;
 	struct csoftc *csc;
 	u_int32_t *ds8370;
@@ -232,24 +244,24 @@ parse_ts(const char *s, int *nbit)
 	char *p;
 
 	r = 0;
-	j = 0;
+	j = -1;
 	*nbit = 0;
 	while(*s) {
 		i = strtol(s, &p, 0);
-		if (i < 1 || i > 31)
+		if (i < 0 || i > 31)
 			return (0);
-		while (j && j < i) {
+		while (j != -1 && j < i) {
 			r |= 1 << j++;
 			(*nbit)++;
 		}
-		j = 0;
+		j = -1;
 		r |= 1 << i;
 		(*nbit)++;
 		if (*p == ',') {
 			s = p + 1;
 			continue;
 		} else if (*p == '-') {
-			j = i;
+			j = i + 1;
 			s = p + 1;
 			continue;
 		} else if (!*p) {
@@ -289,60 +301,63 @@ poke_847x(void *dummy)
 }
 
 static void
-init_847x(struct csoftc *sc)
+init_847x(struct csoftc *csc)
 {
-	struct softc *sif;
+	struct softc *sc;
 
-	printf("init_847x(%p)\n", sc);
-	sif = &sc->serial[0];
-	sif->reg->gbp = vtophys(sc->ram);
-	sc->ram->glcd = 0x3f30;	/* XXX: designer magic */
-	sc->ram->iqp = vtophys(sc->iqd);
-	sc->ram->iql = NIQD - 1;
-	sif->reg->srd = 0x400;
-	sif->last = 0x400;
-	sc->ram->dacbp = 0;		/* 32bit only */
+	printf("init_847x(%p)\n", csc);
+	sc = &csc->serial[0];
+	sc->reg->gbp = vtophys(csc->ram);
+	csc->ram->glcd = 0x3f30;	/* XXX: designer magic */
+	csc->ram->iqp = vtophys(csc->iqd);
+	csc->ram->iql = NIQD - 1;
+	sc->reg->srd = 0x400;
+	sc->last = 0x400;
+	csc->ram->dacbp = 0;		/* 32bit only */
 
 	timeout(poke_847x, NULL, 30*hz);
 }
 
 static void
-init_ctrl(struct softc *sif)
+init_ctrl(struct softc *sc)
 {
 	int i;
 
-	printf("init_ctrl(%p) [%s] [%08x]\n", sif, sif->nodename, sif->csc->reg->glcd);
-	init_8370(sif->ds8370);
-	tsleep(sif, PZERO | PCATCH, "ds8370", hz);
-	sif->reg->gbp = vtophys(sif->ram);
-	sif->ram->grcd =  0x00000001;	/* RXENBL */
-	sif->ram->grcd |= 0x00000002;	/* TXENBL */
-	sif->ram->grcd |= 0x00000004;	/* SUBDSBL */
-	sif->ram->grcd |= 0x00000008;	/* OOFABT */
+	printf("init_ctrl(%p) [%s] [%08x]\n", sc, sc->nodename, sc->csc->reg->glcd);
+	init_8370(sc);
+	tsleep(sc, PZERO | PCATCH, "ds8370", hz);
+	sc->reg->gbp = vtophys(sc->ram);
+	sc->ram->grcd =  0x00000001;	/* RXENBL */
+	sc->ram->grcd |= 0x00000002;	/* TXENBL */
+	sc->ram->grcd |= 0x00000004;	/* SUBDSBL */
+	if (sc->framing == E1 || sc->framing == T1)
+		sc->ram->grcd |= 0x00000008;	/* OOFABT */
+	else
+		sc->ram->grcd |= 0x00000000;	/* !OOFABT */
 #if 0
-	sif->ram->grcd |= 0x00000010;	/* MSKOOF */
-	sif->ram->grcd |= 0x00000020;	/* MSKCOFA */
+	sc->ram->grcd |= 0x00000010;	/* MSKOOF */
+	sc->ram->grcd |= 0x00000020;	/* MSKCOFA */
 #endif
-	sif->ram->grcd |= 0x00000c00;	/* POLLTH=3 */
+	sc->ram->grcd |= 0x00000400;	/* POLLTH=1 */
 #if 0
-	sif->ram->grcd |= 0x00008000;	/* SFALIGN */
+	sc->ram->grcd |= 0x00008000;	/* SFALIGN */
 #endif
 
-	sif->ram->mpd = 0;		/* Memory Protection NI [5-18] */
+	sc->ram->mpd = 0;		/* Memory Protection NI [5-18] */
 
-	sif->ram->pcd =  0x0000001;	/* PORTMD=1 (E1/32ts) */
-	sif->ram->pcd |= 0x0000000;	/* XXX */
+	sc->ram->pcd =  0x0000001;	/* PORTMD=1 (E1/32ts) */
+	sc->ram->pcd |= 0x0000000;	/* XXX */
 
 	/* Message length descriptor */
 	/* XXX: MTU */
-	sif->ram->mld = 1600;
-	sif->ram->mld |= (1600 << 16);
+	sc->ram->mld = 1600;
+	sc->ram->mld |= (1600 << 16);
 
 	for (i = 0; i < NHDLC; i++) {
-		sif->ram->ttsm[i] = 0;
-		sif->ram->rtsm[i] = 0;
+		sc->ram->ttsm[i] = 0;
+		sc->ram->rtsm[i] = 0;
 	}
-	sif->reg->srd = sif->last = 0x500;
+	sc->reg->srd = sc->last = 0x500;
 }
 
 /*
@@ -350,9 +365,10 @@ init_ctrl(struct softc *sif)
  */
 
 static void
-init_8370(u_int32_t *p)
+init_8370(struct softc *sc)
 {
 	int i;
+	u_int32_t *p = sc->ds8370;
 
         p[0x001] = 0x80; /* CR0 - Reset */
         DELAY(20);
@@ -375,23 +391,47 @@ init_8370(u_int32_t *p)
         p[0x028] = 0xda; /* EQ_OUT - */
         p[0x02a] = 0xa6; /* PRE_EQ - */
 
-        p[0x040] = 0x09; /* RCRO - XXX */
+	if (sc->framing == E1U || sc->framing == T1U)
+		p[0x040] = 0x49; /* RCRO - XXX */
+	else
+		p[0x040] = 0x09; /* RCRO - XXX */
+
         p[0x041] = 0x00; /* RPATT - XXX */
         p[0x045] = 0x00; /* RALM - XXX */
         p[0x046] = 0x05; /* LATCH - LATCH_CNT|LATCH_ALM */
 
         p[0x068] = 0x4c; /* TLIU_CR - TERM|Pulse=6 */
         p[0x070] = 0x04; /* TCR0 - TFRAME=4 */
-        p[0x071] = 0x51; /* TCR1 - TZCS */
-        p[0x072] = 0x1b; /* TCR1 - INS_YEL|INS_MF|INS_CRC|INS_FBIT */
+
+	if (sc->framing == E1U || sc->framing == T1U)
+		p[0x071] = 0x41; /* TCR1 - TZCS */
+	else
+		p[0x071] = 0x51; /* TCR1 - TZCS */
+
+	if (sc->framing == E1U || sc->framing == T1U)
+		p[0x072] = 0x00;
+	else
+		p[0x072] = 0x1b; /* TCR1 - INS_YEL|INS_MF|INS_CRC|INS_FBIT */
+
         p[0x073] = 0x00; /* TERROR */
         p[0x074] = 0x00; /* TMAN */
-        p[0x075] = 0x10; /* TALM - AUTO_YEL */
+
+	if (sc->framing == E1U || sc->framing == T1U)
+		p[0x075] = 0x0; /* TALM */
+	else
+		p[0x075] = 0x10; /* TALM - AUTO_YEL */
+
         p[0x076] = 0x00; /* TPATT */
         p[0x077] = 0x00; /* TLP */
 
         p[0x090] = 0x05; /* CLAD_CR - XXX */
         p[0x091] = 0x01; /* CSEL - 2048kHz */
+
+	if (sc->framing == E1U || sc->framing == T1U)
+		p[0x0a0] = 0x00;
+	if (sc->framing == E1U || sc->framing == T1U)
+		p[0x0a6] = 0x00;
+
         p[0x0d0] = 0x46; /* SBI_CR - SBI=6 */
         p[0x0d1] = 0x70; /* RSB_CR - XXX */
         p[0x0d2] = 0x00; /* RSYNC_BIT - 0 */
@@ -436,8 +476,10 @@ musycc_intr0_tx_eom(struct softc *sc, int ch)
 		if (status & 0x80000000)
 			break;		/* Not our mdesc, done */
 		m = md->m;
-		if (m)
+		if (m) {
+			sch->tx_pending -= m->m_pkthdr.len;
 			m_freem(m);
+		}
 		md->m = NULL;
 		md->data = 0;
 		md->status = 0;
@@ -477,6 +519,8 @@ musycc_intr0_rx_eom(struct softc *sc, int ch)
 		m = md->m;
 		m->m_len = m->m_pkthdr.len = status & 0x3fff;
 		error = (status >> 16) & 0xf;
+		if (error == 8 && (sc->framing == E1U || sc->framing == T1U))
+			error = 0;
 		if (error == 0) {
 			MGETHDR(m2, M_DONTWAIT, MT_DATA);
 			if (m2 != NULL) {
@@ -604,29 +648,6 @@ musycc_intr1(void *arg)
 }
 
 /*
- * High-Level stuff
- */
-
-static void
-set_chan_e1(struct softc *sif, char *ret)
-{
-	if (sif->framing == E1)
-		return;
-	init_ctrl(sif);
-	sif->framing = E1;
-	return;
-}
-
-static void
-set_chan_t1(struct softc *sif, char *ret)
-{
-	if (sif->framing == T1)
-		return;
-	strcpy(ret, "Error: T1 framing not implemented\n");
-	return;
-}
-
-/*
  * NetGraph Stuff
  */
 
@@ -647,24 +668,32 @@ ng_shutdown(node_p nodep)
 static void
 ng_config(node_p node, char *set, char *ret)
 {
-	struct softc *sif;
-	sif = node->private;
+	struct softc *sc;
+	sc = node->private;
 
-	printf("%s: CONFIG %p %p\n", sif->nodename, set, ret);
+	printf("%s: CONFIG %p %p\n", sc->nodename, set, ret);
 	if (set != NULL) {
-		printf("%s CONFIG SET [%s]\n", sif->nodename, set);
-		if (!strcmp(set, "line e1"))
-			set_chan_e1(sif, ret);
-		else if (!strcmp(set, "line t1"))
-			set_chan_t1(sif, ret);
-		else
+		printf("%s CONFIG SET [%s]\n", sc->nodename, set);
+		if (!strcmp(set, "line e1")) {
+			if (sc->framing != E1) {
+				sc->framing = E1;
+				init_ctrl(sc);
+			}
+		} else if (!strcmp(set, "line e1u")) {
+			if (sc->framing != E1U) {
+				sc->framing = E1U;
+				init_ctrl(sc);
+			}
+		} else {
 			goto barf;
+		}		
+
 		return;
 	}
-	if (sif->framing == E1)
+	if (sc->framing == E1)
 		strcat(ret, "line e1\n");
-	if (sif->framing == T1)
-		strcat(ret, "line t1\n");
+	else if (sc->framing == E1U)
+		strcat(ret, "line e1u\n");
 	return;
 barf:
 	strcpy(ret, "Syntax Error\n");
@@ -739,13 +768,22 @@ ng_newhook(node_p node, hook_p hook, const char *name)
 	sc = node->private;
 	csc = sc->csc;
 
-	printf("Newhook(\"%s\",\"%s\")\n", sc->nodename, name);
 	if (name[0] != 't' || name[1] != 's')
 		return (EINVAL);
 	ts = parse_ts(name + 2, &nbit);
 	if (ts == 0)
 		return (EINVAL);
 	chan = ffs(ts) - 1;
+	printf("Newhook(\"%s\",\"%s\" chan=%d ts=%08x nbit=%d)\n", sc->nodename, name, chan, ts, nbit);
+#if 1
+	if (sc->framing == E1U && nbit == 32)
+		;
+	else if (sc->framing == T1U && nbit == 24)
+		;
+	else if (ts & 1)
+		return (EINVAL);
+#endif
+		
 	if (sc->chan[chan] == NULL) {
 		MALLOC(sch, struct schan *, sizeof(*sch), M_MUSYCC, M_WAITOK);
 		bzero(sch, sizeof(*sch));
@@ -784,30 +822,39 @@ ng_rcvdata(hook_p hook, struct mbuf *m, meta_p meta, struct mbuf **ret_m, meta_p
 	NG_FREE_META(meta);
 	meta = NULL;
 
-	/* XXX: check channel state */
+	if (sch->state != UP) {
+		NG_FREE_DATA(m, meta);
+		return (0);
+	} 
+	if (sch->tx_pending + m->m_pkthdr.len > sch->tx_limit * maxlatency) {
+		NG_FREE_DATA(m, meta);
+		return (0);
+	}
 
 	m2 = m;
 	len = m->m_pkthdr.len;
 	while (len) {
-		md = &sc->mdt[ch][sch->tx_next_md];
+		if (m->m_len > 0) {	/* XXX: needed ? */
+			md = &sc->mdt[ch][sch->tx_next_md];
 
-		if (++sch->tx_next_md >= sch->nmd)
-			sch->tx_next_md = 0;
+			if (++sch->tx_next_md >= sch->nmd)
+				sch->tx_next_md = 0;
 
-		md->data = vtophys(m->m_data);
-		len -= m->m_len;
-		u = 0x80000000;	/* OWNER = MUSYCC */
-		if (len > 0) {
-			md->m = 0;
-		} else {
-			u |= 1 << 29;	/* EOM */
-			md->m = m2;
-		}	
-
-		u |= m->m_len;
-		md->status = u;
+			md->data = vtophys(m->m_data);
+			len -= m->m_len;
+			u = 0x80000000;	/* OWNER = MUSYCC */
+			if (len > 0) {
+				md->m = 0;
+			} else {
+				u |= 1 << 29;	/* EOM */
+				md->m = m2;
+			}	
+			u |= m->m_len;
+			md->status = u;
+		}
 		m = m->m_next;
 	}
+	sch->tx_pending += m2->m_pkthdr.len;
 	return (0);
 }
 
@@ -1035,7 +1082,7 @@ musycc_attach(device_t self)
 {
 	struct csoftc *csc;
 	struct resource *res;
-	struct softc *sif;
+	struct softc *sc;
 	int rid, i, error;
 	int f;
 	u_int32_t	*u32p;
@@ -1116,31 +1163,31 @@ musycc_attach(device_t self)
 
 	u32p[0x1000] = 0xfe;	/* XXX: control-register */
 	for (i = 0; i < csc->nchan; i++) {
-		sif = &csc->serial[i];
-		sif->csc = csc;
-		sif->last = 0xffffffff;
-		sif->ds8370 = (u_int32_t *)
+		sc = &csc->serial[i];
+		sc->csc = csc;
+		sc->last = 0xffffffff;
+		sc->ds8370 = (u_int32_t *)
 		    (csc->virbase[1] + i * 0x800);
-		sif->ds847x = csc->virbase[0] + i * 0x800;
-		sif->reg = (struct globalr *)
+		sc->ds847x = csc->virbase[0] + i * 0x800;
+		sc->reg = (struct globalr *)
 		    (csc->virbase[0] + i * 0x800);
-		MALLOC(sif->mycg, struct mycg *, 
+		MALLOC(sc->mycg, struct mycg *, 
 		    sizeof(struct mycg), M_MUSYCC, M_WAITOK);
-		bzero(sif->mycg, sizeof(struct mycg));
-		sif->ram = &sif->mycg->cg;
+		bzero(sc->mycg, sizeof(struct mycg));
+		sc->ram = &sc->mycg->cg;
 
-		error = ng_make_node_common(&ngtypestruct, &sif->node);
+		error = ng_make_node_common(&ngtypestruct, &sc->node);
 		if (error) {
 			printf("ng_make_node_common() failed %d\n", error);
 			continue;
 		}	
-		sif->node->private = sif;
-		sprintf(sif->nodename, "pci%d-%d-%d-%d",
+		sc->node->private = sc;
+		sprintf(sc->nodename, "pci%d-%d-%d-%d",
 			device_get_unit(device_get_parent(self)),
 			csc->bus,
 			csc->slot,
 			i);
-		error = ng_name_node(sif->node, sif->nodename);
+		error = ng_name_node(sc->node, sc->nodename);
 	}
 	csc->ram = (struct globalr *)&csc->serial[0].mycg->cg;
 	init_847x(csc);
