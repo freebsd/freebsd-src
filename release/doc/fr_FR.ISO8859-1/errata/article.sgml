@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.1.2.55
+     Original revision: 1.1.2.57
 
 	FreeBSD errata document.  Unlike some of the other RELNOTESng
 	files, this file should remain as a single SGML file, so that
@@ -136,6 +136,16 @@ se référeront a &os; &release.current; et les version suivantes.</para>
         Pour plus d'informations, incluant un moyen de contourner le problème et un patch, allez voir
         le Bulletin de Sécurité <ulink 
         url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:09.fstatfs.asc">FreeBSD-SA-02:09</ulink>.</para>
+
+<para>Un bogue dans le code de multiplexage de <application>OpenSSH</application> 
+    a été résolu. Ce bogue permet a un utilisateur distant authentifié de demander
+    au serveur &man.sshd.8; d'executer un programme avec les privilèges administrateur 
+    ou permet a un client SSH d'executer un programme avec les privilège de 
+    l'utilisateur client. Différents corrections, pour les versions de 
+    <application>OpenSSH</application> du système de base ou de la collection
+    des ports peuvent etre trouvé dans l'avis de sécurité
+    <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.openssh.asc">FreeBSD-SA-02:13</ulink>.</para>
+
 ]]>
   </sect1>
 
