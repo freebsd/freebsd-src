@@ -178,7 +178,6 @@ main(argc, argv)
 	struct nfsd_cargs ncd;
 	int mntflags, altflags, i, nfssvc_flag, num;
 	char *name, *p, *spec;
-	int error = 0;
 	struct vfsconf *vfc;
 #ifdef KERBEROS
 	uid_t last_ruid;
