@@ -79,11 +79,16 @@ if
 .Ar expression
 is false:
 .Bd -literal -offset indent
-"assertion \e"%s\e" failed: file \e"%s\e", line %d\en", \e
-		    "expression", __FILE__, __LINE__);
+"assertion (%s) failed: function %s(), file %s:%d\en", \e
+		    "expression", __func__, __FILE__, __LINE__);
 .Ed
 .Sh SEE ALSO
 .Xr abort 3
+.Sh STANDARDS
+The
+.Fn assert
+macro confirms to
+.St -isoC-99 .
 .Sh HISTORY
 An
 .Nm
