@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: jobs.c,v 1.7 1996/09/03 14:15:52 peter Exp $
+ *	$Id: jobs.c,v 1.8 1996/10/16 02:30:39 steve Exp $
  */
 
 #ifndef lint
@@ -580,8 +580,7 @@ forkshell(jp, n, mode)
 				pgrp = getpid();
 			else
 				pgrp = jp->ps[0].pid;
-			setpgid(0, pgrp);
-			if (mode == FORK_FG) {
+			if (setpgid(0, pgrp) == 0 && mode == FORK_FG) {
 				/*** this causes superfluous TIOCSPGRPS ***/
 				if (ioctl(2, TIOCSPGRP, (char *)&pgrp) < 0)
 					error("TIOCSPGRP failed, errno=%d", errno);
