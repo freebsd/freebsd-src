@@ -146,7 +146,7 @@ char **argv;
 	extern char *optarg;
 
 #ifdef __FreeBSD__
-	(void) setlocale(LC_CTYPE, "");
+	(void) setlocale(LC_ALL, "");
 #endif
 #ifdef __EMX__
 	_response(&argc, &argv);
