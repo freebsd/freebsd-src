@@ -333,7 +333,7 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 {
 	struct int_entropy entropy;
 	struct proc *p;
-	intrmask_t saveintr;
+	critical_t savecrit;
 
 	/*
 	 * If no ithread or no handlers, then we have a stray interrupt.
@@ -372,13 +372,13 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 		p->p_stat = SRUN;
 		setrunqueue(p);
 		if (do_switch && curproc->p_stat == SRUN) {
-			saveintr = sched_lock.mtx_saveintr;
+			savecrit = sched_lock.mtx_savecrit;
 			mtx_intr_enable(&sched_lock);
 			if (curproc != PCPU_GET(idleproc))
 				setrunqueue(curproc);
 			curproc->p_stats->p_ru.ru_nvcsw++;
 			mi_switch();
-			sched_lock.mtx_saveintr = saveintr;
+			sched_lock.mtx_savecrit = savecrit;
 		} else
 			need_resched();
 	} else {

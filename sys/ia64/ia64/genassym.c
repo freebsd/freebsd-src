@@ -73,7 +73,7 @@ ASSYM(GD_CPUID, offsetof(struct globaldata, gd_cpuid));
 
 ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
 ASSYM(MTX_RECURSE, offsetof(struct mtx, mtx_recurse));
-ASSYM(MTX_SAVEINTR, offsetof(struct mtx, mtx_saveintr));
+ASSYM(MTX_SAVECRIT, offsetof(struct mtx, mtx_savecrit));
 ASSYM(MTX_UNOWNED, MTX_UNOWNED);
 
 ASSYM(P_ADDR, offsetof(struct proc, p_addr));

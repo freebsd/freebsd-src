@@ -204,4 +204,4 @@ ASSYM(VM86_FRAMESIZE, sizeof(struct vm86frame));
 
 ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
 ASSYM(MTX_RECURSECNT, offsetof(struct mtx, mtx_recurse));
-ASSYM(MTX_SAVEINTR, offsetof(struct mtx, mtx_saveintr));
+ASSYM(MTX_SAVECRIT, offsetof(struct mtx, mtx_savecrit));
