@@ -1,4 +1,4 @@
-.\" Copyright (c) 2001 John H. Baldwin <jhb@FreeBSD.org>
+.\" Copyright (c) 2001,2002 John H. Baldwin <jhb@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -28,29 +28,56 @@
 .Dt CRITICAL_ENTER 9
 .Os
 .Sh NAME
+.Nm cpu_critical_enter ,
+.Nm cpu_critical_exit ,
 .Nm critical_enter ,
 .Nm critical_exit
 .Nd enter and exit a critical region
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/systm.h
+.Ft critical_t
+.Fn cpu_critical_enter "void"
+.Ft void
+.Fn cpu_critical_exit "critical_t savecrit"
 .Ft void
 .Fn critical_enter "void"
 .Ft void
 .Fn critical_exit "void"
 .Sh DESCRIPTION
 These functions are used to prevent preemption in a critcal region of code.
-All that is guaranteed is that the current CPU will not be preempted by an
-external interrupt.
+All that is guaranteed is that the thread currently executing on a CPU will
+not be preempted.
+Specifically, a thread in a critical region will not migrate to another
+CPU while it is in a critical region.
 The current CPU may still trigger faults and exceptions during a critical
-section.
+section; however, these faults are usually fatal.
+.Pp
 The
-.Fn critical_enter
+.Fn cpu_critical_enter
+and
+.Fn cpu_critical_exit
+functions provide the machine dependent disabling of preemption, normally
+by disabling interrupts on the local CPU.
+The
+.Fn cpu_critical_enter
 function returns an opaque value of type
 .Vt critical_t .
 This value must be passed to the
-.Fn critical_exit
+.Fn cpu_critical_exit
 function when leaving the critical region.
+.Pp
+The
+.Fn critical_enter
+and
+.Fn critical_exit
+functions provide a machine independent wrapper around the machine dependent
+API.
+This wrapper currently saves state regarding nested critical sections as
+well as the
+.Vt critical_t
+value inside of a critical region in per-thread variables.
+Nearly all code should use these versions of the API.
 .Pp
 Note that these functions are not required to provide any inter-CPU
 synchronization, data protection, or memory ordering guarantees and thus
@@ -60,11 +87,15 @@ be used to protect shared data structures.
 .Pp
 These functions should be used with care as an infinite loop within a
 critical region will deadlock the CPU.
+Also, the machine dependent and machine independent functions should not
+be interlocked, and neither pair of functions should be interlocked with
+operations on mutexes, sx locks, semaphores, or other synchronization
+primitives.
 .Sh RETURN VALUES
 The
-.Fn critical_enter
+.Fn cpu_critical_enter
 function returns an opaque value that must be passed to a corresponding call to
-.Fn critical_exit .
+.Fn cpu_critical_exit .
 .Sh EXAMPLES
 This example demonstrates the use of
 .Fn critical_enter
@@ -78,17 +109,16 @@ isa_dmastatus(int chan)
         u_long  cnt = 0;
         int     ffport, waport;
         u_long  low1, high1, low2, high2;
-        critical_t savecrit;
 
 	...
-        savecrit = critical_enter();
+        critical_enter();
         outb(ffport, 0);
         low1 = inb(waport);
         high1 = inb(waport);
         outb(ffport, 0);
         low2 = inb(waport);
         high2 = inb(waport);
-        critical_exit(savecrit);
+        critical_exit();
 	...
 }
 .Ed
