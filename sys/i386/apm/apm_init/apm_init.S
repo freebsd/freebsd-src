@@ -12,7 +12,7 @@
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_init.S,v 1.4 1995/02/17 02:22:31 phk Exp $
+ *	$Id: apm_init.S,v 1.6 1996/03/12 21:23:56 nate Exp $
  */
 
 /*
@@ -46,9 +46,9 @@
  * APM BIOS initializer
  *
  * Return value:
- *	%eax	0xfffffff	Can't find APM BIOS
- *		0xffffffe	Don't support 32bit connection
- *		0xffffffd	Connection error
+ *	%eax	0xffffffff	Can't find APM BIOS
+ *		0xfffffffe	Don't support 32bit connection
+ *		0xfffffffd	Connection error
  *		otherwise	APM version (16bit BCD format)
  *	%ebx			APM cs entry offset (32bit)
  *	%ecx	lower 16bit	APM 16bit cs base (real mode segment)
