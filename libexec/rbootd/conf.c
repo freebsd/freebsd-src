@@ -38,7 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)conf.c	8.1 (Berkeley) 6/4/93
+ *	from: @(#)conf.c	8.1 (Berkeley) 6/4/93
  *
  * From: Utah Hdr: conf.c 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
@@ -46,10 +46,10 @@
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)conf.c	8.1 (Berkeley) 6/4/93";
+static const char sccsid[] = "@(#)conf.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: conf.c,v 1.1.1.1.8.1 1997/12/16 07:17:36 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -70,7 +70,7 @@ static const char rcsid[] =
 */
 
 char	MyHost[MAXHOSTNAMELEN+1];		/* host name */
-int	MyPid;					/* process id */
+pid_t	MyPid;					/* process id */
 int	DebugFlg = 0;				/* set true if debugging */
 int	BootAny = 0;				/* set true if we boot anyone */
 
@@ -83,11 +83,11 @@ char	*DbgFile = _PATH_RBOOTDDBG;		/* debug output file */
 FILE	*DbgFp = NULL;				/* debug file pointer */
 char	*IntfName = NULL;			/* intf we are attached to */
 
-u_short	SessionID = 0;				/* generated session ID */
+u_int16_t SessionID = 0;			/* generated session ID */
 
 char	*BootFiles[C_MAXFILE];			/* list of boot files */
 
 CLIENT	*Clients = NULL;			/* list of addrs we'll accept */
 RMPCONN	*RmpConns = NULL;			/* list of active connections */
 
-char	RmpMcastAddr[RMP_ADDRLEN] = RMP_ADDR;	/* RMP multicast address */
+u_int8_t RmpMcastAddr[RMP_ADDRLEN] = RMP_ADDR;	/* RMP multicast address */

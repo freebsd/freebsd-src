@@ -38,7 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)rbootd.c	8.2 (Berkeley) 2/22/94
+ *	from: @(#)rbootd.c	8.1 (Berkeley) 6/4/93
  *
  * From: Utah Hdr: rbootd.c 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
@@ -55,7 +55,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)rbootd.c	8.2 (Berkeley) 2/22/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rbootd.c,v 1.3.2.2 1997/12/16 07:17:46 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -73,20 +73,6 @@ static const char rcsid[] =
 #include <syslog.h>
 #include <unistd.h>
 #include "defs.h"
-
-
-/* fd mask macros (backward compatibility with 4.2BSD) */
-#ifndef	FD_SET
-#ifdef	notdef
-typedef	struct fd_set {		/* this should already be in 4.2 */
-	int fds_bits[1];
-} fd_set;
-#endif
-#define	FD_ZERO(p)	((p)->fds_bits[0] = 0)
-#define	FD_SET(n, p)	((p)->fds_bits[0] |= (1 << (n)))
-#define	FD_CLR(n, p)	((p)->fds_bits[0] &= ~(1 << (n)))
-#define	FD_ISSET(n, p)	((p)->fds_bits[0] & (1 << (n)))
-#endif
 
 static void usage __P((void));
 
@@ -115,7 +101,7 @@ main(argc, argv)
 	/*
 	 *  Parse any arguments.
 	 */
-	while ((c = getopt(argc, argv, "adi:")) !=  -1)
+	while ((c = getopt(argc, argv, "adi:")) != -1)
 		switch(c) {
 		    case 'a':
 			BootAny++;
@@ -134,7 +120,7 @@ main(argc, argv)
 			ConfigFile = argv[optind];
 		else {
 			warnx("too many config files (`%s' ignored)",
-			        argv[optind]);
+			    argv[optind]);
 		}
 	}
 
@@ -146,54 +132,16 @@ main(argc, argv)
 
 		(void) signal(SIGUSR1, SIG_IGN);	/* dont muck w/DbgFp */
 		(void) signal(SIGUSR2, SIG_IGN);
+		(void) fclose(stderr);			/* finished with it */
 	} else {
-		(void) fclose(stdin);			/* dont need these */
-		(void) fclose(stdout);
-
-		/*
-		 *  Fork off a child to do the work & exit.
-		 */
-		switch(fork()) {
-			case -1:	/* fork failed */
-				warn("fork");
-				Exit(0);
-			case 0:		/* this is the CHILD */
-				break;
-			default:	/* this is the PARENT */
-				_exit(0);
-		}
-
-		/*
-		 *  Try to disassociate from the current tty.
-		 */
-		{
-			char *devtty = "/dev/tty";
-			int i;
-
-			if ((i = open(devtty, O_RDWR)) < 0) {
-				/* probably already disassociated */
-				if (setpgrp(0, 0) < 0) {
-					warn("setpgrp");
-				}
-			} else {
-				if (ioctl(i, (u_long)TIOCNOTTY, (char *)0) < 0){
-					warn("ioctl");
-				}
-				(void) close(i);
-			}
-		}
+		if (daemon(0, 0))
+			err(1, "can't detach from terminal");
 
 		(void) signal(SIGUSR1, DebugOn);
 		(void) signal(SIGUSR2, DebugOff);
 	}
 
-	(void) fclose(stderr);		/* finished with it */
-
-#ifdef SYSLOG4_2
-	openlog("rbootd", LOG_PID);
-#else
 	openlog("rbootd", LOG_PID, LOG_DAEMON);
-#endif
 
 	/*
 	 *  If no interface was specified, get one now.
@@ -237,7 +185,7 @@ main(argc, argv)
 		FILE *fp;
 
 		if ((fp = fopen(PidFile, "w")) != NULL) {
-			(void) fprintf(fp, "%d\n", MyPid);
+			(void) fprintf(fp, "%d\n", (int) MyPid);
 			(void) fclose(fp);
 		} else {
 			syslog(LOG_WARNING, "fopen: failed (%s)", PidFile);
@@ -286,13 +234,11 @@ main(argc, argv)
 		r = rset;
 
 		if (RmpConns == NULL) {		/* timeout isnt necessary */
-			nsel = select(maxfds, &r, (fd_set *)0, (fd_set *)0,
-			              (struct timeval *)0);
+			nsel = select(maxfds, &r, NULL, NULL, NULL);
 		} else {
 			timeout.tv_sec = RMP_TIMEOUT;
 			timeout.tv_usec = 0;
-			nsel = select(maxfds, &r, (fd_set *)0, (fd_set *)0,
-			              &timeout);
+			nsel = select(maxfds, &r, NULL, NULL, &timeout);
 		}
 
 		if (nsel < 0) {
@@ -365,7 +311,7 @@ usage()
 void
 DoTimeout()
 {
-	register RMPCONN *rtmp;
+	RMPCONN *rtmp;
 	struct timeval now;
 
 	(void) gettimeofday(&now, (struct timezone *)0);
@@ -401,9 +347,9 @@ DoTimeout()
 
 CLIENT *
 FindClient(rconn)
-	register RMPCONN *rconn;
+	RMPCONN *rconn;
 {
-	register CLIENT *ctmp;
+	CLIENT *ctmp;
 
 	for (ctmp = Clients; ctmp != NULL; ctmp = ctmp->next)
 		if (bcmp((char *)&rconn->rmp.hp_hdr.saddr[0],

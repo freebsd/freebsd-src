@@ -38,7 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)rmpproto.c	8.1 (Berkeley) 6/4/93
+ *	from: @(#)rmpproto.c	8.1 (Berkeley) 6/4/93
  *
  * From: Utah Hdr: rmpproto.c 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
@@ -46,10 +46,10 @@
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)rmpproto.c	8.1 (Berkeley) 6/4/93";
+static const char sccsid[] = "@(#)rmpproto.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rmpproto.c,v 1.1.1.1.8.1 1997/12/16 07:17:51 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -115,7 +115,7 @@ ProcessPacket(rconn, client)
 			 *  of active connections, otherwise delete it since
 			 *  an error was encountered.
 			 */
-			if (rmp->r_brq.rmp_session == RMP_PROBESID) {
+			if (ntohs(rmp->r_brq.rmp_session) == RMP_PROBESID) {
 				if (WORDZE(rmp->r_brq.rmp_seqno))
 					(void) SendServerID(rconnout);
 				else
@@ -179,9 +179,9 @@ int
 SendServerID(rconn)
 	RMPCONN *rconn;
 {
-	register struct rmp_packet *rpl;
-	register char *src, *dst;
-	register u_char *size;
+	struct rmp_packet *rpl;
+	char *src, *dst;
+	u_int8_t *size;
 
 	rpl = &rconn->rmp;			/* cache ptr to RMP packet */
 
@@ -192,7 +192,7 @@ SendServerID(rconn)
 	rpl->r_brpl.rmp_retcode = RMP_E_OKAY;
 	ZEROWORD(rpl->r_brpl.rmp_seqno);
 	rpl->r_brpl.rmp_session = 0;
-	rpl->r_brpl.rmp_version = RMP_VERSION;
+	rpl->r_brpl.rmp_version = htons(RMP_VERSION);
 
 	size = &rpl->r_brpl.rmp_flnmsize;	/* ptr to length of host name */
 
@@ -233,9 +233,10 @@ SendFileNo(req, rconn, filelist)
 	RMPCONN *rconn;
 	char *filelist[];
 {
-	register struct rmp_packet *rpl;
-	register char *src, *dst;
-	register u_char *size, i;
+	struct rmp_packet *rpl;
+	char *src, *dst;
+	u_int8_t *size;
+	int i;
 
 	GETWORD(req->r_brpl.rmp_seqno, i);	/* SeqNo is really FileNo */
 	rpl = &rconn->rmp;			/* cache ptr to RMP packet */
@@ -247,7 +248,7 @@ SendFileNo(req, rconn, filelist)
 	PUTWORD(i, rpl->r_brpl.rmp_seqno);
 	i--;
 	rpl->r_brpl.rmp_session = 0;
-	rpl->r_brpl.rmp_version = RMP_VERSION;
+	rpl->r_brpl.rmp_version = htons(RMP_VERSION);
 
 	size = &rpl->r_brpl.rmp_flnmsize;	/* ptr to length of filename */
 	*size = 0;				/* init length to zero */
@@ -298,9 +299,9 @@ SendBootRepl(req, rconn, filelist)
 	int retval;
 	char *filename, filepath[RMPBOOTDATA+1];
 	RMPCONN *oldconn;
-	register struct rmp_packet *rpl;
-	register char *src, *dst1, *dst2;
-	register u_char i;
+	struct rmp_packet *rpl;
+	char *src, *dst1, *dst2;
+	u_int8_t i;
 
 	/*
 	 *  If another connection already exists, delete it since we
@@ -319,8 +320,8 @@ SendBootRepl(req, rconn, filelist)
 	 */
 	rpl->r_brpl.rmp_type = RMP_BOOT_REPL;
 	COPYWORD(req->r_brq.rmp_seqno, rpl->r_brpl.rmp_seqno);
-	rpl->r_brpl.rmp_session = GenSessID();
-	rpl->r_brpl.rmp_version = RMP_VERSION;
+	rpl->r_brpl.rmp_session = htons(GenSessID());
+	rpl->r_brpl.rmp_version = htons(RMP_VERSION);
 	rpl->r_brpl.rmp_flnmsize = req->r_brq.rmp_flnmsize;
 
 	/*
@@ -341,7 +342,7 @@ SendBootRepl(req, rconn, filelist)
 	 *  stripped file name and spoof the client into thinking that it
 	 *  really got what it wanted.
 	 */
-	filename = (filename = rindex(filepath,'/'))? ++filename: filepath;
+	filename = (filename = strrchr(filepath,'/'))? ++filename: filepath;
 
 	/*
 	 *  Check that this is a valid boot file name.
@@ -402,10 +403,10 @@ int
 SendReadRepl(rconn)
 	RMPCONN *rconn;
 {
-	int retval;
+	int retval = 0;
 	RMPCONN *oldconn;
-	register struct rmp_packet *rpl, *req;
-	register int size = 0;
+	struct rmp_packet *rpl, *req;
+	int size = 0;
 	int madeconn = 0;
 
 	/*
@@ -432,9 +433,9 @@ SendReadRepl(rconn)
 	/*
 	 *  Make sure Session ID's match.
 	 */
-	if (req->r_rrq.rmp_session !=
-	    ((rpl->r_type == RMP_BOOT_REPL)? rpl->r_brpl.rmp_session:
-	                                    rpl->r_rrpl.rmp_session)) {
+	if (ntohs(req->r_rrq.rmp_session) !=
+	    ((rpl->r_type == RMP_BOOT_REPL)? ntohs(rpl->r_brpl.rmp_session):
+	                                     ntohs(rpl->r_rrpl.rmp_session))) {
 		syslog(LOG_ERR, "SendReadRepl: bad session id (%s)",
 		       EnetStr(rconn));
 		rpl->r_rrpl.rmp_retcode = RMP_E_BADSID;
@@ -450,8 +451,8 @@ SendReadRepl(rconn)
 	 *  to work.  This is necessary for bpfwrite() on machines
 	 *  with MCLBYTES less than 1514.
 	 */
-	if (req->r_rrq.rmp_size > RMPREADDATA)
-		req->r_rrq.rmp_size = RMPREADDATA;
+	if (ntohs(req->r_rrq.rmp_size) > RMPREADDATA)
+		req->r_rrq.rmp_size = htons(RMPREADDATA);
 
 	/*
 	 *  Position read head on file according to info in request packet.
@@ -469,7 +470,7 @@ SendReadRepl(rconn)
 	 *  Read data directly into reply packet.
 	 */
 	if ((size = read(oldconn->bootfd, &rpl->r_rrpl.rmp_data,
-	                 (int) req->r_rrq.rmp_size)) <= 0) {
+	                 (int) ntohs(req->r_rrq.rmp_size))) <= 0) {
 		if (size < 0) {
 			syslog(LOG_ERR, "SendReadRepl: read: %m (%s)",
 			       EnetStr(rconn));
@@ -537,9 +538,9 @@ BootDone(rconn)
 	/*
 	 *  Make sure Session ID's match.
 	 */
-	if (rconn->rmp.r_rrq.rmp_session !=
-	    ((rpl->r_type == RMP_BOOT_REPL)? rpl->r_brpl.rmp_session:
-	                                    rpl->r_rrpl.rmp_session)) {
+	if (ntohs(rconn->rmp.r_rrq.rmp_session) !=
+	    ((rpl->r_type == RMP_BOOT_REPL)? ntohs(rpl->r_brpl.rmp_session):
+	                                    ntohs(rpl->r_rrpl.rmp_session))) {
 		syslog(LOG_ERR, "BootDone: bad session id (%s)",
 		       EnetStr(rconn));
 		return(0);
@@ -566,21 +567,26 @@ BootDone(rconn)
 */
 int
 SendPacket(rconn)
-	register RMPCONN *rconn;
+	RMPCONN *rconn;
 {
 	/*
 	 *  Set Ethernet Destination address to Source (BPF and the enet
 	 *  driver will take care of getting our source address set).
 	 */
-	bcopy((char *)&rconn->rmp.hp_hdr.saddr[0],
-	      (char *)&rconn->rmp.hp_hdr.daddr[0], RMP_ADDRLEN);
+	memmove((char *)&rconn->rmp.hp_hdr.daddr[0],
+	        (char *)&rconn->rmp.hp_hdr.saddr[0], RMP_ADDRLEN);
+#ifdef __FreeBSD__
+	/* BPF (incorrectly) wants this in host order. */
 	rconn->rmp.hp_hdr.len = rconn->rmplen - sizeof(struct hp_hdr);
+#else
+	rconn->rmp.hp_hdr.len = htons(rconn->rmplen - sizeof(struct hp_hdr));
+#endif
 
 	/*
 	 *  Reverse 802.2/HP Extended Source & Destination Access Pts.
 	 */
-	rconn->rmp.hp_llc.dxsap = HPEXT_SXSAP;
-	rconn->rmp.hp_llc.sxsap = HPEXT_DXSAP;
+	rconn->rmp.hp_llc.dxsap = htons(HPEXT_SXSAP);
+	rconn->rmp.hp_llc.sxsap = htons(HPEXT_DXSAP);
 
 	/*
 	 *  Last time this connection was active.
