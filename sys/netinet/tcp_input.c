@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- *	$Id: tcp_input.c,v 1.24 1995/05/11 01:41:06 davidg Exp $
+ *	$Id: tcp_input.c,v 1.25 1995/05/30 08:09:55 rgrimes Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -1814,6 +1814,7 @@ tcp_xmit_timer(tp, rtt)
 	register short delta;
 
 	tcpstat.tcps_rttupdated++;
+	tp->t_rttupdated++;
 	if (tp->t_srtt != 0) {
 		/*
 		 * srtt is stored as fixed point with 3 bits after the
@@ -1949,7 +1950,6 @@ tcp_mss(tp, offer)
 		offer = max(offer, 64);
 	taop->tao_mssopt = offer;
 
-#ifdef RTV_MTU	/* if route characteristics exist ... */
 	/*
 	 * While we're here, check if there's an initial rtt
 	 * or rttvar.  Convert from the route-table units
@@ -1963,13 +1963,16 @@ tcp_mss(tp, offer)
 		if (rt->rt_rmx.rmx_locks & RTV_RTT)
 			tp->t_rttmin = rtt / (RTM_RTTUNIT / PR_SLOWHZ);
 		tp->t_srtt = rtt / (RTM_RTTUNIT / (PR_SLOWHZ * TCP_RTT_SCALE));
-		if (rt->rt_rmx.rmx_rttvar)
+		tcpstat.tcps_usedrtt++;
+		if (rt->rt_rmx.rmx_rttvar) {
 			tp->t_rttvar = rt->rt_rmx.rmx_rttvar /
 			    (RTM_RTTUNIT / (PR_SLOWHZ * TCP_RTTVAR_SCALE));
-		else
+			tcpstat.tcps_usedrttvar++;
+		} else {
 			/* default variation is +- 1 rtt */
 			tp->t_rttvar =
 			    tp->t_srtt * TCP_RTTVAR_SCALE / TCP_RTT_SCALE;
+		}
 		TCPT_RANGESET(tp->t_rxtcur,
 		    ((tp->t_srtt >> 2) + tp->t_rttvar) >> 1,
 		    tp->t_rttmin, TCPTV_REXMTMAX);
@@ -1980,7 +1983,6 @@ tcp_mss(tp, offer)
 	if (rt->rt_rmx.rmx_mtu)
 		mss = rt->rt_rmx.rmx_mtu - sizeof(struct tcpiphdr);
 	else
-#endif /* RTV_MTU */
 	{
 		mss = ifp->if_mtu - sizeof(struct tcpiphdr);
 		if (!in_localaddr(inp->inp_faddr))
@@ -2053,7 +2055,6 @@ tcp_mss(tp, offer)
 	if (!in_localaddr(inp->inp_faddr))
 		tp->snd_cwnd = mss;
 
-#ifdef RTV_SSTHRESH
 	if (rt->rt_rmx.rmx_ssthresh) {
 		/*
 		 * There's some sort of gateway or interface
@@ -2062,8 +2063,8 @@ tcp_mss(tp, offer)
 		 * threshold to no less than 2*mss.
 		 */
 		tp->snd_ssthresh = max(2 * mss, rt->rt_rmx.rmx_ssthresh);
+		tcpstat.tcps_usedssthresh++;
 	}
-#endif
 }
 
 /*
