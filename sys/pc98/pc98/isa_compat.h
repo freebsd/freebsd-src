@@ -61,7 +61,6 @@
 #include "gsc.h"
 #include "cy.h"
 #include "dgb.h"
-#include "dgm.h"
 #include "labpc.h"
 #include "rc.h"
 #include "rp.h"
@@ -115,7 +114,6 @@ extern struct isa_driver  gpdriver;
 extern struct isa_driver gscdriver;
 extern struct isa_driver  cydriver;
 extern struct isa_driver dgbdriver;
-extern struct isa_driver dgmdriver;
 extern struct isa_driver labpcdriver;
 extern struct isa_driver  rcdriver;
 extern struct isa_driver  rpdriver;
@@ -158,9 +156,6 @@ static struct old_isa_driver old_drivers[] = {
 #endif
 #if NDGB > 0
 	{ INTR_TYPE_TTY, &dgbdriver },
-#endif
-#if NDGM > 0
-	{ INTR_TYPE_TTY, &dgmdriver },
 #endif
 #if NLABPC > 0
 	{ INTR_TYPE_TTY, &labpcdriver },
