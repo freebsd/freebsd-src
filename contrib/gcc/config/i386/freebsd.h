@@ -153,18 +153,26 @@ Boston, MA 02111-1307, USA.  */
 #undef  ASM_OUTPUT_LABELREF
 #define ASM_OUTPUT_LABELREF(FILE, NAME)					\
   do {									\
-    char *_name = (NAME);						\
+    const char *xname = (NAME);						\
     /* Hack to avoid writing lots of rtl in				\
        FUNCTION_PROFILER_EPILOGUE ().  */				\
-    if (*_name == '.' && strcmp(_name + 1, "mexitcount") == 0)		\
+    if (*xname == '.' && strcmp(xname + 1, "mexitcount") == 0)		\
       {									\
 	if (flag_pic)							\
-	  fprintf ((FILE), "*%s@GOT(%%ebx)", _name);			\
+	  fprintf ((FILE), "*%s@GOT(%%ebx)", xname);			\
 	else								\
-	  fprintf ((FILE), "%s", _name);				\
+	  fprintf ((FILE), "%s", xname);				\
       }									\
-    else								\
-      fprintf (FILE, "%s", _name);					\
+    else 								\
+      {									\
+	  if (xname[0] == '%')						\
+	    xname += 2;							\
+	  if (xname[0] == '*')						\
+	    xname += 1;							\
+	  else								\
+	    fputs (user_label_prefix, FILE);				\
+	  fputs (xname, FILE);						\
+      }									\
 } while (0)
 
 /* This is how to hack on the symbol code of certain relcalcitrant
