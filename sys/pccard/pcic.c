@@ -2,6 +2,7 @@
  *  Intel PCIC or compatible Controller driver
  *-------------------------------------------------------------------------
  *
+ * Copyright (c) 2001 M. Warner Losh.  All rights reserved.
  * Copyright (c) 1995 Andrew McRae.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -660,6 +661,8 @@ pcicintr1(void *arg)
 				splx(s);
 				return (EIO);
 			}
+			if (sp->intrack)
+				sp->intrack(sp);
 			if (chg & PCIC_CDTCH) {
 				if ((sp->getb(sp, PCIC_STATUS) & PCIC_CD) ==
 				    PCIC_CD) {
