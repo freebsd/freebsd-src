@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.567 1999/03/13 13:20:59 joerg Exp $
+#	$Id: LINT,v 1.568 1999/03/16 13:34:01 sos Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -581,10 +581,7 @@ options		EXPORTMFS
 # Allow this many swap-devices.
 options		NSWAPDEV=20
 
-# Disk quotas are supported when this option is enabled.  If you
-# change the value of this option, you must do a `make clean' in your
-# kernel compile directory in order to get a working kernel.
-#
+# Disk quotas are supported when this option is enabled.
 options		QUOTA			#enable disk quotas
 
 # Add more checking code to various filesystems
