@@ -112,7 +112,7 @@ static void indent __P((int, FILE *));
 static int nextfield __P((char *));
 static void skipbl __P((void));
 static int readline __P((void));
-static void error __P((const char *, ...));
+static void error __P((const char *, ...)) __printf0like(1, 2);
 static char *savestr __P((const char *));
 
 
@@ -451,7 +451,7 @@ error(va_alist)
 #ifdef __STDC__
 	va_start(va, msg);
 #else
-	char *msg;
+	const char *msg;
 	va_start(va);
 	msg = va_arg(va, char *);
 #endif

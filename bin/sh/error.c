@@ -71,7 +71,7 @@ volatile sig_atomic_t intpending;
 char *commandname;
 
 
-static void exverror __P((int, char *, va_list));
+static void exverror __P((int, const char *, va_list)) __printf0like(2, 0);
 
 /*
  * Called to raise an exception.  Since C doesn't include exceptions, we
@@ -142,7 +142,7 @@ onint() {
 static void
 exverror(cond, msg, ap)
 	int cond;
-	char *msg;
+	const char *msg;
 	va_list ap;
 {
 	CLEAR_PENDING_INT;
@@ -167,7 +167,7 @@ exverror(cond, msg, ap)
 
 #ifdef __STDC__
 void
-error(char *msg, ...)
+error(const char *msg, ...)
 #else
 void
 error(va_alist)
@@ -175,7 +175,7 @@ error(va_alist)
 #endif
 {
 #ifndef __STDC__
-	char *msg;
+	const char *msg;
 #endif
 	va_list ap;
 #ifdef __STDC__
@@ -191,7 +191,7 @@ error(va_alist)
 
 #ifdef __STDC__
 void
-exerror(int cond, char *msg, ...)
+exerror(int cond, const char *msg, ...)
 #else
 void
 exerror(va_alist)

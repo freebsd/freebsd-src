@@ -85,7 +85,7 @@
 
 #ifdef __STDC__
 pointer stalloc(int);
-void error(char *, ...);
+void error(const char *, ...) __printf0like(1, 2);
 #else
 pointer stalloc();
 void error();
