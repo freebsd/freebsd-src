@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.468 1998/09/17 21:54:17 nsouch Exp $
+#	$Id: LINT,v 1.469 1998/09/18 00:01:39 ken Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -676,9 +676,6 @@ device sctarg0 at scbus? # SCSI target
 # SCSI_DELAY: The number of MILLISECONDS to freeze the SIM (scsi adapter)
 #             queue after a bus reset, and the number of milliseconds to
 #             freeze the device queue after a bus device reset.
-# SCSI_CAM:   This is only currently needed for the QLogic ISP driver.  If
-#             you don't have the QLogic driver in your kernel, you don't
-#             need this option.
 options		CAMDEBUG
 options		"CAM_DEBUG_BUS=-1"
 options		"CAM_DEBUG_TARGET=-1"
@@ -689,7 +686,6 @@ options		SCSI_NO_SENSE_STRINGS
 options		SCSI_NO_OP_STRINGS
 options		SCSI_REPORT_GEOMETRY
 options		SCSI_DELAY=8000	# Be pessimistic about Joe SCSI device
-options		SCSI_CAM	#We're using CAM in this kernel
 
 # Options for the CAM CDROM driver:
 # CHANGER_MIN_BUSY_SECONDS: Guaranteed minimum time quantum for a changer LUN

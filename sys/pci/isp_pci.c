@@ -44,7 +44,7 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
-#ifdef	SCSI_CAM
+#if	__FreeBSD_version >= 300004
 #include <machine/bus_memio.h>
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
@@ -55,7 +55,7 @@ static void isp_pci_wr_reg __P((struct ispsoftc *, int, u_int16_t));
 static int isp_pci_mbxdma __P((struct ispsoftc *));
 static int isp_pci_dmasetup __P((struct ispsoftc *, ISP_SCSI_XFER_T *,
 	ispreq_t *, u_int8_t *, u_int8_t));
-#ifdef	SCSI_CAM
+#if	__FreeBSD_version >= 300004
 static void
 isp_pci_dmateardown __P((struct ispsoftc *, ISP_SCSI_XFER_T *, u_int32_t));
 #else
@@ -133,7 +133,7 @@ static void isp_pci_attach __P((pcici_t config_d, int unit));
 
 /* This distinguishing define is not right, but it does work */
  
-#ifndef	SCSI_CAM
+#if	__FreeBSD_version < 300004
 #define	IO_SPACE_MAPPING	0
 #define	MEM_SPACE_MAPPING	1
 typedef int bus_space_tag_t;
@@ -168,7 +168,7 @@ struct isp_pcisoftc {
         pcici_t				pci_id;
 	bus_space_tag_t			pci_st;
 	bus_space_handle_t		pci_sh;
-#ifdef	SCSI_CAM
+#if	__FreeBSD_version >= 300004
 	bus_dma_tag_t			parent_dmat;
 	bus_dma_tag_t			cntrol_dmat;
 	bus_dmamap_t			cntrol_dmap;
@@ -302,7 +302,7 @@ isp_pci_attach(config_id, unit)
 		return;
 	}
 
-#ifdef	SCSI_CAM
+#if	__FreeBSD_version >= 300004
 	if (bus_dma_tag_create(NULL, 0, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, 1<<24,
 	    255, 1<<24, 0, &pcs->parent_dmat) != 0) {
@@ -411,7 +411,7 @@ isp_pci_wr_reg(isp, regoff, val)
 	}
 }
 
-#ifdef	SCSI_CAM
+#if	__FreeBSD_version >= 300004
 static void isp_map_rquest __P((void *, bus_dma_segment_t *, int, int));
 static void isp_map_result __P((void *, bus_dma_segment_t *, int, int));
 static void isp_map_fcscrt __P((void *, bus_dma_segment_t *, int, int));
@@ -758,7 +758,8 @@ isp_pci_dmateardown(isp, ccb, handle)
 	bus_dmamap_unload(pci->parent_dmat, *dp);
 }
 
-#else	/* SCSI_CAM */
+#else	/* __FreeBSD_version >= 300004 */
+
 
 static int
 isp_pci_mbxdma(isp)
