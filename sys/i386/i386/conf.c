@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.41 1994/11/03 17:49:01 pst Exp $
+ *	$Id: conf.c,v 1.42 1994/12/03 00:18:15 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -214,6 +214,13 @@ d_ioctl_t fdioctl;
 #define	fdsize		(d_psize_t *)0
 #endif
 
+#define	vnopen		(d_open_t *)enxio
+#define	vnclose		(d_close_t *)enxio
+#define	vnstrategy	(d_strategy_t *)enxio
+#define	vnioctl		(d_ioctl_t *)enxio
+#define	vndump		(d_dump_t *)enxio
+#define	vnsize		(d_psize_t *)0
+
 #define swopen		(d_open_t *)enodev
 #define swclose		(d_close_t *)enodev
 #define swioctl		(d_ioctl_t *)enodev
@@ -255,7 +262,9 @@ struct bdevsw	bdevsw[] =
 	/* block device 14 is reserved for local use */
 	{ (d_open_t *)enxio,		(d_close_t *)enxio,
 	  (d_strategy_t *)enxio,	(d_ioctl_t *)enxio,		/*14*/
-	  (d_dump_t *)enxio,		(d_psize_t *)0,		NULL }
+	  (d_dump_t *)enxio,		(d_psize_t *)0,		NULL },
+	{ vnopen,	vnclose,	vnstrategy,	vnioctl,	/*15*/
+	  vndump,	vnsize,		0 }
 /*
  * If you need a bdev major number for a driver that you intend to donate
  * back to the group or release publically, please contact the FreeBSD team
@@ -763,6 +772,9 @@ struct cdevsw	cdevsw[] =
 	{ cxopen,	cxclose,	cxread,		cxwrite,	/*42*/
 	  cxioctl,	cxstop,		noreset,	cx_tty,	/* cronyx-sigma */
 	  cxselect,	nommap,		NULL },
+	{ vnopen,	vnclose,	rawread,	rawwrite,	/*43*/
+	  vnioctl,	nostop,		nullreset,	NULL,	/* vn */
+	  seltrue,	nommap,		vnstrategy }
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
 
