@@ -166,11 +166,8 @@ storage as you have stuff written on tape!
 You can do network installations over 3 types of communications links:
 
 	Serial port:	SLIP / PPP
-
 	Parallel port:	PLIP (laplink cable)
-
 	Ethernet:	A standard ethernet controller (includes some PCMCIA).
-
 
 SLIP support is rather primitive, and limited primarily to hard-wired
 links, such as a serial cable running between a laptop computer and
