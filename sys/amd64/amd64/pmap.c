@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.44 1995/01/25 22:06:23 davidg Exp $
+ *	$Id: pmap.c,v 1.45 1995/01/26 00:55:03 davidg Exp $
  */
 
 /*
@@ -1548,6 +1548,7 @@ pmap_object_init_pt(pmap, addr, object, offset, size)
 	vm_object_unlock(object);
 }
 
+#if 0
 /*
  * pmap_prefault provides a quick way of clustering
  * pagefaults into a processes address space.  It is a "cousin"
@@ -1636,6 +1637,7 @@ pmap_prefault(pmap, addra, entry, object)
 		}
 	}
 }
+#endif
 
 /*
  *	Routine:	pmap_change_wiring
