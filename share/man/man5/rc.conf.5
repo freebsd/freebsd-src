@@ -2928,6 +2928,55 @@ to prevent the system from trying to
 recover pre-maturely terminated
 .Xr vi 1
 sessions.
+.It Va ramdisk_units
+.Pq Vt str
+A list of one or more ramdisk units to configure with
+.Xr mdconfig 8
+and
+.Xr newfs 8
+in time to be mounted from
+.Xr fstab 5 .
+Each listed unit
+.Nm X
+must specify at least a
+.Ar type
+in a
+.Nm ramdisk_X_config
+variable.
+.It Va ramdisk_X_config
+.Pq Vt str
+Arguments to
+.Xr mdconfig 8
+for ramdisk
+.Nm X .
+At minimum a 
+.Fl Ar t type
+must be specified, where 
+.Ar type
+must be one of
+.Nm malloc
+or
+.Nm swap .
+.It Va ramdisk_X_newfs
+.Pq Vt str
+Optional arguments passed to 
+.Xr newfs 8
+to initialize ramdisk
+.Nm X .
+.It Va ramdisk_X_owner
+.Pq Vt str
+An ownership specification passed to
+.Xr chown 8
+after the specified ramdisk unit
+.Nm X
+has been mounted.  Both the md device and the mount point will be changed.
+.It Va ramdisk_X_perms
+.Pq Vt str
+A mode string passed to
+.Xr chmod 1
+after the specified ramdisk unit
+.Nm X
+has been mounted.  Both the md device and the mount point will be changed.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/defaults/rc.conf" -compact
@@ -2937,6 +2986,7 @@ sessions.
 .El
 .Sh SEE ALSO
 .Xr catman 1 ,
+.Xr chmod 1 ,
 .Xr gdb 1 ,
 .Xr info 1 ,
 .Xr kbdcontrol 1 ,
@@ -2953,6 +3003,7 @@ sessions.
 .Xr amd 8 ,
 .Xr apm 8 ,
 .Xr atm 8 ,
+.Xr chown 8 ,
 .Xr cron 8 ,
 .Xr dhclient 8 ,
 .Xr ifconfig 8 ,
@@ -2966,6 +3017,7 @@ sessions.
 .Xr moused 8 ,
 .Xr mrouted 8 ,
 .Xr named 8 ,
+.Xr newfs 8 ,
 .Xr nfsd 8 ,
 .Xr ntpd 8 ,
 .Xr ntpdate 8 ,
