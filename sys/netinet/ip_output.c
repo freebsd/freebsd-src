@@ -610,8 +610,7 @@ skip_ipsec:
 	if (fw_enable && IPFW_LOADED && !ip_fw_fwd_addr) {
 		struct sockaddr_in *old = dst;
 
-		off = ip_fw_chk_ptr(&ip,
-		    hlen, ifp, &divert_cookie, &m, &rule, &dst);
+		off = ip_fw_chk_ptr(&m, ifp, &divert_cookie, &rule, &dst);
                 /*
                  * On return we must do the following:
                  * m == NULL         -> drop the pkt (old interface, deprecated)
@@ -627,23 +626,13 @@ skip_ipsec:
                  * unsupported rules), but better play safe and drop
                  * packets in case of doubt.
                  */
-		if (off & IP_FW_PORT_DENY_FLAG) { /* XXX new interface-denied */
+		if ( (off & IP_FW_PORT_DENY_FLAG) || m == NULL) {
 			if (m)
 				m_freem(m);
 			error = EACCES;
 			goto done;
 		}
-		if (!m) {			/* firewall said to reject */
-			static int __debug=10;
-
-			if (__debug > 0) {
-				printf(
-				    "firewall returns NULL, please update!\n");
-				__debug--;
-			}
-			error = EACCES;
-			goto done;
-		}
+		ip = mtod(m, struct ip *);
 		if (off == 0 && dst == old)		/* common case */
 			goto pass;
                 if (DUMMYNET_LOADED && (off & IP_FW_PORT_DYNT_FLAG) != 0) {
