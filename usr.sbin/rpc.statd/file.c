@@ -239,7 +239,8 @@ static int notify_one_host(char *hostname)
     return (FALSE);
   }
 
-  if (clnt_call(cli, SM_NOTIFY, xdr_stat_chge, &arg, xdr_void, &dummy, timeout)
+  if (clnt_call(cli, SM_NOTIFY, (xdrproc_t)xdr_stat_chge, &arg,
+      (xdrproc_t)xdr_void, &dummy, timeout)
     != RPC_SUCCESS)
   {
     syslog(LOG_ERR, "Failed to contact rpc.statd at host %s", hostname);
