@@ -29,8 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)lpr.1	8.1 (Berkeley) 6/6/93
-.\"
+.\"     From @(#)lpr.1	8.1 (Berkeley) 6/6/93
+.\"	$Id$
+.\" "
 .Dd June 6, 1993
 .Dt LPR 1
 .Os BSD 4
@@ -45,7 +46,7 @@
 .Op Fl J Ar job
 .Op Fl T Ar title
 .Op Fl U Ar user
-.Op Fl i Op Ar numcols
+.Op Fl i Ar numcols
 .Op Fl 1234 Ar font
 .Op Fl w Ns Ar num
 .Op Fl cdfghlnmprstv
@@ -182,12 +183,9 @@ also for accounting purposes.
 This option is only honored if the real user-id is daemon
 (or that specified in the printcap file instead of daemon),
 and is intended for those instances where print filters wish to requeue jobs.
-.It Fl i Op numcols
-The output is indented. If the next argument
-is numeric
-.Pq Ar numcols ,
-it is used as the number of blanks to be printed before each
-line; otherwise, 8 characters are printed.
+.It Fl i numcols
+The output is indented by
+.Pq Ar numcols .
 .It Fl w Ns Ar num
 Uses
 .Ar num
