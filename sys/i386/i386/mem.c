@@ -124,7 +124,7 @@ mmclose(dev, flags, fmt, p)
 	default:
 		break;
 	}
-	return(0);
+	return (0);
 }
 
 static int
@@ -148,7 +148,7 @@ mmopen(dev, flags, fmt, p)
 	default:
 		break;
 	}
-	return(0);
+	return (0);
 }
 
 static int
@@ -212,7 +212,7 @@ mmrw(dev, uio, flags)
 			
 			if (!kernacc((caddr_t)(int)uio->uio_offset, c,
 			    uio->uio_rw == UIO_READ ? B_READ : B_WRITE))
-				return(EFAULT);
+				return (EFAULT);
 			error = uiomove((caddr_t)(int)uio->uio_offset, (int)c, uio);
 			continue;
 		}
@@ -412,17 +412,17 @@ mem_ioctl(dev, cmd, data, flags, p)
 	/* is this for us? */
 	if ((cmd != MEMRANGE_GET) &&
 	    (cmd != MEMRANGE_SET))
-		return(ENODEV);
+		return (ENOTTY);
 
 	/* any chance we can handle this? */
 	if (mem_range_softc.mr_op == NULL)
-		return(EOPNOTSUPP);
+		return (EOPNOTSUPP);
 
 	/* do we have any descriptors? */
 	if (mem_range_softc.mr_ndesc == 0)
-		return(ENXIO);
+		return (ENXIO);
 
-	switch(cmd) {
+	switch (cmd) {
 	case MEMRANGE_GET:
 		nd = imin(mo->mo_arg[0], mem_range_softc.mr_ndesc);
 		if (nd > 0) {
@@ -450,11 +450,8 @@ mem_ioctl(dev, cmd, data, flags, p)
 			error = mem_range_attr_set(md, &mo->mo_arg[0]);
 		free(md, M_MEMDESC);
 		break;
-	    
-	default:
-		error = EOPNOTSUPP;
 	}
-	return(error);
+	return (error);
 }
 
 /*
@@ -468,14 +465,14 @@ mem_range_attr_get(mrd, arg)
 {
 	/* can we handle this? */
 	if (mem_range_softc.mr_op == NULL)
-		return(EOPNOTSUPP);
+		return (EOPNOTSUPP);
 
 	if (*arg == 0) {
 		*arg = mem_range_softc.mr_ndesc;
 	} else {
 		bcopy(mem_range_softc.mr_desc, mrd, (*arg) * sizeof(struct mem_range_desc));
 	}
-	return(0);
+	return (0);
 }
 
 int
@@ -485,9 +482,9 @@ mem_range_attr_set(mrd, arg)
 {
 	/* can we handle this? */
 	if (mem_range_softc.mr_op == NULL)
-		return(EOPNOTSUPP);
+		return (EOPNOTSUPP);
 
-	return(mem_range_softc.mr_op->set(&mem_range_softc, mrd, arg));
+	return (mem_range_softc.mr_op->set(&mem_range_softc, mrd, arg));
 }
 
 #ifdef SMP
@@ -495,7 +492,7 @@ void
 mem_range_AP_init(void)
 {
 	if (mem_range_softc.mr_op && mem_range_softc.mr_op->initAP)
-		return(mem_range_softc.mr_op->initAP(&mem_range_softc));
+		return (mem_range_softc.mr_op->initAP(&mem_range_softc));
 }
 #endif
 
@@ -564,8 +561,6 @@ random_ioctl(dev, cmd, data, flags, p)
 	case MEM_RETURNIRQ:
 		*(u_int16_t *)data = interrupt_allowed;
 		break;
-	default:
-		return (ENOTTY);
 	}
 	return (0);
 }
