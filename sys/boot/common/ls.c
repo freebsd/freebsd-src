@@ -1,5 +1,5 @@
 /*
- * $Id: ls.c,v 1.5 1998/10/09 07:09:22 msmith Exp $
+ * $Id: ls.c,v 1.6 1998/10/11 10:28:51 peter Exp $
  * From: $NetBSD: ls.c,v 1.3 1997/06/13 13:48:47 drochner Exp $
  */
 
@@ -70,6 +70,7 @@ command_ls(int argc, char *argv[])
     fd = -1;
     verbose = 0;
     optind = 1;
+    optreset = 1;
     while ((ch = getopt(argc, argv, "l")) != -1) {
 	switch(ch) {
 	case 'l':

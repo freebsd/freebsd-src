@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: module.c,v 1.5 1998/09/26 10:51:38 dfr Exp $
+ *	$Id: module.c,v 1.6 1998/10/09 23:12:34 peter Exp $
  */
 
 /*
@@ -72,6 +72,7 @@ command_load(int argc, char *argv[])
     
     dofile = 0;
     optind = 1;
+    optreset = 1;
     typestr = NULL;
     while ((ch = getopt(argc, argv, "t:")) != -1) {
 	switch(ch) {
@@ -133,6 +134,7 @@ command_lsmod(int argc, char *argv[])
 
     verbose = 0;
     optind = 1;
+    optreset = 1;
     while ((ch = getopt(argc, argv, "v")) != -1) {
 	switch(ch) {
 	case 'v':
