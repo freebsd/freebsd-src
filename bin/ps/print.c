@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)print.c	8.6 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: print.c,v 1.26 1998/05/25 05:07:18 steve Exp $";
+	"$Id: print.c,v 1.27 1998/05/28 09:29:43 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -446,35 +446,35 @@ cputime(k, ve)
 	VARENT *ve;
 {
 	VAR *v;
-	int64_t sec;
 	long secs;
 	long psecs;	/* "parts" of a second. first micro, then centi */
 	char obuff[128];
 
 	v = ve->var;
 	if (KI_PROC(k)->p_stat == SZOMB || !k->ki_u.u_valid) {
-		sec = 0;
+		secs = 0;
+		psecs = 0;
 	} else {
 		/*
 		 * This counts time spent handling interrupts.  We could
 		 * fix this, but it is not 100% trivial (and interrupt
 		 * time fractions only work on the sparc anyway).	XXX
 		 */
-		sec = KI_PROC(k)->p_runtime;
+		secs = KI_PROC(k)->p_runtime / 1000000;
+		psecs = KI_PROC(k)->p_runtime % 1000000;
 		if (sumrusage) {
-			sec += (k->ki_u.u_cru.ru_utime.tv_sec +
-				k->ki_u.u_cru.ru_stime.tv_sec) * 
-				(int64_t)1000000;
-			sec += k->ki_u.u_cru.ru_utime.tv_usec +
+			secs += k->ki_u.u_cru.ru_utime.tv_sec +
+				k->ki_u.u_cru.ru_stime.tv_sec;
+			psecs += k->ki_u.u_cru.ru_utime.tv_usec +
 				k->ki_u.u_cru.ru_stime.tv_usec;
 		}
+		/*
+		 * round and scale to 100's
+		 */
+		psecs = (psecs + 5000) / 10000;
+		secs += psecs / 100;
+		psecs = psecs % 100;
 	}
-	/*
-	 * round and scale to 100's
-	 */
-	sec = (sec + 5000) / 10000;
-	secs = sec / 100;
-	psecs = sec % 100;
 	(void)snprintf(obuff, sizeof(obuff),
 	    "%3ld:%02ld.%02ld", secs/60, secs%60, psecs);
 	(void)printf("%*s", v->width, obuff);
