@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
-.\" $Id$
+.\" $Id: property.3,v 1.1 1998/10/08 06:53:32 jkh Exp $
 .\" "
 .Dd October 7, 1998
 .Os
@@ -37,7 +37,7 @@
 .Fd #include <sys/types.h>
 .Fd #include <libutil.h>
 .Ft properties
-.Fn properties_read "FILE *fp"
+.Fn properties_read "int fd"
 .Ft char *
 .Fn property_find "char *name"
 .Ft void
@@ -61,8 +61,8 @@ The function
 .Fn properties_read
 reads
 .Fa name = value
-pairs from the file specified in
-.Fa fp
+pairs from the file descriptor passed in
+.Fa fd
 and returns the head of a new property list, assuming that the
 file's contents have been parsed properly, or NULL in case
 of error.  The property list pointer should be passed to
