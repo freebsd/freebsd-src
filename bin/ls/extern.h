@@ -46,6 +46,7 @@ int	 revstatcmp(const FTSENT *, const FTSENT *);
 void	 printcol(DISPLAY *);
 void	 printlong(DISPLAY *);
 void	 printscol(DISPLAY *);
+void	 printstream(DISPLAY *);
 void	 usage(void);
 size_t	 len_octal(const char *, int);
 int	 prn_octal(const char *);
