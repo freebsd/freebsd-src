@@ -481,7 +481,11 @@ sc*|SC*)
 	;;
 esac
 echo
-echo	"Disk is of device type $drivetype."
+echo -n "Install onto which drive [$drivename] "
+read resp junk
+drivename=${resp:-${drivename}}
+echo
+echo	"Disk $drivename is of device type $drivetype."
 if [ ! "$partition" ]; then
 	echo
 	echo	"Examining device /dev/r${drivename}d..."
