@@ -1770,6 +1770,9 @@ static int dc_attach(dev)
 	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct dc_softc));
 
+	mtx_init(&sc->dc_mtx, device_get_nameunit(dev), MTX_DEF);
+	DC_LOCK(sc);
+
 	/*
 	 * Handle power management nonsense.
 	 */
@@ -1833,8 +1836,6 @@ static int dc_attach(dev)
 		goto fail;
 	}
 
-	mtx_init(&sc->dc_mtx, device_get_nameunit(dev), MTX_DEF);
-	DC_LOCK(sc);
 	/* Need this info to decide on a chip type. */
 	sc->dc_info = dc_devtype(dev);
 	revision = pci_read_config(dev, DC_PCI_CFRV, 4) & 0x000000FF;

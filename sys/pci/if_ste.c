@@ -917,6 +917,9 @@ static int ste_attach(dev)
 	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct ste_softc));
 
+	mtx_init(&sc->ste_mtx, device_get_nameunit(dev), MTX_DEF);
+	STE_LOCK(sc);
+
 	/*
 	 * Handle power management nonsense.
 	 */
@@ -1002,8 +1005,6 @@ static int ste_attach(dev)
 	}
 
 	callout_handle_init(&sc->ste_stat_ch);
-	mtx_init(&sc->ste_mtx, device_get_nameunit(dev), MTX_DEF);
-	STE_LOCK(sc);
 
 	/* Reset the adapter. */
 	ste_reset(sc);

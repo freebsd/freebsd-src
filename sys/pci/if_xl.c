@@ -1239,6 +1239,9 @@ static int xl_attach(dev)
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
 
+	mtx_init(&sc->xl_mtx, device_get_nameunit(dev), MTX_DEF);
+	XL_LOCK(sc);
+
 	sc->xl_flags = 0;
 	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_556 ||
 	    pci_get_device(dev) == TC_DEVICEID_HURRICANE_556B)
@@ -1381,9 +1384,6 @@ static int xl_attach(dev)
 		printf("xl%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
-
-	mtx_init(&sc->xl_mtx, device_get_nameunit(dev), MTX_DEF);
-	XL_LOCK(sc);
 
 	/* Reset the adapter. */
 	xl_reset(sc);

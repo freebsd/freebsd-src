@@ -643,6 +643,9 @@ static int vr_attach(dev)
 	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct vr_softc *));
 
+	mtx_init(&sc->vr_mtx, device_get_nameunit(dev), MTX_DEF);
+	VR_LOCK(sc);
+
 	/*
 	 * Handle power management nonsense.
 	 */
@@ -728,8 +731,6 @@ static int vr_attach(dev)
 		goto fail;
 	}
 
-	mtx_init(&sc->vr_mtx, device_get_nameunit(dev), MTX_DEF);
-	VR_LOCK(sc);
 	/* Reset the adapter. */
 	vr_reset(sc);
 

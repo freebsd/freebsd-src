@@ -679,6 +679,8 @@ static int sf_attach(dev)
 	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct sf_softc));
 
+	mtx_init(&sc->sf_mtx, device_get_nameunit(dev), MTX_DEF);
+	SF_LOCK(sc);
 	/*
 	 * Handle power management nonsense.
 	 */
@@ -765,8 +767,6 @@ static int sf_attach(dev)
 	}
 
 	callout_handle_init(&sc->sf_stat_ch);
-	mtx_init(&sc->sf_mtx, device_get_nameunit(dev), MTX_DEF);
-	SF_LOCK(sc);
 	/* Reset the adapter. */
 	sf_reset(sc);
 

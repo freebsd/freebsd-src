@@ -802,6 +802,9 @@ static int rl_attach(dev)
 	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct rl_softc));
 
+	mtx_init(&sc->rl_mtx, device_get_nameunit(dev), MTX_DEF);
+	RL_LOCK(sc);
+
 	/*
 	 * Handle power management nonsense.
 	 */
@@ -898,9 +901,6 @@ static int rl_attach(dev)
 	}
 
 	callout_handle_init(&sc->rl_stat_ch);
-
-	mtx_init(&sc->rl_mtx, device_get_nameunit(dev), MTX_DEF);
-	RL_LOCK(sc);
 
 	/* Reset the adapter. */
 	rl_reset(sc);
