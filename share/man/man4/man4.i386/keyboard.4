@@ -1,5 +1,5 @@
 .\"
-.\"	$Id$
+.\"	$Id: keyboard.4,v 1.11 1997/03/07 02:49:47 jmg Exp $
 .\"
 .Dd January 8, 1995
 .Dt KEYBOARD 4 i386
@@ -98,7 +98,7 @@ the kernel at runtime. This make it possible to change the key
 assignments at runtime, or more important to get (GIO_KEYMAP ioctl)
 the exact key meanings from the kernel (fx. used by the X server).
 
-The function keys can be programmed using the PIO_STRMAP ioctl call.
+The function keys can be programmed using the SETFKEY ioctl call.
 
 This ioctl takes a argument of the type fkeyarg_t:
 .Bd -literal -offset indent
@@ -113,7 +113,7 @@ The field keynum defines which function key that is programmed.
 The array keydef should contain the new string to be used (MAXFK long),
 and the length should be entered in flen.
 
-The GIO_STRMAP ioctl call works in a semilar manner, execpt it returns
+The GETFKEY ioctl call works in a semilar manner, execpt it returns
 the current setting of keynum.
 
 The function keys are numbered like this:
