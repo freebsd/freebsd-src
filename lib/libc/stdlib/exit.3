@@ -65,6 +65,11 @@ Unlink all files created with the
 .Xr tmpfile 3
 function.
 .El
+.Pp
+Passing arbitrary values back to the environment as
+.Ar status
+is considered bad style.  Instead, use the values as described in
+.Xr sysexits 3 .
 .Sh RETURN VALUES
 The
 .Fn exit
@@ -74,7 +79,8 @@ never returns.
 .Xr _exit 2 ,
 .Xr atexit 3 ,
 .Xr intro 3 ,
-.Xr tmpfile 3
+.Xr tmpfile 3 ,
+.Xr sysexits 3
 .Sh STANDARDS
 The
 .Fn exit
