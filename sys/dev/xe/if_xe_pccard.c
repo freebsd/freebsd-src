@@ -408,7 +408,7 @@ xe_pccard_product_match(device_t dev, const struct pccard_product* ent, int vpfm
 	pccard_get_prodext(dev, &prodext);
 
 	if (xpp->prodext != prodext)
-		vpfmatch--;
+		vpfmatch = 0;
 
 	return (vpfmatch);
 }
