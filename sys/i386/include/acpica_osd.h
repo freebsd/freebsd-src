@@ -30,12 +30,14 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <machine/bus.h>
 #include <machine/vmparam.h>
 #include <sys/acpi.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <pci/pcivar.h>
+
+#include "pcib_if.h"
 
 #define ACPI_BUS_SPACE_IO	I386_BUS_SPACE_IO
 
@@ -45,6 +47,27 @@
 
 static UINT32	OsdInX(ACPI_IO_ADDRESS, int);
 static void	OsdOutX(ACPI_IO_ADDRESS, UINT32, int);
+
+/*
+ * New-bus dependent code
+ */
+
+static device_t	get_pcib_device(void);
+
+static __inline device_t
+get_pcib_device()
+{
+	device_t	nexus, pcib;
+
+	if ((nexus = device_find_child(root_bus, "nexus", 0)) == NULL) {
+		return (NULL);
+	}
+	if ((pcib = device_find_child(nexus, "pcib", 0)) == NULL) {
+		return (NULL);
+	}
+
+	return (pcib);
+}
 
 /*
  * Platform/Hardware independent I/O interfaces
@@ -200,21 +223,14 @@ OsdUnMapMemory(void *LogicalAddress, UINT32 Length)
 static __inline ACPI_STATUS
 OsdReadPciCfg(UINT32 Bus, UINT32 DeviceFunction, UINT32 Register, UINT32 *Value, int bytes)
 {
-	pcicfgregs	pcicfg;
+	static device_t	pcib = NULL;
 
-	/*
-	 * XXX Hack for Alpha(tsunami) systems.
-	 * pcicfg.hose is set to -1 in the hope that,
-	 * tsunami_cfgreadX() will set it up right.
-	 * Other Alpha systems (and i386's) don't seem to use hose.
-	 */
-	pcicfg.hose = -1;
+	if (pcib == NULL && (pcib = get_pcib_device()) == NULL) {
+		return (AE_ERROR);
+	}
 
-	pcicfg.bus = Bus;
-	pcicfg.slot = (DeviceFunction >> 16) & 0xff;
-	pcicfg.func = DeviceFunction & 0xff;
-
-	*Value = pci_cfgread(&pcicfg, Register, bytes);
+	*Value = PCIB_READ_CONFIG(pcib, Bus, (DeviceFunction >> 16) & 0xff,
+	    DeviceFunction & 0xff, Register, bytes);
 
 	return (AE_OK);
 }
@@ -264,21 +280,14 @@ OsdReadPciCfgDword(UINT32 Bus, UINT32 DeviceFunction, UINT32 Register, UINT32 *V
 static __inline ACPI_STATUS
 OsdWritePciCfg(UINT32 Bus, UINT32 DeviceFunction, UINT32 Register, UINT32 Value, int bytes)
 {
-	pcicfgregs	pcicfg;
+	static device_t	pcib = NULL;
 
-	/*
-	 * XXX Hack for Alpha(tsunami) systems.
-	 * pcicfg.hose is set to -1 in the hope that,
-	 * tsunami_cfgreadX() will set it up right.
-	 * Other Alpha systems (and i386's) don't seem to use hose.
-	 */
-	pcicfg.hose = -1;
+	if (pcib == NULL && (pcib = get_pcib_device()) == NULL) {
+		return (AE_ERROR);
+	}
 
-	pcicfg.bus = Bus;
-	pcicfg.slot = (DeviceFunction >> 16) & 0xff;
-	pcicfg.func = DeviceFunction & 0xff;
-
-	pci_cfgwrite(&pcicfg, Register, Value, bytes);
+	PCIB_WRITE_CONFIG(pcib, Bus, (DeviceFunction >> 16) & 0xff,
+	    DeviceFunction & 0xff, Register, Value, bytes);
 
 	return (AE_OK);
 }
