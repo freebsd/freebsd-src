@@ -275,29 +275,13 @@ NON_GPROF_ENTRY(btext)
 
 	call	identify_cpu
 
-/* clear bss */
 /*
- * XXX this should be done a little earlier.
- *
- * XXX we don't check that there is memory for our bss and page tables
- * before using it.
- *
- * XXX the boot program somewhat bogusly clears the bss.  We still have
- * to do it in case we were unzipped by kzipboot.  Then the boot program
- * only clears kzipboot's bss.
- *
- * XXX the gdt and idt are still somewhere in the boot program.  We
- * depend on the convention that the boot program is below 1MB and we
- * are above 1MB to keep the gdt and idt away from the bss and page
- * tables.
+ * We used to clear BSS here, but it isn't needed anymore and actually
+ * causes harm.  gcc now optimizes 'int foo = 0' to be uninitialized in
+ * the bss.  All the supported loaders already zero the bss.  The a.out
+ * kgzip case does not, but we do not generate a.out kernels anymore.
+ * This is trivial to fix anyway, is a bug in kgzip.
  */
-	movl	$R(end),%ecx
-	movl	$R(edata),%edi
-	subl	%edi,%ecx
-	xorl	%eax,%eax
-	cld
-	rep
-	stosb
 
 	call	create_pagetables
 
