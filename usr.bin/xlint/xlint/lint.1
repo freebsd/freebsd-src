@@ -39,75 +39,39 @@
 .Nm lint
 .Nd a C program verifier
 .Sh SYNOPSIS
+.Bk -words
 .Nm
 .Op Fl abceghprvwxzHFV
-.Bk -words
-.Op Fl s | Fl t
-.Ek
-.Bk -words
-.Op Fl i | Fl nu
-.Ek
-.Bk -words
-.Op Fl D Ar name Ns Op =def
-.Ek
-.Bk -words
+.Op Fl s | t
+.Op Fl i | nu
+.Op Fl D Ar name Ns Op = Ns Ar def
 .Op Fl U Ar name
-.Ek
-.Bk -words
 .Op Fl I Ar directory
-.Ek
-.Bk -words
 .Op Fl d Ar directory
-.Ek
-.Bk -words
 .Op Fl L Ar directory
-.Ek
-.Bk -words
 .Op Fl l Ar library
-.Ek
-.Bk -words
 .Op Fl o Ar outputfile
-.Ek
-.Bk -words
 .Op Fl B Ar directory
-.Ek
-.Bk -words
-.Op Fl X Ar id Ns Op ,id ...
-.Ek
+.Op Fl X Ar id Ns Op , Ns Ar id ...
 .Ar
-.Nm lint
+.Nm
 .Op Fl abceghprvwzHFV
-.Bk -words
-.Op Fl s | Fl t
-.Ek
-.Bk -words
+.Op Fl s | t
 .Fl C Ar library
-.Ek
-.Bk -words
-.Op Fl D Ar name Ns Op =def
-.Ek
-.Bk -words
+.Op Fl D Ar name Ns Op = Ns Ar def
 .Op Fl U Ar name
-.Ek
-.Bk -words
 .Op Fl I Ar directory
-.Ek
-.Bk -words
 .Op Fl d Ar directory
-.Ek
-.Bk -words
 .Op Fl B Ar directory
-.Ek
-.Bk -words
-.Op Fl X Ar id Ns Op ,id ...
-.Ek
+.Op Fl X Ar id Ns Op , Ns Ar id ...
 .Ar
 .Ek
 .Sh DESCRIPTION
 .Nm
 attempts to detect features of the named C program files
 that are likely to be bugs, to be non-portable, or to be
-wasteful. It also performs stricter type checking than does
+wasteful.
+It also performs stricter type checking than does
 the C compiler.
 .Nm
 runs the C preprocessor as its first phase, with the
@@ -118,7 +82,7 @@ or skipped by
 .Nm .
 Therefore, this symbol should be thought of as a reserved
 word for all code that is to be checked by
-.Nm "" .
+.Nm .
 .Pp
 Among the possible problems that are currently noted are
 unreachable statements, loops not entered at the top,
@@ -140,7 +104,7 @@ Filename arguments with
 names ending with
 .Pa .ln
 are taken to be the result of an earlier invocation of
-.Nm "" ,
+.Nm ,
 with either the
 .Fl i , o ,
 or
@@ -202,7 +166,7 @@ causes
 .Nm
 to take input from standard input (until end of file) and process
 it as if it were a
-.Pa \&.c
+.Pa .c
 file.
 If the
 .Fl i
@@ -211,8 +175,8 @@ flag is given and
 is named as one of the input files, the
 .Fl o
 flag must also be specified to provide an output file name.
-.Pp
-.Sy Options
+The options are as follows:
+.\" XXX
 .Bl -tag -width Fl
 .It Fl a
 Report assignments of
@@ -251,8 +215,10 @@ Don't print warnings for some extensions of
 to the C language.
 Currently these are nonconstant initializers in
 automatic aggregate initializations, arithmetic on pointer to void,
-trailing commas in enum declarations, C++ -style
-.Dq //
+trailing commas in
+.Vt enum
+declarations, C++ -style
+.Dq Li //
 comments,
 zero sized structures, subscripting of non-lvalue arrays, prototypes
 overriding old style function declarations and long long
@@ -262,9 +228,9 @@ The
 flag also turns on the keywords
 .Ic asm
 and
-.Sy inline
+.Ic inline
 (alternative keywords with leading underscores for both
-.Sy asm
+.Ic asm
 and
 .Ic inline
 are always available).
@@ -280,7 +246,7 @@ file on the command line.
 These
 .Pa .ln
 files are the product of
-.Nm "" Ns 's
+.Nm Ns 's
 first pass only, and are not checked for compatibility
 between functions.
 .It Fl n
@@ -317,7 +283,7 @@ are defined without leading and trailing underscores.
 The keywords
 .Ic const , volatile
 and
-.Sy signed
+.Ic signed
 are not available in traditional C mode (although the alternative
 keywords with leading underscores still are).
 .It Fl u
@@ -330,16 +296,21 @@ on a subset of files comprising part of a larger program).
 Suppress complaints about unused arguments in functions.
 .It Fl x
 Report variables referred to by
-.Sy extern
+.Ic extern
 declarations, but never used.
 .It Fl z
 Do not complain about structures that are never defined
 (for example, using a structure pointer without knowing
 its contents).
-.It Fl B Ns Ar path
-Path to use when looking for the lint1 and lint2 binaries. Defualts to
+.It Fl B Ar path
+Path to use when looking for the
+.Pa lint1
+and
+.Pa lint2
+binaries.
+Defaults to
 .Pa /usr/libexec .
-.It Fl C Ns Ar library
+.It Fl C Ar library
 Create a
 .Nm
 library with the name
@@ -370,11 +341,13 @@ is defined as 1.
 Add
 .Ar directory
 to the list of directories in which to search for include files.
-.It Fl d Ns Ar directory
+.It Fl d Ar directory
 Use
 .Ar directory
-instead of /usr/include as the default place to find include files.
-.It Fl l Ns Ar library
+instead of
+.Pa /usr/include
+as the default place to find include files.
+.It Fl l Ar library
 Include the lint library
 .Pa llib-l Ns Ar library Ns Pa .ln .
 .It Fl L Ar directory
@@ -396,8 +369,9 @@ followed by a question mark.
 Name the output file
 .Ar outputfile .
 The output file produced is the input that is given to
-.Nm "" Ns 's
-second pass. The
+.Nm Ns 's
+second pass.
+The
 .Fl o
 option simply saves this file in the named output file.
 If the
@@ -419,19 +393,18 @@ for the preprocessor.
 .It Fl V
 Print the command lines constructed by the controller program to
 run the C preprocessor and
-.Nm "" Ns 's
+.Nm Ns 's
 first and second pass.
 .It Fl w
 Treat warnings as errors.
-.It Fl X Ar id Ns Op ,id ...
-Suppress error messages identified by the list of ids. A list of messages
+.It Fl X Ar id Ns Op , Ns Ar id ...
+Suppress error messages identified by the list of ids.
+A list of messages
 and ids can be found in
 .Xr lint 7 .
 .El
-.Pp
-.Sy Input Grammar
-.Pp
-.Nm "" Ns 's
+.Ss Input Grammar
+.Nm Ns 's
 first pass reads standard C source files.
 .Nm
 recognizes the following C comments as commands.
@@ -449,8 +422,11 @@ option for the next function).
 .It Li /* BITFIELDTYPE */
 Suppress error messages about illegal bitfield types if the type
 is an integer type, and suppress non-portable bitfield type warnings.
-.It Li /* CONSTCOND */ No or Xo
-.Li /* CONSTANTCOND */ No or
+.It Xo
+.Li /* CONSTCOND */
+or
+.Li /* CONSTANTCOND */
+or
 .Li /* CONSTANTCONDITION */
 .Xc
 suppress complaints about constant operands for the next expression.
@@ -477,8 +453,11 @@ or
 .Li /* NOSTRICT Oo Ar comment Oc Li */
 .Xc
 Suppresses any intra-file warning except those dealing with
-unused variables or functions. This directive should be placed
-on the line immediately preceding where the lint warning occurred.
+unused variables or functions.
+This directive should be placed
+on the line immediately preceding where the
+.Nm
+warning occurred.
 .It Li /* LONGLONG */
 Suppress complaints about use of long long integer types.
 .It Li /* NOTREACHED */
@@ -552,13 +531,13 @@ file, and prints all messages that are about just that
 source file.
 After all the source files have been separately
 run through
-.Nm "" ,
+.Nm ,
 it is invoked once more (without the
 .Fl i
 option), listing all the
 .Pa .ln
 files with the needed
-.Fl l Ns Ar library
+.Fl l Ar library
 options.
 This will print all the inter-file inconsistencies.
 This
@@ -570,7 +549,7 @@ to be used to
 .Nm
 only the source files that have been modified since the last
 time the set of source files were
-.Nm "" Ns No ed .
+.Nm Ns ed .
 .Sh ENVIRONMENT
 .Bl -tag -width LIBDIR
 .It Ev LIBDIR
@@ -587,7 +566,8 @@ will be used to search for the libraries.
 usually the path for temporary files can be redefined by setting
 this environment variable.
 .It Ev CC
-Location of the C compiler program.  Defaults to
+Location of the C compiler program.
+Defaults to
 .Pa /usr/bin/cc .
 .El
 .Sh FILES
