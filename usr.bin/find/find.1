@@ -243,6 +243,20 @@ The filename substituted for
 the string
 .Dq Li {}
 is not qualified.
+.It Ic -flags Op Fl Ns Ar flags
+This primary evaluates to true if exactly those flags of the file are
+set which are also set using the specified
+.Ar flags
+(if these are not preceded by a dash
+.Pq Dq Li - ,
+or if they match the specified flags (if these are preceded by a dash).
+The
+.Ar flags
+are specified using symbolic names (see
+.Xr chflags 1 ) .
+Note that this is different from
+.Ic -perm ,
+which only allows you to specify flags which are set.
 .It Ic -fstype Ar type
 True if the file is contained in a file system of type
 .Ar type .
@@ -270,9 +284,21 @@ If
 is numeric and there is no such group name, then
 .Ar gname
 is treated as a group ID.
+.It Ic -iname Ar pattern
+Like
+.Ic -name ,
+but the match is case insensitive.
 .It Ic -inum Ar n
 True if the file has inode number
 .Ar n .
+.It Ic -ipath Ar pattern
+Like
+.Ic -path ,
+but the match is case insensitive.
+.It Ic -iregex Ar pattern
+Like
+.Ic -regex ,
+but the match is case insensitive.
 .It Ic -links Ar n
 True if the file has
 .Ar n
@@ -291,9 +317,6 @@ The format is identical to that produced by
 .Bk -words
 .Nm ls Fl dgils .
 .Ek
-.It Ic -mnewer Ar file
-Same as
-.Ic -newer .
 .It Ic -maxdepth Ar n
 True if the depth of the current file into the tree is less than or equal to
 .Ar n .
@@ -306,37 +329,15 @@ True if the difference between the file last modification time and the time
 was started, rounded up to the next full minute, is
 .Ar n
 minutes.
+.It Ic -mnewer Ar file
+Same as
+.Ic -newer .
 .It Ic -mtime Ar n
 True if the difference between the file last modification time and the time
 .Nm
 was started, rounded up to the next full 24\-hour period, is
 .Ar n
 24\-hour periods.
-.It Ic -ok Ar utility Op Ar argument ... ;
-The
-.Ic -ok
-primary is identical to the
-.Ic -exec
-primary with the exception that
-.Nm
-requests user affirmation for the execution of the
-.Ar utility
-by printing
-a message to the terminal and reading a response.
-If the response is other than
-.Dq Li y
-the command is not executed and the
-value of the
-.Ic -ok
-expression is false.
-.It Ic -okdir Ar utility Op Ar argument ... ;
-The
-.Ic -okdir
-primary is identical to the
-.Ic -execdir
-primary with the same exception as described for the
-.Ic -ok
-primary.
 .It Ic -name Ar pattern
 True if the last component of the pathname being examined matches
 .Ar pattern .
@@ -351,28 +352,6 @@ may be used as part of
 These characters may be matched explicitly by escaping them with a
 backslash
 .Pq Dq Li \e .
-.It Ic -iname Ar pattern
-Like
-.Ic -name ,
-but the match is case insensitive.
-.It Ic -regex Ar pattern
-True if the whole path of the file matches
-.Ar pattern
-using regular expression.
-To match a file named
-.Dq Pa ./foo/xyzzy ,
-you can use the regular expression
-.Dq Li ".*/[xyz]*"
-or
-.Dq Li ".*/foo/.*" ,
-but not
-.Dq Li xyzzy
-or
-.Dq Li /foo/ .
-.It Ic -iregex Ar pattern
-Like
-.Ic -regex ,
-but the match is case insensitive.
 .It Ic -newer Ar file
 True if the current file has a more recent last modification time than
 .Ar file .
@@ -402,10 +381,35 @@ Note that
 .Ic -newermm
 is equivalent to
 .Ic -newer .
-.It Ic -nouser
-True if the file belongs to an unknown user.
 .It Ic -nogroup
 True if the file belongs to an unknown group.
+.It Ic -nouser
+True if the file belongs to an unknown user.
+.It Ic -ok Ar utility Op Ar argument ... ;
+The
+.Ic -ok
+primary is identical to the
+.Ic -exec
+primary with the exception that
+.Nm
+requests user affirmation for the execution of the
+.Ar utility
+by printing
+a message to the terminal and reading a response.
+If the response is other than
+.Dq Li y
+the command is not executed and the
+value of the
+.Ic -ok
+expression is false.
+.It Ic -okdir Ar utility Op Ar argument ... ;
+The
+.Ic -okdir
+primary is identical to the
+.Ic -execdir
+primary with the same exception as described for the
+.Ic -ok
+primary.
 .It Ic -path Ar pattern
 True if the pathname being examined matches
 .Ar pattern .
@@ -424,10 +428,6 @@ Slashes
 .Pq Dq Li /
 are treated as normal characters and do not have to be
 matched explicitly.
-.It Ic -ipath Ar pattern
-Like
-.Ic -path ,
-but the match is case insensitive.
 .It Ic -perm Oo Fl Oc Ns Ar mode
 The
 .Ar mode
@@ -453,20 +453,6 @@ Otherwise, this primary evaluates to true if
 the bits in the mode exactly match the file's mode bits.
 Note, the first character of a symbolic mode may not be a dash
 .Pq Dq Li - .
-.It Ic -flags Op Fl Ns Ar flags
-This primary evaluates to true if exactly those flags of the file are
-set which are also set using the specified
-.Ar flags
-(if these are not preceded by a dash
-.Pq Dq Li - ,
-or if they match the specified flags (if these are preceded by a dash).
-The
-.Ar flags
-are specified using symbolic names (see
-.Xr chflags 1 ) .
-Note that this is different from
-.Ic -perm ,
-which only allows you to specify flags which are set.
 .It Ic -print
 This primary always evaluates to true.
 It prints the pathname of the current file to standard output.
@@ -491,6 +477,20 @@ Note, the
 primary has no effect if the
 .Fl d
 option was specified.
+.It Ic -regex Ar pattern
+True if the whole path of the file matches
+.Ar pattern
+using regular expression.
+To match a file named
+.Dq Pa ./foo/xyzzy ,
+you can use the regular expression
+.Dq Li ".*/[xyz]*"
+or
+.Dq Li ".*/foo/.*" ,
+but not
+.Dq Li xyzzy
+or
+.Dq Li /foo/ .
 .It Ic -size Ar n Ns Op Cm c
 True if the file's size, rounded up, in 512\-byte blocks is
 .Ar n .
