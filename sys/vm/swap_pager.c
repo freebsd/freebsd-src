@@ -2173,8 +2173,8 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks, sw_strategy_t *strateg
 	sp->sw_first = dvbase;
 	sp->sw_end = dvbase + nblks;
 	TAILQ_INSERT_TAIL(&swtailq, sp, sw_list);
-	mtx_unlock(&sw_dev_mtx);
 	nswapdev++;
+	mtx_unlock(&sw_dev_mtx);
 	swap_pager_avail += nblks;
 	swap_pager_full = 0;
 }
@@ -2277,10 +2277,10 @@ found:
 	sp->sw_id = NULL;
 	mtx_lock(&sw_dev_mtx);
 	TAILQ_REMOVE(&swtailq, sp, sw_list);
+	nswapdev--;
 	mtx_unlock(&sw_dev_mtx);
 	if (swdevhd == sp)
 		swdevhd = NULL;
-	nswapdev--;
 	blist_destroy(sp->sw_blist);
 	free(sp, M_VMPGDATA);
 
