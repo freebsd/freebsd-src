@@ -198,4 +198,36 @@ extern struct gmonparam _gmonparam;
 #define	GPROF_TOS	3	/* struct: destination/count structure */
 #define	GPROF_GMONPARAM	4	/* struct: profiling parameters (see above) */
 
+#ifdef _KERNEL
+
+#ifdef GUPROF
+
+#define	CALIB_SCALE	1000
+#define	KCOUNT(p,index) \
+	((p)->kcount[(index) / (HISTFRACTION * sizeof(HISTCOUNTER))])
+#define	PC_TO_I(p, pc)	((uintfptr_t)(pc) - (uintfptr_t)(p)->lowpc)
+
+extern int	cputime_bias;
+
+int	cputime(void);
+void	nullfunc_loop_profiled(void);
+void	nullfunc_profiled(void);
+void	startguprof(struct gmonparam *p);
+void	stopguprof(struct gmonparam *p);
+
+#else /* !GUPROF */
+
+#define	startguprof(p)
+#define	stopguprof(p)
+
+#endif /* GUPROF */
+
+void	empty_loop(void);
+void	kmupetext(uintfptr_t nhighpc);
+void	mexitcount(uintfptr_t selfpc);
+void	nullfunc(void);
+void	nullfunc_loop(void);
+
+#endif /* _KERNEL */
+
 #endif /* !_SYS_GMON_H_ */

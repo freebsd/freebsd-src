@@ -104,18 +104,6 @@ _mcount:								\n\
 #define MCOUNT_EXIT(s) \n\
 	intr_restore(_c)
 #define	MCOUNT_DECL(s)	register_t c;
-#ifdef GUPROF
-struct gmonparam;
-
-void	nullfunc_loop_profiled(void);
-void	nullfunc_profiled(void);
-void	startguprof(struct gmonparam *p);
-void	stopguprof(struct gmonparam *p);
-#else
-#define startguprof(p)
-#define stopguprof(p)
-#endif /* GUPROF */
-
 #else /* !_KERNEL */
 typedef u_long	uintfptr_t;
 #endif

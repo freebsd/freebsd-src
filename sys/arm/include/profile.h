@@ -54,13 +54,9 @@
 #define	MCOUNT
 
 #ifdef GUPROF
-#define	CALIB_SCALE	1000
-#define	KCOUNT(p,index)	((p)->kcount[(index) \
-			 / (HISTFRACTION * sizeof(HISTCOUNTER))])
 #define	MCOUNT_DECL(s)
 #define	MCOUNT_ENTER(s)
 #define	MCOUNT_EXIT(s)
-#define	PC_TO_I(p, pc)	((uintfptr_t)(pc) - (uintfptr_t)(p)->lowpc)
 #else
 #define	MCOUNT_DECL(s)	u_long s;
 #ifdef SMP
@@ -97,19 +93,6 @@ typedef	u_int	fptrdiff_t;
 #ifdef _KERNEL
 
 void	mcount(uintfptr_t frompc, uintfptr_t selfpc);
-void	kmupetext(uintfptr_t nhighpc);
-
-#ifdef GUPROF
-struct gmonparam;
-
-void	nullfunc_loop_profiled(void);
-void	nullfunc_profiled(void);
-void	startguprof(struct gmonparam *p);
-void	stopguprof(struct gmonparam *p);
-#else
-#define	startguprof(p)
-#define	stopguprof(p)
-#endif /* GUPROF */
 
 #else /* !_KERNEL */
 
@@ -122,18 +105,5 @@ void	mcount(void) __asm(".mcount");
 __END_DECLS
 
 #endif /* _KERNEL */
-
-#ifdef GUPROF
-/* XXX doesn't quite work outside kernel yet. */
-extern int	cputime_bias;
-
-__BEGIN_DECLS
-int	cputime(void);
-void	empty_loop(void);
-void	mexitcount(uintfptr_t selfpc);
-void	nullfunc(void);
-void	nullfunc_loop(void);
-__END_DECLS
-#endif
 
 #endif /* !_MACHINE_PROFILE_H_ */
