@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_coff.c,v 1.5 1995/08/24 10:30:36 davidg Exp $
+ *	$Id: imgact_coff.c,v 1.6 1995/08/28 09:18:36 julian Exp $
  */
 
 #include <sys/param.h>
@@ -197,6 +197,12 @@ coff_load_file(struct proc *p, char *name)
 
   	if (error = VOP_OPEN(vnodep, FREAD, p->p_ucred, p))
     		goto fail;
+
+	/*
+	 * Lose the lock on the vnode. It's no longer needed, and must not
+	 * exist for the pagefault paging to work below.
+	 */
+	VOP_UNLOCK(vnodep);
 
   	if (error = vm_mmap(kernel_map,
 			    (vm_offset_t *) &ptr,
