@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_fil.c,v 1.1.1.6 1998/03/21 10:11:08 peter Exp $";
+static const char rcsid[] = "@(#)$Id: ip_fil.c,v 1.2 1998/03/21 11:34:02 peter Exp $";
 #endif
 
 #include "opt_ipfilter.h"
@@ -724,7 +724,7 @@ int flags;
 	u_int min = GET_MINOR(dev);
 #endif
 
-	if (2 < min)
+	if (IPL_LOGMAX < min)
 		min = ENXIO;
 	else
 		min = 0;
