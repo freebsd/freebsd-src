@@ -29,7 +29,7 @@
  *
  *	BSDI bios.c,v 2.3 1996/04/08 19:32:19 bostic Exp
  *
- * $Id: bios.c,v 1.1 1997/08/09 01:42:33 dyson Exp $
+ * $Id: bios.c,v 1.2 1997/08/15 23:41:23 jlemon Exp $
  */
 
 #include "doscmd.h"
@@ -168,6 +168,7 @@ bios_init(void)
     int i, j, k;
     u_char *jtab;
     struct timeval tv;
+    time_t tv_sec;
     struct timezone tz;
     struct tm tm;
     u_long vec;
@@ -295,7 +296,8 @@ bios_init(void)
     }
 
     gettimeofday(&tv, &tz);
-    tm = *localtime(&tv.tv_sec);
+    tv_sec = tv.tv_sec;
+    tm = *localtime(&tv_sec);
     *(u_long *)&BIOSDATA[0x6c] =
 	(((tm.tm_hour * 60 + tm.tm_min) * 60) + tm.tm_sec) * 182 / 10; 
 

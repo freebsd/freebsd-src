@@ -37,7 +37,7 @@
  *
  *	@(#)amq_subr.c	8.1 (Berkeley) 6/6/93
  *
- * $Id$
+ * $Id: amq_subr.c,v 1.3 1997/02/22 16:01:27 peter Exp $
  *
  */
 /*
@@ -283,6 +283,7 @@ xdr_amq_mount_tree_node(xdrs, objp)
 	amq_mount_tree *objp;
 {
 	am_node *mp = (am_node *) objp;
+	long mtime;
 
 	if (!xdr_amq_string(xdrs, &mp->am_mnt->mf_info)) {
 		return (FALSE);
@@ -296,7 +297,8 @@ xdr_amq_mount_tree_node(xdrs, objp)
 	if (!xdr_amq_string(xdrs, &mp->am_mnt->mf_ops->fs_type)) {
 		return (FALSE);
 	}
-	if (!xdr_long(xdrs, &mp->am_stats.s_mtime)) {
+	mtime = mp->am_stats.s_mtime;
+	if (!xdr_long(xdrs, &mtime)) {
 		return (FALSE);
 	}
 	if (!xdr_u_short(xdrs, &mp->am_stats.s_uid)) {
