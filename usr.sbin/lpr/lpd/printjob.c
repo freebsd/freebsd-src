@@ -1407,24 +1407,24 @@ sendmail(struct printer *pp, char *userid, int bombed)
 		printf("Your printer job ");
 		if (*jobname)
 			printf("(%s) ", jobname);
-		
-		cp = "XXX compiler confusion"; /* XXX shut GCC up */
+
 		switch (bombed) {
 		case OK:
-			printf("\ncompleted successfully\n");
 			cp = "OK";
+			printf("\ncompleted successfully\n");
 			break;
 		default:
 		case FATALERR:
-			printf("\ncould not be printed\n");
 			cp = "FATALERR";
+			printf("\ncould not be printed\n");
 			break;
 		case NOACCT:
+			cp = "NOACCT";
 			printf("\ncould not be printed without an account on %s\n",
 			    local_host);
-			cp = "NOACCT";
 			break;
 		case FILTERERR:
+			cp = "FILTERERR";
 			if (stat(tempstderr, &stb) < 0 || stb.st_size == 0
 			    || (fp = fopen(tempstderr, "r")) == NULL) {
 				printf("\nhad some errors and may not have printed\n");
@@ -1434,11 +1434,10 @@ sendmail(struct printer *pp, char *userid, int bombed)
 			while ((i = getc(fp)) != EOF)
 				putchar(i);
 			(void) fclose(fp);
-			cp = "FILTERERR";
 			break;
 		case ACCESS:
-			printf("\nwas not printed because it was not linked to the original file\n");
 			cp = "ACCESS";
+			printf("\nwas not printed because it was not linked to the original file\n");
 		}
 		fflush(stdout);
 		(void) close(1);
