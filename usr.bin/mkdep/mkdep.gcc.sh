@@ -32,12 +32,11 @@
 # SUCH DAMAGE.
 #
 #	@(#)mkdep.gcc.sh	8.1 (Berkeley) 6/6/93
-#	$Id: mkdep.gcc.sh,v 1.8.2.1 1997/09/15 09:20:44 jkh Exp $
-
-PATH=/bin:/usr/bin; export PATH
+#	$Id: mkdep.gcc.sh,v 1.15 1998/08/29 07:55:55 obrien Exp $
 
 D=.depend			# default dependency file is .depend
 append=0
+nosyshdrs=0
 pflag=
 
 while :
@@ -51,6 +50,11 @@ while :
 		-f)
 			D=$2
 			shift; shift ;;
+
+		# -n does not make dependencies on system headers
+		-n)
+			nosyshdrs=1
+			shift ;;
 
 		# the -p flag produces "program: program.c" style dependencies
 		# so .o's don't get produced
@@ -76,9 +80,14 @@ trap 'rm -f $TMP' 0
 # pick the cpp.  mkdep must be told the cpp to use for exceptional cases.
 MKDEP_CPP=${MKDEP_CPP-"cc -E"}
 
+case $append in 
+	0) CC_MKDEP_OPT="-M";;
+	*) CC_MKDEP_OPT="-MM -w";;
+esac
+
 echo "# $@" > $TMP	# store arguments for debugging
 
-if $MKDEP_CPP -M "$@" >> $TMP; then :
+if $MKDEP_CPP $CC_MKDEP_OPT "$@" >> $TMP; then :
 else
 	echo 'mkdep: compile failed' >&2
 	exit 1
