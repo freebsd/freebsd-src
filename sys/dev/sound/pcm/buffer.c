@@ -94,37 +94,27 @@ void
 sndbuf_clear(snd_dbuf *b, int length)
 {
 	int i;
-	u_int16_t data, *p;
+	u_char data, *p;
 
 	if (length == 0)
 		return;
+	if (length > b->bufsize)
+		length = b->bufsize;
 
 	if (b->fmt & AFMT_SIGNED)
 		data = 0x00;
 	else
 		data = 0x80;
 
-	if (b->fmt & AFMT_16BIT)
-		data <<= 8;
-	else
-		data |= data << 8;
-
-	if (b->fmt & AFMT_BIGENDIAN)
-		data = ((data >> 8) & 0x00ff) | ((data << 8) & 0xff00);
-
 	i = b->fp;
-	p = (u_int16_t *)(b->buf + b->fp);
-	while (length > 1) {
-		*p++ = data;
-		length -= 2;
-		i += 2;
-		if (i >= b->bufsize) {
-			p = (u_int16_t *)b->buf;
+	p = b->buf;
+	while (length > 0) {
+		p[i] = data;
+		length--;
+		i++;
+		if (i >= b->bufsize)
 			i = 0;
-		}
 	}
-	if (length == 1)
-		*(b->buf + i) = data & 0xff;
 }
 
 void
