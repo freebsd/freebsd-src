@@ -1021,6 +1021,7 @@ unlock_and_continue:
 		object = m->object;
 		if (!VM_OBJECT_TRYLOCK(object)) {
 			vm_pageq_requeue(m);
+			m = next;
 			continue;
 		}
 
