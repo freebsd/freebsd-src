@@ -462,15 +462,13 @@ struct ioctl_args {
  */
 /* ARGSUSED */
 int
-ioctl(td, uap)
-	struct thread *td;
-	register struct ioctl_args *uap;
+ioctl(struct thread *td, struct ioctl_args *uap)
 {
 	struct file *fp;
-	register struct filedesc *fdp;
-	register u_long com;
+	struct filedesc *fdp;
+	u_long com;
 	int error = 0;
-	register u_int size;
+	u_int size;
 	caddr_t data, memp;
 	int tmp;
 #define STK_PARAMS	128
@@ -530,7 +528,8 @@ ioctl(td, uap)
 				if (memp)
 					free(memp, M_IOCTLOPS);
 				fdrop(fp, td);
-				goto done;
+				mtx_unlock(&Giant);
+				return (error);
 			}
 		} else {
 			*(caddr_t *)data = uap->data;
@@ -580,7 +579,6 @@ ioctl(td, uap)
 	if (memp)
 		free(memp, M_IOCTLOPS);
 	fdrop(fp, td);
-done:
 	mtx_unlock(&Giant);
 	return (error);
 }
