@@ -73,15 +73,15 @@ Research Laboratory (NRL).
 
 /* IDL_* is IPv6 Debug Level */
 
-#define IDL_ALL 0xFFFFFFFE  /* Report all messages. */
-#define IDL_NONE 0          /* Report no messages.  */
+#define IDL_ALL		0xFFFFFFFE	/* Report all messages. */
+#define IDL_NONE	0		/* Report no messages.  */
 
-#define IDL_CRITICAL 3
-#define IDL_ERROR 7
-#define IDL_MAJOR_EVENT 10
-#define IDL_EVENT 15
-#define IDL_GROSS_EVENT 20
-#define IDL_FINISHED 0xFFFFFFF0
+#define IDL_CRITICAL	3
+#define IDL_ERROR	7
+#define IDL_MAJOR_EVENT	10
+#define IDL_EVENT	15
+#define IDL_GROSS_EVENT	20
+#define IDL_FINISHED	0xFFFFFFF0
 
 /*
  * Make sure argument for DPRINTF is in parentheses.
@@ -102,10 +102,11 @@ Research Laboratory (NRL).
  * EXAMPLE:
  *        DPRINTF(IDL_MAJOR_EVENT,("Hello, world.  IP version %d.\n",vers));
  */
-#define DPRINTF(lev,arg) if ((lev) < in6_debug_level) { \
-						      printf arg; \
-						      } \
-                         else in6_debug_level = in6_debug_level
+#define DPRINTF(lev,arg) \
+	if ((lev) < in6_debug_level) { \
+		printf arg; \
+	} else \
+		in6_debug_level = in6_debug_level
 
 /*
  * DDO() executes a series of statements at a certain debug level.  The
@@ -115,8 +116,11 @@ Research Laboratory (NRL).
  * EXAMPLE:
  *        DDO(IDL_CRITICAL,dump_ipv6(header), dump_inpcb(inp));
  */
-#define DDO(lev,stmt) if ((lev) < in6_debug_level) { stmt ; } \
-                       else in6_debug_level = in6_debug_level
+#define DDO(lev,stmt) \
+	if ((lev) < in6_debug_level) { \
+		stmt ; \
+	} else \
+		in6_debug_level = in6_debug_level
 
 /*
  * DP() is a shortcut for DPRINTF().  Basically:

@@ -111,8 +111,6 @@ Research Laboratory (NRL).
 
 static MALLOC_DEFINE(M_SECA, "key mgmt", "security associations, key management");
 
-#define SOCKADDR struct sockaddr
-
 #define KMALLOC(p, t, n) (p = (t) malloc((unsigned long)(n), M_SECA, M_DONTWAIT))
 #define KFREE(p) free((caddr_t)p, M_SECA);
 
@@ -120,18 +118,11 @@ static MALLOC_DEFINE(M_SECA, "key mgmt", "security associations, key management"
 #define CRITICAL_START critical_s = splnet()
 #define CRITICAL_END splx(critical_s)
 
-#define TIME_SECONDS time.tv_sec
-#define CURRENT_PID curproc->p_pid
-
-#define DEFARGS(arglist, args) arglist args;
-#define AND ;
-
 #ifdef INET6
 #define MAXHASHKEYLEN (2 * sizeof(int) + 2 * sizeof(struct sockaddr_in6))
 #else
 #define MAXHASHKEYLEN (2 * sizeof(int) + 2 * sizeof(struct sockaddr_in))
 #endif
-
 
 /*
  *  Not clear whether these values should be 
@@ -167,15 +158,34 @@ u_long maxlarvallifetime = MAXLARVALTIME;
 int maxkeyacquire = MAXKEYACQUIRE;
 u_long maxacquiretime = MAXACQUIRETIME;
 
-extern SOCKADDR key_addr;
+extern struct sockaddr key_addr;
 
 #define ROUNDUP(a) \
-  ((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
+	((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
 #define ADVANCE(x, n) \
-    { x += ROUNDUP(n); }
+	{ x += ROUNDUP(n); }
 
-static int my_addr __P((SOCKADDR *));
+static int addrpart_equal __P((struct sockaddr *, struct sockaddr *));
+static int key_freetables __P((void));
+static int key_gethashval __P((char *, int, int));
+static int key_createkey __P((char *, u_int, struct sockaddr *,
+	struct sockaddr *, u_int32_t, u_int));
+static struct key_so2spinode *key_sosearch __P((u_int, struct sockaddr *,
+	struct sockaddr *, struct socket *));
+static void key_deleteacquire __P((u_int, struct sockaddr *));
+static struct key_tblnode *key_search __P((u_int, struct sockaddr *,
+	struct sockaddr *, u_int32_t, int, struct key_tblnode **));
+static struct key_tblnode *key_addnode __P((int, struct key_secassoc *));
+static int key_alloc __P((u_int, struct sockaddr *, struct sockaddr *,
+	struct socket *, u_int, struct key_tblnode **));
+static int key_xdata __P((struct key_msghdr *, struct key_msgdata *, int));
 static int key_sendup __P((struct socket *, struct key_msghdr *));
+static void key_init __P((void));
+static int my_addr __P((struct sockaddr *));
+static int key_output __P((struct mbuf *, struct socket *));
+static int key_usrreq __P((struct socket *, int, struct mbuf *, struct mbuf *,
+	struct mbuf *));
+static void key_cbinit __P((void));
 
 /*----------------------------------------------------------------------
  * key_secassoc2msghdr(): 
@@ -184,9 +194,10 @@ static int key_sendup __P((struct socket *, struct key_msghdr *));
  *      association information including src, dst, from, key and iv.
  ----------------------------------------------------------------------*/
 int
-key_secassoc2msghdr(struct key_secassoc *secassoc,
-		    struct key_msghdr *km,
-		    struct key_msgdata *keyinfo)
+key_secassoc2msghdr(secassoc, km, keyinfo)
+  struct key_secassoc *secassoc;
+  struct key_msghdr *km;
+  struct key_msgdata *keyinfo;
 {
   char *cp;
   DPRINTF(IDL_FINISHED, ("Entering key_secassoc2msghdr\n"));
@@ -215,7 +226,7 @@ key_secassoc2msghdr(struct key_secassoc *secassoc,
   cp = (char *)(km + 1);
 
   DPRINTF(IDL_FINISHED, ("sa2msghdr: 1\n"));
-  keyinfo->src = (SOCKADDR *)cp;
+  keyinfo->src = (struct sockaddr *)cp;
   if (secassoc->src->sa_len) {
     bcopy(secassoc->src, cp, secassoc->src->sa_len);
     ADVANCE(cp, secassoc->src->sa_len);
@@ -225,7 +236,7 @@ key_secassoc2msghdr(struct key_secassoc *secassoc,
   }
 
   DPRINTF(IDL_FINISHED, ("sa2msghdr: 2\n"));
-  keyinfo->dst = (SOCKADDR *)cp;
+  keyinfo->dst = (struct sockaddr *)cp;
   if (secassoc->dst->sa_len) {
     bcopy(secassoc->dst, cp, secassoc->dst->sa_len);
     ADVANCE(cp, secassoc->dst->sa_len);
@@ -235,7 +246,7 @@ key_secassoc2msghdr(struct key_secassoc *secassoc,
   }
 
   DPRINTF(IDL_FINISHED, ("sa2msghdr: 3\n"));
-  keyinfo->from = (SOCKADDR *)cp;
+  keyinfo->from = (struct sockaddr *)cp;
   if (secassoc->from->sa_len) {
     bcopy(secassoc->from, cp, secassoc->from->sa_len);
     ADVANCE(cp, secassoc->from->sa_len);
@@ -282,9 +293,10 @@ key_secassoc2msghdr(struct key_secassoc *secassoc,
  *      structure
  ----------------------------------------------------------------------*/
 int
-key_msghdr2secassoc(struct key_secassoc *secassoc,
-		    struct key_msghdr *km,
-		    struct key_msgdata *keyinfo)
+key_msghdr2secassoc(secassoc, km, keyinfo)
+  struct key_secassoc *secassoc;
+  struct key_msghdr *km;
+  struct key_msgdata *keyinfo;
 {
   DPRINTF(IDL_FINISHED, ("Entering key_msghdr2secassoc\n"));
 
@@ -307,7 +319,7 @@ key_msghdr2secassoc(struct key_secassoc *secassoc,
   secassoc->antireplay = km->antireplay;
 
   if (keyinfo->src) {
-    KMALLOC(secassoc->src, SOCKADDR *, keyinfo->src->sa_len);
+    KMALLOC(secassoc->src, struct sockaddr *, keyinfo->src->sa_len);
     if (!secassoc->src) {
       DPRINTF(IDL_ERROR,("msghdr2secassoc: can't allocate mem for src\n"));
       return(-1);
@@ -318,7 +330,7 @@ key_msghdr2secassoc(struct key_secassoc *secassoc,
     secassoc->src = NULL;
 
   if (keyinfo->dst) {
-    KMALLOC(secassoc->dst, SOCKADDR *, keyinfo->dst->sa_len);
+    KMALLOC(secassoc->dst, struct sockaddr *, keyinfo->dst->sa_len);
     if (!secassoc->dst) {
       DPRINTF(IDL_ERROR,("msghdr2secassoc: can't allocate mem for dst\n"));
       return(-1);
@@ -329,7 +341,7 @@ key_msghdr2secassoc(struct key_secassoc *secassoc,
     secassoc->dst = NULL;
 
   if (keyinfo->from) {
-    KMALLOC(secassoc->from, SOCKADDR *, keyinfo->from->sa_len);
+    KMALLOC(secassoc->from, struct sockaddr *, keyinfo->from->sa_len);
     if (!secassoc->from) {
       DPRINTF(IDL_ERROR,("msghdr2secassoc: can't allocate mem for from\n"));
       return(-1);
@@ -388,7 +400,9 @@ key_msghdr2secassoc(struct key_secassoc *secassoc,
  *      Currently handles only AF_INET and AF_INET6 address families.
  ----------------------------------------------------------------------*/
 static int
-addrpart_equal(SOCKADDR *sa1, SOCKADDR *sa2)
+addrpart_equal(sa1, sa2)
+  struct sockaddr *sa1;
+  struct sockaddr *sa2;
 {
   if ((sa1->sa_family != sa2->sa_family) ||
       (sa1->sa_len != sa2->sa_len))
@@ -412,7 +426,7 @@ addrpart_equal(SOCKADDR *sa1, SOCKADDR *sa2)
  *      Allocate space and initialize key engine tables
  ----------------------------------------------------------------------*/
 int
-key_inittables(void)
+key_inittables()
 {
   int i;
 
@@ -436,7 +450,7 @@ key_inittables(void)
 }
 
 static int
-key_freetables(void)
+key_freetables()
 {
   KFREE(keyregtable);
   keyregtable = NULL;
@@ -450,7 +464,10 @@ key_freetables(void)
  *      Determine keytable hash value.
  ----------------------------------------------------------------------*/
 static int
-key_gethashval(char *buf, int len, int tblsize)
+key_gethashval(buf, len, tblsize)
+  char *buf;
+  int len;
+  int tblsize;
 {
   int i, j = 0;
 
@@ -479,8 +496,13 @@ key_gethashval(char *buf, int len, int tblsize)
  *      form key.  Currently handles only AF_INET and AF_INET6 sockaddrs
  ----------------------------------------------------------------------*/
 static int
-key_createkey(char *buf, u_int type, SOCKADDR *src, SOCKADDR *dst,
-	      u_int32_t spi, u_int keytype)
+key_createkey(buf, type, src, dst, spi, keytype)
+  char *buf;
+  u_int type;
+  struct sockaddr *src;
+  struct sockaddr *dst;
+  u_int32_t spi;
+  u_int keytype;
 {
   char *cp, *p;
 
@@ -544,7 +566,11 @@ key_createkey(char *buf, u_int type, SOCKADDR *src, SOCKADDR *dst,
  *      be used to locate the security association entry in the keytable.
  ----------------------------------------------------------------------*/
 static struct key_so2spinode *
-key_sosearch(u_int type, SOCKADDR *src, SOCKADDR *dst, struct socket *so)
+key_sosearch(type, src, dst, so)
+  u_int type;
+  struct sockaddr *src;
+  struct sockaddr *dst;
+  struct socket *so;
 {
   struct key_so2spinode *np = 0;
 
@@ -570,7 +596,9 @@ key_sosearch(u_int type, SOCKADDR *src, SOCKADDR *dst, struct socket *so)
  *        flag = 0  delete entries with socket pointer matching socket  
  ----------------------------------------------------------------------*/
 void
-key_sodelete(struct socket *socket, int flag)
+key_sodelete(socket, flag)
+  struct socket *socket;
+  int flag;
 {
   struct key_so2spinode *prevnp, *np;
   CRITICAL_DCL
@@ -641,13 +669,15 @@ key_sodelete(struct socket *socket, int flag)
  *      Delete an entry from the key_acquirelist
  ----------------------------------------------------------------------*/
 static void
-key_deleteacquire(u_int type, SOCKADDR *target)
+key_deleteacquire(type, target)
+  u_int type;
+  struct sockaddr *target;
 {
   struct key_acquirelist *ap, *prev;
 
   prev = key_acquirelist;
   for(ap = key_acquirelist->next; ap; ap = ap->next) {
-    if (addrpart_equal(target, (SOCKADDR *)&(ap->target)) &&
+    if (addrpart_equal(target, (struct sockaddr *)&(ap->target)) &&
 	(type == ap->type)) {
       DPRINTF(IDL_EVENT,("Deleting entry from acquire list!\n"));
       prev->next = ap->next;
@@ -666,8 +696,13 @@ key_deleteacquire(u_int type, SOCKADDR *target)
  *      else returns null.
  ----------------------------------------------------------------------*/
 static struct key_tblnode *
-key_search(u_int type, SOCKADDR *src, SOCKADDR *dst, u_int32_t spi, 
-	   int indx, struct key_tblnode **prevkeynode)
+key_search(type, src, dst, spi, indx, prevkeynode)
+  u_int type;
+  struct sockaddr *src;
+  struct sockaddr *dst;
+  u_int32_t spi;
+  int indx;
+  struct key_tblnode **prevkeynode;
 {
   struct key_tblnode *keynode, *prevnode;
 
@@ -700,7 +735,9 @@ key_search(u_int type, SOCKADDR *src, SOCKADDR *dst, u_int32_t spi,
  *      to the newly created key_tblnode.
  ----------------------------------------------------------------------*/
 static struct key_tblnode *
-key_addnode(int indx, struct key_secassoc *secassoc)
+key_addnode(indx, secassoc)
+  int indx;
+  struct key_secassoc *secassoc;
 {
   struct key_tblnode *keynode;
 
@@ -741,7 +778,8 @@ key_addnode(int indx, struct key_secassoc *secassoc)
  *      association passed in is well-formed.
  ----------------------------------------------------------------------*/
 int
-key_add(struct key_secassoc *secassoc)
+key_add(secassoc)
+  struct key_secassoc *secassoc;
 {
   char buf[MAXHASHKEYLEN];
   int len, indx;
@@ -862,8 +900,12 @@ key_add(struct key_secassoc *secassoc)
  *      Get a security association from the key table.
  ----------------------------------------------------------------------*/
 int
-key_get(u_int type, SOCKADDR *src, SOCKADDR *dst, u_int32_t spi, 
-	struct key_secassoc **secassoc)
+key_get(type, src, dst, spi, secassoc)
+  u_int type;
+  struct sockaddr *src;
+  struct sockaddr *dst;
+  u_int32_t spi;
+  struct key_secassoc **secassoc;
 {
   char buf[MAXHASHKEYLEN];
   struct key_tblnode *keynode, *prevkeynode;
@@ -892,7 +934,8 @@ key_get(u_int type, SOCKADDR *src, SOCKADDR *dst, u_int32_t spi,
  *      message with seqno = 0 signifies the end of the dump transaction.
  ----------------------------------------------------------------------*/
 int
-key_dump(struct socket *so)
+key_dump(so)
+  struct socket *so;
 {
   int len, i;
   int seq = 1;
@@ -948,7 +991,7 @@ key_dump(struct socket *so)
       km->key_msglen = len;
       km->key_msgvers = KEY_VERSION;
       km->key_msgtype = KEY_DUMP;
-      km->key_pid = CURRENT_PID;
+      km->key_pid = curproc->p_pid;
       km->key_seq = seq++;
       km->key_errno = 0;
 
@@ -959,7 +1002,7 @@ key_dump(struct socket *so)
   km->key_msglen = sizeof(struct key_msghdr);
   km->key_msgvers = KEY_VERSION;
   km->key_msgtype = KEY_DUMP;
-  km->key_pid = CURRENT_PID;
+  km->key_pid = curproc->p_pid;
   km->key_seq = 0;
   km->key_errno = 0;
 
@@ -974,7 +1017,8 @@ key_dump(struct socket *so)
  *      Delete a security association from the key table.
  ----------------------------------------------------------------------*/
 int
-key_delete(struct key_secassoc *secassoc)
+key_delete(secassoc)
+  struct key_secassoc *secassoc;
 {
   char buf[MAXHASHKEYLEN];
   int len, indx;
@@ -1071,7 +1115,7 @@ key_delete(struct key_secassoc *secassoc)
  *      Delete all entries from the key table.
  ----------------------------------------------------------------------*/
 void
-key_flush(void)
+key_flush()
 {
   struct key_tblnode *keynode;
   int i;
@@ -1106,8 +1150,14 @@ printf("key_flush: timo exceeds limit; terminate the loop to prevent hangup\n");
  *      entry with that same spi value remains in the table).
  ----------------------------------------------------------------------*/
 int
-key_getspi(u_int type, u_int vers, SOCKADDR *src, SOCKADDR *dst,
-	u_int32_t lowval, u_int32_t highval, u_int32_t *spi)
+key_getspi(type, vers, src, dst, lowval, highval, spi)
+  u_int type;
+  u_int vers;
+  struct sockaddr *src;
+  struct sockaddr *dst;
+  u_int32_t lowval;
+  u_int32_t highval;
+  u_int32_t *spi;
 {
   struct key_secassoc *secassoc;
   struct key_tblnode *keynode, *prevkeynode;
@@ -1190,7 +1240,7 @@ key_getspi(u_int type, u_int vers, SOCKADDR *src, SOCKADDR *dst,
 	 * reasons.  This is another task that key_reaper can
 	 * do once we have it coded.
 	 */
-	secassoc->lifetime1 += TIME_SECONDS + maxlarvallifetime;
+	secassoc->lifetime1 += time.tv_sec + maxlarvallifetime;
 
 	if (!(keynode = key_addnode(indx, secassoc))) {
 	  DPRINTF(IDL_ERROR,("key_getspi: can't add node\n"));
@@ -1221,7 +1271,8 @@ key_getspi(u_int type, u_int vers, SOCKADDR *src, SOCKADDR *dst,
  *      incomplete (e.g. no key/iv).
  ----------------------------------------------------------------------*/
 int
-key_update(struct key_secassoc *secassoc)
+key_update(secassoc)
+  struct key_secassoc *secassoc;
 {
   struct key_tblnode *keynode, *prevkeynode;
   struct key_allocnode *np = 0;
@@ -1311,7 +1362,7 @@ key_update(struct key_secassoc *secassoc)
     keyalloctbl[indx].next = np;
   }
 
-  key_deleteacquire(secassoc->type, (SOCKADDR *)&(secassoc->dst));
+  key_deleteacquire(secassoc->type, (struct sockaddr *)&(secassoc->dst));
 
   CRITICAL_END;
   return(0);
@@ -1323,7 +1374,9 @@ key_update(struct key_secassoc *secassoc)
  *      for the kernel.
  ----------------------------------------------------------------------*/
 int
-key_register(struct socket *socket, u_int type)
+key_register(socket, type)
+  struct socket *socket;
+  u_int type;
 {
   struct key_registry *p, *new;
   CRITICAL_DCL
@@ -1366,7 +1419,10 @@ key_register(struct socket *socket, u_int type)
  *         allflag = 0 : delete only the entry matching socket,  type
  ----------------------------------------------------------------------*/
 void
-key_unregister(struct socket *socket, u_int type, int allflag)
+key_unregister(socket, type, allflag)
+  struct socket *socket;
+  u_int type;
+  int allflag;
 {
   struct key_registry *p, *prev;
   CRITICAL_DCL
@@ -1401,7 +1457,10 @@ key_unregister(struct socket *socket, u_int type, int allflag)
  *              -1 if not successfull.
  ----------------------------------------------------------------------*/
 int
-key_acquire(u_int type, SOCKADDR *src, SOCKADDR *dst)
+key_acquire(type, src, dst)
+  u_int type;
+  struct sockaddr *src;
+  struct sockaddr *dst;
 {
   struct key_registry *p;
   struct key_acquirelist *ap, *prevap;
@@ -1425,7 +1484,7 @@ key_acquire(u_int type, SOCKADDR *src, SOCKADDR *dst)
     if (addrpart_equal(dst, ap->target) &&
 	(etype == ap->type)) {
       DPRINTF(IDL_EVENT,("acquire message previously sent!\n"));
-      if (ap->expiretime < TIME_SECONDS) {
+      if (ap->expiretime < time.tv_sec) {
 	DPRINTF(IDL_EVENT,("acquire message has expired!\n"));
 	ap->count = 0;
 	break;
@@ -1435,7 +1494,7 @@ key_acquire(u_int type, SOCKADDR *src, SOCKADDR *dst)
 	break;
       }
       return(0);
-    } else if (ap->expiretime < TIME_SECONDS) {
+    } else if (ap->expiretime < time.tv_sec) {
       /*
        *  Since we're already looking at the list, we may as
        *  well delete expired entries as we scan through the list.
@@ -1521,7 +1580,7 @@ key_acquire(u_int type, SOCKADDR *src, SOCKADDR *dst)
     }
     DPRINTF(IDL_GROSS_EVENT,("Updating acquire counter,  expiration time\n"));
     ap->count++;
-    ap->expiretime = TIME_SECONDS + maxacquiretime;
+    ap->expiretime = time.tv_sec + maxacquiretime;
   }
   DPRINTF(IDL_EVENT,("key_acquire: done! success=%d\n",success));
   return(success ? 0 : -1);
@@ -1536,8 +1595,13 @@ key_acquire(u_int type, SOCKADDR *src, SOCKADDR *dst)
  *      used by another socket.
  ----------------------------------------------------------------------*/
 static int
-key_alloc(u_int type, SOCKADDR *src, SOCKADDR *dst, struct socket *socket, 
-	  u_int  unique_key, struct key_tblnode **keynodep)
+key_alloc(type, src, dst, socket, unique_key, keynodep)
+  u_int type;
+  struct sockaddr *src;
+  struct sockaddr *dst;
+  struct socket *socket;
+  u_int  unique_key;
+  struct key_tblnode **keynodep;
 {
   struct key_tblnode *keynode;
   char buf[MAXHASHKEYLEN];
@@ -1651,7 +1715,8 @@ key_alloc(u_int type, SOCKADDR *src, SOCKADDR *dst, struct socket *socket,
  *      marked dead,,  the refcount is zero, we go ahead,  delete it.
  ----------------------------------------------------------------------*/
 void
-key_free(struct key_tblnode *keynode)
+key_free(keynode)
+  struct key_tblnode *keynode;
 {
   DPRINTF(IDL_GROSS_EVENT,("Entering key_free w/keynode=0x%x\n",
 			   (unsigned int)keynode));
@@ -1680,8 +1745,12 @@ key_free(struct key_tblnode *keynode)
  *      in host order!
  ----------------------------------------------------------------------*/
 int
-getassocbyspi(u_int type, SOCKADDR *src, SOCKADDR *dst, u_int32_t spi, 
-	      struct key_tblnode **keyentry)
+getassocbyspi(type, src, dst, spi, keyentry)
+  u_int type;
+  struct sockaddr *src;
+  struct sockaddr *dst;
+  u_int32_t spi;
+  struct key_tblnode **keyentry;
 {
   char buf[MAXHASHKEYLEN];
   int len, indx;
@@ -1721,9 +1790,13 @@ getassocbyspi(u_int type, SOCKADDR *src, SOCKADDR *dst, u_int32_t spi,
  *                 (e.g., key mgnt. daemon(s) called)
  ----------------------------------------------------------------------*/
 int
-getassocbysocket(u_int type, SOCKADDR *src, SOCKADDR *dst, 
-		 struct socket *socket, u_int unique_key, 
-		 struct key_tblnode **keyentry)
+getassocbysocket(type, src, dst, socket, unique_key, keyentry)
+  u_int type;
+  struct sockaddr *src;
+  struct sockaddr *dst;
+  struct socket *socket;
+  u_int unique_key;
+  struct key_tblnode **keyentry;
 {
   struct key_tblnode *keynode = 0;
   struct key_so2spinode *np;
@@ -1785,7 +1858,10 @@ getassocbysocket(u_int type, SOCKADDR *src, SOCKADDR *dst,
  *      else parse for src/dst only.
  ----------------------------------------------------------------------*/
 static int
-key_xdata(struct key_msghdr *km, struct key_msgdata *kip, int parseflag)
+key_xdata(km, kip, parseflag)
+  struct key_msghdr *km;
+  struct key_msgdata *kip;
+  int parseflag;
 {
   char *cp, *cpmax;
 
@@ -1805,7 +1881,7 @@ key_xdata(struct key_msghdr *km, struct key_msgdata *kip, int parseflag)
    */
 
   /* Grab src addr */
-  kip->src = (SOCKADDR *)cp;
+  kip->src = (struct sockaddr *)cp;
   if (!kip->src->sa_len) {
     DPRINTF(IDL_MAJOR_EVENT,("key_xdata couldn't parse src addr\n"));
     return(-1);
@@ -1814,7 +1890,7 @@ key_xdata(struct key_msghdr *km, struct key_msgdata *kip, int parseflag)
   ADVANCE(cp, kip->src->sa_len);
 
   /* Grab dest addr */
-  kip->dst = (SOCKADDR *)cp;
+  kip->dst = (struct sockaddr *)cp;
   if (!kip->dst->sa_len) {
     DPRINTF(IDL_MAJOR_EVENT,("key_xdata couldn't parse dest addr\n"));
     return(-1);
@@ -1829,7 +1905,7 @@ key_xdata(struct key_msghdr *km, struct key_msgdata *kip, int parseflag)
   }
  
   /* Grab from addr */
-  kip->from = (SOCKADDR *)cp;
+  kip->from = (struct sockaddr *)cp;
   if (!kip->from->sa_len) {
     DPRINTF(IDL_MAJOR_EVENT,("key_xdata couldn't parse from addr\n"));
     return(-1);
@@ -1863,7 +1939,10 @@ key_xdata(struct key_msghdr *km, struct key_msgdata *kip, int parseflag)
 
 
 int
-key_parse(struct key_msghdr **kmp, struct socket *so, int *dstfamily)
+key_parse(kmp, so, dstfamily)
+  struct key_msghdr **kmp;
+  struct socket *so;
+  int *dstfamily;
 {
   int error = 0, keyerror = 0;
   struct key_msgdata keyinfo;
@@ -1880,7 +1959,7 @@ key_parse(struct key_msghdr **kmp, struct socket *so, int *dstfamily)
     senderr(EPROTONOSUPPORT);
   }
 
-  km->key_pid = CURRENT_PID;
+  km->key_pid = curproc->p_pid;
 
   DDO(IDL_MAJOR_EVENT, printf("keymsghdr:\n"); dump_keymsghdr(km));
 
@@ -1995,8 +2074,8 @@ key_parse(struct key_msghdr **kmp, struct socket *so, int *dstfamily)
     if (key_xdata(km, &keyinfo, 1) < 0)
       goto parsefail;
 
-    if (key_get(km->type, (SOCKADDR *)keyinfo.src, 
-		(SOCKADDR *)keyinfo.dst, 
+    if (key_get(km->type, (struct sockaddr *)keyinfo.src, 
+		(struct sockaddr *)keyinfo.dst, 
 		km->spi, &secassoc) != 0) {
       DPRINTF(IDL_EVENT,("keyoutput: can't get key\n"));
       senderr(ESRCH);
@@ -2093,13 +2172,10 @@ struct	sockproto key_proto = { PF_KEY, };
 
 #define KEYREAPERINT 120
 
-#define ROUNDUP(a) \
-  ((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
-
 static int
 key_sendup(s, km)
-	struct socket *s;
-	struct key_msghdr *km;
+  struct socket *s;
+  struct key_msghdr *km;
 {
   struct mbuf *m;
 
@@ -2143,7 +2219,7 @@ key_reaper(whocares)
  *      Init routine for key socket,  key engine
  ----------------------------------------------------------------------*/
 static void
-key_init(void)
+key_init()
 {
   DPRINTF(IDL_EVENT,("Called key_init().\n"));
   if (key_inittables())
@@ -2161,7 +2237,7 @@ key_init(void)
  ----------------------------------------------------------------------*/
 static int
 my_addr(sa)
-     SOCKADDR *sa;
+     struct sockaddr *sa;
 {
   struct in6_ifaddr *i6a = 0;
   struct in_ifaddr *ia = 0;
@@ -2192,7 +2268,9 @@ my_addr(sa)
  *      Process outbound pf_key message.
  ----------------------------------------------------------------------*/
 static int
-key_output(struct mbuf *m, struct socket *so)
+key_output(m, so)
+  struct mbuf *m;
+  struct socket *so;
 {
   struct key_msghdr *km = 0;
   caddr_t cp, cplimit;
@@ -2276,8 +2354,12 @@ flush:
  *      Handles PRU_* for pf_key sockets.
  ----------------------------------------------------------------------*/
 static int
-key_usrreq(struct socket *so, int req, struct mbuf *m, struct mbuf *nam,
-	   struct mbuf *control)
+key_usrreq(so, req, m, nam, control)
+  struct socket *so;
+  int req;
+  struct mbuf *m;
+  struct mbuf *nam;
+  struct mbuf *control;
 {
   register int error = 0;
   register struct rawcb *rp = sotorawcb(so);
@@ -2328,7 +2410,7 @@ key_usrreq(struct socket *so, int req, struct mbuf *m, struct mbuf *nam,
     MGET(m, M_DONTWAIT, MT_DATA);
     if (m) {
       rp->rcb_faddr = mtod(m, struct sockaddr *);
-      bcopy(&key_addr, rp->rcb_faddr, sizeof(SOCKADDR));
+      bcopy(&key_addr, rp->rcb_faddr, sizeof(struct sockaddr));
     } else
       rp->rcb_faddr = NULL;
   }
@@ -2349,13 +2431,13 @@ key_usrreq(struct socket *so, int req, struct mbuf *m, struct mbuf *nam,
  *      Control block init routine for key socket
  ----------------------------------------------------------------------*/
 static void
-key_cbinit(void)
+key_cbinit()
 {
- /*
-  *  This is equivalent to raw_init for the routing socket. 
-  *  The key socket uses the same control block as the routing 
-  *  socket.
-  */
+  /*
+   *  This is equivalent to raw_init for the routing socket. 
+   *  The key socket uses the same control block as the routing 
+   *  socket.
+   */
   DPRINTF(IDL_EVENT,("Called key_cbinit().\n"));
 }
 
@@ -2363,7 +2445,7 @@ key_cbinit(void)
  * Protoswitch entry for pf_key 
  */
 
-extern	struct domain keydomain;		/* or at least forward */
+extern struct domain keydomain;		/* or at least forward */
 
 struct protosw keysw[] = {
 { SOCK_RAW,	&keydomain,	0,		PR_ATOMIC|PR_ADDR,
