@@ -1254,9 +1254,9 @@ ata_reset(struct ata_softc *scp, int *mask)
     DELAY(1);
     inb(scp->ioaddr + ATA_STATUS);
     outb(scp->altioaddr, ATA_A_IDS | ATA_A_RESET);
-    DELAY(100000); 
+    DELAY(10000); 
     outb(scp->altioaddr, ATA_A_IDS);
-    DELAY(10000);
+    DELAY(100000);
     inb(scp->ioaddr + ATA_ERROR);
     DELAY(3000);
     scp->devices = 0;
