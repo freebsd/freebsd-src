@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.64 1998/08/26 17:39:37 brian Exp $
+ * $Id: ipcp.c,v 1.65 1998/09/04 18:25:59 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backward compatibility
@@ -33,9 +33,6 @@
 #include <sys/sockio.h>
 #include <sys/un.h>
 
-#ifndef NOALIAS
-#include <alias.h>
-#endif
 #include <fcntl.h>
 #include <resolv.h>
 #include <stdlib.h>
@@ -44,6 +41,13 @@
 #include <termios.h>
 #include <unistd.h>
 
+#ifndef NOALIAS
+#ifdef __OpenBSD__
+#include "alias.h"
+#else
+#include <alias.h>
+#endif
+#endif
 #include "ua.h"
 #include "defs.h"
 #include "command.h"
