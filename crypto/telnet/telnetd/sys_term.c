@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)sys_term.c	8.4+1 (Berkeley) 5/30/95";
 #endif
 static const char rcsid[] =
-	"$Id: sys_term.c,v 1.4 1998/01/22 00:04:57 imp Exp $";
+	"$Id: sys_term.c,v 1.5 1998/09/01 15:17:28 gpalmer Exp $";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -54,7 +54,6 @@ void scrub_env(void);
 # define PARENT_DOES_UTMP
 #endif
 
-int     utmp_len = MAXHOSTNAMELEN;
 #ifdef	NEWINIT
 #include <initreq.h>
 #else	/* NEWINIT*/
