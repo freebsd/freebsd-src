@@ -291,7 +291,7 @@ vnstrategy(struct buf *bp)
 		nbp = getvnbuf();
 		nbp->b_flags = flags;
 		nbp->b_bcount = sz;
-		nbp->b_bufsize = bp->b_bufsize;
+		nbp->b_bufsize = sz;
 		nbp->b_error = 0;
 		if (vp->v_type == VBLK || vp->v_type == VCHR)
 			nbp->b_dev = vp->v_rdev;
