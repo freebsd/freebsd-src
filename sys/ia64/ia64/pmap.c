@@ -1381,7 +1381,8 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 
 		if (pmap_pte_prot(&pv->pv_pte) != newprot) {
 			if (pv->pv_pte.pte_ig & PTE_IG_MANAGED) {
-				vm_page_t m = PHYS_TO_VM_PAGE(pv->pv_va);
+				vm_offset_t pa = pmap_pte_pa(&pv->pv_pte);
+				vm_page_t m = PHYS_TO_VM_PAGE(pa);
 				if (pv->pv_pte.pte_d) {
 					if (pmap_track_modified(pv->pv_va))
 						vm_page_dirty(m);
