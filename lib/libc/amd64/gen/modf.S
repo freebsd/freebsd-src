@@ -52,44 +52,41 @@ __FBSDID("$FreeBSD$");
 
 /* With CHOP mode on, frndint behaves as TRUNC does.  Useful. */
 ENTRY(modf)
-	pushq	%rbp
-	movq	%rsp,%rbp
-	subq	$24,%rsp
 
 	/*
 	 * Set chop mode.
 	 */
-	fnstcw	-12(%rbp)
-	movw	-12(%rbp),%dx
+	fnstcw	-12(%rsp)
+	movw	-12(%rsp),%dx
 	orw	$3072,%dx
-	movw	%dx,-16(%rbp)
-	fldcw	-16(%rbp)
+	movw	%dx,-16(%rsp)
+	fldcw	-16(%rsp)
 
 	/*
 	 * Get integral part.
 	 */
-	movsd	%xmm0,-24(%rbp)
-	fldl	-24(%rbp)
+	movsd	%xmm0,-24(%rsp)
+	fldl	-24(%rsp)
 	frndint
-	fstpl	-8(%rbp)
+	fstpl	-8(%rsp)
 
 	/*
 	 * Restore control word.
 	 */
-	fldcw	-12(%rbp)
+	fldcw	-12(%rsp)
 
 	/*
 	 * Store integral part.
 	 */
-	movsd	-8(%rbp),%xmm0
+	movsd	-8(%rsp),%xmm0
 	movsd	%xmm0,(%rdi)
 
 	/*
 	 * Get fractional part and return it.
 	 */
-	fldl	-24(%rbp)
-	fsubl	-8(%rbp)
-	movsd   -8(%rbp),%xmm0
+	fldl	-24(%rsp)
+	fsubl	-8(%rsp)
+	fstpl	-8(%rsp)
+	movsd   -8(%rsp),%xmm0
 
-	leave
 	ret
