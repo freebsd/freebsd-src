@@ -35,16 +35,12 @@ __FBSDID("$FreeBSD$");
 #include "opt_cy_pci_fastintr.h"
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
 
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
-
-#include <vm/vm.h>
-#include <vm/pmap.h>
 
 #include <dev/pci/pcivar.h>
 
