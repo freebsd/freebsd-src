@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.73 1998/04/06 15:48:30 peter Exp $
+ *	$Id: mp_machdep.c,v 1.74 1998/05/11 01:06:06 dyson Exp $
  */
 
 #include "opt_smp.h"
@@ -1717,6 +1717,7 @@ start_all_aps(u_int boot_addr)
 		newpt[3 + UPAGES] = 0;		/* *prv_CMAP1 */
 		newpt[4 + UPAGES] = 0;		/* *prv_CMAP2 */
 		newpt[5 + UPAGES] = 0;		/* *prv_CMAP3 */
+		newpt[6 + UPAGES] = 0;		/* *prv_PMAP1 */
 
 		/* prime data page for it to use */
 		gd->cpuid = x;
@@ -1725,6 +1726,7 @@ start_all_aps(u_int boot_addr)
 		gd->prv_CMAP1 = &newpt[3 + UPAGES];
 		gd->prv_CMAP2 = &newpt[4 + UPAGES];
 		gd->prv_CMAP3 = &newpt[5 + UPAGES];
+		gd->prv_PMAP1 = &newpt[6 + UPAGES];
 
 		/* setup a vector to our boot code */
 		*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.20 1998/04/22 09:46:16 peter Exp $
+ * $Id: asnames.h,v 1.21 1998/05/17 11:52:06 phk Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -306,9 +306,11 @@
 #define _prv_CMAP1			prv_CMAP1
 #define _prv_CMAP2			prv_CMAP2
 #define _prv_CMAP3			prv_CMAP3
+#define _prv_PMAP1			prv_PMAP1
 #define _prv_CPAGE1			prv_CPAGE1
 #define _prv_CPAGE2			prv_CPAGE2
 #define _prv_CPAGE3			prv_CPAGE3
+#define _prv_PPAGE1			prv_PPAGE1
 #define _qs				qs
 #define _rcpoll				rcpoll
 #define _real_2op_NaN			real_2op_NaN

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: globaldata.h,v 1.1 1998/04/06 15:37:21 peter Exp $
+ * $Id: globaldata.h,v 1.2 1998/04/06 18:59:15 peter Exp $
  */
 
 /*
@@ -57,6 +57,7 @@ struct globaldata {
 	pt_entry_t	*prv_CMAP1;
 	pt_entry_t	*prv_CMAP2;
 	pt_entry_t	*prv_CMAP3;
+	pt_entry_t	*prv_PMAP1;
 	int		inside_intr;
 #endif
 };
@@ -79,16 +80,17 @@ struct privatespace {
 	lapic_t		lapic;
 	char		__filler1[PAGE_SIZE - sizeof(lapic_t)];
 
-	/* page 3,4 - idle stack (2 pages) */
-	char		idlestack[2 * PAGE_SIZE];
+	/* page 3..2+UPAGES - idle stack (UPAGES pages) */
+	char		idlestack[UPAGES * PAGE_SIZE];
 
-	/* page 5,6,7 - CPAGE1,CPAGE2,CPAGE3 */
+	/* page 3+UPAGES..6+UPAGES - CPAGE1,CPAGE2,CPAGE3,PPAGE1 */
 	char		CPAGE1[PAGE_SIZE];
 	char		CPAGE2[PAGE_SIZE];
 	char		CPAGE3[PAGE_SIZE];
+	char		PPAGE1[PAGE_SIZE];
 
-	/* page 8-15 - spare, unmapped */
-	char		__filler2[8 * PAGE_SIZE];
+	/* page 7+UPAGES..15 - spare, unmapped */
+	char		__filler2[(9-UPAGES) * PAGE_SIZE];
 
 	/* page 16-31 - space for IO apics */
 	char		ioapics[16 * PAGE_SIZE];

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.197 1998/05/15 07:25:25 dyson Exp $
+ *	$Id: pmap.c,v 1.198 1998/05/17 17:43:13 tegge Exp $
  */
 
 /*
@@ -190,8 +190,13 @@ extern pd_entry_t *IdlePTDS[];
 extern pt_entry_t SMP_prvpt[];
 #endif
 
+#ifdef SMP
+extern unsigned int prv_PPAGE1[];
+extern pt_entry_t *prv_PMAP1;
+#else
 static pt_entry_t *PMAP1 = 0;
 static unsigned *PADDR1 = 0;
+#endif
 
 static PMAP_INLINE void	free_pv_entry __P((pv_entry_t pv));
 static unsigned * get_ptbase __P((pmap_t pmap));
@@ -347,10 +352,12 @@ pmap_bootstrap(firstaddr, loadaddr)
 	SYSMAP(struct msgbuf *, msgbufmap, msgbufp,
 	       atop(round_page(sizeof(struct msgbuf))))
 
+#if !defined(SMP)
 	/*
 	 * ptemap is used for pmap_pte_quick
 	 */
 	SYSMAP(unsigned *, PMAP1, PADDR1, 1);
+#endif
 
 	virtual_avail = va;
 
@@ -438,6 +445,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 	prv_CMAP1 = &SMP_prvpt[3 + UPAGES];
 	prv_CMAP2 = &SMP_prvpt[4 + UPAGES];
 	prv_CMAP3 = &SMP_prvpt[5 + UPAGES];
+	prv_PMAP1 = &SMP_prvpt[6 + UPAGES];
 #endif
 
 	invltlb();
@@ -735,7 +743,12 @@ get_ptbase(pmap)
 	/* otherwise, we are alternate address space */
 	if (frame != (((unsigned) APTDpde) & PG_FRAME)) {
 		APTDpde = (pd_entry_t) (frame | PG_RW | PG_V);
+#if defined(SMP)
+		/* The page directory is not shared between CPUs */
+		cpu_invltlb();
+#else
 		invltlb();
+#endif
 	}
 	return (unsigned *) APTmap;
 }
@@ -763,11 +776,19 @@ pmap_pte_quick(pmap, va)
 			return (unsigned *) PTmap + index;
 		}
 		newpf = pde & PG_FRAME;
+#ifdef SMP
+		if ( ((* (unsigned *) prv_PMAP1) & PG_FRAME) != newpf) {
+			* (unsigned *) prv_PMAP1 = newpf | PG_RW | PG_V;
+			cpu_invlpg(&prv_PPAGE1);
+		}
+		return prv_PPAGE1 + ((unsigned) index & (NPTEPG - 1));
+#else
 		if ( ((* (unsigned *) PMAP1) & PG_FRAME) != newpf) {
 			* (unsigned *) PMAP1 = newpf | PG_RW | PG_V;
 			invltlb_1pg((vm_offset_t) PADDR1);
 		}
 		return PADDR1 + ((unsigned) index & (NPTEPG - 1));
+#endif
 	}
 	return (0);
 }
