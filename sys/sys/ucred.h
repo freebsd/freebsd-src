@@ -60,8 +60,8 @@ struct ucred {
 	struct	uidinfo *cr_uidinfo;	/* per euid resource consumption */
 	struct	uidinfo *cr_ruidinfo;	/* per ruid resource consumption */
 	struct	prison *cr_prison;	/* jail(4) */
-#define	cr_endcopy cr_mtx
-	struct	mtx cr_mtx;		/* protect refcount */
+#define	cr_endcopy cr_mtxp
+	struct	mtx *cr_mtxp;		/* protect refcount */
 };
 #define cr_gid cr_groups[0]
 #define NOCRED ((struct ucred *)0)	/* no credential available */

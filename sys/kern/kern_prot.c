@@ -1586,7 +1586,7 @@ crget()
 
 	MALLOC(cr, struct ucred *, sizeof(*cr), M_CRED, M_WAITOK | M_ZERO);
 	cr->cr_ref = 1;
-	mtx_init(&cr->cr_mtx, "ucred", MTX_DEF);
+	cr->cr_mtxp = mtx_pool_find(cr);
 	return (cr);
 }
 
@@ -1598,9 +1598,9 @@ crhold(cr)
 	struct ucred *cr;
 {
 
-	mtx_lock(&cr->cr_mtx);
+	mtx_lock(cr->cr_mtxp);
 	cr->cr_ref++;
-	mtx_unlock(&cr->cr_mtx);
+	mtx_unlock(cr->cr_mtxp);
 	return (cr);
 }
 
@@ -1612,16 +1612,17 @@ void
 crfree(cr)
 	struct ucred *cr;
 {
+	struct mtx *mtxp = cr->cr_mtxp;
 
-	mtx_lock(&cr->cr_mtx);
+	mtx_lock(mtxp);
 	KASSERT(cr->cr_ref > 0, ("bad ucred refcount: %d", cr->cr_ref));
 	if (--cr->cr_ref == 0) {
-		mtx_destroy(&cr->cr_mtx);
 		/*
 		 * Some callers of crget(), such as nfs_statfs(),
 		 * allocate a temporary credential, but don't
 		 * allocate a uidinfo structure.
 		 */
+		mtx_unlock(mtxp);
 		if (cr->cr_uidinfo != NULL)
 			uifree(cr->cr_uidinfo);
 		if (cr->cr_ruidinfo != NULL)
@@ -1632,8 +1633,9 @@ crfree(cr)
 		if (jailed(cr))
 			prison_free(cr->cr_prison);
 		FREE((caddr_t)cr, M_CRED);
-	} else
-		mtx_unlock(&cr->cr_mtx);
+	} else {
+		mtx_unlock(mtxp);
+	}
 }
 
 /*
@@ -1645,9 +1647,9 @@ crshared(cr)
 {
 	int shared;
 
-	mtx_lock(&cr->cr_mtx);
+	mtx_lock(cr->cr_mtxp);
 	shared = (cr->cr_ref > 1);
-	mtx_unlock(&cr->cr_mtx);
+	mtx_unlock(cr->cr_mtxp);
 	return (shared);
 }
 
