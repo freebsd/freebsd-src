@@ -152,8 +152,6 @@ kmem_alloc(map, size)
 	vm_offset_t offset;
 	vm_offset_t i;
 
-	GIANT_REQUIRED;
-
 	size = round_page(size);
 
 	/*
