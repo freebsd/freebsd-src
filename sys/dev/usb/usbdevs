@@ -214,6 +214,7 @@ vendor ALCATELM		0x06e4	Alcatel Microelectronics
 vendor SIRIUS		0x06ea	Sirius Technologies
 vendor BOSTON		0x06fd	Boston Acoustics
 vendor SMC		0x0707	Standard Microsystems Corp
+vendor PUTERCOM		0x0708	Putercom Co., Ltd.
 vendor MCT		0x0711	MCT Corp.
 vendor AUREAL		0x0755	Aureal Semiconductor
 vendor MIDIMAN		0x0763	Midiman
@@ -339,13 +340,13 @@ product ADS UBS10BT		0x0008	UBS-10BT Ethernet adapter
 /* Agate Technologies products */
 product AGATE QDRIVE		0x0378	Q-Drive
 
-/* Agiler products */
-product ELECOM MOUSE29UO	0x0002	mouse 29UO
-
 /* AGFA products */
 product AGFA SNAPSCAN1212U	0x0001	SnapScan 1212U
 product AGFA SNAPSCANTOUCH	0x0100	SnapScan Touch
 product AGFA SNAPSCAN1212U2	0x2061	SnapScan 1212U
+
+/* Agiler products */
+product ELECOM MOUSE29UO	0x0002	mouse 29UO
 
 /* AKS products */
 product AKS USBHASP		0x0001	USB-HASP 0.06
@@ -402,8 +403,9 @@ product BROTHER HL1050		0x0002	HL-1050 laser printer
 product BTC BTC7932		0x6782	Keyboard with mouse port
 
 /* Canon, Inc. products */
-product CANON S10		0x3041	PowerShot S10
 product CANON N656U		0x2206	CANOSCAN N656U
+product CANON S10		0x3041	PowerShot S10
+product CANON S100		0x3045	PowerShot S100
 
 /* CATC products */
 product CATC NETMATE		0x000a	Netmate ethernet adapter
@@ -778,6 +780,9 @@ product PROLIFIC PL2303		0x04bb	PL2303 Serial adapter (IODATA USB-RSAQ2)
 product PROLIFIC PL2305		0x2305	Parallel printer adapter
 product PROLIFIC ATAPI4		0x2307	ATAPI-4 Bridge Controller
 
+/* Putercom products */
+product PUTERCOM UPA100		0x047e	USB-1284 BRIDGE
+
 /* Qtronix products */
 product QTRONIX 980N		0x2011	Scorpion-980N keyboard
 
@@ -837,8 +842,9 @@ product STMICRO COMMUNICATOR	0x7554	USB Communicator
 product STSN STSN0001		0x0001	Internet Access Device
 
 /* Sun Microsystems products */
-product SUN KEYBOARD		0x0005	Type 6 USB
+product SUN KEYBOARD		0x0005	Type 6 USB keyboard
 /* XXX The above is a North American PC style keyboard possibly */
+product SUN MOUSE		0x0100	Type 6 USB mouse
 
 /* Supra products */
 product DIAMOND2 SUPRAEXPRESS56K 0x07da	Supra Express 56K modem
