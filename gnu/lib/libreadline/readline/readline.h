@@ -173,7 +173,7 @@ extern Function *rl_ignore_some_completions_function;
    If this function exists and returns NULL then call the value of
    rl_completion_entry_function to try to match, otherwise use the
    array of strings returned. */
-extern Function *rl_attempted_completion_function;
+extern CPPFunction *rl_attempted_completion_function;
 
 /* If non-zero, then this is the address of a function to call just
    before readline_internal () prints the first prompt. */
