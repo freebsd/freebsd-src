@@ -30,33 +30,10 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ffs/fs.h>
 #include <ufs/ufs/dinode.h>
 
-#include <a.out.h>
+#define _PATH_LOADER	"/boot/loader"
+#define _PATH_KERNEL	"/boot/kernel/kernel"
 
-#define RBX_ASKNAME	0x0	/* -a */
-#define RBX_SINGLE	0x1	/* -s */
-#define RBX_DFLTROOT	0x5	/* -r */
-#define RBX_KDB 	0x6	/* -d */
-#define RBX_CONFIG	0xa	/* -c */
-#define RBX_VERBOSE	0xb	/* -v */
-#define RBX_CDROM	0xd	/* -C */
-#define RBX_GDB 	0xf	/* -g */
-
-#define RBX_MASK	0x2000ffff
-
-#define PATH_CONFIG	"/boot.config"
-#define PATH_LOADER	"/boot/loader"
-#define PATH_KERNEL	"/kernel"
-
-#define ARGS		0x900
-#define NOPT		11
 #define BSIZEMAX	8192
-#define NDEV		5
-
-#define TYPE_AD		0
-#define TYPE_WD		1
-#define TYPE_WFD 	2
-#define TYPE_FD		3
-#define TYPE_DA		4
 
 /*
  * This structure will be refined along with the addition of a bootpath
@@ -71,39 +48,21 @@ struct disk dsk;
 
 extern uint32_t _end;
 
-static const char optstr[NOPT] = "aCcgrsv";
-static const unsigned char flags[NOPT] = {
-	RBX_ASKNAME,
-	RBX_CDROM,
-	RBX_CONFIG,
-	RBX_GDB,
-	RBX_DFLTROOT,
-	RBX_SINGLE,
-	RBX_VERBOSE
-};
-
-static char cmd[512];		/* command to parse */
 static char bname[1024];	/* name of the binary to load */
-static uint32_t opts;
-static int ls;
 static uint32_t fs_off;
 
 int main(void);
 void exit(int);
 static void load(const char *);
-static int parse(char *);
 static ino_t lookup(const char *);
 static int xfsread(ino_t, void *, size_t);
 static ssize_t fsread(ino_t, void *, size_t);
 static int dskread(void *, u_int64_t, int);
 static int printf(const char *, ...);
 static int putchar(int);
-static int keyhit(unsigned int);
-static int getc(void);
 
 static void *memcpy(void *, const void *, size_t);
 static void *memset(void *, int, size_t);
-static void *malloc(size_t);
 
 /*
  * Open Firmware interface functions
@@ -286,15 +245,6 @@ ofw_seek(ofwh_t devh, u_int64_t off)
 	return (0);
 }
 
-static void
-readfile(const char *fname, void *buf, size_t size)
-{
-	ino_t ino;
-
-	if ((ino = lookup(fname)))
-		fsread(ino, buf, size);
-}
-
 static int
 strcmp(const char *s1, const char *s2)
 {
@@ -328,61 +278,14 @@ fsfind(const char *name, ino_t * ino)
 	while ((n = fsread(*ino, buf, DEV_BSIZE)) > 0) {
 		for (s = buf; s < buf + DEV_BSIZE;) {
 			d = (void *)s;
-			if (ls)
-				printf("%s ", d->d_name);
-			else if (!strcmp(name, d->d_name)) {
+			if (!strcmp(name, d->d_name)) {
 				*ino = d->d_fileno;
 				return (d->d_type);
 			}
 			s += d->d_reclen;
 		}
 	}
-	if (n != -1 && ls)
-		putchar('\n');
 	return (0);
-}
-
-static int
-getchar(void)
-{
-	int c;
-
-	c = getc();
-	if (c == '\r')
-		c = '\n';
-	return (c);
-}
-
-static void
-getstr(char *str, int size)
-{
-	char *s;
-	int c;
-
-	s = str;
-	do {
-		switch (c = getchar()) {
-		case 0:
-			break;
-		case '\b':
-		case '\177':
-			if (s > str) {
-				s--;
-				putchar('\b');
-				putchar(' ');
-			} else
-				c = 0;
-			break;
-		case '\n':
-			*s = 0;
-			break;
-		default:
-			if (s - str < size - 1)
-				*s++ = c;
-		}
-		if (c)
-			putchar(c);
-	} while (c != '\n');
 }
 
 static void
@@ -394,20 +297,15 @@ putc(int c)
 	ofw_write(stdouth, &d, 1);
 }
 
-int main(void)
+int
+main(void)
 {
-	readfile(PATH_CONFIG, cmd, sizeof(cmd));
-	if (cmd[0] != '\0') {
-		printf("%s: %s", PATH_CONFIG, cmd);
-		if (parse(cmd))
-			cmd[0] = '\0';
-	}
 	if (bname[0] == '\0')
-		memcpy(bname, PATH_LOADER, sizeof(PATH_LOADER));
+		memcpy(bname, _PATH_LOADER, sizeof(_PATH_LOADER));
 
 	printf(" \n>> FreeBSD/sparc64 boot block\n"
 	"   Boot path:   %s\n"
-	"   Boot loader: %s\n", bootpath, PATH_LOADER);
+	"   Boot loader: %s\n", bootpath, _PATH_LOADER);
 	load(bname);
 	return (1);
 }
@@ -424,8 +322,7 @@ load(const char *fname)
 	int i, j;
 
 	if ((ino = lookup(fname)) == 0) {
-		if (!ls)
-			printf("File %s not found\n", fname);
+		printf("File %s not found\n", fname);
 		return;
 	}
 	if (xfsread(ino, &eh, sizeof(eh)))
@@ -474,32 +371,6 @@ load(const char *fname)
 	(*(void (*)(int, int, int, int, ofwfp_t))entry)(0, 0, 0, 0, ofw);
 }
 
-static int
-parse(char *arg)
-{
-	char *p;
-	int c, i;
-
-	while ((c = *arg++)) {
-		if (c == ' ' || c == '\t' || c == '\n')
-			continue;
-		for (p = arg; *p && *p != '\n' && *p != ' ' && *p != '\t'; p++)
-			;
-		if (*p)
-			*p++ = 0;
-		if (c == '-') {
-			while ((c = *arg++)) {
-				for (i = 0; c != optstr[i]; i++)
-					if (i == NOPT - 1)
-						return (-1);
-				opts ^= 1 << flags[i];
-			}
-		}
-		arg = p;
-	}
-	return (0);
-}
-
 static ino_t
 lookup(const char *path)
 {
@@ -522,7 +393,6 @@ lookup(const char *path)
 			;
 		if ((n = s - path) > MAXNAMLEN)
 			return (0);
-		ls = *path == '?' && n == 1 && !*s;
 		memcpy(name, path, n);
 		name[n] = 0;
 		if (dt != DT_DIR) {
@@ -551,8 +421,8 @@ fsread(ino_t inode, void *buf, size_t nbyte)
 {
 	static struct fs fs;
 	static struct dinode din;
-	static char *blkbuf;
-	static ufs_daddr_t *indbuf;
+	static char blkbuf[BSIZEMAX];
+	static ufs_daddr_t indbuf[BSIZEMAX / sizeof(ufs_daddr_t)];
 	static ino_t inomap;
 	static ufs_daddr_t blkmap, indmap;
 	static unsigned int fsblks;
@@ -561,15 +431,13 @@ fsread(ino_t inode, void *buf, size_t nbyte)
 	size_t n, nb, off;
 
 	if (!dsk.meta) {
-		if (!blkbuf)
-			blkbuf = malloc(BSIZEMAX);
 		inomap = 0;
 		if (dskread(blkbuf, SBOFF / DEV_BSIZE, SBSIZE / DEV_BSIZE))
 			return (-1);
 		memcpy(&fs, blkbuf, sizeof(fs));
 		if (fs.fs_magic != FS_MAGIC) {
 			printf("Not ufs\n");
-				return (-1);
+			return (-1);
 		}
 		fsblks = fs.fs_bsize >> DEV_BSHIFT;
 		dsk.meta++;
@@ -595,8 +463,6 @@ fsread(ino_t inode, void *buf, size_t nbyte)
 			addr = din.di_db[lbn];
 		else {
 			if (indmap != din.di_ib[0]) {
-				if (!indbuf)
-					indbuf = malloc(BSIZEMAX);
 				if (dskread(indbuf, fsbtodb(&fs, din.di_ib[0]),
 				    fsblks))
 					return (-1);
@@ -718,33 +584,4 @@ memcpy(void *dst, const void *src, size_t size)
 	for (d = dst, s = src; size; size--)
 		*d++ = *s++;
 	return (dst);
-}
-
-static void *
-malloc(size_t size)
-{
-	static vm_offset_t next = 0x10000;
-	void *p;
-
-	if (size & 0xf)
-		size = (size + 0xf) & ~0xf;
-	p = (void *)next;
-	next += size;
-	return (p);
-}
-
-static int
-keyhit(unsigned int ticks)
-{
-	/* XXX */
-	return (0);
-	ticks = ticks;		/* make GCC happy */
-}
-
-static int
-getc(void)
-{
-	char c;
-	ofw_read(stdinh, &c, 1);
-	return (c);
 }
