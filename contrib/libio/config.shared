@@ -13,7 +13,8 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with GNU CC; see the file COPYING.  If not, write to
-# the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+# the Free Software Foundation, 59 Temple Place - Suite 330,
+# Boston, MA 02111-1307, USA.  */
 
 # File descriptor usage:
 # 1: All macros which need to be re-definable by any target fragments
@@ -79,6 +80,7 @@ echo "exec_prefix = ${exec_prefix-'${prefix}'}"
 
 echo 'bindir = $(exec_prefix)/bin'
 echo 'libdir = $(exec_prefix)/lib'
+echo 'libsubdir = $(libdir)/gcc-lib/$(target_alias)/$(gcc_version)'
 
 echo 'datadir = $(prefix)/lib'
 echo 'mandir = $(prefix)/man'
@@ -179,12 +181,13 @@ if [ -z "${ALL}" ] ; then
   fi
 fi
 
-ALL='$(PICDIR)'" ${ALL}"
-
 echo >&2 "all: ${ALL} multi-all"
 if [ "${SUBDIRS}" != "" ] ; then
   echo >&2 '	@rootme=`pwd`/; export rootme; \'
   echo >&2 '	$(MAKE) "DODIRS=$(SUBDIRS)" DO=all $(FLAGS_TO_PASS) subdir_do'
+fi
+if [ "${LIBDIR}" = "yes" ]; then
+  echo >&2 "${ALL} "'multi-all: $(PICDIR)'
 fi
 echo >&2 '.PHONY: all'
 echo >&2 ''
@@ -473,8 +476,8 @@ depend.new:
 	  >depend.new
 	$(CXX) -M $(CXXINCLUDES) $(DEPEND_SOURCES) \
 	| sed -e 's|$(srcdir)/|$$(srcdir)/|g' \
-	      -e 's| [^ ]_G_config.h| $$(_G_CONFIG_H)|g \
-	      -e 's| /[^ ]*||g' \
+	      -e 's| [^ ]*_G_config.h| $$(_G_CONFIG_H)|g' \
+	      -e 's| /[^ ]*||g' -e 's| libc-lock\.h||' \
 	      -e '/^[ 	]*\\$$/d' -e 's/^[ 	]*$$//' \
 	| sed -e 's|$$(srcdir)/[.][.]|$$(srcdir)/$$(MULTISRCTOP)..|g' \
 	      -e 's|$$(srcdir)/\([^/]*[.]c\)|\1|' \
