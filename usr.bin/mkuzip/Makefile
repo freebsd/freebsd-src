@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	mkuzip
-MAN=	mkunzip.8
+MAN=	mkuzip.8
 
 DPADD=	${LIBZ}
 LDADD=	-lz
