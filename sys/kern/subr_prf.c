@@ -48,6 +48,7 @@
 #include <sys/msgbuf.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/stddef.h>
 #include <sys/stdint.h>
 #include <sys/sysctl.h>
 #include <sys/tty.h>
@@ -478,7 +479,7 @@ kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_lis
 	int ch, n;
 	uintmax_t num;
 	int base, lflag, qflag, tmp, width, ladjust, sharpflag, neg, sign, dot;
-	int jflag, zflag;
+	int jflag, tflag, zflag;
 	int dwidth;
 	char padc;
 	int retval = 0;
@@ -506,7 +507,7 @@ kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_lis
 		percent = fmt - 1;
 		qflag = 0; lflag = 0; ladjust = 0; sharpflag = 0; neg = 0;
 		sign = 0; dot = 0; dwidth = 0;
-		jflag = 0; zflag = 0;
+		jflag = 0; tflag = 0; zflag = 0;
 reswitch:	switch (ch = (u_char)*fmt++) {
 		case '.':
 			dot = 1;
@@ -657,6 +658,10 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 				while (width--)
 					PCHAR(padc);
 			break;
+		case 't':
+			tflag = 1;
+			goto reswitch;
+			break;
 		case 'u':
 			base = 10;
 			goto handle_nosign;
@@ -677,6 +682,8 @@ handle_nosign:
 				num = va_arg(ap, uintmax_t);
 			else if (qflag)
 				num = va_arg(ap, u_quad_t);
+			else if (tflag)
+				num = va_arg(ap, ptrdiff_t);
 			else if (lflag)
 				num = va_arg(ap, u_long);
 			else if (zflag)
@@ -689,6 +696,8 @@ handle_sign:
 				num = va_arg(ap, intmax_t);
 			else if (qflag)
 				num = va_arg(ap, quad_t);
+			else if (tflag)
+				num = va_arg(ap, ptrdiff_t);
 			else if (lflag)
 				num = va_arg(ap, long);
 			else if (zflag)
