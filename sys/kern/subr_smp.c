@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.72 1998/04/06 08:25:30 phk Exp $
+ *	$Id: mp_machdep.c,v 1.73 1998/04/06 15:48:30 peter Exp $
  */
 
 #include "opt_smp.h"
@@ -286,13 +286,6 @@ int     io_num_to_apic_id[NAPICID];
 int     apic_id_to_logical[NAPICID];
 
 
-#define NPPROVMTRR		8
-#define PPRO_VMTRRphysBase0	0x200
-#define PPRO_VMTRRphysMask0	0x201
-static struct {
-	u_int64_t base, mask;
-} PPro_vmtrr[NPPROVMTRR];
-
 /* Bitmap of all available CPUs */
 u_int	all_cpus;
 
@@ -342,10 +335,6 @@ static void	init_locks(void);
 static int	start_all_aps(u_int boot_addr);
 static void	install_ap_tramp(u_int boot_addr);
 static int	start_ap(int logicalCpu, u_int boot_addr);
-static void	getmtrr(void);
-static void	putmtrr(void);
-static void	putfmtrr(void);
-
 
 /*
  * Calculate usable address in base memory for AP trampoline code.
@@ -494,7 +483,7 @@ init_secondary(void)
 	pmap_set_opt((unsigned *)PTD);
 
 	putmtrr();
-	putfmtrr();
+	pmap_setvidram();
 
 	invltlb();
 }
@@ -554,7 +543,7 @@ mp_enable(u_int boot_addr)
 #endif	/* APIC_IO */
 
 	getmtrr();
-	putfmtrr();
+	pmap_setvidram();
 
 	POSTCODE(MP_ENABLE_POST);
 
@@ -2119,6 +2108,8 @@ ap_init()
 		panic("cpuid mismatch! boom!!");
 	}
 
+	getmtrr();
+
 	/* Init local apic for irq's */
 	apic_initialize();
 
@@ -2133,51 +2124,6 @@ ap_init()
 
 	curproc = NULL;		/* make sure */
 }
-
-void
-getmtrr()
-{
-	int i;
-
-	if (cpu_class == CPUCLASS_686) {
-		for(i = 0; i < NPPROVMTRR; i++) {
-			PPro_vmtrr[i].base = rdmsr(PPRO_VMTRRphysBase0 + i * 2);
-			PPro_vmtrr[i].mask = rdmsr(PPRO_VMTRRphysMask0 + i * 2);
-		}
-	}
-}
-
-void
-putmtrr()
-{
-	int i;
-
-	if (cpu_class == CPUCLASS_686) {
-		wbinvd();
-		for(i = 0; i < NPPROVMTRR; i++) {
-			wrmsr(PPRO_VMTRRphysBase0 + i * 2, PPro_vmtrr[i].base);
-			wrmsr(PPRO_VMTRRphysMask0 + i * 2, PPro_vmtrr[i].mask);
-		}
-	}
-}
-
-void
-putfmtrr()
-{
-	if (cpu_class == CPUCLASS_686) {
-		wbinvd();
-		/*
-		 * Set memory between 0-640K to be WB
-		 */
-		wrmsr(0x250, 0x0606060606060606LL);
-		wrmsr(0x258, 0x0606060606060606LL);
-		/*
-		 * Set normal, PC video memory to be WC
-		 */
-		wrmsr(0x259, 0x0101010101010101LL);
-	}
-}
-
 
 #ifdef BETTER_CLOCK
 

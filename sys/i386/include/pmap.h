@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.53 1997/08/05 00:42:01 dyson Exp $
+ * 	$Id: pmap.h,v 1.54 1997/11/20 19:30:35 bde Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
@@ -234,6 +234,15 @@ typedef struct pv_entry {
 
 #ifdef	KERNEL
 
+#define NPPROVMTRR		8
+#define PPRO_VMTRRphysBase0	0x200
+#define PPRO_VMTRRphysMask0	0x201
+struct {
+	u_int64_t base, mask;
+} PPro_vmtrr[NPPROVMTRR];
+
+/* Bitmap of all available CPUs */
+
 extern caddr_t	CADDR1;
 extern pt_entry_t *CMAP1;
 extern vm_offset_t avail_end;
@@ -252,6 +261,11 @@ unsigned *pmap_pte __P((pmap_t, vm_offset_t)) __pure2;
 vm_page_t pmap_use_pt __P((pmap_t, vm_offset_t));
 void	pmap_set_opt	__P((unsigned *));
 void	pmap_set_opt_bsp	__P((void));
+void 	getmtrr __P((void));
+void	putmtrr __P((void));
+void	putfmtrr __P((void));
+void	pmap_setdevram __P((unsigned long long, unsigned));
+void	pmap_setvidram __P((void));
 
 #endif /* KERNEL */
 
