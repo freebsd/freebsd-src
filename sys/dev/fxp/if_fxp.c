@@ -2624,7 +2624,7 @@ static u_int32_t fxp_ucode_d101s[] = D101S_RCVBUNDLE_UCODE;
 static u_int32_t fxp_ucode_d102[] = D102_B_RCVBUNDLE_UCODE;
 static u_int32_t fxp_ucode_d102c[] = D102_C_RCVBUNDLE_UCODE;
 
-#define UCODE(x)	x, sizeof(x)
+#define UCODE(x)	x, sizeof(x)/sizeof(u_int32_t)
 
 struct ucode {
 	u_int32_t	revision;
@@ -2651,6 +2651,7 @@ fxp_load_ucode(struct fxp_softc *sc)
 {
 	struct ucode *uc;
 	struct fxp_cb_ucode *cbp;
+	int i;
 
 	for (uc = ucode_table; uc->ucode != NULL; uc++)
 		if (sc->revision == uc->revision)
@@ -2661,7 +2662,8 @@ fxp_load_ucode(struct fxp_softc *sc)
 	cbp->cb_status = 0;
 	cbp->cb_command = htole16(FXP_CB_COMMAND_UCODE | FXP_CB_COMMAND_EL);
 	cbp->link_addr = 0xffffffff;    	/* (no) next command */
-	memcpy(cbp->ucode, uc->ucode, uc->length);
+	for (i = 0; i < uc->length; i++)
+		cbp->ucode[i] = htole32(uc->ucode[i]);
 	if (uc->int_delay_offset)
 		*(u_int16_t *)&cbp->ucode[uc->int_delay_offset] =
 		    htole16(sc->tunable_int_delay + sc->tunable_int_delay / 2);
