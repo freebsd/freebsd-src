@@ -246,7 +246,6 @@ int __yp_ping(restricted_addrs, cnt, dom, port)
 	CLIENT			*clnt;
 	char			*foo = dom;
 	struct cu_data		*cu;
-	enum clnt_stat		(*oldfunc)();
 	int			validsrvs = 0;
 
 	/* Set up handles. */

@@ -116,7 +116,6 @@ int main()
 {
 	char	buf[_POSIX2_LINE_MAX], ifname[IFNAMSIZ];
 	struct	ifnet	*ifp, *nifp, ifnet;
-	struct	arpcom	arpcom;
 
 	if ((kvmd = kvm_openfiles(NULL, NULL, NULL, O_RDONLY, buf)) == NULL) {
 		perror("kvm_openfiles");
@@ -179,7 +178,6 @@ if6_addrlist(ifap)
 	struct ifaddr ifa;
 	struct sockaddr sa;
 	struct in6_ifaddr if6a;
-	struct in6_multi *mc = 0;
 	struct ifaddr *ifap0;
 
 	ifap0 = ifap;
@@ -198,10 +196,7 @@ if6_addrlist(ifap)
 	if (ifap0) {
 		struct ifnet ifnet;
 		struct ifmultiaddr ifm, *ifmp = 0;
-		struct sockaddr_in6 sin6;
-		struct in6_multi in6m;
 		struct sockaddr_dl sdl;
-		int in6_multilist_done = 0;
 
 		KREAD(ifap0, &ifa, struct ifaddr);
 		KREAD(ifa.ifa_ifp, &ifnet, struct ifnet);

@@ -93,7 +93,6 @@ main(argc, argv)
 	char ibuf[BUFSIZ];
 	fd_set rfd;
 	int flushtime = 30;
-	int lastc = 1000;
 
 	aflg = kflg = 0;
 	while ((ch = getopt(argc, argv, "aqkt:")) != -1)

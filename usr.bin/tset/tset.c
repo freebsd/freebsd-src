@@ -78,7 +78,7 @@ main(argc, argv)
 	struct winsize win;
 #endif
 	int ch, noinit, noset, quiet, Sflag, sflag, showterm, usingupper;
-	char *p, *t, *tcapbuf, *ttype;
+	char *p, *tcapbuf, *ttype;
 
 	if (tcgetattr(STDERR_FILENO, &mode) < 0)
 		err(1, "standard error");
