@@ -177,8 +177,8 @@ device		bfe		# Broadcom BCM440x 10/100 Ethernet
 device		bge		# Broadcom BCM570xx Gigabit Ethernet
 device		dc		# DEC/Intel 21143 and various workalikes
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
-device		lge		# Level 1 LXT1001 gigabit ethernet
-device		nge		# NatSemi DP83820 gigabit ethernet
+device		lge		# Level 1 LXT1001 gigabit Ethernet
+device		nge		# NatSemi DP83820 gigabit Ethernet
 device		pcn		# AMD Am79C97x PCI 10/100 (precedence over 'lnc')
 device		re		# RealTek 8139C+/8169/8169S/8110S
 device		rl		# RealTek 8129/8139
@@ -189,7 +189,7 @@ device		ste		# Sundance ST201 (D-Link DFE-550TX)
 device		ti		# Alteon Networks Tigon I/II gigabit Ethernet
 device		tl		# Texas Instruments ThunderLAN
 device		tx		# SMC EtherPower II (83c170 ``EPIC'')
-device		vge		# VIA VT612x gigabit ethernet
+device		vge		# VIA VT612x gigabit Ethernet
 device		vr		# VIA Rhine, Rhine II
 device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
