@@ -39,16 +39,12 @@
 #include <a.out.h>
 #include <elf.h>
 
+#include "aouthdr.h"
 #include "elfhdr.h"
 #include "kgzip.h"
 
-#define KGZOFF (sizeof(struct kgz_elfhdr) + sizeof(struct kgz_hdr))
-
-#define F_AOUT	1		/* Input format: a.out */
-#define F_ELF	2		/* Input format: ELF32 */
-
 static void mk_data(const struct iodesc *i, const struct iodesc *,
-		    struct kgz_hdr *);
+		    struct kgz_hdr *, size_t);
 static int ld_elf(const struct iodesc *, const struct iodesc *,
 		  struct kgz_hdr *, const Elf32_Ehdr *);
 static int ld_aout(const struct iodesc *, const struct iodesc *,
@@ -61,7 +57,6 @@ void
 kgzcmp(struct kgz_hdr *kh, const char *f1, const char *f2)
 {
     struct iodesc idi, ido;
-    struct kgz_elfhdr ehdr;
 
     if ((idi.fd = open(idi.fname = f1, O_RDONLY)) == -1)
 	err(1, "%s", idi.fname);
@@ -72,15 +67,31 @@ kgzcmp(struct kgz_hdr *kh, const char *f1, const char *f2)
     kh->ident[1] = KGZ_ID1;
     kh->ident[2] = KGZ_ID2;
     kh->ident[3] = KGZ_ID3;
-    xseek(&ido, KGZOFF);
-    mk_data(&idi, &ido, kh);
+    mk_data(&idi, &ido, kh,
+	    (format == F_AOUT ? sizeof(struct kgz_aouthdr0) :
+				sizeof(struct kgz_elfhdr)) +
+	     sizeof(struct kgz_hdr));
     kh->dload &= 0xffffff;
     kh->entry &= 0xffffff;
-    xseek(&ido, 0);
-    ehdr = elfhdr;
-    ehdr.st[KGZ_ST_KGZ_NDATA].st_size = kh->nsize;
-    ehdr.sh[KGZ_SH_DATA].sh_size += kh->nsize;
-    xwrite(&ido, &ehdr, sizeof(ehdr));
+    if (format == F_AOUT) {
+	struct kgz_aouthdr0 ahdr0 = aouthdr0;
+	struct kgz_aouthdr1 ahdr1 = aouthdr1;
+	unsigned x = (sizeof(struct kgz_hdr) + kh->nsize) & (16 - 1);
+	if (x) {
+	    x = 16 - x;
+	    xzero(&ido, x);
+	}
+	xwrite(&ido, &ahdr1, sizeof(ahdr1));
+	ahdr0.a.a_data += kh->nsize + x;
+	xseek(&ido, 0);
+	xwrite(&ido, &ahdr0, sizeof(ahdr0));
+    } else {
+	struct kgz_elfhdr ehdr = elfhdr;
+	ehdr.st[KGZ_ST_KGZ_NDATA].st_size = kh->nsize;
+	ehdr.sh[KGZ_SH_DATA].sh_size += kh->nsize;
+	xseek(&ido, 0);
+	xwrite(&ido, &ehdr, sizeof(ehdr));
+    }
     xwrite(&ido, kh, sizeof(*kh));
     xclose(&ido);
     xclose(&idi);
@@ -91,7 +102,7 @@ kgzcmp(struct kgz_hdr *kh, const char *f1, const char *f2)
  */
 static void
 mk_data(const struct iodesc * idi, const struct iodesc * ido,
-	struct kgz_hdr * kh)
+	struct kgz_hdr * kh, size_t off)
 {
     union {
 	struct exec ex;
@@ -112,6 +123,7 @@ mk_data(const struct iodesc * idi, const struct iodesc * ido,
 	fmt = F_AOUT;
     if (!fmt)
 	errx(1, "%s: Format not supported", idi->fname);
+    xseek(ido, off);
     if (pipe(fd))
 	err(1, NULL);
     switch (pid = fork()) {
@@ -143,7 +155,7 @@ mk_data(const struct iodesc * idi, const struct iodesc * ido,
 	errx(1, "%s: Invalid format", idi->fname);
     if (fstat(ido->fd, &sb))
 	err(1, "%s", ido->fname);
-    kh->nsize = sb.st_size - KGZOFF;
+    kh->nsize = sb.st_size - off;
 }
 
 /*
