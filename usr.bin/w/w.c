@@ -70,6 +70,8 @@ static const char rcsid[] =
 #include <errno.h>
 #include <fcntl.h>
 #include <kvm.h>
+#include <langinfo.h>
+#include <locale.h>
 #include <netdb.h>
 #include <nlist.h>
 #include <paths.h>
@@ -79,7 +81,6 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <utmp.h>
 #include <vis.h>
-#include <locale.h>
 
 #include <arpa/nameser.h>
 #include <resolv.h>
@@ -98,6 +99,7 @@ int		header = 1;	/* true if -h flag: don't print heading */
 int		nflag;		/* true if -n flag: don't convert addrs */
 int		dflag;		/* true if -d flag: output debug info */
 int		sortidle;	/* sort by idle time */
+int		use_ampm;	/* use AM/PM time */
 char	      **sel_users;	/* login array of particular users selected */
 char		domain[MAXHOSTNAMELEN];
 
@@ -140,6 +142,7 @@ main(argc, argv)
 	char buf[MAXHOSTNAMELEN], errbuf[256];
 
 	(void)setlocale(LC_ALL, "");
+	use_ampm = (*nl_langinfo(T_FMT_AMPM) != '\0');
 
 	/* Are we w(1) or uptime(1)? */
 	if (this_is_uptime(argv[0]) == 0) {
@@ -428,7 +431,8 @@ pr_header(nowp, nusers)
 	/*
 	 * Print time of day.
 	 */
-	(void)strftime(buf, sizeof(buf) - 1, "%l:%M%p", localtime(nowp));
+	(void)strftime(buf, sizeof(buf)	- 1,
+		       use_ampm	? "%l:%M%p" : "%k:%M", localtime(nowp));
 	buf[sizeof(buf) - 1] = '\0';
 	(void)printf("%s ", buf);
 
