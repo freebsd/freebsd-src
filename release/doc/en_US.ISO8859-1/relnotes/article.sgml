@@ -386,8 +386,8 @@
 
 	<para>The gx(4) driver has been removed because
 	  it is no longer maintained actively and
-	  the &man.em.4; supports all of the supported hardware.</para>
-
+	  the &man.em.4; driver supports all of the supported hardware.</para>
+	  
 	<para>The &man.hme.4; driver is now MPSAFE. &merged;</para>
 
 	<para arch="amd64">The &man.ndis.4; device driver wrapper now
