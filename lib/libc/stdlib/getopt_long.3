@@ -271,29 +271,29 @@ found in glibc-2.1.3:
 .\" .Ev POSIXLY_CORRECT
 .\" and stops at the first non-option.
 .\" .El
-.It
-Handling of
-.Ql -
-within the option string (not the first character):
-.Bl -tag -width ".Bx"
-.It Tn GNU
-treats a
-.Ql -
-on the command line as a non-argument.
-.It Bx
-a
-.Ql -
-within the option string matches a
-.Ql -
-(single dash) on the command line.
-This functionality is provided for backward compatibility with
-programs, such as
-.Xr su 1 ,
-that use
-.Ql -
-as an option flag.
-This practice is wrong, and should not be used in any current development.
-.El
+.\" .It
+.\" Handling of
+.\" .Ql -
+.\" within the option string (not the first character):
+.\" .Bl -tag -width ".Bx"
+.\" .It Tn GNU
+.\" treats a
+.\" .Ql -
+.\" on the command line as a non-argument.
+.\" .It Bx
+.\" a
+.\" .Ql -
+.\" within the option string matches a
+.\" .Ql -
+.\" (single dash) on the command line.
+.\" This functionality is provided for backward compatibility with
+.\" programs, such as
+.\" .Xr su 1 ,
+.\" that use
+.\" .Ql -
+.\" as an option flag.
+.\" This practice is wrong, and should not be used in any current development.
+.\" .El
 .\" .It
 .\" Handling of
 .\" .Ql ::

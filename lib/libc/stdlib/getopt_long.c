@@ -413,7 +413,11 @@ start:
 			return (-1);
 		}
 		if (*(place = nargv[optind]) != '-' ||
+#ifdef GNU_COMPATIBLE
+		    place[1] == '\0') {
+#else
 		    (place[1] == '\0' && strchr(options, '-') == NULL)) {
+#endif
 			place = EMSG;		/* found non-option */
 			if (flags & FLAG_ALLARGS) {
 				/*
