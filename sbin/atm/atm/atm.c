@@ -55,6 +55,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <err.h>
 
 #include "atm.h"
 
@@ -135,7 +136,7 @@ static const struct cmd	cmds[] = {
 
 static const struct cmd add_subcmd[] = {
 	{ "arp",	2,	3,	arp_add, "[<netif>] <IP addr> <ATM addr>" },
-	{ "pvc",	6,	12,	pvc_add, "<intf> <vpi> <vci> <aal> <encaps> <owner> ..." },
+	{ "pvc",	6,	16,	pvc_add, "<intf> <vpi> <vci> <aal> <encaps> <owner> <netif> ... [UBR | CBR | VBR]" },
 	{ 0,		0,	0,	NULL,	"" }
 };
 
@@ -222,6 +223,19 @@ const struct encaps encaps[] = {
 	{ "LLC",	ATM_ENC_LLC },
 	{ "SNAP",	ATM_ENC_LLC },
 	{ 0,	0 },
+};
+
+/*
+ * Supported ATM traffic types
+ */
+struct traffics traffics[] = {
+	{ "UBR",	T_ATM_UBR,	1,	"UBR <pcr>" },
+	{ "CBR",	T_ATM_CBR,	1,	"CBR <pcr>" },
+	{ "VBR",	T_ATM_VBR,	3,	"VBR <pcr> <scr> <mbs>" },
+#ifdef notyet
+	{ "ABR",	T_ATM_ABR,	2,	"ABR <arg1> <arg2>" },
+#endif
+	{ NULL, 0, 0, NULL }
 };
 
 char	*prog;
@@ -522,7 +536,7 @@ detach(int argc __unused, char **argv, const struct cmd *cmdp __unused)
  * 
  * Command format: 
  *	atm add PVC <interface_name> <vpi> <vci> <aal> <encaps>
- *		<owner_name>
+ *		<owner_name> [ubr <PCR> | cbr <PCR> | vbr <PCR> <SCR> <MBS>]
  *
  * Arguments:
  *	argc	number of arguments to command
@@ -542,8 +556,9 @@ pvc_add(int argc, char **argv, const struct cmd *cmdp)
 	const struct owner	*owp;
 	const struct aal	*alp;
 	const struct encaps	*enp;
+	const struct traffics	*trafp;
 	char	*cp;
-	long	v;
+	u_long	v;
 	int	buf_len, s;
 
 	/*
@@ -589,21 +604,21 @@ pvc_add(int argc, char **argv, const struct cmd *cmdp)
 	/*
 	 * Validate vpi/vci values
 	 */
-	v = strtol(argv[0], &cp, 0);
-	if ((*cp != '\0') || (v < 0) || (v >= 1 << 8)) {
-		fprintf(stderr, "%s: Invalid VPI value\n", prog);
-		exit(1);
-	}
-	apr.aar_pvc_vpi = (u_short) v;
-	argc--; argv++;
+	errno = 0;
+	v = strtoul(argv[0], &cp, 0);
+	if (errno != 0 || *cp != '\0' || v >= 1 << 8)
+		errx(1, "Invalid VPI value '%s'", argv[0]);
+	apr.aar_pvc_vpi = (u_short)v;
+	argc--;
+	argv++;
 
-	v = strtol(argv[0], &cp, 0);
-	if ((*cp != '\0') || (v < MIN_VCI) || (v >= 1 << 16)) {
-		fprintf(stderr, "%s: Invalid VCI value\n", prog);
-		exit(1);
-	}
-	apr.aar_pvc_vci = (u_short) v;
-	argc--; argv++;
+	errno = 0;
+	v = strtoul(argv[0], &cp, 0);
+	if (errno != 0 || *cp != '\0' || v < MIN_VCI || v >= 1 << 16)
+		errx(1, "Invalid VCI value '%s'", argv[0]);
+	apr.aar_pvc_vci = (u_short)v;
+	argc--;
+	argv++;
 
 	/*
 	 * Validate requested PVC AAL
@@ -612,12 +627,11 @@ pvc_add(int argc, char **argv, const struct cmd *cmdp)
 		if (strcasecmp(alp->a_name, argv[0]) == 0)
 			break;
 	}
-	if (alp->a_name == NULL) {
-		fprintf(stderr, "%s: Invalid PVC AAL\n", prog);
-		exit(1);
-	}
+	if (alp->a_name == NULL)
+		errx(1, "Invalid PVC AAL '%s'", argv[0]);
 	apr.aar_pvc_aal = alp->a_id;
-	argc--; argv++;
+	argc--;
+	argv++;
 
 	/*
 	 * Validate requested PVC encapsulation
@@ -626,12 +640,11 @@ pvc_add(int argc, char **argv, const struct cmd *cmdp)
 		if (strcasecmp(enp->e_name, argv[0]) == 0)
 			break;
 	}
-	if (enp->e_name == NULL) {
-		fprintf(stderr, "%s: Invalid PVC encapsulation\n", prog);
-		exit(1);
-	}
+	if (enp->e_name == NULL)
+		errx(1, "Invalid PVC encapsulation '%s'", argv[0]);
 	apr.aar_pvc_encaps = enp->e_id;
-	argc--; argv++;
+	argc--;
+	argv++;
 
 	/*
 	 * Validate requested PVC owner
@@ -640,22 +653,113 @@ pvc_add(int argc, char **argv, const struct cmd *cmdp)
 		if (strcasecmp(owp->o_name, argv[0]) == 0)
 			break;
 	}
-	if (owp->o_name == NULL) {
-		fprintf(stderr, "%s: Unknown PVC owner\n", prog);
-		exit(1);
-	}
+	if (owp->o_name == NULL)
+		errx(1, "Unknown PVC owner '%s'", argv[0]);
 	apr.aar_pvc_sap = owp->o_sap;
-	argc--; argv++;
+	if (owp->o_pvcadd == NULL)
+		errx(1, "Unsupported PVC owner '%s'", argv[0]);
+	argc--;
+	argv++;
 
 	/*
 	 * Perform service user processing
 	 */
-	if (owp->o_pvcadd) {
-		(*owp->o_pvcadd)(argc, argv, cmdp, &apr, int_info);
+	(*owp->o_pvcadd)(argc, argv, cmdp, &apr, int_info);
+
+	argc -= 2;
+	argv += 2;
+
+	if (argc > 0) {
+		/*
+		 * Validate requested traffic
+		 */
+		for (trafp = traffics; trafp->t_name; trafp++) {
+			if (strcasecmp(trafp->t_name, argv[0]) == 0)
+				break;
+		}
+		if (trafp->t_name == NULL)
+			errx(1, "Unknown traffic type '%s'", argv[0]);
+		apr.aar_pvc_traffic_type = trafp->t_type;
+		argc--;
+		argv++;
+
+		if (trafp->t_argc != argc)
+			errx(1, "Invalid traffic parameters\n\t %s",
+			    trafp->help);
+		switch (trafp->t_type) {
+
+		  case T_ATM_UBR:
+		  case T_ATM_CBR:
+			errno = 0;
+			v = strtoul(argv[0], &cp, 0);
+			if (errno != 0 || *cp != '\0' || v >= 1 << 24)
+				errx(1, "Invalid PCR value '%s'", argv[0]);
+			apr.aar_pvc_traffic.forward.PCR_high_priority = (int32_t) v;
+			apr.aar_pvc_traffic.forward.PCR_all_traffic = (int32_t) v;
+			apr.aar_pvc_traffic.backward.PCR_high_priority = (int32_t) v;
+			apr.aar_pvc_traffic.backward.PCR_all_traffic = (int32_t) v;
+			argc--;
+			argv++;
+			apr.aar_pvc_traffic.forward.SCR_high_priority = T_ATM_ABSENT;
+			apr.aar_pvc_traffic.forward.SCR_all_traffic = T_ATM_ABSENT;
+			apr.aar_pvc_traffic.backward.SCR_high_priority = T_ATM_ABSENT;
+			apr.aar_pvc_traffic.backward.SCR_all_traffic = T_ATM_ABSENT;
+			apr.aar_pvc_traffic.forward.MBS_high_priority = T_ATM_ABSENT;
+			apr.aar_pvc_traffic.forward.MBS_all_traffic = T_ATM_ABSENT;
+			apr.aar_pvc_traffic.backward.MBS_high_priority = T_ATM_ABSENT;
+			apr.aar_pvc_traffic.backward.MBS_all_traffic = T_ATM_ABSENT;
+			break;
+
+		case T_ATM_VBR: /* VBR pcr scr mbs */
+			errno = 0;
+			v = strtoul(argv[0], &cp, 0);
+			if (errno != 0 || *cp != '\0' || v >= 1 << 24)
+				errx(1, "Invalid PCR value '%s'", argv[0]);
+			apr.aar_pvc_traffic.forward.PCR_high_priority = (int32_t)v;
+			apr.aar_pvc_traffic.forward.PCR_all_traffic = (int32_t)v;
+			apr.aar_pvc_traffic.backward.PCR_high_priority = (int32_t)v;
+			apr.aar_pvc_traffic.backward.PCR_all_traffic = (int32_t)v;
+			argc--;
+			argv++;
+
+			errno = 0;
+			v = strtoul(argv[0], &cp, 0);
+			if (errno != 0 || *cp != '\0' || v >= 1 << 24)
+				errx(1, "Invalid SCR value '%s'", argv[0]);
+			apr.aar_pvc_traffic.forward.SCR_high_priority = (int32_t)v;
+			apr.aar_pvc_traffic.forward.SCR_all_traffic = (int32_t)v;
+			apr.aar_pvc_traffic.backward.SCR_high_priority = (int32_t)v;
+			apr.aar_pvc_traffic.backward.SCR_all_traffic = (int32_t)v;
+			argc--;
+			argv++;
+
+			errno = 0;
+			v = strtol(argv[0], &cp, 0);
+			if (errno != 0 || *cp != '\0' || v >= 1 << 24)
+				errx(1, "Invalid MBS value '%s'", argv[0]);
+			apr.aar_pvc_traffic.forward.MBS_high_priority = (int32_t)v;
+			apr.aar_pvc_traffic.forward.MBS_all_traffic = (int32_t)v;
+			apr.aar_pvc_traffic.backward.MBS_high_priority = (int32_t)v;
+			apr.aar_pvc_traffic.backward.MBS_all_traffic = (int32_t)v;
+			argc--;
+			argv++;
+
+			break;
+
+		case T_ATM_ABR:
+			errx(1, "ABR not yet supported");
+
+		default:
+			errx(1, "Unsupported traffic type '%d'", trafp->t_type);
+		}
 	} else {
-		fprintf(stderr, "%s: Unsupported PVC owner\n", prog);
-		exit(1);
+		/*
+		 * No PVC traffic type
+		 */
+		apr.aar_pvc_traffic_type = T_ATM_NULL;
 	}
+	if (argc > 0)
+		errx(1, "Too many parameters");
 
 	/*
 	 * Tell the kernel to add the PVC
