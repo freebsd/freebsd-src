@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 David Schultz <das@FreeBSD.ORG>
+ * Copyright (c) 2004-2005 David Schultz <das@FreeBSD.ORG>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,14 +26,186 @@
  * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <machine/npx.h>
-#include <fenv.h>
+#include "fenv.h"
 
 const fenv_t __fe_dfl_env = {
-	0xffff0000 | __INITIAL_NPXCW__,
-	0xffff0000,
+	__INITIAL_NPXCW__,
+	0x0000,
+	0x0000,
+	0x1f80,
 	0xffffffff,
 	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff }
 };
+
+enum __sse_support __has_sse =
+#ifdef __SSE__
+	__SSE_YES;
+#else
+	__SSE_UNK;
+#endif
+
+#define	getfl(x)	__asm __volatile("pushfl\n\tpopl %0" : "=mr" (*(x)))
+#define	setfl(x)	__asm __volatile("pushl %0\n\tpopfl" : : "g" (x))
+#define	cpuid_dx(x)	__asm __volatile("pushl %%ebx\n\tmovl $1, %%eax\n\t"  \
+					 "cpuid\n\tpopl %%ebx"		      \
+					: "=d" (*(x)) : : "eax", "ecx")
+
+/*
+ * Test for SSE support on this processor.  We need to do this because
+ * we need to use ldmxcsr/stmxcsr to get correct results if any part
+ * of the program was compiled to use SSE floating-point, but we can't
+ * use SSE on older processors.
+ */
+int
+__test_sse(void)
+{
+	int flag, nflag;
+	int dx_features;
+
+	/* Am I a 486? */
+	getfl(&flag);
+	nflag = flag ^ 0x200000;
+	setfl(nflag);
+	getfl(&nflag);
+	if (flag != nflag) {
+		/* Not a 486, so CPUID should work. */
+		cpuid_dx(&dx_features);
+		if (dx_features & 0x2000000) {
+			__has_sse = __SSE_YES;
+			return (1);
+		}
+	}
+	__has_sse = __SSE_NO;
+	return (0);
+}
+
+int
+fesetexceptflag(const fexcept_t *flagp, int excepts)
+{
+	fenv_t env;
+	int mxcsr;
+
+	__fnstenv(&env);
+	env.__status &= ~excepts;
+	env.__status |= *flagp & excepts;
+	__fldenv(env);
+
+	if (__HAS_SSE()) {
+		__stmxcsr(&mxcsr);
+		mxcsr &= ~excepts;
+		mxcsr |= *flagp & excepts;
+		__ldmxcsr(mxcsr);
+	}
+
+	return (0);
+}
+
+int
+feraiseexcept(int excepts)
+{
+	fexcept_t ex = excepts;
+
+	fesetexceptflag(&ex, excepts);
+	__fwait();
+	return (0);
+}
+
+int
+fegetenv(fenv_t *envp)
+{
+	int control, mxcsr;
+
+	/*
+	 * fnstenv masks all exceptions, so we need to save and
+	 * restore the control word to avoid this side effect.
+	 */
+	__fnstcw(&control);
+	__fnstenv(envp);
+	if (__HAS_SSE()) {
+		__stmxcsr(&mxcsr);
+		__set_mxcsr(*envp, mxcsr);
+	}
+	__fldcw(control);
+	return (0);
+}
+
+int
+feholdexcept(fenv_t *envp)
+{
+	int mxcsr;
+
+	__fnstenv(envp);
+	__fnclex();
+	if (__HAS_SSE()) {
+		__stmxcsr(&mxcsr);
+		__set_mxcsr(*envp, mxcsr);
+		mxcsr &= ~FE_ALL_EXCEPT;
+		mxcsr |= FE_ALL_EXCEPT << _SSE_EMASK_SHIFT;
+		__ldmxcsr(mxcsr);
+	}
+	return (0);
+}
+
+int
+feupdateenv(const fenv_t *envp)
+{
+	int mxcsr, status;
+
+	__fnstsw(&status);
+	if (__HAS_SSE())
+		__stmxcsr(&mxcsr);
+	else
+		mxcsr = 0;
+	fesetenv(envp);
+	feraiseexcept((mxcsr | status) & FE_ALL_EXCEPT);
+	return (0);
+}
+
+int
+__feenableexcept(int mask)
+{
+	int mxcsr, control, omask;
+
+	mask &= FE_ALL_EXCEPT;
+	__fnstcw(&control);
+	if (__HAS_SSE())
+		__stmxcsr(&mxcsr);
+	else
+		mxcsr = 0;
+	omask = (control | mxcsr >> _SSE_EMASK_SHIFT) & FE_ALL_EXCEPT;
+	control &= ~mask;
+	__fldcw(control);
+	if (__HAS_SSE()) {
+		mxcsr &= ~(mask << _SSE_EMASK_SHIFT);
+		__ldmxcsr(mxcsr);
+	}
+	return (~omask);
+}
+
+int
+__fedisableexcept(int mask)
+{
+	int mxcsr, control, omask;
+
+	mask &= FE_ALL_EXCEPT;
+	__fnstcw(&control);
+	if (__HAS_SSE())
+		__stmxcsr(&mxcsr);
+	else
+		mxcsr = 0;
+	omask = (control | mxcsr >> _SSE_EMASK_SHIFT) & FE_ALL_EXCEPT;
+	control |= mask;
+	__fldcw(control);
+	if (__HAS_SSE()) {
+		mxcsr |= mask << _SSE_EMASK_SHIFT;
+		__ldmxcsr(mxcsr);
+	}
+	return (~omask);
+}
+
+__weak_reference(__feenableexcept, feenableexcept);
+__weak_reference(__fedisableexcept, fedisableexcept);
