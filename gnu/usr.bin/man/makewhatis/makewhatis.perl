@@ -10,6 +10,11 @@
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in the
 #    documentation and/or other materials provided with the distribution.
+# 3. All advertising materials mentioning features or use of this software
+#    must display the following acknowledgement:
+#    This product includes software developed by Wolfram Schneider
+# 4. The name of the author may not be used to endorse or promote products
+#    derived from this software without specific prior written permission
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -186,6 +191,18 @@ EOF
     return 1;
 }
 
+sub dir_redundant {
+    local($dir) = @_;
+
+    local ($dev,$ino) = (stat($dir))[0..1];
+
+    if ($dir_redundant{"$dev.$ino"}) {
+	warn "$dir is equal to: $dir_redundant{\"$dev.$ino\"}\n" if $debug;
+	return 0;
+    }
+    $dir_redundant{"$dev.$ino"} = $dir;
+    return 1;
+}
 
 
 # ``/usr/man/man1/foo.l'' -> ``l''
@@ -345,6 +362,7 @@ $whatisdb = '';
 $counter_all = 0;
 $err = 0; 
 $format = 24;
+$dir_redundant = '';			# 
 
 
 while ($_ = $ARGV[0], /^-/) {
@@ -363,15 +381,17 @@ while ($_ = $ARGV[0], /^-/) {
 @argv = split($", join($", (split(/:/, join($", @ARGV))))); #"
 
 if ($outfile) {
-    &open_output($outfile) && &find_manuals(@argv);
+    if(&open_output($outfile)){ 
+	foreach $dir (@argv) { &dir_redundant($dir) && &find_manuals($dir); }
+    }
     &close_output(1);
 } else {
     foreach $dir (@argv) {
-	&close_output(&open_output($dir) && &find_manuals($dir));
+	&dir_redundant($dir) && 
+	    &close_output(&open_output($dir) && &find_manuals($dir));
     }
 }
 
 warn "Total entries: $counter_all\n" if $debug && ($#argv > 0 || $outfile);
 exit $err;
-
 
