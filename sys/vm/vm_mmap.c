@@ -893,49 +893,42 @@ mlock(td, uap)
 	struct thread *td;
 	struct mlock_args *uap;
 {
-	int error;
+	struct proc *proc = td->td_proc;
+	vm_offset_t addr, start, end;
+	vm_size_t size;
+	int error, npages;
 
 	error = suser(td);
 	if (error)
 		return (error);
-	return (kern_mlock(td, (vm_offset_t)uap->addr, (vm_size_t)uap->len));
-}
 
-/*
- * MPSAFE
- */
-int
-kern_mlock(td, addr, size)
-	struct thread *td;
-	vm_offset_t addr;
-	vm_size_t size;
-{
-	vm_size_t pageoff;
-	struct proc *proc = td->td_proc;
-	int error;
-
-	pageoff = (addr & PAGE_MASK);
-	addr -= pageoff;
-	size += pageoff;
-	size = (vm_size_t) round_page(size);
+	addr = (vm_offset_t)uap->addr;
+	size = uap->len;
+	start = trunc_page(addr);
+	end = round_page(addr + size);
 
 	/* disable wrap around */
-	if (addr + size < addr)
+	if (end <= start)
 		return (EINVAL);
 
-	if (atop(size) + cnt.v_wire_count > vm_page_max_wired)
-		return (EAGAIN);
+	npages = atop(end - start);
+
+	if (npages > vm_page_max_wired)
+		return (ENOMEM);
 
 	PROC_LOCK(proc);
-	if (size + ptoa(pmap_wired_count(vm_map_pmap(&proc->p_vmspace->vm_map))) >
-	    lim_cur(proc, RLIMIT_MEMLOCK)) {
+	if (npages + pmap_wired_count(vm_map_pmap(&proc->p_vmspace->vm_map)) >
+	    atop(lim_cur(proc, RLIMIT_MEMLOCK))) {
 		PROC_UNLOCK(proc);
 		return (ENOMEM);
 	}
 	PROC_UNLOCK(proc);
 
-	error = vm_map_wire(&proc->p_vmspace->vm_map, addr,
-		     addr + size, VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
+	if (npages + cnt.v_wire_count > vm_page_max_wired)
+		return (EAGAIN);
+
+	error = vm_map_wire(&proc->p_vmspace->vm_map, start, end,
+	     VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
 }
 
@@ -1050,37 +1043,29 @@ munlock(td, uap)
 	struct thread *td;
 	struct munlock_args *uap;
 {
+	vm_offset_t addr, start, end;
+	vm_size_t size;
 	int error;
 
 	error = suser(td);
 	if (error)
 		return (error);
-	return (kern_munlock(td, (vm_offset_t)uap->addr, (vm_size_t)uap->len));
-}
 
-/*
- * MPSAFE
- */
-int
-kern_munlock(td, addr, size)
-	struct thread *td;
-	vm_offset_t addr;
-	vm_size_t size;
-{
-	vm_size_t pageoff;
-	int error;
-
-	pageoff = (addr & PAGE_MASK);
-	addr -= pageoff;
-	size += pageoff;
-	size = (vm_size_t) round_page(size);
+	addr = (vm_offset_t)uap->addr;
+	size = uap->len;
+	start = trunc_page(addr);
+	end = round_page(addr + size);
 
 	/* disable wrap around */
-	if (addr + size < addr)
+	if (end <= start)
 		return (EINVAL);
 
-	error = vm_map_unwire(&td->td_proc->p_vmspace->vm_map, addr,
-		     addr + size, VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
+	error = suser(td);
+	if (error)
+		return (error);
+
+	error = vm_map_unwire(&td->td_proc->p_vmspace->vm_map, start, end,
+	     VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
 }
 
