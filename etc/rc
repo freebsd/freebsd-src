@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.149 1998/08/14 06:49:05 phk Exp $
+#	$Id: rc,v 1.150 1998/08/20 11:22:52 phk Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -243,14 +243,16 @@ fi
 
 # Make shared lib searching a little faster.  Leave /usr/lib first if you
 # add your own entries or you may come to grief.
-_LDC=/usr/lib/aout
-for i in $ldconfig_paths; do
-	if test -d $i; then
-		_LDC="${_LDC} $i"
-	fi
-done
-echo 'setting ldconfig path:' ${_LDC}
-ldconfig ${_LDC}
+if [ -x /sbin/ldconfig ]; then
+	_LDC=/usr/lib/aout
+	for i in $ldconfig_paths; do
+		if test -d $i; then
+			_LDC="${_LDC} $i"
+		fi
+	done
+	echo 'setting ldconfig path:' ${_LDC}
+	ldconfig ${_LDC}
+fi
 
 # Now start up miscellaneous daemons that don't belong anywhere else
 #
