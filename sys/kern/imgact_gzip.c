@@ -7,7 +7,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: imgact_gzip.c,v 1.2 1994/10/03 23:14:48 phk Exp $
+ * $Id: imgact_gzip.c,v 1.3 1994/10/04 03:09:13 phk Exp $
  *
  * This module handles execution of a.out files which have been run through
  * "gzip -9".
@@ -53,7 +53,7 @@ struct gzip {
 	int	idx;
 	u_long	virtual_offset, file_offset, file_end, bss_size;
         unsigned gz_wp;
-	u_char	gz_slide[WSIZE];
+	u_char	*gz_slide;
 };
 
 int inflate __P((struct gzip *));
@@ -86,10 +86,16 @@ exec_gzip_imgact(iparams)
 					    /* 4-7  Timestamp		*/
 					    /* 8    Extra flags		*/
 
-	gz = malloc(sizeof *gz,M_TEMP,M_NOWAIT);
+	gz = malloc(sizeof *gz,M_GZIP,M_NOWAIT);
 	if (!gz)
 		return ENOMEM;
 	bzero(gz,sizeof *gz); /* waste of time ? */
+
+	gz->gz_slide = malloc(WSIZE,M_TEMP,M_NOWAIT);
+	if (!gz->gz_slide) {
+		free(gz,M_GZIP);
+		return ENOMEM;
+	}
 
 	gz->ip = iparams;
 	gz->error = ENOEXEC;
@@ -136,7 +142,8 @@ exec_gzip_imgact(iparams)
 
     done:
 	error = gz->error;
-	free(gz,M_TEMP);
+	free(gz->gz_slide,M_TEMP);
+	free(gz,M_GZIP);
 	return error;
 }
 
@@ -399,7 +406,7 @@ static
 void *
 myalloc(u_long size)
 {
-	return malloc(size, M_TEMP, M_NOWAIT);
+	return malloc(size, M_GZIP, M_NOWAIT);
 }
 #define malloc myalloc
 
@@ -407,7 +414,7 @@ static
 void
 myfree(void * ptr)
 {
-	free(ptr,M_TEMP);
+	free(ptr,M_GZIP);
 }
 #define free myfree
 
