@@ -35,8 +35,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_timeout.c,v 1.54 1998/02/25 06:13:32 bde Exp $
+ *	From: @(#)kern_clock.c	8.5 (Berkeley) 1/21/94
+ *	$Id: kern_timeout.c,v 1.56 1999/03/06 04:46:19 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -119,7 +119,15 @@ softclock()
 				c_func = c->c_func;
 				c_arg = c->c_arg;
 				c->c_func = NULL;
-				SLIST_INSERT_HEAD(&callfree, c, c_links.sle);
+				if (c->c_flags & CALLOUT_LOCAL_ALLOC) {
+					c->c_flags = CALLOUT_LOCAL_ALLOC;
+					SLIST_INSERT_HEAD(&callfree, c,
+							  c_links.sle);
+				} else {
+					c->c_flags =
+						(c->c_flags & ~CALLOUT_PENDING)
+						| CALLOUT_FIRED;
+				}
 				splx(s);
 				c_func(c_arg);
 				s = splhigh();
@@ -158,10 +166,6 @@ timeout(ftn, arg, to_ticks)
 	struct callout *new;
 	struct callout_handle handle;
 
-	if (to_ticks <= 0)
-		to_ticks = 1;
-
-	/* Lock out the clock. */
 	s = splhigh();
 
 	/* Fill in the next free callout structure. */
@@ -169,16 +173,12 @@ timeout(ftn, arg, to_ticks)
 	if (new == NULL)
 		/* XXX Attempt to malloc first */
 		panic("timeout table full");
-
 	SLIST_REMOVE_HEAD(&callfree, c_links.sle);
-	new->c_arg = arg;
-	new->c_func = ftn;
-	new->c_time = ticks + to_ticks;
-	TAILQ_INSERT_TAIL(&callwheel[new->c_time & callwheelmask],
-			  new, c_links.tqe);
+	
+	callout_reset(new, to_ticks, ftn, arg);
 
-	splx(s);
 	handle.callout = new;
+	splx(s);
 	return (handle);
 }
 
@@ -199,16 +199,8 @@ untimeout(ftn, arg, handle)
 		return;
 
 	s = splhigh();
-	if ((handle.callout->c_func == ftn)
-	 && (handle.callout->c_arg == arg)) {
-		if (nextsoftcheck == handle.callout) {
-			nextsoftcheck = TAILQ_NEXT(handle.callout, c_links.tqe);
-		}
-		TAILQ_REMOVE(&callwheel[handle.callout->c_time & callwheelmask],
-			     handle.callout, c_links.tqe);
-		handle.callout->c_func = NULL;
-		SLIST_INSERT_HEAD(&callfree, handle.callout, c_links.sle);
-	}
+	if (handle.callout->c_func == ftn && handle.callout->c_arg == arg)
+		callout_stop(handle.callout);
 	splx(s);
 }
 
@@ -216,6 +208,86 @@ void
 callout_handle_init(struct callout_handle *handle)
 {
 	handle->callout = NULL;
+}
+
+/*
+ * New interface; clients allocate their own callout structures.
+ *
+ * callout_reset() - establish or change a timeout
+ * callout_stop() - disestablish a timeout
+ * callout_init() - initialize a callout structure so that it can
+ *	safely be passed to callout_reset() and callout_stop()
+ *
+ * <sys/callout.h> defines two convenience macros:
+ *
+ * callout_pending() - returns number of ticks until callout fires, or 0
+ *	if not scheduled
+ * callout_fired() - returns truth if callout has already been fired
+ */
+void
+callout_reset(c, to_ticks, ftn, arg)
+	struct	callout *c;
+	int	to_ticks;
+	void	(*ftn) __P((void *));
+	void	*arg;
+{
+	int	s;
+
+	s = splhigh();
+	if (c->c_flags & CALLOUT_PENDING)
+		callout_stop(c);
+
+	/*
+	 * We could spl down here and back up at the TAILQ_INSERT_TAIL,
+	 * but there's no point since doing this setup doesn't take much
+	 ^ time.
+	 */
+	if (to_ticks <= 0)
+		to_ticks = 1;
+
+	c->c_arg = arg;
+	c->c_flags = (c->c_flags & ~CALLOUT_FIRED) | CALLOUT_PENDING;
+	c->c_func = ftn;
+	c->c_time = ticks + to_ticks;
+	TAILQ_INSERT_TAIL(&callwheel[c->c_time & callwheelmask], 
+			  c, c_links.tqe);
+	splx(s);
+	
+}
+
+void
+callout_stop(c)
+	struct	callout *c;
+{
+	int	s;
+
+	s = splhigh();
+	/*
+	 * Don't attempt to delete a callout that's not on the queue.
+	 */
+	if (!(c->c_flags & CALLOUT_PENDING)) {
+		splx(s);
+		return;
+	}
+	c->c_flags &= ~CALLOUT_PENDING;
+
+	if (nextsoftcheck == c) {
+		nextsoftcheck = TAILQ_NEXT(c, c_links.tqe);
+	}
+	TAILQ_REMOVE(&callwheel[c->c_time & callwheelmask], c, c_links.tqe);
+	c->c_func = NULL;
+
+	if (c->c_flags & CALLOUT_LOCAL_ALLOC) {
+		SLIST_INSERT_HEAD(&callfree, c, c_links.sle);
+	}
+	splx(s);
+}
+
+void
+callout_init(c)
+	struct	callout *c;
+{
+	bzero(c, sizeof c);
 }
 
 #ifdef APM_FIXUP_CALLTODO

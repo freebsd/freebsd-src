@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)callout.h	8.2 (Berkeley) 1/21/94
- * $Id: callout.h,v 1.10 1997/12/01 05:45:15 davidg Exp $
+ * $Id: callout.h,v 1.12 1999/03/06 04:46:20 wollman Exp $
  */
 
 #ifndef _SYS_CALLOUT_H_
@@ -55,7 +55,12 @@ struct callout {
 	int	c_time;				/* ticks to the event */
 	void	*c_arg;				/* function argument */
 	void	(*c_func) __P((void *));	/* function to call */
+	int	c_flags;			/* state of this entry */
 };
+
+#define	CALLOUT_LOCAL_ALLOC	0x0001 /* was allocated from callfree */
+#define	CALLOUT_PENDING		0x0002 /* callout is currently active */
+#define	CALLOUT_FIRED		0x0004 /* callout has been fired */
 
 struct callout_handle {
 	struct callout *callout;
@@ -67,6 +72,14 @@ extern struct callout *callout;
 extern int	ncallout;
 extern struct callout_tailq *callwheel;
 extern int	callwheelsize, callwheelbits, callwheelmask, softticks;
+
+#define	callout_fired(c)	((c)->c_flags & CALLOUT_FIRED)
+void	callout_init __P((struct callout *));
+#define	callout_pending(c)	(((c)->c_flags & CALLOUT_PENDING) ? \
+				 ((c)->c_time - ticks) : 0)
+void	callout_reset __P((struct callout *, int, void (*)(void *), void *));
+void	callout_stop __P((struct callout *));
+
 #endif /* KERNEL */
 
 #endif /* _SYS_CALLOUT_H_ */
