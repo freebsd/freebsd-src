@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd September 18, 2003
+.Dd November 4, 2003
 .Dt ATH 4
 .Os
 .Sh NAME
@@ -109,14 +109,25 @@ The following cards are among those supported by the
 .Nm
 driver:
 .Pp
-.Bl -column -compact "D-Link DWL-AG650" "AR5212" "Cardbus" "a/b/g"
+.Bl -column -compact "Samsung SWL-5200N" "AR5212" "Cardbus" "a/b/g"
 .Em "Card	Chip	Bus	Standard"
+Aztech WL830PC	AR5212	CardBus	b/g
+D-Link DWL-A650	AR5210	CardBus	a
 D-Link DWL-AB650	AR5211	CardBus	a/b
+D-Link DWL-A520	AR5210	PCI	a
 D-Link DWL-AG520	AR5212	PCI	a/b/g
 D-Link DWL-AG650	AR5212	CardBus	a/b/g
 D-Link DWL-G520B	AR5212	PCI	b/g
 D-Link DWL-G650B	AR5212	CardBus	b/g
-I/O Data WN-AG/CB	AR5212	CardBus	a/b/g
+Elecom LD-WL54AG	AR5212	Cardbus	a/b/g
+Elecom LD-WL54	AR5211	Cardbus	a
+Fujitsu E5454	AR5212	Cardbus	a/b/g
+Fujitsu FMV-JW481	AR5212	Cardbus	a/b/g
+Fujitsu E5454	AR5212	Cardbus	a/b/g
+HP NC4000	AR5212	PCI	a/b/g
+I/O Data WN-AB	AR5212	CardBus	a/b
+I/O Data WN-AG	AR5212	CardBus	a/b/g
+I/O Data WN-A54	AR5212	CardBus	a
 Linksys WMP55AG	AR5212	PCI	a/b/g
 Linksys WPC51AB	AR5211	CardBus	a/b
 Linksys WPC55AG	AR5212	CardBus	a/b/g
@@ -126,11 +137,20 @@ Netgear WAB501	AR5211	CardBus	a/b
 Netgear WAG511	AR5212	CardBus	a/b/g
 Netgear WG311	AR5212	PCI	b/g
 Netgear WG511T	AR5212	PCI	b/g
-Nortel 2201	AR5212	CardBus	a/b
 Orinoco 8480	AR5212	CardBus	a/b/g
+Orinoco 8470WD	AR5212	CardBus	a/b/g
 Proxim Skyline 4030	AR5210	CardBus	a
 Proxim Skyline 4032	AR5210	PCI	a
+Samsung SWL-5200N	AR5212	CardBus	a/b/g
+SMC SMC2735W	AR5210	CardBus	a
+Sony PCWA-C700	AR5212	Cardbus	a/b
+Sony PCWA-C300S	AR5212	Cardbus	b/g
+Sony PCWA-C500	AR5210	Cardbus	a
+3Com 3CRPAG175	AR5212	CardBus	a/b/g
 .El
+.Pp
+An up to date list can be found at
+.Pa http://customerproducts.atheros.com/customerproducts .
 .Sh EXAMPLES
 Join an existing BSS network (ie: connect to an access point):
 .Pp
@@ -298,11 +318,6 @@ very simplistic.
 There is no software retransmit; only hardware retransmit is used.
 Contributors are encouraged to replace the existing rate control algorithm
 with a better one (hint: all the information needed is availble to the driver).
-.Pp
-General performance is suboptimal.
-The Atheros hardware is known to be capable of transfer rates of 23-34 Mb/s
-(or more) in 11a and 11g modes using their NDIS (aka Windows) driver.
-Results with this driver are mixed and seem to vary significantly.
 .Pp
 The driver does not fully enable power-save operation of the chip;
 consequently power use is suboptimal.
