@@ -369,6 +369,65 @@ devpoll(dev_t dev, int events, d_thread_t *td)
 }
 
 /*
+ * Generic interface to queue data to the devctl device.  It is
+ * assumed that data is properly formatted.  It is further assumed
+ * that data is allocated.
+ */
+void
+devctl_queue_data(char *data)
+{
+	struct dev_event_info *n1 = NULL;
+	struct proc *p;
+
+	n1 = malloc(sizeof(*n1), M_BUS, M_NOWAIT);
+	if (n1 == NULL)
+		return;
+	n1->dei_data = data;
+	mtx_lock(&devsoftc.mtx);
+	TAILQ_INSERT_TAIL(&devsoftc.devq, n1, dei_link);	
+	cv_broadcast(&devsoftc.cv);
+	mtx_unlock(&devsoftc.mtx);
+	selwakeup(&devsoftc.sel);
+	p = devsoftc.async_proc;
+	if (p != NULL) {
+		PROC_LOCK(p);
+		psignal(p, SIGIO);
+		PROC_UNLOCK(p);
+	}
+}
+
+/*
+ * Send a 'notification' to userland, using standard ways
+ */
+void
+devctl_notify(const char *system, const char *subsystem, const char *type,
+    const char *data)
+{
+	int len = 0;
+	char *msg;
+
+	if (system == NULL)
+		return;		/* BOGUS!  Must specify system. */
+	if (subsystem == NULL)
+		return;		/* BOGUS!  Must specify subsystem. */
+	if (type == NULL)
+		return;		/* BOGUS!  Must specify type. */
+	len += strlen(" system=") + strlen(system);
+	len += strlen(" subsystem=") + strlen(subsystem);
+	len += strlen(" type=") + strlen(type);
+	/* add in the data message plus newline. */
+	if (data != NULL)
+		len += strlen(data);
+	len += 3;	/* '!', '\n', and NUL */
+	msg = malloc(len, M_BUS, M_NOWAIT);
+	if (msg == NULL)
+		return;		/* Drop it on the floor */
+	snprintf(msg, len, "!system=%s subsystem=%s type=%s %s\n", system,
+	    subsystem, type, data);
+	devctl_queue_data(msg);
+}
+
+/*
  * Common routine that tries to make sending messages as easy as possible.
  * We allocate memory for the data, copy strings into that, but do not
  * free it unless there's an error.  The dequeue part of the driver should
@@ -379,17 +438,12 @@ devpoll(dev_t dev, int events, d_thread_t *td)
 static void
 devaddq(const char *type, const char *what, device_t dev)
 {
-	struct dev_event_info *n1 = NULL;
-	struct proc *p;
 	char *data = NULL;
 	char *loc;
 	const char *parstr;
 
 	if (devctl_disable)
 		return;
-	n1 = malloc(sizeof(*n1), M_BUS, M_NOWAIT);
-	if (n1 == NULL)
-		goto bad;
 	data = malloc(1024, M_BUS, M_NOWAIT);
 	if (data == NULL)
 		goto bad;
@@ -404,22 +458,10 @@ devaddq(const char *type, const char *what, device_t dev)
 		parstr = device_get_nameunit(device_get_parent(dev));
 	snprintf(data, 1024, "%s%s at %s on %s\n", type, what, loc, parstr);
 	free(loc, M_BUS);
-	n1->dei_data = data;
-	mtx_lock(&devsoftc.mtx);
-	TAILQ_INSERT_TAIL(&devsoftc.devq, n1, dei_link);	
-	cv_broadcast(&devsoftc.cv);
-	mtx_unlock(&devsoftc.mtx);
-	selwakeup(&devsoftc.sel);
-	p = devsoftc.async_proc;
-	if (p != NULL) {
-		PROC_LOCK(p);
-		psignal(p, SIGIO);
-		PROC_UNLOCK(p);
-	}
+	devctl_queue_data(data);
 	return;
-bad:;
+bad:
 	free(data, M_BUS);
-	free(n1, M_BUS);
 	return;
 }
 
