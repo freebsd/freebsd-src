@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.35.2.6 1998/04/10 13:19:21 brian Exp $
+ * $Id: systems.c,v 1.35.2.7 1998/04/14 23:17:11 brian Exp $
  *
  *  TODO:
  */
@@ -187,7 +187,7 @@ static struct {
 } modes[] = {
   { PHYS_MANUAL, "interactive" },
   { PHYS_DEMAND, "auto" },
-  { PHYS_STDIN, "direct" },
+  { PHYS_DIRECT, "direct" },
   { PHYS_DEDICATED, "dedicated" },
   { PHYS_PERM, "ddial" },
   { PHYS_1OFF, "background" },

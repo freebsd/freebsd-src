@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.39 1998/04/25 10:48:49 brian Exp $
+ * $Id: ccp.c,v 1.30.2.40 1998/04/28 01:25:07 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -65,7 +65,7 @@ static void CcpDecodeConfig(struct fsm *, u_char *, int, int,
                             struct fsm_decode *);
 static void CcpLayerStart(struct fsm *);
 static void CcpLayerFinish(struct fsm *);
-static void CcpLayerUp(struct fsm *);
+static int CcpLayerUp(struct fsm *);
 static void CcpLayerDown(struct fsm *);
 static void CcpInitRestartCounter(struct fsm *);
 static void CcpRecvResetReq(struct fsm *);
@@ -84,6 +84,9 @@ static struct fsm_callbacks ccp_Callbacks = {
   CcpRecvResetReq,
   CcpRecvResetAck
 };
+
+static const char *ccp_TimerNames[] =
+  {"CCP restart", "CCP openmode", "CCP stopped"};
 
 static char const *cftypes[] = {
   /* Check out the latest ``Compression Control Protocol'' rfc (rfc1962.txt) */
@@ -155,15 +158,22 @@ ccp_ReportStatus(struct cmdargs const *arg)
 }
 
 void
+ccp_SetupCallbacks(struct ccp *ccp)
+{
+  ccp->fsm.fn = &ccp_Callbacks;
+  ccp->fsm.FsmTimer.name = ccp_TimerNames[0];
+  ccp->fsm.OpenTimer.name = ccp_TimerNames[1];
+  ccp->fsm.StoppedTimer.name = ccp_TimerNames[2];
+}
+
+void
 ccp_Init(struct ccp *ccp, struct bundle *bundle, struct link *l,
          const struct fsm_parent *parent)
 {
   /* Initialise ourselves */
-  static const char *timer_names[] =
-    {"CCP restart", "CCP openmode", "CCP stopped"};
 
   fsm_Init(&ccp->fsm, "CCP", PROTO_CCP, 1, CCP_MAXCODE, 10, LogCCP,
-           bundle, l, parent, &ccp_Callbacks, timer_names);
+           bundle, l, parent, &ccp_Callbacks, ccp_TimerNames);
 
   ccp->cfg.deflate.in.winsize = 0;
   ccp->cfg.deflate.out.winsize = 15;
@@ -328,7 +338,7 @@ CcpLayerDown(struct fsm *fp)
 /*
  *  Called when CCP has reached the OPEN state
  */
-static void
+static int
 CcpLayerUp(struct fsm *fp)
 {
   /* We're now up */
@@ -360,6 +370,7 @@ CcpLayerUp(struct fsm *fp)
   LogPrintf(LogCCP, "%s: Out = %s[%d], In = %s[%d]\n",
             fp->link->name, protoname(ccp->my_proto), ccp->my_proto,
             protoname(ccp->his_proto), ccp->his_proto);
+  return 1;
 }
 
 static void

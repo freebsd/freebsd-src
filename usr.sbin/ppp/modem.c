@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.58 1998/04/25 10:49:31 brian Exp $
+ * $Id: modem.c,v 1.77.2.59 1998/04/28 01:25:31 brian Exp $
  *
  *  TODO:
  */
@@ -418,7 +418,7 @@ modem_lock(struct physical *modem, int tunno)
   if (*modem->name.full != '/')
     return 0;
 
-  if (modem->type != PHYS_STDIN &&
+  if (modem->type != PHYS_DIRECT &&
       (res = ID0uu_lock(modem->name.base)) != UU_LOCK_OK) {
     if (res == UU_LOCK_INUSE)
       LogPrintf(LogPHASE, "%s: %s is in use\n",
@@ -461,7 +461,7 @@ modem_Unlock(struct physical *modem)
   ID0unlink(fn);
 #endif
 
-  if (modem->type != PHYS_STDIN && ID0uu_unlock(modem->name.base) == -1)
+  if (modem->type != PHYS_DIRECT && ID0uu_unlock(modem->name.base) == -1)
     LogPrintf(LogALERT, "%s: Can't uu_unlock %s\n", modem->link.name, fn);
 }
 
@@ -487,7 +487,7 @@ modem_Open(struct physical *modem, struct bundle *bundle)
   if (modem->fd >= 0)
     LogPrintf(LogDEBUG, "%s: Open: Modem is already open!\n", modem->link.name);
     /* We're going back into "term" mode */
-  else if (modem->type == PHYS_STDIN) {
+  else if (modem->type == PHYS_DIRECT) {
     if (isatty(STDIN_FILENO)) {
       LogPrintf(LogDEBUG, "%s: Open(direct): Modem is a tty\n",
                 modem->link.name);
@@ -591,7 +591,7 @@ modem_Open(struct physical *modem, struct bundle *bundle)
     if (modem->type != PHYS_DEDICATED)
       rstio.c_cflag |= HUPCL;
 
-    if (modem->type != PHYS_STDIN) {
+    if (modem->type != PHYS_DIRECT) {
       /* Change tty speed when we're not in -direct mode */
       rstio.c_cflag &= ~(CSIZE | PARODD | PARENB);
       rstio.c_cflag |= modem->cfg.parity;
@@ -605,7 +605,7 @@ modem_Open(struct physical *modem, struct bundle *bundle)
               (u_long)rstio.c_oflag, (u_long)rstio.c_cflag);
 
     if (ioctl(modem->fd, TIOCMGET, &modem->mbits) == -1) {
-      if (modem->type != PHYS_STDIN) {
+      if (modem->type != PHYS_DIRECT) {
         LogPrintf(LogERROR, "%s: Open: Cannot get modem status: %s\n",
 		  modem->link.name, strerror(errno));
         modem_LogicalClose(modem);
@@ -655,7 +655,7 @@ modem_Raw(struct physical *modem, struct bundle *bundle)
   if (!isatty(modem->fd) || Physical_IsSync(modem))
     return 0;
 
-  if (modem->type != PHYS_STDIN && modem->fd >= 0 && !Online(modem))
+  if (modem->type != PHYS_DIRECT && modem->fd >= 0 && !Online(modem))
     LogPrintf(LogDEBUG, "%s: Raw: modem = %d, mbits = %x\n",
               modem->link.name, modem->fd, modem->mbits);
 
@@ -818,7 +818,7 @@ modem_ShowStatus(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, "closed\n");
   prompt_Printf(arg->prompt, " Device:          %s\n",
                 *modem->name.full ?  modem->name.full :
-                modem->type == PHYS_STDIN ? "stdin" : "N/A");
+                modem->type == PHYS_DIRECT ? "stdin" : "N/A");
 
   prompt_Printf(arg->prompt, " Link Type:       %s\n", mode2Nam(modem->type));
   prompt_Printf(arg->prompt, " Connect Count:   %d\n",
@@ -879,7 +879,7 @@ modem_DescriptorRead(struct descriptor *d, struct bundle *bundle,
     nointr_usleep(10000);
 
   n = Physical_Read(p, rbuff, sizeof rbuff);
-  if (p->type == PHYS_STDIN && n <= 0)
+  if (p->type == PHYS_DIRECT && n <= 0)
     datalink_Down(p->dl, 0);
   else
     LogDumpBuff(LogASYNC, "ReadFromModem", rbuff, n);
@@ -907,4 +907,105 @@ static int
 modem_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 {
   return Physical_UpdateSet(d, r, w, e, n, 0);
+}
+
+struct physical *
+modem_FromBinary(struct datalink *dl, int fd)
+{
+  struct physical *p = (struct physical *)malloc(sizeof(struct physical));
+  int got;
+
+  /*
+   * We expect:
+   *  .----------.
+   *  | physical |
+   *  `----------'
+   */
+
+  got = fullread(fd, p, sizeof *p);
+  if (got != sizeof *p) {
+    LogPrintf(LogWARN, "Cannot receive physical"
+              " (got %d bytes, not %d)\n", got, sizeof *p);
+    close(fd);
+    free(p);
+    return NULL;
+  }
+  p->link.name = dl->name;
+  throughput_init(&p->link.throughput);
+  memset(&p->Timer, '\0', sizeof p->Timer);
+  memset(p->link.Queue, '\0', sizeof p->link.Queue);
+
+  p->desc.UpdateSet = modem_UpdateSet;
+  p->desc.IsSet = Physical_IsSet;
+  p->desc.Read = modem_DescriptorRead;
+  p->desc.Write = modem_DescriptorWrite;
+  p->desc.next = NULL;
+  p->type = PHYS_DIRECT;
+  p->dl = dl;
+  p->name.base = strrchr(p->name.full, '/');
+  p->mbits = 0;
+  p->dev_is_modem = 1;
+  p->out = NULL;
+  p->connect_count = 1;
+
+  p->link.lcp.fsm.bundle = dl->bundle;
+  p->link.lcp.fsm.link = &p->link;
+  memset(&p->link.lcp.fsm.FsmTimer, '\0', sizeof p->link.lcp.fsm.FsmTimer);
+  memset(&p->link.lcp.fsm.OpenTimer, '\0', sizeof p->link.lcp.fsm.OpenTimer);
+  memset(&p->link.lcp.fsm.StoppedTimer, '\0',
+         sizeof p->link.lcp.fsm.StoppedTimer);
+  p->link.lcp.fsm.parent = &dl->fsmp;
+  lcp_SetupCallbacks(&p->link.lcp);
+
+  p->link.ccp.fsm.bundle = dl->bundle;
+  p->link.ccp.fsm.link = &p->link;
+  /* Our in.state & out.state are NULL (no link-level ccp yet) */
+  memset(&p->link.ccp.fsm.FsmTimer, '\0', sizeof p->link.ccp.fsm.FsmTimer);
+  memset(&p->link.ccp.fsm.OpenTimer, '\0', sizeof p->link.ccp.fsm.OpenTimer);
+  memset(&p->link.ccp.fsm.StoppedTimer, '\0',
+         sizeof p->link.ccp.fsm.StoppedTimer);
+  p->link.ccp.fsm.parent = &dl->fsmp;
+  ccp_SetupCallbacks(&p->link.ccp);
+
+  p->hdlc.lqm.owner = &p->link.lcp;
+  p->hdlc.ReportTimer.state = TIMER_STOPPED;
+  p->hdlc.lqm.timer.state = TIMER_STOPPED;
+  if (p->hdlc.lqm.method && p->hdlc.lqm.timer.load)
+    StartLqm(&p->link.lcp);
+  hdlc_StartTimer(&p->hdlc);
+
+  p->fd = fd;		/* Now talk down it :-) */
+  throughput_start(&p->link.throughput, "modem throughput",
+                   Enabled(dl->bundle, OPT_THROUGHPUT));
+  /* Don't need a modem timer.... */
+  /* Don't need to lock the device in -direct mode */
+
+  return p;
+}
+
+int
+modem_ToBinary(struct physical *p, int fd)
+{
+  int link_fd;
+
+  /*
+   * We send:
+   *  .----------.
+   *  | physical |
+   *  `----------'
+   */
+
+  hdlc_StopTimer(&p->hdlc);
+  StopLqrTimer(p);
+
+  if (fd != -1 && write(fd, p, sizeof *p) != sizeof *p) {
+    LogPrintf(LogERROR, "Failed sending physical\n");
+    close(fd);
+    fd = -1;
+  }
+
+  link_fd = p->fd;
+  free(p);
+
+  return link_fd;
 }

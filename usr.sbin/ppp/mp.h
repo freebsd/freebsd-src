@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.h,v 1.1.2.7 1998/04/25 00:09:22 brian Exp $
+ *	$Id: mp.h,v 1.1.2.8 1998/04/28 01:25:34 brian Exp $
  */
 
 struct mbuf;
@@ -58,7 +58,12 @@ struct peerid {
 struct mpserver {
   struct descriptor desc;
   int fd;			/* listen()ing here */
-  struct sockaddr_un ifsun;	/* On this socket */
+  struct sockaddr_un socket;	/* On this socket */
+
+  struct {
+    struct datalink *dl;	/* Send this datalink through */
+    int fd;			/* this descriptor when it's safe */
+  } send;			/* (in UpdateSet()) */
 };
 
 struct mp {

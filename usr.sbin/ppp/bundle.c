@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.63 1998/04/27 01:40:37 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.64 1998/04/28 01:25:04 brian Exp $
  */
 
 #include <sys/types.h>
@@ -41,6 +41,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <termios.h>
@@ -192,13 +193,7 @@ bundle_Notify(struct bundle *bundle, char c)
 }
 
 static void
-bundle_vLayerUp(void *v, struct fsm *fp)
-{
-  bundle_LayerUp((struct bundle *)v, fp);
-}
-
-void
-bundle_LayerUp(struct bundle *bundle, struct fsm *fp)
+bundle_LayerUp(void *v, struct fsm *fp)
 {
   /*
    * The given fsm is now up
@@ -207,6 +202,7 @@ bundle_LayerUp(struct bundle *bundle, struct fsm *fp)
    * If it's an NCP, tell our -background parent to go away.
    * If it's the first NCP, start the idle timer.
    */
+  struct bundle *bundle = (struct bundle *)v;
 
   if (fp->proto == PROTO_LCP) {
     if (bundle->ncp.mp.active) {
@@ -305,8 +301,8 @@ bundle_Close(struct bundle *bundle, const char *name, int staydown)
 {
   /*
    * Please close the given datalink.
-   * If name == NULL or name is the last datalink, enter TERMINATE phase
-   * and FsmClose all NCPs (except our MP)
+   * If name == NULL or name is the last datalink, FsmClose all NCPs
+   * (except our MP)
    * If it isn't the last datalink, just Close that datalink.
    */
 
@@ -511,7 +507,7 @@ bundle_Create(const char *prefix, struct prompt *prompt, int type)
   bundle.CleaningUp = 0;
 
   bundle.fsm.LayerStart = bundle_LayerStart;
-  bundle.fsm.LayerUp = bundle_vLayerUp;
+  bundle.fsm.LayerUp = bundle_LayerUp;
   bundle.fsm.LayerDown = bundle_LayerDown;
   bundle.fsm.LayerFinish = bundle_LayerFinish;
   bundle.fsm.object = &bundle;
@@ -524,7 +520,7 @@ bundle_Create(const char *prefix, struct prompt *prompt, int type)
   bundle.cfg.mtu = DEF_MTU;
   bundle.phys_type = type;
 
-  bundle.links = datalink_Create("deflink", &bundle, &bundle.fsm, type);
+  bundle.links = datalink_Create("deflink", &bundle, type);
   if (bundle.links == NULL) {
     LogPrintf(LogERROR, "Cannot create data link: %s\n", strerror(errno));
     close(bundle.tun_fd);
@@ -1067,7 +1063,7 @@ bundle_CleanDatalinks(struct bundle *bundle)
 
   while (*dlp)
     if ((*dlp)->state == DATALINK_CLOSED &&
-        (*dlp)->physical->type & (PHYS_STDIN|PHYS_1OFF))
+        (*dlp)->physical->type & (PHYS_DIRECT|PHYS_1OFF))
       *dlp = datalink_Destroy(*dlp);
     else
       dlp = &(*dlp)->next;
@@ -1090,15 +1086,128 @@ bundle_GetLabel(struct bundle *bundle)
 }
 
 void
-bundle_SendDatalink(struct datalink *dl, int fd)
+bundle_ReceiveDatalink(struct bundle *bundle, int fd)
 {
-  LogPrintf(LogERROR, "Can't send link yet !\n");
-  close(fd);
+  struct datalink *dl, *ndl;
+  u_char *buf;
+  int get, got, vlen;
+
+  /*
+   * We expect:
+   *  .---------.---------.--------------.
+   *  | ver len | Version | datalink len |
+   *  `---------'---------'--------------'
+   * We then pass the rest of the stream to datalink.
+   */
+
+  LogPrintf(LogPHASE, "Receiving datalink\n");
+
+  vlen = strlen(Version);
+  get = sizeof(int) * 2 + vlen;
+  buf = (u_char *)malloc(get);
+  got = fullread(fd, buf, get);
+  if (got != get) {
+    LogPrintf(LogWARN, "Cannot receive datalink header"
+              " (got %d bytes, not %d)\n", got, get);
+    close(fd);
+    free(buf);
+    return;
+  }
+  if (*(int *)buf != vlen || *(int *)(buf + sizeof(int) + vlen) != sizeof *dl ||
+      memcmp(buf + sizeof(int), Version, vlen)) {
+    LogPrintf(LogWARN, "Cannot receive datalink, incorrect version\n");
+    close(fd);
+    free(buf);
+    return;
+  }
+  free(buf);
+
+  ndl = datalink_FromBinary(bundle, fd);
+  if (ndl) {
+    /* Make sure the name is unique ! */
+    do {
+      for (dl = bundle->links; dl; dl = dl->next)
+        if (!strcasecmp(ndl->name, dl->name)) {
+          datalink_Rename(ndl);
+          break;
+        }
+    } while (dl);
+
+    ndl->next = bundle->links;
+    bundle->links = ndl;
+    bundle_GenPhysType(bundle);
+    LogPrintf(LogPHASE, "%s: Created in %s state\n",
+              ndl->name, datalink_State(ndl));
+    datalink_AuthOk(ndl);
+  }
 }
 
 void
-bundle_ReceiveDatalink(struct bundle *bundle, int fd)
+bundle_SendDatalink(struct datalink *dl, int fd)
 {
-  LogPrintf(LogERROR, "Can't receive link yet !\n");
-  close(fd);
+  int len, link_fd, err;
+  struct datalink **pdl;
+  struct bundle *bundle = dl->bundle;
+  char procname[100];
+
+  /*
+   * We send:
+   *  .---------.---------.--------------.
+   *  | ver len | Version | datalink len |
+   *  `---------'---------'--------------'
+   * We then pass the rest of the stream to datalink.
+   */
+
+  LogPrintf(LogPHASE, "Transmitting datalink %s\n", dl->name);
+
+  /* First, un-hook the datalink */
+  for (pdl = &bundle->links; *pdl; pdl = &(*pdl)->next)
+    if (*pdl == dl) {
+      *pdl = dl->next;
+      dl->next = NULL;
+      break;
+    }
+
+  /* Write our bit of the data */
+  err = 0;
+  len = strlen(Version);
+  if (write(fd, &len, sizeof len) != sizeof len)
+    err++;
+  if (write(fd, Version, len) != len)
+    err++;
+  len = sizeof(struct datalink);
+  if (write(fd, &len, sizeof len) != sizeof len)
+    err++;
+
+  if (err) {
+    LogPrintf(LogERROR, "Failed sending version\n");
+    close(fd);
+    fd = -1;
+  }
+
+  link_fd = datalink_ToBinary(dl, fd);
+
+  if (link_fd != -1) {
+    switch (fork()) {
+      case 0:
+        snprintf(procname, sizeof procname, "%s <-> %s",
+                 dl->name, *dl->physical->name.base ?
+                 dl->physical->name.base : "network");
+        setsid();
+        dup2(link_fd, STDIN_FILENO);
+        dup2(fd, STDOUT_FILENO);
+        dup2(fd, STDERR_FILENO);
+        setuid(geteuid());
+        /* signals are defaulted by the exec */
+        execlp(PPPMPIPE, procname, NULL);
+        LogPrintf(LogERROR, "exec: %s: %s\n", PPPMPIPE, strerror(errno));
+        exit(1);
+        break;
+      case -1:
+        LogPrintf(LogERROR, "fork: %s\n", strerror(errno));
+        /* Fall through */
+      default:
+        break;
+    }
+  }
 }

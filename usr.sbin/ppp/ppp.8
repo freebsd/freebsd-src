@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.23 1998/04/24 19:15:48 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.24 1998/04/24 19:16:15 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2101,10 +2101,14 @@ Clone the specified link, creating one or more new links according to the
 .Ar name
 argument(s).  This command must be used from the
 .Dq link
-command below.  It is only available in multilink mode.  Links may
-be removed using the
+command below unless you've only got a single link (in which case that
+link  becomes the default).  This command is only available in multilink
+mode.  Links may be removed using the
 .Dq remove
 command below.
+.Pp
+The default link name is
+.Dq deflink .
 .It close Op lcp|ccp
 If no arguments are given, or if
 .Dq lcp
@@ -2218,10 +2222,9 @@ all argument is given,
 .Nm
 will exit despite the source of the command after closing all existing
 connections.
-.It remove
-This command removes the given link (specified via the
-.Dq link
-command).  It is only available in multilink mode.  A link must be
+.It remove|rm
+This command removes the given link.  It is only really useful in
+multilink mode.  A link must be
 in the
 .Dv CLOSED
 state before it is removed.
@@ -2374,7 +2377,7 @@ command), and standard error is read by
 .Nm
 and substituted as the expect or send string.  If
 .Nm
-is running in interactive mode, file descriptor 4 is attached to
+is running in interactive mode, file descriptor 3 is attached to
 .Pa /dev/tty .
 .Pp
 For example (wrapped for readability);

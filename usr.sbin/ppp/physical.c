@@ -16,29 +16,23 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.1.2.26 1998/04/25 10:49:39 brian Exp $
+ *  $Id: physical.c,v 1.1.2.27 1998/04/28 01:25:37 brian Exp $
  *
  */
 
 #include <sys/types.h>
-#include <sys/un.h>
-
-#include <sys/tty.h>
 
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
 #include <utmp.h>
-
+#include <sys/tty.h>
 
 #include "defs.h"
-
-/* XXX Name space pollution from hdlc.h */
 #include "mbuf.h"
-
-/* Name space pollution for physical.h */
 #include "timer.h"
 #include "lqr.h"
 #include "hdlc.h"
@@ -48,10 +42,8 @@
 #include "async.h"
 #include "ccp.h"
 #include "link.h"
-
 #include "descriptor.h"
 #include "physical.h"
-
 #include "log.h"
 #include "id.h"
 
@@ -177,7 +169,7 @@ Physical_IsSet(struct descriptor *d, const fd_set *fdset)
 void
 Physical_Login(struct physical *phys, const char *name)
 {
-  if (phys->type == PHYS_STDIN && Physical_IsATTY(phys)) {
+  if (phys->type == PHYS_DIRECT && Physical_IsATTY(phys)) {
     if (phys->Utmp)
       LogPrintf(LogERROR, "Oops, already logged in on %s\n", phys->name.base);
     else {

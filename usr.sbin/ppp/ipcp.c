@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.46 1998/04/25 10:49:09 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.47 1998/04/28 01:25:26 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -81,7 +81,7 @@ struct compreq {
   u_char compcid;
 };
 
-static void IpcpLayerUp(struct fsm *);
+static int IpcpLayerUp(struct fsm *);
 static void IpcpLayerDown(struct fsm *);
 static void IpcpLayerStart(struct fsm *);
 static void IpcpLayerFinish(struct fsm *);
@@ -684,7 +684,7 @@ IpcpLayerDown(struct fsm *fp)
     IpcpCleanInterface(ipcp);
 }
 
-static void
+static int
 IpcpLayerUp(struct fsm *fp)
 {
   /* We're now up */
@@ -700,7 +700,7 @@ IpcpLayerUp(struct fsm *fp)
 
   if (ipcp_SetIPaddress(fp->bundle, ipcp->my_ip, ipcp->peer_ip, 0) < 0) {
     LogPrintf(LogERROR, "IpcpLayerUp: unable to set ip address\n");
-    return;
+    return 0;
   }
 
 #ifndef NOALIAS
@@ -725,6 +725,7 @@ IpcpLayerUp(struct fsm *fp)
   throughput_start(&ipcp->throughput, "IPCP throughput",
                    Enabled(fp->bundle, OPT_THROUGHPUT));
   bundle_DisplayPrompt(fp->bundle);
+  return 1;
 }
 
 static int

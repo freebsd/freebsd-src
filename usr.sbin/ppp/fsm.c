@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.32 1998/04/24 19:15:38 brian Exp $
+ * $Id: fsm.c,v 1.27.2.33 1998/04/28 01:25:15 brian Exp $
  *
  *  TODO:
  */
@@ -507,8 +507,14 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   case ST_ACKRCVD:
     if (ackaction) {
       NewState(fp, ST_OPENED);
-      (*fp->fn->LayerUp)(fp);
-      (*fp->parent->LayerUp)(fp->parent->object, fp);
+      if ((*fp->fn->LayerUp)(fp))
+        (*fp->parent->LayerUp)(fp->parent->object, fp);
+      else {
+        (*fp->fn->LayerDown)(fp);
+        FsmInitRestartCounter(fp);
+        FsmSendTerminateReq(fp);
+        NewState(fp, ST_CLOSING);
+      }
     }
     break;
   case ST_ACKSENT:
@@ -542,8 +548,14 @@ FsmRecvConfigAck(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   case ST_ACKSENT:
     FsmInitRestartCounter(fp);
     NewState(fp, ST_OPENED);
-    (*fp->fn->LayerUp)(fp);
-    (*fp->parent->LayerUp)(fp->parent->object, fp);
+    if ((*fp->fn->LayerUp)(fp))
+      (*fp->parent->LayerUp)(fp->parent->object, fp);
+    else {
+      (*fp->fn->LayerDown)(fp);
+      FsmInitRestartCounter(fp);
+      FsmSendTerminateReq(fp);
+      NewState(fp, ST_CLOSING);
+    }
     break;
   case ST_OPENED:
     (*fp->fn->LayerDown)(fp);

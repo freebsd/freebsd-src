@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.c,v 1.25.2.10 1998/04/24 19:16:05 brian Exp $
+ *	$Id: log.c,v 1.25.2.11 1998/04/25 10:49:20 brian Exp $
  */
 
 #include <sys/types.h>
@@ -47,6 +47,7 @@ static const char *LogNames[] = {
   "Command",
   "Connect",
   "Debug",
+  "Timer",
   "HDLC",
   "ID0",
   "IPCP",
@@ -107,7 +108,9 @@ static int
 syslogLevel(int lev)
 {
   switch (lev) {
-    case LogDEBUG:return LOG_DEBUG;
+  case LogDEBUG:
+  case LogTIMER:
+    return LOG_DEBUG;
   case LogWARN:
     return LOG_WARNING;
   case LogERROR:

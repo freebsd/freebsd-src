@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.51 1998/04/25 10:49:26 brian Exp $
+ * $Id: main.c,v 1.121.2.52 1998/04/28 01:25:30 brian Exp $
  *
  *	TODO:
  */
@@ -216,7 +216,7 @@ ProcessArgs(int argc, char **argv, int *mode)
       *mode = PHYS_1OFF;
       labelrequired = 1;
     } else if (strcmp(cp, "direct") == 0)
-      *mode = PHYS_STDIN;
+      *mode = PHYS_DIRECT;
     else if (strcmp(cp, "dedicated") == 0)
       *mode = PHYS_DEDICATED;
     else if (strcmp(cp, "ddial") == 0) {
@@ -297,7 +297,7 @@ main(int argc, char **argv)
 #endif
 
   /* Allow output for the moment (except in direct mode) */
-  if (mode == PHYS_STDIN)
+  if (mode == PHYS_DIRECT)
     prompt = NULL;
   else {
     const char *m;
@@ -338,7 +338,7 @@ main(int argc, char **argv)
 
   if (!ValidSystem(label, prompt, mode)) {
     fprintf(stderr, "You may not use ppp in this mode with this label\n");
-    if (mode == PHYS_STDIN) {
+    if (mode == PHYS_DIRECT) {
       const char *l;
       l = label ? label : "default";
       LogPrintf(LogWARN, "Label %s rejected -direct connection\n", l);
@@ -393,7 +393,7 @@ main(int argc, char **argv)
   }
 
   if (mode != PHYS_MANUAL) {
-    if (mode != PHYS_STDIN) {
+    if (mode != PHYS_DIRECT) {
       int bgpipe[2];
       pid_t bgpid;
 
@@ -498,10 +498,11 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
 
     handle_signals();
 
-    descriptor_UpdateSet(&bundle->desc, &rfds, &wfds, &efds, &nfds);
-    descriptor_UpdateSet(&server.desc, &rfds, &wfds, &efds, &nfds);
+    /* This one comes first 'cos it may nuke a datalink */
     descriptor_UpdateSet(&bundle->ncp.mp.server.desc, &rfds, &wfds,
                          &efds, &nfds);
+    descriptor_UpdateSet(&bundle->desc, &rfds, &wfds, &efds, &nfds);
+    descriptor_UpdateSet(&server.desc, &rfds, &wfds, &efds, &nfds);
 
     /* If there are aren't many packets queued, look for some more. */
     if (qlen < 20 && bundle->tun_fd >= 0) {

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.h,v 1.12.2.10 1998/04/14 23:17:03 brian Exp $
+ * $Id: command.h,v 1.12.2.11 1998/04/16 00:25:55 brian Exp $
  *
  *	TODO:
  */
@@ -50,6 +50,9 @@ struct cmdtab {
 #define NEG_ENABLED (2)
 #define IsAccepted(x) ((x) & NEG_ACCEPTED)
 #define IsEnabled(x) ((x) & NEG_ENABLED)
+
+extern const char Version[];
+extern const char VersionDate[];
 
 extern int IsInteractive(struct prompt *);
 extern void InterpretCommand(char *, int, int *, char ***);

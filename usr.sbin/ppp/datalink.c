@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.49 1998/04/28 01:25:11 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.50 1998/04/30 23:52:53 brian Exp $
  */
 
 #include <sys/types.h>
@@ -32,10 +32,12 @@
 #include <netinet/ip.h>
 #include <sys/un.h>
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
+#include <unistd.h>
 
 #include "mbuf.h"
 #include "log.h"
@@ -113,7 +115,7 @@ datalink_HangupDone(struct datalink *dl)
   dl->phone.chosen = "N/A";
 
   if (dl->bundle->CleaningUp ||
-      (dl->physical->type == PHYS_STDIN) ||
+      (dl->physical->type == PHYS_DIRECT) ||
       ((!dl->dial_tries || (dl->dial_tries < 0 && !dl->reconnect_tries)) &&
        !(dl->physical->type & (PHYS_PERM|PHYS_DEDICATED)))) {
     LogPrintf(LogPHASE, "%s: Entering CLOSED state\n", dl->name);
@@ -207,7 +209,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
   result = 0;
   switch (dl->state) {
     case DATALINK_CLOSED:
-      if ((dl->physical->type & (PHYS_STDIN|PHYS_DEDICATED|PHYS_1OFF)) &&
+      if ((dl->physical->type & (PHYS_DIRECT|PHYS_DEDICATED|PHYS_1OFF)) &&
           !bundle_IsDead(dl->bundle))
         /*
          * Our first time in - DEDICATED never comes down, and STDIN & 1OFF
@@ -529,8 +531,7 @@ datalink_LayerFinish(void *v, struct fsm *fp)
 }
 
 struct datalink *
-datalink_Create(const char *name, struct bundle *bundle,
-                const struct fsm_parent *parent, int type)
+datalink_Create(const char *name, struct bundle *bundle, int type)
 {
   struct datalink *dl;
 
@@ -575,7 +576,7 @@ datalink_Create(const char *name, struct bundle *bundle,
 
   dl->name = strdup(name);
   peerid_Init(&dl->peer);
-  dl->parent = parent;
+  dl->parent = &bundle->fsm;
   dl->fsmp.LayerStart = datalink_LayerStart;
   dl->fsmp.LayerUp = datalink_LayerUp;
   dl->fsmp.LayerDown = datalink_LayerDown;
@@ -685,7 +686,7 @@ datalink_Destroy(struct datalink *dl)
 void
 datalink_Up(struct datalink *dl, int runscripts, int packetmode)
 {
-  if (dl->physical->type & (PHYS_STDIN|PHYS_DEDICATED))
+  if (dl->physical->type & (PHYS_DIRECT|PHYS_DEDICATED))
     /* Ignore scripts */
     runscripts = 0;
 
@@ -697,7 +698,7 @@ datalink_Up(struct datalink *dl, int runscripts, int packetmode)
         bundle_NewPhase(dl->bundle, PHASE_ESTABLISH);
       dl->state = DATALINK_OPENING;
       dl->reconnect_tries =
-        dl->physical->type == PHYS_STDIN ? 0 : dl->cfg.reconnect.max;
+        dl->physical->type == PHYS_DIRECT ? 0 : dl->cfg.reconnect.max;
       dl->dial_tries = dl->cfg.dial.max;
       dl->script.run = runscripts;
       dl->script.packetmode = packetmode;
@@ -912,4 +913,160 @@ datalink_State(struct datalink *dl)
   if (dl->state < 0 || dl->state >= sizeof states / sizeof states[0])
     return "unknown";
   return states[dl->state];
+}
+
+struct datalink *
+datalink_FromBinary(struct bundle *bundle, int fd)
+{
+  struct datalink *dl = (struct datalink *)malloc(sizeof(struct datalink));
+  u_int retry;
+  int got, get;
+
+  /*
+   * We expect:
+   *  .----------.----------.------.--------------.
+   *  | datalink | name len | name | physical len |
+   *  `----------'----------'------'--------------'
+   * We then pass the rest of the stream to physical.
+   */
+
+  got = fullread(fd, dl, sizeof *dl);
+  if (got != sizeof *dl) {
+    LogPrintf(LogWARN, "Cannot receive datalink"
+              " (got %d bytes, not %d)\n", got, sizeof *dl);
+    close(fd);
+    free(dl);
+    return NULL;
+  }
+
+  got = fullread(fd, &get, sizeof get);
+  if (got != sizeof get) {
+    LogPrintf(LogWARN, "Cannot receive name length"
+              " (got %d bytes, not %d)\n", got, sizeof get);
+    close(fd);
+    free(dl);
+    return NULL;
+  }
+
+  dl->name = (char *)malloc(get + 1);
+  got = fullread(fd, dl->name, get);
+  if (got != get) {
+    LogPrintf(LogWARN, "Cannot receive name"
+              " (got %d bytes, not %d)\n", got, get);
+    close(fd);
+    free(dl->name);
+    free(dl);
+    return NULL;
+  }
+  dl->name[get] = '\0';
+
+  dl->desc.type = DATALINK_DESCRIPTOR;
+  dl->desc.next = NULL;
+  dl->desc.UpdateSet = datalink_UpdateSet;
+  dl->desc.IsSet = datalink_IsSet;
+  dl->desc.Read = datalink_Read;
+  dl->desc.Write = datalink_Write;
+
+  mp_linkInit(&dl->mp);
+  *dl->phone.list = '\0';
+  dl->phone.next = NULL;
+  dl->phone.alt = NULL;
+  dl->phone.chosen = "N/A";
+
+  dl->bundle = bundle;
+  dl->next = NULL;
+  memset(&dl->dial_timer, '\0', sizeof dl->dial_timer);
+  dl->dial_tries = 0;
+  dl->reconnect_tries = 0;
+  dl->parent = &bundle->fsm;
+  dl->fsmp.LayerStart = datalink_LayerStart;
+  dl->fsmp.LayerUp = datalink_LayerUp;
+  dl->fsmp.LayerDown = datalink_LayerDown;
+  dl->fsmp.LayerFinish = datalink_LayerFinish;
+  dl->fsmp.object = dl;
+
+  retry = dl->pap.cfg.fsmretry;
+  authinfo_Init(&dl->pap);
+  dl->pap.cfg.fsmretry = retry;
+
+  retry = dl->chap.auth.cfg.fsmretry;
+  authinfo_Init(&dl->chap.auth);
+  dl->chap.auth.cfg.fsmretry = retry;
+
+  got = fullread(fd, &get, sizeof get);
+  if (got != sizeof get) {
+    LogPrintf(LogWARN, "Cannot receive physical length"
+              " (got %d bytes, not %d)\n", got, sizeof get);
+    close(fd);
+    free(dl->name);
+    free(dl);
+    dl = NULL;
+  } else if ((dl->physical = modem_FromBinary(dl, fd)) == NULL) {
+    free(dl->name);
+    free(dl);
+    dl = NULL;
+  } else
+    chat_Init(&dl->chat, dl->physical, NULL, 1, NULL);
+
+  return dl;
+}
+
+int
+datalink_ToBinary(struct datalink *dl, int fd)
+{
+  int len, link_fd;
+
+  /*
+   * We send:
+   *  .----------.----------.------.--------------.
+   *  | datalink | name len | name | physical len |
+   *  `----------'----------'------'--------------'
+   */
+
+  if (fd != -1) {
+    int err;
+
+    err = 0;
+    if (write(fd, dl, sizeof *dl) != sizeof *dl)
+      err++;
+    len = strlen(dl->name);
+    if (write(fd, &len, sizeof(int)) != sizeof(int))
+      err++;
+    if (write(fd, dl->name, len) != len)
+      err++;
+    len = sizeof(struct physical);
+    if (write(fd, &len, sizeof(int)) != sizeof(int))
+      err++;
+
+    if (err) {
+      LogPrintf(LogERROR, "Failed sending datalink\n");
+      close(fd);
+      fd = -1;
+    }
+  }
+
+  link_fd = modem_ToBinary(dl->physical, fd);
+
+  free(dl->name);
+  free(dl);
+
+  return link_fd;
+}
+
+void
+datalink_Rename(struct datalink *dl)
+{
+  int f, n;
+  char *name;
+
+  n = strlen(dl->name);
+  name = (char *)malloc(n+3);
+  for (f = n - 1; f >= 0; f--)
+    if (!isdigit(dl->name[f]))
+      break;
+  n = sprintf(name, "%.*s-", dl->name[f] == '-' ? f : f + 1, dl->name);
+  sprintf(name + n, "%d", atoi(dl->name + f + 1) + 1);
+  LogPrintf(LogPHASE, "Rename link %s to %s\n", dl->name, name);
+  free(dl->name);
+  dl->physical->link.name = dl->name = name;
 }

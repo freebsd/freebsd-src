@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.49 1998/04/25 10:49:12 brian Exp $
+ * $Id: lcp.c,v 1.55.2.50 1998/04/28 01:25:27 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -71,7 +71,7 @@ struct lqrreq {
   u_long period;		/* Reporting interval */
 };
 
-static void LcpLayerUp(struct fsm *);
+static int LcpLayerUp(struct fsm *);
 static void LcpLayerDown(struct fsm *);
 static void LcpLayerStart(struct fsm *);
 static void LcpLayerFinish(struct fsm *);
@@ -95,6 +95,9 @@ static struct fsm_callbacks lcp_Callbacks = {
   NullRecvResetReq,
   NullRecvResetAck
 };
+
+static const char *lcp_TimerNames[] =
+  {"LCP restart", "LCP openmode", "LCP stopped"};
 
 static const char *cftypes[] = {
   /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
@@ -185,16 +188,23 @@ GenerateMagic(void)
 }
 
 void
+lcp_SetupCallbacks(struct lcp *lcp)
+{
+  lcp->fsm.fn = &lcp_Callbacks;
+  lcp->fsm.FsmTimer.name = lcp_TimerNames[0];
+  lcp->fsm.OpenTimer.name = lcp_TimerNames[1];
+  lcp->fsm.StoppedTimer.name = lcp_TimerNames[2];
+}
+
+void
 lcp_Init(struct lcp *lcp, struct bundle *bundle, struct link *l,
          const struct fsm_parent *parent)
 {
   /* Initialise ourselves */
   int mincode = parent ? 1 : LCP_MINMPCODE;
-  static const char *timer_names[] =
-    {"LCP restart", "LCP openmode", "LCP stopped"};
 
   fsm_Init(&lcp->fsm, "LCP", PROTO_LCP, mincode, LCP_MAXCODE, 10, LogLCP,
-           bundle, l, parent, &lcp_Callbacks, timer_names);
+           bundle, l, parent, &lcp_Callbacks, lcp_TimerNames);
 
   lcp->cfg.mru = DEF_MRU;
   lcp->cfg.accmap = 0;
@@ -377,7 +387,7 @@ LcpLayerFinish(struct fsm *fp)
   LogPrintf(LogLCP, "%s: LcpLayerFinish\n", fp->link->name);
 }
 
-static void
+static int
 LcpLayerUp(struct fsm *fp)
 {
   /* We're now up */
@@ -388,6 +398,7 @@ LcpLayerUp(struct fsm *fp)
   async_SetLinkParams(&p->async, lcp);
   StartLqm(lcp);
   hdlc_StartTimer(&p->hdlc);
+  return 1;
 }
 
 static void

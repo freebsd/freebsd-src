@@ -23,11 +23,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: defs.c,v 1.11.4.8 1998/04/10 13:19:07 brian Exp $
+ *	$Id: defs.c,v 1.11.4.9 1998/04/23 03:22:50 brian Exp $
  */
 
 
 #include <stdlib.h>
+#include <sys/errno.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -46,4 +47,22 @@ randinit()
 #else
   srandom(time(NULL)^getpid());
 #endif
+}
+
+ssize_t
+fullread(int fd, void *v, size_t n)
+{
+  size_t got, total;
+
+  for (total = 0; total < n; total += got)
+    switch ((got = read(fd, (char *)v + total, n - total))) {
+      case 0:
+        return total;
+      case -1:
+        if (errno == EINTR)
+          got = 0;
+        else
+          return -1;
+    }
+  return total;
 }

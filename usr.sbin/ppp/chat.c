@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.44.2.25 1998/04/19 15:24:37 brian Exp $
+ *	$Id: chat.c,v 1.44.2.26 1998/04/28 01:25:09 brian Exp $
  */
 
 #include <sys/types.h>
@@ -745,6 +745,7 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
     if ((nb = open("/dev/tty", O_RDWR)) > 3) {
       dup2(nb, 3);
       close(nb);
+      fcntl(3, F_SETFD, 0);	/* Clear close-on-exec flag */
     }
     setuid(geteuid());
     execvp(vector[0], vector);

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.h,v 1.16.2.13 1998/04/03 19:21:21 brian Exp $
+ * $Id: fsm.h,v 1.16.2.14 1998/04/07 00:53:42 brian Exp $
  *
  *	TODO:
  */
@@ -54,7 +54,7 @@ struct fsm_decode {
 };
 
 struct fsm_callbacks {
-  void (*LayerUp) (struct fsm *);            /* Layer is now up (tlu) */
+  int (*LayerUp) (struct fsm *);             /* Layer is now up (tlu) */
   void (*LayerDown) (struct fsm *);          /* About to come down (tld) */
   void (*LayerStart) (struct fsm *);         /* Layer about to start up (tls) */
   void (*LayerFinish) (struct fsm *);        /* Layer now down (tlf) */

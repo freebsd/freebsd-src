@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.72 1998/04/25 10:48:53 brian Exp $
+ * $Id: command.c,v 1.131.2.73 1998/04/27 01:40:38 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -121,6 +121,9 @@
 #define NEG_SHORTSEQ	48
 #define NEG_VJCOMP	49
 #define NEG_DNS		50
+
+const char Version[] = "2.0-beta";
+const char VersionDate[] = "$Date: 1998/04/27 01:40:38 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -308,7 +311,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
   }
 
   if ((shpid = fork()) == 0) {
-    int dtablesize, i, fd;
+    int i, fd;
 
     if ((shell = getenv("SHELL")) == 0)
       shell = _PATH_BSHELL;
@@ -328,9 +331,6 @@ ShellCommand(struct cmdargs const *arg, int bg)
     }
     for (i = 0; i < 3; i++)
       dup2(fd, i);
-
-    for (dtablesize = getdtablesize(), i = 3; i < dtablesize; i++)
-      close(i);
 
     setuid(geteuid());
     if (arg->argc > arg->argn) {
@@ -440,7 +440,7 @@ static struct cmdtab const Commands[] = {
   "Password for manipulation", "passwd LocalPassword"},
   {"quit", "bye", QuitCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
   "Quit PPP program", "quit|bye [all]"},
-  {"remove", NULL, RemoveCommand, LOCAL_AUTH | LOCAL_CX,
+  {"remove", "rm", RemoveCommand, LOCAL_AUTH | LOCAL_CX,
   "Remove a link", "remove"},
   {"save", NULL, SaveCommand, LOCAL_AUTH,
   "Save settings", "save"},
@@ -508,10 +508,7 @@ ShowStopped(struct cmdargs const *arg)
 static int
 ShowVersion(struct cmdargs const *arg)
 {
-  static char VarVersion[] = "PPP Version 2.0-beta";
-  static char VarLocalVersion[] = "$Date: 1998/04/25 10:48:53 $";
-
-  prompt_Printf(arg->prompt, "%s - %s \n", VarVersion, VarLocalVersion);
+  prompt_Printf(arg->prompt, "PPP Version %s - %s\n", Version, VersionDate);
   return 0;
 }
 

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.27.2.7 1998/04/19 23:09:03 brian Exp $
+ * $Id: timer.c,v 1.27.2.8 1998/04/21 01:02:32 brian Exp $
  *
  *  TODO:
  */
@@ -73,7 +73,7 @@ StartTimer(struct pppTimer * tp)
     StopTimerNoBlock(tp);
 
   if (tp->load == 0) {
-    LogPrintf(LogDEBUG, "%s timer[%p] has 0 load!\n", tp->name, tp);
+    LogPrintf(LogTIMER, "%s timer[%p] has 0 load!\n", tp->name, tp);
     sigsetmask(omask);
     return;
   }
@@ -89,10 +89,10 @@ StartTimer(struct pppTimer * tp)
   tp->rest = tp->load - ticks;
 
   if (t)
-    LogPrintf(LogDEBUG, "StartTimer: Inserting %s timer[%p] before %s "
+    LogPrintf(LogTIMER, "StartTimer: Inserting %s timer[%p] before %s "
               "timer[%p], delta = %ld\n", tp->name, tp, t->name, t, tp->rest);
   else
-    LogPrintf(LogDEBUG, "StartTimer: Inserting %s timer[%p]\n", tp->name, tp);
+    LogPrintf(LogTIMER, "StartTimer: Inserting %s timer[%p]\n", tp->name, tp);
 
   /* Insert given *tp just before *t */
   tp->next = t;
@@ -148,12 +148,12 @@ TimerService(void)
 {
   struct pppTimer *tp, *exp, *wt;
 
-  if (LogIsKept(LogDEBUG)) {
+  if (LogIsKept(LogTIMER)) {
     static time_t t;
     time_t n = time(NULL);  /* Only show timers every second */
 
     if (n > t)
-      ShowTimers(LogDEBUG, NULL);
+      ShowTimers(LogTIMER, NULL);
     t = n;
   }
   tp = TimerList;

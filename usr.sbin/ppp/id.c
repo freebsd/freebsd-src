@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: id.c,v 1.6.4.7 1998/04/25 10:49:01 brian Exp $
+ *	$Id: id.c,v 1.6.4.8 1998/04/28 01:25:19 brian Exp $
  */
 
 #include <sys/types.h>
@@ -215,27 +215,27 @@ ID0logout(const char *device)
 }
 
 int
-ID0bind_un(int s, const struct sockaddr_un *name, int namelen)
+ID0bind_un(int s, const struct sockaddr_un *name)
 {
   int result;
 
   ID0set0();
-  result = bind(s, (const struct sockaddr *)name, namelen);
+  result = bind(s, (const struct sockaddr *)name, sizeof *name);
   LogPrintf(LogID0, "%d = bind(%d, \"%s\", %d)\n",
-            result, s, name->sun_path, namelen);
+            result, s, name->sun_path, sizeof *name);
   ID0setuser();
   return result;
 }
 
 int
-ID0connect_un(int s, const struct sockaddr_un *name, int namelen)
+ID0connect_un(int s, const struct sockaddr_un *name)
 {
   int result;
 
   ID0set0();
-  result = connect(s, (const struct sockaddr *)name, namelen);
+  result = connect(s, (const struct sockaddr *)name, sizeof *name);
   LogPrintf(LogID0, "%d = connect(%d, \"%s\", %d)\n",
-            result, s, name->sun_path, namelen);
+            result, s, name->sun_path, sizeof *name);
   ID0setuser();
   return result;
 }

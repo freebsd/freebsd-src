@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.16 1998/04/25 10:49:35 brian Exp $
+ *	$Id: mp.c,v 1.1.2.17 1998/04/28 01:25:33 brian Exp $
  */
 
 #include <sys/types.h>
@@ -241,13 +241,15 @@ mp_Up(struct mp *mp, struct datalink *dl)
      */
     fd = mpserver_Open(&mp->server, &mp->peer);
     if (fd >= 0) {
-      LogPrintf(LogPHASE, "mp: Transfer link %s\n", mp->server.ifsun.sun_path);
-      bundle_SendDatalink(dl, fd);
+      LogPrintf(LogPHASE, "mp: Transfer link on %s\n",
+                mp->server.socket.sun_path);
+      mp->server.send.dl = dl;
+      mp->server.send.fd = fd;
       return MP_LINKSENT;
     } else if (!mpserver_IsOpen(&mp->server))
       return MP_FAILED;
     else {
-      LogPrintf(LogPHASE, "mp: Listening on %s\n", mp->server.ifsun.sun_path);
+      LogPrintf(LogPHASE, "mp: Listening on %s\n", mp->server.socket.sun_path);
       LogPrintf(LogPHASE, "    First link: %s\n", dl->name);
 
       /* Re-point our IPCP layer at our MP link */
@@ -529,6 +531,8 @@ mp_FillQueues(struct bundle *bundle)
 
   total = 0;
   for (dl = bundle->links; dl; dl = dl->next) {
+    if (dl->state != DATALINK_OPEN)
+      continue;
     if (dl->physical->out)
       /* this link has suffered a short write.  Let it continue */
       continue;
@@ -554,6 +558,8 @@ mp_FillQueues(struct bundle *bundle)
         looped = 1;
         dl = bundle->links;
       }
+      if (dl->state != DATALINK_OPEN)
+        continue;
       if (len <= dl->mp.weight + LINK_MINWEIGHT) {
         mo = m;
         end = 1;
@@ -599,7 +605,7 @@ mp_ShowStatus(struct cmdargs const *arg)
   prompt_Printf(arg->prompt, "Multilink is %sactive\n", mp->active ? "" : "in");
   if (mp->active)
     prompt_Printf(arg->prompt, "Socket:         %s\n",
-                  mp->server.ifsun.sun_path);
+                  mp->server.socket.sun_path);
 
   prompt_Printf(arg->prompt, "\nMy Side:\n");
   if (mp->active) {
@@ -780,6 +786,12 @@ mpserver_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
 {
   struct mpserver *s = descriptor2mpserver(d);
 
+  if (s->send.dl != NULL) {
+    bundle_SendDatalink(s->send.dl, s->send.fd);
+    s->send.dl = NULL;
+    s->send.fd = -1;
+  }
+
   if (r && s->fd >= 0) {
     if (*n < s->fd + 1)
       *n = s->fd + 1;
@@ -800,21 +812,20 @@ static void
 mpserver_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   struct mpserver *s = descriptor2mpserver(d);
+  struct sockaddr in;
   int fd, size;
 
-  size = sizeof s->ifsun;
-  fd = accept(s->fd, (struct sockaddr *)&s->ifsun, &size);
+  size = sizeof in;
+  fd = accept(s->fd, &in, &size);
   if (fd < 0) {
     LogPrintf(LogERROR, "mpserver_Read: accept(): %s\n", strerror(errno));
     return;
   }
 
-  if (s->ifsun.sun_family != AF_LOCAL) {		/* ??? */
+  if (in.sa_family != AF_LOCAL)		/* ??? */
     close(fd);
-    return;
-  }
-
-  bundle_ReceiveDatalink(bundle, fd);
+  else
+    bundle_ReceiveDatalink(bundle, fd);
 }
 
 static void
@@ -833,67 +844,74 @@ mpserver_Init(struct mpserver *s)
   s->desc.IsSet = mpserver_IsSet;
   s->desc.Read = mpserver_Read;
   s->desc.Write = mpserver_Write;
+  s->send.dl = NULL;
+  s->send.fd = -1;
   s->fd = -1;
-  memset(&s->ifsun, '\0', sizeof s->ifsun);
+  memset(&s->socket, '\0', sizeof s->socket);
 }
 
 int
 mpserver_Open(struct mpserver *s, struct peerid *peer)
 {
+  int f, l, fd;
   mode_t mask;
-  int f;
 
   if (s->fd != -1) {
     LogPrintf(LogERROR, "Internal error !  mpserver already open\n");
-    close(s->fd);
-    memset(&s->ifsun, '\0', sizeof s->ifsun);
+    mpserver_Close(s);
   }
 
-  s->ifsun.sun_len = snprintf(s->ifsun.sun_path, sizeof s->ifsun.sun_path,
-                              "%sppp-%s-%02x-", _PATH_VARRUN,
-                              peer->authname, peer->enddisc.class);
+  l = snprintf(s->socket.sun_path, sizeof s->socket.sun_path, "%sppp-%s-%02x-",
+               _PATH_VARRUN, peer->authname, peer->enddisc.class);
 
-  for (f = 0; f < peer->enddisc.len; f++) {
-    snprintf(s->ifsun.sun_path + s->ifsun.sun_len,
-             sizeof s->ifsun.sun_path - s->ifsun.sun_len,
+  for (f = 0; f < peer->enddisc.len && l < sizeof s->socket.sun_path - 2; f++) {
+    snprintf(s->socket.sun_path + l, sizeof s->socket.sun_path - l,
              "%02x", *(u_char *)(peer->enddisc.address+f));
-    s->ifsun.sun_len += 2;
+    l += 2;
   }
 
-  s->ifsun.sun_family = AF_LOCAL;
+  s->socket.sun_family = AF_LOCAL;
+  s->socket.sun_len = sizeof s->socket;
   s->fd = ID0socket(PF_LOCAL, SOCK_STREAM, 0);
   if (s->fd < 0) {
     LogPrintf(LogERROR, "mpserver: socket: %s\n", strerror(errno));
     return -1;
   }
-  setsockopt(s->fd, SOL_SOCKET, SO_REUSEADDR, (struct sockaddr *)&s->ifsun,
-             sizeof s->ifsun);
 
+  setsockopt(s->fd, SOL_SOCKET, SO_REUSEADDR, (struct sockaddr *)&s->socket,
+             sizeof s->socket);
   mask = umask(0177);
-
-  if (ID0bind_un(s->fd, &s->ifsun, sizeof s->ifsun) < 0) {
-    umask(mask);
-    f = sizeof s->ifsun;
-    getsockopt(s->fd, SOL_SOCKET, SO_ERROR, (struct sockaddr *)&s->ifsun, &f);
-    if (ID0connect_un(s->fd, &s->ifsun, sizeof s->ifsun) < 0) {
-      LogPrintf(LogPHASE, "mpserver: can't open bundle socket (%s)\n",
-                strerror(errno));
+  if (ID0bind_un(s->fd, &s->socket) < 0) {
+    if (errno != EADDRINUSE) {
+      LogPrintf(LogPHASE, "mpserver: can't create bundle socket %s (%s)\n",
+                s->socket.sun_path, strerror(errno));
+      umask(mask);
       close(s->fd);
       s->fd = -1;
       return -1;
-    } else {
-      /* We wanna donate our link to the other guy */
-      int fd = s->fd;
-      s->fd = -1;
-      return fd;
     }
-  } else {
     umask(mask);
-    if (listen(s->fd, 5) != 0) {
-      LogPrintf(LogERROR, "mpserver: Unable to listen to socket"
-                " - BUNDLE overload?\n");
-      mpserver_Close(s);
+    if (ID0connect_un(s->fd, &s->socket) < 0) {
+      LogPrintf(LogPHASE, "mpserver: can't connect to bundle socket %s (%s)\n",
+                s->socket.sun_path, strerror(errno));
+      if (errno == ECONNREFUSED)
+        LogPrintf(LogPHASE, "          Has the previous server died badly ?\n");
+      close(s->fd);
+      s->fd = -1;
+      return -1;
     }
+
+    /* Donate our link to the other guy */
+    fd = s->fd;
+    s->fd = -1;
+    return fd;
+  }
+
+  /* Listen for other ppp invocations that want to donate links */
+  if (listen(s->fd, 5) != 0) {
+    LogPrintf(LogERROR, "mpserver: Unable to listen to socket"
+              " - BUNDLE overload?\n");
+    mpserver_Close(s);
   }
 
   return -1;
@@ -902,9 +920,18 @@ mpserver_Open(struct mpserver *s, struct peerid *peer)
 void
 mpserver_Close(struct mpserver *s)
 {
+  if (s->send.dl != NULL) {
+    bundle_SendDatalink(s->send.dl, s->send.fd);
+    s->send.dl = NULL;
+    s->send.fd = -1;
+  }
+
   if (s->fd >= 0) {
     close(s->fd);
-    ID0unlink(s->ifsun.sun_path);
+    if (ID0unlink(s->socket.sun_path) == -1)
+      LogPrintf(LogERROR, "%s: Failed to remove: %s\n", s->socket.sun_path,
+                strerror(errno));
+    memset(&s->socket, '\0', sizeof s->socket);
     s->fd = -1;
   }
 }
