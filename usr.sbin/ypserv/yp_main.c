@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: yp_main.c,v 1.17 1998/02/11 19:15:32 wpaul Exp $";
+	"$Id: yp_main.c,v 1.20 1999/04/29 20:23:58 wpaul Exp $";
 #endif /* not lint */
 
 /*
@@ -99,6 +99,8 @@ void _msgout(char* msg)
 		syslog(LOG_ERR, msg);
 }
 
+pid_t	yp_pid;
+
 static void
 yp_svc_run()
 {
@@ -108,12 +110,11 @@ yp_svc_run()
 	int readfds;
 #endif /* def FD_SETSIZE */
 	extern int forked;
-	int pid;
 	int fd_setsize = _rpc_dtablesize();
 	struct timeval timeout;
 
 	/* Establish the identity of the parent ypserv process. */
-	pid = getpid();
+	yp_pid = getpid();
 
 	for (;;) {
 #ifdef FD_SETSIZE
@@ -135,17 +136,20 @@ yp_svc_run()
 			warn("svc_run: - select failed");
 			return;
 		case 0:
-			yp_prune_dnsq();
+			if (getpid() == yp_pid)
+				yp_prune_dnsq();
 			break;
 		default:
-			if (FD_ISSET(resfd, &readfds)) {
-				yp_run_dnsq();
-				FD_CLR(resfd, &readfds);
+			if (getpid() == yp_pid) {
+				if (FD_ISSET(resfd, &readfds)) {
+					yp_run_dnsq();
+					FD_CLR(resfd, &readfds);
+				}
+				svc_getreqset(&readfds);
 			}
-			svc_getreqset(&readfds);
-			if (forked && pid != getpid())
-				exit(0);
 		}
+		if (yp_pid != getpid())
+			_exit(0);
 	}
 }
 
