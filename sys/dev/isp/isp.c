@@ -2810,12 +2810,6 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 	}
 
 	FC_SCRATCH_RELEASE(isp);
-	/*
-	 * XXX: Workaround for some bogus fabric registrants
-	 */
-	if (ftype) {
-		(void) isp_scan_fabric(isp, 0);
-	}
 	fcp->isp_loopstate = LOOP_FSCAN_DONE;
 	return (0);
 }
@@ -5928,8 +5922,9 @@ isp_parse_nvram_1020(struct ispsoftc *isp, u_int8_t *nvram_data)
 		ISP_NVRAM_FIFO_THRESHOLD(nvram_data) |
 		(ISP_NVRAM_FIFO_THRESHOLD_128(nvram_data) << 2);
 
-	sdp->isp_initiator_id =
-		ISP_NVRAM_INITIATOR_ID(nvram_data);
+	if ((isp->isp_confopts & ISP_CFG_OWNLOOPID) == 0)
+		sdp->isp_initiator_id =
+			ISP_NVRAM_INITIATOR_ID(nvram_data);
 
 	sdp->isp_bus_reset_delay =
 		ISP_NVRAM_BUS_RESET_DELAY(nvram_data);
@@ -6054,8 +6049,9 @@ isp_parse_nvram_1080(struct ispsoftc *isp, int bus, u_int8_t *nvram_data)
 	sdp->isp_fifo_threshold =
 	    ISP1080_NVRAM_FIFO_THRESHOLD(nvram_data);
 
-	sdp->isp_initiator_id =
-	    ISP1080_NVRAM_INITIATOR_ID(nvram_data, bus);
+	if ((isp->isp_confopts & ISP_CFG_OWNLOOPID) == 0)
+		sdp->isp_initiator_id =
+		    ISP1080_NVRAM_INITIATOR_ID(nvram_data, bus);
 
 	sdp->isp_bus_reset_delay =
 	    ISP1080_NVRAM_BUS_RESET_DELAY(nvram_data, bus);
@@ -6145,8 +6141,9 @@ isp_parse_nvram_12160(struct ispsoftc *isp, int bus, u_int8_t *nvram_data)
 	sdp->isp_fifo_threshold =
 	    ISP12160_NVRAM_FIFO_THRESHOLD(nvram_data);
 
-	sdp->isp_initiator_id =
-	    ISP12160_NVRAM_INITIATOR_ID(nvram_data, bus);
+	if ((isp->isp_confopts & ISP_CFG_OWNLOOPID) == 0)
+		sdp->isp_initiator_id =
+		    ISP12160_NVRAM_INITIATOR_ID(nvram_data, bus);
 
 	sdp->isp_bus_reset_delay =
 	    ISP12160_NVRAM_BUS_RESET_DELAY(nvram_data, bus);
