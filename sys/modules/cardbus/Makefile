@@ -2,7 +2,7 @@
 
 S	= ${.CURDIR}/../..
 .PATH:  ${.CURDIR}/../../dev/cardbus
-KMOD=   pccard
+KMOD=   cardbus
 SRCS=   cardbus.c \
 	device_if.h bus_if.h
 CLEANFILES+= device_if.h bus_if.h
