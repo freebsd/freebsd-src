@@ -1596,7 +1596,7 @@ int main(argc, argv)
 	opterr = 1;
 
 	while ((ch = getopt(argc, argv,
-	    "ANISCTRht:a:e:o:s:n:v:d:j:b:c:r:p:w:m:l:k:K:W:QZM:L:")) != -1) {
+	    "ANISCTRht:a:e:o:s:n:v:d:j:b:c:f:r:p:w:m:l:k:K:W:QZM:L:")) != -1) {
 		switch(ch) {
 		case 'Z':
 #ifdef ANCACHE
