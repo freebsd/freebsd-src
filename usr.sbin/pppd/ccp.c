@@ -26,7 +26,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: ccp.c,v 1.2 1995/10/31 21:20:49 peter Exp $";
+static char rcsid[] = "$Id: ccp.c,v 1.3 1995/10/31 21:29:19 peter Exp $";
 #endif
 
 #include <syslog.h>
@@ -497,6 +497,10 @@ ccp_up(f)
 	syslog(LOG_NOTICE, "%s enabled",
 	       go->bsd_compress? ho->bsd_compress? "Compression":
 	       "Receive compression": "Transmit compression");
+    if (!ANY_COMPRESS(ccp_gotoptions[f->unit])) {
+	syslog(LOG_NOTICE, "No matching compression scheme, CCP disabled");
+	ccp_close(f->unit);
+    }
 }
 
 /*
