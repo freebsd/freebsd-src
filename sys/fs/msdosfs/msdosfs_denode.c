@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.38 1998/05/17 18:09:28 bde Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.39 1998/08/17 19:09:36 bde Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.28 1998/02/10 14:10:00 mrg Exp $	*/
 
 /*-
@@ -408,7 +408,6 @@ detrunc(dep, length, flags, cred, p)
 {
 	int error;
 	int allerror;
-	int vflags;
 	u_long eofentry;
 	u_long chaintofree;
 	daddr_t bn;
@@ -507,10 +506,14 @@ detrunc(dep, length, flags, cred, p)
 	dep->de_FileSize = length;
 	if (!isadir)
 		dep->de_flag |= DE_UPDATE|DE_MODIFIED;
-	vflags = (length > 0 ? V_SAVE : 0) | V_SAVEMETA;
-	vinvalbuf(DETOV(dep), vflags, cred, p, 0, 0);
-	vnode_pager_setsize(DETOV(dep), length);
-	allerror = deupdat(dep, 1);
+	allerror = vtruncbuf(DETOV(dep), cred, p, length, pmp->pm_bpcluster);
+#ifdef MSDOSFS_DEBUG
+	if (allerror)
+		printf("detrunc(): vtruncbuf error %d\n", allerror);
+#endif
+	error = deupdat(dep, 1);
+	if (error && (allerror == 0))
+		allerror = error;
 #ifdef MSDOSFS_DEBUG
 	printf("detrunc(): allerror %d, eofentry %lu\n",
 	       allerror, eofentry);
