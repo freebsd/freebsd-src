@@ -2385,13 +2385,26 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       information leakage and the ability to specify compile-time port
       ranges. &merged;</para>
 
+    <para>&man.ftpd.8; now supports the <option>-m</option> option
+      to permit guest users to modify existing files if allowed
+      by filesystem permissions.
+      In particular, this enables guest users to resume uploads.
+      &merged;</para>
+
+    <para>&man.ftpd.8; now supports the <option>-M</option> option
+      to prevent guest users from creating directories.
+      &merged;</para>
+
     <para>&man.ftpd.8; now supports <option>-o</option> and
       <option>-O</option> options to disable the
       <literal>RETR</literal> command; the former for everybody, and
       the latter only for guest users.  Coupled with
       <option>-A</option> and appropriate file permissions, these can
       be used to create a relatively safe anonymous FTP drop box for
-      others to upload to.</para>
+      others to upload to. &merged;</para>
+
+    <para>&man.ftpd.8; now supports the <option>-W</option> option
+      to disable logging FTP sessions to &man.wtmp.5;. &merged;</para>
 
     <para arch="i386,pc98" role="historic">&man.gdb.1; now supports hardware
       watchpoints (using the kernel's debug register + support that
