@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.53 1999/01/29 23:18:50 dillon Exp $
+ * $Id: kernel.h,v 1.54 1999/04/17 08:36:06 peter Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -110,10 +110,10 @@ enum sysinit_sub_id {
 	SI_SUB_KMEM		= 0x1800000,	/* kernel memory*/
 	SI_SUB_CPU		= 0x2000000,	/* CPU resource(s)*/
 	SI_SUB_KLD		= 0x2100000,	/* KLD and module setup */
-	SI_SUB_DEVFS		= 0x2200000,	/* get DEVFS ready */
-	SI_SUB_DRIVERS		= 0x2300000,	/* Let Drivers initialize */
-	SI_SUB_CONFIGURE	= 0x2400000,	/* Configure devices */
-	SI_SUB_INTRINSIC	= 0x2800000,	/* proc 0*/
+	SI_SUB_INTRINSIC	= 0x2200000,	/* proc 0*/
+	SI_SUB_DEVFS		= 0x2300000,	/* get DEVFS ready */
+	SI_SUB_DRIVERS		= 0x2400000,	/* Let Drivers initialize */
+	SI_SUB_CONFIGURE	= 0x2500000,	/* Configure devices */
 	SI_SUB_RUN_QUEUE	= 0x3000000,	/* the run queue*/
 	SI_SUB_VM_CONF		= 0x3800000,	/* config VM, set limits*/
 	SI_SUB_VFS		= 0x4000000,	/* virtual file system*/
