@@ -672,8 +672,6 @@ vesa_bios_init(void)
 			continue;
 
 		/* reject unsupported modes */
-#define DOTHIS 1
-#ifdef DOTHIS 
 #if 0
 		if ((vmode.v_modeattr & (V_MODESUPP | V_MODEOPTINFO 
 					| V_MODENONVGA))
@@ -691,7 +689,6 @@ vesa_bios_init(void)
 			continue;
 		}
 #endif
-#endif /* DOTHIS */
 
 		/* expand the array if necessary */
 		if (modes >= vesa_vmode_max) {
