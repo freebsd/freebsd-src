@@ -423,7 +423,7 @@ writeprivs(quplist, outfd, name, quotatype)
 	fprintf(fd, "Quotas for %s %s:\n", qfextension[quotatype], name);
 	for (qup = quplist; qup; qup = qup->next) {
 		fprintf(fd, "%s: %s %lu, limits (soft = %lu, hard = %lu)\n",
-		    qup->fsname, "blocks in use:",
+		    qup->fsname, "kbytes in use:",
 		    (unsigned long)(dbtob(qup->dqblk.dqb_curblocks) / 1024),
 		    (unsigned long)(dbtob(qup->dqblk.dqb_bsoftlimit) / 1024),
 		    (unsigned long)(dbtob(qup->dqblk.dqb_bhardlimit) / 1024));
@@ -474,7 +474,7 @@ readprivs(quplist, inname)
 			return (0);
 		}
 		cnt = sscanf(cp,
-		    " blocks in use: %lu, limits (soft = %lu, hard = %lu)",
+		    " kbytes in use: %lu, limits (soft = %lu, hard = %lu)",
 		    &curblocks, &bsoftlimit, &bhardlimit);
 		if (cnt != 3) {
 			warnx("%s:%s: bad format", fsp, cp);
