@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.125 1996/10/03 08:17:16 jkh Exp $
+ * $Id: install.c,v 1.126 1996/10/03 08:54:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -594,6 +594,9 @@ installFixup(dialogMenuItem *self)
 
     if (!file_readable("/kernel")) {
 	if (file_readable("/kernel.GENERIC")) {
+	    /* Snapshot any boot -c changes back to the GENERIC kernel */
+	    save_userconfig_to_kernel("/kernel.GENERIC");
+
 	    if (vsystem("cp -p /kernel.GENERIC /kernel")) {
 		msgConfirm("Unable to link /kernel into place!");
 		return DITEM_FAILURE;
@@ -606,11 +609,6 @@ installFixup(dialogMenuItem *self)
 	    return DITEM_FAILURE;
 	}
     }
-
-#ifdef notyet
-    /* Snapshot any boot -c changes back to the GENERIC kernel */
-    save_userconfig_to_kernel("/kernel");
-#endif
 
     /* Resurrect /dev after bin distribution screws it up */
     if (RunningAsInit) {
@@ -679,6 +677,10 @@ installFilesystems(dialogMenuItem *self)
     char dname[80], *str;
     extern int MakeDevChunk(Chunk *c, char *n);
     Boolean upgrade = FALSE;
+
+    /* If we've already done this, bail out */
+    if (variable_get(DISK_PREPARED))
+	return DITEM_SUCCESS;
 
     str = variable_get(SYSTEM_STATE);
 
@@ -820,6 +822,7 @@ installFilesystems(dialogMenuItem *self)
     
     command_sort();
     command_execute();
+    variable_set2(DISK_PREPARED, "yes");
     return DITEM_SUCCESS;
 }
 
