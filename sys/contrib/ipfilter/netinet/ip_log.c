@@ -10,7 +10,8 @@
 #if defined(KERNEL) && !defined(_KERNEL)
 # define       _KERNEL
 #endif
-#if defined(__NetBSD__) && (NetBSD >= 199905) && !defined(IPFILTER_LKM)
+#if defined(__NetBSD__) && (NetBSD >= 199905) && !defined(IPFILTER_LKM) && \
+    defined(_KERNEL)
 # include "opt_ipfilter_log.h"
 #endif
 #ifdef  __FreeBSD__

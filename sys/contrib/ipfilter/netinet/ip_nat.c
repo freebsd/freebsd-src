@@ -1770,7 +1770,6 @@ int dir;
 			sumd2 = sumd;
 		}
 
-#if 1
 		/*
 		 * Fix TCP pseudo header checksum to compensate for the 
 		 * IP address change. Before we can do the change, we
@@ -1790,7 +1789,6 @@ int dir;
 			CALC_SUMD(sum1, sum2, sumd);
 			sumd2 = sumd;
 		}
-#endif
 	} else {
 
 		/*
@@ -1839,7 +1837,6 @@ int dir;
 			sumd2 = sumd;
 		}
 		
-#if 1
 		/* 
 		 * Fix TCP pseudo header checksum to compensate for the 
 		 * IP address change. Before we can do the change, we
@@ -1858,9 +1855,7 @@ int dir;
 			 */
 			CALC_SUMD(sum1, sum2, sumd);
 			sumd2 = sumd;
-		};
-#endif
-		
+		}
 #endif
 	}
 

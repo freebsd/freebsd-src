@@ -10,6 +10,6 @@
 #ifndef	__IPL_H__
 #define	__IPL_H__
 
-#define	IPL_VERSION	"IP Filter: v3.4.26"
+#define	IPL_VERSION	"IP Filter: v3.4.27"
 
 #endif
