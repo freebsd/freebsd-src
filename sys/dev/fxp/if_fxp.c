@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.61 1999/01/28 00:57:53 dillon Exp $
+ *	$Id: if_fxp.c,v 1.62 1999/01/28 17:32:05 dillon Exp $
  */
 
 /*
@@ -1494,9 +1494,26 @@ fxp_mediastatus(ifp, ifmr)
 	case FXP_PHY_82555B:
 		flags = fxp_mdi_read(sc, sc->phy_primary_addr, FXP_PHY_BMCR);
 		ifmr->ifm_active = IFM_ETHER;
-		if (flags & FXP_PHY_BMCR_AUTOEN)
-			ifmr->ifm_active |= IFM_AUTO;
-		else {
+		if (flags & FXP_PHY_BMCR_AUTOEN) {
+			ifmr->ifm_active |= IFM_AUTO; /* XXX presently 0 */
+			/*
+			 * XXX Find the correct subset of chips that have 
+			 * the USC register..
+			 */
+			if ((sc->phy_primary_device == FXP_PHY_82555) 
+			|| (sc->phy_primary_device == FXP_PHY_82555B)) {
+				flags = fxp_mdi_read(sc,
+					sc->phy_primary_addr, FXP_PHY_USC);
+
+				if (flags & FXP_PHY_USC_SPEED)
+					ifmr->ifm_active |= IFM_100_TX;
+				else
+					ifmr->ifm_active |= IFM_10_T;
+	
+				if (flags & FXP_PHY_USC_DUPLEX)
+					ifmr->ifm_active |= IFM_FDX;
+			}
+		} else {
 			if (flags & FXP_PHY_BMCR_SPEED_100M)
 				ifmr->ifm_active |= IFM_100_TX;
 			else
