@@ -65,6 +65,8 @@ o Various bugfixes and enhancements to pthread support.
 
 o calendar(1) program brought more up-to-date.
 
+o KerberosIV updated to latest version.
+
 o Various curses(3) bugs fixed.
 
 o Various IEEE754 conformance changes to libm(3).
