@@ -65,7 +65,6 @@
  * rights to redistribute these changes.
  */
 
-#include <string.h>
 #include "stand.h"
 
 struct open_file files[SOPEN_MAX];
