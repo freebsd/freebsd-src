@@ -93,8 +93,8 @@
 #if !defined(_POSIX_SOURCE)
 #define	SIZE_T_MAX	UINT_MAX	/* max value for a size_t */
 
-#define	OFF_T_MAX	LLONG_MAX	/* max value for a off_t */
-#define	OFF_T_MIN	LLONG_MIN	/* min value for a off_t */
+#define	OFF_MAX		LLONG_MAX	/* max value for a off_t */
+#define	OFF_MIN		LLONG_MIN	/* min value for a off_t */
 
 /* Quads and long longs are the same size.  Ensure they stay in sync. */
 #define	UQUAD_MAX	ULLONG_MAX	/* max value for a uquad_t */
