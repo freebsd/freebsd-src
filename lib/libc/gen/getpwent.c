@@ -386,7 +386,9 @@ _local_getpw(rv, cb_data, ap)
 	case _PW_KEYBYNAME:
 		name = va_arg(ap, const char *);
 		len = strlen(name);
-		memmove(bf + 1, name, (size_t)MIN(len, MAXLOGNAME));
+		if (len > sizeof(bf) - 1)
+			return NS_NOTFOUND;
+		memmove(bf + 1, name, len);
 		key.size = len + 1;
 		break;
 	case _PW_KEYBYUID:
