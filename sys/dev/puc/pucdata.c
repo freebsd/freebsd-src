@@ -865,6 +865,21 @@ const struct puc_device_description puc_devices[] = {
 		},
 	},
 
+	/*
+	 * Oxford Semiconductor OX9160/OX16PCI954 PCI UARTS
+	 * second chip on Exsys EX-41098 8x cards
+	 */
+	{   "Oxford Semiconductor OX9160/OX16PCI954 UARTs (function 1)",
+	    {	0x1415,	0x9511,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x08, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x10, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x18, COM_FREQ },
+	    },
+	},
+
 	/* NetMos 2S1P PCI 16C650 : 2S, 1P */
 	{   "NetMos NM9835 Dual UART and 1284 Printer port",
 	    {	0x9710,	0x9835,	0,	0	},
