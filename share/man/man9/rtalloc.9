@@ -27,7 +27,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd October 7, 2004
+.Dd October 11, 2004
 .Os
 .Dt RTALLOC 9
 .Sh NAME
@@ -49,6 +49,10 @@
 .Ft void
 .Fn rtfree "struct rt_entry *rt"
 .Fn RTFREE "struct rt_entry *rt"
+.Fn RT_LOCK "struct rt_entry *rt"
+.Fn RT_UNLOCK "struct rt_entry *rt"
+.Fn RT_ADDREF "struct rt_entry *rt"
+.Fn RT_REMREF "struct rt_entry *rt"
 .Sh DESCRIPTION
 The kernel uses a radix tree structure to manage routes for the
 networking subsystem.
@@ -189,12 +193,31 @@ macro is used to free unlocked route entries, previously allocated by
 .Fn rtalloc
 or
 .Fn rtalloc_ign .
+The
+.Fn RTFREE
+macro decrements the reference count on the routing table entry (see below),
+and frees it if the reference count has reached zero.
+.Pp
 The preferred usage is allocating a route using
 .Fn rtalloc
 or
 .Fn rtalloc_ign
 and freeing using
 .Fn RTFREE .
+.Pp
+The
+.Fn RT_LOCK
+macro is used to lock a routing table entry.
+The
+.Fn RT_UNLOCK
+macro is used to unlock a routing table entry.
+.Pp
+The
+.Fn RT_ADDREF
+macro increments the reference count on a previously locked route entry.
+The
+.Fn RT_REMREF
+macro decrements the reference count on a previously locked route entry.
 .Sh RETURN VALUES
 The
 .Fn rtalloc ,
@@ -228,6 +251,8 @@ argument to
 .Fn rtalloc1
 first appeared in
 .Fx 2.0 .
+Routing table locking was introduced in
+.Fx 5.2 .
 .Sh AUTHORS
 This manual page was written by
 .An Garrett Wollman ,
