@@ -208,4 +208,5 @@ MIASM =  \
 	sched_get_priority_max.o \
 	sched_get_priority_min.o \
 	sched_rr_get_interval.o \
-	utrace.o
+	utrace.o \
+	sendfile.o

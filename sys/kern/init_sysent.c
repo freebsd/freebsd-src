@@ -355,4 +355,5 @@ struct sysent sysent[] = {
 	{ 1, (sy_call_t *)sched_get_priority_min },		/* 333 = sched_get_priority_min */
 	{ 2, (sy_call_t *)sched_rr_get_interval },		/* 334 = sched_rr_get_interval */
 	{ 2, (sy_call_t *)utrace },			/* 335 = utrace */
+	{ 8, (sy_call_t *)sendfile },			/* 336 = sendfile */
 };
