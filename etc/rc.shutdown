@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+# $NetBSD: rc.shutdown,v 1.3 2000/03/10 13:17:25 lukem Exp $
+#
+# rc.shutdown.sh --
+#	Run the scripts in /etc/rc.d with reverse rcorder.
+
+export HOME=/
+export PATH=/sbin:/bin:/usr/sbin:/usr/bin
+
+. /etc/rc.subr
+. /etc/rc.conf
+
+if ! checkyesno do_rcshutdown; then
+	echo "Skipping shutdown hooks."
+	exit 0
+fi
+
+stty status '^T'
+
+#	Set shell to ignore SIGINT (2), but not children;
+#	shell catches SIGQUIT (3) and returns to single user.
+#
+trap : 2
+trap "echo 'Shutdown interrupted.'; exit 1" 3
+
+files=`rcorder -k shutdown /etc/rc.d/*`
+for i in $files; do			# reverse order of files
+	nfiles="$i $nfiles"
+done
+files=$nfiles
+
+for i in $files; do
+	run_rc_script $i stop
+done
+
+date
+exit 0
