@@ -106,6 +106,7 @@ static int	ext2_check_sb_compat(struct ext2_super_block *es, struct cdev *dev,
 static int	compute_sb_data(struct vnode * devvp,
 		    struct ext2_super_block * es, struct ext2_sb_info * fs);
 
+static const char *ext2_opts[] = { "from", "export" };
 /*
  * VFS Operations.
  *
@@ -122,12 +123,14 @@ ext2_mount(mp, td)
 	struct ext2mount *ump = 0;
 	struct ext2_sb_info *fs;
 	char *path, *fspec;
-	size_t size;
 	int error, flags, len;
 	mode_t accessmode;
 	struct nameidata nd, *ndp = &nd;
 
 	opts = mp->mnt_optnew;
+
+	if (vfs_filteropt(opts, ext2_opts))
+		return (EINVAL);
 
 	vfs_getopt(opts, "fspath", (void **)&path, NULL);
 	/* Double-check the length of path.. */
@@ -147,7 +150,8 @@ ext2_mount(mp, td)
 		ump = VFSTOEXT2(mp);
 		fs = ump->um_e2fs;
 		error = 0;
-		if (fs->s_rd_only == 0 && (mp->mnt_flag & MNT_RDONLY)) {
+		if (fs->s_rd_only == 0 &&
+		    vfs_flagopt(opts, "ro", NULL, 0)) {
 			error = VFS_SYNC(mp, MNT_WAIT, td->td_ucred, td);
 			if (error)
 				return (error);
@@ -163,6 +167,7 @@ ext2_mount(mp, td)
 				ext2_sbupdate(ump, MNT_WAIT);
 			}
 			fs->s_rd_only = 1;
+			vfs_flagopt(opts, "ro", &mp->mnt_flag, MNT_RDONLY);
 			DROP_GIANT();
 			g_topology_lock();
 			g_access(ump->um_cp, 0, -1, 0);
@@ -174,10 +179,9 @@ ext2_mount(mp, td)
 		if (error)
 			return (error);
 		devvp = ump->um_devvp;
-		if (ext2_check_sb_compat(fs->s_es, devvp->v_rdev,
-		    (mp->mnt_kern_flag & MNTK_WANTRDWR) == 0) != 0)
-			return (EPERM);
-		if (fs->s_rd_only && (mp->mnt_kern_flag & MNTK_WANTRDWR)) {
+		if (fs->s_rd_only && !vfs_flagopt(opts, "ro", NULL, 0)) {
+			if (ext2_check_sb_compat(fs->s_es, devvp->v_rdev, 0))
+				return (EPERM);
 			/*
 			 * If upgrade to read-write by non-root, then verify
 			 * that user has necessary permissions on the device.
@@ -215,6 +219,7 @@ ext2_mount(mp, td)
 			fs->s_es->s_state &= ~EXT2_VALID_FS;
 			ext2_sbupdate(ump, MNT_WAIT);
 			fs->s_rd_only = 0;
+			mp->mnt_flag &= ~MNT_RDONLY;
 		}
 		if (fspec == NULL) {
 			error = vfs_getopt(opts, "export", (void **)&export,
@@ -278,9 +283,7 @@ ext2_mount(mp, td)
 	 */
 	strncpy(fs->fs_fsmnt, path, MAXMNTLEN);
 	fs->fs_fsmnt[MAXMNTLEN - 1] = '\0';
-	(void)copystr(fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1, &size);
-	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
-	(void)ext2_statfs(mp, &mp->mnt_stat, td);
+	vfs_mountedfrom(mp, fspec);
 	return (0);
 }
 
@@ -598,7 +601,7 @@ ext2_mountfs(devvp, mp, td)
 	int error;
 	int ronly;
 
-	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
+	ronly = vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0);
 	/* XXX: use VOP_ACESS to check FS perms */
 	DROP_GIANT();
 	g_topology_lock();
