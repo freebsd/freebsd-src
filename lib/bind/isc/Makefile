@@ -41,7 +41,7 @@ CFLAGS+=	-I${SRCDIR}/include -I${.CURDIR}
 DPADD=		${PTHREAD_DPADD}
 LDADD=		${PTHREAD_LDADD}
 
-.if defined(WANT_BIND_LIBS)
+.if defined(WITH_BIND_LIBS)
 INCS=		${SRCDIR}/include/isc/app.h \
 		${SRCDIR}/include/isc/assertions.h \
 		${SRCDIR}/include/isc/base64.h \
