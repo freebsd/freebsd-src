@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$FreeBSD$
  */
 
 #ifndef lint
@@ -42,6 +44,7 @@ static const char sccsid[] = "@(#)main.c	8.3 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <stdlib.h>
 
 #include "ring.h"
@@ -70,6 +73,13 @@ void init_telnet(void);
 void init_sys(void);
 void init_3270(void);
 
+#if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
+char *ipsec_policy_in = NULL;
+char *ipsec_policy_out = NULL;
+#endif
+
+int family = AF_UNSPEC;
+
 /*
  * Initialize variables.
  */
@@ -95,10 +105,10 @@ usage()
 	fprintf(stderr, "Usage: %s %s%s%s%s\n",
 	    prompt,
 #ifdef	AUTHENTICATION
-	    "[-8] [-E] [-K] [-L] [-N] [-S tos] [-X atype] [-a] [-c] [-d]",
+	    "[-4] [-6] [-8] [-E] [-K] [-L] [-N] [-S tos] [-X atype] [-a] [-c] [-d]",
 	    "\n\t[-e char] [-k realm] [-l user] [-f/-F] [-n tracefile] ",
 #else
-	    "[-8] [-E] [-L] [-N] [-S tos] [-a] [-c] [-d] [-e char] [-l user]",
+	    "[-4] [-6] [-8] [-E] [-L] [-N] [-S tos] [-a] [-c] [-d] [-e char] [-l user]",
 	    "\n\t[-n tracefile] ",
 #endif
 #if defined(TN3270) && defined(unix)
@@ -111,6 +121,9 @@ usage()
 # endif
 #else
 	    "[-r] [-s src_addr] ",
+#endif
+#if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
+	    "[-P policy]"
 #endif
 #ifdef	ENCRYPTION
 	    "[-x] [host-name [port]]"
@@ -156,8 +169,24 @@ main(argc, argv)
 	rlogin = (strncmp(prompt, "rlog", 4) == 0) ? '~' : _POSIX_VDISABLE;
 	autologin = -1;
 
-	while ((ch = getopt(argc, argv, "8EKLNS:X:acde:fFk:l:n:rs:t:x")) != EOF) {
+#if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
+#define IPSECOPT	"P:"
+#else
+#define IPSECOPT
+#endif
+	while ((ch = getopt(argc, argv,
+			    "468EKLNS:X:acde:fFk:l:n:rs:t:x" IPSECOPT)) != -1)
+#undef IPSECOPT
+	{
 		switch(ch) {
+		case '4':
+			family = AF_INET;
+			break;
+#ifdef INET6
+		case '6':
+			family = AF_INET6;
+			break;
+#endif
 		case '8':
 			eight = 3;	/* binary output and input */
 			break;
@@ -299,6 +328,16 @@ main(argc, argv)
 								prompt);
 #endif	/* ENCRYPTION */
 			break;
+#if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
+		case 'P':
+			if (!strncmp("in", optarg, 2))
+				ipsec_policy_in = strdup(optarg);
+			else if (!strncmp("out", optarg, 3))
+				ipsec_policy_out = strdup(optarg);
+			else
+				usage();
+			break;
+#endif
 		case '?':
 		default:
 			usage();

@@ -8,7 +8,7 @@ MAN8=		telnetd.8
 
 CFLAGS+=	-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS -DOLD_ENVIRON \
 		-DENV_HACK -DAUTHENTICATION -DENCRYPTION \
-		-I${TELNETDIR}
+		-I${TELNETDIR} -DINET6
 
 SRCS=		global.c slc.c state.c sys_term.c telnetd.c \
 		termstat.c utility.c authenc.c

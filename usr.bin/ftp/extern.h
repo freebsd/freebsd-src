@@ -73,7 +73,7 @@ int	getreply __P((int));
 int	globulize __P((char **));
 char   *gunique __P((const char *));
 void	help __P((int, char **));
-char   *hookup __P((const char *, int));
+char   *hookup __P((const char *, char *));
 void	idle __P((int, char **));
 int     initconn __P((void));
 void	intr __P((void));

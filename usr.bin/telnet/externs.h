@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)externs.h	8.2 (Berkeley) 12/15/93
+ *	$FreeBSD$
  */
 
 #ifndef	BSD
@@ -86,6 +87,14 @@ typedef unsigned char cc_t;
 #endif
 #include <strings.h>
 
+#if defined(IPSEC)
+#include <netinet6/ipsec.h>
+#if defined(IPSEC_POLICY_IPSEC)
+extern char *ipsec_policy_in;
+extern char *ipsec_policy_out;
+#endif
+#endif
+
 #ifndef	_POSIX_VDISABLE
 # ifdef sun
 #  include <sys/param.h>	/* pick up VDISABLE definition, mayby */
@@ -115,6 +124,7 @@ extern int
     autologin,		/* Autologin enabled */
     skiprc,		/* Don't process the ~/.telnetrc file */
     eight,		/* use eight bit mode (binary in and/or out */
+    family,		/* address family of peer */
     flushout,		/* flush output */
     connected,		/* Are we connected to the other side? */
     globalmode,		/* Mode tty should be in */
