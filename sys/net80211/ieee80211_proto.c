@@ -256,8 +256,17 @@ ieee80211_fix_rate(struct ieee80211com *ic, struct ieee80211_node *ni, int flags
 			 * Check against supported rates.
 			 */
 			for (j = 0; j < srs->rs_nrates; j++) {
-				if (r == RV(srs->rs_rates[j]))
+				if (r == RV(srs->rs_rates[j])) {
+					/*
+					 * Overwrite with the supported rate
+					 * value so any basic rate bit is set.
+					 * This insures that response we send
+					 * to stations have the necessary basic
+					 * rate bit set.
+					 */
+					nrs->rs_rates[i] = srs->rs_rates[j];
 					break;
+				}
 			}
 			if (j == srs->rs_nrates) {
 				/*
