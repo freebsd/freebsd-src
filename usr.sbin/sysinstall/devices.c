@@ -61,13 +61,13 @@ static struct _devname {
     char *description;
     int major, minor, delta, max;
 } device_names[] = {
-    { DEVICE_TYPE_CDROM,	"cd%dc",	"SCSI CDROM drive",	15, 2, 8, 4 				},
-    { DEVICE_TYPE_CDROM,	"mcd%da",	"Mitsumi (old model) CDROM drive",	29, 0, 8, 4	 	},
-    { DEVICE_TYPE_CDROM,	"scd%da",	"Sony CDROM drive - CDU31/33A type",	45, 0, 8, 4 		},
+    { DEVICE_TYPE_CDROM,	"cd%d",		"SCSI CDROM drive",	15, 2, 8, 4 				},
+    { DEVICE_TYPE_CDROM,	"mcd%d",	"Mitsumi (old model) CDROM drive",	29, 0, 8, 4	 	},
+    { DEVICE_TYPE_CDROM,	"scd%d",	"Sony CDROM drive - CDU31/33A type",	45, 0, 8, 4 		},
 #ifdef notdef
-    { DEVICE_TYPE_CDROM,	"matcd%da",	"Matsushita CDROM ('sound blaster' type)", 46, 0, 8, 4 		},
+    { DEVICE_TYPE_CDROM,	"matcd%d",	"Matsushita CDROM ('sound blaster' type)", 46, 0, 8, 4 		},
 #endif
-    { DEVICE_TYPE_CDROM,	"acd%dc",	"ATAPI/IDE CDROM",	117, 0, 8, 4				},
+    { DEVICE_TYPE_CDROM,	"acd%d",	"ATAPI/IDE CDROM",	117, 0, 8, 4				},
     { DEVICE_TYPE_TAPE, 	"rsa%d",	"SCSI tape drive",	14, 0, 16, 4				},
     { DEVICE_TYPE_TAPE, 	"rwt%d",	"Wangtek tape drive",	10, 0, 1, 4				},
     { DEVICE_TYPE_DISK, 	"da%d",		"SCSI disk device",	13, 65538, 8, 16			},
