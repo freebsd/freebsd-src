@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.139 1996/07/13 04:33:23 jkh Exp $
+#	$Id: Makefile,v 1.140 1996/08/14 14:41:56 jkh Exp $
 
 # -rw-r--r--
 BINOWN= root
@@ -13,7 +13,8 @@ BIN1=   aliases amd.map csh.cshrc csh.login csh.logout dm.conf \
 	remote security services sysconfig shells \
 	syslog.conf ttys etc.${MACHINE}/disktab rpc make.conf \
 	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config \
-	${.CURDIR}/../usr.bin/mail/misc/mail.rc
+	${.CURDIR}/../usr.bin/mail/misc/mail.rc \
+	${.CURDIR}/../usr.bin/locate/locate/locate.rc
 
 # -rw-rw-rw-
 BIN2=	motd
@@ -25,6 +26,7 @@ MTREE=	BSD.local.dist BSD.root.dist BSD.usr.dist BSD.var.dist
 NAMEDB=	PROTO.localhost.rev named.boot named.root make-localhost
 PPPCNF= ppp.conf.filter.sample ppp.conf.iij ppp.conf.sample \
 	ppp.linkup.sample ppp.secret.sample
+
 
 # Special top level files for FreeBSD
 COPYRIGHT=	COPYRIGHT
@@ -55,6 +57,10 @@ distribution:
 	    ${DESTDIR}/var/cron/log; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 \
 	    master.passwd ${DESTDIR}/etc; \
+	( cd ${.CURDIR}/../gnu/usr.bin/send-pr; ${MAKE} etc-gnats-freefall );\
+	( cd ${.CURDIR}/../gnu/libexec/uucp/sample; ${MAKE} install ); \
+	( cd ${.CURDIR}/../usr.bin/file; ${MAKE} etc-magic ); \
+	( cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap ); \
 	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	     MAKEDEV.local etc.${MACHINE}/MAKEDEV ${DESTDIR}/dev )
