@@ -75,7 +75,7 @@ ENTRY(inw)					/* val = inw(port) */
 
 ENTRY(insb)					/* insb(port, addr, cnt) */
 	pushl	%edi
-	movw	8(%esp),%dx
+	movl	8(%esp),%edx
 	movl	12(%esp),%edi
 	movl	16(%esp),%ecx
 	cld
@@ -88,7 +88,7 @@ ENTRY(insb)					/* insb(port, addr, cnt) */
 
 ENTRY(insw)					/* insw(port, addr, cnt) */
 	pushl	%edi
-	movw	8(%esp),%dx
+	movl	8(%esp),%edx
 	movl	12(%esp),%edi
 	movl	16(%esp),%ecx
 	cld
@@ -101,7 +101,7 @@ ENTRY(insw)					/* insw(port, addr, cnt) */
 
 ENTRY(insl)					/* insl(port, addr, cnt) */
 	pushl	%edi
-	movw	8(%esp),%dx
+	movl	8(%esp),%edx
 	movl	12(%esp),%edi
 	movl	16(%esp),%ecx
 	cld
@@ -137,7 +137,7 @@ ENTRY(outw)					/* outw(port, val) */
 
 ENTRY(outsb)					/* outsb(port, addr, cnt) */
 	pushl	%esi
-	movw	8(%esp),%dx
+	movl	8(%esp),%edx
 	movl	12(%esp),%esi
 	movl	16(%esp),%ecx
 	cld
@@ -150,7 +150,7 @@ ENTRY(outsb)					/* outsb(port, addr, cnt) */
 
 ENTRY(outsw)					/* outsw(port, addr, cnt) */
 	pushl	%esi
-	movw	8(%esp),%dx
+	movl	8(%esp),%edx
 	movl	12(%esp),%esi
 	movl	16(%esp),%ecx
 	cld
@@ -163,7 +163,7 @@ ENTRY(outsw)					/* outsw(port, addr, cnt) */
 
 ENTRY(outsl)					/* outsl(port, addr, cnt) */
 	pushl	%esi
-	movw	8(%esp),%dx
+	movl	8(%esp),%edx
 	movl	12(%esp),%esi
 	movl	16(%esp),%ecx
 	cld
@@ -177,21 +177,21 @@ ENTRY(outsl)					/* outsl(port, addr, cnt) */
 /*
  * bcopy family
  */
+
 /*
- * void bzero(void *base, u_int cnt) 
+ * void bzero(void *base, u_int cnt)
  * Special code for I486 because stosl uses lots
  * of clocks.  Makes little or no difference on DX2 type
- * machines, but about stosl is about 1/2 as fast as
- * memory moves on standard DX !!!!!
+ * machines, but stosl is about 1/2 as fast as
+ * memory moves on a standard DX !!!!!
  */
-
 ALTENTRY(blkclr)
 ENTRY(bzero)
-#if defined(I486_CPU) && (defined(I386_CPU) || defined(I586_CPU))
+#if defined(I486_CPU)
 	cmpl	$CPUCLASS_486,_cpu_class
 	jz	1f
 #endif
-#if defined(I386_CPU) || defined(I586_CPU)
+
 	pushl	%edi
 	movl	8(%esp),%edi
 	movl	12(%esp),%ecx
@@ -206,15 +206,17 @@ ENTRY(bzero)
 	stosb
 	popl	%edi
 	ret
-	.align	4
-#endif
+
 #if defined(I486_CPU)
+	SUPERALIGN_TEXT
 1:
 	movl	4(%esp),%edx
 	movl	8(%esp),%ecx
 	xorl	%eax,%eax
 /
 / do 64 byte chunks first
+/
+/ XXX this is probably over-unrolled at least for DX2's
 /
 2:
 	cmpl	$64,%ecx
@@ -239,10 +241,11 @@ ENTRY(bzero)
 	subl	$64,%ecx
 	jnz	2b
 	ret
-	.align	4
+
 /
 / do 16 byte chunks
 /
+	SUPERALIGN_TEXT
 3:
 	cmpl	$16,%ecx
 	jb	4f
@@ -254,42 +257,56 @@ ENTRY(bzero)
 	subl	$16,%ecx
 	jnz	3b
 	ret
-	.align	4
+
 /
 / do 4 byte chunks
 /
-4:	cmpl	$4,%ecx
+	SUPERALIGN_TEXT
+4:
+	cmpl	$4,%ecx
 	jb	5f
 	movl	%eax,(%edx)
 	addl	$4,%edx
 	subl	$4,%ecx
 	jnz	4b
 	ret
+
 /
-/ do 1 byte chunks -- this appears to be faster than a loop
+/ do 1 byte chunks
+/ a jump table seems to be faster than a loop or more range reductions
 /
-	.align	4
-jtab:	.long	do0
+/ XXX need a const section for non-text
+/
+	SUPERALIGN_TEXT
+jtab:
+	.long	do0
 	.long	do1
 	.long	do2
 	.long	do3
 
-	.align	4
-5:	jmp	jtab(,%ecx,4)
+	SUPERALIGN_TEXT
+5:
+	jmp	jtab(,%ecx,4)
 
-	.align	2
-do3:	movb	$0,(%edx)
-	incl	%edx
-	movw	$0,(%edx)
+	SUPERALIGN_TEXT
+do3:
+	movw	%ax,(%edx)
+	movb	%al,2(%edx)
 	ret
-	.align	2
-do2:	movw	$0,(%edx)
-	ret
-	.align	2
-do1:	movb	$0,(%edx)
-do0:	ret
 
-#endif
+	SUPERALIGN_TEXT
+do2:
+	movw	%ax,(%edx)
+	ret
+
+	SUPERALIGN_TEXT
+do1:
+	movb	%al,(%edx)
+
+	SUPERALIGN_TEXT
+do0:
+	ret
+#endif /* I486_CPU */
 
 /* fillw(pat, base, cnt) */
 ENTRY(fillw)
@@ -696,7 +713,7 @@ ENTRY(fubyte)
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
 
-	cmpl	$VM_MAXUSER_ADDRESS-1,%eax
+	cmpl	$VM_MAXUSER_ADDRESS-1,%edx
 	ja	fusufault
 
 	movzbl	(%edx),%eax
@@ -852,7 +869,7 @@ ENTRY(copyoutstr)
 	pushl	%esi
 	pushl	%edi
 	movl	_curpcb,%ecx
-	movl	$cpystrflt,PCB_ONFAULT(%ecx)
+	movl	$cpystrflt,PCB_ONFAULT(%ecx)	/* XXX rename copyoutstr_fault */
 
 	movl	12(%esp),%esi			/* %esi = from */
 	movl	16(%esp),%edi			/* %edi = to */
@@ -954,6 +971,10 @@ ENTRY(copyoutstr)
 
 #endif /* I486_CPU || I586_CPU */
 
+/*
+ * This was split from copyinstr_fault mainly because pushing gs changes the
+ * stack offsets.  It's better to have it separate for mcounting too.
+ */
 cpystrflt:
 	movl	$EFAULT,%eax
 cpystrflt_x:
@@ -988,6 +1009,11 @@ ENTRY(copyinstr)
 	movl	12(%esp),%esi			/* %esi = from */
 	movl	16(%esp),%edi			/* %edi = to */
 	movl	20(%esp),%edx			/* %edx = maxlen */
+	/*
+	 * XXX should avoid touching gs.  Either copy the string in and
+	 * check the bounds later or get its length and check the bounds
+	 * and then use copyin().
+	 */
 	pushl	%gs
 	movl	__udatasel,%eax
 	movl	%ax,%gs
@@ -1011,6 +1037,7 @@ ENTRY(copyinstr)
 	movl	$ENAMETOOLONG,%eax
 	jmp	3f
 
+	ALIGN_TEXT
 copyinstr_fault:
 	movl	$EFAULT,%eax
 3:
