@@ -3,6 +3,7 @@
  * $FreeBSD$
  */
 
+#include "opt_swtch.h"
 
 #include <machine/apic.h>
 #include <machine/smp.h>
@@ -648,7 +649,28 @@ Xrendezvous:
 	POP_FRAME
 	iret
 	
+#ifdef LAZY_SWITCH
+/*
+ * Clean up when we lose out on the lazy context switch optimization.
+ * ie: when we are about to release a PTD but a cpu is still borrowing it.
+ */
+	SUPERALIGN_TEXT
+	.globl	Xlazypmap
+Xlazypmap:
+	PUSH_FRAME
+	movl	$KDSEL, %eax
+	mov	%ax, %ds		/* use KERNEL data segment */
+	mov	%ax, %es
+	movl	$KPSEL, %eax
+	mov	%ax, %fs
+
+	call	pmap_lazyfix_action
 	
+	movl	$0, lapic+LA_EOI	/* End Of Interrupt to APIC */
+	POP_FRAME
+	iret
+#endif
+
 	.data
 
 	.globl	apic_pin_trigger

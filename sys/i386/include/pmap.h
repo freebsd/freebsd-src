@@ -247,7 +247,7 @@ struct pmap {
 	pd_entry_t		*pm_pdir;	/* KVA of page directory */
 	vm_object_t		pm_pteobj;	/* Container for pte's */
 	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
-	int			pm_active;	/* active on cpus */
+	u_int			pm_active;	/* active on cpus */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	LIST_ENTRY(pmap) 	pm_list;	/* List of all pmaps */
 #ifdef PAE
