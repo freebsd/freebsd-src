@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.7 1997/02/22 14:22:07 peter Exp $
+#	$Id$
 
 PROG=	rlogind
 SRCS=	rlogind.c
@@ -8,7 +8,7 @@ DPADD=	${LIBUTIL}
 LDADD=	-lutil
 CFLAGS+= -Wall
 
-.if exists(${DESTDIR}/usr/lib/libkrb.a) && defined(MAKE_KERBEROS4)
+.if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4)
 SRCS+=	encrypt.c
 CFLAGS+=-DKERBEROS -DCRYPT -DHAVE_CONFIG_H \
 	-I${.CURDIR}/../../kerberosIV/include \

@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
+#	$Id$
 
 #	dump.h			header file
 #	itime.c			reads /etc/dumpdates
@@ -22,7 +23,7 @@ BINMODE=2555
 MAN8=	dump.8
 MLINKS+=dump.8 rdump.8
 
-.if exists(${DESTDIR}/usr/lib/libkrb.a) && defined(MAKE_KERBEROS4)
+.if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4)
 .PATH:	${.CURDIR}/../../crypto/kerberosIV/appl/bsd
 SRCS+=	krcmd.c kcmd.c rcmd_util.c
 LDADD+=	-lkrb -ldes

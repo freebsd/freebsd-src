@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
-# $Id: Makefile,v 1.27 1998/03/06 14:02:04 bde Exp $
+# $Id$
 
 PROG=	passwd
 SRCS=	local_passwd.c passwd.c pw_copy.c pw_util.c pw_yp.c \
@@ -55,7 +55,7 @@ MAN1=passwd.1
 LINKS=${BINDIR}/passwd ${BINDIR}/yppasswd
 MLINKS=passwd.1 yppasswd.1
 
-.if exists(${DESTDIR}/usr/lib/libkrb.a) && (defined(MAKE_KERBEROS4))
+.if exists(${DESTDIR}${LIBDIR}/libkrb.a) && (defined(MAKE_KERBEROS4))
 SRCS+=	kpasswd_standalone.c
 .PATH:	${.CURDIR}/../../usr.bin/chpass ${.CURDIR}/../../usr.sbin/vipw \
 	${.CURDIR}/../../usr.bin/rlogin ${.CURDIR}/../../usr.bin/passwd \
