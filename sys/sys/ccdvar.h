@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: ccdvar.h,v 1.3 1995/12/28 00:21:32 asami Exp $ */
 
 /*	$NetBSD: ccdvar.h,v 1.7.2.1 1995/10/12 21:30:18 thorpej Exp $	*/
 
@@ -113,10 +113,11 @@ struct ccd_ioctl {
 /* ccd_flags */
 #define	CCDF_SWAP	0x01	/* interleave should be dmmax */
 #define CCDF_UNIFORM	0x02	/* use LCCD of sizes for uniform interleave */
-#define CCDF_PARITY	0x04	/* use parity */
+#define CCDF_MIRROR	0x04	/* use mirroring */
+#define CCDF_PARITY	0x08	/* use parity (RAID level 5) */
 
 /* Mask of user-settable ccd flags. */
-#define CCDF_USERMASK	(CCDF_SWAP|CCDF_UNIFORM|CCDF_PARITY)
+#define CCDF_USERMASK	(CCDF_SWAP|CCDF_UNIFORM|CCDF_MIRROR|CCDF_PARITY)
 
 /*
  * Component info table.
