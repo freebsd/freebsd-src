@@ -389,15 +389,14 @@ draw:
 			touchwin(save);
 			wrefresh(save);
 		    }
-		    if (status & DITEM_RECREATE) {
-			delwin(menu);
-			delwin(dialog);
-			delwin(save);
-			goto draw;
-		    }
 		    delwin(save);
 		    if (status & DITEM_CONTINUE)
 			continue;
+		    else if (status & DITEM_RECREATE || !(status & DITEM_LEAVE_MENU)) {
+			delwin(menu);
+			delwin(dialog);
+			goto draw;
+		    }
 		}
 		else if (result)
 		    strcpy(result, items[(scroll+choice)*2]);
