@@ -424,18 +424,15 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_SCSI_IO:	/* Execute the requested I/O operation */
 	case XPT_RESET_DEV:	/* Bus Device Reset the specified SCSI device */
 	{
-		struct	   scb *scb;
-		struct	   hardware_scb *hscb;	
-		struct	   ahc_initiator_tinfo *tinfo;
-		struct	   tmode_tstate *tstate;
-		uint16_t  mask;
+		struct	scb *scb;
+		struct	hardware_scb *hscb;	
 
 		/*
 		 * get an scb to use.
 		 */
+		ahc_lock(ahc, &s);
 		if ((scb = ahc_get_scb(ahc)) == NULL) {
 	
-			ahc_lock(ahc, &s);
 			ahc->flags |= AHC_RESOURCE_SHORTAGE;
 			ahc_unlock(ahc, &s);
 			xpt_freeze_simq(sim, /*count*/1);
@@ -443,6 +440,7 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 			xpt_done(ccb);
 			return;
 		}
+		ahc_unlock(ahc, &s);
 		
 		hscb = scb->hscb;
 		
@@ -461,25 +459,6 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 		hscb->control = 0;
 		hscb->scsiid = BUILD_SCSIID(ahc, sim, target_id, our_id);
 		hscb->lun = ccb->ccb_h.target_lun;
-		mask = SCB_GET_TARGET_MASK(ahc, scb);
-		tinfo = ahc_fetch_transinfo(ahc, SIM_CHANNEL(ahc, sim), our_id,
-					    target_id, &tstate);
-
-		hscb->scsirate = tinfo->scsirate;
-		hscb->scsioffset = tinfo->current.offset;
-		if ((tstate->ultraenb & mask) != 0)
-			hscb->control |= ULTRAENB;
-		
-		if ((tstate->discenable & mask) != 0
-		 && (ccb->ccb_h.flags & CAM_DIS_DISCONNECT) == 0)
-			hscb->control |= DISCENB;
-
-		if ((ccb->ccb_h.flags & CAM_NEGOTIATE) != 0
-		 && (tinfo->current.width != 0 || tinfo->current.period != 0)) {
-			scb->flags |= SCB_NEGOTIATE;
-			hscb->control |= MK_MESSAGE;
-		}
-
 		if (ccb->ccb_h.func_code == XPT_RESET_DEV) {
 			hscb->cdb_len = 0;
 			scb->flags |= SCB_DEVICE_RESET;
@@ -954,12 +933,17 @@ ahc_get_tran_settings(struct ahc_softc *ahc, int our_id, char channel,
 	
 	cts->protocol = PROTO_SCSI;
 	cts->transport = XPORT_SPI;
-	scsi->valid = CTS_SCSI_VALID_TQ;
 	spi->valid = CTS_SPI_VALID_SYNC_RATE
 		   | CTS_SPI_VALID_SYNC_OFFSET
 		   | CTS_SPI_VALID_BUS_WIDTH
-		   | CTS_SPI_VALID_DISC
 		   | CTS_SPI_VALID_PPR_OPTIONS;
+
+	if (cts->ccb_h.target_lun != CAM_LUN_WILDCARD) {
+		scsi->valid = CTS_SCSI_VALID_TQ;
+		spi->valid |= CTS_SPI_VALID_DISC;
+	} else {
+		scsi->valid = 0;
+	}
 
 	cts->ccb_h.status = CAM_REQ_CMP;
 #else
@@ -1006,9 +990,10 @@ ahc_get_tran_settings(struct ahc_softc *ahc, int our_id, char channel,
 
 	cts->valid = CCB_TRANS_SYNC_RATE_VALID
 		   | CCB_TRANS_SYNC_OFFSET_VALID
-		   | CCB_TRANS_BUS_WIDTH_VALID
-		   | CCB_TRANS_DISC_VALID
-		   | CCB_TRANS_TQ_VALID;
+		   | CCB_TRANS_BUS_WIDTH_VALID;
+
+	if (cts->ccb_h.target_lun != CAM_LUN_WILDCARD)
+		cts->valid |= CCB_TRANS_DISC_VALID|CCB_TRANS_TQ_VALID;
 
 	cts->ccb_h.status = CAM_REQ_CMP;
 #endif
@@ -1057,10 +1042,13 @@ static void
 ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 		int error)
 {
-	struct	 scb *scb;
-	union	 ccb *ccb;
-	struct	 ahc_softc *ahc;
-	long	 s;
+	struct	scb *scb;
+	union	ccb *ccb;
+	struct	ahc_softc *ahc;
+	struct	ahc_initiator_tinfo *tinfo;
+	struct	tmode_tstate *tstate;
+	u_int	mask;
+	long	s;
 
 	scb = (struct scb *)arg;
 	ccb = scb->io_ctx;
@@ -1181,6 +1169,26 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 		ahc_unlock(ahc, &s);
 		xpt_done(ccb);
 		return;
+	}
+
+	tinfo = ahc_fetch_transinfo(ahc, SCSIID_CHANNEL(ahc, scb->hscb->scsiid),
+				    SCSIID_OUR_ID(scb->hscb->scsiid),
+				    ccb->ccb_h.target_id, &tstate);
+
+	mask = SCB_GET_TARGET_MASK(ahc, scb);
+	scb->hscb->scsirate = tinfo->scsirate;
+	scb->hscb->scsioffset = tinfo->current.offset;
+	if ((tstate->ultraenb & mask) != 0)
+		scb->hscb->control |= ULTRAENB;
+		
+	if ((tstate->discenable & mask) != 0
+	 && (ccb->ccb_h.flags & CAM_DIS_DISCONNECT) == 0)
+		scb->hscb->control |= DISCENB;
+
+	if ((ccb->ccb_h.flags & CAM_NEGOTIATE) != 0
+	 && (tinfo->current.width != 0 || tinfo->current.period != 0)) {
+		scb->flags |= SCB_NEGOTIATE;
+		scb->hscb->control |= MK_MESSAGE;
 	}
 
 	LIST_INSERT_HEAD(&ahc->pending_scbs, scb, pending_links);
@@ -1526,6 +1534,7 @@ bus_reset:
 
 				/* Will clear us from the bus */
 				restart_sequencer(ahc);
+				ahc_unlock(ahc, &s);
 				return;
 			}
 
@@ -1552,6 +1561,7 @@ bus_reset:
 				printf("%s: Hung target selection\n",
 				       ahc_name(ahc));
 				restart_sequencer(ahc);
+				ahc_unlock(ahc, &s);
 				return;
 			}
 
