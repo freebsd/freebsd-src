@@ -19,6 +19,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * @(#) $Header: ethertype.h,v 1.6 96/07/14 18:21:49 leres Exp $ (LBL)
+ * $FreeBSD$
  */
 
 /* Types missing from some systems */
@@ -73,6 +74,12 @@
 #endif
 #ifndef ETHERTYPE_IPX
 #define ETHERTYPE_IPX		0x8137
+#endif
+#ifndef ETHERTYPE_PPPOE_DISC
+#define ETHERTYPE_PPPOE_DISC	0x8863
+#endif
+#ifndef ETHERTYPE_PPPOE_SESS
+#define ETHERTYPE_PPPOE_SESS	0x8864
 #endif
 #ifndef	ETHERTYPE_LOOPBACK
 #define	ETHERTYPE_LOOPBACK	0x9000
