@@ -325,7 +325,6 @@ setmediamode(const char *val, int d, int s, const struct afswtch *afp)
 	free(mwords);
 
 	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
-	ifr.ifr_media = ifmr.ifm_current;
 	ifr.ifr_media = (ifmr.ifm_current & ~IFM_MMASK) | IFM_MAKEMODE(mode);
 
 	if (ioctl(s, SIOCSIFMEDIA, (caddr_t)&ifr) < 0)
@@ -378,6 +377,9 @@ static struct ifmedia_description ifm_subtype_ieee80211_option_descriptions[] =
 struct ifmedia_description ifm_subtype_ieee80211_mode_descriptions[] =
     IFM_SUBTYPE_IEEE80211_MODE_DESCRIPTIONS;
 
+struct ifmedia_description ifm_subtype_ieee80211_mode_aliases[] =
+    IFM_SUBTYPE_IEEE80211_MODE_ALIASES;
+
 static struct ifmedia_description ifm_subtype_atm_descriptions[] =
     IFM_SUBTYPE_ATM_DESCRIPTIONS;
 
@@ -408,7 +410,7 @@ struct ifmedia_type_to_subtype {
 	struct {
 		struct ifmedia_description *desc;
 		int alias;
-	} modes[2];
+	} modes[3];
 };
 
 /* must be in the same order as IFM_TYPE_DESCRIPTIONS */
@@ -479,6 +481,7 @@ static struct ifmedia_type_to_subtype ifmedia_types_to_subtypes[] = {
 		},
 		{
 			{ &ifm_subtype_ieee80211_mode_descriptions[0], 0 },
+			{ &ifm_subtype_ieee80211_mode_aliases[0], 0 },
 			{ NULL, 0 },
 		},
 	},
@@ -701,7 +704,7 @@ print_media_word(int ifmw, int print_toptype)
 
 	if (print_toptype) {
 		desc = get_mode_desc(ifmw, ttos);
-		if (desc != NULL)
+		if (desc != NULL && strcasecmp("autoselect", desc->ifmt_string))
 			printf(" mode %s", desc->ifmt_string);
 	}
 
