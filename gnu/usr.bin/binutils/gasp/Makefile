@@ -6,7 +6,7 @@
 
 PROG=	gasp
 SRCS+=	gasp+%FIXED.c macro.c sb.c hash.c
-WARNS=	2
+WARNS?=	2
 CFLAGS+= -DBFD_ASSEMBLER
 CFLAGS+= -I${.CURDIR}/../as/${TARGET_ARCH}-freebsd -I${.CURDIR}/../as
 CFLAGS+= -I${.CURDIR}

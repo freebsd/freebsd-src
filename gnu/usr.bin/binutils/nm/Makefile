@@ -6,7 +6,7 @@
 
 PROG=	nm
 SRCS=	nm.c
-WARNS=	2
+WARNS?=	2
 CFLAGS+= -I${.CURDIR}/${RELTOP}/libbinutils
 CFLAGS+= -I${SRCDIR}/bfd
 CFLAGS+= -I${SRCDIR}/binutils
