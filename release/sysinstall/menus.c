@@ -1216,8 +1216,10 @@ DMenu MenuMBRType = {
     "drives",
     { { "BootMgr",	"Install the FreeBSD Boot Manager",
 	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr },
+#ifndef PC98
       { "Standard",	"Install a standard MBR (no boot manager)",
 	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 1 },
+#endif
       { "None",		"Leave the Master Boot Record untouched",
 	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 2 },
       { NULL } },

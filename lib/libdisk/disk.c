@@ -377,7 +377,10 @@ Debug_Disk(struct disk *d)
 	printf("  bios_geom=%lu/%lu/%lu = %lu\n",
 		d->bios_cyl,d->bios_hd,d->bios_sect,
 		d->bios_cyl*d->bios_hd*d->bios_sect);
-#if defined(__i386__)
+#if defined(PC98)
+	printf("  boot1=%p, boot2=%p, bootipl=%p, bootmenu=%p\n",
+		d->boot1,d->boot2,d->bootipl,d->bootmenu);
+#elif defined(__i386__)
 	printf("  boot1=%p, boot2=%p, bootmgr=%p\n",
 		d->boot1,d->boot2,d->bootmgr);
 #elif defined(__alpha__)
@@ -392,7 +395,12 @@ Free_Disk(struct disk *d)
 {
 	if(d->chunks) Free_Chunk(d->chunks);
 	if(d->name) free(d->name);
+#ifdef PC98
+	if(d->bootipl) free(d->bootipl);
+	if(d->bootmenu) free(d->bootmenu);
+#else
 	if(d->bootmgr) free(d->bootmgr);
+#endif
 	if(d->boot1) free(d->boot1);
 #if defined(__i386__)
 	if(d->boot2) free(d->boot2);
@@ -410,10 +418,21 @@ Clone_Disk(struct disk *d)
 	*d2 = *d;
 	d2->name = strdup(d2->name);
 	d2->chunks = Clone_Chunk(d2->chunks);
+#ifdef PC98
+	if(d2->bootipl) {
+		d2->bootipl = malloc(d2->bootipl_size);
+		memcpy(d2->bootipl,d->bootipl,d2->bootipl_size);
+	}
+	if(d2->bootmenu) {
+		d2->bootmenu = malloc(d2->bootmenu_size);
+		memcpy(d2->bootmenu,d->bootmenu,d2->bootmenu_size);
+	}
+#else
 	if(d2->bootmgr) {
 		d2->bootmgr = malloc(d2->bootmgr_size);
 		memcpy(d2->bootmgr,d->bootmgr,d2->bootmgr_size);
 	}
+#endif
 #if defined(__i386__)
 	if(d2->boot1) {
 		d2->boot1 = malloc(512);
@@ -482,10 +501,44 @@ Disk_Names()
 	return disks;
 }
 
+#ifdef PC98
+void
+Set_Boot_Mgr(struct disk *d, const u_char *bootipl, const size_t bootipl_size,
+	     const u_char *bootmenu, const size_t bootmenu_size)
+#else
 void
 Set_Boot_Mgr(struct disk *d, const u_char *b, const size_t s)
+#endif
 {
-#ifndef PC98
+#ifdef PC98
+	/* XXX - assumes sector size of 512 */
+	if (bootipl_size % 512 != 0)
+		return;
+	if (d->bootipl)
+		free(d->bootipl);
+	if (!bootipl) {
+		d->bootipl = NULL;
+	} else {
+		d->bootipl_size = bootipl_size;
+		d->bootipl = malloc(bootipl_size);
+		if(!d->bootipl) err(1,"malloc failed");
+		memcpy(d->bootipl,bootipl,bootipl_size);
+	}
+
+	/* XXX - assumes sector size of 512 */
+	if (bootmenu_size % 512 != 0)
+		return;
+	if (d->bootmenu)
+		free(d->bootmenu);
+	if (!bootmenu) {
+		d->bootmenu = NULL;
+	} else {
+		d->bootmenu_size = bootmenu_size;
+		d->bootmenu = malloc(bootmenu_size);
+		if(!d->bootmenu) err(1,"malloc failed");
+		memcpy(d->bootmenu,bootmenu,bootmenu_size);
+	}
+#else
 	/* XXX - assumes sector size of 512 */
 	if (s % 512 != 0)
 		return;
