@@ -90,6 +90,13 @@ procinit()
 	pgrphashtbl = hashinit(maxproc / 4, M_PROC, &pgrphash);
 	proc_zone = zinit("PROC", sizeof (struct proc), 0, 0, 5);
 	uihashinit();
+	/*
+	 * This should really be a compile time warning, but I do
+	 * not know of any way to do that...
+	 */
+	if (sizeof(struct kinfo_proc) != KINFO_PROC_SIZE)
+		printf("WARNING: size of kinfo_proc (%d) should be %d!!!\n",
+			sizeof(struct kinfo_proc), KINFO_PROC_SIZE);
 }
 
 /*
@@ -352,64 +359,118 @@ DB_SHOW_COMMAND(pgrpdump, pgrpdump)
 #endif /* DDB */
 
 /*
- * Fill in an eproc structure for the specified process.
+ * Fill in an kinfo_proc structure for the specified process.
  */
 void
-fill_eproc(p, ep)
-	register struct proc *p;
-	register struct eproc *ep;
+fill_kinfo_proc(p, kp)
+	struct proc *p;
+	struct kinfo_proc *kp;
 {
-	register struct tty *tp;
+	struct tty *tp;
+	struct session *sp;
 
-	bzero(ep, sizeof(*ep));
+	bzero(kp, sizeof(*kp));
 
-	ep->e_paddr = p;
+	kp->ki_structsize = sizeof(*kp);
+	kp->ki_paddr = p;
+	kp->ki_addr = p->p_addr;
+	kp->ki_args = p->p_args;
+	kp->ki_tracep = p->p_tracep;
+	kp->ki_textvp = p->p_textvp;
+	kp->ki_fd = p->p_fd;
+	kp->ki_vmspace = p->p_vmspace;
 	if (p->p_cred) {
-		ep->e_pcred = *p->p_cred;
-		if (p->p_ucred)
-			ep->e_ucred = *p->p_ucred;
+		kp->ki_uid = p->p_cred->pc_ucred->cr_uid;
+		kp->ki_ruid = p->p_cred->p_ruid;
+		kp->ki_svuid = p->p_cred->p_svuid;
+		kp->ki_ngroups = p->p_cred->pc_ucred->cr_ngroups;
+		bcopy(p->p_cred->pc_ucred->cr_groups, kp->ki_groups,
+		    NGROUPS * sizeof(gid_t));
+		kp->ki_rgid = p->p_cred->p_rgid;
+		kp->ki_svgid = p->p_cred->p_svgid;
 	}
 	if (p->p_procsig) {
-		ep->e_procsig = *p->p_procsig;
+		kp->ki_sigignore = p->p_procsig->ps_sigignore;
+		kp->ki_sigcatch = p->p_procsig->ps_sigcatch;
 	}
 	if (p->p_stat != SIDL && p->p_stat != SZOMB && p->p_vmspace != NULL) {
-		register struct vmspace *vm = p->p_vmspace;
-		ep->e_vm = *vm;
-		ep->e_vm.vm_rssize = vmspace_resident_count(vm); /*XXX*/
-	}
-	if ((p->p_flag & P_INMEM) && p->p_stats)
-		ep->e_stats = *p->p_stats;
-	if (p->p_pptr)
-		ep->e_ppid = p->p_pptr->p_pid;
-	if (p->p_pgrp) {
-		ep->e_pgid = p->p_pgrp->pg_id;
-		ep->e_jobc = p->p_pgrp->pg_jobc;
-		ep->e_sess = p->p_pgrp->pg_session;
+		struct vmspace *vm = p->p_vmspace;
 
-		if (ep->e_sess) {
-			bcopy(ep->e_sess->s_login, ep->e_login, sizeof(ep->e_login));
-			if (ep->e_sess->s_ttyvp)
-				ep->e_flag = EPROC_CTTY;
-			if (p->p_session && SESS_LEADER(p))
-				ep->e_flag |= EPROC_SLEADER;
+		kp->ki_size = vm->vm_map.size;
+		kp->ki_rssize = vmspace_resident_count(vm); /*XXX*/
+		kp->ki_swrss = vm->vm_swrss;
+		kp->ki_tsize = vm->vm_tsize;
+		kp->ki_dsize = vm->vm_dsize;
+		kp->ki_ssize = vm->vm_ssize;
+	}
+	if ((p->p_flag & P_INMEM) && p->p_stats) {
+		kp->ki_start = p->p_stats->p_start;
+		kp->ki_rusage = p->p_stats->p_ru;
+		kp->ki_childtime.tv_sec = p->p_stats->p_cru.ru_utime.tv_sec +
+		    p->p_stats->p_cru.ru_stime.tv_sec;
+		kp->ki_childtime.tv_usec = p->p_stats->p_cru.ru_utime.tv_usec +
+		    p->p_stats->p_cru.ru_stime.tv_usec;
+	}
+	kp->ki_rtprio = p->p_rtprio;
+	kp->ki_runtime = p->p_runtime;
+	kp->ki_pid = p->p_pid;
+	if (p->p_pptr)
+		kp->ki_ppid = p->p_pptr->p_pid;
+	sp = NULL;
+	if (p->p_pgrp) {
+		kp->ki_pgid = p->p_pgrp->pg_id;
+		kp->ki_jobc = p->p_pgrp->pg_jobc;
+		sp = p->p_pgrp->pg_session;
+
+		if (sp != NULL) {
+			kp->ki_sid = sp->s_sid;
+			bcopy(sp->s_login, kp->ki_login, sizeof(kp->ki_login));
+			if (sp->s_ttyvp)
+				kp->ki_kiflag = KI_CTTY;
+			if (SESS_LEADER(p))
+				kp->ki_kiflag |= KI_SLEADER;
 		}
 	}
-	if ((p->p_flag & P_CONTROLT) &&
-	    (ep->e_sess != NULL) &&
-	    ((tp = ep->e_sess->s_ttyp) != NULL)) {
-		ep->e_tdev = dev2udev(tp->t_dev);
-		ep->e_tpgid = tp->t_pgrp ? tp->t_pgrp->pg_id : NO_PID;
-		ep->e_tsess = tp->t_session;
+	if ((p->p_flag & P_CONTROLT) && sp && ((tp = sp->s_ttyp) != NULL)) {
+		kp->ki_tdev = dev2udev(tp->t_dev);
+		kp->ki_tpgid = tp->t_pgrp ? tp->t_pgrp->pg_id : NO_PID;
+		if (tp->t_session)
+			kp->ki_tsid = tp->t_session->s_sid;
 	} else
-		ep->e_tdev = NOUDEV;
+		kp->ki_tdev = NOUDEV;
 	if (p->p_wmesg) {
-		strncpy(ep->e_wmesg, p->p_wmesg, WMESGLEN);
-		ep->e_wmesg[WMESGLEN] = 0;
+		strncpy(kp->ki_wmesg, p->p_wmesg, WMESGLEN);
+		kp->ki_wmesg[WMESGLEN] = 0;
 	}
-	if (p->p_mtxname) {
-		strncpy(ep->e_mtxname, p->p_mtxname, MTXNAMELEN);
-		ep->e_mtxname[MTXNAMELEN] = 0;
+	if (p->p_comm[0] != 0) {
+		strncpy(kp->ki_comm, p->p_comm, MAXCOMLEN);
+		kp->ki_comm[MAXCOMLEN] = 0;
 	}
+	if (p->p_blocked != 0) {
+		kp->ki_kiflag |= KI_MTXBLOCK;
+		strncpy(kp->ki_mtxname, p->p_mtxname, MTXNAMELEN);
+		kp->ki_wmesg[MTXNAMELEN] = 0;
+	}
+	kp->ki_siglist = p->p_siglist;
+	kp->ki_sigmask = p->p_sigmask;
+	kp->ki_xstat = p->p_xstat;
+	kp->ki_acflag = p->p_acflag;
+	kp->ki_pctcpu = p->p_pctcpu;
+	kp->ki_estcpu = p->p_estcpu;
+	kp->ki_slptime = p->p_slptime;
+	kp->ki_swtime = p->p_swtime;
+	kp->ki_flag = p->p_flag;
+	kp->ki_wchan = p->p_wchan;
+	kp->ki_traceflag = p->p_traceflag;
+	kp->ki_priority = p->p_priority;
+	kp->ki_usrpri = p->p_usrpri;
+	kp->ki_nativepri = p->p_nativepri;
+	kp->ki_stat = p->p_stat;
+	kp->ki_nice = p->p_nice;
+	kp->ki_lock = p->p_lock;
+	kp->ki_rqindex = p->p_rqindex;
+	kp->ki_oncpu = p->p_oncpu;
+	kp->ki_lastcpu = p->p_lastcpu;
 }
 
 static struct proc *
@@ -427,15 +488,12 @@ zpfind(pid_t pid)
 static int
 sysctl_out_proc(struct proc *p, struct sysctl_req *req, int doingzomb)
 {
-	struct eproc eproc;
+	struct kinfo_proc kinfo_proc;
 	int error;
 	pid_t pid = p->p_pid;
 
-	fill_eproc(p, &eproc);
-	error = SYSCTL_OUT(req,(caddr_t)p, sizeof(struct proc));
-	if (error)
-		return (error);
-	error = SYSCTL_OUT(req,(caddr_t)&eproc, sizeof(eproc));
+	fill_kinfo_proc(p, &kinfo_proc);
+	error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc, sizeof(kinfo_proc));
 	if (error)
 		return (error);
 	if (!doingzomb && pid && (pfind(pid) != p))

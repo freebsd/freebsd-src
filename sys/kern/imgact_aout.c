@@ -254,8 +254,7 @@ aout_coredump(p, vp, limit)
 
 	if (ctob(UPAGES + vm->vm_dsize + vm->vm_ssize) >= limit)
 		return (EFAULT);
-	bcopy(p, &p->p_addr->u_kproc.kp_proc, sizeof(struct proc));
-	fill_eproc(p, &p->p_addr->u_kproc.kp_eproc);
+	fill_kinfo_proc(p, &p->p_addr->u_kproc);
 	error = cpu_coredump(p, vp, cred);
 	if (error == 0)
 		error = vn_rdwr(UIO_WRITE, vp, vm->vm_daddr,
