@@ -1434,10 +1434,9 @@ static void nge_tick(xsc)
 				    sc->nge_unit);
 			if (ifp->if_snd.ifq_head != NULL)
 				nge_start(ifp);
-		} else
-			sc->nge_stat_ch = timeout(nge_tick, sc, hz);
+		}
 	}
-
+	sc->nge_stat_ch = timeout(nge_tick, sc, hz);
 
 	splx(s);
 
@@ -1493,10 +1492,17 @@ static void nge_intr(arg)
 			nge_init(sc);
 		}
 
+#if 0
+		/* 
+		 * XXX: nge_tick() is not ready to be called this way
+		 * it screws up the aneg timeout because mii_tick() is
+		 * only to be called once per second.
+		 */
 		if (status & NGE_IMR_PHY_INTR) {
 			sc->nge_link = 0;
 			nge_tick(sc);
 		}
+#endif
 	}
 
 	/* Re-enable interrupts. */
@@ -1763,6 +1769,8 @@ static void nge_init(xsc)
 		    (NGE_TXCFG_IGN_HBEAT|NGE_TXCFG_IGN_CARR));
 		NGE_CLRBIT(sc, NGE_RX_CFG, NGE_RXCFG_RX_FDX);
 	}
+
+	nge_tick(sc);
 
 	/*
 	 * Enable the delivery of PHY interrupts based on
