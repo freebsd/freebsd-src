@@ -141,13 +141,6 @@ STATIC_MODULES	 = ${MODULES:C/.*/${MODULE_DIR}\/&\/lib&.a/}
 STATICOBJS	+= openpam_static_modules.o
 CLEANFILES	+= openpam_static.o
 
-# We want to add to _EXTRADEPEND actions, not to override them.
-_EXTRADEPEND: _EXTRADEPEND_openpam_static.c
-_EXTRADEPEND_openpam_static.c: openpam_static.c
-	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
-	    ${CFLAGS:M-nostdinc*} ${CFLAGS:M-[BID]*} \
-	    ${.ALLSRC}
-
 CLEANFILES+=	openpam_static_modules.o
 
 openpam_static_modules.o: openpam_static.o ${STATIC_MODULES}
@@ -172,3 +165,6 @@ beforeinstall:
 .PATH: ${OPENPAM}/include
 .PATH: ${OPENPAM}/lib
 .PATH: ${OPENPAM}/doc/man
+
+# Can't put openpam_static.c in SRCS but want it in .depend.
+${DEPENDFILE}: openpam_static.c
