@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.6 1998/09/18 02:03:30 msmith Exp $
+ *	$Id: main.c,v 1.7 1998/09/26 01:31:10 msmith Exp $
  */
 
 /*
@@ -87,7 +87,7 @@ main(void)
      * If the previous boot stage has requested a serial console, prefer that.
      */
     if (kargs->howto & RB_SERIAL)
-	setenv("console", "com", 1);
+	setenv("console", "comconsole", 1);
     cons_probe();
 
     /*
