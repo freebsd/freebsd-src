@@ -560,13 +560,19 @@ placed in a single set of brackets.
 }
 .Ed
 .Pp
+Note that the manual page options description should list the options in
+pure alphabetical order.
+That is, with out reguard to whether an option takes arguments or not.
+The alphabetical ordering should take into account the case ordering
+shown above.
+.Pp
 New core kernel code should be reasonably compliant with the style guides.
 The guidelines for third-party maintained modules and device drivers are more
 relaxed but at a minimum should be internally consistent with their style.
 .Pp
 Stylistic changes (including whitespace changes) are hard on the source
 repository and are to be avoided without good reason.  Code that is
-approximately
+approximately FreeBSD KNF
 .Xr style 9
 compliant in the repository must not diverge from compliance.
 .Pp
