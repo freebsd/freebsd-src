@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.61 1995/01/01 03:54:34 davidg Exp $
+ * $Id: if_ed.c,v 1.62 1995/01/01 06:38:14 davidg Exp $
  */
 
 #include "ed.h"
@@ -1550,6 +1550,8 @@ outloop:
 		}
 	} else {
 		len = ed_pio_write_mbufs(sc, m, buffer);
+		if (len == 0)
+			goto outloop;
 	}
 
 	sc->txb_len[sc->txb_new] = max(len, ETHER_MIN_LEN);
@@ -2234,15 +2236,15 @@ ed_pio_write_mbufs(sc, m, dst)
 	struct mbuf *m;
 	unsigned short dst;
 {
-	unsigned short len, dma_len;
+	unsigned short total_len, dma_len;
 	struct mbuf *mp;
 	int     maxwait = 100;	/* about 120us */
 
 	/* First, count up the total number of bytes to copy */
-	for (len = 0, mp = m; mp; mp = mp->m_next)
-		len += mp->m_len;
+	for (total_len = 0, mp = m; mp; mp = mp->m_next)
+		total_len += mp->m_len;
 
-	dma_len = len;
+	dma_len = total_len;
 	if (sc->isa16bit && (dma_len & 1))
 		dma_len++;
 
@@ -2287,14 +2289,13 @@ ed_pio_write_mbufs(sc, m, dst)
 		wantbyte = 0;
 
 		while (m) {
-			data = mtod(m, caddr_t);
 			len = m->m_len;
 			if (len) {
+				data = mtod(m, caddr_t);
 				/* finish the last word */
 				if (wantbyte) {
 					savebyte[1] = *data;
-					outw(sc->asic_addr + ED_NOVELL_DATA,
-					     *((unsigned short *) savebyte));
+					outw(sc->asic_addr + ED_NOVELL_DATA, *(u_short *)savebyte);
 					data++;
 					len--;
 					wantbyte = 0;
@@ -2315,9 +2316,9 @@ ed_pio_write_mbufs(sc, m, dst)
 			m = m->m_next;
 		}
 		/* spit last byte */
-		if (wantbyte)
-		  outw(sc->asic_addr + ED_NOVELL_DATA,
-		       *((unsigned short *) savebyte));
+		if (wantbyte) {
+			outw(sc->asic_addr + ED_NOVELL_DATA, *(u_short *)savebyte);
+		}
 	}
 
 	/*
@@ -2333,8 +2334,9 @@ ed_pio_write_mbufs(sc, m, dst)
 		log(LOG_WARNING, "ed%d: remote transmit DMA failed to complete\n",
 		    sc->arpcom.ac_if.if_unit);
 		ed_reset(sc->arpcom.ac_if.if_unit);
+		return(0);
 	}
-	return (len);
+	return (total_len);
 }
 
 /*
