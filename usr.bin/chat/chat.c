@@ -655,7 +655,8 @@ int sending;  /* set to 1 when sending (putting) this string. */
 #define isoctal(chr) (((chr) >= '0') && ((chr) <= '7'))
 
     s1 = temp;
-    while (*s) {
+    /* Don't overflow buffer, leave room for chars we append later */
+    while (*s && s1 - temp < sizeof(temp) - 2 - add_return) {
 	cur_chr = *s++;
 	if (cur_chr == '^') {
 	    cur_chr = *s++;
@@ -1275,18 +1276,19 @@ register char *string;
     char *logged = temp;
 
     fail_reason = (char *)0;
+
+    if (strlen(string) > STR_LEN) {
+	logf("expect string is too long");
+	exit_code = 1;
+	return 0;
+    }
+
     string = clean(string, 0);
     len = strlen(string);
     minlen = (len > sizeof(fail_buffer)? len: sizeof(fail_buffer)) - 1;
 
     if (verbose)
 	logf("expect (%v)", string);
-
-    if (len > STR_LEN) {
-	logf("expect string is too long");
-	exit_code = 1;
-	return 0;
-    }
 
     if (len == 0) {
 	if (verbose)
