@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.27 1999/06/28 09:38:09 peter Exp $
+ *	$Id: pmap.c,v 1.28 1999/07/21 18:01:26 alc Exp $
  */
 
 /*
@@ -2306,7 +2306,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 	vm_page_t p, mpte;
 	int objpgs;
 
-	if (!pmap)
+	if (pmap == NULL || object == NULL)
 		return;
 
 	psize = alpha_btop(size);
