@@ -298,26 +298,9 @@ reread_mbr:
 	 */
 	secpercyl = (u_long)max_nsectors * max_ntracks;
 	if (secpercyl != 0) {
-#if 0
-		u_long	secperunit;
-#endif
-
 		lp->d_nsectors = max_nsectors;
 		lp->d_ntracks = max_ntracks;
 		lp->d_secpercyl = secpercyl;
-		/*
-		 * Temporarily, don't even consider adjusting the drive's
-		 * size, since the adjusted size may exceed the hardware's
-		 * addressing capabilities.  The adjustment helped mainly
-		 * for ancient MFM drives with > 1024 cylinders, but now
-		 * breaks at least IDE drives with 63*16*65536 sectors if
-		 * they are controlled by the wd driver in CHS mode.
-		 */
-#if 0
-		secperunit = secpercyl * max_ncyls;
-		if (lp->d_secperunit < secperunit)
-			lp->d_secperunit = secperunit;
-#endif
 		lp->d_ncylinders = lp->d_secperunit / secpercyl;
 	}
 

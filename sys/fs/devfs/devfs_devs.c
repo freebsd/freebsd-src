@@ -339,7 +339,7 @@ devfs_populate(struct devfs_mount *dm)
 				de->de_gid = 0;
 				de->de_mode = 0666;
 				de->de_dirent->d_type = DT_LNK;
-				pdev = dev->si_drv1;
+				pdev = dev->si_parent;
 				j = strlen(pdev->si_name) + 1;
 				MALLOC(de->de_symlink, char *, j, M_DEVFS, M_WAITOK);
 				bcopy(pdev->si_name, de->de_symlink, j);
