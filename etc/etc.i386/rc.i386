@@ -44,6 +44,11 @@ if [ "X${keyrate}" != X"NO" ]; then
 	echo -n ' keyrate';	kbdcontrol <${kbddev} -r ${keyrate}
 fi
 
+# bell style
+if [ "X${keybell}" != X"NO" ]; then
+        echo -n ' keybell';     kbdcontrol <${kbddev} -b ${keybell}
+fi
+
 # change function keys
 if [ "X${keychange}" != X"NO" ]; then
 	echo -n " keychange"
