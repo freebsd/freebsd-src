@@ -92,8 +92,11 @@
 #endif
 
 u_long softintrcnt [NSWI];
+static u_int straycount[NHWI];
 
 SYSINIT(start_softintr, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softintr, NULL)
+
+#define	MAX_STRAY_LOG	5
 
 /*
  * Schedule a heavyweight interrupt process.  This function is called
@@ -115,6 +118,24 @@ sched_ithd(void *cookie)
 	if (irq < NHWI)			/* real interrupt, */
 		atomic_add_long(intr_countp[irq], 1); /* one more for this IRQ */
 	atomic_add_int(&cnt.v_intr, 1); /* one more global interrupt */
+		
+	/*
+	 * If we don't have an interrupt resource or an interrupt thread for
+	 * this IRQ, log it as a stray interrupt.
+	 */
+	if (ir == NULL || ir->it_proc == NULL) {
+		if (irq < NHWI) {
+			if (straycount[irq] < MAX_STRAY_LOG) {
+				printf("stray irq %d\n", irq);
+				if (++straycount[irq] == MAX_STRAY_LOG)
+					printf("got %d stray irq %d's: "
+					  "not logging anymore\n",
+					  MAX_STRAY_LOG, irq);
+			}
+			return;
+		}
+		panic("sched_ithd: ithds[%d] == NULL", irq);
+	}
 
 	CTR3(KTR_INTR, "sched_ithd pid %d(%s) need=%d",
 		ir->it_proc->p_pid, ir->it_proc->p_comm, ir->it_need);
