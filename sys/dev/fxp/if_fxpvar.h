@@ -146,6 +146,8 @@ struct fxp_softc {
 	u_int8_t saved_intline;
 	u_int8_t saved_cachelnsz;
 	u_int8_t saved_lattimer;
+	u_int8_t rfa_size;
+        u_int32_t tx_cmd;
 };
 
 #define FXP_FLAG_MWI_ENABLE	0x0001	/* MWI enable */
@@ -158,6 +160,7 @@ struct fxp_softc {
 #define FXP_FLAG_CU_RESUME_BUG	0x0080	/* requires workaround for CU_RESUME */
 #define FXP_FLAG_UCODE		0x0100	/* ucode is loaded */
 #define FXP_FLAG_DEFERRED_RNR	0x0200	/* DEVICE_POLLING deferred RNR */
+#define FXP_FLAG_EXT_RFA	0x0400	/* extended RFDs for csum offload */
 
 /* Macros to ease CSR access. */
 #define	CSR_READ_1(sc, reg)						\
