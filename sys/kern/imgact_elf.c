@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.28 1998/07/15 05:00:26 bde Exp $
+ *	$Id: imgact_elf.c,v 1.29 1998/07/29 18:39:35 dfr Exp $
  */
 
 #include "opt_rlimit.h"
@@ -101,7 +101,8 @@ static struct sysentvec elf_freebsd_sysvec = {
         sigcode,
         &szsigcode,
         0,
-	"FreeBSD ELF"
+	"FreeBSD ELF",
+	elf_coredump
 };
 
 static Elf_Brandinfo freebsd_brand_info = {
@@ -636,6 +637,14 @@ exec_elf_imgact(struct image_params *imgp)
 	
 fail:
 	return error;
+}
+
+int
+elf_coredump (p)
+	register struct proc *p;
+{
+	/* Not implemented yet. */
+	return EFAULT;
 }
 
 static int
