@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.39 1997/03/13 14:53:55 brian Exp $
+ * $Id: main.c,v 1.40 1997/03/13 21:22:07 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -363,7 +363,7 @@ char **argv;
   signal(SIGSEGV, Hangup);
 #endif
 #ifdef SIGPIPE
-  signal(SIGPIPE, Hangup);
+  signal(SIGPIPE, SIG_IGN);
 #endif
 #ifdef SIGALRM
   pending_signal(SIGALRM, SIG_IGN);
@@ -562,10 +562,11 @@ ReadTty()
     if (n > 0) {
       DecodeCommand(linebuff, n, 1);
     } else {
-#ifdef DEBUG
-      logprintf("connection closed.\n");
-#endif
+      LogPrintf(LOG_PHASE_BIT, "client connection closed.\n");
+      VarLocalAuth = LOCAL_NO_AUTH;
       close(netfd);
+      close(1);
+      dup2(2, 1);     /* Have to have something here or the modem will be 1 */
       netfd = -1;
       mode &= ~MODE_INTER;
     }
@@ -867,18 +868,24 @@ DoLoop()
     }
 
     if (server >= 0 && FD_ISSET(server, &rfds)) {
-#ifdef DEBUG
-      logprintf("connected to client.\n");
-#endif
+      LogPrintf(LOG_PHASE_BIT, "connected to client.\n");
       wfd = accept(server, (struct sockaddr *)&hisaddr, &ssize);
+      if (wfd < 0) {
+	perror("accept");
+	continue;
+      }
       if (netfd >= 0) {
 	write(wfd, "already in use.\n", 16);
 	close(wfd);
 	continue;
       } else
 	netfd = wfd;
-      if (dup2(netfd, 1) < 0)
+      if (dup2(netfd, 1) < 0) {
 	perror("dup2");
+	close(netfd);
+	netfd = -1;
+	continue;
+      }
       mode |= MODE_INTER;
       Greetings();
       switch ( LocalAuthInit() ) {
