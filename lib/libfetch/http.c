@@ -99,6 +99,7 @@ extern char *__progname; /* XXX not portable */
                             || (xyz) == HTTP_MOVED_TEMP \
                             || (xyz) == HTTP_SEE_OTHER)
 
+#define HTTP_ERROR(xyz) ((xyz) > 400 && (xyz) < 599)
 
 
 /*****************************************************************************
@@ -675,6 +676,42 @@ _http_get_proxy(void)
     return NULL;
 }
 
+static void
+_http_print_html(FILE *out, FILE *in)
+{
+    size_t len;
+    char *line, *p, *q;
+    int comment, tag;
+
+    comment = tag = 0;
+    while ((line = fgetln(in, &len)) != NULL) {
+	while (len && isspace(line[len - 1]))
+	    --len;
+	for (p = q = line; q < line + len; ++q) {
+	    if (comment && *q == '-') {
+		if (q + 2 < line + len && strcmp(q, "-->") == 0) {
+		    tag = comment = 0;
+		    q += 2;
+		}
+	    } if (tag && !comment && *q == '>') {
+		p = q + 1;
+		tag = 0;
+	    } else if (!tag && *q == '<') {
+		if (q > p)
+		    fwrite(p, q - p, 1, out);
+		tag = 1;
+		if (q + 3 < line + len && strcmp(q, "<!--") == 0) {
+		    comment = 1;
+		    q += 3;
+		}
+	    }
+	}
+	if (!tag && q > p)
+	    fwrite(p, q - p, 1, out);
+	fputc('\n', out);
+    }
+}
+
 
 /*****************************************************************************
  * Core
@@ -842,7 +879,9 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 	    goto ouch;
 	default:
 	    _http_seterr(code);
-	    goto ouch;
+	    if (!verbose)
+		goto ouch;
+	    /* fall through so we can get the full error message */
 	}
 	
 	/* get headers */
@@ -905,8 +944,8 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 	    }
 	} while (h > hdr_end);
 
-	/* we have a hit */
-	if (code == HTTP_OK || code == HTTP_PARTIAL)
+	/* we have a hit or an error */
+	if (code == HTTP_OK || code == HTTP_PARTIAL || HTTP_ERROR(code))
 	    break;
 
 	/* we need to provide authentication */
@@ -983,6 +1022,12 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 	fetchFreeURL(url);
     if (purl)
 	fetchFreeURL(purl);
+
+    if (HTTP_ERROR(code)) {
+	_http_print_html(stderr, f);
+	fclose(f);
+	f = NULL;
+    }
     
     return f;
 
