@@ -88,6 +88,7 @@ SUBDIR=	accf_data \
 	nmdm \
 	ntfs \
 	nullfs \
+	patm \
 	pcn \
 	plip \
 	portalfs \

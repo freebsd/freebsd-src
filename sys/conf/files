@@ -539,6 +539,13 @@ dev/musycc/musycc.c	optional musycc
 dev/nge/if_nge.c	optional nge
 dev/null/null.c		standard
 dev/nmdm/nmdm.c		optional nmdm
+dev/patm/if_patm.c	optional patm pci
+dev/patm/if_patm_intr.c	optional patm pci
+dev/patm/if_patm_ioctl.c	optional patm pci
+dev/patm/if_patm_rx.c	optional patm pci
+dev/patm/if_patm_tx.c	optional patm pci
+dev/patm/if_patm_attach.c	optional patm pci
+dev/patm/if_patm_rtables.c	optional patm pci
 dev/pccard/card_if.m	standard
 dev/pccard/pccard.c	optional pccard
 dev/pccard/pccard_cis.c	optional pccard
