@@ -118,6 +118,6 @@ dupit:	(void)lseek(fd, (off_t)0, SEEK_END);
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: nohup command\n");
+	(void)fprintf(stderr, "usage: nohup command [arguments]\n");
 	exit(1);
 }
