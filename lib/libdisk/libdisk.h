@@ -69,21 +69,6 @@ struct chunk {
 	chunk_e		type;
 	int		subtype;
 	u_long		flags;
-#		define CHUNK_BSD_COMPAT	2
-		/* this chunk is in the BSD-compatibility, and has a
-		 * short name too, ie wd0s4f -> wd0f
-		*/
-#		define CHUNK_ALIGN		8
-		/* This chunk should be aligned */
-#		define CHUNK_IS_ROOT		16
-		/* This 'part' is a rootfs, allocate 'a' */
-#		define CHUNK_ACTIVE		32
-		/* This is the active slice in the MBR */
-#		define CHUNK_FORCE_ALL		64
-		/* Force a dedicated disk for FreeBSD, bypassing
-		 * all BIOS geometry considerations
-		 */
-
 	void		(*private_free)(void*);
 	void		*(*private_clone)(void*);
 	void		*private_data;
@@ -93,6 +78,34 @@ struct chunk {
 	 * and freeing will just forget it.
 	 */
 };
+
+/*
+ * flags:
+ *
+ * BSD_COMPAT	-	This chunk is in the BSD-compatibility, and has
+ *			a short name too, ie wd0s4f -> wd0f
+ * ALIGN	-	This chunk should be aligned
+ * IS_ROOT	-	This 'part' is a rootfs, allocate 'a'
+ * ACTIVE	-	This is the active slice in the MBR
+ * FORCE_ALL	-	Force a dedicated disk for FreeBSD, bypassing
+ *			all BIOS geometry considerations
+ * AUTO_SIZE	-	This chunk was auto-sized and can fill-out a
+ *			following chunk if the following chunk is deleted.
+ * NEWFS	-	newfs pending, used to enable auto-resizing on
+ *			delete (along with AUTO_SIZE).
+ */
+
+#define CHUNK_BSD_COMPAT	0x0002
+#define CHUNK_ALIGN		0x0008
+#define CHUNK_IS_ROOT		0x0010
+#define CHUNK_ACTIVE		0x0020
+#define CHUNK_FORCE_ALL		0x0040	
+#define CHUNK_AUTO_SIZE		0x0080
+#define CHUNK_NEWFS		0x0100
+
+#define DELCHUNK_NORMAL		0x0000
+#define DELCHUNK_RECOVER	0x0001
+
 
 extern const char *chunk_n[];
 
@@ -129,6 +142,12 @@ Set_Bios_Geom(struct disk *disk, u_long cyl, u_long heads, u_long sects);
 void
 Sanitize_Bios_Geom(struct disk *disk);
 /* Set the bios geometry to something sane
+ */
+
+int
+Delete_Chunk2(struct disk *disk, struct chunk *, int flags);
+/* Free a chunk of disk_space modified by the passed
+ * flags.
  */
 
 int
