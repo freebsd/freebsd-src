@@ -97,7 +97,7 @@ device		ispfw		# Firmware module for Qlogic host adapters
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
 
 # SCSI peripherals
-device		scbus		# SCSI bus (required)
+device		scbus		# SCSI bus (required for SCSI)
 device		ch		# SCSI media changers
 device		da		# Direct Access (disks)
 device		sa		# Sequential Access (tape etc)
