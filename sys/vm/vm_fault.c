@@ -938,12 +938,9 @@ vm_fault_user_wire(map, start, end)
 	vm_map_t map;
 	vm_offset_t start, end;
 {
-
 	vm_offset_t va;
 	pmap_t pmap;
 	int rv;
-
-	GIANT_REQUIRED;
 
 	pmap = vm_map_pmap(map);
 
@@ -996,14 +993,13 @@ vm_fault_unwire(map, start, end)
 			vm_page_unwire(PHYS_TO_VM_PAGE(pa), 1);
 		}
 	}
+	mtx_unlock(&Giant);
 
 	/*
 	 * Inform the physical mapping system that the range of addresses may
 	 * fault, so that page tables and such may be unwired themselves.
 	 */
 	pmap_pageable(pmap, start, end, TRUE);
-
-	mtx_unlock(&Giant);
 }
 
 /*
