@@ -186,6 +186,11 @@ intpr(interval, ifnetaddr)
 				    ipx_phost((struct sockaddr *)sipx));
 				}
 				break;
+
+			case AF_APPLETALK:
+				printf("atalk:%-7.7s ",atalk_print(sa,1) );
+				printf("%-15.15s ",atalk_print(sa,3) );
+				break;
 #ifdef NS
 			case AF_NS:
 				{
