@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2000,2001 Søren Schmidt
+.\" Copyright (c) 2000,2001 Søren Schmidt <sos@freebsd.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -37,11 +37,13 @@
 .Nm
 .Op Fl f Ar device
 .Op Fl s Ar speed
+.Op Fl d
 .Op Fl e
 .Op Fl l
 .Op Fl m
 .Op Fl p
 .Op Fl q
+.Op Fl v
 .Op Fl t
 .Op Ar command
 .Op Ar command Ar
@@ -58,6 +60,8 @@ set the device to use for the burning process.
 .It Fl s Ar speed
 set the speed of the burner device.
 Defaults to 1.
+.It Fl d
+burn the CDR/RW in DAO (disk at once) mode.
 .It Fl e
 eject the media when done.
 .It Fl l
@@ -66,10 +70,12 @@ read a list of image files from filename.
 close disk in multisession mode (otherwise disk is closed as singlesession).
 .It Fl p
 use preemphasis on audio tracks.
-.It Fl q
-quiet, do not print progress messages.
 .It Fl t
 test write, do not actually write on the media.
+.It Fl q
+quiet, do not print progress messages.
+.It Fl v
+verbose, print extra progress messages.
 .El
 .Pp
 .Ar command
@@ -98,7 +104,9 @@ The driver defaults to creating singlesession media (see
 option).
 Should be the last command to
 .Nm
-as the program exits when this has been done.
+as the program exits when this has been done. Ignored in DAO mode (see
+.Fl d
+option).
 .It Cm raw | audio
 Set the write mode to produce audio (raw mode) tracks for the following
 images on the command line.
@@ -134,6 +142,11 @@ The typical usage for burning a data CD-R:
 The typical usage for burning an audio CD-R:
 .Bd -literal
 # burncd -f /dev/acd0c audio file1 file2 file3 fixate
+.Ed
+.Pp
+The typical usage for burning an audio CD-R in DAO mode:
+.Bd -literal
+# burncd -f /dev/acd0c -d audio file1 file2 file3
 .Ed
 .Pp
 The typical usage for burning a mixed mode CD-R:
