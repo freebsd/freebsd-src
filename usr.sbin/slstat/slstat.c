@@ -21,10 +21,8 @@
  *	- Initial distribution.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/socket.h>

@@ -23,10 +23,8 @@
  * specified number of backup files around.
  */
 
-#ifndef lint
-static const char rcsid[] =
-"$FreeBSD$";
-#endif	/* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #define OSF
 #ifndef COMPRESS_POSTFIX

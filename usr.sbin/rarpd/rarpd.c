@@ -19,16 +19,15 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#if 0
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1990, 1991, 1992, 1993, 1996\n\
 The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
-
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * rarpd - Reverse ARP Daemon
