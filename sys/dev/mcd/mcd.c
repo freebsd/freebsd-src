@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.33 1994/12/21 15:12:41 ache Exp $
+ *	$Id: mcd.c,v 1.34 1994/12/21 15:17:59 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -626,10 +626,9 @@ twiddle_thumbs(int port, int unit, int count, char *whine)
 	int i;
 
 	for (i = 0; i < count; i++) {
-		if (!(inb(port+MCD_FLAGS) & MCD_ST_BUSY)) {
+		if (!(inb(port+MCD_FLAGS) & MFL_STATUS_NOT_AVAIL))
 			return 1;
 		}
-	}
 	printf("mcd%d: timeout %s\n", unit, whine);
 	return 0;
 }
@@ -677,12 +676,9 @@ mcd_probe(struct isa_device *dev)
 	}
 	if (stbytes[1] == stbytes[2])
 		return 0;
-	printf("mcd%d: version information is %c %x\n", unit,
-		stbytes[1], stbytes[2]);
-	if (stbytes[2] >= 4) {
+	if (stbytes[2] >= 4 || stbytes[1] != 'M') {
 		outb(port+MCD_CTRL, M_PICKLE);
 		mcd_data[unit].flags |= MCDNEWMODEL;
-		printf("mcd%d: Adjusted for newer drive model\n", unit);
 	}
 	switch (stbytes[1]) {
 	case 'M':
@@ -707,7 +703,9 @@ mcd_probe(struct isa_device *dev)
 		mcd_data[unit].name = "Mitsumi ???";
 		break;
 	}
-	printf("mcd%d: type %s\n", unit, mcd_data[unit].name);
+	printf("mcd%d: type %s, version info: %c %x\n", unit, mcd_data[unit].name,
+		stbytes[1], stbytes[2]);
+
 	return 4;
 }
 
@@ -717,9 +715,9 @@ mcd_waitrdy(int port,int dly)
 {
 	int i;
 
-	/* wait until xfer port senses data ready */
+	/* wait until flag port senses status ready */
 	for (i=0; i<dly; i+=MIN_DELAY) {
-		if ((inb(port+mcd_xfer) & MCD_ST_BUSY)==0)
+		if (!(inb(port+MCD_FLAGS) & MFL_STATUS_NOT_AVAIL))
 			return 0;
 		DELAY(MIN_DELAY);
 	}
@@ -927,7 +925,7 @@ loop:
 	case MCD_S_WAITSTAT:
 		untimeout((timeout_func_t)mcd_doread,(caddr_t)MCD_S_WAITSTAT);
 		if (mbx->count-- >= 0) {
-			if (inb(port+mcd_xfer) & MCD_ST_BUSY) {
+			if (inb(port+MCD_FLAGS) & MFL_STATUS_NOT_AVAIL) {
 				timeout((timeout_func_t)mcd_doread,
 				    (caddr_t)MCD_S_WAITSTAT,hz/100); /* XXX */
 				return;
@@ -976,7 +974,7 @@ loop:
 			printf("mcd%d: timeout set mode\n",unit);
 			goto readerr;
 		}
-		if (inb(port+mcd_xfer) & MCD_ST_BUSY) {
+		if (inb(port+MCD_FLAGS) & MFL_STATUS_NOT_AVAIL) {
 			timeout((timeout_func_t)mcd_doread,(caddr_t)MCD_S_WAITMODE,hz/100);
 			return;
 		}
@@ -1014,8 +1012,8 @@ nextblock:
 
 		/* Spin briefly (<= 2ms) to avoid missing next block */
 		for (i = 0; i < 20; i++) {
-			k = inb(port+mcd_xfer);
-			if (!(k & 2))
+			k = inb(port+MCD_FLAGS);
+			if (!(k & MFL_DATA_NOT_AVAIL))
 				goto got_it;
 			DELAY(100);
 		}
@@ -1027,8 +1025,8 @@ nextblock:
 	case MCD_S_WAITREAD:
 		untimeout((timeout_func_t)mcd_doread,(caddr_t)MCD_S_WAITREAD);
 		if (mbx->count-- > 0) {
-			k = inb(port+mcd_xfer);
-			if (!(k & 2)) { /* XXX */
+			k = inb(port+MCD_FLAGS);
+			if (!(k & MFL_DATA_NOT_AVAIL)) { /* XXX */
 				MCD_TRACE("got data delay=%d\n",
 					RDELAY_WAITREAD-mbx->count,0,0,0);
 			got_it:
@@ -1040,9 +1038,9 @@ nextblock:
 					*addr++ = inb(data_port);
 				outb(port+mcd_ctl2,0x0c);	/* XXX */
 
-				k = inb(port+mcd_xfer);
+				k = inb(port+MCD_FLAGS);
 				/* If we still have some junk, read it too */
-				if (!(k & 2)) {
+				if (!(k & MFL_DATA_NOT_AVAIL)) {
 					outb(port+mcd_ctl2,0x04);       /* XXX */
 					(void)inb(data_port);
 					(void)inb(data_port);
@@ -1062,7 +1060,7 @@ nextblock:
 				mcd_start(mbx->unit);
 				return;
 			}
-			if (!(k & MCD_ST_BUSY)) {
+			if (!(k & MFL_STATUS_NOT_AVAIL)) {
 				cd->status = inb(port+mcd_status) & 0xFF;
 				if (mcd_setflags(unit,cd) < 0)
 					goto changed;
