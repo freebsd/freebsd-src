@@ -56,52 +56,46 @@ struct npcblist natm_pcbs;
 /*
  * npcb_alloc: allocate a npcb [in the free state]
  */
-
-struct natmpcb *npcb_alloc(wait)
-
-int wait;
+struct natmpcb *
+npcb_alloc(int wait)
 
 {
-  struct natmpcb *npcb;
+	struct natmpcb *npcb;
 
-  MALLOC(npcb, struct natmpcb *, sizeof(*npcb), M_PCB, wait | M_ZERO);
+	npcb = malloc(sizeof(*npcb), M_PCB, wait | M_ZERO);
 
 #ifdef DIAGNOSTIC
-  if (wait == M_WAITOK && npcb == NULL) panic("npcb_alloc: malloc didn't wait");
+	if (wait == M_WAITOK && npcb == NULL)
+		panic("npcb_alloc: malloc didn't wait");
 #endif
 
-  if (npcb)
-    npcb->npcb_flags = NPCB_FREE;
-
-  return(npcb);
+	if (npcb != NULL)
+		npcb->npcb_flags = NPCB_FREE;
+	return (npcb);
 }
 
 
 /*
  * npcb_free: free a npcb
  */
-
-void npcb_free(npcb, op)
-
-struct natmpcb *npcb;
-int op;
-
+void
+npcb_free(struct natmpcb *npcb, int op)
 {
-  int s = splimp();
+	int s = splimp();
 
-  if ((npcb->npcb_flags & NPCB_FREE) == 0) {
-    LIST_REMOVE(npcb, pcblist);
-    npcb->npcb_flags = NPCB_FREE;
-  }
-  if (op == NPCB_DESTROY) {
-    if (npcb->npcb_inq) {
-      npcb->npcb_flags = NPCB_DRAIN;	/* flag for distruction */
-    } else {
-      FREE(npcb, M_PCB);		/* kill it! */
-    }
-  }
+	if ((npcb->npcb_flags & NPCB_FREE) == 0) {
+		LIST_REMOVE(npcb, pcblist);
+		npcb->npcb_flags = NPCB_FREE;
+	}
+	if (op == NPCB_DESTROY) {
+		if (npcb->npcb_inq) {
+			npcb->npcb_flags = NPCB_DRAIN;	/* flag for distruct. */
+		} else {
+			FREE(npcb, M_PCB);		/* kill it! */
+		}
+	}
 
-  splx(s);
+	splx(s);
 }
 
 
@@ -109,84 +103,69 @@ int op;
  * npcb_add: add or remove npcb from main list
  *   returns npcb if ok
  */
-
-struct natmpcb *npcb_add(npcb, ifp, vci, vpi)
-
-struct natmpcb *npcb;
-struct ifnet *ifp;
-u_int16_t vci;
-u_int8_t vpi;
-
+struct natmpcb *
+npcb_add(struct natmpcb *npcb, struct ifnet *ifp, u_int16_t vci, u_int8_t vpi)
 {
-  struct natmpcb *cpcb = NULL;		/* current pcb */
-  int s = splimp();
+	struct natmpcb *cpcb = NULL;		/* current pcb */
+	int s = splimp();
 
 
-  /*
-   * lookup required
-   */
+	/*
+	 * lookup required
+	 */
+	LIST_FOREACH(cpcb, &natm_pcbs, pcblist)
+		if (ifp == cpcb->npcb_ifp && vci == cpcb->npcb_vci &&
+		    vpi == cpcb->npcb_vpi)
+			break;
 
-  for (cpcb = LIST_FIRST(&natm_pcbs) ; cpcb != NULL ; 
-					cpcb = LIST_NEXT(cpcb, pcblist)) {
-    if (ifp == cpcb->npcb_ifp && vci == cpcb->npcb_vci && vpi == cpcb->npcb_vpi)
-      break;
-  }
-
-  /*
-   * add & something already there?
-   */
-
-  if (cpcb) {
-    cpcb = NULL;
-    goto done;					/* fail */
-  }
+	/*
+	 * add & something already there?
+	 */
+	if (cpcb) {
+		cpcb = NULL;
+		goto done;			/* fail */
+	}
     
-  /*
-   * need to allocate a pcb?
-   */
+	/*
+	 * need to allocate a pcb?
+	 */
+	if (npcb == NULL) {
+		/* could be called from lower half */
+		cpcb = npcb_alloc(M_NOWAIT);
+		if (cpcb == NULL) 
+			goto done;			/* fail */
+	} else {
+		cpcb = npcb;
+	}
 
-  if (npcb == NULL) {
-    cpcb = npcb_alloc(M_NOWAIT);	/* could be called from lower half */
-    if (cpcb == NULL) 
-      goto done;			/* fail */
-  } else {
-    cpcb = npcb;
-  }
+	cpcb->npcb_ifp = ifp;
+	cpcb->ipaddr.s_addr = 0;
+	cpcb->npcb_vci = vci;
+	cpcb->npcb_vpi = vpi;
+	cpcb->npcb_flags = NPCB_CONNECTED;
 
-  cpcb->npcb_ifp = ifp;
-  cpcb->ipaddr.s_addr = 0;
-  cpcb->npcb_vci = vci;
-  cpcb->npcb_vpi = vpi;
-  cpcb->npcb_flags = NPCB_CONNECTED;
-
-  LIST_INSERT_HEAD(&natm_pcbs, cpcb, pcblist);
+	LIST_INSERT_HEAD(&natm_pcbs, cpcb, pcblist);
 
 done:
-  splx(s);
-  return(cpcb);
+	splx(s);
+	return (cpcb);
 }
-
-
 
 #ifdef DDB
 
-int npcb_dump(void);
-
-int npcb_dump()
-
+int
+npcb_dump(void)
 {
-  struct natmpcb *cpcb;
+	struct natmpcb *cpcb;
 
-  printf("npcb dump:\n");
-  for (cpcb = LIST_FIRST(&natm_pcbs) ; cpcb != NULL ; 
-					cpcb = LIST_NEXT(cpcb, pcblist)) {
-    printf("if=%s, vci=%d, vpi=%d, IP=0x%x, sock=%p, flags=0x%x, inq=%d\n",
-	cpcb->npcb_ifp->if_xname, cpcb->npcb_vci, cpcb->npcb_vpi,
-	cpcb->ipaddr.s_addr, cpcb->npcb_socket, 
-	cpcb->npcb_flags, cpcb->npcb_inq);
-  }
-  printf("done\n");
-  return(0);
+	printf("npcb dump:\n");
+	LIST_FOREACH(cpcb, &natm_pcbs, pcblist) {
+		printf("if=%s, vci=%d, vpi=%d, IP=0x%x, sock=%p, flags=0x%x, "
+		    "inq=%d\n", cpcb->npcb_ifp->if_xname, cpcb->npcb_vci,
+		    cpcb->npcb_vpi, cpcb->ipaddr.s_addr, cpcb->npcb_socket, 
+		    cpcb->npcb_flags, cpcb->npcb_inq);
+	}
+	printf("done\n");
+	return (0);
 }
-
 #endif
