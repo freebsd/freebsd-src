@@ -99,6 +99,10 @@ sbwrite(struct uufsd *disk, int all)
 
 	fs = &disk->d_fs;
 
+	if (!disk->d_sblock) {
+		disk->d_sblock = disk->d_fs.fs_sblockloc / disk->d_bsize;
+	}
+
 	if (bwrite(disk, disk->d_sblock, fs, SBLOCKSIZE) == -1) {
 		ERROR(disk, "failed to write superblock");
 		return -1;
