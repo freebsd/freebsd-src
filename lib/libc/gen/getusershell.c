@@ -35,13 +35,16 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)getusershell.c	8.1 (Berkeley) 6/4/93";
+static char rcsid[] =
+  "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
 #include <sys/file.h>
 #include <sys/stat.h>
-#include <stdio.h>
+
 #include <ctype.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <paths.h>
@@ -59,7 +62,7 @@ static char **initshells __P((void));
  * Get a list of shells from _PATH_SHELLS, if it exists.
  */
 char *
-getusershell()
+getusershell(void)
 {
 	char *ret;
 
@@ -72,7 +75,7 @@ getusershell()
 }
 
 void
-endusershell()
+endusershell(void)
 {
 
 	if (shells != NULL)
@@ -85,7 +88,7 @@ endusershell()
 }
 
 void
-setusershell()
+setusershell(void)
 {
 
 	curshell = initshells();
@@ -94,8 +97,8 @@ setusershell()
 static char **
 initshells()
 {
-	register char **sp, *cp;
-	register FILE *fp;
+	char **sp, *cp;
+	FILE *fp;
 	struct stat statb;
 
 	if (shells != NULL)
