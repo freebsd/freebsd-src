@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.35 1996/04/26 18:19:34 jkh Exp $
+ * $Id: media.c,v 1.36 1996/04/28 00:37:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -63,9 +63,11 @@ cdromHook(dialogMenuItem *self)
 char *
 cpioVerbosity()
 {
-    if (!strcmp(variable_get(VAR_CPIO_VERBOSITY), "high"))
+    char *cp = variable_get(VAR_CPIO_VERBOSITY);
+
+    if (cp && !strcmp(cp, "high"))
 	return "-v";
-    else if (!strcmp(variable_get(VAR_CPIO_VERBOSITY), "medium"))
+    else if (cp && !strcmp(cp, "medium"))
 	return "-V";
     return "";
 }
@@ -466,7 +468,10 @@ mediaExtractDist(char *dir, int fd)
 	    close(1); open("/dev/null", O_WRONLY);
 	    dup2(1, 2);
 	}
-	i = execl("/stand/cpio", "/stand/cpio", "-idum", cpioVerbosity(), "--block-size", mediaTapeBlocksize(), 0);
+	if (strlen(cpioVerbosity()))
+	    i = execl("/stand/cpio", "/stand/cpio", "-idum", cpioVerbosity(), "--block-size", mediaTapeBlocksize(), 0);
+	else
+	    i = execl("/stand/cpio", "/stand/cpio", "-idum", "--block-size", mediaTapeBlocksize(), 0);
 	if (isDebug())
 	    msgDebug("/stand/cpio command returns %d status\n", i);
 	exit(i);

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: apache.c,v 1.18 1996/04/13 13:31:21 jkh Exp $
+ * $Id: apache.c,v 1.19 1996/04/23 01:29:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -499,8 +499,8 @@ configApache(dialogMenuItem *self)
     
     msgNotify("Writing configuration files....");
     
-    (void)vsystem("mkdir -p %s/%s", APACHE_BASE,CONFIG_SUBDIR);
-    sprintf(file, "%s/%s/access.conf", APACHE_BASE,CONFIG_SUBDIR);
+    (void)vsystem("mkdir -p %s/%s", APACHE_BASE, CONFIG_SUBDIR);
+    sprintf(file, "%s/%s/access.conf", APACHE_BASE, CONFIG_SUBDIR);
     if (file_readable(file))
 	vsystem("mv -f %s %s.ORIG", file, file);
     
@@ -522,7 +522,7 @@ configApache(dialogMenuItem *self)
 	i = DITEM_FAILURE;
     }
     
-    sprintf(file, "%s/%s/httpd.conf", APACHE_BASE,CONFIG_SUBDIR);
+    sprintf(file, "%s/%s/httpd.conf", APACHE_BASE, CONFIG_SUBDIR);
     if (file_readable(file))
 	vsystem("mv -f %s %s.ORIG", file, file);
     
@@ -558,7 +558,7 @@ configApache(dialogMenuItem *self)
 	i = DITEM_FAILURE;
     }
     
-    sprintf(file, "%s/%s/srm.conf", APACHE_BASE,CONFIG_SUBDIR);
+    sprintf(file, "%s/%s/srm.conf", APACHE_BASE, CONFIG_SUBDIR);
     if (file_readable(file))
 	vsystem("mv -f %s %s.ORIG", file, file);
     fptr = fopen(file,"w");
