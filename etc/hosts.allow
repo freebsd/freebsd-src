@@ -36,7 +36,7 @@ ALL : PARANOID : RFC931 20 : deny
 
 # Allow anything from localhost.  Note that an IP address (not a host
 # name) *MUST* be specified for rpcbind(8).
-ALL : localhost 127.0.0.1 : allow
+ALL : localhost 127.0.0.1 [::1] : allow
 ALL : my.machine.example.com 192.0.2.35 : allow
 
 # To use IPv6 addresses you must enclose them in []'s
