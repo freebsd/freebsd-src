@@ -542,8 +542,10 @@ chroot(td, uap)
 	if ((error = change_dir(&nd, td)) != 0)
 		goto error;
 #ifdef MAC
-	if ((error = mac_check_vnode_chroot(td->td_ucred, nd.ni_vp)))
+	if ((error = mac_check_vnode_chroot(td->td_ucred, nd.ni_vp))) {
+		vput(vp);
 		goto error;
+	}
 #endif
 	FILEDESC_LOCK(fdp);
 	if (chroot_allow_open_directories == 0 ||
@@ -567,7 +569,7 @@ error_unlock:
 	FILEDESC_UNLOCK(fdp);
 error:
 	mtx_unlock(&Giant);
-	NDFREE(&nd, 0);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	return (error);
 }
 
