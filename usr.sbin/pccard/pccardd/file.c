@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: file.c,v 1.6 1996/06/18 23:50:51 nate Exp $
+ * $Id: file.c,v 1.7 1996/06/19 01:08:58 nate Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -457,7 +457,8 @@ num_tok(void)
 	if (c == '0') {
 		base = 8;
 		c = *s++;
-		if (c == 'x' || c == 'X') {
+		if (c == '\0') return 0; 
+		else if (c == 'x' || c == 'X') {
 			c = *s++;
 			base = 16;
 		}
