@@ -63,6 +63,12 @@ crom_init_context(struct crom_context *cc, u_int32_t *p)
 		cc->depth = -1;
 	}
 	p += 1 + hdr->info_len;
+
+	/* check size of root directory */
+	if (((struct csrdirectory *)p)->crc_len == 0) {
+		cc->depth = -1;
+		return;
+	}
 	cc->depth = 0;
 	cc->stack[0].dir = (struct csrdirectory *)p;
 	cc->stack[0].index = 0;
@@ -127,6 +133,33 @@ crom_search_key(struct crom_context *cc, u_int8_t key)
 	return NULL;
 }
 
+int
+crom_has_specver(u_int32_t *p, u_int32_t spec, u_int32_t ver)
+{
+	struct csrreg *reg;
+	struct crom_context c, *cc;
+	int state = 0;
+
+	cc = &c;
+	crom_init_context(cc, p);
+	while(cc->depth >= 0) {
+		reg = crom_get(cc);
+		if (state == 0) {
+			if (reg->key == CSRKEY_SPEC && reg->val == spec)
+				state = 1;
+			else
+				state = 0;
+		} else {
+			if (reg->key == CSRKEY_VER && reg->val == ver)
+				return 1;
+			else
+				state = 0;
+		}
+		crom_next(cc);
+	}
+	return 0;
+}
+
 void
 crom_parse_text(struct crom_context *cc, char *buf, int len)
 {
@@ -135,6 +168,9 @@ crom_parse_text(struct crom_context *cc, char *buf, int len)
 	u_int32_t *bp;
 	int i, qlen;
 	static char *nullstr = "(null)";
+
+	if (cc->depth < 0)
+		return;
 
 	reg = crom_get(cc);
 	if (reg->key != CROM_TEXTLEAF) {
@@ -176,34 +212,91 @@ crom_crc(u_int32_t *ptr, int len)
 }
 
 #ifndef _KERNEL
+static void
+crom_desc_specver(u_int32_t spec, u_int32_t ver, char *buf, int len)
+{
+	char *s = NULL;
+
+	if (spec == CSRVAL_ANSIT10 || spec == 0) {
+		switch (ver) {
+		case CSRVAL_T10SBP2:
+			s = "SBP-2";
+			break;
+		default:
+			if (spec != 0)
+				s = "unknown ANSIT10";
+		}
+	}
+	if (spec == CSRVAL_1394TA || spec == 0) {
+		switch (ver) {
+		case CSR_PROTAVC:
+			s = "AV/C";
+			break;
+		case CSR_PROTCAL:
+			s = "CAL";
+			break;
+		case CSR_PROTEHS:
+			s = "EHS";
+			break;
+		case CSR_PROTHAVI:
+			s = "HAVi";
+			break;
+		case CSR_PROTCAM104:
+			s = "1394 Cam 1.04";
+			break;
+		case CSR_PROTCAM120:
+			s = "1394 Cam 1.20";
+			break;
+		case CSR_PROTCAM130:
+			s = "1394 Cam 1.30";
+			break;
+		case CSR_PROTDPP:
+			s = "1394 Direct print";
+			break;
+		case CSR_PROTIICP:
+			s = "Industrial & Instrument";
+			break;
+		default:
+			if (spec != 0)
+				s = "unknown 1394TA";
+		}
+	}
+	if (s != NULL)
+		snprintf(buf, len, "%s", s);
+}
+
 char *
 crom_desc(struct crom_context *cc, char *buf, int len)
 {
 	struct csrreg *reg;
 	struct csrdirectory *dir;
-	char *desc;
+	char *desc, st;
 	u_int16_t crc;
 
 	reg = crom_get(cc);
 	switch (reg->key & CSRTYPE_MASK) {
 	case CSRTYPE_I:
-		snprintf(buf, len, "%d", reg->val);
+#if 0
+		len -= snprintf(buf, len, "%d", reg->val);
+		buf += strlen(buf);
+#else
+		*buf = '\0';
+#endif
 		break;
 	case CSRTYPE_C:
-		snprintf(buf, len, "offset=0x%04x(%d)", reg->val, reg->val);
+		len -= snprintf(buf, len, "offset=0x%04x(%d)",
+						reg->val, reg->val);
+		buf += strlen(buf);
 		break;
 	case CSRTYPE_L:
 		/* XXX fall through */
 	case CSRTYPE_D:
 		dir = (struct csrdirectory *) (reg + reg->val);
 		crc = crom_crc((u_int32_t *)&dir->entry[0], dir->crc_len);
-		len -= snprintf(buf, len, "len=%d crc=0x%04x",
-			dir->crc_len, dir->crc);
-		if (crc == dir->crc)
-			strncat(buf, "(OK) ", len);
-		else
-			strncat(buf, "(NG) ", len);
-		len -= 5;
+		len -= snprintf(buf, len, "len=%d crc=0x%04x(%s) ",
+			dir->crc_len, dir->crc,
+			(crc == dir->crc) ? "OK" : "NG");
+		buf += strlen(buf);
 	}
 	switch (reg->key) {
 	case 0x03:
@@ -220,6 +313,7 @@ crom_desc(struct crom_context *cc, char *buf, int len)
 		break;
 	case 0x13:
 		desc = "unit_sw_version";
+		crom_desc_specver(0, reg->val, buf, len);
 		break;
 	case 0x14:
 		desc = "logical_unit_number";
