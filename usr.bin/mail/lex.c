@@ -64,12 +64,13 @@ setfile(name)
 	char isedit = *name != '%';
 	char *who = name[1] ? name + 1 : myname;
 	static int shudclob;
-	extern char tempMesg[];
+	extern char *tempMesg;
 	extern int errno;
 
 	if ((name = expand(name)) == NOSTR)
 		return -1;
 
+fprintf(stderr,">%s\n",name);
 	if ((ibuf = Fopen(name, "r")) == NULL) {
 		if (!isedit && errno == ENOENT)
 			goto nomail;

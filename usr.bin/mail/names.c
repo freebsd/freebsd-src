@@ -223,7 +223,7 @@ outof(names, fo, hp)
 	char *date, *fname, *ctime();
 	FILE *fout, *fin;
 	int ispipe;
-	extern char tempEdit[];
+	extern char *tempEdit;
 
 	top = names;
 	np = names;
