@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: tst01.c,v 1.10 1995/05/04 07:00:56 phk Exp $
+ * $Id: tst01.c,v 1.11 1995/05/10 05:57:04 phk Exp $
  *
  */
 
@@ -171,11 +171,11 @@ main(int argc, char **argv)
 		if (!strcasecmp(*cmds,"dwim") && ncmd == 6) {
 			printf("dwim = %p\n",
 				Create_Chunk_DWIM(d,
-					(struct chunk *)strtol(cmds[1],0,0)),
+					(struct chunk *)strtol(cmds[1],0,0),
 					strtol(cmds[2],0,0),
 					strtol(cmds[3],0,0),
 					strtol(cmds[4],0,0),
-					strtol(cmds[5],0,0) );
+					strtol(cmds[5],0,0)));
 			continue;
 		}
 		if (!strcasecmp(*cmds,"delete") && ncmd == 2) {

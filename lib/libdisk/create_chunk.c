@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.12 1995/05/08 01:26:47 phk Exp $
+ * $Id: create_chunk.c,v 1.13 1995/05/10 05:57:02 phk Exp $
  *
  */
 
@@ -91,31 +91,17 @@ Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
 void
 Fixup_Extended_Names(struct disk *d, struct chunk *c)
 {
-	struct chunk *c1, *c3;
-	int j;
-	char *p=0;
+	struct chunk *c1;
+	int j=5;
 
 	for (c1 = c->part; c1 ; c1 = c1->next) {
+		if (c1->type == unused) continue;
+		free(c1->name);
+		c1->name = malloc(12);
+		if(!c1->name) err(1,"malloc failed");
+		sprintf(c1->name,"%ss%d",c->name,j++);
 		if (c1->type == freebsd)
 			Fixup_FreeBSD_Names(d,c1);
-		if (c1->type == unused) continue;
-		if (strcmp(c1->name, "X")) continue;
-		for(j=5;j<=29;j++) {
-			p = malloc(12);
-			if(!p) err(1,"malloc failed");
-			sprintf(p,"%ss%d",c->name,j);
-			for(c3 = c->part; c3 ; c3 = c3->next) 
-				if (c3 != c1 && !strcmp(c3->name, p))
-					goto match;
-			free(c1->name);
-			c1->name = p;
-			p = 0;
-			break;
-			match:
-				continue;
-		}
-		if(p)
-			free(p);
 	}
 }
 
@@ -124,32 +110,42 @@ Fixup_Names(struct disk *d)
 {
 	struct chunk *c1, *c2, *c3;
 	int i,j;
-	char *p=0;
 
 	c1 = d->chunks;
 	for(i=1,c2 = c1->part; c2 ; c2 = c2->next) {
+		c2->flags &= ~CHUNK_BSD_COMPAT;
+		if (c2->type == unused)
+			continue;
+		if (strcmp(c2->name,"X"))
+			continue;
+		c2->oname = malloc(12);
+		if(!c2->oname) err(1,"malloc failed");
+		for(j=1;j<=NDOSPART;j++) {
+			sprintf(c2->oname,"%ss%d",c1->name,j);
+			for(c3 = c1->part; c3 ; c3 = c3->next) 
+				if (c3 != c2 && !strcmp(c3->name, c2->oname))
+					goto match;
+			free(c2->name);
+			c2->name = c2->oname;
+			c2->oname = 0;
+			break;
+		    match:
+			continue;
+		}
+		if (c2->oname)
+			free(c2->oname);
+	}
+	for(c2 = c1->part; c2 ; c2 = c2->next) {
+		if (c2->type == freebsd) {
+			c2->flags |= CHUNK_BSD_COMPAT;
+			break;
+		}
+	}
+	for(c2 = c1->part; c2 ; c2 = c2->next) {
 		if (c2->type == freebsd)
 			Fixup_FreeBSD_Names(d,c2);
 		if (c2->type == extended)
 			Fixup_Extended_Names(d,c2);
-		if (c2->type == unused)
-			continue;
-		p = malloc(12);
-		if(!p) err(1,"malloc failed");
-		for(j=1;j<=NDOSPART;j++) {
-			sprintf(p,"%ss%d",c1->name,j);
-			for(c3 = c1->part; c3 ; c3 = c3->next) 
-				if (c3 != c2 && !strcmp(c3->name, p))
-					goto match;
-			free(c2->name);
-			c2->name = p;
-			p = 0;
-			break;
-			match:
-				continue;
-		}
-		if(p)
-			free(p);
 	}
 }
 
@@ -158,8 +154,6 @@ Create_Chunk(struct disk *d, u_long offset, u_long size, chunk_e type, int subty
 {
 	int i;
 
-	if (type == freebsd)
-		subtype = 0xa5;
 	i = Add_Chunk(d,offset,size,"X",type,subtype,flags);
 	Fixup_Names(d);
 	return i;
@@ -174,8 +168,6 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e ty
 
 	if (!parent)
 		parent = d->chunks;
-	if (type == freebsd)
-		subtype = 0xa5;
 	for (c1=parent->part; c1 ; c1 = c1->next) {
 		if (c1->type != unused) continue;
 		if (c1->size < size) continue;
