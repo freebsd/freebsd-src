@@ -1,0 +1,8 @@
+$FreeBSD$
+*.0
+*/.cvsignore
+.cvsignore
+autom4te*
+config.h.in
+configure
+contrib
