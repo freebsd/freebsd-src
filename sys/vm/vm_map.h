@@ -169,12 +169,12 @@ struct vm_map {
 	struct mtx system_mtx;
 	int nentries;			/* Number of entries */
 	vm_size_t size;			/* virtual size */
+	u_int timestamp;		/* Version number */
 	u_char needs_wakeup;
 	u_char system_map;		/* Am I a system map? */
 	u_char infork;			/* Am I in fork processing? */
 	vm_flags_t flags;		/* flags for this vm_map */
 	vm_map_entry_t root;		/* Root of a binary search tree */
-	unsigned int timestamp;		/* Version number */
 	vm_map_entry_t first_free;	/* First free space hint */
 	pmap_t pmap;			/* (c) Physical map */
 #define	min_offset	header.start	/* (c) */
