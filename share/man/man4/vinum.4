@@ -45,6 +45,7 @@
 .Nd Logical Volume Manager
 .Sh SYNOPSIS
 .Cd "modload /lkm/vinum_mod.o"
+.Cd "modload /lkm/vinum_mod.raid5.o"
 .Sh DESCRIPTION
 .Nm
 is a logical volume manager inspired by, but not derived from, the Veritas
@@ -116,20 +117,20 @@ SD2: box
 The subdisks of a striped plex must all be the same size.
 .It
 \fIRAID-5 plexes\fP\| require at least three equal-sized subdisks.  They
-resemble striped plexes, except that in each slice, one subdisk stores parity
-information.  This subdisk changes in each slice: in the first slice, it is the
+resemble striped plexes, except that in each stripe, one subdisk stores parity
+information.  This subdisk changes in each stripe: in the first stripe, it is the
 first subdisk, in the second it is the second subdisk, etc.  In the event of a
 single disk failure,
 .Nm
 will recover the data based on the information stored on the remaining subdisks.
 This mapping is particularly suited to read-intensive access.  The subdisks of a
-RAID5 plex must all be the same size.
+RAID-5 plex must all be the same size.
 .\" Make sure to flush!
 .El
 .It
 .Nm Drives
-are the lowest level of the storage hierarchy.  They represent either complete
-disks or disk partitions.
+are the lowest level of the storage hierarchy.  They represent disk special
+devices.
 .It
 .Nm
 offers automatic startup.  Unlike UNIX file systems,
@@ -150,28 +151,44 @@ necessary to match the LKM to the version of the operating system.  Failure to
 do so will cause
 .Nm
 to issue an error message and terminate.
+.Pp
+.Nm
+is currently available in two versions: a freely available version which does
+not contain RAID-5 functionality, and a full version including RAID-5
+functionality, which is available from Cybernet Systems Inc.
 .Sh RUNNING VINUM
-The 
+The freely available version of the
 .Nm
 LKM is called 
-.Pa /lkm/vinum_mod.o .
-To start it, load the module and read in the configuration:
+.Pa /lkm/vinum_mod.o ,
+and the RAID-5 version is
+.Pa /lkm/vinum_mod.raid5.o .
+To load the module:
 .Bd -unfilled -offset indent
 # modload /lkm/vinum_mod.o
-# vinum read /dev/sd1h
+.Ed
+.Pp
+At this point, 
+.Nm
+is loaded but has not been configured.  In an existing installation, the
+following command reads the configuration from disk
+.Ar /dev/da1h .
+.Bd -unfilled -offset indent
+# vinum read /dev/da1h
 .Ed
 .sp
-The first command loads the LKM, and the second reads an existing
-.Nm
-configuration from the device
-.Ar /dev/sd1h .
-You should omit this command if there is no configuration on disk.  The name of
-the disk slice (in this example
-.Ar /dev/sd1h )
-can be any of the slices used by
+The name of the disk device (in this example
+.Ar /dev/da1h )
+can be any of the devices used by
 .Nm vinum .
 These commands are normally embedded in the startup file
 .Pa /etc/rc .
+.Pp
+See
+.Xr vinum 8
+for information on how to create a
+.Nm
+configuration.
 .Pp
 To unload the LKM, first find the
 .Ar Id
@@ -199,19 +216,19 @@ Use the
 utility to configure and start
 .Nm 
 objects.
-.Ss IOCTL CALLS
+.Sh IOCTL CALLS
 .Pa ioctl
 calls are intended for the use of the
 .Nm
 configuration program only.  The are described in the header file
 .Pa /sys/sys/vinumio.h
 .Ss DISK LABELS
-Conventional disk partitions have a
+Conventional disk special devices have a
 .Em disk label
-in the second sector of the partitions.  See
+in the second sector of the device.  See
 .Xr disklabel 5
-for more details.  This disk label describes the layout of the slices within the
-partition.
+for more details.  This disk label describes the layout of the partitions within
+the device.
 .Nm
 does not subdivide volumes, so volumes do not contain a physical disk label.
 For convenience,
@@ -241,22 +258,21 @@ three partitions, a, b and c, all the same except for the fstype, for example:
 .Nm
 ignores the DIOCWDINFO and DIOCSDINFO ioctls, since there is nothing to change.
 As a result, any attempt to modify the disk label will be silently ignored.
-.Ss MAKING FILE SYSTEMS
+.Sh MAKING FILE SYSTEMS
 Since
 .Nm
-volumes do not contain slices, the names do not need to conform to the standard
-rules for naming disk slices.  For a physical disk slice, the last letter of the
-device name specifies the slice identifier (a to h). 
+volumes do not contain partitions, the names do not need to conform to the
+standard rules for naming disk partitions.  For a physical disk partition, the
+last letter of the device name specifies the partition identifier (a to h).
 .Nm
 volumes need not conform to this convention, but if they do not,
 .Nm newfs
-will complain that it cannot determine the slice.  To solve this problem, use
-the
+will complain that it cannot determine the partition.  To solve this problem,
+use the
 .Fl v
 flag to
 .Nm newfs .
-.Ss OBJECT NAMING
-.Pp
+.Sh OBJECT NAMING
 .Nm
 assigns default names to plexes and subdisks, although they may be overridden.
 We do not recommend overriding the default names.  Experience with the
@@ -274,8 +290,8 @@ name from which they are derived.
 .Bl -bullet 
 .It
 When
-.Nm
-starts, it creates a directory
+.Nm vinum(8)
+creates or deletes objects, it creates a directory
 .Ar /dev/vinum ,
 in which it makes device entries for each volume it finds.  It also creates 
 subdirectories,
@@ -288,22 +304,18 @@ creates two more directories,
 and
 .Ar /dev/vinum/drive ,
 in which it stores hierarchical information for volumes and drives.
-.Pp
-.Nm
-assigns names for plexes and subdisks automatically.  They are derived from the
-names of the object to which they are attached.
 .It
 Unlike 
 .Nm UNIX
 drives,
 .Nm
-volumes are not subdivided into slices, and thus do not contain a partition
-(slice) table.  Unfortunately, this confuses a number of utilities, notably
+volumes are not subdivided into partitions, and thus do not contain a disk
+label.  Unfortunately, this confuses a number of utilities, notably
 .Nm newfs ,
 which normally tries to interpret the last letter of a
 .Nm
-volume name as a slice identifier.  If you use a volume name which does not end
-in the letters
+volume name as a partition identifier.  If you use a volume name which does not
+end in the letters
 .Ar a
 to
 .Ar c ,
@@ -314,7 +326,7 @@ flag to
 in order to tell it to ignore this convention.
 .\"
 .It 
-Plexes do not need to be assigned names manually.  By default, a plex name is
+Plexes do not need to be assigned explicit names.  By default, a plex name is
 the name of the volume followed by the letters \f(CW.p\fR and the number of the
 plex.  For example, the plexes of volume
 .Ar vol3
@@ -324,7 +336,7 @@ are called
 and so on.  These names can be overridden, but it is not recommended.
 .br
 .It
-Like plexes, subdisks are assigned names automatically, and manual naming is
+Like plexes, subdisks are assigned names automatically, and explicit naming is
 discouraged.  A subdisk name is the name of the plex followed by the letters
 \f(CW.s\fR and a number identifying the subdisk.  For example, the subdisks of
 plex
@@ -498,10 +510,6 @@ crwxr-xr--  1 root  wheel   91,   1 Mar 30 16:08 rstripe
 crwxr-xr--  1 root  wheel   91,   0 Mar 30 16:08 rtinyvol
 crwxr-xr--  1 root  wheel   91,   4 Mar 30 16:08 rvol5
 .Ed
-.Pp
-See
-.Xr vinum 4
-for a description of the minor number format.
 .Pp
 In the case of unattached plexes and subdisks, the naming is reversed.  Subdisks
 are named after the disk on which they are located, and plexes are named after
@@ -789,13 +797,13 @@ drive_up#up and running
 .Sh BUGS AND OMISSIONS
 Many.  
 .Nm vinum
-is currently in alpha test.  Please report any bugs not in the list below to
+is currently in beta test.  Please report any bugs not in the list below to
 .Ar <grog@lemis.com> .
 .sp
 The following functions are known to be deficient or not implemented:
 .Bl -bullet
 .It
-It is necessary to initialize RAID5 plexes.  Failure to do so will not impede
+It is necessary to initialize RAID-5 plexes.  Failure to do so will not impede
 normal operation, but it will cause complete corruption if one of the disks
 should fail.  I don't know any good way to enforce this initialization (or the
 even slower alternative of rebuilding the parity blocks).  If anybody has a good
@@ -803,27 +811,13 @@ idea, I'd be grateful for input.
 .It
 Detection of differences between the version of the kernel and the LKM is not
 yet implemented.
-.It
-Detaching plexes and subdisks has not yet been implemented.
-.It
-Reintegration of failed disks has not yet been implemented.
-.It
-.Nm
-requires a special version of
-.Ar newfs ,
-which has not yet been committed.  The current version places some restrictions
-on volume names\(emsee above.
-.It
-Anonymous plexes and subdisks (which are not associated with a volume or plex
-respectively) are currently not supported.  This also means that detaching an
-object is not supported.
 .El
 .Sh AUTHOR
 Greg Lehey
 .Pa <grog@lemis.com> .
 .Sh HISTORY
 .Nm vinum
-first appeared in FreeBSD 2.2.6.
+first appeared in FreeBSD 3.0.
 .Sh SEE ALSO
 .Xr vinum 8 ,
 .Xr disklabel 5 ,
