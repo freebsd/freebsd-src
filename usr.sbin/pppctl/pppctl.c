@@ -79,17 +79,18 @@ Receive(int fd, unsigned TimeoutVal, int display)
             Result = -1;
             break;
         } else if (len > 2 && !strcmp(Buffer+len-2, "> ")) {
+            prompt = strrchr(Buffer, '\n');
             if (display & (REC_SHOW|REC_VERBOSE)) {
                 if (display & REC_VERBOSE)
                     last = Buffer+len-1;
                 else
-                    last = strrchr(Buffer, '\n');
+                    last = prompt;
                 if (last) {
                     last++;
                     write(1, Buffer, last-Buffer);
-                    prompt = last;
                 }
             }
+            prompt = prompt == NULL ? Buffer : prompt+1;
             for (last = Buffer+len-2; last > Buffer && *last != ' '; last--)
                 ;
             if (last > Buffer+3 && !strncmp(last-3, " on", 3)) {
