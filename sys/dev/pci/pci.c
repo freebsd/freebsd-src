@@ -1434,3 +1434,4 @@ static driver_t pci_driver = {
 	1,			/* no softc */
 };
 DRIVER_MODULE(pci, pcib, pci_driver, pci_devclass, pci_modevent, 0);
+DRIVER_MODULE(pci, acpi_pcib, pci_driver, pci_devclass, pci_modevent, 0);
