@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.121 1998/07/12 20:32:52 se Exp $
+**  $Id: ncr.c,v 1.122 1998/07/14 11:19:32 bde Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1344,7 +1344,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.121 1998/07/12 20:32:52 se Exp $\n";
+	"\n$Id: ncr.c,v 1.122 1998/07/14 11:19:32 bde Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -4116,7 +4116,7 @@ static int32_t ncr_start (struct scsi_xfer * xp)
 
 	if ((unsigned)xp->datalen > 128*1024*1024) {
 		PRINT_ADDR(xp);
-		printf ("trying to transfer %8lx bytes, mem addr = %8p\n", 
+		printf ("trying to transfer %8lx bytes, mem addr = %p\n", 
 			(u_long) xp->datalen, (void *) xp->data);
 		{
 			int j;

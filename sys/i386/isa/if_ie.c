@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.53 1998/06/07 17:10:32 dfr Exp $
+ *	$Id: if_ie.c,v 1.54 1998/07/13 09:52:59 bde Exp $
  */
 
 /*
@@ -2414,8 +2414,8 @@ setflag:
 static void
 print_rbd(volatile struct ie_recv_buf_desc * rbd)
 {
-	printf("RBD at %8p:\n"
-	       "actual %04x, next %04x, buffer %8p\n"
+	printf("RBD at %p:\n"
+	       "actual %04x, next %04x, buffer %p\n"
 	       "length %04x, mbz %04x\n",
 	       (void *) rbd,
 	       rbd->ie_rbd_actual, rbd->ie_rbd_next,
