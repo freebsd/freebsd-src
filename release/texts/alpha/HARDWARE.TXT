@@ -1240,6 +1240,7 @@ not usable under FreeBSD.
 
 Starting with SRM firmware version 5.9 you can boot from Adaptec 2940-series
 adapters in addition to the usual set of Qlogic and Symbios/NCR adapters.
+This unfortunately does not include the embedded Adaptec SCSI chips.
 
 CPU:
 DS20 can have 2 CPUs installed. FreeBSD/alpha is not currently SMP-capable 
