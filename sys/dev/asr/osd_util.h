@@ -21,26 +21,26 @@
  * $FreeBSD$
  */
 
-#ifndef         __OSD_UTIL_H
-#define	        __OSD_UTIL_H
+#ifndef		__OSD_UTIL_H
+#define		__OSD_UTIL_H
 
 /*File - OSD_UTIL.H
  ****************************************************************************
  *
  *Description:
  *
- *      This file contains defines and function prototypes that are
+ *	This file contains defines and function prototypes that are
  *operating system dependent.  The resources defined in this file
  *are not specific to any particular application.
  *
  *Copyright Distributed Processing Technology, Corp.
- *        140 Candace Dr.
- *        Maitland, Fl. 32751   USA
- *        Phone: (407) 830-5522  Fax: (407) 260-5366
- *        All Rights Reserved
+ *	  140 Candace Dr.
+ *	  Maitland, Fl. 32751	USA
+ *	  Phone: (407) 830-5522	 Fax: (407) 260-5366
+ *	  All Rights Reserved
  *
- *Author:       Doug Anderson
- *Date:         1/7/94
+ *Author:	Doug Anderson
+ *Date:		1/7/94
  *
  *Editors:
  *
@@ -56,17 +56,17 @@
 /* Operating system selections: */
 /*----------------------------- */
 
-/*#define	              _DPT_MSDOS      */
-/*#define	              _DPT_WIN_3X     */
-/*#define	              _DPT_WIN_4X     */
-/*#define	              _DPT_WIN_NT     */
-/*#define	              _DPT_NETWARE    */
-/*#define	              _DPT_OS2        */
-/*#define	              _DPT_SCO        */
-/*#define	              _DPT_UNIXWARE   */
-/*#define	              _DPT_SOLARIS    */
-/*#define	              _DPT_NEXTSTEP   */
-/*#define	              _DPT_BANYAN     */
+/*#define		      _DPT_MSDOS      */
+/*#define		      _DPT_WIN_3X     */
+/*#define		      _DPT_WIN_4X     */
+/*#define		      _DPT_WIN_NT     */
+/*#define		      _DPT_NETWARE    */
+/*#define		      _DPT_OS2	      */
+/*#define		      _DPT_SCO	      */
+/*#define		      _DPT_UNIXWARE   */
+/*#define		      _DPT_SOLARIS    */
+/*#define		      _DPT_NEXTSTEP   */
+/*#define		      _DPT_BANYAN     */
 
 /*-------------------------------- */
 /* Include the OS specific defines */
@@ -77,15 +77,15 @@
 /*#define	      DLL_HANDLE_T    ??? */
 
 #if (defined(KERNEL) && defined(__bsdi__))
-# include        "i386/isa/dpt_osd_defs.h"
+# include	 "i386/isa/dpt_osd_defs.h"
 #elif ((defined(KERNEL) || defined(_KERNEL)) && defined(__FreeBSD__))
 # if (KERN_VERSION < 3)
-#  include        "i386/isa/dpt_osd_defs.h"
+#  include	  "i386/isa/dpt_osd_defs.h"
 # else
-#  include        "dev/asr/osd_defs.h"
+#  include	  "dev/asr/osd_defs.h"
 # endif
 #else
-# include        "osd_defs.h"
+# include	 "osd_defs.h"
 #endif
 
 #ifndef DPT_UNALIGNED
@@ -101,7 +101,7 @@
 #endif
 
 #ifndef DPT_RUNTIME_IMPORT
-   #define	     DPT_RUNTIME_IMPORT  DPT_IMPORT
+   #define	     DPT_RUNTIME_IMPORT	 DPT_IMPORT
 #endif
 
 /*--------------------- */
@@ -137,35 +137,35 @@
 
   /* These exist for platforms that   */
   /* chunk when accessing mis-aligned */
-  /* data                             */
+  /* data			      */
 #if defined (SNI_MIPS) || defined (_DPT_SOLARIS)
    #if defined (_DPT_BIG_ENDIAN)
 	#if !defined (_DPT_STRICT_ALIGN)
-            #define	_DPT_STRICT_ALIGN
+	    #define	_DPT_STRICT_ALIGN
 	#endif
    #endif
 #endif
 
   /* Determine if in C or C++ mode */
-#ifdef  __cplusplus
+#ifdef __cplusplus
    #define	     _DPT_CPP
 #else
    #define	     _DPT_C
 #endif
 
 /*-------------------------------------------------------------------*/
-/* Under Solaris the compiler refuses to accept code like:           */
-/*   { {"DPT"}, 0, NULL .... },                                      */
+/* Under Solaris the compiler refuses to accept code like:	     */
+/*   { {"DPT"}, 0, NULL .... },					     */
 /* and complains about the {"DPT"} part by saying "cannot use { }    */
-/* to initialize char*".                                             */
-/*                                                                   */
+/* to initialize char*".					     */
+/*								     */
 /* By defining these ugly macros we can get around this and also     */
-/* not have to copy and #ifdef large sections of code.  I know that  */
-/* these macros are *really* ugly, but they should help reduce       */
-/* maintenance in the long run.                                      */
-/*                                                                   */
+/* not have to copy and #ifdef large sections of code.	I know that  */
+/* these macros are *really* ugly, but they should help reduce	     */
+/* maintenance in the long run.					     */
+/*								     */
 /* In the meantime, just pray that we can all move to Win32 as soon  */
-/* as possible...                                                    */
+/* as possible...						     */
 /*-------------------------------------------------------------------*/
 #if !defined (DPTSQO)
    #if defined (_DPT_SOLARIS)
@@ -175,7 +175,7 @@
       #define	DPTSQO {
       #define	DPTSQC }
    #endif  /* solaris */
-#endif  /* DPTSQO */
+#endif	/* DPTSQO */
 
 
 /*---------------------- */
@@ -191,13 +191,13 @@
    #define	_DPT_TYPEDEFS
    typedef unsigned char   uCHAR;
    typedef unsigned short  uSHORT;
-   typedef unsigned int    uINT;
+   typedef unsigned int	   uINT;
    typedef unsigned long   uLONG;
 
    typedef union {
-	 uCHAR        u8[4];
-	 uSHORT       u16[2];
-	 uLONG        u32;
+	 uCHAR	      u8[4];
+	 uSHORT	      u16[2];
+	 uLONG	      u32;
    } access_U;
 #endif
 
@@ -208,8 +208,8 @@
 
 /*Prototypes - function ----------------------------------------------------- */
 
-#ifdef  __cplusplus
-   extern "C" {         /* Declare all these functions as "C" functions */
+#ifdef __cplusplus
+   extern "C" {		/* Declare all these functions as "C" functions */
 #endif
 
 /*------------------------ */
@@ -218,16 +218,16 @@
 
   /* Reverses the byte ordering of a 2 byte variable */
 #if (!defined(osdSwap2))
- uSHORT       osdSwap2(DPT_UNALIGNED uSHORT *);
-#endif  /* !osdSwap2 */
+ uSHORT	      osdSwap2(DPT_UNALIGNED uSHORT *);
+#endif	/* !osdSwap2 */
 
   /* Reverses the byte ordering of a 4 byte variable and shifts left 8 bits */
 #if (!defined(osdSwap3))
- uLONG        osdSwap3(DPT_UNALIGNED uLONG *);
-#endif  /* !osdSwap3 */
+ uLONG	      osdSwap3(DPT_UNALIGNED uLONG *);
+#endif	/* !osdSwap3 */
 
 
-#ifdef  _DPT_NETWARE
+#ifdef _DPT_NETWARE
    #include "novpass.h" /* For DPT_Bswapl() prototype */
 	/* Inline the byte swap */
    #ifdef __cplusplus
@@ -240,30 +240,30 @@
 #else
 	/* Reverses the byte ordering of a 4 byte variable */
 # if (!defined(osdSwap4))
-   uLONG        osdSwap4(DPT_UNALIGNED uLONG *);
-# endif  /* !osdSwap4 */
+   uLONG	osdSwap4(DPT_UNALIGNED uLONG *);
+# endif	 /* !osdSwap4 */
 
   /* The following functions ALWAYS swap regardless of the *
-   * presence of DPT_BIG_ENDIAN                            */
+   * presence of DPT_BIG_ENDIAN				   */
 
-   uSHORT       trueSwap2(DPT_UNALIGNED uSHORT *);
-   uLONG        trueSwap4(DPT_UNALIGNED uLONG *);
+   uSHORT	trueSwap2(DPT_UNALIGNED uSHORT *);
+   uLONG	trueSwap4(DPT_UNALIGNED uLONG *);
 
-#endif  /* netware */
+#endif	/* netware */
 
 
 /*-------------------------------------*
- * Network order swap functions        *
- *                                     *
+ * Network order swap functions	       *
+ *				       *
  * These functions/macros will be used *
  * by the structure insert()/extract() *
- * functions.                          *
+ * functions.			       *
  *
  * We will enclose all structure       *
  * portability modifications inside    *
  * #ifdefs.  When we are ready, we     *
- * will #define	DPT_PORTABLE to begin  *
- * using the modifications.            *
+ * will #define DPT_PORTABLE to begin  *
+ * using the modifications.	       *
  *-------------------------------------*/
 uLONG	netSwap4(uLONG val);
 
@@ -272,26 +272,26 @@ uLONG	netSwap4(uLONG val);
 /* for big-endian we need to swap */
 
 #ifndef NET_SWAP_2
-#define	NET_SWAP_2(x) (((x) >> 8) | ((x) << 8))
-#endif  /* NET_SWAP_2 */
+#define NET_SWAP_2(x) (((x) >> 8) | ((x) << 8))
+#endif	/* NET_SWAP_2 */
 
 #ifndef NET_SWAP_4
-#define	NET_SWAP_4(x) netSwap4((x))
-#endif  /* NET_SWAP_4 */
+#define NET_SWAP_4(x) netSwap4((x))
+#endif	/* NET_SWAP_4 */
 
 #else
 
 /* for little-endian we don't need to do anything */
 
 #ifndef NET_SWAP_2
-#define	NET_SWAP_2(x) (x)
-#endif  /* NET_SWAP_2 */
+#define NET_SWAP_2(x) (x)
+#endif	/* NET_SWAP_2 */
 
 #ifndef NET_SWAP_4
-#define	NET_SWAP_4(x) (x)
-#endif  /* NET_SWAP_4 */
+#define NET_SWAP_4(x) (x)
+#endif	/* NET_SWAP_4 */
 
-#endif  /* big endian */
+#endif	/* big endian */
 
 
 
@@ -300,37 +300,37 @@ uLONG	netSwap4(uLONG val);
 /*----------------------------------- */
 
   /* Loads the specified run-time loadable DLL */
-DLL_HANDLE_T    osdLoadModule(uCHAR *);
+DLL_HANDLE_T	osdLoadModule(uCHAR *);
   /* Unloads the specified run-time loadable DLL */
-uSHORT          osdUnloadModule(DLL_HANDLE_T);
+uSHORT		osdUnloadModule(DLL_HANDLE_T);
   /* Returns a pointer to a function inside a run-time loadable DLL */
-void *          osdGetFnAddr(DLL_HANDLE_T,uCHAR *);
+void *		osdGetFnAddr(DLL_HANDLE_T,uCHAR *);
 
 /*--------------------------------------- */
 /* Mutually exclusive semaphore functions */
 /*--------------------------------------- */
 
   /* Create a named semaphore */
-SEMAPHORE_T     osdCreateNamedSemaphore(char *);
+SEMAPHORE_T	osdCreateNamedSemaphore(char *);
   /* Create a mutually exlusive semaphore */
-SEMAPHORE_T     osdCreateSemaphore(void);
+SEMAPHORE_T	osdCreateSemaphore(void);
 	/* create an event semaphore */
-SEMAPHORE_T              osdCreateEventSemaphore(void);
+SEMAPHORE_T		 osdCreateEventSemaphore(void);
 	/* create a named event semaphore */
-SEMAPHORE_T             osdCreateNamedEventSemaphore(char *);
+SEMAPHORE_T		osdCreateNamedEventSemaphore(char *);
 
   /* Destroy the specified mutually exclusive semaphore object */
-uSHORT          osdDestroySemaphore(SEMAPHORE_T);
+uSHORT		osdDestroySemaphore(SEMAPHORE_T);
   /* Request access to the specified mutually exclusive semaphore */
-uLONG           osdRequestSemaphore(SEMAPHORE_T,uLONG);
+uLONG		osdRequestSemaphore(SEMAPHORE_T,uLONG);
   /* Release access to the specified mutually exclusive semaphore */
-uSHORT          osdReleaseSemaphore(SEMAPHORE_T);
+uSHORT		osdReleaseSemaphore(SEMAPHORE_T);
 	/* wait for a event to happen */
-uLONG                            osdWaitForEventSemaphore(SEMAPHORE_T, uLONG);
+uLONG				 osdWaitForEventSemaphore(SEMAPHORE_T, uLONG);
 	/* signal an event */
-uLONG                            osdSignalEventSemaphore(SEMAPHORE_T);
+uLONG				 osdSignalEventSemaphore(SEMAPHORE_T);
 	/* reset the event */
-uLONG                            osdResetEventSemaphore(SEMAPHORE_T);
+uLONG				 osdResetEventSemaphore(SEMAPHORE_T);
 
 /*----------------- */
 /* Thread functions */
@@ -338,10 +338,10 @@ uLONG                            osdResetEventSemaphore(SEMAPHORE_T);
 
   /* Releases control to the task switcher in non-preemptive */
   /* multitasking operating systems. */
-void            osdSwitchThreads(void);
+void		osdSwitchThreads(void);
 
   /* Starts a thread function */
-uLONG   osdStartThread(void *,void *);
+uLONG	osdStartThread(void *,void *);
 
 /* what is my thread id */
 uLONG osdGetThreadID(void);
@@ -352,14 +352,14 @@ void osdWakeThread(uLONG);
 /* osd sleep for x miliseconds */
 void osdSleep(uLONG);
 
-#define	DPT_THREAD_PRIORITY_LOWEST 0x00
-#define	DPT_THREAD_PRIORITY_NORMAL 0x01
-#define	DPT_THREAD_PRIORITY_HIGHEST 0x02
+#define DPT_THREAD_PRIORITY_LOWEST 0x00
+#define DPT_THREAD_PRIORITY_NORMAL 0x01
+#define DPT_THREAD_PRIORITY_HIGHEST 0x02
 
 uCHAR osdSetThreadPriority(uLONG tid, uCHAR priority);
 
 #ifdef __cplusplus
-   }    /* end the xtern "C" declaration */
+   }	/* end the xtern "C" declaration */
 #endif
 
-#endif  /* osd_util_h */
+#endif	/* osd_util_h */
