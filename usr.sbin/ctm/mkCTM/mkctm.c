@@ -11,9 +11,10 @@
  * mkctm 
  *	-B regex	Bogus
  *	-I regex	Ignore
- *	-D int		Damage
+ *      -D int		Damage
+ *	-q		decrease verbosity
  *	-v		increase verbosity
- *	-l str		control logging.
+ *     (-l str		control logging.)
  *	name		cvs-cur
  *	prefix		src/secure
  *	dir1		"Soll"
@@ -36,21 +37,38 @@
 #include <err.h>
 #include <signal.h>
 
-#define DEFAULT_IGNORE	"/CVS$|/\\.#"
-#define DEFAULT_BOGUS	"\\.core$"
+#define DEFAULT_IGNORE	"/CVS$|/\\.#|00_TRANS\\.TBL$"
+#define DEFAULT_BOGUS	"\\.core$|\\.orig$|\\.rej$"
 regex_t reg_ignore,  reg_bogus;
 int	flag_ignore, flag_bogus;
+
+int	verbose;
+int	damage, damage_limit;
+int	change;
 
 u_long s1_ignored,	s2_ignored;
 u_long s1_bogus,	s2_bogus;
 u_long s1_wrong,	s2_wrong;
-u_long s_same_dirs,	s_same_files,	s_same_bytes;
-u_long 			s_files_chg,	s_bytes_add,	s_bytes_del;
 u_long s_new_dirs,	s_new_files,	s_new_bytes;
-u_long s_del_dirs,	s_del_files,	s_del_bytes;
-u_long            	s_chg_files,	s_chg_bytes;
+u_long s_del_dirs,	s_del_files,	                s_del_bytes;
+u_long 			s_files_chg,	s_bytes_add,	s_bytes_del;
+u_long s_same_dirs,	s_same_files,	s_same_bytes;
 u_long 			s_edit_files,	s_edit_bytes,	s_edit_saves;
 u_long 			s_sub_files,	s_sub_bytes;
+
+void
+Usage(void)
+{
+	fprintf(stderr, "Usage:\n");
+	fprintf(stderr, "\tmkctm [-options] name number timestamp prefix");
+	fprintf(stderr, " dir1 dir2");
+	fprintf(stderr, "Options:\n");
+	fprintf(stderr, "\t\t-B bogus_regexp\n");
+	fprintf(stderr, "\t\t-D damage_limit\n");
+	fprintf(stderr, "\t\t-I ignore_regexp\n");
+	fprintf(stderr, "\t\t-q\n");
+	fprintf(stderr, "\t\t-v\n");
+}
 
 void
 print_stat(FILE *fd, char *pre)
@@ -118,6 +136,9 @@ name_stat(const char *pfx, const char *dir, const char *name, struct dirent *de)
 	printf("%s %s%s %lu %lu %o", 
 	    pfx, name, de->d_name, 
 	    st->st_uid, st->st_gid, st->st_mode & ~S_IFMT);
+	if (verbose > 1) {
+		fprintf(stderr,"%s %s%s\n", pfx, name, de->d_name);
+	}
 }
 
 void
@@ -135,7 +156,7 @@ Equ(const char *dir1, const char *dir2, const char *name, struct dirent *de)
 		char *buf2 = alloca(strlen(dir2) + strlen(name) + 
 			strlen(de->d_name) + 3);
 		char *m1,md5_1[33],*m2, md5_2[33];
-		void *p1,*p2;
+		u_char *p1,*p2;
 		int fd1,fd2;
 		struct stat s1,s2;
 
@@ -151,7 +172,8 @@ Equ(const char *dir1, const char *dir2, const char *name, struct dirent *de)
 		fd2 = open(buf2,O_RDONLY);
 		if(fd2 < 0) { perror(buf2); exit(3); }
 		fstat(fd2,&s2);
-#if 1
+#if 0
+		/* XXX if we could just trust the size to change... */
 		if (s1.st_size == s2.st_size) {
 			s_same_files++;
 			s_same_bytes += s1.st_size;
@@ -176,6 +198,8 @@ Equ(const char *dir1, const char *dir2, const char *name, struct dirent *de)
 		}
 
 		s_files_chg++;
+		damage++;
+		change++;
 		if (s1.st_size > s2.st_size)
 			s_bytes_del += (s1.st_size - s2.st_size);
 		else
@@ -194,21 +218,79 @@ Equ(const char *dir1, const char *dir2, const char *name, struct dirent *de)
 		}
 
 		{
-			u_long l = s1.st_size + s2.st_size;
-			u_char *ob = alloca(l);
-			Dissect(p1,p1+s1.st_size,p2,p2+s2.st_size,ob,&l);
+			u_long l = s2.st_size + 2;
+			u_char *cmd = alloca(strlen(buf1)+strlen(buf2)+100);
+			u_char *ob = alloca(l), *p;
+			int j;
+			FILE *F;
+			
+			if (p1[s1.st_size-1] != '\n') {
+				if (verbose > 0) 
+					fprintf(stderr,
+					    "last char != \\n in %s\n",
+					     buf1);
+				goto subst;
+			}
+
+			if (p2[s2.st_size-1] != '\n') {
+				if (verbose > 0) 
+					fprintf(stderr,
+					    "last char != \\n in %s\n",
+					     buf2);
+				goto subst;
+			}
+
+			for (p=p1; p<p1+s1.st_size; p++)
+				if (!*p) {
+					if (verbose > 0) 
+						fprintf(stderr,
+						    "NULL char in %s\n",
+						     buf1);
+					goto subst;
+				}
+
+			for (p=p2; p<p2+s2.st_size; p++)
+				if (!*p) {
+					if (verbose > 0) 
+						fprintf(stderr,
+						    "NULL char in %s\n",
+						     buf2);
+					goto subst;
+				}
+
+			strcpy(cmd, "diff -n ");
+			strcat(cmd, buf1);
+			strcat(cmd, " ");
+			strcat(cmd, buf2);
+			F = popen(cmd,"r");
+			for (j = 1, l = 0; l < s2.st_size; ) {
+				j = fread(ob+l, 1, s2.st_size - l, F);
+				if (j < 1) 
+					break;
+				l += j;
+				continue;
+			}
+			if (j) {
+				l = 0;
+				while (EOF != fgetc(F))
+					continue;
+			}
+			pclose(F);
+			
 			if (l && l < s2.st_size) {
-				name_stat("CTMFB",dir2,name,de);
-				printf(" %s %s %d\n",m1,m2,(unsigned)s1.st_size);
+				name_stat("CTMFN",dir2,name,de);
+				printf(" %s %s %d\n",m1,m2,(unsigned)l);
+				fwrite(ob,1,l,stdout);
+				putchar('\n');
 				s_edit_files++;
 				s_edit_bytes += l;
 				s_edit_saves += (s2.st_size - l);
-				fwrite(ob,1,l,stdout);
-				putchar('\n');
 			} else {
+			subst:
 				name_stat("CTMFS",dir2,name,de);
 				printf(" %s %s %u\n",m1,m2,(unsigned)s2.st_size);
 				fwrite(p2,1,s2.st_size,stdout);
+				putchar('\n');
 				s_sub_files++;
 				s_sub_bytes += s2.st_size;
 			}
@@ -222,6 +304,7 @@ Equ(const char *dir1, const char *dir2, const char *name, struct dirent *de)
 void
 Add(const char *dir1, const char *dir2, const char *name, struct dirent *de)
 {
+	change++;
 	if (de->d_type == DT_DIR) {
 		char *p = alloca(strlen(name)+strlen(de->d_name)+2);
 		strcpy(p,name);  strcat(p,de->d_name); strcat(p, "/");
@@ -260,6 +343,8 @@ Add(const char *dir1, const char *dir2, const char *name, struct dirent *de)
 void
 Del (const char *dir1, const char *dir2, const char *name, struct dirent *de)
 {
+	damage++;
+	change++;
 	if (de->d_type == DT_DIR) {
 		char *p = alloca(strlen(name)+strlen(de->d_name)+2);
 		strcpy(p,name);  strcat(p,de->d_name); strcat(p, "/");
@@ -299,15 +384,22 @@ GetNext(int *i, int *n, struct dirent **nl, const char *dir, const char *name, u
 			strcat(buf,name);
 			if (buf[strlen(buf)-1] != '/')
 				strcat(buf,"/"); 
-			fprintf(stderr,">%d<%s>\n",strlen(nl[*i]->d_name),nl[*i]->d_name);
-			fflush(stderr);
 			strcat(buf,nl[*i]->d_name);
-			if (flag_ignore && !regexec(&reg_ignore,buf,0,0,0))
+			if (flag_ignore && 
+			    !regexec(&reg_ignore,buf,0,0,0)) {
 				(*ignored)++;
-			else if (flag_bogus && !regexec(&reg_bogus,buf,0,0,0))
+				if (verbose > 2) {
+					fprintf(stderr,"Ignore %s\n",buf);
+				}
+			} else if (flag_bogus && 
+			    !regexec(&reg_bogus,buf,0,0,0)) {
 				(*bogus)++;
-			else
+				if (verbose > 0) {
+					fprintf(stderr,"Bogus %s\n",buf);
+				}
+			} else {
 				break;
+			}
 			free(nl[*i]); nl[*i] = 0;
 		}
 		/* If the filesystem didn't tell us, find type */
@@ -316,6 +408,8 @@ GetNext(int *i, int *n, struct dirent **nl, const char *dir, const char *name, u
 		if (nl[*i]->d_type == DT_REG || nl[*i]->d_type == DT_DIR)
 			break;
 		(*wrong)++;
+		if (verbose > 0)
+			fprintf(stderr,"Wrong %s\n",buf);
 		free(nl[*i]); nl[*i] = 0;
 	}
 }
@@ -336,6 +430,9 @@ DoDir(const char *dir1, const char *dir2, const char *name)
 	GetNext(&i1, &n1, nl1, dir1, name, &s1_ignored, &s1_bogus, &s1_wrong);
 	GetNext(&i2, &n2, nl2, dir2, name, &s2_ignored, &s2_bogus, &s2_wrong);
 	for (;i1 < n1 || i2 < n2;) {
+
+		if (damage_limit && damage > damage_limit)
+			break;
 
 		/* Get next item from list 1 */
 		if (i1 < n1 && !nl1[i1]) 
@@ -393,6 +490,8 @@ main(int argc, char **argv)
 	extern char *optarg;
 	extern int optind;
 
+	setbuf(stderr, NULL);
+
 	if (regcomp(&reg_bogus,DEFAULT_BOGUS, REG_EXTENDED | REG_NEWLINE))
 		/* XXX use regerror to explain it */
 		err(1,"Default regular expression argument to -B is botched");
@@ -403,8 +502,13 @@ main(int argc, char **argv)
 		err(1,"Default regular expression argument to -I is botched");
 	flag_ignore = 1;
 
-	while ((i = getopt(argc,argv,"I:B:")) != EOF)
+	while ((i = getopt(argc,argv,"D:I:B:qv")) != EOF)
 		switch (i) {
+		case 'D':
+			damage_limit = strtol(optarg,0,0);
+			if (damage_limit < 0)
+				err(1,"Damage limit must be positive");
+			break;
 		case 'I':
 			if (flag_ignore)
 				regfree(&reg_ignore);
@@ -429,10 +533,15 @@ main(int argc, char **argv)
 				err(1,"Regular expression argument to -B is botched");
 			flag_bogus = 1;
 			break;
+		case 'q':
+			verbose--;
+			break;
+		case 'v':
+			verbose++;
+			break;
 		case '?':
 		default:
-			fprintf(stderr,"Usage:\n\t%s: %s\n", argv[0],
-"[-I ignore_re] [-B bogus_re]");
+			Usage();
 			return (1);
 		}
 	argc -= optind;
@@ -440,10 +549,24 @@ main(int argc, char **argv)
 
 	setbuf(stdout,0);
 
+	if (argc != 6) {
+		Usage();
+		return (1);
+	}
+	
 	signal(SIGINFO,stat_info);
-	printf("CTM_BEGIN 2.0 tst 0 950326022230Z .\n");
-	DoDir(argv[0],argv[1],"");
-	printf("CTM_END ");
-	print_stat(stderr,"");
+
+	printf("CTM_BEGIN 2.0 %s %s %s %s\n",
+		argv[0], argv[1], argv[2], argv[3]);
+	DoDir(argv[4],argv[5],"");
+	if (damage_limit && damage > damage_limit) {
+		print_stat(stderr,"");
+		err(1,"Damage would exceede %d files", damage_limit);
+	} else if (!change) {
+		err(1,"No changes");
+	} else {
+		printf("CTM_END ");
+		print_stat(stderr,"");
+	}
 	exit(0);
 }
