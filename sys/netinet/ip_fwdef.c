@@ -40,8 +40,19 @@ u_short ip_fw_policy=0;
 
 struct  ip_fw *ip_acct_chain=NULL;
 
+#ifdef IPFIREWALL
+int (*ip_fw_chk_ptr)(struct ip *,struct ifnet *,struct ip_fw *)=&ip_fw_chk;
+int (*ip_fw_ctl_ptr)(int,struct mbuf *)=&ip_fw_ctl;
+#else
 int (*ip_fw_chk_ptr)(struct ip *,struct ifnet *,struct ip_fw *)=NULL;
 int (*ip_fw_ctl_ptr)(int,struct mbuf *)=NULL;
+#endif
 
+
+#ifdef IPACCT
+void (*ip_acct_cnt_ptr)(struct ip *,struct ifnet *,struct ip_fw *,int)=&ip_acct_cnt;
+int  (*ip_acct_ctl_ptr)(int,struct mbuf *)=&ip_acct_ctl;
+#else
 void (*ip_acct_cnt_ptr)(struct ip *,struct ifnet *,struct ip_fw *,int)=NULL;
 int  (*ip_acct_ctl_ptr)(int,struct mbuf *)=NULL;
+#endif
