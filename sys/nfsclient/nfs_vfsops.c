@@ -254,7 +254,6 @@ nfs_statfs(mp, sbp, p)
 	struct nfsmount *nmp = VFSTONFS(mp);
 	int error = 0, v3 = (nmp->nm_flag & NFSMNT_NFSV3), retattr;
 	struct mbuf *mreq, *mrep, *md, *mb, *mb2;
-	struct ucred *cred;
 	struct nfsnode *np;
 	u_quad_t tquad;
 
@@ -265,14 +264,12 @@ nfs_statfs(mp, sbp, p)
 	if (error)
 		return (error);
 	vp = NFSTOV(np);
-	cred = crget();
-	cred->cr_ngroups = 1;
 	if (v3 && (nmp->nm_state & NFSSTA_GOTFSINFO) == 0)
-		(void)nfs_fsinfo(nmp, vp, cred, p);
+		(void)nfs_fsinfo(nmp, vp, p->p_ucred, p);
 	nfsstats.rpccnt[NFSPROC_FSSTAT]++;
 	nfsm_reqhead(vp, NFSPROC_FSSTAT, NFSX_FH(v3));
 	nfsm_fhtom(vp, v3);
-	nfsm_request(vp, NFSPROC_FSSTAT, p, cred);
+	nfsm_request(vp, NFSPROC_FSSTAT, p, p->p_ucred);
 	if (v3)
 		nfsm_postop_attr(vp, retattr);
 	if (error) {
@@ -310,7 +307,6 @@ nfs_statfs(mp, sbp, p)
 	}
 	nfsm_reqdone;
 	vput(vp);
-	crfree(cred);
 	return (error);
 }
 
