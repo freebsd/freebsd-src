@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.42 1995/09/03 20:39:22 dyson Exp $
+ *	$Id: vm_machdep.c,v 1.43 1995/10/01 20:10:20 davidg Exp $
  */
 
 #include "npx.h"
@@ -60,7 +60,19 @@
 
 #include <i386/isa/isa.h>
 
+extern void	pagemove __P((caddr_t from, caddr_t to, int size));
+extern void	setredzone __P((u_short *pte, caddr_t vaddr));
+extern void	vm_fault_quick __P((caddr_t v, int prot));
+
 #ifdef BOUNCE_BUFFERS
+extern vm_offset_t
+		vm_bounce_kva __P((int size, int waitok));
+extern void	vm_bounce_kva_free __P((vm_offset_t addr, vm_offset_t size,
+					int now));
+extern vm_offset_t
+		vm_bounce_page_find __P((int count));
+extern void	vm_bounce_page_free __P((vm_offset_t pa, int count));
+
 volatile int	kvasfreecnt;
 
 caddr_t		bouncememory;
@@ -83,8 +95,6 @@ struct kvasfree {
 	vm_offset_t size;
 } kvaf[MAXBKVA];
 
-
-vm_offset_t vm_bounce_kva();
 /*
  * get bounce buffer pages (count physically contiguous)
  * (only 1 inplemented now)
@@ -518,21 +528,20 @@ vm_bounce_init()
 
 }
 #endif /* BOUNCE_BUFFERS */
+
 /*
  * quick version of vm_fault
  */
-
 void
-vm_fault_quick( v, prot)
-	vm_offset_t v;
+vm_fault_quick(v, prot)
+	caddr_t v;
 	int prot;
 {
 	if (prot & VM_PROT_WRITE)
-		subyte((char *)v, fubyte((char *)v));
+		subyte(v, fubyte(v));
 	else
-		(void) fubyte((char *)v);
+		fubyte(v);
 }
-
 
 /*
  * Finish a fork operation, with process p2 nearly set up.
