@@ -277,16 +277,13 @@ read_files(void)
 	FILE *fp;
 	struct file_list *tp, *pf;
 	struct device *dp;
-	struct device *save_dp;
 	struct opt *op;
 	char *wd, *this, *needs, *special, *depends, *clean, *warning;
 	char fname[MAXPATHLEN];
-	int ddwarned = 0;
 	int nreqs, first = 1, configdep, isdup, std, filetype,
 	    imp_rule, no_obj, needcount, before_depend, mandatory;
 
 	ftab = 0;
-	save_dp = NULL;
 	if (ident == NULL) {
 		printf("no ident line specified\n");
 		exit(1);
@@ -469,7 +466,7 @@ nextparam:
 		needs = ns(wd);
 	if (isdup)
 		goto invis;
-	for (dp = dtab; dp != 0; save_dp = dp, dp = dp->d_next)
+	for (dp = dtab; dp != 0; dp = dp->d_next)
 		if (eq(dp->d_name, wd)) {
 			if (std && dp->d_count <= 0)
 				dp->d_count = 1;
@@ -481,12 +478,9 @@ nextparam:
 		exit(1);
 	}
 	if (std) {
-		dp = (struct device *) malloc(sizeof *dp);
-		bzero(dp, sizeof *dp);
-		dp->d_name = ns(wd);
-		dp->d_count = 1;
-		save_dp->d_next = dp;
-		goto nextparam;
+		printf("standard entry %s has a device keyword - %s!\n",
+		       this, wd);
+		exit(1);
 	}
 	for (op = opt; op != 0; op = op->op_next)
 		if (op->op_value == 0 && opteq(op->op_name, wd)) {
