@@ -48,6 +48,8 @@ static int      dsp_stereo = 0;
 static int      dsp_current_speed = 8000;
 static int      dsp_busy = 0;
 static int      dma16, dma8;
+
+
 static int      trigger_bits = 0;
 static u_long dsp_count = 0;
 
@@ -198,6 +200,7 @@ sb16_dsp_open(int dev, int mode)
     int             retval;
 
     DEB(printf("sb16_dsp_open()\n"));
+
     if (!sb16_dsp_ok) {
 	printf("SB16 Error: SoundBlaster board not installed\n");
 	return -(ENXIO);
@@ -206,6 +209,7 @@ sb16_dsp_open(int dev, int mode)
 	return -(EBUSY);
 
     sb_reset_dsp();
+
 
     irq_mode = IMODE_NONE;
     dsp_busy = 1;
@@ -229,6 +233,8 @@ sb16_dsp_close(int dev)
 
     dsp_cleanup();
     dsp_busy = 0;
+
+
     splx(flags);
 }
 
@@ -237,10 +243,12 @@ sb16_dsp_output_block(int dev, u_long buf, int count, int intrflag, int dma_rest
 {
     u_long   flags, cnt;
 
+
     cnt = count;
     if (dsp_16bit)
 	cnt >>= 1;
     cnt--;
+
     if (audio_devs[dev]->flags & DMA_AUTOMODE && intrflag && cnt==dsp_count) {
 	irq_mode = IMODE_OUTPUT;
 	intr_active = 1;
@@ -309,7 +317,20 @@ sb16_dsp_start_input(int dev, u_long buf, int count, int intrflag, int dma_resta
 static int
 sb16_dsp_prepare_for_input(int dev, int bsize, int bcount)
 {
+    int fudge;
+    struct dma_buffparms *dmap =  audio_devs[dev]->dmap_in;
+
     audio_devs[my_dev]->dmachan2 = dsp_16bit ? dma16 : dma8;
+
+
+    fudge =  audio_devs[my_dev]->dmachan2 ;
+
+    if (dmap->dma_chan != fudge ) {
+      isa_dma_release( dmap->dma_chan);
+      isa_dma_acquire(fudge);
+      dmap->dma_chan = fudge;
+    }
+
     dsp_count = 0;
     dsp_cleanup();
     if (dsp_16bit) 
@@ -325,11 +346,16 @@ static int
 sb16_dsp_prepare_for_output(int dev, int bsize, int bcount)
 {
     int fudge = dsp_16bit ? dma16 : dma8;
+    struct dma_buffparms *dmap =  audio_devs[dev]->dmap_out;
 
-    isa_dma_release( audio_devs[my_dev]->dmachan1 );
-    isa_dma_acquire(fudge);
+    if (dmap->dma_chan != fudge ) {
+      isa_dma_release( dmap->dma_chan);
+      isa_dma_acquire(fudge);
+      dmap->dma_chan = fudge;
+    }
 
     audio_devs[my_dev]->dmachan1 = fudge;
+
     dsp_count = 0;
     dsp_cleanup();
     if (dsp_16bit) 
