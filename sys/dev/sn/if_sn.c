@@ -827,7 +827,6 @@ sn_intr(void *arg)
 	 * Receive Overrun.
 	 */
 	if (status & IM_RX_OVRN_INT) {
-
 		/*
 		 * Acknowlege Interrupt
 		 */
@@ -840,29 +839,24 @@ sn_intr(void *arg)
 	 * Got a packet.
 	 */
 	if (status & IM_RCV_INT) {
-#if 1
 		int             packet_number;
 
 		SMC_SELECT_BANK(2);
 		packet_number = inw(BASE + FIFO_PORTS_REG_W);
 
 		if (packet_number & FIFO_REMPTY) {
-
 			/*
 			 * we got called , but nothing was on the FIFO
 			 */
 			printf("sn: Receive interrupt with nothing on FIFO\n");
-
 			goto out;
 		}
-#endif
 		snread(ifp);
 	}
 	/*
 	 * An on-card memory allocation came through.
 	 */
 	if (status & IM_ALLOC_INT) {
-
 		/*
 		 * Disable this interrupt.
 		 */
@@ -875,7 +869,6 @@ sn_intr(void *arg)
 	 * called when there is an error, because of the AUTO_RELEASE mode.
 	 */
 	if (status & IM_TX_INT) {
-
 		/*
 		 * Acknowlege Interrupt
 		 */
