@@ -1,4 +1,4 @@
-<!-- $Id: eresources.sgml,v 1.2.4.3 1995/11/07 18:24:44 jfieber Exp $ -->
+<!-- $Id: eresources.sgml,v 1.15 1995/11/20 01:10:16 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>
@@ -34,7 +34,7 @@ keep the signal to noise ratio of the lists high, especially in
 the technical lists.
 
 Archives are kept for all of the mailing lists and can be searched
-using the the <url url="http://www.freebsd.org/"
+using the the <url url="http://www.freebsd.org/search.html"
 name="FreeBSD World Wide Web server">.  The keyword searchable archive
 offers an excellent way to find answers to frequently asked questions
 and should be consulted before posting a question.
@@ -50,7 +50,7 @@ freebsd-announce         Important events / milestones
 freebsd-bugs             Bug reports
 freebsd-chat             Non technical items related to the community
 freebsd-current          Discussions about the use of FreeBSD-current
-freebsd-isp              Issues for ISP's using FreeBSD
+freebsd-isp              Issues for Internet Service Providers using FreeBSD
 freebsd-policy           Policy issues and suggestions
 freebsd-questions        User questions
 </verb>
@@ -61,7 +61,7 @@ your e-mail within the scope of the guidelines.
 <verb>
 List                     Purpose
 ----------------------------------------------------------------------
-freebsd-doc              Documentation project
+freebsd-doc              The FreeBSD Documentation project
 freebsd-fs               Filesystems
 freebsd-hackers          General Technical discussions
 freebsd-hardware         General discussion of FreeBSD hardware
@@ -182,7 +182,7 @@ submitted using "send-pr".
                               community</em><newline>
 This list contains the overflow from the other lists about
 non-technical, social information.  It includes discussion about
-whether Jordan looks like a tune ferret or not, whether or not to
+whether Jordan looks like a toon ferret or not, whether or not to
 type in capitals, who is drinking too much coffee, where the best
 beer is brewed, who is brewing beer in their basement, and so on.
 Occasional announcements of important events (such as upcoming
