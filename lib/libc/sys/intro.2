@@ -53,7 +53,7 @@ their error returns, and other common definitions and concepts.
 Nearly all of the system calls provide an error number referenced via
 the external identifier errno.
 This identifier is defined in
-.Aq Pa sys/errno.h
+.In sys/errno.h
 as
 .Pp
 .Dl extern    int *       __error();
@@ -88,7 +88,7 @@ to the type and circumstances of the call.
 .Pp
 The following is a complete list of the errors and their
 names as given in
-.Aq Pa sys/errno.h .
+.In sys/errno.h .
 .Bl -hang -width Ds
 .It Er 0 Em "Undefined error: 0" .
 Not used.
@@ -128,7 +128,7 @@ list of the new process exceeded the current limit
 of 65536 bytes
 .Dv ( NCARGS
 in
-.Aq Pa sys/param.h ) .
+.In sys/param.h ) .
 .It Er 8 ENOEXEC Em "Exec format error" .
 A request was made to execute a file
 that, although it has the appropriate permissions,

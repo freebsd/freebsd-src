@@ -197,7 +197,7 @@ This request reads the traced process's machine registers into the
 .Vt "struct reg"
 .Dc
 (defined in
-.Aq Pa machine/reg.h )
+.In machine/reg.h )
 pointed to by
 .Fa addr .
 .It Dv PT_SETREGS
@@ -208,7 +208,7 @@ it loads the traced process's machine registers from the
 .Vt "struct reg"
 .Dc
 (defined in
-.Aq Pa machine/reg.h )
+.In machine/reg.h )
 pointed to by
 .Fa addr .
 .It Dv PT_GETFPREGS
@@ -218,7 +218,7 @@ the
 .Vt "struct fpreg"
 .Dc
 (defined in
-.Aq Pa machine/reg.h )
+.In machine/reg.h )
 pointed to by
 .Fa addr .
 .It Dv PT_SETFPREGS
@@ -229,7 +229,7 @@ it loads the traced process's floating-point registers from the
 .Vt "struct fpreg"
 .Dc
 (defined in
-.Aq Pa machine/reg.h )
+.In machine/reg.h )
 pointed to by
 .Fa addr .
 .It Dv PT_GETDBREGS
@@ -239,7 +239,7 @@ the
 .Vt "struct dbreg"
 .Dc
 (defined in
-.Aq Pa machine/reg.h )
+.In machine/reg.h )
 pointed to by
 .Fa addr .
 .It Dv PT_SETDBREGS
@@ -250,7 +250,7 @@ it loads the traced process's debug registers from the
 .Vt "struct dbreg"
 .Dc
 (defined in
-.Aq Pa machine/reg.h )
+.In machine/reg.h )
 pointed to by
 .Fa addr .
 .El
