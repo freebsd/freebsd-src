@@ -524,6 +524,16 @@ static int xl_miibus_readreg(dev, phy, reg)
 	struct xl_softc		*sc;
 	struct xl_mii_frame	frame;
 
+	/*
+	 * Pretend that PHYs are only available at MII address 24.
+	 * This is to guard against problems with certain 3Com ASIC
+	 * revisions that incorrectly map the internal transceiver
+	 * control registers at all MII addresses. This can cause
+	 * the miibus code to attach the same PHY several times over.
+	 */
+	if (phy != 24)
+		return(0);
+
 	sc = device_get_softc(dev);
 
 	bzero((char *)&frame, sizeof(frame));
@@ -541,6 +551,9 @@ static int xl_miibus_writereg(dev, phy, reg, data)
 {
 	struct xl_softc		*sc;
 	struct xl_mii_frame	frame;
+
+	if (phy != 24)
+		return(0);
 
 	sc = device_get_softc(dev);
 
