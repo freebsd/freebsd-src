@@ -5,7 +5,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# Mon Feb 27 00:06:22 PST 1995
+# $Id$
 #
 
 		Obtaining FreeBSD-current sources using CTM.
@@ -30,8 +30,6 @@ then a biggie of 100K+ comes around.
 You need to make yourself aware of the caveats of following the "current"
 sources, refer to the relevant FAQ for more info on that topic.
 
-Only if you have commit priviledge, or are similary authorized, can you get 
-access to the cvs tree by the same means.  Contact phk@FreeBSD.org for that.
 
 What do I need to use CTM ?
 ---------------------------
@@ -58,11 +56,18 @@ if you want.  Check the "ctm_rmail" man page.
 
 How to get started.
 -------------------
-You need to get up to speed.  Every now and then I will produce a special
-additional delta: a delta from nothing.  You can recognize these in two
-ways, the are large: 25 to 30 Megabytes gzip'ed, and they have an 'A'
-appended to the number. (src-cur.0341A.gz for instance).  You will also
-need all deltas with higher numbers.
+You need to get up to speed.  You have two choices:
+
+Every now and then I will produce a special additional delta: a delta from
+nothing.  You can recognize these in two ways, the are large: 25 to 30
+Megabytes gzip'ed, and they have an 'A' appended to the number. 
+(src-cur.0341A.gz for instance).
+
+The other option is if you have the 2.0-RELEASE already, either from the
+internet or from the CDROM, you can pick up the src-cur.0372R20.gz file,
+which is a delta from the 2.0R.
+
+In both cases will you need all deltas with higher numbers too.
 
 Now working...
 --------------
@@ -105,6 +110,17 @@ to arrange special services, one option is delivery via ftp or rcp to a
 machine closer to you.  You need to have earned this, since it takes time
 to do, but I'll be all the more happy to do it for you then.
 
+Only if you have commit priviledge, or are similary authorized, can you get 
+access to the cvs tree by the same means.  Contact phk@FreeBSD.org for that.
+
+All the "DES-infected" source is not included.  You will get the
+"international" version only.  If sufficient interest appears, we will
+setup a "sec-cur" sequence too.
+
+There is a sequence of deltas for the "ports" too, but the interest has not
+been to big yet, tell me if you want an email list for that too.
+
+
 Thanks!
 -------
 Bruce Evans, for his pointed pen and invaluable comments.
@@ -112,6 +128,7 @@ Soren Schmidt, for patience.
 Stephen McKay, wrote ctm_[rs]mail, much appreceiated.
 Jordan Hubbard, for being so stubborn that I had to make it better.
 All the users,  I hope you like it...
+
 
 Comments ?
 ----------
