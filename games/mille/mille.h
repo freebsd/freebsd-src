@@ -151,7 +151,9 @@
 # ifdef	SYSV
 # define	srandom(x)	srand(x)
 # define	random()	rand()
+# endif
 
+# if defined(SYSV) || defined(__FreeBSD__)
 # ifndef	attron
 #	define	erasechar()	_tty.c_cc[VERASE]
 #	define	killchar()	_tty.c_cc[VKILL]
@@ -162,6 +164,10 @@
 #	define	killchar()	_tty.sg_kill
 # endif
 # endif	SYSV
+
+#ifndef reg
+#define reg /* register */
+#endif
 
 typedef struct {
 	bool	coups[NUM_SAFE];
