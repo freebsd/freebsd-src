@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.17 1994/11/02 07:34:01 ache Exp $
+ * $Id: utils.c,v 1.18 1994/11/02 08:52:15 phk Exp $
  *
  */
 
@@ -219,7 +219,7 @@ Mkdir(char *ipath)
 {
 	struct stat sb;
 	int final=0;
-	char *p,path=StrAlloc(ipath);
+	char *p,*path=StrAlloc(ipath);
 
 	Debug("mkdir(%s)",path);
 	p = path;
