@@ -38,6 +38,7 @@
 #include "opt_cpu.h"
 #include "opt_debug_npx.h"
 #include "opt_math_emulate.h"
+#include "opt_npx.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -363,6 +364,14 @@ npx_probe(dev)
 			 */
 			control &= ~(1 << 2);	/* enable divide by 0 trap */
 			fldcw(&control);
+#ifdef FPU_ERROR_BROKEN
+			/*
+			 * FPU error signal doesn't work on some CPU
+			 * accelerator board.
+			 */
+			npx_ex16 = 1;
+			return (0);
+#endif
 			npx_traps_while_probing = npx_intrs_while_probing = 0;
 			fp_divide_by_0();
 			if (npx_traps_while_probing != 0) {
