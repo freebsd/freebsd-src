@@ -237,8 +237,18 @@ Map (do not map)
 to
 .Dv CR-NL
 on output.
+.It Cm ocrnl Pq Fl ocrnl
+Map (do not map)
+.Dv CR
+to
+.Dv NL
+on output.
 .It Cm oxtabs Pq Fl oxtabs
 Expand (do not expand) tabs to spaces on output.
+.It Cm onocr Pq Fl onocr
+Do not (do) output CRs at column zero.
+.It Cm onlret Pq Fl onlret
+On the terminal NL performs (does not perform) the CR function.
 .El
 .Ss Local Modes:
 .Pp
@@ -374,6 +384,7 @@ Recognized control-characters:
 .It eol Ta Tn VEOL Ta EOL No character
 .It eol2 Ta Tn VEOL2 Ta EOL2 No character
 .It erase Ta Tn VERASE Ta ERASE No character
+.It erase2 Ta Tn VERASE2 Ta ERASE2 No character
 .It werase Ta Tn VWERASE Ta WERASE No character
 .It intr Ta Tn VINTR Ta INTR No character
 .It kill Ta Tn VKILL Ta KILL No character
@@ -420,7 +431,8 @@ In addition
 -nl unsets inlcr and igncr.
 .It Cm ek
 Reset
-.Dv ERASE
+.Dv ERASE ,
+.Dv ERASE2 ,
 and
 .Dv KILL
 characters
