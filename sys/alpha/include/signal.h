@@ -32,6 +32,7 @@
 #define	_ALPHA_SIGNAL_H_
 
 typedef long	sig_atomic_t;
+
 #ifndef _ANSI_SOURCE
 
 /*
@@ -52,7 +53,6 @@ struct  osigcontext {
 	long	sc_pc;                  /* pc to restore */
 	long	sc_ps;			/* ps to restore */
 	unsigned long sc_regs[32];	/* integer register set (see above) */
-#define	sc_sp	sc_regs[R_SP]
 	long	sc_ownedfp;		/* fp has been used */
 	unsigned long sc_fpregs[32];	/* FP register set (see above) */
 	unsigned long sc_fpcr;		/* FP control register (see above) */
@@ -64,6 +64,30 @@ struct  osigcontext {
 	unsigned long sc_traparg_a2;	/* a2 argument to trap at exception */
 	long	sc_xxx2[3];		/* sc_fp_trap_pc, sc_fp_trigger_sum, sc_fp_trigger_inst */
 };
+
+/*
+ * The sequence of the fields should match those in
+ * mcontext_t. Keep them in sync!
+ */
+struct	sigcontext {
+	sigset_t sc_mask;		/* signal mask to restore */
+	long	sc_onstack;             /* sigstack state to restore */
+	unsigned long sc_regs[32];	/* integer register set (see above) */
+	long	sc_ps;			/* ps to restore */
+	long	sc_pc;                  /* pc to restore */
+	unsigned long sc_traparg_a0;	/* a0 argument to trap at exception */
+	unsigned long sc_traparg_a1;	/* a1 argument to trap at exception */
+	unsigned long sc_traparg_a2;	/* a2 argument to trap at exception */
+	unsigned long sc_fpregs[32];	/* FP register set (see above) */
+	unsigned long sc_fpcr;		/* FP control register (see above) */
+	unsigned long sc_fp_control;	/* FP software control word */
+	long	sc_ownedfp;		/* fp has been used */
+	long	sc_xxx1[2];		/* sc_ssize, sc_sbase on DUX */
+	long	sc_xxx2[3];		/* sc_fp_trap_pc, sc_fp_trigger_sum, sc_fp_trigger_inst */
+	long	sc_reserved[2];		/* XXX */
+};
+
+#define	sc_sp	sc_regs[R_SP]
 
 #endif /* !_ANSI_SOURCE */
 #endif /* !_ALPHA_SIGNAL_H_*/

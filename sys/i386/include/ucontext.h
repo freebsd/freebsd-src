@@ -29,15 +29,22 @@
  */
 
 #ifndef _MACHINE_UCONTEXT_H_
-#define _MACHINE_UCONTEXT_H_ 1
+#define	_MACHINE_UCONTEXT_H_
 
 #include <machine/frame.h>
 
-typedef struct {
-	int		mc_gs;		/* %gs */
-	struct trapframe mc_tf;		/* trapframe */
-	int		mc_fpregs[28];	/* env87 + fpacc87 + u_long */
-	int		__spare__[17];
+typedef struct __mcontext {
+	/*
+	 * The first 3 fields must match the definition of
+	 * sigcontext. So that we can support sigcontext
+	 * and ucontext_t at the same time.
+	 */
+	int	mc_onstack;		/* XXX - sigcontext compat. */
+	int	mc_gs;
+	struct	trapframe mc_tf;
+
+	int	mc_fpregs[28];		/* env87 + fpacc87 + u_long */
+	int	__spare__[17];
 } mcontext_t;
 
-#endif /* _MACHINE_UCONTEXT_H_ */
+#endif /* !_MACHINE_UCONTEXT_H_ */

@@ -613,6 +613,7 @@ sendsig(catcher, sig, mask, code)
 	struct trapframe *regs;
 	struct sigacts *psp;
 	struct sigframe sf, *sfp;
+	int onstack;
 
 	p = curproc;
 
@@ -623,17 +624,18 @@ sendsig(catcher, sig, mask, code)
 
 	regs = p->p_md.md_regs;
 	psp = p->p_sigacts;
+	onstack = (psp->ps_sigstk.ss_flags & SS_ONSTACK) ? 1 : 0;
 
 	/* save user context */
 	bzero(&sf, sizeof(struct sigframe));
 	sf.sf_uc.uc_sigmask = *mask;
 	sf.sf_uc.uc_stack = psp->ps_sigstk;
+	sf.sf_uc.uc_mcontext.mc_onstack = onstack;
 	sf.sf_uc.uc_mcontext.mc_tf = *regs;
 	sf.sf_uc.uc_mcontext.mc_gs = rgs();
 
 	/* Allocate and validate space for the signal handler context. */
-        if ((psp->ps_flags & SAS_ALTSTACK) != 0 &&
-	    (psp->ps_sigstk.ss_flags & SS_ONSTACK) == 0 &&
+        if ((psp->ps_flags & SAS_ALTSTACK) != 0 && !onstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
 		sfp = (struct sigframe *)(psp->ps_sigstk.ss_sp +
 		    psp->ps_sigstk.ss_size - sizeof(struct sigframe));
@@ -884,16 +886,13 @@ sigreturn(p, uap)
 {
 	struct trapframe *regs;
 	ucontext_t *ucp;
-	struct sigframe *sfp;
 	int cs, eflags;
 
 	regs = p->p_md.md_regs;
 	ucp = uap->sigcntxp;
-	sfp = (struct sigframe *)
-	    ((caddr_t)ucp - offsetof(struct sigframe, sf_uc));
 	eflags = ucp->uc_mcontext.mc_tf.tf_eflags;
 
-	if (useracc((caddr_t)sfp, sizeof(struct sigframe), B_WRITE) == 0)
+	if (useracc((caddr_t)ucp, sizeof(ucontext_t), B_WRITE) == 0)
 		return(EFAULT);
 
 	if (eflags & PSL_VM) {
@@ -963,7 +962,11 @@ sigreturn(p, uap)
 		*regs = ucp->uc_mcontext.mc_tf;
 	}
 
-	p->p_sigacts->ps_sigstk = ucp->uc_stack;
+	if (ucp->uc_mcontext.mc_onstack & 1)
+		p->p_sigacts->ps_sigstk.ss_flags |= SS_ONSTACK;
+	else
+		p->p_sigacts->ps_sigstk.ss_flags &= ~SS_ONSTACK;
+
 	p->p_sigmask = ucp->uc_sigmask;
 	SIG_CANTMASK(p->p_sigmask);
 	return(EJUSTRETURN);
