@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,11 +33,20 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: mk_safe.c,v 1.25 1999/12/02 16:58:43 joda Exp $");
+RCSID("$Id: mk_safe.c,v 1.25.2.1 2000/10/10 13:19:25 assar Exp $");
 
 /* application include files */
 #include "krb-archaeology.h"
 
+#ifndef DES_QUAD_GUESS
+/* Temporary fixes for krb_{rd,mk}_safe */
+#define DES_QUAD_GUESS 0
+#define DES_QUAD_NEW 1
+#define DES_QUAD_OLD 2
+
+#define DES_QUAD_DEFAULT DES_QUAD_GUESS
+
+#endif /* DES_QUAD_GUESS */
 
 /* from rd_safe.c */
 extern int dqc_type;

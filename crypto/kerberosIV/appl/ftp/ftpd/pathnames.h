@@ -53,3 +53,6 @@
 #define	_PATH_FTPCHROOT		"/etc/ftpchroot"
 #define	_PATH_FTPWELCOME	"/etc/ftpwelcome"
 #define	_PATH_FTPLOGINMESG	"/etc/motd"
+
+#define _PATH_ISSUE		"/etc/issue"
+#define _PATH_ISSUE_NET		"/etc/issue.net"

@@ -33,20 +33,20 @@
 
 #include "bsd_locl.h"
 
-RCSID ("$Id: su.c,v 1.70 1999/11/13 06:14:11 assar Exp $");
+RCSID ("$Id: su.c,v 1.70.2.2 2000/12/07 14:04:19 assar Exp $");
 
 #ifdef SYSV_SHADOW
 #include "sysv_shadow.h"
 #endif
 
-static int kerberos (char *username, char *user, int uid);
+static int kerberos (char *username, char *user, char *realm, int uid);
 static int chshell (char *sh);
 static char *ontty (void);
 static int koktologin (char *name, char *realm, char *toname);
 static int chshell (char *sh);
 
 /* Handle '-' option after all the getopt options */
-#define	ARGSTR	"Kflmti:"
+#define	ARGSTR	"Kkflmti:r:"
 
 int destroy_tickets = 0;
 static int use_kerberos = 1;
@@ -63,14 +63,21 @@ main (int argc, char **argv)
     enum { UNSET, YES, NO } iscsh = UNSET;
     char *user, *shell, *avshell, *username, **np;
     char shellbuf[MaxPathLen], avshellbuf[MaxPathLen];
+    char *realm = NULL;
 
     set_progname (argv[0]);
+
+    if (getuid() == 0)
+    	use_kerberos = 0;
 
     asme = asthem = fastlogin = 0;
     while ((ch = getopt (argc, argv, ARGSTR)) != -1)
 	switch ((char) ch) {
 	case 'K':
 	    use_kerberos = 0;
+	    break;
+	case 'k':
+	    use_kerberos = 1;
 	    break;
 	case 'f':
 	    fastlogin = 1;
@@ -89,10 +96,13 @@ main (int argc, char **argv)
 	case 'i':
 	    root_inst = optarg;
 	    break;
+	case 'r':
+	    realm = optarg;
+	    break;
 	case '?':
 	default:
 	    fprintf (stderr,
-		     "usage: su [-Kflmt] [-i root-instance] [-] [login]\n");
+		     "usage: su [-Kkflmt] [-i root-instance] [-r realm] [-] [login]\n");
 	    exit (1);
 	}
     /* Don't handle '-' option with getopt */
@@ -150,7 +160,7 @@ main (int argc, char **argv)
 	syslog (LOG_ALERT, "NIS attack, user %s has uid 0", user);
 	errx (1, "unknown login %s", user);
     }
-    if (!use_kerberos || kerberos (username, user, pwd->pw_uid)) {
+    if (!use_kerberos || kerberos (username, user, realm, pwd->pw_uid)) {
 #ifndef PASSWD_FALLBACK
 	errx (1, "won't use /etc/passwd authentication");
 #endif
@@ -225,11 +235,21 @@ main (int argc, char **argv)
 
     if (setgid (pwd->pw_gid) < 0)
 	err (1, "setgid");
-    if (initgroups (user, pwd->pw_gid))
-	errx (1, "initgroups failed.");
+    if (initgroups (user, pwd->pw_gid)) {
+        if (errno == E2BIG)    /* Member of too many groups! */
+	    warn("initgroups failed.");
+	else
+	    errx(1, "initgroups failed.");
+    }
 
     if (setuid (pwd->pw_uid) < 0)
 	err (1, "setuid");
+
+    if (pwd->pw_uid != 0 && setuid(0) != -1) {
+      syslog(LOG_ALERT | LOG_AUTH,
+	     "Failed to drop privileges for user %s", pwd->pw_name);
+      errx(1, "Sorry");
+    }
 
     if (!asme) {
 	if (asthem) {
@@ -321,19 +341,26 @@ ontty (void)
 }
 
 static int
-kerberos (char *username, char *user, int uid)
+kerberos (char *username, char *user, char *lrealm, int uid)
 {
     KTEXT_ST ticket;
     AUTH_DAT authdata;
     struct hostent *hp;
     int kerno;
     u_long faddr;
-    char lrealm[REALM_SZ], krbtkfile[MaxPathLen];
+    char tmp_realm[REALM_SZ], krbtkfile[MaxPathLen];
     char hostname[MaxHostNameLen], savehost[MaxHostNameLen];
+    int n;
+    int allowed = 0;
 
-    if (krb_get_lrealm (lrealm, 1) != KSUCCESS)
-	return (1);
-    if (koktologin (username, lrealm, user) && !uid) {
+    if (lrealm != NULL) {
+	allowed = koktologin (username, lrealm, user) == 0;
+    } else {
+	for (n = 1; !allowed && krb_get_lrealm (tmp_realm, n) == KSUCCESS; ++n)
+	    allowed = koktologin (username, tmp_realm, user) == 0;
+	lrealm = tmp_realm;
+    }
+    if (!allowed && !uid) {
 #ifndef PASSWD_FALLBACK
 	warnx ("not in %s's ACL.", user);
 #endif
@@ -416,7 +443,11 @@ kerberos (char *username, char *user, int uid)
     }
     strlcpy (savehost, krb_get_phost (hostname), sizeof (savehost));
 
-    kerno = krb_mk_req (&ticket, "rcmd", savehost, lrealm, 33);
+    for (n = 1; krb_get_lrealm (tmp_realm, n) == KSUCCESS; ++n) {
+	kerno = krb_mk_req (&ticket, "rcmd", savehost, tmp_realm, 33);
+	if (kerno == 0)
+	    break;
+    }
 
     if (kerno == KDC_PR_UNKNOWN) {
 	warnx ("Warning: TGT not verified.");

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.in,v 1.31 1999/03/10 19:01:17 joda Exp $
+# $Id: Makefile.in,v 1.31.16.2 2000/06/23 03:20:04 assar Exp $
 #
 
 SHELL = /bin/sh
@@ -31,6 +31,7 @@ libdir = @libdir@
 bindir = @bindir@
 includedir = @includedir@
 
+LIB_tgetent = @LIB_tgetent@
 LIB_DEPS = @lib_deps_yes@ @LIB_readline@ -lc
 build_symlink_command   = @build_symlink_command@
 install_symlink_command = @install_symlink_command@
@@ -52,11 +53,11 @@ LDSHARED = @LDSHARED@
 PROGS = mk_cmds$(EXECSUFFIX)
 
 LIB_SOURCES = sl.c ss.c
-EXTRA_SOURCES = strtok_r.c snprintf.c
+EXTRA_SOURCES = strtok_r.c snprintf.c strupr.c
 
 SOURCES = $(LIB_SOURCES) make_cmds.c $(EXTRA_SOURCES)
 
-LIBADD = strtok_r.o snprintf.o
+LIBADD = strtok_r.o snprintf.o strupr.o
 
 LIB_OBJECTS = sl.o ss.o $(LIBADD)
 
@@ -81,7 +82,7 @@ install: all
 	@install_symlink_command@
 	@install_symlink_command2@
 	$(MKINSTALLDIRS) $(DESTDIR)$(bindir)
-	$(INSTALL) -m 0555 $(PROGS) $(DESTDIR)$(bindir)/$(PROGS)
+	$(INSTALL)  $(PROGS) $(DESTDIR)$(bindir)/$(PROGS)
 
 uninstall:
 	rm -f $(DESTDIR)$(includedir)/ss/ss.h
@@ -135,5 +136,7 @@ strtok_r.c:
 	$(LN_S) $(srcdir)/../roken/strtok_r.c .
 snprintf.c:
 	$(LN_S) $(srcdir)/../roken/snprintf.c .
+strupr.c:
+	$(LN_S) $(srcdir)/../roken/strupr.c .
 
 .PHONY: all Wall install uninstall check clean mostlyclean distclean realclean

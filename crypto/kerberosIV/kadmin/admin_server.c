@@ -30,7 +30,7 @@ or implied warranty.
 
 #include "kadm_locl.h"
 
-RCSID("$Id: admin_server.c,v 1.49 1999/11/13 06:32:19 assar Exp $");
+RCSID("$Id: admin_server.c,v 1.49.2.2 2000/10/18 20:24:57 assar Exp $");
 
 /* Almost all procs and such need this, so it is global */
 admin_params prm;		/* The command line parameters struct */
@@ -39,8 +39,16 @@ admin_params prm;		/* The command line parameters struct */
 char *acldir = DEFAULT_ACL_DIR;
 static char krbrlm[REALM_SZ];
 
-static unsigned pidarraysize = 0;
-static int *pidarray = NULL;
+#define MAXCHILDREN 100
+
+struct child {
+    pid_t pid;
+    int pipe_fd;
+    int authenticated;
+};
+
+static unsigned nchildren = 0;
+static struct child children[MAXCHILDREN];
 
 static int exit_now = 0;
 
@@ -52,46 +60,26 @@ doexit(int sig)
     SIGRETURN(0);
 }
    
+static sig_atomic_t do_wait;
+
 static
 RETSIGTYPE
 do_child(int sig)
 {
-    int pid;
-    int i, j;
-
-    int status;
-
-    pid = wait(&status);
-
-    /* Reinstall signal handlers for SysV. Must be done *after* wait */
-    signal(SIGCHLD, do_child);
-
-    for (i = 0; i < pidarraysize; i++)
-	if (pidarray[i] == pid) {
-	    /* found it */
-	    for (j = i; j < pidarraysize-1; j++)
-		/* copy others down */
-		pidarray[j] = pidarray[j+1];
-	    pidarraysize--;
-	    if ((WIFEXITED(status) && WEXITSTATUS(status) != 0)
-		|| WIFSIGNALED(status))
-	      krb_log("child %d: termsig %d, retcode %d", pid,
-		  WTERMSIG(status), WEXITSTATUS(status));
-	    SIGRETURN(0);
-	}
-    krb_log("child %d not in list: termsig %d, retcode %d", pid,
-	WTERMSIG(status), WEXITSTATUS(status));
+    do_wait = 1;
     SIGRETURN(0);
 }
+
 
 static void
 kill_children(void)
 {
     int i;
 
-    for (i = 0; i < pidarraysize; i++) {
-	kill(pidarray[i], SIGINT);
-	krb_log("killing child %d", pidarray[i]);
+    for (i = 0; i < nchildren; i++) {
+	kill(children[i].pid, SIGINT);
+	close (children[i].pipe_fd);
+	krb_log("killing child %d", children[i].pid);
     }
 }
 
@@ -117,11 +105,6 @@ clear_secrets(void)
     server_parm.master_key_version = 0L;
 }
 
-#ifdef DEBUG
-#define cleanexit(code) {kerb_fini(); return;}
-#endif
-
-#ifndef DEBUG
 static void
 cleanexit(int val)
 {
@@ -129,10 +112,21 @@ cleanexit(int val)
     clear_secrets();
     exit(val);
 }
-#endif
+
+static RETSIGTYPE
+sigalrm(int sig)
+{
+    cleanexit(1);
+}
+
+/*
+ * handle the client on the socket `fd' from `who'
+ * `signal_fd' is a pipe on which to signal when the user has been
+ * authenticated
+ */
 
 static void
-process_client(int fd, struct sockaddr_in *who)
+process_client(int fd, struct sockaddr_in *who, int signal_fd)
 {
     u_char *dat;
     int dat_len;
@@ -142,6 +136,13 @@ process_client(int fd, struct sockaddr_in *who)
     des_cblock skey;
     int more;
     int status;
+    int authenticated = 0;
+
+    /* make this connection time-out after 1 second if the user has
+       not managed one transaction succesfully in kadm_ser_in */
+
+    signal(SIGALRM, sigalrm);
+    alarm(2);
 
 #if defined(SO_KEEPALIVE) && defined(HAVE_SETSOCKOPT)
     {
@@ -230,8 +231,19 @@ process_client(int fd, struct sockaddr_in *who)
     	if (exit_now) {
 	    cleanexit(0);
 	}
-	if ((retval = kadm_ser_in(&dat, &dat_len, errpkt)) != KADM_SUCCESS)
+	retval = kadm_ser_in(&dat, &dat_len, errpkt);
+
+	if (retval == KADM_SUCCESS) {
+	    if (!authenticated) {
+		unsigned char one = 1;
+
+		authenticated = 1;
+		alarm (0);
+		write (signal_fd, &one, 1);
+	    }
+	} else {
 	    krb_log("processing request: %s", error_message(retval));
+	}
     
 	/* kadm_ser_in did the processing and returned stuff in
 	   dat & dat_len , return the appropriate data */
@@ -255,6 +267,175 @@ process_client(int fd, struct sockaddr_in *who)
     /*NOTREACHED*/
 }
 
+static void
+accept_client (int admin_fd)
+{
+    int pipe_fd[2];
+    int addrlen;
+    struct sockaddr_in peer;
+    pid_t pid;
+    int peer_fd;
+
+    /* using up the maximum number of children, try to get rid
+       of one unauthenticated one */
+
+    if (nchildren >= MAXCHILDREN) {
+	int i, nunauth = 0;
+	int victim;
+
+	for (;;) {
+	    for (i = 0; i < nchildren; ++i)
+		if (children[i].authenticated == 0)
+		    ++nunauth;
+	    if (nunauth == 0)
+		return;
+
+	    victim = rand() % nchildren;
+	    if (children[victim].authenticated == 0) {
+		kill(children[victim].pid, SIGINT);
+		close(children[victim].pipe_fd);
+		for (i = victim; i < nchildren; ++i)
+		    children[i] = children[i + 1];
+		--nchildren;
+		break;
+	    }
+	}
+    }
+
+    /* accept the conn */
+    addrlen = sizeof(peer);
+    peer_fd = accept(admin_fd, (struct sockaddr *)&peer, &addrlen);
+    if (peer_fd < 0) {
+	krb_log("accept: %s",error_message(errno));
+	return;
+    }
+    if (pipe (pipe_fd) < 0) {
+	krb_log ("pipe: %s", error_message(errno));
+	return;
+    }
+
+    if (pipe_fd[0] >= FD_SETSIZE
+	|| pipe_fd[1] >= FD_SETSIZE) {
+	krb_log ("pipe fds too large");
+	close (pipe_fd[0]);
+	close (pipe_fd[1]);
+	return;
+    }
+
+    pid = fork ();
+
+    if (pid < 0) {
+	krb_log ("fork: %s", error_message(errno));
+	close (pipe_fd[0]);
+	close (pipe_fd[1]);
+	return;
+    }
+
+    if (pid != 0) {
+	/* parent */
+	/* fork succeded: keep tabs on child */
+	close(peer_fd);
+	children[nchildren].pid     = pid;
+	children[nchildren].pipe_fd = pipe_fd[0];
+	children[nchildren].authenticated = 0;
+	++nchildren;
+	close (pipe_fd[1]);
+
+    } else {
+	int i;
+
+	/* child */
+	close(admin_fd);
+	close(pipe_fd[0]);
+
+	for (i = 0; i < nchildren; ++i)
+	    close (children[i].pipe_fd);
+
+	/*
+	 * If we are multihomed we need to figure out which
+	 * local address that is used this time since it is
+	 * used in "direction" comparison.
+	 */
+	getsockname(peer_fd,
+		    (struct sockaddr *)&server_parm.admin_addr,
+		    &addrlen);
+	/* do stuff */
+	process_client (peer_fd, &peer, pipe_fd[1]);
+    }
+}
+
+/*
+ * handle data signaled from child `child' kadmind
+ */
+
+static void
+handle_child_signal (int child)
+{
+    int ret;
+    unsigned char data[1];
+
+    ret = read (children[child].pipe_fd, data, 1);
+    if (ret < 0) {
+	if (errno != EINTR)
+	    krb_log ("read from child %d: %s", child,
+		     error_message(errno));
+	return;
+    }
+    if (ret == 0) {
+	close (children[child].pipe_fd);
+	children[child].pipe_fd = -1;
+	return;
+    }
+    if (data)
+	children[child].authenticated = 1;
+}
+
+/*
+ * handle dead children
+ */
+
+static void
+handle_sigchld (void)
+{
+    pid_t pid;
+    int status;
+    int i, j;
+
+    for (;;) {
+	int found = 0;
+
+	pid = waitpid(-1, &status, WNOHANG|WUNTRACED);
+	if (pid == 0 || (pid < 0 && errno == ECHILD))
+	    break;
+	if (pid < 0) {
+	    krb_log("waitpid: %s", error_message(errno));
+	    break;
+	}
+	for (i = 0; i < nchildren; i++)
+	    if (children[i].pid == pid) {
+		/* found it */
+		close(children[i].pipe_fd);
+		for (j = i; j < nchildren; j++)
+		    /* copy others down */
+		    children[j] = children[j+1];
+		--nchildren;
+#if 0
+		if ((WIFEXITED(status) && WEXITSTATUS(status) != 0)
+		    || WIFSIGNALED(status))
+		    krb_log("child %d: termsig %d, retcode %d", pid,
+			    WTERMSIG(status), WEXITSTATUS(status));
+#endif
+		found = 1;
+	    }
+#if 0
+	if (!found)
+	    krb_log("child %d not in list: termsig %d, retcode %d", pid,
+		    WTERMSIG(status), WEXITSTATUS(status));
+#endif
+    }
+    do_wait = 0;
+}
+
 /*
 kadm_listen
 listen on the admin servers port for a request
@@ -264,11 +445,7 @@ kadm_listen(void)
 {
     int found;
     int admin_fd;
-    int peer_fd;
-    fd_set mask, readfds;
-    struct sockaddr_in peer;
-    int addrlen;
-    int pid;
+    fd_set readfds;
 
     signal(SIGINT, doexit);
     signal(SIGTERM, doexit);
@@ -282,9 +459,15 @@ kadm_listen(void)
 
     if ((admin_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	return KADM_NO_SOCK;
+
+    if (admin_fd >= FD_SETSIZE) {
+	krb_log("admin_fd too big");
+	return KADM_NO_BIND;
+    }
+	
 #if defined(SO_REUSEADDR) && defined(HAVE_SETSOCKOPT)
     {
-      int one=1;
+      int one = 1;
       setsockopt(admin_fd, SOL_SOCKET, SO_REUSEADDR, (void *)&one,
 		 sizeof(one));
     }
@@ -292,76 +475,43 @@ kadm_listen(void)
     if (bind(admin_fd, (struct sockaddr *)&server_parm.admin_addr,
 	     sizeof(struct sockaddr_in)) < 0)
 	return KADM_NO_BIND;
-    listen(admin_fd, 1);
-    FD_ZERO(&mask);
-    FD_SET(admin_fd, &mask);
+    if (listen(admin_fd, SOMAXCONN) < 0)
+	return KADM_NO_BIND;
 
     for (;;) {				/* loop nearly forever */
+	int i;
+	int maxfd = -1;
+
 	if (exit_now) {
 	    clear_secrets();
 	    kill_children();
 	    return(0);
 	}
-	readfds = mask;
-	if ((found = select(admin_fd+1, &readfds, 0,
-			    0, (struct timeval *)0)) == 0)
-	    continue;			/* no things read */
+	if (do_wait)
+	    handle_sigchld ();
+
+	FD_ZERO(&readfds);
+	FD_SET(admin_fd, &readfds);
+	maxfd = max(maxfd, admin_fd);
+	for (i = 0; i < nchildren; ++i)
+	    if (children[i].pipe_fd >= 0) {
+		FD_SET(children[i].pipe_fd, &readfds);
+		maxfd = max(maxfd, children[i].pipe_fd);
+	    }
+
+	found = select(maxfd + 1, &readfds, NULL, NULL, NULL);
 	if (found < 0) {
 	    if (errno != EINTR)
 		krb_log("select: %s",error_message(errno));
 	    continue;
-	}      
-	if (FD_ISSET(admin_fd, &readfds)) {
-	    /* accept the conn */
-	    addrlen = sizeof(peer);
-	    if ((peer_fd = accept(admin_fd, (struct sockaddr *)&peer,
-				  &addrlen)) < 0) {
-		krb_log("accept: %s",error_message(errno));
-		continue;
-	    }
-#ifndef DEBUG
-	    /* if you want a sep daemon for each server */
-	    if ((pid = fork())) {
-		void *tmp;
-
-		/* parent */
-		if (pid < 0) {
-		    krb_log("fork: %s",error_message(errno));
-		    close(peer_fd);
-		    continue;
-		}
-		/* fork succeded: keep tabs on child */
-		close(peer_fd);
-		tmp = realloc(pidarray,
-			      (pidarraysize + 1) * sizeof(*pidarray));
-		if(tmp == NULL) {
-		    krb_log ("malloc: no memory. pid %u on its own",
-			     (unsigned)pid);
-		} else {
-		    pidarray = tmp;
-		    pidarray[pidarraysize++] = pid;
-		}
-	    } else {
-		/* child */
-		close(admin_fd);
-#endif /* DEBUG */
-		/*
-		 * If we are multihomed we need to figure out which
-		 * local address that is used this time since it is
-		 * used in "direction" comparison.
-		 */
-		getsockname(peer_fd,
-			    (struct sockaddr *)&server_parm.admin_addr,
-			    &addrlen);
-		/* do stuff */
-		process_client (peer_fd, &peer);
-#ifndef DEBUG
-	    }
-#endif
-	} else {
-	    krb_log("something else woke me up!");
-	    return(0);
 	}
+	if (FD_ISSET(admin_fd, &readfds)) 
+	    accept_client (admin_fd);
+	for (i = 0; i < nchildren; ++i)
+	    if (children[i].pipe_fd >= 0
+		&& FD_ISSET(children[i].pipe_fd, &readfds)) {
+		handle_child_signal (i);
+	    }
     }
     /*NOTREACHED*/
 }

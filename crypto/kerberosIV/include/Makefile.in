@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.59.2.1 1999/12/06 17:23:06 assar Exp $
+# $Id: Makefile.in,v 1.59.2.3 2000/12/13 14:41:37 assar Exp $
 
 srcdir		= @srcdir@
 VPATH		= @srcdir@
@@ -31,7 +31,8 @@ libdir		= @libdir@
 HEADERS = \
 	acl.h com_err.h com_right.h des.h kadm.h kafs.h kdc.h \
 	klog.h krb.h krb-protos.h krb-archaeology.h krb_db.h \
-	ktypes.h otp.h prot.h sl.h @EXTRA_HEADERS@
+	ktypes.h otp.h prot.h sl.h \
+	md4.h md5.h sha.h rc4.h @EXTRA_HEADERS@
 
 LOCL_HEADERS = \
 	     base64.h roken-common.h protos.h resolve.h xdbm.h	\
@@ -96,6 +97,18 @@ com_right.h:
 des.h:
 	$(LN_S) $(srcdir)/../lib/des/des.h .
 
+md4.h:
+	$(LN_S) $(srcdir)/../lib/des/md4.h .
+
+md5.h:
+	$(LN_S) $(srcdir)/../lib/des/md5.h .
+
+sha.h:
+	$(LN_S) $(srcdir)/../lib/des/sha.h .
+
+rc4.h:
+	$(LN_S) $(srcdir)/../lib/des/rc4.h .
+
 kadm.h:
 	$(LN_S) $(srcdir)/../lib/kadm/kadm.h .
 
@@ -147,7 +160,7 @@ sl.h:
 	$(LN_S) $(srcdir)/../lib/sl/sl.h .
 
 protos.h:
-	$(LN_S) $(srcdir)/protos.H protos.h
+	$(LN_S) $(srcdir)/protos.hin protos.h
 
 netdb.h:
 	$(LN_S) $(srcdir)/netdb.x netdb.h

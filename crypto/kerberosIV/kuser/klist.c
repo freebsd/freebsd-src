@@ -22,7 +22,7 @@
 
 #include <parse_time.h>
 
-RCSID("$Id: klist.c,v 1.44.2.2 1999/12/07 00:20:43 assar Exp $");
+RCSID("$Id: klist.c,v 1.44.2.3 2000/10/18 20:38:29 assar Exp $");
 
 static int option_verbose = 0;
 

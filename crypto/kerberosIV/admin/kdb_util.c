@@ -15,7 +15,7 @@
 
 #include "adm_locl.h"
 
-RCSID("$Id: kdb_util.c,v 1.42 1999/09/16 20:37:21 assar Exp $");
+RCSID("$Id: kdb_util.c,v 1.42.2.1 2000/10/10 12:59:16 assar Exp $");
 
 static des_cblock master_key, new_master_key;
 static des_key_schedule master_key_schedule, new_master_key_schedule;
@@ -489,15 +489,19 @@ main(int argc, char **argv)
 
     switch (op) {
     case OP_DUMP:
-      if ((dump_db (db_name, file, (void (*)(Principal *)) 0) == EOF) ||
-	  (fclose(file) == EOF))
-	  err (1, "%s", file_name);
+      if ((dump_db(db_name, file, (void (*)(Principal *)) 0) == EOF)
+	  || (fflush(file) != 0)
+	  || (fsync(fileno(file)) != 0)
+	  || (fclose(file) == EOF))
+	err(1, "%s", file_name);
       break;
     case OP_SLAVE_DUMP:
-      if ((dump_db (db_name, file, (void (*)(Principal *)) 0) == EOF) ||
-	  (fclose(file) == EOF))
-	err (1, "%s", file_name);
-      update_ok_file (file_name);
+      if ((dump_db(db_name, file, (void (*)(Principal *)) 0) == EOF)
+	  || (fflush(file) != 0)
+	  || (fsync(fileno(file)) != 0)
+	  || (fclose(file) == EOF))
+	err(1, "%s", file_name);
+      update_ok_file(file_name);
       break;
     case OP_LOAD:
       load_db (db_name, file);

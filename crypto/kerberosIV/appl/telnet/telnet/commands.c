@@ -33,7 +33,7 @@
 
 #include "telnet_locl.h"
 
-RCSID("$Id: commands.c,v 1.53 1999/07/07 14:56:17 assar Exp $");
+RCSID("$Id: commands.c,v 1.56 1999/09/16 20:41:35 assar Exp $");
 
 #if	defined(IPPROTO_IP) && defined(IP_TOS)
 int tos = -1;
@@ -67,7 +67,7 @@ makeargv()
     cp = line;
     if (*cp == '!') {		/* Special case shell escape */
 	/* save for shell command */
-	strcpy_truncate(saveline, line, sizeof(saveline));
+	strlcpy(saveline, line, sizeof(saveline));
 	*argp++ = "!";		/* No room in string to get this */
 	margc++;
 	cp++;
@@ -1583,7 +1583,7 @@ env_init(void)
 		if (strchr(hbuf, '.') == 0) {
 			struct hostent *he = roken_gethostbyname(hbuf);
 			if (he != NULL)
-				strcpy_truncate(hbuf, he->h_name, 256);
+				strlcpy(hbuf, he->h_name, 256);
 		}
 
 		asprintf (&cp, "%s%s", hbuf, cp2);
@@ -1981,7 +1981,7 @@ cmdrc(char *m1, char *m2)
     if (skiprc)
 	return;
 
-    strcpy_truncate(m1save, m1, sizeof(m1save));
+    strlcpy(m1save, m1, sizeof(m1save));
     m1 = m1save;
 
     if (rcname[0] == 0) {
@@ -2075,7 +2075,7 @@ tn(int argc, char **argv)
 	return 0;
     }
     if (argc < 2) {
-	strcpy_truncate(line, "open ", sizeof(line));
+	strlcpy(line, "open ", sizeof(line));
 	printf("(to) ");
 	fgets(&line[strlen(line)], sizeof(line) - strlen(line), stdin);
 	makeargv();
@@ -2146,7 +2146,7 @@ tn(int argc, char **argv)
 	    sin6.sin6_family = family = AF_INET6;
 	    sa = (struct sockaddr *)&sin6;
 	    sa_size = sizeof(sin6);
-	    strcpy_truncate(_hostname, hostp, sizeof(_hostname));
+	    strlcpy(_hostname, hostp, sizeof(_hostname));
 	    hostname =_hostname;
 	} else
 #endif
@@ -2154,7 +2154,7 @@ tn(int argc, char **argv)
 	    sin.sin_family = family = AF_INET;
 	    sa = (struct sockaddr *)&sin;
 	    sa_size = sizeof(sin);
-	    strcpy_truncate(_hostname, hostp, sizeof(_hostname));
+	    strlcpy(_hostname, hostp, sizeof(_hostname));
 	    hostname = _hostname;
 	} else {
 #ifdef HAVE_GETHOSTBYNAME2
@@ -2167,7 +2167,7 @@ tn(int argc, char **argv)
 	    host = roken_gethostbyname(hostp);
 #endif
 	    if (host) {
-		strcpy_truncate(_hostname, host->h_name, sizeof(_hostname));
+		strlcpy(_hostname, host->h_name, sizeof(_hostname));
 		family = host->h_addrtype;
 		addr_list = host->h_addr_list;
 
