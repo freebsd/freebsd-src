@@ -297,6 +297,7 @@ static moduledata_t name##_mod = {					\
 DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
 
 
+void clone_setup(struct clonedevs **cdp);
 void clone_cleanup(struct clonedevs **);
 #define CLONE_UNITMASK 0xfffff
 #define CLONE_FLAG0 (CLONE_UNITMASK + 1)

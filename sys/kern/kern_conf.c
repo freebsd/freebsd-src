@@ -693,6 +693,14 @@ struct clonedevs {
 	LIST_HEAD(,cdev)	head;
 };
 
+void
+clone_setup(struct clonedevs **cdp)
+{
+
+	*cdp = malloc(sizeof **cdp, M_DEVBUF, M_WAITOK | M_ZERO);
+	LIST_INIT(&(*cdp)->head);
+}
+
 int
 clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, dev_t *dp, u_int extra)
 {
@@ -700,20 +708,15 @@ clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, dev_t *dp, u_i
 	dev_t dev, dl, de;
 	int unit, low, u;
 
+	KASSERT(*cdp != NULL,
+	    ("clone_setup() not called in driver \"%s\"", csw->d_name));
 	KASSERT(!(extra & CLONE_UNITMASK),
-	     ("Illegal extra bits (0x%x) in clone_create", extra));
+	    ("Illegal extra bits (0x%x) in clone_create", extra));
 	KASSERT(*up <= CLONE_UNITMASK,
-	     ("Too high unit (0x%x) in clone_create", *up));
+	    ("Too high unit (0x%x) in clone_create", *up));
 
 	if (csw->d_maj == MAJOR_AUTO)
 		find_major(csw);
-	/* if clonedevs have not been initialized, we do it here */
-	cd = *cdp;
-	if (cd == NULL) {
-		cd = malloc(sizeof *cd, M_DEVBUF, M_WAITOK | M_ZERO);
-		LIST_INIT(&cd->head);
-		*cdp = cd;
-	}
 
 	/*
 	 * Search the list for a lot of things in one go:
@@ -726,6 +729,7 @@ clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, dev_t *dp, u_i
 	unit = *up;
 	low = 0;
 	de = dl = NULL;
+	cd = *cdp;
 	LIST_FOREACH(dev, &cd->head, si_clone) {
 		u = dev2unit(dev);
 		if (u == (unit | extra)) {
