@@ -278,6 +278,7 @@ ffs_truncate(vp, length, flags, cred, td)
 			softdep_setup_freeblocks(oip, length, needextclean ?
 			    IO_EXT | IO_NORMAL : IO_NORMAL);
 			vinvalbuf(ovp, needextclean ? 0 : V_NORMAL, td, 0, 0);
+			vnode_pager_setsize(vp, 0);
 			oip->i_flag |= IN_CHANGE | IN_UPDATE;
 			return (ffs_update(ovp, 0));
 		}
