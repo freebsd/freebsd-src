@@ -49,13 +49,13 @@ source tree.
  # Fill them so they look like real paragraphs.
 .Ed
 .Pp
-All scripts should use the 'strict' modules and run without
-warnings. For example:
+All scripts should use the
+.Fa strict
+module and run without warnings. For example:
 .Bd -literal -offset 0i
  #!/usr/bin/perl -w
 
  use strict;
-
  ...
 .Ed
 .Pp
@@ -66,16 +66,24 @@ is documented in
  #!/usr/bin/perl -wT
 .Ed
 .Pp
-All variables should be defined before use.  Globals should be
-defined at the top of the code using a var definition block.
-.Bd -literal -offset 0i
- use var qw($globalscalar @globalarray %globalhash);
-.Ed
+All variables should be defined before use; this is enforced if operating
+under
+.Fa use strict .
 .Pp
-Scope local variables should be defined using 'my $variable' and
-not 'local $variable'.  The 'local' declaration should only be used
-when it is required, and not by default.  Lots of perl4 scripts
-use 'local' because the 'my' definition didn't exist prior to perl5.
+Scope local variables should be defined using
+.Fa my
+.Va $variable
+and not
+.Fa local
+.Va $variable .
+The
+.Fa local
+declaration should only be used when it is required, and not by
+default.  Lots of perl4 scripts use
+.Fa local
+because the
+.Fa my
+definition didn't exist prior to perl5.
 .Bd -literal -offset 0i
  sub foo {
    my $var = shift;
@@ -84,9 +92,45 @@ use 'local' because the 'my' definition didn't exist prior to perl5.
  }
 .Ed
 .Pp
-Whenever possible, code should be run through the code checker
-(e.g., "perl -wc script.pl" or "perl -wcT script.pl") and produce
-no warnings.
+In most cases globals should be defined at the top of the code
+using a
+.Fa var
+definition block:
+.Bd -literal -offset 0i
+ use var qw($globalscalar @globalarray %globalhash);
+.Ed
+.Pp
+In some cases it may be appropriate to use
+.Fa my
+.Va $variable =
+.Li "value";
+statements at the top of the script as an alternative to using
+.Fa var
+declarations.
+.Pp
+Whenever possible code should be run through the code checker
+.Nm perl
+.Ar -wc
+.Ar script.pl
+or
+.Nm perl
+.Ar -wcT
+.Ar script.pl
+and produce no warnings.
+.Pp
+Indentation and block style should follow
+.Xr style 9
+where applicable.
+.Pp
+Where possible scripts should use standard modules instead of
+rewriting the code inline.  It may be appropriate in some cases to
+import a CPAN module into the base system to facilitate this.
+.Pp
+Use
+.Fa chomp
+instead of
+.Fa chop
+where appropriate.
 
 .Sh SEE ALSO
 .Xr perlsec 1 ,
