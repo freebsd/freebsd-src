@@ -24,13 +24,8 @@
 .\"
 .\" $FreeBSD$
 .\"
-.\" Note: The date here should be updated whenever a non-trivial
-.\" change is made to the manual page.
 .Dd February, 1999
 .Dt ALPM 4 i386
-.\" Note: Only specify the operating system when the command
-.\" is FreeBSD specific, otherwise use the .Os macro with no
-.\" arguments.
 .Os FreeBSD
 .Sh NAME
 .Nm alpm
@@ -38,7 +33,6 @@
 .Sh SYNOPSIS
 .Cd controller smbus
 .Cd controller alpm0
-
 .Sh DESCRIPTION
 This driver provides access to the
 .Tn Aladdin 15x3 Power Management Unit. Currently, only smbus controller 
@@ -49,7 +43,6 @@ to the monitoring facilities of your mainboard. See
 .Xr smb 4
 for writing user code to fetch voltages, temperature and so on from the
 monitoring chip of your mainboard.
-
 .Sh SEE ALSO
 .Xr smb 4 ,
 .Xr smbus 4

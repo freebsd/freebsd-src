@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.\" The following requests are required for all man pages.
+.\"
 .Dd September 26,1995
 .Dt SICONTROL 8
 .Os FreeBSD
@@ -67,11 +67,6 @@ wedged.
 Show the current "tty" structure that the kernel has for the specified port.
 This is not much use outside of debugging the driver.
 .El
-.\" The following requests should be uncommented and used where appropriate.
-.\" This next request is for sections 2 and 3 function return values only.
-.\" .Sh RETURN VALUES
-.\" This next request is for sections 1, 6, 7 & 8 only
-.\" .Sh ENVIRONMENT
 .Sh FILES
 .Bl -tag -width /dev/si_control -compact
 .It Pa /dev/si_control
@@ -86,20 +81,14 @@ initial termios state devices, for use by
 locked termios state devices, for use by
 .Xr stty 1
 .El
-.\" .Sh EXAMPLES
-.\" This next request is for sections 1, 6, 7 & 8 only
-.\"     (command return values (to shell) and fprintf/stderr type diagnostics)
 .Sh DIAGNOSTICS
 Generally self explanatory.....
-.\" The next request is for sections 2 and 3 error and signal handling only.
-.\" .Sh ERRORS
 .Sh SEE ALSO
 .Xr stty 1 ,
 .Xr si 4 ,
 .Xr termios 4 ,
 .Xr tty 4 ,
 .Xr comcontrol 8 .
-.\" .Sh STANDARDS
 .Sh HISTORY
 .Nm Sicontrol
 is loosely based on a utility called
