@@ -191,9 +191,13 @@ g_bde_crypt_delete(struct g_bde_work *wp)
 	struct g_bde_softc *sc;
 	u_char *d;
 	off_t o;
+	u_char skey[G_BDE_SKEYLEN];
+	keyInstance ki;
+	cipherInstance ci;
 
 	sc = wp->softc;
 	d = wp->sp->data;
+	AES_init(&ci);
 	/*
 	 * Do not unroll this loop!
 	 * Our zone may be significantly wider than the amount of random
@@ -202,6 +206,9 @@ g_bde_crypt_delete(struct g_bde_work *wp)
 	 */
 	for (o = 0; o < wp->length; o += sc->sectorsize) {
 		arc4rand(d, sc->sectorsize, 0);
+		arc4rand(&skey, sizeof skey, 0);
+		AES_makekey(&ki, DIR_ENCRYPT, G_BDE_SKEYBITS, skey);
+		AES_encrypt(&ci, &ki, d, d, sc->sectorsize);
 		d += sc->sectorsize;
 	}
 	/*
