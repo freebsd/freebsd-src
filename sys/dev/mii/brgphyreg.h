@@ -160,7 +160,7 @@
 
 #define BRGPHY_MII_DSP_RW_PORT	0x15	/* DSP coefficient r/w port */
 
-#define BGGPHY_MII_DSP_ADDR_REG	0x17	/* DSP coefficient addr register */
+#define BRGPHY_MII_DSP_ADDR_REG	0x17	/* DSP coefficient addr register */
 
 #define BRGPHY_DSP_TAP_NUMBER_MASK		0x00
 #define BRGPHY_DSP_AGC_A			0x00
