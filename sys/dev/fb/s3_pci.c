@@ -471,7 +471,7 @@ s3pci_attach(device_t dev)
 	int rid, i;
 
 	if (s3pci_dev) {
-		printf("%s: driver already attached!\n", __FUNCTION__);
+		printf("%s: driver already attached!\n", __func__);
 		goto error;
 	}
 
@@ -480,7 +480,7 @@ s3pci_attach(device_t dev)
 	rid = 0;
 	if (!(sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 				0ul, ~0ul, 0, RF_ACTIVE | RF_SHAREABLE))) {
-		printf("%s: port resource allocation failed!\n", __FUNCTION__);
+		printf("%s: port resource allocation failed!\n", __func__);
 		goto error;
 	}
 	sc->st = rman_get_bustag(sc->port_res);
@@ -490,7 +490,7 @@ s3pci_attach(device_t dev)
 	if (!(sc->enh_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 				0ul, ~0ul, 0, RF_ACTIVE | RF_SHAREABLE))) {
 		printf("%s: enhanced port resource allocation failed!\n",
-			__FUNCTION__);
+			__func__);
 		goto error;
 	}
 	sc->enh_st = rman_get_bustag(sc->enh_res);
@@ -500,7 +500,7 @@ s3pci_attach(device_t dev)
 	if (!(sc->mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
 				 0, ~0, 1, RF_ACTIVE))) {
 
-		printf("%s: mem resource allocation failed!\n", __FUNCTION__);
+		printf("%s: mem resource allocation failed!\n", __func__);
 		goto error;
 	}
 
@@ -522,7 +522,7 @@ s3pci_attach(device_t dev)
 	 */
 	if ((adp == NULL) || !(adp->va_flags & V_ADP_VESA)) {
 		printf("%s: VGA adapter not found or VESA module not loaded!\n",
-			__FUNCTION__);
+			__func__);
 		goto error;
 	}
 

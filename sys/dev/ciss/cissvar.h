@@ -255,11 +255,11 @@ struct ciss_softc
 #ifdef CISS_DEBUG
 # define debug(level, fmt, args...)							\
 	do {										\
-	    if (level <= CISS_DEBUG) printf("%s: " fmt "\n", __FUNCTION__ , ##args);	\
+	    if (level <= CISS_DEBUG) printf("%s: " fmt "\n", __func__ , ##args);	\
 	} while(0)
 # define debug_called(level)						\
 	do {								\
-	    if (level <= CISS_DEBUG) printf(__FUNCTION__ ": called\n");	\
+	    if (level <= CISS_DEBUG) printf("%s: called\n", __func__);	\
 	} while(0)
 # define debug_struct(s)		printf("  SIZE %s: %d\n", #s, sizeof(struct s))
 # define debug_union(s)			printf("  SIZE %s: %d\n", #s, sizeof(union s))

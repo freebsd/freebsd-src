@@ -351,7 +351,7 @@ icintr (device_t dev, int event, char *ptr)
 		break;
 
 	default:
-		panic("%s: unknown event (%d)!", __FUNCTION__, event);
+		panic("%s: unknown event (%d)!", __func__, event);
 	}
 
 	splx(s);

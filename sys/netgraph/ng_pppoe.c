@@ -40,7 +40,7 @@
  * $Whistle: ng_pppoe.c,v 1.10 1999/11/01 09:24:52 julian Exp $
  */
 #if 0
-#define AAA printf("pppoe: %s\n", __FUNCTION__ );
+#define AAA printf("pppoe: %s\n", __func__ );
 #define BBB printf("-%d-", __LINE__ );
 #else
 #define AAA

@@ -391,12 +391,12 @@ ng_one2many_rcvdata(hook_p hook, item_p item)
 	linkNum = (int)NG_HOOK_PRIVATE(hook);
 	KASSERT(linkNum == NG_ONE2MANY_ONE_LINKNUM
 	    || (linkNum >= 0 && linkNum < NG_ONE2MANY_MAX_LINKS),
-	    ("%s: linkNum=%d", __FUNCTION__, linkNum));
+	    ("%s: linkNum=%d", __func__, linkNum));
 
 	/* Figure out source link */
 	src = (linkNum == NG_ONE2MANY_ONE_LINKNUM) ?
 	    &priv->one : &priv->many[linkNum];
-	KASSERT(src->hook != NULL, ("%s: no src%d", __FUNCTION__, linkNum));
+	KASSERT(src->hook != NULL, ("%s: no src%d", __func__, linkNum));
 
 	/* Update receive stats */
 	src->stats.recvPackets++;
@@ -450,7 +450,7 @@ ng_one2many_rcvdata(hook_p hook, item_p item)
 			break;
 #ifdef INVARIANTS
 		default:
-			panic("%s: invalid xmitAlg", __FUNCTION__);
+			panic("%s: invalid xmitAlg", __func__);
 #endif
 		}
 	} else {
@@ -475,7 +475,7 @@ ng_one2many_shutdown(node_p node)
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	KASSERT(priv->numActiveMany == 0,
-	    ("%s: numActiveMany=%d", __FUNCTION__, priv->numActiveMany));
+	    ("%s: numActiveMany=%d", __func__, priv->numActiveMany));
 	FREE(priv, M_NETGRAPH);
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(node);
@@ -495,7 +495,7 @@ ng_one2many_disconnect(hook_p hook)
 	linkNum = (int)NG_HOOK_PRIVATE(hook);
 	KASSERT(linkNum == NG_ONE2MANY_ONE_LINKNUM
 	    || (linkNum >= 0 && linkNum < NG_ONE2MANY_MAX_LINKS),
-	    ("%s: linkNum=%d", __FUNCTION__, linkNum));
+	    ("%s: linkNum=%d", __func__, linkNum));
 
 	/* Nuke the link */
 	if (linkNum == NG_ONE2MANY_ONE_LINKNUM)
@@ -538,7 +538,7 @@ ng_one2many_update_many(priv_p priv)
 			break;
 #ifdef INVARIANTS
 		default:
-			panic("%s: invalid failAlg", __FUNCTION__);
+			panic("%s: invalid failAlg", __func__);
 #endif
 		}
 	}
@@ -553,7 +553,7 @@ ng_one2many_update_many(priv_p priv)
 		break;
 #ifdef INVARIANTS
 	default:
-		panic("%s: invalid xmitAlg", __FUNCTION__);
+		panic("%s: invalid xmitAlg", __func__);
 #endif
 	}
 }

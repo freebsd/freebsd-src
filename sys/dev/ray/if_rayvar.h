@@ -237,12 +237,12 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
 
 #define RAY_PANIC(sc, fmt, args...) do {				\
     panic("ray%d: %s(%d) " fmt "\n", device_get_unit((sc)->dev),	\
-	__FUNCTION__ , __LINE__ , ##args);				\
+	__func__ , __LINE__ , ##args);					\
 } while (0)
 
 #define RAY_PRINTF(sc, fmt, args...) do {				\
     device_printf((sc)->dev, "%s(%d) " fmt "\n",			\
-        __FUNCTION__ , __LINE__ , ##args);				\
+        __func__ , __LINE__ , ##args);					\
 } while (0)
 
 #define RAY_COM_MALLOC(function, flags)	\
@@ -303,7 +303,7 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
     struct ifnet *ifp = &(sc)->arpcom.ac_if;				\
     if (ifp->if_flags & IFF_DEBUG) {					\
 	    device_printf((sc)->dev, "%s(%d) " fmt "\n",		\
-		__FUNCTION__ , __LINE__ , ##args);			\
+		__func__ , __LINE__ , ##args);				\
 } } while (0)
 #endif /* RAY_RECERR */
 
@@ -316,7 +316,7 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
 	if (ifp->if_flags & IFF_DEBUG) {				\
 	    device_printf((sc)->dev,					\
 	        "%s(%d) ECF command completed with status %s\n",	\
-		__FUNCTION__ , __LINE__ , ss[(status)]);		\
+		__func__ , __LINE__ , ss[(status)]);			\
 } } } while (0)
 #endif /* RAY_CCSERR */
 

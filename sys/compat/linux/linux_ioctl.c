@@ -1932,7 +1932,7 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 	int error, type;
 
 	KASSERT(LINUX_IFNAMSIZ == IFNAMSIZ,
-	    (__FUNCTION__ "(): LINUX_IFNAMSIZ != IFNAMSIZ"));
+	    ("%s(): LINUX_IFNAMSIZ != IFNAMSIZ", __func__));
 	
 	ifp = NULL;
 	error = 0;
@@ -1970,7 +1970,7 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 	case LINUX_SIOCSPGRP:
 		/* these ioctls don't take an interface name */
 #ifdef DEBUG
-		printf(__FUNCTION__ "(): ioctl %d\n",
+		printf("%s(): ioctl %d\n", __func__,
 		    args->cmd & 0xffff);
 #endif
 		break;
@@ -1994,7 +1994,7 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 		if (error != 0)
 			return (error);
 #ifdef DEBUG
-		printf(__FUNCTION__ "(): ioctl %d on %.*s\n",
+		printf("%s(): ioctl %d on %.*s\n", __func__,
 		    args->cmd & 0xffff, LINUX_IFNAMSIZ, lifname);
 #endif
 		ifp = ifname_linux_to_bsd(lifname, ifname);
@@ -2010,7 +2010,7 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 		if (error != 0)
 			return (error);
 #ifdef DEBUG
-		printf(__FUNCTION__ "(): %s translated to %s\n",
+		printf("%s(): %s translated to %s\n", __func__,
 		    lifname, ifname);
 #endif
 		break;
@@ -2139,7 +2139,7 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 		copyout(lifname, (char *)args->arg, LINUX_IFNAMSIZ);
 
 #ifdef DEBUG
-	printf(__FUNCTION__ "(): returning %d\n", error);
+	printf("%s(): returning %d\n", __func__, error);
 #endif
 	return (error);
 }

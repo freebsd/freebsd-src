@@ -232,11 +232,11 @@ ng_gif_attach(struct ifnet *ifp)
 	node_p node;
 
 	/* Create node */
-	KASSERT(!IFP2NG(ifp), ("%s: node already exists?", __FUNCTION__));
+	KASSERT(!IFP2NG(ifp), ("%s: node already exists?", __func__));
 	snprintf(name, sizeof(name), "%s%d", ifp->if_name, ifp->if_unit);
 	if (ng_make_node_common(&ng_gif_typestruct, &node) != 0) {
 		log(LOG_ERR, "%s: can't %s for %s\n",
-		    __FUNCTION__, "create node", name);
+		    __func__, "create node", name);
 		return;
 	}
 
@@ -244,7 +244,7 @@ ng_gif_attach(struct ifnet *ifp)
 	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (priv == NULL) {
 		log(LOG_ERR, "%s: can't %s for %s\n",
-		    __FUNCTION__, "allocate memory", name);
+		    __func__, "allocate memory", name);
 		NG_NODE_UNREF(node);
 		return;
 	}
@@ -255,7 +255,7 @@ ng_gif_attach(struct ifnet *ifp)
 	/* Try to give the node the same name as the interface */
 	if (ng_name_node(node, name) != 0) {
 		log(LOG_WARNING, "%s: can't name node %s\n",
-		    __FUNCTION__, name);
+		    __func__, name);
 	}
 }
 
@@ -451,7 +451,7 @@ ng_gif_rcvdata(hook_p hook, item_p item)
 	NG_FREE_ITEM(item);
 	if (hook == priv->lower)
 		return ng_gif_rcv_lower(node, m, meta);
-	panic("%s: weird hook", __FUNCTION__);
+	panic("%s: weird hook", __func__);
 }
 
 /*
@@ -527,7 +527,7 @@ ng_gif_disconnect(hook_p hook)
 		priv->lower = NULL;
 		priv->lowerOrphan = 0;
 	} else 
-		panic("%s: weird hook", __FUNCTION__);
+		panic("%s: weird hook", __func__);
 	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
 	    && (NG_NODE_IS_VALID(NG_HOOK_NODE(hook))))
 		ng_rmnode_self(NG_HOOK_NODE(hook));	/* reset node */

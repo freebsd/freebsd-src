@@ -665,7 +665,7 @@ ether_ifattach(ifp, bpf)
 	    ifp->if_baudrate = 10000000;
 	ifp->if_broadcastaddr = etherbroadcastaddr;
 	ifa = ifaddr_byindex(ifp->if_index);
-	KASSERT(ifa != NULL, ("%s: no lladdr!\n", __FUNCTION__));
+	KASSERT(ifa != NULL, ("%s: no lladdr!\n", __func__));
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	sdl->sdl_type = IFT_ETHER;
 	sdl->sdl_alen = ifp->if_addrlen;

@@ -343,7 +343,7 @@ amdsmb_smb_quick(device_t dev, u_char slave, int how)
 		AMDPM_SMBOUTW(sc, AMDSMB_HSTADDR, slave | LSB);
 		break;
 	default:
-		panic("%s: unknown QUICK command (%x)!", __FUNCTION__, how);
+		panic("%s: unknown QUICK command (%x)!", __func__, how);
 	}
 	l = AMDPM_SMBINW(sc, AMDSMB_GLOBAL_ENABLE);
 	AMDPM_SMBOUTW(sc, AMDSMB_GLOBAL_ENABLE, (l & 0xfff8) | AMDSMB_GE_CYC_QUICK | AMDSMB_GE_HOST_STC);

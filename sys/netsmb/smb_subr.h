@@ -44,17 +44,17 @@ MALLOC_DECLARE(M_SMBTEMP);
 
 #define	FB_CURRENT
 
-#define SMBERROR(format, args...) printf("%s: "format, __FUNCTION__ ,## args)
-#define SMBPANIC(format, args...) printf("%s: "format, __FUNCTION__ ,## args)
+#define SMBERROR(format, args...) printf("%s: "format, __func__ ,## args)
+#define SMBPANIC(format, args...) printf("%s: "format, __func__ ,## args)
 
 #ifdef SMB_SOCKET_DEBUG
-#define SMBSDEBUG(format, args...) printf("%s: "format, __FUNCTION__ ,## args)
+#define SMBSDEBUG(format, args...) printf("%s: "format, __func__ ,## args)
 #else
 #define SMBSDEBUG(format, args...)
 #endif
 
 #ifdef SMB_IOD_DEBUG
-#define SMBIODEBUG(format, args...) printf("%s: "format, __FUNCTION__ ,## args)
+#define SMBIODEBUG(format, args...) printf("%s: "format, __func__ ,## args)
 #else
 #define SMBIODEBUG(format, args...)
 #endif

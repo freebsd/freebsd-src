@@ -759,7 +759,7 @@ send:
 
 	/* IP version must be set here for ipv4/ipv6 checking later */
 	KASSERT(ip->ip_v == IPVERSION,
-	    ("%s: IP version incorrect: %d", __FUNCTION__, ip->ip_v));
+	    ("%s: IP version incorrect: %d", __func__, ip->ip_v));
       }
 
 	/*

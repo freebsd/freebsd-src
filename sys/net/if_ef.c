@@ -69,12 +69,12 @@
 #define	EF_NFT			4	/* total number of frame types */
 
 #ifdef EF_DEBUG
-#define EFDEBUG(format, args...) printf("%s: "format, __FUNCTION__ ,## args)
+#define EFDEBUG(format, args...) printf("%s: "format, __func__ ,## args)
 #else
 #define EFDEBUG(format, args...)
 #endif
 
-#define EFERROR(format, args...) printf("%s: "format, __FUNCTION__ ,## args)
+#define EFERROR(format, args...) printf("%s: "format, __func__ ,## args)
 
 struct efnet {
 	struct arpcom	ef_ac;

@@ -302,7 +302,7 @@ ng_iface_get_unit(int *unit)
 	}
 	bit = ffs(ng_iface_units[index]) - 1;
 	KASSERT(bit >= 0 && bit <= UNITS_BITSPERWORD - 1,
-	    ("%s: word=%d bit=%d", __FUNCTION__, ng_iface_units[index], bit));
+	    ("%s: word=%d bit=%d", __func__, ng_iface_units[index], bit));
 	ng_iface_units[index] &= ~(1 << bit);
 	*unit = (index * UNITS_BITSPERWORD) + bit;
 	ng_units_in_use++;
@@ -320,9 +320,9 @@ ng_iface_free_unit(int unit)
 	index = unit / UNITS_BITSPERWORD;
 	bit = unit % UNITS_BITSPERWORD;
 	KASSERT(index < ng_iface_units_len,
-	    ("%s: unit=%d len=%d", __FUNCTION__, unit, ng_iface_units_len));
+	    ("%s: unit=%d len=%d", __func__, unit, ng_iface_units_len));
 	KASSERT((ng_iface_units[index] & (1 << bit)) == 0,
-	    ("%s: unit=%d is free", __FUNCTION__, unit));
+	    ("%s: unit=%d is free", __func__, unit));
 	ng_iface_units[index] |= (1 << bit);
 	/*
 	 * XXX We could think about reducing the size of ng_iface_units[]
@@ -471,7 +471,7 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 static void
 ng_iface_start(struct ifnet *ifp)
 {
-	printf("%s%d: %s called?", ifp->if_name, ifp->if_unit, __FUNCTION__);
+	printf("%s%d: %s called?", ifp->if_name, ifp->if_unit, __func__);
 }
 
 /*
@@ -484,7 +484,7 @@ ng_iface_bpftap(struct ifnet *ifp, struct mbuf *m, sa_family_t family)
 	int32_t family4 = (int32_t)family;
 	struct mbuf m0;
 
-	KASSERT(family != AF_UNSPEC, ("%s: family=AF_UNSPEC", __FUNCTION__));
+	KASSERT(family != AF_UNSPEC, ("%s: family=AF_UNSPEC", __func__));
 	if (ifp->if_bpf != NULL) {
 		bzero(&m0, sizeof(m0));
 		m0.m_next = m;
@@ -733,8 +733,8 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);
 	/* Sanity checks */
-	KASSERT(iffam != NULL, ("%s: iffam", __FUNCTION__));
-	KASSERT(m->m_flags & M_PKTHDR, ("%s: not pkthdr", __FUNCTION__));
+	KASSERT(iffam != NULL, ("%s: iffam", __func__));
+	KASSERT(m->m_flags & M_PKTHDR, ("%s: not pkthdr", __func__));
 	if (m == NULL)
 		return (EINVAL);
 	if ((ifp->if_flags & IFF_UP) == 0) {
@@ -786,7 +786,7 @@ ng_iface_disconnect(hook_p hook)
 	const iffam_p iffam = get_iffam_from_hook(priv, hook);
 
 	if (iffam == NULL)
-		panic(__FUNCTION__);
+		panic(__func__);
 	*get_hook_from_iffam(priv, iffam) = NULL;
 	return (0);
 }

@@ -377,7 +377,7 @@ ng_int8_unparse(const struct ng_parse_type *type,
 		fval = (u_int8_t)val;
 		break;
 	default:
-		panic("%s: unknown type", __FUNCTION__);
+		panic("%s: unknown type", __func__);
 #ifdef	RESTARTABLE_PANICS
 		return(0);
 #endif
@@ -474,7 +474,7 @@ ng_int16_unparse(const struct ng_parse_type *type,
 		fval = (u_int16_t)val;
 		break;
 	default:
-		panic("%s: unknown type", __FUNCTION__);
+		panic("%s: unknown type", __func__);
 #ifdef	RESTARTABLE_PANICS
 		return(0);
 #endif
@@ -571,7 +571,7 @@ ng_int32_unparse(const struct ng_parse_type *type,
 		fval = (u_int32_t)val;
 		break;
 	default:
-		panic("%s: unknown type", __FUNCTION__);
+		panic("%s: unknown type", __func__);
 #ifdef	RESTARTABLE_PANICS
 		return(0);
 #endif
@@ -667,7 +667,7 @@ ng_int64_unparse(const struct ng_parse_type *type,
 		fval = (u_int64_t)val;
 		break;
 	default:
-		panic("%s: unknown type", __FUNCTION__);
+		panic("%s: unknown type", __func__);
 #ifdef	RESTARTABLE_PANICS
 		return(0);
 #endif
@@ -1411,7 +1411,7 @@ ng_get_composite_elem_default(const struct ng_parse_type *type,
 		break;
 	    }
 	default:
-	    panic("%s", __FUNCTION__);
+	    panic("%s", __func__);
 	}
 
 	/* Default to element type default */
@@ -1458,7 +1458,7 @@ ng_get_composite_len(const struct ng_parse_type *type,
 		return fi->length;
 	    }
 	default:
-	    panic("%s", __FUNCTION__);
+	    panic("%s", __func__);
 	}
 	return (0);
 }
@@ -1495,7 +1495,7 @@ ng_get_composite_etype(const struct ng_parse_type *type,
 		break;
 	    }
 	default:
-	    panic("%s", __FUNCTION__);
+	    panic("%s", __func__);
 	}
 	return (etype);
 }

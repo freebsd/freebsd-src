@@ -399,7 +399,7 @@ ng_pptpgre_rcvdata(hook_p hook, item_p item)
 		return ng_pptpgre_xmit(node, item);
 	if (hook == priv->lower)
 		return ng_pptpgre_recv(node, item);
-	panic("%s: weird hook", __FUNCTION__);
+	panic("%s: weird hook", __func__);
 }
 
 /*
@@ -436,7 +436,7 @@ ng_pptpgre_disconnect(hook_p hook)
 	else if (hook == priv->lower)
 		priv->lower = NULL;
 	else
-		panic("%s: unknown hook", __FUNCTION__);
+		panic("%s: unknown hook", __func__);
 
 	/* Go away if no longer connected to anything */
 	if ((NG_NODE_NUMHOOKS(node) == 0)
@@ -745,7 +745,7 @@ ng_pptpgre_start_recv_ack_timer(node_p node)
 
 	/* Compute how long until oldest unack'd packet times out,
 	   and reset the timer to that time. */
-	KASSERT(a->rackTimerPtr == NULL, ("%s: rackTimer", __FUNCTION__));
+	KASSERT(a->rackTimerPtr == NULL, ("%s: rackTimer", __func__));
 	remain = (a->timeSent[0] + a->ato) - ng_pptpgre_time(node);
 	if (remain < 0)
 		remain = 0;
@@ -784,7 +784,7 @@ ng_pptpgre_recv_ack_timeout(void *arg)
 
 	/* This complicated stuff is needed to avoid race conditions */
 	FREE(arg, M_NETGRAPH);
-	KASSERT(node->nd_refs > 0, ("%s: no nd_refs", __FUNCTION__));
+	KASSERT(node->nd_refs > 0, ("%s: no nd_refs", __func__));
 	if (NG_NODE_NOT_VALID(node)) {	/* shutdown race condition */
 		NG_NODE_UNREF(node);
 		splx(s);
@@ -833,7 +833,7 @@ ng_pptpgre_start_send_ack_timer(node_p node, int ackTimeout)
 	int ticks;
 
 	/* Start new timer */
-	KASSERT(a->sackTimerPtr == NULL, ("%s: sackTimer", __FUNCTION__));
+	KASSERT(a->sackTimerPtr == NULL, ("%s: sackTimer", __func__));
 	MALLOC(a->sackTimerPtr, node_p *, sizeof(node_p), M_NETGRAPH, M_NOWAIT);
 	if (a->sackTimerPtr == NULL) {
 		priv->stats.memoryFailures++;
@@ -864,7 +864,7 @@ ng_pptpgre_send_ack_timeout(void *arg)
 
 	/* This complicated stuff is needed to avoid race conditions */
 	FREE(arg, M_NETGRAPH);
-	KASSERT(node->nd_refs > 0, ("%s: no nd_refs", __FUNCTION__));
+	KASSERT(node->nd_refs > 0, ("%s: no nd_refs", __func__));
 	if (NG_NODE_NOT_VALID(node)) {	/* shutdown race condition */
 		NG_NODE_UNREF(node);
 		splx(s);

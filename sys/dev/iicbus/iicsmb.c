@@ -179,7 +179,7 @@ iicsmb_intr(device_t dev, int event, char *buf)
 		switch (sc->state) {
 		case SMB_DONE:
 			/* XXX too much data, discard */
-			printf("%s: too much data from 0x%x\n", __FUNCTION__,
+			printf("%s: too much data from 0x%x\n", __func__,
 				sc->devaddr & 0xff);
 			goto end;
 
@@ -212,14 +212,14 @@ end:
 			break;
 
 		default:
-			printf("%s unknown error 0x%x!\n", __FUNCTION__,
+			printf("%s unknown error 0x%x!\n", __func__,
 								(int)*buf);
 			break;
 		}
 		break;
 
 	default:
-		panic("%s: unknown event (%d)!", __FUNCTION__, event);
+		panic("%s: unknown event (%d)!", __func__, event);
 	}
 
 	return;

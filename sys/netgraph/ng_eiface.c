@@ -163,7 +163,7 @@ ng_eiface_get_unit(int *unit)
 	}
 	bit = ffs(ng_eiface_units[index]) - 1;
 	KASSERT(bit >= 0 && bit <= UNITS_BITSPERWORD - 1,
-	    ("%s: word=%d bit=%d", __FUNCTION__, ng_eiface_units[index], bit));
+	    ("%s: word=%d bit=%d", __func__, ng_eiface_units[index], bit));
 	ng_eiface_units[index] &= ~(1 << bit);
 	*unit = (index * UNITS_BITSPERWORD) + bit;
 	ng_units_in_use++;
@@ -181,9 +181,9 @@ ng_eiface_free_unit(int unit)
 	index = unit / UNITS_BITSPERWORD;
 	bit = unit % UNITS_BITSPERWORD;
 	KASSERT(index < ng_eiface_units_len,
-	    ("%s: unit=%d len=%d", __FUNCTION__, unit, ng_eiface_units_len));
+	    ("%s: unit=%d len=%d", __func__, unit, ng_eiface_units_len));
 	KASSERT((ng_eiface_units[index] & (1 << bit)) == 0,
-	    ("%s: unit=%d is free", __FUNCTION__, unit));
+	    ("%s: unit=%d is free", __func__, unit));
 	ng_eiface_units[index] |= (1 << bit);
 	/*
 	 * XXX We could think about reducing the size of ng_eiface_units[]

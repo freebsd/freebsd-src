@@ -38,7 +38,7 @@
 
 #ifdef NB_DEBUG
 #define NBDEBUG(format, args...)	 printf("%s(%d): "format,	\
-					    __FUNCTION__ , __LINE__ ,## args)
+					    __func__ , __LINE__ ,## args)
 #else
 #define NBDEBUG(format, args...)
 #endif
