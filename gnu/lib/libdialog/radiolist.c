@@ -46,7 +46,7 @@ dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, int wi
 {
     int i, j, x, y, cur_x, cur_y, old_x, old_y, box_x, box_y, key = 0, button,
 	choice, l, k, scroll, max_choice, *status, item_no = 0, was_on = 0;
-    int redraw_menu = FALSE;
+    int redraw_menu = FALSE, cursor_reset = FALSE;
     int rval = 0, onlist = 1, ok_space, cancel_space;
     char okButton, cancelButton;
     WINDOW *dialog, *list;
@@ -455,6 +455,7 @@ draw:
 	    scroll = 0;
 	    choice = 0;
 	    redraw_menu = TRUE;
+	    cursor_reset = TRUE;
 	    onlist = 1;
 	    break;
 	    
@@ -464,6 +465,7 @@ draw:
 		scroll = 0;
 	    choice = max_choice - 1;
 	    redraw_menu = TRUE;
+	    cursor_reset = TRUE;
 	    onlist = 1;
 	    break;
 	    
@@ -575,7 +577,13 @@ draw:
 		print_button(dialog, "  OK  ", y, x, !button);
 	    }
 	    wnoutrefresh(dialog);
-	    wmove(list, old_y, old_x);
+	    if (cursor_reset) {
+		wmove(list, choice, check_x+1);
+		cursor_reset = FALSE;
+	    }
+	    else {
+		wmove(list, old_y, old_x);
+	    }
 	    wrefresh(list);
 	    redraw_menu = FALSE;
 	}
