@@ -33,6 +33,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/errno.h>
 #ifndef _KERNEL
 #include <stdio.h>
 #include <string.h>
@@ -57,6 +58,18 @@
 #define MBR_CLASS_NAME "MBR"
 #define MBREXT_CLASS_NAME "MBREXT"
 
+static struct dos_partition historical_bogus_partition_table[NDOSPART] = {
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+        { 0x80, 0, 1, 0, DOSPTYP_386BSD, 255, 255, 255, 0, 50000, },
+};
+static struct dos_partition historical_bogus_partition_table_fixed[NDOSPART] = {
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+        { 0x80, 0, 1, 0, DOSPTYP_386BSD, 254, 255, 255, 0, 50000, },
+};
 static void
 g_dec_dos_partition(u_char *ptr, struct dos_partition *d)
 {
@@ -95,6 +108,62 @@ struct g_mbr_softc {
 	int		type [NDOSPART];
 	struct dos_partition dospart[NDOSPART];
 };
+
+static int
+g_mbr_modify(struct g_geom *gp, struct g_mbr_softc *ms, struct dos_partition *dp)
+{
+	int i, error;
+	off_t l[NDOSPART];
+
+	g_topology_assert();
+
+	if ((!bcmp(dp, historical_bogus_partition_table,
+	    sizeof historical_bogus_partition_table)) ||
+	    (!bcmp(dp, historical_bogus_partition_table_fixed,
+	    sizeof historical_bogus_partition_table_fixed))) {
+		/*
+		 * We will not allow people to write these from "the inside",
+		 * Since properly selfdestructing takes too much code.  If 
+		 * people really want to do this, they cannot have any
+		 * providers of this geom open, and in that case they can just
+		 * as easily overwrite the MBR in the parent device.
+		 */
+		return(EBUSY);
+	}
+	for (i = 0; i < NDOSPART; i++) {
+		/* 
+		 * A Protective MBR (PMBR) has a single partition of
+		 * type 0xEE spanning the whole disk. Such a MBR
+		 * protects a GPT on the disk from MBR tools that
+		 * don't know anything about GPT. We're interpreting
+		 * it a bit more loosely: any partition of type 0xEE
+		 * is to be skipped as it doesn't contain any data
+		 * that we should care about. We still allow other
+		 * partitions to be present in the MBR. A PMBR will
+		 * be handled correctly anyway.
+		 */
+		if (dp[i].dp_typ == 0xee)
+			l[i] = 0;
+		else if (dp[i].dp_flag != 0 && dp[i].dp_flag != 0x80)
+			l[i] = 0;
+		else if (dp[i].dp_typ == 0)
+			l[i] = 0;
+		else
+			l[i] = (off_t)dp[i].dp_size << 9ULL;
+		error = g_slice_config(gp, i, G_SLICE_CONFIG_CHECK,
+		    (off_t)dp[i].dp_start << 9ULL, l[i], 512,
+		    "%ss%d", gp->name, 1 + i);
+		if (error)
+			return (error);
+	}
+	for (i = 0; i < NDOSPART; i++) {
+		ms->type[i] = dp[i].dp_typ;
+		g_slice_config(gp, i, G_SLICE_CONFIG_SET,
+		    (off_t)dp[i].dp_start << 9ULL, l[i], 512,
+		    "%ss%d", gp->name, 1 + i);
+	}
+	return (0);
+}
 
 static int
 g_mbr_start(struct bio *bp)
@@ -139,18 +208,6 @@ g_mbr_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g_
 }
 
 
-static struct dos_partition historical_bogus_partition_table[NDOSPART] = {
-        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-        { 0x80, 0, 1, 0, DOSPTYP_386BSD, 255, 255, 255, 0, 50000, },
-};
-static struct dos_partition historical_bogus_partition_table_fixed[NDOSPART] = {
-        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-        { 0x80, 0, 1, 0, DOSPTYP_386BSD, 254, 255, 255, 0, 50000, },
-};
 
 static void
 g_mbr_print(int i, struct dos_partition *dp)
@@ -168,8 +225,7 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
-	struct g_provider *pp2;
-	int error, i, npart;
+	int error, i;
 	struct dos_partition dp[NDOSPART];
 	struct g_mbr_softc *ms;
 	struct g_slicer *gsp;
@@ -184,7 +240,6 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	gsp = gp->softc;
 	g_topology_unlock();
 	gp->dumpconf = g_mbr_dumpconf;
-	npart = 0;
 	while (1) {	/* a trick to allow us to use break */
 		if (gp->rank != 2 && insist == 0)
 			break;
@@ -219,54 +274,17 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 				printf("Ignoring known bogus MBR #1\n");
 			break;
 		}
-		npart = 0;
-		for (i = 0; i < NDOSPART; i++) {
-			/* 
-			 * A Protective MBR (PMBR) has a single partition of
-			 * type 0xEE spanning the whole disk. Such a MBR
-			 * protects a GPT on the disk from MBR tools that
-			 * don't know anything about GPT. We're interpreting
-			 * it a bit more loosely: any partition of type 0xEE
-			 * is to be skipped as it doesn't contain any data
-			 * that we should care about. We still allow other
-			 * partitions to be present in the MBR. A PMBR will
-			 * be handled correctly anyway.
-			 */
-			if (dp[i].dp_typ == 0xee)
-				continue;
-			if (dp[i].dp_flag != 0 && dp[i].dp_flag != 0x80)
-				continue;
-			if (dp[i].dp_typ == 0)
-				continue;
-			if (dp[i].dp_size == 0)
-				continue;
-			if (bootverbose) {
-				printf("MBR Slice %d on %s:\n", i + 1, gp->name);
-				g_mbr_print(i, dp + i);
-			}
-			npart++;
-			ms->type[i] = dp[i].dp_typ;
-			g_topology_lock();
-			pp2 = g_slice_addslice(gp, i,
-			    (off_t)dp[i].dp_start << 9ULL,
-			    (off_t)dp[i].dp_size << 9ULL,
-			    sectorsize,
-			    "%ss%d", gp->name, i + 1);
-			g_topology_unlock();
-		}
+		g_mbr_modify(gp, ms, dp);
 		break;
 	}
 	g_topology_lock();
-	error = g_access_rel(cp, -1, 0, 0);
-	if (npart > 0) {
-		LIST_FOREACH(pp, &gp->provider, provider)
-			g_error_provider(pp, 0);
-		return (gp);
+	g_access_rel(cp, -1, 0, 0);
+	if (LIST_EMPTY(&gp->provider)) {
+		g_std_spoiled(cp);
+		return (NULL);
 	}
-	g_std_spoiled(cp);
-	return (NULL);
+	return (gp);
 }
-
 
 static struct g_class g_mbr_class	= {
 	MBR_CLASS_NAME,
@@ -326,7 +344,6 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
-	struct g_provider *pp2;
 	int error, i, slice;
 	struct g_mbrext_softc *ms;
 	off_t off;
@@ -374,8 +391,7 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 			g_mbr_print(1, dp + 1);
 			if ((dp[0].dp_flag & 0x7f) == 0 &&
 			     dp[0].dp_size != 0 && dp[0].dp_typ != 0) {
-				g_topology_lock();
-				pp2 = g_slice_addslice(gp, slice,
+				g_slice_config(gp, slice, G_SLICE_CONFIG_SET,
 				    (((off_t)dp[0].dp_start) << 9ULL) + off,
 				    ((off_t)dp[0].dp_size) << 9ULL,
 				    sectorsize,
@@ -387,7 +403,6 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 				g_topology_unlock();
 				ms->type[slice] = dp[0].dp_typ;
 				slice++;
-				g_error_provider(pp2, 0);
 			}
 			if (dp[1].dp_flag != 0)
 				break;
@@ -400,16 +415,12 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 		break;
 	}
 	g_topology_lock();
-	error = g_access_rel(cp, -1, 0, 0);
-	if (slice > 0) {
-		/* XXX: add magic spaces */
-		return (gp);
+	g_access_rel(cp, -1, 0, 0);
+	if (LIST_EMPTY(&gp->provider)) {
+		g_std_spoiled(cp);
+		return (NULL);
 	}
-
-	g_topology_assert();
-	g_std_spoiled(cp);
-	g_topology_assert();
-	return (NULL);
+	return (gp);
 }
 
 

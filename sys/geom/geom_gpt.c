@@ -227,7 +227,7 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 			ps = (!memcmp(&ent->ent_type, &freebsd, sizeof(freebsd)))
 			    ? 's' : 'p';
 			g_topology_lock();
-			(void)g_slice_addslice(gp, i, 
+			(void)g_slice_config(gp, i, G_SLICE_CONFIG_SET,
 			    ent->ent_lba_start * secsz,
 			    (1 + ent->ent_lba_end - ent->ent_lba_start) * secsz,
 			    secsz,
@@ -244,15 +244,12 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		g_free(mbr);
 
 	g_topology_lock();
-	error = g_access_rel(cp, -1, 0, 0);
-
-	if (npart > 0) {
-		LIST_FOREACH(pp, &gp->provider, provider)
-			g_error_provider(pp, 0);
-		return (gp);
+	g_access_rel(cp, -1, 0, 0);
+	if (LIST_EMPTY(&gp->provider)) {
+		g_std_spoiled(cp);
+		return (NULL);
 	}
-	g_std_spoiled(cp);
-	return (NULL);
+	return (gp);
 }
 
 static struct g_class g_gpt_class = {
