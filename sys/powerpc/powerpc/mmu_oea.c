@@ -211,8 +211,7 @@ u_int		phys_avail_count;
 static struct	mem_region *regions;
 static struct	mem_region *pregions;
 int		regions_sz, pregions_sz;
-static struct	ofw_map translations[128];
-static int	translations_size;
+static struct	ofw_map *translations;
 
 /*
  * First and last available kernel virtual addresses.
@@ -688,8 +687,13 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 		panic("pmap_bootstrap: can't get mmu package");
 	if ((sz = OF_getproplen(mmu, "translations")) == -1)
 		panic("pmap_bootstrap: can't get ofw translation count");
-	if (sizeof(translations) < sz)
-		panic("pmap_bootstrap: translations too small");
+	translations = NULL;
+	for (i = 0; phys_avail[i + 2] != 0; i += 2) {
+		if (phys_avail[i + 1] >= sz)
+			translations = (struct ofw_map *)phys_avail[i];
+	}
+	if (translations == NULL)
+		panic("pmap_bootstrap: no space to copy translations");
 	bzero(translations, sz);
 	if (OF_getprop(mmu, "translations", translations, sz) == -1)
 		panic("pmap_bootstrap: can't get ofw translations");
