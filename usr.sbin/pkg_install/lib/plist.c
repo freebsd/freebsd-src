@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: plist.c,v 1.7 1994/07/11 01:11:14 jkh Exp $";
+static const char *rcsid = "$Id: plist.c,v 1.8 1994/08/28 14:15:30 jkh Exp $";
 #endif
 
 /*
@@ -296,11 +296,12 @@ write_plist(Package *pkg, FILE *fp)
 }
 
 /* Delete the results of a package installation, not the packaging itself */
-void
+int
 delete_package(Boolean ign_err, Package *pkg)
 {
     PackingList p = pkg->head;
     char *Where = ".", *last_file = "";
+    Boolean fail = SUCCESS;
 
     while (p) {
 	if (p->type == PLIST_CWD) {
@@ -314,8 +315,10 @@ delete_package(Boolean ign_err, Package *pkg)
 	    format_cmd(cmd, p->name, Where, last_file);
 	    if (Verbose)
 		printf("unexec command: %s\n", cmd);
-	    if (!Fake && system(cmd))
+	    if (!Fake && system(cmd)) {
 		whinge("unexec '%s' failed.", cmd);
+		fail = FAIL;
+	    }
 	}
 	else if (p->type == PLIST_IGNORE)
 	    p = p->next;
@@ -326,12 +329,15 @@ delete_package(Boolean ign_err, Package *pkg)
 	    if (Verbose)
 		printf("Delete: %s\n", full_name);
 	    
-	    if (!Fake && delete_hierarchy(full_name, ign_err))
+	    if (!Fake && delete_hierarchy(full_name, ign_err)) {
 		whinge("Unable to completely remove file '%s'", full_name);
+		fail = FAIL;
+	    }
 	    last_file = p->name;
 	}
 	p = p->next;
     }
+    return fail;
 }
 
 /* Selectively delete a hierarchy */
