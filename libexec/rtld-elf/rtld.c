@@ -107,6 +107,7 @@ static void objlist_remove_unref(Objlist *);
 static int relocate_objects(Obj_Entry *, bool);
 static void rtld_exit(void);
 static char *search_library_path(const char *, const char *);
+static const void **get_program_var_addr(const char *name);
 static void set_program_var(const char *, const void *);
 static const Elf_Sym *symlook_default(const char *, unsigned long hash,
   const Obj_Entry *refobj, const Obj_Entry **defobj_out, bool in_plt);
@@ -1556,6 +1557,11 @@ dlopen(const char *name, int mode)
     Obj_Entry **old_obj_tail;
     Obj_Entry *obj;
     Objlist initlist;
+    int result;
+
+    ld_tracing = (mode & RTLD_TRACE) == 0 ? NULL : "1";
+    if (ld_tracing != NULL)
+	environ = (char **)*get_program_var_addr("environ");
 
     objlist_init(&initlist);
 
@@ -1581,7 +1587,14 @@ dlopen(const char *name, int mode)
 	if (*old_obj_tail != NULL) {		/* We loaded something new. */
 	    assert(*old_obj_tail == obj);
 
-	    if (load_needed_objects(obj) == -1 ||
+	    result = load_needed_objects(obj);
+	    if (result != -1 && ld_tracing) {
+		trace_loaded_objects(obj);
+		wlock_release();
+		exit(0);
+	    }
+
+	    if (result == -1 ||
 	      (init_dag(obj), relocate_objects(obj, mode == RTLD_NOW)) == -1) {
 		obj->dl_refcount--;
 		unref_dag(obj);
@@ -1812,12 +1825,10 @@ r_debug_state(struct r_debug* rd, struct link_map *m)
 }
 
 /*
- * Set a pointer variable in the main program to the given value.  This
- * is used to set key variables such as "environ" before any of the
- * init functions are called.
+ * Get address of the pointer variable in the main program.
  */
-static void
-set_program_var(const char *name, const void *value)
+static const void **
+get_program_var_addr(const char *name)
 {
     const Obj_Entry *obj;
     unsigned long hash;
@@ -1830,10 +1841,25 @@ set_program_var(const char *name, const void *value)
 	    const void **addr;
 
 	    addr = (const void **)(obj->relocbase + def->st_value);
-	    dbg("\"%s\": *%p <-- %p", name, addr, value);
-	    *addr = value;
-	    break;
+	    return addr;
 	}
+    }
+    return NULL;
+}
+
+/*
+ * Set a pointer variable in the main program to the given value.  This
+ * is used to set key variables such as "environ" before any of the
+ * init functions are called.
+ */
+static void
+set_program_var(const char *name, const void *value)
+{
+    const void **addr;
+
+    if ((addr = get_program_var_addr(name)) != NULL) {
+	dbg("\"%s\": *%p <-- %p", name, addr, value);
+	*addr = value;
     }
 }
 
