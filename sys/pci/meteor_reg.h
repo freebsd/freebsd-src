@@ -147,10 +147,10 @@ struct saa7116_regs {
 #define	PCF8574_CTRL_I2C_ADDR	0x70
 #define PCF8574_DATA_I2C_ADDR	0x72
 #define	PCF8574_CTRL_WRITE(mtr, data) \
-	i2c_write(mtr,  PCF8574_CTRL_I2C_ADDR, SAA7116_I2C_WRITE, 0, data), \
+	i2c_write(mtr,  PCF8574_CTRL_I2C_ADDR, SAA7116_I2C_WRITE, data, data), \
 	mtr->pcf_i2c[0] = data
 #define	PCF8574_DATA_WRITE(mtr, data) \
-	i2c_write(mtr,  PCF8574_DATA_I2C_ADDR, SAA7116_I2C_WRITE, 0, data), \
+	i2c_write(mtr,  PCF8574_DATA_I2C_ADDR, SAA7116_I2C_WRITE, data, data), \
 	mtr->pcf_i2c[1] = data
 #define PCF8574_CTRL_REG(mtr) mtr->pcf_i2c[0]
 #define PCF8574_DATA_REG(mtr) mtr->pcf_i2c[1]
@@ -180,6 +180,9 @@ typedef struct meteor_softc {
     int		alloc_pages;	/* number of pages in bigbuf */
     struct proc	*proc;		/* process to receive raised signal */
     int		signal;		/* signal to send to process */
+#define	METEOR_SIG_MODE_MASK	0xffff0000
+#define	METEOR_SIG_FIELD_MODE	0x00010000
+#define	METEOR_SIG_FRAME_MODE	0x00000000
     struct meteor_mem *mem;	/* used to control sync. multi-frame output */
     u_long	synch_wait;	/* wait for free buffer before continuing */
     short	current;	/* frame number in buffer (1-frames) */
@@ -215,7 +218,7 @@ typedef struct meteor_softc {
 #define	METEOR_DEV3		0x00008000
 #define METEOR_DEV_SVIDEO	0x00006000
 #define METEOR_DEV_RGB		0x0000a000
-#define	METEOR_DEV_MASK		0x2000f000
+#define	METEOR_DEV_MASK		0x0000f000
 #define	METEOR_RGB16		0x00010000
 #define	METEOR_RGB24		0x00020000
 #define	METEOR_YUV_PACKED	0x00040000
@@ -230,6 +233,7 @@ typedef struct meteor_softc {
 #define	METEOR_OUTPUT_FMT_MASK	0x040f0000
 #define	METEOR_WANT_TS		0x08000000	/* time-stamp a frame */
 #define METEOR_RGB		0x20000000	/* meteor rgb unit */
+#define METEOR_FIELD_MODE	0x80000000
     u_char	saa7196_i2c[NUM_SAA7196_I2C_REGS]; /* saa7196 register values */
     u_char	pcf_i2c[NUM_PCF8574_I2C_REGS];	/* PCF8574 register values */
     u_char	bt254_reg[NUM_BT254_REGS];	/* BT254 register values */

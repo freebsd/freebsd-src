@@ -129,6 +129,18 @@
 			Changed the spelling of PLANER to PLANAR as pointed
 			out by Paco Hope <paco@cs.virigina.edu> and define
 			PLANER to be PLANAR for backward compatibility.
+	5/28/95		METEOR_INPUT_DEV_RCA -> METEOR_INPUT_DEV0, not
+			METEOR_GEO_DEV0.  Pointed out by Ian Reid,
+			<ian@robots.ox.ac.uk>.
+			METEOR_DEV_MASK should be 0x0000f000 and not 
+			0x2000f000, otherwise METEOR_RGB gets masked
+			out.  Pointed out by Ian Reid.
+			Changed the fps code to give even distribution for
+			low frame rates.  Code supplied by Ian Reid.
+			Fix some problems with the RGB version.  Patch supplied
+			by <ljo@po.cwru.edu>.
+			Added METEOR_FIELD_MODE to include files for a 
+			future version of this driver.
 */
 
 #include "meteor.h"
@@ -622,6 +634,12 @@ meteor_intr(void *arg)
 			*base = next_base;
 			/* XXX should add adjustments for YUV_422 & PLANAR */
 		}
+		/*
+		 * If the user requested to be notified via signal,
+		 * let them know the field is complete.
+		 */
+		if(mtr->proc && (mtr->signal & METEOR_SIG_MODE_MASK))
+			psignal(mtr->proc, mtr->signal&(~METEOR_SIG_MODE_MASK));
 	}
 	if (status & 0x2) {		/* odd field */
 		mtr->odd_fields_captured++;
@@ -630,6 +648,12 @@ meteor_intr(void *arg)
 			*(base+3) = next_base + *(base+6);
 			/* XXX should add adjustments for YUV_422 & PLANAR */
 		}
+		/*
+		 * If the user requested to be notified via signal,
+		 * let them know the field is complete.
+		 */
+		if(mtr->proc && (mtr->signal & METEOR_SIG_MODE_MASK))
+			psignal(mtr->proc, mtr->signal&(~METEOR_SIG_MODE_MASK));
 	}
 
 	/*
@@ -661,8 +685,8 @@ meteor_intr(void *arg)
 		 * If the user requested to be notified via signal,
 		 * let them know the frame is complete.
 		 */
-		if(mtr->proc && mtr->signal)
-			psignal(mtr->proc, mtr->signal);
+		if(mtr->proc && !(mtr->signal & METEOR_SIG_MODE_MASK))
+			psignal(mtr->proc, mtr->signal&(~METEOR_SIG_MODE_MASK));
 		/*
 		 * Reset the want flags if in continuous or
 		 * synchronous capture mode.
@@ -784,14 +808,29 @@ set_fps(meteor_reg_t *mtr, u_short fps)
 	/*
 	 * Compute the mask/length using the fps.
 	 */
-	if(fps < maxfps) {
-		float	b, step;
+	if(fps == maxfps) {
+		mask = 0x1;
+		length = 0x0;
+	} else if ((float)fps == maxfps/2.0) {	
+		mask = 0x1;
+		length = 0x1;
+	} else if (fps > maxfps/2) {
+		float step, b;
 
-		mask = (1 << maxfps) - 1;
-		length = ((maxfps - 1) << 16) | (maxfps - 1);
-		step = (float)(maxfps - 1) / (float)(maxfps - fps);
+		mask = (1<<maxfps) - 1;
+		length = maxfps - 1;
+		step = (float)(maxfps - 1)/(float)(maxfps - fps);
 		for(b=step; b < maxfps; b += step) {
-			mask &= ~(1<<((int)b));
+			mask &= ~(1<<((int)b));	/* mask out the bth frame */
+		}
+	} else {	/* fps < maxfps/2 */
+		float step, b;
+
+		mask = 0x1;
+		length = maxfps - 1;
+		step = (float)(maxfps -1)/(float)(fps);
+		for(b = step + 1; b < maxfps - 1; b += step) {
+			mask |= (1<<((int)b));	/* mask in the bth frame */
 		}
 	}
 
@@ -799,7 +838,7 @@ set_fps(meteor_reg_t *mtr, u_short fps)
 	 * Set the fps.
 	 */
 	s7116->fme = s7116->fmo = mask;
-	s7116->fml = length;
+	s7116->fml = (length << 16) | length;;
 
 	mtr->fps = fps;
 
@@ -862,6 +901,19 @@ int	i;
 		bt254_write(mtr, i, bt254_default[i]);
 
 	bt254_write(mtr, BT254_COMMAND, 0x00);	/* 24 bpp */
+}
+
+static void
+bt254_ntsc(meteor_reg_t *mtr, int arg)
+{
+        if (arg){
+	  /* Set NTSC bit */
+	  PCF8574_CTRL_WRITE(mtr, PCF8574_CTRL_REG(mtr) | 0x20);
+	}
+	else {
+	  /* reset NTSC bit */
+	  PCF8574_CTRL_WRITE(mtr, PCF8574_CTRL_REG(mtr) &= ~0x20);
+	}
 }
 
 static void
@@ -1458,6 +1510,9 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 			SAA7196_WRITE(mtr, 0x26, 0xf0);
 			SAA7196_WRITE(mtr, 0x28, 
 				(SAA7196_REG(mtr, 0x28) & ~0x0c)) ;
+			if(mtr->flags & METEOR_RGB){
+			  bt254_ntsc(mtr, 1);			  
+			}
 		break;
 		case METEOR_FMT_PAL:
 			mtr->flags = (mtr->flags & ~METEOR_FORM_MASK) |
@@ -1472,6 +1527,9 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 			SAA7196_WRITE(mtr, 0x26, 0x20);
 			SAA7196_WRITE(mtr, 0x28, 
 				(SAA7196_REG(mtr, 0x28) & ~0x0c) | 0x04) ;
+			if(mtr->flags & METEOR_RGB){
+			  bt254_ntsc(mtr, 0);			  
+			}
 		break;
 		case METEOR_FMT_SECAM:
 			mtr->flags = (mtr->flags & ~METEOR_FORM_MASK) |
@@ -1486,6 +1544,9 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 			SAA7196_WRITE(mtr, 0x26, 0x20);
 			SAA7196_WRITE(mtr, 0x28, 
 				(SAA7196_REG(mtr, 0x28) & ~0x0c) | 0x04) ;
+			if(mtr->flags & METEOR_RGB){
+			  bt254_ntsc(mtr, 0);
+			}
 		break;
 		case METEOR_FMT_AUTOMODE:
 			mtr->flags = (mtr->flags & ~METEOR_FORM_MASK) |
