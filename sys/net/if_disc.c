@@ -42,6 +42,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -60,8 +61,7 @@
 #define DSMTU	65532
 #endif
 
-static void discattach __P((void *dummy));
-PSEUDO_SET(discattach, if_disc);
+static void discattach __P((void));
 
 static struct	ifnet discif;
 static int discoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
@@ -71,8 +71,7 @@ static int discioctl(struct ifnet *, u_long, caddr_t);
 
 /* ARGSUSED */
 static void
-discattach(dummy)
-	void *dummy;
+discattach()
 {
 	register struct ifnet *ifp = &discif;
 
@@ -88,6 +87,28 @@ discattach(dummy)
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(u_int));
 }
+
+static int
+disc_modevent(module_t mod, int type, void *data) 
+{ 
+	switch (type) { 
+	case MOD_LOAD: 
+		discattach();
+		break; 
+	case MOD_UNLOAD: 
+		printf("if_disc module unload - not possible for this module type\n"); 
+		return EINVAL; 
+	} 
+	return 0; 
+} 
+
+static moduledata_t disc_mod = { 
+	"if_disc", 
+	disc_modevent, 
+	NULL
+}; 
+
+DECLARE_MODULE(if_disc, disc_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
 static int
 discoutput(ifp, m, dst, rt)
