@@ -975,6 +975,7 @@ xptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 			}
 			/* FALLTHROUGH */
 		case XPT_PATH_INQ:
+		case XPT_ENG_INQ:
 		case XPT_SCAN_LUN:
 
 			ccb = xpt_alloc_ccb();
@@ -1089,12 +1090,8 @@ xptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 			error = 0;
 			break;
 		}
-		case XPT_ENG_INQ:
-		case XPT_ENG_EXEC:
-			error = ENOTSUP;
-			break;
 		default:
-			error = EINVAL;
+			error = ENOTSUP;
 			break;
 		}
 		break;
@@ -5874,6 +5871,7 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 
 	qfrozen = FALSE;
 	if ((cts->valid & CCB_TRANS_TQ_VALID) != 0) {
+		int device_tagenb;
 
 		/*
 		 * If we are transitioning from tags to no-tags or
