@@ -69,6 +69,7 @@ void	ext2_ihashins(struct inode *);
 struct vnode *
 	ext2_ihashlookup(dev_t, ino_t);
 void	ext2_ihashrem(struct inode *);
+void	ext2_ihashuninit(void);
 void	ext2_itimes(struct vnode *vp);
 int	ext2_reallocblks(struct vop_reallocblks_args *);
 int	ext2_reclaim(struct vop_reclaim_args *);
