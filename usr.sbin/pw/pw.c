@@ -106,18 +106,18 @@ main(int argc, char *argv[])
 	static const char *opts[W_NUM][M_NUM] =
 	{
 		{ /* user */
-			"V:C:qn:u:c:d:e:p:g:G:mk:s:oL:i:w:h:Db:NPy:Y",
+			"V:C:qn:u:c:d:e:p:g:G:mk:s:oL:i:w:h:H:Db:NPy:Y",
 			"V:C:qn:u:rY",
-			"V:C:qn:u:c:d:e:p:g:G:ml:k:s:w:L:h:FNPY",
+			"V:C:qn:u:c:d:e:p:g:G:ml:k:s:w:L:h:H:FNPY",
 			"V:C:qn:u:FPa7",
 			"V:C:q",
 			"V:C:q",
 			"V:C:q"
 		},
 		{ /* grp  */
-			"V:C:qn:g:h:M:pNPY",
+			"V:C:qn:g:h:H:M:pNPY",
 			"V:C:qn:g:Y",
-			"V:C:qn:g:l:h:FM:m:NPY",
+			"V:C:qn:g:l:h:H:FM:m:NPY",
 			"V:C:qn:g:FPa",
 			"V:C:q"
 		 }
@@ -315,6 +315,7 @@ cmdhelp(int mode, int which)
 				"\t-o             duplicate uid ok\n"
 				"\t-L class       user class\n"
 				"\t-h fd          read password on fd\n"
+				"\t-H fd          read encrypted password on fd\n"
 				"\t-Y             update NIS maps\n"
 				"\t-N             no update\n"
 				"  Setting defaults:\n"
@@ -357,6 +358,7 @@ cmdhelp(int mode, int which)
 				"\t-s shell       name of login shell\n"
 				"\t-w method      set new password using method\n"
 				"\t-h fd          read password on fd\n"
+				"\t-H fd          read encrypted password on fd\n"
 				"\t-Y             update NIS maps\n"
 				"\t-N             no update\n",
 				"usage: pw usershow [uid|name] [switches]\n"
