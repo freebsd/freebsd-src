@@ -54,7 +54,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_softdep.c	9.23 (McKusick) 2/20/98
- *	$Id: ffs_softdep.c,v 1.8 1998/06/10 20:03:16 julian Exp $
+ *	$Id: ffs_softdep.c,v 1.9 1998/06/10 20:45:46 julian Exp $
  */
 
 /*
@@ -1667,7 +1667,7 @@ softdep_setup_freeblocks(ip, length)
 		bp = LIST_FIRST(&vp->v_dirtyblkhd);
 		(void) inodedep_lookup(fs, ip->i_number, 0, &inodedep);
 		deallocate_dependencies(bp, inodedep);
-		bp->b_flags |= B_INVAL;
+		bp->b_flags |= B_INVAL | B_NOCACHE;
 		brelse(bp);
 	}
 	/*
@@ -2042,7 +2042,7 @@ indir_trunc(ip, dbn, level, lbn, countp)
 		ffs_blkfree(ip, nb, fs->fs_bsize);
 		*countp += nblocks;
 	}
-	bp->b_flags |= B_INVAL;
+	bp->b_flags |= B_INVAL | B_NOCACHE;
 	bp->b_flags &= ~B_XXX;
 	brelse(bp);
 	return (allerror);
@@ -2635,7 +2635,7 @@ softdep_disk_io_initiation(bp)
 			 */
 			if (LIST_FIRST(&indirdep->ir_deplisthd) == NULL) {
 				indirdep->ir_savebp->b_flags &= ~B_XXX;
-				indirdep->ir_savebp->b_flags |= B_INVAL;
+				indirdep->ir_savebp->b_flags |= B_INVAL | B_NOCACHE;
 				brelse(indirdep->ir_savebp);
 				/* inline expand WORKLIST_REMOVE(wk); */
 				wk->wk_state &= ~ONWORKLIST;
