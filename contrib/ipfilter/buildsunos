@@ -1,0 +1,23 @@
+#! /bin/sh
+# $Id: buildsunos,v 2.0.1.1 1997/01/09 15:14:43 darrenr Exp $
+:
+rev=`uname -r | sed -e 's/^\([^\.]*\)\..*/\1/'`
+cpu=`uname -m`
+if [ $rev = 5 ] ; then
+	solrev=`uname -r | sed -e 's/^\([0-9]*\)\.\([0-9]*\)$/\2/'`
+	mkdir -p SunOS5/${cpu}
+	/bin/rm -f SunOS5/${cpu}/Makefile
+	/bin/rm -f SunOS5/${cpu}/Makefile.ipsend
+	ln -s ../Makefile SunOS5/${cpu}/Makefile
+	ln -s ../Makefile.ipsend SunOS5/${cpu}/Makefile.ipsend
+fi
+if [ $cpu = i86pc ] ; then
+	make ${1+"$@"} sunos5x86 SOLARIS2="-DSOLARIS2=$solrev" DCPU=${cpu}
+	exit $?
+fi
+if [ x$solrev = x ] ; then
+	make ${1+"$@"} sunos$rev "ARCH=`uname -m`"
+	exit $?
+fi
+make ${1+"$@"} sunos$rev SOLARIS2="-DSOLARIS2=$solrev" DCPU=${cpu}
+exit $?
