@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.41 1997/04/26 15:59:50 peter Exp $
+ * $Id: kern_fork.c,v 1.42 1997/05/29 04:52:04 peter Exp $
  */
 
 #include "opt_ktrace.h"
@@ -217,6 +217,20 @@ fork1(p1, flags, retval)
 
 	/* Allocate new proc. */
 	MALLOC(newproc, struct proc *, sizeof(struct proc), M_PROC, M_WAITOK);
+
+/*
+ * Setup linkage for kernel based threading
+ */
+	if((flags & RFTHREAD) != 0) {
+		newproc->p_peers = p1->p_peers;
+		p1->p_peers = newproc;
+		newproc->p_leader = p1->p_leader;
+	} else {
+		newproc->p_peers = 0;
+		newproc->p_leader = newproc;
+	}
+
+	newproc->p_wakeup = 0;
 
 	/*
 	 * Find an unused process ID.  We remember a range of unused IDs

@@ -223,4 +223,16 @@
 #define	SYS_kldstat	308
 #define	SYS_kldfirstmod	309
 #define	SYS_signanosleep	313
-#define	SYS_MAXSYSCALL	314
+#define	SYS_aio_return	314
+#define	SYS_aio_suspend	315
+#define	SYS_aio_cancel	316
+#define	SYS_aio_error	317
+#define	SYS_aio_read	318
+#define	SYS_aio_write	319
+#define	SYS_lio_listio	320
+#define	SYS_yield	321
+#define	SYS_thr_sleep	322
+#define	SYS_thr_wakeup	323
+#define	SYS_mlockall	324
+#define	SYS_munlockall	325
+#define	SYS_MAXSYSCALL	326

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.38 1997/05/22 07:24:46 phk Exp $
+ * $Id: proc.h,v 1.39 1997/06/01 08:49:49 peter Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -178,6 +178,12 @@ struct	proc {
 	u_short	p_xstat;	/* Exit status for wait; also stop signal. */
 	u_short	p_acflag;	/* Accounting flags. */
 	struct	rusage *p_ru;	/* Exit information. XXX */
+
+	int	p_nthreads;	/* number of threads (only in leader) */
+	int	p_npeers;	/* number of kernel threads (only in leader) */
+	int	p_wakeup;	/* thread id */
+	struct proc *p_peers;	
+	struct proc *p_leader;
 };
 
 #define	p_session	p_pgrp->pg_session
@@ -217,6 +223,9 @@ struct	proc {
 #define	P_SWAPPING	0x40000	/* Process is being swapped. */
 #define	P_SWAPINREQ	0x80000	/* Swapin request due to wakeup */
 #define	P_IDLEPROC	0x100000 /* Process is an idle-eater, don't count */
+
+/* Marked a kernel thread */
+#define P_KTHREADP	0x200000 /* Process is really a kernel thread */
 
 /*
  * MOVE TO ucred.h?

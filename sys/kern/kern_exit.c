@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.47 1997/04/07 07:16:00 peter Exp $
+ * $Id: kern_exit.c,v 1.48 1997/05/22 07:25:20 phk Exp $
  */
 
 #include "opt_ktrace.h"
@@ -125,6 +125,37 @@ exit1(p, rv)
 		    WTERMSIG(rv), WEXITSTATUS(rv));
 		panic("Going nowhere without my init!");
 	}
+
+	/* are we a task leader? */
+	if(p == p->p_leader) {
+        	struct kill_args killArgs;
+		killArgs.signum = SIGKILL;
+		q = p->p_peers;
+		while(q) {
+			killArgs.pid = q->p_pid;
+			/*
+		         * The interface for kill is better
+			 * than the internal signal
+			 */
+			kill(p, &killArgs, &rv);
+			nq = q;
+			q = q->p_peers;
+			/*
+			 * orphan the threads so we don't mess up
+			 * when they call exit
+			 */
+			nq->p_peers = 0;
+			nq->p_leader = nq;
+		}
+
+	/* otherwise are we a peer? */
+	} else if(p->p_peers) {
+		q = p->p_leader;
+		while(q->p_peers != p)
+			q = q->p_peers;
+		q->p_peers = p->p_peers;
+	}
+
 #ifdef PGINPROF
 	vmsizmon();
 #endif
