@@ -1341,8 +1341,8 @@ static struct flag {
 #endif
 	{ NULL,		NULL,			0,		0 }
 };
-#define longestflaglen	12
-#define nmappings	(sizeof(mapping) / sizeof(mapping[0]))
+#define	longestflaglen	12
+#define	nmappings	(sizeof(mapping) / sizeof(mapping[0]))
 
 /*
  * fflagstostr --

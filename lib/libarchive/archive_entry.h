@@ -130,9 +130,9 @@ void	archive_entry_copy_uname_w(struct archive_entry *, const wchar_t *);
  * "permset"/"perm" abstract type nonsense.  A permset is just a simple
  * bitmap, following long-standing Unix tradition.
  */
-#define ARCHIVE_ENTRY_ACL_EXECUTE	1
-#define ARCHIVE_ENTRY_ACL_WRITE		2
-#define ARCHIVE_ENTRY_ACL_READ		4
+#define	ARCHIVE_ENTRY_ACL_EXECUTE	1
+#define	ARCHIVE_ENTRY_ACL_WRITE		2
+#define	ARCHIVE_ENTRY_ACL_READ		4
 
 /* We need to be able to specify either or both of these. */
 #define	ARCHIVE_ENTRY_ACL_TYPE_ACCESS	256

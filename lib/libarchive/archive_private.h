@@ -209,7 +209,7 @@ __archive_write_format_header_ustar(struct archive *, char buff[512],
 #define	ARCHIVE_STATE_NEW	1U
 #define	ARCHIVE_STATE_HEADER	2U
 #define	ARCHIVE_STATE_DATA	4U
-#define ARCHIVE_STATE_EOF	8U
+#define	ARCHIVE_STATE_EOF	8U
 #define	ARCHIVE_STATE_CLOSED	0x10U
 #define	ARCHIVE_STATE_FATAL	0x8000U
 
@@ -231,6 +231,6 @@ int	__archive_read_register_compression(struct archive *a,
 	    int (*bid)(const void *, size_t),
 	    int (*init)(struct archive *, const void *,	size_t));
 
-#define err_combine(a,b)	((a) < (b) ? (a) : (b))
+#define	err_combine(a,b)	((a) < (b) ? (a) : (b))
 
 #endif
