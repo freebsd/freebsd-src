@@ -40,12 +40,16 @@
  *
  *	@(#)rmpproto.c	8.1 (Berkeley) 6/4/93
  *
- * Utah $Hdr: rmpproto.c 3.1 92/07/06$
+ * From: Utah Hdr: rmpproto.c 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)rmpproto.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>

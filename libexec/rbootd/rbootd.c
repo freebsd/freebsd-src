@@ -39,20 +39,23 @@
  * SUCH DAMAGE.
  *
  *	@(#)rbootd.c	8.2 (Berkeley) 2/22/94
- *	$Id: rbootd.c,v 1.3 1996/09/22 21:54:32 wosch Exp $
  *
- * Utah $Hdr: rbootd.c 3.1 92/07/06$
+ * From: Utah Hdr: rbootd.c 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1992, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)rbootd.c	8.2 (Berkeley) 2/22/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -60,6 +63,7 @@ static char sccsid[] = "@(#)rbootd.c	8.2 (Berkeley) 2/22/94";
 #include <sys/time.h>
 
 #include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -84,6 +88,8 @@ typedef	struct fd_set {		/* this should already be in 4.2 */
 #define	FD_ISSET(n, p)	((p)->fds_bits[0] & (1 << (n)))
 #endif
 
+static void usage __P((void));
+
 int
 main(argc, argv)
 	int argc;
@@ -91,11 +97,6 @@ main(argc, argv)
 {
 	int c, fd, omask, maxfds;
 	fd_set rset;
-
-	/*
-	 *  Find what name we are running under.
-	 */
-	ProgName = (ProgName = rindex(argv[0],'/')) ? ++ProgName : *argv;
 
 	/*
 	 *  Close any open file descriptors.
@@ -125,14 +126,15 @@ main(argc, argv)
 		    case 'i':
 			IntfName = optarg;
 			break;
+		    default:
+			usage();
 		}
 	for (; optind < argc; optind++) {
 		if (ConfigFile == NULL)
 			ConfigFile = argv[optind];
 		else {
-			fprintf(stderr,
-			        "%s: too many config files (`%s' ignored)\n",
-			        ProgName, argv[optind]);
+			warnx("too many config files (`%s' ignored)",
+			        argv[optind]);
 		}
 	}
 
@@ -153,8 +155,7 @@ main(argc, argv)
 		 */
 		switch(fork()) {
 			case -1:	/* fork failed */
-				fprintf(stderr, "%s: ", ProgName);
-				perror("fork");
+				warn("fork");
 				Exit(0);
 			case 0:		/* this is the CHILD */
 				break;
@@ -172,13 +173,11 @@ main(argc, argv)
 			if ((i = open(devtty, O_RDWR)) < 0) {
 				/* probably already disassociated */
 				if (setpgrp(0, 0) < 0) {
-					fprintf(stderr, "%s: ", ProgName);
-					perror("setpgrp");
+					warn("setpgrp");
 				}
 			} else {
 				if (ioctl(i, (u_long)TIOCNOTTY, (char *)0) < 0){
-					fprintf(stderr, "%s: ", ProgName);
-					perror("ioctl");
+					warn("ioctl");
 				}
 				(void) close(i);
 			}
@@ -191,9 +190,9 @@ main(argc, argv)
 	(void) fclose(stderr);		/* finished with it */
 
 #ifdef SYSLOG4_2
-	openlog(ProgName, LOG_PID);
+	openlog("rbootd", LOG_PID);
 #else
-	openlog(ProgName, LOG_PID, LOG_DAEMON);
+	openlog("rbootd", LOG_PID, LOG_DAEMON);
 #endif
 
 	/*
@@ -342,6 +341,13 @@ main(argc, argv)
 			}
 		}
 	}
+}
+
+static void
+usage()
+{
+	fprintf(stderr, "usage: rbootd [-ad] [-i interface] [config_file]\n");
+	exit (1);
 }
 
 /*

@@ -40,12 +40,16 @@
  *
  *	@(#)utils.c	8.2 (Berkeley) 2/22/94
  *
- * Utah $Hdr: utils.c 3.1 92/07/06$
+ * From: Utah Hdr: utils.c 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)utils.c	8.2 (Berkeley) 2/22/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
