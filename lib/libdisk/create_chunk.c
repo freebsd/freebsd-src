@@ -383,7 +383,7 @@ MakeDev(struct chunk *c1, const char *path)
     part = *p - 'a';
  done:
     if (isDebug())
-	msgDebug("MakeDev: Unit %d, Slice %d, Part %d\n", unit, slice, part);
+	msgDebug("MakeDev: Unit %lu, Slice %lu, Part %lu\n", unit, slice, part);
     if (unit > 32)
 	return 0;
     if (slice > 32)
