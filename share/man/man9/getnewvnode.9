@@ -37,7 +37,7 @@
 .In sys/vnode.h
 .In sys/mount.h
 .Ft int
-.Fn getnewvnode "enum vtagtype tag" "struct mount *mp" "vop_t **vops" "struct vnode **vpp"
+.Fn getnewvnode "const char *tag" "struct mount *mp" "vop_t **vops" "struct vnode **vpp"
 .Sh DESCRIPTION
 The
 .Fn getnewvnode
@@ -51,7 +51,8 @@ The arguments to
 are:
 .Bl -tag -width ".Fa vops"
 .It Fa tag
-The filesystem type.
+The filesystem type string.  This field should only be referenced for
+debugging or for userland utilities.
 .It Fa mp
 The mount point to add the new vnode to.
 .It Fa vops
