@@ -629,16 +629,28 @@ For partition
 .Cm *
 will be interpreted as an offset of 0.
 .It fstype
-describes the purpose of the partition.  The example shows most normal usages.
-For UFS file systems, use type
+describes the purpose of the partition.  The example shows all currently used
+partition types.
+For UFS file systems and ccd partitions, use type
 .Cm 4.2BSD .
+For Vinum drives, use type
+.Cm vinum .
 Other common types are
 .Cm unused
 and
 .Cm swap .
-See
+By convention, partition c represents the entire slice and should be of type
+.Cm unused ,
+though
+.Nm
+does not enforce this convention.
+.Nm
+also knows about a number of other partition types, none of which are in current
+use.
+See the definitions starting with
+.Dv FS_UNUSED in
 .Pa /usr/include/sys/disklabel.h
-for a complete list.
+for more details.
 .It fsize
 For
 .Cm 4.2BSD
@@ -812,10 +824,12 @@ drivedata: 0
   g:      *        *    4.2BSD
 .Ed
 .Sh SEE ALSO
+.Xr ccd 4 ,
 .Xr disklabel 5 ,
 .Xr disktab 5 ,
 .Xr boot0cfg 8 ,
-.Xr fdisk 8
+.Xr fdisk 8 ,
+.Xr vinum 8
 .Sh DIAGNOSTICS
 The kernel device drivers will not allow the size of a disk partition
 to be decreased or the offset of a partition to be changed while it is open.
