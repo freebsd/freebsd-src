@@ -46,7 +46,7 @@ Boolean NFSMounted;
 Boolean
 mediaInitNFS(Device *dev)
 {
-    char *mountpoint = (!Chrooted && RunningAsInit) ? "/mnt/dist" : "/dist";
+    char *mountpoint = "/dist";
     Device *netDevice = (Device *)dev->private;
 
     if (NFSMounted)
@@ -58,7 +58,7 @@ mediaInitNFS(Device *dev)
     if (Mkdir(mountpoint))
 	return FALSE;
 
-    msgNotify("Mounting %s over NFS.", dev->name);
+    msgNotify("Mounting %s over NFS on %s", dev->name, mountpoint);
     if (vsystem("mount_nfs %s %s %s %s",
 		variable_get(VAR_SLOW_ETHER) ? "-r 1024 -w 1024" : "",
 		variable_get(VAR_NFS_SECURE) ? "-P" : "", dev->name, mountpoint)) {
@@ -96,7 +96,7 @@ void
 mediaShutdownNFS(Device *dev)
 {
     /* Device *netdev = (Device *)dev->private; */
-    char *mountpoint = (!Chrooted && RunningAsInit) ? "/mnt/dist" : "/dist";
+    char *mountpoint = "/dist";
 
     if (!NFSMounted)
 	return;

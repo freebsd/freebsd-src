@@ -340,20 +340,30 @@ distSetXF86(dialogMenuItem *self)
     return i | DITEM_RECREATE;
 }
 
+static Boolean got_intr = FALSE;
+
 /* timeout handler */
 static void
-media_timeout(int sig)
+handle_intr(int sig)
 {
-    if (sig != SIGINT)
-	msgDebug("A media timeout occurred.\n");
-    else
-	msgDebug("User generated interrupt.\n");
+    msgDebug("User generated interrupt.\n");
+    got_intr = TRUE;
+}
+
+static int
+check_for_interrupt(void)
+{
+    if (got_intr) {
+	got_intr = FALSE;
+	return TRUE;
+    }
+    return FALSE;
 }
 
 static Boolean
 distExtract(char *parent, Distribution *me)
 {
-    int i, status, total, resid;
+    int i, status, total, intr;
     int cpid, zpid, fd2, chunk, numchunks;
     char *path, *dist, buf[BUFSIZ];
     const char *tmp;
@@ -369,7 +379,7 @@ distExtract(char *parent, Distribution *me)
 	msgDebug("distExtract: parent: %s, me: %s\n", parent ? parent : "(none)", me->my_name);
 
     /* Make ^C fake a sudden timeout */
-    new.sa_handler = media_timeout;
+    new.sa_handler = handle_intr;
     new.sa_flags = 0;
     new.sa_mask = 0;
     sigaction(SIGINT, &new, &old);
@@ -405,9 +415,8 @@ distExtract(char *parent, Distribution *me)
 	snprintf(buf, sizeof buf, "%s/%s.inf", path, dist);
 
     getinfo:
-	alarm_set(mediaTimeout(), media_timeout);
 	fp = mediaDevice->get(mediaDevice, buf, TRUE);
-	resid = alarm_clear();
+	intr = check_for_interrupt();
 	if (fp > 0) {
 	    int status;
 
@@ -415,13 +424,12 @@ distExtract(char *parent, Distribution *me)
 		msgDebug("Parsing attributes file for distribution %s\n", dist);
 	    dist_attr = alloca(sizeof(Attribs) * MAX_ATTRIBS);
 
-	    alarm_set(mediaTimeout(), media_timeout);
 	    status = attr_parse(dist_attr, fp);
-	    resid = alarm_clear();
-	    if (!resid || DITEM_STATUS(status) == DITEM_FAILURE)
+	    intr = check_for_interrupt();
+	    if (intr || DITEM_STATUS(status) == DITEM_FAILURE)
 		msgConfirm("Cannot parse information file for the %s distribution: %s\n"
 			   "Please verify that your media is valid and try again.",
-			   dist, resid ? "I/O error" : "Timeout or user interrupt");
+			   dist, !intr ? "I/O error" : "User interrupt");
 	    else {
 		tmp = attr_match(dist_attr, "pieces");
 		if (tmp)
@@ -431,9 +439,9 @@ distExtract(char *parent, Distribution *me)
 	    if (!numchunks)
 		continue;
 	}
-	else if (fp == (FILE *)IO_ERROR || !resid) {	/* Hard error, can't continue */
+	else if (fp == (FILE *)IO_ERROR || intr) {	/* Hard error, can't continue */
 	    msgConfirm("Unable to open %s: %s.\nReinitializing media.",
-		       buf, resid ? "I/O error." : "Timeout or user interrupt.");
+		       buf, !intr ? "I/O error." : "User interrupt.");
 	    mediaDevice->shutdown(mediaDevice);
 	    if (!mediaDevice->init(mediaDevice)) {
 		status = FALSE;
@@ -450,9 +458,8 @@ distExtract(char *parent, Distribution *me)
 	     * are not considered too significant.
 	     */
 	getsingle:
-	    alarm_set(mediaTimeout(), media_timeout);
 	    fp = mediaDevice->get(mediaDevice, buf, TRUE);
-	    resid = alarm_clear();
+	    intr = check_for_interrupt();
 	    if (fp > 0) {
 		char *dir = root_bias(me[i].my_dir);
 
@@ -461,9 +468,9 @@ distExtract(char *parent, Distribution *me)
 		fclose(fp);
 		goto done;
 	    }
-	    else if (fp == (FILE *)IO_ERROR || !resid) {	/* Hard error, can't continue */
-		if (!resid)	/* result of a timeout */
-		    msgConfirm("Unable to open %s: Timeout or user interrupt", buf);
+	    else if (fp == (FILE *)IO_ERROR || intr) {	/* Hard error, can't continue */
+		if (intr)	/* result of an interrupt */
+		    msgConfirm("Unable to open %s: User interrupt", buf);
 		else
 		    msgConfirm("Unable to open %s: I/O error", buf);
 		mediaDevice->shutdown(mediaDevice);
@@ -502,15 +509,14 @@ distExtract(char *parent, Distribution *me)
 	    snprintf(buf, sizeof buf, "%s/%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
 	    if (isDebug())
 		msgDebug("trying for piece %d of %d: %s\n", chunk + 1, numchunks, buf);
-	    alarm_set(mediaTimeout(), media_timeout);
 	    fp = mediaDevice->get(mediaDevice, buf, FALSE);
-	    resid = alarm_clear();
-	    if (fp <= (FILE *)0 || !resid) {
+	    intr = check_for_interrupt();
+	    if (fp <= (FILE *)0 || intr) {
 		if (fp == (FILE *)0)
 		    msgConfirm("Failed to find %s on this media.  Reinitializing media.", buf);
 		else
 		    msgConfirm("failed to retreive piece file %s.\n"
-			       "%s: Reinitializing media.", buf, resid ? "I/O error" : "Timeout or user interrupt");
+			       "%s: Reinitializing media.", buf, !intr ? "I/O error" : "User interrupt");
 		mediaDevice->shutdown(mediaDevice);
 		if (!mediaDevice->init(mediaDevice))
 		    goto punt;
@@ -524,10 +530,9 @@ distExtract(char *parent, Distribution *me)
 	    while (1) {
 		int seconds;
 
-		alarm_set(mediaTimeout(), media_timeout);
 		n = fread(buf, 1, BUFSIZ, fp);
-		if (!alarm_clear()) {
-		    msgConfirm("Media read error: Timeout or user abort.");
+		if (check_for_interrupt()) {
+		    msgConfirm("Media read error:  User interrupt.");
 		    fclose(fp);
 		    goto punt;
 		}

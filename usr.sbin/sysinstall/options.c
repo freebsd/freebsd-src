@@ -127,7 +127,7 @@ static Option Options[] = {
       OPT_IS_VAR,	RELNAME_PROMPT,		VAR_RELNAME,		varCheck	},
 { "Install Root",	"Which directory to unpack distributions or packages relative to",
       OPT_IS_VAR,	INSTROOT_PROMPT,	VAR_INSTALL_ROOT,	varCheck	},
-{ "Browser Pkg",	"This is the browser package that will be used for viewing HTML docs",
+{ "Browser package",	"This is the browser package that will be used for viewing HTML docs",
       OPT_IS_VAR,	BPKG_PROMPT,		VAR_BROWSER_PACKAGE,	varCheck	},
 { "Browser Exec",	"This is the path to the main binary of the browser package",
       OPT_IS_VAR,	BBIN_PROMPT,		VAR_BROWSER_BINARY,	varCheck	},
