@@ -611,7 +611,6 @@ struct nge_mii_frame {
 #define NGE_JRAWLEN (NGE_JUMBO_FRAMELEN + ETHER_ALIGN)
 #define NGE_JLEN (NGE_JRAWLEN + (sizeof(u_int64_t) - \
 	(NGE_JRAWLEN % sizeof(u_int64_t))))
-#define NGE_MCLBYTES (NGE_JLEN - sizeof(u_int64_t))
 #define NGE_JPAGESZ PAGE_SIZE
 #define NGE_RESID (NGE_JPAGESZ - (NGE_JLEN * NGE_JSLOTS) % NGE_JPAGESZ)
 #define NGE_JMEM ((NGE_JLEN * NGE_JSLOTS) + NGE_RESID)
