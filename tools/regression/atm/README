@@ -12,5 +12,6 @@ harp			HARP tests
 proto_sscfu		test suite for the SSCF at the user interface
 proto_sscop		test suite for the SSCOP protocol
 proto_uni		test suite for the UNI protocol
+proto_cc		test suite for the call control function
 
 harti@freebsd.org
