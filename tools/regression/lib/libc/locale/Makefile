@@ -5,7 +5,12 @@ TESTS=	test-mbrtowc	\
 	test-mbsrtowcs	\
 	test-wcsrtombs	\
 	test-btowc	\
-	test-mbrlen
+	test-mbrlen	\
+	test-mbtowc	\
+	test-wctomb	\
+	test-mbstowcs	\
+	test-wcstombs	\
+	test-mblen
 
 .PHONY: tests
 tests: ${TESTS}
