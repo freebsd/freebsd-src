@@ -1,0 +1,457 @@
+
+
+Note: This is the README from the isdn4bsd 0.70.00 ftp-distribution. Shortly
+      after release, i4b was integrated into the FreeBSD sourcetree and so
+      the following parts about FreeBSD may not apply anymore. 
+
+      For information of how isdn4bsd is integrated into FreeBSD now, please
+      read the file ROADMAP in this directory.
+
+
+--------------------------------------------------------------------------------
+
+                                  ISDN4BSD
+                                  ========
+
+                    beta Version 0.70.00 / December 1998
+
+                                 written by:
+
+			     Hellmuth Michaelis
+                               Hallstrasse 20
+                             D-25462 Rellingen
+
+                           voice: +49 4101 473574
+                            fax: +49 4101 473575
+                             email: hm@kts.org
+
+                                    -----
+
+                          The isdn4bsd package is:
+
+     Copyright (c) 1997, 1998 by Hellmuth Michaelis. All rights reserved. 
+
+                      For details see the file LICENSE.
+
+                                    -----
+
+                   ISDN4BSD would not be what it is without
+                      the help and support of many people,
+                           see file ACKNOWLEDGMENTS !
+
+                                    -----
+
+        Vote with your wallet: in case you want to buy new ISDN hardware,
+          buy it from manufacturers who support the development of i4b,
+         for a list of supporters have a look at file ACKNOWLEDGMENTS!
+
+                                    -----
+
+                       This package is postcard-ware:
+                       ==============================
+
+        The license fee for using isdn4bsd is sending a picture postcard
+       of your home town. My address can be found at the top of this file.
+
+
+--------------------------------------------------------------------------------
+
+Contents:
+---------
+	1.  Disclaimer
+	2.  What is ISDN4BSD ?
+        3.  Which BSD's are supported ?
+	4.  Which ISDN cards are supported ?
+	5.  Where do i find documentation for ISDN4BSD ?
+	6.  How do i install ISDN4BSD ?
+	7.  Where do i get support for ISDN4BSD ?
+	8.  Where do i get commercial support for ISDN4BSD ?
+	9.  How can i help and/or support ISDN4BSD ?
+	10. How do i report bugs ?
+	11. Is there a mailing-list available for ISDN4BSD ?
+	12. Where can i get ISDN4BSD ?
+	13. What is the reward for reading everything in this file ?
+
+
+1. Disclaimer:
+--------------
+
+  It may be illegal in your country to connect an ISDN4BSD based machine 
+  using a passive ISDN card to the ISDN at your site because the protocol 
+  stack of ISDN4BSD, which is necessary to run passive cards, has not been 
+  approved by the telecommunication certification authority of your country. 
+  If in doubt, please contact your local ISDN provider !
+
+
+  THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+  OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+  SUCH DAMAGE.
+
+
+2. What is ISDN4BSD ?
+---------------------
+
+ISDN4BSD (or in short i4b) is a package for interfacing a computer running
+FreeBSD, NetBSD or OpenBSD to the ISDN.
+
+The only ISDN protocol currently supported is the BRI protocol specified in
+I.430, Q.921 and Q.931; better known as DSS1 or Euro-ISDN.  
+
+ISDN4BSD allows you to make IP network connections by using either IP packets
+sent in raw HDLC frames on the B channel or by using synchronous PPP. 
+
+For telephony, ISDN4BSD can answer incoming phone calls like an answering 
+machine.
+
+
+3. Which BSD's are supported ?
+------------------------------
+
+FreeBSD:
+	You need FreeBSD 2.2.6 and higher to run i4b out-of-the-box.
+
+	This is because PnP support is now available in i4b and 
+	FreeBSD 2.2.6 was the first version which included PnP support
+	in the base OS. 
+
+	In case you want to install i4b on FreeBSD < 2.2.6, you have to
+	patch your system with the PnP patches from Luigi Rizzo (available
+	from his home page at http://www.iet.unipi.it/~luigi).
+
+	The install/uninstall script in the FreeBSD directory was tested
+	with 2.2.7 (it should run with 2.2.n, where n >= 6), 3.0-RELEASE
+	and 3.0-CURRENT as of Dec 22, 1998.
+
+	Please take the time to read the file FreeBSD/INSTALLATION (and 
+	the other available documentation) carefully. Thank you!
+
+
+NetBSD/i386:
+
+	Important note for i4b users on NetBSD/i386:
+	============================================
+
+	While the previous releases of i4b mainly supported the latest
+	official releases, this new release now depends on NetBSD-current
+	(1.3G or newer). The old stuff is still there, just in case you
+	are running an older version, but you need to read the installation
+	instructions in NetBSD/INSTALLATION carefully!
+	This step was necessary as installation now differs a lot since i4b
+	has some prerequisites officially included in -current.
+
+	---------
+
+	The NetBSD specific support and the Diehl driver was written by 
+	Martin Husemann, (martin@rumolt.teuto.de). Since i do not intend
+	to run NetBSD and/or Diehl cards, i suggest contacting him in 
+	case of problems in this two areas. 
+	Martin has NetBSD/i386 1.3 running and is supporting ISDN4BSD for
+	that platform as his time permits it.
+
+NetBSD/Amiga:
+	The NetBSD/Atari 1.3F specific support was done by Ignatios Souvatzis,
+	(is@netbsd.org).
+
+NetBSD/Atari:
+	The NetBSD/Atari 1.3 specific support was done by Leo Weppelman,
+	(leo@wau.mis.ah.nl).
+
+OpenBSD/i386:
+	The OpenBSD/i386 2.2 specific support was done by Bas Oude Nijeweme
+	(bon@serious.xs4all.nl). He reports that it is also running fine 
+	under OpenBSD 2.3. Known to work under OpenBSD is currently the 
+	Teles 16.3 and the Teles S0/16, reports for other cards welcome!
+
+	NOTICE:
+	Isdn4bsd version 0.70 has not been tested with OpenBSD at all,
+	it would be great to have someone who likes to work on i4b under
+	OpenBSD regularly and takes over the maintenance for that OS!
+
+
+4. Which ISDN cards are supported ?
+-----------------------------------
+
+  Type (passive, ISA)	FreeBSD		NetBSD/OpenBSD	Notes
+  --------------------- -------		--------------	-----------------------
+  AVM A1		full		full
+  AVM Fritz!Card	full		full		(Note 1)
+  Creatix ISDN-S0/8	full		full		( = Teles S0/8 )
+  Creatix ISDN-S0/16	full		full		( = Teles S0/16 )
+  Dr.Neuhaus Niccy 1008	full		full		( = Teles S0/8 )
+  Dr.Neuhaus Niccy 1016	full		full		( = Teles S0/16 )
+  ITK ix1 micro		full		full		(Note 13)
+  Stollmann Tina-pp	full		full
+  Teles S0/8		full		full
+  Teles S0/16		full		full
+  Teles S0/16.3		full		full		(Note 4)
+  3Com/USR SportsterInt	full		full		( = Stollmann Tina-pp )
+
+  Type (passive, PnP)	FreeBSD		NetBSD/OpenBSD	Notes
+  --------------------- -------		--------------	-----------------------
+  Asuscom I-IN100-ST-DV experimental	unsupported	( = Dynalink IS64PH )
+  Creatix ISDN-S0 PnP	full		full		(Note 2)
+  Dr.Neuhaus Niccy GO@	full		full		(Note 2)
+  Dynalink IS64PH	full		full		(Note 11)
+  ELSA 1000pro ISA	full		full		(Note 3)
+  Sagem Cybermod	full		full		( = Niccy GO@ )
+  Sedlbauer Win Speed	full		full		(Note 9)
+  Teles S0 PnP		experimental	full		(Note 5)
+  3Com USR PnP internal unsupported	unsupported	(under development)
+
+  Type (passive, PnP)	FreeBSD		NetBSD/OpenBSD	Notes
+  --------------------- -------		--------------	-----------------------
+  ELSA 1000pro PCI	full		full
+
+  Type (passive, PCMCIA)FreeBSD		NetBSD/OpenBSD	Notes
+  --------------------- -------		--------------	-----------------------
+  AVM Fritz!Card PCMCIA	full		experimental	(Note 10)
+  ELSA PCMCIA		unsupported	unsupported	(under development)
+
+  Type (passive, Amiga)	FreeBSD		NetBSD/OpenBSD	Notes
+  --------------------- -------		--------------	-----------------------
+  ISDN Blaster		unsupported	experimental	(Note 12, Amiga/NetBSD)
+  ISDN Master		unsupported	experimental	(Note 12, Amiga/NetBSD)
+
+  Type (active)		FreeBSD		NetBSD/OpenBSD	Notes
+  --------------------- -------		--------------	-----------------------
+  AVM B1		unsupported	unsupported	(Note 6)
+  DiehlS,SX,SCOM,QUATRO	unsupported	unsupported	(Note 7)
+  Miro P1		unsupported	unsupported	( = Tina-dd )
+  Stollmann Tina-dd	unsupported	unsupported	(Note 8)
+
+
+Note 1:	Only the ISA, non-PnP AVM Fritz!Card is supported; the PnP and PCI
+	versions are unsupported! The "Teledat 150" sold by the german
+	Telekom seems to be an AVM Fritz!Card.
+
+Note 2:	FreeBSD
+		This is a PnP card. To run it under FreeBSD, you need
+		FreeBSD 2.2.6 RELEASE or higher.
+	NetBSD
+		The NetBSD version has not been verified to work yet.
+
+Note 3: Due to its design, this card produces 128 IRQs/sec. This can be
+	reportedly stopped by disconnecting pin 12 of the 7474 and wiring
+	it to pin 15 of the 74175. Be careful! This procedure has not been
+	verified and doing this will immediately terminate your warranty !!
+	The card will not function anymore with drivers for other OSes and
+	you may not get any further support from the manufacturer! YMMV!
+
+Note 4: Only the 16.3 is supported; the 16.3c and the 16.3 PnP are currently
+	unsupported !
+
+Note 5: The card has not been verified to work yet.
+
+Note 6: This driver is currently under development by Gary Jennejohn who
+	develops under FreeBSD only.
+
+Note 7: This driver is currently under construction by Martin Husemann who
+	develops under NetBSD only.
+
+Note 8: This driver is currently under development by Hellmuth Michaelis who
+	develops under FreeBSD only.
+
+Note 9: This driver was developed by German Tischler, tanis@gaspode.franken.de.
+	Please contact him in case of trouble. The "Teledat 100" sold by the 
+	german Telekom is identical with this card.
+	
+Note 10: This driver is developed by Matthias Apitz, matthias.apitz@sisis.de.
+	FreeBSD
+		Please contact him in case of trouble.
+		Please read the file README.PCCARD in the i4b distribution for
+		additional installation instructions.
+	NetBSD
+		Experimental driver support by Martin Husemann.
+
+Note 11: This driver was developed by Martijn Plak (tigrfhur@xs4all.nl)
+	Please contact him in case of trouble. This driver might also work 
+	for Asuscom cards. (Andrew Gordon wrote: Just to let you know that
+	I've now tried the i4b "dynalink" driver with the ASUSCOM 
+	I-IN100-ST-DV card, and it appears to work fine.)
+
+Note 12: This driver was developed by Ignatios Souvatzis (is@netbsd.org)
+	Please contact him in case of trouble.
+	This driver is supposed to work on the ISDN Master versions and
+	lookalikes, like the ISDN Blaster.
+
+Note 13: This driver was developed by Martin Husemann under NetBSD and has
+	not been tested under FreeBSD yet. Feedback welcome!
+
+
+5. Where do i find documentation for ISDN4BSD ?
+-----------------------------------------------
+
+- For installation instructions have a look under the the FreeBSD, NetBSD
+  and OpenBSD directories, each of these contains a file "INSTALLATION"
+  which describes the installation procedure for isdn4bsd on those operating
+  systems.
+
+- Every program has a man page in the respective subdirectory and every 
+  driver has a man page in the "man" subdirectory. All the man pages are 
+  installed by running "make install" so its very easy to access them
+  (hint: try "apropos isdn4bsd" after you installed isdn4bsd, it displays
+   all available manual pages).
+
+- misc/Overview contains a short technical overview of the inner workings 
+  of isdn4bsd.
+
+- misc/Resources contains URL's and ISBN's to more interesting ISDN related
+  stuff.
+
+- handbook/i4b.ps is the start of a handbook for isdn4bsd.
+
+
+6. How do i install ISDN4BSD ?
+------------------------------
+
+Read the instructions in the file {FreeBSD|NetBSD|OpenBSD}/INSTALLATION. 
+
+In case they are incomplete, unclear, wrong or outdated, please send me an 
+update for inclusion into a future distribution!
+
+
+7. Where do i get support for ISDN4BSD ?
+----------------------------------------
+
+I will support and help with ISDN4BSD as my time permits it. Please 
+keep in mind that in this case support is given on a voluntary basis
+and your questions might not be answered immediately.
+
+Also, i recommend subscribing to the mailing list mentioned below.
+
+Due to the experience gained supporting the predecessor of ISDN4BSD, let
+me please clearly state that there is no guarantee that your bug will be
+fixed within some specific amount of time, in fact there is no guarantee 
+that your bug will be fixed at all; i'll do my best but there might be
+more important things going on in my life than giving free support for
+ISDN4BSD. Some bugs seem to occur only in certain environments and are
+not reproduceable here without access to the equipment you are connected
+to or other equipment like ISDN simulators (which i don't get access to
+for free): in this case you are the only person being able to trace down
+the bug and fix it.
+
+
+8.  Where do i get commercial support for ISDN4BSD ?
+----------------------------------------------------
+
+In case you want to pay for support, maintenance, enhancements, extensions
+to isdn4bsd or whatever else you may need, it is possible to hire me for
+reasonable rates through my employer HCS GmbH; in this case please contact 
+me for details at hm@hcs.de or look at http://www.freebsd-support.de.
+
+
+9. How can i help and/or support ISDN4BSD ?
+-------------------------------------------
+
+I would really like to hear from you! (even if it runs out of the box :-)
+
+I'm open for suggestions, bugreports, fixes, patches, enhancements and 
+comments to improve ISDN4BSD. 
+
+Please send flames to /dev/null and/or start writing your own ISDN package.
+
+ISDN4BSD is a project on a voluntary basis and writing and supporting
+communication systems like ISDN4BSD costs much money and much time.
+
+Any contribution in terms of equipment, cards, documentation, cash
+and/or daytime payed work on ISDN4BSD would be highly appreciated.
+
+You can help by not only reporting bugs, but by sending in a patch for
+the problem together with a bugreport.
+
+In case you cannot fix something yourself, please describe your problem
+as detailed as possible, include information which version of an operating
+system you are running, which ISDN board you are using, to which kind
+of ISDN equipment (like the brand of PBX) you are connected etc. etc.
+
+In case you want to get a currently unsupported card supported, write a
+low level driver for it yourself and submit it. In case you can't write
+it yourself there is a good chance to get it supported if you can donate
+one of those cards and - if at all possible - docs for it.
+
+
+10. How do i report bugs ?
+--------------------------
+
+Please submit patches ONLY as context diffs (diff -c)!
+
+I vastly prefer receiving bug fixes and enhancements that are clearly
+differentiated. I don't always know what to do with large patches that
+contain many bugs and enhances folded into the same context diffs. 
+
+Please keep it to one fix or enhancement per patch!
+
+If your change modifies the external interface of an ISDN4BSD program,
+i.e. more config options, command-line switches, new programs, etc., 
+then please also include patches for the manual pages and documentation.
+
+Thank you!
+
+
+11. Is there a mailing-list available for ISDN4BSD ?
+---------------------------------------------------
+
+There is a mailing list available at
+
+        freebsd-isdn@freebsd.org
+
+The list is maintained by majordomo, so i.e. to subscribe,
+send a mail with the text
+
+        subscribe freebsd-isdn
+        
+in the message body sent to
+
+        majordomo@freebsd.org
+
+This mailing list is NOT (!) FreeBSD specific, everyone is welcome there!
+
+
+12. Where can i get ISDN4BSD ?
+------------------------------
+
+The ISDN4BSD package is available from:
+
+	isdn4bsd@ftp.consol.de/pub
+	--------------------------
+
+you have to log in as user
+
+	isdn4bsd
+	--------
+
+and give your mail address as the password. Then change to the "pub" 
+directory. You will find the latest available ISDN4BSD package.
+
+Anonymous ftp as user "ftp" or "anonymous" will NOT (!) give the desired
+result !
+
+This is a sample session:
+
+	$ ftp ftp.consol.de
+	Connected to stage.consol.de.
+	220 ProFTPD 1.0.0 Server (ConSol* Data Exchange) [stage]
+	Name (ftp.consol.de:root): isdn4bsd
+	331 Anonymous login ok, send your complete e-mail address as password.
+	Password:
+	230 Anonymous access granted, restrictions apply.
+	Remote system type is UNIX.
+	Using binary mode to transfer files.
+	ftp> cd pub
+	250 CWD command successful.
+	ftp>
+
+
+13. What is the reward for reading everything in this file ?
+------------------------------------------------------------
+
+Have fun!
+hellmuth
