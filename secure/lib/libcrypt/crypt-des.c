@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: crypt.c,v 1.3 1994/09/07 07:16:44 pst Exp $
+ *	$Id: crypt.c,v 1.4 1994/09/07 07:47:08 pst Exp $
  *
  * This is an original implementation of the DES and the crypt(3) interfaces
  * by David Burren <davidb@werj.com.au>.
@@ -592,14 +592,6 @@ crypt(char *key, char *setting)
 	if (!des_initialised)
 		des_init();
 
-	/*
-	 * Need to check if setting is "*" - otherwise
-	 * crypt(k, "*") gives back "*"
-	 */
-	for(i = 0 ; i < 2; i++)
-		if(setting[i] == '\0')
-			{ setting[i] = 'A'; break ; }
-		
 
 	/*
 	 * Copy the key, shifting each character up by one bit
@@ -642,7 +634,16 @@ crypt(char *key, char *setting)
 				return(NULL);
 		}
 		strncpy(output, setting, 9);
-		p = output + 9;
+
+		/*
+		 * Double check that we weren't given a short setting.
+		 * If we were, the above code will probably have created
+		 * wierd values for count and salt, but we don't really care.
+		 * Just make sure the output string doesn't have an extra
+		 * NUL in it.
+		 */
+		output[9] = '\0';
+		p = output + strlen(output);
 	} else {
 		/*
 		 * "old"-style:
@@ -655,7 +656,14 @@ crypt(char *key, char *setting)
 		     |  ascii_to_bin(setting[0]);
 
 		output[0] = setting[0];
-		output[1] = setting[1];
+		/*
+		 * If the encrypted password that the salt was extracted from
+		 * is only 1 character long, the salt will be corrupted.  We
+		 * need to ensure that the output string doesn't have an extra
+		 * NUL in it!
+		 */
+		output[1] = setting[1] ? setting[1] : output[0];
+
 		p = output + 2;
 	}
 	setup_salt(salt);
