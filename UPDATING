@@ -3,9 +3,15 @@ Updating Information for FreeBSD current users
 This file is maintained by imp@village.org.  Please send new entries
 directly to him.  See end of file for further details.
 
+19990908:
+	The new miibus has been added to the system.  If you are using
+	the dm, rl, sf, sis, ste, tl, wb or xl drivers, you need to
+	add "controller miibus0" to your config file.
+
 19990905:
 	/var/cron/log has been moved to /var/log/cron to get all the
 	log files in one place.
+
 19990831:
 	tn3270 has been removed from the based system and added as a port.
 
