@@ -7,6 +7,8 @@ INCS=	libdisk.h
 
 WARNS=	2
 
+CFLAGS+=	-I${.CURDIR}/../../sys/geom
+
 .if ${MACHINE} == "pc98"
 CFLAGS+=	-DPC98
 .endif
