@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.20 1996/12/03 21:38:52 nate Exp $
+.\" $Id: ppp.8,v 1.21 1996/12/12 14:39:47 jkh Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -172,14 +172,26 @@ ppp on tama> pass <password>
 
 ppp ON tama>
 
-* You can specify the device name and speed for your modem using the
-following commands: *
+* You can now specify the device name, speed and parity
+for your modem, and whether
+CTS/RTS signalling should be used (CTS/RTS is used by default).
+If your hardware does not provide CTS/RTS lines (as
+may happen when you are connected directly to certain ppp-capable
+terminal servers),
+.Nm
+will never send any output through the port; it
+waits for a signal which never comes.
+Thus, if you have a direct line and can't seem to make
+a connection, try turning ctsrts off: *
+
 
 ppp ON tama> set line /dev/cuaa0
 
 ppp ON tama> set speed 38400
 
 ppp ON tama> set parity even
+
+ppp ON tama> set ctsrts on
 
 ppp ON tama> show modem
 

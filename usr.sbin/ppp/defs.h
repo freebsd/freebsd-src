@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.5 1996/12/03 21:38:42 nate Exp $
+ * $Id: defs.h,v 1.6 1996/12/12 14:39:39 jkh Exp $
  *
  *	TODO:
  */
@@ -45,6 +45,7 @@
 #define MODEM_SPEED	B38400			/* tty speed */
 #define	SERVER_PORT	3000			/* Base server port no. */
 
+#define	MODEM_CTSRTS	TRUE		/* Default (true): use CTS/RTS signals */
 #define	REDIAL_PERIOD	30			/* Default Hold time to redial */
 
 #define	CONFFILE 	"ppp.conf"
