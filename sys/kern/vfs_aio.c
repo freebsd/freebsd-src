@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.22 1998/02/06 12:13:29 eivind Exp $
+ * $Id: vfs_aio.c,v 1.23 1998/02/09 06:09:28 eivind Exp $
  */
 
 /*
@@ -1483,16 +1483,10 @@ aio_suspend(struct proc *p, struct aio_suspend_args *uap)
 		TIMESPEC_TO_TIMEVAL(&atv, &ts)
 		if (itimerfix(&atv))
 			return (EINVAL);
-		/*
-		 * XXX this is not as careful as settimeofday() about minimising
-		 * interrupt latency.  The hzto() interface is inconvenient as usual.
-		 */
 		s = splclock();
 		timevaladd(&atv, &time);
 		timo = hzto(&atv);
 		splx(s);
-		if (timo == 0)
-			timo = 1;
 	}
 
 	ki = p->p_aioinfo;

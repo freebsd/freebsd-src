@@ -46,7 +46,7 @@
  * in Germany will I accept domestic beer.  This code may or may not work
  * and I certainly make no claims as to its fitness for *any* purpose.
  * 
- * $Id: kern_threads.c,v 1.4 1997/11/06 19:29:16 phk Exp $
+ * $Id: kern_threads.c,v 1.5 1997/11/07 08:52:57 phk Exp $
  */
 
 #include <sys/param.h>
@@ -91,17 +91,10 @@ thr_sleep(struct proc *p, struct thr_sleep_args *uap) {
 			p->p_wakeup = 0;
 			return (EINVAL);
 		}
-
-		/*
-		 * XXX this is not as careful as settimeofday() about minimising
-		 * interrupt latency.  The hzto() interface is inconvenient as usual.
-		 */
 		s = splclock();
 		timevaladd(&atv, &time);
 		timo = hzto(&atv);
 		splx(s);
-		if (timo == 0)
-			timo = 1;
 	}
 
 	p->p_retval[0] = 0;
