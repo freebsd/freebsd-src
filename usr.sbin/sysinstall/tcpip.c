@@ -255,7 +255,7 @@ reenter:
 	}
     }
     
-    if (!verifySettings())
+    if (!cancel && !verifySettings())
 	goto reenter;
 
     /* Clear this crap off the screen */
