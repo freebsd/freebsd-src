@@ -229,7 +229,7 @@ returns.
 .Pp
 The function
 .Fn callout_reset
-first first performs the equivalent of
+first performs the equivalent of
 .Fn callout_stop
 to disestablish the callout, and then establishes a new callout in the
 same manner as
@@ -293,7 +293,7 @@ tries to reset or stop the callout.
 .Pp
 The callout subsystem provides a number of mechanisms to address these
 synchronization concerns:
-.Bl -enum -offset indent -compact
+.Bl -enum -offset indent
 .It
 The return value from
 .Fn callout_stop
@@ -343,7 +343,7 @@ flag, and does not clear the
 flag even after the callout function returns.
 The mechanism described here requires the callout function itself to
 clear the
-.Em active 
+.Em active
 flag using the
 .Fn callout_deactivate
 macro.
@@ -352,9 +352,9 @@ The
 and
 .Fn callout_drain
 functions always clear both the
-.Em active  
+.Em active
 and
-.Em pending  
+.Em pending
 flags before returning.
 .Pp
 The callout function should first check the
