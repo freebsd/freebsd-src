@@ -155,6 +155,7 @@ command_memmap(int argc, char *argv[])
 	    "RuntimeServicesCode",
 	    "RuntimeServicesData",
 	    "ConventionalMemory",
+	    "UnusableMemory",
 	    "ACPIReclaimMemory",
 	    "ACPIMemoryNVS",
 	    "MemoryMappedIO",
@@ -176,12 +177,12 @@ command_memmap(int argc, char *argv[])
 	}
 
 	ndesc = sz / dsz;
-	printf("%20s %12s %12s %8s %4s\n",
+	printf("%23s %12s %12s %8s %4s\n",
 	       "Type", "Physical", "Virtual", "#Pages", "Attr");
 	       
 	for (i = 0, p = map; i < ndesc;
 	     i++, p = NextMemoryDescriptor(p, dsz)) {
-	    printf("%20s %012lx %012lx %08lx ",
+	    printf("%23s %012lx %012lx %08lx ",
 		   types[p->Type],
 		   p->PhysicalStart,
 		   p->VirtualStart,
