@@ -141,6 +141,11 @@ acpi_button_attach(device_t dev)
 	status = AcpiInstallFixedEventHandler(event,
 			acpi_button_fixed_handler, sc);
     } else {
+	/*
+	 * If a system does not get lid events, it may make sense to change
+	 * the type to ACPI_ALL_NOTIFY.  Some systems generate both a wake
+	 * and runtime notify in that case though.
+	 */
 	status = AcpiInstallNotifyHandler(sc->button_handle,
 			ACPI_DEVICE_NOTIFY, acpi_button_notify_handler, sc);
     }
@@ -231,10 +236,11 @@ acpi_button_notify_wakeup(void *arg)
 static void 
 acpi_button_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 {
-    struct acpi_button_softc	*sc = (struct acpi_button_softc *)context;
+    struct acpi_button_softc	*sc;
 
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, notify);
 
+    sc = (struct acpi_button_softc *)context;
     switch (notify) {
     case ACPI_NOTIFY_BUTTON_PRESSED_FOR_SLEEP:
 	AcpiOsQueueForExecution(OSD_PRIORITY_LO,
@@ -245,7 +251,8 @@ acpi_button_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 				acpi_button_notify_wakeup, sc);
 	break;   
     default:
-	break;		/* unknown notification value */
+	device_printf(sc->button_dev, "unknown notify %#x\n", notify);
+	break;
     }
 }
 
