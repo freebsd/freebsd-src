@@ -86,6 +86,7 @@ static int		pcic_handle __P((struct lkm_table *lkmtp, int cmd));
 #endif
 static int		pcic_memory(struct slot *, int);
 static int		pcic_io(struct slot *, int);
+static u_int		build_freelist(u_int);
 
 /*
  *	Per-slot data table.
@@ -280,6 +281,38 @@ pcic_dump_attributes (unsigned char *scratch, int maxlen)
 	}
 }
 #endif
+
+static u_int
+build_freelist(u_int pcic_mask)
+{ 
+	inthand2_t *nullfunc; 
+	int irq;
+	u_int mask, freemask; 
+ 
+	/* No free IRQs (yet). */ 
+	freemask = 0; 
+ 
+	/* Walk through all of the IRQ's and find any that aren't allocated. */ 
+	for (irq = 0; irq < ICU_LEN; irq++) { 
+		/* 
+		 * If the PCIC controller can't generate it, don't
+		 * bother checking to see if it it's free. 
+		 */ 
+		mask = 1 << irq; 
+		if (!(mask & pcic_mask)) continue; 
+ 
+		/* See if the IRQ is free. */
+		if (register_intr(irq, 0, 0, nullfunc, NULL, irq) == 0) {
+			/* Give it back, but add it to the mask */ 
+			INTRMASK(freemask, mask); 
+			unregister_intr(irq, nullfunc); 
+		}
+	} 
+#ifdef PCIC_DEBUG
+	printf("Freelist of IRQ's <0x%x>\n", freemask);
+#endif
+	return freemask; 
+}
 
 /*
  *	entry point from main code to map/unmap memory context.
@@ -511,11 +544,15 @@ int
 pcic_probe(void)
 {
 	int slot, i, validslots = 0;
+	u_int free_irqs;
 	struct slot *slotp;
 	struct pcic_slot *sp;
 	unsigned char c;
 	static int is_vlsi = 0;
 
+	/* Determine the list of free interrupts */
+	free_irqs = build_freelist(PCIC_INT_MASK_ALLOWED);
+	
 	/*
 	 *	Initialise controller information structure.
 	 */
@@ -529,7 +566,7 @@ pcic_probe(void)
 	cinfo.resume = pcic_resume;
 	cinfo.maxmem = PCIC_MEM_WIN;
 	cinfo.maxio = PCIC_IO_WIN;
-	cinfo.irqs = PCIC_INT_MASK_ALLOWED;
+	cinfo.irqs = free_irqs;
 
 #ifdef	LKM
 	bzero(pcic_slots, sizeof(pcic_slots));
@@ -680,8 +717,8 @@ pcic_probe(void)
 		 *	then attempt to get one.
 		 */
 		if (pcic_irq == 0) {
-			pcic_irq = pccard_alloc_intr(PCIC_INT_MASK_ALLOWED,
-				pcicintr, 0, &pcic_imask);
+			pcic_irq = pccard_alloc_intr(free_irqs,
+				pcicintr, 0, NULL, &pcic_imask);
 			if (pcic_irq < 0)
 				printf("pcic: failed to allocate IRQ\n");
 			else
