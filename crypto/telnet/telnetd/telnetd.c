@@ -42,7 +42,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)telnetd.c	8.4 (Berkeley) 5/30/95";
 #endif
 static const char rcsid[] =
-	"$Id: telnetd.c,v 1.7 1999/04/06 23:35:21 brian Exp $";
+	"$Id: telnetd.c,v 1.8 1999/04/07 10:17:24 brian Exp $";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -93,7 +93,7 @@ int	auth_level = 0;
 int	require_SecurID = 0;
 #endif
 
-char	remote_hostname[UT_HOSTSIZE + 1];
+char	remote_hostname[MAXHOSTNAMELEN];
 int	utmp_len = sizeof(remote_hostname) - 1;
 int	registerd_host_only = 0;
 
@@ -871,6 +871,7 @@ doit(who)
 	 Please contact your net administrator");
 	remote_hostname[sizeof(remote_hostname) - 1] = '\0';
 
+	trimdomain(remote_hostname, UT_HOSTSIZE);
 	if (!isdigit(remote_hostname[0]) && strlen(remote_hostname) > utmp_len)
 		strncpy(remote_hostname, inet_ntoa(who->sin_addr),
 			sizeof(remote_hostname) - 1);
