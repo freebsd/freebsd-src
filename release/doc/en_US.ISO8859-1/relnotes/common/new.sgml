@@ -161,6 +161,18 @@
       information, see security advisory
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:19.bind.asc">FreeBSD-SA-03:19</ulink>. &merged;</para>
 
+    <para>&new.521; A bug in &man.mksnap.ffs.8; has been fixed; it caused the creation of a
+      filesystem snapshot to reset the flags on the filesystem to
+      their default values.  The possible consequences depended on local
+      usage, but could include disabling extended access control lists
+      or enabling the use of setuid executables stored on an untrusted
+      filesystem.  This bug also affected the &man.dump.8;
+      <option>-L</option> option, which uses &man.mksnap.ffs.8;.  Note
+      that &man.mksnap.ffs.8; is normally only available to the
+      superuser and members of the <groupname>operator</groupname>
+      group.  For more information, see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:01.mksnap_ffs.asc">FreeBSD-SA-04:01</ulink>.</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -183,6 +195,9 @@
       serial interfaces has been overhauled.  As a part of this
       update, the cxconfig userland configuration utility has been
       replaced by a newer &man.sconfig.8; utility.</para>
+
+    <para>&new.521; &man.devfs.5; path rules now work correctly on
+      directories.</para>
 
     <para arch="i386,pc98">The DRM kernel modules have been updated from
       DRI CVS as of 12 November 2003.  Among other changes, this
@@ -746,6 +761,11 @@
       <filename>libcrypto</filename> library, and all base systems
       programs that used <filename>libcipher</filename> have been
       converted to use <filename>libcrypto</filename> instead.</para>
+
+    <para arch="pc98">&new.521; <filename>libdisk</filename> now uses the
+      correct PC98 disk partition value for &os;.  This permits the
+      &man.sysinstall.8; disk partition editor to correctly create a
+      single &os; partition covering the entire disk.</para>
 
     <para>The <filename>libkiconv</filename> library has been added to
       support working with loadable character set conversion tables in
