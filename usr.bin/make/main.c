@@ -47,7 +47,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.24 1998/06/13 11:55:57 peter Exp $";
+	"$Id: main.c,v 1.25 1998/07/26 17:06:05 imp Exp $";
 #endif /* not lint */
 
 /*-
@@ -83,6 +83,9 @@ static const char rcsid[] =
 #include <sys/resource.h>
 #include <sys/signal.h>
 #include <sys/stat.h>
+#if defined(__i386__)
+#include <sys/sysctl.h>
+#endif
 #ifndef MACHINE
 #include <sys/utsname.h>
 #endif
@@ -472,6 +475,25 @@ main(argc, argv)
 		sa.st_dev == sb.st_dev)
 		(void) strcpy(curdir, pwd);
 	}
+
+#if defined(__i386__)
+	/*
+	 * PC-98 kernel sets the `i386' string to the utsname.machine and
+	 * it cannot be distinguished from IBM-PC by uname(3).  Therefore,
+	 * we check machine.ispc98 and adjust the machine variable before
+	 * using usname(3) below.
+	 */
+	if (!machine) {
+		int	ispc98;
+		size_t	len;
+
+		len = sizeof(ispc98);
+		if (!sysctlbyname("machdep.ispc98", &ispc98, &len, NULL, 0)) {
+			if (ispc98)
+				machine = "pc98";
+		}
+	}
+#endif
 
 	/*
 	 * Get the name of this type of MACHINE from utsname
