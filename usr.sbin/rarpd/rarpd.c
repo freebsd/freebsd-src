@@ -26,7 +26,7 @@ char copyright[] =
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: /a/ncvs/src/usr.sbin/rarpd/rarpd.c,v 1.1.1.1 1995/03/02 06:41:39 wpaul Exp $ (LBL)";
+    "@(#) $Header: /a/ncvs/src/usr.sbin/rarpd/rarpd.c,v 1.2 1995/03/03 22:20:13 wpaul Exp $ (LBL)";
 #endif
 
 
@@ -85,6 +85,7 @@ static char rcsid[] =
 #endif
 
 extern int errno;
+extern int ether_ntohost __P((char *, struct ether_addr *));
 
 /*
  * The structure for each interface.  
@@ -543,7 +544,7 @@ rarp_process(ii, pkt)
 	if (bcmp((char *)cache_eaddr, (char *)&ep->ether_shost, 6) == 0)
 		target_ipaddr = cache_ipaddr;
 	else {
-		if (ether_ntohost(ename, &ep->ether_shost) != 0 ||
+		if (ether_ntohost(ename, (struct ether_addr *)&ep->ether_shost) != 0 ||
 		    (hp = gethostbyname(ename)) == 0)
 			return;
 		/*
