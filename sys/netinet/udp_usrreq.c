@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.26 1996/05/09 20:15:26 wollman Exp $
+ *	$Id: udp_usrreq.c,v 1.27 1996/06/05 17:20:35 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -370,7 +370,7 @@ udp_saveopt(p, size, type)
 	if ((m = m_get(M_DONTWAIT, MT_CONTROL)) == NULL)
 		return ((struct mbuf *) NULL);
 	cp = (struct cmsghdr *) mtod(m, struct cmsghdr *);
-	(void)memcpy(CMSG_DATA(cp), p, size);
+	bcopy(p, CMSG_DATA(cp), size);
 	size += sizeof(*cp);
 	m->m_len = size;
 	cp->cmsg_len = size;
