@@ -618,7 +618,8 @@ static void
 printval(char *bp, VAR *v)
 {
 	static char ofmt[32] = "%";
-	char *fcp, *cp;
+	const char *fcp;
+	char *cp;
 
 	cp = ofmt + 1;
 	fcp = v->fmt;
