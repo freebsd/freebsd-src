@@ -1,12 +1,16 @@
 /*
- * Copyright (C) 1999 by Darren Reed.
+ * Copyright (C) 1999-2001 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  */
 #ifdef	__FreeBSD__
-# include <osreldate.h>
+# ifndef __FreeBSD_cc_version
+#  include <osreldate.h>
+# else
+#  if __FreeBSD_cc_version < 430000
+#   include <osreldate.h>
+#  endif
+# endif
 #endif
 #include <stdio.h>
 #include <unistd.h>
@@ -41,7 +45,7 @@
 #include "ipf.h"
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ipfs.c,v 2.6.2.3 2001/01/10 06:20:12 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipfs.c,v 2.6.2.7 2001/06/26 10:43:18 darrenr Exp $";
 #endif
 
 #ifndef	IPF_SAVEDIR
@@ -532,6 +536,7 @@ char *file;
 	}
 
 	bzero((char *)&ipn, sizeof(ipn));
+	ipnp = &ipn;
 
 	/*
 	 * 1. Read all state information in.
@@ -573,7 +578,7 @@ char *file;
 			}
 		} else
 			in = (nat_save_t *)malloc(sizeof(*in));
-		bcopy((char *)&ipnp, (char *)in, sizeof(ipn));
+		bcopy((char *)ipnp, (char *)in, sizeof(ipn));
 
 		/*
 		 * Check to see if this is the first state entry that will
