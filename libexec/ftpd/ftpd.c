@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.25 1996/10/18 17:09:25 ache Exp $
+ *	$Id: ftpd.c,v 1.26 1996/11/20 22:13:51 pst Exp $
  */
 
 #if 0
@@ -122,6 +122,7 @@ int	maxtimeout = 7200;/* don't allow idle time to be set beyond 2 hours */
 int	logging;
 int	restricted_data_ports = 1;
 int	paranoid = 1;	  /* be extra careful about security */
+int	anon_only = 0;    /* Only anonymous ftp allowed */
 int	guest;
 int	dochroot;
 int	stats;
@@ -259,7 +260,7 @@ main(argc, argv, envp)
 
 
 	bind_address.s_addr = htonl(INADDR_ANY);
-	while ((ch = getopt(argc, argv, "dlDSUt:T:u:va:p:")) != EOF) {
+	while ((ch = getopt(argc, argv, "AdlDSUt:T:u:va:p:")) != EOF) {
 		switch (ch) {
 		case 'D':
 			daemon_mode++;
@@ -317,6 +318,9 @@ main(argc, argv, envp)
 				defumask = val;
 			break;
 		    }
+		case 'A':
+			anon_only = 1;
+			break;
 
 		case 'v':
 			debug = 1;
@@ -605,6 +609,11 @@ user(name)
 			    "ANONYMOUS FTP LOGIN REFUSED FROM %s", remotehost);
 		return;
 	}
+	if (anon_only != 0) {
+		reply(530, "Sorry, only anonymous ftp allowed.");
+		return;
+	}
+		
 	if ((pw = sgetpwnam(name))) {
 		if ((shell = pw->pw_shell) == NULL || *shell == 0)
 			shell = _PATH_BSHELL;
