@@ -22,17 +22,25 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
+#include <sys/socket.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/bus.h>
+#include <machine/bus.h>
+
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
-#include "ed.h"
+#include <net/if.h>
+#include <net/if_arp.h>
+#include <net/if_mib.h>
+
+#include <i386/isa/if_edvar.h>
 
 static struct _pcsid
 {
-	pcidi_t		type;
-	char	*desc;
+	u_int32_t	type;
+	const char	*desc;
 } pci_ids[] =
 {
 	{ 0x802910ec,	"NE2000 PCI Ethernet (RealTek 8029)"	},
@@ -46,53 +54,47 @@ static struct _pcsid
 	{ 0x00000000,	NULL					}
 };
 
-extern void *ed_attach_NE2000_pci __P((int, int));
+extern int ed_attach_NE2000_pci __P((device_t dev, int));
 
-static const char* ed_pci_probe __P((pcici_t tag, pcidi_t type));
-static void ed_pci_attach __P((pcici_t config_id, int unit));
+static int ed_pci_probe __P((device_t));
+static int ed_pci_attach __P((device_t));
 
-static u_long ed_pci_count = NED;
-
-static struct pci_device ed_pci_driver = {
-	"ed",
-	ed_pci_probe,
-	ed_pci_attach,
-	&ed_pci_count,
-	NULL
-};
-
-COMPAT_PCI_DRIVER (ed_pci, ed_pci_driver);
-
-static const char*
-ed_pci_probe (pcici_t tag, pcidi_t type)
+static int
+ed_pci_probe (device_t dev)
 {
+	u_int32_t	type = pci_get_devid(dev);
 	struct _pcsid	*ep =pci_ids;
 
 	while (ep->type && ep->type != type)
 		++ep;
-	return (ep->desc);
-}
-
-void edintr_sc (void*);
-
-static void
-ed_pci_attach(config_id, unit)
-	pcici_t config_id;
-	int	unit;
-{
-	int io_port;
-	void *ed; /* device specific data ... */
-
-	io_port = pci_conf_read(config_id, PCI_MAP_REG_START) & ~PCI_MAP_IO;
-
-	ed = ed_attach_NE2000_pci(unit, io_port);
-	if (!ed)
-		return;
-
-	if(!(pci_map_int(config_id, edintr_sc, (void *)ed, &net_imask))) {
-		free (ed, M_DEVBUF);
-		return;
+	if (ep->desc) {
+		device_set_desc(dev, ep->desc);
+		return 0;
+	} else {
+		return ENXIO;
 	}
-
-	return;
 }
+
+static int
+ed_pci_attach(device_t dev)
+{
+	return ed_attach_NE2000_pci(dev, PCIR_MAPS);
+}
+
+static device_method_t ed_pci_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ed_pci_probe),
+	DEVMETHOD(device_attach,	ed_pci_attach),
+
+	{ 0, 0 }
+};
+
+static driver_t ed_pci_driver = {
+	"ed",
+	ed_pci_methods,
+	sizeof(struct ed_softc),
+};
+
+static devclass_t ed_devclass;
+
+DRIVER_MODULE(ed, pci, ed_pci_driver, ed_devclass, 0, 0);
