@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.64 1999/05/24 00:27:12 jb Exp $
+ * $Id: mfs_vfsops.c,v 1.65 1999/07/17 18:43:49 phk Exp $
  */
 
 
@@ -78,6 +78,28 @@ static int	mfs_start __P((struct mount *mp, int flags, struct proc *p));
 static int	mfs_statfs __P((struct mount *mp, struct statfs *sbp, 
 			struct proc *p));
 static int	mfs_init __P((struct vfsconf *));
+
+static struct cdevsw mfs_cdevsw = {
+	/* open */      noopen,
+	/* close */     noclose,
+	/* read */      physread,
+	/* write */     physwrite,
+	/* ioctl */     noioctl,
+	/* stop */      nostop,
+	/* reset */     noreset,
+	/* devtotty */  nodevtotty,
+	/* poll */      nopoll,
+	/* mmap */      nommap,
+	/* strategy */  nostrategy,
+	/* name */      "MFS",
+	/* parms */     noparms,
+	/* maj */       253,
+	/* dump */      nodump,
+	/* psize */     nopsize,
+	/* flags */     D_DISK,
+	/* maxio */     0,
+	/* bmaj */      253,
+};
 
 /*
  * mfs vfs operations.
@@ -308,7 +330,7 @@ mfs_mount(mp, path, data, ndp, p)
 		goto error_1;
 	}
 	devvp->v_type = VBLK;
-	if (checkalias(devvp, makeudev(255, mfs_minor++), (struct mount *)0))
+	if (checkalias(devvp, makeudev(253, mfs_minor++), (struct mount *)0))
 		panic("mfs_mount: dup dev");
 	devvp->v_data = mfsp;
 	mfsp->mfs_baseoff = args.base;
@@ -459,12 +481,13 @@ static int
 mfs_init(vfsp)
 	struct vfsconf *vfsp;
 {
+	cdevsw_add(&mfs_cdevsw);
 #ifdef MFS_ROOT
 	if (bootverbose)
 		printf("Considering MFS root f/s.\n");
 	if (mfs_getimage()) {
 		mountrootfsname = "mfs";
-		rootdev = makedev(255, mfs_minor++);
+		rootdev = makedev(253, mfs_minor++);
 	} else if (bootverbose)
 		printf("No MFS image available as root f/s.\n");
 #endif
