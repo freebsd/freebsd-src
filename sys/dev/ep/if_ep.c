@@ -112,7 +112,6 @@ static void	ep_if_watchdog	__P((struct ifnet *));
 static int	ep_ifmedia_upd	__P((struct ifnet *));
 static void	ep_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
 
-static void	ep_get_macaddr	__P((struct ep_softc *, u_char *));
 static void	epstop		__P((struct ep_softc *));
 static void	epread		__P((struct ep_softc *));
 static int	eeprom_rdy	__P((struct ep_softc *));
@@ -127,8 +126,9 @@ eeprom_rdy(sc)
 {
     int i;
 
-    for (i = 0; is_eeprom_busy(BASE) && i < MAX_EEPROMBUSY; i++)
-	continue;
+    for (i = 0; is_eeprom_busy(BASE) && i < MAX_EEPROMBUSY; i++) {
+	DELAY(100);
+    }
     if (i >= MAX_EEPROMBUSY) {
 	printf("ep%d: eeprom failed to come ready.\n", sc->unit);
 	return (0);
@@ -143,17 +143,17 @@ eeprom_rdy(sc)
 u_int16_t
 get_e(sc, offset)
     struct ep_softc *sc;
-    int offset;
+    u_int16_t offset;
 {
     if (!eeprom_rdy(sc))
-	return (0xffff);
+	return (0);
     outw(BASE + EP_W0_EEPROM_COMMAND, (EEPROM_CMD_RD << sc->epb.cmd_off) | offset);
     if (!eeprom_rdy(sc))
-	return (0xffff);
+	return (0);
     return (inw(BASE + EP_W0_EEPROM_DATA));
 }
 
-static void
+void
 ep_get_macaddr(sc, addr)
 	struct ep_softc	*	sc;
 	u_char *		addr;
@@ -206,6 +206,7 @@ ep_alloc(device_t dev)
 	sc->ep_connectors = 0;
 	sc->ep_connector = 0;
 
+        GO_WINDOW(0);
 	sc->epb.cmd_off = 0;
 	sc->epb.prod_id = get_e(sc, EEPROM_PROD_ID);
 	sc->epb.res_cfg = get_e(sc, EEPROM_RESOURCE_CFG);
@@ -397,7 +398,9 @@ ep_if_init(xsc)
 	outw(BASE + EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
 	 FIL_GROUP | FIL_BRDCST);
 
-    ep_ifmedia_upd(ifp);
+    if (!sc->epb.mii_trans) {
+	ep_ifmedia_upd(ifp);
+    }
 
     outw(BASE + EP_COMMAND, RX_ENABLE);
     outw(BASE + EP_COMMAND, TX_ENABLE);
@@ -925,7 +928,11 @@ ep_if_ioctl(ifp, cmd, data)
 		break;
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
-		error = ifmedia_ioctl(ifp, ifr, &sc->ifmedia, cmd);
+		if (!sc->epb.mii_trans) {
+			error = ifmedia_ioctl(ifp, ifr, &sc->ifmedia, cmd);
+		} else {
+			error = EINVAL;
+		}
 		break;
 	default:
 		error = EINVAL;
