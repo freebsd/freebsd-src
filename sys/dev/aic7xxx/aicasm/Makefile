@@ -1,3 +1,4 @@
+#
 # $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aicasm/Makefile#2 $
 #
 # $FreeBSD$
@@ -22,7 +23,13 @@ LDADD=	-ll
 DEPENDFILE=
 .endif
 
-CFLAGS+= -nostdinc -I/usr/include -I.
+.if ${CC} == "icc"
+CFLAGS+=	-restrict
+NOSTDINC=	-X
+.else
+NOSTDINC=	-nostdinc
+.endif
+CFLAGS+= ${NOSTDINC} -I/usr/include -I.
 .ifdef MAKESRCPATH
 CFLAGS+= -I${MAKESRCPATH}
 .endif

@@ -70,6 +70,10 @@ OBJCOPY?=	objcopy
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
 
+.if ${CC} == "icc"
+_ICC_CFLAGS:=	${CFLAGS:C/(-x[^M^K^W]+)[MKW]+|-x[MKW]+/\1/}
+CFLAGS=		${_ICC_CFLAGS}
+.endif
 CFLAGS+=	${COPTS} -D_KERNEL
 CFLAGS+=	-DKLD_MODULE
 
@@ -78,7 +82,12 @@ CFLAGS+=	-DKLD_MODULE
 # such paths after -nostdinc.  It doesn't seem to be possible to
 # add to the front of `make' variable.
 _ICFLAGS:=	${CFLAGS:M-I*}
-CFLAGS+=	-nostdinc -I- ${INCLMAGIC} ${_ICFLAGS}
+.if ${CC} == "icc"
+NOSTDINC=	-X
+.else
+NOSTDINC=	-nostdinc
+.endif
+CFLAGS+=	${NOSTDINC} -I- ${INCLMAGIC} ${_ICFLAGS}
 .if defined(KERNBUILDDIR)
 CFLAGS+=       -include ${KERNBUILDDIR}/opt_global.h
 .endif
@@ -102,11 +111,15 @@ CFLAGS+=	-I${DESTDIR}/usr/include
 CFLAGS+=	-I@/../include -I${DESTDIR}/usr/include
 .endif # @
 
+.if ${CC} != "icc"
 CFLAGS+=	-finline-limit=${INLINE_LIMIT}
+.endif
 
 # Disallow common variables, and if we end up with commons from
 # somewhere unexpected, allocate storage for them in the module itself.
+.if ${CC} != "icc"
 CFLAGS+=	-fno-common
+.endif
 LDFLAGS+=	-d -warn-common
 
 CFLAGS+=	${DEBUG_FLAGS}

@@ -8,7 +8,7 @@
 
 # for GCC:  http://gcc.gnu.org/onlinedocs/gcc-3.0.4/gcc_3.html#IDX143
 
-.if !defined(NO_WARNS)
+.if !defined(NO_WARNS) && ${CC} != "icc"
 . if defined(WARNS)
 .  if ${WARNS} > 0
 CWARNFLAGS	+=	-Wsystem-headers

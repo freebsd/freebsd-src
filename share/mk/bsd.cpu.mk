@@ -44,26 +44,38 @@ CPUTYPE = athlon
 
 . if ${MACHINE_ARCH} == "i386"
 .  if ${CPUTYPE} == "athlon-mp" || ${CPUTYPE} == "athlon-xp" || \
-    ${CPUTYPE} == "athlon-4" || ${CPUTYPE} == "athlon-tbird" || \
-    ${CPUTYPE} == "athlon"
+    ${CPUTYPE} == "athlon-4" || ${CPUTYPE} == "athlon-tbird"
+_ICC_CPUCFLAGS = -tpp6 -xiMK
 _CPUCFLAGS = -march=${CPUTYPE}
+.  elif ${CPUTYPE} == "athlon-tbird" || ${CPUTYPE} == "athlon"
+_CPUCFLAGS = -march=${CPUTYPE}
+_ICC_CPUCFLAGS = -tpp6 -xiM
 .  elif ${CPUTYPE} == "k6-3" || ${CPUTYPE} == "k6-2" || ${CPUTYPE} == "k6"
 _CPUCFLAGS = -march=${CPUTYPE}
+_ICC_CPUCFLAGS = -tpp6 -xi
 .  elif ${CPUTYPE} == "k5"
+_ICC_CPUCFLAGS = -tpp5
 _CPUCFLAGS = -march=pentium
 .  elif ${CPUTYPE} == "p4"
+_ICC_CPUCFLAGS = -tpp7 -xiMKW
 _CPUCFLAGS = -march=pentium4
 .  elif ${CPUTYPE} == "p3"
+_ICC_CPUCFLAGS = -tpp6 -xiMK
 _CPUCFLAGS = -march=pentium3
 .  elif ${CPUTYPE} == "p2"
+_ICC_CPUCFLAGS = -tpp6 -xiM
 _CPUCFLAGS = -march=pentium2
 .  elif ${CPUTYPE} == "i686"
+_ICC_CPUCFLAGS = -tpp6 -xiM
 _CPUCFLAGS = -march=pentiumpro
 .  elif ${CPUTYPE} == "i586/mmx"
+_ICC_CPUCFLAGS = -tpp5 -xM
 _CPUCFLAGS = -march=pentium-mmx
 .  elif ${CPUTYPE} == "i586"
+_ICC_CPUCFLAGS = -tpp5
 _CPUCFLAGS = -march=pentium
 .  elif ${CPUTYPE} == "i486"
+_ICC_CPUCFLAGS =
 _CPUCFLAGS = -march=i486
 .  endif
 . elif ${MACHINE_ARCH} == "alpha"
@@ -147,5 +159,9 @@ _CPUCFLAGS += -mieee
 # NB: COPTFLAGS is handled in /usr/src/sys/conf/kern.pre.mk
 
 .if !defined(NO_CPU_CFLAGS)
+. if ${CC} == "icc"
+CFLAGS += ${_ICC_CPUCFLAGS}
+. else
 CFLAGS += ${_CPUCFLAGS}
+. endif
 .endif
