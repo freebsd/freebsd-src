@@ -47,7 +47,7 @@
  */
 
 struct kt {
-	char *kt_name;
+	const char *kt_name;
 	int kt_val;
 } key_words[] = {
 	{ "config",	CONFIG },
