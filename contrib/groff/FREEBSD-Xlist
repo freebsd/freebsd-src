@@ -1,5 +1,3 @@
 $FreeBSD$
 */arch
 */src/libs/snprintf
-*/src/libs/libgroff/getopt*
-*/src/include/getopt.h
