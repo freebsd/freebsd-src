@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.85 1995/04/02 04:21:09 ache Exp $
+ *	$Id: sio.c,v 1.86 1995/04/02 19:28:58 ache Exp $
  */
 
 #include "sio.h"
@@ -162,6 +162,7 @@ typedef u_char	bool_t;		/* boolean */
 
 /* com device structure */
 struct com_s {
+	int	unit;		/* unit	number */
 	u_char	state;		/* miscellaneous flag bits */
 	bool_t  active_out;	/* nonzero if the callout device is open */
 	u_char	cfcr_image;	/* copy of value written to CFCR */
@@ -590,6 +591,7 @@ sioattach(isdp)
 	 *	  device from sending before we are ready.
 	 */
 	bzero(com, sizeof *com);
+	com->unit = unit;
 	com->cfcr_image = CFCR_8BITS;
 	com->dtr_wait = 3 * hz;
 	com->no_irq = isdp->id_irq == 0;
@@ -933,7 +935,7 @@ comhardclose(com)
 	struct tty	*tp;
 	int		unit;
 
-	unit = DEV_TO_UNIT(com->tp->t_dev);
+	unit = com->unit;
 	iobase = com->iobase;
 	s = spltty();
 	com->poll = FALSE;
@@ -1025,7 +1027,7 @@ siodtrwakeup(chan)
 
 	com = (struct com_s *)chan;
 	com->state &= ~CS_DTR_OFF;
-	kdc_sio[DEV_TO_UNIT(com->tp->t_dev)].kdc_state = DC_IDLE;
+	kdc_sio[com->unit].kdc_state = DC_IDLE;
 	wakeup(&com->dtr_wait);
 }
 
@@ -1102,6 +1104,14 @@ siointr1(com)
 			else
 				recv_data = inb(com->data_port);
 			if (line_status & (LSR_PE|LSR_FE|LSR_BI)) {
+#ifdef DDB
+				if (   (line_status & LSR_BI)
+				    && (COMCONSOLE || boothowto	& RB_SERIAL)
+				    && com->unit == comconsole)	{
+					Debugger("serial console break");
+					goto cont;
+				}
+#endif
 				/*
 				  Don't store PE if IGNPAR and BI if IGNBRK,
 				  this hack allows "raw" tty optimization
