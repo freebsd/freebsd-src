@@ -3902,7 +3902,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<title>sendmail</title>
 
 	<para><application>sendmail</application> has been updated
-	  from version 8.9.3 to version 8.12.5.  Important changes
+	  from version 8.9.3 to version 8.12.6.  Important changes
 	  include: &man.sendmail.8; is no longer installed as a
 	  set-user-ID <username>root</username> binary (now set-group-ID <groupname>smmsp</groupname>); new
 	  default file locations (see
