@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.515 1998/12/27 12:52:45 phk Exp $
+#	$Id: LINT,v 1.516 1998/12/27 13:06:40 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1021,8 +1021,6 @@ options		FDC_PRINT_BOGUS_CHIPTYPE
 
 disk		fd0	at fdc0 drive 0
 disk		fd1	at fdc0 drive 1
-tape		ft0	at fdc0 drive 2
-
 
 #
 # Other standard PC hardware: `lpt', `mse', `psm', `sio', etc.
