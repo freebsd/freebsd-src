@@ -163,8 +163,9 @@ atm_dev_inst(ssp, cvcp)
 
 	/*
 	 * Allocate a VCC control block
+	 * This can happen from a callout so don't wait here.
 	 */
-	cvp = uma_zalloc(cup->cu_vcc_zone, M_WAITOK);
+	cvp = uma_zalloc(cup->cu_vcc_zone, M_NOWAIT);
 	if (cvp == NULL)
 		return (ENOMEM);
 	

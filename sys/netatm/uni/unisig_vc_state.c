@@ -659,9 +659,10 @@ unisig_vc_act06(usp, uvp, msg)
 	} else {
 		/*
 		 * No--VCI must have been specified earlier
+		 * May be called from netisr - don't wait.
 		 */
 		if (!uvp->uv_vci) {
-			iep = uma_zalloc(unisig_ie_zone, M_WAITOK);
+			iep = uma_zalloc(unisig_ie_zone, M_NOWAIT);
 			if (iep == NULL)
 				return(ENOMEM);
 			iep->ie_ident = UNI_IE_CNID;
@@ -734,8 +735,9 @@ unisig_vc_act06(usp, uvp, msg)
 
 	/*
 	 * Get memory for a CONNECT ACK message
+	 * May be called from netisr.
 	 */
-	cack_msg = uma_zalloc(unisig_msg_zone, M_WAITOK);
+	cack_msg = uma_zalloc(unisig_msg_zone, M_NOWAIT);
 	if (cack_msg == NULL)
 		return(ENOMEM);
 
@@ -1051,7 +1053,8 @@ unisig_vc_act09(usp, uvp, msg)
 	int			rc;
 	struct unisig_msg	*conn_msg;
 
-	conn_msg = uma_zalloc(unisig_msg_zone, M_WAITOK);
+	/* may be called from timeout - don't wait */
+	conn_msg = uma_zalloc(unisig_msg_zone, M_NOWAIT);
 	if (conn_msg == NULL)
 		return(ENOMEM);
 
@@ -1603,8 +1606,9 @@ unisig_vc_act20(usp, uvp, msg)
 
 	/*
 	 * Get memory for a STATUS ENQUIRY message
+	 * May be called from netisr - don't wait.
 	 */
-	stat_msg = uma_zalloc(unisig_msg_zone, M_WAITOK);
+	stat_msg = uma_zalloc(unisig_msg_zone, M_NOWAIT);
 	if (stat_msg == NULL)
 		return(ENOMEM);
 
