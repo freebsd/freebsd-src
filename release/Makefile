@@ -317,8 +317,6 @@ rerelease release:
 .endif
 	echo "	touch /tmp/.world_done"		>> ${CHROOTDIR}/mk
 	echo "fi"				>> ${CHROOTDIR}/mk
-	echo "cd /usr/src/release/sysinstall"	>> ${CHROOTDIR}/mk
-	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
 	echo "make \$${_RELTARGET}"		>> ${CHROOTDIR}/mk
 	echo "echo \">>> make ${.TARGET} finished on \`LC_TIME=C TZ=GMT date\`\"" >> ${CHROOTDIR}/mk
@@ -399,7 +397,6 @@ release.3:
 # See /usr/src/bin/ls/Makefile.
 release.4:
 	@mkdir -p /stand
-	cd ${.CURDIR}/sysinstall && make obj depend all install
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
 	export RELEASE_BUILD_FIXIT=noway ; \
@@ -555,7 +552,7 @@ release.8: write_mfs_in_kernel
 	@cd ${.CURDIR} && ${MAKE} doMODULES KERNEL=BOOTMFS KERNEL_KO=BOOTMFS KODIR=""
 .endif
 	@echo "Making the regular boot floppy."
-	@tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
+	@tar --exclude CVS -cf - -C /usr/src/usr.sbin/sysinstall help | \
 		tar xf - -C ${RD}/mfsfd/stand
 	@echo "Compressing doc files..."
 	@gzip -9 ${RD}/mfsfd/stand/help/*.hlp
