@@ -1,6 +1,13 @@
 /*-
  * Copyright (c) 1988, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * All rights reserved.
+ *
+ * Portions of this software were developed for the FreeBSD Project by
+ * ThinkSec AS and NAI Labs, the Security Research Division of Network
+ * Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -61,24 +68,19 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
-#include <pw_scan.h>
-#include <pw_util.h>
-#include "pw_copy.h"
 #ifdef YP
-#include <rpcsvc/yp.h>
-int yp_errno = YP_TRUE;
-#include "pw_yp.h"
+#include <ypclnt.h>
 #endif
 
+#include <pw_scan.h>
+#include <libutil.h>
+
 #include "chpass.h"
-#include "pathnames.h"
 
-char *tempname;
-uid_t uid;
+int master_mode;
 
-void	baduser(void);
-void	usage(void);
+static void	baduser(void);
+static void	usage(void);
 
 char localhost[] = "localhost";
 
@@ -86,22 +88,23 @@ int
 main(int argc, char *argv[])
 {
 	enum { NEWSH, LOADENTRY, EDITENTRY, NEWPW, NEWEXP } op;
-	struct passwd *pw = NULL, lpw, old_pw;
-	char *username = NULL;
+	struct passwd *pw = NULL, lpw, *old_pw;
 	int ch, pfd, tfd;
+	const char *password;
 	char *arg = NULL;
+	uid_t uid;
 #ifdef YP
-	int force_local = 0;
-	int force_yp = 0;
+	struct ypclnt *ypclnt;
+	const char *yp_domain = NULL, *yp_host = NULL;
 #endif
 
 	op = EDITENTRY;
 #ifdef YP
-	while ((ch = getopt(argc, argv, "a:p:s:e:d:h:oly")) != -1)
+	while ((ch = getopt(argc, argv, "a:p:s:e:d:h:loy")) != -1)
 #else
 	while ((ch = getopt(argc, argv, "a:p:s:e:")) != -1)
 #endif
-		switch(ch) {
+		switch (ch) {
 		case 'a':
 			op = LOADENTRY;
 			arg = optarg;
@@ -119,184 +122,184 @@ main(int argc, char *argv[])
 			arg = optarg;
 			break;
 #ifdef YP
-		case 'h':
-#ifdef PARANOID
-			if (getuid()) {
-				warnx("Only the superuser can use the -h flag");
-			} else {
-#endif
-				yp_server = optarg;
-#ifdef PARANOID
-			}
-#endif
-			break;
 		case 'd':
-#ifdef PARANOID
-			if (getuid()) {
-				warnx("Only the superuser can use the -d flag");
-			} else {
-#endif
-				yp_domain = optarg;
-				if (yp_server == NULL)
-					yp_server = localhost;
-#ifdef PARANOID
-			}
-#endif
+			yp_domain = optarg;
+			break;
+		case 'h':
+			yp_host = optarg;
 			break;
 		case 'l':
-			_use_yp = 0;
-			force_local = 1;
-			break;
-		case 'y':
-			_use_yp = force_yp = 1;
-			break;
 		case 'o':
-			force_old++;
+		case 'y':
+			/* compatibility */
 			break;
 #endif
 		case '?':
 		default:
 			usage();
 		}
+
 	argc -= optind;
 	argv += optind;
+
+	if (argc > 1)
+		usage();
 
 	uid = getuid();
 
 	if (op == EDITENTRY || op == NEWSH || op == NEWPW || op == NEWEXP) {
-		switch(argc) {
-#ifdef YP
-		case 0:
-			GETPWUID(uid)
-			get_yp_master(1); /* XXX just to set the suser flag */
-			break;
-		case 1:
-			GETPWNAM(*argv)
-			get_yp_master(1); /* XXX just to set the suser flag */
-#else
-		case 0:
-			if (!(pw = getpwuid(uid)))
+		if (argc == 0) {
+			if ((pw = getpwuid(uid)) == NULL)
 				errx(1, "unknown user: uid %lu",
 				    (unsigned long)uid);
-			break;
-		case 1:
-			if (!(pw = getpwnam(*argv)))
+		} else {
+			if ((pw = getpwnam(*argv)) == NULL)
 				errx(1, "unknown user: %s", *argv);
-#endif
-			if (uid && uid != pw->pw_uid)
+			if (uid != 0 && uid != pw->pw_uid)
 				baduser();
-			break;
-		default:
-			usage();
 		}
 
 		/* Make a copy for later verification */
-		old_pw = *pw;
-		old_pw.pw_gecos = strdup(old_pw.pw_gecos);
+		if ((pw = pw_dup(pw)) == NULL ||
+		    (old_pw = pw_dup(pw)) == NULL)
+			err(1, "pw_dup");
 	}
+
+#ifdef YP
+	if ((pw->pw_fields & _PWF_SOURCE) == _PWF_NIS) {
+		ypclnt = ypclnt_new(yp_domain, "passwd.byname", yp_host);
+		master_mode = (ypclnt != NULL &&
+		    ypclnt_connect(ypclnt) != -1 &&
+		    ypclnt_havepasswdd(ypclnt) == 1);
+		ypclnt_free(ypclnt);
+	} else
+#endif
+	master_mode = (uid == 0);
 
 	if (op == NEWSH) {
 		/* protect p_shell -- it thinks NULL is /bin/sh */
 		if (!arg[0])
 			usage();
-		if (p_shell(arg, pw, (ENTRY *)NULL))
-			pw_error((char *)NULL, 0, 1);
+		if (p_shell(arg, pw, (ENTRY *)NULL) == -1)
+			exit(1);
 	}
 
 	if (op == NEWEXP) {
 		if (uid)	/* only root can change expire */
 			baduser();
-		if (p_expire(arg, pw, (ENTRY *)NULL))
-			pw_error((char *)NULL, 0, 1);
+		if (p_expire(arg, pw, (ENTRY *)NULL) == -1)
+			exit(1);
 	}
 
 	if (op == LOADENTRY) {
 		if (uid)
 			baduser();
 		pw = &lpw;
+		old_pw = NULL;
 		if (!__pw_scan(arg, pw, _PWSCAN_WARN|_PWSCAN_MASTER))
 			exit(1);
 	}
-	username = pw->pw_name;
 
 	if (op == NEWPW) {
 		if (uid)
 			baduser();
 
-		if(strchr(arg, ':')) {
+		if (strchr(arg, ':'))
 			errx(1, "invalid format for password");
-		}
 		pw->pw_passwd = arg;
 	}
 
-	/*
-	 * The temporary file/file descriptor usage is a little tricky here.
-	 * 1:	Create a temporary file called tempname, get descriptor tfd.
-	 * 2:	Display() gets an fp for the temporary file, and copies the
-	 *	user's information into it.  It then gives the temporary file
-	 *	to the user and closes the fp, closing the underlying fd.
-	 * 3:	The user edits the temporary file some number of times.
-	 *	The results are stored in pw by edit().
-	 * 4:	Delete the temporary file.
-	 * 5:	Make a new temporary file, descriptor tfd.
-	 * 6:	Get a descriptor for the master.passwd file, pfd, and
-	 *	lock master.passwd.
-	 * 7:	Pw_copy() gets descriptors for master.passwd and the 
-	 *	temporary file and copies the master password file into it,
-	 *	replacing the modified user's record with a new one.  We can't
-	 *	use the first temporary file for this because it was owned
-	 *	by the user.  Pass the new and old user info.  Check the
-	 *	entry for our user has not been changed by someone else by
-	 *	while the user was editing by comparing the old info to
-	 *	the entry freshly read from master.passwd. Pw_copy() closes
-	 *	its fp, flushing the data and closing the underlying file
-	 *	descriptor.  We can't close the master password fp, or we'd
-	 *	lose the lock.
-	 * 8:	Call pw_mkdb() (which renames the temporary file) and exit.
-	 *	The exit closes the master passwd fp/fd.
-	 */
-	pw_init();
-	tfd = pw_tmp();
-
 	if (op == EDITENTRY) {
-		display(tfd, pw);
-		edit(pw);
-		(void)unlink(tempname);
-		tfd = pw_tmp();
+		/*
+		 * We don't really need pw_*() here, but pw_edit() (used
+		 * by edit()) is just too useful...
+		 */
+		if (pw_init(NULL, NULL))
+			err(1, "pw_init()");
+		if ((tfd = pw_tmp(-1)) == -1) {
+			pw_fini();
+			err(1, "pw_tmp()");
+		}
+		free(pw);
+		pw = edit(pw_tempname(), old_pw);
+		pw_fini();
+		if (pw == NULL)
+			err(1, "edit()");
+		if (pw_equal(old_pw, pw))
+			errx(0, "user information unchanged");
 	}
 
-#ifdef YP
-	if (_use_yp) {
-		yp_submit(pw);
-		(void)unlink(tempname);
+	if (old_pw && !master_mode) {
+		password = getpass("Password: ");
+		if (strcmp(crypt(password, old_pw->pw_passwd),
+		    old_pw->pw_passwd) != 0)
+			baduser();
 	} else {
-#endif /* YP */
-	pfd = pw_lock();
-	pw_copy(pfd, tfd, pw, (op == LOADENTRY) ? NULL : &old_pw);
-
-	if (!pw_mkdb(username))
-		pw_error((char *)NULL, 0, 1);
-#ifdef YP
+		password = "";
 	}
+
+	if (old_pw != NULL)
+		pw->pw_fields |= (old_pw->pw_fields & _PWF_SOURCE);
+	switch (pw->pw_fields & _PWF_SOURCE) {
+#ifdef YP
+	case _PWF_NIS:
+		ypclnt = ypclnt_new(yp_domain, "passwd.byname", yp_host);
+		if (ypclnt == NULL ||
+		    ypclnt_connect(ypclnt) == -1 ||
+		    ypclnt_passwd(ypclnt, pw, password) == -1) {
+			warnx("%s", ypclnt->error);
+			ypclnt_free(ypclnt);
+			exit(1);
+		}
+		ypclnt_free(ypclnt);
+		errx(0, "NIS user information updated");
 #endif /* YP */
-	exit(0);
+	case 0:
+	case _PWF_FILES:
+		if (pw_init(NULL, NULL))
+			err(1, "pw_init()");
+		if ((pfd = pw_lock()) == -1) {
+			pw_fini();
+			err(1, "pw_lock()");
+		}
+		if ((tfd = pw_tmp(-1)) == -1) {
+			pw_fini();
+			err(1, "pw_tmp()");
+		}
+		if (pw_copy(pfd, tfd, pw, old_pw) == -1) {
+			pw_fini();
+			err(1, "pw_copy");
+		}
+		if (pw_mkdb(pw->pw_name) == -1) {
+			pw_fini();
+			err(1, "pw_mkdb()");
+		}
+		pw_fini();
+		errx(0, "user information updated");
+		break;
+	default:
+		errx(1, "unsupported passwd source");
+	}
 }
 
-void
+static void
 baduser(void)
 {
+
 	errx(1, "%s", strerror(EACCES));
 }
 
-void
+static void
 usage(void)
 {
 
 	(void)fprintf(stderr,
+	    "Usage: chpass%s %s [user]\n",
 #ifdef YP
-		"usage: chpass [-o] [-l] [-y] [-d domain] [-h host] [-a list] [-p encpass] [-s shell] [-e mmm dd yy] [user]\n");
+	    " [-d domain] [-h host]",
 #else
-		"usage: chpass [-a list] [-p encpass] [-s shell] [-e mmm dd yy] [user]\n");
+	    "",
 #endif
+	    "[-a list] [-p encpass] [-s shell] [-e mmm dd yy]");
 	exit(1);
 }
