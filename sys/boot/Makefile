@@ -4,7 +4,7 @@
 .MAKEFLAGS:  MACHINE_ARCH=i386 MACHINE=i386 REALLY_AMD64=true
 .endif
 
-.if !defined(NOFORTH)
+.if !defined(NOFORTH) && ${MACHINE_ARCH} != "powerpc"
 # Build the add-in FORTH interpreter
 SUBDIR+=		ficl
 .endif
