@@ -197,6 +197,7 @@ struct kse {
 #define	KF_STARTED			0x0001	/* kernel kse created */
 #define	KF_INITIALIZED			0x0002	/* initialized on 1st upcall */
 	int			k_waiting;
+	int			k_error;	/* syscall errno in critical */
 	int			k_cpu;		/* CPU ID when bound */
 	int			k_done;		/* this KSE is done */
 };
@@ -1014,6 +1015,7 @@ void	_set_curkse(struct kse *);
 struct kse *_kse_alloc(struct pthread *);
 kse_critical_t _kse_critical_enter(void);
 void	_kse_critical_leave(kse_critical_t);
+int	_kse_in_critical(void);
 void	_kse_free(struct pthread *, struct kse *);
 void	_kse_init();
 struct kse_group *_kseg_alloc(struct pthread *);
