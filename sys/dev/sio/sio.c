@@ -1037,40 +1037,40 @@ sioattach(dev, xrid, rclk)
 	case FIFO_RX_HIGH:
 		if (COM_NOFIFO(flags)) {
 			printf(" 16550A fifo disabled");
-		} else {
-			com->hasfifo = TRUE;
-			if (COM_ST16650A(flags)) {
-				com->st16650a = 1;
-				com->tx_fifo_size = 32;
-				printf(" ST16650A");
-			} else if (COM_TI16754(flags)) {
-				com->tx_fifo_size = 64;
-				printf(" TI16754");
-			} else {
-				com->tx_fifo_size = COM_FIFOSIZE(flags);
-				printf(" 16550A");
-			}
+			break;
 		}
+		com->hasfifo = TRUE;
+		if (COM_ST16650A(flags)) {
+			printf(" ST16650A");
+			com->st16650a = TRUE;
+			com->tx_fifo_size = 32;
+			break;
+		}
+		if (COM_TI16754(flags)) {
+			printf(" TI16754");
+			com->tx_fifo_size = 64;
+			break;
+		}
+		printf(" 16550A");
 #ifdef COM_ESP
 		for (espp = likely_esp_ports; *espp != 0; espp++)
 			if (espattach(com, *espp)) {
 				com->tx_fifo_size = 1024;
 				break;
 			}
+		if (com->esp != NULL)
+			break;
 #endif
-		if (!com->st16650a && !COM_TI16754(flags)) {
-			if (!com->tx_fifo_size)
-				com->tx_fifo_size = 16;
-			else
-				printf(" lookalike with %d bytes FIFO",
-				    com->tx_fifo_size);
-		}
-
+		com->tx_fifo_size = COM_FIFOSIZE(flags);
+		if (com->tx_fifo_size == 0)
+			com->tx_fifo_size = 16;
+		else
+			printf(" lookalike with %u bytes FIFO",
+			       com->tx_fifo_size);
 		break;
 	}
-	
 #ifdef COM_ESP
-	if (com->esp) {
+	if (com->esp != NULL) {
 		/*
 		 * Set 16550 compatibility mode.
 		 * We don't use the ESP_MODE_SCALE bit to increase the
