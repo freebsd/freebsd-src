@@ -27,9 +27,6 @@
 #		Create a tags file for the source files.
 #
 
-.if !defined(NO_DEPEND)
-DEPEND?=	depend
-.endif
 
 MKDEPCMD?=	mkdep
 DEPENDFILE?=	.depend
