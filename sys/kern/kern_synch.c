@@ -425,7 +425,8 @@ msleep(ident, mtx, priority, wmesg, timo)
 	p->p_wmesg = wmesg;
 	p->p_slptime = 0;
 	p->p_pri.pri_level = priority & PRIMASK;
-	CTR3(KTR_PROC, "msleep: proc %p (pid %d, %s)", p, p->p_pid, p->p_comm);
+	CTR5(KTR_PROC, "msleep: proc %p (pid %d, %s) on %s (%p)", p, p->p_pid,
+	    p->p_comm, wmesg, ident);
 	TAILQ_INSERT_TAIL(&slpque[LOOKUP(ident)], p, p_slpq);
 	if (timo)
 		callout_reset(&p->p_slpcallout, timo, endtsleep, p);
