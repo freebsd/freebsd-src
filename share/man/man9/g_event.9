@@ -25,7 +25,7 @@
 .\" $FreeBSD$
 .\"
 .Dd January 16, 2004
-.Dt g_event 9
+.Dt G_EVENT 9
 .Os
 .Sh NAME
 .Nm g_post_event ,
@@ -120,13 +120,15 @@ value.
 .It
 The
 .Fn g_waitfor_event
-function can not be called from an event, since doing so would result
+function cannot be called from an event, since doing so would result
 in a deadlock.
 .El
 .Sh RETURN VALUES
+The
 .Fn g_post_event
 and
 .Fn g_waitfor_event
+functions
 return 0 if successful; otherwise an error code is returned.
 .Sh ERRORS
 Possible errors for the
@@ -136,7 +138,9 @@ function:
 .It Bq Er ENOMEM
 The
 .Fa flag
-argument was set to M_NOWAIT and there was insufficient memory.
+argument was set to
+.Dv M_NOWAIT
+and there was insufficient memory.
 .El
 .Pp
 Possible errors for the
@@ -148,7 +152,9 @@ The event was canceled.
 .It Bq Er ENOMEM
 The
 .Fa flag
-argument was set to M_NOWAIT and there was insufficient memory.
+argument was set to
+.Dv M_NOWAIT
+and there was insufficient memory.
 .El
 .Sh EXAMPLES
 Example of a function called from the event queue.

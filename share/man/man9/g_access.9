@@ -25,7 +25,7 @@
 .\" $FreeBSD$
 .\"
 .Dd January 16, 2004
-.Dt g_access 9
+.Dt G_ACCESS 9
 .Os
 .Sh NAME
 .Nm g_access
@@ -52,7 +52,7 @@ A provider's access count is the sum of the access counts of all
 attached consumers.
 .Pp
 After attaching a consumer to a provider with
-.Fn g_attach ,
+.Xr g_attach 9 ,
 the
 .Fn g_access
 function has to be called on the consumer before starting I/O requests.
@@ -61,16 +61,17 @@ The consumer has to be attached to a provider.
 .Pp
 The intended change must not result in a negative access count.
 .Pp
-No\-operation is not permitted
+No-operation is not permitted
 .Fa ( dcr
 =
 .Fa dcw
 =
 .Fa dce
 =
-.Va 0 ) .
+.Li 0 ) .
 .Pp
-The provider's geom must have an access method defined (e.g.\& gp->access).
+The provider's geom must have an access method defined (e.g.,
+.Va gp->access ) .
 .Pp
 The topology lock has to be held.
 .Sh RETURN VALUES
