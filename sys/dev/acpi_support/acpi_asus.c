@@ -351,7 +351,7 @@ acpi_asus_probe(device_t dev)
 			sbuf_finish(sb);
 
 			sc->model = model;
-			device_set_desc(dev, sbuf_data(sb));
+			device_set_desc_copy(dev, sbuf_data(sb));
 
 			sbuf_delete(sb);
 			AcpiOsFree(Buf.Pointer);
