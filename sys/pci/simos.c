@@ -111,7 +111,7 @@ simos_attach(pcici_t config_id, int unit)
 	struct simos_softc* sc;
 	struct cam_devq *devq;
 
-	sc = malloc(sizeof(struct simos_softc), M_DEVBUF, M_WAITOK | M_ZERO);
+	sc = malloc(sizeof(struct simos_softc), M_DEVBUF, M_ZERO);
 	simosp[unit] = sc;
 
 	sc->sc_unit = unit;

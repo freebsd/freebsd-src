@@ -187,7 +187,7 @@ ntfs_ntvattrget(
 	}
 	/* Scan $ATTRIBUTE_LIST for requested attribute */
 	len = lvap->va_datalen;
-	MALLOC(alpool, caddr_t, len, M_TEMP, M_WAITOK);
+	MALLOC(alpool, caddr_t, len, M_TEMP, 0);
 	error = ntfs_readntvattr_plain(ntmp, ip, lvap, 0, len, alpool, &len,
 			NULL);
 	if (error)
@@ -266,7 +266,7 @@ ntfs_loadntnode(
 	dprintf(("ntfs_loadntnode: loading ino: %d\n",ip->i_number));
 
 	MALLOC(mfrp, struct filerec *, ntfs_bntob(ntmp->ntm_bpmftrec),
-	       M_TEMP, M_WAITOK);
+	       M_TEMP, 0);
 
 	if (ip->i_number < NTFS_SYSNODESNUM) {
 		struct buf     *bp;
@@ -390,7 +390,7 @@ ntfs_ntlookup(
 	    NULL));
 
 	MALLOC(ip, struct ntnode *, sizeof(struct ntnode), M_NTFSNTNODE,
-		M_WAITOK | M_ZERO);
+		M_ZERO);
 	ddprintf(("ntfs_ntlookup: allocating ntnode: %d: %p\n", ino, ip));
 
 	/* Generic initialization */
@@ -539,7 +539,7 @@ ntfs_attrtontvattr(
 	*rvapp = NULL;
 
 	MALLOC(vap, struct ntvattr *, sizeof(struct ntvattr),
-		M_NTFSNTVATTR, M_WAITOK | M_ZERO);
+		M_NTFSNTVATTR, M_ZERO);
 	vap->va_ip = NULL;
 	vap->va_flag = rap->a_hdr.a_flag;
 	vap->va_type = rap->a_hdr.a_type;
@@ -576,7 +576,7 @@ ntfs_attrtontvattr(
 		vap->va_vcnstart = 0;
 		vap->va_vcnend = ntfs_btocn(vap->va_allocated);
 		MALLOC(vap->va_datap, caddr_t, vap->va_datalen,
-		       M_NTFSRDATA, M_WAITOK);
+		       M_NTFSRDATA, 0);
 		memcpy(vap->va_datap, (caddr_t) rap + rap->a_r.a_dataoff,
 		       rap->a_r.a_datalen);
 	}
@@ -617,8 +617,8 @@ ntfs_runtovrun(
 		off += (run[off] & 0xF) + ((run[off] >> 4) & 0xF) + 1;
 		cnt++;
 	}
-	MALLOC(cn, cn_t *, cnt * sizeof(cn_t), M_NTFSRUN, M_WAITOK);
-	MALLOC(cl, cn_t *, cnt * sizeof(cn_t), M_NTFSRUN, M_WAITOK);
+	MALLOC(cn, cn_t *, cnt * sizeof(cn_t), M_NTFSRUN, 0);
+	MALLOC(cl, cn_t *, cnt * sizeof(cn_t), M_NTFSRUN, 0);
 
 	off = 0;
 	cnt = 0;
@@ -738,13 +738,13 @@ ntfs_fget(
 		return (0);
 
 	MALLOC(fp, struct fnode *, sizeof(struct fnode), M_NTFSFNODE,
-		M_WAITOK | M_ZERO);
+		M_ZERO);
 	dprintf(("ntfs_fget: allocating fnode: %p\n",fp));
 
 	fp->f_ip = ip;
 	if (attrname) {
 		fp->f_flag |= FN_AATTRNAME;
-		MALLOC(fp->f_attrname, char *, strlen(attrname)+1, M_TEMP, M_WAITOK);
+		MALLOC(fp->f_attrname, char *, strlen(attrname)+1, M_TEMP, 0);
 		strcpy(fp->f_attrname, attrname);
 	} else
 		fp->f_attrname = NULL;
@@ -829,7 +829,7 @@ ntfs_ntlookupattr(
 
     out:
 	if (namelen) {
-		MALLOC((*attrname), char *, namelen, M_TEMP, M_WAITOK);
+		MALLOC((*attrname), char *, namelen, M_TEMP, 0);
 		memcpy((*attrname), name, namelen);
 		(*attrname)[namelen] = '\0';
 	}
@@ -894,7 +894,7 @@ ntfs_ntlookupfile(
 
 	dprintf(("ntfs_ntlookupfile: blksz: %d, rdsz: %d\n", blsize, rdsize));
 
-	MALLOC(rdbuf, caddr_t, blsize, M_TEMP, M_WAITOK);
+	MALLOC(rdbuf, caddr_t, blsize, M_TEMP, 0);
 
 	error = ntfs_readattr(ntmp, ip, NTFS_A_INDXROOT, "$I30",
 			       0, rdsize, rdbuf, NULL);
@@ -1112,7 +1112,7 @@ ntfs_ntreaddir(
 	if (fp->f_dirblbuf == NULL) {
 		fp->f_dirblsz = vap->va_a_iroot->ir_size;
 		MALLOC(fp->f_dirblbuf, caddr_t,
-		       max(vap->va_datalen,fp->f_dirblsz), M_NTFSDIR, M_WAITOK);
+		       max(vap->va_datalen,fp->f_dirblsz), M_NTFSDIR, 0);
 	}
 
 	blsize = fp->f_dirblsz;
@@ -1127,7 +1127,7 @@ ntfs_ntreaddir(
 			error = ENOTDIR;
 			goto fail;
 		}
-		MALLOC(bmp, u_char *, bmvap->va_datalen, M_TEMP, M_WAITOK);
+		MALLOC(bmp, u_char *, bmvap->va_datalen, M_TEMP, 0);
 		error = ntfs_readattr(ntmp, ip, NTFS_A_INDXBITMAP, "$I30", 0,
 				       bmvap->va_datalen, bmp, NULL);
 		if (error)
@@ -1708,9 +1708,9 @@ ntfs_readattr(
 			 vap->va_compressalg));
 
 		MALLOC(cup, u_int8_t *, ntfs_cntob(NTFS_COMPUNIT_CL),
-		       M_NTFSDECOMP, M_WAITOK);
+		       M_NTFSDECOMP, 0);
 		MALLOC(uup, u_int8_t *, ntfs_cntob(NTFS_COMPUNIT_CL),
-		       M_NTFSDECOMP, M_WAITOK);
+		       M_NTFSDECOMP, 0);
 
 		cn = (ntfs_btocn(roff)) & (~(NTFS_COMPUNIT_CL - 1));
 		off = roff - ntfs_cntob(cn);
@@ -1943,7 +1943,7 @@ ntfs_toupper_use(mp, ntmp)
 	 * so don't bother reading more
 	 */
 	MALLOC(ntfs_toupper_tab, wchar *, 65536 * sizeof(wchar),
-		M_NTFSRDATA, M_WAITOK);
+		M_NTFSRDATA, 0);
 
 	if ((error = VFS_VGET(mp, NTFS_UPCASEINO, LK_EXCLUSIVE, &vp)))
 		goto out;
@@ -1991,14 +1991,14 @@ ntfs_u28_init(
 	char ** u28;
 	int i, j, h, l;
 
-	MALLOC(u28, char **, 256 * sizeof(char*), M_TEMP, M_WAITOK | M_ZERO);
+	MALLOC(u28, char **, 256 * sizeof(char*), M_TEMP, M_ZERO);
 
 	for (i=0; i<256; i++) {
 		h = (u2w[i] >> 8) & 0xFF;
 		l = (u2w[i]) &0xFF;
 
 		if (u28[h] == NULL) {
-			MALLOC(u28[h], char *, 256 * sizeof(char), M_TEMP, M_WAITOK);
+			MALLOC(u28[h], char *, 256 * sizeof(char), M_TEMP, 0);
 			for (j=0; j<256; j++)
 				u28[h][j] = '_';
 		}
@@ -2039,7 +2039,7 @@ ntfs_82u_init(
 	wchar * _82u;
 	int i;
 
-	MALLOC(_82u, wchar *, 256 * sizeof(wchar), M_TEMP, M_WAITOK);
+	MALLOC(_82u, wchar *, 256 * sizeof(wchar), M_TEMP, 0);
 
 	if (u2w == NULL) {
 		for (i=0; i<256; i++)

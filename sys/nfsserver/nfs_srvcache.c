@@ -193,7 +193,7 @@ loop:
 			} else if (rp->rc_flag & RC_REPMBUF) {
 				nfsrvstats.srvcache_nonidemdonehits++;
 				*repp = m_copym(rp->rc_reply, 0, M_COPYALL,
-						M_TRYWAIT);
+						0);
 				ret = RC_REPLY;
 			} else {
 				nfsrvstats.srvcache_idemdonehits++;
@@ -212,7 +212,7 @@ loop:
 	NFS_DPF(RC, ("M%03x", nd->nd_retxid & 0xfff));
 	if (numnfsrvcache < desirednfsrvcache) {
 		rp = (struct nfsrvcache *)malloc((u_long)sizeof *rp,
-		    M_NFSD, M_WAITOK | M_ZERO);
+		    M_NFSD, M_ZERO);
 		numnfsrvcache++;
 		rp->rc_flag = RC_LOCKED;
 	} else {
@@ -303,7 +303,7 @@ loop:
 					rp->rc_flag |= RC_REPSTATUS;
 				} else {
 					rp->rc_reply = m_copym(repmbuf,
-						0, M_COPYALL, M_TRYWAIT);
+						0, M_COPYALL, 0);
 					rp->rc_flag |= RC_REPMBUF;
 				}
 			}

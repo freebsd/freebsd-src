@@ -917,7 +917,7 @@ raidioctl(dev, cmd, data, flag, td)
 	case RAIDFRAME_INIT_LABELS:
 		MALLOC(ci_label, RF_ComponentLabel_t *,
 		    sizeof(RF_ComponentLabel_t), M_RAIDFRAME,
-		    M_WAITOK | M_ZERO);
+		    M_ZERO);
 		clabel = (RF_ComponentLabel_t *) data;
 		/* 
 		   we only want the serial number from
@@ -984,7 +984,7 @@ raidioctl(dev, cmd, data, flag, td)
 	case RAIDFRAME_ADD_HOT_SPARE:
 		MALLOC(hot_spare, RF_SingleComponent_t *,
 		    sizeof(RF_SingleComponent_t), M_RAIDFRAME,
-		     M_WAITOK | M_ZERO);
+		     M_ZERO);
 		sparePtr = (RF_SingleComponent_t *) data;
 		memcpy( hot_spare, sparePtr, sizeof(RF_SingleComponent_t));
 		retcode = rf_add_hot_spare(raidPtr, hot_spare);
@@ -997,7 +997,7 @@ raidioctl(dev, cmd, data, flag, td)
 	case RAIDFRAME_DELETE_COMPONENT:
 		MALLOC(component, RF_SingleComponent_t *,
 		    sizeof(RF_SingleComponent_t), M_RAIDFRAME,
-		     M_WAITOK | M_ZERO);
+		     M_ZERO);
 		componentPtr = (RF_SingleComponent_t *)data;
 		memcpy( component, componentPtr, 
 			sizeof(RF_SingleComponent_t));
@@ -1008,7 +1008,7 @@ raidioctl(dev, cmd, data, flag, td)
 	case RAIDFRAME_INCORPORATE_HOT_SPARE:
 		MALLOC(component, RF_SingleComponent_t *,
 		    sizeof(RF_SingleComponent_t), M_RAIDFRAME,
-		     M_WAITOK | M_ZERO);
+		     M_ZERO);
 		componentPtr = (RF_SingleComponent_t *)data;
 		memcpy( component, componentPtr, 
 			sizeof(RF_SingleComponent_t));
@@ -1020,7 +1020,7 @@ raidioctl(dev, cmd, data, flag, td)
 
 		MALLOC(component, RF_SingleComponent_t *,
 		    sizeof(RF_SingleComponent_t), M_RAIDFRAME,
-		     M_WAITOK | M_ZERO);
+		     M_ZERO);
 		if (raidPtr->Layout.map->faultsTolerated == 0) {
 			/* Can't do this on a RAID 0!! */
 			FREE(component, M_RAIDFRAME);
@@ -2894,7 +2894,7 @@ rf_set_autoconfig(raidPtr, new_value)
 	int row, column;
 
 	MALLOC(clabel, RF_ComponentLabel_t *, sizeof(RF_ComponentLabel_t),
-	    M_RAIDFRAME, M_WAITOK | M_ZERO);
+	    M_RAIDFRAME, M_ZERO);
 
 	raidPtr->autoconfigure = new_value;
 	for(row=0; row<raidPtr->numRow; row++) {
@@ -2924,7 +2924,7 @@ rf_set_rootpartition(raidPtr, new_value)
 	int row, column;
 
 	MALLOC(clabel, RF_ComponentLabel_t *, sizeof(RF_ComponentLabel_t),
-	    M_RAIDFRAME, M_WAITOK | M_ZERO);
+	    M_RAIDFRAME, M_ZERO);
 
 	raidPtr->root_partition = new_value;
 	for(row=0; row<raidPtr->numRow; row++) {

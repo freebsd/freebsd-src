@@ -138,7 +138,7 @@ at_control(struct socket *so, u_long cmd, caddr_t data,
 	 * allocate a fresh one. 
 	 */
 	if ( aa == (struct at_ifaddr *) 0 ) {
-	    aa0 = malloc(sizeof(struct at_ifaddr), M_IFADDR, M_WAITOK | M_ZERO);
+	    aa0 = malloc(sizeof(struct at_ifaddr), M_IFADDR, M_ZERO);
 	    if (( aa = at_ifaddr ) != NULL ) {
 		/*
 		 * Don't let the loopback be first, since the first

@@ -1142,10 +1142,10 @@ ste_newbuf(sc, c, m)
 	struct mbuf		*m_new = NULL;
 
 	if (m == NULL) {
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+		MGETHDR(m_new, M_NOWAIT, MT_DATA);
 		if (m_new == NULL)
 			return(ENOBUFS);
-		MCLGET(m_new, M_DONTWAIT);
+		MCLGET(m_new, M_NOWAIT);
 		if (!(m_new->m_flags & M_EXT)) {
 			m_freem(m_new);
 			return(ENOBUFS);
@@ -1519,13 +1519,13 @@ encap_retry:
 		 * mbuf chain first. Bail out if we can't get the
 		 * new buffers. Code borrowed from if_fxp.c
 		 */
-		MGETHDR(mn, M_DONTWAIT, MT_DATA);
+		MGETHDR(mn, M_NOWAIT, MT_DATA);
 		if (mn == NULL) {
 			m_freem(m_head);
 			return ENOMEM;
 		}
 		if (m_head->m_pkthdr.len > MHLEN) {
-			MCLGET(mn, M_DONTWAIT);
+			MCLGET(mn, M_NOWAIT);
 			if ((mn->m_flags & M_EXT) == 0) {
 				m_freem(mn);
 				m_freem(m_head);

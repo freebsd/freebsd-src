@@ -2006,7 +2006,7 @@ ipsec4_encapsulate(m, sav)
 	 */
 	if (M_LEADINGSPACE(m->m_next) < hlen) {
 		struct mbuf *n;
-		MGET(n, M_DONTWAIT, MT_DATA);
+		MGET(n, M_NOWAIT, MT_DATA);
 		if (!n) {
 			m_freem(m);
 			return ENOBUFS;
@@ -2105,7 +2105,7 @@ ipsec6_encapsulate(m, sav)
 		panic("ipsec6_encapsulate: assumption failed (first mbuf length)");
 	if (M_LEADINGSPACE(m->m_next) < sizeof(struct ip6_hdr)) {
 		struct mbuf *n;
-		MGET(n, M_DONTWAIT, MT_DATA);
+		MGET(n, M_NOWAIT, MT_DATA);
 		if (!n) {
 			m_freem(m);
 			return ENOBUFS;
@@ -3119,7 +3119,7 @@ ipsec4_splithdr(m)
 	hlen = ip->ip_hl << 2;
 #endif
 	if (m->m_len > hlen) {
-		MGETHDR(mh, M_DONTWAIT, MT_HEADER);
+		MGETHDR(mh, M_NOWAIT, MT_HEADER);
 		if (!mh) {
 			m_freem(m);
 			return NULL;
@@ -3155,7 +3155,7 @@ ipsec6_splithdr(m)
 	ip6 = mtod(m, struct ip6_hdr *);
 	hlen = sizeof(struct ip6_hdr);
 	if (m->m_len > hlen) {
-		MGETHDR(mh, M_DONTWAIT, MT_HEADER);
+		MGETHDR(mh, M_NOWAIT, MT_HEADER);
 		if (!mh) {
 			m_freem(m);
 			return NULL;
@@ -3366,16 +3366,16 @@ ipsec_copypkt(m)
 				struct mbuf *mm;
 
 				if (n->m_flags & M_PKTHDR) {
-					MGETHDR(mnew, M_DONTWAIT, MT_HEADER);
+					MGETHDR(mnew, M_NOWAIT, MT_HEADER);
 					if (mnew == NULL)
 						goto fail;
-					if (!m_dup_pkthdr(mnew, n, M_DONTWAIT)) {
+					if (!m_dup_pkthdr(mnew, n, M_NOWAIT)) {
 						m_free(mnew);
 						goto fail;
 					}
 				}
 				else {
-					MGET(mnew, M_DONTWAIT, MT_DATA);
+					MGET(mnew, M_NOWAIT, MT_DATA);
 					if (mnew == NULL)
 						goto fail;
 				}
@@ -3399,7 +3399,7 @@ ipsec_copypkt(m)
 					if (remain <= (mm->m_flags & M_PKTHDR ? MHLEN : MLEN))
 						len = remain;
 					else { /* allocate a cluster */
-						MCLGET(mm, M_DONTWAIT);
+						MCLGET(mm, M_NOWAIT);
 						if (!(mm->m_flags & M_EXT)) {
 							m_free(mm);
 							goto fail;
@@ -3419,7 +3419,7 @@ ipsec_copypkt(m)
 						break;
 
 					/* need another mbuf */
-					MGETHDR(mn, M_DONTWAIT, MT_HEADER);
+					MGETHDR(mn, M_NOWAIT, MT_HEADER);
 					if (mn == NULL)
 						goto fail;
 					mn->m_pkthdr.rcvif = NULL;

@@ -292,7 +292,7 @@ OF_getprop(phandle_t package, char *propname, void *buf, int buflen)
 
 /*
  * Store the value of a property of a package into newly allocated memory (using
- * the M_OFWPROP malloc pool and M_WAITOK). elsz is the size of a single element,
+ * the M_OFWPROP malloc pool and 0). elsz is the size of a single element,
  * the number of elements is return in number.
  */
 int
@@ -305,7 +305,7 @@ OF_getprop_alloc(phandle_t package, char *propname, int elsz, void **buf)
 	    len % elsz != 0)
 		return (-1);
 
-	*buf = malloc(len, M_OFWPROP, M_WAITOK);
+	*buf = malloc(len, M_OFWPROP, 0);
 	if (OF_getprop(package, propname, *buf, len) == -1) {
 		free(*buf, M_OFWPROP);
 		*buf = NULL;

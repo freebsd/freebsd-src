@@ -430,7 +430,7 @@ ef_output(struct ifnet *ifp, struct mbuf **mp, struct sockaddr *dst, short *tp,
 		type = htons(m->m_pkthdr.len);
 		break;
 	    case ETHER_FT_8022:
-		M_PREPEND(m, ETHER_HDR_LEN + 3, M_TRYWAIT);
+		M_PREPEND(m, ETHER_HDR_LEN + 3, 0);
 		if (m == NULL) {
 			*mp = NULL;
 			return ENOBUFS;
@@ -453,7 +453,7 @@ ef_output(struct ifnet *ifp, struct mbuf **mp, struct sockaddr *dst, short *tp,
 		*hlen += 3;
 		break;
 	    case ETHER_FT_SNAP:
-		M_PREPEND(m, 8, M_TRYWAIT);
+		M_PREPEND(m, 8, 0);
 		if (m == NULL) {
 			*mp = NULL;
 			return ENOBUFS;
@@ -484,14 +484,14 @@ ef_clone(struct ef_link *efl, int ft)
 	int ifnlen;
 
 	efp = (struct efnet*)malloc(sizeof(struct efnet), M_IFADDR,
-	    M_WAITOK | M_ZERO);
+	    M_ZERO);
 	if (efp == NULL)
 		return ENOMEM;
 	efp->ef_ifp = ifp;
 	eifp = &efp->ef_ac.ac_if;
 	ifnlen = 1 + snprintf(cbuf, sizeof(cbuf), "%s%df", ifp->if_name,
 	    ifp->if_unit);
-	ifname = (char*)malloc(ifnlen, M_IFADDR, M_WAITOK);
+	ifname = (char*)malloc(ifnlen, M_IFADDR, 0);
 	eifp->if_name = strcpy(ifname, cbuf);
 	eifp->if_unit = ft;
 	eifp->if_softc = efp;
@@ -514,7 +514,7 @@ ef_load(void)
 		if (ifp->if_type != IFT_ETHER) continue;
 		EFDEBUG("Found interface %s%d\n", ifp->if_name, ifp->if_unit);
 		efl = (struct ef_link*)malloc(sizeof(struct ef_link), 
-		    M_IFADDR, M_WAITOK | M_ZERO);
+		    M_IFADDR, M_ZERO);
 		if (efl == NULL) {
 			error = ENOMEM;
 			break;

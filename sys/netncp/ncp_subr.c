@@ -69,7 +69,7 @@ ncp_str_dup(char *s) {
 		len++;
 		if (bt == 0) break;
 	}
-	MALLOC(p, char*, len, M_NCPDATA, M_WAITOK);
+	MALLOC(p, char*, len, M_NCPDATA, 0);
 	copyin(s, p, len);
 	return p;
 }

@@ -552,7 +552,7 @@ urioioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
 			req.bmRequestType & UT_READ ? 
 			UIO_READ : UIO_WRITE;
 		uio.uio_procp = p;
-		ptr = malloc(len, M_TEMP, M_WAITOK);
+		ptr = malloc(len, M_TEMP, 0);
 		if (uio.uio_rw == UIO_WRITE) {
 			error = uiomove(ptr, len, &uio);
 			if (error)

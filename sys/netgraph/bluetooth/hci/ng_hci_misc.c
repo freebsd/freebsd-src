@@ -67,7 +67,7 @@ ng_hci_mtap(ng_hci_unit_p unit, struct mbuf *m0)
 	int		 error = 0;
 
 	if (unit->raw != NULL && NG_HOOK_IS_VALID(unit->raw)) {
-		m = m_dup(m0, M_DONTWAIT);
+		m = m_dup(m0, M_NOWAIT);
 		if (m != NULL)
 			NG_SEND_DATA_ONLY(error, unit->raw, m);
 

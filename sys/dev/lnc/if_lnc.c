@@ -314,10 +314,10 @@ alloc_mbuf_cluster(struct lnc_softc *sc, struct host_ring_entry *desc)
 		sc->mbufs = m->m_next;
 		/* XXX m->m_data = m->m_ext.ext_buf;*/
 	} else {
-		MGET(m, M_DONTWAIT, MT_DATA);
+		MGET(m, M_NOWAIT, MT_DATA);
    	if (!m)
 			return(1);
-        MCLGET(m, M_DONTWAIT);
+        MCLGET(m, M_NOWAIT);
    	if (!m->m_ext.ext_buf) {
 			m_free(m);
 			return(1);
@@ -379,7 +379,7 @@ mbuf_packet(struct lnc_softc *sc, int start_of_packet, int pkt_len)
 	int amount;
 
 	/* Get a pkthdr mbuf for the start of packet */
-	MGETHDR(head, M_DONTWAIT, MT_DATA);
+	MGETHDR(head, M_NOWAIT, MT_DATA);
 	if (!head) {
 		LNCSTATS(drop_packet)
 		return(0);
@@ -409,13 +409,13 @@ mbuf_packet(struct lnc_softc *sc, int start_of_packet, int pkt_len)
 		if (amount == 0) {
 			/* mbuf must be empty */
 			m_prev = m;
-			MGET(m, M_DONTWAIT, MT_DATA);
+			MGET(m, M_NOWAIT, MT_DATA);
 			if (!m) {
 				m_freem(head);
 				return(0);
 			}
 			if (pkt_len >= MINCLSIZE)
-				MCLGET(m, M_DONTWAIT);
+				MCLGET(m, M_NOWAIT);
 			m->m_len = 0;
 			m_prev->m_next = m;
 			amount = min(blen, M_TRAILINGSPACE(m));
@@ -1218,9 +1218,9 @@ chain_to_cluster(struct mbuf *m)
 {
 	struct mbuf *new;
 
-	MGET(new, M_DONTWAIT, MT_DATA);
+	MGET(new, M_NOWAIT, MT_DATA);
 	if (new) {
-		MCLGET(new, M_DONTWAIT);
+		MCLGET(new, M_NOWAIT);
 		if (new->m_ext.ext_buf) {
 			new->m_len = mbuf_to_buffer(m, new->m_data);
 			m_freem(m);

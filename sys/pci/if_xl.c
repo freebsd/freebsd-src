@@ -931,7 +931,7 @@ xl_testpacket(sc)
 
 	ifp = &sc->arpcom.ac_if;
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 
 	if (m == NULL)
 		return;
@@ -1931,11 +1931,11 @@ xl_newbuf(sc, c)
 	int			error;
 	u_int32_t		baddr;
 
-	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+	MGETHDR(m_new, M_NOWAIT, MT_DATA);
 	if (m_new == NULL)
 		return(ENOBUFS);
 
-	MCLGET(m_new, M_DONTWAIT);
+	MCLGET(m_new, M_NOWAIT);
 	if (!(m_new->m_flags & M_EXT)) {
 		m_freem(m_new);
 		return(ENOBUFS);
@@ -2432,14 +2432,14 @@ xl_encap(sc, c, m_head)
 	if (error) {
 		struct mbuf		*m_new = NULL;
 
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+		MGETHDR(m_new, M_NOWAIT, MT_DATA);
 		if (m_new == NULL) {
 			m_freem(m_head);
 			printf("xl%d: no memory for tx list\n", sc->xl_unit);
 			return(1);
 		}
 		if (m_head->m_pkthdr.len > MHLEN) {
-			MCLGET(m_new, M_DONTWAIT);
+			MCLGET(m_new, M_NOWAIT);
 			if (!(m_new->m_flags & M_EXT)) {
 				m_freem(m_new);
 				m_freem(m_head);

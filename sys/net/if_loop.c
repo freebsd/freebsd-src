@@ -147,7 +147,7 @@ lo_clone_create(ifc, unit)
 {
 	struct lo_softc *sc;
 
-	MALLOC(sc, struct lo_softc *, sizeof(*sc), M_LO, M_WAITOK | M_ZERO);
+	MALLOC(sc, struct lo_softc *, sizeof(*sc), M_LO, M_ZERO);
 
 	sc->sc_if.if_name = LONAME;
 	sc->sc_if.if_unit = unit;
@@ -215,7 +215,7 @@ looutput(ifp, m, dst, rt)
 		struct mbuf *n;
 
 		/* XXX MT_HEADER should be m->m_type */
-		MGETHDR(n, M_DONTWAIT, MT_HEADER);
+		MGETHDR(n, M_NOWAIT, MT_HEADER);
 		if (!n)
 			goto contiguousfail;
 		M_MOVE_PKTHDR(n, m);
@@ -227,7 +227,7 @@ looutput(ifp, m, dst, rt)
 		 */
 		m->m_pkthdr.label.l_flags &= ~MAC_FLAG_INITIALIZED;
 #endif
-		MCLGET(n, M_DONTWAIT);
+		MCLGET(n, M_NOWAIT);
 		if (! (n->m_flags & M_EXT)) {
 			m_freem(n);
 			goto contiguousfail;

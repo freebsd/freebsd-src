@@ -275,7 +275,7 @@ ng_btsocket_hci_raw_node_rcvdata(hook_p hook, item_p item)
 	struct mbuf	*nam = NULL;
 	int		 error;
 
-	MGET(nam, M_DONTWAIT, MT_SONAME);
+	MGET(nam, M_NOWAIT, MT_SONAME);
 	if (nam != NULL) {
 		struct sockaddr_hci	*sa = mtod(nam, struct sockaddr_hci *);
 
@@ -348,7 +348,7 @@ ng_btsocket_raw_send_ngmsg(char *path, int cmd, void *arg, int arglen)
 	struct ng_mesg	*msg = NULL;
 	int		 error = 0;
 
-	NG_MKMESSAGE(msg, NGM_HCI_COOKIE, cmd, arglen, M_WAITOK);
+	NG_MKMESSAGE(msg, NGM_HCI_COOKIE, cmd, arglen, 0);
 	if (msg == NULL)
 		return (ENOMEM);
 
@@ -374,7 +374,7 @@ ng_btsocket_raw_send_sync_ngmsg(ng_btsocket_hci_raw_pcb_p pcb, char *path,
 	ng_btsocket_hci_raw_get_token(&pcb->token);
 	pcb->msg = NULL;
 
-	NG_MKMESSAGE(msg, NGM_HCI_COOKIE, cmd, 0, M_WAITOK);
+	NG_MKMESSAGE(msg, NGM_HCI_COOKIE, cmd, 0, 0);
 	if (msg == NULL) {
 		pcb->token = 0;
 		return (ENOMEM);
@@ -504,7 +504,7 @@ ng_btsocket_hci_raw_data_input(struct mbuf *nam)
 		 * will check if socket has enough buffer space.
 		 */
 
-		m = m_dup(m0, M_DONTWAIT);
+		m = m_dup(m0, M_NOWAIT);
 		if (m != NULL) {
 			struct mbuf	*ctl = NULL;
 
@@ -743,7 +743,7 @@ ng_btsocket_hci_raw_attach(struct socket *so, int proto, struct thread *td)
 		return (error);
 
 	MALLOC(pcb, ng_btsocket_hci_raw_pcb_p, sizeof(*pcb), 
-		M_NETGRAPH_BTSOCKET_HCI_RAW, M_WAITOK | M_ZERO);
+		M_NETGRAPH_BTSOCKET_HCI_RAW, M_ZERO);
 	if (pcb == NULL)
 		return (ENOMEM);
 
@@ -956,7 +956,7 @@ ng_btsocket_hci_raw_control(struct socket *so, u_long cmd, caddr_t data,
 		pcb->msg = NULL;
 
 		NG_MKMESSAGE(msg, NGM_HCI_COOKIE,
-			NGM_HCI_NODE_GET_NEIGHBOR_CACHE, 0, M_WAITOK);
+			NGM_HCI_NODE_GET_NEIGHBOR_CACHE, 0, 0);
 		if (msg == NULL) {
 			pcb->token = 0;
 			error = ENOMEM;
@@ -1014,7 +1014,7 @@ ng_btsocket_hci_raw_control(struct socket *so, u_long cmd, caddr_t data,
 		pcb->msg = NULL;
 
 		NG_MKMESSAGE(msg, NGM_HCI_COOKIE, NGM_HCI_NODE_GET_CON_LIST,
-			0, M_WAITOK);
+			0, 0);
 		if (msg == NULL) {
 			pcb->token = 0;
 			error = ENOMEM;
@@ -1271,7 +1271,7 @@ ng_btsocket_hci_raw_send(struct socket *so, int flags, struct mbuf *m,
 		sa = (struct sockaddr *) &pcb->addr;
 	}
 
-	MGET(nam, M_TRYWAIT, MT_SONAME);
+	MGET(nam, 0, MT_SONAME);
 	if (nam == NULL) {
 		error = ENOBUFS;
 		goto drop;

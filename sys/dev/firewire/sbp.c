@@ -763,7 +763,7 @@ END_DEBUG
 static void
 sbp_cam_scan_lun(struct sbp_dev *sdev)
 {
-	union ccb *ccb = malloc(sizeof(union ccb), M_SBP, M_WAITOK | M_ZERO);
+	union ccb *ccb = malloc(sizeof(union ccb), M_SBP, M_ZERO);
 
 SBP_DEBUG(0)
 	sbp_show_sdev_info(sdev, 2);
@@ -822,9 +822,9 @@ sbp_ping_unit(struct sbp_dev *sdev)
 	union ccb *ccb;
 	struct scsi_inquiry_data *inq_buf;
 
-	ccb = malloc(sizeof(union ccb), M_SBP, M_WAITOK | M_ZERO);
+	ccb = malloc(sizeof(union ccb), M_SBP, M_ZERO);
 	inq_buf = (struct scsi_inquiry_data *)
-			malloc(sizeof(*inq_buf), M_SBP, M_WAITOK);
+			malloc(sizeof(*inq_buf), M_SBP, 0);
 
 SBP_DEBUG(1)
 	sbp_show_sdev_info(sdev, 2);

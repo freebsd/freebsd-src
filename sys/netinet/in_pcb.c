@@ -663,7 +663,7 @@ in_sockaddr(port, addr_p)
 	struct sockaddr_in *sin;
 
 	MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME,
-		M_WAITOK | M_ZERO);
+		M_ZERO);
 	sin->sin_family = AF_INET;
 	sin->sin_len = sizeof(*sin);
 	sin->sin_addr = *addr_p;

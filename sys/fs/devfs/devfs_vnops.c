@@ -608,7 +608,7 @@ devfs_readdir(ap)
 	}
 	if( !error && ap->a_ncookies != NULL && ap->a_cookies != NULL ) {
 		MALLOC(cookiebuf, u_long *, ncookies * sizeof(u_long),
-                       M_TEMP, M_WAITOK);
+                       M_TEMP, 0);
 		cookiep = cookiebuf;
 		dps = (struct dirent *)((char *)uio->uio_iov->iov_base -
 		    (uio->uio_offset - oldoff));
@@ -859,7 +859,7 @@ devfs_symlink(ap)
 	de->de_inode = dmp->dm_inode++;
 	de->de_dirent->d_type = DT_LNK;
 	i = strlen(ap->a_target) + 1;
-	MALLOC(de->de_symlink, char *, i, M_DEVFS, M_WAITOK);
+	MALLOC(de->de_symlink, char *, i, M_DEVFS, 0);
 	bcopy(ap->a_target, de->de_symlink, i);
 	lockmgr(&dmp->dm_lock, LK_EXCLUSIVE, 0, curthread);
 #ifdef MAC

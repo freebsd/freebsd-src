@@ -1109,11 +1109,11 @@ ip6_fw_ctl(int stage, struct mbuf **mm)
 
 	if (stage == IPV6_FW_GET) {
 		struct ip6_fw_chain *fcp = ip6_fw_chain.lh_first;
-		*mm = m = m_get(M_TRYWAIT, MT_DATA); /* XXX */
+		*mm = m = m_get(0, MT_DATA); /* XXX */
 		if (!m)
 			return(ENOBUFS);
 		if (sizeof *(fcp->rule) > MLEN) {
-			MCLGET(m, M_TRYWAIT);
+			MCLGET(m, 0);
 			if ((m->m_flags & M_EXT) == 0) {
 				m_free(m);
 				return(ENOBUFS);
@@ -1122,14 +1122,14 @@ ip6_fw_ctl(int stage, struct mbuf **mm)
 		for (; fcp; fcp = fcp->chain.le_next) {
 			bcopy(fcp->rule, m->m_data, sizeof *(fcp->rule));
 			m->m_len = sizeof *(fcp->rule);
-			m->m_next = m_get(M_TRYWAIT, MT_DATA); /* XXX */
+			m->m_next = m_get(0, MT_DATA); /* XXX */
 			if (!m->m_next) {
 				m_freem(*mm);
 				return(ENOBUFS);
 			}
 			m = m->m_next;
 			if (sizeof *(fcp->rule) > MLEN) {
-				MCLGET(m, M_TRYWAIT);
+				MCLGET(m, 0);
 				if ((m->m_flags & M_EXT) == 0) {
 					m_freem(*mm);
 					return(ENOBUFS);

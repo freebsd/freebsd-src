@@ -832,7 +832,7 @@ bt3c_receive(bt3c_softc_p sc)
 			sc->state = NG_BT3C_W4_PKT_IND;
 			sc->want = 1;
 
-			MGETHDR(sc->m, M_DONTWAIT, MT_DATA);
+			MGETHDR(sc->m, M_NOWAIT, MT_DATA);
 			if (sc->m == NULL) {
 				NG_BT3C_ERR(sc->dev, "Could not get mbuf\n");
 				NG_BT3C_STAT_IERROR(sc->stat);
@@ -996,7 +996,7 @@ bt3c_append(struct mbuf *m0, int c)
 	}
 
 	if (m->m_len >= len) {
-		MGET(m->m_next, M_DONTWAIT, m0->m_type);
+		MGET(m->m_next, M_NOWAIT, m0->m_type);
 		if (m->m_next == NULL)
 			return (ENOBUFS);
  

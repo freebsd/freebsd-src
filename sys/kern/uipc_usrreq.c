@@ -533,7 +533,7 @@ unp_attach(so)
 		if (error)
 			return (error);
 	}
-	unp = uma_zalloc(unp_zone, M_WAITOK);
+	unp = uma_zalloc(unp_zone, 0);
 	if (unp == NULL)
 		return (ENOBUFS);
 	bzero(unp, sizeof *unp);
@@ -605,7 +605,7 @@ unp_bind(unp, nam, td)
 	if (namelen <= 0)
 		return EINVAL;
 
-	buf = malloc(namelen + 1, M_TEMP, M_WAITOK);
+	buf = malloc(namelen + 1, M_TEMP, 0);
 	strlcpy(buf, soun->sun_path, namelen + 1);
 
 restart:
@@ -848,7 +848,7 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 	/*
 	 * OK, now we're committed to doing something.
 	 */
-	xug = malloc(sizeof(*xug), M_TEMP, M_WAITOK);
+	xug = malloc(sizeof(*xug), M_TEMP, 0);
 	gencnt = unp_gencnt;
 	n = unp_count;
 
@@ -862,7 +862,7 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 		return error;
 	}
 
-	unp_list = malloc(n * sizeof *unp_list, M_TEMP, M_WAITOK);
+	unp_list = malloc(n * sizeof *unp_list, M_TEMP, 0);
 	
 	for (unp = LIST_FIRST(head), i = 0; unp && i < n;
 	     unp = LIST_NEXT(unp, unp_link)) {
@@ -876,7 +876,7 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 	n = i;			/* in case we lost some during malloc */
 
 	error = 0;
-	xu = malloc(sizeof(*xu), M_TEMP, M_WAITOK);
+	xu = malloc(sizeof(*xu), M_TEMP, 0);
 	for (i = 0; i < n; i++) {
 		unp = unp_list[i];
 		if (unp->unp_gencnt <= gencnt) {
@@ -1379,7 +1379,7 @@ unp_gc()
 	 *
 	 * 91/09/19, bsy@cs.cmu.edu
 	 */
-	extra_ref = malloc(nfiles * sizeof(struct file *), M_TEMP, M_WAITOK);
+	extra_ref = malloc(nfiles * sizeof(struct file *), M_TEMP, 0);
 	sx_slock(&filelist_lock);
 	for (nunref = 0, fp = LIST_FIRST(&filehead), fpp = extra_ref; fp != 0;
 	    fp = nextfp) {

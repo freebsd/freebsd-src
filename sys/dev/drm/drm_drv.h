@@ -1451,7 +1451,7 @@ DRM(linux_ioctl)(DRM_OS_STRUCTPROC *p, struct linux_ioctl_args* args)
 	if ( size > STK_PARAMS ) {
 		if ( size > IOCPARM_MAX )
 			return EINVAL;
-		memp = malloc( (u_long)size, DRM(M_DRM), M_WAITOK );
+		memp = malloc( (u_long)size, DRM(M_DRM), 0 );
 		data = memp;
 	} else {
 		data = ubuf.stkbuf;

@@ -96,7 +96,7 @@ hid_start_parse(void *d, int len, int kindset)
 {
 	struct hid_data *s;
 
-	s = malloc(sizeof *s, M_TEMP, M_WAITOK|M_ZERO);
+	s = malloc(sizeof *s, M_TEMP, M_ZERO);
 	s->start = s->p = d;
 	s->end = (char *)d + len;
 	s->kindset = kindset;
@@ -288,7 +288,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 				c->loc.count = dval;
 				break;
 			case 10: /* Push */
-				hi = malloc(sizeof *hi, M_TEMP, M_WAITOK);
+				hi = malloc(sizeof *hi, M_TEMP, 0);
 				*hi = s->cur;
 				c->next = hi;
 				break;

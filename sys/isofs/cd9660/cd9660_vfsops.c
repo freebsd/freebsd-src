@@ -411,7 +411,7 @@ iso_mountfs(devvp, mp, td, argp)
 		 pri_sierra->root_directory_record:
 		 pri->root_directory_record);
 
-	isomp = malloc(sizeof *isomp, M_ISOFSMNT, M_WAITOK | M_ZERO);
+	isomp = malloc(sizeof *isomp, M_ISOFSMNT, M_ZERO);
 	isomp->logical_block_size = logical_block_size;
 	isomp->volume_space_size =
 		isonum_733 (high_sierra?
@@ -712,7 +712,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 		return (error);
 	}
 	MALLOC(ip, struct iso_node *, sizeof(struct iso_node), M_ISOFSNODE,
-	    M_WAITOK | M_ZERO);
+	    M_ZERO);
 	vp->v_data = ip;
 	ip->i_vnode = vp;
 	ip->i_dev = dev;

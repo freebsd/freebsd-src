@@ -1859,7 +1859,7 @@ ciss_user_command(struct ciss_softc *sc, IOCTL_Command_struct *ioc)
      */
     cr->cr_length = ioc->buf_size;
     if (ioc->buf_size > 0) {
-	if ((cr->cr_data = malloc(ioc->buf_size, CISS_MALLOC_CLASS, M_WAITOK)) == NULL) {
+	if ((cr->cr_data = malloc(ioc->buf_size, CISS_MALLOC_CLASS, 0)) == NULL) {
 	    error = ENOMEM;
 	    goto out;
 	}
@@ -2038,7 +2038,7 @@ ciss_cam_rescan_target(struct ciss_softc *sc, int target)
 
     debug_called(1);
 
-    if ((ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK | M_ZERO)) == NULL) {
+    if ((ccb = malloc(sizeof(union ccb), M_TEMP, M_ZERO)) == NULL) {
 	ciss_printf(sc, "rescan failed (can't allocate CCB)\n");
 	return;
     }

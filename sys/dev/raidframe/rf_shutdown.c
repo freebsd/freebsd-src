@@ -61,7 +61,7 @@ _rf_ShutdownCreate(
          * and shutdown after RAIDframe internal allocation system.
          */
 	/* 	ent = (RF_ShutdownList_t *) malloc(sizeof(RF_ShutdownList_t), 
-		M_RAIDFRAME, M_WAITOK); */
+		M_RAIDFRAME, 0); */
 	ent = (RF_ShutdownList_t *) malloc(sizeof(RF_ShutdownList_t), 
 					   M_RAIDFRAME, M_NOWAIT);
 	if (ent == NULL)

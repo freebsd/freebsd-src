@@ -232,7 +232,7 @@ spans_send_open_req(spp, svp)
 	/*
 	 * Get memory for a request message
 	 */
-	req = uma_zalloc(spans_msg_zone, M_WAITOK);
+	req = uma_zalloc(spans_msg_zone, 0);
 	if (req == NULL) {
 		err = ENOBUFS;
 		goto done;
@@ -290,7 +290,7 @@ spans_send_open_rsp(spp, svp, result)
 	/*
 	 * Get memory for a response message
 	 */
-	rsp = uma_zalloc(spans_msg_zone, M_WAITOK);
+	rsp = uma_zalloc(spans_msg_zone, 0);
 	if (rsp == NULL)
 		return(ENOBUFS);
 
@@ -340,7 +340,7 @@ spans_send_close_req(spp, svp)
 	/*
 	 * Get memory for a close request
 	 */
-	req = uma_zalloc(spans_msg_zone, M_WAITOK);
+	req = uma_zalloc(spans_msg_zone, 0);
 	if (req == NULL) {
 		err = ENOBUFS;
 		goto done;
@@ -468,7 +468,7 @@ spans_status_ind(spp, msg)
 	 * Respond to the status request or indication with a
 	 * status response
 	 */
-	rsp_msg = uma_zalloc(spans_msg_zone, M_WAITOK);
+	rsp_msg = uma_zalloc(spans_msg_zone, 0);
 	if (rsp_msg == NULL)
 		return;
 	rsp_msg->sm_vers = SPANS_VERS_1_0;
@@ -658,7 +658,7 @@ spans_open_req(spp, msg)
 	/*
 	 * Get a new VCCB for the connection
 	 */
-	svp = uma_zalloc(spans_vc_zone, M_WAITOK);
+	svp = uma_zalloc(spans_vc_zone, 0);
 	if (svp == NULL) {
 		ATM_DEBUG0("spans_open_req: VCCB pool empty\n");
 		result = SPANS_NORSC;
@@ -808,7 +808,7 @@ response:
 	 * Some problem was detected with the request.  Send a SPANS
 	 * message rejecting the connection.
 	 */
-	rsp_msg = uma_zalloc(spans_msg_zone, M_WAITOK);
+	rsp_msg = uma_zalloc(spans_msg_zone, 0);
 	if (rsp_msg == NULL)
 		return;
 
@@ -1034,7 +1034,7 @@ response:
 	/*
 	 * Respond to the SPANS_CLOSE_IND with a SPANS_CLOSE_RSP
 	 */
-	rsp_msg = uma_zalloc(spans_msg_zone, M_WAITOK);
+	rsp_msg = uma_zalloc(spans_msg_zone, 0);
 	if (rsp_msg == NULL)
 		return;
 	rsp_msg->sm_vers = SPANS_VERS_1_0;
@@ -1169,7 +1169,7 @@ spans_multi_req(spp, msg)
 	/*
 	 * Get memory for a SPANS_MULTI_RSP message.
 	 */
-	rsp_msg = uma_zalloc(spans_msg_zone, M_WAITOK);
+	rsp_msg = uma_zalloc(spans_msg_zone, 0);
 	if (rsp_msg == NULL)
 		return;
 
@@ -1215,7 +1215,7 @@ spans_add_req(spp, msg)
 	/*
 	 * Get memory for a SPANS_ADD_RSP message.
 	 */
-	rsp_msg = uma_zalloc(spans_msg_zone, M_WAITOK);
+	rsp_msg = uma_zalloc(spans_msg_zone, 0);
 	if (rsp_msg == NULL)
 		return;
 
@@ -1262,7 +1262,7 @@ spans_join_req(spp, msg)
 	/*
 	 * Get memory for a SPANS_JOIN_CNF message.
 	 */
-	rsp_msg = uma_zalloc(spans_msg_zone, M_WAITOK);
+	rsp_msg = uma_zalloc(spans_msg_zone, 0);
 	if (rsp_msg == NULL)
 		return;
 
@@ -1307,7 +1307,7 @@ spans_leave_req(spp, msg)
 	/*
 	 * Get memory for a SPANS_LEAVE_CNF message.
 	 */
-	rsp_msg = uma_zalloc(spans_msg_zone, M_WAITOK);
+	rsp_msg = uma_zalloc(spans_msg_zone, 0);
 	if (rsp_msg == NULL)
 		return;
 
@@ -1401,7 +1401,7 @@ spans_query_req(spp, msg)
 	/*
 	 * Get memory for a SPANS_QUERY_RSP message.
 	 */
-	rsp_msg = uma_zalloc(spans_msg_zone, M_WAITOK);
+	rsp_msg = uma_zalloc(spans_msg_zone, 0);
 	if (rsp_msg == NULL)
 		return;
 
@@ -1489,7 +1489,7 @@ spans_rcv_msg(spp, m)
 	/*
 	 * Get storage for the message
 	 */
-	msg = uma_zalloc(spans_msg_zone, M_WAITOK);
+	msg = uma_zalloc(spans_msg_zone, 0);
 	if (msg == NULL)
 		return;
 

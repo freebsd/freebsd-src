@@ -311,7 +311,7 @@ sr_attach(device_t device)
 	hc = (struct sr_hardc *)device_get_softc(device);
 	MALLOC(sc, struct sr_softc *,
 		hc->numports * sizeof(struct sr_softc),
-		M_DEVBUF, M_WAITOK | M_ZERO);
+		M_DEVBUF, M_ZERO);
 	if (sc == NULL)
 		goto errexit;
 	hc->sc = sc;
@@ -2088,7 +2088,7 @@ sr_get_packets(struct sr_softc *sc)
 			       sc->unit, rxstat, len);
 #endif
 
-			MGETHDR(m, M_DONTWAIT, MT_DATA);
+			MGETHDR(m, M_NOWAIT, MT_DATA);
 			if (m == NULL) {
 				/*
 				 * eat (flush) packet if get mbuf fail!!
@@ -2106,7 +2106,7 @@ sr_get_packets(struct sr_softc *sc)
 #endif /* NETGRAPH */
 			m->m_pkthdr.len = m->m_len = len;
 			if (len > MHLEN) {
-				MCLGET(m, M_DONTWAIT);
+				MCLGET(m, M_NOWAIT);
 				if ((m->m_flags & M_EXT) == 0) {
 					/*
 					 * We couldn't get a big enough

@@ -103,7 +103,7 @@ sc_vtb_init(sc_vtb_t *vtb, int type, int cols, int rows, void *buf, int wait)
 			vtb->vtb_buffer =
 			    (vm_offset_t)malloc(cols*rows*sizeof(u_int16_t)*2,
 				M_DEVBUF, 
-				((wait) ? M_WAITOK : M_NOWAIT) | M_ZERO);
+				((wait) ? 0 : M_NOWAIT) | M_ZERO);
 			if (vtb->vtb_buffer != 0) {
 				vtb->vtb_flags |= VTB_ALLOCED;
 			}

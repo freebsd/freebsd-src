@@ -286,7 +286,7 @@ elan_write(dev_t dev, struct uio *uio, int ioflag)
 
 	if (uio->uio_resid > 512)
 		return (EINVAL);
-	s = malloc(uio->uio_resid + 1, M_DEVBUF, M_WAITOK);
+	s = malloc(uio->uio_resid + 1, M_DEVBUF, 0);
 	if (s == NULL)
 		return (ENOMEM);
 	untimeout(timeout_errled, NULL, errled_h);

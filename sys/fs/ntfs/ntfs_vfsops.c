@@ -309,7 +309,7 @@ ntfs_mountfs(devvp, mp, argsp, td)
 	error = bread(devvp, BBLOCK, BBSIZE, NOCRED, &bp);
 	if (error)
 		goto out;
-	ntmp = malloc( sizeof *ntmp, M_NTFSMNT, M_WAITOK | M_ZERO);
+	ntmp = malloc( sizeof *ntmp, M_NTFSMNT, M_ZERO);
 	bcopy( bp->b_data, &ntmp->ntm_bootfile, sizeof(struct bootfile) );
 	brelse( bp );
 	bp = NULL;
@@ -415,7 +415,7 @@ ntfs_mountfs(devvp, mp, argsp, td)
 		/* Alloc memory for attribute definitions */
 		MALLOC(ntmp->ntm_ad, struct ntvattrdef *,
 			num * sizeof(struct ntvattrdef),
-			M_NTFSMNT, M_WAITOK);
+			M_NTFSMNT, 0);
 
 		ntmp->ntm_adnum = num;
 
@@ -562,7 +562,7 @@ ntfs_calccfree(
 
 	bmsize = VTOF(vp)->f_size;
 
-	MALLOC(tmp, u_int8_t *, bmsize, M_TEMP, M_WAITOK);
+	MALLOC(tmp, u_int8_t *, bmsize, M_TEMP, 0);
 
 	error = ntfs_readattr(ntmp, VTONT(vp), NTFS_A_DATA, NULL,
 			       0, bmsize, tmp, NULL);

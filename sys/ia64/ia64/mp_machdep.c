@@ -222,7 +222,7 @@ cpu_mp_start()
 			 * recording a trapframe.
 			 */
 			ks = contigmalloc(KSTACK_PAGES * PAGE_SIZE, M_TEMP,
-					  M_WAITOK,
+					  0,
 					  0ul,
 					  256*1024*1024 - 1,
 					  PAGE_SIZE,

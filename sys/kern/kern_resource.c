@@ -839,7 +839,7 @@ limcopy(lim)
 	register struct plimit *copy;
 
 	MALLOC(copy, struct plimit *, sizeof(struct plimit),
-	    M_SUBPROC, M_WAITOK);
+	    M_SUBPROC, 0);
 	bcopy(lim->pl_rlimit, copy->pl_rlimit, sizeof(struct plimit));
 	copy->p_lflags = 0;
 	copy->p_refcnt = 1;
@@ -896,7 +896,7 @@ uifind(uid)
 		struct  uidinfo *old_uip;
 
 		mtx_unlock(&uihashtbl_mtx);
-		uip = malloc(sizeof(*uip), M_UIDINFO, M_WAITOK | M_ZERO);
+		uip = malloc(sizeof(*uip), M_UIDINFO, M_ZERO);
 		mtx_lock(&uihashtbl_mtx);
 		/*
 		 * There's a chance someone created our uidinfo while we

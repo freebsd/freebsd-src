@@ -2848,7 +2848,7 @@ get_palette(video_adapter_t *adp, int base, int count,
     if ((base < 0) || (base >= 256) || (base + count > 256))
 	return EINVAL;
 
-    r = malloc(count*3, M_DEVBUF, M_WAITOK);
+    r = malloc(count*3, M_DEVBUF, 0);
     g = r + count;
     b = g + count;
     if (vga_save_palette2(adp, base, count, r, g, b)) {
@@ -2879,7 +2879,7 @@ set_palette(video_adapter_t *adp, int base, int count,
     if ((base < 0) || (base >= 256) || (base + count > 256))
 	return EINVAL;
 
-    r = malloc(count*3, M_DEVBUF, M_WAITOK);
+    r = malloc(count*3, M_DEVBUF, 0);
     g = r + count;
     b = g + count;
     copyin(red, r, count);

@@ -368,7 +368,7 @@ ufs_access(ap)
 
 #ifdef UFS_ACL
 	if ((vp->v_mount->mnt_flag & MNT_ACLS) != 0) {
-		MALLOC(acl, struct acl *, sizeof(*acl), M_ACL, M_WAITOK);
+		MALLOC(acl, struct acl *, sizeof(*acl), M_ACL, 0);
 		len = sizeof(*acl);
 		error = VOP_GETACL(vp, ACL_TYPE_ACCESS, acl, ap->a_cred,
 		    ap->a_td);
@@ -1442,8 +1442,8 @@ ufs_mkdir(ap)
 #ifdef UFS_ACL
 	acl = dacl = NULL;
 	if ((dvp->v_mount->mnt_flag & MNT_ACLS) != 0) {
-		MALLOC(acl, struct acl *, sizeof(*acl), M_ACL, M_WAITOK);
-		MALLOC(dacl, struct acl *, sizeof(*dacl), M_ACL, M_WAITOK);
+		MALLOC(acl, struct acl *, sizeof(*acl), M_ACL, 0);
+		MALLOC(dacl, struct acl *, sizeof(*dacl), M_ACL, 0);
 
 		/*
 		 * Retrieve default ACL from parent, if any.
@@ -1845,7 +1845,7 @@ ufs_readdir(ap)
 			auio.uio_iovcnt = 1;
 			auio.uio_segflg = UIO_SYSSPACE;
 			aiov.iov_len = count;
-			MALLOC(dirbuf, caddr_t, count, M_TEMP, M_WAITOK);
+			MALLOC(dirbuf, caddr_t, count, M_TEMP, 0);
 			aiov.iov_base = dirbuf;
 			error = VOP_READ(ap->a_vp, &auio, 0, ap->a_cred);
 			if (error == 0) {
@@ -1889,7 +1889,7 @@ ufs_readdir(ap)
 		     dp = (struct dirent *)((caddr_t) dp + dp->d_reclen))
 			ncookies++;
 		MALLOC(cookies, u_long *, ncookies * sizeof(u_long), M_TEMP,
-		    M_WAITOK);
+		    0);
 		for (dp = dpStart, cookiep = cookies;
 		     dp < dpEnd;
 		     dp = (struct dirent *)((caddr_t) dp + dp->d_reclen)) {
@@ -2422,7 +2422,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 #ifdef UFS_ACL
 	acl = NULL;
 	if ((dvp->v_mount->mnt_flag & MNT_ACLS) != 0) {
-		MALLOC(acl, struct acl *, sizeof(*acl), M_ACL, M_WAITOK);
+		MALLOC(acl, struct acl *, sizeof(*acl), M_ACL, 0);
 
 		/*
 		 * Retrieve default ACL for parent, if any.

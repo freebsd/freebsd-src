@@ -768,13 +768,13 @@ txp_rx_reclaim(sc, r)
 			 */
 			struct mbuf *mnew;
 
-			MGETHDR(mnew, M_DONTWAIT, MT_DATA);
+			MGETHDR(mnew, M_NOWAIT, MT_DATA);
 			if (mnew == NULL) {
 				m_freem(m);
 				goto next;
 			}
 			if (m->m_len > (MHLEN - 2)) {
-				MCLGET(mnew, M_DONTWAIT);
+				MCLGET(mnew, M_NOWAIT);
 				if (!(mnew->m_flags & M_EXT)) {
 					m_freem(mnew);
 					m_freem(m);
@@ -847,11 +847,11 @@ txp_rxbuf_reclaim(sc)
 		if (sd->sd_mbuf != NULL)
 			break;
 
-		MGETHDR(sd->sd_mbuf, M_DONTWAIT, MT_DATA);
+		MGETHDR(sd->sd_mbuf, M_NOWAIT, MT_DATA);
 		if (sd->sd_mbuf == NULL)
 			goto err_sd;
 
-		MCLGET(sd->sd_mbuf, M_DONTWAIT);
+		MCLGET(sd->sd_mbuf, M_NOWAIT);
 		if ((sd->sd_mbuf->m_flags & M_EXT) == 0)
 			goto err_mbuf;
 		sd->sd_mbuf->m_pkthdr.rcvif = ifp;
@@ -1142,11 +1142,11 @@ txp_rxring_fill(sc)
 
 	for (i = 0; i < RXBUF_ENTRIES; i++) {
 		sd = sc->sc_rxbufs[i].rb_sd;
-		MGETHDR(sd->sd_mbuf, M_DONTWAIT, MT_DATA);
+		MGETHDR(sd->sd_mbuf, M_NOWAIT, MT_DATA);
 		if (sd->sd_mbuf == NULL)
 			return(ENOBUFS);
 
-		MCLGET(sd->sd_mbuf, M_DONTWAIT);
+		MCLGET(sd->sd_mbuf, M_NOWAIT);
 		if ((sd->sd_mbuf->m_flags & M_EXT) == 0) {
 			m_freem(sd->sd_mbuf);
 			return(ENOBUFS);

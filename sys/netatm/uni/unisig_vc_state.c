@@ -456,7 +456,7 @@ unisig_vc_act04(usp, uvp, msg)
 		vpi = msg->msg_ie_cnid->ie_cnid_vpci;
 		vci = msg->msg_ie_cnid->ie_cnid_vci;
 	} else {
-		iep = uma_zalloc(unisig_ie_zone, M_WAITOK);
+		iep = uma_zalloc(unisig_ie_zone, 0);
 		if (iep == NULL)
 			return (ENOMEM);
 		iep->ie_ident = UNI_IE_CNID;
@@ -548,10 +548,10 @@ unisig_vc_act05(usp, uvp, msg)
 	/*
 	 * Send a RELEASE message
 	 */
-	rls_msg = uma_zalloc(unisig_msg_zone, M_WAITOK | M_ZERO);
+	rls_msg = uma_zalloc(unisig_msg_zone, M_ZERO);
 	if (rls_msg == NULL)
 		return(ENOMEM);
-	cause_ie = uma_zalloc(unisig_ie_zone, M_WAITOK | M_ZERO);
+	cause_ie = uma_zalloc(unisig_ie_zone, M_ZERO);
 	if (cause_ie == NULL) {
 		uma_zfree(unisig_msg_zone, rls_msg);
 		return(ENOMEM);
@@ -668,7 +668,7 @@ unisig_vc_act06(usp, uvp, msg)
 		 * No--VCI must have been specified earlier
 		 */
 		if (!uvp->uv_vci) {
-			iep = uma_zalloc(unisig_ie_zone, M_WAITOK);
+			iep = uma_zalloc(unisig_ie_zone, 0);
 			if (iep == NULL)
 				return(ENOMEM);
 			iep->ie_ident = UNI_IE_CNID;
@@ -742,7 +742,7 @@ unisig_vc_act06(usp, uvp, msg)
 	/*
 	 * Get memory for a CONNECT ACK message
 	 */
-	cack_msg = uma_zalloc(unisig_msg_zone, M_WAITOK);
+	cack_msg = uma_zalloc(unisig_msg_zone, 0);
 	if (cack_msg == NULL)
 		return(ENOMEM);
 
@@ -1058,7 +1058,7 @@ unisig_vc_act09(usp, uvp, msg)
 	int			rc;
 	struct unisig_msg	*conn_msg;
 
-	conn_msg = uma_zalloc(unisig_msg_zone, M_WAITOK);
+	conn_msg = uma_zalloc(unisig_msg_zone, 0);
 	if (conn_msg == NULL)
 		return(ENOMEM);
 
@@ -1389,7 +1389,7 @@ unisig_vc_act15(usp, uvp, msg)
 			}
 		}
 		if (cause == UNI_IE_CAUS_MISSING) {
-			iep = uma_zalloc(unisig_ie_zone, M_WAITOK);
+			iep = uma_zalloc(unisig_ie_zone, 0);
 			if (iep == NULL)
 				return(ENOMEM);
 			iep->ie_ident = UNI_IE_CNID;
@@ -1611,7 +1611,7 @@ unisig_vc_act20(usp, uvp, msg)
 	/*
 	 * Get memory for a STATUS ENQUIRY message
 	 */
-	stat_msg = uma_zalloc(unisig_msg_zone, M_WAITOK);
+	stat_msg = uma_zalloc(unisig_msg_zone, 0);
 	if (stat_msg == NULL)
 		return(ENOMEM);
 
@@ -1757,15 +1757,15 @@ unisig_vc_act22(usp, uvp, msg)
 	/*
 	 * Get memory for a STATUS message
 	 */
-	status = uma_zalloc(unisig_msg_zone, M_WAITOK | M_ZERO);
+	status = uma_zalloc(unisig_msg_zone, M_ZERO);
 	if (status == NULL)
 		return(ENOMEM);
-	callst_ie = uma_zalloc(unisig_ie_zone, M_WAITOK | M_ZERO);
+	callst_ie = uma_zalloc(unisig_ie_zone, M_ZERO);
 	if (callst_ie == NULL) {
 		uma_zfree(unisig_msg_zone, status);
 		return(ENOMEM);
 	}
-	cause_ie = uma_zalloc(unisig_ie_zone, M_WAITOK | M_ZERO); 
+	cause_ie = uma_zalloc(unisig_ie_zone, M_ZERO);
 	if (cause_ie == NULL) {
 		uma_zfree(unisig_msg_zone, status);
 		uma_zfree(unisig_ie_zone, callst_ie);
@@ -1859,7 +1859,7 @@ unisig_vc_act23(usp, uvp, msg)
 	/*
 	 * Get memory for the ADD PARTY REJECT message
 	 */
-	apr_msg = uma_zalloc(unisig_msg_zone, M_WAITOK | M_ZERO);
+	apr_msg = uma_zalloc(unisig_msg_zone, M_ZERO);
 	if (apr_msg == NULL)
 		return(ENOMEM);
 

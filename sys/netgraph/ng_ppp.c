@@ -1595,7 +1595,7 @@ deliver:
 			/* Split off next fragment as "m2" */
 			m2 = m;
 			if (!lastFragment) {
-				struct mbuf *n = m_split(m, len, M_DONTWAIT);
+				struct mbuf *n = m_split(m, len, M_NOWAIT);
 
 				if (n == NULL) {
 					NG_FREE_M(m);
@@ -1916,7 +1916,7 @@ ng_ppp_addproto(struct mbuf *m, int proto, int compOK)
 static struct mbuf *
 ng_ppp_prepend(struct mbuf *m, const void *buf, int len)
 {
-	M_PREPEND(m, len, M_DONTWAIT);
+	M_PREPEND(m, len, M_NOWAIT);
 	if (m == NULL || (m->m_len < len && (m = m_pullup(m, len)) == NULL))
 		return (NULL);
 	bcopy(buf, mtod(m, u_char *), len);

@@ -548,8 +548,8 @@ lptopen(dev_t dev, int flags, int fmt, struct thread *td)
 	ppb_wctr(ppbus, sc->sc_control);
 
 	sc->sc_state = OPEN;
-	sc->sc_inbuf = malloc(BUFSIZE, M_DEVBUF, M_WAITOK);
-	sc->sc_statbuf = malloc(BUFSTATSIZE, M_DEVBUF, M_WAITOK);
+	sc->sc_inbuf = malloc(BUFSIZE, M_DEVBUF, 0);
+	sc->sc_statbuf = malloc(BUFSTATSIZE, M_DEVBUF, 0);
 	sc->sc_xfercnt = 0;
 	splx(s);
 

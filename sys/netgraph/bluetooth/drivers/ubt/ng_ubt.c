@@ -1012,7 +1012,7 @@ ubt_intr_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 
 	/* Copy HCI event frame to mbuf */
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL) {
 		NG_UBT_ALERT(
 "%s: %s - Could not allocate mbuf\n", __func__, USBDEVNAME(sc->sc_dev));
@@ -1148,7 +1148,7 @@ ubt_bulk_in_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 	if (h->actlen < sizeof(*hdr))
 		goto done;
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL) {
 		NG_UBT_ALERT(
 "%s: %s - Could not allocate mbuf\n", __func__, USBDEVNAME(sc->sc_dev));
@@ -1426,7 +1426,7 @@ ubt_isoc_in_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 
 	/* Copy SCO data frame to mbuf */
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL) {
 		NG_UBT_ALERT(
 "%s: %s - Could not allocate mbuf\n",

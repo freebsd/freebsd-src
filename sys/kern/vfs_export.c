@@ -122,7 +122,7 @@ vfs_hang_addrlist(mp, nep, argp)
 		return (EINVAL);
 
 	i = sizeof(struct netcred) + argp->ex_addrlen + argp->ex_masklen;
-	np = (struct netcred *) malloc(i, M_NETADDR, M_WAITOK | M_ZERO);
+	np = (struct netcred *) malloc(i, M_NETADDR, M_ZERO);
 	saddr = (struct sockaddr *) (np + 1);
 	if ((error = copyin(argp->ex_addr, saddr, argp->ex_addrlen)))
 		goto out;
@@ -236,7 +236,7 @@ vfs_export(mp, argp)
 	}
 	if (argp->ex_flags & MNT_EXPORTED) {
 		if (nep == NULL) {
-			nep = malloc(sizeof(struct netexport), M_MOUNT, M_WAITOK | M_ZERO);
+			nep = malloc(sizeof(struct netexport), M_MOUNT, M_ZERO);
 			mp->mnt_export = nep;
 		}
 		if (argp->ex_flags & MNT_EXPUBLIC) {
@@ -306,7 +306,7 @@ vfs_setpublicfs(mp, nep, argp)
 	 */
 	if (argp->ex_indexfile != NULL) {
 		MALLOC(nfs_pub.np_index, char *, MAXNAMLEN + 1, M_TEMP,
-		    M_WAITOK);
+		    0);
 		error = copyinstr(argp->ex_indexfile, nfs_pub.np_index,
 		    MAXNAMLEN, (size_t *)0);
 		if (!error) {

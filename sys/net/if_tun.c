@@ -240,7 +240,7 @@ tuncreate(dev_t dev)
 		dev = make_dev(&tun_cdevsw, minor(dev),
 		    UID_UUCP, GID_DIALER, 0600, "tun%d", dev2unit(dev));
 
-	MALLOC(sc, struct tun_softc *, sizeof(*sc), M_TUN, M_WAITOK | M_ZERO);
+	MALLOC(sc, struct tun_softc *, sizeof(*sc), M_TUN, M_ZERO);
 	sc->tun_flags = TUN_INITED;
 	sc->next = tunhead;
 	tunhead = sc;
@@ -494,7 +494,7 @@ tunoutput(
 	/* prepend sockaddr? this may abort if the mbuf allocation fails */
 	if (tp->tun_flags & TUN_LMODE) {
 		/* allocate space for sockaddr */
-		M_PREPEND(m0, dst->sa_len, M_DONTWAIT);
+		M_PREPEND(m0, dst->sa_len, M_NOWAIT);
 
 		/* if allocation failed drop packet */
 		if (m0 == NULL) {
@@ -508,7 +508,7 @@ tunoutput(
 
 	if (tp->tun_flags & TUN_IFHEAD) {
 		/* Prepend the address family */
-		M_PREPEND(m0, 4, M_DONTWAIT);
+		M_PREPEND(m0, 4, M_NOWAIT);
 
 		/* if allocation failed drop packet */
 		if (m0 == NULL) {
@@ -728,7 +728,7 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 	tlen = uio->uio_resid;
 
 	/* get a header mbuf */
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return (ENOBUFS);
 	mlen = MHLEN;
@@ -741,7 +741,7 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 		*mp = m;
 		mp = &m->m_next;
 		if (uio->uio_resid > 0) {
-			MGET (m, M_DONTWAIT, MT_DATA);
+			MGET (m, M_NOWAIT, MT_DATA);
 			if (m == 0) {
 				error = ENOBUFS;
 				break;

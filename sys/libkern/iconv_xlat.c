@@ -62,7 +62,7 @@ iconv_xlat_open(struct iconv_converter_class *dcp,
 {
 	struct iconv_xlat *dp;
 
-	dp = (struct iconv_xlat *)kobj_create((struct kobj_class*)dcp, M_ICONV, M_WAITOK);
+	dp = (struct iconv_xlat *)kobj_create((struct kobj_class*)dcp, M_ICONV, 0);
 	dp->d_table = csp->cp_data;
 	dp->d_csp = csp;
 	csp->cp_refcount++;

@@ -108,7 +108,7 @@ ofw_bus_find_intr(u_int8_t *intr, int intrsz, u_int8_t *regs, int physsz,
 	int i, rsz, tsz;
 
 	rsz = -1;
-	ref = malloc(physsz + intrsz, M_TEMP, M_WAITOK);
+	ref = malloc(physsz + intrsz, M_TEMP, 0);
 	if (imapmsk != NULL) {
 		for (i = 0; i < physsz; i++)
 			ref[i] = regs[i] & imapmsk[i];
@@ -131,7 +131,7 @@ ofw_bus_find_intr(u_int8_t *intr, int intrsz, u_int8_t *regs, int physsz,
 		KASSERT(i >= physsz + intrsz + sizeof(parent) +
 		    pintrsz, ("ofw_bus_find_intr: truncated map"));
 		if (bcmp(ref, mptr, physsz + intrsz) == 0) {
-			*result = malloc(pintrsz, M_OFWPROP, M_WAITOK);
+			*result = malloc(pintrsz, M_OFWPROP, 0);
 			bcopy(mptr + physsz + intrsz + sizeof(parent),
 			    *result, pintrsz);
 			rsz = pintrsz;
@@ -177,7 +177,7 @@ ofw_bus_route_intr(phandle_t node, int intrp, obr_callback_t *cb)
 	} else {
 		ic = intrp;
 		isz = sizeof(ic);
-		intr = malloc(isz, M_OFWPROP, M_WAITOK);
+		intr = malloc(isz, M_OFWPROP, 0);
 		bcopy(&ic, intr, isz);
 	}
 	/*

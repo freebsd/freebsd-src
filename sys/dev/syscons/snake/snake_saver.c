@@ -131,9 +131,9 @@ static int
 snake_init(video_adapter_t *adp)
 {
 	messagelen = strlen(ostype) + 1 + strlen(osrelease);
-	message = malloc(messagelen + 1, M_DEVBUF, M_WAITOK);
+	message = malloc(messagelen + 1, M_DEVBUF, 0);
 	sprintf(message, "%s %s", ostype, osrelease);
-	messagep = malloc(messagelen * sizeof *messagep, M_DEVBUF, M_WAITOK);
+	messagep = malloc(messagelen * sizeof *messagep, M_DEVBUF, 0);
 	return 0;
 }
 

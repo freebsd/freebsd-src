@@ -414,7 +414,7 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	}
 
 	bap = (int32_t *)bp->b_data;
-	MALLOC(copy, int32_t *, fs->s_blocksize, M_TEMP, M_WAITOK);
+	MALLOC(copy, int32_t *, fs->s_blocksize, M_TEMP, 0);
 	bcopy((caddr_t)bap, (caddr_t)copy, (u_int)fs->s_blocksize);
 	bzero((caddr_t)&bap[last + 1],
 	  (u_int)(NINDIR(fs) - (last + 1)) * sizeof (int32_t));

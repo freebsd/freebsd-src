@@ -603,14 +603,14 @@ send:
 		m->m_len += hdrlen;
 		m->m_data -= hdrlen;
 #else
-		MGETHDR(m, M_DONTWAIT, MT_HEADER);
+		MGETHDR(m, M_NOWAIT, MT_HEADER);
 		if (m == NULL) {
 			error = ENOBUFS;
 			goto out;
 		}
 #ifdef INET6
 		if (MHLEN < hdrlen + max_linkhdr) {
-			MCLGET(m, M_DONTWAIT);
+			MCLGET(m, M_NOWAIT);
 			if ((m->m_flags & M_EXT) == 0) {
 				m_freem(m);
 				error = ENOBUFS;
@@ -651,7 +651,7 @@ send:
 		else
 			tcpstat.tcps_sndwinup++;
 
-		MGETHDR(m, M_DONTWAIT, MT_HEADER);
+		MGETHDR(m, M_NOWAIT, MT_HEADER);
 		if (m == NULL) {
 			error = ENOBUFS;
 			goto out;

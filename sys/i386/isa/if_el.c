@@ -671,7 +671,7 @@ elget(buf, totlen, ifp)
         cp = buf;
         epkt = cp + totlen;
 
-        MGETHDR(m, M_DONTWAIT, MT_DATA);
+        MGETHDR(m, M_NOWAIT, MT_DATA);
         if (m == 0)
                 return (0);
         m->m_pkthdr.rcvif = ifp;
@@ -681,7 +681,7 @@ elget(buf, totlen, ifp)
         mp = &top;
         while (totlen > 0) {
                 if (top) {
-                        MGET(m, M_DONTWAIT, MT_DATA);
+                        MGET(m, M_NOWAIT, MT_DATA);
                         if (m == 0) {
                                 m_freem(top);
                                 return (0);
@@ -690,7 +690,7 @@ elget(buf, totlen, ifp)
                 }
                 len = min(totlen, epkt - cp);
                 if (len >= MINCLSIZE) {
-                        MCLGET(m, M_DONTWAIT);
+                        MCLGET(m, M_NOWAIT);
                         if (m->m_flags & M_EXT)
                                 m->m_len = len = min(len, MCLBYTES);
                         else

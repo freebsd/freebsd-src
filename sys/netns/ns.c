@@ -128,7 +128,7 @@ ns_control(so, cmd, data, ifp)
 	case SIOCSIFDSTADDR:
 		if (ia == (struct ns_ifaddr *)0) {
 			oia = (struct ns_ifaddr *)
-				malloc(sizeof *ia, M_IFADDR, M_WAITOK);
+				malloc(sizeof *ia, M_IFADDR, 0);
 			if (oia == (struct ns_ifaddr *)NULL)
 				return (ENOBUFS);
 			bzero((caddr_t)oia, sizeof(*oia));

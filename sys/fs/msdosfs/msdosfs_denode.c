@@ -246,7 +246,7 @@ deget(pmp, dirclust, diroffset, depp)
 	 * might cause a bogus v_data pointer to get dereferenced
 	 * elsewhere if MALLOC should block.
 	 */
-	MALLOC(ldep, struct denode *, sizeof(struct denode), M_MSDOSFSNODE, M_WAITOK);
+	MALLOC(ldep, struct denode *, sizeof(struct denode), M_MSDOSFSNODE, 0);
 
 	/*
 	 * Directory entry was not in cache, have to create a vnode and

@@ -454,7 +454,7 @@ kbd_attach(keyboard_t *kbd)
 		       "kbd%r", kbd->kb_index);
 	if (dev->si_drv1 == NULL)
 		dev->si_drv1 = malloc(sizeof(genkbd_softc_t), M_DEVBUF,
-				      M_WAITOK);
+				      0);
 	bzero(dev->si_drv1, sizeof(genkbd_softc_t));
 
 	printf("kbd%d at %s%d\n", kbd->kb_index, kbd->kb_name, kbd->kb_unit);

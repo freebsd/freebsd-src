@@ -371,7 +371,7 @@ ebus_setup_dinfo(struct ebus_softc *sc, phandle_t node, char *name)
 	u_int64_t start;
 	int nreg, nintr, i;
 
-	edi = malloc(sizeof(*edi), M_DEVBUF, M_ZERO | M_WAITOK);
+	edi = malloc(sizeof(*edi), M_DEVBUF, M_ZERO);
 	if (edi == NULL)
 		return (NULL);
 	resource_list_init(&edi->edi_rl);

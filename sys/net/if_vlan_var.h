@@ -98,7 +98,7 @@ struct	vlanreq {
 #define	VLAN_INPUT_TAG(_ifp, _m, _t, _errcase) do {		\
 	struct m_tag *mtag;					\
 	mtag = m_tag_alloc(MTAG_VLAN, MTAG_VLAN_TAG,		\
-			   sizeof (u_int), M_DONTWAIT);		\
+			   sizeof (u_int), M_NOWAIT);		\
 	if (mtag == NULL) {					\
 		(_ifp)->if_ierrors++;				\
 		m_freem(_m);					\

@@ -329,7 +329,7 @@ filt_timerattach(struct knote *kn)
 
 	kn->kn_flags |= EV_CLEAR;		/* automatically set */
 	MALLOC(calloutp, struct callout *, sizeof(*calloutp),
-	    M_KQUEUE, M_WAITOK);
+	    M_KQUEUE, 0);
 	callout_init(calloutp, 0);
 	callout_reset(calloutp, tticks, filt_timerexpire, kn);
 	kn->kn_hook = calloutp;
@@ -371,7 +371,7 @@ kqueue(struct thread *td, struct kqueue_args *uap)
 	error = falloc(td, &fp, &fd);
 	if (error)
 		goto done2;
-	kq = malloc(sizeof(struct kqueue), M_KQUEUE, M_WAITOK | M_ZERO);
+	kq = malloc(sizeof(struct kqueue), M_KQUEUE, M_ZERO);
 	TAILQ_INIT(&kq->kq_head);
 	FILE_LOCK(fp);
 	fp->f_flag = FREAD | FWRITE;
@@ -979,7 +979,7 @@ knote_attach(struct knote *kn, struct filedesc *fdp)
 			size += KQEXTENT;
 		FILEDESC_UNLOCK(fdp);
 		MALLOC(list, struct klist *,
-		    size * sizeof(struct klist *), M_KQUEUE, M_WAITOK);
+		    size * sizeof(struct klist *), M_KQUEUE, 0);
 		FILEDESC_LOCK(fdp);
 		if (fdp->fd_knlistsize > kn->kn_id) {
 			FREE(list, M_KQUEUE);
@@ -1073,7 +1073,7 @@ SYSINIT(knote, SI_SUB_PSEUDO, SI_ORDER_ANY, knote_init, NULL)
 static struct knote *
 knote_alloc(void)
 {
-	return ((struct knote *)uma_zalloc(knote_zone, M_WAITOK));
+	return ((struct knote *)uma_zalloc(knote_zone, 0));
 }
 
 static void

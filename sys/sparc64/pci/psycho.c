@@ -611,7 +611,7 @@ psycho_attach(device_t dev)
 		 */
 		if (INTVEC(mr) != 0x7e6 && INTVEC(mr) != 0x7e7 &&
 		    INTVEC(mr) != 0) {
-			sclr = malloc(sizeof(*sclr), M_DEVBUF, M_WAITOK);
+			sclr = malloc(sizeof(*sclr), M_DEVBUF, 0);
 			sclr->psc_sc = sc;
 			sclr->psc_clr = clr;
 			intr_setup(PIL_LOW, intr_fast, INTVEC(mr),

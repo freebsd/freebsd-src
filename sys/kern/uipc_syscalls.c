@@ -648,7 +648,7 @@ sendit(td, s, mp, flags)
 		if (mp->msg_flags == MSG_COMPAT) {
 			register struct cmsghdr *cm;
 
-			M_PREPEND(control, sizeof(*cm), M_TRYWAIT);
+			M_PREPEND(control, sizeof(*cm), 0);
 			if (control == 0) {
 				error = ENOBUFS;
 				goto bad;
@@ -666,7 +666,7 @@ sendit(td, s, mp, flags)
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_GENIO)) {
 		iovlen = auio.uio_iovcnt * sizeof (struct iovec);
-		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
+		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, 0);
 		bcopy(auio.uio_iov, ktriov, iovlen);
 		ktruio = auio;
 	}
@@ -798,7 +798,7 @@ osendmsg(td, uap)
 		}
 		MALLOC(iov, struct iovec *,
 		      sizeof(struct iovec) * (u_int)msg.msg_iovlen, M_IOV,
-		      M_WAITOK);
+		      0);
 	} else {
 		iov = aiov;
 	}
@@ -845,7 +845,7 @@ sendmsg(td, uap)
 		}
 		MALLOC(iov, struct iovec *,
 		       sizeof(struct iovec) * (u_int)msg.msg_iovlen, M_IOV,
-		       M_WAITOK);
+		       0);
 	} else {
 		iov = aiov;
 	}
@@ -915,7 +915,7 @@ recvit(td, s, mp, namelenp)
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_GENIO)) {
 		iovlen = auio.uio_iovcnt * sizeof (struct iovec);
-		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
+		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, 0);
 		bcopy(auio.uio_iov, ktriov, iovlen);
 		ktruio = auio;
 	}
@@ -1148,7 +1148,7 @@ orecvmsg(td, uap)
 		}
 		MALLOC(iov, struct iovec *,
 		      sizeof(struct iovec) * (u_int)msg.msg_iovlen, M_IOV,
-		      M_WAITOK);
+		      0);
 	} else {
 		iov = aiov;
 	}
@@ -1199,7 +1199,7 @@ recvmsg(td, uap)
 		}
 		MALLOC(iov, struct iovec *,
 		       sizeof(struct iovec) * (u_int)msg.msg_iovlen, M_IOV,
-		       M_WAITOK);
+		       0);
 	} else {
 		iov = aiov;
 	}
@@ -1535,7 +1535,7 @@ sockargs(mp, buf, buflen, type)
 #endif
 		return (EINVAL);
 	}
-	m = m_get(M_TRYWAIT, type);
+	m = m_get(0, type);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = buflen;
@@ -1568,7 +1568,7 @@ getsockaddr(namp, uaddr, len)
 
 	if (len > SOCK_MAXADDRLEN)
 		return ENAMETOOLONG;
-	MALLOC(sa, struct sockaddr *, len, M_SONAME, M_WAITOK);
+	MALLOC(sa, struct sockaddr *, len, M_SONAME, 0);
 	error = copyin(uaddr, sa, len);
 	if (error) {
 		FREE(sa, M_SONAME);
@@ -1782,7 +1782,7 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	/*
 	 * Protect against multiple writers to the socket.
 	 */
-	(void) sblock(&so->so_snd, M_WAITOK);
+	(void) sblock(&so->so_snd, 0);
 
 	/*
 	 * Loop through the pages in the file, starting with the requested
@@ -1926,7 +1926,7 @@ retry_lookup:
 		/*
 		 * Get an mbuf header and set it up as having external storage.
 		 */
-		MGETHDR(m, M_TRYWAIT, MT_DATA);
+		MGETHDR(m, 0, MT_DATA);
 		if (m == NULL) {
 			error = ENOBUFS;
 			sf_buf_free((void *)sf->kva, NULL);

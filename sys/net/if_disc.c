@@ -87,7 +87,7 @@ disc_clone_create(struct if_clone *ifc, int unit)
 	struct ifnet		*ifp;
 	struct disc_softc	*sc;
 
-	sc = malloc(sizeof(struct disc_softc), M_DISC, M_WAITOK);
+	sc = malloc(sizeof(struct disc_softc), M_DISC, 0);
 	bzero(sc, sizeof(struct disc_softc));
 
 	ifp = &sc->sc_if;

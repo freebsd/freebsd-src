@@ -624,7 +624,7 @@ isp_pci_attach(device_t dev)
 		}
 		if (amt) {
 			FCPARAM(isp)->isp_dump_data =
-			    malloc(amt, M_DEVBUF, M_WAITOK | M_ZERO);
+			    malloc(amt, M_DEVBUF, M_ZERO);
 		} else {
 			device_printf(dev,
 			    "f/w crash dumps not supported for this model\n");
@@ -1105,14 +1105,14 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 
 
 	len = sizeof (XS_T **) * isp->isp_maxcmds;
-	isp->isp_xflist = (XS_T **) malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
+	isp->isp_xflist = (XS_T **) malloc(len, M_DEVBUF, M_ZERO);
 	if (isp->isp_xflist == NULL) {
 		isp_prt(isp, ISP_LOGERR, "cannot alloc xflist array");
 		ISP_LOCK(isp);
 		return (1);
 	}
 	len = sizeof (bus_dmamap_t) * isp->isp_maxcmds;
-	pcs->dmaps = (bus_dmamap_t *) malloc(len, M_DEVBUF,  M_WAITOK);
+	pcs->dmaps = (bus_dmamap_t *) malloc(len, M_DEVBUF,  0);
 	if (pcs->dmaps == NULL) {
 		isp_prt(isp, ISP_LOGERR, "can't alloc dma map storage");
 		free(isp->isp_xflist, M_DEVBUF);

@@ -189,7 +189,7 @@ targopen(dev_t dev, int flags, int fmt, struct thread *td)
 			 "targ%d", dev2unit(dev));
 	}
 	MALLOC(softc, struct targ_softc *, sizeof(*softc), M_TARG,
-	       M_WAITOK | M_ZERO);
+	       M_ZERO);
 	dev->si_drv1 = softc;
 	softc->state = TARG_STATE_OPENED;
 	softc->periph = NULL;
@@ -977,7 +977,7 @@ targgetccb(struct targ_softc *softc, xpt_opcode type, int priority)
 	int ccb_len;
 
 	ccb_len = targccblen(type);
-	MALLOC(ccb, union ccb *, ccb_len, M_TARG, M_WAITOK);
+	MALLOC(ccb, union ccb *, ccb_len, M_TARG, 0);
 	CAM_DEBUG(softc->path, CAM_DEBUG_PERIPH, ("getccb %p\n", ccb));
 
 	xpt_setup_ccb(&ccb->ccb_h, softc->path, priority);
@@ -1021,7 +1021,7 @@ targgetdescr(struct targ_softc *softc)
 	struct targ_cmd_descr *descr;
 
 	MALLOC(descr, struct targ_cmd_descr *, sizeof(*descr), M_TARG,
-	       M_WAITOK);
+	       0);
 	descr->mapinfo.num_bufs_used = 0;
 	return (descr);
 }
