@@ -104,6 +104,21 @@ buildworld: upgrade_checks
 .endif
 
 #
+# This 'realclean' target is not included in TGTS, because it is not
+# a recursive target.  All of the work for it is done right here.
+# The first 'rm' will usually remove all files and directories.  If
+# it does not, then there are probably some files with chflags set.
+# Unset all special chflags, and try the 'rm' a second time.
+realclean :
+	-rm -Rf ${.OBJDIR}/* 2>/dev/null
+	@-if [ "`echo ${.OBJDIR}/*`" != "${.OBJDIR}/*" ] ; then \
+	    echo "chflags -R 0 ${.OBJDIR}/*" ; \
+	    chflags -R 0 ${.OBJDIR}/* ;  \
+	    echo "rm -Rf ${.OBJDIR}/*" ; \
+	    rm -Rf ${.OBJDIR}/* ; \
+	fi
+
+#
 # Handle the user-driven targets, using the source relative mk files.
 #
 
