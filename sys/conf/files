@@ -331,6 +331,8 @@ dev/fe/if_fe.c		optional fe
 dev/fe/if_fe_pccard.c	optional fe card
 dev/fe/if_fe_pccard.c	optional fe pccard
 dev/fxp/if_fxp.c	optional fxp
+dev/gem/if_gem.c	optional gem
+dev/gem/if_gem_pci.c	optional gem pci
 dev/gx/if_gx.c		optional gx
 dev/hea/eni.c		optional hea
 dev/hea/eni_buffer.c	optional hea
@@ -354,6 +356,9 @@ dev/hfa/fore_stats.c	optional hfa
 dev/hfa/fore_timer.c	optional hfa
 dev/hfa/fore_transmit.c	optional hfa
 dev/hfa/fore_vcm.c	optional hfa
+dev/hme/if_hme.c	optional hme
+dev/hme/if_hme_pci.c	optional hme pci
+dev/hme/if_hme_sbus.c	optional hme sbus
 dev/ichsmb/ichsmb.c	optional ichsmb
 dev/ichsmb/ichsmb_pci.c	optional ichsmb pci
 dev/ida/ida.c		optional ida
