@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx_reg.h,v 1.12.2.2 1996/10/06 01:24:13 gibbs Exp $
+ *	$Id: aic7xxx_reg.h,v 1.14 1996/10/25 06:34:59 gibbs Exp $
  */
 
 /*
@@ -408,7 +408,7 @@
 #define			NO_IDENT	0x21	/* no IDENTIFY after reconnect*/
 #define			NO_MATCH	0x31	/* no cmd match for reconnect */
 #define			EXTENDED_MSG	0x41	/* Extended message received */
-#define			DMA_UP_SCB	0x51
+#define			NO_MATCH_BUSY	0x51	/* Couldn't find BUSY SCB */
 #define			REJECT_MSG	0x61	/* Reject message received */
 #define			BAD_STATUS	0x71	/* Bad status from target */
 #define			RESIDUAL	0x81	/* Residual byte count != 0 */
@@ -706,6 +706,7 @@
 #define		PAGESCBS	0x04
 #define		SCB_LISTED	0x08
 #define		DPHASE		0x10
+#define		TAGGED_SCB	0x20
 #define		IDENTIFY_SEEN	0x40
 #define		RESELECTED	0x80
 
