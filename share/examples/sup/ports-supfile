@@ -1,4 +1,4 @@
-# $Id: ports-supfile,v 1.8 1996/09/14 02:24:25 asami Exp $
+# $Id: ports-supfile,v 1.9 1996/10/06 00:02:05 max Exp $
 #
 # This file contains all of the "SUP collections" that comprise the FreeBSD
 # ports distribution.  SUP (Software Update Protocol) allows you to download
@@ -34,7 +34,7 @@
 
 #ports-distfiles release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
 
-ports-all release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+ports-all release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usrdelete old use-rel-suffix
 
 # Individual collections.  See note on distfiles above.
 
