@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 3, 2000
+.Dd July 29, 2004
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -404,17 +404,6 @@ Set to install the
 .Fx
 4
 compatibility libraries.
-.It Va FETCH_CMD
-.Pq Vt str
-Command to use to fetch files.
-Normally
-.Xr fetch 1 .
-.It Va KRB5_HOME
-.Pq Vt str
-If you want to install the MIT Kerberos5 port somewhere other than
-.Pa /usr/local ,
-define this.
-This is also used to tell ssh1 that Kerberos is needed.
 .It Va MAKE_IDEA
 .Pq Vt bool
 Set to build the IDEA encryption code.
