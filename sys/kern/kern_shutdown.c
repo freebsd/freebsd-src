@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.4 1996/08/26 21:47:56 julian Exp $
+ * $Id: kern_shutdown.c,v 1.5 1996/09/06 23:08:40 phk Exp $
  */
 
 #include "opt_ddb.h"
@@ -217,7 +217,6 @@ boot(howto)
 				vfs_unmountall();
 		}
 		DELAY(100000);			/* wait for console output to finish */
-		dev_shutdownall(FALSE);
 	}
 	ep = shutdown_list2;
 	while (ep) {
