@@ -58,26 +58,30 @@ char	restarthelp[] =	"kill (if possible) and restart a spooling daemon";
 char	starthelp[] =	"enable printing and start a spooling daemon";
 char	statushelp[] =	"show status of daemon and queue";
 char	stophelp[] =	"stop a spooling daemon after current job completes and disable printing";
+char	tcleanhelp[] =	"test to see what files a clean cmd would remove";
 char	topqhelp[] =	"put job at top of printer queue";
 char	uphelp[] =	"enable everything and restart spooling daemon";
 
+#define PR	1	/* a privileged command */
+
 struct cmd cmdtab[] = {
-	{ "abort",	aborthelp,	0,		1,	doabort },
-	{ "clean",	cleanhelp,	0,		1,	clean },
-	{ "enable",	enablehelp,	0,		1,	enable },
-	{ "exit",	quithelp,	quit,		0 },
-	{ "disable",	disablehelp,	0,		1,	disable },
-	{ "down",	downhelp,	down,		1 },
-	{ "help",	helphelp,	help,		0 },
-	{ "quit",	quithelp,	quit,		0 },
-	{ "restart",	restarthelp,	0,		0,	restart },
-	{ "start",	starthelp,	0,		1,	startcmd },
-	{ "status",	statushelp,	0,		0,	status },
-	{ "stop",	stophelp,	0,		1,	stop },
-	{ "topq",	topqhelp,	topq,		1 },
-	{ "up",		uphelp,		0,		1,	up },
-	{ "?",		helphelp,	help,		0 },
-	{ 0 },
+	{ "abort",	aborthelp,	PR,	0,		doabort },
+	{ "clean",	cleanhelp,	PR,	init_clean,	clean_q },
+	{ "enable",	enablehelp,	PR,	0,		enable },
+	{ "exit",	quithelp,	0,	quit,		0 },
+	{ "disable",	disablehelp,	PR,	0, 		disable },
+	{ "down",	downhelp,	PR,	down,		0 },
+	{ "help",	helphelp,	0,	help,		0 },
+	{ "quit",	quithelp,	0,	quit,		0 },
+	{ "restart",	restarthelp,	0,	0,		restart },
+	{ "start",	starthelp,	PR,	0,		startcmd },
+	{ "status",	statushelp,	0,	0,		status },
+	{ "stop",	stophelp,	PR,	0,		stop },
+	{ "tclean",	tcleanhelp,	0,	init_tclean,	clean_q },
+	{ "topq",	topqhelp,	PR,	topq,		0 },
+	{ "up",		uphelp,		PR,	0,		up },
+	{ "?",		helphelp,	0,	help,		0 },
+	{ 0, 0, 0, 0, 0},
 };
 
 int	NCMDS = sizeof (cmdtab) / sizeof (cmdtab[0]);
