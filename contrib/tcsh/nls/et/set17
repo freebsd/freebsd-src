@@ -1,4 +1,4 @@
-$ $Id: set17,v 1.1 2001/01/04 18:46:03 christos Exp $
+$ $Id: set17,v 1.2 2003/02/08 20:03:26 christos Exp $
 $ sh.proc.c
 $set 17 
 1 BUG: ootan taustatöö järel!\n
@@ -14,3 +14,4 @@ $set 17
 11 (töökataloog nüüd: 
 12 %S: Juba peatatud\n
 13 %S: Juba seisatud\n
+14 %S: Badly formed number\n

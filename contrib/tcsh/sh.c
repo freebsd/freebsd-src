@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.c,v 3.105 2002/07/05 16:28:16 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.c,v 3.109 2004/02/21 20:34:24 christos Exp $ */
 /*
  * sh.c: Main shell routines
  */
@@ -39,7 +39,7 @@ char    copyright[] =
  All rights reserved.\n";
 #endif /* not lint */
 
-RCSID("$Id: sh.c,v 3.105 2002/07/05 16:28:16 christos Exp $")
+RCSID("$Id: sh.c,v 3.109 2004/02/21 20:34:24 christos Exp $")
 
 #include "tc.h"
 #include "ed.h"
@@ -189,6 +189,8 @@ main(argc, argv)
     register char *tcp, *ttyn;
     register int f;
     register char **tempv;
+    int osetintr;
+    signalfun_t oparintr;
 
 #ifdef BSDSIGS
     sigvec_t osv;
@@ -211,7 +213,8 @@ main(argc, argv)
 
 #ifdef MALLOC_TRACE
      mal_setstatsfile(fdopen(dup2(open("/tmp/tcsh.trace", 
-				       O_WRONLY|O_CREAT, 0666), 25), "w"));
+				       O_WRONLY|O_CREAT|O_LARGEFILE, 0666), 25),
+				       "w"));
      mal_trace(1);
 #endif /* MALLOC_TRACE */
 
@@ -238,12 +241,16 @@ main(argc, argv)
      */
     {
 	do 
-	    if ((f = open(_PATH_DEVNULL, O_RDONLY)) == -1 &&
-		(f = open("/", O_RDONLY)) == -1) 
+	    if ((f = open(_PATH_DEVNULL, O_RDONLY|O_LARGEFILE)) == -1 &&
+		(f = open("/", O_RDONLY|O_LARGEFILE)) == -1) 
 		exit(1);
 	while (f < 3);
 	(void) close(f);
     }
+
+#ifdef O_TEXT
+    setmode(0, O_TEXT);
+#endif
 
     osinit();			/* Os dependent initialization */
 
@@ -395,7 +402,7 @@ main(argc, argv)
      if (loginsh && isatty(SHIN)) {
 	 ttyn = (char *) ttyname(SHIN);
 	 (void) close(SHIN);
-	 SHIN = open(ttyn, O_RDWR);
+	 SHIN = open(ttyn, O_RDWR|O_LARGEFILE);
 	 shpgrp = getpid();
 	 (void) ioctl (SHIN, TIOCSPGRP, (ioctl_t) &shpgrp);
 	 (void) setpgid(0, shpgrp);
@@ -969,12 +976,15 @@ main(argc, argv)
      * read commands.
      */
     if (nofile == 0 && argc > 0) {
-	nofile = open(tempv[0], O_RDONLY);
+	nofile = open(tempv[0], O_RDONLY|O_LARGEFILE);
 	if (nofile < 0) {
 	    child = 1;		/* So this ... */
 	    /* ... doesn't return */
 	    stderror(ERR_SYSTEM, tempv[0], strerror(errno));
 	}
+#ifdef O_TEXT
+	setmode(nofile, O_TEXT);
+#endif
 	if (ffile != NULL)
 	    xfree((ptr_t) ffile);
 	dolzero = 1;
@@ -1252,15 +1262,14 @@ main(argc, argv)
      * Set an exit here in case of an interrupt or error reading the shell
      * start-up scripts.
      */
+    osetintr = setintr;
+    oparintr = parintr;
     reenter = setexit();	/* PWP */
     exitset++;
     haderr = 0;			/* In case second time through */
     if (!fast && reenter == 0) {
 	/* Will have varval(STRhome) here because set fast if don't */
 	{
-	    int     osetintr = setintr;
-	    signalfun_t oparintr = parintr;
-
 #ifdef BSDSIGS
 	    sigmask_t omask = sigblock(sigmask(SIGINT));
 #else
@@ -1316,6 +1325,10 @@ main(argc, argv)
 	if (!fast && (loginsh || rdirs))
 	    loaddirs(NULL);
     }
+    /* Reset interrupt flag */
+    setintr = osetintr;
+    parintr = oparintr;
+
     /* Initing AFTER .cshrc is the Right Way */
     if (intty && !arginp) {	/* PWP setup stuff */
 	ed_Init();		/* init the new line editor */
@@ -1462,8 +1475,11 @@ srcfile(f, onlyown, flag, av)
 {
     register int unit;
 
-    if ((unit = open(f, O_RDONLY)) == -1) 
+    if ((unit = open(f, O_RDONLY|O_LARGEFILE)) == -1) 
 	return 0;
+#ifdef O_TEXT
+    setmode(unit, O_TEXT);
+#endif
     unit = dmove(unit, -1);
 
     (void) close_on_exec(unit, 1);
@@ -2202,6 +2218,15 @@ dosource(t, c)
     f = globone(*t++, G_ERROR);
     (void) strcpy(buf, short2str(f));
     xfree((ptr_t) f);
+    gflag = 0, tglob(t);
+    if (gflag) {
+	t = globall(t);
+	if (t == 0)
+	    stderror(ERR_NAME | ERR_NOMATCH);
+    } else {
+	t = saveblk(t);
+	trim(t);
+    }
     if ((!srcfile(buf, 0, hflg, t)) && (!hflg) && (!bequiet))
 	stderror(ERR_SYSTEM, buf, strerror(errno));
 }

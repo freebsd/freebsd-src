@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.exec.c,v 3.56 2002/06/25 19:02:11 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.exec.c,v 3.58 2003/03/12 19:14:51 christos Exp $ */
 /*
  * sh.exec.c: Search, find, and execute a command!
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.exec.c,v 3.56 2002/06/25 19:02:11 christos Exp $")
+RCSID("$Id: sh.exec.c,v 3.58 2003/03/12 19:14:51 christos Exp $")
 
 #include "tc.h"
 #include "tw.h"
@@ -438,8 +438,11 @@ texec(sf, st)
 	 * From: casper@fwi.uva.nl (Casper H.S. Dik) If we could not execute
 	 * it, don't feed it to the shell if it looks like a binary!
 	 */
-	if ((fd = open(f, O_RDONLY)) != -1) {
+	if ((fd = open(f, O_RDONLY|O_LARGEFILE)) != -1) {
 	    int nread;
+#ifdef O_TEXT
+	    setmode(fd, O_TEXT);
+#endif
 	    if ((nread = read(fd, (char *) pref, 2)) == 2) {
 		if (!Isprint(pref[0]) && (pref[0] != '\n' && pref[0] != '\t')) {
 		    (void) close(fd);
@@ -763,10 +766,15 @@ dohash(vv, c)
 	     */
 	    {
 		size_t	ext = strlen(dp->d_name) - 4;
-		if ((ext > 0) && (strcmp(&dp->d_name[ext], ".exe") == 0 ||
-				  strcmp(&dp->d_name[ext], ".bat") == 0 ||
-				  strcmp(&dp->d_name[ext], ".com") == 0))
-		    dp->d_name[ext] = '\0';
+		if ((ext > 0) && (strcasecmp(&dp->d_name[ext], ".exe") == 0 ||
+				  strcasecmp(&dp->d_name[ext], ".bat") == 0 ||
+				  strcasecmp(&dp->d_name[ext], ".com") == 0))
+		    {
+			dp->d_name[ext] = '\0';
+#if defined(__CYGWIN__)
+			strlwr(dp->d_name);
+#endif /* __CYGWIN__ */
+		    }
 	    }
 #endif /* _UWIN || __CYGWIN__ */
 # ifdef FASTHASH

@@ -72,7 +72,7 @@
 .\"   used here if you can. In particular, please don't use nroff commands
 .\"   which aren't already used herein.
 .\" 
-.TH TCSH 1 "23 July 2002" "Astron 6.12.00"
+.TH TCSH 1 "19 May 2004" "Astron 6.13.00"
 .SH NAME
 tcsh \- C shell with file name completion and command line editing
 .SH SYNOPSIS
@@ -684,7 +684,7 @@ See also \fIdelete-char-or-list-or-eof\fR.
 .TP 8
 .B magic-space \fR(not bound)
 Expands history substitutions in the current line,
-like \fIexpand-history\fR, and appends a space.
+like \fIexpand-history\fR, and inserts a space.
 \fImagic-space\fR is designed to be bound to the space bar,
 but is not bound by default.
 .TP 8
@@ -777,6 +777,14 @@ Like \fIvi-search-back\fR, but searches forward.
 .B which-command \fR(M-?)
 Does a \fIwhich\fR (see the description of the builtin command) on the
 first word of the input buffer.
+.TP 8
+.B yank-pop \fR(M-y)
+When executed immediately after a \fIyank\fR or another \fIyank-pop\fR,
+replaces the yanked string with the next previous string from the
+killring. This also has the effect of rotating the killring, such that
+this string will be considered the most recently killed by a later
+\fIyank\fR command. Repeating \fIyank-pop\fR will cycle through the
+killring any number of times.
 .SS "Lexical structure"
 The shell splits input lines into words at blanks and tabs.  The special
 characters `&', `|', `;', `<', `>', `(', and `)' and the doubled characters
@@ -987,12 +995,6 @@ specification.
 .PP
 A history reference may have a word designator but no event specification.
 It then references the previous command.
-.ig \" Not true, but we thought it was for a long time ...
-, unless a previous history reference
-occurred on the same line in which case this form repeats the previous
-reference.  Thus `!?foo?^ !$' gives the first and last arguments from the
-command matching `?foo?'.
-..
 Continuing our `diff' example, we could have said simply `diff
 !^.old !^' or, to get the arguments in the opposite order, just `diff !*'.
 .PP
@@ -1959,6 +1961,9 @@ On systems that support TCF (aix-ibm370, aix-ps2),
 and \fImigrate\fR migrates processes between sites.  The \fIjobs\fR builtin
 prints the site on which each job is executing.
 .PP
+Under BS2000, \fIbs2cmd\fR executes commands of the underlying BS2000/OSD
+operating system.
+.PP
 Under Domain/OS, \fIinlib\fR adds shared libraries to the current environment,
 \fIrootnode\fR changes the rootnode and \fIver\fR changes the systype.
 .PP
@@ -2081,13 +2086,6 @@ With \fIname\fR and \fIwordlist\fR, assigns
 \fIwordlist\fR is command and filename substituted.
 \fIname\fR may not be `alias' or `unalias'.
 See also the \fIunalias\fR builtin command.
-.ig \" Obsolete tcsh command
-.TP 8
-.B aliases \fR[\fIfile\fR] (+)
-Without arguments, prints all aliases.
-With \fIfile\fR, loads a list of aliases from \fIfile\fR, one per line.
-Retained for only downward compatibility.
-..
 .TP 8
 .B alloc
 Shows the amount of dynamic memory acquired, broken down into used and free
@@ -2101,23 +2099,6 @@ Puts the specified jobs (or, without arguments, the current job)
 into the background, continuing each if it is stopped.
 \fIjob\fR may be a number, a string, `', `%', `+' or `\-' as described
 under \fBJobs\fR.
-.ig \" Obsolete tcsh command
-.TP 8
-.B bind \fR[\fBdefaults\fR|\fBemacs\fR|\fBvi\fR|\fIkey\fR|\fIkey command\fR] (+)
-An older version of \fIbindkey\fR, retained for only downward compatibility.
-Without arguments, lists all bound keys and the editor command to which each is bound.
-`bind defaults', `bind emacs' and `bind vi' are equivalent to
-`bindkey \-d', `bindkey \-e' and `bindkey \-v'.
-With \fIkey\fR, lists the editor command to which \fIkey\fR is bound.
-With \fIkey\fR and \fIcommand\fR, binds the editor command \fIcommand\fR to \fIkey\fR.
-.IP "" 8
-\fIkey\fR may be a literal character,
-a control character written ^\fIcharacter\fR (e.g., `^A'),
-a meta character written M-\fIcharacter\fR (e.g., `M-A')
-or a function key written F-\fIstring\fR (e.g., `F-foo').
-For the function key form to work, the function key prefix must be
-bound to \fIsequence-lead-in\fR and \fIstring\fR must not contain that prefix.
-..
 .PP
 .B bindkey \fR[\fB\-l\fR|\fB\-d\fR|\fB\-e\fR|\fB\-v\fR|\fB\-u\fR] (+)
 .br
@@ -2230,6 +2211,12 @@ The ASCII character corresponding to the octal number \fInnn\fR
 any, notably `\\' and `^'.
 .RE
 .TP 8
+.B bs2cmd \fIbs2000-command\fR (+)
+Passes \fIbs2000-command\fR to the BS2000 command interpreter for
+execution. Only non-interactive commands can be executed, and it is
+not possible to execute any command that would overlay the image
+of the current process, like /EXECUTE or /CALL-PROCEDURE. (BS2000 only)
+.TP 8
 .B break
 Causes execution to resume after the \fIend\fR of the nearest
 enclosing \fIforeach\fR or \fIwhile\fR.  The remaining commands on the
@@ -2310,12 +2297,6 @@ Position-dependent completion.
 variables, which must include the current word.
 .PD
 .RE
-.ig \" No longer true in 6.05.04
-.PP
-When \fIpattern\fR is a glob-pattern (for \fBc\fR, \fBC\fR, \fBn\fR and
-\fBN\fR-type completion), a \fIpattern\fR of `*' does not match an empty
-word.
-..
 .PP
 \fIlist\fR, the list of possible completions, may be one of the following:
 .PP
@@ -2458,11 +2439,6 @@ and `set' with shell variables.
 `true' doesn't have any options, so \fBx\fR does nothing when completion
 is attempted and prints `Truth has no options.' when completion choices are listed.
 .PP
-.ig \" Changed in 6.05.04
-The \fIman\fR example, and several other examples below, use
-\fBp\fR-type completion, rather than \fBC\fR- or \fBn\fR-type, so that
-`*' will match an empty word.
-..
 Note that the \fIman\fR example, and several other examples below, could
 just as well have used 'c/*' or 'n/*' as 'p/*'.
 .PP
@@ -2549,13 +2525,13 @@ Finally, here's a complex example for inspiration:
 .IP "" 4
 > complete find \\
 .br
-\'n/\-name/f/' 'n/\-newer/f/' 'n/\-{,n}cpio/f/' \e
+\&'n/\-name/f/' 'n/\-newer/f/' 'n/\-{,n}cpio/f/' \e
 .br
 \'n/\-exec/c/' 'n/\-ok/c/' 'n/\-user/u/' \e
 .br
-\'n/\-group/g/' 'n/\-fstype/(nfs 4.2)/' \e
+\&'n/\-group/g/' 'n/\-fstype/(nfs 4.2)/' \e
 .br
-\'n/\-type/(b c d f l p s)/' \e
+\&'n/\-type/(b c d f l p s)/' \e
 .br
 \'c/\-/(name newer cpio ncpio exec ok user \e
 .br
@@ -2565,7 +2541,7 @@ ls mtime nogroup nouser perm print prune \e
 .br
 size xdev)/' \e
 .br
-\'p/*/d/'
+\&'p/*/d/'
 .PP
 This completes words following `\-name', `\-newer', `\-cpio' or `ncpio'
 (note the pattern which matches both) to files,
@@ -2868,11 +2844,6 @@ or HUP (hangup), then the job or process is sent a
 CONT (continue) signal as well.
 The third form lists the signal names.
 .PD
-.ig \" Obsolete tcsh command
-.TP 8
-.B linedit \fR(+)
-A synonym for the \fIecho\fR builtin command.
-..
 .TP 8
 .B limit \fR[\fB\-h\fR] [\fIresource\fR [\fImaximum-use\fR]]
 Limits the consumption by the current process and each
@@ -3611,7 +3582,8 @@ If set, the command which was passed to the shell with the \fB-c\fR flag (q.v.).
 .B complete \fR(+)
 If set to `enhance', completion 1) ignores case and 2) considers
 periods, hyphens and underscores (`.', `\-' and `_') to be word
-separators and hyphens and underscores to be equivalent.
+separators and hyphens and underscores to be equivalent. If set to
+`igncase', the completion becomes case insensitive.
 .TP 8
 .B continue \fR(+)
 If set to a list of commands, the shell will continue the listed
@@ -3814,9 +3786,11 @@ If set to the empty string or `0' and the input device is a terminal,
 the \fIend-of-file\fR command (usually generated by the user by typing
 `^D' on an empty line) causes the shell to print `Use "exit" to leave
 tcsh.' instead of exiting.  This prevents the shell from accidentally
-being killed.  If set to a number \fIn\fR, the shell ignores \fIn\fR -
-1 consecutive \fIend-of-file\fRs and exits on the \fIn\fRth.  (+) If
-unset, `1' is used, i.e., the shell exits on a single `^D'.
+being killed.  Historically this setting exited after 26 successive
+EOF's to avoid infinite loops.  If set to a number \fIn\fR, the shell
+ignores \fIn - 1\fR consecutive \fIend-of-file\fRs and exits on the
+\fIn\fRth.  (+) If unset, `1' is used, i.e., the shell exits on a
+single `^D'.
 .TP 8
 .B implicitcd \fR(+)
 If set, the shell treats a directory name typed as a command as though
@@ -3843,6 +3817,12 @@ string is erased and the current one is inserted.
 Indicates the number of killed strings to keep in memory.  Set to `30'
 by default.  If unset or set to less than `2', the shell will only
 keep the most recently killed string.
+Strings are put in the killring by the editor commands that delete
+(kill) strings of text, e.g. \fIbackward-delete-word\fR,
+\fIkill-line\fR, etc, as well as the \fIcopy-region-as-kill\fR command.
+The \fIyank\fR editor command will yank the most recently killed string
+into the command-line, while \fIyank-pop\fR (see \fBEditor commands\fR)
+can be used to yank earlier killed strings.
 .TP 8
 .B listflags \fR(+)
 If set to `x', `a' or `A', or any combination thereof (e.g., `xA'), they
@@ -3911,7 +3891,7 @@ of `You have new mail.'
 .B matchbeep \fR(+)
 If set to `never', completion never beeps.
 If set to `nomatch', it beeps only when there is no match.
-If set to `ambiguous, it beeps when there are multiple matches.
+If set to `ambiguous', it beeps when there are multiple matches.
 If set to `notunique', it beeps when there is one exact and other longer matches.
 If unset, `ambiguous' is used.
 .TP 8
@@ -4407,7 +4387,7 @@ The number of reads from raw disk devices.
 The number of writes to raw disk devices.
 .PD
 .PP
-and the default time format is `%Uu %Ss $E %P %I+%Oio %Fpf+%Ww'.
+and the default time format is `%Uu %Ss %E %P %I+%Oio %Fpf+%Ww'.
 Note that the CPU percentage can be higher than 100% on multi-processors.
 .RE
 .TP 8
@@ -5039,7 +5019,7 @@ pipe(2), setrlimit(2), sigvec(2), stat(2), umask(2), vfork(2), wait(2),
 malloc(3), setlocale(3), tty(4), a.out(5), termcap(5), environ(7),
 termio(7), Introduction to the C Shell
 .SH VERSION
-This manual documents tcsh 6.12.00 (Astron) 2002-07-23.
+This manual documents tcsh 6.13.00 (Astron) 2004-05-19.
 .SH AUTHORS
 .PD 0
 .TP 2

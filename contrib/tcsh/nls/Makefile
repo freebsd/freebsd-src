@@ -1,7 +1,8 @@
 
 SUBDIRS=	C et finnish french german greek italian ja pl russian \
 		spanish ukrainian
-#GENCAT=	gencat -new
+#GENCAT=	gencat --new
+#CHARSET=	charset
 GENCAT=		gencat
 
 catalogs:
@@ -9,7 +10,7 @@ catalogs:
 	do \
 	    echo "$$i"; \
 	    cd $$i; \
-	    cat set[0-9] set[0-9][0-9] > ../../tcsh.$$i.m; \
+	    cat ${CHARSET} set[0-9] set[0-9][0-9] > ../../tcsh.$$i.m; \
 	    cd ..; \
 	    ${GENCAT} ../tcsh.$$i.cat ../tcsh.$$i.m; \
 	done

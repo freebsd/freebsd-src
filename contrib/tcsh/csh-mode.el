@@ -2,7 +2,7 @@
 ;;
 ;; Version:    1.2
 ;; Date:       April 2, 1999
-;; Maintainer: Dan Harkless <dan@wave.eng.uci.edu>
+;; Maintainer: Dan Harkless <software@harkless.org>
 ;;
 ;; Description:
 ;;   csh and tcsh script editing mode for Emacs.
@@ -19,7 +19,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;; Author key:
-;;   DH - Dan Harkless     <dan@wave.eng.uci.edu>
+;;   DH - Dan Harkless     <software@harkless.org>
 ;;   CM - Carlo Migliorini <migliorini@sodalia.it>
 ;;   JR - Jack Repenning   <jackr@sgi.com>
 ;;   GE - Gary Ellison     <Gary.F.Ellison@att.com>

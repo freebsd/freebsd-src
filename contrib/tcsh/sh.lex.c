@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.lex.c,v 3.56 2002/07/08 20:57:32 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.lex.c,v 3.57 2003/08/04 16:19:13 christos Exp $ */
 /*
  * sh.lex.c: Lexical analysis into tokens
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.lex.c,v 3.56 2002/07/08 20:57:32 christos Exp $")
+RCSID("$Id: sh.lex.c,v 3.57 2003/08/04 16:19:13 christos Exp $")
 
 #include "ed.h"
 /* #define DEBUG_INP */
@@ -1476,8 +1476,7 @@ readc(wanteof)
 {
     int c;
     static  int sincereal;	/* Number of real EOFs we've seen */
-    Char *ptr;			/* For STRignoreeof */
-    int numeof = 0;		/* Value of STRignoreeof */
+    extern int numeof;
 
 #ifdef DEBUG_INP
     xprintf("readc\n");
@@ -1486,20 +1485,6 @@ readc(wanteof)
 	peekread = 0;
 	return (c);
     }
-
-    /* Compute the value of EOFs */
-    if ((ptr = varval(STRignoreeof)) != STRNULL) {
-	while (*ptr) {
-	    if (!Isdigit(*ptr)) {
-		numeof = 0;
-		break;
-	    }
-	    numeof = numeof * 10 + *ptr++ - '0';
-	}
-	if (numeof != 0)
-	    numeof++;
-    } 
-    if (numeof < 0) numeof = 26;	/* Sanity check */
 
 top:
     aret = TCSH_F_SEEK;

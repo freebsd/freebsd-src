@@ -1,3 +1,46 @@
+ 36. V6.13.00 - 20040519
+ 35. V6.12.03 - 20040322
+ 34. turn on kanji and dspmbyte by default; add check for utf8 locales,
+     and turn parsing of that automatically based on $LANG.
+ 33. Fix compilation issue under Windows/NT and charset incorrect patch
+     (Yoshiyuki Sakakibara)
+ 32. completion additions (Tom Warzeka)
+ 31. compilation fix (Martin Kraemer)
+ 30. V6.12.02 - 20040221
+ 29. Glob completion listing addition (Tom Warzeka)
+ 28. BS2000 bs2cmd builtin. (Martin Kraemer)
+ 27. Fix interrupt resetting code when /etc startup scripts have syntax errors
+     (Mark A. Grondona)
+ 26. Clarification of kill-ring commands (Per Hedeland)
+ 25. Debian completion additions (Martin Godisch)
+ 24. Japanese character set fixes (Juehiro-san) from debian
+ 23. NLS charset fixes; disabled since they only work with gnu gencat
+     (Martin Godisch)
+ 22. Fix HPUX >= 11 resource (Jack Cummings)
+ 21. Handle breaksw that jumps out of loops.
+ 20. Revert #16. It causes worse problems.
+ 19. Avoid using execl() because the last NULL does not always promoted to
+     a pointer because the function is variadic (Harti Brandt)
+ 18. revert ignoreeof to the 6.11.00 behavior and document it (Martin Godisch)
+ 17. do a case insensitive comparison for the multibyte vars (Martin Godisch)
+ 16. don't sigsuspend() for an already exited job
+ 15. glob all arguments in source (Martin Godisch)
+ 14. various debian fixes (Martin Godisch)
+ 13. setenv syntax check revert (Satoshi I. Nozawa)
+ 12. EAGAIN typo (dan harkless)
+ 11. filec compilation issue on hpux (beebe)
+ 10. win32 compilation fixes for O_LARGEFILE (amol)
+  9. Don't go into an infinite loop when tcgetpgrp() returns an error.
+  8. Cygwin fixes (Corinna Vinschen)
+  7. NLS catclose() bug avoidance (KAJIMOTO Masato)
+  6. V6.12.01 - 20030208
+  5. Misc NT cleanup. No more GPL code (amol)
+  4. use strtol() to detect errors in builtin kill (Peter Jeremy)
+  3. Recognize linux systems on mips* (Maciej W. Rozycki)
+  2. Enable complete=igncase on unix (Stephen Krauth)
+  1. Eliminate maxitems (Todd Miller)
+
+ 58. V6.12.00 - 20020732
  57. misc cleanups.
  56. V6.11.05 - 20020712
  55. We should have socklen_t in the INET6 case, but we leave int otherwise.

@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.glob.c,v 3.54 2002/07/04 19:28:29 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.glob.c,v 3.55 2004/03/21 16:48:14 christos Exp $ */
 /*
  * sh.glob.c: Regular expression expansion
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.glob.c,v 3.54 2002/07/04 19:28:29 christos Exp $")
+RCSID("$Id: sh.glob.c,v 3.55 2004/03/21 16:48:14 christos Exp $")
 
 #include "tc.h"
 #include "tw.h"
@@ -79,7 +79,6 @@ static	Char	**libglob	__P((Char **));
 static	Char	**globexpand	__P((Char **));
 static	int	  globbrace	__P((Char *, Char *, Char ***));
 static  void	  expbrace	__P((Char ***, Char ***, int));
-static  int	  pmatch	__P((Char *, Char *, Char **));
 static	void	  pword		__P((int));
 static	void	  psave		__P((int));
 static	void	  backeval	__P((Char *, bool));
@@ -988,12 +987,12 @@ Gnmatch(string, pattern, endstr)
     if (endstr == NULL)
 	/* Exact matches only */
 	for (p = blk; *p; p++) 
-	    gres |= pmatch(string, *p, &tstring) == 2 ? 1 : 0;
+	    gres |= t_pmatch(string, *p, &tstring, 0) == 2 ? 1 : 0;
     else {
 	/* partial matches */
 	int minc = 0x7fffffff;
 	for (p = blk; *p; p++) 
-	    if (pmatch(string, *p, &tstring) != 0) {
+	    if (t_pmatch(string, *p, &tstring, 0) != 0) {
 		int t = (int) (tstring - string);
 		gres |= 1;
 		if (minc == -1 || minc > t)
@@ -1006,17 +1005,18 @@ Gnmatch(string, pattern, endstr)
     return(gres == gpol);
 } 
 
-/* pmatch():
+/* t_pmatch():
  *	Return 2 on exact match, 	
  *	Return 1 on substring match.
  *	Return 0 on no match.
  *	*estr will point to the end of the longest exact or substring match.
  */
-static int
-pmatch(string, pattern, estr)
-    register Char *string, *pattern, **estr;
+int
+t_pmatch(string, pattern, estr, cs)
+    Char *string, *pattern, **estr;
+    int cs;
 {
-    register Char stringc, patternc;
+    Char    stringc, patternc;
     int     match, negate_range;
     Char    rangec, *oestr, *pestr;
 
@@ -1045,7 +1045,7 @@ pmatch(string, pattern, estr)
 	    pestr = NULL;
 
 	    do {
-		switch(pmatch(string, pattern, estr)) {
+		switch(t_pmatch(string, pattern, estr, cs)) {
 		case 0:
 		    break;
 		case 1:
@@ -1079,8 +1079,8 @@ pmatch(string, pattern, estr)
 		if (match)
 		    continue;
 		if (rangec == '-' && *(pattern-2) != '[' && *pattern  != ']') {
-		    match = (globcharcoll(stringc, *pattern & TRIM) <= 0 &&
-		    globcharcoll(*(pattern-2) & TRIM, stringc) <= 0);
+		    match = (globcharcoll(stringc, *pattern & TRIM, cs) <= 0 &&
+		    globcharcoll(*(pattern-2) & TRIM, stringc, cs) <= 0);
 		    pattern++;
 		}
 		else 
