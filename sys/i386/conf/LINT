@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.47 1998/03/06 23:44:25 julian Exp $
+#	$Id: LINT,v 1.286.2.48 1998/03/08 11:06:56 julian Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1056,7 +1056,7 @@ device		labpc0	at isa? port 0x260 tty irq 5 vector labpcintr
 device          rc0     at isa? port 0x220 tty irq 12 vector rcintr
 # the port and irq for tw0 are fictitious
 device          tw0     at isa? port 0x380 tty irq 11 vector twintr
-device		si0	at isa? iomem 0xd0000 tty irq 12 vector siintr
+device		si0	at isa? iomem 0xd0000 tty irq 12
 device		asc0	at isa? port IO_ASC1 tty drq 3 irq 10 vector ascintr
 device		bqu0	at isa? port 0x150
 device		stl0	at isa? port 0x2a0 tty irq 10 vector stlintr
