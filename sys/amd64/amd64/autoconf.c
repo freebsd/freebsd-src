@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.44 1995/12/03 17:51:36 bde Exp $
+ *	$Id: autoconf.c,v 1.45 1995/12/06 09:04:44 peter Exp $
  */
 
 /*
@@ -88,6 +88,8 @@
 static void	configure __P((void *));
 SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure, NULL)
 
+static void	setroot __P((void));
+
 #ifdef MFS_ROOT
 extern struct vfsops	mfs_vfsops;
 #endif
@@ -123,7 +125,6 @@ static struct {
 static void	configure_finish __P((void));
 static void	configure_start __P((void));
 static int	find_cdrom_root __P((void *));
-static void	setroot __P((void));
 
 static int
 find_cdrom_root(dummy)
