@@ -32,13 +32,15 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1987, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)split.c	8.2 (Berkeley) 4/16/94";
+#endif
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -63,7 +65,7 @@ char	 fname[MAXPATHLEN];		/* File name prefix. */
 void newfile __P((void));
 void split1 __P((void));
 void split2 __P((void));
-void usage __P((void));
+static void usage __P((void));
 
 int
 main(argc, argv)
@@ -89,8 +91,7 @@ main(argc, argv)
 					numlines =
 					    strtol(argv[optind] + 1, &ep, 10);
 				if (numlines <= 0 || *ep)
-					errx(1,
-					    "%s: illegal line count.", optarg);
+					errx(1, "%s: illegal line count", optarg);
 			}
 			break;
 		case '-':		/* Undocumented: historic stdin flag. */
@@ -100,8 +101,8 @@ main(argc, argv)
 			break;
 		case 'b':		/* Byte count. */
 			if ((bytecnt = strtol(optarg, &ep, 10)) <= 0 ||
-			    *ep != '\0' && *ep != 'k' && *ep != 'm')
-				errx(1, "%s: illegal byte count.", optarg);
+			    (*ep != '\0' && *ep != 'k' && *ep != 'm'))
+				errx(1, "%s: illegal byte count", optarg);
 			if (*ep == 'k')
 				bytecnt *= 1024;
 			else if (*ep == 'm')
@@ -111,7 +112,7 @@ main(argc, argv)
 			if (numlines != 0)
 				usage();
 			if ((numlines = strtol(optarg, &ep, 10)) <= 0 || *ep)
-				errx(1, "%s: illegal line count.", optarg);
+				errx(1, "%s: illegal line count", optarg);
 			break;
 		default:
 			usage();
@@ -268,7 +269,7 @@ newfile()
 #define MAXFILES	676
 	if (fnum == MAXFILES) {
 		if (!defname || fname[0] == 'z')
-			errx(1, "too many files.");
+			errx(1, "too many files");
 		++fname[0];
 		fnum = 0;
 	}
@@ -279,7 +280,7 @@ newfile()
 		err(1, "%s", fname);
 }
 
-void
+static void
 usage()
 {
 	(void)fprintf(stderr,
