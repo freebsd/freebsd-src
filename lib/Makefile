@@ -27,7 +27,7 @@ SUBDIR=	${_csu} libcom_err libcrypt libkvm msun libmd \
 	libcalendar libcam libcompat libdevinfo libdevstat ${_libdisk} \
 	libedit libexpat libfetch libform libftpio libgeom ${_libio} libipsec \
 	libipx libisc libmenu ${_libmilter} ${_libmp} ${_libncp} \
-	libnetgraph libopie libpam libpanel libpcap \
+	libnetgraph libopie libpam libpanel libpcap ${_libpthread} \
 	${_libsm} ${_libsmb} ${_libsmdb} ${_libsmutil} \
 	libstand ${_libtelnet} libufs libugidfw libusbhid ${_libvgl} \
 	libwrap libxpg4 liby libz
@@ -60,6 +60,9 @@ _compat=	compat
 _libncp=	libncp
 _libsmb=	libsmb
 _libvgl=	libvgl
+.if !defined(NOLIBPTHREAD)
+_libpthread=	libpthread
+.endif
 .endif
 
 .if ${MACHINE_ARCH} == "alpha"
