@@ -37,46 +37,51 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include <cam/scsi/scsi_ses.h>
+#include SESINC
+
+extern char *geteltnm __P((int));
 
 int
-main(int a, char **v)
+main(a, v)
+	int a;
+	char **v;
 {
-	int fd;
-	u_char stat;
+	ses_object *objp;
+	int nobj, fd, i;
 
-	if (a != 3) {
-		fprintf(stderr, "usage: %s device {enclosure_status|-p}\n", *v);
-		return (1);
-	}
-	fd = open(v[1], O_RDWR);
-	if (fd < 0) {
-		perror(v[1]);
-		return (1);
-	}
-	if (strcmp(v[2], "-p") == 0) {
-		/*
-		 * First clear any enclosure status, in case it is
-		 * a latched status.
-		 */
-		stat = 0;
-		if (ioctl(fd, SESIOC_SETENCSTAT, (caddr_t) &stat) < 0) {
-			perror("SESIOC_SETENCSTAT (pre)");
-			return (1);
+	while (*++v) {
+		fd = open(*v, O_RDONLY);
+		if (fd < 0) {
+			perror(*v);
+			continue;
 		}
-		/*
-		 * Now get the actual current enclosure status.
-		 */
-		if (ioctl(fd, SESIOC_GETENCSTAT, (caddr_t) &stat) < 0) {
-			perror("SESIOC_GETENCSTAT");
-			return (1);
+		if (ioctl(fd, SESIOC_GETNOBJ, (caddr_t) &nobj) < 0) {
+			perror("SESIOC_GETNOBJ");
+			(void) close(fd);
+			continue;
 		}
-	} else {
-		stat = atoi(v[2]);
+		fprintf(stdout, "%s: %d objects\n", *v, nobj);
+		if (nobj == 0) {
+			(void) close(fd);
+			continue;
+		}
+		objp = calloc(nobj, sizeof (ses_object));
+		if (objp == NULL) {
+			perror("calloc");
+			(void) close(fd);
+			continue;
+		}
+		if (ioctl(fd, SESIOC_GETOBJMAP, (caddr_t) objp) < 0) {
+			perror("SESIOC_GETOBJMAP");
+			(void) close(fd);
+			continue;
+		}
+		for (i = 0; i < nobj; i++) {
+			printf(" Object %d: ID 0x%x Type '%s'\n", i,
+			    objp[i].obj_id, geteltnm((int)objp[i].object_type));
+		}
+		free(objp);
+		(void) close(fd);
 	}
-	if (ioctl(fd, SESIOC_SETENCSTAT, (caddr_t) &stat) < 0) {
-		perror("SESIOC_SETENCSTAT");
-	}
-	(void) close(fd);
 	return (0);
 }
