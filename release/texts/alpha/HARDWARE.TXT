@@ -23,6 +23,10 @@ The information is structured as follows:
 - information on expansion boards for FreeBSD/alpha, including things
   that differ from what is in the generic supported hardware list.
 
+Note: you will see references to DEC, Digital Equipment Corporation and 
+Compaq used more or less interchangably. Now that Compaq has acquired Digital 
+Equipment it would be more correct to refer to Compaq-only.
+
 
 In general, what do you need to run FreeBSD/alpha? 
 --------------------------------------------------
@@ -36,13 +40,13 @@ guaranteed to fail miserably.
 
 For a machine even to be considered for FreeBSD use please make sure it has
 the SRM console firmware installed. Or at least make sure that SRM console 
-firmware is available for this particular model. If FreeBSD does not
+firmware is available for this particular machine type. If FreeBSD does not
 currently support your machine type, there is a good chance that this will
-change some time, assuming there is a SRM available.
+change at some point in time, assuming SRM is available.
 
-Machines with the ARC/AlphaBIOS console firmware are intended for 
+Machines with the ARC or AlphaBIOS console firmware were intended for 
 WindowsNT. Some of them have SRM firmware available in the system ROMs 
-which you only have to select (via an ARC/AlphaBIOS menu). In other cases 
+which you only have to select (via an ARC or AlphaBIOS menu). In other cases 
 you will have to re-flash the ROMs with SRM code. Check on
 http://ftp.digital.com/pub/DEC/Alpha/firmware to see what is available
 for your particular system. In any case: no SRM -> no FreeBSD (or NetBSD, 
@@ -50,6 +54,7 @@ OpenBSD, Tru64 Unix or OpenVMS for that matter). With the demise of
 WindowsNT/alpha a lot of former NT boxes are sold on the second hand
 market. They have little or no trade-in value when they are NT-only from the
 console perspective. So, be suspicious if the price appears too good.
+
 Known non-SRM machines are:
 	Digital XL series
 	Digital XLT series
@@ -59,34 +64,35 @@ Known non-SRM machines are:
 To complicate things a bit further: Digital used to have so called
 'white-box' Alpha machines destined as NT-only and 'blue-box' Alpha machines
 destined for OpenVMS and Digital Unix. These names are based on the color
-of the cabinets, 'frostwhite' and 'topgunblue' respectively.
+of the cabinets, 'FrostWhite' and 'TopGunBlue' respectively.
 Although you could put the SRM console on the whitebox, OpenVMS and Digital
 Unix will refuse to boot on them. FreeBSD in post-4.0R will run on both the
 white and the blue-box variants. Before someone asks: the white ones had a
-rather different pricetag.
+rather different (read: cheaper) pricetag.
 
 As part of the SRM you will get the so called OSF/1 PAL code (OSF/1 being the
-initial name of DECs Unix offering on Alpha). The PAL code can be thought
+initial name of Digital's Unix offering on Alpha). The PAL code can be thought
 of as a software abstraction layer between the hardware and the operating
 system. It uses normal CPU instruction plus a handful of privileged
 instructions specific for PAL use. PAL is not microcode by the way. 
 The ARC firmware contains a different PAL code, geared towards WinNT and in
 no way suitable for use by FreeBSD (or more generic: Unix or OpenVMS).
 Before someone asks: Linux/alpha brings its own PAL code, allowing it to
-boot. There are various reasons why this is not a very good idea in the
-eyes of the *BSD folks. I don't want to go into details here.
+boot on ARC & AlphaBIOS. There are various reasons why this is not a 
+very good idea in the eyes of the *BSD folks. I don't want to go into 
+details here.
 
 There is another pitfall ahead: you will need a disk adapter that the SRM
 console recognizes in order to be able to boot from your disk. What is 
-acceptable to SRM as a boot adapter is unfortunately system / SRM version
+acceptable to SRM as a boot adapter is unfortunately system and SRM version
 dependent. For older PCI based machines this means you will need either 
 a NCR/Symbios 53C810 based adapter, or a Qlogic 1020/1040 based adapter. 
-Some machines come with a SCSI chip embedded on the
-mainboard. Newer machine designs and SRM versions will be able to work with
-later SCSI chips/adapters. Check out the machine specific info below.
+Some machines come with a SCSI chip embedded on the mainboard. Newer machine 
+designs and SRM versions will be able to work with later SCSI chips/adapters. 
+Check out the machine specific info below.
 
 The problem might bite those who have machines that started their lives as 
-WinNT boxes. The ARC/AlphaBIOS knows about *other* adapter types that it 
+WinNT boxes. The ARC or AlphaBIOS knows about *other* adapter types that it 
 can boot from than the SRM. For example you can boot from an Adaptec 2940UW 
 with ARC but not with SRM. 
 
@@ -107,7 +113,8 @@ the 21142 / 21143 Fast Ethernet chips, you are limited to using 10Mbit
 Ethernet for net booting those machines. Non-DEC cards based on said chips will
 generally (but are not guaranteed to) work. Note that Intel took over the
 21x4x chips when it bought Digital Semiconductor. So you might see an Intel
-logo on them these days.
+logo on them these days. Recent machine designs have SRM support for
+Intel 8255x ethernet chips.
 
 Alpha machines can be run with SRM on a graphics console or on
 a serial console. ARC can be run on a serial consoles if need be. VT100
@@ -146,7 +153,7 @@ or have upgraded your console firmware.
 
 Parallel ports that can be found on most Alpha machines are supported.
 
-For Alpha CPUs you will find multiple versions. The original Alpha
+For Alpha CPUs you will find multiple generations. The original Alpha
 design is the 21064. It was produced in a chip process called MOS4,
 chips made in this process are nicknamed EV4. Newer CPUs are 21164, 21264
 etc. You will see designations like EV4S, EV45, EV5, EV56, EV6, EV67.
@@ -174,7 +181,7 @@ System specific information
 Below is an overview of the hardware that FreeBSD/alpha runs on.
 This list will definitely grow, a look in /sys/alpha/conf/GENERIC
 can be enlightening. Alpha machines are often best known by their project
-code name, when known these are listed below in ().
+code name. When known these are listed below in ().
 
 *
 * AXPpci33 ("NoName")
@@ -287,18 +294,18 @@ lack the actual PCI connector.
 
 CPU:
 The CPU might or might not be socketed, check before considering CPU upgrade 
-hacks. The low end Multia has a soldered-in CPU.
+hacks. The low-end Multias have a soldered-in CPU.
 
 Graphics: 
 It comes with a TGA based graphics on-board. Which is not suitable for
-console use according to reports I have received. Which means you will
-have to run it using a serial console.
+console use with FreeBSD. Which means you will have to run it using a 
+serial console.
 
 Floppy:
 Although the Multia SRM supports booting from floppy this is problematic. 
 Typical errors look like "*** Soft Error - Error #10 - FDC: Data overrun or
-underrun". The best available workaround to install FreeBSD is to boot from
-CDROM.
+underrun". This is not a FreeBSD problem, it is a SRM problem. The best 
+available workaround to install FreeBSD is to boot from a SCSI CDROM.
 
 Hot:
 Multias are somewhat notorious for dying of heat strokes. The very compact
@@ -306,6 +313,8 @@ box does not really allow cooling air access very well. Please use the
 Multia on its vertical stand, don't put it horizontally ('pizza style').
 Replacing the fan with something which pushes around more air is
 recommended. Beware of PCI cards with high power consumption.
+If your system has died you might want to check on the Multia-Heat-Death
+pages at the NetBSD website http://www.netbsd.org
 
 SCSI:
 In case you want to change the internal hard drive: the internal flat cable
@@ -348,7 +357,7 @@ Unix or OpenVMS will sport '433au'. WinNT-Miatas are likely
 to come pre-configured with an IDE CDROM drive. So, in general systems
 are named like PWS[433,500,600]a[u]. 
 
-There was also a Miata model with a special cooling system by Kryotech. 
+There was also a Miata model with a special CPU cooling system by Kryotech. 
 That one has a different enclosure.
 
 Features:
@@ -381,7 +390,7 @@ Features:
 - embedded sound based on an ESS1888 chip
 
 CPU mainboard and PCI 'riser' board: 
-the Miata is divided into two printed circuit boards. 
+The Miata logic is divided into two printed circuit boards. 
 The lower board in the bottom of the machine has the PCI 
 and ISA slots and things like the sound chip etc. The top board
 has the CPU, the Pyxis chip, memory etc. Note that MX5 and the MiataGL use
@@ -445,9 +454,9 @@ The MiataGL has a faster PCI-PCI bridge chip on the PCI riser card than
 some of the MX5 riser card versions. Some of the MX5 risers have the *same*
 chip as the MiataGL. All in all there is a lot of variation.
 
-Not all VGA cards will work behind the PCI-PCI bridge.
-Workaround is to put the VGA card 'before' the bridge in one of the 64 bit
-PCI slots.
+Not all VGA cards will work behind the PCI-PCI bridge. This manifests itself
+as no video at all. Workaround is to put the VGA card 'before' the bridge,
+in one of the 64 bit PCI slots.
 
 Sound: 
 Both MX5 and MiataGL have an on-board sound chip, an ESS1888. It emulates
@@ -464,24 +473,24 @@ it is firmly seated. A slightly loose cache has been observed to cause
 weird crashes (not surprising obviously, but maybe not so obvious when
 troubleshooting). The cache module is identical between MX5 and MiataGL.
 
-Installing a cache module achieves, apart from a 10-15% speed increase (based 
-on buildworld elapsed time), a *decrease* for PCI DMA read bandwidth from 
-64bit PCI cards. A benchmark on a 64-bit Myrinet card resulted in a decrease
-from 149 Mbytes/sec to 115 Mbytes/sec. Something to keep in mind when doing 
-really high speed things with 64 bit PCI adapters.
+Installing a 2Mb cache module achieves, apart from a 10-15% speed increase 
+(based on buildworld elapsed time), a *decrease* for PCI DMA read bandwidth 
+from 64bit PCI cards. A benchmark on a 64-bit Myrinet card resulted in 
+a decrease from 149 Mbytes/sec to 115 Mbytes/sec. Something to keep in 
+mind when doing really high speed things with 64 bit PCI adapters.
 
 Keyboard:
 If you experience SRM errors like "ERROR: scancode 0xa3 not supported
 on PCXAL" after halting FreeBSD you should update your SRM firmware 
 to V7.2-1 or later. This SRM version is first available on the Firmware
-Update CD V5.7, or on www.compaq.com The problem is fixed on both Miata MX5
-and Miata GL.
+Update CD V5.7, or on http://www.compaq.com The problem is fixed on both 
+Miata MX5 and Miata GL.
 
 USB:
 Supported by FreeBSD 4.1 and later.
 
 Power:
-disconnect the power cord before dismantling the machine, the soft-power
+Disconnect the power cord before dismantling the machine, the soft-power
 switch keeps part of the logic powered even when the machine is switched
 off.
 
@@ -543,9 +552,9 @@ Features:
 SCSI:
 Currently DEC3000 machines can only be used diskless on FreeBSD/alpha. The
 reason for this is that the SCSI drivers needed for the TC SCSI adapters
-were not brought into CAM that the current FreeBSD versions use. TC option
+were not brought into CAM that the recent FreeBSD versions use. TC option
 cards for single (PMAZ-A) or dual fast SCSI (PMAZC-AA) are also available.
-And currently have no drivers n FreeBSD either.
+And currently have no drivers on FreeBSD either.
 
 DEC3000/300 has 5Mbytes/sec SCSI on-board. This bus is used for both internal
 and external devices. DEC3000/500 has 2 SCSI buses. One is for internal 
@@ -561,7 +570,7 @@ The 3000/300 series has a half-speed TurboChannel compared to the other
 bus. Caveat empor.
 
 ISDN interface:
-does not work on FreeBSD (to be honest I don't think there is any 
+ISDN does not work on FreeBSD (to be honest I don't think there is any 
 operating system, including Tru64 Unix, that can use it). 
 
 Memory:
@@ -607,7 +616,7 @@ This is one of the main differences between floor standing and desktop
 machines, the latter have far less SIMM sockets.
 
 Sound:
-is not supported on any of the Birds.
+The sound hardware is not supported on any of the Birds.
 
 Graphics:
 The is no X-Windows version available for the TC machines. 
@@ -658,7 +667,7 @@ set:
 
 Aspen Alpine:
 Aspen Alpine is slightly different, but is close enough to the EB64+ to
-run an EB64+ SRM EPROM (mine does..). The Aspen Alpine does not have 
+run an EB64+ SRM EPROM (mine did..). The Aspen Alpine does not have 
 an embedded Ethernet, has 3 instead of 2 PCI slots. It comes with 2 Mbytes
 of cache already soldered onto the mainboard. It has jumpers to select
 the use of 60, 70 or 80ns SIMM speeds.
@@ -676,7 +685,7 @@ The EB64+ SRM can boot both 53C810 and Qlogic1040 SCSI adapters. Pitfall for
 the Qlogic is that the firmware that is down-loaded by the SRM onto the
 Qlogic chip is very old. There are no updates for the EB64+ SRM available. 
 So you are stuck with old Qlogic bits too. I have had quite some problems
-when I wanted to use Ultra-SCSI drives on the Alpine/Qlogic. The
+when I wanted to use Ultra-SCSI drives on the Alpine with Qlogic. The
 FreeBSD/alpha kernel can be compiled to include a much newer Qlogic firmware
 revision. This is not the default because it adds hundreds of kBytes worth
 of bloat to the kernel. In FreeBSD 4.1 and later the isp firmware is contained 
@@ -694,7 +703,7 @@ For the EB64+ class machines the kernel config file must contain:
 EB164 is a newer design evaluation board, based on the 21164A CPU. This
 design has been used to 'spin off' multiple variations, some of which are
 used by OEM manufacturers/assembly shops. Samsung did its own PC164LX
-which has only 32 bit PCI, whereas the DEC variant has 64 bit PCI.
+which has only 32 bit PCI, whereas the Digital variant has 64 bit PCI.
 
 Features:
 - 21164A, multiple speed variants [EB164, PC164, PC164LX]
@@ -748,7 +757,7 @@ PC164 can boot from IDE disks assuming your SRM version is recent enough.
 Power:
 EB164 needs a power supply that supplies 3.3 Volts. PC164 does not implement
 the PS_ON signal that ATX power supplies need to switch on. A simple switch
-pulling this signal to ground fixes this.
+pulling this signal to ground fixes this problem.
 
 For the EB164 class machines the kernel config file must contain:
         options         DEC_EB164
@@ -947,6 +956,13 @@ Memory:
   bank 0. A bank is four physically adjacent slots. The biggest size DIMMs
   must be installed in bank 0 in case 2 banks of different DIMM sizes are
   used. Max memory size is 2Gb.
+
+Console:
+The AS1000/800 are somewhat stubborn when it comes to serial
+consoles. They need >>> SET CONSOLE SERIAL before they go for
+a serial console. Pulling the keyboard from the machine is not sufficient,
+like it is on most other Alpha models. Going back to a graphical console
+needs >>> SET CONSOLE GRAPHICS at the serial console.
 
 SCSI:
 For AS800 you want to check if your Ultra-Wide SCSI is indeed in Ultra mode.
@@ -1249,9 +1265,10 @@ board.
 
 Console:
 Both Lynx and Sable are somewhat stubborn when it comes to serial
-consoles. They need >> SET CONSOLE SERIAL before they go for
+consoles. They need >>> SET CONSOLE SERIAL before they go for
 a serial console. Pulling the keyboard from the machine is not sufficient,
-like it is on most other Alpha models.
+like it is on most other Alpha models. Going back to a graphical console
+needs >>> SET CONSOLE GRAPHICS at the serial console.
 
 Embedded SCSI:
 Both Sable, DemiSable and Lynx have NCR810 based Fast SCSI onboard.
@@ -1260,7 +1277,7 @@ Expansion:
 DemiSable has 7 EISA slots and 3 PCI slots. Sable has 8 EISA and 3 PCI
 slots. Lynx, being newer, has 8 PCI and 3 EISA slots. Make sure you run the
 EISA Configuration Utility (from floppy) when adding/change expansion cards
-in EISA slots.
+in EISA slots or after upgrading your console firmware.
 
 	NOTE: EISA slots are currently unsupported, but the Compaq Qvision
 	      EISA VGA adapter is treated as an ISA device. It therefore
@@ -1519,6 +1536,9 @@ information.
 chip-based), Qlogic family and NCR/Symbios. Be aware of the machine-specific
 bootability issues for the various adapter types.
 
+- FibreChannel: the Qlogic QL2x00 FibreChhannel host adapters are fully
+supported.
+
 - Ethernet: if you want to boot your Alpha over the Ethernet you will 
 obviously need an Ethernet card that the SRM console recognises. This
 generally means you need a board with an 21x4x Ethernet chip as that is
@@ -1527,9 +1547,6 @@ or 'dc' (newer driver). Some new SRM versions are known to recognise the
 Intel 8255x ethernet chips as driven by the FreeBSD 'fxp' driver. But beware:
 the 'fxp' driver is reported not to work correctly with FreeBSD/alpha (although
 it works excellently on FreeBSD/x86).
-
-- FibreChannel: the Qlogic QL2x00 FibreChhannel host adapters are fully
-supported.
 
 - graphics console/keyboard/mouse: in general the SRM console emulates 
 a VGA-compatibility mode on PCI VGA cards. This is, however, not guaranteed 
@@ -1551,7 +1568,7 @@ Acknowledgments
 In compiling this file I used multiple information sources, but
 http://www.netbsd.org proved to be an invaluable source of information.
 If it wasn't for NetBSD/alpha there probably would not be a FreeBSD/alpha
-in the first place.
+in the first place. 
 
 People who kindly helped me with creating this document:
 
@@ -1559,7 +1576,7 @@ People who kindly helped me with creating this document:
 - Andrew Gallatin <gallatin@cs.duke.edu>
 - Christian Weisgerber <naddy@mips.rhein-neckar.de>
 - David O'Brien <obrien@NUXI.com>
-- Wim Lemmers, Compaq
+- Wim Lemmers, ex-Compaq
 - Matthew Jacob <mjacob@feral.com>
 - Eric Schnoebelen <eric@cirr.com>
 - Chuck Robey <chuckr@picnic.mat.net>
