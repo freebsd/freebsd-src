@@ -23,8 +23,11 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_output.h,v 1.2 1993/10/16 16:47:21 rgrimes Exp $
  */
+
+#ifndef _DDB_DB_OUTPUT_H_
+#define _DDB_DB_OUTPUT_H_ 1
 
 /*
  * 	Author: David B. Golub, Carnegie Mellon University
@@ -39,3 +42,4 @@ extern void	db_force_whitespace();
 extern int	db_print_position();
 extern void	db_end_line();
 extern int	db_printf();
+#endif /* _DDB_DB_OUTPUT_H_ */
