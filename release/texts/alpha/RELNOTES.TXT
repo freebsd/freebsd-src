@@ -132,6 +132,19 @@ and Maestro-2e; Forte Media fm801, ESS Maestro-2e, and VIA Technologies
 VT82C686A sound card/chipsets, and has received some other updates.
 [MERGED]
 
+Replace the PQ_*CACHE options with a single PQ_CACHESIZE option to be
+set to the cache size in kilobytes.  The old options are still
+supported for backwards compatibility. [MERGED]
+
+The NCPU, NAPIC, NBUS, and NINTR kernel configuration options,
+for configuring SMP kernels, have been removed.  NCPU is now set to a 
+maximum of 16, and the other, aforementioned options are now dynamic.
+[MERGED]
+
+The ahc(4) driver has been updated.  [MERGED]
+
+ACPI support has been merged in from the FreeBSD-ACPI project.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -271,6 +284,10 @@ third-party software distributions.  pkg_version(1) can now compare
 these new-style version numbers.  [MERGED]
 
 cvs(1) has been updated to 1.11.
+
+tcpdump(1) has received some updates and bugfixes. [MERGED]
+
+User-land ppp(8) has received a number of updates and bugfixes. [MERGED]
 
 
 2. Supported Configurations
