@@ -29,6 +29,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -2004,7 +2006,7 @@ isredec(dsym, warn)
  * Checks if two types are compatible. Returns 0 if not, otherwise 1.
  *
  * ignqual	ignore qualifiers of type; used for function params
- * promot	promote left type; used for comparision of params of
+ * promot	promote left type; used for comparison of params of
  *		old style function definitions with params of prototypes.
  * *warn	set to 1 if an old style function declaration is not
  *		compatible with a prototype
