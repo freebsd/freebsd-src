@@ -1,4 +1,4 @@
-.\" Copyright (c) 1998-2000 Douglas Barton
+.\" Copyright (c) 1998-2001 Douglas Barton
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 30, 2000
+.Dd February 5, 2001
 .Dt MERGEMASTER 8
 .Os FreeBSD
 .Sh NAME
@@ -137,6 +137,12 @@ Because the named scripts are sourced from within
 .Nm ,
 all of the script's variables are available for use in
 your custom script.
+You can also use
+.Pa /etc/mergemaster.rc
+which will be read before
+.Pa .mergemasterrc .
+Options specified on the command line are updated last,
+and therefore can override both files.
 .Pp
 The options are as follows:
 .Bl -tag -width Fl
