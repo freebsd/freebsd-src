@@ -93,6 +93,9 @@ char *tables[] =
 
 char *header[] =
 {
+    "#if YYDEBUG",
+    "#include <stdio.h>",
+    "#endif",
     "#ifdef YYSTACKSIZE",
     "#undef YYMAXDEPTH",
     "#define YYMAXDEPTH YYSTACKSIZE",
