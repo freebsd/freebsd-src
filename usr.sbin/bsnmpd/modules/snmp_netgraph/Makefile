@@ -12,6 +12,9 @@ MIBS=	BEGEMOT-NETGRAPH.txt
 DEFS=	${MOD}_tree.def
 INCS=	snmp_${MOD}.h
 
+DPADD=	${LIBNETGRAPH}
+LDADD=	-lnetgraph
+
 CFLAGS+= -I${CONTRIB}/lib -I${CONTRIB}/snmpd -I${.CURDIR}
 
 .include <bsd.lib.mk>

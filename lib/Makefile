@@ -11,6 +11,7 @@
 # msun must be built before libg++ and libstdc++.
 # libmd must be built before libatm, libopie, libradius, and libtacplus.
 # libncurses must be built before libdialog, libedit and libreadline.
+# libnetgraph must be built before libbsnmp/modules/snmp_netgraph.
 # libopie must be built before libpam.
 # libradius must be built before libpam.
 # librpcsvc must be built before libpam.
@@ -21,14 +22,14 @@
 #
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
-SUBDIR=	${_csu} libcom_err libcrypt libkvm msun libmd \
-	libncurses libradius librpcsvc libsbuf libtacplus libutil libypclnt \
+SUBDIR=	${_csu} libcom_err libcrypt libkvm msun libmd libncurses \
+	libnetgraph libradius librpcsvc libsbuf libtacplus libutil libypclnt \
 	${_compat} libalias ${_libatm} ${_libbind} \
 	${_libbluetooth} libbsnmp libbz2 libc ${_libc_r} \
 	libcalendar libcam libcompat libdevinfo libdevstat ${_libdisk} \
 	libedit libexpat libfetch libform libftpio libgeom ${_libio} libipsec \
 	libipx libisc libkiconv libmenu ${_libmilter} ${_libmp} ${_libncp} \
-	libnetgraph ${_libngatm} libopie libpam libpanel libpcap \
+	${_libngatm} libopie libpam libpanel libpcap \
 	${_libpthread} ${_libsdp} ${_libsm} ${_libsmb} ${_libsmdb} \
 	${_libsmutil} libstand libtelnet ${_libthr} libufs libugidfw \
 	${_libusbhid} ${_libvgl} libwrap libxpg4 liby libz
