@@ -147,7 +147,7 @@ short lastpx,lastpy;	/*	0 --- MAXX-1  or  0 --- MAXY-1					*/
 short oldx,oldy;
 short lasthx=0,lasthy=0;	/* location of monster last hit by player		*/
 short nobeep=0;			/* true if program is not to beep  					*/
-unsigned long randx=33601;	/*	the random number seed						*/
+/* unsigned long randx=33601;      /*      the random number seed                                          */
 long initialtime=0;			/* time playing began 							*/
 long gtime=0;				/*	the clock for the game						*/
 long outstanding_taxes=0;	/* present tax bill from score file 			*/
