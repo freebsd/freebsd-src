@@ -26,7 +26,9 @@
  * $FreeBSD$
  */
 
-#include "langinfo.h"
+#include <locale.h>
+#include <langinfo.h>
+#include <string.h>
 #include "../stdtime/timelocal.h"
 #include "lnumeric.h"
 #include "lmonetary.h"
@@ -37,11 +39,18 @@
 char *
 nl_langinfo(nl_item item) {
 
-   char *ret;
+   char *ret, *s, *cs;
 
    switch (item) {
 	case CODESET:
-		ret = "";		/* XXX: need to be implemented */
+		ret = "";
+		if ((s = setlocale(LC_CTYPE, NULL)) != NULL) {
+			if ((cs = strchr(s, '.')) != NULL)
+				ret = cs + 1;
+			else if (strcmp(s, "C") == 0 ||
+				 strcmp(s, "POSIX") == 0)
+				ret = "US-ASCII";
+		}
 		break;
 	case D_T_FMT:
 		ret = (char *) __get_current_time_locale()->c_fmt;
