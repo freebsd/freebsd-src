@@ -50,6 +50,7 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <fts.h>
 #include <stdio.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include "extern.h"
@@ -183,7 +184,7 @@ copy_file(entp, dne)
 	 */
 #define	RETAINBITS \
 	(S_ISUID | S_ISGID | S_ISVTX | S_IRWXU | S_IRWXG | S_IRWXO)
-	else if (fs->st_mode & (S_ISUID | S_ISGID) && fs->st_uid == myuid)
+	else if (fs->st_mode & (S_ISUID | S_ISGID) && fs->st_uid == myuid) {
 		if (fstat(to_fd, &to_stat)) {
 			warn("%s", to.p_path);
 			rval = 1;
@@ -192,6 +193,7 @@ copy_file(entp, dne)
 			warn("%s", to.p_path);
 			rval = 1;
 		}
+	}
 	(void)close(from_fd);
 	if (close(to_fd)) {
 		warn("%s", to.p_path);
@@ -319,8 +321,9 @@ setfile(fs, fd)
 void
 usage()
 {
+
 	(void)fprintf(stderr, "%s\n%s\n",
-"usage: cp [-R [-H | -L | -P]] [-f | -i] [-p] src target",
-"       cp [-R [-H | -L | -P]] [-f | -i] [-p] src1 ... srcN directory");
-	exit(1);
+"usage: cp [-R [-H | -L | -P]] [-f | -i] [-pv] src target",
+"       cp [-R [-H | -L | -P]] [-f | -i] [-pv] src1 ... srcN directory");
+	exit(EX_USAGE);
 }
