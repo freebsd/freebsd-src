@@ -51,11 +51,6 @@
 #include <i386/isa/icu.h>
 #include <i386/isa/intr_machdep.h>
 
-#include "apm.h"
-#if	NAPM > 0
-#include <machine/apm_bios.h>
-#endif	/* NAPM > 0 */
-
 #include <pccard/cardinfo.h>
 #include <pccard/driver.h>
 #include <pccard/pcic.h>
@@ -97,19 +92,6 @@ static void		disable_slot_spl0(struct slot *);
 static void		disable_slot_to(void *);
 static int		invalid_io_memory(unsigned long, int);
 static void		power_off_slot(void *);
-
-#if	NAPM > 0
-/*
- *    For the APM stuff, the apmhook structure is kept
- *    separate from the slot structure so that the slot
- *    drivers do not need to know about the hooks (or the
- *    data structures).
- */
-static int	slot_suspend(void *arg);
-static int	slot_resume(void *arg);
-static struct	apmhook s_hook[MAXSLOT];	/* APM suspend */
-static struct	apmhook r_hook[MAXSLOT];	/* APM resume */
-#endif	/* NAPM > 0 */
 
 static struct slot	*pccard_slots[MAXSLOT];	/* slot entries */
 
@@ -223,55 +205,6 @@ disable_slot_spl0(struct slot *slt)
 	slt->disable_ch = timeout(disable_slot_to, (caddr_t) slt, 0);
 }
 
-
-/*
- *	APM hooks for suspending and resuming.
- */
-#if   NAPM > 0
-static int
-slot_suspend(void *arg)
-{
-	struct slot *slt = arg;
-
-	/* This code stolen from pccard_event:card_removed */
-	if (slt->state == filled) {
-		int s = splhigh();
-		disable_slot(slt);
-		slt->laststate = filled;
-		slt->state = suspend;
-		splx(s);
-		printf("pccard: card disabled, slot %d\n", slt->slotnum);
-	}
-	/*
-	 * Disable any pending timeouts for this slot since we're
-	 * powering it down/disabling now.
-	 */
-	untimeout(power_off_slot, (caddr_t)slt, slt->disable_ch);
-	untimeout(power_off_slot, (caddr_t)slt, slt->poff_ch);
-	slt->ctrl->disable(slt);
-	return (0);
-}
-
-static int
-slot_resume(void *arg)
-{
-	struct slot *slt = arg;
-
-	if (pcic_resume_reset)
-		slt->ctrl->resume(slt);
-	/* This code stolen from pccard_event:card_inserted */
-	if (slt->state == suspend) {
-		slt->laststate = suspend;
-		slt->state = empty;
-		slt->insert_seq = 1;
-		untimeout(inserted, (void *)slt, slt->insert_ch);
-		inserted((void *) slt);
-		selwakeup(&slt->selp);
-	}
-	return (0);
-}
-#endif	/* NAPM > 0 */
-
 /*
  *	pccard_alloc_slot - Called from controller probe
  *	routine, this function allocates a new PC-CARD slot
@@ -294,44 +227,12 @@ pccard_alloc_slot(struct slot_ctrl *ctrl)
 	MALLOC(slt, struct slot *, sizeof(*slt), M_DEVBUF, M_WAITOK);
 	bzero(slt, sizeof(*slt));
 	make_dev(&crd_cdevsw, slotno, 0, 0, 0600, "card%d", slotno);
-	if (ctrl->extra) {
-		MALLOC(slt->cdata, void *, ctrl->extra, M_DEVBUF, M_WAITOK);
-		bzero(slt->cdata, ctrl->extra);
-	}
 	slt->ctrl = ctrl;
 	slt->slotnum = slotno;
 	pccard_slots[slotno] = slt;
-	/*
-	 *	If this controller hasn't been seen before, then
-	 *	link it into the list of controllers.
-	 */
-	if (ctrl->slots++ == 0) {
-		if (ctrl->maxmem > NUM_MEM_WINDOWS)
-			ctrl->maxmem = NUM_MEM_WINDOWS;
-		if (ctrl->maxio > NUM_IO_WINDOWS)
-			ctrl->maxio = NUM_IO_WINDOWS;
-	}
 	callout_handle_init(&slt->insert_ch);
 	callout_handle_init(&slt->poff_ch);
 	callout_handle_init(&slt->disable_ch);
-#if NAPM > 0
-	{
-		struct apmhook *ap;
-
-		ap = &s_hook[slt->slotnum];
-		ap->ah_fun = slot_suspend;
-		ap->ah_arg = (void *)slt;
-		ap->ah_name = "pcccard";
-		ap->ah_order = APM_MID_ORDER;
-		apm_hook_establish(APM_HOOK_SUSPEND, ap);
-		ap = &r_hook[slt->slotnum];
-		ap->ah_fun = slot_resume;
-		ap->ah_arg = (void *)slt;
-		ap->ah_name = "pccard";
-		ap->ah_order = APM_MID_ORDER;
-		apm_hook_establish(APM_HOOK_RESUME, ap);
-	}
-#endif /* NAPM > 0 */
 	return(slt);
 }
 
@@ -359,8 +260,7 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	devi->slt = slt;
 	bcopy(desc->misc, devi->misc, sizeof(desc->misc));
 	resource_list_init(&devi->resources);
-	child = devi->isahd.id_device = device_add_child(pccarddev, devi->name,
-	    desc->unit);
+	child = device_add_child(pccarddev, devi->name, desc->unit);
 	device_set_flags(child, desc->flags);
 	device_set_ivars(child, devi);
 	err = bus_set_resource(child, SYS_RES_IOPORT, 0, desc->iobase,
@@ -773,4 +673,56 @@ invalid_io_memory(unsigned long adr, int size)
 	if (adr < 0xC0000 || (adr+size) > IOM_END)
 		return(1);
 	return(0);
+}
+
+static struct slot *
+pccard_dev2slot(device_t dev)
+{
+	return pccard_slots[device_get_unit(dev)];
+}
+
+/*
+ *	APM hooks for suspending and resuming.
+ */
+int
+pccard_suspend(device_t dev)
+{
+	struct slot *slt = pccard_dev2slot(dev);
+
+	/* This code stolen from pccard_event:card_removed */
+	if (slt->state == filled) {
+		int s = splhigh();
+		disable_slot(slt);
+		slt->laststate = filled;
+		slt->state = suspend;
+		splx(s);
+		printf("pccard: card disabled, slot %d\n", slt->slotnum);
+	}
+	/*
+	 * Disable any pending timeouts for this slot since we're
+	 * powering it down/disabling now.
+	 */
+	untimeout(power_off_slot, (caddr_t)slt, slt->disable_ch);
+	untimeout(power_off_slot, (caddr_t)slt, slt->poff_ch);
+	slt->ctrl->disable(slt);
+	return (0);
+}
+
+int
+pccard_resume(device_t dev)
+{
+	struct slot *slt = pccard_dev2slot(dev);
+
+	if (pcic_resume_reset)
+		slt->ctrl->resume(slt);
+	/* This code stolen from pccard_event:card_inserted */
+	if (slt->state == suspend) {
+		slt->laststate = suspend;
+		slt->state = empty;
+		slt->insert_seq = 1;
+		untimeout(inserted, (void *)slt, slt->insert_ch);
+		inserted((void *) slt);
+		selwakeup(&slt->selp);
+	}
+	return (0);
 }
