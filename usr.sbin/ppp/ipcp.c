@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.18 1997/05/23 04:54:02 brian Exp $
+ * $Id: ipcp.c,v 1.19 1997/05/24 17:32:35 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -31,10 +31,10 @@
 #include <netinet/ip.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
-#include <alias.h>
 #include "slcompress.h"
 #include "os.h"
 #include "phase.h"
+#include "loadalias.h"
 #include "vars.h"
 
 extern void PutConfValue();
@@ -282,7 +282,7 @@ struct fsm *fp;
   IpcpStartReport();
   StartIdleTimer();
   if (mode & MODE_ALIAS)
-    SetPacketAliasAddress(IpcpInfo.want_ipaddr);
+    VarSetPacketAliasAddress(IpcpInfo.want_ipaddr);
 }
 
 void

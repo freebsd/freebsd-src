@@ -8,9 +8,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <alias.h>
 
+#include "defs.h"
 #include "command.h"
+#include "loadalias.h"
 #include "vars.h"
 
 static int
@@ -29,8 +30,9 @@ AliasRedirectPort (struct cmdtab *list,
                    char **argv,
                    void *param)
 {
-    if (argc == 3)
-    {
+    if (!(mode & MODE_ALIAS))
+        printf("alias not enabled\n");
+    else if (argc == 3) {
         char proto_constant;
         char *proto;
         u_short local_port;
@@ -41,32 +43,25 @@ AliasRedirectPort (struct cmdtab *list,
         struct alias_link *link;
 
         proto = argv[0];
-        if (strcmp(proto, "tcp") == 0)
-        {
+        if (strcmp(proto, "tcp") == 0) {
             proto_constant = IPPROTO_TCP;
-        }
-        else if (strcmp(proto, "udp") == 0)
-        {
+        } else if (strcmp(proto, "udp") == 0) {
             proto_constant = IPPROTO_UDP;
-        }
-        else
-        {
+        } else {
             printf("port redirect: protocol must be tcp or udp\n"); 
             printf("Usage: alias %s %s\n", list->name, list->syntax);
             return 1;
         }
 
         error = StrToAddrAndPort(argv[1], &local_addr, &local_port, proto);
-        if (error)
-        {
+        if (error) {
             printf("port redirect: error reading local addr:port\n");
             printf("Usage: alias %s %s\n", list->name, list->syntax);
             return 1;
         }
 
         error = StrToPort(argv[2], &alias_port, proto);
-        if (error)
-        {
+        if (error) {
             printf("port redirect: error reading alias port\n");
             printf("Usage: alias %s %s\n", list->name, list->syntax);
             return 1;
@@ -74,7 +69,7 @@ AliasRedirectPort (struct cmdtab *list,
 
         null_addr.s_addr = 0;
 
-        link = PacketAliasRedirectPort(local_addr, local_port,
+        link = VarPacketAliasRedirectPort(local_addr, local_port,
                                         null_addr,  0,
                                         null_addr,  alias_port,
                                         proto_constant);
@@ -82,11 +77,9 @@ AliasRedirectPort (struct cmdtab *list,
         if (link == NULL)
             printf("port redirect: error returned by packed aliasing engine"
                    "(code=%d)\n", error);
+    } else
+        printf("Usage: alias %s %s\n", list->name, list->syntax);
 
-        return 1;
-    }
-
-    printf("Usage: alias %s %s\n", list->name, list->syntax);
     return 1;
 }
 
@@ -97,39 +90,36 @@ AliasRedirectAddr(struct cmdtab *list,
                   char **argv,
                   void *param)
 {
-    if (argc == 2)
-    {
+    if (!(mode & MODE_ALIAS))
+        printf("alias not enabled\n");
+    else if (argc == 2) {
         int error;
         struct in_addr local_addr;
         struct in_addr alias_addr;
         struct alias_link *link;
 
         error = StrToAddr(argv[0], &local_addr);
-        if (error)
-        {
+        if (error) {
             printf("address redirect: invalid local address\n");
             return 1;
         }
 
         error = StrToAddr(argv[1], &alias_addr);
-        if (error)
-        {
+        if (error) {
             printf("address redirect: invalid alias address\n");
             printf("Usage: alias %s %s\n", list->name, list->syntax);
             return 1;
         }
 
-        link = PacketAliasRedirectAddr(local_addr, alias_addr);
-        if (link == NULL)
-        {
+        link = VarPacketAliasRedirectAddr(local_addr, alias_addr);
+        if (link == NULL) {
             printf("address redirect: packet aliasing engine error\n");
             printf("Usage: alias %s %s\n", list->name, list->syntax);
         }
 
-        return 1;
-    }
+    } else
+        printf("Usage: alias %s %s\n", list->name, list->syntax);
 
-    printf("Usage: alias %s %s\n", list->name, list->syntax);
     return 1;
 }
 
