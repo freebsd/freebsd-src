@@ -6,6 +6,8 @@
  *	    up to
  *	$NetBSD: ehci.c,v 1.64 2004/06/23 06:45:56 mycroft Exp $
  *	$NetBSD: ehci.c,v 1.66 2004/06/30 03:11:56 mycroft Exp $
+ *	$NetBSD: ehci.c,v 1.67 2004/07/06 04:18:05 mycroft Exp $
+ *	$NetBSD: ehci.c,v 1.68 2004/07/09 05:07:06 mycroft Exp $
  */
 
 /*
@@ -534,11 +536,9 @@ ehci_intr1(ehci_softc_t *sc)
 	}
 
 	intrs = EHCI_STS_INTRS(EOREAD4(sc, EHCI_USBSTS));
-
 	if (!intrs)
 		return (0);
 
-	EOWRITE4(sc, EHCI_USBSTS, intrs); /* Acknowledge */
 	eintrs = intrs & sc->sc_eintrs;
 	DPRINTFN(7, ("ehci_intr: sc=%p intrs=0x%x(0x%x) eintrs=0x%x\n",
 		     sc, (u_int)intrs, EOREAD4(sc, EHCI_USBSTS),
@@ -546,6 +546,7 @@ ehci_intr1(ehci_softc_t *sc)
 	if (!eintrs)
 		return (0);
 
+	EOWRITE4(sc, EHCI_USBSTS, intrs); /* Acknowledge */
 	sc->sc_bus.intr_context++;
 	sc->sc_bus.no_intrs++;
 	if (eintrs & EHCI_STS_IAA) {
@@ -2155,13 +2156,12 @@ ehci_alloc_sqtd_chain(struct ehci_pipe *epipe, ehci_softc_t *sc,
 printf("status=%08x toggle=%d\n", epipe->sqh->qh.qh_qtd.qtd_status,
     epipe->nexttoggle);
 #endif
-	qtdstatus = htole32(
-	    EHCI_QTD_ACTIVE |
+	qtdstatus = EHCI_QTD_ACTIVE |
 	    EHCI_QTD_SET_PID(rd ? EHCI_QTD_PID_IN : EHCI_QTD_PID_OUT) |
 	    EHCI_QTD_SET_CERR(3)
 	    /* IOC set below */
 	    /* BYTES set below */
-	    );
+	    ;
 	mps = UGETW(epipe->pipe.endpoint->edesc->wMaxPacketSize);
 	tog = epipe->nexttoggle;
 	qtdstatus |= EHCI_QTD_SET_TOGGLE(tog);
@@ -2250,7 +2250,7 @@ printf("status=%08x toggle=%d\n", epipe->sqh->qh.qh_qtd.qtd_status,
 		cur->nextqtd = next;
 		cur->qtd.qtd_next = cur->qtd.qtd_altnext = nextphys;
 		cur->qtd.qtd_status =
-		    qtdstatus | htole32(EHCI_QTD_SET_BYTES(curlen));
+		    htole32(qtdstatus | EHCI_QTD_SET_BYTES(curlen));
 		cur->xfer = xfer;
 		cur->len = curlen;
 		DPRINTFN(10,("ehci_alloc_sqtd_chain: cbp=0x%08x end=0x%08x\n",
