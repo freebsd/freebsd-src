@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
-.\"	$Id: make.1,v 1.15 1998/11/15 05:51:55 bde Exp $
+.\"	$Id: make.1,v 1.16 1998/11/29 13:46:39 pds Exp $
 .\"
 .Dd March 19, 1994
 .Dt MAKE 1
@@ -488,6 +488,10 @@ This is identical to
 .Ql Cm M ,
 but selects all words which do not match
 the rest of the modifier.
+.It Cm Q
+Quotes every shell meta-character in the variable, so that it can be passed
+safely through recursive invocations of
+.Nm make .
 .It Cm R
 Replaces each word in the variable with everything but its suffix.
 .Sm off
