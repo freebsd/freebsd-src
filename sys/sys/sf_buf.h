@@ -33,6 +33,10 @@
 
 struct vm_page;
 
+extern  int nsfbufs;                    /* Number of sendfile(2) bufs alloced */
+extern  int nsfbufspeak;                /* Peak of nsfbufsused */
+extern  int nsfbufsused;                /* Number of sendfile(2) bufs in use */
+
 struct sf_buf *
 	sf_buf_alloc(struct vm_page *m);
 void	sf_buf_free(void *addr, void *args);
