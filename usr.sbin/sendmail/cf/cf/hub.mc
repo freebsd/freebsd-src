@@ -40,7 +40,7 @@ divert(-1)
 
 divert(0)dnl
 include(../m4/cf.m4)
-VERSIONID(`$Id: hub.mc,v 1.3 1997/10/06 00:09:17 jmb Exp $')
+VERSIONID(`$Id: hub.mc,v 1.1.4.3 1997/09/28 12:37:50 peter Exp $')
 
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
@@ -75,7 +75,7 @@ define(`confRECEIVED_HEADER', `$?sfrom $s $.$?_($?s$|from $.$_)
           $.by $j ($v/$Z)$?r with $r$. id $i$?u
           for $u; $|;
           $.$b$?g
-          (envelope-from $g)$.')dnl
+          (envelope-from $g)$.')dnl$|;$.
 define(`confHOST_STATUS_DIRECTORY', `.hoststat')dnl
 define(`confMAX_DAEMON_CHILDREN', `8')dnl
 define(`confCONNECTION_THROTTLE_RATE', `1')dnl
@@ -84,41 +84,115 @@ define(`confFORWARD_PATH', `/var/forward/$u')dnl
 LOCAL_CONFIG
 Cw localhost freefall.freebsd.org
 
+FR-o /etc/sendmail.cR
+
 Kdenyip hash -o -a.REJECT /etc/mail/denyip.db
+Kfakenames hash -o -a.REJECT /etc/mail/fakenames.db
 Kspamsites hash -o -a.REJECT /etc/mail/spamsites.db
 
-Scheck_relay
-# called with host.tld and IP address of connecting host.
-# ip address must NOT be in the "denyip" database
-R$* $| [$+		$1 $| $2			should not be needed
-R$* $| $+]		$1 $| $2			same (bat 2nd ed p510)
-R$* $| $*		$: $1 $| $(denyip $2 $)
-R$* $| $*.REJECT	$#error $: 521 blocked. contact postmaster@FreeBSD.ORG ($2)
-# host must *not* be in the "spamsites" database
-R$+.$+.$+ $| $*		$2.$3 $| $4
-R$+.$+ $| $*		$: $(spamsites $1.$2 $) $| $3
-R$*.REJECT $| $*	$#error $: 521 blocked. contact postmaster@FreeBSD.ORG ($1)
-# Host must be resolvable
-#R$* $| $*		$: <?> <$1 $| $2> $>3 foo@$1
-#R<?> <$*> $*<@$*.>	$: $1
-#R<?> <$*> $*<@$*>	$#error $: 451 Domain does not resolve ($1)
-
-# spamsites database optional--fail safe, deliver the mail. 
-Scheck_mail
-# called with envelope sender, "Mail From: xxx", of SMTP conversation
+# helper rulsesets; useful for debugging sendmail configurations
 #
-# can't force DNS, Poul-Henning Kamp and others dont resolve
-# <root@dgbmsu1.s2.dgb.tfs>... Domain does not resolve
 #
-R$*			$: <?> $>3 $1
-R<?> $* < @ $+ . >	$: $2 
-# R<?> $* < @ $+ >	$#error $: "451 Domain does not resolve"
-R<?> $* < @ $+ >	$: $2
-R$+.$+.$+		$2.$3  
-R$*			$: $(spamsites $1 $: OK $)
-ROK			$@ OK 
-R$+.REJECT		$#error $: 521 $1 
+Scheck_rbl
+# lookup up an ip address in the Realtime Blackhole List.
+R$-.$-.$-.$-	$: $(host $4.$3.$2.$1.rbl.maps.vix.com $:OK $)
 
 Sxlat						# for sendmail -bt
+# sendmail treats "$" and "|" as two distinct tokens
+# this rule "pastes" them together into one token
+# and then calls check_relay.
 R$* $$| $*		$: $1 $| $2
 R$* $| $*		$@ $>check_relay $1 $| $2
+
+Scheck_relay
+# called with "hostname.tld $| IP address" of connecting host.
+# hostname.tld is the fully-qualified domain name
+# IP address is dotted-quad with surrounding "[]" brackets.
+#
+# each group of rules in this ruleset is independent.
+# each accepts and return "hostname.tld $| IP address"
+# use the ones that you want comment out the rest
+# you may rearrange the groups but not the rules in each group.
+# each group is preceded and followed by a comment
+#
+# host must NOT be in the "spamsites" database--BEGIN
+R$* $| $*		$: <$1 $| $2> $1
+R<$*> $+.$+.$+		<$1> $3.$4
+R<$*> $+.$+		$: <$1> $(spamsites $2.$3 $)
+R<$*> $*.REJECT		$#error $: "521 blocked. contact postmaster@FreeBSD.ORG"
+R<$*> $*		$: $1
+# host must NOT be in the "spamsites" database--END
+# ip address must NOT be in the "denyip" database--BEGIN
+R$* $| $*		$: $1 $| $(denyip $2 $)
+R$* $| $*.REJECT	$#error $: "521 blocked. contact postmaster@FreeBSD.ORG"
+# ip address must NOT be in the "denyip" database--END
+# Host must resolve--BEGIN
+R$* $| $*		$: <$1 $| $2> $>3 foo@$1
+R<$*> $*<@$*.>		$: $1
+R<$*> $*<@$*>		$#error $: "451 Domain does not resolve"
+# Host must resolve--END
+R$*			$@ OK
+
+Scheck_mail
+# called with envelope sender (everything after ":") in
+# "Mail From: xxx", of SMTP conversation
+#	may or may not have "<" ">"
+# the groups of rules in this ruleset ARE NOT independent.
+# "remove all RFC-822 comments" must come first
+# "Paul Vixie's RBL" must be last
+# you may rearrange the other rules.
+#
+# use the ones that you want comment out the rest
+# each group is preceded and followed by a comment
+#
+# remove all RFC-822 comments--BEGIN
+# MUST be first rule in check_mail rulseset.
+R$*			$: $>3 $1
+# remove all RFC-822 comments--END
+# mail must come from a DNS resolvable host--BEGIN
+R$* < @ $+ . >		$: $1 @ $2
+R$* < @ $+ >		$#error $: "451 Domain does not resolve"
+# mail must come from a DNS resolvable host--END
+# mail must NOT come from a known source of spam--BEGIN
+# resolved.  second check:  one of the know spam sources?
+R$+ @$+			$: <$1@$2> $1 @$2
+R<$*> $+ @$+.$+.$+	<$1> $4.$5  
+R<$*> $*		$: $(spamsites $2 $: OK $)
+R$+.REJECT		$#error $: 521 $1 
+R<$*> $*		$: $1
+# mail must NOT come from a known source of spam--END
+# ip address must NOT be in Paul Vixie's RBL--BEGIN
+R$*			$: $1 $: $(dequote "" $&{client_addr} $)
+R$*			$: $>check_rbl $1
+R$*.com.		$#error $: "550 Mail refused, see http://maps.vix.com/rbl"
+# ip address must NOT be in Paul Vixie's RBL--END
+R$*			$@ OK
+
+Scheck_rcpt
+# called with envelope recipient (everything after ":") in
+# "Rcpt To: xxx", of SMTP conversation
+#       may or may not have "<" ">" and or RFC-822 comments.
+#	let ruleset 3 clean this up for us.
+#
+# do NOT reorder these two groups of rules.
+# restrict mail relaying to host and domains listed in /etc/sendmail.cR
+# 
+# mail must NOT be addressed "fakenames"--BEGIN
+R$*			$: <$1> $>3 $1
+R<$*> $+ < @ $+ >	$: <$1> $(fakenames $2 $: OK $)
+R$+.REJECT		$#error $: 521 $1
+R<$*> $*		$: $1
+# mail must NOT be addressed "fakenames"--END
+# mail must come from or go to this machine or machines we allow to relay--BEGIN
+# R$*			$: $>Parse0 $>3 $1
+# R$+ < @ $* . > $*	$: $1 < @ $2 >
+# R<$+ @ $=w>		$@ OK
+# R<$+ @ $* $=R>		$@ OK
+# R$*			$: $(dequote "" $&{client_name} $)
+# R$=w			$@ OK
+# R$* $=R			$@ OK
+# R$@			$@ OK
+# R$*			$#error $: "550 Relaying Denied"
+# mail must come from or go to this machine or machines we allow to relay--BEGIN
+R$*			$@ OK
+
