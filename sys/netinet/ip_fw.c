@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.69 1998/01/05 00:08:57 alex Exp $
+ *	$Id: ip_fw.c,v 1.70 1998/01/05 00:14:05 alex Exp $
  */
 
 /*
@@ -372,7 +372,7 @@ ip_fw_chk(struct ip **pip, int hlen,
 	/*
 	 * Go down the chain, looking for enlightment
 	 */
-	for (chain=ip_fw_chain.lh_first; chain; chain = chain->chain.le_next) {
+	for (chain=LIST_FIRST(&ip_fw_chain); chain; chain = LIST_NEXT(chain, chain)) {
 		register struct ip_fw *const f = chain->rule;
 
 		/* Check direction inbound */
@@ -539,14 +539,14 @@ got_match:
 			continue;
 		case IP_FW_F_SKIPTO:
 #ifdef DIAGNOSTIC
-			while (chain->chain.le_next
-			    && chain->chain.le_next->rule->fw_number
+			while (LIST_NEXT(chain, chain)
+			    && LIST_NEXT(chain, chain)->rule->fw_number
 				< f->fw_skipto_rule)
 #else
-			while (chain->chain.le_next->rule->fw_number
+			while (LIST_NEXT(chain, chain)->rule->fw_number
 			    < f->fw_skipto_rule)
 #endif
-				chain = chain->chain.le_next;
+				chain = LIST_NEXT(chain, chain);
 			continue;
 		}
 
@@ -644,7 +644,7 @@ add_entry(struct ip_fw_head *chainptr, struct ip_fw *frwl)
 	
 	s = splnet();
 
-	if (!chainptr->lh_first) {
+	if (!LIST_FIRST(chainptr)) {
 		LIST_INSERT_HEAD(chainptr, fwc, chain);
 		splx(s);
 		return(0);
@@ -658,7 +658,7 @@ add_entry(struct ip_fw_head *chainptr, struct ip_fw *frwl)
 
 	/* If entry number is 0, find highest numbered rule and add 100 */
 	if (ftmp->fw_number == 0) {
-		for (fcp = chainptr->lh_first; fcp; fcp = fcp->chain.le_next) {
+		for (fcp = LIST_FIRST(chainptr); fcp; fcp = LIST_NEXT(fcp, chain)) {
 			if (fcp->rule->fw_number != (u_short)-1)
 				nbr = fcp->rule->fw_number;
 			else
@@ -670,7 +670,7 @@ add_entry(struct ip_fw_head *chainptr, struct ip_fw *frwl)
 	}
 
 	/* Got a valid number; now insert it, keeping the list ordered */
-	for (fcp = chainptr->lh_first; fcp; fcp = fcp->chain.le_next) {
+	for (fcp = LIST_FIRST(chainptr); fcp; fcp = LIST_NEXT(fcp, chain)) {
 		if (fcp->rule->fw_number > ftmp->fw_number) {
 			if (fcpl) {
 				LIST_INSERT_AFTER(fcpl, fwc, chain);
@@ -692,9 +692,9 @@ del_entry(struct ip_fw_head *chainptr, u_short number)
 {
 	struct ip_fw_chain *fcp;
 
-	fcp = chainptr->lh_first; 
+	fcp = LIST_FIRST(chainptr);
 	if (number != (u_short)-1) {
-		for (; fcp; fcp = fcp->chain.le_next) {
+		for (; fcp; fcp = LIST_NEXT(fcp, chain)) {
 			if (fcp->rule->fw_number == number) {
 				int s;
 
@@ -735,7 +735,7 @@ zero_entry(struct mbuf *m)
 
 	if (!frwl) {
 		s = splnet();
-		for (fcp = ip_fw_chain.lh_first; fcp; fcp = fcp->chain.le_next) {
+		for (fcp = LIST_FIRST(&ip_fw_chain); fcp; fcp = LIST_NEXT(fcp, chain)) {
 			fcp->rule->fw_bcnt = fcp->rule->fw_pcnt = 0;
 			fcp->rule->timestamp = 0;
 		}
@@ -749,7 +749,7 @@ zero_entry(struct mbuf *m)
 		 *	same number, so we don't stop after finding the first
 		 *	match if zeroing a specific entry.
 		 */
-		for (fcp = ip_fw_chain.lh_first; fcp; fcp = fcp->chain.le_next)
+		for (fcp = LIST_FIRST(&ip_fw_chain); fcp; fcp = LIST_NEXT(fcp, chain))
 			if (frwl->fw_number == fcp->rule->fw_number) {
 				s = splnet();
 				while (fcp && frwl->fw_number == fcp->rule->fw_number) {
@@ -894,9 +894,9 @@ ip_fw_ctl(int stage, struct mbuf **mm)
 	struct mbuf *m;
 
 	if (stage == IP_FW_GET) {
-		struct ip_fw_chain *fcp = ip_fw_chain.lh_first;
+		struct ip_fw_chain *fcp = LIST_FIRST(&ip_fw_chain);
 		*mm = m = m_get(M_WAIT, MT_SOOPTS);
-		for (; fcp; fcp = fcp->chain.le_next) {
+		for (; fcp; fcp = LIST_NEXT(fcp, chain)) {
 			memcpy(m->m_data, fcp->rule, sizeof *(fcp->rule));
 			m->m_len = sizeof *(fcp->rule);
 			m->m_next = m_get(M_WAIT, MT_SOOPTS);
@@ -912,11 +912,11 @@ ip_fw_ctl(int stage, struct mbuf **mm)
 		return(EPERM);
 	}
 	if (stage == IP_FW_FLUSH) {
-		while (ip_fw_chain.lh_first != NULL && 
-		    ip_fw_chain.lh_first->rule->fw_number != (u_short)-1) {
-			struct ip_fw_chain *fcp = ip_fw_chain.lh_first;
+		while (LIST_FIRST(&ip_fw_chain) != NULL && 
+		    LIST_FIRST(&ip_fw_chain)->rule->fw_number != (u_short)-1) {
+			struct ip_fw_chain *fcp = LIST_FIRST(&ip_fw_chain);
 			int s = splnet();
-			LIST_REMOVE(ip_fw_chain.lh_first, chain);
+			LIST_REMOVE(LIST_FIRST(&ip_fw_chain), chain);
 			splx(s);
 			free(fcp->rule, M_IPFW);
 			free(fcp, M_IPFW);
@@ -1035,9 +1035,9 @@ ipfw_unload(struct lkm_table *lkmtp, int cmd)
 	ip_fw_chk_ptr =  old_chk_ptr;
 	ip_fw_ctl_ptr =  old_ctl_ptr;
 
-	while (ip_fw_chain.lh_first != NULL) {
-		struct ip_fw_chain *fcp = ip_fw_chain.lh_first;
-		LIST_REMOVE(ip_fw_chain.lh_first, chain);
+	while (LIST_FIRST(&ip_fw_chain) != NULL) {
+		struct ip_fw_chain *fcp = LIST_FIRST(&ip_fw_chain);
+		LIST_REMOVE(LIST_FIRST(&ip_fw_chain), chain);
 		free(fcp->rule, M_IPFW);
 		free(fcp, M_IPFW);
 	}
