@@ -118,7 +118,7 @@ int main (argc, argv)
 	FILE *ifp;
 	char hname[MAXHOSTNAMELEN + 2];
 
-	while ((ch = getopt(argc, argv, "uhcbsdf:i:o:m:")) != -1) {
+	while ((ch = getopt(argc, argv, "uhcbsfd:i:o:m:")) != -1) {
 		switch(ch) {
 		case 'f':
 			filter_plusminus++;
