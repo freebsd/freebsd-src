@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.28 1997/06/23 09:35:20 kato Exp $
+#	$Id: options.pc98,v 1.29 1997/07/02 11:00:56 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -50,6 +50,7 @@ CLK_USE_I8254_CALIBRATION opt_clock.h
 CLK_USE_I586_CALIBRATION  opt_clock.h
 
 CPU_BTB_EN		 opt_cpu.h
+CPU_DIRECT_MAPPED_CACHE		opt_cpu.h
 CPU_DISABLE_5X86_LSSER	 opt_cpu.h
 CPU_FASTER_5X86_FPU	 opt_cpu.h
 CPU_I486_ON_386		 opt_cpu.h
