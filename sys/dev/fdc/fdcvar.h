@@ -124,11 +124,21 @@ typedef enum fdc_type fdc_t;
 
 extern devclass_t fdc_devclass;
 
+enum fdc_device_ivars {
+	FDC_IVAR_FDUNIT,
+	FDC_IVAR_FDTYPE,
+};
+
+__BUS_ACCESSOR(fdc, fdunit, FDC, FDUNIT, int);
+__BUS_ACCESSOR(fdc, fdtype, FDC, FDTYPE, int);
+
 int fdc_alloc_resources(struct fdc_data *);
 void fdout_wr(fdc_p, u_int8_t);
 int fd_cmd(struct fdc_data *, int, ...);
 void fdc_release_resources(struct fdc_data *);
 int fdc_attach(device_t);
 int fdc_detach(device_t dev);
+int fdc_initial_reset(struct fdc_data *);
 int fdc_print_child(device_t, device_t);
 int fdc_read_ivar(device_t, device_t, int, uintptr_t *);
+int fdc_write_ivar(device_t, device_t, int, uintptr_t);
