@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.76 1994/09/05 22:32:40 ats Exp $
+#	$Id: LINT,v 1.77 1994/09/09 22:12:38 csgr Exp $
 #
 
 machine		"i386"
@@ -12,9 +12,8 @@ cpu		"I386_CPU"
 cpu		"I486_CPU"
 cpu		"I586_CPU"
 ident		LINT
-timezone	8 dst
 maxusers	10
-maxfdescs	2048			#Max file descriptors per process
+# maxfdescs	2048			#Max file descriptors per process
 options		MATH_EMULATE		#Support for x87 emulation
 
 # Do not use in binary distributions
@@ -109,8 +108,8 @@ device		sd3
 pseudo-device	sl	2
 device		st0
 device		st1
-options		SYSVSHM
-options		"SHMMAXPGS=64"		# 256Kb of sharable memory
+# options		SYSVSHM
+# options		"SHMMAXPGS=64"		# 256Kb of sharable memory
 options		SYSVSEM
 options		SYSVMSG
 #pseudo-device	tb			#tablet line discipline.
@@ -167,8 +166,6 @@ device		pas0	at isa? port 0x1f88
 device		pas1	at isa? port 0x1f84
 device		pas2	at isa? port 0x1f8c
 device		pas3	at isa? port 0x1e88
-device		pc0	at isa? port "IO_KBD" tty irq 1 vector pcrint
-#only one of pc0 or sc0 allowed
 #device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
 device		sio1	at isa? port "IO_COM2" tty irq 3 vector siointr
