@@ -158,6 +158,7 @@ net/if_disc.c		optional disc
 net/if_ethersubr.c	optional ether
 net/if_fddisubr.c	optional fddi
 net/if_loop.c		optional loop
+net/if_media.c		standard
 net/if_mib.c		standard
 net/if_ppp.c		optional ppp
 net/if_sl.c		optional sl

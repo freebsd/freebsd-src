@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.35 1996/07/30 19:16:58 wollman Exp $
+ * $Id: if.c,v 1.36 1996/08/07 04:09:05 julian Exp $
  */
 
 #include <sys/param.h>
@@ -568,6 +568,22 @@ ifioctl(so, cmd, data, p)
 		if (error == 0 )
 		    	microtime(&ifp->if_lastchange);
 		return(error);
+
+        case SIOCSIFMEDIA:
+		error = suser(p->p_ucred, &p->p_acflag);
+		if (error)
+			return (error);
+		if (ifp->if_ioctl == 0)
+			return (EOPNOTSUPP);
+		error = (*ifp->if_ioctl)(ifp, cmd, data);
+		if (error == 0)
+			microtime(&ifp->if_lastchange);
+		return error;
+
+	case SIOCGIFMEDIA:
+		if (ifp->if_ioctl == 0)
+			return (EOPNOTSUPP);
+		return ((*ifp->if_ioctl)(ifp, cmd, data));
 
 	default:
 		if (so->so_proto == 0)
