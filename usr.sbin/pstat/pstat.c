@@ -467,22 +467,21 @@ static int nswdev;
 static void
 print_swap_header(void)
 {
-	size_t hlen;
+	int hlen;
 	long blocksize;
 	const char *header;
 
 	header = getbsize(&hlen, &blocksize);
 	if (totalflag == 0)
 		(void)printf("%-15s %*s %8s %8s %8s  %s\n",
-		    "Device", (int)hlen, header,
+		    "Device", hlen, header,
 		    "Used", "Avail", "Capacity", "Type");
 }
 
 static void
 print_swap(struct kvm_swap *ksw)
 {
-	size_t hlen;
-	int pagesize;
+	int hlen, pagesize;
 	long blocksize;
 
 	pagesize = getpagesize();
@@ -492,7 +491,7 @@ print_swap(struct kvm_swap *ksw)
 	++nswdev;
 	if (totalflag == 0) {
 		(void)printf("%-15s %*d ",
-		    ksw->ksw_devname, (int)hlen,
+		    ksw->ksw_devname, hlen,
 		    CONVERT(ksw->ksw_total));
 		(void)printf("%8d %8d %5.0f%%    %s\n",
 		    CONVERT(ksw->ksw_used),
@@ -506,8 +505,7 @@ print_swap(struct kvm_swap *ksw)
 static void
 print_swap_total(void)
 {
-	size_t hlen;
-	int pagesize;
+	int hlen, pagesize;
 	long blocksize;
 
 	pagesize = getpagesize();
@@ -518,7 +516,7 @@ print_swap_total(void)
 		    CONVERT(swtot.ksw_used), CONVERT(swtot.ksw_total));
 	} else if (nswdev > 1) {
 		(void)printf("%-15s %*d %8d %8d %5.0f%%\n",
-		    "Total", (int)hlen, CONVERT(swtot.ksw_total),
+		    "Total", hlen, CONVERT(swtot.ksw_total),
 		    CONVERT(swtot.ksw_used),
 		    CONVERT(swtot.ksw_total - swtot.ksw_used),
 		    (swtot.ksw_used * 100.0) / swtot.ksw_total);

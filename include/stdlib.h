@@ -227,7 +227,7 @@ __uint32_t
 	 arc4random(void);
 void	 arc4random_addrandom(unsigned char *dat, int datlen);
 void	 arc4random_stir(void);
-char	*getbsize(size_t *, long *);
+char	*getbsize(int *, long *);
 					/* getcap(3) functions */
 char	*cgetcap(char *, const char *, int);
 int	 cgetclose(void);
