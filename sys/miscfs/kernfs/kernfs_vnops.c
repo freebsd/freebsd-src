@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.15 (Berkeley) 5/21/95
- * $Id: kernfs_vnops.c,v 1.24 1997/10/16 10:48:29 phk Exp $
+ * $Id: kernfs_vnops.c,v 1.25 1997/10/16 20:32:27 phk Exp $
  */
 
 /*
@@ -654,8 +654,6 @@ static struct vnodeopv_entry_desc kernfs_vnodeop_entries[] = {
 	{ &vop_bmap_desc,		(vop_t *) kernfs_badop },
 	{ &vop_getattr_desc,		(vop_t *) kernfs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) kernfs_inactive },
-	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
-	{ &vop_lock_desc,		(vop_t *) vop_nolock },
 	{ &vop_lookup_desc,		(vop_t *) kernfs_lookup },
 	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
 	{ &vop_print_desc,		(vop_t *) kernfs_print },
@@ -663,7 +661,6 @@ static struct vnodeopv_entry_desc kernfs_vnodeop_entries[] = {
 	{ &vop_readdir_desc,		(vop_t *) kernfs_readdir },
 	{ &vop_reclaim_desc,		(vop_t *) kernfs_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) kernfs_setattr },
-	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
 	{ &vop_write_desc,		(vop_t *) kernfs_write },
 	{ NULL, NULL }
 };
