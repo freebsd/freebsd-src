@@ -35,29 +35,8 @@ static int wdtest = 0;
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from:@(#)wd.c	7.2 (Berkeley) 5/9/91
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         6       00155
- * --------------------         -----   ----------------------
- *
- * 17 Sep 92	Frank Maclachlan	Fixed I/O error reporting on raw device
- * 31 Jul 92	Christoph Robitschko	Fixed second disk recognition,
- *					bzero of malloced memory for warm
- *					boot problem.
- * 19 Aug 92    Frank Maclachlan	Fixed bug when first sector of a
- *					multisector read is in bad144 table.
- * 17 Jan 93	B. Evans & A.Chernov	Fixed bugs from previous patches,
- *					driver initialization, and cylinder
- *					boundary conditions.
- * 28 Mar 93	Charles Hannum		Add missing splx calls.
- * 20 Apr 93	Terry Lee		Always report disk errors
- * 20 Apr 93	Brett Lymn		Change infinite while loops to
- *					timeouts
- * 17 May 93	Rodney W. Grimes	Fixed all 1000000 to use WDCTIMEOUT,
- *					and increased to 1000000*10 for new
- *					intr-0.1 code.
+ *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
+ *	$Id$
  */
 
 /* TODO:peel out buffer at low ipl, speed improvement */
@@ -1437,7 +1416,7 @@ wdwait(struct disk *du, u_char bits_wanted)
 	int wdc;
 	u_char status;
 #define	POLLING		1000
-#define	TIMEOUT		1000	/* WDCC_DIAGNOSE can take > 300 msec */
+#define	TIMEOUT		2000	/* WDCC_DIAGNOSE can take > 300 msec */
 
 	wdc = du->dk_port;
 	retries = POLLING + TIMEOUT;
