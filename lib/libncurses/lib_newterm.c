@@ -49,6 +49,7 @@ int	stolen, topstolen;
 extern char _ncurses_copyright[];
 char   *use_it = _ncurses_copyright;
 
+	use_it = use_it;        /* shut up compiler */
 #ifdef TRACE
 	_init_trace();
 	T(("newterm(%s,%x,%x) called", term, ofp, ifp));
