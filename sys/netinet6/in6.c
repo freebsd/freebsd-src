@@ -1676,7 +1676,7 @@ in6_addmulti(maddr6, ifp, errorp)
 	if (ifma->ifma_protospec != 0)
 		return ifma->ifma_protospec;
 
-	/* XXX - if_addmulti uses M_WAITOK.  Can this really be called
+	/* XXX - if_addmulti does not use M_NOWAIT.  Can this really be called
 	   at interrupt time?  If so, need to fix if_addmulti. XXX */
 	in6m = (struct in6_multi *)malloc(sizeof(*in6m), M_IPMADDR, M_NOWAIT);
 	if (in6m == NULL) {
@@ -2447,7 +2447,7 @@ in6_sin_2_v4mapsin6_in_sock(struct sockaddr **nam)
 	struct sockaddr_in6 *sin6_p;
 
 	MALLOC(sin6_p, struct sockaddr_in6 *, sizeof *sin6_p, M_SONAME,
-	       M_WAITOK);
+	       0);
 	sin_p = (struct sockaddr_in *)*nam;
 	in6_sin_2_v4mapsin6(sin_p, sin6_p);
 	FREE(*nam, M_SONAME);

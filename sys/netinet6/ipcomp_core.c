@@ -146,9 +146,9 @@ do { \
 	}							\
 								\
 	/* get a fresh reply buffer */				\
-	MGET(n, M_DONTWAIT, MT_DATA);				\
+	MGET(n, M_NOWAIT, MT_DATA);				\
 	if (n) {						\
-		MCLGET(n, M_DONTWAIT);				\
+		MCLGET(n, M_NOWAIT);				\
 	}							\
 	if (!n) {						\
 		error = ENOBUFS;				\

@@ -583,7 +583,7 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 	if (error)
 		return error;
 
-	inp_list = malloc(n * sizeof *inp_list, M_TEMP, M_WAITOK);
+	inp_list = malloc(n * sizeof *inp_list, M_TEMP, 0);
 	if (inp_list == 0)
 		return ENOMEM;
 	
@@ -801,7 +801,7 @@ udp_output(inp, m, addr, control, td)
 	 * Calculate data length and get a mbuf
 	 * for UDP and IP headers.
 	 */
-	M_PREPEND(m, sizeof(struct udpiphdr), M_DONTWAIT);
+	M_PREPEND(m, sizeof(struct udpiphdr), M_NOWAIT);
 	if (m == 0) {
 		error = ENOBUFS;
 		goto release;

@@ -263,13 +263,13 @@ struct mbstat {
 
 /*
  * Flags specifying how an allocation should be made.
- * M_DONTWAIT means "don't block if nothing is available" whereas
- * M_TRYWAIT means "block for mbuf_wait ticks at most if nothing is
+ * M_NOWAIT means "don't block if nothing is available" whereas
+ * 0 means "block for mbuf_wait ticks at most if nothing is
  * available."
  */
-#define	M_DONTWAIT	1
-#define	M_TRYWAIT	0
-#define	M_WAIT		M_TRYWAIT	/* XXX: Deprecated. */
+#ifndef M_NOWAIT	/* malloc.h also defines this. */
+#define	M_NOWAIT	0x0001
+#endif
 
 #ifdef _KERNEL
 /*-
@@ -404,7 +404,7 @@ struct mbstat {
 #define	M_COPYALL	1000000000
 
 /* Compatibility with 4.3. */
-#define	m_copy(m, o, l)	m_copym((m), (o), (l), M_DONTWAIT)
+#define	m_copy(m, o, l)	m_copym((m), (o), (l), M_NOWAIT)
 
 extern	int max_datalen;		/* MHLEN - max_hdr */
 extern	int max_hdr;			/* Largest link + protocol header */

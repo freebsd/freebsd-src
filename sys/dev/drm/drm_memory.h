@@ -288,7 +288,7 @@ unsigned long DRM(alloc_pages)(int order, int area)
 	address = __get_free_pages(GFP_KERNEL, order);
 #endif /* __linux__ */
 #ifdef __FreeBSD__
-	address = (vm_offset_t) contigmalloc(bytes, DRM(M_DRM), M_WAITOK, 0, ~0, 1, 0);
+	address = (vm_offset_t) contigmalloc(bytes, DRM(M_DRM), 0, 0, ~0, 1, 0);
 #endif /* __FreeBSD__ */
 	if (!address) {
 		DRM_OS_SPINLOCK(&DRM(mem_lock));

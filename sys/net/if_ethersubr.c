@@ -236,7 +236,7 @@ ether_output(ifp, m, dst, rt0)
 	    if ( aa->aa_flags & AFA_PHASE2 ) {
 		struct llc llc;
 
-		M_PREPEND(m, sizeof(struct llc), M_TRYWAIT);
+		M_PREPEND(m, sizeof(struct llc), 0);
 		llc.llc_dsap = llc.llc_ssap = LLC_SNAP_LSAP;
 		llc.llc_control = LLC_UI;
 		bcopy(at_org_code, llc.llc_snap_org_code, sizeof(at_org_code));
@@ -261,7 +261,7 @@ ether_output(ifp, m, dst, rt0)
 			type = htons( m->m_pkthdr.len);
 			break;
 		case 0xe0e0: /* Novell 802.2 and Token-Ring */
-			M_PREPEND(m, 3, M_TRYWAIT);
+			M_PREPEND(m, 3, 0);
 			type = htons( m->m_pkthdr.len);
 			cp = mtod(m, u_char *);
 			*cp++ = 0xE0;
@@ -312,7 +312,7 @@ ether_output(ifp, m, dst, rt0)
 	 * Add local net header.  If no space in first mbuf,
 	 * allocate another.
 	 */
-	M_PREPEND(m, sizeof (struct ether_header), M_DONTWAIT);
+	M_PREPEND(m, sizeof (struct ether_header), M_NOWAIT);
 	if (m == 0)
 		senderr(ENOBUFS);
 	eh = mtod(m, struct ether_header *);
@@ -470,7 +470,7 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 		 * Restore Ethernet header, as needed, in case the
 		 * mbuf chain was replaced by ipfw.
 		 */
-		M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
+		M_PREPEND(m, ETHER_HDR_LEN, M_NOWAIT);
 		if (m == NULL) {
 			*m0 = m;
 			return 0;
@@ -494,7 +494,7 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 		 * If shared, make a copy and keep the original.
 		 */
 		if (shared) {
-			m = m_copypacket(m, M_DONTWAIT);
+			m = m_copypacket(m, M_NOWAIT);
 			if (m == NULL)
 				return 0;
 		} else {
@@ -894,7 +894,7 @@ discard:
 		 * Put back the ethernet header so netgraph has a
 		 * consistent view of inbound packets.
 		 */
-		M_PREPEND(m, sizeof (struct ether_header), M_DONTWAIT);
+		M_PREPEND(m, sizeof (struct ether_header), M_NOWAIT);
 		(*ng_ether_input_orphan_p)(ifp, m);
 		return;
 	}
@@ -1113,7 +1113,7 @@ ether_resolvemulti(ifp, llsa, sa)
 		if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 			return EADDRNOTAVAIL;
 		MALLOC(sdl, struct sockaddr_dl *, sizeof *sdl, M_IFMADDR,
-		       M_WAITOK|M_ZERO);
+		       M_ZERO);
 		sdl->sdl_len = sizeof *sdl;
 		sdl->sdl_family = AF_LINK;
 		sdl->sdl_index = ifp->if_index;
@@ -1140,7 +1140,7 @@ ether_resolvemulti(ifp, llsa, sa)
 		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 			return EADDRNOTAVAIL;
 		MALLOC(sdl, struct sockaddr_dl *, sizeof *sdl, M_IFMADDR,
-		       M_WAITOK|M_ZERO);
+		       M_ZERO);
 		sdl->sdl_len = sizeof *sdl;
 		sdl->sdl_family = AF_LINK;
 		sdl->sdl_index = ifp->if_index;

@@ -213,7 +213,7 @@ sscf_uni_inst(ssp, cvp)
 	/*
 	 * Allocate our control block
 	 */
-	uvp = uma_zalloc(sscf_uni_zone, M_WAITOK);
+	uvp = uma_zalloc(sscf_uni_zone, 0);
 	if (uvp == NULL)
 		return (ENOMEM);
 	uvp->uv_ustate = UVU_INST;

@@ -2321,12 +2321,12 @@ dpt_user_cmd(dpt_softc_t * dpt, eata_pt_t * user_cmd,
 		/* Data I/O is involved in this command.  Alocate buffer */
 		if (ccb->eata_ccb.cp_datalen > PAGE_SIZE) {
 			data = contigmalloc(ccb->eata_ccb.cp_datalen,
-					    M_TEMP, M_WAITOK, 0, ~0,
+					    M_TEMP, 0, 0, ~0,
 					    ccb->eata_ccb.cp_datalen,
 					    0x10000);
 		} else {
 			data = malloc(ccb->eata_ccb.cp_datalen, M_TEMP,
-				      M_WAITOK);
+				      0);
 		}
 
 		if (data == NULL) {

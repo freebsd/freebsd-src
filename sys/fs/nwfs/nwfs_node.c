@@ -169,7 +169,7 @@ rescan:
 	 * might cause a bogus v_data pointer to get dereferenced
 	 * elsewhere if MALLOC should block.
 	 */
-	MALLOC(np, struct nwnode *, sizeof *np, M_NWNODE, M_WAITOK | M_ZERO);
+	MALLOC(np, struct nwnode *, sizeof *np, M_NWNODE, M_ZERO);
 	error = getnewvnode("nwfs", mp, nwfs_vnodeop_p, &vp);
 	if (error) {
 		*vpp = NULL;

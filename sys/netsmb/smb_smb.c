@@ -280,8 +280,8 @@ again:
 	error = smb_rq_alloc(VCTOCP(vcp), SMB_COM_SESSION_SETUP_ANDX, scred, &rqp);
 	if (error)
 		return error;
-	pbuf = malloc(SMB_MAXPASSWORDLEN + 1, M_SMBTEMP, M_WAITOK);
-	encpass = malloc(24, M_SMBTEMP, M_WAITOK);
+	pbuf = malloc(SMB_MAXPASSWORDLEN + 1, M_SMBTEMP, 0);
+	encpass = malloc(24, M_SMBTEMP, 0);
 	if (vcp->vc_sopt.sv_sm & SMB_SM_USER) {
 		/*
 		 * We try w/o uppercasing first so Samba mixed case
@@ -302,7 +302,7 @@ again:
 		if (vcp->vc_sopt.sv_sm & SMB_SM_ENCRYPT) {
 			uniplen = plen = 24;
 			smb_encrypt(pbuf, vcp->vc_ch, encpass);
-			ntencpass = malloc(uniplen, M_SMBTEMP, M_WAITOK);
+			ntencpass = malloc(uniplen, M_SMBTEMP, 0);
 			if (SMB_UNICODE_STRINGS(vcp)) {
 				strncpy(pbuf, smb_vc_getpass(vcp),
 					SMB_MAXPASSWORDLEN);
@@ -318,7 +318,7 @@ again:
 			plen = strlen(pbuf) + 1;
 			pp = pbuf;
 			uniplen = plen * 2;
-			ntencpass = malloc(uniplen, M_SMBTEMP, M_WAITOK);
+			ntencpass = malloc(uniplen, M_SMBTEMP, 0);
 			smb_strtouni(ntencpass, smb_vc_getpass(vcp));
 			plen--;
 
@@ -500,8 +500,8 @@ again:
 		pbuf = NULL;
 		encpass = NULL;
 	} else {
-		pbuf = malloc(SMB_MAXPASSWORDLEN + 1, M_SMBTEMP, M_WAITOK);
-		encpass = malloc(24, M_SMBTEMP, M_WAITOK);
+		pbuf = malloc(SMB_MAXPASSWORDLEN + 1, M_SMBTEMP, 0);
+		encpass = malloc(24, M_SMBTEMP, 0);
 		/*
 		 * We try w/o uppercasing first so Samba mixed case
 		 * passwords work.  If that fails we come back and try

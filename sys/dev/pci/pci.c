@@ -333,7 +333,7 @@ pci_read_device(device_t pcib, int b, int s, int f, size_t size)
 	devlist_entry = NULL;
 
 	if (PCIB_READ_CONFIG(pcib, b, s, f, PCIR_DEVVENDOR, 4) != -1) {
-		devlist_entry = malloc(size, M_DEVBUF, M_WAITOK | M_ZERO);
+		devlist_entry = malloc(size, M_DEVBUF, M_ZERO);
 		if (devlist_entry == NULL)
 			return (NULL);
 

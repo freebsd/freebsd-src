@@ -975,7 +975,7 @@ pargs_alloc(int len)
 	struct pargs *pa;
 
 	MALLOC(pa, struct pargs *, sizeof(struct pargs) + len, M_PARGS,
-		M_WAITOK);
+		0);
 	pa->ar_ref = 1;
 	pa->ar_length = len;
 	return (pa);

@@ -322,7 +322,7 @@ seq_initunit(int unit)
 	dev_t seqdev, musicdev;
 
 	/* Allocate the softc. */
-	scp = malloc(sizeof(*scp), M_DEVBUF, M_WAITOK | M_ZERO);
+	scp = malloc(sizeof(*scp), M_DEVBUF, M_ZERO);
 	if (scp == (sc_p)NULL) {
 		printf("seq_initunit: unit %d, softc allocation failed.\n", unit);
 		return (1);
@@ -544,7 +544,7 @@ seq_read(dev_t i_dev, struct uio *buf, int flag)
 	len = buf->uio_resid;
 	lenr = 0;
 
-	uiobuf = (u_char *)malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
+	uiobuf = (u_char *)malloc(len, M_DEVBUF, M_ZERO);
 	if (uiobuf == NULL)
 		return (ENOMEM);
 
@@ -2364,7 +2364,7 @@ create_seqdev_info_unit(int unit, seqdev_info *seq)
 	seqdev_info *sd, *sdnew;
 
 	/* As malloc(9) might block, allocate seqdev_info now. */
-	sdnew = malloc(sizeof(seqdev_info), M_DEVBUF, M_WAITOK | M_ZERO);
+	sdnew = malloc(sizeof(seqdev_info), M_DEVBUF, M_ZERO);
 	if (sdnew == NULL)
 		return NULL;
 	bcopy(seq, sdnew, sizeof(seqdev_info));

@@ -1160,9 +1160,9 @@ fr_info_t *fin;
 	if (tcp->th_flags & TH_RST)
 		return -1;		/* feedback loop */
 # if	(BSD < 199306) || defined(__sgi)
-	m = m_get(M_DONTWAIT, MT_HEADER);
+	m = m_get(M_NOWAIT, MT_HEADER);
 # else
-	m = m_gethdr(M_DONTWAIT, MT_HEADER);
+	m = m_gethdr(M_NOWAIT, MT_HEADER);
 # endif
 	if (m == NULL)
 		return ENOBUFS;
@@ -1337,10 +1337,10 @@ int dst;
 
 # if	(BSD < 199306) || defined(__sgi)
 		avail = MLEN;
-		m = m_get(M_DONTWAIT, MT_HEADER);
+		m = m_get(M_NOWAIT, MT_HEADER);
 # else
 		avail = MHLEN;
-		m = m_gethdr(M_DONTWAIT, MT_HEADER);
+		m = m_gethdr(M_NOWAIT, MT_HEADER);
 # endif
 		if (m == NULL)
 			return ENOBUFS;
@@ -1364,11 +1364,11 @@ int dst;
 		if (type == ICMP6_DST_UNREACH)
 			code = icmptoicmp6unreach[code];
 
-		MGETHDR(m, M_DONTWAIT, MT_HEADER);
+		MGETHDR(m, M_NOWAIT, MT_HEADER);
 		if (!m)
 			return ENOBUFS;
 
-		MCLGET(m, M_DONTWAIT);
+		MCLGET(m, M_NOWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			m_freem(m);
 			return ENOBUFS;
@@ -1564,7 +1564,7 @@ frdest_t *fdp;
 	 * problem.
 	 */
 	if (M_WRITABLE(m) == 0) {
-		if ((m0 = m_dup(m, M_DONTWAIT)) != NULL) {
+		if ((m0 = m_dup(m, M_NOWAIT)) != NULL) {
 			m_freem(*mpp);
 			*mpp = m0;
 			m = m0;
@@ -1747,9 +1747,9 @@ frdest_t *fdp;
 	mhlen = sizeof (struct ip);
 	for (off = hlen + len; off < ip->ip_len; off += len) {
 # ifdef	MGETHDR
-		MGETHDR(m, M_DONTWAIT, MT_HEADER);
+		MGETHDR(m, M_NOWAIT, MT_HEADER);
 # else
-		MGET(m, M_DONTWAIT, MT_HEADER);
+		MGET(m, M_NOWAIT, MT_HEADER);
 # endif
 		if (m == 0) {
 			error = ENOBUFS;

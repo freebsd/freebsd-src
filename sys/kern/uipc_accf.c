@@ -115,7 +115,7 @@ accept_filt_generic_mod_event(module_t mod, int event, void *data)
 
 	switch (event) {
 	case MOD_LOAD:
-		MALLOC(p, struct accept_filter *, sizeof(*p), M_ACCF, M_WAITOK);
+		MALLOC(p, struct accept_filter *, sizeof(*p), M_ACCF, 0);
 		bcopy(accfp, p, sizeof(*p));
 		s = splnet();
 		error = accept_filt_add(p);

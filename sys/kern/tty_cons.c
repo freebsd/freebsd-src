@@ -277,7 +277,7 @@ sysctl_kern_console(SYSCTL_HANDLER_ARGS)
 	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next)
 		len += strlen(devtoname(cnd->cnd_cn->cn_dev)) + 1;
 	len = len > CNDEVPATHMAX ? len : CNDEVPATHMAX;
-	MALLOC(name, char *, len, M_TEMP, M_WAITOK | M_ZERO);
+	MALLOC(name, char *, len, M_TEMP, M_ZERO);
 	p = name;
 	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next)
 		p += sprintf(p, "%s,", devtoname(cnd->cnd_cn->cn_dev));

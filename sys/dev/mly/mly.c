@@ -2008,7 +2008,7 @@ mly_cam_rescan_btl(struct mly_softc *sc, int bus, int target)
 
     debug_called(1);
 
-    if ((ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK | M_ZERO)) == NULL) {
+    if ((ccb = malloc(sizeof(union ccb), M_TEMP, M_ZERO)) == NULL) {
 	mly_printf(sc, "rescan failed (can't allocate CCB)\n");
 	return;
     }

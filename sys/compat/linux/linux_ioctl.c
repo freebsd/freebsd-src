@@ -2420,7 +2420,7 @@ linux_ioctl_register_handler(struct linux_ioctl_handler *h)
 	}
 	if (he == NULL) {
 		MALLOC(he, struct handler_element *, sizeof(*he),
-		    M_LINUX, M_WAITOK);
+		    M_LINUX, 0);
 		he->func = h->func;
 	} else
 		TAILQ_REMOVE(&handlers, he, list);

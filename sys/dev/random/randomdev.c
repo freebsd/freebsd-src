@@ -187,7 +187,7 @@ random_read(dev_t dev __unused, struct uio *uio, int flag)
 			return error;
 	}
 	c = uio->uio_resid < PAGE_SIZE ? uio->uio_resid : PAGE_SIZE;
-	random_buf = (void *)malloc((u_long)c, M_TEMP, M_WAITOK);
+	random_buf = (void *)malloc((u_long)c, M_TEMP, 0);
 	while (uio->uio_resid > 0 && error == 0) {
 		ret = read_random_real(random_buf, c);
 		error = uiomove(random_buf, ret, uio);
@@ -205,7 +205,7 @@ random_write(dev_t dev __unused, struct uio *uio, int flag __unused)
 	void	*random_buf;
 
 	error = 0;
-	random_buf = (void *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
+	random_buf = (void *)malloc(PAGE_SIZE, M_TEMP, 0);
 	while (uio->uio_resid > 0) {
 		c = (int)(uio->uio_resid < PAGE_SIZE
 		    ? uio->uio_resid

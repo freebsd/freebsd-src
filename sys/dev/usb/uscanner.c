@@ -383,8 +383,8 @@ uscanneropen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 
 	sc->sc_state |= USCANNER_OPEN;
 
-	sc->sc_bulkin_buffer = malloc(USCANNER_BUFFERSIZE, M_USBDEV, M_WAITOK);
-	sc->sc_bulkout_buffer = malloc(USCANNER_BUFFERSIZE, M_USBDEV, M_WAITOK);
+	sc->sc_bulkin_buffer = malloc(USCANNER_BUFFERSIZE, M_USBDEV, 0);
+	sc->sc_bulkout_buffer = malloc(USCANNER_BUFFERSIZE, M_USBDEV, 0);
 	/* No need to check buffers for NULL since we have WAITOK */
 
 	sc->sc_bulkin_bufferlen = USCANNER_BUFFERSIZE;

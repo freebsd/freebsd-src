@@ -248,7 +248,7 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 			rle->res = sc->sc_bar_mappings[bidx].res;
 		} else {
 			rle->res = malloc(sizeof(struct resource), M_DEVBUF,
-			    M_WAITOK | M_ZERO);
+			    M_ZERO);
 			if (rle->res == NULL) {
 				free(pdev, M_DEVBUF);
 				return (ENOMEM);

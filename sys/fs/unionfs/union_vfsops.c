@@ -194,7 +194,7 @@ union_mount(mp, ndp, td)
 	 */
 
 	um = (struct union_mount *) malloc(sizeof(struct union_mount),
-				M_UNIONFSMNT, M_WAITOK | M_ZERO);
+				M_UNIONFSMNT, M_ZERO);
 
 	um->um_op = op;
 

@@ -267,7 +267,7 @@ svr4_emul_find(td, sgp, prefix, path, pbuf, cflag)
 	char			*ptr, *buf, *cp;
 	size_t			 sz, len;
 
-	buf = (char *) malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+	buf = (char *) malloc(MAXPATHLEN, M_TEMP, 0);
 	*pbuf = path;
 
 	for (ptr = buf; (*ptr = *prefix) != '\0'; ptr++, prefix++)

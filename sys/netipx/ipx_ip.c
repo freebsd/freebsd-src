@@ -175,7 +175,7 @@ ipxip_input(m, hlen)
 		if (ipxip_lastin != NULL) {
 			m_freem(ipxip_lastin);
 		}
-		ipxip_lastin = m_copym(m, 0, (int)M_COPYALL, M_DONTWAIT);
+		ipxip_lastin = m_copym(m, 0, (int)M_COPYALL, M_NOWAIT);
 	}
 	/*
 	 * Get IP and IPX header together in first mbuf.
@@ -256,7 +256,7 @@ ipxipoutput(ifp, m, dst, rt)
 	/* following clause not necessary on vax */
 	if (3 & (intptr_t)m->m_data) {
 		/* force longword alignment of ip hdr */
-		struct mbuf *m0 = m_gethdr(MT_HEADER, M_DONTWAIT);
+		struct mbuf *m0 = m_gethdr(MT_HEADER, M_NOWAIT);
 		if (m0 == NULL) {
 			m_freem(m);
 			return (ENOBUFS);
@@ -269,7 +269,7 @@ ipxipoutput(ifp, m, dst, rt)
 		m->m_flags &= ~M_PKTHDR;
 		m = m0;
 	} else {
-		M_PREPEND(m, sizeof(struct ip), M_DONTWAIT);
+		M_PREPEND(m, sizeof(struct ip), M_NOWAIT);
 		if (m == NULL)
 			return (ENOBUFS);
 	}

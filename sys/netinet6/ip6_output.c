@@ -1040,7 +1040,7 @@ skip_ipsec2:;
 		 */
 		m0 = m;
 		for (off = hlen; off < tlen; off += len) {
-			MGETHDR(m, M_DONTWAIT, MT_HEADER);
+			MGETHDR(m, M_NOWAIT, MT_HEADER);
 			if (!m) {
 				error = ENOBUFS;
 				ip6stat.ip6s_odropped++;
@@ -1153,12 +1153,12 @@ ip6_copyexthdr(mp, hdr, hlen)
 	if (hlen > MCLBYTES)
 		return(ENOBUFS); /* XXX */
 
-	MGET(m, M_DONTWAIT, MT_DATA);
+	MGET(m, M_NOWAIT, MT_DATA);
 	if (!m)
 		return(ENOBUFS);
 
 	if (hlen > MLEN) {
-		MCLGET(m, M_DONTWAIT);
+		MCLGET(m, M_NOWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			m_free(m);
 			return(ENOBUFS);
@@ -1193,7 +1193,7 @@ ip6_insert_jumboopt(exthdrs, plen)
 	 * Otherwise, use it to store the options.
 	 */
 	if (exthdrs->ip6e_hbh == 0) {
-		MGET(mopt, M_DONTWAIT, MT_DATA);
+		MGET(mopt, M_NOWAIT, MT_DATA);
 		if (mopt == 0)
 			return(ENOBUFS);
 		mopt->m_len = JUMBOOPTLEN;
@@ -1225,9 +1225,9 @@ ip6_insert_jumboopt(exthdrs, plen)
 			 * As a consequence, we must always prepare a cluster
 			 * at this point.
 			 */
-			MGET(n, M_DONTWAIT, MT_DATA);
+			MGET(n, M_NOWAIT, MT_DATA);
 			if (n) {
-				MCLGET(n, M_DONTWAIT);
+				MCLGET(n, M_NOWAIT);
 				if ((n->m_flags & M_EXT) == 0) {
 					m_freem(n);
 					n = NULL;
@@ -1282,7 +1282,7 @@ ip6_insertfraghdr(m0, m, hlen, frghdrp)
 
 	if (hlen > sizeof(struct ip6_hdr)) {
 		n = m_copym(m0, sizeof(struct ip6_hdr),
-			    hlen - sizeof(struct ip6_hdr), M_DONTWAIT);
+			    hlen - sizeof(struct ip6_hdr), M_NOWAIT);
 		if (n == 0)
 			return(ENOBUFS);
 		m->m_next = n;
@@ -1304,7 +1304,7 @@ ip6_insertfraghdr(m0, m, hlen, frghdrp)
 		/* allocate a new mbuf for the fragment header */
 		struct mbuf *mfrg;
 
-		MGET(mfrg, M_DONTWAIT, MT_DATA);
+		MGET(mfrg, M_NOWAIT, MT_DATA);
 		if (mfrg == 0)
 			return(ENOBUFS);
 		mfrg->m_len = sizeof(struct ip6_frag);
@@ -1496,7 +1496,7 @@ do { \
 					break;
 				}
 				/* XXX */
-				MGET(m, sopt->sopt_td ? M_TRYWAIT : M_DONTWAIT, MT_HEADER);
+				MGET(m, sopt->sopt_td ? 0 : M_NOWAIT, MT_HEADER);
 				if (m == 0) {
 					error = ENOBUFS;
 					break;
@@ -1595,7 +1595,7 @@ do { \
 				if (in6p->in6p_options) {
 					struct mbuf *m;
 					m = m_copym(in6p->in6p_options,
-					    0, M_COPYALL, M_TRYWAIT);
+					    0, M_COPYALL, 0);
 					error = soopt_mcopyout(sopt, m);
 					if (error == 0)
 						m_freem(m);
@@ -1776,7 +1776,7 @@ ip6_pcbopts(pktopt, m, so, sopt)
 #endif
 		ip6_clearpktopts(opt, 1, -1);
 	} else
-		opt = malloc(sizeof(*opt), M_IP6OPT, M_WAITOK);
+		opt = malloc(sizeof(*opt), M_IP6OPT, 0);
 	*pktopt = NULL;
 
 	if (!m || m->m_len == 0) {
@@ -1959,7 +1959,7 @@ ip6_setmoptions(optname, im6op, m)
 		 * allocate one and initialize to default values.
 		 */
 		im6o = (struct ip6_moptions *)
-			malloc(sizeof(*im6o), M_IPMOPTS, M_WAITOK);
+			malloc(sizeof(*im6o), M_IPMOPTS, 0);
 
 		if (im6o == NULL)
 			return(ENOBUFS);
@@ -2129,7 +2129,7 @@ ip6_setmoptions(optname, im6op, m)
 		 * Everything looks good; add a new record to the multicast
 		 * address list for the given interface.
 		 */
-		imm = malloc(sizeof(*imm), M_IPMADDR, M_WAITOK);
+		imm = malloc(sizeof(*imm), M_IPMADDR, 0);
 		if (imm == NULL) {
 			error = ENOBUFS;
 			break;
@@ -2234,7 +2234,7 @@ ip6_getmoptions(optname, im6o, mp)
 {
 	u_int *hlim, *loop, *ifindex;
 
-	*mp = m_get(M_TRYWAIT, MT_HEADER);		/* XXX */
+	*mp = m_get(0, MT_HEADER);		/* XXX */
 
 	switch (optname) {
 
@@ -2333,7 +2333,7 @@ ip6_setpktoptions(control, opt, priv, needcopy)
 				/* XXX: Is it really WAITOK? */
 				opt->ip6po_pktinfo =
 					malloc(sizeof(struct in6_pktinfo),
-					       M_IP6OPT, M_WAITOK);
+					       M_IP6OPT, 0);
 				bcopy(CMSG_DATA(cm), opt->ip6po_pktinfo,
 				    sizeof(struct in6_pktinfo));
 			} else
@@ -2392,7 +2392,7 @@ ip6_setpktoptions(control, opt, priv, needcopy)
 			if (needcopy) {
 				opt->ip6po_nexthop =
 					malloc(*CMSG_DATA(cm),
-					       M_IP6OPT, M_WAITOK);
+					       M_IP6OPT, 0);
 				bcopy(CMSG_DATA(cm),
 				      opt->ip6po_nexthop,
 				      *CMSG_DATA(cm));
@@ -2415,7 +2415,7 @@ ip6_setpktoptions(control, opt, priv, needcopy)
 
 			if (needcopy) {
 				opt->ip6po_hbh =
-					malloc(hbhlen, M_IP6OPT, M_WAITOK);
+					malloc(hbhlen, M_IP6OPT, 0);
 				bcopy(hbh, opt->ip6po_hbh, hbhlen);
 			} else
 				opt->ip6po_hbh = hbh;
@@ -2453,7 +2453,7 @@ ip6_setpktoptions(control, opt, priv, needcopy)
 				newdest = &opt->ip6po_dest2;
 
 			if (needcopy) {
-				*newdest = malloc(destlen, M_IP6OPT, M_WAITOK);
+				*newdest = malloc(destlen, M_IP6OPT, 0);
 				bcopy(dest, *newdest, destlen);
 			} else
 				*newdest = dest;
@@ -2490,7 +2490,7 @@ ip6_setpktoptions(control, opt, priv, needcopy)
 
 			if (needcopy) {
 				opt->ip6po_rthdr = malloc(rthlen, M_IP6OPT,
-							  M_WAITOK);
+							  0);
 				bcopy(rth, opt->ip6po_rthdr, rthlen);
 			} else
 				opt->ip6po_rthdr = rth;
@@ -2570,7 +2570,7 @@ ip6_splithdr(m, exthdrs)
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	if (m->m_len > sizeof(*ip6)) {
-		MGETHDR(mh, M_DONTWAIT, MT_HEADER);
+		MGETHDR(mh, M_NOWAIT, MT_HEADER);
 		if (mh == 0) {
 			m_freem(m);
 			return ENOBUFS;

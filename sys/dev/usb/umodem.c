@@ -247,7 +247,7 @@ USB_ATTACH(umodem)
 	int i;
 	struct ucom_softc *ucom;
 
-	devinfo = malloc(1024, M_USBDEV, M_WAITOK);
+	devinfo = malloc(1024, M_USBDEV, 0);
 	usbd_devinfo(dev, 0, devinfo);
 	ucom = &sc->sc_ucom;
 	ucom->sc_dev = self;

@@ -433,7 +433,7 @@ allocifctx(struct bootpc_globalcontext *gctx)
 {
 	struct bootpc_ifcontext *ifctx;
 	ifctx = (struct bootpc_ifcontext *) malloc(sizeof(*ifctx),
-						   M_TEMP, M_WAITOK);
+						   M_TEMP, 0);
 	if (ifctx == NULL)
 		panic("Failed to allocate bootp interface context structure");
 
@@ -1675,7 +1675,7 @@ bootpc_init(void)
 	if (nfs_diskless_valid != 0)
 		return;
 
-	gctx = malloc(sizeof(*gctx), M_TEMP, M_WAITOK);
+	gctx = malloc(sizeof(*gctx), M_TEMP, 0);
 	if (gctx == NULL)
 		panic("Failed to allocate bootp global context structure");
 
@@ -1942,7 +1942,7 @@ md_lookup_swap(struct sockaddr_in *mdsin, char *path, u_char *fhp, int *fhsizep,
 		u_int32_t v3[21];
 	} fattribs;
 
-	m = m_get(M_TRYWAIT, MT_DATA);
+	m = m_get(0, MT_DATA);
 	if (m == NULL)
 	  	return ENOBUFS;
 

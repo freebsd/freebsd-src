@@ -222,7 +222,7 @@ sndstat_register(device_t dev, char *str, sndstat_handler handler)
 		unit = -1;
 	}
 
-	ent = malloc(sizeof *ent, M_DEVBUF, M_ZERO | M_WAITOK);
+	ent = malloc(sizeof *ent, M_DEVBUF, M_ZERO | 0);
 	if (!ent)
 		return ENOSPC;
 

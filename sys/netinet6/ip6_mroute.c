@@ -1531,7 +1531,7 @@ register_send(ip6, mif, m)
 	++pim6stat.pim6s_snd_registers;
 
 	/* Make a copy of the packet to send to the user level process */
-	MGETHDR(mm, M_DONTWAIT, MT_HEADER);
+	MGETHDR(mm, M_NOWAIT, MT_HEADER);
 	if (mm == NULL)
 		return ENOBUFS;
 	mm->m_pkthdr.rcvif = NULL;

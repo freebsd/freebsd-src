@@ -422,7 +422,7 @@ ugenopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 			isize = UGETW(edesc->wMaxPacketSize);
 			if (isize == 0)	/* shouldn't happen */
 				return (EINVAL);
-			sce->ibuf = malloc(isize, M_USBDEV, M_WAITOK);
+			sce->ibuf = malloc(isize, M_USBDEV, 0);
 			DPRINTFN(5, ("ugenopen: intr endpt=%d,isize=%d\n", 
 				     endpt, isize));
 			if (clalloc(&sce->q, UGEN_IBSIZE, 0) == -1)
@@ -452,7 +452,7 @@ ugenopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 			if (isize == 0)	/* shouldn't happen */
 				return (EINVAL);
 			sce->ibuf = malloc(isize * UGEN_NISOFRAMES,
-				M_USBDEV, M_WAITOK);
+				M_USBDEV, 0);
 			sce->cur = sce->fill = sce->ibuf;
 			sce->limit = sce->ibuf + isize * UGEN_NISOFRAMES;
 			DPRINTFN(5, ("ugenopen: isoc endpt=%d, isize=%d\n", 
@@ -1042,7 +1042,7 @@ ugen_get_cdesc(struct ugen_softc *sc, int index, int *lenp)
 		len = UGETW(tdesc->wTotalLength);
 		if (lenp)
 			*lenp = len;
-		cdesc = malloc(len, M_TEMP, M_WAITOK);
+		cdesc = malloc(len, M_TEMP, 0);
 		memcpy(cdesc, tdesc, len);
 		DPRINTFN(5,("ugen_get_cdesc: current, len=%d\n", len));
 	} else {
@@ -1053,7 +1053,7 @@ ugen_get_cdesc(struct ugen_softc *sc, int index, int *lenp)
 		DPRINTFN(5,("ugen_get_cdesc: index=%d, len=%d\n", index, len));
 		if (lenp)
 			*lenp = len;
-		cdesc = malloc(len, M_TEMP, M_WAITOK);
+		cdesc = malloc(len, M_TEMP, 0);
 		err = usbd_get_config_desc_full(sc->sc_udev, index, cdesc, len);
 		if (err) {
 			free(cdesc, M_TEMP);
@@ -1307,7 +1307,7 @@ ugen_do_ioctl(struct ugen_softc *sc, int endpt, u_long cmd,
 				ur->ucr_request.bmRequestType & UT_READ ? 
 				UIO_READ : UIO_WRITE;
 			uio.uio_procp = p;
-			ptr = malloc(len, M_TEMP, M_WAITOK);
+			ptr = malloc(len, M_TEMP, 0);
 			if (uio.uio_rw == UIO_WRITE) {
 				error = uiomove(ptr, len, &uio);
 				if (error)

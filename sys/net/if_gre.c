@@ -160,7 +160,7 @@ gre_clone_create(ifc, unit)
 {
 	struct gre_softc *sc;
 
-	sc = malloc(sizeof(struct gre_softc), M_GRE, M_WAITOK);
+	sc = malloc(sizeof(struct gre_softc), M_GRE, 0);
 	memset(sc, 0, sizeof(struct gre_softc));
 
 	sc->sc_if.if_name = GRENAME;
@@ -294,7 +294,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 
 			if ((m->m_data - msiz) < m->m_pktdat) {
 				/* need new mbuf */
-				MGETHDR(m0, M_DONTWAIT, MT_HEADER);
+				MGETHDR(m0, M_NOWAIT, MT_HEADER);
 				if (m0 == NULL) {
 					_IF_DROP(&ifp->if_snd);
 					m_freem(m);
@@ -348,7 +348,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 			error = EAFNOSUPPORT;
 			goto end;
 		}
-		M_PREPEND(m, sizeof(struct greip), M_DONTWAIT);
+		M_PREPEND(m, sizeof(struct greip), M_NOWAIT);
 	} else {
 		_IF_DROP(&ifp->if_snd);
 		m_freem(m);

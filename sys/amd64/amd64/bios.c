@@ -388,7 +388,7 @@ bios16(struct bios_args *args, char *fmt, ...)
 	/*
 	 * no page table, so create one and install it.
 	 */
-	pte = (pt_entry_t *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
+	pte = (pt_entry_t *)malloc(PAGE_SIZE, M_TEMP, 0);
 	ptd = (pd_entry_t *)((u_int)ptd + KERNBASE);
 	*ptd = vtophys(pte) | PG_RW | PG_V;
     } else {

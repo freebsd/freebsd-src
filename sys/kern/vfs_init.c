@@ -133,7 +133,7 @@ vfs_opv_recalc(void)
 	 * detectable.
 	 */
 	MALLOC(vfs_op_offsets, int *,
-		num_op_descs * sizeof(int), M_TEMP, M_WAITOK);
+		num_op_descs * sizeof(int), M_TEMP, 0);
 	if (vfs_op_offsets == NULL)
 		panic("vfs_opv_recalc: no memory");
 	for (i = 0; i < num_op_descs; i++)
@@ -186,7 +186,7 @@ vfs_opv_recalc(void)
 		if (*opv_desc_vector_p == NULL)
 			MALLOC(*opv_desc_vector_p, vop_t **,
 				vfs_opv_numops * sizeof(vop_t *), M_VNODE,
-				M_WAITOK | M_ZERO);
+				M_ZERO);
 
 		/* Fill in, with slot 0 being to return EOPNOTSUPP */
 		opv_desc_vector = *opv_desc_vector_p;
@@ -221,7 +221,7 @@ vfs_add_vnodeops(const void *data)
 
 	opv = (const struct vnodeopv_desc *)data;
 	MALLOC(newopv, const struct vnodeopv_desc **,
-	       (vnodeopv_num + 1) * sizeof(*newopv), M_VNODE, M_WAITOK);
+	       (vnodeopv_num + 1) * sizeof(*newopv), M_VNODE, 0);
 	if (vnodeopv_descs) {
 		bcopy(vnodeopv_descs, newopv, vnodeopv_num * sizeof(*newopv));
 		FREE(vnodeopv_descs, M_VNODE);
@@ -244,11 +244,11 @@ vfs_add_vnodeops(const void *data)
 			/* not found, new entry */
 			MALLOC(newop, struct vnodeop_desc **,
 			       (num_op_descs + 1) * sizeof(*newop),
-			       M_VNODE, M_WAITOK);
+			       M_VNODE, 0);
 			/* new reference count (for unload) */
 			MALLOC(newref, int *,
 				(num_op_descs + 1) * sizeof(*newref),
-				M_VNODE, M_WAITOK);
+				M_VNODE, 0);
 			if (vfs_op_descs) {
 				bcopy(vfs_op_descs, newop,
 					num_op_descs * sizeof(*newop));
@@ -306,11 +306,11 @@ vfs_rm_vnodeops(const void *data)
 			}
 			MALLOC(newop, struct vnodeop_desc **,
 			       (num_op_descs - 1) * sizeof(*newop),
-			       M_VNODE, M_WAITOK);
+			       M_VNODE, 0);
 			/* new reference count (for unload) */
 			MALLOC(newref, int *,
 				(num_op_descs - 1) * sizeof(*newref),
-				M_VNODE, M_WAITOK);
+				M_VNODE, 0);
 			for (k = j; k < (num_op_descs - 1); k++) {
 				vfs_op_descs[k] = vfs_op_descs[k + 1];
 				vfs_op_desc_refs[k] = vfs_op_desc_refs[k + 1];
@@ -340,7 +340,7 @@ vfs_rm_vnodeops(const void *data)
 	if (opv_desc_vector != NULL)
 		FREE(opv_desc_vector, M_VNODE);
 	MALLOC(newopv, const struct vnodeopv_desc **,
-	       (vnodeopv_num - 1) * sizeof(*newopv), M_VNODE, M_WAITOK);
+	       (vnodeopv_num - 1) * sizeof(*newopv), M_VNODE, 0);
 	bcopy(vnodeopv_descs, newopv, (vnodeopv_num - 1) * sizeof(*newopv));
 	FREE(vnodeopv_descs, M_VNODE);
 	vnodeopv_descs = newopv;

@@ -96,7 +96,7 @@ static MALLOC_DEFINE(M_MKDIR, "mkdir","New directory");
 static MALLOC_DEFINE(M_DIRREM, "dirrem","Directory entry deleted");
 static MALLOC_DEFINE(M_NEWDIRBLK, "newdirblk","Unclaimed new directory block");
 
-#define M_SOFTDEP_FLAGS	(M_WAITOK | M_USE_RESERVE)
+#define M_SOFTDEP_FLAGS	(M_USE_RESERVE)
 
 #define	D_PAGEDEP	0
 #define	D_INODEDEP	1

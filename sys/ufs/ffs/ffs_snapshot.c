@@ -269,7 +269,7 @@ restart:
 	 * the suspension period.
 	 */
 	len = howmany(fs->fs_ncg, NBBY);
-	MALLOC(fs->fs_active, int *, len, M_DEVBUF, M_WAITOK);
+	MALLOC(fs->fs_active, int *, len, M_DEVBUF, 0);
 	bzero(fs->fs_active, len);
 	for (cg = 0; cg < fs->fs_ncg; cg++) {
 		error = UFS_BALLOC(vp, (off_t)(cgtod(fs, cg)) << fs->fs_fshift,
@@ -359,7 +359,7 @@ restart:
 	size = blkroundup(fs, fs->fs_cssize);
 	if (fs->fs_contigsumsize > 0)
 		size += fs->fs_ncg * sizeof(int32_t);
-	space = malloc((u_long)size, M_UFSMNT, M_WAITOK);
+	space = malloc((u_long)size, M_UFSMNT, 0);
 	copy_fs->fs_csp = space;
 	bcopy(fs->fs_csp, copy_fs->fs_csp, fs->fs_cssize);
 	(char *)space += fs->fs_cssize;
@@ -473,7 +473,7 @@ loop:
 
 		VI_UNLOCK(devvp);
 		MALLOC(lkp, struct lock *, sizeof(struct lock), M_UFSMNT,
-		    M_WAITOK);
+		    0);
 		lockinit(lkp, PVFS, "snaplk", VLKTIMEOUT,
 		    LK_CANRECURSE | LK_NOPAUSE);
 		VI_LOCK(vp);
@@ -536,7 +536,7 @@ out1:
 	snaplistsize = fs->fs_ncg + howmany(fs->fs_cssize, fs->fs_bsize) +
 	    FSMAXSNAP + 1 /* superblock */ + 1 /* last block */ + 1 /* size */;
 	MALLOC(snapblklist, daddr_t *, snaplistsize * sizeof(daddr_t),
-	    M_UFSMNT, M_WAITOK);
+	    M_UFSMNT, 0);
 	ip->i_snapblklist = &snapblklist[1];
 	/*
 	 * Expunge the blocks used by the snapshots from the set of
@@ -872,7 +872,7 @@ indiracct_ufs1(snapvp, cancelvp, level, blkno, lbn, rlbn, remblks,
 	last = howmany(remblks, blksperindir);
 	if (last > NINDIR(fs))
 		last = NINDIR(fs);
-	MALLOC(bap, ufs1_daddr_t *, fs->fs_bsize, M_DEVBUF, M_WAITOK);
+	MALLOC(bap, ufs1_daddr_t *, fs->fs_bsize, M_DEVBUF, 0);
 	bcopy(bp->b_data, (caddr_t)bap, fs->fs_bsize);
 	bqrelse(bp);
 	error = (*acctfunc)(snapvp, &bap[0], &bap[last], fs,
@@ -1147,7 +1147,7 @@ indiracct_ufs2(snapvp, cancelvp, level, blkno, lbn, rlbn, remblks,
 	last = howmany(remblks, blksperindir);
 	if (last > NINDIR(fs))
 		last = NINDIR(fs);
-	MALLOC(bap, ufs2_daddr_t *, fs->fs_bsize, M_DEVBUF, M_WAITOK);
+	MALLOC(bap, ufs2_daddr_t *, fs->fs_bsize, M_DEVBUF, 0);
 	bcopy(bp->b_data, (caddr_t)bap, fs->fs_bsize);
 	bqrelse(bp);
 	error = (*acctfunc)(snapvp, &bap[0], &bap[last], fs,
@@ -1731,7 +1731,7 @@ ffs_snapshot_mount(mp)
 
 			VI_UNLOCK(devvp);
 			MALLOC(lkp, struct lock *, sizeof(struct lock),
-			    M_UFSMNT, M_WAITOK);
+			    M_UFSMNT, 0);
 			lockinit(lkp, PVFS, "snaplk", VLKTIMEOUT,
 			    LK_CANRECURSE | LK_NOPAUSE);
 			VI_LOCK(vp);
@@ -1779,7 +1779,7 @@ ffs_snapshot_mount(mp)
 		return;
 	}
 	MALLOC(snapblklist, void *, snaplistsize * sizeof(daddr_t),
-	    M_UFSMNT, M_WAITOK);
+	    M_UFSMNT, 0);
 	auio.uio_iovcnt = 1;
 	aiov.iov_base = snapblklist;
 	aiov.iov_len = snaplistsize * sizeof (daddr_t);

@@ -358,7 +358,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 
 	if ((dmat->maxsize <= PAGE_SIZE) && dmat->lowaddr >= ptoa(Maxmem)) {
 		*vaddr = malloc(dmat->maxsize, M_DEVBUF,
-				(flags & BUS_DMA_NOWAIT) ? M_NOWAIT : M_WAITOK);
+				(flags & BUS_DMA_NOWAIT) ? M_NOWAIT : 0);
 	} else {
 		/*
 		 * XXX Use Contigmalloc until it is merged into this facility
@@ -366,7 +366,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		 *     multi-seg allocations yet though.
 		 */
 		*vaddr = contigmalloc(dmat->maxsize, M_DEVBUF,
-		    (flags & BUS_DMA_NOWAIT) ? M_NOWAIT : M_WAITOK,
+		    (flags & BUS_DMA_NOWAIT) ? M_NOWAIT : 0,
 		    0ul, dmat->lowaddr, dmat->alignment? dmat->alignment : 1ul,
 		    dmat->boundary);
 	}

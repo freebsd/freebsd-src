@@ -1133,7 +1133,7 @@ ieget(int unit, struct ie_softc *ie, struct mbuf **mp)
 	if (totlen <= 0)
 		return (-1);
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (!m) {
 		ie_drop_packet_buffer(unit, ie);
 		/* XXXX if_ierrors++; */
@@ -1188,7 +1188,7 @@ ieget(int unit, struct ie_softc *ie, struct mbuf **mp)
 		 * single mbuf which may or may not be big enough. Got that?
 		 */
 		if (top) {
-			MGET(m, M_DONTWAIT, MT_DATA);
+			MGET(m, M_NOWAIT, MT_DATA);
 			if (!m) {
 				m_freem(top);
 				ie_drop_packet_buffer(unit, ie);
@@ -1197,7 +1197,7 @@ ieget(int unit, struct ie_softc *ie, struct mbuf **mp)
 			m->m_len = MLEN;
 		}
 		if (resid >= MINCLSIZE) {
-			MCLGET(m, M_DONTWAIT);
+			MCLGET(m, M_NOWAIT);
 			if (m->m_flags & M_EXT)
 				m->m_len = min(resid, MCLBYTES);
 		} else {

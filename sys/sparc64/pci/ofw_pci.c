@@ -94,7 +94,7 @@ ofw_pci_orb_callback(phandle_t node, u_int8_t *pintptr, int pintsz,
 		bcopy(pregptr, &preg, sizeof(preg));
 		intr = (OFW_PCI_PHYS_HI_DEVICE(preg.phys_hi) + pintr + 3) %
 		    4 + 1;
-		*rintr = malloc(sizeof(intr), M_OFWPROP, M_WAITOK);
+		*rintr = malloc(sizeof(intr), M_OFWPROP, 0);
 		bcopy(&intr, *rintr, sizeof(intr));
 		*terminate = 0;
 		return (sizeof(intr));
@@ -134,7 +134,7 @@ ofw_pci_alloc_busno(phandle_t node)
 		om = pci_bus_map;
 		pci_bus_map_sz = n + PCI_BUS_MAP_INC;
 		pci_bus_map = malloc(sizeof(*pci_bus_map) * pci_bus_map_sz,
-		    M_DEVBUF, M_WAITOK | M_ZERO);
+		    M_DEVBUF, M_ZERO);
 		if (om != NULL) {
 			bcopy(om, pci_bus_map, sizeof(*om) * osz);
 			free(om, M_DEVBUF);

@@ -490,7 +490,7 @@ vm86_addpage(struct vm86context *vmc, int pagenum, vm_offset_t kva)
 		goto full;			/* XXX grow map? */
 
 	if (kva == 0) {
-		kva = (vm_offset_t)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
+		kva = (vm_offset_t)malloc(PAGE_SIZE, M_TEMP, 0);
 		flags = VMAP_MALLOC;
 	}
 

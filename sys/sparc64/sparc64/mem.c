@@ -150,7 +150,7 @@ mmrw(dev_t dev, struct uio *uio, int flags)
 		case 0:
 			/* mem (physical memory) */
 			if (buf == NULL) {
-				buf = malloc(PAGE_SIZE, M_DEVBUF, M_WAITOK);
+				buf = malloc(PAGE_SIZE, M_DEVBUF, 0);
 				if (buf == NULL) {
 					error = ENOMEM;
 					break;

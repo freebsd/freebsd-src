@@ -470,7 +470,7 @@ static void
 mac_mls_init_label(struct label *label)
 {
 
-	SLOT(label) = mls_alloc(M_WAITOK);
+	SLOT(label) = mls_alloc(0);
 }
 
 static int

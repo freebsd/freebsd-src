@@ -470,7 +470,7 @@ struct ifnet *ifp;
 		if (m0) {
 			register struct idp *idp;
 
-			M_PREPEND(m0, sizeof (*idp), M_DONTWAIT);
+			M_PREPEND(m0, sizeof (*idp), M_NOWAIT);
 			if (m0 == NULL)
 				continue;
 			idp = mtod(m0, struct idp *);

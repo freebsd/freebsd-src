@@ -808,7 +808,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		FREE(nam, M_SONAME);
 		return (0);
 	} else {
-		nmp = uma_zalloc(nfsmount_zone, M_WAITOK);
+		nmp = uma_zalloc(nfsmount_zone, 0);
 		bzero((caddr_t)nmp, sizeof (struct nfsmount));
 		TAILQ_INIT(&nmp->nm_bufq);
 		mp->mnt_data = (qaddr_t)nmp;

@@ -758,7 +758,7 @@ mac_init_pipe(struct pipe *pipe)
 {
 	struct label *label;
 
-	label = malloc(sizeof(struct label), M_MACPIPELABEL, M_ZERO|M_WAITOK);
+	label = malloc(sizeof(struct label), M_MACPIPELABEL, M_ZERO);
 	pipe->pipe_label = label;
 	pipe->pipe_peer->pipe_label = label;
 	mac_init_pipe_label(label);
@@ -1323,7 +1323,7 @@ mac_execve_enter(struct image_params *imgp, struct mac *mac_p,
 	if (error)
 		return (error);
 
-	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
+	buffer = malloc(mac.m_buflen, M_MACTEMP, 0);
 	error = copyinstr(mac.m_string, buffer, mac.m_buflen, NULL);
 	if (error) {
 		free(buffer, M_MACTEMP);
@@ -2727,16 +2727,16 @@ mac_ioctl_ifnet_get(struct ucred *cred, struct ifreq *ifr,
 	if (error)
 		return (error);
 
-	elements = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
+	elements = malloc(mac.m_buflen, M_MACTEMP, 0);
 	error = copyinstr(mac.m_string, elements, mac.m_buflen, NULL);
 	if (error) {
 		free(elements, M_MACTEMP);
 		return (error);
 	}
 
-	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
+	buffer = malloc(mac.m_buflen, M_MACTEMP, M_ZERO);
 	error = mac_externalize_ifnet_label(&ifnet->if_label, elements,
-	    buffer, mac.m_buflen, M_WAITOK);
+	    buffer, mac.m_buflen, 0);
 	if (error == 0)
 		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
 
@@ -2763,7 +2763,7 @@ mac_ioctl_ifnet_set(struct ucred *cred, struct ifreq *ifr,
 	if (error)
 		return (error);
 
-	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
+	buffer = malloc(mac.m_buflen, M_MACTEMP, 0);
 	error = copyinstr(mac.m_string, buffer, mac.m_buflen, NULL);
 	if (error) {
 		free(buffer, M_MACTEMP);
@@ -2839,14 +2839,14 @@ mac_setsockopt_label_set(struct ucred *cred, struct socket *so,
 	if (error)
 		return (error);
 
-	buffer = malloc(mac->m_buflen, M_MACTEMP, M_WAITOK);
+	buffer = malloc(mac->m_buflen, M_MACTEMP, 0);
 	error = copyinstr(mac->m_string, buffer, mac->m_buflen, NULL);
 	if (error) {
 		free(buffer, M_MACTEMP);
 		return (error);
 	}
 
-	mac_init_socket_label(&intlabel, M_WAITOK);
+	mac_init_socket_label(&intlabel, 0);
 	error = mac_internalize_socket_label(&intlabel, buffer);
 	free(buffer, M_MACTEMP);
 	if (error) {
@@ -2893,16 +2893,16 @@ mac_getsockopt_label_get(struct ucred *cred, struct socket *so,
 	if (error)
 		return (error);
 
-	elements = malloc(mac->m_buflen, M_MACTEMP, M_WAITOK);
+	elements = malloc(mac->m_buflen, M_MACTEMP, 0);
 	error = copyinstr(mac->m_string, elements, mac->m_buflen, NULL);
 	if (error) {
 		free(elements, M_MACTEMP);
 		return (error);
 	}
 
-	buffer = malloc(mac->m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
+	buffer = malloc(mac->m_buflen, M_MACTEMP, M_ZERO);
 	error = mac_externalize_socket_label(&so->so_label, elements,
-	    buffer, mac->m_buflen, M_WAITOK);
+	    buffer, mac->m_buflen, 0);
 	if (error == 0)
 		error = copyout(buffer, mac->m_string, strlen(buffer)+1);
 
@@ -2923,16 +2923,16 @@ mac_getsockopt_peerlabel_get(struct ucred *cred, struct socket *so,
 	if (error)
 		return (error);
 
-	elements = malloc(mac->m_buflen, M_MACTEMP, M_WAITOK);
+	elements = malloc(mac->m_buflen, M_MACTEMP, 0);
 	error = copyinstr(mac->m_string, elements, mac->m_buflen, NULL);
 	if (error) {
 		free(elements, M_MACTEMP);
 		return (error);
 	}
 
-	buffer = malloc(mac->m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
+	buffer = malloc(mac->m_buflen, M_MACTEMP, M_ZERO);
 	error = mac_externalize_socket_peer_label(&so->so_peerlabel,
-	    elements, buffer, mac->m_buflen, M_WAITOK);
+	    elements, buffer, mac->m_buflen, 0);
 	if (error == 0)
 		error = copyout(buffer, mac->m_string, strlen(buffer)+1);
 
@@ -3040,7 +3040,7 @@ __mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)
 	if (error)
 		return (error);
 
-	elements = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
+	elements = malloc(mac.m_buflen, M_MACTEMP, 0);
 	error = copyinstr(mac.m_string, elements, mac.m_buflen, NULL);
 	if (error) {
 		free(elements, M_MACTEMP);
@@ -3048,9 +3048,9 @@ __mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)
 		return (error);
 	}
 
-	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
+	buffer = malloc(mac.m_buflen, M_MACTEMP, M_ZERO);
 	error = mac_externalize_cred_label(&tcred->cr_label, elements,
-	    buffer, mac.m_buflen, M_WAITOK);
+	    buffer, mac.m_buflen, 0);
 	if (error == 0)
 		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
 
@@ -3078,16 +3078,16 @@ __mac_get_proc(struct thread *td, struct __mac_get_proc_args *uap)
 	if (error)
 		return (error);
 
-	elements = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
+	elements = malloc(mac.m_buflen, M_MACTEMP, 0);
 	error = copyinstr(mac.m_string, elements, mac.m_buflen, NULL);
 	if (error) {
 		free(elements, M_MACTEMP);
 		return (error);
 	}
 
-	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
+	buffer = malloc(mac.m_buflen, M_MACTEMP, M_ZERO);
 	error = mac_externalize_cred_label(&td->td_ucred->cr_label,
-	    elements, buffer, mac.m_buflen, M_WAITOK);
+	    elements, buffer, mac.m_buflen, 0);
 	if (error == 0)
 		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
 
@@ -3117,7 +3117,7 @@ __mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
 	if (error)
 		return (error);
 
-	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
+	buffer = malloc(mac.m_buflen, M_MACTEMP, 0);
 	error = copyinstr(mac.m_string, buffer, mac.m_buflen, NULL);
 	if (error) {
 		free(buffer, M_MACTEMP);
@@ -3194,14 +3194,14 @@ __mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 	if (error)
 		return (error);
 
-	elements = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
+	elements = malloc(mac.m_buflen, M_MACTEMP, 0);
 	error = copyinstr(mac.m_string, elements, mac.m_buflen, NULL);
 	if (error) {
 		free(elements, M_MACTEMP);
 		return (error);
 	}
 
-	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
+	buffer = malloc(mac.m_buflen, M_MACTEMP, M_ZERO);
 	mtx_lock(&Giant);				/* VFS */
 	error = fget(td, uap->fd, &fp);
 	if (error)
@@ -3241,12 +3241,12 @@ __mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 	case DTYPE_VNODE:
 		if (error == 0)
 			error = mac_externalize_vnode_label(&intlabel,
-			    elements, buffer, mac.m_buflen, M_WAITOK);
+			    elements, buffer, mac.m_buflen, 0);
 		mac_destroy_vnode_label(&intlabel);
 		break;
 	case DTYPE_PIPE:
 		error = mac_externalize_pipe_label(&intlabel, elements,
-		    buffer, mac.m_buflen, M_WAITOK);
+		    buffer, mac.m_buflen, 0);
 		mac_destroy_pipe_label(&intlabel);
 		break;
 	default:
@@ -3284,14 +3284,14 @@ __mac_get_file(struct thread *td, struct __mac_get_file_args *uap)
 	if (error)
 		return (error);
 
-	elements = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
+	elements = malloc(mac.m_buflen, M_MACTEMP, 0);
 	error = copyinstr(mac.m_string, elements, mac.m_buflen, NULL);
 	if (error) {
 		free(elements, M_MACTEMP);
 		return (error);
 	}
 
-	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
+	buffer = malloc(mac.m_buflen, M_MACTEMP, M_ZERO);
 	mtx_lock(&Giant);				/* VFS */
 	NDINIT(&nd, LOOKUP, LOCKLEAF | FOLLOW, UIO_USERSPACE, uap->path_p,
 	    td);
@@ -3302,7 +3302,7 @@ __mac_get_file(struct thread *td, struct __mac_get_file_args *uap)
 	mac_init_vnode_label(&intlabel);
 	mac_copy_vnode_label(&nd.ni_vp->v_label, &intlabel);
 	error = mac_externalize_vnode_label(&intlabel, elements, buffer,
-	    mac.m_buflen, M_WAITOK);
+	    mac.m_buflen, 0);
 
 	NDFREE(&nd, 0);
 	mac_destroy_vnode_label(&intlabel);
@@ -3339,14 +3339,14 @@ __mac_get_link(struct thread *td, struct __mac_get_link_args *uap)
 	if (error)
 		return (error);
 
-	elements = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
+	elements = malloc(mac.m_buflen, M_MACTEMP, 0);
 	error = copyinstr(mac.m_string, elements, mac.m_buflen, NULL);
 	if (error) {
 		free(elements, M_MACTEMP);
 		return (error);
 	}
 
-	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
+	buffer = malloc(mac.m_buflen, M_MACTEMP, M_ZERO);
 	mtx_lock(&Giant);				/* VFS */
 	NDINIT(&nd, LOOKUP, LOCKLEAF | NOFOLLOW, UIO_USERSPACE, uap->path_p,
 	    td);
@@ -3357,7 +3357,7 @@ __mac_get_link(struct thread *td, struct __mac_get_link_args *uap)
 	mac_init_vnode_label(&intlabel);
 	mac_copy_vnode_label(&nd.ni_vp->v_label, &intlabel);
 	error = mac_externalize_vnode_label(&intlabel, elements, buffer,
-	    mac.m_buflen, M_WAITOK);
+	    mac.m_buflen, 0);
 	NDFREE(&nd, 0);
 	mac_destroy_vnode_label(&intlabel);
 
@@ -3396,7 +3396,7 @@ __mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 	if (error)
 		return (error);
 
-	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
+	buffer = malloc(mac.m_buflen, M_MACTEMP, 0);
 	error = copyinstr(mac.m_string, buffer, mac.m_buflen, NULL);
 	if (error) {
 		free(buffer, M_MACTEMP);
@@ -3482,7 +3482,7 @@ __mac_set_file(struct thread *td, struct __mac_set_file_args *uap)
 	if (error)
 		return (error);
 
-	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
+	buffer = malloc(mac.m_buflen, M_MACTEMP, 0);
 	error = copyinstr(mac.m_string, buffer, mac.m_buflen, NULL);
 	if (error) {
 		free(buffer, M_MACTEMP);
@@ -3538,7 +3538,7 @@ __mac_set_link(struct thread *td, struct __mac_set_link_args *uap)
 	if (error)
 		return (error);
 
-	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
+	buffer = malloc(mac.m_buflen, M_MACTEMP, 0);
 	error = copyinstr(mac.m_string, buffer, mac.m_buflen, NULL);
 	if (error) {
 		free(buffer, M_MACTEMP);

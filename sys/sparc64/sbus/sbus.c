@@ -480,7 +480,7 @@ sbus_setup_dinfo(struct sbus_softc *sc, phandle_t node, char *name)
 	u_int32_t base, iv, *intr;
 	int i, nreg, nintr, slot, rslot;
 
-	sdi = malloc(sizeof(*sdi), M_DEVBUF, M_ZERO | M_WAITOK);
+	sdi = malloc(sizeof(*sdi), M_DEVBUF, M_ZERO);
 	if (sdi == NULL)
 		return (NULL);
 	resource_list_init(&sdi->sdi_rl);

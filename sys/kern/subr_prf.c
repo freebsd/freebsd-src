@@ -260,8 +260,8 @@ log_console(struct uio *uio)
 	pri = LOG_INFO | LOG_CONSOLE;
 	muio = *uio;
 	iovlen = uio->uio_iovcnt * sizeof (struct iovec);
-	MALLOC(miov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
-	MALLOC(consbuffer, char *, CONSCHUNK, M_TEMP, M_WAITOK);
+	MALLOC(miov, struct iovec *, iovlen, M_TEMP, 0);
+	MALLOC(consbuffer, char *, CONSCHUNK, M_TEMP, 0);
 	bcopy(muio.uio_iov, miov, iovlen);
 	muio.uio_iov = miov;
 	uio = &muio;

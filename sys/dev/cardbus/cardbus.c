@@ -424,7 +424,7 @@ cardbus_read_device(device_t brdev, int b, int s, int f)
 
 	if (REG(PCIR_DEVVENDOR, 4) != 0xffffffff) {
 		devlist_entry = malloc(sizeof(struct cardbus_devinfo),
-		    M_DEVBUF, M_WAITOK | M_ZERO);
+		    M_DEVBUF, M_ZERO);
 		if (devlist_entry == NULL)
 			return (NULL);
 

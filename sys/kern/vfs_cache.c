@@ -413,7 +413,7 @@ cache_enter(dvp, vp, cnp)
 	}
 	 
 	ncp = (struct namecache *)
-		malloc(sizeof *ncp + cnp->cn_namelen, M_VFSCACHE, M_WAITOK);
+		malloc(sizeof *ncp + cnp->cn_namelen, M_VFSCACHE, 0);
 	bzero((char *)ncp, sizeof *ncp);
 	numcache++;
 	if (!vp) {
@@ -729,7 +729,7 @@ kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg, u_int buflen)
 	if (buflen > MAXPATHLEN)
 		buflen = MAXPATHLEN;
 	error = 0;
-	tmpbuf = bp = malloc(buflen, M_TEMP, M_WAITOK);
+	tmpbuf = bp = malloc(buflen, M_TEMP, 0);
 	bp += buflen - 1;
 	*bp = '\0';
 	fdp = td->td_proc->p_fd;
@@ -840,7 +840,7 @@ vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
 		return (ENODEV);
 	if (vn == NULL)
 		return (EINVAL);
-	buf = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+	buf = malloc(MAXPATHLEN, M_TEMP, 0);
 	bp = buf + MAXPATHLEN - 1;
 	*bp = '\0';
 	fdp = td->td_proc->p_fd;

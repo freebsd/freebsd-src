@@ -298,7 +298,7 @@ user_ldt_alloc(struct mdproc *mdp, int len)
 		mtx_unlock_spin(&sched_lock);
 	mtx_assert(&sched_lock, MA_NOTOWNED);
 	MALLOC(new_ldt, struct proc_ldt *, sizeof(struct proc_ldt),
-		M_SUBPROC, M_WAITOK);
+		M_SUBPROC, 0);
 
 	new_ldt->ldt_len = len = NEW_MAX_LD(len);
 	new_ldt->ldt_base = (caddr_t)kmem_alloc(kernel_map,

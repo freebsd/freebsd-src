@@ -542,14 +542,14 @@ kue_newbuf(struct kue_softc *sc, struct kue_chain *c, struct mbuf *m)
 	struct mbuf		*m_new = NULL;
 
 	if (m == NULL) {
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+		MGETHDR(m_new, M_NOWAIT, MT_DATA);
 		if (m_new == NULL) {
 			printf("kue%d: no memory for rx list "
 			    "-- packet dropped!\n", sc->kue_unit);
 			return(ENOBUFS);
 		}
 
-		MCLGET(m_new, M_DONTWAIT);
+		MCLGET(m_new, M_NOWAIT);
 		if (!(m_new->m_flags & M_EXT)) {
 			printf("kue%d: no memory for rx list "
 			    "-- packet dropped!\n", sc->kue_unit);
