@@ -693,12 +693,19 @@ fddi_ifattach(ifp)
 #ifdef IFF_NOTRAILERS
 	ifp->if_flags |= IFF_NOTRAILERS;
 #endif
-#if defined(__NetBSD__)
+#if defined(__FreeBSD__)
+	ifa = ifnet_addrs[ifp->if_index - 1];
+	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+	sdl->sdl_type = IFT_FDDI;
+	sdl->sdl_alen = ifp->if_addrlen;
+	bcopy(((struct arpcom *)ifp)->ac_enaddr, LLADDR(sdl), ifp->if_addrlen);
+#elif defined(__NetBSD__)
 	LIST_INIT(&((struct arpcom *)ifp)->ac_multiaddrs);
 	for (ifa = ifp->if_addrlist.tqh_first; ifa != NULL; ifa = ifa->ifa_list.tqe_next)
 #else
 	for (ifa = ifp->if_addrlist; ifa != NULL; ifa = ifa->ifa_next)
 #endif
+#if !defined(__FreeBSD__)
 		if ((sdl = (struct sockaddr_dl *)ifa->ifa_addr) &&
 		    sdl->sdl_family == AF_LINK) {
 			sdl->sdl_type = IFT_FDDI;
@@ -707,4 +714,5 @@ fddi_ifattach(ifp)
 			      LLADDR(sdl), ifp->if_addrlen);
 			break;
 		}
+#endif
 }
