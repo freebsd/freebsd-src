@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id$
+ *	$Id: aic7xxx.h,v 1.2 1995/01/16 16:33:47 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -136,6 +136,8 @@ struct ahc_data {
 	u_short	needwdtr_orig;		/* Targets we initiate wide neg with */
 	u_short	needsdtr;		/* Current list of negotiated targets */
 	u_short needwdtr;		/* Current list of negotiated targets */
+	u_short sdtrpending;		/* Pending SDTR to these targets */
+	u_short wdtrpending;		/* Pending WDTR to these targets */
 	int	numscbs;
 	u_char	maxscbs;
 	int	unpause;
