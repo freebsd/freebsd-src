@@ -36,13 +36,15 @@ static	void	usage __P((void)),
 		run_reboot_jobs __P((cron_db *)),
 		cron_tick __P((cron_db *)),
 		cron_sync __P((void)),
-		cron_sleep __P((void)),
+		cron_sleep __P((cron_db *)),
+		cron_clean __P((cron_db *)),
 #ifdef USE_SIGCHLD
 		sigchld_handler __P((int)),
 #endif
 		sighup_handler __P((int)),
 		parse_args __P((int c, char *v[]));
 
+static time_t	last_time = 0;
 
 static void
 usage() {
@@ -66,7 +68,6 @@ main(argc, argv)
 	char	*argv[];
 {
 	cron_db	database;
-
 	ProgramName = argv[0];
 
 #if defined(BSD)
@@ -127,7 +128,7 @@ main(argc, argv)
 # if DEBUGGING
 	    /* if (!(DebugFlags & DTEST)) */
 # endif /*DEBUGGING*/
-			cron_sleep();
+			cron_sleep(&database);
 
 		load_database(&database);
 
@@ -164,6 +165,7 @@ static void
 cron_tick(db)
 	cron_db	*db;
 {
+	static struct tm lasttm;
  	register struct tm	*tm = localtime(&TargetTime);
 	register int		minute, hour, dom, month, dow;
 	register user		*u;
@@ -180,6 +182,93 @@ cron_tick(db)
 	Debug(DSCH, ("[%d] tick(%d,%d,%d,%d,%d)\n",
 		getpid(), minute, hour, dom, month, dow))
 
+	/* check for the daylight saving time change 
+	 * we support only change by +-1 hour happening at :00 minutes,
+	 * those living in more strange timezones are out of luck
+	 */
+	if (last_time != 0 && tm->tm_isdst != lasttm.tm_isdst
+	&& TargetTime > last_time /* exclude stepping back */) {
+		int	prevhr, nexthr, runtime;
+		int	lastmin, lasthour; 
+		int	trandom, tranmonth, trandow;
+		time_t	diff; /* time difference in seconds */
+
+		lastmin = lasttm.tm_min -FIRST_MINUTE;
+		lasthour = lasttm.tm_hour -FIRST_HOUR;
+
+		prevhr = (hour + (HOUR_COUNT-1)) % HOUR_COUNT;
+		nexthr = (lasthour + 1) % HOUR_COUNT;
+
+		if ( lasttm.tm_isdst != 1 && tm->tm_isdst == 1 /* ST->DST */
+		&& prevhr == nexthr ) { 
+			diff = ( (hour*MINUTE_COUNT + minute)
+				- (lasthour*MINUTE_COUNT + lastmin) 
+				+ HOUR_COUNT*MINUTE_COUNT
+				) % (HOUR_COUNT*MINUTE_COUNT);
+			diff -=  (TargetTime - last_time) / 60/*seconds*/;
+			if (diff != MINUTE_COUNT) 
+				goto dstdone;
+
+			if (hour == 0) {
+				trandom = lasttm.tm_mday -FIRST_DOM;
+				tranmonth = lasttm.tm_mon +1 /* 0..11 -> 1..12 */ -FIRST_MONTH;
+				trandow = lasttm.tm_wday -FIRST_DOW;
+			} else {
+				trandom = dom;
+				tranmonth = month;
+				trandow = dow;
+			}
+
+			for (u = db->head;  u != NULL;  u = u->next) {
+				for (e = u->crontab;  e != NULL;  e = e->next) {
+					/* adjust only jobs less frequent than 1 hr */
+					if ( !bit_test(e->hour, prevhr)
+					|| bit_test(e->hour, lasthour)
+					|| bit_test(e->hour, hour) )
+						continue;
+
+					if ( bit_test(e->month, tranmonth)
+					&& ( ((e->flags & DOM_STAR) || (e->flags & DOW_STAR))
+					 ? (bit_test(e->dow,trandow) && bit_test(e->dom,trandom))
+					 : (bit_test(e->dow,trandow) || bit_test(e->dom,trandom)) )
+					) {
+						bit_ffs(e->minute, MINUTE_COUNT, &runtime);
+						if(runtime >= 0) {
+							e->tmval = TargetTime + (runtime-minute)*60;
+							e->flags |= RUN_AT;
+							e->flags &= ~NOT_UNTIL;
+						}
+					}
+				}
+			}
+		} else if ( lasttm.tm_isdst == 1 && tm->tm_isdst != 1 /* DST->ST */
+		&& lasthour == hour ) { 
+			diff = ( (lasthour*MINUTE_COUNT + lastmin)
+				- (hour*MINUTE_COUNT + minute) 
+				+ HOUR_COUNT*MINUTE_COUNT
+				) % (HOUR_COUNT*MINUTE_COUNT);
+			diff +=  (TargetTime - last_time) / 60/*seconds*/;
+			if (diff != MINUTE_COUNT) 
+				goto dstdone;
+
+			runtime = TargetTime + (MINUTE_COUNT  - minute)*60;
+			for (u = db->head;  u != NULL;  u = u->next) {
+				for (e = u->crontab;  e != NULL;  e = e->next) {
+					/* adjust only jobs less frequent than 1 hr */
+					if ( !bit_test(e->hour, hour)
+					|| bit_test(e->hour, prevhr)
+					|| bit_test(e->hour, nexthr) )
+						continue;
+
+					e->tmval = runtime;
+					e->flags |= NOT_UNTIL;
+					e->flags &= ~RUN_AT;
+				}
+			}
+		}
+	}
+dstdone:
+
 	/* the dom/dow situation is odd.  '* * 1,15 * Sun' will run on the
 	 * first and fifteenth AND every Sunday;  '* * * * Sun' will run *only*
 	 * on Sundays;  '* * 1,15 * *' will run *only* the 1st and 15th.  this
@@ -191,7 +280,14 @@ cron_tick(db)
 			Debug(DSCH|DEXT, ("user [%s:%d:%d:...] cmd=\"%s\"\n",
 					  env_get("LOGNAME", e->envp),
 					  e->uid, e->gid, e->cmd))
-			if (bit_test(e->minute, minute)
+			if (e->flags & NOT_UNTIL) {
+				if (TargetTime >= e->tmval)
+					e->flags &= ~NOT_UNTIL;
+				else
+					continue;
+			}
+			if ( (e->flags & RUN_AT) && TargetTime == e->tmval
+			|| bit_test(e->minute, minute)
 			 && bit_test(e->hour, hour)
 			 && bit_test(e->month, month)
 			 && ( ((e->flags & DOM_STAR) || (e->flags & DOW_STAR))
@@ -199,10 +295,14 @@ cron_tick(db)
 			      : (bit_test(e->dow,dow) || bit_test(e->dom,dom))
 			    )
 			   ) {
+				e->flags &= ~RUN_AT;
 				job_add(e, u);
 			}
 		}
 	}
+
+	last_time = TargetTime;
+	lasttm = *tm;
 }
 
 
@@ -226,7 +326,9 @@ cron_sync() {
 
 
 static void
-cron_sleep() {
+cron_sleep(db)
+	cron_db	*db;
+{
 	int	seconds_to_wait = 0;
 
 	/*
@@ -241,6 +343,7 @@ cron_sleep() {
 		 */
 
 		if (seconds_to_wait < -600 || seconds_to_wait > 600) {
+			cron_clean(db);
 			cron_sync();
 			continue;
 		}
@@ -264,6 +367,26 @@ cron_sleep() {
 	}
 }
 
+
+/* if the time was changed abruptly, clear the flags related
+ * to the daylight time switch handling to avoid strange effects
+ */
+
+static void
+cron_clean(db)
+	cron_db	*db;
+{
+	user		*u;
+	entry		*e;
+
+	last_time = 0;
+
+	for (u = db->head;  u != NULL;  u = u->next) {
+		for (e = u->crontab;  e != NULL;  e = e->next) {
+			e->flags &= ~(RUN_AT|NOT_UNTIL);
+		}
+	}
+}
 
 #ifdef USE_SIGCHLD
 static void
