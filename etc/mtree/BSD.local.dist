@@ -17,14 +17,14 @@
     ..
     lib
         perl5
-            5.00503
+            5.006
                 man
                     man3
                     ..
                 ..
             ..
             site_perl
-                5.005
+                5.006
                     alpha-freebsd
                         auto
                         ..
