@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.1 1995/07/09 21:39:55 jfieber Exp $ -->
+<!-- $Id: contrib.sgml,v 1.2 1995/07/29 22:39:44 roberto Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>FreeBSD contributor list<label id="contrib">
@@ -102,6 +102,7 @@
 	  <item>Chris Torek &lt;torek@ee.lbl.gov&gt;
 	  <item>Christoph Robitschko &lt;chmr@edvz.tu-graz.ac.at&gt;
 	  <item>Curt Mayer &lt;curt@toad.com&gt;
+	  <item>Danny J. Zerkel &lt;dzerkel@feephi.phofarm.com&gt;
 	  <item>Dave Burgess &lt;burgess@hrd769.brooks.af.mil&gt;
 	  <item>Dave Rivers &lt;rivers@ponds.uucp&gt;
 	  <item>David Dawes &lt;dawes@physics.su.OZ.AU&gt;
