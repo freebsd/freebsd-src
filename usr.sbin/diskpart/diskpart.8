@@ -110,7 +110,7 @@ partitions
 are variable-sized, occupying whatever space remains after allocation
 of the fixed sized partitions.
 If the disk is smaller than 20 Megabytes, then
-.Nm diskpart
+.Nm
 aborts with the message
 .Dq Li disk too small, calculate by hand .
 .Bl -column Partition 20-60\ MB 61-205\ MB 206-355\ MB 356+\ MB
@@ -123,7 +123,7 @@ h	unused	unused	291346	291346
 .El
 .Pp
 If an unknown disk type is specified, 
-.Nm diskpart
+.Nm
 will prompt for the required disk geometry information.
 .Sh SEE ALSO
 .Xr disktab 5 ,
