@@ -209,6 +209,10 @@ restart:
 				goto bad;
 		}
 	}
+	if ((error = VOP_GETATTR(vp, vap, cred, td)) == 0) {
+		vp->v_cachedfs = vap->va_fsid;
+		vp->v_cachedid = vap->va_fileid;
+	}
 	if ((error = VOP_OPEN(vp, fmode, cred, td)) != 0)
 		goto bad;
 	/*
@@ -566,6 +570,9 @@ vn_stat(vp, sb, td)
 	error = VOP_GETATTR(vp, vap, td->td_ucred, td);
 	if (error)
 		return (error);
+
+	vp->v_cachedfs = vap->va_fsid;
+	vp->v_cachedid = vap->va_fileid;
 
 	/*
 	 * Zero the spare stat fields
