@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.14 1996/07/27 03:23:59 dyson Exp $
+ * $Id: vm_map.h,v 1.15 1996/07/30 03:08:11 dyson Exp $
  */
 
 /*
@@ -104,11 +104,11 @@ struct vm_map_entry {
 	vm_offset_t end;		/* end address */
 	union vm_map_object object;	/* object I point to */
 	vm_ooffset_t offset;		/* offset into object */
-	boolean_t is_a_map:1,		/* Is "object" a map? */
+	u_char is_a_map:1,		/* Is "object" a map? */
 	 is_sub_map:1,			/* Is "object" a submap? */
-	/* Only in sharing maps: */
 	 copy_on_write:1,		/* is data copy-on-write */
-	 needs_copy:1;			/* does object need to be copied */
+	 needs_copy:1,			/* does object need to be copied */
+	 nofault:1;			/* should never fault */
 	/* Only in task maps: */
 	vm_prot_t protection;		/* protection code */
 	vm_prot_t max_protection;	/* maximum protection */
@@ -208,6 +208,7 @@ typedef struct {
  */
 #define MAP_COPY_NEEDED 0x1
 #define MAP_COPY_ON_WRITE 0x2
+#define MAP_NOFAULT 0x4
 
 #ifdef KERNEL
 extern vm_offset_t kentry_data;

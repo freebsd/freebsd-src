@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.56 1996/09/08 23:49:47 dyson Exp $
+ * $Id: vm_map.c,v 1.57 1996/09/14 11:54:55 bde Exp $
  */
 
 /*
@@ -166,7 +166,7 @@ static void _vm_map_clip_end __P((vm_map_t, vm_map_entry_t, vm_offset_t));
 static void _vm_map_clip_start __P((vm_map_t, vm_map_entry_t, vm_offset_t));
 static vm_map_entry_t vm_map_entry_create __P((vm_map_t));
 static void vm_map_entry_delete __P((vm_map_t, vm_map_entry_t));
-static __inline void vm_map_entry_dispose __P((vm_map_t, vm_map_entry_t));
+static void vm_map_entry_dispose __P((vm_map_t, vm_map_entry_t));
 static void vm_map_entry_unwire __P((vm_map_t, vm_map_entry_t));
 static void vm_map_copy_entry __P((vm_map_t, vm_map_t, vm_map_entry_t,
 		vm_map_entry_t));
@@ -325,14 +325,15 @@ vm_map_init(map, min, max, pageable)
  *
  *	Inverse of vm_map_entry_create.
  */
-static __inline void
+static void
 vm_map_entry_dispose(map, entry)
 	vm_map_t map;
 	vm_map_entry_t entry;
 {
 	int s;
 
-	if (kentry_count < KENTRY_LOW_WATER) {
+	if (map == kernel_map || map == kmem_map ||
+		map == mb_map || map == pager_map) {
 		s = splvm();
 		entry->next = kentry_free;
 		kentry_free = entry;
@@ -394,7 +395,8 @@ vm_map_entry_create(map)
 		splx(s);
 	}
 
-	if (map == kernel_map || map == kmem_map || map == mb_map || map == pager_map) {
+	if (map == kernel_map || map == kmem_map ||
+		map == mb_map || map == pager_map) {
 		s = splvm();
 		entry = kentry_free;
 		if (entry) {
@@ -605,6 +607,10 @@ vm_map_insert(map, object, offset, start, end, prot, max, cow)
 	vm_map_entry_t temp_entry;
 	vm_object_t prev_object;
 
+	if ((object != NULL) && (cow & MAP_NOFAULT)) {
+		panic("vm_map_insert: paradoxical MAP_NOFAULT request");
+	}
+
 	/*
 	 * Check that the start and end points are not bogus.
 	 */
@@ -633,7 +639,7 @@ vm_map_insert(map, object, offset, start, end, prot, max, cow)
 
 	if ((prev_entry != &map->header) &&
 		(prev_entry->end == start) &&
-		((object == NULL) || (prev_entry->object.vm_object == object)) &&
+		(object == NULL) &&
 		(prev_entry->is_a_map == FALSE) &&
 		(prev_entry->is_sub_map == FALSE) &&
 		(prev_entry->inheritance == VM_INHERIT_DEFAULT) &&
@@ -646,12 +652,18 @@ vm_map_insert(map, object, offset, start, end, prot, max, cow)
 	 * See if we can avoid creating a new entry by extending one of our
 	 * neighbors.
 	 */
-		if (object == NULL) {
-			if (vm_object_coalesce(prev_entry->object.vm_object,
+			u_char needs_copy = (cow & MAP_COPY_NEEDED) != 0;
+			u_char copy_on_write = (cow & MAP_COPY_ON_WRITE) != 0;
+			u_char nofault = (cow & MAP_NOFAULT) != 0;
+
+			if ((needs_copy == prev_entry->needs_copy) &&
+			    (copy_on_write == prev_entry->copy_on_write) &&
+			    (nofault == prev_entry->nofault) &&
+				(nofault || vm_object_coalesce(prev_entry->object.vm_object,
 				OFF_TO_IDX(prev_entry->offset),
 				(vm_size_t) (prev_entry->end
 				    - prev_entry->start),
-				(vm_size_t) (end - prev_entry->end))) {
+				(vm_size_t) (end - prev_entry->end)))) {
 
 				/*
 				 * Coalesced the two objects - can extend the
@@ -660,11 +672,12 @@ vm_map_insert(map, object, offset, start, end, prot, max, cow)
 				 */
 				map->size += (end - prev_entry->end);
 				prev_entry->end = end;
-				prev_object = prev_entry->object.vm_object;
-				default_pager_convert_to_swapq(prev_object);
+				if (!nofault) {
+					prev_object = prev_entry->object.vm_object;
+					default_pager_convert_to_swapq(prev_object);
+				}
 				return (KERN_SUCCESS);
 			}
-		}
 	}
 	/*
 	 * Create a new entry
@@ -688,6 +701,11 @@ vm_map_insert(map, object, offset, start, end, prot, max, cow)
 		new_entry->copy_on_write = TRUE;
 	else
 		new_entry->copy_on_write = FALSE;
+
+	if (cow & MAP_NOFAULT)
+		new_entry->nofault = TRUE;
+	else
+		new_entry->nofault = FALSE;
 
 	if (map->is_main_map) {
 		new_entry->inheritance = VM_INHERIT_DEFAULT;
@@ -1678,7 +1696,7 @@ vm_map_clean(map, start, end, syncio, invalidate)
  *	The map in question should be locked.
  *	[This is the reason for this routine's existence.]
  */
-static __inline void 
+static void 
 vm_map_entry_unwire(map, entry)
 	vm_map_t map;
 	register vm_map_entry_t entry;
@@ -1692,7 +1710,7 @@ vm_map_entry_unwire(map, entry)
  *
  *	Deallocate the given entry from the target map.
  */
-static __inline void
+static void
 vm_map_entry_delete(map, entry)
 	register vm_map_t map;
 	register vm_map_entry_t entry;

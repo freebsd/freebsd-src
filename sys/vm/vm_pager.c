@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.23 1996/05/18 03:38:05 dyson Exp $
+ * $Id: vm_pager.c,v 1.24 1996/09/08 20:44:49 dyson Exp $
  */
 
 /*
@@ -278,6 +278,22 @@ pager_cache(object, should_cache)
 }
 
 /*
+ * initialize a physical buffer
+ */
+
+static void
+initpbuf(struct buf *bp) {
+	bzero(bp, sizeof *bp);
+	bp->b_rcred = NOCRED;
+	bp->b_wcred = NOCRED;
+	bp->b_qindex = QUEUE_NONE;
+	bp->b_data = (caddr_t) (MAXPHYS * (bp - swbuf)) + swapbkva;
+	bp->b_kvabase = bp->b_data;
+	bp->b_kvasize = MAXPHYS;
+	bp->b_vnbufs.le_next = NOLIST;
+}
+
+/*
  * allocate a physical buffer
  */
 struct buf *
@@ -295,12 +311,7 @@ getpbuf()
 	TAILQ_REMOVE(&bswlist, bp, b_freelist);
 	splx(s);
 
-	bzero(bp, sizeof *bp);
-	bp->b_rcred = NOCRED;
-	bp->b_wcred = NOCRED;
-	bp->b_qindex = QUEUE_NONE;
-	bp->b_data = (caddr_t) (MAXPHYS * (bp - swbuf)) + swapbkva;
-	bp->b_vnbufs.le_next = NOLIST;
+	initpbuf(bp);
 	return bp;
 }
 
@@ -321,12 +332,8 @@ trypbuf()
 	TAILQ_REMOVE(&bswlist, bp, b_freelist);
 	splx(s);
 
-	bzero(bp, sizeof *bp);
-	bp->b_rcred = NOCRED;
-	bp->b_wcred = NOCRED;
-	bp->b_qindex = QUEUE_NONE;
-	bp->b_data = (caddr_t) (MAXPHYS * (bp - swbuf)) + swapbkva;
-	bp->b_vnbufs.le_next = NOLIST;
+	initpbuf(bp);
+
 	return bp;
 }
 
