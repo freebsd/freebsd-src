@@ -2121,232 +2121,230 @@ options HZ=1000 # pas obligatoire, mais fortemment recommandé</programlisting>
     <para>&man.moused.8; supporte maintenant l'option  <option>-a</option>  pour
     controler l'accélération de la souris. &merged;</para>
 
-    <para>&man.mtree.8; now includes support for a file that lists
-    pathnames to be excluded when creating and verifying prototypes.
-    This makes it easier to use &man.mtree.8; as a part of an
-    intrusion-detection system. &merged;</para>
+    <para>&man.mtree.8; peut utiliser un fichier comportant la liste des
+    répertoires à exclure lorsqu'il crée ou vérifie les prototypes. 
+    Cela permet d'utiliser plus facilement &man.mtree.8; comme outil
+    de détection d'intrusion système.&merged;</para>
 
-    <para>&man.natd.8; now supports a
-    <option>-log_ipfw_denied</option> option to log packets that
-    cannot be re-injected because they are blocked by &man.ipfw.8;
-    rules. &merged;</para>
+    <para>&man.natd.8; dispose maintenant de l'option <option>-log_ipfw_denied</option> 
+    pour logguer les paquets qui ne peuvent etre ré-injectés suite a des
+    règles de &man.ipfw.8;. &merged;</para>
 
-    <para>The <quote>in use</quote> percentage metric displayed by
-    &man.netstat.1; now really reflects the percentage of network
-    mbufs used. &merged;</para>
+    <para>Le pourcentage d'utilisation affiché par &man.netstat.1; 
+    reflète maintenant correctement le pourcentage de mbufs réseaux 
+    utilisés&merged;</para>
 
-    <para>&man.netstat.1; now has a <option>-W</option> flag that
-    tells it not to truncate addresses, even if they're too long for
-    the column they're printed in. &merged;</para>
+    <para>&man.netstat.1; dispose maintenant du paramètre de ligne de commande
+    <option>-W</option> qui lui permet de ne pas tronquer les adresses, meme si
+    elles sont trop longue pour s'afficher dans la colonne nécessaire. &merged;</para>
 
-    <para>&man.netstat.1; now keeps track of input and output packets
-    on a per-address basis for each interface. &merged;</para>
+    <para>&man.netstat.1; garde maintenant une trace des paquets en entrée 
+    et en sortie par adresse pour chaque interface. &merged;</para>
 
-    <para>&man.netstat.1; now has a <option>-z</option> flag to reset
-    statistics. &merged;</para>
+    <para>&man.netstat.1; dispose maintenant du paramètre de ligne de commande
+     <option>-z</option> permettant la remise à zéro des statistiques. &merged;</para>
 
-    <para>&man.netstat.1; now has a <option>-S</option> flag to print
-    address numerically but port names symbolically. &merged;</para>
+    <para>&man.netstat.1; dispose maintenant du paramètre de ligne de commande
+     <option>-S</option> permettant d'afficher les adresse en format numérique tout
+     en gardant les noms symbolique des ports. &merged;</para>
 
-    <para>&man.newfs.8; now implements write combining, which can make
-    creation of new filesystems up to seven times
-    faster. &merged;</para>
+    <para>&man.newfs.8; implémente maintenant les écritures combinées, cela
+    permet la création des nouveaux systèmes de fichiers jusqu'a sept
+    fois plus rapidement. &merged;</para>
 
-    <para>&man.newfs.8; now takes a <option>-U</option> option to
-    enable softupdates on a new filesystem. &merged;</para>
+    <para>&man.newfs.8; dispose maintenant de l'option <option>-U</option>, permettant
+    l'activation des softupdates sur un nouveau système de fichiers. &merged;</para>
 
-    <para>The default number of cylinders per group in &man.newfs.8;
-    is now computed to be the maximum allowable given the current
-    filesystem parameters.  It can be overridden with the
-    <option>-c</option> option.  Formerly, the default was fixed at 16.  This
-    change leads to better &man.fsck.8; performance and reduced
-    fragmentation. &merged;</para>
+    <para>Le nombre de cylindres par groupe de &man.newfs.8; est maintenant
+    calculé pour etre égal au nombre maximum donné par les
+    paramètres du système de fichiers courant. Ce nombre peut etre 
+    forcé via l'option <option>-c</option>. De base, la valeur par défaut a été
+    fixée à 16. Cela augmente les performances de &man.fsck.8; tout en 
+    réduisant la fragmentation. &merged;</para>
 
-    <para><anchor id="newfs-block-frag-sizes">The default block and fragment sizes for new filesystems created
-    by &man.newfs.8; are now 16384 and 2048 bytes, respectively (the
-    old defaults were 8192 and 1024 bytes).  This change generally
-    provides increased performance, at the expense of some wasted disk
-    space. &merged;</para>
+    <para><anchor id="newfs-block-frag-sizes">La taille des blocs et des fragments
+    lors de la création de systèmes de fichiers par &man.newfs.8; sont 
+    respectivement de 16384 bytes et 2048 bytes (les anciennes valeurs
+    étaient de 8192 bytes et 1024 bytes). Ce changement augmente la performance
+    en contrepartie de réduire la taille disponible. &merged;</para>
 
-    <para>&man.newsyslog.8; now has the ability to compress
-    log files using &man.bzip2.1;. &merged;</para>
+    <para>&man.newsyslog.8; peut maintenant compresser les fichiers de log
+    en utilisant &man.bzip2.1;. &merged;</para>
 
-    <para><application>NFS</application> now works over IPv6.</para>
+    <para><application>NFS</application> supporte maintenant IPv6.</para>
 
     <para>&man.ngctl.8; now supports a <option>write</option> command
     to send a data packet down a given hook. &merged;</para>
 
-    <para>&man.nl.1;, a line numbering filter program, has been
-    added. &merged;</para>
+    <para>&man.nl.1;, un filtre de numérotation des lignes a été 
+    ajouté. &merged;</para>
 
-    <para><application>nsswitch</application> support has been merged from NetBSD.  By creating
-    an &man.nsswitch.conf.5; file, &os; can be configured so that
-    various databases such as &man.passwd.5; and &man.group.5; can be
-    looked up using flat files, NIS, or Hesiod.  The old
-    <filename>hosts.conf</filename> file is no longer used.</para>
+    <para>Le support de <application>nsswitch</application> a éré ajouté
+    depuis NetBSD. En créant un fichier &man.nsswitch.conf.5;, différentes
+    bases de données du système, comme &man.passwd.5; et &man.group.5;,
+    peuvent se trouver dans des fichiers plats, des bases NIS ou Hesiod. L'ancien
+    fichier <filename>hosts.conf</filename> n'est plus utilisé.</para>
 
-    <para><application>PAM</application> support has been added for
-    account management and sessions.</para>
+    <para>Le support <application>PAM</application> pour la gestion des comptes
+    et des sessions a été ajouté.</para>
 
-    <para><application>PAM</application> configuration is now
-    specified by files in <filename>/etc/pam.d/</filename>, rather
-    than a single <filename>/etc/pam.conf</filename> file.
-    <filename>/etc/pam.d/README</filename> has more details.</para>
+    <para>La configuration <application>PAM</application> se trouve
+    maintenant dans le répertoire <filename>/etc/pam.d/</filename>
+    au lieu du seul fichier <filename>/etc/pam.d/</filename>. Voyez
+    le fichier <filename>/etc/pam.d/README</filename> pour plus de détails.</para> 
 
-    <para>&man.passwd.1; and &man.pw.8; now select the password hash
-    algorithm at run time.  See the <literal>passwd_format</literal>
-    attribute in <filename>/etc/login.conf</filename>. &merged;</para>
+    <para>&man.passwd.1; et &man.pw.8; sélectionnent l'algorithme de
+    hashage à la volée. Voyez l'attribut <literal>passwd_format</literal>
+    dans <filename>/etc/login.conf</filename>. &merged;</para>
 
-    <para>&man.pax.1; has received a number of enhancements, including
-    &man.cpio.1; functionality, &man.tar.1; compatibility
-    enhancements, <option>-z</option> and <option>-Z</option> flags
-    for &man.gzip.1; and &man.compress.1; functionality, and a number
-    of bug fixes.</para>
+    <para>&man.pax.1; a reçu différentes améliorations, comme la 
+    compatibilité avec  &man.tar.1;, la fonctionnalité &man.cpio.1;,
+    les options <option>-z</option> et <option>-Z</option> pour la 
+    compression en  &man.gzip.1; et &man.compress.1; , et différentes corrections
+    de bogues.</para>
 
-    <para>&man.pciconf.8; now supports a <option>-v</option> option to
-    display the vendor/device information of configured devices,
-    in conjunction with the <option>-l</option> option.  The default
-    vendor/device database can be found at
+    <para>&man.pciconf.8; dispose maintenant de l'option <option>-v</option> 
+    permettant d'afficher les informations sur le composant configuré, en
+    complément de l'option <option>-l</option> option.  La base de données
+    par défaut peut etre trouvé dans le fichier
     <filename>/usr/share/misc/pci_vendors</filename>. &merged;</para>
 
-    <para>The behavior of &man.periodic.8; is now controlled by
-    <filename>/etc/defaults/periodic.conf</filename> and
+    <para>Le comportement de &man.periodic.8; est maintenant controller
+    par les fichiers <filename>/etc/defaults/periodic.conf</filename> et
     <filename>/etc/periodic.conf</filename>. &merged;</para>
 
-    <para>&man.ping.8; now supports a <option>-m</option> option to
-    set the TTL of outgoing packets. &merged;</para>
+    <para>&man.ping.8; dispose maintenant de l'option <option>-m</option> 
+    permettant d'imposer le TTL des paquets de sortie. &merged;</para>
 
-    <para>&man.ping.8; now supports a <option>-A</option> option to
-    beep when packets are lost. &merged;</para>
+    <para>&man.ping.8; dispose maintenant de l'option <option>-A</option> permettant
+    d'émettre un son lorsque des paquets sont perdus. &merged;</para>
 
-    <para>Userland &man.ppp.8; has received a number of updates and
-    bug fixes. &merged;</para>
+    <para>La partie utilisateur de &man.ppp.8; a reçu de nombreuses modifications
+    et de corrections de bogues. &merged;</para>
 
-    <para>&man.ppp.8; has gained the <literal>tcpmssfixup</literal>
-    option, which adjusts outgoing and incoming TCP SYN packets so that the maximum
-    receive segment size is no larger than allowed by the interface
-    MTU. &merged;</para>
+    <para>&man.ppp.8; dispose de l'option <literal>tcpmssfixup</literal>
+    qui permet d'ajuster les paquets TCP SYN en entrée et en sortie, permettant
+    alors que la taille de réception de segment ne soit pas plus importante
+    que le MTU de l'interface. &merged;</para>
 
-    <para>&man.ppp.8; now supports IPv6.</para>
+    <para>&man.ppp.8; supporte maintenant IPv6.</para>
 
-    <para>&man.pppd.8; (the control program for kernel-level PPP) is
-    now installed mode <literal>4550</literal> and
+    <para>&man.pppd.8; (le programme controlant au niveau noyau PPP) est maintenant
+    installé en mode <literal>4550</literal> et 
     <username>root</username><literal>:</literal><groupname>dialer</groupname>,
-    rather than mode <literal>4555</literal> (in other words, it is no
-    longer world-executable).  Users of &man.pppd.8; may need to
-    change their group settings. &merged;</para>
+    plutot que en mode <literal>4555</literal> (en d'autre termes, cela veut dire
+    qu'il n'est plus executable par tout le monde.) Les utilisateurs de &man.pppd.8; 
+    doivent donc changer leur configuration de groupes. &merged;</para>
 
-    <para>The <option>-W</option> option to &man.ps.1; (to extract
-    information from a specified swap device) has been useless for
-    some time; it has been removed. &merged;</para>
+    <para>L'option <option>-W</option> de &man.ps.1; (permettant d'extraire
+    les informations depuis un périphérique de swap spécifique) a
+    été returé. &merged;</para>
 
     <para>&man.pwd.1; can now double as &man.realpath.1;, a program to
     resolve pathnames to their underlying physical paths. &merged;</para>
 
-    <para>The pseudo-random number generator implemented by
-    &man.rand.3; has been improved to provide less biased results.</para>
+    <para>Le générateur de nombre pseudo aléatoire implémenté par
+    &man.rand.3; a été amélioré .</para>
 
-    <para>&man.rc.8; now has an framework for handling dependencies between
-    &man.rc.conf.5; variables. &merged;</para>
+    <para>&man.rc.8; dispose maintenant d'un environnement permettant de vérifier
+    les dépendances entre les variables de &man.rc.conf.5;. &merged;</para>
 
-    <para>&man.rc.8; now deletes all non-directory files in
-    <filename>/var/run</filename> and
-    <filename>/var/spool/lock</filename> at boot time. &merged;</para>
+    <para>&man.rc.8; efface maintenant tous les fichiers qui ne sont pas des répertoires
+    dans  <filename>/var/run</filename> et
+    <filename>/var/spool/lock</filename> au moment du démarrage. &merged;</para>
 
-    <para>&man.rcmd.3; now supports the use of the
-    <envar>RSH</envar> environment variable to specify a program to
-    use other than &man.rsh.1; for remote execution.  As a result,
-    programs such as &man.dump.8;, can use &man.ssh.1; for remote
-    transport.</para>
+    <para>&man.rcmd.3; supporte maintenant la variable d'environnement
+    <envar>RSH</envar> permettant de spécifier quel programme autre que 
+    &man.rsh.1; utiliser pour l'execution a distance de commande. Cela permet
+    donc a des programmes comme &man.dump.8; d'utiliser &man.ssh.1; pour
+    transporter les données.</para>
 
-    <para>&man.rdist.1; has been retired from the base system, but is still
-    available from &os; Ports Collection as 
+    <para>&man.rdist.1; a été retiré du système de base, mais reste
+    disponible dans la collection des Ports sous 
     <filename role="package">net/44bsd-rdist</filename>.</para>
 
-    <para>The &man.resolver.3; in &os; now implements EDNS0 support,
-    which will be necessary when working with IPv6 transport-ready
-    resolvers/DNS servers. &merged;</para>
+    <para>Le &man.resolver.3; de &os; implémente maintenant le support
+    EDNS0, qui est nécessaire lorsque l'on utilise des serveurs DNS/resolveurs
+    supportant IPv6. &merged;</para>
 
-    <para>The &man.rfork.thread.3; library call has been added as a
-    helper function to &man.rfork.2;.  Using this function should
-    avoid the need to implement complex stack swap
-    code. &merged;</para>
+    <para>L'appel système &man.rfork.thread.3; a été ajouté comme
+    fonction d'aide à &man.rfork.2;. Cela permet d'utiliser cette
+    fonction sans implémenter des mécanismes complexes de swap de 
+    stack. &merged;</para>
 
-    <para>The <option>-v</option> option to &man.rm.1; now displays
-    the entire pathname of a file being removed.</para>
+    <para>L'option <option>-v</option> de &man.rm.1; affiche maintenant
+    l'ensemble du répertoire ou se trouve le fichier à effacer.</para>
 
-    <para>&man.route.8; is now more verbose when changing indirect
-    routes, in the case of a gateway route that is the same route as
-    the one being modified. &merged;</para>
+    <para>&man.route.8; est maintenat plus verbeux lors du changement de routes
+    indirectes, dans le cas ou la passerelle de la route modifiée est
+    la meme que la route existante. &merged;</para>
 
-    <para>&man.route.8; now uses
+    <para>&man.route.8; utilise maintenant la syntax 
     <literal><replaceable>host</replaceable>/<replaceable>bits</replaceable></literal>
-    syntax instead of 
+    plutot que la syntaxe
     <literal><replaceable>net</replaceable>/<replaceable>bits</replaceable></literal>
-    syntax, for compatibility with &man.netstat.1;. &merged;</para>
+    syntax, pour la compatibilité avec &man.netstat.1;. &merged;</para>
 
-    <para>&man.route.8; can now create <quote>proxy only</quote>
-    published ARP entries. &merged;</para>
+    <para>&man.route.8; peut maintenant créer des entrée ARP 
+    <quote>proxy only</quote>. &merged;</para>
 
-    <para>The &man.route.8; <option>add</option> command now supports
-    the <option>-ifp</option> and <option>-ifa</option>
-    modifiers. &merged;</para>
+    <para>La commande <option>add</option> de &man.route.8; dispose des options
+     <option>-ifp</option> and <option>-ifa</option>. &merged;</para>
 
-    <para>&man.rpcbind.8; has replaced &man.portmap.8;.</para>
+    <para>&man.rpcbind.8; a remplacé &man.portmap.8;.</para>
 
-    <para>&man.rpcgen.1; now uses <filename>/usr/bin/cpp</filename>
-    (as on NetBSD), not <filename>/usr/libexec/cpp</filename>.</para>
+    <para>&man.rpcgen.1; utilise  <filename>/usr/bin/cpp</filename>
+    (comme dans NetBSD), et non plus <filename>/usr/libexec/cpp</filename>.</para>
 
-    <para>&man.rpc.lockd.8; has been imported from NetBSD.  This
-    daemon enables locking on NFS filesystems.</para>
+    <para>&man.rpc.lockd.8; a été importé depuis NetBSD.  Ce démon permet
+    d'activer les verrous sur les systèmes de fichiers NFS.</para>
 
-    <para>The performance of the ELF dynamic linker &man.rtld.1; has
-    been improved. &merged;</para>
+    <para>Les performances du linkeur dynamique ELF &man.rtld.1; ont été
+    améliorées. &merged;</para>
 
-    <para>RSA Security has waived all patent rights to the <application>RSA</application>
-    algorithm.  As a
-    result, the native <application>OpenSSL</application>
-    implementation of the RSA algorithm is now activated by default,
-    and the <filename role="package">security/rsaref</filename> port and the
-    <filename>librsaUSA</filename> and <filename>librsaINTL</filename>
-    libraries are
-    no longer required for USA and non-USA residents respectively. &merged;</para>
+    <para>RSA Security a libéré les droits sur l'algorithme 
+    <application>RSA</application>. Cela permet d'activer par défaut
+    dans <application>OpenSSL</application> l'algorithme RSA. Cela permet
+    de libérer le port <filename role="package">security/rsaref</filename>
+    des dépendences des librairies <filename>librsaUSA</filename> et
+    <filename>librsaINTL</filename> repectivement pour les résidents américains
+    et non américains. &merged;</para>
 
-    <para>&man.rtld.1; will now print the names of all objects that
-    cause each object to be loaded, if the
-    <varname>LD_TRACE_LOADED_OBJECTS_ALL</varname> environment
-    variable is defined.</para>
+    <para>&man.rtld.1; affiche maintenant le nom de tous les objets nécessaires
+    à charger lorsque la variable d'environnement
+    <varname>LD_TRACE_LOADED_OBJECTS_ALL</varname> est définie.</para>
 
-    <para>&man.savecore.8; now supports a <option>-k</option> option
-    to prevent clearing a crash dump after saving it.  It also
-    attempts to avoid writing large stretches of zeros to crash dump
-    files to save space and time. &merged;</para>
+    <para>&man.savecore.8; dispose de l'option <option>-k</option> 
+    permettant de nettoyer le fichier de crash après l'avoir
+    sauvegardé. Il essaie aussi d'éviter d'écrire de
+    grandes séries de zéro dans le fichier de crash pour 
+    sauver de l'espace disque et du temps. &merged;</para>
 
-    <para>&man.savecore.8; now works correctly on machines with 2 GB
-    or more of RAM. &merged;</para>
+    <para>&man.savecore.8; fonctionne correctement sur les machines
+    disposant de 2GB ou plus de RAM. &merged;</para>
 
-    <para>&man.sed.1; now takes a <option>-E</option> option for
-    extended regular expression support. &merged;</para>
+    <para>&man.sed.1; dispose de l'option <option>-E</option> pour le
+    support des expressions régulières étendues. &merged;</para>
 
-    <para>&man.send-pr.1; now takes a <option>-a</option> option to
-    include a file into the <literal>Fix:</literal> section of a
-    problem report. &merged;</para>
+    <para>&man.send-pr.1; dispose maintenant de l'option <option>-a</option> 
+    permettant d'inclure un fichier dans la section <literal>Fix:</literal> 
+    d'un rapport de bogue. &merged;</para>
 
-    <para>The &man.setfacl.1; and &man.getfacl.1; commands have been
-    added to manage file system Access Control Lists.</para>
+    <para>Les commandes &man.setfacl.1; et &man.getfacl.1; ont été 
+    joutées pour gérer les listes de controles d'accès (ACL)
+    sur les systèmes de fichiers.</para>
 
-    <para>&man.setproctitle.3; has been moved from
-    <filename>libutil</filename> to
+    <para>&man.setproctitle.3; a été déplacer de
+    <filename>libutil</filename> vers
     <filename>libc</filename>. &merged;</para>
 
-    <para>&man.sh.1; now implements <command>test</command> as a
-    built-in command for improved efficiency. &merged;</para>
+    <para>&man.sh.1; implémente <command>test</command> comme une
+    built-in pour améliorer son éfficience. &merged;</para>
 
-    <para>&man.sh.1; no longer
-    implements <command>printf</command> as a built-in command because
-    it was considered less valuable compared to the other built-in
-    commands (this functionality is, of course, still available
-    through the &man.printf.1; executable).</para>
+    <para>&man.sh.1; n'implémente plus <command>printf</command> comme une 
+    built-in car elle a été considérée peu intéressante comparée
+    aux autres built-ins (cette fonctionnalité est toujours disponible
+    via l'executable &man.printf.1;).</para>
 
     <para>&man.sockstat.1; now has <option>-c</option> and
     <option>-l</option> flags for listing connected and listening
