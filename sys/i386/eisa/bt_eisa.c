@@ -2,7 +2,7 @@
  * Product specific probe and attach routines for:
  * 	Buslogic BT74x SCSI controllers
  *
- * Copyright (c) 1995, 1998 Justin T. Gibbs
+ * Copyright (c) 1995, 1998, 1999 Justin T. Gibbs
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: bt_eisa.c,v 1.1 1998/09/15 07:32:52 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -145,19 +145,18 @@ bt_eisa_probe(void)
 
 	count = 0;
 	while ((e_dev = eisa_match_dev(e_dev, bt_match))) {
-		u_char ioconf;
+		struct bt_softc *bt;
+		struct bt_probe_info info;
 		u_long port;
-		int irq;
+		u_long iosize;
+		u_int  ioconf;
 
 		iobase = (e_dev->ioconf.slot * EISA_SLOT_SIZE); 
 		if (e_dev->id == EISA_DEVICE_ID_AMI_4801) {
-			u_char ioconf1;
+			u_int ioconf1;
+
 			iobase += AMI_EISA_SLOT_OFFSET;
-
-			eisa_add_iospace(e_dev, iobase, AMI_EISA_IOSIZE,
-					 RESVADDR_NONE);
-
-			ioconf = inb(iobase + AMI_EISA_IOCONF);
+			iosize = AMI_EISA_IOSIZE;
 			ioconf1 = inb(iobase + AMI_EISA_IOCONF1);
 			/* Determine "ISA" I/O port */
 			switch (ioconf1 & AMI_PORTADDR) {
@@ -187,40 +186,9 @@ bt_eisa_probe(void)
 					       e_dev->ioconf.slot);
 					continue;
 			}
-
-			/* Determine our IRQ */
-			switch (ioconf & AMI_IRQ_CHANNEL) {
-				case AMI_INT_11:
-					irq = 11;
-					break;
-				case AMI_INT_10:
-					irq = 10;
-					break;
-				case AMI_INT_15:
-					irq = 15;
-					break;
-				case AMI_INT_12:
-					irq = 12;
-					break;
-				case AMI_INT_14:
-					irq = 14;
-					break;
-				case AMI_INT_9:
-					irq = 9;
-					break;
-				default:
-					/* Disabled */
-					printf("bt: AMI EISA Adapter at "
-					       "slot %d has its IRQ disabled. "
-					       "Cannot attach.\n", 
-					       e_dev->ioconf.slot);
-					continue;
-			}
 		} else {
 			iobase += BT_EISA_SLOT_OFFSET;
-
-			eisa_add_iospace(e_dev, iobase, BT_EISA_IOSIZE,
-					 RESVADDR_NONE);
+			iosize = BT_EISA_IOSIZE;
 
 			ioconf = inb(iobase + EISA_IOCONF);
 			/* Determine "ISA" I/O port */
@@ -251,44 +219,31 @@ bt_eisa_probe(void)
 					       e_dev->ioconf.slot);
 					continue;
 			}
-
-			/* Determine our IRQ */
-			switch (ioconf & IRQ_CHANNEL) {
-				case INT_11:
-					irq = 11;
-					break;
-				case INT_10:
-					irq = 10;
-					break;
-				case INT_15:
-					irq = 15;
-					break;
-				case INT_12:
-					irq = 12;
-					break;
-				case INT_14:
-					irq = 14;
-					break;
-				case INT_9:
-					irq = 9;
-					break;
-				default:
-					/* Disabled */
-					printf("bt: Buslogic EISA Adapter at "
-					       "slot %d has its IRQ disabled. "
-					       "Cannot attach.\n", 
-						e_dev->ioconf.slot);
-					continue;
-			}
-
 		}
 		bt_mark_probed_iop(port);
-		eisa_add_iospace(e_dev, port, BT_IOSIZE, RESVADDR_NONE);
-		eisa_add_intr(e_dev, irq);
 
-		eisa_registerdev(e_dev, &bt_eisa_driver);
+		/* Allocate a softc for use during probing */
+		bt = bt_alloc(BT_TEMP_UNIT, I386_BUS_SPACE_IO, port);
 
-		count++;
+		if (bt == NULL) {
+			printf("bt_eisa_probe: Could not allocate softc for "
+			       "card at slot 0x%x\n", e_dev->ioconf.slot);
+			continue;
+		}
+
+		if (bt_port_probe(bt, &info) != 0) {
+			printf("bt_eisa_probe: Probe failled for "
+			       "card at slot 0x%x\n", e_dev->ioconf.slot);
+		} else {
+			eisa_add_iospace(e_dev, iobase, iosize, RESVADDR_NONE);
+			eisa_add_iospace(e_dev, port, BT_IOSIZE, RESVADDR_NONE);
+			eisa_add_intr(e_dev, info.irq);
+
+			eisa_registerdev(e_dev, &bt_eisa_driver);
+
+			count++;
+		}
+		bt_free(bt);
 	}
 	return count;
 }
@@ -301,7 +256,6 @@ bt_eisa_attach(struct eisa_device *e_dev)
 	int irq;
 	resvaddr_t *ioport;
 	resvaddr_t *eisa_ioport;
-	u_char level_intr;
 
 	if (TAILQ_FIRST(&e_dev->ioconf.irqs) == NULL)
 		return (-1);
@@ -322,14 +276,6 @@ bt_eisa_attach(struct eisa_device *e_dev)
 
 	if (eisa_ioport == NULL)
 		return -1;
-
-	if (e_dev->id == EISA_DEVICE_ID_AMI_4801) {
-		level_intr = inb(eisa_ioport->addr + AMI_EISA_IOCONF1)
-				& AMI_IRQ_LEVEL;
-	} else {
-		level_intr = inb(eisa_ioport->addr + EISA_IRQ_TYPE)
-                                & LEVEL;
-	}
 
 	eisa_reg_start(e_dev);
 	if (eisa_reg_iospace(e_dev, ioport))
@@ -356,7 +302,7 @@ bt_eisa_attach(struct eisa_device *e_dev)
 	}
 
 	if (eisa_reg_intr(e_dev, irq, bt_intr, (void *)bt, &cam_imask,
-			 /*shared ==*/level_intr)) {
+			  /*shared ==*/bt->level_trigger_ints ? 1 : 0)) {
 		bt_free(bt);
 		return -1;
 	}
