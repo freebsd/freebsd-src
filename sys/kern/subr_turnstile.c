@@ -223,7 +223,6 @@ void
 mtx_enter_hard(struct mtx *m, int type, int saveintr)
 {
 	struct proc *p = CURPROC;
-	struct timeval new_switchtime;
 
 	KASSERT(p != NULL, ("curproc is NULL in mutex"));
 
@@ -323,42 +322,7 @@ mtx_enter_hard(struct mtx *m, int type, int saveintr)
 #endif
 			CTR3(KTR_LOCK, "mtx_enter: p 0x%p blocked on [0x%p] %s",
 			    p, m, m->mtx_description);
-			/*
-			 * Blatantly copied from mi_switch nearly verbatim.
-			 * When Giant goes away and we stop dinking with it
-			 * in mi_switch, we can go back to calling mi_switch
-			 * directly here.
-			 */
-	
-			/*
-			 * Compute the amount of time during which the current
-			 * process was running, and add that to its total so
-			 * far.
-			 */
-			microuptime(&new_switchtime);
-			if (timevalcmp(&new_switchtime, &switchtime, <)) {
-				printf(
-		    "microuptime() went backwards (%ld.%06ld -> %ld.%06ld)\n",
-		    		    switchtime.tv_sec, switchtime.tv_usec,
-		    		    new_switchtime.tv_sec,
-		    		    new_switchtime.tv_usec);
-				new_switchtime = switchtime;
-			} else {
-				p->p_runtime += (new_switchtime.tv_usec -
-				    switchtime.tv_usec) +
-				    (new_switchtime.tv_sec - switchtime.tv_sec) *
-				    (int64_t)1000000;
-			}
-
-			/*
-			 * Pick a new current process and record its start time.
-			 */
-			cnt.v_swtch++;
-			switchtime = new_switchtime;
-			cpu_switch();
-			if (switchtime.tv_sec == 0)
-				microuptime(&switchtime);
-			switchticks = ticks;
+			mi_switch();
 			CTR3(KTR_LOCK,
 			    "mtx_enter: p 0x%p free from blocked on [0x%p] %s",
 			    p, m, m->mtx_description);
@@ -735,8 +699,10 @@ static char *ignore_list[] = {
 
 static char *spin_order_list[] = {
 	"sched lock",
-	"clk",
 	"sio",
+#ifdef __i386__
+	"clk",
+#endif
 	/*
 	 * leaf locks
 	 */
@@ -752,7 +718,6 @@ static char *dup_list[] = {
 };
 
 static char *sleep_list[] = {
-	"Giant lock",
 	NULL
 };
 
