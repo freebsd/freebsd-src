@@ -70,7 +70,7 @@ argument specified on the command line.
 .It
 The value of the
 .Ev TERM
-environmental variable.
+environment variable.
 .It
 The terminal type associated with the standard error output device in the
 .Pa /etc/ttys
@@ -100,7 +100,7 @@ standard error output.
 .Pp
 When invoked as
 .Nm reset ,
-.Nm tset
+.Nm
 sets cooked and echo modes, turns off cbreak and raw modes, turns on
 newline translation and resets any unset special characters to their
 default values before doing the terminal initialization described above.
@@ -183,7 +183,7 @@ option is specified, the commands to enter the information into the
 shell's environment are written to the standard output.
 If the
 .Ev SHELL
-environmental variable ends in ``csh'', the commands are for the
+environment variable ends in ``csh'', the commands are for the
 .Nm csh ,
 otherwise, they are for
 .Xr sh .
@@ -220,13 +220,13 @@ information is incorrect) the terminal type derived from the
 .Pa /etc/ttys
 file or the
 .Ev TERM
-environmental variable is often something generic like
+environment variable is often something generic like
 .Dq network ,
 .Dq dialup ,
 or
 .Dq unknown .
 When
-.Nm tset
+.Nm
 is used in a startup script
 .Pf ( Pa .profile
 for
@@ -243,7 +243,7 @@ option is to
 .Dq map
 from some set of conditions to a terminal type, that is, to
 tell
-.Nm tset
+.Nm
 ``If I'm on this port at a particular speed, guess that I'm on that
 kind of terminal''.
 .Pp
@@ -320,7 +320,7 @@ users insert a backslash character (``\e'') before any exclamation
 marks (``!'').
 .Sh ENVIRONMENT
 The
-.Nm tset
+.Nm
 command utilizes the
 .Ev SHELL
 and
@@ -343,7 +343,7 @@ terminal capability database
 .Xr environ 7
 .Sh HISTORY
 The
-.Nm tset
+.Nm
 command appeared in
 .Bx 3.0 .
 .Sh COMPATIBILITY
@@ -355,7 +355,7 @@ The
 and
 .Fl v
 options have been deleted from the
-.Nm tset
+.Nm
 utility.
 None of them were documented in 4.3BSD and all are of limited utility at
 best.
@@ -382,7 +382,7 @@ options without arguments, although it is strongly recommended that such
 usage be fixed to explicitly specify the character.
 .Pp
 Executing
-.Nm tset
+.Nm
 as
 .Nm reset
 no longer implies the
@@ -393,11 +393,11 @@ Also, the interaction between the
 option and the
 .Ar terminal
 argument in some historic implementations of
-.Nm tset
+.Nm
 has been removed.
 .Pp
 Finally, the
-.Nm tset
+.Nm
 implementation has been completely redone (as part of the addition to the
 system of a
 .St -p1003.1-88
