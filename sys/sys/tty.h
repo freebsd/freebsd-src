@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.3 1994/08/18 22:35:50 wollman Exp $
+ * $Id: tty.h,v 1.4 1994/08/21 04:42:05 paul Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -179,6 +179,8 @@ extern	struct ttychars ttydefaults;
 /* Symbolic sleep message strings. */
 extern	 char ttyin[], ttyout[], ttopen[], ttclos[], ttybg[], ttybuf[];
 
+void	 cblock_alloc_cblocks __P((int));
+void	 cblock_free_cblocks __P((int));
 int	 b_to_q __P((char *cp, int cc, struct clist *q));
 void	 catq __P((struct clist *from, struct clist *to));
 /* void	 clist_init __P((void)); */ /* defined in systm.h for main() */
