@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_pci.c,v 1.9 1999/04/23 23:30:21 gibbs Exp $
+ *	$Id: ahc_pci.c,v 1.10 1999/05/08 21:59:37 dfr Exp $
  */
 
 #include <pci.h>
@@ -70,29 +70,70 @@
 #define AHC_PCI_IOADDR	PCIR_MAPS		/* I/O Address */
 #define AHC_PCI_MEMADDR	(PCIR_MAPS + 4)	/* Mem I/O Address */
 
-#define PCI_DEVICE_ID_ADAPTEC_398XU	0x83789004ul
-#define PCI_DEVICE_ID_ADAPTEC_3940U	0x82789004ul
-#define PCI_DEVICE_ID_ADAPTEC_3950U2	0x00509005ul
-#define PCI_DEVICE_ID_ADAPTEC_2944U	0x84789004ul
-#define PCI_DEVICE_ID_ADAPTEC_2940U	0x81789004ul
-#define PCI_DEVICE_ID_ADAPTEC_2940AU	0x61789004ul
-#define PCI_DEVICE_ID_ADAPTEC_2940U2	0x00109005ul
-#define PCI_DEVICE_ID_ADAPTEC_2930U2	0x00119005ul
-#define PCI_DEVICE_ID_ADAPTEC_398X	0x73789004ul
-#define PCI_DEVICE_ID_ADAPTEC_3940	0x72789004ul
-#define PCI_DEVICE_ID_ADAPTEC_2944	0x74789004ul
-#define PCI_DEVICE_ID_ADAPTEC_2940	0x71789004ul
-#define PCI_DEVICE_ID_ADAPTEC_AIC7890	0x001F9005ul
-#define PCI_DEVICE_ID_ADAPTEC_AIC7895C	0x78939004ul /* RAID Port */
-#define PCI_DEVICE_ID_ADAPTEC_AIC7895	0x78959004ul
-#define PCI_DEVICE_ID_ADAPTEC_AIC7896	0x005F9005ul
-#define PCI_DEVICE_ID_ADAPTEC_AIC7880	0x80789004ul
-#define PCI_DEVICE_ID_ADAPTEC_AIC7870	0x70789004ul
-#define PCI_DEVICE_ID_ADAPTEC_AIC7860	0x60789004ul
-#define PCI_DEVICE_ID_ADAPTEC_AIC7855	0x55789004ul
-#define PCI_DEVICE_ID_ADAPTEC_AIC7850	0x50789004ul
-#define PCI_DEVICE_ID_ADAPTEC_AIC7810	0x10789004ul
-#define PCI_DEVICE_ID_ADAPTEC_AIC7815	0x15789004ul
+static __inline u_int64_t
+ahc_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
+{
+	u_int64_t id;
+
+	id = subvendor
+	   | (subdevice << 16)
+	   | ((u_int64_t)vendor << 32)
+	   | ((u_int64_t)device << 48);
+
+	return (id);
+}
+
+#define ID_AIC7850		0x5078900400000000ull
+#define ID_AHA_2910_15_20_30C	0x5078900478509004ull
+#define ID_AIC7855		0x5578900400000000ull
+#define ID_AIC7860		0x6078900400000000ull
+#define ID_AIC7860C		0x6078900478609004ull
+#define ID_AHA_2940AU_0		0x6178900400000000ull
+#define ID_AHA_2940AU_1		0x6178900478619004ull
+#define ID_AHA_2930C_VAR	0x6038900438689004ull
+
+#define ID_AIC7870		0x7078900400000000ull
+#define ID_AHA_2940		0x7178900400000000ull
+#define ID_AHA_3940		0x7278900400000000ull
+#define ID_AHA_398X		0x7378900400000000ull
+#define ID_AHA_2944		0x7478900400000000ull
+#define ID_AHA_3944		0x7578900400000000ull
+
+#define ID_AIC7880		0x8078900400000000ull
+#define ID_AIC7880_B		0x8078900478809004ull
+#define ID_AHA_2940AU_CN	0x2178900478219004ull
+#define ID_AHA_2940U		0x8178900400000000ull
+#define ID_AHA_3940U		0x8278900400000000ull
+#define ID_AHA_2944U		0x8478900400000000ull
+#define ID_AHA_3944U		0x8578900400000000ull
+#define ID_AHA_398XU		0x8378900400000000ull
+#define ID_AHA_4944U		0x8678900400000000ull
+#define ID_AHA_2940UB		0x8178900478819004ull
+#define ID_AHA_2930U		0x8878900478889004ull
+#define ID_AHA_2940U_PRO	0x8778900478879004ull
+#define ID_AHA_2940U_CN		0x0078900478009004ull
+
+#define ID_AIC7895		0x7895900478959004ull
+#define ID_AIC7895C		0x7893900478939004ull /* RAID Port */
+#define ID_AHA_2940U_DUAL	0x7895900478919004ull
+#define ID_AHA_3940AU		0x7895900478929004ull
+#define ID_AHA_3944AU		0x7895900478949004ull
+
+#define ID_AIC7890		0x001F9005000F9005ull
+#define ID_AHA_2930U2		0x0011900501819005ull
+#define ID_AHA_2940U2B		0x00109005A1009005ull
+#define ID_AHA_2940U2_OEM	0x0010900521809005ull
+#define ID_AHA_2940U2		0x00109005A1809005ull
+#define ID_AHA_2950U2B		0x00109005E1009005ull
+
+#define ID_AIC7896		0x005F9005FFFF9005ull
+#define ID_AHA_3950U2B_0	0x00509005FFFF9005ull
+#define ID_AHA_3950U2B_1	0x00509005F5009005ull
+#define ID_AHA_3950U2D_0	0x00519005FFFF9005ull
+#define ID_AHA_3950U2D_1	0x00519005B5009005ull
+
+#define ID_AIC7810		0x1078900400000000ull
+#define ID_AIC7815		0x1578900400000000ull
 
 #define AHC_394X_SLOT_CHANNEL_A	4
 #define AHC_394X_SLOT_CHANNEL_B	5
@@ -172,76 +213,142 @@ DRIVER_MODULE(ahc, pci, ahc_pci_driver, ahc_devclass, 0, 0);
 static int
 ahc_pci_probe(device_t dev)
 {
+	u_int64_t  full_id;
 	const char *name = NULL;
 
-	switch (pci_get_devid(dev)) {
-	case PCI_DEVICE_ID_ADAPTEC_398XU:
-		name = "Adaptec 398X Ultra SCSI RAID adapter";
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_3940U:
-		name = "Adaptec 3940 Ultra SCSI host adapter";
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_398X:
-		name  = "Adaptec 398X SCSI RAID adapter";
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_3940:
-		name = "Adaptec 3940 SCSI adapter";
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_3950U2:
-		name = "Adaptec 3950 Ultra2 SCSI adapter";
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_2930U2:
-		name = "Adaptec 2930 Ultra2 SCSI adapter";
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_2944U:
-		name = "Adaptec 2944 Ultra SCSI adapter";
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_2940U:
-		name = "Adaptec 2940 Ultra SCSI adapter";
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_2940U2:
-		name = "Adaptec 2940 Ultra2 SCSI adapter";
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_2944:
-		name = "Adaptec 2944 SCSI adapter";
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_2940:
-		name = "Adaptec 2940 SCSI adapter";
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_2940AU:
-		name = "Adaptec 2940A Ultra SCSI adapter";
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7895:
-		name = "Adaptec aic7895 Ultra SCSI adapter";
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7895C:
-		name = "Adaptec aic7895 `Raid Port' Ultra SCSI adapter";
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7890:
-		name = "Adaptec aic7890/91 Ultra2 SCSI adapter";
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7896:
-		name = "Adaptec aic7896/97 Ultra2 SCSI adapter";
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7880:
-		name = "Adaptec aic7880 Ultra SCSI adapter";
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7870:
-		name = "Adaptec aic7870 SCSI adapter";
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7860:
-		name = "Adaptec aic7860 SCSI adapter";
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7855:
-		name = "Adaptec aic7855 SCSI adapter";
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7850:
+	full_id = ahc_compose_id(pci_get_device(dev),
+				 pci_get_vendor(dev),
+				 pci_get_subdevice(dev),
+				 pci_get_subvendor(dev));
+	switch (full_id) {
+	case ID_AIC7850:
 		name = "Adaptec aic7850 SCSI adapter";
 		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7810:
+	case ID_AHA_2910_15_20_30C:
+		name = "Adaptec 2910/15/20/30C SCSI adapter";
+		break;
+	case ID_AIC7855:
+		name = "Adaptec aic7855 SCSI adapter";
+		break;
+
+	case ID_AIC7860:
+	case ID_AIC7860C:
+		name = "Adaptec aic7860 SCSI adapter";
+		break;
+	case ID_AHA_2940AU_0:
+	case ID_AHA_2940AU_1:
+		name = "Adaptec 2940A Ultra SCSI adapter";
+		break;
+	case ID_AHA_2930C_VAR:
+		name = "Adaptec 2930C SCSI adapter (VAR)";
+		break;
+
+	case ID_AIC7870:
+		name = "Adaptec aic7870 SCSI adapter";
+		break;
+	case ID_AHA_2940:
+		name = "Adaptec 2940 SCSI adapter";
+		break;
+	case ID_AHA_3940:
+		name = "Adaptec 3940 SCSI adapter";
+		break;
+	case ID_AHA_398X:
+		name  = "Adaptec 398X SCSI RAID adapter";
+		break;
+	case ID_AHA_2944:
+		name  = "Adaptec 2944 SCSI adapter";
+		break;
+	case ID_AHA_3944:
+		name  = "Adaptec 3944 SCSI adapter";
+		break;
+
+	case ID_AIC7880:
+	case ID_AIC7880_B:
+		name = "Adaptec aic7880 Ultra SCSI adapter";
+		break;
+	case ID_AHA_2940AU_CN:
+		name = "Adaptec 2940A/CN Ultra SCSI adapter";
+		break;
+	case ID_AHA_2940U:
+		name = "Adaptec 2940U Ultra SCSI adapter";
+		break;
+	case ID_AHA_3940U:
+		name = "Adaptec 3940U Ultra SCSI adapter";
+		break;
+	case ID_AHA_2944U:
+		name = "Adaptec 2944U Ultra SCSI adapter";
+		break;
+	case ID_AHA_3944U:
+		name = "Adaptec 3944U Ultra SCSI adapter";
+		break;
+	case ID_AHA_398XU:
+		name = "Adaptec 398X Ultra SCSI RAID adapter";
+		break;
+	case ID_AHA_4944U:
+		name = "Adaptec 4944 Ultra SCSI adapter";
+		break;
+	case ID_AHA_2940UB:
+		name = "Adaptec 2940B Ultra SCSI adapter";
+		break;
+	case ID_AHA_2930U:
+		name = "Adaptec 2930 Ultra SCSI adapter";
+		break;
+	case ID_AHA_2940U_PRO:
+		name = "Adaptec 2940 Pro Ultra SCSI adapter";
+		break;
+	case ID_AHA_2940U_CN:
+		name = "Adaptec 2940/CN Ultra SCSI adapter";
+		break;
+
+	case ID_AIC7895:
+	case ID_AIC7895C:
+		name = "Adaptec aic7895 Ultra SCSI adapter";
+		break;
+	case ID_AHA_2940U_DUAL:
+		name = "Adaptec 2940/DUAL Ultra SCSI adapter";
+		break;
+	case ID_AHA_3940AU:
+		name = "Adaptec 3940A Ultra SCSI adapter";
+		break;
+	case ID_AHA_3944AU:
+		name = "Adaptec 3944A Ultra SCSI adapter";
+		break;
+
+	case ID_AIC7890:
+		name = "Adaptec aic7890/91 Ultra2 SCSI adapter";
+		break;
+	case ID_AHA_2930U2:
+		name = "Adaptec 2930 Ultra2 SCSI adapter";
+		break;
+	case ID_AHA_2940U2B:
+		name = "Adaptec 2940B Ultra2 SCSI adapter";
+		break;
+	case ID_AHA_2940U2_OEM:
+		name = "Adaptec 2940 Ultra2 SCSI adapter (OEM)";
+		break;
+	case ID_AHA_2940U2:
+		name = "Adaptec 2940 Ultra2 SCSI adapter";
+		break;
+	case ID_AHA_2950U2B:
+		name = "Adaptec 2950 Ultra2 SCSI adapter";
+		break;
+
+	case ID_AIC7896:
+		name = "Adaptec aic7896/97 Ultra2 SCSI adapter";
+		break;
+	case ID_AHA_3950U2B_0:
+	case ID_AHA_3950U2B_1:
+		name = "Adaptec 3950B Ultra2 SCSI adapter";
+		break;
+	case ID_AHA_3950U2D_0:
+	case ID_AHA_3950U2D_1:
+		name = "Adaptec 3950D Ultra2 SCSI adapter";
+		break;
+
+	case ID_AIC7810:
 		name = "Adaptec aic7810 RAID memory controller";
 		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7815:
+	case ID_AIC7815:
 		name = "Adaptec aic7815 RAID memory controller";
 		break;
 	default:
@@ -260,6 +367,7 @@ ahc_pci_attach(device_t dev)
 	bus_dma_tag_t	   parent_dmat;
 	struct		   resource *regs;
 	struct		   ahc_softc *ahc;
+	u_int64_t	   full_id;
 	u_int32_t	   command;
 	struct scb_data   *shared_scb_data;
 	ahc_chip	   ahc_t = AHC_NONE;
@@ -281,10 +389,14 @@ ahc_pci_attach(device_t dev)
 	shared_scb_data = NULL;
 	command = pci_read_config(dev, PCIR_COMMAND, /*bytes*/1);
 
-	switch (pci_get_devid(dev)) {
-	case PCI_DEVICE_ID_ADAPTEC_398XU:
-	case PCI_DEVICE_ID_ADAPTEC_398X:
-		if (pci_get_devid(dev) == PCI_DEVICE_ID_ADAPTEC_398XU) {
+	full_id = ahc_compose_id(pci_get_device(dev),
+				 pci_get_vendor(dev),
+				 pci_get_subdevice(dev),
+				 pci_get_subvendor(dev));
+	switch (full_id) {
+	case ID_AHA_398XU:
+	case ID_AHA_398X:
+		if (full_id == ID_AHA_398XU) {
 			ahc_t = AHC_AIC7880;
 			ahc_fe = AHC_AIC7880_FE;
 		} else {
@@ -308,9 +420,12 @@ ahc_pci_attach(device_t dev)
 		}
 		ahc_f |= AHC_LARGE_SEEPROM;
 		break;
-	case PCI_DEVICE_ID_ADAPTEC_3940U:
-	case PCI_DEVICE_ID_ADAPTEC_3940:
-		if (pci_get_devid(dev)) {
+	case ID_AHA_3944U:
+	case ID_AHA_3940U:
+	case ID_AHA_3944:
+	case ID_AHA_3940:
+		if (full_id == ID_AHA_3940U
+		 || full_id == ID_AHA_3944U) {
 			ahc_t = AHC_AIC7880;
 			ahc_fe = AHC_AIC7880_FE;
 		} else {
@@ -330,40 +445,62 @@ ahc_pci_attach(device_t dev)
 			       pci_get_slot(dev));
 		}
 		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7890:
-	case PCI_DEVICE_ID_ADAPTEC_2940U2:
-	case PCI_DEVICE_ID_ADAPTEC_2930U2:
+	case ID_AIC7890:
+	case ID_AHA_2930U2:
+	case ID_AHA_2940U2B:
+	case ID_AHA_2940U2_OEM:
+	case ID_AHA_2940U2:
+	case ID_AHA_2950U2B:
 	{
 		ahc_t = AHC_AIC7890;
 		ahc_fe = AHC_AIC7890_FE;
 		break;
 	}
-	case PCI_DEVICE_ID_ADAPTEC_AIC7896:
-	case PCI_DEVICE_ID_ADAPTEC_3950U2:
+	case ID_AIC7896:
+	case ID_AHA_3950U2B_0:
+	case ID_AHA_3950U2B_1:
+	case ID_AHA_3950U2D_0:
+	case ID_AHA_3950U2D_1:
 	{
 		ahc_t = AHC_AIC7896;
 		ahc_fe = AHC_AIC7896_FE;
 		break;
 	}
-	case PCI_DEVICE_ID_ADAPTEC_2944U:
-	case PCI_DEVICE_ID_ADAPTEC_2940U:
-	case PCI_DEVICE_ID_ADAPTEC_AIC7880:
+	case ID_AIC7880:
+	case ID_AIC7880_B:
+	case ID_AHA_2940AU_CN:
+	case ID_AHA_2940U:
+	case ID_AHA_2944U:
+	case ID_AHA_4944U:
+	case ID_AHA_2940UB:
+	case ID_AHA_2930U:
+	case ID_AHA_2940U_PRO:
+	case ID_AHA_2940U_CN:
 		ahc_t = AHC_AIC7880;
 		ahc_fe = AHC_AIC7880_FE;
 		break;
-	case PCI_DEVICE_ID_ADAPTEC_2944:
-	case PCI_DEVICE_ID_ADAPTEC_2940:
-	case PCI_DEVICE_ID_ADAPTEC_AIC7870:
+
+	case ID_AIC7870:
+	case ID_AHA_2940:
+	case ID_AHA_2944:
 		ahc_t = AHC_AIC7870;
 		ahc_fe = AHC_AIC7870_FE;
 		break;
-	case PCI_DEVICE_ID_ADAPTEC_2940AU:
-	case PCI_DEVICE_ID_ADAPTEC_AIC7860:
+
+	case ID_AIC7860:
+	case ID_AIC7860C:
+	case ID_AHA_2940AU_0:
+	case ID_AHA_2940AU_1:
+	case ID_AHA_2930C_VAR:
 		ahc_fe = AHC_AIC7860_FE;
 		ahc_t = AHC_AIC7860;
 		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7895:
-	case PCI_DEVICE_ID_ADAPTEC_AIC7895C:
+
+	case ID_AIC7895:
+	case ID_AIC7895C:
+	case ID_AHA_2940U_DUAL:
+	case ID_AHA_3940AU:
+	case ID_AHA_3944AU:
 	{
 		u_int32_t devconfig;
 
@@ -374,13 +511,14 @@ ahc_pci_attach(device_t dev)
 		pci_write_config(dev, DEVCONFIG, devconfig, /*bytes*/4);
 		break;
 	}
-	case PCI_DEVICE_ID_ADAPTEC_AIC7855:
-	case PCI_DEVICE_ID_ADAPTEC_AIC7850:
+	case ID_AIC7850:
+	case ID_AHA_2910_15_20_30C:
+	case ID_AIC7855:
 		ahc_t = AHC_AIC7850;
 		ahc_fe = AHC_AIC7850_FE;
 		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7810:
-	case PCI_DEVICE_ID_ADAPTEC_AIC7815:
+	case ID_AIC7810:
+	case ID_AIC7815:
 		printf("RAID functionality unsupported\n");
 		return (ENXIO);
 	default:
