@@ -31,7 +31,7 @@
 .\" $FreeBSD$
 .\"	$OpenBSD: wi.4tbl,v 1.14 2002/04/29 19:53:50 jsyn Exp $
 .\"
-.Dd March 29, 2002
+.Dd May 2, 2002
 .Dt WI 4
 .Os
 .Sh NAME
@@ -136,7 +136,6 @@ Card:Chip:Bus
 ACTIONTEC HWC01170:Prism-2.5:PCMCIA
 Addtron AWP-100:Prism-II:PCMCIA
 Agere Orinoco:Hermes:PCMCIA
-Apple Airport:Hermes:macobio
 Buffalo AirStation:Prism-II:PCMCIA
 Buffalo AirStation:Prism-II:CF
 Cabletron RoamAbout:Hermes:PCMCIA
@@ -168,8 +167,10 @@ Netgear MA401:Prism-II:PCMCIA
 NTT-ME 11Mbps Wireless LAN:Prism-II:PCMCIA
 Proxim RangeLAN-DS:Prism-II:PCMCIA
 Samsung MagicLAN SWL-2000N:Prism-II:PCMCIA
-Symbol Spectrum24:Spectrum24:PCMCIA
+Socket Low Power WLAN-CF:Prism-II:CF
+SMC 2602 EZ Connect (3.3V):Prism-II:PCI or PCMCIA
 SMC 2632 EZ Connect:Prism-II:PCMCIA
+Symbol Spectrum24:Spectrum24:PCMCIA
 TDK LAK-CD011WL:Prism-II:PCMCIA
 .TE
 .in -\n(dIu
@@ -216,13 +217,13 @@ Join an ad-hoc network with network name
 # ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
 	mediaopt adhoc
 .Ed
-.Pp
-Create an IBBS network with network name
-.Dq my_net .
-.Bd -literal -compact -offset indent
-# ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
-	mediaopt create-ibss
-.Ed
+.\".Pp
+.\"Create an IBBS network with network name
+.\".Dq my_net .
+.\".Bd -literal -compact -offset indent
+.\"# ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
+.\"	mediaopt master-ibss
+.\".Ed
 .Pp
 Join an IBBS network with network name
 .Dq my_net .
