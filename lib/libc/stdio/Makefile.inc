@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 4/17/94
-#	$Id: $
+#	$Id: Makefile.inc,v 1.5 1996/05/29 01:00:00 wosch Exp $
 
 # stdio sources
 .PATH: ${.CURDIR}/stdio
@@ -33,7 +33,7 @@ MLINKS+=getc.3 fgetc.3 getc.3 getchar.3 getc.3 getw.3
 MLINKS+=mktemp.3 mkstemp.3
 MLINKS+=printf.3 fprintf.3 printf.3 snprintf.3 printf.3 sprintf.3 \
 	printf.3 vfprintf.3 printf.3 vprintf.3 printf.3 vsnprintf.3 \
-	printf.3 vsprintf.3 printf.3 asprintf.3 printf.3 vasprintf
+	printf.3 vsprintf.3 printf.3 asprintf.3 printf.3 vasprintf.3
 MLINKS+=putc.3 fputc.3 putc.3 putchar.3 putc.3 putw.3
 MLINKS+=scanf.3 fscanf.3 scanf.3 sscanf.3 scanf.3 vfscanf.3 scanf.3 vscanf.3 \
 	scanf.3 vsscanf.3
