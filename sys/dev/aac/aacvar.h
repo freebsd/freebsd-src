@@ -336,6 +336,10 @@ struct aac_softc
 	struct aac_container_tq	aac_container_tqh;
 	aac_lock_t		aac_container_lock;
 
+	/* Protect the sync fib */
+#define AAC_SYNC_LOCK_FORCE	(1 << 0)
+	aac_lock_t		aac_sync_lock;
+
 	/* delayed activity infrastructure */
 #if __FreeBSD_version >= 500005
 	struct task		aac_task_complete;	/* deferred-completion
@@ -358,6 +362,11 @@ struct aac_softc
 #define AAC_AIFFLAGS_EXITED	(1 << 3)
 	u_int32_t		quirks;
 #define AAC_QUIRK_PERC2QC	(1 << 0)
+#define	AAC_QUIRK_NOCAM		(1 << 1)	/* No SCSI passthrough */
+#define	AAC_QUIRK_CAM_NORESET	(1 << 2)	/* Fake SCSI resets */
+#define	AAC_QUIRK_CAM_PASSONLY	(1 << 3)	/* Only create pass devices */
+
+	u_int32_t		scsi_method_id;
 };
 
 
@@ -377,6 +386,16 @@ extern void		aac_biodone(struct bio *bp);
 extern int		aac_dump_enqueue(struct aac_disk *ad, u_int32_t lba,
 					 void *data, int nblks);
 extern void		aac_dump_complete(struct aac_softc *sc);
+extern void		aac_startio(struct aac_softc *sc);
+extern int		aac_alloc_command(struct aac_softc *sc,
+					  struct aac_command **cmp);
+extern void		aac_release_command(struct aac_command *cm);
+extern int		aac_alloc_sync_fib(struct aac_softc *sc,
+					 struct aac_fib **fib, int flags);
+extern void		aac_release_sync_fib(struct aac_softc *sc);
+extern int		aac_sync_fib(struct aac_softc *sc, u_int32_t command,
+				     u_int32_t xferstate, struct aac_fib *fib,
+				     u_int16_t datasize);
 
 /*
  * Debugging levels:
