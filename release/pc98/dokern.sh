@@ -114,6 +114,8 @@ sed	-e 's/ident.*GENERIC/ident		BOOTMFS/g' \
 
 fi
 
+echo "options  MUTEX_NOINLINE"
+
 echo "options  NETGRAPH"
 echo "options  NETGRAPH_ETHER"
 echo "options  NETGRAPH_PPPOE"

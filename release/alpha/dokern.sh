@@ -62,5 +62,7 @@ sed	\
 #	XXX: blank line above intentional so lines may be added below the last
 #	entry with ease.
 
+echo "options  MUTEX_NOINLINE"
+
 echo "options  SCSI_NO_OP_STRINGS" 
 echo "options  SCSI_NO_SENSE_STRINGS"
