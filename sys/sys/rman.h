@@ -93,6 +93,7 @@ struct u_rman {
  * at some point in the future, particularly if we want to support 36-bit
  * addresses on IA32 hardware.
  */
+#ifdef __RMAN_RESOURCE_VISIBLE
 TAILQ_HEAD(resource_head, resource);
 struct resource {
 	TAILQ_ENTRY(resource)	r_link;
@@ -119,6 +120,11 @@ struct rman {
 	const	char *rm_descr;	/* text descripion of this resource */
 };
 TAILQ_HEAD(rman_head, rman);
+#else
+struct resource;
+struct rman;
+struct device;
+#endif
 
 int	rman_activate_resource(struct resource *r);
 int	rman_await_resource(struct resource *r, int pri, int timo);
