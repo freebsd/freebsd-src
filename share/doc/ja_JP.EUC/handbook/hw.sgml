@@ -7,10 +7,10 @@
 <!--
 <p><em>原作: The FreeBSD Documentation Project .</em>
 -->
-<!-- Original revision: 1.47 -->
+<!-- Original revision: 1.51 -->
 
 <chapt><heading>PC ハードウェアコンパチビリティ<label id="hw"></heading>
-<p><em>訳: &a.yoshiaki; . <newline> 4 November 1996. </em>
+<p><em>訳: &a.yoshiaki; . <newline> 5 December 1996. </em>
 
   <p>ハードウェアコンパチビリティの問題は現在のコンピュータ業界でもっ
   とも多く起きる種類の問題であり, FreeBSDもこれに無縁ではありません.
@@ -25,9 +25,9 @@
    FreeBSD はボランティアプロジェクトでテスト部門には資金がありません
    から, より多くの情報をこのカタログに載せるにはあなたがたユーザに
    頼らなければなりません.  あなた自身の経験により, あるハードウェアが
-   FreeBSDで動くか動かないかがわかったとしたら<tt>doc@freebsd.org</tt>
+   FreeBSDで動くか動かないかがわかったとしたら&a.doc;
    へ e-mailして知らせてください. サポートされているハードウェアについて
-   の質問は, <tt>questions@freebsd.org</tt>(詳しいことは
+   の質問は, &a.questions;(詳しいことは
    <ref id="eresources:mail" name="メーリングリスト">を参照してください) へ
    宛ててください. 情報を提供したり質問をする時は FreeBSDのバージョンと使っ
    ているハードウェアのできるだけ詳しい情報を含めることを忘れないでくだ
@@ -152,14 +152,17 @@ name="FreeBSD POWERED hardwares">
     <p>私は SCSIの方が好みであるのでもちろん SCSI CDROMを選びました.
     <htmlurl url="http://www.toshiba.com" name="東芝"> XM-3501B (現
     在はキャディレスモデルの XM-5401Bがリリースされています)ドライブは
-    どんな時もうまく動いてくれています. 一般的には, 大部分の SCSI CDROM
-    ドライブは私の見た限りではほとんどしっかりした構造ですので (おそらく, 価
-    格の問題もあってローエンド市場を占有する気がないからでしょう) 多分
-    HPや NECの SCSI CDROMでも問題が起きることはないでしょう.
+    どんな時もうまく動いてくれていますが, 最近は<htmlurl
+    url="http://www.plextor.com" name="Plextor"> の PX-12CS ドライブを
+    すっかり気に入っています. これは 12倍速のドライブで, 高性能で信頼
+    性も高いものです. 
 
-    注:  SCSI CDROM の価格はここ数ヶ月でかなり下落したようで, 技術的に
-    優れた方法でありながら 現在では IDE CDROMと同じ程度の価格になって
-    います.
+    <p>一般的には, 大部分の SCSI CDROM ドライブは私の見た限りではほと
+    んどしっかりした構造ですので 多分 HPや NECの SCSI CDROMでも問題が起き
+    ることはないでしょう. SCSI CDROM の価格はここ数ヶ月でかなり下落したよ
+    うで, 技術的に 優れた方法でありながら 現在では IDE CDROMと同じ程度の価
+    格になって います. もし IDE と SCSI の CDROM ドライブの間で選択す
+    ることができるのなら, 特に IDE を選ぶ理由はないでしょう.
 
   <sect2><heading>CD-R (CD Recordable: WORM) ドライブ</heading>
     <p>この原稿を書いている時点で, FreeBSDは 3種類の CDRドライブ
