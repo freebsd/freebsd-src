@@ -3,7 +3,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
-#ifdef __sgi
+#if defined(__sgi) && (IRIX > 602)
 # include <sys/ptimers.h>
 #endif
 #include <sys/types.h>
@@ -158,7 +158,11 @@ int     linenum;
 	} else if (!strcasecmp("nomatch", *cpp)) {
 		fil.fr_flags |= FR_NOMATCH;
 	} else if (!strcasecmp("auth", *cpp)) {
-		 fil.fr_flags |= FR_AUTH;
+		fil.fr_flags |= FR_AUTH;
+		if (!strncasecmp(*(cpp+1), "return-rst", 10)) {
+			fil.fr_flags |= FR_RETRST;
+			cpp++;
+		}
 	} else if (!strcasecmp("preauth", *cpp)) {
 		 fil.fr_flags |= FR_PREAUTH;
 	} else if (!strcasecmp("skip", *cpp)) {
@@ -1027,7 +1031,7 @@ int linenum;
 		}
 	} else if (fp->fr_proto == IPPROTO_ICMPV6) {
 		fprintf(stderr, "%d: Unknown ICMPv6 type (%s) specified, %s",
-			linenum, **cp, "(use numeric value instead\n");
+			linenum, **cp, "(use numeric value instead)\n");
 		return -1;
 	} else {
 		for (t = icmptypes, i = 0; ; t++, i++) {
@@ -1214,9 +1218,11 @@ struct frentry	*fp;
 		printlog(fp);
 	} else if (fp->fr_flags & FR_ACCOUNT)
 		printf("count");
-	else if (fp->fr_flags & FR_AUTH)
+	else if (fp->fr_flags & FR_AUTH) {
 		printf("auth");
-	else if (fp->fr_flags & FR_PREAUTH)
+		if ((fp->fr_flags & FR_RETMASK) == FR_RETRST)
+			printf(" return-rst");
+	} else if (fp->fr_flags & FR_PREAUTH)
 		printf("preauth");
 	else if (fp->fr_skip)
 		printf("skip %hu", fp->fr_skip);

@@ -5,9 +5,9 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)lsock.c	1.2 1/11/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: lsock.c,v 2.1.4.2 2002/02/22 15:32:58 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: lsock.c,v 2.1.4.3 2002/12/06 11:40:36 darrenr Exp $";
 #endif
-#ifdef __sgi
+#if defined(__sgi) && (IRIX > 602)
 # include <sys/ptimers.h>
 #endif
 #include <stdio.h>

@@ -8,7 +8,7 @@
 #define SOLARIS (defined(__SVR4) || defined(__svr4__)) && defined(sun)
 #endif
 
-#ifdef __sgi
+#if defined(__sgi) && (IRIX > 602)
 # include <sys/ptimers.h>
 #endif
 #include <sys/types.h>
@@ -69,7 +69,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipmon.c	1.21 6/5/96 (C)1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.12.2.36 2002/08/22 15:12:23 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.12.2.37 2002/12/06 11:40:26 darrenr Exp $";
 #endif
 
 

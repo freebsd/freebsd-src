@@ -17,7 +17,7 @@ etherfind -n -t
  0.32    91   04    131.170.1.10  128.250.133.13
  0.33   566  udp  128.250.37.155   128.250.133.3        901        901
 */
-#ifdef __sgi
+#if defined(__sgi) && (IRIX > 602)
 # include <sys/ptimers.h>
 #endif
 #include <stdio.h>
@@ -52,7 +52,7 @@ etherfind -n -t
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipft_ef.c	1.6 2/4/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipft_ef.c,v 2.2.2.3 2002/06/27 14:29:17 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipft_ef.c,v 2.2.2.4 2002/12/06 11:40:25 darrenr Exp $";
 #endif
 
 static	int	etherf_open __P((char *));

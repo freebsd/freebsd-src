@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.23.2.20 2002/08/28 12:42:44 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.23.2.24 2002/12/06 11:42:22 darrenr Exp $";
 #endif
 
 #include <sys/types.h>
@@ -88,8 +88,8 @@ int ipldetach()
 	for (i = IPL_LOGMAX; i >= 0; i--)
 		ipflog_clear(i);
 #endif
-	i = frflush(IPL_LOGIPF, FR_INQUE|FR_OUTQUE|FR_INACTIVE);
-	i += frflush(IPL_LOGIPF, FR_INQUE|FR_OUTQUE);
+	i = frflush(IPL_LOGIPF, 0, FR_INQUE|FR_OUTQUE|FR_INACTIVE);
+	i += frflush(IPL_LOGIPF, 0, FR_INQUE|FR_OUTQUE);
 	ipfr_unload();
 	fr_stateunload();
 	ip_natunload();
@@ -226,7 +226,16 @@ int *rp;
 		return error;
 	}
 	if (unit == IPL_LOGAUTH) {
-		error = fr_auth_ioctl((caddr_t)data, mode, cmd, NULL, NULL);
+		if ((cmd == SIOCADAFR) || (cmd == SIOCRMAFR)) {
+			if (!(mode & FWRITE))  {
+				error = EPERM;
+			} else {
+				error = frrequest(unit, cmd, (caddr_t)data,
+						  fr_active);
+			}
+		} else {
+			error = fr_auth_ioctl((caddr_t)data, mode, cmd);
+		}
 		RWLOCK_EXIT(&ipf_solaris);
 		return error;
 	}
@@ -316,7 +325,7 @@ int *rp;
 			error = IRCOPY((caddr_t)data, (caddr_t)&tmp,
 				       sizeof(tmp));
 			if (!error) {
-				tmp = frflush(unit, tmp);
+				tmp = frflush(unit, 4, tmp);
 				error = IWCOPY((caddr_t)&tmp, (caddr_t)data,
 					       sizeof(tmp));
 				if (error)
@@ -324,6 +333,23 @@ int *rp;
 			}
 		}
 		break;
+#ifdef	USE_INET6
+	case	SIOCIPFL6 :
+		if (!(mode & FWRITE))
+			error = EPERM;
+		else {
+			error = IRCOPY((caddr_t)data, (caddr_t)&tmp,
+				       sizeof(tmp));
+			if (!error) {
+				tmp = frflush(unit, 6, tmp);
+				error = IWCOPY((caddr_t)&tmp, (caddr_t)data,
+					       sizeof(tmp));
+				if (error)
+					error = EFAULT;
+			}
+		}
+		break;
+#endif
 	case SIOCSTLCK :
 		error = IRCOPY((caddr_t)data, (caddr_t)&tmp, sizeof(tmp));
 		if (!error) {
@@ -383,6 +409,9 @@ int	v;
 {
 	size_t len = strlen(name) + 1;	/* includes \0 */
 	ill_t *il;
+#if SOLARIS2 >= 10
+	ill_walk_context_t ctx;
+#endif
 	int sap;
 
 	if (v == 4)
@@ -391,7 +420,11 @@ int	v;
 		sap = 0x86dd;
 	else
 		return NULL;
+#if SOLARIS2 >= 10
+	for (il = ILL_START_WALK_ALL(&ctx); il; il = ill_next(&ctx, il))
+#else
 	for (il = ill_g_head; il; il = il->ill_next)
+#endif
 		if ((len == il->ill_name_length) && (il->ill_sap == sap) &&
 		    !strncmp(il->ill_name, name, len))
 			return il;
@@ -614,6 +647,9 @@ caddr_t data;
 			}
 			if (fg && fg->fg_head)
 				fg->fg_head->fr_ref--;
+			if (unit == IPL_LOGAUTH) {
+				return fr_preauthcmd(req, f, ftail);
+			}
 			if (f->fr_grhead)
 				fr_delgroup(f->fr_grhead, fp->fr_flags,
 					    unit, set);
@@ -628,6 +664,9 @@ caddr_t data;
 		if (f) {
 			error = EEXIST;
 		} else {
+			if (unit == IPL_LOGAUTH) {
+				return fr_preauthcmd(req, fp, ftail);
+			}
 			KMALLOC(f, frentry_t *);
 			if (f != NULL) {
 				if (fg && fg->fg_head)

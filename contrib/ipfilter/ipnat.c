@@ -5,7 +5,7 @@
  *
  * Added redirect stuff and a variety of bug fixes. (mcn@EnGarde.com)
  */
-#ifdef __sgi
+#if defined(__sgi) && (IRIX > 602)
 # include <sys/ptimers.h>
 #endif
 #include <stdio.h>
@@ -60,7 +60,7 @@ extern	char	*sys_errlist[];
 
 #if !defined(lint)
 static const char sccsid[] ="@(#)ipnat.c	1.9 6/5/96 (C) 1993 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipnat.c,v 2.16.2.21 2002/06/06 10:49:19 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipnat.c,v 2.16.2.22 2002/12/06 11:40:26 darrenr Exp $";
 #endif
 
 

@@ -3,7 +3,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
-#ifdef __sgi
+#if defined(__sgi) && (IRIX > 602)
 # include <sys/ptimers.h>
 #endif
 #include <stdio.h>
@@ -44,7 +44,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipft_tx.c	1.7 6/5/96 (C) 1993 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipft_tx.c,v 2.3.2.7 2002/06/27 14:29:17 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipft_tx.c,v 2.3.2.8 2002/12/06 11:40:26 darrenr Exp $";
 #endif
 
 extern	int	opts;

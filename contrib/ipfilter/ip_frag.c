@@ -7,7 +7,7 @@
 # define      _KERNEL
 #endif
 
-#ifdef __sgi
+#if defined(__sgi) && (IRIX > 602)
 # include <sys/ptimers.h>
 #endif
 #include <sys/errno.h>
@@ -90,7 +90,7 @@ extern struct timeout ipfr_slowtimer_ch;
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_frag.c	1.11 3/24/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_frag.c,v 2.10.2.24 2002/08/28 12:41:04 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_frag.c,v 2.10.2.25 2002/12/06 11:40:21 darrenr Exp $";
 #endif
 
 

@@ -1,7 +1,7 @@
 /*
  * Based upon 4.4BSD's /usr/sbin/arp
  */
-#ifdef __sgi
+#if defined(__sgi) && (IRIX > 602)
 # include <sys/ptimers.h>
 #endif
 #include <unistd.h>

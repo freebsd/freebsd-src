@@ -61,7 +61,7 @@
 
 extern	int	lkmenodev __P((void));
 
-#if NetBSD >= 199706
+#if (NetBSD >= 199706) || (defined(OpenBSD) && (OpenBSD >= 200211))
 int	if_ipl_lkmentry __P((struct lkm_table *, int, int));
 #else
 #if defined(OpenBSD)
@@ -80,6 +80,9 @@ static	char	*ipf_devfiles[] = { IPL_NAME, IPL_NAT, IPL_STATE, IPL_AUTH,
 
 #if (defined(NetBSD1_0) && (NetBSD1_0 > 1)) || \
     (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199511))
+# if defined(__NetBSD__) && (__NetBSD_Version__ >= 106080000)
+extern const struct cdevsw ipl_cdevsw;
+# else
 struct	cdevsw	ipldevsw = 
 {
 	iplopen,		/* open */
@@ -93,6 +96,7 @@ struct	cdevsw	ipldevsw =
 	0,			/* mmap */
 	NULL			/* strategy */
 };
+# endif
 #else
 struct	cdevsw	ipldevsw = 
 {
@@ -113,14 +117,18 @@ struct	cdevsw	ipldevsw =
 #endif
 int	ipl_major = 0;
 
+#if defined(__NetBSD__) && (__NetBSD_Version__ >= 106080000)
+MOD_DEV(IPL_VERSION, "ipl", NULL, -1, &ipl_cdevsw, -1);
+#else
 MOD_DEV(IPL_VERSION, LM_DT_CHAR, -1, &ipldevsw);
+#endif
 
 extern int vd_unuseddev __P((void));
 extern struct cdevsw cdevsw[];
 extern int nchrdev;
 
 
-#if NetBSD >= 199706
+#if (NetBSD >= 199706) || (defined(OpenBSD) && (OpenBSD >= 200211))
 int if_ipl_lkmentry(lkmtp, cmd, ver)
 #else
 #if defined(OpenBSD)
@@ -143,9 +151,11 @@ static int iplaction(lkmtp, cmd)
 struct lkm_table *lkmtp;
 int cmd;
 {
-	int i;
 	struct lkm_dev *args = lkmtp->private.lkm_dev;
 	int err = 0;
+#if !defined(__NetBSD__) || (__NetBSD_Version__ < 106080000)
+	int i;
+#endif
 
 	switch (cmd)
 	{
@@ -153,6 +163,7 @@ int cmd;
 		if (lkmexists(lkmtp))
 			return EEXIST;
 
+#if !defined(__NetBSD__) || (__NetBSD_Version__ < 106080000)
 		for (i = 0; i < nchrdev; i++)
 			if (cdevsw[i].d_open == (dev_type_open((*)))lkmenodev ||
 			    cdevsw[i].d_open == iplopen)
@@ -164,9 +175,22 @@ int cmd;
 
 		ipl_major = i;
 		args->lkm_offset = i;   /* slot in cdevsw[] */
+#else
+		err = devsw_attach(args->lkm_devname,
+				   args->lkm_bdev, &args->lkm_bdevmaj,
+				   args->lkm_cdev, &args->lkm_cdevmaj);
+		if (err != 0)
+			return (err);
+		ipl_major = args->lkm_cdevmaj;
+#endif
 		printf("IP Filter: loaded into slot %d\n", ipl_major);
 		return ipl_load();
 	case LKM_E_UNLOAD :
+#if defined(__NetBSD__) && (__NetBSD_Version__ >= 106080000)
+		devsw_detach(args->lkm_bdev, args->lkm_cdev);
+		args->lkm_bdevmaj = -1;
+		args->lkm_cdevmaj = -1;
+#endif
 		err = ipl_unload();
 		if (!err)
 			printf("IP Filter: unloaded from slot %d\n",
@@ -213,7 +237,11 @@ static int ipl_unload()
 	 * Unloading - remove the filter rule check from the IP
 	 * input/output stream.
 	 */
+#if defined(__NetBSD__)
+	error = ipl_disable();
+#else
 	error = ipldetach();
+#endif
 
 	if (!error)
 		error = ipl_remove();

@@ -9,7 +9,7 @@
 #define _KERNEL
 #endif
 
-#ifdef __sgi
+#if defined(__sgi) && (IRIX > 602)
 # include <sys/ptimers.h>
 #endif
 #include <sys/errno.h>
@@ -109,7 +109,7 @@ extern struct ifnet vpnif;
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_nat.c	1.11 6/5/96 (C) 1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_nat.c,v 2.37.2.70 2002/08/28 12:45:48 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_nat.c,v 2.37.2.74 2002/12/06 11:40:21 darrenr Exp $";
 #endif
 
 nat_t	**nat_table[2] = { NULL, NULL },
@@ -148,6 +148,7 @@ static	int	nat_match __P((fr_info_t *, ipnat_t *, ip_t *));
 static	hostmap_t *nat_hostmap __P((ipnat_t *, struct in_addr,
 				    struct in_addr));
 static	void	nat_hostmapdel __P((struct hostmap *));
+static	void	nat_mssclamp __P((tcphdr_t *, u_32_t, fr_info_t *, u_short *));
 
 
 int nat_init()
@@ -456,8 +457,9 @@ int mode;
 	/*
 	 * For add/delete, look to see if the NAT entry is already present
 	 */
-	if (getlock == 1)
+	if (getlock == 1) {
 		WRITE_ENTER(&ipf_nat);
+	}
 	if ((cmd == SIOCADNAT) || (cmd == SIOCRMNAT)) {
 		nat = &natd;
 		nat->in_flags &= IPN_USERFLAGS;
@@ -726,8 +728,9 @@ int mode;
 		error = EINVAL;
 		break;
 	}
-	if (getlock == 1)
+	if (getlock == 1) {
 		RWLOCK_EXIT(&ipf_nat);			/* READ/WRITE */
+	}
 done:
 	if (nt)
 		KFREE(nt);
@@ -1465,6 +1468,7 @@ int direction;
 	nat->nat_p = fin->fin_p;
 	nat->nat_bytes = 0;
 	nat->nat_pkts = 0;
+	nat->nat_mssclamp = np->in_mssclamp;
 	nat->nat_fr = fin->fin_fr;
 	if (nat->nat_fr != NULL) {
 		ATOMIC_INC32(nat->nat_fr->fr_ref);
@@ -2517,6 +2521,16 @@ maskloop:
 				 */
 				if (nat->nat_age == fr_tcpclosed)
 					nat->nat_age = fr_tcplastack;
+
+                                /*
+                                 * Do a MSS CLAMPING on a SYN packet,
+                                 * only deal IPv4 for now.
+                                 */
+                                if (nat->nat_mssclamp &&
+                                    (tcp->th_flags & TH_SYN) != 0)
+                                        nat_mssclamp(tcp, nat->nat_mssclamp,
+						     fin, csump);
+
 				MUTEX_EXIT(&nat->nat_lock);
 			} else if (fin->fin_p == IPPROTO_UDP) {
 				udphdr_t *udp = (udphdr_t *)tcp;
@@ -2728,6 +2742,15 @@ maskloop:
 				 */
 				if (nat->nat_age == fr_tcpclosed)
 					nat->nat_age = fr_tcplastack;
+                                /*
+                                 * Do a MSS CLAMPING on a SYN packet,
+                                 * only deal IPv4 for now.
+                                 */
+                                if (nat->nat_mssclamp &&
+                                    (tcp->th_flags & TH_SYN) != 0)
+                                        nat_mssclamp(tcp, nat->nat_mssclamp,
+						     fin, csump);
+
 				MUTEX_EXIT(&nat->nat_lock);
 			} else if (fin->fin_p == IPPROTO_UDP) {
 				udphdr_t *udp = (udphdr_t *)tcp;
@@ -2927,3 +2950,60 @@ void *ifp;
 	return;
 }
 #endif
+
+
+/*
+ * Check for MSS option and clamp it if necessary.
+ */
+static void nat_mssclamp(tcp, maxmss, fin, csump)
+tcphdr_t *tcp;
+u_32_t maxmss;
+fr_info_t *fin;
+u_short *csump;
+{
+	u_char *cp, *ep, opt;
+	int hlen, advance;
+	u_32_t mss, sumd;
+	u_short v;
+
+	hlen = tcp->th_off << 2;
+	if (hlen > sizeof(*tcp)) {
+		cp = (u_char *)tcp + sizeof(*tcp);
+		ep = (u_char *)tcp + hlen;
+
+		while (cp < ep) {
+			opt = cp[0];
+			if (opt == TCPOPT_EOL)
+				break;
+			else if (opt == TCPOPT_NOP) {
+				cp++;
+				continue;
+			}
+ 
+			if (&cp[1] >= ep)
+				break;
+			advance = cp[1];
+			if (&cp[advance] >= ep)
+				break;
+			switch (opt) {
+			case TCPOPT_MAXSEG:
+				if (advance != 4)
+					break;
+				bcopy(&cp[2], &v, sizeof(v));
+				mss = ntohs(v);
+				if (mss > maxmss) {
+					v = htons(maxmss);
+					bcopy(&v, &cp[2], sizeof(v));
+					CALC_SUMD(mss, maxmss, sumd);
+					fix_outcksum(fin, csump, sumd);
+				}
+				break;
+			default:
+				/* ignore unknown options */
+				break;
+			}
+		    
+			cp += advance;  
+		}       
+	}	
+}		       

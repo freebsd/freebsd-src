@@ -5,7 +5,7 @@
  *
  * Added redirect stuff and a variety of bug fixes. (mcn@EnGarde.com)
  */
-#ifdef __sgi
+#if defined(__sgi) && (IRIX > 602)
 # include <sys/ptimers.h>
 #endif
 #include <stdio.h>
@@ -58,7 +58,7 @@ extern	char	*sys_errlist[];
 #endif
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: printnat.c,v 1.1.2.10 2002/08/28 12:45:51 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: printnat.c,v 1.1.2.13 2002/12/06 11:40:27 darrenr Exp $";
 #endif
 
 
@@ -145,14 +145,18 @@ int opts;
 		ftp.ftp_side[0].ftps_buf[FTP_BUFSZ - 1] = '\0';
 		ftp.ftp_side[1].ftps_buf[FTP_BUFSZ - 1] = '\0';
 		printf("\tClient:\n");
-		printf("\t\tseq %x len %d junk %d cmds %d\n",
-			ftp.ftp_side[0].ftps_seq, ftp.ftp_side[0].ftps_len,
+		printf("\t\tseq %08x%08x len %d junk %d cmds %d\n",
+			ftp.ftp_side[0].ftps_seq[1],
+			ftp.ftp_side[0].ftps_seq[0],
+			ftp.ftp_side[0].ftps_len,
 			ftp.ftp_side[0].ftps_junk, ftp.ftp_side[0].ftps_cmds);
 		printf("\t\tbuf [");
 		printbuf(ftp.ftp_side[0].ftps_buf, FTP_BUFSZ, 1);
 		printf("]\n\tServer:\n");
-		printf("\t\tseq %x len %d junk %d cmds %d\n",
-			ftp.ftp_side[1].ftps_seq, ftp.ftp_side[1].ftps_len,
+		printf("\t\tseq %08x%08x len %d junk %d cmds %d\n",
+			ftp.ftp_side[1].ftps_seq[1],
+			ftp.ftp_side[1].ftps_seq[0],
+			ftp.ftp_side[1].ftps_len,
 			ftp.ftp_side[1].ftps_junk, ftp.ftp_side[1].ftps_cmds);
 		printf("\t\tbuf [");
 		printbuf(ftp.ftp_side[1].ftps_buf, FTP_BUFSZ, 1);
@@ -387,6 +391,8 @@ int opts;
 			printf(" frag");
 		if (np->in_age[0])
 			printf(" age %d/%d", np->in_age[0], np->in_age[1]);
+		if (np->in_mssclamp)
+			printf(" mssclamp %u", np->in_mssclamp);
 		printf("\n");
 		if (opts & OPT_DEBUG)
 			printf("\tspc %lu flg %#x max %u use %d\n",
