@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.151 1999/04/16 21:22:20 peter Exp $
+ *	$Id: if_ed.c,v 1.152 1999/05/09 23:24:45 peter Exp $
  */
 
 /*
@@ -38,7 +38,7 @@
  */
 
 #include "ed.h"
-#include "bpfilter.h"
+#include "bpf.h"
 #include "pnp.h"
 
 #ifndef EXTRA_ED
@@ -65,7 +65,7 @@
 #include <net/if_dl.h>
 #include <net/if_mib.h>
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 #include "opt_bdg.h"
@@ -1721,7 +1721,7 @@ ed_attach(sc, unit, flags)
 	/*
 	 * If BPF is in the kernel, call the attach for it
 	 */
-#if NBPFILTER > 0
+#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 	return 1;
@@ -2179,7 +2179,7 @@ outloop:
 	/*
 	 * Tap off here if there is a bpf listener.
 	 */
-#if NBPFILTER > 0
+#if NBPF > 0
 	if (ifp->if_bpf) {
 		bpf_mtap(ifp, m0);
 	}
@@ -2621,7 +2621,7 @@ ed_ioctl(ifp, command, data)
 			}
 		}
 
-#if NBPFILTER > 0
+#if NBPF > 0
 
 		/*
 		 * Promiscuous flag may have changed, so reprogram the RCR.
@@ -2752,7 +2752,7 @@ ed_get_packet(sc, buf, len, multicast)
 		struct ifnet *ifp ;
 		int need_more = 1 ; /* in case not bpf */
 
-#if NBPFILTER > 0
+#if NBPF > 0
 		if (sc->arpcom.ac_if.if_bpf) {
 			need_more = 0 ;
 			ed_ring_copy(sc, buf, (char *)eh, len);
@@ -2783,7 +2783,7 @@ ed_get_packet(sc, buf, len, multicast)
 	 */
 	ed_ring_copy(sc, buf, (char *)eh, len);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 
 	/*
 	 * Check if there's a BPF listener on this interface. If so, hand off

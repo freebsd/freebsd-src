@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.40 1999/06/01 19:04:23 wpaul Exp $
+ *	$Id: if_xl.c,v 1.41 1999/07/02 04:17:16 peter Exp $
  */
 
 /*
@@ -89,7 +89,7 @@
  * PCI-based NICs.
  */
 
-#include "bpfilter.h"
+#include "bpf.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -105,7 +105,7 @@
 #include <net/if_dl.h>
 #include <net/if_media.h>
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -160,7 +160,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_xl.c,v 1.40 1999/06/01 19:04:23 wpaul Exp $";
+	"$Id: if_xl.c,v 1.41 1999/07/02 04:17:16 peter Exp $";
 #endif
 
 /*
@@ -1791,7 +1791,7 @@ xl_attach(config_id, unit)
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 	at_shutdown(xl_shutdown, sc, SHUTDOWN_POST_SYNC);
@@ -1967,7 +1967,7 @@ again:
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = total_len;
 
-#if NBPFILTER > 0
+#if NBPF > 0
 		/* Handle BPF listeners. Let the BPF user see the packet. */
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, m);
@@ -1987,7 +1987,7 @@ again:
 		}
 #endif
 
-#if NBPFILTER > 0
+#if NBPF > 0
 		/*
 		 * Don't pass packet up to the ether_input() layer unless it's
 		 * a broadcast packet, multicast packet, matches our ethernet
@@ -2381,7 +2381,7 @@ static void xl_start(ifp)
 		}
 		prev = cur_tx;
 
-#if NBPFILTER > 0
+#if NBPF > 0
 		/*
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.

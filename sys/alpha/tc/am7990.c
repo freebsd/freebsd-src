@@ -1,4 +1,4 @@
-/* $Id: am7990.c,v 1.2 1998/12/04 22:54:42 archie Exp $ */
+/* $Id: am7990.c,v 1.3 1999/05/10 15:48:01 peter Exp $ */
 /*	$NetBSD: am7990.c,v 1.43 1998/03/29 22:36:42 mycroft Exp $	*/
 
 /*-
@@ -78,7 +78,7 @@
  */
 
 #include "opt_inet.h"
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #include <net/bpfdesc.h>
 #endif
@@ -229,7 +229,7 @@ am7990_config(sc)
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	bpfattach(&ifp->if_bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
@@ -318,7 +318,7 @@ am7990_meminit(sc)
 	struct letmd tmd;
 	u_int8_t *myaddr;
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	if (ifp->if_flags & IFF_PROMISC)
 		init.init_mode = LE_MODE_NORMAL | LE_MODE_PROM;
 	else
@@ -565,7 +565,7 @@ am7990_read(sc, boff, len)
 	/* We assume that the header fit entirely in one mbuf. */
 	eh = mtod(m, struct ether_header *);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	/*
 	 * Check if there's a BPF listener on this interface.
 	 * If so, hand off the raw packet to BPF.
@@ -923,7 +923,7 @@ am7990_start(ifp)
 		if (m == 0)
 			break;
 
-#if NBPFILTER > 0
+#if NBPF > 0
 		/*
 		 * If BPF is listening on this interface, let it see the packet
 		 * before we commit it to the wire.

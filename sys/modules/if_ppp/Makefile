@@ -1,9 +1,9 @@
-#       $Id: Makefile,v 1.16 1999/01/17 20:53:48 peter Exp $
+#       $Id: Makefile,v 1.17 1999/04/28 01:18:02 msmith Exp $
 
 .PATH:  ${.CURDIR}/../../net
 KMOD=   if_ppp
 SRCS=	if_ppp.c ppp_tty.c slcompress.c \
-	bpfilter.h ppp.h opt_inet.h opt_ipx.h opt_ppp.h vnode_if.h
+	bpf.h ppp.h opt_inet.h opt_ipx.h opt_ppp.h vnode_if.h
 NOMAN=
 CLEANFILES+=	vnode_if.c vnode_if.h
 
@@ -23,10 +23,10 @@ SRCS+=	bsd_comp.c
 SRCS+=	ppp_deflate.c zlib.c
 .endif
 
-CLEANFILES+=	bpfilter.h opt_inet.h opt_ipx.h opt_ppp.h ppp.h
+CLEANFILES+=	bpf.h opt_inet.h opt_ipx.h opt_ppp.h ppp.h
 
-bpfilter.h:
-	echo "#define NBPFILTER ${PPP_FILTER}" > bpfilter.h
+bpf.h:
+	echo "#define NBPF ${PPP_FILTER}" > bpf.h
 
 ppp.h:
 	echo "#define NPPP ${NPPP}" > ppp.h

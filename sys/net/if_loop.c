@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_loop.c	8.1 (Berkeley) 6/10/93
- * $Id: if_loop.c,v 1.37 1998/07/12 16:46:52 dfr Exp $
+ * $Id: if_loop.c,v 1.38 1999/02/20 21:03:53 dt Exp $
  */
 
 /*
@@ -82,8 +82,8 @@
 #include <netatalk/at_var.h>
 #endif NETATALK
 
-#include "bpfilter.h"
-#if NBPFILTER > 0
+#include "bpf.h"
+#if NBPF > 0
 #include <net/bpfdesc.h>
 #endif
 
@@ -122,7 +122,7 @@ loopattach(dummy)
 	    ifp->if_type = IFT_LOOP;
 	    ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	    if_attach(ifp);
-#if NBPFILTER > 0
+#if NBPF > 0
 	    bpfattach(ifp, DLT_NULL, sizeof(u_int));
 #endif
 	}
@@ -186,7 +186,7 @@ if_simloop(ifp, m, dst, hlen)
 	if ((m->m_flags & M_PKTHDR) == 0)
 		panic("if_simloop: no HDR");
 	m->m_pkthdr.rcvif = ifp;
-#if NBPFILTER > 0
+#if NBPF > 0
 	/* BPF write needs to be handled specially */
 	if (dst->sa_family == AF_UNSPEC) {
 		dst->sa_family = *(mtod(m, int *));

@@ -15,7 +15,7 @@
 # device lines is also present in the ./LINT configuration file. If you are
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.174 1999/06/20 03:36:46 jkh Exp $
+#	$Id: GENERIC,v 1.175 1999/06/29 18:55:53 peter Exp $
 
 machine		i386
 cpu		I386_CPU
@@ -197,9 +197,9 @@ pseudo-device	tun	1	# Packet tunnel, for ppp(1)
 pseudo-device	pty	16	# Pseudo-ttys (telnet etc)
 pseudo-device	gzip		# Exec gzipped a.out's
 
-# The `bpfilter' pseudo-device enables the Berkeley Packet Filter.
+# The `bpf' pseudo-device enables the Berkeley Packet Filter.
 # Be aware of the legal and administrative consequences of enabling this!
-#pseudo-device	bpfilter 4	#Berkeley packet filter
+#pseudo-device	bpf	4	#Berkeley packet filter
 
 # USB support
 #controller	uhci0		# UHCI PCI->USB interface

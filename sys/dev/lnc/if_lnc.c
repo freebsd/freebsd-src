@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.c,v 1.59 1999/05/06 18:43:57 peter Exp $
+ * $Id: if_lnc.c,v 1.60 1999/05/09 23:24:47 peter Exp $
  */
 
 /*
@@ -64,7 +64,7 @@
 #include "lnc.h"
 #if NLNC > 0
 
-#include "bpfilter.h"
+#include "bpf.h"
 #include "opt_inet.h"
 
 /* Some defines that should really be in generic locations */
@@ -88,7 +88,7 @@
 #include <netinet/if_ether.h>
 #endif
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -613,7 +613,7 @@ lnc_rint(struct lnc_softc *sc)
 
 				eh = (struct ether_header *) head->m_data;
 
-#if NBPFILTER > 0
+#if NBPF > 0
 				if (sc->arpcom.ac_if.if_bpf)
 					bpf_mtap(&sc->arpcom.ac_if, head);
 #endif
@@ -1295,7 +1295,7 @@ lnc_attach_sc(struct lnc_softc *sc, int unit)
 		printf("%s", ic_ident[sc->nic.ic]);
 	printf(" address %6D\n", sc->arpcom.ac_enaddr, ":");
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	bpfattach(&sc->arpcom.ac_if, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
@@ -1809,7 +1809,7 @@ lnc_start(struct ifnet *ifp)
 
 		ifp->if_timer = 2;
 
-#if NBPFILTER > 0
+#if NBPF > 0
 		if (sc->arpcom.ac_if.if_bpf)
 			bpf_mtap(&sc->arpcom.ac_if, head);
 #endif
