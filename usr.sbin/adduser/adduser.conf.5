@@ -1,0 +1,206 @@
+.\"
+.\" Copyright (c) 2004 Tom Rhodes
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 30, 2004
+.Dt ADDUSER.CONF 5
+.Os
+.Sh NAME
+.Nm adduser.conf
+.Nd configuration file for the adduser utility
+.Sh DESCRIPTION
+The
+.Pa /etc/adduser.conf
+file is used to pre-set certain configuration options for
+the
+.Xr adduser 8
+utility.
+When
+.Xr adduser 8
+is invoked, it will check to see if this file exists and
+if so the configuration will be used or offered as the
+default settings.
+The
+.Nm
+file offers three types of configuration:
+.Bl -bullet
+.It
+Default settings offered by
+.Xr adduser 8 .
+These options are specified in the configuration file and offered
+as the default during every invocation of the
+.Xr adduser 8
+utility.
+.It
+Configuration options which can be set in
+.Nm ,
+but overridden by passing a flag to
+.Xr adduser 8 .
+.It
+Configuration supported by
+.Xr adduser 8
+but not offered by a flag or during initial invocation.
+.El
+.Pp
+In the first case, these options can be set in
+.Nm
+but will still be offered when
+.Xr adduser 8
+is invoked.
+In the second case,
+.Xr adduser 8
+will read the configuration data unless a flag
+has been passed to override it.
+For example, the
+.Dq shell
+option.
+In the third case, the configuration will be utilized, but the
+user will never be prompted to modify the default setting by
+either a flag or an
+.Xr adduser 8
+prompt.
+For example, the
+.Dq upwexpire
+setting.
+.Pp
+The following configuration options can be set in
+.Nm :
+.Pp
+.Bl -tag -width "defaultgroups" -offset indent -compact
+.It defaultLgroup
+The default group new users will be added to.
+.Pp
+.It defaultclass
+The default class to place users in as described in
+.Xr login.conf 5 .
+.Pp
+.It defaultgroups
+This option is used to specify what other groups the new account
+should be added to.
+.Pp
+.It passwdtype
+May be one of
+.Cm no , Cm none , Cm random ,
+or
+.Cm yes
+as described in
+.Xr adduser 8 .
+As such, the text is not duplicated here and may be
+read in
+.Xr adduser 8 .
+.Pp
+.It homeprefix
+The default home directory prefix, usually
+.Pa /home .
+.Pp
+.It defaultshell
+The users default shell which may be any of the shells listed in
+.Pa /etc/shells .
+.Pp
+.It udotdir
+Defines the location of the default shell and environment
+configuration files.
+.Pp
+.It msgfile
+Location of the default new user message file.
+This message will be sent to all new users if specified
+here or at the
+.Xr adduser 8
+prompt.
+.Pp
+.It disableflag
+The default message enclosed in brackets for the
+lock account prompt.
+.Pp
+.It upwexpire
+The default password expiration time.
+Format of the date is either a
+.Ux
+time in decimal, or a date in
+.Sm off
+.Ql dd-mmm-yy Bq yy
+.Sm on
+format, where dd is the day, mmm is the month in either numeric or
+alphabetic format and year is either a two or four digit year.
+This option also accepts a relative date in the form of
+.Sm off
+.Sy n Bq mhdwoy
+.Sm on
+where
+.Sy n
+is a decimal, octal (leading 0) or hexadecimal (leading 0x) digit followed by the
+number of Minutes, Hours, Days, Weeks, Months or Years from the current date at
+which the expiration time is to be set.
+.Pp
+.It uexpire
+The default account expire time.
+The format is similar to the upwexpire option.
+.Pp
+.It ugecos
+The default information to be held in the gecos field of
+.Pa /etc/master.passwd .
+.Pp
+.It uuid
+The default user ID setting.
+This must be a number above 1000 and fewer than 65534.
+.El
+.Sh EXAMPLES
+The following is an example
+.Nm
+file created with the
+.Fl C
+.Xr adduser 8
+flag and modified.
+.Bd -literal
+# Configuration file for adduser(8).
+# NOTE: only *some* variables are saved.
+# Last Modified on Fri Mar 30 14:04:05 EST 2004.
+
+defaultLgroup=
+defaultclass=
+defaultgroups=
+passwdtype=yes
+homeprefix=/home
+defaultshell=/bin/csh
+udotdir=/usr/share/skel
+msgfile=/etc/adduser.msg
+disableflag=
+upwexpire=91d # Expire passwords 91 days after creation.
+.Ed
+.Sh SEE ALSO
+.Xr group 5 ,
+.Xr passwd 5 ,
+.Xr adduser 8 ,
+.Xr pw 8 ,
+.Xr rmuser 8
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 4.10 .
+.Sh AUTHORS
+This manual page was written by
+.An Tom Rhodes Aq trhodes@FreeBSD.org
