@@ -152,7 +152,9 @@ struct cd_softc {
 	int			bufs_left;
 	struct cam_periph	*periph;
 	dev_t			dev;
+#ifndef BURN_BRIDGES
 	eventhandler_tag	clonetag;
+#endif
 	int			minimum_command_size;
 	int			outstanding_cmds;
 	struct task		sysctl_task;
@@ -341,6 +343,7 @@ struct cdchanger {
 
 static STAILQ_HEAD(changerlist, cdchanger) changerq;
 
+#ifndef BURN_BRIDGES
 static void
 cdclone(void *arg, char *name, int namelen, dev_t *dev)
 {
@@ -360,6 +363,7 @@ cdclone(void *arg, char *name, int namelen, dev_t *dev)
 	*dev = softc->dev;
 	return;
 }
+#endif
 
 static void
 cdinit(void)
@@ -531,7 +535,9 @@ cdcleanup(struct cam_periph *periph)
 	}
 	devstat_remove_entry(softc->device_stats);
 	destroy_dev(softc->dev);
+#ifndef BURN_BRIDGES
 	EVENTHANDLER_DEREGISTER(dev_clone, softc->clonetag);
+#endif
 	free(softc, M_DEVBUF);
 	splx(s);
 }
@@ -776,8 +782,10 @@ cdregister(struct cam_periph *periph, void *arg)
 	softc->dev = make_dev(&cd_cdevsw, periph->unit_number,
 		UID_ROOT, GID_OPERATOR, 0640, "cd%d", periph->unit_number);
 	softc->dev->si_drv1 = periph;
+#ifndef BURN_BRIDGES
 	softc->clonetag =
 	    EVENTHANDLER_REGISTER(dev_clone, cdclone, softc, 1000);
+#endif
 
 	/*
 	 * Add an async callback so that we get
