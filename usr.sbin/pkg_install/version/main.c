@@ -25,11 +25,12 @@ __FBSDID("$FreeBSD$");
 #include "version.h"
 #include <err.h>
 
-static char Options[] = "dhl:L:s:tv";
+static char Options[] = "dhl:L:s:XtTv";
 
 char	*LimitChars = NULL;
 char	*PreventChars = NULL;
 char	*MatchName = NULL;
+Boolean RegexExtended = FALSE;
 
 static void usage __P((void));
 
@@ -42,6 +43,10 @@ main(int argc, char **argv)
 	cmp = version_cmp(argv[2], argv[3]);
 	printf(cmp > 0 ? ">\n" : (cmp < 0 ? "<\n" : "=\n"));
 	exit(0);
+    }
+    else if (argc == 4 && !strcmp(argv[1], "-T")) {
+	cmp = version_match(argv[3], argv[2]);
+	exit(cmp == 1 ? 0 : 1);
     }
     else while ((ch = getopt(argc, argv, Options)) != -1) {
 	switch(ch) {
@@ -65,6 +70,14 @@ main(int argc, char **argv)
 	    errx(2, "Invalid -t usage.");
 	    break;
 
+	case 'T':
+	    errx(2, "Invalid -T usage.");
+	    break;
+
+	case 'X':
+	    RegexExtended = TRUE;
+	    break;
+
 	case 'h':
 	case '?':
 	default:
@@ -82,8 +95,9 @@ main(int argc, char **argv)
 static void
 usage()
 {
-    fprintf(stderr, "%s\n%s\n",
-	"usage: pkg_version [-hv] [-l limchar] [-L limchar] [-s string] index",
-	"       pkg_version -t v1 v2");
+    fprintf(stderr, "%s\n%s\n%s\n",
+	"usage: pkg_version [-hv] [-l limchar] [-L limchar] [[-X] -s string] index",
+	"       pkg_version -t v1 v2",
+	"       pkg_version -T name pattern");
     exit(1);
 }

@@ -26,7 +26,7 @@ __FBSDID("$FreeBSD$");
 #include "info.h"
 #include <err.h>
 
-static char Options[] = "abcdDe:fgGhiIkl:LmoO:pPqQrRst:vVW:x";
+static char Options[] = "abcdDe:EfgGhiIkl:LmoO:pPqQrRst:vVW:xX";
 
 int	Flags		= 0;
 match_t	MatchType	= MATCH_GLOB;
@@ -73,6 +73,10 @@ main(int argc, char **argv)
 	    /* Reasonable definition of 'everything' */
 	    Flags = SHOW_COMMENT | SHOW_DESC | SHOW_PLIST | SHOW_INSTALL |
 		SHOW_DEINSTALL | SHOW_REQUIRE | SHOW_DISPLAY | SHOW_MTREE;
+	    break;
+
+	case 'E':
+	    Flags |= SHOW_PKGNAME;
 	    break;
 
 	case 'I':
@@ -170,6 +174,10 @@ main(int argc, char **argv)
 	    MatchType = MATCH_REGEX;
 	    break;
 
+	case 'X':
+	    MatchType = MATCH_EREGEX;
+	    break;
+
 	case 'e':
 	    CheckPkg = optarg;
 	    break;
@@ -220,7 +228,7 @@ main(int argc, char **argv)
 	 * Don't try to apply heuristics if arguments are regexs or if
 	 * the argument refers to an existing file.
 	 */
-	if (MatchType != MATCH_REGEX && !isfile(*argv))
+	if (MatchType != MATCH_REGEX && MatchType != MATCH_EREGEX && !isfile(*argv))
 	    while ((pkgs_split = strrchr(*argv, (int)'/')) != NULL) {
 		*pkgs_split++ = '\0';
 		/*
@@ -250,7 +258,7 @@ static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
-	"usage: pkg_info [-bcdDfgGiIkLmopPqQrRsvVx] [-e package] [-l prefix]",
+	"usage: pkg_info [-bcdDEfgGiIjLmopPqQrRsvVxX] [-e package] [-l prefix]",
 	"                [-t template] -a | pkg-name ...",
 	"       pkg_info [-qQ] -W filename",
 	"       pkg_info [-qQ] -O origin",
