@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.inc,v 1.6 1994/10/25 07:02:18 davidg Exp $
+# $Id: Makefile.inc,v 1.7 1994/11/03 06:45:45 phk Exp $
 #
 
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../include
@@ -22,7 +22,7 @@ LIBDESTDIR=	${.CURDIR}/../cc_int
 # XXX LDDESTDIR isn't a directory and there is no standard name for the dir
 LDDESTDIR=	-L${LIBDESTDIR}
 .if defined(SHARED_LIBCC_INT)
-LIBCC_INT=	${LIBDESTDIR}/libcc_int.so.26.0
+LIBCC_INT=	${LIBDESTDIR}/libcc_int.so.26.1
 .else
 LIBCC_INT=	${LIBDESTDIR}/libcc_int.a
 .endif
