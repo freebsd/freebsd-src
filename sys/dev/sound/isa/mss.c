@@ -39,7 +39,6 @@ SND_DECLARE_FILE("$FreeBSD$");
 #include "mixer_if.h"
 
 #define MSS_DEFAULT_BUFSZ (4096)
-#define	abs(x)	(((x) < 0) ? -(x) : (x))
 #define MSS_INDEXED_REGS 0x20
 #define OPL_INDEXED_REGS 0x19
 

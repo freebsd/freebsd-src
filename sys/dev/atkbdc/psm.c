@@ -129,15 +129,6 @@
 #define PSM_NBLOCKIO(dev)	(minor(dev) & 1)
 #define PSM_MKMINOR(unit,block)	(((unit) << 1) | ((block) ? 0:1))
 
-#ifndef max
-#define max(x,y)		((x) > (y) ? (x) : (y))
-#endif
-#ifndef min
-#define min(x,y)		((x) < (y) ? (x) : (y))
-#endif
-
-#define abs(x)			(((x) < 0) ? -(x) : (x))
-
 /* ring buffer */
 typedef struct ringbuf {
     int           count;	/* # of valid elements in the buffer */
@@ -1491,24 +1482,24 @@ tame_mouse(struct psm_softc *sc, mousestatus_t *status, unsigned char *buf)
 	    mapped |= MOUSE_BUTTON1DOWN;
         status->button = mapped;
         buf[0] = MOUSE_PS2_SYNC | butmapps2[mapped & MOUSE_STDBUTTONS];
-        i = max(min(status->dx, 255), -256);
+        i = imax(imin(status->dx, 255), -256);
 	if (i < 0)
 	    buf[0] |= MOUSE_PS2_XNEG;
         buf[1] = i;
-        i = max(min(status->dy, 255), -256);
+        i = imax(imin(status->dy, 255), -256);
 	if (i < 0)
 	    buf[0] |= MOUSE_PS2_YNEG;
         buf[2] = i;
 	return MOUSE_PS2_PACKETSIZE;
     } else if (sc->mode.level == PSM_LEVEL_STANDARD) {
         buf[0] = MOUSE_MSC_SYNC | butmapmsc[status->button & MOUSE_STDBUTTONS];
-        i = max(min(status->dx, 255), -256);
+        i = imax(imin(status->dx, 255), -256);
         buf[1] = i >> 1;
         buf[3] = i - buf[1];
-        i = max(min(status->dy, 255), -256);
+        i = imax(imin(status->dy, 255), -256);
         buf[2] = i >> 1;
         buf[4] = i - buf[2];
-        i = max(min(status->dz, 127), -128);
+        i = imax(imin(status->dz, 127), -128);
         buf[5] = (i >> 1) & 0x7f;
         buf[6] = (i - (i >> 1)) & 0x7f;
         buf[7] = (~status->button >> 3) & 0x7f;
@@ -1553,7 +1544,7 @@ psmread(dev_t dev, struct uio *uio, int flag)
     /* copy data to the user land */
     while ((sc->queue.count > 0) && (uio->uio_resid > 0)) {
         s = spltty();
-	l = min(sc->queue.count, uio->uio_resid);
+	l = imin(sc->queue.count, uio->uio_resid);
 	if (l > sizeof(buf))
 	    l = sizeof(buf);
 	if (l > sizeof(sc->queue.buf) - sc->queue.head) {
@@ -2363,7 +2354,7 @@ psmintr(void *arg)
 
         /* queue data */
         if (sc->queue.count + sc->inputbytes < sizeof(sc->queue.buf)) {
-	    l = min(sc->inputbytes, sizeof(sc->queue.buf) - sc->queue.tail);
+	    l = imin(sc->inputbytes, sizeof(sc->queue.buf) - sc->queue.tail);
 	    bcopy(&sc->ipacket[0], &sc->queue.buf[sc->queue.tail], l);
 	    if (sc->inputbytes > l)
 	        bcopy(&sc->ipacket[l], &sc->queue.buf[0], sc->inputbytes - l);
