@@ -42,9 +42,6 @@
  */
 #define	PRIO_MIN	-20
 #define	PRIO_MAX	20
-#ifdef _KERNEL
-#define	PRIO_TOTAL	(PRIO_MAX - PRIO_MIN)
-#endif /* _KERNEL */
 
 #define	PRIO_PROCESS	0
 #define	PRIO_PGRP	1
