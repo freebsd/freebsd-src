@@ -700,10 +700,10 @@ ffs_mountfs(devvp, mp, p, malloctype)
 		(void) ffs_sbupdate(ump, MNT_WAIT);
 	}
 #ifdef FFS_EXTATTR
+#ifdef FFS_EXTATTR_AUTOSTART
 	/*
-	 * XXX Auto-starting of EAs would go here.
 	 *
-	 * Auto-starting would:
+	 * Auto-starting does the following:
 	 *	- check for /.attribute in the fs, and extattr_start if so
 	 *	- for each file in .attribute, enable that file with
 	 * 	  an attribute of the same name.
@@ -711,8 +711,9 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	 * This would all happen while the file system was busy/not
 	 * available, so would effectively be "atomic".
 	 */
-	/* ufs_extattr_autostart(mp, ump); */
-#endif
+	(void) ufs_extattr_autostart(mp, p);
+#endif /* !FFS_EXTATTR_AUTOSTART */
+#endif /* !FFS_EXTATTR */
 	return (0);
 out:
 	devvp->v_rdev->si_mountpoint = NULL;

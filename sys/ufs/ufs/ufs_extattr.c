@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999, 2000 Robert N. M. Watson
+ * Copyright (c) 1999, 2000, 2001 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,11 +39,18 @@
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/lock.h>
+#include <sys/dirent.h>
 
+#include <vm/vm_zone.h>
+
+#include <ufs/ufs/dir.h>
 #include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/inode.h>
+#include <ufs/ufs/ufs_extern.h>
+
+#include "opt_ffs.h"
 
 #define	MIN(a,b) (((a)<(b))?(a):(b))
 
@@ -199,6 +206,301 @@ unlock:
 
 	return (error);
 }
+
+#ifdef FFS_EXTATTR_AUTOSTART
+/*
+ * Helper routine: given a locked parent directory and filename, return
+ * the locked vnode of the inode associated with the name.  Will not
+ * follow symlinks, may return any type of vnode.  Lock on parent will
+ * be released even in the event of a failure.  In the event that the
+ * target is the parent (i.e., "."), there will be two references and
+ * one lock, requiring the caller to possibly special-case.
+ */
+#define	UE_GETDIR_LOCKPARENT	1
+#define	UE_GETDIR_LOCKPARENT_DONT	2
+static int
+ufs_extattr_lookup(struct vnode *start_dvp, int lockparent, char *dirname,
+    struct vnode **vp, struct proc *p)
+{
+	struct vop_cachedlookup_args vargs;
+	struct componentname cnp;
+	struct vnode *target_vp;
+	int error;
+
+	bzero(&cnp, sizeof(cnp));
+	cnp.cn_nameiop = LOOKUP;
+	cnp.cn_flags = ISLASTCN;
+	if (lockparent == UE_GETDIR_LOCKPARENT)
+		cnp.cn_flags |= LOCKPARENT;
+	cnp.cn_proc = p;
+	cnp.cn_cred = p->p_ucred;
+	cnp.cn_pnbuf = zalloc(namei_zone);
+	cnp.cn_nameptr = cnp.cn_pnbuf;
+	error = copystr(dirname, cnp.cn_pnbuf, MAXPATHLEN,
+	    (size_t *) &cnp.cn_namelen);
+	if (error) {
+		if (lockparent == UE_GETDIR_LOCKPARENT_DONT) {
+			VOP_UNLOCK(start_dvp, 0, p);
+		}
+		zfree(namei_zone, cnp.cn_pnbuf);
+		printf("ufs_extattr_lookup: copystr failed\n");
+		return (error);
+	}
+	cnp.cn_namelen--;	/* trim nul termination */
+	vargs.a_desc = NULL;
+	vargs.a_dvp = start_dvp;
+	vargs.a_vpp = &target_vp;
+	vargs.a_cnp = &cnp;
+	error = ufs_lookup(&vargs);
+	zfree(namei_zone, cnp.cn_pnbuf);
+	if (error) {
+		/*
+		 * Error condition, may have to release the lock on the parent
+		 * if ufs_lookup() didn't.
+		 */
+		if (!(cnp.cn_flags & PDIRUNLOCK) &&
+		    (lockparent == UE_GETDIR_LOCKPARENT_DONT))
+			VOP_UNLOCK(start_dvp, 0, p);
+
+		/*
+		 * Check that ufs_lookup() didn't release the lock when we
+		 * didn't want it to.
+		 */
+		if ((cnp.cn_flags & PDIRUNLOCK) &&
+		    (lockparent == UE_GETDIR_LOCKPARENT))
+			panic("ufs_extattr_lookup: lockparent but PDIRUNLOCK");
+
+		printf("ufs_extattr_lookup: ufs_lookup failed (%d)\n", error);
+		return (error);
+	}
+/*
+	if (target_vp == start_dvp)
+		panic("ufs_extattr_lookup: target_vp == start_dvp");
+*/
+
+	if (target_vp != start_dvp &&
+	    !(cnp.cn_flags & PDIRUNLOCK) &&
+	    (lockparent == UE_GETDIR_LOCKPARENT_DONT))
+		panic("ufs_extattr_lookup: !lockparent but !PDIRUNLOCK");
+
+	if ((cnp.cn_flags & PDIRUNLOCK) &&
+	    (lockparent == UE_GETDIR_LOCKPARENT))
+		panic("ufs_extattr_lookup: lockparent but PDIRUNLOCK");
+
+	/* printf("ufs_extattr_lookup: success\n"); */
+	*vp = target_vp;
+	return (0);
+}
+
+/*
+ * Enable an EA using the passed file system, backing vnode, attribute name,
+ * and proc.  Will perform a VOP_OPEN() on the vp, so expects vp to be locked
+ * when passed in.  Will unlock vp, and grab its own reference, so the caller
+ * needs to vrele(), just not vput().  If the call fails, the lock is not
+ * released.
+ */
+static int
+ufs_extattr_enable_with_open(struct ufsmount *ump, struct vnode *vp,
+    char *attrname, struct proc *p)
+{
+	int error;
+
+	error = VOP_OPEN(vp, FREAD|FWRITE, p->p_ucred, p);
+	if (error) {
+		printf("ufs_extattr_enable_with_open.VOP_OPEN(): failed "
+		    "with %d\n", error);
+		return (error);
+	}
+
+	/*
+	 * XXX: Note, should VOP_CLOSE() if vfs_object_create() fails, but due
+	 * to a similar piece of code in vn_open(), we don't.
+	 */
+	if (vn_canvmio(vp) == TRUE)
+		if ((error = vfs_object_create(vp, p, p->p_ucred)) != 0) {
+			/*
+			 * XXX: bug replicated from vn_open(): should
+			 * VOP_CLOSE() here.
+			 */
+			return (error);
+		}
+
+	vp->v_writecount++;
+
+	vref(vp);
+
+	VOP_UNLOCK(vp, 0, p);
+
+	return (ufs_extattr_enable(ump, attrname, vp, p));
+}
+
+/*
+ * Given a locked directory vnode, iterate over the names in the directory
+ * and use ufs_extattr_lookup() to retrieve locked vnodes of potential
+ * attribute files.  Then invoke ufs_extattr_enable_with_open() on each
+ * to attempt to start the attribute.  Leaves the directory locked on
+ * exit.
+ * XXX: Add a EA namespace argument
+ */
+static int
+ufs_extattr_iterate_directory(struct ufsmount *ump, struct vnode *dvp,
+    struct proc *p)
+{
+	struct vop_readdir_args vargs;
+	struct dirent *dp, *edp;
+	struct vnode *attr_vp;
+	struct uio auio;
+	struct iovec aiov;
+	char *dirbuf;
+	int error, eofflag = 0;
+
+	if (dvp->v_type != VDIR)
+		return (ENOTDIR);
+
+	MALLOC(dirbuf, char *, DIRBLKSIZ, M_TEMP, M_WAITOK);
+
+	auio.uio_iov = &aiov;
+	auio.uio_iovcnt = 1;
+	auio.uio_rw = UIO_READ;
+	auio.uio_segflg = UIO_SYSSPACE;
+	auio.uio_procp = p;
+	auio.uio_offset = 0;
+
+	vargs.a_desc = NULL;
+	vargs.a_vp = dvp;
+	vargs.a_uio = &auio;
+	vargs.a_cred = p->p_ucred;
+	vargs.a_eofflag = &eofflag;
+	vargs.a_ncookies = NULL;
+	vargs.a_cookies = NULL;
+
+	while (!eofflag) {
+		auio.uio_resid = DIRBLKSIZ;
+		aiov.iov_base = dirbuf;
+		aiov.iov_len = DIRBLKSIZ;
+		error = ufs_readdir(&vargs);
+		if (error) {
+			printf("ufs_extattr_iterate_directory: ufs_readdir "
+			    "%d\n", error);
+			return (error);
+		}
+
+		edp = (struct dirent *)&dirbuf[DIRBLKSIZ];
+		for (dp = (struct dirent *)dirbuf; dp < edp; ) {
+#if (BYTE_ORDER == LITTLE_ENDIAN)
+			dp->d_type = dp->d_namlen;
+			dp->d_namlen = 0;
+#else
+			dp->d_type = 0;
+#endif
+			if (dp->d_reclen == 0)
+				break;
+			error = ufs_extattr_lookup(dvp, UE_GETDIR_LOCKPARENT,
+			    dp->d_name, &attr_vp, p);
+			if (error) {
+				printf("ufs_extattr_iterate_directory: lookup "
+				    "%s %d\n", dp->d_name, error);
+			} else if (attr_vp == dvp) {
+				vrele(attr_vp);
+			} else if (attr_vp->v_type != VREG) {
+/*
+ * Eventually, this will be uncommented, but in the mean time, the ".."
+ * entry causes unnecessary console warnings.
+				printf("ufs_extattr_iterate_directory: "
+				    "%s not VREG\n", dp->d_name);
+*/
+				vput(attr_vp);
+			} else {
+				error = ufs_extattr_enable_with_open(ump,
+				    attr_vp, dp->d_name, p);
+				if (error) {
+					printf("ufs_extattr_iterate_directory: "
+					    "enable %s %d\n", dp->d_name,
+					    error);
+					vput(attr_vp);
+				} else {
+/*
+ * While it's nice to have some visual output here, skip for the time-being.
+ * Probably should be enabled by -v at boot.
+					printf("Autostarted %s\n", dp->d_name);
+ */
+					vrele(attr_vp);
+				}
+			}
+			dp = (struct dirent *) ((char *)dp + dp->d_reclen);
+			if (dp >= edp)
+				break;
+		}
+	}
+	FREE(dirbuf, M_TEMP);
+	
+	return (0);
+}
+
+/*
+ * Auto-start of extended attributes, to be executed (optionally) at
+ * mount-time.
+ */
+int
+ufs_extattr_autostart(struct mount *mp, struct proc *p)
+{
+	struct vnode *attr_dvp, /**attr_vp,*/ *rvp;
+	int error;
+
+	/*
+	 * Does ".attribute" exist off the file system root?  If so,
+	 * automatically start EA's.
+	 */
+	error = VFS_ROOT(mp, &rvp);
+	if (error) {
+		printf("ufs_extattr_autostart.VFS_ROOT() returned %d\n", error);
+		return (error);
+	}
+
+	error = ufs_extattr_lookup(rvp, UE_GETDIR_LOCKPARENT_DONT,
+	    ".attribute", &attr_dvp, p);
+	if (error) {
+		/* rvp ref'd but now unlocked */
+		vrele(rvp);
+		return (error);
+	}
+	if (rvp == attr_dvp) {
+		/* Should never happen. */
+		vrele(attr_dvp);
+		vput(rvp);
+		return (EINVAL);
+	}
+	vrele(rvp);
+
+	if (attr_dvp->v_type != VDIR) {
+		printf("ufs_extattr_autostart: .attribute != VDIR\n");
+		goto return_vput;
+	}
+
+	error = ufs_extattr_start(mp, p);
+	if (error) {
+		printf("ufs_extattr_autostart: ufs_extattr_start failed (%d)\n",
+		    error);
+		goto return_vput;
+	}
+
+	/*
+	 * Iterate over the directory.  Eventually we may lookup sub-directories
+	 * and iterate over them independently.
+	 */
+	error = ufs_extattr_iterate_directory(VFSTOUFS(mp), attr_dvp, p);
+	if (error)
+		printf("ufs_extattr_iterate_directory returned %d\n", error);
+
+	/* Mask startup failures. */
+	error = 0;
+
+return_vput:
+	vput(attr_dvp);
+
+	return (error);
+}
+#endif /* !FFS_EXTATTR_AUTOSTART */
 
 /*
  * Stop extended attribute support on an FS.
