@@ -1358,6 +1358,48 @@ link(td, uap)
 	return (kern_link(td, uap->path, uap->link, UIO_USERSPACE));
 }
 
+SYSCTL_DECL(_security_bsd);
+
+static int hardlink_check_uid = 0;
+SYSCTL_INT(_security_bsd, OID_AUTO, hardlink_check_uid, CTLFLAG_RW,
+    &hardlink_check_uid, 0,
+    "Unprivileged processes cannot create hard links to files owned by other "
+    "users");
+static int hardlink_check_gid = 0;
+SYSCTL_INT(_security_bsd, OID_AUTO, hardlink_check_gid, CTLFLAG_RW,
+    &hardlink_check_gid, 0,
+    "Unprivileged processes cannot create hard links to files owned by other "
+    "groups");
+
+static int
+can_hardlink(struct vnode *vp, struct thread *td, struct ucred *cred)
+{
+	struct vattr va;
+	int error;
+
+	if (suser_cred(cred, PRISON_ROOT) == 0)
+		return (0);
+
+	if (!hardlink_check_uid && !hardlink_check_gid)
+		return (0);
+
+	error = VOP_GETATTR(vp, &va, cred, td);
+	if (error != 0)
+		return (error);
+
+	if (hardlink_check_uid) {
+		if (cred->cr_uid != va.va_uid)
+			return (EPERM);
+	}
+
+	if (hardlink_check_gid) {
+		if (!groupmember(va.va_gid, cred))
+			return (EPERM);
+	}
+
+	return (0);
+}
+
 int
 kern_link(struct thread *td, char *path, char *link, enum uio_seg segflg)
 {
@@ -1393,9 +1435,11 @@ kern_link(struct thread *td, char *path, char *link, enum uio_seg segflg)
 		    == 0) {
 			VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 			VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
+			error = can_hardlink(vp, td, td->td_ucred);
+			if (error == 0)
 #ifdef MAC
-			error = mac_check_vnode_link(td->td_ucred, nd.ni_dvp,
-			    vp, &nd.ni_cnd);
+				error = mac_check_vnode_link(td->td_ucred,
+				    nd.ni_dvp, vp, &nd.ni_cnd);
 			if (error == 0)
 #endif
 				error = VOP_LINK(nd.ni_dvp, vp, &nd.ni_cnd);
