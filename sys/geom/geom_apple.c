@@ -246,12 +246,13 @@ g_apple_taste(struct g_class *mp, struct g_provider *pp, int insist)
 			    "%ss%d", gp->name, i + 1);
 			g_topology_unlock();
 		}
+		g_free(buf);
 		break;
 	} while(0);
 	g_topology_lock();
 	g_access_rel(cp, -1, 0, 0);
 	if (LIST_EMPTY(&gp->provider)) {
-		g_std_spoiled(cp);
+		g_slice_spoiled(cp);
 		return (NULL);
 	}
 	return (gp);
