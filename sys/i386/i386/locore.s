@@ -33,19 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)locore.s	7.3 (Berkeley) 5/13/91
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         5       00158
- * --------------------         -----   ----------------------
- *
- * 06 Aug 92	Pace Willisson		Allow VGA memory to be mapped
- * 28 Nov 92	Frank MacLachlan	Aligned addresses and data
- *					on 32bit boundaries.
- * 25 Mar 93	Kevin Lahey		Add syscall counter for vmstat
- * 20 Apr 93	Bruce Evans		New npx-0.5 code
- * 25 Apr 93	Bruce Evans		Support new interrupt code (intr-0.1)
+ *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
+ *	$Id$
  */
 
 
@@ -54,6 +43,8 @@
  *		Preliminary version
  *		Written by William F. Jolitz, 386BSD Project
  */
+
+#include "npx.h"
 
 #include "assym.s"
 #include "machine/psl.h"
@@ -65,6 +56,7 @@
 
 #include "machine/specialreg.h"
 #include "i386/isa/debug.h"
+#include "machine/cputypes.h"
 
 #define	KDSEL		0x10
 #define	SEL_RPL_MASK	0x0003
@@ -80,12 +72,9 @@
 	.set	SYSTEM,0xFE000000	# virtual address of system start
 	/*note: gas copys sign bit (e.g. arithmetic >>), can't do SYSTEM>>22! */
 	.set	SYSPDROFF,0x3F8		# Page dir index of System Base
-	.set	SYSPDREND,0x3FA		# Page dir index of System End
+	.set	SYSPDREND,0x3FB		# Page dir index of System End
 
 
-/*
- * Macros
- */
 #define	ALIGN_DATA	.align	2
 #define	ALIGN_TEXT	.align	2,0x90	/* 4-byte boundaries, NOP-filled */
 #define	SUPERALIGN_TEXT	.align	4,0x90	/* 16-byte boundaries better for 486 */
@@ -122,12 +111,12 @@
 
 /* NB: NOP now preserves registers so NOPs can be inserted anywhere */
 /* XXX: NOP and FASTER_NOP are misleadingly named */
-#ifdef BROKEN_HARDWARE_AND_OR_SOFTWARE /* XXX - rarely necessary */
-#define	FASTER_NOP	pushl %eax ; inb $0x84,%al ; popl %eax
-#define	NOP	pushl %eax ; inb $0x84,%al ; inb $0x84,%al ; popl %eax
-#else
+#ifdef DUMMY_NOPS	/* this will break some older machines */
 #define	FASTER_NOP
 #define	NOP
+#else
+#define	FASTER_NOP	pushl %eax ; inb $0x84,%al ; popl %eax
+#define	NOP	pushl %eax ; inb $0x84,%al ; inb $0x84,%al ; popl %eax
 #endif
 
 /*
@@ -156,17 +145,19 @@
  * per-process address space (at the beginning), immediatly above
  * the user process stack.
  */
-	.globl	_kstack
 	.set	_kstack, USRSTACK
+	.globl	_kstack
 	.set	PPDROFF,0x3F6
 	.set	PPTEOFF,0x400-UPAGES	# 0x3FE
 
 
-/*****************************************************************************/
-/* Globals                                                                   */
-/*****************************************************************************/
-
+/*
+ * Globals
+ */
 	.data
+	.globl	_esym
+_esym:	.long	0		# ptr to end of syms
+
 	.globl	_boothowto, _bootdev, _curpcb
 	.globl	__ucodesel,__udatasel
 
@@ -174,7 +165,6 @@
 _cpu:	.long	0		# are we 386, 386sx, or 486
 _cold:	.long	1		# cold till we are not
 _atdevbase:	.long	0	# location of start of iomem in virtual
-	# .nonglobl _atdevphys (should be register or something)
 _atdevphys:	.long	0	# location of device mapping ptes (phys)
 
 	.globl	_IdlePTD, _KPTphys
@@ -185,19 +175,14 @@ _KPTphys:	.long	0
 _cyloffset:	.long	0
 _proc0paddr:	.long	0
 
-#ifdef SHOW_A_LOT
-bit_colors:
-	.byte	GREEN,RED,0,0
-#endif
-
 	.space 512
 tmpstk:
 
 
+/*
+ * System Initialization
+ */
 	.text
-/*****************************************************************************/
-/* System Initialisation                                                     */
-/*****************************************************************************/
 
 /*
  * btext: beginning of text section.
@@ -209,7 +194,7 @@ ENTRY(btext)
 	.space	0x500		# skip over warm boot shit
 
 	/*
-	 * pass parameters on stack (howto, bootdev, unit, cyloffset)
+	 * pass parameters on stack (howto, bootdev, unit, cyloffset, esym)
 	 * note: (%esp) is return address of boot
 	 * ( if we want to hold onto /boot, it's physical %esp up to _end)
 	 */
@@ -220,6 +205,31 @@ ENTRY(btext)
 	movl	%eax,_bootdev-SYSTEM
 	movl	12(%esp),%eax
 	movl	%eax, _cyloffset-SYSTEM
+	movl	16(%esp),%eax
+	addl	$ SYSTEM,%eax
+	movl	%eax, _esym-SYSTEM
+
+	/* find out our CPU type. */
+        pushfl
+        popl    %eax
+        movl    %eax,%ecx
+        xorl    $0x40000,%eax
+        pushl   %eax
+        popfl
+        pushfl
+        popl    %eax
+        xorl    %ecx,%eax
+        shrl    $18,%eax
+        andl    $1,%eax
+        push    %ecx
+        popfl
+      
+        cmpl    $0,%eax
+        jne     1f
+        movl    $CPU_386,_cpu-SYSTEM
+	jmp	2f
+1:      movl    $CPU_486,_cpu-SYSTEM
+2:
 
 	/*
 	 * Finished with old stack; load new %esp now instead of later so
@@ -344,8 +354,8 @@ ENTRY(btext)
 	movl	%eax,(%esi)		# which is where temp maps!
 
 	/* kernel pde's */
-	movl	$(SYSPDREND-SYSPDROFF+1), %ecx		# for this many pde s,
-	lea	(SYSPDROFF*4)(%esi), %ebx		# offset of pde for kernel
+	movl	$(SYSPDREND-SYSPDROFF), %ecx	# for this many pde s,
+	lea	(SYSPDROFF*4)(%esi), %ebx	# offset of pde for kernel
 	fillkpt
 
 	/* install a pde recursively mapping page directory as a page table! */
@@ -884,6 +894,12 @@ show_bits:
 	SHOW_BIT(15)
 	popl	%eax
 	ret
+
+	.data
+bit_colors:
+	.byte	GREEN,RED,0,0
+	.text
+
 #endif /* SHOW_A_LOT */
 
 
