@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.26 1998/03/08 09:26:19 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.27 1998/03/23 05:24:14 jkh Exp $
 
 Contents last changed:  Jan 14th, 1997
 
@@ -278,6 +278,7 @@ rc:     RISCom/8 multiport card
 sb:     SoundBlaster PCM - SoundBlaster, SB Pro, SB16, ProAudioSpectrum
 sbmidi: SoundBlaster 16 MIDI interface
 sbxvi:  SoundBlaster 16
+si:     Specialix SI/XIO/SX (old and enhanced ISA, PCI, EISA) serial
 spigot: Creative Labs Video Spigot video-acquisition board
 uart:   Stand-alone 6850 UART for MIDI
 wds:    Western Digital WD7000 IDE
