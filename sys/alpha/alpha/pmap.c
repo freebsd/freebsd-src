@@ -811,6 +811,29 @@ pmap_extract(pmap, va)
 		return 0;
 }
 
+/*
+ *	Routine:	pmap_extract_and_hold
+ *	Function:
+ *		Atomically extract and hold the physical page
+ *		with the given pmap and virtual address. 
+ */
+vm_page_t
+pmap_extract_and_hold(pmap_t pmap, vm_offset_t va)
+{
+	vm_paddr_t pa;
+	vm_page_t m;
+
+	m = NULL;
+	mtx_lock(&Giant);
+	if ((pa = pmap_extract(pmap, va)) != 0) {
+		m = PHYS_TO_VM_PAGE(pa);
+		vm_page_lock_queues();
+		vm_page_hold(m);
+		vm_page_unlock_queues();
+	}
+	mtx_unlock(&Giant);
+	return (m);
+}
 
 /***************************************************
  * Low level mapping routines.....

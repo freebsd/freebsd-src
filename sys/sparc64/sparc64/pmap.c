@@ -621,6 +621,28 @@ pmap_extract(pmap_t pm, vm_offset_t va)
 }
 
 /*
+ * Atomically extract and hold the physical page with the given
+ * pmap and virtual address pair.
+ */
+vm_page_t
+pmap_extract_and_hold(pmap_t pmap, vm_offset_t va)
+{
+	vm_paddr_t pa;
+	vm_page_t m;
+
+	m = NULL;
+	mtx_lock(&Giant);
+	if ((pa = pmap_extract(pmap, va)) != 0) {
+		m = PHYS_TO_VM_PAGE(pa);
+		vm_page_lock_queues();
+		vm_page_hold(m);
+		vm_page_unlock_queues();
+	}
+	mtx_unlock(&Giant);
+	return (m);
+}
+
+/*
  * Extract the physical page address associated with the given kernel virtual
  * address.
  */
