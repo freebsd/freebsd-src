@@ -162,5 +162,5 @@ static struct mac_policy_ops mac_ifoff_ops =
 	.mpo_check_socket_deliver = mac_ifoff_check_socket_deliver,
 };
 
-MAC_POLICY_SET(&mac_ifoff_ops, trustedbsd_mac_ifoff, "TrustedBSD MAC/ifoff",
+MAC_POLICY_SET(&mac_ifoff_ops, mac_ifoff, "TrustedBSD MAC/ifoff",
     MPC_LOADTIME_FLAG_UNLOADOK, NULL);

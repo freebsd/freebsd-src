@@ -772,5 +772,5 @@ static struct mac_policy_ops mac_bsdextended_ops =
 	.mpo_check_vnode_stat = mac_bsdextended_check_vnode_stat,
 };
 
-MAC_POLICY_SET(&mac_bsdextended_ops, trustedbsd_mac_bsdextended,
+MAC_POLICY_SET(&mac_bsdextended_ops, mac_bsdextended,
     "TrustedBSD MAC/BSD Extended", MPC_LOADTIME_FLAG_UNLOADOK, NULL);
