@@ -385,7 +385,7 @@ static struct {
 	const char *name;
 } cmdsw[] = {
 	{ NULL, "add" },
-	{ NULL, "create" },
+	{ cmd_create, "create" },
 	{ NULL, "delete" },
 	{ cmd_destroy, "destroy" },
 	{ NULL, "help" },
